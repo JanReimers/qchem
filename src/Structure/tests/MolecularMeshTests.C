@@ -211,8 +211,8 @@ public:
     rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
 };
 
-// The periodic-Becke test resolution == the GPW Becke-XC-gate resolution (BeckeXCParams in
-// GPW_SCF_UT.C): MHL nr=40 radial, GaussLegendre L=29 angular.  GaussLegendre, NOT the Lebedev
+// The periodic-Becke test resolution == the GPW Becke-XC-gate resolution (qcMesh::BeckeXCParams,
+// declared beside MeshParams in src/Mesh/Mesh.C): MHL nr=40 radial, GaussLegendre L=29 angular.  GaussLegendre, NOT the Lebedev
 // tables (they stop at L=11).  (EulerMaclaren, also degree-less, was retired 2026-08-07.)  The
 // fuzzy Voronoi switching shell is angular-quadrature limited (see Mesh_Angular audits).
 qcMesh::MeshParams BeckeParams()

@@ -10,6 +10,7 @@
 module;
 #include <utility>
 #include <cassert>
+#include <cstdlib>   // std::getenv/std::atoi/std::atof (the GPW_BECKE_* sweep instruments)
 #include <string>
 export module qchem.Mesh;
 export import qchem.Types;
@@ -58,10 +59,10 @@ enum class AngularKind {Lebedev, GaussLegendre};
 //! (Hartree/PP -- resolution from \c eCut / \c nUniform), or the atom-centred periodic Becke
 //! fuzzy-Voronoi grid (dense radial near each nucleus, cheap diffuse tails -- the XC quadrature;
 //! uses the \c radial / \c angularDegree / \c beckeOrder knobs).  See doc/GPWPlan1.md "Becke XC grid".
-//! \brief Which quadrature a UnitCell builds for a lattice mesh.  \c Auto = "the caller did not choose":
-//! a POLICY layer that knows the run context resolves it (the GPW driver picks Becke unless the run is
-//! BZ-reduced -- doc/GPWPlan1.md "Becke as the DEFAULT"); any consumer reached WITHOUT resolution treats
-//! \c Auto as the historical \c Uniform (every test below compares \c ==Becke, so Auto falls through safely).
+//! \brief Which quadrature a UnitCell builds for a lattice mesh.  \c Auto = "the caller did not choose",
+//! resolved by \c ResolveXCMesh (below) to the calibrated periodic-Becke recipe.  Any consumer reached
+//! WITHOUT resolution treats \c Auto as the historical \c Uniform (every consumer compares \c ==Becke, so
+//! Auto falls through safely) -- so resolve at the point the mesh spec enters the Hamiltonian.
 enum class UnitCellKind {Uniform, Becke, Auto};
 
 //! \brief Becke's iterated smoothing polynomial mapped to the cell cutoff:
@@ -114,6 +115,42 @@ struct MeshParams
     }
 };
 
+//! \brief THE calibrated periodic-Becke XC-quadrature recipe -- the production default for a DFT lattice run.
+//!
+//! Gate-calibrated on Si (dExc=1.1e-4, dVxc=3.5e-4 against Ecut=60); the angular ladder measured 2026-07-30
+//! puts GL-11 at the sub-mHa sweet spot with GL-17/29 on the comparison floor.  Any argument left at its
+//! sentinel (\a nRadial<0, \a mhlAlpha<0, \a angularDegree<0) takes the calibrated value, which the matching
+//! environment variable may override; an argument passed EXPLICITLY is pinned and ignores the environment,
+//! so a probe that has published a resolution keeps it under a sweep.
+//!
+//! Environment instruments (sweep a whole run without rebuilding):
+//!   - \c GPW_BECKE_NR     radial point count.                                        Default 40.
+//!   - \c GPW_BECKE_ALPHA  MHL radial scale (smaller = nodes pulled toward the core). Default 2.0.
+//!   - \c GPW_BECKE_L      angular POLYNOMIAL DEGREE, one meaning for both schemes (R2.15).  Default 29.
+//!   - \c GPW_BECKE_ANG    \c "lebedev" selects the Lebedev tables, which resolve the requested degree to
+//!                         the cheapest tabulated rule delivering at least it; anything else = GaussLegendre,
+//!                         which takes the degree directly.  Because both schemes now read the knob as a
+//!                         degree, this A/B is like-for-like (measured on Si: Lebedev beats same-degree GL on
+//!                         V_xc elements via the O_h-orbit cancellation, but is 5-10x worse on rho-weighted
+//!                         integrals -- its \f$\langle111\rangle\f$ orbit sits on the diamond bond axes).
+//!   - \c GPW_BECKE_ROT    radians; rigid generic rotation of the angular grid, which steers those special
+//!                         orbits off the bond axes (doc/SymmetryUpgradePlan.md §6a; free runs only).
+MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int angularDegree=-1);
+
+//! \brief Resolve \c UnitCellKind::Auto to the actual XC quadrature; an explicit \c cellKind is always honored.
+//!
+//! Auto means "the caller did not choose", and the answer is the atom-centred periodic BECKE mesh
+//! (\c BeckeXCParams above) -- the near-ideal grid for the one pointwise-nonlinear sharp-at-core term,
+//! diffuse bases included (the 2026-08-01 Becke-default flip, doc/GPWPlan1.md).
+//!
+//! This resolution consults NO run context, which is what lets it live here beside the enum rather than in a
+//! driver: the last context-dependent branch was the BZ-reduced carve-out, retired 2026-08-02 (plan §7 step 5)
+//! once the mixed-rule site-adapted INVARIANT Becke mesh was gate-verified -- it prices ~2x the free mesh at
+//! the production recipe (measured 1.97x at degree 29), so imposed runs get Becke too instead of falling back
+//! to the uniform raster.  Should a future policy genuinely need the run context, it belongs in a
+//! \c SymmetryPolicy-style object and this function becomes its default.
+MeshParams ResolveXCMesh(const MeshParams& mp);
+
 } //export namespace qchem::qcMesh
 
 //-----------------------------------------------------------------------------------------------
@@ -142,6 +179,30 @@ double BeckeCutoff(double mu, int k)
 {
     for (int i=k; i>=0; i--) mu=0.5*(3*mu - mu*mu*mu);
     return 0.5*(1.0-mu);
+}
+
+MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
+{
+    auto envi=[](const char* n, int    d){ const char* s=std::getenv(n); return s ? std::atoi(s) : d; };
+    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
+    if (nRadial      <0)   nRadial      =envi("GPW_BECKE_NR",    40);
+    if (mhlAlpha     <0.0) mhlAlpha     =envd("GPW_BECKE_ALPHA", 2.0);
+    if (angularDegree<0)   angularDegree=envi("GPW_BECKE_L",     29);
+    MeshParams mp;
+    mp.cellKind=UnitCellKind::Becke;
+    mp.radial =RadialKind::MHL;            mp.nRadial =nRadial; mp.mhl_m=2; mp.mhl_alpha=mhlAlpha;
+    const char* ang=std::getenv("GPW_BECKE_ANG");
+    mp.angular=(ang && std::string(ang)=="lebedev") ? AngularKind::Lebedev : AngularKind::GaussLegendre;
+    mp.angularDegree=angularDegree;   // ONE meaning for both schemes: GL takes it directly, Lebedev resolves
+                                      // it to the cheapest rule of at least that degree (R2.15).
+    mp.angRot=envd("GPW_BECKE_ROT", 0.0);
+    return mp;
+}
+
+MeshParams ResolveXCMesh(const MeshParams& mp)
+{
+    if (mp.cellKind!=UnitCellKind::Auto) return mp;
+    return BeckeXCParams();   // the calibrated default recipe (nR=40, alpha=2, GL degree 29; GPW_BECKE_* sweepable)
 }
 
 } //namespace qchem::qcMesh

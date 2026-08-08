@@ -169,45 +169,11 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
 
 // One GPW Gamma-point SCF: build the GPW basis over the lattice, hand it the plane-wave LDA Hamiltonian
 // (Ham_PW_DFT reaches GPW's real-space Integrals_Pseudo), seed uniform, run the complex-DIIS cSCFIterator.
-// The gate-calibrated Becke XC quadrature recipe (Si-gate: dExc=1.1e-4, dVxc=3.5e-4 vs Ecut=60; angular
-// ladder measured 2026-07-30: GL-11 is the sub-mHa sweet spot, GL-17/29 sit on the comparison floor).
-// Env INSTRUMENTS (sweep without rebuilding; they override only the DEFAULT call, so an explicit-args
-// caller like the NaF B80 refinement probe keeps its pinned resolution):
-//   GPW_BECKE_L      GaussLegendre angular order L (any int; ~(L+1)^2/2 dirs).  Default 29.
-//   GPW_BECKE_NR     radial point count.                                        Default 40.
-//   GPW_BECKE_ALPHA  MHL radial scale (smaller = nodes pulled toward the core). Default 2.0.
-//   GPW_BECKE_ANG    "lebedev" -> the octahedral-orbit Lebedev tables (AngularKind::Lebedev); GPW_BECKE_L
-//                    then means the DIRECTION COUNT {6,8,12,24,30,50} (degrees 1/3/5/7/8/11).  Measured
-//                    (Si): better than same-degree GL on V_xc elements (the O_h-orbit cancellation) but
-//                    5-10x worse on rho-weighted integrals -- the (+-1,+-1,+-1)/sqrt3 orbit sits exactly
-//                    on the diamond bond axes.
-//   GPW_BECKE_ROT    radians: rigid generic rotation of the angular grid (about (1,2,3)/sqrt14) --
-//                    steers Lebedev's special orbits off the bond axes (plan §6a rotation insight;
-//                    free runs only).  Experiment: DISABLED_RotatedLebedevXCProbe_SiGamma.
-namespace
-{
-qcMesh::MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int L=-1)
-{
-    auto envi=[](const char* n, int    d){ const char* s=std::getenv(n); return s ? std::atoi(s) : d; };
-    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
-    if (nRadial <0)   nRadial =envi("GPW_BECKE_NR",    40);
-    if (mhlAlpha<0.0) mhlAlpha=envd("GPW_BECKE_ALPHA", 2.0);
-    if (L       <0)   L       =envi("GPW_BECKE_L",     29);
-    qcMesh::MeshParams mp;
-    mp.cellKind=qcMesh::UnitCellKind::Becke;
-    mp.radial =qcMesh::RadialKind::MHL;            mp.nRadial =nRadial; mp.mhl_m=2; mp.mhl_alpha=mhlAlpha;
-    const char* ang=std::getenv("GPW_BECKE_ANG");
-    mp.angular=(ang && std::string(ang)=="lebedev") ? qcMesh::AngularKind::Lebedev
-                                                    : qcMesh::AngularKind::GaussLegendre;
-    mp.angularDegree=L;   // ONE meaning for both schemes now: GL takes it directly, Lebedev resolves
-                          // it to the cheapest rule of at least that degree -- which is what makes the
-                          // GPW_BECKE_ANG A/B above a like-for-like comparison (R2.15).
-    mp.angRot=envd("GPW_BECKE_ROT", 0.0);   // radians; rigid generic rotation of the angular grid
-                                            // (steers Lebedev's <111> orbit off bond axes; plan §6a)
-    return mp;
-}
-} //anon
-
+// The gate-calibrated Becke XC quadrature recipe and the Auto-route resolution are LIBRARY policy
+// (qcMesh::BeckeXCParams / qcMesh::ResolveXCMesh in src/Mesh/Mesh.C, beside MeshParams -- moved there
+// 2026-08-07, D6): the production recipe and its GPW_BECKE_* sweep instruments are documented at the
+// declarations, and these tests READ that policy rather than defining it.
+//
 // GpwOptions: the control surface for a GPW run.  Every material (Si, NaF, CsI, LiCoO2, f-oxides, ...) is one
 // options literal -- multi-species PP, grid params (the efficiency lever for ionic systems), accelerator policy,
 // seed, ortho, and the SCFParams gates.
@@ -231,7 +197,7 @@ struct GpwOptions
     rvec3_t kShift = rvec3_t(0,0,0);
     //! XC-quadrature policy, decided by \c xcMesh.cellKind.  DEFAULT \c Auto (2026-08-01 flip): the
     //! driver resolves it to the atom-centred periodic BECKE mesh (DeltaFittedVxc, the calibrated
-    //! BeckeXCParams() recipe) — \c imposeSymmetry runs included since the 2026-08-02 carve-out retirement
+    //! qcMesh::BeckeXCParams() recipe) — \c imposeSymmetry runs included since the 2026-08-02 carve-out retirement
     //! (plan §7 step 5): an imposed run builds the MIXED-RULE site-adapted invariant Becke mesh
     //! (~2x the free mesh at the production recipe) and star-averages ρ on it.  EXPLICIT \c Uniform
     //! or \c Becke is always honored.  The run announces the choice on the [XC quadrature] console
@@ -254,21 +220,6 @@ struct GpwOptions
     double       orthoTol = 0.0;
     SCFParams    scf;                                  // NMaxIter / MinΔρ / MinΔE / SmearingkT / ... (the gates)
 };
-
-namespace
-{
-// XC-route AUTO resolution (the 2026-08-01 Becke-default flip, doc/GPWPlan1.md).  Becke is the DEFAULT
-// XC quadrature for GPW runs — the near-ideal grid for the one pointwise-nonlinear sharp-at-core term,
-// diffuse bases included — BZ-reduced runs INCLUDED (the 2026-08-02 carve-out retirement, plan §7 step 5:
-// the mixed-rule site-adapted invariant mesh prices ~2x the free Becke mesh at the production recipe —
-// measured 1.97x at L=29 — and Becke+IBZ is gate-verified on it, so Auto no longer falls back to the
-// uniform raster).  Explicit cellKind is always honored.
-qcMesh::MeshParams ResolveXCMesh(const qcMesh::MeshParams& mp)
-{
-    if (mp.cellKind!=qcMesh::UnitCellKind::Auto) return mp;
-    return BeckeXCParams();   // the calibrated default recipe (nR=40, alpha=2, GL-29; GPW_BECKE_* sweepable)
-}
-} //anon
 
 // Build the complex SCF accelerator named by \a policy.  Ladder = the ionic-crystal DIIS->GDM hand-off on
 // |ΔE/E| (NaF's proven recipe); the rest are the plain single-engine choices.
@@ -388,7 +339,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     {
         qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
         ham=new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA",
-                                               ResolveXCMesh(o.xcMesh), o.vxcFit, polarized);
+                                               qcMesh::ResolveXCMesh(o.xcMesh), o.vxcFit, polarized);
     }
     auto* acc = MakeGpwAccelerator(o.accelerator);
 
@@ -497,7 +448,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
         // carry stale DIIS history across the re-seed).
         auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA",
-                                                       ResolveXCMesh(o.xcMesh), o.vxcFit, polarizedA);
+                                                       qcMesh::ResolveXCMesh(o.xcMesh), o.vxcFit, polarizedA);
         auto* acc = MakeGpwAccelerator(accSchedule.empty() ? o.accelerator : accSchedule[s]);
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
@@ -909,7 +860,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         L3::GPWParams{.densityEcut=ecut, .images=L3::CellImages::HomeCellOnly}));
 
     qchem::Hamiltonian::cHamiltonian* ham=new qchem::Hamiltonian::Ham_PW_DFT(
-        lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
+        lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
         Hamiltonian::VxcFit::Auto, /*polarized*/true);
 
     const BasisSet::Complex_OIBS* obs=nullptr;
@@ -947,7 +898,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
     // CONTROL: the SAME one-hot densities through the UNPOLARIZED Hamiltonian on a bare Spin::None leaf --
     // isolates "polarized path" from "box electrostatics in general".
     qchem::Hamiltonian::cHamiltonian* hamU=new qchem::Hamiltonian::Ham_PW_DFT(
-        lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
+        lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
         Hamiltonian::VxcFit::Auto, /*polarized*/false);
     auto probeU=[&](size_t k)
     {
@@ -979,7 +930,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         auto exch=std::make_shared<SlaterExchange>(2.0/3.0, Spin(Spin::Up));
         auto corr=std::make_shared<VWN_Correlation>();
         BasisSet::XCQuadrature q = bs->CreateXCQuadrature(lat.GetStructure().get(),
-                                                          ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}));
+                                                          qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}));
         auto engine=std::make_shared<XC_GridEngine>(q.mesh, std::move(q.fold));
         DeltaFittedVxcPol   x(exch, engine);
         DeltaFittedVcorrPol c(corr, engine);
@@ -1022,7 +973,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         auto* dn=IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down));
         auto* cd=dynamic_cast<cDM_CD*>(PolarizedCD_Factory<dcmplx>(up, dn));
         qchem::Hamiltonian::cHamiltonian* hamP=new qchem::Hamiltonian::Ham_PW_DFT(
-            lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
+            lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
             Hamiltonian::VxcFit::Auto, /*polarized*/true);
         qchem::EnergyBreakdown te = hamP->GetTotalEnergy(cd);
         std::cout << "[oracle-D*] charge="<<cd->GetTotalCharge()
@@ -1510,7 +1461,7 @@ TEST(GPW_SCF, DISABLED_NaFImposedGDMSmearProbe)
     o.scf.StartingRelaxRo=0.25; o.scf.KerkerG0=1.0;
     o.scf.UseMOM=envd("NAFGDM_MOM",1.0)!=0.0; o.scf.MOMStartIter=10;   // NAFGDM_MOM=0: is MOM x GDM the fight?
     if (envd("NAFGDM_PIVOT",1.0)==0.0) { o.ortho=qchem::Cholesky; o.orthoTol=0.0; }  // plain-Cholesky control
-    o.xcMesh          = BeckeXCParams(20,2,int(envd("NAFGDM_L",11.0)));
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,int(envd("NAFGDM_L",11.0)));
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
 
     const double kT=envd("NAFGDM_KT",0.01);
@@ -1574,7 +1525,7 @@ TEST(GPW_SCF, BeckeXC_IBZ_SiDiamond)
     GpwOptions o;
     o.Nelec=8; o.species={{"Si",4}};
     o.densityEcut=20.0; o.accelerator="DIIS";
-    o.xcMesh=BeckeXCParams(15, 2.0, 9);          // explicit coarse Becke (nR=15, GL-9), same on both arms
+    o.xcMesh=qcMesh::BeckeXCParams(15, 2.0, 9);          // explicit coarse Becke (nR=15, GL-9), same on both arms
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
@@ -1739,7 +1690,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // gate-calibrated, resolution sweepable via GPW_BECKE_L/NR/ALPHA).  The run prints [XC quadrature]
     // either way.  NOTE: Becke-in-SCF is unoptimised today (~min/iteration; the shared-rho + cached-Phi
     // GEMM route is the open perf item) -- start with GPW_BECKE_L=11.
-    o.xcMesh          = BeckeXCParams(20,2,24);//int nRadial=-1, double mhlAlpha=-1.0, int L=-1
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);//int nRadial=-1, double mhlAlpha=-1.0, int angularDegree=-1
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;    // <-- qcMesh::UnitCellKind::Becke turns Becke ON
 
     qchem::SCFIterator::ReportBandGap()=true;             // per-iteration gap column: watch the diffuse virtual dive (header)
@@ -2141,7 +2092,8 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
 }
 
 // Print + return the elementwise V_xc gap between two probes; EXPECTs applied by the caller.
-// (BeckeXCParams -- the calibrated Becke recipe these probes use -- lives up beside GpwOptions.)
+// (qcMesh::BeckeXCParams -- the calibrated Becke recipe these probes use -- is library policy, declared
+//  beside MeshParams in src/Mesh/Mesh.C.)
 double DiffXC(const XCProbe& A, const XCProbe& B)
 {
     std::printf("[Becke gate] Exc %s=%.6f %s=%.6f  dExc=%+.3e  (rho-lost %+.3e / %+.3e)\n",
@@ -2190,7 +2142,7 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
     ASSERT_TRUE(R.converged);
 
     XCProbe U=UniformXCProbe(h, lat.GetStructure());
-    XCProbe B=BeckeXCProbe(h, lat.GetStructure(), "B40", BeckeXCParams());
+    XCProbe B=BeckeXCProbe(h, lat.GetStructure(), "B40", qcMesh::BeckeXCParams());
     EXPECT_NEAR(B.Exc, U.Exc, 5e-4);                 // measured: dExc=1.1e-4
     EXPECT_NEAR(B.rhoLost, 0.0, 5e-3);               // the Becke mesh integrates rho to Tr(DS)
     EXPECT_LT(DiffXC(U,B), 1e-3);                    // measured: 3.5e-4
@@ -2223,9 +2175,9 @@ TEST(GPW_SCF, DISABLED_RotatedLebedevXCProbe_SiGamma)
     auto st=lat.GetStructure();
 
     const double rot=0.4;                              // generic angle: moves <111> well off the bonds
-    auto leb=[&](int nDir, double angRot){ qcMesh::MeshParams mp=BeckeXCParams(40, 2.0, nDir);
+    auto leb=[&](int nDir, double angRot){ qcMesh::MeshParams mp=qcMesh::BeckeXCParams(40, 2.0, nDir);
                                            mp.angular=qcMesh::AngularKind::Lebedev; mp.angRot=angRot; return mp; };
-    auto gl =[&](double angRot){ qcMesh::MeshParams mp=BeckeXCParams();  // production GL-29
+    auto gl =[&](double angRot){ qcMesh::MeshParams mp=qcMesh::BeckeXCParams();  // production GL-29
                                  mp.angRot=angRot; return mp; };
 
     // How close does each Lebedev grid come to a bond axis?  (diamond bonds = the +<111> tetrahedron)
@@ -2244,7 +2196,7 @@ TEST(GPW_SCF, DISABLED_RotatedLebedevXCProbe_SiGamma)
                         nDir, angRot, worst);
         }
 
-    XCProbe REF  =BeckeXCProbe(h, st, "REF80",  BeckeXCParams(/*nRadial*/80, /*mhlAlpha*/1.0, /*L*/29));
+    XCProbe REF  =BeckeXCProbe(h, st, "REF80",  qcMesh::BeckeXCParams(/*nRadial*/80, /*mhlAlpha*/1.0, /*L*/29));
     XCProbe GL29 =BeckeXCProbe(h, st, "GL29",   gl(0.0));
     XCProbe L50R =BeckeXCProbe(h, st, "Leb50rot", leb(50, rot));
     XCProbe L302 =BeckeXCProbe(h, st, "Leb302",   leb(302, 0.0));
@@ -2298,8 +2250,8 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
 
     auto st=lat.GetStructure();
     XCProbe U  =UniformXCProbe(h, st);
-    XCProbe B40=BeckeXCProbe(h, st, "B40", BeckeXCParams());
-    XCProbe B80=BeckeXCProbe(h, st, "B80", BeckeXCParams(/*nRadial*/80, /*mhlAlpha*/1.0, /*L*/29));
+    XCProbe B40=BeckeXCProbe(h, st, "B40", qcMesh::BeckeXCParams());
+    XCProbe B80=BeckeXCProbe(h, st, "B80", qcMesh::BeckeXCParams(/*nRadial*/80, /*mhlAlpha*/1.0, /*L*/29));
     EXPECT_NEAR(B40.Exc, U.Exc, 2e-3);               // energy-level agreement with the uniform route
     EXPECT_NEAR(B40.rhoLost, 0.0, 5e-3);
     DiffXC(U,B40);                                    // report-only: the uniform raster's element error

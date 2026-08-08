@@ -771,13 +771,15 @@ in the same session.
        lattice is a FEATURE: it cannot accidentally put a quadrature point on a bond axis.
      - Worth keeping visible because a reader could reasonably assume any Lebedev rule can seed an imposed
        mesh.  It cannot, and the icosahedral rule is the sharpest illustration of why.
-  7. **The default flip is SEPARATE -- and it is BLOCKED BEHIND D6, which was not obvious until located.**
-     The "free-run Becke default" is not a library default at all: it lives in `BeckeXCParams()` in
-     **IntegrationTests/GPW_SCF_UT.C:189** (`GPW_BECKE_L`, default 29, GaussLegendre).  That IS D6's
+  7. **The default flip is SEPARATE -- and it was BLOCKED BEHIND D6, which was not obvious until located.
+     ✅ D6 LANDED 2026-08-07, so this is now UNBLOCKED: the flip is a one-line edit to
+     `qcMesh::BeckeXCParams` in src/Mesh/Mesh.C, awaiting only the measurement below.**
+     ~~The "free-run Becke default" is not a library default at all: it lives in `BeckeXCParams()` in
+     **IntegrationTests/GPW_SCF_UT.C:189** (`GPW_BECKE_L`, default 29, GaussLegendre).~~  That WAS D6's
      complaint -- "the de-facto PRODUCTION Becke recipe living in the integration-test harness".  So:
-     - flipping it today means editing a TEST FILE to change production behaviour, which is backwards;
-     - and it moves every pinned GPW anchor, since the recipe feeds `ResolveXCMesh` for all of them.
-     **Sensible order: D6 first (move the recipe to the library/facade beside `MeshParams`), then flip.**
+     - flipping it then meant editing a TEST FILE to change production behaviour, which is backwards;
+     - and it still moves every pinned GPW anchor, since the recipe feeds `ResolveXCMesh` for all of them.
+     **Order was: D6 first (recipe moved to the library beside `MeshParams`), then flip.**
      - **The measurement, per the D8 standing pin** ("fit quality is measured by grid-convergence of
        ρ/property vs a fine reference -- NEVER ΔE_total"): compare Leb-302 against GL-29, both against a
        FINE reference (Leb-434 or GL-35), on a property rather than a total energy.  The instrument now
@@ -1259,10 +1261,38 @@ in the same session.
   scheme override; a real error (not a bare assert) when the requested L is unachievable for a
   low-symmetry site (C1/Cs seed-pool exhaustion).  Lands with the `SymmetryPolicy`/facade pass.
   (The degree-typed `angularDegree` interface half is executable now → R2.15.)
-- **D6 `BeckeXCParams()` lives in the TEST file + `ResolveXCMesh` (test driver)** — the de-facto
-  PRODUCTION Becke recipe and the run-policy resolution (Auto grid × imposeSymmetry interplay)
+- **D6 ✅ DONE 2026-08-07. `BeckeXCParams()` lives in the TEST file + `ResolveXCMesh` (test driver)** — the
+  de-facto PRODUCTION Becke recipe and the run-policy resolution (Auto grid × imposeSymmetry interplay)
   living in the integration-test harness; both belong with the facade/driver once the policy
   object exists (library beside `MeshParams`; tests read it, not the other way round).
+  **Both moved verbatim into `qchem.Mesh` (src/Mesh/Mesh.C), declared immediately after `MeshParams`;
+  the anonymous-namespace copies in `IntegrationTests/GPW_SCF_UT.C` are gone and its 15 call sites now
+  spell `qcMesh::`.  670/670 ctest green, every GPW anchor unmoved (the moved bodies are logic-identical).**
+  - **The reason it did NOT need the policy object first — worth recording, because the item's own
+    wording ("once the policy object exists") assumed it would.**  `ResolveXCMesh` consults **NO run
+    context** any more: its last context-dependent branch was the BZ-reduced carve-out, retired
+    2026-08-02 once the site-adapted invariant mesh was gate-verified.  What was left is a
+    context-FREE default (`Auto` → the calibrated recipe), which is exactly the kind of thing that
+    can sit beside the enum it resolves.  Same shape as the session's standing heuristic: the thing
+    that looked like it needed extra machinery turned out to need less, not more.
+  - **Why `qchem.Mesh` and not `qcHamiltonian`:** `UnitCellKind::Auto` is DECLARED in `qcMesh`, and its
+    own doc comment said "a POLICY layer that knows the run context resolves it" — i.e. the library
+    shipped a value only a test file could interpret.  An enum that offers `Auto` should ship the
+    canonical resolution of `Auto`; that comment is now updated to point at `ResolveXCMesh`.
+  - **The `GPW_BECKE_*` env instruments moved WITH the recipe, deliberately** — `getenv` in library code
+    is already the house idiom for GPW sweep knobs (`GPW_XCROUTE`, `GPW_STREAM_FOLD`, `GPW_RELCUTOFF`,
+    `GPW_OMP_THREADS`, …, ~25 sites in `src/`).  Splitting them off would have BROKEN the instrument:
+    most runs reach the recipe through `Auto`, so a library resolver returning the un-overridden default
+    would make `GPW_BECKE_L`/`_NR`/`_ALPHA`/`_ANG`/`_ROT` no-ops for exactly the runs they exist to sweep.
+    Verified live from the new home: `GPW_BECKE_NR=12` moves the `[Becke grid]` line from nR=40 to nR=12.
+  - Not changed (and NOT a regression of this move): under `imposeSymmetry` the site-adapted builder still
+    silently replaces `mp.angular`, so `GPW_BECKE_ANG` has no visible effect on an imposed run — that is
+    D5's complaint, unchanged.
+  - **Deliberately NOT done: resolving `Auto` inside `Ham_PW_DFT::BuildTerms`.**  It is tempting (an
+    unresolved `Auto` silently reads as `Uniform` downstream, since every consumer tests `==Becke`), but
+    `xcMesh` reaches several Hamiltonian lineages and the resolution point is a facade decision, not a
+    term-builder one.  Flagged in the `UnitCellKind` doc instead: resolve where the mesh spec ENTERS the
+    Hamiltonian.  Revisit with the `SymmetryPolicy`/facade pass that D5 also waits on.
 - **D7 The `dynamic_cast` survey = FittingCleanupPlan §C** (the one surviving item there; the
   "I want more" vs "what are you" criterion is written there).  Run §C as part of THIS session —
   the cast findings above (V1.8, V1.9, V1.10) are its seed list; give survivors the custom
