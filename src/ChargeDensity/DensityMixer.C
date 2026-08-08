@@ -23,6 +23,7 @@ module;
 #include <cassert>
 #include <deque>
 #include <type_traits>
+#include <cstdlib>   // getenv (the QCHEM_SPINBLIND_KERKER A/B valve)
 export module qchem.ChargeDensity.DensityMixer;
 export import qchem.ChargeDensity;                 // tChargeDensity<T>, tDM_CD<T>
 import qchem.ChargeDensity.FourierDensity;         // FourierDensity, ΔG_Map
@@ -322,6 +323,25 @@ template <class T> std::unique_ptr<tDensityMixer<T>> MakeDensityMixer(
             {
                 std::cerr << "[Mixer] DISABLED: Kerker/Pulay need a periodic Band_FT_IBS basis + UnitCell + "
                           << "FourierDensity -- falling back to linear D-mixing." << std::endl;
+                return std::make_unique<LinearMixer<T>>(relax0);
+            }
+            // NEVER SILENTLY UNPOLARIZED (2026-08-07, the MnO AFM-II collapse).  The ρ̃ mixers carry ONE
+            // FourierMixCD -- the TOTAL density, no spin channels -- and every subsequent Fock is driven from
+            // it (FockDensity).  XC_GridEngine::RhoPol then finds neither a cPolarized_CD nor a
+            // cSpinResolved_CD and takes its ρ↑=ρ↓=ρ/2 "spin-agnostic seed" branch, so v_xc^↑≡v_xc^↓ and the
+            // run is UNPOLARIZED from iteration 1 -- measured on MnO: a seed staggered at m_stag=0.366 reads
+            // EXACTLY 0 at iteration 1 and never recovers (the same run under linear mixing keeps m_stag~0.2
+            // and splits ε↑−ε↓ by 45 mHa).  Until the spin-resolved ρ̃ mixer lands (mix ρ and m as separate
+            // channels), a polarized run takes the SLOWER but PHYSICAL linear D-mixing, loudly.
+            // (QCHEM_SPINBLIND_KERKER=1 keeps the ρ̃ mixer on a polarized run -- the A/B valve that MEASURES
+            //  the collapse; never a production setting.)
+            if ((dynamic_cast<const tPolarized_CD<T>*>(seed) || dynamic_cast<const tSpinResolved_CD<T>*>(seed))
+                && !std::getenv("QCHEM_SPINBLIND_KERKER"))
+            {
+                std::cerr << "[Mixer] Kerker/Pulay DISABLED for this POLARIZED run: the ρ̃ mixers hold the "
+                          << "total density only, which collapses v_xc to the ζ=0 (unpolarized) branch from "
+                          << "iteration 1 -- falling back to linear D-mixing, which mixes both spin channels."
+                          << std::endl;
                 return std::make_unique<LinearMixer<T>>(relax0);
             }
             auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(ftb->CreateVxcFitBasisSet(cell, qcMesh::MeshParams{}));

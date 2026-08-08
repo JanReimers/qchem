@@ -29,6 +29,9 @@
 #include <fstream>   // /proc/self/statm (the RSS breadcrumb bisect)
 #include <stdexcept>
 #include <algorithm>
+#include <functional>   // the per-iteration order-parameter probe (GpwOptions::orderProbe)
+#include <string>
+#include <iomanip>      // setprecision (the order-parameter trajectory line)
 
 import qchem.Structure;                          // Molecule, Atom
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
@@ -138,7 +141,29 @@ struct GpwReport
 // Three pathologies have DISTINCT time-series signatures, so one line names which regime the run is in --
 // separating "the iteration can't find the min" (dynamics: sloshing/divergence) from "the min is a fit floor"
 // (functional).  Captured from qchem::SCFIterator::SCFProgress {iteration, energy, dE=|ΔE|, [F,D], Δρ}.
-struct FpRow { size_t it; double E, dEabs, fd, drho; };
+struct FpRow { size_t it; double E, dEabs, fd, drho, order=0; };
+
+// The ORDER-PARAMETER trajectory, one compact line (printed only when a probe was set).  The per-iteration
+// SCF column already shows it live; this line is the POST-MORTEM -- the whole time series in one place, with
+// the death iteration named, so a bounded diagnosis run answers "WHERE did the order die?" without anyone
+// re-reading a 30-row table.  "Died" = the first iteration at which |order| falls below 1% of its seed value
+// and never recovers; a run that keeps its order reports the survivor value instead.
+void OrderTrajectory(const std::vector<FpRow>& s, const std::string& name, const char* label)
+{
+    if (s.empty() || name.empty()) return;
+    std::cout << "["<<label<<" "<<name<<"]";
+    for (const auto& r : s) std::cout << " " << std::fixed << std::setprecision(4) << r.order;
+    std::cout << std::defaultfloat << std::endl;
+    const double m0=std::fabs(s.front().order), dead=0.01*m0;
+    size_t died=s.size();                                   // first index from which |order| stays below dead
+    while (died>0 && std::fabs(s[died-1].order)<=dead) --died;
+    std::cout << "["<<label<<" "<<name<<"] seed(iter1)="<<s.front().order<<" final="<<s.back().order;
+    if (m0>0.0 && died<s.size())
+        std::cout << "  ** DIED at iteration "<<s[died].it<<" (|"<<name<<"| < 1% of iteration 1 from there on)";
+    else
+        std::cout << "  order SURVIVED the run";
+    std::cout << std::endl;
+}
 void Fingerprint(const std::vector<FpRow>& s, const char* label)
 {
     if (s.empty()) { std::cout << "["<<label<<" fp] (no iterations)"<<std::endl; return; }
@@ -251,6 +276,12 @@ struct GpwOptions
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
     SCFParams    scf;                                  // NMaxIter / MinΔρ / MinΔE / SmearingkT / ... (the gates)
+    //! Optional ORDER PARAMETER (SCFIterator::SetOrderParameter): a named scalar measured on the WORKING
+    //! density every iteration -- an extra trace column PLUS a compact end-of-run trajectory line, so a
+    //! symmetry-broken basin (AFM staggering, charge disproportionation) can be watched living or dying
+    //! iteration by iteration.  Empty (default) = no probe, no column, no cost.
+    std::string  orderName;
+    std::function<double(const qchem::ChargeDensity::cDM_CD&)> orderProbe;
 };
 
 namespace
@@ -410,7 +441,8 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     // no ops recomputed here (doc/GPWPlan1.md item 3).
     std::vector<FpRow> series;
     scf.SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
-                    { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho}); });
+                    { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho, p.order}); });
+    if (o.orderProbe) scf.SetOrderParameter(o.orderName, o.orderProbe);
     SCFParams par = o.scf; par.Verbose = verbose;   // one `verbose` drives both the report console + the SCF table
     qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     {
@@ -419,6 +451,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     }
     qchem::Hamiltonian::ReportGridCharge()=false;
     Fingerprint(series, o.label.c_str());
+    OrderTrajectory(series, o.orderProbe ? o.orderName : std::string(), o.label.c_str());
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity();
     double charge=cd->GetTotalCharge();
@@ -504,11 +537,14 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         SCFParams par=o.scf; par.Verbose=verbose; par.SmearingkT=kT;
         std::vector<FpRow> series;
         scf->SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
-                         { series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho}); });
+                         { series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order}); });
+        if (o.orderProbe) scf->SetOrderParameter(o.orderName, o.orderProbe);   // per STAGE, like the fingerprint
         std::cout << "["<<o.label<<" anneal "<<s+1<<"/"<<kTSchedule.size()<<"] kT="<<kT
                   << " acc="<<(accSchedule.empty()?o.accelerator:accSchedule[s])<<std::endl;
         scf->Iterate(par);
         Fingerprint(series, (o.label+" kT="+std::to_string(kT)).c_str());
+        OrderTrajectory(series, o.orderProbe ? o.orderName : std::string(),
+                        (o.label+" kT="+std::to_string(kT)).c_str());
 
         seedCD = scf->GetWaveFunction()->GetChargeDensity();   // consumed by the next stage's ctor (bs keeps it valid)
         qchem::EnergyBreakdown E=scf->GetEnergy();
@@ -2372,6 +2408,71 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
     EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3);   // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
 }
 
+// A POLARIZED RUN MUST STAY POLARIZED (SymmetryUpgradePlan §7 step 7, 2026-08-07).  The regression gate for
+// the AFM collapse: the ρ̃ density mixers (Kerker/Pulay) carry ONE FourierMixCD -- the ↑+↓ TOTAL, with no spin
+// channels -- and drive every Fock from it, so XC_GridEngine::RhoPol falls into its ρ↑=ρ↓=ρ/2 branch and the
+// run is silently UNPOLARIZED from iteration 1 (measured on MnO: a seed staggered at m_stag=+0.366 reads
+// EXACTLY +0.000000 at iteration 1 and never recovers).  MakeDensityMixer now refuses the ρ̃ mixers on a
+// polarized density and falls back, loudly, to linear D-mixing.  This gate asks a POLARIZED run for Kerker
+// on the cheap Mn q7 sextet box (same system as the d-channel gate above) and checks it got the POLARIZED
+// answer.  QCHEM_SPINBLIND_KERKER=1 forces the broken mixer back on; the gate then fails.
+//
+// WHICH observable has teeth is itself a finding (measured, 2026-08-06/07).  The on-site MOMENT does NOT:
+// with nUp=6/nDown=1 the moment is pinned by the CHANNEL OCCUPATIONS, so it survives a spin-blind Fock
+// intact (0.64 vs 0.72) -- an atom cannot expose this bug.  Only an order that must be SELF-CONSISTENTLY
+// SUSTAINED does, which is exactly MnO's staggering at nUp=nDn (nothing but v_xc^↑≠v_xc^↓ holds it up).
+// What an atom DOES expose is the ENERGY: a spin-blind Fock loses the exchange splitting entirely and lands
+// 68 mHa HIGH (−14.57 vs the physical −14.638, itself 12 mHa from the molecular facade).  So the moment is
+// reported (it is the instrument under test) and the ENERGY is the assert.
+TEST(GPW_SCF, PolarizedRunKeepsItsSpin)
+{
+    const double a=16.0;
+    UnitCell cell(a);
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label="Mn sextet under Kerker";
+    o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
+    o.species={{"Mn",7}};
+    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.imposeSymmetry=false;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    o.scf.NMaxIter=12; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;
+    o.scf.KerkerG0=1.0;                                // THE ASK: ρ̃ mixing on a polarized density
+
+    // The order parameter: the on-site moment m(r)=ρ↑(r)−ρ↓(r) sampled 0.7 bohr off the nucleus (the d-shell
+    // peak -- the d density vanishes AT the nucleus).  Recorded per iteration, so the SmokeTest of the
+    // instrument itself is here: the probe must fire once per iteration and report an electrons-scale moment.
+    std::vector<double> mtrace;
+    const rvec3_t rMn(a/2,a/2,a/2), off(0.7,0,0);
+    o.orderName="m_Mn";
+    o.orderProbe=[&mtrace,rMn,off](const qchem::ChargeDensity::cDM_CD& cd)->double
+    {
+        const auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&cd);
+        if (!pol) { mtrace.push_back(0.0); return 0.0; }    // an unpolarized Fock density: the defect itself
+        const double m=(*pol->GetChargeDensity(Spin::Up  ))(rMn+off)
+                      -(*pol->GetChargeDensity(Spin::Down))(rMn+off);
+        mtrace.push_back(m);
+        return m;
+    };
+    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o,
+                       /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"));
+    EXPECT_NEAR(R.charge, 7.0, 1e-6);
+    ASSERT_FALSE(mtrace.empty()) << "the order-parameter probe never fired";
+    const double mMin=*std::min_element(mtrace.begin(), mtrace.end());
+    std::cout << "[Mn sextet under Kerker] m(0.7 bohr) over "<<mtrace.size()<<" iterations: min="<<mMin
+              << " final="<<mtrace.back()<<std::endl;
+    EXPECT_GT(mMin, 0.02) << "the instrument itself: the probe must see the S=5/2 moment every iteration";
+    // THE ASSERT: the same polarized answer the linear-mixed d-channel gate pins (−14.6380).  A spin-blind
+    // ρ̃ mixer loses the exchange splitting and lands at −14.57 -- 68x this tolerance away.
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3)
+        << "asking for Kerker must not change the physics: this is the spin-blind-mixer detector";
+}
+
 // ============================ MnO rocksalt AFM-II (SymmetryUpgradePlan §7 step 7) ============================
 // The FIRST magnetic transition-metal material: rocksalt MnO with the type-II AFM ordering (ferromagnetic
 // (111) sheets, alternating along [111]).  The magnetic unit cell is the RHOMBOHEDRAL 2-f.u. cell -- the fcc
@@ -2417,6 +2518,12 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // + MOM (masked Fermi) once the branch structure sets.
     o.accelerator="Ladder";
     o.scf.StartingRelaxRo=0.45; o.scf.KerkerG0=1.0;
+    // NB (2026-08-07) this KerkerG0 is currently INERT on the AFM arm: MakeDensityMixer refuses the ρ̃
+    // mixers on a POLARIZED density and falls back (loudly) to linear D-mixing, because the ρ̃ mixers carry
+    // the TOTAL density only and collapse v_xc to ζ=0 from iteration 1 -- the AFM collapse, diagnosed here
+    // with the m_stag order parameter below.  QCHEM_SPINBLIND_KERKER=1 restores the broken arm for the A/B.
+    // Once the spin-resolved ρ̃ mixer lands, this line becomes live again (and linear mixing's slosh --
+    // measured: E swinging -51/-55/-44/-28 over 6 iterations -- is exactly why we want it back).
     o.scf.UseMOM=true; o.scf.MOMStartIter=10;
     o.scf.SmearingkT=5e-3;                            // the open-d-manifold cure (annealed driver if this stalls)
     // GPW_MNO_NMAX bounds a HAND-RUN diagnosis (measured 2026-08-05: ~9 min PER analytic sweep on a 14 GB
@@ -2426,6 +2533,31 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     o.scf.NMaxIter=nx?std::atoi(nx):80; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
     o.scf.MergeTol=1e-4;                              // (RelaxRo set above with the Ladder/Kerker recipe)
+
+    // THE ORDER PARAMETER (plan §7 step 7 + §9): the STAGGERED moment m_stag = ½[m(Mn1)−m(Mn2)], with
+    // m(r)=ρ↑(r)−ρ↓(r) sampled 0.7 bohr off each Mn nucleus (the d-shell peak -- the d density VANISHES at
+    // the nucleus).  This is the AFM-II order itself, and it is the WHOLE order: the run fixes nUp=nDn, so
+    // the net moment is identically zero and a ferromagnetic drift is not an available escape -- m_stag→0
+    // means the magnetism died, full stop.  Run 6 converged to EXACTLY zero site moments from a provably
+    // staggered seed (PolarizedSeedAFMStaggering), so the loss happens somewhere INSIDE the SCF; watching
+    // m_stag per iteration is what brackets the iteration where it goes (doc/SymmetryUpgradePlan.md:1054).
+    // Two point evaluations of the Bloch density per iteration -- negligible beside a collocation sweep.
+    {
+        const rvec3_t off(0.7,0,0), rMn1(0,0,0), rMn2(a,a,a);   // cartesian: A*(½,½,½) = a(1,1,1)
+        o.orderName="m_stag";
+        o.orderProbe=[off,rMn1,rMn2](const qchem::ChargeDensity::cDM_CD& cd)->double
+        {
+            // Cross-cast to the spin-resolved FACE (abstract->abstract, the sanctioned dynamic_cast): an
+            // unpolarized run simply has no order parameter to report.
+            const auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&cd);
+            if (!pol) return 0.0;
+            const auto* up=pol->GetChargeDensity(Spin::Up);
+            const auto* dn=pol->GetChargeDensity(Spin::Down);
+            const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
+            const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
+            return 0.5*(m1-m2);
+        };
+    }
     MnOArm arm;
     arm.cell=cellp;
     arm.R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o,

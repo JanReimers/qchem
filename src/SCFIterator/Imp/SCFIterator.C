@@ -243,6 +243,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     itsMixer = qchem::ChargeDensity::MakeDensityMixer<T>(ipar.StartingRelaxRo, ipar.KerkerG0, ipar.PulayDepth,
                                                          ipar.PulayStart, itsBS, itsKerkerCell.get(), itsCD.get());
 
+    // The order parameter at the STARTING point (the seed's diagonalized density, "iteration 0") -- the
+    // reference every later value is judged against.  A probe that already reads ~0 here means the SEED never
+    // carried the order, which is a DIFFERENT bug from the loop losing it.
+    if (itsOrderProbe && ipar.Verbose)
+        cout << "[order] iteration 0 (seed): " << itsOrderName << " = " << itsOrderProbe(*itsCD) << endl;
+
     int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
     std::string prevConfig;         // previous occupied configuration (the cfg '*' change flag; item 2)
     for (itsIterationCount=1;
@@ -276,6 +282,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
         FD=itsAccelerator->GetError(); //i.e. [F,D]
         dFD=(FD-FDold);
+        // The caller's ORDER PARAMETER on THIS iteration's working density (§9 diagnostic metric).  Measured
+        // before the display so the trace and the observer see the same number, and unconditionally (not just
+        // under Verbose): a headless client watching the observer needs it too.  No probe => no cost.
+        const double order = itsOrderProbe ? itsOrderProbe(*itsCD) : 0.0;
         if (ipar.Verbose)
         {
             // Build the full per-iteration trace (all fields, all cheap) and let the per-system display
@@ -289,11 +299,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
                                itsIterationCount>1 && config!=prevConfig, lineSearch,
                                (N!=0.0 ? eb.GridChargeLost/N : 0.0),
-                               g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole };
+                               g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
+                               itsOrderProbe ? itsOrderName.c_str() : nullptr, order };
             DisplayColumns(cout, tr);
             prevConfig=std::move(config);
         }
-        if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange});
+        if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange, order});
         // Adaptive [F,D]-keyed density-mixing policy (LinearMixer only; Kerker takes the no-op defaults).  The
         // re-damp re-fetches the fresh density + recomputes the energy -- the density LIFECYCLE stays here.
         // SKIPPED under direct-min: GDM/OT own the density update, so no post-step re-mix (see lineSearch above).
@@ -461,7 +472,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
 
 // --- Column-width constants: the header labels and the value rows share these, so they line up exactly
 //     regardless of the UTF-8 label glyphs (Δ, ρ, ε are multi-byte but one display column). --------------
-namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=8, W_ACC=7, W_CFG=3, W_GAP=9 }; }
+namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=8, W_ACC=7, W_CFG=3, W_GAP=9, W_ORD=12 }; }
 
 // Display width of a UTF-8 string (counts leading bytes only, so Δ/ρ/ε each count as one column).
 static size_t VisWidth(const std::string& s)
@@ -516,6 +527,21 @@ template <class T> void tSCFIterator<T>::WriteGapColumn(std::ostream& os, const 
     os << ' ' << (tr.hole ? 'h' : tr.metallic ? 'm' : ' ');
 }
 
+// The ORDER-PARAMETER column (SetOrderParameter; §9): the caller's named scalar on this iteration's density,
+// signed and in FIXED notation -- the point of the column is to watch a value DECAY toward zero (or flip
+// sign), which scientific notation hides behind a shrinking exponent.  Absent probe => absent column.
+template <class T> void tSCFIterator<T>::WriteOrderColumn(std::ostream& os, const IterationTrace& tr) const
+{
+    if (!tr.orderName) return;
+    std::ostringstream v; v << std::fixed << setprecision(6) << std::showpos << tr.order;
+    os << " " << PadR(v.str(),W_ORD);
+}
+template <class T> void tSCFIterator<T>::WriteHeadOrder(std::ostream& os) const
+{
+    if (itsOrderName.empty() || !itsOrderProbe) return;
+    os << " " << PadR(itsOrderName,W_ORD);
+}
+
 // --- Base default = the MOLECULAR layout (atoms/molecules; MolecularSCFIterator inherits it unchanged) ---
 template <class T>
 void tSCFIterator<T>::DisplayColumnHeaders(std::ostream& os, const SCFParams& ipar, size_t idealVirial) const
@@ -525,6 +551,7 @@ void tSCFIterator<T>::DisplayColumnHeaders(std::ostream& os, const SCFParams& ip
     os << PadR("Δ[F,D]",W_DELTA) << " " << PadR("Δρ",W_RHO) << " "
        << PadR(std::to_string(idealVirial)+"+V/K",W_VIR) << " ";
     WriteHeadMixAccelCfg(os);
+    WriteHeadOrder(os);
     os << endl;
     WriteThreshLead(os);
     os << PadR(Thresh(ipar.MinFD),W_FD) << " " << PadR(Thresh(ipar.MinΔFD),W_DELTA) << " "
@@ -539,6 +566,7 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
     os << std::scientific << setw(W_RHO)   << setprecision(2) << tr.dRho << " ";
     os << std::scientific << setw(W_VIR)   << setprecision(2) << (tr.eb.GetVirial()+(double)tr.idealVirial) << " ";
     WriteMixAccelCfg(os, tr);
+    WriteOrderColumn(os, tr);
     // Optional frontier diagnostic (unchanged instrument; solids show it as a permanent column instead).
     if (ReportBandGap())
     {
@@ -561,7 +589,9 @@ void SolidSCFIterator::DisplayColumnHeaders(std::ostream& os, const SCFParams& i
     os << PadR("ΔE/E",W_DELTA) << " " << PadR("Δρ",W_RHO) << " "     // ΔE column is RELATIVE (dE/|E|)
        << PadR("ρ_lost/N",W_LOST) << " ";                            // grid-charge leak per electron (health)
     WriteHeadMixAccelCfg(os);
-    os << " " << PadR("gap",W_GAP) << endl;
+    os << " " << PadR("gap",W_GAP) << "  ";   // 2 trailing: WriteGapColumn's row cell carries the h/m flag
+    WriteHeadOrder(os);
+    os << endl;
     WriteThreshLead(os);
     os << PadR(Thresh(ipar.MinFD),W_FD) << " " << PadR(Thresh(ipar.MinΔE),W_DELTA) << " "
        << PadR(Thresh(ipar.MinΔρ),W_RHO) << endl;
@@ -576,6 +606,7 @@ void SolidSCFIterator::DisplayColumns(std::ostream& os, const IterationTrace& tr
     os << std::scientific << setw(W_LOST)  << setprecision(2) << tr.gridLostRel << " ";  // ρ_lost/N
     WriteMixAccelCfg(os, tr);
     WriteGapColumn(os, tr);   // solids always show the gap (folds the former ReportBandGap() instrument)
+    WriteOrderColumn(os, tr); // and the caller's order parameter, when one is probed
     os << endl;
 }
 
