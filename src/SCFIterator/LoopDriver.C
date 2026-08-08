@@ -57,10 +57,10 @@ template <class T> class FixedPointDriver : public tLoopDriver<T>
 public:
     double Step(const LoopContext<T>& c) const override
     {
-        c.wf->DoSCFIteration(*c.H, c.mixer->FockDensity(*c.cur));   // eigen orbitals from the (mixed) Fock
+        c.wf->DoSCFIteration(*c.H, c.mixer->FockDensity(**c.cur));  // eigen orbitals from the (mixed) Fock
         c.wf->FillOrbitals(c.mergeTol);
         c.installNew(typename LoopContext<T>::cd_t(c.wf->GetChargeDensity()));
-        return c.mixer->Mix(*c.cur, *c.old);                        // density-face: fold rho_out into rho_in
+        return c.mixer->Mix(**c.cur, **c.old);                      // density-face: fold rho_out into rho_in
     }
 };
 

@@ -144,7 +144,7 @@ template <class T> ΔG_Map tPolarized_CD<T>::GetRepulsion3C(const BasisSet::cFIT
 //
 //  Convergence.
 //
-template <class T> void tPolarized_CD<T>::MixIn(const tDM_CD<T>& cd,double c)
+template <class T> void tPolarized_CD<T>::MixIn(const tMixableDensity<T>& cd,double c)
 {
     const tPolarized_CD* pcd = dynamic_cast<const tPolarized_CD*>(&cd);
     if (!pcd)
@@ -157,7 +157,7 @@ template <class T> void tPolarized_CD<T>::MixIn(const tDM_CD<T>& cd,double c)
     this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
-template <class T> double tPolarized_CD<T>::GetChangeFrom(const tDM_CD<T>& cd) const
+template <class T> double tPolarized_CD<T>::GetChangeFrom(const tMixableDensity<T>& cd) const
 {
     const tPolarized_CD* pcd = dynamic_cast<const tPolarized_CD*>(&cd);
     if (!pcd)

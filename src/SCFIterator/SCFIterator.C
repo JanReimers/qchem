@@ -2,6 +2,7 @@
 module;
 #include <memory>
 #include <functional>
+#include <string>
 #include <iosfwd>
 export module qchem.SCFIterator;
 import qchem.SCFIterator.Types;
@@ -41,6 +42,7 @@ struct SCFProgress
     double dE;           //!< |E_n - E_{n-1}|
     double commutator;   //!< [F,D] (the accelerator/DIIS error)
     double drho;         //!< relative charge-density change
+    double order=0;      //!< the ORDER PARAMETER (tSCFIterator::SetOrderParameter); 0 when no probe is set
 };
 
 //! Everything one SCF step exposes to the per-system iteration display (doc/GPWPlan1.md item 2).  The base
@@ -67,6 +69,10 @@ struct IterationTrace
     // Frontier spectrum -- the gap column (solids show it always; molecules only under ReportBandGap()):
     double eHomo=0, eLumo=0, gap=0;
     bool   haveHomo=false, haveLumo=false, metallic=false, hole=false;
+    // The caller's ORDER PARAMETER (tSCFIterator::SetOrderParameter), measured on THIS iteration's working
+    // density.  nullptr name == no probe set == no column.
+    const char* orderName=nullptr;   //!< the probe's short column label, e.g. "m_stag"
+    double      order=0;             //!< its value this iteration
 };
 
 // Templated on the matrix element type T (rX/cX); SCFIterator is the <double> alias (atoms/
@@ -110,6 +116,19 @@ public:
     using Observer = std::function<void(const SCFProgress&)>;
     void SetObserver(Observer obs) {itsObserver=std::move(obs);}
 
+    //! Watch an ORDER PARAMETER die (doc/SymmetryUpgradePlan.md §9 "diagnostic metric"): a caller-supplied
+    //! named scalar measured on the WORKING density every iteration, shown as a trace column and carried in
+    //! SCFProgress.  A symmetry-broken solution (an AFM staggered moment, a charge disproportionation) is a
+    //! basin the SCF can silently fall out of -- the seed is provably ordered, the answer provably isn't, and
+    //! the converged numbers say nothing about WHICH iteration lost it.  The probe is the instrument that
+    //! brackets it.  Deliberately a caller-supplied functor: the order parameter is system knowledge (which
+    //! sites, which sign pattern), not something the iterator can infer.  Read-only telemetry, like the
+    //! observer -- it must not touch the density.  \a name is a short column label ("m_stag"); an empty name
+    //! or a null probe disables the column (the default: zero cost).
+    using OrderProbe = std::function<double(const tDM_CD<T>&)>;
+    void SetOrderParameter(const std::string& name, OrderProbe probe)
+    {itsOrderName=name; itsOrderProbe=std::move(probe);}
+
     // SCFIterator drives the mutable SCFWaveFunction, but only ever hands clients the const
     // read view (they can query the converged state, never drive someone else's SCF loop).
     const wf_t* GetWaveFunction() const {return itsWaveFunction;}
@@ -138,6 +157,10 @@ protected:
     void WriteRowPrefix   (std::ostream&, const IterationTrace&) const; //!< row:    #, Etotal, [F,D]
     void WriteMixAccelCfg (std::ostream&, const IterationTrace&) const; //!< row:    ρ_mix, accel, cfg
     void WriteGapColumn   (std::ostream&, const IterationTrace&) const; //!< row:    the frontier gap (+flags)
+    void WriteOrderColumn (std::ostream&, const IterationTrace&) const; //!< row:    the order parameter (if probed)
+    //! Header cell for the order-parameter column -- the label the caller gave SetOrderParameter (nothing
+    //! when no probe is set), so both layouts announce the extra column the same way.
+    void WriteHeadOrder   (std::ostream&) const;
 
     // --- PER-SYSTEM density mixing (doc/CleanupCandidates.md V1.10b) ------------------------------------
     //! \brief Build this run's density mixer.  Called once at the top of \c Iterate, after the seed density
@@ -185,6 +208,8 @@ private:
     size_t          itsIterationCount;
     bool            itsConverged;
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
+    OrderProbe      itsOrderProbe; //!< optional order-parameter probe (default empty == no column, no cost)
+    std::string     itsOrderName;  //!< its column label
 
     // Density-face state.  The mixer (Linear / Kerker; see qchem.ChargeDensity.DensityMixer) is built per-run
     // from SCFParams at the top of Iterate and owns the mixing policy + state (relax, the Kerker ρ̃, ...).

@@ -498,6 +498,13 @@ channels). So:
   fully-polarized doublet's empty ↓ channel (D=0) blanked the whole `V_H` Fock block.  The
   screen is now the UNION (elementwise max magnitude) of every density the ladder has
   collocated (`CollocMemo::Dscr`; a magnitude screen may only widen — the no-cut pin).
+  **COVERAGE GAP NAMED 2026-08-07 (the AFM-collapse post-mortem, §7 step 7 — read it):** all three gates
+  below, and every polarized gate before MnO, pin their moment through the CHANNEL OCCUPATIONS (nUp≠nDown).
+  A Fock that has lost its spin-dependence *entirely* still reproduces those moments, so all three stay
+  green — which is exactly how a spin-blind density mixer survived to MnO.  MnO's AFM-II at nUp=nDn is the
+  first order parameter this code has that the occupation numbers do NOT hold up.  Any future
+  polarized-machinery gate wants an nUp=nDn arm, or an assert on something the occupations don't fix: the
+  exchange splitting, or the ENERGY (the Mn atom does expose it — 68 mHa).
   Gates — ALL THREE GREEN: **ζ=0 collapse** (`PolarizedSingletMatchesUnpolarizedSiGamma`,
   two-channel singlet Si Γ = the unpolarized −7.11506 anchor to 0.12 mHa) ✅; **(b) O₂
   triplet in a box** vs the facade PP triplet: 26 mHa ✅ (needs the AUTO density cutoff —
@@ -1052,13 +1059,115 @@ against a special case it will outgrow:
      `Etot=−45.643  (Ekin 78.73  Een −84.45  Eee 29.14  Exc −14.88  Enn −57.34  E_alphaZ +3.17)`.
      TWO REMAINING DEFECTS, both now cleanly stated:
        * **THE AFM ORDER COLLAPSED**: site moments came out EXACTLY 0.0000000000 on BOTH Mn — the run
-         relaxed to the non-magnetic ζ=0 solution.  This is the §10 trap itself (ζ=0 is a stationary
-         point of the polarized functional).  The SEED is provably staggered
-         (`PlaneWaveDFT.PolarizedSeedAFMStaggering`), so the loss happens IN the SCF — prime suspects:
-         the Kerker mixer acting on the TOTAL density (washing the channel difference), Fermi smearing
-         at nUp=nDn=13 pulling toward the symmetric state, and the absence of any constraint holding
-         the staggering.  NEXT: log ⟨m⟩ per iteration to see WHERE it dies, then constrain (fixed-moment
-         / per-channel mixing) rather than hoping the seed survives.
+         relaxed to the non-magnetic ζ=0 solution.  This looked like the §10 trap (ζ=0 is a stationary
+         point of the polarized functional), with the Kerker mixer, Fermi smearing and the missing
+         constraint as co-suspects.  **SOLVED 2026-08-07 — it was none of the physics: the ρ̃ MIXERS ARE
+         SPIN-BLIND.**  The order-parameter instrument (below) brackets it to a single step: the seed's
+         diagonalized density carries `m_stag = +0.3656`, iteration 1 reads **EXACTLY +0.000000**, and it
+         never returns.  Mechanism, structural and complete: `KerkerMixer`/`PulayMixer` hold ONE
+         `FourierMixCD` — a bare ρ̃(G) map, the ↑+↓ TOTAL, with no spin channels — and `FockDensity()`
+         hands *that* to every Fock build from iteration 1 on.  `XC_GridEngine::RhoPol` then finds neither
+         a `cPolarized_CD` nor a `cSpinResolved_CD` and takes its third branch, the ρ↑=ρ↓=ρ/2 "spin-agnostic
+         seed" collapse, so v_xc^↑ ≡ v_xc^↓, F↑ ≡ F↓, and the run is UNPOLARIZED from iteration 1.  The
+         staggered seed never had a chance; ζ=0 was not a basin the SCF fell into, it was the only state
+         the Fock could represent.  **A/B PROOF** (same run, linear D-mixing, which `MixIn`s the polarized
+         density itself): `m_stag` = 0.203, 0.085, 0.136, 0.026 … and ε↑−ε↓ splits by up to 45 mHa —
+         alive, sloshing with the energy (linear mixing is unstable here: E swings −51/−55/−44/−28, which
+         is exactly why Kerker was adopted).  STOP-GAP LANDED: `MakeDensityMixer` now REFUSES the ρ̃ mixers
+         on a polarized/spin-resolved density and falls back to linear D-mixing **loudly** (the file's own
+         "[Mixer] DISABLED" idiom) — slower and sloshier, but never silently non-magnetic.  Diagnostic
+         valve `QCHEM_SPINBLIND_KERKER=1` restores the broken arm to re-measure the collapse.  BLAST RADIUS
+         is MnO alone: no other Kerker/Pulay caller sets multiplicity≥1 (NaF/Si are closed shell) and the
+         molecular path never builds a ρ̃ mixer — but this would have bitten EVERY magnetic solid.  Gate
+         `GPW_SCF.PolarizedRunKeepsItsSpin` (Mn q7 sextet box asking for Kerker, 38 s).  **WHICH OBSERVABLE
+         HAS TEETH is itself a finding**: the on-site MOMENT does not.  At nUp=6/nDown=1 the moment is
+         pinned by the CHANNEL OCCUPATIONS and survives a spin-blind Fock intact (0.64 vs 0.72) — an atom
+         cannot expose this bug at all.  Only an order that must be SELF-CONSISTENTLY SUSTAINED can, which
+         is precisely MnO's staggering at nUp=nDn, where nothing but v_xc^↑≠v_xc^↓ holds it up.  What the
+         atom DOES expose is the ENERGY: without the exchange splitting it lands 68 mHa HIGH (−14.57 vs the
+         physical −14.638), so the gate reports the moment and asserts the energy.
+       * **THE REAL FIX LANDED 2026-08-07: `PolarizedDensityMixer`** (user's design) — ONE ordinary mixer
+         per spin channel plus `PolarizedMixCD`, the view that gives their pair both faces the framework
+         consumes (`FourierDensity` = the ↑+↓ total for Hartree; `cSpinResolved_CD` = the channels for
+         `RhoPol`).  A COMPOSITION, not a second implementation: the leaves come from the same
+         `MakeGSpaceMixer` the unpolarized path uses, so Kerker **and** Pulay are supported without the
+         composite knowing which it holds.  **CHANNEL-BASIS QUESTION SETTLED against CP2K's source**
+         (`qs_gspace_mixing.F`): CP2K transforms to (ρ_total, m) in its mixing DRIVER and then runs the
+         same per-channel loop with the SAME Kerker factor and α on both — so it *does* Kerker-damp m, and
+         runs Pulay/Broyden on it with independent per-channel histories.  For a LINEAR operator that is
+         algebraically identical to per-channel (ρ↑,ρ↓) mixing (Kerker is linear in the residual ⇒
+         m_mix = m_in + αK(m_out−m_in) either way), so this composite reproduces CP2K's Kerker EXACTLY,
+         with no proof burden.  The basis only becomes a real choice for the NONLINEAR history mixers, and
+         it is isolated in this one class.  (CP2K also floors its damping at kmin=0.1 and applies it only
+         in a G band — ours is unbounded below; and its G=0 factor stays 1.0, matching our own
+         deliberate "G=0 mixes at full α" convention, which a stale comment on `KerkerMixer` denied.)
+       * **A LATENT NaN, exposed the moment the channels became real**: `VWN_Correlation::Zeta` was
+         unclamped, and a band-limited ρ̃ rings slightly NEGATIVE in the tails — so a genuinely spin-resolved
+         feed hands the functional ρ_σ<0 with the total still positive, i.e. |ζ|>1.  That is FATAL, not
+         merely inaccurate: f(ζ) evaluates (1−ζ)^{4/3} via `std::pow`, NaN for a negative base, and ONE NaN
+         mesh point makes the whole v_c matrix non-Hermitian (Blaze throws "Invalid assignment to diagonal
+         matrix element" out of the Fock build).  Unreachable before the fix, because ζ was identically 0.
+         Cured by clamping ζ to its physical [−1,1] at the ONE place both `GetEpsC` and `GetVc` read it —
+         the same self-defence as the existing ρ>0 guards.  Gate `LDA_XC.NegativeChannelClampsToFullPolarization`.
+       * **RESULT (MnO run 9, `doc/logs/mno_afm2_run9_polarizedmixer.log`): the structural collapse is GONE,
+         the AFM ground state is still NOT reached.**  m_stag no longer reads EXACTLY 0 at iteration 1
+         (+0.0046), it *regrows* to +0.107 by iteration 3 — the self-consistent exchange splitting doing its
+         job — and thereafter it tracks the energy's sign, decaying to ~1e-4 as the run settles into the SAME
+         −45/−46 limit cycle as run 6.  So the remaining barrier is no longer the mixer.  (Run 9 was
+         OOM-killed at iteration 24 under a 12 GB cap — constant two-channel overhead on a run already at
+         the ceiling, NOT a leak: an RSS trace of the two-mixer Mn box is flat at ~295 MB, identical to the
+         single-mixer control.)
+       * **WHAT THE REMAINING BARRIER ACTUALLY IS (run 10 sweep, 2026-08-07): OCCUPATION HOPPING, and the
+         MAGNETIC BRANCH IS 4–6 Ha BETTER BOUND.**  Every iteration carries the `cfg *` flag and an `m`
+         (partial-occupancy) frontier whose gap wanders over an order of magnitude (0.026–0.27 Ha): the
+         occupied configuration re-shuffles EVERY step on the near-degenerate d manifold, and each reshuffle
+         throws E by several Ha.  The run alternates between a MAGNETIC branch (−53.87 m=0.097; −51.95
+         m=0.106) and a NON-magnetic one (−47.64 m=0.0025; −48.13 m=0.0028) — the magnetic branch is
+         consistently the better bound.  So run 6's converged −45.64 was effectively the AVERAGE of the two,
+         and "under-bound by 15.8 Ha" + "the AFM order collapsed" are plausibly ONE defect, not two: the
+         magnetic branch alone reaches −53.9, closing roughly half the deficit to CP2K's −61.47.  Re-test
+         once the run can hold a configuration.  No density-mixing knob can fix a run whose occupations hop
+         every step ⇒ the next experiment is **kT / MOM-timing** (`RunGpwAnnealed` exists for exactly this),
+         not mixing.
+       * **α AND G₀ MEASURED (`MNO_ALPHA` / `MNO_KERKER_G0`, 16-iteration arms; logs `run10_alpha025_sweep_g*`).**
+         α: 0.45 was the aggressive half of the borrowed NaF recipe (the NaF *Becke* gate); **α=0.25** (the
+         NaF *Γ* slosh recipe, user) descends MONOTONELY to −53.87 instead of overshooting −51.6→−44.2, and
+         settles ~4 Ha lower.  G₀ at α=0.25: **0.3 → E flat at −45.3 from iteration 5, moment extinguished
+         (converges smoothly to the WRONG, non-magnetic answer — the worst outcome wearing the best-behaved
+         run's clothes); 1.0 → oscillates, peak m=0.106, magnetic branch −53.87; 3.0 → slow monotone descent,
+         STILL descending and the ONLY arm whose moment is still GROWING at the budget (0.028 and rising).**
+         That ordering is the selectivity argument: at G₀=1 the Kerker factor is 0.61 on the AFM mode
+         (|G|=1.24, the shortest odd-(h+k+l) mode of B=(4π/a)(I−J/4)) vs 0.30 on the lowest charge mode
+         (|G|=0.65), so Kerker already favours the magnetism 2:1; G₀=3 sharpens that to 3.3:1 but crushes
+         both (effective AFM step 0.146·0.25=0.037 — hence the slowness).  **The limit of the trend is not a
+         bigger G₀, it is NOT KERKERING m AT ALL** — the user's original physics instinct: Kerker's
+         G²/(G²+G₀²) models the Hartree restoring force against long-wavelength CHARGE fluctuations, which
+         the magnetization does not have.
+       * **(ρ,m) BASIS BUILT AND MEASURED — THE HYPOTHESIS IS REFUTED AS A CURE (run 11, 2026-08-08).**
+         `PolarizedDensityMixer` gained the (ρ,m) channel basis (`QCHEM_MIX_RHO_M=1`): Kerker leaf on ρ,
+         PLAIN LINEAR leaf on m (= Kerker at G₀=0, so no new mixer type was needed).  It is a 2×2 COUPLED
+         mix in spin space — provably unreachable by any per-(ρ↑,ρ↓) leaf pair, which is exactly why the G₀
+         sweep could not test it (a uniform filter on (ρ↑,ρ↓) IS that filter on (ρ,m)).  A/B at identical
+         α=0.25 and G₀-on-ρ: peak m_stag 0.0618@it7 vs 0.1064@it7; final −0.0029 vs 7.3e-5; final E −49.08
+         vs −49.12.  So undamping m leaves ~40× more residual moment (the effect is REAL) but LOWERS the
+         peak and rescues nothing — both arms fall into the SAME two-branch oscillation at the same energy.
+         **Kerker damping of m was not what killed the AFM order.**  Every mixing-side candidate is now
+         fixed or eliminated: spin-blind ρ̃ mixer (a real bug, fixed), DIIS-per-spin (checked in source — it
+         is JOINT: one B summed over both spins, one coefficient vector held by reference), G₀ selectivity
+         (swept), Kerker-on-m (built + measured).  **THE REMAINING DEFECT IS THE OCCUPATION HOPPING.**  The
+         (ρ,m) basis stays an opt-in capability (default unchanged): it is the physically-motivated
+         construction and the one place we deliberately diverge from CP2K, but it is not the MnO cure.
+         The `m_stag` assert stays the acceptance test.  Log `run11_rho_m_basis`.
+       * **THE INSTRUMENT (general, landed with the diagnosis)**: `tSCFIterator::SetOrderParameter(name,
+         probe)` — a caller-supplied named scalar measured on the WORKING density every iteration, rendered
+         as an extra trace column, carried in `SCFProgress`, and printed once at "iteration 0 (seed)" as the
+         reference every later value is judged against.  This is §9's "diagnostic metric" open question,
+         answered by the concrete case: an explicit, caller-supplied ORDER PARAMETER, because which sites
+         and which sign pattern is system knowledge the iterator cannot infer.  Zero cost when unset.  The
+         GPW driver adds the post-mortem line (whole trajectory + the iteration at which the order died, at
+         the 1%-of-seed threshold); MnO's probe is m_stag = ½[m(Mn1)−m(Mn2)] sampled 0.7 bohr off each Mn —
+         and since the run fixes nUp=nDn, ferromagnetic drift is not an available escape, so m_stag is the
+         WHOLE order.  Reusable verbatim for LiMn₂O₄ charge/spin ordering.
        * **UNDER-BOUND by 15.8 Ha** vs CP2K −61.4706 — far beyond basis incompleteness (our own free
          atoms sum to ≈−60.8, so a bound crystal must sit BELOW that).  CP2K's CRYSTAL decomposition is
          now banked for the comparison (same deck): `core-self −125.2197  coreH +42.3595  Hartree
@@ -1070,7 +1179,9 @@ against a special case it will outgrow:
          apples-to-apples number until someone derives the mapping; the density-INDEPENDENT constants
          (ours Enn+alphaZ = −54.17) are where that derivation should start, since both KB routes are
          oracle-clean at the atom level and XC agrees to ~0.5 Ha (itself partly the ζ=0 collapse).
-     Run log: doc/logs/mno_afm2_run6_curedbasis.log.
+     Run logs: doc/logs/mno_afm2_run6_curedbasis.log (the settled run);
+     `run7_orderparam_kerker` (m_stag dies at iteration 1 under the ρ̃ mixer) and
+     `run8_linearmix_control` (m_stag alive under linear D-mixing) — the A/B that convicted the mixer.
      (b) **A real but unattributed l=2 discrepancy between the two CRYSTAL KB routes**: analytic vs
      mesh = 3.09e-2 relative on Mn (vs 2.4e-9 for the Si l=0,1 gate) — structural, not a scale factor
      (max|Va| == max|Vm| exactly).  Could still be the MESH arm being coarse on Mn's compact
@@ -1132,6 +1243,14 @@ tiers (review fix — one number would make correct code "fail"):
   before committing the stream fold on low-symmetry-denominator cells.
 - **Diagnostic metric** — `‖D − P_G D‖` vs per-op invariance defect vs an explicit order
   parameter; pick one that is cheap per iteration and interpretable in the run report.
+  **ANSWERED 2026-08-07 (by the MnO AFM collapse, §7 step 7): the EXPLICIT ORDER PARAMETER**, supplied by
+  the caller — `tSCFIterator::SetOrderParameter(name, probe)`, one named scalar on the working density per
+  iteration, as a trace column + `SCFProgress` field, with the seed's value printed as iteration 0.  Which
+  sites and which sign pattern define the order is system knowledge the iterator cannot infer, so the probe
+  is a functor, not a policy.  It paid for itself immediately: two point evaluations per iteration bracketed
+  a "the SCF relaxes out of the magnetic basin" mystery to a single step and a spin-blind mixer.  The
+  invariance-defect metrics remain the right instrument for the *symmetry* (§3) question — they answer
+  "which ops broke", not "did the order survive", and the two coexist.
 - **Spin op algebra** — the anti-unitary time-reversal part (`ρ̃(−G)=ρ̃(G)*` + spin flip)
   needs care in the G-space phase bookkeeping; settle it in the §4 interface, not later.
 - **Non-collinear representation** — 2×2 spinor density (complex coefficients coupling

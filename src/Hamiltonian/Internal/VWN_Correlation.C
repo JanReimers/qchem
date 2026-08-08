@@ -76,7 +76,25 @@ private:
     static constexpr double kDen = 0.5198420997897464; // 2^{4/3}-2
     static constexpr double kfpp0= 1.7099209341613657; // f''(0) = 4/(9(2^{1/3}-1))
 
-    static double Zeta(double rup,double rdn) { double rho=rup+rdn; return rho>0.0 ? (rup-rdn)/rho : 0.0; }
+    //! \f$\zeta=(\rho_\uparrow-\rho_\downarrow)/\rho\f$, CLAMPED to the physical \f$[-1,1]\f$.
+    //!
+    //! \f$\zeta\f$ is a polarization FRACTION, so \f$|\zeta|>1\f$ is never physics -- it means one channel
+    //! came in slightly NEGATIVE, which a band-limited \f$\tilde\rho\f$ (or any quadrature-represented
+    //! density) does in the tails by ringing.  Unclamped it is fatal, not merely inaccurate: \c fz evaluates
+    //! \f$(1-\zeta)^{4/3}\f$ via \c std::pow, which is NaN for a negative base, and one NaN mesh point makes
+    //! the whole \f$v_c\f$ matrix non-Hermitian ("Invalid assignment to diagonal matrix element" out of
+    //! Blaze).  Guarding here mirrors the \c rho>0 guards on the scalar face -- the functional defends itself
+    //! against non-physical density values, at the ONE place both \c GetEpsC and \c GetVc read \f$\zeta\f$.
+    //! Unreachable before 2026-08-07: every polarized periodic run was fed \f$\rho_\uparrow=\rho_\downarrow
+    //! =\rho/2\f$ by the spin-blind \f$\tilde\rho\f$ mixers, so \f$\zeta\f$ was identically 0 (the MnO AFM
+    //! collapse; doc/SymmetryUpgradePlan.md §7 step 7).
+    static double Zeta(double rup,double rdn)
+    {
+        double rho=rup+rdn;
+        if (rho<=0.0) return 0.0;
+        double z=(rup-rdn)/rho;
+        return z<-1.0 ? -1.0 : (z>1.0 ? 1.0 : z);
+    }
 
     // G(x;p) and dG/dx for one parameter set.  rs=(3/4 pi rho)^{1/3}, x=sqrt(rs), X(x)=x^2+b x+c.
     static double Xof(double x, const Params& p) { return x*x + p.b*x + p.c; } // X(x)=x^2+b x+c (exact op order)
