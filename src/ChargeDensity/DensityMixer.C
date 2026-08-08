@@ -128,9 +128,13 @@ inline rvec_t RasterKerker(const BasisSet::G_FieldEvaluator& ge, const rvec_t& i
     return mix;
 }
 
-//! Kerker-preconditioned ρ̃(G)-mixing (periodic / dcmplx).  ρ_mix = ρ_in + α·G²/(G²+G0²)·(ρ_out−ρ_in);
-//! G=0 is never mixed (charge-conserving).  Holds the running mixed ρ̃ as a FourierMixCD; the next Fock is
-//! driven from it.  Built by MakeDensityMixer (which validates the periodic pieces).
+//! Kerker-preconditioned ρ̃(G)-mixing (periodic / dcmplx).  ρ_mix = ρ_in + α·G²/(G²+G0²)·(ρ_out−ρ_in).
+//! Holds the running mixed ρ̃ as a FourierMixCD; the next Fock is driven from it.  Built by
+//! MakeGSpaceMixer -- on a polarized run, one of these PER SPIN CHANNEL (see PolarizedDensityMixer).
+//! NB G=0 IS mixed, at full α: our ρ̃ is a fit-basis PROJECTION whose (0,0,0) coefficient is shape-dependent
+//! rather than the fixed N/Ω, so freezing it would strand the XC's mean density at the seed (the reason is
+//! in FourierMixCD::KerkerMix, which owns the filter).  CP2K does the same -- its kerker_factor array is
+//! left at 1.0 for G=0 (qs_mixing_utils.F: `ig1 = 2` when the grid has G=0).
 class KerkerMixer : public tDensityMixer<dcmplx>
 {
 public:
@@ -193,6 +197,11 @@ inline ΔG_Map MapCombine(const std::deque<ΔG_Map>& maps, const rvec_t& c)  // 
     for (size_t i=0;i<maps.size();++i)
         for (const auto& [k,v]:maps[i]) r[k]+=c[i]*v;
     return r;
+}
+inline ΔG_Map MapAdd(ΔG_Map a, const ΔG_Map& b)          // a + b (the ↑+↓ channel sum)
+{
+    for (const auto& [k,v]:b) a[k]+=v;
+    return a;
 }
 inline double MapMaxAbs(const ΔG_Map& m)
 {
@@ -305,6 +314,179 @@ private:
     std::deque<rvec_t> itsRawIns, itsRawOuts;              //!< its history (aligned with itsIns while active)
 };
 
+//---------------------------------------------------------------------------------------------------------
+//  THE POLARIZED ρ̃ MIXER (2026-08-07; doc/SymmetryUpgradePlan.md §7 step 7)
+//
+//  A ρ̃-space mixer carries ONE FourierMixCD -- the ↑+↓ total, no spin channels -- and drives every Fock
+//  from it.  XC_GridEngine::RhoPol then finds no spin face and takes its ρ↑=ρ↓=ρ/2 branch, so v_xc^↑≡v_xc^↓
+//  and a POLARIZED run is silently unpolarized from iteration 1 (measured on MnO: a seed staggered at
+//  m_stag=0.366 read EXACTLY 0 at iteration 1).  The cure is a COMPOSITION, not a second implementation:
+//  one ordinary mixer per spin channel, plus the view below that gives their pair both faces the framework
+//  consumes.  Every mixer that works through the FourierDensity face -- Kerker today, Pulay today, whatever
+//  lands next -- works here unchanged, because the composite never learns which one it holds.
+//
+//  BASIS NOTE (checked against CP2K's qs_gspace_mixing.F, 2026-08-07).  CP2K transforms to (ρ_total, m)
+//  in its mixing DRIVER and then runs the same per-channel loop with the SAME Kerker factor and α on both.
+//  For a LINEAR operator that is algebraically identical to mixing (ρ↑,ρ↓) per channel -- Kerker is linear
+//  in the residual, so m_mix = m_in + αK(m_out−m_in) either way -- i.e. THIS composite reproduces CP2K's
+//  Kerker exactly, with no proof burden.  The basis only becomes a real choice for the NONLINEAR history
+//  mixers (Pulay/Broyden extrapolation coefficients are not linear in the residual history), where CP2K
+//  keeps independent per-channel histories on (ρ,m).  That choice is deliberately left HERE -- swapping the
+//  channel basis, or giving m a plain linear leaf while ρ keeps Kerker, is a change to this class alone.
+//---------------------------------------------------------------------------------------------------------
+
+//! The polarized ρ̃ Fock density: the two channel mixers' outputs presented as ONE density carrying BOTH
+//! faces the framework needs.  Hartree reads the ↑+↓ TOTAL through \c FourierDensity (spin never enters
+//! V_H); the spin-native XC engine reads the CHANNELS through \c cSpinResolved_CD -- which is precisely
+//! what a single-map ρ̃ mixer could not provide.  A non-owning VIEW: the channel densities belong to the
+//! leaf mixers, which outlive every Fock build they feed; \c Seat re-points it after each mix.
+class PolarizedMixCD
+    : public virtual tChargeDensity<dcmplx>
+    , public virtual FourierDensity
+    , public virtual cSpinResolved_CD
+{
+public:
+    void Seat(const cChargeDensity* up, const cChargeDensity* dn) { itsUp=up; itsDn=dn; }
+
+    //! cSpinResolved_CD -- the spin-native XC engine's channel access (the whole point of this class).
+    virtual const cChargeDensity* GetChannel(const Spin& s) const
+    {
+        assert(s!=Spin::None && "PolarizedMixCD::GetChannel: ask for a channel, not the total");
+        assert(itsUp && itsDn && "PolarizedMixCD: never seated");
+        return s==Spin::Up ? itsUp : itsDn;
+    }
+    // FourierDensity -- the ↑+↓ TOTAL.  Both quantities are LINEAR in ρ̃ (V_H = 4π ρ̃/|G|²), so summing the
+    // channels' answers IS the total's answer.
+    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
+    { return MapAdd(Fourier(itsUp).GetFourierDensity(c), Fourier(itsDn).GetFourierDensity(c)); }
+    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
+    { return MapAdd(Fourier(itsUp).GetRepulsion3C(c), Fourier(itsDn).GetRepulsion3C(c)); }
+    //! The raw-raster shadow, summed -- empty (pipeline off) unless BOTH channels answer on the same raster.
+    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
+    {
+        rvec_t u=Fourier(itsUp).GetRhoOnGrid(c), d=Fourier(itsDn).GetRhoOnGrid(c);
+        if (u.size()==0 || u.size()!=d.size()) return rvec_t{};
+        u+=d;
+        return u;
+    }
+    // ScalarFunction<double> / tChargeDensity -- the total ρ(r), summed.
+    //! Batch evaluation DELEGATES to the channels' batch form.  The inherited default (a loop over the
+    //! single-point \c operator() ) would re-walk each channel's ρ̃ map per point and throw away exactly the
+    //! flattening + phase-factor hoisting \c FourierMixCD::EvalBatch exists to provide -- and the XC mesh
+    //! asks for tens of thousands of points every iteration.
+    virtual rvec_t EvalBatch(const rvec3vec_t& r) const
+    {
+        rvec_t u=itsUp->EvalBatch(r);
+        u+=itsDn->EvalBatch(r);
+        return u;
+    }
+    virtual double  operator()(const rvec3_t& r) const { return (*itsUp)(r) + (*itsDn)(r); }
+    virtual rvec3_t Gradient  (const rvec3_t& r) const { return itsUp->Gradient(r) + itsDn->Gradient(r); }
+    virtual double  GetTotalCharge() const { return itsUp->GetTotalCharge() + itsDn->GetTotalCharge(); }
+    //! Read-only VIEW: scaling belongs to the channels the leaf mixers own, never to their presentation.
+    virtual void    ReScale(double) { assert(false && "PolarizedMixCD is a read-only view of the mixers' channels"); }
+    //! Self-maintaining logical-clock serial.  DERIVED from the channels' serials rather than stamped in
+    //! \c Seat on purpose: a mixer frees its old channel density and allocates the new one, which can land at
+    //! the SAME address, so pointer identity is not a safe change detector — that is exactly the stale-cache
+    //! failure [[project_hamiltonian_dynamic_cache_bug]] cured by moving to serials.  Channel serials come
+    //! from the one global counter, so they are unique and never reused.
+    virtual size_t Version() const
+    {
+        const size_t u=itsUp->Version(), d=itsDn->Version();
+        if (u!=itsUpV || d!=itsDnV) { itsUpV=u; itsDnV=d; itsVersion=NextDensityVersion(); }
+        return itsVersion;
+    }
+private:
+    //! The channel's Fourier face -- a ρ̃ mixer's output always has it (checked at construction, not here).
+    static const FourierDensity& Fourier(const cChargeDensity* cd)
+    {
+        auto* f=dynamic_cast<const FourierDensity*>(cd);
+        assert(f && "PolarizedMixCD: a channel density must carry the FourierDensity face");
+        return *f;
+    }
+    const cChargeDensity* itsUp=nullptr;
+    const cChargeDensity* itsDn=nullptr;
+    mutable size_t itsVersion=0, itsUpV=0, itsDnV=0;   // 0 = the reserved "no density yet" sentinel
+};
+
+//! ONE ρ̃ mixer per spin channel, plus the spin-resolved Fock view they feed.  Pure forwarding: the leaves
+//! are ordinary \c tDensityMixer<dcmplx>s built by the SAME factory the unpolarized path uses, so Kerker and
+//! Pulay (and their successors) are supported here without this class knowing which it holds.
+class PolarizedDensityMixer : public tDensityMixer<dcmplx>
+{
+public:
+    PolarizedDensityMixer(std::unique_ptr<tDensityMixer<dcmplx>> up,
+                          std::unique_ptr<tDensityMixer<dcmplx>> dn)
+        : itsUp(std::move(up)), itsDn(std::move(dn)) {}
+
+    //! Mix each channel with its own leaf; the SCF gate is the WORSE channel (both must converge -- an AFM
+    //! solution whose total has settled while the staggering still moves is not converged).
+    double Mix(cd_t& working, const cd_t& old) override
+    {
+        auto [wu,wd]=Channels(working);
+        auto [ou,od]=Channels(old);
+        const double du=itsUp->Mix(wu,ou), dd=itsDn->Mix(wd,od);
+        return std::max(du,dd);
+    }
+    const tChargeDensity<dcmplx>* FockDensity(const cd_t& working) const override
+    {
+        auto [wu,wd]=Channels(working);
+        itsFock.Seat(itsUp->FockDensity(wu), itsDn->FockDensity(wd));
+        return &itsFock;
+    }
+    double      GetRelax() const override { return itsUp->GetRelax(); }
+    const char* Tag     () const override { return itsUp->Tag(); }   // the trace reports the LEAF recipe
+    bool   WantsReDamp(const MixSignals& s) const override
+    { return itsUp->WantsReDamp(s) || itsDn->WantsReDamp(s); }        // either channel asking is enough
+    double ReDampMix(cd_t& working, const cd_t& old) override
+    {
+        auto [wu,wd]=Channels(working);
+        auto [ou,od]=Channels(old);
+        return std::max(itsUp->ReDampMix(wu,ou), itsDn->ReDampMix(wd,od));
+    }
+    void UpdateRelax(const MixSignals& s) override { itsUp->UpdateRelax(s); itsDn->UpdateRelax(s); }
+
+private:
+    //! The two spin channels as ALIASING shared_ptrs: they share OWNERSHIP with the parent polarized density
+    //! (which therefore cannot die under a leaf) while pointing at the channel that leaf mixes.  A leaf that
+    //! mutates its working density (the linear mixer's MixIn) then edits the channel in place, which is
+    //! exactly right; the ρ̃ leaves only read it through the FourierDensity face.
+    static std::pair<cd_t,cd_t> Channels(const cd_t& cd)
+    {
+        auto* pol=dynamic_cast<tPolarized_CD<dcmplx>*>(cd.get());
+        assert(pol && "PolarizedDensityMixer: the working density must be polarized");
+        return { cd_t(cd, pol->GetChargeDensity(Spin::Up)), cd_t(cd, pol->GetChargeDensity(Spin::Down)) };
+    }
+    std::unique_ptr<tDensityMixer<dcmplx>> itsUp, itsDn;
+    mutable PolarizedMixCD itsFock;   //!< re-seated by FockDensity (the leaves' outputs change every mix)
+};
+
+//! Build ONE ρ̃-space mixer -- Pulay when \a pulayDepth>0, else Kerker -- seeded from \a seed's ρ̃.  The whole
+//! recipe in one place, so the polarized path COMPOSES two of these rather than duplicating it.  \a seed is
+//! the whole density on the unpolarized path and one spin channel on the polarized one; nothing else differs.
+//! \a label names the arm in the one-time banner ("" / "↑" / "↓"), which is emitted HERE because this is
+//! where the ρ̃ map and the raw-raster shadow are in hand -- a caller-side banner would rebuild both.
+inline std::unique_ptr<tDensityMixer<dcmplx>> MakeGSpaceMixer(
+    double relax0, double kerkerG0, int pulayDepth, int pulayStart,
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip,
+    const tChargeDensity<dcmplx>* seed, const std::string& label="")
+{
+    auto* fd = dynamic_cast<const FourierDensity*>(seed);
+    assert(fd && "MakeGSpaceMixer: the seed density must carry the FourierDensity face");
+    ΔG_Map rho0 = fd->GetFourierDensity(*fit);
+    rvec_t raw0 = fd->GetRhoOnGrid(*fit);        // raw-raster shadow seed (0.5(f2)); empty = late-activate
+    const double charge = seed->GetTotalCharge();
+    std::cerr << "[" << (pulayDepth>0 ? "Pulay" : "Kerker") << "] ENABLED"
+              << (label.empty() ? std::string() : " ("+label+")") << ": G0=" << kerkerG0
+              << ", ρ̃-mixing on " << charge << " electrons (" << rho0.size() << " G-vectors"
+              << (raw0.size() ? ", raw-XC shadow ON" : "") << ")." << std::endl;
+    if (pulayDepth>0)
+        return std::make_unique<PulayMixer>(relax0, kerkerG0, pulayDepth, pulayStart, std::move(fit), recip,
+                                            std::move(rho0), charge, std::move(raw0));
+    auto mixed = std::make_shared<FourierMixCD>(std::move(rho0), recip, charge);
+    return std::make_unique<KerkerMixer>(relax0, kerkerG0, std::move(fit), std::move(mixed), std::move(raw0));
+}
+
 //! Build the density mixer for a run: Kerker when \a kerkerG0>0 AND the basis/cell/seed are periodic
 //! (Band_FT_IBS + UnitCell + FourierDensity), else linear D-mixing.  Mirrors the old KerkerSetup, incl. the
 //! LOUD fall-back (Release has no asserts).  \a relax0 = StartingRelaxRo (α=1 => passthrough).
@@ -325,40 +507,31 @@ template <class T> std::unique_ptr<tDensityMixer<T>> MakeDensityMixer(
                           << "FourierDensity -- falling back to linear D-mixing." << std::endl;
                 return std::make_unique<LinearMixer<T>>(relax0);
             }
-            // NEVER SILENTLY UNPOLARIZED (2026-08-07, the MnO AFM-II collapse).  The ρ̃ mixers carry ONE
-            // FourierMixCD -- the TOTAL density, no spin channels -- and every subsequent Fock is driven from
-            // it (FockDensity).  XC_GridEngine::RhoPol then finds neither a cPolarized_CD nor a
-            // cSpinResolved_CD and takes its ρ↑=ρ↓=ρ/2 "spin-agnostic seed" branch, so v_xc^↑≡v_xc^↓ and the
-            // run is UNPOLARIZED from iteration 1 -- measured on MnO: a seed staggered at m_stag=0.366 reads
-            // EXACTLY 0 at iteration 1 and never recovers (the same run under linear mixing keeps m_stag~0.2
-            // and splits ε↑−ε↓ by 45 mHa).  Until the spin-resolved ρ̃ mixer lands (mix ρ and m as separate
-            // channels), a polarized run takes the SLOWER but PHYSICAL linear D-mixing, loudly.
-            // (QCHEM_SPINBLIND_KERKER=1 keeps the ρ̃ mixer on a polarized run -- the A/B valve that MEASURES
-            //  the collapse; never a production setting.)
-            if ((dynamic_cast<const tPolarized_CD<T>*>(seed) || dynamic_cast<const tSpinResolved_CD<T>*>(seed))
-                && !std::getenv("QCHEM_SPINBLIND_KERKER"))
-            {
-                std::cerr << "[Mixer] Kerker/Pulay DISABLED for this POLARIZED run: the ρ̃ mixers hold the "
-                          << "total density only, which collapses v_xc to the ζ=0 (unpolarized) branch from "
-                          << "iteration 1 -- falling back to linear D-mixing, which mixes both spin channels."
-                          << std::endl;
-                return std::make_unique<LinearMixer<T>>(relax0);
-            }
             auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(ftb->CreateVxcFitBasisSet(cell, qcMesh::MeshParams{}));
             ReciprocalLattice recip(cell->MakeReciprocalCell());
-            auto rho0  = fd->GetFourierDensity(*fit);
-            rvec_t raw0= fd->GetRhoOnGrid(*fit);   // raw-raster shadow seed (0.5(f2)); empty = late-activate
-            const double charge = seed->GetTotalCharge();
-            if (pulayDepth>0)
-                // (The former "[Pulay] ENABLED: depth=.." banner is retired: the per-iteration ρ_mix column
-                //  now shows "Pul" every step -- doc/GPWPlan1.md item 2 -- so the one-time banner is redundant.)
-                return std::make_unique<PulayMixer>(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip, rho0,
-                                                    charge, std::move(raw0));
-            auto mixed = std::make_shared<FourierMixCD>(rho0, recip, charge);
-            std::cerr << "[Kerker] ENABLED: G0=" << kerkerG0 << ", rho-mixing on " << charge
-                      << " electrons (" << rho0.size() << " G-vectors"
-                      << (raw0.size() ? ", raw-XC shadow ON" : "") << ")." << std::endl;
-            return std::make_unique<KerkerMixer>(relax0, kerkerG0, fit, mixed, std::move(raw0));
+            const char* tag = pulayDepth>0 ? "Pulay" : "Kerker";
+            // POLARIZED: one ρ̃ mixer PER SPIN CHANNEL, composed (see PolarizedDensityMixer).  A single-map
+            // mixer would hand the Fock a spin-blind total and collapse v_xc to the ζ=0 branch from
+            // iteration 1 -- the MnO AFM-II collapse, 2026-08-07.  (QCHEM_SPINBLIND_KERKER=1 takes the
+            // single-map path on a polarized density anyway: the A/B valve that re-measures the collapse,
+            // and the negative control behind GPW_SCF.PolarizedRunKeepsItsSpin.  Never a production setting.)
+            const bool spinBlind = std::getenv("QCHEM_SPINBLIND_KERKER");
+            if (auto* pol = spinBlind ? nullptr : dynamic_cast<const tPolarized_CD<T>*>(seed))
+            {
+                auto up=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Up  ),"↑");
+                auto dn=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Down),"↓");
+                return std::make_unique<PolarizedDensityMixer>(std::move(up), std::move(dn));
+            }
+            // A spin-resolved density that is NOT a tPolarized_CD cannot hand out mutable channel densities
+            // for the leaves to mix -- never silently unpolarized, so say so and take the physical path.
+            if (!spinBlind && dynamic_cast<const tSpinResolved_CD<T>*>(seed))
+            {
+                std::cerr << "[Mixer] " << tag << " DISABLED: this spin-resolved density exposes no mutable "
+                          << "channels to mix per spin -- falling back to linear D-mixing (which keeps both "
+                          << "channels) rather than collapsing v_xc to the unpolarized branch." << std::endl;
+                return std::make_unique<LinearMixer<T>>(relax0);
+            }
+            return MakeGSpaceMixer(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip, seed);
         }
     }
     return std::make_unique<LinearMixer<T>>(relax0);

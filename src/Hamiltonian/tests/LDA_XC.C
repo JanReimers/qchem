@@ -159,6 +159,37 @@ TEST_F(LDA_XC, VWN5PolarizedMatchesLibxc)
     }
 }
 
+// A NEGATIVE spin channel must not poison the functional (2026-08-07, doc/SymmetryUpgradePlan.md 7 step 7).
+// A band-limited rho-tilde (or any quadrature-represented density) rings slightly NEGATIVE in the tails, so
+// a genuinely spin-resolved feed can hand the functional rho_sigma<0 with the TOTAL still positive -- i.e.
+// |zeta|>1, which is not physics but arithmetic.  Unclamped it is FATAL rather than inaccurate: f(zeta)
+// evaluates (1-zeta)^(4/3) through std::pow, NaN for a negative base, and ONE NaN mesh point makes the whole
+// v_c matrix non-Hermitian (Blaze throws "Invalid assignment to diagonal matrix element" out of the Fock
+// build).  This was unreachable until the spin-resolved rho-tilde mixer landed: before it, every polarized
+// periodic run was fed rho_up=rho_down=rho/2 and zeta was identically 0.  So: finite everywhere, and the
+// clamp must land exactly on the fully-polarized answer.
+TEST_F(LDA_XC, NegativeChannelClampsToFullPolarization)
+{
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    for (double rho : {1e-6, 0.01, 0.1, 1.0})
+    for (double over: {1e-12, 1e-6, 0.01, 0.5})     // how far the minority channel dips below zero
+    {
+        const double rdn=-over*rho, rup=rho-rdn, tot=rup+rdn;   // the TOTAL the functional actually sees
+        ASSERT_GT((rup-rdn)/tot, 1.0) << "the probe must actually leave the physical zeta range";
+        for (Spin s : {Spin::Up, Spin::Down})
+            EXPECT_TRUE(std::isfinite(vwn.GetVc(rup,rdn,s)))
+                << "v_c must stay finite at rho="<<rho<<" rho_dn="<<rdn<<" (NaN here throws in the Fock build)";
+        EXPECT_TRUE(std::isfinite(vwn.GetEpsC(rup,rdn))) << "rho="<<rho<<" rho_dn="<<rdn;
+        // Clamped zeta==1 IS the fully-polarized state, so the answers must equal the (tot,0) ones exactly
+        // (same total, zeta exactly 1 either way -- so both calls evaluate the identical (rs,zeta) point).
+        EXPECT_DOUBLE_EQ(vwn.GetEpsC(rup,rdn),          vwn.GetEpsC(tot,0.0));
+        EXPECT_DOUBLE_EQ(vwn.GetVc(rup,rdn,Spin::Up),   vwn.GetVc(tot,0.0,Spin::Up));
+        EXPECT_DOUBLE_EQ(vwn.GetVc(rup,rdn,Spin::Down), vwn.GetVc(tot,0.0,Spin::Down));
+    }
+    // ...and the mirror image (majority DOWN) is the same statement with the channels swapped.
+    EXPECT_DOUBLE_EQ(vwn.GetVc(-1e-3,1.0,Spin::Down), vwn.GetVc(0.0,1.0-1e-3,Spin::Down));
+}
+
 // The zeta=0 collapse of the spin-native face must equal the scalar (paramagnetic) face byte-for-byte:
 // rho_up=rho_down=rho/2  =>  eps_c(rho/2,rho/2)==GetEpsXc(rho), v_c^up==v_c^down==GetVxc(rho).
 TEST_F(LDA_XC, SpinNativeCollapsesToScalarFace)

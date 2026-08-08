@@ -146,20 +146,31 @@ struct FpRow { size_t it; double E, dEabs, fd, drho, order=0; };
 // The ORDER-PARAMETER trajectory, one compact line (printed only when a probe was set).  The per-iteration
 // SCF column already shows it live; this line is the POST-MORTEM -- the whole time series in one place, with
 // the death iteration named, so a bounded diagnosis run answers "WHERE did the order die?" without anyone
-// re-reading a 30-row table.  "Died" = the first iteration at which |order| falls below 1% of its seed value
-// and never recovers; a run that keeps its order reports the survivor value instead.
+// re-reading a 30-row table.
+//
+// The reference is the run's PEAK |order|, NOT iteration 1 (fixed 2026-08-07, first use).  Iteration 1 is a
+// terrible baseline: its Fock comes from the SEED, so the order parameter there is whatever survived one
+// crude step -- MnO reads 0.0046 at iteration 1, peaks at 0.1064 by iteration 7 as the self-consistent
+// exchange splitting builds it back up, then decays to 7e-5.  Judged against iteration 1 that is "SURVIVED"
+// (1.6%); judged against the peak it is a 1400x collapse, which is what actually happened.  A quantity that
+// GROWS before it dies needs the high-water mark as its yardstick.
 void OrderTrajectory(const std::vector<FpRow>& s, const std::string& name, const char* label)
 {
     if (s.empty() || name.empty()) return;
     std::cout << "["<<label<<" "<<name<<"]";
     for (const auto& r : s) std::cout << " " << std::fixed << std::setprecision(4) << r.order;
     std::cout << std::defaultfloat << std::endl;
-    const double m0=std::fabs(s.front().order), dead=0.01*m0;
+    size_t peak=0;                                          // the high-water mark and where it happened
+    for (size_t i=1;i<s.size();++i) if (std::fabs(s[i].order)>std::fabs(s[peak].order)) peak=i;
+    const double mMax=std::fabs(s[peak].order), dead=0.01*mMax;
     size_t died=s.size();                                   // first index from which |order| stays below dead
     while (died>0 && std::fabs(s[died-1].order)<=dead) --died;
-    std::cout << "["<<label<<" "<<name<<"] seed(iter1)="<<s.front().order<<" final="<<s.back().order;
-    if (m0>0.0 && died<s.size())
-        std::cout << "  ** DIED at iteration "<<s[died].it<<" (|"<<name<<"| < 1% of iteration 1 from there on)";
+    std::cout << "["<<label<<" "<<name<<"] iter1="<<s.front().order
+              << " peak="<<s[peak].order<<"@iter"<<s[peak].it<<" final="<<s.back().order;
+    if (mMax>0.0 && died<s.size() && died>peak)
+        std::cout << "  ** DIED at iteration "<<s[died].it<<" (|"<<name<<"| < 1% of the peak from there on)";
+    else if (mMax>0.0 && std::fabs(s.back().order) < 0.5*mMax)
+        std::cout << "  ** DECAYING (final is "<<(100.0*std::fabs(s.back().order)/mMax)<<"% of the peak)";
     else
         std::cout << "  order SURVIVED the run";
     std::cout << std::endl;
@@ -2439,9 +2450,9 @@ TEST(GPW_SCF, PolarizedRunKeepsItsSpin)
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.imposeSymmetry=false;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-    o.scf.NMaxIter=12; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;
+    o.scf.NMaxIter=12; o.scf.MinΔρ=1e-8; o.scf.MinΔE=1e30;   // TIGHT on purpose: the assert is on the whole
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;   // trajectory, so the gate must actually
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;   // ITERATE (Kerker on this
     o.scf.KerkerG0=1.0;                                // THE ASK: ρ̃ mixing on a polarized density
 
     // The order parameter: the on-site moment m(r)=ρ↑(r)−ρ↓(r) sampled 0.7 bohr off the nucleus (the d-shell
@@ -2517,7 +2528,18 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // charge-transfer dynamic.  Adopt the NaF Becke gate's full recipe: Ladder + Kerker-damped mixing
     // + MOM (masked Fermi) once the branch structure sets.
     o.accelerator="Ladder";
-    o.scf.StartingRelaxRo=0.45; o.scf.KerkerG0=1.0;
+    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
+    // MIXING KNOBS (sweepable, 2026-08-07).  alpha=0.45 came from the NaF BECKE gate; the NaF Gamma run --
+    // the one whose recipe actually targets "the low-G charge-transfer slosh" -- uses 0.25, and MnO sloshes
+    // WORSE than NaF, so 0.45 is the aggressive half of the borrowed recipe (user).  G0 selects WHICH modes
+    // get damped, and for this cell the arithmetic matters: A=(a/2)(I+J) => B=(4pi/a)(I-J/4), the AFM
+    // staggering lives at odd (h+k+l) whose shortest mode m=(1,0,0) has |G|=(4pi/a)*sqrt(0.6875)=1.24 a.u.,
+    // while the lowest mode m=(1,1,1) has |G|=0.65.  At G0=1 the Kerker factor G^2/(G^2+G0^2) is 0.61 on the
+    // AFM mode vs 0.30 on the lowest charge mode -- i.e. Kerker already favours the magnetism 2:1.  LOWERING
+    // G0 FLATTENS that selectivity (G0=0.3: 0.94 vs 0.82, ratio 2.05->1.15) and un-damps exactly the sloshing
+    // modes; RAISING it sharpens it (G0=3: 0.146 vs 0.045, ratio 3.3).  That is a linear-response argument
+    // about which mode is actually pathological, so it is a PREDICTION to be swept, not a setting to trust.
+    o.scf.StartingRelaxRo=envd("MNO_ALPHA",0.45); o.scf.KerkerG0=envd("MNO_KERKER_G0",1.0);
     // NB (2026-08-07) this KerkerG0 is currently INERT on the AFM arm: MakeDensityMixer refuses the ρ̃
     // mixers on a POLARIZED density and falls back (loudly) to linear D-mixing, because the ρ̃ mixers carry
     // the TOTAL density only and collapse v_xc to ζ=0 from iteration 1 -- the AFM collapse, diagnosed here
