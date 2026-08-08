@@ -2186,6 +2186,83 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
     EXPECT_LT(DiffXC(U,B), 1e-3);                    // measured: 3.5e-4
 }
 
+//================================================================================================
+//  V2.6 -- THE BECKE RECIPE LADDER.  "Is the production recipe (nRadial=40, angularDegree=29)
+//  over-generous?"  Since V1.26 those two numbers set the ENTIRE Becke side of the Uniform-vs-Becke
+//  cost comparison, so the answer changes grid CHOICES, not just grid cost.
+//
+//  METHOD (D8-compliant by construction): converge ONCE, then quadrature the SAME frozen density on a
+//  ladder of meshes and score each against a FINE reference (nR=80, GL-35).  No SCF re-runs, no
+//  DeltaE_total -- the scored quantities are E_xc and the V_xc MATRIX, i.e. properties.  Freezing rho
+//  is what makes this a measurement of the QUADRATURE rather than of the SCF.
+//
+//  Two independent axes, swept one at a time because they answer different questions:
+//    ANGULAR -- how much angular freedom does a converged density actually need?  Site point symmetry
+//      says which harmonics may be NONZERO, never how LARGE they are, so the required degree is an
+//      amplitude question and can only be measured.  It is also the axis with the steep cost: GL
+//      directions go as (L+1)^2/2, so degree 29 -> 11 is a 12.5x cut in the whole mesh.
+//    RADIAL -- cost is only LINEAR here, so the radial axis can afford to be generous; the question is
+//      whether it is generous to no purpose.
+//================================================================================================
+namespace
+{
+// Score a ladder of Becke meshes on one frozen density against a fine reference.  Prints one row per
+// rung: the mesh size, dExc, and the worst V_xc matrix element deviation -- the same two numbers the
+// Becke gate uses, so a rung that passes here would pass the gate.
+void BeckeLadder(const GpwHandles& h, const std::shared_ptr<const Structure>& st, const char* system)
+{
+    auto mesh=[&](int nR, int deg){ qcMesh::MeshParams mp=qcMesh::BeckeXCParams(nR, 2.0, deg);
+                                    mp.angular=qcMesh::AngularKind::GaussLegendre;   // arbitrary degree, no table gaps
+                                    return mp; };
+    // The reference must be a STRICT REFINEMENT of the rung family -- same mhl_alpha, more points on both
+    // axes.  (The tree's existing REF80 probe uses alpha=1.0, which is fine for a one-off cross-check but
+    // would put a fixed alpha-mismatch offset under every rung here and read as an error FLOOR the axes
+    // never get below.  A ladder needs its reference inside its own family.)
+    const XCProbe REF=BeckeXCProbe(h, st, "REF", mesh(100,41));
+    const size_t nAtoms=st->GetNumAtoms();
+    std::printf("\n[V2.6 ladder %s] reference nR=100 GL-41 (same alpha=2.0 family): Exc=%.8f\n", system, REF.Exc);
+    auto row=[&](int nR, int deg)
+    {
+        const XCProbe P=BeckeXCProbe(h, st, "rung", mesh(nR,deg));
+        double dV=0;                                   // worst |V_xc(i,j)| deviation over all blocks
+        for (size_t b=0; b<REF.M.size() && b<P.M.size(); b++)
+            for (size_t i=0;i<REF.M[b].rows();++i)
+                for (size_t j=0;j<REF.M[b].columns();++j)
+                    dV=std::max(dV, std::abs(dcmplx(P.M[b](i,j))-dcmplx(REF.M[b](i,j))));
+        const long pts=long(nAtoms)*nR*(((deg+1)/2)*(deg+1));
+        std::printf("[V2.6 ladder %s] nR=%-3d GL-%-3d  %9ld pts  dExc=%+.3e  max|dVxc|=%.3e\n",
+                    system, nR, deg, pts, P.Exc-REF.Exc, dV);
+    };
+    std::printf("[V2.6 ladder %s] --- ANGULAR sweep (nRadial=40 fixed) ---\n", system);
+    for (int deg : {5,7,9,11,15,17,21,23,29}) row(40,deg);
+    std::printf("[V2.6 ladder %s] --- RADIAL sweep (degree=29 fixed) ---\n", system);
+    for (int nR : {10,15,20,25,30,40,60}) row(nR,29);
+}
+} //anon
+
+// COVALENT reference case: Si diamond.  Directional bonds put real charge between the atoms, which the
+// Becke partition hands back to each site as a genuine l>0 component -- so this should be the HARDER of
+// the two bonding characters for a low-degree angular rule (the prediction being tested).
+TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_SiGamma)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label="Si V2.6 ladder"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // converge on the uniform route: the probe density
+    o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+    GpwHandles h;
+    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false, &h);
+    ASSERT_TRUE(R.converged);
+    BeckeLadder(h, lat.GetStructure(), "Si-covalent");
+}
+
 // THE ROTATED-LEBEDEV EXPERIMENT (plan §6a rotation insight, increment (b)): quadrature exactness is
 // rotation-invariant, so rotating an efficient Lebedev grid OFF the bond axes should be a nearly-free
 // accuracy fix for FREE runs -- the measured 5-10x rho-weighted loss was pure ALIGNMENT (the <111>
