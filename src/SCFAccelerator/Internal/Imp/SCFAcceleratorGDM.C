@@ -76,6 +76,34 @@ template <class T> void tSCFIrrepAcceleratorGDM<T>::UseFD(const hmat_t<T>& F, co
     itsFp = itsLASolver->Transform(F);           // F' = Vd F V (orthonormal basis)
     mat_t<T> E = itsFp*DPrime - DPrime*itsFp;    // [F',D'] commutator (anti-Hermitian)
     itsEn = std::real(blazem::norm(E));
+    // PRECONDITION CHECK (itsBlockOccupied): is the density actually the projector onto our LEADING itsNocc
+    // columns?  Tr(D' P_block) counts how many occupied electrons live in the block GDM is about to rotate:
+    // exactly itsNocc under aufbau, short of it under MOM (a different set) or Fermi smearing (fractional
+    // over all states).  Checked HERE because this is the only place the true D' is in hand.  Cheap beside
+    // the commutator above: nocc x O(n^2).
+    if (itsHaveC && itsNocc>0 && itsNocc<=itsCp.columns())
+    {
+        // Tr(D' P_block) = sum_k <c_k| D' |c_k> over the leading itsNocc columns.  Written as an explicit
+        // double loop rather than a Blaze expression: the operand is a column VIEW of itsCp and a symmetric/
+        // Hermitian matrix product, and spelling out the contraction keeps the conj() convention unambiguous
+        // for both the real and the complex instantiation.
+        double inBlock=0.0;
+        for (size_t k=0;k<itsNocc;k++)
+        {
+            T acc{};
+            for (size_t i=0;i<itsCp.rows();i++)
+                for (size_t j=0;j<itsCp.rows();j++)
+                    acc += Conj(itsCp(i,k))*DPrime(i,j)*itsCp(j,k);
+            inBlock += std::real(acc);
+        }
+        const bool ok = std::fabs(inBlock-(double)itsNocc) < 1e-6*(double)itsNocc;
+        if (itsBlockOccupied && !ok)
+            std::cerr << "[GDM] DECLINING to engage: the occupied density is NOT this minimizer's leading "
+                      << itsNocc << " orbitals (Tr(D'P_block)=" << inBlock << ").  GDM rotates a leading-index"
+                         " block, so a MOM or Fermi-smeared occupation puts its gradient on a different"
+                         " manifold than the density.  Falling back to diagonalizing steps." << std::endl;
+        itsBlockOccupied = ok;
+    }
 }
 
 template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorGDM<T>::NextOrbitals()
@@ -104,6 +132,10 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
     // clearing the flag -- it is cleared only when a diagonalize has actually happened (NextOrbitals),
     // so a query cannot consume the guarantee the bail-out contract owes the caller.
     if (itsForceDiag) return false;
+    // The leading-block precondition (see UseFD): refuse rather than optimise the wrong manifold.  This must
+    // gate ComputeStep and not merely Ready(), because NextOrbitals() TAKES the step whenever ComputeStep
+    // succeeds -- a check only in Ready() would still let the fallback path commit a full geodesic step.
+    if (!itsBlockOccupied) return false;
     if (!itsHaveC || no==0 || no>=n || itsEn>=itsParams.FDMax) return false;
     itsActive=true;
     size_t nv=n-no;

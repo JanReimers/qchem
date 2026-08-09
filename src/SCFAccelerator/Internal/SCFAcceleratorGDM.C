@@ -72,7 +72,7 @@ private:
     //! the caller.  Cleared in NextOrbitals' diagonalize branch, NOT in ComputeStep, so it cannot be consumed
     //! by a mere query.)
     bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.FDMax
-                                && !itsForceDiag; }
+                                && !itsForceDiag && itsBlockOccupied; }
 
     GDMParams               itsParams;
     const LASolver<T>*      itsLASolver;
@@ -87,6 +87,15 @@ private:
                                            //  it, an ACCEPTED step restores it -- the backoff is per-step
                                            //  recovery, not a permanent ratchet).
     bool                    itsForceDiag=false; //EXHAUSTED: force a diagonalizing step (see Ready()).
+    //! GDM's UNSTATED PRECONDITION, now checked (see UseFD).  Every block below -- Cocc, Cvir, the o-v
+    //! gradient, the geodesic -- is carved out of itsCp BY INDEX, i.e. GDM assumes the occupied states are
+    //! the LEADING itsNocc columns.  Aufbau makes that true.  MOM (which occupies by overlap, deliberately
+    //! NOT the lowest) and Fermi smearing (fractional over all states) make it FALSE, and the gradient is
+    //! then built for a different manifold than the density actually occupies -- silently, since nothing
+    //! here ever looked at D' beyond its commutator norm.  MEASURED on MnO: the leading-block occupation is
+    //! 14.5 Ha ABOVE the MOM/smeared one at the SAME orbitals, so the minimizer was optimising a state the
+    //! run had already rejected.  When this is false, GDM declines to engage at all.
+    bool                    itsBlockOccupied=true;
 
     // Conjugate-gradient state (Polak-Ribiere + parallel transport on the manifold).
     bool     itsHavePrev=false;
