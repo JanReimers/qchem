@@ -1459,6 +1459,21 @@ in the same session.
   - **Affordable in practice:** stability codes never form the matrix — Davidson for the lowest few
     eigenvalues.  And the SPIN-FLIP block alone (the triplet instability) is much cheaper and is exactly the
     AFM question, so the magnetic case is the cheap case.
+  - **USER QUESTION 2026-08-09: "you have to turn off imposeSymmetry to get the Hessian, so it will be RAM
+    expensive?"  Half right, and the better answer inverts the cost.**
+    - Correct that the symmetric manifold cannot show you the instability: that is *why* the symmetric
+      solution looks stationary — `imposeSymmetry` keeps exactly the TOTALLY-SYMMETRIC block.
+    - But the Hessian **BLOCK-DIAGONALISES BY IRREP of the parent group** (orbital rotations decompose into
+      irreps; the Hessian has no elements between different irreps).  So you never need the full unrestricted
+      Hessian — sweep the NON-symmetric blocks ONE AT A TIME, each a fraction of the rotation space.  The
+      symmetry machinery becomes the tool rather than the obstacle.
+    - **And the block you find the negative eigenvalue in IS the order-parameter irrep** — step 5's label
+      falls out of the bookkeeping instead of being inferred from a drifting density.
+    - **RAM is not the binding cost.**  Davidson needs Hessian-VECTOR products (≈ one Fock build each) and a
+      handful of trial vectors: footprint ≈ (a few) × orbital space, NOT \f$N_{rot}^2\f$.  The cost is CPU.
+      ⇒ this step does NOT have to wait on the Shubnikov RAM savings.
+    - For AFM the relevant block is the SPIN-FLIP one, which factorises separately from the spatial irreps in
+      the non-relativistic collinear tier — the cheap corner, not the expensive one.
   - **Reusable:** the stability matrix IS the RPA/TDDFT (A,B) matrix.  If excited states ever land, this is
     the same machinery — worth knowing before designing it as a one-off.
   - **Do not over-build it for MnO:** AFM-II is known experimentally, so the known magnetic structure can
@@ -1513,9 +1528,31 @@ in the same session.
     - `Symmetry::SymOp`'s own doc already issues this warning for the symmetry side — *"consumers must not
       bake 'two scalar channels' into interfaces beyond the collinear tier"*.  It applies verbatim here.
     ⇒ Land V2.1's collapse (it is a strict improvement today), but spell the face so the SPIN argument is the
-    replaceable part — e.g. return the potential for a supplied quantization axis, with the collinear tier
-    passing \f$\pm\hat z\f$.  Do NOT let \c Spin leak into the XC functional's contract as a permanent
-    parameter.
+    replaceable part.  Do NOT let \c Spin leak into the XC functional's contract as a permanent parameter.
+  - **USER RULING 2026-08-09 on the REPRESENTATION: SU(2)/matrix, not SO(3)/direction.**  *"'direction m̂(r)'
+    is the SO(3) way of thinking about it.  I suspect the SU(2) language is more natural in software.  We just
+    need to complexify the up/down coefficients."*  Agreed, with one correction to the mechanics:
+    - the DIAGONALS stay REAL (they are densities); what you gain is ONE COMPLEX OFF-DIAGONAL.
+      \f$\rho=\tfrac12(n\,\mathbb{1}+\mathbf{m}\cdot\boldsymbol\sigma)\f$ with \f$\rho_{\uparrow\uparrow},
+      \rho_{\downarrow\downarrow}\in\mathbb{R}\f$ and \f$\rho_{\uparrow\downarrow}\in\mathbb{C}\f$,
+      \f$\rho_{\downarrow\uparrow}=\rho_{\uparrow\downarrow}^*\f$ — 2 reals + 1 complex = **4 real DOF**,
+      matching \f$(n,\mathbf{m})\f$ exactly.  \f$m_z=\rho_{\uparrow\uparrow}-\rho_{\downarrow\downarrow}\f$,
+      \f$m_x=2\mathrm{Re}\,\rho_{\uparrow\downarrow}\f$, \f$m_y=\mp2\mathrm{Im}\,\rho_{\uparrow\downarrow}\f$.
+      So the face generalises \c (rup,rdn) → \c (rup,rdn,rud) with \c rud complex, NOT by complexifying the
+      diagonals.
+    - **Why the matrix form is the better CONTRACT** (four independent reasons, worth keeping): v_xc becomes a
+      2×2 Hermitian matrix entering the Fock matrix directly in spin space, with no rotation to track;
+      symmetry acts as \f$\rho\to U\rho U^\dagger\f$, \f$U\in SU(2)\f$, which COMPOSES (an enum does not);
+      the collinear tier is exactly the diagonal case \f$\rho_{\uparrow\downarrow}=0\f$, i.e. the same
+      collapse pattern the project already prefers; and there is no direction to parameterise, hence no branch
+      or gimbal handling.  LSDA still diagonalises the 2×2 locally
+      (\f$n_\pm=\tfrac12(n\pm|\mathbf{m}|)\f$) and applies the collinear functional along the local axis —
+      but that is INSIDE the functional, not in the contract.
+    - **Lands directly on `SpinAction`:** \c {None,Flip} is the two-element subgroup of SU(2) (Flip being one
+      specific element).  The general Shubnikov op is \f$\{W|\tau\}\times SU(2)\times\f$ an optional
+      ANTIUNITARY factor (time reversal) — that antiunitary piece is what makes it a MAGNETIC group rather
+      than a spin-space group, and it is the part an \c SU(2)-matrix-only generalisation would miss.  Relevant
+      to V1.28's σ-on-`ReciprocalOp` work: size the field for {rotation + antiunitary flag}, not just a flip.
   - Still to decide with a measurement, unchanged: the ~2x XC pointwise cost for closed shells (the Ham_PP
     trade).  And the free consequence still stands — `XC_GridEngine`'s second (scalar) rho cache dies.
 - **V2.2 GPW default seed policy.**  `GpwOptions.seed` defaults to `Uniform`, which the Na-doublet
