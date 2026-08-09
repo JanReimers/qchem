@@ -426,7 +426,25 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // reachable if [F,D] jumps above FDMax between that check and the fresh Fock).
     if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get())) return mixedStep();
 
+    // THE LINE-SEARCH REFERENCE MUST BE MEASURED IN THE TRIALS' OWN OCCUPATION CONVENTION.
+    // \a Ecur is the PREVIOUS iteration's energy, and that iteration may have filled by a different rule --
+    // a mixed/diagonalizing step fills by Fermi μ or MOM overlap, whereas the held trials below fill the
+    // geodesic BLOCK.  Those are different states at the same orbitals, so E(0) != Ecur and the whole E(t)
+    // curve sits at an offset that has nothing to do with the step: comparing `Et < Ecur` across that
+    // boundary compares two conventions and rejects every t.  MEASURED on MnO -- the offset is +14.5 Ha, and
+    // it survived holding the occupation precisely BECAUSE holding it is what changes the convention.
+    // So: take E(t=0) under the SAME held fill as the reference.  One extra energy evaluation per direct-min
+    // step, against 12 per line search.  The iterator's REPORTED energy may still step up once when a leg
+    // changes convention (fractional -> integer occupation); that jump is honest and belongs to the hand-off,
+    // not to the minimizer, which from here on descends monotonically in its own convention.
+    itsWaveFunction->MoveOrbitals(0.0,false,mergeTol,/*holdBlock*/true);
+    const double E0 = [&]{ cd_t cd0(itsWaveFunction->GetChargeDensity());
+                           return itsHamiltonian->GetTotalEnergy(cd0.get()).GetTotalEnergy()
+                                + itsWaveFunction->GetEntropyTerm(); }();
     const bool trace=(bool)std::getenv("GPW_GDMTRACE");
+    if (trace && std::fabs(E0-Ecur)>1e-6)
+        std::cout << "[gdm] convention shift: E(t=0) held = " << E0 << " vs previous-iteration E = " << Ecur
+                  << " (offset " << (E0-Ecur) << " Ha) -- descending against the HELD reference" << std::endl;
     double prevBest=1e300;   // best(E_t) of the PREVIOUS rejected attempt -- the scale-invariance probe
     for (;;)
     {
@@ -439,7 +457,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
             // current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
             Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy()+itsWaveFunction->GetEntropyTerm();
             best=std::min(best,Et);
-            if (Et<Ecur) { found=true; break; }
+            if (Et<E0) { found=true; break; }
             t*=0.5;
         }
         // DIAGNOSTIC (env GPW_GDMTRACE): did the geodesic line search find a DESCENT (some t lowers Ecur) or
@@ -450,7 +468,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         // apart by eye, which is why the number is printed and not just the verdict.
         if (trace)
             std::cout << "[gdm] " << (found ? "DESCENT " : "FALLBACK") << " t=" << std::scientific << setprecision(2)
-                      << t << " k=" << k << "  best(Et-Ecur)=" << (best-Ecur) << std::defaultfloat << std::endl;
+                      << t << " k=" << k << "  best(Et-E0)=" << (best-E0) << std::defaultfloat << std::endl;
         if (found)
         {
             itsWaveFunction->MoveOrbitals(t,true,mergeTol,/*holdBlock*/true);    //commit at t
