@@ -1259,6 +1259,44 @@ against a special case it will outgrow:
          - **final**: m(Mn1)=+0.506, m(Mn2)=−0.529, **m_net=−0.022 — STAGGERED**, order SURVIVED, peak
            m_stag 0.668@64, fingerprint "E settled, ρ rotates — benign".
          Log `run18_L1.5_alpha025_long`.
+       * **THE GDM LEG IS NOT DOWNHILL — AND IT IS THE OCCUPATION SEAM, NOT E[ρ] (2026-08-09, user's read).**
+         User's observation on run 18: GDM goes haywire for ~5 iterations (64→68: −60.13, −45.60, −45.46,
+         −42.15, **+0.44** — a 61 Ha excursion, [F,D] to 118) and is not strictly downhill in general; the
+         usual reading is a non-variational E[ρ].  **That reading is already excluded for this stack** by work
+         banked above `DISABLED_NaFImposedGDMSmearProbe`: ROUND 3 (user-measured, 2026-08-03) found STRICTLY
+         NEGATIVE dE for imposed multi-k GDM on SR2, and the Si-diamond IBZ proxy is flawless imposed+GDM.
+         E[ρ] is variational; the inconsistency is in the OCCUPATION SEAM, and the code says exactly where:
+         - `tSCFIrrepAcceleratorGDM::OrbitalsAt` rotates a **FIXED occupied block** of size `itsNocc` (fixed at
+           construction) and returns `e` = [occupied εs, then virtual εs] **in block order, NOT sorted**.
+         - but `tSCFIterator::DirectMinStep` evaluates each trial point via `MoveOrbitals(t,false,mergeTol)`,
+           and `tCompositeWF::MoveOrbitals` calls **`FillOrbitals(mergeTol)`** — so **every backtrack re-decides
+           WHICH orbitals are occupied**, by aufbau, by Fermi μ, or (now) by MOM overlap.
+         - Whenever that re-fill disagrees with the geodesic's own occupied block, **the energy being line-
+           searched is not the energy along the geodesic.**  The direction was derived for one manifold; E is
+           measured on another.  No monotonicity is owed, and none is observed.
+         **The `h` flag PROVES the disagreement on every GDM row of run 18**: a hole IS "the fill did not take
+         the lowest `no`".  So this run cannot be on-path even in principle.
+         **It also explains the whole banked pattern at once**: Si (clean gap ⇒ aufbau fill always reproduces
+         the geodesic block) is perfect; NaF SR (diffuse near-degenerate frontier ⇒ fill can disagree) walks
+         uphill +23–56 mHa; NaF SR2 (diffuse directions removed) is strictly downhill; MnO (MOM at Λ=1.5 AND
+         kT=5e-3 both re-deciding the fill at every trial point, with a standing hole) is the worst case.
+         NB the earlier "MOM is ELIMINATED" round-2 verdict on NaF stands only for the COLD path it tested;
+         no NaF arm ever exercised **masked-Fermi MOM through a GDM leg**, which is what run 18 did.
+         **THE FIX IS THE LINE SEARCH, NOT THE FUNCTIONAL** — two independent defects, both local:
+         (i) **Evaluate the trial at FIXED occupations.**  The line search must measure E along the geodesic,
+             i.e. hold the occupied block the direction was built for and refill only on commit.  A refill
+             inside the search makes E(t) discontinuous in t.
+         (ii) **`DirectMinStep` COMMITS UNCONDITIONALLY.**  After 12 backtracks it runs
+             `MoveOrbitals(t,true,mergeTol)` whether or not any t lowered E — `found` feeds ONLY the
+             `GPW_GDMTRACE` print.  So a failed line search still takes a step, and the method is
+             non-monotone BY CONSTRUCTION.  This is precisely the "actual-E-checked step acceptance (clamps
+             the uphill)" that the ROUND 3 note listed as the required engine fix and which was never
+             implemented.  A failed search should decline the step (or degrade to the mixed fallback the bail
+             path already builds), not commit it.
+         Neither is an E[ρ] problem, and neither is MnO-specific.  Run 19 (the reproduction with
+         `GPW_GDMTRACE=1`, which would label each step DESCENT/FALLBACK) was OOM-killed at iteration 52
+         before reaching the hand-off — the verdict line is still UNMEASURED, and it is the cheap
+         confirmation to take first.
        * **WHAT IS STILL OPEN** (do not read the above as "done"):
          (a) **It does not pass the convergence gate**: the run ends on the GDM leg with lastΔρ=3.2e-2 against
              MinΔρ=1e-5.  E and the moment are stable to ~1e-3, but the gate measures ρ, and the DIIS→GDM
