@@ -1436,6 +1436,35 @@ in the same session.
   - **TRIGGER: the moment MnO AFM converges free and `imposeSymmetry` is turned on.**  Do the interim throw
     before that switch is flipped, not after.
 
+- **V1.29 The spontaneous-symmetry-breaking DISCOVERY workflow — it is an established method, and step 4
+  needs the electronic Hessian rather than noise.  USER 2026-08-09 sketched: (1) imposed run, (2) converge,
+  (3) save ρ, (4) reseed a FREE run to see where the orbitals want to move, (5) infer a subgroup, (6)
+  re-impose on it.  Asked whether this is known in the literature.**
+  - **It is, under two names in two communities.**  Quantum chemistry: **SCF stability analysis** (Seeger &
+    Pople 1977), whose classic case is the RHF→UHF *triplet instability*; when the broken solution is the
+    deliverable it is **broken-symmetry DFT** (Noodleman).  Solid state: the electronic analogue of
+    **soft-mode following**, with step 5 being **isotropy-subgroup analysis** from Landau theory — tooled by
+    ISOTROPY/ISODISTORT (Stokes & Hatch) and the Bilbao Crystallographic Server (AMPLIMODES; MAXMAGN /
+    k-SUBGROUPSMAG for the magnetic case).  The magnetic version is **magnetic representation analysis**,
+    which returns the Shubnikov subgroup directly.  *(Citations from recall — verify before quoting.)*
+  - **⚠️ STEP 4 AS SKETCHED CANNOT WORK, for exactly the reason the user suspected.**  A symmetric converged
+    solution is a stationary point of the energy in the FULL space, not merely within the symmetric manifold.
+    Reseed a free run with it and the gradient is zero by symmetry — the SCF sits still.  Noise does move it,
+    but as a random walk: slow, irreproducible, and silent about WHICH mode is unstable.
+  - **⇒ The replacement is the ELECTRONIC HESSIAN (orbital-rotation / stability matrix), and it subsumes
+    steps 4 AND 5.**  Its negative eigenvalues ARE the symmetry-breaking instabilities; each eigenvector
+    transforms as an irrep of the parent group, which is precisely the order-parameter label an
+    isotropy-subgroup lookup consumes.  So: how many instabilities, which ones, and the subgroup — mechanically,
+    with no noise and no saddle-point ambiguity.
+  - **Affordable in practice:** stability codes never form the matrix — Davidson for the lowest few
+    eigenvalues.  And the SPIN-FLIP block alone (the triplet instability) is much cheaper and is exactly the
+    AFM question, so the magnetic case is the cheap case.
+  - **Reusable:** the stability matrix IS the RPA/TDDFT (A,B) matrix.  If excited states ever land, this is
+    the same machinery — worth knowing before designing it as a one-off.
+  - **Do not over-build it for MnO:** AFM-II is known experimentally, so the known magnetic structure can
+    simply be imposed.  The discovery workflow earns its keep on materials whose order is UNKNOWN.
+  - Depends on V1.28 (σ on `ReciprocalOp` + a Shubnikov op set) for step 6 to be expressible at all.
+
 ### V2 — measurements / sweeps
 
 - **V2.1 Spin-native collapse: `Delta_XC` ×2 vs `Delta_XC_Pol`+`Delta_VcorrPol`.**  Per the
@@ -1472,6 +1501,21 @@ in the same session.
     correlation is expressible — which the two-pointer sketch cannot manage.
     This is the session's own heuristic (line ~83): the candidate special case (unpolarized) is the general
     case with a term set to zero (ζ=0), so it is not a special case at all.
+  - **⚠️ CROSS-CHECK AGAINST THE NON-COLLINEAR GOAL (user 2026-08-09: "ultimately I want non-collinear AFM
+    order to be the default assumption in code, not the exception").**  The proposed face
+    \c GetV(rup,rdn,Spin) is HALF future-proof and half not:
+    - the two DENSITY arguments are fine — \f$(\rho_\uparrow,\rho_\downarrow)\f$ and \f$(\rho,m)\f$ are a
+      linear change of variables, and non-collinear LSDA evaluates the collinear functional along the LOCAL
+      quantization axis after diagonalising the 2×2 spin density, so it still needs exactly two magnitudes.
+    - the \c Spin ARGUMENT is the collinear assumption in disguise.  Non-collinear needs a DIRECTION
+      (\f$\hat m(r)\f$), not an Up/Down label; the answer is a 2×2 potential matrix, not a scalar tagged
+      with a channel.
+    - `Symmetry::SymOp`'s own doc already issues this warning for the symmetry side — *"consumers must not
+      bake 'two scalar channels' into interfaces beyond the collinear tier"*.  It applies verbatim here.
+    ⇒ Land V2.1's collapse (it is a strict improvement today), but spell the face so the SPIN argument is the
+    replaceable part — e.g. return the potential for a supplied quantization axis, with the collinear tier
+    passing \f$\pm\hat z\f$.  Do NOT let \c Spin leak into the XC functional's contract as a permanent
+    parameter.
   - Still to decide with a measurement, unchanged: the ~2x XC pointwise cost for closed shells (the Ham_PP
     trade).  And the free consequence still stands — `XC_GridEngine`'s second (scalar) rho cache dies.
 - **V2.2 GPW default seed policy.**  `GpwOptions.seed` defaults to `Uniform`, which the Na-doublet
