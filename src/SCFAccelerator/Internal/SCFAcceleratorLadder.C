@@ -81,15 +81,7 @@ private:
     const size_t*                                         itsActiveIdx; //shared with the top-level ladder
 };
 
-//! Which convergence signal drives the TAIL hand-off (see the design notes above + doc/SCFStrategyPlan.md).
-//! The scheduling signal is a LOOP-FACE policy, NOT a per-rung param -- the ladder already consumes both
-//! signals (SetEnergy + GetError), so the choice lives here, once, rather than smeared across the rungs.
-//!   Error       -- switch once the residual [F,D] < switchat.  Right for well-conditioned MOLECULES, where
-//!                  [F,D] (the true orbital gradient) drives cleanly to 0.
-//!   EnergyChange -- switch once |ΔE/E| < switchat.  Right for SOLIDS, where [F,D] is contaminated by
-//!                  charge-transfer slosh / diffuse-mode ill-conditioning / giant-response spikes and may
-//!                  never settle, while the total energy (a variational scalar) does.
-enum class ScheduleSignal { Error, EnergyChange };
+// (ScheduleSignal moved to the public qchem.SCFAccelerator 2026-08-09 -- documented there.)
 
 // Top-level: chain {DIIS, GDM, ...}.  Switch when the active rung is Exhausted() and stalled.
 template <class T> class tSCFAcceleratorLadder : public virtual tSCFAccelerator<T>

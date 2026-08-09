@@ -312,7 +312,7 @@ static qchem::SCFAccelerators::cSCFAccelerator* MakeGpwAccelerator(const std::st
     using namespace qchem::SCFAccelerators;
     if (policy=="Null")   return Factory(Type::Null);
     if (policy=="DIIS")   return Factory(Type::DIIS);
-    if (policy=="GDM")    return Factory(Type::GDM,  {.gdmFDMax=1.0, .gdmTrust=0.1});
+    if (policy=="GDM")    return Factory(Type::GDM,  {.gdm={1.0,0.1}});
     if (policy=="Ladder") return Factory(Type::Ladder);
     throw std::runtime_error("MakeGpwAccelerator: unknown policy \""+policy+"\" (DIIS|GDM|Ladder|Null)");
 }

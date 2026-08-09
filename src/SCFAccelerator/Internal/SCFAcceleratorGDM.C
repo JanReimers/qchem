@@ -27,12 +27,8 @@ import qchem.Blaze;
 export namespace qchem::SCFAccelerators
 {
 
-struct GDMParams
-{
-    double FDMax;         //Engage the geodesic step once the residual [F,D] < FDMax (below that, run a
-                          //  diagonalizing step).  Named for what it gates on -- [F,D], NOT the energy.
-    double Trust=0.1;     //Trust radius: cap the largest geodesic rotation angle (radians) per step.
-};
+// (GDMParams moved to the public qchem.SCFAccelerator 2026-08-09 -- documented there.)
+
 
 template <class T> class tSCFAcceleratorGDM;
 template <class T> class tSCFIrrepAcceleratorGDM : public virtual tSCFIrrepAccelerator<T>

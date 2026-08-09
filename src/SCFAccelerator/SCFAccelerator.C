@@ -62,6 +62,40 @@ public:
     virtual bool CanLineSearch() const {return false;}
 };
 
+//=== TUNING KNOBS AND POLICY -- PUBLIC (lifted out of the .Internal. modules 2026-08-09) ==========
+// These are what a USER sets, so they belong on the public face: a caller choosing DIIS wants Nproj and
+// the residual gates, and a caller building a ladder must be able to name its scheduling signal.  They
+// lived beside their implementations only because the molecular path reached them through a json blob;
+// the moment a FACADE had to name them (Step 4) that placement became the thing forcing an Internal
+// import across a library boundary.  The concrete accelerators still own the ALGORITHMS -- only the
+// vocabulary moved.
+
+struct DIISParams
+{
+    size_t Nproj;  //Number of terms to keep for proections.
+    double FDMax;  //DIIS STARTS extrapolating once the residual [F,D] < FDMax.  (Named for the residual it
+                   //  gates on -- the DIIS error IS [F,D], NOT the energy; the old "EMax" name was a trap.)
+    double FDMin;  //DIIS STOPS once [F,D] < FDMin (converged; hand back to plain diagonalization).
+    double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
+};
+
+struct GDMParams
+{
+    double FDMax;         //Engage the geodesic step once the residual [F,D] < FDMax (below that, run a
+                          //  diagonalizing step).  Named for what it gates on -- [F,D], NOT the energy.
+    double Trust=0.1;     //Trust radius: cap the largest geodesic rotation angle (radians) per step.
+};
+
+//! Which convergence signal drives the TAIL hand-off (see the design notes above + doc/SCFStrategyPlan.md).
+//! The scheduling signal is a LOOP-FACE policy, NOT a per-rung param -- the ladder already consumes both
+//! signals (SetEnergy + GetError), so the choice lives here, once, rather than smeared across the rungs.
+//!   Error       -- switch once the residual [F,D] < switchat.  Right for well-conditioned MOLECULES, where
+//!                  [F,D] (the true orbital gradient) drives cleanly to 0.
+//!   EnergyChange -- switch once |ΔE/E| < switchat.  Right for SOLIDS, where [F,D] is contaminated by
+//!                  charge-transfer slosh / diffuse-mode ill-conditioning / giant-response spikes and may
+//!                  never settle, while the total energy (a variational scalar) does.
+enum class ScheduleSignal { Error, EnergyChange };
+
 using SCFIrrepAccelerator  = tSCFIrrepAccelerator<double>;  using cSCFIrrepAccelerator = tSCFIrrepAccelerator<dcmplx>;
 using SCFAccelerator       = tSCFAccelerator<double>;       using cSCFAccelerator      = tSCFAccelerator<dcmplx>;
 
