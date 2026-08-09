@@ -1400,6 +1400,42 @@ in the same session.
     `TraceColumns` value the facade supplies — which is exactly the kind of above-SCFIterator decision
     `SolidCalculation` (Step 4) exists to own, so sequence it after Step 4.
 
+- **V1.28 ⚠️ IMPOSING SYMMETRY ON AN AFM STRUCTURE WOULD DESTROY THE AFM ORDER — the density star-average is
+  spin-blind, structurally.  Flagged 2026-08-09, unprompted, because it is directly in the MnO path:** the
+  stated plan is "get AFM working with no imposeSymmetry, then start imposing symmetry (Shubnikov groups) and
+  cut the RAM substantially".  Step two walks into this.
+  - **What is verified (read-only, no runs):**
+    1. `Symmetry::SymOp` ALREADY carries `SpinAction sigma` — documented as "Shubnikov spin action (σ), §4
+       tier 4a", with a good non-collinear caveat.  So the vocabulary exists.
+    2. But `SpinAction::Flip` is constructed in **exactly one place in the whole tree, a unit test**
+       (`src/Symmetry/tests/L_Fold.C:213`).  Nothing in `src/` ever produces a spin-flipping op.
+    3. And `ReciprocalOp` — which is what the density fold actually consumes (`tComposite_CD::itsPointOps` is
+       a `std::vector<ReciprocalOp>`) — is `{U, tau}` with **no σ field at all**
+       (`src/Symmetry/Lattice_3D/SpaceGroup.C:48`).  So even if detection produced Flip ops, the reciprocal
+       path could not carry them.  `GPW_Evaluator::RecipSymOps()` drops σ on the floor by construction:
+       `rops.push_back({Transpose(op.W), op.tau})`.
+    4. The ops come from `lat.GetSpaceGroup()` — detected from ATOM POSITIONS, which have no spin.
+    5. Each spin channel is its own `tComposite_CD<dcmplx>` and star-averages under the SAME op set; the
+       polarized total is a plain ↑+↓ sum (`Imp/ChargeDensity.C:83`).
+  - **⇒ The consequence (physics, inferred from the above):** the CHEMICAL space group of rocksalt MnO
+    contains operations mapping the Mn↑ sublattice onto the Mn↓ sublattice.  Star-averaging ρ↑ under those
+    forces it to be invariant under an operation that exchanges the sublattices — i.e. it **averages the two
+    magnetic sublattices together and collapses the AFM order toward the nonmagnetic solution.**  The run
+    would not crash; it would quietly converge to the wrong state, which is the expensive failure mode.
+  - **This is the SAME BUG CLASS main just fixed one component over.**  `041ddff3` ("Solve the MnO AFM
+    collapse: the rho-tilde density mixers are SPIN-BLIND") fixed spin-blindness in the MIXER.  The SYMMETRY
+    FOLD is spin-blind too — and worse, blind by TYPE rather than by oversight, since `ReciprocalOp` has
+    nowhere to put σ.  The mixer fix is the precedent for what this needs.
+  - **Fix direction:** give `ReciprocalOp` a σ (it is the one type on the path that lacks what `SymOp`
+    already has), have the fold apply it by swapping channels when σ=Flip, and derive the op set from the
+    MAGNETIC (Shubnikov) group rather than the chemical one — an op that exchanges sublattices belongs in the
+    group only when paired with a spin flip.  Until then, **`imposeSymmetry` and a polarized AFM density are
+    mutually exclusive and should say so**: the cheap interim is a hard throw when
+    `imposeSymmetry && dynamic_cast<const tSpinResolved_CD<T>*>(seed)` with a non-trivial op set, in the
+    V1.10b "fail loudly in the R&D phase" spirit — far better than a silently demagnetised run.
+  - **TRIGGER: the moment MnO AFM converges free and `imposeSymmetry` is turned on.**  Do the interim throw
+    before that switch is flipped, not after.
+
 ### V2 — measurements / sweeps
 
 - **V2.1 Spin-native collapse: `Delta_XC` ×2 vs `Delta_XC_Pol`+`Delta_VcorrPol`.**  Per the
