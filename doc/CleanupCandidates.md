@@ -1368,6 +1368,38 @@ in the same session.
     rather than cancel.  Filed as V2.6; the warning is on `BeckeXCParams`' doc comment so a reader meets it
     where the numbers live.
 
+- **V1.27 `MolecularSCFIterator` / `SolidSCFIterator` are named for the STRUCTURE and discriminate on the
+  PSEUDOPOTENTIAL.  USER 2026-08-09.**
+  > "They were originally about what iteration columns to display.  MolecularIterator actually displays
+  > columns that make sense for non-PP calculations and SolidIterator displays columns that make sense for
+  > PP calculations.  They were originally misnamed simply because most Molecule runs were non-PP and all of
+  > our solid runs are PP."
+  - **The code already states the PP reason, in `SolidSCFIterator`'s own doc:** the virial is DROPPED because
+    "GTH local + KB projectors break the Coulombic-homogeneity assumption behind 2+V/K".  That is a property
+    of the POTENTIAL, not of the lattice — a molecular PP run breaks it identically.
+  - **⚠️ AND IT IS A LIVE DEFECT, not just a name.**  `Calculation` supports `{.pseudopotential=true}` (the
+    `sipp` molecular PP runs) and uses `MolecularSCFIterator`, which inherits the base layout — so **a
+    molecular pseudopotential run displays a virial column the tree itself documents as invalid for it.**
+    Verified: `src/Calculation/Imp/Calculation.C:29` and `Imp/AtomCalculation.C:26` both take
+    `MolecularSCFIterator`.
+  - **`MolecularSCFIterator` is an EMPTY subclass** — `using tSCFIterator<double>::tSCFIterator;` and nothing
+    else.  It has no molecular behaviour at all; it is `tSCFIterator<double>` under another name, which is
+    why the misnaming cost nothing until a molecular PP run existed.
+  - **`SolidSCFIterator` conflates TWO axes, and only one of them is structural:**
+    - `CreateMixer` (V1.10b) — genuinely PERIODIC: Kerker/Pulay are G-space and need a lattice.
+    - the column set — mostly PSEUDOPOTENTIAL (the virial), partly METHOD (ΔE gates instead of Δρ because a
+      collocation SCF is non-variational).  The frontier-gap column is the one plausibly solid-specific
+      (metals), though a near-degenerate molecular open shell wants it too.
+  - **This is R2.8's finding again, one library over** (see the LANDED note): there, `double` vs `dcmplx`
+    looked like the discriminator for `InsertStandardTerms` and the real axis was BARE vs PSEUDISED nuclei,
+    with `Ham_PP` sitting on the `<double>` side to prove it.  Same accidental correlation here —
+    dcmplx ↔ solid ↔ periodic ↔ PP all coincide in today's test matrix, so any of them "works" as a
+    selector until a molecular PP run asks for the PP columns.
+  - **Fix direction (not yet designed):** the column set is a TRACE POLICY, chosen from what the run
+    actually is (pseudised? variational? gapless?), not from the iterator's type.  Likely a small
+    `TraceColumns` value the facade supplies — which is exactly the kind of above-SCFIterator decision
+    `SolidCalculation` (Step 4) exists to own, so sequence it after Step 4.
+
 ### V2 — measurements / sweeps
 
 - **V2.1 Spin-native collapse: `Delta_XC` ×2 vs `Delta_XC_Pol`+`Delta_VcorrPol`.**  Per the
