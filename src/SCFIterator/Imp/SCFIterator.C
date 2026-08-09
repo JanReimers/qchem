@@ -427,12 +427,13 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get())) return mixedStep();
 
     const bool trace=(bool)std::getenv("GPW_GDMTRACE");
+    double prevBest=1e300;   // best(E_t) of the PREVIOUS rejected attempt -- the scale-invariance probe
     for (;;)
     {
         double t=1.0, Et=0, best=1e300; int k=0; bool found=false;
         for (;k<12;k++)
         {
-            itsWaveFunction->MoveOrbitals(t,false,mergeTol);              //trial
+            itsWaveFunction->MoveOrbitals(t,false,mergeTol,/*holdBlock*/true);   //trial, ON the geodesic
             cd_t cdt(itsWaveFunction->GetChargeDensity());                //std-managed (no freed-address reuse)
             // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is
             // current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
@@ -452,7 +453,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
                       << t << " k=" << k << "  best(Et-Ecur)=" << (best-Ecur) << std::defaultfloat << std::endl;
         if (found)
         {
-            itsWaveFunction->MoveOrbitals(t,true,mergeTol);               //commit at t
+            itsWaveFunction->MoveOrbitals(t,true,mergeTol,/*holdBlock*/true);    //commit at t
             return cd_t(itsWaveFunction->GetChargeDensity());
         }
         // NO DESCENT AT ANY BACKTRACK -- do NOT take the step.  Committing here (the behaviour through
@@ -463,7 +464,23 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         // worth another look.  Note the trials have already MOVED the orbitals -- MoveOrbitals mutates even
         // when commit=false, only the accelerator's history is gated on commit -- so a rewind to t=0 is
         // required before either exit; the geodesic at θ=0 is exactly the pre-step point.
-        itsWaveFunction->MoveOrbitals(0.0,false,mergeTol);                //rewind the trials
+        itsWaveFunction->MoveOrbitals(0.0,false,mergeTol,/*holdBlock*/true); //rewind the trials
+        // SCALE-INVARIANCE SHORT-CIRCUIT.  A step that merely overshoots gets BETTER as the trust radius
+        // shrinks; a failure whose best(E_t) does not move is not about step LENGTH at all, and no further
+        // backoff can help (measured on MnO before the held fill: seven rejections, best(E_t−E_cur) = +1.45e+01
+        // every time, identical to three figures across six shrinks).  Each retry costs a full 12-point
+        // backtrack -- ~12 Fock builds -- so stop asking as soon as the answer stops changing.
+        const bool improved = best < prevBest - 1e-10*std::fabs(prevBest);
+        const bool stalled  = (prevBest<1e299) && !improved;
+        prevBest = std::min(prevBest,best);
+        if (stalled)
+        {
+            if (trace) std::cout << "[gdm] STALLED (best unchanged under trust backoff -- not a step-length "
+                                    "failure); abandoning the geodesic" << std::endl;
+            itsAccelerator->RejectStep();   // still tell the accelerator, so it arms its forced diagonalize
+            while (itsAccelerator->RejectStep()) {}   // ...and drive it to exhaustion, cheaply (no line search)
+            return mixedStep();
+        }
         if (!itsAccelerator->RejectStep())
         {
             // EXHAUSTED.  By contract the accelerator has armed a diagonalizing step, so NextOrbitals()

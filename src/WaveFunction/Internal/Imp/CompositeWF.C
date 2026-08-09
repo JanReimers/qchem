@@ -153,10 +153,10 @@ template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T
 
 // Move every irrep's orbitals to geodesic fraction t (commit=false for a line-search trial)
 // and refill, so GetChargeDensity() reflects the trial/updated orbitals.
-template <class T> void tCompositeWF<T>::MoveOrbitals(double t, bool commit, double mergeTol)
+template <class T> void tCompositeWF<T>::MoveOrbitals(double t, bool commit, double mergeTol, bool holdBlock)
 {
     for (auto& w:itsIWFs) w->MoveOrbitals(t,commit);
-    FillOrbitals(mergeTol);
+    FillOrbitals(mergeTol,holdBlock);
 }
 
 template <class T> tDM_CD<T>* tCompositeWF<T>::GetChargeDensity(Spin s) const
@@ -271,15 +271,17 @@ template <class T> void tCompositeWF<T>::ReleaseMOMReference()
     for (auto& w : itsIWFs) w->ReleaseMOMReference();
 }
 
-template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol)
+template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol, bool holdBlock)
 {
     itsELevels.clear();
     itsSpin_ELevels.clear();
-    if (itsGlobalFermi) { FillOrbitalsGlobalFermi(mergeTol); return; }  // metal: one μ across the k-mesh
-    if (itsAufbau) { FillOrbitalsAufbau(mergeTol); return; }
+    // A HELD fill takes the per-irrep path unconditionally: the cross-irrep aufbau and the global-μ metal
+    // fill both re-rank ACROSS blocks, which is exactly the re-decision a held fill exists to prevent.
+    if (!holdBlock && itsGlobalFermi) { FillOrbitalsGlobalFermi(mergeTol); return; }  // metal: one μ across the k-mesh
+    if (!holdBlock && itsAufbau) { FillOrbitalsAufbau(mergeTol); return; }
     for (auto& w:itsIWFs)                              // fixed per-irrep occupation (atoms etc.)
     {
-        EnergyLevels els=w->FillOrbitals(itsEC);
+        EnergyLevels els=w->FillOrbitals((double)itsEC->GetN(w->GetIrrep()), holdBlock);
         itsELevels.merge(els,mergeTol);
         Spin s=w->GetIrrep().ms;
         itsSpin_ELevels[s].merge(els,mergeTol);

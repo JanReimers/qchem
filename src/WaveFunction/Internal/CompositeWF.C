@@ -40,11 +40,11 @@ public:
     virtual void            DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;
     virtual tDM_CD<T>*      Init            (tHamiltonian<T>&,const tChargeDensity<T>*, double mergeTol);
     virtual bool            BuildFockAndComputeSteps(tHamiltonian<T>&,const tChargeDensity<T>*);
-    virtual void            MoveOrbitals    (double t, bool commit, double mergeTol);
+    virtual void            MoveOrbitals    (double t, bool commit, double mergeTol, bool holdBlock=false);
     virtual const Orbitals* GetOrbitals     (const Irrep&) const;
     virtual       Orbitals* GetOrbitals     (const Irrep&)      ;
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;}
-    virtual void            FillOrbitals    (double mergeTol);
+    virtual void            FillOrbitals    (double mergeTol, bool holdBlock=false);
     virtual void            SetMOM          (bool useMOM, int startIter);
     virtual void            SetSmearing     (double kT, double momPenalty);
     virtual double          GetEntropyTerm  () const;

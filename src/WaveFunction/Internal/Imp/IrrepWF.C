@@ -80,7 +80,7 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(const ElectronC
     return FillOrbitals((double)ec->GetN(itsIrrep)); // electrons for this Irrep={spin,symmetry}
 }
 
-template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
+template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool holdBlock)
 {
     // Empty first: the aufbau occupation can shift between iterations, and TakeElectrons only
     // overwrites the orbitals it fills (leaving stale occupation on the rest).
@@ -99,6 +99,25 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     // (This solves THIS block's OWN μ -- the insulator / Γ path; a metal solves ONE μ across the mesh via
     // tCompositeWF::FillOrbitalsGlobalFermi -> FillOrbitalsAtMu, doc/GPWPlan1.md item 3.)
     itsMinusTS=0.0;
+    // HELD FILL (the direct minimiser's, see the declaration): occupy the leading \a ne orbitals AS STORED,
+    // which is exactly the geodesic's own occupied block, and take neither the Fermi nor the MOM path.  Both
+    // of those RE-DECIDE the occupied set -- μ ranks over the whole spectrum, MOM ranks by overlap -- and a
+    // re-decision between two points of a line search makes E(t) discontinuous in t, so the minimiser's
+    // direction and the energy it is judged by stop referring to the same state.  Plain aufbau needs no
+    // special case: TakeElectrons(ne) already fills in stored order, which is why a COLD aufbau GDM run
+    // (Si, NaF SR2) descends monotonically while a smeared/MOM one (MnO) does not.
+    // NB entropy is identically zero here, so a held leg minimises E and NOT the Mermin free energy A=E−TS.
+    if (holdBlock)
+    {
+        double left=ne;
+        std::tie(left,itsDPrime)=itsOrbitals->TakeElectrons(ne);
+        assert(left==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
+        itsELevels.clear();
+        for (auto o:itsOrbitals->Iterate())
+            itsELevels.insert(qchem::Orbitals::EnergyLevel(o));
+        ++itsFillCount;
+        return itsELevels;
+    }
     const bool haveRef = itsUseMOM && itsRefOccCPrime.columns()>0;
     // MOM SCORE SEPARATION (QCHEM_MOM_SCORES=1): the two MOM paths use the reference DIFFERENTLY, and which
     // one can discriminate depends on a property of the scores that nothing else reports.  The cold path RANKS
