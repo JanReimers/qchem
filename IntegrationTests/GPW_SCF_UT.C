@@ -43,6 +43,7 @@ import qchem.Blaze;                              // blazem::eigen, blaze::min/ma
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
+import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PWFittedVxc / DeltaFittedVxc (the Becke XC gate)
 import qchem.Mesh.Angular;                        // MakeAngular (the rotated-Lebedev bond-angle probe)
@@ -2480,6 +2481,48 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_AlFCC)
     GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false, &h);
     ASSERT_TRUE(R.converged);
     BeckeLadder(h, lat.GetStructure(), "Al-metal");
+}
+
+//================================================================================================
+//  STEP 4 -- THE FACADE EQUIVALENCE GATE.  qchem::SolidCalculation is the NAMED front door for a
+//  periodic SCF (the peer of Calculation / AtomCalculation), and the whole point of a facade is that
+//  it IS the canonical recipe rather than a second one that drifts.  So gate it against the anchor
+//  SiliconGammaConverges pins, on the same lattice / basis / cutoffs.
+//
+//  What this actually protects: RunGpw below is the test harness's driver (report bracketing, basis
+//  vetting, fingerprints, order probes, symmetry reporting).  SolidCalculation is the production
+//  recipe with none of that.  If the two ever disagree on the physics, one of them has grown a step
+//  the other lacks -- which is exactly the failure a facade is supposed to make impossible, and
+//  exactly what happened before it existed (the recipe lived only in the harness, so "the production
+//  path" and "the test path" were the same code by accident rather than by construction).
+//================================================================================================
+TEST(GPW_SCF, SolidCalculationMatchesTheSiAnchor)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    SCFParams par;
+    par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
+    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+
+    qchem::SolidCalculation calc(lat, MakeBasisSR(cell),
+                                 {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
+
+    EXPECT_TRUE(calc.Converged());
+    EXPECT_NEAR(calc.TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(calc.Energy(), -7.11506, 2e-3)      // the SiliconGammaConverges anchor, same tolerance
+        << "SolidCalculation must reproduce the driver's physics -- a facade that drifts from the "
+           "recipe it fronts is worse than no facade";
+    // The facade OWNS the grid decision, so it must be able to say what it chose (V1.26/V2.4): Si is soft
+    // enough that the cost selector routes it to the uniform mesh, SIZED from this run's sharpness.
+    EXPECT_EQ(calc.ResolvedXCMesh().cellKind, qcMesh::UnitCellKind::Uniform);
+    EXPECT_GT(calc.ResolvedXCMesh().eCut, 0.0) << "an Auto-resolved uniform mesh must carry its own cutoff, "
+                                                  "never fall back on nUniform's basis-blind default";
+    // rho(r) is reachable through the same neutral ScalarFunction face the molecular facade exposes.
+    EXPECT_GT(calc.Density()(rvec3_t(0.1,0.1,0.1)), 0.0);
 }
 
 //================================================================================================
