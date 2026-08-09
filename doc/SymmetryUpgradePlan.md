@@ -1361,6 +1361,41 @@ against a special case it will outgrow:
          while MOM is what holds its configuration.  Note either way the reported E jumps at the hand-off
          when fractional occupations become integer — that is honest, not a bug.
          Log `run21_bailout`.  New coverage: `UTSCFAccelerator` (5 tests on the contract; GDM had none).
+       * **★ ROOT CAUSE, AND IT IS OLDER THAN ANY OF THIS: GDM HAD AN UNSTATED PRECONDITION (2026-08-09).**
+         Chasing the +14.5 Ha through the held fill produced a trace line that named it outright:
+         `[gdm] convention shift: E(t=0) held = −45.6 vs previous-iteration E = −60.1 (offset 14.5 Ha)`.
+         The +14.5 Ha was never a bad direction, never a discontinuity *within* the search, and never a
+         non-variational E[ρ] — **it is the energy gap between the MOM/smeared occupation and the LEADING-
+         BLOCK occupation at the very same orbitals.**  Because every block GDM uses — `Cocc`, `Cvir`, the
+         o–v gradient, the geodesic — is carved out of `itsCp` BY INDEX:
+             `Cocc = submatrix(itsCp, 0,0, n,no)`
+         i.e. **GDM assumes the occupied states are its leading `itsNocc` columns.**  Aufbau makes that true.
+         MOM makes it false BY DESIGN (it occupies by overlap, deliberately not the lowest); Fermi smearing
+         makes it false too.  `UseFD` receives the true D′ but only ever took its commutator norm, so nothing
+         noticed: **the gradient was built for one manifold while the density occupied another** — silently,
+         and since long before this session.  The minimizer was diligently optimising a configuration the run
+         had already rejected.
+         `UseFD` now checks it (`Tr(D′P_block)` over the leading `itsNocc` columns = `itsNocc` exactly under
+         aufbau) and GDM DECLINES when it fails — gating `ComputeStep` as well as `Ready()`, since
+         `NextOrbitals()` takes the step whenever `ComputeStep` succeeds.  **The measured violation on MnO is
+         enormous and exactly the AFM configuration**: `Tr(D′P_block)` = **11 of 13** in ↑ and **7.00 of 13**
+         in ↓ — six minority-channel electrons, essentially the whole d⁵ shell, outside the block GDM meant
+         to rotate.  Preferred over gating on "is MOM on" because it tests the property GDM actually needs,
+         so it covers smearing and any future occupation rule without knowing the caller's policy.
+       * **★ RUN 24 — THE BEST-BEHAVED MnO RUN OF THE CAMPAIGN.**  With the GDM rung declining to
+         diagonalizing steps:
+         | | run 20 (none) | run 21 (bail-out) | **run 24 (precondition)** |
+         |---|---|---|---|
+         | E final | −60.84 *(after a +14.5 Ha excursion)* | −29.96 | **−60.1341** |
+         | fingerprint | DIVERGING | DIVERGING | **FIT-FLOOR STALL** |
+         | m_stag | 0.517 | 0.061 | **0.6606** |
+         | sites / m_net | — | not staggered | **+0.652 / −0.669, m_net −0.017 (STAGGERED)** |
+         Iterations 65→76 descend **monotonically** (Δρ 5.3e-3 → 1.4e-4, [F,D] 1.3e-2 → 2.4e-4) and the run
+         stops because it hits the **fit/grid floor** — an honest, different problem — not because it went
+         unstable.  The oscillation that has dogged MnO since run 3 is GONE, and the moment is the largest
+         yet.  Do NOT compare against run 18's −60.92: that came from a wandering GDM leg optimising the
+         wrong manifold.  **−60.134 is the trustworthy number** (CP2K −61.4706 ⇒ 1.34 Ha).  Log
+         `run24_precondition`.
        * **WHAT IS STILL OPEN** (do not read the above as "done"):
          (a) **It does not pass the convergence gate**: the run ends on the GDM leg with lastΔρ=3.2e-2 against
              MinΔρ=1e-5.  E and the moment are stable to ~1e-3, but the gate measures ρ, and the DIIS→GDM
