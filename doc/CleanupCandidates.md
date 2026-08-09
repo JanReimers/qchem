@@ -1452,7 +1452,37 @@ in the same session.
     condition is also the definition of "this needs a Shubnikov rather than a chemical group", so the interim
     guard and the eventual fix share ONE criterion — which is the argument for measuring rather than
     proxying.
-  - **IMPLEMENTATION FORK (needs a ruling).**  The measurement must see the RAW per-channel map: each
+  - **✅ FORK RESOLVED 2026-08-09 (MnO dev's ruling) — none of (a)/(b)/(c), and the reasoning changes the
+    item.**  Two of the three points land outright and one collides with a measurement:
+    - **(2) ACCEPTED — the raw map needs no accessor.**  It is the same density built with an EMPTY op set,
+      and `tComposite_CD` takes its ops at CONSTRUCTION.  That is exactly why `ReportSymmetryFound` can
+      already measure a per-op defect on a free run.  The A/B is constructible from the public face; I had
+      been treating the construction as fixed and only the query as variable.
+    - **(3) ACCEPTED, and decisive — it is this project's own prior decision.**  §3
+      (SymmetryUpgradePlan.md:444) pins "impose-on-assert as the default, the release-audit bundled with any
+      imposition, and the diagnostic on FREE runs — imposition is never silent by construction."  Widening
+      `FourierDensity` to measure a PRE-symmetrization defect INSIDE an imposed run is the shape §3 rejected.
+      **(b) is withdrawn.**  If raw access is ever wanted it should be a QUESTION — `SymmetryDefect(ops)` —
+      not a raw-map getter, per CLAUDE.md's `IrrepCD`-has-no-`GetDensityMatrix()` exemplar.
+    - **(1) CONTRADICTED BY MEASUREMENT.**  `imposeSymmetry ∧ spin-resolved ∧ |ops|>1` is satisfied TODAY by
+      the four correct tests listed above.  And it cannot be tightened with more configuration terms, because
+      **"staggered" is not expressible in the configuration**: seeds are keyed PER-ELEMENT
+      (`SeedCD::itsScaleByZ`), so MnO's two Mn sites are indistinguishable to the library, and no
+      `SpinPattern`/per-site-moment concept exists anywhere in `src/` — MnO's staggered seed is built in
+      qchem6's `RunMnO`.  A type+config predicate can therefore only OVER-fire.
+  - **⇒ THE DURABLE ANSWER FALLS OUT OF (3) RATHER THAN FIGHTING IT.**  §3 already says the defect diagnostic
+    belongs on the FREE run — and `ReportSymmetryFound` already MEASURES it per-op there.  So the check is not
+    "throw when imposing on a polarized density"; it is **"do not impose an op the free run's own defect
+    measurement reports as broken."**  The measurement exists; it is simply never fed forward.  That is the
+    same criterion as the eventual Shubnikov work (an op belongs in the group only if the density respects
+    it), and it is precisely step 5 of the user's SSB workflow (V1.29).
+  - **⇒ AND THE IMMEDIATE MnO PROTECTION IS V1.30, NOT A NEW GUARD.**  Flipping
+    `GpwOptions::imposeSymmetry` to `false` makes imposition OPT-IN, so nobody can flip the switch by
+    accident and `RunMnO`'s hand-opt-out stops being load-bearing.  That removes the hazard this interim
+    throw was invented to cover, with no false positives and no new interface.  **V1.30 supersedes the
+    interim throw as the urgent item.**  (Owned by the MnO dev — `GpwOptions` is in their file set, and the
+    flip needs the gates that relied on `true` made explicit plus a full sweep, so it is not a one-liner.)
+  - *(superseded fork, kept for the record:)*  **IMPLEMENTATION FORK.**  The measurement must see the RAW per-channel map: each
     `tComposite_CD` star-averages internally, so by the time `tPolarized_CD` sees its channels the change has
     already happened and the defect measures ≈0.  Options:
     (a) add a raw accessor + `PointOps()` to `tComposite_CD` and do the check in `tPolarized_CD`, needing an
