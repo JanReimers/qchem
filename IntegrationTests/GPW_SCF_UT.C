@@ -58,6 +58,7 @@ import qchem.SCFIterator;                        // cSCFIterator, SCFParams
 import qchem.SCFParams;                          // SCFParams
 import qchem.ElectronConfiguration.Crystal;      // Crystal_EC (single-k Bloch occupation)
 import qchem.ChargeDensity.Seed;                 // SeedStrategy
+import qchem.SCFAccelerator.Factory;              // the PUBLIC complex accelerator door (Step 4)
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS; // cSCFAcceleratorDIIS (complex DIIS)
 import qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;  // cSCFAcceleratorGDM (complex geodesic direct-min)
 import qchem.SCFAccelerator.Internal.SCFAcceleratorLadder; // cSCFAcceleratorLadder (DIIS -> GDM chain)
@@ -302,21 +303,17 @@ qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Real_BS& mo
 }
 } //anon
 
-// Build the complex SCF accelerator named by \a policy.  Ladder = the ionic-crystal DIIS->GDM hand-off on
-// |ΔE/E| (NaF's proven recipe); the rest are the plain single-engine choices.
-static qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* MakeGpwAccelerator(const std::string& policy)
+// Build the complex SCF accelerator named by \a policy, through the PUBLIC typed door (Step 4 2/3).
+// The tuned constants that used to sit here ARE the GPW production recipe, so they now live with the
+// factory as SolidAcceleratorOptions' defaults -- this function is just the policy-name lookup a facade
+// would do.  Ladder = the ionic-crystal DIIS->GDM hand-off on |ΔE/E| (NaF's proven recipe).
+static qchem::SCFAccelerators::cSCFAccelerator* MakeGpwAccelerator(const std::string& policy)
 {
     using namespace qchem::SCFAccelerators;
-    if (policy=="Null") return new tSCFAcceleratorNull<dcmplx>();
-    if (policy=="DIIS") return new cSCFAcceleratorDIIS(DIISParams{8, 0.1, 1e-10, 1e-9});
-    if (policy=="GDM")  return new cSCFAcceleratorGDM(GDMParams{1.0});
-    if (policy=="Ladder")
-    {
-        std::vector<std::unique_ptr<tSCFAccelerator<dcmplx>>> rungs;
-        rungs.push_back(std::make_unique<cSCFAcceleratorDIIS>(DIISParams{8, 0.1, 1e-10, 1e-9}));
-        rungs.push_back(std::make_unique<cSCFAcceleratorGDM>(GDMParams{1.0,0.5}));
-        return new cSCFAcceleratorLadder(std::move(rungs), 1e-8, 5, 1e-8, 1e-6, ScheduleSignal::EnergyChange);
-    }
+    if (policy=="Null")   return Factory(Type::Null);
+    if (policy=="DIIS")   return Factory(Type::DIIS);
+    if (policy=="GDM")    return Factory(Type::GDM,  {.gdmFDMax=1.0, .gdmTrust=0.1});
+    if (policy=="Ladder") return Factory(Type::Ladder);
     throw std::runtime_error("MakeGpwAccelerator: unknown policy \""+policy+"\" (DIIS|GDM|Ladder|Null)");
 }
 
