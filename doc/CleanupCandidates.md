@@ -1480,6 +1480,24 @@ in the same session.
     simply be imposed.  The discovery workflow earns its keep on materials whose order is UNKNOWN.
   - Depends on V1.28 (σ on `ReciprocalOp` + a Shubnikov op set) for step 6 to be expressible at all.
 
+- **V1.30 `GpwOptions::imposeSymmetry` defaults to `true` while its own comment says "OPT-IN".  Found
+  2026-08-09 by the Step 4 facade gate, which resolved a different Becke cost than the driver did.**
+  - The field is `bool imposeSymmetry = true;` and the comment three lines down reads *"OPT-IN per the §3 pin
+    (an imposed default would also ~2x the suite's XC grids)"*.  One of them is wrong, and the comment is the
+    one carrying a reason.
+  - **How it surfaced:** `SolidCalculationMatchesTheSiAnchor` printed `Becke 36000 pts [..., free]` where the
+    driver's Si run prints `Becke 72000 pts [..., imposed]` — the 2x the comment predicts.  The energies still
+    agree (the selector routes Si to uniform either way), so the gate passed; the discrepancy showed up only
+    in the announce line.  Worth noting that the gate caught a defaults divergence it was not written to look
+    for, which is the argument for having the facade announce its decisions at all.
+  - **⚠️ Now actively hazardous, not cosmetic.**  Per V1.28 an imposed run star-averages each spin channel
+    under the CHEMICAL space group, whose sublattice-exchanging ops would average an AFM structure's magnetic
+    sublattices together.  Default-ON means the MnO work inherits that silently unless every call site
+    remembers to turn it off.  **Default-OFF is the safer way to be wrong**: an imposition you did not ask for
+    is invisible in the result, a missing one only costs time.
+  - `SolidCalcOptions` deliberately defaults it to `false` (the comment's stated intent) and says so at the
+    field, so the two facades diverge ON PURPOSE rather than by drift.  Decide which is right and align them.
+
 ### V2 — measurements / sweeps
 
 - **V2.1 Spin-native collapse: `Delta_XC` ×2 vs `Delta_XC_Pol`+`Delta_VcorrPol`.**  Per the

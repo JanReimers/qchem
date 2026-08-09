@@ -89,7 +89,13 @@ struct SolidCalcOptions
     SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS;
     bool globalFermi    = false;  //!< metal: one μ across the k-mesh.
     //! Impose the detected space group (IBZ k-fold + per-iteration density star-average + site-adapted
-    //! Becke mesh).  OPT-IN: it also roughly doubles the XC grid.
+    //! Becke mesh).  OPT-IN (default \c false): it roughly doubles the XC grid, and see the warning below.
+    //!
+    //! \note DELIBERATELY DIVERGES from the test harness's \c GpwOptions, which defaults this to \c true --
+    //! while its own comment says "OPT-IN per the §3 pin".  That comment states the intent and the value
+    //! contradicts it (doc/CleanupCandidates.md V1.30).  This facade follows the stated intent, because
+    //! default-ON is the more dangerous way to be wrong: a symmetry imposition you did not ask for is
+    //! invisible in the result, whereas a missing one merely costs time.
     //! \warning Do NOT combine with a polarized ANTIFERROMAGNETIC density until the fold is spin-aware:
     //! the op set comes from the CHEMICAL space group, which contains sublattice-exchanging operations,
     //! so star-averaging each channel under it averages the magnetic sublattices together and silently
