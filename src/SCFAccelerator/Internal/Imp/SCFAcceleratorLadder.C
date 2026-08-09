@@ -74,6 +74,7 @@ template <class T> bool tSCFAcceleratorLadder<T>::CalculateProjections()
 // The ladder runs the direct-min loop exactly when its active rung is a direct minimizer.
 template <class T> bool tSCFAcceleratorLadder<T>::WantsLineSearch() const { return Active()->WantsLineSearch(); }
 template <class T> bool tSCFAcceleratorLadder<T>::CanLineSearch()  const { return Active()->CanLineSearch(); }
+template <class T> bool tSCFAcceleratorLadder<T>::RejectStep()        { return Active()->RejectStep(); }
 
 template <class T> double tSCFAcceleratorLadder<T>::GetError() const { return Active()->GetError(); }
 template <class T> void   tSCFAcceleratorLadder<T>::ShowLabels(std::ostream& os)      const { Active()->ShowLabels(os); }

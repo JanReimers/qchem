@@ -32,6 +32,13 @@ struct GDMParams
     double FDMax;         //Engage the geodesic step once the residual [F,D] < FDMax (below that, run a
                           //  diagonalizing step).  Named for what it gates on -- [F,D], NOT the energy.
     double Trust=0.1;     //Trust radius: cap the largest geodesic rotation angle (radians) per step.
+    //! Step-REJECTION policy (the RejectStep bail-out).  On a rejected step the trust radius is multiplied
+    //! by \c TrustBackoff and the CG history dropped; once it falls below \c TrustMin the accelerator
+    //! declares itself EXHAUSTED and forces a diagonalizing step so the caller can fall back safely.
+    //! Defaults give 4 retries from Trust=0.1 (0.025, 6.2e-3, 1.6e-3, 3.9e-4) -- enough for a genuinely
+    //! curved direction to find a foothold, few enough that a BROKEN direction is abandoned quickly.
+    double TrustBackoff=0.25;
+    double TrustMin=1e-4;
 };
 
 template <class T> class tSCFAcceleratorGDM;
@@ -50,13 +57,22 @@ public:
     // NextOrbitals() == ComputeStep() ? OrbitalsAt(default_t,true) : diagonalize.
     virtual bool ComputeStep();
     virtual typename LASolver<T>::UUd_t OrbitalsAt(double t, bool commit);
+    //! Bail-out callback (see the base contract): drop the CG history, shrink the trust radius, rebuild a
+    //! steepest-descent direction, and report whether a retry is worth it.  false => EXHAUSTED, and this
+    //! object has armed itsForceDiag so ComputeStep()/Ready() go false and the caller's fallback is safe.
+    virtual bool RejectStep();
 private:
     friend class tSCFAcceleratorGDM<T>;
     double GetError() const {return itsEn;}
     //! Ready to take a geodesic step THIS iteration (mirrors ComputeStep's gate, minus the Fock build):
     //! seeded, a well-posed occ/virt split, and the residual [F,D] already below FDMax.  itsFp is empty
     //! before the first UseFD, so this is false (unsigned itsNocc < 0 rows) until seeded -- as intended.
-    bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.FDMax; }
+    //! (itsForceDiag: armed by an EXHAUSTED RejectStep, so both this and ComputeStep() report "no geodesic"
+    //! until a diagonalizing step has actually been taken -- the safety guarantee the bail-out contract owes
+    //! the caller.  Cleared in NextOrbitals' diagonalize branch, NOT in ComputeStep, so it cannot be consumed
+    //! by a mere query.)
+    bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.FDMax
+                                && !itsForceDiag; }
 
     GDMParams               itsParams;
     const LASolver<T>*      itsLASolver;
@@ -67,6 +83,10 @@ private:
     hmat_t<T>               itsFp;      //Orthonormal-basis Fock matrix.
     double                  itsEn;      //||[F',D']|| error for this irrep.
     bool                    itsActive;
+    double                  itsTrust;      //LIVE trust radius (starts at itsParams.Trust; RejectStep shrinks
+                                           //  it, an ACCEPTED step restores it -- the backoff is per-step
+                                           //  recovery, not a permanent ratchet).
+    bool                    itsForceDiag=false; //EXHAUSTED: force a diagonalizing step (see Ready()).
 
     // Conjugate-gradient state (Polak-Ribiere + parallel transport on the manifold).
     bool     itsHavePrev=false;
@@ -98,6 +118,11 @@ public:
     virtual const char* Tag() const {return "GDM";}
     virtual bool   WantsLineSearch() const {return true;} //GDM is run by the direct-min loop.
     virtual bool   CanLineSearch() const; //true once every irrep is Ready() (seeded + [F,D]<FDMax)
+    //! Bail-out: reject the step in EVERY irrep.  A retry is offered only if EVERY irrep can still retry --
+    //! the line search takes ONE t across all of them, so a step is only meaningful if they all still have a
+    //! usable direction.  One exhausted irrep exhausts the whole accelerator (and each irrep has armed its
+    //! own forced diagonalize, so the caller's fallback is safe for all of them).
+    virtual bool   RejectStep();
 private:
     GDMParams itsParams;
     std::vector<tSCFIrrepAcceleratorGDM<T>*> itsIrreps;

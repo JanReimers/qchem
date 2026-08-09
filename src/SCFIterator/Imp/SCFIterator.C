@@ -407,39 +407,72 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
 // iteration in the seed step (before the accelerators have orbitals).
 template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep(double Ecur, double mergeTol)
 {
-    if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get()))
+    // The STABLE degradation, shared by every non-geodesic exit: drive the Fock from the MIXED density and
+    // fold the result back, so a step the geodesic cannot take becomes an ordinary mixed fixed-point step
+    // rather than an unmixed diagonalize (which runs away when ill-conditioned).  α=1 (LinearMixer
+    // passthrough) => molecular direct-min unchanged.
+    // SAFE ONLY WHEN THE ACCELERATOR HOLDS NO LIVE STEP: DoSCFIteration calls NextOrbitals(), and a minimizer
+    // with a computed step TAKES it there (GDM: OrbitalsAt(1.0,true)).  Both call sites below satisfy that --
+    // one because ComputeStep FAILED, the other because an exhausted RejectStep armed a forced diagonalize.
+    auto mixedStep=[&]()
     {
-        // Seed / bail: no geodesic this step (normally pre-empted by CanLineSearch() -> FixedPointDriver, but
-        // reachable if [F,D] jumps above FDMax between that check and the fresh Fock).  Do a MIXED step, not an
-        // unmixed diagonalize: drive the Fock from the mixed density and fold the result back, so a bailed
-        // geodesic degrades to a STABLE step.  α=1 (LinearMixer passthrough) => molecular direct-min unchanged.
         itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
         itsWaveFunction->FillOrbitals(mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
         itsMixer->Mix(*fresh, *itsCD);                   // fold ρ_out into ρ_in (itsCD drove this Fock)
         return fresh;
-    }
-    double t=1.0, Et=0, best=1e300; int k=0; bool found=false;
-    for (;k<12;k++)
+    };
+    // Seed / bail: no geodesic this step (normally pre-empted by CanLineSearch() -> FixedPointDriver, but
+    // reachable if [F,D] jumps above FDMax between that check and the fresh Fock).
+    if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get())) return mixedStep();
+
+    const bool trace=(bool)std::getenv("GPW_GDMTRACE");
+    for (;;)
     {
-        itsWaveFunction->MoveOrbitals(t,false,mergeTol);                 //trial
-        cd_t cdt(itsWaveFunction->GetChargeDensity());                   //std-managed (no freed-address reuse)
-        // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is current);
-        // GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  doc/GPWPlan1.md 4b.
-        Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy()+itsWaveFunction->GetEntropyTerm();
-        best=std::min(best,Et);
-        if (Et<Ecur) { found=true; break; }
-        t*=0.5;
+        double t=1.0, Et=0, best=1e300; int k=0; bool found=false;
+        for (;k<12;k++)
+        {
+            itsWaveFunction->MoveOrbitals(t,false,mergeTol);              //trial
+            cd_t cdt(itsWaveFunction->GetChargeDensity());                //std-managed (no freed-address reuse)
+            // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is
+            // current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
+            Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy()+itsWaveFunction->GetEntropyTerm();
+            best=std::min(best,Et);
+            if (Et<Ecur) { found=true; break; }
+            t*=0.5;
+        }
+        // DIAGNOSTIC (env GPW_GDMTRACE): did the geodesic line search find a DESCENT (some t lowers Ecur) or
+        // fall through all 12 backtracks?  A variational E with a correct geodesic MUST descend for small
+        // enough t; a FALLBACK whose best(Et−Ecur) is at the E noise floor is that floor, while one that is
+        // ORDERS above it means E(t) does not even tend to E(0) -- a discontinuity, i.e. the occupation
+        // jumped branch between trial points (MnO: +1.45e+01 Ha at t=2.4e-4).  The two are worth telling
+        // apart by eye, which is why the number is printed and not just the verdict.
+        if (trace)
+            std::cout << "[gdm] " << (found ? "DESCENT " : "FALLBACK") << " t=" << std::scientific << setprecision(2)
+                      << t << " k=" << k << "  best(Et-Ecur)=" << (best-Ecur) << std::defaultfloat << std::endl;
+        if (found)
+        {
+            itsWaveFunction->MoveOrbitals(t,true,mergeTol);               //commit at t
+            return cd_t(itsWaveFunction->GetChargeDensity());
+        }
+        // NO DESCENT AT ANY BACKTRACK -- do NOT take the step.  Committing here (the behaviour through
+        // 2026-08-09) made the method non-monotone BY CONSTRUCTION: `found` fed only the trace above, so a
+        // failed search still moved the orbitals, and on MnO that committed a +14.5 Ha step whose blast
+        // radius was five further iterations.  Instead, hand the rejection back to the accelerator (the
+        // bail-out contract, tSCFAccelerator::RejectStep) and let IT decide whether a degraded direction is
+        // worth another look.  Note the trials have already MOVED the orbitals -- MoveOrbitals mutates even
+        // when commit=false, only the accelerator's history is gated on commit -- so a rewind to t=0 is
+        // required before either exit; the geodesic at θ=0 is exactly the pre-step point.
+        itsWaveFunction->MoveOrbitals(0.0,false,mergeTol);                //rewind the trials
+        if (!itsAccelerator->RejectStep())
+        {
+            // EXHAUSTED.  By contract the accelerator has armed a diagonalizing step, so NextOrbitals()
+            // will NOT re-take the rejected geodesic and the mixed fallback is now safe.
+            if (trace) std::cout << "[gdm] EXHAUSTED -> mixed fallback step" << std::endl;
+            return mixedStep();
+        }
+        if (trace) std::cout << "[gdm] RETRY (direction rebuilt, trust shrunk)" << std::endl;
     }
-    // DIAGNOSTIC (env GPW_GDMTRACE): did the geodesic line search find a DESCENT (some t lowers Ecur) or
-    // FALL THROUGH all 12 backtracks and commit a tiny non-descent step?  A variational E with a correct
-    // geodesic MUST descend for small enough t; persistent FALLBACK => the direction is not downhill for the
-    // evaluated E (residual F != dE/dD, or the E noise floor exceeds the descent signal at that step).
-    if (std::getenv("GPW_GDMTRACE"))
-        std::cout << "[gdm] " << (found ? "DESCENT " : "FALLBACK") << " t=" << std::scientific << setprecision(2)
-                  << t << " k=" << k << "  best(Et-Ecur)=" << (best-Ecur) << std::defaultfloat << std::endl;
-    itsWaveFunction->MoveOrbitals(t,true,mergeTol);                      //commit at t
-    return cd_t(itsWaveFunction->GetChargeDensity());
 }
 
 

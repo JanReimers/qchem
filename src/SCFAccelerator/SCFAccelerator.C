@@ -30,6 +30,8 @@ public:
     //     (for evaluating the energy), commit=true takes the step.
     virtual bool ComputeStep() {return false;}
     virtual typename LASolver<T>::UUd_t OrbitalsAt(double t, bool commit) {return NextOrbitals();}
+    //! STEP REJECTION (the bail-out callback; see the aggregate's twin for the full contract).
+    virtual bool RejectStep() {return false;}
 };
 
 template <class T> class tSCFAccelerator
@@ -60,6 +62,28 @@ public:
     // MIXED fixed-point step -- so a not-yet-ready minimizer degrades to a stable mixed diagonalize, never an
     // UNMIXED one (which runs away on ill-conditioned systems).  Default false: non-minimizers never line-search.
     virtual bool CanLineSearch() const {return false;}
+
+    //! STEP REJECTION -- the BAIL-OUT callback.  An accelerator PROPOSES a step; only the CALLER can judge
+    //! it, because only the caller can evaluate the energy (the accelerator sits BELOW the wavefunction /
+    //! Hamiltonian in the library DAG, which is exactly why the step body lives in the iterator at all).
+    //! So acceptance is the caller's decision, and this is how the decision is reported back: the iterator
+    //! calls \c RejectStep() when the proposed step was NOT acceptable -- for a direct minimizer, a line
+    //! search that found no descent at ANY backtrack.
+    //!
+    //! The accelerator responds by DEGRADING its model (a CG minimizer drops its conjugacy history and
+    //! shrinks its trust radius) and answers ONE question: is a RETRY worth attempting?
+    //!   true  -- a fresh, more conservative direction is ready; the caller may line-search again.
+    //!   false -- EXHAUSTED.  The accelerator MUST then leave itself in a state where \c ComputeStep()
+    //!            returns false AND \c CanLineSearch() is false, so the caller's fallback (diagonalize,
+    //!            then density-mix) is SAFE.  That guarantee is the whole point of the contract: without
+    //!            it the caller cannot fall back at all, because \c NextOrbitals() on a minimizer holding
+    //!            a live step TAKES that step (GDM: \c OrbitalsAt(1.0,true)) -- the very step just
+    //!            rejected, at full length.
+    //!
+    //! Default false = "I have no step to reject and no retry to offer".  That is correct for every
+    //! non-minimizer: their \c ComputeStep() is false to begin with, so the caller's fallback was already
+    //! safe and a rejection simply degrades to it.
+    virtual bool RejectStep() {return false;}
 };
 
 using SCFIrrepAccelerator  = tSCFIrrepAccelerator<double>;  using cSCFIrrepAccelerator = tSCFIrrepAccelerator<dcmplx>;

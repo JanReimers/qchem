@@ -65,6 +65,7 @@ template <class T> static mat_t<T> TransportOp(const mat_t<T>& Y, const mat_t<T>
 
 template <class T> tSCFIrrepAcceleratorGDM<T>::tSCFIrrepAcceleratorGDM(const GDMParams& p,const LASolver<T>* las,const Irrep& ir,int occ)
 : itsParams(p), itsLASolver(las), itsIrrep(ir), itsNocc(occ), itsHaveC(false), itsEn(0.0), itsActive(false)
+, itsTrust(p.Trust)
 {
     assert(itsLASolver);
 }
@@ -85,6 +86,8 @@ template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorGDM<T>::NextO
         itsCp    = std::get<1>(t);               // orthonormal-basis orbitals (n x n)
         itsHaveC = true;
         itsHavePrev = false;                     // restart CG after any diagonalizing step
+        itsForceDiag = false;                    // the forced diagonalize has now HAPPENED: re-arm the geodesic
+        itsTrust = itsParams.Trust;              // and give the fresh direction the full trust radius back
         return t;
     }
     return OrbitalsAt(1.0,true);                 // take the full (diagonal-model) step and commit
@@ -97,6 +100,10 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
 {
     itsActive=false;
     size_t n=itsFp.rows(), no=itsNocc;
+    // itsForceDiag: an EXHAUSTED RejectStep armed a diagonalizing step.  Report "no geodesic" WITHOUT
+    // clearing the flag -- it is cleared only when a diagonalize has actually happened (NextOrbitals),
+    // so a query cannot consume the guarantee the bail-out contract owes the caller.
+    if (itsForceDiag) return false;
     if (!itsHaveC || no==0 || no>=n || itsEn>=itsParams.FDMax) return false;
     itsActive=true;
     size_t nv=n-no;
@@ -159,6 +166,30 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
     return true;
 }
 
+// BAIL-OUT (the RejectStep contract): the caller evaluated the step we proposed and it was NOT acceptable.
+// Two things are wrong with a rejected direction and we address both.  (1) The CONJUGACY HISTORY: a CG
+// direction is built from the previous one, so one bad direction poisons every direction after it -- drop it
+// and fall back to steepest descent, which is the direction a line search can always make progress along IF
+// the energy is a continuous function of t.  (2) The STEP SCALE: shrink the trust radius, so the retry probes
+// a genuinely smaller neighbourhood instead of re-proposing the same rotation the caller just rejected.
+//
+// Backing off has a floor.  Below TrustMin we are no longer testing the direction, we are testing whether
+// E(t) -> E(0) at all -- and it does not when the CALLER's occupation decision jumps branch between trial
+// points (measured on MnO: the best of 12 backtracks still +14.5 Ha at t=2.4e-4, which is a DISCONTINUITY in
+// t, not a bad direction; doc/SymmetryUpgradePlan.md 7 step 7).  No trust radius can fix that, so we stop
+// pretending and declare EXHAUSTED -- arming itsForceDiag, which is what makes the caller's fallback safe.
+template <class T> bool tSCFIrrepAcceleratorGDM<T>::RejectStep()
+{
+    itsHavePrev = false;                 // (1) the CG history produced a rejected direction -- restart it
+    itsTrust   *= itsParams.TrustBackoff;// (2) and probe a smaller neighbourhood
+    if (itsTrust < itsParams.TrustMin)
+    {
+        itsForceDiag = true;             // EXHAUSTED: Ready()/ComputeStep() now false => caller may fall back
+        return false;
+    }
+    return ComputeStep();                // rebuild (steepest descent, tighter trust); false => also exhausted
+}
+
 // Orbitals at geodesic fraction t of the default step (subject to the trust radius).  With
 // commit=true the orbitals and the CG history are updated (a real step); with commit=false
 // it is a pure trial used to evaluate the energy in a line search.
@@ -169,7 +200,7 @@ template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorGDM<T>::Orbit
     double frac = itsStdef*t;          // t is a fraction of the default (quadratic-model) step
     // Trust radius: cap the largest principal rotation angle (cf. ComputeStep).
     double amax = (s.size()>0) ? blazem::max(s)*frac : 0.0;
-    if (amax>itsParams.Trust) frac *= itsParams.Trust/amax;
+    if (amax>itsTrust) frac *= itsTrust/amax;
     rvec_t theta = s*frac;
     blazem::DiagonalMatrix<mat_t<T>> Dc(no),Ds(no);
     for (size_t k=0;k<no;k++){ Dc(k,k)=std::cos(theta[k]); Ds(k,k)=std::sin(theta[k]); }
@@ -190,6 +221,7 @@ template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorGDM<T>::Orbit
 
     if (commit)
     {
+        itsTrust = itsParams.Trust;   // an ACCEPTED step earns the full trust radius back (see RejectStep)
         itsPGprev=itsSPGfull; itsDprev=itsSDfull; itsDenomPrev=itsSdenom; itsYprev=itsScoccPC;
         itsUgeo=itsSU; itsVtgeo=itsSVt; itsSgeo=theta; itsHavePrev=true;
         itsCp = Cnew;
@@ -223,6 +255,18 @@ template <class T> double tSCFAcceleratorGDM<T>::GetError() const
 
 // The direct-min driver runs only when EVERY irrep can take a geodesic step; if any is still seeding or
 // above FDMax, the iterator falls back to a stable MIXED fixed-point step instead.
+template <class T> bool tSCFAcceleratorGDM<T>::RejectStep()
+{
+    // Reject in EVERY irrep -- they all contributed to the step the caller rejected, and every one of them
+    // must arm its own forced diagonalize if it is exhausted, or the fallback is unsafe for that block.
+    // Deliberately NOT short-circuited: `all &= k->RejectStep()` would skip the rest on the first false.
+    bool all = !itsIrreps.empty();
+    for (auto k:itsIrreps) { const bool retry=k->RejectStep(); all = all && retry; }
+    // A retry is offered only if EVERY irrep can still retry: the line search takes ONE t across all of
+    // them, so a retry is only meaningful when they all still hold a usable direction.
+    return all;
+}
+
 template <class T> bool tSCFAcceleratorGDM<T>::CanLineSearch() const
 {
     if (itsIrreps.empty()) return false;

@@ -70,6 +70,7 @@ public:
     // step is reachable once the ladder hands off to it).
     virtual bool ComputeStep() { return Active()->ComputeStep(); }
     virtual typename LASolver<T>::UUd_t OrbitalsAt(double t, bool commit) { return Active()->OrbitalsAt(t,commit); }
+    virtual bool RejectStep() { return Active()->RejectStep(); }   // bail-out: the ACTIVE rung owns the step
 private:
     // itsActiveIdx is a non-owning pointer to the top-level ladder's index member, so every
     // per-irrep ladder follows the parent's hand-offs without its own copy.  Active() reads
@@ -119,6 +120,11 @@ public:
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
     virtual bool   CanLineSearch() const;   //delegates to the active rung's readiness
+    //! Bail-out: the ACTIVE rung proposed the step, so it is the one that must degrade or declare itself
+    //! exhausted.  A rung that cannot retry leaves ITSELF forced-to-diagonalize; the ladder does not hand
+    //! off on a rejected step (a hand-off is an ENERGY-progress decision, made in SetEnergy, not a
+    //! step-acceptance one) -- so a rung is never advanced past just for having a bad direction.
+    virtual bool   RejectStep();
 private:
     tSCFAccelerator<T>* Active() const //the live rung, bounds-checked
         { assert(itsActive<itsRungs.size()); return itsRungs[itsActive].get(); }
