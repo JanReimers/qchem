@@ -1435,6 +1435,36 @@ in the same session.
     V1.10b "fail loudly in the R&D phase" spirit — far better than a silently demagnetised run.
   - **TRIGGER: the moment MnO AFM converges free and `imposeSymmetry` is turned on.**  Do the interim throw
     before that switch is flipped, not after.
+  - **🔔 TRIGGER FIRED 2026-08-09** (MnO dev): AFM-II converges free at E=−60.92 with a properly staggered
+    moment (+0.506/−0.529, m_net −0.02).  MnO is safe *today* only because `RunMnO` sets
+    `imposeSymmetry=false` by hand — i.e. safe by call-site discipline, which is exactly the fragility V1.30
+    flags about the `true` default.
+  - **⚠️ THE PROPOSED GUARD IS TOO STRICT — measured 2026-08-09, before implementing it.**  "Throw when
+    `imposeSymmetry && spin-resolved`" would break FOUR PASSING TESTS, all legitimate:
+    `Polarized{,Seed}SingletMatchesUnpolarizedSiGamma` (multiplicity 1), `O2TripletInBoxMatchesFinite` (3),
+    `NaPseudoAtomInBoxDoublet` (2) — every one of them polarized AND `imposeSymmetry=true` via the default.
+    The ζ=0 singlets have ρ↑=ρ↓ so every chemical-group op is a symmetry of BOTH channels; O₂ and Na have
+    NON-STAGGERED moments, so the ops map ↑ sites to ↑ sites.  Imposing is correct in all four.
+  - **⇒ THE CORRECT DISCRIMINATOR IS STAGGERED-vs-NOT, and it is measurable: the ops are a symmetry of the
+    CHARGE but not of the SPIN.**  Equivalently \f$m=\rho_\uparrow-\rho_\downarrow\f$ must be invariant
+    under the op set — ζ=0 gives \f$m\equiv0\f$ (trivially invariant), FM gives an \f$m\f$ that follows the
+    atoms (invariant), AFM gives a staggered \f$m\f$ (NOT invariant).  Only the last is caught.  That
+    condition is also the definition of "this needs a Shubnikov rather than a chemical group", so the interim
+    guard and the eventual fix share ONE criterion — which is the argument for measuring rather than
+    proxying.
+  - **IMPLEMENTATION FORK (needs a ruling).**  The measurement must see the RAW per-channel map: each
+    `tComposite_CD` star-averages internally, so by the time `tPolarized_CD` sees its channels the change has
+    already happened and the defect measures ≈0.  Options:
+    (a) add a raw accessor + `PointOps()` to `tComposite_CD` and do the check in `tPolarized_CD`, needing an
+        abstract→concrete cast to reach it (the pattern this codebase flags);
+    (b) widen the `FourierDensity` capability face with a raw accessor — clean casts, but widens an abstract
+        interface for a guard;
+    (c) measure at the `SymmetrizeGMap` call site inside `tComposite_CD`, which has raw + ops in hand for
+        free — but a single channel cannot see the cross-channel signature (charge-invariant, spin-not), and
+        a large defect there is BENIGN for an unpolarized run, where projecting a broken seed is the whole
+        point of imposition.
+    Recommend **(b)**: the raw density is a legitimate question about a `FourierDensity` (V1.26's selector and
+    the §3 defect diagnostic both want it too), and it is the only option needing no concrete cast.
 
 - **V1.29 The spontaneous-symmetry-breaking DISCOVERY workflow — it is an established method, and step 4
   needs the electronic Hessian rather than noise.  USER 2026-08-09 sketched: (1) imposed run, (2) converge,
