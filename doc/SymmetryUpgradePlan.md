@@ -1158,6 +1158,133 @@ against a special case it will outgrow:
          (ρ,m) basis stays an opt-in capability (default unchanged): it is the physically-motivated
          construction and the one place we deliberately diverge from CP2K, but it is not the MnO cure.
          The `m_stag` assert stays the acceptance test.  Log `run11_rho_m_basis`.
+       * **THE OCCUPATION IS THE DEFECT — CONFIRMED BY A CLEAN A/B, AND MOM IS WORTH ~9 Ha (runs 12/13,
+         2026-08-08).**  Two instruments were meant to hold the configuration and NEITHER had ever fired:
+         - **`UseMOM` was INERT in every MnO run to date.**  `tIrrepWF::FillOrbitals` gives `SmearingkT>0`
+           precedence, and that branch consults the MOM reference ONLY when `MOMSmearPenalty>0` (default 0).
+           With `kT=5e-3` set alongside `UseMOM=true`, MOM never changed a single occupation.  Reading a
+           recipe off the options struct is not evidence that it ran.
+         - **Even reached, the capture was one iteration too late.**  `SetMOM` is pushed in by `Iterate`,
+           i.e. AFTER `Init`'s seed fill, so `itsUseMOM` is false when the seed is filled and the earliest
+           self-capture is iteration 1's occupied set — after m_stag has already fallen 0.366 → 0.0046.  The
+           delayed-IMOM design is built for a seed you want to settle AWAY from (the NaF diving ghost); MnO's
+           seed IS the physics.  Cure: `GpwOptions::momFromSeed` self-adopts the seed's own occupied subspace
+           through the existing grid-continuation face (`AdoptMOMReference`), before iteration 1 runs.
+         - **The 0h MOM guard would have silently undone the experiment.**  It releases the reference after 3
+           consecutive non-aufbau (hole) iterations, on the NaF-calibrated premise that a hole means a wrong
+           reference.  That premise fails here: until the self-consistent exchange splitting opens, the
+           magnetic branch's occupied states sit ABOVE empty ones in the raw ε ordering, so the hole is the
+           SIGNATURE of the branch being held.  `MNO_MOM_HOLD` makes the persistence sweepable.
+         **THE A/B (identical α=0.45, kT=0, everything else equal; only MOM differs):**
+         | | m_stag trajectory | E (20 iters) | [F,D] | symmetry defect |
+         |---|---|---|---|---|
+         | run 13 aufbau (control) | dies at iteration 1, flat ±0.01 | −45.56, limit cycle | **stuck at 1.43** | 0.329 |
+         | run 12 seed-pinned MOM | **0.19–0.30 throughout, final 0.29** | **−54.73** | 4.11 → 0.05–0.17 | 0.021 |
+         The control's converged ε↑−ε↓ is ~1e-3 across the board: no exchange splitting, i.e. the textbook
+         non-magnetic collapse.  **So holding the occupation buys BOTH the order AND ~9 Ha of binding, which
+         is the standing "one defect, not two" hypothesis confirmed** — it closes 9 of the 15.8 Ha deficit to
+         CP2K's −61.47, and it is the first MnO run whose [F,D] descends at all.  Logs `run12_momseed_cold`,
+         `run13_cold_aufbau_control`.
+       * **BUT run 12 IS NOT YET THE ANSWER — three things are wrong with it, and the instruments said so:**
+         (i) **The moment is NOT staggered**: sites read (+0.0006, −0.579), i.e. ONE Mn carries all of it.
+         `m_stag = ½(m1−m2)` is DEGENERATE between (+m,−m) and (0,−2m), so the trajectory line cheerfully
+         reported "order SURVIVED" on a physically wrong state.  The readout now prints `m_net = m1+m2`
+         beside it and flags the collapse; the `EXPECT_NEAR(m1,−m2)` gate was always honest and still fails.
+         (ii) **A DEEP HOLE**: the run ends non-aufbau with an EMPTY level at ε=−1.29 Ha, ~2 Ha below the
+         highest occupied one, and six levels below the printed frontier are empty in both channels.
+         (iii) It still oscillates (±1 Ha, 5 sign flips in the last 8).
+         So the next question is not "does MOM help" (settled) but **WHICH STATES the seed reference is
+         refusing to occupy** — and whether refusing them is the cure or a second, opposite error.
+       * **IT IS A SECOND, OPPOSITE ERROR: THE HARD PIN DEPLETES ONE Mn's d SHELL (run 14, the spectrum the
+         display fix exposed).**  The doubly-empty levels are **exactly FIVE**, clustered inside 0.07 Ha at
+         ε = −1.39…−1.32, sitting 0.8 Ha BELOW the highest occupied level — an l=2 manifold, and four of the
+         five carry ε↑−ε↓ = 0.00000000 to eight digits.  **Exact spin degeneracy is the tell: an EMPTY shell
+         feels no exchange splitting.**  Put together with the site readout (Mn1 −0.002, Mn2 −0.425), the
+         state is unambiguous: **Mn1's 3d shell is EMPTY — a d⁵/d⁰ disproportionation, not antiferromagnetism.**
+         Mn1 has no d electrons, hence no moment; its unscreened d levels sink to −1.4; and having sunk, they
+         have no overlap with the seed reference, so the pin keeps them empty — a SELF-REINFORCING HOLE.
+         That also disposes of run 12's tempting −54.73: a configuration with a 2.4 Ha hole is not
+         variationally admissible, so the 9 Ha is not (yet) real binding.  **Both failures are now one
+         sentence: the aufbau run cannot HOLD a configuration, and the hard MOM pin cannot LET GO of one.**
+       * **WHAT THE MECHANISM PRESCRIBES**: the pin must be strong enough to break the ~0.03 Ha near-degenerate
+         ties that drive the hopping, yet weak enough to be OVERRIDDEN by a state that dives below the
+         frontier.  That is exactly `MOMSmearPenalty` Λ under Fermi smearing: the shift is Λ(1−s)², so any
+         dive deeper than Λ re-occupies the state no matter how foreign its character.  Λ ≈ 0.3 Ha brackets
+         the two scales (≫0.03 tie, ≪2.4 dive) — a two-sided argument, not a fitted knob.  Both extremes are
+         already measured and both fail: Λ=0 (every run through 11) is the aufbau collapse, Λ=∞ (the cold pin,
+         runs 12/14) is the d⁰ disproportionation.
+       * **Λ SWEPT, AND THE Λ SCALE IS SET BY THE SCORE DISTRIBUTION, NOT BY THE TIE (runs 15/16).**
+         **Λ=0.3 is indistinguishable from no MOM at all** (run 15: m_stag dead by iteration 1, E in the −46
+         limit cycle, [F,D] pinned at 1.36).  **Λ=1.5 transforms the run**: it descends to **−60.08 Ha at
+         iteration 11 — 1.4 Ha from CP2K's −61.4706**, against the −45.6 the aufbau run cannot leave, and the
+         deep hole collapses from 2.4 Ha to 0.21 Ha, i.e. **the d⁰ disproportionation is CURED** (sites
+         −0.215 / −0.419: both Mn magnetized now, though same-sign, so still not staggered).
+         **WHY the 5× matters — the new `QCHEM_MOM_SCORES` instrument (one-shot, off by default) settles it.**
+         At the first fill the up-spin scores run 0.952 → 0.687 with a cut gap of only **0.0147**, so the
+         shift SEPARATING the last occupied from the first virtual is Λ·[(1−0.687)²−(1−0.701)²] ≈ 0.0086·Λ —
+         **2.6 mHa at Λ=0.3**, against a raw-ε spread of 0.2–1 Ha.  The masked-Fermi shift is a hopelessly
+         weak discriminator AT THE CUT.  What Λ=1.5 actually buys is the shift on the FOREIGN states
+         (s≈0.49 ⇒ Λ(0.51)² ≈ 0.39 Ha), which is comparable to a dive.  **So the two MOM paths are not two
+         strengths of one instrument, they are two different instruments**: the cold path RANKS (a 1.5%
+         score difference decides the fill), the smeared path SHIFTS (only differences worth more than Λ in
+         energy decide anything).  Λ must be scaled to the physical-vs-foreign score GAP, never to the tie.
+       * **STILL NOT CONVERGED — the honest reading of run 16.**  Its fingerprint is **DIVERGING** (±5.9 Ha
+         over the last 8 iterations), so **−60.08 is a TRANSIT, not a result**, and m_stag still flips sign
+         iteration to iteration.  What run 16 does establish is that the ENERGY SCALE is now reachable: the
+         "under-bound by 15.8 Ha" gap was, as hypothesised, mostly the occupation.  With the occupation
+         instrument fixed, the instability is back to being a STEP-SIZE question — and the α evidence banked
+         in run 10 was gathered under the collapsed aufbau dynamics, so it does not transfer and α must be
+         re-swept on top of Λ.  Logs `run15_maskedfermi_L0.3`, `run16_maskedfermi_L1.5`.
+       * **★ THE AFM-II STATE IS REACHED (run 17, 2026-08-08): Λ=1.5 AT α=0.25, 40 iterations.**  Re-swept as
+         the previous bullet demanded — α was the only change from run 16 — and it lands:
+         | | value | reference |
+         |---|---|---|
+         | E | **−60.1414** | CP2K −61.4706 → **1.33 Ha**, was 15.8 |
+         | m(Mn1), m(Mn2) | **+0.625, −0.657** | **m_net = −0.032: STAGGERED** (the flag does not fire) |
+         | m_stag | **0.641**, monotone from iteration 15, STILL RISING at 40 | seed 0.366 — it GREW past the seed |
+         | fingerprint | **DENSITY-DEGENERATE (E settled, ρ rotates — benign)** | Eamp(last 8) 0.057 Ha, relAmp 9.5e-4 |
+         | [F,D] | 4.11 → 0.015–0.075 | was STUCK at 1.43 |
+         The spectrum now carries a real, large exchange splitting (ε↑−ε↓ = −0.086, −0.159, −0.247 …) instead
+         of the control's uniform ~1e-3.  **This is the first MnO run that is simultaneously magnetically
+         ordered in the AFM-II pattern, at the right energy scale, and settling** — and it is the SEED's own
+         staggering, grown rather than merely survived.  Log `run17_L1.5_alpha025`.
+       * **RUN 18 — the same recipe to 90 iterations: E = −60.9247, i.e. 0.55 Ha from CP2K (from 15.8).**
+         The trajectory has three phases and all three are informative:
+         - **iterations 1–58, Kerker+DIIS**: settles hard at E=−60.14, m_stag 0.66, Δρ 4.3e-4, [F,D] 7.8e-3 —
+           and **the `cfg` flag goes BLANK for the first time in the campaign.  The occupation hopping that
+           opened this investigation is GONE**: the run holds one configuration iteration after iteration.
+         - **~iteration 70, the Ladder hands off to GDM** (direct minimisation, no mixing): E drops FURTHER
+           to −60.92, so the DIIS fixed point was not the bottom.  Δρ turns noisy (GDM owns the density
+           update, so the mixer's Δρ is not its convergence measure) and m_stag settles lower, 0.52.
+         - **final**: m(Mn1)=+0.506, m(Mn2)=−0.529, **m_net=−0.022 — STAGGERED**, order SURVIVED, peak
+           m_stag 0.668@64, fingerprint "E settled, ρ rotates — benign".
+         Log `run18_L1.5_alpha025_long`.
+       * **WHAT IS STILL OPEN** (do not read the above as "done"):
+         (a) **It does not pass the convergence gate**: the run ends on the GDM leg with lastΔρ=3.2e-2 against
+             MinΔρ=1e-5.  E and the moment are stable to ~1e-3, but the gate measures ρ, and the DIIS→GDM
+             hand-off resets what Δρ means.  A gate-passing MnO run needs either a longer DIIS-only leg or a
+             convergence measure the hand-off does not invalidate.
+         (b) **It is still NON-AUFBAU**: a 0.97 Ha hole persists (empty ε=−0.364 below occupied ε=+0.604).
+             A held configuration that never becomes self-consistently aufbau is an excited state; the
+             remaining 1.33 Ha may well be exactly this.  The question for the next session is whether the
+             hole closes as the moment saturates, or whether Λ is still holding something it should release.
+         (c) `cfg *` still flags most iterations, though that is expected under MOM (the occupied SET can be
+             stable while its energy ORDER re-shuffles) — the `cfg` flag keys off orbital index, so under MOM
+             it is no longer a hopping diagnostic.  A character-keyed configuration string would be.
+         (d) The α×Λ surface has two measured points at Λ=1.5 (α=0.45 diverges, α=0.25 lands) and the kT and
+             ANNEAL knobs are now wired but UNSWEPT — `MNO_ANNEAL` runs a descending schedule with density
+             AND (under `momFromSeed`) occupied-character continuation across stages.
+       * **A DISPLAY DEFECT THAT HID EXACTLY THIS (fixed 2026-08-08).**  `tPolarizedWF::DisplayEigen` dropped
+         every level empty in BOTH channels, wherever it sat — so the −1.29 Ha empty level was invisible in a
+         table that happily printed a +0.75 Ha virtual.  Worse, the rule was silently INCONSISTENT with kT:
+         under Fermi smearing no occupation is exactly 0.0, so nothing was ever dropped and the smeared runs
+         looked complete; at kT=0 the deep empties vanished.  Same table, same run, visibility depending on a
+         convergence knob.  Now: a doubly-empty level is dropped only ABOVE the frontier, never below it (a
+         hole is the whole point of looking).  The `tUnPolarizedWF` twin had the same idiom as a `break`,
+         which truncated the table AT the anomaly; fixed the same way.  Also: the polarized table printed
+         `setprecision(0)` occupations, rounding a smeared 0.996 to "1/1" — it advertised a clean integer
+         configuration for a run whose own trace column was flagging partial occupancy every iteration.  It
+         now shows fractional occupations, like the unpolarized twin already did.
        * **THE INSTRUMENT (general, landed with the diagnosis)**: `tSCFIterator::SetOrderParameter(name,
          probe)` — a caller-supplied named scalar measured on the WORKING density every iteration, rendered
          as an extra trace column, carried in `SCFProgress`, and printed once at "iteration 0 (seed)" as the

@@ -5,6 +5,9 @@ module;
 #include <complex>
 #include <memory>
 #include <vector>
+#include <algorithm>
+#include <functional>
+#include <cstdlib>
 module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.SCFAccelerator;
 import qchem.Orbitals.Factory;
@@ -97,13 +100,45 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     // tCompositeWF::FillOrbitalsGlobalFermi -> FillOrbitalsAtMu, doc/GPWPlan1.md item 3.)
     itsMinusTS=0.0;
     const bool haveRef = itsUseMOM && itsRefOccCPrime.columns()>0;
+    // MOM SCORE SEPARATION (QCHEM_MOM_SCORES=1): the two MOM paths use the reference DIFFERENTLY, and which
+    // one can discriminate depends on a property of the scores that nothing else reports.  The cold path RANKS
+    // by s (any separation, however small, decides the fill); the smeared path SHIFTS by Λ(1−s)² (only a
+    // separation worth more than Λ in ENERGY decides anything).  So when a run holds its configuration cold
+    // but collapses under masked Fermi, the question is whether the scores separate at all -- printed here as
+    // the sorted head of s with the cut at ne, once per fill, for the caller to read against Λ.  Off by
+    // default, zero cost.
+    if (haveRef && std::getenv("QCHEM_MOM_SCORES"))
+    {
+        rvec_t s=MOMScores();
+        // Copy by INDEX, not by iterator range: a std::vector range ctor needs std::distance, and the
+        // exported Blaze iterator op== is not visible to it (the documented qchem.Blaze/std interop gotcha).
+        std::vector<double> sorted(s.size());
+        for (size_t i=0;i<s.size();++i) sorted[i]=s[i];
+        std::sort(sorted.begin(),sorted.end(),std::greater<double>());
+        const size_t n=std::min<size_t>(sorted.size(), (size_t)ne+3);
+        cout<<"[MOM scores] spin "<<(itsIrrep.ms==Spin::Down?"dn":"up")<<" ne="<<ne<<" s(sorted):";
+        for (size_t i=0;i<n;++i) cout<<(i==(size_t)ne?" |":" ")<<sorted[i];
+        cout<<"   (cut gap s["<<(size_t)ne-1<<"]-s["<<(size_t)ne<<"]="
+            <<((size_t)ne<sorted.size() ? sorted[(size_t)ne-1]-sorted[(size_t)ne] : 0.0)<<")"<<endl;
+    }
     if (itsSmearingkT>0.0)
     {
         // MOM-masked Fermi (doc/GPWPlan1.md 4b): once a reference exists AND a penalty is set, push low-overlap
         // ghosts UP in effective energy (ε_i + Λ(1−s_i)²) so they stay empty BY CHARACTER, while the retained
         // high-overlap physical states smear by their TRUE energy.  s_i∈[0,1] is the overlap onto the reference
-        // occupied subspace; (1−s)² is ~0 for physical (s≈0.9) and ~1 for a ghost (s≈0.1), so Λ needs only to
-        // exceed the ghost's dive depth.  Λ=0 (or no reference yet) => plain energy Fermi.
+        // occupied subspace.  Λ=0 (or no reference yet) => plain energy Fermi.
+        //
+        // HOW TO SCALE Λ (measured on MnO 2026-08-08, doc/SymmetryUpgradePlan.md §7 step 7 -- and NOT what
+        // the idealised s≈0.9-vs-s≈0.1 picture suggests).  Real scores do NOT split into two clean camps:
+        // MnO's first fill runs 0.95 down to 0.69 with a CUT GAP of 0.0147 between the last occupied and the
+        // first virtual.  So the shift that separates them is Λ·[(1−s_lo)²−(1−s_hi)²] ≈ 0.0086·Λ -- 2.6 mHa
+        // at Λ=0.3, against a raw-ε spread of 0.2-1 Ha.  **Λ scaled to the TIE does nothing at all** (Λ=0.3
+        // measured indistinguishable from MOM off).  What a working Λ buys is the shift on genuinely FOREIGN
+        // states (s≈0.5 ⇒ Λ(0.51)² ≈ 0.39 Ha at Λ=1.5), which is what keeps a diving foreign state out.
+        // So: scale Λ to the PHYSICAL-vs-FOREIGN score gap, not to the frontier tie -- and note this path and
+        // the cold one below are DIFFERENT INSTRUMENTS, not two strengths of one.  The cold path RANKS by s,
+        // so a 1.5% score difference decides the fill; this path SHIFTS, so only differences worth more than
+        // Λ in energy decide anything.  QCHEM_MOM_SCORES prints the distribution to calibrate against.
         if (haveRef && itsMOMSmearPenalty>0.0)
         {
             rvec_t s=MOMScores(), eShift(s.size());

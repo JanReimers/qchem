@@ -7,6 +7,7 @@ module;
 #include "tabulate/table.hpp"
 
 module qchem.WaveFunction.Internal.PolarizedWF;
+import qchem.Math;                 // std::round/abs for the fractional-occupation formatting
 import qchem.SCFAccelerator;
 import qchem.ChargeDensity.Factory;
 import qchem.Streamable;
@@ -48,6 +49,14 @@ template <class T> void tPolarizedWF<T>::DisplayEigen() const
 
 
     EnergyLevels els_up=this->GetEnergyLevels(Spin::Up), els_dn=this->GetEnergyLevels(Spin::Down);
+    // The HIGHEST occupied energy over BOTH channels (see the tUnPolarizedWF twin): a doubly-empty level is
+    // dropped only when it sits ABOVE the frontier, where it is one virtual among many.  BELOW the frontier it
+    // is a HOLE -- the whole point of looking -- and dropping it made the non-aufbau structure of a MOM-pinned
+    // run invisible.  NB the old rule was silently INCONSISTENT between cold and smeared runs: under Fermi
+    // smearing no occupation is exactly 0.0, so nothing was ever dropped; at kT=0 the deep empty levels
+    // vanished.  Same table, same run, different visibility depending on kT.
+    double eHomo=-1e300;
+    for (auto elp:this->GetEnergyLevels()) if (elp.second.occ > 0.0) eHomo=std::max(eHomo,elp.second.e);
     std::set<Orbital_QNs> alreadyGotIt;
     for (auto elp:this->GetEnergyLevels())
     {
@@ -65,11 +74,21 @@ template <class T> void tPolarizedWF<T>::DisplayEigen() const
         const double upOcc=up?up->occ:0.0, dnOcc=dn?dn->occ:0.0;
         const double upE  =up?up->e:el.e , dnE  =dn?dn->e:el.e;
         const int    upDeg=up?up->degen:(dn?dn->degen:1), dnDeg=dn?dn->degen:upDeg;
-        if (upOcc==0.0 && dnOcc==0.0) continue;
+        if (upOcc==0.0 && dnOcc==0.0 && el.e>eHomo) continue;
         std::ostringstream sym_string,up_occ_string,dn_occ_string;
         sym_string << el.qns.n << *el.qns.sym;
-        up_occ_string << std::fixed << std::setprecision(0) << upOcc << "/" << upDeg;
-        dn_occ_string << std::fixed << std::setprecision(0) << dnOcc << "/" << dnDeg;
+        // Integer occ (gapped insulator) unchanged; FRACTIONAL (Fermi-smeared) shown with decimals, mirroring
+        // the unpolarized table.  setprecision(0) alone rounded a smeared 0.996 to "1/1" and 0.004 to "0/1",
+        // i.e. it printed a clean integer configuration for a run whose own trace column was flagging partial
+        // occupancy every iteration -- the table has to agree with the `m` flag beside it.
+        auto occStr=[](std::ostringstream& os, double occ, int deg)
+        {
+            if (fabs(occ-round(occ)) < 1e-6) os << std::fixed << std::setprecision(0) << occ;
+            else                             os << std::fixed << std::setprecision(2) << occ;
+            os << "/" << deg;
+        };
+        occStr(up_occ_string, upOcc, upDeg);
+        occStr(dn_occ_string, dnOcc, dnDeg);
         size_t l=el.qns.sym->GetPrincipleOffset();
 
         RowStream rs;

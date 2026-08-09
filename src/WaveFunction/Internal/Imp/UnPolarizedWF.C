@@ -31,14 +31,22 @@ template <class T> void tUnPolarizedWF<T>::DisplayEigen() const
     eigen_table.format().multi_byte_characters(true);
     eigen_table.add_row({"Occ/Degen","ϵ (au)","Symmetry"});
        
+    // The HIGHEST occupied energy -- the honest end of the table.  Occupations are monotonic in energy under
+    // one μ, so for AUFBAU this is just "the level before the first empty one" and the loop below is unchanged.
+    // It is NOT monotonic under MOM: a character-pinned run can leave a level EMPTY well BELOW an occupied one
+    // (the hole the 0h guard watches for), and a plain `break` at the first empty level then truncates the
+    // table exactly AT the anomaly -- hiding the one row a reader needs.  So: run to the highest OCCUPIED
+    // level, never stopping short of it (measured on MnO: a −1.29 Ha EMPTY level, invisible in a table that
+    // happily printed a +0.75 Ha virtual).
+    double eHomo=-1e300;
+    for (auto [e,el]:this->GetEnergyLevels()) if (el.occ >= 1e-6) eHomo=e;
     for (auto [e,el]:this->GetEnergyLevels())
     {
         // Stop past the frontier by OCCUPATION, not energy sign.  The old `e>0.0` cutoff is a MOLECULAR idiom
         // (bound states sit below the vacuum level at 0); in a SOLID the energy zero is arbitrary (the PP
         // G=0/alignment convention), so the Fermi level -- and every occupied level -- can be POSITIVE (a
-        // metal: this hid all but the one negative-energy Γ level).  Occupations are monotonic in energy under
-        // one μ, so the first negligibly-occupied level ends the occupied set for atoms and metals alike.
-        if (el.occ < 1e-6) break;
+        // metal: this hid all but the one negative-energy Γ level).
+        if (el.occ < 1e-6 && e > eHomo) break;
         std::ostringstream sym_string,occ_string;
         sym_string << el.qns.n << *el.qns.sym;
         // Integer occ (atoms / gapped insulators) unchanged; fractional (Fermi-smeared metal) shown with

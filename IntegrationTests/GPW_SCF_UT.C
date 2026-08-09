@@ -259,6 +259,16 @@ struct GpwOptions
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
     SCFParams    scf;                                  // NMaxIter / MinΔρ / MinΔE / SmearingkT / ... (the gates)
+    //! SEED-CHARACTER MOM (with \c scf.UseMOM): adopt the SEED's own diagonalized occupied subspace as the
+    //! fixed MOM reference, BEFORE iteration 1 runs.  The delayed-IMOM capture inside the wavefunction cannot
+    //! do this: \c SetMOM is pushed in by \c Iterate, i.e. AFTER \c Init's seed fill, so \c itsUseMOM is still
+    //! false when the seed is filled and the earliest self-capture is iteration 1's occupied set.  That is one
+    //! iteration too late for a run whose ORDER dies at iteration 1 (MnO: m_stag 0.366 -> 0.0046), which is
+    //! precisely the case a delayed capture was never designed for: the seed is not "garbage to settle away
+    //! from", it is the physics (the staggered IonicSAD d^5 pair) and the loop is what loses it.  So: pin the
+    //! occupied CHARACTER to the seed and let only the DENSITY relax.  Implemented as self-adoption through
+    //! the existing grid-continuation face (AdoptMOMReference), no new wavefunction API.
+    bool         momFromSeed = false;
     //! Optional ORDER PARAMETER (SCFIterator::SetOrderParameter): a named scalar measured on the WORKING
     //! density every iteration -- an extra trace column PLUS a compact end-of-run trajectory line, so a
     //! symmetry-broken basin (AFM staggering, charge disproportionation) can be watched living or dying
@@ -438,6 +448,11 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
                                          o.seed, lat.GetStructure().get(), o.ortho, o.orthoTol);
     }
     auto& scf=*scfp;
+    // Seed-character MOM (GpwOptions::momFromSeed): the iterator ctor has just built the seed's density by
+    // diagonalizing + filling, so the wavefunction's CURRENT occupied subspace IS the seed's -- self-adopt it
+    // as the fixed reference now, before Iterate's delayed capture can lock onto iteration 1's (already lost)
+    // configuration.  No-op unless scf.UseMOM is also set.
+    if (o.momFromSeed) scf.AdoptMOMReference(*scf.GetWaveFunction());
     // IBZ density symmetrization is now automatic: the GPW basis exposes its reciprocal point ops (non-empty
     // only when imposeSymmetry), and the composite density ctor-injects them straight from the basis -- no setter,
     // no ops recomputed here (doc/GPWPlan1.md item 3).
@@ -484,9 +499,18 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 // throughout).  Each stage already builds a FRESH accelerator, so a kT x accelerator schedule composes here
 // naturally -- e.g. {"DIIS","GDM"} with {kT, 0}: smear the DIIS stage through the branch ties, then hand the
 // converged density to a COLD GDM stage (GDM does not support Fermi smearing, so its stage must run kT=0).
+// \a keep (optional): retain the coldest stage's density + its basis block for the caller's post-mortem
+// (site moments etc.), exactly as RunGpw's \a keep does -- otherwise the carried density is deleted here.
+// MOM CONTINUATION (GpwOptions::momFromSeed + scf.UseMOM): the density is not the whole state.  Annealing
+// carries rho from stage to stage, but each stage builds a FRESH wavefunction, so the OCCUPIED CHARACTER --
+// which 5 of 10 near-degenerate d states are filled in each spin channel -- is re-decided from scratch by the
+// cold stage's aufbau, which is the very decision the hot stage was run to make.  So each stage adopts the
+// PREVIOUS stage's converged occupied subspace as its fixed reference (§0e's grid-continuation MOM, applied
+// across TEMPERATURE instead of across grid), and stage 0 self-adopts the seed's.  This is what makes
+// "smear through the ties, then hold what you found" a single experiment rather than two unrelated ones.
 static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
                                 const std::vector<double>& kTSchedule, bool verbose=false,
-                                const std::vector<std::string>& accSchedule={})
+                                const std::vector<std::string>& accSchedule={}, GpwHandles* keep=nullptr)
 {
     assert(accSchedule.empty() || accSchedule.size()==kTSchedule.size());
     namespace L3=BasisSet::Lattice_3D;
@@ -524,6 +548,9 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
 
     GpwResult R{false, 0.0, qchem::EnergyBreakdown{}, 0};
     qchem::ChargeDensity::cDM_CD* seedCD = nullptr;   // carried between stages (the next stage's ctor consumes it)
+    // The PREVIOUS stage's iterator, held alive only long enough for the next one to adopt its occupied
+    // subspace (MOM continuation).  Declared AFTER bs/ec so it is destroyed BEFORE them.
+    std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> prev;
     for (size_t s=0; s<kTSchedule.size(); ++s)
     {
         const double kT=kTSchedule[s];
@@ -535,6 +562,11 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
                  : new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, seedCD, st.get(), o.ortho, o.orthoTol));
+        // MOM continuation across TEMPERATURE (see the header comment): stage 0 self-adopts the seed's own
+        // freshly-filled occupied subspace, every later stage adopts the stage before it -- so the character
+        // the hot stage settled on survives the fresh wavefunction, exactly as the density does.
+        if (o.momFromSeed) scf->AdoptMOMReference(prev ? *prev->GetWaveFunction() : *scf->GetWaveFunction());
+        prev.reset();   // the adoption copied what we needed; release the previous stage's machinery
 
         SCFParams par=o.scf; par.Verbose=verbose; par.SmearingkT=kT;
         std::vector<FpRow> series;
@@ -554,10 +586,13 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         std::cout << "["<<o.label<<" stage "<<s+1<<"] kT="<<kT<<" conv="<<R.converged<<" iters="<<R.iters
                   << " A=E-TS="<<E.GetTotalEnergy()<<" -TS="<<E.MinusTS
                   << " E(internal)="<<(E.GetTotalEnergy()-E.MinusTS)<<std::endl;
-        // scf drops here (deletes ham/acc/wf); seedCD survives -- its block is bs, which outlives the loop.
+        prev = std::move(scf);   // held for the next stage's MOM adoption; released the moment it has copied
+        // seedCD survives the hand-off -- its block is bs, which outlives the loop.
     }
     if (seedCD) ReportSymmetryFound(*bs, *seedCD, st.get(), o.imposeSymmetry);   // §3: report on the coldest stage's density
-    delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
+    prev.reset();                                       // no further stage: drop the last iterator (ham/acc/wf)
+    if (keep) { keep->cd.reset(seedCD); keep->bs=std::move(bs); }   // bs is the density's block -- it must outlive cd
+    else      delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
     return R;
 }
 
@@ -2775,8 +2810,32 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // with the m_stag order parameter below.  QCHEM_SPINBLIND_KERKER=1 restores the broken arm for the A/B.
     // Once the spin-resolved ρ̃ mixer lands, this line becomes live again (and linear mixing's slosh --
     // measured: E swinging -51/-55/-44/-28 over 6 iterations -- is exactly why we want it back).
-    o.scf.UseMOM=true; o.scf.MOMStartIter=10;
-    o.scf.SmearingkT=5e-3;                            // the open-d-manifold cure (annealed driver if this stalls)
+    // ---- OCCUPATION KNOBS: the kT / MOM-TIMING experiment (2026-08-08, plan §7 step 7) --------------------
+    // The run-10/11 diagnosis left ONE live defect: the occupied configuration re-shuffles EVERY iteration
+    // (`cfg *` on every row) between a MAGNETIC and a NON-magnetic branch 4-6 Ha apart.  That is an OCCUPATION
+    // defect, and no density-mixing knob can reach it.  Two instruments exist and BOTH were mis-set:
+    //   * kT=5e-3 against a frontier gap that WANDERS 0.026-0.27 Ha -- 5x to 50x too cold to bridge the branch
+    //     tie.  It fractionalises the ties (the `m` flag) without ever letting mu choose between the branches.
+    //   * UseMOM was INERT.  tIrrepWF::FillOrbitals gives SmearingkT>0 precedence, and that branch consults the
+    //     MOM reference ONLY when MOMSmearPenalty>0 (default 0) -- so `UseMOM=true` alongside kT=5e-3 has never
+    //     changed a single occupation in ANY MnO run.  And even reached, MOMStartIter=10 captures the reference
+    //     at iteration 10, nine iterations after m_stag died (0.366 -> 0.0046 at iteration 1): a delayed capture
+    //     is built for a seed you want to settle AWAY from, and MnO's seed is the physics.
+    // Hence: kT is now the SWEEPABLE knob it should always have been, MOM is reachable under smearing via the
+    // penalty, and momFromSeed pins the reference to the seed's own staggered d^5 character.
+    auto envi=[](const char* n, int d){ const char* s=std::getenv(n); return s ? std::atoi(s) : d; };
+    o.scf.UseMOM=envi("MNO_MOM",1)!=0; o.scf.MOMStartIter=envi("MNO_MOM_START",10);
+    o.scf.MOMSmearPenalty=envd("MNO_MOM_PENALTY",0.0);   // >0 makes MOM live UNDER smearing (masked Fermi)
+    o.momFromSeed=envi("MNO_MOM_SEED",0)!=0;             // pin the reference to the SEED's occupied subspace
+    // The 0h MOM GUARD releases the reference after 3 consecutive NON-AUFBAU (hole) iterations, on the premise
+    // that a hole means the reference is wrong.  That premise was calibrated on NaF, where the hole IS the
+    // pathology (a diving diffuse ghost pinned by a stale reference).  It does NOT hold here: until the
+    // self-consistent exchange splitting opens, the magnetic branch's occupied d^5-on-Mn1 states sit ABOVE
+    // empty d states of the other sublattice in the raw eps ordering, so a hole is the SIGNATURE of the branch
+    // we are trying to hold, not evidence against it.  MNO_MOM_HOLD raises the persistence (large = never
+    // release) so the guard cannot silently undo the experiment.
+    o.scf.Guard.HolePersistence=envi("MNO_MOM_HOLD",3);
+    o.scf.SmearingkT=envd("MNO_KT",5e-3);                // the open-d-manifold knob (MNO_ANNEAL for a schedule)
     // GPW_MNO_NMAX bounds a HAND-RUN diagnosis (measured 2026-08-05: ~9 min PER analytic sweep on a 14 GB
     // box -- the free-run magnetic cell exceeds the stream budget, so every iteration pays collocate +
     // integrate analytically; an unbounded 80-iter run is a >24 h affair).
@@ -2811,12 +2870,70 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     }
     MnOArm arm;
     arm.cell=cellp;
-    arm.R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o,
-                 /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"), &arm.h);
+    const bool verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
+    // ANNEALED ARM (MNO_ANNEAL="0.05,0.02,0.01,0"): a DESCENDING kT schedule with density continuation, and
+    // -- when MNO_MOM_SEED=1 -- occupied-character continuation too, so the configuration a hot stage settles
+    // on is what the next stage holds.  The single-kT path stays the default: one run, one temperature.
+    if (const char* sched=std::getenv("MNO_ANNEAL"))
+    {
+        std::vector<double> kTs;
+        for (std::string s(sched), tok; !s.empty(); )
+        {
+            size_t c=s.find(','); tok=s.substr(0,c);
+            if (!tok.empty()) kTs.push_back(std::atof(tok.c_str()));
+            if (c==std::string::npos) break;
+            s=s.substr(c+1);
+        }
+        assert(!kTs.empty() && "MNO_ANNEAL must list at least one kT");
+        arm.R=RunGpwAnnealed(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, kTs, verbose,
+                             /*accSchedule*/{}, &arm.h);
+        return arm;
+    }
+    arm.R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, verbose, &arm.h);
     return arm;
 }
 } //anon
 
+// ===================== MnO STATUS: THE OCCUPATION IS THE DEFECT (2026-08-08) ==========================
+// Recorded HERE and not only in the plan doc, because the next person to touch this test needs it before
+// they reach for another mixing knob.  Every mixing-side candidate is fixed or eliminated (spin-blind rho~
+// mixer -- a real bug, fixed; DIIS-per-spin -- checked, it is joint; G0 selectivity -- swept; Kerker-on-m --
+// built and measured).  What remained was the OCCUPATION, and the A/B is unambiguous (identical alpha=0.45,
+// kT=0, only MOM differing, 20 iterations each):
+//     aufbau control (run 13): m_stag dies at iteration 1, E in a -45.6 limit cycle, [F,D] STUCK at 1.43,
+//                              converged eps_up-eps_dn ~ 1e-3 everywhere = the non-magnetic collapse.
+//     seed-pinned MOM (run 12): m_stag 0.19-0.30 THROUGHOUT, E -54.7, [F,D] 4.11 -> 0.05.
+// So the order and ~9 Ha of binding are BOTH bought by holding the occupation: "under-bound by 15.8 Ha" and
+// "the AFM order collapsed" really were ONE defect.  Three traps, all of which bit:
+//   1. UseMOM was INERT in every run before this one -- FillOrbitals gives SmearingkT>0 precedence and that
+//      branch only consults the reference when MOMSmearPenalty>0.  Setting UseMOM beside kT did nothing.
+//   2. The delayed capture (MOMStartIter) is one iteration too late here: SetMOM is pushed in by Iterate,
+//      after Init's seed fill, so the earliest self-capture is iteration 1 -- AFTER m_stag has already died.
+//      momFromSeed self-adopts the seed's subspace before iteration 1 runs.  (The delayed design is for a
+//      seed you want to settle AWAY from; MnO's seed IS the physics.)
+//   3. The 0h MOM guard would have silently released the reference at iteration 3, on the NaF-calibrated
+//      premise that a hole means a wrong reference.  Here a hole is the SIGNATURE of the magnetic branch
+//      before the exchange splitting opens.  MNO_MOM_HOLD raises the persistence.
+// A HARD pin overshoots into the opposite error: it empties ONE Mn's d shell (five levels at -1.39..-1.32,
+// four with eps_up-eps_dn = 0.00000000 -- an empty shell feels no exchange splitting), i.e. a d5/d0
+// disproportionation, self-reinforcing because a sunk state has no overlap with the reference.  The cure is
+// a pin that can be OVERRIDDEN by a dive: MOMSmearPenalty Lambda, scaled to the physical-vs-foreign score
+// gap (see the measured rule in tIrrepWF::FillOrbitals).  Lambda=0.3 == no MOM; Lambda=1.5 cures the
+// disproportionation (hole 2.4 -> 0.21 Ha) but DIVERGES at alpha=0.45.
+// >>> THE RECIPE THAT REACHES AFM-II (runs 17/18): alpha=0.25, kT=5e-3, MOM seed-pinned, Lambda=1.5.
+//     E=-60.9247 at 90 iterations (CP2K -61.4706, so 0.55 Ha -- was 15.8), sites +0.506/-0.529 =>
+//     m_net=-0.022, STAGGERED, m_stag peak 0.668 (the seed's 0.366 GREW rather than merely survived), and a
+//     real exchange splitting (eps_up-eps_dn to 0.25) where the aufbau control had a uniform 1e-3.
+//     THE HOPPING IS GONE: from ~iteration 45 the `cfg` flag goes BLANK -- one configuration, held.
+//     Three phases: Kerker+DIIS settles at -60.14 (drho 4.3e-4, [F,D] 7.8e-3), the Ladder hands off to GDM
+//     at ~70 and finds a LOWER -60.92 (so the DIIS fixed point was not the bottom), and the moment settles
+//     at 0.52.  STILL OPEN: it does not pass the gate -- the run ends on the GDM leg where the mixer's drho
+//     is not the convergence measure (lastdrho 3.2e-2 vs 1e-5) -- and it is still NON-AUFBAU (a 0.21 Ha
+//     hole), so the residual 0.55 Ha may BE that hole.  NB `cfg *` is only a hopping diagnostic while the
+//     energy ORDER is stable: it keys off orbital index, which re-shuffles freely under MOM.
+// Knobs: MNO_ALPHA MNO_KERKER_G0 MNO_KT MNO_MOM MNO_MOM_START MNO_MOM_SEED MNO_MOM_PENALTY MNO_MOM_HOLD
+//        MNO_ANNEAL="kT,kT,..."  GPW_MNO_VERBOSE GPW_MNO_NMAX  QCHEM_MOM_SCORES
+//
 // DISABLED until the OCCUPIED-d nonlocal-PP defect is fixed (2026-08-06 find, the campaign's blocker):
 // the KB d-channel has NEVER been exercised by occupied states before MnO (CsI's l=2 gate touches only
 // virtuals), and it is WRONG by ~12.6x (~4pi-scale): our Mn q7 pseudo-ATOM converges to -189.4 Ha vs the
@@ -2849,7 +2966,18 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
     const rvec3_t rMn1(0,0,0), rMn2(a,a,a);           // cartesian: A*(1/2,1/2,1/2) = a(1,1,1)
     const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
     const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
-    std::cout << "[MnO AFM-II] site moments m(r): Mn1(+seed)="<<m1<<"  Mn2(-seed)="<<m2<<std::endl;
+    // m_stag = ½(m1−m2) is the ORDER, but it is DEGENERATE between the AFM state (+m,−m) and a
+    // sublattice-disproportionated one (0,−2m) -- both give the same m_stag.  Measured 2026-08-08 (run 12):
+    // a seed-pinned MOM run reported "order SURVIVED, m_stag=0.29" while the sites read (+0.0006, −0.579),
+    // i.e. ONE Mn carried the whole moment.  So the trajectory column is necessary but not sufficient, and the
+    // readout has to print the ASYMMETRY beside it: m_net=m1+m2 is 0 for a true stagger and ±2m for a collapse
+    // onto one sublattice.  (The EXPECT_NEAR(m1,-m2) gate below is the acceptance test; this line is the
+    // instrument that says WHY it failed, on a bounded diagnosis run that never reaches the gate.)
+    std::cout << "[MnO AFM-II] site moments m(r): Mn1(+seed)="<<m1<<"  Mn2(-seed)="<<m2
+              << "  m_stag=½(m1−m2)="<<0.5*(m1-m2)<<"  m_net=m1+m2="<<(m1+m2)
+              << (std::abs(m1+m2) > 0.2*std::abs(m1-m2)
+                  ? "  ** NOT STAGGERED: the moment sits on ONE sublattice" : "")
+              << std::endl;
     ASSERT_TRUE(A.R.converged);                       // gate AFTER the readout (see above)
     EXPECT_NEAR(A.R.charge, 26.0, 1e-6);
     EXPECT_GT(m1,  0.01) << "Mn1 must stay in the +m basin the seed chose";
