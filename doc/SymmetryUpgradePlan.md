@@ -1326,6 +1326,41 @@ against a special case it will outgrow:
          trust-radius shrink-and-retry.  That is a `doc/SCFStrategyPlan.md` seam decision (the accelerator
          reports its mode; the iterator selects the driver), not a patch to `DirectMinStep` — left for the
          user rather than done unilaterally.  Log `run20_gdmtrace`.
+       * **THE BAIL-OUT LANDED, AND IT IS NECESSARY BUT NOT SUFFICIENT (run 21, the A/B against run 20).**
+         `tSCFAccelerator::RejectStep` + the retry loop in `DirectMinStep` behave exactly as specified:
+         - **The rejected step is no longer taken.**  Iteration 65 now holds **E=−60.127** with m_stag 0.666,
+           where run 20 committed the +14.5 Ha step and read **−45.595** with m_stag 0.116.
+         - **The retries prove the diagnosis.**  Seven FALLBACKs report best(E_t−E_cur) = **+1.45e+01 EVERY
+           TIME**, identical to three figures across six trust-radius shrinks.  A step that is merely too
+           LONG improves as the trust radius falls; one that is scale-INVARIANT is a discontinuity.  The
+           retries are, in effect, a controlled experiment that re-confirms the occupation reading.
+         - Then EXHAUSTED → mixed fallback, as designed.
+         **BUT THE RUN ENDS WORSE, NOT BETTER: −29.96, DIVERGING, m_stag decayed to 0.061** (run 20 ended
+         −60.84).  The reason is visible in the trace and it is the SAME defect: iteration 66, the EXHAUSTED
+         **mixed fallback itself**, drops to −45.37 — its `ρ_mix` column reads `Ker 0.25`, so this is the
+         diagonalize-and-refill path, not the geodesic.  **Every path that REFILLS can jump branch**: the
+         geodesic trial, the geodesic commit, the mixed fallback, the plain diagonalize.  Refusing the bad
+         geodesic step just moves the branch jump one iteration downstream.
+         Do not read run 20's −60.84 as the better answer either: it got there by committing a +14.5 Ha step
+         and happening to recover.  Both runs are non-monotone and neither converged; what changed is that
+         the failure is now HONEST (declined and reported) instead of silently committed.
+       * **SO THE NEXT FIX IS THE OCCUPATION HOLD, and it is a SEMANTIC decision, not a patch.**  GDM rotates
+         a FIXED occupied block (`itsNocc`); for the line search to mean anything, the fill must reproduce
+         that block.  Plain aufbau ALREADY DOES — `TakeElectrons(ne)` fills in STORED order and
+         `UpdateOrbitals` does not sort, so the stored order IS the geodesic's [occupied | virtual] order.
+         **It is specifically `TakeElectronsFermi` (μ solved over the whole spectrum) and MOM
+         (`TakeElectrons(ne,priority)`, ranked by overlap) that deviate** — which is exactly why Si and
+         NaF-SR2 (cold, aufbau) are clean and MnO (kT=5e-3 AND Λ=1.5) is the worst case.  Two ways out:
+         (a) **hold the block through the GDM leg** (fill in stored order for trial AND commit, so E(t) is
+             the geodesic energy) — GDM then minimises E at integer occupation regardless of caller
+             settings, and smearing/MOM are SUSPENDED for that leg, which must be announced;
+         (b) **enforce the precondition** — the ladder does not hand off to GDM while smearing or MOM is
+             active (the `RunGpwAnnealed` accSchedule pattern, `{"DIIS","GDM"} × {kT,0}`, already says this
+             in its own comment: "GDM does not support Fermi smearing, so its stage must run kT=0").
+         (a) makes GDM self-sufficient; (b) keeps one functional per leg but leaves MnO's GDM leg unusable
+         while MOM is what holds its configuration.  Note either way the reported E jumps at the hand-off
+         when fractional occupations become integer — that is honest, not a bug.
+         Log `run21_bailout`.  New coverage: `UTSCFAccelerator` (5 tests on the contract; GDM had none).
        * **WHAT IS STILL OPEN** (do not read the above as "done"):
          (a) **It does not pass the convergence gate**: the run ends on the GDM leg with lastΔρ=3.2e-2 against
              MinΔρ=1e-5.  E and the moment are stable to ~1e-3, but the gate measures ρ, and the DIIS→GDM
