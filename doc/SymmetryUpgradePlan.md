@@ -1293,10 +1293,39 @@ against a special case it will outgrow:
              the uphill)" that the ROUND 3 note listed as the required engine fix and which was never
              implemented.  A failed search should decline the step (or degrade to the mixed fallback the bail
              path already builds), not commit it.
-         Neither is an E[ρ] problem, and neither is MnO-specific.  Run 19 (the reproduction with
-         `GPW_GDMTRACE=1`, which would label each step DESCENT/FALLBACK) was OOM-killed at iteration 52
-         before reaching the hand-off — the verdict line is still UNMEASURED, and it is the cheap
-         confirmation to take first.
+         Neither is an E[ρ] problem, and neither is MnO-specific.
+       * **MEASURED (run 20, `GPW_GDMTRACE=1` across the hand-off) — AND IT IS A DISCONTINUITY, NOT A GRADIENT
+         ERROR.**  Six geodesic steps: 4 DESCENT, 2 FALLBACK.  The two FALLBACKs are QUALITATIVELY different
+         and that is the whole answer:
+         | step | verdict | best(E_t − E_cur) over 12 backtracks |
+         |---|---|---|
+         | iteration 65 | FALLBACK t=2.44e-04 k=12 | **+1.45e+01 Ha** |
+         | iteration 76 | FALLBACK t=2.44e-04 k=12 | **+3.22e-05 Ha** |
+         **THE ARITHMETIC CLOSES EXACTLY**: iteration 64 ends at E=−60.125186, the search reports its best
+         trial is +14.53 Ha uphill, the code commits anyway, and iteration 65 reads −45.595130 — a jump of
+         **+14.530 Ha**.  The reported blow-up IS the committed non-descent step, to five figures.
+         **Why +14.5 Ha refutes the non-variational reading.**  As t→0 the geodesic tends to the IDENTITY, so
+         E(t) → E(0) = E_cur *continuously, provided the occupation is held*.  A floor of +14.5 Ha still
+         standing at t=2.44e-04 is therefore not a small gradient inconsistency — **it is a DISCONTINUITY in
+         t**, and the only thing in the step that can jump discontinuously is the OCCUPATION, which
+         `MoveOrbitals → FillOrbitals` re-decides at every trial point.  A non-variational E[ρ] cannot produce
+         this signature; a re-fill that lands on a different branch produces exactly it.
+         **And the run itself measures the honest noise floor**: the SECOND FALLBACK, at convergence, is
+         +3.22e-05 Ha.  THAT is where a genuine E/H inconsistency would live (fit-vs-quadrature v_xc, grid
+         charge leak) — **32 μHa, i.e. five orders of magnitude below the excursion.**  So E[ρ] is variational
+         to ~1e-5 Ha here, exactly as the SR2 and Si results already said.
+         The rest of the "5 haywire iterations" is a cascade from that ONE step: iterations 66–68 print NO
+         `[gdm]` line at all, i.e. `BuildFockAndComputeSteps` FAILED and they silently took the bail path's
+         diagonalize+mix from a wrecked density ([F,D] 44.7 → 118), recovering only by 69–71.
+       * **THE OBVIOUS FIX IS BLOCKED, and that is worth knowing before someone tries it.**  "On `!found`,
+         degrade to the mixed step" cannot reuse the existing bail path: that path is safe only because
+         `ComputeStep` FAILED there, so `tSCFIrrepAcceleratorGDM::NextOrbitals` diagonalizes.  After a failed
+         LINE SEARCH `ComputeStep` has SUCCEEDED, and `NextOrbitals` then returns `OrbitalsAt(1.0,true)` —
+         **the full step, committed**, i.e. the very t=1 the search rejected first.  So declining a step needs
+         an accelerator-level DECLINE/RESTART (drop the CG history, force the next call to diagonalize) or a
+         trust-radius shrink-and-retry.  That is a `doc/SCFStrategyPlan.md` seam decision (the accelerator
+         reports its mode; the iterator selects the driver), not a patch to `DirectMinStep` — left for the
+         user rather than done unilaterally.  Log `run20_gdmtrace`.
        * **WHAT IS STILL OPEN** (do not read the above as "done"):
          (a) **It does not pass the convergence gate**: the run ends on the GDM leg with lastΔρ=3.2e-2 against
              MinΔρ=1e-5.  E and the moment are stable to ~1e-3, but the gate measures ρ, and the DIIS→GDM
