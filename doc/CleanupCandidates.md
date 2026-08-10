@@ -25,18 +25,27 @@ a grep showed NOTHING outside qcBasisSet had ever named an `ERI4` — so the sub
 interface promises more than its clients consume", check whether the surplus also crosses a LIBRARY
 boundary; if it does, the ISP fix and the DIP fix are the same edit.
 
-## Next task: **R2.9** — small Hamiltonian hardening (three independent sub-items)
+## Next task: **R2.9** — small Hamiltonian hardening.  **Start it NEXT.**  Full item under READY / R2.
 
-Full item under READY / R2 below.  The pick for a session running ALONGSIDE the MnO campaign:
+(To be unambiguous, because the first draft of this handoff was not: **R2.9 is the next item to pick up.**
+The "do it last" below orders R2.9's own three SUB-items against each other — it is not a suggestion to
+defer R2.9 itself.)
+
+The pick for a session running ALONGSIDE the MnO campaign:
 - **Files** — `src/Hamiltonian/Internal/PWTerms.C` (`XC_GridEngine`), `HamiltonianTerm.C`,
   `Imp/HF_HT.C`.  None is on the MnO DO-NOT-TOUCH list, and none is theirs by assignment.
-- **Three separable pieces** (i) constness laundering, (ii) a reference into shared scratch,
+- **Three separable pieces** — (i) constness laundering, (ii) a reference into shared scratch,
   (iii) a latch with no assert — so it can be stopped cleanly at any point.
-- **Verification cost is UNEVEN, so sequence it:** (iii) is the molecular HF path and is checked by the
-  fast `M_HF_*` tests; (ii) is a doc-or-return-by-value call; (i) touches the GPW XC engine and wants a
-  GPW run to confirm, which is the expensive part — do it last, or when the box is free.
+- **Sub-item order, driven by VERIFICATION cost (not importance):** do **(iii) first** — it is the
+  molecular HF path, checked by the fast `M_HF_*` tests; then **(ii)**, a doc-or-return-by-value call;
+  then **(i) LAST**, because it touches the GPW XC engine and wants a GPW run to confirm, which is the
+  part that needs the box.
 - Note (i) also records a real hazard worth reading before touching it: `XC_GridEngine` has NO
   cross-invalidation between its scalar and Up/Dn rho caches, which can be live simultaneously.
+
+**Queued behind it, both filed 2026-08-10 and neither started:** **R1.9** (molecular `BasisSetID()`
+prints hex — small, but it invalidates a diagnostic and a cache-key claim) and **V1.31** (caching has
+escaped `DB_Cache_RAM`: three caches, three invalidation disciplines — needs a design ruling first).
 
 ## Coordination — the MnO campaign runs in the qchem6 clone, in parallel
 
@@ -1339,6 +1348,44 @@ MnO campaign proceeds undisturbed in qchem6.
     is invisible in the result, a missing one only costs time.
   - `SolidCalcOptions` deliberately defaults it to `false` (the comment's stated intent) and says so at the
     field, so the two facades diverge ON PURPOSE rather than by drift.  Decide which is right and align them.
+
+- **V1.31 Caching has escaped `DB_Cache_RAM` — THREE hand-rolled caches, THREE invalidation disciplines
+  (USER PRINCIPLE, 2026-08-10: *"I try to delegate all caching to `src/BasisSet/Internal/DB_Cache_RAM.C`
+  ... and there are good reasons for this"*).**  Noticed while doing R1.7; filed, not fixed.
+  - **The three, as they stand:**
+    1. `theCache<T>()` / `DB_Cache_RAM` — the sanctioned one.  Keyed purely on CONSTRUCTION-TIME identity
+       (`BasisSetID`, `Structure_ID`, `Mesh_ID`), and everything it holds is DENSITY-INDEPENDENT, so it
+       never invalidates at all.  It also carries the dim-mismatch guards (DB_Cache_RAM.C:211-232),
+       re-entrancy, process-wide reuse across runs, and `EmitReport()` into the run report.
+    2. `SymFockCache` (SymmetryAdapted_IBS.C:32-42, Imp:45-66) — AO J/K per cd-irrep.  Keyed by
+       `cd->BasisSetID()`; invalidated by storing a COPY of the density block and comparing it
+       ELEMENTWISE on every lookup.
+    3. `Dynamic_HF_HT_Imp::itsJKs` (Hamiltonian/Internal/Terms.C:163-167) — whole-system J or K blocks.
+       Also keyed by `BasisSetID`; invalidated by a VERSION COUNTER (`itsCD_Version`).
+  - **The honest obstacle, which is why this is a V-item and not an R-item:** 2 and 3 are not integral
+    caches.  Every axis `DB_Cache_RAM` has is construction-time, and its entries are immortal by
+    design; these two memoize a quantity that changes EVERY SCF ITERATION.  So "just move them" is not
+    available — the design question is which of these is true:
+    (a) `IntegralsCache` grows a density/version axis and an eviction story (it currently has neither,
+        and its "never cleared between runs" property is load-bearing for the report); or
+    (b) the per-density memo is legitimately a TERM-level concern, in which case 2 should move to where
+        3 already is, and the RULE becomes "integrals cache centrally; density-dependent intermediates
+        cache at the term" — which is a defensible rule, just not the one the code claims; or
+    (c) 2 is deleted outright and the SALC path routes through 3, since both are memoizing "the AO Fock
+        for the current density" one library apart.
+    **(c) deserves the first look** — 2 and 3 may be the same computation cached twice.
+  - **Two concrete defects visible today, independent of which way (a)/(b)/(c) goes:**
+    - **`SymFockCache`'s key is INCOMPLETE.**  The entry depends on `raw` and `Ocd`, neither of which is
+      in the key (`cd->BasisSetID()` alone).  `SymmetryAdapted_IBS::BasisSetID()` is `raw id + "[label]"`,
+      so `raw` is encoded by luck; `Ocd` is NOT.  Two SALC transforms of the same raw basis (different
+      tolerance, different group) sharing one cache — which the ctor's `shared_ptr` parameter permits —
+      would collide silently.  This is exactly the failure `DB_Cache_RAM`'s dim guards were added to
+      catch, and a private cache gets no such guard.
+    - **Elementwise density comparison per lookup** where the sibling cache uses a version counter: an
+      O(n²) compare plus a full stored copy of D, per irrep, per lookup.  Whatever the answer above,
+      the two should not disagree about how staleness is decided.
+  - Cross-ref: the "no `void*`, deterministic" claim on `SymFockCache`'s key is ALSO false today, but for
+    an unrelated reason — see **R1.9**.
 
 ### V2 — measurements / sweeps
 
