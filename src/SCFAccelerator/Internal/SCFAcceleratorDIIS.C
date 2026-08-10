@@ -12,14 +12,8 @@ import qchem.Blaze;
 export namespace qchem::SCFAccelerators
 {
 
-struct DIISParams
-{
-    size_t Nproj;  //Number of terms to keep for proections.
-    double FDMax;  //DIIS STARTS extrapolating once the residual [F,D] < FDMax.  (Named for the residual it
-                   //  gates on -- the DIIS error IS [F,D], NOT the energy; the old "EMax" name was a trap.)
-    double FDMin;  //DIIS STOPS once [F,D] < FDMin (converged; hand back to plain diagonalization).
-    double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
-};
+// (DIISParams moved to the public qchem.SCFAccelerator 2026-08-09 -- documented there.)
+
 
 template <class T> class tSCFAcceleratorDIIS;
 

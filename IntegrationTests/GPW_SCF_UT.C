@@ -42,7 +42,9 @@ import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-sp
 import qchem.Blaze;                              // blazem::eigen, blaze::min/max (overlap spectrum)
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
-import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT (the plane-wave LDA KS Hamiltonian -- drives GPW too)
+import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
+import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
+import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PWFittedVxc / DeltaFittedVxc (the Becke XC gate)
 import qchem.Mesh.Angular;                        // MakeAngular (the rotated-Lebedev bond-angle probe)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the LDA functional face the XC terms hold)
@@ -57,6 +59,7 @@ import qchem.SCFIterator;                        // cSCFIterator, SCFParams
 import qchem.SCFParams;                          // SCFParams
 import qchem.ElectronConfiguration.Crystal;      // Crystal_EC (single-k Bloch occupation)
 import qchem.ChargeDensity.Seed;                 // SeedStrategy
+import qchem.SCFAccelerator.Factory;              // the PUBLIC complex accelerator door (Step 4)
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS; // cSCFAcceleratorDIIS (complex DIIS)
 import qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;  // cSCFAcceleratorGDM (complex geodesic direct-min)
 import qchem.SCFAccelerator.Internal.SCFAcceleratorLadder; // cSCFAcceleratorLadder (DIIS -> GDM chain)
@@ -311,21 +314,17 @@ qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Real_BS& mo
 }
 } //anon
 
-// Build the complex SCF accelerator named by \a policy.  Ladder = the ionic-crystal DIIS->GDM hand-off on
-// |ΔE/E| (NaF's proven recipe); the rest are the plain single-engine choices.
-static qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* MakeGpwAccelerator(const std::string& policy)
+// Build the complex SCF accelerator named by \a policy, through the PUBLIC typed door (Step 4 2/3).
+// The tuned constants that used to sit here ARE the GPW production recipe, so they now live with the
+// factory as SolidAcceleratorOptions' defaults -- this function is just the policy-name lookup a facade
+// would do.  Ladder = the ionic-crystal DIIS->GDM hand-off on |ΔE/E| (NaF's proven recipe).
+static qchem::SCFAccelerators::cSCFAccelerator* MakeGpwAccelerator(const std::string& policy)
 {
     using namespace qchem::SCFAccelerators;
-    if (policy=="Null") return new tSCFAcceleratorNull<dcmplx>();
-    if (policy=="DIIS") return new cSCFAcceleratorDIIS(DIISParams{8, 0.1, 1e-10, 1e-9});
-    if (policy=="GDM")  return new cSCFAcceleratorGDM(GDMParams{1.0});
-    if (policy=="Ladder")
-    {
-        std::vector<std::unique_ptr<tSCFAccelerator<dcmplx>>> rungs;
-        rungs.push_back(std::make_unique<cSCFAcceleratorDIIS>(DIISParams{8, 0.1, 1e-10, 1e-9}));
-        rungs.push_back(std::make_unique<cSCFAcceleratorGDM>(GDMParams{1.0,0.5}));
-        return new cSCFAcceleratorLadder(std::move(rungs), 1e-8, 5, 1e-8, 1e-6, ScheduleSignal::EnergyChange);
-    }
+    if (policy=="Null")   return Factory(Type::Null);
+    if (policy=="DIIS")   return Factory(Type::DIIS);
+    if (policy=="GDM")    return Factory(Type::GDM,  {.gdm={1.0,0.1}});
+    if (policy=="Ladder") return Factory(Type::Ladder);
     throw std::runtime_error("MakeGpwAccelerator: unknown policy \""+policy+"\" (DIIS|GDM|Ladder|Null)");
 }
 
@@ -428,8 +427,14 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     qchem::Hamiltonian::cHamiltonian* ham=nullptr;
     {
         qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
-        ham=new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA",
-                                               qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit, polarized);
+        // THE PUBLIC SOLID FRONT DOOR (Step 4).  This driver is the facade-shaped path, so it goes through
+        // qchem.Hamiltonian.Factory rather than the Internal ctor -- which is what a real facade in
+        // src/Calculation/ will call.  (The bespoke term-level probes further down still use the Internal
+        // ctors directly; they are testing the terms, not driving a run.)
+        ham=qchem::Hamiltonian::Factory(polarized ? qchem::Hamiltonian::Pol::Polarized
+                                                  : qchem::Hamiltonian::Pol::UnPolarized,
+                                        lat.GetStructure(), bs.get(), o.species, "LDA",
+                                        qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit);
     }
     auto* acc = MakeGpwAccelerator(o.accelerator);
 
@@ -556,8 +561,10 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         const double kT=kTSchedule[s];
         // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
         // carry stale DIIS history across the re-seed).
-        auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA",
-                                                       qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit, polarizedA);
+        auto* ham = qchem::Hamiltonian::Factory(polarizedA ? qchem::Hamiltonian::Pol::Polarized
+                                                            : qchem::Hamiltonian::Pol::UnPolarized,
+                                        st, bs.get(), o.species, "LDA",
+                                        qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit);
         auto* acc = MakeGpwAccelerator(accSchedule.empty() ? o.accelerator : accSchedule[s]);
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
@@ -1402,13 +1409,19 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
     // Re-anchored 2026-08-01: the 0i custom V_loc G-ball (harmonic routing + custom top level) moved the
     // long-PP block by 1.6e-4 on Al's coarse grids -- full mesh AND reduced shift TOGETHER (folding stays
     // exact).  Old kappa-sweep anchor: -2.116812.
-    // Re-pinned 2026-08-02 ON THE BECKE ROUTE (plan §7 step 5 carve-out retirement): Auto+imposeSymmetry now
-    // builds the mixed-rule site-adapted invariant Becke mesh (830 dirs/atom under Al's O_h site group,
-    // the 12 <110> bond directions filtered), and the reduced run reproduces the Becke full-mesh
-    // AlFCCMetalGlobalMu (prints -2.11749 same run) to ~1e-5 -- folding stays exact on the Becke route.
-    // The uniform-route pair was -2.1169707 (route difference ~5e-4, the Becke-vs-uniform XC class).
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.1174805, 1e-4)  // == the full 8-k-point mesh: IBZ symmetrization is EXACT
-        << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu -2.11749)";
+    // Re-pinned 2026-08-08 ON THE UNIFORM ROUTE (V2.4, arming the V1.26 cost selector): Al is soft
+    // (alpha_max=4), so Auto now costs the two grids and picks uniform -- 4,096 points against Becke's
+    // 18,000.  The value it lands on, -2.1169707, is EXACTLY the uniform-route number the previous
+    // comment here already recorded, so this re-pin introduces no new quantity; it switches which of two
+    // long-known values is the default.
+    //   Which is right?  Measured, not assumed (GPW_SCF.DISABLED_GridRouteAB_AlFCC): against a fine Becke
+    //   reference the uniform route is CLOSER on both scores -- ||drho||_1 6.18e-4 vs the production
+    //   Becke mesh's 8.95e-4, and dEtot -1.34e-5 vs +1.93e-4.  The production Becke mesh's own residual
+    //   is the angular error V2.6 measured on this system (Al is the worst case there).  And the uniform
+    //   route is converged: refining its cutoff 4x moves ||drho||_1 by 1 part in 6000.
+    // Previous anchor, on the Becke route: -2.1174805.
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.1169707, 1e-4)  // == the full 8-k-point mesh: IBZ symmetrization is EXACT
+        << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu prints the same value)";
 }
 
 // (item 5, IBZ) NON-SYMMORPHIC -- diamond Si (FCC lattice + a 2-atom basis at (0,0,0),(¼,¼,¼)) is space group
@@ -2503,6 +2516,206 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_AlFCC)
     GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false, &h);
     ASSERT_TRUE(R.converged);
     BeckeLadder(h, lat.GetStructure(), "Al-metal");
+}
+
+//================================================================================================
+//  STEP 4 -- THE FACADE EQUIVALENCE GATE.  qchem::SolidCalculation is the NAMED front door for a
+//  periodic SCF (the peer of Calculation / AtomCalculation), and the whole point of a facade is that
+//  it IS the canonical recipe rather than a second one that drifts.  So gate it against the anchor
+//  SiliconGammaConverges pins, on the same lattice / basis / cutoffs.
+//
+//  What this actually protects: RunGpw below is the test harness's driver (report bracketing, basis
+//  vetting, fingerprints, order probes, symmetry reporting).  SolidCalculation is the production
+//  recipe with none of that.  If the two ever disagree on the physics, one of them has grown a step
+//  the other lacks -- which is exactly the failure a facade is supposed to make impossible, and
+//  exactly what happened before it existed (the recipe lived only in the harness, so "the production
+//  path" and "the test path" were the same code by accident rather than by construction).
+//================================================================================================
+TEST(GPW_SCF, SolidCalculationMatchesTheSiAnchor)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    SCFParams par;
+    par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
+    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+
+    qchem::SolidCalculation calc(lat, MakeBasisSR(cell),
+                                 {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
+
+    EXPECT_TRUE(calc.Converged());
+    EXPECT_NEAR(calc.TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(calc.Energy(), -7.11506, 2e-3)      // the SiliconGammaConverges anchor, same tolerance
+        << "SolidCalculation must reproduce the driver's physics -- a facade that drifts from the "
+           "recipe it fronts is worse than no facade";
+    // The facade OWNS the grid decision, so it must be able to say what it chose (V1.26/V2.4): Si is soft
+    // enough that the cost selector routes it to the uniform mesh, SIZED from this run's sharpness.
+    EXPECT_EQ(calc.ResolvedXCMesh().cellKind, qcMesh::UnitCellKind::Uniform);
+    EXPECT_GT(calc.ResolvedXCMesh().eCut, 0.0) << "an Auto-resolved uniform mesh must carry its own cutoff, "
+                                                  "never fall back on nUniform's basis-blind default";
+    // rho(r) is reachable through the same neutral ScalarFunction face the molecular facade exposes.
+    EXPECT_GT(calc.Density()(rvec3_t(0.1,0.1,0.1)), 0.0);
+}
+
+//================================================================================================
+//  V2.4 -- THE GRID-ROUTE CONVERGENCE A/B.  Calibrate kUniformMargin, then arm the V1.26 selector.
+//
+//  THE QUESTION.  The selector's cost model says uniform beats Becke ~8-15x on Si and Al, so an ARMED
+//  Auto would send both to the uniform route.  The 2026-08-01 measurement made Becke the default for
+//  exactly those systems.  Both cannot be right, and kUniformMargin (a guess at 2.0) is the only thing
+//  absorbing the discrepancy -- which is why the selector ships DISARMED until this lands.
+//
+//  WHY THIS IS NOT A LADDER.  V2.6a established that a FROZEN-density quadrature error understates the
+//  self-consistent shift across a Fermi surface (Al measured 3.9e-4 frozen and moved 6.4e-4 through the
+//  SCF).  Al is one of the two live uniform verdicts, so the frozen instrument is disqualified here by
+//  its own finding.  This runs the SCF to CONVERGENCE on each route instead.
+//
+//  WHAT IS SCORED.  The converged DENSITY, per the D8 pin -- never DeltaE_total, because the fits are
+//  non-variational so an energy difference does not bound the error.  Every route's converged rho is
+//  sampled on ONE COMMON mesh and scored against the finest route:
+//     ||drho||_1 = Integral |rho - rho_ref| dV   (electrons of misplaced charge -- the physical number)
+//     ||drho||_inf = max |rho - rho_ref|         (the worst point)
+//  Etot is printed for information only; it is not the verdict.
+//
+//  THE COMMON MESH IS DELIBERATELY UNIFORM AND DENSE, not Becke: scoring on an atom-centred mesh would
+//  weight the cores where the Becke route is strongest and grade its own homework.  The cost is that a
+//  uniform probe UNDER-weights the core, so ||drho||_1 flatters the uniform route slightly -- an error
+//  in the conservative direction for a test whose null hypothesis is "uniform is good enough".
+//
+//  THE VALIDATION THAT MAKES THE REFERENCE TRUSTWORTHY: refine BOTH routes and check they agree
+//  (U-4x vs B-fine).  Two independent quadratures converging to the same density is the only evidence
+//  that either is converged; without it "close to B-fine" would just mean "close to Becke".
+//
+//  ---------------------------------------------------------------------------------------------
+//  RESULTS 2026-08-08.  Both systems the selector routes to UNIFORM.  All routes CONVERGED (see the
+//  setup note on Si below -- the first attempt did not, and that mattered).
+//
+//                 ||drho||_1     ||drho||_inf   dEtot vs B-fine   mesh
+//    Si  U-sel     1.363e-4 e     8.0e-6         -4.2e-6            4,913
+//        U-4x      1.362e-4 e     8.0e-6         -4.2e-6           (refined)
+//        B-prod    1.106e-4 e     1.7e-6         +1.26e-4          72,000 (imposed)
+//    Al  U-sel     6.18e-4 e      5.0e-5         -1.34e-5           4,096
+//        U-4x      6.18e-4 e      5.0e-5         -1.34e-5          (refined)
+//        B-prod    8.95e-4 e      3.9e-5         +1.93e-4          18,000
+//
+//  VALIDATION PASSES: U-sel == U-4x to 4 digits on BOTH systems, so the uniform route is genuinely
+//  converged at the selector's cutoff -- refining it 4x changes nothing.  That is what licenses
+//  reading the rest of the table as grid error rather than as under-resolution.
+//
+//  VERDICT: the selector is RIGHT on both.  Uniform at its own cutoff matches the fine reference at
+//  least as well as the PRODUCTION Becke mesh does, for 4-15x fewer points -- and on TOTAL ENERGY it
+//  is dramatically better (Si 30x, Al 14x closer to B-fine), because B-prod's own residual is the
+//  angular error V2.6 measured.
+//
+//  NO CONTRADICTION WITH THE 2026-08-01 BECKE DEFAULT, which was justified for "diffuse bases" and
+//  sharp cores.  Si-SR and Al-LOWQ-SR are neither; the systems that motivated it (F alpha_max=40, MnO)
+//  are exactly the ones the selector ALREADY sends to Becke.  The selector reproduces that split
+//  automatically instead of applying one answer to both regimes.
+//
+//  THE ONE PLACE BECKE STILL WINS, and it is visible above: ||drho||_inf.  Becke is 4.7x better at the
+//  WORST point on Si and comparable on Al -- that point is the core, which is what an atom-centred
+//  radial mesh is for.  So a property that samples the core (hyperfine, EFG, core-level shifts) should
+//  prefer Becke even where the selector says uniform.  The integrated norm is not the whole story.
+//================================================================================================
+namespace
+{
+struct RouteProbe { std::string label; double Etot=0; rvec_t rho; bool ok=false; };
+
+// One converged SCF on a given XC mesh, with its density sampled on the shared probe mesh.
+RouteProbe RunRoute(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, GpwOptions o,
+                    const char* label, const qcMesh::MeshParams& xc, const qcMesh::Mesh& probe)
+{
+    o.label=std::string(o.label)+" ["+label+"]";
+    o.xcMesh=xc;
+    GpwHandles h;
+    RouteProbe p; p.label=label;
+    GpwResult R=RunGpw(lat, mol, o, /*verbose*/false, &h);
+    p.ok   = R.converged;
+    p.Etot = R.E.GetTotalEnergy();
+    p.rho  = (*h.cd)(probe.Points());     // the inherited ScalarFunction batch (R1.5's one spelling)
+    return p;
+}
+
+// Score every route against the LAST one (the finest), on the shared mesh's weights.
+void ScoreRoutes(const std::vector<RouteProbe>& r, const qcMesh::Mesh& probe, const char* system)
+{
+    const rvec_t& W=probe.Weights();
+    const RouteProbe& ref=r.back();
+    std::printf("\n[V2.4 %s] reference = %s (Etot=%.8f)   probe mesh %zu pts\n",
+                system, ref.label.c_str(), ref.Etot, probe.size());
+    for (const auto& p : r)
+    {
+        double l1=0, li=0;
+        for (size_t i=0;i<p.rho.size() && i<ref.rho.size();++i)
+        {
+            const double d=std::fabs(p.rho[i]-ref.rho[i]);
+            l1+=W[i]*d; li=std::max(li,d);
+        }
+        std::printf("[V2.4 %s] %-10s conv=%d  Etot=%+.8f  dEtot=%+.2e  ||drho||_1=%.3e e  ||drho||_inf=%.3e\n",
+                    system, p.label.c_str(), int(p.ok), p.Etot, p.Etot-ref.Etot, l1, li);
+    }
+}
+
+// Drive the four routes for one system.  U-sel is what an ARMED selector would choose; B-prod is what
+// ships today; the two refined routes are the convergence evidence.
+void GridRouteAB(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& base,
+                 const char* system)
+{
+    const qcMesh::XCMeshSharpness sh=GatherSharpness(lat, *mol, base);
+    const double eReq=qcMesh::RequiredUniformCutoff(sh);
+    // The shared probe mesh: uniform, and FOUR TIMES the resolution any route under test uses, so the
+    // sampling is not itself a variable in the comparison.
+    qcMesh::MeshParams pm; pm.cellKind=qcMesh::UnitCellKind::Uniform; pm.eCut=4.0*eReq;
+    const qcMesh::Mesh probe=lat.GetStructure()->CreateIntegrationMesh(pm);
+    std::printf("\n[V2.4 %s] alpha_max=%g alpha_pp=%g -> selector eCut=%g Ha; uniform %ld pts vs Becke %ld\n",
+                system, sh.alphaMax, sh.alphaPP, eReq,
+                qcMesh::UniformMeshCost(sh), qcMesh::BeckeMeshCost(qcMesh::BeckeXCParams(), sh));
+
+    qcMesh::MeshParams uSel; uSel.cellKind=qcMesh::UnitCellKind::Uniform; uSel.eCut=eReq;
+    qcMesh::MeshParams u4x =uSel;                                        u4x.eCut=4.0*eReq;
+    std::vector<RouteProbe> r;
+    r.push_back(RunRoute(lat, mol, base, "U-sel",  uSel, probe));
+    r.push_back(RunRoute(lat, mol, base, "U-4x",   u4x,  probe));
+    r.push_back(RunRoute(lat, mol, base, "B-prod", qcMesh::BeckeXCParams(),         probe));
+    r.push_back(RunRoute(lat, mol, base, "B-fine", qcMesh::BeckeXCParams(60,2.0,35),probe));
+    ScoreRoutes(r, probe, system);
+}
+} //anon
+
+// Si diamond: selector verdict UNIFORM (4,913 pts vs 36,000 Becke).
+TEST(GPW_SCF, DISABLED_GridRouteAB_SiGamma)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwOptions o;
+    o.label="Si V2.4"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0;
+    // imposeSymmetry LEFT AT THE DEFAULT (true), unlike the V2.6 ladders.  A ladder freezes one density
+    // and wants the bare angular RULE, so it turns the fold off; this test needs each route to reach a
+    // CONVERGED density, and free-mesh Si/Gamma oscillates in its degenerate manifold (measured: 3 of 4
+    // routes hit FIT-FLOOR STALL at 60 iterations, which made the first run's drho scores SCF noise
+    // rather than grid error).  Imposed is also the production configuration, so this is the A/B that
+    // matches what a user gets.
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+    GridRouteAB(lat, MakeBasisSR(cell), o, "Si");
+}
+
+// Al FCC: selector verdict UNIFORM (4,096 vs 36,000) -- and the system whose SCF amplified a
+// frozen-density 3.9e-4 into 6.4e-4 (V2.6a).  Smeared, so the density is converged and non-rotating.
+TEST(GPW_SCF, DISABLED_GridRouteAB_AlFCC)
+{
+    FCCUnitCell cell(7.653);
+    cell.AddAtom(13, {0,0,0});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwOptions o=AlOptions();
+    o.label="Al V2.4"; o.scf.SmearingkT=0.02; o.imposeSymmetry=false;
+    GridRouteAB(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, "Al");
 }
 
 // THE ROTATED-LEBEDEV EXPERIMENT (plan §6a rotation insight, increment (b)): quadrature exactness is

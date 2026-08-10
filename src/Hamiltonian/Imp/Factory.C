@@ -143,4 +143,12 @@ namespace qchem::Hamiltonian
         return new Ham_PP(st, species, mp, bs, p==Pol::Polarized);
     }
 
+    // The SOLID front door (Step 4): the cHamiltonian twin of the PP factory above.
+    cHamiltonian* Factory(Pol p, const st_t& st, const cbs_t* bs,
+                          const std::vector<std::pair<std::string,int>>& species,
+                          const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit)
+    {
+        return new Ham_PW_DFT(st, bs, species, functional, xcMesh, fit, p==Pol::Polarized);
+    }
+
 }

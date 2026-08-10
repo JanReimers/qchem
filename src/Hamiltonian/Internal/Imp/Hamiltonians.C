@@ -216,7 +216,13 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // The route ANNOUNCES itself (user pin: the console always says which XC route is in play --
     // this is the one selection site).
     const bool becke = xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
-    const bool delta = fit==VxcFit::Delta || (fit==VxcFit::Auto && becke);
+    // Auto picks DELTA whenever the plane-wave fit cannot do the job -- on a Becke grid (it has no G-space
+    // raster) and, since 2026-08-08, on ANY grid for a POLARIZED run (PWFittedVxc is not spin-native).  Delta
+    // works on either grid, which the doc above already said; Auto simply never chose that combination, so a
+    // polarized run on a uniform grid used to hit the throw below and tell the user to ask for Delta by hand.
+    // Exposed by arming the V1.26 selector (V2.4): once Auto could route a soft system to the uniform grid, a
+    // polarized soft system became reachable for the first time -- Si's spin-collapse gates.
+    const bool delta = fit==VxcFit::Delta || (fit==VxcFit::Auto && (becke || polarized));
     if (delta)
     {
         // The DELTA-fit route: a pure QUADRATURE -- the "fit coefficients" ARE the grid-point values
@@ -250,10 +256,13 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     {
         // HARD throw, not an assert: a Release-compiled assert would silently hand a polarized run the
         // UNPOLARIZED PWFittedVxc pair below -- wrong physics, no diagnostic (the tier-4b Delta-only pin).
+        // Only reachable now via an EXPLICIT VxcFit::PlaneWave on a polarized run -- Auto routes polarized
+        // to Delta above.  Still a hard throw, not an assert: a Release-compiled assert would silently hand a
+        // polarized run the UNPOLARIZED pair below (wrong physics, no diagnostic -- the tier-4b Delta-only pin).
         if (polarized)
-            throw std::runtime_error("Ham_PW_DFT polarized: only the Delta (quadrature) XC route is "
-                "spin-native so far -- a polarized PLANE-WAVE Vxc fit (per-channel PWFittedVxc with per-spin "
-                "rho caches) is not designed yet.  Use VxcFit::Delta (any grid) or the Becke default.");
+            throw std::runtime_error("Ham_PW_DFT polarized: VxcFit::PlaneWave is not spin-native (per-channel "
+                "PWFittedVxc with per-spin rho caches is not designed yet).  Use VxcFit::Delta, which works on "
+                "either grid, or VxcFit::Auto, which now selects it for you on a polarized run.");
         // The PLANE-WAVE fit route: exchange + correlation share ONE Vxc (overlap-metric) fit basis;
         // the projection quadrature is the FFT on the fit basis's own raster.  A PlaneWave fit ON a
         // Becke grid (I3) is asserted out until its one-functional E/H derivative pairing is designed

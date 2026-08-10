@@ -140,18 +140,23 @@ TEST(XCPolicy, AutoWithoutSharpnessTakesTheSafeGrid)
     EXPECT_EQ(ResolveXCMesh(a).cellKind,                    UnitCellKind::Becke);
 }
 
-// DISARMED: until kUniformMargin is calibrated against a D8 grid-convergence measurement, Auto keeps
-// returning the Becke recipe whatever the cost verdict -- arming it would move every pinned anchor on a
-// heuristic.  This test is the guard on that promise; it must be UPDATED, deliberately, when the selector
-// is armed.
-TEST(XCPolicy, AutoStillResolvesToBeckeWhileTheSelectorIsDisarmed)
+// ARMED 2026-08-08 (V2.4): Auto now ACTS on the cost verdict.  The margin was validated by converged-run
+// A/B on both systems the selector routes to uniform (GPW_SCF.DISABLED_GridRouteAB_*): uniform at its own
+// cutoff matched the fine reference at least as well as the PRODUCTION Becke mesh, for 4-15x fewer points.
+// This test replaces AutoStillResolvesToBeckeWhileTheSelectorIsDisarmed, deliberately, as that item required.
+TEST(XCPolicy, AutoActsOnTheCostVerdict)
 {
     MeshParams a; a.cellKind=UnitCellKind::Auto;
-    XCMeshSharpness soft{.cellEdge=10.26, .nAtoms=2, .alphaMax=2.0, .alphaPP=2.58};   // Si/sipp
-    // The verdict itself says uniform -- which is precisely why the disarm matters.
+    XCMeshSharpness soft{.cellEdge=10.26, .nAtoms=2, .alphaMax=2.0, .alphaPP=2.58};   // Si/sipp: uniform wins
     EXPECT_LE(double(UniformMeshCost(soft))*kUniformMargin, double(BeckeMeshCost(BeckeXCParams(),soft)));
-    EXPECT_EQ(ResolveXCMesh(a,soft).cellKind, UnitCellKind::Becke)
-        << "Auto must not act on the cost verdict until the margin is measured";
+    const MeshParams u=ResolveXCMesh(a,soft);
+    EXPECT_EQ(u.cellKind, UnitCellKind::Uniform);
+    // ...and it must SIZE what it chose.  Handing back a bare cellKind would leave nUniform's basis-blind
+    // default of 20 in charge, which is the under-resolution the selector exists to prevent.
+    EXPECT_DOUBLE_EQ(u.eCut, RequiredUniformCutoff(soft));
+
+    XCMeshSharpness sharp{.cellEdge=8.7, .nAtoms=2, .alphaMax=40.0};                  // F-like: Becke wins
+    EXPECT_EQ(ResolveXCMesh(a,sharp).cellKind, UnitCellKind::Becke);
 }
 
 // When the selector IS armed it must SIZE the uniform mesh it hands back -- returning a bare cellKind would

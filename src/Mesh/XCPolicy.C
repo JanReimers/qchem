@@ -277,18 +277,22 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
                  <<" pts  [alpha_max="<<s.alphaMax<<", alpha_pp="<<s.alphaPP
                  <<(s.imposed?", imposed":", free")<<"]  => selector would pick "
                  <<(uniformWins?"UNIFORM":"BECKE")<<std::endl;
-        static const bool armed=[]{ const char* e=std::getenv("GPW_XCGRID_AUTOSELECT"); return e && std::atoi(e)!=0; }();
-        if (!armed || !uniformWins)
+        // ARMED 2026-08-08 (V2.4).  Opt-OUT now, not opt-in: the two systems the selector routes to uniform
+        // were measured by converged-run A/B (GPW_SCF.DISABLED_GridRouteAB_*) and uniform at its own cutoff
+        // matched the fine reference at least as well as the PRODUCTION Becke mesh, for 4-15x fewer points.
+        // GPW_XCGRID_NOSELECT=1 restores the unconditional Auto->Becke, as the A/B valve.
+        static const bool disarmed=[]{ const char* e=std::getenv("GPW_XCGRID_NOSELECT"); return e && std::atoi(e)!=0; }();
+        if (disarmed || !uniformWins)
         {
-            if (armed) std::cout<<"[XC grid choice] Auto -> BECKE (selector armed, Becke wins)"<<std::endl;
-            return becke;   // the calibrated default until the margin is measured
+            if (!disarmed) std::cout<<"[XC grid choice] Auto -> BECKE"<<std::endl;
+            return becke;
         }
         // SIZE the uniform mesh from the basis.  Handing back a bare cellKind would leave nUniform's
         // basis-blind default of 20 in charge, which is the under-resolution this selector exists to prevent.
         MeshParams u=mp;
         u.cellKind=UnitCellKind::Uniform;
         u.eCut    =eReq;
-        std::cout<<"[XC grid choice] Auto -> UNIFORM (selector ARMED via GPW_XCGRID_AUTOSELECT; eCut="
+        std::cout<<"[XC grid choice] Auto -> UNIFORM (eCut="
                  <<eReq<<" Ha)"<<std::endl;
         return u;
     }

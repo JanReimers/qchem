@@ -1368,6 +1368,196 @@ in the same session.
     rather than cancel.  Filed as V2.6; the warning is on `BeckeXCParams`' doc comment so a reader meets it
     where the numbers live.
 
+- **V1.27 `MolecularSCFIterator` / `SolidSCFIterator` are named for the STRUCTURE and discriminate on the
+  PSEUDOPOTENTIAL.  USER 2026-08-09.**
+  > "They were originally about what iteration columns to display.  MolecularIterator actually displays
+  > columns that make sense for non-PP calculations and SolidIterator displays columns that make sense for
+  > PP calculations.  They were originally misnamed simply because most Molecule runs were non-PP and all of
+  > our solid runs are PP."
+  - **The code already states the PP reason, in `SolidSCFIterator`'s own doc:** the virial is DROPPED because
+    "GTH local + KB projectors break the Coulombic-homogeneity assumption behind 2+V/K".  That is a property
+    of the POTENTIAL, not of the lattice — a molecular PP run breaks it identically.
+  - **⚠️ AND IT IS A LIVE DEFECT, not just a name.**  `Calculation` supports `{.pseudopotential=true}` (the
+    `sipp` molecular PP runs) and uses `MolecularSCFIterator`, which inherits the base layout — so **a
+    molecular pseudopotential run displays a virial column the tree itself documents as invalid for it.**
+    Verified: `src/Calculation/Imp/Calculation.C:29` and `Imp/AtomCalculation.C:26` both take
+    `MolecularSCFIterator`.
+  - **`MolecularSCFIterator` is an EMPTY subclass** — `using tSCFIterator<double>::tSCFIterator;` and nothing
+    else.  It has no molecular behaviour at all; it is `tSCFIterator<double>` under another name, which is
+    why the misnaming cost nothing until a molecular PP run existed.
+  - **`SolidSCFIterator` conflates TWO axes, and only one of them is structural:**
+    - `CreateMixer` (V1.10b) — genuinely PERIODIC: Kerker/Pulay are G-space and need a lattice.
+    - the column set — mostly PSEUDOPOTENTIAL (the virial), partly METHOD (ΔE gates instead of Δρ because a
+      collocation SCF is non-variational).  The frontier-gap column is the one plausibly solid-specific
+      (metals), though a near-degenerate molecular open shell wants it too.
+  - **This is R2.8's finding again, one library over** (see the LANDED note): there, `double` vs `dcmplx`
+    looked like the discriminator for `InsertStandardTerms` and the real axis was BARE vs PSEUDISED nuclei,
+    with `Ham_PP` sitting on the `<double>` side to prove it.  Same accidental correlation here —
+    dcmplx ↔ solid ↔ periodic ↔ PP all coincide in today's test matrix, so any of them "works" as a
+    selector until a molecular PP run asks for the PP columns.
+  - **Fix direction (not yet designed):** the column set is a TRACE POLICY, chosen from what the run
+    actually is (pseudised? variational? gapless?), not from the iterator's type.  Likely a small
+    `TraceColumns` value the facade supplies — which is exactly the kind of above-SCFIterator decision
+    `SolidCalculation` (Step 4) exists to own, so sequence it after Step 4.
+
+- **V1.28 ⚠️ IMPOSING SYMMETRY ON AN AFM STRUCTURE WOULD DESTROY THE AFM ORDER — the density star-average is
+  spin-blind, structurally.  Flagged 2026-08-09, unprompted, because it is directly in the MnO path:** the
+  stated plan is "get AFM working with no imposeSymmetry, then start imposing symmetry (Shubnikov groups) and
+  cut the RAM substantially".  Step two walks into this.
+  - **What is verified (read-only, no runs):**
+    1. `Symmetry::SymOp` ALREADY carries `SpinAction sigma` — documented as "Shubnikov spin action (σ), §4
+       tier 4a", with a good non-collinear caveat.  So the vocabulary exists.
+    2. But `SpinAction::Flip` is constructed in **exactly one place in the whole tree, a unit test**
+       (`src/Symmetry/tests/L_Fold.C:213`).  Nothing in `src/` ever produces a spin-flipping op.
+    3. And `ReciprocalOp` — which is what the density fold actually consumes (`tComposite_CD::itsPointOps` is
+       a `std::vector<ReciprocalOp>`) — is `{U, tau}` with **no σ field at all**
+       (`src/Symmetry/Lattice_3D/SpaceGroup.C:48`).  So even if detection produced Flip ops, the reciprocal
+       path could not carry them.  `GPW_Evaluator::RecipSymOps()` drops σ on the floor by construction:
+       `rops.push_back({Transpose(op.W), op.tau})`.
+    4. The ops come from `lat.GetSpaceGroup()` — detected from ATOM POSITIONS, which have no spin.
+    5. Each spin channel is its own `tComposite_CD<dcmplx>` and star-averages under the SAME op set; the
+       polarized total is a plain ↑+↓ sum (`Imp/ChargeDensity.C:83`).
+  - **⇒ The consequence (physics, inferred from the above):** the CHEMICAL space group of rocksalt MnO
+    contains operations mapping the Mn↑ sublattice onto the Mn↓ sublattice.  Star-averaging ρ↑ under those
+    forces it to be invariant under an operation that exchanges the sublattices — i.e. it **averages the two
+    magnetic sublattices together and collapses the AFM order toward the nonmagnetic solution.**  The run
+    would not crash; it would quietly converge to the wrong state, which is the expensive failure mode.
+  - **This is the SAME BUG CLASS main just fixed one component over.**  `041ddff3` ("Solve the MnO AFM
+    collapse: the rho-tilde density mixers are SPIN-BLIND") fixed spin-blindness in the MIXER.  The SYMMETRY
+    FOLD is spin-blind too — and worse, blind by TYPE rather than by oversight, since `ReciprocalOp` has
+    nowhere to put σ.  The mixer fix is the precedent for what this needs.
+  - **Fix direction:** give `ReciprocalOp` a σ (it is the one type on the path that lacks what `SymOp`
+    already has), have the fold apply it by swapping channels when σ=Flip, and derive the op set from the
+    MAGNETIC (Shubnikov) group rather than the chemical one — an op that exchanges sublattices belongs in the
+    group only when paired with a spin flip.  Until then, **`imposeSymmetry` and a polarized AFM density are
+    mutually exclusive and should say so**: the cheap interim is a hard throw when
+    `imposeSymmetry && dynamic_cast<const tSpinResolved_CD<T>*>(seed)` with a non-trivial op set, in the
+    V1.10b "fail loudly in the R&D phase" spirit — far better than a silently demagnetised run.
+  - **TRIGGER: the moment MnO AFM converges free and `imposeSymmetry` is turned on.**  Do the interim throw
+    before that switch is flipped, not after.
+  - **🔔 TRIGGER FIRED 2026-08-09** (MnO dev): AFM-II converges free at E=−60.92 with a properly staggered
+    moment (+0.506/−0.529, m_net −0.02).  MnO is safe *today* only because `RunMnO` sets
+    `imposeSymmetry=false` by hand — i.e. safe by call-site discipline, which is exactly the fragility V1.30
+    flags about the `true` default.
+  - **⚠️ THE PROPOSED GUARD IS TOO STRICT — measured 2026-08-09, before implementing it.**  "Throw when
+    `imposeSymmetry && spin-resolved`" would break FOUR PASSING TESTS, all legitimate:
+    `Polarized{,Seed}SingletMatchesUnpolarizedSiGamma` (multiplicity 1), `O2TripletInBoxMatchesFinite` (3),
+    `NaPseudoAtomInBoxDoublet` (2) — every one of them polarized AND `imposeSymmetry=true` via the default.
+    The ζ=0 singlets have ρ↑=ρ↓ so every chemical-group op is a symmetry of BOTH channels; O₂ and Na have
+    NON-STAGGERED moments, so the ops map ↑ sites to ↑ sites.  Imposing is correct in all four.
+  - **⇒ THE CORRECT DISCRIMINATOR IS STAGGERED-vs-NOT, and it is measurable: the ops are a symmetry of the
+    CHARGE but not of the SPIN.**  Equivalently \f$m=\rho_\uparrow-\rho_\downarrow\f$ must be invariant
+    under the op set — ζ=0 gives \f$m\equiv0\f$ (trivially invariant), FM gives an \f$m\f$ that follows the
+    atoms (invariant), AFM gives a staggered \f$m\f$ (NOT invariant).  Only the last is caught.  That
+    condition is also the definition of "this needs a Shubnikov rather than a chemical group", so the interim
+    guard and the eventual fix share ONE criterion — which is the argument for measuring rather than
+    proxying.
+  - **✅ FORK RESOLVED 2026-08-09 (MnO dev's ruling) — none of (a)/(b)/(c), and the reasoning changes the
+    item.**  Two of the three points land outright and one collides with a measurement:
+    - **(2) ACCEPTED — the raw map needs no accessor.**  It is the same density built with an EMPTY op set,
+      and `tComposite_CD` takes its ops at CONSTRUCTION.  That is exactly why `ReportSymmetryFound` can
+      already measure a per-op defect on a free run.  The A/B is constructible from the public face; I had
+      been treating the construction as fixed and only the query as variable.
+    - **(3) ACCEPTED, and decisive — it is this project's own prior decision.**  §3
+      (SymmetryUpgradePlan.md:444) pins "impose-on-assert as the default, the release-audit bundled with any
+      imposition, and the diagnostic on FREE runs — imposition is never silent by construction."  Widening
+      `FourierDensity` to measure a PRE-symmetrization defect INSIDE an imposed run is the shape §3 rejected.
+      **(b) is withdrawn.**  If raw access is ever wanted it should be a QUESTION — `SymmetryDefect(ops)` —
+      not a raw-map getter, per CLAUDE.md's `IrrepCD`-has-no-`GetDensityMatrix()` exemplar.
+    - **(1) CONTRADICTED BY MEASUREMENT.**  `imposeSymmetry ∧ spin-resolved ∧ |ops|>1` is satisfied TODAY by
+      the four correct tests listed above.  And it cannot be tightened with more configuration terms, because
+      **"staggered" is not expressible in the configuration**: seeds are keyed PER-ELEMENT
+      (`SeedCD::itsScaleByZ`), so MnO's two Mn sites are indistinguishable to the library, and no
+      `SpinPattern`/per-site-moment concept exists anywhere in `src/` — MnO's staggered seed is built in
+      qchem6's `RunMnO`.  A type+config predicate can therefore only OVER-fire.
+  - **⇒ THE DURABLE ANSWER FALLS OUT OF (3) RATHER THAN FIGHTING IT.**  §3 already says the defect diagnostic
+    belongs on the FREE run — and `ReportSymmetryFound` already MEASURES it per-op there.  So the check is not
+    "throw when imposing on a polarized density"; it is **"do not impose an op the free run's own defect
+    measurement reports as broken."**  The measurement exists; it is simply never fed forward.  That is the
+    same criterion as the eventual Shubnikov work (an op belongs in the group only if the density respects
+    it), and it is precisely step 5 of the user's SSB workflow (V1.29).
+  - **⇒ AND THE IMMEDIATE MnO PROTECTION IS V1.30, NOT A NEW GUARD.**  Flipping
+    `GpwOptions::imposeSymmetry` to `false` makes imposition OPT-IN, so nobody can flip the switch by
+    accident and `RunMnO`'s hand-opt-out stops being load-bearing.  That removes the hazard this interim
+    throw was invented to cover, with no false positives and no new interface.  **V1.30 supersedes the
+    interim throw as the urgent item.**  (Owned by the MnO dev — `GpwOptions` is in their file set, and the
+    flip needs the gates that relied on `true` made explicit plus a full sweep, so it is not a one-liner.)
+  - *(superseded fork, kept for the record:)*  **IMPLEMENTATION FORK.**  The measurement must see the RAW per-channel map: each
+    `tComposite_CD` star-averages internally, so by the time `tPolarized_CD` sees its channels the change has
+    already happened and the defect measures ≈0.  Options:
+    (a) add a raw accessor + `PointOps()` to `tComposite_CD` and do the check in `tPolarized_CD`, needing an
+        abstract→concrete cast to reach it (the pattern this codebase flags);
+    (b) widen the `FourierDensity` capability face with a raw accessor — clean casts, but widens an abstract
+        interface for a guard;
+    (c) measure at the `SymmetrizeGMap` call site inside `tComposite_CD`, which has raw + ops in hand for
+        free — but a single channel cannot see the cross-channel signature (charge-invariant, spin-not), and
+        a large defect there is BENIGN for an unpolarized run, where projecting a broken seed is the whole
+        point of imposition.
+    Recommend **(b)**: the raw density is a legitimate question about a `FourierDensity` (V1.26's selector and
+    the §3 defect diagnostic both want it too), and it is the only option needing no concrete cast.
+
+- **V1.29 The spontaneous-symmetry-breaking DISCOVERY workflow — it is an established method, and step 4
+  needs the electronic Hessian rather than noise.  USER 2026-08-09 sketched: (1) imposed run, (2) converge,
+  (3) save ρ, (4) reseed a FREE run to see where the orbitals want to move, (5) infer a subgroup, (6)
+  re-impose on it.  Asked whether this is known in the literature.**
+  - **It is, under two names in two communities.**  Quantum chemistry: **SCF stability analysis** (Seeger &
+    Pople 1977), whose classic case is the RHF→UHF *triplet instability*; when the broken solution is the
+    deliverable it is **broken-symmetry DFT** (Noodleman).  Solid state: the electronic analogue of
+    **soft-mode following**, with step 5 being **isotropy-subgroup analysis** from Landau theory — tooled by
+    ISOTROPY/ISODISTORT (Stokes & Hatch) and the Bilbao Crystallographic Server (AMPLIMODES; MAXMAGN /
+    k-SUBGROUPSMAG for the magnetic case).  The magnetic version is **magnetic representation analysis**,
+    which returns the Shubnikov subgroup directly.  *(Citations from recall — verify before quoting.)*
+  - **⚠️ STEP 4 AS SKETCHED CANNOT WORK, for exactly the reason the user suspected.**  A symmetric converged
+    solution is a stationary point of the energy in the FULL space, not merely within the symmetric manifold.
+    Reseed a free run with it and the gradient is zero by symmetry — the SCF sits still.  Noise does move it,
+    but as a random walk: slow, irreproducible, and silent about WHICH mode is unstable.
+  - **⇒ The replacement is the ELECTRONIC HESSIAN (orbital-rotation / stability matrix), and it subsumes
+    steps 4 AND 5.**  Its negative eigenvalues ARE the symmetry-breaking instabilities; each eigenvector
+    transforms as an irrep of the parent group, which is precisely the order-parameter label an
+    isotropy-subgroup lookup consumes.  So: how many instabilities, which ones, and the subgroup — mechanically,
+    with no noise and no saddle-point ambiguity.
+  - **Affordable in practice:** stability codes never form the matrix — Davidson for the lowest few
+    eigenvalues.  And the SPIN-FLIP block alone (the triplet instability) is much cheaper and is exactly the
+    AFM question, so the magnetic case is the cheap case.
+  - **USER QUESTION 2026-08-09: "you have to turn off imposeSymmetry to get the Hessian, so it will be RAM
+    expensive?"  Half right, and the better answer inverts the cost.**
+    - Correct that the symmetric manifold cannot show you the instability: that is *why* the symmetric
+      solution looks stationary — `imposeSymmetry` keeps exactly the TOTALLY-SYMMETRIC block.
+    - But the Hessian **BLOCK-DIAGONALISES BY IRREP of the parent group** (orbital rotations decompose into
+      irreps; the Hessian has no elements between different irreps).  So you never need the full unrestricted
+      Hessian — sweep the NON-symmetric blocks ONE AT A TIME, each a fraction of the rotation space.  The
+      symmetry machinery becomes the tool rather than the obstacle.
+    - **And the block you find the negative eigenvalue in IS the order-parameter irrep** — step 5's label
+      falls out of the bookkeeping instead of being inferred from a drifting density.
+    - **RAM is not the binding cost.**  Davidson needs Hessian-VECTOR products (≈ one Fock build each) and a
+      handful of trial vectors: footprint ≈ (a few) × orbital space, NOT \f$N_{rot}^2\f$.  The cost is CPU.
+      ⇒ this step does NOT have to wait on the Shubnikov RAM savings.
+    - For AFM the relevant block is the SPIN-FLIP one, which factorises separately from the spatial irreps in
+      the non-relativistic collinear tier — the cheap corner, not the expensive one.
+  - **Reusable:** the stability matrix IS the RPA/TDDFT (A,B) matrix.  If excited states ever land, this is
+    the same machinery — worth knowing before designing it as a one-off.
+  - **Do not over-build it for MnO:** AFM-II is known experimentally, so the known magnetic structure can
+    simply be imposed.  The discovery workflow earns its keep on materials whose order is UNKNOWN.
+  - Depends on V1.28 (σ on `ReciprocalOp` + a Shubnikov op set) for step 6 to be expressible at all.
+
+- **V1.30 `GpwOptions::imposeSymmetry` defaults to `true` while its own comment says "OPT-IN".  Found
+  2026-08-09 by the Step 4 facade gate, which resolved a different Becke cost than the driver did.**
+  - The field is `bool imposeSymmetry = true;` and the comment three lines down reads *"OPT-IN per the §3 pin
+    (an imposed default would also ~2x the suite's XC grids)"*.  One of them is wrong, and the comment is the
+    one carrying a reason.
+  - **How it surfaced:** `SolidCalculationMatchesTheSiAnchor` printed `Becke 36000 pts [..., free]` where the
+    driver's Si run prints `Becke 72000 pts [..., imposed]` — the 2x the comment predicts.  The energies still
+    agree (the selector routes Si to uniform either way), so the gate passed; the discrepancy showed up only
+    in the announce line.  Worth noting that the gate caught a defaults divergence it was not written to look
+    for, which is the argument for having the facade announce its decisions at all.
+  - **⚠️ Now actively hazardous, not cosmetic.**  Per V1.28 an imposed run star-averages each spin channel
+    under the CHEMICAL space group, whose sublattice-exchanging ops would average an AFM structure's magnetic
+    sublattices together.  Default-ON means the MnO work inherits that silently unless every call site
+    remembers to turn it off.  **Default-OFF is the safer way to be wrong**: an imposition you did not ask for
+    is invisible in the result, a missing one only costs time.
+  - `SolidCalcOptions` deliberately defaults it to `false` (the comment's stated intent) and says so at the
+    field, so the two facades diverge ON PURPOSE rather than by drift.  Decide which is right and align them.
+
 ### V2 — measurements / sweeps
 
 - **V2.1 Spin-native collapse: `Delta_XC` ×2 vs `Delta_XC_Pol`+`Delta_VcorrPol`.**  Per the
@@ -1379,6 +1569,70 @@ in the same session.
   Delta_XC vs Delta_XC_Pol CalcMatrix/GetEnergy differ only in Rho vs RhoPol; VxcPol vs
   FittedVxcPol are both "own two channel terms, cast to Polarized_CD, dispatch on spin" — a
   generic pair-dispatcher should span the HF pair too (the user's original "generic pol Vxc" ask).
+  - **USER 2026-08-08, restating the target:** *"All Vxc's should be spin native (working with Spin::None
+    when required).  Ideally there should be only one PolarizedVxc that simply stores two abstract Vxc
+    pointers and does the obvious function forwarding.  (Same for Vex, I forget how Vcorr works for
+    polarized CDs.)"*
+  - **Answering the Vcorr question, because it decides the mechanism: EXCHANGE is channel-separable,
+    CORRELATION IS NOT.**  The tree already states it at `VWN_Correlation.C:47` — *"v_c^sigma COUPLES both
+    channels (through r_s and zeta) -- it is NOT a function of rho_sigma alone."*  \f$\epsilon_c(r_s,\zeta)\f$
+    interpolates paramagnetic→ferromagnetic through \f$f(\zeta)\f$ and the spin stiffness (VWN Eq. 4.4), so
+    \f$v_c^\sigma\f$ depends on BOTH densities.  Exchange escapes this only because of the spin-scaling
+    relation, which is why `SlaterExchange` can be channel-native at all.
+    ⇒ **"Two Vxc pointers + obvious forwarding" works for Vex and CANNOT work for Vcorr.**
+  - **The spin-native half of the ask is ALREADY DONE, one layer below where the item was looking.**
+    `SlaterExchange` carries `itsSpin` and halves ρ only for `Spin::None` (the closed-shell collapse);
+    `VWN_Correlation`'s PRIMARY face is the two-channel `GetVc(rup,rdn,s)`, with the scalar face documented
+    as the ζ=0 collapse and byte-identical to the historical code.  The FUNCTIONALS are spin-native with
+    Spin::None as the special case — exactly the stated bias.  The duplication is at the TERM layer.
+  - **⇒ THE SHARPER TARGET: 3 term classes → 1, not 3 → 2.**  `DeltaFittedVxc`, `DeltaFittedVxcPol` and
+    `DeltaFittedVcorrPol` are structurally identical — same two bases, same `{functional, engine}` members,
+    same four methods — differing only in which functional face they hold and how `CalcMatrix` feeds it.
+    Give every XC functional ONE spin-native face, \c double GetV(double rup, double rdn, const Spin&):
+    exchange implements it ignoring the other channel, correlation uses both, and unpolarized is
+    \c GetV(ρ/2,ρ/2,Spin::None).  Then ONE term class holds ONE functional and covers all three cases, and
+    correlation is expressible — which the two-pointer sketch cannot manage.
+    This is the session's own heuristic (line ~83): the candidate special case (unpolarized) is the general
+    case with a term set to zero (ζ=0), so it is not a special case at all.
+  - **⚠️ CROSS-CHECK AGAINST THE NON-COLLINEAR GOAL (user 2026-08-09: "ultimately I want non-collinear AFM
+    order to be the default assumption in code, not the exception").**  The proposed face
+    \c GetV(rup,rdn,Spin) is HALF future-proof and half not:
+    - the two DENSITY arguments are fine — \f$(\rho_\uparrow,\rho_\downarrow)\f$ and \f$(\rho,m)\f$ are a
+      linear change of variables, and non-collinear LSDA evaluates the collinear functional along the LOCAL
+      quantization axis after diagonalising the 2×2 spin density, so it still needs exactly two magnitudes.
+    - the \c Spin ARGUMENT is the collinear assumption in disguise.  Non-collinear needs a DIRECTION
+      (\f$\hat m(r)\f$), not an Up/Down label; the answer is a 2×2 potential matrix, not a scalar tagged
+      with a channel.
+    - `Symmetry::SymOp`'s own doc already issues this warning for the symmetry side — *"consumers must not
+      bake 'two scalar channels' into interfaces beyond the collinear tier"*.  It applies verbatim here.
+    ⇒ Land V2.1's collapse (it is a strict improvement today), but spell the face so the SPIN argument is the
+    replaceable part.  Do NOT let \c Spin leak into the XC functional's contract as a permanent parameter.
+  - **USER RULING 2026-08-09 on the REPRESENTATION: SU(2)/matrix, not SO(3)/direction.**  *"'direction m̂(r)'
+    is the SO(3) way of thinking about it.  I suspect the SU(2) language is more natural in software.  We just
+    need to complexify the up/down coefficients."*  Agreed, with one correction to the mechanics:
+    - the DIAGONALS stay REAL (they are densities); what you gain is ONE COMPLEX OFF-DIAGONAL.
+      \f$\rho=\tfrac12(n\,\mathbb{1}+\mathbf{m}\cdot\boldsymbol\sigma)\f$ with \f$\rho_{\uparrow\uparrow},
+      \rho_{\downarrow\downarrow}\in\mathbb{R}\f$ and \f$\rho_{\uparrow\downarrow}\in\mathbb{C}\f$,
+      \f$\rho_{\downarrow\uparrow}=\rho_{\uparrow\downarrow}^*\f$ — 2 reals + 1 complex = **4 real DOF**,
+      matching \f$(n,\mathbf{m})\f$ exactly.  \f$m_z=\rho_{\uparrow\uparrow}-\rho_{\downarrow\downarrow}\f$,
+      \f$m_x=2\mathrm{Re}\,\rho_{\uparrow\downarrow}\f$, \f$m_y=\mp2\mathrm{Im}\,\rho_{\uparrow\downarrow}\f$.
+      So the face generalises \c (rup,rdn) → \c (rup,rdn,rud) with \c rud complex, NOT by complexifying the
+      diagonals.
+    - **Why the matrix form is the better CONTRACT** (four independent reasons, worth keeping): v_xc becomes a
+      2×2 Hermitian matrix entering the Fock matrix directly in spin space, with no rotation to track;
+      symmetry acts as \f$\rho\to U\rho U^\dagger\f$, \f$U\in SU(2)\f$, which COMPOSES (an enum does not);
+      the collinear tier is exactly the diagonal case \f$\rho_{\uparrow\downarrow}=0\f$, i.e. the same
+      collapse pattern the project already prefers; and there is no direction to parameterise, hence no branch
+      or gimbal handling.  LSDA still diagonalises the 2×2 locally
+      (\f$n_\pm=\tfrac12(n\pm|\mathbf{m}|)\f$) and applies the collinear functional along the local axis —
+      but that is INSIDE the functional, not in the contract.
+    - **Lands directly on `SpinAction`:** \c {None,Flip} is the two-element subgroup of SU(2) (Flip being one
+      specific element).  The general Shubnikov op is \f$\{W|\tau\}\times SU(2)\times\f$ an optional
+      ANTIUNITARY factor (time reversal) — that antiunitary piece is what makes it a MAGNETIC group rather
+      than a spin-space group, and it is the part an \c SU(2)-matrix-only generalisation would miss.  Relevant
+      to V1.28's σ-on-`ReciprocalOp` work: size the field for {rotation + antiunitary flag}, not just a flip.
+  - Still to decide with a measurement, unchanged: the ~2x XC pointwise cost for closed shells (the Ham_PP
+    trade).  And the free consequence still stands — `XC_GridEngine`'s second (scalar) rho cache dies.
 - **V2.2 GPW default seed policy.**  `GpwOptions.seed` defaults to `Uniform`, which the Na-doublet
   campaign showed has a STABLE wrong basin for electron-sparse systems (lone-electron doublet
   converged 72 mHa high with every health metric green).  The molecular facade already defaults
@@ -1389,7 +1643,36 @@ in the same session.
   keyed on `cd->Version()` alone, which a polarized density aliases across channels — the trap the
   engine's RhoPol pair-cache fixes).  Design note in the throw message.
 
-- **V2.4 Calibrate `kUniformMargin` and ARM the V1.26 selector.**  The cost model says uniform beats Becke
+- **V2.4 ✅ DONE 2026-08-08 — margin validated, selector ARMED.**  Converged-run A/B on both systems the
+  selector routes to uniform (`GPW_SCF.DISABLED_GridRouteAB_{SiGamma,AlFCC}`; scored on the converged DENSITY
+  per D8, never ΔE_total).  Uniform at its own cutoff matched a fine Becke reference at least as well as the
+  PRODUCTION Becke mesh, for 4–15x fewer points — and much better on total energy (Si 30x, Al 14x), because
+  B-prod's residual is the angular error V2.6 measured.  `U-sel ≡ U-4x` on both, so the uniform route is
+  genuinely converged at the selector's cutoff.  `kUniformMargin=2.0` stands.  `Auto` now ACTS
+  (`GPW_XCGRID_NOSELECT=1` is the A/B valve); 683/683 green.
+  - **No contradiction with the 2026-08-01 Becke default**, which was justified for diffuse bases and sharp
+    cores: those systems (F α_max=40, MnO) are exactly the ones the selector already routes to Becke.  The
+    selector reproduces that split automatically instead of applying one answer to both regimes.
+  - **One anchor moved, and to a value already in the tree:** `AlFCCMetalIBZExact` −2.1174805 → **−2.1169707**,
+    which is verbatim the "uniform-route pair" its own comment had recorded since 2026-08-02.  The re-pin
+    switches which of two long-known values is the default; it introduces no new quantity.  IBZ folding stays
+    exact (`AlFCCMetalGlobalMu` prints the same value).
+  - **⚠️ ARMING EXPOSED A REAL BUG, which is the main find.**  `VxcFit::Auto` paired uniform with the
+    PLANE-WAVE fit unconditionally — and `PWFittedVxc` is not spin-native, so the two Si spin-collapse gates
+    (`Polarized{,Seed}SingletMatchesUnpolarizedSiGamma`) threw the moment Auto could route a soft system to
+    uniform.  The throw message named its own fix: Delta works on EITHER grid, and the code already said so.
+    `Auto` now picks Delta whenever PW cannot do the job — Becke grid OR polarized run — so the throw is
+    reachable only via an explicit `VxcFit::PlaneWave`.  **This was latent before V2.4, not caused by it:**
+    a polarized uniform-grid run was simply unreachable while Auto always chose Becke.
+  - **Recorded honestly: the one place Becke still wins is \f$\|\Delta\rho\|_\infty\f$** — 4.7x better at
+    the WORST point on Si, which is the core.  A property that samples the core (hyperfine, EFG, core-level
+    shifts) should prefer Becke even where the selector says uniform.  The integrated norm is not the whole
+    story, and the selector optimises the integrated norm.
+  - Method note that changed the answer: the first Si A/B had 3 of 4 arms hit FIT-FLOOR STALL, because
+    `imposeSymmetry=false` was copied from the V2.6 ladders — right there (measure the bare angular rule),
+    wrong here (free-mesh Si/Γ oscillates in its degenerate manifold, so the densities were not converged and
+    the scores read 20–40x larger).  A converged-density metric means nothing until every arm converges.
+  *(original item text:)*  **Calibrate `kUniformMargin` and ARM the V1.26 selector.**  The cost model says uniform beats Becke
   15x on Si; the 2026-08-01 measurement says Becke is the right grid there.  Both cannot be right, and the
   margin (a guess at 2.0) is where the discrepancy has to be absorbed.  Instrument: the
   `[XC grid choice] Auto:` line, now emitted by every GPW run.  Measurement per the D8 pin — grid-convergence

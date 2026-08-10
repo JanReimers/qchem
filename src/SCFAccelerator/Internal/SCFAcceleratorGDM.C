@@ -27,19 +27,8 @@ import qchem.Blaze;
 export namespace qchem::SCFAccelerators
 {
 
-struct GDMParams
-{
-    double FDMax;         //Engage the geodesic step once the residual [F,D] < FDMax (below that, run a
-                          //  diagonalizing step).  Named for what it gates on -- [F,D], NOT the energy.
-    double Trust=0.1;     //Trust radius: cap the largest geodesic rotation angle (radians) per step.
-    //! Step-REJECTION policy (the RejectStep bail-out).  On a rejected step the trust radius is multiplied
-    //! by \c TrustBackoff and the CG history dropped; once it falls below \c TrustMin the accelerator
-    //! declares itself EXHAUSTED and forces a diagonalizing step so the caller can fall back safely.
-    //! Defaults give 4 retries from Trust=0.1 (0.025, 6.2e-3, 1.6e-3, 3.9e-4) -- enough for a genuinely
-    //! curved direction to find a foothold, few enough that a BROKEN direction is abandoned quickly.
-    double TrustBackoff=0.25;
-    double TrustMin=1e-4;
-};
+// (GDMParams moved to the public qchem.SCFAccelerator 2026-08-09 -- documented there.)
+
 
 template <class T> class tSCFAcceleratorGDM;
 template <class T> class tSCFIrrepAcceleratorGDM : public virtual tSCFIrrepAccelerator<T>

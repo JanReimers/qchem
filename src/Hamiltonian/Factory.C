@@ -83,4 +83,23 @@ export namespace qchem::Hamiltonian
     rHamiltonian* Factory(Pol, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
                          const qcMesh::MeshParams&, const rbs_t*);
 
+    //=== The SOLID (periodic, dcmplx) front door ======================================================
+    //! \brief The periodic Kohn-Sham Hamiltonian for a lattice run: kinetic + the range-split local PP
+    //! (\c Ven_PP_Short / \c Ven_PP_Long) + optional KB projectors + Hartree + XC + Ewald ion-ion, over a
+    //! COMPLEX (Bloch) basis.  Multi-species: name each `(element, valence)` and a per-Z router PP is built.
+    //!
+    //! WHY THIS EXISTS (Step 4, 2026-08-08).  It is the \c cHamiltonian twin of the \c rHamiltonian
+    //! pseudopotential factory above, and until now it did not exist: the only way to build a solid
+    //! Hamiltonian was \c qchem.Hamiltonian.Internal.Hamiltonians, which none but a unit test may import.
+    //! That is the real reason the GPW driver lived in an integration-test file -- the test was the only
+    //! place the cheat was legal.  A facade in \c src/Calculation/ needs this door to exist.
+    //!
+    //! \a xcMesh chooses the real-space XC quadrature and \a fit chooses which basis represents
+    //! \f$v_{xc}\f$; the two are ORTHOGONAL (see \c VxcFit).  Resolve \c UnitCellKind::Auto BEFORE
+    //! calling -- \c qcMesh::ResolveXCMesh is the policy, and an unresolved \c Auto reads as \c Uniform here.
+    cHamiltonian* Factory(Pol, const st_t& st, const cbs_t* bs,
+                          const std::vector<std::pair<std::string,int>>& species,
+                          const std::string& functional, const qcMesh::MeshParams& xcMesh,
+                          VxcFit fit = VxcFit::Auto);
+
 } // namespace
