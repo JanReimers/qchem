@@ -44,8 +44,10 @@ The pick for a session running ALONGSIDE the MnO campaign:
   cross-invalidation between its scalar and Up/Dn rho caches, which can be live simultaneously.
 
 **Queued behind it, both filed 2026-08-10 and neither started:** **R1.9** (molecular `BasisSetID()`
-prints hex — small, but it invalidates a diagnostic and a cache-key claim) and **V1.31** (caching has
-escaped `DB_Cache_RAM`: three caches, three invalidation disciplines — needs a design ruling first).
+prints hex — small, but it invalidates a diagnostic and a cache-key claim) and **V1.31** (`SymFockCache`
+duplicates `Dynamic_HF_HT_Imp::itsJKs` with a different staleness rule, and its key omits `Ocd`).
+**Read V1.31's correction note before acting on it** — its first draft mis-described what those two
+memos hold and had to be retracted; the retraction is the part worth reading.
 
 ## Coordination — the MnO campaign runs in the qchem6 clone, in parallel
 
@@ -1349,43 +1351,57 @@ MnO campaign proceeds undisturbed in qchem6.
   - `SolidCalcOptions` deliberately defaults it to `false` (the comment's stated intent) and says so at the
     field, so the two facades diverge ON PURPOSE rather than by drift.  Decide which is right and align them.
 
-- **V1.31 Caching has escaped `DB_Cache_RAM` — THREE hand-rolled caches, THREE invalidation disciplines
-  (USER PRINCIPLE, 2026-08-10: *"I try to delegate all caching to `src/BasisSet/Internal/DB_Cache_RAM.C`
-  ... and there are good reasons for this"*).**  Noticed while doing R1.7; filed, not fixed.
-  - **The three, as they stand:**
-    1. `theCache<T>()` / `DB_Cache_RAM` — the sanctioned one.  Keyed purely on CONSTRUCTION-TIME identity
-       (`BasisSetID`, `Structure_ID`, `Mesh_ID`), and everything it holds is DENSITY-INDEPENDENT, so it
-       never invalidates at all.  It also carries the dim-mismatch guards (DB_Cache_RAM.C:211-232),
-       re-entrancy, process-wide reuse across runs, and `EmitReport()` into the run report.
-    2. `SymFockCache` (SymmetryAdapted_IBS.C:32-42, Imp:45-66) — AO J/K per cd-irrep.  Keyed by
-       `cd->BasisSetID()`; invalidated by storing a COPY of the density block and comparing it
-       ELEMENTWISE on every lookup.
-    3. `Dynamic_HF_HT_Imp::itsJKs` (Hamiltonian/Internal/Terms.C:163-167) — whole-system J or K blocks.
-       Also keyed by `BasisSetID`; invalidated by a VERSION COUNTER (`itsCD_Version`).
-  - **The honest obstacle, which is why this is a V-item and not an R-item:** 2 and 3 are not integral
-    caches.  Every axis `DB_Cache_RAM` has is construction-time, and its entries are immortal by
-    design; these two memoize a quantity that changes EVERY SCF ITERATION.  So "just move them" is not
-    available — the design question is which of these is true:
-    (a) `IntegralsCache` grows a density/version axis and an eviction story (it currently has neither,
-        and its "never cleared between runs" property is load-bearing for the report); or
-    (b) the per-density memo is legitimately a TERM-level concern, in which case 2 should move to where
-        3 already is, and the RULE becomes "integrals cache centrally; density-dependent intermediates
-        cache at the term" — which is a defensible rule, just not the one the code claims; or
-    (c) 2 is deleted outright and the SALC path routes through 3, since both are memoizing "the AO Fock
-        for the current density" one library apart.
-    **(c) deserves the first look** — 2 and 3 may be the same computation cached twice.
-  - **Two concrete defects visible today, independent of which way (a)/(b)/(c) goes:**
-    - **`SymFockCache`'s key is INCOMPLETE.**  The entry depends on `raw` and `Ocd`, neither of which is
-      in the key (`cd->BasisSetID()` alone).  `SymmetryAdapted_IBS::BasisSetID()` is `raw id + "[label]"`,
-      so `raw` is encoded by luck; `Ocd` is NOT.  Two SALC transforms of the same raw basis (different
-      tolerance, different group) sharing one cache — which the ctor's `shared_ptr` parameter permits —
-      would collide silently.  This is exactly the failure `DB_Cache_RAM`'s dim guards were added to
-      catch, and a private cache gets no such guard.
-    - **Elementwise density comparison per lookup** where the sibling cache uses a version counter: an
-      O(n²) compare plus a full stored copy of D, per irrep, per lookup.  Whatever the answer above,
-      the two should not disagree about how staleness is decided.
-  - Cross-ref: the "no `void*`, deterministic" claim on `SymFockCache`'s key is ALSO false today, but for
-    an unrelated reason — see **R1.9**.
+- **V1.31 `SymFockCache` and `Dynamic_HF_HT_Imp::itsJKs` memoize the same thing in two libraries, with
+  two different staleness rules.**  Noticed while doing R1.7; filed, not fixed.
+  **This item was FILED WRONG on 2026-08-10 and corrected the same day by the user — the correction is
+  the more useful half, so it is kept.**
+  - **What the first draft claimed:** "caching has escaped `DB_Cache_RAM` — three caches, three
+    invalidation disciplines", with `SymFockCache` and `itsJKs` described as caching "AO J/K", and
+    `DB_Cache_RAM`'s entries described as "immortal by design".
+  - **Both halves of that were wrong, and the user caught it from the description alone:**
+    - **`SymFockCache` and `itsJKs` do NOT hold J/K TABLES.**  They hold the CONTRACTED matrix
+      \f$J[D]\f$ — `BuildAOFock` runs `raw->AccumulateDirect(M,Dao,raw)`, so `M` is an
+      nAO×nAO Fock CONTRIBUTION, not an `ERI4`.  `SymFockCache::Entry` also stores a copy of `D`
+      itself, but only as a staleness token.  Both are therefore charge-density-DEPENDENT, and by the
+      user's own rule — *"anything charge density dependent is obviously not [a cache candidate]"* —
+      they correctly do NOT belong in `DB_Cache_RAM`.  **There is no missing delegation here.**
+    - **`DB_Cache_RAM` entries are NOT immortal.**  `Jac`/`Kab` (the ERI4s) are timestamped on every
+      access and LRU-evicted by `RunGarbageCollector` once `itsTotalRAM > itsMaxRAM`, protecting the
+      entry just inserted (Imp/DB_Cache_RAM.C:354-365).  So the framework already is what the user
+      described: the home for the huge J/K tables, WITH garbage collection.  (What never happens is
+      clearing between RUNS — a different property, and the one `EmitReport`'s comment is about.
+      Non-ERI4 entries are small and are not GC'd.)
+  - **So the actual, much smaller item:**
+    1. `SymFockCache` (SymmetryAdapted_IBS.C:32-42, Imp:45-66) memoizes \f$J_{AO}[D_{cd}]\f$ per
+       cd-irrep, invalidating by an ELEMENTWISE compare against a stored copy of D.
+    2. `Dynamic_HF_HT_Imp::itsJKs` (Hamiltonian/Internal/Terms.C:163-167) memoizes the per-irrep
+       \f$J[D]\f$ / \f$K[D]\f$ blocks, invalidating by a VERSION COUNTER (`itsCD_Version`).
+    These are the same class of quantity — "the Fock contribution for the current density" — memoized
+    twice, one library apart, and they do not agree on how staleness is decided.  **Look first at
+    whether 1 can simply be deleted and the SALC path routed through 2.**  If it cannot, they should
+    at least share the version-counter discipline: the elementwise compare costs an O(n²) scan plus a
+    full stored copy of D, per irrep, per lookup.
+  - **One real defect, independent of the above: `SymFockCache`'s key is INCOMPLETE.**  The entry
+    depends on `raw` and `Ocd`; the key is `cd->BasisSetID()` alone.
+    `SymmetryAdapted_IBS::BasisSetID()` is `raw id + "[label]"`, so `raw` is encoded by luck; `Ocd` is
+    not encoded at all.  Two SALC transforms of the same raw basis (different tolerance, different
+    group) sharing one cache — which the ctor's `shared_ptr` parameter permits — collide silently.
+    That is exactly the failure `DB_Cache_RAM`'s dim guards (Imp/DB_Cache_RAM.C:211-232) were added to
+    catch, and a privately-rolled cache gets no such guard.  **This is the strongest argument for the
+    user's delegate-all-caching principle in this file** — not RAM, not GC, but the fact that a
+    hand-rolled cache silently opts out of the key-completeness checks.
+  - **Worth recording as the GOOD case: the SALC decorator is otherwise a model citizen.**  Everything
+    density-INDEPENDENT it exposes already goes through `theCache<T>()` — the 1-electron blocks via the
+    inherited cached accessors, and the transformed 3-centre tensors via `Overlap3C`/`Repulsion3C`
+    (Imp/Orbital_DFT_IBS.C:10-20), whose cache-miss hooks are its own `MakeXxx3C`.  `SymFockCache` is
+    its ONE hand-rolled cache, and it sits precisely at the density-dependent boundary.
+  - **And on "SALC-transformed J/K are good cache candidates" (user, 2026-08-10): there are none to
+    cache.**  R1.7 established that the SALC path has no per-irrep-pair `ERI4` at all — it builds the
+    whole-AO Fock and slices, so the only ERI4s in existence are the RAW ones, which are already in the
+    framework (with GC).  If per-irrep transformed 4-index blocks are ever wanted, that is a decision to
+    REVISIT R1.7, not a cache-delegation task; note it would trade the AO build for an
+    \f$O(N^4)\f$ four-index transform per irrep pair, which is why the AO-slice route was chosen.
+
 
 ### V2 — measurements / sweeps
 
