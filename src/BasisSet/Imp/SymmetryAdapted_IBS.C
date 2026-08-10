@@ -41,37 +41,39 @@ static void AddSlice(rsmat_t& Fab, const rmat_t& O, const rsmat_t& Mao)
     for (size_t i=0;i<B.rows();++i) for (size_t j=0;j<=i;++j) Fab(i,j) += 0.5*(B(i,j)+B(j,i));
 }
 
-// Memoize the AO J/K for a cd-irrep, rebuilding only when that block's density changes.
-const rsmat_t& SymFockCache::Direct(const Orbital_HF_IBS<double>* raw, const Orbital_HF_IBS<double>* cd,
-                                    const rmat_t& Ocd, const rsmat_t& Dcd)
+// --- WholeSystemFock_IBS (V1.31) -----------------------------------------------------------------
+// The three primitives the composite density drives instead of the per-irrep-pair loop.  Between them they
+// say the whole physics of this class's 2-electron path: fold each block's density up to AO, build ONCE,
+// slice back down.  J and K are both LINEAR in D, which is what makes the single build exact rather than an
+// approximation -- sum(J_AO(O_C D_C O_C^T)) == J_AO(sum(O_C D_C O_C^T)).
+void SymmetryAdapted_IBS::AddAODensity(rsmat_t& Dao, const rsmat_t& D) const
 {
-    Entry& e = itsJ[cd->BasisSetID()];
-    if (!e.valid || blazem::max(blazem::abs(e.D - Dcd)) > 0.0)
-    {
-        e.M = BuildAOFock(false, raw, Ocd, Dcd);
-        e.D = Dcd; e.valid = true;
-    }
-    return e.M;
+    Dao += SymCopy(itsO * D * blazem::trans(itsO));
 }
-const rsmat_t& SymFockCache::Exchange(const Orbital_HF_IBS<double>* raw, const Orbital_HF_IBS<double>* cd,
-                                      const rmat_t& Ocd, const rsmat_t& Dcd)
+
+rsmat_t SymmetryAdapted_IBS::MakeAOFock(const rsmat_t& Dao, bool exchange) const
 {
-    Entry& e = itsK[cd->BasisSetID()];
-    if (!e.valid || blazem::max(blazem::abs(e.D - Dcd)) > 0.0)
+    assert(itsRawHF);
+    rsmat_t M = blazem::zero<double>(itsO.rows());
+    if (blazem::max(blazem::abs(Dao)) > 0.0)          // pre-screen (the raw basis asserts non-zero)
     {
-        e.M = BuildAOFock(true, raw, Ocd, Dcd);
-        e.D = Dcd; e.valid = true;
+        if (exchange) itsRawHF->AccumulateExchange(M, Dao, itsRawHF);
+        else          itsRawHF->AccumulateDirect  (M, Dao, itsRawHF);
     }
-    return e.M;
+    return M;
+}
+
+void SymmetryAdapted_IBS::SliceAOFock(rsmat_t& Fab, const rsmat_t& Fao) const
+{
+    AddSlice(Fab, itsO, Fao);
 }
 
 SymmetryAdapted_IBS::SymmetryAdapted_IBS(const Orbital_1E_IBS<double>* raw, const rmat_t& Oblock,
-                                         const std::string& label, const sym_t& sym,
-                                         std::shared_ptr<SymFockCache> cache)
+                                         const std::string& label, const sym_t& sym)
     : IrrepBasisSetImp<double>(sym), itsRaw(raw)
     , itsRawHF (dynamic_cast<const Orbital_HF_IBS <double>*>(raw))  // same object, HF  face
     , itsRawDFT(dynamic_cast<const Orbital_DFT_IBS<double>*>(raw))  // same object, DFT face
-    , itsO(Oblock), itsLabel(label), itsCache(cache)
+    , itsO(Oblock), itsLabel(label)
 {}
 
 // O^T Mraw O, explicitly symmetrized (the product is symmetric only up to roundoff).
@@ -108,8 +110,7 @@ void SymmetryAdapted_IBS::AccumulateDirect(rsmat_t& Jab, const rsmat_t& Dcd,
 {
     const SymmetryAdapted_IBS* cd = dynamic_cast<const SymmetryAdapted_IBS*>(bs_cd);
     assert(cd && itsRawHF);
-    if (itsCache) AddSlice(Jab, itsO, itsCache->Direct(itsRawHF, bs_cd, cd->itsO, Dcd));
-    else          AddSlice(Jab, itsO, BuildAOFock(false, itsRawHF, cd->itsO, Dcd));
+    AddSlice(Jab, itsO, BuildAOFock(false, itsRawHF, cd->itsO, Dcd));
 }
 
 void SymmetryAdapted_IBS::AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd,
@@ -117,8 +118,7 @@ void SymmetryAdapted_IBS::AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd,
 {
     const SymmetryAdapted_IBS* cd = dynamic_cast<const SymmetryAdapted_IBS*>(bs_cd);
     assert(cd && itsRawHF);
-    if (itsCache) AddSlice(Kab, itsO, itsCache->Exchange(itsRawHF, bs_cd, cd->itsO, Dcd));
-    else          AddSlice(Kab, itsO, BuildAOFock(true, itsRawHF, cd->itsO, Dcd));
+    AddSlice(Kab, itsO, BuildAOFock(true, itsRawHF, cd->itsO, Dcd));
 }
 
 // No per-irrep-pair ERI4 here (see the header): serve the bra-ket partner as two independent AO slices.

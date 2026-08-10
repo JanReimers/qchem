@@ -24,37 +24,24 @@ import qchem.Types;
 export namespace qchem::BasisSet
 {
 
-// Shared by one basis's irrep decorators: memoizes the AO Coulomb/exchange built from each
-// cd-irrep density block (raw->AccumulateDirect/Exchange), so the O(nAO^4) AO build happens
-// once per cd-irrep per SCF iteration -- not once per (irrep, cd-irrep) pair (was N^2/iter).
-// Keyed by the cd-irrep BasisSetID (a stable string identity, not a raw pointer -- deterministic,
-// no void*); invalidated when that block's density changes.
-class SymFockCache
-{
-public:
-    const rsmat_t& Direct  (const Orbital_HF_IBS<double>* raw, const Orbital_HF_IBS<double>* cd,
-                            const rmat_t& Ocd, const rsmat_t& Dcd);
-    const rsmat_t& Exchange(const Orbital_HF_IBS<double>* raw, const Orbital_HF_IBS<double>* cd,
-                            const rmat_t& Ocd, const rsmat_t& Dcd);
-private:
-    struct Entry { rsmat_t D, M; bool valid=false; };
-    std::map<std::string, Entry> itsJ, itsK;   // key = cd-irrep BasisSetID()
-};
+// SymFockCache is GONE (V1.31).  It memoized the AO Coulomb/exchange per cd-irrep, keyed by BasisSetID and
+// invalidated by an ELEMENTWISE density compare, to stop the composite's pair loop from doing ~N^2
+// whole-molecule AO builds.  The loop is the wrong shape for this basis, not the builds: with the
+// WholeSystemFock_IBS route below the composite assembles ONE AO density, this class builds ONCE, and every
+// irrep slices that -- so there is nothing left to memoize.  See doc/CleanupCandidates.md V1.31.
 
 class SymmetryAdapted_IBS
     : public virtual Orbital_1E_IBS<double>
     , public virtual Orbital_HF_IBS<double>  // HF Coulomb/exchange CONTRACTION only -- no ERI4 substrate
+    , public virtual WholeSystemFock_IBS<double>  // ...and it builds the AO Fock ONCE, then slices (V1.31)
     , public virtual Orbital_DFT_IBS<double> // DFT 3-centre fitted Coulomb / Vxc
     , public IrrepBasisSetImp<double>        // provides GetSymmetry / GetSymt / GetIrrep
 {
 public:
     // raw: the whole-molecule AO basis (not owned).  Oblock: this irrep's SALC columns
     // (nAO x dGamma).  label: Mulliken irrep label (used for the cache key + display).
-    // cache: optional, shared across the irreps of one basis (turns the 2-e build N^2 -> N per
-    // iteration).  Null -> build the AO Coulomb/exchange directly each call (fine for tests).
     SymmetryAdapted_IBS(const Orbital_1E_IBS<double>* raw, const rmat_t& Oblock,
-                        const std::string& label, const sym_t& sym,
-                        std::shared_ptr<SymFockCache> cache = nullptr);
+                        const std::string& label, const sym_t& sym);
 
     virtual size_t GetNumFunctions() const {return itsO.columns();}
     const rmat_t&  GetO() const {return itsO;}        // this irrep's SALC columns
@@ -77,6 +64,12 @@ public:
                                       const Orbital_HF_IBS<double>* cd) const;
     virtual void AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di, const rsmat_t& Dj,
                                         const Orbital_HF_IBS<double>* cd) const;
+
+    // --- WholeSystemFock_IBS (V1.31): the route the composite density actually takes for a SALC basis ---
+    virtual size_t  AODimension() const {return itsO.rows();}
+    virtual void    AddAODensity(rsmat_t& Dao, const rsmat_t& D) const;   // Dao += O D O^T
+    virtual rsmat_t MakeAOFock  (const rsmat_t& Dao, bool exchange) const;// the ONE whole-AO build
+    virtual void    SliceAOFock (rsmat_t& Fab, const rsmat_t& Fao) const; // Fab += O^T Fao O
 
     // DFT 3-centre fitted Coulomb / Vxc.  The cached accessors Overlap3C/Repulsion3C are inherited
     // from Orbital_DFT_IBS unchanged: they key the *transformed* block under this irrep's
@@ -112,7 +105,6 @@ private:
     const Orbital_DFT_IBS<double>* itsRawDFT;         // same object, DFT interface (raw 3C + fit bases)
     rmat_t                        itsO;               // this irrep's SALC columns (nAO x dGamma)
     std::string                   itsLabel;           // Mulliken irrep label
-    std::shared_ptr<SymFockCache> itsCache;           // shared AO J/K cache (null = build directly)
 };
 
 } //namespace
