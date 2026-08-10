@@ -1268,6 +1268,34 @@ MnO campaign proceeds undisturbed in qchem6.
   - **The code already states the PP reason, in `SolidSCFIterator`'s own doc:** the virial is DROPPED because
     "GTH local + KB projectors break the Coulombic-homogeneity assumption behind 2+V/K".  That is a property
     of the POTENTIAL, not of the lattice — a molecular PP run breaks it identically.
+  - **⚠️⚠️ BIGGER THAN THE ITEM SAYS — INVESTIGATED 2026-08-10, NEEDS A USER RULING BEFORE EXECUTION.
+    The virial is not only a DISPLAY column; it is a CONVERGENCE GATE.**
+    - `Imp/SCFIterator.C:336`: `itsConverged = ... && fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial;`
+      — a hard `&&`.  So a PP run is gated on a quantity the tree itself documents as meaningless for it.
+    - **And the codebase has been working around it BY HAND at every PP call site, nine times:**
+      `ValenceBasisGen.C:59,92,113` (`p.MinVirial = 1e30` + the comment *"the virial theorem does NOT hold
+      under a pseudopotential"*) and `IntegrationTests/A_PP.C:43,116,134,174,203,308` (`1e10`/`1e30`, *"virial
+      off (N/A to PP)"*).  **That is exactly the R2.16 anti-pattern**: a construction-time fact ("this run
+      uses pseudopotentials") re-supplied by every caller as a magic threshold, where FORGETTING it is
+      silent.  The `Calculation` facade's own `{.pseudopotential=true}` path does NOT set it.
+    - **The default is entangled and should be looked at in the same pass:** `SCFParams::MinVirial = 1e-13`
+      with the comment *"1e-13 => effectively off; the textbook -V/K=2 virial is not gated for molecules"*.
+      But the test is `error < MinVirial`, so a SMALLER threshold is STRICTER — 1e-13 makes the clause
+      essentially unsatisfiable, i.e. the gate is maximally ON, not off.  Either the comment or the default
+      is wrong.  Every serious caller overrides it (A_HF_dfPin uses 4e-2 for a genuine all-electron pin),
+      which is why this has not bitten.
+    - **PROPOSED SHAPE (not implemented — the OCP rule says an abstract-interface addition wants a reason
+      agreed first).**  Follow the pattern already in the tree rather than inventing one: `Add()` already
+      computes `itsIsPolarized`/`itsIsRelativistic` by OR-ing the TERMS' own `IsPolarized()`/
+      `IsRelativistic()`, and the iterator already derives `idealVirial` from
+      `itsHamiltonian->IsRelativistic()` (Imp/SCFIterator.C:238).  So: add `IsPseudopotential()` to the term
+      face (default false; true on `PP_Local`, `PP_NonLocal`, `Ven_PP_Short`, `Ven_PP_NonLocal`,
+      `Ven_PP_Long`), OR it up in `tHamiltonianImp::Add`, and let the iterator ask ONCE — dropping both the
+      virial COLUMN and the virial CLAUSE.  The nine hand-set thresholds then become redundant.
+    - **THE RULING NEEDED:** should PP-ness disable the virial GATE automatically, and not just the column?
+      It is a no-op for all nine existing call sites (they already disable it), but it CHANGES convergence
+      for a PP caller that forgot — from "cannot satisfy the virial clause" to "converges properly".  That
+      is a fix, but it is a semantic change to convergence, so it is the user's call, not a cleanup.
   - **⚠️ AND IT IS A LIVE DEFECT, not just a name.**  `Calculation` supports `{.pseudopotential=true}` (the
     `sipp` molecular PP runs) and uses `MolecularSCFIterator`, which inherits the base layout — so **a
     molecular pseudopotential run displays a virial column the tree itself documents as invalid for it.**
