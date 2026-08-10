@@ -14,21 +14,29 @@ worth more than the landed ones.
 
 ---
 
-# START HERE (handoff, 2026-08-09)
+# START HERE (handoff, 2026-08-10)
 
-## Next task: **R1.7** — split `Orbital_HF_IBS` into a contraction face and an ERI4-substrate face
+## Just landed: **R1.7** (`26af31b6`) — the `Orbital_HF_IBS` split.  Full record → doc/CleanupHistory.md.
 
-Full item under READY / R1 below.  It is the deliberate pick for a session running ALONGSIDE the MnO
-campaign, because it cannot collide with it:
-- **Files** — `src/BasisSet/SymmetryAdapted_IBS.C`, `src/BasisSet/Imp/`, `src/BasisSet/Molecule/`,
-  `src/Symmetry/Molecule/`.  Verified disjoint from the MnO working set.
-- **Physics** — molecular HF / SALC.  Verified: the periodic path never references `SymmetryAdapted_IBS`
-  at all, so a mistake here cannot reach a GPW run.
-- **Design already ruled** (user, 2026-08-05) — this is execution, not another design round.
-- **Correctness-adjacent** — `MakeDirect`/`MakeExchange` currently return an empty `ERI4{}` SILENTLY, so a
-  future generic ERI4 caller would get a zero Fock contribution with no diagnostic.
-- **Cheap to verify** — its tests are the FAST molecular ones (`M_PGSymmetry`, `UTMolecule_BS`), so it can
-  be checked with a targeted `ctest -R` at `-j2` without waiting for an idle box.
+Worth carrying forward, because it generalizes past this one interface: **the split was ruled on ISP
+grounds and paid off on DIP grounds.**  Once `MakeDirect`/`MakeExchange` were off the client-facing face,
+a grep showed NOTHING outside qcBasisSet had ever named an `ERI4` — so the substrate could go into an
+`Internal.` module and two libraries stopped importing the 4-index type.  When an item says "this
+interface promises more than its clients consume", check whether the surplus also crosses a LIBRARY
+boundary; if it does, the ISP fix and the DIP fix are the same edit.
+
+## Next task: **R2.9** — small Hamiltonian hardening (three independent sub-items)
+
+Full item under READY / R2 below.  The pick for a session running ALONGSIDE the MnO campaign:
+- **Files** — `src/Hamiltonian/Internal/PWTerms.C` (`XC_GridEngine`), `HamiltonianTerm.C`,
+  `Imp/HF_HT.C`.  None is on the MnO DO-NOT-TOUCH list, and none is theirs by assignment.
+- **Three separable pieces** (i) constness laundering, (ii) a reference into shared scratch,
+  (iii) a latch with no assert — so it can be stopped cleanly at any point.
+- **Verification cost is UNEVEN, so sequence it:** (iii) is the molecular HF path and is checked by the
+  fast `M_HF_*` tests; (ii) is a doc-or-return-by-value call; (i) touches the GPW XC engine and wants a
+  GPW run to confirm, which is the expensive part — do it last, or when the box is free.
+- Note (i) also records a real hazard worth reading before touching it: `XC_GridEngine` has NO
+  cross-invalidation between its scalar and Up/Dn rho caches, which can be live simultaneously.
 
 ## Coordination — the MnO campaign runs in the qchem6 clone, in parallel
 
@@ -53,10 +61,12 @@ CLAUDE.md says build `allTests`, not `ITMain`.  The corollary: **a NEW test exe 
 
 ## State at handoff
 
-- Branch `solid-cleanup` @ `2d956ebf`; **689/689 ctest green**, warning-free build.
-- 11 commits ahead of `origin/main` (which is at `77130eff`).  Includes the `allTests` fix the MnO side
-  also needs — worth pushing early.
-- Landed this session: **D6**, **V1.26**, **V2.4** (grid selector armed on measured evidence), **V2.6**
+- Branch `solid-cleanup` @ `26af31b6`; **689/689 ctest green** (`-j2`, alongside a ~6 GB MnO run; 38 disabled),
+  warning-free build.
+- Ahead of `origin/main` (at `77130eff`).  Includes the `allTests` fix the MnO side also needs — worth
+  pushing early.
+- Landed 2026-08-10: **R1.7**.
+- Landed 2026-08-09: **D6**, **V1.26**, **V2.4** (grid selector armed on measured evidence), **V2.6**
   (measured; defaults deliberately unchanged), **Step 4** (the `cHamiltonian` + complex-accelerator public
   doors, and `SolidCalculation` — the named home for above-SCFIterator decisions).
 
@@ -245,19 +255,39 @@ MnO campaign proceeds undisturbed in qchem6.
 - **R1.4 ✅ DONE `72fecf8d` (THROW, not assert — deviation explained). Silent zero `Gradient()` overrides** — FourierMixCD.C:75 and IrrepCD<dcmplx>.  **→ doc/CleanupHistory.md**
 - **R1.5 ✅ DONE `72fecf8d`. `tChargeDensity::EvalBatch` duplicates `ScalarFunction::operator()(rvec3vec_t)`.**.  **→ doc/CleanupHistory.md**
 - **R1.6 ✅ DONE `06e23f5d`. `Write()` streams raw POINTERS (hex addresses)** — Imp/FittedVxc.C:111 (`os << itsLDAVxc`).  **→ doc/CleanupHistory.md**
-- **R1.7 🔶 DESIGN SETTLED (user ruling), not yet implemented. `SymmetryAdapted_IBS::MakeDirect/
-  MakeExchange` return empty `ERI4{}` silently**
-  (SymmetryAdapted_IBS.C:80-81, comment "never called") — fails QUIETLY: a future generic-ERI4
-  caller gets a zero Fock contribution.  Interim: assert.
-  **USER RULING (2026-08-05): SymmetryAdapted_IBS should not be inheriting the (ERI4 part of the)
-  `Orbital_HF_IBS<double>` interface — direction now settled.**  The interface's own doc comment
-  already points there: "Client code rarely need ERIs directly, they only need the contraction
-  over a density matrix."  Split `Orbital_HF_IBS` into (a) the CONTRACTION face (`Accumulate*` —
-  what the HF terms consume) and (b) the ERI4-SUBSTRATE face (`MakeDirect/MakeExchange` +
-  `Direct/Exchange` caches — the implementation detail behind the default contraction path).
-  Concrete AO bases implement both; the SALC decorator implements only (a) (it builds in the AO
-  basis and slices to its irrep block); terms consume only (a); the dummy `ERI4{}` bodies die.
+- **R1.7 ✅ DONE `26af31b6`. `SymmetryAdapted_IBS::MakeDirect/MakeExchange` return empty `ERI4{}` silently** —
+  split into `Orbital_HF_IBS` (contraction) + `Internal.Orbital_ERI4_IBS` (substrate); the substrate is now
+  invisible outside qcBasisSet.  **→ doc/CleanupHistory.md**
 - **R1.8 ✅ DONE `06e23f5d`. `FittedVee` casts `bs` and dereferences with NO assert** (Imp/FittedVee.C:41-42) — the.  **→ doc/CleanupHistory.md**
+- **R1.9 Molecular `BasisSetID()` streams its SEPARATORS as hex addresses — FOUND 2026-08-10 while
+  writing R1.7's diagnostic.**  `PGData::BasisSetID()` (Molecule/Evaluators/PG_Cart_MnD/Imp/PGData.C:31-40)
+  reads `os << " PG { " << *radial << "@" << centre << ":" << pol << " " ... << "}"`.  The OBJECTS print
+  fine; every STRING LITERAL comes out as `0x7784d915b66e`-style hex.  Observed verbatim in an exception
+  message, so this is measured, not inferred.
+  **Mechanism (and it is a C++20 MODULES trap, not the R1.6 one):** `operator<<(basic_ostream&, const
+  CharT*)` is a FREE FUNCTION TEMPLATE in `<ostream>`, while `ostream::operator<<(const void*)` is a
+  MEMBER.  That TU's global module fragment includes only `<vector>` and `<string>`, so the free template
+  is not visible and `const char*` falls through to the `const void*` member.  Members survive; free
+  operator templates do not.  Expect the fix to be one `#include <ostream>` (or `<sstream>`, which the
+  file also uses without including).
+  **Why it matters beyond cosmetics:**
+  - **The doc comment on `SymFockCache` claims the opposite** — "a stable string identity, not a raw
+    pointer -- deterministic, no void*" (SymmetryAdapted_IBS.C:30-31).  That claim is FALSE today for
+    every molecular basis, and it is the comment a future reader would trust.
+  - The ID is the cache KEY (`DB_Cache.C:58`) and the ERI4 CANONICAL-ORDER discriminator
+    (`a->BasisSetID() <= b->BasisSetID()`).  Correctness holds today only because the cache is RAM-only
+    and per-process; string-literal addresses are stable within one run.  **Any disk/persisted cache, or
+    any cross-run comparison of keys, breaks the moment it is added** — and ASLR means the key differs
+    every run.
+  - It defeats every diagnostic that quotes the ID, which is exactly how it was found.
+  **Do NOT bundle this with a rename or a key-format change**: fixing the include CHANGES the key string.
+  Verify with the existing `IntegralsCache` dim-mismatch guards (DB_Cache_RAM.C:211-232), which exist
+  precisely to catch a key that is not specific enough.
+  **Worth a SURVEY, not just the one file:** any TU whose global module fragment lacks `<ostream>`/
+  `<sstream>` but streams literals has the same silent defect.  R1.6 was the same SYMPTOM from a
+  different cause (`qchem::op<<` binding `const Streamable&`), so a grep for hex in test output will
+  catch both.
+
 ### R2 — mechanical hygiene
 
 - **R2.1 ✅ DONE `06e23f5d`. `tDM_CD::DM_ContractBlocks` → pure virtual.**  The asserting default is DEAD — all three.  **→ doc/CleanupHistory.md**
@@ -823,9 +853,11 @@ MnO campaign proceeds undisturbed in qchem6.
 - **V1.9 ✅ DONE `38a1ebd6`. `Structure`→concrete-`UnitCell` down-casts in 4 libraries**.  **→ doc/CleanupHistory.md**
 - **V1.10 Two abstract→CONCRETE basis casts in src/** — Imp/SymmetryAdapted_IBS.C:109,118
   (Orbital_HF_IBS* → concrete SymmetryAdapted_IBS, solely to reach `itsO`) and
-  Internal/Imp/Orbital_DHF_IBS.C:89,109 (Orbital_HF_IBS& → Orbital_RKB_HF_IBS_Imp&).  Both are
+  Internal/Imp/Orbital_DHF_IBS.C:89,109 (Orbital_ERI4_IBS& → Orbital_RKB_HF_IBS_Imp&).  Both are
   "give me your private state" reaches — promote the needed answer to an abstract question on the
   face.  (Unit-test exemption does not apply; these are src/.)
+  *(NOT in this list, and deliberately so: `Orbital_ERI4_IBS::Substrate` added by R1.7 is an
+  abstract→ABSTRACT cross-cast — the sanctioned direction — and it THROWS naming both bases.)*
 - **V1.10b ✅ DONE (see LANDED). Mixer.  **→ doc/CleanupHistory.md**
 - **V1.11 Occupation seam: two-phase SCF-WF construction + the `TakeElectrons*` family.**
   (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`

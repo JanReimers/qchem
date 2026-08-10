@@ -48,8 +48,9 @@ Production touches an ERI4 through a **single choke-point**, not scattered index
       for (auto ib:iv_t(ia,Nab))
           Sab(ia,ib) += blazem::sum( gabcd(ia,ib) % Scd );   // S_ab += Σ_cd J(a,b)⊙D_cd
   ```
-  Reached only via `Orbital_HF_IBS::AccumulateDirect/AccumulateExchange`
-  ([Orbital_HF_IBS.C:24-38](../src/BasisSet/Imp/Orbital_HF_IBS.C)), which is what
+  Reached only via `Orbital_ERI4_IBS::AccumulateDirect/AccumulateExchange`
+  ([Internal/Imp/Orbital_ERI4_IBS.C](../src/BasisSet/Internal/Imp/Orbital_ERI4_IBS.C) -- the ERI4
+  SUBSTRATE face split off from `Orbital_HF_IBS` by R1.7), which is what
   `SymmetryAdapted_IBS` and the `ChargeDensity` Fock build call. **No raw indexing in the SALC path.**
 - **Builders** — `MakeDirect` / `MakeExchange` return an `ERI4` by value
   ([src/BasisSet/Atom/IrrepBasisSet.C](../src/BasisSet/Atom/IrrepBasisSet.C) ~277-365; molecular MnD path
@@ -155,7 +156,7 @@ SCFIterator
                 Vee::CalcMatrix(bs = ONE irrep, cd)            [Vee.C:27]
                   → dm->AccumulateDirect(single Jab target, hf_bs)
                       → CompositeCD iterates cd-irreps → IrrepCD
-                          → Orbital_HF_IBS::AccumulateDirect
+                          → Orbital_ERI4_IBS::AccumulateDirect
                               → MatMul(Jab, Direct(i,j), D_j)
 ```
 The `Jab` reaching the `ChargeDensity` accumulation is **one** irrep's block; the composite loops the `cd`
@@ -294,7 +295,7 @@ Keep §5 (generic, bra–ket, high value) and §6 (atomic, LMax→Irrep) as sepa
      callers (PlaneWaveDFTUT, EigenSolverUT).  (Originally threaded a `tHamiltonianContext<T>` wrapper struct;
      deleted post-3b once it was clear the composite `BasisSet` already IS that view — see §5.4 REALIZED.)
    - **3b. DONE (Coulomb/J only)** — `Vee` consumes the context via mechanism (a).  New seam:
-     `Orbital_HF_IBS::AccumulateDirectBoth(Ji,Jj,Di,Dj,cd)` = `Direct(*cd).ScatterBoth(...)` (fetches ONLY
+     `Orbital_ERI4_IBS::AccumulateDirectBoth(Ji,Jj,Di,Dj,cd)` = `Direct(*cd).ScatterBoth(...)` (fetches ONLY
      the canonical block); `tDM_CD::AccumulateDirectAll(Jall,abBases)` (whole-system) — `Polarized_CD` sums
      both spins, `tComposite_CD` runs the canonical-pair loop (diagonal → existing `AccumulateDirect`
      MatMul; off-diagonal → `IrrepCD::AccumulateDirectBoth`, which sibling-casts its partner as
@@ -303,7 +304,8 @@ Keep §5 (generic, bra–ket, high value) and §6 (atomic, LMax→Irrep) as sepa
      Coulomb once per density into `itsJ` (keyed by BasisSetID) + slices; the 3-arg (energy `DM_Contract`,
      no ctx) reuses the stashed list so the post-diagonalization density gets the SAME banked build (else
      the energy path would re-materialize `J(j,i)` every iteration).  **SALC caveat:** `SymmetryAdapted_IBS`
-     has no per-irrep-pair ERI4 (empty `MakeDirect` → builds the whole-AO Fock and slices), so it OVERRIDES
+     has no per-irrep-pair ERI4 (it does not derive from the substrate face at all since R1.7 -- it
+     builds the whole-AO Fock and slices), so it IMPLEMENTS
      `AccumulateDirectBoth` to fall back to two independent AO slices (the AO build already banks the full
      8-fold symmetry).  **Gate:** 167 UTMain green; `Jac` RAM 521→369 MB (off-diagonal blocks now single-
      orientation; diagonal blocks are self-transpose and unhalvable, hence <50%).
@@ -318,7 +320,7 @@ Keep §5 (generic, bra–ket, high value) and §6 (atomic, LMax→Irrep) as sepa
      transpose orientation" (which needs a `{block, needsTranspose}` return contract), we enforce
      **canonical-only** and make the partner a hard error: `IntegralsCache_RAM::Get(I4C,a,b,…)` **throws**
      (a `std::runtime_error`, live in Release — not a debug assert) when `a>b` by BasisSetID.  Production
-     fetches are made canonical at the source: `Orbital_HF_IBS::AccumulateDirect/ExchangeBoth` request the
+     fetches are made canonical at the source: `Orbital_ERI4_IBS::AccumulateDirect/ExchangeBoth` request the
      min-BasisSetID block and swap the two `ScatterBoth` target/density pairs when the partner sorts first
      (identical result, `J(b,a)=J(a,b)ᵀ`).  So the bra-ket partner can never be built or stored — the
      invariant is structural, not a discipline every caller must remember.  Bonus: canonicalizing the fetch

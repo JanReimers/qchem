@@ -178,6 +178,51 @@ in the same session.
   and Imp/FittedVxcPol.C:93 (`os << itsUpVxc << itsDownVxc`); `qchem::op<<` binds only
   `const Streamable&`, so these hit `void const*`.  Need `*`.
 
+- **R1.7 ✅ DONE `26af31b6` (2026-08-10). `SymmetryAdapted_IBS::MakeDirect/MakeExchange` return empty
+  `ERI4{}` silently**
+  (SymmetryAdapted_IBS.C:80-81, comment "never called") — failed QUIETLY: a future generic-ERI4
+  caller got a zero Fock contribution.  ~~Interim: assert.~~
+  **USER RULING (2026-08-05): SymmetryAdapted_IBS should not be inheriting the (ERI4 part of the)
+  `Orbital_HF_IBS<double>` interface.**  The interface's own doc comment already pointed there:
+  "Client code rarely need ERIs directly, they only need the contraction over a density matrix."
+  Split `Orbital_HF_IBS` into (a) the CONTRACTION face (`Accumulate*` — what the HF terms consume)
+  and (b) the ERI4-SUBSTRATE face (`MakeDirect/MakeExchange` + `Direct/Exchange` caches — the
+  implementation detail behind the default contraction path).  Concrete AO bases implement both; the
+  SALC decorator implements only (a); terms consume only (a); the dummy `ERI4{}` bodies die.
+
+  **What landed — the split exactly as ruled, plus one thing the item did not predict:**
+  - `qchem.BasisSet.Orbital_HF_IBS` is now the CONTRACTION face and nothing else: four pure-virtual
+    `Accumulate{Direct,Exchange}[Both]`.  No ERI4 anywhere in it.
+  - `qchem.BasisSet.Internal.Orbital_ERI4_IBS` (NEW) is the substrate: `MakeDirect`/`MakeExchange`
+    pure virtual, the cached `Direct`/`Exchange`, and the ONE implementation of the four
+    `Accumulate*` in terms of them.  `src/BasisSet/Imp/Orbital_HF_IBS.C` moved verbatim (bar the
+    class name and the cross-cast) to `src/BasisSet/Internal/Imp/Orbital_ERI4_IBS.C`.
+  - Concrete AO bases implement both faces.  The two evaluator-templated mixins that BUILD the
+    blocks — `Atom::Orbital_HF_IBS<E>` and `Molecule::Orbital_HF_IBS<E>` — were renamed to
+    `Orbital_ERI4_IBS<E>`, so a mixin's name says which face it supplies; likewise the RKB/DHF
+    `Orbital_RKB_HF_IBS_Imp`.  `SymmetryAdapted_IBS` derives from the contraction face ONLY, and the
+    two `{return ERI4();}` bodies are deleted — the question can no longer be asked of it.
+  - **The unpredicted win: `Internal.` is the honest address for the substrate.**  Grep says nothing
+    outside qcBasisSet ever names an `ERI4`; qcHamiltonian and qcChargeDensity both reach the basis
+    as `rohfbs_t = Orbital_HF_IBS<double>` and only ever call `Accumulate*`.  So the substrate went
+    into an `Internal.` module and `Orbital_HF_IBS` stopped re-exporting
+    `qchem.BasisSet.Internal.ERI4` — two libraries that had the 4-index type in scope for no reason
+    no longer do.  That is the DIP half of the item, and it came free with the ISP half.  (Unit
+    tests that pin the cache and the bra-ket symmetry import the Internal module explicitly and
+    iterate on the new `Real_ERI4_OIBS` typedef — the sanctioned test cheat.)
+  - **The one new cast, and why it is the sanctioned kind.**  `Accumulate*` take the partner as the
+    CONTRACTION face and C++ has no contravariant parameters, so the substrate implementation
+    cross-casts it back through `Orbital_ERI4_IBS::Substrate()` — abstract→abstract, the direction
+    the project rule allows — and it THROWS naming both bases rather than asserting (R1.4's ruling:
+    `build/Release` is `-DNDEBUG`, so an assert is a no-op in the configuration we actually test).
+    The condition it reports is precisely the one the empty `ERI4{}` used to hide: an ERI4 basis
+    paired with a basis that has no `(ab|cd)` block spanning the two.
+  - **Anchors:** whole suite green; the load-bearing ones are `Cache4Tests.*` (canonical-only cache +
+    the `J(a,b)=J(b,a)^T` check against the UNCACHED `MakeDirect`), `PGSymmetry.
+    decorator_coulomb_matches_AO_slice` (the SALC path that owns this item), `M_MEvaluator`/
+    `M_LibCint` `matrix_3C_4C_match_scalar`, and `M_Calculation.WaterSymmetryLibCint`.
+  - Doc references updated in `doc/ERI4Rework.md` (§2 substrate address, §5.4 SALC caveat).
+
 - **R1.8 ✅ DONE `06e23f5d`. `FittedVee` casts `bs` and dereferences with NO assert** (Imp/FittedVee.C:41-42) — the
   sibling sites at least assert.  (The odftbs_t casts themselves are sanctioned abstract→abstract.)
 
