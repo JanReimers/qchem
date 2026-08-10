@@ -3069,6 +3069,16 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // modes; RAISING it sharpens it (G0=3: 0.146 vs 0.045, ratio 3.3).  That is a linear-response argument
     // about which mode is actually pathological, so it is a PREDICTION to be swept, not a setting to trust.
     o.scf.StartingRelaxRo=envd("MNO_ALPHA",0.45); o.scf.KerkerG0=envd("MNO_KERKER_G0",1.0);
+    // DENSITY-HISTORY MIXING (MNO_PULAY / MNO_PULAY_START, 2026-08-10).  Never exercised on MnO before: every
+    // run to date used PulayDepth=0, i.e. a damped Kerker step with NO density history, while the CP2K oracle
+    // runs BROYDEN_MIXING with NBUFFER 8 -- a quasi-Newton density history -- and reaches the magnetic state
+    // with no MOM at all.  Note CP2K's BETA 1.5 IS its Kerker damping, i.e. it damps HARDER than our G0=1.0
+    // and still keeps the moment, which points away from "Kerker suppresses the moment" and at the missing
+    // history instead.  USER 2026-08-10, correcting me: if swapping the mixer changes whether m_stag
+    // survives, that IMPLICATES the mixing path rather than exonerating it -- so Pulay/Broyden is a
+    // first-class candidate, not the weak one I had called it.
+    o.scf.PulayDepth=(int)envd("MNO_PULAY",0.0);
+    o.scf.PulayStart=(int)envd("MNO_PULAY_START",5.0);
     // NB (2026-08-07) this KerkerG0 is currently INERT on the AFM arm: MakeDensityMixer refuses the ρ̃
     // mixers on a POLARIZED density and falls back (loudly) to linear D-mixing, because the ρ̃ mixers carry
     // the TOTAL density only and collapse v_xc to ζ=0 from iteration 1 -- the AFM collapse, diagnosed here

@@ -1450,6 +1450,32 @@ against a special case it will outgrow:
              compare the two initial moments directly.
          **The acceptance test is unchanged (aufbau-stable WITHOUT MOM); only the mechanism changes — this is
          a bug hunt against a same-recipe oracle, not a functional upgrade.**
+       * **★ THE MISSING INGREDIENT IS DENSITY HISTORY — MnO HOLDS ITS MOMENT WITH NO MOM AT ALL (user's
+         correction + run 27, 2026-08-10).**  USER, on my listing the mixer as the weakest candidate because
+         "run 8's linear-mixing control already kept m_stag alive": *"if linear mixing keeps m_stag alive, and
+         Kerker kills it then I would conclude the opposite ... Pulay-Broyden might keep the moment."*  That
+         is the correct inference and mine was backwards — a mixer swap that changes whether the order
+         survives IMPLICATES the mixing path, it does not exonerate it.
+         Acting on it exposed something never tested: **every MnO run to date used `PulayDepth=0`** — a damped
+         Kerker step with NO density history — while the CP2K oracle runs `BROYDEN_MIXING` with `NBUFFER 8`.
+         (And CP2K's `BETA 1.5` IS its Kerker damping, i.e. it damps HARDER than our G0=1.0 and still keeps
+         the moment, which points away from "Kerker suppresses the moment" and squarely at the missing
+         history.)  Run 27 — `PulayDepth=8`, `PulayStart=5`, **MOM OFF**, kT=5e-3, α=0.25:
+         | | best E | m_stag | MOM |
+         |---|---|---|---|
+         | run 24 (Kerker, no history) | −60.134 | 0.66 | **REQUIRED** (Λ=1.5) |
+         | run 26 stage 2 (MOM released) | −49.53 | 0.0001 (died) | none |
+         | **run 27 (Pulay history)** | **−61.29** | **0.378, holds unaided** | **NONE** |
+         **0.22 Ha from CP2K, and the moment survives with no constraint** — so MOM was never the cure, it was
+         compensating for a mixer with no memory.
+       * **WHAT RUN 27 IS NOT: converged.**  Eamp over the last 8 is 12.2 Ha.  The trace is not noise but an
+         ATTRACTOR WITH INTERMITTENT EJECTIONS — it sits at E≈−61.25, m≈0.345, [F,D]≈3.2e-2, then is thrown to
+         −47…−55 with m collapsing and [F,D]→1.0, then climbs back (iterations 57→59, 67→69).  The signature
+         is Pulay history POLLUTION: once the history spans both branches the extrapolation lands on the
+         non-magnetic one.  Note the shape is identical to the GDM defect fixed earlier — **a bad extrapolated
+         step being COMMITTED rather than rejected** — which suggests the same cure (an actual-E or
+         residual-spike check that discards the extrapolation and resets the history) rather than a knob.
+         Sweeps running from α (CP2K uses 0.2) and depth.  Log `run27_pulay_nomom`.
        * **WHAT IS STILL OPEN** (do not read the above as "done"):
          (a) **It does not pass the convergence gate**: the run ends on the GDM leg with lastΔρ=3.2e-2 against
              MinΔρ=1e-5.  E and the moment are stable to ~1e-3, but the gate measures ρ, and the DIIS→GDM
