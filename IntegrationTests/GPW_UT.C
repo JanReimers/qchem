@@ -782,7 +782,7 @@ TEST(GPW, XCPotentialConsistencyFD)
         }
         return grid.Integral(e);
     };
-    auto Hxc=[&](const rvec_t& rho)->chmat_t             // == PWFittedVxc::CalcMatrix (both terms summed)
+    auto Hxc=[&](const rvec_t& rho)->chmat_t             // == PWFittedVxc::MakeMatrix (both terms summed)
     {
         rvec_t v(rho.size());
         for (size_t q=0;q<rho.size();q++)

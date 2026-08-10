@@ -76,7 +76,7 @@ TEST(M_DFT, WaterSpherical)
 
 // Polarized Xalpha water through the facade's DEFAULT (auto SAD) seed.  This used to SEGFAULT: the SAD seed
 // is a spin-agnostic total density, and the polarized Vxc null-derefed when its dynamic_cast<Polarized_CD>
-// of the seed failed (the assert was compiled out in Release).  Fixed in FittedVxcPol::CalcMatrix -- a
+// of the seed failed (the assert was compiled out in Release).  Fixed in FittedVxcPol::GetMatrix -- a
 // spin-unpolarized seed (rho_up=rho_down=rho/2) maps each channel's iteration-0 Vxc to the unpolarized Vxc
 // of the total density.  Water is closed shell, so with the SAME alpha the polarized run must converge to
 // the SAME energy as the unpolarized anchor -- and it does, to ~1e-11 (confirming a correct seed Fock).
