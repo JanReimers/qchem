@@ -60,21 +60,21 @@ whether the pattern is "fitters need raw integrals", "tests need to bypass the c
 accidents.  The rule generalises past `Make`: **any deliberate loosening of encapsulation should carry its
 reason, because the decision to tighten it again later can only be made from those reasons.**
 
-## Next task: **V1.31** — delete `SymFockCache`; let the term own the per-density memo
+## ⛔ V1.31 is BLOCKED on a user ruling — do not start it as written
 
-Design is SETTLED (user ruling 2026-08-10: a version counter beats an elementwise D compare), and because
-`Version()` lives ABOVE qcBasisSet in the library DAG that ruling forces the shape — the memo must move to
-`qcHamiltonian`, where `Dynamic_HF_HT_Imp::itsJKs` already does exactly this job.  Execution, not another
-design round.  **Read the item's correction note first**: its first draft mis-described what those two
-memos hold and had to be retracted, and the retraction is the part worth reading.
-- **Files** — `src/BasisSet/SymmetryAdapted_IBS.C` + `Imp/`, and `src/Hamiltonian/Internal/` (Terms.C,
-  Imp/HF_HT.C).  Disjoint from the MnO working set; molecular SALC physics only.
-- **Cheap to verify** — `PGSymmetry.decorator_coulomb_matches_AO_slice` is the direct anchor, plus
-  `M_Calculation.WaterSymmetryLibCint`; all fast, all `ctest -R` at `-j2`.
-- **Safe to attempt** — the cache is already OPTIONAL (the ctor's `shared_ptr` defaults to null and the
-  decorator builds directly without it), so there is a working fallback while the term route is wired.
-  Getting it wrong costs N² AO builds per iteration instead of N: slow, not incorrect.
-- Its `Ocd`-missing-from-the-key defect is independent and survives whatever shape the fix takes.
+Attempted 2026-08-10; the settled design does not survive the call path.  **Two facts kill it** (full
+evidence in the item): `SymFockCache` is an INTRA-SWEEP memo, not a cross-iteration cache — the term's own
+version guard means the sweep runs once per density serial, so the cache can never hit across iterations;
+and a version counter would BREAK the polarized SALC path, because `tPolarized_CD::AccumulateDirectAll`
+runs Up then Down inside ONE sweep against the same key while `tPolarized_CD::Version()` forwards to Up.
+The elementwise D compare is the only thing separating the two channels.  `M_Sym.water_HF_polarized` is
+live and green on exactly that path.  "Move it to the term" is separately not executable: the memo is an
+INTERMEDIATE AO build inside `dm->AccumulateDirectAll(X)`, on the far side of the density's virtual API,
+at a granularity no term can see.
+**The question for the user is now: SCOPE the memo to one sweep (staleness stops being a question), or go
+further and exploit linearity — \f$\sum_C J_{AO}(O_C D_C O_C^\mathsf{T}) = J_{AO}(\sum_C O_C D_C
+O_C^\mathsf{T})\f$ — for ONE AO build per sweep instead of N, which deletes the memo outright.  Both need
+a sweep boundary that does not exist yet, so they are one question.**
 
 **Also queued, unruled:** **R1.9** — molecular `BasisSetID()` prints hex.  Small, but it invalidates a
 diagnostic and a cache-key claim that `SymFockCache`'s own comment makes.
@@ -1488,7 +1488,42 @@ MnO campaign proceeds undisturbed in qchem6.
     whether 1 can simply be deleted and the SALC path routed through 2.**  If it cannot, they should
     at least share the version-counter discipline: the elementwise compare costs an O(n²) scan plus a
     full stored copy of D, per irrep, per lookup.
-  - **✅ USER RULING 2026-08-10: the VERSION COUNTER is the right discipline — *"I think holding a
+  - **⛔ THE RULING DOES NOT APPLY HERE — REFUTED 2026-08-10 BY READING THE CALL PATH.  Read this BEFORE
+    the ruling below, which is preserved because the reasoning is right in general and wrong for this
+    site.**  Two facts, both checked against the tree:
+    - **(1) `SymFockCache` is an INTRA-SWEEP memo, not a cross-iteration cache.**  Its only drivers are
+      `Vee::AccumulateAll` and `Vxc::AccumulateAll`, each called ONLY from
+      `Dynamic_HF_HT_Imp::ContractAll`, which is version-guarded and therefore runs the whole scatter
+      sweep EXACTLY ONCE per density serial.  So across iterations the cache can never hit — a new
+      density is a new sweep.  What it actually buys is WITHIN one sweep: the composite visits ~N²/2
+      canonical irrep pairs and each SALC `AccumulateDirect` would rebuild the AO Fock, so the memo turns
+      ~N² AO builds into N.  **Its cross-iteration invalidation logic is answering a question that cannot
+      arise.**
+    - **(2) A version counter would BREAK the polarized SALC path — and there is a live green test that
+      would catch it.**  `tPolarized_CD::AccumulateDirectAll` runs the Up composite then the Down
+      composite INSIDE ONE SWEEP.  Both reference the same SALC basis, so both hit the same cache under
+      the same key (`cd->BasisSetID()` is content-based: raw id + "[label]").  And
+      `tPolarized_CD::Version()` FORWARDS TO ITS UP CHILD (ChargeDensity.C:278) — so Up and Down are
+      indistinguishable by version.  A version guard would serve the Down pass the Up channel's
+      \f$J_{AO}\f$: a silently wrong polarized Fock.  **The elementwise D compare is the ONLY thing
+      separating them**, which makes it load-bearing rather than lazy.  `M_Sym.water_HF_polarized` (and
+      `water_DFT_polarized`) exercise exactly this and are green today.
+    - **⇒ And "move the memo to the term" is not executable either**, for a reason independent of the
+      above: the memo sits at a granularity the term cannot see.  The term memoizes FINAL per-irrep blocks
+      (`itsJKs`); these are INTERMEDIATE AO builds produced deep inside `dm->AccumulateDirectAll(X)`, on
+      the far side of the density's virtual API.  There is no hook at which a term could supply or scope
+      them.
+    - **What the finding actually points at — SCOPE it, do not version it.**  If the memo's life is one
+      sweep, staleness is not a question to answer but one to ELIMINATE: nothing needs comparing or
+      versioning if the thing is discarded at the sweep boundary.  Both defects below dissolve with it
+      (the missing `Ocd` in the key cannot collide inside a single sweep either).
+    - **And a better fix may sit behind that: ONE AO build per sweep instead of N.**  \f$J\f$ is LINEAR
+      in \f$D\f$, so \f$\sum_C J_{AO}(O_C D_C O_C^\mathsf{T}) = J_{AO}(\sum_C O_C D_C O_C^\mathsf{T})\f$
+      — sum the AO densities first and build once.  That removes the memo entirely rather than rehoming
+      it.  It needs a place to accumulate across the sweep, i.e. the same missing sweep boundary, so the
+      two questions are one question.  **NEEDS A USER RULING; do not guess it.**
+
+  - **~~✅ USER RULING 2026-08-10: the VERSION COUNTER is the right discipline — *"I think holding a
     CD_Version is better (cleaner) than comparing D element by element."*  This settles the item, because
     of where the version LIVES.**
     - `Version()` is on `rChargeDensity`, drawn from `ChargeDensity::NextDensityVersion()` — a documented
@@ -1508,7 +1543,11 @@ MnO campaign proceeds undisturbed in qchem6.
       dependency besides.  Do NOT take it.
     - Cross-check before deleting: `SymFockCache` is optional today (the ctor's `shared_ptr` defaults to
       null and the decorator builds directly when it is absent — "fine for tests"), so the delete has a
-      working no-cache path to fall back on while the term-level route is wired up.
+      working no-cache path to fall back on while the term-level route is wired up.~~
+    *(struck through: the reasoning above is sound as a general preference and the DAG argument is correct
+    — it is the premise "this is a cross-iteration cache whose staleness test should be a version" that
+    the call path refutes.  Kept in full per this doc's own rule that refuted prescriptions are worth more
+    than landed ones.)*
   - **One real defect, independent of the above: `SymFockCache`'s key is INCOMPLETE.**  The entry
     depends on `raw` and `Ocd`; the key is `cd->BasisSetID()` alone.
     `SymmetryAdapted_IBS::BasisSetID()` is `raw id + "[label]"`, so `raw` is encoded by luck; `Ocd` is
