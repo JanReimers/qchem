@@ -1476,6 +1476,43 @@ against a special case it will outgrow:
          step being COMMITTED rather than rejected** — which suggests the same cure (an actual-E or
          residual-spike check that discards the extrapolation and resets the history) rather than a knob.
          Sweeps running from α (CP2K uses 0.2) and depth.  Log `run27_pulay_nomom`.
+       * **★ THE EJECTIONS ARE A SPIN-BLIND *HISTORY*: WE SOLVE PULAY SEPARATELY PER SPIN SECTOR (user,
+         2026-08-10).**  USER: *"Should we be storing separate PB history for each spin sector?"* — and
+         *"it is already concatenating by spatial irrep ... spin is just another irrep."*  **We are, and it
+         is wrong.**  `PulayMixer` owns its own `std::deque<ΔG_Map> itsIns/itsOuts/itsResiduals`, and
+         `PolarizedDensityMixer` builds ONE PER CHANNEL, so `PulayDepth=8` runs **two independent B-solves
+         and gets c↑ ≠ c↓**.  The distinction the design misses:
+         - a **FILTER** (Kerker's G²/(G²+G₀²)) is linear and channel-diagonal, so per-channel application is
+           *identical* to joint application — the leaf design was correct for it;
+         - an **EXTRAPOLATOR** is not.  Its coefficients come from a least-squares fit over the residual
+           history, so independent fits give a mixed state (Σcᵢ↑ρ↑ᵢ, Σcᵢ↓ρ↓ᵢ) that **never occurred on the
+           trajectory**.  Each channel still conserves charge (Σc=1 holds per channel) but **the MOMENT
+           becomes an arbitrary synthesised combination of history moments** — which is exactly an ejection.
+         **This is the same bug CLASS as the spin-blind ρ̃ mixer fixed at 041ddff3, one level up: that one was
+         spin-blind in the FILTER, this one is spin-blind in the HISTORY.**  Two corroborations: our own Fock
+         DIIS is already JOINT ("one B summed over both spins, one coefficient vector"), so the accelerator
+         gets it right and the density mixer does not; and CP2K mixes the joint density with one Broyden
+         history and keeps the moment.
+         **The design-level defect** is `PolarizedDensityMixer`'s stated virtue — *"pure forwarding: the
+         leaves are ordinary mixers … without this class knowing which it holds"*.  That abstraction is valid
+         **only for MEMORYLESS leaves**; it treats a stateless filter and a stateful extrapolator as
+         interchangeable.  The same objection applies to the `TotalAndMoment` basis (separate ρ and m
+         histories would synthesise inconsistent (ρ,m) pairs).
+       * **THE FIX, AND THE ONE OBSTACLE.**  Per the user: one extrapolation whose field is the DIRECT SUM
+         over channels — spin as just another irrep, exactly as the Fock DIIS already sums B over its irreps.
+         `qchem.Math.DIIS` needs no change at all; it already documents "the caller owns the history + builds
+         B with ITS OWN inner product", and the joint inner product is simply the sum over channels:
+         `B(i,j) = Σ_σ MapInnerRe(res_σ[i], res_σ[j])`, one `c`, applied to every channel.
+         **Obstacle**: `PolarizedDensityMixer::Mix` calls `itsUp->Mix()` then `itsDn->Mix()` in sequence, so ↑
+         would need `c` before ↓ has contributed.  A joint solve therefore needs residual STAGING separated
+         from coefficient APPLICATION — i.e. `tFieldMixer` gains `CarriesHistory()` / `StageResidual() ->
+         partial B` / `ApplyJoint(c)`, with memoryless leaves defaulting to the current single-phase path.
+         That is the honest shape: the wrapper must know whether its leaves carry MEMORY, because that is
+         precisely the property that decides whether splitting is legitimate.
+       * **PREDICTION CONFIRMED (run 28, α=0.2 — CP2K's own value).**  If the ejections are synthesis rather
+         than step size, α changes their FREQUENCY and not their possibility.  Measured: still ejecting —
+         7 excursions above −56 Ha in the first 52 iterations, including −60.98 → −49.92 at iteration 52 with
+         m_stag 0.396 → 0.126.  So the joint-history fix is the principled answer and α is not.
        * **WHAT IS STILL OPEN** (do not read the above as "done"):
          (a) **It does not pass the convergence gate**: the run ends on the GDM leg with lastΔρ=3.2e-2 against
              MinΔρ=1e-5.  E and the moment are stable to ~1e-3, but the gate measures ρ, and the DIIS→GDM
