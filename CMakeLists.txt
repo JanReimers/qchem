@@ -104,7 +104,7 @@ add_subdirectory(./IntegrationTests)
 add_subdirectory(./CLIapps)
 
 add_custom_target(allTests
-    DEPENDS ITMain UTCommon UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTAtom_BS UTMolecule_BS UTLattice_3D_BS UTLASolver
+    DEPENDS ITMain UTCommon UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTAtom_BS UTMolecule_BS UTLattice_3D_BS UTLASolver UTSCFAccelerator
     COMMENT "Build all unit test executables"
 )
 # Disable embedded submodule tests so ctest only runs this project's tests.

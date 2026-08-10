@@ -1160,7 +1160,17 @@ in the same session.
   (GPW uses its native direct ops).  Keep (documents the U=Wᵀ convention; T3 will want it) or fold
   its doc into `ReciprocalOp` and drop — decide at the refactor session.
 - **V1.24 `GDMParams::FDMax` naming + the fallback commit (2026-08-03 imposed×GDM investigation).**
-  (i) `FDMax` reads as a step size but is the ENGAGEMENT gate on ‖[F′,D′]‖ (the geodesic step size
+  **(ii) ✅ DONE 2026-08-09 by the MnO dev — CLOSED.**  The fallback commit is fixed.  Diagnosed here
+  2026-08-03 and independently re-derived from the MnO trace six days later, using this item's own two
+  listed reproducers — the worklist described the bug before the campaign hit it.
+  - **REFINEMENT, because the item's own prescription was half wrong:** it said "hold position on fallback".
+    Holding position gives Δρ=0, which MnO's convergence gate reads as CONVERGENCE — a false success, the
+    worst failure mode available.  The landed fix DEGRADES TO THE MIXED STEP instead, which is what needed
+    the new `RejectStep` contract to be safe (a rejected step is the CALLER's judgement, since only the
+    caller can evaluate the energy).  **Generalisable: "do nothing" is not a safe fallback when the
+    convergence test reads CHANGE — no-change and converged are indistinguishable to it.**
+  **(i) STILL OPEN, now owned by the MnO dev** (`GDMParams` became public in `SCFAccelerator.C` with the
+  2026-08-09 merge, which is their file): `FDMax` reads as a step size but is the ENGAGEMENT gate on ‖[F′,D′]‖ (the geodesic step size
   is the quadratic-model `itsStdef` capped by `Trust` radians); rename to something like
   `EngageBelowFD` and consider making the norm intensive (per-element or per-electron) so one value
   transfers across basis sizes.  (ii) `DirectMinStep`'s 12-backtrack line search COMMITS a tiny
@@ -1168,7 +1178,9 @@ in the same session.
   (+23–56 mHa over 100 iterations along projector-curved diffuse directions).  Fix: hold position
   on fallback (or accept `best` only within a noise floor); pair with soft-direction
   preconditioning — the 1/(ε_a−ε_i) diagonal Hessian blows up the step exactly along the
-  near-degenerate diffuse modes.  Reproducers: DISABLED_ImposedGDMProbe_SiDiamondIBZ (healthy),
+  near-degenerate diffuse modes.  **(iii) SOFT-DIRECTION PRECONDITIONING is the remaining half and is still
+  open** (MnO dev, 2026-08-09): the new precondition check makes GDM DECLINE when the OCCUPATION is wrong,
+  and does nothing for a legitimately soft direction — the other failure.  Reproducers: DISABLED_ImposedGDMProbe_SiDiamondIBZ (healthy),
   DISABLED_NaFImposedGDMSmearProbe (pathological, NAFGDM_* knobs); GPW_GDMTRACE=1 shows
   DESCENT/FALLBACK per step.
 - **V1.25 Minor CD-interface trims** — non-const `Polarized_CD::GetChargeDensity(Spin)` overload
@@ -1768,6 +1780,12 @@ in the same session.
     which means ≳3.8 and only 3 supporting points.  **Third time in this item that an insulator-fitted grid
     rule broke on Al** — the angular recommendation, the degenerate-shell assumption, and now this.  The
     transferable rule: calibrate a grid criterion on a simple metal, or do not ship it as a global default.
+    **🔔 2026-08-09 — the third system arrived, and it is the right one.**  MnO run 24 ends on a FIT-FLOOR
+    STALL at −60.134: the fit/grid floor now bounds the answer, not the SCF.  So MnO is a system where the
+    radial criterion is not academic, and it is neither an insulator ladder point nor a simple metal — an
+    open-shell AFM oxide with a sharp O and a semicore-ish Mn.  **Calibrate V2.7 on {Si, Mn-atom, Al, MnO}
+    rather than the original two.**  It also makes **V2.5** (`PPMeshParams`' missing \f$\alpha_{pp}\f$
+    floor) testable for the first time on a system that is genuinely grid-bound.
   - **CONSEQUENCE FOR V1.26/V2.4, running OPPOSITE to this item's original prediction.**  The item argued an
     over-generous recipe biases the selector toward uniform.  That was right — so FIXING it makes Becke
     **more** competitive: GL-29→GL-17 is 450→162 directions, dropping the Becke side 2.8x.  Si: 36,000 →
