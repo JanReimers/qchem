@@ -45,7 +45,7 @@ PP_Local::PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp)
     assert(itsVloc);
 }
 
-rsmat_t PP_Local::CalculateMatrix(const robs_t* bs, const Spin&) const
+rsmat_t PP_Local::MakeMatrix(const robs_t* bs, const Spin&) const
 {
     qcMesh::Mesh mesh = theStructure->CreateIntegrationMesh(itsMeshParams);   // the geometry's own mesh
     return qcMesh::WeightedOverlap(mesh, *bs, VlocField(*theStructure, *itsVloc));

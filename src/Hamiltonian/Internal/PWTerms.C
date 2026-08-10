@@ -72,7 +72,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
     double itsAlphaZ=0.0;   //!< the SHORT G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
@@ -94,7 +94,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
     const Pseudopotential::SeparablePotential* itsSep;   //!< KB nonlocal model (non-owning).
 };
@@ -120,7 +120,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
     double itsAlphaZ=0.0;   //!< the LONG G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
@@ -175,7 +175,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
 
     fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
 };
@@ -198,9 +198,9 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
     //! Ensure \c itsRhoGrid holds \f$\rho(r)\f$ on the fit grid for \a cd, recomputing (one inverse FFT) only
-    //! on a new density serial.  Shared by CalcMatrix (fits \f$v_{xc}\f$) and GetEnergy (integrates \f$\epsilon_{xc}\rho\f$),
+    //! on a new density serial.  Shared by MakeMatrix (fits \f$v_{xc}\f$) and GetEnergy (integrates \f$\epsilon_{xc}\rho\f$),
     //! so the transform runs ONCE per SCF iteration, whichever runs first.
     void RefreshRhoGrid(const cChargeDensity* cd) const;
 
@@ -210,10 +210,10 @@ private:
     //! quadrature comes from the FIT basis, not the orbital basis (so relCutoff / GridCutoffFactor control it).
     //! The term borrows that ONE grid via itsScalarFitter->Grid() -- no second cross-cast of the fit basis (#7).
     std::unique_ptr<Fitting::GriddedScalarFitter> itsScalarFitter;
-    mutable rvec_t itsRhoGrid;   //!< rho(r) on the fit grid for the current density (CalcMatrix builds; GetEnergy reuses)
+    mutable rvec_t itsRhoGrid;   //!< rho(r) on the fit grid for the current density (MakeMatrix builds; GetEnergy reuses)
     //! \brief Whether \c itsRhoGrid is the RAW collocated \f$\rho_{DM}\f$ (doc/GPWPlan 0.5(f2)) rather than
     //! the ball-projected round trip.  Set per refresh from the density's \c GetRhoOnGrid answer; when true,
-    //! \c CalcMatrix assembles \f$H_{xc}\f$ through the raw adjoint so the E/H pair derives from the ONE raw
+    //! \c MakeMatrix assembles \f$H_{xc}\f$ through the raw adjoint so the E/H pair derives from the ONE raw
     //! discrete functional (and the \f$\rho>0\f$ guard becomes inert -- \f$\rho_{DM}\ge 0\f$ for aufbau D).
     mutable bool itsRhoIsRaw=false;
     //! \brief Route-stability latch (R2.16): RAW vs BALL minimise DIFFERENT functionals, so the route must
@@ -309,7 +309,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
 
     xc_t     itsXc;
     engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial rho (one per XC pair)
@@ -318,7 +318,7 @@ private:
 //! SPIN-NATIVE exchange on the Becke quadrature (SymmetryUpgradePlan §4 tier 4b) -- the periodic sibling
 //! of the molecular FittedVxcPol.  Exchange is CHANNEL-SEPARABLE, so one channel-native functional (a
 //! spin-tagged \c SlaterExchange -- it must NOT halve \f$\rho\f$; construct with \c SlaterExchange(alpha,
-//! \c Spin::Up)) serves both channels: the Fock build calls \c CalcMatrix per spin block and each fits
+//! \c Spin::Up)) serves both channels: the Fock build calls \c MakeMatrix per spin block and each fits
 //! \f$v_x^\sigma=v_x(\rho_\sigma)\f$; \f$E_x=\sum_\sigma\int\epsilon_x(\rho_\sigma)\rho_\sigma\f$.
 //! Shares the pair's ONE \c XC_GridEngine with the correlation term, exactly like the unpolarized pair.
 class DeltaFittedVxcPol
@@ -333,7 +333,7 @@ public:
     virtual bool          IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
 
     xc_t     itsXc;       //!< channel-native (non-halving) exchange functional, shared across channels
     engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
@@ -357,7 +357,7 @@ public:
     virtual bool          IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
 
     corr_t   itsCorr;     //!< the spin-native correlation functional (VWN5's two-channel face)
     engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair

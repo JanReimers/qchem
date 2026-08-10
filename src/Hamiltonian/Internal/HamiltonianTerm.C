@@ -37,14 +37,14 @@ public:
         Irrep qns(bs->GetIrrep(s));
         auto i=this->itsCache.find(qns);
         if (i==this->itsCache.end())
-            return this->itsCache[qns]=CalculateMatrix(bs,s);
+            return this->itsCache[qns]=MakeMatrix(bs,s);
         else
             return i->second;
     }
 
 protected:
     // Unconditional calculation, does not use cache.
-    virtual hmat_t<T> CalculateMatrix(const tobs_t<T>*,const Spin&) const=0;
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*,const Spin&) const=0;
 };
 
 template <class T> class tDynamic_HT_Imp
@@ -70,14 +70,14 @@ public:
         }
         Irrep qns(bs->GetIrrep(s));
         if (auto i=this->itsCache.find(qns);i==this->itsCache.end())
-            return this->itsCache[qns]=CalcMatrix(bs,s,cd);
+            return this->itsCache[qns]=MakeMatrix(bs,s,cd);
         else
             return i->second; //Cache hit (same density serial, already computed for this Irrep)
     }
 
 protected:
     // Unconditional calculation, does not use cache.
-    virtual hmat_t<T> CalcMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
     // Refit trigger only (the OTHER half of the former itsCD double-duty): true exactly once per new
     // density serial, so a concrete term (FittedVee/FittedVxc) refits its fitted potential exactly once.
     // Cache-freshness is GetMatrix's job (itsCacheVersion) -- newCD no longer touches the cache.
@@ -119,15 +119,15 @@ public:
     {
         assert(bs);
         Irrep qns(bs->GetIrrep(s));
-        return this->itsCache[qns]=CalcMatrix(bs,s,cd);   // assign, never look up: no caching
+        return this->itsCache[qns]=MakeMatrix(bs,s,cd);   // assign, never look up: no caching
     }
 
 protected:
-    virtual hmat_t<T> CalcMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
 };
 
 // tFittablePotential is GONE (R2.6).  It existed for exactly one derivation, LDAVxc, whose only real job
-// was to answer the fitter's "what field am I fitting?" question -- and which had to fake CalcMatrix and
+// was to answer the fitter's "what field am I fitting?" question -- and which had to fake MakeMatrix and
 // GetEnergy (both exit(-1)) to pay for being a tDynamic_HT at all.  A fittable field is now expressed as
 // what it IS, a Fitting::ProjectedScalar_R adapter holding (functional, density), built where it is used
 // (Imp/FittedVxc.C's VxcDensity / EpsXcDensity pair).  No term interface is involved.

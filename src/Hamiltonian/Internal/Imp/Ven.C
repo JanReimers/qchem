@@ -20,7 +20,7 @@ Ven::Ven(const st_t& st)
 };
 
 
-rsmat_t Ven::CalculateMatrix(const robs_t* bs,const Spin&) const
+rsmat_t Ven::MakeMatrix(const robs_t* bs,const Spin&) const
 {
     // std::cout << "Ven=" << bs->Nuclear(&*theStructure) << std::endl;
     return bs->Nuclear(&*theStructure);

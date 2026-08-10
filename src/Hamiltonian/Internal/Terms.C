@@ -38,7 +38,7 @@ public:
     virtual bool          IsPolarized   () const {return true;}
     virtual bool          IsRelativistic() const {return true;}
 private:
-    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
 };
 
 class RestMass : public virtual rStatic_HT, private rStatic_HT_Imp
@@ -48,7 +48,7 @@ public:
     virtual std::ostream& Write    (std::ostream&) const;
     virtual bool          IsRelativistic() const {return true;}
 private:
-    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
 };
 
 // The ion-ion (nuclear-nuclear) repulsion energy is now the T-templated IonIon<T>
@@ -65,7 +65,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
     st_t theStructure;
 };
 
@@ -85,7 +85,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP local) = DM_Contract
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
     st_t             theStructure;
     vloc_t           itsVloc;
     qcMesh::MeshParams itsMeshParams;
@@ -103,7 +103,7 @@ private:
 //   * IMPLICIT-angular (ATOMIC, radial: BasisSet::ImplicitAngular_IBS) -- the per-l RADIAL route, because a
 //     radial block's stored chi_i OMIT the irrep's Y_lm and the 3-D route would silently give nonsense
 //     (an l=0 projector leaking into every l block; every l>=1 projector integrating to zero -- the
-//     occupied-d defect found via MnO, doc/SymmetryUpgradePlan.md sec 7 step 7).  See CalculateMatrixRadial.
+//     occupied-d defect found via MnO, doc/SymmetryUpgradePlan.md sec 7 step 7).  See MakeMatrixRadial.
 //  Verified against the reciprocal (2l+1)P_l form; per-l gate A_PP.PerLKleinmanBylanderOracle (s,p,d,f).
 //
 class PP_NonLocal : public virtual rStatic_HT, private rStatic_HT_Imp
@@ -115,10 +115,10 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP nonlocal) = DM_Contract
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
     //! The ATOMIC (implicit-angular / radial) assembly -- see the body: a radial block's stored functions
     //! omit the irrep's Y_lm, so the 3-D mesh route cannot form <chi|beta Y_lm> and must not be used.
-    rsmat_t CalculateMatrixRadial(const BasisSet::ImplicitAngular_IBS&, size_t n) const;
+    rsmat_t MakeMatrixRadial(const BasisSet::ImplicitAngular_IBS&, size_t n) const;
     st_t             theStructure;
     sep_t            itsSep;
     qcMesh::MeshParams itsMeshParams;
@@ -235,7 +235,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
 private:
-    virtual rsmat_t CalcMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
     std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
 };
 
@@ -246,7 +246,7 @@ private:
 //  is inserted by the constructor and is not owned by FittedVxc; the XC functional IS owned (shared) here.
 //
 //  TWO fits, on the SAME fit basis (so the 3-centre integrals are computed once):
-//    V (GetMatrix / CalcMatrix) fits the POTENTIAL v_xc(rho(r))       -> the Fock/KS block.
+//    V (GetMatrix / MakeMatrix) fits the POTENTIAL v_xc(rho(r))       -> the Fock/KS block.
 //    E (GetEMatrix)             fits the ENERGY DENSITY eps_xc(rho(r)) -> E_xc = integral eps_xc rho.
 //  They are genuinely different matrices (v_xc = eps_xc + rho d(eps_xc)/d(rho); a factor 4/3 for Slater
 //  exchange), which is the whole reason tDynamic_CC's energy face is named GetEMatrix rather than GetMatrix
@@ -269,7 +269,7 @@ public:
     virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const override;
     virtual std::ostream& Write           (std::ostream&) const override;
 private:
-    virtual rsmat_t CalcMatrix(const robs_t*,const Spin&,const rChargeDensity*) const override;
+    virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity*) const override;
 
     ex_t itsEx;   //!< the XC functional (owned, shared): supplies BOTH GetVxc (V) and GetEpsXc (E)
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;    //!< V: the v_xc fit
@@ -278,7 +278,12 @@ private:
     mutable size_t      itsEpsVersion=size_t(-1);    //!< density serial the eps_xc fit was last computed for
 };
 
-class FittedVxcPol : public virtual rDynamic_HT, private rDynamic_HT_Imp_NoCache
+//! Polarized exchange as a pure FORWARDER to its two per-spin children -- the same shape as \c VxcPol,
+//! its Hartree-Fock twin (R2.19).  It owns no matrix of its own: each child is a full caching term, so
+//! this class hands back the CHILD'S cached reference rather than copying it into scratch.  That is why
+//! it does NOT derive from \c rDynamic_HT_Imp_NoCache: it has nothing to compute, so it has no
+//! \c MakeMatrix, and a scratch slot existed only to have something to return a reference to.
+class FittedVxcPol : public virtual rDynamic_HT
 {
 public:
     typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
@@ -286,14 +291,15 @@ public:
 
     FittedVxcPol(fbs_t&, ex_t&);
    ~FittedVxcPol();
+    //! Forward to this spin's child and return ITS cached block.  Reference lifetime is therefore the
+    //! child's: valid until the next call for the same Irrep on that child.
+    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
     // Required by HamiltonianTerm
     virtual void GetEnergy       (EnergyBreakdown&,const rDM_CD* cd         ) const;
     virtual bool IsPolarized() const {return true;}
 
     virtual std::ostream&   Write(std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
-
     rDynamic_HT* itsUpVxc  ; //Spin up.
     rDynamic_HT* itsDownVxc; //Spin down.
 
@@ -305,7 +311,7 @@ private:
 //  single-channel FittedVxc, valid only because Slater exchange is channel-separable -- correlation
 //  v_c^sigma(rho_up,rho_down) COUPLES both channels (through r_s and zeta), so this term fits the
 //  SpinCorrelation functional against the FULL Polarized_CD at each mesh point.  The Fock build calls
-//  CalcMatrix per spin (each fits v_c^sigma); the energy E_c = integral eps_c(rho_up,rho_down) rho uses a
+//  MakeMatrix per spin (each fits v_c^sigma); the energy E_c = integral eps_c(rho_up,rho_down) rho uses a
 //  SECOND eps_c fit on the same fit basis (GetEMatrix -- the E face of the V/E pair) that the polarized
 //  density contracts over both channels.  (That fit used to live in a separate rDynamic_CC adapter,
 //  FittedEpsCPol -- a clone of FittedVxc's FittedEpsXc; both died with the GetEMatrix split, V1.3.)  The seed
@@ -328,7 +334,7 @@ public:
     virtual bool IsPolarized() const override {return true;}
     virtual std::ostream& Write(std::ostream&) const override;
 private:
-    virtual rsmat_t CalcMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;
+    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;
 
     corr_t itsCorr;                                                      //!< the correlation functional (owned)
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsVcFitter; //!< v_c^sigma potential fit

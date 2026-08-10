@@ -81,7 +81,7 @@ FittedVcorrPol::FittedVcorrPol(fbs_t& bs, corr_t& corr)
 
 FittedVcorrPol::~FittedVcorrPol() = default;   // out-of-line for the unique_ptr<FunctionFitter> members
 
-rsmat_t FittedVcorrPol::CalcMatrix(const robs_t* bs, const Spin& s, const rChargeDensity* cd) const
+rsmat_t FittedVcorrPol::MakeMatrix(const robs_t* bs, const Spin& s, const rChargeDensity* cd) const
 {
     assert(s != Spin::None && "FittedVcorrPol: a polarized term needs an Up/Down spin");
     auto dftbs = dynamic_cast<const odftbs_t*>(bs);

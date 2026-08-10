@@ -51,7 +51,7 @@ public:
     }
 
 private:
-    virtual hmat_t<T> CalculateMatrix(const tobs_t<T>* bs, const Spin&) const override
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin&) const override
     {
         return 0.5*bs->Kinetic();   // T = 1/2 <p^2>; Kinetic() is the cached <p^2> accessor
     }

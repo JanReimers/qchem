@@ -78,7 +78,7 @@ public:
 
 private:
     // No matrix contribution: a constant energy term, so the block is zero.
-    virtual hmat_t<T> CalculateMatrix(const tobs_t<T>* bs, const Spin&) const override
+    virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin&) const override
     {
         return blazem::zeroH<T>(bs->GetNumFunctions());
     }

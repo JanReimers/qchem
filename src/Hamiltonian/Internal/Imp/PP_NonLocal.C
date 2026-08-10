@@ -103,7 +103,7 @@ PP_NonLocal::PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp
 // (the block is per-l; its m-degeneracy rides in the OCCUPATION, so there is no (2l+1) sum) -- and exactly
 // zero on every other block.  With the stored normalisation f_i = sqrt(4pi) chi_i this is
 // 4pi D b_i b_j,  b_i = int chi_i beta r^2 dr.
-rsmat_t PP_NonLocal::CalculateMatrixRadial(const BasisSet::ImplicitAngular_IBS& ia, size_t n) const
+rsmat_t PP_NonLocal::MakeMatrixRadial(const BasisSet::ImplicitAngular_IBS& ia, size_t n) const
 {
     // A radial block is centred on its nucleus, so this lineage is the single-atom (spherical) solver.
     assert(theStructure->GetNumAtoms()==1 &&
@@ -131,11 +131,11 @@ rsmat_t PP_NonLocal::CalculateMatrixRadial(const BasisSet::ImplicitAngular_IBS& 
     return rsmat_t(V);
 }
 
-rsmat_t PP_NonLocal::CalculateMatrix(const robs_t* bs, const Spin&) const
+rsmat_t PP_NonLocal::MakeMatrix(const robs_t* bs, const Spin&) const
 {
     // Capability cross-cast (abstract->abstract): a radial/implicit-Y_lm block takes the per-l radial route.
     if (auto* ia=dynamic_cast<const BasisSet::ImplicitAngular_IBS*>(bs))
-        return CalculateMatrixRadial(*ia, bs->GetVectorSize());
+        return MakeMatrixRadial(*ia, bs->GetVectorSize());
 
     qcMesh::Mesh mesh = theStructure->CreateIntegrationMesh(itsMeshParams);   // the geometry's own mesh
     size_t n=bs->GetVectorSize();

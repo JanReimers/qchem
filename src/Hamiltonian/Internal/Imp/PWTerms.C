@@ -60,7 +60,7 @@ Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential
 // let it assemble <i|V_loc,short|j>.  The dynamic_cast is the sanctioned abstract->abstract move
 // (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Integrals_Pseudo capability); only a basis that supports
 // reciprocal-space PP assembly answers it.
-chmat_t Ven_PP_Short::CalculateMatrix(const cobs_t* bs, const Spin&) const
+chmat_t Ven_PP_Short::MakeMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
     assert(pw && "Ven_PP_Short requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
@@ -95,7 +95,7 @@ Ven_PP_NonLocal::Ven_PP_NonLocal(const st_t& st, const Pseudopotential::Separabl
                                  "model.  A local-only pseudopotential must not add this term.");
 }
 
-chmat_t Ven_PP_NonLocal::CalculateMatrix(const cobs_t* bs, const Spin&) const
+chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
     assert(pw && "Ven_PP_NonLocal requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
@@ -139,7 +139,7 @@ Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* 
     itsAlphaZ=G0AlignmentPerElectron(*st, [loc](int Z){return loc->FormFactorG0Long(Z);});
 }
 
-chmat_t Ven_PP_Long::CalculateMatrix(const cobs_t* bs, const Spin&) const
+chmat_t Ven_PP_Long::MakeMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pp=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
     assert(pp && "Ven_PP_Long requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
@@ -167,7 +167,7 @@ Vee_Hartree::Vee_Hartree(fbs_t fb)
     : itsFitBasis(fb)
 {}
 
-chmat_t Vee_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+chmat_t Vee_Hartree::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
@@ -273,7 +273,7 @@ PWFittedVxc::PWFittedVxc(const xc_t& xc, fbs_t fb)
 PWFittedVxc::~PWFittedVxc() = default;   // itsScalarFitter's abstract type is complete here
 
 // rho(r) on the fit grid for cd -- one inverse FFT, recomputed only on a new density serial (newCD), so
-// CalcMatrix and GetEnergy share it (whichever runs first this iteration pays; the other reuses).
+// MakeMatrix and GetEnergy share it (whichever runs first this iteration pays; the other reuses).
 void PWFittedVxc::RefreshRhoGrid(const cChargeDensity* cd) const
 {
     if (!newCD(cd)) return;
@@ -359,7 +359,7 @@ void PWFittedVxc::RefreshRhoGrid(const cChargeDensity* cd) const
 // XC through the pre-built ortho scalar fitter, mirroring the molecular FittedVxc: the fitter batch-samples
 // the v_xc(rho) field on the FIT basis's grid and forward-transforms it (the projection IS the fit on the
 // orthonormal {G}); the ORBITAL basis then assembles <i|v_xc|j>.  No O(Npts*n^2) pointwise density sampling.
-chmat_t PWFittedVxc::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+chmat_t PWFittedVxc::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     RefreshRhoGrid(cd);
     if (itsRhoIsRaw)
@@ -380,7 +380,7 @@ chmat_t PWFittedVxc::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDens
 
 void PWFittedVxc::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    RefreshRhoGrid(cd);   // reuses CalcMatrix's transform this iteration (same density serial)
+    RefreshRhoGrid(cd);   // reuses MakeMatrix's transform this iteration (same density serial)
     rvec_t exc(itsRhoGrid.size());
     for (size_t q=0;q<itsRhoGrid.size();q++) {double ro=itsRhoGrid[q]; exc[q]=itsXc->GetEpsXc(ro)*ro;}
     te.Exc += itsScalarFitter->Grid().Integral(exc);   // E_xc = integral eps_xc(rho) rho, on the fitter's grid
@@ -529,7 +529,7 @@ DeltaFittedVxc::DeltaFittedVxc(const xc_t& xc, engine_t engine)
 }
 
 // v_xc(rho_g) pointwise on the engine's shared rho, then the engine's Phi-table quadrature (one GEMM).
-chmat_t DeltaFittedVxc::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+chmat_t DeltaFittedVxc::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     const rvec_t& rho=itsEngine->Rho(cd, bs);
     rvec_t v(rho.size());
@@ -571,7 +571,7 @@ DeltaFittedVxcPol::DeltaFittedVxcPol(const xc_t& xc, engine_t engine)
 }
 
 // v_x^sigma(rho_sigma) pointwise on this block's own channel raster, then the shared Phi quadrature.
-chmat_t DeltaFittedVxcPol::CalcMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
+chmat_t DeltaFittedVxcPol::MakeMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "DeltaFittedVxcPol: a polarized term needs an Up/Down spin");
     const rvec_t& rho=itsEngine->RhoPol(cd, s, bs);
@@ -612,7 +612,7 @@ DeltaFittedVcorrPol::DeltaFittedVcorrPol(const corr_t& corr, engine_t engine)
 }
 
 // v_c^sigma(rho_up,rho_down) couples BOTH channel rasters at every point (through r_s and zeta).
-chmat_t DeltaFittedVcorrPol::CalcMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
+chmat_t DeltaFittedVcorrPol::MakeMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "DeltaFittedVcorrPol: a polarized term needs an Up/Down spin");
     const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  , bs);

@@ -72,7 +72,7 @@ FittedVxc::~FittedVxc() = default;   // out-of-line for the unique_ptr<FunctionF
 //
 //  This last part is carried out by the base class FitImplementation.
 
-rsmat_t FittedVxc::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
+rsmat_t FittedVxc::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
     if (newCD(cd))
         itsFitter->DoFit(VxcDensity(itsEx.get(),cd));   // fit v_xc(rho) onto the aux basis
@@ -80,11 +80,11 @@ rsmat_t FittedVxc::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDensit
     return itsFitter->Overlap(dftbs);
 }
 
-//  The E half of the V/E pair (see tDynamic_CC::GetEMatrix).  Same shape as CalcMatrix above, but fitting
+//  The E half of the V/E pair (see tDynamic_CC::GetEMatrix).  Same shape as MakeMatrix above, but fitting
 //  the ENERGY DENSITY eps_xc(rho) instead of the potential v_xc(rho), on the same fit basis.
 const rsmat_t& FittedVxc::GetEMatrix(const robs_t* bs,const Spin&,const rChargeDensity* cd) const
 {
-    // Re-fit eps_xc(rho) only when the density actually changes -- mirrors CalcMatrix's newCD guard (it
+    // Re-fit eps_xc(rho) only when the density actually changes -- mirrors MakeMatrix's newCD guard (it
     // cannot SHARE that guard: the two are called for different densities, the Fock build's rho_in and the
     // energy's rho_out).  Without this the fit (and its 3-centre setup) re-ran on every irrep leaf of the
     // contraction.  The coefficients live in itsEpsFitter, so a repeat density reuses them; only the

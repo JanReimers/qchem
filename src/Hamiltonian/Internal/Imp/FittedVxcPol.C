@@ -42,7 +42,12 @@ FittedVxcPol::~FittedVxcPol()
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-rsmat_t FittedVxcPol::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
+// R2.19: a pure FORWARDER -- return the CHILD'S cached reference.  It used to return by value, copying a
+// matrix the child's own per-Irrep cache already held, which the tDynamic_HT_Imp_NoCache base then stored
+// in scratch purely to have something to hand a reference to: one full matrix copy per call, per spin, per
+// irrep, per SCF iteration, to satisfy a signature.  VxcPol -- the Hartree-Fock twin of this class -- has
+// always done it this way (Imp/VxcPol.C).
+const rsmat_t& FittedVxcPol::GetMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
@@ -50,7 +55,7 @@ rsmat_t FittedVxcPol::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDen
     // A polarized term has no Spin::None block to hand back -- and the caller has to be able to SEE that
     // (R2.5: exit(-1) killed the pybind GUI and the test runner outright, taking the diagnostic with it).
     if (s==Spin::None)
-        throw std::runtime_error("FittedVxcPol::CalcMatrix: asked for the Spin::None (unpolarized) block of "
+        throw std::runtime_error("FittedVxcPol::GetMatrix: asked for the Spin::None (unpolarized) block of "
                                  "a polarized Vxc term -- a polarized term has an Up and a Down block, no "
                                  "total.");
     const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
@@ -68,8 +73,7 @@ rsmat_t FittedVxcPol::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDen
     const rDM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
     const rDM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
 
-    rsmat_t Kab= s==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
-    return Kab;
+    return s==Spin::Up ? itsUpVxc->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
 }
 
 
