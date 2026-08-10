@@ -1396,6 +1396,158 @@ against a special case it will outgrow:
          yet.  Do NOT compare against run 18's −60.92: that came from a wandering GDM leg optimising the
          wrong manifold.  **−60.134 is the trustworthy number** (CP2K −61.4706 ⇒ 1.34 Ha).  Log
          `run24_precondition`.
+       * **★ THE OCCUPATIONS ARE THE WHOLE STORY — AND THE ANSWER IS +U, NOT A BETTER RECIPE (user's read
+         + run 26, 2026-08-10).**  USER, reading run 24's spectrum: "for spin up I see 3 empty but deep
+         orbitals, and for spin down I see 7".  Confirmed exactly — empty levels below each channel's OWN
+         HOMO: ↑ n=6,7,12 (three); ↓ n=4,5,6,7,8,11,12 (**seven**), the ↓ channel occupying +0.378…+0.442
+         while leaving −0.184 empty, ~0.6 Ha above what it refuses to fill.  My reading of that was that Λ=1.5
+         had outlived its job and was pinning an EXCITED state.  **Run 26 refutes it.**  Two stages, kT fixed,
+         Λ annealed 1.5 → 0 (the new per-stage penalty schedule, `MNO_ANNEAL_PENALTY`):
+         | stage | Λ | E | m_stag | spectrum |
+         |---|---|---|---|---|
+         | 1 | 1.5 | **−60.14** | 0.657 | non-aufbau (the 3/7 deep empties) |
+         | 2 | 0 (RELEASED) | **−49.53** | **0.0001, DIED at iteration 44** | clean aufbau, ε↑−ε↓ ≈ ±2e-4 |
+         **Releasing the constraint raises the energy by 10.6 Ha and extinguishes the moment.**  So the deep
+         empty levels are NOT the signature of a trapped excited state: the constrained state is far BETTER
+         bound, and it is the one near CP2K (−61.4706).  What the release finds is a NON-MAGNETIC METAL — no
+         exchange splitting anywhere (±2e-4), a fractionally-occupied frontier (0.98/0.98/0.94/0.18), and the
+         benign DENSITY-DEGENERATE rotation.  Two distinct self-consistent branches, and plain LSDA aufbau
+         cannot reach the good one.
+       * **THE UNCOMFORTABLE PART, STATED PLAINLY.**  A converged NON-AUFBAU state is formally a saddle of the
+         KS functional, not a minimum — so the magnetic branch as currently obtained is not yet a defensible
+         ground state, even though it sits 10.6 Ha below the aufbau state we CAN reach and 1.34 Ha from CP2K.
+         Those two facts together are the finding: **LSDA aufbau cannot reach the magnetic state, and the
+         magnetic state is not aufbau-stable under LSDA.**  MOM is not corrupting the answer, it is SELECTING
+         a branch the functional will not select for itself — which is exactly the LDA/GGA delocalisation
+         error V1.29 names, and exactly what +U exists to fix: it pushes the occupied d down and the empty d
+         up until the magnetic configuration IS the aufbau one.  So "+U" moves from follow-on to THE next
+         step, and the acceptance test becomes "the magnetic solution converges aufbau-stable WITHOUT MOM",
+         not "m_stag survived".  Log `run26_lambda_release`.
+       * **⛔ THE +U CONCLUSION ABOVE IS RETRACTED, SAME DAY — CP2K IS NOT DOING +U (user's question).**
+         Checked the banked deck `IntegrationTests/CP2K/mno_afm2_gpw_sr.inp`: **no `&DFT_PLUS_U`, no Hubbard
+         keyword anywhere**, plain `LDA_X + LDA_C_VWN`.  What CP2K uses to reach −61.4706 is a `&BS`
+         BROKEN-SYMMETRY guess on two distinct Mn KINDs (±5 d occupation, applied to the ATOMIC guess only),
+         **Fermi smearing at 5.0E-3 au — exactly our kT**, Broyden mixing (α=0.2, β=1.5, NBUFFER 8),
+         `ADDED_MOS 20`, plain diagonalization, and **no MOM and no constraint of any kind** — same
+         functional, basis, PP, 144 Ry cutoff and kT as ours.
+         **So the magnetic state IS reachable and aufbau-stable under LSDA, and our inability to reach it is
+         OUR defect, not the functional's.**  The inference above was drawn from our own failure mode without
+         checking whether the oracle needed the cure — backwards, with a same-recipe oracle sitting in the
+         repo.  A failure to converge is evidence about the code until an oracle says otherwise.
+       * **WHAT THE COMPARISON POINTS AT INSTEAD.**  Almost nothing differs except the SCF machinery, so the
+         defect is tightly bracketed, and the event to instrument is the one measured since run 7 and never
+         explained: **m_stag falls 0.366 → 0.0046 in ONE Fock build** from a provably staggered seed, before
+         any mixing history exists.  At α=0.25 on a linear m channel that implies an OUTPUT density
+         anti-staggered at m≈−1.08 — a sign-flipped response ~3× the input, not a decay.  CP2K's first step
+         evidently does not do that.  Cheapest tests first:
+         (a) **the polarized XC response at the seed density** — is v_xc^↑−v_xc^↓ the right sign and size?
+             A single-point check on the seed, no SCF at all, and it is the one candidate that would explain
+             a SIGN FLIP rather than a decay;
+         (b) frontier coverage under smearing (CP2K's `ADDED_MOS 20`);
+         (c) the mixer (Broyden vs Kerker+Pulay) — weakest candidate, since run 8's linear-mixing control
+             already kept m_stag alive;
+         (d) seed magnitude: ours is a per-site flip of the SAD d occupation, CP2K's `&BS` is the same idea —
+             compare the two initial moments directly.
+         **The acceptance test is unchanged (aufbau-stable WITHOUT MOM); only the mechanism changes — this is
+         a bug hunt against a same-recipe oracle, not a functional upgrade.**
+       * **★ THE MISSING INGREDIENT IS DENSITY HISTORY — MnO HOLDS ITS MOMENT WITH NO MOM AT ALL (user's
+         correction + run 27, 2026-08-10).**  USER, on my listing the mixer as the weakest candidate because
+         "run 8's linear-mixing control already kept m_stag alive": *"if linear mixing keeps m_stag alive, and
+         Kerker kills it then I would conclude the opposite ... Pulay-Broyden might keep the moment."*  That
+         is the correct inference and mine was backwards — a mixer swap that changes whether the order
+         survives IMPLICATES the mixing path, it does not exonerate it.
+         Acting on it exposed something never tested: **every MnO run to date used `PulayDepth=0`** — a damped
+         Kerker step with NO density history — while the CP2K oracle runs `BROYDEN_MIXING` with `NBUFFER 8`.
+         (And CP2K's `BETA 1.5` IS its Kerker damping, i.e. it damps HARDER than our G0=1.0 and still keeps
+         the moment, which points away from "Kerker suppresses the moment" and squarely at the missing
+         history.)  Run 27 — `PulayDepth=8`, `PulayStart=5`, **MOM OFF**, kT=5e-3, α=0.25:
+         | | best E | m_stag | MOM |
+         |---|---|---|---|
+         | run 24 (Kerker, no history) | −60.134 | 0.66 | **REQUIRED** (Λ=1.5) |
+         | run 26 stage 2 (MOM released) | −49.53 | 0.0001 (died) | none |
+         | **run 27 (Pulay history)** | **−61.29** | **0.378, holds unaided** | **NONE** |
+         **0.22 Ha from CP2K, and the moment survives with no constraint** — so MOM was never the cure, it was
+         compensating for a mixer with no memory.
+       * **WHAT RUN 27 IS NOT: converged.**  Eamp over the last 8 is 12.2 Ha.  The trace is not noise but an
+         ATTRACTOR WITH INTERMITTENT EJECTIONS — it sits at E≈−61.25, m≈0.345, [F,D]≈3.2e-2, then is thrown to
+         −47…−55 with m collapsing and [F,D]→1.0, then climbs back (iterations 57→59, 67→69).  The signature
+         is Pulay history POLLUTION: once the history spans both branches the extrapolation lands on the
+         non-magnetic one.  Note the shape is identical to the GDM defect fixed earlier — **a bad extrapolated
+         step being COMMITTED rather than rejected** — which suggests the same cure (an actual-E or
+         residual-spike check that discards the extrapolation and resets the history) rather than a knob.
+         Sweeps running from α (CP2K uses 0.2) and depth.  Log `run27_pulay_nomom`.
+       * **★ THE EJECTIONS ARE A SPIN-BLIND *HISTORY*: WE SOLVE PULAY SEPARATELY PER SPIN SECTOR (user,
+         2026-08-10).**  USER: *"Should we be storing separate PB history for each spin sector?"* — and
+         *"it is already concatenating by spatial irrep ... spin is just another irrep."*  **We are, and it
+         is wrong.**  `PulayMixer` owns its own `std::deque<ΔG_Map> itsIns/itsOuts/itsResiduals`, and
+         `PolarizedDensityMixer` builds ONE PER CHANNEL, so `PulayDepth=8` runs **two independent B-solves
+         and gets c↑ ≠ c↓**.  The distinction the design misses:
+         - a **FILTER** (Kerker's G²/(G²+G₀²)) is linear and channel-diagonal, so per-channel application is
+           *identical* to joint application — the leaf design was correct for it;
+         - an **EXTRAPOLATOR** is not.  Its coefficients come from a least-squares fit over the residual
+           history, so independent fits give a mixed state (Σcᵢ↑ρ↑ᵢ, Σcᵢ↓ρ↓ᵢ) that **never occurred on the
+           trajectory**.  Each channel still conserves charge (Σc=1 holds per channel) but **the MOMENT
+           becomes an arbitrary synthesised combination of history moments** — which is exactly an ejection.
+         **This is the same bug CLASS as the spin-blind ρ̃ mixer fixed at 041ddff3, one level up: that one was
+         spin-blind in the FILTER, this one is spin-blind in the HISTORY.**  Two corroborations: our own Fock
+         DIIS is already JOINT ("one B summed over both spins, one coefficient vector"), so the accelerator
+         gets it right and the density mixer does not; and CP2K mixes the joint density with one Broyden
+         history and keeps the moment.
+         **The design-level defect** is `PolarizedDensityMixer`'s stated virtue — *"pure forwarding: the
+         leaves are ordinary mixers … without this class knowing which it holds"*.  That abstraction is valid
+         **only for MEMORYLESS leaves**; it treats a stateless filter and a stateful extrapolator as
+         interchangeable.  The same objection applies to the `TotalAndMoment` basis (separate ρ and m
+         histories would synthesise inconsistent (ρ,m) pairs).
+       * **THE FIX, AND THE ONE OBSTACLE.**  Per the user: one extrapolation whose field is the DIRECT SUM
+         over channels — spin as just another irrep, exactly as the Fock DIIS already sums B over its irreps.
+         `qchem.Math.DIIS` needs no change at all; it already documents "the caller owns the history + builds
+         B with ITS OWN inner product", and the joint inner product is simply the sum over channels:
+         `B(i,j) = Σ_σ MapInnerRe(res_σ[i], res_σ[j])`, one `c`, applied to every channel.
+         **Obstacle**: `PolarizedDensityMixer::Mix` calls `itsUp->Mix()` then `itsDn->Mix()` in sequence, so ↑
+         would need `c` before ↓ has contributed.  A joint solve therefore needs residual STAGING separated
+         from coefficient APPLICATION — i.e. `tFieldMixer` gains `CarriesHistory()` / `StageResidual() ->
+         partial B` / `ApplyJoint(c)`, with memoryless leaves defaulting to the current single-phase path.
+         That is the honest shape: the wrapper must know whether its leaves carry MEMORY, because that is
+         precisely the property that decides whether splitting is legitimate.
+       * **★ THE END STATE FOR `PolarizedDensityMixer` — DEMOTE IT, DO NOT DELETE IT (design Q&A, user asked
+         "is it now a (provably?) dead concept or are there cases where it could be useful?", 2026-08-10).**
+         Its valid domain collapses to exactly one thing, so the class survives but its SHAPE should not.
+         - **Redundant where the leaves are the SAME.**  A memoryless filter is diagonal in channel space, so
+           applying the same Kerker to each channel is identical to applying it jointly.  Once a joint
+           extrapolator exists, `SpinChannels` with two identical leaves buys nothing — an implementation
+           detail, not a concept.
+         - **Irreplaceable where the leaves DIFFER.**  That is `TotalAndMoment`, and the code already carries
+           the proof: Kerker on ρ paired with plain-linear on m is a 2×2 COUPLED mix in spin space,
+           "provably NOT reachable by any per-(ρ↑,ρ↓) leaf pair".  Its physics is independent of anything
+           found here — Kerker models the Hartree restoring force against CHARGE fluctuations and the
+           magnetisation has no such force — so that argument survives the joint-history fix untouched.
+         - **But the split must never extend to HISTORY, in ANY basis.**  Separate ρ and m histories
+           synthesise an inconsistent (ρ,m) exactly as separate ↑/↓ histories synthesise an inconsistent
+           moment.  `TotalAndMoment` + Pulay leaves is as wrong as `SpinChannels` + Pulay leaves; the basis
+           choice does not rescue it.
+         **⇒ THE END STATE: demote `PolarizedDensityMixer` from a MIXER to a channel-basis PRECONDITIONER.**
+         It stops owning the mixing and becomes the filter stage feeding ONE joint extrapolator:
+             `residual → channel-basis preconditioner (may differ per channel) → joint extrapolator (one B,
+              one c, all channels)`
+         That is precisely the VASP/QE/CP2K architecture — Kerker-preconditioned Broyden over a single
+         history — and note **CP2K's `BETA 1.5` IS its Kerker preconditioner sitting in front of one Broyden
+         history**.  So the two concepts COMPOSE rather than compete; we had them fused into one object, and
+         that fusion is what let the history get split.
+         Two consequences that make this more than a tidy-up:
+         (i) **It retires the `tDensityMixer` inheritance on that class.**  Being a `tDensityMixer` is what
+             made "pure forwarding, without knowing which leaf it holds" look reasonable; as a preconditioner
+             it never sees history at all, and the abstraction becomes HONEST instead of merely convenient.
+         (ii) **Run 11's verdict on the (ρ,m) basis may not survive the change and should be re-measured.**
+             It was recorded as "REFUTED AS A CURE" — but measured with `PulayDepth=0`, i.e. with no
+             extrapolator at all.  Preconditioning matters far more once something is learning an inverse
+             Jacobian from the residual metric the preconditioner shapes.  Do not treat run 11 as settled.
+         **Forward-looking:** non-collinear / Shubnikov work replaces two channels with a 2×2 spin density
+         matrix.  "Which channel combinations get which filter" GENERALISES directly; "two independent
+         leaves" does not.  A second reason the concept survives and the current shape does not.
+       * **PREDICTION CONFIRMED (run 28, α=0.2 — CP2K's own value).**  If the ejections are synthesis rather
+         than step size, α changes their FREQUENCY and not their possibility.  Measured: still ejecting —
+         7 excursions above −56 Ha in the first 52 iterations, including −60.98 → −49.92 at iteration 52 with
+         m_stag 0.396 → 0.126.  So the joint-history fix is the principled answer and α is not.
        * **WHAT IS STILL OPEN** (do not read the above as "done"):
          (a) **It does not pass the convergence gate**: the run ends on the GDM leg with lastΔρ=3.2e-2 against
              MinΔρ=1e-5.  E and the moment are stable to ~1e-3, but the gate measures ρ, and the DIIS→GDM

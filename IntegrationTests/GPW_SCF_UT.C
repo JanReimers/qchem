@@ -195,6 +195,16 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
         if (d0*d1<0.0) ++flips;
     }
     const double Ef=s.back().E, drhoF=s.back().drho, amp=emax-emin;
+    // IS Δρ ACTUALLY FLOORED, or merely SMALL and still falling?  The two look identical in the last row and
+    // are opposite diagnoses -- a floor is grid/functional work, a slow descent is just a low iteration cap.
+    // Measured by the geometric rate over the last few iterations: a floored Δρ has rate ~1, a descending one
+    // is bounded away from it.  (MnO run 24 was labelled FIT-FLOOR STALL while Δρ was still falling 7% PER
+    // ITERATION -- 2.30e-4 -> 1.44e-4 over its last seven, no plateau at all -- and that mislabel sent a
+    // whole session's reading of the campaign to the grids instead of to the iteration cap.)
+    double drhoRate=0.0;   // Δρ(last)/Δρ(5 back), ^(1/5): ~1 = floored, <1 = still descending
+    if (s.size()>=6 && s[s.size()-6].drho>0.0)
+        drhoRate = std::pow(drhoF/s[s.size()-6].drho, 0.2);
+    const bool drhoFloored = (drhoRate > 0.98);   // <2% per iteration = not going anywhere
     const double relAmp=amp/std::max(std::fabs(Ef),1e-30);   // energy swing RELATIVE to the total
     // Verdict priority separates the three pathologies (+ the benign degenerate case) by their distinct
     // signatures.  KEY distinction: a degenerate open shell has the ENERGY settled (small relAmp) while Δρ
@@ -203,7 +213,9 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
         (drhoF < 1e-5)                                   ? "CONVERGED" :
         (drhoF > 1e-3 && relAmp < 5e-3)                  ? "DENSITY-DEGENERATE (E settled, ρ rotates -- benign)" :
         (flips >= 3 && relAmp > 5e-3)                    ? "OSCILLATING (charge-transfer sloshing / mixing unstable)" :
-        (drhoF > 1e-5 && s.back().dEabs < 1e-5)          ? "FIT-FLOOR STALL (Δρ floored, ΔE tiny -- functional/grid)" :
+        (drhoF > 1e-5 && s.back().dEabs < 1e-5 && drhoFloored)
+                                                         ? "FIT-FLOOR STALL (Δρ floored, ΔE tiny -- functional/grid)" :
+        (drhoF > 1e-5 && s.back().dEabs < 1e-5)          ? "UNSETTLED (Δρ still descending at the cap -- raise NMaxIter, NOT a floor)" :
         (std::fabs(Ef) > 3.0*std::fabs(s.front().E))     ? "DIVERGING" : "UNSETTLED (hit iter cap mid-descent)";
     std::cout << "["<<label<<" fp] iters="<<n<<" Efinal="<<Ef<<" lastΔρ="<<drhoF
               << " oscFlips(last"<<w<<")="<<flips<<" Eamp(last"<<w<<")="<<amp<<" relAmp="<<relAmp
@@ -253,7 +265,16 @@ struct GpwOptions
     // convergence machinery
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
     bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
-    bool        imposeSymmetry = true;                  // impose the detected space group (renamed from reduceBZ
+    //! DEFAULT FALSE (V1.30, 2026-08-09).  It read \c true while the comment below said OPT-IN, and the
+    //! comment was the one carrying a reason.  Now actively hazardous rather than cosmetic: per V1.28 an
+    //! imposed run star-averages EACH SPIN CHANNEL under the CHEMICAL space group, whose sublattice-exchanging
+    //! ops would average an AFM structure's magnetic sublattices together and quietly demagnetise it -- the
+    //! run would not crash, it would converge to the wrong state.  Default-ON meant every new magnetic call
+    //! site inherited that unless it remembered to opt out, which is how MnO's `imposeSymmetry=false` became
+    //! load-bearing rather than merely explicit.  DEFAULT-OFF IS THE SAFER WAY TO BE WRONG: an imposition you
+    //! did not ask for is invisible in the result, a missing one only costs time.  Every pre-existing caller
+    //! that was relying on the old default now says so at its own call site -- no run changed behaviour.
+    bool        imposeSymmetry = false;                 // impose the detected space group (renamed from reduceBZ
                                                          //   2026-08-02): IBZ k-fold + per-iteration density
                                                          //   star-average + T1 {G}-star sweeps + the site-adapted
                                                          //   invariant Becke mesh.  OPT-IN per the §3 pin (an
@@ -513,10 +534,22 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 // PREVIOUS stage's converged occupied subspace as its fixed reference (§0e's grid-continuation MOM, applied
 // across TEMPERATURE instead of across grid), and stage 0 self-adopts the seed's.  This is what makes
 // "smear through the ties, then hold what you found" a single experiment rather than two unrelated ones.
+// \a penaltySchedule (optional): a PER-STAGE MOMSmearPenalty Λ, parallel to \a kTSchedule (empty = o.scf's
+// value throughout).  ANNEALING THE CONSTRAINT, not just the temperature -- and for a symmetry-broken run
+// that is the more important schedule of the two.  Λ is sized to hold a configuration against a dive at the
+// START (MnO: 2.4 Ha at iteration 1); near convergence the competing scale is far smaller, and the SAME Λ
+// then pins states empty that the converged spectrum wants filled -- measured on MnO run 24, which held
+// SEVEN levels empty below the ↓ HOMO, some 0.6 Ha below states it was occupying.  A constraint that
+// rescues the early iterations is not automatically one you want at the fixed point, so it gets a schedule:
+// strong while the branch is being chosen, released once the exchange splitting can hold the branch itself.
+// Releasing to Λ=0 also RE-ARMS aufbau (the masked-Fermi path only consults the reference when Λ>0), which
+// is exactly the test of whether MOM is still load-bearing.
 static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
                                 const std::vector<double>& kTSchedule, bool verbose=false,
-                                const std::vector<std::string>& accSchedule={}, GpwHandles* keep=nullptr)
+                                const std::vector<std::string>& accSchedule={}, GpwHandles* keep=nullptr,
+                                const std::vector<double>& penaltySchedule={})
 {
+    assert(penaltySchedule.empty() || penaltySchedule.size()==kTSchedule.size());
     assert(accSchedule.empty() || accSchedule.size()==kTSchedule.size());
     namespace L3=BasisSet::Lattice_3D;
     const std::string sp = o.species.empty() ? std::string() : o.species.front().first;
@@ -576,12 +609,16 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         prev.reset();   // the adoption copied what we needed; release the previous stage's machinery
 
         SCFParams par=o.scf; par.Verbose=verbose; par.SmearingkT=kT;
+        if (!penaltySchedule.empty()) par.MOMSmearPenalty=penaltySchedule[s];
         std::vector<FpRow> series;
         scf->SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
                          { series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order}); });
         if (o.orderProbe) scf->SetOrderParameter(o.orderName, o.orderProbe);   // per STAGE, like the fingerprint
         std::cout << "["<<o.label<<" anneal "<<s+1<<"/"<<kTSchedule.size()<<"] kT="<<kT
-                  << " acc="<<(accSchedule.empty()?o.accelerator:accSchedule[s])<<std::endl;
+                  << " acc="<<(accSchedule.empty()?o.accelerator:accSchedule[s])
+                  << " MOM-Lambda="<<par.MOMSmearPenalty
+                  << (par.MOMSmearPenalty<=0.0 && o.scf.UseMOM ? "  (RELEASED: plain energy Fermi)" : "")
+                  << std::endl;
         scf->Iterate(par);
         Fingerprint(series, (o.label+" kT="+std::to_string(kT)).c_str());
         OrderTrajectory(series, o.orderProbe ? o.orderName : std::string(),
@@ -614,6 +651,7 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  qcMesh::UnitCellKind xcKind=qcMesh::UnitCellKind::Auto)
 {
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label=label; o.Nelec=Nelec; o.species={{std::string(element), 4}};   // the Si callers: Zion=4
     o.densityEcut=densityEcut; o.images=images; o.kShift=kShift; o.xcMesh.cellKind=xcKind;
     o.accelerator="DIIS"; o.seed=seed; o.ortho=ortho; o.orthoTol=orthoTol;
@@ -886,6 +924,7 @@ TEST(GPW_SCF, PolarizedSingletMatchesUnpolarizedSiGamma)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Si SR Gamma pol-singlet";
     o.Nelec=8; o.multiplicity=1;                       // EXPLICIT two-channel singlet (nUp=nDn=4)
     o.species={{"Si",4}};
@@ -914,6 +953,7 @@ TEST(GPW_SCF, PolarizedSeedSingletMatchesUnpolarizedSiGamma)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Si SR Gamma pol-singlet spin-SAD";
     o.Nelec=8; o.multiplicity=1;                       // EXPLICIT two-channel singlet (nUp=nDn=4)
     o.species={{"Si",4}};
@@ -953,6 +993,7 @@ TEST(GPW_SCF, O2TripletInBoxMatchesFinite)
     cell.AddAtom(8, {0.5+0.5*d/a,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="O2 in-box triplet";
     o.Nelec=12; o.multiplicity=3;                      // S=1: nUp=7, nDown=5
     o.species={{"O",6}};                               // densityEcut stays AUTO: O q6 is hard (alpha_max rules)
@@ -1127,6 +1168,7 @@ TEST(GPW_SCF, DISABLED_FAtomInBoxDoubletProbe)
     cell.AddAtom(9, {0.5,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="F atom-in-box doublet"; o.Nelec=7; o.multiplicity=2; o.species={{"F",7}};
     o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
     o.scf.SmearingkT=1e-2;               // smear the degenerate 2p^5 hole (the Becke rotating-ρ cure)
@@ -1158,6 +1200,7 @@ TEST(GPW_SCF, DISABLED_Na2DimerInBoxProbe)
     cell.AddAtom(11, {0.5+0.5*d/a,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Na2 dimer-in-box"; o.Nelec=2; o.species={{"Na",1}};
     o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
     o.scf.NMaxIter=40; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
@@ -1207,6 +1250,7 @@ TEST(GPW_SCF, NaPseudoAtomInBoxDoublet)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Na atom-in-box doublet";
     o.Nelec=1; o.multiplicity=2;                               // S=1/2: nUp=1, nDown=0
     o.species={{"Na",1}};
@@ -1298,6 +1342,7 @@ TEST(GPW_SCF, SmearingConvergesDegenerateShell)
 static GpwOptions AlOptions()
 {
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Al FCC Gamma"; o.Nelec=3; o.species={{"Al",3}};
     o.densityEcut=-1.0; o.accelerator="DIIS";
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
@@ -1620,6 +1665,7 @@ TEST(GPW_SCF, DeltaFitUniformGridMatchesPWFit_SiGamma)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.Nelec=8; o.species={{"Si",4}};
     o.densityEcut=20.0; o.accelerator="DIIS";
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
@@ -1718,6 +1764,7 @@ TEST(GPW_SCF, NaFCCMetalGlobalMu)
     cell.AddAtom(11, {0,0,0});                  // Na (Zion=1): 3s^1 -- one electron => half-filled band
     Lattice_3D lat(cell, ivec3_t(2,2,2));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Na FCC metal"; o.Nelec=1; o.species={{"Na",1}};
     o.densityEcut=-1.0; o.accelerator="DIIS"; o.globalFermi=true;   // ONE μ across the BZ
     o.kShift=rvec3_t(0.5,0.5,0.5);             // shifted Monkhorst-Pack (k at ±¼)
@@ -1750,6 +1797,7 @@ TEST(GPW_SCF, DISABLED_NaFCCMetalExperiment)
     Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Na FCC metal"; o.Nelec=1; o.species={{"Na",1}};
     o.densityEcut=-1.0; o.accelerator="DIIS";
     o.globalFermi = envd("NA_GLOBAL",1.0)!=0.0;
@@ -1802,6 +1850,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // doc/GPWPlan §0b″).  The NAF_* env knobs stay as sweep INSTRUMENTS; the defaults ARE the committed recipe.
     auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label        = "NaF GPW Gamma";
     o.Nelec        = 8;                                   // 1 (Na) + 7 (F) valence electrons
     o.species      = {{"Na",1},{"F",7}};
@@ -2266,6 +2315,7 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
     // ~1e-4-converged Becke quadrature exposes (measured at Ecut=20: dExc=1.2e-4 but max|U-B|=1.2e-2 --
     // the raster's error, not Becke's; at Ecut=60 max|U-B|=3.5e-4).
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Si Becke gate"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // the gate's SCF arm is the uniform route BY DESIGN (Auto would flip it)
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
@@ -2735,6 +2785,7 @@ TEST(GPW_SCF, DISABLED_RotatedLebedevXCProbe_SiGamma)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Si rotated-Lebedev probe"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // converge once on the uniform route (probe density)
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
@@ -2805,6 +2856,7 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
     // reason to exist; the gate here is Becke INTERNAL convergence (B40 vs a 2x-refined B80) plus the
     // energy-level agreement with the uniform route.
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="NaF Becke gate"; o.Nelec=8; o.species={{"Na",1},{"F",7}};
     o.accelerator="Ladder";
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
@@ -3017,6 +3069,16 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // modes; RAISING it sharpens it (G0=3: 0.146 vs 0.045, ratio 3.3).  That is a linear-response argument
     // about which mode is actually pathological, so it is a PREDICTION to be swept, not a setting to trust.
     o.scf.StartingRelaxRo=envd("MNO_ALPHA",0.45); o.scf.KerkerG0=envd("MNO_KERKER_G0",1.0);
+    // DENSITY-HISTORY MIXING (MNO_PULAY / MNO_PULAY_START, 2026-08-10).  Never exercised on MnO before: every
+    // run to date used PulayDepth=0, i.e. a damped Kerker step with NO density history, while the CP2K oracle
+    // runs BROYDEN_MIXING with NBUFFER 8 -- a quasi-Newton density history -- and reaches the magnetic state
+    // with no MOM at all.  Note CP2K's BETA 1.5 IS its Kerker damping, i.e. it damps HARDER than our G0=1.0
+    // and still keeps the moment, which points away from "Kerker suppresses the moment" and at the missing
+    // history instead.  USER 2026-08-10, correcting me: if swapping the mixer changes whether m_stag
+    // survives, that IMPLICATES the mixing path rather than exonerating it -- so Pulay/Broyden is a
+    // first-class candidate, not the weak one I had called it.
+    o.scf.PulayDepth=(int)envd("MNO_PULAY",0.0);
+    o.scf.PulayStart=(int)envd("MNO_PULAY_START",5.0);
     // NB (2026-08-07) this KerkerG0 is currently INERT on the AFM arm: MakeDensityMixer refuses the ρ̃
     // mixers on a POLARIZED density and falls back (loudly) to linear D-mixing, because the ρ̃ mixers carry
     // the TOTAL density only and collapse v_xc to ζ=0 from iteration 1 -- the AFM collapse, diagnosed here
@@ -3098,8 +3160,20 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
             s=s.substr(c+1);
         }
         assert(!kTs.empty() && "MNO_ANNEAL must list at least one kT");
+        // MNO_ANNEAL_PENALTY: the per-stage MOM Λ, parallel to MNO_ANNEAL.  "1.5,0" = hold the branch, then
+        // RELEASE the constraint and see whether the exchange splitting can keep it without help.
+        std::vector<double> lams;
+        if (const char* ls=std::getenv("MNO_ANNEAL_PENALTY"))
+            for (std::string t(ls), tok; !t.empty(); )
+            {
+                size_t c=t.find(','); tok=t.substr(0,c);
+                if (!tok.empty()) lams.push_back(std::atof(tok.c_str()));
+                if (c==std::string::npos) break;
+                t=t.substr(c+1);
+            }
+        assert((lams.empty() || lams.size()==kTs.size()) && "MNO_ANNEAL_PENALTY must parallel MNO_ANNEAL");
         arm.R=RunGpwAnnealed(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, kTs, verbose,
-                             /*accSchedule*/{}, &arm.h);
+                             /*accSchedule*/{}, &arm.h, lams);
         return arm;
     }
     arm.R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, verbose, &arm.h);
