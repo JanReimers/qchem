@@ -223,6 +223,46 @@ in the same session.
     `M_LibCint` `matrix_3C_4C_match_scalar`, and `M_Calculation.WaterSymmetryLibCint`.
   - Doc references updated in `doc/ERI4Rework.md` (§2 substrate address, §5.4 SALC caveat).
 
+- **R2.18 ✅ NAMES DONE `86c5b24d` (2026-08-10); encapsulation half deliberately left open.  The `Make`/`Get`
+  pair in qcHamiltonian.**  USER: *"GetMatrix goes through caching ... if there is no cache it calls
+  MakeMatrix() which does return by value.  So if you need a return by value override it should be the
+  MakeXXX() call."*  qcBasisSet follows the pair without exception (11 `Make` verbs); qcHamiltonian spelled
+  the same role `CalculateMatrix` on the static base and `CalcMatrix` on both dynamic ones — two names for
+  one role in one file, neither the project verb.  All renamed to `MakeMatrix` (plus
+  `CalculateMatrixRadial`→`MakeMatrixRadial`); the compiler found every override.
+  - **The visibility half was filed on a FALSE premise, and the user corrected it.**  The item said
+    qcBasisSet makes `Make` public and qcHamiltonian makes it protected, so qcHamiltonian is the outlier.
+    **Backwards:** *"All the MakeXXX() functions were originally protected.  For DFT the 3C versions
+    (MakeOverlap3C, MakeRepulsion3C) still are.  It seemed like these were purely internal functions ... but
+    that turned out to be incorrect in some cases."*  Protected is the ORIGINAL state; the public ones are
+    DRIFT, each from a case where "purely internal" proved wrong.  qcHamiltonian is not an outlier, it is
+    un-drifted.  **Standardising on qcBasisSet would have standardised on the drift** — which is what the
+    item, as filed, would have led someone to do.
+  - **Ruled LOW priority and left open** (*"I have no strong policy on this right now.  Maybe the right
+    policy will emerge as we refactor.  My intuition says it is a low priority decision."*), with the
+    standing practice that a `Make` going public must record WHY at the declaration — see the convention
+    box at the top of doc/CleanupCandidates.md.  Cheap to defer, expensive to guess.
+  - One comment at `SCFIterator.C:186` was initially left stale (MnO DO-NOT-TOUCH list); fixed in the same
+    commit once the user confirmed the campaign was paused.
+
+- **R2.19 ✅ DONE `86c5b24d` (2026-08-10).  `FittedVxcPol` copied a matrix its child already owned.**
+  Found by following the user's Get/Make remark into the code.  `FittedVxcPol::CalcMatrix` was a PURE
+  FORWARDER — both branches ended in `(s==Spin::Up ? itsUpVxc : itsDownVxc)->GetMatrix(...)`, returning BY
+  VALUE a matrix the child's own per-Irrep cache already held stably, which the `tDynamic_HT_Imp_NoCache`
+  base then stored in scratch purely to have something to return a reference to.  One full matrix copy per
+  call, per spin, per irrep, per SCF iteration, to satisfy a signature.  Its direct HF analogue `VxcPol`
+  (Imp/VxcPol.C:39-51) had always done it right: override `GetMatrix`, return the child's reference.
+  - **Fix:** `FittedVxcPol` now overrides `GetMatrix`, forwards the child's reference, and **no longer
+    derives from `tDynamic_HT_Imp_NoCache` — it has no `MakeMatrix` at all.**
+  - **The generalisable test, and the reason this item existed:** *if your `MakeXxx` does not COMPUTE
+    anything, you are not an implementer, you are a forwarder* — override `Get` and hand back what you
+    forward to.  The old code had to invent a `Make` (and a scratch slot for its result) purely to satisfy
+    a base it should not have had.  The Get/Make split is what makes that visible; before it, "returns a
+    reference to shared scratch" looked like a lifetime question rather than a wrong-base-class question.
+  - **Verified NOT applicable to its sibling:** `FittedVcorrPol` KEEPS `NoCache` — it genuinely recomputes
+    (one `itsVcFitter` shared across both channels, refit per spin), so R2.9(ii)'s Irrep-keyed scratch still
+    earns its place and is now that one class's private business.
+
 - **R2.9 ✅ DONE `268473b9` (2026-08-10).  Small Hamiltonian hardening — all three sub-items.**
   Original text: (i) `XC_GridEngine` constness laundering — Rho/RhoPol/Matrix/Phi non-const, called from
   const term methods via a non-const `shared_ptr`; every other cache in the module is `mutable`+const-method

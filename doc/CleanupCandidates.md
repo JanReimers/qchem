@@ -16,7 +16,8 @@ worth more than the landed ones.
 
 # START HERE (handoff, 2026-08-10)
 
-## Just landed: **R2.9** (`268473b9`) and **R1.7** (`26af31b6`).  Full records → doc/CleanupHistory.md.
+## Just landed: **R2.18**+**R2.19** (`86c5b24d`), **R2.9** (`268473b9`), **R1.7** (`26af31b6`).
+Full records → doc/CleanupHistory.md.
 
 Two things worth carrying forward, because they generalize past their own items:
 
@@ -32,6 +33,32 @@ Two things worth carrying forward, because they generalize past their own items:
   a caller holding the base pointer could not tell which it had.  Fixing the asymmetry was cheaper than
   either offered option.  **Re-derive the defect before picking from an item's menu** — the menu was written
   earlier, with less in front of it.
+
+## A convention now worth stating once, because three items in a row turned on it
+
+**`GetXxx()` is the CACHED accessor and returns a REFERENCE; `MakeXxx()` is the uncached compute and
+returns BY VALUE** (user, 2026-08-10).  A caller needing an owned copy asks the `Make` half — it never asks
+`Get` to change its return type.  Consequences that already paid out:
+- R2.9(ii) considered "return by value" on `GetMatrix`: wrong half of the pair.
+- R2.18: qcHamiltonian was spelling `Make` as `CalculateMatrix`/`CalcMatrix` — two names, one role.  Renamed.
+- R2.19: a class with a `Make` that only forwarded turned out to need no `Make` at all.  **The test is
+  useful in general: if your `MakeXxx` does not COMPUTE anything, you are not an implementer, you are a
+  forwarder — override `Get` and hand back what you are forwarding to.**
+**Visibility is NOT part of the convention** and is deliberately unsettled — see R2.18's user ruling.
+Protected was the original state; the public ones are drift, each from a case where "purely internal"
+proved wrong.  Do not standardise either way yet.
+
+### STANDING PRACTICE (user, 2026-08-10: *"note why — yes exactly!!"*)
+
+**When a `MakeXxx` has to become public, say WHY at the declaration**: which client needed the by-value
+form, and why the cached `Get` would not do.  One line, at the point of the change.
+
+The reason this is worth a rule rather than a habit: the encapsulation policy is deliberately being left to
+EMERGE from refactoring, and a policy can only emerge from evidence.  A visibility change with no recorded
+reason destroys exactly the evidence the eventual decision needs — after five of them nobody can tell
+whether the pattern is "fitters need raw integrals", "tests need to bypass the cache", or five unrelated
+accidents.  The rule generalises past `Make`: **any deliberate loosening of encapsulation should carry its
+reason, because the decision to tighten it again later can only be made from those reasons.**
 
 ## Next task: **V1.31** — delete `SymFockCache`; let the term own the per-density memo
 
@@ -416,8 +443,9 @@ MnO campaign proceeds undisturbed in qchem6.
       `PWFittedVxc` (plane waves) — and "PW" modifies the noun it is actually true of.
     - **Sequence:** do it WITH the `Delta_XC` rename (V2.1), not before — renaming one of a matched pair
       leaves the family less consistent than it is now.
-- **R2.18 The `Make`/`Get` cached-accessor PAIR is the project convention — qcHamiltonian is the one
-  library that spells it differently, and inconsistently with itself (USER, 2026-08-10:
+- **R2.18 ✅ NAMES DONE `86c5b24d`; the encapsulation half deliberately left open (user ruling below).
+  The `Make`/`Get` cached-accessor PAIR is the project convention — qcHamiltonian was the one
+  library that spelled it differently, and inconsistently with itself (USER, 2026-08-10:
   *"GetMatrix goes through caching ... if there is no cache it calls MakeMatrix() which does return by
   value.  So if you need a return by value override it should be the MakeXXX() call."*).**
   - **The convention, stated:** `GetXxx()` is the CACHED accessor and returns a REFERENCE; `MakeXxx()` is
@@ -431,17 +459,33 @@ MnO campaign proceeds undisturbed in qchem6.
     Two names for ONE role in one file, and neither is the project verb.  Rename both to `MakeMatrix`.
     Mechanical (compiler finds every override), but it touches every concrete term, so it wants its own
     commit rather than riding on a behaviour change.
-  - **A second, non-cosmetic half: in qcBasisSet the `Make` verb is PUBLIC; in qcHamiltonian it is
-    `protected`.**  So the escape hatch the convention promises — "need it by value? call `Make`" — does
-    not actually exist for a term's client.  Decide whether that is deliberate (a term's compute is
-    genuinely internal, and the only sanctioned door is the cached one) and SAY so at the declaration, or
-    whether `MakeMatrix` should be public like its BasisSet cousins.  **This is the part worth a ruling;
-    the rename is bookkeeping.**
+  - **✅ USER RULING 2026-08-10 on the two halves — they have OPPOSITE priorities.**
+    - **NAMES: high priority, do it.**  *"Yes we should clean up the names in qcHamiltonian ... consistency
+      is high priority."*  ✅ DONE `86c5b24d`.
+    - **ENCAPSULATION (public vs protected `Make`): low priority, DELIBERATELY LEFT OPEN.**  *"All the
+      MakeXXX() functions were originally protected.  For DFT the 3C versions (MakeOverlap3C,
+      MakeRepulsion3C) still are.  It seemed like these were purely internal functions ... but that turned
+      out to be incorrect in some cases.  Anyway I have no strong policy on this (encapsulation level)
+      right now.  Maybe the right policy will emerge as we refactor.  My intuition says that it is a low
+      priority decision."*
+    - **So the history is the opposite of what the item assumed:** protected was the ORIGINAL state
+      everywhere and the public ones are the DRIFT — each one a case where "purely internal" turned out to
+      be wrong.  `MakeOverlap3C`/`MakeRepulsion3C` are the surviving originals, and qcHamiltonian's
+      `MakeMatrix` is not an outlier at all; it is simply un-drifted.  **Do NOT "fix" the visibility to
+      match qcBasisSet** — that would be standardising on the drift.
+    - **Do not open this as its own item.**  The policy is expected to EMERGE from refactoring: when a
+      `Make` has to go public, note WHY (which client needed the by-value form and why the cached one would
+      not do).  Those reasons are the evidence a policy would be made from; the decision is cheap to defer
+      and expensive to guess.
+  - **ONE STALE COMMENT LEFT BEHIND ON PURPOSE:** `src/SCFIterator/Imp/SCFIterator.C:186` still says
+    "Vxc::CalcMatrix".  It is a comment only, and SCFIterator is on the MnO campaign's DO-NOT-TOUCH list,
+    so it was NOT edited — reaching into their working set for a comment is not worth a collision.  Sweep it
+    when that list is released.
   - Found while writing up R2.9(ii), where "return by value" was considered as a fix to `GetMatrix` — the
     convention says that was the wrong half of the pair to reach for.
 
-- **R2.19 `FittedVxcPol` copies a matrix its child already owns — and its own HF twin `VxcPol` shows the
-  fix, three files away.**  Found 2026-08-10 following the user's R2.18 remark.
+- **R2.19 ✅ DONE `86c5b24d`. `FittedVxcPol` copied a matrix its child already owned — its own HF twin
+  `VxcPol` had the fix, three files away.**  Found 2026-08-10 following the user's R2.18 remark.
   - `FittedVxcPol::CalcMatrix` (Imp/FittedVxcPol.C:45-73) is a PURE FORWARDER: both branches end in
     `(s==Spin::Up ? itsUpVxc : itsDownVxc)->GetMatrix(...)`, i.e. they return BY VALUE a matrix the
     child's own per-Irrep cache already holds stably.  The `tDynamic_HT_Imp_NoCache` base then stores that
@@ -460,6 +504,14 @@ MnO campaign proceeds undisturbed in qchem6.
     where a forwarder was meant".  R2.9(ii)'s Irrep-keyed scratch still earns its place for
     `FittedVcorrPol`, and would become that class's private business alone.
   - Cheap to verify: the polarized molecular DFT tests (`M_DFT*`/`M_Calculation` polarized cases).
+  - **What landed `86c5b24d`:** `FittedVxcPol` now overrides `GetMatrix` and returns the child's reference;
+    it no longer derives from `tDynamic_HT_Imp_NoCache` and has no `MakeMatrix` at all — it computes
+    nothing, so it has nothing to Make.  That is the cleanest confirmation the Get/Make split was the right
+    lens: a pure forwarder has a `Get` and no `Make`, and the old code had to invent a `Make` (and a scratch
+    slot to hold its result) purely to satisfy the base it should not have had.
+  - **Left as-is deliberately:** `FittedVcorrPol` KEEPS `tDynamic_HT_Imp_NoCache` — verified it genuinely
+    recomputes (one `itsVcFitter` shared across both channels, refit per spin), so R2.9(ii)'s Irrep-keyed
+    scratch still earns its place and is now that one class's private business.
 
 - **R2.16 Construction-time facts re-asked at RUN time (USER PRINCIPLE, 2026-08-07).**
   **User ruling:** *"I much prefer that the whole Hamiltonian is decided and fixed at construction time.
@@ -1379,7 +1431,15 @@ MnO campaign proceeds undisturbed in qchem6.
     simply be imposed.  The discovery workflow earns its keep on materials whose order is UNKNOWN.
   - Depends on V1.28 (σ on `ReciprocalOp` + a Shubnikov op set) for step 6 to be expressible at all.
 
-- **V1.30 `GpwOptions::imposeSymmetry` defaults to `true` while its own comment says "OPT-IN".  Found
+- **V1.30 ✅ APPEARS ALREADY FIXED — item is STALE (verified against the tree 2026-08-10, not re-derived
+  from the doc).**  `GpwOptions::imposeSymmetry` is now `= false` with the comment "DEFAULT off (full mesh,
+  free run)" (Lattice_3D/BasisSet.C:72), and `SolidCalcOptions::imposeSymmetry` is `= false`
+  (Calculation/SolidCalculation.C:103) — so the two facades AGREE and both default off, which is exactly
+  what this item asked for.  Landed on the MnO side (it was theirs by assignment) and the worklist entry
+  was never closed.  **Left marked rather than deleted so the next MnO session does not spend time
+  re-doing it; confirm and close at the merge.**
+  *(original text follows)*
+  **`GpwOptions::imposeSymmetry` defaults to `true` while its own comment says "OPT-IN".  Found
   2026-08-09 by the Step 4 facade gate, which resolved a different Becke cost than the driver did.**
   - The field is `bool imposeSymmetry = true;` and the comment three lines down reads *"OPT-IN per the §3 pin
     (an imposed default would also ~2x the suite's XC grids)"*.  One of them is wrong, and the comment is the
