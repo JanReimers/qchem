@@ -1509,6 +1509,41 @@ against a special case it will outgrow:
          partial B` / `ApplyJoint(c)`, with memoryless leaves defaulting to the current single-phase path.
          That is the honest shape: the wrapper must know whether its leaves carry MEMORY, because that is
          precisely the property that decides whether splitting is legitimate.
+       * **★ THE END STATE FOR `PolarizedDensityMixer` — DEMOTE IT, DO NOT DELETE IT (design Q&A, user asked
+         "is it now a (provably?) dead concept or are there cases where it could be useful?", 2026-08-10).**
+         Its valid domain collapses to exactly one thing, so the class survives but its SHAPE should not.
+         - **Redundant where the leaves are the SAME.**  A memoryless filter is diagonal in channel space, so
+           applying the same Kerker to each channel is identical to applying it jointly.  Once a joint
+           extrapolator exists, `SpinChannels` with two identical leaves buys nothing — an implementation
+           detail, not a concept.
+         - **Irreplaceable where the leaves DIFFER.**  That is `TotalAndMoment`, and the code already carries
+           the proof: Kerker on ρ paired with plain-linear on m is a 2×2 COUPLED mix in spin space,
+           "provably NOT reachable by any per-(ρ↑,ρ↓) leaf pair".  Its physics is independent of anything
+           found here — Kerker models the Hartree restoring force against CHARGE fluctuations and the
+           magnetisation has no such force — so that argument survives the joint-history fix untouched.
+         - **But the split must never extend to HISTORY, in ANY basis.**  Separate ρ and m histories
+           synthesise an inconsistent (ρ,m) exactly as separate ↑/↓ histories synthesise an inconsistent
+           moment.  `TotalAndMoment` + Pulay leaves is as wrong as `SpinChannels` + Pulay leaves; the basis
+           choice does not rescue it.
+         **⇒ THE END STATE: demote `PolarizedDensityMixer` from a MIXER to a channel-basis PRECONDITIONER.**
+         It stops owning the mixing and becomes the filter stage feeding ONE joint extrapolator:
+             `residual → channel-basis preconditioner (may differ per channel) → joint extrapolator (one B,
+              one c, all channels)`
+         That is precisely the VASP/QE/CP2K architecture — Kerker-preconditioned Broyden over a single
+         history — and note **CP2K's `BETA 1.5` IS its Kerker preconditioner sitting in front of one Broyden
+         history**.  So the two concepts COMPOSE rather than compete; we had them fused into one object, and
+         that fusion is what let the history get split.
+         Two consequences that make this more than a tidy-up:
+         (i) **It retires the `tDensityMixer` inheritance on that class.**  Being a `tDensityMixer` is what
+             made "pure forwarding, without knowing which leaf it holds" look reasonable; as a preconditioner
+             it never sees history at all, and the abstraction becomes HONEST instead of merely convenient.
+         (ii) **Run 11's verdict on the (ρ,m) basis may not survive the change and should be re-measured.**
+             It was recorded as "REFUTED AS A CURE" — but measured with `PulayDepth=0`, i.e. with no
+             extrapolator at all.  Preconditioning matters far more once something is learning an inverse
+             Jacobian from the residual metric the preconditioner shapes.  Do not treat run 11 as settled.
+         **Forward-looking:** non-collinear / Shubnikov work replaces two channels with a 2×2 spin density
+         matrix.  "Which channel combinations get which filter" GENERALISES directly; "two independent
+         leaves" does not.  A second reason the concept survives and the current shape does not.
        * **PREDICTION CONFIRMED (run 28, α=0.2 — CP2K's own value).**  If the ejections are synthesis rather
          than step size, α changes their FREQUENCY and not their possibility.  Measured: still ejecting —
          7 excursions above −56 Ha in the first 52 iterations, including −60.98 → −49.92 at iteration 52 with
