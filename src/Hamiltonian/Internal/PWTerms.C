@@ -67,6 +67,9 @@ class Ven_PP_Short
     , private        cStatic_HT_Imp
 {
 public:
+    //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
+    //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
+    virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
@@ -88,6 +91,9 @@ class Ven_PP_NonLocal
     , private        cStatic_HT_Imp
 {
 public:
+    //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
+    //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
+    virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     //! \a nl is REQUIRED (non-owning).  A local-only pseudopotential does not construct this term at all.
     Ven_PP_NonLocal(const st_t& st, const Pseudopotential::SeparablePotential* nl);
@@ -114,6 +120,9 @@ class Ven_PP_Long
     , private        cStatic_HT_Imp
 {
 public:
+    //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
+    //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
+    virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     //! \a loc is REQUIRED (non-owning).  A run with no local PP does not construct this term at all.
     Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* loc);

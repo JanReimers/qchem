@@ -79,6 +79,9 @@ private:
 class PP_Local : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
+    //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
+    //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
+    virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     typedef std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc_t;
     PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp);
@@ -109,6 +112,9 @@ private:
 class PP_NonLocal : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
+    //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
+    //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
+    virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
     typedef std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep_t;
     PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp);

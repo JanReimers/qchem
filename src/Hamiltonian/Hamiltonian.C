@@ -44,6 +44,17 @@ public:
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
+    //! \brief Does the VIRIAL THEOREM still hold with this term in the Hamiltonian?  (default yes)
+    //!
+    //! \f$2\langle T\rangle=-\langle V\rangle\f$ needs a potential that is HOMOGENEOUS OF DEGREE -1,
+    //! i.e. genuinely Coulombic.  Pseudopotentials are not (an erf-screened local part plus KB projectors),
+    //! so any PP term answers false -- and so should any future term with the same property (an external
+    //! or model potential, a finite field, a cutoff Coulomb).  **Named for what the CLIENT consumes -- is
+    //! the virial meaningful? -- not for the CAUSE (\c IsPseudopotential), because PPs are not the only
+    //! thing in electronic structure that breaks it** (user, 2026-08-10; the same lesson as R1.7).
+    //! NOTE the RELATIVISTIC case is different and is NOT this flag: the Dirac virial is still valid, it
+    //! just has a different ideal ratio (1 rather than 2), which \c IsRelativistic already selects.
+    virtual bool             IsVirialValid () const {return true; }   //!< virial theorem still meaningful?
 };
 
 //! \brief A PER-IRREP density-dependent term (DFT/fitted Coulomb + \f$V_{xc}\f$): builds ONE irrep's block
@@ -74,6 +85,17 @@ public:
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
+    //! \brief Does the VIRIAL THEOREM still hold with this term in the Hamiltonian?  (default yes)
+    //!
+    //! \f$2\langle T\rangle=-\langle V\rangle\f$ needs a potential that is HOMOGENEOUS OF DEGREE -1,
+    //! i.e. genuinely Coulombic.  Pseudopotentials are not (an erf-screened local part plus KB projectors),
+    //! so any PP term answers false -- and so should any future term with the same property (an external
+    //! or model potential, a finite field, a cutoff Coulomb).  **Named for what the CLIENT consumes -- is
+    //! the virial meaningful? -- not for the CAUSE (\c IsPseudopotential), because PPs are not the only
+    //! thing in electronic structure that breaks it** (user, 2026-08-10; the same lesson as R1.7).
+    //! NOTE the RELATIVISTIC case is different and is NOT this flag: the Dirac virial is still valid, it
+    //! just has a different ideal ratio (1 rather than 2), which \c IsRelativistic already selects.
+    virtual bool             IsVirialValid () const {return true; }   //!< virial theorem still meaningful?
 };
 
 //! \brief A WHOLE-SYSTEM Hartree-Fock term: exact 4-index Coulomb \f$J\f$ / exchange \f$K\f$.
@@ -102,6 +124,17 @@ public:
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}   //!< per-spin exchange? (default no; VxcPol yes)
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
+    //! \brief Does the VIRIAL THEOREM still hold with this term in the Hamiltonian?  (default yes)
+    //!
+    //! \f$2\langle T\rangle=-\langle V\rangle\f$ needs a potential that is HOMOGENEOUS OF DEGREE -1,
+    //! i.e. genuinely Coulombic.  Pseudopotentials are not (an erf-screened local part plus KB projectors),
+    //! so any PP term answers false -- and so should any future term with the same property (an external
+    //! or model potential, a finite field, a cutoff Coulomb).  **Named for what the CLIENT consumes -- is
+    //! the virial meaningful? -- not for the CAUSE (\c IsPseudopotential), because PPs are not the only
+    //! thing in electronic structure that breaks it** (user, 2026-08-10; the same lesson as R1.7).
+    //! NOTE the RELATIVISTIC case is different and is NOT this flag: the Dirac virial is still valid, it
+    //! just has a different ideal ratio (1 rather than 2), which \c IsRelativistic already selects.
+    virtual bool             IsVirialValid () const {return true; }   //!< virial theorem still meaningful?
 };
 
 //! \brief The assembled Hamiltonian: owns its term lists and assembles the per-irrep Fock/KS matrix the SCF
@@ -125,6 +158,12 @@ public:
     virtual EnergyBreakdown GetTotalEnergy  (  const tDM_CD<T>*    ) const=0;
     virtual bool            IsPolarized   () const=0;
     virtual bool            IsRelativistic() const=0;
+    //! \brief Is the virial theorem meaningful for THIS Hamiltonian?  CONJUNCTIVE over the terms: one
+    //! non-Coulombic term invalidates it for the whole Hamiltonian, so \c tHamiltonianImp ANDs the terms'
+    //! \c IsVirialValid() (unlike IsPolarized/IsRelativistic, which are OR-ed -- one term is enough to make
+    //! the Hamiltonian polarized/relativistic, but ALL terms must be Coulombic for the virial to hold).
+    //! The SCF iterator consults it to drop both the virial convergence gate and the virial column.
+    virtual bool            IsVirialValid () const=0;
     //! DFT/KS: the Fock is a functional of rho(r) alone -> false (can be seeded from a numeric ScalarFunction).
     //! HF/DHF need the density MATRIX D for exact exchange K, so the SCFIterator must bootstrap them (route rho
     //! through a DFT sibling to manufacture a D0).  tHamiltonianImp DERIVES this from the term lists (holds an

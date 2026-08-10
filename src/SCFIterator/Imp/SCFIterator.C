@@ -236,6 +236,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     itsWaveFunction->SetMOM(ipar.UseMOM, ipar.MOMStartIter);   // occupation strategy for this run (SCFParams)
     itsWaveFunction->SetSmearing(ipar.SmearingkT, ipar.MOMSmearPenalty);  // Fermi smearing (0=off) + MOM mask; doc/GPWPlan1.md 4b
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
+    // V1.27: is the virial theorem meaningful for THIS Hamiltonian at all?  It needs a Coulombic (degree -1
+    // homogeneous) potential, which a pseudopotential is not.  Asked ONCE, of the object that knows -- the
+    // Hamiltonian is fixed at construction (R2.16), and the flag is the AND of its terms' own answers.
+    // Before this, every PP caller had to remember `MinVirial = 1e30` by hand (nine sites in the tree), and
+    // forgetting it silently gated the SCF on a quantity with no meaning for the run.
+    const bool virialValid=itsHamiltonian->IsVirialValid();
     if (ipar.Verbose) DisplayColumnHeaders(cout, ipar, idealVirial);   // per-system (item 2): base=molecular, Solid overrides
 
     double ChargeDensityChange=1;
@@ -333,7 +339,8 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                  && fabs(dFD)              < ipar.MinΔFD
                  && fabs(dE)               < ipar.MinΔE      // relative total-energy change (default off)
                  && FD                     < ipar.MinFD
-                 && fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial
+                 && (!virialValid ||                                  // V1.27: no gate when the theorem
+                     fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial)  //   does not hold (PP runs)
                   ;
         // 0h MOM GUARD (doc/GPWPlan 0h): a MOM reference is TRUSTED, never verified -- a stale/wrong one
         // (the grid-continuation transfer; a reference captured mid-transient) pins an EXCITED state whose
@@ -622,14 +629,19 @@ void tSCFIterator<T>::DisplayColumnHeaders(std::ostream& os, const SCFParams& ip
 {
     os << endl << endl;
     WriteHeadPrefix(os);
-    os << PadR("Δ[F,D]",W_DELTA) << " " << PadR("Δρ",W_RHO) << " "
-       << PadR(std::to_string(idealVirial)+"+V/K",W_VIR) << " ";
+    // V1.27: no virial column when the theorem does not hold for this Hamiltonian (a PP run).  Asked of the
+    // Hamiltonian directly rather than threaded through the signature -- no sentinel value stands in for it.
+    const bool virial=itsHamiltonian->IsVirialValid();
+    os << PadR("Δ[F,D]",W_DELTA) << " " << PadR("Δρ",W_RHO) << " ";
+    if (virial) os << PadR(std::to_string(idealVirial)+"+V/K",W_VIR) << " ";
     WriteHeadMixAccelCfg(os);
     WriteHeadOrder(os);
     os << endl;
     WriteThreshLead(os);
     os << PadR(Thresh(ipar.MinFD),W_FD) << " " << PadR(Thresh(ipar.MinΔFD),W_DELTA) << " "
-       << PadR(Thresh(ipar.MinΔρ),W_RHO) << " " << PadR(Thresh(ipar.MinVirial),W_VIR) << endl;
+       << PadR(Thresh(ipar.MinΔρ),W_RHO);
+    if (virial) os << " " << PadR(Thresh(ipar.MinVirial),W_VIR);
+    os << endl;
     os << std::string(100,'-') << endl;
 }
 
@@ -638,7 +650,8 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
     WriteRowPrefix(os, tr);
     os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dFD  << " ";
     os << std::scientific << setw(W_RHO)   << setprecision(2) << tr.dRho << " ";
-    os << std::scientific << setw(W_VIR)   << setprecision(2) << (tr.eb.GetVirial()+(double)tr.idealVirial) << " ";
+    if (itsHamiltonian->IsVirialValid())   // V1.27: the column exists only when the theorem does
+        os << std::scientific << setw(W_VIR) << setprecision(2) << (tr.eb.GetVirial()+(double)tr.idealVirial) << " ";
     WriteMixAccelCfg(os, tr);
     WriteOrderColumn(os, tr);
     // Optional frontier diagnostic (unchanged instrument; solids show it as a permanent column instead).

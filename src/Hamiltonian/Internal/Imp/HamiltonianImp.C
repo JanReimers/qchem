@@ -22,18 +22,24 @@ template <class T> void tHamiltonianImp<T>::Add(tStatic_HT<T>* p)
 {
     itsSHTs.push_back(std::unique_ptr<tStatic_HT<T>>(p));
     itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
+    // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
+    itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
 }
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 {
     itsDHTs.push_back(std::unique_ptr<tDynamic_HT<T>>(p));
     itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
+    // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
+    itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
 }
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
 {
     itsHF_HTs.push_back(std::unique_ptr<tDynamic_HF_HT<T>>(p));
     itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
+    // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
+    itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
 }
 

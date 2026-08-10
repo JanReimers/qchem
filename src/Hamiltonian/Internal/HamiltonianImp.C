@@ -26,6 +26,9 @@ public:
     virtual EnergyBreakdown GetTotalEnergy  (const tDM_CD<T>* ) const;
     virtual bool            IsPolarized() const {return itsIsPolarized;}
     virtual bool            IsRelativistic() const {return itsIsRelativistic;}
+    //! CONJUNCTIVE over the terms -- see the base declaration.  One non-Coulombic term (a PP) invalidates
+    //! the virial for the whole Hamiltonian, so this is AND-ed in Add() where the two flags above are OR-ed.
+    virtual bool            IsVirialValid () const {return itsIsVirialValid;}
     //! A density MATRIX (not a matrix-free fit) is required to seed the SCF iff this Hamiltonian either holds
     //! an exact-exchange HF term (K needs D) or is relativistic (the non-rel LDA-sibling SAD bootstrap does
     //! not apply -- see SCFIterator).  Derived from the term lists, so no concrete Hamiltonian need declare it.
@@ -44,6 +47,7 @@ protected:
 
     bool   itsIsPolarized;
     bool   itsIsRelativistic;
+    bool   itsIsVirialValid=true;   //!< AND of the terms' IsVirialValid() (see Add); true for an empty H
 };
 
 // NO InsertStandardTerms.  There is no "standard" term set to insert (R2.8; user 2026-08-07: the whole
