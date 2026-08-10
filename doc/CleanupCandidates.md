@@ -416,6 +416,51 @@ MnO campaign proceeds undisturbed in qchem6.
       `PWFittedVxc` (plane waves) — and "PW" modifies the noun it is actually true of.
     - **Sequence:** do it WITH the `Delta_XC` rename (V2.1), not before — renaming one of a matched pair
       leaves the family less consistent than it is now.
+- **R2.18 The `Make`/`Get` cached-accessor PAIR is the project convention — qcHamiltonian is the one
+  library that spells it differently, and inconsistently with itself (USER, 2026-08-10:
+  *"GetMatrix goes through caching ... if there is no cache it calls MakeMatrix() which does return by
+  value.  So if you need a return by value override it should be the MakeXXX() call."*).**
+  - **The convention, stated:** `GetXxx()` is the CACHED accessor and returns a REFERENCE; `MakeXxx()` is
+    the uncached compute and returns BY VALUE.  A caller that wants an owned copy asks the `Make` half —
+    it does NOT ask the `Get` half to change its return type.  qcBasisSet follows it everywhere:
+    `MakeOverlap`/`Overlap`, `MakeKinetic`/`Kinetic`, `MakeNuclear`/`Nuclear`, `MakeRepulsion3C`/
+    `Repulsion3C`, `MakeDirect`/`Direct`, `MakeExchange`/`Exchange`, `MakeCharge`, `MakeNorm`,
+    `MakeInvOverlap`, `MakeRestMass` — 11 `Make` verbs, no exceptions.
+  - **qcHamiltonian spells the same role two other ways:** `tStatic_HT_Imp::CalculateMatrix` and
+    `tDynamic_HT_Imp::CalcMatrix` / `tDynamic_HT_Imp_NoCache::CalcMatrix` (HamiltonianTerm.C:47,80,126).
+    Two names for ONE role in one file, and neither is the project verb.  Rename both to `MakeMatrix`.
+    Mechanical (compiler finds every override), but it touches every concrete term, so it wants its own
+    commit rather than riding on a behaviour change.
+  - **A second, non-cosmetic half: in qcBasisSet the `Make` verb is PUBLIC; in qcHamiltonian it is
+    `protected`.**  So the escape hatch the convention promises — "need it by value? call `Make`" — does
+    not actually exist for a term's client.  Decide whether that is deliberate (a term's compute is
+    genuinely internal, and the only sanctioned door is the cached one) and SAY so at the declaration, or
+    whether `MakeMatrix` should be public like its BasisSet cousins.  **This is the part worth a ruling;
+    the rename is bookkeeping.**
+  - Found while writing up R2.9(ii), where "return by value" was considered as a fix to `GetMatrix` — the
+    convention says that was the wrong half of the pair to reach for.
+
+- **R2.19 `FittedVxcPol` copies a matrix its child already owns — and its own HF twin `VxcPol` shows the
+  fix, three files away.**  Found 2026-08-10 following the user's R2.18 remark.
+  - `FittedVxcPol::CalcMatrix` (Imp/FittedVxcPol.C:45-73) is a PURE FORWARDER: both branches end in
+    `(s==Spin::Up ? itsUpVxc : itsDownVxc)->GetMatrix(...)`, i.e. they return BY VALUE a matrix the
+    child's own per-Irrep cache already holds stably.  The `tDynamic_HT_Imp_NoCache` base then stores that
+    copy in scratch purely to have something to return a reference to.  One full matrix copy per call, per
+    spin, per irrep, per SCF iteration, to satisfy a signature.
+  - **`VxcPol` — the polarized HF term, the direct analogue — already does it right** (Imp/VxcPol.C:39-51):
+    it overrides `GetMatrix` and RETURNS THE CHILD'S REFERENCE.  Same `Spin::None` throw, same
+    `Polarized_CD` cross-cast, no copy, no scratch, no `NoCache` base.  The two polarized wrappers sit in
+    one library and disagree; the copying one is the outlier.
+  - **Fix:** give `FittedVxcPol` the `VxcPol` shape — override `GetMatrix`, forward the child's reference,
+    drop the `tDynamic_HT_Imp_NoCache` base.  The seed fallback (spin-agnostic density → the unpolarized
+    child block) forwards a reference just as well.
+  - **`FittedVcorrPol` must KEEP `NoCache`** — verified: its `CalcMatrix` genuinely computes (it refits
+    `itsVcFitter` per spin and returns `Overlap(dftbs)`), because ONE fitter is shared by both channels, so
+    the result cannot be cached across a spin pair.  So this is not "delete NoCache"; it is "stop using it
+    where a forwarder was meant".  R2.9(ii)'s Irrep-keyed scratch still earns its place for
+    `FittedVcorrPol`, and would become that class's private business alone.
+  - Cheap to verify: the polarized molecular DFT tests (`M_DFT*`/`M_Calculation` polarized cases).
+
 - **R2.16 Construction-time facts re-asked at RUN time (USER PRINCIPLE, 2026-08-07).**
   **User ruling:** *"I much prefer that the whole Hamiltonian is decided and fixed at construction time.
   The only dynamic aspect is the ChargeDensity that we feed it."*  Survey done while splitting the PW

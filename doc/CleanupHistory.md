@@ -251,6 +251,16 @@ in the same session.
       `const hmat_t<T>&`, and C++ has no non-covariant return-type change on an override.  Changing the BASE
       to by-value would cost the CACHING sibling a full matrix copy per term per irrep per iteration, buying
       nothing — its whole point is to avoid recomputation, not copies.
+      **USER, 2026-08-10 — the deeper reason, which reframes the whole option:** *"GetMatrix goes through
+      caching ... if there is no cache it calls MakeMatrix() which does return by value.  So if you need a
+      return by value override it should be the MakeXXX() call."*  Right: `Get`/`Make` is a PAIR, `Get`
+      returns a reference and `Make` returns by value, and a by-value need is served by asking the other
+      half — never by changing `Get`'s return type.  So "return by value" was not merely impractical here,
+      it was reaching for the wrong half of an existing convention.  Two items came out of that remark:
+      **R2.18** (qcHamiltonian spells the `Make` verb as `CalculateMatrix`/`CalcMatrix`, two names for one
+      role, and makes it `protected` where qcBasisSet makes it public — so the convention's escape hatch is
+      not actually open to a term's client) and **R2.19** (`FittedVxcPol` is a pure FORWARDER that copies a
+      matrix its child's cache already owns; its HF twin `VxcPol` already returns the child's reference).
     - *Document it* understates the defect.  The real problem is not "a reference to shared scratch"; it is
       that **two implementations of one interface made DIFFERENT lifetime promises, invisibly.**  The caching
       sibling keys on `Irrep`, which folds in Spin via `GetIrrep(s)`, so its Up and Down blocks sit in
