@@ -195,6 +195,16 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
         if (d0*d1<0.0) ++flips;
     }
     const double Ef=s.back().E, drhoF=s.back().drho, amp=emax-emin;
+    // IS Δρ ACTUALLY FLOORED, or merely SMALL and still falling?  The two look identical in the last row and
+    // are opposite diagnoses -- a floor is grid/functional work, a slow descent is just a low iteration cap.
+    // Measured by the geometric rate over the last few iterations: a floored Δρ has rate ~1, a descending one
+    // is bounded away from it.  (MnO run 24 was labelled FIT-FLOOR STALL while Δρ was still falling 7% PER
+    // ITERATION -- 2.30e-4 -> 1.44e-4 over its last seven, no plateau at all -- and that mislabel sent a
+    // whole session's reading of the campaign to the grids instead of to the iteration cap.)
+    double drhoRate=0.0;   // Δρ(last)/Δρ(5 back), ^(1/5): ~1 = floored, <1 = still descending
+    if (s.size()>=6 && s[s.size()-6].drho>0.0)
+        drhoRate = std::pow(drhoF/s[s.size()-6].drho, 0.2);
+    const bool drhoFloored = (drhoRate > 0.98);   // <2% per iteration = not going anywhere
     const double relAmp=amp/std::max(std::fabs(Ef),1e-30);   // energy swing RELATIVE to the total
     // Verdict priority separates the three pathologies (+ the benign degenerate case) by their distinct
     // signatures.  KEY distinction: a degenerate open shell has the ENERGY settled (small relAmp) while Δρ
@@ -203,7 +213,9 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
         (drhoF < 1e-5)                                   ? "CONVERGED" :
         (drhoF > 1e-3 && relAmp < 5e-3)                  ? "DENSITY-DEGENERATE (E settled, ρ rotates -- benign)" :
         (flips >= 3 && relAmp > 5e-3)                    ? "OSCILLATING (charge-transfer sloshing / mixing unstable)" :
-        (drhoF > 1e-5 && s.back().dEabs < 1e-5)          ? "FIT-FLOOR STALL (Δρ floored, ΔE tiny -- functional/grid)" :
+        (drhoF > 1e-5 && s.back().dEabs < 1e-5 && drhoFloored)
+                                                         ? "FIT-FLOOR STALL (Δρ floored, ΔE tiny -- functional/grid)" :
+        (drhoF > 1e-5 && s.back().dEabs < 1e-5)          ? "UNSETTLED (Δρ still descending at the cap -- raise NMaxIter, NOT a floor)" :
         (std::fabs(Ef) > 3.0*std::fabs(s.front().E))     ? "DIVERGING" : "UNSETTLED (hit iter cap mid-descent)";
     std::cout << "["<<label<<" fp] iters="<<n<<" Efinal="<<Ef<<" lastΔρ="<<drhoF
               << " oscFlips(last"<<w<<")="<<flips<<" Eamp(last"<<w<<")="<<amp<<" relAmp="<<relAmp
@@ -522,10 +534,22 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 // PREVIOUS stage's converged occupied subspace as its fixed reference (§0e's grid-continuation MOM, applied
 // across TEMPERATURE instead of across grid), and stage 0 self-adopts the seed's.  This is what makes
 // "smear through the ties, then hold what you found" a single experiment rather than two unrelated ones.
+// \a penaltySchedule (optional): a PER-STAGE MOMSmearPenalty Λ, parallel to \a kTSchedule (empty = o.scf's
+// value throughout).  ANNEALING THE CONSTRAINT, not just the temperature -- and for a symmetry-broken run
+// that is the more important schedule of the two.  Λ is sized to hold a configuration against a dive at the
+// START (MnO: 2.4 Ha at iteration 1); near convergence the competing scale is far smaller, and the SAME Λ
+// then pins states empty that the converged spectrum wants filled -- measured on MnO run 24, which held
+// SEVEN levels empty below the ↓ HOMO, some 0.6 Ha below states it was occupying.  A constraint that
+// rescues the early iterations is not automatically one you want at the fixed point, so it gets a schedule:
+// strong while the branch is being chosen, released once the exchange splitting can hold the branch itself.
+// Releasing to Λ=0 also RE-ARMS aufbau (the masked-Fermi path only consults the reference when Λ>0), which
+// is exactly the test of whether MOM is still load-bearing.
 static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
                                 const std::vector<double>& kTSchedule, bool verbose=false,
-                                const std::vector<std::string>& accSchedule={}, GpwHandles* keep=nullptr)
+                                const std::vector<std::string>& accSchedule={}, GpwHandles* keep=nullptr,
+                                const std::vector<double>& penaltySchedule={})
 {
+    assert(penaltySchedule.empty() || penaltySchedule.size()==kTSchedule.size());
     assert(accSchedule.empty() || accSchedule.size()==kTSchedule.size());
     namespace L3=BasisSet::Lattice_3D;
     const std::string sp = o.species.empty() ? std::string() : o.species.front().first;
@@ -585,12 +609,16 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         prev.reset();   // the adoption copied what we needed; release the previous stage's machinery
 
         SCFParams par=o.scf; par.Verbose=verbose; par.SmearingkT=kT;
+        if (!penaltySchedule.empty()) par.MOMSmearPenalty=penaltySchedule[s];
         std::vector<FpRow> series;
         scf->SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
                          { series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order}); });
         if (o.orderProbe) scf->SetOrderParameter(o.orderName, o.orderProbe);   // per STAGE, like the fingerprint
         std::cout << "["<<o.label<<" anneal "<<s+1<<"/"<<kTSchedule.size()<<"] kT="<<kT
-                  << " acc="<<(accSchedule.empty()?o.accelerator:accSchedule[s])<<std::endl;
+                  << " acc="<<(accSchedule.empty()?o.accelerator:accSchedule[s])
+                  << " MOM-Lambda="<<par.MOMSmearPenalty
+                  << (par.MOMSmearPenalty<=0.0 && o.scf.UseMOM ? "  (RELEASED: plain energy Fermi)" : "")
+                  << std::endl;
         scf->Iterate(par);
         Fingerprint(series, (o.label+" kT="+std::to_string(kT)).c_str());
         OrderTrajectory(series, o.orderProbe ? o.orderName : std::string(),
@@ -3122,8 +3150,20 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
             s=s.substr(c+1);
         }
         assert(!kTs.empty() && "MNO_ANNEAL must list at least one kT");
+        // MNO_ANNEAL_PENALTY: the per-stage MOM Λ, parallel to MNO_ANNEAL.  "1.5,0" = hold the branch, then
+        // RELEASE the constraint and see whether the exchange splitting can keep it without help.
+        std::vector<double> lams;
+        if (const char* ls=std::getenv("MNO_ANNEAL_PENALTY"))
+            for (std::string t(ls), tok; !t.empty(); )
+            {
+                size_t c=t.find(','); tok=t.substr(0,c);
+                if (!tok.empty()) lams.push_back(std::atof(tok.c_str()));
+                if (c==std::string::npos) break;
+                t=t.substr(c+1);
+            }
+        assert((lams.empty() || lams.size()==kTs.size()) && "MNO_ANNEAL_PENALTY must parallel MNO_ANNEAL");
         arm.R=RunGpwAnnealed(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, kTs, verbose,
-                             /*accSchedule*/{}, &arm.h);
+                             /*accSchedule*/{}, &arm.h, lams);
         return arm;
     }
     arm.R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, verbose, &arm.h);
