@@ -16,42 +16,41 @@ worth more than the landed ones.
 
 # START HERE (handoff, 2026-08-10)
 
-## Just landed: **R1.7** (`26af31b6`) — the `Orbital_HF_IBS` split.  Full record → doc/CleanupHistory.md.
+## Just landed: **R2.9** (`268473b9`) and **R1.7** (`26af31b6`).  Full records → doc/CleanupHistory.md.
 
-Worth carrying forward, because it generalizes past this one interface: **the split was ruled on ISP
-grounds and paid off on DIP grounds.**  Once `MakeDirect`/`MakeExchange` were off the client-facing face,
-a grep showed NOTHING outside qcBasisSet had ever named an `ERI4` — so the substrate could go into an
-`Internal.` module and two libraries stopped importing the 4-index type.  When an item says "this
-interface promises more than its clients consume", check whether the surplus also crosses a LIBRARY
-boundary; if it does, the ISP fix and the DIP fix are the same edit.
+Two things worth carrying forward, because they generalize past their own items:
 
-## Next task: **R2.9** — small Hamiltonian hardening.  **Start it NEXT.**  Full item under READY / R2.
+- **R1.7 — an ISP split can pay off on DIP grounds.**  Once `MakeDirect`/`MakeExchange` were off the
+  client-facing face, a grep showed NOTHING outside qcBasisSet had ever named an `ERI4` — so the substrate
+  went into an `Internal.` module and two libraries stopped importing the 4-index type.  When an item says
+  "this interface promises more than its clients consume", check whether the surplus also crosses a LIBRARY
+  boundary; if it does, the ISP fix and the DIP fix are one edit.
+- **R2.9(ii) — when an item offers two fixes, check whether it named the right DEFECT.**  The item said
+  "returns a reference to shared scratch — document or return by value".  By-value turned out to be
+  impossible (it OVERRIDES a reference-returning virtual) and documenting understated the problem: the real
+  defect was that the two implementations of ONE interface made DIFFERENT reference-lifetime promises, and
+  a caller holding the base pointer could not tell which it had.  Fixing the asymmetry was cheaper than
+  either offered option.  **Re-derive the defect before picking from an item's menu** — the menu was written
+  earlier, with less in front of it.
 
-(To be unambiguous, because the first draft of this handoff was not: **R2.9 is the next item to pick up.**
-The "do it last" below orders R2.9's own three SUB-items against each other — it is not a suggestion to
-defer R2.9 itself.)
+## Next task: **V1.31** — delete `SymFockCache`; let the term own the per-density memo
 
-The pick for a session running ALONGSIDE the MnO campaign:
-- **Files** — `src/Hamiltonian/Internal/PWTerms.C` (`XC_GridEngine`), `HamiltonianTerm.C`,
-  `Imp/HF_HT.C`.  None is on the MnO DO-NOT-TOUCH list, and none is theirs by assignment.
-- **Three separable pieces** — (i) constness laundering, (ii) a reference into shared scratch,
-  (iii) a latch with no assert — so it can be stopped cleanly at any point.
-- **Sub-item order, driven by VERIFICATION cost (not importance):** do **(iii) first** — it is the
-  molecular HF path, checked by the fast `M_HF_*` tests; then **(ii)**, a doc-or-return-by-value call;
-  then **(i) LAST**, because it touches the GPW XC engine and wants a GPW run to confirm, which is the
-  part that needs the box.
-- Note (i) also records a real hazard worth reading before touching it: `XC_GridEngine` has NO
-  cross-invalidation between its scalar and Up/Dn rho caches, which can be live simultaneously.
+Design is SETTLED (user ruling 2026-08-10: a version counter beats an elementwise D compare), and because
+`Version()` lives ABOVE qcBasisSet in the library DAG that ruling forces the shape — the memo must move to
+`qcHamiltonian`, where `Dynamic_HF_HT_Imp::itsJKs` already does exactly this job.  Execution, not another
+design round.  **Read the item's correction note first**: its first draft mis-described what those two
+memos hold and had to be retracted, and the retraction is the part worth reading.
+- **Files** — `src/BasisSet/SymmetryAdapted_IBS.C` + `Imp/`, and `src/Hamiltonian/Internal/` (Terms.C,
+  Imp/HF_HT.C).  Disjoint from the MnO working set; molecular SALC physics only.
+- **Cheap to verify** — `PGSymmetry.decorator_coulomb_matches_AO_slice` is the direct anchor, plus
+  `M_Calculation.WaterSymmetryLibCint`; all fast, all `ctest -R` at `-j2`.
+- **Safe to attempt** — the cache is already OPTIONAL (the ctor's `shared_ptr` defaults to null and the
+  decorator builds directly without it), so there is a working fallback while the term route is wired.
+  Getting it wrong costs N² AO builds per iteration instead of N: slow, not incorrect.
+- Its `Ocd`-missing-from-the-key defect is independent and survives whatever shape the fix takes.
 
-**Queued behind it, both filed 2026-08-10 and neither started:**
-- **R1.9** — molecular `BasisSetID()` prints hex.  Small, unruled, but it invalidates a diagnostic and a
-  cache-key claim.
-- **V1.31 🔶** — `SymFockCache` duplicates `Dynamic_HF_HT_Imp::itsJKs` with a different staleness rule,
-  and its key omits `Ocd`.  **DESIGN NOW SETTLED** (user: version counter over elementwise D compare),
-  and because `Version()` lives above qcBasisSet in the DAG that ruling forces the shape: delete
-  `SymFockCache`, let the term own the memo.  It is execution, not another design round.
-  **Read its correction note first** — the first draft mis-described what those two memos hold and had
-  to be retracted; the retraction is the part worth reading.
+**Also queued, unruled:** **R1.9** — molecular `BasisSetID()` prints hex.  Small, but it invalidates a
+diagnostic and a cache-key claim that `SymFockCache`'s own comment makes.
 
 ## Coordination — the MnO campaign runs in the qchem6 clone, in parallel
 
@@ -322,14 +321,12 @@ MnO campaign proceeds undisturbed in qchem6.
 - **R2.6 ✅ DONE 2026-08-07. The `LDAVxc` bundle** — a "Hamiltonian term" whose `CalcMatrix`/`GetEnergy` call.  **→ doc/CleanupHistory.md**
 - **R2.7 ✅ DONE 2026-08-07. `FittedCD::Clone()` — delete.**  Pure virtual (FittedCD.C:28) whose SOLE implementation.  **→ doc/CleanupHistory.md**
 - **R2.8 ✅ DONE 2026-08-07. `InsertStandardTerms<dcmplx>` = assert(false)** (Imp/HamiltonianImp.C:49-53) — a.  **→ doc/CleanupHistory.md**
-- **R2.9 Small Hamiltonian hardening**: (i) `XC_GridEngine` constness laundering —
-  Rho/RhoPol/Matrix/Phi non-const, called from const term methods via a non-const `shared_ptr`;
-  every other cache in the module is `mutable`+const-method — align it (and note: no
-  cross-invalidation between its two rho caches, scalar + Up/Dn, which can be live simultaneously).
-  (ii) `tDynamic_HT_Imp_NoCache::GetMatrix` returns a reference to shared scratch
-  (HamiltonianTerm.C:104-107) — safe today only by immediate consumption; document or return by
-  value.  (iii) `Dynamic_HF_HT_Imp::itsWholeBasis` latches on first use (Imp/HF_HT.C:31) — assert
-  on change.
+- **R2.9 ✅ DONE `268473b9` (all three sub-items). Small Hamiltonian hardening** — (iii) the whole-basis
+  latch now THROWS on change (not the asked-for assert: `-DNDEBUG`); (ii) `tDynamic_HT_Imp_NoCache` keys its
+  scratch by `Irrep`, so both siblings of one interface finally promise the SAME reference lifetime — the
+  actual defect, and neither of the two fixes the item proposed; (i) `XC_GridEngine` is const + `mutable`
+  with a `shared_ptr<const>` holder, and its two non-cross-invalidating rho caches are pinned by asserts.
+  **→ doc/CleanupHistory.md**
 - **R2.10 ✅ DONE 2026-08-07. `Fit_IBS::SetMesh` → ctor parameter.**  Two-phase construction; the construction-time.  **→ doc/CleanupHistory.md**
 - **R2.11 ✅ DONE 2026-08-07. `DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every.  **→ doc/CleanupHistory.md**
 - **R2.12 ✅ DONE 2026-08-07. `UnmatchedCounts`/fold `tol` defaults** — 1e-8 fractional as a literal in three places.  **→ doc/CleanupHistory.md**

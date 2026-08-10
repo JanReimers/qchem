@@ -223,6 +223,65 @@ in the same session.
     `M_LibCint` `matrix_3C_4C_match_scalar`, and `M_Calculation.WaterSymmetryLibCint`.
   - Doc references updated in `doc/ERI4Rework.md` (§2 substrate address, §5.4 SALC caveat).
 
+- **R2.9 ✅ DONE `268473b9` (2026-08-10).  Small Hamiltonian hardening — all three sub-items.**
+  Original text: (i) `XC_GridEngine` constness laundering — Rho/RhoPol/Matrix/Phi non-const, called from
+  const term methods via a non-const `shared_ptr`; every other cache in the module is `mutable`+const-method
+  — align it (and note: no cross-invalidation between its two rho caches, scalar + Up/Dn, which can be live
+  simultaneously).  (ii) `tDynamic_HT_Imp_NoCache::GetMatrix` returns a reference to shared scratch
+  (HamiltonianTerm.C:104-107) — safe today only by immediate consumption; document or return by value.
+  (iii) `Dynamic_HF_HT_Imp::itsWholeBasis` latches on first use (Imp/HF_HT.C:31) — assert on change.
+
+  Done in the order (iii), (ii), (i) — by VERIFICATION cost, not importance: (iii) and (ii) are checked by
+  the fast molecular tests, (i) needs a GPW sweep.
+
+  - **(iii) THROW, not the assert the item asked for.**  Same deviation as R1.4, same reason: `build/Release`
+    is `-DNDEBUG`, so an assert would be a no-op in the configuration we actually test — and the null-basis
+    precondition three lines above, on the SAME parameter, already throws.  One function should not check two
+    preconditions on one argument at two different volumes.  What a change would mean is a wrong answer, not
+    a crash: `itsJKs` is keyed by BasisSetID and built by walking the latched composite, so a second basis
+    would be served the first one's contraction — a plausible Fock from the wrong cross-irrep view.
+    - **Follow-up worth filing separately (R2.16 shape, NOT done here):** the latch exists because
+      `GetEnergy` has no basis argument, i.e. a run-stable fact is discovered lazily instead of being
+      supplied at construction — exactly the pattern R2.16 rules against.  The precedent already exists:
+      `Ham_DFT_U`/`Ham_DFTcorr_U` ctors take `const rbs_t* bs`; `Ham_HF_U`/`Ham_HF_P` do not.  Making it a
+      ctor parameter is the real fix and is mechanical for the DFT family, but it changes two public
+      Hamiltonian ctors and their call sites — more than "small hardening" scopes, hence left.
+  - **(ii) NEITHER of the two options the item offered.**  Both were considered and both are wrong:
+    - *Return by value* is not available: `GetMatrix` OVERRIDES `tDynamic_HT<T>::GetMatrix`, which returns
+      `const hmat_t<T>&`, and C++ has no non-covariant return-type change on an override.  Changing the BASE
+      to by-value would cost the CACHING sibling a full matrix copy per term per irrep per iteration, buying
+      nothing — its whole point is to avoid recomputation, not copies.
+    - *Document it* understates the defect.  The real problem is not "a reference to shared scratch"; it is
+      that **two implementations of one interface made DIFFERENT lifetime promises, invisibly.**  The caching
+      sibling keys on `Irrep`, which folds in Spin via `GetIrrep(s)`, so its Up and Down blocks sit in
+      separate slots; the NoCache one had a single `itsMat`, so they aliased.  A caller holding
+      `tDynamic_HT<T>*` cannot tell which it has, and the natural polarized idiom — bind `up`, then bind
+      `dn` — is correct against one and silently wrong against the other.  `FittedVxcPol`, ONE object
+      serving both spin channels, is exactly where it would have been sprung.
+    - **So: key the scratch by `Irrep` (reusing `tHT_Common`), and ALWAYS assign — never look up.**  Storage
+      is shared with the caching sibling; the CACHING is not.  Both siblings now promise the same thing:
+      valid until the next call for the same Irrep.  Cost is one matrix per Irrep, the bound the sibling
+      already carried.  Verified latent, not live: every consumer in the tree is an immediate
+      `H += t->GetMatrix(...)`; nothing stores the reference.
+  - **(i) const + `mutable`, and the `shared_ptr` made `const` too.**  All four accessors (`Rho`, `RhoPol`,
+    `Matrix`, `Phi`) are now const and every cache they touch is `mutable` — the idiom `tHT_Common::itsCache`,
+    `tDynamic_HT_Imp::itsCacheVersion` and `Dynamic_HF_HT_Imp::itsJKs` already use.  `itsMesh`/`itsFold` are
+    deliberately NOT mutable: construction-time, must not move.  The three terms' `engine_t` became
+    `shared_ptr<const XC_GridEngine>`, which is what actually retires the laundering — previously the
+    constness was defeated by holding a non-const pointer, so the const-ness of the term methods said nothing.
+  - **The two-rho-cache hazard the item flagged is now PINNED, not just noted.**  `itsRho` and the
+    `itsRhoUp/Dn` pair guard only their own serial and never invalidate each other, so an engine driven on
+    both routes for different densities would report "fresh" while holding one stale raster.  It is
+    unreachable today, and CHECKED rather than assumed: there is exactly ONE construction site
+    (Imp/Hamiltonians.C:240) and its `if (polarized)` branch adds either two Pol terms (RhoPol only) or two
+    scalar terms (Rho only) to a single shared engine — R2.16's own good pattern, where absence of a
+    capability means the term is not in the list.  So each accessor now ASSERTS the other route was never
+    used, and the members carry a `\warning` that any mixed/GGA route must add real cross-invalidation
+    first.  Assert (not throw) is deliberate, and is the OPPOSITE call from (iii) in the same commit: (iii)
+    guards a condition a caller could reach, so it must be loud in Release; this one is excluded by
+    construction, so it is an invariant pinned for a future change — and a throw would cost a branch in the
+    per-iteration rho path to defend against something no caller can do.
+
 - **R1.8 ✅ DONE `06e23f5d`. `FittedVee` casts `bs` and dereferences with NO assert** (Imp/FittedVee.C:41-42) — the
   sibling sites at least assert.  (The odftbs_t casts themselves are sanctioned abstract→abstract.)
 
