@@ -223,6 +223,46 @@ in the same session.
     `M_LibCint` `matrix_3C_4C_match_scalar`, and `M_Calculation.WaterSymmetryLibCint`.
   - Doc references updated in `doc/ERI4Rework.md` (§2 substrate address, §5.4 SALC caveat).
 
+- **V1.31 ✅ DONE `627a4ff9` (2026-08-10).  `SymFockCache` deleted; the SALC path builds ONE whole-AO Fock
+  and slices it.**  The item was filed twice wrong before it was right, and both wrong versions are kept in
+  doc/CleanupCandidates.md because the corrections are where the value is:
+  1. Filed as "caching has escaped `DB_Cache_RAM`" — WRONG on both halves (the two memos hold contracted
+     matrices, not J/K tables; and `DB_Cache_RAM` is not immortal, it LRU-evicts ERI4s).  User caught it
+     from the description alone.
+  2. Re-filed with the user's ruling "version counter over elementwise D compare" — right in general,
+     REFUTED at this site: `tPolarized_CD::Version()` forwards to its Up child, so Up and Down would be
+     indistinguishable inside one sweep and the Down pass would be served the Up channel's \f$J_{AO}\f$.
+     The elementwise compare was load-bearing, not lazy.
+  3. The user then asked for a flow diagram, on the hunch that *"this whole thing is just designed wrong.
+     We are somehow caching the wrong thing in the wrong place."*  **That was the correct diagnosis**, and
+     the chain showed it: the composite's canonical-PAIR loop exists for bases with per-irrep-pair ERI4
+     blocks, which a SALC basis does not have at all (R1.7).  Driven through that loop, the decorator
+     rebuilt the SAME whole-molecule AO Fock once per irrep; `SymFockCache` existed only to stop it being
+     once per PAIR.  So the memo was a prop holding up a loop that should not have been running.
+
+  **What landed — remove the loop, not the staleness test.**
+  - New CAPABILITY FACE `BasisSet::WholeSystemFock_IBS<T>` (in `Orbital_HF_IBS.C`, beside the contraction
+    face so qcChargeDensity imports nothing new): `AODimension`, `AddAODensity` (\f$D_{AO}\mathrel{+}=ODO^T\f$),
+    `MakeAOFock` (the ONE build), `SliceAOFock` (\f$F_{ab}\mathrel{+}=O^TF_{AO}O\f$).  Four pure virtuals,
+    no stubs, no default bodies — a basis either has the face or does not, the `tSpinResolved_CD` idiom.
+  - `tComposite_CD::Accumulate{Direct,Exchange}All` probe ONCE at the top of the sweep and, when the leaves'
+    basis has the face, run: sum the AO densities → ONE build → N slices.  Absent the face, the canonical-pair
+    loop is untouched, so every ERI4 basis is bit-for-bit unaffected.
+  - `tDM_CD` gains the probe `WholeSystemFock()` and `AddAODensity()`; only the leaf can fold its own D, and
+    the SLICE needs no density, so the composite drives that through the basis face directly.  Two virtuals,
+    not four.
+  - **The exactness is an identity, not an approximation:** J and K are LINEAR in D, so
+    \f$\sum_\Gamma F_{AO}(O_\Gamma D_\Gamma O_\Gamma^T) = F_{AO}(\sum_\Gamma O_\Gamma D_\Gamma
+    O_\Gamma^T)\f$.  N whole-AO builds per sweep become one.
+  - `SymFockCache` is GONE, and with it the elementwise density compare AND its incomplete key (it omitted
+    `Ocd`).  **Both defects died of the restructure rather than being fixed** — which is the sign the
+    diagnosis was right.
+  - **VERIFIED LIVE, not merely green.**  Passing tests prove nothing if the old path still runs, so the
+    per-pair route was temporarily booby-trapped to throw and `M_Sym` (9 cases: HF/DFT × polarized/
+    unpolarized × symmetry on/off) plus `M_HF_U` were re-run: all 15 still passed, so the SCF never reaches
+    the pair route for a SALC basis.  Probe then reverted.  The per-pair methods remain as the direct-call
+    route the `PGSymmetry` unit tests exercise.
+
 - **R2.18 ✅ NAMES DONE `86c5b24d` (2026-08-10); encapsulation half deliberately left open.  The `Make`/`Get`
   pair in qcHamiltonian.**  USER: *"GetMatrix goes through caching ... if there is no cache it calls
   MakeMatrix() which does return by value.  So if you need a return by value override it should be the

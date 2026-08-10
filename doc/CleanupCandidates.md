@@ -60,7 +60,9 @@ whether the pattern is "fitters need raw integrals", "tests need to bypass the c
 accidents.  The rule generalises past `Make`: **any deliberate loosening of encapsulation should carry its
 reason, because the decision to tighten it again later can only be made from those reasons.**
 
-## ⛔ V1.31 is BLOCKED — and the diagram changed the answer (2026-08-10)
+## ✅ V1.31 DONE `627a4ff9` — full record → doc/CleanupHistory.md.  (analysis kept below)
+
+## The analysis that produced it — and the diagram that changed the answer (2026-08-10)
 
 The user asked for a flow diagram of one Fock build, on the hunch that *"this whole thing is just designed
 wrong.  We are somehow caching the wrong thing in the wrong place."*  **The hunch was right, and the chain
@@ -1534,9 +1536,11 @@ MnO campaign proceeds undisturbed in qchem6.
   - `SolidCalcOptions` deliberately defaults it to `false` (the comment's stated intent) and says so at the
     field, so the two facades diverge ON PURPOSE rather than by drift.  Decide which is right and align them.
 
-- **V1.31 🔶 DESIGN SETTLED (user ruling 2026-08-10), not yet implemented.  `SymFockCache` and
-  `Dynamic_HF_HT_Imp::itsJKs` memoize the same thing in two libraries, with two different staleness
-  rules.**  Noticed while doing R1.7.
+- **V1.31 ✅ DONE `627a4ff9`. `SymFockCache` deleted; the SALC path builds ONE whole-AO Fock and slices it.**
+  The memo was caching a partial AO Fock at the basis level inside a loop that should not have been
+  iterating; the fix removed the loop, not the staleness test.  **→ doc/CleanupHistory.md**
+  *(the full analysis, including the retracted first draft and the refuted ruling, follows -- it is the
+  part worth reading)*
   **This item was FILED WRONG on 2026-08-10 and corrected the same day by the user — the correction is
   the more useful half, so it is kept.**
   - **What the first draft claimed:** "caching has escaped `DB_Cache_RAM` — three caches, three
