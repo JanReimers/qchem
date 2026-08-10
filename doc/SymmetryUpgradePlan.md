@@ -1423,6 +1423,33 @@ against a special case it will outgrow:
          up until the magnetic configuration IS the aufbau one.  So "+U" moves from follow-on to THE next
          step, and the acceptance test becomes "the magnetic solution converges aufbau-stable WITHOUT MOM",
          not "m_stag survived".  Log `run26_lambda_release`.
+       * **⛔ THE +U CONCLUSION ABOVE IS RETRACTED, SAME DAY — CP2K IS NOT DOING +U (user's question).**
+         Checked the banked deck `IntegrationTests/CP2K/mno_afm2_gpw_sr.inp`: **no `&DFT_PLUS_U`, no Hubbard
+         keyword anywhere**, plain `LDA_X + LDA_C_VWN`.  What CP2K uses to reach −61.4706 is a `&BS`
+         BROKEN-SYMMETRY guess on two distinct Mn KINDs (±5 d occupation, applied to the ATOMIC guess only),
+         **Fermi smearing at 5.0E-3 au — exactly our kT**, Broyden mixing (α=0.2, β=1.5, NBUFFER 8),
+         `ADDED_MOS 20`, plain diagonalization, and **no MOM and no constraint of any kind** — same
+         functional, basis, PP, 144 Ry cutoff and kT as ours.
+         **So the magnetic state IS reachable and aufbau-stable under LSDA, and our inability to reach it is
+         OUR defect, not the functional's.**  The inference above was drawn from our own failure mode without
+         checking whether the oracle needed the cure — backwards, with a same-recipe oracle sitting in the
+         repo.  A failure to converge is evidence about the code until an oracle says otherwise.
+       * **WHAT THE COMPARISON POINTS AT INSTEAD.**  Almost nothing differs except the SCF machinery, so the
+         defect is tightly bracketed, and the event to instrument is the one measured since run 7 and never
+         explained: **m_stag falls 0.366 → 0.0046 in ONE Fock build** from a provably staggered seed, before
+         any mixing history exists.  At α=0.25 on a linear m channel that implies an OUTPUT density
+         anti-staggered at m≈−1.08 — a sign-flipped response ~3× the input, not a decay.  CP2K's first step
+         evidently does not do that.  Cheapest tests first:
+         (a) **the polarized XC response at the seed density** — is v_xc^↑−v_xc^↓ the right sign and size?
+             A single-point check on the seed, no SCF at all, and it is the one candidate that would explain
+             a SIGN FLIP rather than a decay;
+         (b) frontier coverage under smearing (CP2K's `ADDED_MOS 20`);
+         (c) the mixer (Broyden vs Kerker+Pulay) — weakest candidate, since run 8's linear-mixing control
+             already kept m_stag alive;
+         (d) seed magnitude: ours is a per-site flip of the SAD d occupation, CP2K's `&BS` is the same idea —
+             compare the two initial moments directly.
+         **The acceptance test is unchanged (aufbau-stable WITHOUT MOM); only the mechanism changes — this is
+         a bug hunt against a same-recipe oracle, not a functional upgrade.**
        * **WHAT IS STILL OPEN** (do not read the above as "done"):
          (a) **It does not pass the convergence gate**: the run ends on the GDM leg with lastΔρ=3.2e-2 against
              MinΔρ=1e-5.  E and the moment are stable to ~1e-3, but the gate measures ρ, and the DIIS→GDM
