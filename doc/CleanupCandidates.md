@@ -60,7 +60,31 @@ whether the pattern is "fitters need raw integrals", "tests need to bypass the c
 accidents.  The rule generalises past `Make`: **any deliberate loosening of encapsulation should carry its
 reason, because the decision to tighten it again later can only be made from those reasons.**
 
-## ⛔ V1.31 is BLOCKED on a user ruling — do not start it as written
+## ⛔ V1.31 is BLOCKED — and the diagram changed the answer (2026-08-10)
+
+The user asked for a flow diagram of one Fock build, on the hunch that *"this whole thing is just designed
+wrong.  We are somehow caching the wrong thing in the wrong place."*  **The hunch was right, and the chain
+shows it in one read:**
+- `ContractAll` ALREADY runs the whole sweep exactly once per density serial.
+- Below it, the composite's pair loop reaches the SALC decorator ~N² times — a loop built for ERI4 PAIR
+  BLOCKS, which the SALC path does not have at all (R1.7).
+- `SymFockCache` exists only to stop that loop from doing ~N² whole-molecule AO builds.  It collapses
+  N² → N.
+- **But \f$J\f$ is LINEAR in \f$D\f$:** \f$\sum_C J_{AO}(O_C D_C O_C^\mathsf{T}) =
+  J_{AO}(\sum_C O_C D_C O_C^\mathsf{T})\f$.  Those N builds ARE one build.
+⇒ It caches a **partial** AO Fock (J from ONE irrep block's density), at the **basis** level, inside a loop
+that should not be iterating for this path.  Wrong thing, wrong place — and the elementwise D compare is
+FORCED by that position: down there the only thing in hand is a matrix, which is why no version is
+reachable.  The staleness question was a symptom, not the disease.
+**So the fix is not a better staleness test and not a rehoming: give the SALC path its OWN
+`AccumulateDirectAll` — sum the AO densities, build ONCE, slice N times.** The memo then has nothing to
+memoize and deletes itself, taking the missing-`Ocd` key defect with it.  Needs a design call on where the
+SALC path branches (a capability question on the face R1.7 created is the obvious candidate), which is why
+it is still not started.
+
+*(the earlier analysis, still accurate, follows)*
+
+## Earlier: V1.31 blocked on a ruling — do not start it as written
 
 Attempted 2026-08-10; the settled design does not survive the call path.  **Two facts kill it** (full
 evidence in the item): `SymFockCache` is an INTRA-SWEEP memo, not a cross-iteration cache — the term's own
@@ -1259,8 +1283,9 @@ MnO campaign proceeds undisturbed in qchem6.
     rather than cancel.  Filed as V2.6; the warning is on `BeckeXCParams`' doc comment so a reader meets it
     where the numbers live.
 
-- **V1.27 `MolecularSCFIterator` / `SolidSCFIterator` are named for the STRUCTURE and discriminate on the
-  PSEUDOPOTENTIAL.  USER 2026-08-09.**
+- **V1.27 ✅ THE LIVE HALF DONE `a1e1f9bb` (the virial gate/column now turns itself off via
+  `IsVirialValid()`); the ITERATOR RENAME itself is still open.  `MolecularSCFIterator` /
+  `SolidSCFIterator` are named for the STRUCTURE and discriminate on the PSEUDOPOTENTIAL.  USER 2026-08-09.**
   > "They were originally about what iteration columns to display.  MolecularIterator actually displays
   > columns that make sense for non-PP calculations and SolidIterator displays columns that make sense for
   > PP calculations.  They were originally misnamed simply because most Molecule runs were non-PP and all of
@@ -1292,10 +1317,34 @@ MnO campaign proceeds undisturbed in qchem6.
       face (default false; true on `PP_Local`, `PP_NonLocal`, `Ven_PP_Short`, `Ven_PP_NonLocal`,
       `Ven_PP_Long`), OR it up in `tHamiltonianImp::Add`, and let the iterator ask ONCE — dropping both the
       virial COLUMN and the virial CLAUSE.  The nine hand-set thresholds then become redundant.
-    - **THE RULING NEEDED:** should PP-ness disable the virial GATE automatically, and not just the column?
-      It is a no-op for all nine existing call sites (they already disable it), but it CHANGES convergence
-      for a PP caller that forgot — from "cannot satisfy the virial clause" to "converges properly".  That
-      is a fix, but it is a semantic change to convergence, so it is the user's call, not a cleanup.
+    - **✅ RULED AND DONE `a1e1f9bb` — and the ruling improved the NAME, which improved the item.**
+      *"I suspect PPs are not the only thing in the whole electronic structure universe that breaks the
+      virial theorem.  So if we make a new function it should be `IsVirialValid()` ... instead of
+      `IsPseudopotential()`.  So then it seems clear `IsVirialValid()==false` should result in no virial
+      gate in the SCF iterator loop."*  (The `idealVirial`-returns-NaN alternative was raised and rejected
+      by the user as a smell — rightly: it would push a sentinel onto every consumer of `idealVirial`.)
+    - **Name the PROPERTY THE CLIENT CONSUMES, not the CAUSE.**  `IsPseudopotential()` would have been
+      correct today and wrong at the first non-Coulombic term that is not a PP (an external or model
+      potential, a finite field, a cutoff Coulomb).  This is R1.7's lesson a third time (after R2.13's
+      "Becke" and R2.17's "SiteAdaptedBecke"), and it is now cheap to state: **when adding a capability
+      query, write down what the caller will DO with the answer; if the name does not match that sentence,
+      it is naming the implementation.**
+    - **The fold is AND, not OR** — the one implementation subtlety.  `IsPolarized`/`IsRelativistic` are
+      OR-ed in `Add()` (one term is enough to make the Hamiltonian polarized); validity is conjunctive
+      (the virial holds only if EVERY term is Coulombic).  Same shape, opposite operator.
+    - **Relativistic is deliberately NOT this flag.**  The Dirac virial is still VALID, it just has ideal
+      ratio 1 instead of 2 — which `IsRelativistic()` already selects.  Folding it in would have repeated
+      the wrong-noun error the new name exists to avoid.
+    - The display methods ask the Hamiltonian directly rather than threading a flag through the virtual
+      signature, so no sentinel stands in for "no virial column".
+    - **The nine hand-set `MinVirial` thresholds are now redundant** (ValenceBasisGen ×3, A_PP.C ×6).
+      Left in place deliberately — harmless, and their comments document the physics — but a later sweep
+      can drop them, and any NEW PP caller needs nothing.
+    - **STILL OPEN, deliberately separate:** `SCFParams::MinVirial = 1e-13` with the comment *"effectively
+      off"*.  The test is `error < MinVirial`, so smaller is STRICTER — the default is maximally ON, not
+      off.  Either the comment or the default is wrong.  Untouched here because it affects ALL-ELECTRON
+      runs (where the gate is real) and V1.27 was about PP runs; fixing it is a separate decision about
+      what the default gate SHOULD be.
   - **⚠️ AND IT IS A LIVE DEFECT, not just a name.**  `Calculation` supports `{.pseudopotential=true}` (the
     `sipp` molecular PP runs) and uses `MolecularSCFIterator`, which inherits the base layout — so **a
     molecular pseudopotential run displays a virial column the tree itself documents as invalid for it.**
