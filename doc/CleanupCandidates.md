@@ -43,11 +43,15 @@ The pick for a session running ALONGSIDE the MnO campaign:
 - Note (i) also records a real hazard worth reading before touching it: `XC_GridEngine` has NO
   cross-invalidation between its scalar and Up/Dn rho caches, which can be live simultaneously.
 
-**Queued behind it, both filed 2026-08-10 and neither started:** **R1.9** (molecular `BasisSetID()`
-prints hex — small, but it invalidates a diagnostic and a cache-key claim) and **V1.31** (`SymFockCache`
-duplicates `Dynamic_HF_HT_Imp::itsJKs` with a different staleness rule, and its key omits `Ocd`).
-**Read V1.31's correction note before acting on it** — its first draft mis-described what those two
-memos hold and had to be retracted; the retraction is the part worth reading.
+**Queued behind it, both filed 2026-08-10 and neither started:**
+- **R1.9** — molecular `BasisSetID()` prints hex.  Small, unruled, but it invalidates a diagnostic and a
+  cache-key claim.
+- **V1.31 🔶** — `SymFockCache` duplicates `Dynamic_HF_HT_Imp::itsJKs` with a different staleness rule,
+  and its key omits `Ocd`.  **DESIGN NOW SETTLED** (user: version counter over elementwise D compare),
+  and because `Version()` lives above qcBasisSet in the DAG that ruling forces the shape: delete
+  `SymFockCache`, let the term own the memo.  It is execution, not another design round.
+  **Read its correction note first** — the first draft mis-described what those two memos hold and had
+  to be retracted; the retraction is the part worth reading.
 
 ## Coordination — the MnO campaign runs in the qchem6 clone, in parallel
 
@@ -1351,8 +1355,9 @@ MnO campaign proceeds undisturbed in qchem6.
   - `SolidCalcOptions` deliberately defaults it to `false` (the comment's stated intent) and says so at the
     field, so the two facades diverge ON PURPOSE rather than by drift.  Decide which is right and align them.
 
-- **V1.31 `SymFockCache` and `Dynamic_HF_HT_Imp::itsJKs` memoize the same thing in two libraries, with
-  two different staleness rules.**  Noticed while doing R1.7; filed, not fixed.
+- **V1.31 🔶 DESIGN SETTLED (user ruling 2026-08-10), not yet implemented.  `SymFockCache` and
+  `Dynamic_HF_HT_Imp::itsJKs` memoize the same thing in two libraries, with two different staleness
+  rules.**  Noticed while doing R1.7.
   **This item was FILED WRONG on 2026-08-10 and corrected the same day by the user — the correction is
   the more useful half, so it is kept.**
   - **What the first draft claimed:** "caching has escaped `DB_Cache_RAM` — three caches, three
@@ -1381,6 +1386,27 @@ MnO campaign proceeds undisturbed in qchem6.
     whether 1 can simply be deleted and the SALC path routed through 2.**  If it cannot, they should
     at least share the version-counter discipline: the elementwise compare costs an O(n²) scan plus a
     full stored copy of D, per irrep, per lookup.
+  - **✅ USER RULING 2026-08-10: the VERSION COUNTER is the right discipline — *"I think holding a
+    CD_Version is better (cleaner) than comparing D element by element."*  This settles the item, because
+    of where the version LIVES.**
+    - `Version()` is on `rChargeDensity`, drawn from `ChargeDensity::NextDensityVersion()` — a documented
+      program-wide monotonic clock whose comment already records a bug from getting this wrong (a serial
+      colliding across density KINDS made a dynamic term reuse the iter-0 seed Fock for the iter-1
+      density, silently breaking the SCF).  So this is not merely tidier; it is the discipline the
+      codebase has already paid for once.
+    - **But `SymFockCache` cannot adopt it where it lives.**  `qcChargeDensity` links `qcBasisSet`
+      (ChargeDensity/CMakeLists.txt:38), so qcBasisSet is BELOW it in the DAG and cannot name a charge
+      density; and the contraction face hands the decorator only the raw matrix `Dcd`, never the density
+      object.  The elementwise compare is therefore not laziness — it is the only staleness test
+      available at that altitude.
+    - **⇒ The ruling forces the fix to be option (c): DELETE `SymFockCache` and let the term own the
+      memo,** in `qcHamiltonian`, where `cd->Version()` is visible and `itsJKs` already does exactly
+      this.  The alternative — threading a version token through `Accumulate*` — would push a caching
+      concern back onto the contraction face R1.7 just finished cleaning, and would invert the
+      dependency besides.  Do NOT take it.
+    - Cross-check before deleting: `SymFockCache` is optional today (the ctor's `shared_ptr` defaults to
+      null and the decorator builds directly when it is absent — "fine for tests"), so the delete has a
+      working no-cache path to fall back on while the term-level route is wired up.
   - **One real defect, independent of the above: `SymFockCache`'s key is INCOMPLETE.**  The entry
     depends on `raw` and `Ocd`; the key is `cd->BasisSetID()` alone.
     `SymmetryAdapted_IBS::BasisSetID()` is `raw id + "[label]"`, so `raw` is encoded by luck; `Ocd` is
