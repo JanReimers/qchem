@@ -253,7 +253,16 @@ struct GpwOptions
     // convergence machinery
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
     bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
-    bool        imposeSymmetry = true;                  // impose the detected space group (renamed from reduceBZ
+    //! DEFAULT FALSE (V1.30, 2026-08-09).  It read \c true while the comment below said OPT-IN, and the
+    //! comment was the one carrying a reason.  Now actively hazardous rather than cosmetic: per V1.28 an
+    //! imposed run star-averages EACH SPIN CHANNEL under the CHEMICAL space group, whose sublattice-exchanging
+    //! ops would average an AFM structure's magnetic sublattices together and quietly demagnetise it -- the
+    //! run would not crash, it would converge to the wrong state.  Default-ON meant every new magnetic call
+    //! site inherited that unless it remembered to opt out, which is how MnO's `imposeSymmetry=false` became
+    //! load-bearing rather than merely explicit.  DEFAULT-OFF IS THE SAFER WAY TO BE WRONG: an imposition you
+    //! did not ask for is invisible in the result, a missing one only costs time.  Every pre-existing caller
+    //! that was relying on the old default now says so at its own call site -- no run changed behaviour.
+    bool        imposeSymmetry = false;                 // impose the detected space group (renamed from reduceBZ
                                                          //   2026-08-02): IBZ k-fold + per-iteration density
                                                          //   star-average + T1 {G}-star sweeps + the site-adapted
                                                          //   invariant Becke mesh.  OPT-IN per the §3 pin (an
@@ -614,6 +623,7 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  qcMesh::UnitCellKind xcKind=qcMesh::UnitCellKind::Auto)
 {
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label=label; o.Nelec=Nelec; o.species={{std::string(element), 4}};   // the Si callers: Zion=4
     o.densityEcut=densityEcut; o.images=images; o.kShift=kShift; o.xcMesh.cellKind=xcKind;
     o.accelerator="DIIS"; o.seed=seed; o.ortho=ortho; o.orthoTol=orthoTol;
@@ -886,6 +896,7 @@ TEST(GPW_SCF, PolarizedSingletMatchesUnpolarizedSiGamma)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Si SR Gamma pol-singlet";
     o.Nelec=8; o.multiplicity=1;                       // EXPLICIT two-channel singlet (nUp=nDn=4)
     o.species={{"Si",4}};
@@ -914,6 +925,7 @@ TEST(GPW_SCF, PolarizedSeedSingletMatchesUnpolarizedSiGamma)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Si SR Gamma pol-singlet spin-SAD";
     o.Nelec=8; o.multiplicity=1;                       // EXPLICIT two-channel singlet (nUp=nDn=4)
     o.species={{"Si",4}};
@@ -953,6 +965,7 @@ TEST(GPW_SCF, O2TripletInBoxMatchesFinite)
     cell.AddAtom(8, {0.5+0.5*d/a,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="O2 in-box triplet";
     o.Nelec=12; o.multiplicity=3;                      // S=1: nUp=7, nDown=5
     o.species={{"O",6}};                               // densityEcut stays AUTO: O q6 is hard (alpha_max rules)
@@ -1127,6 +1140,7 @@ TEST(GPW_SCF, DISABLED_FAtomInBoxDoubletProbe)
     cell.AddAtom(9, {0.5,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="F atom-in-box doublet"; o.Nelec=7; o.multiplicity=2; o.species={{"F",7}};
     o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
     o.scf.SmearingkT=1e-2;               // smear the degenerate 2p^5 hole (the Becke rotating-ρ cure)
@@ -1158,6 +1172,7 @@ TEST(GPW_SCF, DISABLED_Na2DimerInBoxProbe)
     cell.AddAtom(11, {0.5+0.5*d/a,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Na2 dimer-in-box"; o.Nelec=2; o.species={{"Na",1}};
     o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
     o.scf.NMaxIter=40; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
@@ -1207,6 +1222,7 @@ TEST(GPW_SCF, NaPseudoAtomInBoxDoublet)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Na atom-in-box doublet";
     o.Nelec=1; o.multiplicity=2;                               // S=1/2: nUp=1, nDown=0
     o.species={{"Na",1}};
@@ -1298,6 +1314,7 @@ TEST(GPW_SCF, SmearingConvergesDegenerateShell)
 static GpwOptions AlOptions()
 {
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Al FCC Gamma"; o.Nelec=3; o.species={{"Al",3}};
     o.densityEcut=-1.0; o.accelerator="DIIS";
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
@@ -1620,6 +1637,7 @@ TEST(GPW_SCF, DeltaFitUniformGridMatchesPWFit_SiGamma)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.Nelec=8; o.species={{"Si",4}};
     o.densityEcut=20.0; o.accelerator="DIIS";
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
@@ -1718,6 +1736,7 @@ TEST(GPW_SCF, NaFCCMetalGlobalMu)
     cell.AddAtom(11, {0,0,0});                  // Na (Zion=1): 3s^1 -- one electron => half-filled band
     Lattice_3D lat(cell, ivec3_t(2,2,2));
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Na FCC metal"; o.Nelec=1; o.species={{"Na",1}};
     o.densityEcut=-1.0; o.accelerator="DIIS"; o.globalFermi=true;   // ONE μ across the BZ
     o.kShift=rvec3_t(0.5,0.5,0.5);             // shifted Monkhorst-Pack (k at ±¼)
@@ -1750,6 +1769,7 @@ TEST(GPW_SCF, DISABLED_NaFCCMetalExperiment)
     Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Na FCC metal"; o.Nelec=1; o.species={{"Na",1}};
     o.densityEcut=-1.0; o.accelerator="DIIS";
     o.globalFermi = envd("NA_GLOBAL",1.0)!=0.0;
@@ -1802,6 +1822,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // doc/GPWPlan §0b″).  The NAF_* env knobs stay as sweep INSTRUMENTS; the defaults ARE the committed recipe.
     auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label        = "NaF GPW Gamma";
     o.Nelec        = 8;                                   // 1 (Na) + 7 (F) valence electrons
     o.species      = {{"Na",1},{"F",7}};
@@ -2266,6 +2287,7 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
     // ~1e-4-converged Becke quadrature exposes (measured at Ecut=20: dExc=1.2e-4 but max|U-B|=1.2e-2 --
     // the raster's error, not Becke's; at Ecut=60 max|U-B|=3.5e-4).
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Si Becke gate"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // the gate's SCF arm is the uniform route BY DESIGN (Auto would flip it)
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
@@ -2735,6 +2757,7 @@ TEST(GPW_SCF, DISABLED_RotatedLebedevXCProbe_SiGamma)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Si rotated-Lebedev probe"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // converge once on the uniform route (probe density)
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
@@ -2805,6 +2828,7 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
     // reason to exist; the gate here is Becke INTERNAL convergence (B40 vs a 2x-refined B80) plus the
     // energy-level agreement with the uniform route.
     GpwOptions o;
+    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="NaF Becke gate"; o.Nelec=8; o.species={{"Na",1},{"F",7}};
     o.accelerator="Ladder";
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
