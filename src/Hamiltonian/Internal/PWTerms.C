@@ -265,25 +265,37 @@ public:
     //! \a ensureBlock (when given) has its \f$\Phi\f$ table built FIRST, so the rho GEMM covers it even on
     //! the very first call; blocks not yet tabled self-evaluate pointwise inside the density (first pass
     //! only).  GetEnergy passes null (no basis at hand) and reuses the iteration's table.
-    const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr);
+    const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr) const;
     //! \brief Spin channel \f$\rho_\sigma(r_g)\f$ for \a cd's current serial -- the SPIN-NATIVE sibling of
     //! \c Rho (SymmetryUpgradePlan §4 tier 4b), cached as the {↑,↓} PAIR under ONE serial (a polarized
     //! density's \c Version() forwards to its Up child, so a single scalar cache would alias the channels).
     //! A \c cPolarized_CD answers per channel; a spin-agnostic density (the seed) collapses to
     //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
-    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr);
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr) const;
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
-    chmat_t Matrix(const cobs_t* bs, const rvec_t& v);
+    chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const;
 private:
-    const mat_t<dcmplx>& Phi(const cobs_t* bs);   //!< lazily built per block (geometry-fixed)
+    const mat_t<dcmplx>& Phi(const cobs_t* bs) const;   //!< lazily built per block (geometry-fixed)
+
+    // R2.9(i): the four accessors above are CONST and everything they touch is a lazily-built cache, so the
+    // caches are `mutable` -- the same idiom every other cache in this module already uses (tHT_Common::
+    // itsCache, tDynamic_HT_Imp::itsCacheVersion, Dynamic_HF_HT_Imp::itsJKs).  Previously they were non-const
+    // methods reached from const term methods through a non-const shared_ptr, which laundered the constness
+    // without ever stating it.  itsMesh/itsFold are NOT mutable: they are construction-time and must not move.
     mesh_t itsMesh;                               //!< the quadrature (invariant when the fold is live)
     Symmetry::Lattice_3D::Fold itsFold;           //!< its orbit partition ({} = free run, no averaging)
-    std::map<Irrep,mat_t<dcmplx>> itsPhi;         //!< spatial Irrep -> (npts x n) basis table
-    rvec_t itsRho;
-    size_t itsRhoVersion=size_t(-1);              //!< density logical-clock serial itsRho was built for
-    rvec_t itsRhoUp, itsRhoDn;                    //!< per-channel rasters (the polarized pair, one serial)
-    size_t itsPolVersion=size_t(-1);              //!< density serial the {↑,↓} pair was built for
+    mutable std::map<Irrep,mat_t<dcmplx>> itsPhi; //!< spatial Irrep -> (npts x n) basis table
+    //! \warning The scalar cache (itsRho) and the spin-resolved pair (itsRhoUp/Dn) have NO cross-
+    //! invalidation: each guards only its own serial, so if one term drove \c Rho and another \c RhoPol on
+    //! the SAME engine for different densities, both would report "fresh" while one held a stale raster.
+    //! Unreachable today -- an engine is shared only within ONE xc/correlation PAIR and a pair is either
+    //! polarized (RhoPol only) or not (Rho only) -- and the assert in each accessor pins that.  Anything
+    //! that makes a run drive both (a mixed or GGA route) must add real cross-invalidation first.
+    mutable rvec_t itsRho;
+    mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
+    mutable rvec_t itsRhoUp, itsRhoDn;            //!< per-channel rasters (the polarized pair, one serial)
+    mutable size_t itsPolVersion=size_t(-1);      //!< density serial the {↑,↓} pair was built for
 };
 
 class DeltaFittedVxc
@@ -292,7 +304,7 @@ class DeltaFittedVxc
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
-    typedef std::shared_ptr<XC_GridEngine> engine_t;
+    typedef std::shared_ptr<const XC_GridEngine> engine_t;   //!< const: all four accessors are const (R2.9(i))
     DeltaFittedVxc(const xc_t&, engine_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
@@ -315,7 +327,7 @@ class DeltaFittedVxcPol
 {
 public:
     typedef std::shared_ptr<ExFunctional>  xc_t;
-    typedef std::shared_ptr<XC_GridEngine> engine_t;
+    typedef std::shared_ptr<const XC_GridEngine> engine_t;   //!< const: all four accessors are const (R2.9(i))
     DeltaFittedVxcPol(const xc_t&, engine_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual bool          IsPolarized() const {return true;}
@@ -339,7 +351,7 @@ class DeltaFittedVcorrPol
 {
 public:
     typedef std::shared_ptr<SpinCorrelation> corr_t;
-    typedef std::shared_ptr<XC_GridEngine>   engine_t;
+    typedef std::shared_ptr<const XC_GridEngine> engine_t;   //!< const: all four accessors are const (R2.9(i))
     DeltaFittedVcorrPol(const corr_t&, engine_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual bool          IsPolarized() const {return true;}

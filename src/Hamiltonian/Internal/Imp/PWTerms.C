@@ -410,7 +410,7 @@ XC_GridEngine::XC_GridEngine(mesh_t mesh, Symmetry::Lattice_3D::Fold fold)
 // Keyed by the block's SPATIAL Irrep (never a pointer).  Irrep -- not BasisSetID -- because the table
 // is a property of the irrep/k block within THIS run; BasisSetID's extra radial resolution exists for
 // the cross-RUN disk cache, which this in-memory per-run table does not share.
-const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs)
+const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const
 {
     const Irrep id=bs->GetIrrep(Spin::None);
     auto it=itsPhi.find(id);
@@ -430,9 +430,14 @@ const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs)
 // rho at the mesh points, once per density serial for the WHOLE pair: the density GEMMs the cached
 // tables against its private D (DM_RhoAtPoints; blocks not yet tabled self-evaluate pointwise -- first
 // pass only).  A non-DM density (no DM face) falls back to the pointwise ScalarFunction sweep.
-const rvec_t& XC_GridEngine::Rho(const cChargeDensity* cd, const cobs_t* ensureBlock)
+const rvec_t& XC_GridEngine::Rho(const cChargeDensity* cd, const cobs_t* ensureBlock) const
 {
     assert(cd);
+    // R2.9(i): the scalar and spin-resolved caches do not cross-invalidate (see the \warning on the
+    // members).  An engine belongs to ONE xc/correlation pair, and a pair is either polarized or not, so
+    // only one of the two routes is ever driven.  Pin it here rather than trusting the comment.
+    assert(itsPolVersion==size_t(-1) && "XC_GridEngine: this engine already served RhoPol -- the scalar "
+           "and spin-resolved rho caches have no cross-invalidation, so one of them would go stale");
     if (ensureBlock) Phi(ensureBlock);
     if (cd->Version()==itsRhoVersion) return itsRho;
     itsRhoVersion=cd->Version();
@@ -451,9 +456,11 @@ const rvec_t& XC_GridEngine::Rho(const cChargeDensity* cd, const cobs_t* ensureB
 // Down channel).  A cPolarized_CD answers per channel (each channel composite GEMMs its own D against the
 // SHARED Phi tables); a spin-agnostic density (the seed) collapses to rho/2 per channel, so the first
 // iterations run the exact unpolarized collapse (v^sigma(rho/2,rho/2)=v^P(rho)).
-const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock)
+const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock) const
 {
     assert(cd);
+    assert(itsRhoVersion==size_t(-1) && "XC_GridEngine: this engine already served the scalar Rho -- the "
+           "two rho caches have no cross-invalidation, so one of them would go stale");
     assert(s!=Spin::None && "XC_GridEngine::RhoPol: ask for a channel, not the total");
     if (ensureBlock) Phi(ensureBlock);
     if (cd->Version()!=itsPolVersion)
@@ -491,7 +498,7 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
 
 // <i|v|j> = Phi^dag diag(w v) Phi over the cached table: scale the rows, one zgemm, hermitize.  (The
 // GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
-chmat_t XC_GridEngine::Matrix(const cobs_t* bs, const rvec_t& v)
+chmat_t XC_GridEngine::Matrix(const cobs_t* bs, const rvec_t& v) const
 {
     const mat_t<dcmplx>& P=Phi(bs);
     const rvec_t&        w=itsMesh->Weights();
