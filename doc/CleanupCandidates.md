@@ -22,10 +22,6 @@ worth more than the landed ones.
 
 ## Next task: pick from the open list below — nothing is half-done
 
-- **R1.9** — molecular `BasisSetID()` prints its string-literal separators as hex.  Small, unruled; the
-  fix is likely one `#include <ostream>`, but it CHANGES the cache key string, so verify against the
-  `IntegralsCache` dim guards.  It also falsifies a comment (`SymFockCache`'s claim is gone with the class,
-  but `DB_Cache`'s "deterministic" wording remains).
 - **V1.27's remaining half** — the `MolecularSCFIterator`/`SolidSCFIterator` RENAME itself.  The live
   defect (the virial gate) is fixed; what is left is that the two classes are named for the STRUCTURE and
   discriminate on the PSEUDOPOTENTIAL.  Note they are different `T` instantiations, so it is not a
@@ -352,7 +348,18 @@ MnO campaign proceeds undisturbed in qchem6.
   split into `Orbital_HF_IBS` (contraction) + `Internal.Orbital_ERI4_IBS` (substrate); the substrate is now
   invisible outside qcBasisSet.  **→ doc/CleanupHistory.md**
 - **R1.8 ✅ DONE `06e23f5d`. `FittedVee` casts `bs` and dereferences with NO assert** (Imp/FittedVee.C:41-42) — the.  **→ doc/CleanupHistory.md**
-- **R1.9 Molecular `BasisSetID()` streams its SEPARATORS as hex addresses — FOUND 2026-08-10 while
+- **R1.9 ✅ DONE `3882938e`. Molecular `BasisSetID()` streamed its SEPARATORS as hex addresses.**
+  One `#include <sstream>` in `PGData.C`, plus the SURVEY the item asked for: eight more module TUs
+  streamed literals without `<ostream>`/`<sstream>` and now include it explicitly — **including the two
+  that were getting it transitively via `<iomanip>`, because relying on a transitive include is the same
+  implicit-visibility bet that caused the bug.**  Verified by the route that found it (the ID now reads
+  `" PG { Primative 1@(0,0,0.117):S ..."`).  692/692 green; the key STRING changes, which is safe (the
+  cache is per-process, the dim guards would catch an under-specific key, and the canonical-pair ordering
+  only needs to be consistent within a run).
+  **The transferable bit:** `<string>` is NOT enough to make `operator<<(ostream&, const char*)` visible
+  with this toolchain — a module TU that streams must include `<ostream>`/`<sstream>` ITSELF.  *(original
+  text follows)*
+  **Molecular `BasisSetID()` streams its SEPARATORS as hex addresses — FOUND 2026-08-10 while
   writing R1.7's diagnostic.**  `PGData::BasisSetID()` (Molecule/Evaluators/PG_Cart_MnD/Imp/PGData.C:31-40)
   reads `os << " PG { " << *radial << "@" << centre << ":" << pol << " " ... << "}"`.  The OBJECTS print
   fine; every STRING LITERAL comes out as `0x7784d915b66e`-style hex.  Observed verbatim in an exception
