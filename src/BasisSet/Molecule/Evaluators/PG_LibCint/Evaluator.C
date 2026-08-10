@@ -69,7 +69,7 @@ public:
     ERI3<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
     ERI3<double> RepulsionThreeC_Matrix(const NR_Evaluator& fit) const;   // int3c2e (Coulomb)
 
-    // --- isM_HF (4-centre (ab|cd)).  ExchangeMatrix reproduces Orbital_HF_IBS::MakeExchange's packing
+    // --- isM_HF (4-centre (ab|cd)).  ExchangeMatrix reproduces Orbital_ERI4_IBS::MakeExchange's packing
     // (the documented isM_ friction: an opaque assembler must duplicate the 0.5 / ib<id branching). ---
     ERI4 DirectMatrix  (const NR_Evaluator& partner) const;
     ERI4 ExchangeMatrix(const NR_Evaluator& partner) const;

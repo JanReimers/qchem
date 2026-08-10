@@ -19,7 +19,7 @@ module;
 export module qchem.BasisSet.Molecule.IBS;
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Molecule.Evaluators;      // concepts + generic 1E matrix builders
@@ -125,16 +125,17 @@ private:
     }
 };
 
-// --- 4-centre (HF): Direct (ab|cd) and Exchange ---------------------------------------------------
+// --- 4-centre (HF): the ERI4 SUBSTRATE -- Direct (ab|cd) and Exchange -----------------------------
 // The intricate ERI loop + symmetry packing is unchanged (hoisting it further is plan Goal D); the
 // per-element integral goes through the evaluator's FourC kernel (which folds in all four norms).
+// The HF CONTRACTION face (Accumulate*) is inherited from BasisSet::Orbital_ERI4_IBS -- see R1.7.
 template <class E> requires (Evaluators::isHF_Evaluator<E> || Evaluators::isM_HF_Evaluator<E>)
-class Orbital_HF_IBS
-    : public virtual ::qchem::BasisSet::Orbital_HF_IBS<double>
+class Orbital_ERI4_IBS
+    : public virtual ::qchem::BasisSet::Orbital_ERI4_IBS<double>
 {
 protected:
     // 4-centre HF Coulomb (ab|cd): a,b on this orbital basis, c,d on the partner.
-    virtual ERI4 MakeDirect(const ::qchem::BasisSet::Orbital_HF_IBS<double>& _c) const
+    virtual ERI4 MakeDirect(const ::qchem::BasisSet::Orbital_ERI4_IBS<double>& _c) const
     {
         if constexpr (Evaluators::isM_HF_Evaluator<E>)
             return dynamic_cast<const E&>(*this).DirectMatrix(dynamic_cast<const E&>(_c));
@@ -155,7 +156,7 @@ protected:
         }
     }
     // 4-centre HF Exchange: slots (a b | a b).  Symmetry packing preserved exactly.
-    virtual ERI4 MakeExchange(const ::qchem::BasisSet::Orbital_HF_IBS<double>& _b) const
+    virtual ERI4 MakeExchange(const ::qchem::BasisSet::Orbital_ERI4_IBS<double>& _b) const
     {
         if constexpr (Evaluators::isM_HF_Evaluator<E>)
             return dynamic_cast<const E&>(*this).ExchangeMatrix(dynamic_cast<const E&>(_b));

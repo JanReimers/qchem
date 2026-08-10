@@ -17,7 +17,7 @@ import qchem.BasisSet.Molecule.PG_Cart;                       // Orbital_IBS
 import qchem.BasisSet.Molecule.IBS;                           // Orbital_{1E,DFT,HF}_IBS<E> mixins (dispatch)
 import qchem.BasisSet.Orbital_1E_IBS;                         // public Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Orbital_DFT_IBS;                        // public Overlap3C()/Repulsion3C() + Fit_IBS
-import qchem.BasisSet.Orbital_HF_IBS;                         // public Direct()/Exchange()
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;               // public Direct()/Exchange()
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI3;                          // ERI3<double>, fnorm
 import qchem.BasisSet.Internal.ERI4;                          // ERI4, fnorm
@@ -74,7 +74,7 @@ public:
     { return Build3(fit, [](const E& a,size_t ia,size_t ib,const E& c,size_t ic){return a.RepulsionThreeC(ia,a,ib,c,ic);}); }
 
     // --- isM_HF (4-centre).  The Direct loop is trivial, but ExchangeMatrix has to reproduce
-    // Orbital_HF_IBS::MakeExchange's symmetry packing VERBATIM -- that an opaque matrix wrapper must
+    // Orbital_ERI4_IBS::MakeExchange's symmetry packing VERBATIM -- that an opaque matrix wrapper must
     // duplicate this is exactly the friction the (later) block-granularity category removes. ---
     ERI4 DirectMatrix(const Matrix_Adapter& p) const
     {
@@ -110,7 +110,7 @@ static_assert(!is1E_Evaluator        <Matrix_Adapter<NRE>>, "a matrix evaluator 
 // Compile-check the matrix branch of all three mixins (PG_Cart already covers the scalar branches).
 template class BasisSet::Molecule::EOrbital_1E_IBS<Matrix_Adapter<NRE>>;
 template class BasisSet::Molecule::Orbital_DFT_IBS<Matrix_Adapter<NRE>>;
-template class BasisSet::Molecule::Orbital_HF_IBS <Matrix_Adapter<NRE>>;
+template class BasisSet::Molecule::Orbital_ERI4_IBS <Matrix_Adapter<NRE>>;
 
 static Molecule* MakeWater()
 {
@@ -148,7 +148,7 @@ TEST(M_MEvaluator, matrix_3C_4C_match_scalar)
     Matrix_Adapter<NRE> mev(static_cast<const NRE&>(ibs));
 
     // 4-centre (HF): partner = self.  Reference = the public, energy-validated scalar Direct/Exchange.
-    const BasisSet::Orbital_HF_IBS<double>& hf = ibs;
+    const BasisSet::Orbital_ERI4_IBS<double>& hf = ibs;
     EXPECT_LT(fnorm(mev.DirectMatrix(mev),   hf.Direct(ibs)),   1e-10);
     EXPECT_LT(fnorm(mev.ExchangeMatrix(mev), hf.Exchange(ibs)), 1e-10);
 

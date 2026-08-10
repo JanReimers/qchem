@@ -10,6 +10,7 @@ export import qchem.BasisSet;
 export import qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.ElectronConfiguration;
 
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;   // the ERI4 substrate the concrete atom IBS realizes
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.Symmetry.Atom.Spherical;   // Symmetry::Atom::Getl (per-l exponent-list ctor)
@@ -35,7 +36,7 @@ public:
     class EOrbital_HF_IBS 
         : public Orbital_1E_IBS<Evaluator>
         , public Orbital_DFT_IBS<Evaluator>
-        , public Orbital_HF_IBS<Evaluator>
+        , public Orbital_ERI4_IBS<Evaluator>
         , public IrrepBasisSetImp<Evaluator>
         , public Evaluator
     {
@@ -116,7 +117,7 @@ public:
     // Define the Orbital IBS using mixins.
     class Orbital_1E_HF_IBS 
     : public Orbital_1E_IBS<Evaluator>
-    , public Orbital_HF_IBS<Evaluator>
+    , public Orbital_ERI4_IBS<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
     {
@@ -163,7 +164,7 @@ template <is1E_HF_Evaluator LEvaluator, is1E_Evaluator SEvaluator> class BasisSe
 public:
     class EOrbital_RKBL_IBS 
         : public Orbital_RKBL_IBS<LEvaluator>
-        , public Orbital_HF_IBS<LEvaluator>
+        , public Orbital_ERI4_IBS<LEvaluator>
         , public IrrepBasisSetImp<LEvaluator>
         , public LEvaluator
     {
@@ -217,7 +218,7 @@ public:
     };
     class EOrbital_RKB_IBS 
         : public virtual Orbital_RKB_IBS<double>
-        , public virtual ::qchem::BasisSet::Orbital_HF_IBS<double>
+        , public virtual ::qchem::BasisSet::Orbital_ERI4_IBS<double>
         , public Orbital_RKB_HF_IBS_Imp<double>
         , public ::qchem::BasisSet::IrrepBasisSetImp<double>
     {

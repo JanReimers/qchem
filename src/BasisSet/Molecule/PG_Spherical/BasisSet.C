@@ -16,7 +16,7 @@ import qchem.BasisSet.Molecule.IBS;                                      // Mole
 
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
-import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Structure;
 import qchem.Types;
@@ -57,7 +57,7 @@ class IrrepBasisSet
 // evaluator).  Nothing spherical-specific remains in the IBS itself.
 class Orbital_IBS
     : public Molecule::EOrbital_1E_IBS<Sph::NR_Evaluator>
-    , public Molecule::Orbital_HF_IBS <Sph::NR_Evaluator>
+    , public Molecule::Orbital_ERI4_IBS <Sph::NR_Evaluator>
     , public Molecule::Orbital_DFT_IBS<Sph::NR_Evaluator>
     , public IrrepBasisSet
 {

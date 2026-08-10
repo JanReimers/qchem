@@ -24,7 +24,7 @@ import qchem.BasisSet.Molecule.IBS;                          // Molecule::Orbita
 
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
-import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.Structure;
 import qchem.Types;
 
@@ -75,7 +75,7 @@ class IrrepBasisSet
 // its assembled matrices instead of running the per-element loop.
 class Orbital_IBS
     : public Molecule::EOrbital_1E_IBS<LC::NR_Evaluator>
-    , public Molecule::Orbital_HF_IBS<LC::NR_Evaluator>
+    , public Molecule::Orbital_ERI4_IBS<LC::NR_Evaluator>
     , public IrrepBasisSet
 {
 public:

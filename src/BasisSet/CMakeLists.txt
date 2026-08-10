@@ -3,13 +3,13 @@ target_sources(qcBasisSet PRIVATE
   Imp/BasisSet.C
   Imp/IrrepBasisSet.C
   Imp/Orbital_1E_IBS.C
-  Imp/Orbital_HF_IBS.C
   Imp/Orbital_DFT_IBS.C
   Imp/Band_FT_IBS.C
   Imp/Orbital_DHF_IBS.C
   Imp/Fit_IBS.C
   Imp/SymmetryAdapted_IBS.C
   Internal/Imp/Orbital_DHF_IBS.C
+  Internal/Imp/Orbital_ERI4_IBS.C
   Internal/Imp/DB_Cache.C
   Internal/Imp/Cache4.C
   Internal/Imp/Cache2.C
@@ -37,6 +37,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/BasisSetImp.C
   Internal/IrrepBasisSetImp.C
   Internal/Orbital_DHF_IBS.C
+  Internal/Orbital_ERI4_IBS.C
   Internal/Cache4.C
   Internal/Cache2.C
   Internal/Cache3.C

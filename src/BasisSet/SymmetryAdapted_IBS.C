@@ -15,7 +15,7 @@ module;
 #include <memory>
 export module qchem.BasisSet.SymmetryAdapted_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
-export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron mixin + ERI4
+export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron CONTRACTION face (no ERI4 -- R1.7)
 export import qchem.BasisSet.Orbital_DFT_IBS;        // DFT 3-centre mixin (fitted Coulomb / Vxc)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Structure;
@@ -43,7 +43,7 @@ private:
 
 class SymmetryAdapted_IBS
     : public virtual Orbital_1E_IBS<double>
-    , public virtual Orbital_HF_IBS<double>  // HF Coulomb/exchange (the 2-electron path)
+    , public virtual Orbital_HF_IBS<double>  // HF Coulomb/exchange CONTRACTION only -- no ERI4 substrate
     , public virtual Orbital_DFT_IBS<double> // DFT 3-centre fitted Coulomb / Vxc
     , public IrrepBasisSetImp<double>        // provides GetSymmetry / GetSymt / GetIrrep
 {
@@ -69,16 +69,14 @@ public:
     // the charge density, this yields O^T J_AO(D_total) O.
     virtual void AccumulateDirect  (rsmat_t& Jab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const;
     virtual void AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const;
-    //! The SALC path builds the AO Fock and slices it -- there are no per-irrep-pair ERI4 blocks (MakeDirect
-    //! is empty), so the ERI4 bra-ket fusion does not apply.  Fall back to the two independent AO slices
-    //! (the whole-AO build already banks the full 8-fold symmetry).  See doc/ERI4Rework.md §5.4.
+    //! The SALC path builds the AO Fock and slices it -- there are no per-irrep-pair ERI4 blocks at all
+    //! (this class has no ERI4 substrate face -- R1.7), so the ERI4 bra-ket fusion does not apply.  Fall
+    //! back to the two independent AO slices (the whole-AO build already banks the full 8-fold symmetry).
+    //! See doc/ERI4Rework.md §5.4.
     virtual void AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const rsmat_t& Di, const rsmat_t& Dj,
                                       const Orbital_HF_IBS<double>* cd) const;
     virtual void AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di, const rsmat_t& Dj,
                                         const Orbital_HF_IBS<double>* cd) const;
-    // Pure-virtual ERI accessors -- unused here (Accumulate* are overridden); never called.
-    virtual ERI4 MakeDirect  (const Orbital_HF_IBS<double>&) const {return ERI4();}
-    virtual ERI4 MakeExchange(const Orbital_HF_IBS<double>&) const {return ERI4();}
 
     // DFT 3-centre fitted Coulomb / Vxc.  The cached accessors Overlap3C/Repulsion3C are inherited
     // from Orbital_DFT_IBS unchanged: they key the *transformed* block under this irrep's

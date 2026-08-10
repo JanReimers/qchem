@@ -8,7 +8,7 @@ using std::cout;
 using std::endl;
 
 import qchem.BasisSet.Atom.Factory;
-import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;  // tests may cheat: the ERI4 substrate face
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.DB_Cache_RAM;  // theCache<double>() + concrete IntegralsCache_RAM (Clear hooks; tests may cheat)
 import qchem.Blaze;
@@ -154,12 +154,12 @@ public:
     void TestDirect(double eps) const
         {
             cout << *bs1 << endl;
-            using BasisSet::Real_HF_OIBS;
-            auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
-            for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+            using BasisSet::Real_ERI4_OIBS;
+            auto ibs21=bs2->Iterate<Real_ERI4_OIBS>().begin();
+            for (auto ibs11:bs1->Iterate<Real_ERI4_OIBS>())
             {
-                auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
-                for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
+                auto ibs22=bs2->Iterate<Real_ERI4_OIBS>().begin();
+                for (auto ibs12:bs1->Iterate<Real_ERI4_OIBS>())
                 {
                     if (ibs11->BasisSetID() <= ibs12->BasisSetID())   // canonical: cache may hold it
                     {
@@ -181,12 +181,12 @@ public:
     void TestExchange(double eps) const
     {
 
-        using BasisSet::Real_HF_OIBS;
-        auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
-        for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+        using BasisSet::Real_ERI4_OIBS;
+        auto ibs21=bs2->Iterate<Real_ERI4_OIBS>().begin();
+        for (auto ibs11:bs1->Iterate<Real_ERI4_OIBS>())
         {
-            auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
-            for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
+            auto ibs22=bs2->Iterate<Real_ERI4_OIBS>().begin();
+            for (auto ibs12:bs1->Iterate<Real_ERI4_OIBS>())
             {
                 if (ibs11->BasisSetID() <= ibs12->BasisSetID())       // canonical: cache may hold it
                 {

@@ -18,7 +18,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_LibCint;        // the evaluator un
 import qchem.BasisSet.Molecule.PG_Cart;                           // Orbital_IBS (M&D reference)
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI3;
 import qchem.BasisSet.Internal.ERI4;
@@ -67,7 +67,7 @@ TEST(M_LibCint, matrix_3C_4C_match_scalar)
     LibCintEval lc(dynamic_cast<const PGData&>(ibs), h2o);
 
     // 4-centre (HF): partner = self.  Reference = the public, energy-validated scalar Direct/Exchange.
-    const BasisSet::Orbital_HF_IBS<double>& hf = ibs;
+    const BasisSet::Orbital_ERI4_IBS<double>& hf = ibs;
     EXPECT_LT(fnorm(lc.DirectMatrix(lc),   hf.Direct(ibs)),   1e-10);
     EXPECT_LT(fnorm(lc.ExchangeMatrix(lc), hf.Exchange(ibs)), 1e-10);
 

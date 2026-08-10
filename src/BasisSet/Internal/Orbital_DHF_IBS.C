@@ -7,7 +7,7 @@ module;
 export module qchem.BasisSet.Internal.Orbital_DHF_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
-export import qchem.BasisSet.Orbital_HF_IBS;
+export import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 export import qchem.BasisSet.Orbital_DHF_IBS;
 export import qchem.Structure;
 import qchem.Blaze;
@@ -97,12 +97,12 @@ private:
 };
 
 template <class T> class Orbital_RKB_HF_IBS_Imp 
-    : public virtual Orbital_HF_IBS<T>
+    : public virtual Orbital_ERI4_IBS<T>
     , public Orbital_RKB_IBS_Imp<T>
 {
 
-    virtual ERI4       MakeDirect  (const Orbital_HF_IBS<T>& c) const;
-    virtual ERI4       MakeExchange(const Orbital_HF_IBS<T>& c) const;
+    virtual ERI4       MakeDirect  (const Orbital_ERI4_IBS<T>& c) const;
+    virtual ERI4       MakeExchange(const Orbital_ERI4_IBS<T>& c) const;
 protected:
     Orbital_RKB_HF_IBS_Imp(Orbital_RKBL_IBS<T>* rkbl,Orbital_RKBS_IBS<T>* rkbs) : Orbital_RKB_IBS_Imp<T>(rkbl,rkbs) {};
 private:

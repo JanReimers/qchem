@@ -11,7 +11,7 @@ import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Atom.IBS;          // Atom::RadialAngularID (the atom radial|angular identity face)
-import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;   // tests may cheat: the ERI4 substrate face
 import qchem.BasisSet;
 
 import qchem.Structure;
@@ -41,7 +41,7 @@ qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha,
 }
 } //anon
 
-using rohfbs_t =BasisSet::Orbital_HF_IBS<double>;
+using rohfbs_t =BasisSet::Orbital_ERI4_IBS<double>;   // ERI4 substrate: these tests build blocks
 using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
 using namespace qchem::BasisSet::Atom;

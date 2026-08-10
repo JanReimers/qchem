@@ -13,7 +13,7 @@ import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.ImplicitAngular_IBS;   // the radial/implicit-Y_lm capability atoms realize
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
@@ -237,13 +237,15 @@ protected:
 
 
 
-template <isHF_Evaluator E> class Orbital_HF_IBS
-    : public virtual BasisSet::Orbital_HF_IBS<double> 
+// The ERI4 SUBSTRATE for an atomic irrep block: the Cache4/Grouper/Ak radial-Slater design.  The HF
+// CONTRACTION face (Accumulate*) is inherited from BasisSet::Orbital_ERI4_IBS -- see R1.7.
+template <isHF_Evaluator E> class Orbital_ERI4_IBS
+    : public virtual BasisSet::Orbital_ERI4_IBS<double> 
 
 {
 protected:
-    virtual ERI4 MakeDirect  (const BasisSet::Orbital_HF_IBS<double>& _c) const;
-    virtual ERI4 MakeExchange(const BasisSet::Orbital_HF_IBS<double>& _c) const;
+    virtual ERI4 MakeDirect  (const BasisSet::Orbital_ERI4_IBS<double>& _c) const;
+    virtual ERI4 MakeExchange(const BasisSet::Orbital_ERI4_IBS<double>& _c) const;
 
 };
 
@@ -297,7 +299,7 @@ public:
 
 
 
-template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeDirect(const BasisSet::Orbital_HF_IBS<double>& _c) const 
+template <isHF_Evaluator E> ERI4 Orbital_ERI4_IBS<E>::MakeDirect(const BasisSet::Orbital_ERI4_IBS<double>& _c) const 
 {
     auto& a=dynamic_cast<const E&>(*this);
     auto& c=dynamic_cast<const E&>(_c);
@@ -342,7 +344,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeDirect(const BasisSet::O
     return J;
 }
 
-template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeExchange(const BasisSet::Orbital_HF_IBS<double>& _c) const 
+template <isHF_Evaluator E> ERI4 Orbital_ERI4_IBS<E>::MakeExchange(const BasisSet::Orbital_ERI4_IBS<double>& _c) const 
 {
     auto& a=dynamic_cast<const E&>(*this);
     auto& c=dynamic_cast<const E&>(_c);

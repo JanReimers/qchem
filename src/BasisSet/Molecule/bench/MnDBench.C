@@ -20,7 +20,7 @@ import qchem.BasisSet.Molecule.PG_LibCint;       // libcint Orbital_IBS
 import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.BasisFiles;
 import qchem.BasisSet.Orbital_1E_IBS;            // Overlap()/Kinetic()/Nuclear()
-import qchem.BasisSet.Orbital_HF_IBS;            // Direct()/Exchange()
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS; // Direct()/Exchange()
 import qchem.Structure;
 import qchem.Types;
 
@@ -47,7 +47,7 @@ template <class IBS>
 static double TimeIntegrals(const char* tag, IBS& ibs, const qchem::Structure* cl)
 {
     const qchem::BasisSet::Orbital_1E_IBS<double>& e1 = ibs;
-    const qchem::BasisSet::Orbital_HF_IBS<double>& hf = ibs;
+    const qchem::BasisSet::Orbital_ERI4_IBS<double>& hf = ibs;
     auto t0=clk::now();
     volatile double sink=0;
     sink += e1.Overlap()(0,0);   auto t1=clk::now();

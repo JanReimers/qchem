@@ -20,7 +20,7 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Structure;
 import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 
 export namespace qchem::BasisSet::Molecule::PG_Cart
 {
@@ -64,7 +64,7 @@ class IrrepBasisSet
 // <p^2>=<-nabla^2> building block (no 1/2 -- the Hamiltonian's; no centrifugal -- Cartesian).
 class Orbital_IBS
     : public Molecule::EOrbital_1E_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
-    , public Molecule::Orbital_HF_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
+    , public Molecule::Orbital_ERI4_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Molecule::Orbital_DFT_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public virtual Molecule::LatticeSum1E   // the GPW periodic-1E seam (Gamma lattice sums)
     , public IrrepBasisSet

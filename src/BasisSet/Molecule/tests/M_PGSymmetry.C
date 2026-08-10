@@ -1,6 +1,7 @@
 // File: BasisSet/Molecule/tests/M_PGSymmetry.C  PG basis -> symmetry bridge (stage 5 wiring) on a real basis.
 #include "gtest/gtest.h"
 #include <vector>
+#include <stdexcept>
 #include <string>
 #include <map>
 #include <algorithm>
@@ -200,4 +201,47 @@ TEST(PGSymmetry, decorator_coulomb_matches_AO_slice)
             EXPECT_LT(fabs(Jg(a,b) - Jref(a,b)), 1e-8) << "irrep " << G << " (" << a << "," << b << ")";
     }
     for (auto p:sad) delete p;
+}
+
+// R1.7 regression: an ERI4-substrate basis handed a partner that has NO ERI4 substrate must say so.
+// Before the Orbital_HF_IBS split, SymmetryAdapted_IBS satisfied the ERI4 face with dummy bodies
+// returning an empty ERI4{}, so this pairing contracted against a ZERO block -- a wrong Fock
+// contribution with no diagnostic anywhere.  It is now a cross-cast that throws (the SALC decorator
+// does not derive from the substrate face at all).  The pairing is nonsense either way: there is no
+// (ab|cd) block spanning a whole-molecule AO basis and one irrep's SALC columns.
+TEST(PGSymmetry, eri4_basis_rejects_a_substrate_free_partner)
+{
+    Molecule h2o;
+    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
+    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
+    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
+    rvec_t exps{1.0, 0.25};
+    Orbital_IBS ibs(exps, 1, &h2o);
+
+    auto shells = ExtractAoShells(ibs);
+    auto pts    = StructureToSymPoints(h2o);
+    auto g      = BuildAbelianGroup(pts, 1e-4);
+    auto salc   = BuildSALCs(shells, g, Centroid(pts), 1e-4);
+    size_t nAO  = salc.O.columns();
+
+    size_t start=salc.blockStart[0], dG=salc.blockStart[1]-start;
+    ASSERT_GT(dG,0u);
+    rmat_t Or = blazem::submatrix(salc.O, 0, start, nAO, dG);
+    SymmetryAdapted_IBS sa(&ibs, Or, salc.irrep[start], ibs.GetSymt());
+
+    rsmat_t D = blazem::zero<double>(dG);
+    for (size_t a=0;a<dG;a++) D(a,a)=0.5;          // non-zero, so nothing short-circuits before the cast
+    rsmat_t J = blazem::zero<double>(nAO);
+
+    // Check the DIAGNOSTIC, not merely that something threw: the mismatched block dimensions would also
+    // throw further in, and that failure mode would not tell the reader what is actually wrong.
+    auto why = [](auto&& call) -> std::string
+    {
+        try { call(); } catch (const std::exception& e) { return e.what(); }
+        return "<no exception -- the silent-zero regression is back>";
+    };
+    std::string wj=why([&]{ ibs.AccumulateDirect  (J, D, &sa); });
+    std::string wk=why([&]{ ibs.AccumulateExchange(J, D, &sa); });
+    EXPECT_NE(wj.find("no ERI4 substrate"), std::string::npos) << "Coulomb: " << wj;
+    EXPECT_NE(wk.find("no ERI4 substrate"), std::string::npos) << "exchange: " << wk;
 }

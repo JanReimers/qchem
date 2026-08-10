@@ -18,7 +18,7 @@ import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.stl_io;
 import qchem.BasisSet.Atom.Factory;
-import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.Orbital_ERI4_IBS;  // tests may cheat: the ERI4 substrate face
 import qchem.BasisSet.Internal.DB_Cache_RAM;   // theCache<double>() + GetCache4(RadialType)
 import qchem.BasisSet.Internal.Cache4;         // Cache4::Lookups()/Inserts()
 using namespace qchem;
@@ -80,12 +80,12 @@ public:
     // and assert the non-canonical cached request is forbidden.
     void TestDirect(double eps, bool testTranspose=true)
     {
-        using BasisSet::Real_HF_OIBS;
-        auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
-        for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+        using BasisSet::Real_ERI4_OIBS;
+        auto ibs21=bs2->Iterate<Real_ERI4_OIBS>().begin();
+        for (auto ibs11:bs1->Iterate<Real_ERI4_OIBS>())
         {
-            auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
-            for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
+            auto ibs22=bs2->Iterate<Real_ERI4_OIBS>().begin();
+            for (auto ibs12:bs1->Iterate<Real_ERI4_OIBS>())
             {
                 if (ibs11->BasisSetID() <= ibs12->BasisSetID())
                 {
@@ -106,12 +106,12 @@ public:
     }
     void TestExchange(double eps, bool testTranspose=true)
     {
-        using BasisSet::Real_HF_OIBS;
-        auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
-        for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+        using BasisSet::Real_ERI4_OIBS;
+        auto ibs21=bs2->Iterate<Real_ERI4_OIBS>().begin();
+        for (auto ibs11:bs1->Iterate<Real_ERI4_OIBS>())
         {
-            auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
-            for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
+            auto ibs22=bs2->Iterate<Real_ERI4_OIBS>().begin();
+            for (auto ibs12:bs1->Iterate<Real_ERI4_OIBS>())
             {
                 if (ibs11->BasisSetID() <= ibs12->BasisSetID())
                 {
@@ -134,8 +134,8 @@ public:
     void TestDirect(size_t Z,nlohmann::json js)
     {
         bs1=Factory(js,Z);
-        using BasisSet::Real_HF_OIBS;
-        for (auto ibs:bs1->Iterate<Real_HF_OIBS>())
+        using BasisSet::Real_ERI4_OIBS;
+        for (auto ibs:bs1->Iterate<Real_ERI4_OIBS>())
         {
             // std::cout << *ibs;
             ibs->Direct(*ibs);
@@ -149,11 +149,11 @@ public:
     // then dispose of the basis.  The Rk integrals it computed persist in the process-wide Cache4.
     void ExerciseAllRk(BasisSet::Real_BS* bs)
     {
-        using BasisSet::Real_HF_OIBS;
+        using BasisSet::Real_ERI4_OIBS;
         // Only the canonical (a<=b) block of each pair may be built (the ERI4 cache is canonical-only); the
         // partner exercises the SAME underlying Rk integrals, so canonical pairs still fully warm the pool.
-        for (auto i:bs->Iterate<Real_HF_OIBS>())
-            for (auto j:bs->Iterate<Real_HF_OIBS>())
+        for (auto i:bs->Iterate<Real_ERI4_OIBS>())
+            for (auto j:bs->Iterate<Real_ERI4_OIBS>())
                 if (i->BasisSetID() <= j->BasisSetID())
                 {
                     i->Direct  (*j);
@@ -248,9 +248,9 @@ TEST_F(Cache4Tests,HF2_SG_ExponentKeyed)
     nlohmann::json jsB={{"N", 5}, {"emin", 0.20}, {"emax", 3.0}}; jsB["type"]=Type::Gaussian;
     BasisSet::Real_BS* bsA=Factory(jsA,2);
     BasisSet::Real_BS* bsB=Factory(jsB,2);   // registers into the SAME "SG" Cache4 as bsA
-    using BasisSet::Real_HF_OIBS;
-    auto a=bsA->Iterate<Real_HF_OIBS>().begin();
-    auto b=bsB->Iterate<Real_HF_OIBS>().begin();
+    using BasisSet::Real_ERI4_OIBS;
+    auto a=bsA->Iterate<Real_ERI4_OIBS>().begin();
+    auto b=bsB->Iterate<Real_ERI4_OIBS>().begin();
     const ERI4& JA=(*a)->Direct(**a);
     const ERI4& JB=(*b)->Direct(**b);
     EXPECT_GT(fnorm(JA,JB),1e-3);            // distinct exponents -> distinct integrals (no aliasing)
@@ -264,9 +264,9 @@ TEST_F(Cache4Tests,HF2_SL_ExponentKeyed)
     nlohmann::json jsB={{"N", 5}, {"emin", 0.20}, {"emax", 3.0}}; jsB["type"]=Type::Slater;
     BasisSet::Real_BS* bsA=Factory(jsA,2);
     BasisSet::Real_BS* bsB=Factory(jsB,2);   // registers into the SAME "SL" Cache4 as bsA
-    using BasisSet::Real_HF_OIBS;
-    auto a=bsA->Iterate<Real_HF_OIBS>().begin();
-    auto b=bsB->Iterate<Real_HF_OIBS>().begin();
+    using BasisSet::Real_ERI4_OIBS;
+    auto a=bsA->Iterate<Real_ERI4_OIBS>().begin();
+    auto b=bsB->Iterate<Real_ERI4_OIBS>().begin();
     const ERI4& JA=(*a)->Direct(**a);
     const ERI4& JB=(*b)->Direct(**b);
     EXPECT_GT(fnorm(JA,JB),1e-3);            // distinct exponents -> distinct integrals (no aliasing)
@@ -287,9 +287,9 @@ TEST_F(Cache4Tests,HF2_BS_GridKeyed)
     nlohmann::json jsB={{"N", 5}, {"rmin", 0.20}, {"rmax", 3.0}}; jsB["type"]=Type::BSpline6;
     BasisSet::Real_BS* bsA=Factory(jsA,2);
     BasisSet::Real_BS* bsB=Factory(jsB,2);   // registers into the SAME "BSpline<6>" Cache4 as bsA
-    using BasisSet::Real_HF_OIBS;
-    auto a=bsA->Iterate<Real_HF_OIBS>().begin();
-    auto b=bsB->Iterate<Real_HF_OIBS>().begin();
+    using BasisSet::Real_ERI4_OIBS;
+    auto a=bsA->Iterate<Real_ERI4_OIBS>().begin();
+    auto b=bsB->Iterate<Real_ERI4_OIBS>().begin();
     const ERI4& JA=(*a)->Direct(**a);
     const ERI4& JB=(*b)->Direct(**b);
     EXPECT_GT(fnorm(JA,JB),1e-3);            // distinct grids -> distinct integrals (no cross-grid aliasing)
