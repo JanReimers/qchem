@@ -31,13 +31,27 @@ constexpr size_t N=4, NOCC=2;
 
 rsmat_t Identity(size_t n) { rsmat_t I(n); for (size_t i=0;i<n;i++) I(i,i)=1.0; return I; }
 
-// A Fock with a clear 2-occupied / 2-virtual split, plus off-diagonal occ-virt coupling so the orbital
-// gradient is NONZERO -- otherwise ComputeStep has nothing to step along and the test is vacuous.
+// TWO Focks, and the second one is the whole point.  A rig that diagonalizes F and then asks GDM to step
+// on that SAME F is at the exact minimum already: in its own eigenbasis the occupied-virtual block of F is
+// zero, so the gradient vanishes and every step is a no-op.  (Measured: the band energy was bit-identical
+// at t=0, 0.05 and 1.0 -- which is what exposed the first draft of these tests as vacuous.)  A real SCF
+// iteration never looks like that: the orbitals come from the PREVIOUS Fock and the current one has moved.
+// So: seed by diagonalizing F1, then hand the accelerator F2.  The o-v gradient is then genuinely nonzero
+// and there is something to descend.
 rsmat_t MakeFock()
 {
     rsmat_t F(N);
     F(0,0)=-2.0; F(1,1)=-1.5; F(2,2)=1.0; F(3,3)=1.5;
     F(0,2)=0.20; F(1,3)=0.15;      // occ-virt coupling => nonzero gradient
+    return F;
+}
+
+// The SECOND Fock: same gapped structure, different couplings, so F1's eigenvectors are not F2's.
+rsmat_t MakeFock2()
+{
+    rsmat_t F(N);
+    F(0,0)=-2.1; F(1,1)=-1.4; F(2,2)=1.1; F(3,3)=1.6;
+    F(0,2)=0.35; F(1,3)=0.05; F(0,3)=0.10;
     return F;
 }
 
@@ -55,6 +69,23 @@ rsmat_t MakeDPrime(const rmat_t& C)
     return D;
 }
 
+// The band energy of the occupied block, E(C)=sum_k <c_k|F|c_k> over the leading NOCC columns -- the
+// quantity a direct minimizer descends at FIXED F, so a correct search direction must lower it for
+// small enough t.  That is precisely the property a sign error in the preconditioner destroys: PG
+// divides the gradient by (eps_a - eps_i), and an unfloored gap flips sign on a non-aufbau pair,
+// turning part of "steepest descent" into ascent (hence GDMParams::PCFloor).  The rest of this file
+// tests the bail-out BOOKKEEPING; this is what tests that the thing being bailed out of points the
+// right way.
+double BandEnergy(const rmat_t& Cp, const rsmat_t& F)
+{
+    double e=0.0;
+    for (size_t k=0;k<NOCC;k++)
+        for (size_t i=0;i<N;i++)
+            for (size_t j=0;j<N;j++)
+                e += Cp(i,k)*F(i,j)*Cp(j,k);
+    return e;
+}
+
 // A GDM accelerator seeded far enough to hold a live geodesic step: one diagonalizing NextOrbitals (which
 // caches the orbitals), then a second UseFD so the residual is current.  FDMax is set high so the [F,D]
 // gate never blocks the step -- this test is about rejection, not about engagement.
@@ -65,14 +96,14 @@ struct Rig
     tSCFAcceleratorGDM<double>   acc{params};
     tSCFIrrepAccelerator<double>* irrep=nullptr;
 
+    rsmat_t F2=MakeFock2();   // the Fock the accelerator is CURRENTLY on (see MakeFock's note)
     Rig()
     {
         las->SetBasisOverlap(Identity(N));
         irrep = acc.Create(las, Irrep(), (int)NOCC);
-        const rsmat_t F=MakeFock();
-        irrep->UseFD(F, MakeDPrime(rmat_t(Identity(N))));
-        auto [U,Up,e] = irrep->NextOrbitals();     // diagonalize: caches orbitals (itsHaveC)
-        irrep->UseFD(F, MakeDPrime(Up));           // fresh residual at the new orbitals
+        irrep->UseFD(MakeFock(), MakeDPrime(rmat_t(Identity(N))));
+        auto [U,Up,e] = irrep->NextOrbitals();     // diagonalize F1: caches orbitals (itsHaveC)
+        irrep->UseFD(F2, MakeDPrime(Up));          // ...then MOVE to F2, so the o-v gradient is nonzero
     }
     ~Rig() { delete las; }   // acc owns the irrep accelerators
 };
@@ -83,7 +114,13 @@ TEST(SCFAcceleratorGDM, RigHoldsALiveGeodesicStep)
 {
     Rig r;
     EXPECT_TRUE(r.acc.CanLineSearch()) << "the [F,D] gate should be open (FDMax=1e30)";
-    EXPECT_TRUE(r.irrep->ComputeStep()) << "a seeded GDM with a nonzero gradient must offer a step";
+    EXPECT_TRUE(r.irrep->ComputeStep()) << "a seeded GDM must offer a step";
+    // ...and the step must be REAL: on a Fock the orbitals do not diagonalize, the band energy
+    // must actually move.  Without this the whole file could pass on a zero gradient.
+    auto [U0,Cp0,e0] = r.irrep->OrbitalsAt(0.0,false);
+    auto [U1,Cp1,e1] = r.irrep->OrbitalsAt(1.0,false);
+    EXPECT_GT(std::abs(BandEnergy(Cp1,r.F2)-BandEnergy(Cp0,r.F2)), 1e-12)
+        << "the rig is at a stationary point -- every other test here would be vacuous";
 }
 
 // THE SAFETY CLAUSE.  Reject until exhausted, then check the guarantee the caller relies on.
@@ -120,7 +157,7 @@ TEST(SCFAcceleratorGDM, TheForcedDiagonalizeSurvivesQueriesAndIsClearedOnlyByADi
     }
 
     auto [U,Up,e] = r.irrep->NextOrbitals();               // THE diagonalize the flag was armed for
-    r.irrep->UseFD(MakeFock(), MakeDPrime(Up));
+    r.irrep->UseFD(r.F2, MakeDPrime(Up));
     EXPECT_TRUE(r.acc.CanLineSearch()) << "after diagonalizing, the geodesic must be re-armed";
     EXPECT_TRUE(r.irrep->ComputeStep()) << "a rejection must not disable the minimizer permanently";
 }
@@ -138,7 +175,7 @@ TEST(SCFAcceleratorGDM, AnAcceptedStepRestoresTheTrustRadius)
     ASSERT_GT(firstBudget, 0);
 
     auto [U0,Up0,e0] = r.irrep->NextOrbitals();            // clear the forced diagonalize
-    r.irrep->UseFD(MakeFock(), MakeDPrime(Up0));
+    r.irrep->UseFD(r.F2, MakeDPrime(Up0));
     ASSERT_TRUE(r.irrep->ComputeStep());
     r.irrep->OrbitalsAt(1.0,/*commit*/true);               // an ACCEPTED step
     ASSERT_TRUE(r.irrep->ComputeStep());
@@ -160,4 +197,31 @@ TEST(SCFAccelerator, NonMinimizersDeclineToRetryByDefault)
     } p;
     EXPECT_FALSE(p.ComputeStep()) << "a non-minimizer holds no step";
     EXPECT_FALSE(p.RejectStep())  << "...so it can offer no retry";
+}
+
+
+TEST(SCFAcceleratorGDM, TheGeodesicStepDescendsTheBandEnergy)
+{
+    Rig r;
+    ASSERT_TRUE(r.irrep->ComputeStep());
+
+    auto [U0,Cp0,e0] = r.irrep->OrbitalsAt(0.0,/*commit*/false);   // t=0 IS the pre-step point
+    const double E0=BandEnergy(Cp0,r.F2);
+    // Small t: a geodesic is a rotation, so a descent direction is only guaranteed to descend for
+    // sufficiently small steps -- test the guarantee, not the full model step.
+    auto [Ut,Cpt,et] = r.irrep->OrbitalsAt(0.05,/*commit*/false);
+    EXPECT_LT(BandEnergy(Cpt,r.F2), E0)
+        << "a geodesic step must LOWER the occupied-block band energy at fixed F";
+}
+
+// ...and the floor must not have broken the ordinary well-gapped case by over-damping it: the model step
+// (t=1) should still descend when the occ/virt gap is healthy, the regime PCFloor=0.1 sits below.
+TEST(SCFAcceleratorGDM, TheModelStepStillDescendsOnAWellGappedProblem)
+{
+    Rig r;
+    ASSERT_TRUE(r.irrep->ComputeStep());
+    auto [U0,Cp0,e0] = r.irrep->OrbitalsAt(0.0,false);
+    auto [U1,Cp1,e1] = r.irrep->OrbitalsAt(1.0,false);
+    EXPECT_LT(BandEnergy(Cp1,r.F2), BandEnergy(Cp0,r.F2))
+        << "PCFloor must not damp a healthy gap (this Fock's occ/virt gap is ~1 Ha, PCFloor is 0.1)";
 }

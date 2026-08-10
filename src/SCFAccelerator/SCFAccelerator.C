@@ -117,6 +117,21 @@ struct GDMParams
     //! a failure that is SCALE-INVARIANT is short-circuited by the caller long before the budget runs out.
     double TrustBackoff=0.25;
     double TrustMin=1e-4;
+    //! PRECONDITIONER FLOOR on the diagonal orbital-Hessian denominator (eps_a - eps_i).
+    //! The preconditioner divides the o-v gradient by that gap, which assumes it is POSITIVE -- true only at
+    //! an aufbau point.  Two things go wrong without a floor, and the second is a correctness bug rather than
+    //! a conditioning one:
+    //!   * NEAR-DEGENERATE (gap -> 0): the step blows up along exactly the soft modes, which is the measured
+    //!     GDM wander on diffuse bases (V1.24).
+    //!   * NON-AUFBAU (gap < 0, i.e. an empty level below an occupied one -- a HOLE): the quotient FLIPS
+    //!     SIGN, so that component of "steepest descent" points UPHILL, and the Polak-Ribiere denominator
+    //!     Re<g,PG> can go negative and blow up beta with it.  A minimizer holding a hole -- which is the
+    //!     normal state of a MOM or symmetry-broken run -- was therefore building an ascent direction from a
+    //!     preconditioner that is not positive-definite.
+    //! Clamping the denominator from below restores positive-definiteness, which is all a preconditioner has
+    //! to be: it is a METRIC, not the Hessian, so a floored gap changes the step LENGTH along stiff modes and
+    //! never the descent property.  0.1 Ha is well below a real HOMO-LUMO gap and well above the ties.
+    double PCFloor=0.1;
 };
 
 //! Which convergence signal drives the TAIL hand-off (see the design notes above + doc/SCFStrategyPlan.md).

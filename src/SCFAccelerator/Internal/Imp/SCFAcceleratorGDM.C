@@ -157,10 +157,14 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
     mat_t<T> g = blazem::ctrans(Rv)*Fov*Ro;      // nv x no  orbital gradient (o-v block)
 
     // (2) Preconditioned gradient; lift gradient and PG to full ambient tangents at CoccPC.
+    // The gap is FLOORED to keep the preconditioner positive-definite (GDMParams::PCFloor): it vanishes on a
+    // near-degenerate pair and goes NEGATIVE on a non-aufbau one (a hole), and an unfloored quotient then
+    // either explodes or flips sign into an ascent direction.  A preconditioner is a metric, not the Hessian,
+    // so flooring rescales stiff modes and never costs the descent property.
     mat_t<T> PG(nv,no);
     for (size_t a=0;a<nv;a++)
         for (size_t i=0;i<no;i++)
-            PG(a,i) = g(a,i)/(ev[a]-eo[i]);
+            PG(a,i) = g(a,i)/std::max(ev[a]-eo[i], itsParams.PCFloor);
     mat_t<T> Gfull  = CvirPC*g;
     mat_t<T> PGfull = CvirPC*PG;
     double denom  = ReDot<T>(g,PG);
@@ -183,8 +187,11 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
     // (4) Default step length from the diagonal quadratic model:  t* = -<g,d>/<d,H d>.
     mat_t<T> d = blazem::ctrans(CvirPC)*Dfull;
     double gd=ReDot<T>(g,d), dHd=0.0;
+    // Same floor as the preconditioner above: an indefinite <d,Hd> makes the quadratic-model step length
+    // -gd/dHd meaningless (the dHd>0 guard below then discards it entirely and falls back to t=1), so a
+    // hole would cost the model step rather than merely bias it.
     for (size_t a=0;a<nv;a++)
-        for (size_t i=0;i<no;i++) dHd += Abs2(d(a,i))*(ev[a]-eo[i]);
+        for (size_t i=0;i<no;i++) dHd += Abs2(d(a,i))*std::max(ev[a]-eo[i], itsParams.PCFloor);
     double t = (dHd>0.0) ? -gd/dHd : 1.0;
     if (t<=0.0) { Dfull=-PGfull; d=blazem::ctrans(CvirPC)*Dfull; t=1.0; }
 
