@@ -16,10 +16,26 @@ worth more than the landed ones.
 
 # START HERE (handoff, 2026-08-10)
 
-## Just landed: **R2.18**+**R2.19** (`86c5b24d`), **R2.9** (`268473b9`), **R1.7** (`26af31b6`).
-Full records → doc/CleanupHistory.md.
+## Just landed: **V1.31** (`627a4ff9`), **V1.27**'s live half (`a1e1f9bb`), **R2.18**+**R2.19**
+(`86c5b24d`), **R2.9** (`268473b9`), **R1.7** (`26af31b6`).  Full records → doc/CleanupHistory.md.
+**Merged both ways with the MnO clone and pushed** (`2e587ee6` on origin/main); qchem6 is synced.
 
-Two things worth carrying forward, because they generalize past their own items:
+## Next task: pick from the open list below — nothing is half-done
+
+- **R1.9** — molecular `BasisSetID()` prints its string-literal separators as hex.  Small, unruled; the
+  fix is likely one `#include <ostream>`, but it CHANGES the cache key string, so verify against the
+  `IntegralsCache` dim guards.  It also falsifies a comment (`SymFockCache`'s claim is gone with the class,
+  but `DB_Cache`'s "deterministic" wording remains).
+- **V1.27's remaining half** — the `MolecularSCFIterator`/`SolidSCFIterator` RENAME itself.  The live
+  defect (the virial gate) is fixed; what is left is that the two classes are named for the STRUCTURE and
+  discriminate on the PSEUDOPOTENTIAL.  Note they are different `T` instantiations, so it is not a
+  swap — the display policy is the thing to hoist.
+- **`SCFParams::MinVirial = 1e-13`** — documented *"effectively off"* while the test is
+  `error < MinVirial`, so the default is maximally ON.  Comment or default is wrong.  Affects ALL-ELECTRON
+  runs (where the gate is real), so it is a decision about what the default gate SHOULD be, not a typo fix.
+- Then the R2/V backlog as before.
+
+Four things worth carrying forward, because they generalize past their own items:
 
 - **R1.7 — an ISP split can pay off on DIP grounds.**  Once `MakeDirect`/`MakeExchange` were off the
   client-facing face, a grep showed NOTHING outside qcBasisSet had ever named an `ERI4` — so the substrate
@@ -59,6 +75,16 @@ reason destroys exactly the evidence the eventual decision needs — after five 
 whether the pattern is "fitters need raw integrals", "tests need to bypass the cache", or five unrelated
 accidents.  The rule generalises past `Make`: **any deliberate loosening of encapsulation should carry its
 reason, because the decision to tighten it again later can only be made from those reasons.**
+
+- **V1.27 — name a capability query for what the CLIENT consumes, not for the CAUSE.**  `IsVirialValid()`,
+  not `IsPseudopotential()`: PPs are not the only thing that breaks the virial theorem, so the cause-named
+  version would have been correct today and wrong at the first non-Coulombic term that is not a PP.  Third
+  instance of the same lesson (R2.13 "Becke", R2.17 "SiteAdaptedBecke", R1.7's ERI4 face).
+- **V1.31 — when a cache needs an awkward key, suspect the LOOP, not the key.**  `SymFockCache` needed an
+  elementwise density compare because of WHERE it sat; the position was forced by a pair loop that should
+  not have been running for that basis at all.  Removing the loop deleted the cache, its staleness test and
+  its incomplete key together.  **A cache that is hard to invalidate is often a cache that should not
+  exist.**
 
 ## ✅ V1.31 DONE `627a4ff9` — full record → doc/CleanupHistory.md.  (analysis kept below)
 
