@@ -1,5 +1,6 @@
 // File::BasisSet/Atom/Factory.C  Factory function for atom basis sets.
 module;
+#include <ostream>   // R1.9: free operator<<(ostream&,const char*) is NOT visible via a module import
 #include <cassert>
 #include <map>
 #include <nlohmann/json.hpp>

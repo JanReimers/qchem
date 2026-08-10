@@ -2,6 +2,12 @@
 module;
 #include <vector>
 #include <string>
+// R1.9: <sstream> (and the <ostream> it pulls in) MUST be included here even though the code below
+// compiled without it.  ostream::operator<<(const void*) is a MEMBER and is always found; the one for
+// const char* is a FREE FUNCTION TEMPLATE in <ostream>, and a C++20 module does not export the free
+// operators a header-including TU happens to have seen.  Without this include every string literal
+// below silently printed as a hex ADDRESS -- and BasisSetID() is a cache key.
+#include <sstream>
 module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.Blaze;
 
