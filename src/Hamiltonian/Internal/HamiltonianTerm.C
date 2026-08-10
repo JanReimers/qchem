@@ -93,19 +93,37 @@ protected:
     mutable size_t itsFitVersion;     //!< density serial the concrete term last refit for
 };
 
-// Used for polarized potentials (Vxc) which each polarization will handle its own cache.
+// Used for polarized potentials (Vxc) where each polarization handles its own cache, so this variant
+// ALWAYS recomputes.  It still stores the result PER IRREP rather than in one shared slot -- see below.
 template <class T> class tDynamic_HT_Imp_NoCache
     : public virtual tDynamic_HT<T>
+    , protected tHT_Common<T>
 {
 public:
+    //! Recompute unconditionally (that is what NoCache means), but keep the returned reference's lifetime
+    //! IDENTICAL to tDynamic_HT_Imp's: valid until the next call FOR THE SAME Irrep.
+    //!
+    //! R2.9(ii): this used to write into a single `mutable hmat_t<T> itsMat`, so every call invalidated the
+    //! previous call's reference.  The two implementations of one interface then made DIFFERENT lifetime
+    //! promises -- the caching sibling keys on Irrep (which folds in Spin via GetIrrep(s)), so its Up and
+    //! Down blocks live in separate slots, while here they aliased.  A caller holding `tDynamic_HT<T>*`
+    //! cannot tell which it has, and the natural spin-polarized idiom
+    //!     const auto& up = t->GetMatrix(bs,Spin::Up,  cd);
+    //!     const auto& dn = t->GetMatrix(bs,Spin::Down,cd);   // `up` silently became `dn`
+    //! is correct against one sibling and wrong against the other.  Nothing in the tree stores the
+    //! reference today (every consumer is an immediate `H += t->GetMatrix(...)`), so this is a latent trap
+    //! rather than a live bug -- and FittedVxcPol, one object serving both spin channels, is exactly where
+    //! it would have been sprung.  Keying the scratch removes the asymmetry instead of documenting it;
+    //! the cost is one matrix per Irrep, the same bound the sibling already carries.
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const
     {
-        return itsMat=CalcMatrix(bs,s,cd);
+        assert(bs);
+        Irrep qns(bs->GetIrrep(s));
+        return this->itsCache[qns]=CalcMatrix(bs,s,cd);   // assign, never look up: no caching
     }
 
 protected:
     virtual hmat_t<T> CalcMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
-    mutable hmat_t<T> itsMat;
 };
 
 // tFittablePotential is GONE (R2.6).  It existed for exactly one derivation, LDAVxc, whose only real job

@@ -26,6 +26,16 @@ Brief notes about module/library conventions, naming, and includes.
 - The actual unit tests live in most project-module (library) folders, under tests/ in each one.
 - allTests is the CMake target to build every test exe. It is fine to just focus on ITMain or one
     pertinent unit test while developing, but please build and pass everything before any big commits.
+- **A NEW test exe must be added to the `allTests` DEPENDS list in the ROOT CMakeLists.txt, or it is
+    silently never built and never run.** Adding `add_executable` + `gtest_discover_tests` in a
+    `tests/CMakeLists.txt` is NOT enough. When the exe is missing, ctest emits a placeholder named
+    `<target>_NOT_BUILT` with status `(Not Run)` — and a Not Run does NOT show up in the
+    `100% tests passed, 0 tests failed out of N` line, only in the FAILED list further down. So the
+    summary reads green while the tests never executed. This bit `UTSCFAccelerator` (2026-08-09): 163
+    lines of accelerator unit tests that had never run once. Two habits that catch it: after adding a
+    test exe, check that ctest's total N went UP by the number of tests you wrote; and read the failure
+    list, not just the pass percentage. (The `.vscode` TestMate glob is `UT*`, so a `UT`-prefixed name
+    needs no settings change — the ctest side is the one that needs the edit.)
 
 ## pybind/ — do not modify (GUI/binding-owned)
 The `pybind/` directory is the Python binding (nanobind C++ glue that compiles

@@ -28,7 +28,19 @@ const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bs,const Spin&,const r
     if (!wholeBasis)
         throw std::runtime_error("HF term: the whole-system Fock build requires the composite basis "
                                  "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
-    if (!itsWholeBasis) itsWholeBasis=wholeBasis;                 // stash the run-stable whole basis
+    // Stash the run-stable whole basis on first use (GetEnergy has no basis argument and needs the same
+    // banked contraction).  It must never CHANGE: itsJKs is keyed by BasisSetID and built by walking this
+    // composite, so a second basis would have its blocks served from the first one's contraction -- a
+    // plausible-looking Fock built from the wrong cross-irrep view.  THROW rather than assert, for the same
+    // reason as R1.4: build/Release is -DNDEBUG, so an assert here would be a no-op in the configuration we
+    // actually test, and the null check three lines up already throws on the same parameter.
+    if (!itsWholeBasis) itsWholeBasis=wholeBasis;
+    else if (itsWholeBasis!=wholeBasis)
+        throw std::runtime_error("HF term: the whole-system (composite) basis changed mid-run.  This term "
+                                 "latched a different basis on its first Fock build, and its per-irrep "
+                                 "blocks (itsJKs) are keyed by BasisSetID against THAT basis -- serving them "
+                                 "for a different composite would silently mix cross-irrep views.  A term "
+                                 "belongs to one wavefunction; do not share it across two.");
     ContractAll(cd);
     return itsJKs.at(bs->BasisSetID());
 }
