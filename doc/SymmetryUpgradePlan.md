@@ -174,13 +174,48 @@ projector at full scale, net moment 0 (1.7e-9 = partner-weight ULPs), m≡0 at f
 GREY control on the same mesh+fold ERASES it (<1e-10); the totals agree through both engines
 (σ never touches the even channel).
 
-**STILL OPEN, ranked:** (1) S4 — the through-SCF gates: the first IMPOSED MnO run (does the magnetic
-star-average close the Δρ tie-noise floor?  imposed == free-ensemble energy at grid class?); the
-grey-imposition negative control THROUGH SCF (m_stag must die); the release-audit arm; wire
-`MagneticSymmetryDefects` into the free-run `[symmetry]` line for polarized runs.  (2) cheap parallel
-arms for the 57 mHa: `MNO_SHARED_MU=1` + gentle anneal — user already probing shared-μ; (3) the
-k-MESH free run (affordable after imposition); (4) free-energy-stationarity convergence gate if
-imposition alone does not close the Δρ floor; (5) doc/CleanupCandidates.md D9–D12.
+**S4 IN PROGRESS (2026-08-11, late) — two findings already banked:**
+- **Run 36 (`MNO_IMPOSE=2`, detected-grey arm): the grey-erasure hazard is STRUCTURALLY UNREACHABLE.**
+  `FindTau` keeps the FIRST τ-coset per W, and on this cell every detected W fixes both Mn sites with
+  τ=0 — the detected 12 are sublattice-PRESERVING, so grey imposition merely symmetrizes within each
+  sublattice's own shell (iteration 1: m1=+0.42 alive, E=−52.76 vs free −52.80).  The erasing ops (the
+  τ=½½½ coset) exist only in the coset-complete magnetic set, which S3 routes exclusively through the
+  σ-aware path; the erasure MECHANICS are proven at the S2/S3 unit gates.
+- **Run 37 (`MNO_IMPOSE=1`, first imposed attempt): the S3 "legacy faces coset-complete" decision was
+  WRONG, caught live (user: "m_stag = 0.00000").**  The composite star-average is applied PER CHANNEL
+  (each channel's `GetFourierDensity`/`GetRhoOnGrid` symmetrizes ITSELF), and the ρ̃ MIXER consumes the
+  channels separately through exactly those faces — a sublattice-swap op is NOT a symmetry of one
+  channel, so averaging under it equalized the channels and annihilated m MACHINE-EXACTLY at iteration
+  1 (seed m1=+0.717 → first mixed density 6e-14; E₁=−46.05, the collapse basin).  The Mn₂ toy gate had
+  passed because it runs no ρ̃ mixer.  FIX: the legacy faces get only the **σ=None (sublattice-
+  preserving) subgroup** — the correct per-channel projector (each channel IS invariant under it); the
+  flip content is a PAIR property, enforced where the pair is in hand (the engine's (ρ,m) under the
+  full σ-carrying set).  The total's anti-translation component is driven by the SCF rather than
+  projected — a partial projector is legal.  PIN: **a per-channel face may only be projected under ops
+  that are symmetries OF THAT CHANNEL; pair-coupling ops belong to pair-level machinery** — the same
+  bug class as the spin-blind mixer and the split Pulay history, one level down.
+
+**★ RUN 38 (2026-08-11, the channel-safe imposed Shubnikov run) — THE FIRST CONVERGED MnO AFM-II OF
+THE CAMPAIGN.**  AFM-II arm: **CONVERGED in 41 iterations at DEFAULT knobs** (no MOM, no anneal, no
+Λ) — lastΔρ = 9.9e-6 **passes the 1e-5 gate**: the magnetic star-average CLOSED the tie-noise floor
+that capped every free run at ~1e-4, exactly the mechanism this route was chosen for.  E =
+**−61.41455**, 0.5 mHa BELOW the free plateau (−61.4140) — grid-class agreement with the free
+ensemble, which doubles as the release-audit for this system (imposition suppressed nothing; it let
+the run FINISH).  m_stag = 0.6513 at convergence (peak 0.6516), mirror held throughout.  **56.1 mHa
+from the CP2K oracle −61.4706.**  The FM arm (all-None Shubnikov group) also converged (26 iters,
+E = −61.45270) — and sits **38 mHa BELOW AFM-II**: the superexchange ordering is REVERSED at this
+model+sampling.  Both arms converged cleanly, so this is a statement about Γ-ONLY SAMPLING (a 2-f.u.
+cell cannot resolve superexchange bandwidth) and LSDA-without-+U (delocalization error underestimates
+AFM stabilization), NOT an SCF defect — and no CP2K FM oracle is banked (only the AFM deck), so the
+ordering has no external reference yet.  Log: `doc/logs/mno_afm2_run38_imposed_shubnikov.log`.
+
+**STILL OPEN, ranked:** (1) the ORDERING: bank a CP2K FM oracle (same deck, UKS multiplicity 11) for
+the E_FM reference; then the k-MESH runs (the real superexchange resolution) and +U (the known LSDA
+cure, already on the battery critical path); (2) the remaining 56 mHa to the CP2K AFM oracle (basis/
+grid class + partitioning derivation); (3) cheap arms: `MNO_SHARED_MU=1` on the imposed run + gentle
+anneal; (4) the through-SCF gate for the suite: the DISABLED MnO test's convergence asserts now PASS
+on the AFM arm — consider an enabled, bounded imposed-AFM anchor once runtime is budgeted;
+(5) doc/CleanupCandidates.md D9–D12.
 This doc answers three things the user asked:
 1. A **gap analysis** — where are we already using symmetry, where are we leaving it on
    the table.

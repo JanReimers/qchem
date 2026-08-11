@@ -117,11 +117,23 @@ static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWP
         std::cout << "[symmetry] IMPOSING the SHUBNIKOV group of the declared ordering: "
                   << ops.magneticDirect.size() << " ops (" << ops.magneticDirect.size()-nFlip
                   << " spatial + " << nFlip << " spin-flip; the grey group would erase the order)" << std::endl;
-        for (const auto& op : ops.magneticDirect)                     // spatial projections, coset-complete
-        {
-            ops.directDensity.push_back({op.W, op.tau});
-            ops.recipDensity .push_back({Transpose(op.W), op.tau});   // the G-index scatter U = W^T
-        }
+        // The LEGACY faces get ONLY the σ=None (sublattice-preserving) subgroup.  MEASURED (MnO run 37,
+        // 2026-08-11): they must NOT get the flip ops' spatial parts -- the composite star-average is
+        // applied PER CHANNEL (each channel's GetFourierDensity/GetRhoOnGrid symmetrizes ITSELF, and the
+        // ρ̃ MIXER consumes the channels separately through exactly those faces), and a sublattice-swap op
+        // is not a symmetry of ONE channel: averaging under it equalizes the channels and annihilates m
+        // MACHINE-EXACTLY at iteration 1 (the seed reads m1=+0.717, the first mixed density m1=6e-14).
+        // Each channel IS invariant under the σ=None subgroup, so that is the correct per-channel
+        // projector; the flip content is a PAIR property and is enforced where the pair is in hand -- the
+        // XC engine's (ρ,m) star-average under the full σ-carrying set (itsMagneticOps).  The total's
+        // anti-translation component is then driven by the SCF rather than projected -- a PARTIAL
+        // projector is legal (folding merely reduced, never wrong).
+        for (const auto& op : ops.magneticDirect)
+            if (op.sigma==SL::SpinAction::None)
+            {
+                ops.directDensity.push_back({op.W, op.tau});
+                ops.recipDensity .push_back({Transpose(op.W), op.tau});   // the G-index scatter U = W^T
+            }
         // k-fold: Γ-only for now -- the magnetic little-group bookkeeping at k≠Γ is the T3.4b-adjacent
         // increment.  Leaving recipFold empty means a multi-k imposed magnetic run keeps its FULL mesh
         // (folding is merely absent, never wrong).

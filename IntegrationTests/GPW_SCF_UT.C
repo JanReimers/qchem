@@ -286,7 +286,13 @@ struct GpwOptions
                                                          //   2026-08-02): IBZ k-fold + per-iteration density
                                                          //   star-average + T1 {G}-star sweeps + the site-adapted
                                                          //   invariant Becke mesh.  OPT-IN per the §3 pin (an
-                                                         //   imposed default would also ~2x the suite's XC grids)
+                                                         //   imposed default would also ~2x the suite's XC grids).
+                                                         //   S3: on a POLARIZED run with flip bits this resolves
+                                                         //   to the SHUBNIKOV group of the declared ordering.
+    bool        greyImposition = false;                 // §8 NEGATIVE CONTROL only: impose the GREY group on a
+                                                         //   staggered cell (decoration suppressed) -- the
+                                                         //   star-average then maps +m onto -m and must KILL
+                                                         //   m_stag.  Never a production setting.
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Uniform;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
@@ -350,11 +356,16 @@ qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Real_BS& mo
 std::vector<int> GatherSiteSpins(const Lattice_3D& lat, const GpwOptions& o)
 {
     using namespace qchem::ChargeDensity;
-    if (!o.imposeSymmetry || o.multiplicity<1) return {};
+    if (o.multiplicity<1) return {};             // unpolarized: no channels, no decoration
+    if (o.greyImposition) return {};             // §8 NEGATIVE CONTROL: suppress the decoration so an
+                                                 // imposed run star-averages under the GREY group --
+                                                 // m_stag must die; never a production setting
     auto st=lat.GetStructure();
     const std::map<size_t,int> targets = (o.seed==SeedStrategy::IonicSAD)
                                        ? IonicSADTargets(st.get(), "LDA") : std::map<size_t,int>{};
     return MagneticDecoration(st.get(), "LDA", targets);
+    // (Returned for FREE runs too: the factory reads it only when imposing; the free-run MAGNETIC
+    // diagnostic below uses it as the Shubnikov reference group.)
 }
 } //anon
 
@@ -391,7 +402,8 @@ struct GpwHandles
 // sits at 1e-3: comfortably above convergence noise, far below any genuine order parameter (O(0.01..1)).
 // Below it the line reports the number without judging (the release-check quantifies real SSB anyway).
 static void ReportSymmetryFound(const Complex_BS& bs, const qchem::ChargeDensity::cDM_CD& cd,
-                                const Structure* st, bool imposed)
+                                const Structure* st, bool imposed,
+                                const std::vector<Symmetry::Lattice_3D::SymOp>& magOps = {})
 {
     auto ops = bs.GetDetectedReciprocalOps();
     if (ops.size() <= 1) return;   // trivial (or undetected) group: nothing to report
@@ -412,6 +424,28 @@ static void ReportSymmetryFound(const Complex_BS& bs, const qchem::ChargeDensity
               << " ops): max="<<mx
               << (broken ? "  ** "+std::to_string(broken)+" op(s) BROKEN -- symmetry lowered (order parameter)"
                          : "  (no lowering resolved above SCF tolerance)") << std::endl;
+
+    // S4: the MAGNETIC diagnostic for a polarized free run with a declared ordering -- did the CHANNEL
+    // PAIR keep the Shubnikov group?  (The grey line above sees only the total; a dead sublattice moment
+    // is invisible to it.)  σ=Flip ops compare across the channels, so their row IS the m1=-m2 mirror.
+    if (magOps.empty()) return;
+    const auto* pol = dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&cd);
+    if (!pol) return;
+    const auto* fdu = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChargeDensity(Spin::Up));
+    const auto* fdd = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChargeDensity(Spin::Down));
+    if (!fdu || !fdd) return;
+    std::vector<Symmetry::Lattice_3D::SymOp> rmag;
+    for (const auto& op : magOps) rmag.push_back(Symmetry::Lattice_3D::ReciprocalOf(op));
+    std::vector<double> md = MagneticSymmetryDefects(fdu->GetFourierDensity(*fit),
+                                                     fdd->GetFourierDensity(*fit), rmag);
+    double mxN=0, mxF=0;
+    for (size_t i=0;i<rmag.size();++i)
+        (rmag[i].sigma==qchem::Symmetry::SpinAction::Flip ? mxF : mxN) = std::max(
+            rmag[i].sigma==qchem::Symmetry::SpinAction::Flip ? mxF : mxN, md[i]);
+    std::cout << "[symmetry] MAGNETIC (Shubnikov, "<<rmag.size()<<" ops): channel-pair defect max "
+              << "None="<<mxN<<"  Flip="<<mxF
+              << (mxF>1e-3 ? "  ** the sublattice mirror m1=-m2 is BROKEN" : "  (the magnetic order holds)")
+              << std::endl;
 }
 
 //! GPW_SHARED_MU=1/0 OVERRIDES GpwOptions::spinsShareFermi for an A/B, and SAYS SO.  The question it
@@ -539,7 +573,14 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity();
     double charge=cd->GetTotalCharge();
-    ReportSymmetryFound(*bs, *cd, lat.GetStructure().get(), o.imposeSymmetry);   // §3: the run reports the symmetry it found
+    {   // §3: the run reports the symmetry it found; S4 adds the MAGNETIC (Shubnikov) channel-pair
+        // diagnostic on FREE polarized runs with a genuinely staggered decoration.
+        std::vector<int> spins=GatherSiteSpins(lat, o);
+        bool staggered=false; for (int s : spins) if (s<0) staggered=true;
+        ReportSymmetryFound(*bs, *cd, lat.GetStructure().get(), o.imposeSymmetry,
+                            (!o.imposeSymmetry && staggered) ? lat.ShubnikovOps(spins)
+                                                             : std::vector<Symmetry::Lattice_3D::SymOp>{});
+    }
     if (keep) keep->cd.reset(cd); else delete cd;
     qchem::EnergyBreakdown E=scf.GetEnergy();
     std::cout << "["<<o.label<<"] iters="<<scf.GetIterationCount()<<" charge="<<charge
@@ -675,7 +716,14 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         prev = std::move(scf);   // held for the next stage's MOM adoption; released the moment it has copied
         // seedCD survives the hand-off -- its block is bs, which outlives the loop.
     }
-    if (seedCD) ReportSymmetryFound(*bs, *seedCD, st.get(), o.imposeSymmetry);   // §3: report on the coldest stage's density
+    if (seedCD)
+    {   // §3: report on the coldest stage's density (+ the S4 magnetic diagnostic, as in RunGpw)
+        std::vector<int> spins=GatherSiteSpins(lat, o);
+        bool staggered=false; for (int s : spins) if (s<0) staggered=true;
+        ReportSymmetryFound(*bs, *seedCD, st.get(), o.imposeSymmetry,
+                            (!o.imposeSymmetry && staggered) ? lat.ShubnikovOps(spins)
+                                                             : std::vector<Symmetry::Lattice_3D::SymOp>{});
+    }
     prev.reset();                                       // no further stage: drop the last iterator (ham/acc/wf)
     if (keep) { keep->cd.reset(seedCD); keep->bs=std::move(bs); }   // bs is the density's block -- it must outlive cd
     else      delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
@@ -3168,7 +3216,23 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     o.Nelec=26; o.multiplicity=multiplicity;          // 2 x (Mn q7 + O q6); AFM: the explicit two-channel singlet
     o.species={{"Mn",7},{"O",6}};                     // densityEcut stays AUTO (= 2*alpha_max = 60, the trimmed d)
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;   // Mn2+ d^5 pair + diffuse O2- (the basin chooser)
-    o.imposeSymmetry=false;                           // the grey-group star-average would erase the staggering
+    // MNO_IMPOSE (Shubnikov S4, doc/SymmetryUpgradePlan.md §7 step 7): 0 = FREE (default -- the banked
+    // runs 30-34 ensemble, the §8 reference); 1 = impose the SHUBNIKOV group of the declared AFM ordering
+    // (S3 resolves it from the flip bits automatically; the first magnetic imposition -- the Δρ tie-floor
+    // measurement); 2 = impose the DETECTED grey group with the decoration suppressed.  MEASURED (run 36,
+    // 2026-08-11): arm 2 is NOT an erasure control on this cell -- FindTau keeps the FIRST tau coset per W,
+    // and every detected W fixes both Mn sites with tau=0, so the detected 12 are sublattice-PRESERVING
+    // and the staggering survives them (iteration 1: m1=+0.42, E=-52.76 vs the free -52.80).  The ops that
+    // WOULD erase m -- the tau=(1/2,1/2,1/2) coset -- exist only in the coset-complete magnetic set, which
+    // S3 routes exclusively through the Shubnikov (sigma-aware) path: the erasure hazard the pre-S3
+    // comment feared is structurally unreachable in production, and the erasure MECHANICS are proven at
+    // the unit tier (the S2/S3 grey-control gates).
+    {
+        const char* im=std::getenv("MNO_IMPOSE");
+        const int   iv=im?std::atoi(im):0;
+        o.imposeSymmetry = iv!=0;
+        o.greyImposition = iv==2;
+    }
     // cond(S) ~ 7e8 on this dense oblique cell (lambdaMin ~ 2e-8 passes the vet, barely): plain Cholesky
     // EXPLODES the eigenproblem (measured: E ~ 1e9 Ha, [F,D] ~ 1e10 at iteration 1).  The NaF-class
     // recipe: pivoted Cholesky with a rank tolerance.
@@ -3637,6 +3701,62 @@ TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
     // (d) The TOTAL density is identical through both engines (the even channel is sigma-blind).
     double dTot=0; for (size_t g=0; g<up.size(); g++) dTot=std::max(dTot, std::abs((up[g]+dn[g])-(gup[g]+gdn[g])));
     EXPECT_LT(dTot, 1e-10) << "sigma must not touch the total density";
+}
+
+// SHUBNIKOV S4, THROUGH SCF (doc/SymmetryUpgradePlan.md §7 step 7): the imposed magnetic star-average
+// confines the magnetization to the STAGGERED sector by construction -- every iterate's m is projected
+// onto the Shubnikov-symmetric cone, so the AFM order cannot leak into a net moment and the sublattice
+// mirror holds EXACTLY at every iteration, converged or not.  Fixture: the cheapest genuinely staggered
+// crystal -- two neutral Mn (the d5s2 Hund pair) in a cubic box, CsCl/B2 arrangement, AFM flip on the
+// second.  Bounded iterations (this gate tests SYMMETRY through the live SCF loop, not convergence).
+// The through-SCF GREY negative control lives on MnO (MNO_IMPOSE=2): THIS cell's detected grey group is
+// all site-preserving (every cubic W admits tau=0), so grey imposition here would be a vacuous control.
+TEST(GPW_SCF, ImposedShubnikovHoldsAFMThroughSCF_Mn2Box)
+{
+    const double a=7.0;
+    UnitCell cell(a);
+    cell.AddAtom(25, {0.0,0.0,0.0}, false);   // Mn +m
+    cell.AddAtom(25, {0.5,0.5,0.5}, true);    // Mn -m (the AFM flip)
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label="Mn2 B2 AFM imposed"; o.Nelec=14; o.multiplicity=1; o.species={{"Mn",7}};
+    o.seed=qchem::ChargeDensity::SeedStrategy::SAD;      // neutral Mn: the library's d5s2 spin pair
+    o.imposeSymmetry=true;                                // S3 resolves the SHUBNIKOV group from the flips
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    o.accelerator="DIIS";
+    o.scf.SmearingkT=5e-3;                                // the open-d-manifold tie smoother
+    o.scf.NMaxIter=6; o.scf.MinΔρ=1e-9; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.45; o.scf.MergeTol=1e-4;
+    o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);         // coarse quadrature: symmetry, not accuracy
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+
+    GpwHandles h;
+    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o,
+                       /*verbose*/(bool)std::getenv("GPW_MN2_VERBOSE"), &h);
+    ASSERT_TRUE(h.cd) << "the run must produce a final density";
+
+    // The final density through the spin-resolved face: the order must be ALIVE and EXACTLY mirrored.
+    const auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(h.cd.get());
+    ASSERT_NE(pol, nullptr);
+    const auto* up=pol->GetChargeDensity(Spin::Up);
+    const auto* dn=pol->GetChargeDensity(Spin::Down);
+    const rvec3_t off(0.7,0,0), r1(0,0,0), r2(a/2,a/2,a/2);
+    const double m1=(*up)(r1+off)-(*dn)(r1+off);
+    const double m2=(*up)(r2+off)-(*dn)(r2+off);
+    std::cout << "[Mn2 imposed] after "<<R.iters<<" iterations: m1="<<m1<<" m2="<<m2
+              << " m1+m2="<<m1+m2<<" Etot="<<R.E.GetTotalEnergy()<<std::endl;
+    EXPECT_GT(std::abs(m1), 0.05) << "the AFM order must SURVIVE the imposed SCF loop";
+    // What the projector holds EXACTLY mirrored is the rho the FOCK consumes (the engine's (rho,m)
+    // star-average); the DENSITY MATRIX itself is deliberately NOT projected (the rho-projection
+    // philosophy, T3.2 note), so the D-density probed here is DRIVEN toward the mirror at the
+    // convergence rate -- measured |m1+m2| = 3.1e-3 beside lastΔρ = 5.6e-4 at the 6-iteration cap.
+    // The gate therefore asserts the mirror at the "small beside the order" tier; the EXACT-mirror
+    // guarantee on the projected rasters is the S3 seed-level gate above.
+    EXPECT_NEAR(m1+m2, 0.0, 0.05*std::abs(m1))
+        << "the imposed SCF must keep the sublattice mirror tight (driven by the projected Fock)";
+    EXPECT_NEAR(pol->GetTotalSpin(), 0.0, 1e-8) << "an imposed AFM pair carries zero net moment";
 }
 
 // ===================== MnO STATUS: THE OCCUPATION IS THE DEFECT (2026-08-08) ==========================

@@ -1098,3 +1098,45 @@ the user watching the logs live (`doc/logs/mno_afm2_run{31,32,33,34}*.log`).
 
 Standing comparison: our smeared plateau A=−61.4140 (E−TS; −TS=−0.0159) vs the CP2K smeared oracle
 −61.4706 — 57 mHa, down from 15.8 Ha at the session's start.
+
+---
+
+## E. The Shubnikov S-track lands: S1-S4 in one day (2026-08-11, evening/night)
+
+User decision after runs 30-34: the next semi-major step is imposeSymmetry under the MAGNETIC group,
+with an imposed-subgroup option permitting either of two candidate orderings.  Four increments, each
+committed green the same day (S1 5ad45c06, S2 d9fe59fe, S3 f8fd4fa0, S4 with this entry):
+
+* **S1** — `SpaceGroup::ShubnikovOps(decorated)` + `CommonOps` (see §D of the plan-side record).  KEY:
+  Detect keeps one τ-coset per W; the magnetically doubled cell's EXTRA coset is the anti-translation
+  {E|½½½}·Flip = the m1=−m2 mirror — ShubnikovOps re-enumerates every coset itself.
+* **S2** — the (ρ,m) diagonalization: total EVEN under Flip, m ODD (χ=±1).  SymmetrizeValuesSigned +
+  the FlipFixedPointsPeriodic audit (a Flip-fixed point carries m≡0 exactly — MnO's O sites);
+  SymmetrizeGMap(…, oddUnderFlip) exact by scatter; MagneticSymmetryDefects (Flip rows compare ACROSS
+  channels).
+* **S3** — the wiring: MagneticDecoration by the seed's own species rule (IonicSADTargets factored out
+  = one resolution), GPWParams::siteSpins, factory resolution to the Shubnikov group,
+  XCQuadrature/engine σ+flags, RhoPol's (ρ,m) split.
+* **S4** — the through-SCF measurements, with two live-caught findings:
+  - **Run 36**: the DETECTED grey group of the MnO cell is sublattice-PRESERVING (FindTau's first-coset
+    rule: every W admits τ=0 fixing both Mn) — so "grey erases m" is structurally unreachable in
+    production; the erasure mechanics are proven at the S2/S3 unit gates.
+  - **Run 37** (user, live: "m_stag = 0.00000"): the S3 choice to fill the LEGACY op faces
+    coset-complete was WRONG — the composite star-average acts PER CHANNEL and the ρ̃ MIXER consumes
+    the channels separately through those faces; a sublattice swap is not a symmetry of one channel,
+    so m was annihilated machine-exactly at iteration 1.  FIX: legacy faces = the σ=None subgroup
+    only; the flip content is enforced at PAIR level (the engine).  PIN: a per-channel face may only
+    be projected under ops that are symmetries OF THAT CHANNEL — the spin-blind-mixer bug class, one
+    level down.  The Mn₂ toy gate had passed because it runs no ρ̃ mixer.
+  - **★ Run 38**: THE FIRST CONVERGED MnO AFM-II of the campaign — 41 iterations, DEFAULT knobs,
+    lastΔρ 9.9e-6 PASSES the 1e-5 gate (the magnetic star-average closed the tie-noise floor),
+    E=−61.41455 (0.5 mHa below the free plateau = the release-audit), m_stag 0.6513.  FM arm also
+    converged and sits 38 mHa BELOW — the ordering is reversed at Γ-only+LSDA(no U), with no CP2K FM
+    oracle banked yet; the k-mesh + (+U) routes own that question.
+  - Gates added: `MnOImposedShubnikovKeepsTheSeedStaggering` (seed-level end-to-end incl. the grey
+    erasure control), `ImposedShubnikovHoldsAFMThroughSCF_Mn2Box` (through-SCF, ~35 s), the
+    MNO_IMPOSE knob (0 free / 1 Shubnikov / 2 detected-grey), and the free-run MAGNETIC
+    `[symmetry]` line (MagneticSymmetryDefects on the channel pair).
+
+Score at close: MnO AFM-II converged+staggered at defaults, 56.1 mHa from the CP2K AFM oracle —
+the campaign started the day 15.8 Ha under-bound with the moment dying at iteration 1.
