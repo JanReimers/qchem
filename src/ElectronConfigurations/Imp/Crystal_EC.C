@@ -12,14 +12,15 @@ Crystal_EC::Crystal_EC(const Irrep& irr, int nval, bool globalFermi)
 Crystal_EC::Crystal_EC(const std::vector<Irrep>& irreps, int nval, bool globalFermi)
     : Crystal_EC(irreps,(nval+1)/2,nval/2,globalFermi) {}
 
-Crystal_EC::Crystal_EC(const Irrep& irr, int nUp, int nDown, bool globalFermi)
-    : itsNup(nUp), itsNdn(nDown), itsGlobalFermi(globalFermi)
+Crystal_EC::Crystal_EC(const Irrep& irr, int nUp, int nDown, bool globalFermi, bool spinsShareFermi)
+    : itsNup(nUp), itsNdn(nDown), itsGlobalFermi(globalFermi), itsSpinsShareFermi(spinsShareFermi)
 {
     itsSyms.insert(irr.sym);
 }
 
-Crystal_EC::Crystal_EC(const std::vector<Irrep>& irreps, int nUp, int nDown, bool globalFermi)
-    : itsNup(nUp), itsNdn(nDown), itsGlobalFermi(globalFermi)
+Crystal_EC::Crystal_EC(const std::vector<Irrep>& irreps, int nUp, int nDown, bool globalFermi,
+                       bool spinsShareFermi)
+    : itsNup(nUp), itsNdn(nDown), itsGlobalFermi(globalFermi), itsSpinsShareFermi(spinsShareFermi)
 {
     for (const auto& irr : irreps) itsSyms.insert(irr.sym);
 }
@@ -47,7 +48,8 @@ void Crystal_EC::Display() const
     std::cout << "Crystal_EC: Nval=" << itsNup+itsNdn;
     if (itsNup!=itsNdn) std::cout << " (n↑=" << itsNup << ", n↓=" << itsNdn << ")";
     std::cout << (itsGlobalFermi ? " total (global-μ metal), " : " per k-block, ")
-              << itsSyms.size() << " k-block(s)" << std::endl;
+              << itsSyms.size() << " k-block(s)"
+              << (itsSpinsShareFermi ? ", ONE μ over both spin channels (moment free)" : "") << std::endl;
 }
 
 } // namespace qchem

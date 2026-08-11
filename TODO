@@ -190,15 +190,6 @@ The raster (GetRhoOnGrid) needs voxel-permutation (grid geometry) — a separate
 src/LASolver/tests/LASolver.C  these are a rather light duty (3x3).  WOuld it make sense to build some larger 1-center gaussian overlap matricies
 that are near singular, decompose, truncate and look at residuals.  V*S*V_dagger-I ?
 
-I see we are the (more efficient, but lower *manifest* symmetry) rhombohedral cell (1/4 volumne of the cubic fcc cell).  So the big question for me is:  Are the Becke grids obeying just the  rhombohedral site symmetry or the full cubic site symmetry?
-Manganese (Mn):
-Wyckoff Position: 4a
-Coordinates: $(0, 0, 0)$
-Site Symmetry: $m\bar{3}m$ ($O_h$)
-Oxygen (O):
-Wyckoff Position: 4b
-Coordinates: $(\frac{1}{2}, \frac{1}{2}, \frac{1}{2})$
-Site Symmetry: $m\bar{3}m$ ($O_h$) 
 --- 
 
 ### Three Mesh upgrade:

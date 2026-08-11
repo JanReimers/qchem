@@ -1,5 +1,6 @@
 // File: TOrbitals.C  
 module;
+#include <limits>
 #include <iosfwd>
 #include <vector>
 #include <memory>
@@ -31,6 +32,7 @@ public:
     virtual ds_t      TakeElectronsFermi (double ne, double kT);
     virtual ds_t      TakeElectronsFermi (double ne, double kT, const rvec_t& eShift);
     virtual ds_t      SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift);
+    virtual double    GetChemicalPotential   () const {return itsMu;}
     virtual size_t    GetNumOrbitals     (               ) const;
     virtual size_t    GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;
@@ -53,6 +55,9 @@ private:
     TOrbitalsImp(const TOrbitalsImp&);
     ds_t BuildDensity(double ne);   //!< build D/D' from the occupied orbitals (shared by both TakeElectrons)
 
+    //! μ of the last Fermi fill -- captured in SetFermiOccupationsAtMu, the ONE funnel both the per-block
+    //! solve and the shared-reservoir fill pass through.  NaN until a Fermi fill runs (a cold fill has no μ).
+    double            itsMu=std::numeric_limits<double>::quiet_NaN();
     const tobs_t<T>*  itsBasisSet;
     std::vector<std::unique_ptr<Orbital>> itsOrbitals;
     Irrep         itsQNs;

@@ -159,6 +159,7 @@ TOrbitalsImp<T>::TakeElectronsFermi(double ne, double kT, const rvec_t& eShift)
 template <class T> typename TOrbitalsImp<T>::ds_t
 TOrbitalsImp<T>::SetFermiOccupationsAtMu(double mu, double kT, const rvec_t& eShift)
 {
+    itsMu=mu;              // the one funnel both fills pass through -- see GetChemicalPotential
     assert(kT>0.0);
     assert(!itsOrbitals.empty());
     const size_t n=itsOrbitals.size();

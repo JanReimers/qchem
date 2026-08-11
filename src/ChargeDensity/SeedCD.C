@@ -78,6 +78,7 @@ private:
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> itsFitBasis; //!< density-fit basis (its grid engine builds rho-tilde); owned
     const Structure*             itsStructure;    //!< atom Z + positions (+ spin-flip bits); not owned
     ReciprocalLattice            itsRecip;        //!< the cell's reciprocal lattice (B): the seed's Poisson metric
+    const UnitCell*              itsCell;         //!< == itsStructure (checked at construction): the direct cell, for the periodic real-space image sums
     Spin                         itsChannel;      //!< None = spin-agnostic total; Up/Down = one polarized channel
     std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadByZ;     //!< per-element channel radial, UNFLIPPED sites
     std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadFlipByZ; //!< per-element channel radial, FLIPPED sites (== itsRadByZ unless a spin pair)

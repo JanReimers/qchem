@@ -1,5 +1,6 @@
 // File: Structure/UnitCell.C  Unit cell for a lattice.  Symbol/units conventions: see Lattice.C.
 module;
+#include <iomanip>
 #include <cassert>
 #include <cstdlib>   // std::getenv (the GPW_OMP_THREADS cap on the Becke mesh build)
 #include <iostream>
@@ -202,6 +203,20 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         for (size_t q=0; q<nq; q++) partition(q);
 #endif
         for (size_t q=0; q<nq; q++) if (keep[q]) out.Append(kpt[q], kwt[q]);
+        // GPW_BECKE_ATOMS: the PER-ATOM breakdown.  Sum(w) is the partition's share of unity assigned to
+        // this atom -- for two crystallographically EQUIVALENT atoms it must be identical, and so must the
+        // kept/dropped counts.  The aggregate "[Becke grid] ... dropped N tail pts" line cannot show that,
+        // which is why a site-dependent mesh defect could hide behind it (MnO 2026-08-11: the moment dies
+        // on the atom at the cell CORNER and survives on the one at the cell CENTRE, and a rigid
+        // translation of the whole crystal -- an exact symmetry -- moves the answer by 56 Ha).
+        if (std::getenv("GPW_BECKE_ATOMS"))
+        {
+            size_t nk=0; double wsum=0.0;
+            for (size_t q=0; q<nq; q++) if (keep[q]) { ++nk; wsum+=kwt[q]; }
+            std::cout<<"[Becke atom] ia="<<ia<<" R=("<<R[ia].x<<","<<R[ia].y<<","<<R[ia].z<<")"
+                     <<" pts="<<nq<<" kept="<<nk<<" dropped="<<(nq-nk)
+                     <<" Sum(w)="<<std::setprecision(10)<<wsum<<std::endl;
+        }
     }
     qcMesh::Mesh mesh=out.take();
 

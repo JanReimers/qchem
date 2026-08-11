@@ -40,6 +40,7 @@ import qchem.Lattice_3D;                         // Lattice_3D
 import qchem.BasisSet;                           // Complex_BS, Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-spectrum diagnostic)
 import qchem.Blaze;                              // blazem::eigen, blaze::min/max (overlap spectrum)
+import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;   // PlaneWave_IBS (the seed's CD fit basis)
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
@@ -75,7 +76,8 @@ import qchem.BasisSet.Lattice_3D.GPW_IBS;         // GPW_IBS (build a concrete b
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
 import qchem.BasisSet.Internal.GMap;              // G_ERI3 (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
 import qchem.ChargeDensity.FourierDensity;        // FourierDensity (ρ̃ for the §3 order-parameter diagnostic)
-import qchem.ChargeDensity.Factory;               // IrrepCD_Factory/PolarizedCD_Factory (fixed-density probe)
+import qchem.ChargeDensity.Factory;
+import qchem.ChargeDensity.SeedCD;              // PolarizedSeedCD (the raw spin-SAD seed, for the sublattice gate)               // IrrepCD_Factory/PolarizedCD_Factory (fixed-density probe)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
 import qchem.Calculation;                        // qchem::Calculation, CalcOptions (finite reference)
 import qchem.AtomCalculation;                    // AtomCalculation, AtomType, BasisSetAccuracy (Slater/High pseudo-atom ref)
@@ -265,6 +267,12 @@ struct GpwOptions
     // convergence machinery
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
     bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
+    //! ONE μ over BOTH SPIN CHANNELS -- the moment becomes an OUTPUT instead of a constraint
+    //! (Crystal_EC spinsShareFermi; needs SmearingkT>0).  Default off: a fixed-multiplicity run (the O2
+    //! triplet, a singlet gate) is CONSTRAINED on purpose, and sharing the reservoir would let its
+    //! multiplicity drift.  Turn it on where the magnetism must find itself -- with it off, μ↑≠μ↓ and the
+    //! difference is an unrelieved driving force to move charge between the channels (MnO run 29: 27 mHa).
+    bool        spinsShareFermi = false;
     //! DEFAULT FALSE (V1.30, 2026-08-09).  It read \c true while the comment below said OPT-IN, and the
     //! comment was the one carrying a reason.  Now actively hazardous rather than cosmetic: per V1.28 an
     //! imposed run star-averages EACH SPIN CHANNEL under the CHEMICAL space group, whose sublattice-exchanging
@@ -391,6 +399,23 @@ static void ReportSymmetryFound(const Complex_BS& bs, const qchem::ChargeDensity
                          : "  (no lowering resolved above SCF tolerance)") << std::endl;
 }
 
+//! GPW_SHARED_MU=1/0 OVERRIDES GpwOptions::spinsShareFermi for an A/B, and SAYS SO.  The question it
+//! settles is whether a state we believe is the GROUND state survives when the moment is free: a
+//! fixed-(nUp,nDn) fill is a CONSTRAINED calculation whose two μ are the constraints' Lagrange multipliers,
+//! so it can hold a state the energetics would not choose -- and if it must, the constraint is hiding a
+//! defect rather than curing one (user, 2026-08-10).  Diagnostic valve, never a production setting.
+static bool SharedMu(const GpwOptions& o)
+{
+    const char* e=std::getenv("GPW_SHARED_MU");
+    if (!e) return o.spinsShareFermi;
+    const bool shared=(std::atoi(e)!=0);
+    if (shared!=o.spinsShareFermi)
+        std::cerr << "[fill] GPW_SHARED_MU=" << e << " OVERRIDES the run's choice: the two spin channels "
+                  << (shared ? "SHARE one μ (moment free)" : "keep separate μ (moment constrained)") << "."
+                  << std::endl;
+    return shared;
+}
+
 // The GENERAL GPW driver: basis -> fail-fast conditioning pre-flight -> grids -> multi-species Hamiltonian ->
 // accelerator -> SCF, with automatic reporting (GpwReport) + heartbeat logging throughout.  Any material is a
 // GpwOptions literal; the positional RunGPW below and the bespoke NaFRocksaltGamma are thin callers.
@@ -444,7 +469,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     if ((o.Nelec-twoS)%2!=0 || twoS>o.Nelec)
         throw std::runtime_error("GpwOptions: multiplicity "+std::to_string(o.multiplicity)
                                  +" parity disagrees with Nelec "+std::to_string(o.Nelec));
-    Crystal_EC ec(irreps, (o.Nelec+twoS)/2, (o.Nelec-twoS)/2, o.globalFermi);
+    Crystal_EC ec(irreps, (o.Nelec+twoS)/2, (o.Nelec-twoS)/2, o.globalFermi, SharedMu(o));
     qchem::Hamiltonian::cHamiltonian* ham=nullptr;
     {
         qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
@@ -582,7 +607,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
     if ((o.Nelec-twoSA)%2!=0 || twoSA>o.Nelec)
         throw std::runtime_error("GpwOptions: multiplicity "+std::to_string(o.multiplicity)
                                  +" parity disagrees with Nelec "+std::to_string(o.Nelec));
-    Crystal_EC ec(irreps, (o.Nelec+twoSA)/2, (o.Nelec-twoSA)/2, o.globalFermi);
+    Crystal_EC ec(irreps, (o.Nelec+twoSA)/2, (o.Nelec-twoSA)/2, o.globalFermi, SharedMu(o));
 
     GpwResult R{false, 0.0, qchem::EnergyBreakdown{}, 0};
     qchem::ChargeDensity::cDM_CD* seedCD = nullptr;   // carried between stages (the next stage's ctor consumes it)
@@ -944,6 +969,55 @@ TEST(GPW_SCF, PolarizedSingletMatchesUnpolarizedSiGamma)
 // so each channel is exactly rho/2 and the whole polarized-seed machinery (channel SeedCDs, the merged
 // FourierDensity total into Hartree, the cSpinResolved_CD branch in RhoPol) must land on the SAME anchor.
 // The proof the polarized seed cannot perturb non-magnetic physics.
+// ONE CHEMICAL POTENTIAL OVER BOTH SPIN CHANNELS (Crystal_EC spinsShareFermi; 2026-08-10).
+//
+// WHAT IT PINS: with a shared reservoir the MOMENT IS AN OUTPUT.  Seed Si-Gamma -- a closed-shell,
+// gapped, non-magnetic system -- as a TRIPLET (nUp=5, nDn=3) and let the fill decide: one mu must move the
+// two excess-spin electrons back down and land on the SINGLET energy.  With separate per-channel counts
+// (the control below) nUp-nDn=2 is conserved by construction, so the run is stuck on the triplet no matter
+// how far it converges.  The difference between the two arms IS the ensemble.
+//
+// WHY IT MATTERS (doc/SymmetryUpgradePlan.md sec 7 step 7): separate reservoirs mean mu_up != mu_dn, and then
+// an occupation is monotone in epsilon only WITHIN a channel -- MnO run 29 ended with a down level 27 mHa
+// BELOW an up level and LESS occupied.  That gap is an unrelieved driving force to move charge between the
+// channels, so the converged state is not the free minimum.  CP2K's MnO deck constrains nothing.
+TEST(GPW_SCF, SharedFermiLevelLetsTheMomentRelax)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    auto TripletSi=[&](bool shared)
+    {
+        GpwOptions o;
+        o.imposeSymmetry=true;
+        o.label = shared ? "Si Gamma triplet, shared mu" : "Si Gamma triplet, per-channel mu";
+        o.Nelec=8; o.multiplicity=3;                   // SEEDED as a triplet (nUp=5, nDn=3)
+        o.species={{"Si",4}};
+        o.densityEcut=20.0;
+        o.scf.SmearingkT=5e-3;                         // a shared mu needs smearing to relax the moment with
+        o.spinsShareFermi=shared;
+        o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+        o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+        o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
+        return RunGpw(lat, MakeBasisSR(cell), o);
+    };
+
+    const GpwResult shared=TripletSi(true);
+    EXPECT_NEAR(shared.charge, 8.0, 1e-6);             // the TOTAL is what a shared reservoir conserves
+    // The moment relaxed away: this lands on the singlet anchor of PolarizedSingletMatchesUnpolarizedSiGamma.
+    EXPECT_NEAR(shared.E.GetTotalEnergy(), -7.11506, 3e-3)
+        << "a shared mu must let a triplet-seeded closed-shell system fall back to the singlet";
+
+    // CONTROL: the same run with separate per-channel counts cannot relax -- nUp-nDn=2 is conserved.
+    const GpwResult held=TripletSi(false);
+    EXPECT_NEAR(held.charge, 8.0, 1e-6);
+    EXPECT_GT(held.E.GetTotalEnergy(), shared.E.GetTotalEnergy() + 1e-3)
+        << "with two reservoirs the seeded multiplicity is a CONSTRAINT and must sit above the free minimum";
+}
+
 TEST(GPW_SCF, PolarizedSeedSingletMatchesUnpolarizedSiGamma)
 {
     const double a=10.26;
@@ -2979,7 +3053,10 @@ TEST(GPW_SCF, PolarizedRunKeepsItsSpin)
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.imposeSymmetry=false;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-    o.scf.NMaxIter=12; o.scf.MinΔρ=1e-8; o.scf.MinΔE=1e30;   // TIGHT on purpose: the assert is on the whole
+    auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
+    // GPW_MNSEXTET_NMAX raises the cap for the shared-μ A/B only: freeing the moment adds a soft degree of
+    // freedom, so the same descent needs more iterations before the pinned energy means anything.
+    o.scf.NMaxIter=(size_t)envd("GPW_MNSEXTET_NMAX",12); o.scf.MinΔρ=1e-8; o.scf.MinΔE=1e30;   // TIGHT on purpose: the assert is on the whole
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;   // trajectory, so the gate must actually
     o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;   // ITERATE (Kerker on this
     o.scf.KerkerG0=1.0;                                // THE ASK: ρ̃ mixing on a polarized density
@@ -3036,10 +3113,37 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);   // rhombohedral AFM-II cell (symmetric)
     auto cellp=std::make_shared<UnitCell>(A);
     UnitCell& cell=*cellp;
-    cell.AddAtom(25, {0.0,0.0,0.0}, false);           // Mn sublattice +m
-    cell.AddAtom(25, {0.5,0.5,0.5}, afm);             // Mn sublattice -m (flipped only for the AFM arm)
-    cell.AddAtom(8,  {0.25,0.25,0.25});
-    cell.AddAtom(8,  {0.75,0.75,0.75});
+    // MNO_SWAP_SUBLATTICE: put the -m flip on the FIRST Mn instead of the second.  The two sites are related
+    // by the (1/2,1/2,1/2) lattice translation, so the swapped run must be the EXACT MIRROR of the unswapped
+    // one -- same energy, site moments exchanged.  It is the discriminator for where the observed asymmetry
+    // lives (2026-08-11): mirror-image result => the code is equivariant under SITE exchange and the defect
+    // is between the SPIN CHANNELS; identical result => the defect is tied to a SITE.
+    const bool swapSub = std::getenv("MNO_SWAP_SUBLATTICE")!=nullptr;
+    // MNO_SWAP_ORDER: add the (1/2,1/2,1/2) Mn FIRST, so the atom INDICES swap while the geometry and the
+    // probe points are untouched.  This separates the last two candidates: if the moment still dies at the
+    // ORIGIN the defect follows the POSITION; if it moves to (1/2,1/2,1/2) it follows the atom INDEX.
+    const bool swapOrder = std::getenv("MNO_SWAP_ORDER")!=nullptr;
+    // MNO_SHIFT=f RIGIDLY TRANSLATES the whole crystal by (f,f,f) fractional.  A rigid translation is an
+    // EXACT symmetry -- every energy and every site moment must be invariant -- and it moves the Mn at
+    // (0,0,0) OFF the cell corner.  That is the discriminator for the site asymmetry found 2026-08-11 (the
+    // moment dies at the ORIGIN atom and survives at the cell-centre one, whichever spin each was seeded
+    // with): a CORNER atom's atom-centred XC mesh must be reassembled from periodic images, a centre atom's
+    // need not.  Same bug CLASS as DISABLED_TermTranslationInvariance (2026-07-09: "a boundary-straddling
+    // corner orbital lost its wrapped tail") -- which covers Kinetic/Vloc/Vnl and NOT the Becke XC mesh,
+    // because that mesh did not exist when it was written.
+    const double sh = std::getenv("MNO_SHIFT") ? std::atof(std::getenv("MNO_SHIFT")) : 0.0;
+    if (swapOrder)
+    {
+        cell.AddAtom(25, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // -m sublattice, added FIRST
+        cell.AddAtom(25, {sh,    sh,    sh    }, afm && swapSub);
+    }
+    else
+    {
+        cell.AddAtom(25, {sh,    sh,    sh    }, afm && swapSub);  // Mn sublattice +m (-m when swapped)
+        cell.AddAtom(25, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // Mn sublattice -m (flipped for the AFM arm)
+    }
+    cell.AddAtom(8,  {0.25+sh,0.25+sh,0.25+sh});
+    cell.AddAtom(8,  {0.75+sh,0.75+sh,0.75+sh});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwOptions o;
@@ -3110,7 +3214,23 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // we are trying to hold, not evidence against it.  MNO_MOM_HOLD raises the persistence (large = never
     // release) so the guard cannot silently undo the experiment.
     o.scf.Guard.HolePersistence=envi("MNO_MOM_HOLD",3);
+    // MNO_NR / MNO_L shrink the Becke mesh so its per-atom numbers can be read by eye (GPW_BECKE_ATOMS).
+    // MNO_XC_UNIFORM: run the XC quadrature on the UNIFORM raster instead of the atom-centred Becke mesh,
+    // changing nothing else.  The site asymmetry (moment dies on the CORNER atom) and the 56 Ha rigid-
+    // translation violation must vanish if the atom-centred path is the guilty one -- a uniform raster has
+    // no per-atom structure to get a site wrong (2026-08-11).
+    if (std::getenv("MNO_XC_UNIFORM")) o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    if (const char* nr=std::getenv("MNO_NR")) o.xcMesh.nRadial=std::atoi(nr);
+    if (const char* ll=std::getenv("MNO_L"))  o.xcMesh.angularDegree=std::atoi(ll);
     o.scf.SmearingkT=envd("MNO_KT",5e-3);                // the open-d-manifold knob (MNO_ANNEAL for a schedule)
+    // MNO_SHARED_MU: ONE chemical potential over both spin channels, so the MOMENT IS AN OUTPUT.  With it
+    // off (the default, and every MnO run through 29) the fill conserves nUp and nDn separately, which is
+    // two reservoirs and two μ -- run 29 ended with μ↑−μ↓ = 27 mHa, an unrelieved driving force to move
+    // charge ↓→↑ that the constraint holds open, so the converged state is not the free minimum.  It also
+    // makes the AFM constraint IMPOSED rather than found: m_net ≡ 0 by construction.  CP2K's deck does NOT
+    // constrain the populations (Fermi smearing, one μ; &BS seeds the ATOMIC guess only), so THIS is the
+    // oracle-comparable ensemble -- and m_stag is the instrument for whether the moment survives unaided.
+    o.spinsShareFermi=envi("MNO_SHARED_MU",0)!=0;
     // GPW_MNO_NMAX bounds a HAND-RUN diagnosis (measured 2026-08-05: ~9 min PER analytic sweep on a 14 GB
     // box -- the free-run magnetic cell exceeds the stream budget, so every iteration pays collocate +
     // integrate analytically; an unbounded 80-iter run is a >24 h affair).
@@ -3128,7 +3248,8 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // m_stag per iteration is what brackets the iteration where it goes (doc/SymmetryUpgradePlan.md:1054).
     // Two point evaluations of the Bloch density per iteration -- negligible beside a collocation sweep.
     {
-        const rvec3_t off(0.7,0,0), rMn1(0,0,0), rMn2(a,a,a);   // cartesian: A*(½,½,½) = a(1,1,1)
+        const double ds=2.0*sh*a;                                // A*(sh,sh,sh) = 2*sh*a*(1,1,1)
+        const rvec3_t off(0.7,0,0), rMn1(ds,ds,ds), rMn2(a+ds,a+ds,a+ds);  // A*(½,½,½) = a(1,1,1), shifted
         o.orderName="m_stag";
         o.orderProbe=[off,rMn1,rMn2](const qchem::ChargeDensity::cDM_CD& cd)->double
         {
@@ -3140,6 +3261,15 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
             const auto* dn=pol->GetChargeDensity(Spin::Down);
             const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
             const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
+            // GPW_MNO_SITES: the two site moments SEPARATELY, plus the channel charges.  m_stag alone is
+            // ½(m1−m2), which is BLIND to the thing under investigation: for one magnetic species on one
+            // Wyckoff site the two Mn are related by the (½,½,½) translation, so ANY valid solution has
+            // m1 = −m2 and N↑ = N↓.  Printed from iteration 0, so a seed that is not already a mirror pair
+            // is separated from a Fock build that breaks one (2026-08-11).
+            if (std::getenv("GPW_MNO_SITES"))
+                std::cout << "[sites] m1=" << m1 << " m2=" << m2 << " m1+m2=" << m1+m2
+                          << "  N↑=" << up->GetTotalCharge() << " N↓=" << dn->GetTotalCharge()
+                          << " (N↑−N↓=" << up->GetTotalCharge()-dn->GetTotalCharge() << ")" << std::endl;
             return 0.5*(m1-m2);
         };
     }
@@ -3180,6 +3310,237 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     return arm;
 }
 } //anon
+
+// THE RAW SEED of the MnO AFM-II cell: are the two Mn sublattices actually equal and opposite?
+//
+// One magnetic species on one Wyckoff site means the two Mn are related by the (1/2,1/2,1/2) translation,
+// so ANY valid magnetic solution -- seed included -- must have m(Mn1) = -m(Mn2).  Nothing checked that.
+// PlaneWaveDFT.PolarizedSeedAFMStaggering covers a DIFFERENT cell (simple cubic, 2 Mn, no O, NEUTRAL
+// targets) and asserts G-space quantities plus GetTotalSpin()==0; m_stag = 1/2(m1-m2), the campaign's order
+// parameter, is BLIND to the imbalance -- it reads +0.366 for (+0.37,-0.37) and for (0,-0.73) alike.
+// Measured 2026-08-11: the density one Fock build downstream of this seed has m1 = -0.0001, m2 = -0.73.
+// This test asks whether the seed ITSELF is lopsided, i.e. whether the defect is upstream of the SCF.
+TEST(GPW_SCF, MnOSeedSublatticesAreEqualAndOpposite)
+{
+    const double a=8.40;
+    Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);   // the SAME rhombohedral AFM-II cell
+    auto cellp=std::make_shared<UnitCell>(A);
+    UnitCell& cell=*cellp;
+    cell.AddAtom(25, {0.0,0.0,0.0}, false);        // Mn +m
+    cell.AddAtom(25, {0.5,0.5,0.5}, true);         // Mn -m
+    cell.AddAtom(8,  {0.25,0.25,0.25});
+    cell.AddAtom(8,  {0.75,0.75,0.75});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label="MnO seed probe"; o.Nelec=26; o.multiplicity=1;
+    o.species={{"Mn",7},{"O",6}};
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.imposeSymmetry=false;
+    // The seed the run actually uses: PolarizedSeedCD over this cell, with the IonicSAD targets
+    // (Mn2+ => 5 of the q7 valence, O2- => 8 of the q6).  Built directly -- no SCF, no Hamiltonian.
+    qchem::BasisSet::Lattice_3D::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
+    const std::map<size_t,int> ionic{{25,5},{8,8}};
+    qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
+    const auto* up=seedCD.GetChannel(Spin::Up);
+    const auto* dn=seedCD.GetChannel(Spin::Down);
+
+    const rvec3_t off(0.7,0,0), rMn1(0,0,0), rMn2(a,a,a);   // A*(1/2,1/2,1/2) = a(1,1,1); 0.7 bohr = the d peak
+    const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
+    const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
+    std::cout << "[seed probe] m1=" << m1 << " m2=" << m2 << " m1+m2=" << m1+m2
+              << "  N_up=" << up->GetTotalCharge() << " N_dn=" << dn->GetTotalCharge() << std::endl;
+
+    EXPECT_NEAR(up->GetTotalCharge(), dn->GetTotalCharge(), 1e-8) << "the AFM seed carries no NET moment";
+    EXPECT_GT(std::abs(m1), 0.1) << "the + sublattice must actually be polarized";
+    EXPECT_GT(std::abs(m2), 0.1) << "the - sublattice must actually be polarized";
+    EXPECT_NEAR(m1+m2, 0.0, 0.02*std::abs(m1))
+        << "the two sublattices are related by a lattice translation: m1 must equal -m2";
+
+    // THE MIRROR RELATION EVERYWHERE, not just at the two nuclei.  The AFM seed satisfies
+    // rho_up(r) = rho_dn(r + t) with t = A*(1/2,1/2,1/2) = (a,a,a) at EVERY r, by construction.  Probed
+    // here at points that straddle the CELL BOUNDARY, because that is where the Becke XC mesh wraps its
+    // points into the home cell (kpt = r - A*n0) and where a real-space evaluation built from per-atom
+    // recentred radials WITHOUT periodic images would pick up the wrong atom -- which, the two Mn carrying
+    // OPPOSITE spins, swaps the channels rather than merely losing density.  That failure is invisible to
+    // the grid-charge check (rho_up+rho_dn is untouched; only rho_up-rho_dn flips) and it is exactly the
+    // observed symptom: the corner atom's moment dies while the mesh integrates the total to 1e-5.
+    struct P { const char* what; rvec3_t r; };
+    const std::vector<P> probes = {
+        {"inside, +x of Mn1",        rvec3_t( 0.7, 0.0, 0.0)},
+        {"OUTSIDE the cell, -x",     rvec3_t(-0.7, 0.0, 0.0)},   // physically beside Mn1; wraps
+        {"OUTSIDE the cell, -xyz",   rvec3_t(-0.5,-0.5,-0.5)},
+        {"far tail, -2 bohr",        rvec3_t(-2.0, 0.0, 0.0)},
+    };
+    for (const auto& p : probes)
+    {
+        const rvec3_t rt = p.r + rvec3_t(a,a,a);                  // the mirror partner
+        const double u=(*up)(p.r), d=(*dn)(rt);
+        std::cout << "[mirror] " << p.what << ": rho_up(r)=" << u << "  rho_dn(r+t)=" << d
+                  << "  diff=" << u-d << std::endl;
+        EXPECT_NEAR(u, d, 1e-6*std::max(1.0,std::abs(u)))
+            << "AFM mirror broken at " << p.what << ": the seed is not properly periodic there";
+    }
+
+    // THE BATCH OVERLOAD vs THE SINGLE-POINT ONE.  Everything above used operator()(rvec3_t).  The XC mesh
+    // samples a MATRIX-FREE seed through the BATCHED operator()(rvec3vec_t) instead -- XC_GridEngine::RhoPol
+    // takes its cSpinResolved_CD branch for exactly this density -- so the batch path is what the first Fock
+    // build actually sees, and nothing has ever checked the two agree.  They must, pointwise.
+    rvec3vec_t batch(2*probes.size());
+    for (size_t i=0;i<probes.size();++i) { batch[i]=probes[i].r; batch[probes.size()+i]=probes[i].r+rvec3_t(a,a,a); }
+    const rvec_t bu=(*up)(batch), bd=(*dn)(batch);
+    ASSERT_EQ(bu.size(), batch.size());
+    for (size_t i=0;i<batch.size();++i)
+    {
+        const double su=(*up)(batch[i]), sd=(*dn)(batch[i]);
+        std::cout << "[batch] r=(" << batch[i].x << "," << batch[i].y << "," << batch[i].z << ")"
+                  << " up: batch=" << bu[i] << " single=" << su << " d=" << bu[i]-su
+                  << " | dn: batch=" << bd[i] << " single=" << sd << " d=" << bd[i]-sd << std::endl;
+        EXPECT_NEAR(bu[i], su, 1e-6*std::max(1.0,std::abs(su))) << "UP batch != single at probe " << i;
+        EXPECT_NEAR(bd[i], sd, 1e-6*std::max(1.0,std::abs(sd))) << "DN batch != single at probe " << i;
+    }
+}
+
+// THE v_xc SUBLATTICE MIRROR ON THE XC MESH -- the SymmetryUpgradePlan "NEXT ACTION" probe (2026-08-11).
+// By elimination (seed, Becke weights, Kinetic/Vloc/Vnl, Phi tables all exonerated) the first-Fock-build
+// mirror break must live in v_xc -- yet a pointwise LSDA functional "cannot" be site-dependent.  This probe
+// resolves the contradiction by testing what the Fock build ACTUALLY consumes: the channel rasters
+// XC_GridEngine::RhoPol hands the DeltaFittedV*Pol pair, at the mesh's own points.  The mesh stores its
+// points WRAPPED into the home cell (kpt = r - A*n0, MakePeriodicBeckeMesh) -- so a valid seed must satisfy
+// rho_up(p_g) = rho_dn(p_g + t) with t = A*(1/2,1/2,1/2) AT EVERY STORED POINT, and (v_xc being pointwise
+// in the channel pair) v_xc^up(p_g) = v_xc^dn(p_g + t).  The two Mn blocks' grids are exact t-translates of
+// each other (same radial x angular template), so every point's mirror partner is itself a mesh point --
+// found here by hashing wrapped fractional coordinates, no interpolation anywhere.
+//
+// WHY THE SEED GATE ABOVE COULD PASS WHILE THIS FAILS: its probe points sit within ~2 bohr of a HOME atom,
+// where SeedCD's real-space rho(r) = Sum_atoms rho_atom(|r-R|) -- a sum with NO LATTICE IMAGES -- is
+// dominated by an atom it actually contains.  A WRAPPED mesh point near a cell face reads its density from
+// an IMAGE of an atom (for the CORNER Mn, 7 of the 8 octants of its density hump belong to images), which
+// an image-less sum simply does not have.  That is site-specific (the centre Mn2 has no near-shell wrapped
+// points), a rigid translation changes it (MNO_SHIFT), the uniform raster reproduces it (its corner-region
+// points read image density too), and under the AFM staggering the missing hump is the MAJORITY channel of
+// exactly one sublattice -- every recorded symptom.
+TEST(GPW_SCF, MnOSeedVxcMirrorOnBeckeMesh)
+{
+    const double a=8.40;
+    Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);   // the SAME rhombohedral AFM-II cell
+    auto cellp=std::make_shared<UnitCell>(A);
+    UnitCell& cell=*cellp;
+    cell.AddAtom(25, {0.0,0.0,0.0}, false);        // Mn +m (the CORNER atom -- the one whose moment dies)
+    cell.AddAtom(25, {0.5,0.5,0.5}, true);         // Mn -m (cell centre)
+    cell.AddAtom(8,  {0.25,0.25,0.25});
+    cell.AddAtom(8,  {0.75,0.75,0.75});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    // The seed the run uses (identical to MnOSeedSublatticesAreEqualAndOpposite).
+    qchem::BasisSet::Lattice_3D::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
+    const std::map<size_t,int> ionic{{25,5},{8,8}};
+    qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
+
+    // The run's Becke recipe, shrunk (nR=20, GL-11) -- wrapping is generic, it needs no production density.
+    qcMesh::MeshParams mp=qcMesh::BeckeXCParams(20, -1.0, 11);
+    auto mesh=std::make_shared<const qcMesh::Mesh>(cell.CreateIntegrationMesh(mp));
+    const rvec3vec_t& P=mesh->Points();
+    const size_t N=P.size();
+    ASSERT_GT(N, 0u);
+
+    // The channel rasters EXACTLY as the Fock build gets them (RhoPol's cSpinResolved_CD seed branch).
+    qchem::Hamiltonian::XC_GridEngine engine(mesh);
+    const rvec_t ru=engine.RhoPol(&seedCD, Spin::Up);
+    const rvec_t rd=engine.RhoPol(&seedCD, Spin::Down);
+
+    // Mirror-partner lookup: hash each point's wrapped fractional coords; partner(g) = the mesh index at
+    // wrapped(frac(p_g) + (1/2,1/2,1/2)).  Quantized key + 27-neighbour probe rides out wrap roundoff.
+    const double q=1e-9;
+    auto wrapf=[](rvec3_t f){ f.x-=floor(f.x); f.y-=floor(f.y); f.z-=floor(f.z); return f; };
+    std::map<std::tuple<long long,long long,long long>,size_t> at;
+    std::vector<rvec3_t> F(N);
+    for (size_t g=0; g<N; g++)
+    {
+        F[g]=wrapf(cell.ToFractional(P[g]));
+        at[{llround(F[g].x/q),llround(F[g].y/q),llround(F[g].z/q)}]=g;
+    }
+    auto partner=[&](size_t g)->long
+    {
+        const rvec3_t fm=wrapf(F[g]+rvec3_t(0.5,0.5,0.5));
+        const long long kx=llround(fm.x/q), ky=llround(fm.y/q), kz=llround(fm.z/q);
+        for (long long dx=-1; dx<=1; dx++) for (long long dy=-1; dy<=1; dy++) for (long long dz=-1; dz<=1; dz++)
+            if (auto it=at.find({kx+dx,ky+dy,kz+dz}); it!=at.end())
+            {
+                rvec3_t d=wrapf(F[it->second]-fm+rvec3_t(0.5,0.5,0.5))-rvec3_t(0.5,0.5,0.5);  // min-image
+                if (norm(d)<5e-9) return long(it->second);
+            }
+        return -1;
+    };
+
+    // v_xc per point from the channel pair -- the same functionals the DeltaFittedV*Pol pair applies.
+    qchem::Hamiltonian::SlaterExchange ex(2.0/3.0, Spin(Spin::Up));   // channel-native (non-halving)
+    qchem::Hamiltonian::VWN_Correlation vc;
+    auto vxc=[&](double u, double d, const Spin& s)->double
+    {
+        if (u+d<=1e-12) return 0.0;                       // VWN's r_s/log guard; symmetric, mirror-safe
+        return ex.GetVxc(s==Spin::Up ? u : d) + vc.GetVc(u, d, s);
+    };
+
+    // Sweep: rho and v_xc mirror defects across the whole raster; localize the worst offenders.
+    size_t nOrphan=0, nBad=0;
+    double maxRho=0, maxV=0, maxOrphanWRho=0;
+    size_t argRho=0; long argRhoJ=-1;
+    const rvec_t& W=mesh->Weights();
+    for (size_t g=0; g<N; g++)
+    {
+        const long j=partner(g);
+        // An ORPHAN is legal but must be an eps-tail point: the free Becke builder's keep decisions are
+        // bit-different between translated blocks, so an eps-BORDERLINE point can be kept on one atom and
+        // dropped on its partner (the same mechanism the imposed builder's orbit-consistency pass drops).
+        // What the quadrature sees of it is w*rho -- bound THAT, not the count.
+        if (j<0) { nOrphan++; maxOrphanWRho=std::max(maxOrphanWRho, std::abs(W[g])*std::max(ru[g],rd[g])); continue; }
+        const double dRho=std::max(std::abs(ru[g]-rd[j]), std::abs(rd[g]-ru[j]));
+        const double dV  =std::max(std::abs(vxc(ru[g],rd[g],Spin::Up  )-vxc(ru[j],rd[j],Spin::Down)),
+                                   std::abs(vxc(ru[g],rd[g],Spin::Down)-vxc(ru[j],rd[j],Spin::Up  )));
+        if (dRho>1e-6) nBad++;
+        if (dRho>maxRho) { maxRho=dRho; argRho=g; argRhoJ=j; }
+        if (dV  >maxV) maxV=dV;
+    }
+    std::cout << "[vxc mirror] N=" << N << " orphans=" << nOrphan << " (max w*rho " << maxOrphanWRho
+              << ") bad(rho>1e-6)=" << nBad
+              << "  max|rho_up(r)-rho_dn(r+t)|=" << maxRho
+              << "  max|vxc_up(r)-vxc_dn(r+t)|=" << maxV << std::endl;
+
+    // Localize the worst point: whose density is it -- a HOME atom's, or an IMAGE's the seed cannot see?
+    if (argRhoJ>=0)
+    {
+        std::vector<rvec3_t> R; std::vector<std::string> nm={"Mn1","Mn2","O1","O2"};
+        for (auto atom : cell) R.push_back(atom->itsR);
+        auto nearest=[&](const rvec3_t& r)
+        {
+            double best=1e300; std::string who;
+            for (size_t ia=0; ia<R.size(); ia++)
+                for (int i=-1;i<=1;i++) for (int jj=-1;jj<=1;jj++) for (int k=-1;k<=1;k++)
+                {
+                    const double d=norm(r-(R[ia]+cell.ToCartesian(rvec3_t(i,jj,k))));
+                    if (d<best) { best=d; who=nm[ia]+((i||jj||k)?" IMAGE":""); }
+                }
+            return std::make_pair(best,who);
+        };
+        const auto [dg,wg]=nearest(P[argRho]);
+        const auto [dj,wj]=nearest(P[size_t(argRhoJ)]);
+        std::cout << "[vxc mirror] worst point r=("<<P[argRho].x<<","<<P[argRho].y<<","<<P[argRho].z
+                  << ") nearest "<<wg<<" d="<<dg<<"  rho_up(r)="<<ru[argRho]<<" rho_dn(r)="<<rd[argRho]<<"\n"
+                  << "[vxc mirror] partner     r=("<<P[size_t(argRhoJ)].x<<","<<P[size_t(argRhoJ)].y<<","
+                  << P[size_t(argRhoJ)].z<<") nearest "<<wj<<" d="<<dj
+                  << "  rho_up(r+t)="<<ru[size_t(argRhoJ)]<<" rho_dn(r+t)="<<rd[size_t(argRhoJ)]<<std::endl;
+    }
+
+    EXPECT_LT(maxOrphanWRho, 1e-8) << "a partnerless mesh point must be an eps-tail point (weight*rho "
+                                      "below the Becke builder's eps-converged-series contract)";
+    EXPECT_LT(maxRho, 1e-8) << "the seed's channel rasters break the sublattice mirror ON THE XC MESH -- "
+                               "this is the site-dependent v_xc defect (SymmetryUpgradePlan WHERE-WE-LEFT-OFF)";
+    EXPECT_LT(maxV, 1e-6) << "v_xc^up(r) != v_xc^dn(r+t) on the mesh: the first Fock build is fed a "
+                             "mirror-broken exchange-correlation potential";
+}
 
 // ===================== MnO STATUS: THE OCCUPATION IS THE DEFECT (2026-08-08) ==========================
 // Recorded HERE and not only in the plan doc, because the next person to touch this test needs it before

@@ -4,6 +4,7 @@ add_executable(UTChargeDensity ../../Common/tests/gtestmain.C
    Version.C
    IonicCharges.C
    KerkerMix.C
+   JointPulay.C
    AtomicDensity.C
 )
 
