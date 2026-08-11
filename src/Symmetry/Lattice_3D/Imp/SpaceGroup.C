@@ -296,4 +296,74 @@ Fold SpaceGroup::FoldPoints(const std::vector<rvec3_t>& pts, double tol) const
     return Lattice_3D::FoldPoints(pts, ops, tol);
 }
 
+//---------------------------------------------------------------------------------------
+//  §7-step-7 S1: the collinear magnetic (Shubnikov) group of a spin-decorated basis.
+//
+//  For each detected W, EVERY valid tau coset is re-enumerated against the decorated basis
+//  (Detect's FindTau keeps only one -- see the interface doc: on a magnetically doubled cell the
+//  extra coset is the anti-translation, the op the imposition needs most).  W coverage needs no
+//  re-enumeration: a magnetic op's linear part must be a holohedry op admitting SOME tau on the
+//  species-only basis, and Detect kept exactly those.
+//
+std::vector<SymOp> SpaceGroup::ShubnikovOps(const std::vector<AtomSite>& basis, double tol) const
+{
+    assert(!basis.empty());
+    std::vector<SymOp> ops;
+    auto have=[&](const Matrix3D<double>& W, const rvec3_t& tau)
+    {
+        for (const auto& o : ops)
+            if (MatEqual(o.W, W, 1e-9) && SameSiteModLattice(o.tau, tau, tol)) return true;
+        return false;
+    };
+    for (const auto& g : itsOps)                       // one entry per distinct W
+    {
+        const Matrix3D<double>& W = g.W;
+        const rvec3_t Wf0 = W * basis.front().f;
+        for (const AtomSite& aj : basis)               // tau candidates: map site 0 onto every same-species site
+        {
+            if (aj.species != basis.front().species) continue;
+            const rvec3_t tau(Frac1(aj.f.x - Wf0.x, tol),
+                              Frac1(aj.f.y - Wf0.y, tol),
+                              Frac1(aj.f.z - Wf0.z, tol));
+            if (have(W, tau)) continue;
+            // One sweep does the site map AND the spin classification.  s=0 sites satisfy both spin
+            // rules (0 == -0), so an undecorated basis classifies every op None -- the grey group.
+            bool none=true, flip=true, ok=true;
+            for (const AtomSite& ak : basis)
+            {
+                const rvec3_t gk = W*ak.f + tau;
+                const AtomSite* match=nullptr;
+                for (const AtomSite& am : basis)
+                    if (am.species==ak.species && SameSiteModLattice(gk, am.f, tol)) { match=&am; break; }
+                if (!match) { ok=false; break; }
+                if (match->spin !=  ak.spin) none=false;
+                if (match->spin != -ak.spin) flip=false;
+            }
+            if (!ok || (!none && !flip)) continue;     // not a symmetry of the MAGNETIC crystal: dropped
+            ops.push_back({W, tau, none ? SpinAction::None : SpinAction::Flip});
+        }
+    }
+    return ops;
+}
+
+std::vector<SymOp> CommonOps(const std::vector<std::vector<SymOp>>& groups, double tol)
+{
+    assert(!groups.empty());
+    std::vector<SymOp> out;
+    for (const auto& op : groups.front())
+    {
+        bool all=true;
+        for (size_t g=1; g<groups.size() && all; g++)
+        {
+            bool found=false;
+            for (const auto& o : groups[g])
+                if (o.sigma==op.sigma && MatEqual(o.W, op.W, 1e-9)
+                                      && SameSiteModLattice(o.tau, op.tau, tol)) { found=true; break; }
+            all=found;
+        }
+        if (all) out.push_back(op);
+    }
+    return out;
+}
+
 } // namespace

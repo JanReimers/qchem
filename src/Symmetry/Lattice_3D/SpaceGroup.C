@@ -21,10 +21,18 @@ export namespace qchem::Symmetry::Lattice_3D
 //! One atom of the crystal basis: a species label (atomic number Z) and its position in
 //! FRACTIONAL cell coordinates \f$f\f$ (\f$r = A f\f$).  Two sites are symmetry-interchangeable
 //! only if they share a species.
+//!
+//! \a spin (OPTIONAL -- default 0) is the COLLINEAR magnetic decoration for the Shubnikov
+//! classification (\c ShubnikovOps, doc/SymmetryUpgradePlan.md §7 step 7 S1): \f$+1/-1\f$ = the
+//! site's moment along/against the shared quantization axis, \f$0\f$ = a non-magnetic site (a
+//! closed-shell species, where "flipped" is meaningless and must not constrain the ops).  WHICH
+//! sites are magnetic is seed/library knowledge, not geometry -- the caller decorates; plain
+//! space-group detection ignores the field entirely.
 struct AtomSite
 {
     int     species;
     rvec3_t f;        //!< Fractional cell coordinates.
+    int     spin = 0; //!< Collinear label: +1/-1 magnetic sublattice, 0 non-magnetic.
 };
 
 //! One crystal symmetry operation \f${W|\tau}\f$: an atom at fractional \f$f\f$ maps to
@@ -190,6 +198,29 @@ public:
     //! \c LittleGroup as \f${W|\tau}\f$ \c DirectOp s -- the currency \c SetStreamSymmetryOps takes.
     std::vector<DirectOp>     LittleGroupDirectOps(const rvec3_t& kFrac, double tol = 1e-9) const;
 
+    //! \brief The COLLINEAR magnetic (Shubnikov) group of a spin-DECORATED basis
+    //! (doc/SymmetryUpgradePlan.md §7 step 7, increment S1).  Classify against \a decorated
+    //! (same cell; \c AtomSite::spin carries the collinear pattern): an op that maps every site
+    //! onto one of EQUAL spin is kept with \f$\sigma=\f$\c None; one that maps every site onto one
+    //! of OPPOSITE spin is kept with \f$\sigma=\f$\c Flip (non-magnetic \f$s=0\f$ sites satisfy
+    //! both, so an undecorated basis reproduces the grey group, all \c None); an op that does
+    //! neither is DROPPED (it is not a symmetry of the magnetic crystal).  \f$M = H + \sigma\cdot
+    //! (G\setminus H)\f$ -- always a group; closure is gated in the unit tests.
+    //!
+    //! COSET COMPLETENESS -- why this does NOT just tag \c Ops(): \c Detect keeps ONE \f$\tau\f$
+    //! coset per \f$W\f$ (primitive-cell assumption), but a magnetically DOUBLED cell (MnO AFM-II
+    //! = the chemical cell doubled along [111]) has TWO chemical-lattice cosets per \f$W\f$, and
+    //! the extra one matters most: the pure ANTI-TRANSLATION \f$\{E|\tfrac12\tfrac12\tfrac12\}
+    //! \cdot\f$\c Flip IS the sublattice mirror \f$m_1=-m_2\f$ the imposition exists to enforce.
+    //! So this method re-enumerates EVERY valid \f$\tau\f$ per detected \f$W\f$ against the
+    //! decorated basis itself; \c Detect and every grey-group consumer stay untouched.
+    //!
+    //! The returned ops are DIRECT-frame \f$\{W|\tau,\sigma\}\f$ \c SymOp s (the \f$\sigma\f$ slot
+    //! reserved by §4 tier 4a).  \f$\sigma\f$ acts on the FIELD channels -- \c Flip swaps
+    //! \f$\rho_\uparrow\leftrightarrow\rho_\downarrow\f$ -- never on the point geometry, so the
+    //! spatial folds (mesh, {G}, streams) consume \c W|tau unchanged (increment S2/S3 wiring).
+    std::vector<SymOp> ShubnikovOps(const std::vector<AtomSite>& decorated, double tol = 1e-4) const;
+
     const Matrix3D<double>& CellMatrix() const {return itsA;}
     //! The reciprocal cell matrix \f$B = 2\pi A^{-\top}\f$ (columns \f$b_i\f$; \f$G = B\,m\f$).
     Matrix3D<double> ReciprocalMatrix() const;
@@ -206,5 +237,13 @@ private:
     Matrix3D<double>          itsAinv; //!< \f$A^{-1}\f$ (the fractional-frame converter).
     std::vector<SpaceGroupOp> itsOps;  //!< The \f${W|\tau}\f$ operations.
 };
+
+//! \brief The ops COMMON to several candidate magnetic orderings' Shubnikov groups -- the §3
+//! imposed-SUBGROUP policy for an ordering SEARCH (doc/SymmetryUpgradePlan.md §3/§7 step 7):
+//! impose only what EVERY candidate shares, so the SCF remains free to choose among them.
+//! "Shared" means the SAME \f$(W, \tau, \sigma)\f$ TRIPLE: an op that is \c None for one ordering
+//! and \c Flip for another (the anti-translation: \c Flip for AFM-II, \c None for FM) is NOT
+//! common -- imposing it with either \f$\sigma\f$ would erase one of the candidates.
+std::vector<SymOp> CommonOps(const std::vector<std::vector<SymOp>>& groups, double tol = 1e-6);
 
 } // namespace

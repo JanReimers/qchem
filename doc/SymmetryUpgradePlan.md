@@ -105,17 +105,39 @@ machinery reported honestly at every step; the STATE is the problem.  m_stag sur
 this cell; the tie is (at least partly) a k-SAMPLING artifact — dispersion would split the tied
 manifold.  Log: `doc/logs/mno_afm2_run34_anneal_kt0.log`.
 
-**STILL OPEN, ranked:** (1) the Γ-only tie, three routes — (a) CHEAP: gentle anneal tail
-(`MNO_ANNEAL="5e-3,2e-3,1e-3"`) to extrapolate A(kT→0) + the `MNO_SHARED_MU=1` arm (one μ = the
-oracle-comparable ensemble, the run-29 pin — the remaining 57 mHa to CP2K may live partly here);
-(b) RIGHT: a k-MESH free run of the AFM cell (the IBZ machinery exists; T3.4b only limits stream
-FOLDING, full streams run multi-k) — the physics answer to the tie, and the first magnetic workout of
-the multi-k machinery; (c) STRATEGY: a convergence gate for smeared ensembles — the Δρ=1e-5 gate can
-never pass on tie-noise (~1e-4); gate free-energy stationarity instead (SCFStrategyPlan occupation
-seam).  (2) the Mermin free-energy minimizer as the long-term smeared-tail polisher.
-(3) doc/CleanupCandidates.md D9–D12.  (The occupation TWO-CYCLE / 4–6 Ha branch gap / MOM scaffolding
-remain pre-v_xc-fix history — the run-34 kT=0 branch pair is the POST-fix, understood successor: an
-ensemble state that integer occupation cannot represent.)
+**DECISION (user, 2026-08-11 late): the next semi-major step is SHUBNIKOV + imposeSymmetry** — impose
+the MAGNETIC group (which preserves the staggering; the grey group would erase it), with the
+imposed-SUBGROUP option "the ops common to two candidate orderings" so the SCF still chooses (§3).
+Rationale: the per-iteration star-average under the magnetic group projects the frontier TIE-NOISE
+out of ρ (the same mechanism that cures the Becke × degenerate-open-shell oscillation), so this is
+the one route with a claim on making the Δρ gate REACHABLE — and it unlocks the imposed-run cost
+levers (site-adapted mesh, T1, T3 folds) on the magnetic cell.  The free-run ensemble (runs 30–34)
+is the §8 A/B reference.  Increments: S1 group construction (qcSymmetry, pure) → S2 channel-pair
+star-average (σ=Flip = spatial op ∘ ↑↓ swap in SymmetrizeGMap/Raster; real densities, no conjugation
+at collinear tier) → S3 mesh (spatial parts only — for AFM-II they span the grey group, the
+site-adapted builder is unchanged) → S4 gates (imposed-M == free ensemble; grey-group imposition
+must ERASE m_stag as the negative control; release-audit; the Δρ-floor measurement).
+
+**S1 DONE (2026-08-11):** `AtomSite.spin` (collinear ±1/0 decoration; 0 = non-magnetic — which
+species are magnetic is SEED knowledge, the caller decorates), `SpaceGroup::ShubnikovOps(decorated)`
+→ `SymOp{W|τ,σ}` (the §4-tier-4a σ slot, now populated), and `CommonOps({M₁,M₂,…})` (same (W,τ,σ)
+TRIPLE in every candidate — an op that is Flip for AFM-II and None for FM is NOT common).  KEY
+MECHANISM: `Detect` keeps ONE τ-coset per W (primitive-cell assumption), but the magnetically
+DOUBLED cell has TWO chemical-lattice cosets, and the extra one is the ANTI-TRANSLATION
+{E|½½½}·Flip = the m1=−m2 sublattice mirror itself — so `ShubnikovOps` re-enumerates every valid τ
+per detected W against the decorated basis (Detect and all grey consumers untouched).  Gates
+(UTSymmetry `Shubnikov.*`, 5): MnO AFM-II 12 grey → 24 Shubnikov = 12 None + 12 Flip incl. the
+anti-translation; group CLOSURE over all 576 products; undecorated/FM ⇒ all None; CommonOps(AFM,FM)
+= the 12 sublattice-preserving ops; an incompatible (ferri) decoration drops ops.
+
+**STILL OPEN, ranked:** (1) S2 — the channel-pair star-average under σ (SymmetrizeGMap/Raster grow
+the swap action; OPENING QUESTION: who decorates? the flip bits live on Atom, but magnetic-or-not is
+seed/library knowledge — the decoration should be assembled where the seed resolves species, then
+threaded to the factory's policy resolution); then S3/S4 per the sketch above.  (2) cheap parallel
+arms for the 57 mHa: `MNO_SHARED_MU=1` + gentle anneal (`5e-3,2e-3,1e-3`) — user already probing
+shared-μ; (3) the k-MESH free run (right for real-MnO physics; affordable after imposition);
+(4) free-energy-stationarity convergence gate if imposition alone does not close the Δρ floor;
+(5) doc/CleanupCandidates.md D9–D12.
 This doc answers three things the user asked:
 1. A **gap analysis** — where are we already using symmetry, where are we leaving it on
    the table.
