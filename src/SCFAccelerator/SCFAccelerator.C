@@ -1,5 +1,6 @@
 // FIle: SCFAccelerator.C  Interface for an SCF accelerator alogrithm
 module;
+#include <limits>
 #include <iosfwd>
 export module qchem.SCFAccelerator;
 export import qchem.Symmetry.Irrep;
@@ -49,6 +50,16 @@ public:
     //! ladder delegates both to its active rung.  Distinct from \c GetError() (the [F,D] the column also shows).
     virtual const char* Tag  () const=0;
     virtual int         Count() const {return 0;}
+    //! \brief DIIS history CONDITIONING: the smallest singular value of the bordered B matrix, i.e. the
+    //! quantity \c SVTol is compared against.  NaN for an accelerator that keeps no history.
+    //!
+    //! REPORTED because it was not: the pruning that drops Nproj 8→2→1 near convergence fires on an
+    //! ABSOLUTE threshold applied to a matrix whose scale is |[F,D]|², so it is really detecting "the
+    //! residual got small", not "the history became dependent".  A run whose [F,D] plateaus (MnO: 1.6e-3,
+    //! so B ~ 3e-6) therefore never prunes and keeps solving a possibly ill-conditioned system in silence.
+    //! Read this beside the [F,D] column: MinSV ≪ [F,D]² means a DEPENDENT history that the absolute
+    //! tolerance failed to catch.  (User's observation, 2026-08-10: "Nproj never drops for MnO".)
+    virtual double      MinSV() const {return std::numeric_limits<double>::quiet_NaN();}
     // Has this accelerator run out of steam (ladder hand-off signal)?  Default: never.
     virtual bool Exhausted() const {return false;}
     // The SCF iterator reports the current total energy each macro-iteration.  The ladder
@@ -62,6 +73,19 @@ public:
     // MIXED fixed-point step -- so a not-yet-ready minimizer degrades to a stable mixed diagonalize, never an
     // UNMIXED one (which runs away on ill-conditioned systems).  Default false: non-minimizers never line-search.
     virtual bool CanLineSearch() const {return false;}
+    //! Is this accelerator's STANDING precondition met by the run's current occupation structure?  Distinct
+    //! from \c CanLineSearch() (readiness THIS iteration: seeding, thresholds): this answers whether the
+    //! accelerator can engage AT ALL for as long as the occupation policy holds.  A direct minimizer rotates
+    //! an INTEGER-occupation determinant manifold, so a Fermi-SMEARED density (fractional occupations --
+    //! D' non-idempotent) is structurally outside it, and a MOM occupation (integer, but not the leading
+    //! block it rotates) puts its gradient on a different manifold than the density.  The LADDER gates its
+    //! hand-off on this (never advance onto a rung that cannot engage) and RETREATS off a rung whose
+    //! precondition has failed -- otherwise the loop degrades to bare mixed fixed-point steps under the
+    //! minimizer's tag, which on an ionic cell is the unstable iteration the previous rung was taming
+    //! (measured, MnO run 31: DIIS at -61.414 handed to a smeared-declined GDM and Kerker-only steps
+    //! un-converged the run to a -60.49 limit cycle).  Default true: fixed-point accelerators have no such
+    //! precondition.
+    virtual bool Engageable() const {return true;}
 
     //! STEP REJECTION -- the BAIL-OUT callback.  An accelerator PROPOSES a step; only the CALLER can judge
     //! it, because only the caller can evaluate the energy (the accelerator sits BELOW the wavefunction /
@@ -101,6 +125,15 @@ struct DIISParams
                    //  gates on -- the DIIS error IS [F,D], NOT the energy; the old "EMax" name was a trap.)
     double FDMin;  //DIIS STOPS once [F,D] < FDMin (converged; hand back to plain diagonalization).
     double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
+    //! RELATIVE conditioning prune: purge the oldest history entry while svMin(B) < SVTolRel * max_i B_ii.
+    //! The ABSOLUTE SVTol above is applied to a matrix whose scale is |[F,D]|^2, so it really detects "the
+    //! residual got small", not "the history became DEPENDENT" (user diagnosis 2026-08-10, the reason the
+    //! svMin trace column exists).  MEASURED biting on MnO run 32 (2026-08-11): [F,D] plateaus at ~5e-3
+    //! (B ~ 2.5e-5) while svMin sits pinned at 1.0-1.1e-9 -- NEAR-SINGULAR relative to its own scale
+    //! (4e-5) yet just above the absolute 1e-9, so DIIS kept solving a degenerate depth-8 system until a
+    //! wild extrapolation threw the run off a converged -61.414 into a -60.49 limit cycle.  0 = off (the
+    //! historical behavior; the molecular json door leaves it off) -- the SOLID door defaults it on.
+    double SVTolRel=0.0;
 };
 
 struct GDMParams

@@ -60,13 +60,41 @@ template <class T> bool tSCFAcceleratorLadder<T>::CalculateProjections()
     bool tailSwitch  = itsSwitchAt>0.0 && tailValid && tailMetric<itsSwitchAt;
     if (itsActive+1<itsRungs.size() && (stallSwitch || tailSwitch))
     {
-        cout << "  *** SCF accelerator ladder: rung " << itsActive
-             << (tailSwitch ? (energyGated ? " near convergence (|dE/E|=" : " near convergence (err=")
-                            : " exhausted (|dE/E|=")
-             << (tailSwitch ? tailMetric : relDE)
-             << ") -> advancing to rung " << itsActive+1 << " ***" << endl;
-        itsActive++;
-        itsBestErr=1e300; itsNoImprove=0;
+        // ENGAGEABILITY VETO: never advance onto a rung whose STANDING precondition the run's occupation
+        // structure fails (a Fermi-smeared D' is outside GDM's integer-occupation manifold -- knowable from
+        // UseFD, which feeds every rung each iteration).  Without this, the loop degrades to bare mixed
+        // fixed-point steps under the new rung's tag, and on an ionic cell that is the unstable iteration
+        // the CURRENT rung was taming (MnO run 31: -61.414 -> a -60.49 limit cycle).  Announced once.
+        if (!itsRungs[itsActive+1]->Engageable())
+        {
+            if (!itsVetoAnnounced)
+                cout << "  *** SCF accelerator ladder: rung " << itsActive+1 << " ("
+                     << itsRungs[itsActive+1]->Tag() << ") is NOT ENGAGEABLE for this run's occupation "
+                        "structure (smeared/MOM density outside its manifold) -- staying on rung "
+                     << itsActive << " (" << Active()->Tag() << ") ***" << endl;
+            itsVetoAnnounced=true;
+        }
+        else
+        {
+            cout << "  *** SCF accelerator ladder: rung " << itsActive
+                 << (tailSwitch ? (energyGated ? " near convergence (|dE/E|=" : " near convergence (err=")
+                                : " exhausted (|dE/E|=")
+                 << (tailSwitch ? tailMetric : relDE)
+                 << ") -> advancing to rung " << itsActive+1 << " ***" << endl;
+            itsActive++;
+            itsBestErr=1e300; itsNoImprove=0; itsVetoAnnounced=false;
+        }
+    }
+    // RETREAT: the ACTIVE rung's standing precondition failed (discovered late -- e.g. GDM's leading-block
+    // check needs its own orbitals, so a MOM mismatch only surfaces after the rung has seeded).  Sitting on
+    // an unengageable direct-min rung means mixer-only steps forever; fall back to the previous rung, loudly.
+    if (itsActive>0 && !Active()->Engageable())
+    {
+        cout << "  *** SCF accelerator ladder: rung " << itsActive << " (" << Active()->Tag()
+             << ") can no longer engage (occupation structure outside its manifold) -- RETREATING to rung "
+             << itsActive-1 << " (" << itsRungs[itsActive-1]->Tag() << ") ***" << endl;
+        itsActive--;
+        itsBestErr=1e300; itsNoImprove=0; itsVetoAnnounced=false;
     }
     return ok;
 }
@@ -81,6 +109,7 @@ template <class T> void   tSCFAcceleratorLadder<T>::ShowLabels(std::ostream& os)
 template <class T> void   tSCFAcceleratorLadder<T>::ShowConvergence(std::ostream& os) const { Active()->ShowConvergence(os); }
 template <class T> const char* tSCFAcceleratorLadder<T>::Tag()   const { return Active()->Tag(); }   // the live rung
 template <class T> int         tSCFAcceleratorLadder<T>::Count() const { return Active()->Count(); }
+template <class T> double      tSCFAcceleratorLadder<T>::MinSV() const { return Active()->MinSV(); }
 
 template class tSCFIrrepAcceleratorLadder<double>;
 template class tSCFIrrepAcceleratorLadder<dcmplx>;

@@ -109,6 +109,7 @@ public:
     virtual double GetError() const;
     virtual const char* Tag  () const;
     virtual int         Count() const;
+    virtual double      MinSV() const;
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
     virtual bool   CanLineSearch() const;   //delegates to the active rung's readiness
@@ -130,6 +131,7 @@ private:
     size_t                       itsActive=0;
     double                       itsBestErr=1e300; //best (smallest) error since this rung started
     int                          itsNoImprove=0;   //consecutive steps without beating itsBestErr
+    bool                         itsVetoAnnounced=false; //hand-off veto printed once (reset on any rung change)
     double                       itsLastE=0.0, itsPrevE=0.0; //last two reported total energies
 };
 

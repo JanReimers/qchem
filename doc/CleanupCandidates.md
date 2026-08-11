@@ -1913,3 +1913,66 @@ MnO campaign proceeds undisturbed in qchem6.
   exceptions (subsumes R2.5's throw work).
 - **D8 Standing pin governing every fit-touching item here**: fit quality is measured by
   grid-convergence of ρ/property vs a fine reference — NEVER ΔE_total (fits are non-variational).
+- **D9 The ρ̃ mixer still FUSES the preconditioner with the extrapolator** (opened 2026-08-10 by the
+  joint-history fix, SymmetryUpgradePlan §7 step 7).  `PulayMixer` owns BOTH the Kerker filter and
+  the history — `ApplyJoint` takes its own Kerker step — and `PolarizedDensityMixer` is still a
+  `tDensityMixer` rather than the filter stage of someone else's step.  The end state, argued in
+  the plan, is two objects:
+      `residual → channel-basis preconditioner (may differ per channel) → joint extrapolator (one B, one c)`
+  which is the VASP/QE/CP2K architecture (CP2K's `BETA 1.5` IS a Kerker preconditioner in front of
+  ONE Broyden history).  What already landed: the history is joint (`tFieldExtrapolator` +
+  `MixJointly`), so the fusion can no longer split a history — this item is the SHAPE, not a
+  defect.  Doing it retires the `tDensityMixer` inheritance on `PolarizedDensityMixer` (which is
+  what made "pure forwarding, without knowing which leaf it holds" look reasonable), makes Broyden
+  a drop-in beside Pulay, and generalises to the 2×2 spin density matrix of the non-collinear /
+  Shubnikov work, where "which channel combinations get which filter" survives and "two
+  independent leaves" does not.  Re-measure run 11's `(ρ,m)` verdict when it lands: it was recorded
+  REFUTED at `PulayDepth=0`, i.e. with no extrapolator for the preconditioner to shape.
+- **D10 `DisplayEigen` builds rows and renders them in ONE pass, so nothing is assertable** (opened
+  2026-08-10; user: *"printing those tables has been a constant source of bugs"*).  The bug list is
+  the evidence: doubly-empty levels dropped below the frontier (fixed 08-08), `setprecision(0)`
+  rounding a smeared 0.996 to "1/1" (same day), and an ABSENT channel's ε filled from the other
+  channel so a row read as a level empty at an energy where the opposite spin is occupied, with
+  ϵ↑−ϵ↓ printing exactly 0.00000000 (fixed 08-10 -- it manufactured MnO's spin-up "hole").  Every
+  one of these is a pure-function property of the ROWS, and every one was found by reading a run
+  log.  Extract the row build -- `(occ↑, ε↑, label, occ↓, ε↓, Δ)` per level, from the two
+  `EnergyLevels` -- as a pure function, and the next one is a unit test instead.
+  **Second, deeper defect the same fix should retire**: rows are paired by `(n, sym)`, but `n`
+  indexes a DEGENERATE GROUP, and the grouping differs between spin channels once ϵ↑≠ϵ↓ -- which is
+  why the MnO table skips indices and runs them out of order, and why levels go missing from one
+  channel at all.  Pair by energy/character instead.
+- **D11 The occupation RULE is configured AFTER the seed fill** (found 2026-08-10 by the shared-μ
+  work; the cause of a live charge-losing bug, patched at the fill).  `tSCFIterator`'s constructor
+  runs the seed fill (`itsWaveFunction->Init(...)`), while `SetMOM`/`SetSmearing` are called in
+  `Iterate` -- a later call.  So **iteration 0 is filled under a different occupation rule than
+  every subsequent iteration**, and nothing says so.  It was benign only as long as every fill path
+  was integer-per-block; the moment a μ-SOLVING path existed it produced wrong electron counts,
+  because at kT=0 the Fermi count is a staircase in μ and the target falls between steps (Al
+  global-μ metal seed: Σw·n = 2.25 vs Ntot=3, on main, for as long as that path has existed; a
+  shared-spin Mn sextet: 6↑/0↓ vs Ntot=7, and the ρ̃ mixers were then constructed on those counts).
+  The guarding `assert(itsSmearingkT>0.0)` inside the fill is compiled out in Release, so it was
+  silent.  **Patched** by gating the μ path on `kT>0` -- correct in its own right, since a seed has
+  no self-consistent spectrum for a reservoir to redistribute over -- but the ORDERING is the real
+  defect: an object should not perform its first fill before being told how to fill.  Fix by passing
+  the occupation rule (SmearingkT / MOM) at CONSTRUCTION, or by moving the seed fill into `Iterate`.
+  Then restore a hard failure (not a bare assert) on a μ fill with kT=0.
+- **D12 `GPW_Evaluator::Eval` truncates by RADIUS, not by MAGNITUDE** (2026-08-11; the standing pin is
+  [[feedback_no_cut_lattice_sums]] -- "THERE IS NO CUT": an ε-converged series with a magnitude
+  screen, no radius in ANY interface).  Two sites, both in
+  `src/BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C`:
+  1. `itsMaxReach = sqrt(-log(1e-10)/MinExponent())` -- ONE global radius from the most DIFFUSE
+     exponent, then applied to every function and every image.  ε-derived, so not a hard cut, but it
+     is the worst-case exponent charged to all functions.
+  2. `BuildImages(cell, max(2*maxReach + 2*maxCellEdge, maxReach + 2*cellRad), ...)` -- a GEOMETRIC
+     bound that must be re-derived per cell SHAPE.  **It has already been wrong here**: the `max()`
+     of two formulas exists because the historical one "under-enumerated" for the oblique MnO
+     rhombohedral cell.  A patch, not a derivation -- the next unusual cell can break it again.
+  **This is an INCONSISTENCY, not a missing capability**: the analytic 1E/V_local lattice sums in the
+  same run already screen per-pair on magnitude and report the reach as an OUTPUT
+  (`[lattice sums] eps=1e-10 (GPW_SCREEN_EPS) pair reach=30.3485 au = 381 cells`).  So one evaluator
+  carries two truncation schemes, and only one of them obeys the pin.  Fix: screen each (function,
+  image) term on its own contribution magnitude -- per-pair, like the analytic path -- and let any
+  radius fall out as a reported consequence.  Then there is no formula left to get wrong.
+  NB investigated 2026-08-11 as a candidate for the MnO sublattice defect and REFUTED as the cause
+  (the enumeration is generous for this cell: maxReach ≈ 15.2 bohr against a = 8.4); this item is the
+  DESIGN debt, which stands on its own.
