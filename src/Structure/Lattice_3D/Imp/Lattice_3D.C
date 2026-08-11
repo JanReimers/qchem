@@ -63,6 +63,19 @@ const Symmetry::Lattice_3D::SpaceGroup& Lattice_3D::GetSpaceGroup(double tol) co
     return *itsSpaceGroup;
 }
 
+std::vector<Symmetry::Lattice_3D::SymOp> Lattice_3D::ShubnikovOps(const std::vector<int>& spins,
+                                                                  double tol) const
+{
+    namespace SL = Symmetry::Lattice_3D;
+    const Structure& st = itsUnitCell;
+    assert(spins.size()==st.GetNumAtoms() && "ShubnikovOps: one collinear label per atom, in atom order");
+    std::vector<SL::AtomSite> decorated;
+    size_t i=0;
+    for (Atom* a : st)
+        decorated.push_back({a->itsZ, itsUnitCell.ToFractional(a->itsR), spins[i++]});
+    return GetSpaceGroup(tol).ShubnikovOps(decorated, tol);
+}
+
 
 //----------------------------------------------------------
 //

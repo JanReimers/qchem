@@ -341,6 +341,21 @@ qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Real_BS& mo
     }
     return s;
 }
+
+// Shubnikov S3 (doc/SymmetryUpgradePlan.md §7 step 7): the per-atom collinear decoration for a
+// POLARIZED IMPOSED run -- the factory then imposes the MAGNETIC group of the declared ordering
+// (the grey group would erase it).  Assembled with the seed's OWN species resolution
+// (MagneticDecoration + IonicSADTargets for an IonicSAD run), so the imposed symmetry and the seed
+// that plants the moments cannot drift apart.  Empty (grey imposition / free run) otherwise.
+std::vector<int> GatherSiteSpins(const Lattice_3D& lat, const GpwOptions& o)
+{
+    using namespace qchem::ChargeDensity;
+    if (!o.imposeSymmetry || o.multiplicity<1) return {};
+    auto st=lat.GetStructure();
+    const std::map<size_t,int> targets = (o.seed==SeedStrategy::IonicSAD)
+                                       ? IonicSADTargets(st.get(), "LDA") : std::map<size_t,int>{};
+    return MagneticDecoration(st.get(), "LDA", targets);
+}
 } //anon
 
 // Build the complex SCF accelerator named by \a policy, through the PUBLIC typed door (Step 4 2/3).
@@ -441,7 +456,8 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
         bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
             .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
             .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .imposeSymmetry=o.imposeSymmetry,
-            .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC}));
+            .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC,
+            .siteSpins=GatherSiteSpins(lat, o)}));
     }
 
     // FAIL-FAST: vet the (analytic, grid-free) overlap + emit basis BEFORE grids/Hamiltonian; a rank-deficient
@@ -592,7 +608,8 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
         .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
         .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .imposeSymmetry=o.imposeSymmetry,
-        .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC}));
+        .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC,
+        .siteSpins=GatherSiteSpins(lat, o)}));
     if (report.VetBasis(*bs) > 0)
     {
         std::cout << "["<<o.label<<"] ABORT: basis rank-deficient (see basis.removed) -- skipped grids + SCF."<<std::endl;
@@ -3540,6 +3557,86 @@ TEST(GPW_SCF, MnOSeedVxcMirrorOnBeckeMesh)
                                "this is the site-dependent v_xc defect (SymmetryUpgradePlan WHERE-WE-LEFT-OFF)";
     EXPECT_LT(maxV, 1e-6) << "v_xc^up(r) != v_xc^dn(r+t) on the mesh: the first Fock build is fed a "
                              "mirror-broken exchange-correlation potential";
+}
+
+// SHUBNIKOV S3, end to end at the seed level (doc/SymmetryUpgradePlan.md §7 step 7): a MAGNETICALLY
+// imposed MnO basis must star-average the channel pair under the Shubnikov group -- keeping the AFM
+// staggering EXACTLY mirror-symmetric -- where the grey average would erase it.  Chain under test:
+// MagneticDecoration (the seed's own species rule) -> GPWParams::siteSpins -> the factory's Shubnikov
+// resolution -> CreateXCQuadrature (site-adapted invariant mesh + fold + sigma tags + flip-fixed zero
+// flags) -> XC_GridEngine::RhoPol's (rho,m) split.
+TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
+{
+    namespace L3=BasisSet::Lattice_3D;
+    using namespace qchem::ChargeDensity;
+    const double a=8.40;
+    Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    auto cellp=std::make_shared<UnitCell>(A);
+    UnitCell& cell=*cellp;
+    cell.AddAtom(25, {0.0,0.0,0.0}, false);
+    cell.AddAtom(25, {0.5,0.5,0.5}, true);
+    cell.AddAtom(8,  {0.25,0.25,0.25});
+    cell.AddAtom(8,  {0.75,0.75,0.75});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    // The decoration, by the seed's own resolution: Mn2+ (d5 pair) = +/-1, O2- (closed shell) = 0.
+    auto st=lat.GetStructure();
+    std::vector<int> spins=MagneticDecoration(st.get(), "LDA", IonicSADTargets(st.get(), "LDA"));
+    ASSERT_EQ(spins.size(), 4u);
+    EXPECT_EQ(spins[0], +1); EXPECT_EQ(spins[1], -1);
+    EXPECT_EQ(spins[2],  0); EXPECT_EQ(spins[3],  0);
+
+    // The magnetically IMPOSED GPW basis (coarse everything: this gate tests symmetry, not accuracy).
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR),
+        L3::GPWParams{.densityEcut=8.0, .imposeSymmetry=true, .siteSpins=spins}));
+    BasisSet::XCQuadrature q = bs->CreateXCQuadrature(st.get(), qcMesh::BeckeXCParams(20, -1.0, 11));
+    ASSERT_EQ(q.sigmas.size(), 24u) << "the Shubnikov group of the AFM-II cell has 24 ops (12+12)";
+    size_t nFlip=0; for (auto s : q.sigmas) if (s==Symmetry::SpinAction::Flip) nFlip++;
+    EXPECT_EQ(nFlip, 12u);
+    ASSERT_EQ(q.flipFixed.size(), q.mesh->size());
+
+    // The seed (the same PolarizedSeedCD the run uses), through the engine's channel-pair projector.
+    qchem::BasisSet::Lattice_3D::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
+    const std::map<size_t,int> ionic{{25,5},{8,8}};
+    PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
+
+    qchem::Hamiltonian::XC_GridEngine engine(q.mesh, q.fold, q.sigmas, q.flipFixed);
+    const rvec_t up=engine.RhoPol(&seedCD, Spin::Up);
+    const rvec_t dn=engine.RhoPol(&seedCD, Spin::Down);
+
+    // (a) The staggering SURVIVES the imposed projector: the magnetization raster keeps its full scale.
+    double maxM=0; for (size_t g=0; g<up.size(); g++) maxM=std::max(maxM, std::abs(up[g]-dn[g]));
+    EXPECT_GT(maxM, 0.1) << "the SHUBNIKOV average must PRESERVE the AFM staggering";
+
+    // (b) ...and is EXACTLY mirror-antisymmetric on the raster: m must vanish at every flip-fixed point,
+    // and the weighted net moment must be zero to machine precision (the signed projector's guarantees).
+    const rvec_t& W=q.mesh->Weights();
+    double net=0, worstFixed=0;
+    for (size_t g=0; g<up.size(); g++)
+    {
+        net += W[g]*(up[g]-dn[g]);
+        if (q.flipFixed[g]) worstFixed=std::max(worstFixed, std::abs(up[g]-dn[g]));
+    }
+    // The projector pairs every orbit's members +/- exactly; the residual is the ULP-level asymmetry of
+    // the site-adapted builder's partner WEIGHTS (op-image copies, equal only to roundoff -- measured
+    // 1.7e-9 over 6000 points), not a projector defect.
+    EXPECT_LT(std::abs(net), 1e-7) << "an imposed AFM pair carries ZERO net moment by construction";
+    EXPECT_LT(worstFixed, 1e-12) << "m must vanish exactly at the flip-fixed mesh points";
+
+    // (c) The GREY control: the SAME mesh and fold with the sigma tags withheld = the historical
+    // per-channel spatial average, which maps +m sites onto -m sites and ERASES the order.  This is the
+    // unit-level half of the S4 negative control ("imposing the grey group kills m_stag").
+    qchem::Hamiltonian::XC_GridEngine grey(q.mesh, q.fold);
+    const rvec_t gup=grey.RhoPol(&seedCD, Spin::Up);
+    const rvec_t gdn=grey.RhoPol(&seedCD, Spin::Down);
+    double maxGrey=0; for (size_t g=0; g<gup.size(); g++) maxGrey=std::max(maxGrey, std::abs(gup[g]-gdn[g]));
+    EXPECT_LT(maxGrey, 1e-10) << "the grey average must ERASE the staggering -- if it does not, the "
+                                 "Shubnikov machinery is not actually load-bearing";
+
+    // (d) The TOTAL density is identical through both engines (the even channel is sigma-blind).
+    double dTot=0; for (size_t g=0; g<up.size(); g++) dTot=std::max(dTot, std::abs((up[g]+dn[g])-(gup[g]+gdn[g])));
+    EXPECT_LT(dTot, 1e-10) << "sigma must not touch the total density";
 }
 
 // ===================== MnO STATUS: THE OCCUPATION IS THE DEFECT (2026-08-08) ==========================

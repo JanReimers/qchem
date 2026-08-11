@@ -396,13 +396,19 @@ std::ostream& PWFittedVxc::Write(std::ostream& os) const
 
 // ---- XC_GridEngine: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
 
-XC_GridEngine::XC_GridEngine(mesh_t mesh, Symmetry::Lattice_3D::Fold fold)
+XC_GridEngine::XC_GridEngine(mesh_t mesh, Symmetry::Lattice_3D::Fold fold,
+                             std::vector<Symmetry::SpinAction> sigmas, std::vector<char> flipFixed)
     : itsMesh(std::move(mesh))
     , itsFold(std::move(fold))
+    , itsSigmas(std::move(sigmas))
+    , itsFlipFixed(std::move(flipFixed))
 {
     assert(itsMesh && itsMesh->size()>0);
     // A live fold must partition THIS mesh (empty = free run, no star-average).
     assert(itsFold.owner.empty() || itsFold.owner.size()==itsMesh->size());
+    // Shubnikov (S3): σ tags require a live fold, and the zero flags cover the whole mesh.
+    assert(itsSigmas.empty() || !itsFold.owner.empty());
+    assert(itsFlipFixed.empty() || itsFlipFixed.size()==itsMesh->size());
 }
 
 // The (npts x n) basis table for one Bloch block: chi_i at every mesh point -- the ONE image-summed
@@ -487,10 +493,26 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
             itsRhoUp*=0.5;
             itsRhoDn=itsRhoUp;
         }
-        if (!itsFold.owner.empty())   // §6a W1: collinear -- the spatial star-average acts per channel
+        if (!itsFold.owner.empty())
         {
-            Symmetry::Lattice_3D::SymmetrizeValues(itsFold, itsRhoUp);
-            Symmetry::Lattice_3D::SymmetrizeValues(itsFold, itsRhoDn);
+            if (itsSigmas.empty())
+            {   // §6a W1 grey imposition: the spatial star-average acts per channel independently
+                Symmetry::Lattice_3D::SymmetrizeValues(itsFold, itsRhoUp);
+                Symmetry::Lattice_3D::SymmetrizeValues(itsFold, itsRhoDn);
+            }
+            else
+            {   // Shubnikov S3: the (ρ,m) pair diagonalizes σ -- the TOTAL is even (plain orbit mean),
+                // the MAGNETIZATION is odd (χ-signed mean, zeroed first at the flip-fixed points where
+                // the exact projector annihilates it).  Per-channel averaging would be WRONG here: a
+                // σ=Flip op maps ρ_up onto ρ_dn, not onto itself.
+                rvec_t rho = itsRhoUp + itsRhoDn;
+                rvec_t m   = itsRhoUp - itsRhoDn;
+                for (size_t g=0; g<itsFlipFixed.size(); ++g) if (itsFlipFixed[g]) m[g]=0.0;
+                Symmetry::Lattice_3D::SymmetrizeValues      (itsFold, rho);
+                Symmetry::Lattice_3D::SymmetrizeValuesSigned(itsFold, itsSigmas, m);
+                itsRhoUp = 0.5*(rho + m);
+                itsRhoDn = 0.5*(rho - m);
+            }
         }
     }
     return s==Spin::Up ? itsRhoUp : itsRhoDn;

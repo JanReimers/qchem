@@ -86,6 +86,14 @@ struct GPWParams
                                                     //!< HartreeOnly (pair with the Becke XC route ONLY) drops the
                                                     //!< 2/3*alpha_max XC floor so diffuse density pairs route to
                                                     //!< coarse ladder levels -- the honest diffuse-basis speedup.
+    //! \brief The COLLINEAR magnetic decoration (Shubnikov S3, doc/SymmetryUpgradePlan.md §7 step 7):
+    //! one label per atom in cell order (+1/-1 = the site's majority-channel sign, 0 = non-magnetic),
+    //! assembled by \c ChargeDensity::MagneticDecoration so it follows the SEED's own species
+    //! resolution.  When \c imposeSymmetry is set AND this carries a genuine staggering, the factory
+    //! imposes the SHUBNIKOV group of the decoration instead of the grey group -- the grey star-average
+    //! maps \f$+m\f$ sites onto \f$-m\f$ sites and would erase the magnetic order it is supposed to
+    //! protect.  Empty (the default) = the historical grey imposition.
+    std::vector<int> siteSpins = {};
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,

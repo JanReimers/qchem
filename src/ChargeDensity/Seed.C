@@ -2,6 +2,8 @@
 module;
 #include <vector>
 #include <utility>
+#include <map>
+#include <string>
 
 export module qchem.ChargeDensity.Seed;
 export import qchem.ChargeDensity;   // tDM_CD<T>
@@ -17,6 +19,23 @@ export namespace qchem::ChargeDensity
 //! next closed shell {2,8,18,32}; only across a real electronegativity gap.  Returns the formal charges in
 //! the SAME order as \a atoms (Na -> +1, F -> -1); a single species / no EN gap gives all-zero (neutral).
 std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms);
+
+//! \brief The COLLINEAR magnetic decoration of a structure -- Shubnikov S3, doc/SymmetryUpgradePlan.md
+//! §7 step 7: one label per atom, \f$\pm1\f$ = the site's majority-channel sign (the atom's
+//! \c itsSpinFlip bit), \f$0\f$ = non-magnetic.  MAGNETIC-OR-NOT follows the SEED's OWN resolution rule
+//! (\c SeedCD): a species is magnetic iff the library carries a spin-resolved pair at its TARGET
+//! electron count (\a ionicNvalByZ entry, else the neutral valence count) -- so the decoration and the
+//! seed that plants the moments cannot drift apart.  Assembled HERE, beside that rule, and threaded to
+//! the basis factory's symmetry-policy resolution (\c GPWParams::siteSpins): the factory then imposes
+//! the SHUBNIKOV group of this decoration instead of the grey group, which would erase the order.
+std::vector<int> MagneticDecoration(const Structure* st, const std::string& functional = "LDA",
+                                    const std::map<size_t,int>& ionicNvalByZ = {});
+
+//! \brief The IonicSAD per-species TARGET valence counts, derived from the structure exactly as the
+//! IonicSAD seed derives them (formal charges from \c IonicFormalCharges, \f$N_{val}\f$ from the
+//! neutral valence density) -- the ONE resolution the seed and the S3 \c MagneticDecoration share, so
+//! a driver decorating an IonicSAD run passes \c IonicSADTargets(st) and cannot drift from its seed.
+std::map<size_t,int> IonicSADTargets(const Structure* st, const std::string& functional = "LDA");
 
 
 //! How the SCF loop is seeded with an initial charge density.

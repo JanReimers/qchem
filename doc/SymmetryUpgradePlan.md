@@ -151,15 +151,36 @@ structure factors: odd average = identity on the staggered m̃, even average kil
 is even and fixed); `GPW.MagneticSymmetryDefectsSeparateMirrorKeepersFromBreakers` (exact pair: all
 24 ops clean; a shrunk sublattice moment — the run-31 disease — fires EXACTLY the 12 Flip ops).
 
-**STILL OPEN, ranked:** (1) S3 — the wiring: WHO DECORATES (flip bits live on Atom, magnetic-or-not
-is seed/library knowledge — assemble where the seed resolves species, thread to the factory's policy
-resolution); the imposed-run plumbing (XCQuadrature/engine carry the σ list beside the fold + the
-zero-flags; the composite's ρ̃ path takes the coset-complete spatial ops; RhoPol does the
-(ρ,m)-split symmetrize-recombine); the uniform-raster pair overload on the FIT face rides along
-(σ-carrying ops replace DirectOps in the fit-basis ctor).  Then S4 gates per the sketch.  (2) cheap
-parallel arms for the 57 mHa: `MNO_SHARED_MU=1` + gentle anneal — user already probing shared-μ;
-(3) the k-MESH free run (affordable after imposition); (4) free-energy-stationarity convergence gate
-if imposition alone does not close the Δρ floor; (5) doc/CleanupCandidates.md D9–D12.
+**S3 DONE (2026-08-11): the wiring, seed-consistent by construction.**  DECORATION:
+`ChargeDensity::MagneticDecoration(st, functional, targets)` — per-atom ±1/0 labels by the SEED's own
+species rule (magnetic ⇔ a spin pair exists at the species' target Nelec; the flip bit is the sign) —
+plus `IonicSADTargets(st)` FACTORED OUT of the IonicSAD seed branch so driver and seed share ONE
+resolution.  POLICY: `GPWParams::siteSpins` (assembled by the driver's `GatherSiteSpins`: polarized +
+imposeSymmetry ⇒ decorate); `DetectPointOps` resolves a staggered decoration to
+`lat.ShubnikovOps(spins)` — announced loudly — and fills the LEGACY faces (recipDensity/directDensity)
+with its σ-dropped SPATIAL projections, which are COSET-COMPLETE (they include the anti-translation),
+so every even/total consumer (Hartree ρ̃ star-average, uniform raster, T1) is upgraded with ZERO code
+change; grey imposition of a staggered cell is now unreachable outside the release-audit.  k-fold: Γ
+only (recipFold left empty on magnetic runs — a multi-k magnetic imposition keeps its full mesh; the
+little-group bookkeeping is T3.4b-adjacent).  The T3 stream fold gets only the σ=None subgroup (a flip
+op relates D↑ to D↓, not D to itself).  PLUMBING: `XCQuadrature` grew `sigmas` + `flipFixed` (filled by
+`GPW_IBS::CreateXCQuadrature` from its ctor-injected Shubnikov set; the site-adapted invariant mesh
+builds under all 24 spatial parts — the anti-translation forces the two Mn blocks mirror-consistent by
+construction); `XC_GridEngine` carries both and `RhoPol` does the (ρ,m)-split: total = plain orbit
+mean, m = χ-signed mean with the flip-fixed points zeroed first.  GATE
+(`GPW_SCF.MnOImposedShubnikovKeepsTheSeedStaggering`, end-to-end at the seed level): decoration =
+(+1,−1,0,0); 24 σ-tags (12 Flip); 144 flip-fixed mesh points; the staggering SURVIVES the imposed
+projector at full scale, net moment 0 (1.7e-9 = partner-weight ULPs), m≡0 at flip-fixed points; the
+GREY control on the same mesh+fold ERASES it (<1e-10); the totals agree through both engines
+(σ never touches the even channel).
+
+**STILL OPEN, ranked:** (1) S4 — the through-SCF gates: the first IMPOSED MnO run (does the magnetic
+star-average close the Δρ tie-noise floor?  imposed == free-ensemble energy at grid class?); the
+grey-imposition negative control THROUGH SCF (m_stag must die); the release-audit arm; wire
+`MagneticSymmetryDefects` into the free-run `[symmetry]` line for polarized runs.  (2) cheap parallel
+arms for the 57 mHa: `MNO_SHARED_MU=1` + gentle anneal — user already probing shared-μ; (3) the
+k-MESH free run (affordable after imposition); (4) free-energy-stationarity convergence gate if
+imposition alone does not close the Δρ floor; (5) doc/CleanupCandidates.md D9–D12.
 This doc answers three things the user asked:
 1. A **gap analysis** — where are we already using symmetry, where are we leaving it on
    the table.
