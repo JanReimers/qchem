@@ -130,14 +130,36 @@ per detected W against the decorated basis (Detect and all grey consumers untouc
 anti-translation; group CLOSURE over all 576 products; undecorated/FM ⇒ all None; CommonOps(AFM,FM)
 = the 12 sublattice-preserving ops; an incompatible (ferri) decoration drops ops.
 
-**STILL OPEN, ranked:** (1) S2 — the channel-pair star-average under σ (SymmetrizeGMap/Raster grow
-the swap action; OPENING QUESTION: who decorates? the flip bits live on Atom, but magnetic-or-not is
-seed/library knowledge — the decoration should be assembled where the seed resolves species, then
-threaded to the factory's policy resolution); then S3/S4 per the sketch above.  (2) cheap parallel
-arms for the 57 mHa: `MNO_SHARED_MU=1` + gentle anneal (`5e-3,2e-3,1e-3`) — user already probing
-shared-μ; (3) the k-MESH free run (right for real-MnO physics; affordable after imposition);
-(4) free-energy-stationarity convergence gate if imposition alone does not close the Δρ floor;
-(5) doc/CleanupCandidates.md D9–D12.
+**S2 DONE (2026-08-11): the channel-pair star-average primitives.**  THE DIAGONALIZATION: the pair
+(ρ↑,ρ↓) splits into the TOTAL (EVEN under Flip — the plain average over ALL of M's spatial parts,
+both chemical-lattice cosets included: the Hartree-side contract) and the MAGNETIZATION m = ρ↑−ρ↓
+(ODD — character χ(op) = −1 on σ=Flip ops).  Landed: (i) `SymmetrizeValuesSigned(Fold, sigmas, vals)`
+— the χ-weighted orbit mean for the Becke-mesh {r} path — plus the ODD-FIELD AUDIT
+`FlipFixedPointsPeriodic`: a point some Flip op maps onto ITSELF carries m≡0 exactly (MnO: the O
+sites, fixed by the sublattice-swapping inversion — m(O)=0 IS the physics) and the single-edge orbit
+mean cannot see that, so callers zero flagged points (geometry-fixed, once per mesh); (ii)
+`SymmetrizeGMap(rg, sops, oddUnderFlip)` — the G-space scatter with χ — EXACT projector with no
+audit needed (the scatter accumulates ALL ops, forbidden components average to zero by themselves);
+(iii) `MagneticSymmetryDefects(up, dn, sops)` — the S4 free-run instrument: σ=Flip ops compare
+ACROSS channels (the anti-translation row IS the m1=−m2 mirror), None ops within; "which magnetic
+ops broke" op by op; (iv) `ReciprocalOf(SymOp)` (U=Wᵀ, τ, σ — the direct→G-frame converter).
+GATES: `Shubnikov.SignedFoldFixesTheStaggeredPatternAndGreyErasesIt` (the staggered pattern is a
+FIXED POINT of the signed projector, a perturbed one projects onto the mirror ±0.675, the plain grey
+average ERASES it to 0.025 — the unit-level form of why ShubnikovOps exists; the audit flags exactly
+the O sites); `GPW.ShubnikovGMapOddFixesStaggeredMagnetizationAndGreyKillsIt` (analytic point-moment
+structure factors: odd average = identity on the staggered m̃, even average kills it; the AFM total
+is even and fixed); `GPW.MagneticSymmetryDefectsSeparateMirrorKeepersFromBreakers` (exact pair: all
+24 ops clean; a shrunk sublattice moment — the run-31 disease — fires EXACTLY the 12 Flip ops).
+
+**STILL OPEN, ranked:** (1) S3 — the wiring: WHO DECORATES (flip bits live on Atom, magnetic-or-not
+is seed/library knowledge — assemble where the seed resolves species, thread to the factory's policy
+resolution); the imposed-run plumbing (XCQuadrature/engine carry the σ list beside the fold + the
+zero-flags; the composite's ρ̃ path takes the coset-complete spatial ops; RhoPol does the
+(ρ,m)-split symmetrize-recombine); the uniform-raster pair overload on the FIT face rides along
+(σ-carrying ops replace DirectOps in the fit-basis ctor).  Then S4 gates per the sketch.  (2) cheap
+parallel arms for the 57 mHa: `MNO_SHARED_MU=1` + gentle anneal — user already probing shared-μ;
+(3) the k-MESH free run (affordable after imposition); (4) free-energy-stationarity convergence gate
+if imposition alone does not close the Δρ floor; (5) doc/CleanupCandidates.md D9–D12.
 This doc answers three things the user asked:
 1. A **gap analysis** — where are we already using symmetry, where are we leaving it on
    the table.

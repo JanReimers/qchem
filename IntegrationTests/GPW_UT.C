@@ -1230,3 +1230,99 @@ TEST(GPW, LocalPPKappaSelfConverged)
     std::cout << "[localPP short] ||analytic-grid||/||grid|| = "<<relA<<std::endl;
     EXPECT_LT(relA, 1e-2) << "analytic short vs kappa-ruled grid short: convention-class disagreement";
 }
+
+// ============================ Shubnikov S2: the G-space channel-pair star-average ============================
+// doc/SymmetryUpgradePlan.md §7 step 7 S2.  The pair diagonalizes the spin action: the total is EVEN under
+// Flip, the magnetization m-tilde is ODD (character chi = -1 on sigma=Flip ops).  Fixture: the MnO AFM-II
+// rhombohedral cell's Shubnikov group (S1), reciprocal ops via ReciprocalOf; fields = analytic structure
+// factors of point moments on the two Mn sublattices (f1 = 0, f2 = (1/2,1/2,1/2)), for which
+// m-tilde(m) = mu [1 - (-1)^(h+k+l)] and rho-tilde(m) = a + b(-1)^(h+k+l) exactly.
+namespace
+{
+using SL_SymOp = qchem::Symmetry::Lattice_3D::SymOp;
+
+std::vector<SL_SymOp> MnOShubnikovReciprocal()
+{
+    using namespace qchem::Symmetry::Lattice_3D;
+    const double a=8.40;
+    Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    std::vector<AtomSite> afm = { {25, rvec3_t(0.0 ,0.0 ,0.0 ), +1},
+                                  {25, rvec3_t(0.5 ,0.5 ,0.5 ), -1},
+                                  { 8, rvec3_t(0.25,0.25,0.25),  0},
+                                  { 8, rvec3_t(0.75,0.75,0.75),  0} };
+    auto M = SpaceGroup::Detect(A, afm).ShubnikovOps(afm);
+    std::vector<SL_SymOp> rops;
+    for (const auto& op : M) rops.push_back(ReciprocalOf(op));
+    return rops;
+}
+
+// Structure factor of point amplitudes (aUp at f1, bUp at f2) over the G-index ball |m_i|<=1.
+ΔG_Map PointPairMap(double atF1, double atF2)
+{
+    ΔG_Map out;
+    for (int h=-1;h<=1;h++) for (int k=-1;k<=1;k++) for (int l=-1;l<=1;l++)
+    {
+        const double par = (std::abs(h+k+l)%2) ? -1.0 : 1.0;   // e^{-2pi i m.f2} = (-1)^(h+k+l)
+        out[ivec3_t(h,k,l)] = dcmplx(atF1 + par*atF2, 0.0);
+    }
+    return out;
+}
+double MapDiff(const ΔG_Map& a, const ΔG_Map& b)
+{
+    double d=0;
+    for (const auto& [m,v] : a) { auto it=b.find(m); d=std::max(d, std::abs(v-(it==b.end()?dcmplx(0):it->second))); }
+    for (const auto& [m,v] : b) { auto it=a.find(m); d=std::max(d, std::abs(v-(it==a.end()?dcmplx(0):it->second))); }
+    return d;
+}
+} //anon
+
+TEST(GPW, ShubnikovGMapOddFixesStaggeredMagnetizationAndGreyKillsIt)
+{
+    auto rops = MnOShubnikovReciprocal();
+    ASSERT_EQ(rops.size(), 24u);
+
+    // m-tilde of the exact staggered pair: +mu at f1, -mu at f2.
+    ΔG_Map mt = PointPairMap(+0.7, -0.7);
+    // The ODD average is the exact projector: the staggered m-tilde is its fixed point.
+    EXPECT_LT(MapDiff(SymmetrizeGMap(mt, rops, /*odd*/true), mt), 1e-12);
+    // The EVEN average over the same ops (as if m were a charge) ERASES it -- the G-space form of
+    // "the grey group averages the AFM away": every surviving coefficient collapses to ~0.
+    auto grey = SymmetrizeGMap(mt, rops, /*odd*/false);
+    double worst=0; for (const auto& [m,v] : grey) worst=std::max(worst, std::abs(v));
+    EXPECT_LT(worst, 1e-12);
+
+    // The TOTAL density of the AFM state has EQUAL site charges (up's a+dn's b == up's b+dn's a), so
+    // it is EVEN and fixed by the even average -- the Hartree-side contract (spin never enters V_H;
+    // both chemical-lattice cosets included).
+    ΔG_Map rt = PointPairMap(1.2, 1.2);
+    EXPECT_LT(MapDiff(SymmetrizeGMap(rt, rops, /*odd*/false), rt), 1e-12);
+
+    // A PERTURBED magnetization projects back onto the mirror: +0.70/-0.66 -> +/-0.68.
+    ΔG_Map pert;
+    for (int h=-1;h<=1;h++) for (int k=-1;k<=1;k++) for (int l=-1;l<=1;l++)
+    {
+        const double par = std::abs(h+k+l)%2 ? -1.0 : 1.0;
+        pert[ivec3_t(h,k,l)] = dcmplx(0.70 - 0.66*par, 0.0);
+    }
+    auto proj = SymmetrizeGMap(pert, rops, /*odd*/true);
+    ΔG_Map want = PointPairMap(+0.68, -0.68);
+    EXPECT_LT(MapDiff(proj, want), 1e-12);
+}
+
+TEST(GPW, MagneticSymmetryDefectsSeparateMirrorKeepersFromBreakers)
+{
+    auto rops = MnOShubnikovReciprocal();
+
+    // The EXACT magnetic pair: rho_up = a at f1 + b at f2, rho_dn = the swap (b at f1 + a at f2).
+    ΔG_Map up = PointPairMap(1.0, 0.3), dn = PointPairMap(0.3, 1.0);
+    auto d0 = MagneticSymmetryDefects(up, dn, rops);
+    for (double d : d0) EXPECT_LT(d, 1e-12) << "the exact AFM pair must carry EVERY Shubnikov op";
+
+    // BREAK the mirror (the run-31 disease: one sublattice's moment shrinks): flip ops must fire,
+    // sublattice-preserving (None) ops must stay clean -- WHICH ops broke is the readout.
+    ΔG_Map dnB = PointPairMap(0.3, 0.8);       // the f2 moment lost 0.2
+    auto dB = MagneticSymmetryDefects(up, dnB, rops);
+    for (size_t i=0;i<rops.size();++i)
+        if (rops[i].sigma==qchem::Symmetry::SpinAction::Flip) EXPECT_GT(dB[i], 1e-3);
+        else                                                  EXPECT_LT(dB[i], 1e-12);
+}

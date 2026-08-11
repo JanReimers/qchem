@@ -15,6 +15,7 @@
 module;
 #include <vector>
 #include <utility>
+#include <cassert>   // the SymmetrizeValuesSigned edge-op guard
 export module qchem.Symmetry.Lattice_3D.Fold;
 export import qchem.Types;       // ivec3_t, rvec3_t
 export import qchem.Matrix3D;    // Matrix3D
@@ -88,6 +89,45 @@ template <class V> inline void SymmetrizeValues(const Fold& f, V& vals)
         for (auto [m, o] : f.members[r]) vals[m] = s;
     }
 }
+
+//! \brief The SIGNED star-average for a field of ODD spin parity under a MAGNETIC (Shubnikov)
+//! group -- S2 of doc/SymmetryUpgradePlan.md §7 step 7.  The channel pair diagonalizes the spin
+//! action: the total \f$\rho_\uparrow+\rho_\downarrow\f$ is EVEN under \c Flip (take the plain
+//! \c SymmetrizeValues over the same fold), while the magnetization \f$m=\rho_\uparrow-
+//! \rho_\downarrow\f$ picks up the character \f$\chi(g)=-1\f$ on \f$\sigma=\f$\c Flip ops:
+//! \f$(Pm)(r)=\tfrac1{|M|}\sum_g \chi_g\,m(g\,r)\f$.  \a sigmas is the per-op spin action,
+//! PARALLEL to the op list the fold was built under (the edge opIndex indexes it); rep value
+//! \f$s=\tfrac1n\sum \chi\,v\f$, member scatter \f$v=\chi\,s\f$ (\f$\chi=\pm1\f$ is its own
+//! inverse).
+//!
+//! PRECONDITIONS (beyond the plain version's full-group + invariant-set): a point whose
+//! STABILIZER contains a \c Flip op carries \f$m\equiv0\f$ exactly (the projector annihilates the
+//! odd field there), and the single-edge orbit mean CANNOT see that -- callers must zero \a vals
+//! at the points \c FlipFixedPointsPeriodic flags BEFORE trusting this as the projector.  (MnO
+//! AFM-II: the O sites are fixed by the Mn-sublattice-swapping inversion, and m(O)=0 is exactly
+//! the physics.)  An edge with no mapping op (-1) cannot carry a character and asserts.
+template <class V> inline void SymmetrizeValuesSigned(const Fold& f,
+                                                      const std::vector<SpinAction>& sigmas, V& vals)
+{
+    auto chi=[&](int o)->double
+    {
+        assert(o>=0 && "SymmetrizeValuesSigned: an edge with no mapping op cannot carry a character");
+        return sigmas[size_t(o)]==SpinAction::Flip ? -1.0 : 1.0;
+    };
+    for (size_t r = 0; r < f.Reps(); ++r)
+    {
+        double s = 0.0;
+        for (auto [m, o] : f.members[r]) s += chi(o)*vals[m];
+        s /= double(f.members[r].size());
+        for (auto [m, o] : f.members[r]) vals[m] = chi(o)*s;
+    }
+}
+
+//! \brief The ODD-field fixed-point AUDIT for \c SymmetrizeValuesSigned: flag every point some
+//! \f$\sigma=\f$\c Flip op maps onto ITSELF (torus metric).  The exact projector annihilates an
+//! odd field at such points, so the caller zeroes them; geometry-fixed, so run it once per mesh.
+std::vector<char> FlipFixedPointsPeriodic(const std::vector<rvec3_t>& pts,
+                                          const std::vector<SymOp>& ops, double tol);
 
 //! \brief Fold the periodic grid \f$\{(i+\mathrm{shift})/N\}\f$ under \f$i' = W(i+s) - s
 //! \pmod N\f$ -- the EXACT integer path for {k} and {G} grids (raw index = KMesh linear

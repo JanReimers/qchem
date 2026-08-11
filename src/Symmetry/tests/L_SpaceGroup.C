@@ -311,3 +311,47 @@ TEST(Shubnikov, AnIncompatibleDecorationDropsOps)
     }
     EXPECT_TRUE(haveId);
 }
+
+//---------------------------------------------------------------------------------------
+//  S2: the channel-pair star-average primitives (doc/SymmetryUpgradePlan.md §7 step 7).
+//  The pair diagonalizes sigma: rho_tot is EVEN under Flip (plain SymmetrizeValues), the
+//  magnetization m = rho_up - rho_dn is ODD (SymmetrizeValuesSigned, chi = -1 on Flip edges).
+//
+TEST(Shubnikov, SignedFoldFixesTheStaggeredPatternAndGreyErasesIt)
+{
+    std::vector<AtomSite> afm = MnOBasis(+1,-1);
+    SpaceGroup sg = SpaceGroup::Detect(MnOCell(), afm);
+    auto M = sg.ShubnikovOps(afm);
+    std::vector<SpinAction> sigmas; for (const auto& op : M) sigmas.push_back(op.sigma);
+
+    // The four sites as the (invariant) point set; m sampled AT the sites.
+    std::vector<rvec3_t> pts = { afm[0].f, afm[1].f, afm[2].f, afm[3].f };
+    Fold f = FoldPointsPeriodic(pts, M, 1e-9);
+    ASSERT_EQ(f.Reps(), 2u);                 // {Mn1,Mn2} and {O1,O2}: the flip ops JOIN the sublattices
+
+    // The odd-field audit: the O sites are FIXED by the sublattice-swapping inversion (a Flip op),
+    // so m(O) == 0 exactly; the Mn sites are never flip-fixed (a flip op fixing a magnetic site
+    // would need s = -s).
+    auto fixed = FlipFixedPointsPeriodic(pts, M, 1e-9);
+    EXPECT_EQ(int(fixed[0]), 0); EXPECT_EQ(int(fixed[1]), 0);
+    EXPECT_EQ(int(fixed[2]), 1); EXPECT_EQ(int(fixed[3]), 1);
+
+    // The EXACT staggered pattern is a fixed point of the signed projector...
+    std::vector<double> m = {+0.7, -0.7, 0.0, 0.0};
+    SymmetrizeValuesSigned(f, sigmas, m);
+    EXPECT_NEAR(m[0], +0.7, 1e-12); EXPECT_NEAR(m[1], -0.7, 1e-12);
+    EXPECT_NEAR(m[2],  0.0, 1e-12); EXPECT_NEAR(m[3],  0.0, 1e-12);
+
+    // ...a PERTURBED pattern projects back onto the mirror (audit-flagged points zeroed first)...
+    std::vector<double> p = {+0.70, -0.65, +0.01, -0.02};
+    for (size_t i=0;i<p.size();++i) if (fixed[i]) p[i]=0.0;
+    SymmetrizeValuesSigned(f, sigmas, p);
+    EXPECT_NEAR(p[0], +0.675, 1e-12); EXPECT_NEAR(p[1], -0.675, 1e-12);
+    EXPECT_NEAR(p[2],  0.0,   1e-12); EXPECT_NEAR(p[3],  0.0,   1e-12);
+
+    // ...and the PLAIN (grey) average over the same fold ERASES the staggering -- the unit-level
+    // form of "the grey group would average the AFM away", the reason ShubnikovOps exists.
+    std::vector<double> g = {+0.70, -0.65, 0.0, 0.0};
+    SymmetrizeValues(f, g);
+    EXPECT_NEAR(g[0], 0.025, 1e-12); EXPECT_NEAR(g[1], 0.025, 1e-12);
+}

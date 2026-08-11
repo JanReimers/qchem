@@ -99,6 +99,37 @@ template <class F> inline ΔG_Map EvaluateSymmetricGMap(const std::vector<ivec3_
     return out;
 }
 
+//! \brief The MAGNETIC (Shubnikov) star-average of a G-space field of DEFINITE spin parity -- S2 of
+//! doc/SymmetryUpgradePlan.md §7 step 7.  The channel pair diagonalizes the spin action \f$\sigma\f$:
+//! the TOTAL \f$\tilde\rho_\uparrow+\tilde\rho_\downarrow\f$ is EVEN under \c Flip and averages with
+//! weight \f$+1\f$ under every op; the MAGNETIZATION \f$\tilde m=\tilde\rho_\uparrow-\tilde\rho_\downarrow\f$
+//! is ODD and picks up the character \f$\chi(op)=-1\f$ on \f$\sigma=\f$\c Flip ops.  Same scatter form
+//! and glide phase as \c SymmetrizeGMap; \a ops carry the G-index scatter matrix \f$U=W^\top\f$ in the
+//! \c W slot (from \c ReciprocalOf over a \c ShubnikovOps set), \f$\tau\f$, and \f$\sigma\f$.  Unlike
+//! the single-edge raster orbit mean, this scatter accumulates ALL ops, so it IS the exact projector --
+//! components a \c Flip-stabilized index forbids average to zero by themselves, no separate audit.
+//! The recombination \f$\tilde\rho_\sigma=\tfrac12(\tilde\rho_{tot}\pm\tilde m)\f$ is the caller's
+//! two lines (the S3 wiring).
+inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Symmetry::Lattice_3D::SymOp>& ops,
+                             bool oddUnderFlip)
+{
+    if (ops.empty()) return rg;                       // {E}: exact no-op
+    ΔG_Map out;
+    const double w = 1.0/double(ops.size());
+    for (const auto& [m, val] : rg)
+    {
+        for (const auto& op : ops)
+        {
+            rvec3_t um = op.W * rvec3_t(double(m.x), double(m.y), double(m.z));   // W slot = the scatter U
+            ivec3_t Um((int)std::lround(um.x), (int)std::lround(um.y), (int)std::lround(um.z));
+            const double phase = 2.0*Pi*(m.x*op.tau.x + m.y*op.tau.y + m.z*op.tau.z);
+            const double chi   = (oddUnderFlip && op.sigma==Symmetry::SpinAction::Flip) ? -1.0 : 1.0;
+            out[Um] += (w*chi) * std::polar(1.0, phase) * val;
+        }
+    }
+    return out;
+}
+
 //! \brief Per-op ORDER-PARAMETER diagnostic for FREE (un-imposed) runs (doc/SymmetryUpgradePlan.md §3):
 //! how well the G-space density carries each candidate op.  Invariance under \f$\{U|\tau\}\f$ means
 //! \f$\tilde\rho(Um)=e^{+2\pi i\,m\cdot\tau}\tilde\rho(m)\f$ (the \c SymmetrizeGMap projector fixes
@@ -132,6 +163,48 @@ inline std::vector<double> SymmetryDefects(const ΔG_Map& rg,
             dcmplx rot = (it == rg.end()) ? dcmplx(0.0) : it->second;
             const double phase = 2.0*Pi*(m.x*op.tau.x + m.y*op.tau.y + m.z*op.tau.z);
             d2 += std::norm(rot - std::polar(1.0, phase)*val);
+        }
+        defects.push_back(norm2 > 0.0 ? sqrt(d2/norm2) : 0.0);
+    }
+    return defects;
+}
+
+//! \brief The MAGNETIC per-op diagnostic for a CHANNEL PAIR -- the S4 instrument (plan §7 step 7):
+//! how well \f$(\tilde\rho_\uparrow,\tilde\rho_\downarrow)\f$ carries each Shubnikov op.  Invariance
+//! under \f$\{U|\tau,\sigma\}\f$ means \f$\tilde\rho_c[Um]=e^{+2\pi i\,m\cdot\tau}\,
+//! \tilde\rho_{\sigma(c)}[m]\f$ with \f$\sigma(c)\f$ = the channel the op maps INTO \f$c\f$ (itself
+//! for \c None, the other for \c Flip) -- so a \c Flip op compares ACROSS the channels: exactly the
+//! sublattice mirror \f$m_1=-m_2\f$ when the op is the anti-translation.  Defect normalised by the
+//! pair's total \f$m\ne0\f$ weight; the GREY diagnostic (\c SymmetryDefects) remains the per-channel
+//! spatial instrument -- this one answers "did the MAGNETIC order survive", op by op.
+inline std::vector<double> MagneticSymmetryDefects(const ΔG_Map& up, const ΔG_Map& dn,
+                                                   const std::vector<Symmetry::Lattice_3D::SymOp>& ops)
+{
+    double norm2 = 0.0;
+    for (const ΔG_Map* c : {&up, &dn})
+        for (const auto& [m, val] : *c)
+            if (m.x || m.y || m.z) norm2 += std::norm(val);
+
+    std::vector<double> defects;
+    defects.reserve(ops.size());
+    for (const auto& op : ops)
+    {
+        const bool flip = (op.sigma==Symmetry::SpinAction::Flip);
+        double d2 = 0.0;
+        for (const ΔG_Map* c : {&up, &dn})
+        {
+            const ΔG_Map& src = *c;                                  // the channel the op maps FROM
+            const ΔG_Map& dst = flip ? (c==&up ? dn : up) : src;     // ...INTO its sigma-image channel
+            for (const auto& [m, val] : src)
+            {
+                if (!(m.x || m.y || m.z)) continue;
+                rvec3_t um = op.W * rvec3_t(double(m.x), double(m.y), double(m.z));
+                ivec3_t Um((int)std::lround(um.x), (int)std::lround(um.y), (int)std::lround(um.z));
+                auto it = dst.find(Um);
+                dcmplx rot = (it == dst.end()) ? dcmplx(0.0) : it->second;
+                const double phase = 2.0*Pi*(m.x*op.tau.x + m.y*op.tau.y + m.z*op.tau.z);
+                d2 += std::norm(rot - std::polar(1.0, phase)*val);
+            }
         }
         defects.push_back(norm2 > 0.0 ? sqrt(d2/norm2) : 0.0);
     }

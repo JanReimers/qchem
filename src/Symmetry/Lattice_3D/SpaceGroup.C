@@ -76,6 +76,11 @@ struct DirectOp
 //! action on real-space points without re-deriving the transpose relation.
 inline DirectOp DirectOf(const ReciprocalOp& op) {return {Transpose(op.U), op.tau};}
 
+//! \brief The reciprocal (G-index SCATTER) face of a DIRECT-frame \f$\{W|\tau,\sigma\}\f$ \c SymOp:
+//! \f$U=W^\top\f$, same \f$\tau\f$, same \f$\sigma\f$ -- the S2 currency converter for handing a
+//! Shubnikov group (built in the direct frame by \c ShubnikovOps) to the G-space star-average.
+inline SymOp ReciprocalOf(const SymOp& op) {return {Transpose(op.W), op.tau, op.sigma};}
+
 //! \brief RUN-LEVEL symmetry-imposition policy (doc/SymmetryUpgradePlan.md §3).  Every symmetry
 //! reduction -- the k-fold, the {G}/{r} folds, the stream reduction, the density star-average --
 //! IMPOSES the group it folds under: exact iff the density actually HAS that group, silently wrong
