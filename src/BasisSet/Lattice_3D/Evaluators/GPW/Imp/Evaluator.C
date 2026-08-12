@@ -1058,7 +1058,39 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const Pseudopotenti
 // is Hermitian by construction.
 chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
 {
+    // The lumped matrix == the exact sum of the per-channel decomposition (ONE assembly, two faces).
+    chmat_t H=blazem::zeroH<dcmplx>(itsN);
+    for (const auto& lH : MakeSeparablePPByL(cl,sep)) H+=lH.second;
+    return H;
+}
+
+std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
+{
     qchem::report::Timed timed("setup: separable PP (KB)");
+    const size_t n=itsN;
+    std::map<int,mat_t<dcmplx>> Vl;                  // one raw accumulator per projector channel l
+    auto Vof=[&Vl,n](int l)->mat_t<dcmplx>&
+    {
+        auto it=Vl.find(l);
+        if (it==Vl.end()) it=Vl.emplace(l,mat_t<dcmplx>(n,n,dcmplx(0.0))).first;
+        return it->second;
+    };
+    auto pack=[n](std::map<int,mat_t<dcmplx>>& vl)   // project each channel to Hermitian (upper; real diag)
+    {
+        std::map<int,chmat_t> out;
+        for (auto& lV : vl)
+        {
+            const mat_t<dcmplx>& V=lV.second;
+            chmat_t H=blazem::zeroH<dcmplx>(n);
+            for (size_t i=0;i<n;i++)
+            {
+                H(i,i)=dcmplx(std::real(V(i,i)),0.0);
+                for (size_t j=i+1;j<n;j++) H(i,j)=V(i,j);
+            }
+            out.emplace(lV.first,std::move(H));
+        }
+        return out;
+    };
     // ANALYTIC path (2026-07-15): a GTH/HGH projector is polynomial x Gaussian, so when the model exposes its
     // closed Gaussian form (SeparablePotential_Gaussian) the Bloch projection is an ANALYTIC lattice-summed
     // overlap -- b_i = Sum_R e^{-ik.R} <chi_i | beta Y_lm at tau_a - R> maps onto the molecular seam's
@@ -1071,14 +1103,12 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
     // closed-Gaussian face keep the mesh quadrature below.
     if (const auto* gsep=dynamic_cast<const Pseudopotential::SeparablePotential_Gaussian*>(&sep))
     {
-        const size_t n=itsN;
         // b_i = <chi_i^k | beta at tau> = Sum_n phase(n) <chi_i | g(.-tau-R_n)> -- the seam enumerates the
         // series internally per (chi_i, g).  (The historical (-Rs, conj-phase) form was an artifact of the
         // pre-built inversion-symmetric list: substituting m=-n gives conj(phase(-m))=phase(m), i.e. the
         // PLAIN phase oracle with g imaged at +R_m.  Gate: AnalyticSeparablePPMatchesMesh == mesh.)
         // Home-only mode: the single finite term <chi_i|g> (the raw home orbital -- the box configuration).
         auto phase=CellPhase();
-        mat_t<dcmplx> V(n,n,dcmplx(0.0));
         for (size_t a=0; a<cl->GetNumAtoms(); a++)
         {
             const Atom* at=(*cl)[a];
@@ -1102,24 +1132,19 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
                         cvec_t bt = itsHomeOnly ? itsLat->MakeOverlap(g) : itsLat->MakeOverlap(phase, itsCell, g);
                         for (size_t i=0;i<n;i++) b[i]+=bt[i];
                     }
+                    mat_t<dcmplx>& V=Vof(l);
                     for (size_t i=0;i<n;i++)
                         for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*std::conj(b[j]);
                 }
             }
         }
-        chmat_t H=blazem::zeroH<dcmplx>(n);
-        for (size_t i=0;i<n;i++)
-        {
-            H(i,i)=dcmplx(std::real(V(i,i)),0.0);
-            for (size_t j=i+1;j<n;j++) H(i,j)=V(i,j);
-        }
-        return H;
+        return pack(Vl);
     }
 
     qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams());
     const rvec3vec_t& R=mesh.Points();
     const rvec_t&     W=mesh.Weights();
-    size_t n=itsN, npts=mesh.size();
+    size_t npts=mesh.size();
 
     // The KB projector beta_p is COMPACTLY supported (localized at each atom), so at a large image reach most
     // images place the projector centre far outside the cell (contributing exp(-large)~0), and even a near
@@ -1135,7 +1160,6 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
     std::vector<char> havePhi(npts,0);
     auto PhiAt=[&](size_t k){ if (!havePhi[k]) { cvec_t v=Eval(R[k]); for (size_t i=0;i<n;i++) Phi(k,i)=v[i]; havePhi[k]=1; } };
 
-    mat_t<dcmplx> V(n,n,dcmplx(0.0));
     for (size_t a=0; a<cl->GetNumAtoms(); a++)
     {
         const Atom* at=(*cl)[a];
@@ -1168,18 +1192,13 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
                         for (size_t i=0;i<n;i++) b[i]+=ph*std::conj(Phi(k,i))*bw;
                     }
                 }
+                mat_t<dcmplx>& V=Vof(l);
                 for (size_t i=0;i<n;i++)
                     for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*std::conj(b[j]);
             }
         }
     }
-    chmat_t H=blazem::zeroH<dcmplx>(n);            // project to Hermitian (upper triangle; diagonal real)
-    for (size_t i=0;i<n;i++)
-    {
-        H(i,i)=dcmplx(std::real(V(i,i)),0.0);
-        for (size_t j=i+1;j<n;j++) H(i,j)=V(i,j);
-    }
-    return H;
+    return pack(Vl);
 }
 
 // Cache key: the molecular basis's geometry-aware ID pins the radials + centres (atom positions); the CELL

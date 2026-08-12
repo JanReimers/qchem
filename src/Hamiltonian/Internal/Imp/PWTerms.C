@@ -99,6 +99,13 @@ chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
     assert(pw && "Ven_PP_NonLocal requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
+    if (std::getenv("GPW_NL_PER_L"))
+    {   // I0 diagnostic (doc/SphericalLatticePlan.md): bank the per-l blocks once per irrep block.
+        const std::string id=bs->BasisSetID();
+        if (itsByLSeen.insert(id).second)
+            for (auto& lH : pw->MakeSeparablePotentialByL(&*theStructure, *itsSep))
+                itsByL[lH.first].emplace(id, std::move(lH.second));
+    }
     return pw->MakeSeparablePotential(&*theStructure, *itsSep);
 }
 
@@ -108,6 +115,18 @@ void Ven_PP_NonLocal::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     const double eNL = cd->DM_Contract(this);            // Tr(D V_NL)
     te.Een   += eNL;
     te.EenNL += eNL;                                     // the diagnostic V_loc/V_NL split (Een keeps the total)
+    if (!itsByL.empty())
+    {   // GPW_NL_PER_L: the per-channel decomposition of eNL (l=-1 = a basis that answered lumped).
+        std::cout << "[NL per-l]";
+        double sum=0;
+        for (const auto& lB : itsByL)
+        {
+            const double el=cd->DM_ContractBlocks(lB.second);
+            sum+=el;
+            std::cout << "  l=" << lB.first << ": " << el;
+        }
+        std::cout << "  (sum=" << sum << "  Tr(D V_NL)=" << eNL << ")" << std::endl;
+    }
 }
 
 std::ostream& Ven_PP_NonLocal::Write(std::ostream& os) const

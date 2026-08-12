@@ -21,6 +21,7 @@ module;
 #include <cstddef>
 #include <functional>
 #include <iosfwd>    // std::ostream (ReportGrids -- the grid diagnostic print)
+#include <map>       // std::map<int,chmat_t> (MakeSeparablePPByL, the per-l KB diagnostic)
 #include <memory>
 #include <string>
 #include <vector>
@@ -169,7 +170,12 @@ public:
     chmat_t MakeLocalPPShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
     //! \brief KB separable nonlocal matrix \f$\sum_{a,p,m}D_p|b\rangle\langle b|\f$ with the projection vector
     //! \f$b_i=\langle\chi_i|\beta_p(|r-R_a|)Y_{lm}\rangle\f$ (mesh quadrature).  Real symmetric at \f$\Gamma\f$.
+    //! == the sum over \c MakeSeparablePPByL's channels.
     chmat_t MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;
+    //! \brief The per-angular-channel decomposition of \c MakeSeparablePP: one matrix per projector l,
+    //! summing exactly to the full \f$V_{NL}\f$ (the l loop is the SAME assembly, accumulated per channel).
+    //! Diagnostic face for \f$E_{NL}^{(l)}\f$ (doc/SphericalLatticePlan.md I0).
+    std::map<int,chmat_t> MakeSeparablePPByL(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;
 
     //! \brief The density/collocation grid engine — ONE object carrying TWO layers (don't let the member
     //! name mislead): it IS-A \c PW_Evaluator = the Ecut BALL \f$\{G:\tfrac12|G|^2<E_{cut}\}\f$ (its

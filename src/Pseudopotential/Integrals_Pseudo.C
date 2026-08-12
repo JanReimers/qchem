@@ -12,6 +12,7 @@
 // be a DIFFERENT integral type, not this KB-separable one).  A term reaches the PW capability the sanctioned
 // way: holding the abstract orbital basis and dynamic_cast-ing ACROSS to this capability (both abstract).
 module;
+#include <map>
 export module qchem.Pseudopotential.Integrals_Pseudo;
 export import qchem.Pseudopotential.LocalPotential;
 export import qchem.Pseudopotential.SeparablePotential;
@@ -52,6 +53,19 @@ public:
     //! from the projector model \a nl: \f$\frac1\Omega\sum_a e^{-i\Delta G\cdot\tau_a}\sum_p\tilde\beta_p(|k+G|)
     //! D_p\tilde\beta_p(|k+G'|)\f$ (with the \f$(2l+1)P_l\f$ angular weight per channel).  Hermitian.
     virtual hmat_t<T> MakeSeparablePotential(const Structure*, const SeparablePotential& nl) const=0;
+
+    //! \brief The PER-ANGULAR-CHANNEL decomposition of \c MakeSeparablePotential: one matrix per projector
+    //! l, summing exactly to the full \f$V_{NL}\f$.  DIAGNOSTIC (doc/SphericalLatticePlan.md I0): the MnO
+    //! ordering campaign needs \f$E_{NL}^{(l)}=\mathrm{Tr}(D\,V_{NL}^{(l)})\f$ to separate the attractive
+    //! d channel from the repulsive s/p channels.  Default: the whole matrix lumped under l = −1, so a
+    //! basis that has not implemented the split still answers correctly (callers must treat −1 as
+    //! "unresolved", never as an angular momentum).
+    virtual std::map<int,hmat_t<T>> MakeSeparablePotentialByL(const Structure* st, const SeparablePotential& nl) const
+    {
+        std::map<int,hmat_t<T>> byL;
+        byL.emplace(-1, MakeSeparablePotential(st, nl));
+        return byL;
+    }
 };
 
 }//namespace

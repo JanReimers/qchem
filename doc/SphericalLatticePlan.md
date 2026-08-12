@@ -57,6 +57,32 @@ kernels are primitive-Cartesian-pair machinery either way.
 adapted set rides on either.  The Shubnikov ops of SymmetryUpgradePlan S1–S3 supply the magnetic
 reps when that day comes.
 
+## The second axis (USER 2026-08-12): the integral ENGINE is its own dispatch layer
+
+The basis families must also be ENGINE-BLIND: `PG_Cart` and `PG_Spherical` may not know whether
+qchem-MnD or libCint computes their primitives — a second layer of virtual dispatch beneath the
+family (the bridge shape):
+
+    capability faces (LatticeSum1E, Integrals_*)      ← what GPW/Hamiltonian consume
+      basis FAMILY:  PG_Cart   | PG_Spherical         ← angular delivery, engine-blind
+        engine:      qchem-MnD | libCint              ← primitive integrals, family-agnostic
+
+Today the two axes are FUSED in the evaluator names (`PG_Cart_MnD`, `PG_Spherical_MnD`,
+`PG_LibCint` is simultaneously a family and an engine).  Consequences of the split:
+
+- The hoisted lattice kernels (pair enumeration, magnitude screen, ε-summation, stream assembly)
+  are exactly the ENGINE-AGNOSTIC middle: the kernel enumerates images and asks the engine for
+  FINITE per-offset primitives ⟨χᵢ|·|χⱼ(·−R)⟩.  **libCint then gains periodic support for free**
+  — it never learns about lattices (THERE IS NO CUT stays kernel-side, engine-independent).
+- The spherical family asks its ENGINE for spherical shell blocks: the MnD engine's default is the
+  C_l congruence over its Cartesian primitives; libCint OVERRIDES with its native `sph` API — the
+  parked SphericalSALCPlan S3b lands here as an engine method, not a family fork.
+- The m-ordering/normalisation conventions (the known real cost) become an ENGINE-boundary
+  contract: each engine must deliver blocks in the family's declared ordering.
+- **Granularity contract (user): the engine interface trades in BLOCKS of integrals** — shell-pair
+  blocks, whole matrices, stream batches — never per-primitive or per-point calls, so the virtual
+  dispatch cost stays unmeasurable.
+
 ## Watch-outs (from the molecular SALC campaign)
 
 - **m-ordering + normalisation conventions are THE cost** (SphericalSALCPlan S3 lesson): T must be
@@ -81,11 +107,14 @@ control it instead of by Cartesian accident.
 - **I0 (cheap, evidence):** per-l/per-species split of E_NL (extend the EenNL diagnostic) —
   verify the sign structure: the AFM-side −1.3 Ha must flow through l=2 (s/p slices small and
   REPULSIVE, per the Mn q7 h matrices: s diag +2.8/+2.5/+2.6, p +1.4/+0.3, d −7.995).
-- **I1 (the unblock):** `TransformedLatticeSum1E` + the spherical-view wiring in `GPWFactory`
-  (opt-in: `GPWParams::spherical` / test knob `MNO_SPHERICAL=1`); gates: spherical S/T/V ==
-  congruence-transformed Cartesian (exact, unit tier); spherical Si Γ total == Cartesian Si Γ
-  total to SCF tolerance (s/p-only basis ⇒ T=identity — the null test); Mn d⁵ pseudo-atom in-box
-  spherical vs sextet ATOM oracle.
+- **I1 (the unblock):** `PG_Spherical` implements `LatticeSum1E` as a PEER (virtual dispatch; no
+  decorator), composing the hoisted engine-agnostic lattice kernels; spherical selected by
+  CONSTRUCTING the spherical basis (`MakeBasisLowQ` choice / test knob `MNO_SPHERICAL=1`).  The
+  family/engine split (second axis, below) is staged WITH it: hoist kernels first, then the
+  spherical family over the MnD engine.  Gates: spherical S/T/V == congruence-transformed
+  Cartesian (exact, unit tier); spherical Si Γ total == Cartesian Si Γ total to SCF tolerance
+  (s/p-only basis ⇒ T=identity — the null test); Mn d⁵ pseudo-atom in-box spherical vs the sextet
+  ATOM oracle.
 - **I2 (the physics):** MnO Γ A/B — Cartesian vs spherical, FM + AFM, imposed Shubnikov,
   {Ladder,GDM}×{5e-3,0}.  THE span-vs-bug verdict.  Then vs the banked CP2K oracles
   (doc/CP2Kresults.md): same span, same functional, same deck — residuals are now honest
