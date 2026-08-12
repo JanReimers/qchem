@@ -240,6 +240,19 @@ public:
     { assert(false && "AccumulateExchangeAll: only a composite/polarized density spans all irrep blocks"); }
     virtual void AccumulateExchangeBoth(hmat_t<T>& Ki, hmat_t<T>& Kj, const tDM_CD<T>& other) const
     { assert(false && "AccumulateExchangeBoth: only a leaf (irrep) density is a bra-ket pair partner"); }
+
+    //! \brief The WHOLE-SYSTEM Fock route for THIS block's basis, or null if it has none (V1.31).
+    //!
+    //! A capability PROBE in the \c isPeriodicCell sense (R2.4): the caller branches on presence, ONCE, at
+    //! the top of the sweep.  Non-null means the basis builds one Fock from the total AO density and slices
+    //! it per irrep, so the canonical-PAIR loop above is the wrong shape for it -- a SALC basis has no
+    //! per-irrep-pair ERI4 blocks at all (R1.7), and driving the pair loop made it rebuild the same
+    //! whole-AO Fock ~N times.  Null (every ERI4 basis) means the pair loop applies, unchanged.
+    virtual const BasisSet::WholeSystemFock_IBS<T>* WholeSystemFock() const {return nullptr;}
+    //! Fold THIS block's density into the whole-system (AO) total.  Only meaningful on a leaf whose basis
+    //! answered \c WholeSystemFock(); the composite calls it once per leaf before the single build.
+    virtual void AddAODensity(hmat_t<T>& Dao) const
+    { assert(false && "AddAODensity: only a leaf (irrep) density carries a block density matrix"); }
 };
 
 using rChargeDensity = tChargeDensity<double>;  using cChargeDensity = tChargeDensity<dcmplx>;

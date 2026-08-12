@@ -1,3 +1,16 @@
+# Line endings are NORMALIZED, so no editor or script can reintroduce the CRLF/LF mix.
+# `text=auto` stores LF in the index no matter what bytes are on disk, so a tool that
+# rewrites a file with the "wrong" endings produces NO diff instead of a whole-file one.
+* text=auto
+
+# Binary types marked explicitly rather than left to git's NUL-byte heuristic.
+*.pdf  binary
+*.ods  binary
+*.xlsx binary
+*.gz   binary
+*.png  binary
+*.jpg  binary
+
 *.C linguist-language=C++
 *.H linguist-language=C++
 *.hpp linguist-language=C++

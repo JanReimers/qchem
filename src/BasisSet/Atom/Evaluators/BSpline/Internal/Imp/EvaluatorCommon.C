@@ -1,5 +1,6 @@
 // File: BasisSet/Atom/Evaluators/BSpline/Internal/Imp/EvaluatorCommon.C
 module;
+#include <sstream>   // R1.9: free operator<<(ostream&,const char*) is NOT visible via a module import
 #include <vector>
 #include <bspline/Core.h>
 #include <cassert>

@@ -15,7 +15,6 @@ SymmetryAdaptedBasisSet::SymmetryAdaptedBasisSet(const ::qchem::BasisSet::Orbita
                                                  const Symmetry::Molecule::SALCs& salc)
 {
     size_t nAO = salc.O.rows();
-    auto cache = std::make_shared<::qchem::BasisSet::SymFockCache>();  // shared by all irreps (N^2 -> N)
     for (size_t r=0; r+1<salc.blockStart.size(); ++r)        // one non-empty irrep block -> one IBS
     {
         size_t start = salc.blockStart[r], dG = salc.blockStart[r+1]-start;
@@ -23,7 +22,7 @@ SymmetryAdaptedBasisSet::SymmetryAdaptedBasisSet(const ::qchem::BasisSet::Orbita
         rmat_t            Or    = blazem::submatrix(salc.O, 0, start, nAO, dG);
         const std::string label = salc.irrep[start];         // all columns of the block share it
         sym_t             sym(new Symmetry::Molecule::Irrep(label, r));
-        this->Insert(new ::qchem::BasisSet::SymmetryAdapted_IBS(raw, Or, label, sym, cache));
+        this->Insert(new ::qchem::BasisSet::SymmetryAdapted_IBS(raw, Or, label, sym));
     }
 }
 

@@ -1,5 +1,6 @@
 // File: Block.C  A block of basis functions with the same radial function.
 module;
+#include <ostream>   // R1.9: free operator<<(ostream&,const char*) is NOT visible via a module import
 #include <iomanip>
 #include <vector>
 module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;

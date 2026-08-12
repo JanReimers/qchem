@@ -1,5 +1,6 @@
 // File: BasisSet/Atom/Gaussian/RKB/Imp/Evaluator.C
 module;
+#include <ostream>   // R1.9: free operator<<(ostream&,const char*) is NOT visible via a module import
 #include <cassert>
 #include <string>
 module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 

@@ -16,10 +16,22 @@ worth more than the landed ones.
 
 # START HERE (handoff, 2026-08-10)
 
-## Just landed: **R2.18**+**R2.19** (`86c5b24d`), **R2.9** (`268473b9`), **R1.7** (`26af31b6`).
-Full records → doc/CleanupHistory.md.
+## Just landed: **V1.31** (`627a4ff9`), **V1.27**'s live half (`a1e1f9bb`), **R2.18**+**R2.19**
+(`86c5b24d`), **R2.9** (`268473b9`), **R1.7** (`26af31b6`).  Full records → doc/CleanupHistory.md.
+**Merged both ways with the MnO clone and pushed** (`2e587ee6` on origin/main); qchem6 is synced.
 
-Two things worth carrying forward, because they generalize past their own items:
+## Next task: pick from the open list below — nothing is half-done
+
+- **V1.27's remaining half 🔶 DESIGN RULED (user 2026-08-10), not started.**  *"I suspect we are
+  ultimately going to need all 4 combos of {Molecular,Solid}x{PP,Non-PP}SCFIterator.  This should be done
+  with mixins."*  That retires the "rename" framing: there is no NAME that fixes a MISSING DIMENSION.
+  See the item under READY/R2 for the column analysis that shapes the mixin split.
+- **`SCFParams::MinVirial = 1e-13`** — documented *"effectively off"* while the test is
+  `error < MinVirial`, so the default is maximally ON.  Comment or default is wrong.  Affects ALL-ELECTRON
+  runs (where the gate is real), so it is a decision about what the default gate SHOULD be, not a typo fix.
+- Then the R2/V backlog as before.
+
+Four things worth carrying forward, because they generalize past their own items:
 
 - **R1.7 — an ISP split can pay off on DIP grounds.**  Once `MakeDirect`/`MakeExchange` were off the
   client-facing face, a grep showed NOTHING outside qcBasisSet had ever named an `ERI4` — so the substrate
@@ -60,7 +72,19 @@ whether the pattern is "fitters need raw integrals", "tests need to bypass the c
 accidents.  The rule generalises past `Make`: **any deliberate loosening of encapsulation should carry its
 reason, because the decision to tighten it again later can only be made from those reasons.**
 
-## ⛔ V1.31 is BLOCKED — and the diagram changed the answer (2026-08-10)
+- **V1.27 — name a capability query for what the CLIENT consumes, not for the CAUSE.**  `IsVirialValid()`,
+  not `IsPseudopotential()`: PPs are not the only thing that breaks the virial theorem, so the cause-named
+  version would have been correct today and wrong at the first non-Coulombic term that is not a PP.  Third
+  instance of the same lesson (R2.13 "Becke", R2.17 "SiteAdaptedBecke", R1.7's ERI4 face).
+- **V1.31 — when a cache needs an awkward key, suspect the LOOP, not the key.**  `SymFockCache` needed an
+  elementwise density compare because of WHERE it sat; the position was forced by a pair loop that should
+  not have been running for that basis at all.  Removing the loop deleted the cache, its staleness test and
+  its incomplete key together.  **A cache that is hard to invalidate is often a cache that should not
+  exist.**
+
+## ✅ V1.31 DONE `627a4ff9` — full record → doc/CleanupHistory.md.  (analysis kept below)
+
+## The analysis that produced it — and the diagram that changed the answer (2026-08-10)
 
 The user asked for a flow diagram of one Fock build, on the hunch that *"this whole thing is just designed
 wrong.  We are somehow caching the wrong thing in the wrong place."*  **The hunch was right, and the chain
@@ -324,7 +348,18 @@ MnO campaign proceeds undisturbed in qchem6.
   split into `Orbital_HF_IBS` (contraction) + `Internal.Orbital_ERI4_IBS` (substrate); the substrate is now
   invisible outside qcBasisSet.  **→ doc/CleanupHistory.md**
 - **R1.8 ✅ DONE `06e23f5d`. `FittedVee` casts `bs` and dereferences with NO assert** (Imp/FittedVee.C:41-42) — the.  **→ doc/CleanupHistory.md**
-- **R1.9 Molecular `BasisSetID()` streams its SEPARATORS as hex addresses — FOUND 2026-08-10 while
+- **R1.9 ✅ DONE `3882938e`. Molecular `BasisSetID()` streamed its SEPARATORS as hex addresses.**
+  One `#include <sstream>` in `PGData.C`, plus the SURVEY the item asked for: eight more module TUs
+  streamed literals without `<ostream>`/`<sstream>` and now include it explicitly — **including the two
+  that were getting it transitively via `<iomanip>`, because relying on a transitive include is the same
+  implicit-visibility bet that caused the bug.**  Verified by the route that found it (the ID now reads
+  `" PG { Primative 1@(0,0,0.117):S ..."`).  692/692 green; the key STRING changes, which is safe (the
+  cache is per-process, the dim guards would catch an under-specific key, and the canonical-pair ordering
+  only needs to be consistent within a run).
+  **The transferable bit:** `<string>` is NOT enough to make `operator<<(ostream&, const char*)` visible
+  with this toolchain — a module TU that streams must include `<ostream>`/`<sstream>` ITSELF.  *(original
+  text follows)*
+  **Molecular `BasisSetID()` streams its SEPARATORS as hex addresses — FOUND 2026-08-10 while
   writing R1.7's diagnostic.**  `PGData::BasisSetID()` (Molecule/Evaluators/PG_Cart_MnD/Imp/PGData.C:31-40)
   reads `os << " PG { " << *radial << "@" << centre << ":" << pol << " " ... << "}"`.  The OBJECTS print
   fine; every STRING LITERAL comes out as `0x7784d915b66e`-style hex.  Observed verbatim in an exception
@@ -1293,6 +1328,31 @@ MnO campaign proceeds undisturbed in qchem6.
   - **The code already states the PP reason, in `SolidSCFIterator`'s own doc:** the virial is DROPPED because
     "GTH local + KB projectors break the Coulombic-homogeneity assumption behind 2+V/K".  That is a property
     of the POTENTIAL, not of the lattice — a molecular PP run breaks it identically.
+  - **✅ USER RULING 2026-08-10 — the remaining half is a DECOMPOSITION, not a rename.**
+    *"I suspect we are ultimately going to need all 4 combos of {Molecular,Solid}x{PP,Non-PP}SCFIterator.
+    This should be done with mixins."*
+    - **Why a rename could never have worked** (this was the confusion in the earlier framing): the two
+      classes are not two variants of one thing.  `MolecularSCFIterator` is `tSCFIterator<double>` and
+      `SolidSCFIterator` is `tSCFIterator<dcmplx>` — so the Molecular/Solid axis IS the matrix-element-type
+      axis, and PP-ness is a SECOND, independent axis that has no representation at all.  `MolecularSCFIterator`
+      is moreover an EMPTY subclass whose only job is to name the molecular path.
+    - **The two mixin axes are NOT symmetric — measured, not assumed.**  Of the four ways
+      `SolidSCFIterator`'s display differs from the base, only ONE is about pseudopotentials:
+      | difference | driven by |
+      |---|---|
+      | no virial column/gate | **PP-ness** |
+      | `ΔE/E` gates instead of `Δ[F,D]` | grid/collocation (non-variational SCF) |
+      | `ρ_lost/N` (grid-charge leak) | grid/collocation |
+      | gap is a PERMANENT column | periodic (near-gapless flapping is a solid pathology) |
+      So the axes are **PP-ness** (virial) and **grid/periodic-ness** (the other three) — genuinely
+      orthogonal, which is exactly the case mixins are for, and exactly why one inheritance chain could not
+      express it.
+    - **Note the PP axis is ALREADY runtime-adaptive** via `IsVirialValid()` (the landed half), so the
+      mixins are mostly needed for the grid/periodic columns.  A molecular PP run today gets the right
+      VIRIAL behaviour with no new class; what it cannot get is a column set that is neither the
+      molecular nor the solid one.
+    - **The 4th combo is not hypothetical:** an all-electron PERIODIC run (the parked APW/LAPW tests) is
+      Solid × Non-PP, and would want the virial back WITHOUT the collocation columns.
   - **⚠️⚠️ BIGGER THAN THE ITEM SAYS — INVESTIGATED 2026-08-10, NEEDS A USER RULING BEFORE EXECUTION.
     The virial is not only a DISPLAY column; it is a CONVERGENCE GATE.**
     - `Imp/SCFIterator.C:336`: `itsConverged = ... && fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial;`
@@ -1534,9 +1594,11 @@ MnO campaign proceeds undisturbed in qchem6.
   - `SolidCalcOptions` deliberately defaults it to `false` (the comment's stated intent) and says so at the
     field, so the two facades diverge ON PURPOSE rather than by drift.  Decide which is right and align them.
 
-- **V1.31 🔶 DESIGN SETTLED (user ruling 2026-08-10), not yet implemented.  `SymFockCache` and
-  `Dynamic_HF_HT_Imp::itsJKs` memoize the same thing in two libraries, with two different staleness
-  rules.**  Noticed while doing R1.7.
+- **V1.31 ✅ DONE `627a4ff9`. `SymFockCache` deleted; the SALC path builds ONE whole-AO Fock and slices it.**
+  The memo was caching a partial AO Fock at the basis level inside a loop that should not have been
+  iterating; the fix removed the loop, not the staleness test.  **→ doc/CleanupHistory.md**
+  *(the full analysis, including the retracted first draft and the refuted ruling, follows -- it is the
+  part worth reading)*
   **This item was FILED WRONG on 2026-08-10 and corrected the same day by the user — the correction is
   the more useful half, so it is kept.**
   - **What the first draft claimed:** "caching has escaped `DB_Cache_RAM` — three caches, three

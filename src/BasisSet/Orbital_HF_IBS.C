@@ -53,6 +53,39 @@ public:
                                         const Orbital_HF_IBS<T>* cd) const=0;
 };
 
+//--------------------------------------------------------------------------------
+//
+//! \brief CAPABILITY FACE (cross-cast; absence means "not me") for a basis whose Fock is built ONCE from
+//! the WHOLE-SYSTEM density and then SLICED per irrep -- instead of contracted per irrep PAIR.
+//!
+//! The pair loop in \c tComposite_CD::Accumulate*All exists for bases with real per-irrep-pair ERI4 blocks.
+//! A SALC decorator has none (R1.7): every one of its \c AccumulateDirect calls rebuilds the SAME
+//! whole-molecule AO Fock from one block's density and slices it, so the loop costs ~N whole-AO builds where
+//! ONE would do -- \f$J\f$ is LINEAR in \f$D\f$, hence
+//! \f$\sum_\Gamma J_{AO}(O_\Gamma D_\Gamma O_\Gamma^\mathsf{T}) =
+//!    J_{AO}(\sum_\Gamma O_\Gamma D_\Gamma O_\Gamma^\mathsf{T})\f$.
+//!
+//! V1.31: the previous fix for that was \c SymFockCache, a memo hung off the basis that kept a copy of every
+//! block's density and compared it ELEMENTWISE to decide freshness.  It was caching a PARTIAL AO Fock, at the
+//! BASIS level, inside a loop that should not have been iterating -- and the elementwise compare was forced
+//! by that position (down there the only thing in hand is a matrix, so no density Version() is reachable).
+//! With the whole-system route the memo has nothing to memoize and is gone, along with its incomplete key.
+//!
+//! Three primitives, no stubs and no default bodies: a basis either has this face or does not have it.
+template <class T> class WholeSystemFock_IBS
+{
+public:
+    virtual ~WholeSystemFock_IBS() = default;
+    //! Dimension of the underlying whole-system (AO) space -- the size of the matrices below.
+    virtual size_t    AODimension() const=0;
+    //! \f$D_{AO} \mathrel{+}= O\,D\,O^\mathsf{T}\f$: fold THIS block's density into the AO total.
+    virtual void      AddAODensity(hmat_t<T>& Dao, const hmat_t<T>& D) const=0;
+    //! The ONE whole-system build from the assembled AO density (\a exchange selects K over J).
+    virtual hmat_t<T> MakeAOFock(const hmat_t<T>& Dao, bool exchange) const=0;
+    //! \f$F_{ab} \mathrel{+}= O^\mathsf{T} F_{AO} O\f$: slice the whole-system Fock into THIS block.
+    virtual void      SliceAOFock(hmat_t<T>& Fab, const hmat_t<T>& Fao) const=0;
+};
+
 typedef Orbital_HF_IBS<double>    Real_HF_OIBS;
 typedef Orbital_HF_IBS<dcmplx> Complex_HF_OIBS;
 

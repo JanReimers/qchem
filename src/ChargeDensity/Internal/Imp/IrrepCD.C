@@ -91,6 +91,21 @@ template <> void IrrepCD<double>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj,
     bs_i->AccumulateDirectBoth(Ji,Jj,itsDensityMatrix,oj->itsDensityMatrix,bs_j);
 }
 
+// --- V1.31 whole-system route ---------------------------------------------------------------------------
+// The basis answers whether it has one; this block only has to fold its own density up to the AO space.  The
+// SLICE back down needs no density, so the composite drives that through the basis face directly.
+template <> const BasisSet::WholeSystemFock_IBS<double>* IrrepCD<double>::WholeSystemFock() const
+{
+    return dynamic_cast<const BasisSet::WholeSystemFock_IBS<double>*>(itsBasisSet);
+}
+
+template <> void IrrepCD<double>::AddAODensity(rsmat_t& Dao) const
+{
+    const BasisSet::WholeSystemFock_IBS<double>* ws=WholeSystemFock();
+    assert(ws && "IrrepCD::AddAODensity: this block's basis has no whole-system Fock route");
+    if (!IsZero()) ws->AddAODensity(Dao,itsDensityMatrix);
+}
+
 // Exchange counterpart (see AccumulateDirectBoth): diagonal -> single AccumulateExchange, else the canonical
 // Exchange block is fetched once.
 template <> void IrrepCD<double>::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const tDM_CD<double>& other) const
@@ -333,6 +348,10 @@ template <> void IrrepCD<dcmplx>::AccumulateDirectBoth(hmat_t<dcmplx>&, hmat_t<d
 { assert(false && "AccumulateDirectBoth: HF not applicable to a complex plane-wave density"); }
 template <> void IrrepCD<dcmplx>::AccumulateExchangeBoth(hmat_t<dcmplx>&, hmat_t<dcmplx>&, const tDM_CD<dcmplx>&) const
 { assert(false && "AccumulateExchangeBoth: HF not applicable to a complex plane-wave density"); }
+template <> const BasisSet::WholeSystemFock_IBS<dcmplx>* IrrepCD<dcmplx>::WholeSystemFock() const
+{ return nullptr; }   // no SALC decorator on the periodic path: the pair route is the only one
+template <> void IrrepCD<dcmplx>::AddAODensity(hmat_t<dcmplx>&) const
+{ assert(false && "AddAODensity: HF not applicable to a complex plane-wave density"); }
 // NOT IMPLEMENTED (not "zero"): the complex GradientContraction the real path uses has no dcmplx sibling,
 // because nothing on the periodic path is a GGA or a gradient plotter.  Throwing keeps the FIRST such
 // consumer honest -- the silent rvec3_t(0,0,0) this replaced handed it a plausible wrong field (R1.4).

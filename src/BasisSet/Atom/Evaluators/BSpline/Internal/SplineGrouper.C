@@ -1,5 +1,6 @@
 // File: BasisSet/Atom/Evaluators/BSpline/Internal/SplineGrouper.C Group spline basis functions by unique rmin values.
 module;
+#include <ostream>   // R1.9: free operator<<(ostream&,const char*) is NOT visible via a module import
 #include <bspline/Core.h>
 #include <vector>
 #include <map>

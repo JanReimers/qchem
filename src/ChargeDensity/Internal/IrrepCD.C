@@ -37,6 +37,10 @@ public:
     //! other IS this (the diagonal self-pair) it collapses to the single-block contraction below.
     virtual void AccumulateDirectBoth  (hmat_t<T>& Ji, hmat_t<T>& Jj, const tDM_CD<T>& other) const;
     virtual void AccumulateExchangeBoth(hmat_t<T>& Ki, hmat_t<T>& Kj, const tDM_CD<T>& other) const;
+    //! V1.31 whole-system route: this block's basis answers the capability, and the block folds its own
+    //! density up to AO.  Real (double) path only -- the dcmplx specializations NA-assert with their siblings.
+    virtual const BasisSet::WholeSystemFock_IBS<T>* WholeSystemFock() const;
+    virtual void AddAODensity(hmat_t<T>& Dao) const;
     //! AO (auxiliary-basis) projection <rho|c> -- the finite (double) path's ProjectedDensity_AO face; the
     //! periodic (dcmplx) path has no AO face (not cross-cast there), so the dcmplx body is inert.
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N

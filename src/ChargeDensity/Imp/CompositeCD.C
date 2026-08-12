@@ -39,9 +39,35 @@ template <class T> void tComposite_CD<T>::Insert(tDM_CD<T>* cd)
 // the canonical J(k,l) scatters into BOTH Jall[k] and Jall[l], so J(l,k) is never fetched/built/cached) --
 // see IrrepCD::AccumulateDirectBoth.  Densities stay encapsulated in the IrrepCD leaves (the pair helper
 // reaches its partner by a same-class cast, as MixIn/GetChangeFrom already do).
+// V1.31: the WHOLE-SYSTEM route.  A basis with no per-irrep-pair ERI4 blocks (the SALC decorator -- R1.7)
+// builds one whole-AO Fock and slices it, so driving it with the canonical-PAIR loop below made it rebuild
+// the SAME matrix once per irrep.  J and K are LINEAR in D, so summing the blocks' AO densities FIRST and
+// building ONCE is not an approximation -- it is the identity sum(F(D_C)) == F(sum(D_C)) -- and it turns N
+// whole-AO builds into one.  Returns false when no leaf has the route (every ERI4 basis), leaving the pair
+// loop untouched.  The probe is answered by the BASIS, once, at the top of the sweep: nothing per-pair, and
+// nothing to memoize (this is what retired SymFockCache and its elementwise density compare).
+template <class T, class CDV> static bool WholeSystemAll(const CDV& cds,
+                                                         std::vector<hmat_t<T>>& Fall, bool exchange)
+{
+    if (cds.empty()) return false;
+    const BasisSet::WholeSystemFock_IBS<T>* ws0=cds.front()->WholeSystemFock();
+    if (!ws0) return false;
+    hmat_t<T> Dao=blazem::zeroH<T>(ws0->AODimension());
+    for (auto& c:cds)
+    {
+        assert(c->WholeSystemFock() && "mixed whole-system/pair bases in one composite density");
+        c->AddAODensity(Dao);
+    }
+    const hmat_t<T> Fao=ws0->MakeAOFock(Dao,exchange);      // the ONE build
+    for (size_t k=0;k<cds.size();++k)
+        cds[k]->WholeSystemFock()->SliceAOFock(Fall[k],Fao);
+    return true;
+}
+
 template <class T> void tComposite_CD<T>::AccumulateDirectAll(std::vector<hmat_t<T>>& Jall) const
 {
     assert(Jall.size()==itsCDs.size() && "Fock blocks must be 1:1 with the composite irrep densities");
+    if (WholeSystemAll<T>(itsCDs,Jall,false)) return;   // V1.31: one AO build + N slices, no pair loop
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
         for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
@@ -53,6 +79,7 @@ template <class T> void tComposite_CD<T>::AccumulateDirectAll(std::vector<hmat_t
 template <class T> void tComposite_CD<T>::AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const
 {
     assert(Kall.size()==itsCDs.size() && "Fock blocks must be 1:1 with the composite irrep densities");
+    if (WholeSystemAll<T>(itsCDs,Kall,true)) return;    // V1.31: exchange is linear in D too
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
         for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
