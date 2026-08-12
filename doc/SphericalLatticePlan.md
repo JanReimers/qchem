@@ -25,14 +25,21 @@ lattices too.  This plan unblocks both with ONE seam.
 `IntegratePotential` streams) — implemented ONLY by `PG_Cart` / `PG_Cart_MnD`.  `PG_Spherical` is
 molecular-only: no periodic capability, no collocation streams.  That is the whole blocker.
 
-## The design insight: one congruence seam serves spherical AND lattice SALC
+## The design: peer implementations behind the abstract capability (USER 2026-08-12)
 
-A spherical basis function is a FIXED linear combination of Cartesian components at the same
-exponent/centre: χ_sph = Σ T χ_cart, with T block-diagonal per shell (s,p identity; each
-Cartesian-d 6-block → 5 spherical columns; the C_l tables already exist in
-`src/BasisSet/Molecule/Evaluators/PG_Spherical_MnD/SolidHarmonics.C`).  And **every LatticeSum1E
-method speaks matrices/vectors over basis functions**, so a decorator that wraps the Cartesian
-capability and transforms at the interface is EXACT and closed:
+**`Molecule::LatticeSum1E` stays the abstract interface; `PG_Cart` and `PG_Spherical` are PEER
+implementations selected by virtual dispatch** — GPW cross-casts to the capability and never learns
+which family answered.  No decorator, no factory plumbing: you get spherical lattice physics by
+CONSTRUCTING a spherical basis (`MakeBasisLowQ` grows the choice), exactly the project's
+"capabilities on the types that have them" rule.
+
+The congruence identity is then the spherical implementation's PRIVATE strategy, not an
+architectural layer: a spherical basis function is a fixed linear combination of Cartesian
+components at the same exponent/centre (χ_sph = Σ T χ_cart; T block-diagonal per shell — s,p
+identity, each Cartesian-d 6-block → 5 columns; C_l tables already in
+`src/BasisSet/Molecule/Evaluators/PG_Spherical_MnD/SolidHarmonics.C`), so `PG_Spherical`'s
+implementor COMPOSES the Cartesian lattice-sum engine internally and transforms at its own
+boundary:
 
 - matrices (S, T, V, `MakeLocalGaussian`):  M_sph = T† M_cart T
 - vectors (⟨χ|g⟩ KB overlaps):              b_sph = T† b_cart      → KB assembles in spherical
@@ -40,14 +47,15 @@ capability and transforms at the interface is EXACT and closed:
 - density path: D_cart = T D_sph T† ONCE per iteration, then the existing collocation streams,
   ladder, T3 fold, LRU run UNCHANGED; the integrate-back KS block returns h_sph = T† h_cart T.
 
-No spherical lattice sums, no new integrals, no evaluator work.  The Cartesian machinery stays the
-single integrals engine; spherical is a VIEW.
+No spherical lattice sums, no new integrals.  PREREQUISITE REFACTOR: the pair-enumeration /
+magnitude-screen / stream kernels currently living inside `PG_Cart_MnD`'s evaluator get HOISTED to
+a shared internal module (or owned as an engine object) so both implementations call them — the
+kernels are primitive-Cartesian-pair machinery either way.
 
-**The unification (user):** lattice SALC is the SAME decorator with a different fixed T (the
-symmetry-adapted combinations; for the magnetic work the Shubnikov ops of SymmetryUpgradePlan S1–S3
-supply the reps).  Design the seam once — `TransformedLatticeSum1E(inner, T)` + the wrapping IBS —
-and both land on it.  (Molecular precedent: `SymmetryAdaptedBasisSet.C` is this exact pattern one
-level up.)
+**Lattice SALC later (user):** still fits — SALC is a symmetry-adaptation over WHICHEVER basis
+(molecular precedent `SymmetryAdaptedBasisSet.C`); once both families answer `LatticeSum1E`, the
+adapted set rides on either.  The Shubnikov ops of SymmetryUpgradePlan S1–S3 supply the magnetic
+reps when that day comes.
 
 ## Watch-outs (from the molecular SALC campaign)
 
