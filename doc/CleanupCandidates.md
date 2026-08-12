@@ -22,10 +22,10 @@ worth more than the landed ones.
 
 ## Next task: pick from the open list below — nothing is half-done
 
-- **V1.27's remaining half** — the `MolecularSCFIterator`/`SolidSCFIterator` RENAME itself.  The live
-  defect (the virial gate) is fixed; what is left is that the two classes are named for the STRUCTURE and
-  discriminate on the PSEUDOPOTENTIAL.  Note they are different `T` instantiations, so it is not a
-  swap — the display policy is the thing to hoist.
+- **V1.27's remaining half 🔶 DESIGN RULED (user 2026-08-10), not started.**  *"I suspect we are
+  ultimately going to need all 4 combos of {Molecular,Solid}x{PP,Non-PP}SCFIterator.  This should be done
+  with mixins."*  That retires the "rename" framing: there is no NAME that fixes a MISSING DIMENSION.
+  See the item under READY/R2 for the column analysis that shapes the mixin split.
 - **`SCFParams::MinVirial = 1e-13`** — documented *"effectively off"* while the test is
   `error < MinVirial`, so the default is maximally ON.  Comment or default is wrong.  Affects ALL-ELECTRON
   runs (where the gate is real), so it is a decision about what the default gate SHOULD be, not a typo fix.
@@ -1328,6 +1328,31 @@ MnO campaign proceeds undisturbed in qchem6.
   - **The code already states the PP reason, in `SolidSCFIterator`'s own doc:** the virial is DROPPED because
     "GTH local + KB projectors break the Coulombic-homogeneity assumption behind 2+V/K".  That is a property
     of the POTENTIAL, not of the lattice — a molecular PP run breaks it identically.
+  - **✅ USER RULING 2026-08-10 — the remaining half is a DECOMPOSITION, not a rename.**
+    *"I suspect we are ultimately going to need all 4 combos of {Molecular,Solid}x{PP,Non-PP}SCFIterator.
+    This should be done with mixins."*
+    - **Why a rename could never have worked** (this was the confusion in the earlier framing): the two
+      classes are not two variants of one thing.  `MolecularSCFIterator` is `tSCFIterator<double>` and
+      `SolidSCFIterator` is `tSCFIterator<dcmplx>` — so the Molecular/Solid axis IS the matrix-element-type
+      axis, and PP-ness is a SECOND, independent axis that has no representation at all.  `MolecularSCFIterator`
+      is moreover an EMPTY subclass whose only job is to name the molecular path.
+    - **The two mixin axes are NOT symmetric — measured, not assumed.**  Of the four ways
+      `SolidSCFIterator`'s display differs from the base, only ONE is about pseudopotentials:
+      | difference | driven by |
+      |---|---|
+      | no virial column/gate | **PP-ness** |
+      | `ΔE/E` gates instead of `Δ[F,D]` | grid/collocation (non-variational SCF) |
+      | `ρ_lost/N` (grid-charge leak) | grid/collocation |
+      | gap is a PERMANENT column | periodic (near-gapless flapping is a solid pathology) |
+      So the axes are **PP-ness** (virial) and **grid/periodic-ness** (the other three) — genuinely
+      orthogonal, which is exactly the case mixins are for, and exactly why one inheritance chain could not
+      express it.
+    - **Note the PP axis is ALREADY runtime-adaptive** via `IsVirialValid()` (the landed half), so the
+      mixins are mostly needed for the grid/periodic columns.  A molecular PP run today gets the right
+      VIRIAL behaviour with no new class; what it cannot get is a column set that is neither the
+      molecular nor the solid one.
+    - **The 4th combo is not hypothetical:** an all-electron PERIODIC run (the parked APW/LAPW tests) is
+      Solid × Non-PP, and would want the virial back WITHOUT the collocation columns.
   - **⚠️⚠️ BIGGER THAN THE ITEM SAYS — INVESTIGATED 2026-08-10, NEEDS A USER RULING BEFORE EXECUTION.
     The virial is not only a DISPLAY column; it is a CONVERGENCE GATE.**
     - `Imp/SCFIterator.C:336`: `itsConverged = ... && fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial;`
