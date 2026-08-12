@@ -392,6 +392,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         << "Een  : " << std::fixed << setw(w) << setprecision(nprec) << eb.Een << "  "
         << "Eee    : " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee << "  "
         << "Eex      : " << std::fixed << setw(w) << setprecision(nprec) << eb.Exc << endl;
+        if (eb.EenNL!=0.0)   // PP runs only: the diagnostic V_loc/V_NL split of Een (Een is the total)
+            cout << "Een       Breakdown  "
+            << "Eloc : " << std::fixed << setw(w) << setprecision(nprec) << eb.Een-eb.EenNL << "  "
+            << "EenNL  : " << std::fixed << setw(w) << setprecision(nprec) << eb.EenNL << endl;
         cout << "Virial               V/K  : " << std::fixed << setw(w) << setprecision(11) << eb.GetVirial() << "  ";
         if (eb.Exc!=0.0)
             cout << "Eee/Exc: " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee/eb.Exc << "  " ;

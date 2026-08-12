@@ -298,8 +298,11 @@ TEST(A_PP_Probe, DISABLED_MolecularMnDChannelVsOracle)
     const double E=c.Energy();
     const auto   T=c.EnergyTerms();
     std::cout << "[mol-d] Mn q7 MOLECULAR route E=" << E << "   (CP2K ATOM oracle -14.243986)\n"
-              << "[mol-d]   Ekin=" << T.Kinetic << " Een=" << T.Een << " Eee=" << T.Eee
-              << " Exc=" << T.Exc << std::endl;
+              << "[mol-d]   Ekin=" << T.Kinetic << " Eloc=" << T.Een-T.EenNL << " ENL=" << T.EenNL
+              << " Eee=" << T.Eee << " Exc=" << T.Exc << "\n"
+              << "[mol-d]   (CP2K ATOM UKS SEXTET oracle, deck mn_atom_q7_pol.inp, 2026-08-12: E=-14.674425"
+                 "  kin 24.7834  loc -33.6994  NL -16.0432  Coul 13.7232  XC -3.4384 -- the ensemble-matched"
+                 " reference; the restricted -14.243986 is the OLD oracle, 430 mHa above the sextet)" << std::endl;
     // The ATOMIC route (fixed) for the same PP/charge state, as the in-process cross-check.
     AtomCalcOptions o; o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=7;
     o.exponentsByL={{0,{0.10,0.249,0.621,1.549,3.862,9.627,24.0}},
@@ -307,5 +310,7 @@ TEST(A_PP_Probe, DISABLED_MolecularMnDChannelVsOracle)
     o.pol=Pol::Polarized;
     SCFParams p; p.MinVirial=1e30; p.NMaxIter=60;
     AtomCalculation a(25, 25-7, o, p);
-    std::cout << "[mol-d] Mn q7 ATOMIC route (fixed) E=" << a.Energy() << std::endl;
+    const auto Ta=a.EnergyTerms();
+    std::cout << "[mol-d] Mn q7 ATOMIC route (fixed) E=" << a.Energy()
+              << "  Ekin=" << Ta.Kinetic << " Eloc=" << Ta.Een-Ta.EenNL << " ENL=" << Ta.EenNL << std::endl;
 }
