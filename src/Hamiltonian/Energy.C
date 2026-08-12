@@ -45,6 +45,14 @@ public:
                         //!< sets it to 0, and this αZ constant is what's left).  Periodic plane-wave/GPW crystals
                         //!< only (0 for a finite/molecular structure -- no background).  Named for QE/CP2K's "alpha Z".
     double Een;
+    //! The NONLOCAL (Kleinman-Bylander separable) subset of \c Een: \f$\sum_{lm}\mathrm{Tr}(D\,V_{NL}^{lm})\f$,
+    //! filled by the PP nonlocal terms only (0 for an all-electron run; \c Een already CONTAINS it -- this is
+    //! a diagnostic split, so \c GetPotentialEnergy() never reads it).  Motivation (2026-08-12, MnO ordering
+    //! campaign): the FM/AFM ordering defect is a d-selective ~+30 mHa/state bias vs CP2K living in the
+    //! non-XC lump, and V_loc-vs-V_NL is the first cut that separates the KB channel from the grid class.
+    //! NB our Cartesian d shells carry an s-contaminant (x^2+y^2+z^2), so the l=0 projectors legitimately
+    //! act on "d" functions -- a per-l refinement would be the next cut if this one convicts V_NL.
+    double EenNL;
     double Eee;
     double EeeFit;
     double EeeFitFit;

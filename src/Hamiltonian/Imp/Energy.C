@@ -10,6 +10,7 @@ EnergyBreakdown::EnergyBreakdown()
     , Enn      (0)
     , E_alphaZ   (0)
     , Een      (0)
+    , EenNL    (0)
     , Eee      (0)
     , EeeFit   (0)
     , EeeFitFit(0)
@@ -32,6 +33,7 @@ EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
     Enn        += e1.Enn;
     E_alphaZ     += e1.E_alphaZ;
     Een        += e1.Een;
+    EenNL      += e1.EenNL;
     Eee        += e1.Eee;
     EeeFit     += e1.EeeFit;
     EeeFitFit  += e1.EeeFitFit;
@@ -56,6 +58,11 @@ void EnergyBreakdown::Display() const
     cout << "Enn       :" << Enn << endl;
     cout << "E_alphaZ  :" << E_alphaZ << endl;
     cout << "Een       :" << Een << endl;
+    if (EenNL!=0.0)
+    {
+        cout << "  Een loc :" << Een-EenNL << endl;
+        cout << "  Een NL  :" << EenNL << endl;
+    }
     cout << "Eee       :" << Eee << endl;
     cout << "EeeFit    :" << EeeFit << endl;
     cout << "EeeFitFit :" << EeeFitFit << endl;

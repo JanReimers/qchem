@@ -105,7 +105,9 @@ chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin&) const
 void Ven_PP_NonLocal::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Electron-ion, and short-ranged by construction, so no G=0 alignment of its own.
-    te.Een += cd->DM_Contract(this);                     // Tr(D V_NL)
+    const double eNL = cd->DM_Contract(this);            // Tr(D V_NL)
+    te.Een   += eNL;
+    te.EenNL += eNL;                                     // the diagnostic V_loc/V_NL split (Een keeps the total)
 }
 
 std::ostream& Ven_PP_NonLocal::Write(std::ostream& os) const

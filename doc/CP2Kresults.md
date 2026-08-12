@@ -171,6 +171,13 @@ our `ivec3_t(2,2,2)`).  CP2K 2026.1, OMP 8, 70–500 s each.
   AFM−FM) is the defect-localization instrument; the qchem FM determinant leg is run 41.
 - k-convergence: both orderings drop ~217 mHa from Γ to 2×2×2 — the 2-f.u. cell is far from
   k-converged, but the ORDERING is stable.
+- **Mn q7 SEXTET atom oracle (2026-08-12, `mn_atom_q7_pol.inp`)**: the CP2K ATOM code does UKS via
+  `ELECTRON_CONFIGURATION (6) CORE 4s2 3d5` + `METHOD_TYPE UKS` — E = **−14.674425** (kin 24.7834,
+  loc −33.6994, **NL −16.0432**, Coul 13.7232, XC −3.4384; terms sum exactly, no confinement).  This
+  is the ensemble-matched reference for our polarized routes (molecular −14.626 / atomic −14.658,
+  both variationally above); the long-quoted restricted −14.243986 sits 430 mHa ABOVE the sextet and
+  is only the right oracle for restricted runs.  NB the crystal decks' per-KIND atomic-guess blocks
+  are NOT clean oracles — they carry a Confinement term (+0.842 for Mn).
 
 ## How to run
 See `UnitTests/CP2K/README.md`. In short: `source ~/Code/cp2k/tools/toolchain/install/setup`,
