@@ -209,6 +209,32 @@ cell cannot resolve superexchange bandwidth) and LSDA-without-+U (delocalization
 AFM stabilization), NOT an SCF defect — and no CP2K FM oracle is banked (only the AFM deck), so the
 ordering has no external reference yet.  Log: `doc/logs/mno_afm2_run38_imposed_shubnikov.log`.
 
+**RUN 39 (2026-08-11, evening) — the GDM AUDIT of the imposed state (user: "GDM is very good at
+finding subtle problems").**  New hand-run knobs: `MNO_ACC` (accelerator override; a comma-list under
+`MNO_ANNEAL` is a per-stage schedule) + `MNO_SKIP_FM`.  Recipe: `MNO_IMPOSE=1 MNO_ANNEAL="5e-3,0"
+MNO_ACC="Ladder,GDM" MNO_MOM=0` — stage 1 replays run 38 exactly (41 iters, A=−61.4145477); stage 2
+hands the converged density to a COLD standalone GDM.  (Run 38 itself never ran GDM: the Ladder's
+rung was VETOED all 41 iterations — kT=5e-3 leaves D' non-idempotent, Tr D'²≈12.58 of 13.)  FINDINGS:
+- **GDM engages at kT=0 and the imposed AFM-II state passes the minimizer's audit**: 16 MONOTONE
+  iterations (oscFlips=0), Δρ 7.7e-3→7.7e-6 (gate PASSED), E=−61.4055743, m_stag RISES 0.651→0.667
+  and holds, |m̃(q_AFM)|Ω/2=3.13 e⁻, test [ OK ] end-to-end.  No hidden descent direction, no tie
+  escape, no trust retreat: the S4 state is a GENUINE local minimum of the integer-occupation
+  manifold, not a smearing artifact.
+- **The Γ-only "tie" resolves at kT=0: the frontier gap is real, ≈ +4.0 mHa.**  The kT=0 refutation
+  (runs 31–34) was about the FREE ensemble; annealed onto the IMPOSED state the aufbau determinant is
+  stable — and kT=5e-3 ≥ the gap is exactly why the smeared runs fractionalise it.  Iteration 1
+  carried the `h` flag (gap −2.4 mHa): the ensemble's dominant fill is NOT the aufbau fill of its own
+  spectrum; GDM's first diagonalizing step swapped it and stayed.
+- **The smeared plateau was part entropy**: A=−61.41455 hides −TS=15.6 mHa (ensemble internal
+  E=−61.3989).  The GDM determinant sits 6.6 mHa BELOW that internal energy, and the honest T=0
+  variational anchor is now E=−61.40557 = **65.1 mHa from the CP2K −61.4706** — but CHECK which
+  ensemble CP2K's number is (its deck smears too) before leaning on either gap figure.
+- **A subtle defect, quantified**: the DM-level site-moment mirror is NOT exact — m_net=m1+m2 sat at
+  ≈1.6e-2 through run 38's smeared DIIS; GDM cut it 4× to 3.9e-3, but not to 0.  Consistent with the
+  imposition acting on the CONSUMED representations (ρ̃ G-map, XC mesh values) while the DM itself is
+  never projected.  Whether the residual is a convergence floor or a real leak is a cheap next probe.
+Log: `doc/logs/mno_afm2_run39_imposed_gdm.log`.
+
 **STILL OPEN, ranked:** (1) the ORDERING: bank a CP2K FM oracle (same deck, UKS multiplicity 11) for
 the E_FM reference; then the k-MESH runs (the real superexchange resolution) and +U (the known LSDA
 cure, already on the battery critical path); (2) the remaining 56 mHa to the CP2K AFM oracle (basis/

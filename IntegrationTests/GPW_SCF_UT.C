@@ -3357,6 +3357,23 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     MnOArm arm;
     arm.cell=cellp;
     const bool verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
+    // MNO_ACC (run 39, 2026-08-11): the accelerator policy, sweepable at last.  A single name
+    // (DIIS|GDM|Ladder|Null) applies throughout; under MNO_ANNEAL a comma-list parallel to the kT
+    // schedule gives each stage its own -- the RunGpwAnnealed-doc'd {"Ladder","GDM"} x {5e-3, 0}
+    // experiment: GDM's Engageable veto requires INTEGER occupations (run 38 stayed on DIIS for all
+    // 41 iterations because kT=5e-3 makes D' non-idempotent), so a GDM stage must run kT=0.
+    std::vector<std::string> accSched;
+    if (const char* ac=std::getenv("MNO_ACC"))
+    {
+        for (std::string s(ac), tok; !s.empty(); )
+        {
+            size_t c=s.find(','); tok=s.substr(0,c);
+            if (!tok.empty()) accSched.push_back(tok);
+            if (c==std::string::npos) break;
+            s=s.substr(c+1);
+        }
+        if (accSched.size()==1) { o.accelerator=accSched.front(); accSched.clear(); }
+    }
     // ANNEALED ARM (MNO_ANNEAL="0.05,0.02,0.01,0"): a DESCENDING kT schedule with density continuation, and
     // -- when MNO_MOM_SEED=1 -- occupied-character continuation too, so the configuration a hot stage settles
     // on is what the next stage holds.  The single-kT path stays the default: one run, one temperature.
@@ -3383,8 +3400,9 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
                 t=t.substr(c+1);
             }
         assert((lams.empty() || lams.size()==kTs.size()) && "MNO_ANNEAL_PENALTY must parallel MNO_ANNEAL");
+        assert((accSched.empty() || accSched.size()==kTs.size()) && "MNO_ACC list must parallel MNO_ANNEAL");
         arm.R=RunGpwAnnealed(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, kTs, verbose,
-                             /*accSchedule*/{}, &arm.h, lams);
+                             accSched, &arm.h, lams);
         return arm;
     }
     arm.R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, verbose, &arm.h);
@@ -3866,6 +3884,10 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
     }
 
     // ---- the ORDERING ENERGETICS: AFM-II below FM (the rocksalt-MnO superexchange ground state) ----
+    // MNO_SKIP_FM (run 39): an AFM-only hand run -- the FM arm costs ~25 min and an experiment probing
+    // the AFM state (the GDM stage) learns nothing from it.  (The ordering EXPECT is already a known
+    // failure at Gamma-only+LSDA: run 38 measured FM 38 mHa BELOW AFM-II.)
+    if (std::getenv("MNO_SKIP_FM")) return;
     MnOArm F=RunMnO(/*multiplicity*/11, /*afm*/false, "MnO FM Gamma");
     ASSERT_TRUE(F.R.converged);
     EXPECT_NEAR(F.R.charge, 26.0, 1e-6);
