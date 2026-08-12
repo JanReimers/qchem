@@ -235,13 +235,44 @@ rung was VETOED all 41 iterations — kT=5e-3 leaves D' non-idempotent, Tr D'²�
   never projected.  Whether the residual is a convergence floor or a real leak is a cheap next probe.
 Log: `doc/logs/mno_afm2_run39_imposed_gdm.log`.
 
-**STILL OPEN, ranked:** (1) the ORDERING: bank a CP2K FM oracle (same deck, UKS multiplicity 11) for
-the E_FM reference; then the k-MESH runs (the real superexchange resolution) and +U (the known LSDA
-cure, already on the battery critical path); (2) the remaining 56 mHa to the CP2K AFM oracle (basis/
-grid class + partitioning derivation); (3) cheap arms: `MNO_SHARED_MU=1` on the imposed run + gentle
-anneal; (4) the through-SCF gate for the suite: the DISABLED MnO test's convergence asserts now PASS
-on the AFM arm — consider an enabled, bounded imposed-AFM anchor once runtime is budgeted;
-(5) doc/CleanupCandidates.md D9–D12.
+**★ THE ORDERING CAMPAIGN (2026-08-12, runs 40-42 + the CP2K oracle batch) — the reversal is OURS,
+and it is a d-SELECTIVE operator bias.**  Full oracle table + decks: doc/CP2Kresults.md (MnO section).
+- **CP2K FM oracles BANKED** (`mno_fm_gpw_sr{,_m10,_222g}.inp`, ~70-500 s each under OMP 8):
+  Γ AFM −61.470570 / FM −61.461700 ⇒ **AFM below by 8.87 mHa**; 2×2×2 Γ-centred AFM −61.687257 /
+  FM −61.681952 ⇒ **AFM below by 5.31 mHa**.  Same cell/basis/functional as run 38's reversed
+  38 mHa — "Γ-only+LSDA can't order superexchange" is REFUTED; the defect is ours, and AFM-sided
+  (our FM 8.4 mHa above CP2K entropy-stripped, our AFM 64.7).  The fixed-m10 FM arm == floating to
+  7 digits (the FM minimum sits exactly at m=10; our fixed-reservoir arm is ensemble-comparable).
+- **Run 41 (`MNO_SKIP_AFM`, FM through {Ladder,GDM}×{5e-3,0}): the same-code Δ(AFM−FM) breakdown,
+  determinant class.**  FM determinant E=−61.4456381 (GDM stage: 6 monotone iters).  Δ(AFM−FM):
+  qchem XC −80.4 mHa vs CP2K −78.8 — **XC's ordering response agrees to 1.6 mHa** (the ~100 mHa XC
+  LEVEL offset is ordering-neutral: −14.44 vs −14.34 AFM, −14.36 vs −14.26 FM); the non-XC lump
+  (kin+electrostatic+PP) carries **+120.5 vs +62.5 mHa — ALL 58 mHa of the disagreement**.  (CP2K
+  won't split its CoreH: PRINT_LEVEL HIGH dies in DDAPC on this basis, R_COND 2e-17; no
+  DETAILED_ENERGY section exists.  FM smearing entropies match, −7.6 vs −7.7 mHa.)
+- **The ORBITAL-ENERGY breakdown (user's instrument; `mno_{afm2,fm}_gpw_sr_mo.inp`): same-basin FM
+  spectra line up in STRUCTURE exactly (ordering + degeneracy pattern), but our sp states sit +19-38
+  mHa and our d states +44-53 mHa above CP2K's — a d-SELECTIVE ~+30 mHa bias, same basis both codes
+  (transcribed VALENCE-LOWQ-SR ⇒ basis incompleteness cancels).**  AFM spectra confirm DIFFERENT
+  BASINS: CP2K majority-d 0.165-0.197 occupied / minority-d 0.261+ (real gap, m=4.65); ours top
+  states 0.216-0.231 with the 4 mHa gap (minority-d collapsed onto majority — the weak-moment
+  state).  A d-only upward bias is exactly what robs the deep-moment basin of its variational edge
+  while leaving FM nearly untouched.  Atom-scale echo: `DISABLED_MolecularMnDChannelVsOracle` — our
+  molecular vs atomic routes disagree by **32 mHa on the same occupied-d pseudo-atom** (−14.626 vs
+  −14.658; both sextet-polarized, so NOT comparable to the restricted CP2K −14.244 directly).
+- **Run 42 (cold GDM from the seed, kT=0, no smear/MOM): the moment DIES immediately even under
+  imposition** (m_stag ~0.005 by iteration 23, branch-thrash −44..−58 Ha, `h`+cfg flips every row) —
+  imposition preserves a staggered pattern but cannot resurrect one; smear-then-cold-GDM (run 39)
+  stays the canonical recipe.  New knobs: `MNO_KMESH` (Γ-centred n³, wired, unrun), `MNO_SKIP_AFM`.
+
+**STILL OPEN, ranked (revised 2026-08-12):** (1) **the d-selective +30 mHa: split Een into
+V_loc/V_nl in EnergyBreakdown** (each Hamiltonian term already knows its energy) — then the
+Δ(AFM−FM) nonlocal-d number and the Mn-atom term-by-term vs CP2K ATOM (which prints kin/local/
+nonlocal per kind) corner the defect; suspects = crystal KB d-channel (Bloch bra, projector lattice
+sums) vs grid class; (2) our-side `MNO_KMESH=2` FM/AFM vs the banked 2×2×2 oracles (after (1) — it
+inherits the AFM defect); (3) +U (battery critical path) once the ordering is honest; (4) cheap
+arms: `MNO_SHARED_MU=1`, gentle anneal; (5) the bounded imposed-AFM suite anchor; (6)
+doc/CleanupCandidates.md D9–D12.
 This doc answers three things the user asked:
 1. A **gap analysis** — where are we already using symmetry, where are we leaving it on
    the table.

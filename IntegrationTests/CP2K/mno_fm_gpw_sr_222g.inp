@@ -1,0 +1,133 @@
+# MnO rocksalt AFM-II GPW/LSDA reference on OUR low-q SR basis (VALENCE-LOWQ-BASIS Mn 7s+8d q7 /
+# O 6s+5p q6), GTH-PADE, LDA_X+VWN5, Gamma, the RHOMBOHEDRAL 2-f.u. magnetic cell (a=8.40 bohr
+# rocksalt; vectors a(1,1/2,1/2) etc., Mn sublattices 0 and 1/2,1/2,1/2, O at 1/4 and 3/4) --
+# the same-basis oracle for GPW_SCF.MnO_AFM2_RhombohedralGamma (doc/SymmetryUpgradePlan.md §7 step 7).
+#
+# FM ORACLE (2026-08-12, SymmetryUpgradePlan STILL-OPEN item 1): the AFM-II deck with BOTH Mn KINDs
+# seeded +5 alpha (ferro) and MULTIPLICITY 11.  SMEAR defaults kept (common mu, populations float --
+# same ensemble as the AFM deck); the fixed-moment arm is mno_fm_gpw_sr_m10.inp.
+# TIGHT EPS per the 2026-07-23 lesson (the retracted -27.93 SR "oracle" was an EPS_PGF_ORB screening
+# artifact): EPS_DEFAULT 1e-14, EPS_PGF_ORB 1e-12, and REAL density convergence.
+# CUTOFF 144 Ry == our AUTO densityEcut = 2*alpha_max = 72 Ha.
+&GLOBAL
+  PROJECT mno_fm_gpw_sr_222g
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./VALENCE-LOWQ-BASIS
+    POTENTIAL_FILE_NAME /home/janr/Code/cp2k/data/GTH_POTENTIALS
+    UKS
+    MULTIPLICITY 11
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-14
+      EPS_PGF_ORB 1.0E-12
+    &END QS
+    &MGRID
+      CUTOFF 144
+      REL_CUTOFF 60
+      NGRIDS 4
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_X
+        &END LDA_X
+        &LDA_C_VWN
+        &END LDA_C_VWN
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      PERIODIC XYZ
+    &END POISSON
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-6
+      MAX_SCF 200
+      IGNORE_CONVERGENCE_FAILURE
+      ADDED_MOS 20
+      &DIAGONALIZATION T
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
+      &MIXING T
+        METHOD BROYDEN_MIXING
+        ALPHA 0.2
+        BETA 1.5
+        NBUFFER 8
+      &END MIXING
+      &SMEAR ON
+        METHOD FERMI_DIRAC
+        ELECTRONIC_TEMPERATURE [au_temp] 5.0E-3
+      &END SMEAR
+    &END SCF
+    &KPOINTS
+      SCHEME GENERAL
+      UNITS B_VECTOR
+      KPOINT  0.0 0.0 0.0  1.0
+      KPOINT  0.5 0.0 0.0  1.0
+      KPOINT  0.0 0.5 0.0  1.0
+      KPOINT  0.0 0.0 0.5  1.0
+      KPOINT  0.5 0.5 0.0  1.0
+      KPOINT  0.5 0.0 0.5  1.0
+      KPOINT  0.0 0.5 0.5  1.0
+      KPOINT  0.5 0.5 0.5  1.0
+    &END KPOINTS
+  &END DFT
+  &SUBSYS
+    &CELL
+      A [bohr] 8.40 4.20 4.20
+      B [bohr] 4.20 8.40 4.20
+      C [bohr] 4.20 4.20 8.40
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      SCALED
+      Mn1 0.00 0.00 0.00
+      Mn2 0.50 0.50 0.50
+      O   0.25 0.25 0.25
+      O   0.75 0.75 0.75
+    &END COORD
+    &KIND Mn1
+      ELEMENT Mn
+      BASIS_SET VALENCE-LOWQ-SR
+      POTENTIAL GTH-PADE-q7
+      # +m sublattice: 5 unpaired d alpha (Hund d^5)
+      &BS
+        &ALPHA
+          NEL  5
+          L    2
+          N    3
+        &END ALPHA
+        &BETA
+          NEL -5
+          L    2
+          N    3
+        &END BETA
+      &END BS
+    &END KIND
+    &KIND Mn2
+      ELEMENT Mn
+      BASIS_SET VALENCE-LOWQ-SR
+      POTENTIAL GTH-PADE-q7
+      # FM: same +m seed as Mn1 (no flip)
+      &BS
+        &ALPHA
+          NEL  5
+          L    2
+          N    3
+        &END ALPHA
+        &BETA
+          NEL -5
+          L    2
+          N    3
+        &END BETA
+      &END BS
+    &END KIND
+    &KIND O
+      BASIS_SET VALENCE-LOWQ-SR
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

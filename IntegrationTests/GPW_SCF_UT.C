@@ -3209,7 +3209,12 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     }
     cell.AddAtom(8,  {0.25+sh,0.25+sh,0.25+sh});
     cell.AddAtom(8,  {0.75+sh,0.75+sh,0.75+sh});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    // MNO_KMESH=n (run 40, 2026-08-12): an n^3 Γ-centred Monkhorst-Pack mesh on the magnetic cell.
+    // The ORDERING experiment: a Γ-only 2-f.u. cell cannot resolve superexchange bandwidth (run 38
+    // measured FM 38 mHa BELOW AFM-II), so the FM/AFM comparison needs k.  A magnetic imposed run
+    // keeps the full mesh by construction (S3: recipFold left empty when the decoration is staggered).
+    const int nk = std::getenv("MNO_KMESH") ? std::atoi(std::getenv("MNO_KMESH")) : 1;
+    Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
 
     GpwOptions o;
     o.label=label;
@@ -3833,6 +3838,16 @@ TEST(GPW_SCF, ImposedShubnikovHoldsAFMThroughSCF_Mn2Box)
 // dynamics recipe (Ladder+Kerker+MOM) is staged in RunMnO.  Hand-run: GPW_MNO_VERBOSE=1 GPW_MNO_NMAX=n.
 TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
 {
+    // MNO_SKIP_AFM (run 41, 2026-08-12): the FM-ONLY hand run -- the same-code Δ(AFM−FM) energy
+    // breakdown needs the FM arm at full print precision in the same (annealed/GDM) class as the
+    // AFM arm, without paying the ~40 min AFM leg again.  Mirror of MNO_SKIP_FM.
+    if (std::getenv("MNO_SKIP_AFM"))
+    {
+        MnOArm F=RunMnO(/*multiplicity*/11, /*afm*/false, "MnO FM Gamma");
+        ASSERT_TRUE(F.R.converged);
+        EXPECT_NEAR(F.R.charge, 26.0, 1e-6);
+        return;
+    }
     MnOArm A=RunMnO(/*multiplicity*/1,  /*afm*/true,  "MnO AFM-II Gamma");
 
     // ---- the STAGGERED order parameter (reported BEFORE the convergence assert, so a bounded
