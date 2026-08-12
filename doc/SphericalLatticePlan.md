@@ -104,9 +104,15 @@ control it instead of by Cartesian accident.
 
 ## Increments
 
-- **I0 (cheap, evidence):** per-l/per-species split of E_NL (extend the EenNL diagnostic) —
-  verify the sign structure: the AFM-side −1.3 Ha must flow through l=2 (s/p slices small and
-  REPULSIVE, per the Mn q7 h matrices: s diag +2.8/+2.5/+2.6, p +1.4/+0.3, d −7.995).
+- **I0 DONE (2026-08-12, runs 45/46 = replays of 43/44 with `GPW_NL_PER_L=1`; commit fba8baa6).**
+  Δ_NL(AFM−FM) by channel: **l=0 −0.477 / l=1 −0.00001 / l=2 −0.823 Ha** (sum −1.300 ✓; FM crystal
+  per channel ≈ atomic superposition: +2.92/+0.02/−32.50 vs +3.03/0/−32.09).  THE REVISION: the
+  s-contaminant was exonerated as an attraction SOURCE (h_s>0), but **37% of the weak basin's NL
+  reward is an l=0 repulsion DODGE** — energy-lowering, and available ONLY to our span (the extra
+  r²-Gaussians let the density rearrange s-character away from the β_s projectors; spherical CP2K
+  structurally cannot).  The remaining −0.82 Ha is l=2 with a span-identical operator but a
+  span-enabled density.  SHARPENED I2 PREDICTION: spherical d deletes the s-dodge freedom — if
+  span is the story, the deep-moment basin wins and the ordering heals.
 - **I1 (the unblock):** `PG_Spherical` implements `LatticeSum1E` as a PEER (virtual dispatch; no
   decorator), composing the hoisted engine-agnostic lattice kernels; spherical selected by
   CONSTRUCTING the spherical basis (`MakeBasisLowQ` choice / test knob `MNO_SPHERICAL=1`).  The
