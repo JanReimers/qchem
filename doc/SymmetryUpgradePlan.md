@@ -265,14 +265,26 @@ and it is a d-SELECTIVE operator bias.**  Full oracle table + decks: doc/CP2Kres
   imposition preserves a staggered pattern but cannot resurrect one; smear-then-cold-GDM (run 39)
   stays the canonical recipe.  New knobs: `MNO_KMESH` (Γ-centred n³, wired, unrun), `MNO_SKIP_AFM`.
 
-**STILL OPEN, ranked (revised 2026-08-12):** (1) **the d-selective +30 mHa: split Een into
-V_loc/V_nl in EnergyBreakdown** (each Hamiltonian term already knows its energy) — then the
-Δ(AFM−FM) nonlocal-d number and the Mn-atom term-by-term vs CP2K ATOM (which prints kin/local/
-nonlocal per kind) corner the defect; suspects = crystal KB d-channel (Bloch bra, projector lattice
-sums) vs grid class; (2) our-side `MNO_KMESH=2` FM/AFM vs the banked 2×2×2 oracles (after (1) — it
-inherits the AFM defect); (3) +U (battery critical path) once the ordering is honest; (4) cheap
-arms: `MNO_SHARED_MU=1`, gentle anneal; (5) the bounded imposed-AFM suite anchor; (6)
-doc/CleanupCandidates.md D9–D12.
+**THE V_loc/V_NL SPLIT (2026-08-12, runs 43/44 = exact replays of 39/41 with `EenNL`): THE NONLOCAL
+TERM IS THE STORY.**  Δ(AFM−FM), determinant class: kin +1616.1, E_loc −660.0, **E_NL −1299.8**,
+Eee +464.1, XC −80.4 ⇒ +40.1 mHa.  Two anchors make it readable: (i) FM SANITY — our FM crystal
+E_NL = −29.5608 vs the atomic-superposition limit 2×(−16.0432 [the NEW sextet-UKS CP2K ATOM oracle,
+`mn_atom_q7_pol.inp`]) + 2×(+1.306 [O]) = −29.47: within ~43 mHa/Mn of exact, so the KB machinery is
+sane where the state is d⁵-per-site; (ii) the weak-moment AFM state harvests **1.3 Ha of EXTRA KB
+attraction** relative to that limit — in OUR surface the attractive d-channel NL is what PAYS for
+abandoning d⁵, while CP2K's d⁵-like AFM has ΔCoreH(kin+loc+NL) of only +314 mHa TOTAL.  SHARPENED
+SUSPECT: KB attraction grows too fast with d-hybridization — the l=2 channel itself, or the
+Cartesian-d s-contaminant (x²+y²+z²) harvesting l=0 projector attraction that spherical-d CP2K
+structurally cannot (user's point; the reward grows exactly when d mixes with O-p = the weak basin,
+and barely touches atomic-like FM = the observed 8-vs-65 mHa asymmetry).  Full ctest sweep green
+(711/711) with the split in.
+
+**STILL OPEN, ranked (revised 2026-08-12, post-split):** (1) **the PER-L (and per-species) split of
+E_NL** — s/p/d projector contributions; a large s-projector slice of the AFM-side −1.3 Ha convicts
+the Cartesian s-contaminant directly; (2) our-side `MNO_KMESH=2` FM/AFM vs the banked 2×2×2 oracles
+(after (1) — it inherits the AFM defect); (3) +U (battery critical path) once the ordering is
+honest; (4) cheap arms: `MNO_SHARED_MU=1`, gentle anneal; (5) the bounded imposed-AFM suite anchor;
+(6) doc/CleanupCandidates.md D9–D12.
 This doc answers three things the user asked:
 1. A **gap analysis** — where are we already using symmetry, where are we leaving it on
    the table.
