@@ -21,11 +21,13 @@ namespace qchem::BasisSet::Lattice_3D
 GPW_IBS::GPW_IBS(const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, RasterPolicy raster, double ladderFactor,
-                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields)
+                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields,
+                 std::vector<Symmetry::Lattice_3D::SymOp> magneticOps)
     : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
     , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep),
                     images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor,
                     rasterFields) // irrep IS k
+    , itsMagneticOps(std::move(magneticOps))
 {
     SetSymmetryOps(std::move(directOps));   // ONE storage (the evaluator): T1 {G} fold + Vxc-raster star ops
 }
@@ -87,9 +89,13 @@ BasisSet::XCQuadrature GPW_IBS::CreateXCQuadrature(const Structure* cl, const qc
     if (dops.empty())
         return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
 
+    // On a MAGNETICALLY imposed run (S3) the σ-carrying Shubnikov set drives the quadrature; its
+    // SPATIAL parts equal the evaluator's DirectOps (the factory filled both from one group), so the
+    // mesh/fold machinery is unchanged -- σ only ADDS the per-op spin actions and the odd-field flags
+    // the engine's (ρ,m) channel-pair star-average consumes.
     std::vector<Symmetry::Lattice_3D::SymOp> ops;
-    ops.reserve(dops.size());
-    for (const auto& op : dops) ops.push_back({op.W, op.tau});
+    if (!itsMagneticOps.empty()) ops = itsMagneticOps;
+    else { ops.reserve(dops.size()); for (const auto& op : dops) ops.push_back({op.W, op.tau}); }
     const double tol = qchem::kMeshMatchTol;   // the ONE mesh-point coincidence tolerance (R2.12)
     const Matrix3D<double>& A = Cell().GetCellMatrix();
 
@@ -101,7 +107,24 @@ BasisSet::XCQuadrature GPW_IBS::CreateXCQuadrature(const Structure* cl, const qc
     std::cout << "[Becke grid] imposed symmetry (" << ops.size() << " ops): invariant mesh "
               << mesh.size() << " points in " << fold.Reps()
               << " orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a)" << std::endl;
-    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
+    if (itsMagneticOps.empty())
+        return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
+
+    // The σ tags (parallel to ops -- the fold's edge opIndex indexes them) and the odd-field zero
+    // flags: FRACTIONAL mesh coordinates for the torus-metric fixed-point test.
+    std::vector<Symmetry::SpinAction> sigmas;
+    sigmas.reserve(ops.size());
+    for (const auto& op : ops) sigmas.push_back(op.sigma);
+    std::vector<rvec3_t> frac;
+    frac.reserve(mesh.size());
+    const Matrix3D<double> Ainv = Invert(A);
+    for (size_t i=0;i<mesh.size();++i) frac.push_back(Ainv*mesh.Points()[i]);
+    auto flags = Symmetry::Lattice_3D::FlipFixedPointsPeriodic(frac, ops, tol);
+    size_t nFixed=0; for (char c : flags) if (c) nFixed++;
+    std::cout << "[Becke grid] Shubnikov: " << nFixed << " flip-fixed mesh points (m==0 there exactly)"
+              << std::endl;
+    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold),
+            std::move(sigmas), std::move(flags)};
 }
 
 // The external-PP capability.  Local: G-space form-factor assembly (the model's FormFactor is used directly,

@@ -28,6 +28,10 @@ public:
     double operator()(double r) const;   //!< interpolated rho(r)
     double Charge() const {return itsCharge;}   //!< 4*pi*int r^2 rho dr (= Sum_i 4*pi*w_i rho_i; ~ Nelec)
     int    GetN() const {return (int)itsMesh.size();}
+    //! The table's SUPPORT radius: rho(r)==0 exactly for r>=Rmax() (the clamp in operator()).  A periodic
+    //! consumer's lattice-image sum is therefore FINITE and exact -- it needs only the images whose support
+    //! ball reaches the point (SeedCD's periodic rho(r)); no distance cut is involved.
+    double Rmax() const {return itsMesh.R()[itsMesh.size()-1];}
     //! Reciprocal-space form factor \f$\tilde\rho(G)=4\pi\int_0^\infty \rho(r)\,\mathrm{sinc}(Gr)\,r^2\,dr\f$
     //! (the radial Fourier transform of a spherical density).  \f$\tilde\rho(0)=\f$ Charge().  Used by the
     //! plane-wave SAD seed's structure-factor sum.
@@ -72,6 +76,8 @@ public:
     RecentredAtomicDensity(std::shared_ptr<const RadialDensity>, const rvec3_t& R);
     virtual double  operator()(const rvec3_t&) const;
     virtual rvec3_t Gradient  (const rvec3_t&) const;   //!< numerical (central difference)
+    const rvec3_t& Center() const {return itsR;}              //!< the nucleus this density is centred on
+    double         Rmax  () const {return itsRadial->Rmax();} //!< support radius (see RadialDensity::Rmax)
 private:
     std::shared_ptr<const RadialDensity> itsRadial;
     rvec3_t                              itsR;

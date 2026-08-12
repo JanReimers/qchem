@@ -74,7 +74,9 @@ public:
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0,
             RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
             std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {},   //!< crystal direct ops {W|τ} for the IBZ Vxc-raster star-average
-            RasterFields rasterFields = RasterFields::HartreeXC);         //!< field-sharpness routing (HartreeOnly = Becke-XC partner)
+            RasterFields rasterFields = RasterFields::HartreeXC,          //!< field-sharpness routing (HartreeOnly = Becke-XC partner)
+            std::vector<Symmetry::Lattice_3D::SymOp> magneticOps = {});   //!< Shubnikov {W|τ,σ} when imposing a MAGNETIC decoration (S3):
+                                                                          //!< the XC quadrature then folds under σ (the (ρ,m) channel pair)
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
     GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
@@ -122,6 +124,11 @@ protected:
 
     // (The ctor-injected crystal ops live on GPW_Evaluator -- SetSymmetryOps/SymmetryOps: ONE storage for
     //  the T1 {G}-star fold and the Vxc-raster star-average.)
+private:
+    //! The Shubnikov {W|τ,σ} set on a magnetically imposed run ({} otherwise).  The σ-BLIND consumers
+    //! (T1, raster) take the evaluator's spatial DirectOps as always; only CreateXCQuadrature reads
+    //! this, to hand the engine the per-op spin actions + the odd-field zero flags.
+    std::vector<Symmetry::Lattice_3D::SymOp> itsMagneticOps;
 };
 
 } //namespace

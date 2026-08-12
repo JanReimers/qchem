@@ -58,6 +58,7 @@ struct IterationTrace
     const char* mixTag;      //!< ρ_mix identity: "Lin"/"Ker"/"Pul"
     const char* accelTag;    //!< accel identity: "Null"/"DIIS"/"GDM"
     int    accelCount;       //!< accel number (DIIS projection depth; 0 when not meaningful)
+    double accelMinSV;       //!< DIIS conditioning: smallest singular value of the bordered B (NaN if none)
     double FD;               //!< [F,D] (the accelerator's orbital-gradient error)
     double dFD;              //!< Δ[F,D] = [F,D] − [F,D]_old
     double dRho;             //!< relative charge-density change ‖Δρ‖

@@ -80,11 +80,22 @@ struct CrystalPointOps
     std::vector<Symmetry::Lattice_3D::ReciprocalOp>      recipDensity;   //!< {U|τ} for the G-space density star-average ({} unless imposed)
     std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< {W|τ} for the real-space raster star-average ({} unless imposed)
     std::vector<Symmetry::Lattice_3D::ReciprocalOp>      recipDetected;  //!< the FULL detected {U|τ} set, ALWAYS (§3 diagnostic reference)
+    //! The SHUBNIKOV group when the run imposes a MAGNETIC decoration (S3, {} otherwise): direct-frame
+    //! \f$\{W|\tau,\sigma\}\f$ ops.  The legacy faces above are then its SPATIAL projections (σ dropped)
+    //! -- COSET-COMPLETE, i.e. they include the anti-translation of a magnetically doubled cell, which
+    //! the detected one-coset-per-W group misses -- and serve every EVEN (total-density) consumer
+    //! unchanged; σ itself is consumed only by the channel-pair (ρ,m) machinery in the XC quadrature.
+    std::vector<Symmetry::Lattice_3D::SymOp>             magneticDirect;
 };
 //! ONE place resolves the run's symmetry policy (doc/SymmetryUpgradePlan.md §3): detection ALWAYS runs
 //! (cheap, and a free run needs the full group as the order-parameter diagnostic's reference), but the
 //! IMPOSED faces (k-fold + density star-average -- one package) fill only when the caller asserted
 //! imposition (p.imposeSymmetry).  Downstream consumers read the policy from here, never p.imposeSymmetry again.
+//!
+//! S3 (Shubnikov): imposition on a run carrying a MAGNETIC decoration (p.siteSpins with a genuine
+//! staggering) resolves to the magnetic group -- imposing the grey group on a staggered run would
+//! star-average +m onto -m sites and erase the order (the reason MnO ran free all campaign).  Grey
+//! imposition of such a cell remains reachable only through the §3 release-audit machinery.
 static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWParams& p)
 {
     namespace SL = qchem::Symmetry::Lattice_3D;
@@ -96,12 +107,41 @@ static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWP
     ops.policy.impose = p.imposeSymmetry ? SL::SymmetryPolicy::Impose::FullGroup
                                    : SL::SymmetryPolicy::Impose::None;
     ops.recipDetected = sg.ReciprocalOps();                                        // full {U|τ}: the diagnostic reference
-    if (ops.policy.Imposes())
+    if (!ops.policy.Imposes()) return ops;
+
+    const bool magnetic = [&]{ for (int s : p.siteSpins) if (s!=0) return true; return false; }();
+    if (magnetic)
     {
-        ops.recipFold     = sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);  // fold: linear + TR
-        ops.recipDensity  = sg.ReciprocalOps();                                    // density G-space: {U|τ}
-        ops.directDensity = sg.DirectOps();                                        // density raster: {W|τ}
+        ops.magneticDirect = lat.ShubnikovOps(p.siteSpins);
+        size_t nFlip=0; for (const auto& op : ops.magneticDirect) if (op.sigma==SL::SpinAction::Flip) nFlip++;
+        std::cout << "[symmetry] IMPOSING the SHUBNIKOV group of the declared ordering: "
+                  << ops.magneticDirect.size() << " ops (" << ops.magneticDirect.size()-nFlip
+                  << " spatial + " << nFlip << " spin-flip; the grey group would erase the order)" << std::endl;
+        // The LEGACY faces get ONLY the σ=None (sublattice-preserving) subgroup.  MEASURED (MnO run 37,
+        // 2026-08-11): they must NOT get the flip ops' spatial parts -- the composite star-average is
+        // applied PER CHANNEL (each channel's GetFourierDensity/GetRhoOnGrid symmetrizes ITSELF, and the
+        // ρ̃ MIXER consumes the channels separately through exactly those faces), and a sublattice-swap op
+        // is not a symmetry of ONE channel: averaging under it equalizes the channels and annihilates m
+        // MACHINE-EXACTLY at iteration 1 (the seed reads m1=+0.717, the first mixed density m1=6e-14).
+        // Each channel IS invariant under the σ=None subgroup, so that is the correct per-channel
+        // projector; the flip content is a PAIR property and is enforced where the pair is in hand -- the
+        // XC engine's (ρ,m) star-average under the full σ-carrying set (itsMagneticOps).  The total's
+        // anti-translation component is then driven by the SCF rather than projected -- a PARTIAL
+        // projector is legal (folding merely reduced, never wrong).
+        for (const auto& op : ops.magneticDirect)
+            if (op.sigma==SL::SpinAction::None)
+            {
+                ops.directDensity.push_back({op.W, op.tau});
+                ops.recipDensity .push_back({Transpose(op.W), op.tau});   // the G-index scatter U = W^T
+            }
+        // k-fold: Γ-only for now -- the magnetic little-group bookkeeping at k≠Γ is the T3.4b-adjacent
+        // increment.  Leaving recipFold empty means a multi-k imposed magnetic run keeps its FULL mesh
+        // (folding is merely absent, never wrong).
+        return ops;
     }
+    ops.recipFold     = sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);  // fold: linear + TR
+    ops.recipDensity  = sg.ReciprocalOps();                                    // density G-space: {U|τ}
+    ops.directDensity = sg.DirectOps();                                        // density raster: {W|τ}
     return ops;
 }
 
@@ -160,12 +200,20 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         const char* e=std::getenv("GPW_STREAM_FOLD");
         if (e && std::atoi(e)!=0)
         {
+            // S3 guard: the stream fold asserts D ITSELF symmetric under its ops PER CHANNEL, and a
+            // flip op relates D_up to D_dn -- so a magnetic imposition may fold streams only under the
+            // σ=None (sublattice-preserving) subgroup.  Folding is merely reduced, never wrong.
+            namespace SL = qchem::Symmetry::Lattice_3D;
+            std::vector<SL::DirectOp> streamOps;
+            if (ops.magneticDirect.empty()) streamOps = ops.directDensity;
+            else for (const auto& op : ops.magneticDirect)
+                if (op.sigma==SL::SpinAction::None) streamOps.push_back({op.W, op.tau});
             const BasisSet::Real_OIBS* orb=nullptr;
             for (auto ibs : const_cast<BasisSet::Real_BS&>(*mol).Iterate<BasisSet::Real_OIBS>()) { orb=ibs; break; }
             if (const auto* ls=dynamic_cast<const Molecule::LatticeSum1E*>(orb))
             {
-                const size_t used=ls->SetStreamSymmetryOps(ops.directDensity, lat.GetUnitCell());
-                std::cout << "[stream fold] imposed Γ run: " << used << "/" << ops.directDensity.size()
+                const size_t used=ls->SetStreamSymmetryOps(streamOps, lat.GetUnitCell());
+                std::cout << "[stream fold] imposed Γ run: " << used << "/" << streamOps.size()
                           << " ops folded into the collocation streams" << std::endl;
             }
         }
@@ -177,7 +225,8 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, kb.ik, kb.weight, kShift),
                             mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor,
                             ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
-                            p.rasterFields);      // field-sharpness routing (HartreeOnly = the Becke-XC partner)
+                            p.rasterFields,       // field-sharpness routing (HartreeOnly = the Becke-XC partner)
+                            ops.magneticDirect);  // Shubnikov {W|τ,σ} on a magnetic imposition (S3; {} = grey)
         if (!first) first=b;
         Insert(b);
     }

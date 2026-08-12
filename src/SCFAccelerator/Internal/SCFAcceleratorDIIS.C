@@ -1,5 +1,6 @@
 // FIle: SCFAcceleratorDIIS.H  Direct Inversion of the Iterative Subspace (DIIS) algorithm
 module;
+#include <limits>
 #include <deque>
 #include <vector>
 #include <string>
@@ -73,6 +74,7 @@ public:
     virtual double GetError() const;
     virtual const char* Tag  () const {return "DIIS";}
     virtual int         Count() const {return (int)GetNProj();}   // projection depth = the accel column's number
+    virtual double      MinSV() const {return itsLastSVMin;}       // conditioning of the bordered B
     // Out of steam: past FDMax but unable to extrapolate (singular/tiny B) for several steps.
     virtual bool   Exhausted() const {return itsStuckCount>=3;}
 
@@ -80,7 +82,7 @@ private:
     // The B-matrix bordering / conditioning / coefficient solve live in the SHARED, paper-faithful engine
     // qchem.Math.DIIS (which the density-face PulayMixer also uses -- doc/SCFStrategyPlan.md §4).  The B
     // matrix + coefficients c are REAL for both rX/cX paths.
-    struct md_t{rsmat_t B;double sv;};
+    struct md_t{rsmat_t B;double sv;double scale;};   //scale = max_i Braw(i,i): the history's own error scale
 
     md_t    BuildB() const;
     rsmat_t BuildPrunedB(double svmin);
@@ -92,7 +94,11 @@ private:
     DIISParams itsParams;
     std::vector<tSCFIrrepAcceleratorDIIS<T>*> itsIrreps;
 
-    double itsEn,itsLastSVMin;
+    double itsEn=0.0;
+    //! Conditioning of the last bordered B.  NaN until BuildPrunedB has run at least once -- DIIS does not
+    //! extrapolate (so does not build B) until [F,D] < FDMax, and this was previously read UNINITIALISED by
+    //! anything that asked early.  Surfaced 2026-08-10 the moment the trace grew an svMin column.
+    double itsLastSVMin=std::numeric_limits<double>::quiet_NaN();
     rvec_t itsCs;
     std::string bailoutReason;
     int itsStuckCount=0; //consecutive past-FDMax iterations with no successful extrapolation.

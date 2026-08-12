@@ -13,6 +13,7 @@ module;
 module qchem.ChargeDensity.SeedCD;
 import qchem.ReciprocalLattice;        // ReciprocalLattice + UnitCell::MakeReciprocalCell (the seed's own Poisson metric)
 import qchem.BasisSet.G_FieldEvaluator; // the fit basis's grid engine (its analytic MakeFourierDensity)
+import qchem.Matrix3D;                 // Invert/Transpose (the periodic image window: (A^T A)^-1 diagonals)
 
 namespace qchem::ChargeDensity
 {
@@ -25,7 +26,8 @@ namespace qchem::ChargeDensity
 SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
                              const std::string& functional, const std::map<size_t,int>& ionicNvalByZ,
                              const Spin& channel)
-    : itsFitBasis(fitBasis), itsStructure(st), itsRecip(GetReciprocalLattice(st)), itsChannel(channel), itsCharge(0.0)
+    : itsFitBasis(fitBasis), itsStructure(st), itsRecip(GetReciprocalLattice(st)), itsCell(&GetUnitCell(st))
+    , itsChannel(channel), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
     assert(fitBasis);
@@ -154,18 +156,61 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
     return VH;
 }
 
+// PERIODIC real-space evaluation (2026-08-11).  A plane-wave seed is cell-periodic, and its mesh consumers
+// sample it at points WRAPPED into the home cell (MakePeriodicBeckeMesh stores kpt = r - A*n0; the uniform
+// raster's cell-corner regions likewise) -- where the nearest atom is often a lattice IMAGE.  The image-less
+// sum this used to be reads ~0 there: on MnO's AFM cell that erased the CORNER Mn's majority-density hump
+// from the v_xc channel rasters and broke the sublattice mirror in the very first Fock build (the
+// iteration-1 m_stag collapse -- doc/SymmetryUpgradePlan.md; gate GPW_SCF.MnOSeedVxcMirrorOnBeckeMesh).
+// Each radial table has compact support [0, Rmax] (RadialDensity clamps to 0 beyond its last node), so the
+// lattice-image sum is FINITE and EXACT: the per-axis image window is |f_j - n_j| <= Rmax*sqrt((A^T A)^-1_jj)
+// (the interplanar-spacing relation MakePeriodicBeckeMesh's shell floor uses), and the only truncation is
+// the table's own support -- no distance cut.
+//
+// The per-image visitor: every lattice image of atom \a i whose support ball reaches \a r.
+template <class F> static void ForEachImage(const UnitCell& cell, const RecentredAtomicDensity& rc,
+                                            const Matrix3D<double>& Minv, const rvec3_t& r, const F& f)
+{
+    const double  rmax=rc.Rmax(), r2max=rmax*rmax;
+    const rvec3_t fr=cell.ToFractional(r-rc.Center());
+    const rvec3_t b(rmax*std::sqrt(Minv(1,1)), rmax*std::sqrt(Minv(2,2)), rmax*std::sqrt(Minv(3,3)));
+    for (int nx=int(std::ceil(fr.x-b.x)); nx<=int(std::floor(fr.x+b.x)); nx++)
+        for (int ny=int(std::ceil(fr.y-b.y)); ny<=int(std::floor(fr.y+b.y)); ny++)
+            for (int nz=int(std::ceil(fr.z-b.z)); nz<=int(std::floor(fr.z+b.z)); nz++)
+            {
+                const rvec3_t L=cell.ToCartesian(rvec3_t(nx,ny,nz));
+                const rvec3_t d=r-rc.Center()-L;
+                if (d.x*d.x+d.y*d.y+d.z*d.z<r2max) f(L);
+            }
+}
+
 double SeedCD::operator()(const rvec3_t& r) const
 {
+    const Matrix3D<double>& A=itsCell->GetCellMatrix();
+    const Matrix3D<double>  Minv=Invert(Transpose(A)*A);
     double rho=0;   // itsRecentred is parallel to the structure's atoms (flip-aware) -> per-atom scale by Z
-    for (size_t i=0;i<itsRecentred.size();i++) rho += itsScaleByZ.at((*itsStructure)[i]->itsZ) * itsRecentred[i](r);
+    for (size_t i=0;i<itsRecentred.size();i++)
+    {
+        const double s=itsScaleByZ.at((*itsStructure)[i]->itsZ);
+        if (s==0.0) continue;
+        const RecentredAtomicDensity& rc=itsRecentred[i];
+        ForEachImage(*itsCell, rc, Minv, r, [&](const rvec3_t& L){ rho += s*rc(r-L); });
+    }
     return itsScale*rho;
 }
 
 rvec3_t SeedCD::Gradient(const rvec3_t& r) const
 {
+    const Matrix3D<double>& A=itsCell->GetCellMatrix();
+    const Matrix3D<double>  Minv=Invert(Transpose(A)*A);
     rvec3_t g(0,0,0);
     for (size_t i=0;i<itsRecentred.size();i++)
-        g += itsScaleByZ.at((*itsStructure)[i]->itsZ) * itsRecentred[i].Gradient(r);
+    {
+        const double s=itsScaleByZ.at((*itsStructure)[i]->itsZ);
+        if (s==0.0) continue;
+        const RecentredAtomicDensity& rc=itsRecentred[i];
+        ForEachImage(*itsCell, rc, Minv, r, [&](const rvec3_t& L){ g += s*rc.Gradient(r-L); });
+    }
     return itsScale*g;
 }
 

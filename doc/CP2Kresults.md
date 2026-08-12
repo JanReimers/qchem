@@ -144,6 +144,34 @@ Two ways forward (either lets NaF/CsI join this table):
 
 Recommended: (1), together with extending qchem GPW to multi-species (needs those bases anyway).
 
+## MnO FM/AFM ordering oracles (2026-08-12) — the run-38 reversal is OURS
+
+The plan-doc STILL-OPEN item 1: run 38 (imposed Shubnikov, Γ-only LSDA) measured FM 38 mHa BELOW
+AFM-II and blamed Γ-only sampling + LSDA.  CP2K on the SAME cell/basis/functional says otherwise —
+**AFM-II is below FM at BOTH samplings**, so the reversal is a qchem defect, and it is AFM-sided
+(our FM is ~9 mHa from CP2K, our AFM 56–65 mHa and under-polarized: |m̃(q)|Ω/2 = 3.13 e⁻ vs
+Mulliken ±4.65–4.70 here).  Decks: `mno_fm_gpw_sr.inp` (MULTIPLICITY 11, both Mn seeded +5α,
+populations floating), `mno_{afm2,fm}_gpw_sr_222g.inp` (Γ-centred 2×2×2, SCHEME GENERAL — matches
+our `ivec3_t(2,2,2)`).  CP2K 2026.1, OMP 8, 70–500 s each.
+
+| mesh | E_AFM | E_FM | AFM−FM | moments (Mulliken Mn) |
+|---|---|---|---|---|
+| Γ | −61.470570 | −61.461700 | **−8.87 mHa** | ±4.654 / +5.561 |
+| 2×2×2 Γ-centred | −61.687257 | −61.681952 | **−5.31 mHa** | ±4.699 / +4.836 |
+
+- A `FIXED_MAGNETIC_MOMENT 10.0` FM arm (`mno_fm_gpw_sr_m10.inp`) is identical to the floating one
+  to 7 digits — the free FM minimum sits exactly at m=10, so our fixed-reservoir (multiplicity 11)
+  FM arm is ensemble-comparable as-is.
+- Smearing entropy: AFM ~−0.3 mHa (real gap ≫ kT once the exchange splitting opens), FM −7.7 mHa —
+  CP2K's −61.4706 is effectively a determinant-class number; our comparable anchor is the run-39
+  kT=0 GDM state −61.40557 (65.0 mHa).
+- The Γ-only ordering is a CANCELLATION of large terms — Δ(AFM−FM): Core-H +313.7, Hartree −251.2,
+  XC −78.8, entropy +7.4 mHa ⇒ −8.9 mHa — while at 2×2×2 the terms are gentle (+8.0, −17.3, +2.4,
+  +1.7).  A per-term Δ against OUR breakdown (convention-free: the shared constants cancel in
+  AFM−FM) is the defect-localization instrument; the qchem FM determinant leg is run 41.
+- k-convergence: both orderings drop ~217 mHa from Γ to 2×2×2 — the 2-f.u. cell is far from
+  k-converged, but the ORDERING is stable.
+
 ## How to run
 See `UnitTests/CP2K/README.md`. In short: `source ~/Code/cp2k/tools/toolchain/install/setup`,
 `export LD_LIBRARY_PATH=~/Code/cp2k/install/lib:$LD_LIBRARY_PATH`, then

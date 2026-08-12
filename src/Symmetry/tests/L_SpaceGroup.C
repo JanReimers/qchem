@@ -162,3 +162,196 @@ TEST(BZReduction, IdentityOps_do_not_fold)
     EXPECT_NEAR(ibz.WeightSum(), 1.0, 1e-12);
     for (const auto& p : ibz.points) EXPECT_EQ(p.starSize, 1);
 }
+
+//---------------------------------------------------------------------------------------
+//  §7-step-7 S1: the collinear magnetic (Shubnikov) group (doc/SymmetryUpgradePlan.md).
+//
+//  Fixture: the MnO AFM-II rhombohedral cell -- the chemical rocksalt cell DOUBLED along [111];
+//  Mn sublattices at (0,0,0) [+m] and (1/2,1/2,1/2) [-m], O (non-magnetic, spin=0) at 1/4 and 3/4.
+//  The doubling is the point: Detect keeps ONE tau coset per W, so the pure ANTI-TRANSLATION
+//  {E|1/2,1/2,1/2} -- which paired with Flip IS the sublattice mirror m1=-m2 -- exists only through
+//  ShubnikovOps' own coset re-enumeration.
+namespace
+{
+Matrix3D<double> MnOCell(double a=8.40)
+{
+    return Matrix3D<double>(a,   a/2, a/2,
+                            a/2, a,   a/2,
+                            a/2, a/2, a);
+}
+std::vector<AtomSite> MnOBasis(int s1, int s2)   // the two Mn sublattice spins; O stays spin=0
+{
+    return { {25, rvec3_t(0.0 ,0.0 ,0.0 ), s1},
+             {25, rvec3_t(0.5 ,0.5 ,0.5 ), s2},
+             { 8, rvec3_t(0.25,0.25,0.25), 0 },
+             { 8, rvec3_t(0.75,0.75,0.75), 0 } };
+}
+bool IsOp(const SymOp& op, const Matrix3D<double>& W, const rvec3_t& tau, SpinAction s)
+{
+    if (op.sigma!=s) return false;
+    for (int i=1;i<=3;i++) for (int j=1;j<=3;j++) if (fabs(op.W(i,j)-W(i,j))>1e-9) return false;
+    for (int c=0;c<3;c++)
+    {
+        double d=(&op.tau.x)[c]-(&tau.x)[c]; d-=floor(d+0.5);
+        if (fabs(d)>1e-6) return false;
+    }
+    return true;
+}
+} //anon
+
+TEST(Shubnikov, MnO_AFM2_SplitsIntoSixNoneSixFlipPerCoset)
+{
+    std::vector<AtomSite> afm = MnOBasis(+1,-1);
+    SpaceGroup sg = SpaceGroup::Detect(MnOCell(), afm);   // detection ignores the spin decoration
+    const size_t nGrey = sg.Order();                       // one tau coset per W (12 for this cell)
+    EXPECT_EQ(nGrey, 12u);
+
+    auto M = sg.ShubnikovOps(afm);
+    // Every detected W admits BOTH chemical-lattice cosets (the cell is a doubled chemical cell),
+    // and for the AFM decoration each W contributes exactly one None and one Flip op.
+    ASSERT_EQ(M.size(), 2*nGrey);
+    size_t nNone=0, nFlip=0;
+    for (const auto& op : M) (op.sigma==SpinAction::None ? nNone : nFlip)++;
+    EXPECT_EQ(nNone, nGrey);
+    EXPECT_EQ(nFlip, nGrey);
+
+    // The two named ops the machinery exists for: the identity, and the ANTI-TRANSLATION
+    // {E|1/2,1/2,1/2}*Flip = the sublattice mirror m1=-m2 (invisible to Detect's one-coset rule).
+    Matrix3D<double> E; // identity
+    bool haveId=false, haveAnti=false;
+    for (const auto& op : M)
+    {
+        haveId   = haveId   || IsOp(op, E, rvec3_t(0,0,0),       SpinAction::None);
+        haveAnti = haveAnti || IsOp(op, E, rvec3_t(0.5,0.5,0.5), SpinAction::Flip);
+    }
+    EXPECT_TRUE(haveId);
+    EXPECT_TRUE(haveAnti) << "the anti-translation (the m1=-m2 mirror) must be in the Shubnikov group";
+}
+
+TEST(Shubnikov, GroupClosure_AFM2)
+{
+    // {W1|t1,s1}.{W2|t2,s2} = {W1 W2 | W1 t2 + t1, s1 xor s2} must land in the set (M is a group).
+    std::vector<AtomSite> afm = MnOBasis(+1,-1);
+    SpaceGroup sg = SpaceGroup::Detect(MnOCell(), afm);
+    auto M = sg.ShubnikovOps(afm);
+    for (const auto& p : M)
+        for (const auto& q : M)
+        {
+            Matrix3D<double> W = p.W*q.W;
+            rvec3_t          t = p.W*q.tau + p.tau;
+            SpinAction       s = (p.sigma==q.sigma) ? SpinAction::None : SpinAction::Flip;
+            bool member=false;
+            for (const auto& r : M) if (IsOp(r, W, t, s)) { member=true; break; }
+            ASSERT_TRUE(member) << "Shubnikov set is not closed under composition";
+        }
+}
+
+TEST(Shubnikov, UndecoratedAndFMBasesGiveAllNone)
+{
+    // No decoration (all spin=0): the grey group, every coset sigma=None, nothing dropped.
+    std::vector<AtomSite> grey = MnOBasis(0,0);
+    SpaceGroup sg = SpaceGroup::Detect(MnOCell(), grey);
+    auto G = sg.ShubnikovOps(grey);
+    ASSERT_EQ(G.size(), 2*sg.Order());
+    for (const auto& op : G) EXPECT_EQ(op.sigma, SpinAction::None);
+
+    // FM decoration (+,+): every op still maps + onto +, so again all None -- including the plain
+    // translation {E|1/2,1/2,1/2} (None here, Flip under AFM: the SAME spatial op classifies
+    // differently per ordering, which is exactly what CommonOps below must respect).
+    std::vector<AtomSite> fm = MnOBasis(+1,+1);
+    auto F = SpaceGroup::Detect(MnOCell(), fm).ShubnikovOps(fm);
+    ASSERT_EQ(F.size(), G.size());
+    for (const auto& op : F) EXPECT_EQ(op.sigma, SpinAction::None);
+}
+
+TEST(Shubnikov, CommonOpsOfAFMAndFMKeepOnlySublatticePreservingOps)
+{
+    // The §3 ordering-search subgroup: impose only what BOTH candidate orderings share, so the SCF
+    // still chooses between them.  AFM-II and FM share the 12 sublattice-PRESERVING ops (None in
+    // both); the 12 sublattice-swapping ops differ in sigma (Flip vs None) and must be excluded.
+    std::vector<AtomSite> afm = MnOBasis(+1,-1), fm = MnOBasis(+1,+1);
+    SpaceGroup sg = SpaceGroup::Detect(MnOCell(), afm);
+    auto Mafm = sg.ShubnikovOps(afm);
+    auto Mfm  = sg.ShubnikovOps(fm);
+    auto C    = CommonOps({Mafm, Mfm});
+    ASSERT_EQ(C.size(), 12u);
+    for (const auto& op : C) EXPECT_EQ(op.sigma, SpinAction::None);
+    // ...and the excluded half really is the swap half: no common op moves Mn1 off its sublattice.
+    for (const auto& op : C)
+    {
+        rvec3_t g = op.W*rvec3_t(0,0,0) + op.tau;   // image of Mn1
+        double d[3]={g.x-floor(g.x+0.5), g.y-floor(g.y+0.5), g.z-floor(g.z+0.5)};
+        EXPECT_LT(fabs(d[0])+fabs(d[1])+fabs(d[2]), 1e-6) << "a common op must fix the Mn1 sublattice";
+    }
+}
+
+TEST(Shubnikov, AnIncompatibleDecorationDropsOps)
+{
+    // A FERRI-style decoration on a cell whose geometry demands equivalence: tag the two Mn with
+    // UNEQUAL magnitudes' signs is not expressible here (spin is a sign), so instead break the
+    // pattern with a THIRD magnetic site: simple-cubic 3-atom chain cell, spins (+,+,-) -- the
+    // translation by 1/3 maps + onto + and + onto -, satisfying NEITHER rule: it must be dropped,
+    // while the identity survives.  (Geometry: a=1 cubic cell, one species at z=0,1/3,2/3.)
+    Matrix3D<double> A(1.0, 0.0, 0.0,  0.0, 1.0, 0.0,  0.0, 0.0, 3.0);
+    std::vector<AtomSite> ferri = { {25, rvec3_t(0,0,0.0      ), +1},
+                                    {25, rvec3_t(0,0,1.0/3.0  ), +1},
+                                    {25, rvec3_t(0,0,2.0/3.0  ), -1} };
+    SpaceGroup sg = SpaceGroup::Detect(A, ferri);
+    auto M = sg.ShubnikovOps(ferri);
+    // The 1/3 and 2/3 translations must be gone; the identity must remain.
+    Matrix3D<double> E;
+    bool haveId=false;
+    for (const auto& op : M)
+    {
+        haveId = haveId || IsOp(op, E, rvec3_t(0,0,0), SpinAction::None);
+        EXPECT_FALSE(IsOp(op, E, rvec3_t(0,0,1.0/3.0), SpinAction::None));
+        EXPECT_FALSE(IsOp(op, E, rvec3_t(0,0,1.0/3.0), SpinAction::Flip));
+        EXPECT_FALSE(IsOp(op, E, rvec3_t(0,0,2.0/3.0), SpinAction::None));
+        EXPECT_FALSE(IsOp(op, E, rvec3_t(0,0,2.0/3.0), SpinAction::Flip));
+    }
+    EXPECT_TRUE(haveId);
+}
+
+//---------------------------------------------------------------------------------------
+//  S2: the channel-pair star-average primitives (doc/SymmetryUpgradePlan.md §7 step 7).
+//  The pair diagonalizes sigma: rho_tot is EVEN under Flip (plain SymmetrizeValues), the
+//  magnetization m = rho_up - rho_dn is ODD (SymmetrizeValuesSigned, chi = -1 on Flip edges).
+//
+TEST(Shubnikov, SignedFoldFixesTheStaggeredPatternAndGreyErasesIt)
+{
+    std::vector<AtomSite> afm = MnOBasis(+1,-1);
+    SpaceGroup sg = SpaceGroup::Detect(MnOCell(), afm);
+    auto M = sg.ShubnikovOps(afm);
+    std::vector<SpinAction> sigmas; for (const auto& op : M) sigmas.push_back(op.sigma);
+
+    // The four sites as the (invariant) point set; m sampled AT the sites.
+    std::vector<rvec3_t> pts = { afm[0].f, afm[1].f, afm[2].f, afm[3].f };
+    Fold f = FoldPointsPeriodic(pts, M, 1e-9);
+    ASSERT_EQ(f.Reps(), 2u);                 // {Mn1,Mn2} and {O1,O2}: the flip ops JOIN the sublattices
+
+    // The odd-field audit: the O sites are FIXED by the sublattice-swapping inversion (a Flip op),
+    // so m(O) == 0 exactly; the Mn sites are never flip-fixed (a flip op fixing a magnetic site
+    // would need s = -s).
+    auto fixed = FlipFixedPointsPeriodic(pts, M, 1e-9);
+    EXPECT_EQ(int(fixed[0]), 0); EXPECT_EQ(int(fixed[1]), 0);
+    EXPECT_EQ(int(fixed[2]), 1); EXPECT_EQ(int(fixed[3]), 1);
+
+    // The EXACT staggered pattern is a fixed point of the signed projector...
+    std::vector<double> m = {+0.7, -0.7, 0.0, 0.0};
+    SymmetrizeValuesSigned(f, sigmas, m);
+    EXPECT_NEAR(m[0], +0.7, 1e-12); EXPECT_NEAR(m[1], -0.7, 1e-12);
+    EXPECT_NEAR(m[2],  0.0, 1e-12); EXPECT_NEAR(m[3],  0.0, 1e-12);
+
+    // ...a PERTURBED pattern projects back onto the mirror (audit-flagged points zeroed first)...
+    std::vector<double> p = {+0.70, -0.65, +0.01, -0.02};
+    for (size_t i=0;i<p.size();++i) if (fixed[i]) p[i]=0.0;
+    SymmetrizeValuesSigned(f, sigmas, p);
+    EXPECT_NEAR(p[0], +0.675, 1e-12); EXPECT_NEAR(p[1], -0.675, 1e-12);
+    EXPECT_NEAR(p[2],  0.0,   1e-12); EXPECT_NEAR(p[3],  0.0,   1e-12);
+
+    // ...and the PLAIN (grey) average over the same fold ERASES the staggering -- the unit-level
+    // form of "the grey group would average the AFM away", the reason ShubnikovOps exists.
+    std::vector<double> g = {+0.70, -0.65, 0.0, 0.0};
+    SymmetrizeValues(f, g);
+    EXPECT_NEAR(g[0], 0.025, 1e-12); EXPECT_NEAR(g[1], 0.025, 1e-12);
+}

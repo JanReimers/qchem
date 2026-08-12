@@ -17,6 +17,9 @@ Collected results (energies, breakdowns, runtimes) are tabulated in **`doc/CP2Kr
 - `SIPP-SR-BASIS` — our SIPP_SR Si valence basis (`BasisSetData/sipp_sr.bsd`,
   3s3p uncontracted) transcribed into CP2K `BASIS_SET` format.
 - (NaF/CsI: blocked on q-mismatched bases — CP2K ships no q1 Na/Cs basis, no I basis. See `doc/CP2Kresults.md`.)
+- `mno_afm2_gpw_sr.inp` + `mno_fm_gpw_sr{,_m10}.inp` + `mno_{afm2,fm}_gpw_sr_222g.inp` — the MnO
+  rocksalt AFM-II/FM ordering oracles on our VALENCE-LOWQ-SR basis (UKS + &BS broken-symmetry seed;
+  Γ and Γ-centred 2×2×2). Results + the ordering table: `doc/CP2Kresults.md` (2026-08-12 section).
 
 ## Reference result (CP2K 2026.1, serial ssmp)
 FCC-Si Γ, SIPP_SR, GTH-PADE-q4, LDA_X+VWN5:

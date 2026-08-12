@@ -2,6 +2,7 @@
 module;
 #include <memory>
 #include <string>
+#include <vector>   // XCQuadrature::sigmas/flipFixed (Shubnikov S3)
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
@@ -22,6 +23,13 @@ struct XCQuadrature
 {
     std::shared_ptr<const qcMesh::Mesh> mesh;   //!< the quadrature (group-average invariant when fold is live)
     Symmetry::Lattice_3D::Fold          fold;   //!< its orbit partition ({} = no star-averaging)
+    //! Shubnikov S3 (doc/SymmetryUpgradePlan.md §7 step 7) -- filled only on a MAGNETICALLY imposed run:
+    //! the per-op spin actions PARALLEL to the op list the fold was built under (the edge opIndex indexes
+    //! it), and the odd-field zero flags (mesh points some σ=Flip op maps onto themselves, where the
+    //! magnetization m must vanish exactly).  Both empty = grey/free semantics: the engine star-averages
+    //! each channel independently, exactly as before.
+    std::vector<Symmetry::SpinAction>   sigmas;
+    std::vector<char>                   flipFixed;
 };
 
 //! \brief The MINIMAL, metric-neutral face of a CHARGE-DENSITY fit basis: just "I am a density-fit basis" --

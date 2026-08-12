@@ -72,7 +72,17 @@ template <class T> void tPolarizedWF<T>::DisplayEigen() const
         const Orbitals::EnergyLevel* up=els_up.FindOrNull(upqns);
         const Orbitals::EnergyLevel* dn=els_dn.FindOrNull(dnqns);
         const double upOcc=up?up->occ:0.0, dnOcc=dn?dn->occ:0.0;
-        const double upE  =up?up->e:el.e , dnE  =dn?dn->e:el.e;
+        // ABSENT IS NOT EMPTY (2026-08-10, MnO run 29).  These used to fall back to `el.e` -- the COMBINED
+        // level's energy, i.e. the OTHER channel's number -- and to a fabricated occupancy of 0.  The row then
+        // read as a level that is occupied in one channel and EMPTY AT THE SAME ENERGY in the other, with
+        // ϵ↑−ϵ↓ printing exactly 0.00000000; on MnO that manufactured a spin-up "hole" at −0.0372 below
+        // occupied spin-up levels at +0.214, and the campaign's non-aufbau readings came off rows like it.
+        // Two different spin Fock matrices do not share an eigenvalue to 8 digits wherever m≠0, so an exact
+        // zero in that column was always the tell.  Now an absent level prints "--" and contributes no
+        // difference.  (ROOT CAUSE, deeper and still open: `n` indexes a DEGENERATE GROUP, and the grouping
+        // differs between channels once ϵ↑≠ϵ↓ -- so pairing rows by (n,sym) is not a sound identity in a
+        // polarized run.  It is also why the table skips indices and runs them out of order.  The real fix is
+        // to pair by energy/character; this one only stops the display from inventing what it lacks.)
         const int    upDeg=up?up->degen:(dn?dn->degen:1), dnDeg=dn?dn->degen:upDeg;
         if (upOcc==0.0 && dnOcc==0.0 && el.e>eHomo) continue;
         std::ostringstream sym_string,up_occ_string,dn_occ_string;
@@ -87,15 +97,23 @@ template <class T> void tPolarizedWF<T>::DisplayEigen() const
             else                             os << std::fixed << std::setprecision(2) << occ;
             os << "/" << deg;
         };
-        occStr(up_occ_string, upOcc, upDeg);
-        occStr(dn_occ_string, dnOcc, dnDeg);
+        if (up) occStr(up_occ_string, upOcc, upDeg); else up_occ_string << "--";
+        if (dn) occStr(dn_occ_string, dnOcc, dnDeg); else dn_occ_string << "--";
         size_t l=el.qns.sym->GetPrincipleOffset();
+        //! This channel has no such level -> "--", never a number borrowed from the other channel.
+        auto eStr=[](const Orbitals::EnergyLevel* lv)
+        {
+            if (!lv) return std::string("--");
+            std::ostringstream os; os << std::fixed << std::setprecision(8) << lv->e; return os.str();
+        };
+        std::string dEStr="--";
+        if (up && dn) { std::ostringstream os; os << std::fixed << std::setprecision(8) << up->e-dn->e; dEStr=os.str(); }
 
         RowStream rs;
-        rs << up_occ_string.str() << std::fixed << std::setprecision(8) << upE;
+        rs << up_occ_string.str() << eStr(up);
         rs << sym_string.str();
-        rs << dn_occ_string.str() << std::fixed << std::setprecision(8) << dnE;
-        rs << std::fixed << upE-dnE;
+        rs << dn_occ_string.str() << eStr(dn);
+        rs << dEStr;
         eigen_table.add_row(rs);
         // Row formating.
         size_t n=eigen_table.size()-1;

@@ -8,6 +8,7 @@
 module;
 #include <iosfwd>
 #include <map>
+#include <vector>   // XC_GridEngine sigmas/flipFixed (Shubnikov S3)
 #include <memory>
 #include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
@@ -264,7 +265,10 @@ public:
     //! empty fold = a free run (no star-average).  Everything symmetry-shaped happens before this
     //! ctor; per iteration the engine only applies the fold's orbit-mean to ρ.
     typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
-    XC_GridEngine(mesh_t, Symmetry::Lattice_3D::Fold fold = {});
+    //! \a sigmas + \a flipFixed (Shubnikov S3, both from \c XCQuadrature): the per-op spin actions of a
+    //! MAGNETICALLY imposed run and the odd-field zero flags.  Empty (the default) = grey/free semantics.
+    XC_GridEngine(mesh_t, Symmetry::Lattice_3D::Fold fold = {},
+                  std::vector<Symmetry::SpinAction> sigmas = {}, std::vector<char> flipFixed = {});
     const qcMesh::Mesh& Mesh() const {return *itsMesh;}
     //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
     //! STAR-AVERAGED over the fold's orbits when one was supplied (exact projector on the invariant
@@ -294,6 +298,11 @@ private:
     // without ever stating it.  itsMesh/itsFold are NOT mutable: they are construction-time and must not move.
     mesh_t itsMesh;                               //!< the quadrature (invariant when the fold is live)
     Symmetry::Lattice_3D::Fold itsFold;           //!< its orbit partition ({} = free run, no averaging)
+    //! Shubnikov S3: the fold's per-op spin actions + the odd-field zero flags ({} = grey -- RhoPol then
+    //! star-averages each channel independently).  With σ live, RhoPol projects the (ρ,m) PAIR instead:
+    //! the total under the plain orbit mean, m under the χ-signed one with the flagged points zeroed.
+    std::vector<Symmetry::SpinAction> itsSigmas;
+    std::vector<char>                 itsFlipFixed;
     mutable std::map<Irrep,mat_t<dcmplx>> itsPhi; //!< spatial Irrep -> (npts x n) basis table
     //! \warning The scalar cache (itsRho) and the spin-resolved pair (itsRhoUp/Dn) have NO cross-
     //! invalidation: each guards only its own serial, so if one term drove \c Rho and another \c RhoPol on

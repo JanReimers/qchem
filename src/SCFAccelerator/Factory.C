@@ -23,7 +23,9 @@ export namespace qchem::SCFAccelerators
     //! \c DIISParams -- there should be exactly one spelling of that.
     struct SolidAcceleratorOptions
     {
-        DIISParams diis {8, 0.1, 1e-10, 1e-9};   //!< Nproj, then the [F,D] gates (NOT energy -- see DIISParams).
+        //! Nproj, the [F,D] gates, the absolute SV prune, and -- ON for solids (see DIISParams::SVTolRel;
+        //! the MnO run-32 dependent-history blow-up) -- the RELATIVE conditioning prune at 1e-4.
+        DIISParams diis {8, 0.1, 1e-10, 1e-9, 1e-4};
         GDMParams  gdm  {1.0, 0.1};              //!< standalone GDM.
         //! Ladder only: the GDM rung takes a larger trust radius than standalone, because it is polishing a
         //! tail DIIS has already brought close rather than descending from far away.

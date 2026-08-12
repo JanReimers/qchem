@@ -24,6 +24,7 @@ module;
 #include <deque>
 #include <type_traits>
 #include <optional>
+#include <vector>
 #include <cstdlib>   // getenv (the QCHEM_SPINBLIND_KERKER A/B valve)
 export module qchem.ChargeDensity.DensityMixer;
 export import qchem.ChargeDensity;                 // tChargeDensity<T>, tDM_CD<T>
@@ -153,6 +154,8 @@ struct GField
     rvec_t raster;   //!< the raw-raster shadow (doc/GPWPlan 0.5(f2)); empty = the raw pipeline is off
 };
 
+class tFieldExtrapolator;   // the HISTORY face, below
+
 //! A mixer whose subject is a \c GField -- i.e. one that works purely in G space (Kerker, Pulay; NOT the
 //! DM-based linear mixer, which genuinely needs the density matrix).  \c tDensityMixer::Mix is then just the
 //! adapter that extracts the field from a density and calls this.
@@ -165,7 +168,80 @@ public:
     //! The running mixed density -- the PRESENTATION of the mixed field (what \c FockDensity returns, and
     //! what a caller recombining spin channels reads ρ̃ back from).
     virtual const FourierMixCD& Mixed() const = 0;
+    //! \brief DOES THIS MIXER CARRY HISTORY? -- the property that decides whether a multi-channel caller may
+    //! run one of these PER CHANNEL.  Returns the staging face (below), or \c nullptr for a memoryless filter.
+    //!
+    //! A memoryless FILTER (Kerker's \f$G^2/(G^2+G_0^2)\f$) is linear and channel-diagonal, so per-channel
+    //! application is IDENTICAL to joint application -- splitting it is free.  An EXTRAPOLATOR is not: its
+    //! coefficients come from a least-squares fit over a residual HISTORY, so independent fits per channel
+    //! synthesise a state \f$(\sum c^\uparrow_i\rho^\uparrow_i,\ \sum c^\downarrow_i\rho^\downarrow_i)\f$ that
+    //! never occurred on the trajectory -- each channel conserves its own charge, but the MOMENT becomes an
+    //! arbitrary combination of history moments.  That is the MnO ejection (doc/SymmetryUpgradePlan.md §7
+    //! step 7), and it is the same bug CLASS as the spin-blind ρ̃ mixer fixed at 041ddff3, one level up:
+    //! that one was spin-blind in the FILTER, this one in the HISTORY.
+    virtual tFieldExtrapolator* History() { return nullptr; }
 };
+
+//! One channel's contribution to a JOINT extrapolation: its own convergence gate, plus its block of the
+//! shared error-overlap matrix.
+struct StagedResidual
+{
+    double  resid=0.0;   //!< ‖out−in‖_∞ for THIS channel (the caller's convergence gate)
+    rsmat_t B;           //!< \f$B^{(c)}_{ij}=\langle r^{(c)}_i,r^{(c)}_j\rangle\f$; EMPTY while priming / n<2
+};
+
+//! \brief The HISTORY face: a field mixer whose step is an EXTRAPOLATION over past iterations (Pulay/Broyden)
+//! rather than a memoryless filter -- and which therefore splits its step into STAGING and APPLICATION so that
+//! several channels can share ONE set of coefficients.
+//!
+//! The two-phase shape is forced by the physics: with two spin channels, ↑ cannot be mixed until ↓ has
+//! contributed its block of B.  \c MixJointly below is the whole protocol; the single-channel \c MixField is
+//! just its one-element case.
+class tFieldExtrapolator : public virtual tFieldMixer
+{
+public:
+    //! Phase 1: absorb \a out into this channel's history and return its block of the shared B (plus its
+    //! residual).  The mix itself is DEFERRED -- nothing is committed until \c ApplyJoint.
+    virtual StagedResidual StageResidual(const GField& out) = 0;
+    //! Phase 2: commit the step with the coefficients \a c solved from the SUMMED B.  An EMPTY \a c means
+    //! "no extrapolation this step" (priming, or history<2) -- the plain un-extrapolated step.
+    virtual void ApplyJoint(const rvec_t& c) = 0;
+    tFieldExtrapolator* History() override { return this; }
+};
+
+//! \brief ONE extrapolation over N channels: stage every channel, sum their blocks into a SINGLE bordered
+//! solve, and apply the ONE coefficient vector to all of them.  Returns the WORST channel's residual.
+//!
+//! The joint inner product is simply the sum over channels, \f$B_{ij}=\sum_c\langle r^{(c)}_i,r^{(c)}_j
+//! \rangle\f$ -- spin is just another irrep, exactly as the Fock-space DIIS already sums its B over spatial
+//! irreps (SCFAcceleratorDIIS: "one B summed over both spins, one coefficient vector").  \c qchem.Math.DIIS
+//! needs nothing new: it always documented that the CALLER owns the history and builds B with its own inner
+//! product.
+inline double MixJointly(const std::vector<tFieldExtrapolator*>& channels, const std::vector<GField>& fields)
+{
+    assert(channels.size()==fields.size() && !channels.empty());
+    std::vector<StagedResidual> staged;
+    double resid=0.0;
+    for (size_t i=0;i<channels.size();++i)
+    {
+        staged.push_back(channels[i]->StageResidual(fields[i]));
+        resid=std::max(resid,staged[i].resid);
+    }
+    const size_t n=staged[0].B.rows();
+    rvec_t c;                                            // empty = no extrapolation (priming / n<2)
+    if (n>=2)
+    {
+        rsmat_t B=blazem::zero<double>(n);
+        for (const auto& s : staged)
+        {
+            assert(s.B.rows()==n && "MixJointly: the channels' histories are out of step");
+            B+=s.B;
+        }
+        c=qchem::Math::DIIS::Coefficients(qchem::Math::DIIS::Bordered(B));
+    }
+    for (auto* ch : channels) ch->ApplyJoint(c);
+    return resid;
+}
 
 //! Kerker-preconditioned ρ̃(G)-mixing (periodic / dcmplx).  ρ_mix = ρ_in + α·G²/(G²+G0²)·(ρ_out−ρ_in).
 //! NB \b G0=0 makes this the PLAIN LINEAR G-space mixer (the filter is identically 1) -- which is exactly
@@ -286,7 +362,13 @@ inline double MapInnerRe(const ΔG_Map& a, const ΔG_Map& b)  // Re Σ_{G≠0} c
 //! extrapolated ρ̃_in*=Σcᵢρ̃_inᵢ and ρ̃_out*=Σcᵢρ̃_outᵢ, and applies the Kerker step to THOSE via FourierMixCD::
 //! KerkerMix (= ρ̃_in* + α·G²/(G²+G0²)·(ρ̃_out*−ρ̃_in*)).  First iteration (history<2) falls back to plain
 //! Kerker.  doc/SCFStrategyPlan.md §4 (the density-face use of the shared extrapolator).
-class PulayMixer : public tDensityMixer<dcmplx>, public virtual tFieldMixer
+//!
+//! On a POLARIZED run one of these mixes each channel, but they SHARE one extrapolation: the step is split
+//! into \c StageResidual (grow the history, hand out this channel's block of B) and \c ApplyJoint (commit
+//! with the coefficients solved from the summed B) -- see \c tFieldExtrapolator.  The Kerker step itself
+//! stays per-channel, because a FILTER may legitimately differ per channel (that is what the (ρ,m) basis
+//! buys); only the HISTORY must be shared.
+class PulayMixer : public tDensityMixer<dcmplx>, public virtual tFieldExtrapolator
 {
 public:
     PulayMixer(double relax, double G0, int depth, int start, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
@@ -306,73 +388,95 @@ public:
     }
     const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
 
+    //! The single-channel step: stage, solve MY OWN B, apply.  Exactly \c MixJointly over one channel -- and
+    //! written as such, so the unpolarized path cannot drift from the polarized one.
     double MixField(const GField& field) override
     {
+        return MixJointly({this},{field});
+    }
+
+    //! Phase 1 (see \c tFieldExtrapolator): grow the history and hand out this channel's block of B.  Nothing
+    //! is committed here -- the pending (in,out) pair is held for \c ApplyJoint.
+    StagedResidual StageResidual(const GField& field) override
+    {
         assert(itsMixedRho);
+        assert(!itsStaged && "PulayMixer: StageResidual twice with no ApplyJoint between");
         const ΔG_Map& out    = field.tilde;
         const rvec_t& rawOut = field.raster;
         ΔG_Map in  = itsMixedRho->RhoTilde();               // ρ̃_in : the density fed to this iteration's Fock
         ΔG_Map res = MapSub(out,in);                        // residual = ρ̃_out − ρ̃_in
-        double resid = MapMaxAbs(res);
+        StagedResidual sr;
+        sr.resid = MapMaxAbs(res);
         // RAW-raster shadow inputs (0.5(f2)); late-activates like KerkerMixer, drops out if answers stop.
-        auto*  ge     = dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsKerkerFit.get());
-        const bool raw = rawOut.size() && ge;
+        const bool raw = rawOut.size() && RasterEvaluator();
         if (raw && itsRawIn.size()!=rawOut.size()) itsRawIn=rawOut;                    // bootstrap/late-activate
         if (!raw) { itsRawIn=rvec_t{}; itsRawIns.clear(); itsRawOuts.clear(); }
-        rvec_t rawIn = itsRawIn;                            // the shadow of `in` (captured before the update)
+        itsPending = Pending{in, out, itsRawIn, rawOut, raw};   // rawIn = the shadow of `in`, before the update
+        itsStaged  = true;
 
         // PRIME with plain Kerker until we are near the fixed point (history-based mixing is unstable far
         // out).  No history is accumulated during priming, so Pulay starts with clean, linear-regime residuals.
-        if (++itsCount<=itsStart)
-        {
-            itsMixedRho.reset(FourierMixCD::KerkerMix(*itsMixedRho,out,itsRelax,itsKerkerG0));
-            if (raw)
-            {
-                itsRawIn=RasterKerker(*ge, rawIn, rawOut, itsRelax, itsKerkerG0);
-                itsMixedRho->SetRawRho(itsRawIn);
-            }
-            return resid;
-        }
+        if (++itsCount<=itsStart) return sr;                // no history ⇒ no B ⇒ ApplyJoint takes the plain step
 
-        itsIns.push_back(in); itsOuts.push_back(out); itsResiduals.push_back(res);   // grow the history
-        if (raw) { itsRawIns.push_back(rawIn); itsRawOuts.push_back(rawOut); }
+        itsIns.push_back(in); itsOuts.push_back(out); itsResiduals.push_back(std::move(res));  // grow the history
+        if (raw) { itsRawIns.push_back(itsPending.rawIn); itsRawOuts.push_back(rawOut); }
         while ((int)itsResiduals.size()>itsDepth)                                    // prune to `depth`
             { itsIns.pop_front(); itsOuts.pop_front(); itsResiduals.pop_front(); }
         while (itsRawIns.size()>itsResiduals.size()) { itsRawIns.pop_front(); itsRawOuts.pop_front(); }
 
         const size_t n=itsResiduals.size();
+        if (n>=2)                                           // n<2: not enough history yet → plain Kerker
+        {
+            sr.B=blazem::zero<double>(n);                   // Bᵢⱼ = ⟨resᵢ,resⱼ⟩ (symmetric)
+            for (size_t i=0;i<n;++i)
+                for (size_t j=i;j<n;++j) sr.B(i,j)=MapInnerRe(itsResiduals[i],itsResiduals[j]);
+        }
+        return sr;
+    }
+
+    //! Phase 2: extrapolate with the SHARED coefficients \a c (empty = plain step) and take the Kerker step
+    //! on the extrapolated pair.
+    void ApplyJoint(const rvec_t& c) override
+    {
+        assert(itsStaged && "PulayMixer::ApplyJoint with nothing staged");
+        itsStaged=false;
+        const Pending& p=itsPending;
         ΔG_Map inStar, outStar;
-        rvec_t rawInStar=rawIn, rawOutStar=rawOut;         // raw stars default to the plain pair
-        if (n<2) { inStar=in; outStar=out; }               // not enough history yet → plain Kerker
+        rvec_t rawInStar=p.rawIn, rawOutStar=p.rawOut;     // raw stars default to the plain pair
+        if (c.size()==0) { inStar=p.in; outStar=p.out; }   // priming / no history → plain Kerker
         else
         {
-            rsmat_t B=blazem::zero<double>(n);              // Bᵢⱼ = ⟨resᵢ,resⱼ⟩ (symmetric)
-            for (size_t i=0;i<n;++i)
-                for (size_t j=i;j<n;++j) B(i,j)=MapInnerRe(itsResiduals[i],itsResiduals[j]);
-            rvec_t c=qchem::Math::DIIS::Coefficients(qchem::Math::DIIS::Bordered(B));
+            assert(c.size()==itsResiduals.size() && "PulayMixer::ApplyJoint: c does not span my history");
             inStar =MapCombine(itsIns ,c);                 // ρ̃_in*  = Σ cᵢ ρ̃_inᵢ
             outStar=MapCombine(itsOuts,c);                 // ρ̃_out* = Σ cᵢ ρ̃_outᵢ
             // The raw shadow takes the SAME extrapolation coefficients -- but only once its history spans the
             // whole window (a late-activated shadow falls back to the plain pair until the deques align).
-            if (raw && itsRawIns.size()==n)
+            if (p.raw && itsRawIns.size()==c.size())
             {
-                rawInStar =c[0]*itsRawIns[0];  for (size_t i=1;i<n;++i) rawInStar +=c[i]*itsRawIns[i];
-                rawOutStar=c[0]*itsRawOuts[0]; for (size_t i=1;i<n;++i) rawOutStar+=c[i]*itsRawOuts[i];
+                rawInStar =c[0]*itsRawIns[0];  for (size_t i=1;i<c.size();++i) rawInStar +=c[i]*itsRawIns[i];
+                rawOutStar=c[0]*itsRawOuts[0]; for (size_t i=1;i<c.size();++i) rawOutStar+=c[i]*itsRawOuts[i];
             }
         }
         FourierMixCD inStarCD(inStar,itsRecip,itsCharge);  // Kerker step on the DIIS-extrapolated pair
         itsMixedRho.reset(FourierMixCD::KerkerMix(inStarCD,outStar,itsRelax,itsKerkerG0));
-        if (raw)
+        if (p.raw)
         {
-            itsRawIn=RasterKerker(*ge, rawInStar, rawOutStar, itsRelax, itsKerkerG0);
+            itsRawIn=RasterKerker(*RasterEvaluator(), rawInStar, rawOutStar, itsRelax, itsKerkerG0);
             itsMixedRho->SetRawRho(itsRawIn);
         }
-        return resid;
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
     const char* Tag() const override { return "Pul"; }
 private:
+    //! The raster-shadow evaluator, or nullptr when the fit basis cannot raster (⇒ the raw pipeline is off).
+    const BasisSet::G_FieldEvaluator* RasterEvaluator() const
+    { return dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsKerkerFit.get()); }
+
+    //! The (in,out) pair staged by \c StageResidual and consumed by \c ApplyJoint -- the state the two-phase
+    //! split needs and the old single-phase \c MixField kept in locals.
+    struct Pending { ΔG_Map in, out; rvec_t rawIn, rawOut; bool raw=false; };
+
     double itsRelax, itsKerkerG0; int itsDepth, itsStart, itsCount=0;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
     ReciprocalLattice itsRecip;
@@ -381,6 +485,8 @@ private:
     std::deque<ΔG_Map> itsIns, itsOuts, itsResiduals;      // the Pulay history (aligned index-wise)
     rvec_t itsRawIn;                                       //!< the raster shadow of itsMixedRho (empty = off)
     std::deque<rvec_t> itsRawIns, itsRawOuts;              //!< its history (aligned with itsIns while active)
+    Pending itsPending;                                    //!< staged, not yet committed
+    bool    itsStaged=false;
 };
 
 //---------------------------------------------------------------------------------------------------------
@@ -399,9 +505,19 @@ private:
 //  For a LINEAR operator that is algebraically identical to mixing (ρ↑,ρ↓) per channel -- Kerker is linear
 //  in the residual, so m_mix = m_in + αK(m_out−m_in) either way -- i.e. THIS composite reproduces CP2K's
 //  Kerker exactly, with no proof burden.  The basis only becomes a real choice for the NONLINEAR history
-//  mixers (Pulay/Broyden extrapolation coefficients are not linear in the residual history), where CP2K
-//  keeps independent per-channel histories on (ρ,m).  That choice is deliberately left HERE -- swapping the
-//  channel basis, or giving m a plain linear leaf while ρ keeps Kerker, is a change to this class alone.
+//  mixers (Pulay/Broyden extrapolation coefficients are not linear in the residual history).  That choice is
+//  deliberately left HERE -- swapping the channel basis, or giving m a plain linear leaf while ρ keeps
+//  Kerker, is a change to this class alone.
+//
+//  WHAT THE HISTORY MAY *NOT* DO (2026-08-10, the MnO ejections; §7 step 7).  Splitting the FILTER per
+//  channel is free; splitting the HISTORY is not.  This class ran ONE Pulay per channel, i.e. two
+//  independent B-solves giving c↑ ≠ c↓, so the extrapolated state (Σcᵢ↑ρ↑ᵢ, Σcᵢ↓ρ↓ᵢ) never occurred on the
+//  trajectory: each channel still conserved its charge, but the MOMENT came out an arbitrary synthesised
+//  combination of history moments -- MnO run 27's ejections (E −61.25 → −49, m_stag 0.4 → 0.1, recovering,
+//  repeating).  So this class is now a channel-basis PRECONDITIONER feeding ONE joint extrapolator:
+//      residual → per-channel filter (may differ per channel) → joint extrapolation (one B, one c, all channels)
+//  which is also the VASP/QE/CP2K architecture -- and note CP2K's BETA 1.5 IS its Kerker preconditioner
+//  sitting in front of ONE Broyden history.  The two concepts COMPOSE; we had them fused.
 //---------------------------------------------------------------------------------------------------------
 
 //! The polarized ρ̃ Fock density: the two channel mixers' outputs presented as ONE density carrying BOTH
@@ -480,9 +596,6 @@ private:
     mutable size_t itsVersion=0, itsUpV=0, itsDnV=0;   // 0 = the reserved "no density yet" sentinel
 };
 
-//! ONE ρ̃ mixer per spin channel, plus the spin-resolved Fock view they feed.  Pure forwarding: the leaves
-//! are ordinary \c tDensityMixer<dcmplx>s built by the SAME factory the unpolarized path uses, so Kerker and
-//! Pulay (and their successors) are supported here without this class knowing which it holds.
 //! WHICH pair of linear combinations the two leaves mix.
 enum class ChannelBasis
 {
@@ -496,63 +609,69 @@ enum class ChannelBasis
                      //!< deliberately DIVERGE from CP2K, which damps m with the same filter as ρ.
 };
 
+//! \brief The CHANNEL-BASIS PRECONDITIONER for a polarized ρ̃ run: two leaves that FILTER a pair of channels
+//! -- (ρ↑,ρ↓) or (ρ,m) -- plus the spin-resolved Fock view they feed.  When the leaves carry HISTORY it does
+//! NOT let them extrapolate independently: it stages both and runs ONE joint solve (see \c MixJointly).
+//!
+//! The leaves are ordinary mixers built by the SAME factory the unpolarized path uses, so Kerker and Pulay
+//! (and their successors) are supported without this class knowing which it holds -- but that ignorance now
+//! stops exactly where it must: it ASKS each leaf whether it carries memory (\c tFieldMixer::History), because
+//! that is precisely the property deciding whether splitting a step per channel is legitimate.
 class PolarizedDensityMixer : public tDensityMixer<dcmplx>
 {
 public:
-    //! \a up/\a dn are the two leaves.  Under \c SpinChannels they mix ρ↑/ρ↓; under \c TotalAndMoment they
-    //! mix ρ/m and MUST both satisfy \c cFourierMixer (checked here) -- m is a difference of maps, so it can
-    //! only be driven through the G-space face.  \a fit/\a recip are needed in that mode to read the working
-    //! channels' ρ̃ and to rebuild the channel pair the Fock consumes.
-    //! (ρ↑,ρ↓) basis: one leaf per spin channel.  Needs nothing but the leaves.
-    PolarizedDensityMixer(std::unique_ptr<tDensityMixer<dcmplx>> up,
-                          std::unique_ptr<tDensityMixer<dcmplx>> dn)
-        : itsUp(std::move(up)), itsDn(std::move(dn)), itsBasis(ChannelBasis::SpinChannels) {}
-
-    //! (ρ,m) basis: \a rho and \a m mix the total and the magnetization, so BOTH must be field mixers
-    //! (m is a difference of maps -- see GField).  \a fit/\a recip read the working channels' ρ̃ and give
-    //! the rebuilt channel pair its metric.  Separate constructor rather than defaulted arguments: in this
-    //! basis they are REQUIRED, and there is no meaningful "no reciprocal lattice".
-    PolarizedDensityMixer(std::unique_ptr<tDensityMixer<dcmplx>> rho,
-                          std::unique_ptr<tDensityMixer<dcmplx>> m,
+    //! \a a/\a b are the two leaves and must BOTH be field mixers: under \c SpinChannels they mix ρ↑/ρ↓,
+    //! under \c TotalAndMoment ρ and m=ρ↑−ρ↓ (m is a difference of maps, so it can only be driven through the
+    //! G-space face -- see \c GField).  \a fit reads the working channels' ρ̃; \a recip gives the rebuilt
+    //! channel pair its metric.  Both are REQUIRED in either basis: the channel fields are formed HERE now,
+    //! so that a history-carrying pair can be staged before either is committed.
+    PolarizedDensityMixer(std::unique_ptr<tDensityMixer<dcmplx>> a,
+                          std::unique_ptr<tDensityMixer<dcmplx>> b,
                           std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
-                          const ReciprocalLattice& recip)
-        : itsUp(std::move(rho)), itsDn(std::move(m)), itsBasis(ChannelBasis::TotalAndMoment)
+                          const ReciprocalLattice& recip,
+                          ChannelBasis basis)
+        : itsUp(std::move(a)), itsDn(std::move(b)), itsBasis(basis)
         , itsFit(std::move(fit)), itsRecip(recip)
     {
-        itsRhoF=dynamic_cast<tFieldMixer*>(itsUp.get());
-        itsMF  =dynamic_cast<tFieldMixer*>(itsDn.get());
-        assert(itsRhoF && itsMF && itsFit &&
-               "PolarizedDensityMixer(ρ,m): both leaves must be field mixers");
+        itsAF=dynamic_cast<tFieldMixer*>(itsUp.get());
+        itsBF=dynamic_cast<tFieldMixer*>(itsDn.get());
+        assert(itsAF && itsBF && itsFit && "PolarizedDensityMixer: both leaves must be field mixers");
+        itsAH=itsAF->History(); itsBH=itsBF->History();
+        if (itsAH && itsBH)
+            std::cerr << "[Pulay] JOINT HISTORY: one B summed over both channels, one coefficient vector "
+                      << "(spin is just another irrep)." << std::endl;
     }
 
-    //! Mix each channel with its own leaf; the SCF gate is the WORSE channel (both must converge -- an AFM
-    //! solution whose total has settled while the staggering still moves is not converged).
-    double Mix(cd_t& working, const cd_t& old) override
+    //! Read both channels' fresh ρ̃, form the pair of channel fields, and mix them.  The SCF gate is the WORSE
+    //! channel (both must converge -- an AFM solution whose total has settled while the staggering still moves
+    //! is not converged).
+    double Mix(cd_t& working, const cd_t& /*old*/) override
     {
         auto [wu,wd]=Channels(working);
-        if (itsBasis==ChannelBasis::SpinChannels)
-        {
-            auto [ou,od]=Channels(old);
-            const double du=itsUp->Mix(*wu,*ou), dd=itsDn->Mix(*wd,*od);
-            return std::max(du,dd);
-        }
-        // (ρ,m): read BOTH channels' fresh ρ̃, form the two combinations, and give each its own leaf.
         const FourierDensity& fu=FourierOf(wu);
         const FourierDensity& fd=FourierOf(wd);
         const ΔG_Map up=fu.GetFourierDensity(*itsFit), dn=fd.GetFourierDensity(*itsFit);
         const rvec_t rup=fu.GetRhoOnGrid(*itsFit),     rdn=fd.GetRhoOnGrid(*itsFit);
-        const double dRho=itsRhoF->MixField({MapAdd(up,dn), RawCombine(rup,rdn,+1.0,1.0)});
-        const double dM  =itsMF  ->MixField({MapSub(up,dn), RawCombine(rup,rdn,-1.0,1.0)});
-        RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge());
-        return std::max(dRho,dM);
+        const bool spin=(itsBasis==ChannelBasis::SpinChannels);
+        const GField fa = spin ? GField{up, rup} : GField{MapAdd(up,dn), RawCombine(rup,rdn,+1.0,1.0)};
+        const GField fb = spin ? GField{dn, rdn} : GField{MapSub(up,dn), RawCombine(rup,rdn,-1.0,1.0)};
+        // Every HISTORY-carrying channel goes into ONE extrapolation; a memoryless leaf just filters its own
+        // channel, which for a channel-diagonal filter is the same operator either way.  (All four leaf
+        // combinations are legitimate -- history on ρ with a plain filter on m is a real recipe -- and none
+        // of them splits a history, which is the only thing forbidden.)
+        std::vector<tFieldExtrapolator*> hist;
+        std::vector<GField>              histFields;
+        double d=0.0;
+        if (itsAH) { hist.push_back(itsAH); histFields.push_back(fa); } else d=std::max(d,itsAF->MixField(fa));
+        if (itsBH) { hist.push_back(itsBH); histFields.push_back(fb); } else d=std::max(d,itsBF->MixField(fb));
+        if (!hist.empty()) d=std::max(d,MixJointly(hist,histFields));
+        if (!spin) RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge());
+        return d;
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t& working) const override
     {
         if (itsBasis==ChannelBasis::SpinChannels)
-        {
-            auto [wu,wd]=Channels(working);
-            itsFock.Seat(itsUp->FockDensity(*wu), itsDn->FockDensity(*wd));
-        }
+            itsFock.Seat(&itsAF->Mixed(), &itsBF->Mixed());   // re-seat: each mix allocates a fresh mixed ρ̃
         else if (!itsChUp)                        // iteration 1: FockDensity runs BEFORE the first Mix
         {
             auto [wu,wd]=Channels(working);
@@ -601,20 +720,21 @@ private:
     //! FourierMixCD is what carries the batch evaluator, the Poisson kernel and a fresh logical-clock serial.
     void RebuildChannels(double qUp, double qDn) const
     {
-        const ΔG_Map& r=itsRhoF->Mixed().RhoTilde();
-        const ΔG_Map& m=itsMF  ->Mixed().RhoTilde();
-        itsChUp=std::make_shared<FourierMixCD>(MapScale(MapAdd(r,m),0.5), *itsRecip, qUp);
-        itsChDn=std::make_shared<FourierMixCD>(MapScale(MapSub(r,m),0.5), *itsRecip, qDn);
-        const rvec_t rr=itsRhoF->Mixed().GetRhoOnGrid(*itsFit), mm=itsMF->Mixed().GetRhoOnGrid(*itsFit);
+        const ΔG_Map& r=itsAF->Mixed().RhoTilde();
+        const ΔG_Map& m=itsBF->Mixed().RhoTilde();
+        itsChUp=std::make_shared<FourierMixCD>(MapScale(MapAdd(r,m),0.5), itsRecip, qUp);
+        itsChDn=std::make_shared<FourierMixCD>(MapScale(MapSub(r,m),0.5), itsRecip, qDn);
+        const rvec_t rr=itsAF->Mixed().GetRhoOnGrid(*itsFit), mm=itsBF->Mixed().GetRhoOnGrid(*itsFit);
         if (rvec_t u=RawCombine(rr,mm,+1.0,0.5); u.size()) itsChUp->SetRawRho(std::move(u));
         if (rvec_t d=RawCombine(rr,mm,-1.0,0.5); d.size()) itsChDn->SetRawRho(std::move(d));
         itsFock.Seat(itsChUp.get(), itsChDn.get());
     }
     std::unique_ptr<tDensityMixer<dcmplx>> itsUp, itsDn;
     ChannelBasis itsBasis;
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFit;   //!< (ρ,m) mode: reads the channels' ρ̃
-    std::optional<ReciprocalLattice> itsRecip;             //!< (ρ,m) mode: metric of the rebuilt channels
-    tFieldMixer *itsRhoF=nullptr, *itsMF=nullptr;          //!< the leaves' FIELD face ((ρ,m) mode)
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFit;   //!< reads the working channels' ρ̃
+    ReciprocalLattice itsRecip;                            //!< metric of the rebuilt channels ((ρ,m) mode)
+    tFieldMixer *itsAF=nullptr, *itsBF=nullptr;            //!< the leaves' FIELD face
+    tFieldExtrapolator *itsAH=nullptr, *itsBH=nullptr;     //!< ...and their HISTORY face (null = memoryless)
     mutable std::shared_ptr<FourierMixCD> itsChUp, itsChDn;//!< the rebuilt channel pair ((ρ,m) mode)
     mutable PolarizedMixCD itsFock;   //!< re-seated by FockDensity (the leaves' outputs change every mix)
 };
@@ -714,11 +834,13 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
             auto mm=MakeGSpaceMixer(relax0,/*G0*/0.0,pulayDepth,pulayStart,fit,recip,
                                     GField{MapSub(tu,td), RawCombine(ru,rd,-1.0,1.0)},
                                     0.0, "m: LINEAR, undamped");
-            return std::make_unique<PolarizedDensityMixer>(std::move(mr), std::move(mm), fit, recip);
+            return std::make_unique<PolarizedDensityMixer>(std::move(mr), std::move(mm), fit, recip,
+                                                           ChannelBasis::TotalAndMoment);
         }
         auto up=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Up  ),"↑");
         auto dn=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Down),"↓");
-        return std::make_unique<PolarizedDensityMixer>(std::move(up), std::move(dn));
+        return std::make_unique<PolarizedDensityMixer>(std::move(up), std::move(dn), fit, recip,
+                                                       ChannelBasis::SpinChannels);
     }
     // A spin-resolved density that is NOT a tPolarized_CD cannot hand out mutable channel densities
     // for the leaves to mix -- never silently unpolarized, so say so and take the physical path.

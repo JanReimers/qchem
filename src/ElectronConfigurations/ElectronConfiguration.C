@@ -30,5 +30,17 @@ public:
     // exclusive with UsesAufbau (a Bloch block IS an irrep; there is no cross-irrep aufbau to run).
     // doc/GPWPlan1.md item 3.
     virtual bool   UsesGlobalFermi() const {return false;}
+    //! \brief Do the two spin channels draw on ONE electron reservoir -- i.e. share a chemical potential,
+    //! with the MOMENT an OUTPUT -- or is each channel's count separately conserved, making the MULTIPLICITY
+    //! a CONSTRAINT?  Default: separately conserved (every fixed-multiplicity calculation).
+    //!
+    //! Separately conserved means μ↑ ≠ μ↓, and then an occupation is monotone in ε only WITHIN a channel:
+    //! a ↓ level can sit BELOW an ↑ level and be LESS occupied, because the two are filled from different
+    //! reservoirs.  That is correct for "compute the triplet" and wrong for "let the magnetism find itself"
+    //! -- in the latter, Δμ = μ↑−μ↓ is an unrelieved driving force to move charge between the channels, and
+    //! the converged state is not the free minimum.  (Measured on MnO AFM-II, 2026-08-10: Δμ = 27 mHa held
+    //! open by nUp=nDn; doc/SymmetryUpgradePlan.md §7 step 7.)  Set this when the moment must be free --
+    //! the CP2K-comparable ensemble for a magnetic solid, where only the TOTAL charge is conserved.
+    virtual bool   SpinsShareFermiLevel() const {return false;}
 };
 } // namespace qchem

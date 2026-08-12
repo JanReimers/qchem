@@ -237,7 +237,8 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
                  <<" mesh"<<(becke ? " (details on the [Becke grid] line)" : "")<<std::endl;
         qchem::report::EmitAt("grids", "xcQuadrature", {{"kind", becke ? "Becke" : "DeltaUniform"}});
         BasisSet::XCQuadrature q = bs->CreateXCQuadrature(st.get(), xcMesh);
-        auto engine=std::make_shared<XC_GridEngine>(q.mesh, std::move(q.fold));
+        auto engine=std::make_shared<XC_GridEngine>(q.mesh, std::move(q.fold),
+                                                    std::move(q.sigmas), std::move(q.flipFixed));
         if (polarized)
         {
             // SPIN-NATIVE pair (tier 4b): a channel-native (non-halving, spin-tagged) Dirac exchange fed

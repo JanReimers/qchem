@@ -256,4 +256,25 @@ std::vector<int> CountUnmappedPeriodic(const std::vector<rvec3_t>& pts,
     return bad;
 }
 
+// The odd-field fixed-point audit (S2): a point some Flip op maps onto itself.  No point-set index
+// needed -- the question is per point, against its OWN image (torus metric).
+std::vector<char> FlipFixedPointsPeriodic(const std::vector<rvec3_t>& pts,
+                                          const std::vector<SymOp>& ops, double tol)
+{
+    std::vector<char> fixed(pts.size(), 0);
+    for (size_t i = 0; i < pts.size(); ++i)
+    {
+        const rvec3_t f(Wrap01(pts[i].x), Wrap01(pts[i].y), Wrap01(pts[i].z));
+        for (const auto& op : ops)
+        {
+            if (op.sigma != SpinAction::Flip) continue;
+            rvec3_t g = op.W * f + op.tau;
+            double ex = TorusDelta(Wrap01(g.x), f.x), ey = TorusDelta(Wrap01(g.y), f.y),
+                   ez = TorusDelta(Wrap01(g.z), f.z);
+            if (ex*ex + ey*ey + ez*ez <= tol*tol) { fixed[i] = 1; break; }
+        }
+    }
+    return fixed;
+}
+
 } // namespace

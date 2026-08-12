@@ -3,6 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <iomanip>
+#include <algorithm> // std::max (the relative-conditioning scale)
 #include <complex>   // std::real
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
@@ -117,16 +118,22 @@ template <class T> typename tSCFAcceleratorDIIS<T>::md_t tSCFAcceleratorDIIS<T>:
 {
     size_t  N=GetNProj();
     rsmat_t Braw=blazem::zero<double>(N);           // raw error-overlap Bᵢⱼ = Σ_irreps ⟨Eᵢ,Eⱼ⟩ (upper-tri)
+    double  scale=0.0;                              // the history's own error scale: max_i ⟨Eᵢ,Eᵢ⟩
     for (size_t  i=0;i<N;i++)
         for (size_t  j=i;j<N;j++)
             for (auto k:itsIrreps) Braw(i,j)+=k->GetError(i,j);
+    for (size_t  i=0;i<N;i++) scale=std::max(scale,double(Braw(i,i)));
     rsmat_t B=qchem::Math::DIIS::Bordered(Braw);    // the (N+1) bordered Pulay system
-    return {B,qchem::Math::DIIS::MinSV(B)};
+    return {B,qchem::Math::DIIS::MinSV(B),scale};
 }
+// Prune the oldest history entries while B is ill-conditioned by EITHER test: the ABSOLUTE svmin (the
+// historical gate -- fires near convergence, where the whole B collapses with |[F,D]|^2), or the RELATIVE
+// one (svMin < SVTolRel * scale -- fires on a DEPENDENT history at a plateau, where B's scale stays finite
+// and the absolute gate is blind; see DIISParams::SVTolRel for the MnO run-32 measurement that bit).
 template <class T> rsmat_t tSCFAcceleratorDIIS<T>::BuildPrunedB(double svmin)
 {
-    md_t B=BuildB(); //Returns a SMat,double struct.
-    while (B.sv<svmin && GetNProj()>=2)
+    md_t B=BuildB(); //Returns a SMat,double,double struct.
+    while ((B.sv<svmin || B.sv<itsParams.SVTolRel*B.scale) && GetNProj()>=2)
     {
         Purge1(); //Must be a member function for this.
         B=BuildB();

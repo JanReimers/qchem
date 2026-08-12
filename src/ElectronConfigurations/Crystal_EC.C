@@ -31,17 +31,24 @@ public:
     Crystal_EC(const Irrep& irr, int nval, bool globalFermi=false);                  //!< Single k-point, ζ=0 collapse.
     Crystal_EC(const std::vector<Irrep>& irreps, int nval, bool globalFermi=false);  //!< A BZ k-mesh, ζ=0 collapse.
     //! Spin-native open-shell: \a nUp / \a nDown electrons per unit cell (metal: whole-mesh channel totals).
-    Crystal_EC(const Irrep& irr, int nUp, int nDown, bool globalFermi=false);                  //!< Single k-point.
-    Crystal_EC(const std::vector<Irrep>& irreps, int nUp, int nDown, bool globalFermi=false);  //!< A BZ k-mesh.
+    //! \a spinsShareFermi makes (nUp,nDown) a SEED PARTITION of a conserved TOTAL rather than two conserved
+    //! counts -- one μ over both channels, moment free (see \c ElectronConfiguration::SpinsShareFermiLevel).
+    //! It needs Fermi smearing: a shared μ with integer fills has nothing to relax the moment WITH.
+    Crystal_EC(const Irrep& irr, int nUp, int nDown, bool globalFermi=false, bool spinsShareFermi=false);
+    Crystal_EC(const std::vector<Irrep>& irreps, int nUp, int nDown, bool globalFermi=false,
+               bool spinsShareFermi=false);
     virtual int    GetN(const Irrep&) const;
     virtual syms_t GetIrreps() const;
     virtual void   Display() const;
     virtual bool   UsesAufbau() const {return false;}  // each plane-wave block IS an irrep; no aufbau
     virtual bool   UsesGlobalFermi() const {return itsGlobalFermi;}  // metal: one μ across the mesh
+    virtual bool   SpinsShareFermiLevel() const {return itsSpinsShareFermi;}  // ...and across spin: free moment
 private:
     syms_t itsSyms;          //!< The Bloch symmetries (one per k-block).
     int    itsNup, itsNdn;   //!< Per-channel counts.  Insulator: per k-block.  Metal: whole-mesh totals.
+                             //!< Under \c itsSpinsShareFermi only their SUM is conserved.
     bool   itsGlobalFermi;   //!< Metal mode: k-blocks share one chemical potential (doc/GPWPlan1.md item 3).
+    bool   itsSpinsShareFermi; //!< ...and so do the two spin channels: the moment is an output, not a constraint.
 };
 
 } // namespace qchem

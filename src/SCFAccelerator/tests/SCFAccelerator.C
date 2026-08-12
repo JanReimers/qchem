@@ -17,8 +17,15 @@
 // Mock setup -- no BasisSet, no Hamiltonian: an ORTHONORMAL basis (S=I) so the ortho transform is the
 // identity, and a diagonally-dominant Fock with a clean occ/virt gap.
 #include <gtest/gtest.h>
+#include <memory>   // std::unique_ptr (the test ladder's rung vector)
+#include <vector>
+#include <cmath>    // std::sin (the multi-direction dependent-history rig)
+#include <iostream>
 import qchem.SCFAccelerator;
 import qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
+import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;        // the relative-conditioning prune test
+import qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;      // the Engageable veto/retreat tests
+import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;   // rung 0 of the test ladder
 import qchem.LASolver;
 import qchem.Symmetry;
 import qchem.Blaze;
@@ -224,4 +231,122 @@ TEST(SCFAcceleratorGDM, TheModelStepStillDescendsOnAWellGappedProblem)
     auto [U1,Cp1,e1] = r.irrep->OrbitalsAt(1.0,false);
     EXPECT_LT(BandEnergy(Cp1,r.F2), BandEnergy(Cp0,r.F2))
         << "PCFloor must not damp a healthy gap (this Fock's occ/virt gap is ~1 Ha, PCFloor is 0.1)";
+}
+
+// ===== The STANDING-PRECONDITION (Engageable) contract, and the ladder's veto + retreat ================
+// A Fermi-SMEARED D' (fractional occupations) is outside the integer-occupation determinant manifold GDM
+// rotates -- and it is knowable from D' alone (idempotency: Tr(D'^2)==Tr(D')) on EVERY UseFD, before the
+// rung ever diagonalizes.  The ladder must (a) never advance onto a rung whose standing precondition
+// fails, and (b) retreat off one whose precondition fails while it is active -- otherwise the loop
+// degrades to bare mixed fixed-point steps under the minimizer's tag, which on an ionic cell is the
+// unstable iteration the previous rung was taming (MnO run 31, 2026-08-11: DIIS at -61.414 handed off to
+// a smeared-declined GDM and Kerker-only steps un-converged the run to a -60.49 limit cycle).
+
+namespace
+{
+// A fractionally-occupied (smeared) D': diag occupations {0.9, 0.6, 0.4, 0.1}, Tr=2 like the aufbau
+// projector but Tr(D'^2)=1.34 -- decisively non-idempotent.
+rsmat_t MakeSmearedDPrime()
+{
+    rsmat_t D(N);
+    D(0,0)=0.9; D(1,1)=0.6; D(2,2)=0.4; D(3,3)=0.1;
+    return D;
+}
+} //anon
+
+TEST(SCFAcceleratorGDM, ASmearedDensityIsNotEngageable)
+{
+    GDMParams params{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
+    LASolver<double>* las = LASolver<double>::Factory(qchem::Cholesky);
+    las->SetBasisOverlap(Identity(N));
+    tSCFAcceleratorGDM<double> acc{params};
+    auto* irrep = acc.Create(las, Irrep(), (int)NOCC);
+
+    EXPECT_TRUE(acc.Engageable()) << "optimistically true before any UseFD (nothing is known yet)";
+    irrep->UseFD(MakeFock(), MakeSmearedDPrime());
+    EXPECT_FALSE(acc.Engageable())    << "a non-idempotent (smeared) D' fails the standing precondition";
+    EXPECT_FALSE(acc.CanLineSearch()) << "...and Ready() must fail with it";
+    irrep->UseFD(MakeFock(), MakeDPrime(rmat_t(Identity(N))));
+    EXPECT_TRUE(acc.Engageable()) << "an integer-occupation (idempotent) D' restores engageability";
+    delete las;
+}
+
+TEST(SCFAcceleratorLadder, HandOffIsVetoedAndRetreatsOnANonEngageableRung)
+{
+    std::vector<std::unique_ptr<tSCFAccelerator<double>>> rungs;
+    rungs.emplace_back(new tSCFAcceleratorNull<double>);
+    rungs.emplace_back(new tSCFAcceleratorGDM<double>(
+        GDMParams{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 }));
+    tSCFAcceleratorLadder<double> lad(std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8,
+                                      /*switchat*/1e-3, ScheduleSignal::EnergyChange);
+    LASolver<double>* las = LASolver<double>::Factory(qchem::Cholesky);
+    las->SetBasisOverlap(Identity(N));
+    auto* irrep = lad.Create(las, Irrep(), (int)NOCC);   // the per-irrep ladder feeds EVERY rung's UseFD
+
+    // Tail hand-off wants to fire (|dE/E| ~ 1e-9 < switchat) but the GDM rung has seen a smeared D'.
+    irrep->UseFD(MakeFock(), MakeSmearedDPrime());
+    lad.SetEnergy(-1.0); lad.SetEnergy(-1.0-1e-9);
+    lad.CalculateProjections();
+    EXPECT_STREQ(lad.Tag(), "Null") << "the tail hand-off must be VETOED onto a non-engageable rung";
+
+    // Integer occupations restore the precondition: the same trigger may now advance.
+    irrep->UseFD(MakeFock(), MakeDPrime(rmat_t(Identity(N))));
+    lad.SetEnergy(-1.0-2e-9);
+    lad.CalculateProjections();
+    EXPECT_STREQ(lad.Tag(), "GDM") << "with an idempotent D' the tail hand-off proceeds";
+
+    // The occupation turns smeared UNDER the active rung (late discovery): the ladder must retreat.
+    irrep->UseFD(MakeFock(), MakeSmearedDPrime());
+    lad.SetEnergy(-1.0-3e-9);
+    lad.CalculateProjections();
+    EXPECT_STREQ(lad.Tag(), "Null") << "an active rung whose standing precondition failed must be RETREATED from";
+    delete las;
+}
+
+// ===== The RELATIVE conditioning prune (DIISParams::SVTolRel) ==========================================
+// The absolute SVTol is applied to a B matrix whose scale is |[F,D]|^2, so at a PLATEAU (residual finite,
+// history DEPENDENT) it never fires: MnO run 32 sat with svMin pinned at ~1e-9 -- near-singular relative
+// to B's own 2.5e-5 scale, "just slightly above the SVTol limit" (user) -- and a wild depth-8
+// extrapolation then threw a converged -61.414 into a -60.49 limit cycle.  The relative prune purges the
+// oldest entries while svMin < SVTolRel * max_i B_ii, i.e. it measures DEPENDENCE, not smallness.
+namespace
+{
+// Drive a DIIS accelerator with a NEAR-DEPENDENT error history: the same Fock perturbation fed
+// repeatedly, so successive [F',D'] errors are almost parallel and B is rank-deficient at any depth>2.
+size_t DriveDegenerateHistory(double svTolRel)
+{
+    // The PRODUCTION absolute SVTol (1e-9), and a history dependent at a level ABOVE it -- the MnO
+    // arrangement: svMin small relative to B's own scale yet above the absolute gate, so only the
+    // relative test can see the dependence.
+    DIISParams p{ .Nproj=6, .FDMax=1e30, .FDMin=1e-30, .SVTol=1e-9, .SVTolRel=svTolRel };
+    LASolver<double>* las = LASolver<double>::Factory(qchem::Cholesky);
+    las->SetBasisOverlap(Identity(N));
+    tSCFAcceleratorDIIS<double> acc{p};
+    auto* irrep = acc.Create(las, Irrep(), (int)NOCC);
+    const rsmat_t D=MakeDPrime(rmat_t(Identity(N)));
+    // [F,D] is LINEAR in F, so a one-direction perturbation family is exactly rank-2 and the ABSOLUTE
+    // gate already prunes it (sv==0).  Perturb in a DIFFERENT direction each iteration, with magnitudes
+    // small enough that the history is DEPENDENT relative to its own scale (~1e-5) yet the svs stay far
+    // above the absolute 1e-9 -- the MnO window.
+    for (int it=0; it<5; it++)
+    {
+        rsmat_t F=MakeFock();
+        F(0,2)+=1e-3*it;
+        F(1,3)+=1e-3*std::sin(1.0+it);
+        F(0,3)+=1e-4*it*it;
+        irrep->UseFD(F, D);
+        acc.CalculateProjections();
+    }
+    const size_t nproj=(size_t)acc.Count();
+    delete las;
+    return nproj;
+}
+} //anon
+
+TEST(SCFAcceleratorDIIS, ARelativeConditioningPrunePurgesADependentHistory)
+{
+    EXPECT_GE(DriveDegenerateHistory(0.0),  4u) << "control: with the relative prune OFF, the absolute "
+                                                   "test alone keeps stacking a dependent history";
+    EXPECT_LE(DriveDegenerateHistory(1e-4), 3u) << "with SVTolRel on, a history that is near-singular "
+                                                   "RELATIVE to its own scale must be purged";
 }

@@ -61,7 +61,12 @@ private:
     //! the caller.  Cleared in NextOrbitals' diagonalize branch, NOT in ComputeStep, so it cannot be consumed
     //! by a mere query.)
     bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.FDMax
-                                && !itsForceDiag && itsBlockOccupied; }
+                                && !itsForceDiag && itsBlockOccupied && itsIdempotent; }
+    //! The STANDING precondition (see tSCFAccelerator::Engageable): an integer-occupation density
+    //! (D' idempotent -- false under Fermi smearing, knowable from the very first UseFD with no orbitals)
+    //! that occupies THIS minimizer's leading block (false under MOM; knowable only once seeded, so it
+    //! stays true -- optimistic -- until then and the ladder's retreat covers the late discovery).
+    bool Engageable() const { return itsIdempotent && itsBlockOccupied; }
 
     GDMParams               itsParams;
     const LASolver<T>*      itsLASolver;
@@ -85,6 +90,11 @@ private:
     //! 14.5 Ha ABOVE the MOM/smeared one at the SAME orbitals, so the minimizer was optimising a state the
     //! run had already rejected.  When this is false, GDM declines to engage at all.
     bool                    itsBlockOccupied=true;
+    //! Is D' IDEMPOTENT (D'^2 == D', i.e. integer occupations)?  The half of the standing precondition that
+    //! needs NO orbitals: computed on every UseFD from D' alone, so the ladder can veto a hand-off BEFORE
+    //! this rung ever diagonalizes.  Fermi smearing makes it false (fractional occupations over all states);
+    //! a MOM occupation is a genuine projector and passes (itsBlockOccupied is what catches MOM).
+    bool                    itsIdempotent=true;
 
     // Conjugate-gradient state (Polak-Ribiere + parallel transport on the manifold).
     bool     itsHavePrev=false;
@@ -116,6 +126,7 @@ public:
     virtual const char* Tag() const {return "GDM";}
     virtual bool   WantsLineSearch() const {return true;} //GDM is run by the direct-min loop.
     virtual bool   CanLineSearch() const; //true once every irrep is Ready() (seeded + [F,D]<FDMax)
+    virtual bool   Engageable() const;    //every irrep's STANDING precondition (idempotent + leading-block D')
     //! Bail-out: reject the step in EVERY irrep.  A retry is offered only if EVERY irrep can still retry --
     //! the line search takes ONE t across all of them, so a step is only meaningful if they all still have a
     //! usable direction.  One exhausted irrep exhausts the whole accelerator (and each irrep has armed its

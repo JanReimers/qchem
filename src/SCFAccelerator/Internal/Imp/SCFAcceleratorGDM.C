@@ -76,6 +76,27 @@ template <class T> void tSCFIrrepAcceleratorGDM<T>::UseFD(const hmat_t<T>& F, co
     itsFp = itsLASolver->Transform(F);           // F' = Vd F V (orthonormal basis)
     mat_t<T> E = itsFp*DPrime - DPrime*itsFp;    // [F',D'] commutator (anti-Hermitian)
     itsEn = std::real(blazem::norm(E));
+    // STANDING-PRECONDITION half 1 (Engageable): is D' IDEMPOTENT, i.e. integer occupations?  For Hermitian
+    // D', Tr(D'^2) = sum_ij |D'_ij|^2, so the defect Tr(D') - Tr(D'^2) is >= 0 and vanishes iff every
+    // occupation is 0 or 1.  Fermi smearing makes it O(kT * N_frontier) -- enormous beside the tolerance --
+    // and it needs NO orbitals, so the ladder can veto a hand-off before this rung ever runs (a smeared MnO
+    // measured Tr(D'P_block)=12.80 of 13: the geodesic then ASCENDS and the run degrades to bare mixed
+    // steps under the GDM tag -- run 31).
+    {
+        double trD=0, trD2=0;
+        const size_t n=DPrime.rows();
+        for (size_t i=0;i<n;i++)
+        {
+            trD += std::real(T(DPrime(i,i)));
+            for (size_t j=0;j<n;j++) { const T d=DPrime(i,j); trD2 += std::real(d*Conj(d)); }
+        }
+        const bool idem = std::fabs(trD-trD2) < 1e-6*std::max(1.0,trD);
+        if (itsIdempotent && !idem)
+            std::cerr << "[GDM] DECLINING to engage: D' is not idempotent (Tr(D')=" << trD
+                      << " vs Tr(D'^2)=" << trD2 << ") -- fractional (Fermi-smeared) occupations are outside "
+                         "the integer-occupation determinant manifold GDM rotates." << std::endl;
+        itsIdempotent = idem;
+    }
     // PRECONDITION CHECK (itsBlockOccupied): is the density actually the projector onto our LEADING itsNocc
     // columns?  Tr(D' P_block) counts how many occupied electrons live in the block GDM is about to rotate:
     // exactly itsNocc under aufbau, short of it under MOM (a different set) or Fermi smearing (fractional
@@ -310,6 +331,15 @@ template <class T> bool tSCFAcceleratorGDM<T>::CanLineSearch() const
 {
     if (itsIrreps.empty()) return false;
     for (auto k:itsIrreps) if (!k->Ready()) return false;
+    return true;
+}
+
+// The STANDING precondition, per irrep (see the interface contract): optimistically true before any UseFD
+// (nothing is known yet -- the per-iteration CanLineSearch still gates the actual step), false as soon as
+// any irrep has seen a non-idempotent D' (smearing) or a non-leading-block occupation (MOM).
+template <class T> bool tSCFAcceleratorGDM<T>::Engageable() const
+{
+    for (auto k:itsIrreps) if (!k->Engageable()) return false;
     return true;
 }
 

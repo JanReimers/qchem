@@ -166,6 +166,15 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
         }
         else
             std::tie(itsMinusTS,itsDPrime)=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT);
+        // GPW_METALTRACE: report THIS block's own μ, so a constrained (fixed nUp/nDn) run is as legible as a
+        // shared-reservoir one.  Δμ between the channels is the diagnostic: two μ are the Lagrange multipliers
+        // of the two count constraints, so their difference is the force the constraint is holding -- and for
+        // a collinear AFM at nUp=nDn it must VANISH, since the sublattice-exchanging spin flip makes the two
+        // spectra unitarily equivalent.  NB only sharp under FRACTIONAL occupations; with integer fills μ is
+        // pinned no better than the channel's HOMO-LUMO gap.
+        if (std::getenv("GPW_METALTRACE"))
+            std::cout<<"[fill]   block="<<itsIrrep<<" ne="<<ne<<" kT="<<itsSmearingkT
+                     <<" OWN μ="<<itsOrbitals->GetChemicalPotential()<<std::endl;
     }
     else
     {

@@ -308,6 +308,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             const double N=itsCD->GetTotalCharge();      // Tr(DS); normalise the grid-charge leak per electron
             IterationTrace tr{ itsIterationCount, eb, itsMixer->GetRelax(),
                                itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
+                               itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
                                itsIterationCount>1 && config!=prevConfig, lineSearch,
                                (N!=0.0 ? eb.GridChargeLost/N : 0.0),
@@ -553,7 +554,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
 
 // --- Column-width constants: the header labels and the value rows share these, so they line up exactly
 //     regardless of the UTF-8 label glyphs (Δ, ρ, ε are multi-byte but one display column). --------------
-namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=8, W_ACC=7, W_CFG=3, W_GAP=9, W_ORD=12 }; }
+namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=8, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12 }; }
 
 // Display width of a UTF-8 string (counts leading bytes only, so Δ/ρ/ε each count as one column).
 static size_t VisWidth(const std::string& s)
@@ -569,8 +570,9 @@ static std::string Thresh(double t)
 // Header cells matching the row layouts (same widths + separators as WriteRowPrefix / WriteMixAccelCfg).
 static void WriteHeadPrefix(std::ostream& os)          // " #   Etotal   [F,D]"
 { os << PadR("#",W_ITER) << " " << PadR("Etotal",W_E) << " " << PadR("[F,D]",W_FD) << " "; }
-static void WriteHeadMixAccelCfg(std::ostream& os)     // "ρ_mix  accel  cfg"
-{ os << " " << PadL("ρ_mix",W_MIX) << " " << PadL("accel",W_ACC) << " " << PadR("cfg",W_CFG); }
+static void WriteHeadMixAccelCfg(std::ostream& os)     // "ρ_mix  accel  svMin  cfg"
+{ os << " " << PadL("ρ_mix",W_MIX) << " " << PadL("accel",W_ACC) << " " << PadL("svMin",W_SV)
+     << " " << PadR("cfg",W_CFG); }
 // The threshold sub-line's leading pad (under #, Etotal), so each (thresh) sits under its column.
 static void WriteThreshLead(std::ostream& os)
 { os << PadR("",W_ITER) << " " << PadR("",W_E) << " "; }
@@ -594,7 +596,13 @@ template <class T> void tSCFIterator<T>::WriteMixAccelCfg(std::ostream& os, cons
     if (tr.lineSearch) mix << "----";                           //   (GDM/OT own the density update; NO mixing)
     else               mix << tr.mixTag << " " << std::fixed << setprecision(2) << tr.relax;
     std::ostringstream acc; acc << tr.accelTag; if (tr.accelCount>0) acc << ":" << tr.accelCount;    // "DIIS:3"
-    os << " " << PadL(mix.str(),W_MIX) << " " << PadL(acc.str(),W_ACC)
+    // svMin: the DIIS history's conditioning -- what SVTol is compared against.  Judge it against the [F,D]
+    // column: B scales as [F,D]², so svMin ≪ [F,D]² is a DEPENDENT history that the absolute SVTol did not
+    // prune (see tSCFAccelerator::MinSV).  "----" when the live accelerator keeps no history.
+    std::ostringstream sv;
+    if (std::isnan(tr.accelMinSV)) sv << "----";
+    else                           sv << std::scientific << setprecision(1) << tr.accelMinSV;
+    os << " " << PadL(mix.str(),W_MIX) << " " << PadL(acc.str(),W_ACC) << " " << PadL(sv.str(),W_SV)
        << " " << PadR(std::string(1, tr.configChanged ? '*' : ' '), W_CFG);
 }
 

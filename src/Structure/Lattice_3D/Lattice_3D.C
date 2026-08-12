@@ -85,6 +85,16 @@ public:
     //! §3 run-level policy, owned by the driver -- the lattice only answers what the symmetry IS.
     const Symmetry::Lattice_3D::SpaceGroup& GetSpaceGroup(double tol=1e-4) const;
 
+    //! \brief The COLLINEAR magnetic (Shubnikov) group of this lattice under the per-atom decoration
+    //! \a spins (Shubnikov S3, doc/SymmetryUpgradePlan.md §7 step 7): the same UnitCell \f$\to\f$
+    //! {A, sites} adapter as \c GetSpaceGroup, with \c AtomSite::spin filled from \a spins (parallel to
+    //! the cell's atom order -- assemble it with \c ChargeDensity::MagneticDecoration so it follows the
+    //! seed's own species resolution).  Forwards to \c SpaceGroup::ShubnikovOps, which re-enumerates
+    //! every \f$\tau\f$-coset (the anti-translation of a magnetically doubled cell -- the \f$m_1=-m_2\f$
+    //! mirror -- is invisible to the detected one-coset-per-\f$W\f$ group).
+    std::vector<Symmetry::Lattice_3D::SymOp> ShubnikovOps(const std::vector<int>& spins,
+                                                          double tol=1e-4) const;
+
     size_t    GetNumSites     () const;
     size_t    GetNumBasisSites() const;
     size_t    GetNumUnitCells () const;

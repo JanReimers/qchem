@@ -131,19 +131,7 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
             assert(ftbs && "IonicSAD plane-wave seed needs a Band_FT_IBS (plane-wave) basis");
             std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
 
-            std::vector<std::pair<int,int>> atoms;                      // {Z, N_val} per atom
-            std::map<size_t,int> nvalByZ;
-            for (size_t i=0;i<st->GetNumAtoms();i++)
-            {
-                int Z = (*st)[i]->itsZ;
-                if (!nvalByZ.count(Z))
-                    nvalByZ[Z] = (int)std::lround(GetAtomicDensity(Z,"LDA","atomic_valence_densities.json").Charge());
-                atoms.emplace_back(Z, nvalByZ[Z]);
-            }
-            std::vector<int> q = IonicFormalCharges(atoms);             // Na+1, F-1; conserves charge
-            std::map<size_t,int> targetByZ;                            // species Z -> TARGET valence count N_val-q
-            for (size_t i=0;i<atoms.size();i++)                         // F: 7-(-1)=8 (F-), Na: 1-1=0 (Na+)
-                targetByZ[atoms[i].first] = atoms[i].second - q[i];
+            std::map<size_t,int> targetByZ = IonicSADTargets(st, "LDA");   // the ONE resolution (S3 shares it)
             if (polarized) return new PolarizedSeedCD(fb, st, "LDA", targetByZ);   // §10: the two-channel ionic seed
             return new SeedCD(fb, st, "LDA", targetByZ);               // SeedCD prefers the DIFFUSE charge-state density
         }
@@ -164,5 +152,54 @@ template tChargeDensity<double>* MakeSeedDensity<double>(SeedStrategy, const Bas
                                                         const Structure*, const ElectronConfiguration*, bool);
 template tChargeDensity<dcmplx>* MakeSeedDensity<dcmplx>(SeedStrategy, const BasisSet::tBasisSet<dcmplx>*,
                                                         const Structure*, const ElectronConfiguration*, bool);
+
+// The IonicSAD per-species TARGET valence counts -- the ONE resolution the seed AND the S3 magnetic
+// decoration share (formal charges from the electronegativity heuristic; N_val from the neutral
+// valence density's charge): F -> 7-(-1)=8 (F-), Na -> 1-1=0 (Na+).
+std::map<size_t,int> IonicSADTargets(const Structure* st, const std::string& functional)
+{
+    assert(st);
+    std::vector<std::pair<int,int>> atoms;                      // {Z, N_val} per atom
+    std::map<size_t,int> nvalByZ;
+    for (size_t i=0;i<st->GetNumAtoms();i++)
+    {
+        int Z = (*st)[i]->itsZ;
+        if (!nvalByZ.count(Z))
+            nvalByZ[Z] = (int)std::lround(GetAtomicDensity(Z,functional,"atomic_valence_densities.json").Charge());
+        atoms.emplace_back(Z, nvalByZ[Z]);
+    }
+    std::vector<int> q = IonicFormalCharges(atoms);             // Na+1, F-1; conserves charge
+    std::map<size_t,int> targetByZ;                            // species Z -> TARGET valence count N_val-q
+    for (size_t i=0;i<atoms.size();i++)
+        targetByZ[atoms[i].first] = atoms[i].second - q[i];
+    return targetByZ;
+}
+
+// Shubnikov S3: the per-atom collinear labels, resolved by the SEED's own species rule (SeedCD's ctor):
+// target = the ionic entry, else the neutral valence count; magnetic iff a spin pair exists AT that
+// target (a stripped cation, target<=0, is non-magnetic).  Label = the atom's flip bit.
+std::vector<int> MagneticDecoration(const Structure* st, const std::string& functional,
+                                    const std::map<size_t,int>& ionicNvalByZ)
+{
+    assert(st);
+    const std::string db = "atomic_valence_densities.json";
+    std::map<size_t,bool> magneticByZ;
+    std::vector<int> spins;
+    for (size_t i=0;i<st->GetNumAtoms();i++)
+    {
+        const Atom* a = (*st)[i];
+        const size_t Z = a->itsZ;
+        if (!magneticByZ.count(Z))
+        {
+            auto ti = ionicNvalByZ.find(Z);
+            const int target = (ti!=ionicNvalByZ.end())
+                             ? ti->second
+                             : (int)std::lround(GetAtomicDensity((int)Z, functional, db).Charge());
+            magneticByZ[Z] = target>0 && HasAtomicSpinPair((int)Z, functional, db, target);
+        }
+        spins.push_back(magneticByZ.at(Z) ? (a->itsSpinFlip ? -1 : +1) : 0);
+    }
+    return spins;
+}
 
 } //namespace

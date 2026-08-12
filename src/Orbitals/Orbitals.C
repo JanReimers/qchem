@@ -138,6 +138,18 @@ public:
     //! electrons -- μ is solved so there is no leftover).  The fractional occupations flow through the
     //! existing density build unchanged (AddDensityMatrix already scales |C⟩⟨C| by the occupation).
     virtual ds_t TakeElectronsFermi (double ne, double kT)=0;
+    //! \brief The chemical potential of the LAST Fermi fill -- solved by \c TakeElectronsFermi (this block's
+    //! own μ, one per constrained channel) or handed in by \c SetFermiOccupationsAtMu (a shared reservoir's).
+    //! NaN before any Fermi fill has run.
+    //!
+    //! It is REPORTED, not just used, because Δμ between channels is the diagnostic that says whether a
+    //! fixed-(nUp,nDn) fill is doing work: two μ ARE the Lagrange multipliers of the two count constraints,
+    //! so their difference is the field holding the moment apart, and a run that never prints them cannot
+    //! tell a free moment from a constrained one.  (Had this been printed, MnO's 27 mHa would have been read
+    //! off a trace instead of inverted by hand out of an eigen table -- user, 2026-08-10.)
+    //! \note Only sharp where the occupations are FRACTIONAL.  With integer fills μ is pinned no better than
+    //! the channel's HOMO-LUMO gap, so compare gaps, not digits.
+    virtual double GetChemicalPotential() const=0;
     //! MOM-masked Fermi (doc/GPWPlan1.md 4b, MOM+smearing composition): Fermi-fill on EFFECTIVE energies
     //! ε_i + eShift_i instead of the bare ε_i.  \a eShift (one per orbital, stored order; size 0 == all-zero
     //! == the plain overload above) carries a MOM-overlap penalty that pushes LOW-overlap states (diffuse
