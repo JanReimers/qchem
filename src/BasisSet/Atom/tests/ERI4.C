@@ -48,44 +48,16 @@ void random(ERI4& Jabcd)
             random(Jabcd(a,b));
 }
 
-TEST_F(ERI4Tests,MatMulTimings)
-{
-#ifdef DEBUG
-    GTEST_SKIP() << "Timing is unreliable in Debug; runs in Release only.";
-#endif
-    size_t Nrep=100;
-    size_t Nab=60,Ncd=60;
-    ERI4 Jabcd(Nab,Ncd);
-    rsmat_t Dab(Nab),Dcd(Ncd);
-    random(Jabcd);
-    random(Dab);
-    random(Dcd);
-    std::chrono::duration<double> elapsed_seconds1,elapsed_seconds2;
-    {
-        rsmat_t Jab=blazem::zero<double>(Nab);
-        auto start = std::chrono::system_clock::now();
-        for (size_t i=0;i<Nrep;i++)
-            MatMul(Jab,Jabcd,Dcd);
-        auto end = std::chrono::system_clock::now();
-        elapsed_seconds1 = end-start;
-        std::cout << "MatMul(Jabcd,Dcd) elapsed time: " << elapsed_seconds1.count() << "s" << std::endl;
-    }
-    {        
-        rsmat_t Jcd=blazem::zero<double>(Ncd);
-        auto start = std::chrono::system_clock::now();
-        for (size_t i=0;i<Nrep;i++)
-            MatMul(Jcd,Dab,Jabcd);
-        auto end = std::chrono::system_clock::now();
-        elapsed_seconds2 = end-start;
-        std::cout << "MatMul(Dab,Jabcd) elapsed time: " << elapsed_seconds2.count() << "s" << std::endl;
-    }
-    EXPECT_GT(elapsed_seconds2,elapsed_seconds1);
-#ifndef DEBUG
-    //Ratio is much lower in debug mode.
-    //Ration is also much when running the full testsuite.
-    EXPECT_GT(elapsed_seconds2/elapsed_seconds1,2.5); 
-#endif
-}
+// MatMulTimings DELETED 2026-08-12 (user).  It asserted a wall-clock RATIO
+// (elapsed(Dab*Jabcd) / elapsed(Jabcd*Dcd) > 2.5), which is not a property of the code but of the machine
+// it runs on: it failed spuriously whenever the box was busy -- its own comment already conceded "the ratio
+// is also much [lower] when running the full testsuite" -- and it skipped itself entirely in Debug.  A test
+// that has to be switched off in one build and is unreliable in the other is measuring the wrong thing.
+//
+// The FACT it recorded is worth keeping, so it moved to the ERI4::MatMul declaration where a reader will
+// meet it: contracting over the cd index is several times faster than contracting over ab, because the ab
+// side is the outer (block) index and the cd side is contiguous within a block.  That belongs in a
+// benchmark (src/BasisSet/Molecule/bench) if it is ever to be MEASURED again, not in a correctness suite.
 
 TEST_F(ERI4Tests,Transpose)
 {
