@@ -20,6 +20,12 @@
 #include <string>
 #include <functional>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Pol
+import qchem.SolidCalculation;       // SolidCalculation -- the NAMED periodic front door (Step 4)
+import qchem.Structure;              // FCCUnitCell
+import qchem.Lattice_3D;             // Lattice_3D
+import qchem.BasisSet;               // Real_BS
+import qchem.BasisSet.Molecule.Factory;  // Molecule::Factory, BasisSetData/Engine/Angular
+import qchem.Types;                  // ivec3_t
 import qchem.SCFIterator;            // SCFParams
 using namespace qchem;
 using enum BasisSetAccuracy;
@@ -108,24 +114,42 @@ TEST(SCFTrace, ThresholdSubLineMatchesTheColumns)
 }
 
 // ---------------------------------------------------------------------------------------------------
-// Combos 3 and 4 of 4: SOLID x {PP, Non-PP}.  NOT COVERED YET, deliberately, and this is the marker.
+// Combo 3 of 4: SOLID x PP.  The layout that, until this test, NO enabled test emitted -- the only two
+// GPW runs with Verbose=true are both DISABLED_ -- even though it is what the lattice work reads on every
+// run.  Driven through SolidCalculation (the named periodic front door) rather than GPW_SCF_UT.C's
+// file-local RunGPW: the facade is the thing tests should dogfood, and it keeps this file independent of
+// the parallel campaign's working file.  NMaxIter is tiny on purpose -- the trace HEADER is the subject,
+// so there is no reason to pay for convergence.
+TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
+{
+    std::string trace = CapturedTrace([]{
+        FCCUnitCell cell(10.26);                       // Si diamond, 2-atom basis (the SiGamma anchor cell)
+        cell.AddAtom(14, {0,0,0});
+        cell.AddAtom(14, {0.25,0.25,0.25});
+        Lattice_3D lat(cell, ivec3_t(1,1,1));
+        auto mol = std::shared_ptr<const BasisSet::Real_BS>(
+            BasisSet::Molecule::Factory(BasisSet::Molecule::BasisSetData::SIPP_SR, &cell,
+                                        BasisSet::Molecule::Engine::MnD,
+                                        BasisSet::Molecule::Angular::Cartesian));
+        SCFParams par;
+        par.NMaxIter=2; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30;
+        par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
+        SolidCalculation calc(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
+        (void)calc.Energy();
+    });
+    const std::string h = HeaderLine(trace);
+    ASSERT_FALSE(h.empty()) << "the solid layout printed no trace at all:\n" << trace;
+    EXPECT_TRUE (Has(h,"ΔE/E"))   << "a collocation SCF is gated on ΔE, not Δ[F,D]: " << h;
+    EXPECT_TRUE (Has(h,"ρ_lost")) << "the grid-charge leak is a permanent solid health column: " << h;
+    EXPECT_TRUE (Has(h,"gap"))    << "solids show the frontier gap permanently, not behind ReportBandGap: " << h;
+    EXPECT_FALSE(Has(h,"V/K"))    << "a pseudopotential run must NOT show a virial column: " << h;
+}
+
+// Combo 4 of 4: SOLID x NON-PP -- an ALL-ELECTRON periodic run, which should bring the virial column BACK.
 //
-// The solid layout ({..., ΔE/E, Δρ, ρ_lost/N, ..., gap} -- no virial, gap permanent) is emitted by NO
-// enabled test: the only two GPW runs that set Verbose=true are both DISABLED_ (NaFGridContinuation,
-// NaFFullBasisEigenTol).  So the layout the lattice work reads on every run is the one with no coverage.
-//
-// It is not covered HERE because driving a periodic SCF needs RunGPW/MakeBasisSR/FCCUnitCell, which are
-// file-local to IntegrationTests/GPW_SCF_UT.C -- the parallel MnO campaign's working file.  Pinning these
-// two needs one of:
-//   (a) hoist the GPW test driver into the shared TestUtils module, then write them here; or
-//   (b) add them to GPW_SCF_UT.C directly, once that file is quiet.
-// (a) is the better shape -- a shared driver is useful well beyond this file -- but it edits their file
-// either way, so it is a coordination call, not a technical one.
-//
-// What combo 4 (Solid x Non-PP, i.e. an all-electron periodic run -- the parked APW/LAPW work) would
-// assert: that the virial column COMES BACK.  It currently cannot: SolidSCFIterator hard-codes the
-// virial's absence instead of deriving it from IsVirialValid() the way the base layout now does.  That is
-// precisely the gap the {Molecular,Solid}x{PP,Non-PP} mixin decomposition exists to close, so this test
-// should be written to FAIL first and then made to pass by the refactor.
-TEST(SCFTrace, DISABLED_SolidLayoutColumns) {}
+// DISABLED for a PHYSICS reason, not a plumbing one: no all-electron periodic path exists yet (the APW/LAPW
+// tests are themselves DISABLED_), so there is no way to make a solid Hamiltonian whose IsVirialValid() is
+// true.  When that path lands, enable this -- and expect it to FAIL first, because SolidSCFIterator
+// hard-codes the virial's absence instead of deriving it from IsVirialValid() the way the base layout now
+// does.  Closing that gap is the point of the {Molecular,Solid}x{PP,Non-PP} mixin decomposition (V1.27).
 TEST(SCFTrace, DISABLED_SolidNonPP_ShouldBringTheVirialColumnBack) {}
