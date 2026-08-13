@@ -1,7 +1,11 @@
 valence_lowq_sph: the SR basis with the Mn TRUE-s WINDOW RESTORED -- for SPHERICAL-d runs ONLY
 (doc/SphericalLatticePlan.md I3, 2026-08-13).  Identical to valence_lowq_sr.bsd in every entry except
-Mn, whose s window returns from the 2-function contaminant-era trim {0.10, 24} to the original
-valgen-validated 7-point geometric window {0.10 .. 24}.  THE HISTORY: with CARTESIAN d the 8 d-shell
+Mn/O, restored to the EXACT span of the CP2K transcription (IntegrationTests/CP2K/VALENCE-LOWQ-BASIS):
+Mn s back to the 7-point window {0.10 .. 24}, Mn d back to 8 (the diffuse 0.18 the SR cell-trim
+dropped), O s back to 6 (0.15) and O p back to 5 (0.18).  DISCOVERED 2026-08-13: the CP2K oracles
+were ALWAYS in this untrimmed-spherical span -- the SR trims existed for the CARTESIAN cell's
+conditioning, and the transcription predates them -- so THIS file under the spherical view is the
+first true apples-to-apples basis against the banked CP2K numbers.  THE HISTORY: with CARTESIAN d the 8 d-shell
 contaminants (r^2 e^{-ar^2}) span the mid/tight s space, so 7s+8d was rank-deficient (cond 8.2e7,
 vet ABORT) and the s window was cut to 2 -- the contaminants then DID the mid-s work.  The SPHERICAL
 view (PG_Spherical::MakeSphericalLatticeView) removes the contaminants, which EMPTIES the mid-s
@@ -90,6 +94,8 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  S   1  1.00
            24.00000000        1.00000000
  D   1  1.00
+            0.18000000        1.00000000
+ D   1  1.00
             0.38369936        1.00000000
  D   1  1.00
             0.81791778        1.00000000
@@ -106,6 +112,8 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  ****
  O   0
  S   1  1.00
+            0.15000000        1.00000000
+ S   1  1.00
             0.39077566        1.00000000
  S   1  1.00
             1.01803746        1.00000000
@@ -115,6 +123,8 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
             6.90933509        1.00000000
  S   1  1.00
            18.00000000        1.00000000
+ P   1  1.00
+            0.18000000        1.00000000
  P   1  1.00
             0.46475800        1.00000000
  P   1  1.00
