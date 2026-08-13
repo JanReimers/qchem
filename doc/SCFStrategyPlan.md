@@ -246,3 +246,22 @@ framework already carries everything around it.
 
 # GDM 
 -System: Naf 2x2x2 multi k, SR2 basis set, GDM works but it is slow. "k oscillates between 2 and 3 after cycle 23" on the imposed run — that's the GDM line-search backtrack count, it means the quadratic model overshoots ~4–8× each step and pays 3–4 Fock builds per iteration. Two cheap engine ideas when you get to the SCFStrategyPlan work: seed the line search from the previous accepted t instead of always starting at 1, and that alone would likely erase much of the imposed run's 110-vs-50 iteration-count penalty (the free run's steady k=3 suggests the same, so both would speed up).
+# Ladder exhaustion bail-out (USER, 2026-08-13 — run 49's wasted tail)
+
+Observed on run 49 (the collapsed CP2K-span probe, ~30 min/iteration): the Ladder's tail trigger
+fired, the GDM rung was vetoed (`NOT ENGAGEABLE`, smeared occupations), and DIIS then ground 30+
+further iterations to nowhere — "any further DIIS iterations after NOT ENGAGEABLE is a waste of
+time" (user).  The trigger firing IS DIIS's own out-of-steam signal; when the next rung cannot
+engage, the ladder has nothing left to offer.
+
+Design: the accelerator face grows **`Exhausted()`** — true when the hand-off condition has fired
+but no further rung is engageable (sticky until the occupation structure changes).  POLICY, not
+mechanism, decides what happens:
+- **Staged/annealed run, non-final stage:** end the stage — its whole purpose (get the density near
+  the fixed point for the next stage) is met at the tie floor, and the cold stage re-arms GDM.
+  This is the {Ladder@kT, GDM@0} schedule's natural early-exit.
+- **Single-stage run:** configurable keep-grinding vs stop.  NOT unconditional: run 38's post-veto
+  DIIS iterations 17–41 DID eventually pass the 1e-5 Δρ gate — on a healthy system the tail grind
+  can still deliver; on a pathological one (run 49) it never will.  Default: keep grinding (today's
+  behaviour), `SCFParams` knob to stop-on-exhaustion, and the anneal driver sets stage-end
+  unconditionally for non-final stages.

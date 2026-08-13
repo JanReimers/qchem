@@ -3266,7 +3266,13 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // cond(S) ~ 7e8 on this dense oblique cell (lambdaMin ~ 2e-8 passes the vet, barely): plain Cholesky
     // EXPLODES the eigenproblem (measured: E ~ 1e9 Ha, [F,D] ~ 1e10 at iteration 1).  The NaF-class
     // recipe: pivoted Cholesky with a rank tolerance.
-    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    // MNO_ORTHO_TOL (run 51, 2026-08-13): the pivoted-Cholesky rank tolerance, sweepable.  The v2
+    // (CP2K-span) spherical cell vets lambdaMin 1.9e-5 / cond 3.8e5 -- the diffuse re-additions
+    // restore the INTER-SITE redundancy the SR trim cured -- and collapsed to E=-455 from iteration 1
+    // (near-null modes + eps-screened operators = the classic variational-collapse recipe).  A stiffer
+    // rank filter drops those modes at the door.
+    o.ortho=qchem::CholeskyPivoted;
+    o.orthoTol=std::getenv("MNO_ORTHO_TOL") ? std::atof(std::getenv("MNO_ORTHO_TOL")) : 1e-4;
     // DIIS + plain linear mixing overshoots once the ramp reaches full step (measured run 3: healthy
     // -454.8 -> -456.5 over 3 iterations, then a +21 Ha slosh at Lin 1.00) -- the NaF-class ionic
     // charge-transfer dynamic.  Adopt the NaF Becke gate's full recipe: Ladder + Kerker-damped mixing
