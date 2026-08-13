@@ -136,10 +136,24 @@ control it instead of by Cartesian accident.
   the s exponents under spherical d) is a PREREQUISITE for a clean I2 verdict**: with the current
   basis the spherical MnO A/B would be s-starved on Mn, and the s-dodge channel was precisely the
   ordering-relevant one.
-- **I2 (the physics):** MnO Γ A/B — Cartesian vs spherical, FM + AFM, imposed Shubnikov,
-  {Ladder,GDM}×{5e-3,0}.  THE span-vs-bug verdict.  Then vs the banked CP2K oracles
-  (doc/CP2Kresults.md): same span, same functional, same deck — residuals are now honest
-  code-vs-code numbers.
+- **I2 ARM 1 DONE (2026-08-13, runs 47/48: spherical view, SR-trimmed basis, n=106): ★ THE
+  ORDERING HEALED — SPAN CONVICTED, NO CODE BUG.**  AFM det −61.22677 / FM det −61.18122 ⇒ **AFM
+  below FM by 45.5 mHa** (Cartesian arm: FM below by 40.1).  The per-l mechanism check: Δ_NL(AFM−FM)
+  collapsed −1300 → **+108 mHa** (l=0 dodge −477 → +29: DEAD with no contaminants to dodge through;
+  l=2 −823 → +80).  The user's basis-incompleteness hypothesis is CONFIRMED: the reversal was the
+  Cartesian-d span differentially stabilising the weak-AFM/FM configurations — not physics, not an
+  assembly defect.  NUANCE: the AFM state is STILL weak-moment (m_stag 0.656, |m̃|Ω/2 = 3.1 vs CP2K
+  4.65) — the span fix flips the ordering without deepening the moment; the moment question moves to
+  the span-matched absolute comparison (arm 2).  Also: cond(S) improved 2.4e3 → 505 on the cell.
+  **BASIS DISCOVERY THAT REFRAMES THE RESIDUALS: the CP2K transcription (VALENCE-LOWQ-BASIS)
+  predates the SR cell-trims** — the banked oracles were ALWAYS in the untrimmed spherical span (Mn
+  7s+8d incl. diffuse d 0.18; O 6s incl. 0.15, 5p incl. 0.18).  So spherical-over-SR sits +273 mHa
+  above CP2K FM legitimately (poorer span), and the Cartesian FM "8 mHa agreement" was
+  contaminants-vs-diffuse COMPENSATION.  valence_lowq_sph v2 (ace4ec8a) now matches the
+  transcription exponent-for-exponent: MnO cell n=136 == CP2K's 2×47+2×21.
+- **I2 ARM 2 (in flight, runs 49/50): the CP2K-span A/B** — spherical view over valence_lowq_sph
+  v2, AFM + FM.  Every residual vs the oracles (Γ AFM −61.4706 / FM −61.4617) is now an honest
+  operator/grid number: span excuses eliminated.
 - **I3 (basis):** restore the trimmed Mn s window under spherical d; re-vet cond(S); regen the
   library entry (ValenceBasisGen).
 - **I4 (later):** lattice SALC on the same seam — symmetry-adapted T from the space-group
