@@ -12,27 +12,18 @@ import qchem.Blaze;                                // rsmat_t * rvec_t (the J^-1
 namespace qchem::Fitting
 {
 
-//---------------------------------------------------------- ProjectedDensity_AO metric defaults
+//---------------------------------------------------------- the Coulomb metric solve (V1.16)
 //
-//  The default unconstrained-fit STRATEGY (a density with a matrix): the Coulomb-metric solve
-//  c0 = J^-1 <rho|c>.  The seed overrides GetUnconstrainedFit (overlap metric) and never reaches here.
+//  The ONLY shared body left.  There is no longer a metric DEFAULT on the base and no poisoned sibling:
+//  a projection has the Coulomb face or the overlap face, and each face's own method is pure virtual.
 //
-rvec_t ProjectedDensity_AO::GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const
+rvec_t CoulombMetric_ProjectedDensity::GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const
 {
     // "I want more": broaden the neutral CD-fit face to its Coulomb metric-solve capability (the sanctioned
     // request pattern -- a real density matrix genuinely needs J^-1).
     auto* no = dynamic_cast<const BasisSet::FIT_CD_NonOrtho*>(fbs);
-    assert(no && "ProjectedDensity_AO::GetUnconstrainedFit: the Coulomb-metric default needs a FIT_CD_NonOrtho fit basis");
+    assert(no && "CoulombMetric_ProjectedDensity: the Coulomb-metric solve needs a FIT_CD_NonOrtho fit basis");
     return no->InvRepulsion() * GetRepulsion3C(fbs);   // c0 = J^-1 <rho|c>
-}
-
-rvec_t ProjectedDensity_AO::GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const
-{
-    // Reached only if a projection uses the Coulomb-metric default WITHOUT providing a Coulomb RHS -- i.e. a
-    // matrix-free projection that forgot to override GetUnconstrainedFit.  A seed overrides that and never lands here.
-    assert(false && "ProjectedDensity_AO::GetRepulsion3C: this projection has no Coulomb RHS (a matrix-free "
-                    "seed must override GetUnconstrainedFit with its own metric instead)");
-    return rvec_t{};
 }
 
 std::unique_ptr<FunctionFitter_Scalar<double>>

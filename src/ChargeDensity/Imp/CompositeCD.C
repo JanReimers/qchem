@@ -137,8 +137,8 @@ template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const BasisSet::rFIT_
         rvec_t ret(fbs->GetNumFunctions(),0);
         for (auto& c:itsCDs)
         {
-            auto* ao=dynamic_cast<const Fitting::ProjectedDensity_AO*>(c.get());
-            assert(ao && "composite block is not a ProjectedDensity_AO (finite path)");
+            auto* ao=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(c.get());
+            assert(ao && "composite block has no Coulomb-metric projection face (finite path)");
             ret+=ao->GetRepulsion3C(fbs);
         }
         return ret;

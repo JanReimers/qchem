@@ -68,11 +68,12 @@ template <class T> rvec_t tPolarized_CD<T>::GetRepulsion3C(const BasisSet::rFIT_
 {
     if constexpr (std::is_same_v<T,double>)
     {
-        // The spin blocks are finite (molecular) densities, hence ProjectedDensity_AO -- cross-cast to their AO
-        // face and sum the projections (the AO face is no longer a forced base of tDM_CD).
-        auto* up=dynamic_cast<const Fitting::ProjectedDensity_AO*>(GetChargeDensity(Spin::Up  ));
-        auto* dn=dynamic_cast<const Fitting::ProjectedDensity_AO*>(GetChargeDensity(Spin::Down));
-        assert(up && dn && "Polarized_CD spin block is not a ProjectedDensity_AO (finite path)");
+        // The spin blocks are finite (molecular) MATRIX densities, so cross-cast to the COULOMB-metric face
+        // -- the one that actually declares GetRepulsion3C (V1.16).  Asking for the plain AO face and then
+        // calling a Coulomb-only method was the implicit pairing this item removed.
+        auto* up=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(GetChargeDensity(Spin::Up  ));
+        auto* dn=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(GetChargeDensity(Spin::Down));
+        assert(up && dn && "Polarized_CD spin block has no Coulomb-metric projection face (finite path)");
         return up->GetRepulsion3C(fbs) + dn->GetRepulsion3C(fbs);
     }
     else

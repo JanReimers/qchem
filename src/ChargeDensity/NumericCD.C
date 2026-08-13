@@ -31,7 +31,10 @@ export namespace qchem::ChargeDensity
 
 class NumericCD
     : public virtual tChargeDensity<double>
-    , public virtual Fitting::ProjectedDensity_AO   // the seed owns its own density-fit projection <rho|c>
+    // V1.16: the OVERLAP-metric face.  A matrix-free seed fits its own rho(r) directly, c0 = S^-1<f|rho>;
+    // it has no density matrix and therefore no Coulomb RHS -- which is now a property of WHICH FACE it
+    // has, not a method it must remember to override before a poisoned default fires.
+    , public virtual Fitting::OverlapMetric_ProjectedDensity
 {
 public:
     //! \a totalCharge is the seed's electron count N (the fit charge constraint).

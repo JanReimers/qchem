@@ -60,16 +60,39 @@ public:
 
     //! \brief The UNCONSTRAINED fit coefficients \f$c_0\f$ on fit basis \a fbs, BEFORE the Dunlap charge
     //! constraint the fitter applies -- computed in the projection's OWN metric.  This is what the fitter
-    //! calls.  DEFAULT (a density carrying a matrix): the Coulomb-metric solve \f$c_0=J^{-1}\langle\rho|c\rangle\f$.
-    //! A matrix-free seed OVERRIDES this with its overlap-metric fit \f$S^{-1}\langle f|\rho\rangle\f$ directly
-    //! (no \f$J\f$ round-trip, no Coulomb-face cross-cast).
-    virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const;
+    //! calls, and it is ALL the fitter needs to know.  WHICH metric is the business of the two refinement
+    //! faces below; this base does not guess one.
+    virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const=0;
+};
 
-    //! \brief The Coulomb-metric RHS \f$\langle\rho|c\rangle=\sum_{ab}D_{ab}\langle ab|c\rangle\f$ of a real
-    //! density MATRIX.  Composite/polarized densities SUM this across their blocks (the default
-    //! \c GetUnconstrainedFit then applies one \f$J^{-1}\f$).  A matrix-free seed has NO Coulomb RHS -- it
-    //! overrides \c GetUnconstrainedFit and never calls this, so the default here throws.
-    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
+//! \brief COULOMB-metric projection: a density that carries a MATRIX, so it can supply the Coulomb RHS
+//! \f$\langle\rho|c\rangle=\sum_{ab}D_{ab}\langle ab|c\rangle\f$ and the fit is \f$c_0=J^{-1}\langle\rho|c\rangle\f$.
+//!
+//! V1.16: the metric used to be a DEFAULT on the base plus a poisoned sibling -- \c GetUnconstrainedFit
+//! defaulted to the Coulomb solve and \c GetRepulsion3C's default asserted, so the contract was "override
+//! the OTHER method and this one becomes poison".  That pairing was implicit and unenforceable: a
+//! matrix-free density that forgot to override \c GetUnconstrainedFit compiled fine and died at run time,
+//! and nothing in the type system said why.  Now each metric is a face you either HAVE or do not, the
+//! Coulomb RHS is PURE virtual on the face that owns it, and there is no poisoned default left to hit.
+class CoulombMetric_ProjectedDensity : public virtual ProjectedDensity_AO
+{
+public:
+    //! The Coulomb-metric RHS of a real density MATRIX.  Composite/polarized densities SUM this across
+    //! their blocks, so the single \f$J^{-1}\f$ below is applied once to the total.
+    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const=0;
+    //! \f$c_0=J^{-1}\langle\rho|c\rangle\f$.  Broadens the neutral CD-fit face to its Coulomb metric-solve
+    //! capability -- the sanctioned "I want more" request, since a real density matrix genuinely needs J^-1.
+    virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const;
+};
+
+//! \brief OVERLAP-metric projection: a MATRIX-FREE density (a seed) that fits its own \f$\rho(r)\f$ directly,
+//! \f$c_0=S^{-1}\langle f|\rho\rangle\f$ -- no \f$J\f$ round-trip and no Coulomb RHS to supply.  It is not
+//! that such a density declines to answer \c GetRepulsion3C; it is that the question does not apply to it,
+//! which is exactly what having a different face says.
+class OverlapMetric_ProjectedDensity : public virtual ProjectedDensity_AO
+{
+public:
+    virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const=0;
 };
 
 //! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection

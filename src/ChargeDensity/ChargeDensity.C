@@ -55,9 +55,12 @@ using LineagePtr = std::shared_ptr<Lineage>;
 //! projection (finite) and FT projection (periodic) are now both cross-cast capabilities, not forced bases.
 struct NoProjectedDensity {};
 
-//! ProjectedDensity_AO for the finite path (T=double), the empty base for the periodic path (T=dcmplx).
+//! The COULOMB-metric projection face for the finite path (T=double), the empty base for the periodic path
+//! (T=dcmplx).  V1.16: a matrix-backed density HAS the Coulomb RHS, so it takes the face that requires it --
+//! rather than inheriting a metric DEFAULT plus a poisoned sibling it had to remember not to call.  The
+//! matrix-FREE seeds take Fitting::OverlapMetric_ProjectedDensity instead (see NumericCD/SeedCD).
 template <class T> using ProjectedDensityBase =
-    std::conditional_t<std::is_same_v<T,double>, Fitting::ProjectedDensity_AO, NoProjectedDensity>;
+    std::conditional_t<std::is_same_v<T,double>, Fitting::CoulombMetric_ProjectedDensity, NoProjectedDensity>;
 //
 //  These little interfaces allow us to invert a dependency with Hamiltonian Terms.
 //  Templated on the matrix element type T (double for atoms/molecules; dcmplx for the
