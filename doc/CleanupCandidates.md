@@ -572,6 +572,19 @@ MnO campaign proceeds undisturbed in qchem6.
     recomputes (one `itsVcFitter` shared across both channels, refit per spin), so R2.9(ii)'s Irrep-keyed
     scratch still earns its place and is now that one class's private business.
 
+- **R2.20 The oracle helpers are production data living in a TEST module (USER 2026-08-12, deferred).**
+  `RelativeError` / `RelativeHFError` / `RelativeDFTError` / `RelativeDHFError` sit in
+  `IntegrationTests/TestUtils.C` (module `qchem.Unittests.TestUtils`), but they are thin wrappers over
+  `thePeriodicTable()`'s NIST/Dirac reference energies — production data, not test scaffolding.
+  - **Consequence today:** `CLIapps/scfrun.C` — a shipped CLI, not a test — imports a *Unittests* module
+    for them, and because TestUtils is a per-target module FILE SET (not a library), every consumer
+    RECOMPILES it: ITMain, scfrun, and now UTSCFIterator.
+  - **Fix:** move the four into a real library beside `qchem.PeriodicTable`.  Then scfrun imports no test
+    module at all, and TestUtils shrinks to what is genuinely test-only.
+  - **NOT a scfrun facade problem** (the premise this item started from): scfrun already drives
+    `AtomCalculation` and `Calculation` directly.  The oracle helpers are its ONLY reach into TestUtils.
+  - User: *"could live in PeriodicTable ... but like you said, later."*  Deferred, not rejected.
+
 - **R2.16 Construction-time facts re-asked at RUN time (USER PRINCIPLE, 2026-08-07).**
   **User ruling:** *"I much prefer that the whole Hamiltonian is decided and fixed at construction time.
   The only dynamic aspect is the ChargeDensity that we feed it."*  Survey done while splitting the PW
