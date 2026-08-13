@@ -162,6 +162,10 @@ protected:
     //! Header cell for the order-parameter column -- the label the caller gave SetOrderParameter (nothing
     //! when no probe is set), so both layouts announce the extra column the same way.
     void WriteHeadOrder   (std::ostream&) const;
+    //! The Hamiltonian this run assembles, for the DISPLAY only: a layout has to ask it whether the virial
+    //! theorem is meaningful (V1.27 IsVirialValid), and a subclass layout lives outside the base's privates.
+    //! Const reference, not the pointer -- a layout may ASK the Hamiltonian, never re-seat it.
+    const ham_t& Hamiltonian_() const {return *itsHamiltonian;}
 
     // --- PER-SYSTEM density mixing (doc/CleanupCandidates.md V1.10b) ------------------------------------
     //! \brief Build this run's density mixer.  Called once at the top of \c Iterate, after the seed density

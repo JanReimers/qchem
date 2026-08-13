@@ -635,35 +635,91 @@ template <class T> void tSCFIterator<T>::WriteHeadOrder(std::ostream& os) const
     os << " " << PadR(itsOrderName,W_ORD);
 }
 
+// --- THE COLUMN GROUPS (V1.27) --------------------------------------------------------------------
+// The molecular and solid traces used to be two hand-written layouts that duplicated the shared skeleton
+// (prefix / Δρ / mix-accel-cfg / order / thresholds) and differed in FOUR places.  Those four are now named
+// mixins, so a layout is a LIST of the columns its physics actually has -- which is what makes all four
+// {Molecular,Solid}x{PP,Non-PP} combos expressible instead of just the two that happened to be written.
+//
+// Each group owns its three cells: the header label, the (tolerance) cell under it, and the per-iteration
+// value.  Keeping them together is the point: dropping a column used to mean remembering to drop its
+// threshold too, and the two lines silently stopped lining up when you forgot (now pinned by
+// SCFTrace.ThresholdSubLineMatchesTheColumns).
+namespace TraceCols {
+
+//! CONVERGENCE GATE, molecular: the orbital gradient's change.  A variational SCF drives [F,D] to zero.
+struct GateFD
+{
+    static void Head  (std::ostream& os)                       {os << PadR("Δ[F,D]",W_DELTA) << " ";}
+    static void Tol   (std::ostream& os, const SCFParams& p)   {os << " " << PadR(Thresh(p.MinΔFD),W_DELTA);}
+    static void Row   (std::ostream& os, const IterationTrace& tr)
+                      {os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dFD << " ";}
+};
+//! CONVERGENCE GATE, collocation: the RELATIVE total-energy change.  A NON-variational SCF (density-fit /
+//! GPW collocation) limit-cycles in [F,D]/Δρ above the fit floor while E is already settled, so E gates.
+struct GateDE
+{
+    static void Head  (std::ostream& os)                       {os << PadR("ΔE/E",W_DELTA) << " ";}
+    static void Tol   (std::ostream& os, const SCFParams& p)   {os << " " << PadR(Thresh(p.MinΔE),W_DELTA);}
+    static void Row   (std::ostream& os, const IterationTrace& tr)
+                      {os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dE << " ";}
+};
+//! Density change -- shared by every layout, hence no axis of its own.
+struct Rho
+{
+    static void Head  (std::ostream& os)                       {os << PadR("Δρ",W_RHO) << " ";}
+    static void Tol   (std::ostream& os, const SCFParams& p)   {os << " " << PadR(Thresh(p.MinΔρ),W_RHO);}
+    static void Row   (std::ostream& os, const IterationTrace& tr)
+                      {os << std::scientific << setw(W_RHO) << setprecision(2) << tr.dRho << " ";}
+};
+//! THE PP AXIS.  Present iff the virial theorem is meaningful for this Hamiltonian -- V1.27's
+//! IsVirialValid(), asked of the object that knows.  This is why the axis needs no class of its own: an
+//! all-electron run gets the column and a pseudopotential run does not, in EITHER layout.
+struct Virial
+{
+    static void Head  (std::ostream& os, size_t ideal)         {os << PadR(std::to_string(ideal)+"+V/K",W_VIR) << " ";}
+    static void Tol   (std::ostream& os, const SCFParams& p)   {os << " " << PadR(Thresh(p.MinVirial),W_VIR);}
+    static void Row   (std::ostream& os, const IterationTrace& tr)
+                      {os << std::scientific << setw(W_VIR) << setprecision(2)
+                          << (tr.eb.GetVirial()+(double)tr.idealVirial) << " ";}
+};
+//! THE GRID AXIS: the collocation charge leak per electron, a health diagnostic with no threshold cell.
+struct GridLoss
+{
+    static void Head  (std::ostream& os)                       {os << PadR("ρ_lost/N",W_LOST) << " ";}
+    static void Row   (std::ostream& os, const IterationTrace& tr)
+                      {os << std::scientific << setw(W_LOST) << setprecision(2) << tr.gridLostRel << " ";}
+};
+
+} //namespace TraceCols
+
 // --- Base default = the MOLECULAR layout (atoms/molecules; MolecularSCFIterator inherits it unchanged) ---
 template <class T>
 void tSCFIterator<T>::DisplayColumnHeaders(std::ostream& os, const SCFParams& ipar, size_t idealVirial) const
 {
+    using namespace TraceCols;
+    const bool virial=itsHamiltonian->IsVirialValid();   // the PP axis, asked once (V1.27)
     os << endl << endl;
     WriteHeadPrefix(os);
-    // V1.27: no virial column when the theorem does not hold for this Hamiltonian (a PP run).  Asked of the
-    // Hamiltonian directly rather than threaded through the signature -- no sentinel value stands in for it.
-    const bool virial=itsHamiltonian->IsVirialValid();
-    os << PadR("Δ[F,D]",W_DELTA) << " " << PadR("Δρ",W_RHO) << " ";
-    if (virial) os << PadR(std::to_string(idealVirial)+"+V/K",W_VIR) << " ";
+    GateFD::Head(os); Rho::Head(os);
+    if (virial) Virial::Head(os,idealVirial);
     WriteHeadMixAccelCfg(os);
     WriteHeadOrder(os);
     os << endl;
     WriteThreshLead(os);
-    os << PadR(Thresh(ipar.MinFD),W_FD) << " " << PadR(Thresh(ipar.MinΔFD),W_DELTA) << " "
-       << PadR(Thresh(ipar.MinΔρ),W_RHO);
-    if (virial) os << " " << PadR(Thresh(ipar.MinVirial),W_VIR);
+    os << PadR(Thresh(ipar.MinFD),W_FD);
+    GateFD::Tol(os,ipar); Rho::Tol(os,ipar);
+    if (virial) Virial::Tol(os,ipar);
     os << endl;
     os << std::string(100,'-') << endl;
 }
 
 template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const IterationTrace& tr) const
 {
+    using namespace TraceCols;
     WriteRowPrefix(os, tr);
-    os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dFD  << " ";
-    os << std::scientific << setw(W_RHO)   << setprecision(2) << tr.dRho << " ";
-    if (itsHamiltonian->IsVirialValid())   // V1.27: the column exists only when the theorem does
-        os << std::scientific << setw(W_VIR) << setprecision(2) << (tr.eb.GetVirial()+(double)tr.idealVirial) << " ";
+    GateFD::Row(os,tr); Rho::Row(os,tr);
+    if (itsHamiltonian->IsVirialValid()) Virial::Row(os,tr);
     WriteMixAccelCfg(os, tr);
     WriteOrderColumn(os, tr);
     // Optional frontier diagnostic (unchanged instrument; solids show it as a permanent column instead).
@@ -689,29 +745,41 @@ tSCFIterator<T>::CreateMixer(const SCFParams& ipar, const tbs_t<T>*, const Struc
 template class tSCFIterator<double>;
 template class tSCFIterator<dcmplx>;
 
-// --- The SOLID / PP layout: ΔE gates (non-variational collocation), NO virial, gap is a permanent column ---
-void SolidSCFIterator::DisplayColumnHeaders(std::ostream& os, const SCFParams& ipar, size_t /*idealVirial*/) const
+// --- The SOLID layout: the SAME column groups, a different LIST ------------------------------------
+// Differs from the base in exactly three of the four axes -- the ΔE gate instead of Δ[F,D], the collocation
+// ρ_lost/N health column, and a PERMANENT gap (near-gapless flapping is a solid pathology, so it is not
+// hidden behind ReportBandGap()).  The fourth axis, the virial, is NOT hard-coded absent any more: it is
+// derived from IsVirialValid() exactly as the base does.  For every solid run that exists today that is a
+// pseudopotential run, so the column stays away and the output is unchanged -- but an all-electron periodic
+// run (the parked APW/LAPW work) now gets its virial back automatically, which is the 4th of the four
+// {Molecular,Solid}x{PP,Non-PP} combos and the one that was previously unreachable.  See
+// SCFTrace.DISABLED_SolidNonPP_ShouldBringTheVirialColumnBack.
+void SolidSCFIterator::DisplayColumnHeaders(std::ostream& os, const SCFParams& ipar, size_t idealVirial) const
 {
+    using namespace TraceCols;
+    const bool virial=Hamiltonian_().IsVirialValid();
     os << endl << endl;
     WriteHeadPrefix(os);
-    os << PadR("ΔE/E",W_DELTA) << " " << PadR("Δρ",W_RHO) << " "     // ΔE column is RELATIVE (dE/|E|)
-       << PadR("ρ_lost/N",W_LOST) << " ";                            // grid-charge leak per electron (health)
+    GateDE::Head(os); Rho::Head(os); GridLoss::Head(os);
+    if (virial) Virial::Head(os,idealVirial);
     WriteHeadMixAccelCfg(os);
     os << " " << PadR("gap",W_GAP) << "  ";   // 2 trailing: WriteGapColumn's row cell carries the h/m flag
     WriteHeadOrder(os);
     os << endl;
     WriteThreshLead(os);
-    os << PadR(Thresh(ipar.MinFD),W_FD) << " " << PadR(Thresh(ipar.MinΔE),W_DELTA) << " "
-       << PadR(Thresh(ipar.MinΔρ),W_RHO) << endl;
+    os << PadR(Thresh(ipar.MinFD),W_FD);
+    GateDE::Tol(os,ipar); Rho::Tol(os,ipar);
+    if (virial) Virial::Tol(os,ipar);
+    os << endl;
     os << std::string(100,'-') << endl;
 }
 
 void SolidSCFIterator::DisplayColumns(std::ostream& os, const IterationTrace& tr) const
 {
+    using namespace TraceCols;
     WriteRowPrefix(os, tr);
-    os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dE   << " ";
-    os << std::scientific << setw(W_RHO)   << setprecision(2) << tr.dRho << " ";
-    os << std::scientific << setw(W_LOST)  << setprecision(2) << tr.gridLostRel << " ";  // ρ_lost/N
+    GateDE::Row(os,tr); Rho::Row(os,tr); GridLoss::Row(os,tr);
+    if (Hamiltonian_().IsVirialValid()) Virial::Row(os,tr);
     WriteMixAccelCfg(os, tr);
     WriteGapColumn(os, tr);   // solids always show the gap (folds the former ReportBandGap() instrument)
     WriteOrderColumn(os, tr); // and the caller's order parameter, when one is probed
