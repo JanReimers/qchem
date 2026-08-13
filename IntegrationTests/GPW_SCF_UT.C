@@ -115,8 +115,12 @@ std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
                                     BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian)));
 }
 // The low-q GTH valence basis (valgen-generated; carries Al/Na/F) -- the Al block drives the FCC-Al metal test.
+// GPW_BASIS_SPH=1 swaps in VALENCE_LOWQ_SPH (the Mn true-s window restored -- doc/SphericalLatticePlan.md I3);
+// meaningful ONLY together with GPW_SPHERICAL=1 (under Cartesian d that file is contaminant-rank-deficient).
 std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData which=BasisSetData::VALENCE_LOWQ_SR)
 {
+    if (std::getenv("GPW_BASIS_SPH") && which==BasisSetData::VALENCE_LOWQ_SR)
+        which=BasisSetData::VALENCE_LOWQ_SPH;
     return MaybeSpherical(std::shared_ptr<const Real_BS>(
         BasisSet::Molecule::Factory(which, &st,
                                     BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian)));
@@ -3061,11 +3065,14 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
     // GPW_MN_SPHERICAL=1: the SPHERICAL arm (doc/SphericalLatticePlan.md I1) -- the facade reference then
     // runs the NATIVE spherical family (same span as the view), so the box-vs-facade A/B stays span-matched.
     const bool spherical=(bool)std::getenv("GPW_MN_SPHERICAL");
+    const bool sphBasis =(bool)std::getenv("GPW_BASIS_SPH");     // the restored-s file (I3); spherical arms only
     Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
-    Calculation cRef(mnmol, {.basis="valence_lowq_sr", .multiplicity=6, .pseudopotential=true, .ppValence=7,
+    Calculation cRef(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr",
+                             .multiplicity=6, .pseudopotential=true, .ppValence=7,
                              .angular = spherical ? Angular::Spherical : Angular::Cartesian});
     const double Eref=cRef.Energy();
-    std::cout << "[Mn finite] valence_lowq_sr LSDA sextet (q7, "<<(spherical?"SPHERICAL":"CARTESIAN")
+    std::cout << "[Mn finite] "<<(sphBasis?"valence_lowq_sph":"valence_lowq_sr")<<" LSDA sextet (q7, "
+              <<(spherical?"SPHERICAL":"CARTESIAN")
               <<")="<<Eref<<"   (CP2K ATOM UKS sextet oracle -14.674425)"<<std::endl;
 
     const double a=16.0;
@@ -3091,7 +3098,8 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
     // NATIVE Angular::Spherical family has no LatticeSum1E capability (the historical blocker -- feeding
     // it here died on the GPW cross-cast), so the view over the Cartesian engine is the working door.
     std::shared_ptr<const Real_BS> mnbasis(
-        BasisSet::Molecule::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD,
+        BasisSet::Molecule::Factory(sphBasis?BasisSetData::VALENCE_LOWQ_SPH:BasisSetData::VALENCE_LOWQ_SR,
+                                    &cell, BasisSet::Molecule::Engine::MnD,
                                     BasisSet::Molecule::Angular::Cartesian));
     if (spherical) mnbasis=BasisSet::Molecule::PG_Spherical::MakeSphericalLatticeView(mnbasis);
     std::cout << "[Mn in-box] angular=" << (spherical?"SPHERICAL":"CARTESIAN") << std::endl;
