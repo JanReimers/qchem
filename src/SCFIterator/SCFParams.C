@@ -18,8 +18,16 @@ export struct SCFParams
                                      //  off).  The physical gate for a NON-variational SCF (density-fit /
                                      //  GPW collocation) whose [F,D]/Δρ limit-cycle above the fit floor while
                                      //  the total energy is settled -- see doc/GPWPlan.md.
-    double MinVirial       = 1e-13;  //Minimum error Virial ratio -V/K.  (1e-13 => effectively off; the
-                                     //  textbook -V/K=2 virial is not gated for molecules.)
+    double MinVirial       = 1e30;   //Max |error| in the virial ratio -V/K.  DEFAULT OFF (1e30), because
+                                     //  the test below is |err| < MinVirial: a SMALL threshold is STRICT,
+                                     //  not lax.  The old 1e-13 default read as "off" but was the tightest
+                                     //  possible gate -- unsatisfiable, so it could only ever BLOCK
+                                     //  convergence.  It never bit because every serious caller sets this.
+                                     //  Turn it ON (e.g. 4e-2) for what it is actually good at: very
+                                     //  high-precision ATOM work on BSpline bases, where -V/K=2 is a real
+                                     //  accuracy check (user 2026-08-10).  Meaningless under a
+                                     //  pseudopotential -- V1.27's IsVirialValid() drops the gate there
+                                     //  automatically, so no caller has to remember.
     double MinFD           = 1e-5;   //Minimum error from SCF accelerator.  i.e. [F,D] (orbital gradient).
     double StartingRelaxRo = 1.0;    //relaxation for mixing Ro.  Dynamically adjusted during iterations.
     double MergeTol        = 1e-4;   //Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol
