@@ -113,14 +113,29 @@ control it instead of by Cartesian accident.
   structurally cannot).  The remaining −0.82 Ha is l=2 with a span-identical operator but a
   span-enabled density.  SHARPENED I2 PREDICTION: spherical d deletes the s-dodge freedom — if
   span is the story, the deep-moment basin wins and the ordering heals.
-- **I1 (the unblock):** `PG_Spherical` implements `LatticeSum1E` as a PEER (virtual dispatch; no
-  decorator), composing the hoisted engine-agnostic lattice kernels; spherical selected by
-  CONSTRUCTING the spherical basis (`MakeBasisLowQ` choice / test knob `MNO_SPHERICAL=1`).  The
-  family/engine split (second axis, below) is staged WITH it: hoist kernels first, then the
-  spherical family over the MnD engine.  Gates: spherical S/T/V == congruence-transformed
-  Cartesian (exact, unit tier); spherical Si Γ total == Cartesian Si Γ total to SCF tolerance
-  (s/p-only basis ⇒ T=identity — the null test); Mn d⁵ pseudo-atom in-box spherical vs the sextet
-  ATOM oracle.
+- **I1 DONE (2026-08-12 evening): the spherical lattice view is LIVE.**
+  `MakeSphericalLatticeView(Real_BS) -> Real_BS` (`PG_Spherical/LatticeView.C` + Imp; classes
+  unexported — consumers see only Real_BS): the view block answers `Molecule::Orbital_1E_IBS` +
+  `LatticeSum1E` in the spherical span, composing the wrapped basis through the ABSTRACT faces only
+  (engine-blind by construction; the kernel-hoist is deferred until an engine wants native-spherical
+  answers).  T built per shell from `ShellRep::Monomials()` (a NEW soft capability on the rep — the
+  `AoShell` "owns no monomials" pin is respected) + `Math::SphericalShell` raw harmonics, each
+  column normalised against the inner shell's own overlap block (conventions measured, not
+  re-derived).  Knobs: `GPW_SPHERICAL=1` (MakeBasisSR/MakeBasisLowQ) and `GPW_MN_SPHERICAL=1`
+  (the Mn box A/B — previously wired to the NATIVE family and DEAD on the missing-LatticeSum1E
+  cross-cast: the remembered blocker, confirmed).  GATES (suite 711→713, all green):
+  `M_SphericalView.sp_null_test` (T=identity exactness) and `.d_matches_native_family` — the
+  ordering-INVARIANT probes (sorted eig(S), pencil spectra eig(S⁻¹T)/eig(S⁻¹V), the span projector
+  f(r)ᵀS⁻¹f(r)) against the native PG_Spherical family, since the two families ORDER functions
+  differently; plus the crystal-tier A/B: Mn d⁵ box through the view −14.3498 vs the native
+  spherical FACADE −14.3452 (**4.6 mHa — the same agreement class as the Cartesian pair's 12 mHa;
+  the view is validated through a full GPW SCF with occupied d**).
+  **FINDING that reorders the ladder: dropping the contaminants costs the Mn ATOM 281 mHa**
+  (−14.626 → −14.345 vs the exact sextet −14.674) — the Cartesian contaminants were covering for
+  the TRIMMED true-s window (the user's recollection, confirmed quantitatively).  So **I3 (restore
+  the s exponents under spherical d) is a PREREQUISITE for a clean I2 verdict**: with the current
+  basis the spherical MnO A/B would be s-starved on Mn, and the s-dodge channel was precisely the
+  ordering-relevant one.
 - **I2 (the physics):** MnO Γ A/B — Cartesian vs spherical, FM + AFM, imposed Shubnikov,
   {Ladder,GDM}×{5e-3,0}.  THE span-vs-bug verdict.  Then vs the banked CP2K oracles
   (doc/CP2Kresults.md): same span, same functional, same deck — residuals are now honest

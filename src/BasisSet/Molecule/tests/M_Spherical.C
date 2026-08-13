@@ -6,13 +6,22 @@
 // diagonal -- which is exactly the statement that the 2l+1 functions of a shell are orthogonal.  This
 // validates the transform end to end against already-oracle-verified Cartesian integrals.
 #include "gtest/gtest.h"
+#include <algorithm>   // std::sort (the ordering-invariant spectra in the view gates)
 #include <cmath>
+#include <complex>     // std::real (the pencil spectra)
 #include <vector>
 
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;      // GaussianRF (Cartesian kernels)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;    // Polarization
 import qchem.Math.Angular;                                            // SphericalShell, CartTerm
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD;            // NR_Evaluator (1E)
+import qchem.BasisSet;                                                // Real_BS / Real_OIBS iteration (view gates)
+import qchem.BasisSet.Orbital_1E_IBS;                                 // Real_OIBS faces
+import qchem.BasisSet.Molecule.PG_Cart;                               // the wrapped Cartesian family
+import qchem.BasisSet.Molecule.PG_Spherical;                          // the native spherical family (oracle)
+import qchem.BasisSet.Molecule.PG_Spherical.LatticeView;              // MakeSphericalLatticeView (under test)
+import qchem.Structure;                                               // Molecule, Atom
+import qchem.Blaze;                                                   // blazem::eigen/inv/dot (view gates)
 import qchem.Types;
 using namespace qchem;
 
@@ -136,5 +145,112 @@ TEST(M_Spherical, fit_kernels)
         EXPECT_GT(ev.Repulsion2C(i,i), 0.0) << "self Coulomb metric must be positive (" << i << ")";
         for (size_t j=0;j<6;j++)
             EXPECT_NEAR(ev.Repulsion2C(i,j), ev.Repulsion2C(j,i), 1e-12) << "Coulomb metric not symmetric ("<<i<<","<<j<<")";
+    }
+}
+
+// --- The SPHERICAL LATTICE VIEW (doc/SphericalLatticePlan.md I1) --------------------------------
+// The view wraps a Cartesian basis in its contaminant-free spherical span through the abstract
+// faces alone (engine-blind).  Two gates:
+//  (1) NULL TEST: an s/p-only basis has NO contaminants, so the view must reproduce the inner
+//      matrices EXACTLY (T = identity).
+//  (2) NATIVE-FAMILY ORACLE: a d shell viewed spherically must match the NATIVE PG_Spherical
+//      family (same exponents) matrix-for-matrix -- the m-ordering and normalisation conventions
+//      agree end to end, or this fails loudly.
+TEST(M_SphericalView, sp_null_test)
+{
+    Molecule mol;
+    mol.Insert(new Atom(8, 0, Vector3D<double>(0,0,0)));
+    mol.Insert(new Atom(8, 0, Vector3D<double>(0,0,1.8)));
+    auto* cart=new qchem::BasisSet::Molecule::PG_Cart::BasisSet;
+    cart->Insert(new qchem::BasisSet::Molecule::PG_Cart::Orbital_IBS(rvec_t{0.5,1.7}, 1, &mol));
+    std::shared_ptr<const qchem::BasisSet::Real_BS> cbs(cart);
+    auto view=qchem::BasisSet::Molecule::PG_Spherical::MakeSphericalLatticeView(cbs);
+
+    const qchem::BasisSet::Real_OIBS* vi=nullptr;
+    for (auto b : const_cast<qchem::BasisSet::Real_BS&>(*view).Iterate<qchem::BasisSet::Real_OIBS>()) { vi=b; break; }
+    const qchem::BasisSet::Real_OIBS* ci=nullptr;
+    for (auto b : const_cast<qchem::BasisSet::Real_BS&>(*cbs).Iterate<qchem::BasisSet::Real_OIBS>()) { ci=b; break; }
+    ASSERT_TRUE(vi && ci);
+    ASSERT_EQ(vi->GetNumFunctions(), ci->GetNumFunctions());       // no contaminants to drop
+    const auto Sv=vi->MakeOverlap(), Sc=ci->MakeOverlap();
+    const auto Tv=vi->MakeKinetic(), Tc2=ci->MakeKinetic();
+    const auto Vv=vi->MakeNuclear(&mol), Vc=ci->MakeNuclear(&mol);
+    const size_t n=ci->GetNumFunctions();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+        {
+            EXPECT_NEAR(Sv(i,j), Sc(i,j), 1e-13);
+            EXPECT_NEAR(Tv(i,j), Tc2(i,j), 1e-12);
+            EXPECT_NEAR(Vv(i,j), Vc(i,j), 1e-12);
+        }
+}
+
+TEST(M_SphericalView, d_matches_native_family)
+{
+    Molecule mol;
+    mol.Insert(new Atom(25, 0, Vector3D<double>(0,0,0)));
+    mol.Insert(new Atom(25, 0, Vector3D<double>(0,0,2.1)));
+    const rvec_t ex{0.8,2.4};
+
+    auto* cart=new qchem::BasisSet::Molecule::PG_Cart::BasisSet;
+    cart->Insert(new qchem::BasisSet::Molecule::PG_Cart::Orbital_IBS(ex, 2, &mol));
+    std::shared_ptr<const qchem::BasisSet::Real_BS> cbs(cart);
+    auto view=qchem::BasisSet::Molecule::PG_Spherical::MakeSphericalLatticeView(cbs);
+
+    auto* nat=new qchem::BasisSet::Molecule::PG_Spherical::BasisSet;
+    nat->Insert(new qchem::BasisSet::Molecule::PG_Spherical::Orbital_IBS(ex, 2, &mol));
+    std::shared_ptr<const qchem::BasisSet::Real_BS> nbs(nat);
+
+    const qchem::BasisSet::Real_OIBS* vi=nullptr;
+    for (auto b : const_cast<qchem::BasisSet::Real_BS&>(*view).Iterate<qchem::BasisSet::Real_OIBS>()) { vi=b; break; }
+    const qchem::BasisSet::Real_OIBS* ni=nullptr;
+    for (auto b : const_cast<qchem::BasisSet::Real_BS&>(*nbs).Iterate<qchem::BasisSet::Real_OIBS>()) { ni=b; break; }
+    ASSERT_TRUE(vi && ni);
+    ASSERT_EQ(vi->GetNumFunctions(), ni->GetNumFunctions());       // contaminants dropped == native count
+    // The two families ORDER their functions differently (view = the inner Cartesian layout with each
+    // d 6-block compressed to 5; native = its own layout), so matrices are compared through
+    // ordering-INVARIANT probes of the same span:
+    //   (i)  sorted eigenvalues of S;
+    //   (ii) the pencil spectra eig(S^{-1}T), eig(S^{-1}V) -- basis-change invariants of the operators;
+    //   (iii) the span projector f(r)^T S^{-1} f(r) at sample points (invariant under ANY in-span
+    //         basis change -- the pointwise "is it the same function space" probe).
+    const size_t n=ni->GetNumFunctions();
+    const rmat_t Sv(vi->MakeOverlap()), Sn(ni->MakeOverlap());
+    const rmat_t Tv(vi->MakeKinetic()), Tn(ni->MakeKinetic());
+    const rmat_t Vv(vi->MakeNuclear(&mol)), Vn(ni->MakeNuclear(&mol));
+    auto sortedEigsSym=[n](rmat_t A)
+    {
+        hmat_t<double> H(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) H(i,j)=0.5*(A(i,j)+A(j,i));
+        rvec_t w; blazem::eigen(H,w);
+        std::vector<double> s(w.size());                        // explicit copy: std::sort + blaze
+        for (size_t i=0;i<w.size();i++) s[i]=w[i];              // iterators do not mix (CLAUDE.md)
+        std::sort(s.begin(),s.end());
+        return s;
+    };
+    auto pencilEigs=[n](const rmat_t& A, const rmat_t& S)
+    {
+        rmat_t M=blazem::inv(S)*A;                    // similar to S^{-1/2} A S^{-1/2}: real spectrum
+        cvec_t w; blazem::eigen(M,w);
+        std::vector<double> s(w.size());
+        for (size_t i=0;i<w.size();i++) s[i]=std::real(w[i]);
+        std::sort(s.begin(),s.end());
+        return s;
+    };
+    const auto es_v=sortedEigsSym(Sv), es_n=sortedEigsSym(Sn);
+    const auto et_v=pencilEigs(Tv,Sv), et_n=pencilEigs(Tn,Sn);
+    const auto ev_v=pencilEigs(Vv,Sv), ev_n=pencilEigs(Vn,Sn);
+    for (size_t i=0;i<n;i++)
+    {
+        EXPECT_NEAR(es_v[i], es_n[i], 1e-11) << "eig(S)["<<i<<"]";
+        EXPECT_NEAR(et_v[i], et_n[i], 1e-9)  << "eig(S^-1 T)["<<i<<"]";
+        EXPECT_NEAR(ev_v[i], ev_n[i], 1e-9)  << "eig(S^-1 V)["<<i<<"]";
+    }
+    const rmat_t Siv=blazem::inv(Sv), Sin=blazem::inv(Sn);
+    for (const rvec3_t r : {rvec3_t(0.3,0.1,0.2), rvec3_t(-0.2,0.4,1.9)})
+    {
+        const rvec_t fv=(*vi)(r), fn=(*ni)(r);
+        const double pv=blazem::dot(fv,Siv*fv), pn=blazem::dot(fn,Sin*fn);
+        EXPECT_NEAR(pv, pn, 1e-10) << "span projector at r";
     }
 }
