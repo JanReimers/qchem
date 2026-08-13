@@ -409,4 +409,12 @@ collocate/integrate PAIR, not of caching).  Two items:
    pairs (the GPW_OMP_THREADS seam), and — once an engine answers spherical natively (the
    SphericalLatticePlan kernel-hoist) — pair spaces of 5 not 6 components per d shell, which cuts
    BOTH modes ~20% on d-heavy bases.  With (2) fast enough, (1)'s default could even flip toward
-   recompute on small-RAM boxes.
+   recompute on small-RAM boxes.  **HEAD START (user, 2026-08-13): the per-pair ALGEBRA is already
+   cached** — `struct Ω : Cacheable2` (PG_Cart_MnD/GaussianRF.C), content-addressed and SHARED with
+   the spherical evaluator (same primitives ⇒ same registry indices) — so the recompute kernel
+   replays Ω and pays only the vectorized point loop over the compact box; the pair algebra is
+   never rebuilt.
+   MEASURED MOTIVATION (runs 49 first attempt): the CP2K-span MnO cell (n=152 Cartesian inner,
+   diffuse-heavy) exceeded the budgets so far that iteration 1 did not COMPLETE in 80 min on the
+   on-the-fly path — the overnight retry runs at GPW_SCREEN_EPS=GPW_DENSITY_EPS=1e-8 (the
+   sanctioned ε-truncation; sub-mHa vs the 45 mHa signal).
