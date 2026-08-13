@@ -1067,10 +1067,12 @@ MnO campaign proceeds undisturbed in qchem6.
   `CreateXCQuadrature`'s default body is byte-identical in two places (Imp/BasisSet.C:42 ==
   Band_FT_IBS.C:53).  Decide: pure, or a documented "this basis does not fit" contract; hoist the
   shared default.  (Interacts with the V1.1 CreateXCQuadrature hoist.)
-- **V1.16 `ProjectedDensity_AO::GetRepulsion3C` asserting default** (Fitting/Imp/FunctionFitter.C:
-  28-35) — the overlap-vs-Coulomb metric choice is encoded as "override the OTHER method and this
-  one becomes poison", an implicit unenforceable pairing (NumericCD must just remember).  Make the
-  metric an explicit refinement face.
+- **V1.16 ✅ DONE `de0292cb`. `ProjectedDensity_AO::GetRepulsion3C` asserting default** — the metric is now
+  two refinement faces (`CoulombMetric_ProjectedDensity` / `OverlapMetric_ProjectedDensity`); the base keeps
+  only what the FITTER needs.  **The compiler found more than the item predicted:** `tPolarized_CD` and
+  `tComposite_CD` were cross-casting to the PLAIN AO face and then calling the Coulomb-only
+  `GetRepulsion3C` — the implicit pairing in action, since any `ProjectedDensity_AO` satisfied that cast and
+  the poison fired later.  Both now ask for the capability they use.  **→ doc/CleanupHistory.md**
 - **V1.17 `tWaveFunction::GetSpinDensity()` returns null as the unpolarized answer**
   (WaveFunction.C:39) — a capability half the hierarchy lacks, on the base, every client
   null-checking a raw pointer.  Correct idiom one library over: `tSpinResolved_CD` as a cross-cast
