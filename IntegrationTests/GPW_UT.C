@@ -27,6 +27,7 @@ import qchem.UnitCell;                          // UnitCell
 import qchem.BasisSet;                          // Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Molecule.Factory;         // Molecule::Factory, BasisSetData/Engine/Angular
+import qchem.BasisSet.Molecule.PG_Cart;         // direct PG_Cart construction (the diffuse-d V_long oracle gate)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS (the basis under test)
 import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the _R / _Gaussian faces (KB gate)
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
@@ -1325,4 +1326,230 @@ TEST(GPW, MagneticSymmetryDefectsSeparateMirrorKeepersFromBreakers)
     for (size_t i=0;i<rops.size();++i)
         if (rops[i].sigma==qchem::Symmetry::SpinAction::Flip) EXPECT_GT(dB[i], 1e-3);
         else                                                  EXPECT_LT(dB[i], 1e-12);
+}
+
+// ============ The DIFFUSE-d V_long ORACLE gate (probes 55-57, doc/SphericalLatticePlan.md) ============
+// Probes 55A/B/D bisected the v2-span MnO collapse to the DIFFUSE Mn d (0.18); the 55B breakdown put
+// the -13.3 Ha in E_loc; probe 56 (GPW_LONG_SWEEP) exonerated the LEVEL ROUTING (both paths agree);
+// probe 57 (rigid shift) exonerated the wrap/corner family.  Both V_long paths share ONE machine: the
+// collocation INTEGRATE-BACK of the G-restricted field against pair products.  This gate holds that
+// machine against a from-scratch oracle no production code touches:
+//     h_ij = (Omega/N^3) Sum_r chi_i(r) chi_j(r) V_long(r)
+// with chi the explicitly image-summed Bloch functions and V_long the explicit G-sum of the GTH
+// erf-Coulomb form factor f_long(G) = -4 pi Z e^{-G^2 rloc^2/2} / G^2 (Mn q7 has NO C terms: the
+// local PP is PURE erf, V_short == 0 -- the whole E_loc rides V_long).  Basis: s+p+d shells at
+// {0.18, 0.38, 24.0} -- the convicted diffuse d, the healthy-control d, and a tight exponent so the
+// multigrid ladder is DEEP (the failing runs' routing conditions).  DISABLED: ~2-4 min hand gate.
+TEST(GPW, DISABLED_DiffuseDPairVlongOracle)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);   // the MnO rhombohedral cell
+    UnitCell cell(Amat);
+    cell.AddAtom(25, {0.5,0.5,0.5});                                  // ONE Mn q7, off-corner
+    auto* cbs=new BasisSet::Molecule::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Molecule::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    std::shared_ptr<const Real_BS> mol(cbs);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto gth=Pseudopotential::GetGTH("Mn","LDA",7);
+
+    const chmat_t Vl=ev.MakeLocalPPLong (&cell, gth.local);           // PRODUCTION (custom G-ball route)
+    const chmat_t Vs=ev.MakeLocalPPShort(&cell, gth.local);           // must be ~0 (c=[] -- pure erf)
+    double snorm=0.0; for (size_t i=0;i<Vs.rows();i++) for (size_t j=0;j<Vs.columns();j++) snorm+=std::norm(Vs(i,j));
+    EXPECT_LT(std::sqrt(snorm), 1e-10) << "Mn q7 has no short-range C terms; V_short must vanish";
+
+    // ---- the oracle ---------------------------------------------------------------------------------
+    const Real_OIBS* obs=nullptr;
+    for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
+    ASSERT_TRUE(obs);
+    const size_t n=obs->GetNumFunctions();
+    ASSERT_EQ(Vl.rows(), n);
+    const double Z=7.0, rloc=0.64;                                    // GTH Mn q7 local: pure erf-Coulomb
+    const rvec3_t tau(a,a,a);                                         // A*(1/2,1/2,1/2)
+    const double Omega=cell.GetCellVolume();
+
+    const int N=40;                                                   // raster (integrand bandwidth ~17 << Nyquist)
+    const double w=Omega/double(N*N*N);
+    const int GM=11;                                                  // |G|<=11: e^{-G^2 rloc^2/2}/G^2 < 2e-11
+    // Precompute the G list for the analytic reciprocal cell B=(4 pi/a)(I - J/4).
+    struct GRec { rvec3_t G; double f; };
+    std::vector<GRec> gs;
+    const double bfac=4.0*M_PI/a;
+    for (int m1=-14;m1<=14;m1++) for (int m2=-14;m2<=14;m2++) for (int m3=-14;m3<=14;m3++)
+    {
+        if (!m1 && !m2 && !m3) continue;                              // Delta-G=0 DROPPED (production convention)
+        const double s=(m1+m2+m3)*0.25;
+        const rvec3_t G(bfac*(m1-s), bfac*(m2-s), bfac*(m3-s));
+        const double g2=G*G;
+        if (g2>GM*GM) continue;
+        gs.push_back({G, -4.0*M_PI*Z*std::exp(-0.5*g2*rloc*rloc)/g2/Omega});
+    }
+    // Bloch image set: the diffuse 0.18 tail (1e-12 at r~12.4, poly margin -> 13.5) -- enumerate by
+    // RADIUS, not index box: this oblique cell's index-space neighbourhoods are heavily sheared (the
+    // production seam's 381-cell lesson), so a +-2 index box truncates direction-dependently (measured:
+    // the p(0.18) diagonals came out 0.79/0.79/0.89 where symmetry demands equality).
+    const double reach=13.5, cellDiag=2.0*std::sqrt(3.0)*a;
+    std::vector<rvec3_t> images;
+    for (int i=-6;i<=6;i++) for (int j=-6;j<=6;j++) for (int k=-6;k<=6;k++)
+    {
+        const rvec3_t R=cell.ToCartesian(rvec3_t(i,j,k));
+        if (norm(R)<=reach+cellDiag) images.push_back(R);
+    }
+    rmat_t h(n,n,0.0);
+    rvec_t sdiag(n); sdiag=0.0;                                       // SELF-CHECK: V==1 -> the Bloch overlap
+    rvec_t chi(n);
+    for (int i=0;i<N;i++) for (int j=0;j<N;j++) for (int k=0;k<N;k++)
+    {
+        const rvec3_t r=cell.ToCartesian(rvec3_t(double(i)/N, double(j)/N, double(k)/N));
+        chi=0.0;                                                      // Bloch chi_i(r) = sum_R chi_i(r-R)
+        for (const auto& R : images)
+            if (norm(r-R-tau)<=reach) chi+=(*obs)(r-R);               // only images whose centre can reach r
+        double V=0.0;                                                 // V_long(r): the explicit G-sum
+        const rvec3_t d=r-tau;
+        for (const auto& g : gs) V+=g.f*std::cos(g.G*d);
+        for (size_t p=0;p<n;p++)
+        {
+            sdiag[p]+=w*chi[p]*chi[p];
+            for (size_t q=p;q<n;q++) h(p,q)+=w*chi[p]*chi[q]*V;
+        }
+    }
+    // Quadrature/Bloch SELF-CHECK against the analytic Bloch overlap (LatticeSum1E, Gamma phases).
+    const auto* lat1e=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(obs);
+    ASSERT_TRUE(lat1e);
+    const chmat_t Sb=lat1e->MakeOverlap([](const ivec3_t&){return dcmplx(1.0);}, cell);
+    for (size_t p=0;p<n;p++)
+    {
+        const double a2l3=std::real(obs->Kinetic()(p,p))/std::real(obs->Overlap()(p,p));
+        if (a2l3>5.0) continue;                                       // tight fns: below this raster, skip
+        EXPECT_NEAR(sdiag[p]/std::real(Sb(p,p)), 1.0, 1e-6)
+            << "oracle quadrature broken for fn "<<p<<" (alpha(2l+3)="<<a2l3
+            << "): quad="<<sdiag[p]<<" analytic="<<std::real(Sb(p,p))
+            << " ratio="<<sdiag[p]/std::real(Sb(p,p));
+    }
+
+    // ---- compare, worst offender per exponent class --------------------------------------------------
+    // Classify functions by the kinetic/overlap diagonal ratio ~ alpha (2l+3) (no exponent crosses the face).
+    const auto& S=obs->Overlap(); const auto& T=obs->Kinetic();
+    double worstAll=0.0; size_t wi=0, wj=0;
+    for (size_t p=0;p<n;p++)
+        for (size_t q=p;q<n;q++)
+        {
+            // the oracle raster resolves only the DIFFUSE functions -- skip pairs with a tight partner
+            const double ap=std::real(T(p,p))/std::real(S(p,p)), aq=std::real(T(q,q))/std::real(S(q,q));
+            if (ap>5.0 || aq>5.0) continue;
+            const double prod=std::real(Vl(p,q)), orac=h(p,q);
+            const double scale=std::max(1e-6, std::fabs(orac));
+            const double rel=std::fabs(prod-orac)/scale;
+            if (rel>worstAll && std::fabs(orac)>1e-8) { worstAll=rel; wi=p; wj=q; }
+        }
+    std::cout << "[Vlong oracle] n="<<n<<"  worst rel="<<worstAll<<" at ("<<wi<<","<<wj<<")"
+              << "  prod="<<std::real(Vl(wi,wj))<<" oracle="<<h(wi,wj)
+              << "  [alpha(2l+3)] i="<<std::real(T(wi,wi))/std::real(S(wi,wi))
+              << " j="<<std::real(T(wj,wj))/std::real(S(wj,wj))<<std::endl;
+    for (size_t p=0;p<n;p++)                                          // the full diagonal, the readable map
+    {
+        const double al=std::real(T(p,p))/std::real(S(p,p));
+        std::cout << "  fn "<<p<<"  alpha(2l+3)="<<al
+                  << "  Vl(prod)="<<std::real(Vl(p,p))<<"  Vl(oracle)="<<h(p,p)
+                  << "  rel="<<std::fabs(std::real(Vl(p,p))-h(p,p))/std::max(1e-6,std::fabs(h(p,p)))<<std::endl;
+    }
+    EXPECT_LT(worstAll, 1e-2) << "V_long integrate-back disagrees with the independent oracle";
+}
+
+// The SHARP-FIELD companion (the 55B condition the Mn-only gate cannot see): the O q6 local field is
+// 7x SHARPER (rloc 0.2476 -> beta=8.15 vs Mn's 1.22), and the per-level G-RESTRICTION of that field is
+// COMMON to both probe-56 paths (ball and sweep both integrate level-restricted fields), so probe 56
+// never exonerated it.  Same oracle; the diffuse-pair elements converge with the field ball |G|<=12
+// because the PAIR FT e^{-G^2/4p} (p<=0.76) kills everything beyond (the sharp field's high-G content
+// couples only to tight pairs, which the raster oracle excludes anyway).
+TEST(GPW, DISABLED_DiffuseDVlongSharpFieldOracle)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    UnitCell cell(Amat);
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    cell.AddAtom( 8, {0.25,0.25,0.25});
+    auto* cbs=new BasisSet::Molecule::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Molecule::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    std::shared_ptr<const Real_BS> mol(cbs);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
+
+    const chmat_t Vl=ev.MakeLocalPPLong(&cell, gthMn.local);          // field sums over BOTH atoms of cl
+
+    const Real_OIBS* obs=nullptr;
+    for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
+    ASSERT_TRUE(obs);
+    const size_t n=obs->GetNumFunctions();
+    ASSERT_EQ(Vl.rows(), n);
+    const double Omega=cell.GetCellVolume();
+    struct Src { rvec3_t tau; double Z, rloc; };
+    const Src srcs[2] = { {cell.ToCartesian(rvec3_t(0.5,0.5,0.5)),  7.0, 0.64},
+                          {cell.ToCartesian(rvec3_t(0.25,0.25,0.25)), 6.0, 0.24762086} };
+
+    const int N=40;
+    const double w=Omega/double(N*N*N);
+    const int GM=12;
+    struct GRec { rvec3_t G; double fc[2], fs[2]; };                  // per-species cos/sin weights
+    std::vector<GRec> gs;
+    const double bfac=4.0*M_PI/a;
+    for (int m1=-16;m1<=16;m1++) for (int m2=-16;m2<=16;m2++) for (int m3=-16;m3<=16;m3++)
+    {
+        if (!m1 && !m2 && !m3) continue;
+        const double s=(m1+m2+m3)*0.25;
+        const rvec3_t G(bfac*(m1-s), bfac*(m2-s), bfac*(m3-s));
+        const double g2=G*G;
+        if (g2>GM*GM) continue;
+        GRec rec; rec.G=G;
+        for (int aI=0;aI<2;aI++)
+        {
+            const double f=-4.0*M_PI*srcs[aI].Z*std::exp(-0.5*g2*srcs[aI].rloc*srcs[aI].rloc)/g2/Omega;
+            const double ph=G*srcs[aI].tau;
+            rec.fc[aI]=f*std::cos(ph); rec.fs[aI]=f*std::sin(ph);     // f e^{iG.(r-tau)} -> cos/sin split
+        }
+        gs.push_back(rec);
+    }
+    const double reach=13.5, cellDiag=2.0*std::sqrt(3.0)*a;
+    std::vector<rvec3_t> images;
+    for (int i=-6;i<=6;i++) for (int j=-6;j<=6;j++) for (int k=-6;k<=6;k++)
+    {
+        const rvec3_t R=cell.ToCartesian(rvec3_t(i,j,k));
+        if (norm(R)<=reach+cellDiag) images.push_back(R);
+    }
+    const rvec3_t tauMn=srcs[0].tau;
+    rmat_t h(n,n,0.0);
+    rvec_t chi(n);
+    for (int i=0;i<N;i++) for (int j=0;j<N;j++) for (int k=0;k<N;k++)
+    {
+        const rvec3_t r=cell.ToCartesian(rvec3_t(double(i)/N, double(j)/N, double(k)/N));
+        chi=0.0;
+        for (const auto& R : images)
+            if (norm(r-R-tauMn)<=reach || norm(r-R-srcs[1].tau)<=reach)
+                chi+=(*obs)(r-R);                                     // shells sit on BOTH atoms -- screen on both centres
+        double V=0.0;
+        for (const auto& g : gs)
+        {
+            const double pr=g.G*r, c=std::cos(pr), sN=std::sin(pr);
+            V += g.fc[0]*c+g.fs[0]*sN + g.fc[1]*c+g.fs[1]*sN;
+        }
+        for (size_t p=0;p<n;p++)
+            for (size_t q=p;q<n;q++) h(p,q)+=w*chi[p]*chi[q]*V;
+    }
+    const auto& S=obs->Overlap(); const auto& T=obs->Kinetic();
+    double worst=0.0; size_t wi=0, wj=0;
+    for (size_t p=0;p<n;p++)
+        for (size_t q=p;q<n;q++)
+        {
+            const double ap=std::real(T(p,p))/std::real(S(p,p)), aq=std::real(T(q,q))/std::real(S(q,q));
+            if (ap>5.0 || aq>5.0) continue;                           // raster-resolvable pairs only
+            const double prod=std::real(Vl(p,q)), orac=h(p,q);
+            const double rel=std::fabs(prod-orac)/std::max(1e-6,std::fabs(orac));
+            if (rel>worst && std::fabs(orac)>1e-8) { worst=rel; wi=p; wj=q; }
+        }
+    std::cout << "[Vlong sharp-field oracle] n="<<n<<"  worst diffuse-pair rel="<<worst
+              << " at ("<<wi<<","<<wj<<")  prod="<<std::real(Vl(wi,wj))<<" oracle="<<h(wi,wj)
+              << "  [alpha(2l+3)] i="<<std::real(T(wi,wi))/std::real(S(wi,wi))
+              << " j="<<std::real(T(wj,wj))/std::real(S(wj,wj))<<std::endl;
+    EXPECT_LT(worst, 1e-2) << "V_long integrate-back vs oracle with the SHARP O field: disagreement";
 }
