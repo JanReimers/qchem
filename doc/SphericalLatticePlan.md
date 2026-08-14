@@ -1,5 +1,49 @@
 # Spherical d on the lattice path — the fixed-transform decorator plan
 
+## ★ SESSION START HERE (updated 2026-08-13 end-of-day) — the V_long sharp-field defect
+
+**WHERE THE CAMPAIGN STANDS:** I1 (spherical lattice view) DONE + gated; I3 (valence_lowq_sph = the
+EXACT CP2K-transcription span, n=136) DONE; I2 arm 1 DONE — **the ordering HEALED under spherical d
+(AFM below FM by 45.5 mHa; span convicted, no code bug in the KB story)**.  I2 arm 2 (the CP2K-span
+absolute A/B) is BLOCKED on a REAL, now unit-reproduced defect the diffuse re-additions exposed.
+
+**THE DEFECT (commit 8b4079e3):** the V_long (erf-Coulomb local-PP) integrate-back mis-evaluates
+DIFFUSE-pair elements against a SHARP-β field.  Unit repro (~2 min each, DISABLED hand gates in
+IntegrationTests/GPW_UT.C, both against a from-scratch oracle):
+- `GPW.DISABLED_DiffuseDPairVlongOracle` — Mn-only cell (soft field β=1.22): **GREEN, 7e-7**.
+- `GPW.DISABLED_DiffuseDVlongSharpFieldOracle` — Mn+O cell (O field β=8.15): **RED — a diffuse s×d
+  element 6.6× too large (0.0138 vs oracle 0.0021)**.
+The error class (×6, not ×1e-5) rules out the harmonic rule's ε-tail and points at the PER-LEVEL
+FIELD RESTRICTION/ALIASING — the sharp field's high-G content reaching a coarse level's raster
+un-ball-restricted (sampled ⇒ aliased) for pairs routed there.  This component is shared by BOTH
+`MakeLocalPPLong` paths (custom G-ball AND `GPW_LONG_SWEEP`), which is why the probe-56 A/B agreed.
+It is what collapsed the arm-2 runs (E→−455/−87/−67: probes 49–57, elimination ledger in the memory
+file + doc/logs/mno_probe_run5*.log).
+
+**NEXT ACTION (the new session's first task):** drill `GPW_Evaluator::MakeLocalPPLong` /
+`MakeLocalPP(Long)` (src/BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C ~line 850–990): how is
+V_L[L] prepared per level — is Ṽ restricted to each level's G-ball before hitting that level's
+raster, or is the full field sampled (aliasing)?  Fix; the two gates above are the red/green.
+
+**THEN, in order:**
+1. Re-run bisection variant B (SR + Mn 7s + Mn d 0.18) — MUST now reach the −61.4x plateau.
+   Variant generator: `doc/scripts/bisect_valence_sph.py {A|B|D}` (rewrites
+   BasisSetData/valence_lowq_sph.bsd from git HEAD; restore with git checkout).  Bounded recipe:
+   `GPW_MNO_NMAX=4 MNO_IMPOSE=1 MNO_MOM=0 MNO_ORTHO_TOL=1e-3 MNO_SKIP_FM=1 GPW_SPHERICAL=1
+   GPW_BASIS_SPH=1 GPW_MNO_VERBOSE=1 GPW_OMP_THREADS=8` on
+   `GPW_SCF.DISABLED_MnO_AFM2_RhombohedralGamma` (systemd scope MemoryMax=12G).
+2. Also re-check 55D (O diffuse, was borderline −61.60@4) — the same defect plausibly explains it.
+3. THE ARM-2 VERDICT RUNS (53/54 recipe): AFM (`MNO_SKIP_FM=1`) then FM (`MNO_SKIP_AFM=1`), each
+   `MNO_ANNEAL="5e-3,0" MNO_ACC="Ladder,GDM" MNO_MOM=0 MNO_ORTHO_TOL=1e-3 GPW_SPHERICAL=1
+   GPW_BASIS_SPH=1` + verbose + OMP 8 + MemoryMax=12G, DEFAULT screens (never relax
+   GPW_SCREEN/DENSITY_EPS on this span — the eps=1e-8 collapse lesson), ~10–12 min/iteration.
+   TARGETS = the oracles themselves (same span, function-for-function): AFM −61.4706 / FM −61.4617;
+   healthy iter-1 ≈ −52…−68 with [F,D] of a few Ha; anything far BELOW −61.5 = collapse suspicion.
+   Open questions the verdict answers: the honest operator/grid residuals, and whether the
+   deep-moment basin (m̃ → ~4.65) appears on the honest span.
+4. Caveat to carry: MNO_ORTHO_TOL=1e-3 solves in a rank-filtered subspace of the 136 — revisit if
+   the final numbers land within a few mHa of the oracles.
+
 2026-08-12.  Born from the MnO ordering campaign (doc/SymmetryUpgradePlan.md, runs 38–44): the
 FM/AFM ordering reversal traced to the KB nonlocal term rewarding the weak-moment basin with 1.3 Ha
 of extra d-channel attraction that CP2K — same deck, same transcribed basis — does not see.  The
