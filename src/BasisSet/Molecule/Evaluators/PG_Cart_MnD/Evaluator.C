@@ -25,6 +25,7 @@ module;
 #include <functional> // cellphase_t (the caller-supplied Bloch phase of a cross-cell offset)
 #include <utility>    // std::pair (the flattened (i,j) pair list for the OpenMP loop)
 #include <map>        // the stream fold's offset -> orbit-multiplicity tables (T3 route (b))
+#include <optional>   // the conditionally-charged per-iteration timing bucket (integrate-back)
 #include <exception>  // std::exception_ptr (throw containment across the OpenMP pair loops)
 #include <memory>     // std::shared_ptr (the per-atom operator GaussianRF, shared across its polynomial terms)
 #include <cstdlib>    // std::getenv/std::atoi (the GPW_OMP_THREADS opt-in knob)
@@ -1145,6 +1146,11 @@ public:
     {
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K);
+        // THE per-iteration cost bucket (doc/GPWPlan1.md "fast-recompute campaign"): every SCF step
+        // scatters every (pair, offset) term, either as a cached-stream replay or -- past the budget --
+        // as a live box evaluation.  The stream BUILD nested inside (EnsureStreams) charges its own
+        // bucket, so this one reads as the pure per-iteration scatter.
+        qchem::report::Timed timer("scf: collocate density (pair scatter)");
         std::vector<rvec_t> rho(K);
         for (size_t l=0; l<K; l++) rho[l]=rvec_t(size_t(N_L[l].x)*N_L[l].y*N_L[l].z, 0.0);
         // Hermitian fold: the (j,i,-R) term contributes the SAME (idx, value, weight) as (i,j,R) -- the product
@@ -1326,6 +1332,12 @@ public:
         assert(K>0 && ecut_L.size()==K && V_L.size()==K);
         assert(!pairLevels || pairLevels->size()==size()*size());
         const size_t nn=size();
+        // The collocation's sibling per-iteration bucket -- charged ONLY on the density-rule path (the KS
+        // field, once per k-block per iteration).  The STATIC sharp-field sweeps (local PP, explicit
+        // pairLevels) stay uncharged on purpose: they already sit inside their own named setup buckets
+        // (setup: local-PP LONG/SHORT, separable PP), and an exclusive child here would hollow those out.
+        std::optional<qchem::report::Timed> timer;
+        if (absRelCutoff==0.0 && !pairLevels) timer.emplace("scf: integrate-back (pair gather)");
         chmat_t h(size());
         // T3 route (b) (§6b): the reduced gather runs only on the per-iteration density-rule path (the
         // static sharp-field sweeps and explicit-level calls keep their own machinery, incl. T1).  It

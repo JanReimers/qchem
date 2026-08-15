@@ -10,6 +10,7 @@ module;
 module qchem.ChargeDensity.FourierMixCD;
 import qchem.Types;        // rvec3_t, dcmplx
 import qchem.Math;         // (trig for the inverse FT)
+import qchem.Parallel;     // WorkerThreads (GPW_OMP_THREADS -- the batched inverse FT over mesh points)
 
 namespace qchem::ChargeDensity
 {
@@ -102,8 +103,13 @@ rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
     std::vector<dcmplx>  cs;   cs.reserve(nG);
     for (const auto& [dm, rt] : itsRho) {dms.push_back(dm); cs.push_back(dcmplx(rt));}
 
-    std::vector<dcmplx> tx(hi.x-lo.x+1), ty(hi.y-lo.y+1), tz(hi.z-lo.z+1);
-    for (size_t g=0; g<r.size(); g++)
+    // Per point: private phase tables + a private accumulator, so the point loop is embarrassingly
+    // parallel and ro[g] is computed by ONE thread in the serial summation order -- bit-identical at any
+    // thread count.  It NEEDS to be: under ρ̃-mixing (Kerker/Pulay) the Fock build sees this density, not
+    // a D, so the atom-centred XC route samples it at every mesh point EVERY iteration -- measured 6.7 s
+    // per iteration on the MnO magnetic cell (48k points x 24k G x 2 channels), the loop's whole reason
+    // for existing in batched form.  Opt-in threading (GPW_OMP_THREADS; see qchem.Parallel).
+    auto at=[&](size_t g, std::vector<dcmplx>& tx, std::vector<dcmplx>& ty, std::vector<dcmplx>& tz)
     {
         const double t1=b1*r[g], t2=b2*r[g], t3=b3*r[g];
         for (int m=lo.x; m<=hi.x; m++) tx[m-lo.x]=std::exp(dcmplx(0.0,m*t1));
@@ -119,7 +125,21 @@ rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
             s += cs[q]*pxy*tz[dm.z-lo.z];
         }
         ro[g]=itsScale*std::real(s);
+    };
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
+    {
+        #pragma omp parallel num_threads(nthreads)
+        {
+            std::vector<dcmplx> tx(hi.x-lo.x+1), ty(hi.y-lo.y+1), tz(hi.z-lo.z+1);  // thread-private tables
+            #pragma omp for schedule(static)
+            for (size_t g=0; g<r.size(); g++) at(g,tx,ty,tz);
+        }
+        return ro;
     }
+#endif
+    std::vector<dcmplx> tx(hi.x-lo.x+1), ty(hi.y-lo.y+1), tz(hi.z-lo.z+1);
+    for (size_t g=0; g<r.size(); g++) at(g,tx,ty,tz);
     return ro;
 }
 

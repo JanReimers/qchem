@@ -185,11 +185,20 @@ IrrepBasisSet::~IrrepBasisSet() {};
 rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
 {
     rvec_t ret(size());
+    // SHELL HOIST: the flattened (radial x polarization) layout stores a shell's components
+    // CONSECUTIVELY over the SAME GaussianRF (PGData::Init), so the contracted radial -- the exp
+    // calls, the whole cost of this loop -- is evaluated ONCE per shell instead of once per
+    // component (6x on a d shell, 10x on an f).  Pure hoist: identical value, identical order.
+    // This is THE pointwise basis sweep behind the atom-centred XC mesh's Phi tables (and every
+    // molecular Becke-grid evaluation), so it is on the hot path of every mesh-quadrature run.
+    const GaussianRF* last=nullptr;
+    double            rad =0.0;
     for (size_t i=0;i<size();i++)
     {
         const GaussianRF& rf=*radials[i];
+        if (&rf!=last) { rad=rf(r); last=&rf; }
         rvec3_t dr=r-rf.GetCenter();
-        ret[i]= ns[i]*pols[i](dr) * rf(r);
+        ret[i]= ns[i]*pols[i](dr) * rad;
     }
     return ret;
 }

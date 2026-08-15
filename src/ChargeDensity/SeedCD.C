@@ -65,6 +65,12 @@ public:
     // which goes through GetFourierDensity, but provided so the type is whole).
     virtual double  operator()(const rvec3_t&) const;
     virtual rvec3_t Gradient  (const rvec3_t&) const;
+    //! Batch \f$\rho(r_g)\f$ over a whole mesh -- the \c ScalarFunction default loop, THREADED (opt-in,
+    //! \c GPW_OMP_THREADS).  This is how the atom-centred XC route samples the SEED (the one iteration
+    //! with no density matrix to GEMM), and on a magnetic cell it was the largest single bucket of the
+    //! whole run: 28 s of image-summed radial lookups over 48k mesh points x 2 channels.  Every point is
+    //! independent and \c op() is pure, so the raster is bit-identical at any thread count.
+    virtual rvec_t  operator()(const rvec3vec_t&) const;
 
     // tChargeDensity<dcmplx>
     virtual double GetTotalCharge() const {return itsScale*itsCharge;}

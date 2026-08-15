@@ -418,3 +418,62 @@ collocate/integrate PAIR, not of caching).  Two items:
    diffuse-heavy) exceeded the budgets so far that iteration 1 did not COMPLETE in 80 min on the
    on-the-fly path — the overnight retry runs at GPW_SCREEN_EPS=GPW_DENSITY_EPS=1e-8 (the
    sanctioned ε-truncation; sub-mHa vs the 45 mHa signal).
+
+# ★ THE RUNTIME GAP, MEASURED — and where it actually lives (2026-08-15, doc/OpenWork.md item 1)
+
+The charter above said "fast-recompute campaign".  **The ledger says otherwise for the runs we
+actually pay for.**  First order of business was making the cost VISIBLE: `GPW_REPORT=1` forces the
+run report (hence the timing ledger) on for ANY driver, and new buckets name the per-iteration work
+that had none — `scf: collocate density (pair scatter)`, `scf: integrate-back (pair gather)`,
+`scf: XC-mesh quadrature H_xc`, plus a split of the rho sampling into the Φ-GEMM path and the
+MATRIX-FREE path.  Measured on the MnO AFM-II magnetic cell (Γ, n=122, 48k-point Becke mesh,
+`GPW_OMP_THREADS=8`, `GPW_MNO_NMAX=2`; 171 s total):
+
+| bucket | s | what it is |
+|---|---|---|
+| setup: XC-mesh Phi tables | 55.6 | the Bloch basis at every mesh point — SERIAL |
+| setup: collocation stream build | 27.2 | (already threaded) |
+| scf: XC-mesh rho sampling | 23.8 | Φ GEMM + matrix-free sampling — SERIAL |
+| scf: iterate residue | 21.8 | mostly the H_xc quadrature GEMMs — SERIAL |
+| setup: becke mesh build | 16.6 | (already threaded) |
+| scf: collocate + integrate (THE PAIR LOOPS) | **7.6** | the charter's target |
+
+**The pair loops are 4% of the run once the streams are cached.**  Every dominant bucket is dense
+O(npts·n) / O(npts·n²) work on the ATOM-CENTRED XC MESH, and every one of them was serial while the
+pair loops — the one place with OMP — were not.  The fast-recompute kernel remains the right answer
+for the OVER-BUDGET case (item 2 above, unchanged: the CP2K-span cell that never finished an
+iteration), but it is NOT what makes a fitting-in-budget magnetic cell slow.
+
+**What landed (2026-08-15):**
+- `qchem.Parallel::WorkerThreads()` — the ONE opt-in worker count (`GPW_OMP_THREADS`, serial by
+  default), lifted out of `NR_Evaluator::PairThreads` so every hot site reads the same number.
+- OMP at four new sites, each partitioned by OUTPUT so the result is **bit-identical at any thread
+  count**: the Φ table rows (`XC_GridEngine::Phi`), the rho-sampling point blocks
+  (`IrrepCD::DM_RhoAtPoints`), the H_xc quadrature's output column blocks (`XC_GridEngine::Matrix`),
+  and the batched inverse FT over mesh points (`FourierMixCD::operator()(rvec3vec_t)` — the ρ̃-mixed
+  density the Fock build sees on EVERY Kerker/Pulay iteration).
+- `XC_GridEngine::Matrix` also went TRIANGULAR (H is Hermitian, `chmat_t` stores i≤j): half the GEMM
+  flops.  The retired full-M build's `½(M+M†)` only symmetrised roundoff (w, v real ⇒ M Hermitian).
+- SHELL HOIST in `PG_Cart::IrrepBasisSet::operator()`: a shell's components share one contracted
+  radial (PGData stores them consecutively), so the exps are evaluated once per SHELL, not once per
+  component — 6× fewer on a d shell, on THE pointwise sweep behind every Φ table.
+- `SeedCD` gained a batched `operator()(rvec3vec_t)` (threaded; and the cell metric \f$(A^TA)^{-1}\f$
+  lifted out of the point loop, where `op()` recomputed a 3×3 inverse PER POINT).
+
+**Result, same cell, same recipe:** 171 s → 101 s (2-iteration benchmark), physics unmoved
+(m_stag 0.3171 both).  Φ 55.6 → 7.0 s (7.9×); iterate residue 21.8 → 6.9; seed+ortho 11.2 → 4.2;
+matrix-free sampling 26.9 → 8.3 (measured at 4 iterations).  Per-iteration ≈ 30 s → ≈ 9 s, so a
+24-iteration production run of this cell goes from ~13 min to ~5 min — and the same sites carry
+EVERY atom-centred-XC run (Becke is the GPW default; this is not an MnO-only win).
+
+**What is left, in order (the ledger after the fix):** the collocation stream build (~30 s setup,
+already threaded — the recompute campaign's real target), the Becke mesh build (~18 s; `BeckeCutoff`
+alone is 14% of all CPU), the H_xc quadrature (still the largest per-iteration bucket after
+halving), and the pair scatter/gather (~3.5 s/iteration).  Two structural levers NOT yet taken:
+- **SCREEN the Φ table.**  It is stored dense (npts × n) but the true object is SPARSE — a function
+  is numerically zero over most of an atom-centred mesh.  Batching the mesh (per atom / per radial
+  shell) with a per-batch significant-function list turns every Φ-shaped cost (build, rho GEMM, H_xc
+  GEMM) into O(npts·n_sig²) — this is what gives Gaussian codes their O(N) XC, and the win GROWS
+  with cell size (MnO's 4 atoms understate it).  THE next increment on this path.
+- **A real-Γ fast path.**  Γ-only runs (all the MnO/NaF/Si production) carry Φ and D as complex with
+  exactly zero imaginary part: 4× the flops for nothing.

@@ -1,7 +1,9 @@
 // File: ExactIrrepCD.C  Exact implementation of the charged density.
 module;
+#include <algorithm>   // std::min (the threaded rho-sampling block partition)
 #include <cassert>
 #include <complex>
+#include <exception>   // std::exception_ptr (throw containment across the threaded block loop)
 #include <iostream>
 #include <stdexcept>
 #include <stdlib.h>
@@ -14,6 +16,7 @@ module;
 module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Symmetry;
 import qchem.Blaze;
+import qchem.Parallel;                  // WorkerThreads (GPW_OMP_THREADS -- the rho-sampling GEMM)
 import qchem.BasisSet.Band_FT_IBS;   // cast the basis UP to the G-space capability (dcmplx path)
 
 namespace qchem::ChargeDensity
@@ -198,6 +201,45 @@ template <class T> rvec_t IrrepCD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const 
     const mat_t<T>& P=it->second;
     assert(P.rows()==r.size());
     assert(P.columns()==itsDensityMatrix.rows());
+    // rho_g = Phi_g^dag D Phi_g, as (P D) row-dotted back into P: O(npts n^2), paid once per density
+    // serial and THE largest per-iteration bucket of the atom-centred XC route (MnO Γ: 12 s/iteration
+    // at 48k points x 122 functions).  Threaded by MESH-POINT BLOCK: rho_g depends on row g alone, so
+    // each block is an independent GEMM + dot and the result is bit-identical at any thread count (a
+    // partition of the OUTPUT, not of a reduction).  Opt-in via GPW_OMP_THREADS (qchem.Parallel).
+    auto block=[&](size_t g0, size_t g1)
+    {
+        auto Pb = blazem::submatrix(P, g0, size_t(0), g1-g0, P.columns());
+        mat_t<T> PD = Pb*itsDensityMatrix;
+        for (size_t g=g0; g<g1; g++)
+        {
+            T acc{};
+            for (size_t j=0; j<PD.columns(); j++)
+                if constexpr (std::is_same_v<T,dcmplx>) acc+=PD(g-g0,j)*std::conj(P(g,j));
+                else                                    acc+=PD(g-g0,j)*P(g,j);
+            ro[g]=std::real(acc);
+        }
+    };
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && r.size()>size_t(nthreads))
+    {
+        const size_t blk=(r.size()+size_t(nthreads)-1)/size_t(nthreads);
+        std::exception_ptr firstEx;                   // throw containment (an escape = std::terminate)
+        #pragma omp parallel for schedule(static,1) num_threads(nthreads)
+        for (size_t b=0; b<(r.size()+blk-1)/blk; b++)
+        {
+            try { block(b*blk, std::min(r.size(), (b+1)*blk)); }
+            catch (...)
+            {
+                #pragma omp critical (cd_rho_throw)
+                if (!firstEx) firstEx=std::current_exception();
+            }
+        }
+        if (firstEx) std::rethrow_exception(firstEx);
+        return ro;
+    }
+#endif
+    // Serial: multiply the WHOLE table, not a full-height view -- a submatrix operand costs blaze its
+    // aligned/padded kernel choice, and this is the default (unthreaded) path every suite run takes.
     mat_t<T> PD = P*itsDensityMatrix;
     for (size_t g=0; g<r.size(); g++)
     {

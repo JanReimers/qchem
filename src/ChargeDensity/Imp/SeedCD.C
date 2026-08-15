@@ -14,6 +14,7 @@ module qchem.ChargeDensity.SeedCD;
 import qchem.ReciprocalLattice;        // ReciprocalLattice + UnitCell::MakeReciprocalCell (the seed's own Poisson metric)
 import qchem.BasisSet.G_FieldEvaluator; // the fit basis's grid engine (its analytic MakeFourierDensity)
 import qchem.Matrix3D;                 // Invert/Transpose (the periodic image window: (A^T A)^-1 diagonals)
+import qchem.Parallel;                 // WorkerThreads (GPW_OMP_THREADS -- the batched seed sampling)
 
 namespace qchem::ChargeDensity
 {
@@ -197,6 +198,37 @@ double SeedCD::operator()(const rvec3_t& r) const
         ForEachImage(*itsCell, rc, Minv, r, [&](const rvec3_t& L){ rho += s*rc(r-L); });
     }
     return itsScale*rho;
+}
+
+// Batch: the ScalarFunction default loop, threaded (see the interface doc) -- and with the cell metric
+// (A^T A)^-1 lifted OUT of the point loop, where op() recomputes a 3x3 inverse per point.
+rvec_t SeedCD::operator()(const rvec3vec_t& rs) const
+{
+    const Matrix3D<double>& A=itsCell->GetCellMatrix();
+    const Matrix3D<double>  Minv=Invert(Transpose(A)*A);
+    rvec_t out(rs.size());
+    auto at=[&](size_t q)
+    {
+        double rho=0;
+        for (size_t i=0;i<itsRecentred.size();i++)
+        {
+            const double s=itsScaleByZ.at((*itsStructure)[i]->itsZ);
+            if (s==0.0) continue;
+            const RecentredAtomicDensity& rc=itsRecentred[i];
+            ForEachImage(*itsCell, rc, Minv, rs[q], [&](const rvec3_t& L){ rho += s*rc(rs[q]-L); });
+        }
+        out[q]=itsScale*rho;
+    };
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
+    {
+        #pragma omp parallel for schedule(static) num_threads(nthreads)
+        for (size_t q=0;q<rs.size();q++) at(q);      // pure per-point work: no throw path, no reduction
+        return out;
+    }
+#endif
+    for (size_t q=0;q<rs.size();q++) at(q);
+    return out;
 }
 
 rvec3_t SeedCD::Gradient(const rvec3_t& r) const

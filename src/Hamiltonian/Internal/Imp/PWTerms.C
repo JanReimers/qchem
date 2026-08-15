@@ -1,8 +1,10 @@
 // File: Hamiltonian/Internal/Imp/PWTerms.C  Plane-wave Kohn-Sham term implementations.
 module;
+#include <algorithm>   // std::min (the threaded quadrature's output-column blocking)
 #include <cassert>
 #include <complex>
 #include <cstdlib>
+#include <exception>   // std::exception_ptr (throw containment across the threaded Phi build)
 #include <functional>
 #include <iomanip>
 #include <iostream>
@@ -20,6 +22,7 @@ import qchem.Structure;                       // Structure::isFinite()/SumFormFa
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the DeltaFittedVxc engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
+import qchem.Parallel;                         // WorkerThreads (GPW_OMP_THREADS -- the XC-mesh table + quadrature loops)
 
 namespace qchem::Hamiltonian
 {
@@ -446,11 +449,35 @@ const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const
     qchem::report::Timed timed("setup: XC-mesh Phi tables");
     const rvec3vec_t& R=itsMesh->Points();
     mat_t<dcmplx> P(R.size(), bs->GetVectorSize());
-    for (size_t g=0; g<R.size(); g++)
+    // THE dominant SETUP bucket on an atom-centred XC mesh (MnO Γ, 48k points x 122 Bloch functions:
+    // 56 s serial, and it DOUBLES on an imposed run's invariant mesh).  Each point is an independent
+    // Bloch image sum writing its OWN row, so the loop parallelises with no reduction and no ordering
+    // question -- the table is bit-identical at any thread count.  Opt-in (GPW_OMP_THREADS) like every
+    // other parallel region here; see qchem.Parallel for why serial is the default.
+    auto fill=[&](size_t g)
     {
         cvec_t phi=(*bs)(R[g]);
         for (size_t i=0; i<phi.size(); i++) P(g,i)=phi[i];
+    };
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
+    {
+        std::exception_ptr firstEx;                 // throw containment (an escape = std::terminate)
+        #pragma omp parallel for schedule(static) num_threads(nthreads)
+        for (size_t g=0; g<R.size(); g++)
+        {
+            try { fill(g); }
+            catch (...)
+            {
+                #pragma omp critical (xc_phi_throw)
+                if (!firstEx) firstEx=std::current_exception();
+            }
+        }
+        if (firstEx) std::rethrow_exception(firstEx);
+        return itsPhi.emplace(id, std::move(P)).first->second;
     }
+#endif
+    for (size_t g=0; g<R.size(); g++) fill(g);
     return itsPhi.emplace(id, std::move(P)).first->second;
 }
 
@@ -500,8 +527,14 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
             itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
         }
         else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
-        {   // matrix-free spin-resolved seed (PolarizedSeedCD, SCFSeedingPlan §10): channels batch through
-            // the plain tChargeDensity face -- no D, no Phi tables, but a genuinely staggered iteration-0 rho
+        {   // MATRIX-FREE spin-resolved density: the seed (PolarizedSeedCD, SCFSeedingPlan §10) at
+            // iteration 0, and -- the expensive case -- the ρ̃-MIXED density (PolarizedMixCD over
+            // FourierMixCD) on EVERY Kerker/Pulay iteration.  Neither carries a D, so both batch through
+            // the plain tChargeDensity face instead of the Phi GEMM: an image-summed atomic sum for the
+            // seed, a batched inverse FT over the whole {G} for the mixer.  Its OWN bucket because it is
+            // a different algorithm at a different cadence -- lumping it into the GEMM hid the fact that
+            // the mixed-density sampling, not the GEMM, was the iteration's largest XC cost.
+            qchem::report::Timed seed("scf: XC-mesh rho sampling (matrix-free density)");
             itsRhoUp=(*sr->GetChannel(Spin::Up  ))(itsMesh->Points());
             itsRhoDn=(*sr->GetChannel(Spin::Down))(itsMesh->Points());
         }
@@ -546,17 +579,54 @@ chmat_t XC_GridEngine::Matrix(const cobs_t* bs, const rvec_t& v) const
     const mat_t<dcmplx>& P=Phi(bs);
     const rvec_t&        w=itsMesh->Weights();
     assert(v.size()==P.rows());
+    qchem::report::Timed timed("scf: XC-mesh quadrature H_xc (all iterations)");
     mat_t<dcmplx> WP(P.rows(), P.columns());
-    for (size_t g=0; g<P.rows(); g++)
+    auto scale=[&](size_t g)
     {
         const double wv=w[g]*v[g];
         for (size_t i=0; i<P.columns(); i++) WP(g,i)=wv*P(g,i);
+    };
+    const size_t n=P.columns(), npts=P.rows();
+    mat_t<dcmplx> M(n, n, dcmplx(0.0));
+    // The per-iteration quadrature GEMM (once per XC term per spin): O(npts n^2), and with the rho
+    // sampling threaded it is the SCF loop's largest bucket.  Two things happen here:
+    //  * TRIANGULAR: H is Hermitian and chmat_t stores i<=j, so only the UPPER triangle of M is
+    //    computed -- column block [j0,j1) needs rows [0,j1) of the left operand, halving the flops.
+    //    (The old full-M build then averaged M(i,j) with conj(M(j,i)); that average only symmetrised
+    //    ROUNDOFF -- w and v are real, so M is Hermitian exactly in exact arithmetic.  Taking the
+    //    upper triangle keeps chmat_t's invariant just as exactly, at ~1e-16 in the elements.)
+    //  * THREADED by output column block -- every element M(i,j) is still ONE dot product over ALL
+    //    mesh points, accumulated by ONE thread in the serial order, so the matrix is bit-identical at
+    //    any thread count (a partition of the OUTPUT, not of the reduction).  Blocks are triangular =
+    //    unequal work, hence dynamic scheduling over ~4 blocks per thread.  The row scaling above
+    //    parallelises trivially (row g is private to g).
+    auto triBlock=[&](size_t j0, size_t nj)
+    {
+        const size_t j1=j0+nj;
+        blazem::submatrix(M,0,j0,j1,nj) = blazem::trans(blazem::conj(blazem::submatrix(P,0,size_t(0),npts,j1)))
+                                        * blazem::submatrix(WP,0,j0,npts,nj);
+    };
+#ifdef QCHEM_OPENMP
+    const int nthreads=qchem::WorkerThreads();
+    if (nthreads>1)
+    {
+        #pragma omp parallel for schedule(static) num_threads(nthreads)
+        for (size_t g=0; g<npts; g++) scale(g);
+        const size_t blk=std::max<size_t>(1, (n+4*size_t(nthreads)-1)/(4*size_t(nthreads)));
+        const size_t nb=(n+blk-1)/blk;
+        #pragma omp parallel for schedule(dynamic,1) num_threads(nthreads)
+        for (size_t b=0; b<nb; b++) triBlock(b*blk, std::min(blk, n-b*blk));
     }
-    mat_t<dcmplx> M = blazem::trans(blazem::conj(P))*WP;
-    chmat_t H(M.rows());
-    for (size_t i=0; i<M.rows(); i++)
-        for (size_t j=i; j<M.columns(); j++)
-            H(i,j)=0.5*(M(i,j)+std::conj(M(j,i)));
+    else
+#endif
+    {
+        for (size_t g=0; g<npts; g++) scale(g);
+        triBlock(0, n);
+    }
+    chmat_t H(n);
+    for (size_t i=0; i<n; i++)
+        for (size_t j=i; j<n; j++)
+            H(i,j)=M(i,j);
     return H;
 }
 

@@ -244,10 +244,21 @@ hours/12 GB — and the accuracy comparison itself is stalled behind code-health
 symmetric VA matrix (runs 61/62 + CP2K va/vb decks) completes overnight; after that, NO further
 long MnO runs until 1–3 and 5 land.
 
-1. **Close the RUNTIME gap vs CP2K.**  The chartered path is doc/GPWPlan1.md's fast-recompute
-   campaign (stream-budget promotion + cached pair algebra, b53d36a0/01cc1164): the MnO magnetic
-   cell exceeds the stream budget, so every iteration pays analytic collocate+integrate (~10 min).
-   Also: XC-mesh Phi tables (236 s bucket), Becke ρ-sampling, OMP coverage beyond the pair loops.
+1. **Close the RUNTIME gap vs CP2K.**  ✅ **ROUND 1 DONE 2026-08-15 (MnO Γ benchmark 171 s → 101 s;
+   per-iteration ≈30 s → ≈9 s, physics bit-for-bit unmoved) — record + next steps in
+   doc/GPWPlan1.md "THE RUNTIME GAP, MEASURED".**  The charter's fast-recompute campaign was aimed
+   at the wrong bucket for the runs we actually pay for: **with the streams cached the pair loops
+   are 4% of the run**; the cost was the atom-centred XC mesh (Φ tables 55.6 s, ρ sampling 23.8 s,
+   H_xc quadrature inside the 21.8 s iterate residue) — all SERIAL, while the pair loops were the
+   one place with OMP.  Landed: `qchem.Parallel::WorkerThreads()` (the one `GPW_OMP_THREADS` knob),
+   OMP at the four XC-mesh sites (all partitioned by OUTPUT ⇒ bit-identical at any thread count),
+   a triangular H_xc quadrature, the shell-radial hoist in the pointwise basis sweep, a threaded
+   batched `SeedCD`, plus the measurement apparatus itself (`GPW_REPORT=1` + per-iteration timing
+   buckets) — that is what turned "the runtime gap" into a ranked list.
+   **Still open here:** the fast-recompute kernel for the OVER-BUDGET case (the CP2K-span cell that
+   never finished an iteration — GPWPlan1 item 2, unchanged), Φ-table SCREENING (the O(N)-XC
+   increment: batch the mesh, keep a per-batch significant-function list — the win grows with cell
+   size), and a real-Γ fast path (Γ runs carry complex Φ/D with zero imaginary part = 4× the flops).
 2. **Close the RAM gap vs CP2K.**  Same lever: recompute fast enough → the stream cache tier
    shrinks → RAM falls with it (CP2K caches nothing; its kernels are just fast).
 3. **Understand why CP2K holds the FULL 136-function span and qchem cannot.**  Hypothesis (banked,

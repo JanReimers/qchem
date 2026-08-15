@@ -138,7 +138,11 @@ struct GpwReport
     explicit GpwReport(const std::string& name, bool verbose)
     {
         qchem::report::Begin(name);
-        if (verbose) qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
+        // GPW_REPORT=1 forces the console on for ANY driver, whatever its hard-coded `verbose`.  The
+        // report carries the timing ledger (the where-did-the-time-go table), and a cost measurement
+        // must not require editing the test that happens to reproduce the cost.
+        static const bool kEnvReport=[]{ const char* s=std::getenv("GPW_REPORT"); return s && std::atoi(s)!=0; }();
+        if (verbose || kEnvReport) qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
     }
     ~GpwReport() { qchem::report::ClearConsole(); qchem::report::End(); }
     GpwReport(const GpwReport&) = delete;
