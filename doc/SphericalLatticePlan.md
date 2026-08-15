@@ -1,48 +1,134 @@
 # Spherical d on the lattice path — the fixed-transform decorator plan
 
-## ★ SESSION START HERE (updated 2026-08-13 end-of-day) — the V_long sharp-field defect
+## ★ SESSION START HERE (updated 2026-08-14) — the V_long "defect" DISSOLVED; collapse cause reopened
 
 **WHERE THE CAMPAIGN STANDS:** I1 (spherical lattice view) DONE + gated; I3 (valence_lowq_sph = the
 EXACT CP2K-transcription span, n=136) DONE; I2 arm 1 DONE — **the ordering HEALED under spherical d
 (AFM below FM by 45.5 mHa; span convicted, no code bug in the KB story)**.  I2 arm 2 (the CP2K-span
-absolute A/B) is BLOCKED on a REAL, now unit-reproduced defect the diffuse re-additions exposed.
+absolute A/B) is still blocked on the diffuse-re-addition collapse — but the 2026-08-13 "unit-reproduced
+V_long defect" is RETRACTED (below), so the collapse cause is back under investigation.
 
-**THE DEFECT (commit 8b4079e3):** the V_long (erf-Coulomb local-PP) integrate-back mis-evaluates
-DIFFUSE-pair elements against a SHARP-β field.  Unit repro (~2 min each, DISABLED hand gates in
-IntegrationTests/GPW_UT.C, both against a from-scratch oracle):
-- `GPW.DISABLED_DiffuseDPairVlongOracle` — Mn-only cell (soft field β=1.22): **GREEN, 7e-7**.
-- `GPW.DISABLED_DiffuseDVlongSharpFieldOracle` — Mn+O cell (O field β=8.15): **RED — a diffuse s×d
-  element 6.6× too large (0.0138 vs oracle 0.0021)**.
-The error class (×6, not ×1e-5) rules out the harmonic rule's ε-tail and points at the PER-LEVEL
-FIELD RESTRICTION/ALIASING — the sharp field's high-G content reaching a coarse level's raster
-un-ball-restricted (sampled ⇒ aliased) for pairs routed there.  This component is shared by BOTH
-`MakeLocalPPLong` paths (custom G-ball AND `GPW_LONG_SWEEP`), which is why the probe-56 A/B agreed.
-It is what collapsed the arm-2 runs (E→−455/−87/−67: probes 49–57, elimination ledger in the memory
-file + doc/logs/mno_probe_run5*.log).
+**THE 2026-08-13 "DEFECT" WAS THE GATE'S OWN WIRING (found+fixed 2026-08-14).**
+`GPW.DISABLED_DiffuseDVlongSharpFieldOracle` passed `gthMn.local` — a SINGLE-SPECIES
+`HGH_LocalPotential`, whose `FormFactorLong(int /*Z*/,…)` IGNORES Z — over the Mn+O cell.  Two
+consequences: (1) production integrated a Mn-q7 field (Zion 7, rloc 0.64) AT THE O SITE while the
+oracle integrated the true O q6 well (Zion 6, rloc 0.2476) — different physics, guaranteed red;
+(2) Mn q7 has no C terms, so `ShortRangeGaussian` returned empty ⇒ β=0 ⇒ `MakeLocalPPLong` bailed to
+the kappa sweep — **the custom-G-ball path under suspicion was never even entered** (also why
+`GPW_VLOC_EPS=1e-9` and `GPW_LONG_SWEEP=1` A/Bs were BIT-IDENTICAL: 0.0138439 all three).  With the
+gate fixed to the `MultiSpecies_LocalPotential` router (exactly production's wiring —
+`Hamiltonians.C BuildMultiSpeciesLocal`; the arm-2 runs were NEVER species-mismatched):
+- fixed sharp gate, custom G-ball at true β=8.15 (its FIRST genuine unit exercise): **GREEN, 1.8e-5**;
+- fixed sharp gate under `GPW_LONG_SWEEP=1` (kappa path at β=8.15): **GREEN, 1.8e-5** — same worst
+  element, prod identical to 8 digits (and 477 s vs 131 s: the retirement-grade cost, as documented);
+- Mn-only soft gate: still green, 6.5e-7.
+**VERDICT: the V_long integrate-back (per-level restriction, harmonic routing, both paths) is
+EXONERATED at unit tier.**  The 55B "−13.3 Ha in E_loc" was a density-response symptom (a collapsed
+density legitimately deepens E_loc), never an operator conviction.
 
-**NEXT ACTION (the new session's first task):** drill `GPW_Evaluator::MakeLocalPPLong` /
-`MakeLocalPP(Long)` (src/BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C ~line 850–990): how is
-V_L[L] prepared per level — is Ṽ restricted to each level's G-ball before hitting that level's
-raster, or is the full field sampled (aliasing)?  Fix; the two gates above are the red/green.
+**THE COLLAPSE: CONDITIONING-CLASS, CONVICTED (run 58, 2026-08-14,
+doc/logs/mno_probe_run58_orthotol1e-2.log).**  Variant B (Mn d 0.18) dove to −67.28@4 at
+MNO_ORTHO_TOL=1e-3 — which, it turns out, dropped ZERO of the 128 functions (the pivot tolerance
+never triggered; 55B solved the FULL near-dependent span, λmin 4.6e-4).  At MNO_ORTHO_TOL=1e-2 the
+filter drops 6 of 128 at the door ("~reproducible by the kept set") and the dive is GONE: iters
+−14.73 / −59.61 / −61.373 / **−61.3905@4**, m_stag +0.644, m_net 0.008, breakdown healthy
+(Een −83.61 ≈ 55A's −83.05) — right on 55A's plateau trajectory (−61.4067@4).  The 55B −67.28 was
+PROVABLY unphysical (a subset of the CP2K span cannot sit 5.8 Ha below CP2K's variational
+reference), so it was numerical collapse: near-null modes × eps-screened operator inconsistencies,
+exactly the −455 mechanism in milder form.  NO operator defect — the KB-nonlocal suspicion is
+DROPPED for this symptom.  (Deeper cure than a stiffer pivot — tightening screens with cond(S), or
+SVD-consistent F/S filtering — is a design question, not this campaign's blocker.)
 
-**THEN, in order:**
-1. Re-run bisection variant B (SR + Mn 7s + Mn d 0.18) — MUST now reach the −61.4x plateau.
-   Variant generator: `doc/scripts/bisect_valence_sph.py {A|B|D}` (rewrites
-   BasisSetData/valence_lowq_sph.bsd from git HEAD; restore with git checkout).  Bounded recipe:
-   `GPW_MNO_NMAX=4 MNO_IMPOSE=1 MNO_MOM=0 MNO_ORTHO_TOL=1e-3 MNO_SKIP_FM=1 GPW_SPHERICAL=1
-   GPW_BASIS_SPH=1 GPW_MNO_VERBOSE=1 GPW_OMP_THREADS=8` on
-   `GPW_SCF.DISABLED_MnO_AFM2_RhombohedralGamma` (systemd scope MemoryMax=12G).
-2. Also re-check 55D (O diffuse, was borderline −61.60@4) — the same defect plausibly explains it.
-3. THE ARM-2 VERDICT RUNS (53/54 recipe): AFM (`MNO_SKIP_FM=1`) then FM (`MNO_SKIP_AFM=1`), each
-   `MNO_ANNEAL="5e-3,0" MNO_ACC="Ladder,GDM" MNO_MOM=0 MNO_ORTHO_TOL=1e-3 GPW_SPHERICAL=1
-   GPW_BASIS_SPH=1` + verbose + OMP 8 + MemoryMax=12G, DEFAULT screens (never relax
-   GPW_SCREEN/DENSITY_EPS on this span — the eps=1e-8 collapse lesson), ~10–12 min/iteration.
-   TARGETS = the oracles themselves (same span, function-for-function): AFM −61.4706 / FM −61.4617;
-   healthy iter-1 ≈ −52…−68 with [F,D] of a few Ha; anything far BELOW −61.5 = collapse suspicion.
-   Open questions the verdict answers: the honest operator/grid residuals, and whether the
-   deep-moment basin (m̃ → ~4.65) appears on the honest span.
-4. Caveat to carry: MNO_ORTHO_TOL=1e-3 solves in a rank-filtered subspace of the 136 — revisit if
-   the final numbers land within a few mHa of the oracles.
+**RUN 59 (AFM arm) DONE 2026-08-14: E = −61.56504, m_stag ±0.678 (m_net −0.005), NO collapse.**
+Trace highlights: smeared stage ended ITSELF at iter 11 via the new ladder-exhaustion bail-out
+(A=−61.5727, −TS=12.8 mHa); cold GDM stage settled −61.564575 (15 iters at |ΔE/E|~1e-9), then a
+SILENT GDM fallback-diagonalize hopped the determinant at the tied metallic frontier (iter 25:
++302 mHa, cfg change, m_stag→0.59 — MNO_MOM=0 leaves the tie unpinned), GDM ground back over ~30
+iters and landed 0.5 mHa BELOW the pre-hop floor with a REAL ~5 mHa aufbau gap (the pre-hop state
+was a tie-cycle above the true minimum — the hop was accidentally productive).  Hit the 80-iter cap
+with energy settled (relAmp 1.7e-7), Δρ tail 3.7e-4 > the 1e-5 gate ("raise NMaxIter, NOT a floor")
+⇒ formal conv=0, physics done.  TWO instrument notes banked: the GDM fallback-diagonalize needs a
+breadcrumb line (it caused a +302 mHa excursion with zero console trace), and the Δρ gate should be
+INTENSIVE (Δρ/N — user; doc/SCFStrategyPlan.md).
+**HEADLINE: we sit ~94 mHa BELOW the CP2K Γ AFM oracle (−61.4706) on a 126-of-136 SUBSET span.**
+Before calling that an operator/grid residual: CP2K's printed total under SMEAR ON includes its
+electronic-entropy term — the E-vs-A split and kT of the oracle runs must be pinned down first;
+then the term-by-term breakdown (Ekin/Eee/Exc/E_loc/E_NL vs CP2K's energy blocks) localizes
+whatever remains.
+
+**RUN 60 (FM arm, v2 span) DONE 2026-08-14: E = −61.6011060, CONVERGED (58 cold iters, Δρ gate
+passed; ends with a 3 mHa tie-hole NON-AUFBAU warning).**  v2-span table: AFM −61.5650 / FM
+−61.6011 ⇒ FM below by 36.1 mHa (CP2K same file: AFM below by 8.87) — ordering reversed vs CP2K,
+offsets 94/139 mHa below their AFM/FM.
+
+**THE EXACT-SPAN SYMMETRIC MATRIX (2026-08-15, the hand-waving killer).**  qchem's rank filter
+drops m-RESOLVED AO components CP2K cannot express (and asymmetrically per site — the O₁-p/O₂-s
+catch), so the exact A/B was moved to SHELL-level spans both codes hold FULL RANK: variants VB
+(N=128) and VA (N=118) banked as CP2K decks + basis entries (IntegrationTests/CP2K/*_v{a,b}.inp,
+VALENCE-LOWQ-V{A,B}).  CP2K results (Γ, kT=5e-3, minutes each):
+  full-136  AFM −61.47057 / FM −61.46170 ⇒ Δ = −8.87 mHa (AFM wins)
+  VB 128    AFM −61.34454 / FM −61.33635 ⇒ Δ = −8.20 mHa (AFM wins)
+  VA 118    AFM −61.30333 / FM −61.30478 ⇒ Δ = **+1.46 mHa (FM wins — CP2K's own ordering FLIPS)**
+so the Mn d(0.18) shells carry ~10 mHa of AFM stabilization in CP2K — larger than the physical
+6J₁+12J₂ ≈ 4 mHa scale (user, susceptibility), i.e. NONE of these Γ/LSDA orderings are
+physics-grade; the matrix's purpose is CODE-vs-CODE defect localization only.
+**qchem VA pair (runs 61/62: MNO_SHARED_MU=1 = CP2K's one-μ ensemble, MNO_IMPOSE=1,
+MNO_ORTHO_TOL=1e-3 = full rank 118 — verified "kept 118 of 118" both arms):**
+  run 61 AFM: **E = −61.4029762, CONVERGED in 14 cold iterations** (no hop, no tie grind),
+  m_stag ±0.667 (still the weak-moment basin).  ⇒ **99.7 mHa BELOW CP2K's VA AFM with ZERO
+  span/symmetry/ensemble excuses — the code-vs-code offset is real and operator-level.**
+  run 62 FM: **E = −61.4415831, CONVERGED in 14 cold iterations** (ends NON-AUFBAU with a 12 mHa
+  hole — the FM number may sit up to ~10 mHa above its own minimum; caveat carried).
+**★ THE VA VERDICT TABLE (the sharpest defect coordinate this campaign has produced):**
+  qchem  VA:  AFM −61.40298 / FM −61.44158 ⇒ Δ(AFM−FM) = +38.6 mHa (FM wins)
+  CP2K   VA:  AFM −61.30333 / FM −61.30478 ⇒ Δ = +1.46 mHa (FM wins)
+  offsets:    AFM −99.7 mHa / FM −136.8 mHa ⇒ **configuration-selective part −37.2 mHa**
+Both codes order FM first on VA, but qchem carries (a) a ~100 mHa configuration-BLIND offset
+(below CP2K — cannot be span, we matched it; suspects: G=0/alignment conventions, XC quadrature,
+V_loc bookkeeping) and (b) a **~37 mHa configuration-SELECTIVE FM-favoring bias that is
+SPAN-INDEPENDENT** (v2: Δδ ≈ 45 mHa; VA: 37 mHa; the I0 d-selective signature) — one stable
+number, zero excuses, waiting for the term-by-term breakdown to name its operator.
+**BREAKDOWN FORENSIC (2026-08-15).**  Exc directly (different methodologies — our site-adapted
+Becke vs CP2K's uniform grid): AFM −14.4423 vs −14.4513 (+9.0 mHa), FM −14.3608 vs −14.3729
+(+12.1 mHa) — real ~10 mHa methodology difference but WRONG SIGN for the blind offset, and only
+3 mHa of the 37 mHa selective bias.  Δ(AFM−FM) composition: qchem Ekin +1.627 / Eloc −0.671 /
+**E_NL −1.306** / Eee +0.470 / Exc −0.082 (Σ +38.6 mHa) vs CP2K CoreH +0.330 / Hartree −0.256 /
+XC −0.078 / entropy +0.006 (Σ +1.5 mHa).  **Δ_NL = −1.31 Ha: the I0 signature returned on a span
+with NO contaminants and NO diffuse d — the arm-1 "healing" was the trimmed s-window STARVING the
+mechanism, not spherical d curing it.**
+
+**★ THE KB ORACLE GATE (2026-08-15): the assembly is EXONERATED at oracle grade.**
+`GPW.DISABLED_DiffuseDKBOracle` (~25 s): production MakeSeparablePPByL (analytic path: BetaGaussian
+→ Cartesian polys → lattice-sum seam) vs a from-scratch raster quadrature (explicit Bloch-summed χ
+× BetaR × independent orthonormal Y_lm; shares only the diagonalised (l,D,βr) parameter layer,
+itself validated by the Mn-atom oracle) on the Mn+O diffuse-d cell, MULTI-SPECIES router:
+l=0 2.4e-7 / l=1 7.7e-7 / l=2 9.0e-8, median prod/oracle = 1 in every channel (no convention
+drift).  With S/T analytic, V_short gated, V_long oracle-clean (2026-08-14) and KB now
+oracle-clean, **Δ_NL = −1.31 Ha is a TRUE property of our converged states under a CORRECT NL
+operator** — the weak basin genuinely collects it.  The offsets' remaining habitat: the
+Hartree/Poisson on the band-limited collocated ρ̃ (adjoint-exact but resolution-limited — the SPIN
+density's resolution is where configuration-selectivity can enter), the ~10 mHa XC methodology
+split, and the E_alphaZ ↔ CP2K core-self/overlap G=0 bookkeeping (never term-mapped precisely).
+All grid/convention questions — the performance reprioritization (doc/OpenWork.md items 1–3+5)
+makes probing them affordable and comes FIRST; NO further long MnO runs until it lands.
+
+**DONE: THE ARM-2 VERDICT RUNS at MNO_ORTHO_TOL=1e-2** (the one
+deviation from the 53/54 recipe, per run 58): AFM (`MNO_SKIP_FM=1`, run 59,
+doc/logs/mno_afm2_run59_sph_cp2kspan_tol1e-2.log) then FM (`MNO_SKIP_AFM=1`, run 60,
+doc/logs/mno_fm_run60_sph_cp2kspan_tol1e-2.log), chained sequentially, each
+`MNO_ANNEAL="5e-3,0" MNO_ACC="Ladder,GDM" MNO_MOM=0 MNO_ORTHO_TOL=1e-2 GPW_SPHERICAL=1
+GPW_BASIS_SPH=1` + verbose + OMP 8 + MemoryMax=12G, DEFAULT screens (never relax
+GPW_SCREEN/DENSITY_EPS on this span — the eps=1e-8 collapse lesson).
+TARGETS = the oracles themselves (same span, function-for-function): AFM −61.4706 / FM −61.4617;
+anything far BELOW −61.5 = collapse suspicion.  Open questions the verdict answers: the honest
+operator/grid residuals, and whether the deep-moment basin (m̃ → ~4.65) appears on the honest span.
+Caveats to carry:
+- MNO_ORTHO_TOL=1e-2 solves in a rank-filtered subspace of the 136 (the full span will drop a few
+  near-dependent functions) — every dropped function is span CP2K has and we don't, so a small
+  legitimate positive residual vs the oracles is expected; revisit if the numbers land within a few
+  mHa.
+- 55D (O diffuse, borderline −61.60@4 at the old tol) is plausibly the same near-null contamination
+  in milder form — optional recheck at 1e-2 if the verdict runs leave doubt.
 
 2026-08-12.  Born from the MnO ordering campaign (doc/SymmetryUpgradePlan.md, runs 38–44): the
 FM/AFM ordering reversal traced to the KB nonlocal term rewarding the weak-moment basin with 1.3 Ha

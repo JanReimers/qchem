@@ -265,3 +265,22 @@ mechanism, decides what happens:
   can still deliver; on a pathological one (run 49) it never will.  Default: keep grinding (today's
   behaviour), `SCFParams` knob to stop-on-exhaustion, and the anneal driver sets stage-end
   unconditionally for non-final stages.
+
+**IMPLEMENTED 2026-08-14 exactly per the design above:** `tSCFAcceleratorLadder::Exhausted()`
+(= the sticky hand-off-fired-but-vetoed flag), `SCFParams::StopOnAccelExhausted` (default false =
+keep grinding), the loop's loud stage-end in `SCFIterator::Iterate`, and `RunGpwAnnealed` setting
+the knob for non-final stages.  Smoke: `GPW_SCF.AlFCCAnnealedMetal` now ends its smeared stage at
+the veto ("*** SCF stage END: accelerator ladder EXHAUSTED ***") and still converges in the cold
+stage — green.
+
+# Δρ convergence gate should be intensive: Δρ/N (USER, 2026-08-14 — run 59's tail grind)
+
+Observed on run 59 (MnO v2-span verdict, 26 e⁻): the cold GDM stage sits energy-pinned at
+−61.5645750 (|ΔE/E| ~ 1e-10) while grinding the ABSOLUTE Δρ gate of 1e-5 from ~7e-5.  An absolute
+Δρ threshold is implicitly EXTENSIVE — the same 1e-5 demands a ~4x smaller per-electron density
+change from a 26-electron cell than from water, and worse as cells grow.  Normalize the gate to
+Δρ/N (the ρ_lost/N column beside it already uses exactly this convention).  MIGRATION CARE: every
+existing deck/anchor calibrated MinΔρ as absolute — reinterpreting the knob rescales convergence
+across the whole suite (molecular N~10 barely moves; solids loosen by ~N), so land it as a
+deliberate re-pin (or a parallel MinΔρ_N knob), not a silent semantic change.  Do NOT change
+binaries mid-A/B-chain (runs 59/60 must share one binary).
