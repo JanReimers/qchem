@@ -1400,9 +1400,8 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
         par.Verbose       =false;
         scf.Iterate(par);
 
-        auto* cd=scf.GetWaveFunction()->GetChargeDensity();   // caller owns the returned (composite) density
+        auto cd=scf.GetWaveFunction()->GetChargeDensity();   // BUILT for us; the unique_ptr owns it
         double charge=cd->GetTotalCharge();
-        delete cd;
         return Run{scf.GetIterationCount(), scf.Converged(), charge, scf.GetEnergy()};
     };
 
@@ -1467,9 +1466,8 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;
     scf.Iterate(par);
     const qchem::WaveFunction::cWaveFunction* wf=scf.GetWaveFunction();
-    auto* cd=wf->GetChargeDensity();
+    auto cd=wf->GetChargeDensity();
     double charge=cd->GetTotalCharge();
-    delete cd;
     qchem::EnergyBreakdown E=scf.GetEnergy();
     std::cout << "["<<label<<"] nPW="<<n<<" iters="<<scf.GetIterationCount()<<" charge="<<charge
               << " Etot="<<E.GetTotalEnergy() << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een
@@ -1689,9 +1687,8 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     scf.Iterate(par);
 
     const qchem::WaveFunction::cWaveFunction* wf=scf.GetWaveFunction();
-    auto* cd=wf->GetChargeDensity();
+    auto cd=wf->GetChargeDensity();
     double charge=cd->GetTotalCharge();
-    delete cd;
     qchem::EnergyBreakdown E=scf.GetEnergy();
 
     // Gap = lowest unoccupied - highest occupied, merged across all k-blocks (occupations are physical:

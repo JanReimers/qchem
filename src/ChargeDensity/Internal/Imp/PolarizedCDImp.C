@@ -1,5 +1,6 @@
 // File: PolarizedCD.C  Interface for the charge density.
 module;
+#include <memory>
 #include <cassert>
 module qchem.ChargeDensity.Imp.PolarizedCD;
 import qchem.ChargeDensity;
@@ -13,23 +14,20 @@ namespace qchem::ChargeDensity
 //  Construction zone.
 //
 template <class T> tPolarized_CDImp<T>::tPolarized_CDImp()
-    : itsSpinUpCD  (0)
-    , itsSpinDownCD(0)
+    : itsSpinUpCD  (nullptr)
+    , itsSpinDownCD(nullptr)
 {}; // No UT coverage
 
-template <class T> tPolarized_CDImp<T>::tPolarized_CDImp(tDM_CD<T>* up, tDM_CD<T>* down)
-    : itsSpinUpCD  (up  )
-    , itsSpinDownCD(down)
+template <class T> tPolarized_CDImp<T>::tPolarized_CDImp(std::unique_ptr<tDM_CD<T>> up,
+                                                         std::unique_ptr<tDM_CD<T>> down)
+    : itsSpinUpCD  (std::move(up  ))
+    , itsSpinDownCD(std::move(down))
 {
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
 };
-
-template <class T> tPolarized_CDImp<T>::~tPolarized_CDImp()
-{
-    delete itsSpinUpCD;
-    delete itsSpinDownCD;
-}
+// No destructor: unique_ptr members release the channels, and their move-only nature deletes the copy
+// operations that made the old raw-pointer form a double-delete waiting to happen (V1.25).
 
 //-------------------------------------------------------------------
 //
@@ -40,9 +38,9 @@ template <class T> tDM_CD<T>* tPolarized_CDImp<T>::GetChargeDensity(const Spin& 
     assert(s!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    tDM_CD<T>* ret=0;
-    if(s==Spin::Up  ) ret=itsSpinUpCD  ;
-    if(s==Spin::Down) ret=itsSpinDownCD;
+    tDM_CD<T>* ret=nullptr;                       // an OBSERVER: the channels stay owned by this object
+    if(s==Spin::Up  ) ret=itsSpinUpCD  .get();
+    if(s==Spin::Down) ret=itsSpinDownCD.get();
     return ret;
 }
 
@@ -51,9 +49,9 @@ template <class T> const tDM_CD<T>* tPolarized_CDImp<T>::GetChargeDensity(const 
     assert(s!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    const tDM_CD<T>* ret=0;
-    if(s==Spin::Up  ) ret=itsSpinUpCD  ;
-    if(s==Spin::Down) ret=itsSpinDownCD;
+    const tDM_CD<T>* ret=nullptr;                 // an OBSERVER: the channels stay owned by this object
+    if(s==Spin::Up  ) ret=itsSpinUpCD  .get();
+    if(s==Spin::Down) ret=itsSpinDownCD.get();
     return ret;
 }
 

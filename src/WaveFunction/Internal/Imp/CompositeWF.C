@@ -137,7 +137,7 @@ template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,con
 }
 
 // Iteration-0 seed: build the Fock from \a seed, diagonalize, fill, and hand back the first real density.
-template <class T> tDM_CD<T>* tCompositeWF<T>::Init(tHamiltonian<T>& ham,const tChargeDensity<T>* seed, double mergeTol)
+template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::Init(tHamiltonian<T>& ham,const tChargeDensity<T>* seed, double mergeTol)
 {
     DoSCFIteration(ham, seed);
     FillOrbitals(mergeTol);
@@ -163,15 +163,15 @@ template <class T> void tCompositeWF<T>::MoveOrbitals(double t, bool commit, dou
     FillOrbitals(mergeTol,holdBlock);
 }
 
-template <class T> tDM_CD<T>* tCompositeWF<T>::GetChargeDensity(Spin s) const
+template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity(Spin s) const
 {
     using qchem::ChargeDensity::tComposite_CD;
     auto i = itsSpinWFs.find(s);
     assert(i!=itsSpinWFs.end());
     // IBZ point group ctor-injected straight from the basis (empty {} for molecules / unfolded crystals = a
     // trivial no-op).  The basis owns the crystal symmetry, so no setter is threaded through the SCF.
-    tComposite_CD<T>* cd = new tComposite_CD<T>(itsBS->GetReciprocalPointOps());
-    for (auto& w:i->second) cd->Insert(w->GetChargeDensity());
+    auto cd = std::make_unique<tComposite_CD<T>>(itsBS->GetReciprocalPointOps());
+    for (auto& w:i->second) cd->Insert(w->GetChargeDensity());   // each block BUILDS its own; move it in
     return cd;
 }
 

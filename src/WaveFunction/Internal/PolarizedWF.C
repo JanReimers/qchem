@@ -1,5 +1,6 @@
 // File: PolarizedWF.H  Wave function for an polarized system.
 module;
+#include <memory>   // std::unique_ptr -- GetChargeDensity BUILDS its density (V1.25)
 import qchem.SCFAccelerator;
 
 export module qchem.WaveFunction.Internal.PolarizedWF;
@@ -29,7 +30,7 @@ public:
     using tCompositeWF<T>::GetEnergyLevels;
     using tCompositeWF<T>::GetChargeDensity;
 
-    virtual tDM_CD<T>*      GetChargeDensity() const;
+    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const;
     virtual sf_t*           GetSpinDensity  () const;
     virtual void            DisplayEigen    () const;
 

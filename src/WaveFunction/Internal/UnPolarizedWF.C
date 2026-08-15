@@ -1,5 +1,6 @@
 // File: UnPolarizedWF.C  Wave function for an unpolarized atom.
 module;
+#include <memory>   // std::unique_ptr -- GetChargeDensity BUILDS its density (V1.25)
 
 export module qchem.WaveFunction.Internal.UnPolarizedWF;
 export import qchem.WaveFunction.SCF;
@@ -26,7 +27,7 @@ public:
     using tCompositeWF<T>::GetChargeDensity;
     using tCompositeWF<T>::GetEnergyLevels;
 
-    virtual tDM_CD<T>*      GetChargeDensity() const {return GetChargeDensity(Spin::None);}
+    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const {return GetChargeDensity(Spin::None);}
     virtual sf_t*           GetSpinDensity  () const {return 0;}
     virtual EnergyLevels    GetEnergyLevels () const {return GetEnergyLevels(Spin::None);}
     virtual void            DisplayEigen    () const;

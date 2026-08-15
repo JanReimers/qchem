@@ -1,5 +1,6 @@
 // File: ChargeDensity.C  Interface for the charge density category.
 module;
+#include <memory>   // unique_ptr: densities are BUILT and handed over (V1.25)
 #include <iostream>
 #include <cassert>
 #include <vector>
@@ -197,19 +198,16 @@ template <class T> rvec3_t tPolarized_CD<T>::Gradient  (const rvec3_t& r) const
 template class tPolarized_CD<double>;
 template class tPolarized_CD<dcmplx>;
 
-template <class T> tSpinDensity<T>::tSpinDensity(tDM_CD<T>* up,tDM_CD<T>* down)
-: itsSpinUpCD  (up  )
-, itsSpinDownCD(down)
+template <class T> tSpinDensity<T>::tSpinDensity(std::unique_ptr<tDM_CD<T>> up,
+                                                 std::unique_ptr<tDM_CD<T>> down)
+: itsSpinUpCD  (std::move(up  ))
+, itsSpinDownCD(std::move(down))
 {
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
 };
-
-template <class T> tSpinDensity<T>::~tSpinDensity()
-{
-    delete itsSpinUpCD;
-    delete itsSpinDownCD;
-}
+// No destructor: the unique_ptr members free the channels, and being move-only they delete the copy
+// operations whose absence made the raw-pointer form a double-delete (V1.25).
 
 template <class T> double tSpinDensity<T>::operator()(const rvec3_t& r) const
 {

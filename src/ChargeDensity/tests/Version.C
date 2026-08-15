@@ -7,6 +7,7 @@
 // NumericCD, SeedCD -- and assert their serials are strictly increasing in construction
 // order (hence all distinct, monotonic, and never the reserved 0 sentinel).
 #include "gtest/gtest.h"
+#include <memory>
 #include <vector>
 
 import qchem.ChargeDensity;                     // Lineage / LineagePtr (the Layer-2 SCF-lineage head)
@@ -55,8 +56,8 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
 TEST(DensityLineage, SupersededHeadIsInactive)
 {
     auto lineage = std::make_shared<Lineage>();
-    tComposite_CD<double> A; A.Insert(new IrrepCD<double>());   // A.Version() = its front leaf's serial
-    tComposite_CD<double> B; B.Insert(new IrrepCD<double>());   // B constructed later -> higher serial
+    tComposite_CD<double> A; A.Insert(std::make_unique<IrrepCD<double>>());   // A.Version() = its front leaf's serial
+    tComposite_CD<double> B; B.Insert(std::make_unique<IrrepCD<double>>());   // B constructed later -> higher serial
 
     EXPECT_TRUE(A.isActive()) << "an un-tracked density (no lineage) is trivially active";
     EXPECT_TRUE(B.isActive());

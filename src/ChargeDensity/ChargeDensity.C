@@ -340,13 +340,15 @@ using cSpinResolved_CD = tSpinResolved_CD<dcmplx>;
 template <class T> class tSpinDensity : public virtual ScalarFunction<double>
 {
 public:
-    tSpinDensity(tDM_CD<T>* up,tDM_CD<T>* down);
-    ~tSpinDensity();
+    //! TAKES OWNERSHIP of both channels (V1.25).  The old form held raw pointers AND deleted them in a
+    //! hand-written dtor while declaring no copy ctor or assignment -- so copying it was a double-delete.
+    //! It was safe only because its one caller happened to hand it two freshly-built densities.
+    tSpinDensity(std::unique_ptr<tDM_CD<T>> up, std::unique_ptr<tDM_CD<T>> down);
     virtual double operator()(const rvec3_t&) const; // No UT coverage
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 private:
-    tDM_CD<T>* itsSpinUpCD;
-    tDM_CD<T>* itsSpinDownCD;
+    std::unique_ptr<tDM_CD<T>> itsSpinUpCD;
+    std::unique_ptr<tDM_CD<T>> itsSpinDownCD;
 };
 
 using SpinDensity = tSpinDensity<double>;

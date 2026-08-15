@@ -1,5 +1,6 @@
 // File: IrrepWF.H  Wave function for an irreducable representation.
 module;
+#include <memory>   // std::unique_ptr -- GetChargeDensity BUILDS its density (V1.25)
 export module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.WaveFunction.Types;
 import qchem.SCFAccelerator;
@@ -37,7 +38,7 @@ public:
     void                DoSCFIteration  ()      ;
     bool                ComputeStep     ()      ; //direct-min: accelerator computes its step
     void                MoveOrbitals    (double t, bool commit)      ; //move to geodesic fraction t
-    tDM_CD<T>*          GetChargeDensity() const;
+    std::unique_ptr<tDM_CD<T>> GetChargeDensity() const;   //!< BUILDS it (V1.25: owning return)
     const Orbitals*     GetOrbitals     () const;
           Orbitals*     GetOrbitals     ()      ;
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);

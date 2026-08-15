@@ -22,9 +22,9 @@ template <class T> tComposite_CD<T>::tComposite_CD(std::vector<Symmetry::Lattice
     : itsPointOps(std::move(pointOps))
 {};
 
-template <class T> void tComposite_CD<T>::Insert(tDM_CD<T>* cd)
+template <class T> void tComposite_CD<T>::Insert(std::unique_ptr<tDM_CD<T>> cd)
 {
-    itsCDs.push_back(std::unique_ptr<tDM_CD<T>>(cd));
+    itsCDs.push_back(std::move(cd));
 }
 
 //-----------------------------------------------------------------------------

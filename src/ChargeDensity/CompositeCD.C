@@ -34,7 +34,9 @@ public:
     //! -- molecules / Γ / unreduced crystals pass through untouched (the general form; "no symmetry" = trivial).
     //! It is a ctor argument, not a setter: the symmetry is a fixed property of the density, set once at build.
     explicit tComposite_CD(std::vector<Symmetry::Lattice_3D::ReciprocalOp> pointOps = {});
-    void Insert(tDM_CD<T>*);
+    //! TAKES OWNERSHIP of \a cd.  The signature used to say `tDM_CD<T>*` while the body wrapped it in a
+    //! unique_ptr -- an ownership transfer visible only by reading the implementation (V1.25).
+    void Insert(std::unique_ptr<tDM_CD<T>> cd);
 
     virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const;
     virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const;
