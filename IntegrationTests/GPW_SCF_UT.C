@@ -706,6 +706,12 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         prev.reset();   // the adoption copied what we needed; release the previous stage's machinery
 
         SCFParams par=o.scf; par.Verbose=verbose; par.SmearingkT=kT;
+        // Ladder-exhaustion stage-end (user 2026-08-14, run 49's wasted tail): on a NON-FINAL stage, once
+        // DIIS's hand-off fires and the next rung is vetoed (GDM under smeared occupations), further DIIS
+        // grinding buys nothing this stage's successor needs -- the density is at the tie floor, and the
+        // colder stage re-arms GDM.  The FINAL stage keeps the default grind (it has no successor, and a
+        // healthy tail can still pass the Δρ gate -- run 38 did).
+        par.StopOnAccelExhausted = (s+1<kTSchedule.size());
         if (!penaltySchedule.empty()) par.MOMSmearPenalty=penaltySchedule[s];
         std::vector<FpRow> series;
         scf->SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)

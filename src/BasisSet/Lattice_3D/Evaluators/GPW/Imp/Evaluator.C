@@ -23,6 +23,7 @@ import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic 
 import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
 import qchem.Reporting;       // the run report -- EmitGridsReport builds the `grids` section
+import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the grid report's {G}-star column)
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -699,15 +700,29 @@ void GPW_Evaluator::ReportGrids(std::ostream& os) const
     }
     ReportGrid(os, "FFT rho<->G (density/collocation)", *itsFFT_R_G_Grids);
     EnsureLevels();
+    // T1 {G}-STAR FOLD VISIBILITY (user 2026-08-15: "no hint anywhere of folding").  Under imposed ops
+    // each level's ball partitions into stars; report the count + reduction beside nG.  HONESTY NOTE:
+    // today the fold is CONSUMED only by the static local-PP sweeps (MakeLocalPP/MakeLocalPPLong T1
+    // reduced evaluation); the per-iteration G-space consumers run unfolded -- doc/OpenWork.md item 5.
+    std::vector<Symmetry::Lattice_3D::SymOp> sops;
+    for (const auto& op : RecipSymOps()) sops.push_back({op.U, op.tau});
     for (size_t L=0;L<itsLevels.size();L++)
     {
         std::string tag="ladder L="+std::to_string(L);
+        if (!sops.empty())
+        {
+            const size_t stars=Symmetry::Lattice_3D::FoldGVectors(itsLevels[L]->Gs(), sops).Reps();
+            tag+=" stars="+std::to_string(stars);
+        }
         if (L==0)                  tag+=" (== FFT grid; resolution reference)";
         else if (L>=itsNBaseLevels) tag+=" (top completion rung; local-PP uses base sub-ladder only)";
         ReportGrid(os, tag, *itsLevels[L]);
     }
     os<<"[GPW grid] local-PP integration: FULL ladder L=0.."<<itsLevels.size()-1
       <<" absolute REL_CUTOFF kappa="<<LocalPPRelCutoff()<<" Ha (e^{-kappa/2} pair tails)"<<std::endl;
+    if (!sops.empty())
+        os<<"[GPW grid] T1 {G}-star fold: "<<sops.size()<<" imposed ops; ACTIVE on the static local-PP"
+            " sweeps (form factor at star reps); per-iteration G fields UNFOLDED (OpenWork item 5)"<<std::endl;
     os.flush();
 }
 
@@ -723,6 +738,10 @@ void GPW_Evaluator::EmitGridsReport() const
     if (itsFFT_R_G_Grids)                                          // null == DFT tier off (no grids)
     {
         EnsureLevels();
+        // The {G}-star column (see ReportGrids): star counts per level under the imposed ops, so the
+        // fold is VISIBLE in the grids table (nG vs Gstars = the T1 reduction).  Empty ops = no column.
+        std::vector<Symmetry::Lattice_3D::SymOp> sops;
+        for (const auto& op : RecipSymOps()) sops.push_back({op.U, op.tau});
         rpt::json ladder = rpt::json::array();
         for (size_t L = 0; L < itsLevels.size(); ++L)
         {
@@ -736,10 +755,15 @@ void GPW_Evaluator::EmitGridsReport() const
             row["N"]     = { N.x, N.y, N.z };
             row["ecut"]  = lv.Ecut();
             row["nG"]    = (long)lv.size();
+            if (!sops.empty())
+                row["Gstars"] = (long)Symmetry::Lattice_3D::FoldGVectors(lv.Gs(), sops).Reps();
             row["role"]  = role;
             ladder.push_back(row);
         }
         g["ladder"]  = ladder;
+        if (!sops.empty())
+            g["GstarFold"] = { { "ops", (long)sops.size() },
+                               { "activeOn", "static local-PP sweeps (T1); per-iteration G fields unfolded" } };
         g["localPP"] = { { "kappa", LocalPPRelCutoff() } };
     }
     rpt::EmitSection("grids", g);

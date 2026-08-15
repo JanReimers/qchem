@@ -367,6 +367,18 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                 itsConverged=false;                          // the recovery needs further iterations
             }
         }
+        // LADDER EXHAUSTION STAGE-END (doc/SCFStrategyPlan.md "Ladder exhaustion bail-out";
+        // SCFParams::StopOnAccelExhausted): the accelerator's hand-off trigger fired but no further rung
+        // can engage (e.g. DIIS out of steam, GDM vetoed by smeared occupations).  Under the opt-in policy
+        // (the annealed driver's non-final stages) every further iteration is the measured run-49 grind to
+        // nowhere -- end the stage loudly; the next (colder) stage re-arms the ladder.
+        if (!itsConverged && ipar.StopOnAccelExhausted && itsAccelerator->Exhausted())
+        {
+            cout << "  *** SCF stage END: accelerator ladder EXHAUSTED (hand-off fired, no engageable rung)"
+                    " -- stopping this stage (StopOnAccelExhausted) ***" << endl;
+            itsIterationCount++;   // match the for-increment the break skips (the -- below assumes it ran)
+            break;
+        }
         // DisplayEigen();
     }
     // NEVER SILENT: whatever the recipe, a run that ENDS non-aufbau is reported (the honest instrument --
