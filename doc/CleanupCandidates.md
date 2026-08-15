@@ -1136,8 +1136,12 @@ MnO campaign proceeds undisturbed in qchem6.
   and does nothing for a legitimately soft direction — the other failure.  Reproducers: DISABLED_ImposedGDMProbe_SiDiamondIBZ (healthy),
   DISABLED_NaFImposedGDMSmearProbe (pathological, NAFGDM_* knobs); GPW_GDMTRACE=1 shows
   DESCENT/FALLBACK per step.
-- **V1.25 ⚠️ NOT "minor trims" — there is a LIVE LEAK.  Re-scoped 2026-08-12 after checking the code;
-  user ruled "clean it all at once".**
+- **V1.25 ✅ DONE `e52c00eb`. NOT "minor trims" — there was a LIVE LEAK.**  `GetChargeDensity()` now returns
+  `unique_ptr` along the whole chain, so `AtomCalculation::TotalCharge()` stops leaking a composite per call.
+  **Three more owning-raw-pointer sites the item never mentioned** turned up on the way: `tPolarized_CDImp`
+  had `tSpinDensity`'s exact double-delete shape, and `tComposite_CD::Insert` advertised a raw pointer while
+  wrapping it in a `unique_ptr`.  **→ doc/CleanupHistory.md**
+  *(original analysis follows)*
   - **`GetChargeDensity()` is a `Get*` that ALLOCATES.**  `tCompositeWF::GetChargeDensity(Spin)` does
     `new tComposite_CD<T>(...)` and inserts every irrep block, on EVERY call; `TOrbitalsImp`, `tIrrepWF`,
     `tPolarizedWF` and `tUnPolarizedWF` all forward or do the same.  The name says accessor; the body is a
