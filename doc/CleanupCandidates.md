@@ -1136,9 +1136,28 @@ MnO campaign proceeds undisturbed in qchem6.
   and does nothing for a legitimately soft direction — the other failure.  Reproducers: DISABLED_ImposedGDMProbe_SiDiamondIBZ (healthy),
   DISABLED_NaFImposedGDMSmearProbe (pathological, NAFGDM_* knobs); GPW_GDMTRACE=1 shows
   DESCENT/FALLBACK per step.
-- **V1.25 Minor CD-interface trims** — non-const `Polarized_CD::GetChargeDensity(Spin)` overload
-  has no external consumer (removable); `tSpinDensity` holds two raw non-owning `tDM_CD*` with
-  unmanaged lifetime.
+- **V1.25 ⚠️ NOT "minor trims" — there is a LIVE LEAK.  Re-scoped 2026-08-12 after checking the code;
+  user ruled "clean it all at once".**
+  - **`GetChargeDensity()` is a `Get*` that ALLOCATES.**  `tCompositeWF::GetChargeDensity(Spin)` does
+    `new tComposite_CD<T>(...)` and inserts every irrep block, on EVERY call; `TOrbitalsImp`, `tIrrepWF`,
+    `tPolarizedWF` and `tUnPolarizedWF` all forward or do the same.  The name says accessor; the body is a
+    factory.
+  - **`AtomCalculation::TotalCharge()` LEAKS it** (Imp/AtomCalculation.C:222): builds a whole composite
+    density, reads one number off it, drops the pointer.  `SolidCalculation` happens to get it right
+    (`itsImp->cd.reset(cd)`), and the tests mostly remember `delete cd` — so the contract is honoured by
+    vigilance, not by the type.  **Cross-ref the RAM question**: a leak per call is exactly the class of
+    thing to rule out before profiling anything.
+  - **The item's OTHER claim was backwards.**  It said `tSpinDensity` holds "two raw NON-OWNING `tDM_CD*`
+    with unmanaged lifetime".  It DOES own them — its dtor deletes both — but declares no copy ctor or
+    assignment, so the implicit copy is a DOUBLE-DELETE (rule of three).  And it is only correct today
+    because its caller feeds it two freshly-`new`ed densities, i.e. it depends on the accessor's hidden
+    factory behaviour.  Three fragilities holding each other up.
+  - **Fix (all at once, user 2026-08-12):** return `std::unique_ptr<tDM_CD<T>>` from the accessor chain, so
+    ownership is in the TYPE and the compiler finds every caller; `tSpinDensity` holds `unique_ptr`s (copy
+    then implicitly deleted, dtor disappears).  Matches CLAUDE.md's rule that a raw `new` should go into a
+    smart pointer within a few lines.
+  - Original text: non-const `Polarized_CD::GetChargeDensity(Spin)` overload has no external consumer
+    (removable); `tSpinDensity` holds two raw `tDM_CD*`.
 
 - **V1.26 Uniform-vs-Becke: a SMOOTHNESS question that reduces to a COST CROSSOVER — so `Auto` becomes a
   SELECTOR, an explicit choice is honoured, and only the strictly-dominated choice is warned about.
