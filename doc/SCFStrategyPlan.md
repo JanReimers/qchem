@@ -246,3 +246,41 @@ framework already carries everything around it.
 
 # GDM 
 -System: Naf 2x2x2 multi k, SR2 basis set, GDM works but it is slow. "k oscillates between 2 and 3 after cycle 23" on the imposed run — that's the GDM line-search backtrack count, it means the quadratic model overshoots ~4–8× each step and pays 3–4 Fock builds per iteration. Two cheap engine ideas when you get to the SCFStrategyPlan work: seed the line search from the previous accepted t instead of always starting at 1, and that alone would likely erase much of the imposed run's 110-vs-50 iteration-count penalty (the free run's steady k=3 suggests the same, so both would speed up).
+# Ladder exhaustion bail-out (USER, 2026-08-13 — run 49's wasted tail)
+
+Observed on run 49 (the collapsed CP2K-span probe, ~30 min/iteration): the Ladder's tail trigger
+fired, the GDM rung was vetoed (`NOT ENGAGEABLE`, smeared occupations), and DIIS then ground 30+
+further iterations to nowhere — "any further DIIS iterations after NOT ENGAGEABLE is a waste of
+time" (user).  The trigger firing IS DIIS's own out-of-steam signal; when the next rung cannot
+engage, the ladder has nothing left to offer.
+
+Design: the accelerator face grows **`Exhausted()`** — true when the hand-off condition has fired
+but no further rung is engageable (sticky until the occupation structure changes).  POLICY, not
+mechanism, decides what happens:
+- **Staged/annealed run, non-final stage:** end the stage — its whole purpose (get the density near
+  the fixed point for the next stage) is met at the tie floor, and the cold stage re-arms GDM.
+  This is the {Ladder@kT, GDM@0} schedule's natural early-exit.
+- **Single-stage run:** configurable keep-grinding vs stop.  NOT unconditional: run 38's post-veto
+  DIIS iterations 17–41 DID eventually pass the 1e-5 Δρ gate — on a healthy system the tail grind
+  can still deliver; on a pathological one (run 49) it never will.  Default: keep grinding (today's
+  behaviour), `SCFParams` knob to stop-on-exhaustion, and the anneal driver sets stage-end
+  unconditionally for non-final stages.
+
+**IMPLEMENTED 2026-08-14 exactly per the design above:** `tSCFAcceleratorLadder::Exhausted()`
+(= the sticky hand-off-fired-but-vetoed flag), `SCFParams::StopOnAccelExhausted` (default false =
+keep grinding), the loop's loud stage-end in `SCFIterator::Iterate`, and `RunGpwAnnealed` setting
+the knob for non-final stages.  Smoke: `GPW_SCF.AlFCCAnnealedMetal` now ends its smeared stage at
+the veto ("*** SCF stage END: accelerator ladder EXHAUSTED ***") and still converges in the cold
+stage — green.
+
+# Δρ convergence gate should be intensive: Δρ/N (USER, 2026-08-14 — run 59's tail grind)
+
+Observed on run 59 (MnO v2-span verdict, 26 e⁻): the cold GDM stage sits energy-pinned at
+−61.5645750 (|ΔE/E| ~ 1e-10) while grinding the ABSOLUTE Δρ gate of 1e-5 from ~7e-5.  An absolute
+Δρ threshold is implicitly EXTENSIVE — the same 1e-5 demands a ~4x smaller per-electron density
+change from a 26-electron cell than from water, and worse as cells grow.  Normalize the gate to
+Δρ/N (the ρ_lost/N column beside it already uses exactly this convention).  MIGRATION CARE: every
+existing deck/anchor calibrated MinΔρ as absolute — reinterpreting the knob rescales convergence
+across the whole suite (molecular N~10 barely moves; solids loosen by ~N), so land it as a
+deliberate re-pin (or a parallel MinΔρ_N knob), not a silent semantic change.  Do NOT change
+binaries mid-A/B-chain (runs 59/60 must share one binary).

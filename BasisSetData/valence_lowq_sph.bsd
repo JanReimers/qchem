@@ -1,0 +1,136 @@
+valence_lowq_sph: the SR basis with the Mn TRUE-s WINDOW RESTORED -- for SPHERICAL-d runs ONLY
+(doc/SphericalLatticePlan.md I3, 2026-08-13).  Identical to valence_lowq_sr.bsd in every entry except
+Mn/O, restored to the EXACT span of the CP2K transcription (IntegrationTests/CP2K/VALENCE-LOWQ-BASIS):
+Mn s back to the 7-point window {0.10 .. 24}, Mn d back to 8 (the diffuse 0.18 the SR cell-trim
+dropped), O s back to 6 (0.15) and O p back to 5 (0.18).  DISCOVERED 2026-08-13: the CP2K oracles
+were ALWAYS in this untrimmed-spherical span -- the SR trims existed for the CARTESIAN cell's
+conditioning, and the transcription predates them -- so THIS file under the spherical view is the
+first true apples-to-apples basis against the banked CP2K numbers.  THE HISTORY: with CARTESIAN d the 8 d-shell
+contaminants (r^2 e^{-ar^2}) span the mid/tight s space, so 7s+8d was rank-deficient (cond 8.2e7,
+vet ABORT) and the s window was cut to 2 -- the contaminants then DID the mid-s work.  The SPHERICAL
+view (PG_Spherical::MakeSphericalLatticeView) removes the contaminants, which EMPTIES the mid-s
+space: measured 2026-08-12, the spherical Mn atom loses 281 mHa (-14.626 -> -14.345 vs the exact
+sextet ATOM oracle -14.674) with the trimmed window.  This file restores the physics the trim
+delegated to the contaminants.  Under CARTESIAN d this file reproduces the ORIGINAL rank deficiency
+-- it is the spherical arm's basis, never the Cartesian arm's.  (CP2K note kept from the parent
+file: CP2K solves shell lists in SPHERICAL space, so ITS oracles over the parent file already live
+in the trimmed-s spherical span; oracles over THIS file need a fresh CP2K transcription.)
+
+!
+BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
+ F   0
+ S   1  1.00
+            0.27516456        1.00000000
+ S   1  1.00
+            0.63096278        1.00000000
+ S   1  1.00
+            1.44682163        1.00000000
+ S   1  1.00
+            3.31761697        1.00000000
+ S   1  1.00
+            7.60742173        1.00000000
+ S   1  1.00
+           17.44410700        1.00000000
+ S   1  1.00
+           40.00000000        1.00000000
+ P   1  1.00
+            0.34098767        1.00000000
+ P   1  1.00
+            0.83051852        1.00000000
+ P   1  1.00
+            2.02283268        1.00000000
+ P   1  1.00
+            4.92686434        1.00000000
+ P   1  1.00
+           12.00000000        1.00000000
+ ****
+ NA   0
+ S   1  1.00
+            0.15               1.00000000
+ S   1  1.00
+            0.24494897        1.00000000
+ S   1  1.00
+            0.69992710        1.00000000
+ S   1  1.00
+            2.00000000        1.00000000
+ P   1  1.00
+            0.09000000        1.00000000
+ P   1  1.00
+            0.30000000        1.00000000
+ ****
+ AL   0
+ S   1  1.00
+            0.10047546        1.00000000
+ S   1  1.00
+            0.25238294        1.00000000
+ S   1  1.00
+            0.63395728        1.00000000
+ S   1  1.00
+            1.59242868        1.00000000
+ S   1  1.00
+            4.00000000        1.00000000
+ P   1  1.00
+            0.13295740        1.00000000
+ P   1  1.00
+            0.35355339        1.00000000
+ P   1  1.00
+            0.94015077        1.00000000
+ P   1  1.00
+            2.50000000        1.00000000
+ ****
+ MN   0
+ S   1  1.00
+            0.10000000        1.00000000
+ S   1  1.00
+            0.24928829        1.00000000
+ S   1  1.00
+            0.62144650        1.00000000
+ S   1  1.00
+            1.54919334        1.00000000
+ S   1  1.00
+            3.86195754        1.00000000
+ S   1  1.00
+            9.62740780        1.00000000
+ S   1  1.00
+           24.00000000        1.00000000
+ D   1  1.00
+            0.18000000        1.00000000
+ D   1  1.00
+            0.38369936        1.00000000
+ D   1  1.00
+            0.81791778        1.00000000
+ D   1  1.00
+            1.74352515        1.00000000
+ D   1  1.00
+            3.71660826        1.00000000
+ D   1  1.00
+            7.92255676        1.00000000
+ D   1  1.00
+           16.88822203        1.00000000
+ D   1  1.00
+           36.00000000        1.00000000
+ ****
+ O   0
+ S   1  1.00
+            0.15000000        1.00000000
+ S   1  1.00
+            0.39077566        1.00000000
+ S   1  1.00
+            1.01803746        1.00000000
+ S   1  1.00
+            2.65216175        1.00000000
+ S   1  1.00
+            6.90933509        1.00000000
+ S   1  1.00
+           18.00000000        1.00000000
+ P   1  1.00
+            0.18000000        1.00000000
+ P   1  1.00
+            0.46475800        1.00000000
+ P   1  1.00
+            1.20000000        1.00000000
+ P   1  1.00
+            3.09838668        1.00000000
+ P   1  1.00
+            8.00000000        1.00000000
+ ****

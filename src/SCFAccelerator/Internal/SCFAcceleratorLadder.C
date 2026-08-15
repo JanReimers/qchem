@@ -118,6 +118,14 @@ public:
     //! off on a rejected step (a hand-off is an ENERGY-progress decision, made in SetEnergy, not a
     //! step-acceptance one) -- so a rung is never advanced past just for having a bad direction.
     virtual bool   RejectStep();
+    //! LADDER EXHAUSTION (doc/SCFStrategyPlan.md "Ladder exhaustion bail-out", user 2026-08-13, run 49's
+    //! wasted tail): true when the hand-off trigger has FIRED but the next rung is NOT ENGAGEABLE (the
+    //! veto) -- the active rung's own out-of-steam signal with nothing left to advance onto, so every
+    //! further iteration on it is the measured 30-iteration DIIS grind to nowhere.  Sticky while the veto
+    //! stands; reset by any rung change (advance or retreat).  POLICY lives with the caller: the SCF loop
+    //! ends the stage on this only when SCFParams::StopOnAccelExhausted says so (annealed non-final
+    //! stages), never unconditionally -- run 38's post-veto tail grind DID eventually converge.
+    virtual bool   Exhausted() const {return itsVetoAnnounced;}
 private:
     tSCFAccelerator<T>* Active() const //the live rung, bounds-checked
         { assert(itsActive<itsRungs.size()); return itsRungs[itsActive].get(); }

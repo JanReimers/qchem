@@ -2076,3 +2076,16 @@ MnO campaign proceeds undisturbed in qchem6.
   NB investigated 2026-08-11 as a candidate for the MnO sublattice defect and REFUTED as the cause
   (the enumeration is generous for this cell: maxReach ≈ 15.2 bohr against a = 8.4); this item is the
   DESIGN debt, which stands on its own.
+
+- **D13 Single-species `HGH_LocalPotential` / `HGH_SeparablePotential` silently IGNORE their `int Z`
+  argument** (found 2026-08-14 — this exact foot-gun manufactured the retracted "V_long sharp-field
+  defect": the `DiffuseDVlongSharpFieldOracle` gate passed `gthMn.local` over an Mn+O cell, so
+  production integrated a Mn-q7 field at the O site while the oracle used the true O q6, and Mn's
+  empty C list made β=0 so the custom-G-ball path was never even entered).  The per-species classes
+  take `Z` only to satisfy the `LocalPotential` face; a caller sweeping `FormFactorLong(a->itsZ,…)`
+  over a multi-species Structure with a single-species object gets one species' physics at every
+  site, with no diagnostic.  Production is safe (`BuildMultiSpeciesLocal` wraps the router), but
+  hand-written gates/probes are not.  Candidate fixes, in the compile-time-over-runtime spirit
+  ([[feedback_compile_time_over_runtime]]): store the species Z the object was built for (GetGTH
+  knows it) and `assert(Z==itsZ)` in every Z-taking method; or drop `Z` from the single-species
+  concrete API entirely and let ONLY `MultiSpecies_*` model the Z-dispatching face.

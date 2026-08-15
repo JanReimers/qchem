@@ -12,6 +12,7 @@
 // external pseudopotential are NOT mixed in yet -- they are later increments.
 module;
 #include <iosfwd>
+#include <map>       // std::map<int,hmat_t<dcmplx>> (MakeSeparablePotentialByL, the per-l KB diagnostic)
 #include <memory>
 #include <string>
 #include <vector>
@@ -106,6 +107,7 @@ public:
     virtual hmat_t<dcmplx> MakeLocalPotentialLong (const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
     virtual hmat_t<dcmplx> MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
     virtual hmat_t<dcmplx> MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl ) const override;
+    virtual std::map<int,hmat_t<dcmplx>> MakeSeparablePotentialByL(const Structure* cl, const Pseudopotential::SeparablePotential& nl ) const override;
 
     virtual std::string Name      () const override {return "GPW";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)

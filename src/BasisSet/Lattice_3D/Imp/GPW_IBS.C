@@ -2,6 +2,7 @@
 module;
 #include <cassert>
 #include <iostream>
+#include <map>       // MakeSeparablePotentialByL (the per-l KB diagnostic)
 #include <memory>
 #include <string>
 #include <vector>
@@ -167,6 +168,15 @@ hmat_t<dcmplx> GPW_IBS::MakeSeparablePotential(const Structure* cl, const Pseudo
     assert(sepR && "GPW MakeSeparablePotential: the KB model must provide the real-space projector face (SeparablePotential_R)");
     return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::SeparablePP, this, cl->ID(),
         [this,cl,sepR]{ return GPW_Evaluator::MakeSeparablePP(cl, *sepR); });
+}
+
+std::map<int,hmat_t<dcmplx>> GPW_IBS::MakeSeparablePotentialByL(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
+{
+    // Diagnostic face (doc/SphericalLatticePlan.md I0): built on demand, NOT DB-cached -- its consumer
+    // (the Ven_PP_NonLocal per-l energy print) caches the result term-side for the run's lifetime.
+    auto* sepR=dynamic_cast<const Pseudopotential::SeparablePotential_R*>(&nl);
+    assert(sepR && "GPW MakeSeparablePotentialByL: the KB model must provide the real-space projector face (SeparablePotential_R)");
+    return GPW_Evaluator::MakeSeparablePPByL(cl, *sepR);
 }
 
 // The DFT 3-centre tables over the REQUESTED fit basis's grid (doc/GPWPlan §0e).  The fit basis \a c that the

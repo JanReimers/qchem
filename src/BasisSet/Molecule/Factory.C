@@ -35,7 +35,9 @@ export namespace qchem::BasisSet::Molecule
     //  (qchem.ValenceBasisGen); organised by TYPE (one file, all elements) for GPW multi-species work
     //  (NaF/CsI, doc/GPWPlan.md sec 1).  Grows one element block at a time; Low/Medium/High + SZ/DZ/TZ
     //  variants will be sibling files.
-    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR, VALENCE_LOWQ, VALENCE_LOWQ_SR, VALENCE_LOWQ_SR2 };
+    //! VALENCE_LOWQ_SPH: the SR file with the Mn TRUE-s window restored -- SPHERICAL-d arms ONLY
+    //! (under Cartesian d it reproduces the contaminant rank deficiency; doc/SphericalLatticePlan.md I3).
+    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR, VALENCE_LOWQ, VALENCE_LOWQ_SR, VALENCE_LOWQ_SR2, VALENCE_LOWQ_SPH };
 
     // Axis 2 -- the integral engine (orthogonal to the data set and the angular representation).
     enum class Engine { MnD, LibCint };

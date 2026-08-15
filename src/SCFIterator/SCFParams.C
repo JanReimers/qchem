@@ -68,6 +68,16 @@ export struct SCFParams
                                      //  (fills by energy; a diving diffuse ghost would be occupied).  Λ needs only
                                      //  exceed the ghost's dive depth (Ha-scale); doc/GPWPlan1.md 4b.
 
+    bool StopOnAccelExhausted = false; //End the SCF loop when the accelerator declares itself Exhausted()
+                                     //  (the LADDER's hand-off trigger fired but the next rung is NOT
+                                     //  ENGAGEABLE -- e.g. DIIS out of steam and GDM vetoed by smeared
+                                     //  occupations; doc/SCFStrategyPlan.md "Ladder exhaustion bail-out",
+                                     //  run 49's 30 wasted DIIS iterations).  OFF (default) = keep grinding
+                                     //  (run 38's post-veto tail DID eventually converge).  The annealed
+                                     //  driver turns this ON for NON-FINAL stages: their job -- get the
+                                     //  density near the next stage's fixed point -- is done at the tie
+                                     //  floor, and the cold stage re-arms GDM.
+
     //! ADVANCED (doc/GPWPlan1.md item 1): the 0h occupation-guard tunings.  Sensible defaults that only
     //! rarely need touching -- the guard exists precisely so users do NOT hand-tune around a pinned
     //! excited state (the expert-system direction: detect, self-correct, and never be silent).

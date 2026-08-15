@@ -27,6 +27,7 @@ import qchem.UnitCell;                          // UnitCell
 import qchem.BasisSet;                          // Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Molecule.Factory;         // Molecule::Factory, BasisSetData/Engine/Angular
+import qchem.BasisSet.Molecule.PG_Cart;         // direct PG_Cart construction (the diffuse-d V_long oracle gate)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS (the basis under test)
 import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the _R / _Gaussian faces (KB gate)
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
@@ -1325,4 +1326,381 @@ TEST(GPW, MagneticSymmetryDefectsSeparateMirrorKeepersFromBreakers)
     for (size_t i=0;i<rops.size();++i)
         if (rops[i].sigma==qchem::Symmetry::SpinAction::Flip) EXPECT_GT(dB[i], 1e-3);
         else                                                  EXPECT_LT(dB[i], 1e-12);
+}
+
+// ============ The DIFFUSE-d V_long ORACLE gate (probes 55-57, doc/SphericalLatticePlan.md) ============
+// Probes 55A/B/D bisected the v2-span MnO collapse to the DIFFUSE Mn d (0.18); the 55B breakdown put
+// the -13.3 Ha in E_loc; probe 56 (GPW_LONG_SWEEP) exonerated the LEVEL ROUTING (both paths agree);
+// probe 57 (rigid shift) exonerated the wrap/corner family.  Both V_long paths share ONE machine: the
+// collocation INTEGRATE-BACK of the G-restricted field against pair products.  This gate holds that
+// machine against a from-scratch oracle no production code touches:
+//     h_ij = (Omega/N^3) Sum_r chi_i(r) chi_j(r) V_long(r)
+// with chi the explicitly image-summed Bloch functions and V_long the explicit G-sum of the GTH
+// erf-Coulomb form factor f_long(G) = -4 pi Z e^{-G^2 rloc^2/2} / G^2 (Mn q7 has NO C terms: the
+// local PP is PURE erf, V_short == 0 -- the whole E_loc rides V_long).  Basis: s+p+d shells at
+// {0.18, 0.38, 24.0} -- the convicted diffuse d, the healthy-control d, and a tight exponent so the
+// multigrid ladder is DEEP (the failing runs' routing conditions).  DISABLED: ~2-4 min hand gate.
+TEST(GPW, DISABLED_DiffuseDPairVlongOracle)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);   // the MnO rhombohedral cell
+    UnitCell cell(Amat);
+    cell.AddAtom(25, {0.5,0.5,0.5});                                  // ONE Mn q7, off-corner
+    auto* cbs=new BasisSet::Molecule::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Molecule::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    std::shared_ptr<const Real_BS> mol(cbs);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto gth=Pseudopotential::GetGTH("Mn","LDA",7);
+
+    const chmat_t Vl=ev.MakeLocalPPLong (&cell, gth.local);           // PRODUCTION (custom G-ball route)
+    const chmat_t Vs=ev.MakeLocalPPShort(&cell, gth.local);           // must be ~0 (c=[] -- pure erf)
+    double snorm=0.0; for (size_t i=0;i<Vs.rows();i++) for (size_t j=0;j<Vs.columns();j++) snorm+=std::norm(Vs(i,j));
+    EXPECT_LT(std::sqrt(snorm), 1e-10) << "Mn q7 has no short-range C terms; V_short must vanish";
+
+    // ---- the oracle ---------------------------------------------------------------------------------
+    const Real_OIBS* obs=nullptr;
+    for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
+    ASSERT_TRUE(obs);
+    const size_t n=obs->GetNumFunctions();
+    ASSERT_EQ(Vl.rows(), n);
+    const double Z=7.0, rloc=0.64;                                    // GTH Mn q7 local: pure erf-Coulomb
+    const rvec3_t tau(a,a,a);                                         // A*(1/2,1/2,1/2)
+    const double Omega=cell.GetCellVolume();
+
+    const int N=40;                                                   // raster (integrand bandwidth ~17 << Nyquist)
+    const double w=Omega/double(N*N*N);
+    const int GM=11;                                                  // |G|<=11: e^{-G^2 rloc^2/2}/G^2 < 2e-11
+    // Precompute the G list for the analytic reciprocal cell B=(4 pi/a)(I - J/4).
+    struct GRec { rvec3_t G; double f; };
+    std::vector<GRec> gs;
+    const double bfac=4.0*M_PI/a;
+    for (int m1=-14;m1<=14;m1++) for (int m2=-14;m2<=14;m2++) for (int m3=-14;m3<=14;m3++)
+    {
+        if (!m1 && !m2 && !m3) continue;                              // Delta-G=0 DROPPED (production convention)
+        const double s=(m1+m2+m3)*0.25;
+        const rvec3_t G(bfac*(m1-s), bfac*(m2-s), bfac*(m3-s));
+        const double g2=G*G;
+        if (g2>GM*GM) continue;
+        gs.push_back({G, -4.0*M_PI*Z*std::exp(-0.5*g2*rloc*rloc)/g2/Omega});
+    }
+    // Bloch image set: the diffuse 0.18 tail (1e-12 at r~12.4, poly margin -> 13.5) -- enumerate by
+    // RADIUS, not index box: this oblique cell's index-space neighbourhoods are heavily sheared (the
+    // production seam's 381-cell lesson), so a +-2 index box truncates direction-dependently (measured:
+    // the p(0.18) diagonals came out 0.79/0.79/0.89 where symmetry demands equality).
+    const double reach=13.5, cellDiag=2.0*std::sqrt(3.0)*a;
+    std::vector<rvec3_t> images;
+    for (int i=-6;i<=6;i++) for (int j=-6;j<=6;j++) for (int k=-6;k<=6;k++)
+    {
+        const rvec3_t R=cell.ToCartesian(rvec3_t(i,j,k));
+        if (norm(R)<=reach+cellDiag) images.push_back(R);
+    }
+    rmat_t h(n,n,0.0);
+    rvec_t sdiag(n); sdiag=0.0;                                       // SELF-CHECK: V==1 -> the Bloch overlap
+    rvec_t chi(n);
+    for (int i=0;i<N;i++) for (int j=0;j<N;j++) for (int k=0;k<N;k++)
+    {
+        const rvec3_t r=cell.ToCartesian(rvec3_t(double(i)/N, double(j)/N, double(k)/N));
+        chi=0.0;                                                      // Bloch chi_i(r) = sum_R chi_i(r-R)
+        for (const auto& R : images)
+            if (norm(r-R-tau)<=reach) chi+=(*obs)(r-R);               // only images whose centre can reach r
+        double V=0.0;                                                 // V_long(r): the explicit G-sum
+        const rvec3_t d=r-tau;
+        for (const auto& g : gs) V+=g.f*std::cos(g.G*d);
+        for (size_t p=0;p<n;p++)
+        {
+            sdiag[p]+=w*chi[p]*chi[p];
+            for (size_t q=p;q<n;q++) h(p,q)+=w*chi[p]*chi[q]*V;
+        }
+    }
+    // Quadrature/Bloch SELF-CHECK against the analytic Bloch overlap (LatticeSum1E, Gamma phases).
+    const auto* lat1e=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(obs);
+    ASSERT_TRUE(lat1e);
+    const chmat_t Sb=lat1e->MakeOverlap([](const ivec3_t&){return dcmplx(1.0);}, cell);
+    for (size_t p=0;p<n;p++)
+    {
+        const double a2l3=std::real(obs->Kinetic()(p,p))/std::real(obs->Overlap()(p,p));
+        if (a2l3>5.0) continue;                                       // tight fns: below this raster, skip
+        EXPECT_NEAR(sdiag[p]/std::real(Sb(p,p)), 1.0, 1e-6)
+            << "oracle quadrature broken for fn "<<p<<" (alpha(2l+3)="<<a2l3
+            << "): quad="<<sdiag[p]<<" analytic="<<std::real(Sb(p,p))
+            << " ratio="<<sdiag[p]/std::real(Sb(p,p));
+    }
+
+    // ---- compare, worst offender per exponent class --------------------------------------------------
+    // Classify functions by the kinetic/overlap diagonal ratio ~ alpha (2l+3) (no exponent crosses the face).
+    const auto& S=obs->Overlap(); const auto& T=obs->Kinetic();
+    double worstAll=0.0; size_t wi=0, wj=0;
+    for (size_t p=0;p<n;p++)
+        for (size_t q=p;q<n;q++)
+        {
+            // the oracle raster resolves only the DIFFUSE functions -- skip pairs with a tight partner
+            const double ap=std::real(T(p,p))/std::real(S(p,p)), aq=std::real(T(q,q))/std::real(S(q,q));
+            if (ap>5.0 || aq>5.0) continue;
+            const double prod=std::real(Vl(p,q)), orac=h(p,q);
+            const double scale=std::max(1e-6, std::fabs(orac));
+            const double rel=std::fabs(prod-orac)/scale;
+            if (rel>worstAll && std::fabs(orac)>1e-8) { worstAll=rel; wi=p; wj=q; }
+        }
+    std::cout << "[Vlong oracle] n="<<n<<"  worst rel="<<worstAll<<" at ("<<wi<<","<<wj<<")"
+              << "  prod="<<std::real(Vl(wi,wj))<<" oracle="<<h(wi,wj)
+              << "  [alpha(2l+3)] i="<<std::real(T(wi,wi))/std::real(S(wi,wi))
+              << " j="<<std::real(T(wj,wj))/std::real(S(wj,wj))<<std::endl;
+    for (size_t p=0;p<n;p++)                                          // the full diagonal, the readable map
+    {
+        const double al=std::real(T(p,p))/std::real(S(p,p));
+        std::cout << "  fn "<<p<<"  alpha(2l+3)="<<al
+                  << "  Vl(prod)="<<std::real(Vl(p,p))<<"  Vl(oracle)="<<h(p,p)
+                  << "  rel="<<std::fabs(std::real(Vl(p,p))-h(p,p))/std::max(1e-6,std::fabs(h(p,p)))<<std::endl;
+    }
+    EXPECT_LT(worstAll, 1e-2) << "V_long integrate-back disagrees with the independent oracle";
+}
+
+// The SHARP-FIELD companion (the 55B condition the Mn-only gate cannot see): the O q6 local field is
+// 7x SHARPER (rloc 0.2476 -> beta=8.15 vs Mn's 1.22), and the per-level G-RESTRICTION of that field is
+// COMMON to both probe-56 paths (ball and sweep both integrate level-restricted fields), so probe 56
+// never exonerated it.  Same oracle; the diffuse-pair elements converge with the field ball |G|<=12
+// because the PAIR FT e^{-G^2/4p} (p<=0.76) kills everything beyond (the sharp field's high-G content
+// couples only to tight pairs, which the raster oracle excludes anyway).
+// VERDICT (2026-08-14): GREEN at 1.8e-5 once the field is wired right -- the original RED (6.6x at a
+// diffuse s x d) was THIS GATE's own species mismatch (see the loc construction below), not production:
+// both V_long paths agree with the oracle under the true multi-species field, so the per-level
+// restriction machinery is EXONERATED at unit tier and the arm-2 collapse cause lies elsewhere.
+TEST(GPW, DISABLED_DiffuseDVlongSharpFieldOracle)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    UnitCell cell(Amat);
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    cell.AddAtom( 8, {0.25,0.25,0.25});
+    auto* cbs=new BasisSet::Molecule::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Molecule::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    std::shared_ptr<const Real_BS> mol(cbs);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    const GPW_Evaluator& ev=gpw;
+    // The MULTI-SPECIES router, as production wires it (Hamiltonians.C BuildMultiSpeciesLocal).  Passing
+    // gthMn.local alone here was the 2026-08-13 gate's own defect: HGH_LocalPotential ignores Z, so the
+    // O atom got the Mn q7 field (Zion 7, rloc 0.64) while the oracle integrated the true O q6 well --
+    // and Mn q7's empty C list made beta=0, so the custom-ball path under test was never even entered.
+    const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
+    const auto gthO =Pseudopotential::GetGTH("O","LDA",6);
+    Pseudopotential::MultiSpecies_LocalPotential loc;
+    loc.Add(25, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthMn.local));
+    loc.Add( 8, std::make_shared<const Pseudopotential::HGH_LocalPotential>(gthO.local));
+
+    const chmat_t Vl=ev.MakeLocalPPLong(&cell, loc);                  // field sums over BOTH atoms of cl
+
+    const Real_OIBS* obs=nullptr;
+    for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
+    ASSERT_TRUE(obs);
+    const size_t n=obs->GetNumFunctions();
+    ASSERT_EQ(Vl.rows(), n);
+    const double Omega=cell.GetCellVolume();
+    struct Src { rvec3_t tau; double Z, rloc; };
+    const Src srcs[2] = { {cell.ToCartesian(rvec3_t(0.5,0.5,0.5)),  7.0, 0.64},
+                          {cell.ToCartesian(rvec3_t(0.25,0.25,0.25)), 6.0, 0.24762086} };
+
+    const int N=40;
+    const double w=Omega/double(N*N*N);
+    const int GM=12;
+    struct GRec { rvec3_t G; double fc[2], fs[2]; };                  // per-species cos/sin weights
+    std::vector<GRec> gs;
+    const double bfac=4.0*M_PI/a;
+    for (int m1=-16;m1<=16;m1++) for (int m2=-16;m2<=16;m2++) for (int m3=-16;m3<=16;m3++)
+    {
+        if (!m1 && !m2 && !m3) continue;
+        const double s=(m1+m2+m3)*0.25;
+        const rvec3_t G(bfac*(m1-s), bfac*(m2-s), bfac*(m3-s));
+        const double g2=G*G;
+        if (g2>GM*GM) continue;
+        GRec rec; rec.G=G;
+        for (int aI=0;aI<2;aI++)
+        {
+            const double f=-4.0*M_PI*srcs[aI].Z*std::exp(-0.5*g2*srcs[aI].rloc*srcs[aI].rloc)/g2/Omega;
+            const double ph=G*srcs[aI].tau;
+            rec.fc[aI]=f*std::cos(ph); rec.fs[aI]=f*std::sin(ph);     // f e^{iG.(r-tau)} -> cos/sin split
+        }
+        gs.push_back(rec);
+    }
+    const double reach=13.5, cellDiag=2.0*std::sqrt(3.0)*a;
+    std::vector<rvec3_t> images;
+    for (int i=-6;i<=6;i++) for (int j=-6;j<=6;j++) for (int k=-6;k<=6;k++)
+    {
+        const rvec3_t R=cell.ToCartesian(rvec3_t(i,j,k));
+        if (norm(R)<=reach+cellDiag) images.push_back(R);
+    }
+    const rvec3_t tauMn=srcs[0].tau;
+    rmat_t h(n,n,0.0);
+    rvec_t chi(n);
+    for (int i=0;i<N;i++) for (int j=0;j<N;j++) for (int k=0;k<N;k++)
+    {
+        const rvec3_t r=cell.ToCartesian(rvec3_t(double(i)/N, double(j)/N, double(k)/N));
+        chi=0.0;
+        for (const auto& R : images)
+            if (norm(r-R-tauMn)<=reach || norm(r-R-srcs[1].tau)<=reach)
+                chi+=(*obs)(r-R);                                     // shells sit on BOTH atoms -- screen on both centres
+        double V=0.0;
+        for (const auto& g : gs)
+        {
+            const double pr=g.G*r, c=std::cos(pr), sN=std::sin(pr);
+            V += g.fc[0]*c+g.fs[0]*sN + g.fc[1]*c+g.fs[1]*sN;
+        }
+        for (size_t p=0;p<n;p++)
+            for (size_t q=p;q<n;q++) h(p,q)+=w*chi[p]*chi[q]*V;
+    }
+    const auto& S=obs->Overlap(); const auto& T=obs->Kinetic();
+    double worst=0.0; size_t wi=0, wj=0;
+    for (size_t p=0;p<n;p++)
+        for (size_t q=p;q<n;q++)
+        {
+            const double ap=std::real(T(p,p))/std::real(S(p,p)), aq=std::real(T(q,q))/std::real(S(q,q));
+            if (ap>5.0 || aq>5.0) continue;                           // raster-resolvable pairs only
+            const double prod=std::real(Vl(p,q)), orac=h(p,q);
+            const double rel=std::fabs(prod-orac)/std::max(1e-6,std::fabs(orac));
+            if (rel>worst && std::fabs(orac)>1e-8) { worst=rel; wi=p; wj=q; }
+        }
+    std::cout << "[Vlong sharp-field oracle] n="<<n<<"  worst diffuse-pair rel="<<worst
+              << " at ("<<wi<<","<<wj<<")  prod="<<std::real(Vl(wi,wj))<<" oracle="<<h(wi,wj)
+              << "  [alpha(2l+3)] i="<<std::real(T(wi,wi))/std::real(S(wi,wi))
+              << " j="<<std::real(T(wj,wj))/std::real(S(wj,wj))<<std::endl;
+    EXPECT_LT(worst, 1e-2) << "V_long integrate-back vs oracle with the SHARP O field: disagreement";
+}
+
+// ============ The KB NONLOCAL oracle gate (doc/SphericalLatticePlan.md, 2026-08-15) ============
+// The VA exact-span matrix left the KB assembly as the PRIME SUSPECT for the ~37 mHa configuration-
+// selective qchem-vs-CP2K bias (Δ_NL(AFM−FM) = −1.31 Ha on the VA span while CP2K's total Δ is
+// +1.5 mHa; the d-selective FM-spectra bias; the I0 channel split) — but it has NEVER faced an
+// independent oracle on a crystal (the V_long lesson: the LAST "certain" defect dissolved under an
+// honest oracle).  This gate holds the ANALYTIC production path — b_i = Σ_R phase <χ_i|βY_lm at
+// τ−R> via BetaGaussian → Cartesian polynomial → the molecular lattice-sum seam — against a
+// from-scratch raster quadrature that shares NOTHING with it but the diagonalised (l, D, BetaR)
+// parameter layer (validated separately by the Mn-atom oracle):
+//     b_i^oracle = (Ω/N³) Σ_r χ_i^Bloch(r) · Σ_R β_p(|r−τ_a−R|) Y_lm(r−τ_a−R)
+// with χ the explicitly image-summed Bloch functions (the V_long oracle's machinery) and Y_lm an
+// INDEPENDENT copy of the standard orthonormal real harmonics (only Σ_m |Y⟩⟨Y| enters, so any
+// orthonormal set is equivalent).  Compared PER CHANNEL l on the m-summed matrices
+// V^l = Σ_{a,p∈l,m} D_p b b† vs production MakeSeparablePPByL — the per-channel MEDIAN ratio is
+// printed beside the worst element so a constant scale (convention drift) is distinguishable from
+// element scatter (assembly defect).  Same Mn+O cell + diffuse-d basis as the sharp-field gate;
+// MULTI-SPECIES router from day one (the 2026-08-14 lesson).  DISABLED: ~10 min hand gate.
+TEST(GPW, DISABLED_DiffuseDKBOracle)
+{
+    const double a=8.40;
+    Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    UnitCell cell(Amat);
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    cell.AddAtom( 8, {0.25,0.25,0.25});
+    auto* cbs=new BasisSet::Molecule::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Molecule::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    std::shared_ptr<const Real_BS> mol(cbs);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto gthMn=Pseudopotential::GetGTH("Mn","LDA",7);
+    const auto gthO =Pseudopotential::GetGTH("O","LDA",6);
+    Pseudopotential::MultiSpecies_SeparablePotential sep;
+    sep.Add(25, std::make_shared<const Pseudopotential::HGH_SeparablePotential>(gthMn.nonlocal));
+    sep.Add( 8, std::make_shared<const Pseudopotential::HGH_SeparablePotential>(gthO.nonlocal));
+
+    const auto VbyL = ev.MakeSeparablePPByL(&cell, sep);              // PRODUCTION (analytic path)
+
+    const Real_OIBS* obs=nullptr;
+    for (auto b : const_cast<Real_BS&>(*mol).Iterate<Real_OIBS>()) { obs=b; break; }
+    ASSERT_TRUE(obs);
+    const size_t n=obs->GetNumFunctions();
+    const double Omega=cell.GetCellVolume();
+
+    // Independent orthonormal real harmonics (standard tesseral set, l<=2 -- GTH q7/q6 use l=0..2).
+    auto Y=[](int l, int m, const rvec3_t& u)->double
+    {
+        const double pi=M_PI;
+        switch (l)
+        {
+        case 0: return 0.5/std::sqrt(pi);
+        case 1: switch (m) { case -1: return std::sqrt(0.75/pi)*u.y;
+                             case  0: return std::sqrt(0.75/pi)*u.z;
+                             default: return std::sqrt(0.75/pi)*u.x; }
+        case 2: switch (m) { case -2: return std::sqrt(15.0/(4*pi))*u.x*u.y;
+                             case -1: return std::sqrt(15.0/(4*pi))*u.y*u.z;
+                             case  0: return std::sqrt( 5.0/(16*pi))*(3*u.z*u.z-1.0);
+                             case  1: return std::sqrt(15.0/(4*pi))*u.x*u.z;
+                             default: return std::sqrt(15.0/(16*pi))*(u.x*u.x-u.y*u.y); }
+        }
+        return 0.0;
+    };
+    struct PSlot { int atomZ; rvec3_t tau; size_t p; int l, m; double D; };  // one (atom,projector,m)
+    const rvec3_t taus[2]={ cell.ToCartesian(rvec3_t(0.5,0.5,0.5)), cell.ToCartesian(rvec3_t(0.25,0.25,0.25)) };
+    const int     Zs  [2]={ 25, 8 };
+    std::vector<PSlot> slots;
+    for (int aI=0;aI<2;aI++)
+        for (size_t p=0;p<sep.NumProjectors(Zs[aI]);p++)
+        {
+            const int l=sep.AngularMomentum(Zs[aI],p);
+            ASSERT_LE(l,2) << "oracle Y table covers l<=2 only";
+            for (int m=-l;m<=l;m++) slots.push_back({Zs[aI], taus[aI], p, l, m, sep.Coefficient(Zs[aI],p)});
+        }
+    // Bloch image sets: chi reach 13.5 (the diffuse 0.18 tail, as the V_long gates); projector reach 6
+    // (beta ~ e^{-r^2/2 r_l^2}, r_l <= 0.65 -> e^{-42} at 6 au; generous).
+    const double reachChi=13.5, reachB=6.0, cellDiag=2.0*std::sqrt(3.0)*a;
+    std::vector<rvec3_t> imChi, imB;
+    for (int i=-6;i<=6;i++) for (int j=-6;j<=6;j++) for (int k=-6;k<=6;k++)
+    {
+        const rvec3_t R=cell.ToCartesian(rvec3_t(i,j,k));
+        if (norm(R)<=reachChi+cellDiag) imChi.push_back(R);
+        if (norm(R)<=reachB  +cellDiag) imB.push_back(R);
+    }
+    const int N=64;                                                   // raster: resolves chi(0.18..0.38) x beta(alpha<=~10)
+    const double w=Omega/double(N*N*N);
+    std::vector<rvec_t> bs(slots.size());                             // b vectors, one per (atom,projector,m)
+    for (auto& b : bs) { b=rvec_t(n); b=0.0; }
+    rvec_t chi(n);
+    for (int i=0;i<N;i++) for (int j=0;j<N;j++) for (int k=0;k<N;k++)
+    {
+        const rvec3_t r=cell.ToCartesian(rvec3_t(double(i)/N, double(j)/N, double(k)/N));
+        chi=0.0;                                                      // Bloch chi(r): images near EITHER centre
+        for (const auto& R : imChi)
+            if (norm(r-R-taus[0])<=reachChi || norm(r-R-taus[1])<=reachChi) chi+=(*obs)(r-R);
+        for (size_t s=0;s<slots.size();s++)
+        {
+            const PSlot& sl=slots[s];
+            double g=0.0;                                             // Bloch projector field at r
+            for (const auto& R : imB)
+            {
+                const rvec3_t d=r-R-sl.tau; const double rr=norm(d);
+                if (rr>reachB) continue;
+                if (rr<1e-12) { if (sl.l==0) g+=sep.BetaR(sl.atomZ,sl.p,0.0)*Y(0,0,rvec3_t(0,0,1)); continue; }
+                g+=sep.BetaR(sl.atomZ,sl.p,rr)*Y(sl.l,sl.m, d/rr);
+            }
+            if (g!=0.0) for (size_t q=0;q<n;q++) bs[s][q]+=w*chi[q]*g;
+        }
+    }
+    // Assemble the oracle per-channel matrices and compare.
+    const auto& S=obs->Overlap(); const auto& T=obs->Kinetic();
+    for (const auto& [l, Vprod] : VbyL)
+    {
+        rmat_t Vo(n,n,0.0);
+        for (size_t s=0;s<slots.size();s++)
+            if (slots[s].l==l)
+                for (size_t p=0;p<n;p++)
+                    for (size_t q=p;q<n;q++) Vo(p,q)+=slots[s].D*bs[s][p]*bs[s][q];
+        double vmax=0.0;
+        for (size_t p=0;p<n;p++) for (size_t q=p;q<n;q++) vmax=std::max(vmax,std::fabs(Vo(p,q)));
+        double worst=0.0; size_t wi=0,wj=0; std::vector<double> ratios;
+        for (size_t p=0;p<n;p++)
+            for (size_t q=p;q<n;q++)
+            {
+                const double ap=std::real(T(p,p))/std::real(S(p,p)), aq=std::real(T(q,q))/std::real(S(q,q));
+                if (ap>5.0 || aq>5.0) continue;                       // raster-resolvable pairs only
+                const double pr=std::real(Vprod(p,q)), orc=Vo(p,q);
+                if (std::fabs(orc)>1e-3*vmax) ratios.push_back(pr/orc);
+                const double rel=std::fabs(pr-orc)/std::max(1e-6,std::fabs(orc));
+                if (rel>worst && std::fabs(orc)>1e-3*vmax) { worst=rel; wi=p; wj=q; }
+            }
+        double med=0.0;
+        if (!ratios.empty())
+        {   std::sort(ratios.begin(), ratios.end()); med=ratios[ratios.size()/2]; }
+        std::cout << "[KB oracle] l="<<l<<"  worst diffuse rel="<<worst<<" at ("<<wi<<","<<wj<<")"
+                  << "  prod="<<std::real(Vprod(wi,wj))<<" oracle="<<Vo(wi,wj)
+                  << "  median prod/oracle="<<med<<"  (1=convention match; constant!=1=scale drift)"<<std::endl;
+        EXPECT_LT(worst, 1e-2) << "KB channel l="<<l<<": production disagrees with the from-scratch oracle";
+    }
 }

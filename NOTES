@@ -11,6 +11,9 @@ source .venv/bin/activate
 export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
 python app_desktop.py 
 
+# GDM
+The one your roadmap actually wants: GDM on the free energy A = E − TS over orbitals and occupations — ensemble-DFT direct minimization (Marzari–Vanderbilt–Payne 1997; Freysoldt–Boeck–Neugebauer 2009).
+
 # rho fitting:
 Metric ≠ span. Orthonormality means S = I, so the normal equations collapse to c = ⟨f|ρ⟩. That's about cost and conditioning — no solve. Whether ρ̃ = ρ is a completely separate question about whether ρ lies in span{G}, and orthonormality says nothing about it. "The projection IS the fit" is only a statement about (1); I let it carry (2) as well.
 

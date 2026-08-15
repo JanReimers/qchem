@@ -8,6 +8,7 @@
 module;
 #include <iosfwd>
 #include <map>
+#include <set>      // Ven_PP_NonLocal::itsByLSeen (the GPW_NL_PER_L diagnostic)
 #include <vector>   // XC_GridEngine sigmas/flipFixed (Shubnikov S3)
 #include <memory>
 #include <string>
@@ -104,6 +105,11 @@ private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
     const Pseudopotential::SeparablePotential* itsSep;   //!< KB nonlocal model (non-owning).
+    //! GPW_NL_PER_L=1 diagnostic (doc/SphericalLatticePlan.md I0): the per-angular-channel KB blocks,
+    //! l -> (BasisSetID -> block), filled lazily by MakeMatrix and contracted per l in GetEnergy so the
+    //! \f$E_{NL}^{(l)}\f$ decomposition prints beside the lumped \c EenNL.  Empty when the knob is off.
+    mutable std::map<int,std::map<std::string,chmat_t>> itsByL;
+    mutable std::set<std::string>                       itsByLSeen;   //!< irrep blocks already decomposed
 };
 
 //! LONG-range half of the local pseudopotential (static, density-independent): the softened-Coulomb /

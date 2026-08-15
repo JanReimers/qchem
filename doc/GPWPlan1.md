@@ -384,3 +384,37 @@ one pool-floor SCF per step).  Bisection-like on emin, integer nudges on N.
 orbital-coefficient heat map IN THE SOLID (GPWPlan §1, NaF pin).  `--auto` produces a good STARTING window fast;
 the last word is a bulk vetting pass once the basis is in GPW.  So build `--auto` for ergonomics, but don't let
 its atomic `gap_mHa` become the objective function (that's the oracle-matching trap we already rejected).
+
+# Stream-cache RAM/CPU trade — promote the knob + the fast-recompute campaign (USER, 2026-08-13)
+
+Born from the spherical MnO arm-2 runs (doc/SphericalLatticePlan.md): the CP2K-span basis (n=152
+Cartesian inner, diffuse-heavy) drives the stream cache to ~9 GB where the SR-trimmed runs took ~6 —
+the diffuse pairs' collocation boxes, not the function count, are the cost.  CP2K's design point is
+the OPPOSITE trade: no stored streams at all — every pair product recomputed per iteration by
+ferociously optimized compact-box grid kernels, with DBCSR block sparsity + EPS_PGF_ORB screening
+making the recompute cheap.  Both are exactly variational (adjointness is a property of the
+collocate/integrate PAIR, not of caching).  Two items:
+
+1. **Promote the budget to a first-class user knob.**  It EXISTS today as env-only
+   (`GPW_STREAM_BUDGET_PTS` / `_F32`, two tiers, overflow → on-the-fly; PG_Cart_MnD/Evaluator.C)
+   with compile-time defaults sized to ~8.6 GB peak.  Surface it through GPWParams (and the
+   facade), document the tiers (fp64 bit-identical / fp32 ~6e-8-relative / recompute), and report
+   the chosen point + coverage in the run header so a user SEES the trade their box made.
+
+2. **The fast-recompute campaign.**  The fallback path is today's SLOW analytic sweep (~9 min/
+   iteration on the magnetic MnO cell when the budget ran out, 2026-08-05) — it must become a
+   CP2K-class kernel so low-RAM boxes can run diffuse spans at speed: per-pair compact-box
+   vectorized Gaussian-product evaluation (the box enumeration already exists — it BUILDS the
+   streams today), pair/offset magnitude screening tiers reused from the stream build, OMP over
+   pairs (the GPW_OMP_THREADS seam), and — once an engine answers spherical natively (the
+   SphericalLatticePlan kernel-hoist) — pair spaces of 5 not 6 components per d shell, which cuts
+   BOTH modes ~20% on d-heavy bases.  With (2) fast enough, (1)'s default could even flip toward
+   recompute on small-RAM boxes.  **HEAD START (user, 2026-08-13): the per-pair ALGEBRA is already
+   cached** — `struct Ω : Cacheable2` (PG_Cart_MnD/GaussianRF.C), content-addressed and SHARED with
+   the spherical evaluator (same primitives ⇒ same registry indices) — so the recompute kernel
+   replays Ω and pays only the vectorized point loop over the compact box; the pair algebra is
+   never rebuilt.
+   MEASURED MOTIVATION (runs 49 first attempt): the CP2K-span MnO cell (n=152 Cartesian inner,
+   diffuse-heavy) exceeded the budgets so far that iteration 1 did not COMPLETE in 80 min on the
+   on-the-fly path — the overnight retry runs at GPW_SCREEN_EPS=GPW_DENSITY_EPS=1e-8 (the
+   sanctioned ε-truncation; sub-mHa vs the 45 mHa signal).

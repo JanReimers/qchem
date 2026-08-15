@@ -176,6 +176,37 @@ New **public Hamiltonian-library API** (the long-wanted exchange-functional sele
 - **PBE / GGA** — the highest-value functional for the battery north-star, but a real library
   increment (density-gradient machinery on the mesh), not an enum value. The unified `Model` enum is
   ready to list it with a "not wired" throw. See `doc/FacadeDFTPlan.md`.
+- **Automated BASIS-FUNCTION trimming for ill-conditioned spans (USER, 2026-08-14).**  The MnO
+  campaign's verdict: every "clever" cure that discards DIRECTIONS in coefficient space failed the
+  user's earlier trials, while removing WHOLE diffuse AO functions (manually, then via
+  `CholeskyPivoted` + `orthoTol`) is what actually works — run 58 killed the variant-B collapse by
+  dropping 6 named functions at the door.  Pivoted Cholesky already identifies WHICH functions are
+  redundant (greedy residual-pivot selection, indices reported).  The future feature for
+  inexperienced users: promote this from an ortho-time knob to a first-class VET-stage policy —
+  auto-select the kept sub-basis (auto gap tolerance already exists, `LASolverLapack.C
+  detect_null_gap`), report it as a basis decision (species/shell/exponent, not bare indices), and
+  perhaps regenerate the trimmed basis via `qchem.ValenceBasisGen` so the user sees a BASIS, not a
+  filter.  Direction-space (eigen/SVD canonical-ortho) trimming stays a numerical fallback, never
+  the user-facing policy.
+  **NOT display-only (user 2026-08-14): the trim must happen BEFORE anything downstream is built.**
+  Everything falls out of the surviving function list — grid-ladder depth (Max/MinExponent), the
+  collocation streams and their caches, KB projections, the whole per-pair machinery — so building
+  all of it for the full span and then filtering at ortho time does the dropped functions' work for
+  nothing AND leaves their pairs in every stream/cache.  Vet decides the kept sub-basis; the basis
+  the run constructs IS the kept sub-basis.  Corollary (same user note, "wrong logic — harmless for
+  now"): the rank decision is a property of S, i.e. of the BASIS, made ONCE — today each spin
+  channel's LASolver independently re-derives it (the doubled `[ortho]` console line), which is
+  only coherent because S is channel-independent; the vet-stage placement makes it structurally
+  single-decision.
+  **And it must be SYMMETRY-EQUIVARIANT (user catch, 2026-08-15): drop whole ORBITS under the
+  (magnetic) space group, never individual AOs.**  The greedy per-function pivot resolves
+  symmetry-TIED pivots by numerical noise: runs 58–60 dropped O₁'s p(0.18) but O₂'s s(0.15), and
+  DIFFERENT d(0.18) m-component pairs on the two Mn — the kept span breaks the O-site equivalence
+  and the Mn flip-mirror at the ~sub-1% level (pivot < 1e-2 ⇒ ≥99% reproducible), the same order
+  as run 59's site-moment asymmetry (0.6756/−0.6804, m_net −0.005) and plausibly feeding its
+  8%-class Shubnikov flip-defect audit reading.  Shell-level variant spans (VA/VB, the CP2K
+  pairing) restore exact site symmetry by construction — another reason the exact-span pairs are
+  the trustworthy comparison rows.
 
 ## Deferred / descoped (recorded so they're not re-litigated)
 
@@ -204,3 +235,42 @@ New **public Hamiltonian-library API** (the long-wanted exchange-functional sele
 
 Note: one library session at a time, GUI on its own branch → land each session at a clean commit and the
 whole-tree sweep (C) has nothing to collide with. Hold the line on not opening new threads.
+
+## Recommended order (USER re-prioritization, 2026-08-15 — supersedes the 2026-06-30 list above)
+
+Context: the MnO campaign's {AFM,FM}×{qchem,CP2K} matrix (doc/SphericalLatticePlan.md) exposed the
+COST gap as the binding constraint — CP2K runs the same cell in minutes/<1 GB where qchem takes
+hours/12 GB — and the accuracy comparison itself is stalled behind code-health items.  The
+symmetric VA matrix (runs 61/62 + CP2K va/vb decks) completes overnight; after that, NO further
+long MnO runs until 1–3 and 5 land.
+
+1. **Close the RUNTIME gap vs CP2K.**  The chartered path is doc/GPWPlan1.md's fast-recompute
+   campaign (stream-budget promotion + cached pair algebra, b53d36a0/01cc1164): the MnO magnetic
+   cell exceeds the stream budget, so every iteration pays analytic collocate+integrate (~10 min).
+   Also: XC-mesh Phi tables (236 s bucket), Becke ρ-sampling, OMP coverage beyond the pair loops.
+2. **Close the RAM gap vs CP2K.**  Same lever: recompute fast enough → the stream cache tier
+   shrinks → RAM falls with it (CP2K caches nothing; its kernels are just fast).
+3. **Understand why CP2K holds the FULL 136-function span and qchem cannot.**  Hypothesis (banked,
+   testable): screen discipline — CP2K's 1e-14 eps keeps the F/S inconsistency below what the
+   λ~2e-5 near-null modes can amplify (CP2K itself collapsed 3.5 Ha at loose eps — the retracted
+   SR oracle).  THE EXPERIMENT: v2 span, MNO_ORTHO_TOL=1e-3 (zero drops), GPW_SCREEN_EPS=
+   GPW_DENSITY_EPS=1e-12, GPW_MNO_NMAX=4 — dive gone ⇒ confirmed, and qchem gains full-136
+   capability priced in runtime (= item 1's business).
+4. **Code cleanup batch.**  doc/CleanupCandidates.md D1–D13 + the vet-stage symmetric basis trim
+   (this file, above) + Δρ/N convergence gate (doc/SCFStrategyPlan.md) + GDM fallback-diagonalize
+   breadcrumb (run 59's silent +302 mHa hop) + per-channel ortho duplication + the fingerprint's
+   overconfident "raise NMaxIter" advice.
+5. **Finish the symmetry upgrade (doc/SymmetryUpgradePlan.md) — the FOLDS, armed and REPORTED.**
+   Inventory 2026-08-15: the {G}-star fold (SymmetrizeGMap/EvaluateSymmetricGMap, cubic-star +
+   non-symmorphic unit gates) is wired at exactly TWO static sites (the local-PP sweeps, imposed
+   runs only) and reports nothing; the per-iteration G-space consumers (ρ̃, Poisson multiply, V_xc
+   gathers, G_ERI3 columns, seed structure factors) are UNFOLDED — 12–24× on the MnO magnetic
+   group, 48× cubic, left on the table.  The REAL-space counterpart (T3 pair-stream orbit fold,
+   71× measured on the cache) is BUILT but still opt-in (GPW_STREAM_FOLD=1; the open-shell slosh
+   retraction).  Work: default-arm T3 where safe + auto-arm at multi-k (T3.4b), extend the ball
+   fold to the per-iteration sites, and print a fold-factor line in every grid/stream report
+   (the user's standing complaint: the folding is invisible on cout).  Caveats: the FFT itself
+   does not fold trivially; the dominant per-iteration cost is real-space, so T3 is the big win.
+6. **Then** return to the MnO ground-state accuracy campaign (doc/SphericalLatticePlan.md arm-2
+   verdict + the deep-moment basin + MNO_KMESH=2 — k-convergence moves the ordering MORE than the
+   physical 6J₁+12J₂ ≈ 4 mHa scale, so it needs items 1–3 first to be affordable).

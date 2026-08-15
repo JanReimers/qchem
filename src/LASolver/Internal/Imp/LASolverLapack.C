@@ -348,14 +348,25 @@ template <class T> void LASolverCholeskyPivoted<T>::SetBasisOverlap(const hmat_t
     for (size_t k=0;k<m;++k) blazem::row(V, piv[k]) = blazem::row(V1, k);
     itsV  = std::move(V);
     itsVd = blazem::ctrans(itsV);
-    // NEVER SILENT (doc/GPWPlan §1): the drops are NAMED raw AO functions now, not an abstract null-space vector.
+    // NEVER SILENT (doc/GPWPlan §1): the drops are NAMED raw AO functions, not an abstract null-space
+    // vector.  And NEVER AMBIGUOUS (2026-08-14, the MnO run-55B lesson): zero drops used to print
+    // NOTHING, indistinguishable from the filter not being wired -- 55B ran the complete near-dependent
+    // span while its silence was read as "rank-filtered".  One line ALWAYS: the tolerance in effect,
+    // the kept rank, and the smallest KEPT residual pivot (the self-overlap left after projecting out
+    // the functions kept before it -- pivots above tol survive), so how close the basis sits to the
+    // cut is visible even when nothing is dropped.
+    double dmin = itsD[0];
+    for (double v : itsD) dmin = std::min(dmin, v);
+    std::cerr << "[ortho] CholeskyPivoted: tol=" << tol << (itsTruncationTolerance<0.0 ? " (auto)" : "")
+              << "  kept " << m << " of " << n << " AO function(s); min kept residual pivot "
+              << dmin*dmin;
     if (m < n)
     {
-        std::cerr << "[ortho] CholeskyPivoted: dropped " << (n-m) << " of " << n
-                  << " redundant AO function(s) (kept " << m << "); AO index";
+        std::cerr << "; dropped AO index";
         for (size_t k=m;k<n;++k) std::cerr << " " << (size_t)piv[k];
-        std::cerr << " -- near-linearly-dependent, ~reproducible by the kept set." << std::endl;
+        std::cerr << " -- near-linearly-dependent, ~reproducible by the kept set";
     }
+    std::cerr << std::endl;
 }
 
 template <class T> typename LASolver<T>::Ud_t

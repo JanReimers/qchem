@@ -6,8 +6,10 @@
 //! whole-basis rep-builder (\c BuildOperationRep) depends only on THIS interface, so it neither branches on
 //! angular kind nor imports the concretes.
 module;
+#include <vector>
 export module qchem.Symmetry.Molecule.ShellRep;
 export import qchem.Types;       // rmat_t, rmat3d_t (the fixed 3x3 operation matrix)
+import qchem.Math.Angular;       // Math::Monomial (the Monomials() soft capability)
 
 export namespace qchem::Symmetry::Molecule
 {
@@ -22,6 +24,12 @@ public:
     virtual ~ShellRep() {}
     virtual size_t nComponents() const = 0;
     virtual rmat_t Rep(const rmat3d_t& R) const = 0;
+    //! \brief The component list AS Cartesian monomials, for shells whose components ARE Cartesian
+    //! monomials (\c CartesianShellRep answers; any other kind answers empty = "not my language").
+    //! A SOFT capability for consumers needing the Cartesian composition -- the spherical lattice
+    //! view's \f$C_l\f$ builder (doc/SphericalLatticePlan.md I1) -- without a concrete-class cast;
+    //! \c BuildOperationRep itself never calls it, so the rep abstraction stays angular-agnostic.
+    virtual std::vector<Math::Monomial> Monomials() const {return {};}
 };
 
 } //namespace

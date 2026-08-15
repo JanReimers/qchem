@@ -43,6 +43,7 @@ import qchem.Blaze;                              // blazem::eigen, blaze::min/ma
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;   // PlaneWave_IBS (the seed's CD fit basis)
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
+import qchem.BasisSet.Molecule.PG_Spherical.LatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
@@ -97,19 +98,32 @@ std::shared_ptr<const Real_BS> MakeBasis(const Structure& st)
         BasisSet::Molecule::Factory(BasisSetData::SIPP, &st,
                                     BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 }
+// GPW_SPHERICAL=1 (doc/SphericalLatticePlan.md I1/I2): wrap the molecular basis in its spherical
+// (contaminant-free) lattice view -- the span-matched A/B against CP2K's spherical-d convention.
+// s/p-only bases are unchanged in SPAN (T = identity blocks), so Si/NaF runs double as null tests.
+std::shared_ptr<const Real_BS> MaybeSpherical(std::shared_ptr<const Real_BS> bs)
+{
+    if (std::getenv("GPW_SPHERICAL"))
+        return BasisSet::Molecule::PG_Spherical::MakeSphericalLatticeView(std::move(bs));
+    return bs;
+}
 // The SHORT-RANGE variant (most diffuse valence primitives dropped) -- well-conditioned Bloch overlap in a solid.
 std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
 {
-    return std::shared_ptr<const Real_BS>(
+    return MaybeSpherical(std::shared_ptr<const Real_BS>(
         BasisSet::Molecule::Factory(BasisSetData::SIPP_SR, &st,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian)));
 }
 // The low-q GTH valence basis (valgen-generated; carries Al/Na/F) -- the Al block drives the FCC-Al metal test.
+// GPW_BASIS_SPH=1 swaps in VALENCE_LOWQ_SPH (the Mn true-s window restored -- doc/SphericalLatticePlan.md I3);
+// meaningful ONLY together with GPW_SPHERICAL=1 (under Cartesian d that file is contaminant-rank-deficient).
 std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData which=BasisSetData::VALENCE_LOWQ_SR)
 {
-    return std::shared_ptr<const Real_BS>(
+    if (std::getenv("GPW_BASIS_SPH") && which==BasisSetData::VALENCE_LOWQ_SR)
+        which=BasisSetData::VALENCE_LOWQ_SPH;
+    return MaybeSpherical(std::shared_ptr<const Real_BS>(
         BasisSet::Molecule::Factory(which, &st,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian)));
 }
 
 struct GpwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_t iters; };
@@ -692,6 +706,12 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         prev.reset();   // the adoption copied what we needed; release the previous stage's machinery
 
         SCFParams par=o.scf; par.Verbose=verbose; par.SmearingkT=kT;
+        // Ladder-exhaustion stage-end (user 2026-08-14, run 49's wasted tail): on a NON-FINAL stage, once
+        // DIIS's hand-off fires and the next rung is vetoed (GDM under smeared occupations), further DIIS
+        // grinding buys nothing this stage's successor needs -- the density is at the tie floor, and the
+        // colder stage re-arms GDM.  The FINAL stage keeps the default grind (it has no successor, and a
+        // healthy tail can still pass the Δρ gate -- run 38 did).
+        par.StopOnAccelExhausted = (s+1<kTSchedule.size());
         if (!penaltySchedule.empty()) par.MOMSmearPenalty=penaltySchedule[s];
         std::vector<FpRow> series;
         scf->SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
@@ -3051,10 +3071,18 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
 // THIS IS NOW A GATE: the first OCCUPIED-d species validated end to end through the crystal path.
 TEST(GPW_SCF, MnAtomInBoxDChannel)
 {
+    // GPW_MN_SPHERICAL=1: the SPHERICAL arm (doc/SphericalLatticePlan.md I1) -- the facade reference then
+    // runs the NATIVE spherical family (same span as the view), so the box-vs-facade A/B stays span-matched.
+    const bool spherical=(bool)std::getenv("GPW_MN_SPHERICAL");
+    const bool sphBasis =(bool)std::getenv("GPW_BASIS_SPH");     // the restored-s file (I3); spherical arms only
     Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
-    Calculation cRef(mnmol, {.basis="valence_lowq_sr", .multiplicity=6, .pseudopotential=true, .ppValence=7});
+    Calculation cRef(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr",
+                             .multiplicity=6, .pseudopotential=true, .ppValence=7,
+                             .angular = spherical ? Angular::Spherical : Angular::Cartesian});
     const double Eref=cRef.Energy();
-    std::cout << "[Mn finite] valence_lowq_sr LSDA sextet (q7)="<<Eref<<"   (CP2K ATOM restricted -14.243986)"<<std::endl;
+    std::cout << "[Mn finite] "<<(sphBasis?"valence_lowq_sph":"valence_lowq_sr")<<" LSDA sextet (q7, "
+              <<(spherical?"SPHERICAL":"CARTESIAN")
+              <<")="<<Eref<<"   (CP2K ATOM UKS sextet oracle -14.674425)"<<std::endl;
 
     const double a=16.0;
     UnitCell cell(a);
@@ -3075,19 +3103,22 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
     // CARTESIAN d carries the s CONTAMINANT (x^2+y^2+z^2), so 8 d shells duplicate the 7-function s space
     // -- measured lambdaMin 1.15e-07 / cond 8.2e7 on this one-atom box, i.e. the basis is rank-deficient
     // BEFORE any physics runs.  SPHERICAL d (5 pure components) removes the contaminant; GPW_MN_SPHERICAL=1
-    // selects it for the A/B.
-    const bool spherical=(bool)std::getenv("GPW_MN_SPHERICAL");
+    // selects it for the A/B -- via the SPHERICAL LATTICE VIEW (doc/SphericalLatticePlan.md I1): the
+    // NATIVE Angular::Spherical family has no LatticeSum1E capability (the historical blocker -- feeding
+    // it here died on the GPW cross-cast), so the view over the Cartesian engine is the working door.
     std::shared_ptr<const Real_BS> mnbasis(
-        BasisSet::Molecule::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD,
-                                    spherical ? BasisSet::Molecule::Angular::Spherical
-                                              : BasisSet::Molecule::Angular::Cartesian));
+        BasisSet::Molecule::Factory(sphBasis?BasisSetData::VALENCE_LOWQ_SPH:BasisSetData::VALENCE_LOWQ_SR,
+                                    &cell, BasisSet::Molecule::Engine::MnD,
+                                    BasisSet::Molecule::Angular::Cartesian));
+    if (spherical) mnbasis=BasisSet::Molecule::PG_Spherical::MakeSphericalLatticeView(mnbasis);
     std::cout << "[Mn in-box] angular=" << (spherical?"SPHERICAL":"CARTESIAN") << std::endl;
     GpwResult R=RunGpw(lat, mnbasis, o, /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"));
     std::cout << "[Mn in-box] GPW="<<R.E.GetTotalEnergy()<<"  facade="<<Eref
               << "  diff="<<(R.E.GetTotalEnergy()-Eref)<<std::endl;
     EXPECT_NEAR(R.charge, 7.0, 1e-6);
     EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 3e-2) << "GPW d-channel vs the molecular facade (measured 12 mHa)";
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3);   // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
+    if (!spherical)
+        EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3);   // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
 }
 
 // A POLARIZED RUN MUST STAY POLARIZED (SymmetryUpgradePlan §7 step 7, 2026-08-07).  The regression gate for
@@ -3244,7 +3275,13 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // cond(S) ~ 7e8 on this dense oblique cell (lambdaMin ~ 2e-8 passes the vet, barely): plain Cholesky
     // EXPLODES the eigenproblem (measured: E ~ 1e9 Ha, [F,D] ~ 1e10 at iteration 1).  The NaF-class
     // recipe: pivoted Cholesky with a rank tolerance.
-    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    // MNO_ORTHO_TOL (run 51, 2026-08-13): the pivoted-Cholesky rank tolerance, sweepable.  The v2
+    // (CP2K-span) spherical cell vets lambdaMin 1.9e-5 / cond 3.8e5 -- the diffuse re-additions
+    // restore the INTER-SITE redundancy the SR trim cured -- and collapsed to E=-455 from iteration 1
+    // (near-null modes + eps-screened operators = the classic variational-collapse recipe).  A stiffer
+    // rank filter drops those modes at the door.
+    o.ortho=qchem::CholeskyPivoted;
+    o.orthoTol=std::getenv("MNO_ORTHO_TOL") ? std::atof(std::getenv("MNO_ORTHO_TOL")) : 1e-4;
     // DIIS + plain linear mixing overshoots once the ramp reaches full step (measured run 3: healthy
     // -454.8 -> -456.5 over 3 iterations, then a +21 Ha slosh at Lin 1.00) -- the NaF-class ionic
     // charge-transfer dynamic.  Adopt the NaF Becke gate's full recipe: Ladder + Kerker-damped mixing

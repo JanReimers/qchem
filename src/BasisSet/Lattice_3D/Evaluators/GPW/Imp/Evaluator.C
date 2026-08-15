@@ -23,6 +23,7 @@ import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic 
 import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
 import qchem.Reporting;       // the run report -- EmitGridsReport builds the `grids` section
+import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the grid report's {G}-star column)
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -699,15 +700,29 @@ void GPW_Evaluator::ReportGrids(std::ostream& os) const
     }
     ReportGrid(os, "FFT rho<->G (density/collocation)", *itsFFT_R_G_Grids);
     EnsureLevels();
+    // T1 {G}-STAR FOLD VISIBILITY (user 2026-08-15: "no hint anywhere of folding").  Under imposed ops
+    // each level's ball partitions into stars; report the count + reduction beside nG.  HONESTY NOTE:
+    // today the fold is CONSUMED only by the static local-PP sweeps (MakeLocalPP/MakeLocalPPLong T1
+    // reduced evaluation); the per-iteration G-space consumers run unfolded -- doc/OpenWork.md item 5.
+    std::vector<Symmetry::Lattice_3D::SymOp> sops;
+    for (const auto& op : RecipSymOps()) sops.push_back({op.U, op.tau});
     for (size_t L=0;L<itsLevels.size();L++)
     {
         std::string tag="ladder L="+std::to_string(L);
+        if (!sops.empty())
+        {
+            const size_t stars=Symmetry::Lattice_3D::FoldGVectors(itsLevels[L]->Gs(), sops).Reps();
+            tag+=" stars="+std::to_string(stars);
+        }
         if (L==0)                  tag+=" (== FFT grid; resolution reference)";
         else if (L>=itsNBaseLevels) tag+=" (top completion rung; local-PP uses base sub-ladder only)";
         ReportGrid(os, tag, *itsLevels[L]);
     }
     os<<"[GPW grid] local-PP integration: FULL ladder L=0.."<<itsLevels.size()-1
       <<" absolute REL_CUTOFF kappa="<<LocalPPRelCutoff()<<" Ha (e^{-kappa/2} pair tails)"<<std::endl;
+    if (!sops.empty())
+        os<<"[GPW grid] T1 {G}-star fold: "<<sops.size()<<" imposed ops; ACTIVE on the static local-PP"
+            " sweeps (form factor at star reps); per-iteration G fields UNFOLDED (OpenWork item 5)"<<std::endl;
     os.flush();
 }
 
@@ -723,6 +738,10 @@ void GPW_Evaluator::EmitGridsReport() const
     if (itsFFT_R_G_Grids)                                          // null == DFT tier off (no grids)
     {
         EnsureLevels();
+        // The {G}-star column (see ReportGrids): star counts per level under the imposed ops, so the
+        // fold is VISIBLE in the grids table (nG vs Gstars = the T1 reduction).  Empty ops = no column.
+        std::vector<Symmetry::Lattice_3D::SymOp> sops;
+        for (const auto& op : RecipSymOps()) sops.push_back({op.U, op.tau});
         rpt::json ladder = rpt::json::array();
         for (size_t L = 0; L < itsLevels.size(); ++L)
         {
@@ -736,10 +755,15 @@ void GPW_Evaluator::EmitGridsReport() const
             row["N"]     = { N.x, N.y, N.z };
             row["ecut"]  = lv.Ecut();
             row["nG"]    = (long)lv.size();
+            if (!sops.empty())
+                row["Gstars"] = (long)Symmetry::Lattice_3D::FoldGVectors(lv.Gs(), sops).Reps();
             row["role"]  = role;
             ladder.push_back(row);
         }
         g["ladder"]  = ladder;
+        if (!sops.empty())
+            g["GstarFold"] = { { "ops", (long)sops.size() },
+                               { "activeOn", "static local-PP sweeps (T1); per-iteration G fields unfolded" } };
         g["localPP"] = { { "kappa", LocalPPRelCutoff() } };
     }
     rpt::EmitSection("grids", g);
@@ -1058,7 +1082,39 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const Pseudopotenti
 // is Hermitian by construction.
 chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
 {
+    // The lumped matrix == the exact sum of the per-channel decomposition (ONE assembly, two faces).
+    chmat_t H=blazem::zeroH<dcmplx>(itsN);
+    for (const auto& lH : MakeSeparablePPByL(cl,sep)) H+=lH.second;
+    return H;
+}
+
+std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
+{
     qchem::report::Timed timed("setup: separable PP (KB)");
+    const size_t n=itsN;
+    std::map<int,mat_t<dcmplx>> Vl;                  // one raw accumulator per projector channel l
+    auto Vof=[&Vl,n](int l)->mat_t<dcmplx>&
+    {
+        auto it=Vl.find(l);
+        if (it==Vl.end()) it=Vl.emplace(l,mat_t<dcmplx>(n,n,dcmplx(0.0))).first;
+        return it->second;
+    };
+    auto pack=[n](std::map<int,mat_t<dcmplx>>& vl)   // project each channel to Hermitian (upper; real diag)
+    {
+        std::map<int,chmat_t> out;
+        for (auto& lV : vl)
+        {
+            const mat_t<dcmplx>& V=lV.second;
+            chmat_t H=blazem::zeroH<dcmplx>(n);
+            for (size_t i=0;i<n;i++)
+            {
+                H(i,i)=dcmplx(std::real(V(i,i)),0.0);
+                for (size_t j=i+1;j<n;j++) H(i,j)=V(i,j);
+            }
+            out.emplace(lV.first,std::move(H));
+        }
+        return out;
+    };
     // ANALYTIC path (2026-07-15): a GTH/HGH projector is polynomial x Gaussian, so when the model exposes its
     // closed Gaussian form (SeparablePotential_Gaussian) the Bloch projection is an ANALYTIC lattice-summed
     // overlap -- b_i = Sum_R e^{-ik.R} <chi_i | beta Y_lm at tau_a - R> maps onto the molecular seam's
@@ -1071,14 +1127,12 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
     // closed-Gaussian face keep the mesh quadrature below.
     if (const auto* gsep=dynamic_cast<const Pseudopotential::SeparablePotential_Gaussian*>(&sep))
     {
-        const size_t n=itsN;
         // b_i = <chi_i^k | beta at tau> = Sum_n phase(n) <chi_i | g(.-tau-R_n)> -- the seam enumerates the
         // series internally per (chi_i, g).  (The historical (-Rs, conj-phase) form was an artifact of the
         // pre-built inversion-symmetric list: substituting m=-n gives conj(phase(-m))=phase(m), i.e. the
         // PLAIN phase oracle with g imaged at +R_m.  Gate: AnalyticSeparablePPMatchesMesh == mesh.)
         // Home-only mode: the single finite term <chi_i|g> (the raw home orbital -- the box configuration).
         auto phase=CellPhase();
-        mat_t<dcmplx> V(n,n,dcmplx(0.0));
         for (size_t a=0; a<cl->GetNumAtoms(); a++)
         {
             const Atom* at=(*cl)[a];
@@ -1102,24 +1156,19 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
                         cvec_t bt = itsHomeOnly ? itsLat->MakeOverlap(g) : itsLat->MakeOverlap(phase, itsCell, g);
                         for (size_t i=0;i<n;i++) b[i]+=bt[i];
                     }
+                    mat_t<dcmplx>& V=Vof(l);
                     for (size_t i=0;i<n;i++)
                         for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*std::conj(b[j]);
                 }
             }
         }
-        chmat_t H=blazem::zeroH<dcmplx>(n);
-        for (size_t i=0;i<n;i++)
-        {
-            H(i,i)=dcmplx(std::real(V(i,i)),0.0);
-            for (size_t j=i+1;j<n;j++) H(i,j)=V(i,j);
-        }
-        return H;
+        return pack(Vl);
     }
 
     qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams());
     const rvec3vec_t& R=mesh.Points();
     const rvec_t&     W=mesh.Weights();
-    size_t n=itsN, npts=mesh.size();
+    size_t npts=mesh.size();
 
     // The KB projector beta_p is COMPACTLY supported (localized at each atom), so at a large image reach most
     // images place the projector centre far outside the cell (contributing exp(-large)~0), and even a near
@@ -1135,7 +1184,6 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
     std::vector<char> havePhi(npts,0);
     auto PhiAt=[&](size_t k){ if (!havePhi[k]) { cvec_t v=Eval(R[k]); for (size_t i=0;i<n;i++) Phi(k,i)=v[i]; havePhi[k]=1; } };
 
-    mat_t<dcmplx> V(n,n,dcmplx(0.0));
     for (size_t a=0; a<cl->GetNumAtoms(); a++)
     {
         const Atom* at=(*cl)[a];
@@ -1168,18 +1216,13 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
                         for (size_t i=0;i<n;i++) b[i]+=ph*std::conj(Phi(k,i))*bw;
                     }
                 }
+                mat_t<dcmplx>& V=Vof(l);
                 for (size_t i=0;i<n;i++)
                     for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*std::conj(b[j]);
             }
         }
     }
-    chmat_t H=blazem::zeroH<dcmplx>(n);            // project to Hermitian (upper triangle; diagonal real)
-    for (size_t i=0;i<n;i++)
-    {
-        H(i,i)=dcmplx(std::real(V(i,i)),0.0);
-        for (size_t j=i+1;j<n;j++) H(i,j)=V(i,j);
-    }
-    return H;
+    return pack(Vl);
 }
 
 // Cache key: the molecular basis's geometry-aware ID pins the radials + centres (atom positions); the CELL

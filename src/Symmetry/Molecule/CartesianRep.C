@@ -29,6 +29,7 @@ public:
     explicit CartesianShellRep(std::vector<IVec3> exps) : itsExps(std::move(exps)) {}
     virtual size_t nComponents() const {return itsExps.size();}
     virtual rmat_t Rep(const rmat3d_t& R) const;
+    virtual std::vector<IVec3> Monomials() const override {return itsExps;}   // the ShellRep soft capability
 private:
     std::vector<IVec3> itsExps;
 };
