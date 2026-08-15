@@ -14,6 +14,10 @@ public:
     ERI4(size_t Nab, size_t Ncd) : Base(Nab,Ncd) {};
     //! Contract this block against a cd-density: Sab += sum_cd J(a,b) ⊙ Dcd (each inner block summed to a
     //! scalar -- the fast, localized direction).  Use ScatterBoth() to also feed the bra-ket partner.
+    //! \f$S_{ab} \mathrel{+}= \sum_{cd} g_{abcd} D_{cd}\f$.  PREFER THIS ORIENTATION: contracting over the
+    //! cd index is several times faster than contracting over ab (measured ~2.5-4x), because ab is the outer
+    //! BLOCK index while cd is contiguous within a block.  The canonical-pair machinery is arranged so this
+    //! is the orientation actually used -- see ScatterBoth.
     void MatMul(rsmat_t& Sab, const rsmat_t& Dcd) const;
     //! Fused bra-ket scatter of this canonical (i,j) block into BOTH Fock sub-blocks in ONE pass over J:
     //!   Si += J·Dj    (inner block ⊙ Dj -> scalar; localized)

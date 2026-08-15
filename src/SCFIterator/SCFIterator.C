@@ -4,6 +4,8 @@ module;
 #include <functional>
 #include <string>
 #include <iosfwd>
+#include <vector>
+#include <optional>
 export module qchem.SCFIterator;
 import qchem.SCFIterator.Types;
 export import qchem.SCFAccelerator;
@@ -74,6 +76,27 @@ struct IterationTrace
     // density.  nullptr name == no probe set == no column.
     const char* orderName=nullptr;   //!< the probe's short column label, e.g. "m_stag"
     double      order=0;             //!< its value this iteration
+};
+
+//! \brief ONE column of the SCF trace, carrying ALL THREE of its cells together.
+//!
+//! A trace column appears in three places -- the header label, the \c (tolerance) cell beneath it, and the
+//! per-iteration value -- and they must agree.  They used to be written by three separate pieces of code,
+//! so dropping a column meant remembering to drop its threshold too, and the lines silently stopped lining
+//! up when you forgot.  Holding the three in one object makes that structural rather than a matter of care.
+//!
+//! A layout is therefore a LIST: \c AccumulateColumns builds it, and a subclass chooses the ORDER by when
+//! it delegates to its base (V1.27, user design 2026-08-12).
+struct ColumnData
+{
+    std::string title;                    //!< header label, e.g. "Δ[F,D]", "2+V/K", "ρ_lost/N"
+    int         width = 10;               //!< DISPLAY width; padding is UTF-8 aware (Δ, ρ count as one column)
+    //! The convergence threshold shown as "(1e-07)" under the label.  ABSENT (not a sentinel) for the
+    //! columns that gate nothing -- ρ_lost/N is a health diagnostic, the gap and order parameter are probes.
+    std::optional<double> tolerance;
+    //! The per-iteration cell.  A callable rather than a field so the value comes from the SAME list as the
+    //! label: a parallel "write the row" path is exactly what let the two drift apart before.
+    std::function<void(std::ostream&, const IterationTrace&)> value;
 };
 
 // Templated on the matrix element type T (rX/cX); SCFIterator is the <double> alias (atoms/
@@ -151,8 +174,19 @@ protected:
     //! the optional ReportBandGap() gap block); \c SolidSCFIterator overrides both for the solid/PP layout
     //! ({#, Etotal, [F,D], ΔE, Δρ, ρ_mix, accel, cfg, gap} -- no virial, gap always on).  \c Iterate calls
     //! these; the subclass never touches iterator internals (it reads only the \c IterationTrace / SCFParams).
+    //! Build this layout's VARIABLE columns, in display order.  The base contributes the convergence gate
+    //! (Δ[F,D]), Δρ, and -- iff the Hamiltonian says the virial theorem is meaningful (V1.27
+    //! IsVirialValid) -- the virial.  A subclass calls the base and then swaps/inserts: \c Solid_ replaces
+    //! the gate with ΔE/E and adds the collocation ρ_lost/N.  The INVARIANT frame around them (#, Etotal,
+    //! [F,D], ρ_mix/accel/svMin/cfg, gap, order) is still written by the fixed writers below -- those cells
+    //! carry their own alignment and flag glyphs, so they are not list-shaped yet.
+    virtual void AccumulateColumns(std::vector<ColumnData>&, const SCFParams&, size_t idealVirial) const;
     virtual void DisplayColumnHeaders(std::ostream&, const SCFParams&, size_t idealVirial) const;
-    virtual void DisplayColumns      (std::ostream&, const IterationTrace&) const;
+    virtual void DisplayColumns      (std::ostream&, const SCFParams&, const IterationTrace&) const;
+    //! Is the frontier gap a PERMANENT column, or an optional diagnostic behind ReportBandGap()?
+    //! PERIODIC-driven, not PP-driven: near-gapless flapping is a solid pathology.  (It travels with the
+    //! grid columns today only because every gridded run here is also periodic -- see AccumulateColumns.)
+    virtual bool GapIsPermanent() const {return false;}
     // Shared column writers the molecular/solid layouts compose (kept here so both subclasses reuse them;
     // the header-cell writers are file-local free functions in the .C, since they need no iterator state):
     void WriteRowPrefix   (std::ostream&, const IterationTrace&) const; //!< row:    #, Etotal, [F,D]
@@ -162,6 +196,10 @@ protected:
     //! Header cell for the order-parameter column -- the label the caller gave SetOrderParameter (nothing
     //! when no probe is set), so both layouts announce the extra column the same way.
     void WriteHeadOrder   (std::ostream&) const;
+    //! The Hamiltonian this run assembles, for the DISPLAY only: a layout has to ask it whether the virial
+    //! theorem is meaningful (V1.27 IsVirialValid), and a subclass layout lives outside the base's privates.
+    //! Const reference, not the pointer -- a layout may ASK the Hamiltonian, never re-seat it.
+    const ham_t& Hamiltonian_() const {return *itsHamiltonian;}
 
     // --- PER-SYSTEM density mixing (doc/CleanupCandidates.md V1.10b) ------------------------------------
     //! \brief Build this run's density mixer.  Called once at the top of \c Iterate, after the seed density
@@ -250,8 +288,9 @@ class SolidSCFIterator : public tSCFIterator<dcmplx>
 public:
     using tSCFIterator<dcmplx>::tSCFIterator;
 protected:
-    void DisplayColumnHeaders(std::ostream&, const SCFParams&, size_t idealVirial) const override;
-    void DisplayColumns      (std::ostream&, const IterationTrace&) const override;
+    //! The solid column list: the base's, with the gate swapped to ΔE/E and ρ_lost/N inserted.
+    void AccumulateColumns(std::vector<ColumnData>&, const SCFParams&, size_t idealVirial) const override;
+    bool GapIsPermanent() const override {return true;}   //!< near-gapless flapping is a solid pathology
     //! The periodic Kerker/Pulay G-space mixer when SCFParams asks for it (KerkerG0>0 or PulayDepth>0),
     //! else the base linear D-mixer.  A solid run HAS the periodic basis/cell/density by construction, so
     //! MakePeriodicMixer treats them as preconditions -- no capability probe, no silent fallback.
