@@ -29,4 +29,21 @@ inline int WorkerThreads()
     return n;
 }
 
+//! \brief Pin the BLAS to ONE thread.  Call ONCE at the top of \c main() -- every test main and every
+//! CLI driver does.
+//!
+//! The parallelism strategy is ONE level, ours: the flat OpenMP regions above (pair loops, XC-mesh
+//! tables and GEMMs).  A BLAS that also threads sits UNDERNEATH those and does two damaging things:
+//! it oversubscribes the box (our N workers x its M each), and -- the reason this is a correctness
+//! knob, not a tuning one -- OpenBLAS auto-sizes its pool FROM MACHINE LOAD, so the reduction order
+//! inside a GEMM becomes load-dependent and results drift in the last ULP between runs of the same
+//! binary.  That was measured: an SCF total energy moved by >2e-5 and the machine-eps anchors
+//! flapped.  Pinned, BLAS is deterministic and the threading we DO want stays where we can reason
+//! about it.
+//!
+//! Deliberately a hard call into OpenBLAS rather than the \c OPENBLAS_NUM_THREADS env var (visible in
+//! the source, not in someone's shell) and rather than a weak symbol (a BLAS swap must fail LOUDLY at
+//! link time, not silently unpin the run).
+void PinBlasToOneThread();
+
 } // namespace qchem

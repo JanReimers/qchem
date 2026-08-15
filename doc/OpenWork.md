@@ -255,10 +255,20 @@ long MnO runs until 1–3 and 5 land.
    a triangular H_xc quadrature, the shell-radial hoist in the pointwise basis sweep, a threaded
    batched `SeedCD`, plus the measurement apparatus itself (`GPW_REPORT=1` + per-iteration timing
    buckets) — that is what turned "the runtime gap" into a ranked list.
+   **Round 2 (same day):** the `openblas_set_num_threads(1)` pin — lost in the machine migration —
+   restored as `qchem::PinBlasToOneThread()` (one home, four mains, loud link failure if the BLAS is
+   swapped), and `QCHEM_BLAZE_BLAS` (default ON) routing Blaze's dense products to OpenBLAS: 2.55 →
+   41.7 GFlop/s on the XC-mesh shape.  **Durable finding: Blaze dispatches to BLAS only when the
+   DESTINATION is a plain matrix** — a `submatrix` destination (or a Hermitian ADAPTOR operand)
+   silently falls back at 1.87 GFlop/s, so round 1's hand-blocked triangular quadrature was losing
+   13× to save 2×; under BLAS mode it is one whole-matrix product with no OpenMP at all.  ρ sampling
+   4.17 → 0.18 s, per-iteration ≈ 8.7 → ≈ 7.6 s, `ctest -j8` 716/716 (sweep 615 → 540 s).
    **Still open here:** the fast-recompute kernel for the OVER-BUDGET case (the CP2K-span cell that
    never finished an iteration — GPWPlan1 item 2, unchanged), Φ-table SCREENING (the O(N)-XC
    increment: batch the mesh, keep a per-batch significant-function list — the win grows with cell
-   size), and a real-Γ fast path (Γ runs carry complex Φ/D with zero imaginary part = 4× the flops).
+   size), and the real-Γ/TRIM path — worth noting it is NOT Γ-only: every k with 2k ≡ 0 (mod G) has
+   real Φ, D, S and H, so a Γ-centred 2×2×2 mesh (= `MNO_KMESH=2`, item 6's k-convergence run) is
+   entirely real.  4× the flops and 2× the Φ memory are being spent on exact zeros there.
 2. **Close the RAM gap vs CP2K.**  Same lever: recompute fast enough → the stream cache tier
    shrinks → RAM falls with it (CP2K caches nothing; its kernels are just fast).
 3. **Understand why CP2K holds the FULL 136-function span and qchem cannot.**  Hypothesis (banked,

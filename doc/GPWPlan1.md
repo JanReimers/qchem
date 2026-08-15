@@ -477,3 +477,42 @@ halving), and the pair scatter/gather (~3.5 s/iteration).  Two structural levers
   with cell size (MnO's 4 atoms understate it).  THE next increment on this path.
 - **A real-Γ fast path.**  Γ-only runs (all the MnO/NaF/Si production) carry Φ and D as complex with
   exactly zero imaginary part: 4× the flops for nothing.
+
+## Round 2 (same day): the BLAS pin, and Blaze's dispatch rule
+
+**The pin came back.**  `openblas_set_num_threads(1)` had been lost in the 2026-08 machine migration
+(the `#include <cblas.h>` in the test mains outlived the call).  It now lives ONCE, as
+`qchem::PinBlasToOneThread()` next to `WorkerThreads()` in `qchem.Parallel`, called from all four
+`main()`s (ITMain, the two shared UT mains, scfrun).  `qcCommon` links `openblas` by NAME on purpose:
+a BLAS swap must fail LOUDLY at link, which is exactly what did not happen last time.  The reason it
+is a correctness knob and not a tuning one: OpenBLAS auto-sizes its pool from machine LOAD, so the
+reduction order inside a GEMM becomes load-dependent and the last ULP moves between runs of the same
+binary — on top of oversubscribing our own OpenMP regions.
+
+**`QCHEM_BLAZE_BLAS` (default ON, 2026-08-15).**  Blaze's own kernels build at the SSE2 baseline here
+(`BUILD_MARCH_NATIVE=OFF`).  Measured on the XC-mesh shape (48033×122 complex, one thread):
+
+| | GFlop/s |
+|---|---|
+| blaze native | 2.55 |
+| OpenBLAS `zgemm` | **41.7** |
+
+**★ THE DISPATCH RULE (the finding worth keeping): Blaze hands a product to BLAS only when the
+DESTINATION is a plain matrix.**  Assign into a `submatrix` view and it silently falls back to its own
+kernel — 1.87 vs 34.1 GFlop/s on the same operands.  So the hand-blocked, hand-threaded, triangular
+form that round 1 added to `XC_GridEngine::Matrix` (halving flops, spreading over 8 threads) was
+LOSING 13× to save 2× the moment BLAS mode came on.  Under BLAS mode the quadrature is now ONE
+whole-matrix product, no blocking, no OpenMP — and it beats the 8-thread hand-rolled version.  The
+same rule bit the ρ sampling from the other side: a `HermitianMatrix` ADAPTOR operand is not
+BLAS-dispatchable either, so `DM_RhoAtPoints` copies D into a plain matrix (an n×n copy against an
+npts·n² GEMM) before multiplying.  Both shapes are kept: `#ifdef BLAZE_BLAS_MODE` picks the
+whole-matrix product, else the blocked threaded triangular one.
+
+**Measured (MnO Γ, n=122, 48k mesh, 8 threads):** rho sampling 4.17 → **0.18 s**; H_xc quadrature
+11.8 s/4 iters → 4.1 s/2 iters (2.95 → 2.07 s per iteration).  Per-iteration total ≈ 8.7 → ≈ 7.6 s.
+`ctest -j8` 716/716 green, and the sweep itself dropped 615 → 540 s.
+
+After this the per-iteration ledger is: pair scatter+gather ≈ 3.8 s, H_xc ≈ 2.1 s, matrix-free ρ̃
+sampling ≈ 1.35 s, rho GEMM ≈ 0.09 s.  Setup is dominated by the stream build (~28 s) and the Becke
+mesh build (~16 s).  The next levers are unchanged: Φ-table screening, the real-Γ/TRIM path (Γ AND
+every k with 2k ≡ 0 — so a Γ-centred 2×2×2 mesh is entirely real), and the fast-recompute kernel.

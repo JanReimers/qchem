@@ -206,10 +206,14 @@ template <class T> rvec_t IrrepCD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const 
     // at 48k points x 122 functions).  Threaded by MESH-POINT BLOCK: rho_g depends on row g alone, so
     // each block is an independent GEMM + dot and the result is bit-identical at any thread count (a
     // partition of the OUTPUT, not of a reduction).  Opt-in via GPW_OMP_THREADS (qchem.Parallel).
+    // D as a PLAIN matrix: an adaptor operand (HermitianMatrix) is not BLAS-dispatchable, so under
+    // BLAZE_BLAS_MODE the product would silently fall back to blaze's own kernel -- 16x slower than
+    // zgemm on this shape (measured).  One n x n copy per call is nothing beside the npts x n x n GEMM.
+    const mat_t<T> D(itsDensityMatrix);
     auto block=[&](size_t g0, size_t g1)
     {
         auto Pb = blazem::submatrix(P, g0, size_t(0), g1-g0, P.columns());
-        mat_t<T> PD = Pb*itsDensityMatrix;
+        mat_t<T> PD = Pb*D;
         for (size_t g=g0; g<g1; g++)
         {
             T acc{};
@@ -240,7 +244,7 @@ template <class T> rvec_t IrrepCD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const 
 #endif
     // Serial: multiply the WHOLE table, not a full-height view -- a submatrix operand costs blaze its
     // aligned/padded kernel choice, and this is the default (unthreaded) path every suite run takes.
-    mat_t<T> PD = P*itsDensityMatrix;
+    mat_t<T> PD = P*D;
     for (size_t g=0; g<r.size(); g++)
     {
         T acc{};

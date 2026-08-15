@@ -45,6 +45,32 @@ if(OpenMP_CXX_FOUND)
     add_compile_definitions(BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0)
 endif()
 
+# Blaze -> BLAS for the dense products (OFF by default; -DQCHEM_BLAZE_BLAS=ON to try it).
+#
+# Blaze's own kernels are SIMD but build at the SSE2 baseline here (BUILD_MARCH_NATIVE is OFF), and the
+# GPW hot path is now dominated by big dense products -- the XC-mesh Phi GEMMs, O(npts n^2) per SCF
+# iteration (doc/GPWPlan1.md "THE RUNTIME GAP, MEASURED").  With OpenBLAS installed AND pinned to one
+# thread (qchem::PinBlasToOneThread), routing those into zgemm/dgemm composes correctly with our own
+# threading: OUR OpenMP region provides the parallelism, BLAS provides a fast serial kernel per block --
+# one level of parallelism, deterministic reductions.
+#
+# It is a global define, not the Blaze cmake target's INTERFACE one: our TUs reach Blaze through
+# `import qchem.Blaze` and never LINK the Blaze target, so the interface define does not reach them.
+# BLAZE_BLAS_IS_PARALLEL stays 0 (its default) -- that is the pin, restated where Blaze can see it.
+#
+# DEFAULT ON since 2026-08-15: measured 34.1 vs 2.55 GFlop/s on the XC-mesh product, and `ctest -j8`
+# is 716/716 green with it (540 s vs 615 s).  A BLAS kernel sums in a different order than Blaze's, so
+# last-ULP values move -- that is the only cost, and the sweep says the anchors absorb it.  Turn it off
+# with -DQCHEM_BLAZE_BLAS=OFF on a box without OpenBLAS or to reproduce pre-2026-08-15 digits exactly.
+# NB the code CHOOSES ITS SHAPE from this: with BLAS mode on, PWTerms' quadrature does ONE whole-matrix
+# product (Blaze only dispatches when the DESTINATION is a plain matrix -- see the note there); with it
+# off, the hand-blocked threaded triangular form.  So flipping this is not purely a numerics switch.
+option(QCHEM_BLAZE_BLAS "Route Blaze's dense products through the system BLAS (needs OpenBLAS)" ON)
+if(QCHEM_BLAZE_BLAS)
+    add_compile_definitions(BLAZE_BLAS_MODE=1 BLAZE_BLAS_IS_PARALLEL=0)
+    link_libraries(openblas)      # every target declared after this point resolves cblas_* itself
+endif()
+
 set(BasisDataPath "BASISSET_DATA_PATH=\"${PROJECT_SOURCE_DIR}/BasisSetData\"" CACHE INTERNAL "BasisSet data path compile definition")
 set(CommonDataPath "COMMON_DATA_PATH=\"${PROJECT_SOURCE_DIR}/src/Common/Data\"" CACHE INTERNAL "Common data path compile definition")
 set(LatticeDataPath "LATTICE_DATA_PATH=\"${PROJECT_SOURCE_DIR}/src/BasisSet/Lattice_3D/Data\"" CACHE INTERNAL "Lattice_3D (GTH pseudopotential) data path compile definition")

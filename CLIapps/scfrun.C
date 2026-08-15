@@ -12,7 +12,6 @@
 #include <map>
 #include <memory>
 #include <algorithm>
-#include <cblas.h>
 #include <nlohmann/json.hpp>
 
 import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, Pol
@@ -30,6 +29,7 @@ import qchem.Math;                        // Pi
 import qchem.Types;                       // rvec3_t
 import qchem.ScalarFunction;              // ScalarFunction<double> (density / orbital evaluation)
 import qchem.Mesh.Quadrature;             // qcMesh::RadialMesh, MakeRadial, Integrate (radial quadrature)
+import qchem.Parallel;                    // PinBlasToOneThread (the full rationale lives on the declaration)
 using namespace qchem;
 
 using std::cout;
@@ -142,6 +142,7 @@ static Molecule MakeMolecule(const string& name)
 
 int main(int argc, char** argv)
 {
+    qchem::PinBlasToOneThread();   // ONE level of parallelism (ours) + deterministic BLAS reductions
     // ---- defaults ----
     int    Z=2, q=0, maxiter=50;
     string model="HF", pol="U", basis="", acc="Low", accel="DIIS";
