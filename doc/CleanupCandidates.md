@@ -14,9 +14,9 @@ worth more than the landed ones.
 
 ---
 
-# START HERE (handoff, 2026-08-16)
+# START HERE (handoff, 2026-08-16, updated after the V1.1 landing)
 
-## The state that matters: FIVE of the SIX RealComplexPlan prerequisites are done
+## The state that matters: the RealComplexPlan prerequisites are down to TWO
 
 `doc/RealComplexPlan.md` §7 lists what must land before the real/complex type refactor starts, because
 those items sit on the very faces it restructures.  Status:
@@ -27,32 +27,40 @@ those items sit on the very faces it restructures.  Status:
 | **V1.7** the periodic trio's 9 asserting overrides | ✅ `2d0f6982` |
 | **V1.8** `IrrepCD`↔`IrrepCD` concrete casts | ✅ `2d0f6982` (evaporated with V1.6) |
 | **V1.10** abstract→concrete basis casts | ✅ `2d0f6982` |
-| **V1.1** basis-face merge | ⚠️ (i) ✅ `57ca229e`, (ii) HALF, (iii) reclassified — see below |
+| **V1.1** basis-face merge | ✅ `d49db261`+`4b37221d`+`2bfb83b4` (2026-08-16) |
 | **V1.5** `G_FieldEvaluator` ISP split | ⛔ not started (pinned to FittingCleanupPlan §K) |
 | **V1.11** occupation seam | ⛔ not started (pinned to SCFStrategyPlan) |
 
-**What the four landed ones bought:** `tDM_CD<T>` has shed four exact-exchange methods and nine
+**What V1.1's landing bought (2026-08-16):** ONE structure-neutral DFT basis face.  The 3-centre tensor
+is `Projector3<T>` (one struct; dense / delta-support / matrix-free are REALIZATIONS, a property of the
+producing basis, not of the scalar type); `Band_FT_IBS` is deleted and the lattice lineage is
+`Orbital_DFT_IBS<dcmplx,dcmplx>`; **`Orbital_DFT_IBS<double,dcmplx>` — a real TRIM k-block sharing the
+run's complex G-space fit basis — is now a spelling the MnO real-TRIM work can instantiate**, which is
+what that session is waiting on.  The cached accessors key `theCache<TFit>()` (the tensor's own type
+axis), so the TRIM case caches correctly from day one.
+
+**What the four 2d0f6982 items bought:** `tDM_CD<T>` has shed four exact-exchange methods and nine
 periodic denials.  The complex path now carries NO exact-exchange machinery and the real path none of the
 reciprocal-space kind -- so the plan's "widening points" are two small faces (`tHF_System_CD`,
 `tHF_Pair_CD`) instead of denials scattered across three density families.  A live `-DNDEBUG` hazard died
 with them: `Vee`/`Vxc` used to hit an assert-only `void` body -- a silent NO-OP in the shipped build,
 i.e. a zeroed J and a wrong Fock -- and now throw.
 
-## Next task: **V1.1's remaining question**, and it is now a SINGLE one
+## Next: **V1.5 and V1.11**, both design sessions, not execution
 
-**Can `Band_FT_IBS` become `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Everything still open in V1.1 hangs off
-that one answer, which is why it belongs with the type plan rather than here:
-- **(ii)'s open half** is `ERI3` vs `G_ERI3`.  Reconciling them is exactly what decides the question.
-- **(iii) is NOT "extras"** -- reclassified 2026-08-16 after reading it.  Its two parts are CONSEQUENCES
-  of the merge, not preparation: the `using Integrals_Overlap<dcmplx>::MakeOverlap` decl is LOAD-BEARING
-  (it un-hides the no-arg form against the Fourier `MakeOverlap(f(G))`, so it only becomes noise once that
-  member moves -- and that member is the last thing separating the two classes); and hoisting
-  `CreateXCQuadrature` to the neutral DFT face pays nothing alone, because `Band_FT_IBS` derives from
-  `Orbital_1E_IBS<dcmplx>`, NOT from `Orbital_DFT_IBS`, and no molecular IBS declares it either (they get
-  the identical neutral default from `tBasisSet<double>`).
+- **V1.5** (`G_FieldEvaluator` 3-face ISP split) wants FittingCleanupPlan §K engaged first: §K diverges
+  the Vxc/CD fit grids from the orbital grid, and the split must be cut so it survives that.  §K itself
+  depends on §H + §I.2, which have not landed — so the DESIGN discussion can start now, the execution
+  order needs care.
+- **V1.11** (occupation seam) is SCFStrategyPlan increment 4 (§5 pins the shape: occupation is a
+  first-class seam, aufbau/MOM/smearing siblings).  The `Fill(const OccupationPolicy&)` face and the
+  two-phase WF construction still need design there.
 
-**V1.11** is the other genuinely open prerequisite and wants SCFStrategyPlan's occupation-seam decision
-first.  **V1.5** wants FittingCleanupPlan §K.  Both are design sessions, not execution.
+## Coordination — CHANGED 2026-08-16 (user)
+
+**The DO-NOT-TOUCH on the MnO working set is LIFTED** — the MnO session is now WAITING on this branch's
+V1.1 work to implement real TRIM irreps at the special k-points ((0,0,0), (½,½,½), …).  User verbatim:
+*"DO NOT TOUCH is now please -TOUCH."*  Worth pushing early for that reason.
 
 ## Also open, unruled, and independent of the type work
 
@@ -183,9 +191,11 @@ diagnostic and a cache-key claim that `SymFockCache`'s own comment makes.
 
 ## Coordination — the MnO campaign runs in the qchem6 clone, in parallel
 
-**DO NOT TOUCH** (their working set): `src/SCFAccelerator`, `src/SCFIterator`, `src/WaveFunction`,
+**SUPERSEDED 2026-08-16 (see the START HERE section): the DO-NOT-TOUCH is LIFTED — the MnO session is
+waiting on this branch's V1.1 work for real TRIM irreps.**  *(The old rule, for the record:)*
+~~**DO NOT TOUCH** (their working set): `src/SCFAccelerator`, `src/SCFIterator`, `src/WaveFunction`,
 `IntegrationTests/GPW_SCF_UT.C`, `src/BasisSet/Lattice_3D/`.  If a task needs one of them, STOP and ask
-rather than reaching in — a mid-flight collision there costs them a multi-hour run.
+rather than reaching in — a mid-flight collision there costs them a multi-hour run.~~
 Theirs by assignment: **V1.30** (urgent — makes imposition opt-in), **V1.24(i)+(iii)**, **V1.28/V1.29**
 (Shubnikov + the SSB workflow).
 
@@ -894,63 +904,13 @@ MnO campaign proceeds undisturbed in qchem6.
 
 ### V1 — interface-design questions
 
-- **V1.1 ⚠️ (i) ✅ DONE `57ca229e`; (ii) HALF done; (iii) RECLASSIFIED — one question left.**
-  - **(i) DONE, and "trivial" was wrong in the way that mattered** (user, asked directly: *"I might have
-    been wrong!!"*).  The one-line version — make the fit args `FIT_*_ABS<T>` — asserts *orbital T == fit
-    T*, and that is precisely backwards for the case the type plan turns on.  The fit basis is a property
-    of the RUN, not of a block: every call site builds it once from the whole `tBasisSet`, and all irrep/k
-    blocks share it.  So when `BlochQN::IsReal()` makes TRIM k-blocks REAL, those real blocks still share
-    the run's COMPLEX G-space fit basis.  ⇒ **two independent axes**, now
-    `template <class T, class TFit = T>`.  `Orbital_DFT_IBS<double,dcmplx>` had NO SPELLING before.
-    Purely additive (the default keeps every existing instantiation), so none of the twelve
-    implementers/consumers changed.  Three of four combos are meaningful (user): `<double,double>`,
-    `<dcmplx,dcmplx>`, `<double,dcmplx>`; `<dcmplx,double>` is never instantiated.
-    - It also retired a self-CONTRADICTION that probably caused the split in the first place:
-      `CreateCDFitBasisSet` returned `FIT_CD_ABS<T>*` while `Repulsion3C` accepted only
-      `FIT_CD_ABS<double>`, so `Orbital_DFT_IBS<dcmplx>` could not consume the fit basis it created.
-    - `Band_FT_IBS`'s own comment already knew — *"never assuming orbital==fit"* — it just had no second
-      parameter to say it with.  **A comment that states an invariant the types cannot express is a
-      standing invitation to look for the missing parameter.**
-  - **(ii) HALF: the tensor element type follows `TFit`.**  A no-op today (every instantiation has
-    `T==TFit`) kept for its DOCUMENTATION value (user): it says WHICH AXIS decides, which was the
-    ambiguous part.  Correct for all three meaningful combos.  **Still open:** `ERI3` vs `G_ERI3`.
-  - **(iii) RECLASSIFIED — not "extras", and not separable.**  Both parts are consequences of the merge:
-    the `using Integrals_Overlap<dcmplx>::MakeOverlap` decl is LOAD-BEARING (it un-hides the no-arg form
-    against the Fourier `MakeOverlap(f(G))`, so it is only noise once that member moves — and that member
-    is the last thing separating the classes); and hoisting `CreateXCQuadrature` pays nothing alone,
-    because `Band_FT_IBS` derives from `Orbital_1E_IBS<dcmplx>` NOT `Orbital_DFT_IBS`, and molecules
-    already get the identical neutral default from `tBasisSet<double>`.
-  - **⇒ ONE question remains: can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Plan-level; owner
-    is doc/RealComplexPlan.md.
-  *(original text follows)*
-  **`Orbital_DFT_IBS` ⇄ `Band_FT_IBS` merge.**  User (2026-08-05): Orbital_DFT_IBS simply
-  specifies what integrals an IBS must supply to support DFT; "Band" and "FT" have no place in that
-  specification.  History: Band_FT_IBS once had ~12 extra Fourier/Grid members, twiddled down over
-  many sessions to essentially ONE — the main conceptual gap was reluctance to acknowledge that the
-  PW representation of ρ is a fit, just a trivial one whose expansion coefficients come in one
-  step.  Verified current state: (i) the scalar-type mismatch (Orbital_DFT_IBS<T> templated but
-  fit-face args hard-wired REAL, rFIT_*_ABS in Fit_IBS.C:45-46,87-88, vs Band_FT_IBS hard-wired
-  dcmplx) — user: trivial to fix, and the FIT_*_ABS<T> templating is already pinned with the fitter
-  work; (ii) `ERI3<T>` vs `G_ERI3` return types (G_ERI3 was built as the harmonizing data-structure
-  spec); (iii) extras: the using-decl is noise; `CreateXCQuadrature` (new, 2026-08 W1) is
-  HOISTABLE to the neutral DFT face (molecules implement it returning their Becke quadrature — a
-  unification, not a divergence); leaving exactly ONE genuinely Fourier member,
-  `MakeOverlap(f(G))` (Band_FT_IBS.C:77) — itself re-expressible through the fit abstraction
-  (fitted-potential coefficients → contraction), removing "FT" from the face.  Engage the pinned
-  FACTOR-not-FUSE analysis (fitting-boundary pin + doc/FittingCleanupPlan.md) — the argument-type
-  question is settled there; what remains is execution sequencing with the fitter templating.
-  **Absorbed from the withdrawn R2.3 (2026-08-07):** the 4-line `Overlap3C`/`Repulsion3C` cache-lookup
-  bodies in Imp/Band_FT_IBS.C:15-25 and Imp/Orbital_DFT_IBS.C:10-20 are the SAME code modulo exactly the
-  two blockers listed above (return type `G_ERI3` vs `ERI3<T>`, argument `cFIT_*` vs `rFIT_*`) plus
-  `theCache<dcmplx>` vs `theCache<T>`.  They are the smallest concrete instance of the merge, so they make
-  a good FIRST target once those are decided — and a good litmus test that the decision actually works.
-  **USER (2026-08-05): merge would be fantastic; THE one big remaining issue = for molecules we do
-  a Dunlap fit for ρ (Coulomb metric, Repulsion integrals, charge-constrained) while for solids we
-  don't (orthonormal projection ⇒ metric degenerate) — requires discussion.**  Groundwork for that
-  discussion already exists in the fitting-boundary pin: the metric axis is REAL for AO (two
-  different solves) and DEGENERATE for FT (projection IS the fit for both metrics), which is why
-  the PW fitter implements both metric faces at once — the merge discussion is "how does the
-  merged face express the metric choice without naming it", not "which metric wins".
+- **V1.1 ✅ DONE `d49db261`+`4b37221d`+`2bfb83b4` (2026-08-16) — the merge landed; the answer was YES.**
+  `ERI3`+`G_ERI3` → **`Projector3<T>`** (one struct, realizations inside — user ruling); the
+  `MakeOverlap(f(G))` bridge was already production-dead and died with its using-decl cascade;
+  `Band_FT_IBS` deleted — the lattice lineage IS `Orbital_DFT_IBS<dcmplx,dcmplx>`, and
+  `Orbital_DFT_IBS<double,dcmplx>` (real TRIM block, complex fit basis) is now a live spelling.
+  The metric worry needed no new machinery — (i)'s two axes had already discharged it.
+  **→ doc/CleanupHistory.md** (full record + the three commit summaries).
 - **V1.1b 🔶 ANALYSIS DONE, awaiting the user's re-read of the paper. The `Eee = 2·EeeFit − EeeFitFit` expression is DUNLAP-SPECIFIC — it is part of V1.1's
   metric discussion, not a free-standing formula (user, 2026-08-05; user wants to re-read the
   paper).**  Verified conventions: `GetSelfRepulsion()`=½⟨ρ̃|ρ̃⟩ (Imp/FittedCDImp.C:55) and

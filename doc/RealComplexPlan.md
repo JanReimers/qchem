@@ -153,8 +153,11 @@ the ISP splits produce):
 - **V1.7** the periodic trio's 9 asserting overrides — each multiplies against a new alternative.
 - **V1.11** occupation seam / two-phase SCF-WF construction — the WF child is where narrowing and the
   real eigensolve land.
-- **V1.1 / V1.5 / V1.10** basis-face merge, `G_FieldEvaluator` ISP split, abstract→concrete basis
-  casts — the basis is the decision point and the head of the type flow.
+- **V1.1 ✅ DONE 2026-08-16 (`d49db261`+`4b37221d`+`2bfb83b4`)** — the basis-face merge landed:
+  `Projector3<T>` unifies the 3C tensor, `Band_FT_IBS` is deleted, and `Orbital_DFT_IBS<double,dcmplx>`
+  (a real TRIM block on the run's complex fit basis — exactly this plan's case) is a live spelling whose
+  tensor caches under `theCache<TFit>()`.  / **V1.5 / V1.10 (✅)** `G_FieldEvaluator` ISP split,
+  abstract→concrete basis casts — the basis is the decision point and the head of the type flow.
 - **R2.16** construction-time facts re-asked at run time — the same principle this rests on.
 
 NOT prerequisites (do not gate on them): R1.0b (shared-radial reader), R2.20 (oracle helpers in a
