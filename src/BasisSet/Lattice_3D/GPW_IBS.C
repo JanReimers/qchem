@@ -121,8 +121,8 @@ protected:
     //! the table returned is the one REQUESTED, honouring the factory's grid choice rather than silently
     //! overriding it with the block's own (doc/GPWPlan §0e).  Overrides the shared \c EPW_Orbital_DFT_IBS mixin
     //! (which dropped \a c); the block's own no-arg tensors remain the convenience/test path.
-    virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
-    virtual G_ERI3 MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
+    virtual Projector3<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
+    virtual Projector3<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
 
     // (The ctor-injected crystal ops live on GPW_Evaluator -- SetSymmetryOps/SymmetryOps: ONE storage for
     //  the T1 {G}-star fold and the Vxc-raster star-average.)

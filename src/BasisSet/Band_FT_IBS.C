@@ -54,13 +54,13 @@ public:
     }
 
     //! \brief D-free COULOMB three-centre tensor: the delta support with the diagonal Poisson kernel
-    //! \f$4\pi/|G_c|^2\f$ filled.  A density contracts \f$D\f$ against it (\c ContractG_ERI3) to get \f$V_H\f$
+    //! \f$4\pi/|G_c|^2\f$ filled.  A density contracts \f$D\f$ against it (\c Contract) to get \f$V_H\f$
     //! directly.  Mirrors \c Orbital_DFT_IBS::Repulsion3C (Coulomb metric); \a c is the CD fit basis.  Cached
     //! (the process-wide integrals cache, keyed by BasisSetID); the one-time build is \c MakeRepulsion3C.
-    const G_ERI3& Repulsion3C(const cFIT_CD_ABS& c) const;
+    const Projector3<dcmplx>& Repulsion3C(const cFIT_CD_ABS& c) const;
     //! \brief D-free OVERLAP three-centre tensor (delta support, EMPTY kernel).  Mirrors
     //! \c Orbital_DFT_IBS::Overlap3C (overlap metric); \a c is the Vxc fit basis.  Cached; build is \c MakeOverlap3C.
-    const G_ERI3& Overlap3C(const cFIT_SF_ABS& c) const;
+    const Projector3<dcmplx>& Overlap3C(const cFIT_SF_ABS& c) const;
 
     //! Un-hide the no-arg overlap-matrix build \f$\langle i|j\rangle\f$ (\c Integrals_Overlap::MakeOverlap) so it
     //! stays in the same overload set as the field form below (which would otherwise hide it).
@@ -94,10 +94,10 @@ protected:
     //! \brief One-time build of the Coulomb tensor (the concrete plane-wave basis's own \f$\{G\}\f$ delta
     //! support + \f$4\pi/|G_c|^2\f$ kernel).  Called once per (basis, fit-basis) key by the cached
     //! \c Repulsion3C above -- the plane-wave analogue of \c Orbital_DFT_IBS::MakeRepulsion3C.
-    virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS& c) const=0;
+    virtual Projector3<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS& c) const=0;
     //! \brief One-time build of the overlap tensor (delta support, empty kernel).  Called once by the cached
     //! \c Overlap3C -- the plane-wave analogue of \c Orbital_DFT_IBS::MakeOverlap3C.
-    virtual G_ERI3 MakeOverlap3C(const cFIT_SF_ABS& c) const=0;
+    virtual Projector3<dcmplx> MakeOverlap3C(const cFIT_SF_ABS& c) const=0;
 };
 
 } //namespace

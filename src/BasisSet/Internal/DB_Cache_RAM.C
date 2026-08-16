@@ -12,8 +12,7 @@ module;
 export module qchem.BasisSet.Internal.DB_Cache_RAM;
 export import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet.Internal.ERI3;
-import qchem.BasisSet.Internal.GMap;          // G_ERI3 (reciprocal-space 3-centre tensor)
+import qchem.BasisSet.Internal.Projector3;    // Projector3<T> (the 3-centre tensor, all realizations)
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;
@@ -35,8 +34,7 @@ public:
     virtual const hmat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<hmat_t<T>()>) override;
     virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()>) override;
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>) override;
-    virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()>) override;
-    virtual const G_ERI3&    Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<G_ERI3   ()>) override;
+    virtual const Projector3<T>& Get(I3C,const DBCacheClient*,const DBCacheClient*, std::function<Projector3<T>()>) override;
     virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>) override;
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()>) override;
     virtual const rmat_t&    Get(I2x,const DBCacheClient*,const DBCacheClient*,const Mesh_ID_t&, std::function<rmat_t()>) override;
@@ -63,7 +61,7 @@ public:
     void Clear(I2C op);   //!< itsSMats
     void Clear(I2n op);   //!< itsNMats (one operator -> whole map)
     void Clear(I2x op);   //!< itsMats + itsmMats (the mesh-keyed variant)
-    void Clear(I3C op);   //!< itsERI3s
+    void Clear(I3C op);   //!< its3Cs
     void Clear(I4C op);   //!< Jac (Direct) / Kab (Exchange)
 
 private:
@@ -80,8 +78,7 @@ private:
     using map2_t=std::map<key2_t ,hmat_t<T>>;
     using mapn_t=std::map<keyn_t ,hmat_t<T>>;
     using mapx_t=std::map<keyx_t , mat_t<T>>;
-    using map3_t=std::map<key3_t ,  ERI3<T>>;
-    using map3g_t=std::map<key3_t , G_ERI3>;   // reciprocal-space 3-centre tensors (same key axis as ERI3)
+    using map3_t=std::map<key3_t , Projector3<T>>;   // 3-centre tensors, every realization (V1.1)
     using map4_t=std::map<IBS_ID_t,std::map<IBS_ID_t,ERI4>>;
 
     using map1m_t =std::map<key1m_t  ,rvec_t>;
@@ -110,8 +107,7 @@ private:
     map2_t itsSMats; //Symmetric 2 center matrices
     mapn_t itsNMats; //Symmetric 2 center matrices for nuclear attraction integrals.
     mapx_t itsMats;  //Non-symmetric cross integrals between 2 IBSs.
-    map3_t itsERI3s; //3 center, 2 IBS ERI integrals for DFT.
-    map3g_t itsG_ERI3s; //3 center reciprocal-space (plane-wave) tensors <G_i G_j|G_c>.
+    map3_t its3Cs;   //3 center, 2 IBS projection tensors <ab|c> for DFT (dense, delta or matrix-free).
     map4_t Jac,Kab;  //4 center, 2 IBS ERI integrals for HF.
 
     map1m_t  itsmVecs; //Numerically integrated

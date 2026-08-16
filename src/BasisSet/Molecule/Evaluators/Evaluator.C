@@ -26,7 +26,7 @@ export module qchem.BasisSet.Molecule.Evaluators;
 export import qchem.Streamable;
 import qchem.Types;
 import qchem.Structure;  // Structure* threaded through the Nuclear kernel
-import qchem.BasisSet.Internal.ERI3;   // ERI3<double> -- return type of the isM_DFT concept
+import qchem.BasisSet.Internal.Projector3; // Projector3<double> -- return type of the isM_DFT concept
 import qchem.BasisSet.Internal.ERI4;   // ERI4         -- return type of the isM_HF  concept
 
 export namespace qchem::BasisSet::Molecule::Evaluators
@@ -112,7 +112,7 @@ template <class E> concept isHF_Evaluator = std::derived_from<E, Evaluator>
 };
 
 // Matrix-delivery siblings of isDFT/isHF (see isM_1E_Evaluator above): an opaque assembler / block library
-// hands back the assembled ERI3 (3-centre, for each fit component) and ERI4 (4-centre) directly, instead of
+// hands back the assembled 3-centre Projector3 (dense, for each fit component) and ERI4 (4-centre) directly, instead of
 // per-element 3C/4C kernels.  The fit / partner basis is passed as the SAME evaluator type E (as the scalar
 // mixins reach it via dynamic_cast<const E&>).  The DFT/HF mixins dispatch on these vs the scalar concepts.
 // NOTE: ExchangeMatrix must hand back ERI4 in our packing convention -- the diagnostic for whether a block
@@ -120,8 +120,8 @@ template <class E> concept isHF_Evaluator = std::derived_from<E, Evaluator>
 template <class E> concept isM_DFT_Evaluator = std::derived_from<E, Evaluator>
     && requires (const E e, const E fit)
 {
-    {e.OverlapThreeC_Matrix  (fit)} -> std::same_as<ERI3<double>>;
-    {e.RepulsionThreeC_Matrix(fit)} -> std::same_as<ERI3<double>>;
+    {e.OverlapThreeC_Matrix  (fit)} -> std::same_as<Projector3<double>>;
+    {e.RepulsionThreeC_Matrix(fit)} -> std::same_as<Projector3<double>>;
 };
 template <class E> concept isM_HF_Evaluator = std::derived_from<E, Evaluator>
     && requires (const E e, const E partner)

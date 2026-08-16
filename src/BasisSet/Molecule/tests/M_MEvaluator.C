@@ -2,7 +2,7 @@
 //
 // Guard for the matrix-delivery evaluator category (isM_1E / isM_DFT / isM_HF) and the IBS mixins'
 // dispatch.  A Matrix_Adapter wraps a scalar is1E_DFT_HF_Evaluator and pre-assembles its 1E matrices,
-// 3-centre ERI3s and 4-centre ERI4s -- a stand-in for a block-oriented integral library / disk source
+// 3-centre Projector3s and 4-centre ERI4s -- a stand-in for a block-oriented integral library / disk source
 // (the eventual libcint wrapper).  We check it satisfies the isM_ concepts (and NOT the scalar ones), that
 // every matrix/ERI it delivers equals what the scalar IBS builds via the public accessors, and that all
 // three mixins' matrix branches compile (explicit instantiations).
@@ -19,7 +19,7 @@ import qchem.BasisSet.Orbital_1E_IBS;                         // public Overlap(
 import qchem.BasisSet.Orbital_DFT_IBS;                        // public Overlap3C()/Repulsion3C() + Fit_IBS
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;               // public Direct()/Exchange()
 import qchem.BasisSet.Fit_IBS;
-import qchem.BasisSet.Internal.ERI3;                          // ERI3<double>, fnorm
+import qchem.BasisSet.Internal.Projector3;                    // Projector3<double>, fnorm
 import qchem.BasisSet.Internal.ERI4;                          // ERI4, fnorm
 import qchem.Structure;
 import qchem.Types;
@@ -43,15 +43,15 @@ class Matrix_Adapter : public virtual Evaluator
         for (auto i:its.indices()) for (auto j:its.indices(i)) S(i,j)=k(i,j);
         return S;
     }
-    template <class K> ERI3<double> Build3(const Matrix_Adapter& fit, K k) const
+    template <class K> Projector3<double> Build3(const Matrix_Adapter& fit, K k) const
     {
         size_t Na=its.size(), Nc=fit.its.size();
-        ERI3<double> s3;
+        Projector3<double> s3;
         for (size_t ic=0; ic<Nc; ic++)
         {
             rsmat_t s(Na);
             for (size_t ia=0; ia<Na; ia++) for (size_t ib=ia; ib<Na; ib++) s(ia,ib)=k(its, ia, ib, fit.its, ic);
-            s3.push_back(s);
+            s3.dense.push_back(s);
         }
         return s3;
     }
@@ -68,9 +68,9 @@ public:
     rsmat_t NuclearMatrix(const Structure* cl) const {return Build1([&](size_t i,size_t j){return its.Nuclear(i,j,cl);});}
 
     // --- isM_DFT (3-centre) ---
-    ERI3<double> OverlapThreeC_Matrix(const Matrix_Adapter& fit) const
+    Projector3<double> OverlapThreeC_Matrix(const Matrix_Adapter& fit) const
     { return Build3(fit, [](const E& a,size_t ia,size_t ib,const E& c,size_t ic){return a.OverlapThreeC  (ia,a,ib,c,ic);}); }
-    ERI3<double> RepulsionThreeC_Matrix(const Matrix_Adapter& fit) const
+    Projector3<double> RepulsionThreeC_Matrix(const Matrix_Adapter& fit) const
     { return Build3(fit, [](const E& a,size_t ia,size_t ib,const E& c,size_t ic){return a.RepulsionThreeC(ia,a,ib,c,ic);}); }
 
     // --- isM_HF (4-centre).  The Direct loop is trivial, but ExchangeMatrix has to reproduce

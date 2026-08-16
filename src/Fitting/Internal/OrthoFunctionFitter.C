@@ -118,7 +118,7 @@ public:
         // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
         // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the
         // SAME grid the density was collocated on (doc/GPWPlan §0e step 2).  No grid-less MakeOverlap(field).
-        return ContractAdjointG_ERI3(orb.Overlap3C(*itsFitBasis),
+        return ContractAdjoint(orb.Overlap3C(*itsFitBasis),
                                      [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
 

@@ -185,12 +185,12 @@ std::map<int,hmat_t<dcmplx>> GPW_IBS::MakeSeparablePotentialByL(const Structure*
 // it, so we RETURN THE REQUESTED TABLE rather than overriding the caller's fit-grid choice with the block's own
 // (the shared EPW_Orbital_DFT_IBS mixin dropped \a c).  Bit-identical while the factory wraps DensityGrid();
 // the seam is what lets the fit grid diverge (the deferred GGA Vxc densification) without touching these.
-G_ERI3 GPW_IBS::MakeRepulsion3C(const cFIT_CD_ABS& c) const
+Projector3<dcmplx> GPW_IBS::MakeRepulsion3C(const cFIT_CD_ABS& c) const
 {
     const auto& grid = dynamic_cast<const PW_Grid_Evaluator&>(c);   // throws bad_cast on a non-grid fit basis (loud)
     return GPW_Evaluator::Repulsion3CTensor(std::make_shared<const PW_Grid_Evaluator>(grid));
 }
-G_ERI3 GPW_IBS::MakeOverlap3C(const cFIT_SF_ABS& c) const
+Projector3<dcmplx> GPW_IBS::MakeOverlap3C(const cFIT_SF_ABS& c) const
 {
     const auto& grid = dynamic_cast<const PW_Grid_Evaluator&>(c);
     return GPW_Evaluator::Overlap3CTensor(std::make_shared<const PW_Grid_Evaluator>(grid));

@@ -153,12 +153,12 @@ template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::rFIT_CD_ABS
         if (IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
         auto dftbs=dynamic_cast<const todftbs_t<T>*>(itsBasisSet);
         assert(dftbs);
-        // Contract the density matrix against the basis's CACHED, D-free 3-centre integral tensor <ab|c>
+        // Contract the density matrix against the basis's CACHED, D-free 3-centre projection tensor <ab|c>
         // HERE -- the DENSITY owns D, so the D-contraction is a density operation, not a basis one.  The
-        // basis exposes only the integrals (Repulsion3C(c) -> ERI3, built once, keyed by BasisSetID); D never
-        // crosses into qcBasisSet.  This is the real-space model for fixing MakeFourierDensity(D): the {G}
-        // 3-centre integral is the delta <ij|Dm>, and rho-tilde = Sum_ij D_ij <ij|Dm> is the SAME contraction.
-        const auto& R=dftbs->Repulsion3C(*fbs);           // <ab|c> (ERI3 = one smat per fit function c)
+        // basis exposes only the tensor (Repulsion3C(c) -> Projector3, built once, keyed by BasisSetID);
+        // D never crosses into qcBasisSet.  This is the real-space model for fixing MakeFourierDensity(D): the
+        // {G} 3-centre integral is the delta <ij|Dm>, and rho-tilde = Sum_ij D_ij <ij|Dm> is the SAME contraction.
+        const auto& R=dftbs->Repulsion3C(*fbs).dense;     // <ab|c> (dense realization: one smat per fit function c)
         rvec_t ret(fbs->GetNumFunctions());
         for (size_t i=0;i<R.size();++i)
             ret[i]=blazem::sum(itsDensityMatrix % R[i]);  // <rho|c_i> = Sum_ab D_ab <ab|c_i>
@@ -338,7 +338,7 @@ template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetFourierDensity(const Bas
     // of GetRepulsion3C above; D never crosses into the basis.
     auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(self().itsBasisSet);
     assert(fb && "GetFourierDensity requires a Band_FT_IBS (plane-wave) basis");
-    return ContractG_ERI3(fb->Overlap3C(c), self().itsDensityMatrix);
+    return Contract(fb->Overlap3C(c), self().itsDensityMatrix);
 }
 
 // Raw rho_DM(r) on c's raster (doc/GPWPlan 0.5(f2)): the basis's collocation-native forward, when it has
@@ -348,7 +348,7 @@ template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet:
 {
     auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(self().itsBasisSet);
     assert(fb && "GetRhoOnGrid requires a Band_FT_IBS (plane-wave) basis");
-    const G_ERI3& g=fb->Overlap3C(c);
+    const Projector3<dcmplx>& g=fb->Overlap3C(c);
     return g.applyRaw ? g.applyRaw(self().itsDensityMatrix) : rvec_t{};
 }
 
@@ -358,7 +358,7 @@ template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetRepulsion3C(const BasisS
 {
     auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(self().itsBasisSet);
     assert(fb && "GetRepulsion3C requires a Band_FT_IBS (plane-wave) basis");
-    return ContractG_ERI3(fb->Repulsion3C(c), self().itsDensityMatrix);
+    return Contract(fb->Repulsion3C(c), self().itsDensityMatrix);
 }
 
 

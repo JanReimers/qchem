@@ -132,7 +132,7 @@ namespace
 {
 // The delta support: one column per difference dm=G_i-G_j, listing the (i,j) pairs that hit it, row-major
 // (i outer, j inner) so a per-column left-fold reproduces the density contraction exactly.
-void BuildG_ERI3Columns(const std::vector<ivec3_t>& G, std::vector<G_ERI3::Column>& cols)
+void BuildProjector3Columns(const std::vector<ivec3_t>& G, std::vector<Projector3<dcmplx>::Column>& cols)
 {
     size_t n=G.size();
     cols.clear();
@@ -151,11 +151,11 @@ void BuildG_ERI3Columns(const std::vector<ivec3_t>& G, std::vector<G_ERI3::Colum
 } //anon
 
 // Coulomb 3-centre tensor over this engine's {G}: delta support + diagonal Poisson kernel 4pi/|G_c|^2
-// (dm=0 -> 0, the dropped G=0 background).  A density contracts D against it (ContractG_ERI3) for V_H.
-G_ERI3 PW_Evaluator::Repulsion3CTensor() const
+// (dm=0 -> 0, the dropped G=0 background).  A density contracts D against it (Contract) for V_H.
+Projector3<dcmplx> PW_Evaluator::Repulsion3CTensor() const
 {
-    G_ERI3 g;
-    BuildG_ERI3Columns(itsG, g.columns);
+    Projector3<dcmplx> g;
+    BuildProjector3Columns(itsG, g.columns);
     g.kernel.resize(g.columns.size());
     for (size_t c=0;c<g.columns.size();c++)
         g.kernel[c]=itsRecip.CoulombKernel(g.columns[c].dm);   // diagonal Poisson kernel (dm=0 -> 0)
@@ -165,17 +165,17 @@ G_ERI3 PW_Evaluator::Repulsion3CTensor() const
 }
 
 // Overlap 3-centre tensor: delta support, EMPTY kernel (overlap metric).
-G_ERI3 PW_Evaluator::Overlap3CTensor() const
+Projector3<dcmplx> PW_Evaluator::Overlap3CTensor() const
 {
-    G_ERI3 g;
-    BuildG_ERI3Columns(itsG, g.columns);
+    Projector3<dcmplx> g;
+    BuildProjector3Columns(itsG, g.columns);
     g.kernel.clear();                // EMPTY => overlap metric
     g.volume=Volume();
     g.applyAdjoint=AdjointLookup();
     return g;
 }
 
-// The G_ERI3 BACKWARD realization for plane waves: <i|f|j> = f(m_i-m_j) (== OverlapMatrix), the Fourier lookup.
+// The Projector3<dcmplx> BACKWARD realization for plane waves: <i|f|j> = f(m_i-m_j) (== OverlapMatrix), the Fourier lookup.
 // Self-contained (captures the orbital {G} by value), so the closure outlives the evaluator in the tensor cache.
 std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)> PW_Evaluator::AdjointLookup() const
 {

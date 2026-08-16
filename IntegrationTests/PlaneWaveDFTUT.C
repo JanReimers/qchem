@@ -105,7 +105,7 @@ qchem::Hamiltonian::PWFittedVxc* NewPWXC(const PlaneWave_IBS& pw, const qchem::H
 ΔG_Map RhoTilde(const PlaneWave_IBS& pw, const chmat_t& D)
 {
     std::unique_ptr<const qchem::BasisSet::cFIT_SF_ABS> vxcfb(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}));
-    return ContractG_ERI3(pw.Overlap3C(*vxcfb), D);
+    return Contract(pw.Overlap3C(*vxcfb), D);
 }
 // Hartree matrix from a rho-tilde: <i|V_H|j> = 4pi/|G_i-G_j|^2 rho-tilde(G_i-G_j) (dm=0 dropped).  This is
 // the retired Repulsion(ΔG_Map) route, inlined as a test cross-check (production assembles the same matrix

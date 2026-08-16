@@ -34,7 +34,7 @@ import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 pr
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
 import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::CollocateDensity (analytic collocation)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
-import qchem.BasisSet.Internal.GMap;            // G_ERI3 / ΔG_Map (the collocation tensor + rho-tilde)
+import qchem.BasisSet.Internal.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the v_xc/eps_xc face; XC-consistency probe)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange -- the SCF's own X term)
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5 -- the SCF's own C term)
@@ -173,7 +173,7 @@ TEST(GPW, LatticeSumConvergesToFiniteAsCellGrows)
 namespace
 {
 // The G=0 column of a collocation tensor (the fit function G_c = 0).
-int G0Column(const G_ERI3& t)
+int G0Column(const Projector3<dcmplx>& t)
 {
     for (size_t c=0;c<t.columns.size();c++)
     {
@@ -186,7 +186,7 @@ int G0Column(const G_ERI3& t)
 
 // Collocate (through the SCF seam): the G=0 component of the tensor's matrix-free `apply` map is the collocated
 // charge, apply(D)[0]*Omega = Integral rho = Tr(D S), which must match the analytic 1E overlap trace as the
-// density grid resolves the Gaussian products.  This exercises exactly what ContractG_ERI3 runs in the SCF.
+// density grid resolves the Gaussian products.  This exercises exactly what Contract runs in the SCF.
 TEST(GPW, CollocationOverlapMatchesAnalytic)
 {
     const double a=10.0;
@@ -200,7 +200,7 @@ TEST(GPW, CollocationOverlapMatchesAnalytic)
     GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0);
 
     const GPW_Evaluator& ev = gpw;
-    G_ERI3 ov = ev.Overlap3CTensor();
+    Projector3<dcmplx> ov = ev.Overlap3CTensor();
     ASSERT_GE(G0Column(ov), 0);
     ASSERT_TRUE(bool(ov.apply)) << "the GPW tensor must carry the matrix-free analytic-collocation map";
 
@@ -208,7 +208,7 @@ TEST(GPW, CollocationOverlapMatchesAnalytic)
     const size_t n = S.rows();
     chmat_t D(n);                    // D = identity -> Integral rho = Tr(S^Bloch)
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.0);
-    ΔG_Map rho = ContractG_ERI3(ov, D);                      // the SCF's own contraction (dispatches to apply)
+    ΔG_Map rho = Contract(ov, D);                      // the SCF's own contraction (dispatches to apply)
     const double integral = std::real(rho[ivec3_t(0,0,0)]) * ov.volume;
     double trS=0.0; for (size_t i=0;i<n;i++) trS += std::real(dcmplx(S(i,i)));
     EXPECT_NEAR(integral, trS, 6e-2*std::fabs(trS));   // collocated charge == Bloch overlap trace to grid accuracy
@@ -243,9 +243,9 @@ TEST(GPW, SharpestPairChargeConservation)
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=dcmplx(0.0);
     D(is,is)=dcmplx(1.0);                      // unit load on the sharpest product -- the top rung's customer
 
-    G_ERI3 ov=ev.Overlap3CTensor();
+    Projector3<dcmplx> ov=ev.Overlap3CTensor();
     ASSERT_TRUE(bool(ov.apply));
-    ΔG_Map rho=ContractG_ERI3(ov, D);
+    ΔG_Map rho=Contract(ov, D);
     const double integral=std::real(rho[ivec3_t(0,0,0)])*ov.volume;
     const auto& S=g.Overlap();
     const double ref=std::real(dcmplx(S(is,is)));   // = 1 (normalized; the tight function's images are ~e^{-alpha a^2})
@@ -300,9 +300,9 @@ TEST(GPW, DISABLED_IllConditionedChargeProbe)
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++) { D(i,j)=dcmplx(0.5*(Si(i,j)+Si(j,i)),0.0); dmax=std::max(dmax,std::fabs(Si(i,j))); }
 
-    G_ERI3 ov=ev.Overlap3CTensor();
+    Projector3<dcmplx> ov=ev.Overlap3CTensor();
     ASSERT_TRUE(bool(ov.apply));
-    ΔG_Map rho=ContractG_ERI3(ov, D);
+    ΔG_Map rho=Contract(ov, D);
     const double integral=std::real(rho[ivec3_t(0,0,0)])*ov.volume;
     std::cout << "[illcond probe] Ecut=" << ecut << "  n=" << n << "  max|D|=" << dmax
               << "  Integral rho=" << integral << "  Tr(D S)=" << double(n)
@@ -498,9 +498,9 @@ TEST(GPW, AnalyticCollocationCrystalChargeConservation)
     const Complex_OIBS& g=gpw;
     const size_t n=g.GetNumFunctions();
     chmat_t D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.0);
-    G_ERI3 ov=ev.Overlap3CTensor();
+    Projector3<dcmplx> ov=ev.Overlap3CTensor();
     ASSERT_TRUE(bool(ov.apply));
-    ΔG_Map rho=ContractG_ERI3(ov, D);                                  // the SCF's own contraction (multi-grid)
+    ΔG_Map rho=Contract(ov, D);                                  // the SCF's own contraction (multi-grid)
     const double integral=std::real(rho[ivec3_t(0,0,0)])*ov.volume;
     const auto& S=g.Overlap();                                         // Bloch overlap (screened images) = S^G
     double trDS=0.0; for (size_t i=0;i<n;i++) trDS+=std::real(dcmplx(S(i,i)));
@@ -550,8 +550,8 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
     // (2) seam-level, MULTI-GRID: Tr(D OverlapMatrix(field)) == Omega Sum_G apply(D)(G) field(G)
     chmat_t H=ev.OverlapMatrix(field);                         // the SCF KS bridge (multi-grid analytic)
     dcmplx trDH(0.0); for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) trDH+=dcmplx(D(i,j))*dcmplx(H(j,i));
-    G_ERI3 ovt=ev.Overlap3CTensor();
-    ΔG_Map rhoT=ContractG_ERI3(ovt, D);                        // the SCF density map (multi-grid, nested)
+    Projector3<dcmplx> ovt=ev.Overlap3CTensor();
+    ΔG_Map rhoT=Contract(ovt, D);                        // the SCF density map (multi-grid, nested)
     dcmplx eG(0.0); for (const auto& [dm,c] : rhoT) eG+=c*field(dm);
     eG*=ovt.volume;
     std::cout << "[integrate-back] kernel adjoint lhs=" << lhs << " rhs=" << std::real(rhs)
@@ -769,10 +769,10 @@ TEST(GPW, XCPotentialConsistencyFD)
     qchem::Hamiltonian::VWN_Correlation corr;
     const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
 
-    G_ERI3 ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the PWFittedVxc route
-    G_ERI3 cou=ev.Repulsion3CTensor();                   // V_H (Coulomb kernel baked) -- the control
+    Projector3<dcmplx> ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the PWFittedVxc route
+    Projector3<dcmplx> cou=ev.Repulsion3CTensor();                   // V_H (Coulomb kernel baked) -- the control
 
-    auto rhoOf=[&](const chmat_t& D)->rvec_t { return grid.RhoOnGrid(ContractG_ERI3(ov,D)); };
+    auto rhoOf=[&](const chmat_t& D)->rvec_t { return grid.RhoOnGrid(Contract(ov,D)); };
     auto Exc=[&](const rvec_t& rho)->double              // == PWFittedVxc::GetEnergy (both terms)
     {
         rvec_t e(rho.size());
@@ -796,7 +796,7 @@ TEST(GPW, XCPotentialConsistencyFD)
     };
     auto EH=[&](const chmat_t& D)->double                // == PW_Hartree::GetEnergy: 1/2 Tr(D H_H(D))
     {
-        ΔG_Map VH=ContractG_ERI3(cou,D);
+        ΔG_Map VH=Contract(cou,D);
         chmat_t HH=ev.OverlapMatrix([&](const ivec3_t& dm)->dcmplx
             { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
         dcmplx tr(0.0);
@@ -826,7 +826,7 @@ TEST(GPW, XCPotentialConsistencyFD)
         // Hartree control at h=1e-3 (bilinear: FD error only).
         const double hc=1e-3;
         double fdH=(EH(shifted(D,dD,+hc))-EH(shifted(D,dD,-hc)))/(2.0*hc);
-        ΔG_Map VH=ContractG_ERI3(cou,D);
+        ΔG_Map VH=Contract(cou,D);
         rvec_t rho0=rhoOf(D);                            // ALSO leaves the colloc memo (screenD) at D
         chmat_t HH=ev.OverlapMatrix([&](const ivec3_t& dm)->dcmplx
             { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
@@ -891,7 +891,7 @@ TEST(GPW, RawXCConsistencyFD)
     qchem::Hamiltonian::VWN_Correlation corr;
     const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
 
-    G_ERI3 ov=ev.Overlap3CTensor();
+    Projector3<dcmplx> ov=ev.Overlap3CTensor();
     ASSERT_TRUE(bool(ov.applyRaw))        << "GPW must realise the raw-raster forward";
     ASSERT_TRUE(bool(ov.applyRawAdjoint)) << "GPW must realise the raw-raster adjoint";
 
@@ -939,7 +939,7 @@ TEST(GPW, RawXCConsistencyFD)
     EXPECT_NEAR(grid.Integral(rhoRaw), trDS, 5e-3*std::fabs(trDS)) << "raw-feed charge == Tr(D S^G)";
     double rmin=1e300, rmax=-1e300;
     for (size_t q=0;q<rhoRaw.size();q++) { rmin=std::min(rmin,rhoRaw[q]); rmax=std::max(rmax,rhoRaw[q]); }
-    rvec_t rhoBall=grid.RhoOnGrid(ContractG_ERI3(ov,D1));
+    rvec_t rhoBall=grid.RhoOnGrid(Contract(ov,D1));
     double bmin=1e300;
     for (size_t q=0;q<rhoBall.size();q++) bmin=std::min(bmin,rhoBall[q]);
     std::cout << "[raw-xc] rho_raw range [" << rmin << ", " << rmax << "]   (ball-path min " << bmin

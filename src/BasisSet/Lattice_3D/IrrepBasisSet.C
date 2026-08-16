@@ -14,7 +14,7 @@ module;
 export module qchem.BasisSet.Lattice_3D.IBS;
 import qchem.BasisSet.IrrepBasisSet;                  // IrrepBasisSet<dcmplx> (op()(r), GetNumFunctions)
 import qchem.BasisSet.Orbital_1E_IBS;                 // Orbital_1E_IBS<dcmplx> (MakeOverlap/MakeKinetic/MakeNuclear)
-import qchem.BasisSet.Band_FT_IBS;                    // Band_FT_IBS (MakeRepulsion3C/MakeOverlap3C) + G_ERI3
+import qchem.BasisSet.Band_FT_IBS;                    // Band_FT_IBS (MakeRepulsion3C/MakeOverlap3C) + Projector3<dcmplx>
 import qchem.BasisSet.Fit_IBS;                        // cFIT_CD_ABS / cFIT_SF_ABS (the 3-centre fit-basis args)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;       // PW_Evaluator + isPW_1E_Evaluator / isPW_DFT_Evaluator
 import qchem.Structure;                               // Structure (MakeNuclear arg)
@@ -65,8 +65,8 @@ public:
     virtual chmat_t MakeOverlap(const std::function<dcmplx(const ivec3_t&)>& Vt) const override
         {return Cast().OverlapMatrix(Vt);}
 protected:
-    virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}
-    virtual G_ERI3 MakeOverlap3C  (const cFIT_SF_ABS&) const override {return Cast().Overlap3CTensor();}
+    virtual Projector3<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}
+    virtual Projector3<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS&) const override {return Cast().Overlap3CTensor();}
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
 };
 

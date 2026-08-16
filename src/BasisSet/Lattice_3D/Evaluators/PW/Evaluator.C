@@ -109,12 +109,12 @@ public:
     //     engine's own {G}.  Drive the Band_FT_IBS MakeRepulsion3C/MakeOverlap3C (cached one level up). ---
     //! \brief Coulomb tensor \f$\langle G_iG_j|G_c\rangle=(4\pi/|G_c|^2)\,\delta_{G_c,G_i-G_j}/\Omega\f$: the
     //! delta support with the diagonal Poisson kernel filled (\f$\Delta m=0\to0\f$).
-    G_ERI3 Repulsion3CTensor() const;
+    Projector3<dcmplx> Repulsion3CTensor() const;
     //! \brief Overlap tensor \f$\langle G_iG_j|G_c\rangle=\delta_{G_c,G_i-G_j}/\Omega\f$: the delta support,
     //! empty kernel (overlap metric).
-    G_ERI3 Overlap3CTensor() const;
+    Projector3<dcmplx> Overlap3CTensor() const;
 private:
-    //! The tensors' G_ERI3::applyAdjoint (field->matrix backward): \f$\langle i|f|j\rangle=f(m_i-m_j)\f$, the
+    //! The tensors' Projector3<dcmplx>::applyAdjoint (field->matrix backward): \f$\langle i|f|j\rangle=f(m_i-m_j)\f$, the
     //! plane-wave Fourier lookup (== \c OverlapMatrix), self-contained so it survives in the tensor cache.
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)> AdjointLookup() const;
 public:
@@ -207,8 +207,8 @@ template <class E> concept isPW_1E_Evaluator = requires (const E e, const rvec3_
 template <class E> concept isPW_DFT_Evaluator = isPW_1E_Evaluator<E> &&
     requires (const E e, const std::function<dcmplx(const ivec3_t&)>& vt)
 {
-    {e.Repulsion3CTensor()} -> std::same_as<G_ERI3>;
-    {e.Overlap3CTensor()  } -> std::same_as<G_ERI3>;
+    {e.Repulsion3CTensor()} -> std::same_as<Projector3<dcmplx>>;
+    {e.Overlap3CTensor()  } -> std::same_as<Projector3<dcmplx>>;
     {e.OverlapMatrix(vt)} -> std::same_as<chmat_t>;   // the potential->orbital-matrix bridge (Fourier lookup)
 };
 

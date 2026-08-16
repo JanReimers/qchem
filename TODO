@@ -169,6 +169,9 @@ Key architectural insight: itsReciprocalOps currently serves both the k-fold (Bu
   
 ## Code Review
 
+LSP violations in src/Hamiltonian/Internal/Imp/PWTerms.C 459,15: const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock) const
+
+
 ### MnO
 
 src/Structure/Structure.C bool    itsSpinFlip = false;  can we use src/Symmetry/Spin.C for this?

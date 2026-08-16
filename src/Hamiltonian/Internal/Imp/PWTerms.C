@@ -205,7 +205,7 @@ chmat_t Vee_Hartree::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDens
     // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
     // (doc/GPWPlan §0e step 2).
     ΔG_Map VH=fd->GetRepulsion3C(*itsFitBasis);
-    return ContractAdjointG_ERI3(bft->Repulsion3C(*itsFitBasis),
+    return ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
         [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
 }
 
@@ -393,7 +393,7 @@ chmat_t PWFittedVxc::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDens
         // itsRhoGrid -- box-truncation per level + the analytic gather -- so H_xc == dE_xc/dD of the raw
         // discrete functional to machine precision (gate: GPW.RawXCConsistencyFD).  No ball fit anywhere.
         const auto& orb=dynamic_cast<const BasisSet::Band_FT_IBS&>(*bs);   // genuine "is it?" cross-cast (throws)
-        const G_ERI3& g=orb.Overlap3C(*itsVxcFitBasis);
+        const Projector3<dcmplx>& g=orb.Overlap3C(*itsVxcFitBasis);
         assert(g.applyRawAdjoint && "raw rho without a raw adjoint: Overlap3C must carry both");
         rvec_t v(itsRhoGrid.size());
         for (size_t q=0;q<itsRhoGrid.size();q++) v[q]=itsXc->GetVxc(itsRhoGrid[q]);
