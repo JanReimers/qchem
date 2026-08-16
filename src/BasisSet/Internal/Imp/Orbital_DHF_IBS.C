@@ -86,10 +86,12 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeRestMass() const
 
 template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeDirect  (const Orbital_ERI4_IBS<T>& _c) const
 {
-    auto& c=dynamic_cast<const Orbital_RKB_HF_IBS_Imp<T>&>(_c);
+    // V1.10: ask the PARTNER to build against our large component, rather than casting it to the concrete
+    // Imp and taking its itsRKBL.  Abstract->abstract, and nothing private leaves either object.
+    auto& c=dynamic_cast<const Orbital_RKB_Pair<T>&>(_c);
     auto aLhf=dynamic_cast<const Orbital_ERI4_IBS<T>*>(itsRKBL);
-    auto cLhf=dynamic_cast<const Orbital_ERI4_IBS<T>*>(c.itsRKBL);
-    ERI4 LLLL=aLhf->MakeDirect(*cLhf);
+    assert(aLhf && "RKB large component must carry the ERI4 substrate face");
+    ERI4 LLLL=c.MakeDirectAgainstL(*aLhf);
     // ERI4 LLSS=itsRKBL->MakeDirect(*c->itsRKBS); 
     // ERI4 SSLL=itsRKBS->MakeDirect(*c->itsRKBL);
     // ERI4 SSSS=itsRKBS->MakeDirect(*c->itsRKBS);
@@ -106,10 +108,12 @@ template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeDirect  (const Orbital_ER
 }
 template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeExchange(const Orbital_ERI4_IBS<T>& _c) const
 {
-    auto& c=dynamic_cast<const Orbital_RKB_HF_IBS_Imp<T>&>(_c);
+    // V1.10: ask the PARTNER to build against our large component, rather than casting it to the concrete
+    // Imp and taking its itsRKBL.  Abstract->abstract, and nothing private leaves either object.
+    auto& c=dynamic_cast<const Orbital_RKB_Pair<T>&>(_c);
     auto aLhf=dynamic_cast<const Orbital_ERI4_IBS<T>*>(itsRKBL);
-    auto cLhf=dynamic_cast<const Orbital_ERI4_IBS<T>*>(c.itsRKBL);
-    ERI4 LLLL=aLhf->MakeExchange(*cLhf);
+    assert(aLhf && "RKB large component must carry the ERI4 substrate face");
+    ERI4 LLLL=c.MakeExchangeAgainstL(*aLhf);
     // ERI4 LLSS=itsRKBL->MakeDirect(*c->itsRKBS); 
     // ERI4 SSLL=itsRKBS->MakeDirect(*c->itsRKBL);
     // ERI4 SSSS=itsRKBS->MakeDirect(*c->itsRKBS);
@@ -126,6 +130,20 @@ template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeExchange(const Orbital_ER
 }
 
 template class Orbital_RKB_IBS_Imp   <double>;
+// The partner's half: build against the caller's large component using OUR own (V1.10).
+template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeDirectAgainstL(const Orbital_ERI4_IBS<T>& aL) const
+{
+    auto myL=dynamic_cast<const Orbital_ERI4_IBS<T>*>(itsRKBL);
+    assert(myL && "RKB large component must carry the ERI4 substrate face");
+    return aL.MakeDirect(*myL);
+}
+template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeExchangeAgainstL(const Orbital_ERI4_IBS<T>& aL) const
+{
+    auto myL=dynamic_cast<const Orbital_ERI4_IBS<T>*>(itsRKBL);
+    assert(myL && "RKB large component must carry the ERI4 substrate face");
+    return aL.MakeExchange(*myL);
+}
+
 template class Orbital_RKB_HF_IBS_Imp<double>;
 
 }

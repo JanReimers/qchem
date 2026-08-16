@@ -55,6 +55,75 @@ using LineagePtr = std::shared_ptr<Lineage>;
 //! projection (finite) and FT projection (periodic) are now both cross-cast capabilities, not forced bases.
 struct NoProjectedDensity {};
 
+//======================================================================================================
+//  EXACT-EXCHANGE (HF) FACES -- V1.6/V1.8
+//
+//  These four operations used to be asserting defaults on tDM_CD<T>.  They are REAL-ONLY BY CONSTRUCTION:
+//  Vee/Vxc are added by the molecular HF Hamiltonians alone, while the periodic Ham_PW_DFT adds
+//  Vee_Hartree and never exact exchange -- which is why IrrepCD<dcmplx> carried four overrides saying "HF
+//  is not applicable to a complex plane-wave density".  So they move to faces the REAL path inherits and
+//  the complex path does not: the dcmplx instantiation now grows NOTHING, instead of one more denial per
+//  method (the R2.8 smell).
+//
+//  T-TYPED, not type-erased, per doc/RealComplexPlan.md: an impossible pairing must fail to COMPILE
+//  rather than throw.  Both faces mirror tMixableDensity<T>'s shape for that reason.
+//
+//! \brief The WHOLE-SYSTEM exact-exchange face: a density that spans EVERY irrep block, so it can drive the
+//! canonical-pair sweep.  A composite/polarized density has it; a lone leaf does not -- and now cannot be
+//! asked, where before it silently answered with a zeroed J.
+template <class T> class tHF_System_CD
+{
+public:
+    virtual ~tHF_System_CD() = default;
+    //! Whole-system HF Coulomb via the ERI4 bra-ket symmetry \f$J(i,j)=J(j,i)^\mathsf{T}\f$
+    //! (doc/ERI4Rework.md \S4/\S5.4): one loop over canonical pairs \f$k\le l\f$ feeds BOTH Fock blocks,
+    //! so \f$J(j,i)\f$ is never built or stored.  \a Jall is one block per irrep, pre-zeroed by the caller.
+    virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const=0;
+    //! Exchange analogue.  Exchange is SAME-SPIN, so the whole-system build runs per single-spin density.
+    virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const=0;
+};
+
+//! \brief The PAIR-PARTNER face: the composite<->leaf collaboration protocol for ONE canonical irrep pair.
+//! Only a leaf is a pair partner, and this is the whole of what the composite needs from one -- it was never
+//! public-face business (its only callers are the two loops in Imp/CompositeCD.C).
+template <class T> class tHF_Pair_CD
+{
+public:
+    virtual ~tHF_Pair_CD() = default;
+    //! Contract the canonical pair (this = irrep i, \a other = irrep j, i<=j) into their Fock blocks.
+    //! Off-diagonal: one fused scatter feeds both.  Diagonal (\a other IS this): a single localized
+    //! contraction into \a Ji, since there is no bra-ket partner.
+    virtual void AccumulateDirectBoth  (hmat_t<T>& Ji, hmat_t<T>& Jj, const tHF_Pair_CD<T>& other) const=0;
+    virtual void AccumulateExchangeBoth(hmat_t<T>& Ki, hmat_t<T>& Kj, const tHF_Pair_CD<T>& other) const=0;
+
+    // The two below are called by a PEER partner, not by clients -- protected would not do, since a sibling
+    // instance is not `this`.  Public on a face that is itself the composite<->leaf protocol is honest: the
+    // face's whole existence is that collaboration, and nothing outside it holds a tHF_Pair_CD.
+    //! \brief The partner's half, named for the OPERATION rather than the data (V1.8).
+    //!
+    //! The pair contraction belongs to the BASIS -- the caller ends up handing (D_i, bs_i, D_j, bs_j) to
+    //! \c Orbital_HF_IBS::AccumulateDirectBoth -- so a partner's only job is to present ITS OWN block to
+    //! that routine, given the caller's.  Expressed as "finish this contraction with your block", NOT as
+    //! "give me your density matrix": \c IrrepCD deliberately has no \c GetDensityMatrix(), and CLAUDE.md
+    //! cites that very class as the example of preferring a high-level operation to an exposed member.  An
+    //! abstract block ACCESSOR would have smuggled the getter back in behind an interface.
+    //!
+    //! This is what retires V1.8's abstract->concrete `IrrepCD*` cast: the caller no longer needs the
+    //! partner's TYPE, only its cooperation.
+    virtual void CompleteDirectPair  (hmat_t<T>& Ji, hmat_t<T>& Jj, const hmat_t<T>& Di,
+                                      const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
+    virtual void CompleteExchangePair(hmat_t<T>& Ki, hmat_t<T>& Kj, const hmat_t<T>& Di,
+                                      const BasisSet::Orbital_HF_IBS<T>* bs_i) const=0;
+};
+
+//! Empty stand-ins: the periodic (dcmplx) path has no exact exchange, so it inherits nothing at all.
+struct NoHF_System {};
+struct NoHF_Pair   {};
+//! The HF faces on the finite path (T=double), empty bases on the periodic path (T=dcmplx) -- the same
+//! idiom as ProjectedDensityBase / FourierDensityBase directly below.
+template <class T> using HF_SystemBase = std::conditional_t<std::is_same_v<T,double>, tHF_System_CD<double>, NoHF_System>;
+template <class T> using HF_PairBase   = std::conditional_t<std::is_same_v<T,double>, tHF_Pair_CD<double>,   NoHF_Pair>;
+
 //! The COULOMB-metric projection face for the finite path (T=double), the empty base for the periodic path
 //! (T=dcmplx).  V1.16: a matrix-backed density HAS the Coulomb RHS, so it takes the face that requires it --
 //! rather than inheriting a metric DEFAULT plus a poisoned sibling it had to remember not to call.  The
@@ -219,30 +288,12 @@ public:
         return ro;
     }
 
-    // HF/fit-specific (real, Gaussian-basis) -- the dcmplx plane-wave density NA-asserts these.
-    // (The single-block diagonal contraction is NOT here: it is a private IrrepCD detail the whole-system
-    //  AccumulateDirectAll loop reaches via AccumulateDirectBoth's self-pair branch -- see IrrepCD.)
-
-    //! Whole-system HF Coulomb exploiting the ERI4 bra-ket symmetry \f$J(i,j)=J(j,i)^\mathsf{T}\f$
-    //! (doc/ERI4Rework.md \S4/\S5.4): one uniform loop over canonical ab-irrep pairs \f$k\le l\f$ feeds BOTH
-    //! Fock blocks (diagonal included -- see AccumulateDirectBoth), so J(j,i) is never built or stored.
-    //! \a Jall is one block per irrep (same order as this composite's leaves) and pre-zeroed by the caller
-    //! (the Vee term).  Only a composite / polarized density -- which spans every irrep block -- implements
-    //! this; a lone leaf and the periodic path assert out.
-    virtual void AccumulateDirectAll(std::vector<hmat_t<T>>& Jall) const
-    { assert(false && "AccumulateDirectAll: only a composite/polarized density spans all irrep blocks"); }
-    //! Contract ONE canonical pair (this=irrep i, \a other=irrep j, i<=j) into their Fock block(s) -- the
-    //! SOLE per-pair helper the composite's AccumulateDirectAll loop calls.  Off-diagonal: fused scatter into
-    //! both Ji and Jj.  Diagonal (other IS this): a single localized contraction into Ji (no bra-ket
-    //! partner).  Only a leaf (IrrepCD) is a pair partner; composite/polarized inherit this asserting default.
-    virtual void AccumulateDirectBoth(hmat_t<T>& Ji, hmat_t<T>& Jj, const tDM_CD<T>& other) const
-    { assert(false && "AccumulateDirectBoth: only a leaf (irrep) density is a bra-ket pair partner"); }
-    //! Exchange analogues of the two above.  Exchange is SAME-SPIN, so the whole-system build is per single-
-    //! spin density (Polarized_CD sums the two spin channels' K into the same blocks for the RHF term).
-    virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const
-    { assert(false && "AccumulateExchangeAll: only a composite/polarized density spans all irrep blocks"); }
-    virtual void AccumulateExchangeBoth(hmat_t<T>& Ki, hmat_t<T>& Kj, const tDM_CD<T>& other) const
-    { assert(false && "AccumulateExchangeBoth: only a leaf (irrep) density is a bra-ket pair partner"); }
+    // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
+    // below (V1.6).  They were four asserting defaults on this general face, which every concrete family
+    // relied on for exactly two of the four, and which the dcmplx instantiation overrode with four more
+    // asserts saying "HF does not apply to me".  Two costs: the void assert-only bodies are silent NO-OPS
+    // under -DNDEBUG, so a bare leaf reaching Vee::AccumulateAll yielded a ZEROED J and a silently wrong
+    // Fock in the build we actually ship; and every future density kind had to re-declare the same denials.
 
     //! \brief The WHOLE-SYSTEM Fock route for THIS block's basis, or null if it has none (V1.31).
     //!
@@ -272,11 +323,28 @@ using cDM_CD = tDM_CD<dcmplx>;
 //  as the ↑+↓ sum, so the total-density consumers (Hartree) see one density; the spin-native XC
 //  terms reach the channels through GetChargeDensity(Spin).
 //
+//! \brief The reciprocal-space trio for a POLARIZED density -- periodic path only (V1.7): the ↑+↓ sums of
+//! the two channels' G-space/raster views.  Each channel composite already star-averages, so the sums stay
+//! IBZ-symmetrized.  CRTP, like its leaf and composite siblings.
+template <class Pol> class Polarized_Fourier : public virtual FourierDensity
+{
+public:
+    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
+    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // empty if either channel lacks it
+    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
+private:
+    const Pol& self() const {return static_cast<const Pol&>(*this);}
+};
+
+template <class T, class Pol> using PolarizedFourierBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, Polarized_Fourier<Pol>, NoFourierDensity>;
+
 template <class T> class tPolarized_CD
     : public virtual tDM_CD<T>
     , public virtual tLineageTracked<T>        // Layer-2: this top-level density tracks its SCF lineage head
     , public virtual ProjectedDensityBase<T>   // finite/molecular: an AO-projectable density
-    , public FourierDensityBase<T>             // periodic: G-space rho-tilde (the ↑+↓ sum); empty base for double
+    , public PolarizedFourierBase<T,tPolarized_CD<T>>   // reciprocal trio: periodic path only (V1.7)
+    , public HF_SystemBase<T>                  // exact exchange spans every block: real path only (V1.6)
 {
 public:
     virtual       tDM_CD<T>* GetChargeDensity(const Spin&)      =0;
@@ -305,12 +373,8 @@ public:
     virtual double operator()(const rvec3_t&) const; // No UT coverage
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 
-    // Periodic (dcmplx) face -- the ↑+↓ sums of the channels' G-space/raster views (declared for both T
-    // like tComposite_CD; the double bodies NA-assert).  Each channel composite already star-averages, so
-    // the sums stay IBZ-symmetrized.
-    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
-    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // empty if either channel lacks it
-    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
+    // The reciprocal trio is NOT declared here (V1.7 ISP) -- see Polarized_Fourier, inherited on the
+    // periodic path only.  It used to be declared for both T with the double bodies NA-asserting.
 };
 
 using Polarized_CD  = tPolarized_CD<double>;   // the molecular alias (source-compatible)

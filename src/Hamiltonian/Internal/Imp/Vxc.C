@@ -1,6 +1,7 @@
 // File: Vxc.C  Hartree-Fock exchange potential
 module;
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 #include <map>
 #include <string>
@@ -23,7 +24,13 @@ namespace qchem::Hamiltonian
 // back a reference to the already-scaled block.
 void Vxc::AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const
 {
-    dm->AccumulateExchangeAll(X);
+    // V1.6: ask for the WHOLE-SYSTEM exact-exchange face rather than calling through the general density
+    // face.  Before, a density that could not span the irreps (a bare leaf) hit an assert-only default --
+    // a silent NO-OP under -DNDEBUG, i.e. a zeroed E and a wrong Fock in the build we ship.
+    auto* sys=dynamic_cast<const qchem::ChargeDensity::tHF_System_CD<double>*>(dm);
+    if (!sys) throw std::runtime_error("HF term: this density does not span every irrep block, so the "
+                                       "whole-system E cannot be built from it.");
+    sys->AccumulateExchangeAll(X);
 }
 
 void Vxc::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const

@@ -97,6 +97,9 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 
 private:
+    //! The pair route's AO Fock: the PARTNER folds its own block up (through the abstract whole-system
+    //! face), we build once.  V1.10 -- no reach into a sibling's private SALC columns.
+    rsmat_t      PairAOFock(const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd, bool exchange) const;
     rsmat_t      Transform(const rsmat_t& Mraw) const;          // O^T Mraw O, symmetrized
     ERI3<double> TransformERI3(const ERI3<double>& raw) const;  // Transform each fit-function matrix
 

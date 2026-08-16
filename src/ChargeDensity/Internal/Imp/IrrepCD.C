@@ -79,16 +79,27 @@ template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Kii) const
 // the partner density is reached by a same-class cast (the IrrepCD<->IrrepCD idiom used by MixIn /
 // GetChangeFrom); both empty -> nothing to build; the basis fetches ONLY the canonical J(i,j) block, so
 // J(j,i) is never materialized.
-template <> void IrrepCD<double>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const tDM_CD<double>& other) const
+template <class Leaf> void IrrepCD_HFPair<Leaf>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const tHF_Pair_CD<double>& other) const
 {
-    if (&other==this) { AccumulateDirect(Ji); return; }  // diagonal self-pair: single-block contraction
-    const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
-    assert(oj);
-    if (IsZero() && oj->IsZero()) return;
-    const rohfbs_t* bs_i=dynamic_cast<const rohfbs_t*>(itsBasisSet);
-    const rohfbs_t* bs_j=dynamic_cast<const rohfbs_t*>(oj->itsBasisSet);
-    assert(bs_i && bs_j);
-    bs_i->AccumulateDirectBoth(Ji,Jj,itsDensityMatrix,oj->itsDensityMatrix,bs_j);
+    if (&other==this) { self().AccumulateDirect(Ji); return; }  // diagonal self-pair: single-block contraction
+    // V1.8: no cast to the partner's concrete type.  We hand IT our block and let it finish with its own --
+    // the contraction belongs to the BASIS, and a partner's only job is to present its matrix to that
+    // routine.  Asking "give me your density matrix" would have reintroduced the getter IrrepCD is
+    // deliberately without (CLAUDE.md cites this very class).
+    const rohfbs_t* bs_i=dynamic_cast<const rohfbs_t*>(self().itsBasisSet);
+    assert(bs_i && "IrrepCD::AccumulateDirectBoth: this block's basis has no HF contraction face");
+    other.CompleteDirectPair(Ji,Jj,self().itsDensityMatrix,bs_i);
+}
+
+// The partner's half: our own block completes the caller's pair.  Ji/Jj and Di/bs_i belong to the CALLER
+// (irrep i); this object is irrep j.  The zero pre-screen lives here because only now are both blocks known.
+template <class Leaf> void IrrepCD_HFPair<Leaf>::CompleteDirectPair(rsmat_t& Ji, rsmat_t& Jj, const rsmat_t& Di,
+                                                    const BasisSet::Orbital_HF_IBS<double>* bs_i) const
+{
+    if (blazem::isZero(Di) && self().IsZero()) return;          // both empty: nothing to build
+    const rohfbs_t* bs_j=dynamic_cast<const rohfbs_t*>(self().itsBasisSet);
+    assert(bs_j && "IrrepCD::CompleteDirectPair: this block's basis has no HF contraction face");
+    bs_i->AccumulateDirectBoth(Ji,Jj,Di,self().itsDensityMatrix,bs_j);
 }
 
 // --- V1.31 whole-system route ---------------------------------------------------------------------------
@@ -108,16 +119,21 @@ template <> void IrrepCD<double>::AddAODensity(rsmat_t& Dao) const
 
 // Exchange counterpart (see AccumulateDirectBoth): diagonal -> single AccumulateExchange, else the canonical
 // Exchange block is fetched once.
-template <> void IrrepCD<double>::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const tDM_CD<double>& other) const
+template <class Leaf> void IrrepCD_HFPair<Leaf>::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const tHF_Pair_CD<double>& other) const
 {
-    if (&other==this) { AccumulateExchange(Ki); return; }  // diagonal self-pair: single-block contraction
-    const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
-    assert(oj);
-    if (IsZero() && oj->IsZero()) return;
-    const rohfbs_t* bs_i=dynamic_cast<const rohfbs_t*>(itsBasisSet);
-    const rohfbs_t* bs_j=dynamic_cast<const rohfbs_t*>(oj->itsBasisSet);
-    assert(bs_i && bs_j);
-    bs_i->AccumulateExchangeBoth(Ki,Kj,itsDensityMatrix,oj->itsDensityMatrix,bs_j);
+    if (&other==this) { self().AccumulateExchange(Ki); return; }  // diagonal self-pair: single-block contraction
+    const rohfbs_t* bs_i=dynamic_cast<const rohfbs_t*>(self().itsBasisSet);
+    assert(bs_i && "IrrepCD::AccumulateExchangeBoth: this block's basis has no HF contraction face");
+    other.CompleteExchangePair(Ki,Kj,self().itsDensityMatrix,bs_i);
+}
+
+template <class Leaf> void IrrepCD_HFPair<Leaf>::CompleteExchangePair(rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di,
+                                                      const BasisSet::Orbital_HF_IBS<double>* bs_i) const
+{
+    if (blazem::isZero(Di) && self().IsZero()) return;
+    const rohfbs_t* bs_j=dynamic_cast<const rohfbs_t*>(self().itsBasisSet);
+    assert(bs_j && "IrrepCD::CompleteExchangePair: this block's basis has no HF contraction face");
+    bs_i->AccumulateExchangeBoth(Ki,Kj,Di,self().itsDensityMatrix,bs_j);
 }
 
 //------------------------------------------------------------------------------
@@ -269,58 +285,34 @@ template <class T> rvec3_t IrrepCD<T>::Gradient(const rvec3_t& r) const
 // rho-tilde from the density matrix, via the basis's G-space capability (plane-wave / dcmplx only).
 // itsDensityMatrix already carries the BZ weight w_k (TOrbitals::GetChargeDensity scales it), so the
 // composite's sum over blocks is the BZ average Sum_k w_k rho_k.
-template <class T> ΔG_Map IrrepCD<T>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
+template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        // Contract D against the basis's D-free OVERLAP tensor (empty kernel) HERE -- the DENSITY owns D, so
-        // this is where rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij is formed.  The overlap-metric sibling
-        // of GetRepulsion3C above; D never crosses into the basis.
-        auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(itsBasisSet);
-        assert(fb && "GetFourierDensity requires a Band_FT_IBS (plane-wave) basis");
-        return ContractG_ERI3(fb->Overlap3C(c), itsDensityMatrix);
-    }
-    else
-    {
-        assert(false && "a finite (non-periodic) density has no reciprocal-lattice Fourier series");
-        return ΔG_Map{};
-    }
+    // Contract D against the basis's D-free OVERLAP tensor (empty kernel) HERE -- the DENSITY owns D, so
+    // this is where rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij is formed.  The overlap-metric sibling
+    // of GetRepulsion3C above; D never crosses into the basis.
+    auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(self().itsBasisSet);
+    assert(fb && "GetFourierDensity requires a Band_FT_IBS (plane-wave) basis");
+    return ContractG_ERI3(fb->Overlap3C(c), self().itsDensityMatrix);
 }
 
 // Raw rho_DM(r) on c's raster (doc/GPWPlan 0.5(f2)): the basis's collocation-native forward, when it has
 // one (GPW's Overlap3C carries applyRaw; a plane-wave basis leaves it empty -> we answer empty and the
 // caller falls back to the ball route).  itsDensityMatrix carries the BZ weight, exactly as above.
-template <class T> rvec_t IrrepCD<T>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
+template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(itsBasisSet);
-        assert(fb && "GetRhoOnGrid requires a Band_FT_IBS (plane-wave) basis");
-        const G_ERI3& g=fb->Overlap3C(c);
-        return g.applyRaw ? g.applyRaw(itsDensityMatrix) : rvec_t{};
-    }
-    else
-    {
-        assert(false && "a finite (non-periodic) density has no grid raster representation");
-        return rvec_t{};
-    }
+    auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(self().itsBasisSet);
+    assert(fb && "GetRhoOnGrid requires a Band_FT_IBS (plane-wave) basis");
+    const G_ERI3& g=fb->Overlap3C(c);
+    return g.applyRaw ? g.applyRaw(self().itsDensityMatrix) : rvec_t{};
 }
 
 // V_H(dm) = 4pi rho-tilde(dm)/|G|^2: contract D against the basis's D-free COULOMB tensor (Repulsion3C(c), the
 // diagonal kernel baked in) -- the reciprocal mirror of the finite GetRepulsion3C(fbs) above.  D stays here.
-template <class T> ΔG_Map IrrepCD<T>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
+template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(itsBasisSet);
-        assert(fb && "GetRepulsion3C requires a Band_FT_IBS (plane-wave) basis");
-        return ContractG_ERI3(fb->Repulsion3C(c), itsDensityMatrix);
-    }
-    else
-    {
-        assert(false && "a finite (non-periodic) density has no reciprocal Coulomb projection");
-        return ΔG_Map{};
-    }
+    auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(self().itsBasisSet);
+    assert(fb && "GetRepulsion3C requires a Band_FT_IBS (plane-wave) basis");
+    return ContractG_ERI3(fb->Repulsion3C(c), self().itsDensityMatrix);
 }
 
 
@@ -333,6 +325,7 @@ template <class T> std::ostream& IrrepCD<T>::Write(std::ostream& os) const
     return os << itsDensityMatrix;
 }
 
+template class IrrepCD_HFPair<IrrepCD<double>>;
 template class IrrepCD<double>;
 
 // --- Complex (plane-wave) density.  HF does NOT apply (the plane-wave path uses no 4-centre exchange), so
@@ -344,10 +337,6 @@ template <> void IrrepCD<dcmplx>::AccumulateDirect(hmat_t<dcmplx>&) const
 { assert(false && "AccumulateDirect: HF not applicable to a complex plane-wave density"); }
 template <> void IrrepCD<dcmplx>::AccumulateExchange(hmat_t<dcmplx>&) const
 { assert(false && "AccumulateExchange: HF not applicable to a complex plane-wave density"); }
-template <> void IrrepCD<dcmplx>::AccumulateDirectBoth(hmat_t<dcmplx>&, hmat_t<dcmplx>&, const tDM_CD<dcmplx>&) const
-{ assert(false && "AccumulateDirectBoth: HF not applicable to a complex plane-wave density"); }
-template <> void IrrepCD<dcmplx>::AccumulateExchangeBoth(hmat_t<dcmplx>&, hmat_t<dcmplx>&, const tDM_CD<dcmplx>&) const
-{ assert(false && "AccumulateExchangeBoth: HF not applicable to a complex plane-wave density"); }
 template <> const BasisSet::WholeSystemFock_IBS<dcmplx>* IrrepCD<dcmplx>::WholeSystemFock() const
 { return nullptr; }   // no SALC decorator on the periodic path: the pair route is the only one
 template <> void IrrepCD<dcmplx>::AddAODensity(hmat_t<dcmplx>&) const
@@ -370,6 +359,7 @@ template <> double IrrepCD<dcmplx>::GetTotalCharge() const
     return std::real(blazem::sum(itsDensityMatrix % blazem::trans(itsBasisSet->MakeOverlap())));
 }
 
+template class IrrepCD_Fourier<IrrepCD<dcmplx>>;
 template class IrrepCD<dcmplx>;
 
 
