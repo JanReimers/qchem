@@ -1010,7 +1010,11 @@ MnO campaign proceeds undisturbed in qchem6.
   consumer (helper inside PWTerms; the Hamiltonian reaches the engine via `FunctionFitter::Grid()`,
   FunctionFitter.C:139).  Related: XC_GridEngine's `Lattice_3D::Fold` + dcmplx dependency bars any
   molecular reuse of the quadrature engine — same design session.
-- **V1.6 `tDM_CD::Accumulate*` — face split, NOT pure-virtual.**  Verified override matrix: every
+- **V1.6 ✅ DONE `2d0f6982`. `tDM_CD::Accumulate*` — face split, NOT pure-virtual.**  Now `tHF_System_CD` +
+  `tHF_Pair_CD`, real path only via `conditional_t`; the complex leaf declares NOTHING (a CRTP mixin, after
+  the user pressed that empty bodies are still the interface failing to segregate).  The NDEBUG hazard is
+  closed: `Vee`/`Vxc` THROW where they used to build a zeroed J in silence.  **→ doc/CleanupHistory.md**
+  *(original)*  Verified override matrix: every
   concrete family relies on the default for exactly 2 of the 4 (IrrepCD lacks `*All`;
   Composite/Polarized lack `*Both`) — pure-virtual just forces 6 new asserting stubs.  The `*Both`
   pair is an internal Composite↔leaf collaboration protocol (only called from
@@ -1018,21 +1022,27 @@ MnO campaign proceeds undisturbed in qchem6.
   pair-partner leaf face (the `tSpinResolved_CD` cross-cast idiom).  NDEBUG hazard on record:
   these void assert-only bodies are silent NO-OPS in Release — a bare IrrepCD through
   `Vee::AccumulateAll` yields a zeroed J and a silently wrong Fock.
-- **V1.7 The periodic trio (`GetFourierDensity`/`GetRhoOnGrid`/`GetRepulsion3C`) — 9 asserting
+- **V1.7 ✅ DONE `2d0f6982`. All NINE denials gone** — three periodic-only CRTP mixins; the mechanism
+  (`FourierDensityBase<T>`) was already right there, the families just re-declared outside it.
+  **→ doc/CleanupHistory.md**  *(original)*  **The periodic trio (`GetFourierDensity`/`GetRhoOnGrid`/`GetRepulsion3C`) — 9 asserting
   stubs, the largest LSP block in qcChargeDensity.**  Re-declared + NA-asserted on
   Polarized/Composite/IrrepCD for BOTH T (Imp/ChargeDensity.C:97,120,138; Imp/CompositeCD.C:197,
   226,249; Imp/IrrepCD.C:267,286,303).  The correct mechanism ALREADY EXISTS in the same file —
   `FourierDensityBase<T>` gives dcmplx the capability and double an empty base — but the derived
   classes re-declare outside it and assert.  Fix: declarations live only on the dcmplx side
   (if-constexpr-guarded definitions or a `tPeriodic_CD` mixin).
-- **V1.8 `IrrepCD`↔`IrrepCD` concrete same-class casts in the hot path** (Imp/IrrepCD.C:84,98,
+- **V1.8 ✅ DONE `2d0f6982`. The cast EVAPORATED with V1.6**, exactly as the user predicted — and because the
+  face is operation-named (`CompleteDirectPair`), not a block accessor.  **→ doc/CleanupHistory.md**
+  *(original)*  **`IrrepCD`↔`IrrepCD` concrete same-class casts in the hot path** (Imp/IrrepCD.C:84,98,
   218,227: `Accumulate*Both`/`MixIn`/`GetChangeFrom` take abstract `tDM_CD&` and narrow to the
   concrete leaf to touch `itsDensityMatrix`; the in-file comment names "the IrrepCD↔IrrepCD
   idiom").  Abstract→concrete, the pattern the project rule forbids; also makes MixIn
   unimplementable for any future leaf.  Wants a double-dispatch primitive or an abstract
   density-block face.  (Design with V1.6 — same seam.)
 - **V1.9 ✅ DONE `38a1ebd6`. `Structure`→concrete-`UnitCell` down-casts in 4 libraries**.  **→ doc/CleanupHistory.md**
-- **V1.10 Two abstract→CONCRETE basis casts in src/** — Imp/SymmetryAdapted_IBS.C:109,118
+- **V1.10 ✅ DONE `2d0f6982`. Both casts gone.**  The SALC one dissolved into V1.31's `WholeSystemFock_IBS`
+  face — its three primitives ARE the steps the cast open-coded; the DHF one became
+  `Orbital_RKB_Pair::MakeDirectAgainstL`.  **→ doc/CleanupHistory.md**  *(original)*  **Two abstract→CONCRETE basis casts in src/** — Imp/SymmetryAdapted_IBS.C:109,118
   (Orbital_HF_IBS* → concrete SymmetryAdapted_IBS, solely to reach `itsO`) and
   Internal/Imp/Orbital_DHF_IBS.C:89,109 (Orbital_ERI4_IBS& → Orbital_RKB_HF_IBS_Imp&).  Both are
   "give me your private state" reaches — promote the needed answer to an abstract question on the
