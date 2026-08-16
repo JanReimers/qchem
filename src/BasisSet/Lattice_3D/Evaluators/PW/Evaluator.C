@@ -99,14 +99,14 @@ public:
     //! \brief Assemble \f$\langle G|V|G'\rangle=\tilde V(m(G)-m(G'))\f$ from a caller-supplied G-space
     //! potential keyed by the reciprocal-index difference.  The plane-wave potential->orbital-matrix bridge
     //! (a Fourier lookup): satisfies \c isPW_DFT_Evaluator and is forwarded by \c EPW_Orbital_DFT_IBS to the
-    //! tensors' \c applyAdjoint closures (ex the Band_FT_IBS::MakeOverlap bridge).  Named like its siblings \c OverlapMatrix / \c KineticMatrix /
+    //! tensors' \c applyAdjoint closures (ex the Orbital_DFT_IBS<dcmplx>::MakeOverlap bridge).  Named like its siblings \c OverlapMatrix / \c KineticMatrix /
     //! \c NuclearMatrix (an EVALUATOR method, distinct from the interface virtual it feeds -- as on the atom
     //! side -- so the concrete IBS inherits no name clash).  Also used internally by \c NuclearMatrix /
     //! \c LocalPotentialMatrix.
     chmat_t OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
     // --- DFT 3-centre tensors (density-driven, orbital tier): the D-free reciprocal-space gathers over THIS
-    //     engine's own {G}.  Drive the Band_FT_IBS MakeRepulsion3C/MakeOverlap3C (cached one level up). ---
+    //     engine's own {G}.  Drive the Orbital_DFT_IBS<dcmplx> MakeRepulsion3C/MakeOverlap3C (cached one level up). ---
     //! \brief Coulomb tensor \f$\langle G_iG_j|G_c\rangle=(4\pi/|G_c|^2)\,\delta_{G_c,G_i-G_j}/\Omega\f$: the
     //! delta support with the diagonal Poisson kernel filled (\f$\Delta m=0\to0\f$).
     Projector3<dcmplx> Repulsion3CTensor() const;

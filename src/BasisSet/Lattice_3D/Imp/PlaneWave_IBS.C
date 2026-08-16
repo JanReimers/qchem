@@ -108,7 +108,7 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudop
     return V;
 }
 
-// The Band_FT_IBS factory seam: hand back a distinct auxiliary DENSITY-fit basis.  The density is
+// The Orbital_DFT_IBS<dcmplx> factory seam: hand back a distinct auxiliary DENSITY-fit basis.  The density is
 // cell-periodic, so ITS symmetry is Gamma (k=0), NOT this orbital block's k -- build a k=0 grid engine and
 // label it with a k=0 Bloch irrep.  The electron density rho = psi*psi is EXACTLY band-limited to the
 // difference set {G_i-G_j}: |G_i-G_j| <= 2 max|G|, i.e. 1/2|dG|^2 < 4 Ecut.  So the CD fit basis must cover

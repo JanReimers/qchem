@@ -2,7 +2,7 @@
 //
 // GPW (increments 1-2) already satisfies every plane-wave Kohn-Sham concept EXCEPT the external potential:
 //   - kinetic  -> Kinetic<dcmplx> calls bs->Kinetic()         (GPW: lattice-sum <p^2>)              [inc 1]
-//   - Hartree  -> PW_Hartree casts bs to Band_FT_IBS + cd to FourierDensity (GPW: collocation tensors)[inc 2]
+//   - Hartree  -> PW_Hartree casts bs to Orbital_DFT_IBS<dcmplx> + cd to FourierDensity (GPW: collocation tensors)[inc 2]
 //   - XC       -> PWFittedVxc, same casts + the fit-basis grid                                             [inc 2]
 //   - ion-ion  -> IonIon<dcmplx> (Ewald from Zion)                                                   [structure]
 // The one gap was the external pseudopotential: the plane-wave PW_Pseudo needs G-space form factors, which

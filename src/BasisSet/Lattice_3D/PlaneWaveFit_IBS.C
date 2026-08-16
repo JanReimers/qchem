@@ -6,7 +6,7 @@
 // grid is a future joint CD+Vxc upgrade).  It exists so the plane-wave DFT-fit paths go THROUGH the orbital
 // basis's factory -- never assuming orbital==fit -- even though on the orthonormal {G} basis the projection
 // IS the fit and this object is otherwise computationally inert (rho-tilde/V-tilde come from the density/term;
-// the Hartree/XC contraction delegates to the orbital Band_FT_IBS).
+// the Hartree/XC contraction delegates to the orbital Orbital_DFT_IBS<dcmplx>).
 //
 // It carries NO grid logic of its own: it IS-A PW_Evaluator (a copy of the orbital basis's grid engine) and
 // the evaluator-templated EPW_Irrep_IBS<E> mixin supplies op()/Gradient/GetNumFunctions.  Both fit faces are

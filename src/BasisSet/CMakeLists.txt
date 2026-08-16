@@ -4,7 +4,6 @@ target_sources(qcBasisSet PRIVATE
   Imp/IrrepBasisSet.C
   Imp/Orbital_1E_IBS.C
   Imp/Orbital_DFT_IBS.C
-  Imp/Band_FT_IBS.C
   Imp/Orbital_DHF_IBS.C
   Imp/Fit_IBS.C
   Imp/SymmetryAdapted_IBS.C
@@ -27,7 +26,6 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_1E_IBS.C
   ImplicitAngular_IBS.C
   Band_DFT_IBS.C
-  Band_FT_IBS.C
   G_FieldEvaluator.C
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C

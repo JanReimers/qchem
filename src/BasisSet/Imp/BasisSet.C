@@ -4,7 +4,7 @@ module;
 #include <memory>
 module qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.Band_FT_IBS;   // the dcmplx (plane-wave) density-fit factory delegate
+import qchem.BasisSet.Orbital_DFT_IBS;   // the dcmplx (plane-wave) density-fit factory delegate
 
 namespace qchem::BasisSet
 {
@@ -20,18 +20,18 @@ template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Struc
 }
 
 // The plane-wave (dcmplx) density-fit basis is created THROUGH the orbital basis's own factory, exactly
-// as the double path delegates to Orbital_DFT_IBS: iterate to the Band_FT_IBS (the reciprocal-space DFT
+// as the double path delegates to Orbital_DFT_IBS: iterate to the Orbital_DFT_IBS<dcmplx> (the reciprocal-space DFT
 // capability, realized by the plane-wave basis) and let it build its auxiliary cFIT_CD_ABS.
 template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const Structure* cl, const qcMesh::MeshParams& mp) const
 {
-    auto bft=*Iterate<Band_FT_IBS>().begin();
+    auto bft=*Iterate<Orbital_DFT_IBS<dcmplx>>().begin();
     return bft->CreateCDFitBasisSet(cl,mp);
 }
 // The plane-wave (dcmplx) Vxc fit basis is created THROUGH the orbital basis's own factory, exactly as the
-// CD one: iterate to the Band_FT_IBS and let it build its auxiliary cFIT_SF_ABS.
+// CD one: iterate to the Orbital_DFT_IBS<dcmplx> and let it build its auxiliary cFIT_SF_ABS.
 template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
-    auto bft=*Iterate<Band_FT_IBS>().begin();
+    auto bft=*Iterate<Orbital_DFT_IBS<dcmplx>>().begin();
     return bft->CreateVxcFitBasisSet(cl,mp);
 }
 
@@ -42,10 +42,10 @@ template <class T> XCQuadrature tBasisSet<T>::CreateXCQuadrature(const Structure
     return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
 }
 // The plane-wave (dcmplx) path delegates THROUGH the orbital basis's factory, exactly as the fit bases
-// do: the Band_FT_IBS block owns the cell + the imposed ops, so IT assembles the (invariant) quadrature.
+// do: the Orbital_DFT_IBS<dcmplx> block owns the cell + the imposed ops, so IT assembles the (invariant) quadrature.
 template <> XCQuadrature tBasisSet<dcmplx>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
-    auto bft=*Iterate<Band_FT_IBS>().begin();
+    auto bft=*Iterate<Orbital_DFT_IBS<dcmplx>>().begin();
     return bft->CreateXCQuadrature(cl,mp);
 }
 

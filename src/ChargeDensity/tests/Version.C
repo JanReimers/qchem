@@ -17,7 +17,7 @@ import qchem.ChargeDensity.NumericCD;  // NumericCD (molecular SAD seed)
 import qchem.ChargeDensity.SeedCD;      // SeedCD (plane-wave SAD seed)
 import qchem.Lattice_3D;                        // UnitCell, Lattice_3D
 import qchem.BasisSet.Lattice_3D.BasisSet;      // L3::Factory(PW,...), Complex_BS
-import qchem.BasisSet.Band_FT_IBS;              // Band_FT_IBS
+import qchem.BasisSet.Orbital_DFT_IBS;              // Orbital_DFT_IBS<dcmplx>
 import qchem.Types;                             // rvec3_t, ivec3_t
 using namespace qchem;
 
@@ -32,7 +32,7 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
     cell.AddAtom(14, rvec3_t(0,0,0));            // Si (Z=14)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 2.0));
-    const auto* ftbs = dynamic_cast<const BasisSet::Band_FT_IBS*>((*bs)[0]);
+    const auto* ftbs = dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*bs)[0]);
     ASSERT_TRUE(ftbs);
 
     // Interleave the three density kinds; record each one's freshness serial in construction order.

@@ -219,7 +219,7 @@ Factory(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
 //! Create a DENSITY fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  Returns the minimal CORE face --
 //! the projection IS the fit, so no metric solve / self-energy / rescale (an ortho fitter carries none of the
 //! non-ortho refinement); DoFit receives a ProjectedDensity_G and Repulsion delegates the Poisson solve to the
-//! orbital Band_FT_IBS.
+//! orbital Orbital_DFT_IBS<dcmplx>.
 std::unique_ptr<FunctionFitter_Density<dcmplx>>
 Factory(std::shared_ptr<const BasisSet::cFIT_CD_ABS>&);
 //!@}

@@ -251,7 +251,7 @@ private:
                                                       //!< builds; A/B via the GPW_RASTER_POLICY instrument
     std::shared_ptr<const PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
-    // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
+    // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
     //! \brief Last-density collocation memo, SHARED by the two \c MakeCollocator closures (Coulomb + overlap
     //! tensors): each SCF iteration collocates the SAME \f$D\f$ twice -- once for \f$\rho\f$ on the grid
     //! (XC/charge) and once for the Coulomb apply -- so the second call replays the level densities for free

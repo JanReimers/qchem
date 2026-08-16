@@ -17,7 +17,7 @@ module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Symmetry;
 import qchem.Blaze;
 import qchem.Parallel;                  // WorkerThreads (GPW_OMP_THREADS -- the rho-sampling GEMM)
-import qchem.BasisSet.Band_FT_IBS;   // cast the basis UP to the G-space capability (dcmplx path)
+import qchem.BasisSet.Orbital_DFT_IBS;   // cast the basis UP to the G-space capability (dcmplx path)
 
 namespace qchem::ChargeDensity
 {
@@ -336,8 +336,8 @@ template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetFourierDensity(const Bas
     // Contract D against the basis's D-free OVERLAP tensor (empty kernel) HERE -- the DENSITY owns D, so
     // this is where rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij is formed.  The overlap-metric sibling
     // of GetRepulsion3C above; D never crosses into the basis.
-    auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(self().itsBasisSet);
-    assert(fb && "GetFourierDensity requires a Band_FT_IBS (plane-wave) basis");
+    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>(self().itsBasisSet);
+    assert(fb && "GetFourierDensity requires a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
     return Contract(fb->Overlap3C(c), self().itsDensityMatrix);
 }
 
@@ -346,8 +346,8 @@ template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetFourierDensity(const Bas
 // caller falls back to the ball route).  itsDensityMatrix carries the BZ weight, exactly as above.
 template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
 {
-    auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(self().itsBasisSet);
-    assert(fb && "GetRhoOnGrid requires a Band_FT_IBS (plane-wave) basis");
+    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>(self().itsBasisSet);
+    assert(fb && "GetRhoOnGrid requires a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
     const Projector3<dcmplx>& g=fb->Overlap3C(c);
     return g.applyRaw ? g.applyRaw(self().itsDensityMatrix) : rvec_t{};
 }
@@ -356,8 +356,8 @@ template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet:
 // diagonal kernel baked in) -- the reciprocal mirror of the finite GetRepulsion3C(fbs) above.  D stays here.
 template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
 {
-    auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(self().itsBasisSet);
-    assert(fb && "GetRepulsion3C requires a Band_FT_IBS (plane-wave) basis");
+    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>(self().itsBasisSet);
+    assert(fb && "GetRepulsion3C requires a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
     return Contract(fb->Repulsion3C(c), self().itsDensityMatrix);
 }
 

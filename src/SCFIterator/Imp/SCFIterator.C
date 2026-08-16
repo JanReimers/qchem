@@ -28,7 +28,7 @@ import qchem.Mesh;                 // qcMesh::MeshParams (defaulted -- a seed-qu
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
-// The Kerker/Pulay G-space machinery (FourierDensity, FourierMixCD, Band_FT_IBS, ReciprocalLattice)
+// The Kerker/Pulay G-space machinery (FourierDensity, FourierMixCD, Orbital_DFT_IBS<dcmplx>, ReciprocalLattice)
 // is entirely the periodic mixer factory's business -- the iterator only holds a tDensityMixer, so
 // those imports are gone.  What survives is one periodicity QUESTION for the cell snapshot handed to
 // that factory (CleanupCandidates V1.10b retires even that, by building the mixer above the iterator).
@@ -777,7 +777,7 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
 }
 
 // The solid mixer.  The branch here is on the KNOB -- did the caller ASK for G-space mixing? -- not on the
-// geometry: being periodic is what this class IS, so MakePeriodicMixer takes the Band_FT_IBS basis, the
+// geometry: being periodic is what this class IS, so MakePeriodicMixer takes the Orbital_DFT_IBS<dcmplx> basis, the
 // UnitCell and the FourierDensity seed as preconditions rather than probing for them.
 std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
 SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, const Structure* cell,

@@ -14,7 +14,7 @@ module;
 export module qchem.BasisSet.Lattice_3D.IBS;
 import qchem.BasisSet.IrrepBasisSet;                  // IrrepBasisSet<dcmplx> (op()(r), GetNumFunctions)
 import qchem.BasisSet.Orbital_1E_IBS;                 // Orbital_1E_IBS<dcmplx> (MakeOverlap/MakeKinetic/MakeNuclear)
-import qchem.BasisSet.Band_FT_IBS;                    // Band_FT_IBS (MakeRepulsion3C/MakeOverlap3C) + Projector3<dcmplx>
+import qchem.BasisSet.Orbital_DFT_IBS;                    // Orbital_DFT_IBS<dcmplx> (MakeRepulsion3C/MakeOverlap3C) + Projector3<dcmplx>
 import qchem.BasisSet.Fit_IBS;                        // cFIT_CD_ABS / cFIT_SF_ABS (the 3-centre fit-basis args)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;       // PW_Evaluator + isPW_1E_Evaluator / isPW_DFT_Evaluator
 import qchem.Structure;                               // Structure (MakeNuclear arg)
@@ -52,12 +52,12 @@ public:
 };
 
 // --- Orbital DFT tier: the D-free reciprocal-space 3-centre tensors, forwarded to the evaluator.  Supplies
-// the Band_FT_IBS one-time builds (the cached Repulsion3C/Overlap3C accessors call these).  The fit-basis
+// the Orbital_DFT_IBS<dcmplx> one-time builds (the cached Repulsion3C/Overlap3C accessors call these).  The fit-basis
 // arg is the delta support's declared cover (orbital-{G} intrinsic today), so it is not threaded to the
 // evaluator yet -- GPW, whose density fit-grid does matter, will thread it here.
 template <class E> requires isPW_DFT_Evaluator<E>
 class EPW_Orbital_DFT_IBS
-    : public virtual Band_FT_IBS
+    : public virtual Orbital_DFT_IBS<dcmplx>
 {
 protected:
     virtual Projector3<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}

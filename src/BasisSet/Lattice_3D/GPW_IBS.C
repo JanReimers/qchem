@@ -24,7 +24,7 @@ import qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS; // the auxiliary PW fit basis
 import qchem.Matrix3D;                             // Matrix3D
 import qchem.Symmetry.Lattice_3D.SpaceGroup;       // DirectOp {W|τ} -- the direct ops threaded to the Vxc fit basis
 import qchem.BasisSet.Internal.IrrepBasisSetImp;  // IrrepBasisSetImp<dcmplx>: GetSymmetry/GetSymt/GetIrrep
-export import qchem.BasisSet.Band_FT_IBS;          // Band_FT_IBS (the DFT capability; Create*FitBasisSet)
+export import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<dcmplx> (the DFT capability; Create*FitBasisSet)
 export import qchem.BasisSet.Fit_IBS;              // cFIT_CD_ABS / cFIT_SF_ABS + qcMesh::MeshParams
 export import qchem.Pseudopotential.Integrals_Pseudo; // Integrals_Pseudo<dcmplx> (external-PP capability) + the models
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
@@ -48,7 +48,7 @@ enum class CellImages { Periodic, HomeCellOnly };
 //! \f$\Gamma\f$.  Built from a molecular Gaussian basis (over the cell's atoms) + the cell.
 class GPW_IBS
     : public EPW_Orbital1E_IBS<GPW_Evaluator>       // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
-    , public EPW_Orbital_DFT_IBS<GPW_Evaluator>     // DFT tier (IS-A Band_FT_IBS): MakeOverlap/MakeRepulsion3C/MakeOverlap3C
+    , public EPW_Orbital_DFT_IBS<GPW_Evaluator>     // DFT tier (IS-A Orbital_DFT_IBS<dcmplx>): MakeOverlap/MakeRepulsion3C/MakeOverlap3C
     , public BasisSet::IrrepBasisSetImp<dcmplx>     // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
     , public Pseudopotential::Integrals_Pseudo<dcmplx> // external-PP assembly (real-space); PW_Pseudo casts ACROSS to this
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
@@ -83,7 +83,7 @@ public:
             RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
             RasterFields rasterFields = RasterFields::HartreeXC);
 
-    //! \brief The DFT factory seam (Band_FT_IBS): the auxiliary density/potential fit basis is a plane-wave grid
+    //! \brief The DFT factory seam (Orbital_DFT_IBS<dcmplx>): the auxiliary density/potential fit basis is a plane-wave grid
     //! over GPW's OWN density grid -- so the collocated \f$\tilde\rho\f$'s \f$\{G\}\f$ matches the fitter's.  A
     //! GPW density lives on a plane-wave grid whatever the orbitals are (never orbital==fit).
     virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
@@ -112,7 +112,7 @@ public:
     virtual std::ostream& Write(std::ostream&) const override;
 
 protected:
-    //! \brief The DFT 3-centre tables (Band_FT_IBS) built over the REQUESTED fit basis's OWN grid -- NOT the
+    //! \brief The DFT 3-centre tables (Orbital_DFT_IBS<dcmplx>) built over the REQUESTED fit basis's OWN grid -- NOT the
     //! block's \c DensityGrid.  \a c is the fit basis \c CreateCD/VxcFitBasisSet produced (it IS-A
     //! PW_Grid_Evaluator carrying the density-fit \f${G}\f$/grid policy), so we hand its grid to the evaluator:
     //! the table returned is the one REQUESTED, honouring the factory's grid choice rather than silently

@@ -15,7 +15,7 @@ module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
-import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
+import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // the fit basis's FFT grid engine (RhoOnGrid/Integral for XC)
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
@@ -197,8 +197,8 @@ chmat_t Vee_Hartree::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDens
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
     assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
-    auto bft=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
-    assert(bft && "Vee_Hartree requires a Band_FT_IBS (reciprocal-space DFT) orbital basis");
+    auto bft=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>(bs);
+    assert(bft && "Vee_Hartree requires a Orbital_DFT_IBS<dcmplx> (reciprocal-space DFT) orbital basis");
     // The density contracts D against the basis's D-free Coulomb tensor Repulsion3C (kernel baked) to give
     // V_H(dm) [FORWARD]; the KS matrix <i|V_H|j> = Σ_k V_H(G_k) <i|e^{iG_k}|j> is the BACKWARD contraction of the
     // SAME Repulsion3C tensor over the CD fit basis (its applyAdjoint -- the overlap integrate-back on the fit
@@ -392,7 +392,7 @@ chmat_t PWFittedVxc::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDens
         // RAW route (0.5(f2)): H_xc through the raw adjoint of the SAME tensor whose applyRaw produced
         // itsRhoGrid -- box-truncation per level + the analytic gather -- so H_xc == dE_xc/dD of the raw
         // discrete functional to machine precision (gate: GPW.RawXCConsistencyFD).  No ball fit anywhere.
-        const auto& orb=dynamic_cast<const BasisSet::Band_FT_IBS&>(*bs);   // genuine "is it?" cross-cast (throws)
+        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws)
         const Projector3<dcmplx>& g=orb.Overlap3C(*itsVxcFitBasis);
         assert(g.applyRawAdjoint && "raw rho without a raw adjoint: Overlap3C must carry both");
         rvec_t v(itsRhoGrid.size());

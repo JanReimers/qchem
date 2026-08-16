@@ -4,7 +4,7 @@
 // rho-tilde IS the fit (no metric solve), so this implements ONLY the minimal CORE FunctionFitter_Density
 // face -- no self-energy / charge constraint / rescale / real-space value (the non-ortho refinement an AO
 // fit needs).  DoFit RECEIVES the density's pre-computed rho-tilde (a ProjectedDensity_G) and Repulsion
-// delegates the FFT-free G-space Poisson solve to the orbital basis (Band_FT_IBS).
+// delegates the FFT-free G-space Poisson solve to the orbital basis (Orbital_DFT_IBS<dcmplx>).
 //
 // It is created through the factory Factory(cFIT_CD_ABS) exactly as the AO fitter is created
 // through Factory(rFIT_CD_ABS): the plane-wave Hartree term obtains it via the basis's
@@ -20,7 +20,7 @@ export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<d
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
-import qchem.BasisSet.Band_FT_IBS;            // the orbital assembly bridge (MakeOverlap) for the XC matrix
+import qchem.BasisSet.Orbital_DFT_IBS;            // the orbital assembly bridge (MakeOverlap) for the XC matrix
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
 export namespace qchem::Fitting
@@ -113,7 +113,7 @@ public:
         // this is a genuine "is it?" cross-cast: a reference-cast THROWS std::bad_cast (not release-mode UB)
         // for any future non-PW complex orbital basis.  (Contrast the fitter's own itsFitBasis casts, which
         // its isOrtho() contract guarantees.)  Ties to the item-C dynamic_cast survey.
-        const BasisSet::Band_FT_IBS&      orb=dynamic_cast<const BasisSet::Band_FT_IBS&>(*bs);   // the assembly bridge
+        const BasisSet::Orbital_DFT_IBS<dcmplx>&      orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>&>(*bs);   // the assembly bridge
         const BasisSet::G_FieldEvaluator& fit=FitGrid();                                         // the fit grid engine
         // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
         // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the

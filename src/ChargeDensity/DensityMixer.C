@@ -33,7 +33,7 @@ import qchem.ChargeDensity.FourierMixCD;           // FourierMixCD / KerkerMix
 import qchem.Math.DIIS;                             // the shared Pulay/DIIS bordered-solve engine
 import qchem.Blaze;                                 // rsmat_t/rvec_t/ivec3_t + blazem::zero (the Pulay B-solve)
 import qchem.BasisSet;                             // tBasisSet<T>, operator[]
-import qchem.BasisSet.Band_FT_IBS;                 // Band_FT_IBS::CreateVxcFitBasisSet
+import qchem.BasisSet.Orbital_DFT_IBS;                 // Orbital_DFT_IBS<dcmplx>::CreateVxcFitBasisSet
 import qchem.BasisSet.Fit_IBS;                     // cFIT_SF_ABS (the FourierDensity face arg)
 import qchem.BasisSet.G_FieldEvaluator;            // ApplySpectralFilter (the raster Kerker step, 0.5(f2))
 import qchem.ReciprocalLattice;                    // ReciprocalLattice
@@ -787,7 +787,7 @@ template <class T> std::unique_ptr<tDensityMixer<T>> MakeLinearMixer(double rela
 //! polarized run (PolarizedDensityMixer).
 //!
 //! Only a solid run asks for this, and a solid run HAS the periodic pieces by construction -- so the
-//! Band_FT_IBS basis / UnitCell / FourierDensity faces are PRECONDITIONS here, not things to probe for.
+//! Orbital_DFT_IBS<dcmplx> basis / UnitCell / FourierDensity faces are PRECONDITIONS here, not things to probe for.
 //! This used to be one \c MakeDensityMixer that ran a three-way capability probe and fell back to linear
 //! D-mixing with a warning: a periodic-vs-molecular decision sitting one layer too low.  The caller that
 //! KNOWS (\c SolidSCFIterator::CreateMixer) now makes it, and a violated precondition THROWS rather than
@@ -800,10 +800,10 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
     double relax0, double kerkerG0, int pulayDepth, int pulayStart,
     const BasisSet::tBasisSet<dcmplx>* basis, const Structure* structure, const tDM_CD<dcmplx>* seed)
 {
-    auto* ftb = basis ? dynamic_cast<const BasisSet::Band_FT_IBS*>((*basis)[0]) : nullptr;
+    auto* ftb = basis ? dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*basis)[0]) : nullptr;
     auto* fd  = dynamic_cast<const FourierDensity*>(seed);
     if (!ftb || !isPeriodicCell(structure) || !fd)
-        throw std::runtime_error("MakePeriodicMixer: Kerker/Pulay need a periodic Band_FT_IBS basis, a "
+        throw std::runtime_error("MakePeriodicMixer: Kerker/Pulay need a periodic Orbital_DFT_IBS<dcmplx> basis, a "
                                  "UnitCell structure and a FourierDensity seed.");
     auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(ftb->CreateVxcFitBasisSet(structure, qcMesh::MeshParams{}));
     ReciprocalLattice recip=GetReciprocalLattice(structure);

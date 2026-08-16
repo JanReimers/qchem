@@ -27,4 +27,5 @@ template <class T, class TFit> const Projector3<TFit>& Orbital_DFT_IBS<T,TFit>::
 // which owns D -- the basis exposes only the D-free integral tensors Overlap3C(c)/Repulsion3C(c) above.
 
 template class Orbital_DFT_IBS<double>;
+template class Orbital_DFT_IBS<dcmplx>;   // the reciprocal-space lineage (ex Band_FT_IBS -- V1.1)
 }
