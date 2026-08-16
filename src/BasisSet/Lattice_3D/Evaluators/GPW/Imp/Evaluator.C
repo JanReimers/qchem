@@ -30,6 +30,37 @@ namespace qchem::BasisSet::Lattice_3D
 
 namespace
 {
+//! \brief A TIME-REVERSAL-INVARIANT \a kFrac: every component a half-integer, i.e. \f$2k\f$ is a
+//! reciprocal lattice vector.  \f$\Gamma\f$ and the zone-boundary points \f$(\tfrac12,0,0)\f$,
+//! \f$(\tfrac12,\tfrac12,0)\f$, \f$(\tfrac12,\tfrac12,\tfrac12)\f$ -- and note a \f$\Gamma\f$-centred
+//! 2x2x2 Monkhorst-Pack mesh is k in {0,½}³, i.e. TRIM THROUGHOUT.
+bool IsTRIM(const rvec3_t& k)
+{
+    auto half=[](double x){ return std::fabs(2.0*x - std::round(2.0*x)) < 1e-12; };
+    return half(k.x) && half(k.y) && half(k.z);
+}
+//! \brief The Bloch phase \f$e^{2\pi i\,k\cdot n}\f$ of integer cell \a n -- EXACTLY \f$\pm1\f$ at a
+//! TRIM \a kFrac.
+//!
+//! There \f$2k\f$ is integral, so \f$e^{2\pi ik\cdot n}=(-1)^{(2k)\cdot n}\f$: a parity, not a
+//! transcendental.  Computing it as \c std::exp leaves \f$\sin(\pm\pi)\approx1.2\times10^{-16}\f$ in
+//! the imaginary part, and that junk propagates into S, T, V_loc, the KB projectors and the XC-mesh
+//! basis tables at EVERY zone-boundary k -- where it is then symmetrised away, having cost a complex
+//! multiply per term.  Exact \f$\pm1\f$ makes those blocks exactly real instead of nearly real, which
+//! is the difference between a REAL-ARITHMETIC fast path selectable by a fact and one selectable only
+//! by a tolerance somebody has to defend (doc/GPWPlan1.md).  Away from TRIM this is the plain \c exp.
+dcmplx BlochPhase(const rvec3_t& kFrac, const ivec3_t& n, bool trim)
+{
+    if (trim)
+    {
+        const long p = std::lround(2.0*kFrac.x)*n.x + std::lround(2.0*kFrac.y)*n.y
+                     + std::lround(2.0*kFrac.z)*n.z;
+        return dcmplx((p & 1L) ? -1.0 : 1.0, 0.0);
+    }
+    const double kn=kFrac.x*n.x + kFrac.y*n.y + kFrac.z*n.z;
+    return std::exp(dcmplx(0.0, 2.0*Pi*kn));
+}
+
 // Build a lattice-translation set {R} (Cartesian, origin first) and its matching Bloch phases {e^{ik.R}} for
 // a cutoff radius -- the {R}+{phase} weighted point set (future: one qcMesh cMesh).  phase = exp(2 pi i k.n)
 // with n the integer cell index (convention-safe).  Rcut<=0 -> the home cell only (origin, phase 1).
@@ -37,12 +68,12 @@ void BuildImages(const UnitCell& cell, double Rcut, const rvec3_t& kFrac,
                  std::vector<rvec3_t>& R, cvec_t& phase)
 {
     blazem::VecBuilder<dcmplx> ph;
+    const bool trim=IsTRIM(kFrac);
     if (Rcut>0.0)
         for (const auto& n : cell.CellsInSphere(Rcut))
         {
             R.push_back(cell.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z))));
-            double kn=kFrac.x*n.x + kFrac.y*n.y + kFrac.z*n.z;         // k_frac . n
-            ph.Append(std::exp(dcmplx(0.0, 2.0*Pi*kn)));              // e^{ik.R} = e^{2 pi i k_frac . n}
+            ph.Append(BlochPhase(kFrac,n,trim));                      // e^{ik.R} = e^{2 pi i k_frac . n}
         }
     else
     {
@@ -298,11 +329,8 @@ GPW_Evaluator::~GPW_Evaluator()
 Molecule::LatticeSum1E::cellphase_t GPW_Evaluator::CellPhase() const
 {
     const rvec3_t k=itsk;
-    return [k](const ivec3_t& n)->dcmplx
-    {
-        double kn=k.x*n.x + k.y*n.y + k.z*n.z;
-        return std::exp(dcmplx(0.0, 2.0*Pi*kn));
-    };
+    const bool trim=IsTRIM(k);                       // exactly +/-1 there; see BlochPhase
+    return [k,trim](const ivec3_t& n)->dcmplx { return BlochPhase(k,n,trim); };
 }
 
 // The matrix-free density->rho-tilde / ->V_H map (the G_ERI3::apply realization -- the CP2K analytic

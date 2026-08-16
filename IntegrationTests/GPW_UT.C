@@ -1039,6 +1039,37 @@ TEST(GPW, GeneralK_BlochTranslationCondition)
     EXPECT_LT(std::sqrt(num/den), 1e-6) << "Bloch translation law chi^k(r+R0)=e^{ik.R0}chi^k(r)";
 }
 
+// (c2) TRIM BLOCKS ARE EXACTLY REAL, not nearly real (doc/GPWPlan1.md, the real-arithmetic path's
+// precondition).  At a time-reversal-invariant k -- every component a half-integer, so 2k is a
+// reciprocal lattice vector -- the Bloch phase e^{2 pi i k.n} is the PARITY (-1)^{(2k).n}, and the
+// evaluator computes it as exactly +/-1 instead of std::exp (which leaves sin(+/-pi) ~ 1.2e-16 behind).
+// So the imaginary part of every Bloch matrix at such a k must be ZERO BITWISE, not merely small: the
+// difference between a fast path selectable by a FACT and one selectable by a tolerance.  The zone
+// boundary (1/2,0,0) and the zone corner (1/2,1/2,1/2) are TRIM; (1/4,0,0) is the negative control and
+// must stay genuinely complex (that is GeneralK_PhaseIsLiveWithImages above).
+TEST(GPW, TRIM_BlochMatricesAreExactlyReal)
+{
+    const double a=8.0;                          // small cell: image overlaps are large, phases matter
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+
+    for (const ivec3_t ik : {ivec3_t(1,0,0), ivec3_t(1,1,1)})      // k=(1/2,0,0) and (1/2,1/2,1/2)
+    {
+        GPW_IBS gpw(cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
+        const Complex_OIBS& g = gpw;
+        EXPECT_EQ(MaxImag(g.Overlap()), 0.0) << "TRIM k=" << ik << ": S must be EXACTLY real";
+        EXPECT_EQ(MaxImag(g.Kinetic()), 0.0) << "TRIM k=" << ik << ": T must be EXACTLY real";
+        EXPECT_GT(std::real(g.Overlap()(0,0)), 0.0);               // and still a sane overlap
+        // The orbitals themselves, not just their integrals: the XC-mesh Phi table is built from these.
+        const GPW_Evaluator& ev = gpw;
+        const cvec_t f = ev.Eval(cell.ToCartesian(rvec3_t(0.3,0.4,0.7)));
+        double maxIm=0.0;
+        for (size_t i=0;i<f.size();i++) maxIm=std::max(maxIm,std::fabs(std::imag(f[i])));
+        EXPECT_EQ(maxIm, 0.0) << "TRIM k=" << ik << ": chi^k(r) must be EXACTLY real";
+    }
+}
+
 // (d) Time reversal at the matrix level: S(-k) = conj(S(k)) elementwise -- the phases conjugate under
 // k -> -k while the underlying real 2-centre integrals are k-independent.  Exact (same image set, no tol).
 TEST(GPW, GeneralK_ConjugateUnderKtoMinusK)

@@ -516,3 +516,21 @@ After this the per-iteration ledger is: pair scatter+gather ≈ 3.8 s, H_xc ≈ 
 sampling ≈ 1.35 s, rho GEMM ≈ 0.09 s.  Setup is dominated by the stream build (~28 s) and the Becke
 mesh build (~16 s).  The next levers are unchanged: Φ-table screening, the real-Γ/TRIM path (Γ AND
 every k with 2k ≡ 0 — so a Γ-centred 2×2×2 mesh is entirely real), and the fast-recompute kernel.
+
+### Step 0 of the real-arithmetic path: exact ±1 Bloch phases at TRIM (2026-08-16)
+
+`BlochPhase(k,n)` now returns the PARITY \f$(-1)^{(2k)\cdot n}\f$ instead of `std::exp` whenever every
+component of k is a half-integer — i.e. \f$2k\f$ is a reciprocal lattice vector (Γ and the zone-boundary
+points; note a Γ-centred 2×2×2 Monkhorst-Pack mesh is k ∈ {0,½}³, TRIM THROUGHOUT).  One helper, both
+phase sites (`BuildImages`'s image list and `CellPhase`'s per-offset closure).
+
+Why it matters beyond tidiness: `std::exp(iπ)` leaves \f$\sin(\pm\pi)\approx1.2\times10^{-16}\f$ in the
+imaginary part, so at every zone-boundary k the Bloch S, T, V_loc, KB blocks and the XC-mesh Φ tables
+came out *nearly* real and were then symmetrised, having paid complex arithmetic throughout.  Exactly
+±1 makes those blocks EXACTLY real, which is what turns "is this block real?" from a tolerance somebody
+has to defend into a bitwise fact — the precondition for selecting a real-arithmetic path by TYPE
+rather than by threshold.  Gate: `GPW.TRIM_BlochMatricesAreExactlyReal` asserts `MaxImag == 0.0`
+(equality, not a bound) for S, T and χ^k(r) at k=(½,0,0) and (½,½,½); `GeneralK_PhaseIsLiveWithImages`
+is the negative control at k=(¼,0,0).
+
+The real-arithmetic path ITSELF is not built and its shape is undecided — see the design note below.
