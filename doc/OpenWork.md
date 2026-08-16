@@ -277,6 +277,18 @@ long MnO runs until 1–3 and 5 land.
    SR oracle).  THE EXPERIMENT: v2 span, MNO_ORTHO_TOL=1e-3 (zero drops), GPW_SCREEN_EPS=
    GPW_DENSITY_EPS=1e-12, GPW_MNO_NMAX=4 — dive gone ⇒ confirmed, and qchem gains full-136
    capability priced in runtime (= item 1's business).
+3b. **REAL vs COMPLEX — the scalar-type plan (NEW 2026-08-16, doc/RealComplexPlan.md).**  Fell out of
+   item 1: a Bloch block at a TRIM k (2k ≡ 0 — Γ AND every zone-boundary point, so a Γ-centred
+   2×2×2 mesh is TRIM throughout) is exactly real, and so are its H, C, D.  The plan derives the
+   rule from the physics rather than declaring it — `block is real ⇔ irrep.IsReal() ∧ (every
+   term.PreservesReal())`, each participant answering about itself — covers SOC / B-fields /
+   non-collinear / Dirac in one table, and separates BASIS type from WORKING type (with SOC the
+   basis stays real and only H/C/D go complex, so the expensive geometry layer must not be dragged
+   complex with them).  Step 0 is DONE (`1b8b9a83`, exact ±1 phases ⇒ realness is bitwise).  The
+   REST IS DELIBERATELY NOT STARTED: it is gated on the cleanup items that sit on the same faces
+   (V1.6, V1.7, V1.8, V1.11, V1.1, V1.5, V1.10, R2.16 — listed in the plan), and one open question
+   (the SCF accelerator's per-block history) could negate the memory win if settled late.
+
 4. **Code cleanup batch.**  doc/CleanupCandidates.md D1–D13 + the vet-stage symmetric basis trim
    (this file, above) + Δρ/N convergence gate (doc/SCFStrategyPlan.md) + GDM fallback-diagonalize
    breadcrumb (run 59's silent +302 mHa hop) + per-channel ortho duplication + the fingerprint's
