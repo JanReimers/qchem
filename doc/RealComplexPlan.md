@@ -156,8 +156,11 @@ the ISP splits produce):
 - **V1.1 ✅ DONE 2026-08-16 (`d49db261`+`4b37221d`+`2bfb83b4`)** — the basis-face merge landed:
   `Projector3<T>` unifies the 3C tensor, `Band_FT_IBS` is deleted, and `Orbital_DFT_IBS<double,dcmplx>`
   (a real TRIM block on the run's complex fit basis — exactly this plan's case) is a live spelling whose
-  tensor caches under `theCache<TFit>()`.  / **V1.5 / V1.10 (✅)** `G_FieldEvaluator` ISP split,
-  abstract→concrete basis casts — the basis is the decision point and the head of the type flow.
+  tensor caches under `theCache<TFit>()`.  **V1.5 ✅ DONE 2026-08-16 (`f18a6ee9`+`9ebaebdb`)** — the
+  grid-engine union is four client-named faces (`G_FieldEvaluator`/`G_Quadrature`/`G_StructureFactor`/
+  `G_SpectralFilter`), so re-typing touches one face per consumer.  **V1.10 ✅.**  The basis was the
+  decision point and the head of the type flow — **all basis-side prerequisites are now DONE; only
+  V1.11 (the occupation seam) remains.**
 - **R2.16** construction-time facts re-asked at run time — the same principle this rests on.
 
 NOT prerequisites (do not gate on them): R1.0b (shared-radial reader), R2.20 (oracle helpers in a

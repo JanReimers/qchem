@@ -119,6 +119,41 @@ inaccurate since the overlap-metric tensor has no repulsion integral in it).
   the PW fitter implements both metric faces at once — the merge discussion is "how does the
   merged face express the metric choice without naming it", not "which metric wins".
 
+## LANDED 2026-08-16 — V1.5 (the `G_FieldEvaluator` ISP split) + the grid-reporting redesign, 717/717 green
+
+Two commits; the reporting redesign came FIRST because the split's one open design question ("does
+`EmitGridReport` belong on the quadrature face?") answered NO and pulled a thread:
+
+- `f18a6ee9` — **Grid reporting: providers self-report, role-labeled, latch-free.**  User rulings:
+  *"each object with something to report should decide for itself when and what to report — external calls
+  to activate reporting should be the exception"*; *"if grids are created the user wants to know … if every
+  new grid reports, we at least have a chance of pruning"* (a created-but-unused grid announcing is a
+  FEATURE); the raw-`cout` line beside the report entry *"sounds like a bug — send everything to
+  CurrentReport"*; and the PWTerms `static const void*` latch was called out (*"void* has no place in
+  modern c++"* — it is CLAUDE.md law already).  Mechanism: `report::EmitAt` is now IDEMPOTENT (identical
+  value at the same path = no write, no re-render), so providers announce UNCONDITIONALLY and dedup lives
+  in the report, RUN-scoped — the two function-local-static latches (PWTerms' address-keyed `void*`,
+  UnitCell's `lastID` string) leaked their dedup across runs and are gone.  The grid's ROLE
+  ("xcQuadrature"/"densityFit") is a construction-time fact only its factory knows (R2.16), stamped on
+  `PlaneWaveFit_IBS` at creation; the CD grid now announces too — which is exactly what §K's grid
+  divergence will need the report to show.
+- `9ebaebdb` — **V1.5 proper: one 10-method union → four client-named faces** (the V1.27 lesson):
+  `G_FieldEvaluator` (evaluate a fitted map: `EvalField`/`EvalFieldGradient` — the ortho fitters' op(r)),
+  `G_Quadrature` (`GridPoints`/`RhoOnGrid`/`ForwardFFT`/`GridCoeff`/`FieldCoeffs`/`Integral` — exposed
+  through `GriddedScalarFitter::Grid()`, one owner as #7 left it), `G_StructureFactor`
+  (`MakeFourierDensity` — the seed's single ask), `G_SpectralFilter` (`ApplySpectralFilter` — the mixer's
+  single ask).  `PW_Grid_Evaluator` implements all four; every consumer casts to exactly its face;
+  `Factory(cFIT_SF_ABS)` checks both required faces at the construction seam.  Cut to §K's end state: when
+  the fit grids densify, what changes is which object implements `G_Quadrature`, not who asks.
+- **Why the §K pin no longer blocked:** the one-owner rule landed with review-finding #7
+  (`GriddedScalarFitter::Grid()`), and the V1.1 collapse had already removed the last orbital-assuming
+  method from the union — the face was a pure density/potential grid engine before the split touched it.
+- **Session status audit of FittingCleanupPlan** (what prompted this): H essentially landed via V1.26/V2.4
+  (`MeshParams.eCut` + XCPolicy auto-sizing); I.2 landed (`GridCutoffFactor`→`relCutoff` threaded and
+  consumed); §K's `ProjectedScalar_G`→`cvec_t` sub-bullet is OVERTAKEN (the class no longer exists); K's
+  core (the densification) is now UNBLOCKED; I.1's residual is the `GetEpsXc()=0.75*GetVxc()` base default
+  (exact for Dirac exchange, a silent-wrong inherited default for GGA); C stays dead last.
+
 ## LANDED on branch `solid-cleanup` (qchem1, 2026-08-05) — 665/665 ctest green
 
 - `06e23f5d` — **R1.1, R1.2, R1.6, R1.8, R2.1.**  The `te.Exc=0.0` clobber deleted; `=`→`+=` sweep

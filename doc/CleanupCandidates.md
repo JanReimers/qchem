@@ -28,8 +28,8 @@ those items sit on the very faces it restructures.  Status:
 | **V1.8** `IrrepCD`↔`IrrepCD` concrete casts | ✅ `2d0f6982` (evaporated with V1.6) |
 | **V1.10** abstract→concrete basis casts | ✅ `2d0f6982` |
 | **V1.1** basis-face merge | ✅ `d49db261`+`4b37221d`+`2bfb83b4` (2026-08-16) |
-| **V1.5** `G_FieldEvaluator` ISP split | ⛔ not started (pinned to FittingCleanupPlan §K) |
-| **V1.11** occupation seam | ⛔ not started (pinned to SCFStrategyPlan) |
+| **V1.5** `G_FieldEvaluator` ISP split | ✅ `f18a6ee9`+`9ebaebdb` (2026-08-16; §K blocker had dissolved) |
+| **V1.11** occupation seam | ⛔ not started (pinned to SCFStrategyPlan) — **the LAST one** |
 
 **What V1.1's landing bought (2026-08-16):** ONE structure-neutral DFT basis face.  The 3-centre tensor
 is `Projector3<T>` (one struct; dense / delta-support / matrix-free are REALIZATIONS, a property of the
@@ -46,15 +46,19 @@ reciprocal-space kind -- so the plan's "widening points" are two small faces (`t
 with them: `Vee`/`Vxc` used to hit an assert-only `void` body -- a silent NO-OP in the shipped build,
 i.e. a zeroed J and a wrong Fock -- and now throw.
 
-## Next: **V1.5 and V1.11**, both design sessions, not execution
+## Next: **V1.11** — the last RealComplexPlan prerequisite
 
-- **V1.5** (`G_FieldEvaluator` 3-face ISP split) wants FittingCleanupPlan §K engaged first: §K diverges
-  the Vxc/CD fit grids from the orbital grid, and the split must be cut so it survives that.  §K itself
-  depends on §H + §I.2, which have not landed — so the DESIGN discussion can start now, the execution
-  order needs care.
 - **V1.11** (occupation seam) is SCFStrategyPlan increment 4 (§5 pins the shape: occupation is a
   first-class seam, aufbau/MOM/smearing siblings).  The `Fill(const OccupationPolicy&)` face and the
   two-phase WF construction still need design there.
+- **V1.5 landed 2026-08-16** (see the item / doc/CleanupHistory.md).  The session's status audit of
+  FittingCleanupPlan found it more finished than it knew: **H** essentially landed via V1.26/V2.4,
+  **I.2** landed (`relCutoff` live), **§K's `cvec_t` sub-bullet is overtaken** (`ProjectedScalar_G` no
+  longer exists) — so **K's core (the fit-{G} densification) is now UNBLOCKED** and is the natural next
+  fitting-side session (deliberately non-bit-identical; grid-convergence acceptance).  **I.1's residual**:
+  the `GetEpsXc()=0.75*GetVxc()` base default (ExchangeFunctional.C:34) — exact for Dirac exchange, a
+  silent-wrong inherited default the day a GGA functional forgets to override; fold into whatever touches
+  the functionals first.
 
 ## Coordination — CHANGED 2026-08-16 (user)
 
@@ -1043,16 +1047,16 @@ MnO campaign proceeds undisturbed in qchem6.
     side and BasisSetID is the odd one out; extend V1.4 to `DM_ContractBlocks` in its own pass.
     (This also retro-justifies V1.4: the term caches had been Irrep-keyed all along.)
 - **V1.4 ✅ DONE `80fc2ae8`. `DM_RhoAtPoints` Phi key → Irrep (USER RULING 2026-08-05).**.  **→ doc/CleanupHistory.md**
-- **V1.5 `G_FieldEvaluator` 3-face ISP split.**  Verified: 11 public methods with near-1:1
-  method↔consumer mapping — `EvalField*`/`ForwardFFT`/`GridCoeff`/`FieldCoeffs` →
-  OrthoFunctionFitter only; `RhoOnGrid`/`Integral`/`EmitGridReport` → PWTerms only;
-  `ApplySpectralFilter` → DensityMixer only (Kerker); `MakeFourierDensity` → SeedCD only.  Three
-  disjoint responsibilities (evaluate-a-ΔG_Map, FFT quadrature, one-off analytic services).
-  Caveat: deliberately promoted to the "full PW grid-engine DIP seam" in FittingCleanupPlan §K —
-  the split must engage that decision.  Correction to the old bullet: PWVxcField is not a 4th
-  consumer (helper inside PWTerms; the Hamiltonian reaches the engine via `FunctionFitter::Grid()`,
-  FunctionFitter.C:139).  Related: XC_GridEngine's `Lattice_3D::Fold` + dcmplx dependency bars any
-  molecular reuse of the quadrature engine — same design session.
+- **V1.5 ✅ DONE `f18a6ee9`+`9ebaebdb` (2026-08-16) — FOUR faces, not three, and a reporting redesign fell
+  out first.**  The §K blocker had dissolved piecemeal (grid one-owner landed with #7; V1.1 removed the last
+  orbital-flavored method), so the split was executable.  `EmitGridReport` did NOT move onto a face — user
+  ruling: providers self-report; every created grid announces at construction, ROLE-labeled by its factory
+  (`report::EmitAt` made idempotent so dedup is run-scoped in the REPORT, killing the `static const void*`
+  latch in PWTerms and the raw-`cout`-beside-the-report bug).  Then:
+  `G_FieldEvaluator` (evaluate) / `G_Quadrature` (FFT engine, via `GriddedScalarFitter::Grid()`) /
+  `G_StructureFactor` (seed) / `G_SpectralFilter` (mixer).  **→ doc/CleanupHistory.md.**
+  Still open from the old bullet, now standalone: XC_GridEngine's `Lattice_3D::Fold` + dcmplx dependency
+  bars molecular reuse of the quadrature engine.
 - **V1.6 ✅ DONE `2d0f6982`. `tDM_CD::Accumulate*` — face split, NOT pure-virtual.**  Now `tHF_System_CD` +
   `tHF_Pair_CD`, real path only via `conditional_t`; the complex leaf declares NOTHING (a CRTP mixin, after
   the user pressed that empty bodies are still the interface failing to segregate).  The NDEBUG hazard is
