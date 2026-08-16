@@ -105,7 +105,7 @@ public:
 
     //! XC matrix <i|v_xc|j> = V-tilde(m_i-m_j): the ORBITAL basis assembles over ITS {G}, looking each
     //! reciprocal-index difference up in OUR fit-grid coefficients -- so the fit grid may be denser than (or
-    //! offset from) the orbital's.  The orbital's assembly is its Band_FT_IBS::MakeOverlap bridge (the
+    //! offset from) the orbital's.  The orbital's assembly is its applyAdjoint realization (the
     //! orbital-specific step); the fit grid's GridCoeff lookup is the shared G_FieldEvaluator grid engine.
     virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
     {

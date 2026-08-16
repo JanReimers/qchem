@@ -59,11 +59,6 @@ template <class E> requires isPW_DFT_Evaluator<E>
 class EPW_Orbital_DFT_IBS
     : public virtual Band_FT_IBS
 {
-public:
-    //! The orbital-specific potential->KS-matrix bridge (Band_FT_IBS face): plane waves do the evaluator's
-    //! Fourier lookup <i|V|j>=Vtilde(m_i-m_j).  GPW's Gaussian evaluator will instead grid-integrate here.
-    virtual chmat_t MakeOverlap(const std::function<dcmplx(const ivec3_t&)>& Vt) const override
-        {return Cast().OverlapMatrix(Vt);}
 protected:
     virtual Projector3<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}
     virtual Projector3<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS&) const override {return Cast().Overlap3CTensor();}

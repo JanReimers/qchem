@@ -43,11 +43,8 @@ class PlaneWave_IBS
     , public         PW_Evaluator                     // the shared grid engine (Cast() target for the mixins)
 {
 public:
-    //! \c MakeOverlap is declared in BOTH the 1E mixin (no-arg \f$\langle i|j\rangle\f$) and the DFT mixin (the
-    //! field bridge \f$\langle i|f|j\rangle\f$); merge the two into one overload set here so a call on the
-    //! concrete class is not an ambiguous multi-base lookup.  (Any IBS combining both mixins needs this.)
-    using EPW_Orbital1E_IBS<PW_Evaluator>::MakeOverlap;
-    using EPW_Orbital_DFT_IBS<PW_Evaluator>::MakeOverlap;
+    // (The old MakeOverlap overload-set merge is gone with the field bridge -- V1.1(iii): only the no-arg
+    //  <i|j> build exists now, and the 1E mixin's override dominates the shared virtual base's.)
 
     //! \brief Primary constructor: the Bloch symmetry IS the k-label (mirrors the atom IBSs, which take
     //! an abstract \c sym_t and pry out their quantum number).  The crystal momentum is read from the

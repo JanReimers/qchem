@@ -155,7 +155,7 @@ TEST_F(PlaneWaveTests, CosineMatrixStructure)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
 
     auto Vtilde=CosineVtilde(V0);
-    chmat_t V=pw.MakeOverlap(Vtilde);
+    chmat_t V=pw.OverlapMatrix(Vtilde);
     size_t n=pw.GetNumFunctions();
     ASSERT_EQ(V.rows(),n);
     for (size_t i=0;i<n;i++)
@@ -181,7 +181,7 @@ TEST_F(PlaneWaveTests, CosineTraceInvariant)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(1,0,0),8.0);
 
-    chmat_t V=pw.MakeOverlap(CosineVtilde(V0));
+    chmat_t V=pw.OverlapMatrix(CosineVtilde(V0));
     std::vector<double> bands=SolveBands(pw,&V);
 
     chmat_t p2=pw.MakeKinetic();
@@ -200,7 +200,7 @@ TEST_F(PlaneWaveTests, CosineZeroRecoversEmptyLattice)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,k,Ecut);
 
-    chmat_t V=pw.MakeOverlap(CosineVtilde(0.0));
+    chmat_t V=pw.OverlapMatrix(CosineVtilde(0.0));
     std::vector<double> bands=SolveBands(pw,&V);
     std::vector<double> ref=FreeElectronReference(a,N,k,Ecut);
     ASSERT_EQ(bands.size(),ref.size());
@@ -217,7 +217,7 @@ TEST_F(PlaneWaveTests, CosineGroundStatePerturbation)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
 
-    chmat_t V=pw.MakeOverlap(CosineVtilde(V0));
+    chmat_t V=pw.OverlapMatrix(CosineVtilde(V0));
     std::vector<double> bands=SolveBands(pw,&V);
 
     double E0_pt2 = -3.0*V0*V0*a*a/(4*Pi*Pi);

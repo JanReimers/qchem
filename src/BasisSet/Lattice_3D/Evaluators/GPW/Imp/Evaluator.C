@@ -560,7 +560,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
 Projector3<dcmplx> GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsFFT_R_G_Grids);}
 Projector3<dcmplx> GPW_Evaluator::Overlap3CTensor  () const {return Overlap3CTensor  (itsFFT_R_G_Grids);}
 
-// The potential->KS bridge (Band_FT_IBS::MakeOverlap / isPW_DFT_Evaluator) -- the ANALYTIC integrate-back,
+// The potential->KS bridge (the applyAdjoint realization / isPW_DFT_Evaluator) -- the ANALYTIC integrate-back,
 // the exact adjoint of MakeCollocator's density collocation.  Restrict Vtilde to each REL_CUTOFF level's own
 // {G} (a SPECTRAL low-pass -- no ringing), inverse-FFT to that level's grid, and let the molecular side gather
 // each orbital pair analytically on ITS level (LatticeSum1E::IntegratePotential -- same boxes, same wrap, same

@@ -99,7 +99,7 @@ public:
     //! \brief Assemble \f$\langle G|V|G'\rangle=\tilde V(m(G)-m(G'))\f$ from a caller-supplied G-space
     //! potential keyed by the reciprocal-index difference.  The plane-wave potential->orbital-matrix bridge
     //! (a Fourier lookup): satisfies \c isPW_DFT_Evaluator and is forwarded by \c EPW_Orbital_DFT_IBS to the
-    //! abstract \c Band_FT_IBS::MakeOverlap.  Named like its siblings \c OverlapMatrix / \c KineticMatrix /
+    //! tensors' \c applyAdjoint closures (ex the Band_FT_IBS::MakeOverlap bridge).  Named like its siblings \c OverlapMatrix / \c KineticMatrix /
     //! \c NuclearMatrix (an EVALUATOR method, distinct from the interface virtual it feeds -- as on the atom
     //! side -- so the concrete IBS inherits no name clash).  Also used internally by \c NuclearMatrix /
     //! \c LocalPotentialMatrix.
