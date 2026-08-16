@@ -12,6 +12,7 @@
 // ExponentialEvaluator under Slater/Gaussian.  Because the engine is k-independent, ONE instance can be
 // shared across the Brillouin-zone k-blocks of a calculation (the container hands each block a shared_ptr).
 module;
+#include <string>       // the AnnounceGrid role label
 #include <vector>
 #include <functional>   // the ApplySpectralFilter multiplier k(|G|^2)
 export module qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator;
@@ -71,12 +72,11 @@ public:
     //! \f$\nabla f(\vec r)=\sum_{\Delta m}(B\Delta m)\,(-\mathrm{Im}[c(\Delta m)e^{i(B\Delta m)\cdot\vec r}])\f$.
     rvec3_t  EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const;
 
-    //! \brief Announce THIS quadrature grid: a console line (the \c [Becke grid] family) plus the
-    //! \c grids.xcQuadrature run-report entry -- \f$N\f$, total points, and the real-space spacing
-    //! \f$\Delta r_i=|a_i|/N_i\f$ (a.u.).  The XC term pair calls it once so a run always states the XC
-    //! grid in use; a high-level ask on the grid owner, no data exposed (report::EmitAt is inert when no
-    //! run is open).
-    void EmitGridReport() const;
+    //! \brief Announce THIS grid into the run report under \c grids.<role> -- \f$N\f$, total points, and
+    //! the real-space spacing \f$\Delta r_i=|a_i|/N_i\f$ (a.u.).  Called by the OWNING fit basis at ITS
+    //! construction with the role its factory knows ("xcQuadrature" / "densityFit") -- providers self-report;
+    //! no external trigger (user ruling 2026-08-16).  report::EmitAt is idempotent and inert outside a run.
+    void AnnounceGrid(const std::string& role) const;
 
 private:
     ReciprocalLattice  itsRecip;      //!< reciprocal cell \f$B\f$; source of \f$G=B\,m\f$ and the direct cell \f$A\f$

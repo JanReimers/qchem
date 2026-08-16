@@ -393,23 +393,19 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
                 W[q]=w;
             }
 
-    // Announce, like the Becke branch -- so a run's console/report always says WHICH cell quadrature is in
-    // play.  DEDUPED on the (params, geometry) identity: several PP terms build this same mesh in one run
-    // (PP_Local, PP_NonLocal, the GPW PP quadrature) and identical repeats would read as a bug.  Setup is
-    // single-threaded (see qchem.Reporting), so the static is safe.
-    static std::string lastID;
-    std::string id=mp.ID()+"/n"+std::to_string(n)+"/O"+std::to_string(GetCellVolume());
-    if (id!=lastID)
-    {
-        lastID=id;
-        EmitUniformGridReport("unitCellUniform", vec3_t<int>(n,n,n), mp.eCut);
-    }
+    // Announce, like the Becke branch -- so a run's report always says WHICH cell quadrature is in play.
+    // Unconditional: report::EmitAt is IDEMPOTENT (an identical entry is a no-op), so the several PP terms
+    // that build this same mesh in one run (PP_Local, PP_NonLocal, the GPW PP quadrature) dedup in the
+    // report itself, run-scoped -- the old function-local-static latch leaked its dedup across runs.
+    EmitUniformGridReport("unitCellUniform", vec3_t<int>(n,n,n), mp.eCut);
     return qcMesh::Mesh(std::move(R), std::move(W));
 }
 
-// The ONE uniform-cell-grid announcement (see the interface doc): console line + grids.<key> entry with
-// kind, N, points, dr_i = |a_i|/N_i -- edge lengths through the metric (GetDistance on fractional unit
-// vectors) -- plus eCut when the caller derived N from one.
+// The ONE uniform-cell-grid announcement (see the interface doc): a grids.<key> entry with kind, N,
+// points, dr_i = |a_i|/N_i -- edge lengths through the metric (GetDistance on fractional unit vectors) --
+// plus eCut when the caller derived N from one.  EVERYTHING goes through the run report (user ruling
+// 2026-08-16: the old parallel raw-cout line was a bug -- EmitAt renders to the report's console itself);
+// EmitAt is idempotent + inert outside a run.
 void UnitCell::EmitUniformGridReport(const std::string& key, const vec3_t<int>& N, double eCut) const
 {
     assert(N.x>0 && N.y>0 && N.z>0);
@@ -417,10 +413,6 @@ void UnitCell::EmitUniformGridReport(const std::string& key, const vec3_t<int>& 
                  dy=GetDistance(rvec3_t(0,1,0))/N.y,
                  dz=GetDistance(rvec3_t(0,0,1))/N.z;
     const long npts=long(N.x)*N.y*N.z;
-    std::cout<<"[uniform grid] "<<key<<": N=("<<N.x<<","<<N.y<<","<<N.z<<") ("<<npts<<" pts)"
-             <<" dr=("<<dx<<","<<dy<<","<<dz<<") a.u.";
-    if (eCut>=0.0) std::cout<<" eCut="<<eCut<<" Ha";
-    std::cout<<std::endl;
     report::json j={{"kind","Uniform"}, {"N",{N.x,N.y,N.z}}, {"points",npts}, {"dr",{dx,dy,dz}}};
     if (eCut>=0.0) j["eCut"]=eCut;
     qchem::report::EmitAt("grids", key, std::move(j));

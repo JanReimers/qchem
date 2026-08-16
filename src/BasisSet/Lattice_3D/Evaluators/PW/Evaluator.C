@@ -174,7 +174,9 @@ public:
                                                                 {return itsGrid->ApplySpectralFilter(f,k);}
     dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override {return itsGrid->GridCoeff(Vt,dm);}
     double   Integral   (const rvec_t& f) const override        {return itsGrid->Integral(f);}
-    void     EmitGridReport() const override                    {itsGrid->EmitGridReport();}
+    //! Forward the construction-time grid announcement to the engine (non-virtual -- reporting is the
+    //! owning fit basis's own act, not a G_FieldEvaluator capability).
+    void     AnnounceGrid(const std::string& role) const        {itsGrid->AnnounceGrid(role);}
     double   EvalField        (const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalField(c,r);}
     rvec3_t  EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalFieldGradient(c,r);}
     //! Gather \f$c(G)=\tilde V(G)\f$ over this evaluator's \f$\{G\}\f$ (the fitted field for op(r) plotting).

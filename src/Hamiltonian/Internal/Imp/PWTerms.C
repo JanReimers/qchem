@@ -284,16 +284,8 @@ PWFittedVxc::PWFittedVxc(const xc_t& xc, fbs_t fb)
     , itsVxcFitBasis(fb)                       // hand it to the density's GetFourierDensity (its Overlap3C key)
     , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar fitter -- owns the FFT quadrature grid
 {
-    // Announce the quadrature grid ONCE per distinct fit basis (the exchange+correlation pair shares one):
-    // the uniform-route sibling of the [Becke grid] line, so the console/report always carries the XC
-    // grid's N + spacing.  (UnitCell::CreateIntegrationMesh cannot report this grid -- the XC raster is
-    // the FFT engine's own 5-smooth grid, never built through the Structure mesh factory.)
-    static const void* lastAnnounced=nullptr;
-    if (itsVxcFitBasis.get()!=lastAnnounced)
-    {
-        lastAnnounced=itsVxcFitBasis.get();
-        itsScalarFitter->Grid().EmitGridReport();
-    }
+    // (No grid announcement here any more: the fit basis self-reports at ITS construction, role-labeled --
+    //  the old externally-triggered EmitGridReport and its static-void* once-latch are gone, user 2026-08-16.)
 }
 PWFittedVxc::~PWFittedVxc() = default;   // itsScalarFitter's abstract type is complete here
 

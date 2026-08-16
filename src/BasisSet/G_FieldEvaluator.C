@@ -55,9 +55,11 @@ public:
     virtual ΔG_Map     FieldCoeffs(const cvec_t& Vt) const=0;
     //! \f$\int f\,d^3r\f$ on the FFT grid (weight \f$\Omega/N_{pts}\f$) -- the XC energy quadrature on the fit grid.
     virtual double     Integral(const rvec_t& f) const=0;
-    //! Announce this quadrature grid (console + the \c grids.xcQuadrature run-report entry: \f$N\f$, points,
-    //! \f$\Delta r\f$) -- called once by the XC term pair so a run always states the XC grid in use.
-    virtual void       EmitGridReport() const=0;
+    // NB: there is NO EmitGridReport here any more (user ruling 2026-08-16): grid reporting is the
+    // provider's own job, not an externally-triggered one.  Every fit basis announces its grid AT
+    // CONSTRUCTION, labeled with the ROLE its factory knows ("xcQuadrature" / "densityFit"), through the
+    // run report (report::EmitAt is idempotent + inert outside a run).  A grid that is created but never
+    // used still announces -- deliberately, so stale grid construction becomes visible and prunable.
     //! \brief Apply an ISOTROPIC spectral multiplier to a real grid field over the FULL FFT box:
     //! \f$f\mapsto\mathcal F^{-1}[k(|G|^2)\,\mathcal F f]\f$.  A SMOOTH \a k truncates nothing, so no Gibbs
     //! ringing is introduced -- the raster-space Kerker preconditioner \f$k=G^2/(G^2+G_0^2)\f$ of the raw-XC
