@@ -14,24 +14,78 @@ worth more than the landed ones.
 
 ---
 
-# START HERE (handoff, 2026-08-10)
+# START HERE (handoff, 2026-08-16)
 
-## Just landed: **V1.31** (`627a4ff9`), **V1.27**'s live half (`a1e1f9bb`), **R2.18**+**R2.19**
-(`86c5b24d`), **R2.9** (`268473b9`), **R1.7** (`26af31b6`).  Full records → doc/CleanupHistory.md.
-**Merged both ways with the MnO clone and pushed** (`2e587ee6` on origin/main); qchem6 is synced.
+## The state that matters: FIVE of the SIX RealComplexPlan prerequisites are done
 
-## Next task: pick from the open list below — nothing is half-done
+`doc/RealComplexPlan.md` §7 lists what must land before the real/complex type refactor starts, because
+those items sit on the very faces it restructures.  Status:
 
-- **V1.27's remaining half 🔶 DESIGN RULED (user 2026-08-10), not started.**  *"I suspect we are
-  ultimately going to need all 4 combos of {Molecular,Solid}x{PP,Non-PP}SCFIterator.  This should be done
-  with mixins."*  That retires the "rename" framing: there is no NAME that fixes a MISSING DIMENSION.
-  See the item under READY/R2 for the column analysis that shapes the mixin split.
-- **`SCFParams::MinVirial = 1e-13`** — documented *"effectively off"* while the test is
-  `error < MinVirial`, so the default is maximally ON.  Comment or default is wrong.  Affects ALL-ELECTRON
-  runs (where the gate is real), so it is a decision about what the default gate SHOULD be, not a typo fix.
+| prereq | state |
+|---|---|
+| **V1.6** `tDM_CD::Accumulate*` face split | ✅ `2d0f6982` |
+| **V1.7** the periodic trio's 9 asserting overrides | ✅ `2d0f6982` |
+| **V1.8** `IrrepCD`↔`IrrepCD` concrete casts | ✅ `2d0f6982` (evaporated with V1.6) |
+| **V1.10** abstract→concrete basis casts | ✅ `2d0f6982` |
+| **V1.1** basis-face merge | ⚠️ (i) ✅ `57ca229e`, (ii) HALF, (iii) reclassified — see below |
+| **V1.5** `G_FieldEvaluator` ISP split | ⛔ not started (pinned to FittingCleanupPlan §K) |
+| **V1.11** occupation seam | ⛔ not started (pinned to SCFStrategyPlan) |
+
+**What the four landed ones bought:** `tDM_CD<T>` has shed four exact-exchange methods and nine
+periodic denials.  The complex path now carries NO exact-exchange machinery and the real path none of the
+reciprocal-space kind -- so the plan's "widening points" are two small faces (`tHF_System_CD`,
+`tHF_Pair_CD`) instead of denials scattered across three density families.  A live `-DNDEBUG` hazard died
+with them: `Vee`/`Vxc` used to hit an assert-only `void` body -- a silent NO-OP in the shipped build,
+i.e. a zeroed J and a wrong Fock -- and now throw.
+
+## Next task: **V1.1's remaining question**, and it is now a SINGLE one
+
+**Can `Band_FT_IBS` become `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Everything still open in V1.1 hangs off
+that one answer, which is why it belongs with the type plan rather than here:
+- **(ii)'s open half** is `ERI3` vs `G_ERI3`.  Reconciling them is exactly what decides the question.
+- **(iii) is NOT "extras"** -- reclassified 2026-08-16 after reading it.  Its two parts are CONSEQUENCES
+  of the merge, not preparation: the `using Integrals_Overlap<dcmplx>::MakeOverlap` decl is LOAD-BEARING
+  (it un-hides the no-arg form against the Fourier `MakeOverlap(f(G))`, so it only becomes noise once that
+  member moves -- and that member is the last thing separating the two classes); and hoisting
+  `CreateXCQuadrature` to the neutral DFT face pays nothing alone, because `Band_FT_IBS` derives from
+  `Orbital_1E_IBS<dcmplx>`, NOT from `Orbital_DFT_IBS`, and no molecular IBS declares it either (they get
+  the identical neutral default from `tBasisSet<double>`).
+
+**V1.11** is the other genuinely open prerequisite and wants SCFStrategyPlan's occupation-seam decision
+first.  **V1.5** wants FittingCleanupPlan §K.  Both are design sessions, not execution.
+
+## Also open, unruled, and independent of the type work
+
+- **V1.27's remaining half 🔶 DESIGN RULED, not started** -- the {Molecular,Solid}x{PP,Non-PP} iterator
+  decomposition.  NOTE it collapsed once: the virial axis is a DERIVED BOOL (`IsVirialValid()`), not a
+  class axis, so it is 2 classes + 1 bool, and `AccumulateColumns` already landed the column-list part.
+  What remains is whether the grid and periodic axes ever need splitting (see the item).
 - Then the R2/V backlog as before.
 
-Four things worth carrying forward, because they generalize past their own items:
+## PROCESS -- two habits that cost real time this session, both recurring
+
+- **Never pattern-edit a file you have not read.**  Four blanket-replace slips: a Python whole-file
+  rewrite flipped CRLF→LF (fixed structurally by `.gitattributes`, `de4a4663`); a `\s*delete cd;` regex
+  removed three UNRELATED deletes and mangled an if/else in the parallel campaign's file; `self().` swaps
+  hit a class's own private helpers and a constructor's member-init list.  The check that works, and is
+  cheap: list every match with its ENCLOSING FUNCTION before replacing anything.
+- **Never leave a `ctest` sweep running while editing or rebuilding.**  Twice.  The second time produced
+  22 failures that were pure relink artifact -- and were nearly reported as a regression.  A sweep is only
+  evidence if nothing changed under it.
+
+Six things worth carrying forward, because they generalize past their own items:
+
+- **V1.6/V1.8 — name a partner face for the OPERATION, not the data.**  `CompleteDirectPair(Ji,Jj,Di,bs_i)`
+  says "finish this contraction with your block"; an abstract block ACCESSOR would have compiled, passed
+  review, and quietly undone the project's own no-`GetDensityMatrix()` tenet.  Naming it for the operation
+  is also what made the concrete cast EVAPORATE rather than move: the caller needs the partner's
+  cooperation, never its type.
+- **V1.6/V1.7 — a capability face is not segregated while the other half still DECLARES the methods.**
+  Empty bodies beat asserts (an assert-only `void` is a silent NO-OP under `-DNDEBUG`; an unreachable
+  empty body cannot be entered at all), but both are the interface failing.  The shape that actually
+  removes them is a real-path-only CRTP mixin selected by `conditional_t` — the idiom `ProjectedDensityBase`
+  and `FourierDensityBase` were already using in the same file.
+
 
 - **R1.7 — an ISP split can pay off on DIP grounds.**  Once `MakeDirect`/`MakeExchange` were off the
   client-facing face, a grep showed NOTHING outside qcBasisSet had ever named an `ERI4` — so the substrate
@@ -840,7 +894,36 @@ MnO campaign proceeds undisturbed in qchem6.
 
 ### V1 — interface-design questions
 
-- **V1.1 `Orbital_DFT_IBS` ⇄ `Band_FT_IBS` merge.**  User (2026-08-05): Orbital_DFT_IBS simply
+- **V1.1 ⚠️ (i) ✅ DONE `57ca229e`; (ii) HALF done; (iii) RECLASSIFIED — one question left.**
+  - **(i) DONE, and "trivial" was wrong in the way that mattered** (user, asked directly: *"I might have
+    been wrong!!"*).  The one-line version — make the fit args `FIT_*_ABS<T>` — asserts *orbital T == fit
+    T*, and that is precisely backwards for the case the type plan turns on.  The fit basis is a property
+    of the RUN, not of a block: every call site builds it once from the whole `tBasisSet`, and all irrep/k
+    blocks share it.  So when `BlochQN::IsReal()` makes TRIM k-blocks REAL, those real blocks still share
+    the run's COMPLEX G-space fit basis.  ⇒ **two independent axes**, now
+    `template <class T, class TFit = T>`.  `Orbital_DFT_IBS<double,dcmplx>` had NO SPELLING before.
+    Purely additive (the default keeps every existing instantiation), so none of the twelve
+    implementers/consumers changed.  Three of four combos are meaningful (user): `<double,double>`,
+    `<dcmplx,dcmplx>`, `<double,dcmplx>`; `<dcmplx,double>` is never instantiated.
+    - It also retired a self-CONTRADICTION that probably caused the split in the first place:
+      `CreateCDFitBasisSet` returned `FIT_CD_ABS<T>*` while `Repulsion3C` accepted only
+      `FIT_CD_ABS<double>`, so `Orbital_DFT_IBS<dcmplx>` could not consume the fit basis it created.
+    - `Band_FT_IBS`'s own comment already knew — *"never assuming orbital==fit"* — it just had no second
+      parameter to say it with.  **A comment that states an invariant the types cannot express is a
+      standing invitation to look for the missing parameter.**
+  - **(ii) HALF: the tensor element type follows `TFit`.**  A no-op today (every instantiation has
+    `T==TFit`) kept for its DOCUMENTATION value (user): it says WHICH AXIS decides, which was the
+    ambiguous part.  Correct for all three meaningful combos.  **Still open:** `ERI3` vs `G_ERI3`.
+  - **(iii) RECLASSIFIED — not "extras", and not separable.**  Both parts are consequences of the merge:
+    the `using Integrals_Overlap<dcmplx>::MakeOverlap` decl is LOAD-BEARING (it un-hides the no-arg form
+    against the Fourier `MakeOverlap(f(G))`, so it is only noise once that member moves — and that member
+    is the last thing separating the classes); and hoisting `CreateXCQuadrature` pays nothing alone,
+    because `Band_FT_IBS` derives from `Orbital_1E_IBS<dcmplx>` NOT `Orbital_DFT_IBS`, and molecules
+    already get the identical neutral default from `tBasisSet<double>`.
+  - **⇒ ONE question remains: can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Plan-level; owner
+    is doc/RealComplexPlan.md.
+  *(original text follows)*
+  **`Orbital_DFT_IBS` ⇄ `Band_FT_IBS` merge.**  User (2026-08-05): Orbital_DFT_IBS simply
   specifies what integrals an IBS must supply to support DFT; "Band" and "FT" have no place in that
   specification.  History: Band_FT_IBS once had ~12 extra Fourier/Grid members, twiddled down over
   many sessions to essentially ONE — the main conceptual gap was reluctance to acknowledge that the

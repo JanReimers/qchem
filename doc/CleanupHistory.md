@@ -263,6 +263,49 @@ in the same session.
     the pair route for a SALC basis.  Probe then reverted.  The per-pair methods remain as the direct-call
     route the `PGSymmetry` unit tests exercise.
 
+- **V1.6 / V1.7 / V1.8 / V1.10 ✅ DONE `2d0f6982` (2026-08-16).  Four of the six RealComplexPlan
+  prerequisites — one defect in four places: a face declaring a capability half its hierarchy lacks, so
+  the other half must write denials.**
+  - **V1.6/V1.8, exact exchange.**  `Vee`/`Vxc` are added ONLY by the molecular HF Hamiltonians (the
+    periodic `Ham_PW_DFT` adds `Vee_Hartree`, never exact exchange), so the four `Accumulate*` were
+    real-only sitting on the general T-templated density face.  Now `tHF_System_CD` (spans every block)
+    and `tHF_Pair_CD` (the composite↔leaf pair protocol — never public-face business, its only callers
+    were two loops in Imp/CompositeCD.C), inherited through `conditional_t`.  **T-typed, not erased**, per
+    the plan: an impossible pairing must fail to COMPILE, not throw.
+  - **The user's two corrections did the real work, and both generalise:**
+    1. My stated reason for preferring a face over double dispatch (mixed-T pairs multiplying visitor
+       arms) was WRONG — mixed-T pairs never arise, every pairwise op pairs a block with its same-irrep
+       counterpart, and the site is a `template<> IrrepCD<double>` specialization anyway.  The conclusion
+       survived on OCP + data-hiding alone, which is the better argument since it does not depend on the
+       T question.  **Check whether your reason and your conclusion are actually connected.**
+    2. Make the face OPERATION-named, not a block getter.  `CompleteDirectPair` = "finish this
+       contraction with your block".  An abstract block ACCESSOR would have satisfied the compiler while
+       reintroducing the `GetDensityMatrix()` that CLAUDE.md cites this very class for NOT having.  That
+       naming is also what made V1.8's cast EVAPORATE rather than move — as the user predicted when
+       sequencing V1.6 first.
+    3. Then: the complex leaf still DECLARED the four and so defined four empty bodies.  *"It sounds like
+       we segregate the interface ... so that the complex CD is not forced to make fake functions."*
+       Correct — now a real-path-only CRTP mixin (`IrrepCD_HFPair`), CRTP + friendship so the
+       implementation reaches the block's own D/basis without any of it becoming public.  The complex leaf
+       declares nothing, needs no vtable slots, defines nothing.
+  - **The `-DNDEBUG` hazard is closed.**  Those `void` assert-only bodies were silent NO-OPS in the build
+    we ship: a bare leaf reaching `Vee::AccumulateAll` yielded a ZEROED J and a wrong Fock, with no
+    diagnostic.  Both terms now cross-cast to the system face and THROW.
+  - **V1.7, the periodic trio — the largest LSP block here, nine denials, now zero.**  The mechanism was
+    already present and correct: `FourierDensity` declared the trio pure-virtual and `FourierDensityBase<T>`
+    already handed it to dcmplx alone.  The three families simply RE-declared it in their own bodies for
+    both T, so the finite instantiation answered with `assert(false)` in an if-constexpr dead branch.  Three
+    periodic-only CRTP mixins; consumers already cross-cast to the `FourierDensity` face, so nothing outside
+    changed.  **When a denial appears, look for the conditional base that already exists.**
+  - **V1.10, both abstract→concrete basis casts.**  The `SymmetryAdapted_IBS` one DISSOLVED into a face
+    added three items earlier: V1.31's `AddAODensity`/`MakeAOFock`/`SliceAOFock` are literally the three
+    steps the cast was open-coding, so the partner folds its OWN block up and nobody hands out SALC columns.
+    The DHF one became `Orbital_RKB_Pair::MakeDirectAgainstL` — the partner builds against the caller's
+    large component instead of surrendering `itsRKBL`.  **A cast that reaches for private state is usually
+    an operation that already exists somewhere as a face.**
+  - 716/716 green.  An earlier sweep showed 22 failures and was NOT a regression — it ran while ninja
+    relinked underneath it.  Re-verified on a sweep started after the final build with nothing touched.
+
 - **R2.18 ✅ NAMES DONE `86c5b24d` (2026-08-10); encapsulation half deliberately left open.  The `Make`/`Get`
   pair in qcHamiltonian.**  USER: *"GetMatrix goes through caching ... if there is no cache it calls
   MakeMatrix() which does return by value.  So if you need a return by value override it should be the
