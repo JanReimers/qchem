@@ -91,13 +91,13 @@ public:
 
     //! GriddedScalarFitter: the fitter's own FFT quadrature grid engine (reached from the neutral fit face we
     //! hold).  The XC term borrows this ONE grid rather than cross-casting the fit basis a second time (#7).
-    virtual const BasisSet::G_FieldEvaluator& Grid() const override {return FitGrid();}
+    virtual const BasisSet::G_Quadrature& Grid() const override {return FitGrid();}
 
     //! The "fit": batch-sample v_xc(r) on the fit basis's own FFT grid, then forward-transform.  Orthonormal
     //! exactness => the projection IS the fit (no metric solve); the field's FFT fast path is its own business.
     virtual void DoFit(const ProjectedScalar_R& ps) override
     {
-        const BasisSet::G_FieldEvaluator& ge=FitGrid();
+        const BasisSet::G_Quadrature& ge=FitGrid();
         rvec_t vals=(*ps.GetScalarFunction())(ge.GridPoints());   // batch-sample v_xc on the fit grid
         itsVt =ge.ForwardFFT(vals);                               // full /Npts G grid (for the assembly)
         itsMap=ge.FieldCoeffs(itsVt);                             // fit-basis coefficients (for op(r) plotting)
@@ -114,7 +114,7 @@ public:
         // for any future non-PW complex orbital basis.  (Contrast the fitter's own itsFitBasis casts, which
         // its isOrtho() contract guarantees.)  Ties to the item-C dynamic_cast survey.
         const BasisSet::Orbital_DFT_IBS<dcmplx>&      orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>&>(*bs);   // the assembly bridge
-        const BasisSet::G_FieldEvaluator& fit=FitGrid();                                         // the fit grid engine
+        const BasisSet::G_Quadrature&     fit=FitGrid();                                         // the fit grid engine
         // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
         // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the
         // SAME grid the density was collocated on (doc/GPWPlan §0e step 2).  No grid-less MakeOverlap(field).
@@ -130,19 +130,27 @@ public:
 
     //! ScalarFunction (core): the fitted POTENTIAL v_xc,fit(r) = Re Σ_G V-tilde(G) e^{iG·r} over the fit {G},
     //! via the basis's G_FieldEvaluator -- what the GUI plots; the seed of the v_xc - v_xc,fit fit-residual.
-    virtual double  operator()(const rvec3_t& r) const override {return FitGrid().EvalField(itsMap, r);}
-    virtual rvec3_t Gradient  (const rvec3_t& r) const override {return FitGrid().EvalFieldGradient(itsMap, r);}
+    virtual double  operator()(const rvec3_t& r) const override {return FieldEval().EvalField(itsMap, r);}
+    virtual rvec3_t Gradient  (const rvec3_t& r) const override {return FieldEval().EvalFieldGradient(itsMap, r);}
 
     virtual std::ostream& Write(std::ostream& os) const override
         {return os << "OrthoScalarFitter (plane-wave grid quadrature)" << std::endl;}
 
 private:
-    //! The fit basis's FFT grid engine (the DIP seam), reached from the neutral fit face we hold.
-    const BasisSet::G_FieldEvaluator& FitGrid() const
+    //! The fit basis's FFT quadrature engine (the DIP seam), reached from the neutral fit face we hold.
+    //! Guaranteed by Factory(cFIT_SF_ABS)'s construction-time contract, so asserts (not throws) suffice.
+    const BasisSet::G_Quadrature& FitGrid() const
     {
-        auto* ge=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
-        assert(ge && "OrthoScalarFitter: the {G} fit basis must provide the G_FieldEvaluator grid engine");
+        auto* ge=dynamic_cast<const BasisSet::G_Quadrature*>(itsFitBasis.get());
+        assert(ge && "OrthoScalarFitter: the {G} fit basis must provide the G_Quadrature grid engine");
         return *ge;
+    }
+    //! The evaluate face for op(r)/Gradient -- the same engine, the narrower ask.
+    const BasisSet::G_FieldEvaluator& FieldEval() const
+    {
+        auto* fe=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
+        assert(fe && "OrthoScalarFitter: the {G} fit basis must provide G_FieldEvaluator to evaluate v_xc,fit(r)");
+        return *fe;
     }
     fbs_t      itsFitBasis;   //!< the {G} fit basis -- owns the (possibly denser) quadrature grid
     cvec_t     itsVt;         //!< v_xc forward-FFT'd on the fit grid (full raster grid), for the operator assembly

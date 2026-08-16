@@ -35,7 +35,7 @@ import qchem.Blaze;                                 // rsmat_t/rvec_t/ivec3_t + 
 import qchem.BasisSet;                             // tBasisSet<T>, operator[]
 import qchem.BasisSet.Orbital_DFT_IBS;                 // Orbital_DFT_IBS<dcmplx>::CreateVxcFitBasisSet
 import qchem.BasisSet.Fit_IBS;                     // cFIT_SF_ABS (the FourierDensity face arg)
-import qchem.BasisSet.G_FieldEvaluator;            // ApplySpectralFilter (the raster Kerker step, 0.5(f2))
+import qchem.BasisSet.G_FieldEvaluator;            // G_SpectralFilter: the raster Kerker step (0.5(f2))
 import qchem.ReciprocalLattice;                    // ReciprocalLattice
 import qchem.UnitCell;                             // UnitCell (+ MakeReciprocalCell)
 import qchem.Structure;                            // Structure
@@ -124,7 +124,7 @@ private:
 // rho_mix(r) = rho_in + alpha * F^-1[ G^2/(G^2+G0^2) F(rho_out - rho_in) ] over the FULL box.  The filter is
 // a SMOOTH multiplier (no truncation -> no Gibbs), k(0)=0 conserves charge -- identical algebra to the ball
 // mix but over every mode the raster represents, so the raw feed's out-of-ball content keeps mixing at k~1.
-inline rvec_t RasterKerker(const BasisSet::G_FieldEvaluator& ge, const rvec_t& in, const rvec_t& out,
+inline rvec_t RasterKerker(const BasisSet::G_SpectralFilter& ge, const rvec_t& in, const rvec_t& out,
                            double alpha, double G0)
 {
     const double G0sq=G0*G0;
@@ -289,7 +289,7 @@ public:
         // RAW-raster shadow (0.5(f2)): the same Kerker step on rho_raw(r), deposited so the XC feed stays raw
         // through the DYNAMICS.  Late-activates the first time the working density answers raw (a SAD-seeded
         // run's iteration 1); deactivates for the run if a raw answer stops coming or changes raster.
-        auto*  ge     = dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsKerkerFit.get());
+        auto*  ge     = dynamic_cast<const BasisSet::G_SpectralFilter*>(itsKerkerFit.get());
         if (rawOut.size() && ge)
         {
             if (itsRawIn.size()!=rawOut.size()) itsRawIn=rawOut;                       // bootstrap/late-activate
@@ -470,8 +470,8 @@ public:
     const char* Tag() const override { return "Pul"; }
 private:
     //! The raster-shadow evaluator, or nullptr when the fit basis cannot raster (⇒ the raw pipeline is off).
-    const BasisSet::G_FieldEvaluator* RasterEvaluator() const
-    { return dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsKerkerFit.get()); }
+    const BasisSet::G_SpectralFilter* RasterEvaluator() const
+    { return dynamic_cast<const BasisSet::G_SpectralFilter*>(itsKerkerFit.get()); }
 
     //! The (in,out) pair staged by \c StageResidual and consumed by \c ApplyJoint -- the state the two-phase
     //! split needs and the old single-phase \c MixField kept in locals.

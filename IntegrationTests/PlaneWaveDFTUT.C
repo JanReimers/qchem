@@ -847,7 +847,7 @@ TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
     {
         qcMesh::MeshParams mp; mp.relCutoff=rc;
         auto fb=qchem::Hamiltonian::PWFittedVxc::fbs_t(pw.CreateVxcFitBasisSet(nullptr, mp));
-        auto ge=dynamic_cast<const qchem::BasisSet::G_FieldEvaluator*>(fb.get());
+        auto ge=dynamic_cast<const qchem::BasisSet::G_Quadrature*>(fb.get());
         size_t nG=fb->GetNumFunctions(), Npts=ge->GridPoints().size();
 
         rvec_t rgrid=ge->RhoOnGrid(rho), exc(rgrid.size());

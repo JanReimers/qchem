@@ -16,7 +16,7 @@ import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
-import qchem.BasisSet.G_FieldEvaluator;    // the fit basis's FFT grid engine (RhoOnGrid/Integral for XC)
+import qchem.BasisSet.G_FieldEvaluator;    // G_Quadrature: the fit basis's FFT grid engine (RhoOnGrid/Integral for XC)
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
@@ -236,7 +236,7 @@ class PWVxcField
     , public         Fitting::ProjectedScalar_R
 {
 public:
-    PWVxcField(const ExFunctional* xc, const rvec_t& rhoGrid, const BasisSet::G_FieldEvaluator* grid)
+    PWVxcField(const ExFunctional* xc, const rvec_t& rhoGrid, const BasisSet::G_Quadrature* grid)
         : itsXc(xc), itsRhoGrid(rhoGrid), itsGrid(grid) {}
 
     // Pointwise is NOT supported: this field carries only grid values, and nothing samples it pointwise (the
@@ -271,7 +271,7 @@ private:
     }
     const ExFunctional*               itsXc;
     const rvec_t&                     itsRhoGrid;   // precomputed rho(r) on the fit grid (owned by PWFittedVxc; field is transient)
-    const BasisSet::G_FieldEvaluator* itsGrid;
+    const BasisSet::G_Quadrature* itsGrid;
 };
 } // anonymous
 

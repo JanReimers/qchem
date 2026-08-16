@@ -12,7 +12,7 @@ module;
 
 module qchem.ChargeDensity.SeedCD;
 import qchem.ReciprocalLattice;        // ReciprocalLattice + UnitCell::MakeReciprocalCell (the seed's own Poisson metric)
-import qchem.BasisSet.G_FieldEvaluator; // the fit basis's grid engine (its analytic MakeFourierDensity)
+import qchem.BasisSet.G_FieldEvaluator; // G_StructureFactor: the fit basis's analytic MakeFourierDensity
 import qchem.Matrix3D;                 // Invert/Transpose (the periodic image window: (A^T A)^-1 diagonals)
 import qchem.Parallel;                 // WorkerThreads (GPW_OMP_THREADS -- the batched seed sampling)
 
@@ -122,8 +122,8 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
         (*memo)[key]=ff;
         return s*ff;
     };
-    auto* ge=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
-    assert(ge && "SeedCD's density-fit basis must be a G_FieldEvaluator (plane-wave grid engine)");
+    auto* ge=dynamic_cast<const BasisSet::G_StructureFactor*>(itsFitBasis.get());
+    assert(ge && "SeedCD's density-fit basis must be a G_StructureFactor (plane-wave grid engine)");
     return ge->MakeFourierDensity(group, formFactor);
 }
 

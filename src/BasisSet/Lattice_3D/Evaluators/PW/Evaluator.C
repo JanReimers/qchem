@@ -149,7 +149,10 @@ private:
 //! held engine; \c FieldCoeffs / \c MakeFourierDensity iterate this block's own \f$\{G\}\f$ (from the base).
 class PW_Grid_Evaluator
     : public PW_Evaluator
-    , public virtual BasisSet::G_FieldEvaluator
+    , public virtual BasisSet::G_FieldEvaluator     // evaluate a fitted field (the ortho fitters' op(r))
+    , public virtual BasisSet::G_Quadrature         // the FFT quadrature engine (fit sampling, XC energy)
+    , public virtual BasisSet::G_StructureFactor    // the SAD seed's analytic rho-tilde
+    , public virtual BasisSet::G_SpectralFilter     // the mixer's raster Kerker step
 {
 public:
     PW_Grid_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut,
@@ -160,7 +163,8 @@ public:
     //! Fractional \f$(i/n)\f$ FFT grid (exposed for the direct-grid unit-test oracles).
     std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const {return itsGrid->UniformGrid(n);}
 
-    // G_FieldEvaluator: the pure {r}<->{G} FFT quadrature, delegated to the held k-independent grid engine.
+    // G_Quadrature / G_SpectralFilter: the pure {r}<->{G} FFT quadrature, delegated to the held
+    // k-independent grid engine.
     const rvec3vec_t& GridPoints() const override               {return itsGrid->GridPoints();}
     rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override {return itsGrid->RhoOnGrid(rhoTilde);}
     cvec_t   ForwardFFT (const rvec_t& V) const override        {return itsGrid->ForwardFFT(V);}
