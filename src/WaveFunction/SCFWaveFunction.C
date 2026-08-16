@@ -9,6 +9,7 @@
 // Virtual inheritance: CompositeWF and Un/PolarizedWF form a diamond on WaveFunction, so
 // SCFWaveFunction inherits it virtually to keep a single shared WaveFunction subobject.
 module;
+#include <memory>   // unique_ptr: Init BUILDS the first density (V1.25)
 #include <vector>
 export module qchem.WaveFunction.SCF;
 export import qchem.WaveFunction;
@@ -36,7 +37,10 @@ public:
     //! real (matrix-backed) density.  Bundles the DoSCFIteration+FillOrbitals+GetChargeDensity the SCFIterator
     //! used to do by hand; the tDM_CD return makes explicit that a numeric/fit seed yields a genuine density
     //! matrix (the seam where a ScalarFunction seed / HF-bootstrap will land -- see project_numericcd_refactor).
-    virtual tDM_CD<T>* Init            (tHamiltonian<T>&,const tChargeDensity<T>* seed, double mergeTol) =0;
+    //! Iteration-0 seed: build the Fock from \a seed, diagonalize, fill, and hand back the first real
+    //! density.  BUILDS it, hence the owning return (V1.25 -- it used to be a raw pointer the caller had to
+    //! know to adopt).
+    virtual std::unique_ptr<tDM_CD<T>> Init(tHamiltonian<T>&,const tChargeDensity<T>* seed, double mergeTol)=0;
     // Direct-minimization hooks (cf. the SCFIterator direct-min loop):
     //   build the Fock and ask each accelerator to compute its step (no orbital move);
     //   returns false in the seed step (the caller should DoSCFIteration to diagonalize).

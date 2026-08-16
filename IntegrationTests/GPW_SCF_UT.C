@@ -589,7 +589,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     Fingerprint(series, o.label.c_str());
     OrderTrajectory(series, o.orderProbe ? o.orderName : std::string(), o.label.c_str());
 
-    auto* cd=scf.GetWaveFunction()->GetChargeDensity();
+    auto* cd=scf.GetWaveFunction()->GetChargeDensity().release();   // V1.25: BUILT for us; keep/delete below
     double charge=cd->GetTotalCharge();
     {   // §3: the run reports the symmetry it found; S4 adds the MAGNETIC (Shubnikov) channel-pair
         // diagnostic on FREE polarized runs with a genuinely staggered decoration.
@@ -731,7 +731,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         OrderTrajectory(series, o.orderProbe ? o.orderName : std::string(),
                         (o.label+" kT="+std::to_string(kT)).c_str());
 
-        seedCD = scf->GetWaveFunction()->GetChargeDensity();   // consumed by the next stage's ctor (bs keeps it valid)
+        seedCD = scf->GetWaveFunction()->GetChargeDensity().release();   // consumed by the next stage's ctor
         qchem::EnergyBreakdown E=scf->GetEnergy();
         R = {scf->Converged(), seedCD->GetTotalCharge(), E, scf->GetIterationCount()};
         std::cout << "["<<o.label<<" stage "<<s+1<<"] kT="<<kT<<" conv="<<R.converged<<" iters="<<R.iters
@@ -1207,9 +1207,10 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) { Dup(i,j)=dcmplx(0.0); Ddn(i,j)=dcmplx(0.0); }
         Dup(k,k)=dcmplx(1.0/std::real(dcmplx(S(k,k))));            // Tr(D S) = 1
         using namespace qchem::ChargeDensity;
-        auto* up=IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up));
-        auto* dn=IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down));
-        auto* cd=dynamic_cast<cDM_CD*>(PolarizedCD_Factory<dcmplx>(up, dn));   // owns up/dn
+        std::unique_ptr<cDM_CD> up(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up)));
+        std::unique_ptr<cDM_CD> dn(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down)));
+        auto pol=PolarizedCD_Factory<dcmplx>(std::move(up),std::move(dn));   // V1.25: takes ownership
+        auto* cd=dynamic_cast<cDM_CD*>(pol.get());
         qchem::EnergyBreakdown te = ham->GetTotalEnergy(cd);
         std::cout << "[fixed-D k="<<k<<"] charge="<<cd->GetTotalCharge()
                   << " Ekin="<<te.Kinetic<<" Een="<<te.Een<<" Eee="<<te.Eee<<" Exc="<<te.Exc
@@ -1270,9 +1271,10 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) { Dup(i,j)=dcmplx(0.0); Ddn(i,j)=dcmplx(0.0); }
         Dup(k,k)=dcmplx(1.0/std::real(dcmplx(S(k,k))));
         using namespace qchem::ChargeDensity;
-        auto* up=IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up));
-        auto* dn=IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down));
-        auto* cd=dynamic_cast<cDM_CD*>(PolarizedCD_Factory<dcmplx>(up, dn));
+        std::unique_ptr<cDM_CD> up(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up)));
+        std::unique_ptr<cDM_CD> dn(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down)));
+        auto pol=PolarizedCD_Factory<dcmplx>(std::move(up),std::move(dn));   // V1.25: takes ownership
+        auto* cd=dynamic_cast<cDM_CD*>(pol.get());
         auto diag=[&](const hmat_t<dcmplx>& M){ double s2=0; for (size_t i=0;i<M.rows();i++) s2+=std::real(dcmplx(M(i,i))); return s2; };
         cDynamic_HT& xi=x; cDynamic_HT& ci=c;      // the public term face (Imp::GetMatrix is private)
         auto Mxu=xi.GetMatrix(obs, Spin::Up,   cd);
@@ -1300,9 +1302,10 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) q+=c[i]*c[j]*std::real(dcmplx(S(i,j)));
         for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) Dup(i,j)=dcmplx(std::real(dcmplx(Dup(i,j)))/q);
         using namespace qchem::ChargeDensity;
-        auto* up=IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up));
-        auto* dn=IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down));
-        auto* cd=dynamic_cast<cDM_CD*>(PolarizedCD_Factory<dcmplx>(up, dn));
+        std::unique_ptr<cDM_CD> up(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up)));
+        std::unique_ptr<cDM_CD> dn(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down)));
+        auto pol=PolarizedCD_Factory<dcmplx>(std::move(up),std::move(dn));   // V1.25: takes ownership
+        auto* cd=dynamic_cast<cDM_CD*>(pol.get());
         qchem::Hamiltonian::cHamiltonian* hamP=new qchem::Hamiltonian::Ham_PW_DFT(
             lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
             Hamiltonian::VxcFit::Auto, /*polarized*/true);
@@ -2167,7 +2170,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
 
     // Grab the converged coarse density (OWNED; consumed by the fine ctor's Init).  bsC stays alive until
     // after the fine ctor, so the density's coarse-block pointer stays valid for the one iteration-0 read.
-    auto* seedCD = scfC->GetWaveFunction()->GetChargeDensity();
+    auto* seedCD = scfC->GetWaveFunction()->GetChargeDensity().release();   // consumed by the fine ctor
 
     // ---- STAGE 2: seed the PRODUCTION fine grid (auto Ecut=8*alpha_max=320) with the converged coarse density. ----
     std::unique_ptr<Complex_BS> bsF(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_FINE_ECUT",-1.0)));  // <0 AUTO=320
@@ -2213,7 +2216,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     qchem::SCFIterator::ReportBandGap()=false;
 
     auto Efine=scfF->GetEnergy();
-    auto* cd=scfF->GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
+    auto cd=scfF->GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge();
     std::cout << "[NaF grid-cont FINE] auto-Ecut iters="<<scfF->GetIterationCount()<<" charge="<<charge
               << " Etot="<<Efine.GetTotalEnergy()
               << " (Ekin="<<Efine.Kinetic<<" Een="<<Efine.Een<<" Eee="<<Efine.Eee<<" Exc="<<Efine.Exc
@@ -2273,7 +2276,7 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisRankReduction)
     par.MinFD=1e30; par.StartingRelaxRo=0.3; par.Verbose=false;
     scf.Iterate(par);
     std::string log=testing::internal::GetCapturedStdout();
-    auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
+    auto cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge();
     // (a) the truncation must actually have fired (rank reduction really exercised, not a trivially-square pass).
     EXPECT_NE(log.find("LASolverEigen truncating"), std::string::npos) << "expected the near-null mode to be dropped";
     // (b) charge conserved through the rectangular-V density build (Tr(DS)=8, grid-independent).
@@ -2307,7 +2310,7 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
     qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     scf.Iterate(par);
     qchem::Hamiltonian::ReportGridCharge()=false;
-    auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
+    auto cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge();
     auto E=scf.GetEnergy();
     std::cout << "[NaF GPW full/Eigen(1e-6)] iters="<<scf.GetIterationCount()<<" charge="<<charge
               << " Etot="<<E.GetTotalEnergy() << std::endl;

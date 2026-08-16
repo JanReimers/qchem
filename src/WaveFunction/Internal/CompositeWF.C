@@ -38,7 +38,8 @@ public:
     ~tCompositeWF();
 
     virtual void            DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;
-    virtual tDM_CD<T>*      Init            (tHamiltonian<T>&,const tChargeDensity<T>*, double mergeTol);
+    //! Iteration-0 seed.  BUILDS and hands over the first real density (V1.25: owning return).
+    virtual std::unique_ptr<tDM_CD<T>> Init(tHamiltonian<T>&,const tChargeDensity<T>*, double mergeTol);
     virtual bool            BuildFockAndComputeSteps(tHamiltonian<T>&,const tChargeDensity<T>*);
     virtual void            MoveOrbitals    (double t, bool commit, double mergeTol, bool holdBlock=false);
     virtual const Orbitals* GetOrbitals     (const Irrep&) const;
@@ -53,7 +54,7 @@ public:
     virtual iqns_t          GetQNs          () const;
     virtual void            EmitBasisUsage  () const;
 
-    virtual tDM_CD<T>*      GetChargeDensity(Spin) const;
+    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity(Spin) const;   //!< BUILDS it (V1.25)
     virtual EnergyLevels    GetEnergyLevels (Spin) const;
 
 

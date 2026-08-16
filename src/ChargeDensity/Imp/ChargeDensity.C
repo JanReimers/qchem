@@ -1,7 +1,9 @@
 // File: ChargeDensity.C  Interface for the charge density category.
 module;
+#include <memory>   // unique_ptr: densities are BUILT and handed over (V1.25)
 #include <iostream>
 #include <cassert>
+#include <stdexcept>
 #include <vector>
 #include <type_traits>
 #include <map>
@@ -20,19 +22,30 @@ namespace qchem::ChargeDensity
 //  Various integrals.
 //
 
+// Cross-cast a spin channel to the whole-system exact-exchange face (V1.6).  Each channel is a composite,
+// so on the real path it has one; absence means a density that cannot span the irreps reached the HF sweep --
+// previously a silent no-op under -DNDEBUG, now a loud error.
+template <class T> static const tHF_System_CD<T>& SystemOf(const tDM_CD<T>* cd)
+{
+    const tHF_System_CD<T>* p=dynamic_cast<const tHF_System_CD<T>*>(cd);
+    if (!p) throw std::runtime_error("Polarized HF sweep: a spin channel does not span every irrep block, "
+                                     "so the whole-system J/K cannot be built from it.");
+    return *p;
+}
+
 // Coulomb sees the TOTAL density: both spin channels scatter into the same per-irrep Fock blocks.
 template <class T> void tPolarized_CD<T>::AccumulateDirectAll(std::vector<hmat_t<T>>& Jall) const
 {
-    GetChargeDensity(Spin::Up  )->AccumulateDirectAll(Jall);
-    GetChargeDensity(Spin::Down)->AccumulateDirectAll(Jall);
+    SystemOf<T>(GetChargeDensity(Spin::Up  )).AccumulateDirectAll(Jall);
+    SystemOf<T>(GetChargeDensity(Spin::Down)).AccumulateDirectAll(Jall);
 }
 
 // The RHF (unpolarized) exchange term sums K[D_up]+K[D_down] into the same blocks (= K[D_total], then the
 // term scales by -1/2).  The polarized term instead drives AccumulateExchangeAll on ONE spin's composite.
 template <class T> void tPolarized_CD<T>::AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const
 {
-    GetChargeDensity(Spin::Up  )->AccumulateExchangeAll(Kall);
-    GetChargeDensity(Spin::Down)->AccumulateExchangeAll(Kall);
+    SystemOf<T>(GetChargeDensity(Spin::Up  )).AccumulateExchangeAll(Kall);
+    SystemOf<T>(GetChargeDensity(Spin::Down)).AccumulateExchangeAll(Kall);
 }
 
 template <class T> double tPolarized_CD<T>::DM_Contract(const tStatic_CC<T>* v) const
@@ -68,11 +81,12 @@ template <class T> rvec_t tPolarized_CD<T>::GetRepulsion3C(const BasisSet::rFIT_
 {
     if constexpr (std::is_same_v<T,double>)
     {
-        // The spin blocks are finite (molecular) densities, hence ProjectedDensity_AO -- cross-cast to their AO
-        // face and sum the projections (the AO face is no longer a forced base of tDM_CD).
-        auto* up=dynamic_cast<const Fitting::ProjectedDensity_AO*>(GetChargeDensity(Spin::Up  ));
-        auto* dn=dynamic_cast<const Fitting::ProjectedDensity_AO*>(GetChargeDensity(Spin::Down));
-        assert(up && dn && "Polarized_CD spin block is not a ProjectedDensity_AO (finite path)");
+        // The spin blocks are finite (molecular) MATRIX densities, so cross-cast to the COULOMB-metric face
+        // -- the one that actually declares GetRepulsion3C (V1.16).  Asking for the plain AO face and then
+        // calling a Coulomb-only method was the implicit pairing this item removed.
+        auto* up=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(GetChargeDensity(Spin::Up  ));
+        auto* dn=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(GetChargeDensity(Spin::Down));
+        assert(up && dn && "Polarized_CD spin block has no Coulomb-metric projection face (finite path)");
         return up->GetRepulsion3C(fbs) + dn->GetRepulsion3C(fbs);
     }
     else
@@ -81,63 +95,39 @@ template <class T> rvec_t tPolarized_CD<T>::GetRepulsion3C(const BasisSet::rFIT_
 
 // Periodic (dcmplx) face: each channel is a tComposite_CD<dcmplx> (itself a FourierDensity that already
 // IBZ-star-averages), so the total-density accessors are plain ↑+↓ sums.
-template <class T> ΔG_Map tPolarized_CD<T>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
+template <class Pol> ΔG_Map Polarized_Fourier<Pol>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        auto* up=dynamic_cast<const FourierDensity*>(GetChargeDensity(Spin::Up  ));
-        auto* dn=dynamic_cast<const FourierDensity*>(GetChargeDensity(Spin::Down));
-        assert(up && dn && "tPolarized_CD spin channel is not a FourierDensity (plane-wave path)");
-        ΔG_Map rg=up->GetFourierDensity(c);
-        for (const auto& kv : dn->GetFourierDensity(c)) rg[kv.first]+=kv.second;
-        return rg;
-    }
-    else
-    {
-        assert(false && "a finite (non-periodic) density has no reciprocal-lattice Fourier series");
-        return ΔG_Map{};
-    }
+    auto* up=dynamic_cast<const FourierDensity*>(self().GetChargeDensity(Spin::Up  ));
+    auto* dn=dynamic_cast<const FourierDensity*>(self().GetChargeDensity(Spin::Down));
+    assert(up && dn && "tPolarized_CD spin channel is not a FourierDensity (plane-wave path)");
+    ΔG_Map rg=up->GetFourierDensity(c);
+    for (const auto& kv : dn->GetFourierDensity(c)) rg[kv.first]+=kv.second;
+    return rg;
 }
 
 // ALL-OR-NOTHING like the composite: if either channel lacks the raw raster, answer empty so the caller's
 // E/H pair never mixes raw and ball channels (doc/GPWPlan 0.5(f2)).
-template <class T> rvec_t tPolarized_CD<T>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
+template <class Pol> rvec_t Polarized_Fourier<Pol>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        auto* up=dynamic_cast<const FourierDensity*>(GetChargeDensity(Spin::Up  ));
-        auto* dn=dynamic_cast<const FourierDensity*>(GetChargeDensity(Spin::Down));
-        assert(up && dn && "tPolarized_CD spin channel is not a FourierDensity (plane-wave path)");
-        rvec_t u=up->GetRhoOnGrid(c);
-        if (u.size()==0) return rvec_t{};
-        rvec_t d=dn->GetRhoOnGrid(c);
-        if (d.size()==0) return rvec_t{};
-        u+=d;
-        return u;
-    }
-    else
-    {
-        assert(false && "a finite (non-periodic) density has no grid raster representation");
-        return rvec_t{};
-    }
+    auto* up=dynamic_cast<const FourierDensity*>(self().GetChargeDensity(Spin::Up  ));
+    auto* dn=dynamic_cast<const FourierDensity*>(self().GetChargeDensity(Spin::Down));
+    assert(up && dn && "tPolarized_CD spin channel is not a FourierDensity (plane-wave path)");
+    rvec_t u=up->GetRhoOnGrid(c);
+    if (u.size()==0) return rvec_t{};
+    rvec_t d=dn->GetRhoOnGrid(c);
+    if (d.size()==0) return rvec_t{};
+    u+=d;
+    return u;
 }
 
-template <class T> ΔG_Map tPolarized_CD<T>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
+template <class Pol> ΔG_Map Polarized_Fourier<Pol>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        auto* up=dynamic_cast<const FourierDensity*>(GetChargeDensity(Spin::Up  ));
-        auto* dn=dynamic_cast<const FourierDensity*>(GetChargeDensity(Spin::Down));
-        assert(up && dn && "tPolarized_CD spin channel is not a FourierDensity (plane-wave path)");
-        ΔG_Map rg=up->GetRepulsion3C(c);
-        for (const auto& kv : dn->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
-        return rg;
-    }
-    else
-    {
-        assert(false && "a finite (non-periodic) density has no reciprocal Coulomb projection");
-        return ΔG_Map{};
-    }
+    auto* up=dynamic_cast<const FourierDensity*>(self().GetChargeDensity(Spin::Up  ));
+    auto* dn=dynamic_cast<const FourierDensity*>(self().GetChargeDensity(Spin::Down));
+    assert(up && dn && "tPolarized_CD spin channel is not a FourierDensity (plane-wave path)");
+    ΔG_Map rg=up->GetRepulsion3C(c);
+    for (const auto& kv : dn->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
+    return rg;
 }
 
 //-----------------------------------------------------------------------
@@ -194,21 +184,19 @@ template <class T> rvec3_t tPolarized_CD<T>::Gradient  (const rvec3_t& r) const
 }
 
 template class tPolarized_CD<double>;
+template class Polarized_Fourier<tPolarized_CD<dcmplx>>;
 template class tPolarized_CD<dcmplx>;
 
-template <class T> tSpinDensity<T>::tSpinDensity(tDM_CD<T>* up,tDM_CD<T>* down)
-: itsSpinUpCD  (up  )
-, itsSpinDownCD(down)
+template <class T> tSpinDensity<T>::tSpinDensity(std::unique_ptr<tDM_CD<T>> up,
+                                                 std::unique_ptr<tDM_CD<T>> down)
+: itsSpinUpCD  (std::move(up  ))
+, itsSpinDownCD(std::move(down))
 {
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
 };
-
-template <class T> tSpinDensity<T>::~tSpinDensity()
-{
-    delete itsSpinUpCD;
-    delete itsSpinDownCD;
-}
+// No destructor: the unique_ptr members free the channels, and being move-only they delete the copy
+// operations whose absence made the raw-pointer form a double-delete (V1.25).
 
 template <class T> double tSpinDensity<T>::operator()(const rvec3_t& r) const
 {

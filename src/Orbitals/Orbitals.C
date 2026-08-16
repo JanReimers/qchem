@@ -162,7 +162,11 @@ public:
     //! charge sloshes between k-points under a single Fermi level (doc/GPWPlan1.md item 3).  \c TakeElectronsFermi
     //! is exactly {solve μ for this block's ne} then this.  \a kT>0; \a eShift size 0 == all-zero (plain Fermi).
     virtual ds_t SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift)=0;
-    virtual tDM_CD<T>* GetChargeDensity() const=0;   // the T-typed density (moved off the Orbitals base)
+    //! \brief BUILDS this orbital set's density matrix -- it ALLOCATES, hence the owning return (V1.25).
+    //! It was a raw `tDM_CD<T>*` from a `Get*`, which reads as an accessor handing back a member; every
+    //! caller had to know otherwise, and AtomCalculation::TotalCharge did not, leaking a whole composite
+    //! per call.  Ownership now lives in the TYPE.
+    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const=0;
 
     //! Per-basis-function occupation-weighted Mulliken gross population \f$P_i=(DS)_{ii}\f$, given this irrep's
     //! AO overlap \a S (supplied by the caller's IrrepBasisSet).  The density \f$D=\sum_{occ} n|C\rangle\langle

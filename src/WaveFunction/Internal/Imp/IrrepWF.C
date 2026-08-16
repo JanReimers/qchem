@@ -257,7 +257,7 @@ template <class T> void tIrrepWF<T>::AdoptMOMReference(const Orbitals& from)
     for (size_t j=0;j<cols.size();++j) blazem::column(itsRefOccCPrime,j)=cols[j];
 }
 
-template <class T> tDM_CD<T>* tIrrepWF<T>::GetChargeDensity() const
+template <class T> std::unique_ptr<tDM_CD<T>> tIrrepWF<T>::GetChargeDensity() const
 {
     assert(itsOrbitals);
     return itsOrbitals->GetChargeDensity();

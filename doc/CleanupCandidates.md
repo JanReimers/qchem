@@ -14,24 +14,78 @@ worth more than the landed ones.
 
 ---
 
-# START HERE (handoff, 2026-08-10)
+# START HERE (handoff, 2026-08-16)
 
-## Just landed: **V1.31** (`627a4ff9`), **V1.27**'s live half (`a1e1f9bb`), **R2.18**+**R2.19**
-(`86c5b24d`), **R2.9** (`268473b9`), **R1.7** (`26af31b6`).  Full records → doc/CleanupHistory.md.
-**Merged both ways with the MnO clone and pushed** (`2e587ee6` on origin/main); qchem6 is synced.
+## The state that matters: FIVE of the SIX RealComplexPlan prerequisites are done
 
-## Next task: pick from the open list below — nothing is half-done
+`doc/RealComplexPlan.md` §7 lists what must land before the real/complex type refactor starts, because
+those items sit on the very faces it restructures.  Status:
 
-- **V1.27's remaining half 🔶 DESIGN RULED (user 2026-08-10), not started.**  *"I suspect we are
-  ultimately going to need all 4 combos of {Molecular,Solid}x{PP,Non-PP}SCFIterator.  This should be done
-  with mixins."*  That retires the "rename" framing: there is no NAME that fixes a MISSING DIMENSION.
-  See the item under READY/R2 for the column analysis that shapes the mixin split.
-- **`SCFParams::MinVirial = 1e-13`** — documented *"effectively off"* while the test is
-  `error < MinVirial`, so the default is maximally ON.  Comment or default is wrong.  Affects ALL-ELECTRON
-  runs (where the gate is real), so it is a decision about what the default gate SHOULD be, not a typo fix.
+| prereq | state |
+|---|---|
+| **V1.6** `tDM_CD::Accumulate*` face split | ✅ `2d0f6982` |
+| **V1.7** the periodic trio's 9 asserting overrides | ✅ `2d0f6982` |
+| **V1.8** `IrrepCD`↔`IrrepCD` concrete casts | ✅ `2d0f6982` (evaporated with V1.6) |
+| **V1.10** abstract→concrete basis casts | ✅ `2d0f6982` |
+| **V1.1** basis-face merge | ⚠️ (i) ✅ `57ca229e`, (ii) HALF, (iii) reclassified — see below |
+| **V1.5** `G_FieldEvaluator` ISP split | ⛔ not started (pinned to FittingCleanupPlan §K) |
+| **V1.11** occupation seam | ⛔ not started (pinned to SCFStrategyPlan) |
+
+**What the four landed ones bought:** `tDM_CD<T>` has shed four exact-exchange methods and nine
+periodic denials.  The complex path now carries NO exact-exchange machinery and the real path none of the
+reciprocal-space kind -- so the plan's "widening points" are two small faces (`tHF_System_CD`,
+`tHF_Pair_CD`) instead of denials scattered across three density families.  A live `-DNDEBUG` hazard died
+with them: `Vee`/`Vxc` used to hit an assert-only `void` body -- a silent NO-OP in the shipped build,
+i.e. a zeroed J and a wrong Fock -- and now throw.
+
+## Next task: **V1.1's remaining question**, and it is now a SINGLE one
+
+**Can `Band_FT_IBS` become `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Everything still open in V1.1 hangs off
+that one answer, which is why it belongs with the type plan rather than here:
+- **(ii)'s open half** is `ERI3` vs `G_ERI3`.  Reconciling them is exactly what decides the question.
+- **(iii) is NOT "extras"** -- reclassified 2026-08-16 after reading it.  Its two parts are CONSEQUENCES
+  of the merge, not preparation: the `using Integrals_Overlap<dcmplx>::MakeOverlap` decl is LOAD-BEARING
+  (it un-hides the no-arg form against the Fourier `MakeOverlap(f(G))`, so it only becomes noise once that
+  member moves -- and that member is the last thing separating the two classes); and hoisting
+  `CreateXCQuadrature` to the neutral DFT face pays nothing alone, because `Band_FT_IBS` derives from
+  `Orbital_1E_IBS<dcmplx>`, NOT from `Orbital_DFT_IBS`, and no molecular IBS declares it either (they get
+  the identical neutral default from `tBasisSet<double>`).
+
+**V1.11** is the other genuinely open prerequisite and wants SCFStrategyPlan's occupation-seam decision
+first.  **V1.5** wants FittingCleanupPlan §K.  Both are design sessions, not execution.
+
+## Also open, unruled, and independent of the type work
+
+- **V1.27's remaining half 🔶 DESIGN RULED, not started** -- the {Molecular,Solid}x{PP,Non-PP} iterator
+  decomposition.  NOTE it collapsed once: the virial axis is a DERIVED BOOL (`IsVirialValid()`), not a
+  class axis, so it is 2 classes + 1 bool, and `AccumulateColumns` already landed the column-list part.
+  What remains is whether the grid and periodic axes ever need splitting (see the item).
 - Then the R2/V backlog as before.
 
-Four things worth carrying forward, because they generalize past their own items:
+## PROCESS -- two habits that cost real time this session, both recurring
+
+- **Never pattern-edit a file you have not read.**  Four blanket-replace slips: a Python whole-file
+  rewrite flipped CRLF→LF (fixed structurally by `.gitattributes`, `de4a4663`); a `\s*delete cd;` regex
+  removed three UNRELATED deletes and mangled an if/else in the parallel campaign's file; `self().` swaps
+  hit a class's own private helpers and a constructor's member-init list.  The check that works, and is
+  cheap: list every match with its ENCLOSING FUNCTION before replacing anything.
+- **Never leave a `ctest` sweep running while editing or rebuilding.**  Twice.  The second time produced
+  22 failures that were pure relink artifact -- and were nearly reported as a regression.  A sweep is only
+  evidence if nothing changed under it.
+
+Six things worth carrying forward, because they generalize past their own items:
+
+- **V1.6/V1.8 — name a partner face for the OPERATION, not the data.**  `CompleteDirectPair(Ji,Jj,Di,bs_i)`
+  says "finish this contraction with your block"; an abstract block ACCESSOR would have compiled, passed
+  review, and quietly undone the project's own no-`GetDensityMatrix()` tenet.  Naming it for the operation
+  is also what made the concrete cast EVAPORATE rather than move: the caller needs the partner's
+  cooperation, never its type.
+- **V1.6/V1.7 — a capability face is not segregated while the other half still DECLARES the methods.**
+  Empty bodies beat asserts (an assert-only `void` is a silent NO-OP under `-DNDEBUG`; an unreachable
+  empty body cannot be entered at all), but both are the interface failing.  The shape that actually
+  removes them is a real-path-only CRTP mixin selected by `conditional_t` — the idiom `ProjectedDensityBase`
+  and `FourierDensityBase` were already using in the same file.
+
 
 - **R1.7 — an ISP split can pay off on DIP grounds.**  Once `MakeDirect`/`MakeExchange` were off the
   client-facing face, a grep showed NOTHING outside qcBasisSet had ever named an `ERI4` — so the substrate
@@ -840,7 +894,36 @@ MnO campaign proceeds undisturbed in qchem6.
 
 ### V1 — interface-design questions
 
-- **V1.1 `Orbital_DFT_IBS` ⇄ `Band_FT_IBS` merge.**  User (2026-08-05): Orbital_DFT_IBS simply
+- **V1.1 ⚠️ (i) ✅ DONE `57ca229e`; (ii) HALF done; (iii) RECLASSIFIED — one question left.**
+  - **(i) DONE, and "trivial" was wrong in the way that mattered** (user, asked directly: *"I might have
+    been wrong!!"*).  The one-line version — make the fit args `FIT_*_ABS<T>` — asserts *orbital T == fit
+    T*, and that is precisely backwards for the case the type plan turns on.  The fit basis is a property
+    of the RUN, not of a block: every call site builds it once from the whole `tBasisSet`, and all irrep/k
+    blocks share it.  So when `BlochQN::IsReal()` makes TRIM k-blocks REAL, those real blocks still share
+    the run's COMPLEX G-space fit basis.  ⇒ **two independent axes**, now
+    `template <class T, class TFit = T>`.  `Orbital_DFT_IBS<double,dcmplx>` had NO SPELLING before.
+    Purely additive (the default keeps every existing instantiation), so none of the twelve
+    implementers/consumers changed.  Three of four combos are meaningful (user): `<double,double>`,
+    `<dcmplx,dcmplx>`, `<double,dcmplx>`; `<dcmplx,double>` is never instantiated.
+    - It also retired a self-CONTRADICTION that probably caused the split in the first place:
+      `CreateCDFitBasisSet` returned `FIT_CD_ABS<T>*` while `Repulsion3C` accepted only
+      `FIT_CD_ABS<double>`, so `Orbital_DFT_IBS<dcmplx>` could not consume the fit basis it created.
+    - `Band_FT_IBS`'s own comment already knew — *"never assuming orbital==fit"* — it just had no second
+      parameter to say it with.  **A comment that states an invariant the types cannot express is a
+      standing invitation to look for the missing parameter.**
+  - **(ii) HALF: the tensor element type follows `TFit`.**  A no-op today (every instantiation has
+    `T==TFit`) kept for its DOCUMENTATION value (user): it says WHICH AXIS decides, which was the
+    ambiguous part.  Correct for all three meaningful combos.  **Still open:** `ERI3` vs `G_ERI3`.
+  - **(iii) RECLASSIFIED — not "extras", and not separable.**  Both parts are consequences of the merge:
+    the `using Integrals_Overlap<dcmplx>::MakeOverlap` decl is LOAD-BEARING (it un-hides the no-arg form
+    against the Fourier `MakeOverlap(f(G))`, so it is only noise once that member moves — and that member
+    is the last thing separating the classes); and hoisting `CreateXCQuadrature` pays nothing alone,
+    because `Band_FT_IBS` derives from `Orbital_1E_IBS<dcmplx>` NOT `Orbital_DFT_IBS`, and molecules
+    already get the identical neutral default from `tBasisSet<double>`.
+  - **⇒ ONE question remains: can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Plan-level; owner
+    is doc/RealComplexPlan.md.
+  *(original text follows)*
+  **`Orbital_DFT_IBS` ⇄ `Band_FT_IBS` merge.**  User (2026-08-05): Orbital_DFT_IBS simply
   specifies what integrals an IBS must supply to support DFT; "Band" and "FT" have no place in that
   specification.  History: Band_FT_IBS once had ~12 extra Fourier/Grid members, twiddled down over
   many sessions to essentially ONE — the main conceptual gap was reluctance to acknowledge that the
@@ -1010,7 +1093,11 @@ MnO campaign proceeds undisturbed in qchem6.
   consumer (helper inside PWTerms; the Hamiltonian reaches the engine via `FunctionFitter::Grid()`,
   FunctionFitter.C:139).  Related: XC_GridEngine's `Lattice_3D::Fold` + dcmplx dependency bars any
   molecular reuse of the quadrature engine — same design session.
-- **V1.6 `tDM_CD::Accumulate*` — face split, NOT pure-virtual.**  Verified override matrix: every
+- **V1.6 ✅ DONE `2d0f6982`. `tDM_CD::Accumulate*` — face split, NOT pure-virtual.**  Now `tHF_System_CD` +
+  `tHF_Pair_CD`, real path only via `conditional_t`; the complex leaf declares NOTHING (a CRTP mixin, after
+  the user pressed that empty bodies are still the interface failing to segregate).  The NDEBUG hazard is
+  closed: `Vee`/`Vxc` THROW where they used to build a zeroed J in silence.  **→ doc/CleanupHistory.md**
+  *(original)*  Verified override matrix: every
   concrete family relies on the default for exactly 2 of the 4 (IrrepCD lacks `*All`;
   Composite/Polarized lack `*Both`) — pure-virtual just forces 6 new asserting stubs.  The `*Both`
   pair is an internal Composite↔leaf collaboration protocol (only called from
@@ -1018,21 +1105,27 @@ MnO campaign proceeds undisturbed in qchem6.
   pair-partner leaf face (the `tSpinResolved_CD` cross-cast idiom).  NDEBUG hazard on record:
   these void assert-only bodies are silent NO-OPS in Release — a bare IrrepCD through
   `Vee::AccumulateAll` yields a zeroed J and a silently wrong Fock.
-- **V1.7 The periodic trio (`GetFourierDensity`/`GetRhoOnGrid`/`GetRepulsion3C`) — 9 asserting
+- **V1.7 ✅ DONE `2d0f6982`. All NINE denials gone** — three periodic-only CRTP mixins; the mechanism
+  (`FourierDensityBase<T>`) was already right there, the families just re-declared outside it.
+  **→ doc/CleanupHistory.md**  *(original)*  **The periodic trio (`GetFourierDensity`/`GetRhoOnGrid`/`GetRepulsion3C`) — 9 asserting
   stubs, the largest LSP block in qcChargeDensity.**  Re-declared + NA-asserted on
   Polarized/Composite/IrrepCD for BOTH T (Imp/ChargeDensity.C:97,120,138; Imp/CompositeCD.C:197,
   226,249; Imp/IrrepCD.C:267,286,303).  The correct mechanism ALREADY EXISTS in the same file —
   `FourierDensityBase<T>` gives dcmplx the capability and double an empty base — but the derived
   classes re-declare outside it and assert.  Fix: declarations live only on the dcmplx side
   (if-constexpr-guarded definitions or a `tPeriodic_CD` mixin).
-- **V1.8 `IrrepCD`↔`IrrepCD` concrete same-class casts in the hot path** (Imp/IrrepCD.C:84,98,
+- **V1.8 ✅ DONE `2d0f6982`. The cast EVAPORATED with V1.6**, exactly as the user predicted — and because the
+  face is operation-named (`CompleteDirectPair`), not a block accessor.  **→ doc/CleanupHistory.md**
+  *(original)*  **`IrrepCD`↔`IrrepCD` concrete same-class casts in the hot path** (Imp/IrrepCD.C:84,98,
   218,227: `Accumulate*Both`/`MixIn`/`GetChangeFrom` take abstract `tDM_CD&` and narrow to the
   concrete leaf to touch `itsDensityMatrix`; the in-file comment names "the IrrepCD↔IrrepCD
   idiom").  Abstract→concrete, the pattern the project rule forbids; also makes MixIn
   unimplementable for any future leaf.  Wants a double-dispatch primitive or an abstract
   density-block face.  (Design with V1.6 — same seam.)
 - **V1.9 ✅ DONE `38a1ebd6`. `Structure`→concrete-`UnitCell` down-casts in 4 libraries**.  **→ doc/CleanupHistory.md**
-- **V1.10 Two abstract→CONCRETE basis casts in src/** — Imp/SymmetryAdapted_IBS.C:109,118
+- **V1.10 ✅ DONE `2d0f6982`. Both casts gone.**  The SALC one dissolved into V1.31's `WholeSystemFock_IBS`
+  face — its three primitives ARE the steps the cast open-coded; the DHF one became
+  `Orbital_RKB_Pair::MakeDirectAgainstL`.  **→ doc/CleanupHistory.md**  *(original)*  **Two abstract→CONCRETE basis casts in src/** — Imp/SymmetryAdapted_IBS.C:109,118
   (Orbital_HF_IBS* → concrete SymmetryAdapted_IBS, solely to reach `itsO`) and
   Internal/Imp/Orbital_DHF_IBS.C:89,109 (Orbital_ERI4_IBS& → Orbital_RKB_HF_IBS_Imp&).  Both are
   "give me your private state" reaches — promote the needed answer to an abstract question on the
@@ -1067,10 +1160,12 @@ MnO campaign proceeds undisturbed in qchem6.
   `CreateXCQuadrature`'s default body is byte-identical in two places (Imp/BasisSet.C:42 ==
   Band_FT_IBS.C:53).  Decide: pure, or a documented "this basis does not fit" contract; hoist the
   shared default.  (Interacts with the V1.1 CreateXCQuadrature hoist.)
-- **V1.16 `ProjectedDensity_AO::GetRepulsion3C` asserting default** (Fitting/Imp/FunctionFitter.C:
-  28-35) — the overlap-vs-Coulomb metric choice is encoded as "override the OTHER method and this
-  one becomes poison", an implicit unenforceable pairing (NumericCD must just remember).  Make the
-  metric an explicit refinement face.
+- **V1.16 ✅ DONE `de0292cb`. `ProjectedDensity_AO::GetRepulsion3C` asserting default** — the metric is now
+  two refinement faces (`CoulombMetric_ProjectedDensity` / `OverlapMetric_ProjectedDensity`); the base keeps
+  only what the FITTER needs.  **The compiler found more than the item predicted:** `tPolarized_CD` and
+  `tComposite_CD` were cross-casting to the PLAIN AO face and then calling the Coulomb-only
+  `GetRepulsion3C` — the implicit pairing in action, since any `ProjectedDensity_AO` satisfied that cast and
+  the poison fired later.  Both now ask for the capability they use.  **→ doc/CleanupHistory.md**
 - **V1.17 `tWaveFunction::GetSpinDensity()` returns null as the unpolarized answer**
   (WaveFunction.C:39) — a capability half the hierarchy lacks, on the base, every client
   null-checking a raw pointer.  Correct idiom one library over: `tSpinResolved_CD` as a cross-cast
@@ -1134,9 +1229,32 @@ MnO campaign proceeds undisturbed in qchem6.
   and does nothing for a legitimately soft direction — the other failure.  Reproducers: DISABLED_ImposedGDMProbe_SiDiamondIBZ (healthy),
   DISABLED_NaFImposedGDMSmearProbe (pathological, NAFGDM_* knobs); GPW_GDMTRACE=1 shows
   DESCENT/FALLBACK per step.
-- **V1.25 Minor CD-interface trims** — non-const `Polarized_CD::GetChargeDensity(Spin)` overload
-  has no external consumer (removable); `tSpinDensity` holds two raw non-owning `tDM_CD*` with
-  unmanaged lifetime.
+- **V1.25 ✅ DONE `e52c00eb`. NOT "minor trims" — there was a LIVE LEAK.**  `GetChargeDensity()` now returns
+  `unique_ptr` along the whole chain, so `AtomCalculation::TotalCharge()` stops leaking a composite per call.
+  **Three more owning-raw-pointer sites the item never mentioned** turned up on the way: `tPolarized_CDImp`
+  had `tSpinDensity`'s exact double-delete shape, and `tComposite_CD::Insert` advertised a raw pointer while
+  wrapping it in a `unique_ptr`.  **→ doc/CleanupHistory.md**
+  *(original analysis follows)*
+  - **`GetChargeDensity()` is a `Get*` that ALLOCATES.**  `tCompositeWF::GetChargeDensity(Spin)` does
+    `new tComposite_CD<T>(...)` and inserts every irrep block, on EVERY call; `TOrbitalsImp`, `tIrrepWF`,
+    `tPolarizedWF` and `tUnPolarizedWF` all forward or do the same.  The name says accessor; the body is a
+    factory.
+  - **`AtomCalculation::TotalCharge()` LEAKS it** (Imp/AtomCalculation.C:222): builds a whole composite
+    density, reads one number off it, drops the pointer.  `SolidCalculation` happens to get it right
+    (`itsImp->cd.reset(cd)`), and the tests mostly remember `delete cd` — so the contract is honoured by
+    vigilance, not by the type.  **Cross-ref the RAM question**: a leak per call is exactly the class of
+    thing to rule out before profiling anything.
+  - **The item's OTHER claim was backwards.**  It said `tSpinDensity` holds "two raw NON-OWNING `tDM_CD*`
+    with unmanaged lifetime".  It DOES own them — its dtor deletes both — but declares no copy ctor or
+    assignment, so the implicit copy is a DOUBLE-DELETE (rule of three).  And it is only correct today
+    because its caller feeds it two freshly-`new`ed densities, i.e. it depends on the accessor's hidden
+    factory behaviour.  Three fragilities holding each other up.
+  - **Fix (all at once, user 2026-08-12):** return `std::unique_ptr<tDM_CD<T>>` from the accessor chain, so
+    ownership is in the TYPE and the compiler finds every caller; `tSpinDensity` holds `unique_ptr`s (copy
+    then implicitly deleted, dtor disappears).  Matches CLAUDE.md's rule that a raw `new` should go into a
+    smart pointer within a few lines.
+  - Original text: non-const `Polarized_CD::GetChargeDensity(Spin)` overload has no external consumer
+    (removable); `tSpinDensity` holds two raw `tDM_CD*`.
 
 - **V1.26 Uniform-vs-Becke: a SMOOTHNESS question that reduces to a COST CROSSOVER — so `Auto` becomes a
   SELECTOR, an explicit choice is honoured, and only the strictly-dominated choice is warned about.

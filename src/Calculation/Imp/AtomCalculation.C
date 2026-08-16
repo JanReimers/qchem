@@ -198,7 +198,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
 void AtomCalculation::RebuildSampling()
 {
     const auto* wf = itsScf->GetWaveFunction();
-    itsDensity.reset(wf->GetChargeDensity());
+    itsDensity = wf->GetChargeDensity();               // it BUILDS the density and hands ownership over
 
     itsOccupied.clear();
     for (const Irrep& irr : wf->GetQNs())
@@ -219,6 +219,8 @@ double                 AtomCalculation::Energy()      const {return itsScf->GetE
 qchem::EnergyBreakdown AtomCalculation::EnergyTerms() const {return itsScf->GetEnergy();}
 double                 AtomCalculation::TotalCharge() const
 {
+    // V1.25: this LEAKED before -- GetChargeDensity BUILDS a whole composite density, and the raw pointer
+    // was dropped after reading one number off it.  The owning return makes the temporary free itself.
     return itsScf->GetWaveFunction()->GetChargeDensity()->GetTotalCharge();
 }
 

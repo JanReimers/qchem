@@ -1,5 +1,6 @@
 // File: PolarizedWF.C  Wave function for an unpolarized atom.
 module;
+#include <memory>   // unique_ptr: densities are BUILT and handed over (V1.25)
 #include <cassert>
 #include <iostream>
 #include <iomanip>
@@ -30,7 +31,7 @@ template <class T> tPolarizedWF<T>::tPolarizedWF(const tbs_t<T>* bs,const Electr
     this->MakeIrrepWFs(Spin::Down);
 };
 
-template <class T> tDM_CD<T>* tPolarizedWF<T>::GetChargeDensity() const
+template <class T> std::unique_ptr<tDM_CD<T>> tPolarizedWF<T>::GetChargeDensity() const
 {
     return PolarizedCD_Factory(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }

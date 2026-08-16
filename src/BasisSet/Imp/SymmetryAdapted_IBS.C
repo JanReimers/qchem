@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <memory>
 #include <cassert>
+#include <stdexcept>
 module qchem.BasisSet.SymmetryAdapted_IBS;
 import qchem.Blaze;          // trans, submatrix, matrix/vector ops
 
@@ -105,20 +106,33 @@ rFIT_SF_ABS* SymmetryAdapted_IBS::CreateVxcFitBasisSet(const Structure* cl, cons
 // density block and slice to this irrep (no 4-index ERI transform).  The AO build depends only
 // on the cd-irrep, so a shared cache builds it once per iteration (N instead of N^2 builds);
 // without a cache it is built directly each call.
+// V1.10: no cast to the partner's CONCRETE type.  These used to reach into a sibling for its private itsO
+// (its SALC columns) purely to fold the partner's density up to AO.  That operation already exists as an
+// abstract question -- WholeSystemFock_IBS::AddAODensity, added by V1.31 -- so the three steps are now three
+// calls on the face: the PARTNER folds its own block up, we build once, we slice into ours.  Nobody hands
+// out their columns, and the cast is abstract->abstract (the sanctioned direction).
+rsmat_t SymmetryAdapted_IBS::PairAOFock(const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd,
+                                        bool exchange) const
+{
+    auto* ws = dynamic_cast<const WholeSystemFock_IBS<double>*>(bs_cd);
+    if (!ws) throw std::runtime_error("SymmetryAdapted_IBS: the HF partner basis has no whole-system Fock "
+                                      "face, so its density block cannot be folded up to the AO space.");
+    assert(itsRawHF);
+    rsmat_t Dao = blazem::zero<double>(AODimension());
+    ws->AddAODensity(Dao, Dcd);              // Dao = O_cd D_cd O_cd^T -- the partner uses its OWN columns
+    return MakeAOFock(Dao, exchange);
+}
+
 void SymmetryAdapted_IBS::AccumulateDirect(rsmat_t& Jab, const rsmat_t& Dcd,
                                            const Orbital_HF_IBS<double>* bs_cd) const
 {
-    const SymmetryAdapted_IBS* cd = dynamic_cast<const SymmetryAdapted_IBS*>(bs_cd);
-    assert(cd && itsRawHF);
-    AddSlice(Jab, itsO, BuildAOFock(false, itsRawHF, cd->itsO, Dcd));
+    SliceAOFock(Jab, PairAOFock(Dcd, bs_cd, false));
 }
 
 void SymmetryAdapted_IBS::AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd,
                                              const Orbital_HF_IBS<double>* bs_cd) const
 {
-    const SymmetryAdapted_IBS* cd = dynamic_cast<const SymmetryAdapted_IBS*>(bs_cd);
-    assert(cd && itsRawHF);
-    AddSlice(Kab, itsO, BuildAOFock(true, itsRawHF, cd->itsO, Dcd));
+    SliceAOFock(Kab, PairAOFock(Dcd, bs_cd, true));
 }
 
 // No per-irrep-pair ERI4 here (see the header): serve the bra-ket partner as two independent AO slices.

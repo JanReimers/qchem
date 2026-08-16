@@ -1,6 +1,7 @@
 // File: Imp/CompositeCD.C  Composite charged density, which is any array of Irrep DM_CDs.
 module;
 #include <cassert>
+#include <stdexcept>
 #include <vector>
 #include <memory>
 #include <type_traits>
@@ -22,9 +23,9 @@ template <class T> tComposite_CD<T>::tComposite_CD(std::vector<Symmetry::Lattice
     : itsPointOps(std::move(pointOps))
 {};
 
-template <class T> void tComposite_CD<T>::Insert(tDM_CD<T>* cd)
+template <class T> void tComposite_CD<T>::Insert(std::unique_ptr<tDM_CD<T>> cd)
 {
-    itsCDs.push_back(std::unique_ptr<tDM_CD<T>>(cd));
+    itsCDs.push_back(std::move(cd));
 }
 
 //-----------------------------------------------------------------------------
@@ -39,6 +40,17 @@ template <class T> void tComposite_CD<T>::Insert(tDM_CD<T>* cd)
 // the canonical J(k,l) scatters into BOTH Jall[k] and Jall[l], so J(l,k) is never fetched/built/cached) --
 // see IrrepCD::AccumulateDirectBoth.  Densities stay encapsulated in the IrrepCD leaves (the pair helper
 // reaches its partner by a same-class cast, as MixIn/GetChangeFrom already do).
+// Cross-cast a composite leaf to the exact-exchange PAIR face (V1.6).  Every leaf on the real path is one;
+// a failure means a density kind reached the HF sweep that is not a bra-ket pair partner, which used to be a
+// silent no-op under -DNDEBUG (a zeroed J and a wrong Fock) and is now a loud error.
+template <class T> static const tHF_Pair_CD<T>& PairOf(const tDM_CD<T>& cd)
+{
+    const tHF_Pair_CD<T>* p=dynamic_cast<const tHF_Pair_CD<T>*>(&cd);
+    if (!p) throw std::runtime_error("Composite HF sweep: a density block is not a bra-ket pair partner "
+                                     "(only an irrep LEAF is one) -- the whole-system J/K cannot be built.");
+    return *p;
+}
+
 // V1.31: the WHOLE-SYSTEM route.  A basis with no per-irrep-pair ERI4 blocks (the SALC decorator -- R1.7)
 // builds one whole-AO Fock and slices it, so driving it with the canonical-PAIR loop below made it rebuild
 // the SAME matrix once per irrep.  J and K are LINEAR in D, so summing the blocks' AO densities FIRST and
@@ -71,7 +83,7 @@ template <class T> void tComposite_CD<T>::AccumulateDirectAll(std::vector<hmat_t
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
         for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
-            itsCDs[k]->AccumulateDirectBoth(Jall[k],Jall[l],*itsCDs[l]);
+            PairOf(*itsCDs[k]).AccumulateDirectBoth(Jall[k],Jall[l],PairOf(*itsCDs[l]));
 }
 
 // Exchange counterpart of AccumulateDirectAll (same canonical-pair structure; K(i,j)=K(j,i)^T).  Driven
@@ -83,7 +95,7 @@ template <class T> void tComposite_CD<T>::AccumulateExchangeAll(std::vector<hmat
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
         for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
-            itsCDs[k]->AccumulateExchangeBoth(Kall[k],Kall[l],*itsCDs[l]);
+            PairOf(*itsCDs[k]).AccumulateExchangeBoth(Kall[k],Kall[l],PairOf(*itsCDs[l]));
 }
 
 template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const
@@ -137,8 +149,8 @@ template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const BasisSet::rFIT_
         rvec_t ret(fbs->GetNumFunctions(),0);
         for (auto& c:itsCDs)
         {
-            auto* ao=dynamic_cast<const Fitting::ProjectedDensity_AO*>(c.get());
-            assert(ao && "composite block is not a ProjectedDensity_AO (finite path)");
+            auto* ao=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(c.get());
+            assert(ao && "composite block has no Coulomb-metric projection face (finite path)");
             ret+=ao->GetRepulsion3C(fbs);
         }
         return ret;
@@ -206,79 +218,56 @@ template <class T> rvec3_t tComposite_CD<T>::Gradient  (const rvec3_t& r) const
 }
 
 // rho-tilde(Delta-m) = Sum_blocks rho-tilde_k (each block already BZ-weighted) = the BZ average Sum_k w_k rho_k.
-template <class T> ΔG_Map tComposite_CD<T>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
+template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
+    ΔG_Map rg;
+    for (const auto& blk : self().itsCDs)
     {
-        ΔG_Map rg;
-        for (const auto& blk : itsCDs)
-        {
-            auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
-            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
-            for (const auto& kv : fc->GetFourierDensity(c)) rg[kv.first]+=kv.second;
-        }
-        return SymmetrizeGMap(rg, itsPointOps);   // IBZ star-average (no-op when {E}) -- doc/GPWPlan1.md item 3
+        auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
+        assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+        for (const auto& kv : fc->GetFourierDensity(c)) rg[kv.first]+=kv.second;
     }
-    else
-    {
-        assert(false && "a finite (non-periodic) density has no reciprocal-lattice Fourier series");
-        return ΔG_Map{};
-    }
+    return SymmetrizeGMap(rg, self().itsPointOps);   // IBZ star-average (no-op when {E}) -- doc/GPWPlan1.md item 3
 }
 
 // Raw rho_DM = Sum_k w_k rho_k(r) on c's ONE raster (the weights ride in each block's D).  ALL-OR-NOTHING:
 // if any block lacks the raw path (returns empty) the whole composite answers empty, so the caller's E/H
 // pair never mixes raw and ball blocks (doc/GPWPlan 0.5(f2)).
-template <class T> rvec_t tComposite_CD<T>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
+template <class Comp> rvec_t Composite_Fourier<Comp>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
+    rvec_t sum;
+    for (const auto& blk : self().itsCDs)
     {
-        rvec_t sum;
-        for (const auto& blk : itsCDs)
-        {
-            auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
-            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
-            rvec_t r=fc->GetRhoOnGrid(c);
-            if (r.size()==0) return rvec_t{};
-            if (sum.size()==0) sum=std::move(r);
-            else               sum+=r;
-        }
-        // IBZ: star-average the summed raster IN REAL SPACE (voxel permutation) so XC sees ρ_sym while staying
-        // on the non-negative ρ_DM grid.  The fit basis owns its grid + the τ=0 direct ops; no-op unless folded.
-        c.SymmetrizeRaster(sum);
-        return sum;
+        auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
+        assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+        rvec_t r=fc->GetRhoOnGrid(c);
+        if (r.size()==0) return rvec_t{};
+        if (sum.size()==0) sum=std::move(r);
+        else               sum+=r;
     }
-    else
-    {
-        assert(false && "a finite (non-periodic) density has no grid raster representation");
-        return rvec_t{};
-    }
+    // IBZ: star-average the summed raster IN REAL SPACE (voxel permutation) so XC sees ρ_sym while staying
+    // on the non-negative ρ_DM grid.  The fit basis owns its grid + the τ=0 direct ops; no-op unless folded.
+    c.SymmetrizeRaster(sum);
+    return sum;
 }
 
 // V_H = Sum_blocks V_H_k (V_H is linear in rho-tilde, so summing the per-block Coulomb projections == the
 // projection of the summed density).  Each block bakes the kernel via its own Repulsion3C(c).
-template <class T> ΔG_Map tComposite_CD<T>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
+template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
+    ΔG_Map rg;
+    for (const auto& blk : self().itsCDs)
     {
-        ΔG_Map rg;
-        for (const auto& blk : itsCDs)
-        {
-            auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
-            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
-            for (const auto& kv : fc->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
-        }
-        // V_H is linear in ρ̃ and |UG|=|G|, so symmetrizing V_H(G) == V_H of the symmetrized density -- exact.
-        return SymmetrizeGMap(rg, itsPointOps);   // IBZ star-average (no-op when {E})
+        auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
+        assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+        for (const auto& kv : fc->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
     }
-    else
-    {
-        assert(false && "a finite (non-periodic) density has no reciprocal Coulomb projection");
-        return ΔG_Map{};
-    }
+    // V_H is linear in ρ̃ and |UG|=|G|, so symmetrizing V_H(G) == V_H of the symmetrized density -- exact.
+    return SymmetrizeGMap(rg, self().itsPointOps);   // IBZ star-average (no-op when {E})
 }
 
 template class tComposite_CD<double>;
+template class Composite_Fourier<tComposite_CD<dcmplx>>;
 template class tComposite_CD<dcmplx>;
 
 } //namespace

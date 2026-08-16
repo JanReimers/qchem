@@ -96,13 +96,32 @@ private:
     static smat_t<T> merge_off_diag(const mat_t<T>& ls);
 };
 
+//! \brief The RKB PAIR face (V1.10): what one RKB basis needs from another to build a 4-index block.
+//!
+//! The RKB ERI4 build is LLLL-only for now, so it needs the partner's LARGE component.  Reaching it used to
+//! be `dynamic_cast<const Orbital_RKB_HF_IBS_Imp&>(_c)` followed by `c.itsRKBL` -- abstract to CONCRETE,
+//! purely to take a private member.  Expressed instead as an operation the partner PERFORMS with its own
+//! large component, so nothing is handed out and the cast becomes abstract->abstract.  Same move as R1.7's
+//! substrate face and V1.8's CompleteDirectPair.
+template <class T> class Orbital_RKB_Pair
+{
+public:
+    virtual ~Orbital_RKB_Pair() = default;
+    //! Build the large-component block against \a aL, the CALLER's large component.
+    virtual ERI4 MakeDirectAgainstL  (const Orbital_ERI4_IBS<T>& aL) const=0;
+    virtual ERI4 MakeExchangeAgainstL(const Orbital_ERI4_IBS<T>& aL) const=0;
+};
+
 template <class T> class Orbital_RKB_HF_IBS_Imp 
     : public virtual Orbital_ERI4_IBS<T>
+    , public virtual Orbital_RKB_Pair<T>
     , public Orbital_RKB_IBS_Imp<T>
 {
 
     virtual ERI4       MakeDirect  (const Orbital_ERI4_IBS<T>& c) const;
     virtual ERI4       MakeExchange(const Orbital_ERI4_IBS<T>& c) const;
+    virtual ERI4       MakeDirectAgainstL  (const Orbital_ERI4_IBS<T>& aL) const;
+    virtual ERI4       MakeExchangeAgainstL(const Orbital_ERI4_IBS<T>& aL) const;
 protected:
     Orbital_RKB_HF_IBS_Imp(Orbital_RKBL_IBS<T>* rkbl,Orbital_RKBS_IBS<T>* rkbs) : Orbital_RKB_IBS_Imp<T>(rkbl,rkbs) {};
 private:

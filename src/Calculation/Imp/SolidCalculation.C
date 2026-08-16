@@ -126,9 +126,9 @@ bool SolidCalculation::Converge(const SCFParams& params)
     itsImp->converged = itsImp->scf->Converged();
     // Take the density OUT of the wave function: it stays valid after the iterator's state moves on
     // because its basis block is `bs`, which this object owns and outlives it.
-    auto* cd = itsImp->scf->GetWaveFunction()->GetChargeDensity();
+    auto cd = itsImp->scf->GetWaveFunction()->GetChargeDensity();   // BUILT for us; we take it
     itsImp->charge = cd->GetTotalCharge();
-    itsImp->cd.reset(cd);
+    itsImp->cd = std::move(cd);
     return itsImp->converged;
 }
 

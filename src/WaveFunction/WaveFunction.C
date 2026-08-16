@@ -1,5 +1,6 @@
 // File: WaveFunction.C  Interface for a wave function.
 module;
+#include <memory>   // std::unique_ptr -- GetChargeDensity BUILDS its density (V1.25)
 #include <vector>
 export module qchem.WaveFunction;
 export import qchem.EnergyLevel;
@@ -35,7 +36,8 @@ public:
     virtual ~tWaveFunction() {};
 
     virtual const Orbitals* GetOrbitals     (const Irrep&         ) const=0;
-    virtual tDM_CD<T>*      GetChargeDensity() const=0;
+    //! \brief BUILDS the whole-system density -- ALLOCATES, hence the owning return (V1.25).
+    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const=0;
     virtual sf_t*           GetSpinDensity  () const=0; //Returns a null ptr for un polarized WF.
     virtual EnergyLevels    GetEnergyLevels () const=0;
     virtual iqns_t          GetQNs          () const=0;

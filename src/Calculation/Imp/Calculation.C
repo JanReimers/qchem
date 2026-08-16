@@ -235,7 +235,7 @@ bool Calculation::Converge(const SCFParams& params)
 void Calculation::RebuildSampling()
 {
     const auto* wf = itsScf->GetWaveFunction();
-    itsDensity.reset(wf->GetChargeDensity());          // GetChargeDensity hands back a heap rho -- we own it
+    itsDensity = wf->GetChargeDensity();               // it BUILDS the density and hands ownership over
 
     itsOccupied.clear();
     for (const Irrep& irr : wf->GetQNs())
