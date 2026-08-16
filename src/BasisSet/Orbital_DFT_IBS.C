@@ -36,9 +36,9 @@ template <class T, class TFit = T> class Orbital_DFT_IBS
 public:
     //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle \f$.  The fit \a c is an
     //! overlap-metric (scalar-function) aux basis, in the FIT representation.
-    virtual const ERI3<T>& Overlap3C  (const FIT_SF_ABS<TFit>& c) const;
+    virtual const ERI3<TFit>& Overlap3C  (const FIT_SF_ABS<TFit>& c) const;
     //! 3 centre repulsion used for DFT.  The fit \a c is a Coulomb-metric (charge-density) aux basis.
-    virtual const ERI3<T>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
+    virtual const ERI3<TFit>& Repulsion3C(const FIT_CD_ABS<TFit>& c) const;
 
     virtual FIT_CD_ABS<TFit>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
     virtual FIT_SF_ABS<TFit>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
@@ -46,15 +46,18 @@ public:
     // <rho|c> = Sum_ab D_ab <ab|c> is a DENSITY operation (it lives in the charge density, which owns D),
     // NOT a basis one.  The basis exposes only the D-free integral tensors above; D never enters qcBasisSet.
     //
-    // OPEN, and it is V1.1(ii): the tensor element type is still ERI3<T>, which is right for the two
-    // instantiations that exist (T==TFit).  For the MIXED case the integrand carries complex fit functions,
-    // so <ab|c> is complex even with real orbitals -- ERI3<TFit> is the likely answer, and it happens to be
-    // correct for all THREE meaningful combinations.  Not changed here because nothing instantiates the
-    // mixed case yet, and the periodic path returns G_ERI3 rather than ERI3 anyway -- which is the rest of
-    // (ii), and a real question rather than an accident now that the axes are separate.
+    // V1.1(ii), the resolvable half: the tensor element type follows TFit, NOT T.  A no-op today (every
+    // instantiation has T==TFit), but it DOCUMENTS which axis decides -- which was the ambiguous part.  The
+    // integrand is g_a g_b f_c, so complex FIT functions make <ab|c> complex even with real orbitals: TFit
+    // is right for all three meaningful combinations and wrong only for <dcmplx,double>, which is never
+    // instantiated.
+    //
+    // STILL OPEN, and it is the rest of (ii): the periodic path returns G_ERI3, not ERI3.  Reconciling the
+    // two is what decides whether Band_FT_IBS can BE Orbital_DFT_IBS<dcmplx,dcmplx> or must stay parallel --
+    // the head of the type flow, so it belongs with doc/RealComplexPlan.md rather than here.
 protected:
-    virtual ERI3<T> MakeOverlap3C  (const FIT_SF_ABS<TFit>& c) const=0;
-    virtual ERI3<T> MakeRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
+    virtual ERI3<TFit> MakeOverlap3C  (const FIT_SF_ABS<TFit>& c) const=0;
+    virtual ERI3<TFit> MakeRepulsion3C(const FIT_CD_ABS<TFit>& c) const=0;
 };
 
 typedef Orbital_DFT_IBS<double> Real_DFT_OIBS;
