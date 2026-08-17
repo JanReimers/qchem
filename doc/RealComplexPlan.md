@@ -61,6 +61,15 @@ projectors and **the collocation streams** stay real; only H, C, D go complex.  
 layer is what dominates GPW, conflating the two types would needlessly double the cost of the
 expensive half the moment SOC arrives.
 
+**A THIRD axis, found by V1.1(i) (2026-08-16) — the FIT basis.**  `Orbital_DFT_IBS` is now
+`template <class T, class TFit = T>`, because the fit basis is a property of the RUN, not of a block:
+every call site builds it once from the whole `tBasisSet` and all irrep/k blocks share it.  So when
+`BlochQN::IsReal()` makes TRIM blocks real, those real blocks still share the run's COMPLEX G-space fit
+basis — `Orbital_DFT_IBS<double,dcmplx>`, a combination that had no spelling before.  Three of four
+combos are meaningful (`<double,double>`, `<dcmplx,dcmplx>`, `<double,dcmplx>`); `<dcmplx,double>` is
+never instantiated.  Note this is NOT the same split as basis-vs-working type below — it is orbital-vs-fit
+— so the full picture is three axes, and any two of them can differ.
+
 **Today they are welded:** `tSCFIterator<T>` takes `tbs_t<T>*` — one T for basis and everything
 downstream.  For the Bloch-only case that is harmless (basis real ⇒ working real), so the first
 increment need not decouple them.  **The standing instruction is only: do not harden it further.**
@@ -143,6 +152,11 @@ variation — worth remembering when scoping.
 
 ## 7. Prerequisites (doc/CleanupCandidates.md)
 
+**STATE 2026-08-17: the gate is effectively OPEN.**  V1.6 ✅ (`2d0f6982` + `bd6c648a`, which completed
+it at the composite/polarized level), V1.7 ✅, V1.8 ✅, V1.10 ✅ (`2d0f6982`), V1.11 ✅ (`6824c73c`),
+R2.16 ✅ (done 2026-08-07; its header marker was just missing).  V1.5 is NOT a prerequisite (below).
+V1.1 is partial and is the ONE that still touches this work — see the note at the end of this section.
+
 Load-bearing, because they sit on the faces this restructures — finishing them SHRINKS this work,
 and none of them is invalidated by it (the type change alters child containers, not the method lists
 the ISP splits produce):
@@ -166,3 +180,10 @@ the ISP splits produce):
 
 NOT prerequisites (do not gate on them): R1.0b (shared-radial reader), R2.20 (oracle helpers in a
 test module), R2.5's remaining `exit(-1)` sites.
+
+**V1.1's remainder is OWNED HERE, and it belongs to Step 3, not Step 1 or 2.**  The item ends with
+*"ONE question remains: can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`? Plan-level; owner is
+doc/RealComplexPlan.md."*  That question IS the Step-3 basis un-pinning seen from the other side — a
+`GPW_IBS` that can instantiate real needs the DFT face it derives from to be the one merged class, not
+two.  V1.1(ii)'s open half (`ERI3` vs `G_ERI3` return types) is the same knot.  So: Steps 1 and 2 do not
+wait on V1.1; Step 3 answers it.
