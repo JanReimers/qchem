@@ -122,7 +122,17 @@ public:
     {
         return GetNumOrbitals();
     }
-    typedef std::tuple<double,hmat_t<T>> ds_t;   // {remaining electrons, DPrime} (DPrime Hermitian)
+    //! \brief The result of ONE orbital-block fill -- NAMED fields, each with ONE meaning (V1.11 increment 1:
+    //! kills the old {double, DPrime} tuple whose double meant LEFTOVER ELECTRONS for the integer fills but
+    //! −TS for the Fermi ones -- its own doc had to warn about it).  Integer fills set \c electronsLeft
+    //! (and −TS is identically 0); Fermi fills set \c minusTS (and μ absorbs the count, so leftovers are 0).
+    struct FillResult
+    {
+        double    electronsLeft=0.0;  //!< undistributed electrons (integer/aufbau fills; the caller asserts 0)
+        double    minusTS=0.0;        //!< this fill's Mermin \f$-TS\le0\f$ (Fermi fills; 0 for integer fills)
+        hmat_t<T> DPrime;             //!< the orthonormal-basis density built from the new occupations
+    };
+    typedef FillResult ds_t;   // transitional alias -- dies with the V1.11 increment-4 face collapse
 
     virtual void  UpdateOrbitals(const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e)=0;
     virtual ds_t TakeElectrons (double ne)=0;
@@ -134,8 +144,8 @@ public:
     //! \f$\sum_i g_i f_i(\varepsilon_i)=n_e\f$ with \f$f_i=1/(1+e^{(\varepsilon_i-\mu)/kT})\f$, set each
     //! orbital's occupation to \f$g_i f_i\f$, and build D/D'.  \a kT>0 (Hartree).  Returns
     //! {\a MinusTS, DPrime} where \a MinusTS \f$=kT\sum_i g_i[f_i\ln f_i+(1-f_i)\ln(1-f_i)]\le0\f$ is the
-    //! Mermin free-energy term \f$-TS\f$ (reuses the ds_t tuple; here the double is −TS, NOT leftover
-    //! electrons -- μ is solved so there is no leftover).  The fractional occupations flow through the
+    //! Mermin free-energy term \f$-TS\f$ (\c FillResult::minusTS; μ is solved so \c electronsLeft is
+    //! identically 0).  The fractional occupations flow through the
     //! existing density build unchanged (AddDensityMatrix already scales |C⟩⟨C| by the occupation).
     virtual ds_t TakeElectronsFermi (double ne, double kT)=0;
     //! \brief The chemical potential of the LAST Fermi fill -- solved by \c TakeElectronsFermi (this block's

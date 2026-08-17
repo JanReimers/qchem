@@ -21,7 +21,7 @@ template <class T> class TOrbitalsImp
     : public virtual Orbitals
     , public virtual TOrbitals<T>
 {
-    typedef typename TOrbitals<T>::ds_t ds_t; //{double,smat_t}
+    typedef typename TOrbitals<T>::FillResult ds_t; //named-field fill result (V1.11)
 public:
     TOrbitalsImp(const tobs_t<T>*, Spin s);
     virtual ~TOrbitalsImp();

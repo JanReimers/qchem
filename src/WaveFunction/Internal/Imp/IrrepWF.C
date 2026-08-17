@@ -109,9 +109,9 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
     // NB entropy is identically zero here, so a held leg minimises E and NOT the Mermin free energy A=E−TS.
     if (holdBlock)
     {
-        double left=ne;
-        std::tie(left,itsDPrime)=itsOrbitals->TakeElectrons(ne);
-        assert(left==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
+        auto r=itsOrbitals->TakeElectrons(ne);
+        itsDPrime=std::move(r.DPrime);
+        assert(r.electronsLeft==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
         itsELevels.clear();
         for (auto o:itsOrbitals->Iterate())
             itsELevels.insert(qchem::Orbitals::EnergyLevel(o));
@@ -162,10 +162,14 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
         {
             rvec_t s=MOMScores(), eShift(s.size());
             for (size_t i=0;i<s.size();++i){ double d=1.0-s[i]; eShift[i]=itsMOMSmearPenalty*d*d; }
-            std::tie(itsMinusTS,itsDPrime)=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT,eShift);
+            auto r=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT,eShift);
+            itsMinusTS=r.minusTS; itsDPrime=std::move(r.DPrime);
         }
         else
-            std::tie(itsMinusTS,itsDPrime)=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT);
+        {
+            auto r=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT);
+            itsMinusTS=r.minusTS; itsDPrime=std::move(r.DPrime);
+        }
         // GPW_METALTRACE: report THIS block's own μ, so a constrained (fixed nUp/nDn) run is as legible as a
         // shared-reservoir one.  Δμ between the channels is the diagnostic: two μ are the Lagrange multipliers
         // of the two count constraints, so their difference is the force the constraint is holding -- and for
@@ -178,9 +182,10 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
     }
     else
     {
-        if (haveRef) std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne, MOMScores());
-        else         std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
-        assert(ne==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
+        auto r=haveRef ? itsOrbitals->TakeElectrons(ne, MOMScores())
+                       : itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
+        itsDPrime=std::move(r.DPrime);
+        assert(r.electronsLeft==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
     }
 
     // List of energy levels.  Degenerate levels should get merged.
@@ -207,7 +212,8 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitalsAtMu(double mu)
 {
     assert(itsSmearingkT>0.0 && "FillOrbitalsAtMu is a smeared (metal) path -- SmearingkT must be > 0");
     for (auto o:itsOrbitals->Iterate()) o->Empty();
-    std::tie(itsMinusTS,itsDPrime)=itsOrbitals->SetFermiOccupationsAtMu(mu,itsSmearingkT,rvec_t());
+    auto r=itsOrbitals->SetFermiOccupationsAtMu(mu,itsSmearingkT,rvec_t());
+    itsMinusTS=r.minusTS; itsDPrime=std::move(r.DPrime);
     itsELevels.clear();
     for (auto o:itsOrbitals->Iterate())
         itsELevels.insert(qchem::Orbitals::EnergyLevel(o));

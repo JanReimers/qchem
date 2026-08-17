@@ -201,3 +201,13 @@ that are near singular, decompose, truncate and look at residuals.  V*S*V_dagger
 3) doc/GPWPlan.md: 2. THE mesh insight — the next increment builds on this (do not use the stopgap)
 4) "precompute the Bloch orbital on the mesh once (Eval re-sums images per point, so calling it inside qcMesh::Overlap per projector-image would be O(|images|²) — too slow for SCF)"  What was the fix ... can we add another Integral routing to Mesh that implelents the fix?
 
+EC, MOM, Fermi
+
+reservoir partitions = {Irrep,Spin,All}
+Fill Algo = {N,μ}
+
+OccupationPolicy: Yes good separation of concerns.
+ElectronConfiguration becomes data: Yes
+
+Is OccupationPolicy
+
