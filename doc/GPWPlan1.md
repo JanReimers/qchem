@@ -534,3 +534,52 @@ rather than by threshold.  Gate: `GPW.TRIM_BlochMatricesAreExactlyReal` asserts 
 is the negative control at k=(¼,0,0).
 
 The real-arithmetic path ITSELF is not built and its shape is undecided — see the design note below.
+
+## Run 64 (2026-08-17): the OTHER regime, measured — and the conditioning hypothesis REFUTED
+
+The complement of "THE RUNTIME GAP, MEASURED" above, on the same cell at the OVER-BUDGET point:
+full-136 spherical span, `MNO_ORTHO_TOL=1e-3`, screens tightened to `GPW_SCREEN_EPS =
+GPW_DENSITY_EPS = 1e-12`, 4 iterations, AFM only, 8 threads, under `scripts/memsafe -H 10G`.
+Log: `doc/logs/mno_probe_run64_fullspan_tighteps.log`.  76 min total.
+
+**Stream coverage: `dropped 6,948,869,544` points.**  The cache holds 1.0 B (150 M fp64 + 850 M
+fp32); ~87% of the demand falls to on-the-fly evaluation EVERY iteration.
+
+| bucket | s | share |
+|---|---|---|
+| scf: collocate density (pair scatter) | 2952 | 65% |
+| scf: integrate-back (pair gather) | 1366 | 30% |
+| setup: collocation stream build | 128 | 3% |
+| everything else (local-PP, Phi tables, Becke mesh, H_xc, ρ sampling, 1E) | < 100 total | 2% |
+
+**★ THE TWO REGIMES ARE DIFFERENT PROBLEMS, and both are now measured:**
+
+| | streams CACHED (in budget) | streams DROPPED (over budget) |
+|---|---|---|
+| pair loops | **4%** | **95%** |
+| XC mesh (Φ, ρ, H_xc) | dominant | ~0.5% |
+| what fixes it | the threading/BLAS work of 2026-08-15/16 (per-iteration 30 s → 7.6 s) | the FAST-RECOMPUTE KERNEL (still unbuilt) |
+
+So the campaign's two items were never competing: item 1's XC-mesh work owns the in-budget regime and
+item 2's recompute kernel owns the over-budget one, and neither touches the other's bottleneck.  The
+shell-blocked kernel sketched under item 2 aims at exactly the 4318 s above — `ForPairBox` re-evaluates
+the contracted radial per CARTESIAN COMPONENT PAIR, so a d×d shell pair pays the same two exps 36
+times, on a basis whose cost is dominated by Mn d shells.
+
+**PERSPECTIVE — the recompute path is no longer a wall.**  Run 49 (looser 1e-8 screens, FEWER
+functions) could not complete ONE iteration in 80 min.  Run 64 did setup + FOUR at 1e-12 in 76 min
+(~18 min/iteration in the pair loops).  Slow, but finite and usable: the kernel is now an
+optimisation, not an unblocker, and does not need to pre-empt the real-TRIM work.
+
+**THE PHYSICS: the screen-discipline hypothesis (doc/OpenWork.md item 3) is REFUTED here.**
+`iters=4 Efinal=-82.1867 Eamp(last4)=13.66 => UNSETTLED`, m_stag 0.290 → 0.034 → 0.533 → 0.452 (order
+survived).  **−82.19 Ha sits 20.7 Ha BELOW CP2K's variational −61.47 on a SUBSET of CP2K's own span**
+— unphysical by the same argument that convicted run 58's −67.28.  Tightening eps from 1e-10 to 1e-12
+did not prevent the dive, so "CP2K's 1e-14 screens are what let it hold the full span" does not
+survive contact.  Caveats kept honest: (a) `MNO_ORTHO_TOL=1e-3` dropped 4 AOs (indices 11, 9, 115, 1),
+so this is 132 of 136 — though the near-null modes it was about are still present (λmin 1.96e-05,
+cond 3.73e+05); (b) NMAX=4 stopped it mid-trajectory, but a healthy run of this cell is at −61.4 by
+iteration 3–4 (run 30: E₃ = −61.394; run 61: −33.0 → −58.4 → −60.9 → −61.35, monotone from ABOVE) and
+no variational path descends 20 Ha below the reference and returns.
+**Instrumentation gap to fix on any rerun: set `GPW_MNO_VERBOSE=1`** — without it the log carries only
+the fingerprint, not the per-iteration table, so the trajectory SHAPE (dive vs stall) is unavailable.
