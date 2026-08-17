@@ -123,9 +123,9 @@ public:
         for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
         {
             auto ff=ibs1->CreateVxcFitBasisSet(cl_hydrogen,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3});
-            const ERI3<double>& E1=ibs1->Overlap3C(*ff);
-            const ERI3<double>& E2=(*ibs2)->Overlap3C(*ff);
-            EXPECT_EQ(E1,E2);
+            const Projector3<double>& E1=ibs1->Overlap3C(*ff);
+            const Projector3<double>& E2=(*ibs2)->Overlap3C(*ff);
+            EXPECT_EQ(E1.dense,E2.dense);
             EXPECT_EQ(&E1,&E2);
             ++ibs2;
         }
@@ -138,9 +138,9 @@ public:
             for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
             {
                 auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=3, .beckeOrder=3});
-                const ERI3<double>& E1=ibs1->Repulsion3C(*ff);
-                const ERI3<double>& E2=(*ibs2)->Repulsion3C(*ff);
-                EXPECT_EQ(E1,E2);
+                const Projector3<double>& E1=ibs1->Repulsion3C(*ff);
+                const Projector3<double>& E2=(*ibs2)->Repulsion3C(*ff);
+                EXPECT_EQ(E1.dense,E2.dense);
                 EXPECT_EQ(&E1,&E2);
                 ++ibs2;
             }

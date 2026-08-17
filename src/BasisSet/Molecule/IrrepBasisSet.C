@@ -83,20 +83,20 @@ protected:
 };
 
 // --- 3-centre (DFT fit): <ab|c> for each fit component c ------------------------------------------
-// Forward Cast().*ThreeC_Matrix(fit) when E delivers ERI3 (isM_DFT_Evaluator); else run the Make3C loop.
+// Forward Cast().*ThreeC_Matrix(fit) when E delivers the dense Projector3 (isM_DFT_Evaluator); else run the Make3C loop.
 template <class E> requires (Evaluators::isDFT_Evaluator<E> || Evaluators::isM_DFT_Evaluator<E>)
 class Orbital_DFT_IBS
     : public virtual ::qchem::BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const
+    virtual Projector3<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).OverlapThreeC_Matrix(dynamic_cast<const E&>(c));
         else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
                                    {return aE.OverlapThreeC(ia, aE, ib, cE, ic);});
     }
-    virtual ERI3<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const
+    virtual Projector3<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).RepulsionThreeC_Matrix(dynamic_cast<const E&>(c));
@@ -107,19 +107,19 @@ private:
     // For each fit component ic, build the symmetric (ia,ib) block via the supplied named 3-centre kernel
     // (which folds in all three normalizations).
     template <class Kernel>
-    ERI3<double> Make3C(const Real_IBS& _c, Kernel kernel) const   // _c is either fit face (shared Real_IBS base)
+    Projector3<double> Make3C(const Real_IBS& _c, Kernel kernel) const   // _c is either fit face (shared Real_IBS base)
     {
         const E& aE=dynamic_cast<const E&>(*this);
         const E& cE=dynamic_cast<const E&>(_c);
         size_t Na=aE.size(), Nc=cE.size();
-        ERI3<double> s3;
+        Projector3<double> s3;
         for (size_t ic=0; ic<Nc; ic++)
         {
             rsmat_t s(Na);
             for (size_t ia=0; ia<Na; ia++)
                 for (size_t ib=ia; ib<Na; ib++)
                     s(ia,ib)=kernel(aE, ia, ib, cE, ic);
-            s3.push_back(s);
+            s3.dense.push_back(s);
         }
         return s3;
     }

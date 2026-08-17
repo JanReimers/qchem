@@ -99,22 +99,22 @@ public:
     //! \brief Assemble \f$\langle G|V|G'\rangle=\tilde V(m(G)-m(G'))\f$ from a caller-supplied G-space
     //! potential keyed by the reciprocal-index difference.  The plane-wave potential->orbital-matrix bridge
     //! (a Fourier lookup): satisfies \c isPW_DFT_Evaluator and is forwarded by \c EPW_Orbital_DFT_IBS to the
-    //! abstract \c Band_FT_IBS::MakeOverlap.  Named like its siblings \c OverlapMatrix / \c KineticMatrix /
+    //! tensors' \c applyAdjoint closures (ex the Orbital_DFT_IBS<dcmplx>::MakeOverlap bridge).  Named like its siblings \c OverlapMatrix / \c KineticMatrix /
     //! \c NuclearMatrix (an EVALUATOR method, distinct from the interface virtual it feeds -- as on the atom
     //! side -- so the concrete IBS inherits no name clash).  Also used internally by \c NuclearMatrix /
     //! \c LocalPotentialMatrix.
     chmat_t OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
     // --- DFT 3-centre tensors (density-driven, orbital tier): the D-free reciprocal-space gathers over THIS
-    //     engine's own {G}.  Drive the Band_FT_IBS MakeRepulsion3C/MakeOverlap3C (cached one level up). ---
+    //     engine's own {G}.  Drive the Orbital_DFT_IBS<dcmplx> MakeRepulsion3C/MakeOverlap3C (cached one level up). ---
     //! \brief Coulomb tensor \f$\langle G_iG_j|G_c\rangle=(4\pi/|G_c|^2)\,\delta_{G_c,G_i-G_j}/\Omega\f$: the
     //! delta support with the diagonal Poisson kernel filled (\f$\Delta m=0\to0\f$).
-    G_ERI3 Repulsion3CTensor() const;
+    Projector3<dcmplx> Repulsion3CTensor() const;
     //! \brief Overlap tensor \f$\langle G_iG_j|G_c\rangle=\delta_{G_c,G_i-G_j}/\Omega\f$: the delta support,
     //! empty kernel (overlap metric).
-    G_ERI3 Overlap3CTensor() const;
+    Projector3<dcmplx> Overlap3CTensor() const;
 private:
-    //! The tensors' G_ERI3::applyAdjoint (field->matrix backward): \f$\langle i|f|j\rangle=f(m_i-m_j)\f$, the
+    //! The tensors' Projector3<dcmplx>::applyAdjoint (field->matrix backward): \f$\langle i|f|j\rangle=f(m_i-m_j)\f$, the
     //! plane-wave Fourier lookup (== \c OverlapMatrix), self-contained so it survives in the tensor cache.
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)> AdjointLookup() const;
 public:
@@ -149,7 +149,10 @@ private:
 //! held engine; \c FieldCoeffs / \c MakeFourierDensity iterate this block's own \f$\{G\}\f$ (from the base).
 class PW_Grid_Evaluator
     : public PW_Evaluator
-    , public virtual BasisSet::G_FieldEvaluator
+    , public virtual BasisSet::G_FieldEvaluator     // evaluate a fitted field (the ortho fitters' op(r))
+    , public virtual BasisSet::G_Quadrature         // the FFT quadrature engine (fit sampling, XC energy)
+    , public virtual BasisSet::G_StructureFactor    // the SAD seed's analytic rho-tilde
+    , public virtual BasisSet::G_SpectralFilter     // the mixer's raster Kerker step
 {
 public:
     PW_Grid_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut,
@@ -160,7 +163,8 @@ public:
     //! Fractional \f$(i/n)\f$ FFT grid (exposed for the direct-grid unit-test oracles).
     std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const {return itsGrid->UniformGrid(n);}
 
-    // G_FieldEvaluator: the pure {r}<->{G} FFT quadrature, delegated to the held k-independent grid engine.
+    // G_Quadrature / G_SpectralFilter: the pure {r}<->{G} FFT quadrature, delegated to the held
+    // k-independent grid engine.
     const rvec3vec_t& GridPoints() const override               {return itsGrid->GridPoints();}
     rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override {return itsGrid->RhoOnGrid(rhoTilde);}
     cvec_t   ForwardFFT (const rvec_t& V) const override        {return itsGrid->ForwardFFT(V);}
@@ -174,7 +178,9 @@ public:
                                                                 {return itsGrid->ApplySpectralFilter(f,k);}
     dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override {return itsGrid->GridCoeff(Vt,dm);}
     double   Integral   (const rvec_t& f) const override        {return itsGrid->Integral(f);}
-    void     EmitGridReport() const override                    {itsGrid->EmitGridReport();}
+    //! Forward the construction-time grid announcement to the engine (non-virtual -- reporting is the
+    //! owning fit basis's own act, not a G_FieldEvaluator capability).
+    void     AnnounceGrid(const std::string& role) const        {itsGrid->AnnounceGrid(role);}
     double   EvalField        (const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalField(c,r);}
     rvec3_t  EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalFieldGradient(c,r);}
     //! Gather \f$c(G)=\tilde V(G)\f$ over this evaluator's \f$\{G\}\f$ (the fitted field for op(r) plotting).
@@ -207,8 +213,8 @@ template <class E> concept isPW_1E_Evaluator = requires (const E e, const rvec3_
 template <class E> concept isPW_DFT_Evaluator = isPW_1E_Evaluator<E> &&
     requires (const E e, const std::function<dcmplx(const ivec3_t&)>& vt)
 {
-    {e.Repulsion3CTensor()} -> std::same_as<G_ERI3>;
-    {e.Overlap3CTensor()  } -> std::same_as<G_ERI3>;
+    {e.Repulsion3CTensor()} -> std::same_as<Projector3<dcmplx>>;
+    {e.Overlap3CTensor()  } -> std::same_as<Projector3<dcmplx>>;
     {e.OverlapMatrix(vt)} -> std::same_as<chmat_t>;   // the potential->orbital-matrix bridge (Fourier lookup)
 };
 

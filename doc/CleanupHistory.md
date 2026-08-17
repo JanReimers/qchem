@@ -19,6 +19,198 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-08-16 — V1.1 COMPLETE (the basis-face merge), 717/717 green
+
+Three commits, each a full green sweep; user rulings of 2026-08-16 folded in: **the MnO session now
+WAITS on this work** (real TRIM irreps at (0,0,0), (½,½,½)…), so the old DO-NOT-TOUCH on
+`src/BasisSet/Lattice_3D/` was explicitly lifted ("DO-NOT-TOUCH is now please-TOUCH"); **one struct with
+realizations inside** was chosen over an abstract tensor interface; **`Projector3`** chosen over `Map3`
+(a Map is a keyed container in this code region — ΔG_Map — and this is an operator; "ERI" rejected as
+inaccurate since the overlap-metric tensor has no repulsion integral in it).
+
+- `d49db261` — **V1.1(ii) closed: `ERI3` + `G_ERI3` → `Projector3<T>`.**  One 3-centre tensor type with
+  the realization a property of the PRODUCING BASIS, not the scalar type (the R2.13/V1.27 lesson made
+  structural): `dense` (molecular vector-of-`smat_t`, RAM-hungry), `columns`+`kernel` (plane-wave delta
+  support), `apply*` closures (GPW matrix-free).  New lean module `qchem.BasisSet.Internal.Projector3`
+  (also home of `IVec3Less`/`ΔG_Map`; `GMap` keeps only the space-group symmetrization utilities and
+  re-exports).  `Contract`/`ContractAdjoint` replace `ContractG_ERI3`/`ContractAdjointG_ERI3`.  The
+  DB_Cache's two overload-resolved I3C `Get`s merged into one slot; the dcmplx cache's always-empty
+  `ERI3` map and the separate `G_ERI3` map died together.  **Load-bearing detail:** the cached accessors
+  now key `theCache<TFit>()`, not `theCache<T>()` — identical for every T==TFit instantiation, required
+  for `<double,dcmplx>` TRIM blocks.
+- `4b37221d` — **V1.1(iii) first half: the `MakeOverlap(f(G))` field bridge retired.**  It was already
+  production-dead — Hartree/XC assemble ⟨i|f|j⟩ via `ContractAdjoint` on the SAME tensor the density
+  contracted (fit-grid-consistent, doc/GPWPlan §0e step 2); only unit tests still called it, and they now
+  use the evaluators' own `OverlapMatrix(f)`.  The load-bearing `using Integrals_Overlap::MakeOverlap`
+  un-hiding decl AND the concrete classes' two-base overload-set merges (PlaneWave_IBS/GPW_IBS) became
+  noise and were deleted — exactly the cascade the item predicted.
+- `2bfb83b4` — **The merge itself: `Band_FT_IBS` deleted; the lattice lineage IS
+  `Orbital_DFT_IBS<dcmplx,dcmplx>`.**  `CreateXCQuadrature` hoisted with its neutral default (identical
+  to `tBasisSet<T>`'s whole-set default — (iii) second half, which paid only here, as reclassified);
+  `EPW_Orbital_DFT_IBS` re-parented; every consumer re-pointed (PWTerms, Seed, DensityMixer,
+  IrrepCD_Fourier, `tBasisSet<dcmplx>`'s three `Iterate<>` delegates, OrthoFunctionFitter, tests).
+  qcBasisSet now has ONE structure-neutral DFT face; `Orbital_DFT_IBS<double,dcmplx>` is a live spelling.
+- **The metric worry ("molecules Dunlap-fit, solids don't") needed NO new machinery** — it was already
+  discharged by (i)'s two-axis templating: the metric choice is expressed by the two accessor pairs
+  (Repulsion3C=Coulomb, Overlap3C=overlap), the fit-basis argument type, and solve-vs-project behind
+  `isOrtho()` in the fitter.  V1.1b (the Dunlap energy expression) is untouched and stays open.
+- **What made the answer YES, found on contact:** every consumer outside qcBasisSet touched BOTH tensors
+  through exactly two operations (forward D-contraction, adjoint fit-coefficient expansion) — nobody read
+  raw data except test oracles.  And the "last separating member" had already gone production-dead
+  without anyone recording it.  *Re-derive the defect before picking from an item's menu*, again.
+
+*(original item text follows, moved in full from the worklist)*
+
+- **V1.1 ⚠️ (i) ✅ DONE `57ca229e`; (ii) HALF done; (iii) RECLASSIFIED — one question left.**
+  - **(i) DONE, and "trivial" was wrong in the way that mattered** (user, asked directly: *"I might have
+    been wrong!!"*).  The one-line version — make the fit args `FIT_*_ABS<T>` — asserts *orbital T == fit
+    T*, and that is precisely backwards for the case the type plan turns on.  The fit basis is a property
+    of the RUN, not of a block: every call site builds it once from the whole `tBasisSet`, and all irrep/k
+    blocks share it.  So when `BlochQN::IsReal()` makes TRIM k-blocks REAL, those real blocks still share
+    the run's COMPLEX G-space fit basis.  ⇒ **two independent axes**, now
+    `template <class T, class TFit = T>`.  `Orbital_DFT_IBS<double,dcmplx>` had NO SPELLING before.
+    Purely additive (the default keeps every existing instantiation), so none of the twelve
+    implementers/consumers changed.  Three of four combos are meaningful (user): `<double,double>`,
+    `<dcmplx,dcmplx>`, `<double,dcmplx>`; `<dcmplx,double>` is never instantiated.
+    - It also retired a self-CONTRADICTION that probably caused the split in the first place:
+      `CreateCDFitBasisSet` returned `FIT_CD_ABS<T>*` while `Repulsion3C` accepted only
+      `FIT_CD_ABS<double>`, so `Orbital_DFT_IBS<dcmplx>` could not consume the fit basis it created.
+    - `Band_FT_IBS`'s own comment already knew — *"never assuming orbital==fit"* — it just had no second
+      parameter to say it with.  **A comment that states an invariant the types cannot express is a
+      standing invitation to look for the missing parameter.**
+  - **(ii) HALF: the tensor element type follows `TFit`.**  A no-op today (every instantiation has
+    `T==TFit`) kept for its DOCUMENTATION value (user): it says WHICH AXIS decides, which was the
+    ambiguous part.  Correct for all three meaningful combos.  **Still open:** `ERI3` vs `G_ERI3`.
+  - **(iii) RECLASSIFIED — not "extras", and not separable.**  Both parts are consequences of the merge:
+    the `using Integrals_Overlap<dcmplx>::MakeOverlap` decl is LOAD-BEARING (it un-hides the no-arg form
+    against the Fourier `MakeOverlap(f(G))`, so it is only noise once that member moves — and that member
+    is the last thing separating the classes); and hoisting `CreateXCQuadrature` pays nothing alone,
+    because `Band_FT_IBS` derives from `Orbital_1E_IBS<dcmplx>` NOT `Orbital_DFT_IBS`, and molecules
+    already get the identical neutral default from `tBasisSet<double>`.
+  - **⇒ ONE question remains: can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Plan-level; owner
+    is doc/RealComplexPlan.md.
+  *(original text follows)*
+  **`Orbital_DFT_IBS` ⇄ `Band_FT_IBS` merge.**  User (2026-08-05): Orbital_DFT_IBS simply
+  specifies what integrals an IBS must supply to support DFT; "Band" and "FT" have no place in that
+  specification.  History: Band_FT_IBS once had ~12 extra Fourier/Grid members, twiddled down over
+  many sessions to essentially ONE — the main conceptual gap was reluctance to acknowledge that the
+  PW representation of ρ is a fit, just a trivial one whose expansion coefficients come in one
+  step.  Verified current state: (i) the scalar-type mismatch (Orbital_DFT_IBS<T> templated but
+  fit-face args hard-wired REAL, rFIT_*_ABS in Fit_IBS.C:45-46,87-88, vs Band_FT_IBS hard-wired
+  dcmplx) — user: trivial to fix, and the FIT_*_ABS<T> templating is already pinned with the fitter
+  work; (ii) `ERI3<T>` vs `G_ERI3` return types (G_ERI3 was built as the harmonizing data-structure
+  spec); (iii) extras: the using-decl is noise; `CreateXCQuadrature` (new, 2026-08 W1) is
+  HOISTABLE to the neutral DFT face (molecules implement it returning their Becke quadrature — a
+  unification, not a divergence); leaving exactly ONE genuinely Fourier member,
+  `MakeOverlap(f(G))` (Band_FT_IBS.C:77) — itself re-expressible through the fit abstraction
+  (fitted-potential coefficients → contraction), removing "FT" from the face.  Engage the pinned
+  FACTOR-not-FUSE analysis (fitting-boundary pin + doc/FittingCleanupPlan.md) — the argument-type
+  question is settled there; what remains is execution sequencing with the fitter templating.
+  **Absorbed from the withdrawn R2.3 (2026-08-07):** the 4-line `Overlap3C`/`Repulsion3C` cache-lookup
+  bodies in Imp/Band_FT_IBS.C:15-25 and Imp/Orbital_DFT_IBS.C:10-20 are the SAME code modulo exactly the
+  two blockers listed above (return type `G_ERI3` vs `ERI3<T>`, argument `cFIT_*` vs `rFIT_*`) plus
+  `theCache<dcmplx>` vs `theCache<T>`.  They are the smallest concrete instance of the merge, so they make
+  a good FIRST target once those are decided — and a good litmus test that the decision actually works.
+  **USER (2026-08-05): merge would be fantastic; THE one big remaining issue = for molecules we do
+  a Dunlap fit for ρ (Coulomb metric, Repulsion integrals, charge-constrained) while for solids we
+  don't (orthonormal projection ⇒ metric degenerate) — requires discussion.**  Groundwork for that
+  discussion already exists in the fitting-boundary pin: the metric axis is REAL for AO (two
+  different solves) and DEGENERATE for FT (projection IS the fit for both metrics), which is why
+  the PW fitter implements both metric faces at once — the merge discussion is "how does the
+  merged face express the metric choice without naming it", not "which metric wins".
+
+## LANDED 2026-08-17 — V1.11 COMPLETE (the occupation seam), five increments, 717/717 green each
+
+The LAST doc/RealComplexPlan.md §7 prerequisite.  Design RULED by the user 2026-08-17 (recorded in
+SCFStrategyPlan §5b): **policy-owns-state**; **abstract `OccupationPolicy` homed in qcElectronConfiguration**
+(D6) with concretes ASSEMBLED from two axes (occupancy {Integer, Fermi, Held} × ranking {bare, MOM}) rather
+than multiplied; **the EC class network becomes DATA** (counts + the reservoir partition) while the LIBRARY
+keeps its name and hosts the policy; **observer/DIP if the policy needs to cross the DAG**; **MnO real-TRIM
+work waits on this seam**.
+
+- `43bbebad` — **inc 1: `FillResult{electronsLeft, minusTS, DPrime}`** kills the `ds_t` tuple whose double
+  slot meant leftover electrons for integer fills and −TS for Fermi ones (its own doc had to warn).
+- `0c818835` — **inc 2: `ReservoirPartition{spansSpatial, spansSpin, ranksIntegerFill}`** replaces the three
+  EC mode bools (8 encodable states, ~4 meaningful; aufbau∧globalFermi now UNREPRESENTABLE);
+  `tCompositeWF::FillOrbitals` becomes ONE loop over the reservoir grouping — generalising the map
+  `FillOrbitalsSharedFermi` already built internally.  All four fill modes are one algorithm over different
+  partitions; the held-fill + kT=0-staircase degrades are one documented flag.
+- `841eadf2` — **inc 3: `OccupationPolicy<T>`** — the WF face sheds `SetMOM`/`SetSmearing`/`GetEntropyTerm`/
+  `AdoptMOMReference`/`ReleaseMOMReference`; MOM references/counters and the −TS aggregate are policy state;
+  the iterator owns the slot (built like the mixer) and its PUBLIC `AdoptMOMReference` face is unchanged.
+  The seed fill runs on the policy's EXPLICIT default (prescribed integer, kT=0, no MOM) — closing the
+  MEASURED D11 hazard (config arrived only at Iterate while Init filled in the ctor; metals lost charge:
+  Al Σw·n=2.25 vs 3).  **DAG lesson: the naive qcElConfig→qcOrbitals link is a linker-rejected CYCLE**
+  (qcOrbitals sits above via qcChargeDensity) — resolved with the CLAUDE.md DIP example verbatim: an
+  `OrbitalView<T>` face OWNED by qcElConfig, implemented by `TOrbitals` from above.
+- `092d1da8` — **inc 4: ONE `TOrbitals::Fill(const BlockFill&)`** replaces the five `TakeElectrons*`
+  virtuals (each policy had added one — the OCP violation the item named).  `BlockFill` (T-free, beside
+  `OrbitalView`) IS the two-axis product as data; `OccupationPolicy::DecideBlockFill` PRODUCES it (the
+  4-way branch + the measured Λ-calibration lore moved off `tIrrepWF`); the five bodies became private
+  realizations.
+- `2398dd07` — **inc 5: `HeldOccupationPolicy`** replaces the `holdBlock` bool — the §5-flagged
+  {occupation × direct-min} cell named.  Wraps the run policy (shared IMOM clocks, shared −TS aggregate);
+  stored-order spec, kT structurally 0, capture no-op, `HoldsStoredBlocks()` degrades the reservoir loop.
+  The consulted methods went virtual; OT+smearing later is a sibling that holds the block but keeps kT —
+  a new policy, not a new bool.  **CORRECTION (user, 2026-08-17, same day): this does NOT make the policy
+  the abstract interface D1 ruled** — the base is still a concrete whose behaviour `Configure`'s flags
+  select per fill; only `Held` is a true derived policy.  The finishing move (the Policy/State split:
+  persistent `OccupationState` + factory-assembled abstract concretes, `Configure` dies) is RULED LIKED
+  and deferred — filed as **R2.21**.
+
+Every increment was a full 717/717 sweep with the smeared/metal anchors (AlFCCAnnealedMetal, NaF traces,
+MnO shared-spin) in the enabled set.  The refactor never changed WHICH orbitals fill — only who decides.
+
+Still at call sites by design: the shared-μ metal fill's spec (the reservoir-driver migration — a future
+session, not a V1.11 obligation).
+
+*(original item text follows, moved in full from the worklist)*
+
+- **V1.11 Occupation seam: two-phase SCF-WF construction + the `TakeElectrons*` family.**
+  (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`
+  (SCFWaveFunction.C:39-76): run-config known at construction time delivered by post-ctor setters;
+  every concrete WF defends against the un-configured state.  (ii) Five `TakeElectrons*` virtuals
+  on `TOrbitals<T>` (Orbitals.C:128-152) with a dual-meaning tuple slot (the doc comment itself
+  warns "here the double is −TS, NOT leftover electrons"); every new occupation policy so far added
+  a virtual to the abstract face (OCP).  One `Fill(const OccupationPolicy&)` returning a named
+  struct; the policy object also feeds the WF ctor.  Cross-ref: this IS SCFStrategyPlan's
+  "occupation seam" — design it there.
+
+## LANDED 2026-08-16 — V1.5 (the `G_FieldEvaluator` ISP split) + the grid-reporting redesign, 717/717 green
+
+Two commits; the reporting redesign came FIRST because the split's one open design question ("does
+`EmitGridReport` belong on the quadrature face?") answered NO and pulled a thread:
+
+- `f18a6ee9` — **Grid reporting: providers self-report, role-labeled, latch-free.**  User rulings:
+  *"each object with something to report should decide for itself when and what to report — external calls
+  to activate reporting should be the exception"*; *"if grids are created the user wants to know … if every
+  new grid reports, we at least have a chance of pruning"* (a created-but-unused grid announcing is a
+  FEATURE); the raw-`cout` line beside the report entry *"sounds like a bug — send everything to
+  CurrentReport"*; and the PWTerms `static const void*` latch was called out (*"void* has no place in
+  modern c++"* — it is CLAUDE.md law already).  Mechanism: `report::EmitAt` is now IDEMPOTENT (identical
+  value at the same path = no write, no re-render), so providers announce UNCONDITIONALLY and dedup lives
+  in the report, RUN-scoped — the two function-local-static latches (PWTerms' address-keyed `void*`,
+  UnitCell's `lastID` string) leaked their dedup across runs and are gone.  The grid's ROLE
+  ("xcQuadrature"/"densityFit") is a construction-time fact only its factory knows (R2.16), stamped on
+  `PlaneWaveFit_IBS` at creation; the CD grid now announces too — which is exactly what §K's grid
+  divergence will need the report to show.
+- `9ebaebdb` — **V1.5 proper: one 10-method union → four client-named faces** (the V1.27 lesson):
+  `G_FieldEvaluator` (evaluate a fitted map: `EvalField`/`EvalFieldGradient` — the ortho fitters' op(r)),
+  `G_Quadrature` (`GridPoints`/`RhoOnGrid`/`ForwardFFT`/`GridCoeff`/`FieldCoeffs`/`Integral` — exposed
+  through `GriddedScalarFitter::Grid()`, one owner as #7 left it), `G_StructureFactor`
+  (`MakeFourierDensity` — the seed's single ask), `G_SpectralFilter` (`ApplySpectralFilter` — the mixer's
+  single ask).  `PW_Grid_Evaluator` implements all four; every consumer casts to exactly its face;
+  `Factory(cFIT_SF_ABS)` checks both required faces at the construction seam.  Cut to §K's end state: when
+  the fit grids densify, what changes is which object implements `G_Quadrature`, not who asks.
+- **Why the §K pin no longer blocked:** the one-owner rule landed with review-finding #7
+  (`GriddedScalarFitter::Grid()`), and the V1.1 collapse had already removed the last orbital-assuming
+  method from the union — the face was a pure density/potential grid engine before the split touched it.
+- **Session status audit of FittingCleanupPlan** (what prompted this): H essentially landed via V1.26/V2.4
+  (`MeshParams.eCut` + XCPolicy auto-sizing); I.2 landed (`GridCutoffFactor`→`relCutoff` threaded and
+  consumed); §K's `ProjectedScalar_G`→`cvec_t` sub-bullet is OVERTAKEN (the class no longer exists); K's
+  core (the densification) is now UNBLOCKED; I.1's residual is the `GetEpsXc()=0.75*GetVxc()` base default
+  (exact for Dirac exchange, a silent-wrong inherited default for GGA); C stays dead last.
+
 ## LANDED on branch `solid-cleanup` (qchem1, 2026-08-05) — 665/665 ctest green
 
 - `06e23f5d` — **R1.1, R1.2, R1.6, R1.8, R2.1.**  The `te.Exc=0.0` clobber deleted; `=`→`+=` sweep

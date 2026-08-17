@@ -14,9 +14,9 @@ worth more than the landed ones.
 
 ---
 
-# START HERE (handoff, 2026-08-16)
+# START HERE (handoff, 2026-08-17, updated after the V1.11 landing)
 
-## The state that matters: FIVE of the SIX RealComplexPlan prerequisites are done
+## The state that matters: ALL SIX RealComplexPlan prerequisites are DONE
 
 `doc/RealComplexPlan.md` §7 lists what must land before the real/complex type refactor starts, because
 those items sit on the very faces it restructures.  Status:
@@ -27,32 +27,45 @@ those items sit on the very faces it restructures.  Status:
 | **V1.7** the periodic trio's 9 asserting overrides | ✅ `2d0f6982` |
 | **V1.8** `IrrepCD`↔`IrrepCD` concrete casts | ✅ `2d0f6982` (evaporated with V1.6) |
 | **V1.10** abstract→concrete basis casts | ✅ `2d0f6982` |
-| **V1.1** basis-face merge | ⚠️ (i) ✅ `57ca229e`, (ii) HALF, (iii) reclassified — see below |
-| **V1.5** `G_FieldEvaluator` ISP split | ⛔ not started (pinned to FittingCleanupPlan §K) |
-| **V1.11** occupation seam | ⛔ not started (pinned to SCFStrategyPlan) |
+| **V1.1** basis-face merge | ✅ `d49db261`+`4b37221d`+`2bfb83b4` (2026-08-16) |
+| **V1.5** `G_FieldEvaluator` ISP split | ✅ `f18a6ee9`+`9ebaebdb` (2026-08-16; §K blocker had dissolved) |
+| **V1.11** occupation seam | ✅ `43bbebad`..`2398dd07` (2026-08-17, five increments) — **the LAST one, DONE** |
 
-**What the four landed ones bought:** `tDM_CD<T>` has shed four exact-exchange methods and nine
+**What V1.1's landing bought (2026-08-16):** ONE structure-neutral DFT basis face.  The 3-centre tensor
+is `Projector3<T>` (one struct; dense / delta-support / matrix-free are REALIZATIONS, a property of the
+producing basis, not of the scalar type); `Band_FT_IBS` is deleted and the lattice lineage is
+`Orbital_DFT_IBS<dcmplx,dcmplx>`; **`Orbital_DFT_IBS<double,dcmplx>` — a real TRIM k-block sharing the
+run's complex G-space fit basis — is now a spelling the MnO real-TRIM work can instantiate**, which is
+what that session is waiting on.  The cached accessors key `theCache<TFit>()` (the tensor's own type
+axis), so the TRIM case caches correctly from day one.
+
+**What the four 2d0f6982 items bought:** `tDM_CD<T>` has shed four exact-exchange methods and nine
 periodic denials.  The complex path now carries NO exact-exchange machinery and the real path none of the
 reciprocal-space kind -- so the plan's "widening points" are two small faces (`tHF_System_CD`,
 `tHF_Pair_CD`) instead of denials scattered across three density families.  A live `-DNDEBUG` hazard died
 with them: `Vee`/`Vxc` used to hit an assert-only `void` body -- a silent NO-OP in the shipped build,
 i.e. a zeroed J and a wrong Fock -- and now throw.
 
-## Next task: **V1.1's remaining question**, and it is now a SINGLE one
+## Next: the RealComplexPlan itself is UNBLOCKED — and MnO real-TRIM with it
 
-**Can `Band_FT_IBS` become `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Everything still open in V1.1 hangs off
-that one answer, which is why it belongs with the type plan rather than here:
-- **(ii)'s open half** is `ERI3` vs `G_ERI3`.  Reconciling them is exactly what decides the question.
-- **(iii) is NOT "extras"** -- reclassified 2026-08-16 after reading it.  Its two parts are CONSEQUENCES
-  of the merge, not preparation: the `using Integrals_Overlap<dcmplx>::MakeOverlap` decl is LOAD-BEARING
-  (it un-hides the no-arg form against the Fourier `MakeOverlap(f(G))`, so it only becomes noise once that
-  member moves -- and that member is the last thing separating the two classes); and hoisting
-  `CreateXCQuadrature` to the neutral DFT face pays nothing alone, because `Band_FT_IBS` derives from
-  `Orbital_1E_IBS<dcmplx>`, NOT from `Orbital_DFT_IBS`, and no molecular IBS declares it either (they get
-  the identical neutral default from `tBasisSet<double>`).
+Every §7 prerequisite has landed.  The type refactor's staging (RealComplexPlan §5) can start at Step 1
+(`IsReal()` queries), and the MnO session's real-TRIM work (which ruled 2026-08-16/17 that it WAITS on
+V1.1 + V1.11) has everything it needs: `Orbital_DFT_IBS<double,dcmplx>` is a live spelling and the WF/
+occupation seam carries no state the variant-child restructuring would entangle.
+- **V1.5 landed 2026-08-16** (see the item / doc/CleanupHistory.md).  The session's status audit of
+  FittingCleanupPlan found it more finished than it knew: **H** essentially landed via V1.26/V2.4,
+  **I.2** landed (`relCutoff` live), **§K's `cvec_t` sub-bullet is overtaken** (`ProjectedScalar_G` no
+  longer exists) — so **K's core (the fit-{G} densification) is now UNBLOCKED** and is the natural next
+  fitting-side session (deliberately non-bit-identical; grid-convergence acceptance).  **I.1's residual**:
+  the `GetEpsXc()=0.75*GetVxc()` base default (ExchangeFunctional.C:34) — exact for Dirac exchange, a
+  silent-wrong inherited default the day a GGA functional forgets to override; fold into whatever touches
+  the functionals first.
 
-**V1.11** is the other genuinely open prerequisite and wants SCFStrategyPlan's occupation-seam decision
-first.  **V1.5** wants FittingCleanupPlan §K.  Both are design sessions, not execution.
+## Coordination — CHANGED 2026-08-16 (user)
+
+**The DO-NOT-TOUCH on the MnO working set is LIFTED** — the MnO session is now WAITING on this branch's
+V1.1 work to implement real TRIM irreps at the special k-points ((0,0,0), (½,½,½), …).  User verbatim:
+*"DO NOT TOUCH is now please -TOUCH."*  Worth pushing early for that reason.
 
 ## Also open, unruled, and independent of the type work
 
@@ -183,9 +196,11 @@ diagnostic and a cache-key claim that `SymFockCache`'s own comment makes.
 
 ## Coordination — the MnO campaign runs in the qchem6 clone, in parallel
 
-**DO NOT TOUCH** (their working set): `src/SCFAccelerator`, `src/SCFIterator`, `src/WaveFunction`,
+**SUPERSEDED 2026-08-16 (see the START HERE section): the DO-NOT-TOUCH is LIFTED — the MnO session is
+waiting on this branch's V1.1 work for real TRIM irreps.**  *(The old rule, for the record:)*
+~~**DO NOT TOUCH** (their working set): `src/SCFAccelerator`, `src/SCFIterator`, `src/WaveFunction`,
 `IntegrationTests/GPW_SCF_UT.C`, `src/BasisSet/Lattice_3D/`.  If a task needs one of them, STOP and ask
-rather than reaching in — a mid-flight collision there costs them a multi-hour run.
+rather than reaching in — a mid-flight collision there costs them a multi-hour run.~~
 Theirs by assignment: **V1.30** (urgent — makes imposition opt-in), **V1.24(i)+(iii)**, **V1.28/V1.29**
 (Shubnikov + the SSB workflow).
 
@@ -639,7 +654,34 @@ MnO campaign proceeds undisturbed in qchem6.
     `AtomCalculation` and `Calculation` directly.  The oracle helpers are its ONLY reach into TestUtils.
   - User: *"could live in PeriodicTable ... but like you said, later."*  Deferred, not rejected.
 
-- **R2.16 Construction-time facts re-asked at RUN time (USER PRINCIPLE, 2026-08-07).**
+- **R2.21 🔶 The OccupationPolicy/OccupationState split (USER 2026-08-17: "I really like your Policy/State
+  split.  But we don't need it right now").**  V1.11's landed `OccupationPolicy<T>` is NOT the abstract
+  interface D1 ruled — it is a CONCRETE class whose behaviour is selected by
+  `Configure(useMOM, momStartIter, kT, momPenalty)`: `DecideBlockFill` branches on `kT>0` and `penalty>0`
+  PER FILL, i.e. four policies folded into one object, mode-selected (the user's catch).  Only
+  `HeldOccupationPolicy` is a genuine derived policy.  The flag shape was forced by a real constraint —
+  the object must survive RECONFIGURATION (grid-continuation adopts MOM references after construction but
+  before Iterate; annealed runs call Iterate per stage with DIFFERENT kT), so a rebuild-from-SCFParams
+  factory would have dropped the references — and the fix is to split what that conflated:
+  - **`OccupationState<T>`** — persistent, in the iterator's slot: the per-block MOM references + fill
+    counts, the cross-irrep arming, the −TS aggregate.  `AdoptMOMReference`/`ReleaseReferences`/
+    `EntropyTerm` talk to THIS; it lives from construction to the last stage.
+  - **`OccupationPolicy<T>` goes genuinely abstract** — `DecideBlockFill`, `HoldsStoredBlocks`,
+    `SmearingkT` (the reservoir driver's one remaining ask, default 0), and ONE `OnBlockFilled` hook
+    (count + capture-if-due; collapses the two calls `tIrrepWF` makes today).  Concretes = the ruled
+    two-axis assembly: occupancy {`Integer`, `Fermi(kT)`} composed with a ranking component
+    {`Bare` (the null), `MOM(startIter, Λ, state&)`} — the SCFStrategyPlan null-object idiom, not a
+    nullable flag.  `Held(state&)` references the state DIRECTLY (cleaner than today's run-policy wrap).
+  - **`Configure` dies.**  A `Factory(SCFParams, state&)` assembles concretes at the top of each Iterate —
+    the `kT>0` branch runs ONCE at assembly, never per fill.  The seed fill gets an explicit
+    `Integer×Bare` at construction (the D11 semantics, unchanged); annealed stage transitions get a fresh
+    assembly against the SAME state — today's semantics exactly, with selection at construction instead of
+    interrogation.
+  - Blast radius: the policy module, the iterator slot, two `tIrrepWF` call sites.  The WF faces
+    (`FillOrbitals(pol,…)`) do NOT change.  Bit-identical by the V1.11 discipline; smeared/metal anchors
+    guard did-E-move.  NB the delayed-IMOM adaptivity (MOM behaves as bare aufbau until a reference
+    exists) is STATE-dependence, not config — it stays inside the MOM ranking component and never
+    justified the kT branch.
   **User ruling:** *"I much prefer that the whole Hamiltonian is decided and fixed at construction time.
   The only dynamic aspect is the ChargeDensity that we feed it."*  Survey done while splitting the PW
   electrostatics terms; the sites fall into three groups.
@@ -894,63 +936,13 @@ MnO campaign proceeds undisturbed in qchem6.
 
 ### V1 — interface-design questions
 
-- **V1.1 ⚠️ (i) ✅ DONE `57ca229e`; (ii) HALF done; (iii) RECLASSIFIED — one question left.**
-  - **(i) DONE, and "trivial" was wrong in the way that mattered** (user, asked directly: *"I might have
-    been wrong!!"*).  The one-line version — make the fit args `FIT_*_ABS<T>` — asserts *orbital T == fit
-    T*, and that is precisely backwards for the case the type plan turns on.  The fit basis is a property
-    of the RUN, not of a block: every call site builds it once from the whole `tBasisSet`, and all irrep/k
-    blocks share it.  So when `BlochQN::IsReal()` makes TRIM k-blocks REAL, those real blocks still share
-    the run's COMPLEX G-space fit basis.  ⇒ **two independent axes**, now
-    `template <class T, class TFit = T>`.  `Orbital_DFT_IBS<double,dcmplx>` had NO SPELLING before.
-    Purely additive (the default keeps every existing instantiation), so none of the twelve
-    implementers/consumers changed.  Three of four combos are meaningful (user): `<double,double>`,
-    `<dcmplx,dcmplx>`, `<double,dcmplx>`; `<dcmplx,double>` is never instantiated.
-    - It also retired a self-CONTRADICTION that probably caused the split in the first place:
-      `CreateCDFitBasisSet` returned `FIT_CD_ABS<T>*` while `Repulsion3C` accepted only
-      `FIT_CD_ABS<double>`, so `Orbital_DFT_IBS<dcmplx>` could not consume the fit basis it created.
-    - `Band_FT_IBS`'s own comment already knew — *"never assuming orbital==fit"* — it just had no second
-      parameter to say it with.  **A comment that states an invariant the types cannot express is a
-      standing invitation to look for the missing parameter.**
-  - **(ii) HALF: the tensor element type follows `TFit`.**  A no-op today (every instantiation has
-    `T==TFit`) kept for its DOCUMENTATION value (user): it says WHICH AXIS decides, which was the
-    ambiguous part.  Correct for all three meaningful combos.  **Still open:** `ERI3` vs `G_ERI3`.
-  - **(iii) RECLASSIFIED — not "extras", and not separable.**  Both parts are consequences of the merge:
-    the `using Integrals_Overlap<dcmplx>::MakeOverlap` decl is LOAD-BEARING (it un-hides the no-arg form
-    against the Fourier `MakeOverlap(f(G))`, so it is only noise once that member moves — and that member
-    is the last thing separating the classes); and hoisting `CreateXCQuadrature` pays nothing alone,
-    because `Band_FT_IBS` derives from `Orbital_1E_IBS<dcmplx>` NOT `Orbital_DFT_IBS`, and molecules
-    already get the identical neutral default from `tBasisSet<double>`.
-  - **⇒ ONE question remains: can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Plan-level; owner
-    is doc/RealComplexPlan.md.
-  *(original text follows)*
-  **`Orbital_DFT_IBS` ⇄ `Band_FT_IBS` merge.**  User (2026-08-05): Orbital_DFT_IBS simply
-  specifies what integrals an IBS must supply to support DFT; "Band" and "FT" have no place in that
-  specification.  History: Band_FT_IBS once had ~12 extra Fourier/Grid members, twiddled down over
-  many sessions to essentially ONE — the main conceptual gap was reluctance to acknowledge that the
-  PW representation of ρ is a fit, just a trivial one whose expansion coefficients come in one
-  step.  Verified current state: (i) the scalar-type mismatch (Orbital_DFT_IBS<T> templated but
-  fit-face args hard-wired REAL, rFIT_*_ABS in Fit_IBS.C:45-46,87-88, vs Band_FT_IBS hard-wired
-  dcmplx) — user: trivial to fix, and the FIT_*_ABS<T> templating is already pinned with the fitter
-  work; (ii) `ERI3<T>` vs `G_ERI3` return types (G_ERI3 was built as the harmonizing data-structure
-  spec); (iii) extras: the using-decl is noise; `CreateXCQuadrature` (new, 2026-08 W1) is
-  HOISTABLE to the neutral DFT face (molecules implement it returning their Becke quadrature — a
-  unification, not a divergence); leaving exactly ONE genuinely Fourier member,
-  `MakeOverlap(f(G))` (Band_FT_IBS.C:77) — itself re-expressible through the fit abstraction
-  (fitted-potential coefficients → contraction), removing "FT" from the face.  Engage the pinned
-  FACTOR-not-FUSE analysis (fitting-boundary pin + doc/FittingCleanupPlan.md) — the argument-type
-  question is settled there; what remains is execution sequencing with the fitter templating.
-  **Absorbed from the withdrawn R2.3 (2026-08-07):** the 4-line `Overlap3C`/`Repulsion3C` cache-lookup
-  bodies in Imp/Band_FT_IBS.C:15-25 and Imp/Orbital_DFT_IBS.C:10-20 are the SAME code modulo exactly the
-  two blockers listed above (return type `G_ERI3` vs `ERI3<T>`, argument `cFIT_*` vs `rFIT_*`) plus
-  `theCache<dcmplx>` vs `theCache<T>`.  They are the smallest concrete instance of the merge, so they make
-  a good FIRST target once those are decided — and a good litmus test that the decision actually works.
-  **USER (2026-08-05): merge would be fantastic; THE one big remaining issue = for molecules we do
-  a Dunlap fit for ρ (Coulomb metric, Repulsion integrals, charge-constrained) while for solids we
-  don't (orthonormal projection ⇒ metric degenerate) — requires discussion.**  Groundwork for that
-  discussion already exists in the fitting-boundary pin: the metric axis is REAL for AO (two
-  different solves) and DEGENERATE for FT (projection IS the fit for both metrics), which is why
-  the PW fitter implements both metric faces at once — the merge discussion is "how does the
-  merged face express the metric choice without naming it", not "which metric wins".
+- **V1.1 ✅ DONE `d49db261`+`4b37221d`+`2bfb83b4` (2026-08-16) — the merge landed; the answer was YES.**
+  `ERI3`+`G_ERI3` → **`Projector3<T>`** (one struct, realizations inside — user ruling); the
+  `MakeOverlap(f(G))` bridge was already production-dead and died with its using-decl cascade;
+  `Band_FT_IBS` deleted — the lattice lineage IS `Orbital_DFT_IBS<dcmplx,dcmplx>`, and
+  `Orbital_DFT_IBS<double,dcmplx>` (real TRIM block, complex fit basis) is now a live spelling.
+  The metric worry needed no new machinery — (i)'s two axes had already discharged it.
+  **→ doc/CleanupHistory.md** (full record + the three commit summaries).
 - **V1.1b 🔶 ANALYSIS DONE, awaiting the user's re-read of the paper. The `Eee = 2·EeeFit − EeeFitFit` expression is DUNLAP-SPECIFIC — it is part of V1.1's
   metric discussion, not a free-standing formula (user, 2026-08-05; user wants to re-read the
   paper).**  Verified conventions: `GetSelfRepulsion()`=½⟨ρ̃|ρ̃⟩ (Imp/FittedCDImp.C:55) and
@@ -1083,16 +1075,16 @@ MnO campaign proceeds undisturbed in qchem6.
     side and BasisSetID is the odd one out; extend V1.4 to `DM_ContractBlocks` in its own pass.
     (This also retro-justifies V1.4: the term caches had been Irrep-keyed all along.)
 - **V1.4 ✅ DONE `80fc2ae8`. `DM_RhoAtPoints` Phi key → Irrep (USER RULING 2026-08-05).**.  **→ doc/CleanupHistory.md**
-- **V1.5 `G_FieldEvaluator` 3-face ISP split.**  Verified: 11 public methods with near-1:1
-  method↔consumer mapping — `EvalField*`/`ForwardFFT`/`GridCoeff`/`FieldCoeffs` →
-  OrthoFunctionFitter only; `RhoOnGrid`/`Integral`/`EmitGridReport` → PWTerms only;
-  `ApplySpectralFilter` → DensityMixer only (Kerker); `MakeFourierDensity` → SeedCD only.  Three
-  disjoint responsibilities (evaluate-a-ΔG_Map, FFT quadrature, one-off analytic services).
-  Caveat: deliberately promoted to the "full PW grid-engine DIP seam" in FittingCleanupPlan §K —
-  the split must engage that decision.  Correction to the old bullet: PWVxcField is not a 4th
-  consumer (helper inside PWTerms; the Hamiltonian reaches the engine via `FunctionFitter::Grid()`,
-  FunctionFitter.C:139).  Related: XC_GridEngine's `Lattice_3D::Fold` + dcmplx dependency bars any
-  molecular reuse of the quadrature engine — same design session.
+- **V1.5 ✅ DONE `f18a6ee9`+`9ebaebdb` (2026-08-16) — FOUR faces, not three, and a reporting redesign fell
+  out first.**  The §K blocker had dissolved piecemeal (grid one-owner landed with #7; V1.1 removed the last
+  orbital-flavored method), so the split was executable.  `EmitGridReport` did NOT move onto a face — user
+  ruling: providers self-report; every created grid announces at construction, ROLE-labeled by its factory
+  (`report::EmitAt` made idempotent so dedup is run-scoped in the REPORT, killing the `static const void*`
+  latch in PWTerms and the raw-`cout`-beside-the-report bug).  Then:
+  `G_FieldEvaluator` (evaluate) / `G_Quadrature` (FFT engine, via `GriddedScalarFitter::Grid()`) /
+  `G_StructureFactor` (seed) / `G_SpectralFilter` (mixer).  **→ doc/CleanupHistory.md.**
+  Still open from the old bullet, now standalone: XC_GridEngine's `Lattice_3D::Fold` + dcmplx dependency
+  bars molecular reuse of the quadrature engine.
 - **V1.6 ✅ DONE `2d0f6982`. `tDM_CD::Accumulate*` — face split, NOT pure-virtual.**  Now `tHF_System_CD` +
   `tHF_Pair_CD`, real path only via `conditional_t`; the complex leaf declares NOTHING (a CRTP mixin, after
   the user pressed that empty bodies are still the interface failing to segregate).  The NDEBUG hazard is
@@ -1133,15 +1125,17 @@ MnO campaign proceeds undisturbed in qchem6.
   *(NOT in this list, and deliberately so: `Orbital_ERI4_IBS::Substrate` added by R1.7 is an
   abstract→ABSTRACT cross-cast — the sanctioned direction — and it THROWS naming both bases.)*
 - **V1.10b ✅ DONE (see LANDED). Mixer.  **→ doc/CleanupHistory.md**
-- **V1.11 Occupation seam: two-phase SCF-WF construction + the `TakeElectrons*` family.**
-  (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`
-  (SCFWaveFunction.C:39-76): run-config known at construction time delivered by post-ctor setters;
-  every concrete WF defends against the un-configured state.  (ii) Five `TakeElectrons*` virtuals
-  on `TOrbitals<T>` (Orbitals.C:128-152) with a dual-meaning tuple slot (the doc comment itself
-  warns "here the double is −TS, NOT leftover electrons"); every new occupation policy so far added
-  a virtual to the abstract face (OCP).  One `Fill(const OccupationPolicy&)` returning a named
-  struct; the policy object also feeds the WF ctor.  Cross-ref: this IS SCFStrategyPlan's
-  "occupation seam" — design it there.
+- **V1.11 ✅ DONE `43bbebad`+`0c818835`+`841eadf2`+`092d1da8`+`2398dd07` (2026-08-17) — the occupation
+  seam, five bit-identical increments.**  `OccupationPolicy<T>` in qcElConfig decides every fill
+  (`DecideBlockFill` → the two-axis `BlockFill` spec; `HeldOccupationPolicy` is the direct minimiser's
+  sibling); the WF carries NO occupation state; ONE `TOrbitals::Fill` replaced the five `TakeElectrons*`
+  virtuals; the EC mode bools became the `ReservoirPartition`; the D11 seed-fill hazard closed
+  structurally.  **DAG lesson**: qcElConfig→qcOrbitals is a linker cycle — the `OrbitalView<T>` DIP face
+  (owned below, implemented above) is the CLAUDE.md inversion example verbatim.
+  **→ doc/CleanupHistory.md** (full record).  **With this, ALL SIX doc/RealComplexPlan.md §7
+  prerequisites are DONE.**  *Residue (user catch, 2026-08-17): the landed policy is still a
+  mode-flag-configured CONCRETE, not D1's abstract interface — the Policy/State split that finishes it is
+  filed as **R2.21** (liked, deferred).*
 - **V1.12 `EnergyBreakdown` — 13 public data members (OCP+SRP).**  Every new term family edits the
   struct + totals + `op+=` + Display; `GridChargeLost` is a GPW health DIAGNOSTIC ("not an energy",
   its own comment) and `MinusTS` is WF-side entropy — both riding the energy value object; also

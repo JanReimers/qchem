@@ -80,8 +80,8 @@ public:
     virtual rFIT_CD_ABS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const;
     virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const;
-    virtual ERI3<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const;
+    virtual Projector3<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const;
+    virtual Projector3<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const;
 public:
 
     // The per-irrep cache distinction lives in BasisSetID() (raw id + "[label]"), so each irrep's
@@ -101,7 +101,7 @@ private:
     //! face), we build once.  V1.10 -- no reach into a sibling's private SALC columns.
     rsmat_t      PairAOFock(const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd, bool exchange) const;
     rsmat_t      Transform(const rsmat_t& Mraw) const;          // O^T Mraw O, symmetrized
-    ERI3<double> TransformERI3(const ERI3<double>& raw) const;  // Transform each fit-function matrix
+    Projector3<double> Transform3C(const Projector3<double>& raw) const; // Transform each fit-function matrix
 
     const Orbital_1E_IBS<double>*  itsRaw;            // raw whole-molecule AO basis (not owned)
     const Orbital_HF_IBS<double>*  itsRawHF;          // same object, HF interface (for the AO J/K build)

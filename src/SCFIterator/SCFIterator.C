@@ -1,5 +1,6 @@
 // File: SCFIterator/SCFIterator.C  Interface for an object that manages SCF convergence.
 module;
+#include <cassert>   // AdoptMOMReference's OrbitalView cross-cast guard
 #include <memory>
 #include <functional>
 #include <string>
@@ -11,6 +12,7 @@ import qchem.SCFIterator.Types;
 export import qchem.SCFAccelerator;
 export import qchem.WaveFunction;
 import qchem.WaveFunction.SCF;
+import qchem.ElectronConfiguration.OccupationPolicy;   // the iterator's occupation SLOT (V1.11 inc 3)
 export import qchem.SCFParams;
 export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation knob, forwarded to the WF)
@@ -162,7 +164,16 @@ public:
     //! orbital basis -- e.g. a coarse-density-grid solution seeding an expensive fine-grid run of the same
     //! system.  Seeding the DENSITY alone is not enough: on the fine grid a giant-response diffuse virtual sits
     //! at the frontier even at the physical density, so the occupied-subspace reference must transfer too.
-    void AdoptMOMReference(const wf_t& from) {itsWaveFunction->AdoptMOMReference(from);}
+    void AdoptMOMReference(const wf_t& from)
+    {
+        for (const auto& q : itsWaveFunction->GetQNs())
+        {
+            // Cross-cast to the policy's OrbitalView (abstract->abstract; TOrbitals implements it).
+            auto* v=dynamic_cast<const qchem::OrbitalView<T>*>(from.GetOrbitals(q));
+            assert(v && "AdoptMOMReference: the source orbitals must implement OrbitalView");
+            itsOccPolicy->AdoptReference(q, *v);
+        }
+    }
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}
@@ -234,6 +245,11 @@ private:
     ham_t*          itsHamiltonian;
     acc_t*          itsAccelerator;
     scfwf_t*        itsWaveFunction;
+    //! The occupation SLOT (V1.11 inc 3; SCFStrategyPlan §6): ONE policy object per run, built here in its
+    //! default (seed) state -- prescribed integer fill, kT=0, no MOM -- and configured from SCFParams at the
+    //! top of Iterate, like the density mixer.  It owns the MOM references (which therefore survive between
+    //! construction, AdoptMOMReference, and staged Iterate calls) and the per-fill −TS aggregate.
+    std::unique_ptr<qchem::OccupationPolicy<T>> itsOccPolicy = std::make_unique<qchem::OccupationPolicy<T>>();
     cd_t            itsCD;       //!< current charge density (shared_ptr: lifetime by std, no reuse)
     cd_t            itsOldCD;    //!< previous charge density
     //! The SCF density lineage (ChargeDensity::Lineage).  SetWorkingCD makes each new itsCD the head, so a

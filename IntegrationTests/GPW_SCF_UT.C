@@ -2,7 +2,7 @@
 //
 // GPW (increments 1-2) already satisfies every plane-wave Kohn-Sham concept EXCEPT the external potential:
 //   - kinetic  -> Kinetic<dcmplx> calls bs->Kinetic()         (GPW: lattice-sum <p^2>)              [inc 1]
-//   - Hartree  -> PW_Hartree casts bs to Band_FT_IBS + cd to FourierDensity (GPW: collocation tensors)[inc 2]
+//   - Hartree  -> PW_Hartree casts bs to Orbital_DFT_IBS<dcmplx> + cd to FourierDensity (GPW: collocation tensors)[inc 2]
 //   - XC       -> PWFittedVxc, same casts + the fit-basis grid                                             [inc 2]
 //   - ion-ion  -> IonIon<dcmplx> (Ewald from Zion)                                                   [structure]
 // The one gap was the external pseudopotential: the plane-wave PW_Pseudo needs G-space form factors, which
@@ -75,7 +75,7 @@ import qchem.Symmetry.Factory;                   // BlochFactory (build a k-bloc
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
-import qchem.BasisSet.Internal.GMap;              // G_ERI3 (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
+import qchem.BasisSet.Internal.GMap;              // Projector3<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
 import qchem.ChargeDensity.FourierDensity;        // FourierDensity (ρ̃ for the §3 order-parameter diagnostic)
 import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity.SeedCD;              // PolarizedSeedCD (the raw spin-SAD seed, for the sublattice gate)               // IrrepCD_Factory/PolarizedCD_Factory (fixed-density probe)

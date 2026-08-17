@@ -30,7 +30,7 @@ export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gra
 export import qchem.BasisSet.Internal.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
 import qchem.BasisSet.Fit_IBS;        // rFIT_SF_ABS / rFIT_CD_ABS (the two narrow fit-basis faces)
-import qchem.BasisSet.G_FieldEvaluator; // the FFT quadrature grid engine the PW scalar fitter owns + exposes
+import qchem.BasisSet.G_FieldEvaluator; // G_Quadrature: the FFT quadrature grid engine the PW scalar fitter owns + exposes
 import qchem.Blaze;                   // hmat_t<T>
 
 export namespace qchem::Fitting
@@ -96,7 +96,7 @@ public:
 };
 
 //! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection
-//! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= ContractG_ERI3), a map keyed
+//! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= Contract), a map keyed
 //! by Dm (efficiency, rule #2: the delta collapses Sum_ij D_ij<ij|c> to a gather over Dm-shells).  So here
 //! the projection IS the fit (no metric solve): this simply WRAPS the density's G-space coefficients, keeping
 //! the ΔG_Map container OFF the neutral ProjectedDensity<dcmplx> face (the ortho fitter cross-casts to it
@@ -149,7 +149,7 @@ public:
 };
 
 //! \brief The plane-wave (orthonormal {G}) scalar fitter's richer face: it OWNS the FFT QUADRATURE GRID (a
-//! \c G_FieldEvaluator, borrowed from its fit basis) and EXPOSES it, so a plane-wave XC term runs its
+//! \c G_Quadrature, borrowed from its fit basis) and EXPOSES it, so a plane-wave XC term runs its
 //! \f$E_{xc}\f$ quadrature THROUGH the fitter -- ONE reference path to the grid, instead of the term
 //! independently cross-casting the same fit basis (the "two owners of the grid" smell).  An AO/molecular
 //! scalar fitter has no such grid, so this refinement is plane-wave-only (hence \c dcmplx).
@@ -159,7 +159,7 @@ public:
     //! The fitter's own FFT quadrature grid engine -- the grid the \f$v_{xc}\f$ fit AND the
     //! \f$E_{xc}=\int\epsilon_{xc}\rho\f$ quadrature share (rho-on-grid, field integral, grid points).  The
     //! term BORROWS it (the fitter owns it).
-    virtual const BasisSet::G_FieldEvaluator& Grid() const=0;
+    virtual const BasisSet::G_Quadrature& Grid() const=0;
 };
 
 //! \brief Abstract density fitter -- the MINIMAL CORE a Hartree term needs: fit a density, then contract it
@@ -219,7 +219,7 @@ Factory(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
 //! Create a DENSITY fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  Returns the minimal CORE face --
 //! the projection IS the fit, so no metric solve / self-energy / rescale (an ortho fitter carries none of the
 //! non-ortho refinement); DoFit receives a ProjectedDensity_G and Repulsion delegates the Poisson solve to the
-//! orbital Band_FT_IBS.
+//! orbital Orbital_DFT_IBS<dcmplx>.
 std::unique_ptr<FunctionFitter_Density<dcmplx>>
 Factory(std::shared_ptr<const BasisSet::cFIT_CD_ABS>&);
 //!@}

@@ -125,7 +125,10 @@ BSpline basis uses it identically. Rename to `_R` (real-space, paired with `_G`)
 to align the *density* `ProjectedDensity_AO` (which genuinely exposes AO 3-centre `GetRepulsion3C`) to `_R`
 for symmetry, or leave it `_AO` as the more literal name. Cosmetic; bit-identical.
 
-### H. Derive `nUniform` from a grid `E_cut` (Nyquist)
+### H. Derive `nUniform` from a grid `E_cut` (Nyquist)  — ✅ OVERTAKEN (landed via V1.26/V2.4, 2026-08-09)
+`MeshParams` now carries an `eCut` field; `XCPolicy` (src/Mesh/XCPolicy.C) auto-sizes the uniform mesh from
+the basis and WARNS when a requested mesh under-resolves.  `nUniform` survives only as a legacy knob.
+*(original text follows)*
 `MeshParams::nUniform` (default 20) is the last manual aliasing knob — the PW *FFT* grid already self-sizes
 (`AutoGrid = 4·maxComp+1`), but the *real-space integration mesh* forces the user to guess `n`. Derive it:
 `n ≳ a√(2E_cut)/π` (×2 for a density-bandwidth field). User sets a physical `E_cut`; the mesh follows.
@@ -137,7 +140,13 @@ The GPW-flavored item (see `MolecularPP_HarmonizationFindings.md` §6.4).
 fitter uniformly instead of the LDA-exchange `¾⟨ρ|v_x⟩` shortcut. The ¾ virial breaks for gradient
 functionals. Existing TODO.
 
-**I.2 — The grid-sizing seam (`relCutoff`).** For GGA the Vxc fit grid must be denser (the gradient
+**I.2 — ✅ DONE (verified in-tree 2026-08-16): `GridCutoffFactor()` exists (default 1.0),
+`Ham_PW_DFT::BuildTerms` threads `max(exchange,correlation)` into `mp.relCutoff`
+(Imp/Hamiltonians.C:198), and the PW fit bases consume it.  The seam is live, not scaffolding.**
+**I.1 residual (2026-08-16):** the uniform E-route landed with V1.3's `GetEMatrix` work, but the base
+default `GetEpsXc()=0.75*GetVxc()` (ExchangeFunctional.C:34) remains — exact for Dirac exchange, a
+silent-wrong inherited default for any future GGA functional that forgets to override.  *(original text:)*
+The grid-sizing seam (`relCutoff`). For GGA the Vxc fit grid must be denser (the gradient
 enhancement adds bandwidth to both `v_x` and `v_c`), and *how much* denser is a property of the **functional
 type**, which only the Hamiltonian side knows. The creation point and the functionals are **co-located** in
 `Ham_PW_DFT::BuildTerms` (a few lines apart), so this is a local seam, not deep threading.
@@ -209,6 +218,13 @@ requirement (no `else`); the molecular seed matches `FourierSeedCD`'s "own your 
 ---
 
 ### K. Densify the Vxc/CD fit-{G} + swap `ProjectedScalar_G` `FourierMap`→`cvec_t` (the one real fit-quality knob)
+
+**STATUS 2026-08-16: UNBLOCKED — its dependencies (H, I.2) are in place, and the `cvec_t` sub-bullet is
+OVERTAKEN (`ProjectedScalar_G` no longer exists; the scalar projection collapsed to `ProjectedScalar_R`
+and the ortho fitters hold their `ΔG_Map` internally).  What remains is the densification itself, with
+grid-convergence acceptance.  The V1.5 split (`f18a6ee9`+`9ebaebdb`) pre-shrank this work: the grids are
+reached through the `G_Quadrature` face with one owner per grid, and every grid self-reports role-labeled
+at construction — so a divergent Vxc/CD pair is visible in the run report from day one.**
 
 The **only** genuine fit-accuracy lever in PW DFT. Two deferrals collapse into it:
 - **`cvec_t` projection.** `ProjectedScalar_G` currently carries a `FourierMap` (kept for byte-identity while

@@ -28,7 +28,7 @@ import qchem.Mesh;                 // qcMesh::MeshParams (defaulted -- a seed-qu
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
-// The Kerker/Pulay G-space machinery (FourierDensity, FourierMixCD, Band_FT_IBS, ReciprocalLattice)
+// The Kerker/Pulay G-space machinery (FourierDensity, FourierMixCD, Orbital_DFT_IBS<dcmplx>, ReciprocalLattice)
 // is entirely the periodic mixer factory's business -- the iterator only holds a tDensityMixer, so
 // those imports are gone.  What survives is one periodicity QUESTION for the cell snapshot handed to
 // that factory (CleanupCandidates V1.10b retires even that, by building the mixer above the iterator).
@@ -207,14 +207,16 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             H::st_t stView(st, [](const Structure*){});
             std::unique_ptr<H::rHamiltonian> dftSibling(
                 H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs));   // Dirac exchange (alpha=2/3)
-            SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, 0.0001)));  // D0: a real (matrix-backed) density
+            SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, *itsOccPolicy, 0.0001)));  // D0: a real (matrix-backed) density
             assert(itsCD);
             return;
         }
     }
     // Iteration-0: the WaveFunction builds the Fock from the seed (or core operator if null), diagonalizes,
     // fills, and returns the first real (matrix-backed) density.
-    SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, 0.0001))); //first real (matrix-backed) density
+    // The seed fill runs on the policy's DEFAULT state (prescribed integer fill, kT=0, no MOM) -- explicit
+    // now, where it used to be an accident of SetSmearing arriving only at Iterate (the D11 charge loss).
+    SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, *itsOccPolicy, 0.0001))); //first real (matrix-backed) density
     assert(itsCD);
 }
 //
@@ -234,8 +236,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     assert(itsWaveFunction);
     assert(itsHamiltonian);
     assert(itsCD);
-    itsWaveFunction->SetMOM(ipar.UseMOM, ipar.MOMStartIter);   // occupation strategy for this run (SCFParams)
-    itsWaveFunction->SetSmearing(ipar.SmearingkT, ipar.MOMSmearPenalty);  // Fermi smearing (0=off) + MOM mask; doc/GPWPlan1.md 4b
+    // Configure the occupation SLOT for this run (SCFParams -> the policy; V1.11 inc 3).  State the policy
+    // already carries -- adopted/captured MOM references, fill counts -- survives, which is what both the
+    // grid-continuation Adopt-before-Iterate flow and staged/annealed multi-Iterate runs rely on.
+    itsOccPolicy->Configure(ipar.UseMOM, ipar.MOMStartIter, ipar.SmearingkT, ipar.MOMSmearPenalty);
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     // V1.27: is the virial theorem meaningful for THIS Hamiltonian at all?  It needs a Coulombic (degree -1
     // homogeneous) potential, which a pseudopotential is not.  Asked ONCE, of the object that knows -- the
@@ -272,7 +276,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // (GDM/OT: geodesic line search, no mixing) or fixed-point (diagonalize + density-mix).  Queried
         // every iteration so a ladder tail hand-off flips the loop the moment it switches rungs.  The step
         // BODY is virtual (was a mode `if`); the density LIFECYCLE stays here behind the context callbacks.
-        LoopContext<T> lc{ itsHamiltonian, itsWaveFunction, itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
+        LoopContext<T> lc{ itsHamiltonian, itsWaveFunction, itsOccPolicy.get(), itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
                            [this](cd_t x){ itsOldCD=itsCD; SetWorkingCD(std::move(x)); },
                            [this](double e,double tol){ return DirectMinStep(e,tol); } };
         // Direct-min (GDM/OT) OWNS the density update via its geodesic line search, so it must DISABLE the
@@ -363,7 +367,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                           << " for " << ipar.Guard.HolePersistence
                           << " iterations -- the MOM reference pins a non-aufbau state. "
                           << "Releasing the reference (aufbau + delayed re-capture)." << std::endl;
-                itsWaveFunction->ReleaseMOMReference();
+                itsOccPolicy->ReleaseReferences();
                 ++momReleases; holeRun=0;
                 itsConverged=false;                          // the recovery needs further iterations
             }
@@ -442,7 +446,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     auto mixedStep=[&]()
     {
         itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
-        itsWaveFunction->FillOrbitals(mergeTol);
+        itsWaveFunction->FillOrbitals(*itsOccPolicy, mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
         itsMixer->Mix(*fresh, *itsCD);                   // fold ρ_out into ρ_in (itsCD drove this Fock)
         return fresh;
@@ -462,10 +466,13 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // step, against 12 per line search.  The iterator's REPORTED energy may still step up once when a leg
     // changes convention (fractional -> integer occupation); that jump is honest and belongs to the hand-off,
     // not to the minimizer, which from here on descends monotonically in its own convention.
-    itsWaveFunction->MoveOrbitals(0.0,false,mergeTol,/*holdBlock*/true);
+    // The trials fill under the HELD policy (keep the geodesic's own occupied block -- V1.11 inc 5): a
+    // POLICY object wrapping the run's (shared IMOM clocks + the -TS aggregate), not a bool.
+    qchem::HeldOccupationPolicy<T> held(*itsOccPolicy);
+    itsWaveFunction->MoveOrbitals(held,0.0,false,mergeTol);
     const double E0 = [&]{ cd_t cd0(itsWaveFunction->GetChargeDensity());
                            return itsHamiltonian->GetTotalEnergy(cd0.get()).GetTotalEnergy()
-                                + itsWaveFunction->GetEntropyTerm(); }();
+                                + itsOccPolicy->EntropyTerm(); }();
     const bool trace=(bool)std::getenv("GPW_GDMTRACE");
     if (trace && std::fabs(E0-Ecur)>1e-6)
         std::cout << "[gdm] convention shift: E(t=0) held = " << E0 << " vs previous-iteration E = " << Ecur
@@ -476,11 +483,11 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         double t=1.0, Et=0, best=1e300; int k=0; bool found=false;
         for (;k<12;k++)
         {
-            itsWaveFunction->MoveOrbitals(t,false,mergeTol,/*holdBlock*/true);   //trial, ON the geodesic
+            itsWaveFunction->MoveOrbitals(held,t,false,mergeTol);   //trial, ON the geodesic
             cd_t cdt(itsWaveFunction->GetChargeDensity());                //std-managed (no freed-address reuse)
             // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is
             // current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
-            Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy()+itsWaveFunction->GetEntropyTerm();
+            Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy()+itsOccPolicy->EntropyTerm();
             best=std::min(best,Et);
             if (Et<E0) { found=true; break; }
             t*=0.5;
@@ -496,7 +503,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
                       << t << " k=" << k << "  best(Et-E0)=" << (best-E0) << std::defaultfloat << std::endl;
         if (found)
         {
-            itsWaveFunction->MoveOrbitals(t,true,mergeTol,/*holdBlock*/true);    //commit at t
+            itsWaveFunction->MoveOrbitals(held,t,true,mergeTol);    //commit at t
             return cd_t(itsWaveFunction->GetChargeDensity());
         }
         // NO DESCENT AT ANY BACKTRACK -- do NOT take the step.  Committing here (the behaviour through
@@ -507,7 +514,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         // worth another look.  Note the trials have already MOVED the orbitals -- MoveOrbitals mutates even
         // when commit=false, only the accelerator's history is gated on commit -- so a rewind to t=0 is
         // required before either exit; the geodesic at θ=0 is exactly the pre-step point.
-        itsWaveFunction->MoveOrbitals(0.0,false,mergeTol,/*holdBlock*/true); //rewind the trials
+        itsWaveFunction->MoveOrbitals(held,0.0,false,mergeTol); //rewind the trials
         // SCALE-INVARIANCE SHORT-CIRCUIT.  A step that merely overshoots gets BETTER as the trust radius
         // shrinks; a failure whose best(E_t) does not move is not about step LENGTH at all, and no further
         // backoff can help (measured on MnO before the held fill: seven rejections, best(E_t−E_cur) = +1.45e+01
@@ -554,7 +561,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>* cd) const
 {
     EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(cd);
-    eb.MinusTS = itsWaveFunction->GetEntropyTerm();
+    eb.MinusTS = itsOccPolicy->EntropyTerm();
     return eb;
 }
 
@@ -777,7 +784,7 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
 }
 
 // The solid mixer.  The branch here is on the KNOB -- did the caller ASK for G-space mixing? -- not on the
-// geometry: being periodic is what this class IS, so MakePeriodicMixer takes the Band_FT_IBS basis, the
+// geometry: being periodic is what this class IS, so MakePeriodicMixer takes the Orbital_DFT_IBS<dcmplx> basis, the
 // UnitCell and the FourierDensity seed as preconditions rather than probing for them.
 std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
 SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, const Structure* cell,

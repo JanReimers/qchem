@@ -17,6 +17,7 @@ export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 export import qchem.Orbitals;
 export import qchem.Symmetry.Irrep;
+export import qchem.ElectronConfiguration.OccupationPolicy;  // the fills consume the iterator's policy (V1.11 inc 3)
 
 namespace qchem::WaveFunction
 {
@@ -40,53 +41,31 @@ public:
     //! Iteration-0 seed: build the Fock from \a seed, diagonalize, fill, and hand back the first real
     //! density.  BUILDS it, hence the owning return (V1.25 -- it used to be a raw pointer the caller had to
     //! know to adopt).
-    virtual std::unique_ptr<tDM_CD<T>> Init(tHamiltonian<T>&,const tChargeDensity<T>* seed, double mergeTol)=0;
+    //! \a pol is the run's occupation policy (the SCFIterator's slot).  At seed time it is in its DEFAULT
+    //! state -- prescribed integer fill, kT=0, no MOM -- which is what a seed fill SHOULD do (no
+    //! self-consistent spectrum exists yet to redistribute over); the old implicit version of this fact
+    //! lost charge on metals when anything assumed otherwise (the D11 lesson).
+    virtual std::unique_ptr<tDM_CD<T>> Init(tHamiltonian<T>&,const tChargeDensity<T>* seed,
+                                            OccupationPolicy<T>& pol, double mergeTol)=0;
     // Direct-minimization hooks (cf. the SCFIterator direct-min loop):
     //   build the Fock and ask each accelerator to compute its step (no orbital move);
     //   returns false in the seed step (the caller should DoSCFIteration to diagonalize).
     virtual bool       BuildFockAndComputeSteps(tHamiltonian<T>&,const tChargeDensity<T>*) =0;
     //   move the orbitals to geodesic fraction t (commit=false is a line-search trial) and refill.
-    //! Move the orbitals to geodesic fraction \a t (\a commit=false is a trial) and REFILL.
-    //! \a holdBlock: fill in STORED order -- i.e. occupy exactly the minimizer's own occupied BLOCK --
-    //! instead of consulting energy (Fermi) or overlap (MOM).  A direct minimizer rotates a FIXED occupied
-    //! block, so its E(t) is only the geodesic energy if the fill reproduces that block; a Fermi mu solved
-    //! over the whole spectrum, or a MOM overlap ranking, can land on a DIFFERENT set and make E(t)
-    //! discontinuous in t -- which is not a small gradient error but a broken line search (measured on MnO:
-    //! the best of 12 backtracks still +14.5 Ha at t=2.4e-4).  Plain aufbau needs no flag: TakeElectrons(ne)
-    //! already fills in stored order.  Smearing and MOM are therefore SUSPENDED for a held fill, and the
-    //! entropy term is zero -- so a direct-min leg minimises E at integer occupation, not A=E-TS.
-    virtual void       MoveOrbitals    (double t, bool commit, double mergeTol, bool holdBlock=false) =0;
-    virtual void       FillOrbitals    (double mergeTol, bool holdBlock=false)  =0; //WF knows the electronic structure
+    //! Move the orbitals to geodesic fraction \a t (\a commit=false is a line-search trial) and REFILL
+    //! under \a pol.  The direct-min driver passes a \c HeldOccupationPolicy (keep the stored occupied
+    //! block) for its trials -- a POLICY, not a flag (V1.11 inc 5; the old \c holdBlock bool is gone).
+    virtual void       MoveOrbitals    (OccupationPolicy<T>& pol, double t, bool commit, double mergeTol) =0;
+    virtual void       FillOrbitals    (OccupationPolicy<T>&, double mergeTol)  =0;
     virtual Orbitals*  GetOrbitals     (const Irrep&)                           =0; //mutable access for the loop
-    //! Configure the Maximum Overlap Method for this SCF run (from SCFParams).  \a startIter is the
-    //! delayed-IMOM reference-capture iteration.  Called once by the SCFIterator at the start of Iterate;
-    //! a no-op default keeps \a useMOM=false the norm.  See doc/GPWPlan §0b″.
-    virtual void       SetMOM          (bool useMOM, int startIter)             =0;
-    //! Configure Fermi-Dirac smearing for this SCF run (from SCFParams, Hartree).  \a kT 0 = OFF (integer
-    //! aufbau -- atoms/molecules/gapped solids unchanged); >0 => each block fills fractionally with μ solved
-    //! by bisection, and GetEntropyTerm() returns the run's Mermin −TS.  \a momPenalty>0 COMPOSES smearing
-    //! with MOM (doc/GPWPlan1.md 4b): low-overlap ghosts are pushed empty by character while the physical
-    //! frontier smears by energy.  Called once by the SCFIterator at the start of Iterate.
-    virtual void       SetSmearing     (double kT, double momPenalty)           =0;
-    //! The Mermin free-energy term −TS (≤0) summed over all occupied blocks from the most recent fill; 0
-    //! unless smearing is on.  The SCFIterator stamps it into EnergyBreakdown::MinusTS so GetTotalEnergy()
-    //! becomes the free energy A=E−TS -- the quantity the finite-T SCF gates on and reports (the entropy
-    //! never touches H, so this WF-side scalar is its ONLY route into the energy).
-    virtual double     GetEntropyTerm  () const                                 =0;
-    //! Grid-continuation MOM (doc/GPWPlan §0e): adopt \a from's occupied orbital subspace (per irrep) as this
-    //! WF's FIXED MOM reference.  \a from is a CONVERGED wavefunction on the SAME orbital basis -- the analytic
-    //! Bloch overlap (hence the orthonormal metric the C' live in) is grid-independent, so its physical
-    //! occupied C' transfers verbatim.  With SCFParams::UseMOM this keeps a giant-response diffuse virtual OUT
-    //! of the occupied set from iteration 1, so a fine-grid run SEEDED from a coarse-grid solution converges to
-    //! the physical state instead of an occupation-contaminated one (the coarse density alone is not enough).
-    virtual void       AdoptMOMReference(const tWaveFunction<T>& from)          =0;
-    //! \brief The 0h MOM guard's actuator (doc/GPWPlan 0h): DROP the captured/adopted MOM reference and
-    //! RE-ARM the delayed-IMOM capture (the next fills run plain aufbau for the settling window, then a
-    //! fresh reference is captured from the now-physical occupied set).  Called by the SCFIterator when it
-    //! detects a PERSISTENT HOLE (an unoccupied ε below an occupied ε over consecutive iterations) -- the
-    //! signature of a stale/wrong reference pinning an excited state (measured: +0.75 Ha on the NaF
-    //! grid-continuation transfer).  A reference is trusted, never verified, so this is the ONE escape hatch.
-    virtual void       ReleaseMOMReference()                                    =0;
+
+    // NB: the occupation face is GONE from the wave function (V1.11 increment 3; SCFStrategyPlan §5b).
+    // SetMOM / SetSmearing / GetEntropyTerm / AdoptMOMReference / ReleaseMOMReference were post-ctor
+    // configuration and side-channel state -- every concrete WF defended against the un-configured
+    // window, and the seed fill lived inside it (the D11 charge loss).  All of it now lives on the
+    // SCFIterator's OccupationPolicy slot: configuration arrives via OccupationPolicy::Configure, the
+    // MOM references (grid-continuation adoption, the 0h guard's release) are policy state keyed by
+    // Irrep, and the run's Mermin −TS is read from OccupationPolicy::EntropyTerm() after a fill.
 };
 
 export using SCFWaveFunction  = tSCFWaveFunction<double>;

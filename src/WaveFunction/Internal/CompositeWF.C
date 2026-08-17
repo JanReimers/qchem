@@ -39,18 +39,16 @@ public:
 
     virtual void            DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;
     //! Iteration-0 seed.  BUILDS and hands over the first real density (V1.25: owning return).
-    virtual std::unique_ptr<tDM_CD<T>> Init(tHamiltonian<T>&,const tChargeDensity<T>*, double mergeTol);
+    virtual std::unique_ptr<tDM_CD<T>> Init(tHamiltonian<T>&,const tChargeDensity<T>*,
+                                            OccupationPolicy<T>&, double mergeTol);
     virtual bool            BuildFockAndComputeSteps(tHamiltonian<T>&,const tChargeDensity<T>*);
-    virtual void            MoveOrbitals    (double t, bool commit, double mergeTol, bool holdBlock=false);
+    virtual void            MoveOrbitals    (OccupationPolicy<T>&, double t, bool commit, double mergeTol);
     virtual const Orbitals* GetOrbitals     (const Irrep&) const;
     virtual       Orbitals* GetOrbitals     (const Irrep&)      ;
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;}
-    virtual void            FillOrbitals    (double mergeTol, bool holdBlock=false);
-    virtual void            SetMOM          (bool useMOM, int startIter);
-    virtual void            SetSmearing     (double kT, double momPenalty);
-    virtual double          GetEntropyTerm  () const;
-    virtual void            AdoptMOMReference(const tWaveFunction<T>& from);
-    virtual void            ReleaseMOMReference();
+    virtual void            FillOrbitals    (OccupationPolicy<T>&, double mergeTol);
+    // (SetMOM/SetSmearing/GetEntropyTerm/AdoptMOMReference/ReleaseMOMReference are GONE -- the
+    //  SCFIterator's OccupationPolicy slot owns that configuration and state, V1.11 inc 3.)
     virtual iqns_t          GetQNs          () const;
     virtual void            EmitBasisUsage  () const;
 
@@ -64,21 +62,18 @@ protected:
 private:
     typedef tIrrepWF<T> iwf_t;
     typedef std::unique_ptr<iwf_t> uiwf_t;
-    void FillOrbitalsAufbau(double mergeTol); //fill globally-lowest orbitals across all irreps
-    //! Smeared fill by RESERVOIR: solve one μ per set of blocks that share an electron reservoir -- across
-    //! the Bloch mesh when itsGlobalFermi (doc/GPWPlan1.md item 3), across SPIN when itsSpinsShareFermi.
-    void FillOrbitalsSharedFermi(double mergeTol);
+    //! RANKED integer fill of one reservoir (the molecular cross-irrep aufbau, one spin channel): pick which
+    //! orbitals across the reservoir's blocks are occupied, then fill each block with its resulting count.
+    void FillReservoirRanked    (OccupationPolicy<T>&, const std::vector<iwf_t*>&, double mergeTol, bool useMOM);
+    //! Smeared fill of one reservoir: solve ONE μ over the reservoir's blocks -- across the Bloch mesh when
+    //! the partition spans spatial (doc/GPWPlan1.md item 3), across SPIN when it spans spin (free moment).
+    void FillReservoirAtSharedMu(OccupationPolicy<T>&, const std::vector<iwf_t*>&, double mergeTol);
 
     const tbs_t<T>*              itsBS;
     const ElectronConfiguration* itsEC;
     qchem::Ortho                 itsBasisOrtho;    //S-orthogonalisation mode for the generalised eigenproblem
     double                       itsBasisOrthoTol; //near-null eigen/singular-value cutoff (Eigen/SVD; 0 = keep all)
-    bool                         itsAufbau;   //molecular aufbau across irreps (vs fixed per-irrep EC)
-    bool                         itsGlobalFermi; //metal: k-blocks share one μ (from ec->UsesGlobalFermi())
-    bool                         itsSpinsShareFermi; //the two spin channels share one μ (moment free)
-    double                       itsSmearingkT=0.0; //Fermi kT for this run (SetSmearing); the global fill needs it
-    bool                         itsUseMOM=false;    //Maximum Overlap Method for this run (from SCFParams::UseMOM)
-    bool                         itsMOMActive=false; //cross-irrep MOM armed (parked molecular path; set after 1st fill)
+    ReservoirPartition           itsPartition;     //how the EC pools its electrons (V1.11 increment 2)
     tSCFAccelerator<T>*          itsAccelerator;
     EnergyLevels                 itsELevels;
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;

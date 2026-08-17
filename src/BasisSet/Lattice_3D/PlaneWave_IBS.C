@@ -17,10 +17,10 @@ module;
 #include <string>
 
 export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ ΔG_Map)
+export import qchem.BasisSet.Orbital_DFT_IBS;       // the abstract G-space DFT capability (+ ΔG_Map)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW; // PW_Evaluator (base subobject) -- NOT re-exported: the evaluator
                                                 // is INTERNAL to qcLattice_BS.  Clients use the abstract faces
-                                                // (Band_FT_IBS / G_FieldEvaluator), never the concrete evaluator.
+                                                // (Orbital_DFT_IBS<dcmplx> / G_FieldEvaluator), never the concrete evaluator.
 import qchem.BasisSet.Lattice_3D.IBS;           // EPW_Orbital1E_IBS<E> (the evaluator-templated mixins)
 import qchem.BasisSet.Fit_IBS;                  // cFIT_CD_ABS (the auxiliary fit basis it creates) + qcMesh::MeshParams
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
@@ -37,17 +37,14 @@ export namespace qchem::BasisSet::Lattice_3D
 //! \f$ e^{i(k+G)\cdot r}/\sqrt V \f$ over the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$.
 class PlaneWave_IBS
     : public EPW_Orbital1E_IBS<PW_Evaluator>          // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
-    , public EPW_Orbital_DFT_IBS<PW_Evaluator>        // G-space DFT: MakeRepulsion3C/MakeOverlap3C (IS-A Band_FT_IBS)
+    , public EPW_Orbital_DFT_IBS<PW_Evaluator>        // G-space DFT: MakeRepulsion3C/MakeOverlap3C (IS-A Orbital_DFT_IBS<dcmplx>)
     , public virtual Pseudopotential::Integrals_Pseudo<dcmplx> // G-space external pseudopotential assembly (V_loc + V_NL)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
     , public         PW_Evaluator                     // the shared grid engine (Cast() target for the mixins)
 {
 public:
-    //! \c MakeOverlap is declared in BOTH the 1E mixin (no-arg \f$\langle i|j\rangle\f$) and the DFT mixin (the
-    //! field bridge \f$\langle i|f|j\rangle\f$); merge the two into one overload set here so a call on the
-    //! concrete class is not an ambiguous multi-base lookup.  (Any IBS combining both mixins needs this.)
-    using EPW_Orbital1E_IBS<PW_Evaluator>::MakeOverlap;
-    using EPW_Orbital_DFT_IBS<PW_Evaluator>::MakeOverlap;
+    // (The old MakeOverlap overload-set merge is gone with the field bridge -- V1.1(iii): only the no-arg
+    //  <i|j> build exists now, and the 1E mixin's override dominates the shared virtual base's.)
 
     //! \brief Primary constructor: the Bloch symmetry IS the k-label (mirrors the atom IBSs, which take
     //! an abstract \c sym_t and pry out their quantum number).  The crystal momentum is read from the
@@ -64,8 +61,8 @@ public:
     PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
                   const ivec3_t& kIndex, double Ecut);
 
-    // --- Band_FT_IBS capability: density-driven KS assembly in reciprocal space. ---
-    // ENTIRELY on the evaluator now: the cached accessors Repulsion3C(c)/Overlap3C(c) come from Band_FT_IBS
+    // --- Orbital_DFT_IBS<dcmplx> capability: density-driven KS assembly in reciprocal space. ---
+    // ENTIRELY on the evaluator now: the cached accessors Repulsion3C(c)/Overlap3C(c) come from Orbital_DFT_IBS<dcmplx>
     // (theCache<dcmplx>()), their one-time builds from EPW_Orbital_DFT_IBS forwarding to the evaluator's
     // Repulsion3CTensor()/Overlap3CTensor(), and MakeFourierDensity (the SAD seed's rho-tilde) from the
     // PW_Evaluator grid engine (G_FieldEvaluator).  This basis adds nothing here.
@@ -89,7 +86,7 @@ public:
     virtual chmat_t MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& v) const override;
 
     //! \brief Create this basis's auxiliary plane-wave density-fit basis (a distinct PlaneWaveFit_IBS over
-    //! the same \f$\{G\}\f$ grid): the Band_FT_IBS factory seam a Hartree term obtains its fitter through.
+    //! the same \f$\{G\}\f$ grid): the Orbital_DFT_IBS<dcmplx> factory seam a Hartree term obtains its fitter through.
     virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
     //! \brief Create this basis's auxiliary plane-wave potential (Vxc) fit basis (the overlap-metric sibling):
     //! a distinct PlaneWaveFit_IBS the XC term obtains its scalar fitter through.

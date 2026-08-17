@@ -169,6 +169,9 @@ Key architectural insight: itsReciprocalOps currently serves both the k-fold (Bu
   
 ## Code Review
 
+LSP violations in src/Hamiltonian/Internal/Imp/PWTerms.C 459,15: const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock) const
+
+
 ### MnO
 
 src/Structure/Structure.C bool    itsSpinFlip = false;  can we use src/Symmetry/Spin.C for this?
@@ -197,4 +200,14 @@ that are near singular, decompose, truncate and look at residuals.  V*S*V_dagger
 2) FourierMesh_k = {k}, {symmetry weights for the Irrep BZ} for BZ sums/integrals.
 3) doc/GPWPlan.md: 2. THE mesh insight — the next increment builds on this (do not use the stopgap)
 4) "precompute the Bloch orbital on the mesh once (Eval re-sums images per point, so calling it inside qcMesh::Overlap per projector-image would be O(|images|²) — too slow for SCF)"  What was the fix ... can we add another Integral routing to Mesh that implelents the fix?
+
+EC, MOM, Fermi
+
+reservoir partitions = {Irrep,Spin,All}
+Fill Algo = {N,μ}
+
+OccupationPolicy: Yes good separation of concerns.
+ElectronConfiguration becomes data: Yes
+
+Is OccupationPolicy
 

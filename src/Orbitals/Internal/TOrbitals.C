@@ -21,17 +21,13 @@ template <class T> class TOrbitalsImp
     : public virtual Orbitals
     , public virtual TOrbitals<T>
 {
-    typedef typename TOrbitals<T>::ds_t ds_t; //{double,smat_t}
+    typedef typename TOrbitals<T>::FillResult ds_t; //named-field fill result (V1.11)
 public:
     TOrbitalsImp(const tobs_t<T>*, Spin s);
     virtual ~TOrbitalsImp();
 
 
-    virtual ds_t      TakeElectrons      (double ne      )      ;
-    virtual ds_t      TakeElectrons      (double ne, const rvec_t& priority);
-    virtual ds_t      TakeElectronsFermi (double ne, double kT);
-    virtual ds_t      TakeElectronsFermi (double ne, double kT, const rvec_t& eShift);
-    virtual ds_t      SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift);
+    virtual ds_t      Fill(const qchem::BlockFill&) override;   // the ONE fill primitive (V1.11 inc 4)
     virtual double    GetChemicalPotential   () const {return itsMu;}
     virtual size_t    GetNumOrbitals     (               ) const;
     virtual size_t    GetNumOccOrbitals  (               ) const;
@@ -40,6 +36,12 @@ public:
     virtual rvec_t    GetBasisPopulations(const hmat_t<T>& S) const;
     virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e);
     virtual Irrep GetQNs() const;
+
+    // OrbitalView<T> (the OccupationPolicy's DIP face -- V1.11 inc 3)
+    virtual size_t   NumOrbitals()         const override {return itsOrbitals.size();}
+    virtual double   Occupation (size_t i) const override {return itsOrbitals[i]->GetOccupation();}
+    virtual double   Degeneracy (size_t i) const override {return itsOrbitals[i]->GetDegeneracy();}
+    virtual vec_t<T> CoeffPrime (size_t i) const override;
     
     virtual vec_t    <T> operator() (const rvec3_t&) const;
     virtual vec3vec_t<T> Gradient   (const rvec3_t&) const;
@@ -52,6 +54,12 @@ public:
     virtual std::ostream&          Write(std::ostream&) const;
 
 private:
+    // The five ex-TakeElectrons* bodies, now Fill's private realizations (one per meaningful point of the
+    // BlockFill product -- V1.11 inc 4; they stopped being face members, not being code).
+    ds_t TakeElectrons      (double ne);
+    ds_t TakeElectrons      (double ne, const rvec_t& priority);
+    ds_t TakeElectronsFermi (double ne, double kT, const rvec_t& eShift);
+    ds_t SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift);
     TOrbitalsImp(const TOrbitalsImp&);
     ds_t BuildDensity(double ne);   //!< build D/D' from the occupied orbitals (shared by both TakeElectrons)
 

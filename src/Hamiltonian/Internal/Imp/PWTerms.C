@@ -15,8 +15,8 @@ module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
-import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
-import qchem.BasisSet.G_FieldEvaluator;    // the fit basis's FFT grid engine (RhoOnGrid/Integral for XC)
+import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
+import qchem.BasisSet.G_FieldEvaluator;    // G_Quadrature: the fit basis's FFT grid engine (RhoOnGrid/Integral for XC)
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
@@ -197,15 +197,15 @@ chmat_t Vee_Hartree::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDens
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
     assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
-    auto bft=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
-    assert(bft && "Vee_Hartree requires a Band_FT_IBS (reciprocal-space DFT) orbital basis");
+    auto bft=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>(bs);
+    assert(bft && "Vee_Hartree requires a Orbital_DFT_IBS<dcmplx> (reciprocal-space DFT) orbital basis");
     // The density contracts D against the basis's D-free Coulomb tensor Repulsion3C (kernel baked) to give
     // V_H(dm) [FORWARD]; the KS matrix <i|V_H|j> = Σ_k V_H(G_k) <i|e^{iG_k}|j> is the BACKWARD contraction of the
     // SAME Repulsion3C tensor over the CD fit basis (its applyAdjoint -- the overlap integrate-back on the fit
     // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
     // (doc/GPWPlan §0e step 2).
     ΔG_Map VH=fd->GetRepulsion3C(*itsFitBasis);
-    return ContractAdjointG_ERI3(bft->Repulsion3C(*itsFitBasis),
+    return ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
         [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
 }
 
@@ -236,7 +236,7 @@ class PWVxcField
     , public         Fitting::ProjectedScalar_R
 {
 public:
-    PWVxcField(const ExFunctional* xc, const rvec_t& rhoGrid, const BasisSet::G_FieldEvaluator* grid)
+    PWVxcField(const ExFunctional* xc, const rvec_t& rhoGrid, const BasisSet::G_Quadrature* grid)
         : itsXc(xc), itsRhoGrid(rhoGrid), itsGrid(grid) {}
 
     // Pointwise is NOT supported: this field carries only grid values, and nothing samples it pointwise (the
@@ -271,7 +271,7 @@ private:
     }
     const ExFunctional*               itsXc;
     const rvec_t&                     itsRhoGrid;   // precomputed rho(r) on the fit grid (owned by PWFittedVxc; field is transient)
-    const BasisSet::G_FieldEvaluator* itsGrid;
+    const BasisSet::G_Quadrature* itsGrid;
 };
 } // anonymous
 
@@ -284,16 +284,8 @@ PWFittedVxc::PWFittedVxc(const xc_t& xc, fbs_t fb)
     , itsVxcFitBasis(fb)                       // hand it to the density's GetFourierDensity (its Overlap3C key)
     , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar fitter -- owns the FFT quadrature grid
 {
-    // Announce the quadrature grid ONCE per distinct fit basis (the exchange+correlation pair shares one):
-    // the uniform-route sibling of the [Becke grid] line, so the console/report always carries the XC
-    // grid's N + spacing.  (UnitCell::CreateIntegrationMesh cannot report this grid -- the XC raster is
-    // the FFT engine's own 5-smooth grid, never built through the Structure mesh factory.)
-    static const void* lastAnnounced=nullptr;
-    if (itsVxcFitBasis.get()!=lastAnnounced)
-    {
-        lastAnnounced=itsVxcFitBasis.get();
-        itsScalarFitter->Grid().EmitGridReport();
-    }
+    // (No grid announcement here any more: the fit basis self-reports at ITS construction, role-labeled --
+    //  the old externally-triggered EmitGridReport and its static-void* once-latch are gone, user 2026-08-16.)
 }
 PWFittedVxc::~PWFittedVxc() = default;   // itsScalarFitter's abstract type is complete here
 
@@ -392,8 +384,8 @@ chmat_t PWFittedVxc::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDens
         // RAW route (0.5(f2)): H_xc through the raw adjoint of the SAME tensor whose applyRaw produced
         // itsRhoGrid -- box-truncation per level + the analytic gather -- so H_xc == dE_xc/dD of the raw
         // discrete functional to machine precision (gate: GPW.RawXCConsistencyFD).  No ball fit anywhere.
-        const auto& orb=dynamic_cast<const BasisSet::Band_FT_IBS&>(*bs);   // genuine "is it?" cross-cast (throws)
-        const G_ERI3& g=orb.Overlap3C(*itsVxcFitBasis);
+        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws)
+        const Projector3<dcmplx>& g=orb.Overlap3C(*itsVxcFitBasis);
         assert(g.applyRawAdjoint && "raw rho without a raw adjoint: Overlap3C must carry both");
         rvec_t v(itsRhoGrid.size());
         for (size_t q=0;q<itsRhoGrid.size();q++) v[q]=itsXc->GetVxc(itsRhoGrid[q]);

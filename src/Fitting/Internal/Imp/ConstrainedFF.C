@@ -74,10 +74,10 @@ template <class T> hmat_t<T> ConstrainedFF<T>::Repulsion(const robs_t<T>* bs) co
 {
     auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // robs_t is the 1E base; need the 3-centre one
     assert(dftbs && "ConstrainedFF::Repulsion: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
-    const ERI3<T>& R3=dftbs->Repulsion3C(*this->itsBasisSet);
+    const Projector3<T>& R3=dftbs->Repulsion3C(*this->itsBasisSet);
     hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
     size_t i=0;
-    for (auto c:this->itsFitCoeff) J+=c*R3[i++];
+    for (auto c:this->itsFitCoeff) J+=c*R3.dense[i++];
     assert(!blazem::isnan(J));
     return J;
 }

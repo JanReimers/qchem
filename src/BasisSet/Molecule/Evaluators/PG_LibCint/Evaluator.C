@@ -29,7 +29,7 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators.PG_LibCint;
 import qchem.BasisSet.Molecule.Evaluators;                       // Evaluator + the isM_* concepts
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;    // PGData (component layout + ordering)
-import qchem.BasisSet.Internal.ERI3;                             // ERI3<double>
+import qchem.BasisSet.Internal.Projector3;                       // Projector3<double>
 import qchem.BasisSet.Internal.ERI4;                             // ERI4
 import qchem.Structure;
 import qchem.Types;
@@ -66,8 +66,8 @@ public:
     rsmat_t NuclearMatrix(const Structure* cl) const;
 
     // --- isM_DFT (3-centre <ab|c>, one symmetric (ia,ib) block per fit component ic) ---
-    ERI3<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
-    ERI3<double> RepulsionThreeC_Matrix(const NR_Evaluator& fit) const;   // int3c2e (Coulomb)
+    Projector3<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)
+    Projector3<double> RepulsionThreeC_Matrix(const NR_Evaluator& fit) const;   // int3c2e (Coulomb)
 
     // --- isM_HF (4-centre (ab|cd)).  ExchangeMatrix reproduces Orbital_ERI4_IBS::MakeExchange's packing
     // (the documented isM_ friction: an opaque assembler must duplicate the 0.5 / ib<id branching). ---
@@ -79,7 +79,7 @@ private:
     std::unique_ptr<Imp> itsImp;   // libcint shell descriptors + atom table (atm/bas/env built per call)
 
     rsmat_t             Build1(int which) const;                          // 0=ovlp 1=kin 2=nuc
-    ERI3<double>        Build3(const NR_Evaluator& fit, int which) const; // 0=overlap 1=Coulomb
+    Projector3<double>  Build3(const NR_Evaluator& fit, int which) const; // 0=overlap 1=Coulomb
     std::vector<double> Compute4(const NR_Evaluator& B, const NR_Evaluator& C,
                                  const NR_Evaluator& D) const;            // (this B | C D), PG order
 };

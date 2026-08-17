@@ -6,7 +6,7 @@
 // grid is a future joint CD+Vxc upgrade).  It exists so the plane-wave DFT-fit paths go THROUGH the orbital
 // basis's factory -- never assuming orbital==fit -- even though on the orthonormal {G} basis the projection
 // IS the fit and this object is otherwise computationally inert (rho-tilde/V-tilde come from the density/term;
-// the Hartree/XC contraction delegates to the orbital Band_FT_IBS).
+// the Hartree/XC contraction delegates to the orbital Orbital_DFT_IBS<dcmplx>).
 //
 // It carries NO grid logic of its own: it IS-A PW_Evaluator (a copy of the orbital basis's grid engine) and
 // the evaluator-templated EPW_Irrep_IBS<E> mixin supplies op()/Gradient/GetNumFunctions.  Both fit faces are
@@ -46,12 +46,16 @@ public:
     //! carrying the Bloch irrep \a sym.  \a directOps = the crystal DIRECT point ops \f${W|\tau}\f$ (empty {} =
     //! trivial = no symmetrization) ctor-injected here, where the grid is built, for the IBZ real-space raster
     //! star-average -- \f$\tau\f$ carries the glide/screw sublattice shift for non-symmorphic crystals.
-    PlaneWaveFit_IBS(const PW_Grid_Evaluator& e, const sym_t& sym,
+    //! \a role labels this grid's JOB in the run report ("xcQuadrature" / "densityFit") -- a construction-time
+    //! fact only the creating factory knows (CreateVxcFitBasisSet vs CreateCDFitBasisSet), stamped here so the
+    //! basis can SELF-report: every created grid announces at birth, labeled, and a grid that is never used
+    //! still shows up -- deliberately, so stale grid construction is visible (user ruling 2026-08-16).
+    PlaneWaveFit_IBS(const PW_Grid_Evaluator& e, const sym_t& sym, const std::string& role,
                      std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {})
         : BasisSet::IrrepBasisSetImp<dcmplx>(sym)
         , PW_Grid_Evaluator(e)
         , itsDirectOps(std::move(directOps))
-    {}
+    { AnnounceGrid(role); }
 
     //! A plane-wave {G} fit basis IS orthonormal (metric = I, the projection IS the fit) -- the single override
     //! satisfying the \c isOrtho contract for BOTH the density and potential fit faces.

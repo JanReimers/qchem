@@ -121,20 +121,32 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
     return BuildDensity(ne);
 }
 
+// THE fill primitive (V1.11 inc 4): dispatch the BlockFill spec -- the §5b occupancy×ranking product,
+// produced by the OccupationPolicy -- onto the private realizations below (the five ex-face virtuals;
+// they stopped being face members, not being code).
+template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::Fill(const qchem::BlockFill& f)
+{
+    using Rule=qchem::BlockFill::Rule;
+    switch (f.rule)
+    {
+        case Rule::Integer:   return f.ranking.size() ? TakeElectrons(f.budget, f.ranking)
+                                                      : TakeElectrons(f.budget);
+        case Rule::Fermi:     return TakeElectronsFermi(f.budget, f.kT, f.ranking);
+        case Rule::FermiAtMu: return SetFermiOccupationsAtMu(f.mu, f.kT, f.ranking);
+    }
+    assert(false && "TOrbitalsImp::Fill: unknown BlockFill rule");
+    return {};
+}
+
 // Fermi-Dirac fill (doc/GPWPlan1.md 4b): solve the chemical potential μ by bisection so Σ_i g_i f_i = ne,
 // set occ_i = g_i f_i, build D/D', and return the Mermin free-energy term −TS = kT Σ_i g_i[f ln f + (1−f)
-// ln(1−f)] ≤ 0 in the leftover slot of the ds_t tuple.  The entropy NEVER touches H: f enters only D (the
+// ln(1−f)] ≤ 0 in FillResult::minusTS.  The entropy NEVER touches H: f enters only D (the
 // density build below is the SAME AddDensityMatrix path aufbau uses, which already scales |C⟩⟨C| by occ).
 // N(μ)=Σ g_i f_i is monotone increasing, so μ is found by plain bisection on an energy window padded by
 // many kT (f saturates to 0/1 there).  The cure for near-gapless occupation flapping (NaF Ecut=160).
-template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectronsFermi(double ne, double kT)
-{
-    return TakeElectronsFermi(ne, kT, rvec_t());   // no effective-energy shift == plain Fermi on the bare ε
-}
-
 // TakeElectronsFermi = {solve THIS block's μ for its own nₑ} then {set the occupations at that μ}.  The split
-// exposes SetFermiOccupationsAtMu so the composite cross-k fill can instead solve ONE global μ over the whole
-// mesh and set every block at it (doc/GPWPlan1.md item 3).  Bit-identical to the old monolith at a single k.
+// keeps SetFermiOccupationsAtMu callable directly so the composite cross-k fill can instead solve ONE global μ
+// over the whole mesh and set every block at it (doc/GPWPlan1.md item 3).
 template <class T> typename TOrbitalsImp<T>::ds_t
 TOrbitalsImp<T>::TakeElectronsFermi(double ne, double kT, const rvec_t& eShift)
 {
@@ -174,8 +186,9 @@ TOrbitalsImp<T>::SetFermiOccupationsAtMu(double mu, double kT, const rvec_t& eSh
         itsOrbitals[i]->SetOccupation(g*f);
         if (f>1e-15 && f<1.0-1e-15) minusTS += kT*g*(f*log(f)+(1.0-f)*log(1.0-f));
     }
-    hmat_t<T> DPrime=std::get<1>(BuildDensity(0.0));   // build D/D' from the fractional occupations
-    return std::make_tuple(minusTS,std::move(DPrime)); // {−TS, D'}
+    ds_t r=BuildDensity(0.0);                          // build D/D' from the fractional occupations
+    r.minusTS=minusTS;                                 // named field: −TS, and electronsLeft stays 0 (μ absorbed it)
+    return r;
 }
 
 // Build D (and the orthonormal-basis D') from the currently-occupied orbitals; shared by both
@@ -185,7 +198,7 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::BuildDensity(
     itsD=blazem::zeroH<T>(itsD.rows());                  // AO density: full n x n
     hmat_t<T> DPrime(blazem::zeroH<T>(itsM));            // orthonormal density: m x m (m=n-k after truncation)
     for (auto o:Iterate<TOrbital<T>>()) o->AddDensityMatrix(itsD,DPrime);   // was hardcoded TOrbital<double>
-    return std::make_tuple(ne,DPrime);
+    return {ne, 0.0, std::move(DPrime)};
 }
 
 // Occupation-weighted Mulliken gross population per AO function: P_i = (D S)_ii, with D the current AO density
@@ -219,6 +232,14 @@ template <class T> std::unique_ptr<tDM_CD<T>> TOrbitalsImp<T>::GetChargeDensity(
 template <class T>  Irrep TOrbitalsImp<T>::GetQNs() const
 {
     return itsQNs;
+}
+
+// OrbitalView: the orthonormal-basis coefficient column, for the OccupationPolicy's MOM scores/capture.
+template <class T> vec_t<T> TOrbitalsImp<T>::CoeffPrime(size_t i) const
+{
+    auto* o=dynamic_cast<const TOrbital<T>*>(itsOrbitals[i].get());
+    assert(o && "TOrbitalsImp::CoeffPrime: orbital is not a TOrbital<T>");
+    return o->GetCoeffPrime();
 }
 
 

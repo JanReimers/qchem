@@ -105,14 +105,14 @@ qchem::Hamiltonian::PWFittedVxc* NewPWXC(const PlaneWave_IBS& pw, const qchem::H
 ΔG_Map RhoTilde(const PlaneWave_IBS& pw, const chmat_t& D)
 {
     std::unique_ptr<const qchem::BasisSet::cFIT_SF_ABS> vxcfb(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}));
-    return ContractG_ERI3(pw.Overlap3C(*vxcfb), D);
+    return Contract(pw.Overlap3C(*vxcfb), D);
 }
 // Hartree matrix from a rho-tilde: <i|V_H|j> = 4pi/|G_i-G_j|^2 rho-tilde(G_i-G_j) (dm=0 dropped).  This is
 // the retired Repulsion(ΔG_Map) route, inlined as a test cross-check (production assembles the same matrix
 // from the density's Repulsion3C tensor via Vee_Hartree).
 chmat_t HartreeFromRhoTilde(const PlaneWave_IBS& pw, const ΔG_Map& rt)
 {
-    return pw.MakeOverlap([&](const ivec3_t& dm)->dcmplx
+    return pw.OverlapMatrix([&](const ivec3_t& dm)->dcmplx
         { auto it=rt.find(dm); return it==rt.end()?dcmplx(0.0):pw.Recip().CoulombKernel(dm)*it->second; });
 }
 
@@ -138,7 +138,7 @@ struct FieldFnR : public ScalarFunction<double>, public qchem::Fitting::Projecte
 
 // --- Real-space DFT-integration oracles.  These lived on PlaneWave_IBS but were test-only cross-checks of
 // the FFT/Poisson machinery (no library code called them), so they moved HERE as free functions over the
-// basis's PUBLIC evaluator grid accessors (UniformGrid/AutoGrid/Gs/MakeOverlap/Volume/Recip) -- no
+// basis's PUBLIC evaluator grid accessors (UniformGrid/AutoGrid/Gs/OverlapMatrix/Volume/Recip) -- no
 // friendship needed, they never touched private data.
 
 // Forward-transform a real field sampled on the fractional grid to its Fourier components over the difference
@@ -181,7 +181,7 @@ inline chmat_t OverlapField(const PlaneWave_IBS& pw, const ScalarFunction<double
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=f(A.ToCartesian(frac[q]));
     auto vt=ForwardDFTDiffSet(pw.Gs(),frac,field);
-    return pw.MakeOverlap([&vt](const ivec3_t& dm)->dcmplx
+    return pw.OverlapMatrix([&vt](const ivec3_t& dm)->dcmplx
         { auto it=vt.find(dm); return it==vt.end()?dcmplx(0.0):it->second; });
 }
 
@@ -194,7 +194,7 @@ inline chmat_t RepulsionField(const PlaneWave_IBS& pw, const ScalarFunction<doub
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
     ΔG_Map rg=ForwardDFTDiffSet(pw.Gs(),frac,field);
-    return pw.MakeOverlap([&pw,&rg](const ivec3_t& dm)->dcmplx
+    return pw.OverlapMatrix([&pw,&rg](const ivec3_t& dm)->dcmplx
     {
         auto it=rg.find(dm);
         return pw.Recip().CoulombKernel(dm)*(it==rg.end()?dcmplx(0.0):it->second);
@@ -213,13 +213,13 @@ inline double IntegralField(const PlaneWave_IBS& pw, const ScalarFunction<double
 
 // Real-space grid values V -> matrix <i|V|j> = Vtilde(m_i-m_j).  Was PlaneWave_IBS::Overlap(rvec_t), now
 // production-dead (the Vxc term assembles through the fit basis's seam); kept here as a test oracle: one
-// ForwardFFT (the G_FieldEvaluator grid engine), then the orbital's MakeOverlap bridge looks each
+// ForwardFFT (the G_FieldEvaluator grid engine), then the orbital's OverlapMatrix lookup takes each
 // reciprocal-index difference up in the grid.  (The orbital is both faces, so the PlaneWave_IBS supplies both.)
 inline chmat_t OverlapOnGrid(const PlaneWave_IBS& pw, const rvec_t& V)
 {
     PW_Grid_Evaluator grid=GridOf(pw);
     cvec_t Vt=grid.ForwardFFT(V);
-    return pw.MakeOverlap([&](const ivec3_t& dm)->dcmplx {return grid.GridCoeff(Vt, dm);});
+    return pw.OverlapMatrix([&](const ivec3_t& dm)->dcmplx {return grid.GridCoeff(Vt, dm);});
 }
 
 // Order ivec3_t lexicographically so it can key the rho~ map.
@@ -262,9 +262,9 @@ dcmplx RhoAt(const RhoG& rho, const ivec3_t& dm)
 
 // --- G-space Hartree:  V_H(r) solves nabla^2 V_H = -4 pi rho,  so V_H~(G) = 4 pi rho~(G)/|G|^2. -----
 // The dG=0 component is dropped (neutralising background), as in MakeLocalPotential.  The matrix is
-// then <G_i|V_H|G_j> = V_H~(m_i-m_j) via MakeOverlap.
+// then <G_i|V_H|G_j> = V_H~(m_i-m_j) via OverlapMatrix.
 
-//! V_H~(dm) supplier for MakeOverlap.  \a B is the RECIPROCAL cell (G = B dm).
+//! V_H~(dm) supplier for OverlapMatrix.  \a B is the RECIPROCAL cell (G = B dm).
 std::function<dcmplx(const ivec3_t&)> HartreeVtilde(const RhoG& rho, const UnitCell& B)
 {
     return [&rho,&B](const ivec3_t& dm)->dcmplx
@@ -463,7 +463,7 @@ TEST_F(PlaneWaveDFT, HartreeSingleCosineMatchesPoisson)
     EXPECT_NEAR(HartreeEnergy(rho,F.B(),F.Omega), F.Omega*4*Pi*A*A/g02, 1e-10);
 }
 
-// The Hartree matrix from MakeOverlap picks up V_H~(m_i-m_j) on each pair, and is Hermitian.
+// The Hartree matrix from OverlapMatrix picks up V_H~(m_i-m_j) on each pair, and is Hermitian.
 TEST_F(PlaneWaveDFT, HartreeMatrixElementsAndHermiticity)
 {
     PWFixture F;
@@ -473,7 +473,7 @@ TEST_F(PlaneWaveDFT, HartreeMatrixElementsAndHermiticity)
     rho[ivec3_t(-1,0,0)] = A;
     double g02=(2*Pi/F.a)*(2*Pi/F.a);
 
-    chmat_t V=F.pw.MakeOverlap(HartreeVtilde(rho, F.B()));
+    chmat_t V=F.pw.OverlapMatrix(HartreeVtilde(rho, F.B()));
     size_t n=F.pw.GetNumFunctions();
 
     bool found=false;                                        // a pair differing by (1,0,0)
@@ -769,7 +769,7 @@ TEST_F(PlaneWaveDFT, ScfJelliumUniform)
     qchem::Hamiltonian::VWN_Correlation vwn;
     auto vxcOf=[&](double r){return ex.GetVxc (r)+vwn.GetVxc (r);};
     auto epsOf=[&](double r){return ex.GetEpsXc(r)+vwn.GetEpsXc(r);};
-    chmat_t Vzero=F.pw.MakeOverlap([](const ivec3_t&){return dcmplx(0.0);});
+    chmat_t Vzero=F.pw.OverlapMatrix([](const ivec3_t&){return dcmplx(0.0);});
 
     SCFResult R=RunSCF(F.pw, F.B(), F.Omega, Vzero, 2, ivec3_t(8,8,8), vxcOf, epsOf);
     ASSERT_TRUE(R.converged);
@@ -799,7 +799,7 @@ TEST_F(PlaneWaveDFT, ScfWeakCosineSelfConsistent)
     auto vxcOf=[&](double r){return ex.GetVxc (r)+vwn.GetVxc (r);};
     auto epsOf=[&](double r){return ex.GetEpsXc(r)+vwn.GetEpsXc(r);};
     // V_ext(r) = 2 V0 (cos + cos + cos): only Fourier components are the unit reciprocal steps.
-    chmat_t Vext=pw.MakeOverlap([V0](const ivec3_t& dm)->dcmplx
+    chmat_t Vext=pw.OverlapMatrix([V0](const ivec3_t& dm)->dcmplx
     { return (dm.x*dm.x+dm.y*dm.y+dm.z*dm.z==1) ? dcmplx(V0) : dcmplx(0.0); });
 
     SCFResult R=RunSCF(pw, recip.GetCell(), Omega, Vext, 2, ivec3_t(12,12,12), vxcOf, epsOf, 0.5, 1e-9, 400);
@@ -823,7 +823,7 @@ TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
     qchem::Hamiltonian::VWN_Correlation vwn;
     auto vxcOf=[&](double r){return ex.GetVxc (r)+vwn.GetVxc (r);};
     auto epsOf=[&](double r){return ex.GetEpsXc(r)+vwn.GetEpsXc(r);};
-    chmat_t Vext=pw.MakeOverlap([V0](const ivec3_t& dm)->dcmplx
+    chmat_t Vext=pw.OverlapMatrix([V0](const ivec3_t& dm)->dcmplx
     { return (dm.x*dm.x+dm.y*dm.y+dm.z*dm.z==1) ? dcmplx(V0) : dcmplx(0.0); });
 
     SCFResult R=RunSCF(pw, recip.GetCell(), Omega, Vext, 2, ivec3_t(12,12,12), vxcOf, epsOf, 0.5, 1e-9, 400);
@@ -847,7 +847,7 @@ TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
     {
         qcMesh::MeshParams mp; mp.relCutoff=rc;
         auto fb=qchem::Hamiltonian::PWFittedVxc::fbs_t(pw.CreateVxcFitBasisSet(nullptr, mp));
-        auto ge=dynamic_cast<const qchem::BasisSet::G_FieldEvaluator*>(fb.get());
+        auto ge=dynamic_cast<const qchem::BasisSet::G_Quadrature*>(fb.get());
         size_t nG=fb->GetNumFunctions(), Npts=ge->GridPoints().size();
 
         rvec_t rgrid=ge->RhoOnGrid(rho), exc(rgrid.size());

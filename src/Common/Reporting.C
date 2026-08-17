@@ -161,6 +161,10 @@ void Set(const std::string& key, json value);
 //! builds after the grids table rendered.  A no-op when no run is open.  Cursor-independent (absolute path).
 //! `minLevel` gates ONLY the console render (the json ALWAYS records the block): a Verbose-only sub-block
 //! (e.g. basis.usage) stays in the record at every level but prints only when SetConsole's detail >= minLevel.
+//! IDEMPOTENT: an identical value already at the path is a complete no-op (no rewrite, no re-render) -- so a
+//! provider may announce unconditionally at its own trigger and the dedup lives here, RUN-scoped, instead of
+//! in process-global latches at call sites.  A changed value writes + re-renders as before (user 2026-08-16:
+//! providers self-report; every created grid announces, labeled, so stale never-used grids become visible).
 void EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel = Detail::Terse);
 
 //! RAII: open a TOP-LEVEL section `name` (cursor descends into it) and RENDER it to

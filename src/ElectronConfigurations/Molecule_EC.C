@@ -22,7 +22,9 @@ public:
     virtual int    GetN(const Irrep& qns) const;
     virtual syms_t GetIrreps() const;
     virtual void Display() const;
-    virtual bool UsesAufbau() const {return true;}   // molecular aufbau across point-group irreps
+    //! One reservoir per spin channel spanning the point-group irreps, RANKED (the molecular aufbau):
+    //! which irrep an occupied MO lands in is an OUTPUT of the SCF, unlike an atom's fixed l-occupation.
+    virtual ReservoirPartition GetPartition() const {return {.spansSpatial=true, .ranksIntegerFill=true};}
 private:
     int itsNup, itsNdn;
 };

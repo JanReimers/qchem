@@ -4,7 +4,7 @@
 // rho-tilde IS the fit (no metric solve), so this implements ONLY the minimal CORE FunctionFitter_Density
 // face -- no self-energy / charge constraint / rescale / real-space value (the non-ortho refinement an AO
 // fit needs).  DoFit RECEIVES the density's pre-computed rho-tilde (a ProjectedDensity_G) and Repulsion
-// delegates the FFT-free G-space Poisson solve to the orbital basis (Band_FT_IBS).
+// delegates the FFT-free G-space Poisson solve to the orbital basis (Orbital_DFT_IBS<dcmplx>).
 //
 // It is created through the factory Factory(cFIT_CD_ABS) exactly as the AO fitter is created
 // through Factory(rFIT_CD_ABS): the plane-wave Hartree term obtains it via the basis's
@@ -20,7 +20,7 @@ export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<d
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
-import qchem.BasisSet.Band_FT_IBS;            // the orbital assembly bridge (MakeOverlap) for the XC matrix
+import qchem.BasisSet.Orbital_DFT_IBS;            // the orbital assembly bridge (MakeOverlap) for the XC matrix
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
 export namespace qchem::Fitting
@@ -91,13 +91,13 @@ public:
 
     //! GriddedScalarFitter: the fitter's own FFT quadrature grid engine (reached from the neutral fit face we
     //! hold).  The XC term borrows this ONE grid rather than cross-casting the fit basis a second time (#7).
-    virtual const BasisSet::G_FieldEvaluator& Grid() const override {return FitGrid();}
+    virtual const BasisSet::G_Quadrature& Grid() const override {return FitGrid();}
 
     //! The "fit": batch-sample v_xc(r) on the fit basis's own FFT grid, then forward-transform.  Orthonormal
     //! exactness => the projection IS the fit (no metric solve); the field's FFT fast path is its own business.
     virtual void DoFit(const ProjectedScalar_R& ps) override
     {
-        const BasisSet::G_FieldEvaluator& ge=FitGrid();
+        const BasisSet::G_Quadrature& ge=FitGrid();
         rvec_t vals=(*ps.GetScalarFunction())(ge.GridPoints());   // batch-sample v_xc on the fit grid
         itsVt =ge.ForwardFFT(vals);                               // full /Npts G grid (for the assembly)
         itsMap=ge.FieldCoeffs(itsVt);                             // fit-basis coefficients (for op(r) plotting)
@@ -105,7 +105,7 @@ public:
 
     //! XC matrix <i|v_xc|j> = V-tilde(m_i-m_j): the ORBITAL basis assembles over ITS {G}, looking each
     //! reciprocal-index difference up in OUR fit-grid coefficients -- so the fit grid may be denser than (or
-    //! offset from) the orbital's.  The orbital's assembly is its Band_FT_IBS::MakeOverlap bridge (the
+    //! offset from) the orbital's.  The orbital's assembly is its applyAdjoint realization (the
     //! orbital-specific step); the fit grid's GridCoeff lookup is the shared G_FieldEvaluator grid engine.
     virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
     {
@@ -113,12 +113,12 @@ public:
         // this is a genuine "is it?" cross-cast: a reference-cast THROWS std::bad_cast (not release-mode UB)
         // for any future non-PW complex orbital basis.  (Contrast the fitter's own itsFitBasis casts, which
         // its isOrtho() contract guarantees.)  Ties to the item-C dynamic_cast survey.
-        const BasisSet::Band_FT_IBS&      orb=dynamic_cast<const BasisSet::Band_FT_IBS&>(*bs);   // the assembly bridge
-        const BasisSet::G_FieldEvaluator& fit=FitGrid();                                         // the fit grid engine
+        const BasisSet::Orbital_DFT_IBS<dcmplx>&      orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>&>(*bs);   // the assembly bridge
+        const BasisSet::G_Quadrature&     fit=FitGrid();                                         // the fit grid engine
         // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
         // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the
         // SAME grid the density was collocated on (doc/GPWPlan §0e step 2).  No grid-less MakeOverlap(field).
-        return ContractAdjointG_ERI3(orb.Overlap3C(*itsFitBasis),
+        return ContractAdjoint(orb.Overlap3C(*itsFitBasis),
                                      [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
 
@@ -130,19 +130,27 @@ public:
 
     //! ScalarFunction (core): the fitted POTENTIAL v_xc,fit(r) = Re Σ_G V-tilde(G) e^{iG·r} over the fit {G},
     //! via the basis's G_FieldEvaluator -- what the GUI plots; the seed of the v_xc - v_xc,fit fit-residual.
-    virtual double  operator()(const rvec3_t& r) const override {return FitGrid().EvalField(itsMap, r);}
-    virtual rvec3_t Gradient  (const rvec3_t& r) const override {return FitGrid().EvalFieldGradient(itsMap, r);}
+    virtual double  operator()(const rvec3_t& r) const override {return FieldEval().EvalField(itsMap, r);}
+    virtual rvec3_t Gradient  (const rvec3_t& r) const override {return FieldEval().EvalFieldGradient(itsMap, r);}
 
     virtual std::ostream& Write(std::ostream& os) const override
         {return os << "OrthoScalarFitter (plane-wave grid quadrature)" << std::endl;}
 
 private:
-    //! The fit basis's FFT grid engine (the DIP seam), reached from the neutral fit face we hold.
-    const BasisSet::G_FieldEvaluator& FitGrid() const
+    //! The fit basis's FFT quadrature engine (the DIP seam), reached from the neutral fit face we hold.
+    //! Guaranteed by Factory(cFIT_SF_ABS)'s construction-time contract, so asserts (not throws) suffice.
+    const BasisSet::G_Quadrature& FitGrid() const
     {
-        auto* ge=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
-        assert(ge && "OrthoScalarFitter: the {G} fit basis must provide the G_FieldEvaluator grid engine");
+        auto* ge=dynamic_cast<const BasisSet::G_Quadrature*>(itsFitBasis.get());
+        assert(ge && "OrthoScalarFitter: the {G} fit basis must provide the G_Quadrature grid engine");
         return *ge;
+    }
+    //! The evaluate face for op(r)/Gradient -- the same engine, the narrower ask.
+    const BasisSet::G_FieldEvaluator& FieldEval() const
+    {
+        auto* fe=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
+        assert(fe && "OrthoScalarFitter: the {G} fit basis must provide G_FieldEvaluator to evaluate v_xc,fit(r)");
+        return *fe;
     }
     fbs_t      itsFitBasis;   //!< the {G} fit basis -- owns the (possibly denser) quadrature grid
     cvec_t     itsVt;         //!< v_xc forward-FFT'd on the fit grid (full raster grid), for the operator assembly

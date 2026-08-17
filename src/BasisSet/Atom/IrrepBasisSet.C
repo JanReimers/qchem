@@ -198,11 +198,11 @@ template <isDFT_Evaluator E> class Orbital_DFT_IBS
     : public virtual BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const rFIT_SF_ABS& _c) const
+    virtual Projector3<double> MakeOverlap3C  (const rFIT_SF_ABS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
-        ERI3<double> S3;
+        Projector3<double> S3;
         for (auto ic:c.indices())
         {
             rsmat_t S(ab.size());
@@ -210,16 +210,16 @@ protected:
                 for (auto j:ab.indices(i))
                     S(i,j)=ab.Overlap(i,j,c,ic);
             
-            S3.push_back(S);
+            S3.dense.push_back(S);
         }
         return S3;
 
     }
-    virtual ERI3<double> MakeRepulsion3C(const rFIT_CD_ABS& _c) const
+    virtual Projector3<double> MakeRepulsion3C(const rFIT_CD_ABS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
-        ERI3<double> S3;
+        Projector3<double> S3;
         for (auto ic:c.indices()) 
         {
             rsmat_t S(ab.size());
@@ -227,7 +227,7 @@ protected:
                 for (auto j:ab.indices(i))
                     S(i,j)=ab.Repulsion(i,j,c,ic);  
             
-            S3.push_back(S);
+            S3.dense.push_back(S);
         }
         return S3;
 

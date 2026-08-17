@@ -40,9 +40,12 @@ public:
     virtual int    GetN(const Irrep&) const;
     virtual syms_t GetIrreps() const;
     virtual void   Display() const;
-    virtual bool   UsesAufbau() const {return false;}  // each plane-wave block IS an irrep; no aufbau
-    virtual bool   UsesGlobalFermi() const {return itsGlobalFermi;}  // metal: one μ across the mesh
-    virtual bool   SpinsShareFermiLevel() const {return itsSpinsShareFermi;}  // ...and across spin: free moment
+    //! Metal (\a globalFermi): one reservoir per channel spanning the k-mesh (one μ, charge sloshes between
+    //! k-points); \a spinsShareFermi additionally pools the channels (free moment).  NEVER ranked: a Bloch
+    //! block IS an irrep -- BZ-weighted capacities make cross-block integer ranking ill-defined, so kT=0
+    //! fills stay at the prescribed per-block counts (the insulator / seed-fill mode).
+    virtual ReservoirPartition GetPartition() const
+        {return {.spansSpatial=itsGlobalFermi, .spansSpin=itsSpinsShareFermi};}
 private:
     syms_t itsSyms;          //!< The Bloch symmetries (one per k-block).
     int    itsNup, itsNdn;   //!< Per-channel counts.  Insulator: per k-block.  Metal: whole-mesh totals.

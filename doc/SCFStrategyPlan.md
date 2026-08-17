@@ -133,6 +133,66 @@ Smearing slots into the same seam, and the infrastructure is already half-presen
 **Pin:** occupation is a first-class seam (aufbau/MOM/smearing are siblings); smearing = fractional-occupation
 concrete + μ-solver + free-energy gate; do not special-case it into the fill.
 
+## 5b. V1.11 occupation-seam design — RULED (user, 2026-08-17) — ✅ EXECUTED, all five increments
+**(2026-08-17: `43bbebad` FillResult; `0c818835` ReservoirPartition + one fill loop; `841eadf2`
+OccupationPolicy + iterator slot + the OrbitalView DIP inversion; `092d1da8` the one Fill primitive +
+DecideBlockFill; `2398dd07` HeldOccupationPolicy.  Full record: doc/CleanupHistory.md.  §8's increment 4
+"occupation seam formalisation" is hereby DONE on the seam side; the Fermi-smearing μ-solver/free-energy
+machinery it anticipated already existed and now lives behind the policy.)**
+
+The concrete design for formalising §5, from the V1.11 design session (doc/CleanupCandidates.md V1.11).
+User rulings: **policy-owns-state** (D1 yes); **abstract `OccupationPolicy` interface** with derived
+implementations; **`ElectronConfiguration` CLASS NETWORK becomes data** (counts + reservoir partition) but
+the **LIBRARY qcElectronConfiguration stays and is `OccupationPolicy`'s home** (D6); **observer pattern**
+if the policy ever needs to message UP the DAG; **MnO real-TRIM work waits on this**.
+
+### The two-axis factoring (answers "is it an abstract interface?")
+
+The five `TakeElectrons*` virtuals are points in a 2-axis product, so the concretes are ASSEMBLED, not
+multiplied:
+- **Occupancy rule** (how a reservoir's electrons land on ranked levels): `Integer` (count-down aufbau),
+  `Fermi(kT)` (μ-solve, fractional, −TS), `Held` (keep the stored occupied block — the direct-min fill).
+- **Ranking rule** (which order / effective energies): `bare ε`, `MOM` (priority order for integer;
+  the Λ(1−s)² eShift when composed with Fermi).
+
+Mapping: `TakeElectrons(ne)`=Integer×bare; `(ne,priority)`=Integer×MOM; `Fermi(ne,kT)`=Fermi×bare;
+`Fermi(ne,kT,eShift)`=Fermi×MOM; `SetFermiOccupationsAtMu`=Fermi×bare at a shared μ.  One abstract
+`OccupationPolicy` face (fill-the-reservoirs → result + the runtime transitions `AdoptReference`/
+`ReleaseReference`); the reservoir driver is SHARED machinery in the base (template method); the two axes
+are internal components.  MOM's state (references, capture countdown, the 0h guard) lives in the MOM
+component — off the WF entirely.
+
+### The reservoir partition (generalises code that half-exists)
+
+`tCompositeWF::FillOrbitalsSharedFermi` ALREADY groups blocks by reservoir (its `reservoirs` map keyed
+(k-or-shared × spin-or-shared)).  Generalise: a reservoir = (set of blocks, electron count); ALL FOUR fill
+modes are one loop over the partition — fixed-per-irrep = one reservoir per irrep; molecular aufbau = one
+per spin channel; global-Fermi metal = one per channel across k (BZ weight riding in capacity g, as now);
+free-moment = one reservoir total.  `ElectronConfiguration` supplies the PARTITION + counts and loses the
+three mode bools (`UsesAufbau`/`UsesGlobalFermi`/`SpinsShareFermiLevel` — 8 encodable states, ~4
+meaningful; the partition cannot express the meaningless ones).
+
+### Consequences (D3–D5, D7)
+
+- ONE block-level primitive on `TOrbitals` replaces the five virtuals: fill(budget-or-μ, ranking).
+- A named `FillResult{electronsLeft, minusTS, DPrime}` (+ per-reservoir μ at the aggregate level) kills
+  the `ds_t` tuple's dual-meaning double; `GetEntropyTerm()` dies — the iterator stamps `MinusTS` from
+  the RESULT; the Δμ diagnostic reads from the same result.
+- `tSCFWaveFunction` sheds `SetMOM`/`SetSmearing`/`AdoptMOMReference`/`ReleaseMOMReference`/
+  `GetEntropyTerm`; `FillOrbitals(const OccupationPolicy&)`.  This also closes the MEASURED two-phase
+  hazard (the seed fill running before `SetSmearing` lost charge on metals — the D11 note in
+  CompositeWF.C): the policy exists before the WF does.
+- `holdBlock` stops being a bool: the direct-min driver swaps in the `Held` policy for trial fills (the
+  §5-flagged {occupation × direct-min} cell); −TS=0 falls out of the policy instead of being documented.
+- Increments land bit-identical (the §8 oracle); the smeared/metal anchors (`AlFCCAnnealedMetal`, NaF
+  traces, MnO Δμ) guard did-E-move.  The refactor never changes WHICH orbitals fill — only who decides.
+
+### Increment order
+
+1. `FillResult` (mechanical, bit-identical).  2. Reservoir partition on EC + the one composite fill loop.
+3. `OccupationPolicy` + iterator slot; WF face sheds the five members.  4. Collapse the `TakeElectrons*`
+five into the one primitive.  5. `Held` policy replaces `holdBlock`.
+
 ## 6. Injection model
 
 One **slot per role** on the iterator, each defaulting to a shared **Null** (except the density slot, whose
@@ -215,8 +275,10 @@ framework already carries everything around it.
      (`Re tr(EᵢᴴEⱼ)` metric) and density (G-space metric); only the residual stream + inner product differ, as
      the design promised.  Bit-identical: 200/200 (full) green (DIIS is the default molecular accelerator).
 3. **Broyden.** `Broyden_Extrapolator` (Johnson) sibling; density-face `BroydenMixer` adapter. Compare on NaF.
-4. **Occupation seam formalisation + Fermi smearing** (§5): μ-solver + free-energy gate; keep MOM/aufbau as
-   siblings. Later — needed for metals and the OT+smearing path.
+4. **Occupation seam formalisation** — ✅ DONE 2026-08-17 (§5b, V1.11): `OccupationPolicy` +
+   `HeldOccupationPolicy`, the `BlockFill` two-axis spec, the reservoir partition.  The μ-solver +
+   free-energy gate already existed and now sit behind the policy.  Remaining from this line: a
+   Fermi/OT+smearing POLICY sibling when metals-by-direct-min arrive (a new sibling, not a new bool).
 5. **OT direct-min concrete** (§7). Later.
 
 ## 9. Paper references (keep these in the concretes, with equation numbers where possible)

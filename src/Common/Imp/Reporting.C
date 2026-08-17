@@ -333,6 +333,15 @@ void Set(const std::string& key, json value)
 void EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel)
 {
     if (g_stack.empty()) return;                       // inert outside a run
+    // IDEMPOTENT: an identical value already at this path is a no-op (no rewrite, no re-render).  This is
+    // what lets a provider announce itself UNCONDITIONALLY at its own trigger (e.g. every grid announces at
+    // construction) with the dedup living HERE, run-scoped -- instead of in function-local-static latches at
+    // the call sites, which are process-global and leak across runs (the old PWTerms void* latch).  A
+    // CHANGED value still writes and re-renders, so late updates behave as before.
+    {
+        const json& doc = g_stack.back().doc;
+        if (doc.contains(section) && doc[section].contains(key) && doc[section][key] == value) return;
+    }
     g_stack.back().doc[section][key] = value;          // ALWAYS record (the json record is complete)
     // Console gate: render only at depth 1, non-empty, AND when the configured detail meets this block's
     // minimum (so a Verbose-only block like basis.usage stays in the json but prints only at Detail::Verbose).

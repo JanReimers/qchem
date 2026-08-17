@@ -25,12 +25,13 @@ rvec3_t PeriodicGridEvaluator::GetGCartesian(const ivec3_t& m) const
     return itsRecip.GetCell().ToCartesian(rvec3_t(m)); // B m
 }
 
-// Announce this grid on the console + run report.  ALL the reporting lives on UnitCell
-// (EmitUniformGridReport -- the user's one-owner design); this engine only recovers the direct cell from
-// its stored reciprocal one (A = 2 pi B^-T = the reciprocal of the reciprocal) and names the entry.
-void PeriodicGridEvaluator::EmitGridReport() const
+// Announce this grid into the run report.  ALL the reporting lives on UnitCell (EmitUniformGridReport --
+// the user's one-owner design); this engine only recovers the direct cell from its stored reciprocal one
+// (A = 2 pi B^-T = the reciprocal of the reciprocal) and passes the role the OWNING fit basis was
+// constructed with -- the engine itself cannot know whether it is the XC quadrature or the density grid.
+void PeriodicGridEvaluator::AnnounceGrid(const std::string& role) const
 {
-    itsRecip.GetCell().MakeReciprocalCell().EmitUniformGridReport("xcQuadrature", itsN);
+    itsRecip.GetCell().MakeReciprocalCell().EmitUniformGridReport(role, itsN);
 }
 
 // Uniform N1xN2xN3 grid of FRACTIONAL coordinates r=(i1/N1,i2/N2,i3/N3) -- the XC real-space grid

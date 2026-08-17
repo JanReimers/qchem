@@ -34,7 +34,7 @@ import qchem.Pseudopotential.SeparablePotential;   // SeparablePotential_R (the 
 import qchem.Mesh;                                 // qcMesh::MeshParams (the PP-quadrature integration mesh)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
-export import qchem.BasisSet.Internal.GMap;        // G_ERI3 (the DFT 3-centre tensor, now with GPW weights)
+export import qchem.BasisSet.Internal.GMap;        // Projector3<dcmplx> (the DFT 3-centre tensor, now with GPW weights)
 import qchem.UnitCell;                             // UnitCell (the direct lattice; CellsInSphere/ToCartesian)
 import qchem.Structure;                            // Structure (the nuclear-attraction centres)
 import qchem.Types;                                // rvec3_t, cvec_t, cvec3vec_t, chmat_t, rmat_t
@@ -109,19 +109,19 @@ public:
     //! integral).  The SECOND electron coordinate and the \f$1/r_{12}\f$ live in the per-column diagonal Poisson
     //! kernel \f$4\pi/|G_c|^2\f$ (the \f$r_2\f$ integral \f$\int e^{iG_c\cdot r_2}/r_{12}\f$ in reciprocal space).
     //! So the full two-electron Coulomb is \c weight\f$\times\f$\c kernel, factorised through G-space -- never a
-    //! 2-\f$r\f$ integral.  Density contracts \f$D\f$ against this via \c ContractG_ERI3.
-    G_ERI3  Repulsion3CTensor() const;
+    //! 2-\f$r\f$ integral.  Density contracts \f$D\f$ against this via \c Contract.
+    Projector3<dcmplx>  Repulsion3CTensor() const;
     //! \brief Overlap 3-centre tensor: the same single-\f$r\f$ weight \f$W_c(i,j)\f$, EMPTY kernel -- the density's
     //! Fourier coefficient \f$\tilde\rho(G_c)=\sum_{ij}D_{ij}W_c(i,j)\f$ (no Poisson).
-    G_ERI3  Overlap3CTensor() const;
+    Projector3<dcmplx>  Overlap3CTensor() const;
     //! \brief The SAME two tables over an EXPLICIT fit grid \a grid (rather than the block's own \c DensityGrid).
     //! The tensor columns are \a grid's \f$\{G\}\f$ and the collocation multi-grid ladder derives from \a grid --
     //! so the fit-basis GRID/\f$\{G\}\f$ policy (set by \c CreateCD/VxcFitBasisSet) is HONOURED, not silently
     //! overridden by the block's own grid.  These are the seam \c GPW_IBS::MakeRepulsion3C/MakeOverlap3C call
     //! with the requested fit basis's grid; the no-arg overloads above are \c Repulsion3CTensor(itsFFT_R_G_Grids)
     //! convenience (tests + the block's own fit basis).  (doc/GPWPlan §0e -- "return the requested table".)
-    G_ERI3  Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
-    G_ERI3  Overlap3CTensor  (std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    Projector3<dcmplx>  Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    Projector3<dcmplx>  Overlap3CTensor  (std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     //! \brief The potential->KS-matrix bridge (collocation's EXACT adjoint): \f$\langle\chi_i^k|V|\chi_j^k\rangle\f$
     //! by the ANALYTIC per-pair integrate-back (\c Molecule::LatticeSum1E::IntegratePotential) on the REL_CUTOFF
     //! multi-grid ladder -- \a Vtilde is restricted to each level's own \f$\{G\}\f$ (a SPECTRAL low-pass, no
@@ -251,7 +251,7 @@ private:
                                                       //!< builds; A/B via the GPW_RASTER_POLICY instrument
     std::shared_ptr<const PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
-    // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
+    // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
     //! \brief Last-density collocation memo, SHARED by the two \c MakeCollocator closures (Coulomb + overlap
     //! tensors): each SCF iteration collocates the SAME \f$D\f$ twice -- once for \f$\rho\f$ on the grid
     //! (XC/charge) and once for the Coulomb apply -- so the second call replays the level densities for free
@@ -278,15 +278,15 @@ private:
     //! The matrix-free density->\f$\tilde\rho\f$ (\a coulomb=false) or ->\f$V_H\f$ (\a coulomb=true,
     //! \f$4\pi/G^2\f$ folded in) map, as a closure: ANALYTIC per-pair collocation on the multi-grid ladder
     //! (\c LatticeSum1E::CollocateDensity), one FFT per level, \f$\tilde\rho\f$ combined NESTED in G-space --
-    //! the \c G_ERI3::apply realization.
+    //! the \c Projector3<dcmplx>::apply realization.
     //! The collocator over an EXPLICIT fit grid: the ladder derives from \a grid (the tensor's requested
     //! \f$\{G\}\f$), NOT the block's own \c itsFFT_R_G_Grids -- the closure captures its own ladder built from \a grid.
     std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb, std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     //! The BACKWARD adjoint of \c MakeCollocator: a self-contained field->matrix integrate-back over \a grid's
-    //! ladder -- the \c G_ERI3::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
+    //! ladder -- the \c Projector3<dcmplx>::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
         MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
-    //! \brief The RAW-RASTER pair (doc/GPWPlan 0.5(f2)) -- \c G_ERI3::applyRaw / \c applyRawAdjoint.
+    //! \brief The RAW-RASTER pair (doc/GPWPlan 0.5(f2)) -- \c Projector3<dcmplx>::applyRaw / \c applyRawAdjoint.
     //! \c MakeRawCollocator: \f$D\to\rho_{DM}(r)\f$ on \a grid's raster -- the finest ladder level kept RAW
     //! (its analytic samples are pointwise \f$\ge 0\f$ to screening-\f$\varepsilon\f$ for PSD \f$D\f$), every
     //! other level transferred SPECTRALLY (zero-pad up / band-drop down, no ball restriction anywhere).

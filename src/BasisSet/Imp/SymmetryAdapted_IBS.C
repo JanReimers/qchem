@@ -84,10 +84,10 @@ rsmat_t SymmetryAdapted_IBS::Transform(const rsmat_t& Mraw) const
 }
 
 // Transform each fit-function matrix of a 3C tensor: O^T m O (linear in the AO 3C, like J/K).
-ERI3<double> SymmetryAdapted_IBS::TransformERI3(const ERI3<double>& raw) const
+Projector3<double> SymmetryAdapted_IBS::Transform3C(const Projector3<double>& raw) const
 {
-    ERI3<double> out; out.reserve(raw.size());
-    for (const auto& m : raw) out.push_back(Transform(m));         // dGamma x dGamma per fit fn
+    Projector3<double> out; out.dense.reserve(raw.dense.size());
+    for (const auto& m : raw.dense) out.dense.push_back(Transform(m));         // dGamma x dGamma per fit fn
     return out;
 }
 
@@ -95,8 +95,8 @@ ERI3<double> SymmetryAdapted_IBS::TransformERI3(const ERI3<double>& raw) const
 // the inherited Overlap3C/Repulsion3C accessors; they transform the raw basis's *cached* 3C (the
 // integral cache is re-entrant now, so the nested cached access is safe).  The raw 3C is therefore
 // computed once and shared across all irreps; only the cheap O^T (.) O transform is per irrep.
-ERI3<double> SymmetryAdapted_IBS::MakeOverlap3C  (const rFIT_SF_ABS& c) const { return TransformERI3(itsRawDFT->Overlap3C(c));   }
-ERI3<double> SymmetryAdapted_IBS::MakeRepulsion3C(const rFIT_CD_ABS& c) const { return TransformERI3(itsRawDFT->Repulsion3C(c)); }
+Projector3<double> SymmetryAdapted_IBS::MakeOverlap3C  (const rFIT_SF_ABS& c) const { return Transform3C(itsRawDFT->Overlap3C(c));   }
+Projector3<double> SymmetryAdapted_IBS::MakeRepulsion3C(const rFIT_CD_ABS& c) const { return Transform3C(itsRawDFT->Repulsion3C(c)); }
 
 // Fit bases are atom-centred (geometry, not symmetry), so reuse the raw basis's unchanged.
 rFIT_CD_ABS* SymmetryAdapted_IBS::CreateCDFitBasisSet (const Structure* cl, const qcMesh::MeshParams& mp) const { return itsRawDFT->CreateCDFitBasisSet(cl,mp);  }

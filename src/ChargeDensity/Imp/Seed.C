@@ -17,7 +17,7 @@ import qchem.ChargeDensity.Types;            // tobs_t<T>
 import qchem.ChargeDensity.NumericCD;// NumericCD (the molecular SAD seed, double only)
 import qchem.ChargeDensity.SeedCD;    // SeedCD (the plane-wave SAD seed, dcmplx only)
 import qchem.ChargeDensity.AtomicDensity;    // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
-import qchem.BasisSet.Band_FT_IBS;           // Band_FT_IBS (the PW block: CreateCDFitBasisSet for the seed)
+import qchem.BasisSet.Orbital_DFT_IBS;           // Orbital_DFT_IBS<dcmplx> (the PW block: CreateCDFitBasisSet for the seed)
 import qchem.BasisSet.Fit_IBS;               // cFIT_CD_ABS (the density-fit basis the PW seed builds through)
 import qchem.Mesh;                            // qcMesh::MeshParams (CreateCDFitBasisSet arg)
 import qchem.Structure;                       // Structure, Atom (atom Z + positions)
@@ -110,8 +110,8 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
             // Plane-wave (FT) SAD: rho-tilde(G) = Sum_atoms rho_atom(|G|) e^{-iG.R}, assembled by the basis.
             // A polarized run gets the two-channel seed (§10): Hund pairs + per-atom flips choose the basin.
             assert(st && "SAD plane-wave seed needs a Structure");
-            const auto* ftbs = dynamic_cast<const BasisSet::Band_FT_IBS*>((*bs)[0]);
-            assert(ftbs && "SAD plane-wave seed needs a Band_FT_IBS (plane-wave) basis");
+            const auto* ftbs = dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*bs)[0]);
+            assert(ftbs && "SAD plane-wave seed needs a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
             std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
             if (polarized) return new PolarizedSeedCD(fb, st);
             return new SeedCD(fb, st);
@@ -127,8 +127,8 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
         if constexpr (std::is_same_v<T,dcmplx>)
         {
             assert(st && "IonicSAD plane-wave seed needs a Structure");
-            const auto* ftbs = dynamic_cast<const BasisSet::Band_FT_IBS*>((*bs)[0]);
-            assert(ftbs && "IonicSAD plane-wave seed needs a Band_FT_IBS (plane-wave) basis");
+            const auto* ftbs = dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*bs)[0]);
+            assert(ftbs && "IonicSAD plane-wave seed needs a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
             std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
 
             std::map<size_t,int> targetByZ = IonicSADTargets(st, "LDA");   // the ONE resolution (S3 shares it)
