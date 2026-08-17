@@ -61,6 +61,15 @@ projectors and **the collocation streams** stay real; only H, C, D go complex.  
 layer is what dominates GPW, conflating the two types would needlessly double the cost of the
 expensive half the moment SOC arrives.
 
+**A THIRD axis, found by V1.1(i) (2026-08-16) — the FIT basis.**  `Orbital_DFT_IBS` is now
+`template <class T, class TFit = T>`, because the fit basis is a property of the RUN, not of a block:
+every call site builds it once from the whole `tBasisSet` and all irrep/k blocks share it.  So when
+`BlochQN::IsReal()` makes TRIM blocks real, those real blocks still share the run's COMPLEX G-space fit
+basis — `Orbital_DFT_IBS<double,dcmplx>`, a combination that had no spelling before.  Three of four
+combos are meaningful (`<double,double>`, `<dcmplx,dcmplx>`, `<double,dcmplx>`); `<dcmplx,double>` is
+never instantiated.  Note this is NOT the same split as basis-vs-working type below — it is orbital-vs-fit
+— so the full picture is three axes, and any two of them can differ.
+
 **Today they are welded:** `tSCFIterator<T>` takes `tbs_t<T>*` — one T for basis and everything
 downstream.  For the Bloch-only case that is harmless (basis real ⇒ working real), so the first
 increment need not decouple them.  **The standing instruction is only: do not harden it further.**
@@ -143,6 +152,13 @@ variation — worth remembering when scoping.
 
 ## 7. Prerequisites (doc/CleanupCandidates.md)
 
+**STATE 2026-08-17: THE GATE IS OPEN — every prerequisite is done.**  V1.1 ✅, V1.5 ✅, V1.6 ✅
+(`2d0f6982` + `bd6c648a`, which completed it at the composite/polarized level), V1.7 ✅, V1.8 ✅,
+V1.10 ✅, V1.11 ✅ (`43bbebad`..`2398dd07`, five increments), R2.16 ✅ (done 2026-08-07; only its header
+marker was missing).  Note V1.5 was never actually a GATE for this work — `G_FieldEvaluator` sits off
+the T axis (see below) — but it landed anyway, and its four client-named faces make the re-typing
+cheaper, so the distinction is now academic.
+
 Load-bearing, because they sit on the faces this restructures — finishing them SHRINKS this work,
 and none of them is invalidated by it (the type change alters child containers, not the method lists
 the ISP splits produce):
@@ -166,3 +182,9 @@ the ISP splits produce):
 
 NOT prerequisites (do not gate on them): R1.0b (shared-radial reader), R2.20 (oracle helpers in a
 test module), R2.5's remaining `exit(-1)` sites.
+
+**V1.1's question — *"can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`?"* — was ANSWERED on
+2026-08-16, and the answer was better than the question:** `Band_FT_IBS` is DELETED, `Projector3<T>`
+unifies the 3C tensor, and `Orbital_DFT_IBS<double,dcmplx>` is a live spelling.  That combination — a
+real TRIM block sharing the run's complex fit basis — is exactly this plan's case, so Step 3's basis
+un-pinning now starts from a merged DFT face rather than two classes.

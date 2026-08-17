@@ -76,10 +76,11 @@ template <class T, class CDV> static bool WholeSystemAll(const CDV& cds,
     return true;
 }
 
-template <class T> void tComposite_CD<T>::AccumulateDirectAll(std::vector<hmat_t<T>>& Jall) const
+template <class Comp> void Composite_HFSystem<Comp>::AccumulateDirectAll(std::vector<hmat_t<double>>& Jall) const
 {
+    const auto& itsCDs=self().itsCDs;
     assert(Jall.size()==itsCDs.size() && "Fock blocks must be 1:1 with the composite irrep densities");
-    if (WholeSystemAll<T>(itsCDs,Jall,false)) return;   // V1.31: one AO build + N slices, no pair loop
+    if (WholeSystemAll<double>(itsCDs,Jall,false)) return;   // V1.31: one AO build + N slices, no pair loop
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
         for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
@@ -88,10 +89,11 @@ template <class T> void tComposite_CD<T>::AccumulateDirectAll(std::vector<hmat_t
 
 // Exchange counterpart of AccumulateDirectAll (same canonical-pair structure; K(i,j)=K(j,i)^T).  Driven
 // per single-spin composite (exchange is same-spin), so the blocks it fills are one spin channel's K.
-template <class T> void tComposite_CD<T>::AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const
+template <class Comp> void Composite_HFSystem<Comp>::AccumulateExchangeAll(std::vector<hmat_t<double>>& Kall) const
 {
+    const auto& itsCDs=self().itsCDs;
     assert(Kall.size()==itsCDs.size() && "Fock blocks must be 1:1 with the composite irrep densities");
-    if (WholeSystemAll<T>(itsCDs,Kall,true)) return;    // V1.31: exchange is linear in D too
+    if (WholeSystemAll<double>(itsCDs,Kall,true)) return;    // V1.31: exchange is linear in D too
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
         for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
@@ -266,6 +268,7 @@ template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetRepulsion3C(const Basi
     return SymmetrizeGMap(rg, self().itsPointOps);   // IBZ star-average (no-op when {E})
 }
 
+template class Composite_HFSystem<tComposite_CD<double>>;
 template class tComposite_CD<double>;
 template class Composite_Fourier<tComposite_CD<dcmplx>>;
 template class tComposite_CD<dcmplx>;
