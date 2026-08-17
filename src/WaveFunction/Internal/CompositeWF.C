@@ -64,18 +64,18 @@ protected:
 private:
     typedef tIrrepWF<T> iwf_t;
     typedef std::unique_ptr<iwf_t> uiwf_t;
-    void FillOrbitalsAufbau(double mergeTol); //fill globally-lowest orbitals across all irreps
-    //! Smeared fill by RESERVOIR: solve one μ per set of blocks that share an electron reservoir -- across
-    //! the Bloch mesh when itsGlobalFermi (doc/GPWPlan1.md item 3), across SPIN when itsSpinsShareFermi.
-    void FillOrbitalsSharedFermi(double mergeTol);
+    //! RANKED integer fill of one reservoir (the molecular cross-irrep aufbau, one spin channel): pick which
+    //! orbitals across the reservoir's blocks are occupied, then fill each block with its resulting count.
+    void FillReservoirRanked    (const std::vector<iwf_t*>&, double mergeTol, bool useMOM);
+    //! Smeared fill of one reservoir: solve ONE μ over the reservoir's blocks -- across the Bloch mesh when
+    //! the partition spans spatial (doc/GPWPlan1.md item 3), across SPIN when it spans spin (free moment).
+    void FillReservoirAtSharedMu(const std::vector<iwf_t*>&, double mergeTol);
 
     const tbs_t<T>*              itsBS;
     const ElectronConfiguration* itsEC;
     qchem::Ortho                 itsBasisOrtho;    //S-orthogonalisation mode for the generalised eigenproblem
     double                       itsBasisOrthoTol; //near-null eigen/singular-value cutoff (Eigen/SVD; 0 = keep all)
-    bool                         itsAufbau;   //molecular aufbau across irreps (vs fixed per-irrep EC)
-    bool                         itsGlobalFermi; //metal: k-blocks share one μ (from ec->UsesGlobalFermi())
-    bool                         itsSpinsShareFermi; //the two spin channels share one μ (moment free)
+    ReservoirPartition           itsPartition;     //how the EC pools its electrons (V1.11 increment 2)
     double                       itsSmearingkT=0.0; //Fermi kT for this run (SetSmearing); the global fill needs it
     bool                         itsUseMOM=false;    //Maximum Overlap Method for this run (from SCFParams::UseMOM)
     bool                         itsMOMActive=false; //cross-irrep MOM armed (parked molecular path; set after 1st fill)

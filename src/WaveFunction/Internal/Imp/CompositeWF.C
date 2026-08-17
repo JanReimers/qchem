@@ -43,18 +43,19 @@ template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const Electr
     , itsEC(ec)
     , itsBasisOrtho(basisOrtho)
     , itsBasisOrthoTol(basisOrthoTol)
-    , itsAufbau(ec->UsesAufbau())
-    , itsGlobalFermi(ec->UsesGlobalFermi())
-    , itsSpinsShareFermi(ec->SpinsShareFermiLevel())
+    , itsPartition(ec->GetPartition())
     , itsAccelerator(acc)
 {
     assert(itsBS);
     assert(itsEC);
     assert(itsAccelerator);
     assert(itsBS->GetNumFunctions()>0);
-    assert(!(itsAufbau && itsGlobalFermi) && "aufbau and global-Fermi fills are mutually exclusive");
-    assert(!(itsAufbau && itsSpinsShareFermi) && "the cross-irrep aufbau fills each spin channel to its own "
-           "count -- it cannot share a reservoir between them");
+    // (The old aufbau-vs-globalFermi mutual exclusion is now UNREPRESENTABLE: ranked-vs-prescribed is one
+    //  flag on one partition, not two competing modes.)
+    assert(!(itsPartition.ranksIntegerFill && !itsPartition.spansSpatial)
+           && "a ranked integer fill IS a cross-block aufbau -- it needs a spatial-spanning reservoir");
+    assert(!(itsPartition.ranksIntegerFill && itsPartition.spansSpin)
+           && "the ranked (aufbau) fill fills each spin channel to its own count -- it cannot pool the channels");
 };
 
 // Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
@@ -275,175 +276,180 @@ template <class T> void tCompositeWF<T>::ReleaseMOMReference()
     for (auto& w : itsIWFs) w->ReleaseMOMReference();
 }
 
+// ONE loop over the RESERVOIR PARTITION (V1.11 increment 2, SCFStrategyPlan §5b): group the blocks by the
+// EC's partition, then fill each reservoir by the rule it supports.  This replaced a three-way decision
+// tree over three mode bools + two hand-rolled strategy methods.  The partition DEGRADES to per-block
+// singletons in two cases:
+//  * a HELD fill (direct-min line search): any cross-block re-decision -- ranked aufbau or a shared μ --
+//    is exactly what a held fill exists to prevent;
+//  * a μ-pooling (non-ranked) reservoir at kT=0.  At kT=0 the Fermi count is a STAIRCASE in μ: the
+//    requested N generally falls between two steps, and the bisector then returns a μ whose count is
+//    simply wrong -- silently, because the guarding assert inside is compiled out in Release.  Measured
+//    2026-08-10: the SEED fill of every global-μ metal ran this way and lost charge (Al: Σw·n = 2.25
+//    against Ntot=3; a shared-spin Mn sextet: 6 electrons in ↑, 0 in ↓, against Ntot=7 -- and the mixers
+//    were then seeded with those).  The seed fill hits it because the occupation RULE is configured in
+//    Iterate (SetSmearing) while the seed fill runs in the CONSTRUCTOR -- the two-phase hazard V1.11
+//    increment 3 closes (the policy will exist before the WF does).  Filling the prescribed per-block
+//    counts is also what a seed SHOULD do: there is no self-consistent spectrum yet to redistribute over.
 template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol, bool holdBlock)
 {
     itsELevels.clear();
     itsSpin_ELevels.clear();
-    // A HELD fill takes the per-irrep path unconditionally: the cross-irrep aufbau and the global-μ metal
-    // fill both re-rank ACROSS blocks, which is exactly the re-decision a held fill exists to prevent.
-    // Any SHARED reservoir -- across k (metal) or across spin (free moment) -- takes the μ-solving fill,
-    // but ONLY once smearing is on.  At kT=0 the Fermi count is a STAIRCASE in μ: the requested N generally
-    // falls between two steps, and the bisector then returns a μ whose count is simply wrong -- silently,
-    // because the guarding assert inside is compiled out in Release.  Measured 2026-08-10: the SEED fill of
-    // every global-μ metal ran this way and lost charge (Al: Σw·n = 2.25 against Ntot=3; a shared-spin Mn
-    // sextet: 6 electrons in ↑, 0 in ↓, against Ntot=7 -- and the mixers were then seeded with those).
-    // The seed fill hits it because the occupation RULE is configured in Iterate (SetSmearing) while the
-    // seed fill runs in the CONSTRUCTOR -- see doc/CleanupCandidates.md D11.  Filling the prescribed
-    // per-block counts is also what a seed SHOULD do: there is no self-consistent spectrum yet for a
-    // reservoir to redistribute over.
-    if (!holdBlock && itsSmearingkT>0.0 && (itsGlobalFermi || itsSpinsShareFermi))
-        { FillOrbitalsSharedFermi(mergeTol); return; }
-    if (!holdBlock && itsAufbau) { FillOrbitalsAufbau(mergeTol); return; }
-    for (auto& w:itsIWFs)                              // fixed per-irrep occupation (atoms etc.)
-    {
-        EnergyLevels els=w->FillOrbitals((double)itsEC->GetN(w->GetIrrep()), holdBlock);
-        itsELevels.merge(els,mergeTol);
-        Spin s=w->GetIrrep().ms;
-        itsSpin_ELevels[s].merge(els,mergeTol);
-    }
-}
-
-// Molecular aufbau: per spin channel, pick which orbitals across all irreps are occupied, then
-// fill each irrep with its resulting electron count.  The point-group irrep an occupied MO lands
-// in is an OUTPUT of the SCF (unlike an atom's fixed l-occupation).  Two selection rules:
-//   * plain aufbau (default): occupy the globally-lowest eigenvalues;
-//   * MOM (once the accelerator engages): occupy the orbitals with the largest overlap onto the
-//     previous iteration's occupied subspace, so a near-degenerate cross-irrep pair on the
-//     (non-physical) extrapolated Fock cannot flip the configuration.
-// Either way the per-irrep references are re-captured at the end for the next iteration's MOM.
-template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
-{
-    struct Slot { double key; iwf_t* w; double cap; };
-    // Snapshot MOM state at ENTRY: activating it below (after the reference capture) must not leak into
-    // this same call's LATER spin channels (each channel's reference is only captured at its own end).
-    const bool useMOM = itsMOMActive;
-    for (auto& [s, wfs] : itsSpinWFs)
-    {
-        if (wfs.empty()) continue;
-        double Nc = (double)itsEC->GetN(wfs.front()->GetIrrep());   // total electrons in this spin channel
-
-        std::map<Irrep,rvec_t> mom;                              // per-irrep MOM scores (empty if no ref), keyed by irrep
-        if (useMOM) for (auto w : wfs) mom[w->GetIrrep()]=w->MOMScores();
-
-        std::vector<Slot> slots;                                  // every orbital across the channel
-        for (auto w : wfs)
-        {
-            size_t idx=0;
-            const rvec_t& sc = mom[w->GetIrrep()];               // empty unless MOM active & referenced
-            for (auto o : w->GetOrbitals()->Iterate())
-            {
-                // MOM: higher overlap = occupy first (unreferenced/empty irrep scores 0).
-                // Aufbau: lower eigenvalue = occupy first, so key on -energy for a common "bigger wins".
-                double key = useMOM ? (idx<sc.size() ? sc[idx] : 0.0) : -o->GetEigenEnergy();
-                slots.push_back({key, w, (double)o->GetDegeneracy()});
-                ++idx;
-            }
-        }
-        std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.key>b.key;});
-
-        std::map<Irrep,double>& ne = itsAufbauNe[s];
-        for (auto w : wfs) ne[w->GetIrrep()]=0.0;
-        assert(ne.size()==wfs.size() && "aufbau key collision: irreps must be unique within a spin channel");
-        double rem = Nc;
-        for (const auto& sl : slots)                              // fill highest-priority first
-        {
-            if (rem<=0.0) break;
-            double take = std::min(sl.cap, rem);
-            ne[sl.w->GetIrrep()] += take;
-            rem -= take;
-        }
-
-        for (auto w : wfs)                                        // occupy + collect energy levels
-        {
-            EnergyLevels els = w->FillOrbitals(ne[w->GetIrrep()]);
-            itsELevels.merge(els, mergeTol);
-            itsSpin_ELevels[s].merge(els, mergeTol);
-        }
-        // (The per-irrep MOM reference is captured inside tIrrepWF::FillOrbitals above, so no capture here.)
-    }
-    // Molecular CROSS-irrep MOM (this function) is the PARKED path: no molecular test enables MOM, and it
-    // has NOT been re-validated against the new delayed reference capture (tIrrepWF captures at MOMStartIter,
-    // so useMOM would score against empty references for the first few fills).  The ACTIVE, tested path is
-    // the crystal's WITHIN-irrep MOM in tIrrepWF::FillOrbitals.  Kept here for the molecular hard cases.
-    if (itsUseMOM) itsMOMActive=true;
-}
-
-// SMEARED FILL BY RESERVOIR: one chemical potential per set of blocks that SHARE AN ELECTRON RESERVOIR.
-//
-// A μ is a property of a reservoir, not of a spin channel, and two things can widen the reservoir:
-//   * itsGlobalFermi (doc/GPWPlan1.md item 3) -- the Bloch k-blocks share it, so charge sloshes between
-//     k-points (a partially-filled band, which per-block fixed occupation cannot represent);
-//   * itsSpinsShareFermi -- the two SPIN channels share it, so the MOMENT is an output rather than a
-//     constraint.  Without it the fill conserves nUp and nDown separately, which means μ↑ ≠ μ↓ and an
-//     occupation is monotone in ε only WITHIN a channel: MnO run 29 ended with a ↓ level 27 mHa BELOW an ↑
-//     level and LESS occupied (f↓=0.51 at ε=0.2644 against f↑=0.52 at ε=0.2914).  Nothing is wrong with the
-//     arithmetic -- Δμ=27 mHa is simply an unrelieved driving force to move charge ↓→↑ that the constraint
-//     holds open, so the converged state is not the free minimum (user, 2026-08-10; §7 step 7).
-//
-// So: GROUP the blocks by reservoir, then run the same solve per group.  The key is (k unless k is shared) ×
-// (spin unless spin is shared); the BZ weight rides in the level capacity g ONLY when the reservoir actually
-// spans k, because that is exactly when GetN is a whole-mesh total rather than a per-block count.  The SAME
-// unweighted qchem::Orbitals::FermiLevel bisector serves every case, and one block with w=1 reduces to the
-// per-block Fermi exactly.
-template <class T> void tCompositeWF<T>::FillOrbitalsSharedFermi(double mergeTol)
-{
-    assert(itsSmearingkT>0.0 && "a shared-μ fill needs SmearingkT>0: integer fills have nothing to relax with");
-    // Reservoir key: the spatial symmetry's SequenceIndex (0 when k is shared) + the spin (0 when spin is).
-    // Not an Irrep, and not the sym POINTER: Irrep's ordering dereferences sym, so the "no spatial identity"
-    // half of this key has no Irrep spelling.
+    const ReservoirPartition p=itsPartition;
+    const bool degrade = holdBlock || (!p.ranksIntegerFill && itsSmearingkT<=0.0);
+    // Reservoir key: the spatial symmetry's SequenceIndex (0 when the spatial blocks pool) + the spin
+    // (0 when the channels pool).  Not an Irrep, and not the sym POINTER: Irrep's ordering dereferences
+    // sym, so the "no spatial identity" half of this key has no Irrep spelling.
     std::map<std::pair<size_t,int>,std::vector<iwf_t*>> reservoirs;
     for (auto& w : itsIWFs)
     {
         const Irrep& irr=w->GetIrrep();
-        reservoirs[{ itsGlobalFermi     ? 0 : irr.sym->SequenceIndex(),
-                     itsSpinsShareFermi ? 0 : (int)irr.ms+1 }].push_back(w.get());
+        reservoirs[{ (p.spansSpatial && !degrade) ? 0 : irr.sym->SequenceIndex(),
+                     (p.spansSpin    && !degrade) ? 0 : (int)irr.ms+1 }].push_back(w.get());
     }
-    const bool trace=(bool)std::getenv("GPW_METALTRACE");
+    // Snapshot MOM state ONCE at entry: a ranked reservoir activating it below (after its reference
+    // capture) must not leak into this same call's LATER reservoirs (each channel's reference is only
+    // captured at its own end).
+    const bool useMOM = itsMOMActive;
     for (auto& [key,wfs] : reservoirs)
     {
-        if (wfs.empty()) continue;
-        // The reservoir's electron count: each spin CHANNEL present contributes its count once.  (With a
-        // shared k-mesh GetN is already the whole-mesh total, so summing per block would over-count by n_k.)
-        double Ntot=0.0;
-        std::set<Spin> counted;
-        for (auto w : wfs) if (counted.insert(w->GetIrrep().ms).second) Ntot+=(double)itsEC->GetN(w->GetIrrep());
-
-        // Aggregate the reservoir's levels: bare energy ε and capacity g (BZ-weighted only across k).
-        size_t ntot=0;
-        for (auto w : wfs) ntot += w->GetOrbitals()->GetNumOrbitals();
-        rvec_t e(ntot), g(ntot);
-        size_t idx=0;
-        for (auto w : wfs)
-        {
-            const double wk=itsGlobalFermi ? w->GetIrrep().sym->GetWeight() : 1.0;  // the weight D carries too
-            for (auto o : w->GetOrbitals()->Iterate())
+        assert(!wfs.empty());
+        if      (!degrade && p.ranksIntegerFill)                    FillReservoirRanked(wfs, mergeTol, useMOM);
+        else if (!degrade && (p.spansSpatial || p.spansSpin))       FillReservoirAtSharedMu(wfs, mergeTol);
+        else
+            for (auto w : wfs)   // per-block prescribed count: atoms; held fills; μ-partitions at kT=0
             {
-                e[idx]=o->GetEigenEnergy();
-                g[idx]=wk*(double)o->GetDegeneracy();
-                ++idx;
+                EnergyLevels els=w->FillOrbitals((double)itsEC->GetN(w->GetIrrep()), holdBlock);
+                itsELevels.merge(els,mergeTol);
+                itsSpin_ELevels[w->GetIrrep().ms].merge(els,mergeTol);
             }
-        }
-        const double mu=qchem::Orbitals::FermiLevel(e,g,Ntot,itsSmearingkT);   // ONE μ for this reservoir
-
-        // Instrument GPW_METALTRACE (cf. GPW_GDMTRACE): μ and the per-block electron count, so the charge
-        // sloshing is visible -- between k-points, and now between SPIN CHANNELS.  Off by default.
-        if (trace) std::cout<<"[metal] μ="<<mu<<" kT="<<itsSmearingkT<<" Ntot="<<Ntot<<"  per-block n:\n";
-        double wsum=0.0;
-        for (auto w : wfs)                                               // set every block at the shared μ
-        {
-            EnergyLevels els=w->FillOrbitalsAtMu(mu);
-            if (trace)
-            {
-                double nk=0.0; for (auto o:w->GetOrbitals()->Iterate()) nk+=o->GetOccupation();
-                const double wk=itsGlobalFermi ? w->GetIrrep().sym->GetWeight() : 1.0;
-                wsum+=wk*nk;
-                std::cout<<"[metal]   block="<<w->GetIrrep()<<" w="<<wk<<" n="<<nk<<" (w·n="<<wk*nk<<")\n";
-            }
-            itsELevels.merge(els,mergeTol);
-            itsSpin_ELevels[w->GetIrrep().ms].merge(els,mergeTol);
-        }
-        if (trace) std::cout<<"[metal] Σ w·n = "<<wsum<<"\n";
     }
+    // Molecular CROSS-irrep MOM (the ranked fill's) is the PARKED path: no molecular test enables MOM, and
+    // it has NOT been re-validated against the new delayed reference capture (tIrrepWF captures at
+    // MOMStartIter, so useMOM would score against empty references for the first few fills).  The ACTIVE,
+    // tested path is the crystal's WITHIN-irrep MOM in tIrrepWF::FillOrbitals.  Kept for the hard cases.
+    if (!degrade && p.ranksIntegerFill && itsUseMOM) itsMOMActive=true;
+}
+
+// RANKED integer fill of one reservoir -- the molecular aufbau, one spin channel (a ranked reservoir never
+// pools spins; asserted at construction).  Pick which orbitals across the reservoir's blocks are occupied,
+// then fill each block with its resulting electron count.  The point-group irrep an occupied MO lands in
+// is an OUTPUT of the SCF (unlike an atom's fixed l-occupation).  Two selection rules:
+//   * plain aufbau (default): occupy the globally-lowest eigenvalues;
+//   * MOM (once armed): occupy the orbitals with the largest overlap onto the previous iteration's
+//     occupied subspace, so a near-degenerate cross-irrep pair on the (non-physical) extrapolated Fock
+//     cannot flip the configuration.
+// Either way the per-irrep references are re-captured at the end for the next iteration's MOM.
+template <class T> void tCompositeWF<T>::FillReservoirRanked(const std::vector<iwf_t*>& wfs, double mergeTol,
+                                                             bool useMOM)
+{
+    struct Slot { double key; iwf_t* w; double cap; };
+    assert(!wfs.empty());
+    const Spin s = wfs.front()->GetIrrep().ms;
+    double Nc = (double)itsEC->GetN(wfs.front()->GetIrrep());   // total electrons in this spin channel
+
+    std::map<Irrep,rvec_t> mom;                              // per-irrep MOM scores (empty if no ref), keyed by irrep
+    if (useMOM) for (auto w : wfs) mom[w->GetIrrep()]=w->MOMScores();
+
+    std::vector<Slot> slots;                                  // every orbital across the channel
+    for (auto w : wfs)
+    {
+        size_t idx=0;
+        const rvec_t& sc = mom[w->GetIrrep()];               // empty unless MOM active & referenced
+        for (auto o : w->GetOrbitals()->Iterate())
+        {
+            // MOM: higher overlap = occupy first (unreferenced/empty irrep scores 0).
+            // Aufbau: lower eigenvalue = occupy first, so key on -energy for a common "bigger wins".
+            double key = useMOM ? (idx<sc.size() ? sc[idx] : 0.0) : -o->GetEigenEnergy();
+            slots.push_back({key, w, (double)o->GetDegeneracy()});
+            ++idx;
+        }
+    }
+    std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.key>b.key;});
+
+    std::map<Irrep,double>& ne = itsAufbauNe[s];
+    for (auto w : wfs) ne[w->GetIrrep()]=0.0;
+    assert(ne.size()==wfs.size() && "aufbau key collision: irreps must be unique within a spin channel");
+    double rem = Nc;
+    for (const auto& sl : slots)                              // fill highest-priority first
+    {
+        if (rem<=0.0) break;
+        double take = std::min(sl.cap, rem);
+        ne[sl.w->GetIrrep()] += take;
+        rem -= take;
+    }
+
+    for (auto w : wfs)                                        // occupy + collect energy levels
+    {
+        EnergyLevels els = w->FillOrbitals(ne[w->GetIrrep()]);
+        itsELevels.merge(els, mergeTol);
+        itsSpin_ELevels[s].merge(els, mergeTol);
+    }
+    // (The per-irrep MOM reference is captured inside tIrrepWF::FillOrbitals above, so no capture here.)
+}
+
+// SMEARED fill of one reservoir: ONE chemical potential over the blocks that share the electron reservoir.
+//
+// A μ is a property of a reservoir, not of a spin channel, and two things can widen the reservoir:
+//   * spansSpatial (doc/GPWPlan1.md item 3) -- the Bloch k-blocks share it, so charge sloshes between
+//     k-points (a partially-filled band, which per-block fixed occupation cannot represent);
+//   * spansSpin -- the two SPIN channels share it, so the MOMENT is an output rather than a constraint.
+//     Without it the fill conserves nUp and nDown separately, which means μ↑ ≠ μ↓ and an occupation is
+//     monotone in ε only WITHIN a channel: MnO run 29 ended with a ↓ level 27 mHa BELOW an ↑ level and
+//     LESS occupied (f↓=0.51 at ε=0.2644 against f↑=0.52 at ε=0.2914).  Nothing is wrong with the
+//     arithmetic -- Δμ=27 mHa is simply an unrelieved driving force to move charge ↓→↑ that the constraint
+//     holds open, so the converged state is not the free minimum (user, 2026-08-10; §7 step 7).
+//
+// The BZ weight rides in the level capacity g ONLY when the reservoir actually spans the mesh, because
+// that is exactly when GetN is a whole-mesh total rather than a per-block count.  The SAME unweighted
+// qchem::Orbitals::FermiLevel bisector serves every case, and one block with w=1 reduces to the per-block
+// Fermi exactly.
+template <class T> void tCompositeWF<T>::FillReservoirAtSharedMu(const std::vector<iwf_t*>& wfs, double mergeTol)
+{
+    assert(itsSmearingkT>0.0 && "a shared-μ fill needs SmearingkT>0: integer fills have nothing to relax with");
+    assert(!wfs.empty());
+    const bool trace=(bool)std::getenv("GPW_METALTRACE");
+    // The reservoir's electron count: each spin CHANNEL present contributes its count once.  (With a
+    // shared k-mesh GetN is already the whole-mesh total, so summing per block would over-count by n_k.)
+    double Ntot=0.0;
+    std::set<Spin> counted;
+    for (auto w : wfs) if (counted.insert(w->GetIrrep().ms).second) Ntot+=(double)itsEC->GetN(w->GetIrrep());
+
+    // Aggregate the reservoir's levels: bare energy ε and capacity g (BZ-weighted only across the mesh).
+    size_t ntot=0;
+    for (auto w : wfs) ntot += w->GetOrbitals()->GetNumOrbitals();
+    rvec_t e(ntot), g(ntot);
+    size_t idx=0;
+    for (auto w : wfs)
+    {
+        const double wk=itsPartition.spansSpatial ? w->GetIrrep().sym->GetWeight() : 1.0;  // the weight D carries too
+        for (auto o : w->GetOrbitals()->Iterate())
+        {
+            e[idx]=o->GetEigenEnergy();
+            g[idx]=wk*(double)o->GetDegeneracy();
+            ++idx;
+        }
+    }
+    const double mu=qchem::Orbitals::FermiLevel(e,g,Ntot,itsSmearingkT);   // ONE μ for this reservoir
+
+    // Instrument GPW_METALTRACE (cf. GPW_GDMTRACE): μ and the per-block electron count, so the charge
+    // sloshing is visible -- between k-points, and between SPIN CHANNELS.  Off by default.
+    if (trace) std::cout<<"[metal] μ="<<mu<<" kT="<<itsSmearingkT<<" Ntot="<<Ntot<<"  per-block n:\n";
+    double wsum=0.0;
+    for (auto w : wfs)                                               // set every block at the shared μ
+    {
+        EnergyLevels els=w->FillOrbitalsAtMu(mu);
+        if (trace)
+        {
+            double nk=0.0; for (auto o:w->GetOrbitals()->Iterate()) nk+=o->GetOccupation();
+            const double wk=itsPartition.spansSpatial ? w->GetIrrep().sym->GetWeight() : 1.0;
+            wsum+=wk*nk;
+            std::cout<<"[metal]   block="<<w->GetIrrep()<<" w="<<wk<<" n="<<nk<<" (w·n="<<wk*nk<<")\n";
+        }
+        itsELevels.merge(els,mergeTol);
+        itsSpin_ELevels[w->GetIrrep().ms].merge(els,mergeTol);
+    }
+    if (trace) std::cout<<"[metal] Σ w·n = "<<wsum<<"\n";
 }
 
 template class tCompositeWF<double>;
