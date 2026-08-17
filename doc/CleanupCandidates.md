@@ -2044,19 +2044,12 @@ MnO campaign proceeds undisturbed in qchem6.
 
 ### V3 — repro / campaign bugs (Spin-SAD, 2026-08-04)
 
-- **V3.1 Polarized ATOMIC solver fails on an empty minority channel** — `AtomCalculation(11, 0,
-  {.pseudopotential=true, .valence=1, .pol=Polarized})` (Na q1 doublet: nUp=1, nDown=0) dies with
-  "Invalid setup of symmetric matrix" before the first Fock.  Same failure class as the tier-4b
-  finding (`cSCFAcceleratorDIIS::GetNProj` segfault on an empty EC).  Worked around for the Na
-  library entry (1 valence electron ⇒ the pair is EXACT without an SCF, hand-constructed in
-  atomic_valence_densities.json), but any future fully-polarized one-electron species hits it
-  again — the valgen `--spin` path should either fix the empty-channel atom SCF or synthesize the
-  exact pair itself when nDown==0.
-- **V3.2 Unoccupied-l shells break the atom SCF** — the same Na valgen run ALSO failed when the
-  recipe carried the (unoccupied) p window from valence_lowq_sr (`--shell 1:2:0.09:0.3`): "Invalid
-  setup of symmetric matrix" even unpolarized-adjacent.  GenerateValenceBasis documents "higher-l
-  polarization shells ride along un-validated (as intended)" — but at least the polarized
-  GenerateSeedDensity path chokes on them.  Reproduce + fix or document the restriction.
+- **V3.1 ✅ CLOSED 2026-08-17 — NO LONGER REPRODUCES (dissolved in the interim; V1.11 the likely
+  cure).**  Regression anchors added: `ValenceBasisGen.SodiumSeedDensitySpinResolved` +
+  `Slater_Low/A_HF_P.Energy/Z1` (UHF H, exact −0.5).  **→ doc/CleanupHistory.md**
+- **V3.2 ✅ CLOSED 2026-08-17 — NO LONGER REPRODUCES (same verification pass).**  Anchors:
+  `ValenceBasisGen.SodiumSeedDensity{UnpolarizedWithPolarizationShell,SpinResolvedWithPolarizationShell}`.
+  **→ doc/CleanupHistory.md**
 
 ### V4 — watch triggers (act when the trigger appears)
 
