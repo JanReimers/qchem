@@ -1110,11 +1110,16 @@ MnO campaign proceeds undisturbed in qchem6.
   strategy methods collapsed into per-reservoir dispatch (ranked / shared-μ / per-block prescribed, with
   the held-fill + kT=0-staircase degrade documented in place).  `ranksIntegerFill` is explicitly
   transitional — it moves into the Integer occupancy policy at increment 3.
-  REMAINING increments (§5b): (3) `OccupationPolicy` + iterator slot, WF face sheds
-  `SetMOM`/`SetSmearing`/`Adopt`/`Release`/`GetEntropyTerm` — also closes the MEASURED
-  seed-fill-before-SetSmearing charge-loss hazard (the D11 note in CompositeWF.C); (4) collapse the five
-  `TakeElectrons*` virtuals into fill(budget-or-μ, ranking); (5) `Held` policy replaces the `holdBlock`
-  bool.  Each increment bit-identical; smeared/metal anchors guard did-E-move.
+  Increment 3 ✅ `841eadf2`: `OccupationPolicy<T>` in qcElConfig (the D6 home) — the WF face sheds all
+  five occupation members, the iterator owns the slot, and the seed fill runs on the policy's EXPLICIT
+  default state (the D11 two-phase hazard closed structurally).  **DAG lesson worth keeping: qcOrbitals
+  sits ABOVE qcElConfig, so the policy reads orbitals through an `OrbitalView<T>` DIP face it owns and
+  `TOrbitals` implements from above — the naive qcElConfig→qcOrbitals link is a linker-rejected cycle,
+  found on contact.**  The iterator's public `AdoptMOMReference` face is unchanged (tests untouched).
+  REMAINING increments (§5b): (4) collapse the five `TakeElectrons*` virtuals into
+  fill(budget-or-μ, ranking) — the §5b two-axis form emerges, the transitional `ds_t` alias and the
+  policy's config-getters die; (5) `Held` policy replaces the `holdBlock` bool.  Each increment
+  bit-identical; smeared/metal anchors guard did-E-move.
   *(original text follows)*
   (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`
   (SCFWaveFunction.C:39-76): run-config known at construction time delivered by post-ctor setters;
