@@ -271,7 +271,18 @@ long MnO runs until 1–3 and 5 land.
    entirely real.  4× the flops and 2× the Φ memory are being spent on exact zeros there.
 2. **Close the RAM gap vs CP2K.**  Same lever: recompute fast enough → the stream cache tier
    shrinks → RAM falls with it (CP2K caches nothing; its kernels are just fast).
-3. **Understand why CP2K holds the FULL 136-function span and qchem cannot.**  Hypothesis (banked,
+3. **Understand why CP2K holds the FULL 136-function span and qchem cannot.**  ⛔ **THE SCREEN-DISCIPLINE
+   HYPOTHESIS IS REFUTED (run 64, 2026-08-17, doc/logs/mno_probe_run64_fullspan_tighteps.log).**  THE
+   EXPERIMENT BELOW WAS RUN: 132-of-136 span (tol 1e-3 dropped 4 AOs), eps 1e-12 both screens, 4 iters
+   — and it dove anyway, to E = −82.19, i.e. 20.7 Ha BELOW CP2K's variational −61.47 on a SUBSET of
+   CP2K's own span (unphysical, same argument as run 58's −67.28).  Tighter eps is NOT the cure, so the
+   next hypothesis has to come from somewhere else: candidates are the SVD/eigen-consistent F/S
+   filtering the run-58 note parked, the symmetry-INEQUIVARIANT AO drop (run 64 dropped indices
+   11/9/115/1 individually — see the vet-stage item above), and the possibility that the near-null
+   directions need projecting out of F as well as S rather than merely being screened around.
+   Re-run note: set `GPW_MNO_VERBOSE=1` (GPW_REPORT=1 gives the ledger but NOT the per-iteration table,
+   so run 64 cannot show whether it dove or stalled).  Analysis in doc/GPWPlan1.md "Run 64".
+   *(original hypothesis, kept for the record)* Hypothesis (banked,
    testable): screen discipline — CP2K's 1e-14 eps keeps the F/S inconsistency below what the
    λ~2e-5 near-null modes can amplify (CP2K itself collapsed 3.5 Ha at loose eps — the retracted
    SR oracle).  THE EXPERIMENT: v2 span, MNO_ORTHO_TOL=1e-3 (zero drops), GPW_SCREEN_EPS=
