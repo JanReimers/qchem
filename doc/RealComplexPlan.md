@@ -152,10 +152,12 @@ variation — worth remembering when scoping.
 
 ## 7. Prerequisites (doc/CleanupCandidates.md)
 
-**STATE 2026-08-17: the gate is effectively OPEN.**  V1.6 ✅ (`2d0f6982` + `bd6c648a`, which completed
-it at the composite/polarized level), V1.7 ✅, V1.8 ✅, V1.10 ✅ (`2d0f6982`), V1.11 ✅ (`6824c73c`),
-R2.16 ✅ (done 2026-08-07; its header marker was just missing).  V1.5 is NOT a prerequisite (below).
-V1.1 is partial and is the ONE that still touches this work — see the note at the end of this section.
+**STATE 2026-08-17: THE GATE IS OPEN — every prerequisite is done.**  V1.1 ✅, V1.5 ✅, V1.6 ✅
+(`2d0f6982` + `bd6c648a`, which completed it at the composite/polarized level), V1.7 ✅, V1.8 ✅,
+V1.10 ✅, V1.11 ✅ (`43bbebad`..`2398dd07`, five increments), R2.16 ✅ (done 2026-08-07; only its header
+marker was missing).  Note V1.5 was never actually a GATE for this work — `G_FieldEvaluator` sits off
+the T axis (see below) — but it landed anyway, and its four client-named faces make the re-typing
+cheaper, so the distinction is now academic.
 
 Load-bearing, because they sit on the faces this restructures — finishing them SHRINKS this work,
 and none of them is invalidated by it (the type change alters child containers, not the method lists
@@ -181,9 +183,8 @@ the ISP splits produce):
 NOT prerequisites (do not gate on them): R1.0b (shared-radial reader), R2.20 (oracle helpers in a
 test module), R2.5's remaining `exit(-1)` sites.
 
-**V1.1's remainder is OWNED HERE, and it belongs to Step 3, not Step 1 or 2.**  The item ends with
-*"ONE question remains: can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`? Plan-level; owner is
-doc/RealComplexPlan.md."*  That question IS the Step-3 basis un-pinning seen from the other side — a
-`GPW_IBS` that can instantiate real needs the DFT face it derives from to be the one merged class, not
-two.  V1.1(ii)'s open half (`ERI3` vs `G_ERI3` return types) is the same knot.  So: Steps 1 and 2 do not
-wait on V1.1; Step 3 answers it.
+**V1.1's question — *"can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`?"* — was ANSWERED on
+2026-08-16, and the answer was better than the question:** `Band_FT_IBS` is DELETED, `Projector3<T>`
+unifies the 3C tensor, and `Orbital_DFT_IBS<double,dcmplx>` is a live spelling.  That combination — a
+real TRIM block sharing the run's complex fit basis — is exactly this plan's case, so Step 3's basis
+un-pinning now starts from a merged DFT face rather than two classes.
