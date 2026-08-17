@@ -92,8 +92,6 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(OccupationPolic
     // frontier here IS near-degenerate, so no integer configuration is stable; the fractional fill is.
     // (This solves THIS block's OWN μ -- the insulator / Γ path; a metal solves ONE μ across the mesh via
     // the composite's shared-μ reservoir fill -> FillOrbitalsAtMu, doc/GPWPlan1.md item 3.)
-    const double kT     =pol.SmearingkT();
-    const double penalty=pol.MOMSmearPenalty();
     // HELD FILL (the direct minimiser's, see the declaration): occupy the leading \a ne orbitals AS STORED,
     // which is exactly the geodesic's own occupied block, and take neither the Fermi nor the MOM path.  Both
     // of those RE-DECIDE the occupied set -- μ ranks over the whole spectrum, MOM ranks by overlap -- and a
@@ -104,7 +102,8 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(OccupationPolic
     // NB entropy is identically zero here, so a held leg minimises E and NOT the Mermin free energy A=E−TS.
     if (holdBlock)
     {
-        auto r=itsOrbitals->TakeElectrons(ne);
+        qchem::BlockFill held; held.budget=ne;              // stored-order integer fill == the held block
+        auto r=itsOrbitals->Fill(held);                     // (increment 5 makes this the Held policy)
         itsDPrime=std::move(r.DPrime);
         assert(r.electronsLeft==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
         itsELevels.clear();
@@ -135,54 +134,23 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(OccupationPolic
         cout<<"   (cut gap s["<<(size_t)ne-1<<"]-s["<<(size_t)ne<<"]="
             <<((size_t)ne<sorted.size() ? sorted[(size_t)ne-1]-sorted[(size_t)ne] : 0.0)<<")"<<endl;
     }
-    if (kT>0.0)
+    // THE fill (V1.11 inc 4): the POLICY decides the occupancy rule + ranking (the §5b two-axis product,
+    // incl. the MOM-masked-Fermi Λ(1−s)² shift and its calibration lore -- see DecideBlockFill); the
+    // orbitals execute.  This 4-way branch used to live here.
     {
-        // MOM-masked Fermi (doc/GPWPlan1.md 4b): once a reference exists AND a penalty is set, push low-overlap
-        // ghosts UP in effective energy (ε_i + Λ(1−s_i)²) so they stay empty BY CHARACTER, while the retained
-        // high-overlap physical states smear by their TRUE energy.  s_i∈[0,1] is the overlap onto the reference
-        // occupied subspace.  Λ=0 (or no reference yet) => plain energy Fermi.
-        //
-        // HOW TO SCALE Λ (measured on MnO 2026-08-08, doc/SymmetryUpgradePlan.md §7 step 7 -- and NOT what
-        // the idealised s≈0.9-vs-s≈0.1 picture suggests).  Real scores do NOT split into two clean camps:
-        // MnO's first fill runs 0.95 down to 0.69 with a CUT GAP of 0.0147 between the last occupied and the
-        // first virtual.  So the shift that separates them is Λ·[(1−s_lo)²−(1−s_hi)²] ≈ 0.0086·Λ -- 2.6 mHa
-        // at Λ=0.3, against a raw-ε spread of 0.2-1 Ha.  **Λ scaled to the TIE does nothing at all** (Λ=0.3
-        // measured indistinguishable from MOM off).  What a working Λ buys is the shift on genuinely FOREIGN
-        // states (s≈0.5 ⇒ Λ(0.51)² ≈ 0.39 Ha at Λ=1.5), which is what keeps a diving foreign state out.
-        // So: scale Λ to the PHYSICAL-vs-FOREIGN score gap, not to the frontier tie -- and note this path and
-        // the cold one below are DIFFERENT INSTRUMENTS, not two strengths of one.  The cold path RANKS by s,
-        // so a 1.5% score difference decides the fill; this path SHIFTS, so only differences worth more than
-        // Λ in energy decide anything.  QCHEM_MOM_SCORES prints the distribution to calibrate against.
-        if (haveRef && penalty>0.0)
-        {
-            rvec_t s=pol.Scores(itsIrrep,*itsOrbitals), eShift(s.size());
-            for (size_t i=0;i<s.size();++i){ double d=1.0-s[i]; eShift[i]=penalty*d*d; }
-            auto r=itsOrbitals->TakeElectronsFermi(ne,kT,eShift);
-            pol.AccumulateEntropy(itsIrrep.sym->GetWeight()*r.minusTS);  // Σ_k w_k(−TS_k), beside the BZ-weighted E
-            itsDPrime=std::move(r.DPrime);
-        }
-        else
-        {
-            auto r=itsOrbitals->TakeElectronsFermi(ne,kT);
-            pol.AccumulateEntropy(itsIrrep.sym->GetWeight()*r.minusTS);
-            itsDPrime=std::move(r.DPrime);
-        }
+        auto r=itsOrbitals->Fill(pol.DecideBlockFill(itsIrrep,*itsOrbitals,ne));
+        pol.AccumulateEntropy(itsIrrep.sym->GetWeight()*r.minusTS);  // Σ_k w_k(−TS_k), beside the BZ-weighted E
+        itsDPrime=std::move(r.DPrime);
+        assert(r.electronsLeft==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
         // GPW_METALTRACE: report THIS block's own μ, so a constrained (fixed nUp/nDn) run is as legible as a
         // shared-reservoir one.  Δμ between the channels is the diagnostic: two μ are the Lagrange multipliers
         // of the two count constraints, so their difference is the force the constraint is holding -- and for
         // a collinear AFM at nUp=nDn it must VANISH, since the sublattice-exchanging spin flip makes the two
         // spectra unitarily equivalent.  NB only sharp under FRACTIONAL occupations; with integer fills μ is
         // pinned no better than the channel's HOMO-LUMO gap.
-        if (std::getenv("GPW_METALTRACE"))
-            std::cout<<"[fill]   block="<<itsIrrep<<" ne="<<ne<<" kT="<<kT
+        if (pol.SmearingkT()>0.0 && std::getenv("GPW_METALTRACE"))
+            std::cout<<"[fill]   block="<<itsIrrep<<" ne="<<ne<<" kT="<<pol.SmearingkT()
                      <<" OWN μ="<<itsOrbitals->GetChemicalPotential()<<std::endl;
-    }
-    else
-    {
-        auto r=haveRef ? itsOrbitals->TakeElectrons(ne, pol.Scores(itsIrrep,*itsOrbitals))
-                       : itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
-        itsDPrime=std::move(r.DPrime);
-        assert(r.electronsLeft==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
     }
 
     // List of energy levels.  Degenerate levels should get merged.
@@ -208,7 +176,8 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitalsAtMu(OccupationP
 {
     assert(pol.SmearingkT()>0.0 && "FillOrbitalsAtMu is a smeared (metal) path -- SmearingkT must be > 0");
     for (auto o:itsOrbitals->Iterate()) o->Empty();
-    auto r=itsOrbitals->SetFermiOccupationsAtMu(mu,pol.SmearingkT(),rvec_t());
+    qchem::BlockFill f; f.rule=qchem::BlockFill::Rule::FermiAtMu; f.mu=mu; f.kT=pol.SmearingkT();
+    auto r=itsOrbitals->Fill(f);
     pol.AccumulateEntropy(itsIrrep.sym->GetWeight()*r.minusTS);
     itsDPrime=std::move(r.DPrime);
     itsELevels.clear();

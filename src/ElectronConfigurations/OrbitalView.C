@@ -26,4 +26,22 @@ public:
     virtual vec_t<T> CoeffPrime (size_t i) const=0;   //!< orthonormal-basis coefficients C'
 };
 
+//! \brief ONE block fill, as DATA -- the §5b two axes (V1.11 increment 4).  The occupancy RULE (Integer
+//! count-down / Fermi at this block's own μ / Fermi at a caller-supplied shared μ) times the
+//! effective-energy RANKING (\c Integer: an occupy-first priority order, empty = stored/energy order --
+//! the aufbau; \c Fermi*: a per-orbital shift added to ε, empty = bare -- the MOM mask).  The
+//! \c OccupationPolicy PRODUCES this (\c DecideBlockFill: occupancy from the run config, ranking from the
+//! block's MOM state); \c Orbitals::TOrbitals<T>::Fill EXECUTES it.  The five old \c TakeElectrons*
+//! virtuals -- one added per policy, the OCP violation V1.11 named -- were exactly the meaningful points
+//! of this product.  T-free: the ranking/shift is real whatever the orbital scalar type.
+struct BlockFill
+{
+    enum class Rule { Integer, Fermi, FermiAtMu };
+    Rule   rule=Rule::Integer;
+    double budget=0.0;   //!< the block's electron count (Integer/Fermi; the reservoir distribution's output)
+    double mu=0.0;       //!< the shared chemical potential (FermiAtMu only -- solved over the whole reservoir)
+    double kT=0.0;       //!< Fermi temperature, Hartree (Fermi/FermiAtMu; >0)
+    rvec_t ranking;      //!< Integer: priority (empty = stored order); Fermi*: eShift (empty = bare ε)
+};
+
 } // namespace qchem

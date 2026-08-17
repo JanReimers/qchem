@@ -27,11 +27,7 @@ public:
     virtual ~TOrbitalsImp();
 
 
-    virtual ds_t      TakeElectrons      (double ne      )      ;
-    virtual ds_t      TakeElectrons      (double ne, const rvec_t& priority);
-    virtual ds_t      TakeElectronsFermi (double ne, double kT);
-    virtual ds_t      TakeElectronsFermi (double ne, double kT, const rvec_t& eShift);
-    virtual ds_t      SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift);
+    virtual ds_t      Fill(const qchem::BlockFill&) override;   // the ONE fill primitive (V1.11 inc 4)
     virtual double    GetChemicalPotential   () const {return itsMu;}
     virtual size_t    GetNumOrbitals     (               ) const;
     virtual size_t    GetNumOccOrbitals  (               ) const;
@@ -58,6 +54,12 @@ public:
     virtual std::ostream&          Write(std::ostream&) const;
 
 private:
+    // The five ex-TakeElectrons* bodies, now Fill's private realizations (one per meaningful point of the
+    // BlockFill product -- V1.11 inc 4; they stopped being face members, not being code).
+    ds_t TakeElectrons      (double ne);
+    ds_t TakeElectrons      (double ne, const rvec_t& priority);
+    ds_t TakeElectronsFermi (double ne, double kT, const rvec_t& eShift);
+    ds_t SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift);
     TOrbitalsImp(const TOrbitalsImp&);
     ds_t BuildDensity(double ne);   //!< build D/D' from the occupied orbitals (shared by both TakeElectrons)
 

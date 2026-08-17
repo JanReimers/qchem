@@ -46,10 +46,18 @@ public:
     void Configure(bool useMOM, int momStartIter, double kT, double momPenalty)
     { itsUseMOM=useMOM; itsMOMStartIter=momStartIter; itsSmearingkT=kT; itsMOMSmearPenalty=momPenalty; }
 
-    // ---- run configuration (consulted by the fill mechanics until increment 4 migrates them here) ----
+    //! \brief THE per-block fill decision (V1.11 inc 4; the §5b two-axis product): the occupancy rule from
+    //! the run configuration (kT), the effective-energy ranking from this block's MOM state.  \a ne is the
+    //! block's electron budget -- the reservoir distribution's output.  The orbitals EXECUTE the returned
+    //! spec (\c TOrbitals::Fill); the WF no longer decides anything.  (The held direct-min fill and the
+    //! shared-μ metal fill still build their specs at the call site -- increment 5 / the reservoir-driver
+    //! migration respectively.)
+    BlockFill DecideBlockFill(const Irrep& q, const OrbitalView<T>& orbs, double ne) const;
+
+    // ---- remaining run-config queries (the reservoir driver + trace/debug still consult these; they
+    //      shrink further when the driver migrates here) ----
     bool   UseMOM()          const {return itsUseMOM;}
     double SmearingkT()      const {return itsSmearingkT;}   //!< 0 = integer fills; >0 = Fermi (Hartree)
-    double MOMSmearPenalty() const {return itsMOMSmearPenalty;}  //!< Λ of the MOM-masked Fermi (0 = plain)
 
     // ---- MOM reference state (policy-owned; ex tIrrepWF::itsRefOccCPrime + itsFillCount) ----
     bool   HasReference(const Irrep& q) const

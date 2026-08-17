@@ -121,20 +121,32 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
     return BuildDensity(ne);
 }
 
+// THE fill primitive (V1.11 inc 4): dispatch the BlockFill spec -- the §5b occupancy×ranking product,
+// produced by the OccupationPolicy -- onto the private realizations below (the five ex-face virtuals;
+// they stopped being face members, not being code).
+template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::Fill(const qchem::BlockFill& f)
+{
+    using Rule=qchem::BlockFill::Rule;
+    switch (f.rule)
+    {
+        case Rule::Integer:   return f.ranking.size() ? TakeElectrons(f.budget, f.ranking)
+                                                      : TakeElectrons(f.budget);
+        case Rule::Fermi:     return TakeElectronsFermi(f.budget, f.kT, f.ranking);
+        case Rule::FermiAtMu: return SetFermiOccupationsAtMu(f.mu, f.kT, f.ranking);
+    }
+    assert(false && "TOrbitalsImp::Fill: unknown BlockFill rule");
+    return {};
+}
+
 // Fermi-Dirac fill (doc/GPWPlan1.md 4b): solve the chemical potential μ by bisection so Σ_i g_i f_i = ne,
 // set occ_i = g_i f_i, build D/D', and return the Mermin free-energy term −TS = kT Σ_i g_i[f ln f + (1−f)
 // ln(1−f)] ≤ 0 in FillResult::minusTS.  The entropy NEVER touches H: f enters only D (the
 // density build below is the SAME AddDensityMatrix path aufbau uses, which already scales |C⟩⟨C| by occ).
 // N(μ)=Σ g_i f_i is monotone increasing, so μ is found by plain bisection on an energy window padded by
 // many kT (f saturates to 0/1 there).  The cure for near-gapless occupation flapping (NaF Ecut=160).
-template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectronsFermi(double ne, double kT)
-{
-    return TakeElectronsFermi(ne, kT, rvec_t());   // no effective-energy shift == plain Fermi on the bare ε
-}
-
 // TakeElectronsFermi = {solve THIS block's μ for its own nₑ} then {set the occupations at that μ}.  The split
-// exposes SetFermiOccupationsAtMu so the composite cross-k fill can instead solve ONE global μ over the whole
-// mesh and set every block at it (doc/GPWPlan1.md item 3).  Bit-identical to the old monolith at a single k.
+// keeps SetFermiOccupationsAtMu callable directly so the composite cross-k fill can instead solve ONE global μ
+// over the whole mesh and set every block at it (doc/GPWPlan1.md item 3).
 template <class T> typename TOrbitalsImp<T>::ds_t
 TOrbitalsImp<T>::TakeElectronsFermi(double ne, double kT, const rvec_t& eShift)
 {
