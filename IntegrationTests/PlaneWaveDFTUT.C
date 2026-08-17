@@ -70,8 +70,8 @@ import qchem.SCFParams;                             // SCFParams
 import qchem.WaveFunction;                          // cWaveFunction (read view of the converged state)
 import qchem.ElectronConfiguration;                 // ElectronConfiguration base
 import qchem.ElectronConfiguration.Crystal;         // Crystal_EC (single-k Bloch configuration)
-import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // tSCFAcceleratorNull<dcmplx>
-import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;      // cSCFAcceleratorDIIS (complex DIIS)
+import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // SCFAcceleratorNull (scalar-agnostic manager)
+import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;      // SCFAcceleratorDIIS (scalar-agnostic manager)
 import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (single-block BasisSet container)
 using namespace qchem;
 
@@ -1355,7 +1355,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
 
 // The SAME Si-Gamma Kohn-Sham problem as FrameworkSiliconGammaMatchesPrototype, but now driven by the
 // REAL framework cSCFIterator (no hand-rolled SCF loop): cSCFIterator -> cWaveFunction (UnPolarizedWF
-// -> IrrepWF) -> tSCFAcceleratorNull<dcmplx> diagonalize -> TOrbitals<dcmplx> fill -> IrrepCD<dcmplx>,
+// -> IrrepWF) -> SCFAcceleratorNull's <dcmplx> diagonalize -> TOrbitals<dcmplx> fill -> IrrepCD<dcmplx>,
 // with the cHamiltonianImp summing the PW terms.  This is the milestone that retires the "k-loop
 // in the IBS": single-k plane-wave DFT IS now Hamiltonian = Sum terms + SCFIterator, like atoms/molecules.
 TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
@@ -1386,7 +1386,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
         // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D] history; damps the marginal drift
         // within Si's degenerate Gamma_25' manifold so it converges to a tight |Delta rho|.
         using qchem::SCFAccelerators::DIISParams;
-        auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
+        auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
         qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
 
         SCFParams par;
@@ -1458,7 +1458,7 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     using qchem::SCFAccelerators::DIISParams;
     // EMax must exceed the ionic [F,D] error (~1.4-3) or DIIS bails ("En>EMax") and linear mixing
     // oscillates on the strong Madelung field.  Engage DIIS from the start (EMax large).
-    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{10, 8.0, 1e-10, 1e-9});
+    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{10, 8.0, 1e-10, 1e-9});
     // \a seed defaults to Uniform rho(r)=N/V; IonicSAD pre-bakes the formal-charge transfer (Na+ + F-).
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
     SCFParams par;
@@ -1666,7 +1666,7 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
 
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
     using qchem::SCFAccelerators::DIISParams;
-    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
+    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
     // Uniform-density seed on the first block: D=(N/n0)I gives rho(r)=N/V (uniform), the total density
     // every block's first Hartree/XC needs (a single block suffices since rho is constant).  Built

@@ -89,23 +89,30 @@ template <class T> void tSCFIrrepAcceleratorDIIS<T>::Purge1()
 //
 
 
-template <class T> tSCFAcceleratorDIIS<T>::tSCFAcceleratorDIIS(const DIISParams& p)
+SCFAcceleratorDIIS::SCFAcceleratorDIIS(const DIISParams& p)
 : itsParams(p)
 {};
 
-template <class T> tSCFAcceleratorDIIS<T>::~tSCFAcceleratorDIIS() {};
-template <class T> tSCFIrrepAccelerator<T>* tSCFAcceleratorDIIS<T>::Create(const LASolver<T>* lasb,const Irrep& qns, int occ)
+SCFAcceleratorDIIS::~SCFAcceleratorDIIS() {};
+// ONE templated body behind the two typed Create overloads (§6): the child is typed by the BLOCK, the
+// manager registers only its scalar DIIS_Block face.
+template <class T> tSCFIrrepAccelerator<T>* SCFAcceleratorDIIS::CreateT(const LASolver<T>* lasb,const Irrep& qns, int occ)
 {
     if (occ>0)
     {
-        itsIrreps.push_back(new tSCFIrrepAcceleratorDIIS<T>(itsParams,lasb,qns,itsCs));
-        return itsIrreps.back();
+        auto* irrep=new tSCFIrrepAcceleratorDIIS<T>(itsParams,lasb,qns,itsCs);
+        itsIrreps.push_back(irrep);
+        return irrep;
     }
     else
         return new tSCFIrrepAcceleratorNull<T>(lasb,qns);
 }
+tSCFIrrepAccelerator<double>* SCFAcceleratorDIIS::Create(const LASolver<double>* lasb,const Irrep& qns, int occ)
+{ return CreateT(lasb,qns,occ); }
+tSCFIrrepAccelerator<dcmplx>* SCFAcceleratorDIIS::Create(const LASolver<dcmplx>* lasb,const Irrep& qns, int occ)
+{ return CreateT(lasb,qns,occ); }
 
-template <class T> size_t tSCFAcceleratorDIIS<T>::GetNProj() const
+size_t SCFAcceleratorDIIS::GetNProj() const
 {
     size_t N=itsIrreps[0]->GetNproj();
 #ifdef DEBUG
@@ -114,7 +121,7 @@ template <class T> size_t tSCFAcceleratorDIIS<T>::GetNProj() const
     return N;
 }
 
-template <class T> typename tSCFAcceleratorDIIS<T>::md_t tSCFAcceleratorDIIS<T>::BuildB() const
+SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 {
     size_t  N=GetNProj();
     rsmat_t Braw=blazem::zero<double>(N);           // raw error-overlap Bᵢⱼ = Σ_irreps ⟨Eᵢ,Eⱼ⟩ (upper-tri)
@@ -130,7 +137,7 @@ template <class T> typename tSCFAcceleratorDIIS<T>::md_t tSCFAcceleratorDIIS<T>:
 // historical gate -- fires near convergence, where the whole B collapses with |[F,D]|^2), or the RELATIVE
 // one (svMin < SVTolRel * scale -- fires on a DEPENDENT history at a plateau, where B's scale stays finite
 // and the absolute gate is blind; see DIISParams::SVTolRel for the MnO run-32 measurement that bit).
-template <class T> rsmat_t tSCFAcceleratorDIIS<T>::BuildPrunedB(double svmin)
+rsmat_t SCFAcceleratorDIIS::BuildPrunedB(double svmin)
 {
     md_t B=BuildB(); //Returns a SMat,double,double struct.
     while ((B.sv<svmin || B.sv<itsParams.SVTolRel*B.scale) && GetNProj()>=2)
@@ -141,20 +148,20 @@ template <class T> rsmat_t tSCFAcceleratorDIIS<T>::BuildPrunedB(double svmin)
     itsLastSVMin=B.sv;
     return B.B;
 }
-template <class T> size_t tSCFAcceleratorDIIS<T>::Purge1()
+size_t SCFAcceleratorDIIS::Purge1()
 {
 
     for (auto k:itsIrreps) k->Purge1();
     return GetNProj();
 }
-template <class T> size_t tSCFAcceleratorDIIS<T>::Append1()
+size_t SCFAcceleratorDIIS::Append1()
 {
 
     for (auto k:itsIrreps) k->Append1();
     return GetNProj();
 }
 
-template <class T> bool tSCFAcceleratorDIIS<T>::CalculateProjections()
+bool SCFAcceleratorDIIS::CalculateProjections()
 {
     blazem::clear(itsCs);
     itsEn=0.0;
@@ -208,11 +215,11 @@ template <class T> bool tSCFAcceleratorDIIS<T>::CalculateProjections()
 }
 
 
-template <class T> void tSCFAcceleratorDIIS<T>::ShowLabels(std::ostream& os) const
+void SCFAcceleratorDIIS::ShowLabels(std::ostream& os) const
 {
     os << " [F,D]   Nproj    SVMin   Bail   ";
 }
-template <class T> void tSCFAcceleratorDIIS<T>::ShowConvergence(std::ostream& os) const
+void SCFAcceleratorDIIS::ShowConvergence(std::ostream& os) const
 {
     os << std::scientific << std::setw(7) << std::setprecision(1) << itsEn << " ";
     if (HasProjection())
@@ -224,7 +231,7 @@ template <class T> void tSCFAcceleratorDIIS<T>::ShowConvergence(std::ostream& os
         os << "                ";
     os << bailoutReason;
 }
-template <class T> double tSCFAcceleratorDIIS<T>::GetError() const
+double SCFAcceleratorDIIS::GetError() const
 {
 
     return itsEn;
@@ -232,7 +239,5 @@ template <class T> double tSCFAcceleratorDIIS<T>::GetError() const
 
 template class tSCFIrrepAcceleratorDIIS<double>;
 template class tSCFIrrepAcceleratorDIIS<dcmplx>;
-template class tSCFAcceleratorDIIS<double>;
-template class tSCFAcceleratorDIIS<dcmplx>;
 
 } //namespace

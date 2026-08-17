@@ -14,7 +14,7 @@ import qchem.Matrix3D;   // Matrix3D -- the reciprocal point ops passed to each 
 export namespace qchem::WaveFunction
 {
 
-using SCFAccelerators::tSCFAccelerator;
+using SCFAccelerators::SCFAccelerator;
 using qchem::Hamiltonian::tHamiltonian;
 using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;
@@ -33,7 +33,7 @@ public:
     //! eigenproblem: \c Cholesky (default; requires S positive-definite) or \c Eigen / \c SVD with a
     //! \a basisOrthoTol cutoff that DROPS near-null eigen/singular values -- canonical orthogonalisation for a
     //! linearly-dependent basis (e.g. diffuse Gaussians on a dense lattice).  \a basisOrthoTol\f$\le0\f$ = keep all.
-    tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>*,
+    tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,SCFAccelerator*,
                  qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0);
     ~tCompositeWF();
 
@@ -74,7 +74,7 @@ private:
     qchem::Ortho                 itsBasisOrtho;    //S-orthogonalisation mode for the generalised eigenproblem
     double                       itsBasisOrthoTol; //near-null eigen/singular-value cutoff (Eigen/SVD; 0 = keep all)
     ReservoirPartition           itsPartition;     //how the EC pools its electrons (V1.11 increment 2)
-    tSCFAccelerator<T>*          itsAccelerator;
+    SCFAccelerator*              itsAccelerator;   // NON-template manager (RealComplexPlan §6)
     EnergyLevels                 itsELevels;
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
     std::map<Spin,std::map<Irrep,double>> itsAufbauNe; //per-irrep electron count, keyed by irrep (recomputed each iteration)

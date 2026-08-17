@@ -15,8 +15,6 @@ template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorNull<T>::Next
 
 template class tSCFIrrepAcceleratorNull<double>;
 template class tSCFIrrepAcceleratorNull<dcmplx>;
-template class tSCFAcceleratorNull<double>;
-template class tSCFAcceleratorNull<dcmplx>;
 
 } //namespace
 

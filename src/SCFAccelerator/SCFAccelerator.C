@@ -9,9 +9,9 @@ export import qchem.LASolver;
 export namespace qchem::SCFAccelerators
 {
 
-// Templated on the matrix element type T (rX/cX convention).  For T=double, hmat_t<double> IS
-// smat_t<double>=rsmat_t, so the existing real accelerators (DIIS/GDM/Ladder/Null) -- which bind the
-// <double> aliases below -- are unchanged.  The plane-wave path uses tSCFAcceleratorNull<dcmplx>.
+// The PER-IRREP accelerator is templated on the BLOCK's matrix element type T (rX/cX convention); the
+// run-level manager below is NON-template (doc/RealComplexPlan.md §6).  For T=double, hmat_t<double> IS
+// smat_t<double>=rsmat_t, so the real path is unchanged.
 template <class T> class tSCFIrrepAccelerator
 {
 public:
@@ -35,11 +35,21 @@ public:
     virtual bool RejectStep() {return false;}
 };
 
-template <class T> class tSCFAccelerator
+//! \brief The RUN-LEVEL accelerator manager -- deliberately NON-template (doc/RealComplexPlan.md §6,
+//! settled 2026-08-17).  Every block-typed object (DIIS \f$F'\f$/\f$E\f$ history, GDM orbitals/CG
+//! tangents) lives in the per-irrep accelerator \c Create hands out, typed by the BLOCK's scalar;
+//! the manager's own cross-block state (the DIIS B matrix and coefficients, error norms, trust/rung
+//! counters) is REAL by construction.  So one manager serves real and complex blocks -- including,
+//! eventually, BOTH IN ONE RUN (a mixed TRIM/general-k mesh) -- through the two typed \c Create
+//! overloads, and a real block's history is stored real: the memory win needs no widening anywhere.
+class SCFAccelerator
 {
 public:
-    virtual ~tSCFAccelerator() {};
-    virtual tSCFIrrepAccelerator<T>* Create(const LASolver<T>*,const Irrep&, int occ)=0;
+    virtual ~SCFAccelerator() {};
+    //! Create the per-irrep accelerator for one block, TYPED BY THE BLOCK (its \c LASolver's scalar).
+    //! The manager registers the child on its scalar aggregation face and keeps no other reference.
+    virtual tSCFIrrepAccelerator<double>* Create(const LASolver<double>*,const Irrep&, int occ)=0;
+    virtual tSCFIrrepAccelerator<dcmplx>* Create(const LASolver<dcmplx>*,const Irrep&, int occ)=0;
     virtual bool CalculateProjections()=0;
     virtual void ShowLabels     (std::ostream&) const=0;   // DEPRECATED (doc/GPWPlan1.md item 2): the free-form
     virtual void ShowConvergence(std::ostream&) const=0;   //   label/value blob, superseded by the compact
@@ -178,7 +188,7 @@ struct GDMParams
 enum class ScheduleSignal { Error, EnergyChange };
 
 using SCFIrrepAccelerator  = tSCFIrrepAccelerator<double>;  using cSCFIrrepAccelerator = tSCFIrrepAccelerator<dcmplx>;
-using SCFAccelerator       = tSCFAccelerator<double>;       using cSCFAccelerator      = tSCFAccelerator<dcmplx>;
+// (No r/c manager aliases: SCFAccelerator is ONE non-template type serving both scalar paths -- §6.)
 
 } //namespace
 

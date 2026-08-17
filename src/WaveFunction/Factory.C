@@ -18,7 +18,7 @@ export namespace qchem::WaveFunction
             const qchem::Hamiltonian::tHamiltonian<T>*,
             const tbs_t<T>* bs,
             const ElectronConfiguration* ec,
-            SCFAccelerators::tSCFAccelerator<T>* acc,
+            SCFAccelerators::SCFAccelerator* acc,
             qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0
         );
 }

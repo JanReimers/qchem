@@ -37,7 +37,7 @@ using SCFAccelerators::tSCFIrrepAccelerator;
 // WITHIN-irrep MOM in tIrrepWF::FillOrbitals; this file's cross-irrep aufbau MOM is the parked molecular one.
 
 
-template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc,
+template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,SCFAccelerator* acc,
                                                  qchem::Ortho basisOrtho, double basisOrthoTol )
     : itsBS(bs)
     , itsEC(ec)

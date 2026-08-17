@@ -24,16 +24,22 @@ template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorLadder<T>::Ne
 }
 
 //----------------------------------------------------------------------------------------
-template <class T> tSCFIrrepAccelerator<T>* tSCFAcceleratorLadder<T>::Create(const LASolver<T>* las,const Irrep& qns,int occ)
+// ONE templated body behind the two typed Create overloads (§6): every rung is itself scalar-agnostic,
+// so the per-irrep ladder simply collects each rung's block-typed child.
+template <class T> tSCFIrrepAccelerator<T>* SCFAcceleratorLadder::CreateT(const LASolver<T>* las,const Irrep& qns,int occ)
 {
     std::vector<std::unique_ptr<tSCFIrrepAccelerator<T>>> rungs;
     for (auto& r:itsRungs) rungs.emplace_back(r->Create(las,qns,occ));
     return new tSCFIrrepAcceleratorLadder<T>(std::move(rungs), &itsActive);
 }
+tSCFIrrepAccelerator<double>* SCFAcceleratorLadder::Create(const LASolver<double>* las,const Irrep& qns,int occ)
+{ return CreateT(las,qns,occ); }
+tSCFIrrepAccelerator<dcmplx>* SCFAcceleratorLadder::Create(const LASolver<dcmplx>* las,const Irrep& qns,int occ)
+{ return CreateT(las,qns,occ); }
 
-template <class T> void tSCFAcceleratorLadder<T>::SetEnergy(double E) { itsPrevE=itsLastE; itsLastE=E; }
+void SCFAcceleratorLadder::SetEnergy(double E) { itsPrevE=itsLastE; itsLastE=E; }
 
-template <class T> bool tSCFAcceleratorLadder<T>::CalculateProjections()
+bool SCFAcceleratorLadder::CalculateProjections()
 {
     bool ok = Active()->CalculateProjections();
 
@@ -100,20 +106,18 @@ template <class T> bool tSCFAcceleratorLadder<T>::CalculateProjections()
 }
 
 // The ladder runs the direct-min loop exactly when its active rung is a direct minimizer.
-template <class T> bool tSCFAcceleratorLadder<T>::WantsLineSearch() const { return Active()->WantsLineSearch(); }
-template <class T> bool tSCFAcceleratorLadder<T>::CanLineSearch()  const { return Active()->CanLineSearch(); }
-template <class T> bool tSCFAcceleratorLadder<T>::RejectStep()        { return Active()->RejectStep(); }
+bool SCFAcceleratorLadder::WantsLineSearch() const { return Active()->WantsLineSearch(); }
+bool SCFAcceleratorLadder::CanLineSearch()  const { return Active()->CanLineSearch(); }
+bool SCFAcceleratorLadder::RejectStep()        { return Active()->RejectStep(); }
 
-template <class T> double tSCFAcceleratorLadder<T>::GetError() const { return Active()->GetError(); }
-template <class T> void   tSCFAcceleratorLadder<T>::ShowLabels(std::ostream& os)      const { Active()->ShowLabels(os); }
-template <class T> void   tSCFAcceleratorLadder<T>::ShowConvergence(std::ostream& os) const { Active()->ShowConvergence(os); }
-template <class T> const char* tSCFAcceleratorLadder<T>::Tag()   const { return Active()->Tag(); }   // the live rung
-template <class T> int         tSCFAcceleratorLadder<T>::Count() const { return Active()->Count(); }
-template <class T> double      tSCFAcceleratorLadder<T>::MinSV() const { return Active()->MinSV(); }
+double SCFAcceleratorLadder::GetError() const { return Active()->GetError(); }
+void   SCFAcceleratorLadder::ShowLabels(std::ostream& os)      const { Active()->ShowLabels(os); }
+void   SCFAcceleratorLadder::ShowConvergence(std::ostream& os) const { Active()->ShowConvergence(os); }
+const char* SCFAcceleratorLadder::Tag()   const { return Active()->Tag(); }   // the live rung
+int    SCFAcceleratorLadder::Count() const { return Active()->Count(); }
+double SCFAcceleratorLadder::MinSV() const { return Active()->MinSV(); }
 
 template class tSCFIrrepAcceleratorLadder<double>;
 template class tSCFIrrepAcceleratorLadder<dcmplx>;
-template class tSCFAcceleratorLadder<double>;
-template class tSCFAcceleratorLadder<dcmplx>;
 
 } //namespace

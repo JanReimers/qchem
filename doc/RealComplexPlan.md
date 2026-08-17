@@ -170,6 +170,14 @@ variation — worth remembering when scoping.
   `tSCFIterator<T>`/`tCompositeWF<T>` accelerator-pointer seams — do it as its own commit, keeping
   basis and working type separate parameters per the §2 standing instruction.  **Gate open for
   Step 2.**
+  **The face increment LANDED 2026-08-17:** `SCFAccelerator` is the ONE non-template manager (typed
+  `Create` overloads; DIIS/GDM coordinate their children through the scalar `DIIS_Block`/`GDM_Block`
+  sub-faces, the Ladder's rungs are themselves scalar-agnostic, both Factory doors return the same
+  type, and the friend-based manager↔child couplings are gone).  The `tSCFIterator<T>` /
+  `tCompositeWF<T>` / WF-factory seams hold plain `SCFAccelerator*`.  Behavioural anchor: NEW
+  `M_Calculation.BoronUHF{LadderGDM,PureGDM}` — boron's open-2p¹ doublet through the facade's
+  Ladder and standalone-GDM options (the molecular GDM path's first gtest coverage; both land on
+  the same UHF/dzvp energy −24.525932 to ~1e-12 Ha) — plus the full sweep.  **Step 2 may start.**
 - **2-component structure.**  Non-collinear spin (likely to arrive before SOC-for-anisotropy, given
   the frustrated-magnet/battery direction) needs spinor blocks, not just complex scalars.  Nothing
   here should hard-wire "exactly two independent spin channels".

@@ -62,10 +62,10 @@ import qchem.SCFParams;                          // SCFParams
 import qchem.ElectronConfiguration.Crystal;      // Crystal_EC (single-k Bloch occupation)
 import qchem.ChargeDensity.Seed;                 // SeedStrategy
 import qchem.SCFAccelerator.Factory;              // the PUBLIC complex accelerator door (Step 4)
-import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS; // cSCFAcceleratorDIIS (complex DIIS)
-import qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;  // cSCFAcceleratorGDM (complex geodesic direct-min)
-import qchem.SCFAccelerator.Internal.SCFAcceleratorLadder; // cSCFAcceleratorLadder (DIIS -> GDM chain)
-import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // tSCFAcceleratorNull<dcmplx> (NaF: pure damped Kerker)
+import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS; // SCFAcceleratorDIIS (scalar-agnostic manager)
+import qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;  // SCFAcceleratorGDM (scalar-agnostic manager)
+import qchem.SCFAccelerator.Internal.SCFAcceleratorLadder; // SCFAcceleratorLadder (DIIS -> GDM chain)
+import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // SCFAcceleratorNull (NaF: pure damped Kerker)
 import qchem.WaveFunction;                       // cWaveFunction (the converged state)
 import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
@@ -391,7 +391,7 @@ std::vector<int> GatherSiteSpins(const Lattice_3D& lat, const GpwOptions& o)
 // The tuned constants that used to sit here ARE the GPW production recipe, so they now live with the
 // factory as SolidAcceleratorOptions' defaults -- this function is just the policy-name lookup a facade
 // would do.  Ladder = the ionic-crystal DIIS->GDM hand-off on |ΔE/E| (NaF's proven recipe).
-static qchem::SCFAccelerators::cSCFAccelerator* MakeGpwAccelerator(const std::string& policy)
+static qchem::SCFAccelerators::SCFAccelerator* MakeGpwAccelerator(const std::string& policy)
 {
     using namespace qchem::SCFAccelerators;
     if (policy=="Null")   return Factory(Type::Null);
@@ -2148,7 +2148,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     rss("EC");
     cHamiltonian* hamC=new Ham_PW_DFT(st, bsC.get(), {{"Na",1},{"F",7}}, "LDA");
     rss("Ham");
-    auto* accC=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();   // no DIIS (the CP2K recipe)
+    auto* accC=new qchem::SCFAccelerators::SCFAcceleratorNull();   // no DIIS (the CP2K recipe)
     auto scfC=std::make_unique<qchem::SCFIterator::SolidSCFIterator>(bsC.get(), ecC.get(), hamC, accC,
                                           qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                           qchem::Cholesky, 0.0);
@@ -2176,7 +2176,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     std::unique_ptr<Complex_BS> bsF(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_FINE_ECUT",-1.0)));  // <0 AUTO=320
     Crystal_EC ecF(bsF->GetIrreps(Spin::None), 8);
     cHamiltonian* hamF=new Ham_PW_DFT(st, bsF.get(), {{"Na",1},{"F",7}}, "LDA");
-    auto* accF=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
+    auto* accF=new qchem::SCFAccelerators::SCFAcceleratorNull();
     qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     qchem::SCFIterator::ReportBandGap()=true;
     // GC_SEED=0 A/Bs the fix OFF (ionic seed) -> the fine stage must dive into the -39 basin (the failure this
@@ -2267,7 +2267,7 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisRankReduction)
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
-    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
+    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
     testing::internal::CaptureStdout();
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
@@ -2301,7 +2301,7 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
-    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
+    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
                                          qchem::Eigen, 1e-6);   // (2): canonical ortho, drop the ~0 null cluster

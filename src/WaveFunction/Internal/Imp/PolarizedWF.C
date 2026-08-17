@@ -23,7 +23,7 @@ using std::cout;
 using std::endl;
 
 
-template <class T> tPolarizedWF<T>::tPolarizedWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc,
+template <class T> tPolarizedWF<T>::tPolarizedWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,SCFAccelerator* acc,
                                                  qchem::Ortho basisOrtho, double basisOrthoTol)
     : tCompositeWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol)
 {

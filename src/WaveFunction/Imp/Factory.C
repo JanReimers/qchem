@@ -15,7 +15,7 @@ namespace qchem::WaveFunction
         const qchem::Hamiltonian::tHamiltonian<T>* h,
         const tbs_t<T>* bs,
         const ElectronConfiguration* ec,
-        SCFAccelerators::tSCFAccelerator<T>* acc,
+        SCFAccelerators::SCFAccelerator* acc,
         qchem::Ortho basisOrtho, double basisOrthoTol)
     {
         // Both lineages dispatch on the Hamiltonian's polarization (SymmetryUpgradePlan §4 tier 4b):
@@ -25,10 +25,10 @@ namespace qchem::WaveFunction
     }
 
     template tSCFWaveFunction<double>* Factory(const qchem::Hamiltonian::tHamiltonian<double>*,
-        const tbs_t<double>*, const ElectronConfiguration*, SCFAccelerators::tSCFAccelerator<double>*,
+        const tbs_t<double>*, const ElectronConfiguration*, SCFAccelerators::SCFAccelerator*,
         qchem::Ortho, double);
     template tSCFWaveFunction<dcmplx>* Factory(const qchem::Hamiltonian::tHamiltonian<dcmplx>*,
-        const tbs_t<dcmplx>*, const ElectronConfiguration*, SCFAccelerators::tSCFAccelerator<dcmplx>*,
+        const tbs_t<dcmplx>*, const ElectronConfiguration*, SCFAccelerators::SCFAccelerator*,
         qchem::Ortho, double);
 }
 

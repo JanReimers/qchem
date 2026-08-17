@@ -16,14 +16,29 @@ export namespace qchem::SCFAccelerators
 // (DIISParams moved to the public qchem.SCFAccelerator 2026-08-09 -- documented there.)
 
 
-template <class T> class tSCFAcceleratorDIIS;
+//! \brief The SCALAR AGGREGATION face one per-irrep DIIS block shows its manager (doc/RealComplexPlan.md
+//! §6): every manager↔child interaction is real-scalar (the B-matrix contributions, the history depth,
+//! the lockstep append/purge), so the manager needs no view of the block's scalar type T at all -- which
+//! is what lets ONE non-template manager coordinate real and complex blocks in the same run.
+class DIIS_Block
+{
+public:
+    virtual ~DIIS_Block() {};
+    virtual size_t GetNproj() const=0;                    //!< current history depth (lockstep across blocks)
+    virtual double GetError() const=0;                    //!< this block's ||[F',D']||
+    virtual double GetError(size_t i, size_t j) const=0;  //!< B-matrix contribution Re tr(E_i^H E_j)
+    virtual void   Append1()=0;                           //!< bank the current (F',E) into the history
+    virtual void   Purge1()=0;                            //!< drop the oldest history entry
+};
 
 // Per-irrep DIIS (Pulay): cache the (F', error=[F',D']) history; the manager solves for REAL coefficients
 // c_i and we extrapolate F' = Sum c_i F'_i then diagonalize.  Templated on T (rX/cX): the error metric is
 // the REAL part of the Frobenius inner product <E_i,E_j> = tr(E_i^H E_j), so the B matrix and the
 // coefficients c stay real for both paths -- only F'/D'/E and the LASolver carry T.  hmat_t<double> is
 // rsmat_t, conj/Re are identities, so the <double> instantiation is byte-identical to the original.
-template <class T> class tSCFIrrepAcceleratorDIIS : public virtual tSCFIrrepAccelerator<T>
+template <class T> class tSCFIrrepAcceleratorDIIS
+    : public virtual tSCFIrrepAccelerator<T>
+    , public virtual DIIS_Block
 {
 public:
     typedef std::deque< mat_t<T>> mv_t; //error matrices [F',D'] (general; anti-Hermitian)
@@ -37,13 +52,13 @@ public:
     virtual typename LASolver<T>::UUd_t NextOrbitals();
 private:
     hmat_t<T> Project(); //DIIS-extrapolated (orthonormal-basis) Fock matrix.
-    friend class tSCFAcceleratorDIIS<T>;
-    size_t GetNproj() const {return itsEs.size();}
-    double GetError() const {return itsEn;}
+    // The DIIS_Block scalar face (private overrides are fine: the manager calls through DIIS_Block*).
+    virtual size_t GetNproj() const {return itsEs.size();}
+    virtual double GetError() const {return itsEn;}
     //! B-matrix metric: Re tr(E_i^H E_j) = Re Sum_kl conj(E_i)_kl (E_j)_kl (real & symmetric, both paths).
-    double GetError(size_t i, size_t j) const {return std::real(blazem::sum(blazem::conj(itsEs[i]) % itsEs[j]));}
-    void Append1();
-    void Purge1();
+    virtual double GetError(size_t i, size_t j) const {return std::real(blazem::sum(blazem::conj(itsEs[i]) % itsEs[j]));}
+    virtual void Append1();
+    virtual void Purge1();
 
     DIISParams itsParams;
     Irrep  itsIrrep;
@@ -62,12 +77,17 @@ private:
 };
 
 
-template <class T> class tSCFAcceleratorDIIS : public virtual tSCFAccelerator<T>
+//! The DIIS MANAGER -- non-template (doc/RealComplexPlan.md §6): its cross-block state (the real B
+//! matrix, the real Pulay coefficients, the conditioning/stuck counters) never carries a block scalar,
+//! so one manager serves real and complex blocks through the typed \c Create overloads, coordinating
+//! them through the \c DIIS_Block scalar face.
+class SCFAcceleratorDIIS : public virtual SCFAccelerator
 {
 public:
-    tSCFAcceleratorDIIS(const DIISParams&);
-    ~tSCFAcceleratorDIIS();
-    virtual tSCFIrrepAccelerator<T>* Create(const LASolver<T>*,const Irrep&, int occ);
+    SCFAcceleratorDIIS(const DIISParams&);
+    ~SCFAcceleratorDIIS();
+    virtual tSCFIrrepAccelerator<double>* Create(const LASolver<double>*,const Irrep&, int occ);
+    virtual tSCFIrrepAccelerator<dcmplx>* Create(const LASolver<dcmplx>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;
@@ -90,9 +110,10 @@ private:
     size_t  Purge1();
     size_t  GetNProj() const;
     bool    HasProjection() const {return itsCs.size()>=2;}
+    template <class T> tSCFIrrepAccelerator<T>* CreateT(const LASolver<T>*,const Irrep&, int occ);
 
     DIISParams itsParams;
-    std::vector<tSCFIrrepAcceleratorDIIS<T>*> itsIrreps;
+    std::vector<DIIS_Block*> itsIrreps;   // the scalar aggregation face -- children may differ in T
 
     double itsEn=0.0;
     //! Conditioning of the last bordered B.  NaN until BuildPrunedB has run at least once -- DIIS does not
@@ -106,7 +127,5 @@ private:
 };
 
 using SCFIrrepAcceleratorDIIS = tSCFIrrepAcceleratorDIIS<double>;
-using SCFAcceleratorDIIS      = tSCFAcceleratorDIIS<double>;
-using cSCFAcceleratorDIIS     = tSCFAcceleratorDIIS<dcmplx>;
 
 } //namespace
