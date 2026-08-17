@@ -133,7 +133,12 @@ Smearing slots into the same seam, and the infrastructure is already half-presen
 **Pin:** occupation is a first-class seam (aufbau/MOM/smearing are siblings); smearing = fractional-occupation
 concrete + μ-solver + free-energy gate; do not special-case it into the fill.
 
-## 5b. V1.11 occupation-seam design — RULED (user, 2026-08-17)
+## 5b. V1.11 occupation-seam design — RULED (user, 2026-08-17) — ✅ EXECUTED, all five increments
+**(2026-08-17: `43bbebad` FillResult; `0c818835` ReservoirPartition + one fill loop; `841eadf2`
+OccupationPolicy + iterator slot + the OrbitalView DIP inversion; `092d1da8` the one Fill primitive +
+DecideBlockFill; `2398dd07` HeldOccupationPolicy.  Full record: doc/CleanupHistory.md.  §8's increment 4
+"occupation seam formalisation" is hereby DONE on the seam side; the Fermi-smearing μ-solver/free-energy
+machinery it anticipated already existed and now lives behind the policy.)**
 
 The concrete design for formalising §5, from the V1.11 design session (doc/CleanupCandidates.md V1.11).
 User rulings: **policy-owns-state** (D1 yes); **abstract `OccupationPolicy` interface** with derived
@@ -270,8 +275,10 @@ framework already carries everything around it.
      (`Re tr(EᵢᴴEⱼ)` metric) and density (G-space metric); only the residual stream + inner product differ, as
      the design promised.  Bit-identical: 200/200 (full) green (DIIS is the default molecular accelerator).
 3. **Broyden.** `Broyden_Extrapolator` (Johnson) sibling; density-face `BroydenMixer` adapter. Compare on NaF.
-4. **Occupation seam formalisation + Fermi smearing** (§5): μ-solver + free-energy gate; keep MOM/aufbau as
-   siblings. Later — needed for metals and the OT+smearing path.
+4. **Occupation seam formalisation** — ✅ DONE 2026-08-17 (§5b, V1.11): `OccupationPolicy` +
+   `HeldOccupationPolicy`, the `BlockFill` two-axis spec, the reservoir partition.  The μ-solver +
+   free-energy gate already existed and now sit behind the policy.  Remaining from this line: a
+   Fermi/OT+smearing POLICY sibling when metals-by-direct-min arrive (a new sibling, not a new bool).
 5. **OT direct-min concrete** (§7). Later.
 
 ## 9. Paper references (keep these in the concretes, with equation numbers where possible)

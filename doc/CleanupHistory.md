@@ -119,6 +119,59 @@ inaccurate since the overlap-metric tensor has no repulsion integral in it).
   the PW fitter implements both metric faces at once — the merge discussion is "how does the
   merged face express the metric choice without naming it", not "which metric wins".
 
+## LANDED 2026-08-17 — V1.11 COMPLETE (the occupation seam), five increments, 717/717 green each
+
+The LAST doc/RealComplexPlan.md §7 prerequisite.  Design RULED by the user 2026-08-17 (recorded in
+SCFStrategyPlan §5b): **policy-owns-state**; **abstract `OccupationPolicy` homed in qcElectronConfiguration**
+(D6) with concretes ASSEMBLED from two axes (occupancy {Integer, Fermi, Held} × ranking {bare, MOM}) rather
+than multiplied; **the EC class network becomes DATA** (counts + the reservoir partition) while the LIBRARY
+keeps its name and hosts the policy; **observer/DIP if the policy needs to cross the DAG**; **MnO real-TRIM
+work waits on this seam**.
+
+- `43bbebad` — **inc 1: `FillResult{electronsLeft, minusTS, DPrime}`** kills the `ds_t` tuple whose double
+  slot meant leftover electrons for integer fills and −TS for Fermi ones (its own doc had to warn).
+- `0c818835` — **inc 2: `ReservoirPartition{spansSpatial, spansSpin, ranksIntegerFill}`** replaces the three
+  EC mode bools (8 encodable states, ~4 meaningful; aufbau∧globalFermi now UNREPRESENTABLE);
+  `tCompositeWF::FillOrbitals` becomes ONE loop over the reservoir grouping — generalising the map
+  `FillOrbitalsSharedFermi` already built internally.  All four fill modes are one algorithm over different
+  partitions; the held-fill + kT=0-staircase degrades are one documented flag.
+- `841eadf2` — **inc 3: `OccupationPolicy<T>`** — the WF face sheds `SetMOM`/`SetSmearing`/`GetEntropyTerm`/
+  `AdoptMOMReference`/`ReleaseMOMReference`; MOM references/counters and the −TS aggregate are policy state;
+  the iterator owns the slot (built like the mixer) and its PUBLIC `AdoptMOMReference` face is unchanged.
+  The seed fill runs on the policy's EXPLICIT default (prescribed integer, kT=0, no MOM) — closing the
+  MEASURED D11 hazard (config arrived only at Iterate while Init filled in the ctor; metals lost charge:
+  Al Σw·n=2.25 vs 3).  **DAG lesson: the naive qcElConfig→qcOrbitals link is a linker-rejected CYCLE**
+  (qcOrbitals sits above via qcChargeDensity) — resolved with the CLAUDE.md DIP example verbatim: an
+  `OrbitalView<T>` face OWNED by qcElConfig, implemented by `TOrbitals` from above.
+- `092d1da8` — **inc 4: ONE `TOrbitals::Fill(const BlockFill&)`** replaces the five `TakeElectrons*`
+  virtuals (each policy had added one — the OCP violation the item named).  `BlockFill` (T-free, beside
+  `OrbitalView`) IS the two-axis product as data; `OccupationPolicy::DecideBlockFill` PRODUCES it (the
+  4-way branch + the measured Λ-calibration lore moved off `tIrrepWF`); the five bodies became private
+  realizations.
+- `2398dd07` — **inc 5: `HeldOccupationPolicy`** replaces the `holdBlock` bool — the §5-flagged
+  {occupation × direct-min} cell named.  Wraps the run policy (shared IMOM clocks, shared −TS aggregate);
+  stored-order spec, kT structurally 0, capture no-op, `HoldsStoredBlocks()` degrades the reservoir loop.
+  The consulted methods went virtual, so D1's abstract-interface form arrived naturally; OT+smearing later
+  is a sibling that holds the block but keeps kT — a new policy, not a new bool.
+
+Every increment was a full 717/717 sweep with the smeared/metal anchors (AlFCCAnnealedMetal, NaF traces,
+MnO shared-spin) in the enabled set.  The refactor never changed WHICH orbitals fill — only who decides.
+
+Still at call sites by design: the shared-μ metal fill's spec (the reservoir-driver migration — a future
+session, not a V1.11 obligation).
+
+*(original item text follows, moved in full from the worklist)*
+
+- **V1.11 Occupation seam: two-phase SCF-WF construction + the `TakeElectrons*` family.**
+  (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`
+  (SCFWaveFunction.C:39-76): run-config known at construction time delivered by post-ctor setters;
+  every concrete WF defends against the un-configured state.  (ii) Five `TakeElectrons*` virtuals
+  on `TOrbitals<T>` (Orbitals.C:128-152) with a dual-meaning tuple slot (the doc comment itself
+  warns "here the double is −TS, NOT leftover electrons"); every new occupation policy so far added
+  a virtual to the abstract face (OCP).  One `Fill(const OccupationPolicy&)` returning a named
+  struct; the policy object also feeds the WF ctor.  Cross-ref: this IS SCFStrategyPlan's
+  "occupation seam" — design it there.
+
 ## LANDED 2026-08-16 — V1.5 (the `G_FieldEvaluator` ISP split) + the grid-reporting redesign, 717/717 green
 
 Two commits; the reporting redesign came FIRST because the split's one open design question ("does

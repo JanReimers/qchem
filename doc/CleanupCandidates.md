@@ -14,9 +14,9 @@ worth more than the landed ones.
 
 ---
 
-# START HERE (handoff, 2026-08-16, updated after the V1.1 landing)
+# START HERE (handoff, 2026-08-17, updated after the V1.11 landing)
 
-## The state that matters: the RealComplexPlan prerequisites are down to TWO
+## The state that matters: ALL SIX RealComplexPlan prerequisites are DONE
 
 `doc/RealComplexPlan.md` §7 lists what must land before the real/complex type refactor starts, because
 those items sit on the very faces it restructures.  Status:
@@ -29,7 +29,7 @@ those items sit on the very faces it restructures.  Status:
 | **V1.10** abstract→concrete basis casts | ✅ `2d0f6982` |
 | **V1.1** basis-face merge | ✅ `d49db261`+`4b37221d`+`2bfb83b4` (2026-08-16) |
 | **V1.5** `G_FieldEvaluator` ISP split | ✅ `f18a6ee9`+`9ebaebdb` (2026-08-16; §K blocker had dissolved) |
-| **V1.11** occupation seam | ⛔ not started (pinned to SCFStrategyPlan) — **the LAST one** |
+| **V1.11** occupation seam | ✅ `43bbebad`..`2398dd07` (2026-08-17, five increments) — **the LAST one, DONE** |
 
 **What V1.1's landing bought (2026-08-16):** ONE structure-neutral DFT basis face.  The 3-centre tensor
 is `Projector3<T>` (one struct; dense / delta-support / matrix-free are REALIZATIONS, a property of the
@@ -46,11 +46,12 @@ reciprocal-space kind -- so the plan's "widening points" are two small faces (`t
 with them: `Vee`/`Vxc` used to hit an assert-only `void` body -- a silent NO-OP in the shipped build,
 i.e. a zeroed J and a wrong Fock -- and now throw.
 
-## Next: **V1.11** — the last RealComplexPlan prerequisite
+## Next: the RealComplexPlan itself is UNBLOCKED — and MnO real-TRIM with it
 
-- **V1.11** (occupation seam) is SCFStrategyPlan increment 4 (§5 pins the shape: occupation is a
-  first-class seam, aufbau/MOM/smearing siblings).  The `Fill(const OccupationPolicy&)` face and the
-  two-phase WF construction still need design there.
+Every §7 prerequisite has landed.  The type refactor's staging (RealComplexPlan §5) can start at Step 1
+(`IsReal()` queries), and the MnO session's real-TRIM work (which ruled 2026-08-16/17 that it WAITS on
+V1.1 + V1.11) has everything it needs: `Orbital_DFT_IBS<double,dcmplx>` is a live spelling and the WF/
+occupation seam carries no state the variant-child restructuring would entangle.
 - **V1.5 landed 2026-08-16** (see the item / doc/CleanupHistory.md).  The session's status audit of
   FittingCleanupPlan found it more finished than it knew: **H** essentially landed via V1.26/V2.4,
   **I.2** landed (`relCutoff` live), **§K's `cvec_t` sub-bullet is overtaken** (`ProjectedScalar_G` no
@@ -1097,43 +1098,15 @@ MnO campaign proceeds undisturbed in qchem6.
   *(NOT in this list, and deliberately so: `Orbital_ERI4_IBS::Substrate` added by R1.7 is an
   abstract→ABSTRACT cross-cast — the sanctioned direction — and it THROWS naming both bases.)*
 - **V1.10b ✅ DONE (see LANDED). Mixer.  **→ doc/CleanupHistory.md**
-- **V1.11 🔶 DESIGN RULED (user, 2026-08-17 — SCFStrategyPlan §5b); increment 1 ✅ `43bbebad`.**
-  The rulings: policy-owns-state; abstract `OccupationPolicy` HOMED IN qcElectronConfiguration, concretes
-  ASSEMBLED from two axes (occupancy {Integer, Fermi, Held} × ranking {bare, MOM}); the EC class network
-  becomes DATA (counts + the reservoir partition — generalising the grouping `FillOrbitalsSharedFermi`
-  already does); observer pattern if the policy must message up the DAG; **MnO real-TRIM waits on this**.
-  Increment 1 ✅ `43bbebad`: `TOrbitals::FillResult{electronsLeft, minusTS, DPrime}` kills the `ds_t`
-  dual-meaning tuple (transitional `ds_t` alias dies with increment 4).
-  Increment 2 ✅ `0c818835`: `ReservoirPartition{spansSpatial, spansSpin, ranksIntegerFill}` replaces the
-  three EC mode bools (the old aufbau-vs-globalFermi mutual exclusion is now UNREPRESENTABLE);
-  `tCompositeWF::FillOrbitals` is ONE loop over the reservoir grouping — the decision tree and both
-  strategy methods collapsed into per-reservoir dispatch (ranked / shared-μ / per-block prescribed, with
-  the held-fill + kT=0-staircase degrade documented in place).  `ranksIntegerFill` is explicitly
-  transitional — it moves into the Integer occupancy policy at increment 3.
-  Increment 3 ✅ `841eadf2`: `OccupationPolicy<T>` in qcElConfig (the D6 home) — the WF face sheds all
-  five occupation members, the iterator owns the slot, and the seed fill runs on the policy's EXPLICIT
-  default state (the D11 two-phase hazard closed structurally).  **DAG lesson worth keeping: qcOrbitals
-  sits ABOVE qcElConfig, so the policy reads orbitals through an `OrbitalView<T>` DIP face it owns and
-  `TOrbitals` implements from above — the naive qcElConfig→qcOrbitals link is a linker-rejected cycle,
-  found on contact.**  The iterator's public `AdoptMOMReference` face is unchanged (tests untouched).
-  Increment 4 ✅ `092d1da8`: ONE `TOrbitals::Fill(const BlockFill&)` replaces the five `TakeElectrons*`
-  virtuals.  `BlockFill` (T-free, in the DIP currency module beside `OrbitalView`) IS the §5b two-axis
-  product as data — occupancy {Integer | Fermi | FermiAtMu} × ranking {priority | eShift};
-  `OccupationPolicy::DecideBlockFill` PRODUCES it (the 4-way branch + the Λ-calibration lore moved off
-  `tIrrepWF` into the policy — the policy is now the DECIDER); the five bodies became private
-  realizations; the `ds_t` alias and the `MOMSmearPenalty` getter died.
-  REMAINING increment (§5b): (5) `Held` policy replaces the `holdBlock` bool (the direct-min fill still
-  builds its spec at the call site, as does the shared-μ metal fill pending the reservoir-driver
-  migration).  Bit-identical; smeared/metal anchors guard did-E-move.
-  *(original text follows)*
-  (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`
-  (SCFWaveFunction.C:39-76): run-config known at construction time delivered by post-ctor setters;
-  every concrete WF defends against the un-configured state.  (ii) Five `TakeElectrons*` virtuals
-  on `TOrbitals<T>` (Orbitals.C:128-152) with a dual-meaning tuple slot (the doc comment itself
-  warns "here the double is −TS, NOT leftover electrons"); every new occupation policy so far added
-  a virtual to the abstract face (OCP).  One `Fill(const OccupationPolicy&)` returning a named
-  struct; the policy object also feeds the WF ctor.  Cross-ref: this IS SCFStrategyPlan's
-  "occupation seam" — design it there.
+- **V1.11 ✅ DONE `43bbebad`+`0c818835`+`841eadf2`+`092d1da8`+`2398dd07` (2026-08-17) — the occupation
+  seam, five bit-identical increments.**  `OccupationPolicy<T>` in qcElConfig decides every fill
+  (`DecideBlockFill` → the two-axis `BlockFill` spec; `HeldOccupationPolicy` is the direct minimiser's
+  sibling); the WF carries NO occupation state; ONE `TOrbitals::Fill` replaced the five `TakeElectrons*`
+  virtuals; the EC mode bools became the `ReservoirPartition`; the D11 seed-fill hazard closed
+  structurally.  **DAG lesson**: qcElConfig→qcOrbitals is a linker cycle — the `OrbitalView<T>` DIP face
+  (owned below, implemented above) is the CLAUDE.md inversion example verbatim.
+  **→ doc/CleanupHistory.md** (full record).  **With this, ALL SIX doc/RealComplexPlan.md §7
+  prerequisites are DONE.**
 - **V1.12 `EnergyBreakdown` — 13 public data members (OCP+SRP).**  Every new term family edits the
   struct + totals + `op+=` + Display; `GridChargeLost` is a GPW health DIAGNOSTIC ("not an energy",
   its own comment) and `MinusTS` is WF-side entropy — both riding the energy value object; also
