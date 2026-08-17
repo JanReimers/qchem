@@ -121,7 +121,8 @@ struct NoHF_System {};
 struct NoHF_Pair   {};
 //! The HF faces on the finite path (T=double), empty bases on the periodic path (T=dcmplx) -- the same
 //! idiom as ProjectedDensityBase / FourierDensityBase directly below.
-template <class T> using HF_SystemBase = std::conditional_t<std::is_same_v<T,double>, tHF_System_CD<double>, NoHF_System>;
+// (No HF_SystemBase alias: the two whole-system densities carry their sweep in a CRTP mixin of their own
+// -- Composite_HFSystem / Polarized_HFSystem -- so the face is inherited by those, real path only.)
 template <class T> using HF_PairBase   = std::conditional_t<std::is_same_v<T,double>, tHF_Pair_CD<double>,   NoHF_Pair>;
 
 //! The COULOMB-metric projection face for the finite path (T=double), the empty base for the periodic path
@@ -339,12 +340,29 @@ private:
 template <class T, class Pol> using PolarizedFourierBase =
     std::conditional_t<std::is_same_v<T,dcmplx>, Polarized_Fourier<Pol>, NoFourierDensity>;
 
+//! \brief The whole-system exact-exchange sweep for a POLARIZED density -- real path only (V1.6,
+//! completing it): each channel spans every block, so both simply drive their own sweep into the shared
+//! Fock blocks.  CRTP like its composite and leaf siblings, and for the same reason: inheriting the
+//! \c tHF_System_CD face conditionally while DECLARING its methods unconditionally left the dcmplx
+//! instantiation carrying members that override nothing and can only throw.
+template <class Pol> class Polarized_HFSystem : public virtual tHF_System_CD<double>
+{
+public:
+    virtual void AccumulateDirectAll  (std::vector<hmat_t<double>>& Jall) const;
+    virtual void AccumulateExchangeAll(std::vector<hmat_t<double>>& Kall) const;
+private:
+    const Pol& self() const {return static_cast<const Pol&>(*this);}
+};
+
+template <class T, class Pol> using PolarizedHFBase =
+    std::conditional_t<std::is_same_v<T,double>, Polarized_HFSystem<Pol>, NoHF_System>;
+
 template <class T> class tPolarized_CD
     : public virtual tDM_CD<T>
     , public virtual tLineageTracked<T>        // Layer-2: this top-level density tracks its SCF lineage head
     , public virtual ProjectedDensityBase<T>   // finite/molecular: an AO-projectable density
     , public PolarizedFourierBase<T,tPolarized_CD<T>>   // reciprocal trio: periodic path only (V1.7)
-    , public HF_SystemBase<T>                  // exact exchange spans every block: real path only (V1.6)
+    , public PolarizedHFBase<T,tPolarized_CD<T>>   // whole-system exact exchange: real path only (V1.6)
 {
 public:
     virtual       tDM_CD<T>* GetChargeDensity(const Spin&)      =0;
@@ -363,8 +381,8 @@ public:
 
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
-    virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const;  // sum both spins (Coulomb)
-    virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const;  // sum both spins (RHF exchange)
+    // The whole-system J/K sweep is NOT declared here (V1.6 ISP): it lives in Polarized_HFSystem, which
+    // only the REAL instantiation inherits -- the periodic path has no exact exchange to deny.
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const tMixableDensity<T>&,double)      ;  //this = (1-c)*this + c*that.
