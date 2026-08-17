@@ -30,15 +30,9 @@ namespace qchem::BasisSet::Lattice_3D
 
 namespace
 {
-//! \brief A TIME-REVERSAL-INVARIANT \a kFrac: every component a half-integer, i.e. \f$2k\f$ is a
-//! reciprocal lattice vector.  \f$\Gamma\f$ and the zone-boundary points \f$(\tfrac12,0,0)\f$,
-//! \f$(\tfrac12,\tfrac12,0)\f$, \f$(\tfrac12,\tfrac12,\tfrac12)\f$ -- and note a \f$\Gamma\f$-centred
-//! 2x2x2 Monkhorst-Pack mesh is k in {0,½}³, i.e. TRIM THROUGHOUT.
-bool IsTRIM(const rvec3_t& k)
-{
-    auto half=[](double x){ return std::fabs(2.0*x - std::round(2.0*x)) < 1e-12; };
-    return half(k.x) && half(k.y) && half(k.z);
-}
+// TRIM (k time-reversal-invariant, 2k a reciprocal lattice vector) is no longer re-derived here from the
+// float k: the ctor's kIsReal FACT (itsTRIM) comes from the Bloch irrep's Symmetry::IsReal() -- exact
+// integer arithmetic on the BZ grid, no tolerance (doc/RealComplexPlan.md Step 1).
 //! \brief The Bloch phase \f$e^{2\pi i\,k\cdot n}\f$ of integer cell \a n -- EXACTLY \f$\pm1\f$ at a
 //! TRIM \a kFrac.
 //!
@@ -64,11 +58,10 @@ dcmplx BlochPhase(const rvec3_t& kFrac, const ivec3_t& n, bool trim)
 // Build a lattice-translation set {R} (Cartesian, origin first) and its matching Bloch phases {e^{ik.R}} for
 // a cutoff radius -- the {R}+{phase} weighted point set (future: one qcMesh cMesh).  phase = exp(2 pi i k.n)
 // with n the integer cell index (convention-safe).  Rcut<=0 -> the home cell only (origin, phase 1).
-void BuildImages(const UnitCell& cell, double Rcut, const rvec3_t& kFrac,
+void BuildImages(const UnitCell& cell, double Rcut, const rvec3_t& kFrac, bool trim,
                  std::vector<rvec3_t>& R, cvec_t& phase)
 {
     blazem::VecBuilder<dcmplx> ph;
-    const bool trim=IsTRIM(kFrac);
     if (Rcut>0.0)
         for (const auto& n : cell.CellsInSphere(Rcut))
         {
@@ -222,12 +215,13 @@ std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm>
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                             double densityEcut, const rvec3_t& kFrac, bool homeCellOnly,
+                             double densityEcut, const rvec3_t& kFrac, bool kIsReal, bool homeCellOnly,
                              double cutoffFactor, RasterPolicy raster, double ladderFactor,
                              RasterFields rasterFields)
     : itsMol(std::move(mol))
     , itsHomeOnly(homeCellOnly)
     , itsk(kFrac)
+    , itsTRIM(kIsReal)
     , itsCell(cell)
     , itsCutoffFactor(cutoffFactor)
     , itsLadderFactor(ladderFactor)
@@ -285,7 +279,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     // 2*cellRad (the cell DIAMETER) exceeds 2*maxCellEdge, so the historical formula under-enumerated;
     // keep the max of both so every previously-enumerated case is unchanged.
     BuildImages(cell, itsHomeOnly ? 0.0 : std::max(2.0*itsMaxReach+2.0*cell.GetMaximumCellEdge(),
-                                                   itsMaxReach+2.0*itsCellRad), itsk, itsRc, itsPhaseC);
+                                                   itsMaxReach+2.0*itsCellRad), itsk, itsTRIM, itsRc, itsPhaseC);
 
     // The DFT tier's density/collocation grid: GPW's ONLY grid cutoff (no orbital/wavefunction cutoff -- the
     // Gaussians are analytic).  IMPORTANT: densityEcut is a DENSITY-scale quantity: the sharpest feature is
@@ -329,7 +323,7 @@ GPW_Evaluator::~GPW_Evaluator()
 Molecule::LatticeSum1E::cellphase_t GPW_Evaluator::CellPhase() const
 {
     const rvec3_t k=itsk;
-    const bool trim=IsTRIM(k);                       // exactly +/-1 there; see BlochPhase
+    const bool trim=itsTRIM;                         // the irrep's exact fact; phases exactly +/-1 there (BlochPhase)
     return [k,trim](const ivec3_t& n)->dcmplx { return BlochPhase(k,n,trim); };
 }
 

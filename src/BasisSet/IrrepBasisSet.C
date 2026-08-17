@@ -60,6 +60,12 @@ public:
     virtual const           sym_t   & GetSymt    () const=0;
     //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
     virtual Irrep GetIrrep(const Spin& s) const=0;
+    //! \brief Can this block's basis functions be chosen REAL (S, T, V real-symmetric)?  Pure forward of
+    //! \c Symmetry::IsReal() -- the BASIS-type half of doc/RealComplexPlan.md's rule (the WORKING type
+    //! additionally ANDs \c tHamiltonian::PreservesReal() at the composition root).  NOTE this is about
+    //! realness of the FUNCTIONS, independent of the storage scalar \c T: a TRIM \c GPW_IBS answers true
+    //! while still (pre-Step-3) storing \c dcmplx.
+    bool IsReal() const {return GetSymmetry().IsReal();}
     virtual size_t GetNumFunctions() const=0;
     //! Serialize this irrep's radial parameters (e.g. Gaussian exponents) into the OPEN run report's current
     //! cursor row -- a basis-usage diagnostic (doc/GPWPlan1 §1, CLIapps/valgen).  A report-only sink, NOT a

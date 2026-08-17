@@ -35,6 +35,12 @@ public:
     //! A k-STAR of band levels is one symmetry-degenerate shell of the crystal group -- let the
     //! EnergyLevels reporting layer merge equal-eigenvalue levels across k-blocks (Symmetry doc).
     virtual bool   MergeAcrossIrreps() const {return true;}
+    //! \brief TRIM test: real iff \f$2k\equiv 0\pmod{\mathrm{recip.\ lattice}}\f$, i.e.
+    //! \f$N_i\,|\,2(ik_i+\mathrm{shift}_i)\f$ per component -- EXACT integer arithmetic on the ctor's
+    //! integer grid data, no float-k tolerance (doc/RealComplexPlan.md Step 1; the phases themselves are
+    //! exactly \f$\pm1\f$ there by Step 0).  \f$\Gamma\f$ and zone-boundary half-integer k answer yes; a
+    //! shifted (MP \f$\mathrm{shift}=\tfrac12\f$, even N) mesh point does not.
+    virtual bool   IsReal() const {return isReal;}
     virtual std::ostream&  Write(std::ostream&) const;
 
     rvec3_t   Getk() const {return k;}
@@ -44,6 +50,7 @@ private:
     ivec3_t ik;     //Integer rep. of k.
     rvec3_t k;      //Real values.
     size_t  star;   //k-star multiplicity w_k·N_mesh (the block's spatial degeneracy; 1 on an unfolded mesh).
+    bool    isReal; //TRIM fact N_i | 2(ik_i+shift_i), computed EXACTLY in the ctor (see IsReal).
 };
 
 //! \brief Pry the Bloch wave vector \f$k\f$ (fractional) out of an abstract symmetry handle.

@@ -81,6 +81,7 @@ template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
             rpt::Row row("perIrrep");
             rpt::Set("irrep",      IrrepLabel(qns));
             rpt::Set("nFunctions", (long)b->GetNumFunctions());
+            rpt::Set("real",       b->IsReal());   // basis-type fact per block (doc/RealComplexPlan.md Step 1)
             lasb->SetBasisOverlap(S);
         }
         else

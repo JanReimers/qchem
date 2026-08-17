@@ -25,9 +25,9 @@ GPW_IBS::GPW_IBS(const UnitCell& cell, const sym_t& irrep,
                  std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields,
                  std::vector<Symmetry::Lattice_3D::SymOp> magneticOps)
     : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
-    , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep),
+    , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
                     images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor,
-                    rasterFields) // irrep IS k
+                    rasterFields) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
     , itsMagneticOps(std::move(magneticOps))
 {
     SetSymmetryOps(std::move(directOps));   // ONE storage (the evaluator): T1 {G} fold + Vxc-raster star ops

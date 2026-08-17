@@ -198,6 +198,30 @@ TEST_F(SymQNTests, Orbital_QNs_set)
 }
 
 
+// doc/RealComplexPlan.md Step 1: the basis-type half of the realness rule.  Ordinary spatial symmetries
+// default true; BlochQN answers the TRIM question by EXACT integer arithmetic (no float-k tolerance).
+TEST_F(SymQNTests, IsReal)
+{
+    EXPECT_TRUE(Y(0)->IsReal());                     // atomic shells: real by default
+    EXPECT_TRUE(Y(2,make_mls(-2,2))->IsReal());
+
+    ivec3_t N(4,4,4);
+    EXPECT_TRUE (BlochFactory(N,{0,0,0})->IsReal());     // Gamma
+    EXPECT_TRUE (BlochFactory(N,{2,2,0})->IsReal());     // zone boundary k=(1/2,1/2,0)
+    EXPECT_TRUE (BlochFactory(N,{-2,2,2})->IsReal());    // negative index, still TRIM
+    EXPECT_FALSE(BlochFactory(N,{1,0,0})->IsReal());     // k=(1/4,0,0): not TRIM
+    EXPECT_FALSE(BlochFactory(N,{2,2,3})->IsReal());     // one non-TRIM component poisons the block
+
+    // Gamma-centred 2x2x2 is TRIM THROUGHOUT; the MP shift=1/2 mesh (k=+/-1/4) never is.
+    ivec3_t N2(2,2,2);
+    for (int x=0;x<2;x++) for (int y=0;y<2;y++) for (int z=0;z<2;z++)
+    {
+        EXPECT_TRUE (BlochFactory(N2,{x,y,z})->IsReal());
+        EXPECT_FALSE(BlochFactory(N2,{x,y,z},1.0,{0.5,0.5,0.5})->IsReal());
+    }
+    EXPECT_TRUE(BlochFactory({1,1,1},{0,0,0},1.0,{0.5,0.5,0.5})->IsReal());   // N=1 shifted: k=(1/2,1/2,1/2) IS TRIM
+}
+
 TEST_F(SymQNTests, BlochQNs)
 {
     ivec3_t N(5,6,7);
