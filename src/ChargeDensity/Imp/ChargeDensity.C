@@ -34,18 +34,18 @@ template <class T> static const tHF_System_CD<T>& SystemOf(const tDM_CD<T>* cd)
 }
 
 // Coulomb sees the TOTAL density: both spin channels scatter into the same per-irrep Fock blocks.
-template <class T> void tPolarized_CD<T>::AccumulateDirectAll(std::vector<hmat_t<T>>& Jall) const
+template <class Pol> void Polarized_HFSystem<Pol>::AccumulateDirectAll(std::vector<hmat_t<double>>& Jall) const
 {
-    SystemOf<T>(GetChargeDensity(Spin::Up  )).AccumulateDirectAll(Jall);
-    SystemOf<T>(GetChargeDensity(Spin::Down)).AccumulateDirectAll(Jall);
+    SystemOf<double>(self().GetChargeDensity(Spin::Up  )).AccumulateDirectAll(Jall);
+    SystemOf<double>(self().GetChargeDensity(Spin::Down)).AccumulateDirectAll(Jall);
 }
 
 // The RHF (unpolarized) exchange term sums K[D_up]+K[D_down] into the same blocks (= K[D_total], then the
 // term scales by -1/2).  The polarized term instead drives AccumulateExchangeAll on ONE spin's composite.
-template <class T> void tPolarized_CD<T>::AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const
+template <class Pol> void Polarized_HFSystem<Pol>::AccumulateExchangeAll(std::vector<hmat_t<double>>& Kall) const
 {
-    SystemOf<T>(GetChargeDensity(Spin::Up  )).AccumulateExchangeAll(Kall);
-    SystemOf<T>(GetChargeDensity(Spin::Down)).AccumulateExchangeAll(Kall);
+    SystemOf<double>(self().GetChargeDensity(Spin::Up  )).AccumulateExchangeAll(Kall);
+    SystemOf<double>(self().GetChargeDensity(Spin::Down)).AccumulateExchangeAll(Kall);
 }
 
 template <class T> double tPolarized_CD<T>::DM_Contract(const tStatic_CC<T>* v) const
@@ -183,6 +183,7 @@ template <class T> rvec3_t tPolarized_CD<T>::Gradient  (const rvec3_t& r) const
     return GetChargeDensity(Spin::Up)->Gradient(r) + GetChargeDensity(Spin::Down)->Gradient(r);
 }
 
+template class Polarized_HFSystem<tPolarized_CD<double>>;   // real path only (V1.6)
 template class tPolarized_CD<double>;
 template class Polarized_Fourier<tPolarized_CD<dcmplx>>;
 template class tPolarized_CD<dcmplx>;

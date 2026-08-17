@@ -37,12 +37,30 @@ private:
 template <class T, class Comp> using CompositeFourierBase =
     std::conditional_t<std::is_same_v<T,dcmplx>, Composite_Fourier<Comp>, NoFourierDensity>;
 
+//! \brief The whole-system exact-exchange sweep for a COMPOSITE -- real path only (V1.6, completing it).
+//! Same CRTP shape as \c Composite_Fourier, and for the same reason the LEAF got one: inheriting the
+//! \c tHF_System_CD face conditionally but DECLARING its two methods unconditionally left
+//! \c tComposite_CD<dcmplx> carrying exact-exchange members that override nothing and can only throw --
+//! the very "denial the other half of the hierarchy must write" this item set out to remove, surviving
+//! one level above the leaf.  Declared here, the complex composite grows nothing at all.
+template <class Comp> class Composite_HFSystem : public virtual tHF_System_CD<double>
+{
+public:
+    virtual void AccumulateDirectAll  (std::vector<hmat_t<double>>& Jall) const;
+    virtual void AccumulateExchangeAll(std::vector<hmat_t<double>>& Kall) const;
+private:
+    const Comp& self() const {return static_cast<const Comp&>(*this);}
+};
+
+template <class T, class Comp> using CompositeHFBase =
+    std::conditional_t<std::is_same_v<T,double>, Composite_HFSystem<Comp>, NoHF_System>;
+
 template <class T> class tComposite_CD
     : public virtual tDM_CD<T>
     , public virtual tLineageTracked<T> // Layer-2: this top-level density tracks its SCF lineage head
     , public ProjectedDensityBase<T> // AO projection on the finite (double) path; empty on the periodic path
     , public CompositeFourierBase<T,tComposite_CD<T>>   // reciprocal trio: periodic path only (V1.7)
-    , public HF_SystemBase<T>        // exact exchange spans every block: real path only, empty for dcmplx (V1.6)
+    , public CompositeHFBase<T,tComposite_CD<T>>        // whole-system exact exchange: real path only (V1.6)
 {
 public:
     //! \a pointOps = the reciprocal point group for IBZ density symmetrization (doc/GPWPlan1.md item 3).  The
@@ -55,9 +73,9 @@ public:
     //! unique_ptr -- an ownership transfer visible only by reading the implementation (V1.25).
     void Insert(std::unique_ptr<tDM_CD<T>> cd);
 
-    virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const;
-    virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const;
-
+    // The whole-system J/K sweep is NOT declared here (V1.6 ISP): it lives in Composite_HFSystem, which
+    // only the REAL instantiation inherits -- so tComposite_CD<dcmplx> declares nothing and defines nothing
+    // for an operation the periodic path never has (Ham_PW_DFT adds Vee_Hartree, never exact exchange).
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;   // sum over irrep blocks
@@ -84,6 +102,7 @@ public:
 
 private:
     friend class Composite_Fourier<tComposite_CD<T>>;   // sums the blocks; nothing is exposed publicly
+    friend class Composite_HFSystem<tComposite_CD<T>>;  // drives the canonical-pair sweep over the blocks
     tComposite_CD(const tComposite_CD&);
 
     typedef std::vector<std::unique_ptr<tDM_CD<T>>> cdv_t;
