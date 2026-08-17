@@ -1097,7 +1097,19 @@ MnO campaign proceeds undisturbed in qchem6.
   *(NOT in this list, and deliberately so: `Orbital_ERI4_IBS::Substrate` added by R1.7 is an
   abstract→ABSTRACT cross-cast — the sanctioned direction — and it THROWS naming both bases.)*
 - **V1.10b ✅ DONE (see LANDED). Mixer.  **→ doc/CleanupHistory.md**
-- **V1.11 Occupation seam: two-phase SCF-WF construction + the `TakeElectrons*` family.**
+- **V1.11 🔶 DESIGN RULED (user, 2026-08-17 — SCFStrategyPlan §5b); increment 1 ✅ `43bbebad`.**
+  The rulings: policy-owns-state; abstract `OccupationPolicy` HOMED IN qcElectronConfiguration, concretes
+  ASSEMBLED from two axes (occupancy {Integer, Fermi, Held} × ranking {bare, MOM}); the EC class network
+  becomes DATA (counts + the reservoir partition — generalising the grouping `FillOrbitalsSharedFermi`
+  already does); observer pattern if the policy must message up the DAG; **MnO real-TRIM waits on this**.
+  Increment 1 landed: `TOrbitals::FillResult{electronsLeft, minusTS, DPrime}` kills the `ds_t`
+  dual-meaning tuple (transitional `ds_t` alias dies with increment 4).  REMAINING increments (§5b):
+  (2) reservoir partition on EC + ONE composite fill loop, the three mode bools die; (3) `OccupationPolicy`
+  + iterator slot, WF face sheds `SetMOM`/`SetSmearing`/`Adopt`/`Release`/`GetEntropyTerm` — also closes
+  the MEASURED seed-fill-before-SetSmearing charge-loss hazard (the D11 note in CompositeWF.C);
+  (4) collapse the five `TakeElectrons*` virtuals into fill(budget-or-μ, ranking); (5) `Held` policy
+  replaces the `holdBlock` bool.  Each increment bit-identical; smeared/metal anchors guard did-E-move.
+  *(original text follows)*
   (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`
   (SCFWaveFunction.C:39-76): run-config known at construction time delivered by post-ctor setters;
   every concrete WF defends against the un-configured state.  (ii) Five `TakeElectrons*` virtuals
