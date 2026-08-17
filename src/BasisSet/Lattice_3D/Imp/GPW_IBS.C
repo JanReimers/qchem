@@ -8,6 +8,7 @@ module;
 #include <vector>
 
 module qchem.BasisSet.Lattice_3D.GPW_IBS;
+import qchem.BasisSet.Lattice_3D.IBS;       // ToScalar (the Step-3 exact TRIM narrow; identity for dcmplx)
 import qchem.Symmetry.Factory;              // BlochFactory (the convenience ctor + the k=0 fit-basis irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
 import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ raster ops param type)
@@ -19,12 +20,12 @@ import qchem.SymmetrizeMesh;                     // MakeInvariant/FoldMesh (the 
 namespace qchem::BasisSet::Lattice_3D
 {
 
-GPW_IBS::GPW_IBS(const UnitCell& cell, const sym_t& irrep,
+template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, RasterPolicy raster, double ladderFactor,
                  std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields,
                  std::vector<Symmetry::Lattice_3D::SymOp> magneticOps)
-    : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
+    : BasisSet::IrrepBasisSetImp<T>(irrep)
     , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
                     images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor,
                     rasterFields) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
@@ -34,10 +35,10 @@ GPW_IBS::GPW_IBS(const UnitCell& cell, const sym_t& irrep,
 }
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
-GPW_IBS::GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
+template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, RasterPolicy raster, double ladderFactor, RasterFields rasterFields)
-    : GPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor,
+    : tGPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor,
               raster, ladderFactor, {}, rasterFields)
 {}
 
@@ -59,13 +60,13 @@ GPW_IBS::GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
 // So a reader sees BOTH bases here, and for LDA both are the one density grid.  (History: a temporary
 // GPW_CDFIT_SCALE knob that forked a SECOND, denser grid is RETIRED -- resolving the product is cutoffFactor's
 // job, one grid.  doc/GPWPlan §0e step 2.)
-BasisSet::cFIT_CD_ABS* GPW_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
+template <class T> BasisSet::cFIT_CD_ABS* tGPW_IBS<T>::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
 {
     // {G}_rho = DensityGrid() (cutoffFactor*alpha_max, resolving the density product); no relCutoff on the CD grid.
     return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
                                 "densityFit");
 }
-BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
+template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
     // The DELTA-fit route builds NO fit basis at all (user 2026-08-01 -- a zero-function pseudo-basis
     // was a null-object smell): its quadrature comes from CreateXCQuadrature below.  This factory
@@ -77,7 +78,7 @@ BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcM
                                 "xcQuadrature", SymmetryOps());
 }
 
-BasisSet::XCQuadrature GPW_IBS::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
+template <class T> BasisSet::XCQuadrature tGPW_IBS<T>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     // The DELTA-fit quadrature (doc/SymmetryUpgradePlan.md §6a).  On a §3-imposed run this basis
     // carries the crystal ops (ctor-injected, like the raster ops PlaneWaveFit_IBS gets):
@@ -135,23 +136,23 @@ BasisSet::XCQuadrature GPW_IBS::CreateXCQuadrature(const Structure* cl, const qc
 // (theCache, keyed by BasisSetID + Structure::ID -- exactly the Nuclear() pattern): a multi-k / IBZ-vs-full-mesh
 // run then reuses a k-block's PP across GPW_IBS instances instead of re-quadraturing it.  The build is the
 // cache-miss `make` lambda; the outer Make* name is the Integrals_Pseudo override the term calls.
-hmat_t<dcmplx> GPW_IBS::MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+template <class T> hmat_t<T> tGPW_IBS<T>::MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::LocalPP, this, cl->ID(),
-        [this,cl,&loc]{ return GPW_Evaluator::MakeLocalPP(cl, loc); });
+    return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPP, this, cl->ID(),
+        [this,cl,&loc]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPP(cl, loc)); });
 }
 
 // The CP2K local-PP split (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb) matrix rides the smooth
 // density-grid integrate-back (MakeLocalPPLong -- no sharp-field sweep); the SHORT (compact poly-Gaussian)
 // matrix rides the sharp-field local-PP sweep (MakeLocalPP restricted to FormFactorShort).  Distinct cache
 // keys keep them from colliding with each other or the full LocalPP.
-hmat_t<dcmplx> GPW_IBS::MakeLocalPotentialLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+template <class T> hmat_t<T> tGPW_IBS<T>::MakeLocalPotentialLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::LocalPPLong, this, cl->ID(),
-        [this,cl,&loc]{ return GPW_Evaluator::MakeLocalPPLong(cl, loc); });
+    return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPLong, this, cl->ID(),
+        [this,cl,&loc]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPPLong(cl, loc)); });
 }
 
-hmat_t<dcmplx> GPW_IBS::MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+template <class T> hmat_t<T> tGPW_IBS<T>::MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
     // ANALYTIC short assembly (doc/GPWPlan.md 0e-PP step (b), 2026-07-22): exact 3-centre Gaussian lattice
     // sums (LatticeSum1E::MakeLocalGaussian), no grid.  Safe to wire ONLY because step (a) first made the
@@ -159,25 +160,27 @@ hmat_t<dcmplx> GPW_IBS::MakeLocalPotentialShort(const Structure* cl, const Pseud
     // ~0.5 Ha band-limit error used to CANCEL the grid long's, so exact-short + sloppy-long missed the gate.
     // Cross-validated against the kappa-ruled grid short by GPW.LocalPPKappaSelfConverged; falls back to the
     // grid sweep inside MakeLocalPPShort for a model without the closed-Gaussian face.
-    return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::LocalPPShort, this, cl->ID(),
-        [this,cl,&loc]{ return GPW_Evaluator::MakeLocalPPShort(cl, loc); });
+    return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPShort, this, cl->ID(),
+        [this,cl,&loc]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPPShort(cl, loc)); });
 }
 
-hmat_t<dcmplx> GPW_IBS::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
+template <class T> hmat_t<T> tGPW_IBS<T>::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
 {
     auto* sepR=dynamic_cast<const Pseudopotential::SeparablePotential_R*>(&nl);
     assert(sepR && "GPW MakeSeparablePotential: the KB model must provide the real-space projector face (SeparablePotential_R)");
-    return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::SeparablePP, this, cl->ID(),
-        [this,cl,sepR]{ return GPW_Evaluator::MakeSeparablePP(cl, *sepR); });
+    return theCache<T>().Get(IntegralsCache_Base::I2n::SeparablePP, this, cl->ID(),
+        [this,cl,sepR]{ return ToScalar<T>(GPW_Evaluator::MakeSeparablePP(cl, *sepR)); });
 }
 
-std::map<int,hmat_t<dcmplx>> GPW_IBS::MakeSeparablePotentialByL(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
+template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeSeparablePotentialByL(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
 {
     // Diagnostic face (doc/SphericalLatticePlan.md I0): built on demand, NOT DB-cached -- its consumer
     // (the Ven_PP_NonLocal per-l energy print) caches the result term-side for the run's lifetime.
     auto* sepR=dynamic_cast<const Pseudopotential::SeparablePotential_R*>(&nl);
     assert(sepR && "GPW MakeSeparablePotentialByL: the KB model must provide the real-space projector face (SeparablePotential_R)");
-    return GPW_Evaluator::MakeSeparablePPByL(cl, *sepR);
+    std::map<int,hmat_t<T>> out;
+    for (auto& [l,m] : GPW_Evaluator::MakeSeparablePPByL(cl, *sepR)) out.emplace(l, ToScalar<T>(m));
+    return out;
 }
 
 // The DFT 3-centre tables over the REQUESTED fit basis's grid (doc/GPWPlan §0e).  The fit basis \a c that the
@@ -186,25 +189,28 @@ std::map<int,hmat_t<dcmplx>> GPW_IBS::MakeSeparablePotentialByL(const Structure*
 // it, so we RETURN THE REQUESTED TABLE rather than overriding the caller's fit-grid choice with the block's own
 // (the shared EPW_Orbital_DFT_IBS mixin dropped \a c).  Bit-identical while the factory wraps DensityGrid();
 // the seam is what lets the fit grid diverge (the deferred GGA Vxc densification) without touching these.
-Projector3<dcmplx> GPW_IBS::MakeRepulsion3C(const cFIT_CD_ABS& c) const
+template <class T> Projector3<dcmplx> tGPW_IBS<T>::MakeRepulsion3C(const cFIT_CD_ABS& c) const
 {
     const auto& grid = dynamic_cast<const PW_Grid_Evaluator&>(c);   // throws bad_cast on a non-grid fit basis (loud)
     return GPW_Evaluator::Repulsion3CTensor(std::make_shared<const PW_Grid_Evaluator>(grid));
 }
-Projector3<dcmplx> GPW_IBS::MakeOverlap3C(const cFIT_SF_ABS& c) const
+template <class T> Projector3<dcmplx> tGPW_IBS<T>::MakeOverlap3C(const cFIT_SF_ABS& c) const
 {
     const auto& grid = dynamic_cast<const PW_Grid_Evaluator&>(c);
     return GPW_Evaluator::Overlap3CTensor(std::make_shared<const PW_Grid_Evaluator>(grid));
 }
 
-std::string GPW_IBS::BasisSetID() const
+template <class T> std::string tGPW_IBS<T>::BasisSetID() const
 {
     return Name()+GPW_Evaluator::IDFragment();   // Name + "|mol=..|k=..|cell=..|dEcut=.."
 }
 
-std::ostream& GPW_IBS::Write(std::ostream& os) const
+template <class T> std::ostream& tGPW_IBS<T>::Write(std::ostream& os) const
 {
-    return os << Name() << " IBS: " << GetNumFunctions() << " periodic Gaussians, " << GetSymmetry();
+    return os << Name() << " IBS: " << this->GetNumFunctions() << " periodic Gaussians, " << this->GetSymmetry();
 }
+
+template class tGPW_IBS<double>;   // the REAL TRIM block (Step 3; narrowed 1E/PP, complex fit side)
+template class tGPW_IBS<dcmplx>;   // the general-k block (== the GPW_IBS alias, unchanged behaviour)
 
 } //namespace

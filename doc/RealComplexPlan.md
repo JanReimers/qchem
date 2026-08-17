@@ -156,7 +156,22 @@ variant that never takes the complex alternative: a negligible tag, one implemen
 - **Step 3 — un-pin the basis** (`GPW_IBS` from `IrrepBasisSet<dcmplx>`), so terms produce real H
   directly and Φ + the quadrature GEMMs go real.  Buys the Hamiltonian/quadrature half — dominant in
   the GPW regime.  The composite variant then falls out as a CONSEQUENCE of blocks having different
-  basis types, which is the coherent order.
+  basis types, which is the coherent order.  **ORDER DECIDED 2026-08-17 (user): Step 3 before 2c** —
+  no throwaway narrowing-child class; the real WF child falls out of the real basis.  Increments:
+  - **3a DONE 2026-08-17** — `tGPW_IBS<T>` exists with BOTH instantiations (`using GPW_IBS =
+    tGPW_IBS<dcmplx>` keeps every spelling).  The EPW mixins are `<E, T=dcmplx>`
+    (PlaneWave/fit bases untouched); a `<double>` block is `IrrepBasisSet<double>` +
+    `Orbital_DFT_IBS<double,dcmplx>` (the V1.1 combination, now explicitly instantiated) +
+    `Integrals_Pseudo<double>`, with the evaluator's exactly-real results ASSERT-narrowed by
+    `ToScalar` (bitwise, per Step 0) at the mixin/PP seams — and cached REAL in `theCache<double>`,
+    so a real block never stores widened matrices.  The DFT tensor tier needs no narrowing at all
+    (tensors follow TFit).  The evaluator itself stays complex — making its streams real is a later,
+    purely performance increment.  Gate: `GPW.TRIM_RealBlockMatchesComplexBitwise` (S/T/Ven/V_NL/
+    V_loc + orbital values, `EXPECT_EQ` on doubles, Γ and the zone corner).
+  - **3b (next)** — the `BasisSetImp` child slot (§4 item 1: the DECISION POINT): the whole-set
+    container holds per-block-typed IBS children, with `GPW_BasisSet` building `tGPW_IBS<double>`
+    when `irrep->IsReal()` (∧ the run's `PreservesReal`, threaded in).  Then the Hamiltonian/term
+    faces per-block (3c), and 2c falls out.
 - **Step 4 — the accelerator** (§6), and only then a mixed-mesh run as the acceptance test.
 
 An all-TRIM mesh (Γ-only, or Γ-centred 2×2×2 = `MNO_KMESH=2`) makes an entire run real with no
