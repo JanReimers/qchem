@@ -6,9 +6,9 @@
 // diagonalizes on its first step).  Hand-off is hot because the NextOrbitals() interface
 // makes every rung an interchangeable orbital producer.
 //
-// TEMPLATED on T (double | dcmplx): the ladder is pure delegation, so it templates trivially;
-// the complex instantiation chains cSCFAcceleratorDIIS -> cSCFAcceleratorGDM for a plane-wave /
-// GPW SCF (DIIS heavy-lifts, GDM polishes the tail once DIIS limit-cycles).
+// The MANAGER is non-template (scalar-agnostic, doc/RealComplexPlan.md §6); only the per-irrep
+// ladder carries the block type T.  The solid path chains DIIS -> GDM for a plane-wave / GPW SCF
+// (DIIS heavy-lifts, GDM polishes the tail once DIIS limit-cycles).
 //
 //==========================================================================================
 // WHEN TO HAND OFF -- design notes (atoms; revisit for molecules/solids/post-HF)
@@ -85,7 +85,9 @@ private:
 // (ScheduleSignal moved to the public qchem.SCFAccelerator 2026-08-09 -- documented there.)
 
 // Top-level: chain {DIIS, GDM, ...}.  Switch when the active rung is Exhausted() and stalled.
-template <class T> class tSCFAcceleratorLadder : public virtual tSCFAccelerator<T>
+// NON-template (doc/RealComplexPlan.md §6): the rungs are themselves scalar-agnostic managers, and the
+// ladder's own state is scheduling scalars, so one ladder serves real and complex blocks alike.
+class SCFAcceleratorLadder : public virtual SCFAccelerator
 {
 public:
     // Two distinct hand-off triggers (see the design notes above):
@@ -97,12 +99,13 @@ public:
     //             slot for a direct minimizer (GDM owns the loop), which is fast and robust
     //             near the minimum but useless far from it.  switchat<=0 disables this.  `signal`
     //             selects [F,D] (Error, molecular default) vs |ΔE/E| (EnergyChange, solids).
-    tSCFAcceleratorLadder(std::vector<std::unique_ptr<tSCFAccelerator<T>>> rungs,
-                          double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0,
-                          ScheduleSignal signal=ScheduleSignal::Error)
+    SCFAcceleratorLadder(std::vector<std::unique_ptr<SCFAccelerator>> rungs,
+                         double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0,
+                         ScheduleSignal signal=ScheduleSignal::Error)
         : itsRungs(std::move(rungs)), itsEThresh(ethresh), itsStall(stall),
           itsFloor(floor), itsSwitchAt(switchat), itsSignal(signal) {}
-    virtual tSCFIrrepAccelerator<T>* Create(const LASolver<T>*,const Irrep&, int occ);
+    virtual tSCFIrrepAccelerator<double>* Create(const LASolver<double>*,const Irrep&, int occ);
+    virtual tSCFIrrepAccelerator<dcmplx>* Create(const LASolver<dcmplx>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;
@@ -127,10 +130,11 @@ public:
     //! stages), never unconditionally -- run 38's post-veto tail grind DID eventually converge.
     virtual bool   Exhausted() const {return itsVetoAnnounced;}
 private:
-    tSCFAccelerator<T>* Active() const //the live rung, bounds-checked
+    template <class T> tSCFIrrepAccelerator<T>* CreateT(const LASolver<T>*,const Irrep&, int occ);
+    SCFAccelerator* Active() const //the live rung, bounds-checked
         { assert(itsActive<itsRungs.size()); return itsRungs[itsActive].get(); }
 
-    std::vector<std::unique_ptr<tSCFAccelerator<T>>> itsRungs;
+    std::vector<std::unique_ptr<SCFAccelerator>> itsRungs;
     double                       itsEThresh; //hand off only while |dE/E| exceeds this
     int                          itsStall;
     double                       itsFloor;
@@ -144,6 +148,5 @@ private:
 };
 
 using SCFIrrepAcceleratorLadder  = tSCFIrrepAcceleratorLadder<double>;  using cSCFIrrepAcceleratorLadder = tSCFIrrepAcceleratorLadder<dcmplx>;
-using SCFAcceleratorLadder       = tSCFAcceleratorLadder<double>;       using cSCFAcceleratorLadder      = tSCFAcceleratorLadder<dcmplx>;
 
 } //namespace

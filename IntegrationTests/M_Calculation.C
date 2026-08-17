@@ -184,3 +184,39 @@ TEST(M_Calculation, SamplingSurface)
     EXPECT_GT(calc.Density()(rO), 0.0);                    // rho > 0 where the atoms are
     EXPECT_GT(std::fabs(calc.HOMO()(rO)) + std::fabs(calc.Orbital(0)(rO)), 0.0);
 }
+
+// ===== The GDM/Ladder molecular path, stressed with BORON (feedback pin: B, not Be) =================
+// Boron's open 2p^1 doublet is the light-atom SCF stress case: plain aufbau+DIIS limit-cycles on the
+// degenerate p shell, which is exactly the regime the DIIS->GDM ladder exists for -- and until this
+// test the molecular GDM/Ladder path had NO gtest coverage at all (it was reachable only through the
+// facade's accelerator option).  Runs UHF (multiplicity=2 promotes to Polarized) on dzvp through the
+// public front door with {.type="Ladder"}, and pins the converged energy as a did-E-move anchor.
+// This is ALSO the behavioural anchor for the scalar-agnostic accelerator-manager face
+// (doc/RealComplexPlan.md §6): one non-template manager driving the real molecular path.
+static Molecule MakeBoron()
+{
+    Molecule b;
+    b.Insert(new Atom(5, 0, Vector3D<double>(0, 0, 0)));
+    return b;
+}
+
+TEST(M_Calculation, BoronUHFLadderGDM)
+{
+    Calculation calc(MakeBoron(), {.basis = "dzvp", .multiplicity = 2}, {.type = "Ladder"});
+
+    const double E_ref = -24.525932;   // pinned converged UHF/dzvp did-E-move anchor (measured 2026-08-17;
+                                       // ~3 mHa above the HF limit -24.529061 = dzvp basis incompleteness)
+    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / std::fabs(E_ref)), 1e-5);
+    EXPECT_GT(calc.IterationCount(), 0u);
+}
+
+// The same anchor under standalone GDM (no DIIS rung in front): the direct minimizer alone must land
+// on the same UHF energy.  Locks the second previously-uncovered accelerator type.
+TEST(M_Calculation, BoronUHFPureGDM)
+{
+    Calculation calc(MakeBoron(), {.basis = "dzvp", .multiplicity = 2}, {.type = "GDM"});
+
+    const double E_ref = -24.525932;   // same anchor as the Ladder run (the two agree to ~1e-12 Ha)
+    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / std::fabs(E_ref)), 1e-5);
+    EXPECT_GT(calc.IterationCount(), 0u);
+}

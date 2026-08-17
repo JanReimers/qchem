@@ -12,7 +12,7 @@ import qchem.LASolver;   // qchem::Ortho (forwarded to tCompositeWF)
 export namespace qchem::WaveFunction
 {
 
-using SCFAccelerators::tSCFAccelerator;
+using SCFAccelerators::SCFAccelerator;
 using ChargeDensity::tDM_CD;
 
 // Polarized (spin up/down) wave function.  Both lineages are instantiated (SymmetryUpgradePlan §4
@@ -25,7 +25,7 @@ template <class T> class tPolarizedWF
 public:
     typedef typename tWaveFunction<T>::sf_t sf_t;
 
-    tPolarizedWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>* acc,
+    tPolarizedWF(const tbs_t<T>*,const ElectronConfiguration*,SCFAccelerator* acc,
                  qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0);
     using tCompositeWF<T>::GetEnergyLevels;
     using tCompositeWF<T>::GetChargeDensity;

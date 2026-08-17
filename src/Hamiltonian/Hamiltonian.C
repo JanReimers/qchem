@@ -55,6 +55,11 @@ public:
     //! NOTE the RELATIVISTIC case is different and is NOT this flag: the Dirac virial is still valid, it
     //! just has a different ideal ratio (1 rather than 2), which \c IsRelativistic already selects.
     virtual bool             IsVirialValid () const {return true; }   //!< virial theorem still meaningful?
+    //! \brief Restricted to a REAL basis block, is this term's matrix real-symmetric?  The term half of
+    //! doc/RealComplexPlan.md's rule (block real ⇔ irrep real ∧ every term preserves real).  Constant per
+    //! term TYPE: kinetic / Coulomb / XC / local-PP / KB all yes (the default); a spin-orbit
+    //! (\f$L=-i\,r\times\nabla\f$) or vector-potential (\f$p\to p+A/c\f$) term answers no.
+    virtual bool             PreservesReal () const {return true; }   //!< real basis block ⇒ real matrix?
 };
 
 //! \brief A PER-IRREP density-dependent term (DFT/fitted Coulomb + \f$V_{xc}\f$): builds ONE irrep's block
@@ -96,6 +101,8 @@ public:
     //! NOTE the RELATIVISTIC case is different and is NOT this flag: the Dirac virial is still valid, it
     //! just has a different ideal ratio (1 rather than 2), which \c IsRelativistic already selects.
     virtual bool             IsVirialValid () const {return true; }   //!< virial theorem still meaningful?
+    //! \copydoc tStatic_HT::PreservesReal
+    virtual bool             PreservesReal () const {return true; }   //!< real basis block ⇒ real matrix?
 };
 
 //! \brief A WHOLE-SYSTEM Hartree-Fock term: exact 4-index Coulomb \f$J\f$ / exchange \f$K\f$.
@@ -135,6 +142,8 @@ public:
     //! NOTE the RELATIVISTIC case is different and is NOT this flag: the Dirac virial is still valid, it
     //! just has a different ideal ratio (1 rather than 2), which \c IsRelativistic already selects.
     virtual bool             IsVirialValid () const {return true; }   //!< virial theorem still meaningful?
+    //! \copydoc tStatic_HT::PreservesReal
+    virtual bool             PreservesReal () const {return true; }   //!< real basis block ⇒ real matrix?
 };
 
 //! \brief The assembled Hamiltonian: owns its term lists and assembles the per-irrep Fock/KS matrix the SCF
@@ -164,6 +173,11 @@ public:
     //! the Hamiltonian polarized/relativistic, but ALL terms must be Coulombic for the virial to hold).
     //! The SCF iterator consults it to drop both the virial convergence gate and the virial column.
     virtual bool            IsVirialValid () const=0;
+    //! \brief Does EVERY term keep a real basis block real?  CONJUNCTIVE over the terms like
+    //! \c IsVirialValid (one SOC / vector-potential term flips the whole Hamiltonian -- and with it every
+    //! block -- complex).  The term half of doc/RealComplexPlan.md's working-type rule; the composition
+    //! root ANDs it with \c IrrepBasisSet::IsReal() per block.
+    virtual bool            PreservesReal () const=0;
     //! DFT/KS: the Fock is a functional of rho(r) alone -> false (can be seeded from a numeric ScalarFunction).
     //! HF/DHF need the density MATRIX D for exact exchange K, so the SCFIterator must bootstrap them (route rho
     //! through a DFT sibling to manufacture a D0).  tHamiltonianImp DERIVES this from the term lists (holds an

@@ -70,6 +70,11 @@ public:
     //!              these units via real-space collocation; our raw feed reaches lower because the finest
     //!              ladder level is sampled analytically, never truncated.
     //! \param kFrac fractional crystal momentum (fractional reciprocal coords; \f$\Gamma=0\f$).
+    //! \param kIsReal is \a kFrac a TRIM point (Bloch phases exactly \f$\pm1\f$, block real)?  A FACT pried
+    //!              out of the Bloch irrep (\c Symmetry::IsReal(), exact integer arithmetic) by the caller,
+    //!              exactly like \a kFrac itself is \c Getk(irrep) -- this evaluator never re-derives
+    //!              realness from the float k (doc/RealComplexPlan.md Step 1).  Must match \a kFrac; the
+    //!              defaults (\f$\Gamma\f$, true) are consistent.
     //! \param homeCellOnly  the FINITE-molecule MODE: no lattice images anywhere (1E matrices == the finite
     //!              molecule's; KB bra = the raw home orbital) -- the molecule-in-a-periodic-box configuration
     //!              the finite==lattice gates compare against.  A MODE, not a radius: in the periodic mode
@@ -81,7 +86,7 @@ public:
     //!              the XC core sharpness \f$\tfrac23\alpha_{\max}\f$; \c HartreeOnly (the Becke-XC partner)
     //!              routes pairs by their OWN bandwidth -- diffuse pairs land on coarse levels (small streams).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                  double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
+                  double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0), bool kIsReal = true,
                   bool homeCellOnly = false, double cutoffFactor = 2.0,
                   RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
                   RasterFields rasterFields = RasterFields::HartreeXC);
@@ -232,6 +237,7 @@ private:
     cvec_t                              itsPhaseC;        //!< matching Bloch phases e^{ik.R} (origin = 1)
     bool                                itsHomeOnly=false; //!< the finite-molecule MODE (no images anywhere)
     rvec3_t                             itsk;             //!< fractional crystal momentum k
+    bool                                itsTRIM=true;     //!< k is TRIM (ctor's kIsReal, from the irrep; phases ±1)
     double  itsMaxReach=0.0;   //!< max orbital reach sqrt(-ln eps/alpha_min) (Eval per-image screen)
     rvec3_t itsCellCtr;        //!< cell centre + bounding radius: an image R contributes at r only if
     double  itsCellRad=0.0;    //!< |(r-R)-ctr| <= rad+maxReach (every orbital centre sits inside the cell)

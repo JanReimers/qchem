@@ -261,6 +261,7 @@ size_t VetGpwConditioning(const Complex_BS& bs)
             rpt::Row row("perIrrep");
             rpt::Set("irrep",      label);
             rpt::Set("nFunctions", (long)b->GetNumFunctions());
+            rpt::Set("real",       b->IsReal());   // TRIM fact from the irrep (doc/RealComplexPlan.md Step 1)
             rvec_t d; mat_t<dcmplx> U; blazem::eigen(S, d, U);       // ascending eigenvalues of the Hermitian S
             const double mn = d[0], mx = d[d.size()-1];
             double msv = std::fabs(d[0]); for (double v : d) msv = std::min(msv, std::fabs(v));

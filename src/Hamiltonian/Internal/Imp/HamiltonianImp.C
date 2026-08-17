@@ -25,6 +25,7 @@ template <class T> void tHamiltonianImp<T>::Add(tStatic_HT<T>* p)
     // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
+    itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
 }
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 {
@@ -33,6 +34,7 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
     // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
+    itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
 }
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
 {
@@ -41,6 +43,7 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
     // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
+    itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
 }
 
 template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis)

@@ -117,14 +117,42 @@ variant that never takes the complex alternative: a negligible tag, one implemen
 - **Step 0 — DONE `1b8b9a83`.**  Exact ±1 Bloch phases at TRIM, so realness is a BITWISE fact, not a
   tolerance.  This is what lets a later narrowing of H be an ASSERTED narrowing.  Gate
   `GPW.TRIM_BlochMatricesAreExactlyReal`.
-- **Step 1 — `Symmetry::IsReal()` + `IrrepBasisSet::IsReal()` + `Term::PreservesReal()`.**  Pure
-  queries, no behaviour change, no types moved.  Report the answer per block in the run report
-  (nobody should have to infer it).  `IsTRIM` in the GPW evaluator should then DEFER to the irrep
-  rather than re-deriving realness from a float k.
+- **Step 1 — DONE 2026-08-17.**  `Symmetry::IsReal()` (default true; `BlochQN` overrides with EXACT
+  integer arithmetic in the ctor: real ⇔ \f$N_i\,|\,2(ik_i+\mathrm{shift}_i)\f$ per component, a
+  non-half-integer shift fails exactness outright) + `IrrepBasisSet::IsReal()` (pure forward) +
+  `PreservesReal()` on all three term families (default true) with `tHamiltonianImp` AND-folding it
+  in `Add()` beside `IsVirialValid`.  Pure queries, no behaviour change, no types moved.  Both
+  `basis.perIrrep` emitters (molecular `MakeIrrepWFs`, GPW `VetGpwConditioning`) report a `real`
+  field per block.  The GPW evaluator's float-k `IsTRIM()` is DELETED: the ctor takes `kIsReal`
+  beside `kFrac` (the same pried-out-fact seam as `Getk`) and `GPW_IBS` passes `irrep->IsReal()`.
+  Unit test `SymQNTests.IsReal` (Γ / zone boundary / negative index / MP-shift); full sweep 760/760.
 - **Step 2 — the composite child slot** (`tComposite_CD` first: fewer methods, ~8 of 18 are T-typed
   and all are aggregation points; `IrrepCD<T>` is already templated so both alternatives exist).
+  Prerequisite increment: the §6 accelerator face change (scalar-agnostic manager, typed `Create`
+  overloads) — **LANDED 2026-08-17, see §6**.
   Buys the WF/D half — diagonalization and C/D storage.  Dominant in the many-PW/ultrasoft regime;
-  small in GPW.
+  small in GPW.  Increments:
+  - **2a DONE 2026-08-17** — `tComposite_CD`'s children are now
+    `std::variant<unique_ptr<tDM_CD<double>>, unique_ptr<tDM_CD<dcmplx>>>` (the §4 child slot),
+    with two typed `Insert` overloads.  Scalar-independent aggregation (charge, ρ(r), rescale,
+    the Fourier trio — `FourierDensity` is a non-template face) is single-source generic lambdas;
+    the T-typed-argument operations (contract clients, block/Φ maps, MixIn pairing, HF sweep)
+    forward through a `SameT<T>` view whose cross-scalar arm THROWS until Step 3 makes a mixed
+    child reachable.  Pure structure, no behaviour change; full sweep green.
+  - **2b DONE 2026-08-17** — the `CompositeWF` child slot: `itsIWFs`/`itsQNWFs`/`itsSpinWFs` are
+    variant slots over `tIrrepWF<double>`/`<dcmplx>` (owning + non-owning-ref mirrors).  The
+    scalar-signature calls (GetIrrep, GetOrbitals — the `Orbitals` base is non-template,
+    DoSCFIteration, ComputeStep, MoveOrbitals, basis populations) are single-source generic visits
+    (`RefOf`/`IrrepOf`/`OrbitalsOf` helpers); the T-typed calls (CalculateH's Hamiltonian, the
+    fills' OccupationPolicy, the MOM OrbitalView cast) forward through `SameT<T>` with the same
+    throwing cross arm as 2a.  `GetChargeDensity` is the first MIXED-READY seam: each child builds
+    a density typed by its own scalar and 2a's typed `Insert` overloads take either.  Pure
+    structure, no behaviour change; full sweep green.
+  - **2c** — the NARROWING that makes a real child real: when `irrep.IsReal() ∧ ham.PreservesReal()`
+    (the fact must be threaded into the WF build — `WaveFunction::Factory` has the ham), the block's
+    complex H at TRIM is ASSERT-narrowed (bitwise, by Step 0) to real, solved with `LASolver<double>`,
+    and C/D stored real — its `GetChargeDensity()` then Inserts the `<double>` alternative of 2a.
+    Acceptance: a Γ-only GPW run bit-comparing the narrowed path against the complex one.
 - **Step 3 — un-pin the basis** (`GPW_IBS` from `IrrepBasisSet<dcmplx>`), so terms produce real H
   directly and Φ + the quadrature GEMMs go real.  Buys the Hamiltonian/quadrature half — dominant in
   the GPW regime.  The composite variant then falls out as a CONSEQUENCE of blocks having different
@@ -137,12 +165,40 @@ variation — worth remembering when scoping.
 
 ## 6. Open questions
 
-- **The accelerator.**  `tSCFAccelerator<T>` is run-level.  In GPW (F is 122²) widening a real block
-  at the face costs nothing.  In the many-PW regime DIIS history is over the COEFFICIENT arrays
-  (N_pw × n_bands), which are exactly the block-typed objects one must not widen — the history is
-  the memory hog.  So a mixed-irrep design eventually forces the accelerator to be block-aware, or
-  to hold its history per block.  **This is the piece that could quietly negate the memory win in
-  the regime that motivates the whole exercise; settle it before Step 2 ships.**
+- **The accelerator — SETTLED 2026-08-17 (code survey of all four: DIIS, GDM, Ladder, Null).  The
+  feared redesign does not exist: the history is ALREADY per block.**  Every block-typed object —
+  the DIIS \f$F'\f$/\f$E=[F',D']\f$ deques, GDM's orbitals, Fock, CG tangents and geodesic factors —
+  lives in the PER-IRREP accelerator (`tSCFIrrepAcceleratorDIIS<T>` / `...GDM<T>`), created one per
+  block by `Create(lasb,qns,occ)` in `MakeIrrepWFs`.  The run-level `tSCFAccelerator<T>` holds NO
+  T-typed state at all: DIIS's cross-block coupling is the REAL B matrix
+  \f$B_{ij}=\sum_\mathrm{blocks}\mathrm{Re\,tr}(E_i^\dagger E_j)\f$ and REAL coefficients \f$c\f$
+  (each child reads them back through a `const rvec_t&`); GDM's manager is explicitly "no global
+  coupling"; the Ladder holds rungs and a rung index.  Every manager↔child interaction is scalar:
+  `GetError(i,j)→double`, `GetNproj`, `Append1`/`Purge1` (the lockstep depth), `Ready`, `Engageable`,
+  `RejectStep`.  So in a mixed-irrep run a real TRIM block gets a `<double>` irrep accelerator and
+  its history is stored real — the memory win in the many-PW regime realizes AUTOMATICALLY, and no
+  widening point exists anywhere, because `UseFD` (the only face that takes block-typed matrices)
+  sits on the per-block object.
+  **The residual work is the FACE, and it is small:** the run-level `T` appears only in `Create`'s
+  signature and the child-pointer element type.  Decision: make the run-level accelerator
+  SCALAR-AGNOSTIC — one non-template manager per algorithm with two typed `Create` overloads
+  (`LASolver<double>*→tSCFIrrepAccelerator<double>*`, `dcmplx` likewise; both alternatives of the
+  templated per-irrep classes already exist), holding its children through a small non-template
+  aggregation sub-face carrying exactly the scalar methods listed above.  Real extrapolation
+  coefficients over complex \f$F'\f$ are mathematically unchanged (Pulay's \f$c\f$ is real by
+  construction of the metric), so ONE \f$c\f$ still serves all blocks.  This face change is a
+  PREREQUISITE INCREMENT for Step 2 (mixed children need a `Create` per block type) and touches the
+  `tSCFIterator<T>`/`tCompositeWF<T>` accelerator-pointer seams — do it as its own commit, keeping
+  basis and working type separate parameters per the §2 standing instruction.  **Gate open for
+  Step 2.**
+  **The face increment LANDED 2026-08-17:** `SCFAccelerator` is the ONE non-template manager (typed
+  `Create` overloads; DIIS/GDM coordinate their children through the scalar `DIIS_Block`/`GDM_Block`
+  sub-faces, the Ladder's rungs are themselves scalar-agnostic, both Factory doors return the same
+  type, and the friend-based manager↔child couplings are gone).  The `tSCFIterator<T>` /
+  `tCompositeWF<T>` / WF-factory seams hold plain `SCFAccelerator*`.  Behavioural anchor: NEW
+  `M_Calculation.BoronUHF{LadderGDM,PureGDM}` — boron's open-2p¹ doublet through the facade's
+  Ladder and standalone-GDM options (the molecular GDM path's first gtest coverage; both land on
+  the same UHF/dzvp energy −24.525932 to ~1e-12 Ha) — plus the full sweep.  **Step 2 may start.**
 - **2-component structure.**  Non-collinear spin (likely to arrive before SOC-for-anisotropy, given
   the frustrated-magnet/battery direction) needs spinor blocks, not just complex scalars.  Nothing
   here should hard-wire "exactly two independent spin channels".

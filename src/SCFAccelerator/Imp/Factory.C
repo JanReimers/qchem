@@ -58,24 +58,25 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
     return acc;
 }
 
-// The SOLID front door: the cSCFAccelerator twin.  Typed rather than json (see the interface doc).
-cSCFAccelerator* Factory(Type type, const SolidAcceleratorOptions& o)
+// The SOLID front door: the typed twin (see the interface doc).  Same scalar-agnostic managers as the
+// json door -- only the knob transport and the solid-tuned defaults differ.
+SCFAccelerator* Factory(Type type, const SolidAcceleratorOptions& o)
 {
     switch (type)
     {
-        case Type::Null: return new tSCFAcceleratorNull<dcmplx>();
-        case Type::DIIS: return new cSCFAcceleratorDIIS(o.diis);
-        case Type::GDM : return new cSCFAcceleratorGDM (o.gdm);
+        case Type::Null: return new SCFAcceleratorNull();
+        case Type::DIIS: return new SCFAcceleratorDIIS(o.diis);
+        case Type::GDM : return new SCFAcceleratorGDM (o.gdm);
         case Type::Ladder:
         {
             // DIIS does the heavy lifting; GDM finishes once DIIS runs out of steam.  The hand-off watches
             // the ENERGY CHANGE, not the residual: a non-variational collocation SCF limit-cycles [F,D]
             // above the fit floor while E settles, so the residual never signals the switch.
-            std::vector<std::unique_ptr<cSCFAccelerator>> rungs;
-            rungs.emplace_back(new cSCFAcceleratorDIIS(o.diis));
-            rungs.emplace_back(new cSCFAcceleratorGDM (o.ladderGdm));
-            return new cSCFAcceleratorLadder(std::move(rungs), o.ladderEThresh, o.ladderStall,
-                                             o.ladderFloor, o.ladderSwitchAt, o.ladderSignal);
+            std::vector<std::unique_ptr<SCFAccelerator>> rungs;
+            rungs.emplace_back(new SCFAcceleratorDIIS(o.diis));
+            rungs.emplace_back(new SCFAcceleratorGDM (o.ladderGdm));
+            return new SCFAcceleratorLadder(std::move(rungs), o.ladderEThresh, o.ladderStall,
+                                            o.ladderFloor, o.ladderSwitchAt, o.ladderSignal);
         }
     }
     assert(false && "SCFAccelerators::Factory: unhandled Type");

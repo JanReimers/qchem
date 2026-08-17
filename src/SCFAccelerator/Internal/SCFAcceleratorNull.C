@@ -23,13 +23,15 @@ private:
 };
 
 //! A "no acceleration" MANAGER: each Create() hands back a plain diagonalising per-irrep Null
-//! accelerator.  Gives the plane-wave (dcmplx) path a working diagonaliser without DIIS/GDM (which
-//! remain the real-path managers).
-template <class T> class tSCFAcceleratorNull : public virtual tSCFAccelerator<T>
+//! accelerator typed by the block.  Non-template per doc/RealComplexPlan.md §6 -- one manager serves
+//! the real and complex paths alike.
+class SCFAcceleratorNull : public virtual SCFAccelerator
 {
 public:
-    virtual tSCFIrrepAccelerator<T>* Create(const LASolver<T>* las,const Irrep& qns, int)
-        {return new tSCFIrrepAcceleratorNull<T>(las,qns);}
+    virtual tSCFIrrepAccelerator<double>* Create(const LASolver<double>* las,const Irrep& qns, int)
+        {return new tSCFIrrepAcceleratorNull<double>(las,qns);}
+    virtual tSCFIrrepAccelerator<dcmplx>* Create(const LASolver<dcmplx>* las,const Irrep& qns, int)
+        {return new tSCFIrrepAcceleratorNull<dcmplx>(las,qns);}
     virtual bool   CalculateProjections()               {return false;}
     virtual void   ShowLabels     (std::ostream&) const {}
     virtual void   ShowConvergence(std::ostream&) const {}
@@ -38,6 +40,5 @@ public:
 };
 
 using SCFIrrepAcceleratorNull = tSCFIrrepAcceleratorNull<double>;
-using SCFAcceleratorNull      = tSCFAcceleratorNull<double>;
 
 } //namespace

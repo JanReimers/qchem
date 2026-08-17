@@ -100,7 +100,7 @@ struct Rig
 {
     GDMParams                    params{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
     LASolver<double>*            las = LASolver<double>::Factory(qchem::Cholesky);
-    tSCFAcceleratorGDM<double>   acc{params};
+    SCFAcceleratorGDM            acc{params};
     tSCFIrrepAccelerator<double>* irrep=nullptr;
 
     rsmat_t F2=MakeFock2();   // the Fock the accelerator is CURRENTLY on (see MakeFock's note)
@@ -259,7 +259,7 @@ TEST(SCFAcceleratorGDM, ASmearedDensityIsNotEngageable)
     GDMParams params{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
     LASolver<double>* las = LASolver<double>::Factory(qchem::Cholesky);
     las->SetBasisOverlap(Identity(N));
-    tSCFAcceleratorGDM<double> acc{params};
+    SCFAcceleratorGDM acc{params};
     auto* irrep = acc.Create(las, Irrep(), (int)NOCC);
 
     EXPECT_TRUE(acc.Engageable()) << "optimistically true before any UseFD (nothing is known yet)";
@@ -273,11 +273,11 @@ TEST(SCFAcceleratorGDM, ASmearedDensityIsNotEngageable)
 
 TEST(SCFAcceleratorLadder, HandOffIsVetoedAndRetreatsOnANonEngageableRung)
 {
-    std::vector<std::unique_ptr<tSCFAccelerator<double>>> rungs;
-    rungs.emplace_back(new tSCFAcceleratorNull<double>);
-    rungs.emplace_back(new tSCFAcceleratorGDM<double>(
+    std::vector<std::unique_ptr<SCFAccelerator>> rungs;
+    rungs.emplace_back(new SCFAcceleratorNull);
+    rungs.emplace_back(new SCFAcceleratorGDM(
         GDMParams{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 }));
-    tSCFAcceleratorLadder<double> lad(std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8,
+    SCFAcceleratorLadder lad(std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8,
                                       /*switchat*/1e-3, ScheduleSignal::EnergyChange);
     LASolver<double>* las = LASolver<double>::Factory(qchem::Cholesky);
     las->SetBasisOverlap(Identity(N));
@@ -321,7 +321,7 @@ size_t DriveDegenerateHistory(double svTolRel)
     DIISParams p{ .Nproj=6, .FDMax=1e30, .FDMin=1e-30, .SVTol=1e-9, .SVTolRel=svTolRel };
     LASolver<double>* las = LASolver<double>::Factory(qchem::Cholesky);
     las->SetBasisOverlap(Identity(N));
-    tSCFAcceleratorDIIS<double> acc{p};
+    SCFAcceleratorDIIS acc{p};
     auto* irrep = acc.Create(las, Irrep(), (int)NOCC);
     const rsmat_t D=MakeDPrime(rmat_t(Identity(N)));
     // [F,D] is LINEAR in F, so a one-direction perturbation family is exactly rank-2 and the ABSOLUTE

@@ -15,6 +15,14 @@ BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik, double _weight, rvec3_t _shift)
     , star([&]{ const double s=_weight*double(_N.x)*double(_N.y)*double(_N.z);   // w_k·N_mesh (atom shell convention)
                 assert(fabs(s-double(lround(s)))<1e-9 && "BZ weight is not an integer star multiple of 1/N_mesh");
                 return size_t(lround(s)); }())
+    // TRIM ⇔ N_i | 2(ik_i+shift_i) per component.  2(ik+shift) is evaluated in doubles but the test is
+    // EXACT: a half-integer shift (0, ½ -- every mesh convention) makes t an exactly-representable integer,
+    // and any other shift fails t==round(t) outright (correctly: such a k is never TRIM).  No tolerance.
+    , isReal([&]{ auto trim1=[](long ik, double shift, long N)
+                  { const double t=2.0*(double(ik)+shift);
+                    return t==round(t) && lround(t)%N==0; };
+                  return trim1(_ik.x,_shift.x,_N.x) && trim1(_ik.y,_shift.y,_N.y)
+                      && trim1(_ik.z,_shift.z,_N.z); }())
 {
     //assert(N!=0uz);
     assert(N.x>0);

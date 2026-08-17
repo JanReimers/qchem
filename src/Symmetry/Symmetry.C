@@ -33,6 +33,14 @@ public:
     //! star, like an atom l-shell), so the BZ average is \f$\sum_\mathrm{blocks} w\,\rho_\mathrm{block}\f$
     //! with the star already inside each block's occupations/density.
     virtual double GetWeight         () const {return 1.0;}
+    //! \brief Can this irrep's basis functions be chosen REAL (making S, T, V real-symmetric)?
+    //! The basis-type half of doc/RealComplexPlan.md's rule: block is real ⇔ irrep.IsReal() ∧ every
+    //! term.PreservesReal().  Default \c true -- point-group irreps, atomic \c Yl / \c Ylm shells and
+    //! \c UnitQN all admit real functions (complex point-group irreps are a CONVENTION, not a necessity:
+    //! real combinations always exist for a real H, and the SALC machinery already takes them).  The one
+    //! override is \c BlochQN: \f$\chi^k=\sum_R e^{ikR}\chi\f$ is real iff \f$2k\f$ is a reciprocal
+    //! lattice vector (a TRIM point) -- an EXACT integer fact there, no tolerance.
+    virtual bool   IsReal             () const {return true;}
     //! \brief Does this irrep label already carry spin (spin-orbit coupled)?  \c false for ordinary spatial
     //! symmetries -- spin is layered on top by \c Irrep, whose \a ms is the non-relativistic spin channel.
     //! \c true only for the relativistic double group (\c SphericalSpinor), where \f$\kappa\f$ encodes

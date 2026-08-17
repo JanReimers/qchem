@@ -5,6 +5,7 @@ module;
 #include <vector>
 #include <memory>
 #include <type_traits>
+#include <variant>
 #include <map>
 #include <string>
 module qchem.CompositeCD;
@@ -23,9 +24,25 @@ template <class T> tComposite_CD<T>::tComposite_CD(std::vector<Symmetry::Lattice
     : itsPointOps(std::move(pointOps))
 {};
 
-template <class T> void tComposite_CD<T>::Insert(std::unique_ptr<tDM_CD<T>> cd)
+template <class T> void tComposite_CD<T>::Insert(std::unique_ptr<tDM_CD<double>> cd)
 {
-    itsCDs.push_back(std::move(cd));
+    itsCDs.push_back(cd_child_t(std::move(cd)));
+}
+template <class T> void tComposite_CD<T>::Insert(std::unique_ptr<tDM_CD<dcmplx>> cd)
+{
+    itsCDs.push_back(cd_child_t(std::move(cd)));
+}
+
+// Same-scalar view of a child slot, for the T-TYPED operations (contract clients, block maps, Phi tables):
+// the argument's scalar is the composite FACE's T, so only a same-T child can consume it.  The cross arm is
+// UNREACHABLE today (children are built by the same-T wave function); it becomes reachable -- and gets a
+// genuine narrowing implementation instead of this throw -- when RealComplexPlan Step 3 gives blocks their
+// own basis type.  A throw, not an assert: a wiring error here must be loud in Release too.
+template <class T> static tDM_CD<T>& SameT(const cd_child_t& c)
+{
+    if (auto* p=std::get_if<std::unique_ptr<tDM_CD<T>>>(&c)) return **p;
+    throw std::logic_error("tComposite_CD: a child block's scalar differs from the composite face -- "
+                           "T-typed operations cannot cross scalars until RealComplexPlan Step 3 lands");
 }
 
 //-----------------------------------------------------------------------------
@@ -62,17 +79,17 @@ template <class T, class CDV> static bool WholeSystemAll(const CDV& cds,
                                                          std::vector<hmat_t<T>>& Fall, bool exchange)
 {
     if (cds.empty()) return false;
-    const BasisSet::WholeSystemFock_IBS<T>* ws0=cds.front()->WholeSystemFock();
+    const BasisSet::WholeSystemFock_IBS<T>* ws0=SameT<T>(cds.front()).WholeSystemFock();
     if (!ws0) return false;
     hmat_t<T> Dao=blazem::zeroH<T>(ws0->AODimension());
     for (auto& c:cds)
     {
-        assert(c->WholeSystemFock() && "mixed whole-system/pair bases in one composite density");
-        c->AddAODensity(Dao);
+        assert(SameT<T>(c).WholeSystemFock() && "mixed whole-system/pair bases in one composite density");
+        SameT<T>(c).AddAODensity(Dao);
     }
     const hmat_t<T> Fao=ws0->MakeAOFock(Dao,exchange);      // the ONE build
     for (size_t k=0;k<cds.size();++k)
-        cds[k]->WholeSystemFock()->SliceAOFock(Fall[k],Fao);
+        SameT<T>(cds[k]).WholeSystemFock()->SliceAOFock(Fall[k],Fao);
     return true;
 }
 
@@ -84,7 +101,7 @@ template <class Comp> void Composite_HFSystem<Comp>::AccumulateDirectAll(std::ve
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
         for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
-            PairOf(*itsCDs[k]).AccumulateDirectBoth(Jall[k],Jall[l],PairOf(*itsCDs[l]));
+            PairOf(SameT<double>(itsCDs[k])).AccumulateDirectBoth(Jall[k],Jall[l],PairOf(SameT<double>(itsCDs[l])));
 }
 
 // Exchange counterpart of AccumulateDirectAll (same canonical-pair structure; K(i,j)=K(j,i)^T).  Driven
@@ -97,13 +114,13 @@ template <class Comp> void Composite_HFSystem<Comp>::AccumulateExchangeAll(std::
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
         for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
-            PairOf(*itsCDs[k]).AccumulateExchangeBoth(Kall[k],Kall[l],PairOf(*itsCDs[l]));
+            PairOf(SameT<double>(itsCDs[k])).AccumulateExchangeBoth(Kall[k],Kall[l],PairOf(SameT<double>(itsCDs[l])));
 }
 
 template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const
 {
     double ret=0.0;
-    for (auto& c:itsCDs) ret+=c->DM_ContractBlocks(blocks);
+    for (auto& c:itsCDs) ret+=SameT<T>(c).DM_ContractBlocks(blocks);
     return ret;
 }
 
@@ -112,28 +129,28 @@ template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std
 template <class T> rvec_t tComposite_CD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
 {
     rvec_t ro(r.size(), 0.0);
-    for (auto& c:itsCDs) ro+=c->DM_RhoAtPoints(r,Phi);
+    for (auto& c:itsCDs) ro+=SameT<T>(c).DM_RhoAtPoints(r,Phi);
     return ro;
 }
 
 template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) const
 {
     double ret=0.0;
-    for (auto& c:itsCDs) ret+=c->DM_Contract(v);
+    for (auto& c:itsCDs) ret+=SameT<T>(c).DM_Contract(v);
     return ret;
 }
 
 template <class T> double tComposite_CD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
     double ret=0.0;
-    for (auto& c:itsCDs) ret+=c->DM_Contract(v,cd);
+    for (auto& c:itsCDs) ret+=SameT<T>(c).DM_Contract(v,cd);
     return ret;
 }
 
 template <class T> double tComposite_CD<T>::GetTotalCharge() const
 {
     double ret=0.0;
-    for (auto& c:itsCDs) ret+=c->GetTotalCharge();
+    for (auto& c:itsCDs) ret+=std::visit([](const auto& b){return b->GetTotalCharge();}, c);
     return ret;
 }
 
@@ -150,11 +167,12 @@ template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const BasisSet::rFIT_
     {
         rvec_t ret(fbs->GetNumFunctions(),0);
         for (auto& c:itsCDs)
-        {
-            auto* ao=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(c.get());
-            assert(ao && "composite block has no Coulomb-metric projection face (finite path)");
-            ret+=ao->GetRepulsion3C(fbs);
-        }
+            std::visit([&](const auto& b)
+            {
+                auto* ao=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(b.get());
+                assert(ao && "composite block has no Coulomb-metric projection face (finite path)");
+                ret+=ao->GetRepulsion3C(fbs);
+            }, c);
         return ret;
     }
     else
@@ -168,7 +186,7 @@ template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const BasisSet::rFIT_
 template <class T> void tComposite_CD<T>::ReScale(double factor)
 {
     // No UT coverage
-    for (auto& c:itsCDs) c->ReScale(factor);
+    for (auto& c:itsCDs) std::visit([&](const auto& b){b->ReScale(factor);}, c);
     this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
@@ -176,12 +194,15 @@ template <class T> void tComposite_CD<T>::MixIn(const tMixableDensity<T>& cd,dou
 {
     const tComposite_CD* ecd = dynamic_cast<const tComposite_CD*>(&cd);
     assert(ecd);
-    auto  b(ecd->itsCDs.begin());
-    for (auto& c:itsCDs)
-    {
-        c->MixIn(**b,f);
-        b++;
-    }
+    assert(itsCDs.size()==ecd->itsCDs.size());
+    for (size_t i=0;i<itsCDs.size();++i)
+        std::visit([&](const auto& mine, const auto& theirs)
+        {
+            if constexpr (std::is_same_v<std::decay_t<decltype(mine)>,std::decay_t<decltype(theirs)>>)
+                mine->MixIn(*theirs,f);
+            else
+                throw std::logic_error("tComposite_CD::MixIn: the two composites' child scalars differ per block");
+        }, itsCDs[i], ecd->itsCDs[i]);
     this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
@@ -190,13 +211,15 @@ template <class T> double tComposite_CD<T>::GetChangeFrom(const tMixableDensity<
     const tComposite_CD* ecd = dynamic_cast<const tComposite_CD*>(&cd);
     assert(ecd);
     assert(itsCDs.size()==ecd->itsCDs.size());
-    auto  b(ecd->itsCDs.begin());
     double ret=0;
-    for (auto& c:itsCDs)
-    {
-        ret += c->GetChangeFrom(**b);
-        b++;
-    }
+    for (size_t i=0;i<itsCDs.size();++i)
+        ret += std::visit([&](const auto& mine, const auto& theirs) -> double
+        {
+            if constexpr (std::is_same_v<std::decay_t<decltype(mine)>,std::decay_t<decltype(theirs)>>)
+                return mine->GetChangeFrom(*theirs);
+            else
+                throw std::logic_error("tComposite_CD::GetChangeFrom: the two composites' child scalars differ per block");
+        }, itsCDs[i], ecd->itsCDs[i]);
     return ret;
 }
 
@@ -207,7 +230,7 @@ template <class T> double tComposite_CD<T>::GetChangeFrom(const tMixableDensity<
 template <class T> double tComposite_CD<T>::operator()(const rvec3_t& r) const
 {
     double ret=0.0;
-    for (auto& c:itsCDs) ret+=c->operator()(r);
+    for (auto& c:itsCDs) ret+=std::visit([&](const auto& b){return b->operator()(r);}, c);
     return ret;
 }
 
@@ -215,7 +238,7 @@ template <class T> rvec3_t tComposite_CD<T>::Gradient  (const rvec3_t& r) const
 {
     // No UT coverage
     rvec3_t ret(0,0,0);
-    for (auto& c:itsCDs) ret+=c->Gradient(r);
+    for (auto& c:itsCDs) ret+=std::visit([&](const auto& b){return b->Gradient(r);}, c);
     return ret;
 }
 
@@ -224,11 +247,12 @@ template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetFourierDensity(const B
 {
     ΔG_Map rg;
     for (const auto& blk : self().itsCDs)
-    {
-        auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
-        assert(fc && "composite block is not a FourierDensity (plane-wave path)");
-        for (const auto& kv : fc->GetFourierDensity(c)) rg[kv.first]+=kv.second;
-    }
+        std::visit([&](const auto& b)
+        {
+            auto* fc=dynamic_cast<const FourierDensity*>(b.get());
+            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+            for (const auto& kv : fc->GetFourierDensity(c)) rg[kv.first]+=kv.second;
+        }, blk);
     return SymmetrizeGMap(rg, self().itsPointOps);   // IBZ star-average (no-op when {E}) -- doc/GPWPlan1.md item 3
 }
 
@@ -240,9 +264,12 @@ template <class Comp> rvec_t Composite_Fourier<Comp>::GetRhoOnGrid(const BasisSe
     rvec_t sum;
     for (const auto& blk : self().itsCDs)
     {
-        auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
-        assert(fc && "composite block is not a FourierDensity (plane-wave path)");
-        rvec_t r=fc->GetRhoOnGrid(c);
+        rvec_t r=std::visit([&](const auto& b)
+        {
+            auto* fc=dynamic_cast<const FourierDensity*>(b.get());
+            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+            return fc->GetRhoOnGrid(c);
+        }, blk);
         if (r.size()==0) return rvec_t{};
         if (sum.size()==0) sum=std::move(r);
         else               sum+=r;
@@ -259,11 +286,12 @@ template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetRepulsion3C(const Basi
 {
     ΔG_Map rg;
     for (const auto& blk : self().itsCDs)
-    {
-        auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
-        assert(fc && "composite block is not a FourierDensity (plane-wave path)");
-        for (const auto& kv : fc->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
-    }
+        std::visit([&](const auto& b)
+        {
+            auto* fc=dynamic_cast<const FourierDensity*>(b.get());
+            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+            for (const auto& kv : fc->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
+        }, blk);
     // V_H is linear in ρ̃ and |UG|=|G|, so symmetrizing V_H(G) == V_H of the symmetrized density -- exact.
     return SymmetrizeGMap(rg, self().itsPointOps);   // IBZ star-average (no-op when {E})
 }

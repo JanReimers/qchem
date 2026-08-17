@@ -293,20 +293,27 @@ template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorGDM<T>::Orbit
 //----------------------------------------------------------------------------------------
 // Non-irrep (aggregate) code
 //
-template <class T> tSCFAcceleratorGDM<T>::tSCFAcceleratorGDM(const GDMParams& p) : itsParams(p), itsEn(0.0) {}
-template <class T> tSCFAcceleratorGDM<T>::~tSCFAcceleratorGDM() {}
+SCFAcceleratorGDM::SCFAcceleratorGDM(const GDMParams& p) : itsParams(p), itsEn(0.0) {}
+SCFAcceleratorGDM::~SCFAcceleratorGDM() {}
 
-template <class T> tSCFIrrepAccelerator<T>* tSCFAcceleratorGDM<T>::Create(const LASolver<T>* las,const Irrep& qns,int occ)
+// ONE templated body behind the two typed Create overloads (§6): the child is typed by the BLOCK, the
+// manager registers only its scalar GDM_Block face.
+template <class T> tSCFIrrepAccelerator<T>* SCFAcceleratorGDM::CreateT(const LASolver<T>* las,const Irrep& qns,int occ)
 {
     if (occ>0)
     {
-        itsIrreps.push_back(new tSCFIrrepAcceleratorGDM<T>(itsParams,las,qns,occ));
-        return itsIrreps.back();
+        auto* irrep=new tSCFIrrepAcceleratorGDM<T>(itsParams,las,qns,occ);
+        itsIrreps.push_back(irrep);
+        return irrep;
     }
     return new tSCFIrrepAcceleratorNull<T>(las,qns);
 }
+tSCFIrrepAccelerator<double>* SCFAcceleratorGDM::Create(const LASolver<double>* las,const Irrep& qns,int occ)
+{ return CreateT(las,qns,occ); }
+tSCFIrrepAccelerator<dcmplx>* SCFAcceleratorGDM::Create(const LASolver<dcmplx>* las,const Irrep& qns,int occ)
+{ return CreateT(las,qns,occ); }
 
-template <class T> double tSCFAcceleratorGDM<T>::GetError() const
+double SCFAcceleratorGDM::GetError() const
 {
     double e=0.0;
     for (auto k:itsIrreps) e=std::max(e,k->GetError());
@@ -315,7 +322,7 @@ template <class T> double tSCFAcceleratorGDM<T>::GetError() const
 
 // The direct-min driver runs only when EVERY irrep can take a geodesic step; if any is still seeding or
 // above FDMax, the iterator falls back to a stable MIXED fixed-point step instead.
-template <class T> bool tSCFAcceleratorGDM<T>::RejectStep()
+bool SCFAcceleratorGDM::RejectStep()
 {
     // Reject in EVERY irrep -- they all contributed to the step the caller rejected, and every one of them
     // must arm its own forced diagonalize if it is exhausted, or the fallback is unsafe for that block.
@@ -327,7 +334,7 @@ template <class T> bool tSCFAcceleratorGDM<T>::RejectStep()
     return all;
 }
 
-template <class T> bool tSCFAcceleratorGDM<T>::CanLineSearch() const
+bool SCFAcceleratorGDM::CanLineSearch() const
 {
     if (itsIrreps.empty()) return false;
     for (auto k:itsIrreps) if (!k->Ready()) return false;
@@ -337,19 +344,19 @@ template <class T> bool tSCFAcceleratorGDM<T>::CanLineSearch() const
 // The STANDING precondition, per irrep (see the interface contract): optimistically true before any UseFD
 // (nothing is known yet -- the per-iteration CanLineSearch still gates the actual step), false as soon as
 // any irrep has seen a non-idempotent D' (smearing) or a non-leading-block occupation (MOM).
-template <class T> bool tSCFAcceleratorGDM<T>::Engageable() const
+bool SCFAcceleratorGDM::Engageable() const
 {
     for (auto k:itsIrreps) if (!k->Engageable()) return false;
     return true;
 }
 
-template <class T> void tSCFAcceleratorGDM<T>::ShowLabels(std::ostream& os) const { os << "  |∇|  Nactive"; }
-template <class T> void tSCFAcceleratorGDM<T>::ShowConvergence(std::ostream& os) const
+void SCFAcceleratorGDM::ShowLabels(std::ostream& os) const { os << "  |∇|  Nactive"; }
+void SCFAcceleratorGDM::ShowConvergence(std::ostream& os) const
 {
     os << std::scientific << GetError() << " ";
     size_t nactive=0;
     for (auto k:itsIrreps)
-        if(k->itsActive) nactive++;
+        if (k->Active()) nactive++;
 
     if (nactive>0)
         os << std::setw(4) << nactive;
@@ -361,7 +368,5 @@ template <class T> void tSCFAcceleratorGDM<T>::ShowConvergence(std::ostream& os)
 
 template class tSCFIrrepAcceleratorGDM<double>;
 template class tSCFIrrepAcceleratorGDM<dcmplx>;
-template class tSCFAcceleratorGDM<double>;
-template class tSCFAcceleratorGDM<dcmplx>;
 
 } //namespace

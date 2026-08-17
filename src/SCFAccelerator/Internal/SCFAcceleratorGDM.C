@@ -30,8 +30,24 @@ export namespace qchem::SCFAccelerators
 // (GDMParams moved to the public qchem.SCFAccelerator 2026-08-09 -- documented there.)
 
 
-template <class T> class tSCFAcceleratorGDM;
-template <class T> class tSCFIrrepAcceleratorGDM : public virtual tSCFIrrepAccelerator<T>
+//! \brief The SCALAR AGGREGATION face one per-irrep GDM block shows its manager (doc/RealComplexPlan.md
+//! §6): the manager only ever folds scalar answers (error norms, readiness, engageability, step
+//! rejection) over its blocks, so it needs no view of the block scalar T -- one non-template manager
+//! serves real and complex blocks alike.
+class GDM_Block
+{
+public:
+    virtual ~GDM_Block() {};
+    virtual double GetError()   const=0;   //!< this block's ||[F',D']||
+    virtual bool   Ready()      const=0;   //!< geodesic step ready THIS iteration (seeded, gated, not forced-diag)
+    virtual bool   Engageable() const=0;   //!< STANDING precondition (idempotent + leading-block D')
+    virtual bool   Active()     const=0;   //!< contributing to the current step (the Nactive display)
+    virtual bool   RejectStep()      =0;   //!< bail-out (same final overrider as tSCFIrrepAccelerator's)
+};
+
+template <class T> class tSCFIrrepAcceleratorGDM
+    : public virtual tSCFIrrepAccelerator<T>
+    , public virtual GDM_Block
 {
 public:
     tSCFIrrepAcceleratorGDM(const GDMParams&,const LASolver<T>*,const Irrep&,int occ);
@@ -51,8 +67,8 @@ public:
     //! object has armed itsForceDiag so ComputeStep()/Ready() go false and the caller's fallback is safe.
     virtual bool RejectStep();
 private:
-    friend class tSCFAcceleratorGDM<T>;
-    double GetError() const {return itsEn;}
+    // The GDM_Block scalar face (private overrides; the manager calls through GDM_Block*).
+    virtual double GetError() const {return itsEn;}
     //! Ready to take a geodesic step THIS iteration (mirrors ComputeStep's gate, minus the Fock build):
     //! seeded, a well-posed occ/virt split, and the residual [F,D] already below FDMax.  itsFp is empty
     //! before the first UseFD, so this is false (unsigned itsNocc < 0 rows) until seeded -- as intended.
@@ -60,13 +76,14 @@ private:
     //! until a diagonalizing step has actually been taken -- the safety guarantee the bail-out contract owes
     //! the caller.  Cleared in NextOrbitals' diagonalize branch, NOT in ComputeStep, so it cannot be consumed
     //! by a mere query.)
-    bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.FDMax
+    virtual bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.FDMax
                                 && !itsForceDiag && itsBlockOccupied && itsIdempotent; }
     //! The STANDING precondition (see tSCFAccelerator::Engageable): an integer-occupation density
     //! (D' idempotent -- false under Fermi smearing, knowable from the very first UseFD with no orbitals)
     //! that occupies THIS minimizer's leading block (false under MOM; knowable only once seeded, so it
     //! stays true -- optimistic -- until then and the ladder's retreat covers the late discovery).
-    bool Engageable() const { return itsIdempotent && itsBlockOccupied; }
+    virtual bool Engageable() const { return itsIdempotent && itsBlockOccupied; }
+    virtual bool Active()     const { return itsActive; }
 
     GDMParams               itsParams;
     const LASolver<T>*      itsLASolver;
@@ -113,12 +130,16 @@ private:
     double   itsStdef=1.0;           //default (diagonal quadratic-model) step length
 };
 
-template <class T> class tSCFAcceleratorGDM : public virtual tSCFAccelerator<T>
+//! The GDM MANAGER -- non-template (doc/RealComplexPlan.md §6): "no global coupling, each irrep steps
+//! on its own", so its state is a parameter block and a scalar; the typed \c Create overloads hand out
+//! block-typed minimizers and register their scalar GDM_Block face.
+class SCFAcceleratorGDM : public virtual SCFAccelerator
 {
 public:
-    tSCFAcceleratorGDM(const GDMParams&);
-    ~tSCFAcceleratorGDM();
-    virtual tSCFIrrepAccelerator<T>* Create(const LASolver<T>*,const Irrep&, int occ);
+    SCFAcceleratorGDM(const GDMParams&);
+    ~SCFAcceleratorGDM();
+    virtual tSCFIrrepAccelerator<double>* Create(const LASolver<double>*,const Irrep&, int occ);
+    virtual tSCFIrrepAccelerator<dcmplx>* Create(const LASolver<dcmplx>*,const Irrep&, int occ);
     virtual bool   CalculateProjections() {return true;} //No global coupling: each irrep steps on its own.
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;
@@ -133,12 +154,13 @@ public:
     //! own forced diagonalize, so the caller's fallback is safe for all of them).
     virtual bool   RejectStep();
 private:
+    template <class T> tSCFIrrepAccelerator<T>* CreateT(const LASolver<T>*,const Irrep&, int occ);
+
     GDMParams itsParams;
-    std::vector<tSCFIrrepAcceleratorGDM<T>*> itsIrreps;
+    std::vector<GDM_Block*> itsIrreps;   // the scalar aggregation face -- children may differ in T
     double itsEn;
 };
 
 using SCFIrrepAcceleratorGDM  = tSCFIrrepAcceleratorGDM<double>;  using cSCFIrrepAcceleratorGDM = tSCFIrrepAcceleratorGDM<dcmplx>;
-using SCFAcceleratorGDM       = tSCFAcceleratorGDM<double>;       using cSCFAcceleratorGDM      = tSCFAcceleratorGDM<dcmplx>;
 
 } //namespace

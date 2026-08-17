@@ -5,6 +5,7 @@ module;
 #include <cstddef>
 #include <map>
 #include <string>
+#include <variant>
 export module qchem.CompositeCD;
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (summed over k-blocks)
@@ -14,6 +15,14 @@ import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
 {
+
+//! \brief THE CHILD SLOT (doc/RealComplexPlan.md §4, Step 2): one block density, typed by ITS OWN scalar
+//! rather than the composite's face -- so children of one composite may differ (a real TRIM block beside
+//! general-k complex blocks on a mixed mesh).  The alternatives are the ABSTRACT per-block face, ownership
+//! included.  Aggregation stays single-source: scalar-independent operations visit with ONE generic lambda;
+//! the T-typed operations forward to the same-scalar alternative (the cross arm becomes reachable -- and
+//! gets its narrowing implementation -- when Step 3 un-pins the basis type per block).
+using cd_child_t = std::variant<std::unique_ptr<tDM_CD<double>>, std::unique_ptr<tDM_CD<dcmplx>>>;
 
 //--------------------------------------------------------------------------
 //
@@ -69,9 +78,11 @@ public:
     //! -- molecules / Γ / unreduced crystals pass through untouched (the general form; "no symmetry" = trivial).
     //! It is a ctor argument, not a setter: the symmetry is a fixed property of the density, set once at build.
     explicit tComposite_CD(std::vector<Symmetry::Lattice_3D::ReciprocalOp> pointOps = {});
-    //! TAKES OWNERSHIP of \a cd.  The signature used to say `tDM_CD<T>*` while the body wrapped it in a
-    //! unique_ptr -- an ownership transfer visible only by reading the implementation (V1.25).
-    void Insert(std::unique_ptr<tDM_CD<T>> cd);
+    //! TAKES OWNERSHIP of \a cd (V1.25).  TWO overloads, one per child scalar (doc/RealComplexPlan.md
+    //! Step 2): the child slot is typed by the BLOCK, not by this composite's face, so either alternative
+    //! may be inserted regardless of T.  A molecular composite simply never receives the complex one.
+    void Insert(std::unique_ptr<tDM_CD<double>> cd);
+    void Insert(std::unique_ptr<tDM_CD<dcmplx>> cd);
 
     // The whole-system J/K sweep is NOT declared here (V1.6 ISP): it lives in Composite_HFSystem, which
     // only the REAL instantiation inherits -- so tComposite_CD<dcmplx> declares nothing and defines nothing
@@ -85,7 +96,8 @@ public:
 
     // The blocks are mutated together (MixIn/ReScale fan out to all), so any block's serial tracks the
     // composite's freshness; forward to the first.  Empty composite -> 0 (the "no density yet" sentinel).
-    virtual size_t Version() const {return itsCDs.empty() ? 0 : itsCDs.front()->Version();}
+    virtual size_t Version() const
+    {return itsCDs.empty() ? 0 : std::visit([](const auto& c){return c->Version();}, itsCDs.front());}
 
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
@@ -105,7 +117,7 @@ private:
     friend class Composite_HFSystem<tComposite_CD<T>>;  // drives the canonical-pair sweep over the blocks
     tComposite_CD(const tComposite_CD&);
 
-    typedef std::vector<std::unique_ptr<tDM_CD<T>>> cdv_t;
+    typedef std::vector<cd_child_t> cdv_t;   // the §4 child slot: per-block scalar, face-T-independent
     cdv_t itsCDs;
     std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsPointOps;   //!< reciprocal {U|τ} point group for IBZ symmetrization ({E} when empty)
 };

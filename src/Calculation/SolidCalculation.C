@@ -24,7 +24,7 @@
 // reachable ONLY through .Internal. modules, which per CLAUDE.md may be imported across a library
 // boundary by unit tests and nothing else.  That -- not carelessness -- is why the driver lived in a
 // test file: it was the one place the cheat was legal.  Step 4 opened the two public doors first
-// (qchem.Hamiltonian.Factory's cHamiltonian overload; qchem.SCFAccelerator.Factory's cSCFAccelerator
+// (qchem.Hamiltonian.Factory's cHamiltonian overload; qchem.SCFAccelerator.Factory's typed-options
 // overload), so this file imports ZERO internals, exactly as the molecular facades already manage.
 module;
 #include <memory>
@@ -39,7 +39,7 @@ import qchem.ScalarFunction;                  // ScalarFunction<double> (the rho
 import qchem.BasisSet;                        // Real_BS (orbital source), Complex_BS (the Bloch basis)
 import qchem.BasisSet.Lattice_3D.BasisSet;    // GPWFactory, GPWParams, RasterPolicy, CellImages
 import qchem.Hamiltonian.Factory;             // Pol, VxcFit, the cHamiltonian solid door
-import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the cSCFAccelerator door
+import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
 import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.ChargeDensity;                   // cDM_CD
 import qchem.ChargeDensity.Seed;              // SeedStrategy

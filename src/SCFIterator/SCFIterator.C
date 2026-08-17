@@ -109,7 +109,7 @@ template <class T> class tSCFIterator
     typedef qchem::Hamiltonian::tHamiltonian<T>  ham_t;
     typedef qchem::WaveFunction::tWaveFunction<T>    wf_t;
     typedef qchem::WaveFunction::tSCFWaveFunction<T> scfwf_t;
-    typedef qchem::SCFAccelerators::tSCFAccelerator<T> acc_t;
+    typedef qchem::SCFAccelerators::SCFAccelerator acc_t;   // NON-template manager (RealComplexPlan §6)
 public:
     // The seed density is chosen by strategy (see ChargeDensity::SeedStrategy): Default resolves to
     // each path's present-day behaviour -- molecular -> CoreGuess, plane-wave -> Uniform.  \a st (the

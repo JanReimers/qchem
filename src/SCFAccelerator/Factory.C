@@ -39,11 +39,11 @@ export namespace qchem::SCFAccelerators
         ScheduleSignal ladderSignal   = ScheduleSignal::EnergyChange;
     };
 
-    //! \brief Build the complex (Bloch) accelerator a solid run asks for.  The \c cSCFAccelerator twin of
-    //! the factory above, which did not exist: \c cSCFAccelerator is a public alias but every concrete
-    //! complex accelerator is \c .Internal., so a solid run could only be driven from a unit test.
+    //! \brief Build the accelerator a solid run asks for -- the TYPED twin of the json door above.  Since
+    //! the managers are scalar-agnostic (doc/RealComplexPlan.md §6) both doors return the same type; this
+    //! one differs only in how the knobs arrive (typed options vs json) and in its solid-tuned defaults.
     //! \c Ladder is the ionic-crystal recipe -- DIIS until it runs out of steam, then GDM, switching on
     //! ENERGY CHANGE rather than the residual.
-    cSCFAccelerator* Factory(Type, const SolidAcceleratorOptions& = {});
+    SCFAccelerator* Factory(Type, const SolidAcceleratorOptions& = {});
 }
 
