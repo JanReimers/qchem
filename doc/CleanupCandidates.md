@@ -639,7 +639,12 @@ MnO campaign proceeds undisturbed in qchem6.
     `AtomCalculation` and `Calculation` directly.  The oracle helpers are its ONLY reach into TestUtils.
   - User: *"could live in PeriodicTable ... but like you said, later."*  Deferred, not rejected.
 
-- **R2.16 Construction-time facts re-asked at RUN time (USER PRINCIPLE, 2026-08-07).**
+- **R2.16 ✅ DONE 2026-08-07** (header marker added 2026-08-17 -- the work landed with the sub-bullets
+  marked but the ITEM left unmarked, so it read as open in every status grep).  Group (A)'s one
+  non-benign site (`PW_XC::RefreshRhoGrid`) got the latch+throw; group (B) is ALL CLEAR; group (C) was
+  already the target pattern.  **One piece was split out rather than closed**, and is re-filed as R2.16b
+  below so it is not lost inside a DONE item.
+  **R2.16 Construction-time facts re-asked at RUN time (USER PRINCIPLE, 2026-08-07).**
   **User ruling:** *"I much prefer that the whole Hamiltonian is decided and fixed at construction time.
   The only dynamic aspect is the ChargeDensity that we feed it."*  Survey done while splitting the PW
   electrostatics terms; the sites fall into three groups.
@@ -693,6 +698,11 @@ MnO campaign proceeds undisturbed in qchem6.
       `06e23f5d` note — its `te.Enn =` survived the `=`→`+=` sweep.  Now `+=`.
     - Left alone deliberately: `IonIon::Write`'s `isFinite()` branch picks a DESCRIPTION string
       ("pair sum" vs "Ewald lattice sum").  Cosmetic, no behaviour rides on it.
+  - **R2.16b (split out of R2.16, still open -- deliberately deferred).**  A `route` ctor argument so a
+    caller can FORCE the BALL route as an A/B instrument; today `GPW_XCROUTE` only REPORTS the route, it
+    cannot select it.  Needs a capability question on the neutral `Band_FT_IBS` face so the factory can
+    ask without a concrete cast.  The item's own gate stands: worth doing when someone actually wants
+    the A/B -- nobody does yet (checked 2026-08-17).
   - **(C) The GOOD pattern, already in the tree**: `Ham_PP` (Imp/Hamiltonians.C:111) —
     `if (sep) Add(new PP_NonLocal(...))`.  Absence of a capability means the term is NOT IN THE LIST.
     Decided at construction; zero runtime tests.  This is the target shape for every (B) site.
@@ -1133,7 +1143,30 @@ MnO campaign proceeds undisturbed in qchem6.
   *(NOT in this list, and deliberately so: `Orbital_ERI4_IBS::Substrate` added by R1.7 is an
   abstract→ABSTRACT cross-cast — the sanctioned direction — and it THROWS naming both bases.)*
 - **V1.10b ✅ DONE (see LANDED). Mixer.  **→ doc/CleanupHistory.md**
-- **V1.11 Occupation seam: two-phase SCF-WF construction + the `TakeElectrons*` family.**
+- **V1.11 ✅ DONE 2026-08-17** (both halves; two of the item's own claims corrected below).
+  **(ii)** the five `TakeElectrons*` virtuals are ONE `TOrbitals<T>::Fill(const FillRequest&)` returning
+  `FillResult<T>`.  The policies became DATA (`ne`/`kT`/`priority`/`eShift`/`mu`), so the next occupation
+  rule sets a field instead of adding a virtual to the abstract face — the OCP complaint.  `FillResult`
+  names what the `ds_t` tuple overloaded (`electronsLeft` vs `minusTS`), and that dual meaning is now
+  confined to five PRIVATE helper bodies in one file, where the algorithms are untouched.  The
+  combination is VALIDATED, not silently ignored: a `priority` list on a smeared fill, or an `eShift` on
+  an integer one, asserts with the reason.  **(i)** `SetMOM`+`SetSmearing` are ONE
+  `SetOccupationPolicy(const OccupationPolicy&)` — necessary because MOM-masked Fermi is a field of EACH
+  old setter, which two independent calls cannot express as one coherent value.  `OccupationPolicy` lives
+  beside `FillRequest` in `qchem.Orbitals`: policy = which rule the run follows, request = what one fill
+  needs.  717/717.
+  **Two corrections to the item as written:**
+  - It grouped `AdoptMOMReference`/`ReleaseMOMReference` with the config setters.  They are NOT config:
+    they are run-time EVENTS (adopt the current occupied subspace; release when Λ is annealed to 0 —
+    `Imp/SCFIterator.C:366`), correctly expressed as setters.  Left alone.
+  - *"every concrete WF defends against the un-configured state"* does not hold: the defaults are
+    `useMOM=false, kT=0`, i.e. plain aufbau — a VALID policy, not an unconfigured state.  So no latch or
+    throw was added; a default-constructed `OccupationPolicy` IS the default rule, by construction.
+  **Still a setter, not a ctor argument, and deliberately:** the policy lives in `SCFParams`, which
+  arrives at `Iterate`, while the wavefunction is built earlier in the iterator's ctor.  Construction-time
+  delivery would mean moving `SCFParams` into the iterator ctor (~10 construction sites) for a struct that
+  carries far more than occupation — a separate ruling, recorded rather than assumed.
+  **V1.11 (original text) Occupation seam: two-phase SCF-WF construction + the `TakeElectrons*` family.**
   (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`
   (SCFWaveFunction.C:39-76): run-config known at construction time delivered by post-ctor setters;
   every concrete WF defends against the un-configured state.  (ii) Five `TakeElectrons*` virtuals

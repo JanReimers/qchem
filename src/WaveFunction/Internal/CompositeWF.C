@@ -46,8 +46,7 @@ public:
     virtual       Orbitals* GetOrbitals     (const Irrep&)      ;
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;}
     virtual void            FillOrbitals    (double mergeTol, bool holdBlock=false);
-    virtual void            SetMOM          (bool useMOM, int startIter);
-    virtual void            SetSmearing     (double kT, double momPenalty);
+    virtual void            SetOccupationPolicy(const ::qchem::Orbitals::OccupationPolicy&);   // to every block (V1.11)
     virtual double          GetEntropyTerm  () const;
     virtual void            AdoptMOMReference(const tWaveFunction<T>& from);
     virtual void            ReleaseMOMReference();
@@ -76,8 +75,9 @@ private:
     bool                         itsAufbau;   //molecular aufbau across irreps (vs fixed per-irrep EC)
     bool                         itsGlobalFermi; //metal: k-blocks share one μ (from ec->UsesGlobalFermi())
     bool                         itsSpinsShareFermi; //the two spin channels share one μ (moment free)
-    double                       itsSmearingkT=0.0; //Fermi kT for this run (SetSmearing); the global fill needs it
-    bool                         itsUseMOM=false;    //Maximum Overlap Method for this run (from SCFParams::UseMOM)
+    //! The run's occupation policy (V1.11) -- the composite needs kT for the shared-μ (global Fermi)
+    //! fill and useMOM for the cross-irrep arming, and forwards the whole object to every block.
+    ::qchem::Orbitals::OccupationPolicy itsOcc;
     bool                         itsMOMActive=false; //cross-irrep MOM armed (parked molecular path; set after 1st fill)
     tSCFAccelerator<T>*          itsAccelerator;
     EnergyLevels                 itsELevels;

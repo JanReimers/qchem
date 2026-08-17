@@ -113,6 +113,60 @@ double FermiOccupancy(double e, double mu, double kT);
 //! \a e.size()==g.size()>0 and \f$\sum g\ge\text{target}\f$ (capacity).  Returns μ (doc/GPWPlan1.md item 3).
 double FermiLevel(const rvec_t& e, const rvec_t& g, double target, double kT);
 
+//! \brief The SCF run's occupation POLICY -- the run-level twin of \c FillRequest below (V1.11, the
+//! occupation seam of doc/SCFStrategyPlan.md \S5).  The policy says which RULE the run's fills follow;
+//! a request carries what ONE fill needs.  It lives here, beside the request, because the two are one
+//! seam: a wavefunction turns the policy plus this iteration's state into a request.
+//!
+//! A default-constructed policy is plain aufbau, so "not configured" and "configured with the default"
+//! are the SAME state -- there is no un-configured state for an implementor to defend against.
+struct OccupationPolicy
+{
+    bool   useMOM     = false;  //!< rank the fill by OVERLAP onto a fixed reference instead of by energy
+    int    momStart   = 10;     //!< delayed IMOM: capture that reference at this fill count (== the
+                                //!< SCFParams::MOMStartIter default -- the calibrated settling window)
+    double kT         = 0.0;    //!< Fermi smearing (Hartree); 0 = integer aufbau
+    double momPenalty = 0.0;    //!< >0 COMPOSES MOM with smearing (a ghost stays empty by character)
+};
+
+//! \brief ONE occupation request: WHAT this orbital block must occupy and HOW (V1.11).
+//!
+//! It replaces five \c TakeElectrons* virtuals whose ARGUMENT LISTS were the policy -- aufbau, MOM,
+//! Fermi, MOM-masked Fermi, fill-at-a-given-μ -- so every new occupation policy so far had to add a
+//! virtual to the abstract face (OCP).  A request is DATA: a new policy sets different fields, and the
+//! face stops changing.  The occupation seam of doc/SCFStrategyPlan.md §5, where aufbau / MOM / smearing
+//! are siblings rather than overloads.
+struct FillRequest
+{
+    double ne = 0.0;   //!< electrons this block must take.  Ignored when \a mu is given (μ sets the count).
+    double kT = 0.0;   //!< 0 = INTEGER fill (aufbau, or MOM when \a priority is set); >0 = Fermi smearing.
+    //! MOM: per-orbital overlap scores in stored order, fill HIGHEST first instead of lowest-energy
+    //! (occupied-subspace continuity across a within-irrep level crossing).  Integer fills only.
+    rvec_t priority;
+    //! MOM-masked Fermi: per-orbital energy shifts, so a low-overlap ghost stays empty by CHARACTER while
+    //! the frontier still smears by TRUE energy.  Smeared fills only; empty == all-zero == plain Fermi.
+    rvec_t eShift;
+    //! A GIVEN chemical potential -- the per-block half of a SHARED-reservoir (global-μ) metal fill, where
+    //! one μ was solved across the whole k-mesh so charge can slosh between blocks.  NaN = solve this
+    //! block's own μ from \a ne.  Smeared fills only.
+    double mu = std::numeric_limits<double>::quiet_NaN();
+
+    bool IsSmeared() const {return kT>0.0;}
+    bool HasGivenMu() const {return mu==mu;}   //!< NaN != NaN
+};
+
+//! \brief What a fill returns, with every quantity NAMED (V1.11).
+//!
+//! The retired \c ds_t tuple carried "remaining electrons" from an integer fill and "−TS" from a Fermi
+//! one in the SAME slot -- the interface comment had to warn readers which meaning was live ("here the
+//! double is −TS, NOT leftover electrons").  A caller now reads the field it means.
+template <class T> struct FillResult
+{
+    hmat_t<T> DPrime;              //!< the density matrix in the orthonormal (primed) basis
+    double electronsLeft = 0.0;    //!< INTEGER fill: electrons this block could not take (basis too small)
+    double minusTS       = 0.0;    //!< SMEARED fill: the Mermin free-energy term −TS ≤ 0 (0 when integer)
+};
+
 template <class T> class TOrbitals
     : public virtual Orbitals
     , public virtual VectorFunction<T>
@@ -122,46 +176,28 @@ public:
     {
         return GetNumOrbitals();
     }
-    typedef std::tuple<double,hmat_t<T>> ds_t;   // {remaining electrons, DPrime} (DPrime Hermitian)
-
     virtual void  UpdateOrbitals(const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e)=0;
-    virtual ds_t TakeElectrons (double ne)=0;
-    //! MOM occupation: fill the highest-\a priority orbitals first (one score per orbital, stored order)
-    //! instead of lowest-energy -- occupied-subspace continuity for a within-irrep level crossing
-    //! (doc/GPWPlan §0b″).  Ties keep the stored (energy) order.  \a priority.size()==GetNumOrbitals().
-    virtual ds_t TakeElectrons (double ne, const rvec_t& priority)=0;
-    //! Fermi-Dirac occupation (doc/GPWPlan1.md 4b): solve the chemical potential μ by bisection so
-    //! \f$\sum_i g_i f_i(\varepsilon_i)=n_e\f$ with \f$f_i=1/(1+e^{(\varepsilon_i-\mu)/kT})\f$, set each
-    //! orbital's occupation to \f$g_i f_i\f$, and build D/D'.  \a kT>0 (Hartree).  Returns
-    //! {\a MinusTS, DPrime} where \a MinusTS \f$=kT\sum_i g_i[f_i\ln f_i+(1-f_i)\ln(1-f_i)]\le0\f$ is the
-    //! Mermin free-energy term \f$-TS\f$ (reuses the ds_t tuple; here the double is −TS, NOT leftover
-    //! electrons -- μ is solved so there is no leftover).  The fractional occupations flow through the
-    //! existing density build unchanged (AddDensityMatrix already scales |C⟩⟨C| by the occupation).
-    virtual ds_t TakeElectronsFermi (double ne, double kT)=0;
-    //! \brief The chemical potential of the LAST Fermi fill -- solved by \c TakeElectronsFermi (this block's
-    //! own μ, one per constrained channel) or handed in by \c SetFermiOccupationsAtMu (a shared reservoir's).
-    //! NaN before any Fermi fill has run.
+
+    //! \brief Occupy this block per \a r and build D/D' -- the ONE occupation entry point (V1.11).
     //!
-    //! It is REPORTED, not just used, because Δμ between channels is the diagnostic that says whether a
-    //! fixed-(nUp,nDn) fill is doing work: two μ ARE the Lagrange multipliers of the two count constraints,
-    //! so their difference is the field holding the moment apart, and a run that never prints them cannot
-    //! tell a free moment from a constrained one.  (Had this been printed, MnO's 27 mHa would have been read
-    //! off a trace instead of inverted by hand out of an eigen table -- user, 2026-08-10.)
-    //! \note Only sharp where the occupations are FRACTIONAL.  With integer fills μ is pinned no better than
-    //! the channel's HOMO-LUMO gap, so compare gaps, not digits.
+    //! Aufbau, MOM, Fermi smearing, MOM-masked Fermi and fill-at-a-shared-μ are FIELDS of the request,
+    //! not five virtuals: see \c FillRequest.  Implementations validate the combination (a priority list
+    //! on a smeared fill, or an eShift on an integer one, is a caller error, not a silent ignore).
+    virtual FillResult<T> Fill(const FillRequest& r)=0;
+
+    //! \brief The chemical potential of the LAST smeared fill -- solved from the request's \a ne, or the
+    //! shared \a mu it was handed.  NaN before any smeared fill has run.  An ACCESSOR, not a fill, which
+    //! is why it survived the five-virtuals collapse (V1.11).
+    //!
+    //! It is REPORTED, not merely used, because Δμ between spin channels is the diagnostic that says
+    //! whether a fixed-(nUp,nDn) fill is doing work: two μ ARE the Lagrange multipliers of the two count
+    //! constraints, so their difference is the field holding the moment apart, and a run that never prints
+    //! them cannot tell a free moment from a constrained one.  (Had this been printed, MnO's 27 mHa would
+    //! have been read off a trace instead of inverted by hand out of an eigen table -- user, 2026-08-10.)
+    //! \note Only sharp where the occupations are FRACTIONAL.  With integer fills μ is pinned no better
+    //! than the channel's HOMO-LUMO gap, so compare gaps, not digits.
     virtual double GetChemicalPotential() const=0;
-    //! MOM-masked Fermi (doc/GPWPlan1.md 4b, MOM+smearing composition): Fermi-fill on EFFECTIVE energies
-    //! ε_i + eShift_i instead of the bare ε_i.  \a eShift (one per orbital, stored order; size 0 == all-zero
-    //! == the plain overload above) carries a MOM-overlap penalty that pushes LOW-overlap states (diffuse
-    //! ghosts) UP so they stay empty by CHARACTER, while the retained high-overlap states smear by their
-    //! TRUE energy -- keeping the ghost out (like hard MOM) yet making occupation continuous at the frontier.
-    virtual ds_t TakeElectronsFermi (double ne, double kT, const rvec_t& eShift)=0;
-    //! Set Fermi occupations at a GIVEN chemical potential μ (no per-block solve): occ_i = g_i·FermiOccupancy(
-    //! ε_i+eShift_i, μ, kT), accumulate this block's −TS, and build D/D'.  The composite cross-k global-μ fill
-    //! solves ONE μ across the mesh (via \c FermiLevel over the aggregate) then calls this on EACH block so the
-    //! charge sloshes between k-points under a single Fermi level (doc/GPWPlan1.md item 3).  \c TakeElectronsFermi
-    //! is exactly {solve μ for this block's ne} then this.  \a kT>0; \a eShift size 0 == all-zero (plain Fermi).
-    virtual ds_t SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift)=0;
+
     //! \brief BUILDS this orbital set's density matrix -- it ALLOCATES, hence the owning return (V1.25).
     //! It was a raw `tDM_CD<T>*` from a `Get*`, which reads as an accessor handing back a member; every
     //! caller had to know otherwise, and AtomCalculation::TotalCharge did not, leaking a whole composite

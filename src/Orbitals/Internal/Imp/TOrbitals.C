@@ -93,6 +93,39 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const mat_t<T>& U, const
 
     }
 }
+// V1.11: the ONE occupation entry point.  Every branch here was a separate virtual on the abstract face;
+// they are POLICIES (aufbau / MOM / Fermi / MOM-masked Fermi / fill-at-a-shared-μ), and a policy set is
+// data, not an interface -- adding the next one must not force every implementor to grow a method.  The
+// combination is VALIDATED rather than silently ignored: a priority list only ranks an integer fill, an
+// eShift only shifts a smeared one, and a given μ only makes sense when there is a temperature to smear
+// with.  Each branch calls the helper that used to be the virtual, unchanged.
+template <class T> FillResult<T> TOrbitalsImp<T>::Fill(const FillRequest& r)
+{
+    assert(!(r.IsSmeared() && r.priority.size()>0) &&
+           "FillRequest: `priority` RANKS an integer (MOM) fill -- a smeared fill ranks by energy, so use eShift");
+    assert(!(!r.IsSmeared() && r.eShift.size()>0) &&
+           "FillRequest: `eShift` shifts the energies of a SMEARED fill -- an integer fill has none to shift");
+    assert(!(r.HasGivenMu() && !r.IsSmeared()) &&
+           "FillRequest: a given mu is the shared-reservoir SMEARED fill -- an integer fill takes a count, not a level");
+    FillResult<T> out;
+    if (r.IsSmeared())
+    {
+        double minusTS=0.0;
+        if (r.HasGivenMu()) std::tie(minusTS,out.DPrime)=SetFermiOccupationsAtMu(r.mu,r.kT,r.eShift);
+        else if (r.eShift.size()>0) std::tie(minusTS,out.DPrime)=TakeElectronsFermi(r.ne,r.kT,r.eShift);
+        else                        std::tie(minusTS,out.DPrime)=TakeElectronsFermi(r.ne,r.kT);
+        out.minusTS=minusTS;              // named: the Mermin free-energy term, never "leftover electrons"
+    }
+    else
+    {
+        double left=0.0;
+        if (r.priority.size()>0) std::tie(left,out.DPrime)=TakeElectrons(r.ne,r.priority);
+        else                     std::tie(left,out.DPrime)=TakeElectrons(r.ne);
+        out.electronsLeft=left;           // named: electrons this block could not take
+    }
+    return out;
+}
+
 template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons(double ne)
 {
     // Dump electrons into orbitals, starting from the lowest energy.

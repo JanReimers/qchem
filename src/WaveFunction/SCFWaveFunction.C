@@ -27,7 +27,8 @@ using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;
 using Orbitals::Orbitals;
 
-export template <class T> class tSCFWaveFunction : public virtual tWaveFunction<T>
+export 
+template <class T> class tSCFWaveFunction : public virtual tWaveFunction<T>
 {
 public:
     using tWaveFunction<T>::GetOrbitals; //keep the const overload visible alongside the mutable one
@@ -58,16 +59,19 @@ public:
     virtual void       MoveOrbitals    (double t, bool commit, double mergeTol, bool holdBlock=false) =0;
     virtual void       FillOrbitals    (double mergeTol, bool holdBlock=false)  =0; //WF knows the electronic structure
     virtual Orbitals*  GetOrbitals     (const Irrep&)                           =0; //mutable access for the loop
-    //! Configure the Maximum Overlap Method for this SCF run (from SCFParams).  \a startIter is the
-    //! delayed-IMOM reference-capture iteration.  Called once by the SCFIterator at the start of Iterate;
-    //! a no-op default keeps \a useMOM=false the norm.  See doc/GPWPlan §0b″.
-    virtual void       SetMOM          (bool useMOM, int startIter)             =0;
-    //! Configure Fermi-Dirac smearing for this SCF run (from SCFParams, Hartree).  \a kT 0 = OFF (integer
-    //! aufbau -- atoms/molecules/gapped solids unchanged); >0 => each block fills fractionally with μ solved
-    //! by bisection, and GetEntropyTerm() returns the run's Mermin −TS.  \a momPenalty>0 COMPOSES smearing
-    //! with MOM (doc/GPWPlan1.md 4b): low-overlap ghosts are pushed empty by character while the physical
-    //! frontier smears by energy.  Called once by the SCFIterator at the start of Iterate.
-    virtual void       SetSmearing     (double kT, double momPenalty)           =0;
+    //! \brief Configure the run's OCCUPATION POLICY -- one object, one call (V1.11).
+    //!
+    //! The run-level twin of \c FillRequest: the policy says WHICH rule the fills follow, the request
+    //! carries what one fill needs.  It replaces \c SetMOM + \c SetSmearing, two setters that had to be
+    //! remembered together (MOM-masked Fermi is a field of ONE of them combined with a field of the
+    //! OTHER, which is not something two independent calls can express).
+    //!
+    //! \note It is a setter and not a ctor argument for a reason that is not an oversight: the policy
+    //! lives in \c SCFParams, which arrives at \c Iterate, while the wavefunction is built earlier in the
+    //! iterator's ctor.  A default-constructed policy is plain aufbau -- a VALID configuration, not an
+    //! un-configured state -- so there is nothing to defend against; the iterator applies the run's
+    //! policy once at the top of \c Iterate.
+    virtual void       SetOccupationPolicy(const ::qchem::Orbitals::OccupationPolicy&)             =0;
     //! The Mermin free-energy term −TS (≤0) summed over all occupied blocks from the most recent fill; 0
     //! unless smearing is on.  The SCFIterator stamps it into EnergyBreakdown::MinusTS so GetTotalEnergy()
     //! becomes the free energy A=E−TS -- the quantity the finite-T SCF gates on and reports (the entropy

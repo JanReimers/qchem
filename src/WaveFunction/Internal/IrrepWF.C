@@ -64,20 +64,19 @@ public:
     //! §0e): \a from is a CONVERGED WF's orbitals for the SAME irrep on an equivalent orthonormal metric (the
     //! analytic Bloch overlap is grid-independent), so its physical occupied C' columns transfer verbatim.
     void                AdoptMOMReference(const Orbitals& from)      ;
-    void                SetMOM          (bool useMOM, int startIter) {itsUseMOM=useMOM; itsMOMStartIter=startIter;}
+    void                SetOccupationPolicy(const ::qchem::Orbitals::OccupationPolicy& p) {itsOcc=p;}
     //! Fermi-Dirac smearing for this run (from SCFParams, Hartree).  \a kT 0 = OFF (integer aufbau); >0 =>
     //! FillOrbitals solves μ per block and fills fractionally.  \a momPenalty>0 COMPOSES smearing with MOM
     //! (doc/GPWPlan1.md 4b): once a reference exists, Fermi-fills on effective energies ε_i+Λ(1−s_i)² so
     //! low-overlap ghosts are pushed empty by character while the physical frontier smears by true energy.
     //! momPenalty=0 => smearing alone (fills by energy; a diving diffuse ghost would be occupied).
-    void                SetSmearing     (double kT, double momPenalty) {itsSmearingkT=kT; itsMOMSmearPenalty=momPenalty;}
     //! The Mermin free-energy term −TS (≤0) from this block's most recent fill; 0 unless smearing is on.
     //! BZ-WEIGHTED by this block's w_k (the SAME weight GetChargeDensity applies to D), so summing across
     //! blocks in the composite gives the correct −TS = Σ_k w_k(−T S_k) alongside the BZ-weighted E.  At a
     //! single k (w=1) this is the bare block −TS.  Stamped into EnergyBreakdown by the SCFIterator.
     double              GetEntropyTerm  () const {return itsIrrep.sym->GetWeight()*itsMinusTS;}
     //! 0h guard actuator: drop the reference + re-arm the delayed-IMOM capture (itsFillCount restarts, so a
-    //! fresh reference is captured itsMOMStartIter aufbau fills from now -- the calibrated settling window).
+    //! fresh reference is captured itsOcc.momStart aufbau fills from now -- the calibrated settling window).
     void                ReleaseMOMReference() {itsRefOccCPrime.clear(); itsFillCount=0;}
 
     void                DisplayEigen    () const;
@@ -100,10 +99,10 @@ public:
     hmat_t<T>                itsF;
     mat_t<T>                 itsRefOccCPrime; // MOM reference: occupied C' columns (nbasis x nocc); empty=none
     int                      itsFillCount=0;  // # of FillOrbitals calls (≈ SCF iteration) -- IMOM capture delay
-    bool                     itsUseMOM=false; // Maximum Overlap Method for this run (from SCFParams::UseMOM)
-    int                      itsMOMStartIter=10; // delayed-IMOM reference-capture iteration (SCFParams::MOMStartIter)
-    double                   itsSmearingkT=0.0; // Fermi smearing kT (SCFParams::SmearingkT); 0=off (integer aufbau)
-    double                   itsMOMSmearPenalty=0.0; // MOM-overlap penalty Λ for MOM-masked Fermi (0=smearing alone)
+    //! The run's occupation policy (V1.11): ONE object instead of four independently-set members, so a
+    //! rule that COMBINES fields (MOM-masked Fermi = useMOM + kT + momPenalty) is one coherent value.
+    //! Default-constructed = plain aufbau, which is a valid policy, not an unconfigured state.
+    ::qchem::Orbitals::OccupationPolicy itsOcc;
     double                   itsMinusTS=0.0;    // Mermin −TS from the last fill (0 unless smearing on)
 };
 

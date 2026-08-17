@@ -234,21 +234,14 @@ template <class T> void tCompositeWF<T>::EmitBasisUsage() const
 
 // Configure MOM for this run (from SCFParams, via the SCFIterator).  Store our own copy (used by the
 // molecular cross-irrep aufbau) and forward to every irrep WF (the crystal's within-irrep MOM lives there).
-template <class T> void tCompositeWF<T>::SetMOM(bool useMOM, int startIter)
+// The run's occupation policy reaches every block (V1.11): one object, so a composed rule (MOM-masked
+// Fermi) arrives as one coherent value instead of two setters a caller must remember to pair.
+template <class T> void tCompositeWF<T>::SetOccupationPolicy(const ::qchem::Orbitals::OccupationPolicy& p)
 {
-    itsUseMOM = useMOM;
-    for (auto& w : itsIWFs) w->SetMOM(useMOM, startIter);
+    itsOcc=p;
+    for (auto& w : itsIWFs) w->SetOccupationPolicy(p);
 }
 
-// Fermi smearing (doc/GPWPlan1.md 4b): push the same kT (and MOM-mask penalty) into every irrep block, and keep
-// our own copy of kT (the global-μ metal fill solves ONE μ at the composite level, so it needs kT here too).
-// Per-block μ (insulator/Γ) is solved inside each block's FillOrbitals; global μ across the mesh in
-// FillOrbitalsGlobalFermi.  No-op at kT=0.
-template <class T> void tCompositeWF<T>::SetSmearing(double kT, double momPenalty)
-{
-    itsSmearingkT=kT;
-    for (auto& w : itsIWFs) w->SetSmearing(kT, momPenalty);
-}
 
 // The run's Mermin free-energy term −TS: the SUM over blocks, each already BZ-weighted (tIrrepWF::GetEntropyTerm
 // applies w_k), so this is Σ_k w_k(−T S_k) -- consistent with the BZ-weighted E.  0 with no smearing.  Stamped
@@ -291,7 +284,7 @@ template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol, bool hold
     // seed fill runs in the CONSTRUCTOR -- see doc/CleanupCandidates.md D11.  Filling the prescribed
     // per-block counts is also what a seed SHOULD do: there is no self-consistent spectrum yet for a
     // reservoir to redistribute over.
-    if (!holdBlock && itsSmearingkT>0.0 && (itsGlobalFermi || itsSpinsShareFermi))
+    if (!holdBlock && itsOcc.kT>0.0 && (itsGlobalFermi || itsSpinsShareFermi))
         { FillOrbitalsSharedFermi(mergeTol); return; }
     if (!holdBlock && itsAufbau) { FillOrbitalsAufbau(mergeTol); return; }
     for (auto& w:itsIWFs)                              // fixed per-irrep occupation (atoms etc.)
@@ -365,7 +358,7 @@ template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
     // has NOT been re-validated against the new delayed reference capture (tIrrepWF captures at MOMStartIter,
     // so useMOM would score against empty references for the first few fills).  The ACTIVE, tested path is
     // the crystal's WITHIN-irrep MOM in tIrrepWF::FillOrbitals.  Kept here for the molecular hard cases.
-    if (itsUseMOM) itsMOMActive=true;
+    if (itsOcc.useMOM) itsMOMActive=true;
 }
 
 // SMEARED FILL BY RESERVOIR: one chemical potential per set of blocks that SHARE AN ELECTRON RESERVOIR.
@@ -387,7 +380,7 @@ template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
 // per-block Fermi exactly.
 template <class T> void tCompositeWF<T>::FillOrbitalsSharedFermi(double mergeTol)
 {
-    assert(itsSmearingkT>0.0 && "a shared-μ fill needs SmearingkT>0: integer fills have nothing to relax with");
+    assert(itsOcc.kT>0.0 && "a shared-μ fill needs SmearingkT>0: integer fills have nothing to relax with");
     // Reservoir key: the spatial symmetry's SequenceIndex (0 when k is shared) + the spin (0 when spin is).
     // Not an Irrep, and not the sym POINTER: Irrep's ordering dereferences sym, so the "no spatial identity"
     // half of this key has no Irrep spelling.
@@ -423,11 +416,11 @@ template <class T> void tCompositeWF<T>::FillOrbitalsSharedFermi(double mergeTol
                 ++idx;
             }
         }
-        const double mu=qchem::Orbitals::FermiLevel(e,g,Ntot,itsSmearingkT);   // ONE μ for this reservoir
+        const double mu=qchem::Orbitals::FermiLevel(e,g,Ntot,itsOcc.kT);   // ONE μ for this reservoir
 
         // Instrument GPW_METALTRACE (cf. GPW_GDMTRACE): μ and the per-block electron count, so the charge
         // sloshing is visible -- between k-points, and now between SPIN CHANNELS.  Off by default.
-        if (trace) std::cout<<"[metal] μ="<<mu<<" kT="<<itsSmearingkT<<" Ntot="<<Ntot<<"  per-block n:\n";
+        if (trace) std::cout<<"[metal] μ="<<mu<<" kT="<<itsOcc.kT<<" Ntot="<<Ntot<<"  per-block n:\n";
         double wsum=0.0;
         for (auto w : wfs)                                               // set every block at the shared μ
         {

@@ -21,17 +21,17 @@ template <class T> class TOrbitalsImp
     : public virtual Orbitals
     , public virtual TOrbitals<T>
 {
-    typedef typename TOrbitals<T>::ds_t ds_t; //{double,smat_t}
+    //! The retired PUBLIC tuple, kept as a PRIVATE implementation currency (V1.11): the five policy
+    //! helpers below still speak it, but no caller does -- Fill translates it into the named FillResult.
+    //! Its dual meaning ("remaining electrons" for an integer fill, "−TS" for a Fermi one) is now confined
+    //! to five function bodies in one file instead of riding the abstract face.
+    typedef std::tuple<double,hmat_t<T>> ds_t;
 public:
     TOrbitalsImp(const tobs_t<T>*, Spin s);
     virtual ~TOrbitalsImp();
 
 
-    virtual ds_t      TakeElectrons      (double ne      )      ;
-    virtual ds_t      TakeElectrons      (double ne, const rvec_t& priority);
-    virtual ds_t      TakeElectronsFermi (double ne, double kT);
-    virtual ds_t      TakeElectronsFermi (double ne, double kT, const rvec_t& eShift);
-    virtual ds_t      SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift);
+    virtual FillResult<T> Fill(const FillRequest&);   //!< the ONE occupation entry point (V1.11)
     virtual double    GetChemicalPotential   () const {return itsMu;}
     virtual size_t    GetNumOrbitals     (               ) const;
     virtual size_t    GetNumOccOrbitals  (               ) const;
@@ -53,6 +53,13 @@ public:
 
 private:
     TOrbitalsImp(const TOrbitalsImp&);
+    // The five occupation POLICIES, now private helpers behind Fill (V1.11): they are the concretes of
+    // the seam, and a concrete is not an interface.  Each still does exactly what its retired virtual did.
+    ds_t TakeElectrons      (double ne      )      ;
+    ds_t TakeElectrons      (double ne, const rvec_t& priority);
+    ds_t TakeElectronsFermi (double ne, double kT);
+    ds_t TakeElectronsFermi (double ne, double kT, const rvec_t& eShift);
+    ds_t SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift);
     ds_t BuildDensity(double ne);   //!< build D/D' from the occupied orbitals (shared by both TakeElectrons)
 
     //! μ of the last Fermi fill -- captured in SetFermiOccupationsAtMu, the ONE funnel both the per-block

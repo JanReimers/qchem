@@ -109,16 +109,16 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
     // NB entropy is identically zero here, so a held leg minimises E and NOT the Mermin free energy A=E−TS.
     if (holdBlock)
     {
-        double left=ne;
-        std::tie(left,itsDPrime)=itsOrbitals->TakeElectrons(ne);
-        assert(left==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
+        const auto f=itsOrbitals->Fill({.ne=ne});
+        itsDPrime=f.DPrime;
+        assert(f.electronsLeft==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
         itsELevels.clear();
         for (auto o:itsOrbitals->Iterate())
             itsELevels.insert(qchem::Orbitals::EnergyLevel(o));
         ++itsFillCount;
         return itsELevels;
     }
-    const bool haveRef = itsUseMOM && itsRefOccCPrime.columns()>0;
+    const bool haveRef = itsOcc.useMOM && itsRefOccCPrime.columns()>0;
     // MOM SCORE SEPARATION (QCHEM_MOM_SCORES=1): the two MOM paths use the reference DIFFERENTLY, and which
     // one can discriminate depends on a property of the scores that nothing else reports.  The cold path RANKS
     // by s (any separation, however small, decides the fill); the smeared path SHIFTS by Λ(1−s)² (only a
@@ -140,7 +140,7 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
         cout<<"   (cut gap s["<<(size_t)ne-1<<"]-s["<<(size_t)ne<<"]="
             <<((size_t)ne<sorted.size() ? sorted[(size_t)ne-1]-sorted[(size_t)ne] : 0.0)<<")"<<endl;
     }
-    if (itsSmearingkT>0.0)
+    if (itsOcc.kT>0.0)
     {
         // MOM-masked Fermi (doc/GPWPlan1.md 4b): once a reference exists AND a penalty is set, push low-overlap
         // ghosts UP in effective energy (ε_i + Λ(1−s_i)²) so they stay empty BY CHARACTER, while the retained
@@ -158,14 +158,18 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
         // the cold one below are DIFFERENT INSTRUMENTS, not two strengths of one.  The cold path RANKS by s,
         // so a 1.5% score difference decides the fill; this path SHIFTS, so only differences worth more than
         // Λ in energy decide anything.  QCHEM_MOM_SCORES prints the distribution to calibrate against.
-        if (haveRef && itsMOMSmearPenalty>0.0)
+        if (haveRef && itsOcc.momPenalty>0.0)
         {
             rvec_t s=MOMScores(), eShift(s.size());
-            for (size_t i=0;i<s.size();++i){ double d=1.0-s[i]; eShift[i]=itsMOMSmearPenalty*d*d; }
-            std::tie(itsMinusTS,itsDPrime)=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT,eShift);
+            for (size_t i=0;i<s.size();++i){ double d=1.0-s[i]; eShift[i]=itsOcc.momPenalty*d*d; }
+            const auto f=itsOrbitals->Fill({.ne=ne, .kT=itsOcc.kT, .eShift=eShift});
+            itsMinusTS=f.minusTS; itsDPrime=f.DPrime;
         }
         else
-            std::tie(itsMinusTS,itsDPrime)=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT);
+        {
+            const auto f=itsOrbitals->Fill({.ne=ne, .kT=itsOcc.kT});
+            itsMinusTS=f.minusTS; itsDPrime=f.DPrime;
+        }
         // GPW_METALTRACE: report THIS block's own μ, so a constrained (fixed nUp/nDn) run is as legible as a
         // shared-reservoir one.  Δμ between the channels is the diagnostic: two μ are the Lagrange multipliers
         // of the two count constraints, so their difference is the force the constraint is holding -- and for
@@ -173,14 +177,15 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
         // spectra unitarily equivalent.  NB only sharp under FRACTIONAL occupations; with integer fills μ is
         // pinned no better than the channel's HOMO-LUMO gap.
         if (std::getenv("GPW_METALTRACE"))
-            std::cout<<"[fill]   block="<<itsIrrep<<" ne="<<ne<<" kT="<<itsSmearingkT
+            std::cout<<"[fill]   block="<<itsIrrep<<" ne="<<ne<<" kT="<<itsOcc.kT
                      <<" OWN μ="<<itsOrbitals->GetChemicalPotential()<<std::endl;
     }
     else
     {
-        if (haveRef) std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne, MOMScores());
-        else         std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
-        assert(ne==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
+        const auto f = haveRef ? itsOrbitals->Fill({.ne=ne, .priority=MOMScores()})
+                               : itsOrbitals->Fill({.ne=ne});   // occupy lowest-first, build density
+        itsDPrime=f.DPrime;
+        assert(f.electronsLeft==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
     }
 
     // List of energy levels.  Degenerate levels should get merged.
@@ -194,7 +199,7 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
     // (re-capturing every iteration) DRIFTS and a spike corrupts the reference.  A fixed, physical
     // reference keeps the diving diffuse virtual (low overlap with {F 2s, F 2p}) OUT of the occupied set.
     ++itsFillCount;
-    if (itsUseMOM && itsRefOccCPrime.columns()==0 && itsFillCount>=itsMOMStartIter)
+    if (itsOcc.useMOM && itsRefOccCPrime.columns()==0 && itsFillCount>=itsOcc.momStart)
         CaptureMOMReference();
     return itsELevels;
 }
@@ -205,9 +210,10 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne, bool
 // shared μ instead of solving this block's own.  Plain energy Fermi (no MOM eShift: the μ was solved on bare ε).
 template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitalsAtMu(double mu)
 {
-    assert(itsSmearingkT>0.0 && "FillOrbitalsAtMu is a smeared (metal) path -- SmearingkT must be > 0");
+    assert(itsOcc.kT>0.0 && "FillOrbitalsAtMu is a smeared (metal) path -- SmearingkT must be > 0");
     for (auto o:itsOrbitals->Iterate()) o->Empty();
-    std::tie(itsMinusTS,itsDPrime)=itsOrbitals->SetFermiOccupationsAtMu(mu,itsSmearingkT,rvec_t());
+    const auto f=itsOrbitals->Fill({.kT=itsOcc.kT, .mu=mu});   // shared reservoir: μ sets the count
+    itsMinusTS=f.minusTS; itsDPrime=f.DPrime;
     itsELevels.clear();
     for (auto o:itsOrbitals->Iterate())
         itsELevels.insert(qchem::Orbitals::EnergyLevel(o));

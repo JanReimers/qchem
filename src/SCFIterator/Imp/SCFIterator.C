@@ -234,8 +234,11 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     assert(itsWaveFunction);
     assert(itsHamiltonian);
     assert(itsCD);
-    itsWaveFunction->SetMOM(ipar.UseMOM, ipar.MOMStartIter);   // occupation strategy for this run (SCFParams)
-    itsWaveFunction->SetSmearing(ipar.SmearingkT, ipar.MOMSmearPenalty);  // Fermi smearing (0=off) + MOM mask; doc/GPWPlan1.md 4b
+    // The run's occupation policy, applied ONCE (V1.11): one object rather than two setters that had to
+    // be remembered together -- MOM-masked Fermi is a field of each.  SCFParams arrives here, not at the
+    // wavefunction's construction, which is why this is a setter and not a ctor argument.
+    itsWaveFunction->SetOccupationPolicy({.useMOM=ipar.UseMOM, .momStart=(int)ipar.MOMStartIter,
+                                          .kT=ipar.SmearingkT, .momPenalty=ipar.MOMSmearPenalty});
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     // V1.27: is the virial theorem meaningful for THIS Hamiltonian at all?  It needs a Coulombic (degree -1
     // homogeneous) potential, which a pseudopotential is not.  Asked ONCE, of the object that knows -- the

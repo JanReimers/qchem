@@ -151,10 +151,19 @@ the ISP splits produce):
   that becomes a variant alternative.
 - **V1.6** `tDM_CD::Accumulate*` face split — the composite's T-typed methods ARE the widening points.
 - **V1.7** the periodic trio's 9 asserting overrides — each multiplies against a new alternative.
-- **V1.11** occupation seam / two-phase SCF-WF construction — the WF child is where narrowing and the
-  real eigensolve land.
-- **V1.1 / V1.5 / V1.10** basis-face merge, `G_FieldEvaluator` ISP split, abstract→concrete basis
-  casts — the basis is the decision point and the head of the type flow.
+- **V1.11 ✅ DONE 2026-08-17** occupation seam — five fill virtuals collapsed to one
+  `Fill(FillRequest)->FillResult<T>`, and the two run-config setters to one `SetOccupationPolicy`.
+  Directly load-bearing here: those were seven virtuals on the WF/orbital faces that a two-instantiation
+  block set would have had to carry twice.
+- **V1.1 / V1.10** basis-face merge and the abstract→concrete basis casts — the basis is the decision
+  point and the head of the type flow.
+- ~~V1.5~~ **REMOVED from the prerequisites 2026-08-17 (it was listed in error).**  `G_FieldEvaluator`
+  is the G-SPACE FIELD engine (`EvalField`, `RhoOnGrid`, `ForwardFFT`, `GridCoeff`, `Integral`); it is
+  not templated at all, and by §2 above the fields it serves — \f$\tilde\rho(G)\f$, \f$V_H(G)\f$ —
+  stay complex-with-Hermitian-symmetry whatever any block's type is.  It sits entirely OFF the T axis,
+  so this work never touches it, and FittingCleanupPlan §K (which V1.5 must engage) is likewise not a
+  gate here.  It was listed by association with "basis interfaces"; that was not checked.  Still worth
+  doing as ISP hygiene, on its own schedule.
 - **R2.16** construction-time facts re-asked at run time — the same principle this rests on.
 
 NOT prerequisites (do not gate on them): R1.0b (shared-radial reader), R2.20 (oracle helpers in a
