@@ -1214,6 +1214,13 @@ MnO campaign proceeds undisturbed in qchem6.
   site-adapted caller post-filters orbit-incomplete points (`CreateSiteAdaptedBeckeMesh`).
   Cleaner: make the drop decision ONCE per representative (angular dir × radial shell) and apply
   it to the whole atom orbit inside the builder — removes the second fold pass + the filter.
+  **2026-08-17 (concurrent-cleanup session): DEFERRED deliberately** — bit-sensitive on the imposed
+  mesh path the running MnO real-TRIM campaign depends on; wrong week to move it.  **New evidence
+  while measuring R2.15:** the drop asymmetry is not only an imposed-run problem — the MnO
+  seed-mirror gate's orphan check caught the FREE builder keeping a point whose AFM translation
+  partner was tail-dropped (w·ρ=0.04, degree-11 Lebedev ⟨111⟩ into a neighbour core).  A
+  per-representative drop rule would have made that configuration impossible by construction, so
+  the item's case is STRONGER than when filed.
 - **V1.23 `Symmetry::Lattice_3D::DirectOf`** — currently unused after the CreateXCQuadrature move
   (GPW uses its native direct ops).  Keep (documents the U=Wᵀ convention; T3 will want it) or fold
   its doc into `ReciprocalOp` and drop — decide at the refactor session.
