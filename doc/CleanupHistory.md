@@ -151,8 +151,12 @@ work waits on this seam**.
 - `2398dd07` — **inc 5: `HeldOccupationPolicy`** replaces the `holdBlock` bool — the §5-flagged
   {occupation × direct-min} cell named.  Wraps the run policy (shared IMOM clocks, shared −TS aggregate);
   stored-order spec, kT structurally 0, capture no-op, `HoldsStoredBlocks()` degrades the reservoir loop.
-  The consulted methods went virtual, so D1's abstract-interface form arrived naturally; OT+smearing later
-  is a sibling that holds the block but keeps kT — a new policy, not a new bool.
+  The consulted methods went virtual; OT+smearing later is a sibling that holds the block but keeps kT —
+  a new policy, not a new bool.  **CORRECTION (user, 2026-08-17, same day): this does NOT make the policy
+  the abstract interface D1 ruled** — the base is still a concrete whose behaviour `Configure`'s flags
+  select per fill; only `Held` is a true derived policy.  The finishing move (the Policy/State split:
+  persistent `OccupationState` + factory-assembled abstract concretes, `Configure` dies) is RULED LIKED
+  and deferred — filed as **R2.21**.
 
 Every increment was a full 717/717 sweep with the smeared/metal anchors (AlFCCAnnealedMetal, NaF traces,
 MnO shared-spin) in the enabled set.  The refactor never changed WHICH orbitals fill — only who decides.

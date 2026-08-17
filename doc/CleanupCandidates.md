@@ -654,7 +654,34 @@ MnO campaign proceeds undisturbed in qchem6.
     `AtomCalculation` and `Calculation` directly.  The oracle helpers are its ONLY reach into TestUtils.
   - User: *"could live in PeriodicTable ... but like you said, later."*  Deferred, not rejected.
 
-- **R2.16 Construction-time facts re-asked at RUN time (USER PRINCIPLE, 2026-08-07).**
+- **R2.21 🔶 The OccupationPolicy/OccupationState split (USER 2026-08-17: "I really like your Policy/State
+  split.  But we don't need it right now").**  V1.11's landed `OccupationPolicy<T>` is NOT the abstract
+  interface D1 ruled — it is a CONCRETE class whose behaviour is selected by
+  `Configure(useMOM, momStartIter, kT, momPenalty)`: `DecideBlockFill` branches on `kT>0` and `penalty>0`
+  PER FILL, i.e. four policies folded into one object, mode-selected (the user's catch).  Only
+  `HeldOccupationPolicy` is a genuine derived policy.  The flag shape was forced by a real constraint —
+  the object must survive RECONFIGURATION (grid-continuation adopts MOM references after construction but
+  before Iterate; annealed runs call Iterate per stage with DIFFERENT kT), so a rebuild-from-SCFParams
+  factory would have dropped the references — and the fix is to split what that conflated:
+  - **`OccupationState<T>`** — persistent, in the iterator's slot: the per-block MOM references + fill
+    counts, the cross-irrep arming, the −TS aggregate.  `AdoptMOMReference`/`ReleaseReferences`/
+    `EntropyTerm` talk to THIS; it lives from construction to the last stage.
+  - **`OccupationPolicy<T>` goes genuinely abstract** — `DecideBlockFill`, `HoldsStoredBlocks`,
+    `SmearingkT` (the reservoir driver's one remaining ask, default 0), and ONE `OnBlockFilled` hook
+    (count + capture-if-due; collapses the two calls `tIrrepWF` makes today).  Concretes = the ruled
+    two-axis assembly: occupancy {`Integer`, `Fermi(kT)`} composed with a ranking component
+    {`Bare` (the null), `MOM(startIter, Λ, state&)`} — the SCFStrategyPlan null-object idiom, not a
+    nullable flag.  `Held(state&)` references the state DIRECTLY (cleaner than today's run-policy wrap).
+  - **`Configure` dies.**  A `Factory(SCFParams, state&)` assembles concretes at the top of each Iterate —
+    the `kT>0` branch runs ONCE at assembly, never per fill.  The seed fill gets an explicit
+    `Integer×Bare` at construction (the D11 semantics, unchanged); annealed stage transitions get a fresh
+    assembly against the SAME state — today's semantics exactly, with selection at construction instead of
+    interrogation.
+  - Blast radius: the policy module, the iterator slot, two `tIrrepWF` call sites.  The WF faces
+    (`FillOrbitals(pol,…)`) do NOT change.  Bit-identical by the V1.11 discipline; smeared/metal anchors
+    guard did-E-move.  NB the delayed-IMOM adaptivity (MOM behaves as bare aufbau until a reference
+    exists) is STATE-dependence, not config — it stays inside the MOM ranking component and never
+    justified the kT branch.
   **User ruling:** *"I much prefer that the whole Hamiltonian is decided and fixed at construction time.
   The only dynamic aspect is the ChargeDensity that we feed it."*  Survey done while splitting the PW
   electrostatics terms; the sites fall into three groups.
@@ -1106,7 +1133,9 @@ MnO campaign proceeds undisturbed in qchem6.
   structurally.  **DAG lesson**: qcElConfig→qcOrbitals is a linker cycle — the `OrbitalView<T>` DIP face
   (owned below, implemented above) is the CLAUDE.md inversion example verbatim.
   **→ doc/CleanupHistory.md** (full record).  **With this, ALL SIX doc/RealComplexPlan.md §7
-  prerequisites are DONE.**
+  prerequisites are DONE.**  *Residue (user catch, 2026-08-17): the landed policy is still a
+  mode-flag-configured CONCRETE, not D1's abstract interface — the Policy/State split that finishes it is
+  filed as **R2.21** (liked, deferred).*
 - **V1.12 `EnergyBreakdown` — 13 public data members (OCP+SRP).**  Every new term family edits the
   struct + totals + `op+=` + Display; `GridChargeLost` is a GPW health DIAGNOSTIC ("not an energy",
   its own comment) and `MinusTS` is WF-side entropy — both riding the energy value object; also

@@ -19,6 +19,12 @@
 // §5b two-axis product: occupancy {Integer, Fermi, FermiAtMu} × ranking {priority, eShift}) and the
 // orbitals execute it; HeldOccupationPolicy below is the direct minimiser's sibling (the ex-holdBlock
 // bool).  Still at call sites by design: the shared-μ metal spec (the reservoir-driver migration).
+//
+// KNOWN RESIDUE (user catch, 2026-08-17 -- doc/CleanupCandidates.md R2.21, liked + deferred): this base is
+// NOT yet the abstract interface the design ruled -- Configure's flags select the behaviour per fill (four
+// policies in one object).  The finishing move is the Policy/State split: a persistent OccupationState
+// (references/counts/entropy, surviving reconfiguration -- the constraint that forced the flags) with
+// factory-assembled abstract policy concretes {Integer,Fermi} × {Bare,MOM}; Configure dies.
 module;
 #include <map>
 export module qchem.ElectronConfiguration.OccupationPolicy;
