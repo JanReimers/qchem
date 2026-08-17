@@ -1102,13 +1102,19 @@ MnO campaign proceeds undisturbed in qchem6.
   ASSEMBLED from two axes (occupancy {Integer, Fermi, Held} × ranking {bare, MOM}); the EC class network
   becomes DATA (counts + the reservoir partition — generalising the grouping `FillOrbitalsSharedFermi`
   already does); observer pattern if the policy must message up the DAG; **MnO real-TRIM waits on this**.
-  Increment 1 landed: `TOrbitals::FillResult{electronsLeft, minusTS, DPrime}` kills the `ds_t`
-  dual-meaning tuple (transitional `ds_t` alias dies with increment 4).  REMAINING increments (§5b):
-  (2) reservoir partition on EC + ONE composite fill loop, the three mode bools die; (3) `OccupationPolicy`
-  + iterator slot, WF face sheds `SetMOM`/`SetSmearing`/`Adopt`/`Release`/`GetEntropyTerm` — also closes
-  the MEASURED seed-fill-before-SetSmearing charge-loss hazard (the D11 note in CompositeWF.C);
-  (4) collapse the five `TakeElectrons*` virtuals into fill(budget-or-μ, ranking); (5) `Held` policy
-  replaces the `holdBlock` bool.  Each increment bit-identical; smeared/metal anchors guard did-E-move.
+  Increment 1 ✅ `43bbebad`: `TOrbitals::FillResult{electronsLeft, minusTS, DPrime}` kills the `ds_t`
+  dual-meaning tuple (transitional `ds_t` alias dies with increment 4).
+  Increment 2 ✅ `0c818835`: `ReservoirPartition{spansSpatial, spansSpin, ranksIntegerFill}` replaces the
+  three EC mode bools (the old aufbau-vs-globalFermi mutual exclusion is now UNREPRESENTABLE);
+  `tCompositeWF::FillOrbitals` is ONE loop over the reservoir grouping — the decision tree and both
+  strategy methods collapsed into per-reservoir dispatch (ranked / shared-μ / per-block prescribed, with
+  the held-fill + kT=0-staircase degrade documented in place).  `ranksIntegerFill` is explicitly
+  transitional — it moves into the Integer occupancy policy at increment 3.
+  REMAINING increments (§5b): (3) `OccupationPolicy` + iterator slot, WF face sheds
+  `SetMOM`/`SetSmearing`/`Adopt`/`Release`/`GetEntropyTerm` — also closes the MEASURED
+  seed-fill-before-SetSmearing charge-loss hazard (the D11 note in CompositeWF.C); (4) collapse the five
+  `TakeElectrons*` virtuals into fill(budget-or-μ, ranking); (5) `Held` policy replaces the `holdBlock`
+  bool.  Each increment bit-identical; smeared/metal anchors guard did-E-move.
   *(original text follows)*
   (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`
   (SCFWaveFunction.C:39-76): run-config known at construction time delivered by post-ctor setters;
