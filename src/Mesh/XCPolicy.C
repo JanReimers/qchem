@@ -44,8 +44,10 @@
 // but it is real, and it is the one case where the asymmetry above inverts.)
 module;
 #include <cassert>
+#include <cmath>     // std::sqrt/std::pow (the V2.7 radial-adequacy statistic)
 #include <cstdlib>   // std::getenv/std::atoi/std::atof (the GPW_BECKE_* sweep instruments)
 #include <iostream>
+#include <limits>    // infinity (RadialResolutionRatio's no-claim value off-MHL)
 #include <string>
 export module qchem.Mesh.XCPolicy;
 export import qchem.Mesh;
@@ -175,6 +177,25 @@ long BeckeMeshCost(const MeshParams&, const XCMeshSharpness&);
 //! because a cost probe must not narrate a rounding the run may never perform.
 int AngularDirections(AngularKind, int degree);
 
+//! \brief The radial-adequacy statistic (V2.7): the local node density AT the density peak,
+//! \f$r_{peak}/\Delta r(r_{peak})\f$, where \f$r_{peak}=1/\sqrt{2\alpha_{\max}}\f$ is the peak of the
+//! sharpest density feature \f$r^2e^{-2\alpha_{\max}r^2}\f$ and \f$\Delta r\f$ is the MHL node spacing
+//! there (\f$r(x)=\alpha(x/(1-x))^m\f$, \f$x\f$ uniform, so \f$\Delta r=r'(x)/n_{radial}\f$ in closed
+//! form).  This is the quantity the V2.6 ladder measurement showed TRACKS radial adequacy where the
+//! obvious statistic (radial nodes inside the feature) fails by 4-50x -- MHL clusters nodes at tiny r,
+//! leaving the gap exactly at the peak.  MHL-only: any other radial kind returns +infinity (no claim).
+double RadialResolutionRatio(const MeshParams&, double alphaMax);
+
+//! \brief The adequacy floor for \c RadialResolutionRatio, MEASURED (V2.6 ladders, first rung inside the
+//! Becke gate's max|dVxc|<1e-3): every measured-INADEQUATE rung sits below ~3 (NaF nR=20: 1.55, Si nR=20:
+//! 2.2, Al nR=20: 2.1 -- the 4-50x-out class), every production config above it (NaF 3.1, Si 4.4, Al 4.2
+//! at nR=40).  INSULATOR-FITTED, deliberately a warning not a selector: Al's first adequate rung is
+//! ratio 4.2, so a METAL between 3 and 4.2 passes this floor while measurement says it should not -- the
+//! warning text carries that caveat, and the standing rule ("calibrate a grid criterion on a simple
+//! metal, or do not ship it as a global default") is why this stays diagnostic.  Re-calibrate on
+//! {Si, Mn-atom, Al, MnO} before promoting it -- MnO is the open-shell oxide none of the four cover.
+inline constexpr double kRadialRatioFloor = 3.0;
+
 //! \brief Resolve the XC-quadrature choice for a run whose sharpness is KNOWN.
 //!
 //! - explicit \c Uniform or \c Becke: HONOURED, with an ASYMMETRIC diagnostic -- a warning for the
@@ -244,6 +265,33 @@ double RequiredUniformCutoff(const XCMeshSharpness& s, double cutoffFactor)
     return cutoffFactor*s.alphaMax + s.alphaPP;
 }
 
+double RadialResolutionRatio(const MeshParams& mp, double alphaMax)
+{
+    assert(alphaMax>0.0 && "RadialResolutionRatio: no basis sharpness to size against");
+    if (mp.radial!=RadialKind::MHL) return std::numeric_limits<double>::infinity();  // no claim off-MHL
+    const double rPeak=1.0/std::sqrt(2.0*alphaMax);              // peak of r^2 exp(-2 alpha_max r^2)
+    const double t=std::pow(rPeak/mp.mhl_alpha, 1.0/mp.mhl_m);   // solve r(x)=rPeak: x/(1-x)=t
+    const double x=t/(1.0+t);
+    const double drdx=mp.mhl_alpha*mp.mhl_m*std::pow(x,mp.mhl_m-1)/std::pow(1.0-x,mp.mhl_m+1);
+    return rPeak/(drdx/mp.nRadial);                              // MHLRadial: x uniform, del=1/nRadial
+}
+
+// The V2.7 diagnostic, spoken whenever a Becke mesh is the outcome and the sharpness is known.  One level
+// only, and deliberately quiet for every production config (NaF, the tightest, sits at 3.1): the two-level
+// version with a metal info-line was considered and rejected -- it would print on every NaF run to warn
+// about a metallicity the cost model cannot see.  The metal fact rides in the text instead.
+static void WarnRadialAdequacy(const MeshParams& mp, const XCMeshSharpness& s)
+{
+    const double ratio=RadialResolutionRatio(mp, s.alphaMax);
+    if (ratio>=kRadialRatioFloor) return;
+    std::cerr<<"[XC grid] WARNING: the Becke RADIAL mesh (nRadial="<<mp.nRadial<<", MHL alpha="<<mp.mhl_alpha
+             <<") resolves the sharpest density feature (alpha_max="<<s.alphaMax<<") with only "
+             <<ratio<<" nodes per peak radius at the peak -- measurement (V2.6 ladders) puts every rung "
+               "below ~"<<kRadialRatioFloor<<" OUTSIDE the XC gate, by up to 50x.  Raise nRadial.  NB the "
+               "floor is insulator-fitted: a simple METAL needs ~4.2 (Al, nR=40), so passing this check "
+               "is not adequacy evidence for one."<<std::endl;
+}
+
 long UniformMeshCost(const XCMeshSharpness& s, double cutoffFactor)
 {
     const long n=UniformDivisions(s.cellEdge, RequiredUniformCutoff(s,cutoffFactor));
@@ -285,6 +333,7 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
         if (disarmed || !uniformWins)
         {
             if (!disarmed) std::cout<<"[XC grid choice] Auto -> BECKE"<<std::endl;
+            WarnRadialAdequacy(becke, s);   // V2.7: the chosen Becke mesh must also be radially adequate
             return becke;
         }
         // SIZE the uniform mesh from the basis.  Handing back a bare cellKind would leave nUniform's
@@ -325,6 +374,7 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
     if (double(cUnif)*kUniformMargin <= double(cBecke))
         std::cout<<"[XC grid] note: BECKE was requested ("<<cBecke<<" pts) where a uniform mesh would cost "
                  <<cUnif<<" -- honoured, and never wrong, just denser than this smooth system needs."<<std::endl;
+    WarnRadialAdequacy(mp, s);              // V2.7: an explicit Becke mesh gets the radial check too
     return mp;
 }
 

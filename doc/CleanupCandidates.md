@@ -655,18 +655,10 @@ MnO campaign proceeds undisturbed in qchem6.
     recomputes (one `itsVcFitter` shared across both channels, refit per spin), so R2.9(ii)'s Irrep-keyed
     scratch still earns its place and is now that one class's private business.
 
-- **R2.20 The oracle helpers are production data living in a TEST module (USER 2026-08-12, deferred).**
-  `RelativeError` / `RelativeHFError` / `RelativeDFTError` / `RelativeDHFError` sit in
-  `IntegrationTests/TestUtils.C` (module `qchem.Unittests.TestUtils`), but they are thin wrappers over
-  `thePeriodicTable()`'s NIST/Dirac reference energies — production data, not test scaffolding.
-  - **Consequence today:** `CLIapps/scfrun.C` — a shipped CLI, not a test — imports a *Unittests* module
-    for them, and because TestUtils is a per-target module FILE SET (not a library), every consumer
-    RECOMPILES it: ITMain, scfrun, and now UTSCFIterator.
-  - **Fix:** move the four into a real library beside `qchem.PeriodicTable`.  Then scfrun imports no test
-    module at all, and TestUtils shrinks to what is genuinely test-only.
-  - **NOT a scfrun facade problem** (the premise this item started from): scfrun already drives
-    `AtomCalculation` and `Calculation` directly.  The oracle helpers are its ONLY reach into TestUtils.
-  - User: *"could live in PeriodicTable ... but like you said, later."*  Deferred, not rejected.
+- **R2.20 ✅ DONE `7c80e71e` (2026-08-17).**  The four oracle helpers moved into an
+  `export namespace qchem` block of `qchem.PeriodicTable` (the user's suggested home); TestUtils.C had
+  nothing test-only left and is DELETED with both FILE_SET wirings — scfrun imports no test module.
+  721/721 green.  **→ doc/CleanupHistory.md**
 
 - **R2.21 🔶 The OccupationPolicy/OccupationState split (USER 2026-08-17: "I really like your Policy/State
   split.  But we don't need it right now").**  V1.11's landed `OccupationPolicy<T>` is NOT the abstract
@@ -2036,11 +2028,17 @@ MnO campaign proceeds undisturbed in qchem6.
     margin gets fitted to a Becke cost about to change by 2.8x.
 
 - **V2.6a ⛔ ATTEMPTED AND REJECTED 2026-08-07 — flip `angularDegree` 29 → 17.**  Made the one-line change,.  **→ doc/CleanupHistory.md**
-- **V2.7 A basis-driven `nRadial` adequacy warning, on the \f$r_{peak}/\Delta r\f$ criterion.**  The
-  V2.6 correction above makes this shippable where the first attempt was not.  It is the radial sibling of
-  V1.26's `UniformDivisions` bridge: MHL's \f$r(x)=\alpha(x/(1-x))^m\f$ gives \f$\Delta r\f$ in closed
-  form, and \f$\alpha_{\max}\f$ is already gathered for the selector (`XCMeshSharpness`), so the check
-  costs nothing new.  Calibrate the threshold on more than two systems first — 3 is fitted to Si and Mn.
+- **V2.7 ✅ DONE 2026-08-17 (concurrent-cleanup session).**  `RadialResolutionRatio(mp, alphaMax)` in
+  qchem.Mesh.XCPolicy — the closed-form \f$r_{peak}/\Delta r(r_{peak})\f$ statistic, MHL-only (+∞ = no
+  claim off-MHL) — plus a ONE-level warning (`kRadialRatioFloor=3.0`) spoken from `ResolveXCMesh`
+  whenever a Becke mesh is the outcome and sharpness is known.  The closed form reproduces the V2.6
+  record's own quoted anchors (Si 3.4@nR=30, Al 3.2@nR=30 — pinned in `XCPolicyTests`), production
+  configs all clear the floor (NaF, the tightest, at 3.09) so healthy runs stay quiet, and the measured
+  4-50x-inadequate nR=20 class all fire.  A two-level version with a metal info-line (<4.2, Al's first
+  adequate rung) was REJECTED — it would print on every production NaF run to warn about a metallicity
+  the cost model cannot see; the metal fact rides in the warning text instead.  Floor remains
+  insulator-fitted per its doc note: re-calibrate on {Si, Mn-atom, Al, MnO} before promoting it beyond
+  a diagnostic.
 
 ### V3 — repro / campaign bugs (Spin-SAD, 2026-08-04)
 

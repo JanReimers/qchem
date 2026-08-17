@@ -115,6 +115,42 @@ TEST(XCPolicy, PPSharpnessRaisesTheUniformRequirement)
 }
 
 //================================================================================================
+//  The radial-adequacy statistic (V2.7)
+//================================================================================================
+
+// Pin the statistic against the V2.6 ladder's own calibration anchors.  These numbers were quoted in the
+// measurement record BEFORE the closed form was coded (Si "3.4 at nR=30", Al "3.2 at nR=30"), so agreement
+// here means the code computes the quantity the measurement validated, not a lookalike.
+TEST(XCPolicy, RadialResolutionRatioMatchesTheMeasuredAnchors)
+{
+    auto mp=[](int nR){ return BeckeXCParams(nR, 2.0, 29); };           // the production MHL family (m=2)
+    EXPECT_NEAR(RadialResolutionRatio(mp(30),  2.0), 10.0/3.0, 1e-9);   // Si alpha_max=2: the quoted 3.4
+    EXPECT_NEAR(RadialResolutionRatio(mp(30),  4.0), 3.13, 0.01);       // Al alpha_max=4: the quoted 3.2
+    // Linear in nRadial (x is uniform), so the production nR=40 anchors follow:
+    EXPECT_NEAR(RadialResolutionRatio(mp(40),  2.0), 40.0/9.0, 1e-9);   // Si production: 4.44
+    EXPECT_NEAR(RadialResolutionRatio(mp(40),  4.0), 4.17, 0.01);       // Al production: the metal floor
+    EXPECT_NEAR(RadialResolutionRatio(mp(40), 40.0), 3.09, 0.01);       // NaF production: the tightest
+}
+
+// The warning's premise, pinned from both sides: every production config clears the floor (no console noise
+// on a healthy run), and the V2.6-measured 4-50x-INADEQUATE class (nR=20 on any of the four systems) sits
+// below it.  If either side drifts, the floor needs re-fitting -- see kRadialRatioFloor's calibration note.
+TEST(XCPolicy, RadialRatioFloorSeparatesProductionFromTheMeasuredInadequateClass)
+{
+    auto mp=[](int nR){ return BeckeXCParams(nR, 2.0, 29); };
+    for (double aMax : {2.0, 4.0, 40.0})                                // Si, Al, NaF sharpness
+    {
+        EXPECT_GE(RadialResolutionRatio(mp(40), aMax), kRadialRatioFloor)
+            << "production nR=40 must stay quiet at alpha_max=" << aMax;
+        EXPECT_LT(RadialResolutionRatio(mp(20), aMax), kRadialRatioFloor)
+            << "the measured-inadequate nR=20 rung must warn at alpha_max=" << aMax;
+    }
+    // Off-MHL the statistic makes NO claim (infinity): the closed form is MHL's spacing, nobody else's.
+    MeshParams log_=BeckeXCParams(40, 2.0, 29); log_.radial=RadialKind::Log;
+    EXPECT_TRUE(std::isinf(RadialResolutionRatio(log_, 40.0)));
+}
+
+//================================================================================================
 //  The selector
 //================================================================================================
 

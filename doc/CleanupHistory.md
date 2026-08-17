@@ -19,6 +19,33 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-08-17 — R2.20 `7c80e71e` (concurrent-cleanup session): the oracle helpers out of the test module
+
+`RelativeError` / `RelativeHF/DFT/DHFError` moved from `IntegrationTests/TestUtils.C` (module
+`qchem.Unittests.TestUtils`) into an `export namespace qchem` block of `qchem.PeriodicTable` — beside the
+Saito/NIST/Dirac tables they wrap, per the user's own suggestion ("could live in PeriodicTable").  TestUtils
+had nothing genuinely test-only left, so the module is deleted along with both per-target FILE_SET wirings
+(ITMain, scfrun); nine importers swapped.  Two details worth keeping: the helpers carry `<cmath>`+
+`<iostream>` in PeriodicTable's own global module fragment (the R1.9 stream-literal lesson), and they are
+std includes rather than a `qchem.Math` import so qcCommon keeps its math-free pin.  Note the module's other
+exports are GLOBAL-namespace (pre-`qchem::` legacy) — the helpers went into the proper namespace, making
+PeriodicTable a mixed-namespace interface until the legacy exports migrate.
+
+*(original item, verbatim)*
+
+- **R2.20 The oracle helpers are production data living in a TEST module (USER 2026-08-12, deferred).**
+  `RelativeError` / `RelativeHFError` / `RelativeDFTError` / `RelativeDHFError` sit in
+  `IntegrationTests/TestUtils.C` (module `qchem.Unittests.TestUtils`), but they are thin wrappers over
+  `thePeriodicTable()`'s NIST/Dirac reference energies — production data, not test scaffolding.
+  - **Consequence today:** `CLIapps/scfrun.C` — a shipped CLI, not a test — imports a *Unittests* module
+    for them, and because TestUtils is a per-target module FILE SET (not a library), every consumer
+    RECOMPILES it: ITMain, scfrun, and now UTSCFIterator.
+  - **Fix:** move the four into a real library beside `qchem.PeriodicTable`.  Then scfrun imports no test
+    module at all, and TestUtils shrinks to what is genuinely test-only.
+  - **NOT a scfrun facade problem** (the premise this item started from): scfrun already drives
+    `AtomCalculation` and `Calculation` directly.  The oracle helpers are its ONLY reach into TestUtils.
+  - User: *"could live in PeriodicTable ... but like you said, later."*  Deferred, not rejected.
+
 ## CLOSED 2026-08-17 — V3.1 + V3.2 NO LONGER REPRODUCE (concurrent-cleanup session, branch concurrent-cleanup)
 
 Both were filed 2026-08-04 off the Spin-SAD campaign and assigned to the concurrent-cleanup session on
