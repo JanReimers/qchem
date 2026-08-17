@@ -168,10 +168,20 @@ variant that never takes the complex alternative: a negligible tag, one implemen
     (tensors follow TFit).  The evaluator itself stays complex — making its streams real is a later,
     purely performance increment.  Gate: `GPW.TRIM_RealBlockMatchesComplexBitwise` (S/T/Ven/V_NL/
     V_loc + orbital values, `EXPECT_EQ` on doubles, Γ and the zone corner).
-  - **3b (next)** — the `BasisSetImp` child slot (§4 item 1: the DECISION POINT): the whole-set
-    container holds per-block-typed IBS children, with `GPW_BasisSet` building `tGPW_IBS<double>`
-    when `irrep->IsReal()` (∧ the run's `PreservesReal`, threaded in).  Then the Hamiltonian/term
-    faces per-block (3c), and 2c falls out.
+  - **3b DONE 2026-08-17** — the `BasisSetImp` child slot (§4 item 1: the DECISION POINT):
+    children are `std::variant<unique_ptr<Orbital_1E_IBS<double>>, unique_ptr<Orbital_1E_IBS<dcmplx>>>`
+    with typed `Insert` overloads; the scalar-independent whole-set faces (`GetNumFunctions`,
+    `GetIrreps`, `Write`) are generic visits; `GetIBS` (the face `Iterate<D>` casts from) is the
+    SAME-scalar view, throwing loudly on a cross child; `GetChild(i)` is the typed view 3c's
+    mixed-aware consumers use.  NO factory wiring yet (deliberate: enabling
+    `IsReal() ? tGPW_IBS<double> : ...` in `GPW_BasisSet` before 3c would break every
+    `Iterate<Complex_OIBS>` consumer) — the decision wires in WITH 3c.  Unit tests
+    `RealComplexBasisSlot.*` build the first genuinely MIXED set (real Γ + complex ¼-k in one
+    `BasisSetImp<dcmplx>`) and pin the aggregate/typed-view/throw contract.
+  - **3c (next)** — re-thread the consumers per block: the Hamiltonian/term `GetMatrix(tobs_t<T>*)`
+    faces, `MakeIrrepWFs`'s `Iterate`, `VetGpwConditioning`, `GatherSharpness` — then wire the
+    factory decision (`irrep->IsReal() ∧ PreservesReal`, threaded from the composition root) and
+    2c falls out.
 - **Step 4 — the accelerator** (§6), and only then a mixed-mesh run as the acceptance test.
 
 An all-TRIM mesh (Γ-only, or Γ-centred 2×2×2 = `MNO_KMESH=2`) makes an entire run real with no
