@@ -1116,10 +1116,15 @@ MnO campaign proceeds undisturbed in qchem6.
   sits ABOVE qcElConfig, so the policy reads orbitals through an `OrbitalView<T>` DIP face it owns and
   `TOrbitals` implements from above — the naive qcElConfig→qcOrbitals link is a linker-rejected cycle,
   found on contact.**  The iterator's public `AdoptMOMReference` face is unchanged (tests untouched).
-  REMAINING increments (§5b): (4) collapse the five `TakeElectrons*` virtuals into
-  fill(budget-or-μ, ranking) — the §5b two-axis form emerges, the transitional `ds_t` alias and the
-  policy's config-getters die; (5) `Held` policy replaces the `holdBlock` bool.  Each increment
-  bit-identical; smeared/metal anchors guard did-E-move.
+  Increment 4 ✅ `092d1da8`: ONE `TOrbitals::Fill(const BlockFill&)` replaces the five `TakeElectrons*`
+  virtuals.  `BlockFill` (T-free, in the DIP currency module beside `OrbitalView`) IS the §5b two-axis
+  product as data — occupancy {Integer | Fermi | FermiAtMu} × ranking {priority | eShift};
+  `OccupationPolicy::DecideBlockFill` PRODUCES it (the 4-way branch + the Λ-calibration lore moved off
+  `tIrrepWF` into the policy — the policy is now the DECIDER); the five bodies became private
+  realizations; the `ds_t` alias and the `MOMSmearPenalty` getter died.
+  REMAINING increment (§5b): (5) `Held` policy replaces the `holdBlock` bool (the direct-min fill still
+  builds its spec at the call site, as does the shared-μ metal fill pending the reservoir-driver
+  migration).  Bit-identical; smeared/metal anchors guard did-E-move.
   *(original text follows)*
   (i) `SCFWaveFunction::Init/SetMOM/SetSmearing/AdoptMOMReference/ReleaseMOMReference`
   (SCFWaveFunction.C:39-76): run-config known at construction time delivered by post-ctor setters;
