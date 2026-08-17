@@ -15,10 +15,10 @@
 // reference capture and overlap scores read orbitals through the OrbitalView DIP face (user ruling:
 // invert, never re-point the DAG) -- TOrbitals implements it from above.
 //
-// TRANSITIONAL SHAPE: at this increment the policy is a CONCRETE state/config carrier and the fill
-// MECHANICS still live in tIrrepWF/tCompositeWF, consulting it.  Increment 4 migrates the mechanics here
-// and the §5b two-axis form emerges (occupancy {Integer, Fermi, Held} × ranking {bare, MOM}), with the
-// reservoir driver in the base; increment 5 replaces the holdBlock bool with the Held policy.
+// SHAPE (increments 4+5 landed): the policy DECIDES -- DecideBlockFill produces the BlockFill spec (the
+// §5b two-axis product: occupancy {Integer, Fermi, FermiAtMu} × ranking {priority, eShift}) and the
+// orbitals execute it; HeldOccupationPolicy below is the direct minimiser's sibling (the ex-holdBlock
+// bool).  Still at call sites by design: the shared-μ metal spec (the reservoir-driver migration).
 module;
 #include <map>
 export module qchem.ElectronConfiguration.OccupationPolicy;
@@ -49,15 +49,19 @@ public:
     //! \brief THE per-block fill decision (V1.11 inc 4; the §5b two-axis product): the occupancy rule from
     //! the run configuration (kT), the effective-energy ranking from this block's MOM state.  \a ne is the
     //! block's electron budget -- the reservoir distribution's output.  The orbitals EXECUTE the returned
-    //! spec (\c TOrbitals::Fill); the WF no longer decides anything.  (The held direct-min fill and the
-    //! shared-μ metal fill still build their specs at the call site -- increment 5 / the reservoir-driver
-    //! migration respectively.)
-    BlockFill DecideBlockFill(const Irrep& q, const OrbitalView<T>& orbs, double ne) const;
+    //! spec (\c TOrbitals::Fill); the WF no longer decides anything.  (Only the shared-μ metal fill still
+    //! builds its spec at the call site -- the reservoir-driver migration.)
+    virtual BlockFill DecideBlockFill(const Irrep& q, const OrbitalView<T>& orbs, double ne) const;
+
+    //! Does this policy pin each block's STORED occupied set -- i.e. must the reservoir loop degrade to
+    //! per-block fills, with no cross-block re-decision (ranking, shared μ)?  The direct minimiser's
+    //! HeldOccupationPolicy answers true; the run policy false.  (V1.11 inc 5 -- the ex-holdBlock bool.)
+    virtual bool HoldsStoredBlocks() const {return false;}
 
     // ---- remaining run-config queries (the reservoir driver + trace/debug still consult these; they
     //      shrink further when the driver migrates here) ----
-    bool   UseMOM()          const {return itsUseMOM;}
-    double SmearingkT()      const {return itsSmearingkT;}   //!< 0 = integer fills; >0 = Fermi (Hartree)
+    virtual bool   UseMOM()          const {return itsUseMOM;}
+    virtual double SmearingkT()      const {return itsSmearingkT;}   //!< 0 = integer fills; >0 = Fermi (Hartree)
 
     // ---- MOM reference state (policy-owned; ex tIrrepWF::itsRefOccCPrime + itsFillCount) ----
     bool   HasReference(const Irrep& q) const
@@ -70,29 +74,29 @@ public:
     void   AdoptReference(const Irrep& q, const OrbitalView<T>& from);
     //! The delayed-IMOM capture (doc/GPWPlan §0b″): capture \a own as \a q's reference ONCE, after the
     //! settling delay -- when MOM is on, no reference is held yet, and \a q has filled >= startIter times.
-    void   CaptureReferenceIfDue(const Irrep& q, const OrbitalView<T>& own)
+    virtual void CaptureReferenceIfDue(const Irrep& q, const OrbitalView<T>& own)
     {
         auto i=itsBlocks.find(q);
         if (itsUseMOM && i!=itsBlocks.end() && i->second.refOccCPrime.columns()==0
                       && i->second.fillCount>=itsMOMStartIter) AdoptReference(q,own);
     }
-    void   CountFill(const Irrep& q) { ++itsBlocks[q].fillCount; }   //!< one per block fill (the IMOM delay clock)
+    virtual void CountFill(const Irrep& q) { ++itsBlocks[q].fillCount; }   //!< one per block fill (the IMOM delay clock)
     //! The 0h MOM-guard actuator: drop EVERY reference and restart the fill counts, so the next fills run
     //! plain aufbau for the settling window and a fresh reference is captured from the recovered state.
     void   ReleaseReferences();
 
     // ---- cross-irrep (molecular, parked) MOM arming -- ex tCompositeWF::itsMOMActive ----
-    bool   CrossIrrepMOMArmed() const {return itsCrossIrrepArmed;}
+    virtual bool CrossIrrepMOMArmed() const {return itsCrossIrrepArmed;}
     void   ArmCrossIrrepMOM()         {if (itsUseMOM) itsCrossIrrepArmed=true;}
 
     // ---- per-fill aggregation (transitional home until increment 4's named reservoir-fill result) ----
-    void   BeginFill()                        {itsMinusTS=0.0;}   //!< composite fill entry: reset the aggregate
-    void   AccumulateEntropy(double wMinusTS) {itsMinusTS+=wMinusTS;}  //!< one block's BZ-weighted −TS
+    virtual void BeginFill()                        {itsMinusTS=0.0;}   //!< composite fill entry: reset the aggregate
+    virtual void AccumulateEntropy(double wMinusTS) {itsMinusTS+=wMinusTS;}  //!< one block's BZ-weighted −TS
     //! The run's Mermin \f$-TS=\sum_k w_k(-TS_k)\le0\f$ from the most recent fill; 0 unless smearing is on.
     //! The SCFIterator stamps it into EnergyBreakdown::MinusTS (and gates direct-min on A=E−TS with it).
-    double EntropyTerm() const                {return itsMinusTS;}
+    virtual double EntropyTerm() const              {return itsMinusTS;}
 
-private:
+protected:
     struct BlockState
     {
         mat_t<T> refOccCPrime;  //!< MOM reference: occupied C' columns (nbasis x nocc); empty = none
@@ -105,6 +109,39 @@ private:
     double itsMOMSmearPenalty=0.0;
     bool   itsCrossIrrepArmed=false;  //!< the parked molecular cross-irrep MOM, armed after the 1st ranked fill
     double itsMinusTS=0.0;
+};
+
+//! \brief The direct minimiser's fill policy (V1.11 increment 5 -- the §5-flagged {occupation ×
+//! direct-min} cell, NAMED): KEEP THE STORED OCCUPIED BLOCK.  A geodesic rotates a FIXED occupied block
+//! and returns it as the leading columns, so only a stored-order fill reproduces the block its search
+//! direction was built for; a Fermi μ solved over the whole spectrum, or a MOM overlap ranking, may
+//! occupy a DIFFERENT set, making E(t) discontinuous in t and the line search meaningless (measured on
+//! MnO: the best of 12 backtracks still +14.5 Ha at t=2.4e-4; doc/SymmetryUpgradePlan.md §7 step 7).
+//! Entropy is identically zero -- STRUCTURALLY now (SmearingkT()==0), not by documentation -- so a held
+//! leg minimises E, never A=E−TS.  WRAPS the run policy: the per-block fill COUNTS still tick on the
+//! shared clocks (the delayed-IMOM capture delay keeps advancing through a direct-min leg, as before) and
+//! the −TS aggregate is the run policy's (the iterator keeps reading ONE object), but no reference is
+//! ever captured from a trial state and no cross-block re-decision can occur (\c HoldsStoredBlocks
+//! degrades the reservoir loop to per-block fills).  The \c holdBlock bool that threaded through
+//! FillOrbitals/MoveOrbitals died here.  Ready for OT+smearing: a future coupled leg swaps in a policy
+//! that holds the block but keeps kT -- a new sibling, not a new bool.
+template <class T> class HeldOccupationPolicy : public OccupationPolicy<T>
+{
+public:
+    explicit HeldOccupationPolicy(OccupationPolicy<T>& run) : itsRun(run) {}
+    virtual BlockFill DecideBlockFill(const Irrep&, const OrbitalView<T>&, double ne) const override
+    { BlockFill f; f.budget=ne; return f; }   // stored-order integer fill == exactly the geodesic's block
+    virtual bool   HoldsStoredBlocks()  const override {return true;}
+    virtual bool   UseMOM()             const override {return false;}  // never rank a trial by overlap
+    virtual double SmearingkT()         const override {return 0.0;}    // never re-smear a trial; −TS==0
+    virtual bool   CrossIrrepMOMArmed() const override {return itsRun.CrossIrrepMOMArmed();}
+    virtual void   CountFill(const Irrep& q)  override {itsRun.CountFill(q);}   // the IMOM clock still ticks
+    virtual void   CaptureReferenceIfDue(const Irrep&, const OrbitalView<T>&) override {}  // never from a trial
+    virtual void   BeginFill()                override {itsRun.BeginFill();}
+    virtual void   AccumulateEntropy(double w) override {itsRun.AccumulateEntropy(w);}
+    virtual double EntropyTerm() const        override {return itsRun.EntropyTerm();}
+private:
+    OccupationPolicy<T>& itsRun;   //!< the run's policy: shared clocks + the −TS aggregate live THERE
 };
 
 } // namespace qchem

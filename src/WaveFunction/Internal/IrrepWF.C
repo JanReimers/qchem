@@ -42,16 +42,10 @@ public:
     std::unique_ptr<tDM_CD<T>> GetChargeDensity() const;   //!< BUILDS it (V1.25: owning return)
     const Orbitals*     GetOrbitals     () const;
           Orbitals*     GetOrbitals     ()      ;
-    //! Occupy with a given electron count, consulting \a pol (the run's occupation policy: smearing kT,
-    //! MOM references + delayed-IMOM capture -- V1.11 inc 3; this block accumulates its BZ-weighted −TS
-    //! into it).  \a holdBlock: fill in STORED order -- occupy exactly the first
-    //! \a ne orbitals as the caller handed them over -- bypassing BOTH Fermi smearing and MOM.  That is the
-    //! DIRECT-MINIMISER's fill: a geodesic rotates a FIXED occupied block and returns it as the leading
-    //! columns, so only a stored-order fill reproduces the block its search direction was built for.  A
-    //! Fermi μ solved over the whole spectrum, or a MOM overlap ranking, may occupy a DIFFERENT set, making
-    //! E(t) discontinuous in t and the line search meaningless (doc/SymmetryUpgradePlan.md §7 step 7).
-    //! Entropy is zero under a held fill, so the minimiser optimises E, never A=E−TS.
-    const EnergyLevels& FillOrbitals    (OccupationPolicy<T>& pol, double ne, bool holdBlock=false);
+    //! Occupy with a given electron count: the POLICY decides the fill (DecideBlockFill -- occupancy rule +
+    //! ranking, including the direct minimiser's HeldOccupationPolicy keeping the stored block), the
+    //! orbitals execute, and this block accumulates its BZ-weighted −TS into \a pol (V1.11).
+    const EnergyLevels& FillOrbitals    (OccupationPolicy<T>& pol, double ne);
     //! Occupy at a GIVEN chemical potential μ (the global-μ metal fill, doc/GPWPlan1.md item 3): empties, sets
     //! g_i·f_i on THIS block's orbitals at \a mu (plain energy Fermi -- the composite solved μ on bare ε across
     //! the mesh), stores this block's D'/levels and accumulates its −TS into \a pol.  Requires smearing on.

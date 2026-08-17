@@ -74,7 +74,7 @@ template <class T> void tIrrepWF<T>::MoveOrbitals(double t, bool commit)
 //
 //  Now populate the orbitals with electrons, consulting the run's occupation policy (V1.11 inc 3).
 //
-template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(OccupationPolicy<T>& pol, double ne, bool holdBlock)
+template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(OccupationPolicy<T>& pol, double ne)
 {
     // Empty first: the aufbau occupation can shift between iterations, and TakeElectrons only
     // overwrites the orbitals it fills (leaving stale occupation on the rest).
@@ -92,26 +92,9 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(OccupationPolic
     // frontier here IS near-degenerate, so no integer configuration is stable; the fractional fill is.
     // (This solves THIS block's OWN μ -- the insulator / Γ path; a metal solves ONE μ across the mesh via
     // the composite's shared-μ reservoir fill -> FillOrbitalsAtMu, doc/GPWPlan1.md item 3.)
-    // HELD FILL (the direct minimiser's, see the declaration): occupy the leading \a ne orbitals AS STORED,
-    // which is exactly the geodesic's own occupied block, and take neither the Fermi nor the MOM path.  Both
-    // of those RE-DECIDE the occupied set -- μ ranks over the whole spectrum, MOM ranks by overlap -- and a
-    // re-decision between two points of a line search makes E(t) discontinuous in t, so the minimiser's
-    // direction and the energy it is judged by stop referring to the same state.  Plain aufbau needs no
-    // special case: TakeElectrons(ne) already fills in stored order, which is why a COLD aufbau GDM run
-    // (Si, NaF SR2) descends monotonically while a smeared/MOM one (MnO) does not.
-    // NB entropy is identically zero here, so a held leg minimises E and NOT the Mermin free energy A=E−TS.
-    if (holdBlock)
-    {
-        qchem::BlockFill held; held.budget=ne;              // stored-order integer fill == the held block
-        auto r=itsOrbitals->Fill(held);                     // (increment 5 makes this the Held policy)
-        itsDPrime=std::move(r.DPrime);
-        assert(r.electronsLeft==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
-        itsELevels.clear();
-        for (auto o:itsOrbitals->Iterate())
-            itsELevels.insert(qchem::Orbitals::EnergyLevel(o));
-        pol.CountFill(itsIrrep);
-        return itsELevels;
-    }
+    // (No held-fill branch: the direct minimiser passes a HeldOccupationPolicy whose DecideBlockFill IS the
+    //  stored-order fill, whose SmearingkT()==0 makes −TS structurally zero, and whose capture is a no-op --
+    //  V1.11 inc 5.  One flow, the policy decides.)
     const bool haveRef = pol.UseMOM() && pol.HasReference(itsIrrep);
     // MOM SCORE SEPARATION (QCHEM_MOM_SCORES=1): the two MOM paths use the reference DIFFERENTLY, and which
     // one can discriminate depends on a property of the scores that nothing else reports.  The cold path RANKS

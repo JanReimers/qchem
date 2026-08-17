@@ -52,18 +52,11 @@ public:
     //   returns false in the seed step (the caller should DoSCFIteration to diagonalize).
     virtual bool       BuildFockAndComputeSteps(tHamiltonian<T>&,const tChargeDensity<T>*) =0;
     //   move the orbitals to geodesic fraction t (commit=false is a line-search trial) and refill.
-    //! Move the orbitals to geodesic fraction \a t (\a commit=false is a trial) and REFILL.
-    //! \a holdBlock: fill in STORED order -- i.e. occupy exactly the minimizer's own occupied BLOCK --
-    //! instead of consulting energy (Fermi) or overlap (MOM).  A direct minimizer rotates a FIXED occupied
-    //! block, so its E(t) is only the geodesic energy if the fill reproduces that block; a Fermi mu solved
-    //! over the whole spectrum, or a MOM overlap ranking, can land on a DIFFERENT set and make E(t)
-    //! discontinuous in t -- which is not a small gradient error but a broken line search (measured on MnO:
-    //! the best of 12 backtracks still +14.5 Ha at t=2.4e-4).  Plain aufbau needs no flag: TakeElectrons(ne)
-    //! already fills in stored order.  Smearing and MOM are therefore SUSPENDED for a held fill, and the
-    //! entropy term is zero -- so a direct-min leg minimises E at integer occupation, not A=E-TS.
-    virtual void       MoveOrbitals    (OccupationPolicy<T>&, double t, bool commit, double mergeTol,
-                                        bool holdBlock=false) =0;
-    virtual void       FillOrbitals    (OccupationPolicy<T>&, double mergeTol, bool holdBlock=false)  =0;
+    //! Move the orbitals to geodesic fraction \a t (\a commit=false is a line-search trial) and REFILL
+    //! under \a pol.  The direct-min driver passes a \c HeldOccupationPolicy (keep the stored occupied
+    //! block) for its trials -- a POLICY, not a flag (V1.11 inc 5; the old \c holdBlock bool is gone).
+    virtual void       MoveOrbitals    (OccupationPolicy<T>& pol, double t, bool commit, double mergeTol) =0;
+    virtual void       FillOrbitals    (OccupationPolicy<T>&, double mergeTol)  =0;
     virtual Orbitals*  GetOrbitals     (const Irrep&)                           =0; //mutable access for the loop
 
     // NB: the occupation face is GONE from the wave function (V1.11 increment 3; SCFStrategyPlan §5b).

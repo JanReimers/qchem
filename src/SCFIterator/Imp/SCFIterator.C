@@ -466,7 +466,10 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // step, against 12 per line search.  The iterator's REPORTED energy may still step up once when a leg
     // changes convention (fractional -> integer occupation); that jump is honest and belongs to the hand-off,
     // not to the minimizer, which from here on descends monotonically in its own convention.
-    itsWaveFunction->MoveOrbitals(*itsOccPolicy,0.0,false,mergeTol,/*holdBlock*/true);
+    // The trials fill under the HELD policy (keep the geodesic's own occupied block -- V1.11 inc 5): a
+    // POLICY object wrapping the run's (shared IMOM clocks + the -TS aggregate), not a bool.
+    qchem::HeldOccupationPolicy<T> held(*itsOccPolicy);
+    itsWaveFunction->MoveOrbitals(held,0.0,false,mergeTol);
     const double E0 = [&]{ cd_t cd0(itsWaveFunction->GetChargeDensity());
                            return itsHamiltonian->GetTotalEnergy(cd0.get()).GetTotalEnergy()
                                 + itsOccPolicy->EntropyTerm(); }();
@@ -480,7 +483,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         double t=1.0, Et=0, best=1e300; int k=0; bool found=false;
         for (;k<12;k++)
         {
-            itsWaveFunction->MoveOrbitals(*itsOccPolicy,t,false,mergeTol,/*holdBlock*/true);   //trial, ON the geodesic
+            itsWaveFunction->MoveOrbitals(held,t,false,mergeTol);   //trial, ON the geodesic
             cd_t cdt(itsWaveFunction->GetChargeDensity());                //std-managed (no freed-address reuse)
             // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is
             // current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
@@ -500,7 +503,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
                       << t << " k=" << k << "  best(Et-E0)=" << (best-E0) << std::defaultfloat << std::endl;
         if (found)
         {
-            itsWaveFunction->MoveOrbitals(*itsOccPolicy,t,true,mergeTol,/*holdBlock*/true);    //commit at t
+            itsWaveFunction->MoveOrbitals(held,t,true,mergeTol);    //commit at t
             return cd_t(itsWaveFunction->GetChargeDensity());
         }
         // NO DESCENT AT ANY BACKTRACK -- do NOT take the step.  Committing here (the behaviour through
@@ -511,7 +514,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         // worth another look.  Note the trials have already MOVED the orbitals -- MoveOrbitals mutates even
         // when commit=false, only the accelerator's history is gated on commit -- so a rewind to t=0 is
         // required before either exit; the geodesic at θ=0 is exactly the pre-step point.
-        itsWaveFunction->MoveOrbitals(*itsOccPolicy,0.0,false,mergeTol,/*holdBlock*/true); //rewind the trials
+        itsWaveFunction->MoveOrbitals(held,0.0,false,mergeTol); //rewind the trials
         // SCALE-INVARIANCE SHORT-CIRCUIT.  A step that merely overshoots gets BETTER as the trust radius
         // shrinks; a failure whose best(E_t) does not move is not about step LENGTH at all, and no further
         // backoff can help (measured on MnO before the held fill: seven rejections, best(E_t−E_cur) = +1.45e+01

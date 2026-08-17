@@ -42,12 +42,11 @@ public:
     virtual std::unique_ptr<tDM_CD<T>> Init(tHamiltonian<T>&,const tChargeDensity<T>*,
                                             OccupationPolicy<T>&, double mergeTol);
     virtual bool            BuildFockAndComputeSteps(tHamiltonian<T>&,const tChargeDensity<T>*);
-    virtual void            MoveOrbitals    (OccupationPolicy<T>&, double t, bool commit, double mergeTol,
-                                             bool holdBlock=false);
+    virtual void            MoveOrbitals    (OccupationPolicy<T>&, double t, bool commit, double mergeTol);
     virtual const Orbitals* GetOrbitals     (const Irrep&) const;
     virtual       Orbitals* GetOrbitals     (const Irrep&)      ;
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;}
-    virtual void            FillOrbitals    (OccupationPolicy<T>&, double mergeTol, bool holdBlock=false);
+    virtual void            FillOrbitals    (OccupationPolicy<T>&, double mergeTol);
     // (SetMOM/SetSmearing/GetEntropyTerm/AdoptMOMReference/ReleaseMOMReference are GONE -- the
     //  SCFIterator's OccupationPolicy slot owns that configuration and state, V1.11 inc 3.)
     virtual iqns_t          GetQNs          () const;

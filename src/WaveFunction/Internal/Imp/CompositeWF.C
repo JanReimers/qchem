@@ -160,10 +160,10 @@ template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T
 // Move every irrep's orbitals to geodesic fraction t (commit=false for a line-search trial)
 // and refill, so GetChargeDensity() reflects the trial/updated orbitals.
 template <class T> void tCompositeWF<T>::MoveOrbitals(OccupationPolicy<T>& pol, double t, bool commit,
-                                                      double mergeTol, bool holdBlock)
+                                                      double mergeTol)
 {
     for (auto& w:itsIWFs) w->MoveOrbitals(t,commit);
-    FillOrbitals(pol,mergeTol,holdBlock);
+    FillOrbitals(pol,mergeTol);
 }
 
 template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity(Spin s) const
@@ -243,8 +243,8 @@ template <class T> void tCompositeWF<T>::EmitBasisUsage() const
 // EC's partition, then fill each reservoir by the rule it supports.  This replaced a three-way decision
 // tree over three mode bools + two hand-rolled strategy methods.  The partition DEGRADES to per-block
 // singletons in two cases:
-//  * a HELD fill (direct-min line search): any cross-block re-decision -- ranked aufbau or a shared μ --
-//    is exactly what a held fill exists to prevent;
+//  * a policy that HOLDS the stored blocks (the direct minimiser's HeldOccupationPolicy): any cross-block
+//    re-decision -- ranked aufbau or a shared μ -- is exactly what a held fill exists to prevent;
 //  * a μ-pooling (non-ranked) reservoir at kT=0.  At kT=0 the Fermi count is a STAIRCASE in μ: the
 //    requested N generally falls between two steps, and the bisector then returns a μ whose count is
 //    simply wrong -- silently, because the guarding assert inside is compiled out in Release.  Measured
@@ -254,13 +254,13 @@ template <class T> void tCompositeWF<T>::EmitBasisUsage() const
 //    Iterate (SetSmearing) while the seed fill runs in the CONSTRUCTOR -- the two-phase hazard V1.11
 //    increment 3 closes (the policy will exist before the WF does).  Filling the prescribed per-block
 //    counts is also what a seed SHOULD do: there is no self-consistent spectrum yet to redistribute over.
-template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, double mergeTol, bool holdBlock)
+template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, double mergeTol)
 {
     itsELevels.clear();
     itsSpin_ELevels.clear();
     pol.BeginFill();                      // reset the run's per-fill aggregates (the -TS accumulator)
     const ReservoirPartition p=itsPartition;
-    const bool degrade = holdBlock || (!p.ranksIntegerFill && pol.SmearingkT()<=0.0);
+    const bool degrade = pol.HoldsStoredBlocks() || (!p.ranksIntegerFill && pol.SmearingkT()<=0.0);
     // Reservoir key: the spatial symmetry's SequenceIndex (0 when the spatial blocks pool) + the spin
     // (0 when the channels pool).  Not an Irrep, and not the sym POINTER: Irrep's ordering dereferences
     // sym, so the "no spatial identity" half of this key has no Irrep spelling.
@@ -283,7 +283,7 @@ template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, 
         else
             for (auto w : wfs)   // per-block prescribed count: atoms; held fills; μ-partitions at kT=0
             {
-                EnergyLevels els=w->FillOrbitals(pol, (double)itsEC->GetN(w->GetIrrep()), holdBlock);
+                EnergyLevels els=w->FillOrbitals(pol, (double)itsEC->GetN(w->GetIrrep()));
                 itsELevels.merge(els,mergeTol);
                 itsSpin_ELevels[w->GetIrrep().ms].merge(els,mergeTol);
             }
