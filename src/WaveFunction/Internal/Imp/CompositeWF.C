@@ -11,6 +11,8 @@ module;
 #include <sstream>
 #include <iostream>
 #include <cstdlib>
+#include <variant>
+#include <stdexcept>
 #include "tabulate/table.hpp"
 module qchem.WaveFunction.Internal.CompositeWF;
 import qchem.WaveFunction.Types;
@@ -61,6 +63,27 @@ template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const Electr
 // Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
 static std::string IrrepLabel(const Irrep& q) { std::ostringstream os; q.Write(os); return os.str(); }
 
+// ---- Child-slot access (Step 2b; same pattern as tComposite_CD's 2a) --------------------------------
+// Scalar-independent views, single-source generic lambdas over both alternatives:
+static iwf_ref_t     RefOf     (const iwf_child_t& c) {return std::visit([](const auto& p){return iwf_ref_t(p.get());}, c);}
+static const Irrep&  IrrepOf   (const iwf_ref_t&   w) {return std::visit([](auto p)->const Irrep&{return p->GetIrrep();}, w);}
+static Orbitals*     OrbitalsOf(const iwf_ref_t&   w) {return std::visit([](auto p)->Orbitals*   {return p->GetOrbitals();}, w);}
+// Same-scalar view for the T-TYPED calls (the Hamiltonian and the OccupationPolicy carry the composite
+// FACE's T).  The cross arm is unreachable today (children are built same-T); it becomes reachable -- and
+// gets the genuine narrowing -- when Step 2c/3 land.  A throw, not an assert: loud in Release too.
+template <class T> static tIrrepWF<T>& SameT(const iwf_child_t& c)
+{
+    if (auto* p=std::get_if<std::unique_ptr<tIrrepWF<T>>>(&c)) return **p;
+    throw std::logic_error("tCompositeWF: a child block's scalar differs from the composite face -- "
+                           "T-typed operations cannot cross scalars until RealComplexPlan Step 2c/3 land");
+}
+template <class T> static tIrrepWF<T>& SameT(const iwf_ref_t& c)
+{
+    if (auto* p=std::get_if<tIrrepWF<T>*>(&c)) return **p;
+    throw std::logic_error("tCompositeWF: a child block's scalar differs from the composite face -- "
+                           "T-typed operations cannot cross scalars until RealComplexPlan Step 2c/3 land");
+}
+
 template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
 {
     namespace rpt = qchem::report;
@@ -108,10 +131,10 @@ template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
 
         tSCFIrrepAccelerator<T>* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
 
-        uiwf_t wf(new iwf_t(b,lasb,qns,acc));
-        itsQNWFs[qns]=wf.get();
-        itsSpinWFs[s].push_back(wf.get());
-        itsIWFs.push_back(std::move(wf)); //Do the move last. wf is invalid after the move.
+        std::unique_ptr<iwf_t> wf(new iwf_t(b,lasb,qns,acc));
+        itsQNWFs[qns]=iwf_ref_t(wf.get());
+        itsSpinWFs[s].push_back(iwf_ref_t(wf.get()));
+        itsIWFs.push_back(iwf_child_t(std::move(wf))); //Do the move last. wf is invalid after the move.
     }
 }
 
@@ -129,13 +152,13 @@ template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,con
 {
     // itsBS (the whole/composite basis) IS the cross-irrep view a dynamic term may exploit: Iterate<tobs_t>()
     // over it yields every irrep block (doc/ERI4Rework.md §5.4).  Static terms and most dynamic terms ignore it.
-    for (auto& w:itsIWFs) w->CalculateH(ham,cd,itsBS); //Feed F,D' into all the irre eccelerators.
+    for (auto& w:itsIWFs) SameT<T>(w).CalculateH(ham,cd,itsBS); //Feed F,D' into all the irrep accelerators.
     // CalculateProjections() has the DIIS side effect (it accumulates the extrapolation history) so it
     // must run every iteration regardless of MOM -- keep the call.  MOM activation is NO LONGER gated on
     // the accelerator engaging (that was the parked molecular heuristic, and NaF's Null accelerator never
     // engages); it is armed by the ranked reservoir fill as soon as a reference occupied subspace exists.
     itsAccelerator->CalculateProjections();
-    for (auto& w:itsIWFs) w->DoSCFIteration();
+    for (auto& w:itsIWFs) std::visit([](const auto& p){p->DoSCFIteration();}, w);
 }
 
 // Iteration-0 seed: build the Fock from \a seed, diagonalize, fill, and hand back the first real density.
@@ -152,9 +175,9 @@ template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::Init(tHamiltonian
 // (the seed step) -- the caller should fall back to DoSCFIteration().
 template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
-    for (auto& w:itsIWFs) w->CalculateH(ham,cd,itsBS);
+    for (auto& w:itsIWFs) SameT<T>(w).CalculateH(ham,cd,itsBS);
     bool allStepped=true;
-    for (auto& w:itsIWFs) allStepped &= w->ComputeStep();
+    for (auto& w:itsIWFs) allStepped &= std::visit([](const auto& p){return p->ComputeStep();}, w);
     return allStepped;
 }
 
@@ -163,7 +186,7 @@ template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T
 template <class T> void tCompositeWF<T>::MoveOrbitals(OccupationPolicy<T>& pol, double t, bool commit,
                                                       double mergeTol)
 {
-    for (auto& w:itsIWFs) w->MoveOrbitals(t,commit);
+    for (auto& w:itsIWFs) std::visit([&](const auto& p){p->MoveOrbitals(t,commit);}, w);
     FillOrbitals(pol,mergeTol);
 }
 
@@ -175,7 +198,9 @@ template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity(
     // IBZ point group ctor-injected straight from the basis (empty {} for molecules / unfolded crystals = a
     // trivial no-op).  The basis owns the crystal symmetry, so no setter is threaded through the SCF.
     auto cd = std::make_unique<tComposite_CD<T>>(itsBS->GetReciprocalPointOps());
-    for (auto& w:i->second) cd->Insert(w->GetChargeDensity());   // each block BUILDS its own; move it in
+    // Each block BUILDS its own density, typed by ITS scalar; the composite CD's typed Insert
+    // overloads (Step 2a) take either alternative -- this seam is already mixed-ready.
+    for (auto& w:i->second) std::visit([&](auto p){cd->Insert(p->GetChargeDensity());}, w);
     return cd;
 }
 
@@ -201,7 +226,7 @@ template <class T> Orbitals* tCompositeWF<T>::GetOrbitals(const Irrep& qns)
         assert(false);
     }
     // assert(i!=itsQNWFs.end());
-    return i->second->GetOrbitals();
+    return OrbitalsOf(i->second);
 
 }
 
@@ -225,8 +250,8 @@ template <class T> void tCompositeWF<T>::EmitBasisUsage() const
     rpt::json rows=rpt::json::array();
     for (const auto& w : itsIWFs)
     {
-        const rvec_t P = w->GetBasisPopulations();
-        std::ostringstream os; w->GetIrrep().Write(os);   // "s"/"p"/... (+ spin arrow when polarized)
+        const rvec_t P = std::visit([](const auto& p){return p->GetBasisPopulations();}, w);
+        std::ostringstream os; IrrepOf(RefOf(w)).Write(os);   // "s"/"p"/... (+ spin arrow when polarized)
         const std::string lbl=os.str();
         for (std::size_t i=0;i<P.size();++i)
             rows.push_back(rpt::json{{"irrep",lbl},{"index",(long)i},{"pop",P[i]}});
@@ -265,12 +290,13 @@ template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, 
     // Reservoir key: the spatial symmetry's SequenceIndex (0 when the spatial blocks pool) + the spin
     // (0 when the channels pool).  Not an Irrep, and not the sym POINTER: Irrep's ordering dereferences
     // sym, so the "no spatial identity" half of this key has no Irrep spelling.
-    std::map<std::pair<size_t,int>,std::vector<iwf_t*>> reservoirs;
+    std::map<std::pair<size_t,int>,std::vector<iwf_ref_t>> reservoirs;
     for (auto& w : itsIWFs)
     {
-        const Irrep& irr=w->GetIrrep();
+        const iwf_ref_t r=RefOf(w);
+        const Irrep& irr=IrrepOf(r);
         reservoirs[{ (p.spansSpatial && !degrade) ? 0 : irr.sym->SequenceIndex(),
-                     (p.spansSpin    && !degrade) ? 0 : (int)irr.ms+1 }].push_back(w.get());
+                     (p.spansSpin    && !degrade) ? 0 : (int)irr.ms+1 }].push_back(r);
     }
     // Snapshot MOM state ONCE at entry: a ranked reservoir activating it below (after its reference
     // capture) must not leak into this same call's LATER reservoirs (each channel's reference is only
@@ -284,9 +310,9 @@ template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, 
         else
             for (auto w : wfs)   // per-block prescribed count: atoms; held fills; μ-partitions at kT=0
             {
-                EnergyLevels els=w->FillOrbitals(pol, (double)itsEC->GetN(w->GetIrrep()));
+                EnergyLevels els=SameT<T>(w).FillOrbitals(pol, (double)itsEC->GetN(IrrepOf(w)));
                 itsELevels.merge(els,mergeTol);
-                itsSpin_ELevels[w->GetIrrep().ms].merge(els,mergeTol);
+                itsSpin_ELevels[IrrepOf(w).ms].merge(els,mergeTol);
             }
     }
     // Molecular CROSS-irrep MOM (the ranked fill's) is the PARKED path: no molecular test enables MOM, and
@@ -306,30 +332,30 @@ template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, 
 //     cannot flip the configuration.
 // Either way the per-irrep references are re-captured at the end for the next iteration's MOM.
 template <class T> void tCompositeWF<T>::FillReservoirRanked(OccupationPolicy<T>& pol,
-                                                             const std::vector<iwf_t*>& wfs, double mergeTol,
+                                                             const std::vector<iwf_ref_t>& wfs, double mergeTol,
                                                              bool useMOM)
 {
-    struct Slot { double key; iwf_t* w; double cap; };
+    struct Slot { double key; iwf_ref_t w; double cap; };
     assert(!wfs.empty());
-    const Spin s = wfs.front()->GetIrrep().ms;
-    double Nc = (double)itsEC->GetN(wfs.front()->GetIrrep());   // total electrons in this spin channel
+    const Spin s = IrrepOf(wfs.front()).ms;
+    double Nc = (double)itsEC->GetN(IrrepOf(wfs.front()));   // total electrons in this spin channel
 
     std::map<Irrep,rvec_t> mom;                              // per-irrep MOM scores (empty if no ref), keyed by irrep
     if (useMOM) for (auto w : wfs)
     {
         // Cross-cast the base Orbitals to the policy's OrbitalView (abstract->abstract, the sanctioned
-        // direction; TOrbitals implements the view).
-        auto* v=dynamic_cast<const qchem::OrbitalView<T>*>(w->GetOrbitals());
+        // direction; TOrbitals implements the view).  T-typed (the policy carries the face's T) -> SameT.
+        auto* v=dynamic_cast<const qchem::OrbitalView<T>*>(SameT<T>(w).GetOrbitals());
         assert(v && "ranked reservoir fill: the orbitals must implement OrbitalView");
-        mom[w->GetIrrep()]=pol.Scores(w->GetIrrep(),*v);
+        mom[IrrepOf(w)]=pol.Scores(IrrepOf(w),*v);
     }
 
     std::vector<Slot> slots;                                  // every orbital across the channel
     for (auto w : wfs)
     {
         size_t idx=0;
-        const rvec_t& sc = mom[w->GetIrrep()];               // empty unless MOM active & referenced
-        for (auto o : w->GetOrbitals()->Iterate())
+        const rvec_t& sc = mom[IrrepOf(w)];               // empty unless MOM active & referenced
+        for (auto o : OrbitalsOf(w)->Iterate())
         {
             // MOM: higher overlap = occupy first (unreferenced/empty irrep scores 0).
             // Aufbau: lower eigenvalue = occupy first, so key on -energy for a common "bigger wins".
@@ -341,20 +367,20 @@ template <class T> void tCompositeWF<T>::FillReservoirRanked(OccupationPolicy<T>
     std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.key>b.key;});
 
     std::map<Irrep,double>& ne = itsAufbauNe[s];
-    for (auto w : wfs) ne[w->GetIrrep()]=0.0;
+    for (auto w : wfs) ne[IrrepOf(w)]=0.0;
     assert(ne.size()==wfs.size() && "aufbau key collision: irreps must be unique within a spin channel");
     double rem = Nc;
     for (const auto& sl : slots)                              // fill highest-priority first
     {
         if (rem<=0.0) break;
         double take = std::min(sl.cap, rem);
-        ne[sl.w->GetIrrep()] += take;
+        ne[IrrepOf(sl.w)] += take;
         rem -= take;
     }
 
     for (auto w : wfs)                                        // occupy + collect energy levels
     {
-        EnergyLevels els = w->FillOrbitals(pol, ne[w->GetIrrep()]);
+        EnergyLevels els = SameT<T>(w).FillOrbitals(pol, ne[IrrepOf(w)]);
         itsELevels.merge(els, mergeTol);
         itsSpin_ELevels[s].merge(els, mergeTol);
     }
@@ -378,7 +404,7 @@ template <class T> void tCompositeWF<T>::FillReservoirRanked(OccupationPolicy<T>
 // qchem::Orbitals::FermiLevel bisector serves every case, and one block with w=1 reduces to the per-block
 // Fermi exactly.
 template <class T> void tCompositeWF<T>::FillReservoirAtSharedMu(OccupationPolicy<T>& pol,
-                                                                 const std::vector<iwf_t*>& wfs, double mergeTol)
+                                                                 const std::vector<iwf_ref_t>& wfs, double mergeTol)
 {
     const double kT=pol.SmearingkT();
     assert(kT>0.0 && "a shared-μ fill needs SmearingkT>0: integer fills have nothing to relax with");
@@ -388,17 +414,17 @@ template <class T> void tCompositeWF<T>::FillReservoirAtSharedMu(OccupationPolic
     // shared k-mesh GetN is already the whole-mesh total, so summing per block would over-count by n_k.)
     double Ntot=0.0;
     std::set<Spin> counted;
-    for (auto w : wfs) if (counted.insert(w->GetIrrep().ms).second) Ntot+=(double)itsEC->GetN(w->GetIrrep());
+    for (auto w : wfs) if (counted.insert(IrrepOf(w).ms).second) Ntot+=(double)itsEC->GetN(IrrepOf(w));
 
     // Aggregate the reservoir's levels: bare energy ε and capacity g (BZ-weighted only across the mesh).
     size_t ntot=0;
-    for (auto w : wfs) ntot += w->GetOrbitals()->GetNumOrbitals();
+    for (auto w : wfs) ntot += OrbitalsOf(w)->GetNumOrbitals();
     rvec_t e(ntot), g(ntot);
     size_t idx=0;
     for (auto w : wfs)
     {
-        const double wk=itsPartition.spansSpatial ? w->GetIrrep().sym->GetWeight() : 1.0;  // the weight D carries too
-        for (auto o : w->GetOrbitals()->Iterate())
+        const double wk=itsPartition.spansSpatial ? IrrepOf(w).sym->GetWeight() : 1.0;  // the weight D carries too
+        for (auto o : OrbitalsOf(w)->Iterate())
         {
             e[idx]=o->GetEigenEnergy();
             g[idx]=wk*(double)o->GetDegeneracy();
@@ -413,16 +439,16 @@ template <class T> void tCompositeWF<T>::FillReservoirAtSharedMu(OccupationPolic
     double wsum=0.0;
     for (auto w : wfs)                                               // set every block at the shared μ
     {
-        EnergyLevels els=w->FillOrbitalsAtMu(pol, mu);
+        EnergyLevels els=SameT<T>(w).FillOrbitalsAtMu(pol, mu);
         if (trace)
         {
-            double nk=0.0; for (auto o:w->GetOrbitals()->Iterate()) nk+=o->GetOccupation();
-            const double wk=itsPartition.spansSpatial ? w->GetIrrep().sym->GetWeight() : 1.0;
+            double nk=0.0; for (auto o:OrbitalsOf(w)->Iterate()) nk+=o->GetOccupation();
+            const double wk=itsPartition.spansSpatial ? IrrepOf(w).sym->GetWeight() : 1.0;
             wsum+=wk*nk;
-            std::cout<<"[metal]   block="<<w->GetIrrep()<<" w="<<wk<<" n="<<nk<<" (w·n="<<wk*nk<<")\n";
+            std::cout<<"[metal]   block="<<IrrepOf(w)<<" w="<<wk<<" n="<<nk<<" (w·n="<<wk*nk<<")\n";
         }
         itsELevels.merge(els,mergeTol);
-        itsSpin_ELevels[w->GetIrrep().ms].merge(els,mergeTol);
+        itsSpin_ELevels[IrrepOf(w).ms].merge(els,mergeTol);
     }
     if (trace) std::cout<<"[metal] Σ w·n = "<<wsum<<"\n";
 }

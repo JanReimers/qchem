@@ -139,8 +139,15 @@ variant that never takes the complex alternative: a negligible tag, one implemen
     the T-typed-argument operations (contract clients, block/Φ maps, MixIn pairing, HF sweep)
     forward through a `SameT<T>` view whose cross-scalar arm THROWS until Step 3 makes a mixed
     child reachable.  Pure structure, no behaviour change; full sweep green.
-  - **2b (next)** — the `CompositeWF` child slot: `tIrrepWF` children per block type, same
-    structural pattern.  The accelerator face (§6) and the CD slot (2a) are both ready for it.
+  - **2b DONE 2026-08-17** — the `CompositeWF` child slot: `itsIWFs`/`itsQNWFs`/`itsSpinWFs` are
+    variant slots over `tIrrepWF<double>`/`<dcmplx>` (owning + non-owning-ref mirrors).  The
+    scalar-signature calls (GetIrrep, GetOrbitals — the `Orbitals` base is non-template,
+    DoSCFIteration, ComputeStep, MoveOrbitals, basis populations) are single-source generic visits
+    (`RefOf`/`IrrepOf`/`OrbitalsOf` helpers); the T-typed calls (CalculateH's Hamiltonian, the
+    fills' OccupationPolicy, the MOM OrbitalView cast) forward through `SameT<T>` with the same
+    throwing cross arm as 2a.  `GetChargeDensity` is the first MIXED-READY seam: each child builds
+    a density typed by its own scalar and 2a's typed `Insert` overloads take either.  Pure
+    structure, no behaviour change; full sweep green.
   - **2c** — the NARROWING that makes a real child real: when `irrep.IsReal() ∧ ham.PreservesReal()`
     (the fact must be threaded into the WF build — `WaveFunction::Factory` has the ham), the block's
     complex H at TRIM is ASSERT-narrowed (bitwise, by Step 0) to real, solved with `LASolver<double>`,

@@ -3,6 +3,7 @@ module;
 #include <vector>
 #include <map>
 #include <memory>
+#include <variant>
 export module qchem.WaveFunction.Internal.CompositeWF;
 export import qchem.WaveFunction.SCF;
 import qchem.SCFAccelerator;
@@ -18,6 +19,17 @@ using SCFAccelerators::SCFAccelerator;
 using qchem::Hamiltonian::tHamiltonian;
 using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;
+
+//! \brief THE WF CHILD SLOT (doc/RealComplexPlan.md §4, Step 2b): one per-irrep wave function, typed by
+//! ITS block's scalar rather than the composite's face -- the WF twin of tComposite_CD's cd_child_t, so a
+//! real TRIM block's eigensolve/C/D can live beside general-k complex blocks on a mixed mesh.  Aggregation
+//! stays single-source: scalar-signature calls (GetIrrep, GetOrbitals -- the Orbitals base is non-template,
+//! DoSCFIteration, ComputeStep, MoveOrbitals, GetChargeDensity -- 2a's typed Inserts take either) visit with
+//! ONE generic lambda; the T-typed calls (CalculateH's Hamiltonian, the fills' OccupationPolicy) forward to
+//! the same-scalar alternative, with the cross arm throwing until Step 2c/3 land the narrowing.
+using iwf_child_t = std::variant<std::unique_ptr<tIrrepWF<double>>, std::unique_ptr<tIrrepWF<dcmplx>>>;
+//! Non-owning mirror of the child slot (the Irrep/Spin lookup maps + the reservoir grouping).
+using iwf_ref_t   = std::variant<tIrrepWF<double>*, tIrrepWF<dcmplx>*>;
 
 // Wave function as a list of per-irrep wave functions.  Templated on the matrix element type T
 // (rX/cX); CompositeWF is the <double> alias (atoms/molecules), cCompositeWF the <dcmplx>
@@ -60,14 +72,13 @@ protected:
     void MakeIrrepWFs(Spin);
 
 private:
-    typedef tIrrepWF<T> iwf_t;
-    typedef std::unique_ptr<iwf_t> uiwf_t;
+    typedef tIrrepWF<T> iwf_t;   // the same-face child kind (what MakeIrrepWFs builds today)
     //! RANKED integer fill of one reservoir (the molecular cross-irrep aufbau, one spin channel): pick which
     //! orbitals across the reservoir's blocks are occupied, then fill each block with its resulting count.
-    void FillReservoirRanked    (OccupationPolicy<T>&, const std::vector<iwf_t*>&, double mergeTol, bool useMOM);
+    void FillReservoirRanked    (OccupationPolicy<T>&, const std::vector<iwf_ref_t>&, double mergeTol, bool useMOM);
     //! Smeared fill of one reservoir: solve ONE μ over the reservoir's blocks -- across the Bloch mesh when
     //! the partition spans spatial (doc/GPWPlan1.md item 3), across SPIN when it spans spin (free moment).
-    void FillReservoirAtSharedMu(OccupationPolicy<T>&, const std::vector<iwf_t*>&, double mergeTol);
+    void FillReservoirAtSharedMu(OccupationPolicy<T>&, const std::vector<iwf_ref_t>&, double mergeTol);
 
     const tbs_t<T>*              itsBS;
     const ElectronConfiguration* itsEC;
@@ -79,9 +90,9 @@ private:
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
     std::map<Spin,std::map<Irrep,double>> itsAufbauNe; //per-irrep electron count, keyed by irrep (recomputed each iteration)
 
-    std::vector<uiwf_t>                itsIWFs;
-    std::map<Irrep,iwf_t*>             itsQNWFs; //sort by Irrep for easy lookup.
-    std::map<Spin,std::vector<iwf_t*>> itsSpinWFs; //Sort by spin.
+    std::vector<iwf_child_t>                itsIWFs;   // the §4 child slot: per-block scalar
+    std::map<Irrep,iwf_ref_t>               itsQNWFs;  //sort by Irrep for easy lookup.
+    std::map<Spin,std::vector<iwf_ref_t>>   itsSpinWFs; //Sort by spin.
 };
 
 using CompositeWF  = tCompositeWF<double>;
