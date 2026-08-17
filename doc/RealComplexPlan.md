@@ -129,9 +129,23 @@ variant that never takes the complex alternative: a negligible tag, one implemen
 - **Step 2 — the composite child slot** (`tComposite_CD` first: fewer methods, ~8 of 18 are T-typed
   and all are aggregation points; `IrrepCD<T>` is already templated so both alternatives exist).
   Prerequisite increment: the §6 accelerator face change (scalar-agnostic manager, typed `Create`
-  overloads) — settled 2026-08-17, see §6.
+  overloads) — **LANDED 2026-08-17, see §6**.
   Buys the WF/D half — diagonalization and C/D storage.  Dominant in the many-PW/ultrasoft regime;
-  small in GPW.
+  small in GPW.  Increments:
+  - **2a DONE 2026-08-17** — `tComposite_CD`'s children are now
+    `std::variant<unique_ptr<tDM_CD<double>>, unique_ptr<tDM_CD<dcmplx>>>` (the §4 child slot),
+    with two typed `Insert` overloads.  Scalar-independent aggregation (charge, ρ(r), rescale,
+    the Fourier trio — `FourierDensity` is a non-template face) is single-source generic lambdas;
+    the T-typed-argument operations (contract clients, block/Φ maps, MixIn pairing, HF sweep)
+    forward through a `SameT<T>` view whose cross-scalar arm THROWS until Step 3 makes a mixed
+    child reachable.  Pure structure, no behaviour change; full sweep green.
+  - **2b (next)** — the `CompositeWF` child slot: `tIrrepWF` children per block type, same
+    structural pattern.  The accelerator face (§6) and the CD slot (2a) are both ready for it.
+  - **2c** — the NARROWING that makes a real child real: when `irrep.IsReal() ∧ ham.PreservesReal()`
+    (the fact must be threaded into the WF build — `WaveFunction::Factory` has the ham), the block's
+    complex H at TRIM is ASSERT-narrowed (bitwise, by Step 0) to real, solved with `LASolver<double>`,
+    and C/D stored real — its `GetChargeDensity()` then Inserts the `<double>` alternative of 2a.
+    Acceptance: a Γ-only GPW run bit-comparing the narrowed path against the complex one.
 - **Step 3 — un-pin the basis** (`GPW_IBS` from `IrrepBasisSet<dcmplx>`), so terms produce real H
   directly and Φ + the quadrature GEMMs go real.  Buys the Hamiltonian/quadrature half — dominant in
   the GPW regime.  The composite variant then falls out as a CONSEQUENCE of blocks having different
