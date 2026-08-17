@@ -222,6 +222,14 @@ template <class T>  Irrep TOrbitalsImp<T>::GetQNs() const
     return itsQNs;
 }
 
+// OrbitalView: the orthonormal-basis coefficient column, for the OccupationPolicy's MOM scores/capture.
+template <class T> vec_t<T> TOrbitalsImp<T>::CoeffPrime(size_t i) const
+{
+    auto* o=dynamic_cast<const TOrbital<T>*>(itsOrbitals[i].get());
+    assert(o && "TOrbitalsImp::CoeffPrime: orbital is not a TOrbital<T>");
+    return o->GetCoeffPrime();
+}
+
 
 //-----------------------------------------------------------------
 //

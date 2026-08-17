@@ -40,6 +40,12 @@ public:
     virtual rvec_t    GetBasisPopulations(const hmat_t<T>& S) const;
     virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e);
     virtual Irrep GetQNs() const;
+
+    // OrbitalView<T> (the OccupationPolicy's DIP face -- V1.11 inc 3)
+    virtual size_t   NumOrbitals()         const override {return itsOrbitals.size();}
+    virtual double   Occupation (size_t i) const override {return itsOrbitals[i]->GetOccupation();}
+    virtual double   Degeneracy (size_t i) const override {return itsOrbitals[i]->GetDegeneracy();}
+    virtual vec_t<T> CoeffPrime (size_t i) const override;
     
     virtual vec_t    <T> operator() (const rvec3_t&) const;
     virtual vec3vec_t<T> Gradient   (const rvec3_t&) const;

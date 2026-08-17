@@ -29,7 +29,7 @@ using std::endl;
 using SCFAccelerators::tSCFIrrepAccelerator;
 
 // MOM (Maximum Overlap Method) occupation tracking is configured per-run from SCFParams (UseMOM/
-// MOMStartIter), pushed in by the SCFIterator via SetMOM (which forwards to every irrep WF).  For the
+// MOMStartIter) on the SCFIterator's OccupationPolicy slot, which every fill consults (V1.11 inc 3).  For the
 // closed-shell molecular cases the empty-irrep DIIS discriminator already gives clean convergence with no
 // occupation flip, so MOM is OFF by default; it is turned on for the periodic NaF Γ map, where a
 // giant-response diffuse virtual periodically dives below the Fermi edge and plain aufbau captures it
@@ -132,16 +132,17 @@ template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,con
     // CalculateProjections() has the DIIS side effect (it accumulates the extrapolation history) so it
     // must run every iteration regardless of MOM -- keep the call.  MOM activation is NO LONGER gated on
     // the accelerator engaging (that was the parked molecular heuristic, and NaF's Null accelerator never
-    // engages); it is switched on in FillOrbitalsAufbau as soon as a reference occupied subspace exists.
+    // engages); it is armed by the ranked reservoir fill as soon as a reference occupied subspace exists.
     itsAccelerator->CalculateProjections();
     for (auto& w:itsIWFs) w->DoSCFIteration();
 }
 
 // Iteration-0 seed: build the Fock from \a seed, diagonalize, fill, and hand back the first real density.
-template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::Init(tHamiltonian<T>& ham,const tChargeDensity<T>* seed, double mergeTol)
+template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::Init(tHamiltonian<T>& ham,const tChargeDensity<T>* seed,
+                                                                    OccupationPolicy<T>& pol, double mergeTol)
 {
     DoSCFIteration(ham, seed);
-    FillOrbitals(mergeTol);
+    FillOrbitals(pol, mergeTol);
     return GetChargeDensity();
 }
 
@@ -158,10 +159,11 @@ template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T
 
 // Move every irrep's orbitals to geodesic fraction t (commit=false for a line-search trial)
 // and refill, so GetChargeDensity() reflects the trial/updated orbitals.
-template <class T> void tCompositeWF<T>::MoveOrbitals(double t, bool commit, double mergeTol, bool holdBlock)
+template <class T> void tCompositeWF<T>::MoveOrbitals(OccupationPolicy<T>& pol, double t, bool commit,
+                                                      double mergeTol, bool holdBlock)
 {
     for (auto& w:itsIWFs) w->MoveOrbitals(t,commit);
-    FillOrbitals(mergeTol,holdBlock);
+    FillOrbitals(pol,mergeTol,holdBlock);
 }
 
 template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity(Spin s) const
@@ -233,48 +235,9 @@ template <class T> void tCompositeWF<T>::EmitBasisUsage() const
 
 
 
-// Configure MOM for this run (from SCFParams, via the SCFIterator).  Store our own copy (used by the
-// molecular cross-irrep aufbau) and forward to every irrep WF (the crystal's within-irrep MOM lives there).
-template <class T> void tCompositeWF<T>::SetMOM(bool useMOM, int startIter)
-{
-    itsUseMOM = useMOM;
-    for (auto& w : itsIWFs) w->SetMOM(useMOM, startIter);
-}
-
-// Fermi smearing (doc/GPWPlan1.md 4b): push the same kT (and MOM-mask penalty) into every irrep block, and keep
-// our own copy of kT (the global-μ metal fill solves ONE μ at the composite level, so it needs kT here too).
-// Per-block μ (insulator/Γ) is solved inside each block's FillOrbitals; global μ across the mesh in
-// FillOrbitalsGlobalFermi.  No-op at kT=0.
-template <class T> void tCompositeWF<T>::SetSmearing(double kT, double momPenalty)
-{
-    itsSmearingkT=kT;
-    for (auto& w : itsIWFs) w->SetSmearing(kT, momPenalty);
-}
-
-// The run's Mermin free-energy term −TS: the SUM over blocks, each already BZ-weighted (tIrrepWF::GetEntropyTerm
-// applies w_k), so this is Σ_k w_k(−T S_k) -- consistent with the BZ-weighted E.  0 with no smearing.  Stamped
-// into EnergyBreakdown by the SCFIterator.
-template <class T> double tCompositeWF<T>::GetEntropyTerm() const
-{
-    double minusTS=0.0;
-    for (auto& w : itsIWFs) minusTS += w->GetEntropyTerm();
-    return minusTS;
-}
-
-// Grid-continuation (doc/GPWPlan §0e): per irrep, hand this WF's irrep block the CONVERGED source WF's
-// occupied orbitals for the SAME irrep as its fixed MOM reference.  from.GetOrbitals(irr) is the source's
-// physical occupied subspace; the orthonormal metric matches (grid-independent Bloch overlap), so the C'
-// transfer verbatim.  Call after construction (Init) and before Iterate; effective with SCFParams::UseMOM.
-template <class T> void tCompositeWF<T>::AdoptMOMReference(const tWaveFunction<T>& from)
-{
-    for (auto& w : itsIWFs) w->AdoptMOMReference(*from.GetOrbitals(w->GetIrrep()));
-}
-
-// 0h MOM guard actuator: forward the release to every irrep WF (each drops its reference + re-arms capture).
-template <class T> void tCompositeWF<T>::ReleaseMOMReference()
-{
-    for (auto& w : itsIWFs) w->ReleaseMOMReference();
-}
+// (SetMOM/SetSmearing/GetEntropyTerm/AdoptMOMReference/ReleaseMOMReference bodies are GONE -- the
+// SCFIterator's OccupationPolicy slot owns that configuration and state, V1.11 inc 3.  The iterator's
+// AdoptMOMReference loops this WF's GetQNs() against the source's GetOrbitals(irrep), feeding the policy.)
 
 // ONE loop over the RESERVOIR PARTITION (V1.11 increment 2, SCFStrategyPlan §5b): group the blocks by the
 // EC's partition, then fill each reservoir by the rule it supports.  This replaced a three-way decision
@@ -291,12 +254,13 @@ template <class T> void tCompositeWF<T>::ReleaseMOMReference()
 //    Iterate (SetSmearing) while the seed fill runs in the CONSTRUCTOR -- the two-phase hazard V1.11
 //    increment 3 closes (the policy will exist before the WF does).  Filling the prescribed per-block
 //    counts is also what a seed SHOULD do: there is no self-consistent spectrum yet to redistribute over.
-template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol, bool holdBlock)
+template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, double mergeTol, bool holdBlock)
 {
     itsELevels.clear();
     itsSpin_ELevels.clear();
+    pol.BeginFill();                      // reset the run's per-fill aggregates (the -TS accumulator)
     const ReservoirPartition p=itsPartition;
-    const bool degrade = holdBlock || (!p.ranksIntegerFill && itsSmearingkT<=0.0);
+    const bool degrade = holdBlock || (!p.ranksIntegerFill && pol.SmearingkT()<=0.0);
     // Reservoir key: the spatial symmetry's SequenceIndex (0 when the spatial blocks pool) + the spin
     // (0 when the channels pool).  Not an Irrep, and not the sym POINTER: Irrep's ordering dereferences
     // sym, so the "no spatial identity" half of this key has no Irrep spelling.
@@ -310,16 +274,16 @@ template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol, bool hold
     // Snapshot MOM state ONCE at entry: a ranked reservoir activating it below (after its reference
     // capture) must not leak into this same call's LATER reservoirs (each channel's reference is only
     // captured at its own end).
-    const bool useMOM = itsMOMActive;
+    const bool useMOM = pol.CrossIrrepMOMArmed();
     for (auto& [key,wfs] : reservoirs)
     {
         assert(!wfs.empty());
-        if      (!degrade && p.ranksIntegerFill)                    FillReservoirRanked(wfs, mergeTol, useMOM);
-        else if (!degrade && (p.spansSpatial || p.spansSpin))       FillReservoirAtSharedMu(wfs, mergeTol);
+        if      (!degrade && p.ranksIntegerFill)                    FillReservoirRanked(pol, wfs, mergeTol, useMOM);
+        else if (!degrade && (p.spansSpatial || p.spansSpin))       FillReservoirAtSharedMu(pol, wfs, mergeTol);
         else
             for (auto w : wfs)   // per-block prescribed count: atoms; held fills; μ-partitions at kT=0
             {
-                EnergyLevels els=w->FillOrbitals((double)itsEC->GetN(w->GetIrrep()), holdBlock);
+                EnergyLevels els=w->FillOrbitals(pol, (double)itsEC->GetN(w->GetIrrep()), holdBlock);
                 itsELevels.merge(els,mergeTol);
                 itsSpin_ELevels[w->GetIrrep().ms].merge(els,mergeTol);
             }
@@ -328,7 +292,7 @@ template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol, bool hold
     // it has NOT been re-validated against the new delayed reference capture (tIrrepWF captures at
     // MOMStartIter, so useMOM would score against empty references for the first few fills).  The ACTIVE,
     // tested path is the crystal's WITHIN-irrep MOM in tIrrepWF::FillOrbitals.  Kept for the hard cases.
-    if (!degrade && p.ranksIntegerFill && itsUseMOM) itsMOMActive=true;
+    if (!degrade && p.ranksIntegerFill) pol.ArmCrossIrrepMOM();   // no-op unless the run enables MOM
 }
 
 // RANKED integer fill of one reservoir -- the molecular aufbau, one spin channel (a ranked reservoir never
@@ -340,7 +304,8 @@ template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol, bool hold
 //     occupied subspace, so a near-degenerate cross-irrep pair on the (non-physical) extrapolated Fock
 //     cannot flip the configuration.
 // Either way the per-irrep references are re-captured at the end for the next iteration's MOM.
-template <class T> void tCompositeWF<T>::FillReservoirRanked(const std::vector<iwf_t*>& wfs, double mergeTol,
+template <class T> void tCompositeWF<T>::FillReservoirRanked(OccupationPolicy<T>& pol,
+                                                             const std::vector<iwf_t*>& wfs, double mergeTol,
                                                              bool useMOM)
 {
     struct Slot { double key; iwf_t* w; double cap; };
@@ -349,7 +314,14 @@ template <class T> void tCompositeWF<T>::FillReservoirRanked(const std::vector<i
     double Nc = (double)itsEC->GetN(wfs.front()->GetIrrep());   // total electrons in this spin channel
 
     std::map<Irrep,rvec_t> mom;                              // per-irrep MOM scores (empty if no ref), keyed by irrep
-    if (useMOM) for (auto w : wfs) mom[w->GetIrrep()]=w->MOMScores();
+    if (useMOM) for (auto w : wfs)
+    {
+        // Cross-cast the base Orbitals to the policy's OrbitalView (abstract->abstract, the sanctioned
+        // direction; TOrbitals implements the view).
+        auto* v=dynamic_cast<const qchem::OrbitalView<T>*>(w->GetOrbitals());
+        assert(v && "ranked reservoir fill: the orbitals must implement OrbitalView");
+        mom[w->GetIrrep()]=pol.Scores(w->GetIrrep(),*v);
+    }
 
     std::vector<Slot> slots;                                  // every orbital across the channel
     for (auto w : wfs)
@@ -381,7 +353,7 @@ template <class T> void tCompositeWF<T>::FillReservoirRanked(const std::vector<i
 
     for (auto w : wfs)                                        // occupy + collect energy levels
     {
-        EnergyLevels els = w->FillOrbitals(ne[w->GetIrrep()]);
+        EnergyLevels els = w->FillOrbitals(pol, ne[w->GetIrrep()]);
         itsELevels.merge(els, mergeTol);
         itsSpin_ELevels[s].merge(els, mergeTol);
     }
@@ -404,9 +376,11 @@ template <class T> void tCompositeWF<T>::FillReservoirRanked(const std::vector<i
 // that is exactly when GetN is a whole-mesh total rather than a per-block count.  The SAME unweighted
 // qchem::Orbitals::FermiLevel bisector serves every case, and one block with w=1 reduces to the per-block
 // Fermi exactly.
-template <class T> void tCompositeWF<T>::FillReservoirAtSharedMu(const std::vector<iwf_t*>& wfs, double mergeTol)
+template <class T> void tCompositeWF<T>::FillReservoirAtSharedMu(OccupationPolicy<T>& pol,
+                                                                 const std::vector<iwf_t*>& wfs, double mergeTol)
 {
-    assert(itsSmearingkT>0.0 && "a shared-μ fill needs SmearingkT>0: integer fills have nothing to relax with");
+    const double kT=pol.SmearingkT();
+    assert(kT>0.0 && "a shared-μ fill needs SmearingkT>0: integer fills have nothing to relax with");
     assert(!wfs.empty());
     const bool trace=(bool)std::getenv("GPW_METALTRACE");
     // The reservoir's electron count: each spin CHANNEL present contributes its count once.  (With a
@@ -430,15 +404,15 @@ template <class T> void tCompositeWF<T>::FillReservoirAtSharedMu(const std::vect
             ++idx;
         }
     }
-    const double mu=qchem::Orbitals::FermiLevel(e,g,Ntot,itsSmearingkT);   // ONE μ for this reservoir
+    const double mu=qchem::Orbitals::FermiLevel(e,g,Ntot,kT);   // ONE μ for this reservoir
 
     // Instrument GPW_METALTRACE (cf. GPW_GDMTRACE): μ and the per-block electron count, so the charge
     // sloshing is visible -- between k-points, and between SPIN CHANNELS.  Off by default.
-    if (trace) std::cout<<"[metal] μ="<<mu<<" kT="<<itsSmearingkT<<" Ntot="<<Ntot<<"  per-block n:\n";
+    if (trace) std::cout<<"[metal] μ="<<mu<<" kT="<<kT<<" Ntot="<<Ntot<<"  per-block n:\n";
     double wsum=0.0;
     for (auto w : wfs)                                               // set every block at the shared μ
     {
-        EnergyLevels els=w->FillOrbitalsAtMu(mu);
+        EnergyLevels els=w->FillOrbitalsAtMu(pol, mu);
         if (trace)
         {
             double nk=0.0; for (auto o:w->GetOrbitals()->Iterate()) nk+=o->GetOccupation();

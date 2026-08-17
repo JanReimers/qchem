@@ -19,7 +19,7 @@ module;
 #include <functional>
 export module qchem.SCFIterator.LoopDriver;
 import qchem.Hamiltonian;
-import qchem.WaveFunction.SCF;
+import qchem.WaveFunction.SCF;   // tSCFWaveFunction + OccupationPolicy (re-exported; the fill's policy arg)
 export import qchem.ChargeDensity.DensityMixer;   // tDensityMixer<T> (the density-face seam)
 import qchem.ChargeDensity;                        // tDM_CD<T>
 
@@ -34,6 +34,7 @@ template <class T> struct LoopContext
     typedef std::shared_ptr<qchem::ChargeDensity::tDM_CD<T>> cd_t;
     qchem::Hamiltonian::tHamiltonian<T>*      H;
     qchem::WaveFunction::tSCFWaveFunction<T>* wf;
+    qchem::OccupationPolicy<T>*               pol;    //!< the iterator's occupation slot (V1.11 inc 3)
     qchem::ChargeDensity::tDensityMixer<T>*   mixer;
     cd_t*  cur;         //!< &itsCD   (reflects the newly installed working density)
     cd_t*  old;         //!< &itsOldCD
@@ -58,7 +59,7 @@ public:
     double Step(const LoopContext<T>& c) const override
     {
         c.wf->DoSCFIteration(*c.H, c.mixer->FockDensity(**c.cur));  // eigen orbitals from the (mixed) Fock
-        c.wf->FillOrbitals(c.mergeTol);
+        c.wf->FillOrbitals(*c.pol, c.mergeTol);
         c.installNew(typename LoopContext<T>::cd_t(c.wf->GetChargeDensity()));
         return c.mixer->Mix(**c.cur, **c.old);                      // density-face: fold rho_out into rho_in
     }

@@ -5,6 +5,7 @@ module;
 export module qchem.Orbitals;
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Orbital;
+export import qchem.ElectronConfiguration.OrbitalView;  // the OccupationPolicy's DIP view (V1.11 inc 3)
 
 import qchem.ScalarFunction;
 import qchem.VectorFunction;
@@ -116,6 +117,7 @@ double FermiLevel(const rvec_t& e, const rvec_t& g, double target, double kT);
 template <class T> class TOrbitals
     : public virtual Orbitals
     , public virtual VectorFunction<T>
+    , public virtual qchem::OrbitalView<T>   // the OccupationPolicy reads occupations/C' through this (DIP)
 {
 public:
     virtual size_t GetVectorSize() const
