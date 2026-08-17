@@ -61,11 +61,25 @@ occupation seam carries no state the variant-child restructuring would entangle.
   silent-wrong inherited default the day a GGA functional forgets to override; fold into whatever touches
   the functionals first.
 
-## Coordination — CHANGED 2026-08-16 (user)
+## Coordination — CHANGED 2026-08-16 (user); UPDATED 2026-08-17 (real-TRIM running, concurrent cleanup)
 
 **The DO-NOT-TOUCH on the MnO working set is LIFTED** — the MnO session is now WAITING on this branch's
 V1.1 work to implement real TRIM irreps at the special k-points ((0,0,0), (½,½,½), …).  User verbatim:
 *"DO NOT TOUCH is now please -TOUCH."*  Worth pushing early for that reason.
+
+**2026-08-17: the real-TRIM session is RUNNING (off main, RealComplexPlan §5).**  Its working set, by
+staging step — a concurrent cleanup session should stay OUT of these:
+- Step 1 (now): `src/Symmetry` (`BlochQN::IsReal`), the `IrrepBasisSet` face, **every Hamiltonian term
+  file** (`PreservesReal()` added per term), the run report, the GPW evaluator (`IsTRIM`).
+- Step 2 (next): `src/ChargeDensity` composites (`tComposite_CD`/`IrrepCD` child slot), `src/SCFAccelerator`.
+- Step 3+: `src/BasisSet/Lattice_3D`, `src/WaveFunction` (the variant child).  Plus `GPW_SCF_UT.C` runs.
+Consequently ALSO parked for now (they live in those files): V1.12, V1.17, V2.1, V2.3, R2.14's remaining
+renames, the I.1 residual; R1.0 stays "own session" (user), R2.21 stays deferred (user), §K wants the box.
+
+**Concurrent-cleanup assignment (2026-08-17): V3.1 + V3.2 (the atomic-solver bugs — atom path only),
+R2.20 (oracle helpers out of the test module), then the qcMesh batch R2.15 (+V2.7 riding along;
+V1.22 optional, it is bit-SENSITIVE).**  All verification beside the TRIM runs goes through
+`scripts/memsafe -H 6G ctest -j2` (box discipline).
 
 ## Also open, unruled, and independent of the type work
 
