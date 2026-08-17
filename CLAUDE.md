@@ -17,6 +17,14 @@ Brief notes about module/library conventions, naming, and includes.
     the user drives tests through the C++ TestMate tree in VSCode, which discovers the same exes
     directly — keep `testMate.cpp.test.executables` in .vscode/settings.json matching any new
     test-exe names.)
+- **Heavy sweeps and overnight runs go through `scripts/memsafe`** (added 2026-08-17):
+    `scripts/memsafe ctest -j8` runs the command in a cgroup scope with `MemoryHigh=9G` (override
+    `-H SIZE`; `-p` additionally shields it from the kernel OOM killer for unattended runs — asks sudo
+    once at launch), so a RAM
+    squeeze SWAPS the scope out and throttles it instead of killing it — invested work survives as a
+    crawl, not a corpse.  Context: the box now has a 32G swapfile (`/swap2.img`); the Aug-13 `ITMain`
+    OOM kills happened because the old 4G swap sat chronically full, leaving the kernel nothing but the
+    kill.  The `-j` discipline above remains the first-line defense; memsafe is the safety net.
 - For a quick focused run, invoking the exe directly still works: `./IntegrationTests/ITMain`
     (filter `-A_*` for fast runs; a full `ctest -j8` pass is the regression anchor).
 - Calling ninja directly is fine. (I earlier suggested cmake only because ninja rebuilds were flaky —

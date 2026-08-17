@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# memsafe -- run a command in a memory-bounded cgroup scope so a RAM squeeze SWAPS it instead of
+#            OOM-killing it (user request, 2026-08-17: "swap out the big RAM offenders until things
+#            settle down again ... so we don't lose invested work").
+#
+# Mechanism: cgroup-v2 MemoryHigh.  When the scope exceeds the cap the kernel THROTTLES it and
+# reclaims its pages to swap -- nothing dies, the desktop keeps the rest of RAM, and the run crawls
+# through the squeeze instead of evaporating.  There is deliberately NO MemoryMax (a hard cap would
+# reintroduce a kill).  ManagedOOMPreference=omit keeps systemd-oomd's hands off the scope.
+#
+# Prerequisite: real swap headroom (32G /swap2.img, added 2026-08-17).  Forensics that motivated
+# this: the Aug-13 ITMain kills were the KERNEL's global OOM killer -- the old 4G swapfile sat
+# chronically ~75% full, so at squeeze time the kernel had nowhere to move pages and killing was
+# its only remaining move.  With real swap + MemoryHigh, a transient balloon (one test peaking
+# while others hold) gets squeezed to NVMe and swaps back in after the peak.
+#
+# Honest caveat: swap converts KILL into CRAWL.  If the ACTIVE working set genuinely exceeds RAM,
+# the run thrashes (10-100x slower) -- work preserved, which is the point, but the CLAUDE.md -j
+# discipline (ctest -j8, -j2 beside a big run) remains the first-line defense.  This is the net.
+#
+# Usage:
+#   scripts/memsafe [-H SIZE] [-p] command [args...]
+#     -H SIZE   MemoryHigh for the scope (default 9G: ~9G for the work, ~5G for the desktop)
+#     -p        PROTECT from the kernel OOM killer too (oom_score_adj -900) -- for unattended
+#               overnight runs.  Prompts for sudo ONCE at launch (lowering the score needs
+#               CAP_SYS_RESOURCE; unprivileged may only raise it).  Trade-off: if the kernel
+#               absolutely must kill something, it will pick almost anything else (e.g. the
+#               desktop session) before this scope.  NB with 32G of swap + MemoryHigh the kernel
+#               killer is nearly unreachable anyway (it fires only when RAM AND swap are both
+#               exhausted) -- this flag is belt over suspenders.
+#
+# Examples:
+#   scripts/memsafe ctest -j8                       # the regression sweep, bounded
+#   scripts/memsafe -H 6G ctest -j2                 # beside another big run
+#   scripts/memsafe -p ./IntegrationTests/ITMain --gtest_filter='GPW_SCF.*'   # overnight, protected
+#
+# Watch a live scope: systemd-cgtop | grep memsafe
+
+set -euo pipefail
+
+high="9G"
+protect=()
+while getopts "H:p" opt; do
+    case $opt in
+        H) high="$OPTARG" ;;
+        p) protect=1 ;;
+        *) echo "usage: memsafe [-H SIZE] [-p] command [args...]" >&2; exit 2 ;;
+    esac
+done
+shift $((OPTIND-1))
+[ $# -ge 1 ] || { echo "usage: memsafe [-H SIZE] [-p] command [args...]" >&2; exit 2; }
+
+if [ -n "${protect:-}" ]; then
+    # Lower THIS shell's oom_score_adj as root; the command inherits it across exec.  (OOMScoreAdjust
+    # is not a valid SCOPE property -- scopes don't exec through systemd -- and unprivileged choom may
+    # only RAISE the score, so sudo is the one honest route.)  Failure degrades gracefully: the
+    # MemoryHigh scope + big swap still protect the run.
+    sudo choom -n -900 -p $$ >/dev/null \
+        || echo "memsafe: WARNING -- could not lower oom_score_adj (no sudo?); running without the kernel-killer shield" >&2
+fi
+
+# --scope: the command runs as a child of this shell (cwd + environment inherited), just accounted
+# in its own cgroup.  Unique unit name so systemd-cgtop / oomctl output is recognizable.
+exec systemd-run --user --scope --unit="memsafe-$$-$(date +%H%M%S)" \
+    -p MemoryHigh="$high" \
+    -p MemorySwapMax=infinity \
+    -p ManagedOOMPreference=omit \
+    -- "$@"
