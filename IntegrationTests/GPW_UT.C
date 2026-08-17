@@ -1070,6 +1070,58 @@ TEST(GPW, TRIM_BlochMatricesAreExactlyReal)
     }
 }
 
+// (c3) STEP 3 (doc/RealComplexPlan.md): THE REAL TRIM BLOCK.  tGPW_IBS<double> is the same physical
+// block with the ORBITAL scalar narrowed -- IrrepBasisSet<double> functions, real S/T/V_loc/KB -- while
+// its fit side stays the complex G-space basis (it IS-A Orbital_DFT_IBS<double,dcmplx>, the V1.1 two-axis
+// combination).  The narrow is an ASSERTED BITWISE fact (ToScalar over Step 0's exact +/-1 phases), so
+// every matrix and every orbital value must equal the complex block's real part EXACTLY -- EXPECT_EQ on
+// doubles, zero tolerance anywhere.  Both Gamma and the zone corner (the two TRIM flavours).
+TEST(GPW, TRIM_RealBlockMatchesComplexBitwise)
+{
+    const double a=8.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+    const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
+
+    using BasisSet::Lattice_3D::tGPW_IBS;
+    for (const ivec3_t ik : {ivec3_t(0,0,0), ivec3_t(1,1,1)})      // Gamma and k=(1/2,1/2,1/2)
+    {
+        tGPW_IBS<double> re(cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
+        tGPW_IBS<dcmplx> cx(cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
+        const Real_OIBS&    gr = re;
+        const Complex_OIBS& gc = cx;
+        ASSERT_EQ(gr.GetNumFunctions(), gc.GetNumFunctions());
+
+        const auto& Sr=gr.Overlap();        const auto& Sc=gc.Overlap();
+        const auto& Tr=gr.Kinetic();        const auto& Tc=gc.Kinetic();
+        const auto& Nr=gr.Nuclear(&cell);   const auto& Nc=gc.Nuclear(&cell);
+        const hmat_t<double> Kr=re.MakeSeparablePotential (&cell, gth.nonlocal);
+        const chmat_t        Kc=cx.MakeSeparablePotential (&cell, gth.nonlocal);
+        const hmat_t<double> Lr=re.MakeLocalPotentialShort(&cell, gth.local);
+        const chmat_t        Lc=cx.MakeLocalPotentialShort(&cell, gth.local);
+        for (size_t i=0;i<Sr.rows();i++)
+            for (size_t j=0;j<Sr.columns();j++)
+            {
+                EXPECT_EQ(Sr(i,j), std::real(Sc(i,j))) << "S    ("<<i<<","<<j<<") k="<<ik;
+                EXPECT_EQ(Tr(i,j), std::real(Tc(i,j))) << "T    ("<<i<<","<<j<<") k="<<ik;
+                EXPECT_EQ(Nr(i,j), std::real(Nc(i,j))) << "Ven  ("<<i<<","<<j<<") k="<<ik;
+                EXPECT_EQ(Kr(i,j), std::real(Kc(i,j))) << "V_NL ("<<i<<","<<j<<") k="<<ik;
+                EXPECT_EQ(Lr(i,j), std::real(Lc(i,j))) << "Vloc ("<<i<<","<<j<<") k="<<ik;
+            }
+
+        // The orbitals themselves (the XC-mesh Phi tables are built from these): rvec_t vs real(cvec_t).
+        const rvec3_t r = cell.ToCartesian(rvec3_t(0.3,0.4,0.7));
+        const rvec_t fr = gr(r);
+        const cvec_t fc = gc(r);
+        for (size_t i=0;i<fr.size();i++) EXPECT_EQ(fr[i], std::real(fc[i])) << "chi("<<i<<") k="<<ik;
+
+        // And the realness FACTS line up: the irrep says real, both blocks agree (Step 1's query).
+        EXPECT_TRUE(gr.IsReal());
+        EXPECT_TRUE(gc.IsReal());
+    }
+}
+
 // (d) Time reversal at the matrix level: S(-k) = conj(S(k)) elementwise -- the phases conjugate under
 // k -> -k while the underlying real 2-centre integrals are k-independent.  Exact (same image set, no tol).
 TEST(GPW, GeneralK_ConjugateUnderKtoMinusK)

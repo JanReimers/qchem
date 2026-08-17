@@ -156,7 +156,32 @@ variant that never takes the complex alternative: a negligible tag, one implemen
 - **Step 3 — un-pin the basis** (`GPW_IBS` from `IrrepBasisSet<dcmplx>`), so terms produce real H
   directly and Φ + the quadrature GEMMs go real.  Buys the Hamiltonian/quadrature half — dominant in
   the GPW regime.  The composite variant then falls out as a CONSEQUENCE of blocks having different
-  basis types, which is the coherent order.
+  basis types, which is the coherent order.  **ORDER DECIDED 2026-08-17 (user): Step 3 before 2c** —
+  no throwaway narrowing-child class; the real WF child falls out of the real basis.  Increments:
+  - **3a DONE 2026-08-17** — `tGPW_IBS<T>` exists with BOTH instantiations (`using GPW_IBS =
+    tGPW_IBS<dcmplx>` keeps every spelling).  The EPW mixins are `<E, T=dcmplx>`
+    (PlaneWave/fit bases untouched); a `<double>` block is `IrrepBasisSet<double>` +
+    `Orbital_DFT_IBS<double,dcmplx>` (the V1.1 combination, now explicitly instantiated) +
+    `Integrals_Pseudo<double>`, with the evaluator's exactly-real results ASSERT-narrowed by
+    `ToScalar` (bitwise, per Step 0) at the mixin/PP seams — and cached REAL in `theCache<double>`,
+    so a real block never stores widened matrices.  The DFT tensor tier needs no narrowing at all
+    (tensors follow TFit).  The evaluator itself stays complex — making its streams real is a later,
+    purely performance increment.  Gate: `GPW.TRIM_RealBlockMatchesComplexBitwise` (S/T/Ven/V_NL/
+    V_loc + orbital values, `EXPECT_EQ` on doubles, Γ and the zone corner).
+  - **3b DONE 2026-08-17** — the `BasisSetImp` child slot (§4 item 1: the DECISION POINT):
+    children are `std::variant<unique_ptr<Orbital_1E_IBS<double>>, unique_ptr<Orbital_1E_IBS<dcmplx>>>`
+    with typed `Insert` overloads; the scalar-independent whole-set faces (`GetNumFunctions`,
+    `GetIrreps`, `Write`) are generic visits; `GetIBS` (the face `Iterate<D>` casts from) is the
+    SAME-scalar view, throwing loudly on a cross child; `GetChild(i)` is the typed view 3c's
+    mixed-aware consumers use.  NO factory wiring yet (deliberate: enabling
+    `IsReal() ? tGPW_IBS<double> : ...` in `GPW_BasisSet` before 3c would break every
+    `Iterate<Complex_OIBS>` consumer) — the decision wires in WITH 3c.  Unit tests
+    `RealComplexBasisSlot.*` build the first genuinely MIXED set (real Γ + complex ¼-k in one
+    `BasisSetImp<dcmplx>`) and pin the aggregate/typed-view/throw contract.
+  - **3c (next)** — re-thread the consumers per block: the Hamiltonian/term `GetMatrix(tobs_t<T>*)`
+    faces, `MakeIrrepWFs`'s `Iterate`, `VetGpwConditioning`, `GatherSharpness` — then wire the
+    factory decision (`irrep->IsReal() ∧ PreservesReal`, threaded from the composition root) and
+    2c falls out.
 - **Step 4 — the accelerator** (§6), and only then a mixed-mesh run as the acceptance test.
 
 An all-TRIM mesh (Γ-only, or Γ-centred 2×2×2 = `MNO_KMESH=2`) makes an entire run real with no
