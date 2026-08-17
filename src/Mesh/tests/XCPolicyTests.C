@@ -183,7 +183,12 @@ TEST(XCPolicy, AutoWithoutSharpnessTakesTheSafeGrid)
 TEST(XCPolicy, AutoActsOnTheCostVerdict)
 {
     MeshParams a; a.cellKind=UnitCellKind::Auto;
-    XCMeshSharpness soft{.cellEdge=10.26, .nAtoms=2, .alphaMax=2.0, .alphaPP=2.58};   // Si/sipp: uniform wins
+    // A genuinely soft PP-free system.  NB this WAS Si/sipp (alphaPP=2.58, uniform 13,824 pts) -- the
+    // R2.15 Lebedev flip cheapened the Becke side 450->302 dirs (36,000->24,160 pts), which moves
+    // Si/sipp INSIDE the 2x margin: it now routes to Becke, the safe direction, exactly as the cost
+    // model should.  What this test pins is the MECHANISM (the verdict is acted on and sized), so the
+    // uniform-side case is one that wins on either scheme.
+    XCMeshSharpness soft{.cellEdge=10.26, .nAtoms=2, .alphaMax=2.0};
     EXPECT_LE(double(UniformMeshCost(soft))*kUniformMargin, double(BeckeMeshCost(BeckeXCParams(),soft)));
     const MeshParams u=ResolveXCMesh(a,soft);
     EXPECT_EQ(u.cellKind, UnitCellKind::Uniform);

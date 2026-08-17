@@ -815,8 +815,20 @@ MnO campaign proceeds undisturbed in qchem6.
        as-is until a molecular site-adapted mesh is actually wanted.
      - Note the site-stabilizer TEST also differs (torus metric mod 1 for a crystal, plain distance for a
        molecule) — but that is implementation, and belongs in each override, not in the argument type.
-- **R2.15 ✅ INTERFACE DONE 2026-08-07 (`nAngular` → `angularDegree`, behaviour-preserving); ONLY THE
-  DEFAULT FLIP REMAINS (decision 6 below, deliberately separate -- it changes every unpinned run).
+- **R2.15 ✅ COMPLETE — DEFAULT FLIP LANDED 2026-08-17 (concurrent-cleanup session), DEGREE-GATED.**
+  `BeckeXCParams` now defaults the angular scheme to **Lebedev at degree ≥ 29** (302 vs GL's 450
+  directions = 67%), GaussLegendre below — the gate exists because the first, ungated sweep FAILED the
+  MnO seed-mirror gate's own degree-11 recipe (Leb-50's ⟨111⟩ orbit dives into neighbour Mn cores:
+  orphan w·ρ=0.04 vs the 1e-8 eps-tail contract) — the recorded low-degree alignment poison caught
+  LIVE.  Degrees 15–23 stay GL until measured.  The flip's measurement (decision 7's precondition, all
+  D8-compliant): Si gate passes with Leb-302 (dExc +7.5e-5 vs GL's +1.1e-4, dVxc equal); NaF internal
+  convergence equal (1.8e-5 vs 1.5e-5); Mn angularly trivial (V2.6); **Al metal by converged-run A/B
+  per the V2.6a lesson: Leb-302 lands 3× closer to its fine reference than GL-29 to its own** (dEtot
+  +6.0e-5 vs +1.9e-4).  Consequence accepted: the cheaper Becke side moves the selector crossover —
+  Si/sipp re-routes Uniform→Becke (inside the 2× margin; safe direction).  726/726 green including all
+  anchors.  `GPW_BECKE_ANG=gl|lebedev` forces either scheme at any degree (the A/B valve).
+  *(the interface half, landed 2026-08-07, and the decision list follow)*
+  **INTERFACE DONE 2026-08-07 (`nAngular` → `angularDegree`, behaviour-preserving).
   What landed:** the field is a DEGREE for every scheme; Lebedev resolves it through `ResolveLebedev`
   (round UP to the cheapest tabulated rule of at least that degree, ANNOUNCING any substitution and
   naming the four deliberately-excluded orders); `LebedevMenu()` is the one place the ladder is written
