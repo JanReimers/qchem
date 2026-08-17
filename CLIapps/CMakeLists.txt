@@ -1,10 +1,9 @@
 # Command-line applications (not tests).
 
 # scfrun: command-line SCF driver for accelerator tuning (no recompile).  Drives qchem::AtomCalculation
-# directly (no QchemTester); needs the TestUtils module for the RelativeHF/DHFError oracle helpers.
+# directly (no QchemTester); the RelativeHF/DHFError oracle helpers come from qchem.PeriodicTable (R2.20)
+# -- no test module imported.
 add_executable(scfrun scfrun.C)
-target_sources(scfrun PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
-    BASE_DIRS ${PROJECT_SOURCE_DIR} FILES ../IntegrationTests/TestUtils.C)
 target_compile_options(scfrun PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(scfrun PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET scfrun PROPERTY CXX_STANDARD 20)

@@ -16,7 +16,7 @@
 import qchem.Calculation;            // Calculation, CalcOptions, Model, Angular
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
-import qchem.Unittests.TestUtils;    // RelativeError
+import qchem.PeriodicTable;          // RelativeError
 using namespace qchem;
 
 static Molecule MakeN2()

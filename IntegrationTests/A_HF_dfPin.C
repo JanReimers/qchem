@@ -17,7 +17,7 @@
 #include <iostream>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, Pol
 import qchem.SCFIterator;            // SCFParams
-import qchem.Unittests.TestUtils;    // RelativeHFError (Saito oracle)
+import qchem.PeriodicTable;          // RelativeHFError (Saito oracle)
 using namespace qchem;
 using enum BasisSetAccuracy;         // High, Medium, Low
 

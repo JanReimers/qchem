@@ -2,7 +2,9 @@
 module;
 #include <string>
 #include <cassert>
-#include <vector> 
+#include <cmath>      // std::fabs (the oracle helpers below); a std header, NOT qchem.Math -- qcCommon stays math-free
+#include <iostream>   // the oracle helpers' ppm/ppb/ppt reporter (module TUs must include <ostream>/<iostream> THEMSELVES to stream literals -- the R1.9 lesson)
+#include <vector>
 // #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -84,4 +86,36 @@ export
     //! Returned by const reference -- the table is immutable reference data, safe to share everywhere.
     const PeriodicTableSaito& thePeriodicTable();
 } //export block
+
+// Oracle helpers (moved from qchem.Unittests.TestUtils, R2.20): thin wrappers over the reference-energy
+// tables above.  They are PRODUCTION data consumers -- CLIapps/scfrun reports against them -- so they live
+// beside the tables they wrap, not in a test module.
+export namespace qchem
+{
+//! Signed relative error (Eref - E)/Eref of a computed energy E against the reference Eref.  Prints a
+//! human ppm/ppb/ppt report (suppress with quiet=true).  Caller asserts on fabs(RelativeError(...)).
+inline double RelativeError(double E, double Eref, bool quiet = false)
+{
+    const double error = (Eref - E) / Eref;
+    if (!quiet)
+    {
+        std::cout.precision(9);
+        std::cout << "E relative error=" << error * 100.0 << "%, ";
+        std::cout.precision(2);
+        if (std::fabs(error) > 1e-7)       std::cout << error * 1e6  << "(ppm)" << std::endl;
+        else if (std::fabs(error) > 1e-10) std::cout << error * 1e9  << "(ppb)" << std::endl;
+        else                               std::cout << error * 1e12 << "(ppt)" << std::endl;
+    }
+    return error;
+}
+
+//! Z-keyed oracle checks: the computed atomic energy E vs the stored NIST (HF/DFT) or Dirac (DHF)
+//! reference for element Z.  All return the SIGNED relative error (callers bound fabs of it).
+inline double RelativeHFError (double E, int Z, bool quiet = false)
+    {return RelativeError(E, thePeriodicTable().GetEnergyHF (Z), quiet);}
+inline double RelativeDFTError(double E, int Z, bool quiet = false)
+    {return RelativeError(E, thePeriodicTable().GetEnergyDFT(Z), quiet);}
+inline double RelativeDHFError(double E, int Z, bool quiet = false)
+    {return RelativeError(E, thePeriodicTable().GetEnergyDHF(Z), quiet);}
+} // namespace qchem
 
