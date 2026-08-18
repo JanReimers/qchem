@@ -52,6 +52,12 @@ public:
     //! the caller's, via isFinite() -- this method only reports the geometric sum each structure can honestly give.
     virtual double SumFormFactors   (const std::function<double(int Z)>& f) const;
 
+    //! \brief Visit every atomic site as \c (Z,R,spinFlip) -- the assembly-level question seed and
+    //! magnetic-decoration code ask (V1.19).  A consumer that needs "which species, where, which magnetic
+    //! sublattice" states exactly that and stays off the concrete \c Atom's public fields; the storage
+    //! stays here.  Sites are visited in atom-index order (consumers build per-atom-parallel tables).
+    void ForEachSite(const std::function<void(int Z, const rvec3_t& R, bool spinFlip)>& f) const;
+
     //! \brief The real-space integration mesh natural to this geometry, at resolution \a mp.  The mesh TYPE
     //! is the STRUCTURE's responsibility, not the basis's: an Atom builds its single-centre (radial x angular)
     //! grid, a Molecule the multi-centre Becke grid, a periodic lattice a uniform / unit-cell-Becke grid.

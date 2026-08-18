@@ -93,6 +93,7 @@ private:
     //! the basis's MakeFourierDensity is species-keyed, so each flip group gets its own call).
     std::shared_ptr<UnitCell>                          itsGroupA, itsGroupB;
     std::vector<RecentredAtomicDensity>                itsRecentred; //!< per-atom rho_atom(|r-R|) for op(r), flip-aware
+    std::vector<double>                                itsScalePerAtom; //!< per-atom multiplier, parallel to itsRecentred (keeps op(r) off the structure)
     double itsCharge;     //!< total (post-ionic-scale) valence electron count, pre-ReScale
     double itsScale=1.0;  //!< uniform scale applied by ReScale
     size_t itsVersion;    //!< transient freshness serial

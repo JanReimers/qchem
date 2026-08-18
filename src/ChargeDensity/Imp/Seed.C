@@ -4,6 +4,7 @@ module;
 #include <type_traits>
 #include <cstddef>
 #include <memory>
+#include <stdexcept>   // the unsupported (strategy x T) arms THROW (V1.19: an assert-only arm is a silent core guess in Release)
 #include <vector>
 #include <utility>
 #include <algorithm>
@@ -97,12 +98,11 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
         {
             assert(st && "SAD seed needs a Structure (atom Z + positions)");
             auto* cd = new NumericCD(st->GetNumElectrons());
-            for (size_t i=0;i<st->GetNumAtoms();i++)
+            st->ForEachSite([&cd](int Z, const rvec3_t& R, bool)
             {
-                const Atom* a = (*st)[i];
-                auto rad = std::make_shared<const RadialDensity>(GetAtomicDensity(a->itsZ));
-                cd->Insert(std::make_shared<const RecentredAtomicDensity>(rad, a->itsR));
-            }
+                auto rad = std::make_shared<const RadialDensity>(GetAtomicDensity(Z));
+                cd->Insert(std::make_shared<const RecentredAtomicDensity>(rad, R));
+            });
             return cd;
         }
         else
@@ -137,14 +137,15 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
         }
         else
         {
-            assert(false && "molecular (AO) IonicSAD is a later phase; use SAD or the plane-wave path");
-            return nullptr;
+            // THROW, not assert: an assert-only arm returns null under -DNDEBUG and SCFIterator silently
+            // runs a core guess instead of the seed the caller asked for (V1.19).
+            throw std::runtime_error("MakeSeedDensity: molecular (AO) IonicSAD is a later phase; "
+                                     "use SAD or the plane-wave path");
         }
     }
 
     default:
-        assert(false && "unknown SeedStrategy");
-        return nullptr;
+        throw std::runtime_error("MakeSeedDensity: unknown SeedStrategy");   // see the IonicSAD arm (V1.19)
     }
 }
 
@@ -161,13 +162,12 @@ std::map<size_t,int> IonicSADTargets(const Structure* st, const std::string& fun
     assert(st);
     std::vector<std::pair<int,int>> atoms;                      // {Z, N_val} per atom
     std::map<size_t,int> nvalByZ;
-    for (size_t i=0;i<st->GetNumAtoms();i++)
+    st->ForEachSite([&](int Z, const rvec3_t&, bool)
     {
-        int Z = (*st)[i]->itsZ;
         if (!nvalByZ.count(Z))
             nvalByZ[Z] = (int)std::lround(GetAtomicDensity(Z,functional,"atomic_valence_densities.json").Charge());
         atoms.emplace_back(Z, nvalByZ[Z]);
-    }
+    });
     std::vector<int> q = IonicFormalCharges(atoms);             // Na+1, F-1; conserves charge
     std::map<size_t,int> targetByZ;                            // species Z -> TARGET valence count N_val-q
     for (size_t i=0;i<atoms.size();i++)
@@ -185,20 +185,19 @@ std::vector<int> MagneticDecoration(const Structure* st, const std::string& func
     const std::string db = "atomic_valence_densities.json";
     std::map<size_t,bool> magneticByZ;
     std::vector<int> spins;
-    for (size_t i=0;i<st->GetNumAtoms();i++)
+    st->ForEachSite([&](int iZ, const rvec3_t&, bool spinFlip)
     {
-        const Atom* a = (*st)[i];
-        const size_t Z = a->itsZ;
+        const size_t Z = size_t(iZ);
         if (!magneticByZ.count(Z))
         {
             auto ti = ionicNvalByZ.find(Z);
             const int target = (ti!=ionicNvalByZ.end())
                              ? ti->second
-                             : (int)std::lround(GetAtomicDensity((int)Z, functional, db).Charge());
-            magneticByZ[Z] = target>0 && HasAtomicSpinPair((int)Z, functional, db, target);
+                             : (int)std::lround(GetAtomicDensity(iZ, functional, db).Charge());
+            magneticByZ[Z] = target>0 && HasAtomicSpinPair(iZ, functional, db, target);
         }
-        spins.push_back(magneticByZ.at(Z) ? (a->itsSpinFlip ? -1 : +1) : 0);
-    }
+        spins.push_back(magneticByZ.at(Z) ? (spinFlip ? -1 : +1) : 0);
+    });
     return spins;
 }
 

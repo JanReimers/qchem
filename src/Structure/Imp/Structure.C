@@ -17,6 +17,13 @@ double Structure::SumFormFactors(const std::function<double(int)>& f) const
     return s;
 }
 
+// The site visitor (V1.19): one place reads the atom fields, every seed/decoration consumer asks the
+// question.  Index order matters -- consumers build tables parallel to the atom list.
+void Structure::ForEachSite(const std::function<void(int, const rvec3_t&, bool)>& f) const
+{
+    for (auto a:*this) f(a->itsZ, a->itsR, a->itsSpinFlip);
+}
+
 std::string Structure::ID() const
 {
     std::string id;
