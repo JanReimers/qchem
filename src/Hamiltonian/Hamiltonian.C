@@ -1,4 +1,6 @@
 // File: Hamiltonian.C  Interface a Hamiltonianian operator.
+module;
+#include <type_traits>   // std::conditional_t/is_same_v (HamRealBlockBase -- Step 3c-2)
 export module qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 import qchem.Streamable;
@@ -146,11 +148,61 @@ public:
     virtual bool             PreservesReal () const {return true; }   //!< real basis block ⇒ real matrix?
 };
 
+//====================================================================================================
+//  REAL-BLOCK TERM FACES (doc/RealComplexPlan.md Step 3c).  In a mixed-mesh run the terms are built
+//  ONCE, typed by the RUN's working scalar (dcmplx) -- their block-independent state (V_H(G), the XC
+//  rho rasters, the models) is shared across blocks -- but a TRIM block's basis is tobs_t<double>
+//  (Step 3a) and its H block is real.  These CAPABILITY faces are how a complex term answers the real
+//  block's question: the same cross-cast idiom as Integrals_Pseudo / FourierDensity (V1.6/V1.7).
+//  Only terms that can serve a real block (the periodic set) implement them -- via ONE scalar-generic
+//  assembly body each, so there is no dual maintenance -- and the assembly cross-casts; a term
+//  without the face fails LOUDLY.  Molecular (double-native) terms never see these: their native
+//  face already IS real.  Caching lives in the Internal mixins (Static/Dynamic_HT_RealBlock_Imp),
+//  mirroring tStatic/tDynamic_HT_Imp exactly.
+//====================================================================================================
+//  Each face IS-A real-block CONTRACT CLIENT too (Step 3c-2b): the static one's GetMatrix has exactly
+//  tStatic_CC<double>'s signature, so the real leaf's native DM_Contract serves its energy; the dynamic
+//  one carries the run-typed GetEMatrixR (see ChargeDensity::Dynamic_CC_RealBlock).
+class Static_HT_RealBlock
+    : public virtual ChargeDensity::tStatic_CC<double>
+{
+public:
+    virtual ~Static_HT_RealBlock() {};
+    // GetMatrix(const tobs_t<double>*, const Spin&) comes from tStatic_CC<double> -- one declaration,
+    // one override (the caching Imp mixin's), serving BOTH the Fock fold and the energy contraction.
+};
+class Dynamic_HT_RealBlock
+    : public virtual ChargeDensity::Dynamic_CC_RealBlock
+{
+public:
+    virtual ~Dynamic_HT_RealBlock() {};
+    //! \a cd is the RUN's density (complex-faced composite): the term's density-dependent state is
+    //! block-independent, so the real block consumes the same \f$V_H(G)\f$ / \f$\rho\f$ raster.
+    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const=0;
+};
+
+//! \brief The REAL-BLOCK ASSEMBLY face of a complex-run Hamiltonian (Step 3c-2): fold the term set's
+//! Static/Dynamic_HT_RealBlock capabilities into one real Fock/KS block for a real TRIM basis block.
+//! Attached (conditionally) to \c tHamiltonian<dcmplx> only; a real-faced Hamiltonian's native
+//! \c GetMatrix already IS real.  The per-block WF child (\c tIrrepWF<double> inside a complex run)
+//! drives its Fock build through this face.
+class Ham_RealBlock
+{
+public:
+    virtual ~Ham_RealBlock() {};
+    virtual hmat_t<double> GetMatrix(const tobs_t<double>*,const Spin&,const tChargeDensity<dcmplx>*,
+                                     const tbs_t<dcmplx>* wholeBasis)=0;
+};
+struct NoHam_RealBlock {};
+template <class T> using HamRealBlockBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, Ham_RealBlock, NoHam_RealBlock>;
+
 //! \brief The assembled Hamiltonian: owns its term lists and assembles the per-irrep Fock/KS matrix the SCF
 //! diagonalizes.  Built by the \c Factory; driven by \c CompositeWF / \c IrrepWF (see the \ref tDynamic_HF_HT
 //! call-flow diagram).
 template <class T> class tHamiltonian
     : public virtual Streamable
+    , public HamRealBlockBase<T>   // the real-block assembly face, dcmplx instantiation only (Step 3c-2)
 {
 public:
     virtual void            Add             (   tStatic_HT<T>*)=0;   //!< take ownership of a static term

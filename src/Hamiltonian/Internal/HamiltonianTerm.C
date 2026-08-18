@@ -9,6 +9,7 @@ module;
 #include <map>
 #include <cassert>
 #include <cstddef>
+#include <type_traits>   // std::conditional_t/is_same_v (StaticRealBlockBase -- Step 3c)
 export module qchem.Hamiltonian.Internal.Term;
 export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Types;
@@ -125,6 +126,71 @@ public:
 protected:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
 };
+
+//====================================================================================================
+//  REAL-BLOCK CACHING MIXINS (Step 3c) -- the Imp halves of the Static/Dynamic_HT_RealBlock capability
+//  faces, mirroring tStatic/tDynamic_HT_Imp's Irrep-keyed cache discipline over the real narrow.  A
+//  term inherits the mixin PUBLICLY (the capability cross-cast needs the path) and supplies ONE
+//  MakeMatrixR -- in practice a thunk into the same scalar-generic template body its native MakeMatrix
+//  uses.  The real cache is its own map (real blocks are distinct irreps, so the two maps' key sets
+//  are disjoint) -- the "container inherits the decision" of RealComplexPlan §4 item 2, realized as a
+//  typed pair rather than a variant map so the molecular path is untouched.
+//====================================================================================================
+class Static_HT_RealBlock_Imp : public virtual Static_HT_RealBlock
+{
+public:
+    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s) const
+    {
+        assert(bs);
+        Irrep qns(bs->GetIrrep(s));
+        auto i=itsRealCache.find(qns);
+        if (i==itsRealCache.end())
+            return itsRealCache[qns]=MakeMatrixR(bs,s);
+        else
+            return i->second;
+    }
+protected:
+    virtual hmat_t<double> MakeMatrixR(const tobs_t<double>*,const Spin&) const=0;
+    mutable std::map<Irrep,hmat_t<double>> itsRealCache;
+};
+
+class Dynamic_HT_RealBlock_Imp : public virtual Dynamic_HT_RealBlock
+{
+public:
+    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s,const tChargeDensity<dcmplx>* cd) const
+    {
+        assert(bs);
+        assert(cd);
+        // The same density-serial self-correction as tDynamic_HT_Imp::GetMatrix (its doc applies verbatim).
+        if (cd->Version()!=itsRealCacheVersion)
+        {
+            itsRealCache.clear();
+            itsRealCacheVersion=cd->Version();
+        }
+        Irrep qns(bs->GetIrrep(s));
+        if (auto i=itsRealCache.find(qns);i==itsRealCache.end())
+            return itsRealCache[qns]=MakeMatrixR(bs,s,cd);
+        else
+            return i->second;
+    }
+    //! The run-typed ENERGY matrix (ChargeDensity::Dynamic_CC_RealBlock, Step 3c-2b): the E=D·V identity
+    //! over the same real cache.  Valid for every term that takes the DM_Contract energy route (Hartree,
+    //! the statics); the periodic xc family integrates on its mesh instead and never consumes this.
+    virtual const hmat_t<double>& GetEMatrixR(const tobs_t<double>* bs,const Spin& s,
+                                              const tChargeDensity<dcmplx>* cd) const
+    { return GetMatrix(bs,s,cd); }
+protected:
+    virtual hmat_t<double> MakeMatrixR(const tobs_t<double>*,const Spin&,const tChargeDensity<dcmplx>*) const=0;
+    mutable std::map<Irrep,hmat_t<double>> itsRealCache;
+    mutable size_t itsRealCacheVersion=size_t(-1);
+};
+
+//! Conditional attachment for T-TEMPLATED terms (Kinetic, IonIon): the dcmplx instantiation carries the
+//! real-block capability, the double one an empty base.  The term declares its MakeMatrixR
+//! unconditionally (on the double instantiation it is a harmless never-called virtual).
+struct NoRealBlock {};
+template <class T> using StaticRealBlockBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, Static_HT_RealBlock_Imp, NoRealBlock>;
 
 // tFittablePotential is GONE (R2.6).  It existed for exactly one derivation, LDAVxc, whose only real job
 // was to answer the fitter's "what field am I fitting?" question -- and which had to fake MakeMatrix and

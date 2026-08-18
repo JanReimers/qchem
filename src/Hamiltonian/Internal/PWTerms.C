@@ -67,6 +67,7 @@ bool& ReportGridCharge();
 class Ven_PP_Short
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
+    , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
@@ -78,6 +79,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
+    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&) const;   // Step 3c: the real TRIM block
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
     double itsAlphaZ=0.0;   //!< the SHORT G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
@@ -91,6 +94,7 @@ private:
 class Ven_PP_NonLocal
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
+    , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
@@ -103,6 +107,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
+    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&) const;   // Step 3c: the real TRIM block
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::SeparablePotential* itsSep;   //!< KB nonlocal model (non-owning).
     //! GPW_NL_PER_L=1 diagnostic (doc/SphericalLatticePlan.md I0): the per-angular-channel KB blocks,
@@ -125,6 +131,7 @@ private:
 class Ven_PP_Long
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
+    , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
@@ -137,6 +144,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&) const;
+    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&) const;   // Step 3c: the real TRIM block
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&) const;   // the ONE assembly body
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
     double itsAlphaZ=0.0;   //!< the LONG G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
@@ -182,6 +191,7 @@ private:
 class Vee_Hartree
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
+    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
@@ -192,6 +202,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
 };
@@ -203,6 +215,7 @@ private:
 class PWFittedVxc
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
+    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
@@ -215,6 +228,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
     //! Ensure \c itsRhoGrid holds \f$\rho(r)\f$ on the fit grid for \a cd, recomputing (one inverse FFT) only
     //! on a new density serial.  Shared by MakeMatrix (fits \f$v_{xc}\f$) and GetEnergy (integrates \f$\epsilon_{xc}\rho\f$),
     //! so the transform runs ONCE per SCF iteration, whichever runs first.
@@ -294,8 +309,14 @@ public:
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr) const;
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const;
+    //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
+    //! GEMM runs in REAL arithmetic -- the first place the Step-3 quadrature win is actually realized.
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const;
 private:
-    const mat_t<dcmplx>& Phi(const cobs_t* bs) const;   //!< lazily built per block (geometry-fixed)
+    const mat_t<dcmplx>& Phi (const cobs_t* bs) const;   //!< lazily built per block (geometry-fixed)
+    const mat_t<double>& PhiR(const robs_t* bs) const;   //!< the real block's table (Step 3c; own cache)
+    template <class U> mat_t<U> MakePhi(const tobs_t<U>* bs) const;              // ONE table-build body
+    template <class U> hmat_t<U> MatrixT(const mat_t<U>& P, const rvec_t& v) const;  // ONE quadrature body
 
     // R2.9(i): the four accessors above are CONST and everything they touch is a lazily-built cache, so the
     // caches are `mutable` -- the same idiom every other cache in this module already uses (tHT_Common::
@@ -309,7 +330,8 @@ private:
     //! the total under the plain orbit mean, m under the χ-signed one with the flagged points zeroed.
     std::vector<Symmetry::SpinAction> itsSigmas;
     std::vector<char>                 itsFlipFixed;
-    mutable std::map<Irrep,mat_t<dcmplx>> itsPhi; //!< spatial Irrep -> (npts x n) basis table
+    mutable std::map<Irrep,mat_t<dcmplx>> itsPhi;  //!< spatial Irrep -> (npts x n) basis table
+    mutable std::map<Irrep,mat_t<double>> itsPhiR; //!< the real blocks' tables (disjoint irreps -- Step 3c)
     //! \warning The scalar cache (itsRho) and the spin-resolved pair (itsRhoUp/Dn) have NO cross-
     //! invalidation: each guards only its own serial, so if one term drove \c Rho and another \c RhoPol on
     //! the SAME engine for different densities, both would report "fresh" while one held a stale raster.
@@ -325,6 +347,7 @@ private:
 class DeltaFittedVxc
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
+    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
@@ -334,6 +357,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     xc_t     itsXc;
     engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial rho (one per XC pair)
@@ -348,6 +373,7 @@ private:
 class DeltaFittedVxcPol
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
+    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     typedef std::shared_ptr<ExFunctional>  xc_t;
@@ -358,6 +384,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     xc_t     itsXc;       //!< channel-native (non-halving) exchange functional, shared across channels
     engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
@@ -372,6 +400,7 @@ private:
 class DeltaFittedVcorrPol
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
+    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     typedef std::shared_ptr<SpinCorrelation> corr_t;
@@ -382,6 +411,8 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
+    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     corr_t   itsCorr;     //!< the spin-native correlation functional (VWN5's two-channel face)
     engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair

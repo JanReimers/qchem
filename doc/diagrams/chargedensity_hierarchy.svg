@@ -1,0 +1,133 @@
+<svg viewBox="0 0 1180 820" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="12">
+  <defs>
+    <marker id="tri" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="none" stroke="#444"/>
+    </marker>
+    <marker id="tri2" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="none" stroke="#a40"/>
+    </marker>
+  </defs>
+  <style>
+    .abs  { fill:#eef4ff; stroke:#3a6ea5; stroke-width:1.4; }
+    .cap  { fill:#fff8e6; stroke:#b8860b; stroke-width:1.4; }
+    .conc { fill:#eaf7ea; stroke:#2e7d32; stroke-width:1.6; }
+    .core { fill:#f4eefc; stroke:#6a41a5; stroke-width:1.6; }
+    .name { font-weight:bold; }
+    .note { font-size:10px; fill:#555; }
+    .lane { font-size:11px; fill:#888; font-style:italic; }
+    line, path.edge { stroke:#444; stroke-width:1.2; fill:none; }
+    path.capedge { stroke:#a40; stroke-width:1.2; fill:none; stroke-dasharray:5 3; }
+  </style>
+
+  <text x="20" y="26" font-size="16" class="name">qcChargeDensity — the density-leaf hierarchy after RealComplexPlan Step 3c-2b</text>
+  <text x="20" y="44" class="note">solid arrows = (virtual) public inheritance, base above derived · dashed amber = CAPABILITY face (consumers reach it by cross-cast) · ⟨T⟩ = block scalar (double | dcmplx)</text>
+  <text x="20" y="58" class="note">Lineage is a CLASS axis (finite vs periodic leaves); scalar is the TEMPLATE axis.  The retired V1.7 scheme encoded lineage BY scalar — broken by the real TRIM block (double AND periodic).</text>
+
+  <!-- ===================== abstract value-face stack (collated) ===================== -->
+  <text x="30" y="92" class="lane">THE ABSTRACT VALUE FACES (pure interfaces, no data — one vertical chain)</text>
+  <rect class="abs" x="30" y="100" width="250" height="46" rx="6"/>
+  <text x="45" y="119" class="name">ScalarFunction&lt;double&gt;</text>
+  <text x="45" y="134" class="note">ρ(r), ∇ρ(r) — the field face</text>
+
+  <rect class="abs" x="30" y="176" width="250" height="52" rx="6"/>
+  <text x="45" y="195" class="name">tChargeDensity⟨T⟩</text>
+  <text x="45" y="210" class="note">charge, ReScale, Version, lineage-active</text>
+
+  <rect class="abs" x="30" y="258" width="250" height="46" rx="6"/>
+  <text x="45" y="277" class="name">tMixableDensity⟨T⟩</text>
+  <text x="45" y="292" class="note">MixIn, GetChangeFrom — the mixer's ISP face</text>
+
+  <rect class="abs" x="30" y="334" width="250" height="60" rx="6"/>
+  <text x="45" y="353" class="name">tDM_CD⟨T⟩</text>
+  <text x="45" y="368" class="note">DM_Contract ×2, DM_ContractBlocks,</text>
+  <text x="45" y="381" class="note">DM_RhoAtPoints — the density-matrix face</text>
+
+  <line x1="155" y1="176" x2="155" y2="146" marker-end="url(#tri)"/>
+  <line x1="155" y1="258" x2="155" y2="228" marker-end="url(#tri)"/>
+  <line x1="155" y1="334" x2="155" y2="304" marker-end="url(#tri)"/>
+
+  <!-- ===================== capability faces ===================== -->
+  <text x="360" y="92" class="lane">CAPABILITY FACES (cross-cast; only classes that can honor them inherit them)</text>
+
+  <rect class="cap" x="360" y="100" width="240" height="58" rx="6"/>
+  <text x="375" y="119" class="name">FourierDensity</text>
+  <text x="375" y="134" class="note">GetFourierDensity, GetRhoOnGrid,</text>
+  <text x="375" y="147" class="note">GetRepulsion3C(G) — the PERIODIC trio</text>
+
+  <rect class="cap" x="630" y="100" width="250" height="58" rx="6"/>
+  <text x="645" y="119" class="name">Fitting::CoulombMetric_ProjectedDensity</text>
+  <text x="645" y="134" class="note">FitGetConstraint, GetRepulsion3C(AO)</text>
+  <text x="645" y="147" class="note">— the FINITE AO-fit projection</text>
+
+  <rect class="cap" x="910" y="100" width="240" height="58" rx="6"/>
+  <text x="925" y="119" class="name">tHF_Pair_CD&lt;double&gt;</text>
+  <text x="925" y="134" class="note">Accumulate/Complete Direct+Exchange</text>
+  <text x="925" y="147" class="note">— the FINITE exact-exchange pair partner</text>
+
+  <rect class="cap" x="630" y="186" width="250" height="58" rx="6"/>
+  <text x="645" y="205" class="name">RealBlockEnergy_CD  (3c-2b)</text>
+  <text x="645" y="220" class="note">DM_ContractE(Dynamic_CC_RealBlock*, ρ_run)</text>
+  <text x="645" y="233" class="note">— REAL block inside a COMPLEX run</text>
+
+  <rect class="cap" x="910" y="186" width="240" height="58" rx="6"/>
+  <text x="925" y="205" class="name">tLineageTracked⟨T⟩</text>
+  <text x="925" y="220" class="note">SCF-head tracking — the TOP densities</text>
+  <text x="925" y="233" class="note">(composites/polarized), never the leaves</text>
+
+  <!-- ===================== the core ===================== -->
+  <rect class="core" x="330" y="330" width="300" height="86" rx="8"/>
+  <text x="345" y="352" class="name" font-size="14">IrrepCD_Core⟨T⟩   (3c-2b)</text>
+  <text x="345" y="370" class="note">THE SHARED DM MACHINERY: contractions, mixing,</text>
+  <text x="345" y="384" class="note">ρ(r), charge, freshness serial.  Owns D, basis*, Irrep.</text>
+  <text x="345" y="398" class="note">No lineage assumption at all.</text>
+  <path class="edge" d="M330 373 L280 373" marker-end="url(#tri)"/>
+  <text x="288" y="366" class="note">virtual</text>
+
+  <!-- ===================== the two leaves ===================== -->
+  <text x="120" y="480" class="lane">THE FINITE LEAF (molecules / atoms)</text>
+  <rect class="conc" x="120" y="490" width="330" height="112" rx="8"/>
+  <text x="135" y="512" class="name" font-size="14">IrrepCD⟨T⟩    (⟨double⟩ only exists)</text>
+  <text x="135" y="530" class="note">+ WholeSystemFock / AddAODensity (V1.31 SALC route)</text>
+  <text x="135" y="544" class="note">+ Gradient = the molecular DM contraction</text>
+  <text x="135" y="558" class="note">+ AO projection  + HF pair partner (via CRTP mixin</text>
+  <text x="135" y="572" class="note">   IrrepCD_HFPair⟨Leaf⟩ — friendship, D never exposed)</text>
+  <text x="135" y="590" class="note">NOT a FourierDensity — the probe honestly fails.</text>
+
+  <text x="620" y="480" class="lane">THE PERIODIC LEAF (Bloch blocks — BOTH scalars; 3c-2b)</text>
+  <rect class="conc" x="620" y="490" width="380" height="112" rx="8"/>
+  <text x="635" y="512" class="name" font-size="14">PeriodicIrrepCD⟨T⟩</text>
+  <text x="635" y="530" class="note">+ the Fourier trio (via CRTP mixin IrrepCD_Fourier⟨Leaf⟩,</text>
+  <text x="635" y="544" class="note">   basis cast keyed Orbital_DFT_IBS⟨T,dcmplx⟩ — the V1.1 two-axis face)</text>
+  <text x="635" y="558" class="note">+ Gradient THROWS (periodic = LDA-only, R1.4)</text>
+  <text x="635" y="572" class="note">+ ⟨double⟩ = the REAL TRIM block: real D, real GEMMs,</text>
+  <text x="635" y="590" class="note">   + RealBlockEnergy_CD (run-typed energy contraction)</text>
+
+  <path class="edge" d="M290 490 L400 416" marker-end="url(#tri)"/>
+  <path class="edge" d="M760 490 L540 416" marker-end="url(#tri)"/>
+  <path class="capedge" d="M300 490 C420 250 560 190 660 158" marker-end="url(#tri2)"/>
+  <path class="capedge" d="M370 490 C640 300 850 220 960 158" marker-end="url(#tri2)"/>
+  <path class="capedge" d="M700 490 C600 340 520 220 480 158" marker-end="url(#tri2)"/>
+  <path class="capedge" d="M860 490 C860 380 790 290 770 244" marker-end="url(#tri2)"/>
+
+  <!-- ===================== the aggregates ===================== -->
+  <text x="120" y="650" class="lane">THE AGGREGATES (top-level SCF densities; children typed by the BLOCK, not the face — 2a)</text>
+  <rect class="conc" x="120" y="662" width="420" height="98" rx="8"/>
+  <text x="135" y="684" class="name" font-size="14">tComposite_CD⟨T⟩</text>
+  <text x="135" y="702" class="note">children: variant⟨unique_ptr&lt;tDM_CD&lt;double&gt;&gt;, unique_ptr&lt;tDM_CD&lt;dcmplx&gt;&gt;⟩</text>
+  <text x="135" y="716" class="note">scalar-independent ops = generic visits; cross-scalar energy arms live (3c-2b)</text>
+  <text x="135" y="730" class="note">+ tLineageTracked  + Composite_Fourier (dcmplx)  + Composite_HFSystem (double)</text>
+  <text x="135" y="748" class="note">+ AO projection (double)  — face conditionals HERE key run-lineage, honestly</text>
+
+  <rect class="conc" x="600" y="662" width="400" height="98" rx="8"/>
+  <text x="615" y="684" class="name" font-size="14">tPolarized_CD⟨T⟩</text>
+  <text x="615" y="702" class="note">the ↑/↓ channel pair (each channel a composite)</text>
+  <text x="615" y="716" class="note">+ tLineageTracked  + Polarized_Fourier (dcmplx)  + Polarized_HFSystem (double)</text>
+  <text x="615" y="730" class="note">(channels reached via GetChargeDensity(Spin);</text>
+  <text x="615" y="748" class="note"> matrix-free siblings: NumericCD / SeedCD / FourierMixCD — tChargeDensity only)</text>
+
+  <path class="edge" d="M330 662 C280 560 230 470 200 394 L200 394" marker-end="url(#tri)"/>
+  <path class="edge" d="M800 662 C700 560 500 460 420 416" marker-end="url(#tri)"/>
+  <text x="240" y="640" class="note">IS-A tDM_CD⟨T⟩ (holds leaves of EITHER scalar)</text>
+
+  <text x="20" y="800" class="note">Not shown: FittedCD (a tChargeDensity fit, no DM face) and the matrix-free seed/mixer densities — none carry leaf capabilities.  Source: src/ChargeDensity/{ChargeDensity,CompositeCD}.C + Internal/IrrepCD.C.</text>
+</svg>

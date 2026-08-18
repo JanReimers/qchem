@@ -55,7 +55,7 @@ import qchem.Hamiltonian.Internal.IonIon;           // IonIon<double> (ion-ion t
 import qchem.Hamiltonian.Internal.Kinetic;          // Kinetic<dcmplx> (the shared kinetic term)
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
-import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
+import qchem.ChargeDensity.Imp.IrrepCD;             // PeriodicIrrepCD<dcmplx> (the periodic leaf -- 3c-2b)
 import qchem.ChargeDensity.SeedCD;                  // SeedCD + PolarizedSeedCD (the spin-SAD staggering gate)
 import qchem.Fitting.FunctionFitter;                // Factory / ProjectedDensity_G / FunctionFitter_Density (item B)
 import qchem.BasisSet.G_FieldEvaluator;             // the grid-engine seam (GridPoints/RhoOnGrid/Integral) for the item-K probe
@@ -1136,7 +1136,7 @@ TEST_F(PlaneWaveDFT, LocalPPLongPlusShortEqualsFull)
             EXPECT_NEAR(std::abs(dcmplx(full(i,j))-dcmplx(split(i,j))), 0.0, 1e-12);
 }
 
-// The Vee_Hartree and PWFittedVxc dynamic terms route a complex density (IrrepCD<dcmplx>) through the framework
+// The Vee_Hartree and PWFittedVxc dynamic terms route a complex density (PeriodicIrrepCD<dcmplx>) through the framework
 // and must reproduce the basis's Repulsion / Overlap -- the inversion working for the
 // density-dependent terms.  We feed a hand-built Hermitian density matrix (2 electrons in (e0+e1)/sqrt2).
 TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
@@ -1147,7 +1147,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     hmat_t<dcmplx> D=blazem::zeroH<dcmplx>(n);     // Hermitian density matrix
     D(0,0)=1.0; D(0,1)=1.0; D(1,1)=1.0;            // sets D(1,0)=conj(D(0,1)) -> a non-uniform density
     Irrep irr=F.pw.GetIrrep(Spin::None);
-    qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &F.pw, irr);
+    qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd(D, &F.pw, irr);
 
     // Hartree term matrix == basis Repulsion of the same density.
     std::unique_ptr<qchem::Hamiltonian::Vee_Hartree> h(NewPWHartree(F.pw));
@@ -1185,7 +1185,7 @@ TEST_F(PlaneWaveDFT, ItemK_RelCutoffDensifiesAndConvergesVxc)
     hmat_t<dcmplx> D=blazem::zeroH<dcmplx>(n);
     D(0,0)=1.0; D(0,1)=1.0; D(1,1)=1.0;                       // non-uniform => nonlinear v_xc aliases on a coarse grid
     Irrep irr=F.pw.GetIrrep(Spin::None);
-    qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &F.pw, irr);
+    qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd(D, &F.pw, irr);
     auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
 
     auto vxcAt=[&](double relCutoff, size_t& nGfit)
@@ -1267,7 +1267,7 @@ TEST_F(PlaneWaveDFT, OrthoFitterRealSpaceField)
 
 // THE STAGE-3 PAYOFF: silicon (Gamma) self-consistent DFT run entirely through the FRAMEWORK objects --
 // a cHamiltonianImp summing the PW Kohn-Sham terms (kinetic + external PP + Hartree + Dirac + VWN),
-// an IrrepCD<dcmplx> density built from the complex orbitals, and the framework energy bookkeeping --
+// an PeriodicIrrepCD<dcmplx> density built from the complex orbitals, and the framework energy bookkeeping --
 // reproducing the standalone prototype's Si-Gamma result (Etot=1.468, 8 valence electrons).  A thin SCF
 // driver stands in for the (not-yet-complexified) WaveFunction/SCFIterator orchestration.
 TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
@@ -1308,7 +1308,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     // Seed a UNIFORM density (Hartree+XC present from iteration 0, as real PW codes do): D = (N/n) I.
     hmat_t<dcmplx> Dprev=blazem::zeroH<dcmplx>(n);
     for (size_t i=0;i<n;i++) Dprev(i,i)=double(Nelec)/double(n);
-    auto cd=std::make_unique<qchem::ChargeDensity::IrrepCD<dcmplx>>(Dprev, &pw, irr);
+    auto cd=std::make_unique<qchem::ChargeDensity::PeriodicIrrepCD<dcmplx>>(Dprev, &pw, irr);
 
     bool converged=false; double Eprev=1e30;
     qchem::EnergyBreakdown E;
@@ -1334,7 +1334,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
                     D(i,j) += 2.0*dcmplx(U(i,c))*std::conj(dcmplx(U(j,c)));
         }
         Dprev = hmat_t<dcmplx>(0.6*Dprev + 0.4*D);               // linear mixing
-        cd=std::make_unique<qchem::ChargeDensity::IrrepCD<dcmplx>>(Dprev, &pw, irr);
+        cd=std::make_unique<qchem::ChargeDensity::PeriodicIrrepCD<dcmplx>>(Dprev, &pw, irr);
 
         // GetTotalEnergy(new cd) computes the energy AND invalidates the dynamic terms' Irrep-keyed cache
         // (their GetEnergy calls newCD) so the NEXT GetMatrix rebuilds the Hartree/XC matrices fresh.
@@ -1355,7 +1355,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
 
 // The SAME Si-Gamma Kohn-Sham problem as FrameworkSiliconGammaMatchesPrototype, but now driven by the
 // REAL framework cSCFIterator (no hand-rolled SCF loop): cSCFIterator -> cWaveFunction (UnPolarizedWF
-// -> IrrepWF) -> SCFAcceleratorNull's <dcmplx> diagonalize -> TOrbitals<dcmplx> fill -> IrrepCD<dcmplx>,
+// -> IrrepWF) -> SCFAcceleratorNull's <dcmplx> diagonalize -> TOrbitals<dcmplx> fill -> PeriodicIrrepCD<dcmplx>,
 // with the cHamiltonianImp summing the PW terms.  This is the milestone that retires the "k-loop
 // in the IBS": single-k plane-wave DFT IS now Hamiltonian = Sum terms + SCFIterator, like atoms/molecules.
 TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
@@ -1633,7 +1633,7 @@ TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)
     D(0,1)=dcmplx(0.10,0.05);
     D(0,2)=dcmplx(-0.07,0.02);
     D(1,2)=dcmplx(0.04,-0.06);
-    qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &pw, irr);   // IS-A ScalarFunction rho(r)=phi^H D phi
+    qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd(D, &pw, irr);   // IS-A ScalarFunction rho(r)=phi^H D phi
 
     chmat_t VA=RepulsionField(pw, cd);                             // real-space: sample + ForwardDFT
     chmat_t VB=HartreeFromRhoTilde(pw, RhoTilde(pw, D));     // G-space: direct from D
@@ -1723,7 +1723,7 @@ TEST_F(PlaneWaveDFT, DynamicTermCacheFreshAcrossDensity)
 
     hmat_t<dcmplx> D1=blazem::zeroH<dcmplx>(n);  D1(0,0)=2.0;                            // uniform density
     hmat_t<dcmplx> D2=blazem::zeroH<dcmplx>(n);  D2(0,0)=1.0; D2(0,1)=1.0; D2(1,1)=1.0;  // modulated density
-    qchem::ChargeDensity::IrrepCD<dcmplx> cd1(D1,&F.pw,irr), cd2(D2,&F.pw,irr);
+    qchem::ChargeDensity::PeriodicIrrepCD<dcmplx> cd1(D1,&F.pw,irr), cd2(D2,&F.pw,irr);
 
     std::unique_ptr<qchem::Hamiltonian::Vee_Hartree> hart(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=hart.get();

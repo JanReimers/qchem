@@ -1,14 +1,31 @@
-// File: ExactIrrepCD.H  Exact charged density for ONE irreducable representation basis set.
+// File: IrrepCD.C  Exact charged density for ONE irreducable representation basis set.
+//
+// STEP 3c-2b (doc/RealComplexPlan.md): the leaf family is split by LINEAGE, not scalar.  V1.6/V1.7
+// attached the finite faces (AO projection, HF pair partner) to T==double and the periodic face (the
+// reciprocal trio) to T==dcmplx -- an encoding that quietly identified SCALAR with LINEAGE.  A real
+// TRIM block's density is <double> AND periodic, which breaks that identification in both directions:
+// it needs the Fourier trio and must NOT carry the AO/HF faces.  So lineage is now a CLASS axis:
+//
+//   IrrepCD_Core<T>      -- the shared density-matrix machinery (contractions, mixing, rho(r), ...)
+//   IrrepCD<T>           -- the FINITE leaf (molecules/atoms): core + AO projection + HF pair partner.
+//                           The name is unchanged, so every molecular consumer is untouched.
+//   PeriodicIrrepCD<T>   -- the PERIODIC leaf (Bloch blocks): core + the reciprocal trio, and for
+//                           T==double the run-typed energy-contract capability (RealBlockEnergy_CD).
+//
+// The scalar-keyed conditional bases are GONE, and with them IrrepCD<dcmplx>'s asserting HF stubs (the
+// R2.8 denial smell): nothing instantiates a finite complex leaf, so nothing has to deny anything.
+// The lineage choice is made ONCE, in IrrepCD_Factory, by probing the basis for the G-space capability.
 module;
 #include <iosfwd>
 #include <cstddef>
 #include <map>
 #include <string>
+#include <type_traits>
 export module qchem.ChargeDensity.Imp.IrrepCD;
 
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Irrep;
-export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (plane-wave path)
+export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (periodic lineage)
 import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
@@ -20,16 +37,11 @@ export namespace qchem::ChargeDensity
 //  of one irreducable representation.  The full charge density will in general
 //  be a summation of these guys.
 //
-//! \brief The reciprocal-space trio for a leaf block -- PERIODIC PATH ONLY (V1.7).
-//!
-//! \c FourierDensity already declared these three pure-virtual, and \c FourierDensityBase<T> already handed
-//! it to dcmplx alone -- the mechanism was right there.  The families nevertheless RE-declared the trio in
-//! their own bodies for both T, so the finite instantiation had to answer three questions that do not apply
-//! to it, and did so with `assert(false)` in an if-constexpr dead branch.  Nine such bodies across the three
-//! density families: the largest LSP block in this library.
-//!
-//! Same CRTP shape as \c IrrepCD_HFPair: the implementation reaches this block's own D and basis without any
-//! of it becoming public.
+
+//! \brief The reciprocal-space trio for a PERIODIC leaf block -- BOTH scalars (Step 3c-2b: a real TRIM
+//! block's D contributes to ρ̃ exactly like a complex block's; the tensors follow TFit==dcmplx either
+//! way, so ONE mixin body serves both).  Same CRTP shape as \c IrrepCD_HFPair: the implementation
+//! reaches the block's own D and basis without any of it becoming public.
 template <class Leaf> class IrrepCD_Fourier : public virtual FourierDensity
 {
 public:
@@ -43,20 +55,10 @@ private:
     const Leaf& self() const {return static_cast<const Leaf&>(*this);}
 };
 
-//! The reciprocal trio on the periodic path, nothing at all on the finite one.
-template <class T, class Leaf> using IrrepFourierBase =
-    std::conditional_t<std::is_same_v<T,dcmplx>, IrrepCD_Fourier<Leaf>, NoFourierDensity>;
-
-//! \brief The bra-ket PAIR-PARTNER implementation for a leaf density -- REAL PATH ONLY (V1.6/V1.8).
-//!
-//! Separated from \c IrrepCD so the complex instantiation never sees it.  Exact exchange is real-only by
-//! construction (Vee/Vxc are added by the molecular HF Hamiltonians alone), and the earlier shape -- four
-//! virtuals declared on the shared template -- forced \c IrrepCD<dcmplx> to supply four bodies for an
-//! operation that does not apply to it.  First they were asserts (silent NO-OPS under -DNDEBUG), then empty
-//! stubs; both are the interface failing to segregate.  Now the complex leaf declares nothing at all.
-//!
-//! CRTP on the leaf so the implementation can use the block's OWN density and basis without any of it
-//! becoming public: \c IrrepCD grants friendship, and nothing is exposed through an accessor.
+//! \brief The bra-ket PAIR-PARTNER implementation for the FINITE leaf (V1.6/V1.8).  Exact exchange is
+//! finite-molecular by construction; the periodic leaf simply does not inherit this, so no denial is
+//! ever written.  CRTP on the leaf: the implementation uses the block's OWN density and basis without
+//! any of it becoming public (\c IrrepCD grants friendship; nothing is exposed through an accessor).
 template <class Leaf> class IrrepCD_HFPair : public virtual tHF_Pair_CD<double>
 {
 public:
@@ -70,34 +72,19 @@ private:
     const Leaf& self() const {return static_cast<const Leaf&>(*this);}
 };
 
-//! The pair face on the finite path, nothing at all on the periodic one.
-template <class T, class Leaf> using IrrepHF_PairBase =
-    std::conditional_t<std::is_same_v<T,double>, IrrepCD_HFPair<Leaf>, NoHF_Pair>;
-
-template <class T> class IrrepCD
+//! \brief THE SHARED DENSITY-MATRIX CORE: every operation both lineages support identically -- the
+//! contractions, mixing/convergence, rho(r), the freshness serial.  Lineage-specific capabilities live
+//! on the two leaves below; this class carries NO lineage assumption at all.
+template <class T> class IrrepCD_Core
     : public virtual tDM_CD<T>
-    , public ProjectedDensityBase<T> // AO projection on the finite (double) path; empty on the periodic path
-    , public IrrepFourierBase<T,IrrepCD<T>>   // reciprocal trio on the PERIODIC path; NOTHING on the finite one (V1.7)
-    , public IrrepHF_PairBase<T,IrrepCD<T>>   // pair partner on the REAL path; NOTHING on the complex one (V1.6)
 {
 public:
     typedef  mat_t<T>  DenMat;
     typedef hmat_t<T> DenSMat; //Density matrix: HERMITIAN (= symmetric for real T, byte-identical there).
+    using scalar_t = T;        //!< the block scalar (the Fourier mixin's basis cast is keyed on it)
 
-    IrrepCD();
-    IrrepCD(const DenSMat&,const tobs_t<T>*, Irrep);
-
-    // The bra-ket pair-partner methods are NOT declared here (V1.6 ISP).  They live in IrrepCD_HFPair,
-    // which only the REAL instantiation inherits -- so IrrepCD<dcmplx> declares nothing, needs no vtable
-    // slots, and is not forced to define fake bodies for an operation that does not apply to it.
-    //! V1.31 whole-system route: this block's basis answers the capability, and the block folds its own
-    //! density up to AO.  Real (double) path only -- the dcmplx specializations NA-assert with their siblings.
-    virtual const BasisSet::WholeSystemFock_IBS<T>* WholeSystemFock() const;
-    virtual void AddAODensity(hmat_t<T>& Dao) const;
-    //! AO (auxiliary-basis) projection <rho|c> -- the finite (double) path's ProjectedDensity_AO face; the
-    //! periodic (dcmplx) path has no AO face (not cross-cast there), so the dcmplx body is inert.
-    virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
+    IrrepCD_Core();
+    IrrepCD_Core(const DenSMat&,const tobs_t<T>*, Irrep);
 
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
@@ -112,31 +99,83 @@ public:
     virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //MaxAbs(delta density matrix)
 
     virtual double operator()(const rvec3_t&) const;
-    //! \f$\nabla\rho\f$ from the density matrix.  Real path only: the \c dcmplx specialization THROWS
-    //! (periodic = LDA-only, no complex gradient contraction) rather than returning a silent zero.
-    virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
-
-    // The reciprocal-space trio is NOT declared here (V1.7 ISP).  It lives in IrrepCD_Fourier, which only
-    // the PERIODIC instantiation inherits -- so IrrepCD<double> declares nothing and is not forced to
-    // define three "a finite density has no Fourier series" bodies for questions that cannot be put to it.
 
     virtual std::ostream&       Write(std::ostream&) const;
 
-private:
-    friend class IrrepCD_HFPair<IrrepCD<T>>;   // uses this block's own D/basis; nothing is exposed publicly
-    friend class IrrepCD_Fourier<IrrepCD<T>>;  // ditto, for the periodic trio
+protected:
     bool IsZero() const;
-    //! The diagonal (self-paired) HF contraction: Jii += J(i,i)·D_i / Kii += K(i,i)·D_i, using THIS block's
-    //! own basis on both sides.  Called only from AccumulateDirect/ExchangeBoth's self-pair branch (there is
-    //! no bra-ket partner on the diagonal); not part of the tDM_CD interface.
-    void AccumulateDirect  (hmat_t<T>& Jii) const;
-    void AccumulateExchange(hmat_t<T>& Kii) const;
 
     DenSMat          itsDensityMatrix;
     const tobs_t<T>* itsBasisSet;
     Spin             itsSpin;
-    Irrep        itsIrrep;
+    Irrep            itsIrrep;
     size_t           itsVersion;   //!< TRANSIENT freshness serial (NextDensityVersion); never serialize.
+};
+
+//! The pair face on the finite leaf's double instantiation (the only one that exists), nothing otherwise.
+template <class T, class Leaf> using IrrepHF_PairBase =
+    std::conditional_t<std::is_same_v<T,double>, IrrepCD_HFPair<Leaf>, NoHF_Pair>;
+
+//! \brief THE FINITE LEAF (molecules/atoms; the historical name, so molecular consumers are untouched):
+//! the core plus the finite-only capabilities -- the AO (auxiliary-basis) projection, the exact-exchange
+//! pair partner, and the whole-system Fock route.  Only the \c <double> instantiation exists (a finite
+//! complex density is not a thing); the templated form is kept for symmetry with the family.
+template <class T> class IrrepCD
+    : public IrrepCD_Core<T>
+    , public ProjectedDensityBase<T> // AO projection (CoulombMetric_ProjectedDensity for double)
+    , public IrrepHF_PairBase<T,IrrepCD<T>>   // exact-exchange pair partner (double)
+{
+public:
+    using IrrepCD_Core<T>::IrrepCD_Core;   // the core's ctors are the leaf's
+
+    //! V1.31 whole-system route: this block's basis answers the capability, and the block folds its own
+    //! density up to AO.
+    virtual const BasisSet::WholeSystemFock_IBS<T>* WholeSystemFock() const;
+    virtual void AddAODensity(hmat_t<T>& Dao) const;
+    //! AO (auxiliary-basis) projection <rho|c> -- the finite path's ProjectedDensity_AO face.
+    virtual double FitGetConstraint() const {return this->GetTotalCharge();}   // AO fit RHS: the charge N
+    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
+    //! \f$\nabla\rho\f$ from the density matrix (the molecular contraction).
+    virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
+
+private:
+    friend class IrrepCD_HFPair<IrrepCD<T>>;   // uses this block's own D/basis; nothing is exposed publicly
+    //! The diagonal (self-paired) HF contraction; called only from the pair mixin's self-pair branch.
+    void AccumulateDirect  (hmat_t<T>& Jii) const;
+    void AccumulateExchange(hmat_t<T>& Kii) const;
+};
+
+//! Conditional real-block-energy base for the periodic leaf: ONLY the \c <double> instantiation (a real
+//! block inside a complex run) carries the run-typed energy-contract capability.  This conditional keys
+//! on exactly what it means -- the SCALAR of a periodic leaf -- unlike the retired lineage-by-scalar ones.
+struct NoRealBlockEnergy {};
+template <class T> using PeriodicRealEnergyBase =
+    std::conditional_t<std::is_same_v<T,double>, RealBlockEnergy_CD, NoRealBlockEnergy>;
+
+//! \brief THE PERIODIC LEAF (Bloch blocks, both scalars -- Step 3c-2b): the core plus the reciprocal
+//! trio.  Carries NEITHER the AO projection NOR the HF faces (no periodic exact exchange, no auxiliary-
+//! Gaussian fit), so a cross-cast probe on it tells the truth.  The \c <double> instantiation is the
+//! real TRIM block's density -- real D, real DM-side GEMMs -- and additionally answers the composite's
+//! run-typed energy contraction (\c RealBlockEnergy_CD).
+template <class T> class PeriodicIrrepCD
+    : public IrrepCD_Core<T>
+    , public IrrepCD_Fourier<PeriodicIrrepCD<T>>   // the reciprocal trio (both scalars)
+    , public PeriodicRealEnergyBase<T>             // run-typed energy contract (double only)
+{
+public:
+    using IrrepCD_Core<T>::IrrepCD_Core;
+
+    //! Periodic overlap is uncached-complex or cached-real by scalar; one body, if-constexpr split.
+    virtual double GetTotalCharge() const;
+    //! The periodic path is LDA-only: grad(rho) is not wired, and a silent zero would hand a GGA a
+    //! plausible wrong field (R1.4) -- THROW.
+    virtual rvec3_t Gradient(const rvec3_t&) const;
+    //! The run-typed energy contraction (RealBlockEnergy_CD; meaningful for T==double only -- on the
+    //! complex instantiation this overrides nothing and is never called).
+    virtual double DM_ContractE(const Dynamic_CC_RealBlock*, const tChargeDensity<dcmplx>*) const;
+
+private:
+    friend class IrrepCD_Fourier<PeriodicIrrepCD<T>>;  // the trio uses this block's own D/basis
 };
 
 } //namespace

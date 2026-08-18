@@ -83,14 +83,45 @@ template <class T> static tIrrepWF<T>& SameT(const iwf_ref_t& c)
     throw std::logic_error("tCompositeWF: a child block's scalar differs from the composite face -- "
                            "T-typed operations cannot cross scalars until RealComplexPlan Step 2c/3 land");
 }
+// The Fock-build dispatch over the child slot (Step 3c-2): a same-scalar child takes the native path; a
+// REAL child inside a complex run drives the Hamiltonian's Ham_RealBlock assembly face -- 2b's reserved
+// cross arm, now live.  (A complex child inside a real-faced run stays impossible.)
+template <class T> static void CalcH(const iwf_child_t& w, tHamiltonian<T>& ham,
+                                     const ChargeDensity::tChargeDensity<T>* cd, const tbs_t<T>* bs)
+{
+    std::visit([&](const auto& p)
+    {
+        using WT=std::decay_t<decltype(*p)>;
+        if constexpr (std::is_same_v<WT,tIrrepWF<T>>)
+            p->CalculateH(ham,cd,bs);
+        else if constexpr (std::is_same_v<T,dcmplx>)
+        {
+            auto* rb=dynamic_cast<qchem::Hamiltonian::Ham_RealBlock*>(&ham);
+            if (!rb) throw std::logic_error("tCompositeWF: a real child needs the Hamiltonian's "
+                                            "real-block assembly face (RealComplexPlan Step 3c-2)");
+            p->CalculateH(*rb,cd,bs);
+        }
+        else
+            throw std::logic_error("tCompositeWF: a complex child inside a real-faced run is impossible");
+    }, w);
+}
 
+// The mixed walk (Step 3c-2): the cross-scalar view first (a real TRIM block inside a complex-faced
+// set -- non-null only after the 3c-3 factory decision), the same-scalar face otherwise.  A homogeneous
+// set takes the second branch for every block, bit-identical to the pre-3c behaviour.
 template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
 {
+    for (size_t i=0;i<itsBS->GetNumIBS();++i)
+        if (const auto* rb=itsBS->GetRealIBS(i)) MakeOneIrrepWF<double>(rb,s);
+        else                                     MakeOneIrrepWF<T>((*itsBS)[i],s);
+}
+
+template <class T> template <class U> void tCompositeWF<T>::MakeOneIrrepWF(const tobs_t<U>* b, Spin s)
+{
     namespace rpt = qchem::report;
-    for (auto b:itsBS->template Iterate<tobs_t<T>>())
     {
-        const hmat_t<T>& S = b->Overlap();
-        LASolver<T>* lasb=LASolver<T>::Factory(itsBasisOrtho, itsBasisOrthoTol);
+        const hmat_t<U>& S = b->Overlap();
+        LASolver<U>* lasb=LASolver<U>::Factory(itsBasisOrtho, itsBasisOrthoTol);
         Irrep qns(b->GetIrrep(s));
 
         // Emit the report's basis.perIrrep row ONLY when an ancestor opened a "basis" section (the
@@ -122,16 +153,16 @@ template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
         // basis.removed (report-only detector, doc/GPWPlan1.md §4a): the redundant AO functions this irrep
         // carries.  {irrep, index} for now (exponent/atom naming awaits a per-function metadata accessor).
         if (reporting)
-            for (size_t idx : qchem::PivotedCholeskyDrops<T>(S))
+            for (size_t idx : qchem::PivotedCholeskyDrops<U>(S))
             {
                 rpt::Row r("removed");
                 rpt::Set("irrep", IrrepLabel(qns));
                 rpt::Set("index", (long)idx);
             }
 
-        tSCFIrrepAccelerator<T>* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
+        tSCFIrrepAccelerator<U>* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));   // §6 typed Create
 
-        std::unique_ptr<iwf_t> wf(new iwf_t(b,lasb,qns,acc));
+        std::unique_ptr<tIrrepWF<U>> wf(new tIrrepWF<U>(b,lasb,qns,acc));
         itsQNWFs[qns]=iwf_ref_t(wf.get());
         itsSpinWFs[s].push_back(iwf_ref_t(wf.get()));
         itsIWFs.push_back(iwf_child_t(std::move(wf))); //Do the move last. wf is invalid after the move.
@@ -152,7 +183,7 @@ template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,con
 {
     // itsBS (the whole/composite basis) IS the cross-irrep view a dynamic term may exploit: Iterate<tobs_t>()
     // over it yields every irrep block (doc/ERI4Rework.md §5.4).  Static terms and most dynamic terms ignore it.
-    for (auto& w:itsIWFs) SameT<T>(w).CalculateH(ham,cd,itsBS); //Feed F,D' into all the irrep accelerators.
+    for (auto& w:itsIWFs) CalcH<T>(w,ham,cd,itsBS); //Feed F,D' into all the irrep accelerators.
     // CalculateProjections() has the DIIS side effect (it accumulates the extrapolation history) so it
     // must run every iteration regardless of MOM -- keep the call.  MOM activation is NO LONGER gated on
     // the accelerator engaging (that was the parked molecular heuristic, and NaF's Null accelerator never
@@ -175,7 +206,7 @@ template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::Init(tHamiltonian
 // (the seed step) -- the caller should fall back to DoSCFIteration().
 template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
-    for (auto& w:itsIWFs) SameT<T>(w).CalculateH(ham,cd,itsBS);
+    for (auto& w:itsIWFs) CalcH<T>(w,ham,cd,itsBS);
     bool allStepped=true;
     for (auto& w:itsIWFs) allStepped &= std::visit([](const auto& p){return p->ComputeStep();}, w);
     return allStepped;

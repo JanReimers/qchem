@@ -165,6 +165,33 @@ public:
     virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
 };
 
+//====================================================================================================
+//  REAL-BLOCK CONTRACT CLIENTS (doc/RealComplexPlan.md Step 3c-2b).  A real TRIM block inside a
+//  COMPLEX run energy-contracts against the run's terms.  The STATIC case needs no new face at all:
+//  Static_HT_RealBlock::GetMatrix has exactly tStatic_CC<double>'s signature, so the term's real-block
+//  mixin simply IS a tStatic_CC<double> and the real leaf's native DM_Contract serves.  The DYNAMIC
+//  case cannot reuse tDynamic_CC<double> -- its energy matrix takes the RUN's density, which is
+//  complex-faced -- hence this one run-typed client, implemented by the dynamic term's real-block
+//  mixin (default: the E=D·V identity, i.e. its real GetMatrix; the periodic xc terms never take the
+//  DM_Contract route, so no eps override is needed).
+class Dynamic_CC_RealBlock
+{
+public:
+    virtual ~Dynamic_CC_RealBlock() {};
+    virtual const hmat_t<double>& GetEMatrixR(const tobs_t<double>*,const Spin&,
+                                              const tChargeDensity<dcmplx>*) const=0;
+};
+
+//! \brief The capability of a REAL block density living inside a COMPLEX run: energy-contract this
+//! block's (real) D against the run-typed dynamic client above.  Carried by the real periodic leaf
+//! alone (PeriodicIrrepCD<double>); the composite's cross-scalar contract arm cross-casts to it.
+class RealBlockEnergy_CD
+{
+public:
+    virtual ~RealBlockEnergy_CD() {};
+    virtual double DM_ContractE(const Dynamic_CC_RealBlock*, const tChargeDensity<dcmplx>*) const=0;
+};
+
 // Naming convention (mirrors rsmat_t/chmat_t in Common/Types.C): r* = <double>, c* = <dcmplx>.
 using rStatic_CC  = tStatic_CC<double>;   using cStatic_CC  = tStatic_CC<dcmplx>;
 using rDynamic_CC = tDynamic_CC<double>;  using cDynamic_CC = tDynamic_CC<dcmplx>;

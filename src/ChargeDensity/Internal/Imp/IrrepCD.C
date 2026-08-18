@@ -36,11 +36,11 @@ rvec3_t  GradientContraction(const vec_t<rvec3_t >&, const vec_t<double>&, const
 //
 //  Construction zone.
 //
-template <class T> IrrepCD<T>::IrrepCD()
+template <class T> IrrepCD_Core<T>::IrrepCD_Core()
     : itsVersion(NextDensityVersion())
 {};
 
-template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasisSet,Irrep qns)
+template <class T> IrrepCD_Core<T>::IrrepCD_Core(const DenSMat& D,const tobs_t<T>* theBasisSet,Irrep qns)
     : itsDensityMatrix(D)
     , itsBasisSet(theBasisSet)
     , itsSpin(qns.ms)
@@ -50,7 +50,7 @@ template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasi
     assert(itsBasisSet);
 };
 
-template <class T> bool IrrepCD<T>::IsZero() const
+template <class T> bool IrrepCD_Core<T>::IsZero() const
 {
     // return max(abs(itsDensityMatrix))==0.0;
     return blazem::isZero(itsDensityMatrix);
@@ -150,8 +150,8 @@ template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::rFIT_CD_ABS
 {
     if constexpr (std::is_same_v<T,double>)
     {
-        if (IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
-        auto dftbs=dynamic_cast<const todftbs_t<T>*>(itsBasisSet);
+        if (this->IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
+        auto dftbs=dynamic_cast<const todftbs_t<T>*>(this->itsBasisSet);
         assert(dftbs);
         // Contract the density matrix against the basis's CACHED, D-free 3-centre projection tensor <ab|c>
         // HERE -- the DENSITY owns D, so the D-contraction is a density operation, not a basis one.  The
@@ -161,7 +161,7 @@ template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::rFIT_CD_ABS
         const auto& R=dftbs->Repulsion3C(*fbs).dense;     // <ab|c> (dense realization: one smat per fit function c)
         rvec_t ret(fbs->GetNumFunctions());
         for (size_t i=0;i<R.size();++i)
-            ret[i]=blazem::sum(itsDensityMatrix % R[i]);  // <rho|c_i> = Sum_ab D_ab <ab|c_i>
+            ret[i]=blazem::sum(this->itsDensityMatrix % R[i]);  // <rho|c_i> = Sum_ab D_ab <ab|c_i>
         return ret;
     }
     else
@@ -172,14 +172,14 @@ template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::rFIT_CD_ABS
 // Energy = trace(D V) = Sum_ij D_ij V_ji = Sum_ij D_ij trans(V)_ij = sum(D % trans(V)).  For real
 // symmetric V this is identical to sum(D % V) (the old form); for complex HERMITIAN D,V the transpose
 // matters -- sum(D % V) would silently give the wrong (still-real) value.
-template <class T> double IrrepCD<T>::DM_Contract(const tStatic_CC<T>* v) const
+template <class T> double IrrepCD_Core<T>::DM_Contract(const tStatic_CC<T>* v) const
 {
     T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(v->GetMatrix(itsBasisSet,itsSpin)));
     assert(fabs(std::imag(ComplexE))<1e-8);
     return std::real(ComplexE);
 }
 
-template <class T> double IrrepCD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
+template <class T> double IrrepCD_Core<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
     T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(v->GetEMatrix(itsBasisSet,itsSpin,cd)));
     assert(fabs(std::imag(ComplexE))<1e-8);
@@ -189,7 +189,7 @@ template <class T> double IrrepCD<T>::DM_Contract(const tDynamic_CC<T>* v,const 
 // This irrep's contribution to a whole-system energy: sum(D % B_i^T) with B_i the block for this basis.
 // Same contraction as DM_Contract above, but the Fock block comes from a caller-supplied map (the HF
 // term's cached blocks) instead of a per-irrep GetMatrix call -- so no GetMatrix round-trip.
-template <class T> double IrrepCD<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const
+template <class T> double IrrepCD_Core<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const
 {
     if (IsZero()) return 0.0;
     T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(blocks.at(itsBasisSet->BasisSetID())));
@@ -202,7 +202,7 @@ template <class T> double IrrepCD<T>::DM_ContractBlocks(const std::map<std::stri
 // (npts x n)(n x n) GEMM + a cheap rowwise dot, matching operator()(r)'s trans(phi) D conj(phi) per row.
 // No table for this basis -> self-evaluate pointwise (correct; the caller's first pass may not have
 // built every block's table yet).
-template <class T> rvec_t IrrepCD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
+template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
 {
     rvec_t ro(r.size(), 0.0);
     if (IsZero()) return ro;
@@ -272,7 +272,7 @@ template <class T> rvec_t IrrepCD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const 
     return ro;
 }
 
-template <class T> double IrrepCD<T>::GetTotalCharge() const
+template <class T> double IrrepCD_Core<T>::GetTotalCharge() const
 {
     // N = integral rho = Sum_ij D_ij S_ji = Tr(D S) = sum(D % trans(S)) (% is the blaze Schur/direct product).
     // The trans matters for a genuinely COMPLEX Hermitian D,S (the complex-k Bloch case): sum(D % S) would be
@@ -286,25 +286,27 @@ template <class T> double IrrepCD<T>::GetTotalCharge() const
 //
 //  SCF convergence stuff.
 //
-template <class T> void IrrepCD<T>::ReScale(double factor)
+template <class T> void IrrepCD_Core<T>::ReScale(double factor)
 {
     // No UT coverage
     itsDensityMatrix*=factor;
     itsVersion=NextDensityVersion();   // a mutation is logically a new density
 }
 
-template <class T> void IrrepCD<T>::MixIn(const tMixableDensity<T>& cd,double c)
+template <class T> void IrrepCD_Core<T>::MixIn(const tMixableDensity<T>& cd,double c)
 {
-    const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
+    // Same-KIND cast to the CORE: both leaves (finite, periodic) mix identically -- D is D.  The
+    // basis-ID assert below still pins that only matching blocks ever pair.
+    const IrrepCD_Core<T>* eicd = dynamic_cast<const IrrepCD_Core<T>*>(&cd);
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
     itsDensityMatrix = itsDensityMatrix*(1-c) + eicd->itsDensityMatrix*c;
     itsVersion=NextDensityVersion();   // a mutation is logically a new density
 }
 
-template <class T> double IrrepCD<T>::GetChangeFrom(const tMixableDensity<T>& cd) const
+template <class T> double IrrepCD_Core<T>::GetChangeFrom(const tMixableDensity<T>& cd) const
 {
-    const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
+    const IrrepCD_Core<T>* eicd = dynamic_cast<const IrrepCD_Core<T>*>(&cd);
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
     return std::real(blazem::norm(itsDensityMatrix - eicd->itsDensityMatrix));
@@ -314,7 +316,7 @@ template <class T> double IrrepCD<T>::GetChangeFrom(const tMixableDensity<T>& cd
 //
 //  Real space function stuff.
 //
-template <class T> double IrrepCD<T>::operator()(const rvec3_t& r) const
+template <class T> double IrrepCD_Core<T>::operator()(const rvec3_t& r) const
 {
     vec_t<T> phir=(*itsBasisSet)(r);
     return std::real(blazem::trans(phir)*itsDensityMatrix*blazem::conj(phir));
@@ -323,9 +325,9 @@ template <class T> double IrrepCD<T>::operator()(const rvec3_t& r) const
 template <class T> rvec3_t IrrepCD<T>::Gradient(const rvec3_t& r) const
 {
     // No UT coverage
-    vec_t<T> phir=(*itsBasisSet)(r);
-    vec_t<rvec3_t > gphir=itsBasisSet->Gradient(r);
-    return GradientContraction(gphir,phir,itsDensityMatrix);
+    vec_t<T> phir=(*this->itsBasisSet)(r);
+    vec_t<rvec3_t > gphir=this->itsBasisSet->Gradient(r);
+    return GradientContraction(gphir,phir,this->itsDensityMatrix);
 }
 
 // rho-tilde from the density matrix, via the basis's G-space capability (plane-wave / dcmplx only).
@@ -336,8 +338,8 @@ template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetFourierDensity(const Bas
     // Contract D against the basis's D-free OVERLAP tensor (empty kernel) HERE -- the DENSITY owns D, so
     // this is where rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij is formed.  The overlap-metric sibling
     // of GetRepulsion3C above; D never crosses into the basis.
-    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>(self().itsBasisSet);
-    assert(fb && "GetFourierDensity requires a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
+    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
+    assert(fb && "GetFourierDensity requires a periodic (G-space) Orbital_DFT_IBS basis");
     return Contract(fb->Overlap3C(c), self().itsDensityMatrix);
 }
 
@@ -346,8 +348,8 @@ template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetFourierDensity(const Bas
 // caller falls back to the ball route).  itsDensityMatrix carries the BZ weight, exactly as above.
 template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
 {
-    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>(self().itsBasisSet);
-    assert(fb && "GetRhoOnGrid requires a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
+    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
+    assert(fb && "GetRhoOnGrid requires a periodic (G-space) Orbital_DFT_IBS basis");
     const Projector3<dcmplx>& g=fb->Overlap3C(c);
     return g.applyRaw ? g.applyRaw(self().itsDensityMatrix) : rvec_t{};
 }
@@ -356,8 +358,8 @@ template <class Leaf> rvec_t IrrepCD_Fourier<Leaf>::GetRhoOnGrid(const BasisSet:
 // diagonal kernel baked in) -- the reciprocal mirror of the finite GetRepulsion3C(fbs) above.  D stays here.
 template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
 {
-    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>(self().itsBasisSet);
-    assert(fb && "GetRepulsion3C requires a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
+    auto* fb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<typename Leaf::scalar_t,dcmplx>*>(self().itsBasisSet);
+    assert(fb && "GetRepulsion3C requires a periodic (G-space) Orbital_DFT_IBS basis");
     return Contract(fb->Repulsion3C(c), self().itsDensityMatrix);
 }
 
@@ -366,47 +368,55 @@ template <class Leaf> ΔG_Map IrrepCD_Fourier<Leaf>::GetRepulsion3C(const BasisS
 //
 //  Streamable stuff.
 //
-template <class T> std::ostream& IrrepCD<T>::Write(std::ostream& os) const
+template <class T> std::ostream& IrrepCD_Core<T>::Write(std::ostream& os) const
 {
     return os << itsDensityMatrix;
 }
 
+template class IrrepCD_Core<double>;
+template class IrrepCD_Core<dcmplx>;
 template class IrrepCD_HFPair<IrrepCD<double>>;
-template class IrrepCD<double>;
+template class IrrepCD<double>;   // the FINITE leaf exists for double alone (no finite complex density)
 
-// --- Complex (plane-wave) density.  HF does NOT apply (the plane-wave path uses no 4-centre exchange), so
-// those are NA; the gradient (GGA/plotting) is not yet wired for complex and is unused by the LDA SCF.  The
-// AO density-fit projection (GetRepulsion3C) is no longer forced on this path -- IrrepCD<dcmplx> is not a
-// ProjectedDensity_AO -- so its old NA-assert specialization is gone.  The remaining members are the generic
-// templates above (DM_Contract, op()(r), GetTotalCharge, MixIn, GetChangeFrom, ...), complex-correct.
-template <> void IrrepCD<dcmplx>::AccumulateDirect(hmat_t<dcmplx>&) const
-{ assert(false && "AccumulateDirect: HF not applicable to a complex plane-wave density"); }
-template <> void IrrepCD<dcmplx>::AccumulateExchange(hmat_t<dcmplx>&) const
-{ assert(false && "AccumulateExchange: HF not applicable to a complex plane-wave density"); }
-template <> const BasisSet::WholeSystemFock_IBS<dcmplx>* IrrepCD<dcmplx>::WholeSystemFock() const
-{ return nullptr; }   // no SALC decorator on the periodic path: the pair route is the only one
-template <> void IrrepCD<dcmplx>::AddAODensity(hmat_t<dcmplx>&) const
-{ assert(false && "AddAODensity: HF not applicable to a complex plane-wave density"); }
-// NOT IMPLEMENTED (not "zero"): the complex GradientContraction the real path uses has no dcmplx sibling,
-// because nothing on the periodic path is a GGA or a gradient plotter.  Throwing keeps the FIRST such
-// consumer honest -- the silent rvec3_t(0,0,0) this replaced handed it a plausible wrong field (R1.4).
-template <> rvec3_t IrrepCD<dcmplx>::Gradient(const rvec3_t&) const
+// --- THE PERIODIC LEAF (both scalars; Step 3c-2b).  Note what is NOT here: no HF denials, no AO-face
+// denial -- the leaf simply never inherits those capabilities, so nothing has to be denied (the R2.8
+// smell the old IrrepCD<dcmplx> specializations carried is GONE).
+
+// The complex overlap bypasses the (symmetric double) cache: MakeOverlap directly.  The REAL periodic
+// block's S caches fine (theCache<double>), so it takes the core's cached accessor path.
+template <class T> double PeriodicIrrepCD<T>::GetTotalCharge() const
 {
-    throw std::logic_error("IrrepCD<dcmplx>::Gradient: grad(rho) is not wired for the complex (periodic) "
-                           "density -- the periodic path is LDA-only.  Implement the complex gradient "
+    if constexpr (std::is_same_v<T,dcmplx>)
+        return std::real(blazem::sum(this->itsDensityMatrix % blazem::trans(this->itsBasisSet->MakeOverlap())));
+    else
+        return IrrepCD_Core<T>::GetTotalCharge();
+}
+
+// NOT IMPLEMENTED (not "zero"): the periodic path is LDA-only; a silent rvec3_t(0,0,0) would hand a GGA
+// a plausible wrong field (R1.4).
+template <class T> rvec3_t PeriodicIrrepCD<T>::Gradient(const rvec3_t&) const
+{
+    throw std::logic_error("PeriodicIrrepCD::Gradient: grad(rho) is not wired for the periodic "
+                           "density -- the periodic path is LDA-only.  Implement the gradient "
                            "contraction here, or ask the density through a gradient-capable face.");
 }
 
-// The cached Overlap() accessor is typed for the (symmetric) double cache, which complex bypasses
-// (the smat_t->hmat_t cache refactor is pinned).  Use the uncached virtual MakeOverlap() directly --
-// for plane waves it is the identity, so this is just trace(D) = the electron count.
-template <> double IrrepCD<dcmplx>::GetTotalCharge() const
+// The run-typed energy contraction (Step 3c-2b): this REAL block's D against the complex run's dynamic
+// term, through the term's Dynamic_CC_RealBlock face.  Same trace identity as the core's DM_Contract.
+template <class T> double PeriodicIrrepCD<T>::DM_ContractE(const Dynamic_CC_RealBlock* v,
+                                                           const tChargeDensity<dcmplx>* cd) const
 {
-    return std::real(blazem::sum(itsDensityMatrix % blazem::trans(itsBasisSet->MakeOverlap())));
+    if constexpr (std::is_same_v<T,double>)
+        return blazem::sum(this->itsDensityMatrix % blazem::trans(v->GetEMatrixR(this->itsBasisSet,this->itsSpin,cd)));
+    else
+        throw std::logic_error("PeriodicIrrepCD<dcmplx>::DM_ContractE: the run-typed contraction serves "
+                               "REAL blocks inside a complex run; a complex block contracts natively");
 }
 
-template class IrrepCD_Fourier<IrrepCD<dcmplx>>;
-template class IrrepCD<dcmplx>;
+template class IrrepCD_Fourier<PeriodicIrrepCD<double>>;
+template class IrrepCD_Fourier<PeriodicIrrepCD<dcmplx>>;
+template class PeriodicIrrepCD<double>;
+template class PeriodicIrrepCD<dcmplx>;
 
 
 

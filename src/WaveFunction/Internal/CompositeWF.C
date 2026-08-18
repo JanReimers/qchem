@@ -70,6 +70,10 @@ public:
 
 protected:
     void MakeIrrepWFs(Spin);
+    //! One block's WF child, typed by the BLOCK's scalar U (Step 3c-2): the single-source body behind the
+    //! mixed MakeIrrepWFs walk -- U==T is the native path, U==double under a complex face is the real
+    //! TRIM child (its accelerator comes from the §6 typed Create; its density Inserts 2a's <double> arm).
+    template <class U> void MakeOneIrrepWF(const tobs_t<U>*, Spin);
 
 private:
     typedef tIrrepWF<T> iwf_t;   // the same-face child kind (what MakeIrrepWFs builds today)

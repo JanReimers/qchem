@@ -5,6 +5,7 @@ module;
 #include <cassert>
 #include <variant>
 #include <stdexcept>
+#include <type_traits>
 #include "forward.H"
 export module qchem.BasisSet.Internal.BasisSetImp;
 export import qchem.Types;
@@ -73,6 +74,16 @@ protected:
     }
 
     virtual size_t      GetNumIBS()      const {return itsBasisSets.size();}
+    //! The cross-scalar view (Step 3c-2): the <double> alternative of a COMPLEX-faced set's child.  A
+    //! real-faced set answers null (its double children are the same-scalar ones GetIBS already serves).
+    virtual const Orbital_1E_IBS<double>* GetRealIBS(size_t i) const
+    {
+        if constexpr (std::is_same_v<T,dcmplx>)
+        {
+            if (auto* p=std::get_if<std::unique_ptr<Orbital_1E_IBS<double>>>(&itsBasisSets[i])) return p->get();
+        }
+        return nullptr;
+    }
     //! The tBasisSet<T> face's storage primitive: the SAME-SCALAR view (Iterate<D> casts from it).  A
     //! cross-scalar child THROWS -- loud in Release -- until Step 3c makes the consumers per-block-typed;
     //! until then nothing builds a mixed set on a shipped path.
