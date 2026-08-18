@@ -1169,6 +1169,8 @@ MnO campaign proceeds undisturbed in qchem6.
   (G_FieldEvaluator.C:60, PURE — forces every implementor), plus function-local-static
   `bool& ReportBandGap()`/`ReportGridCharge()` process-globals that leak state between tests (the
   SCFIterator comment admits it).  Fix: a reporter/visitor that PULLS; toggles on SCFParams.
+  **POST-MERGE (checked 2026-08-17: its three faces are src/WaveFunction + the IrrepBasisSet face +
+  SCFIterator — all in the real-TRIM working set).**
 - **V1.15 `tBasisSet<T>::Create*FitBasisSet` defaults** — the generic body hard-codes
   `Orbital_DFT_IBS<double>` regardless of T (only the explicit dcmplx specializations save it) and
   derefs an unguarded iterator (a 1E/HF-only basis ⇒ null ⇒ UB in Release).  Also
@@ -1193,7 +1195,17 @@ MnO campaign proceeds undisturbed in qchem6.
   `MakeDensityMixer` takes `const tDM_CD*` but uses only GetTotalCharge + a FourierDensity cast
   (DensityMixer.C:312-320) — excludes the matrix-free seeds from seeding the mixer BY TYPE, not
   intent.
-- **V1.19 Seed assembly: give `Structure` the question.**  Seed code reads concrete `Atom` public
+- **V1.19 ✅ VISITOR + THROWS DONE 2026-08-17 (concurrent-cleanup session); ONE deliberate remainder.**
+  `Structure::ForEachSite(fn(Z,R,spinFlip))` landed beside its precedent `SumFormFactors` — one place
+  reads the atom fields, five consumer loops converted (SAD assembly, `IonicSADTargets`,
+  `MagneticDecoration`, the SeedCD ctor incl. its separate anyFlip pass), and SeedCD's point-eval loops
+  now use a per-atom-parallel scale table instead of re-asking the structure per point (a map lookup per
+  atom per mesh point, gone).  The assert(false)+nullptr arms THROW (an assert-only arm was a silent
+  core guess under `-DNDEBUG`).  Bit-identical; 734/734.  **REMAINDER (deferred, recorded at the site):**
+  the flip-group sub-cell duplication — removing it needs a per-SITE form-factor overload on the basis
+  face, which the item itself weighs against the pseudo-wall pin; that block is now the seed's ONE
+  remaining concrete-atom consumer.  *(original text follows)*
+  **Seed assembly: give `Structure` the question.**  Seed code reads concrete `Atom` public
   fields (Imp/Seed.C:102-104 `a->itsZ`,`a->itsR`; Imp/SeedCD.C:91 `itsSpinFlip`) and clones the
   UnitCell into (unflipped, flipped) groups because `MakeFourierDensity(st, formFactor(Z,g2))` is
   species-keyed — the flip-group sub-cell duplication is the SYMPTOM; the neutral face yielding
@@ -1211,7 +1223,8 @@ MnO campaign proceeds undisturbed in qchem6.
 - **V1.21 `BandStructure.C`: promote or demote.**  Confirmed test-only (sole import =
   tests/BandStructureUT.C:13); worse, tests/PlaneWaveUT.C:59 defines its OWN local `SolveBands`
   instead of importing.  Either promote (band plots are on the viz roadmap) or demote into the
-  test tree; either way kill the duplicate.
+  test tree; either way kill the duplicate.  **POST-MERGE (checked 2026-08-17: the file is
+  src/BasisSet/Lattice_3D/ — the real-TRIM working set).**
 - **V1.22 `MakePeriodicBeckeMesh` ε-tail drops vs orbit consistency (W2c find).**  The builder's
   borderline drop decisions (`<eps` screens + `w>0` keep) are per-point and bit-sensitive, so the
   site-adapted caller post-filters orbit-incomplete points (`CreateSiteAdaptedBeckeMesh`).
@@ -1278,7 +1291,14 @@ MnO campaign proceeds undisturbed in qchem6.
   - Original text: non-const `Polarized_CD::GetChargeDensity(Spin)` overload has no external consumer
     (removable); `tSpinDensity` holds two raw `tDM_CD*`.
 
-- **V1.26 Uniform-vs-Becke: a SMOOTHNESS question that reduces to a COST CROSSOVER — so `Auto` becomes a
+- **V1.26 ✅ COMPLETE (reconciled 2026-08-17; analysis kept below).**  Every deliverable landed across
+  three sessions: the cost model + `XCMeshSharpness` + `ResolveXCMesh` with the asymmetric diagnostics
+  (D6/V1.26 sessions), the Nyquist bridge (`UniformDivisions`/`UniformCutoff`), the ARMED selector with
+  its converged-run-validated margin (V2.4, 2026-08-08), the sized uniform verdict, and the radial
+  sibling warning (V2.7, 2026-08-17).  Post-flip note: R2.15's Lebedev default cheapened the Becke side
+  33%, moving the crossover — Si/sipp now routes Auto→Becke (inside the 2× margin, the safe direction);
+  the mechanism tests were updated with the reason recorded.  *(original ruling + analysis follow)*
+  **Uniform-vs-Becke: a SMOOTHNESS question that reduces to a COST CROSSOVER — so `Auto` becomes a
   SELECTOR, an explicit choice is honoured, and only the strictly-dominated choice is warned about.
   USER RULING 2026-08-07 (in two parts), arriving right after D6 landed.**
   > "Deciding between Uniform and Becke grids should be based on overall smoothness (PPs for sure, maybe
@@ -1581,7 +1601,16 @@ MnO campaign proceeds undisturbed in qchem6.
     `TraceColumns` value the facade supplies — which is exactly the kind of above-SCFIterator decision
     `SolidCalculation` (Step 4) exists to own, so sequence it after Step 4.
 
-- **V1.28 ⚠️ IMPOSING SYMMETRY ON AN AFM STRUCTURE WOULD DESTROY THE AFM ORDER — the density star-average is
+- **V1.28 ✅ RESOLVED BY THE SHUBNIKOV CAMPAIGN S1–S4 (reconciled 2026-08-17; analysis kept below — it
+  was the design driver).**  The item's predicted hazard never shipped: S1 (`ShubnikovOps` + the
+  anti-translation coset, `5ad45c06`) gave the op set exactly the σ the item said `ReciprocalOp` lacked;
+  S2 (`d9fe59fe`) landed the signed (ρ,m) projectors + the flip-fixed audit + `MagneticSymmetryDefects`;
+  S3 (`f8fd4fa0`) the decoration→siteSpins→factory resolution; and S4's run 38 is THE CONVERGED MnO
+  AFM-II **under imposition** at default knobs — the magnetic star-average CLOSED the tie floor instead
+  of erasing the order.  The item's own refinements held up: the staggered-vs-not discriminator became
+  S4's "legacy op faces = σ=None subgroup ONLY" pin, and "detected grey is sublattice-preserving
+  (erasure unreachable)" is the run-37 live catch.  *(original analysis follows)*
+  **⚠️ IMPOSING SYMMETRY ON AN AFM STRUCTURE WOULD DESTROY THE AFM ORDER — the density star-average is
   spin-blind, structurally.  Flagged 2026-08-09, unprompted, because it is directly in the MnO path:** the
   stated plan is "get AFM working with no imposeSymmetry, then start imposing symmetry (Shubnikov groups) and
   cut the RAM substantially".  Step two walks into this.
@@ -1677,7 +1706,15 @@ MnO campaign proceeds undisturbed in qchem6.
     Recommend **(b)**: the raw density is a legitimate question about a `FourierDensity` (V1.26's selector and
     the §3 defect diagnostic both want it too), and it is the only option needing no concrete cast.
 
-- **V1.29 The spontaneous-symmetry-breaking DISCOVERY workflow — it is an established method, and step 4
+- **V1.29 ✅ RECONCILED 2026-08-17 — the question is ANSWERED, the dependency is DISCHARGED, and the
+  workflow itself is deliberately NOT built.**  The literature answer stands in the item (SCF stability
+  analysis / broken-symmetry DFT); the "depends on V1.28" line is discharged (Shubnikov S1–S4 landed —
+  step 6 is expressible today, and S3's decoration→siteSpins resolution IS steps 5–6 for the
+  collinear-known case); and MnO followed the item's own advice ("do not over-build it for MnO: impose
+  the KNOWN structure").  What remains unbuilt is the Hessian-based DISCOVERY loop for materials of
+  UNKNOWN order — a V4-class watch trigger (build it when such a material enters the queue; the
+  irrep-block Davidson sketch below is the design).  *(original text follows)*
+  **The spontaneous-symmetry-breaking DISCOVERY workflow — it is an established method, and step 4
   needs the electronic Hessian rather than noise.  USER 2026-08-09 sketched: (1) imposed run, (2) converge,
   (3) save ρ, (4) reseed a FREE run to see where the orbitals want to move, (5) infer a subgroup, (6)
   re-impose on it.  Asked whether this is known in the literature.**
@@ -1941,7 +1978,9 @@ MnO campaign proceeds undisturbed in qchem6.
   campaign showed has a STABLE wrong basin for electron-sparse systems (lone-electron doublet
   converged 72 mHa high with every health metric green).  The molecular facade already defaults
   DFT to SAD.  Candidate: default GPW to `IonicSAD` (SAD-family), Uniform = explicit opt-in —
-  needs a suite sweep since every pinned GPW anchor re-seeds.
+  needs a suite sweep since every pinned GPW anchor re-seeds.  **POST-MERGE + the bit-moving batch
+  (checked 2026-08-17: both defaults live in TRIM-owned files — GPW_SCF_UT.C:314 and
+  SolidCalculation.C:104 — and "every anchor re-seeds" is the V1.22/§K class).**
 - **V2.3 Polarized PLANE-WAVE Vxc fit route** — `Ham_PW_DFT` polarized currently THROWS for
   `VxcFit::PlaneWave`: per-channel PW_XC needs per-spin rho-grid caches (PW_XC's `itsRhoGrid` is
   keyed on `cd->Version()` alone, which a polarized density aliases across channels — the trap the
@@ -1953,9 +1992,19 @@ MnO campaign proceeds undisturbed in qchem6.
   \f$2\alpha_{\max}+\alpha_{pp}\f$.  Independent of V1.26's selector (which already accounts for
   \f$\alpha_{pp}\f$ in its CHOICE); this is the mesh sizing itself.  One consumer today — the KB-projector
   grid fallback (GPW Evaluator.C:1119) — so the exposure is bounded, but the floor is simply missing.
-  Raising it moves grids, hence anchors: measure first (D8), same instrument as V2.4.
+  Raising it moves grids, hence anchors: measure first (D8), same instrument as V2.4.  **POST-MERGE +
+  the bit-moving batch (checked 2026-08-17: lives in the GPW evaluator = TRIM working set, and it is
+  anchor-moving by its own last sentence).**
 
-- **V2.6 Are the Becke recipe's `nRadial`/`angularDegree` defaults over-generous?  USER 2026-08-07:**
+- **V2.6 ✅ CLOSED (reconciled 2026-08-17) — the measurement is fully banked and every product landed:**
+  the four-system ladder verdict (radial 40 RIGHT, angular 29 kept after V2.6a's refuted flip to 17),
+  the V2.4 armed selector, the V2.7 radial-adequacy warning, and R2.15's degree-gated Lebedev flip
+  (equal degree, 67% of the directions — the cost cut V2.6 wanted, taken on the SCHEME axis the degree
+  axis refused to give).  The data tables + four refuted guesses live in the section header above
+  `GPW_SCF.DISABLED_BeckeRecipeLadder_*`; the standing rule ("calibrate a grid criterion on a simple
+  METAL, or do not ship it as a global default") is now cited by both V2.7 and R2.15.  *(original
+  question + analysis follow)*  **Are the Becke recipe's `nRadial`/`angularDegree` defaults
+  over-generous?  USER 2026-08-07:**
   *"There is a lot riding on the defaults for nRadial and nDirs(degree) for the Becke grid.  The degree can be
   determined from point symmetry of the atom site, but I have the impression that you can often 'get away
   with' much lower degrees than the point symmetry dictates."*
