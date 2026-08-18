@@ -28,6 +28,31 @@ import qchem.Parallel;                         // WorkerThreads (GPW_OMP_THREADS
 namespace qchem::Hamiltonian
 {
 
+namespace
+{
+// EXACT narrow for the real-TRIM-block faces (doc/RealComplexPlan.md Step 3c): identity for U=dcmplx,
+// bitwise-asserted real part for U=double -- Step 0 made the phases exactly ±1, so a TRIM block's
+// complex-assembled term matrix has imag==0.0 EXACTLY (gate: GPW.TRIM_RealBlockMatchesComplexBitwise).
+// A sibling of BasisSet::Lattice_3D::ToScalar, duplicated here because qcHamiltonian must not import
+// qcLattice_BS (the DAG runs the other way); consolidate into qcMath if a third copy ever appears.
+template <class U> hmat_t<U> NarrowExact(const chmat_t& m)
+{
+    if constexpr (std::is_same_v<U,dcmplx>) return m;
+    else
+    {
+        hmat_t<U> r(m.rows());
+        for (size_t i=0;i<m.rows();i++)
+            for (size_t j=i;j<m.columns();j++)
+            {
+                assert(std::imag(m(i,j))==0.0 && "TRIM narrow: imaginary part must be EXACTLY zero (Step 0)");
+                r(i,j)=std::real(m(i,j));
+            }
+        return r;
+    }
+}
+} //anon
+
+
 bool& ReportGridCharge() { static bool on = false; return on; }
 
 // The dropped-G=0 alignment, PER ELECTRON, evaluated ONCE at construction (R2.16).
@@ -64,14 +89,16 @@ Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential
 // let it assemble <i|V_loc,short|j>.  The dynamic_cast is the sanctioned abstract->abstract move
 // (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Integrals_Pseudo capability); only a basis that supports
 // reciprocal-space PP assembly answers it.
-chmat_t Ven_PP_Short::MakeMatrix(const cobs_t* bs, const Spin&) const
+template <class U> hmat_t<U> Ven_PP_Short::MakeMatrixT(const tobs_t<U>* bs, const Spin&) const
 {
-    auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
-    assert(pw && "Ven_PP_Short requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
+    auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<U>*>(bs);
+    assert(pw && "Ven_PP_Short requires an Integrals_Pseudo (e.g. plane-wave / GPW) basis");
     // SHORT-range local only.  The LONG (softened-Coulomb) half is Ven_PP_Long and the KB projectors are
     // Ven_PP_NonLocal (the CP2K local-PP split, doc/GPWPlan.md 0e-PP).
     return pw->MakeLocalPotentialShort(&*theStructure, *itsLocal);
 }
+chmat_t Ven_PP_Short::MakeMatrix (const cobs_t* bs, const Spin& s) const {return MakeMatrixT<dcmplx>(bs,s);}
+rsmat_t Ven_PP_Short::MakeMatrixR(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
 
 void Ven_PP_Short::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
@@ -99,19 +126,27 @@ Ven_PP_NonLocal::Ven_PP_NonLocal(const st_t& st, const Pseudopotential::Separabl
                                  "model.  A local-only pseudopotential must not add this term.");
 }
 
-chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin&) const
+template <class U> hmat_t<U> Ven_PP_NonLocal::MakeMatrixT(const tobs_t<U>* bs, const Spin&) const
 {
-    auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
-    assert(pw && "Ven_PP_NonLocal requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
+    auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<U>*>(bs);
+    assert(pw && "Ven_PP_NonLocal requires an Integrals_Pseudo (e.g. plane-wave / GPW) basis");
+    return pw->MakeSeparablePotential(&*theStructure, *itsSep);
+}
+chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin& s) const
+{
     if (std::getenv("GPW_NL_PER_L"))
     {   // I0 diagnostic (doc/SphericalLatticePlan.md): bank the per-l blocks once per irrep block.
+        // Complex path only -- the itsByL bank is chmat_t; extend if the diagnostic ever needs real blocks.
+        auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
+        assert(pw);
         const std::string id=bs->BasisSetID();
         if (itsByLSeen.insert(id).second)
             for (auto& lH : pw->MakeSeparablePotentialByL(&*theStructure, *itsSep))
                 itsByL[lH.first].emplace(id, std::move(lH.second));
     }
-    return pw->MakeSeparablePotential(&*theStructure, *itsSep);
+    return MakeMatrixT<dcmplx>(bs,s);
 }
+rsmat_t Ven_PP_NonLocal::MakeMatrixR(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
 
 void Ven_PP_NonLocal::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
@@ -164,12 +199,14 @@ Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* 
     itsAlphaZ=G0AlignmentPerElectron(*st, [loc](int Z){return loc->FormFactorG0Long(Z);});
 }
 
-chmat_t Ven_PP_Long::MakeMatrix(const cobs_t* bs, const Spin&) const
+template <class U> hmat_t<U> Ven_PP_Long::MakeMatrixT(const tobs_t<U>* bs, const Spin&) const
 {
-    auto pp=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
-    assert(pp && "Ven_PP_Long requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
+    auto pp=dynamic_cast<const Pseudopotential::Integrals_Pseudo<U>*>(bs);
+    assert(pp && "Ven_PP_Long requires an Integrals_Pseudo (e.g. plane-wave / GPW) basis");
     return pp->MakeLocalPotentialLong(&*theStructure, *itsLocal);
 }
+chmat_t Ven_PP_Long::MakeMatrix (const cobs_t* bs, const Spin& s) const {return MakeMatrixT<dcmplx>(bs,s);}
+rsmat_t Ven_PP_Long::MakeMatrixR(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
 
 void Ven_PP_Long::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
@@ -192,22 +229,26 @@ Vee_Hartree::Vee_Hartree(fbs_t fb)
     : itsFitBasis(fb)
 {}
 
-chmat_t Vee_Hartree::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const Spin&, const cChargeDensity* cd) const
 {
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
     assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
-    auto bft=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>(bs);
-    assert(bft && "Vee_Hartree requires a Orbital_DFT_IBS<dcmplx> (reciprocal-space DFT) orbital basis");
+    // The two-axis DFT face (V1.1): a real TRIM block is Orbital_DFT_IBS<double,dcmplx> -- same complex
+    // fit side, so the SAME Repulsion3C tensor serves both; only the final block is narrowed.
+    auto bft=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(bs);
+    assert(bft && "Vee_Hartree requires a Orbital_DFT_IBS (reciprocal-space DFT) orbital basis");
     // The density contracts D against the basis's D-free Coulomb tensor Repulsion3C (kernel baked) to give
     // V_H(dm) [FORWARD]; the KS matrix <i|V_H|j> = Σ_k V_H(G_k) <i|e^{iG_k}|j> is the BACKWARD contraction of the
     // SAME Repulsion3C tensor over the CD fit basis (its applyAdjoint -- the overlap integrate-back on the fit
     // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
     // (doc/GPWPlan §0e step 2).
     ΔG_Map VH=fd->GetRepulsion3C(*itsFitBasis);
-    return ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
-        [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
+    return NarrowExact<U>(ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
+        [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; }));
 }
+chmat_t Vee_Hartree::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
+rsmat_t Vee_Hartree::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
 void Vee_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
@@ -376,7 +417,7 @@ void PWFittedVxc::RefreshRhoGrid(const cChargeDensity* cd) const
 // XC through the pre-built ortho scalar fitter, mirroring the molecular FittedVxc: the fitter batch-samples
 // the v_xc(rho) field on the FIT basis's grid and forward-transforms it (the projection IS the fit on the
 // orthonormal {G}); the ORBITAL basis then assembles <i|v_xc|j>.  No O(Npts*n^2) pointwise density sampling.
-chmat_t PWFittedVxc::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+template <class U> hmat_t<U> PWFittedVxc::MakeMatrixT(const tobs_t<U>* bs, const Spin&, const cChargeDensity* cd) const
 {
     RefreshRhoGrid(cd);
     if (itsRhoIsRaw)
@@ -384,16 +425,27 @@ chmat_t PWFittedVxc::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDens
         // RAW route (0.5(f2)): H_xc through the raw adjoint of the SAME tensor whose applyRaw produced
         // itsRhoGrid -- box-truncation per level + the analytic gather -- so H_xc == dE_xc/dD of the raw
         // discrete functional to machine precision (gate: GPW.RawXCConsistencyFD).  No ball fit anywhere.
-        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws)
+        // Two-axis face (V1.1): the tensor follows TFit==dcmplx for both block scalars; narrow at the end.
+        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws)
         const Projector3<dcmplx>& g=orb.Overlap3C(*itsVxcFitBasis);
         assert(g.applyRawAdjoint && "raw rho without a raw adjoint: Overlap3C must carry both");
         rvec_t v(itsRhoGrid.size());
         for (size_t q=0;q<itsRhoGrid.size();q++) v[q]=itsXc->GetVxc(itsRhoGrid[q]);
-        return g.applyRawAdjoint(v);
+        return NarrowExact<U>(g.applyRawAdjoint(v));
     }
-    itsScalarFitter->DoFit(PWVxcField(itsXc.get(), itsRhoGrid, &itsScalarFitter->Grid()));
-    return itsScalarFitter->Overlap(bs);                                        // <i|v_xc|j> (no kernel)
+    if constexpr (std::is_same_v<U,dcmplx>)
+    {
+        itsScalarFitter->DoFit(PWVxcField(itsXc.get(), itsRhoGrid, &itsScalarFitter->Grid()));
+        return itsScalarFitter->Overlap(bs);                                    // <i|v_xc|j> (no kernel)
+    }
+    else
+        // The legacy BALL-fit route's fitter Overlap is dcmplx-faced; nothing real-block reaches it (the
+        // raw feed is the production default, and the Becke route has its own terms).  Loud, not silent.
+        throw std::logic_error("PWFittedVxc: a real TRIM block on the legacy ball-fit XC route is not "
+                               "wired -- use the raw collocated feed (the default) or the Becke XC terms");
 }
+chmat_t PWFittedVxc::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
+rsmat_t PWFittedVxc::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
 void PWFittedVxc::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
@@ -433,15 +485,11 @@ XC_GridEngine::XC_GridEngine(mesh_t mesh, Symmetry::Lattice_3D::Fold fold,
 // Keyed by the block's SPATIAL Irrep (never a pointer).  Irrep -- not BasisSetID -- because the table
 // is a property of the irrep/k block within THIS run; BasisSetID's extra radial resolution exists for
 // the cross-RUN disk cache, which this in-memory per-run table does not share.
-const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const
+template <class U> mat_t<U> XC_GridEngine::MakePhi(const tobs_t<U>* bs) const
 {
-    const Irrep id=bs->GetIrrep(Spin::None);
-    auto it=itsPhi.find(id);
-    if (it!=itsPhi.end()) return it->second;
-
     qchem::report::Timed timed("setup: XC-mesh Phi tables");
     const rvec3vec_t& R=itsMesh->Points();
-    mat_t<dcmplx> P(R.size(), bs->GetVectorSize());
+    mat_t<U> P(R.size(), bs->GetVectorSize());
     // THE dominant SETUP bucket on an atom-centred XC mesh (MnO Γ, 48k points x 122 Bloch functions:
     // 56 s serial, and it DOUBLES on an imposed run's invariant mesh).  Each point is an independent
     // Bloch image sum writing its OWN row, so the loop parallelises with no reduction and no ordering
@@ -449,7 +497,7 @@ const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const
     // other parallel region here; see qchem.Parallel for why serial is the default.
     auto fill=[&](size_t g)
     {
-        cvec_t phi=(*bs)(R[g]);
+        vec_t<U> phi=(*bs)(R[g]);
         for (size_t i=0; i<phi.size(); i++) P(g,i)=phi[i];
     };
 #ifdef QCHEM_OPENMP
@@ -467,11 +515,29 @@ const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const
             }
         }
         if (firstEx) std::rethrow_exception(firstEx);
-        return itsPhi.emplace(id, std::move(P)).first->second;
+        return P;
     }
 #endif
     for (size_t g=0; g<R.size(); g++) fill(g);
-    return itsPhi.emplace(id, std::move(P)).first->second;
+    return P;
+}
+const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const
+{
+    const Irrep id=bs->GetIrrep(Spin::None);
+    auto it=itsPhi.find(id);
+    if (it!=itsPhi.end()) return it->second;
+    return itsPhi.emplace(id, MakePhi<dcmplx>(bs)).first->second;
+}
+// The real block's table (Step 3c): its own typed cache -- real blocks are distinct irreps, so the two
+// maps' key sets are disjoint.  NB the rho GEMM (Rho/RhoPol) hands the density only the COMPLEX map;
+// a real block's density child self-evaluates pointwise there until the mixed DM_RhoAtPoints cross-arm
+// lands (correct, slower -- the same first-pass fallback the complex path already documents).
+const mat_t<double>& XC_GridEngine::PhiR(const robs_t* bs) const
+{
+    const Irrep id=bs->GetIrrep(Spin::None);
+    auto it=itsPhiR.find(id);
+    if (it!=itsPhiR.end()) return it->second;
+    return itsPhiR.emplace(id, MakePhi<double>(bs)).first->second;
 }
 
 // rho at the mesh points, once per density serial for the WHOLE pair: the density GEMMs the cached
@@ -567,20 +633,19 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
 
 // <i|v|j> = Phi^dag diag(w v) Phi over the cached table: scale the rows, one zgemm, hermitize.  (The
 // GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
-chmat_t XC_GridEngine::Matrix(const cobs_t* bs, const rvec_t& v) const
+template <class U> hmat_t<U> XC_GridEngine::MatrixT(const mat_t<U>& P, const rvec_t& v) const
 {
-    const mat_t<dcmplx>& P=Phi(bs);
     const rvec_t&        w=itsMesh->Weights();
     assert(v.size()==P.rows());
     qchem::report::Timed timed("scf: XC-mesh quadrature H_xc (all iterations)");
-    mat_t<dcmplx> WP(P.rows(), P.columns());
+    mat_t<U> WP(P.rows(), P.columns());
     auto scale=[&](size_t g)
     {
         const double wv=w[g]*v[g];
         for (size_t i=0; i<P.columns(); i++) WP(g,i)=wv*P(g,i);
     };
     const size_t n=P.columns(), npts=P.rows();
-    mat_t<dcmplx> M(n, n, dcmplx(0.0));
+    mat_t<U> M(n, n, U(0.0));
     // The per-iteration quadrature GEMM (once per XC term per spin): O(npts n^2), and with the rho
     // sampling dispatched to BLAS this is the SCF loop's largest bucket.  The row scaling above is
     // trivially parallel (row g is private to g) either way; the PRODUCT has two shapes:
@@ -636,12 +701,14 @@ chmat_t XC_GridEngine::Matrix(const cobs_t* bs, const rvec_t& v) const
         triBlock(0, n);
     }
 #endif
-    chmat_t H(n);
+    hmat_t<U> H(n);
     for (size_t i=0; i<n; i++)
         for (size_t j=i; j<n; j++)
             H(i,j)=M(i,j);
     return H;
 }
+chmat_t XC_GridEngine::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(Phi (bs), v);}
+rsmat_t XC_GridEngine::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(PhiR(bs), v);}
 
 // ---- DeltaFittedVxc ------------------------------------------------------------------------------------------
 
@@ -655,13 +722,19 @@ DeltaFittedVxc::DeltaFittedVxc(const xc_t& xc, engine_t engine)
 }
 
 // v_xc(rho_g) pointwise on the engine's shared rho, then the engine's Phi-table quadrature (one GEMM).
-chmat_t DeltaFittedVxc::MakeMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+// ONE body per term for both block scalars (Step 3c): the rho raster is block-independent; only the
+// ensure hint (complex map) and the final quadrature (typed Phi table) differ, both handled below.
+template <class U> hmat_t<U> DeltaFittedVxc::MakeMatrixT(const tobs_t<U>* bs, const Spin&, const cChargeDensity* cd) const
 {
-    const rvec_t& rho=itsEngine->Rho(cd, bs);
+    const cobs_t* ensure=nullptr;
+    if constexpr (std::is_same_v<U,dcmplx>) ensure=bs;   // a real block's table is ensured by PhiR (see its doc)
+    const rvec_t& rho=itsEngine->Rho(cd, ensure);
     rvec_t v(rho.size());
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
     return itsEngine->Matrix(bs, v);
 }
+chmat_t DeltaFittedVxc::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
+rsmat_t DeltaFittedVxc::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
 void DeltaFittedVxc::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
@@ -697,14 +770,18 @@ DeltaFittedVxcPol::DeltaFittedVxcPol(const xc_t& xc, engine_t engine)
 }
 
 // v_x^sigma(rho_sigma) pointwise on this block's own channel raster, then the shared Phi quadrature.
-chmat_t DeltaFittedVxcPol::MakeMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
+template <class U> hmat_t<U> DeltaFittedVxcPol::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "DeltaFittedVxcPol: a polarized term needs an Up/Down spin");
-    const rvec_t& rho=itsEngine->RhoPol(cd, s, bs);
+    const cobs_t* ensure=nullptr;
+    if constexpr (std::is_same_v<U,dcmplx>) ensure=bs;   // a real block's table is ensured by PhiR (see its doc)
+    const rvec_t& rho=itsEngine->RhoPol(cd, s, ensure);
     rvec_t v(rho.size());
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
     return itsEngine->Matrix(bs, v);
 }
+chmat_t DeltaFittedVxcPol::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
+rsmat_t DeltaFittedVxcPol::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
 void DeltaFittedVxcPol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
@@ -738,15 +815,19 @@ DeltaFittedVcorrPol::DeltaFittedVcorrPol(const corr_t& corr, engine_t engine)
 }
 
 // v_c^sigma(rho_up,rho_down) couples BOTH channel rasters at every point (through r_s and zeta).
-chmat_t DeltaFittedVcorrPol::MakeMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
+template <class U> hmat_t<U> DeltaFittedVcorrPol::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "DeltaFittedVcorrPol: a polarized term needs an Up/Down spin");
-    const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  , bs);
-    const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down, bs);
+    const cobs_t* ensure=nullptr;
+    if constexpr (std::is_same_v<U,dcmplx>) ensure=bs;   // a real block's table is ensured by PhiR (see its doc)
+    const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  , ensure);
+    const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down, ensure);
     rvec_t v(up.size());
     for (size_t g=0; g<up.size(); g++) v[g]=itsCorr->GetVc(up[g], dn[g], s);
     return itsEngine->Matrix(bs, v);
 }
+chmat_t DeltaFittedVcorrPol::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
+rsmat_t DeltaFittedVcorrPol::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
 void DeltaFittedVcorrPol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {

@@ -36,6 +36,7 @@ export namespace qchem::Hamiltonian
 template <class T> class IonIon
     : public virtual tStatic_HT<T>
     , private        tStatic_HT_Imp<T>
+    , public         StaticRealBlockBase<T>   // real-block capability on the dcmplx instantiation (Step 3c)
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
@@ -81,6 +82,11 @@ private:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin&) const override
     {
         return blazem::zeroH<T>(bs->GetNumFunctions());
+    }
+    //! Real TRIM block (Step 3c): zero, like the native block.  Never called on <double> (overrides nothing).
+    virtual hmat_t<double> MakeMatrixR(const tobs_t<double>* bs, const Spin&) const
+    {
+        return blazem::zeroH<double>(bs->GetNumFunctions());
     }
 
     st_t                       theStructure;

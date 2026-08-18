@@ -178,10 +178,28 @@ variant that never takes the complex alternative: a negligible tag, one implemen
     `Iterate<Complex_OIBS>` consumer) — the decision wires in WITH 3c.  Unit tests
     `RealComplexBasisSlot.*` build the first genuinely MIXED set (real Γ + complex ¼-k in one
     `BasisSetImp<dcmplx>`) and pin the aggregate/typed-view/throw contract.
-  - **3c (next)** — re-thread the consumers per block: the Hamiltonian/term `GetMatrix(tobs_t<T>*)`
-    faces, `MakeIrrepWFs`'s `Iterate`, `VetGpwConditioning`, `GatherSharpness` — then wire the
-    factory decision (`irrep->IsReal() ∧ PreservesReal`, threaded from the composition root) and
-    2c falls out.
+  - **3c — re-thread the consumers per block.**  Increments:
+    - **3c-1 DONE 2026-08-17 — the TERM STACK serves the real block.**  New capability faces
+      `Static_HT_RealBlock` / `Dynamic_HT_RealBlock` (the V1.6/V1.7 cross-cast idiom: only terms
+      that can serve a real block carry them; the assembly cross-casts and fails loudly otherwise),
+      with caching Imp mixins mirroring `tStatic/tDynamic_HT_Imp`'s Irrep-keyed discipline over an
+      own real cache (the §4-item-2 container, realized as a typed pair — disjoint irrep key sets).
+      ALL ten periodic terms implement them via ONE scalar-generic assembly body each
+      (`MakeMatrixT<U>`: cross-cast to `Integrals_Pseudo<U>` / `Orbital_DFT_IBS<U,dcmplx>`, narrow
+      exactly at the end): Kinetic and IonIon (conditional `StaticRealBlockBase<T>` on the dcmplx
+      instantiation), the three PP terms, Vee_Hartree, PWFittedVxc (raw route; the legacy ball-fit
+      route throws — nothing real-block reaches it), and the three Becke terms.  `XC_GridEngine`
+      gained the typed `Matrix(robs_t)` + a real Φ-table cache — a real block's quadrature GEMM runs
+      blaze's REAL kernel, the first realized Step-3 win.  Gates `RealComplexTerms.*`:
+      statics + Hartree BITWISE vs the complex block; the Becke GEMM machine-equal (~3e-15 — the
+      real kernel's different summation order, i.e. the win itself; everything elementwise stays
+      `EXPECT_EQ`).
+    - **3c-2 (next)** — the ASSEMBLY + SCF wiring: `tHamiltonian`'s real-block `GetMatrix` overload
+      (fold over the term faces), `MakeIrrepWFs` building `tIrrepWF<double>` children off the 3b
+      `GetChild` view, the energy side (the composite density's cross-scalar contract arm), and the
+      GPW preflight consumers (`VetGpwConditioning`, `GatherSharpness`).
+    - **3c-3** — wire the factory decision (`irrep->IsReal() ∧ PreservesReal`, threaded from the
+      composition root into `GPW_BasisSet`); 2c falls out; then Step 4's mixed-mesh acceptance.
 - **Step 4 — the accelerator** (§6), and only then a mixed-mesh run as the acceptance test.
 
 An all-TRIM mesh (Γ-only, or Γ-centred 2×2×2 = `MNO_KMESH=2`) makes an entire run real with no

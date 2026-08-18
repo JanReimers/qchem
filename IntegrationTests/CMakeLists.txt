@@ -9,6 +9,7 @@ add_executable(ITMain gtestmain.C
     PlaneWaveDFTUT.C
     A_HF_U.C A_HF_P.C A_HF_dfPin.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C L_PP.C GPW_UT.C GPW_SCF_UT.C M_HF_U.C M_DFT.C M_Sym.C
     M_Calculation.C
+    RealComplexTermsUT.C
     ValenceBasisGen_UT.C
     M_Umbrella.C
     )

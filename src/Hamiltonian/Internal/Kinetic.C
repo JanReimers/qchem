@@ -36,6 +36,7 @@ export namespace qchem::Hamiltonian
 template <class T> class Kinetic
     : public virtual tStatic_HT<T>
     , private        tStatic_HT_Imp<T>
+    , public         StaticRealBlockBase<T>   // real-block capability on the dcmplx instantiation (Step 3c)
 {
 public:
     Kinetic() : tStatic_HT_Imp<T>() {}
@@ -54,6 +55,12 @@ private:
     virtual hmat_t<T> MakeMatrix(const tobs_t<T>* bs, const Spin&) const override
     {
         return 0.5*bs->Kinetic();   // T = 1/2 <p^2>; Kinetic() is the cached <p^2> accessor
+    }
+    //! Real TRIM block (Step 3c): same body, real basis.  On the <double> instantiation this overrides
+    //! nothing and is never called; on <dcmplx> it is the StaticRealBlockBase mixin's MakeMatrixR.
+    virtual hmat_t<double> MakeMatrixR(const tobs_t<double>* bs, const Spin&) const
+    {
+        return 0.5*bs->Kinetic();
     }
 };
 

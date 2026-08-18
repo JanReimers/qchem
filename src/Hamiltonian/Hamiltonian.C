@@ -146,6 +146,34 @@ public:
     virtual bool             PreservesReal () const {return true; }   //!< real basis block ⇒ real matrix?
 };
 
+//====================================================================================================
+//  REAL-BLOCK TERM FACES (doc/RealComplexPlan.md Step 3c).  In a mixed-mesh run the terms are built
+//  ONCE, typed by the RUN's working scalar (dcmplx) -- their block-independent state (V_H(G), the XC
+//  rho rasters, the models) is shared across blocks -- but a TRIM block's basis is tobs_t<double>
+//  (Step 3a) and its H block is real.  These CAPABILITY faces are how a complex term answers the real
+//  block's question: the same cross-cast idiom as Integrals_Pseudo / FourierDensity (V1.6/V1.7).
+//  Only terms that can serve a real block (the periodic set) implement them -- via ONE scalar-generic
+//  assembly body each, so there is no dual maintenance -- and the assembly cross-casts; a term
+//  without the face fails LOUDLY.  Molecular (double-native) terms never see these: their native
+//  face already IS real.  Caching lives in the Internal mixins (Static/Dynamic_HT_RealBlock_Imp),
+//  mirroring tStatic/tDynamic_HT_Imp exactly.
+//====================================================================================================
+class Static_HT_RealBlock
+{
+public:
+    virtual ~Static_HT_RealBlock() {};
+    //! This term's REAL matrix block for a real TRIM block; same contract as \c tStatic_HT::GetMatrix.
+    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&) const=0;
+};
+class Dynamic_HT_RealBlock
+{
+public:
+    virtual ~Dynamic_HT_RealBlock() {};
+    //! \a cd is the RUN's density (complex-faced composite): the term's density-dependent state is
+    //! block-independent, so the real block consumes the same \f$V_H(G)\f$ / \f$\rho\f$ raster.
+    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const=0;
+};
+
 //! \brief The assembled Hamiltonian: owns its term lists and assembles the per-irrep Fock/KS matrix the SCF
 //! diagonalizes.  Built by the \c Factory; driven by \c CompositeWF / \c IrrepWF (see the \ref tDynamic_HF_HT
 //! call-flow diagram).
