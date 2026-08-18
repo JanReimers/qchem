@@ -7,9 +7,14 @@
 // part BITWISE (EXPECT_EQ on doubles; Step 0's exact +/-1 phases are what make zero tolerance possible).
 //
 // Covered here: the static set (Kinetic, Ven_PP_Short/Long/NonLocal) and the density-dependent
-// Vee_Hartree + the Becke-route DeltaFittedVxc (driven by a hand-built one-block complex density -- the
-// term's density-dependent state is block-independent, which is exactly what these gates pin).  The
-// PWFittedVxc RAW-route real path needs the full collocation feed and is gated with the 3c-2 SCF wiring.
+// Vee_Hartree + the Becke-route DeltaFittedVxc.  Each scalar arm drives its OWN production-shaped
+// density (a real child on the real block, a complex child on the complex block -- the 3c-3 mixed
+// shape): the GPW integrate-back's D-aware screen is INSTANCE-PAIRED state (the collocation and its
+// adjoint must go through the same block instance -- the 2026-08-18 cross-run-pollution fix scoped the
+// 3C tensors per instance, see tGPW_IBS::Repulsion3C), so a cross-asked arrangement (density collocated
+// on cx, matrix asked of re) is no longer screen-consistent and was only ever bitwise by the two twins
+// accidentally sharing one DBCache'd closure.  The PWFittedVxc RAW-route real path needs the full
+// collocation feed and is gated with the 3c-2 SCF wiring.
 #include "gtest/gtest.h"
 #include <complex>
 #include <memory>
@@ -68,6 +73,20 @@ struct Rig
             new PeriodicIrrepCD<dcmplx>(D, cx.get(), cx->GetIrrep(Spin::None))));
         return cd;
     }
+    //! The REAL twin of \c MakeDensity: the same D(0,0)=2 as a REAL child on the REAL block inside the
+    //! complex-faced composite -- the 3c-3 mixed shape.  The real arm of every density-dependent gate
+    //! drives THIS density, so its collocation and integrate-back pair on the real instance exactly as
+    //! a production mixed run pairs them (the screen-consistency note in the file header).
+    std::unique_ptr<ChargeDensity::cDM_CD> MakeRealDensity() const
+    {
+        using namespace qchem::ChargeDensity;
+        rsmat_t D(re->GetNumFunctions());
+        D(0,0)=2.0;
+        auto cd=std::make_unique<tComposite_CD<dcmplx>>();
+        cd->Insert(std::unique_ptr<tDM_CD<double>>(
+            new PeriodicIrrepCD<double>(D, re.get(), re->GetIrrep(Spin::None))));
+        return cd;
+    }
 };
 
 void ExpectBitwiseEqual(const rsmat_t& R, const chmat_t& C, const char* what)
@@ -118,7 +137,8 @@ TEST(RealComplexTerms, StaticTermsServeTheRealBlockBitwise)
 TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
 {
     Rig rig;
-    auto cd = rig.MakeDensity();
+    auto cd  = rig.MakeDensity();       // the complex arm's density (complex child on cx)
+    auto cdr = rig.MakeRealDensity();   // the real arm's TWIN (real child on re -- the 3c-3 mixed shape)
 
     Vee_Hartree::fbs_t fb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
     Vee_Hartree vh(fb);
@@ -127,7 +147,7 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
         ASSERT_NE(rb,nullptr) << "Vee_Hartree must carry the real-block capability (Step 3c)";
         // Concrete-typed calls are ambiguous across the two GetMatrix base classes; go through the faces.
         const chmat_t Vc=static_cast<const cDynamic_HT&>(vh).GetMatrix(rig.cx.get(), Spin::None, cd.get());   // complex first
-        const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cd.get());
+        const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cdr.get());
         ExpectBitwiseEqual(Vr, Vc, "Vee_Hartree");
     }
 
@@ -138,7 +158,7 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
         auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);
         ASSERT_NE(rb,nullptr) << "DeltaFittedVxc must carry the real-block capability (Step 3c)";
         const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, cd.get());
-        const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cd.get());
+        const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cdr.get());
         ExpectMachineEqual(Vr, Vc, "DeltaFittedVxc");
     }
 }
@@ -153,7 +173,8 @@ namespace { struct MixedHam : Hamiltonian::tHamiltonianImp<dcmplx> {}; }
 TEST(RealComplexTerms, HamiltonianAssemblyServesTheRealBlockBitwise)
 {
     Rig rig;
-    auto cd = rig.MakeDensity();
+    auto cd  = rig.MakeDensity();       // the complex arm's density
+    auto cdr = rig.MakeRealDensity();   // the real arm's twin (screen-consistent pairing; file header)
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
 
     MixedHam ham;
@@ -165,7 +186,7 @@ TEST(RealComplexTerms, HamiltonianAssemblyServesTheRealBlockBitwise)
 
     const chmat_t Hc = ham.GetMatrix(rig.cx.get(), Spin::None, cd.get(), nullptr);
     auto& rb = dynamic_cast<Hamiltonian::Ham_RealBlock&>(ham);   // the face a real WF child drives
-    const rsmat_t Hr = rb.GetMatrix(rig.re.get(), Spin::None, cd.get(), nullptr);
+    const rsmat_t Hr = rb.GetMatrix(rig.re.get(), Spin::None, cdr.get(), nullptr);
     ExpectBitwiseEqual(Hr, Hc, "Ham_RealBlock fold");
 }
 

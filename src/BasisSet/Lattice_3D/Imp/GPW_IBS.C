@@ -200,6 +200,23 @@ template <class T> Projector3<dcmplx> tGPW_IBS<T>::MakeOverlap3C(const cFIT_SF_A
     return GPW_Evaluator::Overlap3CTensor(std::make_shared<const PW_Grid_Evaluator>(grid));
 }
 
+// The INSTANCE-scoped 3C accessors (declaration doc in GPW_IBS.C): GPW's matrix-free tensor closures
+// capture this evaluator's mutable per-SCF state (CollocMemo D-screen, stream caches), so they must die
+// with the run -- the base class's process-wide DBCache route leaked the D-screen into every later
+// identical run (the 2026-08-18 first-run anomaly).  Same lookup-or-make contract, instance lifetime.
+template <class T> const Projector3<dcmplx>& tGPW_IBS<T>::Overlap3C(const cFIT_SF_ABS& c) const
+{
+    auto [it,fresh]=its3Cs.try_emplace("O|"+c.BasisSetID());
+    if (fresh) it->second=MakeOverlap3C(c);
+    return it->second;
+}
+template <class T> const Projector3<dcmplx>& tGPW_IBS<T>::Repulsion3C(const cFIT_CD_ABS& c) const
+{
+    auto [it,fresh]=its3Cs.try_emplace("R|"+c.BasisSetID());
+    if (fresh) it->second=MakeRepulsion3C(c);
+    return it->second;
+}
+
 template <class T> std::string tGPW_IBS<T>::BasisSetID() const
 {
     return Name()+GPW_Evaluator::IDFragment();   // Name + "|mol=..|k=..|cell=..|dEcut=.."

@@ -2777,6 +2777,46 @@ TEST(GPW_SCF, SolidCalculationMatchesTheSiAnchor)
 }
 
 //================================================================================================
+//  CROSS-RUN DETERMINISM GATE (2026-08-18).  Three IDENTICAL SolidCalculation runs in one process
+//  must give the SAME energy -- i.e. every run must replay fresh-process behaviour.  This is the
+//  regression gate for the first-run anomaly: the GPW matrix-free 3C tensor closures capture the
+//  evaluator's mutable per-SCF state (the CollocMemo D-screen), and when they were stored in the
+//  process-wide DBCache a second identical run inherited the first run's converged D-screen -- its
+//  seed Fock swept the full Hartree/Vxc pair set where a fresh process's (screened by the diagonal
+//  SAD seed D) is diagonal-only: seed s-levels shifted ~0.24 Ha, converged E ~5e-6.  Fixed by
+//  scoping those tensors per basis INSTANCE (tGPW_IBS::Overlap3C/Repulsion3C override); with the fix
+//  the three energies here are BITWISE equal -- 1e-9 is pure headroom for BLAS/library variation.
+//================================================================================================
+TEST(GPW_SCF, CrossRunFirstRunAnomalyProbe)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    SCFParams par;
+    par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
+    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+
+    double E[3];
+    for (int r=0;r<3;++r)
+    {
+        std::cout<<"[xrun] ================= RUN "<<r<<" ================="<<std::endl;
+        qchem::SolidCalculation calc(lat, MakeBasisSR(cell),
+                                     {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
+        EXPECT_TRUE(calc.Converged());
+        E[r]=calc.Energy();
+        std::cout.precision(15);
+        std::cout<<"[xrun] run "<<r<<" E="<<E[r]<<std::endl;
+    }
+    std::cout.precision(15);
+    std::cout<<"[xrun] E1-E0="<<E[1]-E[0]<<"  E2-E1="<<E[2]-E[1]<<std::endl;
+    EXPECT_NEAR(E[1], E[0], 1e-9) << "cross-run pollution: first run differs";
+    EXPECT_NEAR(E[2], E[1], 1e-9) << "runs 2+ should be steady";
+}
+
+//================================================================================================
 //  V2.4 -- THE GRID-ROUTE CONVERGENCE A/B.  Calibrate kUniformMargin, then arm the V1.26 selector.
 //
 //  THE QUESTION.  The selector's cost model says uniform beats Becke ~8-15x on Si and Al, so an ARMED
