@@ -55,8 +55,10 @@ occupation seam carries no state the variant-child restructuring would entangle.
 - **V1.5 landed 2026-08-16** (see the item / doc/CleanupHistory.md).  The session's status audit of
   FittingCleanupPlan found it more finished than it knew: **H** essentially landed via V1.26/V2.4,
   **I.2** landed (`relCutoff` live), **§K's `cvec_t` sub-bullet is overtaken** (`ProjectedScalar_G` no
-  longer exists) — so **K's core (the fit-{G} densification) is now UNBLOCKED** and is the natural next
-  fitting-side session (deliberately non-bit-identical; grid-convergence acceptance).  **I.1's residual**:
+  longer exists) — so **K's core (the fit-{G} densification) is UNBLOCKED but DEFERRED (user ruling
+  2026-08-17, same reason as V1.22: deliberately non-bit-identical on grids every GPW run consumes,
+  while the real-TRIM campaign runs against pinned numbers — wrong week; ready at the next campaign
+  breakpoint)**.  **I.1's residual**:
   the `GetEpsXc()=0.75*GetVxc()` base default (ExchangeFunctional.C:34) — exact for Dirac exchange, a
   silent-wrong inherited default the day a GGA functional forgets to override; fold into whatever touches
   the functionals first.
@@ -74,7 +76,8 @@ staging step — a concurrent cleanup session should stay OUT of these:
 - Step 2 (next): `src/ChargeDensity` composites (`tComposite_CD`/`IrrepCD` child slot), `src/SCFAccelerator`.
 - Step 3+: `src/BasisSet/Lattice_3D`, `src/WaveFunction` (the variant child).  Plus `GPW_SCF_UT.C` runs.
 Consequently ALSO parked for now (they live in those files): V1.12, V1.17, V2.1, V2.3, R2.14's remaining
-renames, the I.1 residual; R1.0 stays "own session" (user), R2.21 stays deferred (user), §K wants the box.
+renames, the I.1 residual; R1.0 stays "own session" (user), R2.21 stays deferred (user); **§K deferred
+(user 2026-08-17, the V1.22 reason: non-bit-identical while the campaign runs — not just "wants the box")**.
 
 **Concurrent-cleanup assignment (2026-08-17): V3.1 + V3.2 (the atomic-solver bugs — atom path only),
 R2.20 (oracle helpers out of the test module), then the qcMesh batch R2.15 (+V2.7 riding along;

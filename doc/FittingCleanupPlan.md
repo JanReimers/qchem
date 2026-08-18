@@ -219,6 +219,11 @@ requirement (no `else`); the molecular seed matches `FourierSeedCD`'s "own your 
 
 ### K. Densify the Vxc/CD fit-{G} + swap `ProjectedScalar_G` `FourierMap`→`cvec_t` (the one real fit-quality knob)
 
+**DEFERRED 2026-08-17 (user ruling, same reason as V1.22): deliberately NON-bit-identical on the fit
+grids every GPW run consumes, while the MnO real-TRIM campaign is running against pinned numbers in
+qchem6 — wrong week to move it.  Unblocked and ready whenever the campaign reaches a breakpoint; the
+STATUS below still holds.**
+
 **STATUS 2026-08-16: UNBLOCKED — its dependencies (H, I.2) are in place, and the `cvec_t` sub-bullet is
 OVERTAKEN (`ProjectedScalar_G` no longer exists; the scalar projection collapsed to `ProjectedScalar_R`
 and the ortho fitters hold their `ΔG_Map` internally).  What remains is the densification itself, with
