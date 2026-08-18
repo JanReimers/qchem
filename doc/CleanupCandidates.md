@@ -663,7 +663,31 @@ MnO campaign proceeds undisturbed in qchem6.
   nothing test-only left and is DELETED with both FILE_SET wirings — scfrun imports no test module.
   721/721 green.  **→ doc/CleanupHistory.md**
 
-- **R2.21 🔶 The OccupationPolicy/OccupationState split (USER 2026-08-17: "I really like your Policy/State
+- **R2.21 ⚗️ STATE HALF DONE 2026-08-17 (concurrent-cleanup session) — and it was NOT optional after all:
+  it is what unblocked MOM on a real TRIM block.**  `OccupationState` landed as a scalar-INDEPENDENT
+  persistent ledger (per-block MOM references, fill clocks, cross-irrep arming, the −TS aggregate), owned
+  by the SCFIterator beside its policy; `OccupationPolicy<T>` is built over it and keeps only the
+  decision.  **The load-bearing detail: each block's reference is stored under the BLOCK's own scalar (a
+  variant), not the run's.**  That is what a mixed real/complex mesh needs — before it, a real TRIM block
+  in a complex run had nowhere to put a `mat_t<double>` reference and its capture THREW
+  ("run with forceComplex"), i.e. switching MOM on turned into a mid-SCF failure after the basis, the
+  seed and the first Fock were already paid for.  Measured after: Si (3,1,1) mixed mesh with MOM on
+  converges REAL and matches its forced-complex twin to **ΔE = 1.8e-15**.  Two things fell out rather
+  than being built: `HeldOccupationPolicy` stopped wrapping the run policy (the shared clocks and the −TS
+  aggregate are the state's, so only its three DECISIONS remain), and `RealBlockFillView` — the
+  forwarding adapter whose capture did the throwing — **deleted**, since a real block now takes a genuine
+  `OccupationPolicy<double>` over the shared state.  New pins: `OccupationState.*` (5 unit tests in
+  `UTElConfig`).  746/746 green.
+  **REMAINING: the policy-SHAPE half** (abstract policy + the {Integer,Fermi}×{Bare,MOM} two-axis
+  concretes + `Factory(SCFParams,state&)`; `Configure` dies) — pure SOLID/OCP hygiene now, nothing blocks
+  on it.  When it lands, keep the configuration a VALUE: the mixed-mesh cross arm rebuilds the policy at
+  another scalar (`CopyConfigTo` today, `Factory<double>(config,state)` then).
+  **A note for the END-TO-END gate, which this session deliberately did NOT add:** the acceptance run
+  above lived in a temporary probe in `GPW_SCF_UT.C` (the real-TRIM session's file) and was removed
+  before commit.  Worth adding there at the merge: the (3,1,1) mixed mesh with `UseMOM=true`,
+  `MOMStartIter=2`, real vs `forceComplex` twins, `EXPECT_NEAR(..., 1e-9)`.
+  *(original item follows)*
+  **The OccupationPolicy/OccupationState split (USER 2026-08-17: "I really like your Policy/State
   split.  But we don't need it right now").**  V1.11's landed `OccupationPolicy<T>` is NOT the abstract
   interface D1 ruled — it is a CONCRETE class whose behaviour is selected by
   `Configure(useMOM, momStartIter, kT, momPenalty)`: `DecideBlockFill` branches on `kT>0` and `penalty>0`

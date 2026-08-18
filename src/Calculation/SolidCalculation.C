@@ -109,9 +109,14 @@ struct SolidCalcOptions
     //! LDA stack every Γ / zone-boundary block runs REAL: real S/T/V/KB, real eigensolve, real
     //! quadrature GEMMs).  The physics is identical either way (the 3c-3 acceptance gate pins ON==OFF
     //! to machine precision); complex is the DOWNGRADE direction (§1), kept as the escape hatch for
-    //! complex-instability experiments, as the gate's A/B door -- and as the interim route for MOM
-    //! (\c SCFParams::UseMOM) on a TRIM run, whose real-block reference capture is not wired yet and
-    //! throws.
+    //! complex-instability experiments and as the gate's A/B door.
+    //!
+    //! NOT needed for MOM any more (R2.21, 2026-08-17).  It used to be: a real block's MOM reference had
+    //! nowhere to live in a run-typed reference home, so switching \c SCFParams::UseMOM on threw mid-SCF
+    //! and the documented workaround was to come here and pay for an all-complex run.  The occupation
+    //! state now keys each block's reference by the BLOCK's scalar, so MOM runs REAL on a mixed mesh --
+    //! measured identical to the forced-complex twin (Si (3,1,1), ΔE = 1.8e-15) at the real run's cost.
+    //! No knob, and no surprise: turning MOM on no longer changes what the run is made of.
     bool forceComplex = false;
     //!@}
 };

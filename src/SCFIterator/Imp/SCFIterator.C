@@ -367,7 +367,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                           << " for " << ipar.Guard.HolePersistence
                           << " iterations -- the MOM reference pins a non-aufbau state. "
                           << "Releasing the reference (aufbau + delayed re-capture)." << std::endl;
-                itsOccPolicy->ReleaseReferences();
+                itsOccState.ReleaseReferences();   // R2.21: the references are the STATE's
                 ++momReleases; holeRun=0;
                 itsConverged=false;                          // the recovery needs further iterations
             }
