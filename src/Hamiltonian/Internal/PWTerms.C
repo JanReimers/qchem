@@ -300,6 +300,9 @@ public:
     //! the very first call; blocks not yet tabled self-evaluate pointwise inside the density (first pass
     //! only).  GetEnergy passes null (no basis at hand) and reuses the iteration's table.
     const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr) const;
+    //! The REAL-BLOCK ensure sibling (3c-3): build the real block's typed table first, so the rho GEMM's
+    //! real children never pay the pointwise first pass.  Overload-resolves on the caller's block scalar.
+    const rvec_t& Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const;
     //! \brief Spin channel \f$\rho_\sigma(r_g)\f$ for \a cd's current serial -- the SPIN-NATIVE sibling of
     //! \c Rho (SymmetryUpgradePlan §4 tier 4b), cached as the {↑,↓} PAIR under ONE serial (a polarized
     //! density's \c Version() forwards to its Up child, so a single scalar cache would alias the channels).
@@ -307,6 +310,8 @@ public:
     //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr) const;
+    //! The REAL-BLOCK ensure sibling of \c RhoPol (3c-3), as for \c Rho above.
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const robs_t* ensureRealBlock) const;
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const;
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature

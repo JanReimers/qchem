@@ -125,8 +125,19 @@ template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std
 }
 
 // rho at the caller's points = the sum of the blocks' contributions (each block's D already carries its
-// BZ weight, so this is the k-average -- same convention as GetFourierDensity).
+// BZ weight, so this is the k-average -- same convention as GetFourierDensity).  A caller with no real
+// tables (the 2-arg face) hands the cross arm an empty map, i.e. the leaf's documented pointwise
+// first-pass fallback.
 template <class T> rvec_t tComposite_CD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
+{
+    return DM_RhoAtPoints(r, Phi, {});
+}
+// The MIXED-RUN body (3c-3): a same-scalar child GEMMs the run-typed table; a REAL child GEMMs its OWN
+// typed table (PhiR -- the engine's matrix-side cache, now threaded through).  This is what keeps a
+// flipped Becke-route run O(GEMM) per iteration instead of pointwise (measured 832 s -> ~1 s over 10
+// MnO iterations).
+template <class T> rvec_t tComposite_CD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi,
+                                                           const std::map<Irrep,mat_t<double>>& PhiR) const
 {
     rvec_t ro(r.size(), 0.0);
     for (auto& c:itsCDs)
@@ -134,12 +145,8 @@ template <class T> rvec_t tComposite_CD<T>::DM_RhoAtPoints(const rvec3vec_t& r, 
         {
             using BT=std::decay_t<decltype(*b)>;
             if constexpr (std::is_same_v<BT,tDM_CD<T>>) ro+=b->DM_RhoAtPoints(r,Phi);
-            else
-                // Cross-scalar child (a real block; the caller's Phi tables are run-typed): self-evaluate
-                // via an empty typed map -- the leaf's own documented first-pass fallback, correct if slower.
-                // The engine keeps REAL Phi tables for the MATRIX side (XC_GridEngine::PhiR); threading them
-                // through here is a later optimization.
-                ro+=b->DM_RhoAtPoints(r,{});
+            else if constexpr (std::is_same_v<T,dcmplx>) ro+=b->DM_RhoAtPoints(r,PhiR);
+            else                                         ro+=b->DM_RhoAtPoints(r,{});   // unreachable (no complex child in a real run)
         }, c);
     return ro;
 }

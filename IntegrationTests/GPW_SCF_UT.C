@@ -673,7 +673,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
         .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .imposeSymmetry=o.imposeSymmetry,
         .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC,
-        .siteSpins=GatherSiteSpins(lat, o)}));
+        .siteSpins=GatherSiteSpins(lat, o), .hamPreservesReal=o.realTRIMBlocks}));
     if (report.VetBasis(*bs) > 0)
     {
         std::cout << "["<<o.label<<"] ABORT: basis rank-deficient (see basis.removed) -- skipped grids + SCF."<<std::endl;
@@ -3511,6 +3511,14 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     o.scf.UseMOM=envi("MNO_MOM",1)!=0; o.scf.MOMStartIter=envi("MNO_MOM_START",10);
     o.scf.MOMSmearPenalty=envd("MNO_MOM_PENALTY",0.0);   // >0 makes MOM live UNDER smearing (masked Fermi)
     o.momFromSeed=envi("MNO_MOM_SEED",0)!=0;             // pin the reference to the SEED's occupied subspace
+    // MNO_REAL=1 (doc/RealComplexPlan.md 3c-3 A/B): build the Γ TRIM block(s) REAL -- the Becke H_xc
+    // quadrature GEMM then runs blaze's real kernel (the realized Step-3 win on this profile).  Needs
+    // MNO_MOM=0: a real block's MOM reference capture is the R2.21 gap and throws mid-run, so fail
+    // FAST here with the fix in the message instead of ~2 minutes into the seed build.
+    o.realTRIMBlocks=envi("MNO_REAL",0)!=0;
+    if (o.realTRIMBlocks && o.scf.UseMOM)
+        throw std::runtime_error("MNO_REAL=1 needs MNO_MOM=0: MOM's reference state is run-typed until the "
+                                 "OccupationPolicy state split (RealComplexPlan 3c-3 / R2.21)");
     // The 0h MOM GUARD releases the reference after 3 consecutive NON-AUFBAU (hole) iterations, on the premise
     // that a hole means the reference is wrong.  That premise was calibrated on NaF, where the hole IS the
     // pathology (a diving diffuse ghost pinned by a stale reference).  It does NOT hold here: until the

@@ -24,9 +24,16 @@ flip).  The acceptance works around it with a throwaway warm-up run; see the com
 `ExpectRealComplexTwins`.
 **REMAINING (candidates for a next session):** the harness `GpwOptions::realTRIMBlocks` stays a
 default-off knob — decide when the whole suite flips; MOM-on-real-blocks needs the R2.21
-policy/state split; the mixed `DM_RhoAtPoints` self-evaluating arm and the complex-internal
-evaluator streams are pure-performance follow-ups; V1.32 (de-template the finite `IrrepCD` leaf)
-remains filed in doc/CleanupCandidates.md.
+policy/state split; the complex-internal evaluator streams are the remaining (now dominant)
+performance increment; V1.32 (de-template the finite `IrrepCD` leaf) remains filed in
+doc/CleanupCandidates.md.
+**The `DM_RhoAtPoints` arm is CLOSED (`523a745a`, 2026-08-18):** the "pure optimization" deferral
+was load-bearing — on the Becke route the pointwise fallback measured 832 s vs 1 s over 10 MnO
+iterations, so a flipped run was 7× slower net.  Fixed by the 3-arg `DM_RhoAtPoints(r, Phi, PhiR)`
+seam (the engine's matrix-side real tables threaded to the composite's cross arm; real-typed
+`Rho`/`RhoPol` ensure overloads).  MEASURED wins on MnO AFM-II Γ, identical physics digits:
+H_xc quadrature 2.0×, ρ-sampling GEMM 2.2× — the realized Step-3 win on the production Becke
+route (`MNO_REAL=1 MNO_MOM=0` is the A/B recipe).
 
 Earlier campaign record (2026-08-17, eleven commits, each behind a full green sweep): Step 1
 (realness as exact queries, `ef658518`), the §6 accelerator face (`2b09b5b7`, + the first molecular

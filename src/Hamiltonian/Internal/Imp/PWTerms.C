@@ -529,9 +529,8 @@ const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const
     return itsPhi.emplace(id, MakePhi<dcmplx>(bs)).first->second;
 }
 // The real block's table (Step 3c): its own typed cache -- real blocks are distinct irreps, so the two
-// maps' key sets are disjoint.  NB the rho GEMM (Rho/RhoPol) hands the density only the COMPLEX map;
-// a real block's density child self-evaluates pointwise there until the mixed DM_RhoAtPoints cross-arm
-// lands (correct, slower -- the same first-pass fallback the complex path already documents).
+// maps' key sets are disjoint.  The rho GEMM (Rho/RhoPol) hands the density BOTH maps (the 3-arg
+// DM_RhoAtPoints, 3c-3): a real child GEMMs this table exactly as a complex child GEMMs itsPhi.
 const mat_t<double>& XC_GridEngine::PhiR(const robs_t* bs) const
 {
     const Irrep id=bs->GetIrrep(Spin::None);
@@ -556,12 +555,25 @@ const rvec_t& XC_GridEngine::Rho(const cChargeDensity* cd, const cobs_t* ensureB
     itsRhoVersion=cd->Version();
     qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
-        itsRho=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
+        itsRho=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR);   // both typed maps (3c-3)
     else
         itsRho=(*cd)(itsMesh->Points());   // non-DM (mixed rho-tilde / seed) densities batch here
     if (!itsFold.owner.empty())                    // §6a W1: the orbit-mean star-average (imposed runs only)
         Symmetry::Lattice_3D::SymmetrizeValues(itsFold, itsRho);
     return itsRho;
+}
+
+// The real-block ensure siblings (3c-3): build the real block's OWN typed table first (PhiR), then the
+// shared sampling path -- the exact mirror of the complex ensureBlock argument.
+const rvec_t& XC_GridEngine::Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const
+{
+    if (ensureRealBlock) PhiR(ensureRealBlock);
+    return Rho(cd);
+}
+const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, const robs_t* ensureRealBlock) const
+{
+    if (ensureRealBlock) PhiR(ensureRealBlock);
+    return RhoPol(cd, s);
 }
 
 // The spin-resolved sibling of Rho: the {up,down} PAIR is cached under ONE density serial (a polarized
@@ -582,8 +594,8 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
         qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
         if (auto pol=dynamic_cast<const ChargeDensity::cPolarized_CD*>(cd))
         {
-            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
-            itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
+            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR);
+            itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR);
         }
         else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
         {   // MATRIX-FREE spin-resolved density: the seed (PolarizedSeedCD, SCFSeedingPlan §10) at
@@ -600,7 +612,7 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
         else
         {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
             if (auto dm=dynamic_cast<const cDM_CD*>(cd))
-                itsRhoUp=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
+                itsRhoUp=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR);
             else
                 itsRhoUp=(*cd)(itsMesh->Points());
             itsRhoUp*=0.5;
@@ -726,9 +738,7 @@ DeltaFittedVxc::DeltaFittedVxc(const xc_t& xc, engine_t engine)
 // ensure hint (complex map) and the final quadrature (typed Phi table) differ, both handled below.
 template <class U> hmat_t<U> DeltaFittedVxc::MakeMatrixT(const tobs_t<U>* bs, const Spin&, const cChargeDensity* cd) const
 {
-    const cobs_t* ensure=nullptr;
-    if constexpr (std::is_same_v<U,dcmplx>) ensure=bs;   // a real block's table is ensured by PhiR (see its doc)
-    const rvec_t& rho=itsEngine->Rho(cd, ensure);
+    const rvec_t& rho=itsEngine->Rho(cd, bs);   // ensure THIS block's typed table first (overloads on U -- 3c-3)
     rvec_t v(rho.size());
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
     return itsEngine->Matrix(bs, v);
@@ -773,9 +783,7 @@ DeltaFittedVxcPol::DeltaFittedVxcPol(const xc_t& xc, engine_t engine)
 template <class U> hmat_t<U> DeltaFittedVxcPol::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "DeltaFittedVxcPol: a polarized term needs an Up/Down spin");
-    const cobs_t* ensure=nullptr;
-    if constexpr (std::is_same_v<U,dcmplx>) ensure=bs;   // a real block's table is ensured by PhiR (see its doc)
-    const rvec_t& rho=itsEngine->RhoPol(cd, s, ensure);
+    const rvec_t& rho=itsEngine->RhoPol(cd, s, bs);   // ensure THIS block's typed table first (overloads on U -- 3c-3)
     rvec_t v(rho.size());
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
     return itsEngine->Matrix(bs, v);
@@ -818,10 +826,8 @@ DeltaFittedVcorrPol::DeltaFittedVcorrPol(const corr_t& corr, engine_t engine)
 template <class U> hmat_t<U> DeltaFittedVcorrPol::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "DeltaFittedVcorrPol: a polarized term needs an Up/Down spin");
-    const cobs_t* ensure=nullptr;
-    if constexpr (std::is_same_v<U,dcmplx>) ensure=bs;   // a real block's table is ensured by PhiR (see its doc)
-    const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  , ensure);
-    const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down, ensure);
+    const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  , bs);   // ensure THIS block's typed table first (overloads on U -- 3c-3)
+    const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down, bs);
     rvec_t v(up.size());
     for (size_t g=0; g<up.size(); g++) v[g]=itsCorr->GetVc(up[g], dn[g], s);
     return itsEngine->Matrix(bs, v);
