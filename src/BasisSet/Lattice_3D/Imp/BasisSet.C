@@ -177,7 +177,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
 {
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
-    const GPW_IBS* first=nullptr;
+    const GPW_Evaluator* first=nullptr;   // the shared evaluator base -- serves ReportGrids for EITHER block scalar
     CrystalPointOps ops = DetectPointOps(lat, p);   // ONE detection + the §3 policy: fold ops + {U|τ} (ρ̃) + {W|τ} (raster)
     itsReciprocalOps = ops.recipDensity;            // exposed via GetReciprocalPointOps for the composite G-space density
     itsDetectedOps   = ops.recipDetected;           // the FULL detected group, imposed or not (§3 diagnostic reference)
@@ -224,13 +224,23 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     {
         // Build the Bloch irrep WITH its BZ weight (star weight under IBZ) and the primary sym_t ctor -- the
         // weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
-        auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, kb.ik, kb.weight, kShift),
-                            mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor,
-                            ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
-                            p.rasterFields,       // field-sharpness routing (HartreeOnly = the Becke-XC partner)
-                            ops.magneticDirect);  // Shubnikov {W|τ,σ} on a magnetic imposition (S3; {} = grey)
-        if (!first) first=b;
-        Insert(b);
+        const sym_t irrep = Symmetry::BlochFactory(N, kb.ik, kb.weight, kShift);
+        // THE FACTORY DECISION (doc/RealComplexPlan.md §1, Step 3c-3): a block is real ⇔ its irrep is
+        // (TRIM, exact integer arithmetic) ∧ every Hamiltonian term preserves realness (the composition
+        // root's fact, threaded in as GPWParams::hamPreservesReal).  One scalar-generic build serves
+        // both alternatives; the typed Insert (Step 3b) files each under its own child slot.
+        auto build=[&]<class U>()
+        {
+            auto* b=new tGPW_IBS<U>(lat.GetUnitCell(), irrep,
+                                    mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor,
+                                    ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
+                                    p.rasterFields,       // field-sharpness routing (HartreeOnly = the Becke-XC partner)
+                                    ops.magneticDirect);  // Shubnikov {W|τ,σ} on a magnetic imposition (S3; {} = grey)
+            if (!first) first=b;
+            Insert(b);
+        };
+        if (p.hamPreservesReal && irrep->IsReal()) build.template operator()<double>();
+        else                                       build.template operator()<dcmplx>();
     }
     // GRID DIAGNOSTIC (doc/GPWPlan §0e): every stored grid, once per run.  When a run report is open the
     // orchestrator now emits grids EXPLICITLY (EmitGpwGrids) AFTER its conditioning pre-flight, so a singular
@@ -281,6 +291,7 @@ size_t VetGpwConditioning(const Complex_BS& bs)
                 rpt::Set("irrep",      label);
                 rpt::Set("nFunctions", (long)b->GetNumFunctions());
                 rpt::Set("real",       b->IsReal());   // TRIM fact from the irrep (doc/RealComplexPlan.md Step 1)
+                rpt::Set("runsReal",   std::is_same_v<U,double>);   // the block's CONSTRUCTED scalar (3c-3 evidence)
                 rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);      // ascending eigenvalues of the Hermitian S
                 const double mn = d[0], mx = d[d.size()-1];
                 double msv = std::fabs(d[0]); for (double v : d) msv = std::min(msv, std::fabs(v));

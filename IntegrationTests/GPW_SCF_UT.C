@@ -331,6 +331,11 @@ struct GpwOptions
     //! iteration by iteration.  Empty (default) = no probe, no column, no cost.
     std::string  orderName;
     std::function<double(const qchem::ChargeDensity::cDM_CD&)> orderProbe;
+    //! Thread GPWParams::hamPreservesReal (doc/RealComplexPlan.md 3c-3): build each TRIM block REAL.
+    //! The HARNESS keeps this a per-test KNOB (default off = the historical all-complex build) where
+    //! SolidCalculation computes the fact and flips by default -- so A/B and report tests can drive
+    //! either side explicitly.
+    bool realTRIMBlocks = false;
 };
 
 namespace
@@ -509,7 +514,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
             .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
             .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .imposeSymmetry=o.imposeSymmetry,
             .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC,
-            .siteSpins=GatherSiteSpins(lat, o)}));
+            .siteSpins=GatherSiteSpins(lat, o), .hamPreservesReal=o.realTRIMBlocks}));
     }
 
     // FAIL-FAST: vet the (analytic, grid-free) overlap + emit basis BEFORE grids/Hamiltonian; a rank-deficient
@@ -975,6 +980,50 @@ TEST(GPW_SCF, GridsReportSchema)
     ASSERT_TRUE((*basis)["perIrrep"].is_array());
     ASSERT_GE((*basis)["perIrrep"].size(), 1u);
     EXPECT_TRUE((*basis)["perIrrep"][0].contains("cond"));
+}
+
+// The 3c-3 flip's REPORT EVIDENCE: basis.perIrrep now carries `runsReal` (the block's CONSTRUCTED
+// scalar) beside `real` (the irrep's TRIM fact).  With the flip on every real:true block must actually
+// RUN real -- the fact the acceptance twins above cannot see from outside; with it off (the harness
+// default) the same blocks stay complex, so the two fields separate exactly where they should.
+TEST(GPW_SCF, RealTRIMBlocksRunRealInReport)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    auto perIrrep=[](){ const report::json& all=report::GlobalReport();
+                        for (auto it=all.begin(); it!=all.end(); ++it)
+                            if (it.value().contains("basis")) return it.value()["basis"]["perIrrep"];
+                        return report::json{}; };
+    GpwOptions o;
+    o.label="Si real-block report"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0;
+    o.scf.NMaxIter=3; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+
+    report::ClearGlobal();
+    o.realTRIMBlocks=true;
+    RunGpw(lat, MakeBasisSR(cell), o);
+    report::json rows=perIrrep();
+    ASSERT_GE(rows.size(), 1u);
+    for (const auto& row : rows)
+    {
+        EXPECT_TRUE(row["real"].get<bool>());       // Γ-only: every block is TRIM
+        EXPECT_TRUE(row["runsReal"].get<bool>());   // ...and the flip made each one ACTUALLY real
+    }
+
+    report::ClearGlobal();
+    o.realTRIMBlocks=false;                          // the control: same irrep fact, complex build
+    RunGpw(lat, MakeBasisSR(cell), o);
+    rows=perIrrep();
+    ASSERT_GE(rows.size(), 1u);
+    for (const auto& row : rows)
+    {
+        EXPECT_TRUE (row["real"].get<bool>());
+        EXPECT_FALSE(row["runsReal"].get<bool>());
+    }
 }
 
 // (2) THE TIGHT CROSS-CHECK: the isolated Si pseudo-atom in a box vs the finite molecular DFT on the SAME
@@ -2814,6 +2863,92 @@ TEST(GPW_SCF, CrossRunFirstRunAnomalyProbe)
     std::cout<<"[xrun] E1-E0="<<E[1]-E[0]<<"  E2-E1="<<E[2]-E[1]<<std::endl;
     EXPECT_NEAR(E[1], E[0], 1e-9) << "cross-run pollution: first run differs";
     EXPECT_NEAR(E[2], E[1], 1e-9) << "runs 2+ should be steady";
+}
+
+//================================================================================================
+//  STEP 3c-3 -- THE FACTORY-FLIP ACCEPTANCE (doc/RealComplexPlan.md).  SolidCalculation now computes
+//  the working-type rule (irrep.IsReal() ∧ ham.PreservesReal()) and builds every TRIM block REAL by
+//  default; forceComplex is the §6 ansatz-policy downgrade and this gate's A/B door.  The two runs
+//  must be the SAME PHYSICS to machine precision: every per-term gate (RealComplexTerms.*) pinned the
+//  real block's matrices bitwise except the quadrature GEMM's summation order (~1e-15/element), so
+//  through a whole SCF the totals may differ only at accumulated-roundoff level.  A loose tolerance
+//  here would be wrong twice over -- it could hide a genuine defect, and it would understate what the
+//  per-term gates already guarantee.
+//================================================================================================
+//  TWO ARMS, because "machine-equal" means two different things across an SCF:
+//  (1) ONE ITERATION from the shared uniform seed -- the PURE-ARITHMETIC gate.  Both runs build the
+//      same Fock from the same D0 (statics + Hartree + raw XC bitwise per RealComplexTerms.*),
+//      diagonalize, and fill the same gapped occupied set; every energy term from D1 must then agree
+//      to roundoff.
+//  (2) CONVERGED twins -- the PHYSICS gate.  Bitwise TRAJECTORIES are impossible by construction: the
+//      real block diagonalizes with LAPACK's real path (dsyev) where the complex one runs zheev, which
+//      agree only to roundoff even on an exactly-real matrix, and DIIS extrapolation chaotically
+//      amplifies last-ulp seeds (measured: ~1e-4 in per-term energies after 12 iterations).  What the
+//      physics guarantees is the FIXED POINT, so the converged states must agree to gate resolution.
+//
+//  (The 2026-08-18 WARM-UP DISCIPLINE is RETIRED: the first-run anomaly this gate used to hide from
+//  -- a throwaway run so both arms sat in "steady-state slots" -- was the cross-run D-screen leak,
+//  fixed by instance-scoping the GPW 3C tensors.  Every run now replays fresh-process behaviour
+//  bit-for-bit, gated by GPW_SCF.CrossRunFirstRunAnomalyProbe above, so the arms run cold.)
+static void ExpectRealComplexTwins(const Lattice_3D& lat, const UnitCell& cell, const char* what)
+{
+    const qchem::SolidCalcOptions optOn {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0};
+    const qchem::SolidCalcOptions optOff{.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
+
+    SCFParams one;                                   // the one-iteration recipe (gates 0 = strict-< never trips)
+    one.NMaxIter=1; one.MinΔρ=0.0; one.MinΔE=0.0;
+    one.MinΔFD=1e30; one.MinVirial=1e30; one.MinFD=1e30; one.StartingRelaxRo=0.3; one.MergeTol=1e-4;
+
+    {   // (1) the arithmetic arm: exactly one iteration each
+        qchem::SolidCalculation on(lat, MakeBasisSR(cell), optOn, one), off(lat, MakeBasisSR(cell), optOff, one);
+        const qchem::EnergyBreakdown En=on.EnergyTerms(), Ec=off.EnergyTerms();
+        // 1e-8: real-vs-complex roundoff headroom -- Een's large-cancellation assembly (vs Enn~8 Ha)
+        // measured 2e-9 across the 3-block mesh.  Roundoff grade, far below any defect scale.
+        EXPECT_NEAR(En.GetTotalEnergy(), Ec.GetTotalEnergy(), 1e-8) << what << " (iteration 1)";
+        EXPECT_NEAR(En.Kinetic, Ec.Kinetic, 1e-8) << what << " (iteration 1)";
+        EXPECT_NEAR(En.Een,     Ec.Een,     1e-8) << what << " (iteration 1)";
+        EXPECT_NEAR(En.Eee,     Ec.Eee,     1e-8) << what << " (iteration 1)";
+        EXPECT_NEAR(En.Exc,     Ec.Exc,     1e-8) << what << " (iteration 1)";
+        EXPECT_NEAR(on.TotalCharge(), off.TotalCharge(), 1e-10) << what << " (iteration 1)";
+    }
+    {   // (2) the physics arm: both converge on the production-shaped gates
+        SCFParams par;
+        par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
+        par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+        qchem::SolidCalculation on(lat, MakeBasisSR(cell), optOn, par), off(lat, MakeBasisSR(cell), optOff, par);
+        ASSERT_TRUE(on .Converged()) << what;
+        ASSERT_TRUE(off.Converged()) << what;
+        EXPECT_NEAR(on.Energy(), off.Energy(), 2e-5) << what;        // MinΔE=1e-6 resolution (measured 4.8e-6)
+        const rvec3_t pts[]={ cell.ToCartesian(rvec3_t(0.3,0.4,0.7)),
+                              cell.ToCartesian(rvec3_t(0.25,0.25,0.25)),
+                              cell.ToCartesian(rvec3_t(0.1,0.9,0.2)) };
+        for (const auto& r : pts)                                     // MinΔρ=1e-3 resolution (measured ≤9.1e-6)
+            EXPECT_NEAR(on.Density()(r), off.Density()(r), 1e-4) << what;
+    }
+}
+
+TEST(GPW_SCF, RealTRIMBlocksMatchComplex_SiGamma)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));   // Γ-only: EVERY block is TRIM, so the flip makes the whole run real
+    ExpectRealComplexTwins(lat, cell, "Si Gamma real-vs-complex");
+}
+
+//  STEP 4's MIXED-MESH acceptance, at the smallest genuinely mixed mesh: N=(3,1,1) has ONE TRIM point
+//  (Γ -- 2·1/3 is no reciprocal-lattice vector) beside two complex blocks (k=±1/3), so ONE composite
+//  carries both child scalars through the full SCF -- the case Γ-only cannot reach.  (A 3×3×3 run is
+//  the same code path 27 blocks wide; this keeps the gate's wall-time at ~3 Γ runs.)
+TEST(GPW_SCF, RealTRIMBlocksMatchComplex_SiMixedMesh)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(3,1,1));
+    ExpectRealComplexTwins(lat, cell, "Si (3,1,1) mixed-mesh real-vs-complex");
 }
 
 //================================================================================================

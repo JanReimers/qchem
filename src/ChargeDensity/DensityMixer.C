@@ -800,12 +800,14 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
     double relax0, double kerkerG0, int pulayDepth, int pulayStart,
     const BasisSet::tBasisSet<dcmplx>* basis, const Structure* structure, const tDM_CD<dcmplx>* seed)
 {
-    auto* ftb = basis ? dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*basis)[0]) : nullptr;
     auto* fd  = dynamic_cast<const FourierDensity*>(seed);
-    if (!ftb || !isPeriodicCell(structure) || !fd)
+    if (!basis || !isPeriodicCell(structure) || !fd)
         throw std::runtime_error("MakePeriodicMixer: Kerker/Pulay need a periodic Orbital_DFT_IBS<dcmplx> basis, a "
                                  "UnitCell structure and a FourierDensity seed.");
-    auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(ftb->CreateVxcFitBasisSet(structure, qcMesh::MeshParams{}));
+    // The WHOLE-SET fit factory (mixed-aware since doc/RealComplexPlan.md 3c-3): serves from the first
+    // block of either scalar, so a Γ-first real TRIM block no longer needs a block-0 cast here.  A
+    // non-periodic basis still fails loudly -- the factory itself throws when no block carries the face.
+    auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(basis->CreateVxcFitBasisSet(structure, qcMesh::MeshParams{}));
     ReciprocalLattice recip=GetReciprocalLattice(structure);
     const char* tag = pulayDepth>0 ? "Pulay" : "Kerker";
     // POLARIZED: one ρ̃ mixer PER SPIN CHANNEL, composed (see PolarizedDensityMixer).  A single-map
