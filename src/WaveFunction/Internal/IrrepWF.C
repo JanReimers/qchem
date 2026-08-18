@@ -36,6 +36,12 @@ public:
     ~tIrrepWF();
 
     void                CalculateH      (tHamiltonian<T>&,const tChargeDensity<T>*,const tbs_t<T>* wholeBasis);
+    //! Step 3c-2: the REAL child's Fock build inside a COMPLEX run -- drives the Hamiltonian's
+    //! Ham_RealBlock assembly face with the run's (complex) density and whole-basis view; itsF comes back
+    //! real.  Declared for every T (the <dcmplx> instantiation's body throws -- a complex child never
+    //! consumes this face); MEANINGFUL only on tIrrepWF<double>.
+    void                CalculateH      (qchem::Hamiltonian::Ham_RealBlock&,
+                                         const tChargeDensity<dcmplx>*,const tbs_t<dcmplx>* wholeBasis);
     void                DoSCFIteration  ()      ;
     bool                ComputeStep     ()      ; //direct-min: accelerator computes its step
     void                MoveOrbitals    (double t, bool commit)      ; //move to geodesic fraction t

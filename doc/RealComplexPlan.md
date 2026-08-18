@@ -194,10 +194,26 @@ variant that never takes the complex alternative: a negligible tag, one implemen
       statics + Hartree BITWISE vs the complex block; the Becke GEMM machine-equal (~3e-15 — the
       real kernel's different summation order, i.e. the win itself; everything elementwise stays
       `EXPECT_EQ`).
-    - **3c-2 (next)** — the ASSEMBLY + SCF wiring: `tHamiltonian`'s real-block `GetMatrix` overload
-      (fold over the term faces), `MakeIrrepWFs` building `tIrrepWF<double>` children off the 3b
-      `GetChild` view, the energy side (the composite density's cross-scalar contract arm), and the
-      GPW preflight consumers (`VetGpwConditioning`, `GatherSharpness`).
+    - **3c-2 DONE 2026-08-17 (Fock half) — the ASSEMBLY + SCF wiring.**
+      `tBasisSet` face: public `GetNumIBS` + `GetRealIBS(i)` (the cross-scalar block view, default
+      null; `BasisSetImp` serves the `<double>` alternative of a complex-faced set).  `Ham_RealBlock`
+      face conditionally on `tHamiltonian<dcmplx>`; `tHamiltonianImp` folds the terms'
+      Static/Dynamic_HT_RealBlock capabilities (HF terms throw — no periodic exact exchange).
+      `tIrrepWF<double>` gained the run-typed `CalculateH(Ham_RealBlock&, cChargeDensity*, cbs_t*)`;
+      `tCompositeWF`'s Fock-build loops dispatch per child (`CalcH<T>` — 2b's reserved cross arm,
+      live), and `MakeIrrepWFs` is the MIXED walk (`GetRealIBS` first → `MakeOneIrrepWF<double>`,
+      single-source member template; the real child's accelerator comes from the §6 typed `Create`
+      and its density Inserts 2a's `<double>` arm).  The GPW preflight (`VetGpwConditioning`,
+      `EmitGpwGrids`) walks the typed child slot generically.  Gate:
+      `RealComplexTerms.HamiltonianAssemblyServesTheRealBlockBitwise` — the `Ham_RealBlock` fold
+      (kinetic + 3 PP + Hartree) equals the native complex assembly BITWISE, i.e. exactly the matrix
+      a real WF child receives.
+      **Deferred to 3c-2b (the ENERGY/DENSITY half, prerequisite for 3c-3):** the composite
+      density's cross-scalar contract arms (static reuses `tStatic_CC<double>` on the term mixins;
+      dynamic needs a run-typed `GetEMatrixR` client face), the mixed `DM_RhoAtPoints` pointwise
+      arm, and the REAL child's ρ̃ contribution — `IrrepCD`'s Fourier trio is conditioned on
+      T==dcmplx, conflating scalar with lineage; Step 3 breaks that identification, so the
+      conditional must move from the scalar to a basis-capability probe.
     - **3c-3** — wire the factory decision (`irrep->IsReal() ∧ PreservesReal`, threaded from the
       composition root into `GPW_BasisSet`); 2c falls out; then Step 4's mixed-mesh acceptance.
 - **Step 4 — the accelerator** (§6), and only then a mixed-mesh run as the acceptance test.

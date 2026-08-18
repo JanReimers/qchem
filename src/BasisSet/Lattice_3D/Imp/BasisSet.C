@@ -5,12 +5,14 @@ module;
 #include <iostream>  // std::cout (the run-start GPW grid diagnostic)
 #include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
 #include <sstream>   // irrep label for the pre-flight basis.perIrrep rows
+#include <variant>   // the mixed child-slot visits (Step 3c-2)
 #include <algorithm> // std::min (min singular value)
 #include <cstdlib>   // std::getenv/std::atoi (GPW_STREAM_FOLD opt-out -- the T3.2 A/B instrument)
 #include <vector>    // std::vector (the k-block list + the space-group atom basis)
 module qchem.BasisSet.Lattice_3D.BasisSet;
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;     // GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
+import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (the shared grid face the mixed EmitGpwGrids visit casts to)
 import qchem.BasisSet.Orbital_1E_IBS;         // Real_OIBS (the molecular orbital block -- the stream-fold cross-cast)
 import qchem.BasisSet.Molecule.LatticeSum1E;  // SetStreamSymmetryOps (the T3 route (b) stream fold, §6b)
 import qchem.Reporting;                        // route the grid diagnostic into the run report when one is open
@@ -244,8 +246,19 @@ static std::string GpwIrrepLabel(const Irrep& q) { std::ostringstream os; q.Writ
 void EmitGpwGrids(const Complex_BS& bs)
 {
     // The grids are k-independent, so the first GPW block speaks for all (and forces EnsureLevels HERE --
-    // after the pre-flight, so a vetoed basis never reaches this).
-    for (auto* b : const_cast<Complex_BS&>(bs).Iterate<GPW_IBS>()) { b->EmitGridsReport(); return; }
+    // after the pre-flight, so a vetoed basis never reaches this).  MIXED-AWARE (Step 3c-2): walk the
+    // typed child slot -- the evaluator face is shared by both block scalars, so one generic visit serves.
+    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
+    assert(imp && "EmitGpwGrids: the periodic basis set must be a BasisSetImp");
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+    {
+        const bool done=std::visit([&](const auto& b)
+        {
+            if (auto* ev=dynamic_cast<const GPW_Evaluator*>(b.get())) { ev->EmitGridsReport(); return true; }
+            return false;
+        }, imp->GetChild(i));
+        if (done) return;
+    }
 }
 
 size_t VetGpwConditioning(const Complex_BS& bs)
@@ -253,30 +266,36 @@ size_t VetGpwConditioning(const Complex_BS& bs)
     namespace rpt = qchem::report;
     rpt::Set("nFunctions", (long)bs.GetNumFunctions());   // basis-level scalar (cursor at the open "basis" section)
     size_t total = 0;
-    for (auto* b : const_cast<Complex_BS&>(bs).Iterate<GPW_IBS>())
-    {
-        const hmat_t<dcmplx>& S = b->Overlap();           // ANALYTIC Bloch overlap -- no grids needed
-        const std::string label = GpwIrrepLabel(b->GetIrrep(Spin::None));
+    // MIXED-AWARE (Step 3c-2): one generic visit over the typed child slot serves both block scalars --
+    // the eigen-analysis and the Cholesky drop detector are scalar-generic already.
+    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
+    assert(imp && "VetGpwConditioning: the periodic basis set must be a BasisSetImp");
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+        std::visit([&](const auto& b)
         {
-            rpt::Row row("perIrrep");
-            rpt::Set("irrep",      label);
-            rpt::Set("nFunctions", (long)b->GetNumFunctions());
-            rpt::Set("real",       b->IsReal());   // TRIM fact from the irrep (doc/RealComplexPlan.md Step 1)
-            rvec_t d; mat_t<dcmplx> U; blazem::eigen(S, d, U);       // ascending eigenvalues of the Hermitian S
-            const double mn = d[0], mx = d[d.size()-1];
-            double msv = std::fabs(d[0]); for (double v : d) msv = std::min(msv, std::fabs(v));
-            rpt::Set("lambdaMin", mn);
-            rpt::Set("lambdaMax", mx);
-            rpt::Set("cond", msv > 0 ? mx/msv : 0.0);
-        }
-        for (size_t idx : qchem::PivotedCholeskyDrops<dcmplx>(S))    // redundant AOs (empty on a healthy basis)
-        {
-            rpt::Row r("removed");
-            rpt::Set("irrep", label);
-            rpt::Set("index", (long)idx);
-            ++total;
-        }
-    }
+            const auto& S = b->Overlap();                 // ANALYTIC Bloch overlap -- no grids needed
+            using U=typename std::decay_t<decltype(S)>::ElementType;
+            const std::string label = GpwIrrepLabel(b->GetIrrep(Spin::None));
+            {
+                rpt::Row row("perIrrep");
+                rpt::Set("irrep",      label);
+                rpt::Set("nFunctions", (long)b->GetNumFunctions());
+                rpt::Set("real",       b->IsReal());   // TRIM fact from the irrep (doc/RealComplexPlan.md Step 1)
+                rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);      // ascending eigenvalues of the Hermitian S
+                const double mn = d[0], mx = d[d.size()-1];
+                double msv = std::fabs(d[0]); for (double v : d) msv = std::min(msv, std::fabs(v));
+                rpt::Set("lambdaMin", mn);
+                rpt::Set("lambdaMax", mx);
+                rpt::Set("cond", msv > 0 ? mx/msv : 0.0);
+            }
+            for (size_t idx : qchem::PivotedCholeskyDrops<U>(S))     // redundant AOs (empty on a healthy basis)
+            {
+                rpt::Row r("removed");
+                rpt::Set("irrep", label);
+                rpt::Set("index", (long)idx);
+                ++total;
+            }
+        }, imp->GetChild(i));
     return total;
 }
 

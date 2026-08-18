@@ -1,4 +1,6 @@
 // File: Hamiltonian.C  Interface a Hamiltonianian operator.
+module;
+#include <type_traits>   // std::conditional_t/is_same_v (HamRealBlockBase -- Step 3c-2)
 export module qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 import qchem.Streamable;
@@ -174,11 +176,28 @@ public:
     virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const=0;
 };
 
+//! \brief The REAL-BLOCK ASSEMBLY face of a complex-run Hamiltonian (Step 3c-2): fold the term set's
+//! Static/Dynamic_HT_RealBlock capabilities into one real Fock/KS block for a real TRIM basis block.
+//! Attached (conditionally) to \c tHamiltonian<dcmplx> only; a real-faced Hamiltonian's native
+//! \c GetMatrix already IS real.  The per-block WF child (\c tIrrepWF<double> inside a complex run)
+//! drives its Fock build through this face.
+class Ham_RealBlock
+{
+public:
+    virtual ~Ham_RealBlock() {};
+    virtual hmat_t<double> GetMatrix(const tobs_t<double>*,const Spin&,const tChargeDensity<dcmplx>*,
+                                     const tbs_t<dcmplx>* wholeBasis)=0;
+};
+struct NoHam_RealBlock {};
+template <class T> using HamRealBlockBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, Ham_RealBlock, NoHam_RealBlock>;
+
 //! \brief The assembled Hamiltonian: owns its term lists and assembles the per-irrep Fock/KS matrix the SCF
 //! diagonalizes.  Built by the \c Factory; driven by \c CompositeWF / \c IrrepWF (see the \ref tDynamic_HF_HT
 //! call-flow diagram).
 template <class T> class tHamiltonian
     : public virtual Streamable
+    , public HamRealBlockBase<T>   // the real-block assembly face, dcmplx instantiation only (Step 3c-2)
 {
 public:
     virtual void            Add             (   tStatic_HT<T>*)=0;   //!< take ownership of a static term

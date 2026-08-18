@@ -21,6 +21,7 @@ import qchem.BasisSet.Molecule.Factory;
 import qchem.BasisSet.Lattice_3D.GPW_IBS;          // tGPW_IBS<T> (both block alternatives)
 import qchem.Hamiltonian;                          // Static/Dynamic_HT_RealBlock (the capability faces)
 import qchem.Hamiltonian.Internal.Kinetic;         // Kinetic<T> (tests may cheat-import internals)
+import qchem.Hamiltonian.Internal.Hamiltonian;     // tHamiltonianImp<dcmplx> (the 3c-2 assembly gate)
 import qchem.Hamiltonian.Internal.PWTerms;         // the periodic term set + XC_GridEngine
 import qchem.Hamiltonian.Internal.SlaterExchange;  // SlaterExchange (the Dirac-exchange functional)
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (Si GTH-LDA-q4)
@@ -139,4 +140,30 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
         const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cd.get());
         ExpectMachineEqual(Vr, Vc, "DeltaFittedVxc");
     }
+}
+
+
+// The ASSEMBLY gate (Step 3c-2): the Hamiltonian's Ham_RealBlock fold over the term faces must equal the
+// native complex assembly's real part BITWISE -- each term's block already does (the 3c-1 gates), and the
+// fold accumulates them elementwise in the same order.  This is the exact matrix a tIrrepWF<double> child
+// receives from its CalculateH inside a complex run.
+namespace { struct MixedHam : Hamiltonian::tHamiltonianImp<dcmplx> {}; }
+
+TEST(RealComplexTerms, HamiltonianAssemblyServesTheRealBlockBitwise)
+{
+    Rig rig;
+    auto cd = rig.MakeDensity();
+    const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
+
+    MixedHam ham;
+    ham.Add(new Kinetic<dcmplx>);
+    ham.Add(new Ven_PP_Short   (rig.st, &gth.local));
+    ham.Add(new Ven_PP_Long    (rig.st, &gth.local));
+    ham.Add(new Ven_PP_NonLocal(rig.st, &gth.nonlocal));
+    ham.Add(new Vee_Hartree(Vee_Hartree::fbs_t(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}))));
+
+    const chmat_t Hc = ham.GetMatrix(rig.cx.get(), Spin::None, cd.get(), nullptr);
+    auto& rb = dynamic_cast<Hamiltonian::Ham_RealBlock&>(ham);   // the face a real WF child drives
+    const rsmat_t Hr = rb.GetMatrix(rig.re.get(), Spin::None, cd.get(), nullptr);
+    ExpectBitwiseEqual(Hr, Hc, "Ham_RealBlock fold");
 }

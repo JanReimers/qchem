@@ -1,5 +1,7 @@
 // File: IrrepWF.C  Wave function for one irrep (templated on T; IrrepWF=<double>, cIrrepWF=<dcmplx>).
 module;
+#include <stdexcept>
+#include <type_traits>
 #include <iostream>
 #include <cassert>
 #include <complex>
@@ -43,6 +45,23 @@ template <class T> void tIrrepWF<T>::CalculateH(tHamiltonian<T>& ham,const tChar
     assert(itsOrbitals);
     itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd,wholeBasis); //Hamiltonian or Fock matrix in the non-orthogonal basis.
     itsAccelerator->UseFD(itsF,itsDPrime); //Feed non-ortho F into the accelerator with the (orthogonal-basis) density matrix.
+}
+
+// The REAL child's Fock build inside a COMPLEX run (Step 3c-2): same two lines as the native path, but
+// through the Ham_RealBlock assembly face -- the fold over the terms' real-block capabilities -- with the
+// RUN's density/whole-basis view.  itsF is hmat_t<double>; everything downstream (the accelerator child,
+// the eigensolve, C/D) is already real.
+template <class T> void tIrrepWF<T>::CalculateH(qchem::Hamiltonian::Ham_RealBlock& ham,
+                                                const tChargeDensity<dcmplx>* cd,const tbs_t<dcmplx>* wholeBasis)
+{
+    if constexpr (std::is_same_v<T,double>)
+    {
+        assert(itsOrbitals);
+        itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd,wholeBasis);
+        itsAccelerator->UseFD(itsF,itsDPrime);
+    }
+    else
+        throw std::logic_error("tIrrepWF: a complex child never consumes the real-block assembly face");
 }
 
 //----------------------------------------------------------------------------

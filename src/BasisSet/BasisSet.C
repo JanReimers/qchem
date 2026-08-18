@@ -65,8 +65,16 @@ public:
     }
     const obs_t* operator[](size_t i) const {return GetIBS(i);}
 
+    virtual size_t GetNumIBS() const=0; //!< Number of Irrep basis sets (public since Step 3c-2: the
+                                        //!< mixed-aware per-index walk needs the count beside GetRealIBS).
+    //! \brief The CROSS-SCALAR block view (doc/RealComplexPlan.md Step 3c-2): non-null iff block \a i is a
+    //! REAL block inside a complex-faced set (a TRIM block after the Step-3c-3 factory decision).  The
+    //! same-scalar face stays \c GetIBS / \c Iterate; a mixed-aware consumer (MakeIrrepWFs, the GPW
+    //! preflight) checks this FIRST and falls back to \c GetIBS.  Default null: a homogeneous set -- and
+    //! every real-faced set, whose blocks are already real via \c GetIBS -- has no cross-scalar children.
+    virtual const Orbital_1E_IBS<double>* GetRealIBS(size_t) const {return nullptr;}
+
 protected:
-    virtual size_t      GetNumIBS()    const=0; //Number of Irrep basis sets.
     virtual const obs_t* GetIBS(size_t) const=0; //The only storage-specific primitive.
 };
 
