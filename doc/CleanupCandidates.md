@@ -2176,3 +2176,15 @@ MnO campaign proceeds undisturbed in qchem6.
   ([[feedback_compile_time_over_runtime]]): store the species Z the object was built for (GetGTH
   knows it) and `assert(Z==itsZ)` in every Z-taking method; or drop `Z` from the single-species
   concrete API entirely and let ONLY `MultiSpecies_*` model the Z-dispatching face.
+
+- **V1.32 Rename the FINITE density leaf `IrrepCD<T>` → non-template `FiniteIrrepCD` (user, 2026-08-17,
+  out of the RealComplexPlan 3c-2b split).**  After lineage-as-class, the finite leaf has exactly ONE
+  instantiation — `<double>` — and the factory's `if constexpr` guard makes a finite-complex density
+  UNREPRESENTABLE (it throws before instantiating).  So the template parameter is vestigial and the
+  name no longer says the load-bearing thing: *Finite* (molecules/atoms) is the identity, not the
+  scalar.  De-templating also lets its conditional bases (`ProjectedDensityBase<T>`,
+  `IrrepHF_PairBase<T,...>`) collapse to the plain double faces.  SMALL: touchers are
+  `IrrepCD_Factory` (the double branch), the explicit instantiation + `template <>` member
+  definitions in Internal/Imp/IrrepCD.C, the `IrrepCD_HFPair<IrrepCD<double>>` CRTP/friend spellings,
+  and tests/Version.C.  Consider the same question for `PeriodicIrrepCD<T>` and DECLINE it there:
+  that leaf genuinely has both scalars (the real TRIM block vs general k), so its T is load-bearing.

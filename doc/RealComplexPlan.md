@@ -1,9 +1,33 @@
 # Real vs complex — what decides the scalar type, and how it flows
 
-**Status: PLAN, no code beyond Step 0.**  Written 2026-08-16 out of the GPW runtime work
-(doc/GPWPlan1.md "THE RUNTIME GAP, MEASURED"), which surfaced the question but does not settle it.
-The decision to write this instead of starting: the change is large, and several open OOD items sit
-on the very faces it would restructure (see "Prerequisites").
+**Status 2026-08-17: EXECUTION — through Step 3c-2b, eleven commits, every one behind a full green
+sweep (770 tests).**  Landed this campaign: Step 1 (realness as exact queries, `ef658518`), the §6
+accelerator face (`2b09b5b7`, + the first molecular GDM/Ladder gtest coverage), Steps 2a/2b (the
+CD/WF variant child slots, `1f9b8d34`/`43c0c2f0`), Step 3a (`tGPW_IBS<T>` — the real TRIM block
+exists, `6d1a68cb`), 3b (the basis child slot = the first mixed set, `87072a45`), 3c-1 (the term
+stack serves real blocks, `ea2309eb`), 3c-2 (the Fock assembly + SCF wiring, `52190674`), and
+3c-2b (lineage-as-class: the `PeriodicIrrepCD` split + live energy/ρ̃ cross arms, `752cd9a6`).
+CD-hierarchy diagram: doc/diagrams/chargedensity_hierarchy.svg.
+
+**NEXT SESSION'S ENTRY POINT — Step 3c-3, the factory flip.**  Everything below it is live and
+gated; what remains is to make the decision REAL:
+1. `GPW_BasisSet`'s k-block loop (src/BasisSet/Lattice_3D/Imp/BasisSet.C, the `for (kb : blocks)`)
+   builds `tGPW_IBS<double>` when `irrep->IsReal()` — AND the run's `PreservesReal`, threaded from
+   the composition root (`SolidCalculation` computes it per §3; a ctor/params bool into `GPWParams`
+   is the natural carrier, defaulted so nothing else changes).
+2. Acceptance: a Γ-only GPW SCF through `SolidCalculation` with the flip ON vs OFF — energies and
+   density machine-equal (the per-term gates say bitwise for everything except the Becke GEMM's
+   summation order), plus the run report showing `real: true` blocks actually running real.
+3. Then **2c is already done by construction** (the WF/CD/accelerator seams are live) and **Step 4**
+   is the mixed-mesh (3×3×3) acceptance run.
+Watch-outs recorded in the increments below: the ball-fit XC route throws for real blocks (raw is
+the production default — a flip under `PW_XC_Becke=off`+ball would trip it); the mixed
+`DM_RhoAtPoints` arm self-evaluates pointwise until the engine's real Φ tables are threaded through
+(a pure optimization); cleanup candidate V1.32 (de-template the finite `IrrepCD` leaf) is filed in
+doc/CleanupCandidates.md.
+
+(Original preamble, 2026-08-16: written out of doc/GPWPlan1.md "THE RUNTIME GAP, MEASURED"; the
+prerequisites that once gated this are all closed — see §7.)
 
 ---
 
