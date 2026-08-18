@@ -208,12 +208,23 @@ variant that never takes the complex alternative: a negligible tag, one implemen
       `RealComplexTerms.HamiltonianAssemblyServesTheRealBlockBitwise` — the `Ham_RealBlock` fold
       (kinetic + 3 PP + Hartree) equals the native complex assembly BITWISE, i.e. exactly the matrix
       a real WF child receives.
-      **Deferred to 3c-2b (the ENERGY/DENSITY half, prerequisite for 3c-3):** the composite
-      density's cross-scalar contract arms (static reuses `tStatic_CC<double>` on the term mixins;
-      dynamic needs a run-typed `GetEMatrixR` client face), the mixed `DM_RhoAtPoints` pointwise
-      arm, and the REAL child's ρ̃ contribution — `IrrepCD`'s Fourier trio is conditioned on
-      T==dcmplx, conflating scalar with lineage; Step 3 breaks that identification, so the
-      conditional must move from the scalar to a basis-capability probe.
+      **3c-2b DONE 2026-08-17 — the ENERGY/DENSITY half (option B, user-decided: LINEAGE AS A
+      CLASS).**  The leaf family is split by lineage, not scalar: `IrrepCD_Core<T>` (the shared DM
+      machinery), `IrrepCD<T>` (the FINITE leaf, name/faces unchanged — molecular consumers
+      untouched; only `<double>` exists), `PeriodicIrrepCD<T>` (the PERIODIC leaf: core + the
+      Fourier trio for BOTH scalars via the scalar-generic `IrrepCD_Fourier` mixin whose basis cast
+      keys `Orbital_DFT_IBS<T,dcmplx>`; carries NEITHER AO nor HF faces, so every cross-cast probe
+      tells the truth; `<double>` = the real TRIM block's density with real D and real DM GEMMs).
+      Every scalar-keyed lineage conditional retired — and with it `IrrepCD<dcmplx>`'s asserting HF
+      denial stubs (the R2.8 smell).  The lineage choice is made ONCE in `IrrepCD_Factory` by
+      probing the basis for the G-space face; a finite-complex request throws (unrepresentable).
+      Energy arms live: `Static_HT_RealBlock` IS-A `tStatic_CC<double>` (same signature — the real
+      child contracts natively); the run-typed `Dynamic_CC_RealBlock::GetEMatrixR` client (default
+      E=D·V over the real cache) is consumed by the real leaf's `RealBlockEnergy_CD` capability;
+      the mixed `DM_RhoAtPoints` arm self-evaluates pointwise (the documented first-pass fallback).
+      Gates: `RealPeriodicLeafFourierTrioMatchesComplexBitwise` + `MixedCompositeEnergyAndRhoMatchComplex`
+      (static/dynamic energies, ρ(points), and the composite Fourier visit through a REAL child, all
+      equal to the all-complex twin).  CD hierarchy diagram: doc/diagrams/chargedensity_hierarchy.svg.
     - **3c-3** — wire the factory decision (`irrep->IsReal() ∧ PreservesReal`, threaded from the
       composition root into `GPW_BasisSet`); 2c falls out; then Step 4's mixed-mesh acceptance.
 - **Step 4 — the accelerator** (§6), and only then a mixed-mesh run as the acceptance test.

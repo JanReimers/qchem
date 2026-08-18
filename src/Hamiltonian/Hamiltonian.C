@@ -160,14 +160,19 @@ public:
 //  face already IS real.  Caching lives in the Internal mixins (Static/Dynamic_HT_RealBlock_Imp),
 //  mirroring tStatic/tDynamic_HT_Imp exactly.
 //====================================================================================================
+//  Each face IS-A real-block CONTRACT CLIENT too (Step 3c-2b): the static one's GetMatrix has exactly
+//  tStatic_CC<double>'s signature, so the real leaf's native DM_Contract serves its energy; the dynamic
+//  one carries the run-typed GetEMatrixR (see ChargeDensity::Dynamic_CC_RealBlock).
 class Static_HT_RealBlock
+    : public virtual ChargeDensity::tStatic_CC<double>
 {
 public:
     virtual ~Static_HT_RealBlock() {};
-    //! This term's REAL matrix block for a real TRIM block; same contract as \c tStatic_HT::GetMatrix.
-    virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&) const=0;
+    // GetMatrix(const tobs_t<double>*, const Spin&) comes from tStatic_CC<double> -- one declaration,
+    // one override (the caching Imp mixin's), serving BOTH the Fock fold and the energy contraction.
 };
 class Dynamic_HT_RealBlock
+    : public virtual ChargeDensity::Dynamic_CC_RealBlock
 {
 public:
     virtual ~Dynamic_HT_RealBlock() {};

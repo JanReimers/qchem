@@ -25,9 +25,10 @@ import qchem.Hamiltonian.Internal.Hamiltonian;     // tHamiltonianImp<dcmplx> (t
 import qchem.Hamiltonian.Internal.PWTerms;         // the periodic term set + XC_GridEngine
 import qchem.Hamiltonian.Internal.SlaterExchange;  // SlaterExchange (the Dirac-exchange functional)
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (Si GTH-LDA-q4)
-import qchem.ChargeDensity.Imp.IrrepCD;            // IrrepCD<dcmplx> (hand-built block density)
+import qchem.ChargeDensity.Imp.IrrepCD;            // PeriodicIrrepCD (the periodic leaf -- 3c-2b)
 import qchem.CompositeCD;                          // tComposite_CD<dcmplx> (the run-shaped density)
 import qchem.Mesh;                                 // qcMesh::MeshParams
+import qchem.Fitting.FunctionFitter;               // CoulombMetric_ProjectedDensity (the honest-probe check)
 import qchem.Blaze;
 import qchem.Types;
 
@@ -64,7 +65,7 @@ struct Rig
         D(0,0)=2.0;
         auto cd=std::make_unique<tComposite_CD<dcmplx>>();
         cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(
-            new IrrepCD<dcmplx>(D, cx.get(), cx->GetIrrep(Spin::None))));
+            new PeriodicIrrepCD<dcmplx>(D, cx.get(), cx->GetIrrep(Spin::None))));
         return cd;
     }
 };
@@ -166,4 +167,88 @@ TEST(RealComplexTerms, HamiltonianAssemblyServesTheRealBlockBitwise)
     auto& rb = dynamic_cast<Hamiltonian::Ham_RealBlock&>(ham);   // the face a real WF child drives
     const rsmat_t Hr = rb.GetMatrix(rig.re.get(), Spin::None, cd.get(), nullptr);
     ExpectBitwiseEqual(Hr, Hc, "Ham_RealBlock fold");
+}
+
+
+// ===== Step 3c-2b: the PERIODIC LEAF SPLIT + the mixed-composite energy/density arms ==================
+// PeriodicIrrepCD<double> is the real TRIM block's density: real D, real DM-side arithmetic, and the
+// SAME reciprocal trio as its complex twin -- the lineage-as-class split (V1.7's scalar⇔lineage
+// conflation retired).  The trio must match the complex twin BITWISE: the contraction runs the same
+// tensor in the same order, only D's (exactly zero) imaginary parts differ.
+TEST(RealComplexTerms, RealPeriodicLeafFourierTrioMatchesComplexBitwise)
+{
+    using namespace qchem::ChargeDensity;
+    Rig rig;
+    const size_t n=rig.re->GetNumFunctions();
+    rsmat_t Dr(n); Dr(0,0)=2.0;
+    chmat_t Dc(n); Dc(0,0)=2.0;
+    PeriodicIrrepCD<double> cdr(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None));
+    PeriodicIrrepCD<dcmplx> cdc(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None));
+
+    // Both leaves carry the Fourier face; NEITHER carries the finite (AO/HF) faces -- the honest probes.
+    EXPECT_NE(dynamic_cast<const FourierDensity*>(&cdr), nullptr);
+    EXPECT_EQ(dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(&cdr), nullptr);
+    EXPECT_EQ(dynamic_cast<const tHF_Pair_CD<double>*>(&cdr), nullptr);
+
+    Vee_Hartree::fbs_t fb(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> sf(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    ΔG_Map rr=cdr.GetRepulsion3C(*fb), rc=cdc.GetRepulsion3C(*fb);
+    ASSERT_EQ(rr.size(), rc.size());
+    for (const auto& [dm,v] : rr)
+    {
+        auto it=rc.find(dm);
+        ASSERT_NE(it, rc.end());
+        EXPECT_EQ(v, it->second) << "V_H(dm) mismatch";
+    }
+    const rvec_t gr=cdr.GetRhoOnGrid(*sf), gc=cdc.GetRhoOnGrid(*sf);
+    ASSERT_EQ(gr.size(), gc.size());
+    for (size_t g=0; g<gr.size(); g++) EXPECT_EQ(gr[g], gc[g]) << "raw rho_DM mismatch at g="<<g;
+}
+
+// The MIXED composite's energy/density arms: ONE real child inside a complex-faced composite must give
+// the same static/dynamic energy contractions and the same rho(points) as the all-complex twin.
+TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
+{
+    using namespace qchem::ChargeDensity;
+    Rig rig;
+    const size_t n=rig.re->GetNumFunctions();
+    rsmat_t Dr(n); Dr(0,0)=2.0;
+    chmat_t Dc(n); Dc(0,0)=2.0;
+
+    tComposite_CD<dcmplx> mixed;   // complex face, REAL child (the 3c-3 shape)
+    mixed.Insert(std::unique_ptr<tDM_CD<double>>(
+        new PeriodicIrrepCD<double>(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None))));
+    tComposite_CD<dcmplx> cplx;    // the all-complex twin
+    cplx.Insert(std::unique_ptr<tDM_CD<dcmplx>>(
+        new PeriodicIrrepCD<dcmplx>(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None))));
+
+    // STATIC arm: the term's real-block face IS a tStatic_CC<double>, so the real child contracts natively.
+    Kinetic<dcmplx> kin;
+    EXPECT_EQ(mixed.DM_Contract(static_cast<const cStatic_CC*>(&kin)),
+              cplx .DM_Contract(static_cast<const cStatic_CC*>(&kin)));
+
+    // DYNAMIC arm: the run-typed GetEMatrixR client (E=D.V identity over the real cache).
+    auto cdrun = rig.MakeDensity();   // the run's density (defines V_H)
+    Vee_Hartree vh(Vee_Hartree::fbs_t(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{})));
+    EXPECT_EQ(mixed.DM_Contract(static_cast<const cDynamic_CC*>(&vh), cdrun.get()),
+              cplx .DM_Contract(static_cast<const cDynamic_CC*>(&vh), cdrun.get()));
+
+    // RHO arm: the cross-scalar child self-evaluates pointwise; same rho(r) either way.
+    rvec3vec_t pts(3);
+    pts[0]=rig.cell.ToCartesian(rvec3_t(0.3,0.4,0.7));
+    pts[1]=rig.cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
+    pts[2]=rig.cell.ToCartesian(rvec3_t(0.1,0.9,0.2));
+    const rvec_t rm=mixed.DM_RhoAtPoints(pts, {});
+    const rvec_t rc=cplx .DM_RhoAtPoints(pts, {});
+    for (size_t g=0; g<pts.size(); g++) EXPECT_EQ(rm[g], rc[g]) << "rho mismatch at point "<<g;
+
+    // And the composite Fourier trio (the generic visit) now reaches the REAL child's face too.
+    // Through the FourierDensity FACE: the composite's own AO-projection GetRepulsion3C(rFIT*) hides the
+    // Fourier overload at concrete type (member-name hiding); the face is how every consumer reaches it.
+    Vee_Hartree::fbs_t fb2(rig.cx->CreateCDFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    const auto& fm=dynamic_cast<const FourierDensity&>(mixed);
+    const auto& fx=dynamic_cast<const FourierDensity&>(cplx);
+    ΔG_Map vm=fm.GetRepulsion3C(*fb2), vc=fx.GetRepulsion3C(*fb2);
+    ASSERT_EQ(vm.size(), vc.size());
+    for (const auto& [dm,v] : vm) { auto it=vc.find(dm); ASSERT_NE(it,vc.end()); EXPECT_EQ(v,it->second); }
 }

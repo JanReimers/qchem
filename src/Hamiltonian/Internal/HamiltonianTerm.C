@@ -173,6 +173,12 @@ public:
         else
             return i->second;
     }
+    //! The run-typed ENERGY matrix (ChargeDensity::Dynamic_CC_RealBlock, Step 3c-2b): the E=D·V identity
+    //! over the same real cache.  Valid for every term that takes the DM_Contract energy route (Hartree,
+    //! the statics); the periodic xc family integrates on its mesh instead and never consumes this.
+    virtual const hmat_t<double>& GetEMatrixR(const tobs_t<double>* bs,const Spin& s,
+                                              const tChargeDensity<dcmplx>* cd) const
+    { return GetMatrix(bs,s,cd); }
 protected:
     virtual hmat_t<double> MakeMatrixR(const tobs_t<double>*,const Spin&,const tChargeDensity<dcmplx>*) const=0;
     mutable std::map<Irrep,hmat_t<double>> itsRealCache;

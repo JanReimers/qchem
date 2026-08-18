@@ -129,21 +129,65 @@ template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std
 template <class T> rvec_t tComposite_CD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
 {
     rvec_t ro(r.size(), 0.0);
-    for (auto& c:itsCDs) ro+=SameT<T>(c).DM_RhoAtPoints(r,Phi);
+    for (auto& c:itsCDs)
+        std::visit([&](const auto& b)
+        {
+            using BT=std::decay_t<decltype(*b)>;
+            if constexpr (std::is_same_v<BT,tDM_CD<T>>) ro+=b->DM_RhoAtPoints(r,Phi);
+            else
+                // Cross-scalar child (a real block; the caller's Phi tables are run-typed): self-evaluate
+                // via an empty typed map -- the leaf's own documented first-pass fallback, correct if slower.
+                // The engine keeps REAL Phi tables for the MATRIX side (XC_GridEngine::PhiR); threading them
+                // through here is a later optimization.
+                ro+=b->DM_RhoAtPoints(r,{});
+        }, c);
     return ro;
 }
 
+// The energy contractions, MIXED-AWARE (Step 3c-2b): a same-scalar child contracts natively; a REAL
+// child inside a complex run contracts through the term's real-block contract clients -- the static one
+// IS a tStatic_CC<double> (same signature), the dynamic one is the run-typed Dynamic_CC_RealBlock the
+// real periodic leaf consumes via its RealBlockEnergy_CD capability.
 template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) const
 {
     double ret=0.0;
-    for (auto& c:itsCDs) ret+=SameT<T>(c).DM_Contract(v);
+    for (auto& c:itsCDs)
+        ret+=std::visit([&](const auto& b)->double
+        {
+            using BT=std::decay_t<decltype(*b)>;
+            if constexpr (std::is_same_v<BT,tDM_CD<T>>) return b->DM_Contract(v);
+            else if constexpr (std::is_same_v<T,dcmplx>)
+            {
+                auto* rc=dynamic_cast<const tStatic_CC<double>*>(v);
+                if (!rc) throw std::logic_error("tComposite_CD: a real child needs the term's real-block "
+                                                "contract client (Static_HT_RealBlock, RealComplexPlan 3c-1)");
+                return b->DM_Contract(rc);
+            }
+            else throw std::logic_error("tComposite_CD: a complex child inside a real-faced run is impossible");
+        }, c);
     return ret;
 }
 
 template <class T> double tComposite_CD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
     double ret=0.0;
-    for (auto& c:itsCDs) ret+=SameT<T>(c).DM_Contract(v,cd);
+    for (auto& c:itsCDs)
+        ret+=std::visit([&](const auto& b)->double
+        {
+            using BT=std::decay_t<decltype(*b)>;
+            if constexpr (std::is_same_v<BT,tDM_CD<T>>) return b->DM_Contract(v,cd);
+            else if constexpr (std::is_same_v<T,dcmplx>)
+            {
+                auto* rcv=dynamic_cast<const Dynamic_CC_RealBlock*>(v);
+                if (!rcv) throw std::logic_error("tComposite_CD: a real child needs the term's run-typed "
+                                                 "energy client (Dynamic_CC_RealBlock, RealComplexPlan 3c-2b)");
+                auto* rb=dynamic_cast<const RealBlockEnergy_CD*>(b.get());
+                if (!rb) throw std::logic_error("tComposite_CD: a real child density must carry the "
+                                                "RealBlockEnergy_CD capability (PeriodicIrrepCD<double>)");
+                return rb->DM_ContractE(rcv, cd);
+            }
+            else throw std::logic_error("tComposite_CD: a complex child inside a real-faced run is impossible");
+        }, c);
     return ret;
 }
 

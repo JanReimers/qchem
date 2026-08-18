@@ -11,6 +11,29 @@ source .venv/bin/activate
 export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
 python app_desktop.py 
 
+# Cleanup status
+Here's the standing inventory, reconciled against the current branch copy (which has all of this weekend's closures folded in):
+
+R1 — correctness-adjacent: 9 of 11 closed. Open:
+
+R1.0 (fake-radial op(r) → MakeOverlap overloads, then honest Y_lm) — your ruling: its own session.
+R1.0b (shared-radial SP/L-shells in valgen) — blocked on the PG_Cart same-exponent-merge reader bug, and naturally follows R1.0.
+R2 — mechanical hygiene: 13 of 17 fully closed (R2.15 and R2.20 were this weekend's). The remainders are all halves, not items:
+
+R2.5 — the two tPolarized_CD exit() sites. Worth noting: the stated blocker was "that's the V1.6/V1.8 seam," and V1.6/V1.8 have since landed — so this is genuinely unblocked, it just lives in src/ChargeDensity, i.e. post-merge.
+R2.14 — remaining renames (Delta_XC, PW_XC→PWFittedVxc-or-similar): parked in the Hamiltonian term files (TRIM set), and the PW_XC name is your call.
+R2.17 — 2 of 3 done; the third is a design call.
+R2.18 — names done; encapsulation half deliberately open (policy-emerges-from-evidence ruling).
+R2.21 — Policy/State split: designed, and you said "not right now."
+V1 — interface design: 17 of ~26 closed (V1.1, V1.3–V1.11, V1.13, V1.16, V1.25, V1.27-live-half, V1.30, V1.31). The open ones sort cleanly into five buckets:
+
+Waiting on you: V1.1b (Dunlap paper re-read), V1.20 (needs the library-family rule decided first), V1.23 (keep-or-fold DirectOf), V1.21 (promote/demote BandStructure — small).
+Approved, but parked behind the merge: V1.2 (Orbital_PP_IBS — it restructures the same IBS faces the TRIM work is touching), V1.12, V1.15, V1.17, V1.18 (all live in TRIM-set files).
+Deliberately deferred, bit-moving: V1.22 — now paired with §K as the post-campaign "bit-moving session" (one re-baselining round for both).
+MnO-dev-owned: V1.24(i)+(iii), V1.28/V1.29 — and these two look substantially discharged by the Shubnikov S1–S4 landings (signed (ρ,m) projectors are exactly V1.28's cure), but the items were never reconciled against that work. A doc-reconciliation pass would likely close both.
+Design ruled, not started: V1.27's iterator-decomposition half (2 classes + 1 bool).
+V1.26 is effectively complete (selector armed via V2.4, margin validated, sizing landed) — closeable at the same reconciliation pass; nothing in it is still actionable.
+
 # GDM
 The one your roadmap actually wants: GDM on the free energy A = E − TS over orbitals and occupations — ensemble-DFT direct minimization (Marzari–Vanderbilt–Payne 1997; Freysoldt–Boeck–Neugebauer 2009).
 
