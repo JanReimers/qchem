@@ -81,10 +81,16 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     itsImp->st      = lat.GetStructure();
 
     namespace L3 = BasisSet::Lattice_3D;
+    // THE WORKING-TYPE DECISION (doc/RealComplexPlan.md §3, Step 3c-3): a block is real ⇔ its irrep is
+    // (TRIM) ∧ every term preserves realness.  This composition root builds the LDA GPW stack --
+    // kinetic, the PP trio, Hartree, XC -- every member of which PreservesReal(), so the term half is
+    // TRUE here; it is asserted against the constructed Hamiltonian below, so a future term that
+    // breaks realness must also flip this forecast.  forceComplex is the §6 ansatz-policy downgrade.
+    const bool hamPreservesReal = !opts.forceComplex;
     itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
         .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
         .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-        .imposeSymmetry = opts.imposeSymmetry}));
+        .imposeSymmetry = opts.imposeSymmetry, .hamPreservesReal = hamPreservesReal}));
 
     // DECISION 1 -- the XC quadrature.  Resolve Auto HERE, once, from facts about the run.  Downstream
     // consumers compare ==Becke, so an unresolved Auto would silently read as Uniform; resolving it at the
@@ -105,6 +111,11 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     itsImp->ham = qchem::Hamiltonian::Factory(
         polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
         itsImp->st, itsImp->bs.get(), opts.species, "LDA", itsImp->xcMesh, opts.vxcFit);
+    // The forecast crosscheck: the basis was built on the promise that every term preserves realness
+    // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
+    // that its terms cannot serve.
+    assert((!hamPreservesReal || itsImp->ham->PreservesReal()) &&
+           "SolidCalculation: the term stack no longer preserves realness -- update the forecast above");
 
     // DECISION 3 -- the accelerator, by policy, through the public typed door.
     auto* accel = SCFAccelerators::Factory(opts.accelerator, acc);
