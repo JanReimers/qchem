@@ -104,6 +104,15 @@ struct SolidCalcOptions
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Uniform;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
+    //! ANSATZ POLICY (doc/RealComplexPlan.md §6): force every Bloch block COMPLEX even where the run
+    //! admits real ones (a TRIM k-point under a realness-preserving Hamiltonian -- with the default
+    //! LDA stack every Γ / zone-boundary block runs REAL: real S/T/V/KB, real eigensolve, real
+    //! quadrature GEMMs).  The physics is identical either way (the 3c-3 acceptance gate pins ON==OFF
+    //! to machine precision); complex is the DOWNGRADE direction (§1), kept as the escape hatch for
+    //! complex-instability experiments, as the gate's A/B door -- and as the interim route for MOM
+    //! (\c SCFParams::UseMOM) on a TRIM run, whose real-block reference capture is not wired yet and
+    //! throws.
+    bool forceComplex = false;
     //!@}
 };
 

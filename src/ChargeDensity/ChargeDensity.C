@@ -315,6 +315,16 @@ public:
         for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);
         return ro;
     }
+    //! \brief The MIXED-RUN overload (doc/RealComplexPlan.md 3c-3): \a PhiR carries the REAL blocks'
+    //! tables beside \a Phi's run-typed ones (the engine keeps one typed table cache per block scalar;
+    //! the two irrep key sets are disjoint).  Default forwards and drops \a PhiR -- only a composite
+    //! holding a cross-scalar (real) child consumes it, by handing the real leaf \a PhiR through the
+    //! leaf's OWN 2-arg face (T==double there), so the leaf's GEMM path needs no new code.  Without
+    //! this seam a real TRIM block's rho sampling fell to the pointwise loop -- measured 832 s vs 1 s
+    //! over 10 MnO iterations (48k-point Becke mesh), i.e. the seam is load-bearing, not cosmetic.
+    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi,
+                                  const std::map<Irrep,mat_t<double>>& /*PhiR*/) const
+    { return DM_RhoAtPoints(r, Phi); }
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
     // below (V1.6).  They were four asserting defaults on this general face, which every concrete family

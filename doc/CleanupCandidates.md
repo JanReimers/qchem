@@ -2252,3 +2252,30 @@ MnO campaign proceeds undisturbed in qchem6.
   ([[feedback_compile_time_over_runtime]]): store the species Z the object was built for (GetGTH
   knows it) and `assert(Z==itsZ)` in every Z-taking method; or drop `Z` from the single-species
   concrete API entirely and let ONLY `MultiSpecies_*` model the Z-dispatching face.
+
+- **V1.32 Rename the FINITE density leaf `IrrepCD<T>` → non-template `FiniteIrrepCD` (user, 2026-08-17,
+  out of the RealComplexPlan 3c-2b split).**  After lineage-as-class, the finite leaf has exactly ONE
+  instantiation — `<double>` — and the factory's `if constexpr` guard makes a finite-complex density
+  UNREPRESENTABLE (it throws before instantiating).  So the template parameter is vestigial and the
+  name no longer says the load-bearing thing: *Finite* (molecules/atoms) is the identity, not the
+  scalar.  De-templating also lets its conditional bases (`ProjectedDensityBase<T>`,
+  `IrrepHF_PairBase<T,...>`) collapse to the plain double faces.  SMALL: touchers are
+  `IrrepCD_Factory` (the double branch), the explicit instantiation + `template <>` member
+  definitions in Internal/Imp/IrrepCD.C, the `IrrepCD_HFPair<IrrepCD<double>>` CRTP/friend spellings,
+  and tests/Version.C.  Consider the same question for `PeriodicIrrepCD<T>` and DECLINE it there:
+  that leaf genuinely has both scalars (the real TRIM block vs general k), so its T is load-bearing.
+
+- **The `OverlapMatrix` static-field integrate-back screens with `CollocMemo::D` — safe only by build
+  ORDERING (found 2026-08-18, out of the cross-run pollution hunt).**  `GPW_Evaluator::OverlapMatrix`
+  passes `itsCollocMemo->D` (the last collocated density) as the `IntegratePotential` density screen,
+  and `MakeLocalPP` routes through it — a STATIC field, whose matrix must not depend on any iteration's
+  D.  Today this never bites: each block's static terms are built before that block's first Hartree
+  collocation (`tHamiltonianImp::GetMatrix` sums statics before dynamics), so the memo is still invalid
+  and the sweep runs unscreened.  But the guarantee is implicit: any flow that rebuilds a static PP
+  matrix AFTER a collocation on the same evaluator (a new Structure::ID mid-process, a diagnostic
+  probe, a future term reordering) would silently D-sparsify a static matrix — and the I2n cache would
+  then serve that sparsified matrix process-wide.  Candidate fix: a `screen` parameter on
+  `OverlapMatrix` so the STATIC callers (`MakeLocalPP*`) pass none explicitly, keeping the D-screen an
+  opt-in of the per-iteration KS-field path only.  (The cross-run sibling of this hazard — the `Dscr`
+  union riding the DBCache'd `Projector3` closures — was fixed 2026-08-18 by instance-scoping the GPW
+  3C tensors in `tGPW_IBS`; see `GPW_SCF.CrossRunFirstRunAnomalyProbe`.)

@@ -275,6 +275,16 @@ private:
     //! fully-polarized Na doublet's \f$D_\downarrow=0\f$).  A magnitude screen may only WIDEN (the
     //! no-cut pin): the union keeps the adjoint exact on every channel's active set, at worst
     //! gathering pairs a later iterate abandoned.
+    //! LIFETIME PIN (2026-08-18): because \c Dscr only ever WIDENS, the closures capturing this memo
+    //! must never outlive their SCF run.  When the matrix-free \c Projector3 closures sat in the
+    //! process-wide DBCache, a second identical run inherited the first run's converged union -- its
+    //! seed Fock swept the full pair set where a fresh process's (screened by the seed's diagonal SAD
+    //! \f$D\f$) is diagonal-only: the first-run anomaly (seed s-levels ~0.24 Ha apart, converged E
+    //! ~5e-6).  Fixed by scoping those tensors PER BASIS INSTANCE (tGPW_IBS memoizes them itself, see
+    //! GPW_IBS.C), so every run replays fresh-process behaviour bit-for-bit.  (An epoch-reset of the
+    //! union was tried and REJECTED: it violates the widen-only pin above, and trailing report-time
+    //! collocations -- Density()/charge, never followed by an integrate -- dangle into the next run's
+    //! seed burst.)  Gate: GPW_SCF.CrossRunFirstRunAnomalyProbe.
     struct CollocMemo { bool valid=false; chmat_t D, Dscr; std::vector<rvec_t> rho; std::vector<double> ecut; };
     mutable std::shared_ptr<CollocMemo> itsCollocMemo;    //!< shared so both framework-cached closures see it
     //! The Bloch phase of an integer cell offset \f$n\f$: \f$e^{2\pi i\,k_{frac}\cdot n}\f$ -- the closure the

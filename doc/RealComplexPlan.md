@@ -1,9 +1,50 @@
 # Real vs complex — what decides the scalar type, and how it flows
 
-**Status: PLAN, no code beyond Step 0.**  Written 2026-08-16 out of the GPW runtime work
-(doc/GPWPlan1.md "THE RUNTIME GAP, MEASURED"), which surfaced the question but does not settle it.
-The decision to write this instead of starting: the change is large, and several open OOD items sit
-on the very faces it would restructure (see "Prerequisites").
+**Status 2026-08-18: STEP 3c-3 + STEP 4 ACCEPTANCE LANDED — THE FLIP IS LIVE.**  `SolidCalculation`
+now computes the §1 rule and builds every TRIM block REAL by default (`GPWParams::hamPreservesReal`
+threaded from the composition root; `SolidCalcOptions::forceComplex` = the §6 ansatz-policy
+downgrade and the acceptance A/B door).  Acceptance green: Γ-only and mixed-mesh (N=(3,1,1): one
+real Γ beside two complex ±⅓ blocks) ON-vs-OFF twins — iteration-1 arithmetic to ≤1e-8 (roundoff;
+per-term gates are bitwise), converged physics to gate resolution — plus the run report's new
+`runsReal` field beside `real` (both perIrrep emitters).  Bitwise trajectories are impossible BY
+CONSTRUCTION (dsyev-vs-zheev + DIIS chaos), hence the two-arm gate `ExpectRealComplexTwins`.
+Landed with the flip (this session): the remaining cross-scalar landmines on the production path —
+the whole-set fit/quadrature factories (`FirstPeriodicDFT` mixed walk), the Uniform/SAD seed paths,
+the Kerker `MakePeriodicMixer` probe, and the FILL seam (the `RealBlockFillView` thin
+`OccupationPolicy<double>` view + `FillChild`/`FillChildAtMu` dispatchers in `tCompositeWF`; MOM on
+a real block THROWS until the R2.21 policy/state split — interim route: `forceComplex`).  New gates:
+`RealComplexTerms.RawRouteXcServesTheRealBlockBitwise` (the raw-route PWFittedVxc real path),
+`StaticTermsServeTheRealBlockBitwise_FccDiamond` + `SeedDensityTrioMatches_FccDiamond`
+(production-shaped 2-atom FCC cell), `GPW_SCF.RealTRIMBlocksMatchComplex_{SiGamma,SiMixedMesh}`,
+`GPW_SCF.RealTRIMBlocksRunRealInReport`.
+**FOUND IN PASSING (pre-existing, filed as its own defect): cross-run GPW cache pollution** — the
+FIRST full GPW run in a process differs from identical later runs (seed-Fock s-levels ~0.24 Ha,
+converged E ~5e-6; runs 2+ steady to ~1e-10; reproduced with two all-COMPLEX runs, so NOT the
+flip).  The acceptance works around it with a throwaway warm-up run; see the comment on
+`ExpectRealComplexTwins`.
+**REMAINING (candidates for a next session):** the harness `GpwOptions::realTRIMBlocks` stays a
+default-off knob — decide when the whole suite flips; MOM-on-real-blocks needs the R2.21
+policy/state split; the complex-internal evaluator streams are the remaining (now dominant)
+performance increment; V1.32 (de-template the finite `IrrepCD` leaf) remains filed in
+doc/CleanupCandidates.md.
+**The `DM_RhoAtPoints` arm is CLOSED (`523a745a`, 2026-08-18):** the "pure optimization" deferral
+was load-bearing — on the Becke route the pointwise fallback measured 832 s vs 1 s over 10 MnO
+iterations, so a flipped run was 7× slower net.  Fixed by the 3-arg `DM_RhoAtPoints(r, Phi, PhiR)`
+seam (the engine's matrix-side real tables threaded to the composite's cross arm; real-typed
+`Rho`/`RhoPol` ensure overloads).  MEASURED wins on MnO AFM-II Γ, identical physics digits:
+H_xc quadrature 2.0×, ρ-sampling GEMM 2.2× — the realized Step-3 win on the production Becke
+route (`MNO_REAL=1 MNO_MOM=0` is the A/B recipe).
+
+Earlier campaign record (2026-08-17, eleven commits, each behind a full green sweep): Step 1
+(realness as exact queries, `ef658518`), the §6 accelerator face (`2b09b5b7`, + the first molecular
+GDM/Ladder gtest coverage), Steps 2a/2b (the CD/WF variant child slots, `1f9b8d34`/`43c0c2f0`),
+Step 3a (`tGPW_IBS<T>` — the real TRIM block exists, `6d1a68cb`), 3b (the basis child slot = the
+first mixed set, `87072a45`), 3c-1 (the term stack serves real blocks, `ea2309eb`), 3c-2 (the Fock
+assembly + SCF wiring, `52190674`), and 3c-2b (lineage-as-class: the `PeriodicIrrepCD` split + live
+energy/ρ̃ cross arms, `752cd9a6`).  CD-hierarchy diagram: doc/diagrams/chargedensity_hierarchy.svg.
+
+(Original preamble, 2026-08-16: written out of doc/GPWPlan1.md "THE RUNTIME GAP, MEASURED"; the
+prerequisites that once gated this are all closed — see §7.)
 
 ---
 
@@ -225,9 +266,16 @@ variant that never takes the complex alternative: a negligible tag, one implemen
       Gates: `RealPeriodicLeafFourierTrioMatchesComplexBitwise` + `MixedCompositeEnergyAndRhoMatchComplex`
       (static/dynamic energies, ρ(points), and the composite Fourier visit through a REAL child, all
       equal to the all-complex twin).  CD hierarchy diagram: doc/diagrams/chargedensity_hierarchy.svg.
-    - **3c-3** — wire the factory decision (`irrep->IsReal() ∧ PreservesReal`, threaded from the
-      composition root into `GPW_BasisSet`); 2c falls out; then Step 4's mixed-mesh acceptance.
+    - **3c-3 DONE 2026-08-18** — the factory decision is wired (`GPWParams::hamPreservesReal` from
+      the composition root ∧ `irrep->IsReal()` per block in `GPW_BasisSet`'s k-loop, one
+      scalar-generic build); `SolidCalculation` flips by DEFAULT (post-Factory assert crosschecks
+      the term-stack forecast; `forceComplex` = the §6 downgrade knob); 2c fell out as predicted —
+      but the FILL seam needed its mixed arm (`RealBlockFillView` + `FillChild`/`FillChildAtMu`),
+      and four production-path landmines needed mixed-aware fixes (whole-set fit factories, seeds,
+      Kerker probe).  See the status header for gates and the found-in-passing pollution defect.
 - **Step 4 — the accelerator** (§6), and only then a mixed-mesh run as the acceptance test.
+  **The mixed-mesh acceptance LANDED with 3c-3** (`RealTRIMBlocksMatchComplex_SiMixedMesh`,
+  N=(3,1,1) = the smallest genuinely mixed mesh; a 3×3×3 is the same code path 27 blocks wide).
 
 An all-TRIM mesh (Γ-only, or Γ-centred 2×2×2 = `MNO_KMESH=2`) makes an entire run real with no
 heterogeneity at all.  Mixed meshes (3×3×3, shifted MP) are the only case that truly needs per-block

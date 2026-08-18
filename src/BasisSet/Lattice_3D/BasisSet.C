@@ -94,6 +94,14 @@ struct GPWParams
     //! maps \f$+m\f$ sites onto \f$-m\f$ sites and would erase the magnetic order it is supposed to
     //! protect.  Empty (the default) = the historical grey imposition.
     std::vector<int> siteSpins = {};
+    //! REALNESS, the term half (doc/RealComplexPlan.md Step 3c-3): the composition root's assertion
+    //! that EVERY Hamiltonian term of the run preserves a real basis block (no SOC, no vector
+    //! potential).  With it set, each TRIM block (\c irrep.IsReal(), exact integer arithmetic) is
+    //! BUILT REAL -- \c tGPW_IBS<double>: real S/T/V/KB and real quadrature GEMMs inside the
+    //! complex-faced set.  The basis cannot compute this itself (it would be a basis→Hamiltonian
+    //! dependency cycle), so the root that constructs both threads the fact in.  Default FALSE: a bare
+    //! factory caller keeps the historical all-complex build; the facades pass the computed fact.
+    bool hamPreservesReal = false;
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,

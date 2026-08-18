@@ -15,6 +15,7 @@ module qchem.ChargeDensity.Seed;
 import qchem.PeriodicTable;                   // thePeriodicTable -> GetElectronegativity (the ionic heuristic)
 import qchem.ChargeDensity.Factory;          // IrrepCD_Factory<T>
 import qchem.ChargeDensity.Types;            // tobs_t<T>
+import qchem.CompositeCD;                    // tComposite_CD<dcmplx> (the mixed Uniform seed's run-shaped wrap)
 import qchem.ChargeDensity.NumericCD;// NumericCD (the molecular SAD seed, double only)
 import qchem.ChargeDensity.SeedCD;    // SeedCD (the plane-wave SAD seed, dcmplx only)
 import qchem.ChargeDensity.AtomicDensity;    // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
@@ -80,8 +81,22 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
         // rho(r) = N/V  =>  D = (N/n) I on the first block.  A single block suffices since rho is
         // constant: every block's first Hartree/XC build sees the same total density.  This is the
         // centralized version of the old per-test plane-wave seed boilerplate.
+        // MIXED-AWARE (doc/RealComplexPlan.md 3c-3): after the factory flip a REAL TRIM block may sit
+        // at index 0 (Γ-first), where the same-scalar [0] view throws -- its seed is the <double> leaf
+        // inside the run-shaped composite (the same uniform rho either way).
+        const Irrep irr = bs->GetIrreps(Spin::None)[0];
+        if constexpr (std::is_same_v<T,dcmplx>)
+            if (const auto* rb = bs->GetRealIBS(0))
+            {
+                const size_t n = rb->GetNumFunctions();
+                const int    N = ec->GetN(irr);
+                hmat_t<double> D0=blazem::zeroH<double>(n);
+                for (size_t i=0;i<n;i++) D0(i,i)=double(N)/double(n);
+                auto* comp=new tComposite_CD<dcmplx>();
+                comp->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(D0, rb, irr)));
+                return comp;
+            }
         const tobs_t<T>* block = (*bs)[0];
-        const Irrep      irr   = bs->GetIrreps(Spin::None)[0];
         const size_t     n     = block->GetNumFunctions();
         const int        N     = ec->GetN(irr);
         hmat_t<T> D0=blazem::zeroH<T>(n);
@@ -110,9 +125,9 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
             // Plane-wave (FT) SAD: rho-tilde(G) = Sum_atoms rho_atom(|G|) e^{-iG.R}, assembled by the basis.
             // A polarized run gets the two-channel seed (§10): Hund pairs + per-atom flips choose the basin.
             assert(st && "SAD plane-wave seed needs a Structure");
-            const auto* ftbs = dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*bs)[0]);
-            assert(ftbs && "SAD plane-wave seed needs a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
-            std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
+            // The WHOLE-SET fit factory (mixed-aware since 3c-3) -- serves from the first block of
+            // either scalar, so a Γ-first real TRIM block no longer needs a block-0 cast here.
+            std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(bs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
             if (polarized) return new PolarizedSeedCD(fb, st);
             return new SeedCD(fb, st);
         }
@@ -127,9 +142,8 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
         if constexpr (std::is_same_v<T,dcmplx>)
         {
             assert(st && "IonicSAD plane-wave seed needs a Structure");
-            const auto* ftbs = dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>*>((*bs)[0]);
-            assert(ftbs && "IonicSAD plane-wave seed needs a Orbital_DFT_IBS<dcmplx> (plane-wave) basis");
-            std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
+            // Whole-set fit factory, as in the SAD arm above (mixed-aware since 3c-3).
+            std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(bs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
 
             std::map<size_t,int> targetByZ = IonicSADTargets(st, "LDA");   // the ONE resolution (S3 shares it)
             if (polarized) return new PolarizedSeedCD(fb, st, "LDA", targetByZ);   // §10: the two-channel ionic seed

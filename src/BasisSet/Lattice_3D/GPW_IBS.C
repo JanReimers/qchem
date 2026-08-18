@@ -117,6 +117,19 @@ public:
     virtual std::string Name      () const override {return "GPW";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)
 
+    //! \brief The DFT 3-centre tensors, memoized PER INSTANCE -- deliberately NOT through the process-wide
+    //! DBCache the base accessors use.  GPW's tensors are MATRIX-FREE closures capturing this evaluator's
+    //! mutable per-SCF state (the CollocMemo D-screen, the collocation streams): value-stable data they are
+    //! not.  Cached process-wide they outlive the run, and a second identical run in one process inherits
+    //! the first run's converged D-screen -- its seed Fock then sweeps the full pair set where a fresh
+    //! process's (screened by the seed's diagonal SAD D) is diagonal-only: the 2026-08-18 first-run anomaly
+    //! (seed s-levels ~0.24 Ha apart, converged E ~5e-6, every run in one process differing from a fresh
+    //! process).  Instance scope = run scope: every run replays fresh-process behaviour bit-for-bit.
+    //! (Within a run nothing changes -- the same instance serves every iteration, and cross-k-block stream
+    //! sharing lives in the SHARED molecular basis, not in these closures.)
+    virtual const Projector3<dcmplx>& Overlap3C  (const cFIT_SF_ABS& c) const override;
+    virtual const Projector3<dcmplx>& Repulsion3C(const cFIT_CD_ABS& c) const override;
+
     virtual std::ostream& Write(std::ostream&) const override;
 
 protected:
@@ -136,6 +149,9 @@ private:
     //! (T1, raster) take the evaluator's spatial DirectOps as always; only CreateXCQuadrature reads
     //! this, to hand the engine the per-op spin actions + the odd-field zero flags.
     std::vector<Symmetry::Lattice_3D::SymOp> itsMagneticOps;
+    //! The instance-scoped 3C tensor memo (see Overlap3C/Repulsion3C above).  Key = "O|"/"R|" + the fit
+    //! basis's BasisSetID (content identity, never a pointer).
+    mutable std::map<std::string,Projector3<dcmplx>> its3Cs;
 };
 
 //! Every pre-Step-3 spelling: the general-k complex block.  A TRIM block is tGPW_IBS<double>.
