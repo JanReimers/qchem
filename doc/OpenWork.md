@@ -29,17 +29,45 @@ waiting on a term-by-term breakdown to name its operator.
 Two readouts, both cheap, both prerequisites for Step 1 (a benchmark table that bakes in a wrong
 instrument is a table we redo).
 
-**0a — an INTEGRATED site moment.**  We report `m_stag = ½[m(Mn1) − m(Mn2)]` with `m(r)=ρ↑−ρ↓` sampled at
-ONE POINT 0.7 bohr off the nucleus (`IntegrationTests/GPW_SCF_UT.C:3615`) — a spin *density*, e/bohr³.
-CP2K's 4.654 is a **Mulliken site moment in μB** (`doc/CP2Kresults.md:153`,
-`doc/SymmetryUpgradeHistory.md:252`) — integrated and basis-partitioned.  **These are different physical
-quantities**, so the headline "qchem 0.67 vs CP2K 4.65" is not a like-for-like statement.  The same run
-already prints `|m̃(q_AFM)|·Ω/2 = 3.126 e⁻`, ~4.8× the point probe and much nearer CP2K's scale, and
-earlier sessions did compare *that* to 4.65 (`doc/SphericalLatticePlan.md:124`).  So: add a genuine
-integrated per-site moment (Becke-partitioned ∫m(r) over the site, and/or a Mulliken moment for the
-exact CP2K comparison), keep the point probe as the cheap SCF-dynamics tracer it is good at, and label
-both with units.  **Outcome:** either the moment gap collapses to the ~1.5× the Fourier measure already
-suggests, or it survives as a sharp question — for a fraction of one overnight run.
+**0a — REPLACE the order parameter with an INTEGRATED site moment.**
+
+> **STANDING RULE (user, 2026-08-19): always report a proper INTEGRATED, real-world-measurable quantity.
+> Never a point sample of a field.**  It applies beyond this one probe — anywhere we are tempted to
+> characterise a solution by evaluating a field somewhere.
+
+What we report today is `m_stag = ½[m(Mn1) − m(Mn2)]` with `m(r)=ρ↑−ρ↓` evaluated at **one point, 0.7 bohr
+off the nucleus, along +x** (`IntegrationTests/GPW_SCF_UT.C:3624`, `off(0.7,0,0)`).  Three things are wrong
+with it:
+
+1. **It is a spin DENSITY (e/bohr³), not a moment.**  CP2K's 4.654 is a *Mulliken site moment in μB*
+   (`doc/CP2Kresults.md:153`, `doc/SymmetryUpgradeHistory.md:252`) — integrated and basis-partitioned.  So
+   "qchem 0.67 vs CP2K 4.65" was never a like-for-like statement.  The same run already prints
+   `|m̃(q_AFM)|·Ω/2 = 3.126 e⁻`, ~4.8× the point probe and much nearer CP2K's scale; earlier sessions did
+   compare *that* to 4.65 (`doc/SphericalLatticePlan.md:124`).
+2. **0.7 was never derived.**  The only justification in the tree is the parenthetical "(the d-shell peak —
+   the d density VANISHES at the nucleus)".  The motivation is sound; the number is asserted.
+3. **★ It samples ONE DIRECTION, which for a d shell is the confounder itself.**  A cubic-split d spin
+   density is not spherically symmetric — e_g and t_2g have very different amplitude along [100] vs [111] —
+   so this probe responds to the ORBITAL OCCUPATION PATTERN, not just the moment.  In a campaign whose
+   central difficulty is occupation hopping among near-degenerate d configurations, the instrument moves
+   when the orbitals rotate even if the moment does not.
+
+**What it can and cannot support.**  As a COLLAPSE DETECTOR it is fine and most of its historical use is
+safe — "m_stag 0.366 → 0.0046 at iteration 1" is a real finding in any units.  It does NOT support
+(a) comparison to CP2K, (b) magnitude claims like "the weak-moment basin" / "m_stag ±0.667", or
+(c) site-asymmetry at the few-percent level (`Mn1=+0.3058, Mn2=−0.5849`, `SymmetryUpgradeHistory.md:855`,
+which fed run 59's flip-defect reading) — two sites can differ in ORBITAL occupation at identical moment.
+
+**The work:** a **Becke-partitioned site moment** \f$\int w_A(r)\,m(r)\,d^3r\f$ becomes THE order parameter
+(we already build a site-adapted Becke mesh with per-atom partition weights for XC, so it is nearly free
+per iteration), plus a **Mulliken site moment** for the exact CP2K-comparable number.  Any surviving point
+probe is renamed so it cannot be read as a moment and carries its units.  The actual effort is PLUMBING:
+`GpwOptions::orderProbe` receives only a `cDM_CD&` and does two point evaluations, so a partitioned
+integral needs the mesh and its per-atom weights to reach that seam.
+**Outcome:** either the moment gap collapses toward the ~1.5× the Fourier measure already suggests, or it
+survives as a sharp question — for a fraction of one overnight run.  Historical `m_stag` numbers in the
+plan docs stay readable only as collapse/survival evidence; they are not moments and must not be quoted as
+such.
 
 **0b — make the FOLDS visible.**  The user's standing complaint, still true: `GPW_STREAM_FOLD` is opt-in
 (`src/BasisSet/Lattice_3D/Imp/BasisSet.C:202`) and a grep for a fold factor on cout/cerr returns
