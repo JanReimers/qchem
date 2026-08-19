@@ -119,7 +119,17 @@ Measured, first time any of this was on the console:
 `NONE` on all three — it folds NOTHING, on a cell whose magnetic group has 12–24 ops.  That is the
 12–48× sitting unclaimed, said out loud on every run instead of inferred from a plan doc.
 
-### Step 1 — THE HEAD-TO-HEAD TABLE, built as a standing benchmark  ·  plan: new, see below
+### Step 1 — THE HEAD-TO-HEAD TABLE, built as a standing benchmark  ·  **table: `doc/Benchmark.md`**  ·  STARTED
+
+**Landed 2026-08-19:** `doc/Benchmark.md` (the table + how to produce a row + what is missing and who must
+produce it), and the instrument half — **every GPW run now reports `PEAK RSS (MB, process high-water)`**
+beside the timing buckets (Linux `VmHWM`, so it is the watermark rather than whatever happened to be
+resident when asked).  RAM is half this table and NEITHER code was reporting it.
+First rows: Si Γ **−7.11507 vs CP2K −7.11506 (1e-5)**, 6.1 s / 267 MB against CP2K's 3.5 s; Si 2×2×2
+Γ-centred (the multi-k row) 8.5 s / 269 MB.
+**Still to produce:** every CP2K RAM figure (CP2K prints none — the runs must be wrapped in
+`/usr/bin/time -v` or a `systemd-run` scope), MnO wall/RAM on both sides (the VA runs banked energies
+only), NaF re-based on the tight-eps CP2K number, and the `MNO_KMESH=2` multi-k MnO row.
 
 Si, NaF, MnO — **same basis in both codes**, ≥1 multi-k row — reporting **wall time, peak RAM and energy**
 for qchem and CP2K side by side.

@@ -167,6 +167,15 @@ void Set(const std::string& key, json value);
 //! providers self-report; every created grid announces, labeled, so stale never-used grids become visible).
 void EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel = Detail::Terse);
 
+//! \brief PEAK resident set size of this process, in MB (Linux \c VmHWM: the high-water mark, not the
+//! instantaneous \c VmRSS).  0 when unavailable.
+//!
+//! The HIGH-WATER mark is the number that matters for the CP2K comparison and for whether a cell fits the
+//! box at all: an instantaneous reading taken after the streams are released, or between two peaks, tells
+//! you nothing about what the run actually demanded (doc/OpenWork.md Step 1 — RAM is half that table, and
+//! neither code was reporting it).
+double PeakRSS_MB();
+
 //! \brief Announce ONE symmetry FOLD, in the one format every fold site uses.
 //!
 //! WHY THIS EXISTS (doc/OpenWork.md Step 0b; standing user complaint): the folds are the largest

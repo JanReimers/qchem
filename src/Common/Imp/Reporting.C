@@ -10,6 +10,7 @@ module;
 #include <vector>
 #include <utility>
 #include <algorithm>
+#include <fstream>    // /proc/self/status (PeakRSS_MB)
 #include <iostream>   // the [fold] announcements go to cout, not just the json record
 #include <ostream>
 #include <sstream>
@@ -356,6 +357,23 @@ void EmitAt(const std::string& section, const std::string& key, json value, Deta
 // ONE format for every fold site (see the header).  Goes to std::cout unconditionally -- a fold that only
 // shows up in a json nobody opens is still invisible -- and into the run record under folds.<site> when a
 // run is open.  Idempotent through EmitAt, so a site that re-announces the same fold prints once.
+// VmHWM -- the kernel's own high-water mark, so it is correct no matter when we ask (unlike VmRSS, which
+// reads whatever happens to be resident at the moment of the call).
+double PeakRSS_MB()
+{
+    std::ifstream f("/proc/self/status");
+    std::string line;
+    while (std::getline(f, line))
+        if (line.rfind("VmHWM:", 0) == 0)
+        {
+            std::istringstream ss(line.substr(6));
+            double kb = 0.0;
+            ss >> kb;
+            return kb / 1024.0;
+        }
+    return 0.0;
+}
+
 void EmitFold(const std::string& site, size_t nOps, size_t raw, size_t reps, const std::string& note)
 {
     const double factor = reps ? double(raw)/double(reps) : 1.0;
@@ -476,6 +494,11 @@ void EmitTimings(const std::string& name)
     json j;
     for (const auto& [k,s] : rows) j[k]=s;      // ordered_json keeps the sorted-by-cost order
     g_times.clear();
+    // PEAK RAM beside the time buckets: the two halves of "what did this run cost" belong in one place,
+    // and until now the report answered only one of them (doc/OpenWork.md Step 1).  VmHWM is the
+    // process-wide high-water mark, so on a multi-run process it is monotone -- it reports the
+    // WATERMARK SO FAR, which is the honest reading for a benchmark row run one config per process.
+    if (const double mb=PeakRSS_MB(); mb>0.0) j["PEAK RSS (MB, process high-water)"]=mb;
     EmitSection(name, std::move(j));
 }
 
