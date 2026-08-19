@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# scripts/bench -- measure ONE benchmark row (wall time + PEAK RAM) for either code, identically.
+#
+# doc/Benchmark.md is the qchem<->CP2K head-to-head, and its RAM column was empty on BOTH sides.  The fix is
+# not a hook inside either program: peak RSS is observable from OUTSIDE, so measuring both codes through the
+# SAME wrapper is what makes the two columns comparable at all.  /usr/bin/time -v reports the kernel's
+# "Maximum resident set size" -- the same VmHWM high-water mark qchem now prints for itself, so the qchem row
+# can be cross-checked against its own internal number (they should agree; if they do not, say so).
+#
+#   scripts/bench <label> -- <command ...>
+#
+# Emits one markdown table row on stdout and the full log to bench_<label>.log.
+# Examples:
+#   scripts/bench "Si Gamma qchem"  -- build/Release/IntegrationTests/ITMain \
+#                                        --gtest_filter=GPW_SCF.SiliconGammaConverges
+#   scripts/bench "Si Gamma cp2k"   -- cp2k -i IntegrationTests/CP2K/si_fcc_gpw.inp
+#
+# PIN: one config PER INVOCATION.  Peak RSS is a PROCESS watermark, so a command that runs several configs
+# reports the largest, not each -- the same caveat doc/Benchmark.md carries for qchem's internal number.
+set -u
+
+label=""
+if [ $# -lt 3 ] || [ "$2" != "--" ]; then
+    echo "usage: $0 <label> -- <command ...>" >&2
+    exit 2
+fi
+label="$1"; shift 2
+
+slug=$(echo "$label" | tr -c 'A-Za-z0-9' '_' | sed 's/__*/_/g; s/^_//; s/_$//')
+log="bench_${slug}.log"
+
+# %e wall seconds, %M peak RSS in KB (the kernel's high-water mark), %P cpu%.
+/usr/bin/time -v -o "${log}.time" "$@" > "$log" 2>&1
+rc=$?
+
+wall=$(grep -oP 'Elapsed \(wall clock\) time.*?: \K.*' "${log}.time" 2>/dev/null | tail -1)
+peak=$(grep -oP 'Maximum resident set size \(kbytes\): \K[0-9]+' "${log}.time" 2>/dev/null | tail -1)
+cpu=$( grep -oP 'Percent of CPU this job got: \K.*'          "${log}.time" 2>/dev/null | tail -1)
+peakmb=$(awk -v k="${peak:-0}" 'BEGIN{printf "%.0f", k/1024}')
+
+# Pull an energy out of whichever code produced the log (best effort -- verify before quoting).
+e_cp2k=$(grep -oP 'ENERGY\| Total FORCE_EVAL \( QS \) energy \[a\.u\.\]:\s*\K[-0-9.]+' "$log" 2>/dev/null | tail -1)
+e_qchem=$(grep -oP 'Etot=\K[-0-9.]+' "$log" 2>/dev/null | tail -1)
+energy="${e_cp2k:-${e_qchem:-?}}"
+
+# qchem's own VmHWM readout, when present -- a cross-check on the external measurement.
+internal=$(grep -oP 'PEAK RSS \(MB, process high-water\)\s+\K[0-9.]+' "$log" 2>/dev/null | tail -1)
+
+printf '| %s | %s | %s s | %s MB | %s | rc=%s |\n' \
+       "$label" "$energy" "${wall:-?}" "${peakmb:-?}" "cpu ${cpu:-?}" "$rc"
+[ -n "$internal" ] && printf '    (qchem internal VmHWM: %s MB -- should match the %s MB above)\n' "$internal" "$peakmb"
+[ $rc -ne 0 ] && echo "    ** non-zero exit; see $log **"
+exit $rc

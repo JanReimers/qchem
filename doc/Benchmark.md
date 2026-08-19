@@ -6,7 +6,20 @@ single hand-run disabled test at `GPW_MNO_NMAX=3`, which is how two charter prem
 while being wrong.  A row here is only meaningful with its PROVENANCE columns — same span held full-rank by
 both codes, and the fold/threading/BLAS state that produced the number.
 
-## How to produce a qchem row
+## How to produce a row — the SAME wrapper for both codes
+
+```bash
+scripts/bench "Si Gamma qchem" -- build/Release/IntegrationTests/ITMain --gtest_filter=GPW_SCF.SiliconGammaConverges
+scripts/bench "Si Gamma cp2k"  -- cp2k -i IntegrationTests/CP2K/si_fcc_gpw.inp
+```
+
+**Peak RAM is measured from OUTSIDE, identically for both codes** (`/usr/bin/time -v` → "Maximum resident
+set size" = the kernel's `VmHWM` high-water mark).  That is the whole reason the RAM column is now
+obtainable without touching CP2K: no in-program hook was ever needed, and measuring both sides through one
+wrapper is what makes the two columns comparable.  On a qchem row the wrapper also prints qchem's OWN
+internal `VmHWM` as a cross-check — they should agree (measured: 266 vs 266.7 MB on Si Γ).
+
+For the qchem detail (per-bucket ledger, folds, stream coverage) add `GPW_REPORT=1`:
 
 ```bash
 GPW_REPORT=1 build/Release/IntegrationTests/ITMain --gtest_filter=<test> --gtest_also_run_disabled_tests
