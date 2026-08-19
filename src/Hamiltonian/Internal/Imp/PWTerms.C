@@ -639,8 +639,41 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
                 itsRhoDn = 0.5*(rho - m);
             }
         }
+        // THE OBSERVABLE, reported where it is free (doc/OpenWork.md Step 0a).  This is the ONE place that
+        // knows a NEW density has just been sampled on an atom-partitioned mesh, so the per-site integrated
+        // moments cost a block sum over data already in hand -- and reporting them here means EVERY
+        // polarized atom-centred run gets them, not just the one test that used to fake it with a point
+        // probe.  Units: electrons (x mu_B for the magnetic moment).  Named partition, because until
+        // Bader's zero-flux basins land the number is partition-dependent.
+        EmitSiteMoments();
     }
     return s==Spin::Up ? itsRhoUp : itsRhoDn;
+}
+
+// One line + one report entry per NEW density, from inside the serial-advance branch above.  Silent when
+// the mesh carries no site partition (a uniform grid has no atomic basins to integrate over).
+void XC_GridEngine::EmitSiteMoments() const
+{
+    if (itsMesh->NSites()==0) return;
+    const rvec_t mu=qcMesh::SiteIntegrals(*itsMesh, rvec_t(itsRhoUp-itsRhoDn));
+    double net=0.0, absSum=0.0;
+    for (size_t a=0;a<mu.size();a++) { net+=mu[a]; absSum+=std::fabs(mu[a]); }
+    if (absSum < 1e-8) return;                    // an unpolarized density has nothing to say
+    qchem::report::json j;
+    j["partition"]="Becke";                        // NOT canonical -- see the header's Bader note
+    j["units"]="electrons";
+    // Index loop, not the iterator-pair ctor: std cannot see Blaze's exported iterator op==/op!=
+    // across the module boundary (CLAUDE.md "Includes & types").
+    std::vector<double> v(mu.size());
+    for (size_t a=0;a<mu.size();a++) v[a]=mu[a];
+    j["mu"]=v;  j["net"]=net;
+    qchem::report::EmitAt("scf", "siteMoments", j);
+    if (std::getenv("QCHEM_SITE_MOMENTS"))
+    {
+        std::cout<<"[site moments] Becke-partitioned Integral w_A (rho_up-rho_dn) d3r [e]:";
+        for (size_t a=0;a<mu.size();a++) std::cout<<"  "<<a<<":"<<mu[a];
+        std::cout<<"   net="<<net<<std::endl;
+    }
 }
 
 // The per-site INTEGRATED moment (see the header): mu_A = Integral w_A(r) [rho_up - rho_dn] d3r, in

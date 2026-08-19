@@ -333,6 +333,9 @@ public:
     //! QTAIM zero-flux basin, a wanted future feature.  Report which partition produced the number.
     rvec_t SiteMoments(const cChargeDensity* cd) const;
 private:
+    //! Report the current \f$\rho_\sigma\f$ pair's site moments -- called from \c RhoPol's serial-advance
+    //! branch, so exactly once per NEW density and never on a cache hit.  No-op without site blocks.
+    void EmitSiteMoments() const;
     const mat_t<dcmplx>& Phi (const cobs_t* bs) const;   //!< lazily built per block (geometry-fixed)
     const mat_t<double>& PhiR(const robs_t* bs) const;   //!< the real block's table (Step 3c; own cache)
     template <class U> mat_t<U> MakePhi(const tobs_t<U>* bs) const;              // ONE table-build body

@@ -75,10 +75,32 @@ per iteration), plus a **Mulliken site moment** for the exact CP2K-comparable nu
 probe is renamed so it cannot be read as a moment and carries its units.  The actual effort is PLUMBING:
 `GpwOptions::orderProbe` receives only a `cDM_CD&` and does two point evaluations, so a partitioned
 integral needs the mesh and its per-atom weights to reach that seam.
-**Outcome:** either the moment gap collapses toward the ~1.5× the Fourier measure already suggests, or it
-survives as a sharp question — for a fraction of one overnight run.  Historical `m_stag` numbers in the
-plan docs stay readable only as collapse/survival evidence; they are not moments and must not be quoted as
-such.
+**★★ MEASURED 2026-08-19 — THE MOMENT GAP WAS THE INSTRUMENT.**  With `XC_GridEngine` now reporting the
+Becke-partitioned \f$\int w_A(\rho_\uparrow-\rho_\downarrow)\f$ (`QCHEM_SITE_MOMENTS=1`), the MnO magnetic
+cell reads, in ELECTRONS, per iteration:
+
+| | Mn1 | Mn2 | O | O |
+|---|---|---|---|---|
+| seed | **+4.781** | −4.781 | 7e-10 | 4e-10 |
+| iter 1 | **+4.663** | −4.653 | −0.006 | −0.003 |
+| iter 2 | +1.871 | −1.763 | −0.087 | −0.022 |
+| iter 3 | +4.208 | −4.172 | −0.024 | −0.011 |
+| iter 4 | +3.631 | −3.621 | −0.005 | −0.005 |
+
+…while the point probe on the SAME run reported `m_stag = 0.318`.
+
+**The Mn moment is ~3.6–4.8 e, not ~0.3.  CP2K's Mulliken is ±4.654.**  The seed is a clean high-spin d⁵
+(+4.78, O ≈ 0, net ≈ 3e-10 under the fixed n↑=n↓), which is exactly what a Mn²⁺ should be — so the
+instrument is behaving.  **The "≈7× moment discrepancy" was essentially all units**, and the
+"weak-moment basin" that shaped a large part of the MnO campaign is at minimum badly overstated by an
+instrument reading ~0.3 where the observable is ~4.
+
+Honest caveats: (a) this is a short unconverged run and the trajectory is still bouncing
+(4.78 → 4.66 → 1.87 → 4.21 → 3.63), so it does NOT establish the converged moment — only its SCALE;
+(b) Becke ≠ Mulliken, so 4.66 vs 4.654 agreeing to three digits is partly luck — what is solid is that
+both are ≈4.7 for a high-spin d⁵.  **Historical `m_stag` numbers in the plan docs are collapse/survival
+evidence only; they are not moments and must not be quoted as such.**  Re-reading the campaign's
+"weak-moment" conclusions against the integrated observable is now its own item under Step 5.
 
 **0b — make the FOLDS visible.**  The user's standing complaint, still true: `GPW_STREAM_FOLD` is opt-in
 (`src/BasisSet/Lattice_3D/Imp/BasisSet.C:202`) and a grep for a fold factor on cout/cerr returns
@@ -162,7 +184,16 @@ SPAN-INDEPENDENT** FM-favouring bias (v2 span: ~45 mHa; the I0 d-selective signa
 converged in 14 cold iterations at `m_stag ±0.667` — **the moment question and the energy question are the
 same investigation on the same run.**
 
-**Next concrete move (cheap, does NOT wait on Steps 1–4):** the term-by-term breakdown —
+**★ RE-READ THE CAMPAIGN'S MOMENT CONCLUSIONS FIRST (new, 2026-08-19).**  Step 0a measured the integrated
+Mn moment at ~3.6–4.8 e against the point probe's ~0.3, so every "weak-moment basin" / "the moment died"
+conclusion in `doc/SymmetryUpgradePlan.md`, `doc/SphericalLatticePlan.md` and
+`doc/SymmetryUpgradeHistory.md` needs re-reading against the honest observable before more physics is
+built on it.  Collapse-to-zero findings survive (zero is zero); MAGNITUDE and site-ASYMMETRY findings do
+not automatically.  Run 61's `m_stag ±0.667` in particular is a point-probe number and is NOT evidence
+that VA sits in a weak-moment basin.  This is cheap — rerun the banked recipes with
+`QCHEM_SITE_MOMENTS=1` — and it may re-scope the whole moment half of this step.
+
+**Next concrete move on the ENERGY half (cheap, does NOT wait on Steps 1–4):** the term-by-term breakdown —
 Ekin/Eee/Exc/E_loc/E_NL against CP2K's energy blocks, with `Een` split into V_loc/V_nl — run first on the
 **Mn ATOM** (seconds, and the Mn-atom oracle is already banked at −14.2440 restricted / −14.658 atomic
 polarized), then on the crystal.  A configuration-blind ~100 mHa offset should be visible on a single atom.
