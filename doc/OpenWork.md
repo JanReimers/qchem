@@ -277,12 +277,25 @@ long MnO runs until 1–3 and 5 land.
    which is item 2's lever too), plus the genuinely complex-bound neighbour `FourierMixCD`'s batched
    inverse FT (half-space fold + hoisted (x,y) phase, 2.39× — it was the single largest per-iteration
    bucket at 87.6 s).  `ctest -j8` 747/747, 0 failed.
-   **Still open here:** the fast-recompute / SHELL-BLOCKED kernel — now the top GPW lever, since it owns
-   BOTH the ~24–28 s stream build (`ForPairBox` re-evaluates the contracted radial per Cartesian
-   component pair: a d×d shell pair pays the same two `exp`s 36 times; exp+Polarization+uintpow = 21.7%
-   of the whole run) AND the OVER-BUDGET regime (GPWPlan1 item 2, the CP2K-span cell) — plus Φ-table
-   SCREENING (the O(N)-XC increment: batch the mesh, keep a per-batch significant-function list — the
-   win grows with cell size) and the Becke mesh build (`BeckeCutoff` alone 11.5%).
+   **Round 4 STAGE A DONE 2026-08-19 (doc/GPWPlan1.md "Round 4"): the SHELL-BLOCKED box walk, on the
+   stream build.**  Reading the kernel showed the charter under-sold it: not only the `exp`s but the
+   pair→level assignment, the offset list, the box centre/reach/half-widths, the ellipsoid pre-screen,
+   the incremental r walk and the modulo wrap are ALL shell properties (they read `radials[i]` only) —
+   components differ only in `pols[i]`/`ns[i]`, and `PGData::Init` already lays a shell out contiguously.
+   New `ForShellPairBox` walks the box once per shell pair and hands back the two per-component FACTOR
+   arrays, so a d×d shell pair evaluates 2 radials + 12 polynomials per point instead of 72 + 72;
+   `ForPairBox` is now its 1×1 case (one box walk in the codebase).  The build also collapsed to ONE
+   path: shell-major walking forced the two-pass shape everywhere (the tiering order is row-major over
+   COMPONENT pairs and is part of the result), retiring the serial one-pass path's transient-bound abort
+   and streaming fp32 demotion.  **Stream build 28.73 → 17.01 s (1.69×); sweep 212 → 203 s (the serial
+   path did not regress); stream cache byte-for-byte identical (same pts/offsets/runs/meanRun), physics
+   unmoved; 747/747.**
+   **Still open here:** **STAGE B** — the same blocking on the OVER-BUDGET on-the-fly collocate/integrate
+   arms (95% of run 64, the CP2K-span regime, the actual unblocker).  Decided: the D-aware box resolves
+   across a shell pair as the UNION box + per-component magnitude screen (adds only sub-eps terms, never
+   drops one — the no-cut discipline), so it is not bit-identical and lands as its own measured commit.
+   Then Φ-table SCREENING (the O(N)-XC increment: batch the mesh, keep a per-batch significant-function
+   list — the win grows with cell size) and the Becke mesh build (`BeckeCutoff` alone 11.5%).
 2. **Close the RAM gap vs CP2K.**  Same lever: recompute fast enough → the stream cache tier
    shrinks → RAM falls with it (CP2K caches nothing; its kernels are just fast).
 3. **Understand why CP2K holds the FULL 136-function span and qchem cannot.**  ⛔ **THE SCREEN-DISCIPLINE

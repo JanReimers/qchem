@@ -350,6 +350,25 @@ public:
     // Reuses the PUBLIC Gaussian data (exponents/coeffs/center + pol + norm); the product exponent/center size
     // the box (contracted radials: sized by the most-diffuse primitive pair, value is the full product).
 
+    //! \brief A SHELL: the contiguous run of basis-function indices \f$[begin,end)\f$ sharing one contracted
+    //! radial.  \c PGData::Init flattens the basis \c Block by \c Block (one \c GaussianRF + its
+    //! polarizations), so a shell IS a contiguous run over which \c radials[i] is the same object -- the
+    //! same fact the pointwise sweep's shell hoist uses (PG_Cart::IrrepBasisSet::operator()).
+    struct Shell { size_t begin=0, end=0; };
+    //! The shell partition of the function index range, built once (geometry-fixed) by scanning \c radials
+    //! for runs of the same object.  NOT a pointer-keyed container -- an adjacency scan over a flat vector.
+    const std::vector<Shell>& Shells() const
+    {
+        if (!itsShells.empty() || size()==0) return itsShells;
+        const GaussianRF* last=nullptr;
+        for (size_t i=0;i<size();i++)
+        {
+            if (radials[i]!=last) { itsShells.push_back({i,i}); last=radials[i]; }
+            itsShells.back().end=i+1;
+        }
+        return itsShells;
+    }
+
     // Enumerate the screened cross-cell offsets R for the ordered pair (i,j): chi_i (home, at R_i) vs chi_j at
     // R_j+R.  Included when the centres are within reach_i+reach_j (reach = sqrt(-ln eps / alpha_min)); this is
     // the SAME magnitude screen the 1E lattice sums use (consistency = correctness for H psi = eps S psi).
@@ -480,8 +499,8 @@ public:
         }
         return lv;
     }
-    // Iterate the (i, j@Roff) product's compact exp-tail box on the N-division grid of cell A, calling
-    // f(raster_index, chi_i(r) chi_j(r-R_j-Roff)) at each screened-in, MODULO-WRAPPED grid point.  Shared by
+    // Iterate the (i, j@Roff) product's compact exp-tail box on the N-division grid of cell A, visiting each
+    // screened-in, MODULO-WRAPPED grid point of chi_i(r) chi_j(r-R_j-Roff).  Shared by
     // collocation (scatter) and integrate-back (gather) -> exact adjoints (same box, chi eval, wrap).
     // THREE screens keep this fast; all are conservative (they drop only sub-eps values):
     //  (1) PREFACTOR-SHRUNK reach: the slowest product term is exp(-p|r-P|^2) x exp(-aI aJ/p |Ri-Rj|^2), so for
@@ -498,14 +517,28 @@ public:
     //! looser GPW_DENSITY_EPS shrinks the collocation boxes for speed WITHOUT loosening S/T/V_local (which
     //! keeps the overlap PSD).  The D-aware path passes max(kDensityEps, kDensityEps/|weight|) -- a
     //! small-weight pair keeps a smaller box (or none: the prefactor early-out below is the whole-term kill).
+    //!
+    //! \b SHELL-BLOCKED (2026-08-19, doc/GPWPlan1.md "Round 4").  This is the SHELL-pair kernel; the
+    //! single-pair \c ForPairBox below is the \f$1\times1\f$ case of it, so there is one box walk in the
+    //! codebase.  EVERYTHING here is a SHELL property -- it reads \c radials[i0] / \c radials[j0] only: the
+    //! exponents and coefficients, the centres, the product centre \f$P\f$, \a reach, the fractional
+    //! half-widths, the ellipsoid pre-screen, the incremental \f$r\f$ walk and the modulo wrap.  A shell's
+    //! components differ ONLY in \c pols[i] and \c ns[i].  So the walk runs once per shell pair and each
+    //! surviving point hands the caller the two per-component FACTOR arrays
+    //! \f$f^I_a=n_{i_0+a}\,\mathrm{pol}_{i_0+a}(d_I)\,\mathrm{rad}_I\f$ and \f$f^J_b\f$ likewise: a
+    //! \f$d\times d\f$ shell pair then evaluates 2 contracted radials + 12 polynomials per point instead of
+    //! 72 + 72.  The caller forms \f$val=f^I_a f^J_b\f$ for the component pairs it wants and applies its own
+    //! \f$|val|<\varepsilon\f$ screen -- the product expression is associated exactly as the unblocked form
+    //! was, so values are BIT-IDENTICAL.
+    //! \param f called \c f(rasterIndex, fI, fJ) at each point surviving the ellipsoid pre-screen.
     template <class F>
-    void ForPairBox(size_t i, size_t j, const rvec3_t& Roff, const UnitCell& A, const ivec3_t& N, F&& f,
-                    double epsEff=kDensityEps()) const
+    void ForShellPairBox(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
+                         const UnitCell& A, const ivec3_t& N, F&& f, double epsEff=kDensityEps()) const
     {
+        const size_t i=i0, j=j0;                             // the shell's representative (radials are shared)
         const rvec_t ei=radials[i]->GetExponents(), gi=radials[i]->GetCoeffs();
         const rvec_t ej=radials[j]->GetExponents(), gj=radials[j]->GetCoeffs();
         const rvec3_t Ri=radials[i]->GetCenter(), Rj=radials[j]->GetCenter()+Roff;   // chi_j imaged to cell Roff
-        const double ni=ns[i], nj=ns[j];
         double aMinI=ei[0]; for (double e:ei) aMinI=std::min(aMinI,e);
         double aMinJ=ej[0]; for (double e:ej) aMinJ=std::min(aMinJ,e);
         const double pMin=aMinI+aMinJ;                       // slowest-decaying product term -> the box size
@@ -531,6 +564,11 @@ public:
         const rvec3_t sx=A.ToCartesian(rvec3_t(1.0/N.x,0,0)), sy=A.ToCartesian(rvec3_t(0,1.0/N.y,0)),
                       sz=A.ToCartesian(rvec3_t(0,0,1.0/N.z));
         const rvec3_t r00=A.ToCartesian(rvec3_t(double(cx-hwx)/N.x, double(cy-hwy)/N.y, double(cz-hwz)/N.z));
+        // The per-component factor arrays, allocated ONCE per box (kMaxShell bounds a Cartesian shell:
+        // (L+1)(L+2)/2 = 45 at L=8, well past any basis this evaluator sees).
+        static constexpr size_t kMaxShell=45;
+        assert(nI<=kMaxShell && nJ<=kMaxShell && "ForShellPairBox: shell wider than kMaxShell components");
+        double fI[kMaxShell], fJ[kMaxShell];
         rvec3_t rx=r00;
         for (int dx=-hwx; dx<=hwx; dx++, rx=rx+sx)
         {
@@ -545,14 +583,30 @@ public:
                     if (aMinI*ri2+aMinJ*rj2 > lnCut) continue;   // slowest term < eps*e^-12 -> skip exp/poly evals
                     double radI=0.0; for (size_t p=0;p<ei.size();p++) radI+=gi[p]*std::exp(-ei[p]*ri2);
                     double radJ=0.0; for (size_t q=0;q<ej.size();q++) radJ+=gj[q]*std::exp(-ej[q]*rj2);
-                    const double val=(ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ);
-                    if (std::fabs(val)<epsEff) continue;
+                    // Associated exactly as the unblocked (ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ) was.
+                    for (size_t a=0;a<nI;a++) fI[a]=ns[i0+a]*pols[i0+a](di)*radI;
+                    for (size_t b=0;b<nJ;b++) fJ[b]=ns[j0+b]*pols[j0+b](dj)*radJ;
                     const long gx=cx+dx, gy=cy+dy, gz=cz+dz;     // unwrapped grid index (may lie outside [0,N))
                     const long mx=((gx%N.x)+N.x)%N.x, my=((gy%N.y)+N.y)%N.y, mz=((gz%N.z)+N.z)%N.z;  // wrap
-                    f((size_t(mx)*N.y+my)*N.z+mz, val);
+                    f((size_t(mx)*N.y+my)*N.z+mz, fI, fJ);
                 }
             }
         }
+    }
+    //! The SINGLE-PAIR box (the \f$1\times1\f$ case of \c ForShellPairBox): calls
+    //! \c f(rasterIndex, \f$\chi_i(r)\chi_j(r-R_j-R_{off})\f$) at each screened-in, wrapped grid point.
+    //! Kept as the name every single-pair consumer speaks; the walk itself is not duplicated.
+    template <class F>
+    void ForPairBox(size_t i, size_t j, const rvec3_t& Roff, const UnitCell& A, const ivec3_t& N, F&& f,
+                    double epsEff=kDensityEps()) const
+    {
+        ForShellPairBox(i,1,j,1,Roff,A,N,
+                        [&](size_t idx, const double* fI, const double* fJ)
+                        {
+                            const double val=fI[0]*fJ[0];
+                            if (std::fabs(val)<epsEff) return;
+                            f(idx,val);
+                        }, epsEff);
     }
     // --- STREAM CACHE for the analytic collocation / integrate-back ----------------------------------------
     // The per-(pair, cross-cell offset) box streams -- wrapped grid RUNS + analytic pair values -- are pure
@@ -964,169 +1018,158 @@ public:
             const auto it=mm.find(OffKey(nn));
             return it==mm.end() || it->second==0;
         };
-        bool builtThreaded=false;
-#ifdef QCHEM_OPENMP
-        // TWO-PASS PARALLEL BUILD (opt-in via GPW_OMP_THREADS, like the collocate/integrate loops; the
-        // 2026-07-19 "0 speedup, reverted" verdict was measured in the silently-serial libgomp era and is
-        // VOID).  The one-pass build below is inherently SEQUENTIAL -- each pair's fp64/fp32/drop tier
-        // consumes the global budgets in pair order, and the cap/streaming-demotion logic bounds the
-        // memory transient -- so instead: pass 1 counts every pair's surviving points in parallel (pure
-        // arithmetic, no memory), a SERIAL walk replays the exact one-pass tier/budget decisions on the
-        // counts, and pass 2 builds only the CACHED pairs in parallel, each directly in its final value
-        // form (the fp32 demotion transient is gone -- values narrow per point, identical doubles).
-        // Tiering, stream content, and every readout are IDENTICAL to the serial build (same counts ->
-        // same walk -> same enumeration order within each pair), so replay stays bit-identical either
-        // way.  Cost: ~2x box evaluations at ~nthreads parallelism (the counting pass IS an evaluation
-        // pass -- the |val|>=eps screen needs the values); measured net ~4x on the diffuse-NaF build.
-        if (const int nthreads=PairThreads(); nthreads>1)
+        // ---- SHELL-BLOCKED TWO-PASS BUILD (2026-08-19, doc/GPWPlan1.md "Round 4") ------------------------
+        // Everything the box walk needs -- the pair->level assignment, the screened offset list, the box
+        // centre/reach/half-widths, the ellipsoid pre-screen, the incremental r walk and the modulo wrap --
+        // is a SHELL property (it reads radials[i] only), and a shell's components share one contracted
+        // radial.  So the walk runs ONCE PER SHELL PAIR and every component pair takes its value from the
+        // two per-point FACTOR arrays ForShellPairBox hands back: a d x d shell pair evaluates 2 contracted
+        // radials + 12 polynomials per point instead of 72 + 72.  Values are bit-identical (same expression,
+        // same association), so replay is unchanged.
+        //
+        // WHY TWO PASSES, ALWAYS (this replaced a serial one-pass build beside a threaded two-pass one).
+        // The TIERING ORDER is part of the result: each pair's fp64/fp32/drop tier consumes the GLOBAL
+        // budgets in ROW-MAJOR COMPONENT-pair order, so a shell-major single pass would tier differently.
+        // Splitting into (1) count, (2) a serial row-major budget walk on the counts, (3) build only the
+        // tiered pairs keeps the budget walk in its original order while both EVALUATION passes go
+        // shell-major -- and it retires the one-pass path's transient-bound abort and its streaming fp32
+        // demotion outright, since a two-pass build knows every pair's size before it materialises anything.
+        // Cost: ~2x box evaluations (the counting pass IS an evaluation pass -- the |val|>=eps screen needs
+        // the values), repaid many times over by the shell hoist.  Threading (opt-in, GPW_OMP_THREADS)
+        // partitions both passes over SHELL pairs; a shell pair owns a DISJOINT set of component pairs, so
+        // there is no reduction anywhere and serial and threaded builds stay bit-identical.
+        const std::vector<Shell>& shells=Shells();
+        std::vector<std::pair<size_t,size_t>> sprs;               // shell pairs (a<=b)
+        for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
+        std::vector<std::pair<size_t,size_t>> prs;                // component pairs, ROW-MAJOR upper triangle
+        for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+        const double eps=kDensityEps();                           // the build's UNIFORM value screen
+        std::vector<size_t> ptsAll(n*n,0);                        // per component pair (disjoint across shells)
+        std::vector<char>   tierBuild(n*n,0), tierF32(n*n,0);     // filled by the budget walk between the passes
+        std::exception_ptr  firstEx;                              // throw containment -- see CollocateDensity
+
+        // The component pairs a shell pair owns (upper triangle), minus the fold's image/dead ones and --
+        // when \a tiered -- minus everything the budget walk did not tier.
+        auto ownedPairs=[&](size_t sp, bool tiered, std::vector<std::pair<size_t,size_t>>& out)
         {
-            std::vector<std::pair<size_t,size_t>> prs;
-            for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
-            std::vector<size_t> ptsAll(prs.size(),0);
-            std::exception_ptr firstEx;   // throw containment -- see CollocateDensity
-            #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
-            for (size_t p=0;p<prs.size();p++)
-            {
-                try
-                {
-                    const auto [i,j]=prs[p];
-                    PairStreams& ps=c.pairs[i*n+j];
-                    ps.level=PairLevel(i,j,ecut_L,absRelCutoff,0.0,relFieldSharp);
-                    const ivec3_t N=N_L[ps.level];
-                    size_t pts=0;
-                    if (!pairSkip(i,j))
-                        ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
-                                        { if (offSkip(i,j,nn)) return;
-                                          ForPairBox(i,j,Roff,A,N,[&](size_t,double){ pts++; }); });
-                    ptsAll[p]=pts;
-                }
-                catch (...)
-                {
-                    #pragma omp critical (gpw_pair_throw)
-                    if (!firstEx) firstEx=std::current_exception();
-                }
-            }
-            if (firstEx) std::rethrow_exception(firstEx);
-            // The serial budget walk: the one-pass tier decisions, verbatim, on the known counts (including
-            // the both-tiers-exhausted "+1" bookkeeping quirk, so the readouts match the serial build).
-            enum class Tier : char { Skip, F64, F32, Drop };
-            std::vector<Tier> tier(prs.size(), Tier::Skip);
-            for (size_t p=0;p<prs.size();p++)
-            {
-                nPairs++;
-                if (pairSkip(prs[p].first,prs[p].second)) continue;   // fold image/dead: holds NO streams --
-                                                                      //   never counted into a tier (fp64/fp32
-                                                                      //   report the pairs that actually STORE)
-                if (budget64==0 && budget32==0) { ptsDropped++; continue; }
-                const size_t pts=ptsAll[p];
-                if      (pts<=budget64) { budget64-=pts; pts64+=pts; nCached64++; tier[p]=Tier::F64; }
-                else if (pts<=budget32) { budget32-=pts; pts32+=pts; nCached32++; tier[p]=Tier::F32; }
-                else                    { ptsDropped+=pts;                        tier[p]=Tier::Drop; }
-            }
-            #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
-            for (size_t p=0;p<prs.size();p++)
-            {
-                if (tier[p]!=Tier::F64 && tier[p]!=Tier::F32) continue;
-                try
-                {
-                    const auto [i,j]=prs[p];
-                    PairStreams& ps=c.pairs[i*n+j];
-                    const ivec3_t N=N_L[ps.level];
-                    const bool f32=(tier[p]==Tier::F32);
-                    ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
-                    {
-                        if (offSkip(i,j,nn)) return;
-                        PairOffsetStream st; st.n=nn;
-                        ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v){st.Append(idx,v,f32);});
-                        if (st.Points()) ps.offsets.push_back(std::move(st));
-                    });
-                    ps.cached=true;
-                }
-                catch (...)
-                {
-                    #pragma omp critical (gpw_pair_throw)
-                    if (!firstEx) firstEx=std::current_exception();
-                }
-            }
-            if (firstEx) std::rethrow_exception(firstEx);
-            for (const auto& ps : c.pairs) nOffs+=ps.offsets.size();
-            builtThreaded=true;
-        }
-#endif
-        if (!builtThreaded)
-        for (auto i:indices()) for (auto j:indices(i))
+            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+            out.clear();
+            for (size_t i=si.begin;i<si.end;i++)
+                for (size_t j=std::max(i,sj.begin);j<sj.end;j++)      // b>a => every j exceeds every i
+                    if (!pairSkip(i,j) && (!tiered || tierBuild[i*n+j])) out.push_back({i,j});
+        };
+        // PASS 1 -- count every component pair's surviving points.  Pure arithmetic, nothing stored.
+        auto countShellPair=[&](size_t sp)
         {
-            PairStreams& ps=c.pairs[i*n+j];
-            ps.level=PairLevel(i,j,ecut_L,absRelCutoff,0.0,relFieldSharp);
-            nPairs++;
-            if (pairSkip(i,j)) continue;               // fold image/dead: no streams, no tier (readout honesty)
-            if (budget64==0 && budget32==0) { ptsDropped++; continue; }   // both tiers exhausted
-            const ivec3_t N=N_L[ps.level];
-            size_t pts=0;
-            // TRANSIENT BOUND (2026-07-22; the full-SR OOM): a diffuse pair in a small cell can demand
-            // GIGABYTES of streams (measured: Na s0.05 x s0.05, ~2.3k whole-raster offsets -- and the
-            // vector's geometric REALLOCATION transiently doubles it) only to be DROPPED at tiering.
-            // So ABORT the build the moment the pair's count exceeds the largest tier still open --
-            // an un-cacheable pair must never be materialised.  pts keeps counting (the readout).
-            const size_t cap = budget64>budget32 ? budget64 : budget32;
-            bool building=true;
-            // BYTE-AWARE TRANSIENT (doc/GPWPlan 0.5(c)): a tier-2-bound pair used to BUILD wholly in fp64
-            // form (then 12 B/pt) and demote only at the end -- an 850M-pt fp32 budget admitted a ~10-GB build
-            // transient for ~6.8 GB of eventual storage.  So demote STREAMING: the moment the pair's count
-            // exceeds the open fp64 budget it can only ever land in tier 2 -- convert everything built so
-            // far and keep building demoted.  The transient is then bounded by the fp32 STORAGE plus one
-            // offset's fp64 box.  Values are identical either way (the same doubles narrowed).
-            auto demote=[](PairOffsetStream& so)
+            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+            // The level is a SHELL-pair property (PairLevel reads MaxExponent(i), i.e. the shared radial),
+            // so compute it once and assert it per component.  Set for EVERY pair -- folded-out ones
+            // included -- exactly as the per-pair build did.
+            const size_t L=PairLevel(si.begin,sj.begin,ecut_L,absRelCutoff,0.0,relFieldSharp);
+            for (size_t i=si.begin;i<si.end;i++)
+                for (size_t j=std::max(i,sj.begin);j<sj.end;j++)
+                {
+                    assert(PairLevel(i,j,ecut_L,absRelCutoff,0.0,relFieldSharp)==L
+                           && "the pair->level assignment must be a shell-pair property");
+                    c.pairs[i*n+j].level=L;
+                }
+            std::vector<std::pair<size_t,size_t>> want;
+            ownedPairs(sp,/*tiered*/false,want);
+            if (want.empty()) return;
+            const ivec3_t N=N_L[L];
+            std::vector<std::pair<size_t,size_t>> here;
+            ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
             {
-                so.val32.assign(so.val.begin(), so.val.end());
-                so.val.clear(); so.val.shrink_to_fit();
-            };
-            bool fp32Form=false;                               // pair already demoted mid-build
-            if (!pairSkip(i,j))
-            ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
-            {
-                if (offSkip(i,j,nn)) return;                   // reduced build: member offsets never built
-                if (!building)                                 // already over cap: count on-the-fly demand only
+                here.clear();
+                for (const auto& [i,j] : want) if (!offSkip(i,j,nn)) here.push_back({i,j});
+                if (here.empty()) return;                     // reduced build: member offsets never built
+                ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N,
+                                [&](size_t, const double* fI, const double* fJ)
                 {
-                    ForPairBox(i,j,Roff,A,N,[&](size_t,double) { pts++; });
-                    return;
-                }
-                PairOffsetStream st; st.n=nn;
-                ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v){st.Append(idx,v,/*f32*/false);});
-                pts+=st.Points();
-                if (pts>cap)                                   // un-cacheable: free everything built so far
-                {
-                    building=false;
-                    ps.offsets.clear(); ps.offsets.shrink_to_fit();
-                    return;
-                }
-                if (!fp32Form && pts>budget64)                 // tier 1 unreachable from here on: go fp32 form
-                {
-                    for (auto& so : ps.offsets) demote(so);
-                    fp32Form=true;
-                }
-                if (fp32Form) demote(st);
-                if (st.Points()) ps.offsets.push_back(std::move(st));
+                    for (const auto& [i,j] : here)
+                        if (std::fabs(fI[i-si.begin]*fJ[j-sj.begin])>=eps) ptsAll[i*n+j]++;
+                }, eps);
             });
-            // Tier the pair: fp64 while the primary budget holds (bit-identical replay), fp32 for the
-            // overflow tier, drop only past BOTH.  Per-pair skip-and-continue, never a lockout -- a later
-            // (smaller) pair may still fit a tier.  (The old budget=0 lockout un-cached every subsequent
-            // pair after the first oversized one -- the dominant cost in the 2026-07-15 multi-k profile.)
-            if (pts<=budget64)
+        };
+        // PASS 2 -- materialise the streams of the pairs the budget walk tiered, and only those.
+        auto buildShellPair=[&](size_t sp)
+        {
+            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+            std::vector<std::pair<size_t,size_t>> want;
+            ownedPairs(sp,/*tiered*/true,want);
+            if (want.empty()) return;
+            const ivec3_t N=N_L[PairLevel(si.begin,sj.begin,ecut_L,absRelCutoff,0.0,relFieldSharp)];
+            std::vector<std::pair<size_t,size_t>> here;
+            std::vector<PairOffsetStream> st;
+            ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
             {
-                assert(!fp32Form);                             // never demoted below the fp64 budget
-                budget64-=pts; pts64+=pts; nCached64++;
-                ps.cached=true;
-            }
-            else if (pts<=budget32)
+                here.clear();
+                for (const auto& [i,j] : want) if (!offSkip(i,j,nn)) here.push_back({i,j});
+                if (here.empty()) return;
+                st.assign(here.size(),PairOffsetStream());
+                for (auto& s : st) s.n=nn;
+                ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N,
+                                [&](size_t idx, const double* fI, const double* fJ)
+                {
+                    for (size_t k=0;k<here.size();k++)
+                    {
+                        const double val=fI[here[k].first-si.begin]*fJ[here[k].second-sj.begin];
+                        if (std::fabs(val)<eps) continue;
+                        st[k].Append(idx,val,tierF32[here[k].first*n+here[k].second]!=0);
+                    }
+                }, eps);
+                for (size_t k=0;k<here.size();k++)
+                    if (st[k].Points())
+                        c.pairs[here[k].first*n+here[k].second].offsets.push_back(std::move(st[k]));
+            });
+            for (const auto& [i,j] : want) c.pairs[i*n+j].cached=true;
+        };
+        // One driver for both evaluation passes: shell-major, optionally threaded (the two passes have the
+        // identical partition, so this is written once).
+        auto runPass=[&](auto&& body)
+        {
+#ifdef QCHEM_OPENMP
+            if (const int nthreads=PairThreads(); nthreads>1)
             {
-                assert(fp32Form || pts==0);                    // streaming demotion already produced fp32 form
-                budget32-=pts; pts32+=pts; nCached32++;
-                ps.cached=true;
+                #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
+                for (size_t sp=0;sp<sprs.size();sp++)
+                {
+                    try { body(sp); }
+                    catch (...)
+                    {
+                        #pragma omp critical (gpw_pair_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
+                if (firstEx) std::rethrow_exception(firstEx);
+                return;
             }
-            else { ps.offsets.clear(); ps.offsets.shrink_to_fit(); ptsDropped+=pts; }
-            nOffs+=ps.offsets.size();               // kept (pair, cross-cell offset) terms -- the lattice-sum size
+#endif
+            for (size_t sp=0;sp<sprs.size();sp++) body(sp);
+        };
+
+        runPass(countShellPair);
+        // THE BUDGET WALK: row-major over COMPONENT pairs -- the tiering order every cache was ever built
+        // in.  fp64 while the primary budget holds (bit-identical replay), fp32 for the overflow tier, drop
+        // only past BOTH.  Per-pair skip-and-continue, never a lockout -- a later (smaller) pair may still
+        // fit a tier.  (The old budget=0 lockout un-cached every subsequent pair after the first oversized
+        // one -- the dominant cost in the 2026-07-15 multi-k profile.)  The both-tiers-exhausted "+1"
+        // bookkeeping quirk is kept verbatim: the readouts report it.
+        for (const auto& [i,j] : prs)
+        {
+            nPairs++;
+            if (pairSkip(i,j)) continue;                   // fold image/dead: holds NO streams -- never
+                                                           //   counted into a tier (fp64/fp32 report the
+                                                           //   pairs that actually STORE)
+            if (budget64==0 && budget32==0) { ptsDropped++; continue; }
+            const size_t pts=ptsAll[i*n+j];
+            if      (pts<=budget64) { budget64-=pts; pts64+=pts; nCached64++; tierBuild[i*n+j]=1; }
+            else if (pts<=budget32) { budget32-=pts; pts32+=pts; nCached32++; tierBuild[i*n+j]=1;
+                                                                              tierF32  [i*n+j]=1; }
+            else                    { ptsDropped+=pts; }   // past both tiers: re-evaluated on the fly
         }
+        runPass(buildShellPair);
+        for (const auto& ps : c.pairs) nOffs+=ps.offsets.size();   // kept (pair, offset) terms
         c.droppedPts=ptsDropped;
         // Coverage readout per cache build (static setup, not per-iteration): the budget headroom is THE lever
         // for the analytic path's speed, so make coverage visible (dropped pairs re-evaluate every iteration).
@@ -1645,6 +1688,7 @@ private:
         return ops;
     }
 
+    mutable std::vector<Shell>         itsShells;          //!< the shell partition (lazy; geometry-fixed)
     mutable std::vector<StreamCache>   itsStreamCaches;    //!< analytic pair-box streams, one per ladder shape
     mutable std::vector<IntegrateMemo> itsIntegrateMemos;  //!< phase-independent B_ij(n) per exact field (LRU)
     mutable std::unique_ptr<StreamFold> itsStreamFold;     //!< T3 route (b) (pair, R) orbit fold (null = free run)

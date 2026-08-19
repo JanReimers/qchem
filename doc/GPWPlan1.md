@@ -582,7 +582,7 @@ and the ρ̃ regrouping did not move a visible digit either.  Scaled onto the 40
 collocate 87.5 → ~61, integrate 41.1 → ~29, ρ̃ sampling 87.6 → ~37, i.e. ~90 s off a 402 s run.
 `ctest -j8` 747 executed + 42 disabled = 789 registered, **0 failed** (the pre-change count, unmoved).
 
-**What is left in the ~150 s, in order:**
+**What was left in the ~150 s, in order** *(item 1 is addressed by Round 4 below)*:
 1. **`setup: collocation stream build` (~24–28 s), untouched — the SHELL-BLOCKED KERNEL is its fix**
    (charter item 2, unchanged): `ForPairBox` re-evaluates the contracted radial per CARTESIAN COMPONENT
    PAIR, so a d×d shell pair pays the same two `exp`s 36 times, on a basis whose cost is dominated by Mn
@@ -592,6 +592,69 @@ collocate 87.5 → ~61, integrate 41.1 → ~29, ρ̃ sampling 87.6 → ~37, i.e.
 2. The scatter's remaining cost is now the value stream plus the scattered destination RMW — i.e. genuine
    work.  Below that lies only fewer POINTS (tighter `GPW_DENSITY_EPS`, or the fold).
 3. `setup: becke mesh build` (~12–32 s): `BeckeCutoff` alone was 11.5% of the round-3 profile.
+
+## Round 4 (2026-08-19): the SHELL-BLOCKED box walk — stage A, the stream build
+
+Charter item 2's kernel, staged (user-chosen): **stage A blocks the stream BUILD only**, where the value
+screen `epsEff` is uniform across a shell pair and blocking is therefore provably bit-identical; **stage B**
+blocks the on-the-fly collocate/integrate branch (the over-budget regime) and is the one that changes
+screening semantics.  Stage A landed here.
+
+**THE OBSERVATION, bigger than the charter's.**  The charter names the redundant `exp`s: "`ForPairBox`
+re-evaluates the contracted radial per CARTESIAN COMPONENT PAIR, so a d×d shell pair pays the same two
+`exp`s 36 times."  True — but reading the kernel, *everything* it does before the value is a **shell**
+property, because it reads `radials[i]` only: the pair→level assignment, the screened offset list
+(`ForImageOffsets`), the product centre \f$P\f$, `reach`, the fractional half-widths, the ellipsoid
+pre-screen, the incremental \f$r\f$ walk, `di`/`dj`/`ri2`/`rj2`, the modulo wrap and the raster index.  A
+shell's components differ **only** in `pols[i]` and `ns[i]`.  And `PGData::Init` flattens the basis `Block`
+by `Block` (one `GaussianRF` + its polarizations), so a shell is already a contiguous index run — the same
+fact the pointwise sweep's shell hoist uses.
+
+**WHAT LANDED.**  `ForShellPairBox(i0,nI,j0,nJ,…)` walks the box once per shell pair and hands each
+surviving point the two per-component FACTOR arrays
+\f$f^I_a=n_{i_0+a}\,\mathrm{pol}_{i_0+a}(d_I)\,\mathrm{rad}_I\f$ and \f$f^J_b\f$; the caller forms
+\f$val=f^I_a f^J_b\f$ for the pairs it wants.  So a d×d shell pair evaluates **2 contracted radials + 12
+polynomials per point instead of 72 + 72** — the polynomial hoist is the charter's missing half.  The
+product is associated exactly as the unblocked `(ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ)` was, so values
+are bit-identical.  `ForPairBox` is now the \f$1\times1\f$ case of it — one box walk in the codebase, not two.
+
+**AND THE BUILD BECAME ONE PATH.**  The tiering ORDER is part of the result: each pair's fp64/fp32/drop tier
+consumes the global budgets in ROW-MAJOR **component**-pair order, so a shell-major *single* pass would tier
+differently.  Hence the two-pass shape is now the only shape — (1) count, (2) a serial row-major budget walk
+on the counts, (3) build only the tiered pairs — which keeps the budget walk in its original order while
+both evaluation passes go shell-major.  That **retired the serial one-pass path outright**, and with it the
+transient-bound abort and the streaming fp32 demotion (a two-pass build knows every pair's size before it
+materialises anything).  Threading partitions both passes over SHELL pairs, whose component-pair sets are
+disjoint, so there is no reduction and serial/threaded stay bit-identical.
+
+**MEASURED** (MnO AFM-II Γ, 3 iterations, 8 threads):
+
+| | before | after | |
+|---|---|---|---|
+| `setup: collocation stream build` | 28.73 | **17.01** s | **1.69×** |
+| `ctest -j8` sweep (the SERIAL build path) | 212 | **203** s | no regression |
+
+Bit-identity verified at the strongest available point — the **stream cache readout is byte-for-byte
+unchanged**: MnO `pts64 149999860`, `pts32 496931912`, `offsets 35028`, `runs 63666502`, `meanRun 10.1613`;
+the small Si gate `fp64 528 (58084328 pts), offsets 39032, runs 13860311 (mean 4.19069)`.  Same points, same
+tiering, same runs ⇒ same streams.  Physics unmoved to every printed digit.  All 24 `GPW.*` kernel gates
+pass (replay-vs-on-the-fly adjoint, charge conservation, the budget/self-heal residency gate, the three
+stream-fold gates through the new blocking); `ctest -j8` 747/747, 0 failed.
+
+**WHY 1.69× and not 36×, honestly.**  Three ceilings: (a) MnO's shells are s(1)/p(3)/d(6), so the mean shell
+pair is ~6–9 component pairs, not 36 — the 36× is the d×d best case, not the average; (b) the counting pass
+is a full evaluation pass (the `|val| ≥ eps` screen needs the values), so the build pays two box walks; (c)
+what remains per point is now genuinely per-component — the `fI[a]*fJ[b]` multiply, the screen, and the
+`Append`.  The residual is the per-component work, which is where it should be.
+
+**STAGE B (next): the on-the-fly branch.**  `CollocateDensity`'s and `IntegratePotential`'s over-budget
+`else` arms — 95% of run 64, the CP2K-span regime, and the reason the charter called this an unblocker.
+Decided with the user: the D-aware box (`epsEff = max(kDensityEps, kDensityEps/|c|)`, today sized per
+COMPONENT pair) resolves across a shell pair as the **union box** — sized from the shell pair's tightest
+`epsEff` — with each component pair still applying its own `|val| < epsEff_ij` magnitude screen.  That only
+ever ADDS sub-eps terms, never drops one, so it keeps the no-cut discipline; the cost is that one large-|D|
+component makes its siblings pay the bigger box, trading a cubic D-aware saving for a 36×-best-case geometry
+saving.  Not bit-identical (a few borderline points), so it lands as its own commit with its own measurement.
 
 ### Step 0 of the real-arithmetic path: exact ±1 Bloch phases at TRIM (2026-08-16)
 
