@@ -820,6 +820,16 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
 {
     GpwOptions o;
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
+    // GPW_IMPOSE=0 / GPW_VERBOSE=1: the A/B pair for a multi-k defect.  Imposition is the one part of these
+    // runs that reconstructs the full BZ from the IRREDUCIBLE blocks, so it is the first thing to remove when
+    // a run differs between a TRIM mesh (phases +/-1) and a genuinely complex one -- see the shifted-MP row
+    // in doc/Benchmark.md.  Diagnostics only: unset, nothing changes.
+    if (const char* im=std::getenv("GPW_IMPOSE")) o.imposeSymmetry=std::atoi(im)!=0;
+    if (std::getenv("GPW_VERBOSE"))               o.scf.Verbose=true;
+    // GPW_SMEAR=kT: the third member of that A/B set.  An integer aufbau fill is AMBIGUOUS at a degenerate
+    // frontier, and the symptom -- converged, charge exact, energy high, "rho rotates" -- looks exactly like
+    // a broken operator until smearing tells them apart.
+    if (const char* kt=std::getenv("GPW_SMEAR"))  o.scf.SmearingkT=std::atof(kt);
     o.label=label; o.Nelec=Nelec; o.species={{std::string(element), 4}};   // the Si callers: Zion=4
     o.densityEcut=densityEcut; o.images=images; o.kShift=kShift; o.xcMesh.cellKind=xcKind;
     o.accelerator="DIIS"; o.seed=seed; o.ortho=ortho; o.orthoTol=orthoTol;
@@ -910,6 +920,46 @@ TEST(GPW_SCF, DISABLED_SR_2x2x2ShiftedMP_vs_CP2K)
                        qchem::Cholesky, 0.0, rvec3_t(0.5,0.5,0.5));
     EXPECT_NEAR(R.charge, 8.0, 1e-6);
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.86744, 3e-3) << "GPW 2x2x2 shifted MP (CP2K default) vs -7.86744";
+}
+
+// SINGLE-K SWEEP: E(k) along the cell diagonal, ONE k-point per run, no weights, no symmetry, no IBZ.
+//
+// The instrument the shifted-MP failure needed (2026-08-19).  That test lands a CONVERGED but wrong
+// -3.7351 against its -7.86744 anchor, and everything cheap was already eliminated: it is not the
+// imposition (the free run is wrong the same way, Ekin 6.14 / Een +0.61 in both), not the collocation
+// streams (budgets off -> analytic path -> the SAME energy to 8 digits, converged in 18 iterations), and
+// not the k-set (8 -> 2 irreducible is the textbook Chadi-Cohen reduction, and the blocks are correctly
+// typed complex).  What remained was the possibility that a SINGLE complex-k block is already wrong,
+// before any weighting or symmetry can be blamed -- and a one-k run isolates exactly that.
+//
+// The mesh is 1x1x1, so k = kShift EXACTLY: the sweep runs k = s(1,1,1) for s in [0, 1/2].  s=0 (Gamma)
+// and s=1/2 (the L zone corner) are TRIM -- Bloch phases +/-1, real blocks, the paths every other test in
+// this suite exercises.  Everything strictly between them is genuinely complex and is exercised by nothing
+// else.  E(k) here is not a physical total energy (one k-point is not a Brillouin-zone average) but it IS
+// a smooth function of k, so a KINK or a jump on entering the complex region localizes the defect to a
+// single k-block's operators, with no weights, occupations or star-averaging in the picture.
+//
+//   for s in 0 0.125 0.25 0.375 0.5; do
+//     GPW_KSHIFT=$s ./ITMain --gtest_filter='*SingleKSweepProbe*' --gtest_also_run_disabled_tests; done
+TEST(GPW_SCF, DISABLED_SingleKSweepProbe)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));           // ONE k-point, at exactly kShift
+
+    const double s = std::getenv("GPW_KSHIFT") ? std::atof(std::getenv("GPW_KSHIFT")) : 0.25;
+    const bool trim = (s==0.0 || s==0.5);
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
+                       ("Si single-k s="+std::to_string(s)).c_str(), /*verbose*/false, /*nmax*/60,
+                       qchem::Cholesky, 0.0, rvec3_t(s,s,s));
+    std::cout << "[k sweep] s=" << s << (trim ? "  TRIM" : "  complex")
+              << "  Etot=" << std::setprecision(10) << R.E.GetTotalEnergy() << std::setprecision(6)
+              << "  charge=" << R.charge
+              << "  (Ekin=" << R.E.Kinetic << " Een=" << R.E.Een << " Eee=" << R.E.Eee
+              << " Exc=" << R.E.Exc << ")" << std::endl;
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);               // the one thing that must hold at EVERY k
 }
 
 // DIAGNOSTIC: TERM-BY-TERM translation invariance of the 1E/PP matrix TRACES (no SCF -> fast) -- the tool

@@ -83,12 +83,28 @@ printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrappe
 **configuration-SELECTIVE part of the offset is −37.15 mHa** (`OpenWork` Step 5).  Every one of these four
 energies reproduces its banked value (runs 61/62 and the CP2K VA pair) to the digits those were recorded at.
 
-¹ ⛔ **BLOCKED BY A REGRESSION, not by measurement.**  `GPW_SCF.DISABLED_SR_2x2x2ShiftedMP_vs_CP2K` banked
-−7.86673 against CP2K's −7.86744 when the complex-k path landed (`doc/GPWHistory.md`, `745d03ff`); today it
-returns **−3.7351** with charge still exactly 8 and **`Een` POSITIVE (+0.611, against −1.1 at Γ)** — an
-electron–nuclear term with the wrong sign at fractional k points at the Bloch/KB phase handling on the
-shifted mesh, not at mixing or occupations.  The CP2K half of this row is measured and sound.  The only test
-covering shifted k is DISABLED, so nothing caught it.
+¹ ⛔ **BLOCKED BY A DEFECT AT EXACTLY k=¼, diagnosed 2026-08-19.**  `DISABLED_SR_2x2x2ShiftedMP_vs_CP2K`
+banked −7.86673 against CP2K's −7.86744 when the complex-k path landed (`doc/GPWHistory.md`, `745d03ff`);
+today it returns −3.7351.  **The shifted 2×2×2 mesh's k are (±¼,±¼,±¼) — and ¼ is the one place this fails.**
+`GPW_SCF.DISABLED_SingleKSweepProbe` runs ONE k-point per run (mesh 1×1×1, so k = `GPW_KSHIFT` exactly), no
+weights, no IBZ, no symmetry — E(k) must be smooth, and it is, except for a single-point blow-up:
+
+| k | 0 | ⅛ | 0.249 | **¼** | 0.2500001 | 0.251 | ⅓ | ⅜ | ⅝ | ¾ | ⅞ | ½ |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Etot | −7.1151 | −7.3121 | −7.5638 | **−5.0278** | −7.5660 | −7.5672 | −7.6830 | −7.7189 | −7.7189 | **−5.0174** | −7.3121 | −7.7763 |
+
+**The failing set is exactly {¼, ¾}** — where the Bloch phase \f$e^{2\pi ik}\f$ is purely imaginary and its
+REAL part underflows to \f$\cos(\pi/2)\approx6\times10^{-17}\f$ instead of being O(1).  ⅛, ⅜, ⅝, ⅞ and ⅓ are
+all equally complex and all clean (and ⅞/⅝ reproduce ⅛/⅜ to every digit, so k↔−k is sound).  Eliminated, each
+by measurement: **symmetry imposition** (the free run is wrong the same way), **the collocation streams**
+(budgets off → analytic path → same energy to 8 digits, converged in 18 iterations), **occupations**
+(smearing to kT=0.02 is bit-identical), **the TRIM/real typing** (`BlochQN::IsReal()` is exact and correctly
+answers *false* at ¼; the blocks are built complex).  **And it is not physics: k = ¼ + 1e-9 lands back on the
+smooth curve** (−7.5224, still descending) — a 1e-9 change in k cannot move a converged energy by 2.5 Ha, so
+this is an exact-value branch, most likely something that screens on, or divides by, the real part of the
+phase.  Signature at the bad k: Ekin 5.67 where the curve wants 3.63, Een −0.02 where it wants −0.71.
+The CP2K half of this row is measured and sound.  The only test covering shifted k is DISABLED, so nothing
+caught it — re-enable it, or add a cheap quarter-integer gate, once fixed.
 **Why the two Si 2×2×2 rows differ by 89 mHa** (asked 2026-08-19; settled by running CP2K to the k-limit,
 seconds per point, so it never has to be argued again).  They are two samplings of ONE integral and converge
 to the same answer — the gap is sampling error at a very coarse mesh, not a setup discrepancy:
