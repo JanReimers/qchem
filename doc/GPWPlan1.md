@@ -517,6 +517,82 @@ sampling ≈ 1.35 s, rho GEMM ≈ 0.09 s.  Setup is dominated by the stream buil
 mesh build (~16 s).  The next levers are unchanged: Φ-table screening, the real-Γ/TRIM path (Γ AND
 every k with 2k ≡ 0 — so a Γ-centred 2×2×2 mesh is entirely real), and the fast-recompute kernel.
 
+## Round 3 (2026-08-19): the collocation streams — and why "make them REAL" was the wrong diagnosis
+
+The real-TRIM flip (doc/RealComplexPlan.md) left one named increment behind it: *"the complex-internal
+evaluator collocation streams, ~150 s of the MnO profile."*  The arithmetic checked out — 87.5 s
+(collocate) + 41.1 s (integrate-back) + 23.5 s (stream build) = 152 s of the 402 s free-run ledger.
+**The DIAGNOSIS did not.**
+
+**THE MEASUREMENT** (`perf record --call-graph=fp -F199`, MnO AFM-II Γ, n=122, 8 threads,
+`GPW_MNO_NMAX=3`; annotation of `CollocateDensity`'s pair-scatter lambda, which carries 10.7% of whole-run
+self time):
+
+| instruction | share of the lambda | what it is |
+|---|---|---|
+| `movss (%rsi,%r8,4)` | 25.4% | the fp32 VALUE stream |
+| `movl  (%rax,%r8,4)` | 23.7% | the per-point INDEX stream |
+| `addsd (%rcx,%r9,8)` + store | 8.5% | the scattered destination RMW |
+| `mulsd %xmm2,%xmm0` | 0.5% | the actual multiply |
+| `callq *0x18(%rdi)` (the Bloch-phase `std::function`) | — | did not register |
+| `__muldc3` (the complex \f$D_{ij}\overline{e^{ikR}}\f$ contraction) | — | NaN path only |
+
+**The replay is DRAM-BANDWIDTH bound, and the scalar type of the contraction is free.**  The phase and
+the complex \f$D\f$ contract are PER (pair, offset) — amortised over a run of ~20–40 grid points each —
+while the streams themselves were always real (`std::vector<double>`/`<float>`).  Re-typing the
+`LatticeSum1E` collocation face to `double` would have bought approximately nothing here.  What the
+bucket wanted was **fewer bytes per point**, and the same annotation says where they were: HALF the
+traffic was the per-point raster index.
+
+**WHAT LANDED INSTEAD — run-length stream geometry (`PairOffsetStream`).**  `ForPairBox` walks the box's
+innermost axis in unit steps, so its wrapped indices arrive in long CONTIGUOUS runs (one per \f$(dx,dy)\f$
+column, split only by the modulo wrap or the value screen).  A stream now stores `runBase`/`runLen` —
+(first index, length) per run — and the values alone; both replays (scatter and gather) walk `val`
+sequentially and the grid contiguously.  Same points, same order, same screens ⇒ **bit-identical replay**,
+and the collocate/integrate adjoint stays machine-exact.  The readout (`[stream cache]` /
+`grids.stream`) now prints `runs` and `meanRun` so the encoding's payoff is visible — and it must be
+read, because the win scales with run length: a run head costs 8 B, so the encoding pays for
+`meanRun > 2` and pays WELL above ~8.  **Measured `meanRun` = 10.16 on MnO** (647 M points in 63.7 M
+runs) and 4.19 on the small Si `AnalyticCollocationCrystalChargeConservation` grid — so the tiers go
+12 → 8.8 B/pt (fp64) and 8 → 4.8 B/pt (fp32) on MnO, i.e. **stream RAM 5.78 → 3.70 GB, a 2.1 GB cut
+that lands directly on doc/OpenWork.md item 2 (the RAM gap)** at unchanged coverage.
+
+**And the OTHER complex-bound bucket, which was genuinely complex: `FourierMixCD::operator()(rvec3vec_t)`**
+— the ρ̃-mixed density sampled at every Becke mesh point on every Kerker/Pulay iteration (32k points ×
+24k G × 2 channels), the single largest per-iteration bucket in the free-run ledger at 87.6 s.  Two exact
+regroupings of the same series: (1) ρ is REAL, so the ±G terms pair as
+\f$\mathrm{Re}[(c(G)+\overline{c(-G)})e^{iG\cdot r}]\f$ — fold onto a canonical half-space ONCE per batch
+and the point loop runs over half the terms (an identity, not a symmetry assumption: an unpaired G lands
+alone in the folded weight); (2) the map's key order runs z fastest, so the \f$(x,y)\f$ phase multiplies
+the run's inner sum ONCE instead of once per G.  Together 2 complex multiplies per G over the full {G}
+become 1 per G over half of it.
+
+**MEASURED** (MnO AFM-II Γ, 3 iterations, 8 threads — the same run three times):
+
+| bucket | before | after | |
+|---|---|---|---|
+| `scf: collocate density (pair scatter)` | 7.79 | **5.40** | 1.44× |
+| `scf: integrate-back (pair gather)` | 3.40 | **2.42** | 1.41× |
+| `scf: XC-mesh rho sampling (matrix-free density)` | 2.58 | **1.08** | 2.39× |
+| per-iteration SCF total | 5.52 | **3.88** | **1.42×** |
+
+Physics unmoved to every printed digit (`Efinal=-61.3944791877`, `lastΔρ=0.0012609100`, `m_stag=0.5977`,
+`m_net=0.03998`, and the whole energy decomposition) — the stream change is bit-identical by construction
+and the ρ̃ regrouping did not move a visible digit either.  Scaled onto the 402 s free-run ledger:
+collocate 87.5 → ~61, integrate 41.1 → ~29, ρ̃ sampling 87.6 → ~37, i.e. ~90 s off a 402 s run.
+`ctest -j8` 747 executed + 42 disabled = 789 registered, **0 failed** (the pre-change count, unmoved).
+
+**What is left in the ~150 s, in order:**
+1. **`setup: collocation stream build` (~24–28 s), untouched — the SHELL-BLOCKED KERNEL is its fix**
+   (charter item 2, unchanged): `ForPairBox` re-evaluates the contracted radial per CARTESIAN COMPONENT
+   PAIR, so a d×d shell pair pays the same two `exp`s 36 times, on a basis whose cost is dominated by Mn
+   d shells.  `exp` + `Polarization::operator()` + `uintpow` together are 21.7% of the whole run in the
+   round-3 profile.  This is the SAME kernel that owns the over-budget regime (run 64's 4318 s), so it
+   pays twice.
+2. The scatter's remaining cost is now the value stream plus the scattered destination RMW — i.e. genuine
+   work.  Below that lies only fewer POINTS (tighter `GPW_DENSITY_EPS`, or the fold).
+3. `setup: becke mesh build` (~12–32 s): `BeckeCutoff` alone was 11.5% of the round-3 profile.
+
 ### Step 0 of the real-arithmetic path: exact ±1 Bloch phases at TRIM (2026-08-16)
 
 `BlochPhase(k,n)` now returns the PARITY \f$(-1)^{(2k)\cdot n}\f$ instead of `std::exp` whenever every

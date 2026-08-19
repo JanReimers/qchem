@@ -45,10 +45,24 @@ lossless, since the per-term gates pin the real assembly bitwise); the gate's me
 (`dExc` 7.5e-5, max|U−B| 3.6e-4) are unchanged from its pre-flip documented values.
 Sweep: 747 executed + 42 disabled = 789 registered, 0 failed.
 
-**REMAINING:** the complex-internal evaluator collocation streams are the last — and now dominant —
-performance increment (~150 s of the MnO profile, untouched by the flip; its own campaign, since it
-touches the shared molecular evaluator that serves both scalars across k-blocks); V1.32
-(de-template the finite `IrrepCD` leaf) remains filed in doc/CleanupCandidates.md.
+**THE LAST NAMED INCREMENT IS CLOSED — AND ITS PREMISE WAS WRONG (2026-08-19).**  This header used to
+read *"the complex-internal evaluator collocation streams are the last — and now dominant — performance
+increment (~150 s of the MnO profile, untouched by the flip)."*  The 150 s was right (collocate 87.5 +
+integrate-back 41.1 + stream build 23.5 of the 402 s free-run ledger); **"complex-internal" was not.**
+A `perf` annotation of the pair-scatter lambda (doc/GPWPlan1.md "Round 3") puts 49% of its self time on
+the two SEQUENTIAL loads — the fp32 value stream and the per-point raster index — ~1% on the arithmetic,
+and NOTHING measurable on either the Bloch-phase `std::function` or the complex \f$D_{ij}\f$ contraction:
+those are per (pair, offset), amortised over runs of ~20–40 grid points, while the streams themselves were
+always real (`vector<double>`/`<float>`).  **Re-typing the `LatticeSum1E` collocation face to `double`
+would have bought ~nothing.**  The replay is DRAM-bandwidth bound, so the fix was fewer BYTES PER POINT:
+run-length stream geometry (`runBase`/`runLen` instead of a per-point index — bit-identical replay,
+1.44× collocate / 1.41× integrate), plus the one genuinely complex-bound neighbour, `FourierMixCD`'s
+batched inverse FT (half-space fold + hoisted \f$(x,y)\f$ phase, 2.39×).  Per-iteration SCF 1.42×,
+physics unmoved to every printed digit.  So this plan's §2 claim stands with a footnote: the collocation
+streams stay real under SOC **and they were already real** — the scalar-type axis simply is not where
+their cost lives.  V1.32 (de-template the finite `IrrepCD` leaf) remains filed in
+doc/CleanupCandidates.md; the remaining GPW runtime lever is the SHELL-BLOCKED recompute kernel
+(GPWPlan1 charter item 2), which is not a scalar-type question either.
 **The `DM_RhoAtPoints` arm is CLOSED (`523a745a`, 2026-08-18):** the "pure optimization" deferral
 was load-bearing — on the Becke route the pointwise fallback measured 832 s vs 1 s over 10 MnO
 iterations, so a flipped run was 7× slower net.  Fixed by the 3-arg `DM_RhoAtPoints(r, Phi, PhiR)`

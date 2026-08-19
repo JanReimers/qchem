@@ -555,7 +555,7 @@ public:
         }
     }
     // --- STREAM CACHE for the analytic collocation / integrate-back ----------------------------------------
-    // The per-(pair, cross-cell offset) box streams -- wrapped grid index + analytic pair value -- are pure
+    // The per-(pair, cross-cell offset) box streams -- wrapped grid RUNS + analytic pair values -- are pure
     // GEOMETRY: identical across SCF iterations AND across k-blocks (the Bloch phase enters only at the
     // contraction), while their evaluation (exp/poly per point) is essentially 100% of the GPW DFT tier's
     // per-iteration cost (perf 2026-07-14: exp 24%, box-loop bodies 41%, ToCartesian 14%...).  So each stream
@@ -567,7 +567,40 @@ public:
     //! tier -- exactly one of the two is filled per stream.  \c maxv (the stream's largest |value|) powers the
     //! D-AWARE replay kill: an offset whose |weight|*maxv is below the density tolerance contributes nothing
     //! resolvable and is skipped whole.
-    struct PairOffsetStream { ivec3_t n; std::vector<unsigned> idx; std::vector<double> val; std::vector<float> val32; double maxv=0.0; };
+    //!
+    //! \b RUN-LENGTH \b GEOMETRY (2026-08-19).  The raster indices are not stored per point: \c ForPairBox
+    //! walks the box's innermost axis (\f$z\f$) in unit steps, so the wrapped indices it emits come in long
+    //! CONTIGUOUS runs (one per \f$(dx,dy)\f$ column, split only where the modulo wrap or the value screen
+    //! interrupts it).  A stream therefore stores \c runBase/\c runLen -- (first index, length) per run --
+    //! and the values alone; the replay walks \c val sequentially and the destination grid contiguously
+    //! (\c dst[t] \c += \c cw*v[k]).
+    //! WHY: the replay is DRAM-BANDWIDTH bound, not arithmetic bound (perf 2026-08-19 on the MnO magnetic
+    //! cell: 49% of \c CollocateDensity's self time sat on the two sequential loads -- the index stream and
+    //! the value stream -- against ~1% on the arithmetic and 0% on the Bloch-phase contraction).  Per-point
+    //! indices doubled the fp32 tier's traffic (4 B value + 4 B index) and added a third of the fp64 tier's;
+    //! a run head costs 8 B once per RUN instead, so the encoding pays whenever the mean run exceeds 2
+    //! points.  Measured \c meanRun: 10.2 on the MnO magnetic cell (647 M points in 63.7 M runs -- tiers
+    //! 12 -> 8.8 and 8 -> 4.8 B/pt, stream RAM 5.78 -> 3.70 GB) and 4.2 on the small Si crystal gate.
+    //! Replay order, values and screens are UNCHANGED, so every replay stays bit-identical.
+    struct PairOffsetStream
+    {
+        ivec3_t n;
+        std::vector<unsigned> runBase;   //!< first raster index of each contiguous run
+        std::vector<unsigned> runLen;    //!< its length; \f$\sum\f$ runLen == the stream's point count
+        std::vector<double> val;         //!< tier 1 values, run-major (exactly one of val/val32 is filled)
+        std::vector<float>  val32;       //!< tier 2 values
+        double maxv=0.0;
+        //! The stream's point count (the budget currency) -- the filled value tier's length.
+        size_t Points() const {return val.empty() ? val32.size() : val.size();}
+        //! Append one screened-in point: extend the open run when \a idx continues it, else open a new one.
+        void Append(size_t idx, double v, bool f32)
+        {
+            if (!runLen.empty() && size_t(runBase.back())+runLen.back()==idx) runLen.back()++;
+            else { runBase.push_back(unsigned(idx)); runLen.push_back(1); }
+            if (f32) val32.push_back(float(v)); else val.push_back(v);
+            maxv=std::max(maxv,std::fabs(v));
+        }
+    };
     struct PairStreams     { size_t level=0; bool cached=false; std::vector<PairOffsetStream> offsets; };
     struct StreamCache
     {
@@ -590,9 +623,10 @@ public:
     static constexpr size_t kMaxStreamCaches=4;                 // ladder + K=1 + unit-gate shapes; guards churn
     //! Global stream-cache budgets in POINTS, TWO TIERS.  A diffuse basis in a small cell keeps hundreds of
     //! screened offsets per pair -- caching them ALL blew past physical RAM on NaF (uncapped: 27 GB virt on a
-    //! 16 GB box; measured demand 952M pts).  Tier 1 (fp64, 12 B/pt, ~1.8 GB): replay is BIT-IDENTICAL to
+    //! 16 GB box; measured demand 952M pts).  Tier 1 (fp64, ~8.8 B/pt since the run-length encoding,
+    //! ~1.3 GB): replay is BIT-IDENTICAL to
     //! on-the-fly evaluation; sized so the Si SR ladder caches completely (demand 104.9M) -- every Si anchor
-    //! and machine-precision kernel gate lives entirely in this tier.  Tier 2 (fp32 values, 8 B/pt, ~5.6 GB):
+    //! and machine-precision kernel gate lives entirely in this tier.  Tier 2 (fp32 values, ~4.8 B/pt, ~4.1 GB):
     //! the overflow pairs store float values instead of falling to on-the-fly -- replay noise is ~6e-8
     //! RELATIVE per value (NaF anchors are 1e-3-scale; Tr(DS) charge is analytic, unaffected), and the
     //! collocate/integrate ADJOINT stays machine-exact because both directions replay the SAME stream.
@@ -618,8 +652,8 @@ public:
             if (&cc==skip) continue;
             for (const auto& ps : cc.pairs)
                 for (const auto& st : ps.offsets)
-                    if (!st.val.empty()) a64 -= std::min(a64, st.idx.size());
-                    else                 a32 -= std::min(a32, st.idx.size());
+                    if (!st.val.empty()) a64 -= std::min(a64, st.Points());
+                    else                 a32 -= std::min(a32, st.Points());
         }
         return {a64,a32};
     }
@@ -1003,11 +1037,8 @@ public:
                     {
                         if (offSkip(i,j,nn)) return;
                         PairOffsetStream st; st.n=nn;
-                        ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
-                                   { st.idx.push_back(unsigned(idx));
-                                     if (f32) st.val32.push_back(float(v)); else st.val.push_back(v);
-                                     st.maxv=std::max(st.maxv,std::fabs(v)); });
-                        if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
+                        ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v){st.Append(idx,v,f32);});
+                        if (st.Points()) ps.offsets.push_back(std::move(st));
                     });
                     ps.cached=true;
                 }
@@ -1040,7 +1071,7 @@ public:
             const size_t cap = budget64>budget32 ? budget64 : budget32;
             bool building=true;
             // BYTE-AWARE TRANSIENT (doc/GPWPlan 0.5(c)): a tier-2-bound pair used to BUILD wholly in fp64
-            // form (12 B/pt) and demote only at the end -- an 850M-pt fp32 budget admitted a ~10-GB build
+            // form (then 12 B/pt) and demote only at the end -- an 850M-pt fp32 budget admitted a ~10-GB build
             // transient for ~6.8 GB of eventual storage.  So demote STREAMING: the moment the pair's count
             // exceeds the open fp64 budget it can only ever land in tier 2 -- convert everything built so
             // far and keep building demoted.  The transient is then bounded by the fp32 STORAGE plus one
@@ -1061,10 +1092,8 @@ public:
                     return;
                 }
                 PairOffsetStream st; st.n=nn;
-                ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
-                           { st.idx.push_back(unsigned(idx)); st.val.push_back(v);
-                             st.maxv=std::max(st.maxv,std::fabs(v)); });
-                pts+=st.idx.size();
+                ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v){st.Append(idx,v,/*f32*/false);});
+                pts+=st.Points();
                 if (pts>cap)                                   // un-cacheable: free everything built so far
                 {
                     building=false;
@@ -1077,7 +1106,7 @@ public:
                     fp32Form=true;
                 }
                 if (fp32Form) demote(st);
-                if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
+                if (st.Points()) ps.offsets.push_back(std::move(st));
             });
             // Tier the pair: fp64 while the primary budget holds (bit-identical replay), fp32 for the
             // overflow tier, drop only past BOTH.  Per-pair skip-and-continue, never a lockout -- a later
@@ -1105,6 +1134,11 @@ public:
         // collocation coverage over the grid ladder); else keep the legacy one-line cerr (unbracketed builds).
         size_t nRepPairs=0;
         if (bsf) for (auto i:indices()) for (auto j:indices(i)) if (!pairSkip(i,j)) nRepPairs++;
+        // The RUN count is the encoding's payoff, so report it: bytes/pt = valueWidth + 8*runs/pts, i.e.
+        // the mean run length is what turns the index stream into a rounding error (see PairOffsetStream).
+        size_t nRuns=0;
+        for (const auto& ps : c.pairs) for (const auto& st : ps.offsets) nRuns+=st.runBase.size();
+        const double meanRun = nRuns ? double(pts64+pts32)/double(nRuns) : 0.0;
         if (qchem::report::Depth() > 0)
         {
             qchem::report::json s;
@@ -1115,6 +1149,8 @@ public:
             s["fp64"]      = (long)nCached64;  s["pts64"] = (long)pts64;
             s["fp32"]      = (long)nCached32;  s["pts32"] = (long)pts32;
             s["offsets"]   = (long)nOffs;      // kept (pair, image-offset) terms across all pairs
+            s["runs"]      = (long)nRuns;      // contiguous index runs (the stored geometry)
+            s["meanRun"]   = meanRun;          //   and their mean length -- the bandwidth lever
             s["dropped"]   = (long)ptsDropped;
             s["budget64"]  = (long)BudgetPts(); s["budget32"] = (long)BudgetPtsF32();
             qchem::report::EmitAt("grids", "stream", s);
@@ -1127,7 +1163,8 @@ public:
             if (bsf) std::cerr << "  FOLD |ops|=" << bsf->maps.size() << " repPairs " << nRepPairs << "/" << nPairs;
             std::cerr << "  pairs " << nPairs
                       << ": fp64 " << nCached64 << " (" << pts64 << " pts), fp32 " << nCached32
-                      << " (" << pts32 << " pts), offsets " << nOffs << ", dropped " << ptsDropped
+                      << " (" << pts32 << " pts), offsets " << nOffs
+                      << ", runs " << nRuns << " (mean " << meanRun << " pts), dropped " << ptsDropped
                       << " pts (budgets " << BudgetPts() << "/" << BudgetPtsF32() << ")" << std::endl;
         }
         return c;
@@ -1196,16 +1233,29 @@ public:
                     const double c=fold*std::real(Dij*std::conj(phase(st.n)));  // Re[D_ij e^{-ik.R_n}] offset weight
                     if (std::fabs(c)*st.maxv < kDensityEps()) continue;   // D-aware kill: sub-eps density term
                     const double cw=c*wm;
-                    const unsigned* ix=st.idx.data();
+                    // Run-major replay: one CONTIGUOUS destination span per run, values streamed in build
+                    // order -- the same points in the same order as the per-point-index form, so the sums
+                    // are bit-identical; the index stream is gone (see PairOffsetStream).
+                    const unsigned* rb=st.runBase.data();
+                    const unsigned* rl=st.runLen.data();
+                    const size_t nr=st.runBase.size();
                     if (!st.val.empty())
                     {
                         const double* v=st.val.data();
-                        for (size_t k=0, m=st.idx.size(); k<m; k++) r[ix[k]]+=cw*v[k];
+                        for (size_t q=0, k=0; q<nr; q++)
+                        {
+                            double* d=&r[rb[q]];
+                            for (unsigned t=0, m=rl[q]; t<m; t++, k++) d[t]+=cw*v[k];
+                        }
                     }
                     else                                            // fp32 overflow tier (values demoted)
                     {
                         const float* v=st.val32.data();
-                        for (size_t k=0, m=st.idx.size(); k<m; k++) r[ix[k]]+=cw*double(v[k]);
+                        for (size_t q=0, k=0; q<nr; q++)
+                        {
+                            double* d=&r[rb[q]];
+                            for (unsigned t=0, m=rl[q]; t<m; t++, k++) d[t]+=cw*double(v[k]);
+                        }
                     }
                 }
             else                                                    // over the cache budget: evaluate on the fly
@@ -1425,16 +1475,29 @@ public:
                     if (screenD &&
                         std::fabs(fold*std::real(Dij*std::conj(phase(st.n))))*st.maxv < kDensityEps()) continue;
                     double b=0.0;
-                    const unsigned* ix=st.idx.data();
+                    // Run-major gather -- the exact mirror of the collocation scatter (same runs, same
+                    // order), so the reduction stays bit-identical to the per-point-index form and the
+                    // collocate/integrate adjoint stays machine-exact.
+                    const unsigned* rb=st.runBase.data();
+                    const unsigned* rl=st.runLen.data();
+                    const size_t nr=st.runBase.size();
                     if (!st.val.empty())
                     {
                         const double* v=st.val.data();
-                        for (size_t k=0, m=st.idx.size(); k<m; k++) b+=v[k]*V[ix[k]];
+                        for (size_t q=0, k=0; q<nr; q++)
+                        {
+                            const double* Vp=&V[rb[q]];
+                            for (unsigned t=0, m=rl[q]; t<m; t++, k++) b+=v[k]*Vp[t];
+                        }
                     }
                     else                                            // fp32 overflow tier (values demoted)
                     {
                         const float* v=st.val32.data();
-                        for (size_t k=0, m=st.idx.size(); k<m; k++) b+=double(v[k])*V[ix[k]];
+                        for (size_t q=0, k=0; q<nr; q++)
+                        {
+                            const double* Vp=&V[rb[q]];
+                            for (unsigned t=0, m=rl[q]; t<m; t++, k++) b+=double(v[k])*Vp[t];
+                        }
                     }
                     if (memo) pb.nb.emplace_back(st.n,b);
                     s+=phase(st.n)*(wm*b);

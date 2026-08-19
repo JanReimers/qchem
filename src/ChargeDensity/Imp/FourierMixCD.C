@@ -76,17 +76,40 @@ double FourierMixCD::operator()(const rvec3_t& r) const
 
 // Batched inverse FT with the phase factorized per axis: G = B dm, so e^{iG.r} = prod_a e^{i dm_a t_a}
 // with t_a = b_a.r (b_a = the a'th reciprocal lattice vector).  Per point: three small 1-D tables
-// e^{i m t_a} over the map's dm ranges, then one complex multiply-add per G -- no transcendental in the
-// inner loop.  The map iterates in key order, so the (x,y) partial product is hoisted across runs of
-// consecutive z.  Bit-close (not bit-identical) to the pointwise loop: same series, different grouping.
+// e^{i m t_a} over the map's dm ranges, then one complex multiply-add per surviving G -- no transcendental
+// in the inner loop.  Bit-close (not bit-identical) to the pointwise loop: same series, different grouping.
+//
+// TWO REGROUPINGS, both exact rearrangements of the same series, together ~4x (2026-08-19; the batched
+// sampling was the largest per-iteration bucket in the MnO magnetic-cell ledger, 87.6 s of 402 s):
+//
+//  (1) HALF THE {G}.  rho(r) is REAL, so only Re[sum] is wanted, and the +dm/-dm terms pair up:
+//        Re[c(dm) e^{iG.r}] + Re[c(-dm) e^{-iG.r}] = Re[(c(dm) + conj(c(-dm))) e^{iG.r}].
+//      So fold the map onto a canonical half-space ONCE per batch -- w(h) = sum over {dm : |dm| folds to h}
+//      of (dm==h ? c(dm) : conj(c(dm))) -- and the per-point loop runs over ~half the terms.  This is an
+//      IDENTITY, not an assumption: a dm whose partner is absent simply lands alone in w, and the
+//      conjugate-symmetry of rho-tilde is never relied upon (it holds for a real density, but a mixer that
+//      broke it would still be sampled exactly).
+//  (2) ONE complex multiply per G, not two.  The map's key order runs z fastest, so the (x,y) phase
+//      product is constant across each run of consecutive z: accumulate the run's inner sum against the
+//      z-table alone and multiply by pxy ONCE at the run's end (the old form multiplied by pxy per G).
 rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
 {
     rvec_t ro(r.size());
     if (itsRho.empty()) {ro=0.0; return ro;}
 
-    // dm ranges per axis + the three reciprocal lattice vectors b_a.
-    ivec3_t lo=itsRho.begin()->first, hi=lo;
+    // (1) FOLD onto the canonical half-space: h = dm if dm > 0 lexicographically (or dm == 0), else -dm.
+    ΔG_Map half;
     for (const auto& [dm, rt] : itsRho)
+    {
+        const bool keep = dm.x>0 || (dm.x==0 && (dm.y>0 || (dm.y==0 && dm.z>=0)));
+        const ivec3_t h = keep ? dm : ivec3_t(-dm.x,-dm.y,-dm.z);
+        auto it=half.emplace(h,dcmplx(0.0)).first;
+        it->second = dcmplx(it->second) + (keep ? dcmplx(rt) : std::conj(dcmplx(rt)));
+    }
+
+    // dm ranges per axis + the three reciprocal lattice vectors b_a.
+    ivec3_t lo=half.begin()->first, hi=lo;
+    for (const auto& [dm, rt] : half)
     {
         lo.x=std::min(lo.x,dm.x); hi.x=std::max(hi.x,dm.x);
         lo.y=std::min(lo.y,dm.y); hi.y=std::max(hi.y,dm.y);
@@ -96,12 +119,25 @@ rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
                   b2=itsRecip.GetCell().ToCartesian(rvec3_t(0,1,0)),
                   b3=itsRecip.GetCell().ToCartesian(rvec3_t(0,0,1));
 
-    // Flatten the map ONCE per batch: the inner loop then walks contiguous arrays instead of chasing
-    // tree nodes (the map traversal, repeated per point, was the measured cost).
-    const size_t nG=itsRho.size();
-    std::vector<ivec3_t> dms;  dms.reserve(nG);
-    std::vector<dcmplx>  cs;   cs.reserve(nG);
-    for (const auto& [dm, rt] : itsRho) {dms.push_back(dm); cs.push_back(dcmplx(rt));}
+    // Flatten the folded map ONCE per batch: the inner loop then walks contiguous arrays instead of chasing
+    // tree nodes (the map traversal, repeated per point, was the measured cost).  `run` marks the START of
+    // each (x,y) run so the point loop needs no key comparison at all.
+    const size_t nG=half.size();
+    std::vector<int>    mz;   mz.reserve(nG);      // the z index offset into the z phase table
+    std::vector<dcmplx> cs;   cs.reserve(nG);      // the folded weights w(h)
+    std::vector<size_t> runStart;                  // index into cs where each (x,y) run begins
+    std::vector<int>    runX, runY;                //   and that run's (x,y) table offsets
+    int px=lo.x-1, py=lo.y-1;                      // invalid sentinels force the first run
+    for (const auto& [dm, w] : half)
+    {
+        if (dm.x!=px || dm.y!=py)
+        {   px=dm.x; py=dm.y;
+            runStart.push_back(cs.size()); runX.push_back(dm.x-lo.x); runY.push_back(dm.y-lo.y);
+        }
+        mz.push_back(dm.z-lo.z); cs.push_back(dcmplx(w));
+    }
+    runStart.push_back(nG);                        // sentinel: one past the last run
+    const size_t nRun=runX.size();
 
     // Per point: private phase tables + a private accumulator, so the point loop is embarrassingly
     // parallel and ro[g] is computed by ONE thread in the serial summation order -- bit-identical at any
@@ -116,13 +152,12 @@ rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
         for (int m=lo.y; m<=hi.y; m++) ty[m-lo.y]=std::exp(dcmplx(0.0,m*t2));
         for (int m=lo.z; m<=hi.z; m++) tz[m-lo.z]=std::exp(dcmplx(0.0,m*t3));
 
-        dcmplx s(0.0), pxy(0.0);
-        int px=lo.x-1, py=lo.y-1;                       // invalid sentinels force the first hoist
-        for (size_t q=0; q<nG; q++)
+        dcmplx s(0.0);
+        for (size_t q=0; q<nRun; q++)
         {
-            const ivec3_t& dm=dms[q];
-            if (dm.x!=px || dm.y!=py) {px=dm.x; py=dm.y; pxy=tx[dm.x-lo.x]*ty[dm.y-lo.y];}
-            s += cs[q]*pxy*tz[dm.z-lo.z];
+            dcmplx inner(0.0);
+            for (size_t k=runStart[q], e=runStart[q+1]; k<e; k++) inner += cs[k]*tz[mz[k]];
+            s += (tx[runX[q]]*ty[runY[q]])*inner;   // the run's (x,y) phase, applied ONCE
         }
         ro[g]=itsScale*std::real(s);
     };
