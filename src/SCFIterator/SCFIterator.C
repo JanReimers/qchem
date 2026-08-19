@@ -255,7 +255,7 @@ private:
     //! fill, kT=0, no MOM -- and configured from SCFParams at the top of Iterate, like the density mixer.
     qchem::OccupationState                      itsOccState;
     std::unique_ptr<qchem::OccupationPolicy<T>> itsOccPolicy
-        = std::make_unique<qchem::OccupationPolicy<T>>(itsOccState);
+        = qchem::MakeOccupationPolicy<T>(qchem::OccupationConfig{}, itsOccState);
     cd_t            itsCD;       //!< current charge density (shared_ptr: lifetime by std, no reuse)
     cd_t            itsOldCD;    //!< previous charge density
     //! The SCF density lineage (ChargeDensity::Lineage).  SetWorkingCD makes each new itsCD the head, so a

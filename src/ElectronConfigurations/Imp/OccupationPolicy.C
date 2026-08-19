@@ -10,6 +10,7 @@ module;
 #include <cassert>
 #include <complex>   // std::real (Scores' projection norm -- exact for a real basis)
 #include <stdexcept>
+#include <memory>
 #include <variant>
 #include <vector>
 module qchem.ElectronConfiguration.OccupationPolicy;
@@ -99,54 +100,43 @@ template rvec_t OccupationState::Scores<dcmplx>(const Irrep&, const OrbitalView<
 template void   OccupationState::AdoptReference<double>(const Irrep&, const OrbitalView<double>&);
 template void   OccupationState::AdoptReference<dcmplx>(const Irrep&, const OrbitalView<dcmplx>&);
 
-// ------------------------------------------------------------------ OccupationPolicy (the decision)
+// ------------------------------------------------------------------ the RANKING axis
 
-// The two-axis fill decision (§5b): which occupancy rule (from the run's kT) and which effective-energy
-// ranking (from this block's MOM state) -- the logic that lived as a 4-way branch in tIrrepWF::FillOrbitals.
-template <class T> BlockFill OccupationPolicy<T>::DecideBlockFill(const Irrep& q, const OrbitalView<T>& orbs,
-                                                                  double ne) const
+// MOM's contribution to the fill spec.  The occupancy has already stamped f.rule, and that is what decides
+// which of MOM's two instruments applies -- see the class doc for why they are not two strengths of one.
+template <class T> void MOMRanking<T>::Apply(BlockFill& f, const Irrep& q, const OrbitalView<T>& orbs,
+                                             const OccupationState& st) const
 {
-    BlockFill f;
-    f.budget=ne;
-    const bool haveRef = itsUseMOM && itsState.HasReference(q);
-    if (itsSmearingkT>0.0)
-    {
-        // FERMI SMEARING (doc/GPWPlan1.md 4b): solve μ per block by bisection on Σg_i f_i=ne, fill
-        // fractionally.  It cures the near-gapless occupation FLAPPING (NaF Ecut=160) that MOM (an
-        // occupied-subspace pin) cannot -- the frontier there IS near-degenerate, so no integer
-        // configuration is stable; the fractional fill is.
-        f.rule=BlockFill::Rule::Fermi;
-        f.kT=itsSmearingkT;
-        // MOM-masked Fermi: once a reference exists AND a penalty is set, push low-overlap ghosts UP in
-        // effective energy (ε_i + Λ(1−s_i)²) so they stay empty BY CHARACTER, while the retained
-        // high-overlap physical states smear by their TRUE energy.  s_i∈[0,1] is the overlap onto the
-        // reference occupied subspace.  Λ=0 (or no reference yet) => plain energy Fermi.
-        //
-        // HOW TO SCALE Λ (measured on MnO 2026-08-08, doc/SymmetryUpgradePlan.md §7 step 7 -- and NOT what
-        // the idealised s≈0.9-vs-s≈0.1 picture suggests).  Real scores do NOT split into two clean camps:
-        // MnO's first fill runs 0.95 down to 0.69 with a CUT GAP of 0.0147 between the last occupied and
-        // the first virtual.  So the shift that separates them is Λ·[(1−s_lo)²−(1−s_hi)²] ≈ 0.0086·Λ --
-        // 2.6 mHa at Λ=0.3, against a raw-ε spread of 0.2-1 Ha.  **Λ scaled to the TIE does nothing at
-        // all** (Λ=0.3 measured indistinguishable from MOM off).  What a working Λ buys is the shift on
-        // genuinely FOREIGN states (s≈0.5 ⇒ Λ(0.51)² ≈ 0.39 Ha at Λ=1.5), which is what keeps a diving
-        // foreign state out.  So: scale Λ to the PHYSICAL-vs-FOREIGN score gap, not to the frontier tie --
-        // and note this path and the cold one below are DIFFERENT INSTRUMENTS, not two strengths of one.
-        // The cold path RANKS by s, so a 1.5% score difference decides the fill; this path SHIFTS, so only
-        // differences worth more than Λ in energy decide anything.  QCHEM_MOM_SCORES prints the
-        // distribution to calibrate against.
-        if (haveRef && itsMOMSmearPenalty>0.0)
-        {
-            rvec_t s=itsState.Scores(q,orbs);
-            f.ranking.resize(s.size());
-            for (size_t i=0;i<s.size();++i){ double d=1.0-s[i]; f.ranking[i]=itsMOMSmearPenalty*d*d; }
-        }
-    }
-    else if (haveRef)
-        f.ranking=itsState.Scores(q,orbs);   // cold MOM: occupy by max overlap onto the reference (integer count-down)
-    return f;
+    if (!st.HasReference(q)) return;                  // delayed IMOM: bare aufbau until a reference exists
+    if (f.rule==BlockFill::Rule::Integer)
+    { f.ranking=st.Scores(q,orbs); return; }          // COLD: the scores ARE the priority order
+    if (itsPenalty<=0.0) return;                      // masked Fermi with Λ=0 is plain energy Fermi
+    rvec_t s=st.Scores(q,orbs);                       // MASKED FERMI: ε_i + Λ(1−s_i)²
+    f.ranking.resize(s.size());
+    for (size_t i=0;i<s.size();++i){ double d=1.0-s[i]; f.ranking[i]=itsPenalty*d*d; }
 }
 
-template class OccupationPolicy<double>;
-template class OccupationPolicy<dcmplx>;
+template class MOMRanking<double>;
+template class MOMRanking<dcmplx>;
+
+// ------------------------------------------------------------------ the FACTORY (the one assembly point)
+
+// The two axes are chosen HERE, once per Iterate.  Note what is NOT here: no flag survives into the
+// policy's fill path, so `kT>0` and `useMOM` are answered by which objects exist rather than re-asked on
+// every block of every iteration.
+template <class T> std::unique_ptr<OccupationPolicy<T>> MakeOccupationPolicy(const OccupationConfig& cfg,
+                                                                             OccupationState& state)
+{
+    std::unique_ptr<OccupancyRule> occ = cfg.kT>0.0
+        ? std::unique_ptr<OccupancyRule>(new FermiOccupancy(cfg.kT))
+        : std::unique_ptr<OccupancyRule>(new IntegerOccupancy());
+    std::unique_ptr<RankingRule<T>> rank = cfg.useMOM
+        ? std::unique_ptr<RankingRule<T>>(new MOMRanking<T>(cfg.momStartIter, cfg.momPenalty))
+        : std::unique_ptr<RankingRule<T>>(new BareRanking<T>());
+    return std::make_unique<RunOccupationPolicy<T>>(state, cfg, std::move(occ), std::move(rank));
+}
+
+template std::unique_ptr<OccupationPolicy<double>> MakeOccupationPolicy<double>(const OccupationConfig&, OccupationState&);
+template std::unique_ptr<OccupationPolicy<dcmplx>> MakeOccupationPolicy<dcmplx>(const OccupationConfig&, OccupationState&);
 
 } // namespace qchem

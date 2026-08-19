@@ -112,13 +112,13 @@ template <class T> static void CalcH(const iwf_child_t& w, tHamiltonian<T>& ham,
 // block's MOM reference lands in that same ledger under its own scalar.  Before the R2.21 state split
 // this had to be a forwarding VIEW whose reference capture THREW ("run with forceComplex"), because the
 // references were typed by the RUN; a mixed run with MOM on therefore failed mid-SCF.  Now there is
-// nothing to special-case: CopyConfigTo reproduces the run's decisions (including a held leg's, which it
-// reads through the virtuals), so this is the same policy its complex siblings use, at another scalar.
-static OccupationPolicy<double> RealBlockPolicy(OccupationPolicy<dcmplx>& run)
+// nothing to special-case: the Factory rebuilds the run's OWN policy at the other scalar from the same
+// OccupationConfig value, so this is literally the policy its complex siblings use, one scalar over.
+// (A held direct-min leg carries a default config -- Integer x Bare -- which is exactly what it decides,
+// so its real block holds the stored block too.)
+static std::unique_ptr<OccupationPolicy<double>> RealBlockPolicy(OccupationPolicy<dcmplx>& run)
 {
-    OccupationPolicy<double> p(run.State());
-    run.CopyConfigTo(p);
-    return p;
+    return MakeOccupationPolicy<double>(run.Config(), run.State());
 }
 
 // The fill dispatch over the child slot (Step 3c-3, the CalcH pattern): a same-scalar child consults
@@ -132,8 +132,8 @@ template <class T> static EnergyLevels FillChild(const iwf_ref_t& w, OccupationP
         if constexpr (std::is_same_v<WT,tIrrepWF<T>>) return p->FillOrbitals(pol,ne);
         else if constexpr (std::is_same_v<T,dcmplx>)
         {
-            OccupationPolicy<double> v=RealBlockPolicy(pol);
-            return p->FillOrbitals(v,ne);
+            auto v=RealBlockPolicy(pol);
+            return p->FillOrbitals(*v,ne);
         }
         else
             throw std::logic_error("tCompositeWF: a complex child inside a real-faced run is impossible");
@@ -147,8 +147,8 @@ template <class T> static EnergyLevels FillChildAtMu(const iwf_ref_t& w, Occupat
         if constexpr (std::is_same_v<WT,tIrrepWF<T>>) return p->FillOrbitalsAtMu(pol,mu);
         else if constexpr (std::is_same_v<T,dcmplx>)
         {
-            OccupationPolicy<double> v=RealBlockPolicy(pol);
-            return p->FillOrbitalsAtMu(v,mu);
+            auto v=RealBlockPolicy(pol);
+            return p->FillOrbitalsAtMu(*v,mu);
         }
         else
             throw std::logic_error("tCompositeWF: a complex child inside a real-faced run is impossible");

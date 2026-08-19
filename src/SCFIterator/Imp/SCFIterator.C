@@ -239,7 +239,13 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     // Configure the occupation SLOT for this run (SCFParams -> the policy; V1.11 inc 3).  State the policy
     // already carries -- adopted/captured MOM references, fill counts -- survives, which is what both the
     // grid-continuation Adopt-before-Iterate flow and staged/annealed multi-Iterate runs rely on.
-    itsOccPolicy->Configure(ipar.UseMOM, ipar.MOMStartIter, ipar.SmearingkT, ipar.MOMSmearPenalty);
+    // R2.21: ASSEMBLE the run's occupation policy from what the caller asked for -- the two axes are
+    // chosen here, once, instead of being re-branched inside every fill.  Rebuilt per Iterate (a staged /
+    // annealed run legitimately changes kT between stages) against the SAME state, so every reference,
+    // clock and aggregate survives the reconfiguration.
+    itsOccPolicy = qchem::MakeOccupationPolicy<T>(
+        {.useMOM=ipar.UseMOM, .momStartIter=(int)ipar.MOMStartIter,
+         .kT=ipar.SmearingkT, .momPenalty=ipar.MOMSmearPenalty}, itsOccState);
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     // V1.27: is the virial theorem meaningful for THIS Hamiltonian at all?  It needs a Coulombic (degree -1
     // homogeneous) potential, which a pseudopotential is not.  Asked ONCE, of the object that knows -- the

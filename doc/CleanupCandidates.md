@@ -663,8 +663,8 @@ MnO campaign proceeds undisturbed in qchem6.
   nothing test-only left and is DELETED with both FILE_SET wirings — scfrun imports no test module.
   721/721 green.  **→ doc/CleanupHistory.md**
 
-- **R2.21 ⚗️ STATE HALF DONE 2026-08-17 (concurrent-cleanup session) — and it was NOT optional after all:
-  it is what unblocked MOM on a real TRIM block.**  `OccupationState` landed as a scalar-INDEPENDENT
+- **R2.21 ✅ DONE 2026-08-17 (concurrent-cleanup session), BOTH halves — and it was NOT optional after
+  all: the state half is what unblocked MOM on a real TRIM block.**  `OccupationState` landed as a scalar-INDEPENDENT
   persistent ledger (per-block MOM references, fill clocks, cross-irrep arming, the −TS aggregate), owned
   by the SCFIterator beside its policy; `OccupationPolicy<T>` is built over it and keeps only the
   decision.  **The load-bearing detail: each block's reference is stored under the BLOCK's own scalar (a
@@ -678,10 +678,20 @@ MnO campaign proceeds undisturbed in qchem6.
   forwarding adapter whose capture did the throwing — **deleted**, since a real block now takes a genuine
   `OccupationPolicy<double>` over the shared state.  New pins: `OccupationState.*` (5 unit tests in
   `UTElConfig`).  746/746 green.
-  **REMAINING: the policy-SHAPE half** (abstract policy + the {Integer,Fermi}×{Bare,MOM} two-axis
-  concretes + `Factory(SCFParams,state&)`; `Configure` dies) — pure SOLID/OCP hygiene now, nothing blocks
-  on it.  When it lands, keep the configuration a VALUE: the mixed-mesh cross arm rebuilds the policy at
-  another scalar (`CopyConfigTo` today, `Factory<double>(config,state)` then).
+  **SHAPE HALF also landed (same session):** `OccupationPolicy<T>` is now genuinely ABSTRACT and the four
+  behaviours `Configure` used to select between are four pairs of objects — occupancy
+  {`IntegerOccupancy`, `FermiOccupancy(kT)`} × ranking {`BareRanking` (a null OBJECT, not a "MOM off"
+  flag), `MOMRanking(startIter,Λ)`} — assembled by `MakeOccupationPolicy<T>(OccupationConfig, state&)`
+  once per Iterate, so `kT>0` is answered by WHICH OBJECT EXISTS instead of being re-branched inside every
+  fill.  **`Configure` is dead.**  `HeldOccupationPolicy` is Integer×Bare plus `HoldsStoredBlocks` — a
+  sibling, not a wrapper.  The two end-of-fill calls `tIrrepWF` made collapsed into one `OnBlockFilled`
+  hook (the shared-μ metal path deliberately keeps a bare `CountFill`: its μ was solved on bare ε, so
+  capturing a reference from it would snapshot a subspace the ranking never shaped — documented at the
+  declaration).  **Configuration is a VALUE** (`OccupationConfig`), which is what lets the mixed-mesh
+  cross arm rebuild the run's own policy one scalar over with a single Factory call.  Deviation from the
+  item's sketch, with reason: the Factory takes `OccupationConfig`, not `SCFParams` — `SCFParams` lives in
+  qcSCFIterator, ABOVE this library in the DAG, so the iterator converts.  MOM-on-mixed-mesh re-verified
+  after the reshape (ΔE = 1.8e-15, unchanged); 746/746.
   **A note for the END-TO-END gate, which this session deliberately did NOT add:** the acceptance run
   above lived in a temporary probe in `GPW_SCF_UT.C` (the real-TRIM session's file) and was removed
   before commit.  Worth adding there at the merge: the (3,1,1) mixed mesh with `UseMOM=true`,

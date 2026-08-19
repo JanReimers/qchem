@@ -50,8 +50,10 @@ Irrep P(Spin ms) {return Irrep(ms, Symmetry::YFactory(1));}
 TEST(OccupationState, OneLedgerIsSharedAcrossScalars)
 {
     OccupationState st;
-    OccupationPolicy<dcmplx> cplx(st);
-    OccupationPolicy<double> real_(st);
+    auto cplxp=MakeOccupationPolicy<dcmplx>({}, st);   // the run's own scalar
+    auto realp=MakeOccupationPolicy<double>({}, st);   // a real TRIM block's policy, SAME state
+    OccupationPolicy<dcmplx>& cplx=*cplxp;
+    OccupationPolicy<double>& real_=*realp;
 
     cplx.BeginFill();
     cplx.AccumulateEntropy(-0.25);
@@ -127,27 +129,23 @@ TEST(OccupationState, NothingMajorityFilledHoldsNoReference)
     EXPECT_TRUE(st.Scores(q, FakeOrbitals<double>(4,0)).size()==0u);
 }
 
-// The delayed-IMOM capture is the POLICY's decision over the STATE's clock: no capture before the
-// configured start iteration, exactly one after -- and none at all when MOM is off.
+// The delayed-IMOM capture is the RANKING's decision over the STATE's clock, reached through the single
+// end-of-fill hook: no capture before the configured start iteration, exactly one after -- and none at all
+// under the Bare ranking, which is a null OBJECT rather than a "MOM off" flag.
 TEST(OccupationState, DelayedCaptureIsThePolicyDecisionOverTheSharedClock)
 {
-    OccupationState st;
-    OccupationPolicy<double> pol(st);
     const Irrep q=S(Spin::Up);
     FakeOrbitals<double> orbs(4,2);
 
-    pol.Configure(/*useMOM*/false, /*startIter*/2, /*kT*/0.0, /*penalty*/0.0);
-    pol.CountFill(q); pol.CountFill(q); pol.CountFill(q);
-    pol.CaptureReferenceIfDue(q, orbs);
-    EXPECT_FALSE(st.HasReference(q)) << "MOM off: never capture";
+    OccupationState st;                                            // ranking = Bare (the null object)
+    auto bare=MakeOccupationPolicy<double>({.useMOM=false, .momStartIter=2}, st);
+    bare->OnBlockFilled(q,orbs); bare->OnBlockFilled(q,orbs); bare->OnBlockFilled(q,orbs);
+    EXPECT_FALSE(st.HasReference(q)) << "a Bare ranking never captures, however many fills pass";
 
-    OccupationState st2;
-    OccupationPolicy<double> pol2(st2);
-    pol2.Configure(true, 2, 0.0, 0.0);
-    pol2.CountFill(q);
-    pol2.CaptureReferenceIfDue(q, orbs);
+    OccupationState st2;                                           // ranking = MOM(startIter=2)
+    auto mom=MakeOccupationPolicy<double>({.useMOM=true, .momStartIter=2}, st2);
+    mom->OnBlockFilled(q,orbs);
     EXPECT_FALSE(st2.HasReference(q)) << "before the settling delay: no reference yet";
-    pol2.CountFill(q);
-    pol2.CaptureReferenceIfDue(q, orbs);
+    mom->OnBlockFilled(q,orbs);
     EXPECT_TRUE(st2.HasReference(q))  << "at the start iteration: captured once";
 }
