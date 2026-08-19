@@ -1,4 +1,27 @@
-# Building CP2K 2026.1 from source (the oracle for doc/Benchmark.md)
+# The CP2K oracle for doc/Benchmark.md — packaged build VALIDATED; source build staged
+
+## ✅ USE THIS TODAY: the packaged build, validated 2026-08-19
+
+`apt install cp2k` gives **CP2K 2025.2** (banked oracles are 2026.1).  It reproduces the banked Si Γ number
+**exactly** — `-7.115057882345935` vs the re-validated `-7.11505788` — so it is a sound oracle for LDA/GTH
+GPW and the version difference is immaterial for these decks.
+
+**⚠ IT IS AN MPI BUILD AND MUST BE LAUNCHED.**  `/usr/bin/cp2k` is a symlink to `cp2k.psmp`; there is no
+serial `ssmp`.  Run bare it HANGS IN MPI INIT and writes an EMPTY log — 600 s of nothing, no error.  Always:
+
+```bash
+mpirun -np 1 cp2k.psmp -i <deck>.inp        # -np 1 keeps it comparable to the serial banked timings
+```
+
+Wrapped for a benchmark row:
+```bash
+scripts/bench "Si Gamma cp2k" -- mpirun -np 1 cp2k.psmp -i IntegrationTests/CP2K/si_fcc_gpw.inp
+```
+
+---
+
+## Building 2026.1 from source (staged; optional now that the package validates)
+
 
 Source-built on purpose (user, 2026-08-19): we get control over output and instrumentation, and the user
 has done this build before.  CP2K is a reference ORACLE we never modify — but a build we own is still the
