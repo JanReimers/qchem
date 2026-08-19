@@ -10,6 +10,7 @@ module;
 #include <vector>
 #include <utility>
 #include <algorithm>
+#include <iostream>   // the [fold] announcements go to cout, not just the json record
 #include <ostream>
 #include <sstream>
 #include <iomanip>
@@ -350,6 +351,40 @@ void EmitAt(const std::string& section, const std::string& key, json value, Deta
         *g_console << "\n" << section << " ▸ " << key << "\n";
         RenderConsole(value, *g_console, g_detail);
     }
+}
+
+// ONE format for every fold site (see the header).  Goes to std::cout unconditionally -- a fold that only
+// shows up in a json nobody opens is still invisible -- and into the run record under folds.<site> when a
+// run is open.  Idempotent through EmitAt, so a site that re-announces the same fold prints once.
+void EmitFold(const std::string& site, size_t nOps, size_t raw, size_t reps, const std::string& note)
+{
+    const double factor = reps ? double(raw)/double(reps) : 1.0;
+    json j;
+    j["ops"]=(long)nOps; j["raw"]=(long)raw; j["reps"]=(long)reps; j["factor"]=factor;
+    if (!note.empty()) j["note"]=note;
+    // RUN-SCOPED DEDUP, on the console as well as in the record.  A site announces UNCONDITIONALLY at its
+    // own trigger -- but several triggers repeat per k-block (the V_loc {G}-star fires once per block), and
+    // eight identical lines is noise that trains the reader to skip them.  Dedup lives here, run-scoped,
+    // never in a process-global latch at the call site (see EmitAt's note).
+    if (!g_stack.empty())
+    {
+        json& folds = g_stack.back().doc["folds"];
+        if (folds.contains(site) && folds[site]==j) return;      // already announced, unchanged
+        folds[site]=j;
+    }
+    // ARMED-NESS IS THE REDUCTION, not the op count: some sites know their fold factor but not how many
+    // ops produced it (a Fold carries orbits, not the op set), so an absent nOps must not read as "off".
+    std::cout << "[fold] " << site << ": ";
+    if (reps>=raw)
+        std::cout << "NONE (" << raw << " items evaluated in full)";
+    else
+    {
+        if (nOps) std::cout << nOps << " ops, ";
+        std::cout << raw << " -> " << reps << " representatives = "
+                  << std::fixed << std::setprecision(2) << factor << "x" << std::defaultfloat;
+    }
+    if (!note.empty()) std::cout << "  [" << note << "]";
+    std::cout << std::endl;
 }
 
 Section::Section(const std::string& name) : itsName(name), itsDepth(g_cursor.size())

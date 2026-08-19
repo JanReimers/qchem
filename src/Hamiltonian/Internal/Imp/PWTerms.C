@@ -478,6 +478,13 @@ XC_GridEngine::XC_GridEngine(mesh_t mesh, Symmetry::Lattice_3D::Fold fold,
     // Shubnikov (S3): σ tags require a live fold, and the zero flags cover the whole mesh.
     assert(itsSigmas.empty() || !itsFold.owner.empty());
     assert(itsFlipFixed.empty() || itsFlipFixed.size()==itsMesh->size());
+    // Announce the mesh star-average (Step 0b): armed or not, once, in the shared [fold] format.  This
+    // fold is applied to rho on EVERY iteration and until now said nothing at all.
+    // nOps: a Fold carries ORBITS, not the op set that made them -- known only for a magnetic fold, where
+    // sigmas run parallel to the ops.  0 = "not reported", NOT "not armed" (EmitFold reads the reduction).
+    qchem::report::EmitFold("XC mesh", itsSigmas.size(), itsMesh->size(),
+                            itsFold.owner.empty() ? itsMesh->size() : itsFold.Reps(),
+                            itsSigmas.empty() ? std::string() : std::string("magnetic (Shubnikov)"));
 }
 
 // The (npts x n) basis table for one Bloch block: chi_i at every mesh point -- the ONE image-summed

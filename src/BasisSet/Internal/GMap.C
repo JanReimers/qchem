@@ -61,18 +61,27 @@ inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Symmetry::Lat
 //! is EXACT to roundoff (~1e-13 reordering class, §8): this is an expansion, never an average.
 //! Payoff \f$\approx\f$ mean star size on the per-G \a field cost (up to 48x in \f$O_h\f$) -- the PROTOTYPE
 //! of the reduced-sum pattern, not the headline (§1).
+//! \a nReps (optional out): how many representatives were actually evaluated -- \c gs.size() when the fold
+//! is empty.  The caller reports \c gs.size()/nReps as the achieved fold factor; folding that nobody can see
+//! is folding nobody trusts (doc/OpenWork.md Step 0b).
 template <class F> inline ΔG_Map EvaluateSymmetricGMap(const std::vector<ivec3_t>& gs,
                                                        const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops,
-                                                       const F& field)
+                                                       const F& field, size_t* nReps=nullptr)
 {
     ΔG_Map out;
-    if (ops.empty()) { for (const ivec3_t& m : gs) out[m] = field(m); return out; }
+    if (ops.empty())
+    {
+        if (nReps) *nReps=gs.size();
+        for (const ivec3_t& m : gs) out[m] = field(m);
+        return out;
+    }
 
     namespace SL = Symmetry::Lattice_3D;
     std::vector<SL::SymOp> sops;
     sops.reserve(ops.size());
     for (const auto& op : ops) sops.push_back({op.U, op.tau});   // the fold's W slot = the G-index map U
     SL::Fold f = SL::FoldGVectors(gs, sops);
+    if (nReps) *nReps=f.Reps();
     for (size_t r = 0; r < f.Reps(); ++r)
     {
         const ivec3_t& mr = gs[f.repRaw[r]];

@@ -931,11 +931,15 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
     // representatives only, members filled by the glide identity.  Empty ops (free run) = the plain sweep.
     const auto rops=RecipSymOps();
     std::vector<rvec_t> V_L(K);
+    size_t gRaw=0, gReps=0;                        // Step 0b: the achieved {G}-star reduction, summed over levels
     for (size_t L=0;L<K;L++)
     {
-        ΔG_Map vmapL = EvaluateSymmetricGMap(itsLevels[L]->Gs(), rops, Vt);   // restrict to level L's {G}
+        size_t nr=0;
+        ΔG_Map vmapL = EvaluateSymmetricGMap(itsLevels[L]->Gs(), rops, Vt, &nr);   // restrict to level L's {G}
+        gRaw+=itsLevels[L]->Gs().size(); gReps+=nr;
         V_L[L]=itsLevels[L]->RhoOnGrid(vmapL);
     }
+    qchem::report::EmitFold("V_loc {G}-star", rops.size(), gRaw, gReps);
     // THE COLLOCATED FIELD's OWN SHARPNESS (doc/GPWPlan1.md 4b root-cause fix).  V_loc (long OR short) decays in
     // G as e^{-G^2 rloc^2/2}, so its effective Gaussian exponent is beta = 1/(2 rloc^2) -- exactly the short-
     // range Gaussian's alpha.  The integrand chi_i*V*chi_j is a product of Gaussians (exponents ADD), so the
@@ -1033,11 +1037,15 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const Pseudopotentia
     const size_t K=levels.size();
     const auto rops=RecipSymOps();                                    // T1 {G}-star fold, as in MakeLocalPP
     std::vector<rvec_t> V_L(K);
+    size_t gRaw=0, gReps=0;
     for (size_t L=0;L<K;L++)
     {
-        ΔG_Map vmapL = EvaluateSymmetricGMap(levels[L]->Gs(), rops, Vt);   // restrict to level L's {G} (low-pass)
+        size_t nr=0;
+        ΔG_Map vmapL = EvaluateSymmetricGMap(levels[L]->Gs(), rops, Vt, &nr);   // level L's {G} (low-pass)
+        gRaw+=levels[L]->Gs().size(); gReps+=nr;
         V_L[L]=levels[L]->RhoOnGrid(vmapL);
     }
+    qchem::report::EmitFold("V_loc-long {G}-star", rops.size(), gRaw, gReps);
     return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_L, ecut_L,
                                       0.0, nullptr, 0.0, itsRelFieldSharp, &lv);   // explicit harmonic routing; NO D screen
 }

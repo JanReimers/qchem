@@ -102,13 +102,22 @@ both are ≈4.7 for a high-spin d⁵.  **Historical `m_stag` numbers in the plan
 evidence only; they are not moments and must not be quoted as such.**  Re-reading the campaign's
 "weak-moment" conclusions against the integrated observable is now its own item under Step 5.
 
-**0b — make the FOLDS visible.**  The user's standing complaint, still true: `GPW_STREAM_FOLD` is opt-in
-(`src/BasisSet/Lattice_3D/Imp/BasisSet.C:202`) and a grep for a fold factor on cout/cerr returns
-nothing.  Print a fold-factor line in every grid/stream report — orbit order actually used, representative
-vs total pair counts, the {G}-star reduction where it is armed.  `grids.stream` already carries
-`foldOps`/`repPairs`; this is about the console and about the per-iteration sites that report nothing at
-all.  Needed by Step 1 (a runtime table must say whether folding was on) and by Step 2 (which is measured
-in fold factors).
+**0b — make the FOLDS visible.  ✅ DONE 2026-08-19.**  One shared `qchem::report::EmitFold(site, nOps, raw,
+reps, note)` — `[fold] <site>: N ops, raw -> reps = F×` on cout, plus a `folds.<site>` report entry — wired
+at the three sites that were completely dark.  Run-scoped dedup lives in the reporter (several sites fire
+once per k-block; eight identical lines train the reader to skip them), and ARMED-NESS is read from the
+REDUCTION, not from an op count, because a `Fold` carries orbits and not the op set that made them.
+Measured, first time any of this was on the console:
+
+| site | free run | imposed |
+|---|---|---|
+| XC mesh (Becke star-average) | NONE | **21.6×** (Si IBZ) |
+| `V_loc` {G}-star | NONE | **26.1×** (48 ops) |
+| collocation streams (T3 pairs) | NONE `[opt-in: GPW_STREAM_FOLD=1]` | **12.5×** (48 ops) |
+
+**And the message that matters for Step 2, now unmissable:** the production MnO magnetic run prints
+`NONE` on all three — it folds NOTHING, on a cell whose magnetic group has 12–24 ops.  That is the
+12–48× sitting unclaimed, said out loud on every run instead of inferred from a plan doc.
 
 ### Step 1 — THE HEAD-TO-HEAD TABLE, built as a standing benchmark  ·  plan: new, see below
 

@@ -167,6 +167,21 @@ void Set(const std::string& key, json value);
 //! providers self-report; every created grid announces, labeled, so stale never-used grids become visible).
 void EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel = Detail::Terse);
 
+//! \brief Announce ONE symmetry FOLD, in the one format every fold site uses.
+//!
+//! WHY THIS EXISTS (doc/OpenWork.md Step 0b; standing user complaint): the folds are the largest
+//! reductions in the code — 12–24× on a magnetic group, up to 48× cubic, 71× measured on the pair-stream
+//! cache — and until now NONE of them printed anything.  A reduction nobody can see is a reduction nobody
+//! trusts, and an ARMED fold is indistinguishable on the console from a disarmed one, which is exactly how
+//! an opt-in 71× lever stays opt-in for months.  So every site that folds says so, in one line, ALWAYS —
+//! including when it did NOT fold, because "no fold here" is the more actionable message.
+//! \param site  where the fold acts ("XC mesh", "collocation streams", "V_loc {G}-star", …)
+//! \param nOps  crystal ops in the fold (0 = not armed)
+//! \param raw   items before folding; \a reps items actually evaluated.  Factor = raw/reps.
+//! \param note  optional qualifier (e.g. "magnetic (Shubnikov)", "opt-in GPW_STREAM_FOLD").
+void EmitFold(const std::string& site, size_t nOps, size_t raw, size_t reps,
+              const std::string& note = std::string());
+
 //! RAII: open a TOP-LEVEL section `name` (cursor descends into it) and RENDER it to
 //! the console once, complete, when the scope closes (the incremental unit -- a crash
 //! mid-assembly still renders what completed).  Use for a section ASSEMBLED across

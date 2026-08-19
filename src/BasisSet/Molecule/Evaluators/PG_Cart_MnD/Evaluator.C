@@ -1203,6 +1203,12 @@ public:
         size_t nRuns=0;
         for (const auto& ps : c.pairs) for (const auto& st : ps.offsets) nRuns+=st.runBase.size();
         const double meanRun = nRuns ? double(pts64+pts32)/double(nRuns) : 0.0;
+        // Step 0b: announce the T3 pair-stream fold in the shared [fold] format -- ALWAYS, including when
+        // it is off, because this is the 71x-measured lever that stays opt-in (GPW_STREAM_FOLD) precisely
+        // because a disarmed run looks identical to an armed one on the console.
+        qchem::report::EmitFold("collocation streams (T3 pairs)", bsf ? bsf->maps.size() : 0,
+                                nPairs, bsf ? nRepPairs : nPairs,
+                                bsf ? std::string() : std::string("opt-in: GPW_STREAM_FOLD=1"));
         if (qchem::report::Depth() > 0)
         {
             qchem::report::json s;
