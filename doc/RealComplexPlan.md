@@ -31,11 +31,24 @@ a MOM workaround.  End-to-end gate (flagged at R2.21's landing, added here at th
 real vs `forceComplex`, converged energies equal to 1e-9.  The full seed-pinned MnO recipe now runs
 flipped (`MNO_REAL=1` combines freely with `MNO_MOM=1`).
 
-**REMAINING (candidates for a next session):** the harness `GpwOptions::realTRIMBlocks` stays a
-default-off knob — decide when the whole suite flips (now unblocked: the MOM-using recipes work
-flipped); the complex-internal evaluator collocation streams are the remaining — and now dominant —
-performance increment (~150 s of the MnO profile, untouched by the flip); V1.32 (de-template the
-finite `IrrepCD` leaf) remains filed in doc/CleanupCandidates.md.
+**THE HARNESS-WIDE FLIP IS DONE (2026-08-18).**  `GpwOptions::realTRIMBlocks` now defaults TRUE, so
+every Γ-only anchor in `GPW_SCF_UT.C` is a standing real-block regression test rather than leaving
+the shipped path (flipped since 3c-3) covered only by the dedicated gates.  `MNO_REAL` follows the
+harness default; explicit `false` remains on the A/B controls (the twins, the report gate's control
+arm).  **NO PIN NEEDED RE-ANCHORING** — the anticipated ~1e-5 shifts sit far inside the did-E-move
+tolerances (2e-3-class), which is the honest read: those pins were never tight enough to feel the
+summation-order change.  The flip DID earn its keep immediately by catching one genuine landmine:
+the uniform-vs-Becke `ProbeXC` helper still walked the same-scalar `Iterate<Complex_OIBS>` view and
+THREW on a real Γ block.  Fixed the same way as the production consumers (per-index walk,
+cross-scalar view first, the term's real-block face, widen to the probe's `chmat_t` currency —
+lossless, since the per-term gates pin the real assembly bitwise); the gate's measured diffs
+(`dExc` 7.5e-5, max|U−B| 3.6e-4) are unchanged from its pre-flip documented values.
+Sweep: 747 executed + 42 disabled = 789 registered, 0 failed.
+
+**REMAINING:** the complex-internal evaluator collocation streams are the last — and now dominant —
+performance increment (~150 s of the MnO profile, untouched by the flip; its own campaign, since it
+touches the shared molecular evaluator that serves both scalars across k-blocks); V1.32
+(de-template the finite `IrrepCD` leaf) remains filed in doc/CleanupCandidates.md.
 **The `DM_RhoAtPoints` arm is CLOSED (`523a745a`, 2026-08-18):** the "pure optimization" deferral
 was load-bearing — on the Becke route the pointwise fallback measured 832 s vs 1 s over 10 MnO
 iterations, so a flipped run was 7× slower net.  Fixed by the 3-arg `DM_RhoAtPoints(r, Phi, PhiR)`

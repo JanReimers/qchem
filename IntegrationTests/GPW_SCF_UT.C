@@ -332,10 +332,15 @@ struct GpwOptions
     std::string  orderName;
     std::function<double(const qchem::ChargeDensity::cDM_CD&)> orderProbe;
     //! Thread GPWParams::hamPreservesReal (doc/RealComplexPlan.md 3c-3): build each TRIM block REAL.
-    //! The HARNESS keeps this a per-test KNOB (default off = the historical all-complex build) where
-    //! SolidCalculation computes the fact and flips by default -- so A/B and report tests can drive
-    //! either side explicitly.
-    bool realTRIMBlocks = false;
+    //! DEFAULT TRUE since 2026-08-18 -- the harness-wide flip, which is what makes every Γ-only anchor
+    //! in this file a standing real-block regression test instead of leaving the shipped path (where
+    //! \c SolidCalculation has flipped by default since 3c-3) covered only by the dedicated gates.
+    //! Set false for the A/B controls (the real-vs-complex twins, the report gate's control arm) and
+    //! for anything that needs the historical all-complex build.
+    //! \note The physics is unchanged to gate resolution but NOT bitwise (dsyev vs zheev + DIIS
+    //! amplification, see \c ExpectRealComplexTwins) -- so a did-E-move pin tightened to ~1e-6 or
+    //! below may need re-anchoring, and the re-anchored value is the REAL one from here on.
+    bool realTRIMBlocks = true;
 };
 
 namespace
@@ -2451,15 +2456,36 @@ struct XCProbe
 };
 
 // Fill a probe from an exchange+correlation term pair (through the PUBLIC term faces).
+// MIXED-AWARE (doc/RealComplexPlan.md 3c-3): since the harness flip a Γ block is REAL, and the
+// same-scalar Iterate view THROWS on it -- so walk per index, take the cross-scalar view first, and
+// drive the term's real-block face.  The probe's currency stays chmat_t: a real block's matrix WIDENS
+// losslessly (its imaginary part is exactly zero, and the per-term gates pin the real assembly bitwise
+// against the complex one), so uniform-vs-Becke diffs read exactly as they did before the flip.
+hmat_t<dcmplx> ProbeBlockMatrix(Hamiltonian::cDynamic_HT& t, const BasisSet::Complex_BS& bs, size_t i,
+                                const qchem::ChargeDensity::cDM_CD* cd)
+{
+    if (const auto* rb=bs.GetRealIBS(i))
+    {
+        const auto* face=dynamic_cast<const Hamiltonian::Dynamic_HT_RealBlock*>(&t);
+        EXPECT_NE(face,nullptr) << "a real block needs the term's real-block face (3c-1)";
+        const rsmat_t R=face->GetMatrix(rb,Spin::None,cd);
+        hmat_t<dcmplx> M(R.rows());
+        for (size_t r=0;r<R.rows();r++)
+            for (size_t s=r;s<R.columns();s++) M(r,s)=R(r,s);
+        return M;
+    }
+    return t.GetMatrix(bs[i],Spin::None,cd);
+}
+
 XCProbe ProbeXC(const std::string& label, const GpwHandles& h,
                 Hamiltonian::cDynamic_HT& x, Hamiltonian::cDynamic_HT& c,
                 const qchem::EnergyBreakdown& e)
 {
     XCProbe p; p.label=label; p.Exc=e.Exc; p.rhoLost=e.GridChargeLost;
-    for (auto obs : h.bs->Iterate<BasisSet::Complex_OIBS>())
+    for (size_t i=0;i<h.bs->GetNumIBS();++i)
     {
-        hmat_t<dcmplx> M=x.GetMatrix(obs,Spin::None,h.cd.get());
-        M+=c.GetMatrix(obs,Spin::None,h.cd.get());
+        hmat_t<dcmplx> M=ProbeBlockMatrix(x,*h.bs,i,h.cd.get());
+        M+=ProbeBlockMatrix(c,*h.bs,i,h.cd.get());
         p.M.push_back(std::move(M));
     }
     return p;
@@ -3546,11 +3572,13 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     o.scf.UseMOM=envi("MNO_MOM",1)!=0; o.scf.MOMStartIter=envi("MNO_MOM_START",10);
     o.scf.MOMSmearPenalty=envd("MNO_MOM_PENALTY",0.0);   // >0 makes MOM live UNDER smearing (masked Fermi)
     o.momFromSeed=envi("MNO_MOM_SEED",0)!=0;             // pin the reference to the SEED's occupied subspace
-    // MNO_REAL=1 (doc/RealComplexPlan.md 3c-3): build the Γ TRIM block(s) REAL -- the Becke H_xc
+    // MNO_REAL (doc/RealComplexPlan.md 3c-3): build the Γ TRIM block(s) REAL -- the Becke H_xc
     // quadrature and the ρ-sampling GEMM then run blaze's real kernels (measured 2.0x / 2.2x on this
     // system).  COMBINES FREELY WITH MOM since R2.21: the occupation STATE now stores each block's
-    // reference under the BLOCK's own scalar, so the full seed-pinned recipe runs flipped.
-    o.realTRIMBlocks=envi("MNO_REAL",0)!=0;
+    // reference under the BLOCK's own scalar, so the full seed-pinned recipe runs flipped.  Follows
+    // the harness default (now ON); MNO_REAL=0 is the A/B door back to the all-complex build, and
+    // MNO_KMESH=2 is ALL-TRIM, so there the whole k-sum goes real, not just Γ.
+    o.realTRIMBlocks=envi("MNO_REAL",o.realTRIMBlocks?1:0)!=0;
     // The 0h MOM GUARD releases the reference after 3 consecutive NON-AUFBAU (hole) iterations, on the premise
     // that a hole means the reference is wrong.  That premise was calibrated on NaF, where the hole IS the
     // pathology (a diving diffuse ghost pinned by a stale reference).  It does NOT hold here: until the
