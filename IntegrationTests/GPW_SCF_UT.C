@@ -2951,6 +2951,41 @@ TEST(GPW_SCF, RealTRIMBlocksMatchComplex_SiMixedMesh)
     ExpectRealComplexTwins(lat, cell, "Si (3,1,1) mixed-mesh real-vs-complex");
 }
 
+//  MOM ON A MIXED MESH -- the END-TO-END gate for the R2.21 state split (flagged at that item's
+//  landing, added here at the merge).  Until R2.21, a real TRIM block had nowhere to put its
+//  mat_t<double> MOM reference (the references were typed by the RUN), so switching MOM on made a
+//  flipped run THROW mid-SCF -- after the basis, seed and first Fock were already paid for.  Now each
+//  block's reference lives in the shared OccupationState under its OWN scalar, so the real child fills
+//  under a genuine OccupationPolicy<double> and the run keeps one ledger.
+//
+//  The gate drives the case that could not previously run AT ALL: (3,1,1) -- one real Γ block beside
+//  two complex ±⅓ blocks -- with MOM armed early (MOMStartIter=2, so the reference is captured and
+//  consulted well inside the run), real vs forceComplex.  Equal converged energy = the real block's
+//  reference was captured, scored and applied exactly as its complex twin's.
+TEST(GPW_SCF, RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(3,1,1));
+
+    SCFParams par;
+    par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
+    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+    par.UseMOM=true; par.MOMStartIter=2;              // armed EARLY: the reference must be live in-run
+
+    qchem::SolidCalculation on (lat, MakeBasisSR(cell),
+                                {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
+    qchem::SolidCalculation off(lat, MakeBasisSR(cell),
+                                {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true}, par);
+    ASSERT_TRUE(on .Converged()) << "MOM on a mixed real/complex mesh must converge (R2.21)";
+    ASSERT_TRUE(off.Converged());
+    EXPECT_NEAR(on.Energy(), off.Energy(), 1e-9)
+        << "a real TRIM block's MOM reference must behave exactly like its complex twin's";
+    EXPECT_NEAR(on.TotalCharge(), off.TotalCharge(), 1e-10);
+}
+
 //================================================================================================
 //  V2.4 -- THE GRID-ROUTE CONVERGENCE A/B.  Calibrate kUniformMargin, then arm the V1.26 selector.
 //
@@ -3511,14 +3546,11 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     o.scf.UseMOM=envi("MNO_MOM",1)!=0; o.scf.MOMStartIter=envi("MNO_MOM_START",10);
     o.scf.MOMSmearPenalty=envd("MNO_MOM_PENALTY",0.0);   // >0 makes MOM live UNDER smearing (masked Fermi)
     o.momFromSeed=envi("MNO_MOM_SEED",0)!=0;             // pin the reference to the SEED's occupied subspace
-    // MNO_REAL=1 (doc/RealComplexPlan.md 3c-3 A/B): build the Γ TRIM block(s) REAL -- the Becke H_xc
-    // quadrature GEMM then runs blaze's real kernel (the realized Step-3 win on this profile).  Needs
-    // MNO_MOM=0: a real block's MOM reference capture is the R2.21 gap and throws mid-run, so fail
-    // FAST here with the fix in the message instead of ~2 minutes into the seed build.
+    // MNO_REAL=1 (doc/RealComplexPlan.md 3c-3): build the Γ TRIM block(s) REAL -- the Becke H_xc
+    // quadrature and the ρ-sampling GEMM then run blaze's real kernels (measured 2.0x / 2.2x on this
+    // system).  COMBINES FREELY WITH MOM since R2.21: the occupation STATE now stores each block's
+    // reference under the BLOCK's own scalar, so the full seed-pinned recipe runs flipped.
     o.realTRIMBlocks=envi("MNO_REAL",0)!=0;
-    if (o.realTRIMBlocks && o.scf.UseMOM)
-        throw std::runtime_error("MNO_REAL=1 needs MNO_MOM=0: MOM's reference state is run-typed until the "
-                                 "OccupationPolicy state split (RealComplexPlan 3c-3 / R2.21)");
     // The 0h MOM GUARD releases the reference after 3 consecutive NON-AUFBAU (hole) iterations, on the premise
     // that a hole means the reference is wrong.  That premise was calibrated on NaF, where the hole IS the
     // pathology (a diving diffuse ghost pinned by a stale reference).  It does NOT hold here: until the

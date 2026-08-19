@@ -10,9 +10,9 @@ per-term gates are bitwise), converged physics to gate resolution — plus the r
 CONSTRUCTION (dsyev-vs-zheev + DIIS chaos), hence the two-arm gate `ExpectRealComplexTwins`.
 Landed with the flip (this session): the remaining cross-scalar landmines on the production path —
 the whole-set fit/quadrature factories (`FirstPeriodicDFT` mixed walk), the Uniform/SAD seed paths,
-the Kerker `MakePeriodicMixer` probe, and the FILL seam (the `RealBlockFillView` thin
-`OccupationPolicy<double>` view + `FillChild`/`FillChildAtMu` dispatchers in `tCompositeWF`; MOM on
-a real block THROWS until the R2.21 policy/state split — interim route: `forceComplex`).  New gates:
+the Kerker `MakePeriodicMixer` probe, and the FILL seam (`FillChild`/`FillChildAtMu` dispatchers in
+`tCompositeWF` — originally over a throwing `RealBlockFillView`, since R2.21 over a genuine
+`OccupationPolicy<double>` built from the run's config; see the MOM paragraph below).  New gates:
 `RealComplexTerms.RawRouteXcServesTheRealBlockBitwise` (the raw-route PWFittedVxc real path),
 `StaticTermsServeTheRealBlockBitwise_FccDiamond` + `SeedDensityTrioMatches_FccDiamond`
 (production-shaped 2-atom FCC cell), `GPW_SCF.RealTRIMBlocksMatchComplex_{SiGamma,SiMixedMesh}`,
@@ -22,18 +22,27 @@ FIRST full GPW run in a process differs from identical later runs (seed-Fock s-l
 converged E ~5e-6; runs 2+ steady to ~1e-10; reproduced with two all-COMPLEX runs, so NOT the
 flip).  The acceptance works around it with a throwaway warm-up run; see the comment on
 `ExpectRealComplexTwins`.
+**MOM-ON-REAL-BLOCKS IS CLOSED (R2.21, `6ca661e4`+`7a50b2ec`, merged `ea35bee7`).**  The occupation
+STATE is now a scalar-independent ledger storing each block's MOM reference under the BLOCK's own
+scalar, so a real TRIM child fills under a genuine `OccupationPolicy<double>` built from the run's
+own `OccupationConfig` — the throwing `RealBlockFillView` is deleted and `forceComplex` is no longer
+a MOM workaround.  End-to-end gate (flagged at R2.21's landing, added here at the merge):
+`GPW_SCF.RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh` — (3,1,1) with `UseMOM`/`MOMStartIter=2`,
+real vs `forceComplex`, converged energies equal to 1e-9.  The full seed-pinned MnO recipe now runs
+flipped (`MNO_REAL=1` combines freely with `MNO_MOM=1`).
+
 **REMAINING (candidates for a next session):** the harness `GpwOptions::realTRIMBlocks` stays a
-default-off knob — decide when the whole suite flips; MOM-on-real-blocks needs the R2.21
-policy/state split; the complex-internal evaluator streams are the remaining (now dominant)
-performance increment; V1.32 (de-template the finite `IrrepCD` leaf) remains filed in
-doc/CleanupCandidates.md.
+default-off knob — decide when the whole suite flips (now unblocked: the MOM-using recipes work
+flipped); the complex-internal evaluator collocation streams are the remaining — and now dominant —
+performance increment (~150 s of the MnO profile, untouched by the flip); V1.32 (de-template the
+finite `IrrepCD` leaf) remains filed in doc/CleanupCandidates.md.
 **The `DM_RhoAtPoints` arm is CLOSED (`523a745a`, 2026-08-18):** the "pure optimization" deferral
 was load-bearing — on the Becke route the pointwise fallback measured 832 s vs 1 s over 10 MnO
 iterations, so a flipped run was 7× slower net.  Fixed by the 3-arg `DM_RhoAtPoints(r, Phi, PhiR)`
 seam (the engine's matrix-side real tables threaded to the composite's cross arm; real-typed
 `Rho`/`RhoPol` ensure overloads).  MEASURED wins on MnO AFM-II Γ, identical physics digits:
 H_xc quadrature 2.0×, ρ-sampling GEMM 2.2× — the realized Step-3 win on the production Becke
-route (`MNO_REAL=1 MNO_MOM=0` is the A/B recipe).
+route (`MNO_REAL=1` is the A/B knob; since R2.21 it combines freely with `MNO_MOM=1`).
 
 Earlier campaign record (2026-08-17, eleven commits, each behind a full green sweep): Step 1
 (realness as exact queries, `ef658518`), the §6 accelerator face (`2b09b5b7`, + the first molecular
