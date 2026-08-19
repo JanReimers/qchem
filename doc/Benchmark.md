@@ -131,13 +131,32 @@ static path:
 
 **★ SO THE OPERATORS AND THEIR SPECTRUM ARE CLEAN, AND THE SCF STILL DIVERGES AT ITERATION 1.**  From the
 same k-independent uniform seed: E₁ = −5.62164 at k=0.24999, **−4.86010 at k=0.25**, −5.62148 at 0.25001 —
-a 0.76 Ha jump for a 1e-5 change in k.  And the SCF's own frontier at ¼ is flagged `m` (partial occupancy,
-gap 0.060) where the neighbours report a clean 0.108 — against a STATIC gap of 0.1296 that is smooth
-through all three.  **The SCF's spectrum is not the one its own operators imply**, so the remaining habitat
-is what happens between the (correct) matrices and the occupied density: the eigen/ortho path inside the
-Hamiltonian assembly, the degeneracy MERGE (`MergeTol=1e-4`; the static spectrum does carry an exact
-doublet e2=e3=0.47937, fully occupied and therefore harmless unless something re-orders it), and the fill.
-All three gates stay enabled as the first coverage quarter-integer k has ever had.
+a 0.76 Ha jump for a 1e-5 change in k.  All three gates stay enabled as the first coverage quarter-integer
+k has ever had.
+
+**★★ THE SYMPTOM, NAMED (2026-08-19).**  With the frontier window now available on SOLIDS and printing
+DEGENERACY (`ε(occ/degen)`, `GPW_BANDGAP=1`), iteration 1 reads:
+
+| k | occupied levels ε(occ/degen) | pattern |
+|---|---|---|
+| 0.25001 | −0.2197(2/2)  0.0592(2/2)  **0.1604(4.0/4)** | `1,1,2` ✓ |
+| **0.25** | −0.7197(2/2) −0.1013(2/2) −0.0237(2/2) **0.1449(2.0/4)** | `1,1,1` + half-filled doublet ✗ |
+| 0.5 (L) | −0.2056(2/2) −0.1339(2/2)  0.1023(4/4) | `1,1,2` ✓ |
+| 0 (Γ) | −0.1315(2/2)  0.3080(6/6) | `1,3` ✓ (cubic) |
+
+**Si's four valence bands along Λ are Λ₁, Λ₁, Λ₃(×2) — the `1,1,2` its neighbours and the L point show.
+At exactly ¼ an EXTRA SINGLET appears below the frontier and the doublet is left straddling E_F with 2 of
+its 4 states filled** — that is the `m` flag, and a half-filled shell spreads 2 electrons over 4 states,
+which is a symmetry-broken density by construction.  The whole spectrum shifts with it (the lowest level
+moves −0.2197 → −0.7197, half a hartree, for dk=1e-5).
+
+Both spectra carry 24 orbitals / 48 states, so no function is lost.  **Also ruled out: the
+orthogonalisation** — `GPW_ORTHO=cholesky|eigen|svd` all give ≈−5.02 at the bad k.  What is established is
+therefore (a) every individual operator matrix is continuous in k, and (b) the SCF's OWN spectrum is
+violently discontinuous at exactly ¼.  The defect is in the bridge between them — the Hamiltonian's
+assembly of those matrices into the k-block it diagonalises.  **Caveat, stated because it bounds the
+inference**: the static gate's H (T/2 + V_loc + V_KB) is a stand-in, and its level pattern does not match
+the SCF's even at the GOOD k, so it constrains the operators, not the assembly.
 The CP2K half of this row is measured and sound.  The only test covering shifted k is DISABLED, so nothing
 caught it — re-enable it, or add a cheap quarter-integer gate, once fixed.
 **Why the two Si 2×2×2 rows differ by 89 mHa** (asked 2026-08-19; settled by running CP2K to the k-limit,

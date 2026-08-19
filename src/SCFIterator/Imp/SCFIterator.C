@@ -95,18 +95,24 @@ template <class T> static std::string FrontierWindow(const qchem::WaveFunction::
                                                       int nOcc, int nVirt)
 {
     const double occTol=1e-6;
-    std::vector<std::pair<double,double>> occ, virt;   // {energy, occupation}, energy-ordered
+    // {energy, occupation, DEGENERACY}.  The degeneracy is shown because it is half of the `metallic`
+    // predicate (occ < degen => the shell did not fill), so a frontier flagged 'm' is unreadable without
+    // it: "0.4794(2.0)" is a full doublet or a half-filled quartet depending on a number that was not
+    // printed.  Cheap, and it is the first thing wanted whenever the 'm' flag fires.
+    struct Lvl { double e, occ; double degen; };
+    std::vector<Lvl> occ, virt;                        // energy-ordered
     auto els=wf->GetEnergyLevels();
     for (auto it=els.begin(); it!=els.end(); ++it)
-        (it->second.occ>occTol ? occ : virt).push_back({it->second.e, it->second.occ});
+        (it->second.occ>occTol ? occ : virt).push_back({it->second.e, it->second.occ, (double)it->second.degen});
     std::ostringstream os;
     os.setf(std::ios::fixed,std::ios::floatfield);
+    auto one=[&os](const Lvl& l)
+        { os << setw(9) << setprecision(4) << l.e << "(" << setprecision(1) << l.occ
+             << "/" << setprecision(0) << l.degen << ") "; };
     int oFrom=std::max(0,(int)occ.size()-nOcc);
-    for (int i=oFrom; i<(int)occ.size(); ++i)
-        os << setw(9) << setprecision(4) << occ[i].first << "(" << setprecision(1) << occ[i].second << ") ";
+    for (int i=oFrom; i<(int)occ.size(); ++i) one(occ[i]);
     os << "| ";
-    for (int i=0; i<std::min(nVirt,(int)virt.size()); ++i)
-        os << setw(9) << setprecision(4) << virt[i].first << "(" << setprecision(1) << virt[i].second << ") ";
+    for (int i=0; i<std::min(nVirt,(int)virt.size()); ++i) one(virt[i]);
     return os.str();
 }
 
@@ -751,11 +757,17 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
     WriteMixAccelCfg(os, tr);
     if (GapIsPermanent()) WriteGapColumn(os, tr);   // solids show it always (folds the old ReportBandGap)
     WriteOrderColumn(os, tr);
-    // Molecular: the frontier block stays an OPTIONAL diagnostic behind ReportBandGap().
-    if (!GapIsPermanent() && ReportBandGap())
+    // The frontier block is an OPTIONAL diagnostic behind ReportBandGap() -- for SOLIDS TOO.  It used to be
+    // molecular-only (the condition was !GapIsPermanent() && ReportBandGap()), which left a solid printing a
+    // gap NUMBER with no way to see the levels behind it: when that number is wrong -- the k=1/4 defect,
+    // where the frontier reads 'm' with a gap of 0.06 against a static spectrum whose gap is a smooth 0.13
+    // (doc/Benchmark.md footnote 1) -- the one thing you need is the level list, and it was unreachable on
+    // exactly the system class that had the bug.  A solid already shows the gap column, so it gets the
+    // window WITHOUT the extra WriteGapColumn the molecular branch adds.
+    if (ReportBandGap())
     {
-        WriteGapColumn(os, tr);
-        os << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction, 2, 4);
+        if (!GapIsPermanent()) WriteGapColumn(os, tr);
+        os << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction, 4, 4);
     }
     os << endl;
 }

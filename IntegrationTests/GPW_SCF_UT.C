@@ -839,7 +839,24 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     // smearing tells them apart.
     if (const char* kt=std::getenv("GPW_SMEAR"))  o.scf.SmearingkT=std::atof(kt);
     if (std::getenv("GPW_VERBOSE"))               o.scf.Verbose=true;
-    return RunGpw(lat, mol, o, verbose || std::getenv("GPW_VERBOSE")!=nullptr);
+    // GPW_ORTHO=cholesky|eigen|svd: the S-decomposition the generalized eigenproblem is reduced through.
+    // A defect that appears under one ortho and not another is IN the ortho, not in H -- and at k=1/4 the
+    // SCF's spectrum is not the one its own (proven-continuous) operators imply.
+    if (const char* ot=std::getenv("GPW_ORTHO"))
+    {
+        const std::string v(ot);
+        if      (v=="cholesky") o.ortho=qchem::Cholesky;
+        else if (v=="eigen")    o.ortho=qchem::Eigen;
+        else if (v=="svd")      o.ortho=qchem::SVD;
+        else throw std::runtime_error("GPW_ORTHO: expected cholesky|eigen|svd, got '"+v+"'");
+    }
+    // GPW_BANDGAP=1 adds the per-iteration frontier window "ε(occ/degen)" under each row -- the level list
+    // behind the gap column, which is what the 'm' (partial-occupancy) flag needs to be readable.
+    const bool gapWas=qchem::SCFIterator::ReportBandGap();
+    if (std::getenv("GPW_BANDGAP")) qchem::SCFIterator::ReportBandGap()=true;
+    GpwResult R=RunGpw(lat, mol, o, verbose || std::getenv("GPW_VERBOSE")!=nullptr);
+    qchem::SCFIterator::ReportBandGap()=gapWas;        // a diagnostic must not leak into the next test
+    return R;
 }
 } //anon
 
