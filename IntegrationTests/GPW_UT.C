@@ -1181,6 +1181,54 @@ TEST(GPW, GeneralK_OneElectronMatricesAreContinuousAtQuarterK)
         nS=fro(g.Overlap()); nT=fro(g.Kinetic()); nV=fro(g.Nuclear(&cell));
     };
 
+    const auto gth0 = Pseudopotential::GetGTH("Si","LDA",4);
+    // ELEMENT-WISE continuity, because a NORM cannot see the bug class this test exists for: ||conj(M)||
+    // == ||M|| for every M, so a conjugated Bloch phase -- the historic complex-k defect (doc/GPWPlan,
+    // "Complex-k GPW FIXED": the KB projector images summed with e^{+ikR} instead of e^{-ikR}) -- passes a
+    // norm check at EVERY k while the matrix is wrong.  M(1/4) must equal the midpoint of its neighbours
+    // element by element, to O(dk^2).
+    auto mats=[&](double s)
+    {
+        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
+                    mol, /*densityEcut=*/20.0);
+        const GPW_Evaluator& ev = gpw;
+        const Complex_OIBS& g = gpw;
+        std::vector<chmat_t> m;
+        m.push_back(g.Overlap()); m.push_back(g.Kinetic());
+        m.push_back(ev.MakeLocalPPLong(&cell, gth0.local));
+        m.push_back(ev.MakeLocalPPShort(&cell, gth0.local));
+        m.push_back(ev.MakeSeparablePP(&cell, gth0.nonlocal));
+        // The potential-matrix path at G != 0.  GeneralK_ConstantFieldEqualsV0OverlapAtQuarterK tests this
+        // machine with a closure that is nonzero ONLY at dm=(0,0,0) -- the G=0 component -- so every
+        // OFF-ZERO Fourier component of a potential, and the pair phases that come with it, is untested at
+        // complex k.  A structured field exercises them.
+        m.push_back(ev.OverlapMatrix([](const ivec3_t& dm)->dcmplx
+            { const int s=std::abs(dm.x)+std::abs(dm.y)+std::abs(dm.z);
+              return s<=2 ? dcmplx(1.0/(1.0+s), 0.3/(1.0+s)) : dcmplx(0.0); }));
+        return m;
+    };
+    {
+        // dk=1e-4: the curvature floor is then ~5e-8 (it scales as dk^2 -- VERIFIED 2026-08-19 by shrinking
+        // dk ten-fold twice and watching every entry fall by exactly 100x), so 1e-6 is a 20x margin over
+        // smoothness and still 1000x under anything that could move the SCF.
+        const auto A=mats(0.2499), B=mats(0.250), C=mats(0.2501);
+        static const char* kName[]={"S","T","V_loc-long","V_loc-short","V_KB","V(G!=0) collocation"};
+        for (size_t t=0;t<A.size();++t)
+        {
+            double worst=0.0; size_t wi=0, wj=0;
+            for (size_t i=0;i<A[t].rows();i++)
+                for (size_t j=0;j<A[t].columns();j++)
+                {
+                    const double d=std::abs(B[t](i,j)-0.5*(A[t](i,j)+C[t](i,j)));
+                    if (d>worst) { worst=d; wi=i; wj=j; }
+                }
+            std::cout << "[elementwise] " << kName[t] << " worst |M(1/4) - mid| = " << worst
+                      << "  at (" << wi << "," << wj << ")" << std::endl;
+            EXPECT_LT(worst, 1e-6) << kName[t] << " is not element-wise continuous at k=1/4"
+                                   << " (a NORM check cannot see a conjugated phase; this can)";
+        }
+    }
+
     double S0,T0,V0, S1,T1,V1, S2,T2,V2;
     norms(0.249, S0,T0,V0);
     norms(0.250, S1,T1,V1);      // the k the SCF fails at

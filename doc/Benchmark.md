@@ -151,12 +151,28 @@ which is a symmetry-broken density by construction.  The whole spectrum shifts w
 moves −0.2197 → −0.7197, half a hartree, for dk=1e-5).
 
 Both spectra carry 24 orbitals / 48 states, so no function is lost.  **Also ruled out: the
-orthogonalisation** — `GPW_ORTHO=cholesky|eigen|svd` all give ≈−5.02 at the bad k.  What is established is
-therefore (a) every individual operator matrix is continuous in k, and (b) the SCF's OWN spectrum is
-violently discontinuous at exactly ¼.  The defect is in the bridge between them — the Hamiltonian's
-assembly of those matrices into the k-block it diagonalises.  **Caveat, stated because it bounds the
-inference**: the static gate's H (T/2 + V_loc + V_KB) is a stand-in, and its level pattern does not match
-the SCF's even at the GOOD k, so it constrains the operators, not the assembly.
+orthogonalisation** — `GPW_ORTHO=cholesky|eigen|svd` all give ≈−5.02 at the bad k.
+
+**★★★ AND THE MATRICES ARE SMOOTH ELEMENT-WISE, not merely in norm.**  The continuity gate originally
+compared Frobenius norms, which cannot see the bug class it exists for — \f$\|\overline{M}\|=\|M\|\f$, so a
+conjugated Bloch phase (the historic complex-k defect) passes a norm check at every k.  It now compares
+M(¼) against the midpoint of its neighbours **entry by entry**, and covers one more path: the potential
+matrix at **G≠0**, which the constant-field gate does not reach (its closure is nonzero only at
+`dm=(0,0,0)`, i.e. G=0 alone).  At dk=1e-4 the worst entry of each is
+
+| S | T | V_loc-long | V_loc-short | V_KB | V(G≠0) collocation |
+|---|---|---|---|---|---|
+| 5.03e-8 | 4.20e-8 | 2.41e-8 | 1.53e-8 | 4.27e-8 | 8.29e-8 |
+
+and **these are curvature, not defect**: shrinking dk ten-fold twice drops every entry by exactly 100×
+(5.03e-6 → 5.03e-8 → 5.03e-10), the signature of a smooth function sampled at three points.
+
+**So every matrix that enters H is smooth at k=¼, the ortho is irrelevant, and the assembled H's spectrum
+still jumps.**  That is a sharp contradiction, and it puts the defect in the ASSEMBLY step itself — how the
+Hamiltonian combines these (correct) matrices into the block it hands the solver — or in a k-dependent
+ingredient not yet enumerated.  **Caveat that bounds the inference**: the static gate's H
+(T/2 + V_loc + V_KB) is a stand-in; its occupied-level PATTERN matches the SCF's at the good k (`1,1,2`)
+and not at ¼, which is suggestive, but it is not the SCF's own H.
 The CP2K half of this row is measured and sound.  The only test covering shifted k is DISABLED, so nothing
 caught it — re-enable it, or add a cheap quarter-integer gate, once fixed.
 **Why the two Si 2×2×2 rows differ by 89 mHa** (asked 2026-08-19; settled by running CP2K to the k-limit,
