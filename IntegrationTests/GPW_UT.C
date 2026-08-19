@@ -33,6 +33,7 @@ import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
 import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::CollocateDensity (analytic collocation)
+import qchem.LASolver;                       // LASolver<dcmplx> (the k=1/4 spectrum gate)
 import qchem.Symmetry.Factory;               // BlochFactory (arbitrary-shift k for the k=1/4 continuity gate)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
 import qchem.BasisSet.Internal.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
@@ -1228,6 +1229,100 @@ TEST(GPW, GeneralK_OneElectronMatricesAreContinuousAtQuarterK)
     between(L0,L1,L2, "||V_loc-long(k)||");
     between(H0,H1,H2, "||V_loc-short(k)||");
     between(K0,K1,K2, "||V_KB(k)||");
+}
+
+// THE CONSTANT-FIELD INVARIANT AT COMPLEX k -- the collocation/integrate-back path, which is the one
+// operator the continuity gate above does NOT cover and the one the SCF's Hartree/XC matrix is built by.
+//
+// <chi_i^k|V0|chi_j^k> = V0 <chi_i^k|chi_j^k> at EVERY k: a constant field cannot do anything but scale the
+// overlap.  OverlapWithConstantFieldEqualsV0Overlap asserts this at GAMMA and compares only the REAL parts,
+// which at Gamma is the whole matrix -- so at complex k, where the imaginary part IS the physics, this
+// invariant has never been checked at all.  Here it runs at k = 0.249 / 0.250 / 0.251 on the FULL complex
+// matrix.  Motivation (doc/Benchmark.md footnote 1): at exactly k=1/4 the SCF's frontier gap collapses from
+// 0.10 Ha to ~1e-3 at ITERATION 1, from a k-independent uniform seed, while every static operator is
+// continuous -- so the k-dependence that moved has to be in this path.
+TEST(GPW, GeneralK_ConstantFieldEqualsV0OverlapAtQuarterK)
+{
+    const double a=10.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+    const double V0=0.7;
+
+    auto resid=[&](double s)
+    {
+        auto sym=[&]{ return Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)); };
+        GPW_IBS gpw   (cell, sym(), molCell, /*densityEcut=*/30.0);   // collocation tier on
+        GPW_IBS gpwRef(cell, sym(), molCell, /*densityEcut=*/ 0.0);   // analytic Bloch overlap reference
+        const GPW_Evaluator& ev = gpw;
+        const chmat_t M = ev.OverlapMatrix([V0](const ivec3_t& dm)->dcmplx
+            { return (dm.x==0 && dm.y==0 && dm.z==0) ? dcmplx(V0) : dcmplx(0.0); });
+        const auto& S = static_cast<const Complex_OIBS&>(gpwRef).Overlap();
+        double num=0.0, den=0.0;
+        for (size_t i=0;i<S.rows();i++)
+            for (size_t j=0;j<S.columns();j++)
+            {                                        // the FULL complex residual, not just the real part
+                const dcmplx d = M(i,j) - V0*S(i,j);
+                num+=std::norm(d); den+=std::norm(V0*S(i,j));
+            }
+        return std::sqrt(num/den);
+    };
+
+    const double r0=resid(0.249), r1=resid(0.250), r2=resid(0.251);
+    std::cout << "[<i|V0|j> vs V0<i|j>] k=0.249 " << r0 << "   k=0.250 " << r1 << "   k=0.251 " << r2 << std::endl;
+    // The residual IS the collocation grid error, so it is not zero -- but it is a smooth function of k, and
+    // k=1/4 must not stand out from its immediate neighbours.
+    EXPECT_LT(r1, 6e-2)              << "constant-field invariant broken at k=1/4";
+    EXPECT_LT(r1, 2.0*std::max(r0,r2)) << "the k=1/4 collocation residual is anomalous vs its neighbours";
+}
+
+// THE 1E SPECTRUM ITSELF vs k.  Every operator that enters the iteration-1 Hamiltonian has now been shown
+// continuous at k=1/4 (the two gates above), yet the SCF's iteration-1 energy jumps 0.76 Ha between
+// k=0.24999 and k=0.25 and its frontier gap halves (doc/Benchmark.md footnote 1).  Continuous H and S force
+// a continuous spectrum, so this gate asks the eigenvalues directly: solve H C = e S C for the STATIC
+// H = T + V_loc-long + V_loc-short + V_KB (iteration 1 adds only a CONSTANT times S, which shifts every
+// level equally and cannot change a gap).  If the spectrum is smooth, the defect is not in the k-block's
+// linear algebra at all and the search moves to what the SCF does with it -- the fill.
+TEST(GPW, GeneralK_OneElectronSpectrumIsContinuousAtQuarterK)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    std::shared_ptr<const Real_BS> mol(BasisSet::Molecule::Factory(
+        BasisSetData::SIPP_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
+
+    auto spectrum=[&](double s)
+    {
+        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
+                    mol, /*densityEcut=*/20.0);
+        const GPW_Evaluator& ev = gpw;
+        const Complex_OIBS& g = gpw;
+        hmat_t<dcmplx> H(g.Kinetic().rows());
+        const auto T=g.Kinetic();
+        const auto L=ev.MakeLocalPPLong(&cell, gth.local), Sh=ev.MakeLocalPPShort(&cell, gth.local),
+                   K=ev.MakeSeparablePP(&cell, gth.nonlocal);
+        for (size_t i=0;i<H.rows();i++)
+            for (size_t j=i;j<H.columns();j++)
+                H(i,j)=0.5*T(i,j)+L(i,j)+Sh(i,j)+K(i,j);        // Grad2 = -nabla^2, the 1/2 lives here
+        std::unique_ptr<LASolver<dcmplx>> la(LASolver<dcmplx>::Factory(qchem::Cholesky));
+        la->SetBasisOverlap(g.Overlap());
+        return std::get<rvec_t>(la->Solve(H));
+    };
+
+    const rvec_t e0=spectrum(0.24999), e1=spectrum(0.25), e2=spectrum(0.25001);
+    ASSERT_EQ(e0.size(), e1.size()); ASSERT_EQ(e1.size(), e2.size());
+    std::cout << "[1E spectrum] k=0.24999 / 0.25 / 0.25001, first 6 levels + the 4|5 gap:\n";
+    for (size_t i=0;i<std::min<size_t>(6,e1.size());i++)
+        std::cout << "   e" << i << "  " << e0[i] << "  " << e1[i] << "  " << e2[i] << "\n";
+    if (e1.size()>4)
+        std::cout << "   gap(4|5) " << e0[4]-e0[3] << "  " << e1[4]-e1[3] << "  " << e2[4]-e2[3] << std::endl;
+
+    // Over dk=1e-5 every level must move by ~1e-5.  A pad of 1e-3 is 100x that and still 1000x smaller than
+    // the 0.05 Ha gap collapse the SCF reports.
+    for (size_t i=0;i<e1.size();i++)
+        EXPECT_NEAR(e1[i], 0.5*(e0[i]+e2[i]), 1e-3) << "1E level " << i << " is discontinuous at k=1/4";
 }
 
 // ANALYTIC KB == MESH KB.  The GTH projector is polynomial x Gaussian, so when the model exposes its closed

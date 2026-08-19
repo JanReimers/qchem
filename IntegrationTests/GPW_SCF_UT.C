@@ -825,18 +825,21 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     // a run differs between a TRIM mesh (phases +/-1) and a genuinely complex one -- see the shifted-MP row
     // in doc/Benchmark.md.  Diagnostics only: unset, nothing changes.
     if (const char* im=std::getenv("GPW_IMPOSE")) o.imposeSymmetry=std::atoi(im)!=0;
-    if (std::getenv("GPW_VERBOSE"))               o.scf.Verbose=true;
-    // GPW_SMEAR=kT: the third member of that A/B set.  An integer aufbau fill is AMBIGUOUS at a degenerate
-    // frontier, and the symptom -- converged, charge exact, energy high, "rho rotates" -- looks exactly like
-    // a broken operator until smearing tells them apart.
-    if (const char* kt=std::getenv("GPW_SMEAR"))  o.scf.SmearingkT=std::atof(kt);
     o.label=label; o.Nelec=Nelec; o.species={{std::string(element), 4}};   // the Si callers: Zion=4
     o.densityEcut=densityEcut; o.images=images; o.kShift=kShift; o.xcMesh.cellKind=xcKind;
     o.accelerator="DIIS"; o.seed=seed; o.ortho=ortho; o.orthoTol=orthoTol;
     o.scf.NMaxIter=(size_t)nmax; o.scf.MinΔρ=minDrho; o.scf.MinΔE=minDE;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
     o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.Verbose=verbose; o.scf.SmearingkT=smearkT;
-    return RunGpw(lat, mol, o, verbose);
+    // GPW_SMEAR / GPW_VERBOSE go AFTER the block above, or the fixed recipe silently overwrites them --
+    // which it did: GPW_VERBOSE looked dead because o.scf.Verbose=verbose ran later and put back `false`.
+    // An override that a later line can clobber is worse than no override, because it reads as evidence.
+    // GPW_SMEAR=kT: an integer aufbau fill is AMBIGUOUS at a degenerate frontier, and the symptom --
+    // converged, charge exact, energy high, "rho rotates" -- looks exactly like a broken operator until
+    // smearing tells them apart.
+    if (const char* kt=std::getenv("GPW_SMEAR"))  o.scf.SmearingkT=std::atof(kt);
+    if (std::getenv("GPW_VERBOSE"))               o.scf.Verbose=true;
+    return RunGpw(lat, mol, o, verbose || std::getenv("GPW_VERBOSE")!=nullptr);
 }
 } //anon
 

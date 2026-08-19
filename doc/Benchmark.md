@@ -97,9 +97,10 @@ weights, no IBZ, no symmetry — E(k) must be smooth, and it is, except for a si
 REAL part underflows to \f$\cos(\pi/2)\approx6\times10^{-17}\f$ instead of being O(1).  ⅛, ⅜, ⅝, ⅞ and ⅓ are
 all equally complex and all clean (and ⅞/⅝ reproduce ⅛/⅜ to every digit, so k↔−k is sound).  Eliminated, each
 by measurement: **symmetry imposition** (the free run is wrong the same way), **the collocation streams**
-(budgets off → analytic path → same energy to 8 digits, converged in 18 iterations), **occupations**
-(smearing to kT=0.02 is bit-identical), **the TRIM/real typing** (`BlochQN::IsReal()` is exact and correctly
-answers *false* at ¼; the blocks are built complex).  **And it is not physics: k = ¼ + 1e-9 lands back on the
+(budgets off → analytic path → same energy to 8 digits, converged in 18 iterations), **frontier smearing**
+(kT up to 0.02 moves the answer only −5.028 → −5.116, nowhere near the −7.57 the curve wants), **the
+TRIM/real typing** (`BlochQN::IsReal()` is exact and correctly answers *false* at ¼; the blocks are built
+complex).  **And it is not physics: k = ¼ + 1e-9 lands back on the
 smooth curve** (−7.5224, still descending) — a 1e-9 change in k cannot move a converged energy by 2.5 Ha, so
 this is an exact-value branch.  Signature at the bad k: Ekin 5.67 where the curve wants 3.63, Een −0.02
 where it wants −0.71.
@@ -118,11 +119,25 @@ and every one is smooth and monotone through the bad k:
 | ‖V_KB‖ | 17.8310 | 17.8315 | 17.8319 |
 
 So S, T, V, both local-PP pieces and the KB nonlocal are all CORRECT at k=¼ — including the KB projector,
-the historic home of complex-only phase bugs.  **`T` is right and `Tr(DT)` is 56% too high, so it is the
-converged DENSITY MATRIX that differs: the SCF lands in a different state.**  That moves the search
-downstream of every operator — to the density/collocation path (the pair phases \f$e^{ik(R_i-R_j)}\f$ are
-purely imaginary for odd ΔR at exactly this k) and to the fill.  The gate above stays enabled as the first
-coverage quarter-integer k has ever had.
+the historic home of complex-only phase bugs.  Two more gates (also new, also enabled) close the rest of the
+static path:
+
+- **the collocation/integrate-back**: \f$\langle\chi_i^k|V_0|\chi_j^k\rangle=V_0S^{Bloch}_{ij}\f$ holds at any
+  k, and its residual is 7.54e-8 / 7.67e-8 / 7.80e-8 at 0.249 / 0.250 / 0.251 — smooth and tiny.  (The
+  pre-existing version of this invariant runs at Γ only and compares only REAL parts, so at complex k, where
+  the imaginary part IS the physics, it had never been checked.)
+- **the 1E spectrum**: solving \f$HC=\varepsilon SC\f$ for the static H, every level moves by ~1e-6 over
+  dk=1e-5 and the frontier gap is a smooth **0.129648 / 0.129649 / 0.129650**.
+
+**★ SO THE OPERATORS AND THEIR SPECTRUM ARE CLEAN, AND THE SCF STILL DIVERGES AT ITERATION 1.**  From the
+same k-independent uniform seed: E₁ = −5.62164 at k=0.24999, **−4.86010 at k=0.25**, −5.62148 at 0.25001 —
+a 0.76 Ha jump for a 1e-5 change in k.  And the SCF's own frontier at ¼ is flagged `m` (partial occupancy,
+gap 0.060) where the neighbours report a clean 0.108 — against a STATIC gap of 0.1296 that is smooth
+through all three.  **The SCF's spectrum is not the one its own operators imply**, so the remaining habitat
+is what happens between the (correct) matrices and the occupied density: the eigen/ortho path inside the
+Hamiltonian assembly, the degeneracy MERGE (`MergeTol=1e-4`; the static spectrum does carry an exact
+doublet e2=e3=0.47937, fully occupied and therefore harmless unless something re-orders it), and the fill.
+All three gates stay enabled as the first coverage quarter-integer k has ever had.
 The CP2K half of this row is measured and sound.  The only test covering shifted k is DISABLED, so nothing
 caught it — re-enable it, or add a cheap quarter-integer gate, once fixed.
 **Why the two Si 2×2×2 rows differ by 89 mHa** (asked 2026-08-19; settled by running CP2K to the k-limit,
