@@ -13,9 +13,19 @@ serial `ssmp`.  Run bare it HANGS IN MPI INIT and writes an EMPTY log — 600 s 
 mpirun -np 1 cp2k.psmp -i <deck>.inp        # -np 1 keeps it comparable to the serial banked timings
 ```
 
+**⚠ AND IT MUST RUN FROM THE DECK'S OWN DIRECTORY.**  Every deck says `BASIS_SET_FILE_NAME ./<file>`, so a
+run launched from the repo root aborts in `read_qs_kind` with *"The specified OLD file cannot be opened"* —
+and the message names CP2K's DATA directory (`/usr/share/cp2k`), which reads like a missing-package problem
+and is not one.  `cd IntegrationTests/CP2K` first.
+
+**⚠ AND IT TAKES ITS THREAD COUNT FROM THE ENVIRONMENT.**  `psmp` is OpenMP-enabled: left alone it picked 2
+threads here and reported `cpu 166%`, i.e. it was being timed against a serial qchem run.  Export
+`OMP_NUM_THREADS=1` for a comparable row (`scripts/bench` prints the count CP2K itself reports, so the row
+carries its own provenance).  Measured cost of getting this wrong: Si Γ 4.84 s at 2 threads vs 5.18 s at 1.
+
 Wrapped for a benchmark row:
 ```bash
-scripts/bench "Si Gamma cp2k" -- mpirun -np 1 cp2k.psmp -i IntegrationTests/CP2K/si_fcc_gpw.inp
+cd IntegrationTests/CP2K && OMP_NUM_THREADS=1 ../../scripts/bench "Si Gamma cp2k" -- mpirun -np 1 cp2k.psmp -i si_fcc_gpw.inp
 ```
 
 ---
@@ -69,12 +79,23 @@ Notes: `CP2K_USE_LIBXC=OFF` is fine for the oracle decks — they use CP2K's bui
 A freshly built oracle is not an oracle until it reproduces the banked numbers.
 
 ```bash
-scripts/bench "Si Gamma cp2k" -- <cp2k> -i IntegrationTests/CP2K/si_fcc_gpw.inp
+cd IntegrationTests/CP2K && OMP_NUM_THREADS=1 ../../scripts/bench "Si Gamma cp2k" -- mpirun -np 1 cp2k.psmp -i si_fcc_gpw.inp
 ```
 
-Banked (`doc/CP2Kresults.md`): Si Γ **−7.11506** (re-validated −7.11505788), Si 2×2×2 **−7.86744**.
-If those reproduce, the build is sound and every row in `doc/Benchmark.md` can be filled.
-**Do not quote a CP2K row before this passes.**
+**Packaged 2025.2 re-validated against the banked 2026.1 numbers, 2026-08-19 — four decks, four exact
+reproductions** (the banked values are in `doc/CP2Kresults.md`):
+
+| deck | measured | banked | wall (1 thr) | peak RSS |
+|---|---|---|---|---|
+| `si_fcc_gpw.inp` | −7.115057882345941 | −7.11505788 | 5.2 s | 148 MB |
+| `si_fcc_gpw_222_gamma.inp` | −7.778457864637955 | −7.77846 | 5.8 s | 153 MB |
+| `si_fcc_gpw_222.inp` (shifted MP) | −7.867436530436260 | −7.86744 | 6.1 s | 153 MB |
+| `naf_gpw_sr2_diag.inp` | −24.431213374621997 | −24.4312134 | 7.4 s | 173 MB |
+| `naf_gpw_sr_tight.inp` | −24.432293467111030 | −24.4322935 | 1m42s | 186 MB |
+
+Agreement is to every printed digit on the two NaF decks and to 1e-14 relative on Si, across a version
+gap (2025.2 vs 2026.1) — so the packaged build is the oracle, and the source build below stays optional.
+**Do not quote a CP2K row before the deck you are about to use has reproduced its banked value.**
 
 ## Why RAM needs no CP2K-side hook
 

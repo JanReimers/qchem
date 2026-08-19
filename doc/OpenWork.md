@@ -119,35 +119,60 @@ Measured, first time any of this was on the console:
 `NONE` on all three — it folds NOTHING, on a cell whose magnetic group has 12–24 ops.  That is the
 12–48× sitting unclaimed, said out loud on every run instead of inferred from a plan doc.
 
-### Step 1 — THE HEAD-TO-HEAD TABLE, built as a standing benchmark  ·  **table: `doc/Benchmark.md`**  ·  STARTED
+### Step 1 — THE HEAD-TO-HEAD TABLE, built as a standing benchmark  ·  **table: `doc/Benchmark.md`**  ·  ✅ THE TABLE STANDS
 
-**Landed 2026-08-19:** `doc/Benchmark.md` (the table + how to produce a row + what is missing and who must
-produce it), and the instrument half — **every GPW run now reports `PEAK RSS (MB, process high-water)`**
-beside the timing buckets (Linux `VmHWM`, so it is the watermark rather than whatever happened to be
-resident when asked).  RAM is half this table and NEITHER code was reporting it.
-First rows: Si Γ **−7.11507 vs CP2K −7.11506 (1e-5)**, 6.1 s / 267 MB against CP2K's 3.5 s; Si 2×2×2
-Γ-centred (the multi-k row) 8.5 s / 269 MB.
-**Still to produce:** every CP2K RAM figure (CP2K prints none — the runs must be wrapped in
-`/usr/bin/time -v` or a `systemd-run` scope), MnO wall/RAM on both sides (the VA runs banked energies
-only), NaF re-based on the tight-eps CP2K number, and the `MNO_KMESH=2` multi-k MnO row.
+**Both columns are now MEASURED, on this box, through one wrapper** (`scripts/bench`, 2026-08-19, 1 thread
+each).  The CP2K half stopped being banked prose the moment the packaged CP2K 2025.2 was validated against
+five banked 2026.1 decks — all five reproduce to the printed digits (`doc/CP2KBuild.md`).  Seven rows carry
+energy + wall + peak RAM on both sides; three cells remain (below).
 
-Si, NaF, MnO — **same basis in both codes**, ≥1 multi-k row — reporting **wall time, peak RAM and energy**
-for qchem and CP2K side by side.
+| | Δ(E) | CPU q/c (wall) | RAM q/c |
+|---|---|---|---|
+| Si Γ | −10.6 µHa | 1.5× (6.1 s / 5.2 s) | 267 / 148 MB |
+| Si 2×2×2 Γ-centred | −14.9 µHa | 1.7× (8.3 s / 5.8 s) | 269 / 153 MB |
+| NaF Γ (SR2) | +0.877 mHa | **13.2×** (39.5 s / 7.4 s) | 577 / 173 MB |
+| NaF Γ (full SR) | +1.349 mHa | 2.1× (2m44 / 1m42) | 3090 / 186 MB |
+| **MnO AFM-II Γ (VA)** | **−99.65 mHa** | **6.0×** (20m05 / 6m14) | **4947 / 217 MB** |
+| **MnO FM Γ (VA)** | **−136.80 mHa** | **12.1×** (21m45 / 3m13) | **4947 / 217 MB** |
 
-**This is the instrument, not a report.**  Everything optimised in rounds 3–4 was measured against a
-single hand-run disabled test with `GPW_MNO_NMAX=3`.  Steps 2–4 have no finish line without this.
+**★ THE HEADLINE THE TABLE EXISTS TO PRODUCE: on MnO we are 6–12× the CPU time and 23× THE RAM** — 4947 MB
+against CP2K's 217 MB on a function-for-function identical 118-basis.  That is the number Steps 2–4 are
+now measured against, and it says the RAM half is not a rounding detail.
+**⚠ COMPARE CPU TIME, NOT WALL** (user, 2026-08-19): CP2K is genuinely serial here, qchem is not — blaze
+threads the BLAS whatever `GPW_OMP_THREADS` says (measured 115–239% CPU), so the wall column flatters us by
+the cores taken and the true ratio is about 2× worse than a wall reading.  A knob is not a measurement.
+**Loose end worth a look:** NaF SR2 is 13.2× while the LARGER full-SR span is 2.1× — same cell, same Γ, same
+path, and the smaller basis is the worse ratio.
+**And the profile named its own next lever:** the largest bucket in the 20-minute AFM run is the **XC-mesh
+Φ-table build at 370 s (31%)** — bigger than either pair loop, and exactly Step 3's Φ-screening item.  The
+scatter/gather that rounds 3–4 were spent on is 22% + 14%.
 
-- **Like-for-like IS available and does NOT wait on Step 6** (user, 2026-08-19): CP2K can be forced down
-  to the spherical spans qchem holds at full rank.  The decks and basis entries already exist —
-  `IntegrationTests/CP2K/mno_{afm2,fm}_gpw_v{a,b}.inp` and the `VALENCE-LOWQ-V{A,B}` entries in
-  `IntegrationTests/CP2K/VALENCE-LOWQ-BASIS`, variants **VA (N=118)** and **VB (N=128)** — and qchem has
-  run VA at full rank ("kept 118 of 118", runs 61/62).  Si and NaF need the same treatment: one shared
-  span per material, held full-rank by both codes, or the row is not a comparison.
-- **The MnO accuracy row is already banked** (`doc/SphericalLatticePlan.md`, the VA verdict table); what is
-  missing everywhere is the **runtime and RAM columns**, the Si/NaF rows, and the multi-k row.
-- Multi-k cost is currently unmeasured — `MNO_KMESH=2` is ALL-TRIM, so its whole k-sum runs real.
-- Report fold state, stream coverage (`pts64/pts32/dropped`, `meanRun`), thread count and BLAS mode
-  alongside each number, or the table will not be reproducible.
+**Reproducibility repairs made along the way** (each was silently corrupting rows):
+- **The `[fold]` line left `cout` at precision 2** for the rest of the run — `std::defaultfloat` restores the
+  format flag, not the precision.  THAT is why energies printed as `Etot=-7.1`; the earlier table recorded it
+  as a "detail level".  The fingerprint's `Efinal` had the same disease from the other direction: it printed
+  12 digits in run 61 only because a verbose table had set `fixed(10)` upstream.  Both now state and restore
+  their own precision, and the run summary prints Etot at 10 s.f.
+- **The annealed driver reported no energy summary, no ledger and no PEAK RSS** — and every MnO row runs
+  through it, so "every GPW run reports PEAK RSS" was false for exactly the runs whose RAM the table needs.
+- **The VA span came from a script OVERWRITING a committed basis file** (`bisect_valence_sph.py` →
+  `valence_lowq_sph.bsd`), so no MnO row was reproducible after the file was restored.  VA/VB are now
+  committed basis sets selected by `GPW_BASIS_SPAN=va|vb|sph|sr`; the run prints its own `nFunctions`, and
+  the re-run reproduced run 61 exactly (118 functions, λ_min 1.29e-3, E = −61.4029762 vs −61.4029762007).
+- **`DISABLED_NaFRocksaltGamma` ran a 2×2×2 mesh against a Γ-era anchor** (and against Γ-only CP2K decks);
+  it simply failed.  `NAF_KMESH` now selects the mesh and the anchor follows it (`NAF_SPAN=sr|sr2` likewise).
+
+**The threaded repeat is deferred ON PURPOSE** (user, 2026-08-19): this cut is the serial baseline, the whole
+table gets re-run at 12 threads **after** Steps 2–3 bring the qchem times down — re-measuring a 20-minute row
+that is about to change by an order of magnitude buys a number with a short shelf life.  Keep both cuts when
+it happens: serial = the algorithmic comparison, threaded = the user-facing time, ratio = parallel
+efficiency, which nothing measures today.
+
+**Still open on this table:** the `MNO_KMESH=2` multi-k MnO row (cost unmeasured; CP2K needs a matching
+`&KPOINTS` deck), a k-point CP2K deck for NaF, and the **Si shifted-MP row — BLOCKED BY A REGRESSION, not by
+measurement**: `DISABLED_SR_2x2x2ShiftedMP_vs_CP2K` returns −3.7351 against its own −7.86744 anchor with
+`Een` POSITIVE (+0.611 vs −1.1 at Γ), i.e. the fractional-k Bloch/KB phase path is broken and the only test
+covering it is disabled.  Its CP2K half is measured (−7.867436530).
 
 ### Step 2 — ARM THE SYMMETRY FOLDS  ·  plan: `doc/SymmetryUpgradePlan.md`
 
