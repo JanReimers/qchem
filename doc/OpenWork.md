@@ -58,6 +58,17 @@ safe — "m_stag 0.366 → 0.0046 at iteration 1" is a real finding in any units
 (c) site-asymmetry at the few-percent level (`Mn1=+0.3058, Mn2=−0.5849`, `SymmetryUpgradeHistory.md:855`,
 which fed run 59's flip-defect reading) — two sites can differ in ORBITAL occupation at identical moment.
 
+> **THE PROPER DEFINITION IS BADER, AND IT IS A FUTURE FEATURE (user, 2026-08-19).**  The physically
+> correct atomic basin is R. F. W. Bader's QTAIM basin — the region bounded by the ZERO-FLUX surface
+> \f$\nabla\rho(r)\cdot n(r)=0\f$ — which is a property of the density itself, not of a chosen partition
+> function, and is what makes an "atomic" moment or charge well defined rather than conventional.
+> Implementing it (gradient-path/zero-flux basin assignment on the mesh, then \f$\int_{\Omega_A} m\f$) is
+> its own increment, filed here as a wanted feature.  **For now the Becke fuzzy basins are good enough** —
+> they are integrated, they carry units, and they are a vast improvement on a point sample.  Whatever we
+> report must say WHICH partition it used, because until Bader lands the number is partition-dependent.
+> (Note the run's `|m̃(q_AFM)|·Ω/2` is partition-FREE and is the closest thing we print to a
+> neutron-diffraction observable — worth keeping alongside for exactly that reason.)
+
 **The work:** a **Becke-partitioned site moment** \f$\int w_A(r)\,m(r)\,d^3r\f$ becomes THE order parameter
 (we already build a site-adapted Becke mesh with per-atom partition weights for XC, so it is nearly free
 per iteration), plus a **Mulliken site moment** for the exact CP2K-comparable number.  Any surviving point

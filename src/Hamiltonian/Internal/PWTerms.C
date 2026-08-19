@@ -317,6 +317,21 @@ public:
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
     //! GEMM runs in REAL arithmetic -- the first place the Step-3 quadrature win is actually realized.
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const;
+    //! \brief The per-site INTEGRATED spin moment \f$\mu_A=\int w_A(r)\,[\rho_\uparrow-\rho_\downarrow]\,d^3r\f$
+    //! (electrons; \f$\times\,\mu_B\f$ for the magnetic moment), one entry per mesh site block.
+    //!
+    //! THE observable an atomic moment actually is — and it is FREE here: this engine already samples
+    //! \f$\rho_\sigma\f$ at every mesh point once per density serial (\c RhoPol, cached), and the mesh's
+    //! weights already carry the per-site partition \f$w_A\f$, so the answer is one block sum over data in
+    //! hand.  It replaces the MnO campaign's point probe — \f$m(r)\f$ evaluated 0.7 bohr off the nucleus
+    //! along \f$+x\f$ — which was a spin DENSITY, was never derived, and (being one direction through an
+    //! anisotropic d shell) responded to the ORBITAL OCCUPATION as much as to the moment.  See
+    //! doc/OpenWork.md Step 0a.
+    //! \return empty when the mesh carries no site blocks (a uniform grid has no atomic partition to
+    //! integrate over) — ask, do not assume.
+    //! PARTITION CAVEAT: Becke fuzzy basins are a CHOICE; the partition-free definition is R. F. W. Bader's
+    //! QTAIM zero-flux basin, a wanted future feature.  Report which partition produced the number.
+    rvec_t SiteMoments(const cChargeDensity* cd) const;
 private:
     const mat_t<dcmplx>& Phi (const cobs_t* bs) const;   //!< lazily built per block (geometry-fixed)
     const mat_t<double>& PhiR(const robs_t* bs) const;   //!< the real block's table (Step 3c; own cache)

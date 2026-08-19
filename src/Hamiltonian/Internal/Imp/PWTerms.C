@@ -643,6 +643,20 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
     return s==Spin::Up ? itsRhoUp : itsRhoDn;
 }
 
+// The per-site INTEGRATED moment (see the header): mu_A = Integral w_A(r) [rho_up - rho_dn] d3r, in
+// electrons.  Free -- RhoPol has already sampled both channels for this density serial (and cached them),
+// and the mesh's weights already carry each site's Becke partition w_A, so this is a block sum over data
+// in hand.  An unpolarized density gives exactly zero (rho_up == rho_dn by the HalfDensity collapse),
+// which is the honest answer, not a special case.
+rvec_t XC_GridEngine::SiteMoments(const cChargeDensity* cd) const
+{
+    assert(cd);
+    if (itsMesh->NSites()==0) return rvec_t();     // a uniform grid has no atomic partition to integrate
+    const rvec_t& up=RhoPol(cd, Spin::Up);
+    const rvec_t& dn=RhoPol(cd, Spin::Down);
+    return qcMesh::SiteIntegrals(*itsMesh, rvec_t(up-dn));
+}
+
 // <i|v|j> = Phi^dag diag(w v) Phi over the cached table: scale the rows, one zgemm, hermitize.  (The
 // GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
 template <class U> hmat_t<U> XC_GridEngine::MatrixT(const mat_t<U>& P, const rvec_t& v) const

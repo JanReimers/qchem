@@ -291,3 +291,62 @@ TEST(LatticeMesh, BeckePointsAreWrappedIntoHomeCell)
         EXPECT_GE(fr.z,-1e-12); EXPECT_LT(fr.z,1.0+1e-12);
     }
 }
+
+// ---- SITE BLOCKS: the partition an atom-centred mesh already carries (doc/OpenWork.md Step 0a) --------
+//
+// A Becke mesh IS a union of per-centre grids whose weights already fold in that centre's partition
+// function w_A(r) -- that is the scheme's defining identity, Integral f = Sum_A Integral w_A f.  Recording
+// which block came from which centre costs one index per atom and turns "the atomic moment/charge" from a
+// point sample of a field into a genuine integral.  These three gates pin the contract.
+
+// (1) STRUCTURE: one block per atom, contiguous, covering the whole mesh.
+TEST(LatticeMesh, BeckeSiteBlocksPartitionTheMesh)
+{
+    const auto& f=FCCBecke::Get();
+    ASSERT_EQ(f.mesh.NSites(), 2u) << "one site block per atom of the FCC diamond cell";
+    EXPECT_EQ(f.mesh.SiteBegin(0), 0u);
+    EXPECT_EQ(f.mesh.SiteEnd(f.mesh.NSites()-1), f.mesh.size());
+    for (size_t a=0; a+1<f.mesh.NSites(); a++)
+        EXPECT_EQ(f.mesh.SiteEnd(a), f.mesh.SiteBegin(a+1)) << "blocks must be contiguous, site " << a;
+    for (size_t a=0; a<f.mesh.NSites(); a++)
+        EXPECT_GT(f.mesh.SiteEnd(a), f.mesh.SiteBegin(a)) << "site " << a << " kept no points";
+}
+
+// (2) THE DEFINING IDENTITY: Sum_A Integral w_A f == Integral f, for a non-trivial f.  This is what makes a
+// per-site integral a decomposition of the total rather than an independent (and arbitrary) quantity.
+TEST(LatticeMesh, BeckeSiteIntegralsSumToTheTotal)
+{
+    const auto& f=FCCBecke::Get();
+    const double alpha=1.0;
+    LatticeGauss g(f.cell,alpha);
+    rvec_t fv(f.mesh.size());
+    for (size_t q=0; q<f.mesh.size(); q++) fv[q]=g(f.mesh.Points()[q]);
+
+    rvec_t site=qcMesh::SiteIntegrals(f.mesh, fv);
+    ASSERT_EQ(site.size(), f.mesh.NSites());
+    double sum=0.0; for (size_t a=0;a<site.size();a++) sum+=site[a];
+    // Exact to roundoff: both sides are the SAME sum of w_q f_q, only regrouped by block.
+    EXPECT_NEAR(sum, qcMesh::Integrate(f.mesh,g), 1e-12*std::fabs(sum));
+}
+
+// (3) EQUIVALENT SITES GET EQUAL SHARES.  The two Si of the diamond cell are crystallographically
+// equivalent, so each must own half the cell volume and half of any lattice-symmetric field.  This is the
+// site-resolved check the aggregate "[Becke grid] ... dropped N tail pts" line cannot make -- and a
+// site-DEPENDENT mesh defect is exactly what bit the MnO campaign (the moment died on the corner atom and
+// survived on the centre one, 2026-08-11).  Quadrature-limited, not partition-limited.
+TEST(LatticeMesh, BeckeEquivalentSitesOwnEqualShares)
+{
+    const auto& f=FCCBecke::Get();
+    rvec_t ones(f.mesh.size(), 1.0);
+    rvec_t vol=qcMesh::SiteIntegrals(f.mesh, ones);          // Integral w_A d3r = site A's share of Omega
+    ASSERT_EQ(vol.size(), 2u);
+    const double tot=vol[0]+vol[1];
+    // THE ASSERTION IS THE SHARE, NOT THE VOLUME.  Site equality is a PARTITION property and holds to
+    // ~1e-9 here; the absolute Integral w_A d3r sits 0.43% under Omega/2 because a CONSTANT is the worst
+    // case for an atom-centred grid (its radial meshes must reach infinity and the partition tails are
+    // eps-cut) -- that is quadrature accuracy, a different property, already pinned by
+    // BeckeCellIntegratesConstantToVolume.  Testing the ratio keeps this gate on the thing it names.
+    EXPECT_NEAR(vol[0]/tot, 0.5, 1e-8) << "crystallographically equivalent sites must own equal shares";
+    EXPECT_NEAR(vol[1]/tot, 0.5, 1e-8);
+    EXPECT_NEAR(tot/f.cell.GetCellVolume(), 1.0, 1e-2);      // loose: the constant-integration worst case
+}

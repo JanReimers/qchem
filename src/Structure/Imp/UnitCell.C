@@ -85,6 +85,11 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     qcMesh::MeshBuilder out;
     for (size_t ia=0; ia<natom; ia++)
     {
+        // SITE BLOCK: this atom's surviving points, whose weights already carry ITS partition function
+        // w_A(r) (kwt=wts*w below).  Recording the block is what lets a consumer ask the mesh for a real
+        // ATOMIC integral -- Integral w_A(r) f(r) d3r = the block sum -- instead of sampling a field at a
+        // guessed point and calling it a moment (doc/OpenWork.md Step 0a).  Costs one index per atom.
+        out.BeginSite();
         qcMesh::Mesh am=qcMesh::ProductMesh(rad, angPerAtom ? (*angPerAtom)[ia] : ang);
         am.ShiftOrigin(R[ia]);
         const rvec3vec_t& pts=am.Points();

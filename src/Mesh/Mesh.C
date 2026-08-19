@@ -11,6 +11,7 @@ module;
 #include <utility>
 #include <cassert>
 #include <string>
+#include <vector>    // the site-block index table (Mesh::itsSiteStart)
 export module qchem.Mesh;
 export import qchem.Types;
 import qchem.Math;   // Pi, ceil/sqrt/max (the uniform-mesh Nyquist arithmetic below)
@@ -30,10 +31,32 @@ public:
     //! Build from ready-made SoA arrays (the efficient path when the size is known up front,
     //! e.g. ProductMesh = nRadial*nAngular).  Sizes must match.
     Mesh(rvec3vec_t r, rvec_t w) : itsR(std::move(r)), itsW(std::move(w)) {}
+    //! The atom-centred sibling: \a siteStart is the first point index of each SITE BLOCK (see below).
+    Mesh(rvec3vec_t r, rvec_t w, std::vector<size_t> siteStart)
+        : itsR(std::move(r)), itsW(std::move(w)), itsSiteStart(std::move(siteStart)) {}
 
     const rvec3vec_t& Points () const {return itsR;} //!< r_i, for the phi(r) evaluators.
     const rvec_t&     Weights() const {return itsW;} //!< w_i, for the integrators.
     size_t            size   () const {return itsW.size();}
+
+    //! \name SITE BLOCKS — the partition an atom-centred mesh already carries
+    //! An atom-centred quadrature (Becke and friends) is a UNION of per-centre grids, and its weights
+    //! already fold in that centre's partition function \f$w_A(r)\f$: that is what makes
+    //! \f$\int f=\sum_A\int w_A f\f$ the scheme's defining identity.  So the mesh knows which centre
+    //! generated each point — it just used to throw the fact away, which is why a "site moment" had to be
+    //! faked by sampling a field at a guessed point (doc/OpenWork.md Step 0a).  A builder that generates
+    //! per centre calls \c MeshBuilder::BeginSite, and then \f$\int w_A f\f$ is EXACTLY the sum of
+    //! \f$w_q f_q\f$ over site \f$A\f$'s block — no extra quadrature, no extra parameter, no partition
+    //! choice at the consumer.
+    //! Blocks are contiguous and cover the mesh; EMPTY (\c NSites()==0) means the mesh has no site
+    //! structure (a plain product or uniform grid), and site integrals are then simply unavailable —
+    //! callers must ask, not assume.  These carry NO structural types (plain indices), so \c qcMesh stays
+    //! a leaf: WHICH atom site \f$A\f$ is belongs to whoever built the mesh.
+    //!@{
+    size_t NSites  ()          const {return itsSiteStart.size();}
+    size_t SiteBegin(size_t a) const {assert(a<NSites()); return itsSiteStart[a];}
+    size_t SiteEnd  (size_t a) const {assert(a<NSites()); return a+1<NSites() ? itsSiteStart[a+1] : size();}
+    //!@}
 
     //! Append one (point,weight) pair.  Builders (the incremental Becke mesh) push here.
     void Append(const rvec3_t& r, double w);
@@ -41,9 +64,35 @@ public:
     void ShiftOrigin(const rvec3_t& o);
 
 private:
-    rvec3vec_t itsR;
-    rvec_t     itsW;
+    rvec3vec_t          itsR;
+    rvec_t              itsW;
+    std::vector<size_t> itsSiteStart;   //!< first point index of each site block ({} = no site structure)
 };
+
+//! \brief The per-site integrals \f$\int w_A(r)f(r)\,d^3r\f$ of a field \a f sampled on \a m's points —
+//! one entry per site block, in the builder's site order.
+//!
+//! This is the honest way to ask an atom-centred mesh for an ATOMIC quantity (moment, charge, …): it is a
+//! genuine integral with units, not a point sample, and it needs no radius and no extra convention beyond
+//! the partition the mesh was already built with.  \a f must be sampled on \c m.Points().
+//! CAVEAT worth carrying to any consumer: the answer is only as canonical as the partition — a Becke fuzzy
+//! basin is a CHOICE.  The partition-free definition is R. F. W. Bader's QTAIM zero-flux basin
+//! (\f$\nabla\rho\cdot n=0\f$), a wanted future feature (doc/OpenWork.md Step 0a); until it lands, report
+//! WHICH partition produced the number.
+inline rvec_t SiteIntegrals(const Mesh& m, const rvec_t& f)
+{
+    assert(f.size()==m.size() && "SiteIntegrals: the field must be sampled on this mesh's points");
+    assert(m.NSites()>0 && "SiteIntegrals: this mesh carries no site blocks (not an atom-centred build)");
+    const rvec_t& w=m.Weights();
+    rvec_t out(m.NSites(), 0.0);
+    for (size_t a=0; a<m.NSites(); a++)
+    {
+        double s=0.0;
+        for (size_t q=m.SiteBegin(a), e=m.SiteEnd(a); q<e; q++) s+=w[q]*f[q];
+        out[a]=s;
+    }
+    return out;
+}
 
 //! \brief Radial mesh family.  See the per-class transplanted formulae in Internal/.
 enum class RadialKind  {MHL, Log, Linear};
