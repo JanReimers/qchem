@@ -647,14 +647,62 @@ is a full evaluation pass (the `|val| ≥ eps` screen needs the values), so the 
 what remains per point is now genuinely per-component — the `fI[a]*fJ[b]` multiply, the screen, and the
 `Append`.  The residual is the per-component work, which is where it should be.
 
-**STAGE B (next): the on-the-fly branch.**  `CollocateDensity`'s and `IntegratePotential`'s over-budget
-`else` arms — 95% of run 64, the CP2K-span regime, and the reason the charter called this an unblocker.
-Decided with the user: the D-aware box (`epsEff = max(kDensityEps, kDensityEps/|c|)`, today sized per
-COMPONENT pair) resolves across a shell pair as the **union box** — sized from the shell pair's tightest
-`epsEff` — with each component pair still applying its own `|val| < epsEff_ij` magnitude screen.  That only
-ever ADDS sub-eps terms, never drops one, so it keeps the no-cut discipline; the cost is that one large-|D|
-component makes its siblings pay the bigger box, trading a cubic D-aware saving for a 36×-best-case geometry
-saving.  Not bit-identical (a few borderline points), so it lands as its own commit with its own measurement.
+### Stage B: the on-the-fly arms — and what the profile said about them
+
+`CollocateDensity`'s and `IntegratePotential`'s uncached `else` arms, blocked the same way.  TWO PASSES over
+the pair set: a pair with a CACHED stream replays in the original ROW-MAJOR order (so a fully-cached run —
+every anchor — accumulates into `rho` exactly as before, bit-identical), and the uncached remainder goes to
+a shell-blocked pass.  On the integrate side that pass also picks up the whole STATIC SHARP-FIELD sweep
+(`MakeLocalPP`'s κ rule, the explicit-`pairLevels` V_loc ball), which holds no stream cache at all.
+
+**The D-aware box, resolved across a shell pair** (the user's decision): the tolerance stays per component
+pair (\f$\varepsilon_{ij}=\varepsilon/|c_{ij}|\f$), but one box must serve them all, so it is sized from the
+UNION — the tightest ε present — and each component pair applies its own \f$|val|<\varepsilon_{ij}\f$
+screen.  Only ever ADDS sub-eps terms, never drops one, so the no-cut discipline holds.
+
+**★ THE ONE THING THAT ALMOST KILLED IT, AND THE FIX.**  A first cut measured **1.03–1.08×** on the SCF
+on-the-fly path against **2.13×** on the local-PP sweep.  The difference is the tolerance: the local-PP
+sweep's ε is uniform, the SCF path's is D-aware — and a blocked walk consulting only the *union* tolerance
+silently WALKS terms that the unblocked per-component box killed WHOLE via the prefactor early-out
+(\f$\mathrm{pf}\ge-\ln\varepsilon_{ij}\f$ ⇒ the entire box is sub-eps).  The kill is recoverable exactly,
+because **`pfExp` is a SHELL property** (it depends only on the two \f$\alpha_{\min}\f$ and the centre
+separation) while only the tolerance is per-component: `PairPrefactorExp` is now exposed and both shell
+drivers pre-filter their component pairs on their OWN tolerance before walking — which also shrinks the
+union box to the survivors.
+
+**MEASURED** (over-budget forced with `GPW_STREAM_BUDGET_PTS=GPW_STREAM_BUDGET_PTS_F32=0`):
+
+| | stage A | stage B | + `pfExp` filter | |
+|---|---|---|---|---|
+| `GPW_SCF.SiliconGammaConverges`, all on the fly | 65.9 | 61.3 | **56.5 s** | 1.17× |
+| `GPW_SCF.MnAtomInBoxDChannel` (d shells), all on the fly | 39.4 | 38.1 | **36.8 s** | 1.07× |
+| `GPW.LocalPPKappaSelfConverged` (static sharp field, uniform ε) | 15.9 | — | **7.5 s** | **2.13×** |
+
+Energies identical to every printed digit in every arm, cached vs all-on-the-fly included (Si
+`Etot=-7.11507`, same 12 iterations either way; Mn `Etot=-14.638`, 9 iterations).  Strictly the union box is
+not *provably* bit-identical — a component pair may see a few extra points outside its own box, all of which
+fail its magnitude screen — so this is "measured identical", not "identical by construction" as stage A was.
+`ctest -j8` 747/747.
+
+**★ AND THE HONEST FINDING: the over-budget regime is NOT geometry-bound, so the charter's kernel is worth
+far less there than in the build.**  A `perf` profile of the all-on-the-fly Si run, AFTER blocking:
+
+| | share |
+|---|---|
+| the `IntegratePotential` / `CollocateDensity` lambdas themselves | 61% |
+| `Polarization::operator()` + `uintpow` (the polynomials) | 22% |
+| `exp` (the contracted radials) | 10% |
+
+Only the bottom ~32% is what shell blocking removes, and it removes it by roughly the shell width — small
+for Si (s/p), still modest for Mn.  The 61% is the irreducible **per-component-pair emit**: the
+\f$f^I_a f^J_b\f$ multiply, the magnitude screen, and the scattered `r[idx] += cw*v` / `b += v*V[idx]`.  No
+blocking can remove that — it is one operation per (pair, point) by definition.  **So the next lever in the
+over-budget regime is fewer POINTS, not a faster kernel:** a looser `GPW_DENSITY_EPS` (the sanctioned
+ε-truncation), the T3 stream fold, or a smaller span.  The charter's framing — "make the recompute kernel
+CP2K-class and the over-budget cell becomes affordable" — survives for the SETUP sweeps it also covers
+(2.13× on the static sharp field, 1.69× on the build) but NOT for the per-iteration scatter/gather, where
+the emit was always the floor.  Run 64's 4318 s was never going to fall by a large factor to this kernel;
+that regime needs fewer terms, not cheaper ones.
 
 ### Step 0 of the real-arithmetic path: exact ±1 Bloch phases at TRIM (2026-08-16)
 

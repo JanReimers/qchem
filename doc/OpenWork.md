@@ -290,12 +290,23 @@ long MnO runs until 1–3 and 5 land.
    and streaming fp32 demotion.  **Stream build 28.73 → 17.01 s (1.69×); sweep 212 → 203 s (the serial
    path did not regress); stream cache byte-for-byte identical (same pts/offsets/runs/meanRun), physics
    unmoved; 747/747.**
-   **Still open here:** **STAGE B** — the same blocking on the OVER-BUDGET on-the-fly collocate/integrate
-   arms (95% of run 64, the CP2K-span regime, the actual unblocker).  Decided: the D-aware box resolves
-   across a shell pair as the UNION box + per-component magnitude screen (adds only sub-eps terms, never
-   drops one — the no-cut discipline), so it is not bit-identical and lands as its own measured commit.
-   Then Φ-table SCREENING (the O(N)-XC increment: batch the mesh, keep a per-batch significant-function
-   list — the win grows with cell size) and the Becke mesh build (`BeckeCutoff` alone 11.5%).
+   **Round 4 STAGE B DONE 2026-08-19 — and it RE-SCOPED the charter.**  Same blocking on the uncached
+   collocate/integrate arms (cached pairs still replay row-major, so fully-cached runs stay
+   bit-identical); the D-aware box resolves as the UNION + per-component screen, with `PairPrefactorExp`
+   exposed so each component pair keeps its own WHOLE-TERM prefactor kill (without that the first cut
+   measured only 1.03–1.08×).  **Static sharp-field sweeps 2.13× (`LocalPPKappaSelfConverged` 15.9 →
+   7.5 s — uniform ε, no D-aware boxes); over-budget SCF only 1.17× (Si) / 1.07× (Mn).**  Energies
+   identical to every printed digit, cached vs all-on-the-fly; 747/747.
+   **★ THE FINDING THAT MATTERS: the over-budget regime is NOT geometry-bound.**  perf on the
+   all-on-the-fly Si run: 61% is the irreducible per-component-pair EMIT (multiply + magnitude screen +
+   the scattered `r[idx]+=`), 22% polynomials, 10% `exp` — so only ~32% is what blocking can remove.
+   **Run 64's 4318 s was never going to fall by a large factor to a faster kernel; that regime needs
+   fewer TERMS, not cheaper ones** (looser `GPW_DENSITY_EPS`, the T3 stream fold, or a smaller span).
+   Charter item 2's "fast-recompute kernel unblocks the CP2K-span cell" is hereby narrowed: it delivered
+   on the SETUP sweeps (build 1.69×, static field 2.13×) and not on the per-iteration scatter/gather.
+   **Still open here:** Φ-table SCREENING (the O(N)-XC increment: batch the mesh, keep a per-batch
+   significant-function list — the win grows with cell size) and the Becke mesh build (`BeckeCutoff`
+   alone 11.5%).
 2. **Close the RAM gap vs CP2K.**  Same lever: recompute fast enough → the stream cache tier
    shrinks → RAM falls with it (CP2K caches nothing; its kernels are just fast).
 3. **Understand why CP2K holds the FULL 136-function span and qchem cannot.**  ⛔ **THE SCREEN-DISCIPLINE

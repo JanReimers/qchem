@@ -593,6 +593,27 @@ public:
             }
         }
     }
+    //! \brief The shell pair's product PREFACTOR exponent at cross-cell offset \a Roff:
+    //! \f$\mathrm{pf}=\tfrac{\alpha^I_{\min}\alpha^J_{\min}}{\alpha^I_{\min}+\alpha^J_{\min}}|R_i-R_j-R_{off}|^2\f$,
+    //! screen (1) of \c ForShellPairBox.  \f$e^{-\mathrm{pf}}\f$ bounds EVERY value in the box, so a
+    //! consumer whose tolerance is \f$\varepsilon\f$ can drop the whole (pair, offset) term when
+    //! \f$\mathrm{pf}\ge-\ln\varepsilon\f$ -- without walking anything.
+    //!
+    //! WHY IT IS EXPOSED (stage B): \c pf is a SHELL property but the D-aware tolerance
+    //! \f$\varepsilon_{ij}=\varepsilon/|c_{ij}|\f$ is PER COMPONENT PAIR, so a blocked walk that only
+    //! consulted its union tolerance would silently WALK terms the unblocked per-component box killed
+    //! outright -- which is what turned the shell hoist into a wash on the D-aware SCF path (measured:
+    //! 1.03-1.08x before this, against 2.13x on the uniform-tolerance local-PP sweep).  Pre-filtering the
+    //! component pairs on their OWN tolerance restores the kill exactly, and shrinks the union box to the
+    //! survivors as a bonus.
+    double PairPrefactorExp(size_t i0, size_t j0, const rvec3_t& Roff) const
+    {
+        const rvec_t ei=radials[i0]->GetExponents(), ej=radials[j0]->GetExponents();
+        double aMinI=ei[0]; for (double e:ei) aMinI=std::min(aMinI,e);
+        double aMinJ=ej[0]; for (double e:ej) aMinJ=std::min(aMinJ,e);
+        const rvec3_t dij=radials[i0]->GetCenter()-(radials[j0]->GetCenter()+Roff);
+        return (aMinI*aMinJ/(aMinI+aMinJ))*(dij.x*dij.x+dij.y*dij.y+dij.z*dij.z);
+    }
     //! The SINGLE-PAIR box (the \f$1\times1\f$ case of \c ForShellPairBox): calls
     //! \c f(rasterIndex, \f$\chi_i(r)\chi_j(r-R_j-R_{off})\f$) at each screened-in, wrapped grid point.
     //! Kept as the name every single-pair consumer speaks; the walk itself is not duplicated.
@@ -1239,6 +1260,12 @@ public:
         const StreamCache& sc=EnsureStreams(A,N_L,ecut_L,0.0,relFieldSharp);   // density: the relative smooth-field rule
         const size_t nn=size();
         const StreamFold* sf=itsStreamFold.get();               // T3 route (b): reduced scatter (§6b), null = full
+        // TWO PASSES over the pair set (stage B, 2026-08-19).  A pair with a CACHED stream replays it here,
+        // in the original ROW-MAJOR order, so a fully-cached run (every anchor) accumulates into `rho` in
+        // exactly the order it always did -- bit-identical.  Pairs with NO stream (over the budget) are left
+        // to `scatterShell` below, which walks their boxes SHELL-BLOCKED.  The split is what keeps the
+        // in-budget regime untouched while the over-budget one gets the kernel.
+        //
         // Per-pair scatter into a caller-supplied set of level densities (`dst`): the SAME `rho` when serial,
         // a private per-thread accumulator when threaded -- so the arithmetic PER PAIR is bit-identical either
         // way; only the cross-pair reduction order changes (see PairThreads).
@@ -1301,26 +1328,79 @@ public:
                         }
                     }
                 }
-            else                                                    // over the cache budget: evaluate on the fly
-                ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+            // (no `else`: an uncached pair is scattered SHELL-BLOCKED by scatterShell below)
+        };
+        // The SHELL-BLOCKED on-the-fly scatter (stage B): the over-budget pairs of ONE shell pair, whose box
+        // walk -- offsets, level, geometry, ellipsoid pre-screen, wrap -- is shared by all of them.
+        //
+        // THE D-AWARE BOX, resolved across the shell pair (the design decision, doc/GPWPlan1.md "Round 4"):
+        // per component pair the tolerance is still eps/|c_ij| (its own |D| weight), but ONE box must serve
+        // the whole shell pair, so the box is sized from the UNION -- the TIGHTEST eps present, i.e. the
+        // LARGEST box -- and each component pair then applies its OWN |val| < eps_ij magnitude screen.  That
+        // only ever ADDS sub-eps terms and never drops one, so it keeps the no-cut discipline; the price is
+        // that one large-|D| component makes its siblings pay the bigger box.  (Terms a per-component box
+        // would have killed WHOLE via the prefactor early-out are instead killed point-by-point -- same
+        // result, a little more work.)
+        const std::vector<Shell>& shells=Shells();
+        std::vector<std::pair<size_t,size_t>> sprs;
+        for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
+        auto scatterShell=[&](size_t sp, std::vector<rvec_t>& dst)
+        {
+            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+            // The component pairs of this shell pair with NO stream, a live D and (under a fold) a
+            // representative edge -- exactly the pairs `scatter` above declined.
+            std::vector<size_t> want;                                   // encoded i*nn+j
+            for (size_t i=si.begin;i<si.end;i++)
+                for (size_t j=std::max(i,sj.begin);j<sj.end;j++)
                 {
+                    if (sc.pairs[i*nn+j].cached) continue;
+                    if (dcmplx(D(i,j))==dcmplx(0.0)) continue;
+                    if (sf) { const PairEdge& pe=sf->pairs[i*nn+j];
+                              if (pe.dead || pe.rep!=int(i*nn+j)) continue; }
+                    want.push_back(i*nn+j);
+                }
+            if (want.empty()) return;
+            const size_t L=sc.pairs[want.front()].level;                // a shell-pair property (see the build)
+            rvec_t& r=dst[L];
+            std::vector<size_t> here;                                   // this offset's live pairs
+            std::vector<double> cwHere, epsHere;
+            ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+            {
+                here.clear(); cwHere.clear(); epsHere.clear();
+                double epsUnion=0.0;
+                const double pf=PairPrefactorExp(si.begin,sj.begin,Roff);   // screen (1), shared by the shell pair
+                for (size_t key : want)
+                {
+                    const size_t i=key/nn, j=key%nn;
                     double wm=1.0;
-                    if (fm)
+                    if (sf)
                     {
-                        const auto it=fm->find(OffKey(n));
-                        assert(it!=fm->end());
-                        if (it==fm->end() || it->second==0) return;
-                        wm=pmul*double(it->second);
+                        const auto& mm=sf->offMult[key];
+                        const auto it=mm.find(OffKey(n));
+                        assert(it!=mm.end());
+                        if (it==mm.end() || it->second==0) continue;    // member offset: its rep carries it
+                        wm=double(sf->pairs[key].pairMult)*double(it->second);
                     }
-                    const double c=fold*std::real(Dij*std::conj(phase(n)));
-                    if (c==0.0) return;
-                    const double cw=c*wm;
-                    // D-aware continuous shrink: this box only needs accuracy kDensityEps/|c| (clamped at the
-                    // kDensityEps collocation floor -- a |c|>1 never grows past it); the prefactor early-out
-                    // kills.  MEMBER rule (|c|, not |c*wm|) so the reduced box matches every orbit member's.
-                    ForPairBox(i,j,Roff,A,N_L[ps.level],[&](size_t idx,double v){r[idx]+=cw*v;},
-                               std::max(kDensityEps(), kDensityEps()/std::fabs(c)));
-                });
+                    const double c=((i==j)?1.0:2.0)*std::real(dcmplx(D(i,j))*std::conj(phase(n)));
+                    if (c==0.0) continue;
+                    // MEMBER rule (|c|, not |c*wm|) so the reduced box matches every orbit member's.
+                    const double e=std::max(kDensityEps(), kDensityEps()/std::fabs(c));
+                    if (pf>=-std::log(e)) continue;                     // whole box below THIS pair's eps
+                    here.push_back(key); cwHere.push_back(c*wm); epsHere.push_back(e);
+                    epsUnion = epsUnion==0.0 ? e : std::min(epsUnion,e);
+                }
+                if (here.empty()) return;
+                ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N_L[L],
+                                [&](size_t idx, const double* fI, const double* fJ)
+                {
+                    for (size_t k=0;k<here.size();k++)
+                    {
+                        const double v=fI[here[k]/nn-si.begin]*fJ[here[k]%nn-sj.begin];
+                        if (std::fabs(v)<epsHere[k]) continue;          // each pair keeps its OWN screen
+                        r[idx]+=cwHere[k]*v;
+                    }
+                }, epsUnion);
+            });
         };
 #ifdef QCHEM_OPENMP
         if (const int nthreads=PairThreads(); nthreads>1)
@@ -1352,6 +1432,16 @@ public:
                         if (!firstEx) firstEx=std::current_exception();
                     }
                 }
+                #pragma omp for schedule(dynamic) nowait
+                for (size_t sp=0;sp<sprs.size();sp++)          // the over-budget remainder, shell-blocked
+                {
+                    try { scatterShell(sp,mine); }
+                    catch (...)
+                    {
+                        #pragma omp critical (gpw_pair_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
                 #pragma omp critical
                 for (size_t l=0;l<K;l++)
                     for (size_t g=0, m=rho[l].size(); g<m; g++) rho[l][g]+=mine[l][g];
@@ -1361,6 +1451,7 @@ public:
         }
 #endif
         for (auto i:indices()) for (auto j:indices(i)) scatter(i,j,rho);   // serial (byte-identical default)
+        for (size_t sp=0;sp<sprs.size();sp++) scatterShell(sp,rho);       // the over-budget remainder
         return rho;
     }
     // --- Phase-independent integrate-back memo ---------------------------------------------------------------
@@ -1545,31 +1636,107 @@ public:
                     if (memo) pb.nb.emplace_back(st.n,b);
                     s+=phase(st.n)*(wm*b);
                 }
-            else                                                    // static sharp-field call or over-budget pair
-                ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
-                {
-                    double wm=1.0;
-                    if (fm)
-                    {
-                        const auto it=fm->find(OffKey(n));
-                        assert(it!=fm->end());
-                        if (it==fm->end() || it->second==0) return;
-                        wm=double(it->second);
-                    }
-                    double epsEff=kDensityEps();   // collocation floor (decoupled from the analytic kScreenEps)
-                    if (screenD)
-                    {
-                        const double c=std::fabs(fold*std::real(Dij*std::conj(phase(n))));
-                        if (c==0.0) return;
-                        epsEff=std::max(kDensityEps(), kDensityEps()/c);
-                    }
-                    double b=0.0;
-                    ForPairBox(i,j,Roff,A,N_L[l],[&](size_t idx,double v){b+=v*V[idx];}, epsEff);
-                    if (memo) pb.nb.emplace_back(n,b);
-                    s+=phase(n)*(wm*b);
-                });
+            else return;      // static sharp-field call or over-budget pair: gathered SHELL-BLOCKED below
             s*=w;
             h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
+        };
+        // The SHELL-BLOCKED on-the-fly gather (stage B) -- the exact mirror of `scatterShell`.  It serves the
+        // over-budget pairs AND, since those calls hold no stream cache at all, the whole STATIC SHARP-FIELD
+        // sweep (MakeLocalPP's kappa rule, the explicit-pairLevels V_loc ball): every pair of a shell pair
+        // shares one box walk.  The D-aware box resolves as the UNION with per-component screens, exactly as
+        // on the density side, so collocate and integrate keep the SAME active set and stay adjoints.
+        // Each pair still writes only its own h(i,j) and its own memo slot -- no reduction, so unlike the
+        // scatter this pass may run in any order.
+        const std::vector<Shell>& shells=Shells();
+        std::vector<std::pair<size_t,size_t>> sprs;
+        for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
+        auto integrateShell=[&](size_t sp)
+        {
+            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+            std::vector<size_t> want;                                   // encoded i*nn+j
+            for (size_t i=si.begin;i<si.end;i++)
+                for (size_t j=std::max(i,sj.begin);j<sj.end;j++)
+                {
+                    if (sc && sc->pairs[i*nn+j].cached) continue;       // replayed by integratePair
+                    if (sf) { const PairEdge& pe=sf->pairs[i*nn+j];
+                              if (pe.dead || pe.rep!=int(i*nn+j)) continue; }
+                    want.push_back(i*nn+j);
+                }
+            if (want.empty()) return;
+            // The level is a shell-pair property in all three regimes: the explicit pairLevels assignment
+            // (StaticFieldPairLevels keys on MaxExponent(i)+MaxExponent(j)), the stream cache's stored
+            // level, and PairLevel itself all read the shared radial.
+            const size_t i0=want.front()/nn, j0=want.front()%nn;
+            const size_t l = pairLevels ? (*pairLevels)[i0*nn+j0]
+                           : sc         ? sc->pairs[i0*nn+j0].level
+                           :              PairLevel(i0,j0,ecut_L,absRelCutoff,fieldSharpness,relFieldSharp);
+            const rvec_t& V=V_L[l];
+            const double  w=A.GetCellVolume()/double(V.size());
+#ifndef NDEBUG
+            for (size_t key : want)                              // every component pair must agree on it
+                assert(l==(pairLevels ? (*pairLevels)[key]
+                          : sc        ? sc->pairs[key].level
+                          :             PairLevel(key/nn,key%nn,ecut_L,absRelCutoff,fieldSharpness,relFieldSharp))
+                       && "the pair->level assignment must be a shell-pair property");
+#endif
+            std::vector<dcmplx> s(want.size(), dcmplx(0.0));      // (integratePair already set memo->B[].level)
+            std::vector<size_t> here;
+            std::vector<double> wmHere, epsHere, bHere;
+            ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+            {
+                here.clear(); wmHere.clear(); epsHere.clear();
+                double epsUnion=0.0;
+                const double pf=PairPrefactorExp(si.begin,sj.begin,Roff);   // screen (1), shared by the shell pair
+                for (size_t k=0;k<want.size();k++)
+                {
+                    const size_t key=want[k], i=key/nn, j=key%nn;
+                    double wm=1.0;
+                    if (sf)
+                    {
+                        const auto& mm=sf->offMult[key];
+                        const auto it=mm.find(OffKey(n));
+                        assert(it!=mm.end());
+                        if (it==mm.end() || it->second==0) continue;
+                        wm=double(it->second);
+                    }
+                    double e=kDensityEps();      // collocation floor (decoupled from the analytic kScreenEps)
+                    if (screenD)
+                    {
+                        const double c=std::fabs(((i==j)?1.0:2.0)
+                                                 *std::real(dcmplx((*screenD)(i,j))*std::conj(phase(n))));
+                        if (c==0.0) continue;
+                        e=std::max(kDensityEps(), kDensityEps()/c);
+                    }
+                    if (pf>=-std::log(e)) continue;                     // whole box below THIS pair's eps
+                    here.push_back(k); wmHere.push_back(wm); epsHere.push_back(e);
+                    epsUnion = epsUnion==0.0 ? e : std::min(epsUnion,e);
+                }
+                if (here.empty()) return;
+                bHere.assign(here.size(),0.0);
+                ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N_L[l],
+                                [&](size_t idx, const double* fI, const double* fJ)
+                {
+                    const double Vv=V[idx];
+                    for (size_t q=0;q<here.size();q++)
+                    {
+                        const size_t key=want[here[q]];
+                        const double v=fI[key/nn-si.begin]*fJ[key%nn-sj.begin];
+                        if (std::fabs(v)<epsHere[q]) continue;          // each pair keeps its OWN screen
+                        bHere[q]+=v*Vv;
+                    }
+                }, epsUnion);
+                for (size_t q=0;q<here.size();q++)
+                {
+                    if (memo) memo->B[want[here[q]]].nb.emplace_back(n,bHere[q]);
+                    s[here[q]]+=phase(n)*(wmHere[q]*bHere[q]);
+                }
+            });
+            for (size_t k=0;k<want.size();k++)
+            {
+                const size_t i=want[k]/nn, j=want[k]%nn;
+                const dcmplx sk=s[k]*w;
+                h(i,j) = (i==j) ? dcmplx(std::real(sk),0.0) : sk;
+            }
         };
         // Reduced mode: fill the image pairs from their reps by the representation transform (Hermitian
         // flip = conjugate; at Γ everything is real).  Dead pairs get the projected value 0.
@@ -1605,12 +1772,23 @@ public:
                     if (!firstEx) firstEx=std::current_exception();
                 }
             }
+            #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
+            for (size_t sp=0;sp<sprs.size();sp++)              // the uncached remainder, shell-blocked
+            {
+                try { integrateShell(sp); }
+                catch (...)
+                {
+                    #pragma omp critical (gpw_pair_throw)
+                    if (!firstEx) firstEx=std::current_exception();
+                }
+            }
             if (firstEx) std::rethrow_exception(firstEx);
             fillImages();
             return h;
         }
 #endif
         for (auto i:indices()) for (auto j:indices(i)) integratePair(i,j);   // serial (byte-identical default)
+        for (size_t sp=0;sp<sprs.size();sp++) integrateShell(sp);           // the uncached remainder
         fillImages();
         return h;
     }
