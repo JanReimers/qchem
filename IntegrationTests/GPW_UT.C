@@ -33,6 +33,7 @@ import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
 import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::CollocateDensity (analytic collocation)
+import qchem.Symmetry.Factory;               // BlochFactory (arbitrary-shift k for the k=1/4 continuity gate)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
 import qchem.BasisSet.Internal.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the v_xc/eps_xc face; XC-consistency probe)
@@ -1144,6 +1145,89 @@ TEST(GPW, GeneralK_ConjugateUnderKtoMinusK)
         for (size_t j=0;j<n;j++)
             m=std::max(m, std::abs(B(i,j)-std::conj(A(i,j))));
     EXPECT_LT(m, 1e-12) << "S(-k) must equal conj(S(k))";
+}
+
+// THE ONE-ELECTRON MATRICES ARE CONTINUOUS IN k -- INCLUDING AT k=1/4, where the SCF blows up.
+//
+// doc/Benchmark.md footnote 1: a single-k SCF is smooth in k except at EXACTLY 1/4 and 3/4, where it lands
+// 2.5 Ha high (and k=1/4+1e-9 is fine, so it is an exact-value branch, not physics).  Those are the k where
+// the Bloch phase e^{2 pi i k n} is purely imaginary for odd n, i.e. its REAL part is cos(pi/2) ~ 6e-17
+// instead of O(1) -- so the first suspect is an operator built by a phase-weighted lattice sum.
+//
+// This gate SPLITS THAT SEARCH IN HALF, with no SCF, no density and no occupations in the picture: S, T and
+// V are analytic functions of k, so ||M(1/4)|| must sit between its neighbours ||M(1/4 -+ delta)||.  If it
+// does not, the defect is IN the operator and this test names which one.  If it does, every 1E operator is
+// EXONERATED at the bad k and the defect is downstream -- in the density, the collocation or the fill.
+// Cheap (three small Bloch matrices per k) and it runs on the SAME Si FCC cell as the failing SCF.
+TEST(GPW, GeneralK_OneElectronMatricesAreContinuousAtQuarterK)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    std::shared_ptr<const Real_BS> mol(BasisSet::Molecule::Factory(
+        BasisSetData::SIPP_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+
+    // k = s(1,1,1) via the shift, so s is EXACT: N=1 makes k = (0+shift)/1 = shift.
+    auto norms=[&](double s, double& nS, double& nT, double& nV)
+    {
+        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
+                    mol, /*densityEcut=*/0.0);
+        const Complex_OIBS& g = gpw;
+        auto fro=[](const auto& M){ double t=0.0;
+            for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.columns();j++) t+=std::norm(M(i,j));
+            return std::sqrt(t); };
+        nS=fro(g.Overlap()); nT=fro(g.Kinetic()); nV=fro(g.Nuclear(&cell));
+    };
+
+    double S0,T0,V0, S1,T1,V1, S2,T2,V2;
+    norms(0.249, S0,T0,V0);
+    norms(0.250, S1,T1,V1);      // the k the SCF fails at
+    norms(0.251, S2,T2,V2);
+    std::cout << "[1E vs k] ||S|| " << S0 << " " << S1 << " " << S2
+              << "   ||T|| " << T0 << " " << T1 << " " << T2
+              << "   ||V|| " << V0 << " " << V1 << " " << V2 << std::endl;
+
+    // THE PSEUDOPOTENTIAL HALF, which is what the SCF actually uses (Een = V_loc + V_nl, and Een is the
+    // term that comes out wrong).  Same continuity requirement, and the KB nonlocal is the historic home of
+    // complex-only phase bugs -- doc/GPWPlan.md's "Complex-k GPW FIXED" was exactly a conjugation on the KB
+    // projector images, inert at every TRIM k and live only here.  Needs the DFT tier (densityEcut>0) since
+    // V_loc-long is a G-space sum.
+    const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
+    auto ppNorms=[&](double s, double& nL, double& nSh, double& nKB)
+    {
+        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0), 1.0, rvec3_t(s,s,s)),
+                    mol, /*densityEcut=*/20.0);
+        const GPW_Evaluator& ev = gpw;
+        auto fro=[](const auto& M){ double t=0.0;
+            for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.columns();j++) t+=std::norm(M(i,j));
+            return std::sqrt(t); };
+        nL =fro(ev.MakeLocalPPLong (&cell, gth.local));
+        nSh=fro(ev.MakeLocalPPShort(&cell, gth.local));
+        nKB=fro(ev.MakeSeparablePP (&cell, gth.nonlocal));
+    };
+    double L0,H0,K0, L1,H1,K1, L2,H2,K2;
+    ppNorms(0.249, L0,H0,K0);
+    ppNorms(0.250, L1,H1,K1);
+    ppNorms(0.251, L2,H2,K2);
+    std::cout << "[PP vs k] ||V_loc-long|| " << L0 << " " << L1 << " " << L2
+              << "   ||V_loc-short|| " << H0 << " " << H1 << " " << H2
+              << "   ||V_KB|| " << K0 << " " << K1 << " " << K2 << std::endl;
+
+    // Betweenness with a generous pad: over dk=0.002 these norms move by ~1e-3 relative, so a genuine
+    // operator defect (the SCF sees a 2.5 Ha energy error) cannot hide inside this tolerance.
+    auto between=[](double lo, double mid, double hi, const char* what)
+    {
+        const double a=std::min(lo,hi), b=std::max(lo,hi), pad=1e-6*std::max(1.0,std::abs(mid));
+        EXPECT_GE(mid, a-pad) << what << " is not continuous at k=1/4";
+        EXPECT_LE(mid, b+pad) << what << " is not continuous at k=1/4";
+    };
+    between(S0,S1,S2, "||S(k)||");
+    between(T0,T1,T2, "||T(k)||");
+    between(V0,V1,V2, "||V(k)||");
+    between(L0,L1,L2, "||V_loc-long(k)||");
+    between(H0,H1,H2, "||V_loc-short(k)||");
+    between(K0,K1,K2, "||V_KB(k)||");
 }
 
 // ANALYTIC KB == MESH KB.  The GTH projector is polynomial x Gaussian, so when the model exposes its closed

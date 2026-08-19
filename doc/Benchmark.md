@@ -101,8 +101,28 @@ by measurement: **symmetry imposition** (the free run is wrong the same way), **
 (smearing to kT=0.02 is bit-identical), **the TRIM/real typing** (`BlochQN::IsReal()` is exact and correctly
 answers *false* at ¼; the blocks are built complex).  **And it is not physics: k = ¼ + 1e-9 lands back on the
 smooth curve** (−7.5224, still descending) — a 1e-9 change in k cannot move a converged energy by 2.5 Ha, so
-this is an exact-value branch, most likely something that screens on, or divides by, the real part of the
-phase.  Signature at the bad k: Ekin 5.67 where the curve wants 3.63, Een −0.02 where it wants −0.71.
+this is an exact-value branch.  Signature at the bad k: Ekin 5.67 where the curve wants 3.63, Een −0.02
+where it wants −0.71.
+
+**★ THE STATIC OPERATORS ARE EXONERATED** — `GPW.GeneralK_OneElectronMatricesAreContinuousAtQuarterK` (new,
+ENABLED, 2 s) builds the matrices at k = 0.249 / 0.250 / 0.251 with no SCF, no density and no occupations,
+and every one is smooth and monotone through the bad k:
+
+| | 0.249 | **0.250** | 0.251 |
+|---|---|---|---|
+| ‖S‖ | 6.72656 | 6.72899 | 6.73143 |
+| ‖T‖ | 21.9720 | 21.9719 | 21.9718 |
+| ‖V‖ | 121.742 | 121.754 | 121.766 |
+| ‖V_loc-long‖ | 11.9330 | 11.9333 | 11.9336 |
+| ‖V_loc-short‖ | 8.14542 | 8.14551 | 8.14560 |
+| ‖V_KB‖ | 17.8310 | 17.8315 | 17.8319 |
+
+So S, T, V, both local-PP pieces and the KB nonlocal are all CORRECT at k=¼ — including the KB projector,
+the historic home of complex-only phase bugs.  **`T` is right and `Tr(DT)` is 56% too high, so it is the
+converged DENSITY MATRIX that differs: the SCF lands in a different state.**  That moves the search
+downstream of every operator — to the density/collocation path (the pair phases \f$e^{ik(R_i-R_j)}\f$ are
+purely imaginary for odd ΔR at exactly this k) and to the fill.  The gate above stays enabled as the first
+coverage quarter-integer k has ever had.
 The CP2K half of this row is measured and sound.  The only test covering shifted k is DISABLED, so nothing
 caught it — re-enable it, or add a cheap quarter-integer gate, once fixed.
 **Why the two Si 2×2×2 rows differ by 89 mHa** (asked 2026-08-19; settled by running CP2K to the k-limit,
