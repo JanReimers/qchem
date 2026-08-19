@@ -44,8 +44,10 @@
 // but it is real, and it is the one case where the asymmetry above inverts.)
 module;
 #include <cassert>
+#include <cmath>     // std::sqrt/std::pow (the V2.7 radial-adequacy statistic)
 #include <cstdlib>   // std::getenv/std::atoi/std::atof (the GPW_BECKE_* sweep instruments)
 #include <iostream>
+#include <limits>    // infinity (RadialResolutionRatio's no-claim value off-MHL)
 #include <string>
 export module qchem.Mesh.XCPolicy;
 export import qchem.Mesh;
@@ -108,18 +110,33 @@ export namespace qchem::qcMesh
 //! insulator-fitted.  **Standing rule earned here: calibrate a grid criterion on a simple METAL, or do not
 //! ship it as a global default.**
 //!
+//! \par ANGULAR SCHEME: LEBEDEV BY DEFAULT (R2.15 decision 7, FLIPPED 2026-08-17).  At the calibrated
+//! degree 29 the Lebedev table delivers 302 directions against GaussLegendre's 450 (67%), and the flip's
+//! precondition -- "the measurement is what shows the accuracy side is equal" -- is now met on every axis
+//! the record demanded: Si gate PASSES (dExc +7.5e-5 vs GL's +1.1e-4; dVxc 3.6e-4 vs 3.5e-4), NaF (the
+//! hardest insulator) internal-convergence equal (1.8e-5 vs 1.5e-5), Mn angularly trivial (V2.6: degree 9
+//! suffices), and on the METAL -- per the V2.6a lesson, a CONVERGED-RUN A/B, not a frozen ladder -- Al
+//! B-prod lands 3x CLOSER to its fine reference than GL-29 to its own (dEtot +6.0e-5 vs +1.9e-4), better
+//! on both drho norms.  The old measured caveat (Lebedev 5-10x worse on rho-weighted integrals, the
+//! \f$\langle111\rangle\f$ orbit on diamond's bonds) is a LOW-DEGREE phenomenon: at degree 29 even the
+//! unrotated bond-aligned grid is fine (SymmetryUpgradePlan §6a, tables landed 2026-08-02).  The default
+//! is therefore DEGREE-GATED: Lebedev at the measured-safe degree>=29, GaussLegendre below (see the
+//! implementation note -- an ungated flip failed the MnO seed-mirror gate's degree-11 recipe on its first
+//! sweep).  NB the flip also CHEAPENS the selector's Becke side by 33%, moving the Uniform-vs-Becke
+//! crossover toward Becke (Si/sipp re-routes Uniform->Becke -- safe, merely denser); imposed runs are
+//! untouched (the site-adapted builder consumes the DEGREE, never the tables).
+//!
 //! Environment instruments (sweep a whole run without rebuilding):
 //!   - \c GPW_BECKE_NR     radial point count.                                        Default 40.
 //!   - \c GPW_BECKE_ALPHA  MHL radial scale (smaller = nodes pulled toward the core). Default 2.0.
 //!   - \c GPW_BECKE_L      angular POLYNOMIAL DEGREE, one meaning for both schemes (R2.15).  Default 29.
-//!   - \c GPW_BECKE_ANG    \c "lebedev" selects the Lebedev tables, which resolve the requested degree to
-//!                         the cheapest tabulated rule delivering at least it; anything else = GaussLegendre,
-//!                         which takes the degree directly.  Because both schemes now read the knob as a
-//!                         degree, this A/B is like-for-like (measured on Si: Lebedev beats same-degree GL on
-//!                         V_xc elements via the O_h-orbit cancellation, but is 5-10x worse on rho-weighted
-//!                         integrals -- its \f$\langle111\rangle\f$ orbit sits on the diamond bond axes).
-//!   - \c GPW_BECKE_ROT    radians; rigid generic rotation of the angular grid, which steers those special
-//!                         orbits off the bond axes (doc/SymmetryUpgradePlan.md §6a; free runs only).
+//!   - \c GPW_BECKE_ANG    \c "gl" / \c "gausslegendre" selects GaussLegendre (the A/B valve for the
+//!                         2026-08-17 default flip); anything else = the Lebedev tables, which resolve the
+//!                         requested degree to the cheapest tabulated rule delivering at least it.  Both
+//!                         schemes read GPW_BECKE_L as a degree, so the A/B is like-for-like.
+//!   - \c GPW_BECKE_ROT    radians; rigid generic rotation of the angular grid, which steers special
+//!                         orbits off the bond axes (doc/SymmetryUpgradePlan.md §6a; free runs only --
+//!                         needed below degree ~15, not at the calibrated 29).
 MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int angularDegree=-1);
 
 //! \brief What the Uniform-vs-Becke comparison needs to know about a run: its geometry and its two
@@ -175,6 +192,25 @@ long BeckeMeshCost(const MeshParams&, const XCMeshSharpness&);
 //! because a cost probe must not narrate a rounding the run may never perform.
 int AngularDirections(AngularKind, int degree);
 
+//! \brief The radial-adequacy statistic (V2.7): the local node density AT the density peak,
+//! \f$r_{peak}/\Delta r(r_{peak})\f$, where \f$r_{peak}=1/\sqrt{2\alpha_{\max}}\f$ is the peak of the
+//! sharpest density feature \f$r^2e^{-2\alpha_{\max}r^2}\f$ and \f$\Delta r\f$ is the MHL node spacing
+//! there (\f$r(x)=\alpha(x/(1-x))^m\f$, \f$x\f$ uniform, so \f$\Delta r=r'(x)/n_{radial}\f$ in closed
+//! form).  This is the quantity the V2.6 ladder measurement showed TRACKS radial adequacy where the
+//! obvious statistic (radial nodes inside the feature) fails by 4-50x -- MHL clusters nodes at tiny r,
+//! leaving the gap exactly at the peak.  MHL-only: any other radial kind returns +infinity (no claim).
+double RadialResolutionRatio(const MeshParams&, double alphaMax);
+
+//! \brief The adequacy floor for \c RadialResolutionRatio, MEASURED (V2.6 ladders, first rung inside the
+//! Becke gate's max|dVxc|<1e-3): every measured-INADEQUATE rung sits below ~3 (NaF nR=20: 1.55, Si nR=20:
+//! 2.2, Al nR=20: 2.1 -- the 4-50x-out class), every production config above it (NaF 3.1, Si 4.4, Al 4.2
+//! at nR=40).  INSULATOR-FITTED, deliberately a warning not a selector: Al's first adequate rung is
+//! ratio 4.2, so a METAL between 3 and 4.2 passes this floor while measurement says it should not -- the
+//! warning text carries that caveat, and the standing rule ("calibrate a grid criterion on a simple
+//! metal, or do not ship it as a global default") is why this stays diagnostic.  Re-calibrate on
+//! {Si, Mn-atom, Al, MnO} before promoting it -- MnO is the open-shell oxide none of the four cover.
+inline constexpr double kRadialRatioFloor = 3.0;
+
 //! \brief Resolve the XC-quadrature choice for a run whose sharpness is KNOWN.
 //!
 //! - explicit \c Uniform or \c Becke: HONOURED, with an ASYMMETRIC diagnostic -- a warning for the
@@ -216,8 +252,18 @@ MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
     MeshParams mp;
     mp.cellKind=UnitCellKind::Becke;
     mp.radial =RadialKind::MHL;            mp.nRadial =nRadial; mp.mhl_m=2; mp.mhl_alpha=mhlAlpha;
+    // Lebedev by DEFAULT at the MEASURED-SAFE degree (R2.15 decision 7, flipped 2026-08-17), GL below it.
+    // The degree gate is not caution for its own sake: at LOW degree Lebedev's small special orbits sit ON
+    // bond axes (the 5-10x rho-weighted loss at degree 11), and the first sweep with an ungated flip
+    // caught it live -- the MnO seed-mirror gate's own degree-11 recipe put Leb-50's <111> orbit straight
+    // into neighbour Mn cores (orphan w*rho 0.04 against an eps-tail contract of 1e-8).  Degrees 15-23
+    // are UNMEASURED for this hazard, so they stay GL until someone measures them; >=29 is where the
+    // Si/NaF/Al equality was established.  GPW_BECKE_ANG forces either scheme at any degree (the A/B valve).
     const char* ang=std::getenv("GPW_BECKE_ANG");
-    mp.angular=(ang && std::string(ang)=="lebedev") ? AngularKind::Lebedev : AngularKind::GaussLegendre;
+    const std::string angs = ang ? ang : "";
+    mp.angular = (angs=="gl" || angs=="gausslegendre") ? AngularKind::GaussLegendre
+               : (angs=="lebedev")                     ? AngularKind::Lebedev
+               : (angularDegree>=29)                   ? AngularKind::Lebedev : AngularKind::GaussLegendre;
     mp.angularDegree=angularDegree;   // ONE meaning for both schemes: GL takes it directly, Lebedev resolves
                                       // it to the cheapest rule of at least that degree (R2.15).
     mp.angRot=envd("GPW_BECKE_ROT", 0.0);
@@ -242,6 +288,33 @@ double RequiredUniformCutoff(const XCMeshSharpness& s, double cutoffFactor)
 {
     assert(s.alphaMax>0.0 && "RequiredUniformCutoff: no basis sharpness to size against");
     return cutoffFactor*s.alphaMax + s.alphaPP;
+}
+
+double RadialResolutionRatio(const MeshParams& mp, double alphaMax)
+{
+    assert(alphaMax>0.0 && "RadialResolutionRatio: no basis sharpness to size against");
+    if (mp.radial!=RadialKind::MHL) return std::numeric_limits<double>::infinity();  // no claim off-MHL
+    const double rPeak=1.0/std::sqrt(2.0*alphaMax);              // peak of r^2 exp(-2 alpha_max r^2)
+    const double t=std::pow(rPeak/mp.mhl_alpha, 1.0/mp.mhl_m);   // solve r(x)=rPeak: x/(1-x)=t
+    const double x=t/(1.0+t);
+    const double drdx=mp.mhl_alpha*mp.mhl_m*std::pow(x,mp.mhl_m-1)/std::pow(1.0-x,mp.mhl_m+1);
+    return rPeak/(drdx/mp.nRadial);                              // MHLRadial: x uniform, del=1/nRadial
+}
+
+// The V2.7 diagnostic, spoken whenever a Becke mesh is the outcome and the sharpness is known.  One level
+// only, and deliberately quiet for every production config (NaF, the tightest, sits at 3.1): the two-level
+// version with a metal info-line was considered and rejected -- it would print on every NaF run to warn
+// about a metallicity the cost model cannot see.  The metal fact rides in the text instead.
+static void WarnRadialAdequacy(const MeshParams& mp, const XCMeshSharpness& s)
+{
+    const double ratio=RadialResolutionRatio(mp, s.alphaMax);
+    if (ratio>=kRadialRatioFloor) return;
+    std::cerr<<"[XC grid] WARNING: the Becke RADIAL mesh (nRadial="<<mp.nRadial<<", MHL alpha="<<mp.mhl_alpha
+             <<") resolves the sharpest density feature (alpha_max="<<s.alphaMax<<") with only "
+             <<ratio<<" nodes per peak radius at the peak -- measurement (V2.6 ladders) puts every rung "
+               "below ~"<<kRadialRatioFloor<<" OUTSIDE the XC gate, by up to 50x.  Raise nRadial.  NB the "
+               "floor is insulator-fitted: a simple METAL needs ~4.2 (Al, nR=40), so passing this check "
+               "is not adequacy evidence for one."<<std::endl;
 }
 
 long UniformMeshCost(const XCMeshSharpness& s, double cutoffFactor)
@@ -285,6 +358,7 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
         if (disarmed || !uniformWins)
         {
             if (!disarmed) std::cout<<"[XC grid choice] Auto -> BECKE"<<std::endl;
+            WarnRadialAdequacy(becke, s);   // V2.7: the chosen Becke mesh must also be radially adequate
             return becke;
         }
         // SIZE the uniform mesh from the basis.  Handing back a bare cellKind would leave nUniform's
@@ -325,6 +399,7 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
     if (double(cUnif)*kUniformMargin <= double(cBecke))
         std::cout<<"[XC grid] note: BECKE was requested ("<<cBecke<<" pts) where a uniform mesh would cost "
                  <<cUnif<<" -- honoured, and never wrong, just denser than this smooth system needs."<<std::endl;
+    WarnRadialAdequacy(mp, s);              // V2.7: an explicit Becke mesh gets the radial check too
     return mp;
 }
 

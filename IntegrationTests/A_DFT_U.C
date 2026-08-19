@@ -9,7 +9,7 @@
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, Model, Pol
 import qchem.Hamiltonian.Factory;    // XCFunctional, XC (the exchange-functional selector)
 import qchem.SCFIterator;            // SCFParams
-import qchem.Unittests.TestUtils;    // RelativeDFTError
+import qchem.PeriodicTable;          // RelativeDFTError
 using namespace qchem;
 using enum BasisSetAccuracy;         // High
 using namespace qchem::Hamiltonian;  // XCFunctional, XC

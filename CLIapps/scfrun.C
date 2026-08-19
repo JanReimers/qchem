@@ -18,10 +18,9 @@ import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, A
 import qchem.Calculation;                 // Calculation, CalcOptions, AcceleratorOptions (the MOLECULAR facade)
 import qchem.Structure;                    // Molecule, Atom (build a molecular geometry)
 import qchem.Hamiltonian.Factory;         // XCFunctional (the exchange-functional selector)
-import qchem.PeriodicTable;               // thePeriodicTable(): symbol / per-Z Slater alpha
+import qchem.PeriodicTable;               // thePeriodicTable(): symbol / per-Z Slater alpha; RelativeHF/DHFError (Z-keyed oracle)
 import qchem.SCFIterator;                 // SCFParams
 import qchem.Reporting;                    // report::SetConsole -- render the run header to the terminal
-import qchem.Unittests.TestUtils;         // RelativeHFError / RelativeDHFError (Z-keyed oracle)
 import qchem.Symmetry.Irrep;              // Irrep
 import qchem.Symmetry.Spin;               // Spin
 import qchem.Orbitals;                    // Orbital (valence-density build)

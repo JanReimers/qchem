@@ -15,7 +15,7 @@ import qchem.Calculation;            // Calculation, CalcOptions (+ Model/Pol/En
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.ChargeDensity.Seed;     // SeedStrategy
-import qchem.Unittests.TestUtils;    // RelativeError
+import qchem.PeriodicTable;          // RelativeError
 using namespace qchem;
 
 static Molecule MakeN2()

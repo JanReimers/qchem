@@ -16,9 +16,8 @@ import qchem.AtomCalculation;        // AtomCalculation, AtomType, Model, Pol (a
 import qchem.SCFIterator;            // SCFParams
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
-import qchem.PeriodicTable;          // thePeriodicTable(): Slater alpha + NIST DFT oracle
+import qchem.PeriodicTable;          // thePeriodicTable(): Slater alpha + NIST DFT oracle; RelativeError, RelativeDFTError
 import qchem.ChargeDensity.Seed;     // SeedStrategy
-import qchem.Unittests.TestUtils;    // RelativeError, RelativeDFTError
 using namespace qchem;
 
 namespace {

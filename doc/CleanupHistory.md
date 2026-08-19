@@ -19,6 +19,84 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-08-17 — R2.20 `7c80e71e` (concurrent-cleanup session): the oracle helpers out of the test module
+
+`RelativeError` / `RelativeHF/DFT/DHFError` moved from `IntegrationTests/TestUtils.C` (module
+`qchem.Unittests.TestUtils`) into an `export namespace qchem` block of `qchem.PeriodicTable` — beside the
+Saito/NIST/Dirac tables they wrap, per the user's own suggestion ("could live in PeriodicTable").  TestUtils
+had nothing genuinely test-only left, so the module is deleted along with both per-target FILE_SET wirings
+(ITMain, scfrun); nine importers swapped.  Two details worth keeping: the helpers carry `<cmath>`+
+`<iostream>` in PeriodicTable's own global module fragment (the R1.9 stream-literal lesson), and they are
+std includes rather than a `qchem.Math` import so qcCommon keeps its math-free pin.  Note the module's other
+exports are GLOBAL-namespace (pre-`qchem::` legacy) — the helpers went into the proper namespace, making
+PeriodicTable a mixed-namespace interface until the legacy exports migrate.
+
+*(original item, verbatim)*
+
+- **R2.20 The oracle helpers are production data living in a TEST module (USER 2026-08-12, deferred).**
+  `RelativeError` / `RelativeHFError` / `RelativeDFTError` / `RelativeDHFError` sit in
+  `IntegrationTests/TestUtils.C` (module `qchem.Unittests.TestUtils`), but they are thin wrappers over
+  `thePeriodicTable()`'s NIST/Dirac reference energies — production data, not test scaffolding.
+  - **Consequence today:** `CLIapps/scfrun.C` — a shipped CLI, not a test — imports a *Unittests* module
+    for them, and because TestUtils is a per-target module FILE SET (not a library), every consumer
+    RECOMPILES it: ITMain, scfrun, and now UTSCFIterator.
+  - **Fix:** move the four into a real library beside `qchem.PeriodicTable`.  Then scfrun imports no test
+    module at all, and TestUtils shrinks to what is genuinely test-only.
+  - **NOT a scfrun facade problem** (the premise this item started from): scfrun already drives
+    `AtomCalculation` and `Calculation` directly.  The oracle helpers are its ONLY reach into TestUtils.
+  - User: *"could live in PeriodicTable ... but like you said, later."*  Deferred, not rejected.
+
+## CLOSED 2026-08-17 — V3.1 + V3.2 NO LONGER REPRODUCE (concurrent-cleanup session, branch concurrent-cleanup)
+
+Both were filed 2026-08-04 off the Spin-SAD campaign and assigned to the concurrent-cleanup session on
+2026-08-17.  Verification (not repair): every reproduction attempt PASSES on origin/main @ `0dffe7d3`,
+including configurations HARDER than the filed ones.  What was run:
+
+- **V3.1 as filed (valgen `--spin` surface):** `GenerateSeedDensity` for Na q1 (Zion=1, electrons=1,
+  s-window `EvenTemperedWindow(5, 0.03, 2.0)`, `spinResolved=true`) — the polarized pseudo-atom SCF with
+  nUp=1, nDown=0.  Converges; charge=1, moment=1 both land.  (The filed one-liner
+  `AtomCalculation(11, 0, {...})` is internally inconsistent — charge=0 gives 11 electrons, not the
+  described doublet; the faithful facade call is `AtomCalculation(11, 10, {.pseudopotential=true,
+  .valence=1, .pol=Polarized})`, which also passes, on both the per-l window AND the Medium accuracy
+  pool basis.)
+- **V3.1 beyond the filing:** all-electron `AtomCalculation(1, 0, {.type=Slater, .pol=Polarized})` — UHF
+  hydrogen, the purest empty-minority-channel case — converges to −0.5 exactly (0.78 ppm vs Saito).
+- **V3.2 as filed:** the same Na recipe carrying the unoccupied p window (`{1, EvenTemperedWindow(2,
+  0.09, 0.3)}`), both unpolarized and `spinResolved=true`.  Both pass.
+
+**No fix was written here; the defect dissolved between 2026-08-04 and 2026-08-17.**  The most plausible
+cure is **V1.11** (the occupation seam, `43bbebad`..`2398dd07`, landed 2026-08-17 — five increments
+restructuring exactly the WF/occupation state these failures lived in), with the DIIS `SVTolRel`
+relative-prune (runs 31–34) the runner-up candidate for the "Invalid setup of symmetric matrix" symptom.
+Per the R2.9(ii) lesson (re-derive the defect before picking from an item's menu), no archaeology was
+spent pinning the exact commit: the class is now PINNED BY TESTS instead —
+
+- `ValenceBasisGen.SodiumSeedDensitySpinResolved` (V3.1: nUp=1/nDown=0 through the valgen --spin path)
+- `ValenceBasisGen.SodiumSeedDensityUnpolarizedWithPolarizationShell` +
+  `SodiumSeedDensitySpinResolvedWithPolarizationShell` (V3.2: the riding-along unoccupied p window)
+- `Slater_Low/A_HF_P.Energy/Z1` (the fully-polarized one-electron atom, all-electron; UHF H is EXACT at
+  −0.5, so any future regression there is structural, not numerical — Z=1 added to the Slater_Low span)
+
+If either symptom returns, the OLD prescription still stands in the original text below: fix the
+empty-channel atom SCF rather than teaching valgen to synthesize the exact pair, and check
+`cSCFAcceleratorDIIS::GetNProj` on an empty EC (the filed sibling failure).
+
+*(original items, verbatim)*
+
+- **V3.1 Polarized ATOMIC solver fails on an empty minority channel** — `AtomCalculation(11, 0,
+  {.pseudopotential=true, .valence=1, .pol=Polarized})` (Na q1 doublet: nUp=1, nDown=0) dies with
+  "Invalid setup of symmetric matrix" before the first Fock.  Same failure class as the tier-4b
+  finding (`cSCFAcceleratorDIIS::GetNProj` segfault on an empty EC).  Worked around for the Na
+  library entry (1 valence electron ⇒ the pair is EXACT without an SCF, hand-constructed in
+  atomic_valence_densities.json), but any future fully-polarized one-electron species hits it
+  again — the valgen `--spin` path should either fix the empty-channel atom SCF or synthesize the
+  exact pair itself when nDown==0.
+- **V3.2 Unoccupied-l shells break the atom SCF** — the same Na valgen run ALSO failed when the
+  recipe carried the (unoccupied) p window from valence_lowq_sr (`--shell 1:2:0.09:0.3`): "Invalid
+  setup of symmetric matrix" even unpolarized-adjacent.  GenerateValenceBasis documents "higher-l
+  polarization shells ride along un-validated (as intended)" — but at least the polarized
+  GenerateSeedDensity path chokes on them.  Reproduce + fix or document the restriction.
+
 ## LANDED 2026-08-16 — V1.1 COMPLETE (the basis-face merge), 717/717 green
 
 Three commits, each a full green sweep; user rulings of 2026-08-16 folded in: **the MnO session now

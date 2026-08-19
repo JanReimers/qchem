@@ -171,7 +171,7 @@ public:
             // Cross-cast to the policy's OrbitalView (abstract->abstract; TOrbitals implements it).
             auto* v=dynamic_cast<const qchem::OrbitalView<T>*>(from.GetOrbitals(q));
             assert(v && "AdoptMOMReference: the source orbitals must implement OrbitalView");
-            itsOccPolicy->AdoptReference(q, *v);
+            itsOccState.AdoptReference(q, *v);   // R2.21: a reference is the STATE's memory, not the policy's
         }
     }
     EnergyBreakdown     GetEnergy() const;
@@ -245,11 +245,17 @@ private:
     ham_t*          itsHamiltonian;
     acc_t*          itsAccelerator;
     scfwf_t*        itsWaveFunction;
-    //! The occupation SLOT (V1.11 inc 3; SCFStrategyPlan §6): ONE policy object per run, built here in its
-    //! default (seed) state -- prescribed integer fill, kT=0, no MOM -- and configured from SCFParams at the
-    //! top of Iterate, like the density mixer.  It owns the MOM references (which therefore survive between
-    //! construction, AdoptMOMReference, and staged Iterate calls) and the per-fill −TS aggregate.
-    std::unique_ptr<qchem::OccupationPolicy<T>> itsOccPolicy = std::make_unique<qchem::OccupationPolicy<T>>();
+    //! The occupation SLOT (V1.11 inc 3; SCFStrategyPlan §6), now a STATE + a POLICY over it (R2.21).
+    //!
+    //! The STATE is the run's persistent memory -- MOM references, fill clocks, the −TS aggregate -- and is
+    //! declared FIRST so it outlives every policy built over it.  It survives construction,
+    //! AdoptMOMReference, reconfiguration and staged Iterate calls; and because it is scalar-INDEPENDENT,
+    //! a mixed real/complex mesh keeps ONE ledger across blocks of both scalars (the mixed-mesh MOM case).
+    //! The POLICY is the decision function, built here in its default (seed) state -- prescribed integer
+    //! fill, kT=0, no MOM -- and configured from SCFParams at the top of Iterate, like the density mixer.
+    qchem::OccupationState                      itsOccState;
+    std::unique_ptr<qchem::OccupationPolicy<T>> itsOccPolicy
+        = qchem::MakeOccupationPolicy<T>(qchem::OccupationConfig{}, itsOccState);
     cd_t            itsCD;       //!< current charge density (shared_ptr: lifetime by std, no reuse)
     cd_t            itsOldCD;    //!< previous charge density
     //! The SCF density lineage (ChargeDensity::Lineage).  SetWorkingCD makes each new itsCD the head, so a

@@ -61,6 +61,41 @@ TEST(ValenceBasisGen, Sodium_q1)
     EXPECT_GT (g.energy, -0.20);             // not a variational collapse
 }
 
+// V3.1/V3.2 (doc/CleanupCandidates.md): the fully-polarized ONE-electron pseudo-atom (Na q1 doublet,
+// nUp=1 nDown=0) and the riding-along unoccupied p window.  The library Na entry was hand-constructed to
+// dodge exactly this, so these are the regression anchors for the empty-minority-channel atom SCF.
+TEST(ValenceBasisGen, SodiumSeedDensityUnpolarizedWithPolarizationShell)
+{
+    ValenceBasisRecipe r;
+    r.element="Na"; r.Zion=1; r.electrons=1;
+    r.shells={ {0, EvenTemperedWindow(5, 0.03, 2.0)}, {1, EvenTemperedWindow(2, 0.09, 0.3)} };
+    GeneratedSeedDensity g = GenerateSeedDensity(r);
+    EXPECT_NEAR(g.charge, 1.0, 0.01);
+    EXPECT_EQ(g.moment, 0.0);
+}
+
+TEST(ValenceBasisGen, SodiumSeedDensitySpinResolved)             // V3.1: empty minority channel
+{
+    ValenceBasisRecipe r;
+    r.element="Na"; r.Zion=1; r.electrons=1;
+    r.shells={ {0, EvenTemperedWindow(5, 0.03, 2.0)} };
+    r.spinResolved=true;
+    GeneratedSeedDensity g = GenerateSeedDensity(r);
+    EXPECT_NEAR(g.charge, 1.0, 0.01);
+    EXPECT_NEAR(g.moment, 1.0, 0.05);   // one unpaired electron, all of it in the up channel
+}
+
+TEST(ValenceBasisGen, SodiumSeedDensitySpinResolvedWithPolarizationShell)   // V3.2 on the polarized path
+{
+    ValenceBasisRecipe r;
+    r.element="Na"; r.Zion=1; r.electrons=1;
+    r.shells={ {0, EvenTemperedWindow(5, 0.03, 2.0)}, {1, EvenTemperedWindow(2, 0.09, 0.3)} };
+    r.spinResolved=true;
+    GeneratedSeedDensity g = GenerateSeedDensity(r);
+    EXPECT_NEAR(g.charge, 1.0, 0.01);
+    EXPECT_NEAR(g.moment, 1.0, 0.05);
+}
+
 // SEED DENSITY generation (the offline library for IonicSAD): the SAME pseudo-atom SCF that makes the basis
 // also emits a spherical rho(r) for the seed-density library.  THE POINT: an anion (F-) valence density is
 // spatially DIFFUSE -- its <r> exceeds the neutral atom's -- which is exactly why a proper F- seed converges

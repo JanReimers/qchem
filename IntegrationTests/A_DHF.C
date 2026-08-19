@@ -11,7 +11,7 @@
 #include <cmath>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, Pol
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
-import qchem.Unittests.TestUtils;    // RelativeError, RelativeDHFError
+import qchem.PeriodicTable;          // RelativeError, RelativeDHFError (Z-keyed oracle)
 import qchem.Orbitals;              // Orbital, TOrbital
 import qchem.Math;                   // c_light, Pi, Pi12, FourPi, pow, tgamma, sqrt
 import qchem.Structure;             // Structure

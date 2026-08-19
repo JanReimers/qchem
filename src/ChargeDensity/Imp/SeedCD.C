@@ -35,10 +35,11 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
     assert(st);
     const bool chan = IsPolarized(channel);   // Up/Down = one channel of the polarized seed
     const std::string db = "atomic_valence_densities.json";
-    for (size_t i=0;i<st->GetNumAtoms();i++)
+    bool anyFlip=false;                       // any -m sublattice site (drives the flip-group split below)
+    st->ForEachSite([&](int iZ, const rvec3_t& R, bool spinFlip)
     {
-        const Atom* a = (*st)[i];
-        const size_t Z = a->itsZ;
+        const size_t Z = size_t(iZ);
+        anyFlip |= spinFlip;
         if (itsRadByZ.find(Z)==itsRadByZ.end())
         {
             // The NEUTRAL density fixes this species' neutral valence count; the IonicSAD target (Nval-q) is
@@ -72,29 +73,28 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
             itsRadFlipByZ[Z] = radFlip;
             itsScaleByZ[Z]   = scale;
         }
-        const bool flip = chan && a->itsSpinFlip;                     // None: the total is flip-blind
+        const bool flip = chan && spinFlip;                            // None: the total is flip-blind
         const auto& rc = flip ? itsRadFlipByZ.at(Z) : itsRadByZ.at(Z);
         itsCharge += itsScaleByZ.at(Z) * rc->Charge();                // this atom's (scaled) electron count
-        itsRecentred.emplace_back(rc, a->itsR);                       // for real-space op(r), flip-aware
-    }
+        itsRecentred.emplace_back(rc, R);                             // for real-space op(r), flip-aware
+        itsScalePerAtom.push_back(itsScaleByZ.at(Z));                 // parallel table: op(r) never re-asks the structure
+    });
     // Flip-partitioned sub-cells for the G assembly: the basis's MakeFourierDensity is SPECIES-keyed
     // (formFactor(Z, g2)), so flipped and unflipped sites of one species -- which carry DIFFERENT channel
     // radials -- must be summed in separate calls.  Only a channel seed with at least one flipped atom
     // needs the split; everything else keeps the single full-structure call.
-    if (chan)
+    // (V1.19's OTHER half -- removing this sub-cell duplication outright -- needs a per-SITE form-factor
+    //  overload on the basis face, a change the item itself weighs against the pseudo-wall pin.  Deferred;
+    //  this block is the one remaining concrete-atom consumer in the seed.)
+    if (chan && anyFlip)
     {
-        bool anyFlip=false;
-        for (size_t i=0;i<st->GetNumAtoms();i++) if ((*st)[i]->itsSpinFlip) anyFlip=true;
-        if (anyFlip)
+        const UnitCell& cell=GetUnitCell(st);   // checked precondition (periodic seed)
+        itsGroupA=std::make_shared<UnitCell>(cell.GetCellMatrix());
+        itsGroupB=std::make_shared<UnitCell>(cell.GetCellMatrix());
+        for (size_t i=0;i<st->GetNumAtoms();i++)
         {
-            const UnitCell& cell=GetUnitCell(st);   // checked precondition (periodic seed)
-            itsGroupA=std::make_shared<UnitCell>(cell.GetCellMatrix());
-            itsGroupB=std::make_shared<UnitCell>(cell.GetCellMatrix());
-            for (size_t i=0;i<st->GetNumAtoms();i++)
-            {
-                const Atom* a=(*st)[i];
-                (a->itsSpinFlip ? itsGroupB : itsGroupA)->Insert(new Atom(*a));
-            }
+            const Atom* a=(*st)[i];
+            (a->itsSpinFlip ? itsGroupB : itsGroupA)->Insert(new Atom(*a));
         }
     }
     assert(itsCharge >= 0);
@@ -192,7 +192,7 @@ double SeedCD::operator()(const rvec3_t& r) const
     double rho=0;   // itsRecentred is parallel to the structure's atoms (flip-aware) -> per-atom scale by Z
     for (size_t i=0;i<itsRecentred.size();i++)
     {
-        const double s=itsScaleByZ.at((*itsStructure)[i]->itsZ);
+        const double s=itsScalePerAtom[i];
         if (s==0.0) continue;
         const RecentredAtomicDensity& rc=itsRecentred[i];
         ForEachImage(*itsCell, rc, Minv, r, [&](const rvec3_t& L){ rho += s*rc(r-L); });
@@ -212,7 +212,7 @@ rvec_t SeedCD::operator()(const rvec3vec_t& rs) const
         double rho=0;
         for (size_t i=0;i<itsRecentred.size();i++)
         {
-            const double s=itsScaleByZ.at((*itsStructure)[i]->itsZ);
+            const double s=itsScalePerAtom[i];
             if (s==0.0) continue;
             const RecentredAtomicDensity& rc=itsRecentred[i];
             ForEachImage(*itsCell, rc, Minv, rs[q], [&](const rvec3_t& L){ rho += s*rc(rs[q]-L); });
@@ -238,7 +238,7 @@ rvec3_t SeedCD::Gradient(const rvec3_t& r) const
     rvec3_t g(0,0,0);
     for (size_t i=0;i<itsRecentred.size();i++)
     {
-        const double s=itsScaleByZ.at((*itsStructure)[i]->itsZ);
+        const double s=itsScalePerAtom[i];
         if (s==0.0) continue;
         const RecentredAtomicDensity& rc=itsRecentred[i];
         ForEachImage(*itsCell, rc, Minv, r, [&](const rvec3_t& L){ g += s*rc.Gradient(r-L); });

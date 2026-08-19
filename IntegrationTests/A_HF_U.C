@@ -12,7 +12,7 @@
 #include <vector>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, Pol
 import qchem.SCFIterator;            // SCFParams
-import qchem.Unittests.TestUtils;    // RelativeHFError
+import qchem.PeriodicTable;          // RelativeHFError
 using namespace qchem;
 using enum BasisSetAccuracy;         // High, Medium, Low
 

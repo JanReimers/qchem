@@ -3,6 +3,7 @@
 add_executable(UTElConfig ../../Common/tests/gtestmain.C
    ElectronConfigurations.C
    ElectronConfigurations_Dirac.C
+   OccupationState.C
 )
 
 target_compile_options(UTElConfig PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})

@@ -55,17 +55,34 @@ occupation seam carries no state the variant-child restructuring would entangle.
 - **V1.5 landed 2026-08-16** (see the item / doc/CleanupHistory.md).  The session's status audit of
   FittingCleanupPlan found it more finished than it knew: **H** essentially landed via V1.26/V2.4,
   **I.2** landed (`relCutoff` live), **§K's `cvec_t` sub-bullet is overtaken** (`ProjectedScalar_G` no
-  longer exists) — so **K's core (the fit-{G} densification) is now UNBLOCKED** and is the natural next
-  fitting-side session (deliberately non-bit-identical; grid-convergence acceptance).  **I.1's residual**:
+  longer exists) — so **K's core (the fit-{G} densification) is UNBLOCKED but DEFERRED (user ruling
+  2026-08-17, same reason as V1.22: deliberately non-bit-identical on grids every GPW run consumes,
+  while the real-TRIM campaign runs against pinned numbers — wrong week; ready at the next campaign
+  breakpoint)**.  **I.1's residual**:
   the `GetEpsXc()=0.75*GetVxc()` base default (ExchangeFunctional.C:34) — exact for Dirac exchange, a
   silent-wrong inherited default the day a GGA functional forgets to override; fold into whatever touches
   the functionals first.
 
-## Coordination — CHANGED 2026-08-16 (user)
+## Coordination — CHANGED 2026-08-16 (user); UPDATED 2026-08-17 (real-TRIM running, concurrent cleanup)
 
 **The DO-NOT-TOUCH on the MnO working set is LIFTED** — the MnO session is now WAITING on this branch's
 V1.1 work to implement real TRIM irreps at the special k-points ((0,0,0), (½,½,½), …).  User verbatim:
 *"DO NOT TOUCH is now please -TOUCH."*  Worth pushing early for that reason.
+
+**2026-08-17: the real-TRIM session is RUNNING (off main, RealComplexPlan §5).**  Its working set, by
+staging step — a concurrent cleanup session should stay OUT of these:
+- Step 1 (now): `src/Symmetry` (`BlochQN::IsReal`), the `IrrepBasisSet` face, **every Hamiltonian term
+  file** (`PreservesReal()` added per term), the run report, the GPW evaluator (`IsTRIM`).
+- Step 2 (next): `src/ChargeDensity` composites (`tComposite_CD`/`IrrepCD` child slot), `src/SCFAccelerator`.
+- Step 3+: `src/BasisSet/Lattice_3D`, `src/WaveFunction` (the variant child).  Plus `GPW_SCF_UT.C` runs.
+Consequently ALSO parked for now (they live in those files): V1.12, V1.17, V2.1, V2.3, R2.14's remaining
+renames, the I.1 residual; R1.0 stays "own session" (user), R2.21 stays deferred (user); **§K deferred
+(user 2026-08-17, the V1.22 reason: non-bit-identical while the campaign runs — not just "wants the box")**.
+
+**Concurrent-cleanup assignment (2026-08-17): V3.1 + V3.2 (the atomic-solver bugs — atom path only),
+R2.20 (oracle helpers out of the test module), then the qcMesh batch R2.15 (+V2.7 riding along;
+V1.22 optional, it is bit-SENSITIVE).**  All verification beside the TRIM runs goes through
+`scripts/memsafe -H 6G ctest -j2` (box discipline).
 
 ## Also open, unruled, and independent of the type work
 
@@ -641,20 +658,46 @@ MnO campaign proceeds undisturbed in qchem6.
     recomputes (one `itsVcFitter` shared across both channels, refit per spin), so R2.9(ii)'s Irrep-keyed
     scratch still earns its place and is now that one class's private business.
 
-- **R2.20 The oracle helpers are production data living in a TEST module (USER 2026-08-12, deferred).**
-  `RelativeError` / `RelativeHFError` / `RelativeDFTError` / `RelativeDHFError` sit in
-  `IntegrationTests/TestUtils.C` (module `qchem.Unittests.TestUtils`), but they are thin wrappers over
-  `thePeriodicTable()`'s NIST/Dirac reference energies — production data, not test scaffolding.
-  - **Consequence today:** `CLIapps/scfrun.C` — a shipped CLI, not a test — imports a *Unittests* module
-    for them, and because TestUtils is a per-target module FILE SET (not a library), every consumer
-    RECOMPILES it: ITMain, scfrun, and now UTSCFIterator.
-  - **Fix:** move the four into a real library beside `qchem.PeriodicTable`.  Then scfrun imports no test
-    module at all, and TestUtils shrinks to what is genuinely test-only.
-  - **NOT a scfrun facade problem** (the premise this item started from): scfrun already drives
-    `AtomCalculation` and `Calculation` directly.  The oracle helpers are its ONLY reach into TestUtils.
-  - User: *"could live in PeriodicTable ... but like you said, later."*  Deferred, not rejected.
+- **R2.20 ✅ DONE `7c80e71e` (2026-08-17).**  The four oracle helpers moved into an
+  `export namespace qchem` block of `qchem.PeriodicTable` (the user's suggested home); TestUtils.C had
+  nothing test-only left and is DELETED with both FILE_SET wirings — scfrun imports no test module.
+  721/721 green.  **→ doc/CleanupHistory.md**
 
-- **R2.21 🔶 The OccupationPolicy/OccupationState split (USER 2026-08-17: "I really like your Policy/State
+- **R2.21 ✅ DONE 2026-08-17 (concurrent-cleanup session), BOTH halves — and it was NOT optional after
+  all: the state half is what unblocked MOM on a real TRIM block.**  `OccupationState` landed as a scalar-INDEPENDENT
+  persistent ledger (per-block MOM references, fill clocks, cross-irrep arming, the −TS aggregate), owned
+  by the SCFIterator beside its policy; `OccupationPolicy<T>` is built over it and keeps only the
+  decision.  **The load-bearing detail: each block's reference is stored under the BLOCK's own scalar (a
+  variant), not the run's.**  That is what a mixed real/complex mesh needs — before it, a real TRIM block
+  in a complex run had nowhere to put a `mat_t<double>` reference and its capture THREW
+  ("run with forceComplex"), i.e. switching MOM on turned into a mid-SCF failure after the basis, the
+  seed and the first Fock were already paid for.  Measured after: Si (3,1,1) mixed mesh with MOM on
+  converges REAL and matches its forced-complex twin to **ΔE = 1.8e-15**.  Two things fell out rather
+  than being built: `HeldOccupationPolicy` stopped wrapping the run policy (the shared clocks and the −TS
+  aggregate are the state's, so only its three DECISIONS remain), and `RealBlockFillView` — the
+  forwarding adapter whose capture did the throwing — **deleted**, since a real block now takes a genuine
+  `OccupationPolicy<double>` over the shared state.  New pins: `OccupationState.*` (5 unit tests in
+  `UTElConfig`).  746/746 green.
+  **SHAPE HALF also landed (same session):** `OccupationPolicy<T>` is now genuinely ABSTRACT and the four
+  behaviours `Configure` used to select between are four pairs of objects — occupancy
+  {`IntegerOccupancy`, `FermiOccupancy(kT)`} × ranking {`BareRanking` (a null OBJECT, not a "MOM off"
+  flag), `MOMRanking(startIter,Λ)`} — assembled by `MakeOccupationPolicy<T>(OccupationConfig, state&)`
+  once per Iterate, so `kT>0` is answered by WHICH OBJECT EXISTS instead of being re-branched inside every
+  fill.  **`Configure` is dead.**  `HeldOccupationPolicy` is Integer×Bare plus `HoldsStoredBlocks` — a
+  sibling, not a wrapper.  The two end-of-fill calls `tIrrepWF` made collapsed into one `OnBlockFilled`
+  hook (the shared-μ metal path deliberately keeps a bare `CountFill`: its μ was solved on bare ε, so
+  capturing a reference from it would snapshot a subspace the ranking never shaped — documented at the
+  declaration).  **Configuration is a VALUE** (`OccupationConfig`), which is what lets the mixed-mesh
+  cross arm rebuild the run's own policy one scalar over with a single Factory call.  Deviation from the
+  item's sketch, with reason: the Factory takes `OccupationConfig`, not `SCFParams` — `SCFParams` lives in
+  qcSCFIterator, ABOVE this library in the DAG, so the iterator converts.  MOM-on-mixed-mesh re-verified
+  after the reshape (ΔE = 1.8e-15, unchanged); 746/746.
+  **A note for the END-TO-END gate, which this session deliberately did NOT add:** the acceptance run
+  above lived in a temporary probe in `GPW_SCF_UT.C` (the real-TRIM session's file) and was removed
+  before commit.  Worth adding there at the merge: the (3,1,1) mixed mesh with `UseMOM=true`,
+  `MOMStartIter=2`, real vs `forceComplex` twins, `EXPECT_NEAR(..., 1e-9)`.
+  *(original item follows)*
+  **The OccupationPolicy/OccupationState split (USER 2026-08-17: "I really like your Policy/State
   split.  But we don't need it right now").**  V1.11's landed `OccupationPolicy<T>` is NOT the abstract
   interface D1 ruled — it is a CONCRETE class whose behaviour is selected by
   `Configure(useMOM, momStartIter, kT, momPenalty)`: `DecideBlockFill` branches on `kT>0` and `penalty>0`
@@ -809,8 +852,20 @@ MnO campaign proceeds undisturbed in qchem6.
        as-is until a molecular site-adapted mesh is actually wanted.
      - Note the site-stabilizer TEST also differs (torus metric mod 1 for a crystal, plain distance for a
        molecule) — but that is implementation, and belongs in each override, not in the argument type.
-- **R2.15 ✅ INTERFACE DONE 2026-08-07 (`nAngular` → `angularDegree`, behaviour-preserving); ONLY THE
-  DEFAULT FLIP REMAINS (decision 6 below, deliberately separate -- it changes every unpinned run).
+- **R2.15 ✅ COMPLETE — DEFAULT FLIP LANDED 2026-08-17 (concurrent-cleanup session), DEGREE-GATED.**
+  `BeckeXCParams` now defaults the angular scheme to **Lebedev at degree ≥ 29** (302 vs GL's 450
+  directions = 67%), GaussLegendre below — the gate exists because the first, ungated sweep FAILED the
+  MnO seed-mirror gate's own degree-11 recipe (Leb-50's ⟨111⟩ orbit dives into neighbour Mn cores:
+  orphan w·ρ=0.04 vs the 1e-8 eps-tail contract) — the recorded low-degree alignment poison caught
+  LIVE.  Degrees 15–23 stay GL until measured.  The flip's measurement (decision 7's precondition, all
+  D8-compliant): Si gate passes with Leb-302 (dExc +7.5e-5 vs GL's +1.1e-4, dVxc equal); NaF internal
+  convergence equal (1.8e-5 vs 1.5e-5); Mn angularly trivial (V2.6); **Al metal by converged-run A/B
+  per the V2.6a lesson: Leb-302 lands 3× closer to its fine reference than GL-29 to its own** (dEtot
+  +6.0e-5 vs +1.9e-4).  Consequence accepted: the cheaper Becke side moves the selector crossover —
+  Si/sipp re-routes Uniform→Becke (inside the 2× margin; safe direction).  726/726 green including all
+  anchors.  `GPW_BECKE_ANG=gl|lebedev` forces either scheme at any degree (the A/B valve).
+  *(the interface half, landed 2026-08-07, and the decision list follow)*
+  **INTERFACE DONE 2026-08-07 (`nAngular` → `angularDegree`, behaviour-preserving).
   What landed:** the field is a DEGREE for every scheme; Lebedev resolves it through `ResolveLebedev`
   (round UP to the cheapest tabulated rule of at least that degree, ANNOUNCING any substitution and
   naming the four deliberately-excluded orders); `LebedevMenu()` is the one place the ladder is written
@@ -1148,6 +1203,8 @@ MnO campaign proceeds undisturbed in qchem6.
   (G_FieldEvaluator.C:60, PURE — forces every implementor), plus function-local-static
   `bool& ReportBandGap()`/`ReportGridCharge()` process-globals that leak state between tests (the
   SCFIterator comment admits it).  Fix: a reporter/visitor that PULLS; toggles on SCFParams.
+  **POST-MERGE (checked 2026-08-17: its three faces are src/WaveFunction + the IrrepBasisSet face +
+  SCFIterator — all in the real-TRIM working set).**
 - **V1.15 `tBasisSet<T>::Create*FitBasisSet` defaults** — the generic body hard-codes
   `Orbital_DFT_IBS<double>` regardless of T (only the explicit dcmplx specializations save it) and
   derefs an unguarded iterator (a 1E/HF-only basis ⇒ null ⇒ UB in Release).  Also
@@ -1172,7 +1229,17 @@ MnO campaign proceeds undisturbed in qchem6.
   `MakeDensityMixer` takes `const tDM_CD*` but uses only GetTotalCharge + a FourierDensity cast
   (DensityMixer.C:312-320) — excludes the matrix-free seeds from seeding the mixer BY TYPE, not
   intent.
-- **V1.19 Seed assembly: give `Structure` the question.**  Seed code reads concrete `Atom` public
+- **V1.19 ✅ VISITOR + THROWS DONE 2026-08-17 (concurrent-cleanup session); ONE deliberate remainder.**
+  `Structure::ForEachSite(fn(Z,R,spinFlip))` landed beside its precedent `SumFormFactors` — one place
+  reads the atom fields, five consumer loops converted (SAD assembly, `IonicSADTargets`,
+  `MagneticDecoration`, the SeedCD ctor incl. its separate anyFlip pass), and SeedCD's point-eval loops
+  now use a per-atom-parallel scale table instead of re-asking the structure per point (a map lookup per
+  atom per mesh point, gone).  The assert(false)+nullptr arms THROW (an assert-only arm was a silent
+  core guess under `-DNDEBUG`).  Bit-identical; 734/734.  **REMAINDER (deferred, recorded at the site):**
+  the flip-group sub-cell duplication — removing it needs a per-SITE form-factor overload on the basis
+  face, which the item itself weighs against the pseudo-wall pin; that block is now the seed's ONE
+  remaining concrete-atom consumer.  *(original text follows)*
+  **Seed assembly: give `Structure` the question.**  Seed code reads concrete `Atom` public
   fields (Imp/Seed.C:102-104 `a->itsZ`,`a->itsR`; Imp/SeedCD.C:91 `itsSpinFlip`) and clones the
   UnitCell into (unflipped, flipped) groups because `MakeFourierDensity(st, formFactor(Z,g2))` is
   species-keyed — the flip-group sub-cell duplication is the SYMPTOM; the neutral face yielding
@@ -1190,12 +1257,20 @@ MnO campaign proceeds undisturbed in qchem6.
 - **V1.21 `BandStructure.C`: promote or demote.**  Confirmed test-only (sole import =
   tests/BandStructureUT.C:13); worse, tests/PlaneWaveUT.C:59 defines its OWN local `SolveBands`
   instead of importing.  Either promote (band plots are on the viz roadmap) or demote into the
-  test tree; either way kill the duplicate.
+  test tree; either way kill the duplicate.  **POST-MERGE (checked 2026-08-17: the file is
+  src/BasisSet/Lattice_3D/ — the real-TRIM working set).**
 - **V1.22 `MakePeriodicBeckeMesh` ε-tail drops vs orbit consistency (W2c find).**  The builder's
   borderline drop decisions (`<eps` screens + `w>0` keep) are per-point and bit-sensitive, so the
   site-adapted caller post-filters orbit-incomplete points (`CreateSiteAdaptedBeckeMesh`).
   Cleaner: make the drop decision ONCE per representative (angular dir × radial shell) and apply
   it to the whole atom orbit inside the builder — removes the second fold pass + the filter.
+  **2026-08-17 (concurrent-cleanup session): DEFERRED deliberately** — bit-sensitive on the imposed
+  mesh path the running MnO real-TRIM campaign depends on; wrong week to move it.  **New evidence
+  while measuring R2.15:** the drop asymmetry is not only an imposed-run problem — the MnO
+  seed-mirror gate's orphan check caught the FREE builder keeping a point whose AFM translation
+  partner was tail-dropped (w·ρ=0.04, degree-11 Lebedev ⟨111⟩ into a neighbour core).  A
+  per-representative drop rule would have made that configuration impossible by construction, so
+  the item's case is STRONGER than when filed.
 - **V1.23 `Symmetry::Lattice_3D::DirectOf`** — currently unused after the CreateXCQuadrature move
   (GPW uses its native direct ops).  Keep (documents the U=Wᵀ convention; T3 will want it) or fold
   its doc into `ReciprocalOp` and drop — decide at the refactor session.
@@ -1250,7 +1325,14 @@ MnO campaign proceeds undisturbed in qchem6.
   - Original text: non-const `Polarized_CD::GetChargeDensity(Spin)` overload has no external consumer
     (removable); `tSpinDensity` holds two raw `tDM_CD*`.
 
-- **V1.26 Uniform-vs-Becke: a SMOOTHNESS question that reduces to a COST CROSSOVER — so `Auto` becomes a
+- **V1.26 ✅ COMPLETE (reconciled 2026-08-17; analysis kept below).**  Every deliverable landed across
+  three sessions: the cost model + `XCMeshSharpness` + `ResolveXCMesh` with the asymmetric diagnostics
+  (D6/V1.26 sessions), the Nyquist bridge (`UniformDivisions`/`UniformCutoff`), the ARMED selector with
+  its converged-run-validated margin (V2.4, 2026-08-08), the sized uniform verdict, and the radial
+  sibling warning (V2.7, 2026-08-17).  Post-flip note: R2.15's Lebedev default cheapened the Becke side
+  33%, moving the crossover — Si/sipp now routes Auto→Becke (inside the 2× margin, the safe direction);
+  the mechanism tests were updated with the reason recorded.  *(original ruling + analysis follow)*
+  **Uniform-vs-Becke: a SMOOTHNESS question that reduces to a COST CROSSOVER — so `Auto` becomes a
   SELECTOR, an explicit choice is honoured, and only the strictly-dominated choice is warned about.
   USER RULING 2026-08-07 (in two parts), arriving right after D6 landed.**
   > "Deciding between Uniform and Becke grids should be based on overall smoothness (PPs for sure, maybe
@@ -1553,7 +1635,16 @@ MnO campaign proceeds undisturbed in qchem6.
     `TraceColumns` value the facade supplies — which is exactly the kind of above-SCFIterator decision
     `SolidCalculation` (Step 4) exists to own, so sequence it after Step 4.
 
-- **V1.28 ⚠️ IMPOSING SYMMETRY ON AN AFM STRUCTURE WOULD DESTROY THE AFM ORDER — the density star-average is
+- **V1.28 ✅ RESOLVED BY THE SHUBNIKOV CAMPAIGN S1–S4 (reconciled 2026-08-17; analysis kept below — it
+  was the design driver).**  The item's predicted hazard never shipped: S1 (`ShubnikovOps` + the
+  anti-translation coset, `5ad45c06`) gave the op set exactly the σ the item said `ReciprocalOp` lacked;
+  S2 (`d9fe59fe`) landed the signed (ρ,m) projectors + the flip-fixed audit + `MagneticSymmetryDefects`;
+  S3 (`f8fd4fa0`) the decoration→siteSpins→factory resolution; and S4's run 38 is THE CONVERGED MnO
+  AFM-II **under imposition** at default knobs — the magnetic star-average CLOSED the tie floor instead
+  of erasing the order.  The item's own refinements held up: the staggered-vs-not discriminator became
+  S4's "legacy op faces = σ=None subgroup ONLY" pin, and "detected grey is sublattice-preserving
+  (erasure unreachable)" is the run-37 live catch.  *(original analysis follows)*
+  **⚠️ IMPOSING SYMMETRY ON AN AFM STRUCTURE WOULD DESTROY THE AFM ORDER — the density star-average is
   spin-blind, structurally.  Flagged 2026-08-09, unprompted, because it is directly in the MnO path:** the
   stated plan is "get AFM working with no imposeSymmetry, then start imposing symmetry (Shubnikov groups) and
   cut the RAM substantially".  Step two walks into this.
@@ -1649,7 +1740,15 @@ MnO campaign proceeds undisturbed in qchem6.
     Recommend **(b)**: the raw density is a legitimate question about a `FourierDensity` (V1.26's selector and
     the §3 defect diagnostic both want it too), and it is the only option needing no concrete cast.
 
-- **V1.29 The spontaneous-symmetry-breaking DISCOVERY workflow — it is an established method, and step 4
+- **V1.29 ✅ RECONCILED 2026-08-17 — the question is ANSWERED, the dependency is DISCHARGED, and the
+  workflow itself is deliberately NOT built.**  The literature answer stands in the item (SCF stability
+  analysis / broken-symmetry DFT); the "depends on V1.28" line is discharged (Shubnikov S1–S4 landed —
+  step 6 is expressible today, and S3's decoration→siteSpins resolution IS steps 5–6 for the
+  collinear-known case); and MnO followed the item's own advice ("do not over-build it for MnO: impose
+  the KNOWN structure").  What remains unbuilt is the Hessian-based DISCOVERY loop for materials of
+  UNKNOWN order — a V4-class watch trigger (build it when such a material enters the queue; the
+  irrep-block Davidson sketch below is the design).  *(original text follows)*
+  **The spontaneous-symmetry-breaking DISCOVERY workflow — it is an established method, and step 4
   needs the electronic Hessian rather than noise.  USER 2026-08-09 sketched: (1) imposed run, (2) converge,
   (3) save ρ, (4) reseed a FREE run to see where the orbitals want to move, (5) infer a subgroup, (6)
   re-impose on it.  Asked whether this is known in the literature.**
@@ -1913,7 +2012,9 @@ MnO campaign proceeds undisturbed in qchem6.
   campaign showed has a STABLE wrong basin for electron-sparse systems (lone-electron doublet
   converged 72 mHa high with every health metric green).  The molecular facade already defaults
   DFT to SAD.  Candidate: default GPW to `IonicSAD` (SAD-family), Uniform = explicit opt-in —
-  needs a suite sweep since every pinned GPW anchor re-seeds.
+  needs a suite sweep since every pinned GPW anchor re-seeds.  **POST-MERGE + the bit-moving batch
+  (checked 2026-08-17: both defaults live in TRIM-owned files — GPW_SCF_UT.C:314 and
+  SolidCalculation.C:104 — and "every anchor re-seeds" is the V1.22/§K class).**
 - **V2.3 Polarized PLANE-WAVE Vxc fit route** — `Ham_PW_DFT` polarized currently THROWS for
   `VxcFit::PlaneWave`: per-channel PW_XC needs per-spin rho-grid caches (PW_XC's `itsRhoGrid` is
   keyed on `cd->Version()` alone, which a polarized density aliases across channels — the trap the
@@ -1925,9 +2026,19 @@ MnO campaign proceeds undisturbed in qchem6.
   \f$2\alpha_{\max}+\alpha_{pp}\f$.  Independent of V1.26's selector (which already accounts for
   \f$\alpha_{pp}\f$ in its CHOICE); this is the mesh sizing itself.  One consumer today — the KB-projector
   grid fallback (GPW Evaluator.C:1119) — so the exposure is bounded, but the floor is simply missing.
-  Raising it moves grids, hence anchors: measure first (D8), same instrument as V2.4.
+  Raising it moves grids, hence anchors: measure first (D8), same instrument as V2.4.  **POST-MERGE +
+  the bit-moving batch (checked 2026-08-17: lives in the GPW evaluator = TRIM working set, and it is
+  anchor-moving by its own last sentence).**
 
-- **V2.6 Are the Becke recipe's `nRadial`/`angularDegree` defaults over-generous?  USER 2026-08-07:**
+- **V2.6 ✅ CLOSED (reconciled 2026-08-17) — the measurement is fully banked and every product landed:**
+  the four-system ladder verdict (radial 40 RIGHT, angular 29 kept after V2.6a's refuted flip to 17),
+  the V2.4 armed selector, the V2.7 radial-adequacy warning, and R2.15's degree-gated Lebedev flip
+  (equal degree, 67% of the directions — the cost cut V2.6 wanted, taken on the SCHEME axis the degree
+  axis refused to give).  The data tables + four refuted guesses live in the section header above
+  `GPW_SCF.DISABLED_BeckeRecipeLadder_*`; the standing rule ("calibrate a grid criterion on a simple
+  METAL, or do not ship it as a global default") is now cited by both V2.7 and R2.15.  *(original
+  question + analysis follow)*  **Are the Becke recipe's `nRadial`/`angularDegree` defaults
+  over-generous?  USER 2026-08-07:**
   *"There is a lot riding on the defaults for nRadial and nDirs(degree) for the Becke grid.  The degree can be
   determined from point symmetry of the atom site, but I have the impression that you can often 'get away
   with' much lower degrees than the point symmetry dictates."*
@@ -2022,27 +2133,26 @@ MnO campaign proceeds undisturbed in qchem6.
     margin gets fitted to a Becke cost about to change by 2.8x.
 
 - **V2.6a ⛔ ATTEMPTED AND REJECTED 2026-08-07 — flip `angularDegree` 29 → 17.**  Made the one-line change,.  **→ doc/CleanupHistory.md**
-- **V2.7 A basis-driven `nRadial` adequacy warning, on the \f$r_{peak}/\Delta r\f$ criterion.**  The
-  V2.6 correction above makes this shippable where the first attempt was not.  It is the radial sibling of
-  V1.26's `UniformDivisions` bridge: MHL's \f$r(x)=\alpha(x/(1-x))^m\f$ gives \f$\Delta r\f$ in closed
-  form, and \f$\alpha_{\max}\f$ is already gathered for the selector (`XCMeshSharpness`), so the check
-  costs nothing new.  Calibrate the threshold on more than two systems first — 3 is fitted to Si and Mn.
+- **V2.7 ✅ DONE 2026-08-17 (concurrent-cleanup session).**  `RadialResolutionRatio(mp, alphaMax)` in
+  qchem.Mesh.XCPolicy — the closed-form \f$r_{peak}/\Delta r(r_{peak})\f$ statistic, MHL-only (+∞ = no
+  claim off-MHL) — plus a ONE-level warning (`kRadialRatioFloor=3.0`) spoken from `ResolveXCMesh`
+  whenever a Becke mesh is the outcome and sharpness is known.  The closed form reproduces the V2.6
+  record's own quoted anchors (Si 3.4@nR=30, Al 3.2@nR=30 — pinned in `XCPolicyTests`), production
+  configs all clear the floor (NaF, the tightest, at 3.09) so healthy runs stay quiet, and the measured
+  4-50x-inadequate nR=20 class all fire.  A two-level version with a metal info-line (<4.2, Al's first
+  adequate rung) was REJECTED — it would print on every production NaF run to warn about a metallicity
+  the cost model cannot see; the metal fact rides in the warning text instead.  Floor remains
+  insulator-fitted per its doc note: re-calibrate on {Si, Mn-atom, Al, MnO} before promoting it beyond
+  a diagnostic.
 
 ### V3 — repro / campaign bugs (Spin-SAD, 2026-08-04)
 
-- **V3.1 Polarized ATOMIC solver fails on an empty minority channel** — `AtomCalculation(11, 0,
-  {.pseudopotential=true, .valence=1, .pol=Polarized})` (Na q1 doublet: nUp=1, nDown=0) dies with
-  "Invalid setup of symmetric matrix" before the first Fock.  Same failure class as the tier-4b
-  finding (`cSCFAcceleratorDIIS::GetNProj` segfault on an empty EC).  Worked around for the Na
-  library entry (1 valence electron ⇒ the pair is EXACT without an SCF, hand-constructed in
-  atomic_valence_densities.json), but any future fully-polarized one-electron species hits it
-  again — the valgen `--spin` path should either fix the empty-channel atom SCF or synthesize the
-  exact pair itself when nDown==0.
-- **V3.2 Unoccupied-l shells break the atom SCF** — the same Na valgen run ALSO failed when the
-  recipe carried the (unoccupied) p window from valence_lowq_sr (`--shell 1:2:0.09:0.3`): "Invalid
-  setup of symmetric matrix" even unpolarized-adjacent.  GenerateValenceBasis documents "higher-l
-  polarization shells ride along un-validated (as intended)" — but at least the polarized
-  GenerateSeedDensity path chokes on them.  Reproduce + fix or document the restriction.
+- **V3.1 ✅ CLOSED 2026-08-17 — NO LONGER REPRODUCES (dissolved in the interim; V1.11 the likely
+  cure).**  Regression anchors added: `ValenceBasisGen.SodiumSeedDensitySpinResolved` +
+  `Slater_Low/A_HF_P.Energy/Z1` (UHF H, exact −0.5).  **→ doc/CleanupHistory.md**
+- **V3.2 ✅ CLOSED 2026-08-17 — NO LONGER REPRODUCES (same verification pass).**  Anchors:
+  `ValenceBasisGen.SodiumSeedDensity{UnpolarizedWithPolarizationShell,SpinResolvedWithPolarizationShell}`.
+  **→ doc/CleanupHistory.md**
 
 ### V4 — watch triggers (act when the trigger appears)
 

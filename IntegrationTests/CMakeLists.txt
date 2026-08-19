@@ -14,9 +14,9 @@ add_executable(ITMain gtestmain.C
     M_Umbrella.C
     )
 # The QchemTester/TestAtom/TestDiracAtom/TestMolecule scaffold is RETIRED: every molecular test drives
-# qchem::Calculation and every atom/Dirac/PP test (and scfrun) drives qchem::AtomCalculation.  TestUtils
-# holds the shared free RelativeError / RelativeHF/DFT/DHFError helpers.
-target_sources(ITMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES TestUtils.C)
+# qchem::Calculation and every atom/Dirac/PP test (and scfrun) drives qchem::AtomCalculation.  The shared
+# RelativeError / RelativeHF/DFT/DHFError oracle helpers live in qchem.PeriodicTable (R2.20) -- the
+# per-target TestUtils module file set is gone.
 
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.

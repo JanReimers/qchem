@@ -106,47 +106,23 @@ template <class T> static void CalcH(const iwf_child_t& w, tHamiltonian<T>& ham,
     }, w);
 }
 
-// The REAL child's FILL VIEW (Step 3c-3): a real TRIM block inside a complex-faced run consults the
-// run's OccupationPolicy<dcmplx> through this thin OccupationPolicy<double> view.  Everything SCALAR
-// forwards -- the run keeps ONE entropy ledger, ONE fill clock, ONE configuration -- so a mixed run's
-// occupation bookkeeping is indistinguishable from the all-complex twin's.  The deliberate gap is MOM:
-// the per-block reference state is typed by the RUN (mat_t<dcmplx>), so a real block's capture THROWS
-// loudly until the R2.21 policy/state split gives the references a per-block typed home; until then a
-// MOM run takes SolidCalcOptions::forceComplex.
-class RealBlockFillView final : public OccupationPolicy<double>
+// The REAL child's FILL POLICY (Step 3c-3; simplified by R2.21).  A real TRIM block inside a
+// complex-faced run fills under a genuine OccupationPolicy<double> built over the RUN'S OWN
+// OccupationState -- so the run keeps ONE entropy ledger, ONE fill clock, ONE arming flag, and the real
+// block's MOM reference lands in that same ledger under its own scalar.  Before the R2.21 state split
+// this had to be a forwarding VIEW whose reference capture THREW ("run with forceComplex"), because the
+// references were typed by the RUN; a mixed run with MOM on therefore failed mid-SCF.  Now there is
+// nothing to special-case: the Factory rebuilds the run's OWN policy at the other scalar from the same
+// OccupationConfig value, so this is literally the policy its complex siblings use, one scalar over.
+// (A held direct-min leg carries a default config -- Integer x Bare -- which is exactly what it decides,
+// so its real block holds the stored block too.)
+static std::unique_ptr<OccupationPolicy<double>> RealBlockPolicy(OccupationPolicy<dcmplx>& run)
 {
-public:
-    explicit RealBlockFillView(OccupationPolicy<dcmplx>& run) : itsRun(run) {}
-    //! The two-axis decision minus the (unreachable) MOM rankings: integer/stored-order unless the run
-    //! smears.  Held legs steer through the forwarded virtuals exactly as they do the primary body
-    //! (HeldOccupationPolicy answers SmearingkT()==0, UseMOM()==false).
-    virtual BlockFill DecideBlockFill(const Irrep&, const OrbitalView<double>&, double ne) const override
-    {
-        BlockFill f;
-        f.budget=ne;
-        if (itsRun.SmearingkT()>0.0) { f.rule=BlockFill::Rule::Fermi; f.kT=itsRun.SmearingkT(); }
-        return f;
-    }
-    virtual bool   HoldsStoredBlocks() const override {return itsRun.HoldsStoredBlocks();}
-    virtual bool   UseMOM()            const override {return itsRun.UseMOM();}
-    virtual double SmearingkT()        const override {return itsRun.SmearingkT();}
-    virtual void   CaptureReferenceIfDue(const Irrep&, const OrbitalView<double>&) override
-    {
-        if (itsRun.UseMOM())
-            throw std::logic_error("MOM on a real TRIM block: the reference state is run-typed until the "
-                                   "OccupationPolicy state split -- run with forceComplex (RealComplexPlan 3c-3)");
-    }
-    virtual void   CountFill(const Irrep& q)    override {itsRun.CountFill(q);}
-    virtual void   BeginFill()                  override {itsRun.BeginFill();}
-    virtual void   AccumulateEntropy(double w)  override {itsRun.AccumulateEntropy(w);}
-    virtual double EntropyTerm() const          override {return itsRun.EntropyTerm();}
-    virtual bool   CrossIrrepMOMArmed() const   override {return itsRun.CrossIrrepMOMArmed();}
-private:
-    OccupationPolicy<dcmplx>& itsRun;
-};
+    return MakeOccupationPolicy<double>(run.Config(), run.State());
+}
 
 // The fill dispatch over the child slot (Step 3c-3, the CalcH pattern): a same-scalar child consults
-// the run policy natively; a REAL child inside a complex run fills through RealBlockFillView.  Returns
+// the run policy natively; a REAL child inside a complex run fills under RealBlockPolicy (R2.21: a real policy, shared state).  Returns
 // BY VALUE (every caller merges into its own ledger anyway).
 template <class T> static EnergyLevels FillChild(const iwf_ref_t& w, OccupationPolicy<T>& pol, double ne)
 {
@@ -156,8 +132,8 @@ template <class T> static EnergyLevels FillChild(const iwf_ref_t& w, OccupationP
         if constexpr (std::is_same_v<WT,tIrrepWF<T>>) return p->FillOrbitals(pol,ne);
         else if constexpr (std::is_same_v<T,dcmplx>)
         {
-            RealBlockFillView v(pol);
-            return p->FillOrbitals(v,ne);
+            auto v=RealBlockPolicy(pol);
+            return p->FillOrbitals(*v,ne);
         }
         else
             throw std::logic_error("tCompositeWF: a complex child inside a real-faced run is impossible");
@@ -171,8 +147,8 @@ template <class T> static EnergyLevels FillChildAtMu(const iwf_ref_t& w, Occupat
         if constexpr (std::is_same_v<WT,tIrrepWF<T>>) return p->FillOrbitalsAtMu(pol,mu);
         else if constexpr (std::is_same_v<T,dcmplx>)
         {
-            RealBlockFillView v(pol);
-            return p->FillOrbitalsAtMu(v,mu);
+            auto v=RealBlockPolicy(pol);
+            return p->FillOrbitalsAtMu(*v,mu);
         }
         else
             throw std::logic_error("tCompositeWF: a complex child inside a real-faced run is impossible");

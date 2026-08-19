@@ -165,8 +165,7 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(OccupationPolic
     // raw seed, mid-transient) locks onto garbage (measured: +5 Ha states occupied, −112 Ha empty); running
     // MOM (re-capturing every iteration) DRIFTS and a spike corrupts the reference.  A fixed, physical
     // reference keeps the diving diffuse virtual (low overlap with {F 2s, F 2p}) OUT of the occupied set.
-    pol.CountFill(itsIrrep);
-    pol.CaptureReferenceIfDue(itsIrrep,*itsOrbitals);
+    pol.OnBlockFilled(itsIrrep,*itsOrbitals);   // R2.21: one hook -- clock + the ranking's capture-if-due
     return itsELevels;
 }
 

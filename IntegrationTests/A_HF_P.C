@@ -10,7 +10,7 @@
 #include <vector>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, Pol
 import qchem.SCFIterator;            // SCFParams
-import qchem.Unittests.TestUtils;    // RelativeHFError
+import qchem.PeriodicTable;          // RelativeHFError
 using namespace qchem;
 using enum BasisSetAccuracy;         // High, Medium, Low
 
@@ -74,10 +74,12 @@ INSTANTIATE_TEST_SUITE_P(BSpliner_Medium, A_HF_P, ::testing::ValuesIn(Cases(Atom
 #endif
 
 #ifdef LOW
-// "Low" grade: a faster (fewer-iter) Slater/Medium-accuracy spot check across a wide Z span.
+// "Low" grade: a faster (fewer-iter) Slater/Medium-accuracy spot check across a wide Z span.  Z=1 is the
+// fully-polarized ONE-electron atom (nUp=1, nDown=0): the empty-minority-channel anchor (V3.1 class --
+// UHF H is exact, E=-0.5, so any regression there is structural, not numerical).
 #ifdef DEBUG
-INSTANTIATE_TEST_SUITE_P(Slater_Low, A_HF_P, ::testing::ValuesIn(Cases(AtomType::Slater, Medium,12e-6,{14,1e-4,1e-4,1.1e-4,1e-5}, {3,5,21})),    CaseName);
+INSTANTIATE_TEST_SUITE_P(Slater_Low, A_HF_P, ::testing::ValuesIn(Cases(AtomType::Slater, Medium,12e-6,{14,1e-4,1e-4,1.1e-4,1e-5}, {1,3,5,21})),    CaseName);
 #else
-INSTANTIATE_TEST_SUITE_P(Slater_Low, A_HF_P, ::testing::ValuesIn(Cases(AtomType::Slater, Medium,12e-6,{14,1e-4,1e-4,1.1e-4,1e-5}, {3,5,21,92})), CaseName);
+INSTANTIATE_TEST_SUITE_P(Slater_Low, A_HF_P, ::testing::ValuesIn(Cases(AtomType::Slater, Medium,12e-6,{14,1e-4,1e-4,1.1e-4,1e-5}, {1,3,5,21,92})), CaseName);
 #endif
 #endif
