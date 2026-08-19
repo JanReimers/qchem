@@ -17,6 +17,16 @@
 #
 # PIN: one config PER INVOCATION.  Peak RSS is a PROCESS watermark, so a command that runs several configs
 # reports the largest, not each -- the same caveat doc/Benchmark.md carries for qchem's internal number.
+#
+# PIN: THREADS ARE PART OF THE ROW, AND ONLY THE MEASURED ONES COUNT.  Both codes thread by default (CP2K's
+# packaged binary is psmp and takes OMP_NUM_THREADS from the environment; qchem routes BLAS through blaze),
+# so a wall-time column is meaningless without them.
+#
+# The row reports CPU TIME and CPU% beside the wall clock, because a thread-count KNOB is not a measurement:
+# an unset GPW_OMP_THREADS reads "serial" while blaze still runs the BLAS on several cores -- measured
+# 2026-08-19 at 115-239% CPU across the qchem rows, against CP2K's honest 97-99%.  Reading the wall column
+# alone understated the qchem/CP2K compute ratio by about 2x (MnO FM: 6.8x wall, 12.1x CPU).  CPU time is the
+# comparison that does not depend on how many cores each side happened to take.
 set -u
 
 label=""
@@ -36,18 +46,30 @@ rc=$?
 wall=$(grep -oP 'Elapsed \(wall clock\) time.*?: \K.*' "${log}.time" 2>/dev/null | tail -1)
 peak=$(grep -oP 'Maximum resident set size \(kbytes\): \K[0-9]+' "${log}.time" 2>/dev/null | tail -1)
 cpu=$( grep -oP 'Percent of CPU this job got: \K.*'          "${log}.time" 2>/dev/null | tail -1)
+usr=$( grep -oP 'User time \(seconds\): \K[0-9.]+'           "${log}.time" 2>/dev/null | tail -1)
+sys=$( grep -oP 'System time \(seconds\): \K[0-9.]+'         "${log}.time" 2>/dev/null | tail -1)
 peakmb=$(awk -v k="${peak:-0}" 'BEGIN{printf "%.0f", k/1024}')
+cpusec=$(awk -v u="${usr:-0}" -v s="${sys:-0}" 'BEGIN{printf "%.1f", u+s}')
 
 # Pull an energy out of whichever code produced the log (best effort -- verify before quoting).
-e_cp2k=$(grep -oP 'ENERGY\| Total FORCE_EVAL \( QS \) energy \[a\.u\.\]:\s*\K[-0-9.]+' "$log" 2>/dev/null | tail -1)
+# The units tag on CP2K's total-energy line is VERSION-DEPENDENT ("[a.u.]:" on 2026.1, "[hartree]" on the
+# packaged 2025.2) -- match either, or the column silently reads "?" on a run that in fact succeeded.
+e_cp2k=$(grep -oP 'ENERGY\| Total FORCE_EVAL \( QS \) energy \[(a\.u\.|hartree)\]:?\s*\K[-0-9.]+' "$log" 2>/dev/null | tail -1)
 e_qchem=$(grep -oP 'Etot=\K[-0-9.]+' "$log" 2>/dev/null | tail -1)
 energy="${e_cp2k:-${e_qchem:-?}}"
 
 # qchem's own VmHWM readout, when present -- a cross-check on the external measurement.
 internal=$(grep -oP 'PEAK RSS \(MB, process high-water\)\s+\K[0-9.]+' "$log" 2>/dev/null | tail -1)
 
-printf '| %s | %s | %s s | %s MB | %s | rc=%s |\n' \
-       "$label" "$energy" "${wall:-?}" "${peakmb:-?}" "cpu ${cpu:-?}" "$rc"
+# The thread KNOB, labelled as a knob.  CP2K states its actual count in the banner; on the qchem side there
+# is no such statement -- GPW_OMP_THREADS governs the pair loops only, so it is reported as "GPW_OMP=n" and
+# the CPU% beside it is what says whether the run was really serial.
+t_cp2k=$(grep -oP 'GLOBAL\| Number of threads for this process\s+\K[0-9]+' "$log" 2>/dev/null | tail -1)
+if [ -n "$t_cp2k" ]; then threads="${t_cp2k} thr (stated)"
+else                     threads="GPW_OMP=${GPW_OMP_THREADS:-unset}"; fi
+
+printf '| %s | %s | %s wall | %s s cpu | %s MB | %s | %s | rc=%s |\n' \
+       "$label" "$energy" "${wall:-?}" "${cpusec:-?}" "${peakmb:-?}" "cpu ${cpu:-?}" "$threads" "$rc"
 [ -n "$internal" ] && printf '    (qchem internal VmHWM: %s MB -- should match the %s MB above)\n' "$internal" "$peakmb"
 [ $rc -ne 0 ] && echo "    ** non-zero exit; see $log **"
 exit $rc

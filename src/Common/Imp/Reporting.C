@@ -398,8 +398,13 @@ void EmitFold(const std::string& site, size_t nOps, size_t raw, size_t reps, con
     else
     {
         if (nOps) std::cout << nOps << " ops, ";
+        // std::defaultfloat restores the FORMAT flag but NOT the precision -- leaving cout at 2 for the rest
+        // of the run, which silently truncated every energy printed after a fold line ("Etot=-7.1").  Restore
+        // both, so a diagnostic can never degrade the numbers the run reports.
+        const std::streamsize prec0=std::cout.precision();
         std::cout << raw << " -> " << reps << " representatives = "
                   << std::fixed << std::setprecision(2) << factor << "x" << std::defaultfloat;
+        std::cout.precision(prec0);
     }
     if (!note.empty()) std::cout << "  [" << note << "]";
     std::cout << std::endl;

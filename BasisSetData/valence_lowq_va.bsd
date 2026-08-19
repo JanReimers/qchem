@@ -1,0 +1,126 @@
+valence_lowq_va: the EXACT-SPAN variant VA -- the span BOTH codes hold at FULL RANK (N=118 on the
+MnO 2-f.u. magnetic cell), and the basis of the doc/Benchmark.md MnO rows.  It is valence_lowq_sph.bsd
+minus THREE diffuse shells: Mn d 0.18, O s 0.15, O p 0.18.  Its CP2K counterpart is the
+VALENCE-LOWQ-VA (Mn) + VALENCE-LOWQ-VB (O) pair in IntegrationTests/CP2K/VALENCE-LOWQ-BASIS, used by
+mno_{afm2,fm}_gpw_va.inp -- function for function the same span, which is what makes the code-vs-code
+offset (doc/OpenWork.md step 5) an operator statement rather than a basis statement.
+SPHERICAL-d ARMS ONLY, exactly as its parent (under Cartesian d the 8 d contaminants reproduce the
+rank deficiency the trim exists to avoid).
+WHY IT IS A FILE.  It was previously produced by doc/scripts/bisect_valence_sph.py OVERWRITING the
+committed valence_lowq_sph.bsd in the working tree, so the span a run used was invisible in the run
+and unreproducible after the fact -- a benchmark row cannot rest on that.  The variants are now
+first-class basis sets the user selects (GPW_BASIS_SPAN=va), and the bisect script keeps its role as
+the EXPLORATORY probe generator.
+
+!
+BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
+ F   0
+ S   1  1.00
+            0.27516456        1.00000000
+ S   1  1.00
+            0.63096278        1.00000000
+ S   1  1.00
+            1.44682163        1.00000000
+ S   1  1.00
+            3.31761697        1.00000000
+ S   1  1.00
+            7.60742173        1.00000000
+ S   1  1.00
+           17.44410700        1.00000000
+ S   1  1.00
+           40.00000000        1.00000000
+ P   1  1.00
+            0.34098767        1.00000000
+ P   1  1.00
+            0.83051852        1.00000000
+ P   1  1.00
+            2.02283268        1.00000000
+ P   1  1.00
+            4.92686434        1.00000000
+ P   1  1.00
+           12.00000000        1.00000000
+ ****
+ NA   0
+ S   1  1.00
+            0.15               1.00000000
+ S   1  1.00
+            0.24494897        1.00000000
+ S   1  1.00
+            0.69992710        1.00000000
+ S   1  1.00
+            2.00000000        1.00000000
+ P   1  1.00
+            0.09000000        1.00000000
+ P   1  1.00
+            0.30000000        1.00000000
+ ****
+ AL   0
+ S   1  1.00
+            0.10047546        1.00000000
+ S   1  1.00
+            0.25238294        1.00000000
+ S   1  1.00
+            0.63395728        1.00000000
+ S   1  1.00
+            1.59242868        1.00000000
+ S   1  1.00
+            4.00000000        1.00000000
+ P   1  1.00
+            0.13295740        1.00000000
+ P   1  1.00
+            0.35355339        1.00000000
+ P   1  1.00
+            0.94015077        1.00000000
+ P   1  1.00
+            2.50000000        1.00000000
+ ****
+ MN   0
+ S   1  1.00
+            0.10000000        1.00000000
+ S   1  1.00
+            0.24928829        1.00000000
+ S   1  1.00
+            0.62144650        1.00000000
+ S   1  1.00
+            1.54919334        1.00000000
+ S   1  1.00
+            3.86195754        1.00000000
+ S   1  1.00
+            9.62740780        1.00000000
+ S   1  1.00
+           24.00000000        1.00000000
+ D   1  1.00
+            0.38369936        1.00000000
+ D   1  1.00
+            0.81791778        1.00000000
+ D   1  1.00
+            1.74352515        1.00000000
+ D   1  1.00
+            3.71660826        1.00000000
+ D   1  1.00
+            7.92255676        1.00000000
+ D   1  1.00
+           16.88822203        1.00000000
+ D   1  1.00
+           36.00000000        1.00000000
+ ****
+ O   0
+ S   1  1.00
+            0.39077566        1.00000000
+ S   1  1.00
+            1.01803746        1.00000000
+ S   1  1.00
+            2.65216175        1.00000000
+ S   1  1.00
+            6.90933509        1.00000000
+ S   1  1.00
+           18.00000000        1.00000000
+ P   1  1.00
+            0.46475800        1.00000000
+ P   1  1.00
+            1.20000000        1.00000000
+ P   1  1.00
+            3.09838668        1.00000000
+ P   1  1.00
+            8.00000000        1.00000000
+ ****

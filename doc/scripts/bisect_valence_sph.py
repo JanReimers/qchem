@@ -1,4 +1,14 @@
 # Build probe .bsd variants from the committed v2 sph file by REMOVING added groups.
+#
+# ⚠ THIS SCRIPT OVERWRITES BasisSetData/valence_lowq_sph.bsd IN THE WORKING TREE.  That is fine for an
+# EXPLORATORY bisection (which is what it was written for) and wrong for anything a result is quoted from:
+# the run cannot say which span it used, and the row cannot be reproduced once the file is restored.
+# The two spans that outlived the bisection are now FIRST-CLASS BASIS FILES, selected by name and visible
+# in the run's own basis block -- use those instead of this script whenever the answer is going to be kept:
+#     BasisSetData/valence_lowq_va.bsd  == variant A  (N=118 on the MnO cell; both codes hold it full rank)
+#     BasisSetData/valence_lowq_vb.bsd  == variant B  (N=128)
+#     GPW_BASIS_SPAN=va|vb|sph|sr       == the selector (IntegrationTests/GPW_SCF_UT.C MakeBasisLowQ)
+# Restore the parent file after using this script:  git checkout BasisSetData/valence_lowq_sph.bsd
 import subprocess, sys
 v2 = subprocess.run(['git','-C','/home/janr/Code/qchem6','show','HEAD:BasisSetData/valence_lowq_sph.bsd'],
                     capture_output=True, text=True).stdout

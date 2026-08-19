@@ -37,7 +37,10 @@ export namespace qchem::BasisSet::Molecule
     //  variants will be sibling files.
     //! VALENCE_LOWQ_SPH: the SR file with the Mn TRUE-s window restored -- SPHERICAL-d arms ONLY
     //! (under Cartesian d it reproduces the contaminant rank deficiency; doc/SphericalLatticePlan.md I3).
-    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR, VALENCE_LOWQ, VALENCE_LOWQ_SR, VALENCE_LOWQ_SR2, VALENCE_LOWQ_SPH };
+    //! VALENCE_LOWQ_VA / _VB: the EXACT-SPAN variants of _SPH that CP2K also holds function-for-function
+    //! (its VALENCE-LOWQ-V{A,B} entries) -- VA = N 118 on the MnO magnetic cell, VB = N 128.  Both codes
+    //! hold VA at FULL RANK, which is what makes doc/Benchmark.md's MnO rows a comparison.  Spherical-d only.
+    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR, VALENCE_LOWQ, VALENCE_LOWQ_SR, VALENCE_LOWQ_SR2, VALENCE_LOWQ_SPH, VALENCE_LOWQ_VA, VALENCE_LOWQ_VB };
 
     // Axis 2 -- the integral engine (orthogonal to the data set and the angular representation).
     enum class Engine { MnD, LibCint };

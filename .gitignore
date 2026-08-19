@@ -52,3 +52,10 @@ submodules/wignerSymbols
 # Python oracle (reference-integral generator) virtualenv
 tools/oracle/.venv/
 tools/oracle/__pycache__/
+
+# scripts/bench artifacts: the run log is *.log above, this is /usr/bin/time -v's companion record
+*.log.time
+
+# CP2K run droppings beside the decks (the si_gpw-RESTART.wfn under version control is deliberate)
+IntegrationTests/CP2K/*-RESTART.wfn
+IntegrationTests/CP2K/*-RESTART.kp

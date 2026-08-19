@@ -117,10 +117,28 @@ std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
 // The low-q GTH valence basis (valgen-generated; carries Al/Na/F) -- the Al block drives the FCC-Al metal test.
 // GPW_BASIS_SPH=1 swaps in VALENCE_LOWQ_SPH (the Mn true-s window restored -- doc/SphericalLatticePlan.md I3);
 // meaningful ONLY together with GPW_SPHERICAL=1 (under Cartesian d that file is contaminant-rank-deficient).
+//
+// GPW_BASIS_SPAN=sph|va|vb NAMES THE SPAN, and is the form doc/Benchmark.md's MnO rows use.  va/vb are the
+// exact-span variants CP2K also holds function-for-function (VALENCE-LOWQ-V{A,B}; VA = 118 functions on the
+// MnO magnetic cell, held FULL RANK by both codes -- VB = 128).  They exist as BASIS FILES because the span
+// used to be produced by doc/scripts/bisect_valence_sph.py OVERWRITING the committed valence_lowq_sph.bsd in
+// the working tree: the run could not say which span it ran, and the row could not be reproduced afterwards.
+// GPW_BASIS_SPH=1 == GPW_BASIS_SPAN=sph, kept because the banked run recipes are written with it.
 std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData which=BasisSetData::VALENCE_LOWQ_SR)
 {
-    if (std::getenv("GPW_BASIS_SPH") && which==BasisSetData::VALENCE_LOWQ_SR)
-        which=BasisSetData::VALENCE_LOWQ_SPH;
+    if (which==BasisSetData::VALENCE_LOWQ_SR)
+    {
+        if (std::getenv("GPW_BASIS_SPH")) which=BasisSetData::VALENCE_LOWQ_SPH;
+        if (const char* s=std::getenv("GPW_BASIS_SPAN"))
+        {
+            const std::string span(s);
+            if      (span=="sph") which=BasisSetData::VALENCE_LOWQ_SPH;
+            else if (span=="va" ) which=BasisSetData::VALENCE_LOWQ_VA;
+            else if (span=="vb" ) which=BasisSetData::VALENCE_LOWQ_VB;
+            else if (span=="sr" ) which=BasisSetData::VALENCE_LOWQ_SR;
+            else throw std::runtime_error("GPW_BASIS_SPAN: expected one of sr|sph|va|vb, got '"+span+"'");
+        }
+    }
     return MaybeSpherical(std::shared_ptr<const Real_BS>(
         BasisSet::Molecule::Factory(which, &st,
                                     BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian)));
@@ -237,7 +255,13 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
                                                          ? "FIT-FLOOR STALL (Δρ floored, ΔE tiny -- functional/grid)" :
         (drhoF > 1e-5 && s.back().dEabs < 1e-5)          ? "UNSETTLED (Δρ still descending at the cap -- raise NMaxIter, NOT a floor)" :
         (std::fabs(Ef) > 3.0*std::fabs(s.front().E))     ? "DIVERGING" : "UNSETTLED (hit iter cap mid-descent)";
-    std::cout << "["<<label<<" fp] iters="<<n<<" Efinal="<<Ef<<" lastΔρ="<<drhoF
+    // Efinal AT A STATED PRECISION.  This line is what the plan docs quote, and it used to inherit whatever
+    // cout was left at: run 61 printed -61.4029762007 only because its verbose per-iteration table had set
+    // fixed+10 upstream, while the same run without GPW_MNO_VERBOSE printed -61.4.  A number's precision
+    // must not depend on which OTHER diagnostics were switched on, so it is set (and restored) here.
+    const std::streamsize prec0=std::cout.precision();
+    std::cout << "["<<label<<" fp] iters="<<n<<" Efinal="<<std::setprecision(10)<<Ef<<std::setprecision(prec0)
+              << " lastΔρ="<<drhoF
               << " oscFlips(last"<<w<<")="<<flips<<" Eamp(last"<<w<<")="<<amp<<" relAmp="<<relAmp
               << "  => "<<verdict<<std::endl;
 }
@@ -611,8 +635,12 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     }
     if (keep) keep->cd.reset(cd); else delete cd;
     qchem::EnergyBreakdown E=scf.GetEnergy();
+    // Etot at 10 s.f.: doc/Benchmark.md compares codes at the 1e-5 Ha level, and the default 6 s.f. cannot
+    // express a sub-mHa delta on a -61 Ha crystal.  The breakdown terms stay at default width (they are read
+    // for structure, not for the last digit).
     std::cout << "["<<o.label<<"] iters="<<scf.GetIterationCount()<<" charge="<<charge
-              << " Eelec="<<E.GetElectronicEnergy() << " Etot="<<E.GetTotalEnergy()
+              << " Eelec="<<E.GetElectronicEnergy()
+              << " Etot="<<std::setprecision(10)<<E.GetTotalEnergy()<<std::setprecision(6)
               << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
               << " Enn="<<E.Enn<<" E_alphaZ="<<E.E_alphaZ<<")" << std::endl;
     GpwResult R{scf.Converged(), charge, E, scf.GetIterationCount()};
@@ -744,9 +772,15 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         seedCD = scf->GetWaveFunction()->GetChargeDensity().release();   // consumed by the next stage's ctor
         qchem::EnergyBreakdown E=scf->GetEnergy();
         R = {scf->Converged(), seedCD->GetTotalCharge(), E, scf->GetIterationCount()};
+        // A and E(internal) AT A STATED PRECISION, for the same reason as the fingerprint's Efinal: these
+        // are the numbers doc/Benchmark.md's MnO rows are read from, and 6 s.f. cannot express a sub-mHa
+        // delta on a -61 Ha crystal ("A=E-TS=-61.4" was the whole energy this line reported).
+        const std::streamsize prec0=std::cout.precision();
         std::cout << "["<<o.label<<" stage "<<s+1<<"] kT="<<kT<<" conv="<<R.converged<<" iters="<<R.iters
+                  << std::setprecision(10)
                   << " A=E-TS="<<E.GetTotalEnergy()<<" -TS="<<E.MinusTS
-                  << " E(internal)="<<(E.GetTotalEnergy()-E.MinusTS)<<std::endl;
+                  << " E(internal)="<<(E.GetTotalEnergy()-E.MinusTS)
+                  << std::setprecision(prec0) << std::endl;
         prev = std::move(scf);   // held for the next stage's MOM adoption; released the moment it has copied
         // seedCD survives the hand-off -- its block is bs, which outlives the loop.
     }
@@ -759,6 +793,16 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
                                                              : std::vector<Symmetry::Lattice_3D::SymOp>{});
     }
     prev.reset();                                       // no further stage: drop the last iterator (ham/acc/wf)
+    // THE SAME CLOSING REPORT RunGpw GIVES.  This driver had neither -- no total-energy summary and no
+    // timing ledger -- and since every MnO row runs through here, doc/Benchmark.md's claim that "every GPW
+    // run reports PEAK RSS" was false for exactly the runs whose RAM the table most needs (the ledger is
+    // where PEAK RSS lives).  The per-stage lines above report each stage; this reports the RUN.
+    std::cout << "["<<o.label<<"] stages="<<kTSchedule.size()<<" iters(last)="<<R.iters
+              << " charge="<<R.charge
+              << " Etot="<<std::setprecision(10)<<R.E.GetTotalEnergy()<<std::setprecision(6)
+              << "  (Ekin="<<R.E.Kinetic<<" Een="<<R.E.Een<<" Eee="<<R.E.Eee<<" Exc="<<R.E.Exc
+              << " Enn="<<R.E.Enn<<" E_alphaZ="<<R.E.E_alphaZ<<")" << std::endl;
+    qchem::report::EmitTimings();       // the where-did-the-time-go ledger + PEAK RSS, as in RunGpw
     if (keep) { keep->cd.reset(seedCD); keep->bs=std::move(bs); }   // bs is the density's block -- it must outlive cd
     else      delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
     return R;
@@ -2058,13 +2102,31 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     FCCUnitCell cell(a);
     cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
     cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
-    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    // NAF_KMESH=n: an n^3 Γ-centred mesh.  The default 2 is what this test has run for some time -- and it
+    // is NOT what the name, the header, or the -24.4304 anchor say: 2x2x2 (8 k -> 3 irreducible) lands
+    // -24.5469, i.e. ~116 mHa of BAND DISPERSION below the Γ number the anchor was taken at.  The CP2K
+    // oracle decks (naf_gpw_sr2_diag.inp / naf_gpw_sr_tight.inp) carry no &KPOINTS section, so they are Γ:
+    // doc/Benchmark.md's NaF row is measured at NAF_KMESH=1, and comparing the default run to those decks
+    // compares different Brillouin-zone samplings.  The anchor below follows the knob.
+    const int nk=std::getenv("NAF_KMESH") ? std::atoi(std::getenv("NAF_KMESH")) : 2;
+    Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
 
     // SR2 (2026-07-16): the complete-enumeration-conditioned basis (lambda_min=1.57e-3; SR's three
     // degenerate 1.03e-6 near-null modes were exactly the Na p 0.05 triplet -- the cation's superfluous
     // diffuse shells; F kept intact for the anion).  See DISABLED_NaFOverlapConditioningSweep.
+    // NAF_SPAN=sr runs the FULL SR span instead -- the one CP2K's naf_gpw_sr_tight.inp oracle holds
+    // (-24.4322935, re-measured 2026-08-19), so doc/Benchmark.md's third NaF row is a comparison rather
+    // than a lone column.  The pivoted-Cholesky rank filter is what makes the full span runnable at all.
+    BasisSetData span=BasisSetData::VALENCE_LOWQ_SR2;
+    if (const char* s=std::getenv("NAF_SPAN"))
+    {
+        const std::string v(s);
+        if      (v=="sr" ) span=BasisSetData::VALENCE_LOWQ_SR;
+        else if (v=="sr2") span=BasisSetData::VALENCE_LOWQ_SR2;
+        else throw std::runtime_error("NAF_SPAN: expected sr|sr2, got '"+v+"'");
+    }
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        span, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 
     // The production recipe as ONE GpwOptions literal (the full 2-week rationale is in the header above +
     // doc/GPWPlan §0b″).  The NAF_* env knobs stay as sweep INSTRUMENTS; the defaults ARE the committed recipe.
@@ -2106,9 +2168,16 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // ReportBandGap) and aufbau swaps 2e out of the F 2p manifold -- a periodic level-crossing (period ~27) ->
     // E=+5e3.  FIX = delayed-IMOM (pin the occupied subspace through the crossing; the 0h guard releases a bad
     // capture) + Kerker damping; the fixed-point gap is large (~0.35 Ha) so NOT Fermi smearing.
-    // ANCHOR: -24.4304 (auto Ecut=80, BallOnly, raw XC, guards) -- 0.8 mHa from CP2K SR2 truth -24.4312; the
+    // ANCHOR: -24.4304 at Γ (auto Ecut=80, BallOnly, raw XC, guards) -- 0.8 mHa from CP2K SR2 truth
+    // -24.4312 (re-measured 2026-08-19 through scripts/bench: -24.4312134, exactly the banked value); the
     // historical -27.93 "oracle" was RETRACTED as a screening artifact (doc/GPWPlan TRAPS #2).
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -24.4304, 0.01);   // did-E-move anchor (the default-config fixed point)
+    // The 2x2x2 default samples the zone and lands 116 mHa lower -- BAND DISPERSION, not a defect, but it
+    // has no oracle, so it is anchored as a did-E-move pin in its own right.
+    // The full-SR span is a DIFFERENT (larger) span, so it has its own anchor: qchem -24.4324 against
+    // CP2K's -24.4322935.  Only the SR2 pair is asserted here; the SR arm is left to doc/Benchmark.md,
+    // because the whole point of the wider span is that its conditioning is the thing under study.
+    if (span==BasisSetData::VALENCE_LOWQ_SR2)
+        EXPECT_NEAR(R.E.GetTotalEnergy(), nk==1 ? -24.4304 : -24.5469, 0.01);   // did-E-move anchor per k-mesh
 }
 
 // (4b) NaF GRID-CONTINUATION SEEDING (doc/GPWPlan §0e, step 1) -- the PRODUCTION-GRID fix.
