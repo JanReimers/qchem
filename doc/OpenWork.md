@@ -405,10 +405,40 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   fix it was measured in service of.  Hoisted (bit-identical): **Φ bucket 35.69 → 26.36 s**.  The same
   `i<size()` pattern at four other sites is deliberately NOT touched — they are one-time setup or memoized
   and absent from the profile.  **Cumulative on the Φ bucket today: 35.69 → 20.39 s, 1.75×.**
-- **Φ-table SPARSITY — still open, and now the next Φ item.**  Φ is stored dense (npts × n) while the true
-  object is sparse; batching the mesh (per atom / per radial shell) with a per-batch significant-function
-  list makes every Φ-SHAPED cost — the ρ GEMM and the H_xc GEMM, which the build no longer dominates —
-  O(npts·n_sig²).  **The win grows with cell size**; MnO's 4 atoms understate it.
+- **Φ-table SPARSITY — ⛔ PREMISE REFUTED ON THIS CELL, 2026-08-20.  Do not build it for MnO.**  The item
+  said Φ is stored dense (npts × n) while the true object is SPARSE, so batching the mesh (per atom / per
+  radial shell) with a per-batch significant-function list makes every Φ-shaped cost — the ρ GEMM and the
+  H_xc GEMM — O(npts·n_sig²).  The win is QUADRATIC in n_sig, so n_sig was worth measuring before building
+  the machinery.  `GPW_PHI_SPARSITY=1` (new, permanent) reports it:
+
+  | batching | imposed (97160 pts) | free (31664 pts) |
+  |---|---|---|
+  | **per-atom SITE blocks** (the item's own proposal) | *mesh has none — see below* | **1.05×** (n_sig mean 115/118) |
+  | 4096-pt batches | 1.71× | 1.59× |
+  | 1024-pt batches | 1.89× | 2.30× |
+  | 256-pt batches | 1.97× | 2.89× |
+  | 64-pt batches | 2.08× (n_sig max 110/118) | 3.25× (n_sig max 108/118) |
+  | **Φ nonzero fraction** | **48.1%** | **46.5%** |
+
+  **Φ is HALF DENSE, not sparse**, and the per-ATOM batching the item proposed is worth **1.05×** — with 4
+  atoms in a small cell essentially every function reaches every atom's grid.  Even 64-point batches only
+  take n_sig from 118 to 110.  And these are CEILINGS: they assume zero batching overhead against a GEMM
+  whose efficiency small batches would wreck.  **The item's own caveat — "the win grows with cell size;
+  MnO's 4 atoms understate it" — was exactly right, and it is the whole story.**  So Φ-sparsity is NOT the
+  lever for the benchmark row; it stays a real idea for LARGE cells (the battery north-star's supercells),
+  where it should be re-measured with this instrument before anyone builds it.  **The ρ GEMM is still the
+  top wall bucket, and it now needs a different idea.**
+- **★ NEW DEFECT, found by the instrument above: THE IMPOSED XC MESH LOSES ITS SITE BLOCKS — and the
+  Step 0a site-moment instrument is SILENTLY DEAD on every imposed run.**  `MakePeriodicBeckeMesh` records
+  one block per atom (`BeginSite`), which is what makes \f$\int w_A m\f$ a real integral instead of a point
+  sample.  The imposed/invariant mesh path (symmetrise + `FoldPointsPeriodic`) drops them: the engine's
+  mesh reports `NSites()==0`.  `qcMesh::SiteIntegrals` guards this with an `assert`, which is COMPILED OUT
+  under `NDEBUG` — so a Release imposed run does not fail, it just prints no Becke site moment at all
+  (verified: `QCHEM_SITE_MOMENTS=1 MNO_IMPOSE=1` emits only the legacy point probe).  This matters twice
+  over: **every benchmark row is `MNO_IMPOSE=1`**, and Step 5's "re-read the campaign's moment conclusions
+  against the integrated observable" would have silently produced nothing on exactly the runs it targets.
+  Fix = carry the site blocks through the invariant-mesh construction (each orbit rep keeps its owning
+  site), and turn that `assert` into something that survives Release.
 - ~~**Becke mesh build** (~12–32 s): `BeckeCutoff` alone was 11.5% of the round-3 profile.~~ → covered by
   the two Becke items above.
 - **NOT worth re-attacking without new information:** the per-iteration scatter/gather.  Round 4 measured

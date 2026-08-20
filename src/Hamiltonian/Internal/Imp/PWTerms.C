@@ -492,6 +492,67 @@ XC_GridEngine::XC_GridEngine(mesh_t mesh, Symmetry::Lattice_3D::Fold fold,
 // Keyed by the block's SPATIAL Irrep (never a pointer).  Irrep -- not BasisSetID -- because the table
 // is a property of the irrep/k block within THIS run; BasisSetID's extra radial resolution exists for
 // the cross-RUN disk cache, which this in-memory per-run table does not share.
+// GPW_PHI_SPARSITY=1: how sparse is Phi REALLY?  The Phi-SPARSITY item (doc/OpenWork.md Step 3) asserts
+// that Phi is stored dense (npts x n) while the true object is sparse, so batching the mesh with a
+// per-batch SIGNIFICANT-FUNCTION list makes every Phi-shaped cost -- the rho GEMM and the H_xc GEMM --
+// O(npts n_sig^2).  That is a claim about a number nobody has measured, and the win is quadratic in it,
+// so measure before building the machinery (the standing lesson of this campaign).
+//
+// Two granularities, because the mesh already carries BOTH batchings and neither had to be built:
+//   SITE   -- the per-atom blocks the Becke build records (Mesh::NSites/SiteBegin/SiteEnd);
+//   BATCH  -- contiguous runs of points, which INSIDE a site are radial-shell groups, because a site's
+//             points are laid out radial-outer x angular-inner by ProductMesh.
+// The reported ratio is the CEILING on the GEMM win: sum_b npts_b n_sig_b^2 against npts n^2.
+template <class U> void ReportPhiSparsity(const mat_t<U>& P, const qcMesh::Mesh& mesh)
+{
+    static const bool on=std::getenv("GPW_PHI_SPARSITY")!=nullptr;
+    if (!on) return;
+    const size_t npts=P.rows(), n=P.columns();
+    if (npts==0 || n==0) return;
+    const double eps=1e-10;                       // the house pointwise magnitude floor (PGData::Reaches)
+
+    auto sigIn=[&](size_t lo, size_t hi)          // functions with ANY significant value on [lo,hi)
+    {
+        size_t c=0;
+        for (size_t i=0;i<n;i++)
+            for (size_t q=lo;q<hi;q++)
+                if (std::abs(P(q,i))>eps) { c++; break; }
+        return c;
+    };
+    size_t nnz=0;
+    for (size_t q=0;q<npts;q++) for (size_t i=0;i<n;i++) if (std::abs(P(q,i))>eps) nnz++;
+
+    const double dense=double(npts)*double(n)*double(n);
+    double wSite=0.0; size_t sigMax=0; double sigMean=0.0;
+    const size_t nsite=mesh.NSites();
+    for (size_t a=0;a<nsite;a++)
+    {
+        const size_t lo=mesh.SiteBegin(a), hi=mesh.SiteEnd(a), sg=sigIn(lo,hi);
+        wSite+=double(hi-lo)*double(sg)*double(sg);
+        sigMax=std::max(sigMax,sg); sigMean+=double(sg)/double(std::max<size_t>(nsite,1));
+    }
+    std::cout<<"[Phi sparsity] npts="<<npts<<" n="<<n
+             <<"  nonzero="<<100.0*double(nnz)/(double(npts)*double(n))<<"%"<<std::endl;
+    if (nsite>0)
+        std::cout<<"[Phi sparsity] SITE batching ("<<nsite<<" blocks): n_sig mean="<<sigMean
+                 <<" max="<<sigMax<<" of "<<n<<"  GEMM ceiling="<<dense/std::max(wSite,1.0)<<"x"<<std::endl;
+    else
+        std::cout<<"[Phi sparsity] SITE batching UNAVAILABLE: this mesh carries no site blocks"<<std::endl;
+    // Batch-size sweep: the ceiling rises as batches shrink (more locality) but the per-batch bookkeeping
+    // and the GEMM's own efficiency fall, so the useful answer is the TREND, not one number.
+    for (size_t bs : {64ul, 256ul, 1024ul, 4096ul})
+    {
+        double w=0.0; size_t sgMax=0;
+        for (size_t lo=0; lo<npts; lo+=bs)
+        {
+            const size_t hi=std::min(npts,lo+bs), sg=sigIn(lo,hi);
+            w+=double(hi-lo)*double(sg)*double(sg); sgMax=std::max(sgMax,sg);
+        }
+        std::cout<<"[Phi sparsity] BATCH "<<bs<<" pts: n_sig max="<<sgMax<<" of "<<n
+                 <<"  GEMM ceiling="<<dense/std::max(w,1.0)<<"x"<<std::endl;
+    }
+}
+
 template <class U> mat_t<U> XC_GridEngine::MakePhi(const tobs_t<U>* bs) const
 {
     qchem::report::Timed timed("setup: XC-mesh Phi tables");
@@ -549,10 +610,12 @@ template <class U> mat_t<U> XC_GridEngine::MakePhi(const tobs_t<U>* bs) const
             }
         }
         if (firstEx) std::rethrow_exception(firstEx);
+        ReportPhiSparsity(P,*itsMesh);
         return P;
     }
 #endif
     for (size_t b=0; b<nblk; b++) fill(b);
+    ReportPhiSparsity(P,*itsMesh);
     return P;
 }
 const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const
