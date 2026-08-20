@@ -27,7 +27,8 @@ waiting on a term-by-term breakdown to name its operator.
 ### Step 0 — FIX THE INSTRUMENTS  ·  ~½ day  ·  DO THIS FIRST
 
 Two readouts, both cheap, both prerequisites for Step 1 (a benchmark table that bakes in a wrong
-instrument is a table we redo).
+instrument is a table we redo) — **both now DONE**, plus **0c**, added 2026-08-20 and still OPEN:
+the console reports WHAT but not WHEN, which is a prerequisite for the pre-SCF work rather than for Step 1.
 
 **0a — REPLACE the order parameter with an INTEGRATED site moment.**
 
@@ -118,6 +119,35 @@ Measured, first time any of this was on the console:
 **And the message that matters for Step 2, now unmissable:** the production MnO magnetic run prints
 `NONE` on all three — it folds NOTHING, on a cell whose magnetic group has 12–24 ops.  That is the
 12–48× sitting unclaimed, said out loud on every run instead of inferred from a plan doc.
+
+**0c — MAKE THE ORDER LEGIBLE.  THE CONSOLE CANNOT TELL YOU *WHEN* (user, 2026-08-20).  OPEN.**
+
+> **The user's view into a run is the console output.**  It says WHAT happened; it does not say WHEN, and
+> today it can actively mislead about it.
+
+**The evidence, from the session that raised it.**  A run printed `grids ▸ xcQuadrature kind Becke` and,
+further down — *after the iteration header* — `grids ▸ xcQuadrature kind Uniform`.  Chasing the second one
+cost the better part of an hour, and the sharpest wrong turn was this: **a report section RENDERS when its
+ENCLOSING section closes, so a block's POSITION in the console is not its construction time.**  Reading
+"early" and "late" off the log produced a lazy-construction story that was simply false — the object was
+built where the log implied it was not.  A runtime BACKTRACE settled it in one shot.  (The key collision
+itself is fixed; see the `vxcFitGrid` commit.  This item is the general defect it exposed.)
+
+**The proposal (user):** give **each report item a TIMESTAMP**, and let the renderer OPTIONALLY guarantee
+that items stream out in the true order — so ordering is *read*, not inferred.  Two things fall out of it
+that are worth stating separately, because they are separable increments:
+- a **monotonic timestamp per item** is the minimum, and it is nearly free: `Timed` already reads
+  `steady_clock` (`Common/Imp/Reporting.C`), so the same clock can stamp every `EmitAt`/`Emit`;
+- an **order-preserving render mode** is the part with a design question: sections currently nest, and a
+  strictly chronological stream and a nested-section render are two different documents.  Options are to
+  stream chronologically with the section as a FIELD on each item, or to keep the nesting and print each
+  item's stamp so a reader can reconstruct order.  Deciding that is the increment.
+
+**Sibling idea, complementary not alternative:** a one-line *"constructed X"* trace at the real
+construction points would make the **pre-SCF sequence** legible directly — which matters because there are
+known problems in that sequence, and today the only way to establish what runs when is to instrument and
+dump a stack.  An instrument that makes ORDER visible is a prerequisite for hunting them, exactly as 0a/0b
+were prerequisites for Step 1.
 
 ### Step 1 — THE HEAD-TO-HEAD TABLE, built as a standing benchmark  ·  **table: `doc/Benchmark.md`**  ·  ✅ THE TABLE STANDS
 
