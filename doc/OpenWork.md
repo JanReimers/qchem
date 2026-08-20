@@ -288,10 +288,8 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
      ran ~150× more often than the physics needs, at **10.6% of the entire run's cycles**.  T is
      block-diagonal per shell and IDENTITY for every s/p shell, so it is a 1-to-6-term sum per output:
      evaluating only its nonzeros is bit-identical (the skipped terms contribute a hard 0.0) and ~50×
-     cheaper.  *The deeper fix is still open* — the transform is LINEAR, so the honest structure is to sum
-     the images in Cartesian and transform ONCE per point, which needs the Bloch point-sum to live in the
-     periodic seam (`LatticeSum1E`) rather than in `GPW_Evaluator`.  That is an interface question, hence
-     not taken unilaterally.
+     cheaper.  **The deeper fix is its own item below — promoted out of this sub-bullet 2026-08-20 because
+     a still-open fix filed under a ✅ heading is a fix that gets lost.**
   2. **The pointwise sweep had no magnitude screen (190 → 120 s).**  `PG_Cart::IrrepBasisSet::operator()`
      evaluated every contracted radial at every point — including an α=36 Mn d shell at 20+ bohr, where its
      value is ~e⁻¹⁴⁰⁰⁰ — because the image list necessarily reaches as far as the most DIFFUSE function.
@@ -361,6 +359,34 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   3. **The build flags undercut both.**  `qcStructure` compiles with `-O3 … -O2 -g` — clang takes the LAST
      `-O`, so it builds at **-O2** — and there is no `-march=native`, i.e. baseline SSE2 at 2 doubles per
      vector.  (Whole-tree change, so it interacts with the BLAS pin; not a Becke-local decision.)
+- **★ THE Φ BLOCH POINT-SUM SEAM — open, and it SEQUENCES BEFORE Φ-sparsity.**  `GPW_Evaluator::Eval`
+  (`Evaluator.C:801`) Bloch-sums the orbitals by calling `(*itsOrb)(r-R_k)` **once per lattice image per
+  mesh point** — and when `GPW_SPHERICAL=1` that call IS the cart→spherical transform.  The transform is
+  LINEAR, so \f$\sum_k \phi_k T^{\!\top} v_k = T^{\!\top}\sum_k \phi_k v_k\f$: summing the images in
+  CARTESIAN and transforming ONCE per point is the honest structure.  `Eval` cannot do that, because it
+  sees only an abstract `Real_BS` and has no idea a transform is hiding inside — so the Bloch POINT-sum has
+  to move into the periodic seam (`Molecule::LatticeSum1E`), beside the per-shell-pair enumeration that
+  already lives there for the 1E matrices.  **That is an interface question — it needs a new face method
+  (a Bloch point-value), so it does not get taken unilaterally.**
+  **Three reasons it goes BEFORE the sparsity item, none of them its size:**
+  1. **Sparsity rewrites this exact caller.**  Φ is filled by `PhiAt` → `Eval(R[k])` per point
+     (`Evaluator.C:1215`); sparsity batches that fill per atom / radial shell with a significant-function
+     list.  Seam first ⇒ sparsity is built on it.  Sparsity first ⇒ the deeper fix becomes a SECOND rewrite
+     of code just written, threading a significance list through an image loop that should not hold the
+     transform at all.
+  2. **It retires the code's own last exception.**  `Evaluator.C:243` states: *"THERE IS NO CUT … The ONE
+     remaining explicit image list is the INTERNAL Bloch-orbital set for Eval/EvalGradient."*  It is
+     eps-DERIVED and justified as a superset of what the screen keeps — not a violation — but it is the
+     last place GPW enumerates images itself instead of letting the molecular seam do it.  This change
+     closes the exception and the redundancy together.
+  3. **The structures compose.**  T is block-diagonal per shell, which is the granularity sparsity wants to
+     batch on; a once-per-point transform composes with that, one buried in the image loop does not.
+  **FIRST MOVE IS MEASUREMENT, NOT THE FIX.**  The size is UNKNOWN: the ~50× nonzero-only fix already made
+  each call cheap, so what remains is ~150× redundancy in call COUNT on a cheap call — plausibly 10–20 s of
+  the 83 s Φ bucket, plausibly ~2 s.  Time the transform ALONE (or count the calls, the `GPW_BECKE_COUNT`
+  pattern) before sizing it.  If it is small the item is a SEAM CLEANUP, not a perf item, and can ride
+  along with sparsity or drop to *Continuous*.  ⚠ Not bit-identical: summing then transforming reorders the
+  floating-point (mathematically identical, ~1e-16, and arguably MORE accurate — fewer roundings).
 - **Φ-table SPARSITY — still open, and now the next Φ item.**  Φ is stored dense (npts × n) while the true
   object is sparse; batching the mesh (per atom / per radial shell) with a per-batch significant-function
   list makes every Φ-SHAPED cost — the ρ GEMM and the H_xc GEMM, which the build no longer dominates —
