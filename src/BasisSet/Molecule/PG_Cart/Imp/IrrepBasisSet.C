@@ -1,6 +1,7 @@
 // File: BasisSet.C  Polarized Gaussian basis set, for MO calculations.
 module;
 #include <cassert>
+#include <complex>   // dcmplx operators (phase*chi in BlochPointValues); same as GPW's Evaluator.C
 #include <algorithm> //Need std::max
 #include <iostream>
 #include <fstream>
@@ -274,6 +275,53 @@ std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {retur
 // Molecule::LatticeSum1E: the orbital IBS IS-A NR_Evaluator, which owns the radials/pols/ns and the shifted
 // two-centre kernels; forward the lattice sums straight to it (the GPW periodic-1E seam; the offsets are
 // enumerated internally per shell pair -- there is no cut in R).
+// The Bloch orbitals on a point set: Phi(q,i) = chi^k_i(pts[q]) = Sum_R phase(R) chi_i(pts[q]-R).
+// The image sum lives HERE, not in the periodic caller, for the two reasons LatticeSum1E documents --
+// a TRANSFORMED view can then transform once per POINT instead of once per IMAGE, and the reach data
+// that bounds the enumeration is owned on this side.
+//
+// The enumeration REPRODUCES the caller's former rule exactly (same eps-derived reach, same
+// CellsInSphere radius, same per-point bounding-sphere screen, same POINT-outer/offset-inner order), so
+// the Cartesian result is BIT-IDENTICAL to the old GPW_Evaluator::Eval path.  That is deliberate: this
+// increment moves WHERE the sum happens, and nothing else, so any number that moves afterwards belongs
+// to the transform reordering in the spherical view and not to a changed image set.
+void Orbital_IBS::BlochPointValues(const rvec3vec_t& pts, const cellphase_t& phase, const UnitCell& A,
+                                   mat_t<dcmplx>& Phi) const
+{
+    const size_t n=GetNumFunctions(), npts=pts.size();
+    Phi=mat_t<dcmplx>(npts,n,dcmplx(0.0));
+    if (npts==0) return;
+
+    // A single orbital reaches sqrt(-ln eps/alpha_min) and its centre sits within a cell span of any
+    // evaluation point, so reach + span covers every image the magnitude screen keeps (the caller's own
+    // note; the per-function screen inside operator() then prunes it sparse per point).
+    const double maxReach=sqrt(-log(1e-10)/MinExponent());   // qchem.CMath, per the include convention
+    const rvec3_t ctr=A.ToCartesian(rvec3_t(0.5,0.5,0.5));
+    double cellRad=0.0;
+    for (int cx=0;cx<=1;cx++) for (int cy=0;cy<=1;cy++) for (int cz=0;cz<=1;cz++)
+        cellRad=std::max(cellRad, norm(A.ToCartesian(rvec3_t(double(cx),double(cy),double(cz)))-ctr));
+    const double Rcut=std::max(2.0*maxReach+2.0*A.GetMaximumCellEdge(), maxReach+2.0*cellRad);
+    const double rr  =cellRad+maxReach;
+
+    std::vector<ivec3_t> offs=A.CellsInSphere(Rcut);
+    std::vector<rvec3_t> Rc(offs.size());
+    cvec_t               ph(offs.size());
+    for (size_t k=0;k<offs.size();k++)
+    {
+        Rc[k]=A.ToCartesian(rvec3_t(double(offs[k].x),double(offs[k].y),double(offs[k].z)));
+        ph[k]=phase(offs[k]);
+    }
+
+    for (size_t q=0;q<npts;q++)
+        for (size_t k=0;k<Rc.size();k++)
+        {
+            const rvec3_t d=pts[q]-Rc[k]-ctr;
+            if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;   // image cannot reach this point
+            const rvec_t chi=(*this)(pts[q]-Rc[k]);
+            for (size_t i=0;i<n;i++) Phi(q,i)+=ph[k]*chi[i];
+        }
+}
+
 chmat_t Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A) const {return NR_Evaluator::MakeOverlap(phase,A);}
 cvec_t  Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                                  const Molecule::LatticeSum1E::GaussianFunction& g) const {return NR_Evaluator::MakeOverlap(phase,A,g);}

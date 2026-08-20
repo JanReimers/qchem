@@ -812,6 +812,28 @@ cvec_t GPW_Evaluator::Eval(const rvec3_t& r) const
     return v;
 }
 
+// Eval on a POINT SET.  The image sum is DELEGATED to the molecular seam (see the declaration): the
+// enumeration is the seam's own (same eps-derived reach and radius rule this class used, so the
+// untransformed table is bit-identical), and a transformed basis gets to transform once per point.
+// Batched rather than per-point because the seam re-derives its offset list per call -- amortised over a
+// block of points, paid per point if this were called pointwise.
+mat_t<dcmplx> GPW_Evaluator::EvalMany(const rvec3vec_t& pts) const
+{
+    if (itsHomeOnly)     // molecule-in-a-box: image-free by definition, the raw home orbital widened
+    {
+        mat_t<dcmplx> P(pts.size(), itsN);
+        for (size_t q=0;q<pts.size();q++)
+        {
+            const rvec_t chi=(*itsOrb)(pts[q]);
+            for (size_t i=0;i<itsN;i++) P(q,i)=dcmplx(chi[i],0.0);
+        }
+        return P;
+    }
+    mat_t<dcmplx> Phi;
+    itsLat->BlochPointValues(pts, CellPhase(), itsCell, Phi);
+    return Phi;
+}
+
 cvec3vec_t GPW_Evaluator::EvalGradient(const rvec3_t& r) const
 {
     const double rr=itsCellRad+itsMaxReach;

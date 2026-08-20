@@ -15,6 +15,7 @@ module;
 #include <functional>
 #include <type_traits>  // std::is_same_v (ToScalar's identity branch)
 export module qchem.BasisSet.Lattice_3D.IBS;
+import qchem.VectorFunction;                          // VectorFunction<T> (the pointwise-loop default of the point-SET op)
 import qchem.BasisSet.IrrepBasisSet;                  // IrrepBasisSet<T> (op()(r), GetNumFunctions)
 import qchem.BasisSet.Orbital_1E_IBS;                 // Orbital_1E_IBS<T> (MakeOverlap/MakeKinetic/MakeNuclear)
 import qchem.BasisSet.Orbital_DFT_IBS;                    // Orbital_DFT_IBS<T,dcmplx> (MakeRepulsion3C/MakeOverlap3C) + Projector3<dcmplx>
@@ -53,6 +54,16 @@ template <class T> vec3vec_t<T> ToScalar(const cvec3vec_t& v)
         return r;
     }
 }
+template <class T> mat_t<T> ToScalar(const mat_t<dcmplx>& m)
+{
+    if constexpr (std::is_same_v<T,dcmplx>) return m;
+    else
+    {
+        mat_t<T> r(m.rows(), m.columns());
+        for (size_t i=0;i<m.rows();i++) for (size_t j=0;j<m.columns();j++) r(i,j)=ToScalar<T>(m(i,j));
+        return r;
+    }
+}
 template <class T> hmat_t<T> ToScalar(const chmat_t& m)
 {
     if constexpr (std::is_same_v<T,dcmplx>) return m;
@@ -77,6 +88,17 @@ class EPW_Irrep_IBS
 public:
     virtual size_t       GetNumFunctions()          const override {return Cast().size();}
     virtual vec_t<T>     operator()(const rvec3_t& r) const override {return ToScalar<T>(Cast().Eval(r));}
+    //! Batch: route to the evaluator's point-SET Bloch sum where it has one (GPW -- it pushes the image
+    //! sum down into the molecular seam, so a transformed basis transforms once per POINT, not per
+    //! image).  An evaluator without one (PW) keeps VectorFunction's pointwise default; the concept is
+    //! deliberately NOT widened to demand it.
+    virtual mat_t<T>     operator()(const rvec3vec_t& rs) const override
+    {
+        if constexpr (requires (const E& e) { e.EvalMany(rs); })
+            return ToScalar<T>(Cast().EvalMany(rs));
+        else
+            return this->VectorFunction<T>::operator()(rs);
+    }
     virtual vec3vec_t<T> Gradient  (const rvec3_t& r) const override {return ToScalar<T>(Cast().EvalGradient(r));}
 protected:
     const E& Cast() const {return dynamic_cast<const E&>(*this);}

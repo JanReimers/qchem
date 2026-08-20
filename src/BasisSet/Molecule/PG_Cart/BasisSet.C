@@ -89,6 +89,10 @@ public:
     virtual cvec_t  MakeOverlap(const Molecule::LatticeSum1E::GaussianFunction& g) const override;
     virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const override;
     virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const override;
+    //! The Bloch orbitals on a point set (the XC-mesh \f$\Phi\f$ table) -- see LatticeSum1E for WHY the
+    //! image sum belongs on this side of the seam rather than in the periodic caller.
+    virtual void    BlochPointValues(const rvec3vec_t& pts, const cellphase_t& phase, const UnitCell& A,
+                                     mat_t<dcmplx>& Phi) const override;
     virtual chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
                                       const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
     virtual chmat_t MakeLocalGaussian(const Structure* cl,

@@ -183,6 +183,28 @@ public:
     { cvec_t b=itsLat->MakeOverlap(phase,A,g); cvec_t out=blazem::trans(itsTc)*b; return out; }
     virtual cvec_t  MakeOverlap(const GaussianFunction& g) const override
     { cvec_t b=itsLat->MakeOverlap(g); cvec_t out=blazem::trans(itsTc)*b; return out; }
+    // ★ THE POINT OF THE POINT-SET SEAM.  The transform is LINEAR, so
+    //       Sum_R phase_R T^T v_R  ==  T^T Sum_R phase_R v_R,
+    // and the right-hand side applies T ONCE PER POINT where operator() applied it once per IMAGE (~150x
+    // on the MnO benchmark cell).  This override is only expressible because the inner basis does the
+    // image sum: with the sum in the periodic CALLER, the caller holds an abstract basis and cannot know
+    // a transform is hiding inside it (doc/OpenWork.md Step 3).  Same nonzero-only contraction as
+    // operator() -- T is block-diagonal per shell and IDENTITY for every s/p shell.
+    virtual void BlochPointValues(const rvec3vec_t& pts, const cellphase_t& phase, const UnitCell& A,
+                                  mat_t<dcmplx>& Phi) const override
+    {
+        mat_t<dcmplx> C;                                  // the inner CARTESIAN Bloch table
+        itsLat->BlochPointValues(pts,phase,A,C);
+        const size_t npts=C.rows(), nS=itsT.columns();
+        Phi=mat_t<dcmplx>(npts,nS,dcmplx(0.0));
+        for (size_t q=0;q<npts;q++)
+            for (size_t s=0;s<nS;s++)
+            {
+                dcmplx a(0.0);
+                for (const auto& [c,t] : itsTnz[s]) a+=t*C(q,c);
+                Phi(q,s)=a;
+            }
+    }
     virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const override
     { return CongruenceC(itsLat->MakeKinetic(phase,A)); }
     virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const override

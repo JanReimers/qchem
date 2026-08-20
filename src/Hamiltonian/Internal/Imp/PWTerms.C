@@ -513,20 +513,35 @@ template <class U> mat_t<U> XC_GridEngine::MakePhi(const tobs_t<U>* bs) const
     // a transient second copy of the table.  The whole fill is 0.04% of this bucket; the cost that WAS
     // here lived in the per-image spherical transform (see PG_Spherical's LatticeView) and in the missing
     // pointwise magnitude screen (PGData::Reaches), both now fixed.
-    mat_t<U> P(R.size(), bs->GetVectorSize());
-    auto fill=[&](size_t g)
+    // BATCHED, IN CHUNKS.  The basis is asked for a whole BLOCK of points (VectorFunction's point-set
+    // op), not one point at a time, because a periodic basis can then do work once per point that the
+    // pointwise call forces it to do once per lattice IMAGE -- see LatticeSum1E::BlochPointValues.  The
+    // default op just loops pointwise, so a basis that does not override is unaffected.
+    // Chunked rather than one call for the whole mesh so THIS loop keeps the threading: qcMath is a leaf
+    // and cannot host OpenMP, and molecular bases reach here too (CreateXCQuadrature is a generic basis
+    // face), so handing the whole set to a serial default would deserialise them.  Each chunk writes its
+    // own disjoint rows, so the table stays bit-identical at any thread count.
+    const size_t n=bs->GetVectorSize(), npts=R.size();
+    mat_t<U> P(npts, n);
+    const size_t nchunk=std::max<size_t>(1, npts/256);          // ~256 chunks: amortises, still balances
+    const size_t nblk  =(npts+nchunk-1)/nchunk;
+    auto fill=[&](size_t b)
     {
-        vec_t<U> phi=(*bs)(R[g]);
-        for (size_t i=0; i<phi.size(); i++) P(g,i)=phi[i];
+        const size_t lo=b*nchunk, hi=std::min(npts, lo+nchunk);
+        if (lo>=hi) return;
+        rvec3vec_t sub(hi-lo);
+        for (size_t g=lo; g<hi; g++) sub[g-lo]=R[g];
+        const mat_t<U> B=(*bs)(sub);
+        for (size_t g=lo; g<hi; g++) for (size_t i=0; i<n; i++) P(g,i)=B(g-lo,i);
     };
 #ifdef QCHEM_OPENMP
     if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
     {
         std::exception_ptr firstEx;                 // throw containment (an escape = std::terminate)
         #pragma omp parallel for schedule(static) num_threads(nthreads)
-        for (size_t g=0; g<R.size(); g++)
+        for (size_t b=0; b<nblk; b++)
         {
-            try { fill(g); }
+            try { fill(b); }
             catch (...)
             {
                 #pragma omp critical (xc_phi_throw)
@@ -537,7 +552,7 @@ template <class U> mat_t<U> XC_GridEngine::MakePhi(const tobs_t<U>* bs) const
         return P;
     }
 #endif
-    for (size_t g=0; g<R.size(); g++) fill(g);
+    for (size_t b=0; b<nblk; b++) fill(b);
     return P;
 }
 const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const

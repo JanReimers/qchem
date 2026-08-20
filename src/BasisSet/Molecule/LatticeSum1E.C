@@ -141,6 +141,35 @@ public:
     //! without duplicating the constant; the assignment itself stays internal (doc/GPWPlan.md 0b').
     virtual double RelCutoffSafety() const = 0;
 
+    //! \brief The BLOCH ORBITALS ON A POINT SET: \f$\Phi_{qi}=\chi^k_i(r_q)=\sum_R\mathrm{phase}(R)\,
+    //! \chi_i(r_q-R)\f$ -- the \f$\Phi\f$ table the atom-centred XC quadrature runs on, and the point-value
+    //! sibling of the MATRIX lattice sums above (same internal, magnitude-screened offset enumeration; THERE
+    //! IS NO CUT).  \a Phi is resized to (\a pts.size() x \c GetNumFunctions()).
+    //!
+    //! WHY THIS LIVES HERE rather than in the periodic caller (2026-08-20).  \c GPW_Evaluator::Eval used to
+    //! run the image sum ITSELF, calling the basis once per lattice image per mesh point.  Two things follow
+    //! from that placement, and both are defects of the SEAM, not of the caller:
+    //!   1. a TRANSFORMED basis (the spherical lattice view) then applies its cart->sphere transform ONCE PER
+    //!      IMAGE, where the transform is LINEAR and one per POINT would do -- \f$\sum_R\phi_R T^{\!\top}v_R
+    //!      = T^{\!\top}\sum_R\phi_R v_R\f$.  The caller cannot fix this: it holds an ABSTRACT basis and
+    //!      cannot know a transform is hiding inside.  Summing on THIS side of the seam, before any view
+    //!      wraps it, is the only placement where the identity is available.
+    //!   2. the caller's image list is necessarily GLOBAL -- sized by the most DIFFUSE function in the basis
+    //!      -- so every image paid a sweep over every function, including tight ones that cannot reach.  The
+    //!      per-function reach is data only this side owns, which is the same argument the file header makes
+    //!      for the matrix enumerations.
+    //!
+    //! A POINT SET, not a point, for two reasons: the per-point OUTPUT allocation amortises into one table
+    //! (the caller's per-point \c cvec_t and a transformed view's per-IMAGE temporary both disappear); and it
+    //! is the seam the \f$\Phi\f$-SPARSITY increment extends (batching
+    //! the mesh with a per-batch significant-function list makes every \f$\Phi\f$-shaped cost
+    //! \f$O(n_{pts}n_{sig}^2)\f$ -- doc/OpenWork.md Step 3).  Callers wanting one point pass a size-1 set.
+    //! The loop order is POINT-outer / offset-inner, matching what the caller did, so the untransformed
+    //! (Cartesian) result is BIT-IDENTICAL to the old path; only a transformed view's result moves, by the
+    //! ~1e-16 of summing before transforming instead of after.
+    virtual void BlochPointValues(const rvec3vec_t& pts, const cellphase_t& phase, const UnitCell& A,
+                                  mat_t<dcmplx>& Phi) const = 0;
+
     //! \brief ANALYTIC per-pair density collocation on a MULTI-GRID ladder (CP2K GPW / Quickstep): the grid
     //! density \f$\rho(r)=\sum_{ij}\sum_{R}\,\mathrm{Re}[D_{ij}e^{-ik\cdot R}]\,\chi_i(r)\chi_j(r-R)\f$ --
     //! the cell-periodic density of the Bloch orbital products \f$\chi_i^k\overline{\chi_j^k}\f$ -- with each

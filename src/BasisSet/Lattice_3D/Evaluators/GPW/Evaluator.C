@@ -102,6 +102,12 @@ public:
     size_t     size()                          const {return itsN;}
     cvec_t     Eval(const rvec3_t& r)          const;   //!< \f$\sum_R e^{ik\cdot R}\chi_i(r-R)\f$ (real at \f$\Gamma\f$)
     cvec3vec_t EvalGradient(const rvec3_t& r)  const;   //!< \f$\sum_R e^{ik\cdot R}\nabla\chi_i(r-R)\f$
+    //! \brief \c Eval on a POINT SET, as an (npts x n) table -- the \f$\Phi\f$ build's entry point
+    //! (\c EPW_Irrep_IBS routes \c VectorFunction's point-set op here when the evaluator has this).
+    //! It DELEGATES the image sum to the molecular seam (\c LatticeSum1E::BlochPointValues) instead of
+    //! running it here, which is what lets a TRANSFORMED basis apply its transform once per POINT rather
+    //! than once per image -- impossible from this side, which holds an abstract basis (OpenWork Step 3).
+    mat_t<dcmplx> EvalMany(const rvec3vec_t& pts) const;
     chmat_t    OverlapMatrix()                 const;   //!< \f$\sum_R\langle i|j(\cdot-R)\rangle\f$
     chmat_t    KineticMatrix()                 const;   //!< \f$\sum_R\langle i|-\nabla^2|j(\cdot-R)\rangle\f$ (no 1/2)
     chmat_t    NuclearMatrix(const Structure* cl) const;//!< \f$\sum_R\langle i|\sum_c -Z_c/|r-R_c||j(\cdot-R)\rangle\f$
