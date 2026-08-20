@@ -23,7 +23,9 @@ if(OpenMP_CXX_FOUND)
     # OpenMP must be TRULY GLOBAL under C++20 modules: the OpenMP language mode is part of a PCM's
     # configuration and clang refuses to MIX (importing a non-OpenMP PCM into an -fopenmp TU errors
     # "OpenMP support differs in precompiled file", and vice versa) -- so per-target scoping cannot
-    # build, and per-target option VARS (CXX_COMMON_COMPILE_OPTIONS) are not applied uniformly enough.
+    # build, and a per-target option VAR is not applied uniformly enough.  (The -O/-march codegen flags
+    # below learned the SAME lesson the hard way in 2026-08-20 and now live in CMAKE_CXX_FLAGS_<CONFIG>
+    # for exactly this reason -- target features are part of a PCM's configuration too.)
     # Hence: the flag goes into CMAKE_CXX_FLAGS (every C++ TU, Fortran/C untouched), the define into
     # add_compile_definitions (directory-inherited everywhere), and the runtime into link_libraries
     # (every target declared after this point).  QCHEM_OPENMP gates the (opt-in via GPW_OMP_THREADS,
@@ -102,13 +104,47 @@ set(CXX_SCAN_FOR_MODULES on)
 # See project_msym_layout_ub.
 option(QCHEM_RELCHECKED "Release codegen with asserts live + blaze bounds checks (no NDEBUG)" OFF)
 
-# Common compile flags for all targets
-set(CXX_COMMON_COMPILE_OPTIONS
-    $<$<CONFIG:Debug>:-g -O0>
-    # Release keeps -O2; -g + frame pointers make it profilable (perf/callgrind) with negligible runtime
-    # cost.  Dropped -pg (gprof): inaccurate on optimized code and superseded by perf/callgrind/PGO.
-    $<$<CONFIG:Release>:-O2 -g -fno-omit-frame-pointer>
-)
+# QCHEM_ARCH_EXPERIMENT: the -O3 / -march=native A/B (doc/OpenWork.md Step 3), OPT-IN and OFF by default.
+# Release's -O2 is a DELIBERATE choice (below), not a flag-order accident, so the bar for changing it is a
+# measurement -- and -march=native is not free: it licenses FMA CONTRACTION, so floating-point results
+# MOVE (a*b+c fused rounds once, not twice).  Any bit-identical anchor must be re-checked, not assumed.
+# It also pins the binary to this box's ISA.  Configure with -DQCHEM_ARCH_EXPERIMENT=ON to measure.
+# ---- CODEGEN / ABI FLAGS: ONE PLACE, NO OPT-OUT (user, 2026-08-20) ------------------------------------
+# These go into CMAKE_CXX_FLAGS_<CONFIG>, NOT a per-target option variable, for the reason the OpenMP flag
+# above already records: "per-target option VARS are not applied uniformly enough".  That was not a style
+# preference -- it is a CORRECTNESS requirement under C++20 modules, and the old per-target
+# CXX_COMMON_COMPILE_OPTIONS had already drifted in three ways before anything forced the issue
+# (measured 2026-08-20): qcMesh and Atom/Evaluators applied it NOWHERE and inherited a bare -O3 with no
+# frame pointers (so the library owning BeckeCutoff, the hottest function in the code, was on a different
+# -O from its peers by accident and was invisible in perf call graphs); qcAtom_BS kept a private -O2 copy
+# missing -g.  Adding -march=native then FAILED TO BUILD outright -- "precompiled file qchem.Math.pcm was
+# compiled with the target feature '+avx2' but the current translation unit is not" -- because a .pcm and
+# every TU consuming it must agree on target features.  In CMAKE_CXX_FLAGS_<CONFIG> a target CANNOT opt
+# out, and changing them rewrites every compile command, so the whole cosmos rebuilds.
+#
+# QCHEM_ARCH_EXPERIMENT picks the Release codegen.  MEASURED on the MnO fast loop (serial, doc/OpenWork.md
+# Step 3): the old mixed state 193.3 s, O3 191.1 s, NATIVE 181.2 s -- BUT a repeat of the O3 build read
+# 197.3 s, so single-sample whole-run timings carry ~3-4% noise on this box.  READ THAT AS: -O3 vs -O2 is
+# INSIDE the noise and is NOT a measured win; -march's ~6% sits just outside it and would need repeats to
+# stand up.  The default is O3 because unification forces ONE level on everyone and O3 is the only choice
+# that DEMOTES no target (qcMesh was already there) -- not because it was measured faster.
+# NATIVE is NOT the default: -march licenses FMA CONTRACTION, so results move, and it makes the Phi bucket
+# ~15% WORSE (19.2 -> 22.1 s).  It belongs in the batched anchor re-pin alongside V1.22 / FittingCleanup K,
+# not on its own.  (Binary PORTABILITY is not a concern here -- R&D project, no binary consumers.)
+set(QCHEM_ARCH_EXPERIMENT "O3" CACHE STRING "Release codegen: O3 (default) | O2 | NATIVE (-O3 -march=native; moves FP results)")
+set_property(CACHE QCHEM_ARCH_EXPERIMENT PROPERTY STRINGS O3 O2 NATIVE)
+if(QCHEM_ARCH_EXPERIMENT STREQUAL "O2")
+    set(QCHEM_RELEASE_CODEGEN "-O2")
+elseif(QCHEM_ARCH_EXPERIMENT STREQUAL "NATIVE")
+    set(QCHEM_RELEASE_CODEGEN "-O3 -march=native")
+else()
+    set(QCHEM_RELEASE_CODEGEN "-O3")
+endif()
+# -g + frame pointers keep Release PROFILABLE (perf/callgrind) at negligible cost -- that is what made the
+# Step 3 cost attribution possible at all.  Dropped -pg (gprof): inaccurate on optimized code.
+set(CMAKE_CXX_FLAGS_RELEASE "${QCHEM_RELEASE_CODEGEN} -g -fno-omit-frame-pointer -DNDEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG   "-g -O0")
+
 set(CXX_COMMON_COMPILE_DEFINITIONS
     $<$<CONFIG:Debug>:-DDEBUG>
 )
@@ -122,7 +158,6 @@ endif()
 # (OpenMP handling lives next to find_package(OpenMP) near the top: C++20 modules force it into
 #  CMAKE_CXX_FLAGS / add_compile_definitions / link_libraries -- truly global, not per-target vars.)
 
-target_compile_options(qchem PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qchem PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcLattice_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry lapack blas)
 add_subdirectory(src)

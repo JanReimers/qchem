@@ -6,7 +6,6 @@ add_executable(UTElConfig ../../Common/tests/gtestmain.C
    OccupationState.C
 )
 
-target_compile_options(UTElConfig PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTElConfig PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTElConfig PROPERTY CXX_STANDARD 20)
 

@@ -8,6 +8,5 @@ target_sources(qcUmbrella PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Umbrella.C
 )
 set_property(TARGET qcUmbrella PROPERTY CXX_STANDARD 20)
-target_compile_options(qcUmbrella PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcUmbrella PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_link_libraries(qcUmbrella PUBLIC qchem)

@@ -21,7 +21,6 @@ add_executable(ITMain gtestmain.C
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
 
-target_compile_options(ITMain PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(ITMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(ITMain PRIVATE ${BasisDataPath})
 set_property(TARGET ITMain PROPERTY CXX_STANDARD 20)

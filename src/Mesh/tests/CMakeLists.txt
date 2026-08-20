@@ -5,7 +5,6 @@ add_executable(UTMesh ../../Common/tests/gtestmain.C
     XCPolicyTests.C
 )
 
-target_compile_options(UTMesh PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTMesh PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTMesh PROPERTY CXX_STANDARD 20)
 

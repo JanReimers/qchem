@@ -26,7 +26,6 @@ target_include_directories(qcLattice_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/src
 )
 set_property(TARGET qcLattice_BS PROPERTY CXX_STANDARD 20)
-target_compile_options(qcLattice_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcLattice_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 # qcMolecule_BS: GPW's periodic Gaussian 1E integrals delegate to the molecular Gaussian basis's
 # Molecule::LatticeSum1E capability.  New edge (qcLattice_BS -> qcMolecule_BS); no cycle (qcMolecule_BS

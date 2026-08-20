@@ -14,7 +14,6 @@ target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     )
 
 set_property(TARGET qcCommon PROPERTY CXX_STANDARD 20)
-target_compile_options(qcCommon PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcCommon PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(qcCommon PUBLIC ${CommonDataPath})
 

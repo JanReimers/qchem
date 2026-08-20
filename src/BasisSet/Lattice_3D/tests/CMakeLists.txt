@@ -16,7 +16,6 @@ add_executable(UTLattice_3D_BS ../../Atom/tests/gtestmain.C
     RealComplexUT.C
 )
 
-target_compile_options(UTLattice_3D_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTLattice_3D_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})  # GTH data path now baked into qcPseudopotential
 set_property(TARGET UTLattice_3D_BS PROPERTY CXX_STANDARD 20)
 

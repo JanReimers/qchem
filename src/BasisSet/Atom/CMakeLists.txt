@@ -14,11 +14,10 @@ target_include_directories(qcAtom_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/src
 )
 
-target_compile_options(qcAtom_BS PRIVATE
-    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-g>
-    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-O0>
-    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CXX>>:-O2>
-)
+# Was a PRIVATE copy of the Debug/Release -O flags, which silently diverged from the common set: it
+# missed -g -fno-omit-frame-pointer (so this lib alone was absent from perf call graphs) and, under
+# C++20 modules, any GLOBAL ISA flag then fails to build outright -- a .pcm and its consumer must agree
+# on target features (measured 2026-08-20: "compiled with the target feature '+avx2' but the current
 target_compile_definitions(qcAtom_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
 set_property(TARGET qcAtom_BS PROPERTY CXX_STANDARD 20)

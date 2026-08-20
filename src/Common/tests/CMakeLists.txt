@@ -7,7 +7,6 @@ add_executable(UTCommon gtestmain.C
     Reporting.C
 )
 
-target_compile_options(UTCommon PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTCommon PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTCommon PROPERTY CXX_STANDARD 20)
 

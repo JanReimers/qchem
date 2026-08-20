@@ -8,7 +8,6 @@ add_executable(UTSCFIterator ../../Common/tests/gtestmain.C
     SCFTrace.C
 )
 
-target_compile_options(UTSCFIterator PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTSCFIterator PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTSCFIterator PROPERTY CXX_STANDARD 20)
 

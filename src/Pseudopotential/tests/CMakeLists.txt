@@ -4,7 +4,6 @@ add_executable(UTPseudopotential ../../Common/tests/gtestmain.C
    SeparableViews.C
 )
 
-target_compile_options(UTPseudopotential PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTPseudopotential PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTPseudopotential PROPERTY CXX_STANDARD 20)
 

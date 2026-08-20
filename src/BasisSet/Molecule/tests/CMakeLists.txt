@@ -10,7 +10,6 @@ add_executable(UTMolecule_BS ../../Atom/tests/gtestmain.C
    M_LibCint.C
 )
 
-target_compile_options(UTMolecule_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTMolecule_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(UTMolecule_BS PRIVATE ${BasisDataPath})
 target_compile_definitions(UTMolecule_BS PRIVATE ORACLE_DATA_PATH="${PROJECT_SOURCE_DIR}/tools/oracle")

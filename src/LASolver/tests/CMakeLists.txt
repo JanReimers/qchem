@@ -4,7 +4,6 @@ add_executable(UTLASolver ../../Common/tests/gtestmain.C
     LASolver.C
 )
 
-target_compile_options(UTLASolver PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTLASolver PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTLASolver PROPERTY CXX_STANDARD 20)
 

@@ -5,7 +5,6 @@ add_executable(UTHamiltonian ../../Common/tests/gtestmain.C
    LDA_XC.C
 )
 
-target_compile_options(UTHamiltonian PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTHamiltonian PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTHamiltonian PROPERTY CXX_STANDARD 20)
 

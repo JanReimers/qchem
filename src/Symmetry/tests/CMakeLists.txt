@@ -11,7 +11,6 @@ add_executable(UTSymmetry ../../Common/tests/gtestmain.C
    L_Fold.C
 )
 
-target_compile_options(UTSymmetry PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTSymmetry PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTSymmetry PROPERTY CXX_STANDARD 20)
 

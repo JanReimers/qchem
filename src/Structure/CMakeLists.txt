@@ -20,7 +20,6 @@ target_include_directories(qcStructure PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
 )
 set_property(TARGET qcStructure PROPERTY CXX_STANDARD 20)
-target_compile_options(qcStructure PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcStructure PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 # qcSymmetry (user decision 2026-08-01, doc/SymmetryUpgradePlan.md §6a): qcStructure is where Mesh
 # and Symmetry MEET without depending on each other -- the crystal owns its detected SpaceGroup

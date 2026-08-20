@@ -25,7 +25,6 @@ target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 )
 
 set_property(TARGET qcMath PROPERTY CXX_STANDARD 20)
-target_compile_options(qcMath PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcMath PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
 target_include_directories(qcMath PRIVATE

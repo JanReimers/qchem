@@ -46,7 +46,6 @@ target_include_directories(qcHamiltonian PRIVATE
     ${PROJECT_BINARY_DIR}/submodules/libxc
     )
 target_link_libraries(qcHamiltonian PUBLIC qcBasisSet qcFitting qcOrbitals qcSymmetry qcStructure qcMesh qcMath qcCommon qcLASolver qcPseudopotential xc)
-target_compile_options(qcHamiltonian PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcHamiltonian PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
 

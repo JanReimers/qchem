@@ -8,7 +8,6 @@ add_executable(UTChargeDensity ../../Common/tests/gtestmain.C
    AtomicDensity.C
 )
 
-target_compile_options(UTChargeDensity PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTChargeDensity PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTChargeDensity PROPERTY CXX_STANDARD 20)
 

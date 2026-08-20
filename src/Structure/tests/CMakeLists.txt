@@ -6,7 +6,6 @@ add_executable(UTStructure ../../Common/tests/gtestmain.C
     SymmetrizeMeshUT.C
 )
 
-target_compile_options(UTStructure PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTStructure PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTStructure PROPERTY CXX_STANDARD 20)
 

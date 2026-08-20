@@ -18,7 +18,6 @@ add_executable(UTAtom_BS gtestmain.C
    SlaterIntegral.C 
 )
 
-target_compile_options(UTAtom_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTAtom_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTAtom_BS PROPERTY CXX_STANDARD 20)
 
