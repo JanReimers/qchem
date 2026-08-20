@@ -74,8 +74,14 @@ template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(cons
     // {G}_vxc = relCutoff * {G}_rho.  LDA relCutoff==1 => == DensityGrid(); a GGA's denser grid is not wired yet.
     assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA denser Vxc grid) not wired -- the LDA Vxc grid = the CD grid");
     // The Vxc fit basis carries the τ=0 direct ops so its raster STAR-AVERAGES itself under IBZ (empty = no-op).
+    // ROLE = "vxcFitGrid", NOT "xcQuadrature" (2026-08-20).  This object is the PLANE-WAVE Vxc fit grid;
+    // whether it is the run's XC QUADRATURE is the Hamiltonian's route decision, which a basis factory
+    // cannot see.  It used to announce itself as "xcQuadrature" unconditionally, so a Becke run printed
+    // `grids.xcQuadrature kind Becke` from the route and then `grids.xcQuadrature kind Uniform` from here
+    // -- the same report key answering the reader's question two different ways on one run.  The route now
+    // owns that key exclusively (Hamiltonians.C, both branches).
     return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
-                                "xcQuadrature", SymmetryOps());
+                                "vxcFitGrid", SymmetryOps());
 }
 
 template <class T> BasisSet::XCQuadrature tGPW_IBS<T>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const

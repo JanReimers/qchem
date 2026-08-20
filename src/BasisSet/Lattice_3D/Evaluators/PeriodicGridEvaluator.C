@@ -74,7 +74,7 @@ public:
 
     //! \brief Announce THIS grid into the run report under \c grids.<role> -- \f$N\f$, total points, and
     //! the real-space spacing \f$\Delta r_i=|a_i|/N_i\f$ (a.u.).  Called by the OWNING fit basis at ITS
-    //! construction with the role its factory knows ("xcQuadrature" / "densityFit") -- providers self-report;
+    //! construction with the role its factory knows ("vxcFitGrid" / "densityFit") -- providers self-report;
     //! no external trigger (user ruling 2026-08-16).  report::EmitAt is idempotent and inert outside a run.
     void AnnounceGrid(const std::string& role) const;
 

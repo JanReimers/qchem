@@ -271,6 +271,9 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         // quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).
         assert(!becke && "VxcFit::PlaneWave on a Becke grid (I3): the E/H one-functional pairing is not designed yet");
         std::cout<<"[XC quadrature] PLANE-WAVE fit on the uniform G-space raster (details on the [uniform grid] line)"<<std::endl;
+        // The ROUTE owns grids.xcQuadrature -- one key, one answer per run (the fit basis announces its own
+        // grid separately, under grids.vxcFitGrid).
+        qchem::report::EmitAt("grids", "xcQuadrature", {{"kind", "PlaneWave"}});
         PWFittedVxc::fbs_t VFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
         Add(new PWFittedVxc(exch, VFitBasis));
         Add(new PWFittedVxc(corr, VFitBasis));
