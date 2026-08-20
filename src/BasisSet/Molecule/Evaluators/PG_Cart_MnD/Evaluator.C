@@ -1596,10 +1596,25 @@ public:
             PairB  dummy;
             PairB& pb = memo ? memo->B[i*nn+j] : dummy;
             if (memo) pb.level=l;
-            // The D-aware offset weight: the SAME |c| the density collocation of screenD would apply --
-            // fold*Re[D_ij e^{-ik.R_n}] -- so both directions keep the identical active set.
+            // The D-aware offset screen.  It used to reuse the density collocation's COEFFICIENT,
+            // fold*Re[D_ij e^{-ik.R_n}], so that both directions kept the identical active set.  That is
+            // correct on the COLLOCATION side -- there Re[D e^{-ikR}] multiplies a real pair product, so a
+            // zero coefficient contributes exactly nothing to rho -- and WRONG here, because a real part is
+            // not a magnitude.  This direction's term is phase(n)*b, whose size is |b| however the phase is
+            // oriented, so a term with Re[D conj(phase)] = 0 still adds a purely IMAGINARY, entirely
+            // non-negligible amount to H.
+            //
+            // At a QUARTER-INTEGER k that is not an accident but a systematic kill: e^{2 pi i k n} = i^n is
+            // purely imaginary for every ODD offset, so for real-ish D the old test discarded EVERY odd-offset
+            // term and the Hartree/XC matrix came out exactly real (measured: maxIm(dV) = 0 at k=1/4 against
+            // 0.067 at k=0.25001).  The resulting H is missing its imaginary part, its spectrum is wrong, and
+            // the SCF converges to a state 2.5 Ha high -- doc/Benchmark.md footnote 1, the shifted-MP defect.
+            // The screen is now the true magnitude |D_ij| (= |D_ij conj(phase)|, since |phase|=1), which is
+            // what "the magnitude screen is the only truncation" means; it is strictly MORE conservative than
+            // the old test, so it can only keep terms the old one dropped.
             const double fold=(i==j)?1.0:2.0;
             const dcmplx Dij = screenD ? dcmplx((*screenD)(i,j)) : dcmplx(0.0);
+            const double Dmag = fold*std::abs(Dij);
             dcmplx s(0.0);
             if (sc && sc->pairs[i*nn+j].cached)
                 for (const PairOffsetStream& st : sc->pairs[i*nn+j].offsets)
@@ -1612,8 +1627,7 @@ public:
                         if (it==fm->end() || it->second==0) continue;   // member offset: its rep carries it
                         wm=double(it->second);
                     }
-                    if (screenD &&
-                        std::fabs(fold*std::real(Dij*std::conj(phase(st.n))))*st.maxv < kDensityEps()) continue;
+                    if (screenD && Dmag*st.maxv < kDensityEps()) continue;   // TRUE magnitude, not Re[]
                     double b=0.0;
                     // Run-major gather -- the exact mirror of the collocation scatter (same runs, same
                     // order), so the reduction stays bit-identical to the per-point-index form and the

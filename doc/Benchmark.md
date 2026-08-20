@@ -71,7 +71,7 @@ printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrappe
 |---|---|---|---|---|---|---|---|---|---|
 | Si (FCC) | Γ | SIPP_SR | −7.115068508 | −7.115057882 | **−10.6 µHa** | 6.1 s / 5.2 s | 7.4 / 5.0 s | 1.5× | 267 / 148 MB |
 | Si (FCC) | 2×2×2 Γ-centred | SIPP_SR | −7.778472814 | −7.778457865 | **−14.9 µHa** | 8.3 s / 5.8 s | 9.6 / 5.6 s | 1.7× | 269 / 153 MB |
-| Si (FCC) | 2×2×2 shifted MP | SIPP_SR | ⛔ −3.735074784 ¹ | −7.867436530 | ¹ | 29.1 s / 6.1 s | — ¹ | — | 269 / 153 MB |
+| Si (FCC) | 2×2×2 shifted MP | SIPP_SR | −7.868473428 ¹ | −7.867436530 | **−1.04 mHa** | 14.3 s / 6.1 s | 15.6 / 6.0 s | 2.6× | 269 / 153 MB |
 | NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.430336482 | −24.431213375 | **+0.877 mHa** | 39.5 s / 7.4 s | 94.5 / 7.2 s | **13.2×** | 577 / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.546883793 | — ² | | 57.4 s / — | 112 s / — | — | 590 / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.430944039 | −24.432293467 | **+1.349 mHa** | 2m44s / 1m42s | 219 / 102 s | 2.1× | 3090 / 186 MB |
@@ -83,114 +83,29 @@ printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrappe
 **configuration-SELECTIVE part of the offset is −37.15 mHa** (`OpenWork` Step 5).  Every one of these four
 energies reproduces its banked value (runs 61/62 and the CP2K VA pair) to the digits those were recorded at.
 
-¹ ⛔ **BLOCKED BY A DEFECT AT EXACTLY k=¼, diagnosed 2026-08-19.**  `DISABLED_SR_2x2x2ShiftedMP_vs_CP2K`
-banked −7.86673 against CP2K's −7.86744 when the complex-k path landed (`doc/GPWHistory.md`, `745d03ff`);
-today it returns −3.7351.  **The shifted 2×2×2 mesh's k are (±¼,±¼,±¼) — and ¼ is the one place this fails.**
-`GPW_SCF.DISABLED_SingleKSweepProbe` runs ONE k-point per run (mesh 1×1×1, so k = `GPW_KSHIFT` exactly), no
-weights, no IBZ, no symmetry — E(k) must be smooth, and it is, except for a single-point blow-up:
+¹ **SOLVED 2026-08-19 — and it was a SCREEN, not a phase.**  This test had rotted to −3.7351 while DISABLED
+(it is the suite's ONLY fractional-k SCF coverage; every other k is TRIM, where the defect is structurally
+invisible).  It is now ENABLED at ~14 s and reads −7.868473428, converged in 16 iterations at Δρ 1.0e-9.
 
-| k | 0 | ⅛ | 0.249 | **¼** | 0.2500001 | 0.251 | ⅓ | ⅜ | ⅝ | ¾ | ⅞ | ½ |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Etot | −7.1151 | −7.3121 | −7.5638 | **−5.0278** | −7.5660 | −7.5672 | −7.6830 | −7.7189 | −7.7189 | **−5.0174** | −7.3121 | −7.7763 |
+**The bug** (`PG_Cart_MnD/Evaluator.C`, the D-aware integrate-back screen): the term was dropped when
+`|Re(D_ij · conj(phase))| · maxv < eps` — a REAL PART used as if it were a magnitude.  `Re[D e^{-ikR}]` is
+the right coefficient on the COLLOCATION side, where it multiplies a real pair product and a zero means a
+genuinely zero contribution to ρ; the integrate-back's term is `phase·b`, whose size is `|b|` however the
+phase is oriented.  **At a quarter-integer k, $e^{2\pi ikn}=i^n$ is purely imaginary for every ODD
+offset**, so for real-ish D the screen discarded every odd-offset term and the Hartree/XC matrix came out
+EXACTLY REAL — measured `maxIm(dV) = 0` at k=¼ against 0.067 at k=0.25001.  An H missing its imaginary part
+has the wrong spectrum, so the SCF converged 2.5 Ha high.  Fix: screen on the true magnitude `|D_ij|`
+(= `|D_ij conj(phase)|`, since `|phase|=1`) — strictly more conservative, and what the project's own
+"the magnitude screen is the only truncation" rule always meant.
 
-**The failing set is exactly {¼, ¾}** — where the Bloch phase \f$e^{2\pi ik}\f$ is purely imaginary and its
-REAL part underflows to \f$\cos(\pi/2)\approx6\times10^{-17}\f$ instead of being O(1).  ⅛, ⅜, ⅝, ⅞ and ⅓ are
-all equally complex and all clean (and ⅞/⅝ reproduce ⅛/⅜ to every digit, so k↔−k is sound).  Eliminated, each
-by measurement: **symmetry imposition** (the free run is wrong the same way), **the collocation streams**
-(budgets off → analytic path → same energy to 8 digits, converged in 18 iterations), **frontier smearing**
-(kT up to 0.02 moves the answer only −5.028 → −5.116, nowhere near the −7.57 the curve wants), **the
-TRIM/real typing** (`BlochQN::IsReal()` is exact and correctly answers *false* at ¼; the blocks are built
-complex).  **And it is not physics: k = ¼ + 1e-9 lands back on the
-smooth curve** (−7.5224, still descending) — a 1e-9 change in k cannot move a converged energy by 2.5 Ha, so
-this is an exact-value branch.  Signature at the bad k: Ekin 5.67 where the curve wants 3.63, Een −0.02
-where it wants −0.71.
-
-**★ THE STATIC OPERATORS ARE EXONERATED** — `GPW.GeneralK_OneElectronMatricesAreContinuousAtQuarterK` (new,
-ENABLED, 2 s) builds the matrices at k = 0.249 / 0.250 / 0.251 with no SCF, no density and no occupations,
-and every one is smooth and monotone through the bad k:
-
-| | 0.249 | **0.250** | 0.251 |
-|---|---|---|---|
-| ‖S‖ | 6.72656 | 6.72899 | 6.73143 |
-| ‖T‖ | 21.9720 | 21.9719 | 21.9718 |
-| ‖V‖ | 121.742 | 121.754 | 121.766 |
-| ‖V_loc-long‖ | 11.9330 | 11.9333 | 11.9336 |
-| ‖V_loc-short‖ | 8.14542 | 8.14551 | 8.14560 |
-| ‖V_KB‖ | 17.8310 | 17.8315 | 17.8319 |
-
-So S, T, V, both local-PP pieces and the KB nonlocal are all CORRECT at k=¼ — including the KB projector,
-the historic home of complex-only phase bugs.  Two more gates (also new, also enabled) close the rest of the
-static path:
-
-- **the collocation/integrate-back**: \f$\langle\chi_i^k|V_0|\chi_j^k\rangle=V_0S^{Bloch}_{ij}\f$ holds at any
-  k, and its residual is 7.54e-8 / 7.67e-8 / 7.80e-8 at 0.249 / 0.250 / 0.251 — smooth and tiny.  (The
-  pre-existing version of this invariant runs at Γ only and compares only REAL parts, so at complex k, where
-  the imaginary part IS the physics, it had never been checked.)
-- **the 1E spectrum**: solving \f$HC=\varepsilon SC\f$ for the static H, every level moves by ~1e-6 over
-  dk=1e-5 and the frontier gap is a smooth **0.129648 / 0.129649 / 0.129650**.
-
-**★ SO THE OPERATORS AND THEIR SPECTRUM ARE CLEAN, AND THE SCF STILL DIVERGES AT ITERATION 1.**  From the
-same k-independent uniform seed: E₁ = −5.62164 at k=0.24999, **−4.86010 at k=0.25**, −5.62148 at 0.25001 —
-a 0.76 Ha jump for a 1e-5 change in k.  All three gates stay enabled as the first coverage quarter-integer
-k has ever had.
-
-**★★ THE SYMPTOM, NAMED (2026-08-19).**  With the frontier window now available on SOLIDS and printing
-DEGENERACY (`ε(occ/degen)`, `GPW_BANDGAP=1`), iteration 1 reads:
-
-| k | occupied levels ε(occ/degen) | pattern |
-|---|---|---|
-| 0.25001 | −0.2197(2/2)  0.0592(2/2)  **0.1604(4.0/4)** | `1,1,2` ✓ |
-| **0.25** | −0.7197(2/2) −0.1013(2/2) −0.0237(2/2) **0.1449(2.0/4)** | `1,1,1` + half-filled doublet ✗ |
-| 0.5 (L) | −0.2056(2/2) −0.1339(2/2)  0.1023(4/4) | `1,1,2` ✓ |
-| 0 (Γ) | −0.1315(2/2)  0.3080(6/6) | `1,3` ✓ (cubic) |
-
-**Si's four valence bands along Λ are Λ₁, Λ₁, Λ₃(×2) — the `1,1,2` its neighbours and the L point show.
-At exactly ¼ an EXTRA SINGLET appears below the frontier and the doublet is left straddling E_F with 2 of
-its 4 states filled** — that is the `m` flag, and a half-filled shell spreads 2 electrons over 4 states,
-which is a symmetry-broken density by construction.  The whole spectrum shifts with it (the lowest level
-moves −0.2197 → −0.7197, half a hartree, for dk=1e-5).
-
-Both spectra carry 24 orbitals / 48 states, so no function is lost.  **Also ruled out: the
-orthogonalisation** — `GPW_ORTHO=cholesky|eigen|svd` all give ≈−5.02 at the bad k.
-
-**★★★ AND THE MATRICES ARE SMOOTH ELEMENT-WISE, not merely in norm.**  The continuity gate originally
-compared Frobenius norms, which cannot see the bug class it exists for — \f$\|\overline{M}\|=\|M\|\f$, so a
-conjugated Bloch phase (the historic complex-k defect) passes a norm check at every k.  It now compares
-M(¼) against the midpoint of its neighbours **entry by entry**, and covers one more path: the potential
-matrix at **G≠0**, which the constant-field gate does not reach (its closure is nonzero only at
-`dm=(0,0,0)`, i.e. G=0 alone).  At dk=1e-4 the worst entry of each is
-
-| S | T | V_loc-long | V_loc-short | V_KB | V(G≠0) collocation |
-|---|---|---|---|---|---|
-| 5.03e-8 | 4.20e-8 | 2.41e-8 | 1.53e-8 | 4.27e-8 | 8.29e-8 |
-
-and **these are curvature, not defect**: shrinking dk ten-fold twice drops every entry by exactly 100×
-(5.03e-6 → 5.03e-8 → 5.03e-10), the signature of a smooth function sampled at three points.
-
-**So every matrix that enters H is smooth at k=¼, the ortho is irrelevant, and the assembled H's spectrum
-still jumps.**  That is a sharp contradiction, and it puts the defect in the ASSEMBLY step itself — how the
-Hamiltonian combines these (correct) matrices into the block it hands the solver — or in a k-dependent
-ingredient not yet enumerated.  **Caveat that bounds the inference**: the static gate's H
-(T/2 + V_loc + V_KB) is a stand-in; its occupied-level PATTERN matches the SCF's at the good k (`1,1,2`)
-and not at ¼, which is suggestive, but it is not the SCF's own H.
-The CP2K half of this row is measured and sound.  The only test covering shifted k is DISABLED, so nothing
-caught it — re-enable it, or add a cheap quarter-integer gate, once fixed.
-**Why the two Si 2×2×2 rows differ by 89 mHa** (asked 2026-08-19; settled by running CP2K to the k-limit,
-seconds per point, so it never has to be argued again).  They are two samplings of ONE integral and converge
-to the same answer — the gap is sampling error at a very coarse mesh, not a setup discrepancy:
-
-| CP2K mesh | E | error vs limit |
-|---|---|---|
-| 2×2×2 Γ-centred (8 pts) | −7.778458 | 95.8 mHa |
-| 3×3×3 MP (odd n ⇒ Γ-centred) | −7.851866 | 22.3 mHa |
-| **2×2×2 shifted (8 pts)** | **−7.867437** | **6.8 mHa** |
-| 4×4×4 shifted | −7.874138 | 0.08 mHa |
-| 6×6×6 / 8×8×8 | −7.874213 / −7.874215 | converged |
-
-At identical cost (8 points) the shifted grid is **14× closer to the limit** — the textbook Monkhorst–Pack
-result, since a Γ-centred grid on FCC spends its points on Γ and the zone boundary where the bands are
-extremal.  So qchem's Γ-centred −7.778473 is being compared against the right reference for ITS sampling,
-and the shifted row (once footnote ¹ is fixed) is the one that would say something about k-convergence.
+**How it was found**, since the sequence is the reusable part: a single-k sweep showed E(k) smooth except at
+exactly ¼ and ¾; k=¼+1e-9 was fine, so it was an exact-value branch and not physics; every operator and the
+1E spectrum were proven element-wise continuous (three gates, still enabled); the symptom was an extra
+singlet with the Λ₃ doublet straddling E_F; a Fock-matrix fingerprint then showed the density-dependent
+potential losing its imaginary part **only** at ¼; and `GPW_DENSITY_EPS=1e-30` recovered the right answer,
+naming the screen.  Verification: E(k) is now smooth (0.249 → −7.563844, ¼ → −7.565529, 0.251 → −7.567208)
+and **k=¾ equals k=¼ exactly**, as time reversal requires.  Si Γ, Si 2×2×2 Γ-centred and NaF Γ are unchanged
+to every digit — at TRIM k the phase is real and the old test agreed with the new one.
 
 ² CP2K's NaF decks carry no `&KPOINTS` section, i.e. they are Γ.  The qchem test's own default is a **2×2×2**
 mesh (8 k → 3 irreducible) — 116 mHa of band dispersion below its Γ value — so the row that compares to CP2K

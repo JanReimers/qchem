@@ -842,6 +842,25 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     // GPW_ORTHO=cholesky|eigen|svd: the S-decomposition the generalized eigenproblem is reduced through.
     // A defect that appears under one ortho and not another is IN the ortho, not in H -- and at k=1/4 the
     // SCF's spectrum is not the one its own (proven-continuous) operators imply.
+    // GPW_SEED=coreguess|uniform|sad|ionicsad.  CoreGuess builds the FIRST Fock with NO density at all
+    // (H = the 1E/PP operators alone, every one of them proven element-wise smooth at k=1/4), so it
+    // separates "the operators + the eigensolver" from "the seed density and the Hartree/XC built on it".
+    // NB the Uniform seed is a matrix-backed tDM_CD -- a density MATRIX in the k basis -- not a constant
+    // real-space density, so its potential is k-dependent and the "iteration 1 = operators + a constant"
+    // reasoning does NOT hold.
+    // GPW_REAL=0: build every block COMPLEX, disabling the real-TRIM narrowing.  If a defect appears only
+    // with the narrowing on, the block was wrongly typed real and its imaginary part was thrown away --
+    // and ToScalar guards exactly that with an ASSERT, which is compiled out in Release.
+    if (const char* rl=std::getenv("GPW_REAL")) o.realTRIMBlocks=std::atoi(rl)!=0;
+    if (const char* sd=std::getenv("GPW_SEED"))
+    {
+        const std::string v(sd);
+        if      (v=="coreguess") o.seed=qchem::ChargeDensity::SeedStrategy::CoreGuess;
+        else if (v=="uniform")   o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+        else if (v=="sad")       o.seed=qchem::ChargeDensity::SeedStrategy::SAD;
+        else if (v=="ionicsad")  o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+        else throw std::runtime_error("GPW_SEED: expected coreguess|uniform|sad|ionicsad, got '"+v+"'");
+    }
     if (const char* ot=std::getenv("GPW_ORTHO"))
     {
         const std::string v(ot);
@@ -928,7 +947,16 @@ TEST(GPW_SCF, DISABLED_SR_2x2x2GammaCentred_vs_CP2K)
 // CP2K shifted-MP reference -- Rcut=2a gave -7.86724 (0.20 mHa), and the run is affordable now (the stream
 // cache + the phase-independent integrate memo make the 8 k-blocks share the static sweeps: ~2.5 min).
 // Rcut switched to AUTO for scheme consistency with the enabled anchors (both sides parameter-free).
-TEST(GPW_SCF, DISABLED_SR_2x2x2ShiftedMP_vs_CP2K)
+//
+// RE-ENABLED (undisabled) 2026-08-19, and it is the point of the whole exercise: while this test sat
+// DISABLED it silently ROTTED to -3.7351, and nothing caught it because it is the ONLY fractional-k SCF
+// coverage in the suite -- every other k in every other test is TRIM, where the Bloch phases are +-1 and
+// the defect is structurally invisible.  The cause was the D-aware integrate-back screen testing
+// |Re(D_ij e^{-ik.R_n})| as if it were a magnitude: at a quarter-integer k that real part vanishes for
+// every ODD offset, so the Hartree/XC matrix lost its entire imaginary part (doc/Benchmark.md footnote 1).
+// It now runs in ~14 s (not the ~2.5 min the note above records), so there is no cost argument for hiding
+// it again.  A DISABLED regression test is a test that will be wrong when you next need it.
+TEST(GPW_SCF, SR_2x2x2ShiftedMP_vs_CP2K)
 {
     const double a=10.26;
     FCCUnitCell cell(a);
@@ -938,7 +966,11 @@ TEST(GPW_SCF, DISABLED_SR_2x2x2ShiftedMP_vs_CP2K)
     GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
                        "Si 2x2x2 shifted MP (k=±¼)", /*verbose*/false, /*nmax*/60,
                        qchem::Cholesky, 0.0, rvec3_t(0.5,0.5,0.5));
+    EXPECT_TRUE(R.converged) << "the shifted mesh must converge, not merely stop";
     EXPECT_NEAR(R.charge, 8.0, 1e-6);
+    // vs CP2K's OWN shifted 2x2x2 deck, re-measured through scripts/bench 2026-08-19 at -7.867436530436260.
+    // Measured here: -7.868473428 (16 iterations, drho 1.0e-9) -- 1.04 mHa below, and the tolerance is the
+    // historical 3 mHa.  Anything near -3.7 means the quarter-integer screen defect is back.
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.86744, 3e-3) << "GPW 2x2x2 shifted MP (CP2K default) vs -7.86744";
 }
 

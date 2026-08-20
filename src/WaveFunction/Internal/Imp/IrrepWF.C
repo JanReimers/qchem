@@ -9,6 +9,7 @@ module;
 #include <vector>
 #include <algorithm>
 #include <functional>
+#include <iomanip>
 #include <cstdlib>
 module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.SCFAccelerator;
@@ -40,10 +41,49 @@ template <class T> tIrrepWF<T>::~tIrrepWF()
     delete itsAccelerator;
 }
 
+// QCHEM_DUMP_H=1: a fingerprint of the Fock/Hamiltonian matrix AS ASSEMBLED, per block per call --
+// ||F||, its trace, and its largest imaginary part.  Added for the k=1/4 hunt (doc/Benchmark.md
+// footnote 1), where every INPUT matrix is provably smooth in k while the SCF's spectrum jumps: the
+// question "is the H the SCF diagonalises the sum of the pieces I can check?" had no readout at all.
+// Deliberately a fingerprint and not the matrix: three numbers per call diff cleanly across two runs.
+template <class M> static void DumpH(const M& F)   // on the MATRIX type: hmat_t<T> is an alias template, so
+                                                   // T is not deducible through it
+{
+    static const bool on=[]{ const char* s=std::getenv("QCHEM_DUMP_H"); return s && std::atoi(s)!=0; }();
+    if (!on) return;
+    double fro=0.0, maxIm=0.0; dcmplx tr(0.0);
+    for (size_t i=0;i<F.rows();i++)
+    {
+        tr+=dcmplx(F(i,i));
+        for (size_t j=0;j<F.columns();j++)
+        { fro+=std::norm(dcmplx(F(i,j))); maxIm=std::max(maxIm,std::abs(std::imag(dcmplx(F(i,j))))); }
+    }
+    // ALSO the DELTA against the previous call on a block of this size: F(iter n) - F(iter n-1) is the
+    // density-dependent part (Hartree+XC), which is the piece the 1E gates cannot see.  Its imaginary part
+    // is the quantity of interest at complex k: a potential matrix that comes out REAL there has dropped
+    // every pair whose Bloch phase is purely imaginary.
+    static std::vector<dcmplx> prev; static size_t prevN=0;
+    double dFro=0.0, dMaxIm=0.0; const bool havePrev = (prevN==F.rows() && prev.size()==F.rows()*F.columns());
+    std::vector<dcmplx> cur; cur.reserve(F.rows()*F.columns());
+    for (size_t i=0;i<F.rows();i++)
+        for (size_t j=0;j<F.columns();j++)
+        {
+            const dcmplx z(F(i,j)); cur.push_back(z);
+            if (havePrev) { const dcmplx d=z-prev[i*F.columns()+j];
+                            dFro+=std::norm(d); dMaxIm=std::max(dMaxIm,std::abs(std::imag(d))); }
+        }
+    std::cout << "[H dump] n=" << F.rows() << "  ||F||=" << std::setprecision(12) << std::sqrt(fro)
+              << "  Tr=" << std::real(tr) << "  maxIm=" << maxIm;
+    if (havePrev) std::cout << "   | dV=F-Fprev: ||dV||=" << std::sqrt(dFro) << "  maxIm(dV)=" << dMaxIm;
+    std::cout << std::setprecision(6) << std::endl;
+    prev.swap(cur); prevN=F.rows();
+}
+
 template <class T> void tIrrepWF<T>::CalculateH(tHamiltonian<T>& ham,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis)
 {
     assert(itsOrbitals);
     itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd,wholeBasis); //Hamiltonian or Fock matrix in the non-orthogonal basis.
+    DumpH(itsF);
     itsAccelerator->UseFD(itsF,itsDPrime); //Feed non-ortho F into the accelerator with the (orthogonal-basis) density matrix.
 }
 

@@ -168,11 +168,20 @@ that is about to change by an order of magnitude buys a number with a short shel
 it happens: serial = the algorithmic comparison, threaded = the user-facing time, ratio = parallel
 efficiency, which nothing measures today.
 
+**★ AND IT IMMEDIATELY PAID FOR ITSELF: the Si shifted-MP row was BROKEN, and the bug is now FIXED.**
+`SR_2x2x2ShiftedMP_vs_CP2K` had rotted to −3.7351 against its −7.86744 anchor while sitting DISABLED — it is
+the suite's ONLY fractional-k SCF coverage, so nothing caught it.  Root cause: the D-aware integrate-back
+screen tested `|Re(D_ij·conj(phase))|` **as if a real part were a magnitude**.  At a quarter-integer k the
+Bloch phase is purely imaginary on every odd offset, so that test discarded every odd-offset term and the
+Hartree/XC matrix came out EXACTLY REAL (`maxIm(dV)=0` at k=¼ vs 0.067 next door); an H missing its
+imaginary part has the wrong spectrum, hence 2.5 Ha.  Fixed by screening on the true magnitude `|D_ij|` —
+which is what this project's own **"the magnitude screen is the only truncation"** rule always meant.
+The row now reads −7.868473428 vs CP2K −7.867436530 (**1.04 mHa**), the test is ENABLED at ~14 s, and Si Γ /
+Si 2×2×2 Γ-centred / NaF Γ are unchanged to every digit (TRIM k has real phases, where old and new agree).
+Full detail in `doc/Benchmark.md` footnote ¹.
+
 **Still open on this table:** the `MNO_KMESH=2` multi-k MnO row (cost unmeasured; CP2K needs a matching
-`&KPOINTS` deck), a k-point CP2K deck for NaF, and the **Si shifted-MP row — BLOCKED BY A REGRESSION, not by
-measurement**: `DISABLED_SR_2x2x2ShiftedMP_vs_CP2K` returns −3.7351 against its own −7.86744 anchor with
-`Een` POSITIVE (+0.611 vs −1.1 at Γ), i.e. the fractional-k Bloch/KB phase path is broken and the only test
-covering it is disabled.  Its CP2K half is measured (−7.867436530).
+`&KPOINTS` deck) and a k-point CP2K deck for NaF.
 
 ### Step 2 — ARM THE SYMMETRY FOLDS  ·  plan: `doc/SymmetryUpgradePlan.md`
 
