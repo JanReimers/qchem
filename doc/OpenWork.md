@@ -441,27 +441,38 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   3. \f$\Psi = P\,L\f$ — (npts×n)·(n×r), the same GEMM, thin instead of square.
   4. \f$\rho_g=\sum_m|\Psi_{gm}|^2\f$ — a row norm, O(npts·r).
 
-  > **★ PIN (user, 2026-08-20): ALWAYS PIVOTED CHOLESKY — NEVER A TRIMMED EIGENDECOMPOSITION.**  The eigen
-  > route (keep \f$|\lambda|>\f$tol, split \f$D=L_+L_+^\dagger-L_-L_-^\dagger\f$ so that
-  > \f$\rho_g=\lVert L_+^\dagger\Phi_g\rVert^2-\lVert L_-^\dagger\Phi_g\rVert^2\f$) is algebraically
-  > equivalent, has the same O(npts·n·r) and O(n³) costs, and looks MORE general because it tolerates a
-  > non-PSD D.  **Do not use it.**  In the user's experience on orbital basis sets the TRIMMED EIGEN
-  > MATRICES CARRY NUMERICAL NOISE: near-zero eigenvalues arrive in a CLUSTER, eigenvectors within a
-  > clustered/degenerate subspace are ill-conditioned (the decomposition is free to rotate arbitrarily
-  > inside it), and that noise rides into the kept factor.  **The observed consequence is damage to LATE
-  > GDM CONVERGENCE** — exactly where the optimiser is chasing a small gradient, and ρ → V_xc → gradient
-  > carries the noise straight into it.  Pivoted Cholesky instead selects columns greedily on the diagonal,
-  > its truncation error is bounded by the trailing diagonal, and it injects no rotational noise into the
-  > kept subspace.  **MAY BE MATERIAL-DEPENDENT** (the user's caveat) — so if a system ever appears to need
-  > the eigen route, treat that as a finding to record, not a licence to switch.
+  > **★ PIN (user, 2026-08-20), AND ITS LIMIT — the objection to trimmed eigen is INVERSION-driven, and we
+  > do not invert here.**  First reading was "always pivoted Cholesky, never a trimmed eigendecomposition",
+  > because near-zero eigenvalues arrive CLUSTERED, eigenvectors inside a clustered subspace are
+  > ill-conditioned (free to rotate arbitrarily within it), and that noise rides into the kept factor — with
+  > the observed consequence being damage to LATE GDM CONVERGENCE.  **The user then narrowed it: that
+  > experience comes from ORBITAL work where the factor must be INVERTED** (orthogonalisation, \f$S^{-1/2}\f$),
+  > and inversion amplifies near-null noise by \f$1/\lambda\f$.  **Here the factor is only ever MULTIPLIED**
+  > (\f$\rho_g=\lVert L^\dagger\Phi_g\rVert^2\f$): the error is \f$\lVert\Delta L\rVert\,\lVert\Phi_g\rVert\f$,
+  > bounded, with no small denominator anywhere.  So the historical failure does NOT transfer, and truncated
+  > eigen is probably fine.  **Standing preference: pivoted Cholesky where D is PSD** (greedy on the
+  > diagonal, truncation bounded by the trailing diagonal, no rotational noise) — but it is a preference,
+  > not a prohibition, and if D is genuinely non-PSD then Cholesky is not "less preferred", it is
+  > INAPPLICABLE and the eigen split is the route.  **MAY BE MATERIAL-DEPENDENT** (user): a system that
+  > appears to need the eigen route is a finding to record, not a silent switch.
 
-  **OPEN QUESTION TO SETTLE FIRST — is the D reaching `DM_RhoAtPoints` ever NON-PSD?**  I raised DIIS as a
-  risk (a Pulay extrapolation forms D from unconstrained coefficients, which can produce negative
-  eigenvalues, and a plain Cholesky simply fails on that).  It may not apply here: if the mixing acts on
-  \f$\tilde\rho\f$ (the Kerker/Pulay G-space mixers) and on the FOCK matrix, then D is always rebuilt from
-  orbitals and is PSD by construction, so Cholesky always applies and the question is moot.  **VERIFY
-  BEFORE BUILDING** — it decides whether a non-PSD branch is needed at all, and the pin above says that
-  branch must not be the eigen route.
+  **IS THE D REACHING `DM_RhoAtPoints` EVER NON-PSD?  The maths is one-directional, and the tree's evidence
+  points to PSD.**  \f$\rho(r)=\Phi(r)^\dagger D\,\Phi(r)\f$ is a quadratic form in \f$v=\Phi(r)\f$, so
+  \f$\rho(r)<0\f$ ANYWHERE proves D is not PSD — but NOT conversely: \f$\{\Phi(r)\}\f$ traces a
+  3-dimensional manifold in \f$\mathbb{C}^n\f$, so a negative eigenvalue whose eigenvector is never realised
+  as some \f$\Phi(r)\f$ stays invisible, and \f$\rho\ge0\f$ everywhere is compatible with a non-PSD D.
+  **The user recalls ρ going negative in PP-DFT work — but WHICH ρ decides whether it bears on D:**
+  - the DIRECT form \f$\Phi^\dagger D\Phi\f$ (what `DM_RhoAtPoints` computes) going negative ⇒ D is NOT PSD;
+  - a FITTED or FOURIER-TRUNCATED ρ going negative ⇒ says NOTHING about D (Gibbs ringing / aliasing).
+
+  Every negative-ρ this tree records is the SECOND kind: `LDA_XC.C:163` ("a band-limited rho-tilde … rings
+  slightly NEGATIVE in the tails"), `PWTerms.C:392` (the diagnostic is on the COLLOCATED ρ, separating
+  "Gibbs ringing + guard" from real physics), `GPW_IBS.C:53` ("under-resolving … aliases rho into large
+  spurious negative lobes → the XC collapse").  `DM_RhoAtPoints` is pointwise with NO band limit, so it does
+  not ring.  Combined with an orbital-built \f$D=\sum_m f_m c_mc_m^\dagger,\ f_m\ge0\f$ (PSD by
+  construction) and mixers that act on \f$\tilde\rho\f$ and the FOCK matrix rather than on D, the
+  expectation is that D IS PSD here and Cholesky always applies.  **Still verify** — cheapest check is to
+  assert PSD-ness (or just watch the pivoted Cholesky succeed) on the real mixed D for a few iterations.
   **FIRST MOVE IS MEASUREMENT, as always:** dump the pivoted-Cholesky rank (and the occupation tail) of the
   ACTUAL mixed D at several iterations.  Smearing (kT=5e-3 on the MnO recipe) puts a fractional tail on the
   occupations, so the NUMERICAL rank at a usable tolerance is the real quantity — r near n_occ ⇒ 6–9×,
