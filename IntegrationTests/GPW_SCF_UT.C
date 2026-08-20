@@ -1900,6 +1900,50 @@ TEST(GPW_SCF, StreamFoldImposedGamma_SiDiamond)
     EXPECT_NEAR(R1.charge, 8.0, 1e-6);
 }
 
+// (T3.5, doc/SymmetryUpgradePlan.md §6b) THE ARMING GATE: the case that FORCED the 2026-08-03 default-on
+// retraction, re-run as a standing A/B.  The Si pseudo-atom in a box at Γ is a DEGENERATE OPEN SHELL --
+// 3s²3p² with three exactly-degenerate p orbitals holding two electrons, at integer aufbau (no smearing).
+// Its density therefore rotates freely inside the degenerate manifold and NEVER converges Δρ (the documented
+// SiPseudoAtomInBoxMatchesFinite behaviour; this gate pins ENERGY, like that one, and does not assert
+// convergence).  Under the OLD fold the reduced replay SAMPLED each pair orbit's representative D element,
+// which asserts a symmetric D that this run breaks permanently: the armed run flipped out of the benign
+// rotating-ρ mode into charge-transfer sloshing, ~0.26 Ha off, and default-on was withdrawn.  With the
+// replay reading the ORBIT-PROJECTED D (T3.5) the folded and unfolded imposed runs solve the same equations
+// -- P ρ_red[D] = ρ[P D] = P ρ_full[D] for ANY iterate -- so the two arms must now agree to the band-limit
+// class ON EXACTLY THIS CELL.  That agreement is the whole licence for arming the fold by default; if this
+// gate ever reopens the 0.26 Ha gap, the default goes back to opt-in.
+TEST(GPW_SCF, StreamFoldOpenShellMatchesUnfolded_SiAtomInBox)
+{
+    const double a=16.0;
+    UnitCell cell(a);
+    cell.AddAtom(14, {0.5,0.5,0.5});             // Pm-3m box, 48 ops; the atom sits on the cube centre
+    Lattice_3D lat(cell, ivec3_t(1,1,1));        // Γ-only: the T3.2 arming condition
+    GpwOptions o;
+    o.label="Si atom-in-box Γ open-shell fold A/B"; o.Nelec=4; o.species={{"Si",4}};
+    o.densityEcut=10.0; o.accelerator="DIIS"; o.imposeSymmetry=true;
+    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;    // the finite-molecule mode of the parent gate
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;            // ditto: the rotating degenerate density and
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;         //   a fixed-axis Becke grid do not mix
+    o.ortho=qchem::Cholesky;
+    o.scf.SmearingkT=0.0;                                       // INTEGER AUFBAU -- the symmetry-broken D
+    o.scf.NMaxIter=40; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
+
+    setenv("GPW_STREAM_FOLD","0",1);
+    GpwResult R0=RunGpw(lat, MakeBasis(cell), o, /*verbose*/false);
+    setenv("GPW_STREAM_FOLD","1",1);
+    GpwResult R1=RunGpw(lat, MakeBasis(cell), o, /*verbose*/false);
+    unsetenv("GPW_STREAM_FOLD");
+
+    std::cout << "[open-shell fold A/B] E(full)=" << R0.E.GetTotalEnergy()
+              << "  E(folded)=" << R1.E.GetTotalEnergy()
+              << "  dE=" << R1.E.GetTotalEnergy()-R0.E.GetTotalEnergy() << std::endl;
+    EXPECT_NEAR(R1.charge, 4.0, 1e-6);
+    EXPECT_NEAR(R0.charge, 4.0, 1e-6);
+    EXPECT_NEAR(R1.E.GetTotalEnergy(), R0.E.GetTotalEnergy(), 1e-3)
+        << "a DEGENERATE OPEN SHELL must not care whether the streams are folded (the retracted 0.26 Ha)";
+}
+
 // ===== EXPERIMENTAL (scratch): imposed multi-k × GDM probe (user observation 2026-08-03) =====
 // OBSERVED on the user's multi-k NaF: imposeSymmetry=false + GDM reaches ΔE/E~1e-9 (Δρ~1e-3), while
 // imposeSymmetry=true + GDM stalls at ΔE/E~1e-7 with Δρ~1e-2.  Two competing explanations:

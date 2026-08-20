@@ -677,6 +677,20 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
         dH=std::max(dH, std::abs(dcmplx(hRed(i,j))-dcmplx(hFull(i,j))));
         hScale=std::max(hScale, std::abs(dcmplx(hFull(i,j))));
     }
+    // Gate 2b: the SCREENED integrate-back (the per-iteration SCF path, which the plain gate above does NOT
+    // exercise).  Its screenD is the collocation memo's Dscr -- a matrix of MAGNITUDES (|D| unioned over the
+    // spin channels), NOT a density matrix, so under a fold it must be reduced by the orbit MAX and never by
+    // the signed orbit average: an orbit with mixed σ=±1 edges cancels to ~0 under averaging, the screen then
+    // kills live terms, and H is silently wrong (it cost a 2.3 Ha variational collapse on the imposed
+    // O2-in-box triplet before this gate existed, 2026-08-19).  Reduced and full must agree at the screening
+    // tier -- the orbit max keeps a superset of any member's terms, so the two differ only by sub-eps ones.
+    // (Both arms are taken WITHOUT re-arming the fold -- the reduced one here, the full one down in the
+    // negative-control block after the fold is cleared -- because SetStreamSymmetryOps invalidates the
+    // stream caches, so a re-arm here would cost two extra full stream builds.)
+    chmat_t Dabs(nf);
+    for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++) Dabs(i,j)=dcmplx(std::abs(dcmplx(D(i,j))),0.0);
+    const chmat_t hRedS=lat->IntegratePotential({V}, ph, cell, {N}, {ecut}, 0.0, &Dabs);
+
     // Gate 3: the variational adjoint on the reduced operator: Tr(D hRed) == <P rhoRed, V>.
     const double w=cell.GetCellVolume()/double(V.size());
     double lhs=0.0; for (size_t p=0;p<V.size();p++) lhs+=rhoSym[p]*V[p]*w;
@@ -702,8 +716,27 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     const rvec_t rhoRedB=project(lat->CollocateDensity(Db, ph, cell, {N}, {ecut})[0]);
     lat->SetStreamSymmetryOps({}, cell);                                  // clear the fold
     const rvec_t rhoFullB=lat->CollocateDensity(Db, ph, cell, {N}, {ecut})[0];
+    // Gate 2b's other arm (see above): the SCREENED gather, now unfolded.
+    const chmat_t hFullS=lat->IntegratePotential({V}, ph, cell, {N}, {ecut}, 0.0, &Dabs);
+    double dHS=0.0;
+    for (size_t i=0;i<nf;i++) for (size_t j=0;j<nf;j++)
+        dHS=std::max(dHS, std::abs(dcmplx(hRedS(i,j))-dcmplx(hFullS(i,j))));
+    std::cout << "  [screened h] max|h_red-h_full| (D-aware screen)=" << dHS << " (scale " << hScale << ")" << std::endl;
+    EXPECT_LT(dHS, 1e-8*hScale) << tag << ": the SCREENED reduced gather must match the full one";
     EXPECT_GT(maxDiff(rhoRedB, rhoFullB), 1e-8*scale)
         << tag << ": a symmetry-broken D must NOT survive the reduced path unchanged";
+    // ...but it must not survive DIFFERENTLY from the way the unfolded IMPOSED run kills it (T3.5, the
+    // arming gate).  The reduced replay reads the ORBIT-PROJECTED D, and collocation is linear and
+    // equivariant, so P rho_red[D] == rho[P D] == P rho_full[D] for ANY iterate -- the folded and the
+    // unfolded imposed run compute the SAME density even when D is broken.  This is what makes the fold
+    // "merely reduced, never wrong" and is the whole basis for arming it by default; before T3.5 the
+    // reduced path SAMPLED the representative and this difference was O(the breaking) -- here 2% of rho.
+    const double dProj=maxDiff(rhoRedB, project(rhoFullB));
+    std::cout << "  [T3.5 project-not-sample] max|P(rho_red[Dbroken]) - P(rho_full[Dbroken])|=" << dProj
+              << " (scale " << scale << "; the SAMPLING error it replaces = "
+              << maxDiff(rhoRedB, rhoFullB) << ")" << std::endl;
+    EXPECT_LT(dProj, 1e-9*scale)
+        << tag << ": the reduced path must PROJECT a broken D (== the unfolded imposed density), not sample it";
 }
 } // anon
 
@@ -725,6 +758,19 @@ TEST(GPW, StreamFoldReducedMatchesFull_SiDiamond_NonSymmorphic)
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
     StreamFoldGate(cell, {{14,{0,0,0}},{14,{0.25,0.25,0.25}}}, ivec3_t(16,16,16), rvec3_t(0,0,0), 48, "diamond Si");
+}
+
+// A DIMER IN A BOX (D4h, 16 ops): the geometry of the O2-in-box SCF gate -- two atoms off the cell ORIGIN,
+// so every op carries a nonzero image offset L, and the surviving point group is a SUBGROUP of the cube's.
+// The Si-lattice gates above have every atom on a special position of the FULL cubic group, which hides both.
+TEST(GPW, StreamFoldReducedMatchesFull_DimerInBox)
+{
+    const double a=16.0, d=2.282;
+    UnitCell cell(a);
+    cell.AddAtom(8, {0.5-0.5*d/a,0.5,0.5});
+    cell.AddAtom(8, {0.5+0.5*d/a,0.5,0.5});
+    StreamFoldGate(cell, {{8,{0.5-0.5*d/a,0.5,0.5}},{8,{0.5+0.5*d/a,0.5,0.5}}},
+                   ivec3_t(16,16,16), rvec3_t(0,0,0), 0, "O2-in-box dimer");
 }
 
 // k != Γ gate (T3.4): the SAME diamond cell at half-integer k -- the fold runs under the LITTLE GROUP of k

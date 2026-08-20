@@ -75,8 +75,8 @@ printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrappe
 | NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.430336482 | −24.431213375 | **+0.877 mHa** | 39.5 s / 7.4 s | 94.5 / 7.2 s | **13.2×** | 577 / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.546883793 | — ² | | 57.4 s / — | 112 s / — | — | 590 / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.430944039 | −24.432293467 | **+1.349 mHa** | 2m44s / 1m42s | 219 / 102 s | 2.1× | 3090 / 186 MB |
-| MnO AFM-II | Γ | **VA (N=118)** | −61.402976200 | −61.303325178 | **−99.65 mHa** | 20m05s / 6m14s | 2240 / 373 s | **6.0×** | 4947 / 217 MB |
-| MnO FM | Γ | **VA (N=118)** | −61.441583060 | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
+| MnO AFM-II | Γ | **VA (N=118)** | −61.40297623 ⁴ | −61.303325178 | **−99.65 mHa** | 13m25s / 6m14s | 1809 / 373 s | **4.9×** | **1349** / 217 MB |
+| MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
 
 Δ(AFM−FM) on the VA span: **qchem +38.61 mHa, CP2K +1.46 mHa** — both order FM first, and the
@@ -115,6 +115,19 @@ exists.  This mismatch was live in the test until 2026-08-19: it carried a Γ-er
 ³ the full-SR span runs FULL RANK at Γ ("kept 32 of 32", λ_min 4.35e-4) — the historical near-null trouble
 was the multi-k cell.  The retracted −27.93128 "oracle" (a 3.5 Ha `EPS_PGF_ORB` screening artifact) is gone
 from this table for good.
+
+⁴ **RE-MEASURED 2026-08-19 with the T3 collocation-stream fold ARMED** (`OpenWork` Step 2 / plan T3.5;
+identical command, same box, same day).  The row moved **20m05s → 13m25s wall, 2240 → 1809 s CPU, and
+4947 → 1349 MB peak RSS**, i.e. **1.24× the CPU and 3.7× THE RAM**, while the energy is the SAME to nine
+significant figures (−61.402976200 → −61.40297623, ≈3e-10 Ha) and `m_stag` still reads ±0.6667 over 17
+iterations — the fold is a cost change, not a physics change, exactly as its equivariance argument says.
+Where it came from (banked → armed, seconds): pair **scatter 263.4 → 41.0** (6.4×), pair **gather
+167.6 → 23.1** (7.3×), **stream build 110.1 → 28.2** (3.9×) — 541 s → 92 s on the three stream buckets, a
+larger factor than the 4.60× rep-pair reduction because the pairs it drops are the expensive ones.  The Φ
+tables did NOT move (370.0 → 379.2 s) and are now **47% of the run**: Step 3's item is the whole game on
+this row.  Against CP2K the gap narrows from 6.0× → 4.9× CPU and 23× → 6.2× RAM.
+⁵ the FM row is still the PRE-ARMING measurement (its energy is unaffected, its cost is not) — re-run it
+with the AFM command when the threaded cut of this whole table is taken.
 
 ### How each row was produced
 
@@ -185,26 +198,31 @@ itself (Step 0b):
 |---|---|---|
 | XC mesh (Becke star-average) | **23.03×** (24 ops, magnetic/Shubnikov) | NONE |
 | `V_loc`-long {G}-star | **10.37×** (12 ops) | NONE |
-| collocation streams (T3 pairs) | **NONE** (8778 items in full) `[opt-in: GPW_STREAM_FOLD=1]` | NONE |
+| collocation streams (T3 pairs) | **4.60×** (12 ops, 8778 → 1909 rep pairs) ⁴ | NONE |
 
-So the imposed row already claims two of the three folds, and the one still unclaimed is the real-space pair
-stream — `OpenWork` Step 2's biggest item, measured at 71× on the cache.
+So the imposed row now claims all three folds.  The stream fold is **12 ops, not 24** — the S3 pin: a
+magnetic imposition may fold the PER-CHANNEL streams only under the σ=None (sublattice-preserving) subgroup,
+since a flip op relates D↑ to D↓.  And 4.60× on a 4-atom cell is not the 71× the diamond gate cell showed:
+the orbit factor is a property of the cell's symmetry, so the headline number belongs to a cell, never to
+the feature.  **The FREE production run still folds NOTHING at any of the three sites** — that is a
+`MNO_IMPOSE` decision, not a plumbing gap.
 
-Where the 20 minutes go (AFM arm, `GPW_REPORT=1` ledger, seconds of 1205):
+Where the time goes (AFM arm, `GPW_REPORT=1` ledger) — BEFORE the fold was armed (of 1205 s) and AFTER
+(of 805 s):
 
-| bucket | s | share |
-|---|---|---|
-| setup: XC-mesh **Φ tables** | 370.0 | **31%** |
-| scf: collocate density (pair scatter) | 263.4 | 22% |
-| scf: integrate-back (pair gather) | 167.6 | 14% |
-| setup: collocation stream build | 110.1 | 9% |
-| setup: Becke mesh build | 70.6 | 6% |
-| scf: XC-mesh ρ sampling (matrix-free) | 57.1 | 5% |
-| scf: XC-mesh H_xc quadrature | 33.8 | 3% |
+| bucket | s (unfolded) | s (folded) | factor |
+|---|---|---|---|
+| setup: XC-mesh **Φ tables** | 370.0 (31%) | **379.2 (47%)** | 1.0× (untouched) |
+| scf: collocate density (pair scatter) | 263.4 (22%) | 41.0 (5%) | **6.4×** |
+| scf: integrate-back (pair gather) | 167.6 (14%) | 23.1 (3%) | **7.3×** |
+| setup: collocation stream build | 110.1 (9%) | 28.2 (4%) | **3.9×** |
+| setup: Becke mesh build | 70.6 (6%) | 69.4 (9%) | 1.0× |
+| scf: XC-mesh ρ sampling (matrix-free) | 57.1 (5%) | 76.8 (10%) | — ⁶ |
+| scf: XC-mesh H_xc quadrature | 33.8 (3%) | 44.1 (5%) | — ⁶ |
 
-**The single largest bucket is the Φ-table build**, not the scatter/gather that rounds 3–4 were spent on —
-and it is precisely `OpenWork` Step 3's named "Φ-table SCREENING" lever (Φ is stored dense, npts × n, while
-the true object is sparse).  On this cell it is bigger than either pair loop.
+**The Φ-table build was already the single largest bucket and is now HALF THE RUN** — `OpenWork` Step 3's
+named "Φ-table SCREENING" lever (Φ is stored dense, npts × n, while the true object is sparse).  Everything
+the pair loops had left to give on this cell has now been given: they are 12% of it together.
 
 ## Standing observations
 
@@ -215,14 +233,18 @@ the true object is sparse).  On this cell it is bigger than either pair loop.
   reason the diffuse cells are where this table bites.  (The SR2 row's 13.2× against the full span's 2.1× is
   not a typo and is not yet explained: the SMALLER basis is the worse ratio.  Both are Γ, same cell, same
   code path — worth one look, because whatever it is scales the wrong way.)
-- **MnO is where both columns hurt: 6.0× (AFM) / 12.1× (FM) the CPU time, and 23× the RAM** — 4947 MB
-  against CP2K's 217 MB, on an identical 118-function span.  CP2K caches nothing and its kernels are just
-  fast; the RAM gap is our streams and Φ tables, which is why Steps 2–3 (fold, then screen Φ) are the
-  answer and Step 4 is their readout, not a campaign of its own.
+- **MnO is where both columns hurt — but the fold took a large bite out of both (2026-08-19).**  The AFM row
+  went 6.0× → **4.9×** CPU and 23× → **6.2×** RAM (4947 → 1349 MB against CP2K's 217 MB) on an identical
+  118-function span, from arming T3 alone; the FM row still carries the pre-arming numbers.  **The RAM half
+  was mostly the streams**, and Step 4 has just been answered by Step 2 rather than by a campaign of its
+  own, exactly as predicted.  What is left is the Φ tables — CP2K caches nothing and its kernels are just
+  fast, so Step 3 (screen Φ) is now the whole of the remaining gap on this row.
 - **MnO carries a ~100 mHa configuration-BLIND offset and a −37.15 mHa configuration-SELECTIVE one** on that
   identical span (`OpenWork` Step 5) — and qchem sits BELOW a variational reference there, which convicts an
   operator or convention rather than a basis.  The run now prints its own term breakdown
   (`Ekin/Een/Eee/Exc/Enn/E_alphaZ`), which is where Step 5's term-by-term comparison starts.
 - **The FREE production MnO run still folds NOTHING** — `[fold]` prints `NONE` at all three sites on a cell
   whose magnetic group has 12–24 ops (`OpenWork` Step 2).  Any MnO runtime row taken from a free run is
-  measuring an unfolded run, and must say so.
+  measuring an unfolded run, and must say so.  Arming T3 does not change this: it is a `MNO_IMPOSE`
+  decision, i.e. physics, and the 1.5× wall / 3.7× RAM measured above is what a free run is paying for the
+  freedom.

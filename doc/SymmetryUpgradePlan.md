@@ -538,6 +538,91 @@ orbit generation (points, `(pair,offset)`), raster-commensurability checks (§5)
 star-averaging — while the basis/density own how ops act on their objects and the SCF driver
 owns the policy + the staged workflow.
 
+### 3b. THE SSB DESCENT — what `IMPOSE=0` is FOR (user, 2026-08-20)
+
+*(**SSB = spontaneous symmetry breaking**: the Hamiltonian has a symmetry the ground state does not.
+MnO's AFM-II order is the house example — it breaks the chemical space group's sublattice-exchanging ops,
+so the DENSITY has lower symmetry than the CRYSTAL.  The term is used throughout §3 and in the code
+comments; spelled out here because the descent below is the machinery for FINDING it.)*
+
+**TWO LEGITIMATE ROUTES, and the free one stays FIRST-CLASS (user, 2026-08-20).**  The descent below is
+the METHODICAL route; it does not demote `IMPOSE=0`, which remains the DEFAULT (impose-on-assert, §3) and
+a supported way to work — *"there will always be some user that just wants to run with no symmetry and see
+what happens."*  That user must get a correct answer, an honest report of whatever symmetry the SCF
+actually found (the order-parameter diagnostic), and no surprises; what they pay for the freedom is TIME,
+which is the right way round — V1.30's pin, "an imposition you did not ask for is invisible in the result,
+a missing one only costs time".  Concretely, since T3.5 the price is visible on the console: a free run
+prints `NONE` at all three `[fold]` sites, and on the MnO magnetic cell that is 1.5× the wall clock and
+3.7× the RAM of the same run imposed.  **So: free = explore, descent = enumerate.**  The descent's loop,
+which is not MnO-specific:
+
+1. **Converge with the symmetry IMPOSED** (fast, and — since T3.5 — folded at every site).
+2. **SAVE the converged CD to disk.**
+3. **A SYMMETRY-ANALYSIS run** reads that symmetric CD back, releases the imposition, and asks the
+   density itself which SUBGROUP it wants — reporting the user a ranked list of candidate subgroups
+   (space or Shubnikov) with weights.
+4. **Re-impose each candidate subgroup** and converge; the energies decide.
+
+This is the ordering-enumeration workflow of §3 with the *guessing removed*: today's release-check needs
+a symmetry-broken SEED, i.e. the answer, supplied by the user.  MnO is the cautionary example — AFM-II
+was ASSUMED (staggered `IonicSAD` + MOM + a hand-built Shubnikov decoration), never derived, and the run
+that would have ranked AFM-I / FM / AFM-II against each other was never available.  Step 3 is the piece
+that makes step 4 an enumeration instead of a hunch.
+
+**★ STEP 3 CANNOT BE ONE FREE ITERATION, and the reason is already in §3 above.**  The symmetric
+solution is a stationary point of the FREE map too, and the free map is EQUIVARIANT — \f$F(g\cdot D)=g
+\cdot F(D)\f$ — so one iteration from a symmetric \f$D\f$ returns a symmetric \f$D\f$, exactly.  What
+such a run would actually print is the **noise floor**: the quadrature's own equivariance defect (the
+fixed-axis Becke angular grid, the FFT raster — measured ~1.4e-5 on free Si) plus whatever arbitrary
+direction LAPACK picks inside a degenerate frontier manifold.  Neither is physics.  SSB is a SECOND-order
+instability, so step 3 must measure CURVATURE or GROWTH, not a first-order residual.  Three ways to build
+it, cheapest first:
+
+- **(a) POWER ITERATION (needs almost nothing new).**  Perturb the symmetric CD by a small random
+  \f$\delta D\f$, take a handful of free iterations, and watch the per-op defect
+  (`SymmetryDefects` / `MagneticSymmetryDefects`) GROW or DECAY.  Growth ⇒ unstable; the ops whose defect
+  grows name the broken directions.  Finds only the LEADING instability, and needs enough iterations for
+  the mode to clear the ~1e-5 floor — but it is the honest version of "one iteration" and it reuses the
+  existing free-run diagnostic verbatim.
+- **(b) PER-IRREP RESPONSE (the right shape).**  The Jacobian at a symmetric solution is equivariant,
+  hence BLOCK-DIAGONAL over the irreps of \f$G\f$: each irrep can be probed INDEPENDENTLY and the
+  per-irrep growth factor IS the weight the user wants.  Perturb along \f$P_\Gamma\,\delta D\f$, iterate,
+  measure the ratio.  Needs irrep projectors for the crystal group (the molecular side has SALC
+  machinery; the crystal side has ops but no characters — see below).
+- **(c) ORBITAL-HESSIAN STABILITY (the textbook answer).**  Lowest eigenvalue of the stability matrix per
+  irrep block; negative ⇒ that irrep condenses, \f$|\lambda_\Gamma|\f$ is the weight.  Only the lowest
+  eigenvalue is needed, so Davidson/Lanczos on Fock-response products — the neighbourhood GDM already
+  lives in.  §3 already names this as "the future cheap alternative to the full release".
+
+**A LIST OF SUBGROUPS IS NOT A LIST OF OPS.**  \f$\{g : d(g)<\epsilon\}\f$ is only a subgroup if it is
+CLOSED under composition — with \f$|G|\le 48\f$ the closure check is trivial and must be done, and a set
+that fails to close means the tolerance is wrong, not that a new group was found.  The physically right
+object is the **isotropy subgroup of the condensing mode** (the ops that fix the order parameter), which
+for a 1-D irrep is its kernel and for a multi-D irrep depends on the OP DIRECTION — i.e. Landau's
+isotropy lattice, which is why a single irrep can offer SEVERAL candidate subgroups and why step 3's
+output is a ranked LIST rather than an answer.
+
+**Inventory — what exists, what is missing.**
+
+| piece | state |
+|---|---|
+| per-op defect readout, charge + magnetic | ✅ `SymmetryDefects`, `MagneticSymmetryDefects` (`Internal/GMap.C`) |
+| impose a chosen op SET at every reduction site | ✅ everything downstream consumes `CrystalPointOps`; `DetectPointOps` is the only chokepoint |
+| `SymmetryPolicy::Impose::Subgroup` | ❌ enum has `{None, FullGroup}` — the comment already reserves the slot |
+| subgroup closure / enumeration for a space group | ❌ (molecular `AbelianSubgroup` is a string map, not this) |
+| crystal irrep projectors / characters | ❌ (molecular SALC exists; crystal side has ops only) |
+| **CD persistence (save/load a converged density)** | ❌ **nothing** — and it is the step-2 enabler |
+| density continuation between stages IN ONE PROCESS | ✅ the annealed driver already does it |
+
+**SEQUENCING NOTE.**  The whole 1→4 loop can be built and VALIDATED in one process before any file
+format exists, because the annealed driver already continues a density across stages.  Disk buys the
+user-in-the-loop half (inspect the list, choose, resume) and stops us paying 13 minutes twice — it is a
+general RESTART-FILE feature (CP2K's `WFN_RESTART`), useful well beyond symmetry, and it should be scoped
+as one: DM per k-block per spin + a geometry/basis fingerprint that REFUSES a mismatched load.
+And step 4 needs one more thing that is easy to forget: **imposing a subgroup PERMITS the order, it does
+not create it** — the subgroup run must still be seeded along the condensing mode (that is precisely what
+S4's staggered seed + magnetic star-average did for MnO).
+
 ---
 
 ## 4. Spin-native / Shubnikov interface shape (prerequisite, cheap)
@@ -1013,18 +1098,18 @@ against a special case it will outgrow:
      build+replay behind `imposeSymmetry`: `EnsureStreams` builds ONLY rep pairs/offsets under
      an armed fold (`SetStreamSymmetryOps` is idempotent per op set and CLEARS the stream
      caches on any change — a reduced cache must never serve an unfolded replay); the GPW
-     factory arms the fold on IMPOSED **Γ-ONLY** runs, **OPT-IN via `GPW_STREAM_FOLD=1`**
-     (read fresh so one process can A/B; multi-k IBZ runs keep full streams until T3.4's
-     little-group + per-block arming).  **DEFAULT-ON RETRACTED 2026-08-03 — the open-shell
-     finding:** the fold imposes STRICTLY MORE than the historical `imposeSymmetry` (the ρ
-     star-average tolerates a symmetry-broken iterate D by projecting it pointwise; the
+     factory arms the fold on IMPOSED **Γ-ONLY** runs (multi-k IBZ runs keep full streams
+     until T3.4's little-group + per-block arming).  **DEFAULT-ON RETRACTED 2026-08-03 — the
+     open-shell finding:** the fold imposes STRICTLY MORE than the historical `imposeSymmetry`
+     (the ρ star-average tolerates a symmetry-broken iterate D by projecting it pointwise; the
      reduced replay reads only orbit-rep D elements, asserting D itself symmetric).  A
      DEGENERATE OPEN SHELL breaks that permanently: the imposed Si pseudo-atom-in-a-box p²
      gate flips from the benign rotating-ρ mode into charge-transfer sloshing (~0.26 Ha off)
      with the fold armed — and only MARGINALLY (it passed one full-suite run before failing
      deterministically the next day: a bistable oscillator, not a tolerance issue).
-     Default-on returns with an auto-arm criterion — gapped/closed-shell detection or Fermi
-     smearing (the same cure as the Becke × open-shell channel) — the T3.4-adjacent item.
+     **↳ CLOSED 2026-08-19 by T3.5 below — the fold is ARMED BY DEFAULT and needs no auto-arm
+     criterion.**  `GPW_STREAM_FOLD=0` is now the opt-OUT (still read fresh, so one process
+     can A/B).
      MEASURED on the diamond unit-gate cell:
      528 pairs → 40 reps, 15000 offsets → 164, 72.7M → 1.02M cached pts (**71× build/memory**;
      the plan's 5–20× was conservative for high-symmetry cells).  Through-SCF gate
@@ -1059,8 +1144,40 @@ against a special case it will outgrow:
      little groups → union → no reduction) or (ii) the STAR-SUMMED joint scatter (fold
      across the whole k-star against \f$\sum_k w_k\,\mathrm{Re}[D^k\ldots]\f$ — the real
      multi-k win, but a composite-level refactor: blocks currently collocate independently).
-     Couple T3.4b to the AUTO-ARM criterion (the open-shell finding above) — both gate
-     turning the fold on by default.
+     T3.4b is now the ONLY thing between the fold and every imposed run: Γ-only is armed.
+     **T3.5 DONE 2026-08-19 — PROJECT, DON'T SAMPLE (the arming increment, OpenWork Step 2).**
+     The retraction above was never about *which runs are safe*; it was a defect in the replay.
+     Reading the representative's own \f$D_{ij}\f$ SAMPLES the pair orbit, and sampling equals
+     projecting only if \f$D\f$ already obeys \f$D_{i'j'}=\zeta D_{ij}\f$ — which is exactly the
+     extra assertion an open shell breaks.  The replay now reads the ORBIT AVERAGE
+     \f$\bar D_{\rm rep}=\frac1M\sum_s \bar\zeta_s D_s\f$ (Hermitian-twin members contribute
+     \f$\bar\zeta_s\overline{D_s}\f$; a DEAD pair's projected value is 0, which it already used)
+     — `NR_Evaluator::FoldProjectedD`, an \f$O(n^2)\f$ pass beside an
+     \f$O({\rm pairs}\times{\rm points})\f$ scatter.  **The argument that closes it:** collocation
+     is LINEAR and EQUIVARIANT, \f$\rho[g\!\cdot\!D]=g\!\cdot\!\rho[D]\f$, so
+     \f$P\,\rho_{\rm red}[D]=\rho[PD]=P\,\rho_{\rm full}[D]\f$ for **any** iterate — the folded run
+     computes the SAME density as the unfolded imposed run, symmetric D or not, and arming is a
+     pure COST decision.  The integrate-back side needed no change (it assumes a symmetric *V*,
+     never a symmetric *D*), but its D-aware SCREEN now reads the same projected D so the two
+     directions truncate on one active set.  GATES: (a) the unit gates' negative control gained
+     the positive half — with a 2%-detuned D, \f$|P\rho_{\rm red}-P\rho_{\rm full}|\f$ is 8.9e-15
+     (FCC), 2.6e-10 (diamond, the D-aware kill's own active-set floor), 7.5e-15 (half-k) against
+     a SAMPLING error of 5.5e-3…7.8e-3 that it replaces; (b) `StreamFoldOpenShellMatchesUnfolded_
+     SiAtomInBox` re-runs the very cell that forced the retraction (imposed Γ, integer aufbau,
+     degenerate 3p²) fold-off vs fold-on: **ΔE = 1.3e-8 Ha where it used to be 0.26 Ha**, and the
+     folded arm sits in the benign "E settled, ρ rotates" mode, not sloshing.
+     **★ THE ONE TRAP, found by the suite the same day (imposed O2-in-box triplet, −33.03 against its
+     −30.71 anchor — a 2.3 Ha variational COLLAPSE):** the integrate-back's `screenD` is the collocation
+     memo's `Dscr`, a matrix of **MAGNITUDES** (\f$|D|\f$ unioned over the spin channels), NOT a density
+     matrix.  Projecting *it* with the signed orbit average cancels any orbit carrying mixed
+     \f$\sigma=\pm1\f$ edges to ~0, the D-aware screen then kills terms with real weight, and H is silently
+     wrong.  A screen must be orbit-INVARIANT (one representative now stands for the whole orbit) and the
+     only safe invariant reduction of a magnitude is the **MAX** — `FoldScreenMax`, which keeps a superset
+     of any member's terms and so respects the no-cut discipline.  **PIN: ask what a matrix MEANS before
+     symmetrizing it.**  Gate: `StreamFoldGate` gained the SCREENED integrate-back arm, and a new
+     `StreamFoldReducedMatchesFull_DimerInBox` cell (two atoms OFF the cell origin, D4h) — the
+     high-symmetry single-atom Si cells do NOT catch this bug (8.9e-16), the dimer does (0.818, 34% of
+     scale), which is exactly why it reached the SCF before anything failed.
 7. **MnO rocksalt AFM-II** (2 f.u., moments along [111]) — first *real* d-electron magnet:
    **CAMPAIGN 2026-08-04 → 2026-08-11 — the full narrative, every run and every refuted hypothesis, is in
    `doc/SymmetryUpgradeHistory.md` §B.**  Current state, the open defect and the next action are in the

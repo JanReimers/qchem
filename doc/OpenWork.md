@@ -113,7 +113,7 @@ Measured, first time any of this was on the console:
 |---|---|---|
 | XC mesh (Becke star-average) | NONE | **21.6×** (Si IBZ) |
 | `V_loc` {G}-star | NONE | **26.1×** (48 ops) |
-| collocation streams (T3 pairs) | NONE `[opt-in: GPW_STREAM_FOLD=1]` | **12.5×** (48 ops) |
+| collocation streams (T3 pairs) | NONE `[opt-in: GPW_STREAM_FOLD=1 — armed by default since T3.5, Step 2]` | **12.5×** (48 ops) |
 
 **And the message that matters for Step 2, now unmissable:** the production MnO magnetic run prints
 `NONE` on all three — it folds NOTHING, on a cell whose magnetic group has 12–24 ops.  That is the
@@ -191,13 +191,57 @@ properly, not a separate track.  Inventory (2026-08-15, re-verified 2026-08-19):
 - the {G}-star fold is wired at exactly TWO static sites (the local-PP sweeps, imposed runs only);
 - the **per-iteration G-space consumers are UNFOLDED** — ρ̃, the Poisson multiply, the V_xc gathers, the
   G_ERI3 columns, the seed structure factors: **12–24× on the MnO magnetic group, 48× cubic**, unclaimed;
-- the REAL-space T3 pair-stream orbit fold (**71× measured on the cache**) is BUILT but still opt-in
-  (`GPW_STREAM_FOLD=1`; the open-shell D-asymmetry slosh retraction is why).
+- ~~the REAL-space T3 pair-stream orbit fold is BUILT but opt-in~~ → **✅ ARMED BY DEFAULT 2026-08-19**
+  on every imposed Γ run (below).
 
-Work: default-arm T3 where safe + auto-arm at multi-k (T3.4b), extend the ball fold to the per-iteration
-sites, and report every fold factor (Step 0b).  Caveats: the FFT itself does not fold trivially; the
-dominant per-iteration cost is real-space, so T3 is the big one.  For scale: rounds 3–4 bought 1.4× by
-hand-tuning kernels.
+**★ T3 IS ARMED — and the "auto-arm criterion" the retraction asked for turned out not to exist, because
+the problem was never *which runs are safe*.**  The 2026-08-03 retraction stood on this: the fold imposed
+STRICTLY MORE than `imposeSymmetry` itself, so a degenerate open shell (imposed Si p²-in-a-box) flipped
+into charge-transfer sloshing ~0.26 Ha off.  The actual defect was one line of the replay: reading the
+representative's own \f$D_{ij}\f$ **SAMPLES** the pair orbit, and sampling equals projecting only if D is
+already symmetric.  The replay now reads the **orbit-projected** D (`FoldProjectedD`), and since
+collocation is linear and equivariant, \f$P\rho_{\rm red}[D]=\rho[PD]=P\rho_{\rm full}[D]\f$ for **any**
+iterate — folded and unfolded imposed runs solve the same equations, so arming is a pure cost decision.
+Measured on the exact retraction cell: **ΔE(fold on/off) = 1.3e-8 Ha where it was 0.26 Ha**
+(`StreamFoldOpenShellMatchesUnfolded_SiAtomInBox`), and the closed-shell Si-diamond A/B is unchanged at
+8e-7.  `GPW_STREAM_FOLD=0` is now the opt-OUT.
+
+**★ MEASURED ON THE BENCHMARK ROW (MnO AFM-II Γ, VA span, `MNO_IMPOSE=1`, identical command, same box):
+20m05s → 13m25s wall, 2240 → 1809 s CPU, and 4947 → 1349 MB peak RSS — 1.24× the CPU and 3.7× THE RAM**,
+at an energy identical to nine significant figures (−61.402976200 → −61.40297623) with `m_stag` still
+±0.6667.  Per bucket: pair scatter 263.4 → 41.0 s (6.4×), pair gather 167.6 → 23.1 s (7.3×), stream build
+110.1 → 28.2 s (3.9×) — better than the 4.60× rep-pair reduction, because the pairs the fold drops are the
+expensive ones.  **Two consequences for this plan.**  (1) **Step 4 (RAM) is largely ANSWERED** — the RAM
+half of the MnO gap was mostly the streams, and it fell from 23× CP2K to 6.2× without a campaign.
+(2) **The Φ-table build is now HALF the run** (379 s of 805, untouched by folding), so Step 3's Φ-screening
+item is the whole of the remaining gap on this row.  Caveat worth keeping: 4.60× is this cell's orbit
+factor under the σ=None subgroup (12 of its 24 magnetic ops — a flip op relates D↑ to D↓ and may not fold a
+per-channel stream), not the 71× the high-symmetry diamond gate showed.  An orbit factor belongs to a cell.
+
+**And the trap it walked into, worth remembering:** the first cut also projected the integrate-back's
+`screenD` — which is a matrix of |D| MAGNITUDES, not a density matrix.  Signed averaging cancelled
+mixed-σ orbits to ~0, the D-aware screen dropped live terms, and the imposed O2 triplet collapsed 2.3 Ha.
+The suite caught it in one sweep.  Fix: a screen is reduced by the orbit **MAX** (`FoldScreenMax`), never
+by the signed average.  **PIN: ask what a matrix MEANS before symmetrizing it.**  New coverage: the
+screened integrate-back arm in `StreamFoldGate`, and a DIMER-IN-A-BOX cell — the single-atom Si cells miss
+this bug entirely (8.9e-16), the dimer catches it (34% of scale).
+
+Remaining work: **T3.4b** (multi-k per-block arming — union-of-reps stream caches or the star-summed joint
+scatter; Γ-only is done) and extending the ball fold to the per-iteration G-space sites.  Caveats: the FFT
+itself does not fold trivially.  For scale: rounds 3–4 bought 1.4× by hand-tuning kernels.
+
+**What `MNO_IMPOSE=0` is for — ANSWERED by the user 2026-08-20, and it is a new track, not a knob.**  Two
+routes stay legitimate: a FREE run is the DEFAULT and first-class ("some user just wants to run with no
+symmetry and see what happens") — correct answer, honest report of the symmetry found, paying only time,
+now visible as `NONE` at all three `[fold]` sites and measured at 1.5× wall / 3.7× RAM on MnO.  The
+METHODICAL route is the **SSB DESCENT** (`doc/SymmetryUpgradePlan.md` §3b): converge imposed → save the CD
+→ a symmetry-ANALYSIS run releases the imposition and ranks candidate SUBGROUPS with weights → re-impose
+each and let the energies decide.  It removes the guess from today's release-check, which needs the
+symmetry-broken seed (i.e. the answer) handed to it — MnO's AFM-II was assumed, never derived.  §3b carries
+the design, the inventory of what exists (`SymmetryDefects`, the ops chokepoint) versus what does not
+(`Impose::Subgroup`, subgroup closure, crystal irreps, **CD persistence — nothing at all**), and the one
+repair the design needs: step 3 cannot be a single free iteration, because the symmetric solution is a
+stationary point of the free map and SSB is second-order — it must measure GROWTH or CURVATURE.
 
 ### Step 3 — RUNTIME, CONTINUED  ·  plan: `doc/GPWPlan1.md`
 
@@ -214,10 +258,12 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
 
 ### Step 4 — RAM  ·  read it off Step 1's table, then decide
 
-Not a campaign yet.  Stream RAM already fell 5.78 → 3.70 GB (round 3's run-length encoding) and Step 2's
-folding cuts stream *demand* by the orbit factor.  CP2K caches nothing — its kernels are just fast — so
-our answer is "fold, then re-tier the budgets", which is Steps 2–3 with a different readout.  Open it as
-its own track only if Step 1 still says it binds.
+**✅ LARGELY ANSWERED BY STEP 2, as predicted — do not open it as a track.**  Arming the T3 fold took the
+MnO AFM row's peak RSS **4947 → 1349 MB** (23× CP2K → 6.2×) on top of round 3's 5.78 → 3.70 GB, because the
+RAM was the streams and folding cuts their *demand* by the orbit factor.  What remains is the Φ tables
+(Step 3's screening item, which is a RAM lever as much as a time one) and the fact that a FREE run folds
+nothing and therefore still pays the full 4947 MB.  Re-read the number off the table after Step 3; reopen
+this only if it still binds then.
 
 ### Step 5 — MnO ACCURACY: NAME THE OPERATOR  ·  plan: `doc/SphericalLatticePlan.md`
 

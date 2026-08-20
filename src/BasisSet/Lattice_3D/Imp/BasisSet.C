@@ -188,19 +188,23 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     // SymmetrizeGMap/SymmetrizeRaster sites complete the group-average, so no raster commensurability is
     // needed.  Γ-only because a general-k block needs the little-group restriction + edge phases (T3.4);
     // multi-k IBZ runs keep full streams.
-    // OPT-IN (GPW_STREAM_FOLD=1; read fresh, not static, so gate tests can A/B in one process): the fold
-    // imposes STRICTLY MORE than the historical imposeSymmetry -- the ρ star-average tolerates a
-    // symmetry-BROKEN iterate D (projects it pointwise), while the reduced replay reads only
-    // orbit-representative D elements, i.e. it asserts D itself is symmetric.  A DEGENERATE OPEN SHELL
-    // breaks that assertion PERMANENTLY (measured: the imposed Si pseudo-atom-in-a-box p² run flips from
-    // the benign rotating-ρ mode into charge-transfer sloshing, ~0.26 Ha off).  Default-on needs an
-    // auto-arm criterion (gapped/closed-shell, or Fermi smearing) -- the T3.4-adjacent item.
+    // ARMED BY DEFAULT since 2026-08-19 (T3.5; OpenWork Step 2).  It was opt-in from 2026-08-03 because the
+    // fold then imposed STRICTLY MORE than imposeSymmetry itself: the ρ star-average tolerates a
+    // symmetry-BROKEN iterate D (it projects it pointwise), while the reduced replay read only
+    // orbit-REPRESENTATIVE D elements -- i.e. it SAMPLED the orbit and thereby asserted D symmetric, which a
+    // DEGENERATE OPEN SHELL at integer fill breaks permanently (measured: the imposed Si pseudo-atom-in-a-box
+    // p² run flipped from the benign rotating-ρ mode into charge-transfer sloshing, ~0.26 Ha off).  The
+    // replay now reads the ORBIT-PROJECTED D instead (NR_Evaluator::FoldProjectedD), and since collocation is
+    // linear and equivariant that makes P ρ_red[D] == ρ[P D] == P ρ_full[D] for ANY iterate: the folded and
+    // the unfolded imposed run compute the SAME density, so arming is a pure COST decision and needs no
+    // auto-arm criterion.  GPW_STREAM_FOLD=0 is the opt-OUT (read fresh, not static, so the gate tests can
+    // A/B in one process).
     if (ops.policy.Imposes() && blocks.size()==1
         && blocks[0].ik.x==0 && blocks[0].ik.y==0 && blocks[0].ik.z==0
         && kShift.x==0.0 && kShift.y==0.0 && kShift.z==0.0)
     {
         const char* e=std::getenv("GPW_STREAM_FOLD");
-        if (e && std::atoi(e)!=0)
+        if (!e || std::atoi(e)!=0)
         {
             // S3 guard: the stream fold asserts D ITSELF symmetric under its ops PER CHANNEL, and a
             // flip op relates D_up to D_dn -- so a magnetic imposition may fold streams only under the

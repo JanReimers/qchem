@@ -996,6 +996,70 @@ public:
     //! Realises \c Molecule::LatticeSum1E::StreamFoldOrder (the fold-state cache-key input).
     size_t StreamFoldOrder() const {return itsStreamFold ? itsStreamFold->maps.size() : 0;}
 
+    //! PROJECT, DON'T SAMPLE (T3.5, doc/SymmetryUpgradePlan.md §6b): the ORBIT AVERAGE of \a D over each
+    //! pair orbit, indexed by canonical slot \f$[i\,n+j]\f$ and filled at REPRESENTATIVE slots only (the
+    //! only ones the reduced replay reads).  Empty when no fold is armed.
+    //!
+    //! The reduced replay reads ONE D element per orbit.  Reading the representative's own value SAMPLES
+    //! the orbit, which is a projection only if \f$D\f$ already obeys \f$D_{i'j'}=\zeta D_{ij}\f$ -- i.e.
+    //! it asserts a symmetric iterate, which a DEGENERATE OPEN SHELL at integer fill breaks permanently
+    //! (the 2026-08-03 default-on retraction).  Averaging instead makes the reduced path read
+    //! \f$\bar D=P D\f$, and because collocation is LINEAR and EQUIVARIANT
+    //! (\f$\rho[g\cdot D]=g\cdot\rho[D]\f$) the caller's dense star-average then gives
+    //! \f$P\,\rho_{\rm red}[D]=\rho[P D]=P\,\rho_{\rm full}[D]\f$ -- EXACTLY the unfolded imposed run's
+    //! density, for ANY iterate.  So the fold stops imposing more than \c imposeSymmetry already does and
+    //! becomes a pure cost decision.  A DEAD pair projects to zero (skipped: its \f$\bar D\f$ IS zero).
+    //! Edge algebra: a member slot \f$s\f$ carries \f$D_s=\zeta D_{\rm rep}\f$, or
+    //! \f$D_s=\overline{\zeta D_{\rm rep}}\f$ across the Hermitian twin (\c flip), so it contributes
+    //! \f$\bar\zeta D_s\f$ resp. \f$\bar\zeta\,\overline{D_s}\f$ to the representative's mean.
+    std::vector<dcmplx> FoldProjectedD(const chmat_t& D) const
+    {
+        const StreamFold* sf=itsStreamFold.get();
+        if (!sf) return {};
+        const size_t nn=size();
+        std::vector<dcmplx> Dp(nn*nn, dcmplx(0.0));
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            const PairEdge& pe=sf->pairs[i*nn+j];
+            if (pe.dead) continue;
+            const dcmplx d(D(i,j));
+            Dp[size_t(pe.rep)] += std::conj(pe.zeta)*(pe.flip ? std::conj(d) : d);
+        }
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            const size_t s=i*nn+j;
+            const PairEdge& pe=sf->pairs[s];
+            if (pe.dead || pe.rep!=int(s) || pe.pairMult<2) continue;
+            Dp[s]/=double(pe.pairMult);
+        }
+        return Dp;
+    }
+
+    //! The SCREEN's orbit-consistent value: \f$\max_s|{\rm scr}_s|\f$ over each pair orbit, at representative
+    //! slots (empty when no fold is armed).  NOT \c FoldProjectedD -- the integrate-back's \a screenD is the
+    //! collocation memo's \c Dscr, a matrix of MAGNITUDES (the elementwise max of \f$|D|\f$ over the spin
+    //! channels), not a density matrix.  Signed averaging is meaningless on it and actively harmful: an
+    //! orbit whose edges carry mixed \f$\sigma=\pm1\f$ cancels to ~0, the D-aware screen then kills terms
+    //! that carry real weight, and H comes out wrong (measured 2026-08-19 on the imposed O2-in-box triplet:
+    //! a 2.3 Ha variational collapse).  A screen must be orbit-INVARIANT so every member is truncated the
+    //! same way, and the only safe invariant reduction of a magnitude is the MAXIMUM -- it can only keep
+    //! terms, never drop one a member would have kept (the no-cut discipline).
+    std::vector<double> FoldScreenMax(const chmat_t& scr) const
+    {
+        const StreamFold* sf=itsStreamFold.get();
+        if (!sf) return {};
+        const size_t nn=size();
+        std::vector<double> m(nn*nn, 0.0);
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            const PairEdge& pe=sf->pairs[i*nn+j];
+            if (pe.dead) continue;
+            double& dst=m[size_t(pe.rep)];
+            dst=std::max(dst, std::abs(dcmplx(scr(i,j))));
+        }
+        return m;
+    }
+
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                      const std::vector<double>& ecut_L, double absRelCutoff,
                                      double relFieldSharp=-1.0) const
@@ -1204,11 +1268,12 @@ public:
         for (const auto& ps : c.pairs) for (const auto& st : ps.offsets) nRuns+=st.runBase.size();
         const double meanRun = nRuns ? double(pts64+pts32)/double(nRuns) : 0.0;
         // Step 0b: announce the T3 pair-stream fold in the shared [fold] format -- ALWAYS, including when
-        // it is off, because this is the 71x-measured lever that stays opt-in (GPW_STREAM_FOLD) precisely
-        // because a disarmed run looks identical to an armed one on the console.
+        // it is off, because a disarmed run looks identical to an armed one on the console otherwise.
+        // Armed by default on an imposed Γ run since T3.5; a NONE therefore means a FREE run, a multi-k run
+        // (T3.4b) or an explicit opt-out.
         qchem::report::EmitFold("collocation streams (T3 pairs)", bsf ? bsf->maps.size() : 0,
                                 nPairs, bsf ? nRepPairs : nPairs,
-                                bsf ? std::string() : std::string("opt-in: GPW_STREAM_FOLD=1"));
+                                bsf ? std::string() : std::string("free/multi-k run, or GPW_STREAM_FOLD=0"));
         if (qchem::report::Depth() > 0)
         {
             qchem::report::json s;
@@ -1266,6 +1331,10 @@ public:
         const StreamCache& sc=EnsureStreams(A,N_L,ecut_L,0.0,relFieldSharp);   // density: the relative smooth-field rule
         const size_t nn=size();
         const StreamFold* sf=itsStreamFold.get();               // T3 route (b): reduced scatter (§6b), null = full
+        // T3.5: the reduced scatter reads the ORBIT-PROJECTED D at each representative, never the
+        // representative's own element -- see FoldProjectedD.  O(n^2) per call beside an O(pairs x points)
+        // scatter, and it is what makes the folded density equal the unfolded imposed one for ANY iterate.
+        const std::vector<dcmplx> Dsym=FoldProjectedD(D);
         // TWO PASSES over the pair set (stage B, 2026-08-19).  A pair with a CACHED stream replays it here,
         // in the original ROW-MAJOR order, so a fully-cached run (every anchor) accumulates into `rho` in
         // exactly the order it always did -- bit-identical.  Pairs with NO stream (over the budget) are left
@@ -1277,22 +1346,24 @@ public:
         // way; only the cross-pair reduction order changes (see PairThreads).
         auto scatter=[&](size_t i, size_t j, std::vector<rvec_t>& dst)
         {
-            const dcmplx Dij(D(i,j));
-            if (Dij==dcmplx(0.0)) return;
-            const double fold=(i==j)?1.0:2.0;
             // Reduced mode: only orbit-REPRESENTATIVE pairs scatter, each rep offset weighted by its full
-            // triple-orbit multiplicity (pairMult x within); the caller's dense group-average completes it.
-            // The D-aware kill stays on the MEMBER weight |c| (orbit-invariant), so reduced and full keep
-            // the identical active set (§6b item 6).
+            // triple-orbit multiplicity (pairMult x within) and the ORBIT-PROJECTED D (T3.5); the caller's
+            // dense group-average completes it.  The D-aware kill stays on the MEMBER weight |c|
+            // (orbit-invariant -- exactly so now that the projected D is one value per orbit), so reduced
+            // and full keep the identical active set (§6b item 6).
             const std::map<long long,unsigned>* fm=nullptr;
             double pmul=1.0;
+            dcmplx Dij(D(i,j));
             if (sf)
             {
                 const PairEdge& pe=sf->pairs[i*nn+j];
                 if (pe.dead || pe.rep!=int(i*nn+j)) return;     // image/dead pair: its rep carries the orbit
                 fm=&sf->offMult[i*nn+j];
                 pmul=double(pe.pairMult);
+                Dij=Dsym[i*nn+j];
             }
+            if (Dij==dcmplx(0.0)) return;
+            const double fold=(i==j)?1.0:2.0;
             const PairStreams& ps=sc.pairs[i*nn+j];
             rvec_t& r=dst[ps.level];
             if (ps.cached)
@@ -1360,9 +1431,9 @@ public:
                 for (size_t j=std::max(i,sj.begin);j<sj.end;j++)
                 {
                     if (sc.pairs[i*nn+j].cached) continue;
-                    if (dcmplx(D(i,j))==dcmplx(0.0)) continue;
                     if (sf) { const PairEdge& pe=sf->pairs[i*nn+j];
                               if (pe.dead || pe.rep!=int(i*nn+j)) continue; }
+                    if ((sf ? Dsym[i*nn+j] : dcmplx(D(i,j)))==dcmplx(0.0)) continue;
                     want.push_back(i*nn+j);
                 }
             if (want.empty()) return;
@@ -1387,7 +1458,8 @@ public:
                         if (it==mm.end() || it->second==0) continue;    // member offset: its rep carries it
                         wm=double(sf->pairs[key].pairMult)*double(it->second);
                     }
-                    const double c=((i==j)?1.0:2.0)*std::real(dcmplx(D(i,j))*std::conj(phase(n)));
+                    const dcmplx Dij = sf ? Dsym[key] : dcmplx(D(i,j));        // T3.5: the orbit-projected D
+                    const double c=((i==j)?1.0:2.0)*std::real(Dij*std::conj(phase(n)));
                     if (c==0.0) continue;
                     // MEMBER rule (|c|, not |c*wm|) so the reduced box matches every orbit member's.
                     const double e=std::max(kDensityEps(), kDensityEps()/std::fabs(c));
@@ -1534,6 +1606,10 @@ public:
         // bypasses the memo like the screened calls: the reduced sweep is cheap by construction.
         const StreamFold* sf = (absRelCutoff==0.0 && !pairLevels) ? itsStreamFold.get() : nullptr;
         const bool memoize = (screenD==nullptr && !sf);
+        // T3.5: under a fold the D-aware screen must be ORBIT-INVARIANT (every member of a pair orbit
+        // truncated the same way, since one representative now stands for all of them) -- the orbit MAX of
+        // the screen magnitude.  See FoldScreenMax for why this is NOT the signed FoldProjectedD.
+        const std::vector<double> Dscreen = (sf && screenD) ? FoldScreenMax(*screenD) : std::vector<double>{};
         // Memo hit: the per-offset reductions are already computed for this exact field -- contract phases only.
         if (memoize)
             for (const auto& m : itsIntegrateMemos)
@@ -1613,8 +1689,9 @@ public:
             // what "the magnitude screen is the only truncation" means; it is strictly MORE conservative than
             // the old test, so it can only keep terms the old one dropped.
             const double fold=(i==j)?1.0:2.0;
-            const dcmplx Dij = screenD ? dcmplx((*screenD)(i,j)) : dcmplx(0.0);
-            const double Dmag = fold*std::abs(Dij);
+            const double Dmag = !screenD          ? 0.0
+                              : Dscreen.empty()   ? fold*std::abs(dcmplx((*screenD)(i,j)))
+                              :                     fold*Dscreen[i*nn+j];
             dcmplx s(0.0);
             if (sc && sc->pairs[i*nn+j].cached)
                 for (const PairOffsetStream& st : sc->pairs[i*nn+j].offsets)
