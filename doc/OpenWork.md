@@ -359,7 +359,7 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   3. **The build flags undercut both.**  `qcStructure` compiles with `-O3 … -O2 -g` — clang takes the LAST
      `-O`, so it builds at **-O2** — and there is no `-march=native`, i.e. baseline SSE2 at 2 doubles per
      vector.  (Whole-tree change, so it interacts with the BLAS pin; not a Becke-local decision.)
-- **★ THE Φ BLOCH POINT-SUM SEAM — open, and it SEQUENCES BEFORE Φ-sparsity.**  `GPW_Evaluator::Eval`
+- **★ THE Φ BLOCH POINT-SUM SEAM — ✅ DONE 2026-08-20 (`55de8578`), and it is the seam Φ-sparsity extends.**  `GPW_Evaluator::Eval`
   (`Evaluator.C:801`) Bloch-sums the orbitals by calling `(*itsOrb)(r-R_k)` **once per lattice image per
   mesh point** — and when `GPW_SPHERICAL=1` that call IS the cart→spherical transform.  The transform is
   LINEAR, so \f$\sum_k \phi_k T^{\!\top} v_k = T^{\!\top}\sum_k \phi_k v_k\f$: summing the images in
@@ -381,12 +381,30 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
      closes the exception and the redundancy together.
   3. **The structures compose.**  T is block-diagonal per shell, which is the granularity sparsity wants to
      batch on; a once-per-point transform composes with that, one buried in the image loop does not.
-  **FIRST MOVE IS MEASUREMENT, NOT THE FIX.**  The size is UNKNOWN: the ~50× nonzero-only fix already made
-  each call cheap, so what remains is ~150× redundancy in call COUNT on a cheap call — plausibly 10–20 s of
-  the 83 s Φ bucket, plausibly ~2 s.  Time the transform ALONE (or count the calls, the `GPW_BECKE_COUNT`
-  pattern) before sizing it.  If it is small the item is a SEAM CLEANUP, not a perf item, and can ride
-  along with sparsity or drop to *Continuous*.  ⚠ Not bit-identical: summing then transforming reorders the
-  floating-point (mathematically identical, ~1e-16, and arguably MORE accurate — fewer roundings).
+  **MEASURED FIRST, and the measurement DEMOTED it before it was built** — `perf` put the transform layer
+  (`SphericalView_IBS::operator()`) at **2.9% of run cycles**, so this was booked as a SEAM CLEANUP that
+  sparsity builds on, NOT as a speedup.  Built on that basis and it delivered the predicted size:
+  **Φ bucket 26.36 → 20.39 s serial (1.29×)**, Etot unchanged to every printed digit.
+  **THE SHAPE (user, 2026-08-20):** `VectorFunction<T>` gains the point-set `operator()` **MIRRORING the one
+  `ScalarFunction<T>` already had**, same defaulted pointwise-loop body — *"any derived class with a faster
+  overload is welcome to re-implement."*  That also retired my own objection: the "ISP sin" that
+  `VectorFunction.C`'s header records was a **Mesh** dependency, not a bulk overload, and the sibling face
+  had carried exactly this signature all along.  Return is a MATRIX where `ScalarFunction`'s is a vector,
+  because the pointwise form returns a vector where `ScalarFunction`'s returns a scalar.
+  Chunked in `MakePhi` so its threading survives (qcMath is a leaf, cannot host OpenMP, and molecular bases
+  reach `MakePhi` too).  The enumeration reproduces the caller's former rule exactly, so the untransformed
+  result is bit-identical and only the transform reordering moves (~1e-16).
+  ⚠ **`Eval`/`EvalGradient` still run their own image loop** — the per-point callers (KB quadrature) were
+  NOT migrated, because the seam re-derives its offset list per call and pointwise delegation would pay
+  that per point.  So the *"ONE remaining explicit image list"* is narrowed, not retired; retiring it needs
+  the offsets cached on the seam side, which is its own increment.
+- **★ AND THE MEASUREMENT FOUND SOMETHING BIGGER NEXT DOOR — ✅ `87da4854`, 1.35× for one line.**
+  `IrrepBasisSet::size()` is VIRTUAL and cross-`.so`, so as the CONDITION of
+  `for (size_t i=0;i<size();i++)` in the pointwise basis sweep it was re-dispatched through the PLT every
+  iteration — billed as three symbols totalling **2.73% of run cycles**, i.e. MORE than the entire seam
+  fix it was measured in service of.  Hoisted (bit-identical): **Φ bucket 35.69 → 26.36 s**.  The same
+  `i<size()` pattern at four other sites is deliberately NOT touched — they are one-time setup or memoized
+  and absent from the profile.  **Cumulative on the Φ bucket today: 35.69 → 20.39 s, 1.75×.**
 - **Φ-table SPARSITY — still open, and now the next Φ item.**  Φ is stored dense (npts × n) while the true
   object is sparse; batching the mesh (per atom / per radial shell) with a per-batch significant-function
   list makes every Φ-SHAPED cost — the ρ GEMM and the H_xc GEMM, which the build no longer dominates —
