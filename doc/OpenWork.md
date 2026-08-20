@@ -466,8 +466,18 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   - a FITTED or FOURIER-TRUNCATED ρ going negative ⇒ says NOTHING about D (Gibbs ringing / aliasing).
 
   **★ THE USER'S PP-DFT SURPRISE WAS THE FIRST KIND** — the DIRECT form going negative, which is why it was
-  a surprise: the fitted/Fourier-truncated case was already well understood and accepted.  So D genuinely
-  CAN be non-PSD in PP-DFT work, and the question is what makes it so.
+  a surprise: the fitted/Fourier-truncated case was already well understood and accepted.
+  **★★ AND THE CULPRIT IS A PP SUBTLETY THAT BREAKS THE IMPLICATION'S HIDDEN PREMISE (user).**  "Direct form
+  negative ⇒ D not PSD" silently assumes \f$\rho(r)\f$ IS \f$\Phi^\dagger D\Phi\f$.  For ULTRASOFT PPs and
+  PAW it is not: \f$\rho=\sum_m f_m|\tilde\psi_m|^2+\sum_{ij}\rho_{ij}Q_{ij}(r)\f$, and the AUGMENTATION
+  functions \f$Q_{ij}\f$ are NOT positive-definite — localized, sign-changing objects that restore the true
+  norm in the core.  So a USPP/PAW density dips negative near the nuclei with a perfectly PSD D: the
+  negative ρ convicts the AUGMENTATION, not the density matrix.
+  **Does not apply here:** this tree is GTH/HGH, i.e. NORM-CONSERVING (`Pseudopotential/GTH_Potentials.C`),
+  which has no augmentation charge — \f$\rho=\sum_m f_m|\tilde\psi_m|^2\f$ exactly, so the premise HOLDS on
+  the GPW path.  (The `augmentation` machinery in the tree is `APW_IBS`/`LAPW_IBS`, the all-electron
+  augmented-plane-wave family, which does not feed `DM_RhoAtPoints`.)  ⚠ It would come back if USPP/PAW
+  were ever added, or if the APW/LAPW route were pointed at this seam.
   **The governing property is CONVEXITY, and it explains the user's other observation — "for atoms and
   molecules doing HF this is impossible":** there D = C f C† with INTEGER occupations (PSD), and linear
   mixing \f$(1-\alpha)\rho_{in}+\alpha\rho_{out}\f$ with \f$\alpha\in[0,1]\f$ is a CONVEX combination —
