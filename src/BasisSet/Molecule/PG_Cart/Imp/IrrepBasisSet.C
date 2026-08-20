@@ -184,20 +184,31 @@ IrrepBasisSet::~IrrepBasisSet() {};
 
 rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
 {
-    rvec_t ret(size());
+    rvec_t ret(size(), 0.0);   // ZERO-FILLED: a screened-out function is left at its exact value, 0
     // SHELL HOIST: the flattened (radial x polarization) layout stores a shell's components
     // CONSECUTIVELY over the SAME GaussianRF (PGData::Init), so the contracted radial -- the exp
     // calls, the whole cost of this loop -- is evaluated ONCE per shell instead of once per
     // component (6x on a d shell, 10x on an f).  Pure hoist: identical value, identical order.
     // This is THE pointwise basis sweep behind the atom-centred XC mesh's Phi tables (and every
     // molecular Becke-grid evaluation), so it is on the hot path of every mesh-quadrature run.
+    //
+    // MAGNITUDE SCREEN (2026-08-20): skip a function whose bound |chi_i| < 1e-10 at this distance
+    // (PGData::Reaches -- one-time, geometry-fixed).  It matters because the PERIODIC caller
+    // (GPW_Evaluator::Eval) runs this sweep ONCE PER LATTICE IMAGE per mesh point: the image list
+    // reaches as far as the MOST diffuse function, so an alpha=36 Mn d shell was paying a contracted
+    // exp() at 20+ bohr, where its value is ~e^-14000.  The test is a squared distance against a
+    // cached radius; the skipped work is exp() and intpow().  This is the project's own discipline --
+    // the magnitude screen is the only truncation, and 1e-10 sits far below the ~1e-4 quadrature error
+    // of any mesh this feeds.
+    const rvec_t&     reach=Reaches();
     const GaussianRF* last=nullptr;
     double            rad =0.0;
     for (size_t i=0;i<size();i++)
     {
         const GaussianRF& rf=*radials[i];
-        if (&rf!=last) { rad=rf(r); last=&rf; }
         rvec3_t dr=r-rf.GetCenter();
+        if (dr.x*dr.x+dr.y*dr.y+dr.z*dr.z > reach[i]*reach[i]) continue;
+        if (&rf!=last) { rad=rf(r); last=&rf; }
         ret[i]= ns[i]*pols[i](dr) * rad;
     }
     return ret;

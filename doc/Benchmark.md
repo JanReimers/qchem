@@ -75,7 +75,7 @@ printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrappe
 | NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.430336482 | −24.431213375 | **+0.877 mHa** | 39.5 s / 7.4 s | 94.5 / 7.2 s | **13.2×** | 577 / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.546883793 | — ² | | 57.4 s / — | 112 s / — | — | 590 / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.430944039 | −24.432293467 | **+1.349 mHa** | 2m44s / 1m42s | 219 / 102 s | 2.1× | 3090 / 186 MB |
-| MnO AFM-II | Γ | **VA (N=118)** | −61.40297623 ⁴ | −61.303325178 | **−99.65 mHa** | 13m25s / 6m14s | 1809 / 373 s | **4.9×** | **1349** / 217 MB |
+| MnO AFM-II | Γ | **VA (N=118)** | −61.40297622 ⁴ | −61.303325178 | **−99.65 mHa** | 8m36s / 6m14s | 1554 / 373 s | **4.2×** | **1350** / 217 MB |
 | MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
 
@@ -116,18 +116,33 @@ exists.  This mismatch was live in the test until 2026-08-19: it carried a Γ-er
 was the multi-k cell.  The retracted −27.93128 "oracle" (a 3.5 Ha `EPS_PGF_ORB` screening artifact) is gone
 from this table for good.
 
-⁴ **RE-MEASURED 2026-08-19 with the T3 collocation-stream fold ARMED** (`OpenWork` Step 2 / plan T3.5;
-identical command, same box, same day).  The row moved **20m05s → 13m25s wall, 2240 → 1809 s CPU, and
-4947 → 1349 MB peak RSS**, i.e. **1.24× the CPU and 3.7× THE RAM**, while the energy is the SAME to nine
-significant figures (−61.402976200 → −61.40297623, ≈3e-10 Ha) and `m_stag` still reads ±0.6667 over 17
-iterations — the fold is a cost change, not a physics change, exactly as its equivariance argument says.
-Where it came from (banked → armed, seconds): pair **scatter 263.4 → 41.0** (6.4×), pair **gather
-167.6 → 23.1** (7.3×), **stream build 110.1 → 28.2** (3.9×) — 541 s → 92 s on the three stream buckets, a
-larger factor than the 4.60× rep-pair reduction because the pairs it drops are the expensive ones.  The Φ
-tables did NOT move (370.0 → 379.2 s) and are now **47% of the run**: Step 3's item is the whole game on
-this row.  Against CP2K the gap narrows from 6.0× → 4.9× CPU and 23× → 6.2× RAM.
-⁵ the FM row is still the PRE-ARMING measurement (its energy is unaffected, its cost is not) — re-run it
-with the AFM command when the threaded cut of this whole table is taken.
+⁴ **RE-MEASURED TWICE, 2026-08-19/20** — same command, same box.  All three cuts agree on the ENERGY to
+nine significant figures (−61.402976200 → −61.40297623 → −61.40297622, a spread of ~1e-8 Ha) with `m_stag`
+±0.6667 over 17 iterations: both changes below are cost changes, not physics.
+
+| cut | wall | CPU | peak RSS |
+|---|---|---|---|
+| banked (no folds, dense Φ) | 20m05s | 2240 s | 4947 MB |
+| + **Step 2**: T3 stream fold ARMED (plan T3.5) | 13m25s | 1809 s | **1349 MB** |
+| + **Step 3**: Φ-table build (screen + sparse spherical transform) | **8m36s** | **1554 s** | 1350 MB |
+| | **2.34×** | **1.44×** | **3.7×** |
+
+**Step 2** (seconds, banked → armed): pair **scatter 263.4 → 41.0** (6.4×), pair **gather 167.6 → 23.1**
+(7.3×), **stream build 110.1 → 28.2** (3.9×) — a larger factor than the 4.60× rep-pair reduction, because
+the pairs the fold drops are the expensive ones.  **THE RAM CAME FROM HERE**, and it was the streams.
+**Step 3**: the **Φ-table build 379.2 → 83.3 s** (4.6×; 190 → 36.8 per anneal stage).  Its dominant cause
+was NOT Φ's density but a dense 122×118 cart→spherical transform applied INSIDE the lattice-image loop —
+~150 mat-vecs per mesh point where one would do, 10.6% of all cycles — plus a missing magnitude screen on
+the pointwise sweep.  Details and the rejected third hypothesis in `doc/OpenWork.md` Step 3.
+Against CP2K the CPU gap narrows 6.0× → **4.2×** and RAM 23× → **6.2×**; on WALL this row is now 1.38×.
+**What is hot now:** the top bucket is `scf: XC-mesh ρ sampling (matrix-free)` at 84.1 s — the Φ-shaped
+GEMM, i.e. the Φ-SPARSITY item, which the build no longer overshadows.
+⁵ the FM row is still the PRE-Step-2 measurement (its energy is unaffected, its cost is not) — re-run it
+with the AFM command when the threaded cut of this whole table is taken.  **The Si and NaF rows likewise
+predate Step 3**: their ENERGIES are unchanged (verified — Si Γ still reads −7.115067665 to every digit),
+but any row whose XC runs on the Becke mesh may now be faster than its cost columns say.  Only the MnO AFM
+row has been re-measured end to end.  Nothing in the table is stale in the Δ column, which is the column it
+exists for.
 
 ### How each row was produced
 
@@ -210,19 +225,25 @@ the feature.  **The FREE production run still folds NOTHING at any of the three 
 Where the time goes (AFM arm, `GPW_REPORT=1` ledger) — BEFORE the fold was armed (of 1205 s) and AFTER
 (of 805 s):
 
-| bucket | s (unfolded) | s (folded) | factor |
+| bucket | s (banked) | s (+Step 2 fold) | s (+Step 3 Φ) |
 |---|---|---|---|
-| setup: XC-mesh **Φ tables** | 370.0 (31%) | **379.2 (47%)** | 1.0× (untouched) |
-| scf: collocate density (pair scatter) | 263.4 (22%) | 41.0 (5%) | **6.4×** |
-| scf: integrate-back (pair gather) | 167.6 (14%) | 23.1 (3%) | **7.3×** |
-| setup: collocation stream build | 110.1 (9%) | 28.2 (4%) | **3.9×** |
-| setup: Becke mesh build | 70.6 (6%) | 69.4 (9%) | 1.0× |
-| scf: XC-mesh ρ sampling (matrix-free) | 57.1 (5%) | 76.8 (10%) | — ⁶ |
-| scf: XC-mesh H_xc quadrature | 33.8 (3%) | 44.1 (5%) | — ⁶ |
+| setup: XC-mesh **Φ tables** | 370.0 (31%) | 379.2 (47%) | **83.3 (16%)** |
+| scf: collocate density (pair scatter) | 263.4 (22%) | 41.0 (5%) | 42.1 (8%) |
+| scf: integrate-back (pair gather) | 167.6 (14%) | 23.1 (3%) | 23.3 (5%) |
+| setup: collocation stream build | 110.1 (9%) | 28.2 (4%) | 29.0 (6%) |
+| setup: Becke mesh build | 70.6 (6%) | 69.4 (9%) | 71.5 (14%) |
+| **scf: XC-mesh ρ sampling (matrix-free)** | 57.1 (5%) | 76.8 (10%) | **84.1 (16%)** |
+| scf: XC-mesh H_xc quadrature | 33.8 (3%) | 44.1 (5%) | 28.3 (5%) |
 
-**The Φ-table build was already the single largest bucket and is now HALF THE RUN** — `OpenWork` Step 3's
-named "Φ-table SCREENING" lever (Φ is stored dense, npts × n, while the true object is sparse).  Everything
-the pair loops had left to give on this cell has now been given: they are 12% of it together.
+**The profile has flattened and the head has moved.**  The pair loops (Step 2) and the Φ BUILD (Step 3) are
+each down to single-digit-to-16% shares, and the largest bucket is now the **Φ-shaped ρ GEMM** — the
+Φ-SPARSITY item, which is what `OpenWork` Step 3's "Φ-table screening" was always aimed at and which the
+build's cost used to hide.  Second is the **Becke mesh build**, whose 71 s of wall is ~50% of the run's
+CYCLES (it is the one loop threaded by default) — so on the CPU column, which is the honest one, the Becke
+partition is now the single biggest item in the code.  ⁶ the XC-mesh buckets are not comparable one-to-one
+across cuts (iteration counts differ per cut); per-iteration cost is what matters there.
+⁶ the XC-mesh buckets are not comparable one-to-one across the two runs (the folded run converged its second
+stage in 17 iterations; per-iteration cost is what matters there, and it did not change).
 
 ## Standing observations
 
@@ -233,12 +254,12 @@ the pair loops had left to give on this cell has now been given: they are 12% of
   reason the diffuse cells are where this table bites.  (The SR2 row's 13.2× against the full span's 2.1× is
   not a typo and is not yet explained: the SMALLER basis is the worse ratio.  Both are Γ, same cell, same
   code path — worth one look, because whatever it is scales the wrong way.)
-- **MnO is where both columns hurt — but the fold took a large bite out of both (2026-08-19).**  The AFM row
-  went 6.0× → **4.9×** CPU and 23× → **6.2×** RAM (4947 → 1349 MB against CP2K's 217 MB) on an identical
-  118-function span, from arming T3 alone; the FM row still carries the pre-arming numbers.  **The RAM half
-  was mostly the streams**, and Step 4 has just been answered by Step 2 rather than by a campaign of its
-  own, exactly as predicted.  What is left is the Φ tables — CP2K caches nothing and its kernels are just
-  fast, so Step 3 (screen Φ) is now the whole of the remaining gap on this row.
+- **MnO is where both columns hurt — but Steps 2 and 3 took a large bite out of both (2026-08-19/20).**  The
+  AFM row went 6.0× → **4.2×** CPU, 23× → **6.2×** RAM (4947 → 1350 MB against CP2K's 217 MB) and 3.2× →
+  **1.38×** wall on an identical 118-function span; the FM row still carries the pre-Step-2 numbers.  **The
+  RAM half was the streams** (Step 2), so Step 4 was answered by Step 2 rather than by a campaign of its
+  own, exactly as predicted.  CP2K caches nothing and its kernels are just fast — what is left on our side
+  is the Φ-shaped ρ GEMM and the Becke partition, in that order for wall and the reverse for CPU.
 - **MnO carries a ~100 mHa configuration-BLIND offset and a −37.15 mHa configuration-SELECTIVE one** on that
   identical span (`OpenWork` Step 5) — and qchem sits BELOW a variational reference there, which convicts an
   operator or convention rather than a basis.  The run now prints its own term breakdown

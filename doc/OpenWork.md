@@ -247,10 +247,48 @@ stationary point of the free map and SSB is second-order — it must measure GRO
 
 Measure against Step 1, after Step 2 (folding changes what is hot).
 
-- **Φ-table SCREENING — the O(N)-XC increment, and THE next structural lever.**  Φ is stored dense
-  (npts × n) but the true object is SPARSE: batch the mesh (per atom / per radial shell) with a per-batch
-  significant-function list and every Φ-shaped cost (build, ρ GEMM, H_xc GEMM) becomes O(npts·n_sig²).
-  **The win grows with cell size** — MnO's 4 atoms understate it.
+- **Φ-table BUILD — ✅ 4.6× TAKEN 2026-08-20, and NOT by the mechanism this item predicted.**  The bucket
+  went **379.2 → 83.3 s** on the MnO benchmark row (190 → 36.8 per anneal stage), taking the whole row to
+  **8m36s wall / 1554 s CPU** — with Step 2 that is **2.34× wall and 1.44× CPU off the banked cut**, at an
+  energy identical to nine significant figures.  Cost attribution first, as always, and it found three
+  things — of which the item's own hypothesis ("Φ is stored dense, batch the mesh") was the SMALLEST:
+  1. **The dense cart→spherical transform was inside the image loop (the big one, 113 → 36.8 s).**
+     `SphericalLatticeView::operator()` applies `T^T v` per call, and the periodic caller
+     (`GPW_Evaluator::Eval`) calls it ONCE PER LATTICE IMAGE per mesh point — so a 122×118 dense mat-vec
+     ran ~150× more often than the physics needs, at **10.6% of the entire run's cycles**.  T is
+     block-diagonal per shell and IDENTITY for every s/p shell, so it is a 1-to-6-term sum per output:
+     evaluating only its nonzeros is bit-identical (the skipped terms contribute a hard 0.0) and ~50×
+     cheaper.  *The deeper fix is still open* — the transform is LINEAR, so the honest structure is to sum
+     the images in Cartesian and transform ONCE per point, which needs the Bloch point-sum to live in the
+     periodic seam (`LatticeSum1E`) rather than in `GPW_Evaluator`.  That is an interface question, hence
+     not taken unilaterally.
+  2. **The pointwise sweep had no magnitude screen (190 → 120 s).**  `PG_Cart::IrrepBasisSet::operator()`
+     evaluated every contracted radial at every point — including an α=36 Mn d shell at 20+ bohr, where its
+     value is ~e⁻¹⁴⁰⁰⁰ — because the image list necessarily reaches as far as the most DIFFUSE function.
+     Now screened on a cached per-function radius (`PGData::Reaches`, the same ε-magnitude discipline as
+     `BetaSupportRadius`; ε=1e-10 sits far below the ~1e-4 quadrature error).
+  3. **Column-major fill: REFUTED, and the question is CLOSED.**  `mat_t` is column-major while the sweep
+     produces rows, so the fill strides by npts per element — which looks like the classic cache disaster
+     and is not.  Element (g,i) sits at `i*npts+g`, so consecutive POINTS write ADJACENT elements of the
+     SAME line: 122 interleaved SEQUENTIAL streams, ~1 miss per 8 points per function.  **Timed in
+     isolation at the real shape (99370×122): 13 ms column-major vs 8 ms row-major — 1.1 ns/element, the
+     memory-BANDWIDTH floor for writing a 97 MB table at all — and the row-major route then owes a 21 ms
+     transpose, so it is a net LOSS.**  The entire fill is 0.04% of the bucket.  An in-run A/B had
+     suggested 7 s; that was single-sample noise beside a threaded Becke mesh, and the isolated
+     measurement is what settled it.  **Lesson, again: measure the SUSPECT alone before believing a
+     difference of two whole-run timings.**
+- **⚠ THE LEDGER MEASURES WALL, `perf` MEASURES CYCLES — do not read one against the other.**  The single
+  biggest CPU consumer in the whole code is `BeckeCutoff` at **~50% of cycles**, but that loop is the one
+  that is THREADED BY DEFAULT, so on 16 cores it is only ~35 s of wall and reads as a small ledger bucket.
+  The reverse held for Φ: 15.5% of cycles, 47% of wall, because it is serial.  Both numbers were right and
+  reading the flat profile against the ledger cost a wrong conclusion before the arithmetic closed.
+  **For the CPU column of `doc/Benchmark.md` — the honest one, per the user's pin — the Becke partition is
+  now the biggest single item in the code**: it is O(|competitor images|²) `BeckeCutoff` calls per mesh
+  point (~500 images ⇒ ~250k polynomial evaluations per point), and nothing has looked at that algorithm.
+- **Φ-table SPARSITY — still open, and now the next Φ item.**  Φ is stored dense (npts × n) while the true
+  object is sparse; batching the mesh (per atom / per radial shell) with a per-batch significant-function
+  list makes every Φ-SHAPED cost — the ρ GEMM and the H_xc GEMM, which the build no longer dominates —
+  O(npts·n_sig²).  **The win grows with cell size**; MnO's 4 atoms understate it.
 - **Becke mesh build** (~12–32 s): `BeckeCutoff` alone was 11.5% of the round-3 profile.
 - **NOT worth re-attacking without new information:** the per-iteration scatter/gather.  Round 4 measured
   it at 61% irreducible per-(pair,point) emit; it needs fewer TERMS (looser `GPW_DENSITY_EPS`, the T3

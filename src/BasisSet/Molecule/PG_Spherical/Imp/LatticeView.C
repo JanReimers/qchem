@@ -119,6 +119,16 @@ public:
     {
         for (size_t i=0;i<itsT.rows();i++)
             for (size_t j=0;j<itsT.columns();j++) itsTc(i,j)=dcmplx(itsT(i,j),0.0);
+        // T's NONZEROS, per spherical function (2026-08-20).  T is block-diagonal per shell and IDENTITY
+        // for every s/p shell, so a dense trans(T)*v does ~nCart*nSph flops to compute what is, per output,
+        // a 1-to-6 term sum.  On the GPW mesh path that dense product ran once per LATTICE IMAGE per mesh
+        // point -- ~150x more often than the physics needs, and it was 10.6% of the whole run's cycles.
+        // Ascending c, so the accumulation order matches the dense product's exactly (the skipped terms
+        // contribute a hard 0.0): same values, bit for bit.
+        itsTnz.resize(itsT.columns());
+        for (size_t s=0;s<itsT.columns();s++)
+            for (size_t c=0;c<itsT.rows();c++)
+                if (itsT(c,s)!=0.0) itsTnz[s].push_back({c,itsT(c,s)});
     }
 
     // ---- IDs / symmetry / bookkeeping (forward; the ID suffix keeps every cache identity distinct) ----
@@ -141,7 +151,13 @@ public:
     virtual rvec_t operator()(const rvec3_t& r) const override
     {
         const rvec_t v=(*itsObs)(r);
-        rvec_t out=blazem::trans(itsT)*v;
+        rvec_t out(itsT.columns(), 0.0);          // v_sph = T^T v_cart, over T's nonzeros only (see itsTnz)
+        for (size_t s=0;s<out.size();s++)
+        {
+            double a=0.0;
+            for (const auto& [c,t] : itsTnz[s]) a+=t*v[c];
+            out[s]=a;
+        }
         return out;
     }
     virtual rvec3vec_t Gradient(const rvec3_t& r) const override
@@ -250,6 +266,10 @@ private:
     const Molecule::LatticeSum1E*   itsLat;     //!< the inner periodic capability (abstract)
     rmat_t        itsT;                         //!< cart->sphere, nCart x nSph
     mat_t<dcmplx> itsTc;                        //!< the same T, complex, for the chmat congruences
+    //! T's nonzeros per spherical function: (cartesian index, coefficient), ascending index.  The
+    //! POINTWISE path only -- the matrix congruences keep the dense form, where blaze's blocked kernels
+    //! are the right tool and the call count is O(1) per run rather than O(points x images).
+    std::vector<std::vector<std::pair<size_t,double>>> itsTnz;
 };
 
 //--------------------------------------------------------------------------------------------------

@@ -496,12 +496,24 @@ template <class U> mat_t<U> XC_GridEngine::MakePhi(const tobs_t<U>* bs) const
 {
     qchem::report::Timed timed("setup: XC-mesh Phi tables");
     const rvec3vec_t& R=itsMesh->Points();
-    mat_t<U> P(R.size(), bs->GetVectorSize());
     // THE dominant SETUP bucket on an atom-centred XC mesh (MnO Γ, 48k points x 122 Bloch functions:
     // 56 s serial, and it DOUBLES on an imposed run's invariant mesh).  Each point is an independent
     // Bloch image sum writing its OWN row, so the loop parallelises with no reduction and no ordering
     // question -- the table is bit-identical at any thread count.  Opt-in (GPW_OMP_THREADS) like every
     // other parallel region here; see qchem.Parallel for why serial is the default.
+    //
+    // FILL LOCALITY: A CLOSED QUESTION -- DO NOT "FIX" THIS (measured 2026-08-20).  `mat_t` is blaze
+    // COLUMN-major and the sweep produces a point's whole ROW, so P(g,0..n-1) strides by npts per element,
+    // which LOOKS like the classic cache disaster.  It is not, and the reason is worth keeping: element
+    // (g,i) sits at i*npts+g, so CONSECUTIVE POINTS write ADJACENT elements of the SAME cache line.  This
+    // is 122 interleaved SEQUENTIAL streams, not a scatter -- one miss per 8 points per function, which
+    // the prefetchers handle.  Timed in isolation at this exact shape (99370 x 122): 13 ms column-major
+    // vs 8 ms row-major, i.e. ~1.1 ns/element, already the memory-BANDWIDTH floor for writing a 97 MB
+    // table at all -- and the row-major route then owes a 21 ms transpose, so it is a NET LOSS as well as
+    // a transient second copy of the table.  The whole fill is 0.04% of this bucket; the cost that WAS
+    // here lived in the per-image spherical transform (see PG_Spherical's LatticeView) and in the missing
+    // pointwise magnitude screen (PGData::Reaches), both now fixed.
+    mat_t<U> P(R.size(), bs->GetVectorSize());
     auto fill=[&](size_t g)
     {
         vec_t<U> phi=(*bs)(R[g]);
