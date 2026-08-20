@@ -200,10 +200,15 @@ rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
     // cached radius; the skipped work is exp() and intpow().  This is the project's own discipline --
     // the magnitude screen is the only truncation, and 1e-10 sits far below the ~1e-4 quadrature error
     // of any mesh this feeds.
+    // size() is VIRTUAL and lives across a .so boundary, so it is neither inlined nor hoisted by the
+    // compiler -- as a loop CONDITION it cost 2.7% of run cycles (PGData::size + IrrepBasisSet::size +
+    // the PLT thunk, measured 2026-08-20), comparable to the whole cart->spherical transform layer.
+    // Hoisting is bit-identical: the basis cannot change size mid-sweep.
+    const size_t      n    =size();
     const rvec_t&     reach=Reaches();
     const GaussianRF* last=nullptr;
     double            rad =0.0;
-    for (size_t i=0;i<size();i++)
+    for (size_t i=0;i<n;i++)
     {
         const GaussianRF& rf=*radials[i];
         rvec3_t dr=r-rf.GetCenter();
@@ -215,8 +220,9 @@ rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
 }
 rvec3vec_t IrrepBasisSet::Gradient   (const rvec3_t& r) const
 {
-    rvec3vec_t ret(size());
-    for (size_t i=0;i<size();i++)
+    const size_t n=size();          // virtual + cross-.so: hoisted, same reason as operator() above
+    rvec3vec_t ret(n);
+    for (size_t i=0;i<n;i++)
     {
         const GaussianRF& rf=*radials[i];
         rvec3_t dr=r-rf.GetCenter();
