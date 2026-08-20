@@ -50,6 +50,29 @@ struct BeckeImage
     bool    inPSet;   // cell-function bound >= eps: P is computed and enters the denominator
 };
 
+//! GPW_BECKE_COUNT=1: the per-point COST CENSUS of the partition (doc/OpenWork.md Step 3).  The
+//! partition is the single largest CPU consumer in the code (~50% of cycles), and it is threaded by
+//! default -- so it reads as a small WALL bucket and the ledger cannot say where inside it the time
+//! goes.  Two call sites compete for the blame: the shell-convergence RETEST (O(|im|) per shell, and
+//! |im| grows as s^3) and the final P-set DOUBLE LOOP (|P-set| x |im|).  This census separates them
+//! by counting, which is exact and thread-independent, instead of by profiling a threaded loop.
+//! Slot-indexed per point and reduced after the loop -- the same discipline as keep/kpt/kwt above --
+//! so it needs no atomics and cannot perturb what it measures.
+//! Only the INNER-loop counter is gated on \a census: it fires ~2.3e5 times per point (97% of the work),
+//! where an ungated increment would be a real production cost.  The shell-retest and P-set counters fire
+//! ~6.4e3 and ~1e2 times per point, measured at ~0.03% of the build, and stay ungated for legibility.
+struct BeckePointCost
+{
+    unsigned im=0;        // competitor images gathered
+    unsigned pset=0;      // images retained in the P-set (the denominator sum)
+    unsigned shells=0;    // deepest shell index reached
+    unsigned retest=0;    // BeckeCutoff calls in the shell-convergence retest
+    unsigned final_=0;    // BeckeCutoff calls in the final P-set double loop (== norm() calls too)
+    unsigned bound=0;     // BeckeCutoff calls in the per-shell tail bound + the early-tail drop
+    unsigned dead=0;      // P-set members whose P underflowed to 0 (the whole i iteration bought nothing)
+    unsigned deadWork=0;  // final-loop pairs spent on those members -- work that provably bought nothing
+};
+
 //! \a angPerAtom (optional) = per-atom angular sets -- the §6a W2b SITE-ADAPTED path (rep atoms carry
 //! site-group-invariant sets, partners the op-rotated copies; the ops-taking CreateIntegrationMesh
 //! overload builds them).
@@ -60,12 +83,28 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     qchem::report::Timed timed("setup: becke mesh build");
     using qcMesh::BeckeCutoff;
     const int    k  =mp.beckeOrder;
-    // Magnitude screen: the weights are eps-converged.  1e-8 (not tighter) on PURPOSE: the tail bounds are
-    // worst-case-COLLINEAR (attained only on the exact line through two images), so the true neglected mass
-    // is far below eps -- while the quadrature error itself sits at ~1e-4.  Tightening to 1e-10 was measured
-    // to inflate the competitor sets (and the O(|P-set| x |images|) partition cost) several-fold for sparse
-    // cells with no accuracy gain at the quadrature level.
-    const double eps=1e-8;
+    // Magnitude screen: the weights are eps-converged.  The tail bounds are worst-case-COLLINEAR (attained
+    // only on the exact line through two images), so the TRUE neglected mass is far below eps -- while the
+    // quadrature error itself sits at ~1e-4.  eps therefore has two decades of headroom, and it is the one
+    // parameter that scales the dominant loop rather than shaving it: eps fixes |im|, the competitor count,
+    // and the partition costs O(|P-set| x |im|) per point.
+    //
+    // 1e-6, MEASURED 2026-08-20 (doc/OpenWork.md Step 3).  This had only ever been probed TIGHTER -- 1e-10
+    // was known to inflate the sets several-fold for no accuracy gain -- and the sweep in the other
+    // direction is where the cost was:
+    //     eps     images/pt (FCC)    BeckeCutoff calls    becke build (MnO, threaded)
+    //     1e-8         1939               4.14e9                 36.95 s
+    //     1e-7         1056               2.04e9                  ~18 s   (2.03x)
+    //     1e-6          623               9.95e8                  8.33 s  (4.44x)
+    //     1e-5          351               3.85e8                  --      (gate FAILS)
+    // On MnO AFM-II VA the flip is invisible: Etot -52.48387019 -> -52.48387023 (9 s.f.), site moments
+    // identical to 6 digits.  The BINDING gate is BeckeEquivalentSitesOwnEqualShares (site shares equal to
+    // 1e-8 RELATIVE, a partition property and far sharper than any integration test); it holds at 1e-6 and
+    // breaks at 1e-5, so the default keeps a full decade of margin against the gate that actually bites.
+    // Unlike the Phi-table 4.6x this is a TOLERANCE trade, not a bit-identical restructuring -- the weights
+    // do move, at ~1e-6 relative.  GPW_BECKE_EPS overrides it for A/B work.
+    static const double epsEnv=[]{ const char* s=std::getenv("GPW_BECKE_EPS"); return s?std::atof(s):0.0; }();
+    const double eps=epsEnv>0.0 ? epsEnv : 1e-6;
     assert(k>=0);
 
     std::vector<rvec3_t> R;
@@ -82,7 +121,11 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     qcMesh::RadialMesh  rad=qcMesh::MakeRadial(mp);   // one single-centre template reused (ShiftOrigin per atom)
     qcMesh::AngularMesh ang=qcMesh::MakeAngular(mp);
 
+    static const bool census=std::getenv("GPW_BECKE_COUNT")!=nullptr;
     qcMesh::MeshBuilder out;
+    // GPW_BECKE_COUNT totals over the whole mesh; each atom's slot-indexed census folds in below.
+    struct { size_t pts=0, live=0, im=0, pset=0, retest=0, final_=0, bound=0,
+                    dead=0, deadWork=0, imMax=0, psetMax=0, shellMax=0; } tot;
     for (size_t ia=0; ia<natom; ia++)
     {
         // SITE BLOCK: this atom's surviving points, whose weights already carry ITS partition function
@@ -105,9 +148,12 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         std::vector<char> keep(nq, 0);
         rvec3vec_t        kpt(nq);
         rvec_t            kwt(nq);
+        std::vector<BeckePointCost> cost(census ? nq : 0);
         auto partition=[&](size_t q)
         {
+            BeckePointCost pc;            // recorded on every exit path when the census is on
             std::vector<BeckeImage> im;   // competitor images for this point (thread-local)
+            auto record=[&] { if (census) { pc.im=unsigned(im.size()); cost[q]=pc; } };
             const rvec3_t& r=pts[q];
             // The point's own cell n0 (shells are centred on it, so the s*dPlane floor holds).
             rvec3_t f=cell.ToFractional(r);
@@ -140,11 +186,13 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
             // arrive, and s((da-dn)/(da+dn)) is increasing in dn, so this is a valid upper bound on the
             // point's own cell function.
             const double da=norm(r-R[ia]);
-            if (BeckeCutoff((da-dNear)/(da+dNear),k)<eps) return;
+            pc.bound++;
+            if (BeckeCutoff((da-dNear)/(da+dNear),k)<eps) { record(); return; }
 
             for (int s=2; ; s++)
             {
                 const double Dlow=(s-1)*dPlane;   // distance floor for anything at cell distance >= s
+                pc.bound++; pc.shells=unsigned(s);
                 const double newPB=BeckeCutoff((Dlow-dNear)/(Dlow+dNear),k);
                 if (newPB<eps)
                 {
@@ -152,9 +200,11 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
                     for (auto& b : im)
                     {
                         double pb=BeckeCutoff((b.d-dNear)/(b.d+dNear),k);
+                        pc.retest++;
                         b.inPSet=(pb>=eps);
                         if (!b.inPSet) continue;
                         double dev=pb*(1.0-BeckeCutoff((b.d-Dlow)/(b.d+Dlow),k));
+                        pc.retest++;
                         if (dev>facB) facB=dev;
                     }
                     if (facB<eps) break;          // both tails below eps: the series is converged
@@ -165,21 +215,25 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
 
             // If the point's own centre was never gathered, its cell function is below the unseen-image
             // bound (< eps) -- the partition assigns it ~0 weight.
-            if (target<0 || !im[target].inPSet) return;
+            if (target<0 || !im[target].inPSet) { record(); return; }
 
             double sum=0, Pt=0;
             for (size_t i=0; i<im.size(); i++)
             {
                 if (!im[i].inPSet) continue;
+                pc.pset++;
                 double P=1.0;
+                unsigned jThis=0;
                 for (size_t j=0; j<im.size() && P>0; j++)
                 {
                     if (j==i) continue;
                     double Rij=norm(im[i].R-im[j].R);
                     double mu = (Rij>0.0) ? (im[i].d-im[j].d)/Rij : 0.0;  // coincident atoms -> mu=0
                     P*=BeckeCutoff(mu,k);
+                    if (census) { pc.final_++; jThis++; }   // ONE predictable branch; nothing when off
                     if (P<1e-300) P=0.0;          // underflow guard, not a screen
                 }
+                if (census && P==0.0) { pc.dead++; pc.deadWork+=jThis; }
                 sum+=P;
                 if (long(i)==target) Pt=P;
             }
@@ -191,6 +245,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
                 kpt[q]=r-cell.ToCartesian(rvec3_t(n0x,n0y,n0z));
                 kwt[q]=wts[q]*w;
             }
+            record();
         };
 #ifdef QCHEM_OPENMP
         static const int cap=[]{ const char* s=std::getenv("GPW_OMP_THREADS"); return s?std::atoi(s):0; }();
@@ -208,6 +263,17 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         for (size_t q=0; q<nq; q++) partition(q);
 #endif
         for (size_t q=0; q<nq; q++) if (keep[q]) out.Append(kpt[q], kwt[q]);
+        for (size_t q=0; q<cost.size(); q++)
+        {
+            const BeckePointCost& c=cost[q];
+            tot.pts++;
+            if (c.pset>0) tot.live++;             // reached the P-set double loop (not an early tail drop)
+            tot.im+=c.im; tot.pset+=c.pset;
+            tot.retest+=c.retest; tot.final_+=c.final_; tot.bound+=c.bound;
+            tot.dead+=c.dead; tot.deadWork+=c.deadWork;
+            tot.imMax=max(tot.imMax,size_t(c.im)); tot.psetMax=max(tot.psetMax,size_t(c.pset));
+            tot.shellMax=max(tot.shellMax,size_t(c.shells));
+        }
         // GPW_BECKE_ATOMS: the PER-ATOM breakdown.  Sum(w) is the partition's share of unity assigned to
         // this atom -- for two crystallographically EQUIVALENT atoms it must be identical, and so must the
         // kept/dropped counts.  The aggregate "[Becke grid] ... dropped N tail pts" line cannot show that,
@@ -250,6 +316,26 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
              <<" alpha="<<mp.mhl_alpha<<" angular="<<(angPerAtom?"SITE-ADAPTED":AngularName(mp.angular))
              <<" L="<<mp.angularDegree<<" ("<<nDirs<<" dirs"<<(angPerAtom?" max/atom":"")<<") beckeOrder="<<k
              <<" points="<<kept<<" (dropped "<<total-kept<<" tail pts)"<<std::endl;
+    if (census)
+    {
+        const double perPt=tot.live>0 ? double(tot.live) : 1.0;   // per LIVE point: the tail drops do no work
+        const size_t calls=tot.retest+tot.final_+tot.bound;
+        std::cout<<std::setprecision(4)
+                 <<"[Becke count] pts="<<tot.pts<<" live="<<tot.live
+                 <<" images/pt="<<tot.im/perPt<<" (max "<<tot.imMax<<", shells<="<<tot.shellMax<<")"
+                 <<" Pset/pt="<<tot.pset/perPt<<" (max "<<tot.psetMax<<")"
+                 <<"\n[Becke count] BeckeCutoff/live-pt: final="<<tot.final_/perPt
+                 <<" retest="<<tot.retest/perPt<<" bound="<<tot.bound/perPt
+                 <<"  TOTAL="<<double(calls)
+                 <<"  shares: final="<<100.0*tot.final_/double(max(calls,size_t(1)))<<"%"
+                 <<" retest="<<100.0*tot.retest/double(max(calls,size_t(1)))<<"%"
+
+                 <<"\n[Becke count] P-set members ending at P=0: "
+                 <<100.0*tot.dead/double(max(tot.pset,size_t(1)))<<"% of members, "
+                 <<100.0*tot.deadWork/double(max(tot.final_,size_t(1)))<<"% OF THE FINAL-LOOP WORK => "
+                 <<1.0/(1.0-double(tot.deadWork)/double(max(tot.final_,size_t(1))))<<"x if avoided"
+                 <<std::setprecision(6)<<std::endl;
+    }
     qchem::report::EmitAt("grids", "becke", {
         {"natom", (long)natom}, {"radial",RadialName(mp.radial)}, {"nRadial", mp.nRadial},
         {"mhl_alpha", mp.mhl_alpha},

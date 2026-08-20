@@ -75,7 +75,7 @@ printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrappe
 | NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.430336482 | −24.431213375 | **+0.877 mHa** | 39.5 s / 7.4 s | 94.5 / 7.2 s | **13.2×** | 577 / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.546883793 | — ² | | 57.4 s / — | 112 s / — | — | 590 / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.430944039 | −24.432293467 | **+1.349 mHa** | 2m44s / 1m42s | 219 / 102 s | 2.1× | 3090 / 186 MB |
-| MnO AFM-II | Γ | **VA (N=118)** | −61.40297622 ⁴ | −61.303325178 | **−99.65 mHa** | 8m36s / 6m14s | 1554 / 373 s | **4.2×** | **1350** / 217 MB |
+| MnO AFM-II | Γ | **VA (N=118)** | −61.40297621 ⁴ | −61.303325178 | **−99.65 mHa** | 6m56s / 6m14s | 663 / 373 s | **1.8×** | **1323** / 217 MB |
 | MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
 
@@ -124,8 +124,9 @@ nine significant figures (−61.402976200 → −61.40297623 → −61.40297622,
 |---|---|---|---|
 | banked (no folds, dense Φ) | 20m05s | 2240 s | 4947 MB |
 | + **Step 2**: T3 stream fold ARMED (plan T3.5) | 13m25s | 1809 s | **1349 MB** |
-| + **Step 3**: Φ-table build (screen + sparse spherical transform) | **8m36s** | **1554 s** | 1350 MB |
-| | **2.34×** | **1.44×** | **3.7×** |
+| + **Step 3**: Φ-table build (screen + sparse spherical transform) | 8m36s | 1554 s | 1350 MB |
+| + **Step 3**: Becke partition ε 1e-8 → 1e-6 | **6m56s** | **663 s** | 1323 MB |
+| | **2.90×** | **3.38×** | **3.7×** |
 
 **Step 2** (seconds, banked → armed): pair **scatter 263.4 → 41.0** (6.4×), pair **gather 167.6 → 23.1**
 (7.3×), **stream build 110.1 → 28.2** (3.9×) — a larger factor than the 4.60× rep-pair reduction, because
@@ -134,9 +135,27 @@ the pairs the fold drops are the expensive ones.  **THE RAM CAME FROM HERE**, an
 was NOT Φ's density but a dense 122×118 cart→spherical transform applied INSIDE the lattice-image loop —
 ~150 mat-vecs per mesh point where one would do, 10.6% of all cycles — plus a missing magnitude screen on
 the pointwise sweep.  Details and the rejected third hypothesis in `doc/OpenWork.md` Step 3.
-Against CP2K the CPU gap narrows 6.0× → **4.2×** and RAM 23× → **6.2×**; on WALL this row is now 1.38×.
+**Becke ε** (2026-08-20): the partition's ε-converged competitor series ran at ε=1e-8, which had only ever
+been probed TIGHTER.  ε fixes |im| (3183 competitor images per live point on this cell) and the partition
+costs O(|P-set|·|im|) per point, so ε scales the dominant loop rather than shaving it: **1e-8 → 1e-6 takes
+the becke build 36.95 → 8.33 s threaded (294 → ~66 s SERIAL), 4.44×**, at an energy identical to nine
+significant figures (−61.40297622 → −61.40297621).  Margin: the binding gate is
+`BeckeEquivalentSitesOwnEqualShares` (site shares equal to 1e-8 RELATIVE), which survives 1e-6 and fails at
+1e-5, while the quadrature error itself is ~1e-4.  ⚠ This is a **TOLERANCE trade, not a bit-identical
+restructuring** like the Φ work — the weights move at ~1e-6 relative.  `GPW_BECKE_EPS` overrides for A/B.
+Against CP2K the CPU gap narrows 6.0× → 4.2× → **1.8×** and RAM 23× → **6.1×**; on WALL this row is 1.11×.
+
+> **⚠ AND IT EXPOSED A FLAW IN THIS TABLE'S OWN CPU COLUMN.**  The becke build is 294 s SERIAL but bills
+> ~590 s of CPU when threaded 16-way (36.95 s wall × 16) — because the OpenMP threads BUSY-WAIT at the
+> barrier, so CPU time counts spinning as work.  Two anneal stages of that was ~1180 s of the banked row's
+> 1554 s CPU (76%), which is why removing 4.44× of a "38%" bucket cut the row by 2.34×.  The user's pin
+> "compare CPU, not wall" assumes CPU tracks work done; against a serial CP2K it does not, wherever qchem
+> threads.  **The serial column is the honest algorithmic comparison** — which is exactly why the whole
+> table was cut at one thread.  Anyone reading a threaded CPU number here should divide by the parallel
+> efficiency, which still nothing measures.
+
 **What is hot now:** the top bucket is `scf: XC-mesh ρ sampling (matrix-free)` at 84.1 s — the Φ-shaped
-GEMM, i.e. the Φ-SPARSITY item, which the build no longer overshadows.
+GEMM, i.e. the Φ-SPARSITY item, which neither the Φ build nor the Becke partition overshadows any more.
 ⁵ the FM row is still the PRE-Step-2 measurement (its energy is unaffected, its cost is not) — re-run it
 with the AFM command when the threaded cut of this whole table is taken.  **The Si and NaF rows likewise
 predate Step 3**: their ENERGIES are unchanged (verified — Si Γ still reads −7.115067665 to every digit),

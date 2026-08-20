@@ -312,14 +312,61 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   that is THREADED BY DEFAULT, so on 16 cores it is only ~35 s of wall and reads as a small ledger bucket.
   The reverse held for Φ: 15.5% of cycles, 47% of wall, because it is serial.  Both numbers were right and
   reading the flat profile against the ledger cost a wrong conclusion before the arithmetic closed.
-  **For the CPU column of `doc/Benchmark.md` — the honest one, per the user's pin — the Becke partition is
-  now the biggest single item in the code**: it is O(|competitor images|²) `BeckeCutoff` calls per mesh
-  point (~500 images ⇒ ~250k polynomial evaluations per point), and nothing has looked at that algorithm.
+- **Becke partition — ✅ 4.44× TAKEN 2026-08-20, and BOTH named suspects were WRONG.**  The item said to
+  choose between the shell-convergence retest and the final P-set double loop.  A per-point call census
+  (`GPW_BECKE_COUNT=1`, now permanent and env-gated) answered it by COUNTING rather than by profiling a
+  threaded loop — and then refuted the fix that the answer implied:
+
+  | | MnO AFM-II VA |
+  |---|---|
+  | competitor images / live point | **3183** (max 27436, shells ≤10) |
+  | P-set members / point | 100.5 |
+  | `BeckeCutoff`, one mesh build | **2.53e10** |
+  | share: final double loop / shell retest | **97.3% / 2.7%** |
+
+  So the retest is not the problem despite growing as s³.  But nothing that REMOVES work from the double
+  loop is big either, all measured on MnO: a κ-distance factor screen **1.17×**, PERFECT screening
+  **1.71×** (an unreachable ceiling — 58% of the factors genuinely differ from 1), and skipping the **69%**
+  of P-set members whose product underflows to exactly 0 is worth **1.02×**, because the existing `P>0`
+  early exit already disposes of them in 2.3% of the work.  *The 31.7:1 ratio between the image list and
+  the P-set is not waste.*
+  **The lever was the multiplier neither suspect named: ε.**  ε fixes |im|, and |im| multiplies the whole
+  O(|P-set|·|im|) loop — so ε scales the dominant cost instead of shaving it.  It had only ever been probed
+  TIGHTER.  Loosening 1e-8 → **1e-6** takes the MnO becke build **36.95 → 8.33 s threaded (294 → ~66 s
+  serial)** at Etot identical to 9 s.f. (−52.48387019 → −52.48387023) and site moments identical to 6
+  digits.  **PIN: the binding gate is `BeckeEquivalentSitesOwnEqualShares`** (site shares equal to 1e-8
+  RELATIVE — a PARTITION property, far sharper than any integration test); it survives 1e-6 and breaks at
+  1e-5, so the default keeps a decade of margin.  ⚠ Unlike the Φ-build 4.6× this is a **TOLERANCE trade,
+  not a bit-identical restructuring** — the weights move at ~1e-6 relative.  `GPW_BECKE_EPS` overrides.
+  **★ ON THE BENCHMARK ROW: 8m36s → 6m56s wall, 1554 → 663 s CPU (2.34×), 1350 → 1323 MB**, at
+  −61.40297622 → −61.40297621.  Cumulatively the row is now **2.90× wall / 3.38× CPU** off the banked cut,
+  and the CP2K CPU gap is 6.0× → **1.8×**.
+  **⚠ AND IT CAUGHT A FLAW IN THE BENCHMARK'S CPU COLUMN, which is the reverse of the wall/cycles trap
+  above.**  The becke build is 294 s SERIAL but bills ~590 s of CPU threaded 16-way (36.95 s × 16), because
+  the OpenMP threads BUSY-WAIT at the barrier and CPU time counts spinning as work.  Two anneal stages of
+  that was ~1180 s of the row's 1554 s CPU (76% — the earlier "~73% of CPU" estimate was RIGHT), which is
+  how 4.44× off a bucket that looked like 38% cut the row by 2.34×.  Reading the serial 294 s against a
+  threaded CPU total is what produced the wrong "38%".  **The pin "compare CPU, not wall" assumes CPU
+  tracks WORK; where qchem threads and CP2K does not, it does not.**  Serial is the honest comparison.
+- **Becke partition, what is LEFT in that loop** (none of it ε-related; all found during the census):
+  1. **The `norm()` is redundant across points.**  `R_ij = |R_i − R_j|` is recomputed inside the per-point
+     loop — 2.46e10 square roots — but it is **point-INDEPENDENT**: image index t is always the same
+     (atom, cell-offset) tuple, so `R_i − R_j` depends only on the offset DIFFERENCE, not on the point's
+     own cell.  The distinct values number ~natom²·(2s+1)³ ≈ 148k (~1 MB), tabulable once per mesh build
+     and shared across threads.  Worth up to ~2× of the pair cost, and it is exact.
+  2. **The inner loop cannot vectorize.**  `BeckeImage` is array-of-structs, and the per-element `P>0`
+     break is a data-dependent exit — so the hottest loop in the code is scalar and latency-bound (each
+     `BeckeCutoff` is 4 serially-dependent iterations).  The census says those early exits save only 2.3%,
+     which is a poor price for blocking SIMD; chunking the exit + an SoA layout would unlock it.
+  3. **The build flags undercut both.**  `qcStructure` compiles with `-O3 … -O2 -g` — clang takes the LAST
+     `-O`, so it builds at **-O2** — and there is no `-march=native`, i.e. baseline SSE2 at 2 doubles per
+     vector.  (Whole-tree change, so it interacts with the BLAS pin; not a Becke-local decision.)
 - **Φ-table SPARSITY — still open, and now the next Φ item.**  Φ is stored dense (npts × n) while the true
   object is sparse; batching the mesh (per atom / per radial shell) with a per-batch significant-function
   list makes every Φ-SHAPED cost — the ρ GEMM and the H_xc GEMM, which the build no longer dominates —
   O(npts·n_sig²).  **The win grows with cell size**; MnO's 4 atoms understate it.
-- **Becke mesh build** (~12–32 s): `BeckeCutoff` alone was 11.5% of the round-3 profile.
+- ~~**Becke mesh build** (~12–32 s): `BeckeCutoff` alone was 11.5% of the round-3 profile.~~ → covered by
+  the two Becke items above.
 - **NOT worth re-attacking without new information:** the per-iteration scatter/gather.  Round 4 measured
   it at 61% irreducible per-(pair,point) emit; it needs fewer TERMS (looser `GPW_DENSITY_EPS`, the T3
   fold, a smaller span), not a faster kernel.
