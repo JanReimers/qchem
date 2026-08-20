@@ -1,8 +1,7 @@
 // File: VectorFunction.C  Mixin interface for real-space vector (basis) functions.
 //
-// Pointwise only -- NO Mesh dependency.  When evaluated at a point r it returns a vector of values
-// [phi_i(r)].  (The old operator()(const Mesh&)/Gradient(const Mesh&) overloads -- the ISP sin --
-// were used only by the retired MeshIntegrator; quadrature now lives in qcMesh.)
+// When evaluated at a point r it returns a vector of values
+// [phi_i(r)].  
 module;
 export module qchem.VectorFunction;
 export import qchem.Types;
