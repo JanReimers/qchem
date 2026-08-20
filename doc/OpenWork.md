@@ -428,6 +428,46 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   lever for the benchmark row; it stays a real idea for LARGE cells (the battery north-star's supercells),
   where it should be re-measured with this instrument before anyone builds it.  **The ρ GEMM is still the
   top wall bucket, and it now needs a different idea.**
+- **★★ THE ρ GEMM — LOW-RANK D.  The successor to the refuted Φ-sparsity item, and the only remaining plan
+  for the largest per-iteration bucket.**  `IrrepCD_Core::DM_RhoAtPoints` forms
+  \f$\rho(r_g)=\Phi_g^\dagger D\,\Phi_g\f$ as `(P·D)` row-dotted back into `P` — **O(npts·n²)**, i.e. on MnO
+  97160 × 118² ≈ 1.35e9 MAC per spin per iteration, and it is a real BLAS `gemm` so there is no waste to
+  screen out.  But **D is a density matrix: its rank is the OCCUPIED count, not n.**  With \f$D=LL^\dagger\f$,
+  \f$\rho_g=\lVert L^\dagger\Phi_g\rVert^2\f$, so the GEMM becomes npts × n × **r** and the win is **n/r**.
+  MnO: n=118, ~13 occupied per spin ⇒ potentially **6–9×**.  Four steps (user's decomposition):
+  1. + 2. **ONE pivoted-Cholesky call** — it is rank-REVEALING, so the rank and the factor come together;
+     there is no separate rank pass.  `CholeskyPivoted` + `detect_null_gap` already exist in `LASolver`
+     (the ortho step drives them).  O(n³) ≈ 5e5 flops against a ~1e8 GEMM — free.
+  3. \f$\Psi = P\,L\f$ — (npts×n)·(n×r), the same GEMM, thin instead of square.
+  4. \f$\rho_g=\sum_m|\Psi_{gm}|^2\f$ — a row norm, O(npts·r).
+
+  > **★ PIN (user, 2026-08-20): ALWAYS PIVOTED CHOLESKY — NEVER A TRIMMED EIGENDECOMPOSITION.**  The eigen
+  > route (keep \f$|\lambda|>\f$tol, split \f$D=L_+L_+^\dagger-L_-L_-^\dagger\f$ so that
+  > \f$\rho_g=\lVert L_+^\dagger\Phi_g\rVert^2-\lVert L_-^\dagger\Phi_g\rVert^2\f$) is algebraically
+  > equivalent, has the same O(npts·n·r) and O(n³) costs, and looks MORE general because it tolerates a
+  > non-PSD D.  **Do not use it.**  In the user's experience on orbital basis sets the TRIMMED EIGEN
+  > MATRICES CARRY NUMERICAL NOISE: near-zero eigenvalues arrive in a CLUSTER, eigenvectors within a
+  > clustered/degenerate subspace are ill-conditioned (the decomposition is free to rotate arbitrarily
+  > inside it), and that noise rides into the kept factor.  **The observed consequence is damage to LATE
+  > GDM CONVERGENCE** — exactly where the optimiser is chasing a small gradient, and ρ → V_xc → gradient
+  > carries the noise straight into it.  Pivoted Cholesky instead selects columns greedily on the diagonal,
+  > its truncation error is bounded by the trailing diagonal, and it injects no rotational noise into the
+  > kept subspace.  **MAY BE MATERIAL-DEPENDENT** (the user's caveat) — so if a system ever appears to need
+  > the eigen route, treat that as a finding to record, not a licence to switch.
+
+  **OPEN QUESTION TO SETTLE FIRST — is the D reaching `DM_RhoAtPoints` ever NON-PSD?**  I raised DIIS as a
+  risk (a Pulay extrapolation forms D from unconstrained coefficients, which can produce negative
+  eigenvalues, and a plain Cholesky simply fails on that).  It may not apply here: if the mixing acts on
+  \f$\tilde\rho\f$ (the Kerker/Pulay G-space mixers) and on the FOCK matrix, then D is always rebuilt from
+  orbitals and is PSD by construction, so Cholesky always applies and the question is moot.  **VERIFY
+  BEFORE BUILDING** — it decides whether a non-PSD branch is needed at all, and the pin above says that
+  branch must not be the eigen route.
+  **FIRST MOVE IS MEASUREMENT, as always:** dump the pivoted-Cholesky rank (and the occupation tail) of the
+  ACTUAL mixed D at several iterations.  Smearing (kT=5e-3 on the MnO recipe) puts a fractional tail on the
+  occupations, so the NUMERICAL rank at a usable tolerance is the real quantity — r near n_occ ⇒ 6–9×,
+  r near n ⇒ the idea is dead and costs nothing to have checked.
+  *Not a clever trick:* evaluating ρ in ORBITAL space rather than DM space is what most codes do; the only
+  observation here is that this one took the DM route, which is a reasonable choice that happens to cost n/r.
 - **★ NEW DEFECT, found by the instrument above: THE IMPOSED XC MESH LOSES ITS SITE BLOCKS — and the
   Step 0a site-moment instrument is SILENTLY DEAD on every imposed run.**  `MakePeriodicBeckeMesh` records
   one block per atom (`BeginSite`), which is what makes \f$\int w_A m\f$ a real integral instead of a point
