@@ -465,14 +465,36 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   - the DIRECT form \f$\Phi^\dagger D\Phi\f$ (what `DM_RhoAtPoints` computes) going negative ⇒ D is NOT PSD;
   - a FITTED or FOURIER-TRUNCATED ρ going negative ⇒ says NOTHING about D (Gibbs ringing / aliasing).
 
-  Every negative-ρ this tree records is the SECOND kind: `LDA_XC.C:163` ("a band-limited rho-tilde … rings
-  slightly NEGATIVE in the tails"), `PWTerms.C:392` (the diagnostic is on the COLLOCATED ρ, separating
-  "Gibbs ringing + guard" from real physics), `GPW_IBS.C:53` ("under-resolving … aliases rho into large
-  spurious negative lobes → the XC collapse").  `DM_RhoAtPoints` is pointwise with NO band limit, so it does
-  not ring.  Combined with an orbital-built \f$D=\sum_m f_m c_mc_m^\dagger,\ f_m\ge0\f$ (PSD by
-  construction) and mixers that act on \f$\tilde\rho\f$ and the FOCK matrix rather than on D, the
-  expectation is that D IS PSD here and Cholesky always applies.  **Still verify** — cheapest check is to
-  assert PSD-ness (or just watch the pivoted Cholesky succeed) on the real mixed D for a few iterations.
+  **★ THE USER'S PP-DFT SURPRISE WAS THE FIRST KIND** — the DIRECT form going negative, which is why it was
+  a surprise: the fitted/Fourier-truncated case was already well understood and accepted.  So D genuinely
+  CAN be non-PSD in PP-DFT work, and the question is what makes it so.
+  **The governing property is CONVEXITY, and it explains the user's other observation — "for atoms and
+  molecules doing HF this is impossible":** there D = C f C† with INTEGER occupations (PSD), and linear
+  mixing \f$(1-\alpha)\rho_{in}+\alpha\rho_{out}\f$ with \f$\alpha\in[0,1]\f$ is a CONVEX combination —
+  non-negative weights — so it cannot manufacture a negative eigenvalue.  PSD is preserved and ρ≥0 is
+  guaranteed.  The property dies the moment a scheme EXTRAPOLATES instead of interpolating: Pulay/DIIS
+  coefficients sum to 1 but individual \f$c_k\f$ may be NEGATIVE (affine, not convex, so the result leaves
+  the PSD cone); likewise α>1, cross-geometry density extrapolation, or Methfessel-Paxton / cold smearing,
+  which produce genuinely negative OCCUPATIONS (Fermi smearing cannot — f∈(0,1)).
+
+  **IN THIS TREE, D IS PSD TODAY — verified by reading the mixers, not assumed:**
+  - `LinearMixer` is the ONLY thing that touches D, and its `itsRelax` is clamped to `itsRelMax`, which
+    starts at 1.0 and only ever DECREASES (to 0.5 near convergence) — so α∈[0,1], convex, PSD-preserving.
+  - the EXTRAPOLATING mixers never touch D: `DensityMixer.C:159` — *"A mixer whose subject is a `GField` —
+    i.e. one that works purely in G space (Kerker, Pulay; NOT the …)"*, and `:193` names that the "HISTORY
+    face: a field mixer whose step is an EXTRAPOLATION over past iterations (Pulay/Broyden)".  The one
+    operation that can leave the convex hull acts on \f$\tilde\rho\f$, not on D.
+  - which is also why the two negative-ρ mechanisms stay separated here: the G-space extrapolation can drive
+    \f$\tilde\rho\f$ negative (the documented ringing — `LDA_XC.C:163`, `PWTerms.C:392`, `GPW_IBS.C:53`),
+    while D itself stays in the PSD cone.  `DM_RhoAtPoints` is pointwise with no band limit and does not ring.
+
+  ⚠ **THE GUARD THIS IMPLIES.**  Cholesky is applicable *because* nothing currently extrapolates D — a
+  property of today's mixer set, not a theorem.  It would break the day a DENSITY-SPACE Pulay lands (the
+  `"Pul" (density-DIIS/Pulay)` tag at `DensityMixer.C:75` suggests one is contemplated), or an α>1 grow, or
+  MP/cold smearing.  **The canary is free: a pivoted Cholesky that FAILS is exactly the signal that D left
+  the cone** — so make that failure loud and route it to the eigen split rather than letting it degrade
+  silently.  (And per the narrowed pin above, the eigen split is fine HERE because the factor is only
+  multiplied, never inverted.)
   **FIRST MOVE IS MEASUREMENT, as always:** dump the pivoted-Cholesky rank (and the occupation tail) of the
   ACTUAL mixed D at several iterations.  Smearing (kT=5e-3 on the MnO recipe) puts a fractional tail on the
   occupations, so the NUMERICAL rank at a usable tolerance is the real quantity — r near n_occ ⇒ 6–9×,
