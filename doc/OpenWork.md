@@ -1051,9 +1051,31 @@ Descending in λ, spin ↑:
 The largest λ is moderately localized, the SECOND largest is the most localized of all, and the most
 DELOCALIZED modes sit mid-spectrum.  So a level assignment cannot be read off λ *via locality*.
 (Repeated λ are symmetry-degenerate pairs; their IPRs match exactly, as they must — a free correctness
-check on the whole census.)  ⚠ Still open and NOT the same question: does λ correlate with a mode's
-BANDWIDTH (its sharpest significantly-weighted primitive)?  Bandwidth, not locality, is what a ladder level
-actually resolves — and that needs per-function exponents, which do not reach this seam today.
+check on the whole census.)
+
+**CAN IPR ASSIGN GRID LEVELS? (user, 2026-08-21)  It is FREE to compute but it is the WRONG QUANTITY —
+and the right one is equally free.**
+- **Cost: negligible.**  IPR is O(n·r) ≈ 118×14 ≈ 1650 ops against the O(n³) ≈ 1.6e6 eigendecomposition
+  that produced U, i.e. 0.1% of the factorisation and invisible beside the ~1e8-MAC GEMM.
+- **But a ladder level resolves BANDWIDTH, not EXTENT.**  IPR counts how many basis functions carry a
+  mode (box size); a level is chosen by how SHARP the mode is (how high in G).  Independent properties: a
+  mode can be localized-and-smooth (one atom, diffuse ⇒ coarse level, small box) or delocalized-and-sharp
+  (tight functions on several atoms ⇒ fine level, big box).
+- **The right quantity is the exact analogue of the EXISTING pair rule.**  `CollocateDensity` already puts
+  each pair on the coarsest level resolving \f$\alpha_i+\alpha_j\f$.  The mode analogue is
+  \f[ \alpha_{\rm eff}(m)=\max\{\alpha_i:\ |U_{im}|\ \text{above a magnitude screen}\} \f]
+  giving \f$|\phi_m|^2\f$ a bandwidth \f$2\alpha_{\rm eff}(m)\f$ — also O(n) per mode.  The screen on
+  \f$|U_{im}|\f$ is the project's standard ε discipline; without it a trace admixture of one tight function
+  would drag a whole mode onto the fine grid.
+- **The blocker is placement, not cost:** per-function \f$\alpha_i\f$ does not reach the `IrrepCD` seam
+  (only whole-basis `MaxExponent`/`MinExponent` do).  It DOES live inside the molecular seam, where the
+  pair→level rule already runs with primitives encapsulated — **so the mode→level assignment belongs
+  there, handed the FACTOR instead of D.**  Same place, same rule, different object.
+- **★ BUT ASK WHETHER THE LADDER IS NEEDED AT ALL HERE.**  The multigrid exists to keep ~8778 diffuse
+  PAIRS off the fine grid; its whole economic case is object count.  With **14 modes**, putting EVERY mode
+  on the fine grid costs 14 sweeps — which is the GEMM already being done.  **The factored route may
+  simply not need a ladder**, which would delete the assignment problem rather than solve it.  Measure
+  before building either: price 14 fine-grid modes against today's per-level pair distribution.
 
 **(c) ⛔ RETRACTION — THE MULTIGRID IS NOT LOST.**  Keeping λ SEPARATE (user) makes it obvious:
 \f$\rho=\sum_m\lambda_m|\phi_m|^2\f$ is a **SUM OF PER-MODE DENSITIES**, so each mode can be collocated on
