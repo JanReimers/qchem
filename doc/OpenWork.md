@@ -520,13 +520,29 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   3.70 → 1.35 GB) and the scatter/gather buckets (263 → 41 s under the fold).  A factored density would
   replace the pair scatter with a singles sweep + GEMM + row-norm, and shrink the stream caches by the same
   ratio.
-  **The counterweight, stated honestly:** a single \f$\chi_i\f$ is MORE DIFFUSE than a pair product
-  (exponent \f$\alpha_i\f$ vs \f$\alpha_i+\alpha_j\f$), so each covers more grid points; and pair
-  collocation is what CP2K does because for LARGE screened systems D is sparse and pair boxes are compact.
-  This is the classic orbital-vs-density-matrix collocation trade: singles win at modest n, pairs win as n
-  grows and screening bites.  n=118 here; the battery-north-star supercells push the other way.  **So it is
-  a crossover to MEASURE per system, not a principle to adopt** — and the low-rank census
-  (`GPW_DM_RANK=1`) plus a pair count is already most of the instrument.
+  ⚠ **TWO CORRECTIONS TO THE ABOVE, both making the comparison harder than the table suggests.**
+  1. **"Singles are more diffuse" is nearly a NON-argument (user, 2026-08-21): "only by a factor of 2 — a
+     diffuse orbital paired with itself is still diffuse."**  The most diffuse PAIR is
+     diffuse×itself at \f$2\alpha_{\min}\f$ against the single's \f$\alpha_{\min}\f$: a factor 2 in
+     exponent, \f$\sqrt2\f$ in radius, ~2.8 in box VOLUME.  And collocation cost is dominated by the
+     DIFFUSE objects — exactly the pairs that are barely more compact than singles.  So per-object cost is
+     comparable and the count ratio translates fairly directly into a cost ratio.  My "singles cover more
+     points" counterweight was much weaker than stated.
+  2. **★ BUT THE 118-vs-8778 COMPARISON IS APPLES-TO-ORANGES, and that cuts the other way.**  8778 counts
+     **(i, j, R)** terms INCLUDING lattice offsets; 118 counts functions with NO offsets.  The singles
+     enumeration is **(i, R)** — 118 × the images each function reaches (the KB path quotes ~133 images
+     elsewhere), so the comparable figure could be ~15k singles against 8778 pairs, REVERSING the sign.
+     The mechanism behind that is real and is the strong counterweight: **pairs SCREEN far harder than
+     singles.**  The Gaussian product theorem gives a pair the factor \f$e^{-\mu|R_{ij}|^2}\f$ with
+     \f$\mu=\alpha_i\alpha_j/(\alpha_i+\alpha_j)\f$, so distant pairs die exponentially in the SEPARATION,
+     while a single is screened only by its own reach.  That is why CP2K collocates pairs.
+  **THE INSTRUMENT THIS DEMANDS, before any of it is built:** count \f$(i,R)\f$ SINGLES against
+  \f$(i,j,R)\f$ PAIRS *at the same ε*, and weight each by its box volume — the object counts alone decide
+  nothing.  The pair side already reports itself (`[fold] collocation streams … 8778 → 1909`); the singles
+  side needs the same census over the orbital reach.  **Only that comparison settles the crossover**, and
+  it is system-dependent: n=118 here, while the battery-north-star supercells grow n and make pair
+  screening bite harder, so the answer may differ between the two targets and BOTH routes may be worth
+  keeping.
   ⚠ Note the interaction with the T3 stream fold: the fold's 4.60× is a reduction on PAIRS.  Whether an
   equivalent fold exists on singles (orbitals are not symmetry-adapted individually) is an open question,
   and if not, the honest comparison is 118 singles against 1909 folded pairs, not 8778 raw.
