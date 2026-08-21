@@ -520,7 +520,29 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   the rank sits just above the 13 occupied per spin, exactly as Fermi smearing should give (a few
   fractionally-occupied states on top).  The tolerance-independence is the important half: the occupied
   block is cleanly separated from the null space, so the truncation is unambiguous.
-  **This is now the best-measured un-taken lever in the code: ~7–8× on the LARGEST per-iteration bucket.**
+  **⛔ BUT THE BUCKET WAS MISIDENTIFIED — BY ME, FOLLOWING `doc/Benchmark.md` (corrected 2026-08-20).**
+  IMPLEMENTED (guarded, exact, A/B at identical energy) and then measured on the production recipe:
+
+  | bucket, 6 iterations serial | s |
+  |---|---|
+  | `scf: XC-mesh ρ sampling (matrix-free density)` | **35.0** |
+  | `scf: XC-mesh quadrature H_xc` | 4.69 |
+  | `scf: XC-mesh ρ sampling (all iterations)` — **THE DM GEMM** | **1.70** |
+
+  `doc/Benchmark.md` called the 84.1 s top bucket "the Φ-shaped GEMM, i.e. the Φ-SPARSITY item".  It is
+  NEITHER.  ***Matrix-free* means "carries no density matrix", so it cannot be the DM GEMM** — per
+  `PWTerms.C:698` it is the **ρ̃-MIXED density sampled on the XC mesh, a batched inverse FT over the whole
+  {G}, on EVERY Kerker/Pulay iteration**.  On these recipes the mixer hands XC a ρ̃-backed density from
+  iteration 1 on, so **the DM GEMM is nearly BYPASSED**.  The code had already split those two buckets for
+  exactly this reason (*"lumping it into the GEMM hid the fact that the mixed-density sampling, not the
+  GEMM, was the iteration's largest XC cost"*) and the benchmark doc re-lumped them in prose.
+  **Consequences.**  (1) The low-rank route is kept — it is exact, guarded, 7–8× on the GEMM, and that GEMM
+  IS the hot path for DM-backed routes (molecular/atomic DFT, non-ρ̃-mixed recipes), growing with n — but it
+  is **NOT a benchmark-row win and must not be quoted as one**.  (2) The Φ-SPARSITY refutation above stands
+  on its own evidence (Φ really is ~48% dense) but its "targets the top bucket" framing was wrong for the
+  same reason.  (3) **★ THE ACTUAL PER-ITERATION LEVER IS THE ρ̃-MIXED SAMPLING** — an inverse FT over {G}
+  evaluated at ~97k mesh points every iteration — and nothing has looked at it.  That is the next item, and
+  the same discipline applies: attribute the cost inside that bucket before optimising it.
   ⚠ Instrument note: the PSD test must be on a RELATIVE floor.  The first cut tested \f$\lambda_{\min}<0\f$
   and screamed "NOT PSD" on every run at \f$\lambda_{\min}\approx-1.8\times10^{-15}\f$ against
   \f$\lambda_{\max}=13.2\f$ — one ulp.  An eigensolver ALWAYS returns O(eps·λmax) negatives for a

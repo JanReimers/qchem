@@ -240,6 +240,50 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
     std::cout<<std::endl;
 }
 
+//! \brief LOW-RANK FACTOR of a density matrix: \f$D=LL^\dagger\f$ with \a L (n x rank), by PIVOTED
+//! Cholesky.  Returns false -- leaving the caller on the full-rank path -- if D is not PSD.
+//!
+//! WHY THIS PAYS (doc/OpenWork.md Step 3).  \f$\rho_g=\Phi_g^\dagger D\,\Phi_g\f$ costs O(npts n^2); with
+//! \f$D=LL^\dagger\f$ it is \f$\lVert L^\dagger\Phi_g\rVert^2\f$, i.e. O(npts n r).  D is a density matrix,
+//! so its rank is the OCCUPIED count: MEASURED at 14-17 against n=118 on the MnO benchmark (GPW_DM_RANK=1)
+//! => 7-8.4x, and the rank is the same from tol 1e-6 to 1e-12, so the occupied block is cleanly separated
+//! from the null space and the cut is not a tuning decision.
+//!
+//! PIVOTED CHOLESKY, NOT A TRIMMED EIGENDECOMPOSITION (user pin).  Both give an L; the eigen route trims
+//! clustered near-null eigenvectors, which are ill-conditioned (free to rotate within the cluster) and
+//! carry that noise into the factor.  In the user's experience that damages LATE GDM CONVERGENCE.  The
+//! objection is strictly weaker HERE, since we only ever MULTIPLY the factor and never invert it -- but
+//! Cholesky is also ~3x cheaper and greedy on the diagonal, so there is no reason to prefer the other.
+//!
+//! EXACT, NOT AN APPROXIMATION: the pivot floor is LAPACK's own default (tol<0 => ~n*eps*max diag), so the
+//! discarded residual sits AT ROUNDOFF.  This is not an accuracy trade like the Becke eps.
+template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& rank)
+{
+    const size_t n=D.rows();
+    if (n==0) return false;
+    mat_t<T> Um(D);                                   // pstrf needs a plain (non-adaptor) matrix
+    std::vector<blazem::blas_int_t> piv(n);
+    const size_t m=(size_t)blazem::pstrf(Um, 'U', piv.data(), -1.0);   // P^T D P = U^H U, LAPACK default floor
+    if (m==0 || m>n) return false;
+
+    // L = P U^H, i.e. L(piv[a],k) = conj(U(k,a)) -- U is m x n upper TRAPEZOIDAL, so k<=a only, and pstrf
+    // leaves the strict-lower part undefined (never read here).  Then L L^H = P U^H U P^T = D.
+    L=mat_t<T>(n, m, T(0));
+    for (size_t a=0;a<n;++a)
+        for (size_t k=0;k<m && k<=a;++k)
+            L(piv[a],k)=blazem::conj(Um(k,a));
+
+    // PSD GUARD.  LAPACK pstrf does NOT fail on an indefinite matrix -- it simply stops when the pivot goes
+    // non-positive and reports the rank it reached, so a non-PSD D would silently yield a TRUNCATED (wrong)
+    // rho rather than an error.  Catch it on conserved mass: Tr(L L^H) = ||L||_F^2 must reproduce Tr(D).
+    // A negative eigenvalue leaves that unaccounted for.  Cheap (O(n m)) beside the O(npts n r) GEMM.
+    double trD=0.0;  for (size_t i=0;i<n;++i) trD+=blazem::real(D(i,i));
+    double trL=0.0;  for (size_t i=0;i<n;++i) for (size_t k=0;k<m;++k) trL+=std::norm(std::complex<double>(L(i,k)));
+    if (std::abs(trL-trD) > 1e-8*std::max(std::abs(trD),1.0)) return false;
+    rank=m;
+    return true;
+}
+
 template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
 {
     rvec_t ro(r.size(), 0.0);
@@ -265,9 +309,42 @@ template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const rvec3vec_t& r, c
     // zgemm on this shape (measured).  One n x n copy per call is nothing beside the npts x n x n GEMM.
     ReportDMRank<T>(itsDensityMatrix, itsIrrep);   // hmat_t<T> is a conditional_t: T is non-deduced
     const mat_t<T> D(itsDensityMatrix);
+    // LOW-RANK ROUTE.  D is a density matrix, so rank = the OCCUPIED count, not n: with D = L L^dag the
+    // GEMM is (npts x n)(n x r) instead of (npts x n)(n x n), and rho_g = ||Psi_g||^2 replaces the row-dot.
+    // MEASURED r=14-17 against n=118 on MnO => 7-8.4x ON THIS GEMM.  Exact to roundoff (LAPACK's own pivot
+    // floor), so it is a cost change, not an accuracy trade -- verified by an A/B at identical energy.
+    // ⚠ SCOPE, measured 2026-08-20: on the GPW *Kerker/Pulay* recipes this GEMM is nearly BYPASSED -- the
+    // mixer hands XC a rho-tilde-backed density with NO D from iteration 1 on, so the hot path is the
+    // matrix-free sampling in PWTerms, not this.  Measured 1.70 s here against 35.0 s there (6 iterations).
+    // The 7-8x is therefore REAL but small on those recipes; it is worth having for the DM-backed routes
+    // (molecular/atomic DFT, non-rho-tilde-mixed recipes) and grows with n.  Do NOT quote it as a
+    // benchmark-row win.
+    // GUARDED, not assumed: LowRankFactor returns false for a non-PSD D and we stay on the full path.  D is
+    // PSD for any density assembled from orbitals with non-negative occupations -- which is every IrrepCD
+    // today, because the only mixer that touches D is LINEAR with alpha in [0,1] (a CONVEX combination
+    // preserves PSD) while Kerker/Pulay/Broyden extrapolate the FIELD, not D.  The fallback exists for the
+    // paths that would break that: a density-space Pulay, alpha>1, MP/cold smearing's negative
+    // occupations, or anything putting a DIFFERENCE of densities behind a DM face.
+    // QCHEM_DM_LOWRANK=0 forces the full-rank path (the A/B valve; also the escape hatch if a future
+    // density ever needs it).  2*rank < n is the pay-for-itself test: below that the thin GEMM plus the
+    // O(n^3) factorisation is not obviously cheaper than the square one.
+    static const bool lowRankOn=[]{ const char* e=std::getenv("QCHEM_DM_LOWRANK"); return !e || std::atoi(e)!=0; }();
+    mat_t<T> L; size_t rank=0;
+    const bool lowRank = lowRankOn && LowRankFactor<T>(itsDensityMatrix, L, rank) && 2*rank < P.columns();
     auto block=[&](size_t g0, size_t g1)
     {
         auto Pb = blazem::submatrix(P, g0, size_t(0), g1-g0, P.columns());
+        if (lowRank)
+        {
+            mat_t<T> Psi = Pb*L;                          // (npts_b x rank) -- the thin GEMM
+            for (size_t g=g0; g<g1; g++)
+            {
+                double acc=0.0;
+                for (size_t m=0; m<Psi.columns(); m++) acc+=std::norm(std::complex<double>(Psi(g-g0,m)));
+                ro[g]=acc;                                // rho_g = ||L^dag Phi_g||^2, real by construction
+            }
+            return;
+        }
         mat_t<T> PD = Pb*D;
         for (size_t g=g0; g<g1; g++)
         {

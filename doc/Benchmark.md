@@ -154,8 +154,17 @@ Against CP2K the CPU gap narrows 6.0× → 4.2× → **1.8×** and RAM 23× → 
 > table was cut at one thread.  Anyone reading a threaded CPU number here should divide by the parallel
 > efficiency, which still nothing measures.
 
-**What is hot now:** the top bucket is `scf: XC-mesh ρ sampling (matrix-free)` at 84.1 s — the Φ-shaped
-GEMM, i.e. the Φ-SPARSITY item, which neither the Φ build nor the Becke partition overshadows any more.
+**What is hot now:** the top bucket is `scf: XC-mesh ρ sampling (matrix-free)` at 84.1 s.
+⚠ **THIS ROW PREVIOUSLY MIS-NAMED THAT BUCKET "the Φ-shaped GEMM, i.e. the Φ-SPARSITY item" — IT IS
+NEITHER** (corrected 2026-08-20).  *Matrix-free* means exactly "carries no density matrix", so it cannot be
+the DM GEMM.  Per `PWTerms.C:698`, it is the **ρ̃-MIXED density sampled on the XC mesh — a batched inverse
+FT over the whole {G}, on EVERY Kerker/Pulay iteration** (plus the iteration-0 seed).  The real DM GEMM is
+the separate `scf: XC-mesh ρ sampling (all iterations)` line, and on this recipe the mixer hands XC a
+ρ̃-backed density from iteration 1 on, so the GEMM is nearly BYPASSED: measured 1.70 s against the
+matrix-free bucket's 35.0 s on a 6-iteration cut.  The code had already split these two buckets for this
+exact reason — *"lumping it into the GEMM hid the fact that the mixed-density sampling, not the GEMM, was
+the iteration's largest XC cost"* — and this table re-lumped them in prose.  **The per-iteration lever is
+the ρ̃-mixed sampling, not anything Φ- or D-shaped.**
 ⁵ the FM row is still the PRE-Step-2 measurement (its energy is unaffected, its cost is not) — re-run it
 with the AFM command when the threaded cut of this whole table is taken.  **The Si and NaF rows likewise
 predate Step 3**: their ENERGIES are unchanged (verified — Si Γ still reads −7.115067665 to every digit),
