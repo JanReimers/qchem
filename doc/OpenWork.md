@@ -346,7 +346,34 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   how 4.44× off a bucket that looked like 38% cut the row by 2.34×.  Reading the serial 294 s against a
   threaded CPU total is what produced the wrong "38%".  **The pin "compare CPU, not wall" assumes CPU
   tracks WORK; where qchem threads and CP2K does not, it does not.**  Serial is the honest comparison.
-- **Becke partition, what is LEFT in that loop** (none of it ε-related; all found during the census):
+- **★★★ THE BECKE PARTITION IS COMPUTED PER POINT ON A MESH THAT HAS ONLY 4290 ORBITS — and the fix is
+  V1.22, already filed as a CLEANUP item (2026-08-21).**  The imposed run prints
+  `invariant mesh 98816 points in 4290 orbits` (avg orbit 23.0).  The Becke weight is SYMMETRY-INVARIANT:
+  under an op the distance multiset \f$\{|r-R_b|\}\f$ is preserved with the atoms permuted, so
+  \f$w_{g(a)}(gr)=w_a(r)\f$ EXACTLY — and the site-adapted construction already guarantees a partner point
+  lies on the partner ATOM's grid.  So the partition is evaluated **98816 times where 4290 would do: up to
+  ~23×** on the largest CPU bucket in the code (75 s serial ⇒ ~3 s), on top of the 4.44× ε already taken.
+  **This is `doc/CleanupCandidates.md` V1.22** — *"make the drop decision ONCE per representative (angular
+  dir × radial shell) and apply it to the whole atom orbit inside the builder — removes the second fold
+  pass + the filter"* — filed for CORRECTNESS (the per-point `<eps`/`w>0` decisions are bit-sensitive and
+  break orbit consistency, which is why the caller post-filters orbit-incomplete points).  **Its
+  PERFORMANCE content was never noticed because it sat under cleanup.**  The same per-representative loop
+  that fixes the drop asymmetry also removes the redundant partitions.
+  ⚠ Scope: IMPOSED runs only — a free run has no orbits and keeps the full cost.  The benchmark row is
+  imposed; the free production run is not.  And V1.22 is on the deliberately-anchor-moving list, so it
+  belongs in the batched re-pin with §K and the Δρ/N gate.
+- **Becke partition, what is LEFT in that loop** — ⚠ **RE-RANKED 2026-08-21, and the two interact:**
+  the vectorization item is worth doing, the `norm()` table probably is not, and BOTH are small beside
+  V1.22 above.
+  0. **VERDICT (asked directly, 2026-08-21).**  `-march=native` alone measured **1.13×** on this bucket with
+     the loop still SCALAR, so item 2 (vectorization) has real headroom — the μ computation, the 4-iteration
+     polynomial and the product-reduction all vectorize once the data-dependent exit goes, and that exit
+     saves only 2.3% of work.  Item 1 (the `norm()` table) is DOUBTFUL: natom²·(4s+1)³ ≈ 250k entries ≈
+     2 MB reached through 3-D index arithmetic, against a HARDWARE sqrt at ~15 pipelined cycles — the same
+     shape as the column-major fill that measured out a net LOSS.  **And the two point OPPOSITE ways:**
+     vectorizing turns the sqrt into a 4-wide `sqrtpd` but turns the table into a GATHER.  So: do the
+     vectorization first; the `norm()` item may then be moot or actively harmful, and should be re-measured
+     rather than assumed.
   1. **The `norm()` is redundant across points.**  `R_ij = |R_i − R_j|` is recomputed inside the per-point
      loop — 2.46e10 square roots — but it is **point-INDEPENDENT**: image index t is always the same
      (atom, cell-offset) tuple, so `R_i − R_j` depends only on the offset DIFFERENCE, not on the point's
