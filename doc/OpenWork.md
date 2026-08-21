@@ -1161,6 +1161,56 @@ sets how much must move — a sharper seed shrinks the transient AND the accumul
 **Open:** all of this is kT=0.  With smearing the "occupied subspace" is the thermally-occupied one and its
 dimension is kT-dependent (13 → 17–19 here), so the freeze-out should be re-measured at kT>0 before use.
 
+### DESIGN RULING — the factor is a POLICY, not a CD type (LSP, user 2026-08-21)
+
+**Proposal considered:** two `FittedCD` flavours (eigen, Cholesky) taking D + Φ + a λ cutoff instead of a
+fit basis, with a `CompositeFittedCD` holding a map of per-irrep ones.  **Rejected on three grounds, the
+last of which is decisive.**
+
+1. **`CompositeCD` ALREADY IS that composite** — `CompositeCD.C` is *"any array of Irrep DM_CDs"*, holding
+   `variant<unique_ptr<tDM_CD<double>>, unique_ptr<tDM_CD<dcmplx>>>` children with `DM_RhoAtPoints`
+   documented as "sum over irrep blocks".  A second composite would duplicate it, re-solving the mixed
+   real/complex child problem the variant already solves.  **The multi-irrep question dissolves: the
+   factorisation is per-block and block aggregation is done.**
+2. **`FittedCD` is the wrong base.**  It exists for the ANALYTIC COULOMB path (`GetRepulsion`,
+   `GetSelfRepulsion`) — which \f$\{|\phi_m|^2\}\f$ cannot serve cheaply — and its `DoFit` implies a fit
+   with a residual and a quality measure (the standing pin: *fit quality = grid-convergence of ρ*).  The
+   factorisation is EXACT, not approximate; naming it a fit imports a contract it need not honour.
+3. **★ LSP KILLS IT (user's criterion, and it is the right one).**  `tDM_CD<T>` inherits
+   `tMixableDensity<T>`, whose contract is `MixIn(other, c)` = *this = (1−c)·this + c·that*.
+   **Low rank is NOT CLOSED under mixing:** \f$(1-c)L_1L_1^\dagger+cL_2L_2^\dagger\f$ has no rank-r factor;
+   the honest result is \f$[\sqrt{1-c}L_1,\sqrt{c}L_2]\f$ of rank \f$r_1+r_2\f$, so the rank DOUBLES every
+   iteration (13→26→52…).  Bounding it means reconstruct + refactor O(n³) per mix — storing D with extra
+   steps.  And the contractions get WORSE:
+
+   | `tDM_CD` operation | with D | with L |
+   |---|---|---|
+   | `DM_RhoAtPoints` | O(npts·n²) | **O(npts·n·r)** ✅ |
+   | `DM_Contract` = Tr(DV) | O(n²) | Tr(L†VL) = O(n²r) ❌ |
+   | `DM_ContractBlocks` | O(n²)/block | O(n²r) ❌ |
+   | `MixIn` | O(n²) | **unbounded rank** ❌ |
+
+   The factored form wins **one of four** operations.  A `FactoredCD` would satisfy every SIGNATURE while
+   breaking the BEHAVIOURAL contract its callers rely on — and the failure is SILENT (rank creep, not a
+   crash), which is the worst kind.
+
+**RULING: D stays the truth; the factor is a DERIVED, CACHED representation used only by the operation that
+benefits.**  Shape — a policy, two implementations, no new density type:
+```
+class DensityFactorization {                       // policy
+    virtual bool Factor(const hmat_t<T>& D, mat_t<T>& L, rvec_t& spectrum, size_t& rank) const = 0; };
+class PivotedCholeskyFactorization : ...           // spectrum = pivots^2  (self-sufficient: factor+spectrum+rank in one O(n^3/3) call)
+class EigenFactorization            : ...          // spectrum = lambda    (the cross-check)
+```
+`IrrepCD_Core` caches (L, rank, spectrum) keyed on the density serial it already has; `CompositeCD`
+unchanged.  **Cutoff should be a RULE, not a number** — the gap is four decades at kT=0 and the sub-gap
+modes are PHYSICAL at kT>0, so a fixed λ bakes in a kT assumption; `LASolverLapack`'s `detect_null_gap`
+is the existing precedent for reading the cut off the spectrum.
+**FILED, NOT ACTED ON — the ISP observation underneath:** `tDM_CD` BUNDLES four capabilities and the
+factored form serves one.  If a factored TYPE is ever wanted, the prerequisite is splitting `tDM_CD` into
+narrower faces (grid-evaluable vs mixable vs contractable).  Same shape as the `LatticeSum1E` ISP item; it
+belongs in that deferred session, not forced now by a performance idea.
+
 ### Further questions (mine)
 
 1. **Does the INTEGRATE-BACK factor too?**  Partly answered: \f$h_{ij}=\langle\chi_i|V|\chi_j\rangle
