@@ -905,7 +905,28 @@ factorisation).  Locality of the two factors:
 
 Cholesky is ~2× more localized — matching the literature — but **both are tiny against n=118**, so the
 natural orbitals are NOT the delocalised canonical picture: MnO's occupied manifold is atomic-like
-(Mn 3s3p3d, O 2s2p).  **KEEP BOTH ON THE TABLE (user, 2026-08-21).**  **So the choice is a mild trade, not a fork:** the ρ GEMM is O(npts·n·r) and wants the
+(Mn 3s3p3d, O 2s2p).  **★★ AND THE PIVOTS ARE THE CHOLESKY ANALOGUE OF λ (user, 2026-08-21) — SO CHOLESKY IS SELF-SUFFICIENT.**
+Split \f$U=D_p\bar U\f$ with \f$D_p=\mathrm{diag}(\text{pivots})\f$ and \f$\bar U\f$ unit-upper-triangular:
+\f$D=(P\bar U^H)D_p^2(\bar U P^T)\f$, so \f$\rho=\sum_k d_k^2|\psi_k|^2\f$ — the same per-mode-density form,
+with \f$d_k^2\f$ in λ's place.  And `pstrf` pivots on the largest remaining diagonal residual, so the
+sequence is **MONOTONE BY CONSTRUCTION**: it IS the rank-revealing criterion.  MEASURED:
+
+| | λ | pivot² |
+|---|---|---|
+| **kT=0** | 12.32 … 0.371, **13, hard stop** | 4.44 … 0.143, **13, hard stop** |
+| **kT=5e-3** | 13.24 … 0.367 │ 2.6e-5, 1.2e-5, 1.2e-5 | 4.58 … 0.143 │ 8.0e-6, 7.4e-6, 7.1e-6 │ **2.8e-13, 2.1e-13** |
+
+Same 13 at kT=0, same three-mode THERMAL tail at kT=5e-3 — **the two factorisations agree on where the
+physics stops.**  (\f$d_k^2\neq\lambda_k\f$ — residual self-overlaps, not eigenvalues — but they order the
+same content and terminate together, which is the property that matters.)
+**★ And the pivots resolve ONE TIER MORE, which retires an earlier mis-reading:** they show 14 physical +
+3 thermal + **2 at ~2e-13, i.e. ROUNDOFF**.  That is the whole of the "Cholesky rank 19 vs eigen 17"
+discrepancy reported above — 19 = 14+3+2, with LAPACK's default floor admitting two roundoff modes.  **The
+factorisations never disagreed about quality; I was comparing different TOLERANCES.**
+**CONSEQUENCE: the eigendecomposition is not needed to see the spectrum.**  The pivot sequence carries the
+same truncation information and falls out of the factorisation already being done, at O(n³/3) against
+eigen's O(n³) with a larger constant.  Cholesky delivers factor + spectrum + rank in ONE call.
+**KEEP BOTH ON THE TABLE (user, 2026-08-21).**  **So the choice is a mild trade, not a fork:** the ρ GEMM is O(npts·n·r) and wants the
 smallest r (eigen, 17 vs 19); collocation wants compact boxes (Cholesky, IPR 3.4 vs 6.8).  Both work.
 ⚠ The user's narrowed pin still applies: the historical objection to trimmed eigen was INVERSION-driven and
 we never invert here — but if D ever leaves the PSD cone, Cholesky is inapplicable and eigen is the route.

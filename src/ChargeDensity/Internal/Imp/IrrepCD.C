@@ -366,6 +366,15 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
                 ladder[t]+=double(c);
             }
         }
+        // THE PIVOTS ARE THE CHOLESKY ANALOGUE OF lambda (user, 2026-08-21).  Split U = D_p * Ubar with
+        // D_p = diag(pivots) and Ubar unit-upper-triangular: D = (P Ubar^H) D_p^2 (Ubar P^T), so
+        // rho = sum_k d_k^2 |psi_k|^2 -- the same per-mode-density form the eigen route has, with d_k^2 in
+        // lambda's place.  And pstrf pivots on the largest remaining diagonal residual, so the sequence is
+        // MONOTONE by construction: it IS the rank-revealing criterion.  Printed to compare against the
+        // eigen spectrum -- if the two agree on where the physics stops, either factor can drive the cut.
+        std::cout<<"[DM pivots^2]";
+        for (size_t k=0;k<m;++k) std::cout<<"  "<<std::norm(std::complex<double>(Um(k,k)));
+        std::cout<<std::endl;
         std::cout<<"[DM factor] rank="<<m<<" of n="<<n
                  <<"  IPR(effective basis fns/orbital): min="<<iprMin<<" mean="<<iprSum/double(m)
                  <<" max="<<iprMax
