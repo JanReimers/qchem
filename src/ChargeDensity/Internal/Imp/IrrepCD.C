@@ -232,12 +232,44 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
     std::cout<<"[DM rank] irrep="<<ir<<" n="<<n<<" Tr(D)="<<tr        // NB Tr(D), not Tr(DS)=N_elec
              <<" lambda: min="<<w[0]<<" ("<<w[0]/wmax<<" rel) max="<<wmax
              <<(w[0]<psdFloor ? "  ** NOT PSD **" : "  PSD(to roundoff)");
-    for (double rel : {1e-6, 1e-8, 1e-10, 1e-12})
+    for (double rel : {1e-4, 1e-6, 1e-8, 1e-10, 1e-12, 1e-14})
     {
         size_t rk=0; for (size_t i=0;i<n;i++) if (w[i]>rel*wmax) rk++;
-        std::cout<<"  r("<<rel<<")="<<rk<<" => "<<double(n)/double(rk>0?rk:1)<<"x";
+        std::cout<<"  r("<<rel<<")="<<rk;
     }
     std::cout<<std::endl;
+    // THE EIGEN FACTOR'S LOCALITY, for side-by-side with the Cholesky factor's ([DM factor] below).
+    // The eigenvectors are the NATURAL ORBITALS: the minimal-rank factorisation, but expected DELOCALISED.
+    // The literature claim for pivoted Cholesky is the opposite -- localized MOs straight from D -- so this
+    // pair of lines is the direct test of it, and it matters because THE TWO CONSUMERS WANT DIFFERENT
+    // FACTORS: the rho GEMM is O(npts n r) so it wants the SMALLEST r (eigen), while collocation wants
+    // compact boxes so it wants LOCALITY (Cholesky).  IPR is scale-free, so U vs U*sqrt(lambda) is moot.
+    {
+        const double keep=1e-10*wmax;
+        double iprSum=0.0, iprMin=1e300, iprMax=0.0; size_t cnt=0; double ladder[5]={0,0,0,0,0};
+        for (size_t k=0;k<n;k++)
+        {
+            if (w[k]<=keep) continue;                 // ascending: these are the surviving modes
+            double s2=0.0,s4=0.0,cmax=0.0;
+            for (size_t i=0;i<n;i++)
+            { const double a=std::norm(std::complex<double>(U(i,k))); s2+=a; s4+=a*a; cmax=std::max(cmax,a); }
+            const double ipr=(s4>0.0)?s2*s2/s4:0.0;
+            iprSum+=ipr; iprMin=std::min(iprMin,ipr); iprMax=std::max(iprMax,ipr); cnt++;
+            for (size_t t=0;t<5;t++)
+            {
+                const double f=std::pow(10.0,-2.0*double(t+1));
+                size_t c=0; for (size_t i=0;i<n;i++)
+                    if (std::norm(std::complex<double>(U(i,k)))>f*cmax) c++;
+                ladder[t]+=double(c);
+            }
+        }
+        if (cnt>0)
+            std::cout<<"[DM eigen] modes(1e-10)="<<cnt<<"  IPR: min="<<iprMin<<" mean="<<iprSum/double(cnt)
+                     <<" max="<<iprMax
+                     <<"  decay (mean #fns > 10^-t*max) t=1:"<<ladder[0]/double(cnt)
+                     <<" t=2:"<<ladder[1]/double(cnt)<<" t=3:"<<ladder[2]/double(cnt)
+                     <<" t=4:"<<ladder[3]/double(cnt)<<" t=5:"<<ladder[4]/double(cnt)<<std::endl;
+    }
 }
 
 //! \brief LOW-RANK FACTOR of a density matrix: \f$D=LL^\dagger\f$ with \a L (n x rank), by PIVOTED

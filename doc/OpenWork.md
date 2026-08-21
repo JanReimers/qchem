@@ -872,6 +872,37 @@ it) = 3.2–3.9** of n=118 — the WEIGHT is on 3–4 functions — but the coef
 | mean # functions | 8.6 | 38.3 | 64.7 | 82.6 | 89.6 |
 | ≈ atoms (29 fns/atom) | <1 | 1.3 | 2.2 | 2.8 | 3.1 |
 
+**★★ AND LOCALITY WAS NEVER THE GATE (user, 2026-08-21): "13 delocalized orbitals is a big win."**  Correct,
+and it demotes everything below.  With r≈17 the object count alone carries the idea: **17 orbitals against
+8778 (i,j,R) pair terms**, a dense **GEMM** replacing a SCATTER-bound emit loop (round 4 measured the pair
+path at *"61% irreducible per-(pair,point) emit"*; a GEMM has no scatter), and **O(grid·r) ≈ 8.7 MB against
+1.35 GB of pair streams**.  A delocalised orbital covering the whole cell costs one grid sweep, and 17 grid
+sweeps is nothing beside 8778 boxes.  **Locality is a BONUS (compact boxes), not a precondition** — I had
+elevated it to a gate, which was wrong.
+
+**THE EIGEN/CHOLESKY SIDE-BY-SIDE (both now reported by `GPW_DM_RANK=1`).**  Eigen modes surviving
+\f$\lambda>\text{tol}\cdot\lambda_{\max}\f$:
+
+| tol | 1e-4 | 1e-6 | 1e-8 | 1e-10 | 1e-12 | 1e-14 |
+|---|---|---|---|---|---|---|
+| modes | 14 | 15 | **17** | **17** | **17** | 19 |
+
+**The plateau at 17 across four decades IS the gap** — modes 18–19 appear only at 1e-14, i.e. roundoff.
+Pivoted Cholesky at LAPACK's default floor gives 19, so eigen is marginally leaner (it is the minimal-rank
+factorisation).  Locality of the two factors:
+
+| factor | columns | IPR mean | IPR range |
+|---|---|---|---|
+| eigen (natural orbitals) | 17 | 6.8 | 1.9–12.2 |
+| pivoted Cholesky | 19 | **3.4** | 1.4–5.7 |
+
+Cholesky is ~2× more localized — matching the literature — but **both are tiny against n=118**, so the
+natural orbitals are NOT the delocalised canonical picture: MnO's occupied manifold is atomic-like
+(Mn 3s3p3d, O 2s2p).  **So the choice is a mild trade, not a fork:** the ρ GEMM is O(npts·n·r) and wants the
+smallest r (eigen, 17 vs 19); collocation wants compact boxes (Cholesky, IPR 3.4 vs 6.8).  Both work.
+⚠ The user's narrowed pin still applies: the historical objection to trimmed eigen was INVERSION-driven and
+we never invert here — but if D ever leaves the PSD cone, Cholesky is inapplicable and eigen is the route.
+
 **Support is what sets a collocation box, not weight** — and since \f$\chi_i\sim e^{-\alpha r^2}\f$, a
 \f$10^{-t}\f$ prefactor shrinks its reach only LOGARITHMICALLY.  So on MnO the orbital boxes are large
 (~3 of 4 atoms), and the naive "Cholesky orbitals are localized ⇒ compact boxes ⇒ singles win" hope is NOT
