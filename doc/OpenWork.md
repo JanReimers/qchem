@@ -428,6 +428,38 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   lever for the benchmark row; it stays a real idea for LARGE cells (the battery north-star's supercells),
   where it should be re-measured with this instrument before anyone builds it.  **The ρ GEMM is still the
   top wall bucket, and it now needs a different idea.**
+- **★★★ Vxc MUST BE FED THE DM ρ(r) — AND THE PROJECT ALREADY DECIDED THAT.  The Becke XC path does not
+  honour it, which is both an ACCURACY regression and the largest per-iteration cost (user, 2026-08-20).**
+  `doc/GPWPlan.md:286` records the original insight verbatim — *"feed XC the DM-ρ, pointwise NON-NEGATIVE by
+  construction (PSD D ⇒ φᵀDφ ≥ 0)"* — and §0.5(f2), *"the DM-ρ raw XC feed"*, was **BUILT + ACCEPTED
+  2026-07-23** on measured evidence: the collapse basin removed, NaF 1.3 → **0.2 mHa** vs CP2K, and *"the raw
+  feed removed the ball-Gibbs noise from the XC residual"* so the coarse stage converged in **45 iterations
+  instead of 515**.
+  **What happens now instead.**  `XC_GridEngine::RhoPol` takes the DM route only when the density it is
+  handed carries a D (`cPolarized_CD` → `DM_RhoAtPoints`).  On the ρ̃-mixing recipes (Kerker/Pulay — the MnO
+  production recipe) the mixed density is a `PolarizedMixCD over FourierMixCD` with **no D**, so XC falls to
+  the matrix-free branch: a batched inverse FT over the whole {G} at every mesh point, every iteration.
+  That is:
+  - **an ACCURACY regression** — a BAND-LIMITED ρ, with Gibbs ringing, locally-negative lobes and the ρ>0
+    guard, fed to the ATOM-CENTRED Becke mesh whose entire purpose is to resolve the sharp core features a
+    band-limited grid cannot.  High-accuracy quadrature on a low-accuracy integrand.  The DM-ρ is exact
+    pointwise AND non-negative by construction, so the guard becomes unnecessary rather than tuned;
+  - **the largest per-iteration cost**: 35.0 s / 6 iterations serial against the DM GEMM's 1.70 s (84.1 s on
+    the benchmark row) — so honouring (f2) here is worth roughly **20×** on that bucket, before the low-rank
+    Cholesky route makes the GEMM cheaper still.
+
+  **The design question to settle (do NOT assume the answer).**  The mixer exists to damp the SCF, and the
+  Hamiltonian is normally built from the MIXED density; Kerker in particular is inherently a G-space
+  preconditioner and has no DM-space form.  So feeding XC from D while Hartree keeps ρ̃_mix means the two
+  terms see different densities off-convergence.  **Fixed-point argument in favour:** at self-consistency
+  \f$\rho[D]=\rho_{mix}\f$, so the converged answer is UNCHANGED — only the SCF trajectory differs.  That
+  makes it a convergence-behaviour question, not a correctness one, and it wants measuring on the recipes
+  that currently lean on Kerker (NaF's low-G slosh, MnO's AFM basin) rather than deciding on principle.
+  Options: (a) mix in DM space (`LinearMixer` is convex and PSD-preserving, but loses Kerker's low-G
+  preconditioning); (b) Hartree from ρ̃_mix, XC from the DM — what (f2) appears to have intended;
+  (c) reconstruct a DM-backed density from the mixed ρ̃ — not generally possible.
+  **PIN: this is the first thing to look at in Step 3, ahead of anything else** — it is the only item that is
+  simultaneously an accuracy repair, a documented-decision regression, and a ~20× on the top bucket.
 - **★★ THE ρ GEMM — LOW-RANK D.  The successor to the refuted Φ-sparsity item, and the only remaining plan
   for the largest per-iteration bucket.**  `IrrepCD_Core::DM_RhoAtPoints` forms
   \f$\rho(r_g)=\Phi_g^\dagger D\,\Phi_g\f$ as `(P·D)` row-dotted back into `P` — **O(npts·n²)**, i.e. on MnO
