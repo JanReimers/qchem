@@ -861,10 +861,53 @@ summation at every mesh point (35 s / 6 iterations; the largest per-iteration co
   is that Poisson is LINEAR and diagonal in G (band-limiting converges fast) while XC is a NONLINEAR
   POINTWISE functional needing the cusp — each term gets the representation its operator requires.
 
-### Q2 — is there any literature on this?
+### ✅ TIER-0 PRECURSOR RESULTS (2026-08-21)
 
-**I believe yes, under names worth searching, but I cannot verify citations from here — treat the
-following as SEARCH TERMS and probable prior art, not as references.**
+**(1) IS L LOCALIZED?  MEASURED ON MnO — peaked, but NOT compactly supported.**  `GPW_DM_RANK=1` now also
+reports the factor's structure.  Per orbital, over 4 iterations: **IPR (effective basis functions carrying
+it) = 3.2–3.9** of n=118 — the WEIGHT is on 3–4 functions — but the coefficient decay is slow:
+
+| \f$|L|>10^{-t}\cdot\max\f$ | t=1 | t=2 | t=3 | t=4 | t=5 |
+|---|---|---|---|---|---|
+| mean # functions | 8.6 | 38.3 | 64.7 | 82.6 | 89.6 |
+| ≈ atoms (29 fns/atom) | <1 | 1.3 | 2.2 | 2.8 | 3.1 |
+
+**Support is what sets a collocation box, not weight** — and since \f$\chi_i\sim e^{-\alpha r^2}\f$, a
+\f$10^{-t}\f$ prefactor shrinks its reach only LOGARITHMICALLY.  So on MnO the orbital boxes are large
+(~3 of 4 atoms), and the naive "Cholesky orbitals are localized ⇒ compact boxes ⇒ singles win" hope is NOT
+supported *on this cell*.  ⚠ **But see (3): the literature's sparsity claim is ASYMPTOTIC, and a 4-atom
+cell cannot exhibit it** — every orbital necessarily touches most of a 4-atom cell.  So this measurement is
+**negative for MnO and INCONCLUSIVE for the sizes the idea actually targets.**  Re-measure on a supercell
+before concluding.
+
+**(2) DOES r STAY SMALL ON A METAL?  NOT MEASURED — and the attempt found something else.**
+`DM_RhoAtPoints` never fires on the Si or Al tests, including the Becke-Al one: those runs do not reach the
+DM route at all.  **The DM-ρ route is exercised on a NARROW set of configurations** (among those tried, only
+the MnO recipe), which is itself an argument for the Vxc repair — that change is what would widen it.  The
+metal-rank question stands open and needs a Becke-XC + DM-backed Al configuration to answer.
+
+### Q2 — is there any literature on this?  ✅ **YES — it is established, and it has a name.**
+
+**"Cholesky-decomposed density" (CDD) / "Cholesky orbitals".**  A pivoted Cholesky decomposition of the AO
+density matrix is a known technique that *"preserves sparsity while reducing rank, with the rank at most
+equal to the number of active occupied or virtual orbitals"*, and it *"can be considered as generating
+localized molecular orbitals"* — obtained directly from the density matrix, **non-iteratively, with no
+initial orbitals and no optimization**, and it is numerically stable and can be made linear-scaling for
+matrices with a linear-scaling number of non-zeros.  Used in CDD-MP2 (including a relativistic variant),
+DMRG-NEVPT2, and Edmiston–Ruedenberg localization over Cholesky-decomposed integrals.
+**What this buys us, concretely:** the rank bound matches our measurement (r=14–19 against 13 occupied per
+spin); the locality claim is REAL but ASYMPTOTIC, which reframes (1) above as a small-cell artifact rather
+than a refutation; and "non-iterative, no initial guess" means the factor is safe to take per density
+serial without a convergence story.
+⚠ Distinguish from **Cholesky decomposition of the ERI tensor** (Beebe–Linderberg), which is the far
+better-known use of the same word and a different object.
+Sources: [Cholesky decomposition techniques in electronic structure theory (chapter)](https://www.diva-portal.org/smash/get/diva2:396223/FULLTEXT01.pdf) ·
+[Relativistic Cholesky-decomposed density matrix MP2](https://www.sciencedirect.com/science/article/abs/pii/S0301010418311388) ·
+[Multireference PT with Cholesky decomposition for DMRG](https://pubs.acs.org/doi/10.1021/acs.jctc.6b00778) ·
+[Occupied and virtual Edmiston–Ruedenberg orbitals using Cholesky-decomposed integrals](https://pubs.acs.org/doi/10.1021/acs.jctc.2c00261)
+
+**Superseded note** — what follows was the pre-search guess, kept only because its distinction still holds:
+- I found two review articels in /home/janr/Documents/Reprints1/Qchem/Cholesky .  They are mostly focused on two different usages of CD: 1) Factoring ERI integrals, 2) RI Density fitting, using CD to find unbiased fit basis sets.
 
 - **"Cholesky orbitals" / Cholesky decomposition of the DENSITY MATRIX** (Aquilante, Koch, Pedersen,
   Sánchez de Merás and co-workers, in the Cholesky-techniques line of work).  Pivoted Cholesky of D is, I

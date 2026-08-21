@@ -281,6 +281,51 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     double trL=0.0;  for (size_t i=0;i<n;++i) for (size_t k=0;k<m;++k) trL+=std::norm(std::complex<double>(L(i,k)));
     if (std::abs(trL-trD) > 1e-8*std::max(std::abs(trD),1.0)) return false;
     rank=m;
+
+    // GPW_DM_RANK=1: ARE THE CHOLESKY ORBITALS LOCALIZED?  THE decisive unmeasured quantity for the
+    // "factor D" idea (doc/OpenWork.md, its own section).  psi_m = sum_i L_im chi_i collocates over the
+    // UNION of the boxes of the chi_i it actually touches -- so if each column of L is carried by a few
+    // basis functions the orbitals have COMPACT boxes and the singles route can beat pair collocation; if
+    // the columns are spread over all n, each psi_m costs the whole grid and that route is dead.
+    // Measured centre-free by the INVERSE PARTICIPATION RATIO, IPR_m = (sum_i |L|^2)^2 / sum_i |L|^4 = the
+    // EFFECTIVE number of basis functions carrying orbital m (n = fully delocalised, few = localised),
+    // plus the count above a relative floor.  Pivoted Cholesky is greedy on the diagonal, so the
+    // literature expectation ("Cholesky orbitals") is that these come out LOCALISED -- this measures it.
+    static const bool on=std::getenv("GPW_DM_RANK")!=nullptr;
+    if (on)
+    {
+        double iprMin=1e300, iprMax=0.0, iprSum=0.0; size_t sigMax=0, sigSum=0;
+        double ladder[5]={0,0,0,0,0};
+        for (size_t k=0;k<m;++k)
+        {
+            double s2=0.0, s4=0.0, cmax=0.0;
+            for (size_t i=0;i<n;++i)
+            {
+                const double a=std::norm(std::complex<double>(L(i,k)));
+                s2+=a; s4+=a*a; cmax=std::max(cmax,a);
+            }
+            const double ipr = (s4>0.0) ? s2*s2/s4 : 0.0;
+            iprMin=std::min(iprMin,ipr); iprMax=std::max(iprMax,ipr); iprSum+=ipr;
+            size_t sig=0; for (size_t i=0;i<n;++i)
+                if (std::norm(std::complex<double>(L(i,k))) > 1e-6*cmax) sig++;   // 1e-3 in amplitude
+            sigMax=std::max(sigMax,sig); sigSum+=sig;
+            for (size_t t=0;t<5;++t)                      // the DECAY PROFILE: |L|>10^-(t+1) * max
+            {
+                const double f=std::pow(10.0,-2.0*double(t+1));   // in |L|^2
+                size_t c=0; for (size_t i=0;i<n;++i)
+                    if (std::norm(std::complex<double>(L(i,k)))>f*cmax) c++;
+                ladder[t]+=double(c);
+            }
+        }
+        std::cout<<"[DM factor] rank="<<m<<" of n="<<n
+                 <<"  IPR(effective basis fns/orbital): min="<<iprMin<<" mean="<<iprSum/double(m)
+                 <<" max="<<iprMax
+                 <<"  |L|>1e-3*max count: mean="<<double(sigSum)/double(m)<<" max="<<sigMax
+                 <<"\n[DM factor] coefficient DECAY (mean #fns with |L| > 10^-t * max), n="<<n
+                 <<", ~"<<n/4<<" fns/atom:  t=1:"<<ladder[0]/double(m)<<"  t=2:"<<ladder[1]/double(m)
+                 <<"  t=3:"<<ladder[2]/double(m)<<"  t=4:"<<ladder[3]/double(m)
+                 <<"  t=5:"<<ladder[4]/double(m)<<std::endl;
+    }
     return true;
 }
 
