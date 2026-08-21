@@ -202,6 +202,44 @@ template <class T> double IrrepCD_Core<T>::DM_ContractBlocks(const std::map<std:
 // (npts x n)(n x n) GEMM + a cheap rowwise dot, matching operator()(r)'s trans(phi) D conj(phi) per row.
 // No table for this basis -> self-evaluate pointwise (correct; the caller's first pass may not have
 // built every block's table yet).
+// GPW_DM_RANK=1: the LOW-RANK CENSUS of D (doc/OpenWork.md Step 3, the rho-GEMM plan).  rho_g =
+// Phi_g^dag D Phi_g costs O(npts n^2) here; if D = L L^dag with rank r, rho_g = ||L^dag Phi_g||^2 costs
+// O(npts n r) and the win is n/r.  D is a density matrix so r SHOULD be the occupied count (~13/spin on
+// MnO against n=118 => 6-9x), but SMEARING puts a fractional tail on the occupations, so the NUMERICAL
+// rank at a usable tolerance is the quantity that decides it.  Measure before building any of it.
+//
+// Reports BOTH questions at once:
+//   * lambda_min < 0 answers "is D PSD?".  A pivoted Cholesky needs PSD, and PSD is a property of the
+//     MIXERS, not a theorem: linear mixing with alpha in [0,1] is CONVEX and preserves it, an
+//     EXTRAPOLATION (density-space Pulay, alpha>1, MP/cold smearing's negative occupations) does not.
+//     Today only LinearMixer touches D and its alpha is clamped <= 1, so this should read >= 0 -- and if
+//     it ever does not, that IS the canary, not a surprise.
+//   * the rank at a ladder of tolerances is the achievable n/r.
+template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
+{
+    static const bool on=std::getenv("GPW_DM_RANK")!=nullptr;
+    if (!on || D.rows()==0) return;
+    const size_t n=D.rows();
+    rvec_t w; mat_t<T> U;
+    blazem::eigen(D, w, U);                       // ascending; O(n^3), nothing beside the npts n^2 GEMM
+    double tr=0.0; for (size_t i=0;i<n;i++) tr+=w[i];
+    const double wmax=w[n-1];
+    // PSD test on a RELATIVE floor, not on w[0]<0: an eigensolver returns O(eps*wmax) negative values for a
+    // numerically-PSD matrix, so a strict <0 test cries wolf on every run (it did, first cut: lambda_min
+    // ~ -1.8e-15 against wmax 13.2, i.e. ~1 ulp).  Below the floor = roundoff; a REAL negative eigenvalue
+    // from an extrapolated D would sit orders of magnitude above it.
+    const double psdFloor=-1e-12*wmax;
+    std::cout<<"[DM rank] irrep="<<ir<<" n="<<n<<" Tr(D)="<<tr        // NB Tr(D), not Tr(DS)=N_elec
+             <<" lambda: min="<<w[0]<<" ("<<w[0]/wmax<<" rel) max="<<wmax
+             <<(w[0]<psdFloor ? "  ** NOT PSD **" : "  PSD(to roundoff)");
+    for (double rel : {1e-6, 1e-8, 1e-10, 1e-12})
+    {
+        size_t rk=0; for (size_t i=0;i<n;i++) if (w[i]>rel*wmax) rk++;
+        std::cout<<"  r("<<rel<<")="<<rk<<" => "<<double(n)/double(rk>0?rk:1)<<"x";
+    }
+    std::cout<<std::endl;
+}
+
 template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
 {
     rvec_t ro(r.size(), 0.0);
@@ -225,6 +263,7 @@ template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const rvec3vec_t& r, c
     // D as a PLAIN matrix: an adaptor operand (HermitianMatrix) is not BLAS-dispatchable, so under
     // BLAZE_BLAS_MODE the product would silently fall back to blaze's own kernel -- 16x slower than
     // zgemm on this shape (measured).  One n x n copy per call is nothing beside the npts x n x n GEMM.
+    ReportDMRank<T>(itsDensityMatrix, itsIrrep);   // hmat_t<T> is a conditional_t: T is non-deduced
     const mat_t<T> D(itsDensityMatrix);
     auto block=[&](size_t g0, size_t g1)
     {

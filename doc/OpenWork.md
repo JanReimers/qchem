@@ -505,10 +505,27 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   the cone** — so make that failure loud and route it to the eigen split rather than letting it degrade
   silently.  (And per the narrowed pin above, the eigen split is fine HERE because the factor is only
   multiplied, never inverted.)
-  **FIRST MOVE IS MEASUREMENT, as always:** dump the pivoted-Cholesky rank (and the occupation tail) of the
-  ACTUAL mixed D at several iterations.  Smearing (kT=5e-3 on the MnO recipe) puts a fractional tail on the
-  occupations, so the NUMERICAL rank at a usable tolerance is the real quantity — r near n_occ ⇒ 6–9×,
-  r near n ⇒ the idea is dead and costs nothing to have checked.
+  **★★ MEASURED 2026-08-20 (`GPW_DM_RANK=1`, new + permanent) — BOTH QUESTIONS ANSWERED, AND THE WIN IS REAL.**
+  On the MnO benchmark recipe, per spin channel, over four iterations:
+
+  | | measured |
+  |---|---|
+  | n | 118 |
+  | **numerical rank of D** | **14–17** |
+  | **⇒ ρ-GEMM speedup n/r** | **7.0–8.4×** |
+  | rank stability over tol 1e-6 … 1e-12 | 14–17 (a CLEAN GAP, not a judgement call) |
+  | \f$\lambda_{\min}/\lambda_{\max}\f$ | **−1e-16 ⇒ PSD to roundoff** |
+
+  So **D is PSD** — the convexity argument above confirmed empirically, and pivoted Cholesky applies — and
+  the rank sits just above the 13 occupied per spin, exactly as Fermi smearing should give (a few
+  fractionally-occupied states on top).  The tolerance-independence is the important half: the occupied
+  block is cleanly separated from the null space, so the truncation is unambiguous.
+  **This is now the best-measured un-taken lever in the code: ~7–8× on the LARGEST per-iteration bucket.**
+  ⚠ Instrument note: the PSD test must be on a RELATIVE floor.  The first cut tested \f$\lambda_{\min}<0\f$
+  and screamed "NOT PSD" on every run at \f$\lambda_{\min}\approx-1.8\times10^{-15}\f$ against
+  \f$\lambda_{\max}=13.2\f$ — one ulp.  An eigensolver ALWAYS returns O(eps·λmax) negatives for a
+  numerically-PSD matrix; a real negative eigenvalue from an extrapolated D would sit orders of magnitude
+  above that floor.
   *Not a clever trick:* evaluating ρ in ORBITAL space rather than DM space is what most codes do; the only
   observation here is that this one took the DM route, which is a reasonable choice that happens to cost n/r.
 - **★ NEW DEFECT, found by the instrument above: THE IMPOSED XC MESH LOSES ITS SITE BLOCKS — and the
