@@ -1126,6 +1126,41 @@ adaptive, which suits grids and is awkward for anything cached across iterations
 one FFT of the total ρ, not 14 Poisson solves, so it is not obviously that one — the honest first use is
 the density itself on the grids, which is where this whole section started.
 
+### ★★★ THE OCCUPIED SUBSPACE FREEZES AFTER ~3 ITERATIONS — and that is the ONE lever the rank cannot give
+
+**Question (user, 2026-08-21):** does the 13-mode subspace CHANGE across iterations, or do the iterations
+merely ROTATE modes within a fixed subspace — and if the latter, can a projector be worked out before the
+SCF starts?  **MEASURED** (kT=0, r=13, `GPW_DM_RANK=1` now reports it), as
+\f$\lVert U_{prev}^\dagger U_{now}\rVert_F^2/r=\sum_k\cos^2\theta_k/r\f$:
+
+| iteration | overlap | **dimensions that MOVED** |
+|---|---|---|
+| 1 → 2 | 0.613 | **5.03** |
+| 2 → 3 | 0.874 | 1.63 |
+| 3 → 4 | 0.9994 | **0.008** |
+| 4 → 5 | 0.99995 | 0.0007 |
+| 7 → 8 | 0.999999 | **0.00001** |
+
+**BOTH readings are right, separated in time.**  It must move — the SCF is solving FOR it, and *"if it
+didn't move you'd be converged at iteration 1"* (user: "right!!!").  But it moves 5 of 13 dimensions in the
+FIRST step, 1.6 in the second, and from **iteration 3 onward is FROZEN to 4–6 digits**: the later
+iterations really are just rotating modes inside a fixed subspace.
+**So a projector cannot be formed BEFORE the SCF (5 dimensions would be wrong) — but it can after ~3
+iterations**, and the union over the whole run is **~20 dimensions, not 118**.
+
+**★ WHY THIS IS THE INTERESTING ONE: it hits the cost the RANK CANNOT.**  \f$h_{ij}=(\Phi^\dagger W\Phi)_{ij}\f$
+is O(npts·n²) with NO D in it, so the low-rank factor does nothing for the H_xc GEMM (recorded above as a
+correction to an over-claim).  Projecting Φ to (npts × d) ONCE makes the per-iteration H build
+**O(npts·d²)** — with d≈20 against n=118 that is **~35×** on an otherwise immovable bucket.
+**Safety:** freezing CONSTRAINS the variational problem, but the table bounds that constraint at <1e-4
+after iteration 3, and one FULL-SPACE step at the end verifies stationarity.  That is textbook subspace
+iteration with a convergence check, not a new gamble.  The safer variant is Davidson-style: keep the
+ACCUMULATED subspace (~20 dims) and expand only when the residual demands.
+**Bonus finding: the SEED already gets 8 of 13 dimensions right** (only 5 move).  So seed quality directly
+sets how much must move — a sharper seed shrinks the transient AND the accumulated subspace.
+**Open:** all of this is kT=0.  With smearing the "occupied subspace" is the thermally-occupied one and its
+dimension is kT-dependent (13 → 17–19 here), so the freeze-out should be re-measured at kT>0 before use.
+
 ### Further questions (mine)
 
 1. **Does the INTEGRATE-BACK factor too?**  Partly answered: \f$h_{ij}=\langle\chi_i|V|\chi_j\rangle

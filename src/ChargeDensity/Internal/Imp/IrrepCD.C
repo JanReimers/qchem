@@ -269,7 +269,38 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
         // spatial character tracks lambda, the level assignment is then free: read it off the spectrum.
         // Printed per mode, descending in lambda, so the correlation (or its absence) is visible directly.
         {
-            std::cout<<"[DM lambda-vs-IPR]";
+            // DOES THE OCCUPIED SUBSPACE MOVE, OR DO THE MODES JUST ROTATE INSIDE IT? (user, 2026-08-21)
+        // The SCF is solving FOR this subspace, so it must move -- but non-uniformly: core-like modes
+        // barely shift while the frontier rotates.  What matters is HOW MUCH.  Measured as the subspace
+        // overlap between consecutive iterations' kept eigenvectors,
+        //     ov = ||U_prev^H U_now||_F^2 / r = sum_k cos^2(theta_k) / r,
+        // which is 1 for an identical subspace and r^-1 x (dimension of the shared part) otherwise.
+        // D is Hermitian so U is orthonormal and the range is well defined; the RANGE is what the
+        // occupied subspace is, independent of the S metric.
+        // WHY IT MATTERS: the rank r helps the rho GEMM but NOT the H_xc GEMM (Phi^dag W Phi is
+        // O(npts n^2) with no D in it).  A subspace that barely moves would let Phi be projected to
+        // npts x d ONCE, making the per-iteration H build O(npts d^2) -- the one cost the rank cannot touch.
+        {
+            static std::map<Irrep, mat_t<T>> prevU;      // diagnostic only; outer call is serial
+            size_t rk=0; for (size_t i=0;i<n;i++) if (w[i]>keep) rk++;
+            mat_t<T> Uk(n, rk);
+            { size_t c=0; for (size_t k=n; k-- > 0; ) if (w[k]>keep) { for (size_t i=0;i<n;i++) Uk(i,c)=U(i,k); c++; } }
+            auto it=prevU.find(ir);
+            if (it!=prevU.end() && it->second.columns()==rk)
+            {
+                const mat_t<T>& Up=it->second;
+                double f2=0.0;
+                for (size_t a=0;a<rk;a++) for (size_t b=0;b<rk;b++)
+                {
+                    T d{}; for (size_t i=0;i<n;i++) d+=blazem::conj(Up(i,a))*Uk(i,b);
+                    f2+=std::norm(std::complex<double>(d));
+                }
+                std::cout<<"[DM subspace] r="<<rk<<"  overlap with previous iteration = "<<f2/double(rk)
+                         <<"  (1 = unchanged)   dims that MOVED = "<<double(rk)-f2<<std::endl;
+            }
+            prevU[ir]=std::move(Uk);
+        }
+        std::cout<<"[DM lambda-vs-IPR]";
             for (size_t k=n; k-- > 0; )
             {
                 if (w[k]<=keep) continue;
