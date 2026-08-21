@@ -502,6 +502,35 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   iteration.  It is computable ENTIRELY INSIDE THE MIXER — \f$\tilde\delta\f$ is already formed there for
   `ApplySpectralFilter` — so no new plumbing between the mixer and XC is needed to answer it.
 
+  **★★★ AND THE FACTORED FORM CHANGES THE OBJECT FROM PAIRS TO SINGLES (user, 2026-08-21) — which is a
+  bigger structural win than the XC feed it came from.**
+  \f$\rho=\sum_{ij}D_{ij}\chi_i\chi_j\f$ is a sum over PAIRS; \f$\rho=\sum_m|\psi_m|^2\f$ with
+  \f$\psi_m=\sum_i L_{im}\chi_i\f$ is a sum over SINGLES.  On the MnO benchmark cell that is:
+
+  | object | count |
+  |---|---|
+  | pairs (raw) | **8778** |
+  | pairs after the T3 fold | 1909 |
+  | **single basis functions** | **118** |
+  | **orbitals after the low-rank contraction** | **14–17** |
+
+  74× fewer objects than raw pairs, 16× fewer than folded representatives.  **And this is not confined to
+  the XC feed:** the Φ table already IS a singles stream — which is exactly why `DM_RhoAtPoints` costs 1.7 s
+  — while the COLLOCATION path still pays pairs, and it is the pair streams that drove Step 4's RAM (5.78 →
+  3.70 → 1.35 GB) and the scatter/gather buckets (263 → 41 s under the fold).  A factored density would
+  replace the pair scatter with a singles sweep + GEMM + row-norm, and shrink the stream caches by the same
+  ratio.
+  **The counterweight, stated honestly:** a single \f$\chi_i\f$ is MORE DIFFUSE than a pair product
+  (exponent \f$\alpha_i\f$ vs \f$\alpha_i+\alpha_j\f$), so each covers more grid points; and pair
+  collocation is what CP2K does because for LARGE screened systems D is sparse and pair boxes are compact.
+  This is the classic orbital-vs-density-matrix collocation trade: singles win at modest n, pairs win as n
+  grows and screening bites.  n=118 here; the battery-north-star supercells push the other way.  **So it is
+  a crossover to MEASURE per system, not a principle to adopt** — and the low-rank census
+  (`GPW_DM_RANK=1`) plus a pair count is already most of the instrument.
+  ⚠ Note the interaction with the T3 stream fold: the fold's 4.60× is a reduction on PAIRS.  Whether an
+  equivalent fold exists on singles (orbitals are not symmetry-adapted individually) is an open question,
+  and if not, the honest comparison is 118 singles against 1909 folded pairs, not 8778 raw.
+
   **PIN: this is the first thing to look at in Step 3, ahead of anything else** — it is the only item that is
   simultaneously an accuracy repair, a documented-decision regression, and a ~20× on the top bucket.
 - **★★ THE ρ GEMM — LOW-RANK D.  The successor to the refuted Φ-sparsity item, and the only remaining plan
