@@ -263,6 +263,23 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
                 ladder[t]+=double(c);
             }
         }
+        // DOES LOCALITY CORRELATE WITH lambda? (user, 2026-08-21)  With lambda kept SEPARATE,
+        // rho = sum_m lambda_m |phi_m|^2 is a SUM OF PER-MODE DENSITIES, so each mode can be collocated on
+        // its OWN ladder level and the level densities summed -- exactly as pairs are.  If the modes'
+        // spatial character tracks lambda, the level assignment is then free: read it off the spectrum.
+        // Printed per mode, descending in lambda, so the correlation (or its absence) is visible directly.
+        {
+            std::cout<<"[DM lambda-vs-IPR]";
+            for (size_t k=n; k-- > 0; )
+            {
+                if (w[k]<=keep) continue;
+                double s2=0.0,s4=0.0;
+                for (size_t i=0;i<n;i++)
+                { const double a=std::norm(std::complex<double>(U(i,k))); s2+=a; s4+=a*a; }
+                std::cout<<"  ("<<w[k]<<","<<((s4>0.0)?s2*s2/s4:0.0)<<")";
+            }
+            std::cout<<std::endl;
+        }
         if (cnt>0)
             std::cout<<"[DM eigen] modes(1e-10)="<<cnt<<"  IPR: min="<<iprMin<<" mean="<<iprSum/double(cnt)
                      <<" max="<<iprMax

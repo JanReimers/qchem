@@ -1010,6 +1010,55 @@ Sources: [Cholesky decomposition techniques in electronic structure theory (chap
 - ⚠ **System-dependent, and it inverts.**  n=118 here; the battery north-star's supercells grow n and make
   pair screening bite harder.  Both routes may deserve to survive rather than one replacing the other.
 
+### ★★ THE SPECTRUM ITSELF: r IS 14, λ DOES NOT PREDICT LOCALITY, AND {|φ_m|²} IS A FIT BASIS
+
+**(a) THE REAL RANK IS 14, not 17.**  Printing the spectrum per mode instead of summarising it shows a gap
+of FOUR ORDERS OF MAGNITUDE: λ runs 13.24 → 0.367 over fourteen modes, then drops to **2.6e-5**.  The
+earlier "17 at tol 1e-8" was counting three numerical-dross modes below that cliff; `r(1e-4)=14` is the
+physical cut.  **Lesson: the ladder of counts hid the gap that one printed spectrum makes unmissable.**
+
+**(b) DOES LOCALITY CORRELATE WITH λ (user's idea: if so, assign grid levels from λ)?  MEASURED: NO.**
+Descending in λ, spin ↑:
+
+| λ | 13.24 | 1.33 | 1.09 | 0.567 | 0.528×2 | 0.463×2 | 0.404 | 0.389×2 | 0.377×2 | 0.367 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| IPR | 4.7 | **2.0** | 6.6 | **10.9** | 5.1 | 6.5 | **11.6** | 8.5 | 8.3 | 6.3 |
+
+The largest λ is moderately localized, the SECOND largest is the most localized of all, and the most
+DELOCALIZED modes sit mid-spectrum.  So a level assignment cannot be read off λ *via locality*.
+(Repeated λ are symmetry-degenerate pairs; their IPRs match exactly, as they must — a free correctness
+check on the whole census.)  ⚠ Still open and NOT the same question: does λ correlate with a mode's
+BANDWIDTH (its sharpest significantly-weighted primitive)?  Bandwidth, not locality, is what a ladder level
+actually resolves — and that needs per-function exponents, which do not reach this seam today.
+
+**(c) ⛔ RETRACTION — THE MULTIGRID IS NOT LOST.**  Keeping λ SEPARATE (user) makes it obvious:
+\f$\rho=\sum_m\lambda_m|\phi_m|^2\f$ is a **SUM OF PER-MODE DENSITIES**, so each mode can be collocated on
+its own ladder level and the level densities summed — EXACTLY as pairs are.  What the previous entry
+actually showed was narrower: computing \f$\Psi=\Phi L\f$ as ONE DENSE GEMM forces one resolution.  That is
+an implementation choice, not a constraint.  **The real trade is single-GEMM efficiency vs per-mode
+multigrid**, and both are available.
+
+**(d) ★★ AND THAT IS A FIT BASIS EXPANSION (user, 2026-08-21).**  \f$\rho=\sum_m\lambda_m|\phi_m(r)|^2\f$ is
+an expansion of the density in the basis \f$\{|\phi_m(r)|^2\}\f$ with coefficients \f$\lambda_m\f$ — and it
+is **EXACT, MINIMAL (14 functions), ADAPTIVE, and FREE**: no fitting equation, no auxiliary basis to
+choose, no Dunlap constraint, no J-matrix solve.  The eigensolver hands over the coefficients.
+This slots into the project's existing framing — `DeltaFittedVxc` is a *fitted* Vxc whose fit basis is
+DELTA FUNCTIONS, i.e. quadrature is the δ-basis special case of fitting (user).  So:
+
+| fit basis | size | character |
+|---|---|---|
+| δ functions | n_pts | quadrature — exact, expensive |
+| auxiliary Gaussians (`VALENCE`, `A1_exch`) | hundreds | approximate, cheap ANALYTIC integrals |
+| **\f$\{|\phi_m|^2\}\f$** | **14** | **exact, adaptive, GRID-evaluable** |
+
+**Where it fits and where it does not:** \f$|\phi_m|^2\f$ is cheap to EVALUATE (GEMM then square) but its
+analytic integrals against other Gaussians are not obviously cheap, so it serves GRID/QUADRATURE consumers
+(XC, collocation) and not analytic-integral ones (the 3-centre Coulomb path).  And it is PER-ITERATION
+adaptive, which suits grids and is awkward for anything cached across iterations.
+**Open:** is there a consumer that wants an exact 14-function density expansion?  The Hartree route needs
+one FFT of the total ρ, not 14 Poisson solves, so it is not obviously that one — the honest first use is
+the density itself on the grids, which is where this whole section started.
+
 ### Further questions (mine)
 
 1. **Does the INTEGRATE-BACK factor too?**  Partly answered: \f$h_{ij}=\langle\chi_i|V|\chi_j\rangle
