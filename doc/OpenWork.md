@@ -1012,10 +1012,34 @@ Sources: [Cholesky decomposition techniques in electronic structure theory (chap
 
 ### ★★ THE SPECTRUM ITSELF: r IS 14, λ DOES NOT PREDICT LOCALITY, AND {|φ_m|²} IS A FIT BASIS
 
-**(a) THE REAL RANK IS 14, not 17.**  Printing the spectrum per mode instead of summarising it shows a gap
-of FOUR ORDERS OF MAGNITUDE: λ runs 13.24 → 0.367 over fourteen modes, then drops to **2.6e-5**.  The
-earlier "17 at tol 1e-8" was counting three numerical-dross modes below that cliff; `r(1e-4)=14` is the
-physical cut.  **Lesson: the ladder of counts hid the gap that one printed spectrum makes unmissable.**
+**(a) ⛔ RETRACTED — "THE REAL RANK IS 14 AND THE REST IS NUMERICAL DROSS" WAS WRONG.  THE SMALL MODES ARE
+THERMAL OCCUPATION.**  The user's challenge — *"I will buy into this iff you can confirm kT=0.000000000
+for this run"* — was decisive.  **kT = 0.005 Ha on that run, not zero**, and λ≈2.6e-5 under Fermi smearing
+means \f$(\varepsilon-\mu)/kT=\ln(1/f)\approx10.6\f$, i.e. **≈0.053 Ha ≈ 1.4 eV above μ** — an entirely
+plausible thermally-occupied conduction state.  The experiment settles it:
+
+| | rank at tol 1e-4 … 1e-14 | smallest λ | tail |
+|---|---|---|---|
+| **kT = 5e-3** | 14 → 15 → 17 → 17 → 17 → 19 | 0.367 | **3 modes at ~2.6e-5** |
+| **kT = 0** | **13, 13, 13, 13, 13, 13** | 0.371 | **NONE** |
+
+**Rank 13 at EVERY tolerance across ten decades, and the 2.6e-5 modes vanish with the smearing.**  13 is
+exactly the electron-pair count (26/2) — a free correctness check on the whole census.
+**Consequences, and they matter:**
+- **Truncating at "r=14" would DROP PHYSICAL DENSITY** (~3×2.6e-5 ≈ 8e-5 e of thermal tail) while calling
+  the result exact.  The IMPLEMENTATION is safe — LAPACK's default floor keeps rank 19 — but the
+  interpretation was the error, and it is the kind that would have shipped as an "exact" optimisation.
+- **THE RANK IS kT-DEPENDENT**: 13 at kT=0, 17–19 at kT=5e-3.  Exactness at kT=0 is a hard spectral gap at
+  machine precision; at kT>0 "exact" becomes "accurate to whatever thermal tail you choose to drop".
+- **★ This ANSWERS open question 4 (does r stay small for metals / larger smearing?): NO, not in general.**
+  A fatter smearing tail means more thermally occupied states and a higher numerical rank, so the n/r win
+  SHRINKS with kT.  MnO at kT=5e-3 *with a gap* is a favourable case; a metal at larger kT is the adverse
+  one, and that is now an argued expectation rather than an open guess.
+- Technical caveat: λ(D) are not occupation numbers, since the AO basis is non-orthogonal (occupations are
+  eigenvalues of \f$S^{1/2}DS^{1/2}\f$).  The RANK is basis-independent, and rank=13=N/2 at kT=0 confirms
+  the reading.
+**Lesson: a four-decade gap in a spectrum is not automatically a numerical one — ask what physics could
+put something there before calling it noise.**
 
 **(b) DOES LOCALITY CORRELATE WITH λ (user's idea: if so, assign grid levels from λ)?  MEASURED: NO.**
 Descending in λ, spin ↑:
