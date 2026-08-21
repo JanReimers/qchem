@@ -458,6 +458,50 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   Options: (a) mix in DM space (`LinearMixer` is convex and PSD-preserving, but loses Kerker's low-G
   preconditioning); (b) Hartree from ρ̃_mix, XC from the DM — what (f2) appears to have intended;
   (c) reconstruct a DM-backed density from the mixed ρ̃ — not generally possible.
+  **THE SHAPE — corrected twice by the user, and the algebra decides most of it.**
+  \f$\tilde\rho[D]\f$ is the COLLOCATED (band-limited) density, so \f$\rho_{mix}-\rho[D]_{exact}\f$ and
+  \f$\mathrm{IFT}[\tilde\rho_{mix}-\tilde\rho[D]]\f$ are DIFFERENT objects — they differ by the cusp content,
+  the largest thing in the problem.  Writing both as "Δ" hid that.  The computable form is:
+  \f[ \rho_{XC}(r)=\underbrace{\rho_{mix}(r)}_{\text{band-limited}}+\underbrace{\big(\rho[D](r)_{exact}-\rho[D](r)_{BL}\big)}_{\text{the CUSP DEFICIT of band-limiting}} \f]
+  i.e. the mixed density with the sharp core content — the part only the DM can supply, and the part the
+  atom-centred mesh exists for — restored.  The cusp deficit is nearly ITERATION-INVARIANT (core electrons
+  barely move), so borrowing it from the current D is accurate well before convergence, and exact at it.
+  ⚠ **Retraction:** this does NOT give Hartree and XC the identical density, as first claimed.  The honest
+  defence is that the Poisson operator is LINEAR and diagonal in G (band-limiting converges fast there)
+  while XC is a NONLINEAR POINTWISE functional needing the real-space cusp — each term gets the
+  representation its operator requires.  That is weaker than "same array", so it no longer by itself
+  outranks simply feeding XC from D.
+
+  **★ IS THERE A PERFORMANCE WIN?  NOT FROM THE DM ROUTE ITSELF — and the algebra says where it can come
+  from.**  `FourierMixCD.C:65` samples \f$\rho(r)=\sum_G\tilde\rho(G)e^{iG\cdot r}\f$ by DIRECT SUMMATION at
+  every point, so the 35 s is O(npts·|{G}|) — 97k points × |{G}| per iteration.  \f$\rho[D]_{exact}\f$ ADDS
+  the GEMM; it removes no sampling.  Subtracting in G-space first leaves ONE sampling, so the scheme costs
+  today's sampling PLUS a GEMM — **a net LOSS unless the correction's {G} can be truncated.**
+  With Kerker (\f$\tilde\rho_{mix}=\tilde\rho_{in}+\alpha f\tilde\delta\f$, \f$f=G^2/(G^2+G_0^2)\f$,
+  \f$\tilde\delta=\tilde\rho_{out}-\tilde\rho_{in}\f$, and \f$\tilde\rho[D]=\tilde\rho_{out}\f$):
+  \f[ \tilde\rho_{mix}-\tilde\rho[D]=\big(\alpha f(G)-1\big)\,\tilde\delta \f]
+  ⚠ so at HIGH G, \f$f\to1\f$ and this tends to \f$-(1-\alpha)\tilde\delta\f$ — **75% of the residual's
+  high-G content at α=0.25.  It is NOT low-G**, and the earlier "Kerker weights it toward low G" claim was
+  WRONG (Kerker suppresses the INCREMENT at low G, which makes the correction ≈ \f$-\tilde\delta\f$ there
+  and leaves it nearly untouched at high G).
+  **But it is proportional to the SCF RESIDUAL**, which → 0.  So the truncation error is bounded by
+  \f$(1-\alpha)|\tilde\delta_{highG}|\f$ and vanishes as the run converges: an **ADAPTIVE G-ball keyed to
+  \f$|\tilde\delta|\f$** is cheap late, accurate early, and the CONVERGED answer is exactly
+  \f$\rho[D]_{exact}\f$ either way.  Second route, better if the correction is smooth: FFT it to a coarse
+  UNIFORM grid and INTERPOLATE to the mesh points — O(N log N + npts) instead of O(npts·|{G}|) — legitimate
+  only because the correction has no cusps, which is precisely why the full ρ cannot be treated that way.
+
+  **SO THE TWO HALVES SEPARATE, AND SHOULD BE JUDGED SEPARATELY:**
+  - **ACCURACY — certain, and the priority (user).**  Exact cusps, ρ≥0 by construction, the ρ>0 guard made
+    near-vacuous, and the (f2) property recovered.  Costs a GEMM.
+  - **PERFORMANCE — contingent.**  ~20× is available from feeding XC the DM ρ ALONE (drop the correction
+    entirely: cost becomes just the GEMM), but then XC sees \f$\rho_{out}\f$, not \f$\rho_{mix}\f$ — the
+    SCF-trajectory question, which at the fixed point changes nothing.  With the correction kept, the win
+    exists only via the adaptive ball or the interpolate route.
+  **GATING INSTRUMENT (build first):** dump the radial spectrum of \f$(\alpha f-1)\tilde\delta\f$ vs |G| per
+  iteration.  It is computable ENTIRELY INSIDE THE MIXER — \f$\tilde\delta\f$ is already formed there for
+  `ApplySpectralFilter` — so no new plumbing between the mixer and XC is needed to answer it.
+
   **PIN: this is the first thing to look at in Step 3, ahead of anything else** — it is the only item that is
   simultaneously an accuracy repair, a documented-decision regression, and a ~20× on the top bucket.
 - **★★ THE ρ GEMM — LOW-RANK D.  The successor to the refuted Φ-sparsity item, and the only remaining plan
