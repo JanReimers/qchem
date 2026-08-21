@@ -1195,21 +1195,58 @@ last of which is decisive.**
    crash), which is the worst kind.
 
 **RULING: D stays the truth; the factor is a DERIVED, CACHED representation used only by the operation that
-benefits.**  Shape — a policy, two implementations, no new density type:
+benefits.**  ⚠ My first shape for that — a policy MEMBER on `IrrepCD_Core` — is SUPERSEDED by the user's
+(better) one: it would have put factorisation state on EVERY density including those that never factor.
+
+**★ THE DESIGN (user, 2026-08-21): a derived leaf that overrides ONLY `DM_RhoAtPoints`, selected by the
+existing Factory.**  `DM_RhoAtPoints` is already `virtual` on `IrrepCD_Core<T>`, and D + `MixIn` +
+the contractions are all INHERITED unchanged — so LSP holds by construction: same contract, same values
+(exact to roundoff), different cost.
+Note the existing mixins (`IrrepCD_Fourier<PeriodicIrrepCD<T>>`, `IrrepHF_PairBase<T,Leaf>`) ADD faces;
+they do not override core virtuals, and overriding across a virtual-inheritance diamond invites dominance
+ambiguity — so LINEAR derivation is the right mechanism here.
+**One template, so the two orthogonal axes (leaf × factorisation) COMPOSE instead of multiplying:**
+```cpp
+//! Same density, same value, cheaper route: D stays the truth on the Leaf; only rho(r) is factored.
+template <class Leaf, class Fact> class FactoredRho : public Leaf
+{
+public:
+    using Leaf::Leaf;                                  // as the leaves already do from the core
+    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t&,
+                                  const std::map<Irrep,mat_t<T>>&) const override;
+private:
+    mutable mat_t<T> itsL;  mutable size_t itsRank=0;
+    mutable size_t   itsFactorVersion=size_t(-1);      // keyed on IrrepCD_Core::itsVersion
+};
 ```
-class DensityFactorization {                       // policy
-    virtual bool Factor(const hmat_t<T>& D, mat_t<T>& L, rvec_t& spectrum, size_t& rank) const = 0; };
-class PivotedCholeskyFactorization : ...           // spectrum = pivots^2  (self-sufficient: factor+spectrum+rank in one O(n^3/3) call)
-class EigenFactorization            : ...          // spectrum = lambda    (the cross-check)
+- **The invalidation key already exists**: `IrrepCD_Core` holds `size_t itsVersion //!< TRANSIENT freshness
+  serial`.  `DM_RhoAtPoints` is `const`, so the memo is `mutable` — a normal derived cache.
+- **The PSD fallback becomes inheritance, not a branch**: `LowRankFactor` returning false ⇒ call
+  `Leaf::DM_RhoAtPoints(...)`.  That IS "D stays the truth", expressed structurally.
+- **`CompositeCD` needs nothing**: these are `tDM_CD<T>`, so a factored block can sit beside an unfactored
+  one in the same composite — useful, since two spin channels or a real TRIM block may reasonably differ.
+
+**★★ CLIENTS GET INSTANCES FROM THE FACTORY; THE CONCRETE CLASSES STAY INTERNAL (user).**  The seam is
+already there and already returns the ABSTRACT face:
+`template <class T> tDM_CD<T>* IrrepCD_Factory(const hmat_t<T>&, const tobs_t<T>*, Irrep)`, with the leaves
+in `qchem.ChargeDensity.Imp.IrrepCD` (off the public surface).  So this EXTENDS an existing seam:
+```cpp
+enum class RhoRoute { Direct, PivotedCholesky, EigenTrim };     // the ONLY thing that crosses the boundary
+template <class T> tDM_CD<T>* IrrepCD_Factory(const hmat_t<T>&, const tobs_t<T>*, Irrep,
+                                              RhoRoute = RhoRoute::Direct);
 ```
-`IrrepCD_Core` caches (L, rank, spectrum) keyed on the density serial it already has; `CompositeCD`
-unchanged.  **Cutoff should be a RULE, not a number** — the gap is four decades at kT=0 and the sub-gap
-modes are PHYSICAL at kT>0, so a fixed λ bakes in a kT assumption; `LASolverLapack`'s `detect_null_gap`
-is the existing precedent for reading the cut off the spectrum.
+**ONE enum, not two — the LEAF axis must NOT become one.**  The factory already picks the leaf by
+cross-casting the BASIS (`Orbital_DFT_IBS<T,dcmplx>` ⇒ periodic, else the finite leaf, with a
+`if constexpr` guard that a finite COMPLEX density cannot exist).  Deriving it from the argument is
+strictly better than an enum: a caller cannot request a leaf inconsistent with the basis it passed.
+`using Leaf::Leaf` makes all routes constructible identically, so the switch is uniform; the default
+`Direct` leaves every existing call site untouched; and a fourth route later is one enum value plus one
+case, with no client change and nothing new exported.
 **FILED, NOT ACTED ON — the ISP observation underneath:** `tDM_CD` BUNDLES four capabilities and the
-factored form serves one.  If a factored TYPE is ever wanted, the prerequisite is splitting `tDM_CD` into
-narrower faces (grid-evaluable vs mixable vs contractable).  Same shape as the `LatticeSum1E` ISP item; it
-belongs in that deferred session, not forced now by a performance idea.
+factored form serves one.  If a factored TYPE is ever wanted as a first-class density (rather than a leaf
+override), the prerequisite is splitting `tDM_CD` into narrower faces (grid-evaluable vs mixable vs
+contractable).  Same shape as the `LatticeSum1E` ISP item; it belongs in that deferred session, not forced
+now by a performance idea.
 
 ### Further questions (mine)
 
