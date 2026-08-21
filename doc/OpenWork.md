@@ -875,8 +875,15 @@ it) = 3.2–3.9** of n=118 — the WEIGHT is on 3–4 functions — but the coef
 **★★ AND LOCALITY WAS NEVER THE GATE (user, 2026-08-21): "13 delocalized orbitals is a big win."**  Correct,
 and it demotes everything below.  With r≈17 the object count alone carries the idea: **17 orbitals against
 8778 (i,j,R) pair terms**, a dense **GEMM** replacing a SCATTER-bound emit loop (round 4 measured the pair
-path at *"61% irreducible per-(pair,point) emit"*; a GEMM has no scatter), and **O(grid·r) ≈ 8.7 MB against
-1.35 GB of pair streams**.  A delocalised orbital covering the whole cell costs one grid sweep, and 17 grid
+path at *"61% irreducible per-(pair,point) emit"*; a GEMM has no scatter), and a cached table of **O(grid·n) ≈ 60 MB against
+1.35 GB of pair streams**.
+⚠ **CORRECTION on WHAT IS CACHED (user, 2026-08-21): the ORBITALS cannot be cached, Φ can.**  D changes
+every iteration, so the factor L (or \f$U\sqrt\lambda\f$) changes with it and the r orbitals are NOT
+geometry-fixed.  What is cacheable is the **npts × n basis table Φ**, built once; each iteration CONTRACTS
+it, \f$\Psi=\Phi L\f$ (npts × r), and row-norms.  So storage is O(grid·n) ≈ 60 MB for a 40³ grid — not the
+O(grid·r) ≈ 8.7 MB first written here.  **This makes the proposal exactly "run the collocation grid the way
+the XC mesh already runs":** Φ-cache + per-iteration GEMM is the existing `XC_GridEngine` pattern, so the
+machinery is not new.  A delocalised orbital covering the whole cell costs one grid sweep, and 17 grid
 sweeps is nothing beside 8778 boxes.  **Locality is a BONUS (compact boxes), not a precondition** — I had
 elevated it to a gate, which was wrong.
 
@@ -898,7 +905,7 @@ factorisation).  Locality of the two factors:
 
 Cholesky is ~2× more localized — matching the literature — but **both are tiny against n=118**, so the
 natural orbitals are NOT the delocalised canonical picture: MnO's occupied manifold is atomic-like
-(Mn 3s3p3d, O 2s2p).  **So the choice is a mild trade, not a fork:** the ρ GEMM is O(npts·n·r) and wants the
+(Mn 3s3p3d, O 2s2p).  **KEEP BOTH ON THE TABLE (user, 2026-08-21).**  **So the choice is a mild trade, not a fork:** the ρ GEMM is O(npts·n·r) and wants the
 smallest r (eigen, 17 vs 19); collocation wants compact boxes (Cholesky, IPR 3.4 vs 6.8).  Both work.
 ⚠ The user's narrowed pin still applies: the historical objection to trimmed eigen was INVERSION-driven and
 we never invert here — but if D ever leaves the PSD cone, Cholesky is inapplicable and eigen is the route.
@@ -964,7 +971,9 @@ Sources: [Cholesky decomposition techniques in electronic structure theory (chap
   \f$\sum_{\rm pairs}({\rm box\ points})\f$ — a sum over variable-size boxes, which is why it reached
   **5.78 GB** and needed round 3 (→3.70) and the T3 fold (→1.35).  The factored route's footprint is a
   DENSE TABLE of known size: O(grid · n), or with the contraction applied first only **O(grid · r)** —
-  64000 × 17 doubles ≈ **8.7 MB**.  Bounded and predictable versus unbounded and data-dependent.
+  the cached **Φ table, O(grid·n)** — 64000 × 118 doubles ≈ **60 MB** (the ORBITALS cannot be cached: D moves
+  every iteration, so only Φ is geometry-fixed — user, 2026-08-21).  Bounded and predictable versus
+  unbounded and data-dependent.
 - **CPU: GENUINELY OPEN — this is the crossover, and my first framing of it was wrong twice.**
   - "118 singles vs 8778 pairs" was apples-to-oranges: 8778 counts **(i,j,R)** terms INCLUDING lattice
     offsets, 118 counts bare functions.  Singles enumerate **(i,R)**, so with ~133 images per function the
@@ -984,6 +993,20 @@ Sources: [Cholesky decomposition techniques in electronic structure theory (chap
 - **REQUIRED CENSUS before building:** count \f$(i,R)\f$ singles against \f$(i,j,R)\f$ pairs **at the same
   ε**, each weighted by BOX VOLUME.  Object counts alone decide nothing.  The pair side already
   self-reports (`[fold] collocation streams … 8778 → 1909`); the singles side needs the same census.
+- ⚠⚠ **THE STRONGEST STRUCTURAL OBJECTION, and it is not locality: THE FACTORED FORM LOSES THE MULTIGRID.**
+  GPW's multi-level collocation works because \f$\rho=\sum_{ij}D_{ij}\chi_i\chi_j\f$ is **LINEAR in the pair
+  products** — each pair is assigned to the coarsest level that resolves \f$\alpha_i+\alpha_j\f$ and the
+  per-level densities are simply SUMMED (`CollocateDensity` returns one grid density per level).
+  \f$\rho=\sum_m|\Psi_m|^2\f$ is **QUADRATIC in Ψ**, so Ψ must be assembled at ONE resolution before it can
+  be squared — level contributions cannot be summed after squaring.  The factored route therefore forces
+  every function onto the FINE grid, including the DIFFUSE ones that currently live on cheap coarse levels,
+  which is exactly the saving the ladder exists to capture.  (Ironically a single→level assignment would
+  otherwise be SIMPLER than the pair one — one exponent \f$\alpha_i\f$, not a sum.)
+  **Measurable before building:** read the ladder's level occupancies and per-level point counts, and price
+  collocating everything on the fine grid against today's distribution.
+  Workarounds if it bites: assemble Ψ per level and INTERPOLATE to fine before squaring (interpolation
+  error on a SMOOTH Ψ, unlike on ρ), or keep the factored route for the XC MESH only — atom-centred, no
+  ladder — and leave uniform-grid collocation on pairs.
 - ⚠ **System-dependent, and it inverts.**  n=118 here; the battery north-star's supercells grow n and make
   pair screening bite harder.  Both routes may deserve to survive rather than one replacing the other.
 
