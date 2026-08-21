@@ -801,6 +801,138 @@ run 64 cannot show whether it dove or stalled).
 
 ---
 
+---
+
+## NEW IDEA — fast evaluation of DM-ρ(r) by FACTORING D
+
+**The idea.**  \f$\rho(r)=\Phi(r)^\dagger D\,\Phi(r)\f$ is evaluated everywhere in this code as a quadratic
+form in D — a sum over PAIRS of basis functions.  D is a density matrix, so it is PSD with rank = the
+occupied count, not n.  Factor it once, \f$D=LL^\dagger\f$ with L an (n × r) pivoted-Cholesky factor, and
+\f[ \rho(r)=\lVert L^\dagger\Phi(r)\rVert^2 \]
+which is a sum over SINGLES.  Two things change at once: the cost drops from O(npts·n²) to O(npts·n·r), and
+the fundamental object stops being a pair.
+
+**What is already MEASURED (2026-08-20/21), so this is not speculation:**
+
+| | |
+|---|---|
+| numerical rank of the real mixed D, MnO, per spin | **14–17** against n=118 |
+| ⇒ arithmetic ratio n/r | **7.0–8.4×** |
+| rank stability, tol 1e-6 … 1e-12 | 14–17 — a CLEAN GAP, so the cut is read off, not tuned |
+| \f$\lambda_{\min}/\lambda_{\max}\f$ | −1e-16 ⇒ **PSD to roundoff** |
+| exactness | LAPACK's own pivot floor ⇒ residual at ROUNDOFF; A/B at IDENTICAL energy |
+| implemented | `LowRankFactor` + the thin GEMM in `IrrepCD_Core::DM_RhoAtPoints` (`QCHEM_DM_LOWRANK=0` opts out) |
+| instruments | `GPW_DM_RANK=1` (rank + PSD census) |
+
+**Why D is PSD here, since the whole thing rests on it:** only `LinearMixer` touches D and its α is clamped
+≤ 1, so it is a CONVEX combination of PSD matrices; the extrapolating mixers (Kerker, Pulay, Broyden) are
+FIELD mixers and never touch D.  The guard is not assumed — `LowRankFactor` checks conserved mass
+(\f$\lVert L\rVert_F^2\f$ vs Tr D) and returns false, keeping the caller on the full path, because LAPACK
+`pstrf` does NOT error on an indefinite matrix; it stops early and reports a rank, which would silently
+truncate ρ.
+
+### Q1 — can we use this for Vxc IN COMBINATION WITH MIXING?
+
+**Partial answer: yes, and there are three routes, but the cheap one is not obviously the accurate one.**
+The Hamiltonian is built from the MIXED density, and on Kerker/Pulay recipes that density is a G-space
+field with no D — which is exactly why XC currently falls back to sampling \f$\tilde\rho_{mix}\f$ by direct
+summation at every mesh point (35 s / 6 iterations; the largest per-iteration cost).
+
+- **(a) Mix D itself.**  `LinearMixer` is convex ⇒ PSD ⇒ everything stays factorable and exact.  Loses
+  Kerker's G-dependent preconditioning, which NaF's low-G slosh and MnO's AFM basin lean on.  One-line A/B.
+- **(b) Feed XC \f$\rho[D]\f$ alone.**  Cost collapses to the GEMM (~20×).  XC then sees \f$\rho_{out}\f$,
+  not \f$\rho_{mix}\f$ — a TRAJECTORY change; at the fixed point \f$\rho[D]=\rho_{mix}\f$, so the converged
+  answer is unchanged.  Cheapest, and the least justified.
+- **(c) Cusp restoration.**  \f$\rho_{XC}=\rho_{mix}^{BL}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — the mixed
+  density plus the sharp content band-limiting destroys, which is the content the atom-centred mesh exists
+  to integrate.  The deficit is nearly ITERATION-INVARIANT (core electrons barely move) and → 0 at
+  convergence.  **Cost is NOT automatically better**: it still needs one G-space sampling, so it is today's
+  cost PLUS a GEMM unless the correction's {G} truncates.
+
+  **The algebra says it does not truncate trivially.**  With Kerker,
+  \f$\tilde\rho_{mix}-\tilde\rho[D]=(\alpha f(G)-1)\tilde\delta\f$, which at high G tends to
+  \f$-(1-\alpha)\tilde\delta\f$ — 75% of the residual's high-G content at α=0.25.  What rescues it is that
+  the whole correction is ∝ the SCF RESIDUAL, so an **adaptive G-ball keyed to \f$|\tilde\delta|\f$** is
+  cheap late and accurate early, and the converged answer is \f$\rho[D]_{exact}\f$ either way.
+- **GATING INSTRUMENT (build first):** the radial spectrum of \f$(\alpha f-1)\tilde\delta\f$ vs |G| per
+  iteration — computable ENTIRELY INSIDE THE MIXER, since \f$\tilde\delta\f$ is already formed there for
+  `ApplySpectralFilter`.  No mixer↔XC plumbing needed to answer it.
+- ⚠ Honest note: (c) does NOT give Hartree and XC the identical array, as first claimed here.  The defence
+  is that Poisson is LINEAR and diagonal in G (band-limiting converges fast) while XC is a NONLINEAR
+  POINTWISE functional needing the cusp — each term gets the representation its operator requires.
+
+### Q2 — is there any literature on this?
+
+**I believe yes, under names worth searching, but I cannot verify citations from here — treat the
+following as SEARCH TERMS and probable prior art, not as references.**
+
+- **"Cholesky orbitals" / Cholesky decomposition of the DENSITY MATRIX** (Aquilante, Koch, Pedersen,
+  Sánchez de Merás and co-workers, in the Cholesky-techniques line of work).  Pivoted Cholesky of D is, I
+  believe, an established way to generate **localized occupied orbitals** — which matters far beyond
+  citation etiquette; see Q3.  ⚠ Distinguish from **Cholesky decomposition of the ERI tensor** (Beebe &
+  Linderberg), which is a different and much better-known use of the same word.
+- **Plane-wave / PAW codes evaluate ρ from ORBITALS by construction** (\f$\rho=\sum_m f_m|\psi_m|^2\f$).
+  So the factored form is the NORM outside the Gaussian world; what is unusual is the local-orbital
+  convention of going through D.  The interesting literature is therefore on the CROSSOVER, not the idea.
+- **Density-matrix vs orbital grid evaluation in DFT implementations**, and the screening-driven choice
+  behind CP2K/Quickstep's pair collocation.
+- Adjacent: density-matrix **purification** and linear-scaling methods, where PSD-ness and idempotency of D
+  are load-bearing in the same way they are here.
+- **Action:** a literature check should precede building — if Cholesky orbitals are standard, their known
+  properties (locality, stability, behaviour under near-degeneracy) are free knowledge, and the failure
+  modes are already documented by someone else.
+
+### Q3 — can this ultimately kill the RAM-hungry PAIR STREAMS?
+
+**Separate the two halves; they have different answers.**
+
+- **RAM: plausibly YES, and for a structural reason.**  The pair streams' footprint is
+  \f$\sum_{\rm pairs}({\rm box\ points})\f$ — a sum over variable-size boxes, which is why it reached
+  **5.78 GB** and needed round 3 (→3.70) and the T3 fold (→1.35).  The factored route's footprint is a
+  DENSE TABLE of known size: O(grid · n), or with the contraction applied first only **O(grid · r)** —
+  64000 × 17 doubles ≈ **8.7 MB**.  Bounded and predictable versus unbounded and data-dependent.
+- **CPU: GENUINELY OPEN — this is the crossover, and my first framing of it was wrong twice.**
+  - "118 singles vs 8778 pairs" was apples-to-oranges: 8778 counts **(i,j,R)** terms INCLUDING lattice
+    offsets, 118 counts bare functions.  Singles enumerate **(i,R)**, so with ~133 images per function the
+    comparable figure could be ~15k — possibly MORE objects than pairs.
+  - **Pairs screen far harder**, and this is the real counterweight: the Gaussian product theorem gives
+    \f$e^{-\mu|R_{ij}|^2}\f$ decay in the SEPARATION (\f$\mu=\alpha_i\alpha_j/(\alpha_i+\alpha_j)\f$),
+    while a single is screened only by its own reach.  That is why CP2K collocates pairs.
+  - "Singles are more diffuse" is NOT a real objection (user): the most diffuse pair is diffuse×itself at
+    \f$2\alpha_{\min}\f$ — factor 2 in exponent, \f$\sqrt2\f$ in radius, ~2.8 in box volume — and cost is
+    dominated by exactly those diffuse pairs.
+  - **★ THE LOCALIZATION QUESTION MAY DECIDE IT.**  If pivoted Cholesky really does yield LOCALIZED
+    orbitals (Q2), then \f$\psi_m\f$ has a COMPACT box rather than a whole-cell one, and the r=14–17
+    orbitals collocate cheaply — which would make the singles route win outright.  If instead the columns
+    of L are delocalized, each \f$\psi_m\f$ costs the whole grid and the route is much weaker.
+    **MEASURE THE SPATIAL EXTENT OF L's COLUMNS.**  This is the single most decisive unmeasured quantity in
+    the whole idea, and it is cheap: the factor already exists in `LowRankFactor`.
+- **REQUIRED CENSUS before building:** count \f$(i,R)\f$ singles against \f$(i,j,R)\f$ pairs **at the same
+  ε**, each weighted by BOX VOLUME.  Object counts alone decide nothing.  The pair side already
+  self-reports (`[fold] collocation streams … 8778 → 1909`); the singles side needs the same census.
+- ⚠ **System-dependent, and it inverts.**  n=118 here; the battery north-star's supercells grow n and make
+  pair screening bite harder.  Both routes may deserve to survive rather than one replacing the other.
+
+### Further questions (mine)
+
+1. **Does the INTEGRATE-BACK factor too?**  Partly answered: \f$h_{ij}=\langle\chi_i|V|\chi_j\rangle
+   =(\Phi^\dagger W\Phi)_{ij}\f$ is already a Φ-shaped GEMM in `XC_GridEngine` — so the XC side is ALREADY
+   pair-free.  It is the HARTREE/density-collocation path on the uniform grid that still pays pairs, so Q3
+   is really about that path alone.
+2. **The rank does NOT help \f$h\f$.**  \f$\Phi^\dagger W\Phi\f$ is O(npts·n²) with no D in it, so the
+   H_xc GEMM stays quadratic in n however small r is.  Any "everything becomes O(n·r)" claim is wrong.
+3. **Multi-k:** each k-block has its own \f$D^k\f$ and factors independently, so the rank is per-block and
+   the scheme should carry over — worth confirming that the per-block ranks stay small at MNO_KMESH=2.
+4. **Does r stay small where it matters?**  r=14–17 was measured under Fermi smearing at kT=5e-3 with a
+   gap.  METALS (Al) and larger smearing put more states in the fractional tail.  Re-run `GPW_DM_RANK=1`
+   on Al and on a metallic recipe before assuming the ratio generalises.
+5. **Does the factorisation cost stay negligible at scale?**  O(n³) per density serial is nothing at
+   n=118 (~5e5 flops vs a ~1e8 GEMM), but it grows faster than the GEMM it saves.  Find the n where they
+   cross; it is probably far away, but it should be a known number rather than an assumption.
+6. **Interaction with the T3 stream fold.**  The fold's 4.60× is a reduction on PAIRS.  Orbitals are not
+   individually symmetry-adapted, so an equivalent fold on singles may not exist — in which case the
+   honest comparison is singles against **1909 folded** pairs, not 8778 raw.
+
 ## Parked threads (real work, deliberately not in the plan above)
 
 - **A. Spherical SALC — S3b, the libcint-spherical extractor**  ·  `doc/SphericalSALCPlan.md`.  The ONLY
