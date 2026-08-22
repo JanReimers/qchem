@@ -963,6 +963,134 @@ flag sourcing ρ from a Φ GEMM inside `PWFittedVxc` while leaving H_xc on the s
 is two functionals.  `XC_GridEngine` owns ρ AND its quadrature over one Φ table, making the mismatch
 unrepresentable; `PWFittedVxc` splits those owners, which is what permitted the bug.  Reverted.
 
+### ★★★ DESIGN ITEM — SEPARATION OF CONCERNS IN THE XC TERMS (user, 2026-08-22)
+
+**The ask:** `fit basis {Delta,PW,aux} x quad grid {Uniform,Becke} x op assembly {pair,singles} x
+functional {LDA,GGA,hybrid}` should be freely combinable — *"the software should not hard code certain
+combos and not others"* — **and every combination must be variational, so GDM just works.**  What follows is
+what a day of measuring says the axes actually are; the short version is that one of the four is not an axis,
+one coupling is mathematical and must be made structural, and one of our two XC terms is misnamed.
+
+**1. ⛔ THE `PWFittedVxc` NAME IS A LIE ON THE PRODUCTION PATH.**  Since 0.5(f2) the RAW branch is the
+default and it performs **no plane-wave fit at all** — the code's own comment says *"No ball fit anywhere"*.
+It evaluates \f$v_{xc}\f$ pointwise on the fit raster and assembles H through `applyRawAdjoint`.  So it is a
+**δ-basis quadrature**, exactly like `DeltaFittedVxc`; `VxcFit::PlaneWave` names a route it does not take.
+(Discovered the hard way: a `GPW_FIELD_SPECTRUM` census of the fit coefficients printed nothing, because the
+coefficients are never computed.)  The genuinely-fitted BALL branch survives only as a dormant fallback.
+
+**2. AXIS C (pair vs singles) IS AN ALGORITHM, NOT A SEMANTICS.**  On the SAME points both compute
+\f[ H_{ij}=\sum_g w_g\,v(r_g)\,\chi_i(r_g)\chi_j(r_g) \f]
+— the pair route materialises \f$\chi_i\chi_j\f$ into multigrid boxes, the singles route contracts through
+Φ.  Same formula, different evaluation order; they differ ONLY through the pair route's ε-screening and
+multigrid truncation.  So it is a COST/TRUNCATION strategy, not a user-facing choice.
+**⚠ But it is not a free choice either, and neither route always wins** (user's question): the pair cost
+scales with the SCREENED pair count and wins where screening bites (large cells, diffuse bases); the singles
+GEMM wins where n is small against npts or screening is weak — MnO's 4-atom cell measured a Φ-sparsity
+ceiling of only ~2×, i.e. screening barely helps there.  So it is a **crossover**, and the right shape is the
+one `UnitCellKind::Auto` already uses: an automatic selector with an explicit override, **latched for the
+run** (switching mid-SCF changes the truncated operator, i.e. the functional — the same hazard the RAW/BALL
+latch exists for).
+
+**3. ★ THE ONE MATHEMATICAL COUPLING: the ρ-route and the H-route MUST BE ADJOINT.**  \f$H=\partial
+E/\partial D\f$ holds only if the integrate-back is the EXACT adjoint of the collocation *on the same
+truncated operator* — what `GPW.RawXCConsistencyFD` gates.  So these are **not two axes; they are one object
+with two faces.**  `XC_GridEngine` already is that (`Rho()` and `Matrix()` over one Φ).  `PWFittedVxc` splits
+them across two owners, which is exactly why a mismatch was expressible there — MEASURED 2026-08-22:
+unscreened singles ρ + screened pair H sent Si from 14 to 60 iterations and moved E by 35 μHa.
+
+**4. A FITTED REPRESENTATION IS VARIATIONAL IFF E IS DEFINED THROUGH THE FIT.**  \f$H_{ij}=\sum_k c_k\langle
+c_k|\chi_i\chi_j\rangle\f$ is fine — with c the STATIONARY point of the least-squares fit in the metric that
+also defines E (the robust/Dunlap form), the \f$dc/dD\f$ terms vanish and H is exactly \f$\partial
+E/\partial D\f$.  This is standard in molecular DFT.  Today's BALL route is non-variational because E comes
+from grid quadrature while H comes from the fit — TWO DEFINITIONS OF ONE ENERGY, not a defect of fitting.
+
+**⇒ THE REAL AXES ARE THREE, AND THEY COMMUTE:**
+
+| axis | what it is |
+|---|---|
+| **Quadrature** | points + weights + the adjoint-paired ρ/H routes; pair-vs-singles is INTERNAL strategy |
+| **Vxc representation** | δ (identity) · PW · Gaussian aux — fitted ones use the ROBUST form |
+| **Functional** | LDA · GGA · hybrid (already abstract: `ExFunctional`) |
+
+**⇒ THE ABSORPTION.**  `PWFittedVxc`'s production behaviour IS `DeltaFittedVxc` over a raster-backed mesh
+with the pair strategy.  Its points are already expressible (wrap `G_Quadrature::GridPoints()` with weight
+Ω/N).  So:
+- `XC_GridEngine` gains the strategy — same two faces, internally Φ-backed (singles) or 3C-tensor-backed
+  (pair).  ⚠ One structural wrinkle: the pair strategy needs `Overlap3C(*fitBasis)`'s
+  `applyRaw`/`applyRawAdjoint`, so a pair-strategy engine takes the FIT BASIS where a singles engine takes
+  only the mesh.  Different ctors, same faces.
+- The quadrature XC term (today's `DeltaFittedVxc`, itself misnamed — its "fit basis" is the identity)
+  becomes THE term.  `PWFittedVxc` has nothing left on the production path.
+- What remains of it is the BALL branch — and THAT is what deserves the "Fitted" name, rebuilt in the robust
+  form.  `itsRhoIsRaw`'s latch, the BALL fallback and the real-TRIM throw re-home there.
+- `VxcFit` then selects REPRESENTATION (identity vs fitted), not secretly the grid AND the assembly.
+
+**⇒ AND "GDM JUST WORKS" BECOMES STRUCTURAL**, resting on exactly two things: ρ and H from one adjoint-paired
+object (a mismatch becomes unrepresentable), and any fit defined in the robust form.  The FD gate then
+becomes a test PARAMETERISED OVER ALL COMBINATIONS, so a new one cannot ship non-variational.
+
+**THE CELLS THAT ARE UNREACHABLE TODAY — and note two of them need no Becke mesh at all.**  "Uniform" is TWO
+point sets in this code: the fit raster (corners \f$i/N\f$, N from the fit G-ball) and
+`UnitCell::CreateIntegrationMesh` (midpoints \f$(i+\frac12)/n\f$).  Each is welded to ONE assembly:
+
+| points | pair | singles |
+|---|---|---|
+| fit raster (corners) | ✅ `PWFittedVxc` | ❌ |
+| UnitCell mesh (midpoints) | ❌ | ✅ Delta+Uniform |
+| Becke | ❌ (no box structure to gather into — the genuinely hard one) | ✅ Delta+Becke |
+
+**MEASURED INPUTS ALREADY IN HAND.**  `VxcFit::Delta + UnitCellKind::Uniform` is supported, documented (§6a
+fit/grid separation) and had simply never been RUN — Si there is BIT-IDENTICAL under factoring and converges
+11 vs 14 iterations.  `GPW_MESH_ORTHO=M` measures \f$T(\Delta G)=\sum_g w_g e^{i\Delta G\cdot r_g}\f$, the
+whole non-orthogonality of a PW basis under a mesh: uniform ~1e-15 (exact), Becke 1e-3 rising to 2.6e-2 by
+\f$|\Delta G|>6\f$, and L=29→35 improves the high-\f$|\Delta G|\f$ end 2.7× and the low end not at all —
+the angular rule running out.  So a PW fit on Becke is WELL CONDITIONED where it matters.  ⚠ And the fit
+basis is built at `relCutoff * {G}_rho` with `GridCutoffFactor()` = 1.0 for every functional, so v_xc uses
+the FULL density ball (24k G on MnO) — never swept below 1.  At 1/3 the radius that is ~900 vectors and the
+metric solve becomes trivial; the honest way to pick it is E_xc convergence, not a rule of thumb.
+
+**⇒ THE MECHANISM: `CreateVxcFitBasisSet` MAKES ALL THE DECISIONS, AND KEEPS ITS NAME (user, 2026-08-22).**
+The basis already has TWO factories with the SAME inputs returning different halves of one answer --
+`CreateVxcFitBasisSet(st,mp)` and `CreateXCQuadrature(st,mp)` (the latter already a BUNDLE:
+`{mesh, fold, sigmas, flipFixed}`).  `Ham_PW_DFT::BuildTerms` then re-decides on `becke`/`polarized`/`delta`
+and picks a TERM CLASS -- which is where the combinations get hard-coded.  Fix: the quadrature is ABSORBED
+into the fit basis and `BuildTerms` stops switching, because **under the weight-vector view a fit basis is
+not defined without points** (\f$W_c[g]=w_g c^*(r_g)\f$), so the mesh is CONSTITUTIVE of the basis, not a
+sibling of it.  `PlaneWaveFit_IBS` already works this way (it IS a `G_Quadrature`).
+- ⚠ NOT an "XCEngine" (user): *"Engine just means something that does some work, so it adds no info"* --
+  and `XC_GridEngine` is already an instance of that non-name.  The factory keeps its name and its job.
+- **The δ case stops being a null-object smell.**  The 2026-08-01 objection was to a ZERO-FUNCTION
+  pseudo-basis; a **delta basis** is a different object -- n_pts genuine δ functions, exact on that point
+  set, metric DIAGONAL (\f$\langle\delta_g|\delta_{g'}\rangle=w_g\delta_{gg'}\f$), fit = identity.  Under
+  the old framing there was nothing to represent; under "a fit basis is a family of weight vectors" it is the
+  most natural basis there is, and the doc's *quadrature is the δ-basis special case of fitting* becomes a
+  TYPE instead of an analogy.
+- **The assembly strategy needs NO extra input**: both routes are already functions of (orbital basis, fit
+  basis) -- pair is `orb.Overlap3C(*fitBasis).applyRawAdjoint`, singles is Φ at the fit basis's points.
+  Capability decides what is POSSIBLE, policy (beside `ResolveXCMesh`) decides which.
+
+**⇒ THE ACTUAL CHANGE SET IS SMALL AND LOCAL -- `FIT_SF_ABS<T>` NEEDS NO WIDENING.**  ⛔ (I first claimed a
+five-basis blast radius; wrong.)  That face is thin (`isOrtho` + `SymmetrizeRaster`) and the quadrature is
+already reached by CAPABILITY CROSS-CAST, not through it (`OrthoScalarFitter::FitGrid()` casts to
+`G_Quadrature`).  So the molecular bases (Atom, SymmetryAdapted, the generic default) are untouched.  What
+actually blocks the missing cells is that **`G_Quadrature` BUNDLES two different things**:
+
+| member | universal? |
+|---|---|
+| `GridPoints()`, `Integral(f)` | ✅ any point set / any weights |
+| `RhoOnGrid`, `ForwardFFT`, `GridCoeff`, `FieldCoeffs` | ❌ **RASTER ONLY** |
+
+A δ-basis-over-Becke can provide the first row and cannot provide the second, and today they are one face,
+so it cannot answer at all.  **And the narrow face already exists: points+weights IS `qcMesh::Mesh`** (user's
+standing guidance to use it as much as possible; NB its weights need not be quadrature weights -- they can
+carry PW phases, which is what makes the weight-vector view a type and not a metaphor).  So:
+1. split `G_Quadrature` → a `qcMesh::Mesh` accessor (universal) + the raster transform face (`PW_Grid_Evaluator`);
+2. `OrthoScalarFitter::FitGrid()` splits the same way (points/Integral off the mesh, transforms off the raster);
+3. a δ fit-basis type carrying a `qcMesh::Mesh`;
+4. `CreateVxcFitBasisSet` picks basis + mesh; `CreateXCQuadrature`'s bundle folds into the returned basis.
+⚠ One sizing trap: a δ basis has n_pts "functions", so anything reasoning about a fit basis by COUNTING
+functions (grid sizing, memory reports, the `relCutoff` arithmetic) must not choke on 97160.
+
 ### Q1 — can we use this for Vxc IN COMBINATION WITH MIXING?
 
 **Partial answer: yes, and there are three routes, but the cheap one is not obviously the accurate one.**

@@ -161,20 +161,6 @@ public:
     //! term BORROWS it (the fitter owns it).
     virtual const BasisSet::G_Quadrature& Grid() const=0;
 
-    //! \brief Fit a field ALREADY SAMPLED on a CALLER-SUPPLIED quadrature -- the mesh-general sibling of
-    //! \c DoFit, which self-samples on \c Grid() above.
-    //!
-    //! The point is the unwelding: \c DoFit ties the integration mesh to the FIT BASIS (its own raster), so
-    //! choosing a plane-wave fit also chose the grid.  Those are orthogonal decisions -- the projection
-    //! \f$\langle c|v\rangle=\sum_g w_g c^*(r_g)v(r_g)\f$ is an ordinary quadrature over any point set --
-    //! and this entry point lets the CALLER own the mesh while the fitter owns only the basis.
-    //! \note The coefficients TRUNCATE outside the fit \f$\{G\}\f$ where the raster route ALIASES; the
-    //! two agree only on a converged fit grid.  Default THROWS rather than silently self-sampling.
-    virtual void DoFitOnMesh(const rvec3vec_t& /*pts*/, const rvec_t& /*w*/, const rvec_t& /*vals*/)
-    {
-        throw std::logic_error("GriddedScalarFitter::DoFitOnMesh: this fitter cannot project a field "
-            "sampled on a caller-supplied quadrature; it only self-samples on its own grid (DoFit).");
-    }
 };
 
 //! \brief Abstract density fitter -- the MINIMAL CORE a Hartree term needs: fit a density, then contract it

@@ -2,6 +2,8 @@
 module;
 #include <cassert>
 #include <algorithm>
+#include <cstdlib>    // getenv (GPW_FIELD_SPECTRUM)
+#include <iostream>
 #include <complex>
 #include <functional>
 #include <map>
@@ -74,10 +76,49 @@ ivec3_t PW_Evaluator::FFTGrid() const
 // The fitted field's coefficients over this basis's own {G} (a GridCoeff gather) -- for op(r) evaluation.
 // A DENSITY/FIT operation (iterates {G} + the FFT grid), so it lives on PW_Grid_Evaluator, reaching {G} via
 // the base accessor Gs() and the per-G lookup via the held grid engine.
+// GPW_FIELD_SPECTRUM=1: HOW BIG DOES THIS {G} BALL ACTUALLY NEED TO BE?
+//
+// The Vxc fit basis is built at {G}_vxc = relCutoff * {G}_rho and relCutoff is 1.0 for every functional
+// today (GridCutoffFactor defaults to 1), so v_xc is expanded over the FULL density ball -- 24k vectors on
+// MnO.  That matters beyond memory: a plane-wave fit on a NON-RASTER mesh is no longer discretely
+// orthonormal, so it needs the overlap metric S = <c_a|c_b>, and |{G}|^2 at 24k is not a matrix anyone
+// inverts.  At 1/3 the RADIUS it is 1/27 the volume -- ~900 vectors, S ~ 900^2, one Cholesky per geometry.
+//
+// So the question is where the coefficients have actually decayed, and it is answerable for free from the
+// fit that just ran.  Reported as the CUMULATIVE FRACTION OF sum|c|^2 inside a given radius fraction: read
+// off the radius that captures 1-eps and that is the ball the fit needs.  Physically v_xc ~ rho^(1/3) for
+// Dirac exchange, and the cube root flattens rho's cusps, so its spectrum should decay much faster than the
+// density's -- this measures whether it does rather than assuming it.
+void ReportFieldSpectrum(const ΔG_Map& m, const ReciprocalLattice& recip)
+{
+    static const bool on=std::getenv("GPW_FIELD_SPECTRUM")!=nullptr;
+    if (!on || m.empty()) return;
+    double gmax=0.0, total=0.0;
+    for (const auto& [dm,c] : m) { gmax=std::max(gmax, recip.GetGLength(dm)); total+=std::norm(dcmplx(c)); }
+    if (gmax<=0.0 || total<=0.0) return;
+    constexpr size_t kNBin=10;
+    double binPow[kNBin]={0,0,0,0,0,0,0,0,0,0}; size_t binN[kNBin]={0,0,0,0,0,0,0,0,0,0};
+    for (const auto& [dm,c] : m)
+    {
+        size_t b=size_t((recip.GetGLength(dm)/gmax)*double(kNBin)); if (b>=kNBin) b=kNBin-1;
+        binPow[b]+=std::norm(dcmplx(c)); binN[b]++;
+    }
+    std::cout<<"[field spectrum] |{G}|="<<m.size()<<" Gmax="<<gmax
+             <<"  cumulative fraction of sum|c|^2 inside radius x*Gmax:";
+    double cum=0.0; size_t cumN=0;
+    for (size_t b=0;b<kNBin;b++)
+    {
+        cum+=binPow[b]/total; cumN+=binN[b];
+        std::cout<<"  "<<(b+1)*10<<"%:"<<cum<<"("<<cumN<<"G)";
+    }
+    std::cout<<std::endl;
+}
+
 ΔG_Map PW_Grid_Evaluator::FieldCoeffs(const cvec_t& Vt) const
 {
     ΔG_Map m;
     for (const ivec3_t& G : Gs()) m[G]=itsGrid->GridCoeff(Vt, G);
+    ReportFieldSpectrum(m, Recip());
     return m;
 }
 
