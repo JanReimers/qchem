@@ -18,6 +18,7 @@ module;
 export module qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator;
 export import qchem.ReciprocalLattice;        // ReciprocalLattice / UnitCell (the B cell; source of G)
 export import qchem.BasisSet.Internal.GMap;   // ΔG_Map (the G-space coefficient map EvalField/RhoOnGrid speak)
+export import qchem.Mesh;                     // qcMesh::Mesh -- the raster AS points+weights (the universal face)
 import qchem.Types;                           // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, dcmplx
 
 export namespace qchem::BasisSet::Lattice_3D
@@ -44,8 +45,14 @@ public:
 
     //! Fractional \f$(i/n)\f$ grid (weight \f$\Omega/\prod n\f$), the raster order \c RhoOnGrid / \c ForwardFFT use.
     std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const;
-    //! Cartesian points of the FFT grid (raster order): \f$r=A\,(i/N)\f$ -- the quadrature mesh a fitter samples on.
-    const rvec3vec_t&    GridPoints() const;
+    //! \brief THE RASTER AS A MESH: points \f$r=A\,(i/N)\f$ in raster order, each with weight
+    //! \f$\Omega/N_{pts}\f$ -- this engine's answer to the universal \c BasisSet::Quadrature face.
+    //! Built once, lazily (it is also the storage \c GridPoints reads from), and shared by every k-block
+    //! that shares this engine.  No site blocks: a uniform raster carries no atomic partition.
+    const qcMesh::Mesh&  Mesh() const;
+    //! Cartesian points of the FFT grid (raster order) -- \c Mesh().Points(), kept as its own name because
+    //! the collocation/evaluation paths ask for points and nothing else.
+    const rvec3vec_t&    GridPoints() const {return Mesh().Points();}
     //! \f$\rho(r)\f$ on the FFT grid = inverse-FFT of a G-space map keyed by \f$\Delta m\f$ (coefficients are physical, \f$/\Omega\f$).
     rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const;
     //! Forward-FFT a real-space grid field to the FULL, normalised (\f$/N_{pts}\f$) G-space grid (raster order).
@@ -82,7 +89,7 @@ private:
     ReciprocalLattice  itsRecip;      //!< reciprocal cell \f$B\f$; source of \f$G=B\,m\f$ and the direct cell \f$A\f$
     double             itsVolume;     //!< direct cell volume \f$\Omega\f$
     ivec3_t            itsN;          //!< FFT grid divisions \f$N\f$
-    mutable rvec3vec_t itsGridPoints; //!< cached Cartesian grid points (built once)
+    mutable qcMesh::Mesh itsMesh;     //!< the raster as points+weights (built once; GridPoints reads it)
 };
 
 } //namespace

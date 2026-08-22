@@ -9,7 +9,7 @@ module;
 #include <iosfwd>
 #include <map>
 #include <set>      // Ven_PP_NonLocal::itsByLSeen (the GPW_NL_PER_L diagnostic)
-#include <vector>   // XC_GridEngine sigmas/flipFixed (Shubnikov S3)
+#include <vector>   // XC_SinglesQuadrature sigmas/flipFixed (Shubnikov S3)
 #include <memory>
 #include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
@@ -21,7 +21,7 @@ import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assemb
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
-import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the DeltaFittedVxc quadrature)
+import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the XC quadrature the terms integrate on)
 import qchem.Symmetry.Lattice_3D.Fold;          // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 import qchem.Symmetry.Irrep;                    // Irrep: the Phi-table key (spatial block identity)
 
@@ -29,7 +29,7 @@ export namespace qchem::Hamiltonian
 {
 
 //! Process-wide diagnostic toggle (default OFF).  When true,
-//! \c PWFittedVxc::RefreshRhoGrid emits a one-line report each time it (re)collocates the density: the grid-integrated
+//! \c XC_PairQuadrature::Refresh emits a one-line report each time it (re)collocates the density: the grid-integrated
 //! charge \f$\int\rho_{\text{grid}}\f$, the analytic charge \f$\mathrm{Tr}(DS)\f$, and their difference -- the
 //! CHARGE LOST TO GRID TRUNCATION (== CP2K's "Electronic density on regular grids: <int> <error>" readout).
 //! A cheap, controlled number for "is the density cutoff high enough" (see doc/GPWPlan.md \S0).  Flip in place:
@@ -208,89 +208,66 @@ private:
     fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
 };
 
-//! Exchange-correlation term for a plane-wave basis, carrying ONE LDA functional (so a full LDA uses a
-//! Dirac PWFittedVxc + a VWN PWFittedVxc, mirroring the molecular SlaterExchange+VWN split).  The matrix is the basis
-//! integral of v_xc(rho(r)); the energy is integral eps_xc(rho) rho.  Both are real-space scalar fields
-//! the term composes (functional o density) and hands to the basis -- the basis owns the integration.
-class PWFittedVxc
-    : public virtual cDynamic_HT
-    , private        cDynamic_HT_Imp
-    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
+//! \brief THE XC QUADRATURE: ONE OBJECT WITH TWO ADJOINT-PAIRED FACES -- \f$\rho\f$ at the points from
+//! the density, and \f$\langle i|v|j\rangle\f$ from a field at those SAME points.
+//!
+//! WHY THEY ARE ONE OBJECT AND NOT TWO AXES (doc/OpenWork.md, "separation of concerns in the XC terms").
+//! \f$H=\partial E/\partial D\f$ holds only if the integrate-back is the EXACT ADJOINT of the collocation
+//! ON THE SAME TRUNCATED OPERATOR -- what the \c GPW.RawXCConsistencyFD gate enforces.  Split the two
+//! across separate owners and a mismatch becomes EXPRESSIBLE: measured 2026-08-22, an unscreened singles
+//! \f$\rho\f$ paired with a screened pair \f$H\f$ sent Si from 14 to 60 iterations and moved E by 35 μHa.
+//! With both faces on one type, the pairing is a class invariant instead of a convention, and "GDM just
+//! works" stops resting on discipline.
+//!
+//! The two implementations below are a COST/TRUNCATION STRATEGY, not a semantics: on the same points both
+//! compute \f$H_{ij}=\sum_g w_g v(r_g)\chi_i(r_g)\chi_j(r_g)\f$, differing only in evaluation order and
+//! hence in what each truncates (the pair route's ε-screening and multigrid boxes).  Neither always wins --
+//! pair scales with the SCREENED pair count, singles with \f$n_{pts}n^2\f$ -- so which one runs is decided
+//! by \c MakeXCQuadrature from the fit basis's capabilities, once, and LATCHED for the run (switching
+//! mid-SCF would change the truncated operator, i.e. the functional).
+class XC_Quadrature
 {
 public:
-    typedef std::shared_ptr<ExFunctional> xc_t;
-    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
-    //! Built with the Vxc fit basis obtained from the orbital basis's factory (BuildTerms creates it ONCE,
-    //! never assuming orbital==fit) -- the overlap-metric sibling of Vee_Hartree.
-    //! \brief \a quad is THE QUADRATURE this term integrates on -- points and weights, nothing else.
-    //!
-    //! WHY IT IS AN ARGUMENT (step 1 of the fit/grid unwelding, user 2026-08-22).  This term used to
-    //! quadrature on \c itsScalarFitter->Grid(), i.e. on ITS OWN FIT BASIS's FFT raster -- so choosing a
-    //! plane-wave \c VxcFit silently also chose the integration mesh, and the two decisions could not be
-    //! varied independently.  They are ORTHOGONAL: \f$\langle c_G|v_{xc}\rangle=\sum_g w_g v_{xc}(r_g)
-    //! e^{-iG\cdot r_g}\f$ is an ordinary real-space quadrature that takes ANY mesh, and \f$v_{xc}\f$ is
-    //! pointwise-NONLINEAR so it must be evaluated at points on any route -- the FFT is an optimisation
-    //! available when the points happen to be that raster, never a requirement.
-    //!
-    //! EMPTY (the default) = fall back to the fit basis's own raster, i.e. exactly the historical points and
-    //! weights.  So this changes the DEPENDENCY DIRECTION without changing a number; the caller may now hand
-    //! a different mesh (a \c UnitCell midpoint grid, a Becke mesh) and the term will integrate there.
-    //! \note The two "uniform" grids are NOT the same point set: the fit raster is at fractional CORNERS
-    //! \f$i/N\f$ with N from the fit G-ball, while \c UnitCell::CreateIntegrationMesh(Uniform) is at
-    //! MIDPOINTS \f$(i+\tfrac12)/n\f$ with \c n=mp.nUniform.  Both are valid \f$\Omega/N\f$ rules and
-    //! agree on well-resolved integrands, but they differ in aliasing phase -- so swapping them is a
-    //! behaviour change, not a refactor.
-    PWFittedVxc(const xc_t&, fbs_t vxcFitBasisSet, std::shared_ptr<const qcMesh::Mesh> quad={});
-    ~PWFittedVxc();
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual std::ostream& Write(std::ostream&) const;
-private:
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
-    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
-    //! Ensure \c itsRhoGrid holds \f$\rho(r)\f$ on the fit grid for \a cd, recomputing (one inverse FFT) only
-    //! on a new density serial.  Shared by MakeMatrix (fits \f$v_{xc}\f$) and GetEnergy (integrates \f$\epsilon_{xc}\rho\f$),
-    //! so the transform runs ONCE per SCF iteration, whichever runs first.
-    void RefreshRhoGrid(const cChargeDensity* cd) const;
-    xc_t itsXc;
-    fbs_t itsVxcFitBasis;   //!< the Vxc (overlap-metric) fit basis, handed to the density's GetFourierDensity
-    //! The ortho scalar fitter (built once).  It OWNS the FFT quadrature grid (from the fit basis); the XC
-    //! quadrature comes from the FIT basis, not the orbital basis (so relCutoff / GridCutoffFactor control it).
-    //! The term borrows that ONE grid via itsScalarFitter->Grid() -- no second cross-cast of the fit basis (#7).
-    std::unique_ptr<Fitting::GriddedScalarFitter> itsScalarFitter;
-    //! The quadrature (see the ctor).  Null = the fit basis's own raster, resolved through \c Quad() below.
-    std::shared_ptr<const qcMesh::Mesh> itsQuad;
-    //! \f$\int f\,d^3r\f$ on THIS term's quadrature.  Routed through one place so the grid decision has a
-    //! single owner; identical to the fitter's \c Grid().Integral when \c itsQuad is null.
-    double Integrate(const rvec_t& f) const;
-    mutable rvec_t itsRhoGrid;   //!< rho(r) on the fit grid for the current density (MakeMatrix builds; GetEnergy reuses)
-    //! \brief Whether \c itsRhoGrid is the RAW collocated \f$\rho_{DM}\f$ (doc/GPWPlan 0.5(f2)) rather than
-    //! the ball-projected round trip.  Set per refresh from the density's \c GetRhoOnGrid answer; when true,
-    //! \c MakeMatrix assembles \f$H_{xc}\f$ through the raw adjoint so the E/H pair derives from the ONE raw
-    //! discrete functional (and the \f$\rho>0\f$ guard becomes inert -- \f$\rho_{DM}\ge 0\f$ for aufbau D).
-    mutable bool itsRhoIsRaw=false;
-    //! \brief Route-stability latch (R2.16): RAW vs BALL minimise DIFFERENT functionals, so the route must
-    //! not change once the SCF is running.  Latched on the first DENSITY-MATRIX-backed density (the
-    //! matrix-free seed is exempt -- with no \f$D\f$ there is no \f$\rho_{DM}\f$ to collocate, so iteration
-    //! 0 can only answer BALL); any later change THROWS instead of silently swapping functionals.
-    mutable bool itsRouteLatched=false;
-    mutable bool itsLatchedRaw=false;
+    virtual ~XC_Quadrature() = default;
+    //! \f$\int f\,d^3r\f$ for a field sampled at MY points -- the \f$E_{xc}\f$ quadrature.  A term hands
+    //! back a value array and never learns where the points are (nor which kind of mesh they came from).
+    virtual double Integrate(const rvec_t& f) const=0;
+    //! How many points I sample at -- for reporting only (a term's \c Write line).
+    virtual size_t NumPoints() const=0;
+    //! \f$\rho(r_g)\f$ for \a cd's current serial, cached across the XC pair.  \a ensureBlock (when given)
+    //! lets a Φ-backed implementation table THAT block first; implementations that need no table ignore it.
+    virtual const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr) const=0;
+    //! The REAL-BLOCK ensure sibling (3c-3), overload-resolving on the caller's block scalar.
+    virtual const rvec_t& Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const=0;
+    //! Spin channel \f$\rho_\sigma(r_g)\f$ -- the SPIN-NATIVE sibling of \c Rho (§4 tier 4b).  Not every
+    //! quadrature can answer it (the pair route has no per-spin collocation): those THROW, and the
+    //! Hamiltonian's Auto rule keeps a polarized run off them.
+    virtual const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr) const=0;
+    //! The REAL-BLOCK ensure sibling of \c RhoPol (3c-3).
+    virtual const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const robs_t* ensureRealBlock) const=0;
+    //! \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}v_g\chi_j(r_g)\f$ -- the EXACT ADJOINT of
+    //! whatever route \c Rho took, weights included (a caller passes the bare field \f$v\f$).
+    virtual chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const=0;
+    //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's quadrature runs in REAL arithmetic.
+    virtual rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const=0;
+    //! \brief The per-site INTEGRATED spin moment \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$, one
+    //! entry per site block of my quadrature.  Default EMPTY -- a quadrature with no atomic partition (a
+    //! uniform raster) has no basins to integrate over, and the caller must ask rather than assume.
+    virtual rvec_t SiteMoments(const cChargeDensity*) const {return rvec_t();}
 };
 
-//! Exchange-correlation term on an ATOM-CENTRED real-space quadrature (doc/GPWPlan1.md "Becke XC grid") --
-//! the real-space sibling of PWFittedVxc, carrying ONE LDA functional per instance (build a Dirac + a VWN term,
-//! exactly like PWFittedVxc).  The XC field is pointwise-nonlinear and sharp at the cores -- the one term the
-//! uniform FFT raster serves poorly for diffuse bases (a diffuse pair x sharp field is a two-scale
-//! integrand; the atom-centred mesh is dense at the cores and its point count never scales with a
-//! function's diffuse reach).  Here \f$\rho(r)\f$ is evaluated ANALYTICALLY at each mesh point straight
-//! off the density's ScalarFunction face (no FFT, no collocation, no fit -- pointwise \f$\rho_{DM}\ge0\f$
-//! for aufbau D, so the \f$\rho>0\f$ guard is inert like the RAW route), \f$\epsilon_{xc}/v_{xc}\f$ are
-//! applied per point, and \f$\langle i|v_{xc}|j\rangle = \Phi^\dagger\,\mathrm{diag}(w\,v_{xc})\,\Phi\f$
-//! over the engine's cached basis table.  Hartree stays on the uniform G-space grid -- this term swaps
-//! ONLY the XC quadrature.  The QUADRATURE ENGINE below is SHARED by the exchange and correlation term
-//! (exactly how the PWFittedVxc pair shares one Vxc fit basis).
-
-//! \brief The shared quadrature engine of the Becke XC pair: the mesh, the per-Bloch-block cached basis
+//! \brief THE SINGLES STRATEGY: \f$\rho\f$ and \f$H_{xc}\f$ both contracted through a cached basis table
+//! \f$\Phi_{gi}=\chi_i(r_g)\f$ -- the implementation that works on ANY point set, and therefore the only
+//! one an atom-centred (Becke) mesh can use (doc/GPWPlan1.md "Becke XC grid").
+//!
+//! \f$\rho(r)\f$ comes from the density's own \f$D\f$ GEMMed against the table (no FFT, no fit --
+//! pointwise \f$\rho_{DM}\ge0\f$ for aufbau D, so the \f$\rho>0\f$ guard is inert), and
+//! \f$\langle i|v_{xc}|j\rangle = \Phi^\dagger\,\mathrm{diag}(w\,v_{xc})\,\Phi\f$ is its exact adjoint --
+//! the two faces of \c XC_Quadrature over ONE table, which is what makes a mismatch unrepresentable here.
+//! It wins where \f$n\f$ is small against \f$n_{pts}\f$ or where screening is weak (MnO's 4-atom cell
+//! measured a Φ-sparsity ceiling of only ~2×); the pair strategy below wins where screening bites.
+//!
+//! \brief The shared quadrature of an XC pair: the mesh, the per-Bloch-block cached basis
 //! tables \f$\Phi_{gi}=\chi_i(r_g)\f$ (GEOMETRY-FIXED -- built once per run per block, keyed by
 //! BasisSetID), and \f$\rho\f$ at the mesh points for the current
 //! density serial (built ONCE per SCF iteration for the whole pair, via cDM_CD::DM_RhoAtPoints -- the
@@ -298,21 +275,19 @@ private:
 //! iteration: without it the pair re-evaluated the Bloch image sums pointwise FOUR times per iteration
 //! (2 terms x (rho sample + matrix quadrature)) -- measured 4.8 s/iteration on NaF, ~all of the Becke
 //! route's runtime premium.
-class XC_GridEngine
+class XC_SinglesQuadrature
+    : public virtual XC_Quadrature
 {
 public:
-    //! The Becke route is a pure QUADRATURE -- it has no fit basis (user 2026-08-01: a zero-function
-    //! pseudo-basis was a null-object smell).  The engine receives the FINISHED quadrature at
-    //! construction: the mesh (already group-averaged INVARIANT on a §3-imposed run -- assembled by
-    //! the Hamiltonian's Becke branch from Structure + the imposed ops) and its orbit \a fold.  An
-    //! empty fold = a free run (no star-average).  Everything symmetry-shaped happens before this
-    //! ctor; per iteration the engine only applies the fold's orbit-mean to ρ.
-    typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
-    //! \a sigmas + \a flipFixed (Shubnikov S3, both from \c XCQuadrature): the per-op spin actions of a
-    //! MAGNETICALLY imposed run and the odd-field zero flags.  Empty (the default) = grey/free semantics.
-    XC_GridEngine(mesh_t, Symmetry::Lattice_3D::Fold fold = {},
-                  std::vector<Symmetry::SpinAction> sigmas = {}, std::vector<char> flipFixed = {});
-    const qcMesh::Mesh& Mesh() const {return *itsMesh;}
+    //! \brief Built ON the \f$\delta\f$ fit basis, which IS the quadrature: it owns the points, the
+    //! weights, the orbit fold and the Shubnikov tags, and ANSWERS with integrals, samples and
+    //! symmetrizations rather than handing any of that out.  What is left here is pure POLICY -- which
+    //! source \f$\rho\f$ comes from this iteration, per-serial caching, the spin channels, the
+    //! DM-source damping -- none of which is basis business.
+    typedef std::shared_ptr<const BasisSet::cFIT_SF_Delta> fit_t;
+    explicit XC_SinglesQuadrature(fit_t);
+    double Integrate(const rvec_t& f) const override;
+    size_t NumPoints() const override;
     //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
     //! STAR-AVERAGED over the fold's orbits when one was supplied (exact projector on the invariant
     //! mesh -- §6a W1.  The E/H pair needs nothing else: on orbit-symmetric weights the projector is
@@ -321,24 +296,24 @@ public:
     //! \a ensureBlock (when given) has its \f$\Phi\f$ table built FIRST, so the rho GEMM covers it even on
     //! the very first call; blocks not yet tabled self-evaluate pointwise inside the density (first pass
     //! only).  GetEnergy passes null (no basis at hand) and reuses the iteration's table.
-    const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr) const;
+    const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr) const override;
     //! The REAL-BLOCK ensure sibling (3c-3): build the real block's typed table first, so the rho GEMM's
     //! real children never pay the pointwise first pass.  Overload-resolves on the caller's block scalar.
-    const rvec_t& Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const;
+    const rvec_t& Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const override;
     //! \brief Spin channel \f$\rho_\sigma(r_g)\f$ for \a cd's current serial -- the SPIN-NATIVE sibling of
     //! \c Rho (SymmetryUpgradePlan §4 tier 4b), cached as the {↑,↓} PAIR under ONE serial (a polarized
     //! density's \c Version() forwards to its Up child, so a single scalar cache would alias the channels).
     //! A \c cPolarized_CD answers per channel; a spin-agnostic density (the seed) collapses to
     //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
-    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr) const;
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr) const override;
     //! The REAL-BLOCK ensure sibling of \c RhoPol (3c-3), as for \c Rho above.
-    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const robs_t* ensureRealBlock) const;
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const robs_t* ensureRealBlock) const override;
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
-    chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const;
+    chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
     //! GEMM runs in REAL arithmetic -- the first place the Step-3 quadrature win is actually realized.
-    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const;
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
     //! \brief The per-site INTEGRATED spin moment \f$\mu_A=\int w_A(r)\,[\rho_\uparrow-\rho_\downarrow]\,d^3r\f$
     //! (electrons; \f$\times\,\mu_B\f$ for the magnetic moment), one entry per mesh site block.
     //!
@@ -353,7 +328,7 @@ public:
     //! integrate over) — ask, do not assume.
     //! PARTITION CAVEAT: Becke fuzzy basins are a CHOICE; the partition-free definition is R. F. W. Bader's
     //! QTAIM zero-flux basin, a wanted future feature.  Report which partition produced the number.
-    rvec_t SiteMoments(const cChargeDensity* cd) const;
+    rvec_t SiteMoments(const cChargeDensity* cd) const override;
 private:
     //! Report the current \f$\rho_\sigma\f$ pair's site moments -- called from \c RhoPol's serial-advance
     //! branch, so exactly once per NEW density and never on a cache hit.  No-op without site blocks.
@@ -367,14 +342,8 @@ private:
     // caches are `mutable` -- the same idiom every other cache in this module already uses (tHT_Common::
     // itsCache, tDynamic_HT_Imp::itsCacheVersion, Dynamic_HF_HT_Imp::itsJKs).  Previously they were non-const
     // methods reached from const term methods through a non-const shared_ptr, which laundered the constness
-    // without ever stating it.  itsMesh/itsFold are NOT mutable: they are construction-time and must not move.
-    mesh_t itsMesh;                               //!< the quadrature (invariant when the fold is live)
-    Symmetry::Lattice_3D::Fold itsFold;           //!< its orbit partition ({} = free run, no averaging)
-    //! Shubnikov S3: the fold's per-op spin actions + the odd-field zero flags ({} = grey -- RhoPol then
-    //! star-averages each channel independently).  With σ live, RhoPol projects the (ρ,m) PAIR instead:
-    //! the total under the plain orbit mean, m under the χ-signed one with the flagged points zeroed.
-    std::vector<Symmetry::SpinAction> itsSigmas;
-    std::vector<char>                 itsFlipFixed;
+    // without ever stating it.  itsFit is NOT mutable: it is construction-time and must not move.
+    fit_t itsFit;                                 //!< the δ basis: points, weights, fold, σ tags -- and the ops
     mutable std::map<Irrep,mat_t<dcmplx>> itsPhi;  //!< spatial Irrep -> (npts x n) basis table
     mutable std::map<Irrep,mat_t<double>> itsPhiR; //!< the real blocks' tables (disjoint irreps -- Step 3c)
     //! \warning The scalar cache (itsRho) and the spin-resolved pair (itsRhoUp/Dn) have NO cross-
@@ -405,15 +374,100 @@ private:
     mutable rvec_t itsXCMix, itsXCMixUp, itsXCMixDn;
 };
 
-class DeltaFittedVxc
+//! \brief THE PAIR STRATEGY: \f$\rho\f$ COLLOCATED from the density-matrix through the orbital-pair
+//! 3-centre tensor, and \f$H_{xc}\f$ through that same tensor's RAW ADJOINT -- the production GPW route.
+//!
+//! Its points are the fit basis's FFT raster (fractional corners \f$i/N\f$, weight \f$\Omega/N_{pts}\f$),
+//! taken through \c BasisSet::Quadrature exactly like any other mesh; the pair machinery needs the fit
+//! BASIS as well, because \c Overlap3C(fitBasis) is what carries \c applyRaw / \c applyRawAdjoint.  That
+//! is the one structural asymmetry between the two strategies: a pair quadrature takes the fit basis
+//! where a singles quadrature takes only the mesh.
+//!
+//! It cost pair-vs-singles nothing to unify, but it EARNED the unification: the RAW forward and the RAW
+//! adjoint are box-truncated per multigrid level with the same ε-screening, so \f$H_{xc}\f$ is
+//! \f$\partial E_{xc}/\partial D\f$ of the ONE raw discrete functional to machine precision (gate:
+//! \c GPW.RawXCConsistencyFD).  Previously the same code lived in a TERM (\c PWFittedVxc), where the ρ
+//! route and the H route were two members that happened to agree -- see the \c XC_Quadrature header for
+//! what that permitted.
+//!
+//! \warning TWO ROUTES, LATCHED (R2.16).  A density-matrix-backed density answers \c GetRhoOnGrid with
+//! the RAW collocated \f$\rho_{DM}\f$; a plane-wave density or the matrix-free SEED answers EMPTY, and
+//! then \f$\rho\f$ comes from the BALL round trip (\f$\tilde\rho\f$ inverse-FFT) and \f$H\f$ from the
+//! ortho fitter, which is NON-variational.  These minimise DIFFERENT functionals, so the route is latched
+//! on the first matrix-backed density and any later change THROWS.  Iteration 0 is the one unavoidable
+//! exception -- with no \f$D\f$ there is nothing to collocate -- and its energy is discarded anyway.
+class XC_PairQuadrature
+    : public virtual XC_Quadrature
+{
+public:
+    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
+    //! \a fb is the raster-backed \f$v_{xc}\f$ fit basis from \c CreateVxcFitBasisSet: it supplies the
+    //! quadrature (\c BasisSet::Quadrature), keys the density's collocation and the orbital's
+    //! \c Overlap3C, and -- on the BALL fallback -- backs the ortho scalar fitter built here.
+    explicit XC_PairQuadrature(fbs_t fb);
+    ~XC_PairQuadrature();
+    double Integrate(const rvec_t& f) const override;
+    size_t NumPoints() const override;
+    const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr) const override;
+    const rvec_t& Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const override;
+    //! THROWS: the pair route has no per-spin collocation (a spin-native pair quadrature is not designed).
+    //! The Hamiltonian's \c VxcFit::Auto rule sends every polarized run to the δ/singles route instead.
+    const rvec_t& RhoPol(const cChargeDensity*, const Spin&, const cobs_t* =nullptr) const override;
+    const rvec_t& RhoPol(const cChargeDensity*, const Spin&, const robs_t*) const override;
+    chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
+    rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
+private:
+    template <class U> hmat_t<U> MatrixT(const tobs_t<U>* bs, const rvec_t& v) const;
+    //! My points+weights, from the fit basis's \c BasisSet::Quadrature face (a raster answers with its
+    //! corners i/N at weight Omega/Npts).  PRIVATE: what leaves this object is integrals and matrices.
+    const qcMesh::Mesh& Mesh() const;
+    //! Ensure \c itsRho holds \f$\rho(r)\f$ on the raster for \a cd, recomputing only on a new density
+    //! serial -- so the XC pair's two terms and their energies share ONE collocation per iteration.
+    void Refresh(const cChargeDensity* cd) const;
+
+    fbs_t itsFitBasis;      //!< the raster fit basis: quadrature, collocation key, Overlap3C key
+    //! The ortho scalar fitter over that basis -- used ONLY by the BALL fallback (the RAW route fits
+    //! nothing: "no ball fit anywhere").  Built once; its own grid is this basis's raster.
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<dcmplx>> itsScalarFitter;
+    mutable rvec_t itsRho;                        //!< ρ(r) on the raster for the current density serial
+    mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
+    mutable bool   itsRhoIsRaw=false;             //!< is itsRho the RAW collocated ρ_DM (vs the ball round trip)?
+    mutable bool   itsRouteLatched=false;         //!< has a matrix-backed density fixed the route yet?
+    mutable bool   itsLatchedRaw=false;           //!< ... and to which one
+};
+
+//! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.
+//!
+//! A δ fit basis (\c BasisSet::FIT_SF_Delta) carries points and nothing else, so it can only be contracted
+//! through a Φ table: SINGLES.  A raster-backed one additionally carries the FFT transforms and keys the
+//! orbital's 3-centre tensor, so the PAIR route is available and is chosen -- it is the production GPW
+//! path and the one whose screening pays on large cells.  There is no extra input to supply: both routes
+//! are already functions of (orbital basis, fit basis).
+std::shared_ptr<const XC_Quadrature>
+MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb);
+
+//! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian, carrying ONE LDA functional
+//! (a full LDA is a Dirac instance + a VWN instance, mirroring the molecular SlaterExchange+VWN split).
+//!
+//! It owns the PHYSICS and nothing else: map the functional over \f$\rho\f$ at the quadrature's points,
+//! hand the resulting field back for the adjoint assembly, and integrate \f$\int\epsilon_{xc}\rho\f$ on
+//! the same weights.  WHICH points, WHICH representation and WHICH assembly strategy are all inside the
+//! \c XC_Quadrature it was built with, so this one term serves every combination -- δ on Becke, δ on the
+//! uniform cell mesh, plane-wave on the raster.
+//!
+//! It was \c DeltaFittedVxc, the Becke-route term, while the raster route had a term of its own
+//! (\c PWFittedVxc) that duplicated this logic around its own ρ/H pair.  Two terms for one formula
+//! \f$H_{ij}=\sum_g w_g v(r_g)\chi_i\chi_j\f$: the difference between them was never the physics, only the
+//! evaluation order, which is exactly what \c XC_Quadrature's two implementations now hold.
+class Vxc_Quadrature
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
-    typedef std::shared_ptr<const XC_GridEngine> engine_t;   //!< const: all four accessors are const (R2.9(i))
-    DeltaFittedVxc(const xc_t&, engine_t);
+    typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
+    Vxc_Quadrature(const xc_t&, quad_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
@@ -422,7 +476,7 @@ private:
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     xc_t     itsXc;
-    engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial rho (one per XC pair)
+    quad_t   itsQuad;   //!< the shared mesh + Phi tables + per-serial rho (one per XC pair)
 };
 
 //! SPIN-NATIVE exchange on the Becke quadrature (SymmetryUpgradePlan §4 tier 4b) -- the periodic sibling
@@ -430,16 +484,16 @@ private:
 //! spin-tagged \c SlaterExchange -- it must NOT halve \f$\rho\f$; construct with \c SlaterExchange(alpha,
 //! \c Spin::Up)) serves both channels: the Fock build calls \c MakeMatrix per spin block and each fits
 //! \f$v_x^\sigma=v_x(\rho_\sigma)\f$; \f$E_x=\sum_\sigma\int\epsilon_x(\rho_\sigma)\rho_\sigma\f$.
-//! Shares the pair's ONE \c XC_GridEngine with the correlation term, exactly like the unpolarized pair.
-class DeltaFittedVxcPol
+//! Shares the pair's ONE \c XC_Quadrature with the correlation term, exactly like the unpolarized pair.
+class Vxc_QuadraturePol
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     typedef std::shared_ptr<ExFunctional>  xc_t;
-    typedef std::shared_ptr<const XC_GridEngine> engine_t;   //!< const: all four accessors are const (R2.9(i))
-    DeltaFittedVxcPol(const xc_t&, engine_t);
+    typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
+    Vxc_QuadraturePol(const xc_t&, quad_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual bool          IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;
@@ -449,24 +503,24 @@ private:
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     xc_t     itsXc;       //!< channel-native (non-halving) exchange functional, shared across channels
-    engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
+    quad_t   itsQuad;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
 };
 
 //! SPIN-NATIVE correlation on the Becke quadrature -- the periodic sibling of the molecular
 //! FittedVcorrPol.  Correlation does NOT separate by channel: \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$
 //! couples both densities (through \f$r_s\f$ and \f$\zeta\f$), so this term evaluates the \c SpinCorrelation
 //! face against BOTH channel rasters at each mesh point; \f$E_c=\int\epsilon_c(\rho_\uparrow,\rho_\downarrow)
-//! (\rho_\uparrow+\rho_\downarrow)\f$.  The spin-agnostic seed collapses inside \c XC_GridEngine::RhoPol
+//! (\rho_\uparrow+\rho_\downarrow)\f$.  The spin-agnostic seed collapses inside \c XC_Quadrature::RhoPol
 //! (\f$\rho_\sigma=\rho/2\f$), so no term-side fallback is needed.
-class DeltaFittedVcorrPol
+class Vcorr_QuadraturePol
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
     typedef std::shared_ptr<SpinCorrelation> corr_t;
-    typedef std::shared_ptr<const XC_GridEngine> engine_t;   //!< const: all four accessors are const (R2.9(i))
-    DeltaFittedVcorrPol(const corr_t&, engine_t);
+    typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
+    Vcorr_QuadraturePol(const corr_t&, quad_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual bool          IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;
@@ -476,7 +530,38 @@ private:
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     corr_t   itsCorr;     //!< the spin-native correlation functional (VWN5's two-channel face)
-    engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
+    quad_t   itsQuad;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
 };
+
+
+//! \brief The exchange+correlation TERM PAIR for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to
+//! \c Add (ownership passes with each release()).
+//!
+//! A Hamiltonian builder asks for XC terms and gets XC terms.  WHICH quadrature they run on, which
+//! assembly strategy that quadrature uses, and the fact that the pair SHARES one of them (so \f$\rho\f$
+//! and the \f$\Phi\f$ tables are built once per ITERATION for both terms, not once per term) are decided
+//! here -- they are implementation, and a builder that has to name them is a builder that can pair them
+//! wrong.  \a polarized picks the spin-native pair (tier 4b); \a exch must then be channel-native.
+//! \tparam C the concrete correlation functional -- it must satisfy BOTH faces (the unpolarized term takes
+//! the plain \c ExFunctional, the polarized one the two-channel \c SpinCorrelation), which is exactly what
+//! lets one call serve both branches.
+template <class C> std::vector<std::unique_ptr<cDynamic_HT>>
+MakeVxcTerms(const std::shared_ptr<ExFunctional>& exch, const std::shared_ptr<C>& corr,
+             const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb, bool polarized)
+{
+    std::shared_ptr<const XC_Quadrature> q=MakeXCQuadrature(fb);
+    std::vector<std::unique_ptr<cDynamic_HT>> terms;
+    if (polarized)
+    {
+        terms.push_back(std::make_unique<Vxc_QuadraturePol  >(exch, q));
+        terms.push_back(std::make_unique<Vcorr_QuadraturePol>(corr, q));
+    }
+    else
+    {
+        terms.push_back(std::make_unique<Vxc_Quadrature>(exch, q));
+        terms.push_back(std::make_unique<Vxc_Quadrature>(corr, q));
+    }
+    return terms;
+}
 
 } //namespace

@@ -20,6 +20,7 @@ export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<d
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
+import qchem.BasisSet.Quadrature;             // BasisSet::Quadrature -- where the fit basis says it samples
 import qchem.BasisSet.Orbital_DFT_IBS;            // the orbital assembly bridge (MakeOverlap) for the XC matrix
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
@@ -83,22 +84,20 @@ private:
 //! relCutoff / the functional's GridCutoffFactor now actually control the XC quadrature.  Created through
 //! Factory(cFIT_SF_ABS).
 class OrthoScalarFitter
-    : public virtual GriddedScalarFitter
+    : public virtual FunctionFitter_Scalar<dcmplx>
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
     explicit OrthoScalarFitter(const fbs_t& fbs) : itsFitBasis(fbs) {}
 
-    //! GriddedScalarFitter: the fitter's own FFT quadrature grid engine (reached from the neutral fit face we
-    //! hold).  The XC term borrows this ONE grid rather than cross-casting the fit basis a second time (#7).
-    virtual const BasisSet::G_Quadrature& Grid() const override {return FitGrid();}
-
-    //! The "fit": batch-sample v_xc(r) on the fit basis's own FFT grid, then forward-transform.  Orthonormal
-    //! exactness => the projection IS the fit (no metric solve); the field's FFT fast path is its own business.
+    //! The "fit": batch-sample v_xc(r) at the fit basis's own quadrature POINTS, then project.  Orthonormal
+    //! exactness => the projection IS the fit (no metric solve).  The two lines below are the two halves:
+    //! WHERE to sample is the mesh's business, and the forward FFT is the raster's batch form of the
+    //! per-\f$G\f$ weight-vector contraction (the field's own FFT fast path is its own business).
     virtual void DoFit(const ProjectedScalar_R& ps) override
     {
-        const BasisSet::G_Quadrature& ge=FitGrid();
-        rvec_t vals=(*ps.GetScalarFunction())(ge.GridPoints());   // batch-sample v_xc on the fit grid
+        const BasisSet::G_RasterTransform& ge=FitRaster();
+        rvec_t vals=(*ps.GetScalarFunction())(FitMesh().Points());   // batch-sample v_xc on the fit grid
         itsVt =ge.ForwardFFT(vals);                               // full /Npts G grid (for the assembly)
         itsMap=ge.FieldCoeffs(itsVt);                             // fit-basis coefficients (for op(r) plotting)
     }
@@ -114,7 +113,7 @@ public:
         // for any future non-PW complex orbital basis.  (Contrast the fitter's own itsFitBasis casts, which
         // its isOrtho() contract guarantees.)  Ties to the item-C dynamic_cast survey.
         const BasisSet::Orbital_DFT_IBS<dcmplx>&      orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>&>(*bs);   // the assembly bridge
-        const BasisSet::G_Quadrature&     fit=FitGrid();                                         // the fit grid engine
+        const BasisSet::G_RasterTransform&            fit=FitRaster();                           // the coefficient lookup
         // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
         // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the
         // SAME grid the density was collocated on (doc/GPWPlan §0e step 2).  No grid-less MakeOverlap(field).
@@ -137,12 +136,20 @@ public:
         {return os << "OrthoScalarFitter (plane-wave grid quadrature)" << std::endl;}
 
 private:
-    //! The fit basis's FFT quadrature engine (the DIP seam), reached from the neutral fit face we hold.
-    //! Guaranteed by Factory(cFIT_SF_ABS)'s construction-time contract, so asserts (not throws) suffice.
-    const BasisSet::G_Quadrature& FitGrid() const
+    //! The fit basis's QUADRATURE -- points+weights, the universal half (the DIP seam), reached from the
+    //! neutral fit face we hold.  Guaranteed by Factory(cFIT_SF_ABS)'s construction-time contract, so
+    //! asserts (not throws) suffice.
+    const qcMesh::Mesh& FitMesh() const
     {
-        auto* ge=dynamic_cast<const BasisSet::G_Quadrature*>(itsFitBasis.get());
-        assert(ge && "OrthoScalarFitter: the {G} fit basis must provide the G_Quadrature grid engine");
+        auto* q=dynamic_cast<const BasisSet::Quadrature*>(itsFitBasis.get());
+        assert(q && "OrthoScalarFitter: the {G} fit basis must carry its quadrature (BasisSet::Quadrature)");
+        return q->Mesh();
+    }
+    //! The fit basis's RASTER TRANSFORMS -- the FFT half, which only a raster-backed basis can answer.
+    const BasisSet::G_RasterTransform& FitRaster() const
+    {
+        auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
+        assert(ge && "OrthoScalarFitter: the {G} fit basis must provide the G_RasterTransform FFT pair");
         return *ge;
     }
     //! The evaluate face for op(r)/Gradient -- the same engine, the narrower ask.

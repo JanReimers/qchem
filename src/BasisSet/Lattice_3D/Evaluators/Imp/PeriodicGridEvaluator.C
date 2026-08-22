@@ -8,6 +8,7 @@ module;
 #include <complex>
 #include <functional>   // the ApplySpectralFilter multiplier k(|G|^2)
 #include <iostream>     // EmitGridReport's console line
+#include <utility>      // std::move (handing the built raster to the Mesh)
 #include <vector>
 
 module qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator;
@@ -47,18 +48,25 @@ std::vector<rvec3_t> PeriodicGridEvaluator::UniformGrid(const ivec3_t& n) const
     return g;
 }
 
-// Cartesian points of the FFT grid, raster order matching RhoOnGrid/ForwardFFT: r = A (i/N), A = direct cell.
-// Cached: the N-point mesh + the 3x3 cell inversion are built once, not per DoFit.
-const rvec3vec_t& PeriodicGridEvaluator::GridPoints() const
+// The raster AS A MESH: Cartesian points r = A (i/N) in the raster order RhoOnGrid/ForwardFFT use (A = the
+// direct cell), each carrying the uniform weight Omega/Npts.  Cached: the N-point set + the 3x3 cell
+// inversion are built once, not per DoFit -- and the SAME storage backs GridPoints().
+//
+// The weights are what make this a quadrature rather than a point list, and they are what let a consumer
+// integrate with sum_g w_g f_g without knowing it is on a raster (the universal BasisSet::Quadrature face).
+// Integral() below deliberately keeps its own (sum f)*Omega/Npts form: on a uniform raster the two are
+// algebraically identical, and the historical path stays bit-identical.
+const qcMesh::Mesh& PeriodicGridEvaluator::Mesh() const
 {
-    if (itsGridPoints.size()==0)
+    if (itsMesh.size()==0)
     {
         std::vector<rvec3_t> frac=UniformGrid(itsN);
         UnitCell A=itsRecip.GetCell().MakeReciprocalCell();   // reciprocal of B == the direct cell
-        itsGridPoints.resize(frac.size());
-        for (size_t q=0;q<frac.size();q++) itsGridPoints[q]=A.ToCartesian(frac[q]);
+        rvec3vec_t pts(frac.size());
+        for (size_t q=0;q<frac.size();q++) pts[q]=A.ToCartesian(frac[q]);
+        itsMesh=qcMesh::Mesh(std::move(pts), rvec_t(frac.size(), itsVolume/double(frac.size())));
     }
-    return itsGridPoints;
+    return itsMesh;
 }
 
 // rho(r) on the FFT grid = inverse FFT of rho-tilde: rho(r_j) = Sum_dm rho-tilde(dm) e^{+i2pi dm.j/N}.

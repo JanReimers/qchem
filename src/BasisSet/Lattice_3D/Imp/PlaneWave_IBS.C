@@ -127,6 +127,8 @@ BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*, cons
 // PlaneWaveFit_IBS IS-A cFIT_SF_ABS.
 BasisSet::cFIT_SF_ABS* PlaneWave_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
+    // A BLOCK builds only its OWN fitted representation (see the GPW sibling): delta-vs-fitted is the
+    // whole-set tBasisSet factory's decision.
     PW_Grid_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*mp.relCutoff);
     return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)), "vxcFitGrid");
 }

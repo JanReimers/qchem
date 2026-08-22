@@ -29,15 +29,21 @@ export namespace qchem::Hamiltonian
 //! SEPARATION, user 2026-08-01): the fit-basis choice and the real-space grid choice
 //! (\c qcMesh::MeshParams) are ORTHOGONAL user knobs.
 //!  - \c PlaneWave: expand \f$v_{xc}\f$ on the \f$\{Q_j\}\f$ ball (band-limited; the projection
-//!    quadrature is the FFT on the uniform raster) -- the \c PWFittedVxc pair.
+//!    quadrature is the FFT on the uniform raster) -- the PAIR/collocation \c XC_Quadrature.
 //!  - \c Delta: the delta-function "fit" -- coefficients ARE the grid-point values, H by direct
-//!    quadrature -- the \c DeltaFittedVxc pair, on ANY real-space grid (Becke or uniform).
+//!    quadrature -- the SINGLES (Φ-table) \c XC_Quadrature, on ANY real-space grid (Becke or uniform).
 //!  - \c Auto: picks Delta whenever the plane-wave fit cannot do the job -- on a Becke grid (no G-space
-//!    raster) and on a POLARIZED run (PWFittedVxc is not spin-native) -- else PlaneWave.
+//!    raster) and on a POLARIZED run (the pair route is not spin-native) -- else PlaneWave.
 //! (PlaneWave fit ON a Becke grid = I3: the projection sum is trivial, but the one-functional E/H
 //! derivative pairing must be designed first -- asserted out until then.)
 //!
 //! PUBLIC (moved out of qchem.Hamiltonian.Internal.Hamiltonians 2026-08-08): it is a user-facing policy
 //! knob, so a FACADE must be able to name it without importing an internal across a library boundary.
-enum class VxcFit { Auto, PlaneWave, Delta };
+//!
+//! 2026-08-22: the ENUM itself moved DOWN to \c qchem.BasisSet.Fit_IBS, beside the fit-basis types it
+//! selects between, because the factory that must read it -- \c CreateVxcFitBasisSet -- lives in
+//! qcBasisSet and cannot see qcHamiltonian.  This alias keeps the user-facing spelling
+//! \c Hamiltonian::VxcFit::Delta exactly as it was; \c Ham_PW_DFT resolves \c Auto (the one decision that
+//! needs to know the run is polarized) and passes the answer to the factory.
+using VxcFit = BasisSet::VxcFit;
 }

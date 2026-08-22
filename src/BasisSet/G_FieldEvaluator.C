@@ -11,10 +11,16 @@
 // eleven methods when it used one to three, and forced the seed's structure-factor assembly and the mixer's
 // Kerker filter to ride the quadrature engine:
 //   - G_FieldEvaluator   : evaluate a fitted coefficient map as a real field (the ortho fitters' op(r)).
-//   - G_Quadrature       : the FFT quadrature grid engine (fit sampling, XC energy, rho on grid).
+//   - G_RasterTransform  : the {r}<->{G} FFT transform pair on a RASTER (rho on grid, coefficient lookup).
 //   - G_StructureFactor  : the analytic species-superposition density (the SAD seed's rho-tilde).
 //   - G_SpectralFilter   : an isotropic spectral multiplier on the raster (the mixer's Kerker step).
 // PW_Grid_Evaluator implements all four; each consumer casts to exactly the face it consumes.
+//
+// 2026-08-22: G_Quadrature became G_RasterTransform, losing GridPoints()/Integral() to the mesh-general
+// BasisSet::Quadrature face (qchem.BasisSet.Quadrature).  The old name promised a QUADRATURE and delivered
+// one only on a raster, so a fit basis over an atom-centred mesh -- which has points and weights but no
+// FFT -- could not implement the face at all, and therefore could not be asked for its points either.
+// What is left here is honestly raster-only: every method below is keyed by an integer reciprocal index.
 module;
 #include <functional>
 #include <stdexcept>
@@ -51,7 +57,7 @@ public:
     //!
     //! \warning TRUNCATION, NOT ALIASING -- a REAL difference from the FFT route.  This returns coefficients
     //! over THIS basis's own \f$\{G\}\f$ and nothing else, so an index outside that set reads as zero.
-    //! \c G_Quadrature::GridCoeff instead WRAPS an outside index back into the raster, i.e. aliases it.
+    //! \c G_RasterTransform::GridCoeff instead WRAPS an outside index back into the raster, i.e. aliases it.
     //! Truncation is arguably the honest semantics (the fit lives in \f$\mathrm{span}\{e^{iG\cdot r}\}\f$
     //! over this set; wrap-around is an artifact of there being a raster), and on a non-raster mesh it is the
     //! only definable one -- but the two agree only when the fit grid is converged, so switching the RASTER
@@ -67,18 +73,21 @@ public:
     }
 };
 
-//! \brief The FFT QUADRATURE grid engine: sample points, forward/inverse transforms, coefficient lookup,
-//! and the grid integral.  A scalar fitter samples \f$v_{xc}(r)\f$ on THIS grid (the FIT basis's own,
-//! possibly denser than the orbital's -- relCutoff / GridCutoffFactor control it) and the XC term
-//! integrates \f$E_{xc}\f$ on the same grid, borrowed through the fitter (\c GriddedScalarFitter::Grid(),
-//! one owner).  Pure density/potential machinery: nothing here assumes plane-wave ORBITALS, so a
-//! Gaussian-orbital (GPW) density grid implements it wholesale.
-class G_Quadrature
+//! \brief The \f$\{r\}\leftrightarrow\{G\}\f$ FFT TRANSFORM PAIR on a raster: inverse-transform a
+//! coefficient map to a field, forward-transform a field, and look the coefficients back up by
+//! reciprocal index.  Every method is keyed by an integer \f$\Delta m\f$ and every one of them presumes a
+//! REGULAR grid -- which is precisely why this is not the quadrature face: the points and weights live on
+//! \c BasisSet::Quadrature (qchem.BasisSet.Quadrature), which any point set can answer.
+//!
+//! A raster-backed fit basis provides both, and the ortho scalar fitter uses both: it samples \f$v_{xc}\f$
+//! at \c Quadrature::Mesh().Points() and batch-projects with \c ForwardFFT (the FFT being the batch form of
+//! the per-\f$G\f$ weight-vector contraction \c G_FieldEvaluator::ProjectField -- an OPTIMISATION available
+//! when the points happen to BE the raster, never a requirement).  Pure density/potential machinery:
+//! nothing here assumes plane-wave ORBITALS, so a Gaussian-orbital (GPW) density grid implements it wholesale.
+class G_RasterTransform
 {
 public:
-    virtual ~G_Quadrature() = default;
-    //! Cartesian points of the FFT grid (raster order), the quadrature mesh a scalar fitter samples a field on.
-    virtual const rvec3vec_t& GridPoints() const=0;
+    virtual ~G_RasterTransform() = default;
     //! Inverse-FFT a G-space coefficient map (keyed by reciprocal-index difference) to \f$\rho(r)\f$ on the grid.
     virtual rvec_t     RhoOnGrid  (const ΔG_Map& rhoTilde) const=0;
     //! Forward-FFT a real-space grid field to the FULL normalised (\f$/N_{pts}\f$) G-space grid (raster order).
@@ -88,8 +97,6 @@ public:
     //! The evaluatable fitted-field coefficients \f$c(G)=\tilde V(G)\f$ over THIS basis's own \f$\{G\}\f$ (a
     //! \c GridCoeff gather).  \c G_FieldEvaluator::EvalField then plots \f$\sum_G c(G)e^{iG\cdot r}\f$.
     virtual ΔG_Map     FieldCoeffs(const cvec_t& Vt) const=0;
-    //! \f$\int f\,d^3r\f$ on the FFT grid (weight \f$\Omega/N_{pts}\f$) -- the XC energy quadrature on the fit grid.
-    virtual double     Integral(const rvec_t& f) const=0;
     // NB: grid REPORTING is deliberately not here: the owning fit basis self-reports at construction,
     // role-labeled (see PlaneWaveFit_IBS; user ruling 2026-08-16).
 };

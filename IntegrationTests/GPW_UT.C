@@ -788,7 +788,7 @@ TEST(GPW, StreamFoldReducedMatchesFull_SiDiamond_HalfK)
 
 // XC POTENTIAL-CONSISTENCY PROBE (doc/GPWPlan.md 0b instrument).  Question under test: is the assembled
 // H_xc the EXACT D-derivative of the DISCRETE energy E_xc(D) = Sum_q w [eps_x+eps_c](rho_q) rho_q, where
-// rho_q is the ball-limited grid density of the SCF's own chain?  The probe replicates the PWFittedVxc term's
+// rho_q is the ball-limited grid density of the SCF's own chain?  The probe replicates the pair quadrature's
 // route verbatim at the evaluator level (collocate -> nested {G_L} combine -> RhoOnGrid; v_xc pointwise ->
 // raster ForwardFFT -> per-level restriction -> analytic IntegratePotential) and compares the central
 // finite difference  [E_xc(D+h dD) - E_xc(D-h dD)]/2h  against  Re Tr(H_xc(D) dD).
@@ -817,11 +817,11 @@ TEST(GPW, XCPotentialConsistencyFD)
     qchem::Hamiltonian::VWN_Correlation corr;
     const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
 
-    Projector3<dcmplx> ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the PWFittedVxc route
+    Projector3<dcmplx> ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the pair-quadrature route
     Projector3<dcmplx> cou=ev.Repulsion3CTensor();                   // V_H (Coulomb kernel baked) -- the control
 
     auto rhoOf=[&](const chmat_t& D)->rvec_t { return grid.RhoOnGrid(Contract(ov,D)); };
-    auto Exc=[&](const rvec_t& rho)->double              // == PWFittedVxc::GetEnergy (both terms)
+    auto Exc=[&](const rvec_t& rho)->double              // == Vxc_Quadrature::GetEnergy (both terms)
     {
         rvec_t e(rho.size());
         for (size_t q=0;q<rho.size();q++)
@@ -831,7 +831,7 @@ TEST(GPW, XCPotentialConsistencyFD)
         }
         return grid.Integral(e);
     };
-    auto Hxc=[&](const rvec_t& rho)->chmat_t             // == PWFittedVxc::MakeMatrix (both terms summed)
+    auto Hxc=[&](const rvec_t& rho)->chmat_t             // == Vxc_Quadrature::MakeMatrix (both terms summed)
     {
         rvec_t v(rho.size());
         for (size_t q=0;q<rho.size();q++)

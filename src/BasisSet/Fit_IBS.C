@@ -2,12 +2,13 @@
 module;
 #include <memory>
 #include <string>
-#include <vector>   // XCQuadrature::sigmas/flipFixed (Shubnikov S3)
+#include <vector>   // FitQuadrature::sigmas/flipFixed (Shubnikov S3)
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
+export import qchem.BasisSet.Quadrature;   // BasisSet::Quadrature -- "I carry the points+weights I am defined over"
 export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
-export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the XCQuadrature orbit partition (§6a W1)
+export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the FitQuadrature orbit partition (§6a W1)
 import qchem.Structure;               // Structure (the ctor builds the quadrature mesh from it)
 
 export namespace qchem::BasisSet
@@ -19,7 +20,7 @@ export namespace qchem::BasisSet
 //! Produced by \c CreateXCQuadrature so all the low-level mesh work (grid build, group-averaging it
 //! invariant under the imposed ops, fold preparation) lives with the basis factories -- which own the
 //! cell and the §3 policy -- not in the Hamiltonian assembly.
-struct XCQuadrature
+struct FitQuadrature
 {
     std::shared_ptr<const qcMesh::Mesh> mesh;   //!< the quadrature (group-average invariant when fold is live)
     Symmetry::Lattice_3D::Fold          fold;   //!< its orbit partition ({} = no star-averaging)
@@ -31,6 +32,25 @@ struct XCQuadrature
     std::vector<Symmetry::SpinAction>   sigmas;
     std::vector<char>                   flipFixed;
 };
+
+//! \brief WHICH REPRESENTATION carries \f$v_{xc}\f$ -- the argument that picks between the fit-basis types
+//! declared below, and therefore an argument of \c CreateVxcFitBasisSet.
+//!  - \c Delta: the \f$\delta\f$ basis (\c FIT_SF_Delta) -- \c n_pts delta functions on the quadrature
+//!    mesh, diagonal metric, fit = identity, so the "coefficients" ARE the point values.
+//!  - \c PlaneWave: the lineage's own FITTED representation -- plane waves on the \f$\{G\}\f$ ball for a
+//!    periodic basis (band-limited; the projection is an FFT on its raster).
+//!  - \c Auto: the caller did not choose.  Resolved by the POLICY layer -- the Hamiltonian, which is the
+//!    only layer that knows whether the run is polarized -- and, if it reaches a factory unresolved, read
+//!    as "your own fitted representation" (the historical pairing; \c qcMesh::UnitCellKind::Auto falls
+//!    through the same way).  A molecular basis, which has only its Gaussian auxiliary representation,
+//!    is asked with \c Auto and never needs to interpret the other two.
+//!
+//! It lives HERE and not in \c qcMesh (where it briefly did, 2026-08-22): \c MeshParams describes POINTS,
+//! and this describes FUNCTIONS -- the two are exactly the orthogonal axes the XC separation is about, so
+//! folding one into the other's parameter block would have re-welded them at the type level while the code
+//! was busy unwelding them.  It also does not live in qcHamiltonian, because the factory that reads it is
+//! here.  \c qchem::Hamiltonian::VxcFit is an alias, so the user-facing spelling is unchanged.
+enum class VxcFit {Auto, PlaneWave, Delta};
 
 //! \brief The MINIMAL, metric-neutral face of a CHARGE-DENSITY fit basis: just "I am a density-fit basis" --
 //! its fit FUNCTIONS, via \c IrrepBasisSet<T>.  This is what \c CreateCDFitBasisSet returns and what the
@@ -94,6 +114,69 @@ public:
 };
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
 using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis
+
+//! \brief The \f$\delta\f$ (IDENTITY) potential-fit basis: \c n_pts genuine delta functions on a
+//! quadrature mesh, \f$\langle\delta_g|\delta_{g'}\rangle=w_g\delta_{gg'}\f$ (DIAGONAL metric), so the
+//! least-squares fit of any field is the field's own point values.
+//!
+//! It is a BASIS, not a null object (user ruling 2026-08-22).  The 2026-08-01 objection was to a
+//! ZERO-FUNCTION pseudo-basis -- an object with nothing to represent, invented so a signature could be
+//! satisfied.  Under "a fit basis is a family of weight vectors over shared points" this is the most
+//! natural basis there is: its weight vector for function \a g is \f$W_g[h]=w_g\delta_{gh}\f$, entirely
+//! determined by the mesh, which is why the mesh is CONSTITUTIVE of it and travels with it.
+//!
+//! WHAT IT ANSWERS ARE OPERATIONS, NOT DATA (user ruling 2026-08-22 -- the second one).  A fit basis is
+//! for DOING the fit and delivering \f$E\f$ and the \f$H\f$ matrix; it is not a struct that holds its
+//! functions (here: its grid) and hands them out through getters.  So every method below takes or returns
+//! a FIELD SAMPLED AT ITS OWN POINTS -- a value array whose ORDER is the only thing a caller must respect
+//! -- and no caller needs to know where those points are, or that they are a Becke mesh rather than a
+//! uniform one.  The face this replaced exposed exactly one thing: the quadrature struct.
+//!
+//! \warning \c op(r) THROWS, by design.  The value of \f$\delta_g\f$ at a point is a distribution, and
+//! nothing in the code wants it (the \f$\delta\f$ route never expands a field back into functions -- the
+//! coefficients ARE the values); a throwing \c op(r) states that, where returning
+//! \f$\{0,\dots,1,\dots,0\}\f$ would be a plausible-looking lie.  Sizing trap worth carrying: this basis
+//! has \c mesh.size() "functions" (~100k), so anything reasoning about a fit basis by COUNTING functions
+//! -- grid sizing, memory reports, cache dimensions -- must not choke on that.
+template <class T> class FIT_SF_Delta
+    : public virtual FIT_SF_ABS<T>
+    //! \todo THE ONE REMAINING GETTER.  \c Quadrature::Mesh() survives because the \f$\rho\f$ GEMM is
+    //! initiated by the DENSITY (\c cDM_CD::DM_RhoAtPoints, which owns \f$D\f$ and lives in a library
+    //! above this one), so the points must still reach it, and with them the \f$\Phi\f$ table cache.
+    //! Closing it means flipping that call to take THIS basis and ask it per block -- then \f$\Phi\f$ and
+    //! both contractions come here too, and no coordinate leaves at all.
+    , public virtual Quadrature
+{
+public:
+    //! A \f$\delta\f$ basis is orthogonal but NOT orthonormal (\f$\langle\delta_g|\delta_g\rangle=w_g\f$);
+    //! either way it carries no metric-solve face, and its fit needs no solve at all.
+    bool isOrtho() const override {return true;}
+
+    //! \name The quadrature operations -- what this basis is FOR
+    //!@{
+    //! \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field sampled at my points (the \f$E_{xc}\f$ quadrature).
+    virtual double Integrate(const rvec_t& f) const=0;
+    //! \brief The per-SITE integrals \f$\int w_A f\f$, one per mesh site block -- the honest way to ask an
+    //! atom-centred quadrature for an atomic quantity (a spin moment), since the weights already carry the
+    //! partition.  EMPTY when the mesh has no site structure (a uniform grid has no basins): ask, do not assume.
+    virtual rvec_t SiteIntegrals(const rvec_t& f) const=0;
+    //! Sample a field that can evaluate itself anywhere, AT my points -- the matrix-free-density route
+    //! (a seed, a \f$\tilde\rho\f$-mixed field).  The caller supplies the field, not the coordinates.
+    virtual rvec_t Sample(const ScalarFunction<double>& f) const=0;
+    //! \brief STAR-AVERAGE a sampled field over my orbit fold, in place: the exact projector onto the
+    //! invariant subspace on an invariant mesh (§6a W1).  No-op on a free run -- so a caller never asks
+    //! whether symmetry was imposed, it just symmetrizes and the basis knows whether that means anything.
+    virtual void Symmetrize(rvec_t& f) const=0;
+    //! \brief The MAGNETIC (Shubnikov S3) sibling: project the \f$(\rho,m)\f$ PAIR, which is what
+    //! diagonalizes \f$\sigma\f$ -- \f$\rho\f$ even under the plain orbit mean, \f$m\f$ odd under the
+    //! \f$\chi\f$-signed one with the flip-fixed points zeroed first.  Falls back to averaging each
+    //! argument independently when the run carries no \f$\sigma\f$ tags (grey/free semantics), so again
+    //! the caller does not branch.
+    virtual void SymmetrizeSpin(rvec_t& rho, rvec_t& m) const=0;
+    //!@}
+};
+using rFIT_SF_Delta = FIT_SF_Delta<double>;  //!< δ basis over a real (molecular) fit path
+using cFIT_SF_Delta = FIT_SF_Delta<dcmplx>;  //!< δ basis over a periodic (Bloch) fit path
 
 //! \brief A NON-orthonormal (Gaussian/Slater/BSpline) potential-fit basis: adds the overlap metric-solve
 //! inputs the least-squares potential fit needs -- the projection RHS \c Overlap(Sf) \f$=\langle f_a|f\rangle\f$

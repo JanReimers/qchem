@@ -23,6 +23,7 @@ export module qchem.BasisSet.Lattice_3D.Evaluators.PW;
 export import qchem.ReciprocalLattice;   // ReciprocalLattice / UnitCell (the B cell; source of G, |k+G|)
 export import qchem.BasisSet.Internal.GMap;           // ΔG_Map: the G-space coefficient map RhoOnGrid/ForwardFFT speak
 export import qchem.BasisSet.G_FieldEvaluator;  // the abstract grid-engine seam PW_Evaluator implements
+export import qchem.BasisSet.Quadrature;        // BasisSet::Quadrature -- the universal points+weights face
 import qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator; // the shared FFT/Poisson grid engine (held, delegated to)
 import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
 import qchem.Blaze;                      // hmat_t<dcmplx> (chmat_t)
@@ -49,7 +50,7 @@ enum class RasterPolicy { AliasFree, BallOnly };
 //! OFF-raster (the Becke atom-centred mesh), the raster serves only the G-space Poisson solve -- a
 //! SMOOTHING operator -- so diffuse density pairs route by their OWN bandwidth onto coarse ladder levels
 //! (small streams; the honest diffuse-basis setup speedup, no screening-tolerance games).  Selecting
-//! \c HartreeOnly with the uniform PWFittedVxc would under-resolve \f$V_{xc}\f$ -- it is the Becke-route partner.
+//! \c HartreeOnly with the uniform (pair/raster) XC quadrature would under-resolve \f$V_{xc}\f$ -- it is the Becke-route partner.
 enum class RasterFields { HartreeXC, HartreeOnly };
 
 //! \brief The ORBITAL evaluator of a plane-wave block: holds \f$(B,k,E_{cut},\{G\})\f$ and answers the per-k,
@@ -150,7 +151,8 @@ private:
 class PW_Grid_Evaluator
     : public PW_Evaluator
     , public virtual BasisSet::G_FieldEvaluator     // evaluate a fitted field (the ortho fitters' op(r))
-    , public virtual BasisSet::G_Quadrature         // the FFT quadrature engine (fit sampling, XC energy)
+    , public virtual BasisSet::Quadrature           // the points+weights this fit basis is defined over
+    , public virtual BasisSet::G_RasterTransform    // the {r}<->{G} FFT pair (raster-only, by construction)
     , public virtual BasisSet::G_StructureFactor    // the SAD seed's analytic rho-tilde
     , public virtual BasisSet::G_SpectralFilter     // the mixer's raster Kerker step
 {
@@ -163,9 +165,13 @@ public:
     //! Fractional \f$(i/n)\f$ FFT grid (exposed for the direct-grid unit-test oracles).
     std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const {return itsGrid->UniformGrid(n);}
 
-    // G_Quadrature / G_SpectralFilter: the pure {r}<->{G} FFT quadrature, delegated to the held
-    // k-independent grid engine.
-    const rvec3vec_t& GridPoints() const override               {return itsGrid->GridPoints();}
+    // Quadrature / G_RasterTransform / G_SpectralFilter: the points+weights and the pure {r}<->{G} FFT
+    // transforms, delegated to the held k-independent grid engine.
+    //! \copydoc BasisSet::Quadrature::Mesh  (the raster: corners \f$i/N\f$, weight \f$\Omega/N_{pts}\f$)
+    const qcMesh::Mesh& Mesh() const override                   {return itsGrid->Mesh();}
+    //! The raster's points alone -- \c Mesh().Points(), the name the collocation paths ask by (non-virtual:
+    //! it is a convenience over the Quadrature face, not a capability of its own).
+    const rvec3vec_t& GridPoints() const                        {return itsGrid->GridPoints();}
     rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override {return itsGrid->RhoOnGrid(rhoTilde);}
     cvec_t   ForwardFFT (const rvec_t& V) const override        {return itsGrid->ForwardFFT(V);}
     //! Complex-input forward FFT (general-k Bloch products); non-virtual sibling of the \c G_FieldEvaluator
@@ -177,7 +183,10 @@ public:
     rvec_t   ApplySpectralFilter(const rvec_t& f, const std::function<double(double g2)>& k) const override
                                                                 {return itsGrid->ApplySpectralFilter(f,k);}
     dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override {return itsGrid->GridCoeff(Vt,dm);}
-    double   Integral   (const rvec_t& f) const override        {return itsGrid->Integral(f);}
+    //! \f$\int f\,d^3r\f$ by the raster's own uniform rule, \f$(\sum_g f_g)\,\Omega/N_{pts}\f$.  Non-virtual:
+    //! integration is a MESH operation (\c qcMesh::Integrate over \c Mesh()), and the two are algebraically
+    //! identical here -- this form survives as the raster's own summation order, used by the direct-grid tests.
+    double   Integral   (const rvec_t& f) const                 {return itsGrid->Integral(f);}
     //! Forward the construction-time grid announcement to the engine (non-virtual -- reporting is the
     //! owning fit basis's own act, not a G_FieldEvaluator capability).
     void     AnnounceGrid(const std::string& role) const        {itsGrid->AnnounceGrid(role);}

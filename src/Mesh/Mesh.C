@@ -94,6 +94,22 @@ inline rvec_t SiteIntegrals(const Mesh& m, const rvec_t& f)
     return out;
 }
 
+//! \brief \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field already SAMPLED on \a m's points -- the tabulated
+//! sibling of \c qcMesh::Integrate(const Mesh&, const ScalarFunction<T>&) in \c qchem.Mesh.Quadrature.
+//!
+//! Lives HERE, beside \c SiteIntegrals, because it is the same shape (a weighted sum over a field the
+//! caller already has) and because it must be reachable from anyone holding only a \c Mesh: it is what a
+//! consumer of the \c BasisSet::Quadrature face integrates with, whether the mesh behind that face is an
+//! FFT raster, a uniform cell grid, or an atom-centred Becke build.
+inline double Integrate(const Mesh& m, const rvec_t& f)
+{
+    assert(f.size()==m.size() && "qcMesh::Integrate: the field must be sampled on this mesh's points");
+    const rvec_t& w=m.Weights();
+    double s=0.0;
+    for (size_t g=0; g<f.size(); g++) s+=w[g]*f[g];
+    return s;
+}
+
 //! \brief Radial mesh family.  See the per-class transplanted formulae in Internal/.
 enum class RadialKind  {MHL, Log, Linear};
 //! \brief Angular mesh family.  All schemes are normalised so \f$\sum_i w_i = 4\pi\f$.
@@ -114,6 +130,7 @@ enum class AngularKind {Lebedev, GaussLegendre};
 //! the historical \c Uniform (every consumer compares \c ==Becke, so Auto falls through safely) -- so resolve
 //! at the point the mesh spec enters the Hamiltonian.
 enum class UnitCellKind {Uniform, Becke, Auto};
+
 
 //! \brief Becke's iterated smoothing polynomial mapped to the cell cutoff:
 //! \f$ s(\mu) = \tfrac12(1-f_k(\mu)),\; f(\mu)=\tfrac12(3\mu-\mu^3) \f$ applied \f$k+1\f$ times

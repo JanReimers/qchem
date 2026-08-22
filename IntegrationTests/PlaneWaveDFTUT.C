@@ -85,7 +85,7 @@ using Pseudopotential::GTH_PP;
 namespace
 {
 
-// Vee_Hartree/PWFittedVxc now take their fit basis (from the basis's own factory) at construction, like
+// Vee_Hartree/Vxc_Quadrature now take their fit basis (from the basis's own factory) at construction, like
 // FittedVee/FittedVxc.  These low-level term tests build one straight from the plane-wave basis at hand.
 qchem::Hamiltonian::Vee_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
 {
@@ -94,10 +94,12 @@ qchem::Hamiltonian::Vee_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
     return new qchem::Hamiltonian::Vee_Hartree(
         qchem::Hamiltonian::Vee_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})));
 }
-qchem::Hamiltonian::PWFittedVxc* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::PWFittedVxc::xc_t& xc)
+// The XC term takes a QUADRATURE, and MakeXCQuadrature reads off the strategy the fit basis supports --
+// here a plane-wave (raster) basis, so the pair/collocation one.
+qchem::Hamiltonian::Vxc_Quadrature* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::Vxc_Quadrature::xc_t& xc)
 {
-    return new qchem::Hamiltonian::PWFittedVxc(xc,
-        qchem::Hamiltonian::PWFittedVxc::fbs_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{})));
+    return new qchem::Hamiltonian::Vxc_Quadrature(xc, qchem::Hamiltonian::MakeXCQuadrature(
+        qchem::Hamiltonian::XC_PairQuadrature::fbs_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}))));
 }
 // rho-tilde from a density matrix D via the basis's D-free Overlap3C tensor (the production path now that
 // GetG_ERI3 is retired): Overlap3C keys on a Vxc fit basis (its grid is ignored -- the delta support is
@@ -846,13 +848,16 @@ TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
     for (double rc : {1.0, 2.0, 4.0})
     {
         qcMesh::MeshParams mp; mp.relCutoff=rc;
-        auto fb=qchem::Hamiltonian::PWFittedVxc::fbs_t(pw.CreateVxcFitBasisSet(nullptr, mp));
-        auto ge=dynamic_cast<const qchem::BasisSet::G_Quadrature*>(fb.get());
-        size_t nG=fb->GetNumFunctions(), Npts=ge->GridPoints().size();
+        auto fb=qchem::Hamiltonian::XC_PairQuadrature::fbs_t(pw.CreateVxcFitBasisSet(nullptr, mp));
+        // The two halves of the fit basis's grid contract, each asked for by name (2026-08-22): the mesh
+        // (points+weights, universal) and the raster transforms (FFT, raster-only).
+        auto qd=dynamic_cast<const qchem::BasisSet::Quadrature*>(fb.get());
+        auto ge=dynamic_cast<const qchem::BasisSet::G_RasterTransform*>(fb.get());
+        size_t nG=fb->GetNumFunctions(), Npts=qd->Mesh().size();
 
         rvec_t rgrid=ge->RhoOnGrid(rho), exc(rgrid.size());
         for (size_t q=0;q<rgrid.size();q++) exc[q]=epsOf(rgrid[q])*rgrid[q];
-        double Exc=ge->Integral(exc);
+        double Exc=qcMesh::Integrate(qd->Mesh(), exc);
 
         auto fitter=qchem::Fitting::Factory(fb);
         fitter->DoFit(vtrue);
@@ -1136,7 +1141,7 @@ TEST_F(PlaneWaveDFT, LocalPPLongPlusShortEqualsFull)
             EXPECT_NEAR(std::abs(dcmplx(full(i,j))-dcmplx(split(i,j))), 0.0, 1e-12);
 }
 
-// The Vee_Hartree and PWFittedVxc dynamic terms route a complex density (PeriodicIrrepCD<dcmplx>) through the framework
+// The Vee_Hartree and Vxc_Quadrature dynamic terms route a complex density (PeriodicIrrepCD<dcmplx>) through the framework
 // and must reproduce the basis's Repulsion / Overlap -- the inversion working for the
 // density-dependent terms.  We feed a hand-built Hermitian density matrix (2 electrons in (e0+e1)/sqrt2).
 TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
@@ -1161,7 +1166,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     // XC term (Dirac exchange) matrix == the basis's FFT route: rho(r) via inverse FFT of rho-tilde,
     // v_xc applied pointwise on the grid, forward FFT to the matrix (what the term itself does).
     auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
-    std::unique_ptr<qchem::Hamiltonian::PWFittedVxc> xc(NewPWXC(F.pw, dirac));
+    std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(NewPWXC(F.pw, dirac));
     qchem::Hamiltonian::cDynamic_HT* xt=xc.get();
     const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, &cd);
     rvec_t rho=GridOf(F.pw).RhoOnGrid(RhoTilde(F.pw, D));
@@ -1191,9 +1196,10 @@ TEST_F(PlaneWaveDFT, ItemK_RelCutoffDensifiesAndConvergesVxc)
     auto vxcAt=[&](double relCutoff, size_t& nGfit)
     {
         qcMesh::MeshParams mp; mp.relCutoff=relCutoff;
-        auto fb=qchem::Hamiltonian::PWFittedVxc::fbs_t(F.pw.CreateVxcFitBasisSet(nullptr, mp));
+        auto fb=qchem::Hamiltonian::XC_PairQuadrature::fbs_t(F.pw.CreateVxcFitBasisSet(nullptr, mp));
         nGfit=fb->GetNumFunctions();
-        std::unique_ptr<qchem::Hamiltonian::PWFittedVxc> xc(new qchem::Hamiltonian::PWFittedVxc(dirac, fb));
+        std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(
+            new qchem::Hamiltonian::Vxc_Quadrature(dirac, qchem::Hamiltonian::MakeXCQuadrature(fb)));
         return chmat_t(static_cast<qchem::Hamiltonian::cDynamic_HT*>(xc.get())->GetMatrix(&F.pw, Spin::None, &cd));
     };
     auto froDiff=[&](const chmat_t& A, const chmat_t& B)

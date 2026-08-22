@@ -304,7 +304,7 @@ public:
     //! DM_ContractBlocks.  \a Phi maps BasisSetID -> the (npoints x n) table \f$\Phi_{gi}=\chi_i(r_g)\f$
     //! for that block; the return is \f$\rho(r_g)=\sum_b\mathrm{Re}\,[\Phi_b D_b\Phi_b^\dagger]_{gg}\f$.
     //! The caller owns the (geometry-fixed, cacheable-for-the-whole-run) basis tables; the density keeps
-    //! \f$D\f$ private and contracts them as GEMMs -- the seam that makes a mesh XC quadrature (DeltaFittedVxc)
+    //! \f$D\f$ private and contracts them as GEMMs -- the seam that makes a mesh XC quadrature (the SINGLES route)
     //! O(GEMM) per SCF iteration instead of re-evaluating Bloch sums pointwise.  A block whose ID is absent
     //! from \a Phi self-evaluates pointwise (correct, slower -- heals a caller's first pass before it has
     //! met every block).  Default: the plain pointwise loop over this density's ScalarFunction face, so
@@ -441,7 +441,7 @@ using cPolarized_CD = tPolarized_CD<dcmplx>;   // the polarized plane-wave (Bloc
 //  contract -- the matrix-free polarized sibling of tPolarized_CD's channel accessor.  A spin-SAD
 //  seed (doc/SCFSeedingPlan.md §10) has per-channel densities but no density matrix, so it cannot
 //  be a tPolarized_CD (whose channels are tDM_CD, with the DM-only pure virtuals); it exposes its
-//  channels through THIS face instead, and a spin-native consumer (XC_GridEngine::RhoPol) cross-casts
+//  channels through THIS face instead, and a spin-native consumer (XC_Quadrature::RhoPol) cross-casts
 //  abstract->abstract and reads each channel through the plain tChargeDensity face (the batched op()) --
 //  capabilities live only on the types that have them (no asserting DM stubs).
 //

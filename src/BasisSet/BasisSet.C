@@ -34,11 +34,20 @@ public:
     virtual irrepv_t GetIrreps(const Spin& ms) const=0;
 
     virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
-    virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
+    //! \brief The \f$v_{xc}\f$ fit basis for this run: \a fit picks the REPRESENTATION and \a mp the
+    //! POINTS, and ONE object comes back carrying both -- because a fit basis is a family of weight vectors
+    //! over shared points, so its mesh is constitutive of it, not a sibling return value.
+    //!
+    //! THIS is the level that chooses between representations (a Bloch BLOCK's own factory builds only the
+    //! lineage's fitted basis): \c VxcFit::Delta returns the \f$\delta\f$ basis over the run's XC
+    //! quadrature (\c CreateXCQuadrature -- mesh + fold + Shubnikov tags), anything else the lineage's
+    //! fitted one.  A molecular caller passes \c Auto and gets its Gaussian auxiliary basis, as always.
+    virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&,
+                                                VxcFit fit=VxcFit::Auto) const;
     //! The DELTA-fit sibling of \c CreateVxcFitBasisSet: the finished real-space XC quadrature (mesh +
     //! symmetry fold), assembled by the basis -- which owns the cell and the §3-imposed ops -- so the
     //! Hamiltonian does no mesh work.  Default/plain path: the Structure's integration mesh, no fold.
-    virtual XCQuadrature   CreateXCQuadrature (const Structure* cl, const qcMesh::MeshParams&) const;
+    virtual FitQuadrature   CreateXCQuadrature (const Structure* cl, const qcMesh::MeshParams&) const;
 
     //! The crystal RECIPROCAL point group as \f${U|\tau}\f$ ops for IBZ density symmetrization.  Default {} =
     //! trivial {E} = no-op -- molecules / Γ / unfolded bases.  A periodic GPW basis returns the ops WHEN it

@@ -99,7 +99,7 @@ public:
     //! \brief The DELTA-fit XC quadrature (doc/SymmetryUpgradePlan.md §6a W1): the Structure's mesh,
     //! group-averaged INVARIANT + orbit-folded when this basis carries §3-imposed crystal ops (the ctor
     //! injection) -- ALL the low-level mesh work lives here, next to the sibling fit-basis factories.
-    virtual BasisSet::XCQuadrature CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const override;
+    virtual BasisSet::FitQuadrature CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const override;
 
     //! \brief The external-PP capability (Integrals_Pseudo<dcmplx>): assemble \f$\langle i|V_{loc}|j\rangle\f$ /
     //! \f$\langle i|V_{NL}|j\rangle\f$ in REAL SPACE (cross-cast the model to its \c *_R face, delegate to the

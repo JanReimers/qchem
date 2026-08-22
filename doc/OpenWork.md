@@ -1091,6 +1091,102 @@ carry PW phases, which is what makes the weight-vector view a type and not a met
 ⚠ One sizing trap: a δ basis has n_pts "functions", so anything reasoning about a fit basis by COUNTING
 functions (grid sizing, memory reports, the `relCutoff` arithmetic) must not choke on 97160.
 
+#### ✅ DONE 2026-08-22 — all four steps + THE ABSORPTION.  756/756; the two-route Si gate BIT-FOR-BIT
+
+Steps 1–4 as written, then the absorption the section calls for (user: "also do the absorption").  What
+landed, in the order it was built and tested:
+
+| | |
+|---|---|
+| **1** | `G_Quadrature` → **`BasisSet::Quadrature`** (`Mesh()`, universal — new leaf module `qchem.BasisSet.Quadrature`) + **`G_RasterTransform`** (`RhoOnGrid`/`ForwardFFT`/`GridCoeff`/`FieldCoeffs`, honestly raster-only).  `PeriodicGridEvaluator` now STORES its raster as a `qcMesh::Mesh` (weights Ω/N) and `GridPoints()` reads it, so there is one copy, not two.  `qcMesh::Integrate(mesh,f)` added beside `SiteIntegrals`. |
+| **2** | `GriddedScalarFitter::Grid()` → `Mesh()` + `Raster()`; `OrthoScalarFitter` cross-casts each half separately. |
+| **3** | **`BasisSet::FIT_SF_Delta<T>`** (face) + **`DeltaFit_IBS`** (concrete, Bloch Γ) — the δ basis carries the `XCQuadrature` bundle (mesh + fold + σ tags), `Mesh()` from it, `isOrtho`, and `op(r)`/`Gradient` **throw** (user ruling: the value is a distribution and nothing wants it; `MakeOverlap` never appears because it lives on `FIT_SF_NonOrtho`, not on the face δ implements). |
+| **4** | `VxcFit` moved DOWN into `qcMesh::MeshParams` (alias kept in `qchem::Hamiltonian`) so `CreateVxcFitBasisSet` can read it: ONE factory call returns δ-over-mesh or PW-over-raster.  `BuildTerms` resolves only `Auto` — the one decision that needs to know the run is polarized — and stamps it. |
+| **absorption** | **`XC_Quadrature`** = the abstract two-faced object (ρ, and its exact adjoint H).  Two strategies: **`XC_SinglesQuadrature`** (ex `XC_GridEngine`, Φ table) and **`XC_PairQuadrature`** (ex `PWFittedVxc`'s guts — raw collocation + `applyRawAdjoint`, the BALL fallback, the R2.16 route latch).  `MakeXCQuadrature(fitBasis)` picks by CAPABILITY.  `PWFittedVxc` is GONE; `DeltaFittedVxc*` → **`Vxc_Quadrature` / `Vxc_QuadraturePol` / `Vcorr_QuadraturePol`**, one term set for every combination. |
+
+**MEASURED, not asserted.**  `GPW_SCF.DeltaFitUniformGridMatchesPWFit_SiGamma` drives BOTH strategies
+end-to-end; stashed/rebuilt/reran to compare against the pre-change binary:
+
+| route | before | after | iters |
+|---|---|---|---|
+| Si PW-fit (now the PAIR quadrature) | −7.115067665 | **−7.115067665** | 11 → 11 |
+| Si Delta uniform (now SINGLES) | −7.115059008 | **−7.115059008** | 11 → 11 |
+
+Full sweep 756/756 (169 s), including the FD variational gates and the real/complex bitwise gate on the
+pair route.  ⚠ One honest caveat: E_xc on the absorbed pair route is now accumulated as
+`Σ (w·ε)·ρ` where it was `Σ w·(ε·ρ)` (the shared term body), and step 1 replaced the raster's
+`(Σf)·Ω/N` with `Σ w_g f_g` — algebraically identical, last-digit different in principle; nothing
+measurable moved at the 1e-9 the gate prints.
+
+**FREE SIDE-EFFECT of the absorption:** the raw collocation now runs ONCE per iteration, not once per
+TERM — the exchange and correlation terms share one `XC_Quadrature` the way the Becke pair always did.
+
+**WHAT DID NOT CHANGE, deliberately.**  `CreateXCQuadrature` survives as the basis-side mesh BUILDER that
+the whole-set `CreateVxcFitBasisSet` calls for the δ case (and that several tests drive directly); it is
+simply no longer on the Hamiltonian's path — no caller re-decides anything.  The robust/Dunlap rebuild of
+the genuinely-fitted BALL branch (item 4 above) is still open, as is PW-fit-on-Becke (I3) and the
+pair-vs-singles auto-selector: capability picks the strategy today, so an override knob is the remaining piece.
+
+#### REVIEW FIXES, same day (user, on reading the above)
+
+**⛔ `VxcFit` DOES NOT BELONG IN qcMesh.**  It rode there as a `MeshParams` field so the factory could read
+it — but `MeshParams` describes POINTS and `VxcFit` describes FUNCTIONS, which are *precisely the two axes
+this whole section exists to separate*, so folding one into the other's parameter block re-welded them at
+the type level while the code was busy unwelding them.  Moved to `qchem.BasisSet.Fit_IBS`, beside the
+fit-basis types it selects between, and passed as its own ARGUMENT: `CreateVxcFitBasisSet(cl, mp, fit)`.
+qcMesh is pure geometry again.
+
+That argument sits on the WHOLE-SET `tBasisSet` factory only — the level the Hamiltonian actually asks at.
+A Bloch BLOCK builds only its own lineage's fitted basis (the per-block δ branches are reverted), and
+`DeltaFit_IBS` moved from qcLattice_BS up to qcBasisSet, since a δ basis over a mesh is not periodic-specific.
+Molecular callers pass `Auto` — "give me your own representation" — and never interpret the other two;
+`tBasisSet<double>` throws on an explicit `Delta`, because there is no real δ basis to build.
+
+**⛔ `GriddedScalarFitter` HAD NO CONSUMERS — DELETED.**  Its whole purpose was "the XC term borrows the
+grid THROUGH the fitter, one owner".  After the absorption the quadrature object holds the fit basis and
+reads `BasisSet::Quadrature` directly, so `Raster()` had **zero** callers and `Mesh()` had one, redundant
+with the caller's own.  A face nobody consumes is not an abstraction: `Factory(cFIT_SF_ABS)` now returns
+plain `FunctionFitter_Scalar<dcmplx>`, and where the ortho fitter samples is its own business — exactly as
+the AO fitter's Becke mesh is.
+
+**⛔ `FIT_SF_Delta` DID NOT EARN ITS EXISTENCE — it does now.**  As first built its entire content was
+`XCQuad()`: one getter, one consumer (`MakeXCQuadrature`), zero behaviour — a type whose only job was to
+carry a struct across a cast, i.e. the 2026-08-01 null-object objection in a new costume (a basis with no
+FUNCTIONS then, a basis with no BEHAVIOUR now).  **A fit basis is for DOING the fit and delivering E and
+the H matrix, not for holding its functions — in the δ case its grid — and giving them away** (user).  So
+the getter is gone and the face answers operations, every one of them over a field SAMPLED AT ITS OWN
+POINTS, in its own order, so no caller learns where those points are or what kind of mesh they came from:
+
+| | |
+|---|---|
+| `Integrate(f)` | \f$\int f=\sum_g w_g f_g\f$ — the E_xc quadrature |
+| `SiteIntegrals(f)` | \f$\int w_A f\f$ per site block; EMPTY when the mesh has no atomic partition |
+| `Sample(field)` | a field that evaluates itself anywhere, sampled at my points (matrix-free densities) |
+| `Symmetrize(f)` | the orbit-mean projector; no-op on a free run, so the caller never asks whether symmetry was imposed |
+| `SymmetrizeSpin(ρ,m)` | the Shubnikov (ρ even, m odd, flip-fixed zeros) projection — was a three-way branch in the consumer |
+
+`XC_SinglesQuadrature` is now built ON that basis and keeps only POLICY (which source ρ comes from, the
+per-serial caches, the spin channels, the DM-source damping).  The bundle's invariants and its `[fold]`
+announcement moved into the basis ctor, where the object is made — providers self-report.
+
+**⛔ AND "QUADRATURE" IS AN IMPLEMENTATION DETAIL, SO IT LEFT `BuildTerms`** (user).  The builder now says
+*what the model is* and asks for XC terms: `MakeVxcTerms(exch, corr, XFitBasis, polarized)` returns the
+pair, and the strategy choice, the sharing of one quadrature across the pair (ρ and the Φ tables built once
+per ITERATION, not once per term), and the adjoint pairing are all inside.  The TERMS lost the mesh too:
+they integrate through `XC_Quadrature::Integrate` and report through `NumPoints()`, so no term touches
+weights or points.  `MakeXCQuadrature` picks by CAPABILITY — has the basis got `G_RasterTransform`? — never
+by asking what the basis IS.
+
+**WHAT IS LEFT, and where it lives.**  Exactly one coordinate escape survives: `Quadrature::Mesh()`, needed
+because the ρ GEMM is initiated by the DENSITY (`cDM_CD::DM_RhoAtPoints`, which owns D and lives in a
+library above qcBasisSet), so points and the Φ cache must still reach it.  It is confined to the two
+`XC_*Quadrature` strategies — no term, no Hamiltonian, no fit-basis client sees it — and closing it means
+flipping `DM_RhoAtPoints` to take the δ basis and ask it per block, which brings Φ and BOTH contractions
+into the basis and touches qcChargeDensity's IrrepCD/composite tree.  That is the only piece of this design
+item still outstanding; everything else about δ-vs-fitted and pair-vs-singles is settled.
+
+Re-verified after all three: 756/756, and the two-route Si gate still prints −7.115067665 / −7.115059008 at 11/11 iterations.
+
 ### Q1 — can we use this for Vxc IN COMBINATION WITH MIXING?
 
 **Partial answer: yes, and there are three routes, but the cheap one is not obviously the accurate one.**

@@ -529,7 +529,7 @@ private:
 //  THE POLARIZED ρ̃ MIXER (2026-08-07; doc/SymmetryUpgradePlan.md §7 step 7)
 //
 //  A ρ̃-space mixer carries ONE FourierMixCD -- the ↑+↓ total, no spin channels -- and drives every Fock
-//  from it.  XC_GridEngine::RhoPol then finds no spin face and takes its ρ↑=ρ↓=ρ/2 branch, so v_xc^↑≡v_xc^↓
+//  from it.  XC_Quadrature::RhoPol then finds no spin face and takes its ρ↑=ρ↓=ρ/2 branch, so v_xc^↑≡v_xc^↓
 //  and a POLARIZED run is silently unpolarized from iteration 1 (measured on MnO: a seed staggered at
 //  m_stag=0.366 read EXACTLY 0 at iteration 1).  The cure is a COMPOSITION, not a second implementation:
 //  one ordinary mixer per spin channel, plus the view below that gives their pair both faces the framework

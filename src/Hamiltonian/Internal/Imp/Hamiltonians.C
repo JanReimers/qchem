@@ -9,7 +9,7 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
-import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, PWFittedVxc + DeltaFittedVxc (the plane-wave KS terms)
+import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, Vxc_Quadrature + MakeXCQuadrature (the periodic KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
 import qchem.Types;                               // dcmplx (for IonIon<dcmplx>)
@@ -181,7 +181,7 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 {}
 
 // Plane-wave LDA Kohn-Sham: the five G-space framework terms.  Exchange and correlation are SEPARATE
-// PWFittedVxc terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
+// Vxc_Quadrature terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
 // E_c = integral eps_c rho.  The Hartree term takes a density-fit basis from the basis's own factory
 // (like FittedVee); the XC route still integrates on the basis's grid (no fit basis).  The pseudopotential
 // is carried by the basis (the external term just supplies the structure factor).
@@ -217,67 +217,55 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // this is the one selection site).
     const bool becke = xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
     // Auto picks DELTA whenever the plane-wave fit cannot do the job -- on a Becke grid (it has no G-space
-    // raster) and, since 2026-08-08, on ANY grid for a POLARIZED run (PWFittedVxc is not spin-native).  Delta
+    // raster) and, since 2026-08-08, on ANY grid for a POLARIZED run (the pair route is not spin-native).  Delta
     // works on either grid, which the doc above already said; Auto simply never chose that combination, so a
     // polarized run on a uniform grid used to hit the throw below and tell the user to ask for Delta by hand.
     // Exposed by arming the V1.26 selector (V2.4): once Auto could route a soft system to the uniform grid, a
     // polarized soft system became reachable for the first time -- Si's spin-collapse gates.
+    //
+    // RESOLVING Auto IS THE ONE DECISION THAT STAYS HERE (2026-08-22).  Everything else about the Vxc fit
+    // basis -- the representation, the points, the fold -- is now made by ONE factory call below, because a
+    // fit basis is not defined without its points.  But Auto's rule reads `polarized`, which is a property
+    // of the RUN and not of any basis, so it is resolved here (policy, beside qcMesh::ResolveXCMesh) and
+    // STAMPED into the MeshParams the factory reads.  From there down, nothing re-decides.
     const bool delta = fit==VxcFit::Delta || (fit==VxcFit::Auto && (becke || polarized));
-    if (delta)
-    {
-        // The DELTA-fit route: a pure QUADRATURE -- the "fit coefficients" ARE the grid-point values
-        // (no expansion, no metric), so no fit-basis object exists (a zero-function pseudo-basis was a
-        // null-object smell; user 2026-08-01).  Works on ANY real-space grid: Becke (the sharp-core
-        // grid it was built for) or the uniform cell mesh (the band-limit cross-check cell).  ALL the
-        // low-level mesh work -- grid build, group-averaging it invariant under the imposed ops, fold
-        // preparation -- lives in the basis's CreateXCQuadrature factory (the sibling of
-        // CreateVxcFitBasisSet; the basis owns the cell + the §3 policy), so this branch only picks
-        // the term and hands the finished quadrature to the engine.
-        std::cout<<"[XC quadrature] DELTA fit on the "<<(becke ? "periodic BECKE atom-centred" : "uniform cell")
-                 <<" mesh"<<(becke ? " (details on the [Becke grid] line)" : "")<<std::endl;
-        qchem::report::EmitAt("grids", "xcQuadrature", {{"kind", becke ? "Becke" : "DeltaUniform"}});
-        BasisSet::XCQuadrature q = bs->CreateXCQuadrature(st.get(), xcMesh);
-        auto engine=std::make_shared<XC_GridEngine>(q.mesh, std::move(q.fold),
-                                                    std::move(q.sigmas), std::move(q.flipFixed));
-        if (polarized)
-        {
-            // SPIN-NATIVE pair (tier 4b): a channel-native (non-halving, spin-tagged) Dirac exchange fed
-            // rho_sigma per block, and the VWN5 two-channel correlation face.  Same shared engine.
-            auto exchP=std::make_shared<SlaterExchange>(2.0/3.0, Spin::Up);
-            Add(new DeltaFittedVxcPol(exchP, engine));
-            Add(new DeltaFittedVcorrPol(corr, engine));
-        }
-        else
-        {
-            Add(new DeltaFittedVxc(exch, engine));
-            Add(new DeltaFittedVxc(corr, engine));
-        }
-    }
-    else
-    {
-        // HARD throw, not an assert: a Release-compiled assert would silently hand a polarized run the
-        // UNPOLARIZED PWFittedVxc pair below -- wrong physics, no diagnostic (the tier-4b Delta-only pin).
-        // Only reachable now via an EXPLICIT VxcFit::PlaneWave on a polarized run -- Auto routes polarized
-        // to Delta above.  Still a hard throw, not an assert: a Release-compiled assert would silently hand a
-        // polarized run the UNPOLARIZED pair below (wrong physics, no diagnostic -- the tier-4b Delta-only pin).
-        if (polarized)
-            throw std::runtime_error("Ham_PW_DFT polarized: VxcFit::PlaneWave is not spin-native (per-channel "
-                "PWFittedVxc with per-spin rho caches is not designed yet).  Use VxcFit::Delta, which works on "
-                "either grid, or VxcFit::Auto, which now selects it for you on a polarized run.");
-        // The PLANE-WAVE fit route: exchange + correlation share ONE Vxc (overlap-metric) fit basis;
-        // the projection quadrature is the FFT on the fit basis's own raster.  A PlaneWave fit ON a
-        // Becke grid (I3) is asserted out until its one-functional E/H derivative pairing is designed
-        // (the projection sum is trivial; the DISCIPLINE is that H must be the exact derivative of the
-        // quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).
-        assert(!becke && "VxcFit::PlaneWave on a Becke grid (I3): the E/H one-functional pairing is not designed yet");
-        std::cout<<"[XC quadrature] PLANE-WAVE fit on the uniform G-space raster (details on the [uniform grid] line)"<<std::endl;
-        // The ROUTE owns grids.xcQuadrature -- one key, one answer per run (the fit basis announces its own
-        // grid separately, under grids.vxcFitGrid).
-        qchem::report::EmitAt("grids", "xcQuadrature", {{"kind", "PlaneWave"}});
-        PWFittedVxc::fbs_t VFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
-        Add(new PWFittedVxc(exch, VFitBasis));
-        Add(new PWFittedVxc(corr, VFitBasis));
-    }
+    // HARD throw, not an assert: a Release-compiled assert would silently hand a polarized run the
+    // UNPOLARIZED term pair -- wrong physics, no diagnostic (the tier-4b Delta-only pin).  Only reachable
+    // via an EXPLICIT VxcFit::PlaneWave on a polarized run; Auto routes polarized to Delta above.
+    if (polarized && !delta)
+        throw std::runtime_error("Ham_PW_DFT polarized: VxcFit::PlaneWave is not spin-native (the pair "
+            "collocation route has no per-channel rho_sigma).  Use VxcFit::Delta, which works on either "
+            "grid, or VxcFit::Auto, which now selects it for you on a polarized run.");
+    // A PlaneWave fit ON a Becke grid (I3) is asserted out until its one-functional E/H derivative pairing
+    // is designed (the projection sum is trivial; the DISCIPLINE is that H must be the exact derivative of
+    // the quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).
+    assert((delta || !becke) && "VxcFit::PlaneWave on a Becke grid (I3): the E/H one-functional pairing is not designed yet");
+
+    qcMesh::MeshParams xc=xcMesh;   // the user's mesh knobs (WHICH POINTS) + the functional's fit-grid density
+    xc.relCutoff=mp.relCutoff;      // the REPRESENTATION travels as its own argument, not folded in here
+
+    // ONE factory call and ONE ask for XC terms, whatever the combination (2026-08-22).  The fit basis
+    // comes back CARRYING its quadrature -- delta functions on a Becke or uniform cell mesh, or plane
+    // waves on their raster -- and AddVxcTerms decides everything downstream of that: which assembly
+    // strategy the basis can support, and that the exchange/correlation pair shares one.  None of that is
+    // this builder's business: it states the MODEL (which functionals, polarized or not) and nothing else.
+    std::cout<<"[XC quadrature] "
+             <<(delta ? (becke ? "DELTA fit on the periodic BECKE atom-centred mesh (details on the [Becke grid] line)"
+                               : "DELTA fit on the uniform cell mesh")
+                      : "PLANE-WAVE fit on the uniform G-space raster (details on the [uniform grid] line)")
+             <<std::endl;
+    // The ROUTE owns grids.xcQuadrature -- one key, one answer per run (a fit basis announces its own grid
+    // separately, under grids.vxcFitGrid).
+    qchem::report::EmitAt("grids", "xcQuadrature",
+                          {{"kind", delta ? (becke ? "Becke" : "DeltaUniform") : "PlaneWave"}});
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> XFitBasis(
+        bs->CreateVxcFitBasisSet(st.get(), xc, delta ? VxcFit::Delta : VxcFit::PlaneWave));
+    // SPIN-NATIVE (tier 4b) exchange must be channel-native: a spin-tagged SlaterExchange does NOT halve
+    // rho, because it is fed rho_sigma per channel.  Correlation's two-channel face serves both cases.
+    for (auto& t : MakeVxcTerms(polarized ? std::make_shared<SlaterExchange>(2.0/3.0, Spin::Up) : exch,
+                                corr, XFitBasis, polarized))
+        Add(t.release());
+
     Add(new IonIon<dcmplx>(st, loc->ZionFn()));                  // ion-ion Ewald: Zion from the PP, not itsZ
 }
 

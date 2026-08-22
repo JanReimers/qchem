@@ -68,9 +68,9 @@ template <class T> BasisSet::cFIT_CD_ABS* tGPW_IBS<T>::CreateCDFitBasisSet(const
 }
 template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
-    // The DELTA-fit route builds NO fit basis at all (user 2026-08-01 -- a zero-function pseudo-basis
-    // was a null-object smell): its quadrature comes from CreateXCQuadrature below.  This factory
-    // serves the PLANE-WAVE fit route.
+    // A BLOCK builds only its OWN fitted representation -- here the plane-wave {G} one.  Choosing BETWEEN
+    // representations (delta vs fitted) is the WHOLE-SET factory's job, one level up in tBasisSet, since
+    // the delta basis is a property of the run's quadrature and not of any one Bloch block.
     // {G}_vxc = relCutoff * {G}_rho.  LDA relCutoff==1 => == DensityGrid(); a GGA's denser grid is not wired yet.
     assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA denser Vxc grid) not wired -- the LDA Vxc grid = the CD grid");
     // The Vxc fit basis carries the τ=0 direct ops so its raster STAR-AVERAGES itself under IBZ (empty = no-op).
@@ -84,7 +84,7 @@ template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(cons
                                 "vxcFitGrid", SymmetryOps());
 }
 
-template <class T> BasisSet::XCQuadrature tGPW_IBS<T>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
+template <class T> BasisSet::FitQuadrature tGPW_IBS<T>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     // The DELTA-fit quadrature (doc/SymmetryUpgradePlan.md §6a).  On a §3-imposed run this basis
     // carries the crystal ops (ctor-injected, like the raster ops PlaneWaveFit_IBS gets):

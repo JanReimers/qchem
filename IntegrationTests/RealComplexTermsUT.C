@@ -7,13 +7,13 @@
 // part BITWISE (EXPECT_EQ on doubles; Step 0's exact +/-1 phases are what make zero tolerance possible).
 //
 // Covered here: the static set (Kinetic, Ven_PP_Short/Long/NonLocal) and the density-dependent
-// Vee_Hartree + the Becke-route DeltaFittedVxc.  Each scalar arm drives its OWN production-shaped
+// Vee_Hartree + the Becke-route Vxc_Quadrature.  Each scalar arm drives its OWN production-shaped
 // density (a real child on the real block, a complex child on the complex block -- the 3c-3 mixed
 // shape): the GPW integrate-back's D-aware screen is INSTANCE-PAIRED state (the collocation and its
 // adjoint must go through the same block instance -- the 2026-08-18 cross-run-pollution fix scoped the
 // 3C tensors per instance, see tGPW_IBS::Repulsion3C), so a cross-asked arrangement (density collocated
 // on cx, matrix asked of re) is no longer screen-consistent and was only ever bitwise by the two twins
-// accidentally sharing one DBCache'd closure.  The PWFittedVxc RAW-route real path needs the full
+// accidentally sharing one DBCache'd closure.  The pair-quadrature RAW-route real path needs the full
 // collocation feed and is gated with the 3c-2 SCF wiring.
 #include "gtest/gtest.h"
 #include <complex>
@@ -27,7 +27,9 @@ import qchem.BasisSet.Lattice_3D.GPW_IBS;          // tGPW_IBS<T> (both block al
 import qchem.Hamiltonian;                          // Static/Dynamic_HT_RealBlock (the capability faces)
 import qchem.Hamiltonian.Internal.Kinetic;         // Kinetic<T> (tests may cheat-import internals)
 import qchem.Hamiltonian.Internal.Hamiltonian;     // tHamiltonianImp<dcmplx> (the 3c-2 assembly gate)
-import qchem.Hamiltonian.Internal.PWTerms;         // the periodic term set + XC_GridEngine
+import qchem.Hamiltonian.Internal.PWTerms;         // the periodic term set + the two XC_Quadrature strategies
+import qchem.BasisSet.DeltaFit_IBS;                // DeltaFit_IBS -- the delta basis the singles strategy runs on
+import qchem.Symmetry.Factory;                     // BlochFactory (its Gamma irrep)
 import qchem.Hamiltonian.Internal.SlaterExchange;  // SlaterExchange (the Dirac-exchange functional)
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (Si GTH-LDA-q4)
 import qchem.ChargeDensity.Imp.IrrepCD;            // PeriodicIrrepCD (the periodic leaf -- 3c-2b)
@@ -132,7 +134,7 @@ TEST(RealComplexTerms, StaticTermsServeTheRealBlockBitwise)
 }
 
 // The DYNAMIC pair reachable without the full SCF: Hartree (G-space Poisson off the shared V_H(G)) and
-// the Becke-route DeltaFittedVxc (the engine's rho raster is block-independent; the real block gets its
+// the Becke-route Vxc_Quadrature (the engine's rho raster is block-independent; the real block gets its
 // own REAL Phi table, so its quadrature GEMM runs in real arithmetic -- the first realized Step-3 win).
 TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
 {
@@ -152,14 +154,15 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
     }
 
     auto q = rig.cx->CreateXCQuadrature(rig.st.get(), qcMesh::MeshParams{});
-    auto engine=std::make_shared<const XC_GridEngine>(q.mesh, q.fold);
-    DeltaFittedVxc vxc(std::make_shared<SlaterExchange>(2.0/3.0), engine);
+    auto dfb=std::make_shared<const BasisSet::DeltaFit_IBS>(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    auto engine=std::make_shared<const XC_SinglesQuadrature>(dfb);
+    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), engine);
     {
         auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);
-        ASSERT_NE(rb,nullptr) << "DeltaFittedVxc must carry the real-block capability (Step 3c)";
+        ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
         const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, cd.get());
         const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cdr.get());
-        ExpectMachineEqual(Vr, Vc, "DeltaFittedVxc");
+        ExpectMachineEqual(Vr, Vc, "Vxc_Quadrature");
     }
 }
 
@@ -247,7 +250,7 @@ TEST(RealComplexTerms, SeedDensityTrioMatches_FccDiamond)
     for (size_t g=0; g<cgr.size(); g++) EXPECT_EQ(cgr[g], cgc[g]) << "composite raw rho mismatch at g="<<g;
 }
 
-// The RAW-route PWFittedVxc gate (Step 3c-3): the production Uniform-mesh XC.  The collocated rho_DM
+// The RAW-route pair-quadrature gate (Step 3c-3): the production Uniform-mesh XC.  The collocated rho_DM
 // feed is block-independent; the real block's matrix comes back through the SAME raw adjoint tensor
 // (TFit==dcmplx either way) narrowed at the end, so it must equal the complex block's real part
 // BITWISE.  (This was the one term route 3c-1 could not gate without the full collocation feed.)
@@ -256,13 +259,13 @@ TEST(RealComplexTerms, RawRouteXcServesTheRealBlockBitwise)
     Rig rig;
     auto cd  = rig.MakeDensity();       // the complex arm's density
     auto cdr = rig.MakeRealDensity();   // the real arm's twin (screen-consistent pairing; file header)
-    PWFittedVxc::fbs_t fb(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
-    PWFittedVxc vxc(std::make_shared<SlaterExchange>(2.0/3.0), fb);
+    XC_PairQuadrature::fbs_t fb(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), MakeXCQuadrature(fb));
     auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);
-    ASSERT_NE(rb,nullptr) << "PWFittedVxc must carry the real-block capability (Step 3c)";
+    ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
     const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, cd.get());
     const rsmat_t Vr=rb->GetMatrix(rig.re.get(), Spin::None, cdr.get());
-    ExpectBitwiseEqual(Vr, Vc, "PWFittedVxc raw");
+    ExpectBitwiseEqual(Vr, Vc, "Vxc_Quadrature (pair) raw");
 }
 
 // The ASSEMBLY gate (Step 3c-2): the Hamiltonian's Ham_RealBlock fold over the term faces must equal the

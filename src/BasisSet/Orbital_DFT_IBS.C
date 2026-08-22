@@ -6,7 +6,7 @@ export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.Internal.Projector3;
-import qchem.Structure;  // Structure::CreateIntegrationMesh (the default XCQuadrature build)
+import qchem.Structure;  // Structure::CreateIntegrationMesh (the default FitQuadrature build)
 
 export namespace qchem::BasisSet
 {
@@ -52,7 +52,7 @@ public:
     //! imposed crystal ops OVERRIDES this to group-average the mesh invariant and prepare the orbit fold
     //! (GPW) -- so the Hamiltonian does no mesh work whichever basis it holds.  (Hoisted from the retired
     //! Band_FT_IBS -- V1.1(iii): the neutral default was always structure-agnostic.)
-    virtual XCQuadrature CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
+    virtual FitQuadrature CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
     {
         return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
     }
