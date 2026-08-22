@@ -327,7 +327,7 @@ template <class Comp> rvec_t Composite_Fourier<Comp>::GetRhoOnGrid(const BasisSe
     }
     // IBZ: star-average the summed raster IN REAL SPACE (voxel permutation) so XC sees ρ_sym while staying
     // on the non-negative ρ_DM grid.  The fit basis owns its grid + the τ=0 direct ops; no-op unless folded.
-    c.SymmetrizeRaster(sum);
+    c.Symmetrize(sum);
     return sum;
 }
 

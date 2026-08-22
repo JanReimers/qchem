@@ -75,6 +75,7 @@ public:
         {return itsQuad.mesh->NSites()==0 ? rvec_t() : qcMesh::SiteIntegrals(*itsQuad.mesh, f);}
     rvec_t Sample(const ScalarFunction<double>& f) const override {return f(itsQuad.mesh->Points());}
 
+    //! \copydoc BasisSet::FIT_SF_ABS::Symmetrize  (my mesh's orbit-mean projector)
     void Symmetrize(rvec_t& f) const override
     {
         if (itsQuad.fold.owner.empty()) return;              // free run: the projector is the identity

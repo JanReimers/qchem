@@ -126,13 +126,17 @@ public:
     //! \c true selects the orthonormal (plane-wave) scalar fitter.  Every fit basis must declare its metric.
     virtual bool isOrtho() const=0;
 
-    //! Star-average a real-space raster IN PLACE over the crystal point group (IBZ density symmetrization).
-    //! REAL-space (voxel g→W·g), so it PRESERVES ρ≥0 -- XC stays on the non-negative ρ_DM raster, never routed
-    //! onto ρ̃ (doc/GPWPlan1.md item 3).  Default NO-OP: molecules / unfolded crystals / any fit basis with no
-    //! folded grid.  The concrete PERIODIC fit basis -- which owns its grid AND the τ=0 direct ops ctor-injected
-    //! at build -- overrides this.  Called by \c tComposite_CD::GetRhoOnGrid so the density presents ONE
-    //! symmetric identity across all its faces (the field faces return ρ_sym; the fit basis owns the geometry).
-    virtual void SymmetrizeRaster(rvec_t&) const {}
+    //! \brief STAR-AVERAGE a field SAMPLED AT MY POINTS, in place, over the crystal point group (the IBZ
+    //! density symmetrization).  REAL-space, so it PRESERVES ρ≥0 -- XC stays on the non-negative ρ_DM
+    //! samples, never routed onto ρ̃ (doc/GPWPlan1.md item 3).
+    //!
+    //! ONE operation, two mechanisms, because the basis owns its own geometry: a raster-backed basis
+    //! permutes voxels (g→W·g) and applies the glide τ by the FFT shift theorem; a δ basis applies its
+    //! mesh's orbit-mean projector.  Default NO-OP -- molecules, unfolded crystals, any fit basis with no
+    //! symmetry structure -- so a caller never asks whether symmetry was imposed, it just symmetrizes.
+    //! (Was \c SymmetrizeRaster: named for the PW mechanism, which is why the δ route grew a duplicate
+    //! declaration of its own before this was noticed -- 2026-08-22.)
+    virtual void Symmetrize(rvec_t&) const {}
 };
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
 using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis
@@ -175,6 +179,13 @@ public:
     bool isOrtho() const override {return true;}
 
     //! \name The quadrature operations -- what this basis is FOR
+    //!
+    //! FOUR, and each earns its place by being a question only the owner of the points and weights can
+    //! answer: a SCALAR out (\c Integrate), a per-BLOCK vector out (\c SiteIntegrals), a per-POINT vector
+    //! in (\c Sample), and the one projection that needs TWO fields at once (\c SymmetrizeSpin).  The
+    //! single-field projection is NOT here -- it is \c FIT_SF_ABS::Symmetrize, which every fit basis
+    //! already answers; only the magnetic pair is δ-specific, because δ is the only representation a
+    //! polarized run can use at all (a plane-wave fit has no per-channel collocation).
     //!@{
     //! \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field sampled at my points (the \f$E_{xc}\f$ quadrature).
     virtual double Integrate(const rvec_t& f) const=0;
@@ -185,11 +196,8 @@ public:
     //! Sample a field that can evaluate itself anywhere, AT my points -- the matrix-free-density route
     //! (a seed, a \f$\tilde\rho\f$-mixed field).  The caller supplies the field, not the coordinates.
     virtual rvec_t Sample(const ScalarFunction<double>& f) const=0;
-    //! \brief STAR-AVERAGE a sampled field over my orbit fold, in place: the exact projector onto the
-    //! invariant subspace on an invariant mesh (§6a W1).  No-op on a free run -- so a caller never asks
-    //! whether symmetry was imposed, it just symmetrizes and the basis knows whether that means anything.
-    virtual void Symmetrize(rvec_t& f) const=0;
-    //! \brief The MAGNETIC (Shubnikov S3) sibling: project the \f$(\rho,m)\f$ PAIR, which is what
+    //! \brief The MAGNETIC (Shubnikov S3) sibling of \c FIT_SF_ABS::Symmetrize: project the
+    //! \f$(\rho,m)\f$ PAIR, which is what
     //! diagonalizes \f$\sigma\f$ -- \f$\rho\f$ even under the plain orbit mean, \f$m\f$ odd under the
     //! \f$\chi\f$-signed one with the flip-fixed points zeroed first.  Falls back to averaging each
     //! argument independently when the run carries no \f$\sigma\f$ tags (grey/free semantics), so again
@@ -229,8 +237,14 @@ public:
 class Fit_IBS
     : public virtual FIT_CD_NonOrtho
     , public virtual FIT_SF_NonOrtho
-    , public virtual Evaluatable_IBS<double>   // a Gaussian aux basis IS evaluatable -- and needs to be,
-                                               // to compute its OWN mesh integrals (Norm/Overlap below)
+    // PRIVATE, deliberately (user, 2026-08-22).  A Gaussian aux basis IS evaluatable and NEEDS to be --
+    // Norm() and Overlap(f) below are mesh quadratures over its own functions -- but that is HOW it
+    // answers, not something its clients may ask: nothing outside has ever passed a Fit_IBS as a
+    // VectorFunction, and the two uses are both members of this class.  So the capability is inherited
+    // for implementation and kept out of the interface.  PROTECTED, not private: a concrete fit basis (the
+    // molecular EFit_IBS) reaches the virtual base through its own AO path, and the most-derived class must
+    // be able to destroy it.
+    , protected virtual Evaluatable_IBS<double>
 {
 public:
     using Integrals_Overlap<double>::Overlap;       // un-hide the metric Overlap() past the Overlap(Sf) override

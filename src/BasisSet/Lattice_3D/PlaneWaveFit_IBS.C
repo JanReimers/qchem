@@ -69,7 +69,7 @@ public:
     //! alias/blur the density and mistune the SCF).  τ=0 for a symmorphic crystal, so this collapses to the plain
     //! permutation average.  Real-space average of a (near-)non-negative raster stays ≥0, so XC keeps its ρ_DM
     //! feed.  No-op when unfolded ({} ops).  Needs the CUBIC FFT grid (axis-mixing W).
-    void SymmetrizeRaster(rvec_t& rho) const override
+    void Symmetrize(rvec_t& rho) const override
     {
         if (itsDirectOps.empty()) return;                                  // trivial {E}: exact no-op
         const ivec3_t N = this->FFTGrid();
