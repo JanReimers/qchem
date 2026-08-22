@@ -424,6 +424,47 @@ MnO campaign proceeds undisturbed in qchem6.
   CP2K atom oracles as the refactor invariant — they pin the physics independently of which route
   computes it.
 
+  **SCOPED 2026-08-22 (user): STEP (1) ONLY — step (2) is explicitly left out** of the session that does
+  this.  Making atomic `op(r)` honest (real Y_lm combinations) is the riskier half, it drags the
+  density/XC paths that rely on the radial-only form, and NOTHING in step (1) needs it: step (1) removes
+  the consumers, which is what kills the bug class; the fake then sits behind a face nobody calls.
+
+  **WHAT THE XC SEPARATION WORK ADDED TO THIS ITEM (2026-08-22, commit `b5d5d363` + the discussion after).**
+  - **The cure already has a working precedent, not just a design.**  `Fit_IBS` ALREADY answers
+    operations — `Overlap(Sf)` = \f$\langle f_a|f\rangle\f$ and `Norm()` — and uses `op(r)` only
+    INTERNALLY, on its own mesh, to compute them.  So "ask the basis for the integral" is not a new shape
+    for fit bases; it is the shape they were already in, with `op(r)` leaking as a second, redundant face.
+  - **`DeltaFit_IBS` is step (1) applied to one basis.**  It has no `op(r)` to fall back on (a delta is a
+    distribution), so it exposes only operations.  That is why the tension surfaced there first.
+  - ⚠ **A NAMING TRAP in the `MakeOverlap` fold-in.**  For a delta basis
+    \f$\langle\delta_g|f\rangle = w_g f(r_g)\f$, so its `Sample` (which returns the bare values
+    \f$f(r_g)\f$, because the XC functional is applied POINTWISE) is **not** `MakeOverlap` — it is the
+    FIT COEFFICIENT vector in the diagonal metric, \f$c_g=\langle\delta_g|f\rangle/\langle\delta_g|
+    \delta_g\rangle = f(r_g)\f$.  The `MakeOverlap`/`MakeOverlap3C` ruling covers the
+    \f$\langle\chi_i|f\rangle\f$ / \f$\langle\chi_i|f|\chi_j\rangle\f$ integrals; the delta
+    route's per-point verb belongs to the FIT vocabulary instead.  Decide which of `Integrate` /
+    `SiteIntegrals` / `Sample` / `Symmetrize` (landed in `b5d5d363`, ahead of this fold-in) keep their
+    names and which become `MakeOverlap*` overloads — do not blanket-rename on the family name alone.
+  - **THE ENABLING MOVE (user): take `VectorFunction<T>` OFF `IrrepBasisSet<T>` and put it on
+    `Orbital_1E_IBS<T>`.**  Surveyed: only FOUR sites evaluate a basis pointwise — `TOrbital.C:47`
+    (psi(r)), `IrrepCD.C:543` (rho(r)), `PWTerms.C:702` (the Phi table, batched) — all ORBITAL — and
+    `FunctionFitterImp.C:27` (the fitted field \f$\sum_a c_a f_a(r)\f$), the ONLY fit-basis one, which
+    becomes an operation `EvalFit(c,r)`.  The plane-wave lineage already proves that shape:
+    `G_FieldEvaluator::EvalField(coeffs,r)` exists precisely because a \f${G}\f$ basis cannot answer it
+    through `op(r)` either.  NB the removal is from the ABSTRACT FACE, not from concrete classes: `Fit_IBS`
+    keeps deriving `VectorFunction<double>` explicitly (it needs it for its own `qcMesh::Overlap`), it just
+    stops PROMISING evaluation to consumers.  Bonus: `GetVectorSize()` exists only to satisfy
+    `VectorFunction` and shadows `GetNumFunctions()` — one of the pair goes.
+  - **IT CLOSES THE XC ITEM'S LAST ESCAPE, as an instance rather than a special case.**  The one surviving
+    getter after `b5d5d363` is `Quadrature::Mesh()`, needed because `cDM_CD::DM_RhoAtPoints(points,
+    Phi-tables)` is initiated by the DENSITY (it owns D, and lives above qcBasisSet).  But
+    \f$\Phi_{gi}=\langle\delta_g|\chi_i\rangle/w_g\f$ is a CROSS-BASIS OVERLAP — exactly an
+    "ask the basis for the integral" (`Repulsion(const rFIT_CD_ABS&)` is the existing cross-basis
+    precedent) — so under step (1) `DM_RhoAtPoints(points, tables)` becomes `DM_RhoAtPoints(basis)`, Phi
+    and BOTH contractions come into the basis, and no coordinate leaves anywhere.
+  - **ORDER:** the naming fold-in + the `VectorFunction` relocation first; the rho flip then falls out.
+    Step (2) stays out.
+
 - **R1.1 ✅ DONE `06e23f5d`. `FittedVxcPol::GetEnergy` clobbers `te.Exc`** — `te.Exc = 0.0;` before delegating.  **→ doc/CleanupHistory.md**
 - **R1.2 ✅ DONE `06e23f5d` (with one CORRECTION, below). `=` vs `+=` on `EnergyBreakdown`.**  Assigners:.  **→ doc/CleanupHistory.md**
 - **R1.3 ✅ DONE `38a1ebd6` — fixed via `Clone()`, not stopgapped. `UnitCell` SLICING copy** — SCFIterator.C:163.  **→ doc/CleanupHistory.md**

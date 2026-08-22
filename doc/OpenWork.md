@@ -1185,6 +1185,15 @@ flipping `DM_RhoAtPoints` to take the δ basis and ask it per block, which bring
 into the basis and touches qcChargeDensity's IrrepCD/composite tree.  That is the only piece of this design
 item still outstanding; everything else about δ-vs-fitted and pair-vs-singles is settled.
 
+⇒ **AND IT IS NOT ITS OWN ITEM: it closes as an instance of `doc/CleanupCandidates.md` R1.0** (the "FAKE
+RADIAL `op(r)`" cure — *consumers stop touching `op(r)`; code that wants an INTEGRAL asks the basis for
+it*).  Φ_gi = ⟨δ_g|χ_i⟩/w_g is a cross-basis overlap, so the same discipline that fixes the atomic fake
+radial turns `DM_RhoAtPoints(points, tables)` into `DM_RhoAtPoints(basis)`.  R1.0 now carries the scope
+(step (1) only — step (2), honest Y_lm `op(r)`, is explicitly out, user 2026-08-22), the enabling move
+(`VectorFunction<T>` off `IrrepBasisSet<T>`, onto `Orbital_1E_IBS<T>` — four pointwise sites, three of
+them orbital), and the naming trap (a δ basis's `Sample` is the FIT coefficient vector, NOT
+`MakeOverlap`, since ⟨δ_g|f⟩ = w_g f(r_g)).
+
 Re-verified after all three: 756/756, and the two-route Si gate still prints −7.115067665 / −7.115059008 at 11/11 iterations.
 
 ### Q1 — can we use this for Vxc IN COMBINATION WITH MIXING?
