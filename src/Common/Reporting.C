@@ -101,7 +101,12 @@ void ClearConsole();
 // by cost, and whatever dominates simply shows up (the "where did my 300 s go" report).
 //============================================================================
 
-//! Accumulate \a seconds of wall time under \a key (creates the bucket on first use).
+//! Accumulate \a seconds of wall time under \a key (creates the bucket on first use), and COUNT the call.
+//! The count is what makes two buckets comparable: a total is only meaningful against another total when
+//! both fire at the same cadence, and a per-iteration bucket beside a once-per-run one reads as a win that
+//! is not there.  \c EmitTimings prints the per-call price for any bucket that fired more than once.
+//! \note Entries charging no time (a scope whose body delegated entirely to a nested \c Timed) are NOT
+//! counted -- the time is exclusive, so counting them would divide real work by inflated entries.
 void AddTime(const std::string& key, double seconds);
 
 //! RAII stopwatch: charges the scope's EXCLUSIVE wall time -- elapsed MINUS any enclosed Timed scopes --
@@ -122,7 +127,9 @@ private:
 };
 
 //! Emit the ledger as top-level section \a name (labels sorted by cost, seconds) and CLEAR it.
-//! No-op when the ledger is empty.  Call once at run end (after the SCF), when the lazy builds are done.
+//! A bucket entered more than once carries \c [xN, s/call] in its label -- the per-call price, which is
+//! the number an optimisation decision needs (see \c AddTime).  No-op when the ledger is empty.
+//! Call once at run end (after the SCF), when the lazy builds are done.
 void EmitTimings(const std::string& name="timing");
 
 //============================================================================

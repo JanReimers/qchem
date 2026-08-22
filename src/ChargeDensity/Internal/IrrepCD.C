@@ -178,4 +178,44 @@ private:
     friend class IrrepCD_Fourier<PeriodicIrrepCD<T>>;  // the trio uses this block's own D/basis
 };
 
+//! \brief SAME DENSITY, SAME VALUE, CHEAPER ROUTE: D stays the truth on the \a Leaf; only \f$\rho(r)\f$ is
+//! factored.  \f$\rho_g=\Phi_g^\dagger D\Phi_g\f$ is a sum over PAIRS costing O(npts n^2); D is a density
+//! matrix, hence PSD with rank = the occupied count, so \f$D=LL^\dagger\f$ turns it into a sum over SINGLES,
+//! \f$\rho_g=\lVert L^\dagger\Phi_g\rVert^2\f$, costing O(npts n r).  Measured r=14-19 against n=118 on the
+//! MnO benchmark (\c GPW_DM_RANK=1).  Exact to roundoff -- a cost change, not an accuracy trade.
+//!
+//! WHY A DERIVED LEAF AND NOT A DENSITY TYPE (doc/OpenWork.md, the design ruling).  Low rank is NOT CLOSED
+//! UNDER MIXING: \f$(1-c)L_1L_1^\dagger+cL_2L_2^\dagger\f$ has no rank-r factor, so a first-class factored
+//! density would satisfy \c tMixableDensity's SIGNATURE while breaking its behaviour -- silently, as rank
+//! creep.  And of \c tDM_CD's four operations the factored form wins ONE: the two contractions go from
+//! O(n^2) to O(n^2 r).  So the factor is a DERIVED, CACHED representation used only by the operation that
+//! benefits; D, \c MixIn and the contractions are INHERITED UNCHANGED and LSP holds by construction.
+//!
+//! ONE TEMPLATE, so the two orthogonal axes (leaf x factorisation) COMPOSE instead of multiplying: the
+//! factory picks the leaf from the basis and the route from its argument, and \c using \c Leaf::Leaf makes
+//! every combination constructible identically.
+template <class Leaf> class FactoredRho : public Leaf
+{
+    using T = typename Leaf::scalar_t;
+public:
+    using Leaf::Leaf;                       // as the leaves already do from the core
+
+    //! \copydoc IrrepCD_Core::DM_RhoAtPoints
+    //! Factored route; falls back to \c Leaf::DM_RhoAtPoints (the full quadratic form) whenever the factor
+    //! does not apply -- D not PSD, or a rank too fat to pay for itself.  Same values either way.
+    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t&, const std::map<Irrep,mat_t<T>>&) const;
+
+private:
+    //! The factor, memoized per DENSITY SERIAL.  \c DM_RhoAtPoints is const and the factorisation is a pure
+    //! function of D, so this is a normal derived cache; the invalidation key already exists, because
+    //! \c IrrepCD_Core bumps \c itsVersion on every mutation of D (\c ReScale and \c MixIn are the only two).
+    mutable mat_t<T> itsL;
+    mutable size_t   itsRank          = 0;
+    mutable size_t   itsFactorVersion = size_t(-1);   //!< the IrrepCD_Core::Version() this factor was built from
+    mutable bool     itsFactorable    = false;        //!< false => the fallback is in force for this serial
+    //! Tr(D) at factorisation time.  A STALE MEMO IS A SILENTLY WRONG rho -- the failure mode with no
+    //! symptom -- so the version key is not trusted alone: this O(n) trace is re-checked on every memo hit.
+    mutable double   itsFactorTrace   = 0.0;
+};
+
 } //namespace

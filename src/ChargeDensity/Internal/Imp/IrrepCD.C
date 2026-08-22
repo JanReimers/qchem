@@ -441,44 +441,16 @@ template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const rvec3vec_t& r, c
     // D as a PLAIN matrix: an adaptor operand (HermitianMatrix) is not BLAS-dispatchable, so under
     // BLAZE_BLAS_MODE the product would silently fall back to blaze's own kernel -- 16x slower than
     // zgemm on this shape (measured).  One n x n copy per call is nothing beside the npts x n x n GEMM.
+    // THE FULL QUADRATIC FORM -- the truth this class owns.  The FACTORED route (rho = ||L^dag Phi||^2,
+    // O(npts n r)) is not here: it is a DERIVED LEAF, FactoredRho<Leaf>, which overrides this virtual and
+    // calls back into it whenever the factor does not apply.  That is the design ruling in
+    // doc/OpenWork.md -- D stays the truth, and the fallback is expressed as INHERITANCE, not a branch --
+    // and it keeps the factorisation state off every density that never factors.
     ReportDMRank<T>(itsDensityMatrix, itsIrrep);   // hmat_t<T> is a conditional_t: T is non-deduced
     const mat_t<T> D(itsDensityMatrix);
-    // LOW-RANK ROUTE.  D is a density matrix, so rank = the OCCUPIED count, not n: with D = L L^dag the
-    // GEMM is (npts x n)(n x r) instead of (npts x n)(n x n), and rho_g = ||Psi_g||^2 replaces the row-dot.
-    // MEASURED r=14-17 against n=118 on MnO => 7-8.4x ON THIS GEMM.  Exact to roundoff (LAPACK's own pivot
-    // floor), so it is a cost change, not an accuracy trade -- verified by an A/B at identical energy.
-    // ⚠ SCOPE, measured 2026-08-20: on the GPW *Kerker/Pulay* recipes this GEMM is nearly BYPASSED -- the
-    // mixer hands XC a rho-tilde-backed density with NO D from iteration 1 on, so the hot path is the
-    // matrix-free sampling in PWTerms, not this.  Measured 1.70 s here against 35.0 s there (6 iterations).
-    // The 7-8x is therefore REAL but small on those recipes; it is worth having for the DM-backed routes
-    // (molecular/atomic DFT, non-rho-tilde-mixed recipes) and grows with n.  Do NOT quote it as a
-    // benchmark-row win.
-    // GUARDED, not assumed: LowRankFactor returns false for a non-PSD D and we stay on the full path.  D is
-    // PSD for any density assembled from orbitals with non-negative occupations -- which is every IrrepCD
-    // today, because the only mixer that touches D is LINEAR with alpha in [0,1] (a CONVEX combination
-    // preserves PSD) while Kerker/Pulay/Broyden extrapolate the FIELD, not D.  The fallback exists for the
-    // paths that would break that: a density-space Pulay, alpha>1, MP/cold smearing's negative
-    // occupations, or anything putting a DIFFERENCE of densities behind a DM face.
-    // QCHEM_DM_LOWRANK=0 forces the full-rank path (the A/B valve; also the escape hatch if a future
-    // density ever needs it).  2*rank < n is the pay-for-itself test: below that the thin GEMM plus the
-    // O(n^3) factorisation is not obviously cheaper than the square one.
-    static const bool lowRankOn=[]{ const char* e=std::getenv("QCHEM_DM_LOWRANK"); return !e || std::atoi(e)!=0; }();
-    mat_t<T> L; size_t rank=0;
-    const bool lowRank = lowRankOn && LowRankFactor<T>(itsDensityMatrix, L, rank) && 2*rank < P.columns();
     auto block=[&](size_t g0, size_t g1)
     {
         auto Pb = blazem::submatrix(P, g0, size_t(0), g1-g0, P.columns());
-        if (lowRank)
-        {
-            mat_t<T> Psi = Pb*L;                          // (npts_b x rank) -- the thin GEMM
-            for (size_t g=g0; g<g1; g++)
-            {
-                double acc=0.0;
-                for (size_t m=0; m<Psi.columns(); m++) acc+=std::norm(std::complex<double>(Psi(g-g0,m)));
-                ro[g]=acc;                                // rho_g = ||L^dag Phi_g||^2, real by construction
-            }
-            return;
-        }
         mat_t<T> PD = Pb*D;
         for (size_t g=g0; g<g1; g++)
         {
@@ -667,6 +639,106 @@ template class IrrepCD_Fourier<PeriodicIrrepCD<double>>;
 template class IrrepCD_Fourier<PeriodicIrrepCD<dcmplx>>;
 template class PeriodicIrrepCD<double>;
 template class PeriodicIrrepCD<dcmplx>;
+
+//-------------------------------------------------------------------------
+//
+//  FactoredRho<Leaf> -- the factored rho(r) route (see the class doc).
+//
+// rho_g = ||L^dag Phi_g||^2 with D = L L^dag: the (npts x n)(n x r) thin GEMM replaces the (npts x n)(n x n)
+// square one, and a row NORM replaces the row DOT.  Everything else -- D, MixIn, the contractions, the
+// lineage capabilities -- is the Leaf's, inherited untouched.
+//
+// THE MEMO IS THE POINT AS MUCH AS THE GEMM.  Before this leaf existed the factorisation ran INSIDE
+// DM_RhoAtPoints, i.e. an O(n^3) pstrf on EVERY call -- and XC_GridEngine::RhoPol calls it twice per
+// iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
+//
+template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(
+        const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
+{
+    if (this->IsZero()) return rvec_t(r.size(), 0.0);
+    // No table for this block yet (the caller's first pass): the base self-evaluates pointwise, and there is
+    // no GEMM to factor.  Ask the Leaf rather than duplicating that decision here.
+    auto it=Phi.find(Irrep(Spin::None,this->itsIrrep.sym));
+    if (it==Phi.end()) return Leaf::DM_RhoAtPoints(r,Phi);
+    const mat_t<T>& P=it->second;
+
+    // Tr(D) -- the memo's integrity check AND, on a miss, the value to remember.  A STALE FACTOR IS A
+    // SILENTLY WRONG rho, so the version key is not trusted alone: any mutation of D that failed to bump
+    // itsVersion would move the trace, and O(n) is free beside the O(npts n r) GEMM below.  (Verified today:
+    // ReScale and MixIn are the only two mutators and both bump.  The assert is for the third one.)
+    double trD=0.0;
+    for (size_t i=0;i<this->itsDensityMatrix.rows();++i) trD+=blazem::real(this->itsDensityMatrix(i,i));
+
+    if (itsFactorVersion==this->Version())
+        assert(std::abs(trD-itsFactorTrace) <= 1e-10*std::max(std::abs(trD),1.0) &&
+               "FactoredRho: the memoized factor is STALE -- D changed without bumping IrrepCD_Core::itsVersion");
+    else
+    {
+        // GUARDED, NOT ASSUMED.  LowRankFactor returns false for a non-PSD D (LAPACK pstrf does not error on
+        // one -- it stops early and reports a rank, which would silently TRUNCATE rho), and then the whole
+        // route stands down for this serial.  D is PSD for any density assembled from orbitals with
+        // non-negative occupations, which is every one today: the only mixer touching D is LINEAR with alpha
+        // in [0,1], a CONVEX combination, while Kerker/Pulay/Broyden extrapolate the FIELD.  The fallback is
+        // for what would break that -- a density-space Pulay, alpha>1, MP/cold smearing's negative
+        // occupations, or a DIFFERENCE of densities behind a DM face.
+        // The census rides the memo MISS, which is the right cadence for it: once per density serial, not
+        // once per call.  (It lives in the base too, for the Direct route -- the factored route never
+        // reaches that body, so without this line GPW_DM_RANK=1 would go dark exactly here.)
+        ReportDMRank<T>(this->itsDensityMatrix, this->itsIrrep);
+        itsL.clear(); itsRank=0;
+        itsFactorable    = LowRankFactor<T>(this->itsDensityMatrix, itsL, itsRank);
+        itsFactorVersion = this->Version();
+        itsFactorTrace   = trD;
+    }
+    // THE PAY-FOR-ITSELF TEST, and it is a property of this CALL, not of the factor: below 2r < n the thin
+    // GEMM plus the O(n^3) factorisation is not obviously cheaper than the square one.  A fat rank is not an
+    // error -- it is the answer for a metal at large smearing, where the thermal tail fills the spectrum --
+    // so it takes the fallback, not a throw.
+    if (!itsFactorable || 2*itsRank >= P.columns()) return Leaf::DM_RhoAtPoints(r,Phi);
+
+    assert(P.rows()==r.size());
+    assert(P.columns()==this->itsDensityMatrix.rows());
+    rvec_t ro(r.size(), 0.0);
+    // Threaded by MESH-POINT BLOCK, exactly as the base is: rho_g depends on row g alone, so each block is
+    // an independent GEMM + norm and the result is bit-identical at any thread count (a partition of the
+    // OUTPUT, not of a reduction).  Opt-in via GPW_OMP_THREADS (qchem.Parallel).
+    auto block=[&](size_t g0, size_t g1)
+    {
+        auto Pb = blazem::submatrix(P, g0, size_t(0), g1-g0, P.columns());
+        mat_t<T> Psi = Pb*itsL;                       // (npts_b x rank) -- the thin GEMM
+        for (size_t g=g0; g<g1; g++)
+        {
+            double acc=0.0;
+            for (size_t m=0; m<Psi.columns(); m++) acc+=std::norm(std::complex<double>(Psi(g-g0,m)));
+            ro[g]=acc;   // rho_g = ||L^dag Phi_g||^2: real, and NON-NEGATIVE, by construction
+        }
+    };
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && r.size()>size_t(nthreads))
+    {
+        const size_t blk=(r.size()+size_t(nthreads)-1)/size_t(nthreads);
+        std::exception_ptr firstEx;                   // throw containment (an escape = std::terminate)
+        #pragma omp parallel for schedule(static,1) num_threads(nthreads)
+        for (size_t b=0; b<(r.size()+blk-1)/blk; b++)
+        {
+            try { block(b*blk, std::min(r.size(), (b+1)*blk)); }
+            catch (...)
+            {
+                #pragma omp critical (cd_rho_throw)
+                if (!firstEx) firstEx=std::current_exception();
+            }
+        }
+        if (firstEx) std::rethrow_exception(firstEx);
+        return ro;
+    }
+#endif
+    block(0, r.size());
+    return ro;
+}
+
+template class FactoredRho<IrrepCD<double>>;
+template class FactoredRho<PeriodicIrrepCD<double>>;
+template class FactoredRho<PeriodicIrrepCD<dcmplx>>;
 
 
 

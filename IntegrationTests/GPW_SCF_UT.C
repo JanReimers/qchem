@@ -3370,6 +3370,13 @@ TEST(GPW_SCF, DISABLED_GridRouteAB_SiGamma)
     // matches what a user gets.
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+    // SI_VXCFIT_DELTA=1: pair the DELTA quadrature with the UNIFORM grid -- the combination the §6a
+    // fit/grid separation always allowed and nothing ever ran (Auto gives the historical pairing:
+    // PlaneWave on uniform, Delta on Becke).  It is the SINGLES route on the uniform grid: rho from the
+    // Phi GEMM (so a factored density's leaf engages) and H_xc from Phi^dag diag(wv) Phi -- BOTH halves
+    // from one engine, hence one discrete functional.  Sourcing only rho that way and leaving H_xc on the
+    // pair gather desynchronises E from V and wrecks the SCF (measured 2026-08-22: Si 14 -> 60 iterations).
+    if (std::getenv("SI_VXCFIT_DELTA")) o.vxcFit=Hamiltonian::VxcFit::Delta;
     GridRouteAB(lat, MakeBasisSR(cell), o, "Si");
 }
 

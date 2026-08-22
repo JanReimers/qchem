@@ -69,8 +69,27 @@ public:
     virtual double Mix(cd_t& working, const cd_t& old) = 0;
     //! The density that drives the NEXT Fock (default: the working density; Kerker → the mixed ρ̃).
     virtual const tChargeDensity<T>* FockDensity(const cd_t& working) const { return &working; }
+    //! \brief Deposit the DM-backed density the next mixed field is built FROM, so a quadrature consumer can
+    //! reach the EXACT density through \c tDM_Sourced_CD while Hartree keeps the preconditioned field.
+    //!
+    //! SHARED, and a SEPARATE hook rather than a widened \c Mix: \c Mix's subject is deliberately a plain
+    //! reference (mixing never re-seats the caller's pointer and never outlives the call), and that reasoning
+    //! is still right for mixing.  What is retained HERE outlives the call by construction -- XC samples it
+    //! later in the same iteration -- so it is a different question and gets its own signature rather than
+    //! quietly changing what \c Mix's argument means.
+    //!
+    //! No-op by default, which is correct for every D-mixing mixer: a \c LinearMixer's \c FockDensity already
+    //! IS the DM-backed density, so there is nothing to reach around.
+    virtual void SetDMSource(std::shared_ptr<const tDM_CD<T>>) {}
     //! The current step size α (for the SCF trace only).
     virtual double GetRelax() const = 0;
+    //! \brief The step size ACTUALLY DELIVERED, \f$\alpha_{\rm eff}\f$ -- for a preconditioned mixer the
+    //! fraction of the update that survived the filter, which is what the SCF is really stepping at.
+    //! Defaults to \c GetRelax(), exactly right for an unpreconditioned (linear) mix where the two coincide.
+    //! Reported beside α in the ρ_mix column so a user can SEE the preconditioner working rather than infer
+    //! it: on MnO it falls from 0.33 to 0.20 as the residual migrates into the damped low-G band, which is
+    //! the difference between a healthy run and a stalling one and was previously invisible.
+    virtual double EffectiveRelax() const { return GetRelax(); }
     //! A 3-char self-identifier for the per-iteration ρ_mix column (doc/GPWPlan1.md item 2): "Lin"
     //! (linear D-mixing), "Ker" (Kerker ρ̃), "Pul" (density-DIIS/Pulay).  Default = the linear mixer.
     virtual const char* Tag() const { return "Lin"; }
@@ -286,6 +305,7 @@ public:
         for (const auto& [dm, ri] : rho_in)
             if (rho_out.find(dm)==rho_out.end()) resid = std::max(resid, std::abs(dcmplx(ri)));
         itsMixedRho.reset(FourierMixCD::KerkerMix(*itsMixedRho, rho_out, itsRelax, itsKerkerG0));
+        itsMixedRho->SetDMSource(itsDMSource);     // replay the deposit onto the freshly allocated mix
         // RAW-raster shadow (0.5(f2)): the same Kerker step on rho_raw(r), deposited so the XC feed stays raw
         // through the DYNAMICS.  Late-activates the first time the working density answers raw (a SAD-seeded
         // run's iteration 1); deactivates for the run if a raw answer stops coming or changes raster.
@@ -301,12 +321,20 @@ public:
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
+    //! alpha_eff is measured by the mix itself (FourierMixCD::EffectiveAlpha); 0 before the first one.
+    double EffectiveRelax() const override
+    { const double a=itsMixedRho ? itsMixedRho->EffectiveAlpha() : 0.0; return a>0.0 ? a : itsRelax; }
     const char* Tag() const override { return "Ker"; }
+    //! Stash it AND seat it: KerkerMix allocates a FRESH FourierMixCD on every mix, so the deposit has to be
+    //! replayed onto each new one -- the same shape as the itsRawIn raster shadow beside it.
+    void SetDMSource(std::shared_ptr<const cDM_CD> dm) override
+    { itsDMSource=std::move(dm); if (itsMixedRho) itsMixedRho->SetDMSource(itsDMSource); }
 private:
     double itsRelax, itsKerkerG0;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
     std::shared_ptr<FourierMixCD>                itsMixedRho;
     rvec_t itsRawIn;   //!< the raster shadow of itsMixedRho (empty = raw pipeline off)
+    std::shared_ptr<const cDM_CD> itsDMSource;   //!< replayed onto each rebuilt itsMixedRho
 };
 
 // --- ΔG_Map arithmetic for Pulay (keys = integer G-index, consistent across iterations) ---
@@ -459,6 +487,7 @@ public:
         }
         FourierMixCD inStarCD(inStar,itsRecip,itsCharge);  // Kerker step on the DIIS-extrapolated pair
         itsMixedRho.reset(FourierMixCD::KerkerMix(inStarCD,outStar,itsRelax,itsKerkerG0));
+        itsMixedRho->SetDMSource(itsDMSource);     // replay the deposit onto the freshly allocated mix
         if (p.raw)
         {
             itsRawIn=RasterKerker(*RasterEvaluator(), rawInStar, rawOutStar, itsRelax, itsKerkerG0);
@@ -467,8 +496,15 @@ public:
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
+    //! As KerkerMixer -- and for a Pulay step this may EXCEED alpha, since extrapolation overshoots on purpose.
+    double EffectiveRelax() const override
+    { const double a=itsMixedRho ? itsMixedRho->EffectiveAlpha() : 0.0; return a>0.0 ? a : itsRelax; }
     const char* Tag() const override { return "Pul"; }
+    //! As KerkerMixer: ApplyJoint allocates a fresh mix, so the deposit is stashed and replayed.
+    void SetDMSource(std::shared_ptr<const cDM_CD> dm) override
+    { itsDMSource=std::move(dm); if (itsMixedRho) itsMixedRho->SetDMSource(itsDMSource); }
 private:
+    std::shared_ptr<const cDM_CD> itsDMSource;   //!< replayed onto each rebuilt itsMixedRho
     //! The raster-shadow evaluator, or nullptr when the fit basis cannot raster (⇒ the raw pipeline is off).
     const BasisSet::G_SpectralFilter* RasterEvaluator() const
     { return dynamic_cast<const BasisSet::G_SpectralFilter*>(itsKerkerFit.get()); }
@@ -680,6 +716,7 @@ public:
         return &itsFock;
     }
     double      GetRelax() const override { return itsUp->GetRelax(); }
+    double      EffectiveRelax() const override { return itsUp->EffectiveRelax(); }  // as GetRelax: the leaf's
     const char* Tag     () const override { return itsUp->Tag(); }   // the trace reports the LEAF recipe
     bool   WantsReDamp(const MixSignals& s) const override
     { return itsUp->WantsReDamp(s) || itsDn->WantsReDamp(s); }        // either channel asking is enough
@@ -690,6 +727,18 @@ public:
         return std::max(itsUp->ReDampMix(*wu,*ou), itsDn->ReDampMix(*wd,*od));
     }
     void UpdateRelax(const MixSignals& s) override { itsUp->UpdateRelax(s); itsDn->UpdateRelax(s); }
+    //! Split the polarized deposit into its two channels for the leaves.  ALIASING shared_ptrs: each channel
+    //! pointer keeps the PARENT density alive while pointing at the child, which is exactly the ownership the
+    //! channel accessors (raw, non-owning) cannot express on their own.  Note this is the one place where
+    //! shared ownership is genuinely needed -- Channels() below stays on plain pointers because a MIX never
+    //! outlives its call, whereas a retained XC source does.
+    void SetDMSource(std::shared_ptr<const cDM_CD> dm) override
+    {
+        auto* pol = dynamic_cast<const cPolarized_CD*>(dm.get());
+        if (!pol) return;    // not a polarized D (iteration 0 seed): leave the leaves with nothing to offer
+        itsUp->SetDMSource(std::shared_ptr<const cDM_CD>(dm, pol->GetChargeDensity(Spin::Up  )));
+        itsDn->SetDMSource(std::shared_ptr<const cDM_CD>(dm, pol->GetChargeDensity(Spin::Down)));
+    }
 
 private:
     //! The two spin channels.  Plain pointers now that the mixer's subject is a reference: the parent

@@ -323,7 +323,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             std::string config = ConfigString(itsWaveFunction);
             const GapInfo g=HomoLumo(itsWaveFunction);   // frontier spectrum for the gap column
             const double N=itsCD->GetTotalCharge();      // Tr(DS); normalise the grid-charge leak per electron
-            IterationTrace tr{ itsIterationCount, eb, itsMixer->GetRelax(),
+            IterationTrace tr{ itsIterationCount, eb, itsMixer->GetRelax(), itsMixer->EffectiveRelax(),
                                itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
@@ -460,6 +460,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
         itsWaveFunction->FillOrbitals(*itsOccPolicy, mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
+        itsMixer->SetDMSource(fresh);                    // the exact rho_out, for XC (see LoopDriver::Step)
         itsMixer->Mix(*fresh, *itsCD);                   // fold ρ_out into ρ_in (itsCD drove this Fock)
         return fresh;
     };
@@ -590,7 +591,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
 
 // --- Column-width constants: the header labels and the value rows share these, so they line up exactly
 //     regardless of the UTF-8 label glyphs (Δ, ρ, ε are multi-byte but one display column). --------------
-namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=8, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12 }; }
+namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=13, W_ACC=7, W_SV=8, W_CFG=3, W_GAP=9, W_ORD=12 }; }
 
 // Display width of a UTF-8 string (counts leading bytes only, so Δ/ρ/ε each count as one column).
 static size_t VisWidth(const std::string& s)
@@ -630,7 +631,13 @@ template <class T> void tSCFIterator<T>::WriteMixAccelCfg(std::ostream& os, cons
 {
     std::ostringstream mix;                                     // ρ_mix: "Lin 1.00" -- or "----" under direct-min
     if (tr.lineSearch) mix << "----";                           //   (GDM/OT own the density update; NO mixing)
-    else               mix << tr.mixTag << " " << std::fixed << setprecision(2) << tr.relax;
+    else
+    {   // "Ker 0.45>0.33" -- alpha and, when a preconditioner made them differ, the alpha_eff it delivered.
+        // Only shown when it actually differs, so an unpreconditioned run's column is unchanged.
+        mix << tr.mixTag << " " << std::fixed << setprecision(2) << tr.relax;
+        if (std::fabs(tr.relaxEff-tr.relax) > 0.005)
+            mix << ">" << std::fixed << setprecision(2) << tr.relaxEff;
+    }
     std::ostringstream acc; acc << tr.accelTag; if (tr.accelCount>0) acc << ":" << tr.accelCount;    // "DIIS:3"
     // svMin: the DIIS history's conditioning -- what SVTol is compared against.  Judge it against the [F,D]
     // column: B scales as [F,D]², so svMin ≪ [F,D]² is a DEPENDENT history that the absolute SVTol did not

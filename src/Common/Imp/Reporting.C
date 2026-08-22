@@ -465,13 +465,29 @@ FormatHint HintFor(const std::string& field)
 namespace
 {
 std::map<std::string,double> g_times;
+// CALL COUNTS beside the seconds.  A bucket's TOTAL is only comparable against another bucket's total
+// when the two fire at the same CADENCE, and the ledger gave no way to know: "rho sampling 3.3 s" vs
+// "matrix-free density 30.9 s" reads as a 9x only if both fire once per iteration, and they do not.
+// (doc/OpenWork.md: the 1.70-vs-35.0 reading that made the low-rank win look 20x.)  One counter per
+// bucket makes the per-call price -- the quantity an optimisation decision actually needs -- readable.
+std::map<std::string,size_t> g_calls;
 // Nesting stack for EXCLUSIVE times: each open Timed accumulates its children's ELAPSED here, and
 // charges only (elapsed - children) to its own bucket -- so buckets are disjoint (see the interface doc).
 // Setup + the SCF loop are single-threaded (OMP lives INSIDE timed regions), so a plain stack suffices.
 std::vector<double> g_tchildren;
 }
 
-void AddTime(const std::string& key, double seconds) { g_times[key]+=seconds; }
+// COUNT ONLY THE ENTRIES THAT ACTUALLY DID WORK.  The time charged here is EXCLUSIVE (my elapsed minus my
+// children's), so a scope whose body delegated to a nested Timed contributes ~0 seconds -- and counting it
+// anyway divides real work by inflated entries and under-reports the per-call price.  MEASURED 2026-08-21:
+// the XC rho-sampling bucket read 0.021 s/call over 83 entries when 42 of them had branched into the
+// matrix-free child; the honest figure over the 41 entries that ran the GEMM was 0.042.  A bucket entered
+// with nothing to charge is not a call, for the purpose of the question this number exists to answer.
+void AddTime(const std::string& key, double seconds)
+{
+    g_times[key]+=seconds;
+    if (seconds > 1e-9) g_calls[key]++;    // sub-ns == a pass-through entry, not a unit of work
+}
 
 Timed::Timed(std::string key)
     : itsKey(std::move(key))
@@ -497,8 +513,23 @@ void EmitTimings(const std::string& name)
     std::vector<std::pair<std::string,double>> rows(g_times.begin(), g_times.end());
     std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b){return a.second>b.second;});
     json j;
-    for (const auto& [k,s] : rows) j[k]=s;      // ordered_json keeps the sorted-by-cost order
+    // The per-call price rides in the LABEL, not as a nested object: a sub-object per bucket would turn
+    // the flat sorted-by-cost table into a tree (renderNode heads any container member), and the flat
+    // table is the whole readability of this report.  Suffix only when the bucket fired more than once --
+    // a one-shot setup bucket has no cadence to report and the noise would cost more than it tells.
+    for (const auto& [k,s] : rows)
+    {
+        const size_t n=g_calls.count(k) ? g_calls.at(k) : 0;
+        if (n>1)
+        {
+            std::ostringstream lbl;
+            lbl<<k<<"  [x"<<n<<", "<<std::setprecision(4)<<(s/double(n))<<" s/call]";
+            j[lbl.str()]=s;
+        }
+        else j[k]=s;                            // ordered_json keeps the sorted-by-cost order
+    }
     g_times.clear();
+    g_calls.clear();
     // PEAK RAM beside the time buckets: the two halves of "what did this run cost" belong in one place,
     // and until now the report answered only one of them (doc/OpenWork.md Step 1).  VmHWM is the
     // process-wide high-water mark, so on a multi-run process it is monotone -- it reports the

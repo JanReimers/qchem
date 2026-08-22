@@ -59,6 +59,7 @@ struct IterationTrace
     size_t iteration;
     EnergyBreakdown eb;      //!< the full breakdown (Etotal, virial, per-term energies)
     double relax;            //!< the mixer step size α (the ρ_mix column's number)
+    double relaxEff;         //!< α_eff: the step the mixer ACTUALLY delivered (== relax when unpreconditioned)
     const char* mixTag;      //!< ρ_mix identity: "Lin"/"Ker"/"Pul"
     const char* accelTag;    //!< accel identity: "Null"/"DIIS"/"GDM"
     int    accelCount;       //!< accel number (DIIS projection depth; 0 when not meaningful)

@@ -234,7 +234,6 @@ private:
     //! on a new density serial.  Shared by MakeMatrix (fits \f$v_{xc}\f$) and GetEnergy (integrates \f$\epsilon_{xc}\rho\f$),
     //! so the transform runs ONCE per SCF iteration, whichever runs first.
     void RefreshRhoGrid(const cChargeDensity* cd) const;
-
     xc_t itsXc;
     fbs_t itsVxcFitBasis;   //!< the Vxc (overlap-metric) fit basis, handed to the density's GetFourierDensity
     //! The ortho scalar fitter (built once).  It OWNS the FFT quadrature grid (from the fit basis); the XC
@@ -365,6 +364,22 @@ private:
     mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
     mutable rvec_t itsRhoUp, itsRhoDn;            //!< per-channel rasters (the polarized pair, one serial)
     mutable size_t itsPolVersion=size_t(-1);      //!< density serial the {↑,↓} pair was built for
+    //! \brief STALENESS GUARD for the DM-source route.  These caches key on the MIXED FIELD's serial, but
+    //! that route samples a DIFFERENT object -- the retained density matrix -- with its own serial.  If the
+    //! field ever advances while its source does not, XC is served a stale rho from a cache that believes it
+    //! is fresh, and the symptom (a subtly wrong V_xc) looks exactly like a degraded SCF rather than a bug.
+    //! Checked LIVE rather than by \c assert, deliberately: the Step-0a site-block defect was invisible for
+    //! months precisely because its guard was an assert compiled out under NDEBUG, and every benchmark row
+    //! is a Release run.
+    mutable size_t itsSrcVersion=size_t(-1);      //!< the DM source's serial when the pair was last built
+    //! \brief The DM-source RUNNING MIX (GPW_XC_DM_MIX), in its OWN storage.
+    //! \warning It must NOT live in itsRho/itsRhoUp/itsRhoDn.  Those are written by BOTH sampling routes,
+    //! and the interleaving is adversarial: per iteration the Fock build blends through the DM-SOURCE
+    //! branch and the energy evaluation then OVERWRITES the same buffer through the plain DM branch with
+    //! rho[D_n] -- which is precisely the density the next blend mixes with, so
+    //! (1-a)rho[D_n] + a rho[D_n] = rho[D_n] and the damping silently becomes the identity.  Measured
+    //! 2026-08-21: alpha=0.25 and alpha=1.0 produced bit-identical runs before this was separated out.
+    mutable rvec_t itsXCMix, itsXCMixUp, itsXCMixDn;
 };
 
 class DeltaFittedVxc

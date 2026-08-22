@@ -831,6 +831,138 @@ FIELD mixers and never touch D.  The guard is not assumed — `LowRankFactor` ch
 `pstrf` does NOT error on an indefinite matrix; it stops early and reports a rank, which would silently
 truncate ρ.
 
+### ✅ SESSION RESULTS 2026-08-21/22 — THE Vxc REPAIR IS BUILT, MEASURED, AND OPT-IN
+
+**⛔ FIRST, TWO CLAIMS BELOW ARE NOW WRONG AND ARE CORRECTED HERE.**
+1. *"at the fixed point ρ[D]=ρ_mix, so the converged answer is unchanged"* (route (b)) — **NO.**  ρ̃ is a
+   band-limited FIT PROJECTION, so ρ̃_mix(r) ≠ ρ[D](r) pointwise even at convergence; the two have DIFFERENT
+   fixed points.  MEASURED: NaF **139 μHa**, MnO individual terms **~100–150 mHa** (Ekin +110, Een −148) while
+   the TOTAL moves 8 μHa — the variational signature.  Route (b) is therefore MORE ACCURATE, not neutral.
+   ⚠ Consequence for **Step 5**: its term-by-term breakdown vs CP2K moves by ~100 mHa with this flag, so the
+   flag must be PINNED before that comparison means anything.  (It does NOT explain the ~100 mHa offset —
+   the total barely moves.)
+2. The cost framing predating CALL COUNTS.  `report::Timed` now counts entries and prints `[xN, s/call]`.
+
+**THE MEASUREMENTS** (MnO AFM-II imposed, 41 it, 97160 Becke points, n=122, r=17):
+
+| bucket | calls | s/call | total | share |
+|---|---|---|---|---|
+| XC-mesh ρ sampling (matrix-free ρ̃) | 42 | **5.19** | **218.0 s** | **51%** |
+| collocate density (pair scatter) | 330 | 0.105 | 34.7 s | 8% |
+| XC-mesh quadrature H_xc | 168 | 0.175 | 29.4 s | 7% |
+| integrate-back (pair gather) | 166 | 0.116 | 19.2 s | 5% |
+| XC-mesh ρ sampling (DM GEMM, low-rank) | 41 | **0.042** | 1.7 s | 0.4% |
+| (same, full-rank) | 41 | 0.296 | 12.1 s | — |
+
+**⇒ the ρ̃ sampling was THE largest cost in the run, and the DM route is ~124× cheaper per sampling.**
+Low-rank on the GEMM: **7.05×**, against the predicted n/r = 122/17 = 7.2.
+
+**★ AND IT IS AN ACCURACY FIX, NOT ONLY A SPEED ONE.**  `GPW_RHO_NEGATIVE=1` census:
+
+| route | points with ρ<0 (of 97160) | negative mass | min ρ |
+|---|---|---|---|
+| matrix-free ρ̃ | **8.5–18%, every iteration, persistent to convergence** | −0.003…−0.007 e | **−0.147** |
+| DM / DM-source | **0**, over 200+ samplings and 2 cells | 0 | 0 |
+
+A truncated Fourier series RINGS NEGATIVE at the cusps — and `SlaterExchange::GetVxc` guards `if (ro>0)` and
+returns 0, so up to a fifth of the atom-centred quadrature contributed NOTHING to v_xc/E_xc, silently.
+ρ=‖L†Φ‖² cannot do that.
+
+**BUILT (all opt-in; default path byte-identical, suite 756/756):**
+- `FactoredRho<Leaf>` — derived leaf, memoized per density serial, Tr(D) re-check against a stale memo.
+  `IrrepCD_Factory(..., RhoRoute)`; `EigenTrim` throws (Cholesky's pivots ARE the spectrum).
+  ⚠ The memo is the point as much as the GEMM: `LowRankFactor` used to run an O(n³) `pstrf` on EVERY call.
+- `tDM_Sourced_CD` — the mixer retains the D its field was built from (SHARED ownership; aliasing
+  `shared_ptr` for the polarized split) + **`EffectiveAlpha()`**.  `GPW_XC_DM_SOURCE=1`.
+- Instruments: `Timed` call counts, `GPW_RHO_NEGATIVE`, `GPW_KERKER_SPECTRUM`, α_eff in the ρ_mix trace
+  column (`Ker 0.45>0.33`), `GPW_XC_DM_BOOST`.
+
+### ★★ α_eff — READ THE DAMPING OFF THE MIX INSTEAD OF SETTING IT
+
+**The defect first:** route (b) as first wired fed XC ρ[D_out] UNDAMPED while Hartree kept Kerker's α·f(G) —
+a HALF-DAMPED map.  NaF DIIS went 34 → 100+ iterations.  That is NOT evidence that ρ̃ is a better XC input
+(user's challenge, and it was right); it is a wiring error.  Restoring damping fixes it.
+
+\f[ \alpha_{\rm eff}=\frac{\lVert\tilde\rho_{mix}-\tilde\rho_{in}\rVert_2}{\lVert\tilde\rho_{out}-\tilde\rho_{in}\rVert_2}
+   = \alpha\sqrt{\frac{\sum_G f(G)^2|\delta\tilde\rho|^2}{\sum_G|\delta\tilde\rho|^2}} \f]
+
+— α times the residual-power-weighted RMS of the filter.  **MEASURED, not modelled**: two accumulators in the
+loop `KerkerMix` already runs, so it needs no knowledge of WHICH preconditioner ran (exact for Kerker, = α
+for a linear mix, may EXCEED 1 for Pulay — extrapolation overshoots on purpose).  Deposited on the field, so
+the XC channel matches the damping without a SECOND independently-settable mixing policy.
+
+| NaF stage 1 (DIIS) | baseline | undamped | flat α=0.25 | **α_eff** |
+|---|---|---|---|---|
+| iterations | 34 | **100+, FAILED** | 55 | **43** |
+
+α_eff BEATS the hand-set flat value.  Converged energies are damping-INDEPENDENT (2e-8 across α) while
+sitting 139 μHa from baseline — path vs fixed point, cleanly separated.
+
+**THE BOOST (`GPW_XC_DM_BOOST`, default 1) IS JUSTIFIED AND IS NOT A DUPLICATE OF α.**
+
+| iterations | baseline | undamped | α_eff ×1 | **α_eff ×2** |
+|---|---|---|---|---|
+| MnO | 41 | 46 | 53 | **39** (208.7 s vs baseline 425 s = **2.04×**) |
+| NaF | 34 | 100+ | 43 | 47 |
+
+No universal multiplier — MnO wants 2, NaF wants 1.  **Raising α instead does NOT work**: MnO at α=0.9
+OSCILLATES with AND without the DM route (E=−45.2, 80 it), i.e. HARTREE has no headroom at 0.9 while XC ran
+happily at 0.71.  α moves both channels; the boost moves only XC, which is the whole point — Kerker's
+low-G damping is medicine for the 4π/G² divergence that XC's finite kernel never had.
+
+### ★★ THE RESIDUAL SPECTRUM (`GPW_KERKER_SPECTRUM=1`) — AND AN MnO CONVERGENCE FINDING
+
+Binned in x=G/G₀ (the filter's own argument, so cells compare):
+
+| | 0.5–1 (f≈0.30) | 1–2 (f≈0.64) | 2–3 (f≈0.84) | 3–5 (f≈0.93) |
+|---|---|---|---|---|
+| **NaF**, iter 1 | **0.0%** | 21.6% | 43.5% | 31.9% |
+| **NaF**, final | **0.0%** | 47.1% | 47.4% | 3.6% |
+| **MnO**, iter 1 | 3.8% | 60.0% | 24.5% | 8.0% |
+| **MnO**, final | **75.4%** | 17.5% | 5.2% | 1.5% |
+
+**NaF's residual has NO power below x=1, ever** — Kerker barely filters it, so α_eff≈0.8α is a faithful
+summary and there is nothing for a boost to recover.  **MnO's residual MIGRATES DOWN**: by the end 75% sits
+where f=0.30, dragging α_eff 0.35 → 0.197.  That is exactly why ×2 helps MnO and not NaF — one mechanism,
+both cells, visible in the data.
+**★ INDEPENDENT OF THIS TRACK: late MnO convergence is rate-limited by the |G|≈0.65 CHARGE mode damped to an
+effective 0.45×0.30 = 0.135.**  `GPW_SCF_UT.C` predicted that arithmetic; this measures which mode dominates,
+which turns the `MNO_KERKER_G0` sweep from "a PREDICTION to be swept" into a measurement.
+
+### ✅ GDM AT kT=0 IS UNAFFECTED (user's canary)
+
+Inside the geodesic the Fock comes from `itsCD` and every line-search energy from `GetTotalEnergy(cdt)`, both
+D-backed — so route (b)'s branch (which needs a density with NO DM face) cannot fire.  MEASURED on the NaF
+stage-2 GDM: 9 it (α_eff) / 8 it (undamped) / 25 it (baseline), **zero** convention-shift events, no
+line-search pathology.  It also REMOVES a discontinuity: mixed steps used to feed XC ringing ρ̃ while geodesic
+steps fed exact ρ[D]; now both feed ρ[D].
+
+### ★★★ MESH ⊥ ρ-ROUTE — AND THE MISSING CELL WAS NEVER MISSING (user, 2026-08-22)
+
+ρ for XC has two INDEPENDENT axes: WHICH POINTS (uniform / Becke) and HOW ρ is produced (PAIR collocation /
+SINGLES Φ-table, optionally factored).  `GpwOptions::vxcFit` and `xcMesh.cellKind` ALREADY express exactly
+that (§6a fit/grid separation), and `VxcFit::Delta + UnitCellKind::Uniform` is supported, documented and
+prints `[XC quadrature] DELTA fit on the uniform cell mesh`.  It had simply never been RUN — `Auto` gives the
+historical pairing (PW on uniform, Delta on Becke).  PW+Becke is impossible (no G raster); polarized forces
+Delta.  **Si Γ, Delta+Uniform, `SI_VXCFIT_DELTA=1`:**
+
+| | lowrank=1 | lowrank=0 |
+|---|---|---|
+| U-4x | −7.115059004, **11 it CONVERGED** | −7.115059004, **11 it CONVERGED** |
+| U-sel | −7.114980442, 60 it (degenerate manifold, benign) | −7.114980442, 60 it |
+
+**BIT-IDENTICAL** — the clean exactness test, third material, uniform grid.  U-4x also beats the `Auto`
+baseline (11 vs 14 it).  Si rank: **r=4–12 of n=24** (r=4 = its 4 occupied pairs), so low rank now holds on
+ionic-magnetic AND covalent.  Low-rank speedup on ρ 1.26× at n=24 and H_xc UNCHANGED — the fourth
+confirmation that **the rank helps the density side and never the operator side**.
+
+⚠ **A FAILED ATTEMPT WORTH RECORDING (and its lesson).**  Before finding the above I added a `GPW_XC_SINGLES`
+flag sourcing ρ from a Φ GEMM inside `PWFittedVxc` while leaving H_xc on the screened pair gather.  Si went
+14 → 60 iterations and the energy moved 35 μHa.  **Vxc and Exc must reach D by ONE discrete path** (the
+`GPW.RawXCConsistencyFD` gate is what enforces it); ρ from an unscreened GEMM paired with a screened adjoint
+is two functionals.  `XC_GridEngine` owns ρ AND its quadrature over one Φ table, making the mismatch
+unrepresentable; `PWFittedVxc` splits those owners, which is what permitted the bug.  Reverted.
+
 ### Q1 — can we use this for Vxc IN COMBINATION WITH MIXING?
 
 **Partial answer: yes, and there are three routes, but the cheap one is not obviously the accurate one.**

@@ -61,6 +61,10 @@ public:
         c.wf->DoSCFIteration(*c.H, c.mixer->FockDensity(**c.cur));  // eigen orbitals from the (mixed) Fock
         c.wf->FillOrbitals(*c.pol, c.mergeTol);
         c.installNew(typename LoopContext<T>::cd_t(c.wf->GetChargeDensity()));
+        // Hand the mixer SHARED ownership of the DM-backed rho_out before it builds the mixed FIELD from it,
+        // so a quadrature consumer (XC) can reach the exact density while Hartree keeps the preconditioned
+        // one.  No-op for every D-mixing mixer.  Must precede Mix: that is what allocates the new field.
+        c.mixer->SetDMSource(*c.cur);
         return c.mixer->Mix(**c.cur, **c.old);                      // density-face: fold rho_out into rho_in
     }
 };

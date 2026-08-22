@@ -455,6 +455,64 @@ public:
 using rSpinResolved_CD = tSpinResolved_CD<double>;
 using cSpinResolved_CD = tSpinResolved_CD<dcmplx>;
 
+//---------------------------------------------------------------------------------------
+//
+//  Capability face: a FIELD-backed density that RETAINS THE DENSITY MATRIX IT WAS BUILT FROM.
+//
+//  WHY IT EXISTS.  Under ρ̃-mixing (Kerker/Pulay) the density driving the Fock build is a G-space FIELD
+//  with no D, so a consumer that wants ρ(r) must inverse-transform a TRUNCATED Fourier series at every
+//  point.  For the Hartree term that is exactly right -- Poisson is LINEAR and diagonal in G, so the
+//  preconditioned field is the object the operator wants.  For XC it is wrong twice over, and both were
+//  MEASURED on the MnO benchmark (2026-08-21):
+//    * COST: the direct summation is O(npts x nG) with no BLAS -- 5.19 s per sampling, 51% of the whole
+//      run -- against 0.042 s for the same rho through the (factored) DM GEMM.
+//    * ACCURACY: a truncated series RINGS, and it rings NEGATIVE where the true density is sharpest, at
+//      the nuclear cusps the atom-centred mesh exists to integrate.  8.5-18% of mesh points came back
+//      with rho<0, min rho ~ -0.14 -- and the functionals guard `if (rho>0)`, so every one of those
+//      points contributes ZERO to v_xc and E_xc with no diagnostic.  rho = ||L^dag Phi||^2 cannot.
+//  Hartree and XC therefore want DIFFERENT REPRESENTATIONS OF THE SAME DENSITY, and this face is how the
+//  second one stays reachable: the mixer retains the DM-backed density it built the field from, and a
+//  quadrature consumer cross-casts for it.  At the fixed point the two agree, so this changes the SCF
+//  TRAJECTORY, not the answer.
+//
+//  SHARED ownership, deliberately: the retained density must outlive the Mix() call that produced it (XC
+//  samples it later in the iteration), which is exactly the case tDensityMixer's plain-reference subject
+//  does NOT cover.  A raw back-pointer here would be valid only between mixes and its failure mode --
+//  a stale D silently producing a wrong V_xc -- is invisible in Release.
+//
+template <class T> class tDM_Sourced_CD
+{
+public:
+    virtual ~tDM_Sourced_CD() {}
+    //! The DM-backed density this field was built from; null when none has been deposited (iteration 0,
+    //! or a mixer that does not track one) -- callers fall back to the field's own \c operator().
+    virtual std::shared_ptr<const tDM_CD<T>> DMSource() const=0;
+
+    //! \brief THE EFFECTIVE MIXING FRACTION this field actually applied -- the FRACTION OF THE UPDATE that
+    //! survived the preconditioner, \f$\alpha_{\rm eff}=\lVert\tilde\rho_{mix}-\tilde\rho_{in}\rVert_2 /
+    //! \lVert\tilde\rho_{out}-\tilde\rho_{in}\rVert_2\f$.
+    //!
+    //! WHY IT BELONGS ON THIS FACE.  A consumer that reaches around the field to \c DMSource() gets the
+    //! UNDAMPED output density, so it has stepped outside the mixing the rest of the SCF is subject to.
+    //! Feeding XC that raw while Hartree keeps the preconditioned field is a HALF-DAMPED map, and it
+    //! measurably wrecks convergence (NaF DIIS 34 -> 100+ iterations, 2026-08-21).  So the two pieces are
+    //! wanted TOGETHER, always: the exact density, and how much of it to take.
+    //!
+    //! MEASURED, NOT MODELLED.  Being a ratio of norms of objects the mixer already holds, it needs no
+    //! knowledge of WHICH preconditioner ran: for Kerker it evaluates to
+    //! \f$\alpha\sqrt{\sum f^2|\delta\tilde\rho|^2/\sum|\delta\tilde\rho|^2}\f$ (α times the
+    //! residual-power-weighted RMS of the filter, so it rises toward α as the residual moves to high G);
+    //! for a plain linear mix it is exactly α; and for a Pulay step it may EXCEED 1, which is honest --
+    //! extrapolation overshoots on purpose.
+    //!
+    //! \return 0 when nothing has been mixed yet (iteration 0) -- callers should treat that as "no damping
+    //! information", not as "damp to zero".
+    virtual double EffectiveAlpha() const=0;
+};
+
+using rDM_Sourced_CD = tDM_Sourced_CD<double>;
+using cDM_Sourced_CD = tDM_Sourced_CD<dcmplx>;
+
 //! The magnetization ρ↑−ρ↓ as a real ScalarFunction (any T -- ρ_σ(r) is real for both lineages).
 template <class T> class tSpinDensity : public virtual ScalarFunction<double>
 {

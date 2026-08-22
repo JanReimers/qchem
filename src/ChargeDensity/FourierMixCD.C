@@ -18,6 +18,7 @@
 // the aliasing that dropped integral rho_grid to 2.4 under linear mixing.
 module;
 #include <map>
+#include <memory>   // shared_ptr -- the retained DM source (cDM_Sourced_CD)
 #include <cmath>
 export module qchem.ChargeDensity.FourierMixCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>
@@ -36,6 +37,7 @@ export namespace qchem::ChargeDensity
 class FourierMixCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual FourierDensity
+    , public virtual cDM_Sourced_CD   //!< the DM-backed density this field was mixed FROM (see the face)
 {
 public:
     //! Wrap a \f$\tilde\rho(G)\f$ map (\a rhoTilde) with its reciprocal lattice \a recip and the density's total
@@ -65,6 +67,15 @@ public:
     }
     void SetRawRho(rvec_t raw) {itsRhoRaw=std::move(raw);}   //!< mixer-side deposit (empty = raw pipeline off)
 
+    // --- cDM_Sourced_CD: the DM-backed density this field was mixed FROM ---
+    //! Mixer-side deposit, the exact sibling of \c SetRawRho above: the raster shadow keeps the XC feed RAW,
+    //! this keeps it EXACT.  Shared, not raw: XC samples it after the \c Mix() that produced it has returned.
+    void SetDMSource(std::shared_ptr<const cDM_CD> dm) {itsDMSource=std::move(dm);}
+    virtual std::shared_ptr<const cDM_CD> DMSource() const override {return itsDMSource;}
+    //! \copydoc cDM_Sourced_CD::EffectiveAlpha
+    //! Set by \c KerkerMix from the very loop that applies the filter; 0 on an unmixed (seed) field.
+    virtual double EffectiveAlpha() const override {return itsEffectiveAlpha;}
+
     // --- tChargeDensity<dcmplx> ---
     virtual double  operator()(const rvec3_t&) const override;   //!< rho(r) via inverse FT (single point)
     //! Batched \f$\rho(r_g)=\mathrm{Re}\sum_m c_m e^{iG_m\cdot r_g}\f$ with the phase FACTORIZED per axis
@@ -88,6 +99,8 @@ public:
 private:
     ΔG_Map            itsRho;      //!< rho-tilde(G) coefficients (keyed by the integer difference index dm)
     rvec_t            itsRhoRaw;   //!< raw-raster shadow rho_raw(r) (0.5(f2)); empty = raw pipeline off
+    std::shared_ptr<const cDM_CD> itsDMSource;   //!< the D this field was mixed from; null = none deposited
+    double            itsEffectiveAlpha=0.0;     //!< the realized mixing fraction (see EffectiveAlpha); 0 = unmixed
     ReciprocalLattice itsRecip;    //!< the cell's reciprocal lattice B: |G| for f_K, the Poisson kernel for V_H
     double            itsCharge;   //!< total charge N (passed in; conserved by the SCF diagonalization)
     double            itsScale=1.0;//!< uniform ReScale factor

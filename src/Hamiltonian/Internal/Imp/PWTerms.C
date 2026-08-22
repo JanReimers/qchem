@@ -553,10 +553,94 @@ template <class U> void ReportPhiSparsity(const mat_t<U>& P, const qcMesh::Mesh&
     }
 }
 
-template <class U> mat_t<U> XC_GridEngine::MakePhi(const tobs_t<U>* bs) const
+// THE XC DM-rho REPAIR (doc/OpenWork.md, the factored-rho section).  Under rho-tilde mixing the density
+// driving the Fock build is a G-space FIELD, so XC has to inverse-transform a truncated series at every
+// mesh point -- 5.19 s per sampling on MnO (51% of the run) AND 8.5-18% of the points come back with
+// rho<0, where the functionals guard `if (rho>0)` and silently contribute nothing.  But the mixer BUILT
+// that field from a density matrix and now retains it (cDM_Sourced_CD), so the exact density is one
+// cross-cast away: 0.042 s and rho>=0 by construction.  Hartree keeps the preconditioned field -- Poisson
+// is LINEAR and diagonal in G -- while XC, a NONLINEAR POINTWISE functional, gets the cusp.  At the fixed
+// point they agree, so this changes the SCF TRAJECTORY, not the answer.
+// GPW_XC_DM_SOURCE=1 to arm it.  OPT-IN: a trajectory change must earn its place against banked recipes.
+bool UseDMSource()
 {
-    qchem::report::Timed timed("setup: XC-mesh Phi tables");
-    const rvec3vec_t& R=itsMesh->Points();
+    static const bool on=[]{ const char* e=std::getenv("GPW_XC_DM_SOURCE"); return e && std::atoi(e)!=0; }();
+    return on;
+}
+//! The exact density behind a field-backed one + THE DAMPING THAT FIELD APPLIED -- always together, because
+//! taking the first without the second is the half-damped map (see cDM_Sourced_CD::EffectiveAlpha).
+struct ExactSource { const cDM_CD* cd=nullptr; double alpha=0.0; explicit operator bool() const {return cd;} };
+ExactSource ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd)
+{
+    if (!UseDMSource() || !cd) return {};
+    auto* src=dynamic_cast<const qchem::ChargeDensity::cDM_Sourced_CD*>(cd);
+    if (!src) return {};
+    return {src->DMSource().get(), src->EffectiveAlpha()};
+}
+// GPW_XC_DM_MIX overrides alpha_eff for CONTROLS only (=1 reproduces the undamped route); unset = use the
+// mix's own.  GPW_XC_DM_BOOST scales it: alpha_eff came out ~0.20 on NaF and ~0.35 on MnO -- measured, but
+// low against fractions those cells tolerate, and MnO converged 53 -> 39 iterations at boost 2.  NB f_K<=1
+// forces alpha_eff<=alpha, so a boost >1/mean(f) puts XC ABOVE the mixer's own alpha -- defensible (XC's
+// response kernel is finite at G->0, unlike Hartree's 4pi/G^2) but outside the preconditioner's bracket,
+// hence a knob and not a default.
+double DMSourceMixOverride()
+{
+    static const double a=[]{ const char* e=std::getenv("GPW_XC_DM_MIX"); return e ? std::atof(e) : -1.0; }();
+    return a;
+}
+double DMSourceMixBoost()
+{
+    static const double b=[]{ const char* e=std::getenv("GPW_XC_DM_BOOST"); return e ? std::atof(e) : 1.0; }();
+    return b;
+}
+//! Blend \a fresh into \a running at the mix's own alpha (outside (0,1) => passthrough, which is the right
+//! bootstrap AND the right answer for an unmixed or overshooting step).  Non-negativity survives: a convex
+//! combination of non-negative rasters is non-negative.
+void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
+{
+    const double ov=DMSourceMixOverride();
+    const double a =(ov>=0.0) ? ov : DMSourceMixBoost()*alphaEff;
+    static const bool trace=std::getenv("GPW_XC_ALPHA")!=nullptr;
+    if (trace) std::cout<<"[XC alpha] alpha_eff="<<alphaEff<<(ov>=0.0?"  (OVERRIDDEN by GPW_XC_DM_MIX)":"")
+                        <<"  boost="<<DMSourceMixBoost()
+                        <<"  applied="<<((a>0.0&&a<1.0)?a:1.0)<<std::endl;
+    if (a<=0.0 || a>=1.0 || running.size()!=fresh.size()) { running=fresh; return; }
+    for (size_t g=0; g<fresh.size(); ++g) running[g]=(1.0-a)*running[g]+a*fresh[g];
+}
+
+// GPW_RHO_NEGATIVE=1: IS THE SAMPLED rho EVER NEGATIVE, AND WHAT DOES THAT COST?  A direct A/B between the
+// two routes feeding this mesh, because they differ in KIND: the DM route gives rho = ||L^dag Phi||^2, a
+// sum of squares, so rho>=0 BY CONSTRUCTION; the rho-tilde route inverse-transforms a TRUNCATED Fourier
+// series, which RINGS, and rings NEGATIVE where the true density is sharpest -- the nuclear cusps this mesh
+// exists to integrate.  And it is not loud: SlaterExchange::GetVxc guards `if (ro > 0.0)` and returns 0, so
+// such a point contributes NOTHING to v_xc or E_xc with no diagnostic.  Hence the WEIGHTED MASS, not just
+// the count -- that is the E_xc being silently dropped.
+void ReportNegativeRho(const qcMesh::Mesh& mesh, const rvec_t& rho, const char* route)
+{
+    static const bool on=std::getenv("GPW_RHO_NEGATIVE")!=nullptr;
+    if (!on || rho.size()==0) return;
+    const rvec_t& W=mesh.Weights();
+    assert(W.size()==rho.size());
+    size_t cnt=0; double negMass=0.0, minRho=0.0, absMass=0.0;
+    for (size_t g=0; g<rho.size(); g++)
+    {
+        absMass+=W[g]*std::fabs(rho[g]);
+        if (rho[g]>=0.0) continue;
+        cnt++; negMass+=W[g]*rho[g]; minRho=std::min(minRho,rho[g]);
+    }
+    std::cout<<"[rho<0] route="<<route<<"  points="<<cnt<<" of "<<rho.size()
+             <<" ("<<100.0*double(cnt)/double(rho.size())<<"%)"
+             <<"  negative mass="<<negMass<<" e ("<<100.0*std::fabs(negMass)/std::max(absMass,1e-30)
+             <<"% of integral|rho|)  min rho="<<minRho
+             <<"   [these points contribute ZERO to E_xc -- GetVxc guards rho>0]"<<std::endl;
+}
+
+// THE Phi TABLE, over an ARBITRARY POINT SET.  Phi[g][i]=chi_i(r_g) is a property of (points x basis) and
+// knows nothing about whether the points came from an atom-centred Becke mesh or a uniform raster -- the
+// mesh choice and the rho route are ORTHOGONAL concepts (user, 2026-08-22).  One body, so that stays true.
+template <class U> mat_t<U> MakePhiAt(const tobs_t<U>* bs, const rvec3vec_t& R, const char* bucket)
+{
+    qchem::report::Timed timed(bucket);
     // THE dominant SETUP bucket on an atom-centred XC mesh (MnO Γ, 48k points x 122 Bloch functions:
     // 56 s serial, and it DOUBLES on an imposed run's invariant mesh).  Each point is an independent
     // Bloch image sum writing its OWN row, so the loop parallelises with no reduction and no ordering
@@ -610,12 +694,16 @@ template <class U> mat_t<U> XC_GridEngine::MakePhi(const tobs_t<U>* bs) const
             }
         }
         if (firstEx) std::rethrow_exception(firstEx);
-        ReportPhiSparsity(P,*itsMesh);
         return P;
     }
 #endif
     for (size_t b=0; b<nblk; b++) fill(b);
-    ReportPhiSparsity(P,*itsMesh);
+    return P;
+}
+template <class U> mat_t<U> XC_GridEngine::MakePhi(const tobs_t<U>* bs) const
+{
+    mat_t<U> P=MakePhiAt<U>(bs, itsMesh->Points(), "setup: XC-mesh Phi tables");
+    ReportPhiSparsity(P,*itsMesh);   // mesh-aware (it reports SITE batching), hence outside the builder
     return P;
 }
 const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs) const
@@ -652,9 +740,27 @@ const rvec_t& XC_GridEngine::Rho(const cChargeDensity* cd, const cobs_t* ensureB
     itsRhoVersion=cd->Version();
     qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
+    {
         itsRho=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR);   // both typed maps (3c-3)
+        ReportNegativeRho(*itsMesh, itsRho, "DM");
+    }
+    else if (auto ex=ExactSourceOf(cd))
+    {   // THE REPAIR, unpolarized sibling of the RhoPol branch below: the field retains the D it was mixed
+        // from, so XC samples that instead of inverse-transforming a truncated series.
+        if (ex.cd->Version()==itsSrcVersion)
+            std::cerr<<"[XC DM-source] ** STALE: the mixed field advanced to serial "<<itsRhoVersion
+                     <<" but its retained density matrix did NOT (still "<<itsSrcVersion
+                     <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
+        itsSrcVersion=ex.cd->Version();
+        DampXCChannel(itsXCMix, ex.cd->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR), ex.alpha);
+        itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
+        ReportNegativeRho(*itsMesh, itsRho, "DM-source");
+    }
     else
+    {
         itsRho=(*cd)(itsMesh->Points());   // non-DM (mixed rho-tilde / seed) densities batch here
+        ReportNegativeRho(*itsMesh, itsRho, "matrix-free");
+    }
     if (!itsFold.owner.empty())                    // §6a W1: the orbit-mean star-average (imposed runs only)
         Symmetry::Lattice_3D::SymmetrizeValues(itsFold, itsRho);
     return itsRho;
@@ -693,6 +799,8 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
         {
             itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR);
             itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR);
+            ReportNegativeRho(*itsMesh, itsRhoUp, "DM(up)");
+            ReportNegativeRho(*itsMesh, itsRhoDn, "DM(dn)");
         }
         else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
         {   // MATRIX-FREE spin-resolved density: the seed (PolarizedSeedCD, SCFSeedingPlan §10) at
@@ -702,9 +810,37 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
             // seed, a batched inverse FT over the whole {G} for the mixer.  Its OWN bucket because it is
             // a different algorithm at a different cadence -- lumping it into the GEMM hid the fact that
             // the mixed-density sampling, not the GEMM, was the iteration's largest XC cost.
+            // THE REPAIR: each channel of a rho-tilde-mixed density retains the DM-backed channel it was
+            // mixed from, so ask for the exact one FIRST and fall back per CHANNEL -- the seed has no source
+            // on either while a mixed density has one on both, so a pair-level test would be right today and
+            // wrong the first time they differ.
+            const ExactSource exUp=ExactSourceOf(sr->GetChannel(Spin::Up  ));
+            const ExactSource exDn=ExactSourceOf(sr->GetChannel(Spin::Down));
+            if (exUp && exDn)
+            {
+                // STALENESS GUARD (see itsSrcVersion): the field's serial just advanced, so the SOURCE's
+                // must have too, or XC gets last iteration's D under a cache that believes it is fresh.
+                if (exUp.cd->Version()==itsSrcVersion)
+                    std::cerr<<"[XC DM-source] ** STALE: the mixed field advanced to serial "<<itsPolVersion
+                             <<" but its retained density matrix did NOT (still "<<itsSrcVersion
+                             <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
+                itsSrcVersion=exUp.cd->Version();
+                rvec_t up=exUp.cd->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR);
+                rvec_t dn=exDn.cd->DM_RhoAtPoints(itsMesh->Points(), itsPhi, itsPhiR);
+                DampXCChannel(itsXCMixUp, up, exUp.alpha);   // match the damping Hartree gets, so the map
+                DampXCChannel(itsXCMixDn, dn, exDn.alpha);   //   is not half-damped
+                itsRhoUp=itsXCMixUp; itsRhoDn=itsXCMixDn;
+                ReportNegativeRho(*itsMesh, itsRhoUp, "DM-source(up)");
+                ReportNegativeRho(*itsMesh, itsRhoDn, "DM-source(dn)");
+            }
+            else
+            {
             qchem::report::Timed seed("scf: XC-mesh rho sampling (matrix-free density)");
             itsRhoUp=(*sr->GetChannel(Spin::Up  ))(itsMesh->Points());
             itsRhoDn=(*sr->GetChannel(Spin::Down))(itsMesh->Points());
+            ReportNegativeRho(*itsMesh, itsRhoUp, "matrix-free(up)");
+            ReportNegativeRho(*itsMesh, itsRhoDn, "matrix-free(dn)");
+            }
         }
         else
         {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
