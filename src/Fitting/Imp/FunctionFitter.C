@@ -46,8 +46,9 @@ Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
     //
     // BOTH halves of the contract are checked HERE, at the one seam that builds the object.  They are
     // INDEPENDENT capabilities and neither implies the other:
-    //   isOrtho()         -- the METRIC axis: the projection IS the fit.  Genuinely general; an orthonormal
-    //                        WAVELET basis would satisfy it too.
+    //   isOrtho()         -- the METRIC axis: DIAGONAL, so no linear solve.  Genuinely general; an
+    //                        orthogonal wavelet basis, or a delta basis (metric diag(w_g)), satisfies it
+    //                        too -- the projection IS the fit up to that known diagonal.
     //   Quadrature        -- the POINTS+WEIGHTS axis: where the fit is sampled and E_xc integrated.  This
     //                        one IS general -- any point set answers it (that is the whole point of the
     //                        2026-08-22 split), and a fit basis without it is not defined at all.
@@ -61,7 +62,7 @@ Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
     // The grid check used to live in OrthoScalarFitter::FitGrid, i.e. at FIRST GRID USE: an ortho-but-not-
     // G-space fit basis constructed happily and tripped later, somewhere else.  Two-phase contract, same
     // smell as R2.10's SetMesh -- so it is established once, where the object is made.
-    assert(bs->isOrtho() && "Fitting::Factory(cFIT_SF_ABS): a plane-wave potential-fit basis must be orthonormal");
+    assert(bs->isOrtho() && "Fitting::Factory(cFIT_SF_ABS): a plane-wave potential-fit basis must be orthogonal");
     assert(dynamic_cast<const BasisSet::Quadrature*>(bs.get())
            && "Fitting::Factory(cFIT_SF_ABS): the fit basis must CARRY ITS QUADRATURE (BasisSet::Quadrature) "
               "-- a fit basis is a family of weight vectors over shared points, so it is not defined without them");
@@ -91,7 +92,7 @@ Factory(std::shared_ptr<const BasisSet::cFIT_CD_ABS>& bs)
 {
     // An orthonormal (plane-wave) {G} fit basis: the projection IS the fit, so the minimal core fitter
     // (no metric-solve refinement).  It holds the fit basis but delegates Repulsion to the orbital basis.
-    assert(bs->isOrtho() && "Fitting::Factory(cFIT_CD_ABS): a plane-wave density-fit basis must be orthonormal");
+    assert(bs->isOrtho() && "Fitting::Factory(cFIT_CD_ABS): a plane-wave density-fit basis must be orthogonal");
     return std::make_unique<OrthoFunctionFitter>(bs);
 }
 

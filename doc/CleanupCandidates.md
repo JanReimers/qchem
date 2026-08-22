@@ -478,6 +478,40 @@ MnO campaign proceeds undisturbed in qchem6.
   \f$\{G\}\f$).  Only TWO pointwise call sites remain in the whole tree, both orbital and both honest:
   `TOrbital.C:47` (\f$\psi(r)\f$) and `IrrepCD.C:543` (\f$\rho(r)=\phi^\dagger D\phi\f$).  756/756.
 
+  **⇒ THE TARGET IS LISKOV SUBSTITUTABILITY OF ALL FIT BASES (user, 2026-08-22), AND THE ALGEBRA SAYS IT
+  COSTS NOTHING.**  The molecular XC term uses exactly TWO operations (`Imp/FittedVxc.C:74-100`): `DoFit`
+  of a COMPOSED field (`VxcDensity` = \f$v_{xc}\circ\rho\f$ — the basis samples it on its OWN mesh, so no
+  points escape and no "sample" method is needed), and `Overlap(orbitalBasis)` =
+  \f$\sum_a c_a\langle O_i|f_a|O_j\rangle\f$.  Put the δ basis through the same two, using its own
+  integrals (\f$\langle\delta_g|f\rangle=w_g f_g\f$, \f$\langle\delta_g|\delta_h\rangle=w_g
+  \delta_{gh}\f$, \f$\langle\chi_i|\delta_g|\chi_j\rangle=w_g\chi_i(r_g)\chi_j(r_g)\f$):
+  - `DoFit(`\f$v_{xc}\circ\rho\f$`)` → \f$c=S^{-1}\langle\delta|v\rangle = v_{xc}(\rho(r_g))\f$ —
+    which is what `Sample` + the functional does today.  **`Sample` IS `DoFit`.**
+  - `Overlap(orb)` → \f$\sum_g c_g w_g\chi_i\chi_j = \Phi^\dagger\mathrm{diag}(wv)\Phi\f$ — *identically*
+    the singles quadrature.
+  - \f$E_{xc}=\sum_a e_a\langle\rho|f_a\rangle\f$, and \f$\langle\rho|\delta_g\rangle=w_g\rho(r_g)\f$,
+    so **`Integrate` is that same contraction** — and it stays \f$O(n_{pts})\f$, not \f$O(n_{pts}n^2)\f$,
+    because the identity \f$\mathrm{Tr}(D\sum_a e_a\langle i|f_a|j\rangle)=\sum_a e_a\langle\rho|f_a
+    \rangle\f$ lets δ take the cheap side (its ρ samples are already in hand as the functional's argument).
+  - `SiteIntegrals` is NOT part of the XC contract at all — an atomic-moment observable; it belongs to
+    whoever owns the partition, not to the fit face.
+
+  **⇒ AND THE TWO PERFORMANCE OBSTACLES CONFORM THE *OTHER* WAY (user ruling, 2026-08-22).**  Both are
+  about ρ sampling, and in both the PERIODIC pattern is the better one, so the MOLECULAR route moves:
+  - ρ through the **D-GEMM** against a cached Φ, not pointwise through the density's `ScalarFunction`
+    ("small improvement" for molecules too, user).  Needs the Φ tables where the density can ask for them
+    — i.e. the same `DM_RhoAtPoints(basis)` flip.
+  - **sample ρ ONCE and derive both** \f$v_{xc}\f$ and \f$\epsilon_{xc}\f$ from it, as the periodic
+    route does, instead of fitting the two fields with two independent samplings (`itsFitter` +
+    `itsEpsFitter` in `FittedVxc`).
+
+  ⚠ **`isOrtho()` IS CORRECTLY NAMED — the older DOC was wrong** (user, 2026-08-22; corrected in place).
+  It asks ORTHOGONAL (metric DIAGONAL ⇒ no linear SOLVE), not orthoNORMAL (metric = I).  A plane-wave
+  basis happens to be orthonormal; a δ basis is orthogonal with \f$\langle\delta_g|\delta_g\rangle=w_g\f$.
+  Both answer `true`.  The distinction bites the moment a diagonal-but-not-unit basis is fitted through the
+  general path: \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$, and dropping the denominator
+  (right for orthonormal, wrong here) is an error of a factor \f$w_g\f$.
+
   ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
   promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is
   the remaining scope of step (1): convert `PP_Local::CalculateMatrix` and `PP_NonLocal`'s

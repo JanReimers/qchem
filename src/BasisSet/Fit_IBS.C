@@ -64,10 +64,19 @@ template <class T> class FIT_CD_ABS
     : public virtual IrrepBasisSet<T>
 {
 public:
-    //! \brief Is this fit basis ORTHONORMAL (metric = I)?  The metric axis, declared as a mandatory contract
-    //! so the fitter Factory can pick the right fitter WITHOUT interrogating concrete identity: \c false selects
-    //! the metric-solve (non-ortho) fitter and GUARANTEES the object IS-A \c FIT_CD_NonOrtho; \c true selects the
-    //! orthonormal (plane-wave, projection-IS-the-fit) fitter.  Every fit basis must declare its metric.
+    //! \brief Is this fit basis ORTHOGONAL -- metric DIAGONAL, \f$\langle f_a|f_b\rangle=0\f$ for
+    //! \f$a\ne b\f$?  The metric axis, declared as a mandatory contract so the fitter Factory can pick the
+    //! right fitter WITHOUT interrogating concrete identity: \c false selects the metric-SOLVE (non-ortho)
+    //! fitter and GUARANTEES the object IS-A \c FIT_CD_NonOrtho; \c true selects the fitter that needs no
+    //! solve.  Every fit basis must declare its metric.
+    //!
+    //! ORTHOGONAL, not orthoNORMAL (user, 2026-08-22 -- correcting the older wording here, which said
+    //! "metric = I").  A plane-wave \f$\{G\}\f$ basis happens to be orthonormal; a \f$\delta\f$ basis is
+    //! orthogonal with \f$\langle\delta_g|\delta_g\rangle=w_g\f$.  Both answer \c true, because what the
+    //! Factory is really asking is "can the fit be done without a linear SOLVE" -- and dividing by a known
+    //! diagonal is not a solve.  The distinction matters the moment a diagonal-but-not-unit basis is fitted
+    //! through the general path: the coefficients are \f$\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$,
+    //! and dropping the denominator (right for orthonormal, wrong here) is an error of a factor \f$w_g\f$.
     virtual bool isOrtho() const=0;
 };
 using rFIT_CD_ABS = FIT_CD_ABS<double>;  //!< real (Gaussian/Slater/BSpline) density-fit basis
@@ -121,9 +130,10 @@ template <class T> class FIT_SF_ABS
     : public virtual IrrepBasisSet<T>
 {
 public:
-    //! \brief Is this fit basis ORTHONORMAL (metric = I)?  Mirror of \c FIT_CD_ABS::isOrtho on the overlap-metric
-    //! axis: \c false selects the overlap metric-solve fitter and GUARANTEES the object IS-A \c FIT_SF_NonOrtho;
-    //! \c true selects the orthonormal (plane-wave) scalar fitter.  Every fit basis must declare its metric.
+    //! \brief Is this fit basis ORTHOGONAL (metric DIAGONAL)?  Mirror of \c FIT_CD_ABS::isOrtho on the
+    //! overlap-metric axis -- see there for why the question is orthogonal and NOT orthonormal: \c false
+    //! selects the overlap metric-SOLVE fitter and GUARANTEES the object IS-A \c FIT_SF_NonOrtho; \c true
+    //! selects the no-solve scalar fitter.  Every fit basis must declare its metric.
     virtual bool isOrtho() const=0;
 
     //! \brief STAR-AVERAGE a field SAMPLED AT MY POINTS, in place, over the crystal point group (the IBZ
@@ -174,8 +184,9 @@ template <class T> class FIT_SF_Delta
     , public virtual Quadrature
 {
 public:
-    //! A \f$\delta\f$ basis is orthogonal but NOT orthonormal (\f$\langle\delta_g|\delta_g\rangle=w_g\f$);
-    //! either way it carries no metric-solve face, and its fit needs no solve at all.
+    //! ORTHOGONAL, with \f$\langle\delta_g|\delta_g\rangle=w_g\f$ -- diagonal, so no metric SOLVE, which
+    //! is what \c isOrtho asks.  (It is not orthoNORMAL, and a general fit through this basis must divide
+    //! by that diagonal: \f$c_g=\langle\delta_g|f\rangle/w_g = f(r_g)\f$, the point values.)
     bool isOrtho() const override {return true;}
 
     //! \name The quadrature operations -- what this basis is FOR
