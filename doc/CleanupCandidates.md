@@ -465,6 +465,27 @@ MnO campaign proceeds undisturbed in qchem6.
   - **ORDER:** the naming fold-in + the `VectorFunction` relocation first; the rho flip then falls out.
     Step (2) stays out.
 
+  **✅ THE RELOCATION LANDED (2026-08-22, step (1)'s enabling move).**  `VectorFunction<T>` is off
+  `IrrepBasisSet<T>`; a basis that really can be evaluated says so by deriving the new
+  `BasisSet::Evaluatable_IBS<T>` (which also absorbs the `GetVectorSize()`/`GetNumFunctions()`
+  duplication).  Who promises it now: every ORBITAL lineage (atom, the three molecular Gaussian ones,
+  the PW/GPW mixin, the two DHF halves) plus `Fit_IBS`, which needs its own values to compute its own
+  mesh integrals.  Who does NOT: `FIT_SF_ABS` / `FIT_CD_ABS` — the neutral fit faces — and `DeltaFit_IBS`,
+  whose two THROWING `op(r)`/`Gradient` overrides are simply GONE: they existed only because the interface
+  demanded an answer a distribution cannot give.  The last fit-basis consumer, the AO fitter's
+  \f$\sum_a c_a f_a(r)\f$, became `FieldEvaluator<double>::EvalField(c,r)` on the NON-ORTHO faces (the
+  real-space sibling of `G_FieldEvaluator::EvalField`, which already had exactly this shape for
+  \f$\{G\}\f$).  Only TWO pointwise call sites remain in the whole tree, both orbital and both honest:
+  `TOrbital.C:47` (\f$\psi(r)\f$) and `IrrepCD.C:543` (\f$\rho(r)=\phi^\dagger D\phi\f$).  756/756.
+
+  ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
+  promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is
+  the remaining scope of step (1): convert `PP_Local::CalculateMatrix` and `PP_NonLocal`'s
+  explicit-angular branch to ask the basis for the integral, then the atom density/orbital paths, after
+  which the derivation drops and nothing evaluates an atom block from outside.  The relocation makes that
+  a LOCAL change per call site instead of a tree-wide one, because the face no longer forces the promise
+  on everybody.
+
 - **R1.1 ✅ DONE `06e23f5d`. `FittedVxcPol::GetEnergy` clobbers `te.Exc`** — `te.Exc = 0.0;` before delegating.  **→ doc/CleanupHistory.md**
 - **R1.2 ✅ DONE `06e23f5d` (with one CORRECTION, below). `=` vs `+=` on `EnergyBreakdown`.**  Assigners:.  **→ doc/CleanupHistory.md**
 - **R1.3 ✅ DONE `38a1ebd6` — fixed via `Clone()`, not stopgapped. `UnitCell` SLICING copy** — SCFIterator.C:163.  **→ doc/CleanupHistory.md**

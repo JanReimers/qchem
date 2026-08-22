@@ -83,7 +83,7 @@ template <class T> hmat_t<T> ToScalar(const chmat_t& m)
 // evaluator's exactly-real results are ASSERT-narrowed by ToScalar (bodies single-source).
 template <class E, class T=dcmplx> requires isPW_1E_Evaluator<E>
 class EPW_Irrep_IBS
-    : public virtual IrrepBasisSet<T>
+    : public virtual Evaluatable_IBS<T>   // this mixin's whole job is op(r), so it makes the promise
 {
 public:
     virtual size_t       GetNumFunctions()          const override {return Cast().size();}

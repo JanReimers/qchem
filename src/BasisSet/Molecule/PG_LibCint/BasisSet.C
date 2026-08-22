@@ -34,7 +34,8 @@ namespace Cart = ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
 namespace LC   = ::qchem::BasisSet::Molecule::Evaluators::PG_LibCint;
 
 class IrrepBasisSet
-        : public virtual Real_IBS,
+        : public virtual Evaluatable_IBS<double>,   // a Gaussian AO basis IS evaluatable (was the plain Real_IBS,
+                                                     // which since 2026-08-22 no longer promises op(r))
           public IrrepBasisSetImp<double>,
           public LC::NR_Evaluator                  // IS-A libcint evaluator, which IS-A PGData
     {

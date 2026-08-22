@@ -30,7 +30,8 @@ rsmat_t MakeOverlap2C  (const PGData* ab);   // EFit 2-centre fit integrals (nam
 rsmat_t MakeRepulsion2C(const PGData* ab);
 
 class IrrepBasisSet
-        : public virtual Real_IBS,
+        : public virtual Evaluatable_IBS<double>,   // a Gaussian AO basis IS evaluatable (was the plain Real_IBS,
+                                                     // which since 2026-08-22 no longer promises op(r))
           public IrrepBasisSetImp<double>,
           public Evaluators::PG_Cart_MnD::NR_Evaluator   // IS-A evaluator, which IS-A PGData
     {

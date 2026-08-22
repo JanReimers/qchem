@@ -30,7 +30,8 @@ rsmat_t MakeOverlap2C  (const Sph::NR_Evaluator* ab);   // EFit 2-centre fit int
 rsmat_t MakeRepulsion2C(const Sph::NR_Evaluator* ab);
 
 class IrrepBasisSet
-        : public virtual Real_IBS,
+        : public virtual Evaluatable_IBS<double>,   // a Gaussian AO basis IS evaluatable (was the plain Real_IBS,
+                                                     // which since 2026-08-22 no longer promises op(r))
           public IrrepBasisSetImp<double>,
           public Sph::NR_Evaluator                 // IS-A spherical evaluator, which IS-A SphData
     {

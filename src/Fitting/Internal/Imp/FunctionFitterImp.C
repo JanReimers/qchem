@@ -22,19 +22,18 @@ template <class T, class Face, class FBS> void FitImpBase<T,Face,FBS>::ReScale(d
     itsFitCoeff*=factor;
 }
 
+// The fitted FIELD: ASK THE BASIS to evaluate its own expansion (doc/CleanupCandidates.md R1.0 step 1).
+// This used to reach in for the basis's op(r)/Gradient and do the sum here, which is the pattern that let
+// a basis promise pointwise values it could not honestly give -- and it was the LAST consumer of op(r) on
+// a fit basis anywhere, so retiring it is what let VectorFunction<T> come off IrrepBasisSet<T>.
 template <class T, class Face, class FBS> double FitImpBase<T,Face,FBS>::operator()(const rvec3_t& r) const
 {
-    return blazem::trans(itsFitCoeff) * (*itsBasisSet)(r);
+    return itsBasisSet->EvalField(itsFitCoeff, r);
 }
 
 template <class T, class Face, class FBS> rvec3_t FitImpBase<T,Face,FBS>::Gradient(const rvec3_t& r) const
 {
-    vec_t<rvec3_t> br = itsBasisSet->Gradient(r);
-    rvec3_t ret(0,0,0);
-    auto c(itsFitCoeff.begin());
-    auto b(br.begin());
-    for (; b!=br.end()&&c!=itsFitCoeff.end(); b++,c++) ret+=(*c) * (*b);
-    return ret;
+    return itsBasisSet->EvalFieldGradient(itsFitCoeff, r);
 }
 
 template <class T, class Face, class FBS> std::ostream& FitImpBase<T,Face,FBS>::Write(std::ostream& os) const

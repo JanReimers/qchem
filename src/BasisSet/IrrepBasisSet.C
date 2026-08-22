@@ -4,7 +4,7 @@ module;
 export module qchem.BasisSet.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 export import qchem.BasisSet.Internal.DB_Cache;     // DBCacheClient (the cache key contract)
-import qchem.VectorFunction;
+export import qchem.VectorFunction;   // Evaluatable_IBS's base (NOT IrrepBasisSet's -- see above)
 import qchem.Streamable;
 
 export namespace qchem::BasisSet
@@ -46,13 +46,21 @@ public:
 //  characterised by some sort of symmetry (Yl,Ylm,point group,wave vector,...) 
 //  that commutes with H.  Basic text book stuff.
 //  Since the symmetry is polymorphic we need work with shared_ptr<Symmetry> as defined in sym_t.
-//  Also supports op()(r) interface from VectorFunction<T>
 //  IrrepBasisSet has implementation data (itsSymmetry) so do not multiply inherit from this class.
+//
+//  IT DOES NOT PROMISE op(r) (2026-08-22, user; doc/CleanupCandidates.md R1.0 step 1).  VectorFunction<T>
+//  used to be a base HERE, so every basis -- orbital, fit, atomic -- advertised "evaluate my functions at
+//  r" whether or not it could do so honestly.  Two of them could not: an ATOM block returned the purely
+//  RADIAL chi_i(|r|) with the irrep's Y_lm silently omitted (the fake-radial bug: an l=0 projector leaking
+//  into every l block, invisible for the life of the PP code), and a DELTA fit basis has no pointwise
+//  value at all (its functions are distributions).  The cure is not a better op(r): it is that consumers
+//  wanting an INTEGRAL ask the basis for the integral, so the basis owns how its functions are
+//  represented.  A basis that genuinely IS a set of evaluatable functions says so by deriving
+//  Evaluatable_IBS below -- a promise made where it can be kept.
 //
 template <class T> class IrrepBasisSet
     : public virtual IrrepBasisSet_IDs
     , public virtual Streamable
-    , public virtual VectorFunction<T>
 {
 public:
     //! Readonly ref to the polymorphic Symmetry object.
@@ -72,7 +80,6 @@ public:
     //! value getter (values are written to json, never returned).  Default no-op; an atomic exponential basis
     //! forwards to its evaluator.  A no-op anyway when no run is open.
     virtual void EmitRadialReport() const {}
-    virtual size_t GetVectorSize() const override {return GetNumFunctions();}
     // The single bridge that supplies DBCacheClient::CacheDim() for EVERY concrete cache client (they
     // are all IrrepBasisSet<T>); the abstract integral mixins stay CacheDim()-pure.
     virtual size_t CacheDim() const override {return GetNumFunctions();}
@@ -80,5 +87,22 @@ public:
 
 typedef IrrepBasisSet<double>    Real_IBS;
 typedef IrrepBasisSet<dcmplx> Complex_IBS;
+
+//! \brief An \c IrrepBasisSet whose functions really can be EVALUATED at an arbitrary point -- the
+//! promise \c IrrepBasisSet itself no longer makes (see the note above).
+//!
+//! Orbital bases derive it (an orbital \f$\psi(r)=\sum_i c_i\chi_i(r)\f$, the density
+//! \f$\rho(r)=\phi^\dagger D\phi\f$ and the \f$\Phi\f$ quadrature table are all genuine pointwise
+//! evaluations), and so does the Gaussian auxiliary basis, which needs its own values to compute its own
+//! mesh integrals.  A \f$\delta\f$ fit basis does not, and a \f${G}\f$ fit basis answers the only
+//! question anyone asks of it -- "evaluate this expansion" -- through \c FieldEvaluator instead.
+template <class T> class Evaluatable_IBS
+    : public virtual IrrepBasisSet<T>
+    , public virtual VectorFunction<T>
+{
+public:
+    //! \c VectorFunction's size IS the function count -- the one place the two vocabularies meet.
+    size_t GetVectorSize() const override {return this->GetNumFunctions();}
+};
 
 } //namespace

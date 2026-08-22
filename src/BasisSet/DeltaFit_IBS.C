@@ -19,7 +19,6 @@
 module;
 #include <cassert>
 #include <ostream>
-#include <stdexcept>
 #include <string>
 #include <utility>
 export module qchem.BasisSet.DeltaFit_IBS;
@@ -100,10 +99,12 @@ public:
     //! One \f$\delta\f$ function per mesh point.  ~100k of them: see the sizing warning on \c FIT_SF_Delta.
     size_t GetNumFunctions() const override {return itsQuad.mesh->size();}
 
-    //! \copydoc BasisSet::FIT_SF_Delta  (why this throws rather than returning a unit vector)
-    vec_t<dcmplx> operator()(const rvec3_t&) const override {throw Distribution();}
-    //! Likewise: \f$\nabla\delta\f$ is not a field either.
-    vec3vec_t<dcmplx> Gradient(const rvec3_t&) const override {throw Distribution();}
+    // NO op(r)/Gradient, and no stub either: since 2026-08-22 IrrepBasisSet does not promise pointwise
+    // evaluation (doc/CleanupCandidates.md R1.0 step 1), so a basis whose functions are DISTRIBUTIONS
+    // simply does not offer it.  This class used to carry two throwing overrides for exactly that reason
+    // -- the interface demanded an answer it could not honestly give.  Nothing asks: the delta route's
+    // fit coefficients ARE the field's values at the mesh points, and it has no expansion to plot, so it
+    // does not implement FieldEvaluator either.
 
     std::string   Name      () const override {return "DeltaFit";}
     std::string   BasisSetID() const override
@@ -113,14 +114,6 @@ public:
         {return os << Name() << " fit IBS: " << itsQuad.mesh->size() << " delta functions on the XC mesh";}
 
 private:
-    //! The ONE message both pointwise faces carry -- see the \warning on \c BasisSet::FIT_SF_Delta.
-    static std::logic_error Distribution()
-    {
-        return std::logic_error("DeltaFit_IBS: a delta function has no pointwise VALUE (it is a "
-            "distribution), and the delta route never needs one -- its fit coefficients ARE the field's "
-            "values at the mesh points.  If you reached here, something is treating the quadrature as an "
-            "expansion basis.");
-    }
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
 };
 

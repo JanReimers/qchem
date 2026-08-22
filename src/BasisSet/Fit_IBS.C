@@ -73,6 +73,27 @@ public:
 using rFIT_CD_ABS = FIT_CD_ABS<double>;  //!< real (Gaussian/Slater/BSpline) density-fit basis
 using cFIT_CD_ABS = FIT_CD_ABS<dcmplx>;  //!< complex (plane-wave, G-space) density-fit basis
 
+//! \brief EVALUATE AN EXPANSION over this basis: \f$f(\vec r)=\sum_a c_a f_a(\vec r)\f$ and its
+//! gradient, given the coefficients.
+//!
+//! The ONE question anyone asks a fit basis pointwise -- what the GUI plots, and the seed of the
+//! \f$\rho-\rho_{fit}\f$ / \f$v_{xc}-v_{xc,fit}\f$ residual diagnostics.  As an OPERATION rather than
+//! "hand me your functions and I will sum them myself": the basis owns how its functions are represented,
+//! which is what lets a representation that cannot answer \c op(r) answer this (\c G_FieldEvaluator is
+//! exactly this face for a \f$\{G\}\f$ basis, over a \c ΔG_Map of coefficients instead of a vector),
+//! and lets one that has no expansion at all -- the \f$\delta\f$ basis -- simply not offer it.
+//!
+//! It sits on the NON-ORTHO refinements below, not on the neutral \c FIT_*_ABS faces: a Gaussian/Slater/
+//! BSpline fit basis is by construction a set of evaluatable real functions, so this is a promise made
+//! where it can always be kept.
+template <class T> class FieldEvaluator
+{
+public:
+    virtual ~FieldEvaluator() = default;
+    virtual double  EvalField        (const vec_t<T>& c, const rvec3_t& r) const=0;
+    virtual rvec3_t EvalFieldGradient(const vec_t<T>& c, const rvec3_t& r) const=0;
+};
+
 //! \brief A NON-orthonormal (Gaussian/Slater/BSpline) density-fit basis: adds the Coulomb metric-solve inputs
 //! the least-squares density fit needs.  Density fitting solves \f$\min_c \|\rho-\sum_c c_c f_c\|_V\f$ in the
 //! Coulomb norm under a charge constraint, so this face serves the Coulomb metric \c Repulsion (the
@@ -82,6 +103,7 @@ using cFIT_CD_ABS = FIT_CD_ABS<dcmplx>;  //!< complex (plane-wave, G-space) dens
 //! complex non-ortho fit bases); an orthonormal plane-wave basis omits ALL of this (the projection IS the fit).
 class FIT_CD_NonOrtho
     : public virtual rFIT_CD_ABS
+    , public virtual FieldEvaluator<double>   // rho_fit(r) = Sum_a c_a f_a(r) -- an OPERATION, not op(r)
 {
 public:
     virtual const  rvec_t& Charge      () const=0;  //!< <f_a|1> per fit function (the charge constraint RHS)
@@ -188,6 +210,7 @@ using cFIT_SF_Delta = FIT_SF_Delta<dcmplx>;  //!< δ basis over a periodic (Bloc
 class FIT_SF_NonOrtho
     : public virtual rFIT_SF_ABS
     , public virtual Integrals_Overlap<double>
+    , public virtual FieldEvaluator<double>   // v_xc,fit(r) = Sum_a c_a f_a(r) -- an OPERATION, not op(r)
 {
 public:
     using Integrals_Overlap<double>::Overlap;       // the metric <f_a|f_b> (un-hidden past Overlap(Sf))
@@ -206,6 +229,8 @@ public:
 class Fit_IBS
     : public virtual FIT_CD_NonOrtho
     , public virtual FIT_SF_NonOrtho
+    , public virtual Evaluatable_IBS<double>   // a Gaussian aux basis IS evaluatable -- and needs to be,
+                                               // to compute its OWN mesh integrals (Norm/Overlap below)
 {
 public:
     using Integrals_Overlap<double>::Overlap;       // un-hide the metric Overlap() past the Overlap(Sf) override
@@ -234,6 +259,9 @@ public:
     // Numerical (mesh-quadrature) versions -- run over the fit basis's OWN mesh (itsMesh).
     const rvec_t& Norm   ()           const override; //!< 1/sqrt(<f_a|f_a>), cached
     rvec_t        Overlap(const Sf& f) const override; //!< projection <f_a|f> (Vxc fit RHS; NOT cached)
+    //! \copydoc BasisSet::FieldEvaluator::EvalField  (\f$\sum_a c_a f_a(r)\f$ over this basis's functions)
+    double  EvalField        (const rvec_t& c, const rvec3_t& r) const override;
+    rvec3_t EvalFieldGradient(const rvec_t& c, const rvec3_t& r) const override;
 
 protected:
     virtual  rvec_t MakeCharge      () const=0;

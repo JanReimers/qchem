@@ -19,7 +19,7 @@ export namespace qchem::BasisSet
 template <class T> class Orbital_RKBS_IBS;
 //  Large portion of an RKB irrep basis set for DHF calculations.
 template <class T> class Orbital_RKBL_IBS
-    : public virtual IrrepBasisSet<T>
+    : public virtual Evaluatable_IBS<T>
     , public virtual Integrals_Overlap<T>
     , public virtual Integrals_Nuclear<T>
     , public virtual IrrepBasisSet_IDs   // Name / BasisSetID identity face (neutral)
@@ -37,7 +37,7 @@ public:
 
 //  Small portion of an RKB irrep basis set for DHF calculations.
 template <class T> class Orbital_RKBS_IBS
-    : public virtual IrrepBasisSet<T>
+    : public virtual Evaluatable_IBS<T>
     , public virtual Integrals_Overlap<T> //Also used for RestMass
     , public virtual Integrals_Nuclear<T>
     , public virtual IrrepBasisSet_IDs   // Name / BasisSetID identity face (neutral)
