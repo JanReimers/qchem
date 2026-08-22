@@ -17,6 +17,7 @@
 // PW_Grid_Evaluator implements all four; each consumer casts to exactly the face it consumes.
 module;
 #include <functional>
+#include <stdexcept>
 export module qchem.BasisSet.G_FieldEvaluator;
 import qchem.BasisSet.Internal.GMap;   // ΔG_Map (the G-space coefficient map to evaluate)
 import qchem.Types;       // rvec3_t, rvec_t, cvec_t, rvec3vec_t, ivec3_t, dcmplx
@@ -36,6 +37,34 @@ public:
     virtual double  EvalField        (const ΔG_Map& c, const rvec3_t& r) const=0;
     //! \f$\nabla f(\vec r)=\sum_{\Delta m}(B\Delta m)\,(-\mathrm{Im}[c(\Delta m)e^{i(B\Delta m)\cdot\vec r}])\f$.
     virtual rvec3_t EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const=0;
+
+    //! \brief THE ADJOINT OF \c EvalField: project a field SAMPLED AT POINTS onto this basis's \f$\{G\}\f$,
+    //! \f[ c(G)=\frac1\Omega\sum_g w_g\,v(r_g)\,e^{-iG\cdot r_g}. \f]
+    //!
+    //! WHY A TRANSFORM PAIR AND NOT AN FFT.  A FIT BASIS IS A FAMILY OF WEIGHT VECTORS OVER SHARED POINTS
+    //! (user, 2026-08-22): projecting onto basis function \a c means integrating the field against weights
+    //! \f$W_c[g]=w_g c^*(r_g)\f$, which takes ANY point set.  On a uniform raster all those contractions
+    //! can be done at once by an FFT -- an OPTIMISATION available when the points happen to BE that raster,
+    //! never a requirement (and \f$v_{xc}\f$ is pointwise-NONLINEAR, so it must be evaluated at points on
+    //! every route regardless).  This entry point is what makes a non-raster quadrature -- an atom-centred
+    //! Becke mesh -- expressible at all.
+    //!
+    //! \warning TRUNCATION, NOT ALIASING -- a REAL difference from the FFT route.  This returns coefficients
+    //! over THIS basis's own \f$\{G\}\f$ and nothing else, so an index outside that set reads as zero.
+    //! \c G_Quadrature::GridCoeff instead WRAPS an outside index back into the raster, i.e. aliases it.
+    //! Truncation is arguably the honest semantics (the fit lives in \f$\mathrm{span}\{e^{iG\cdot r}\}\f$
+    //! over this set; wrap-around is an artifact of there being a raster), and on a non-raster mesh it is the
+    //! only definable one -- but the two agree only when the fit grid is converged, so switching the RASTER
+    //! path over is a behaviour change owed its own measurement, not a refactor.
+    //!
+    //! Default THROWS: a basis able to evaluate a fitted field need not be able to project onto itself, and
+    //! a silent wrong answer here is a wrong \f$v_{xc}\f$ with no diagnostic.
+    virtual ΔG_Map  ProjectField(const rvec3vec_t& /*pts*/, const rvec_t& /*w*/, const rvec_t& /*vals*/) const
+    {
+        throw std::logic_error("G_FieldEvaluator::ProjectField: this fit basis cannot project a "
+            "point-sampled field onto its own {G}.  Only a basis that OWNS a {G} enumeration and the "
+            "reciprocal lattice can (PW_Grid_Evaluator does); a field EVALUATOR is not obliged to.");
+    }
 };
 
 //! \brief The FFT QUADRATURE grid engine: sample points, forward/inverse transforms, coefficient lookup,

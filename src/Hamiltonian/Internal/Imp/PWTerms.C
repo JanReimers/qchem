@@ -320,15 +320,28 @@ private:
 // The XC QUADRATURE GRID comes from the FIT basis (not the orbital), so relCutoff / the functional's
 // GridCutoffFactor control the Vxc/E_xc grid.  The fitter OWNS that grid; this term borrows it via
 // itsScalarFitter->Grid() -- one owner, no second cross-cast of the fit basis (#7).
-PWFittedVxc::PWFittedVxc(const xc_t& xc, fbs_t fb)
+PWFittedVxc::PWFittedVxc(const xc_t& xc, fbs_t fb, std::shared_ptr<const qcMesh::Mesh> quad)
     : itsXc(xc)
     , itsVxcFitBasis(fb)                       // hand it to the density's GetFourierDensity (its Overlap3C key)
-    , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar fitter -- owns the FFT quadrature grid
+    , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar FIT -- and, when quad is null, the grid
+    , itsQuad(std::move(quad))                 // THE QUADRATURE, if the caller chose one (see the ctor doc)
 {
     // (No grid announcement here any more: the fit basis self-reports at ITS construction, role-labeled --
     //  the old externally-triggered EmitGridReport and its static-void* once-latch are gone, user 2026-08-16.)
 }
 PWFittedVxc::~PWFittedVxc() = default;   // itsScalarFitter's abstract type is complete here
+
+// The term's quadrature, in ONE place.  Null itsQuad => the fit basis's raster, and the FFT grid's own
+// Integral is used verbatim (sum then scale) rather than re-derived as sum(w_g f_g) -- equal weights make
+// those algebraically identical but not bit-identical, and this path is the historical one.
+double PWFittedVxc::Integrate(const rvec_t& f) const
+{
+    if (!itsQuad) return itsScalarFitter->Grid().Integral(f);
+    const rvec_t& W=itsQuad->Weights();
+    assert(W.size()==f.size() && "PWFittedVxc: the quadrature and the sampled field disagree on point count");
+    double s=0.0; for (size_t g=0; g<f.size(); ++g) s+=W[g]*f[g];
+    return s;
+}
 
 // rho(r) on the fit grid for cd -- one inverse FFT, recomputed only on a new density serial (newCD), so
 // MakeMatrix and GetEnergy share it (whichever runs first this iteration pays; the other reuses).
@@ -383,7 +396,7 @@ void PWFittedVxc::RefreshRhoGrid(const cChargeDensity* cd) const
     {
         // Grid charge vs analytic charge: the electrons LOST to grid truncation (high-G aliasing of rho).
         // == CP2K's "Electronic density on regular grids: <int rho> <error>" -- a controlled cutoff metric.
-        const double qGrid=itsScalarFitter->Grid().Integral(itsRhoGrid);   // integral rho_grid d3r
+        const double qGrid=Integrate(itsRhoGrid);   // integral rho_grid d3r
         const double qDM  =cd->GetTotalCharge();                           // Tr(D S) (analytic, ~ N)
         std::cout << "[grid charge] integral rho_grid=" << std::fixed << std::setprecision(6) << qGrid
                   << "  Tr(DS)=" << qDM
@@ -405,8 +418,8 @@ void PWFittedVxc::RefreshRhoGrid(const cChargeDensity* cd) const
             excLost[q] = r<0.0 ? itsXc->GetEpsXc(-r)*(-r) : 0.0;
             if (r<0.0) ++nneg;
         }
-        const double negCharge=itsScalarFitter->Grid().Integral(negOnly);
-        const double excLostI =itsScalarFitter->Grid().Integral(excLost);
+        const double negCharge=Integrate(negOnly);
+        const double excLostI =Integrate(excLost);
         std::cout << "[xc grid] rho_min=" << std::scientific << std::setprecision(3) << rmin
                   << " rho_max=" << rmax << " neg-frac=" << double(nneg)/double(itsRhoGrid.size())
                   << " negCharge=" << negCharge << " Exc_lost@rho<0~=" << excLostI
@@ -452,10 +465,10 @@ void PWFittedVxc::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     RefreshRhoGrid(cd);   // reuses MakeMatrix's transform this iteration (same density serial)
     rvec_t exc(itsRhoGrid.size());
     for (size_t q=0;q<itsRhoGrid.size();q++) {double ro=itsRhoGrid[q]; exc[q]=itsXc->GetEpsXc(ro)*ro;}
-    te.Exc += itsScalarFitter->Grid().Integral(exc);   // E_xc = integral eps_xc(rho) rho, on the fitter's grid
+    te.Exc += Integrate(exc);   // E_xc = integral eps_xc(rho) rho, on the fitter's grid
     // GPW health DIAGNOSTIC (item 2 increment 2): the signed grid-charge leak integral rho_grid - Tr(DS), the
     // electrons lost to collocation-grid truncation.  Surfaced as the solid SCF display's ρ_lost/N column.
-    te.GridChargeLost = itsScalarFitter->Grid().Integral(itsRhoGrid) - cd->GetTotalCharge();
+    te.GridChargeLost = Integrate(itsRhoGrid) - cd->GetTotalCharge();
 }
 
 std::ostream& PWFittedVxc::Write(std::ostream& os) const

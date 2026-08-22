@@ -81,6 +81,31 @@ ivec3_t PW_Evaluator::FFTGrid() const
     return m;
 }
 
+// The ADJOINT of EvalField (see the face): c(G) = (1/Omega) Sum_g w_g v(r_g) e^{-iG.r_g}, over THIS basis's
+// own {G} -- one weight-vector contraction per G, so it takes any point set and any weights.  O(|{G}| x npts)
+// by construction: the FFT that does all of these at once needs the points to BE a raster, which is exactly
+// the assumption this entry point exists to drop.  TRUNCATING, not aliasing (see the \warning on the face).
+ΔG_Map PW_Grid_Evaluator::ProjectField(const rvec3vec_t& pts, const rvec_t& w, const rvec_t& vals) const
+{
+    assert(pts.size()==vals.size() && pts.size()==w.size() &&
+           "PW_Grid_Evaluator::ProjectField: points, weights and values must agree in length");
+    const UnitCell& B=Recip().GetCell();
+    const double invOmega=1.0/Volume();
+    ΔG_Map m;
+    for (const ivec3_t& dm : Gs())
+    {
+        const rvec3_t G=B.ToCartesian(rvec3_t(double(dm.x),double(dm.y),double(dm.z)));
+        double re=0.0, im=0.0;
+        for (size_t g=0; g<pts.size(); ++g)
+        {
+            const double ph=G*pts[g], wv=w[g]*vals[g];
+            re+=wv*cos(ph); im-=wv*sin(ph);          // e^{-iG.r}
+        }
+        m[dm]=invOmega*dcmplx(re,im);
+    }
+    return m;
+}
+
 // Analytic structure-factor density over this engine's own {G}: rho-tilde(G) = (1/Omega) Sum_atoms
 // formFactor(Z,|B.G|^2) e^{-i(B.G).R}.  formFactor is the atomic density's 1-D radial Fourier transform, so
 // this is ANALYTIC per G -- no 3-D grid, no aliasing of the peaked density (unlike sample+FFT).  A DENSITY:

@@ -353,6 +353,70 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
 // mesh maps onto itself under every op BY CONSTRUCTION (the T2 precondition), with the fuzzy-Voronoi
 // partition computed on the final point set (a geometric function of the atom distances, so the weights
 // inherit the invariance).
+//! \brief GPW_MESH_ORTHO=M: HOW ORTHOGONAL ARE PLANE WAVES UNDER THIS MESH'S QUADRATURE?
+//!
+//! WHY IT IS ONE FUNCTION AND NOT A MATRIX.  The discrete overlap of two plane waves on a mesh,
+//! \f$S_{GG'}=\sum_g w_g e^{i(G'-G)\cdot r_g}\f$, depends only on the DIFFERENCE, so the whole
+//! non-orthogonality is one scalar function \f$T(\Delta G)\f$ over the difference set -- O(npts) per
+//! \f$\Delta G\f$, with no \f$N_G^2\f$ object anywhere.  \f$T(\Delta G)/\Omega\f$ IS the mesh's
+//! quadrature error for a plane wave of wavevector \f$\Delta G\f$, and \f$T(0)/\Omega=1\f$ exactly by
+//! construction -- a free correctness check on the census itself.
+//!
+//! WHAT IT IS FOR.  A plane-wave \c VxcFit on a Becke grid is asserted out (item I3 in Hamiltonians.C) and
+//! the projection \f$\langle c_G|v_{xc}\rangle=\sum_g w_g v_{xc}(r_g)e^{-iG\cdot r_g}\f$ is a perfectly
+//! ordinary real-space quadrature that takes any mesh (user, 2026-08-22) -- but on a UNIFORM raster the
+//! plane waves are DISCRETELY ORTHOGONAL, so the fit is a projection with no metric, while on any other
+//! mesh it becomes a genuine fit with an overlap to invert.  This measures how far from orthogonal.
+//!
+//! THE EXPECTATION, so the measurement can refute it: a Becke mesh is built for the OPPOSITE integrand --
+//! dense radial shells at the nuclei, sparse in the interstitial, tuned for sharp atom-centred cusps.  A
+//! plane wave has uniform amplitude everywhere and oscillates fastest exactly where the mesh is thinnest,
+//! and through a radial shell it is an ANGULAR oscillation -- so the error should be ~0 at small
+//! \f$|\Delta G|\f$ (a near-constant integrand) and degrade once \f$|\Delta G|\f$ outruns the Lebedev
+//! order.  Reported binned in \f$|\Delta G|\f$ so the onset is visible rather than averaged away.
+void ReportMeshPlaneWaveOrtho(const UnitCell& cell, const qcMesh::Mesh& mesh)
+{
+    const char* e=std::getenv("GPW_MESH_ORTHO");
+    if (!e) return;
+    const int M=std::max(1, std::atoi(e));            // half-width of the integer Delta-G box (default 1 -> set 4)
+    const rvec3vec_t& R=mesh.Points();
+    const rvec_t&     W=mesh.Weights();
+    if (R.size()==0) return;
+    double Omega=0.0; for (size_t g=0; g<W.size(); ++g) Omega+=W[g];
+    const UnitCell B=cell.MakeReciprocalCell();
+
+    // Bin in |Delta G| (a.u.^-1).  Geometric-ish edges: the interesting behaviour is an ONSET, not a slope.
+    constexpr size_t kNBin=8;
+    const double edge[kNBin]={0.5,1.0,1.5,2.0,3.0,4.0,6.0,1e300};
+    double binMax[kNBin]={0,0,0,0,0,0,0,0}, binSum[kNBin]={0,0,0,0,0,0,0,0};
+    size_t binN[kNBin]={0,0,0,0,0,0,0,0};
+    double t0=0.0;
+    for (int mx=-M; mx<=M; ++mx) for (int my=-M; my<=M; ++my) for (int mz=-M; mz<=M; ++mz)
+    {
+        const rvec3_t G=B.ToCartesian(rvec3_t(double(mx),double(my),double(mz)));
+        const double  g2=G*G;
+        double re=0.0, im=0.0;
+        for (size_t q=0; q<R.size(); ++q)
+        {
+            const double ph=G*R[q];
+            re+=W[q]*cos(ph); im+=W[q]*sin(ph);
+        }
+        const double t=sqrt(re*re+im*im)/Omega;
+        if (g2<1e-20) { t0=t; continue; }             // Delta G = 0: the T(0)/Omega == 1 self-check
+        const double gg=sqrt(g2);
+        size_t b=0; while (b+1<kNBin && gg>=edge[b]) b++;
+        binMax[b]=max(binMax[b],t); binSum[b]+=t; binN[b]++;
+    }
+    std::cout<<"[mesh ortho] npts="<<R.size()<<"  T(0)/Omega="<<t0
+             <<" (must be 1)  |Delta G| box M="<<M<<std::endl;
+    const char* lbl[kNBin]={"<0.5","0.5-1","1-1.5","1.5-2","2-3","3-4","4-6",">6"};
+    std::cout<<"[mesh ortho] |T(dG)|/Omega  (0 = orthogonal):";
+    for (size_t b=0;b<kNBin;b++)
+        if (binN[b]) std::cout<<"  "<<lbl[b]<<": max="<<binMax[b]<<" mean="<<binSum[b]/double(binN[b])
+                              <<" (n="<<binN[b]<<")";
+    std::cout<<std::endl;
+}
+
 qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
                                              const std::vector<Symmetry::SymOp>& ops) const
 {
@@ -364,7 +428,11 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     // sit in the CALLER (GPW_IBS's XC-quadrature factory), which meant a BASIS was switching on cellKind to
     // decide how a STRUCTURE builds its own mesh.  The structure owns the mesh; it owns the strategy.
     if (mp.cellKind!=qcMesh::UnitCellKind::Becke)
-        return MakeInvariant(CreateIntegrationMesh(mp), GetCellMatrix(), ops, kMeshMatchTol);
+    {
+        qcMesh::Mesh m=MakeInvariant(CreateIntegrationMesh(mp), GetCellMatrix(), ops, kMeshMatchTol);
+        ReportMeshPlaneWaveOrtho(*this, m);
+        return m;
+    }
 
     // BECKE kind: site-adapted, invariant by construction (W2b) -- the rest of this function.
 
@@ -450,7 +518,9 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     if (nDropped>0)
         std::cout<<"[Becke grid] orbit-consistency: dropped "<<nDropped
                  <<" eps-borderline points whose orbit partners were tail-dropped"<<std::endl;
-    return out.take();
+    qcMesh::Mesh mb=out.take();
+    ReportMeshPlaneWaveOrtho(*this, mb);   // the BECKE arm: built for cusps, asked about plane waves
+    return mb;
 }
 
 // A periodic cell's real-space integration mesh.  Two kinds (mp.cellKind):
@@ -464,7 +534,12 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
 // cheap diffuse tails): the XC quadrature for pointwise-nonlinear, sharp-at-the-core fields.
 qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 {
-    if (mp.cellKind==qcMesh::UnitCellKind::Becke) return MakePeriodicBeckeMesh(*this,mp);
+    if (mp.cellKind==qcMesh::UnitCellKind::Becke)
+    {
+        qcMesh::Mesh mB=MakePeriodicBeckeMesh(*this,mp);
+        ReportMeshPlaneWaveOrtho(*this, mB);   // the FREE (non-imposed) Becke arm
+        return mB;
+    }
 
     // Points per axis: DERIVE from a physical grid cutoff when mp.eCut>0 (the GPW / Nyquist path), else the
     // manual mp.nUniform.  The Nyquist relation itself is qcMesh::UniformDivisions -- named once beside the
@@ -489,7 +564,9 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
     // that build this same mesh in one run (PP_Local, PP_NonLocal, the GPW PP quadrature) dedup in the
     // report itself, run-scoped -- the old function-local-static latch leaked its dedup across runs.
     EmitUniformGridReport("unitCellUniform", vec3_t<int>(n,n,n), mp.eCut);
-    return qcMesh::Mesh(std::move(R), std::move(W));
+    qcMesh::Mesh m(std::move(R), std::move(W));
+    ReportMeshPlaneWaveOrtho(*this, m);   // the UNIFORM control: exact orthogonality up to Nyquist
+    return m;
 }
 
 // The ONE uniform-cell-grid announcement (see the interface doc): a grids.<key> entry with kind, N,

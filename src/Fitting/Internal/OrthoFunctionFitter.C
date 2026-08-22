@@ -103,6 +103,23 @@ public:
         itsMap=ge.FieldCoeffs(itsVt);                             // fit-basis coefficients (for op(r) plotting)
     }
 
+    //! \brief Fit a field ALREADY SAMPLED on a caller-supplied quadrature (points + weights), rather than
+    //! self-sampling on our own raster: the mesh-general sibling of \c DoFit.
+    //!
+    //! This is the fit/grid unwelding (user, 2026-08-22).  \c DoFit's grid is OUR fit basis's FFT raster, so
+    //! choosing a plane-wave fit silently chose the integration mesh too; here the CALLER owns the
+    //! quadrature and we own only the basis.  Delegates to \c G_FieldEvaluator::ProjectField -- the adjoint
+    //! of \c EvalField -- which is one weight-vector contraction per G and therefore takes any point set.
+    //!
+    //! \warning Leaves \c itsVt EMPTY on purpose: there is no raster to fill, and \c Overlap below then
+    //! reads coefficients from \c itsMap, which TRUNCATES outside our \f$\{G\}\f$ where the raster route
+    //! ALIASES.  See the \warning on \c ProjectField -- the two agree only on a converged fit grid.
+    virtual void DoFitOnMesh(const rvec3vec_t& pts, const rvec_t& w, const rvec_t& vals) override
+    {
+        itsVt =cvec_t();                               // no raster: Overlap must read itsMap
+        itsMap=FieldEval().ProjectField(pts, w, vals);
+    }
+
     //! XC matrix <i|v_xc|j> = V-tilde(m_i-m_j): the ORBITAL basis assembles over ITS {G}, looking each
     //! reciprocal-index difference up in OUR fit-grid coefficients -- so the fit grid may be denser than (or
     //! offset from) the orbital's.  The orbital's assembly is its applyAdjoint realization (the
@@ -118,6 +135,12 @@ public:
         // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
         // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the
         // SAME grid the density was collocated on (doc/GPWPlan §0e step 2).  No grid-less MakeOverlap(field).
+        // TWO COEFFICIENT SOURCES, and they are not the same operator outside our {G} (see DoFitOnMesh):
+        // the raster route ALIASES an outside index back in, the mesh route TRUNCATES it to zero.
+        if (itsVt.size()==0)
+            return ContractAdjoint(orb.Overlap3C(*itsFitBasis),
+                                   [&](const ivec3_t& dm)->dcmplx
+                                   { auto it=itsMap.find(dm); return it==itsMap.end()?dcmplx(0.0):dcmplx(it->second); });
         return ContractAdjoint(orb.Overlap3C(*itsFitBasis),
                                      [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }

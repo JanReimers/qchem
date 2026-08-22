@@ -222,7 +222,25 @@ public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
     //! Built with the Vxc fit basis obtained from the orbital basis's factory (BuildTerms creates it ONCE,
     //! never assuming orbital==fit) -- the overlap-metric sibling of Vee_Hartree.
-    PWFittedVxc(const xc_t&, fbs_t vxcFitBasisSet);
+    //! \brief \a quad is THE QUADRATURE this term integrates on -- points and weights, nothing else.
+    //!
+    //! WHY IT IS AN ARGUMENT (step 1 of the fit/grid unwelding, user 2026-08-22).  This term used to
+    //! quadrature on \c itsScalarFitter->Grid(), i.e. on ITS OWN FIT BASIS's FFT raster -- so choosing a
+    //! plane-wave \c VxcFit silently also chose the integration mesh, and the two decisions could not be
+    //! varied independently.  They are ORTHOGONAL: \f$\langle c_G|v_{xc}\rangle=\sum_g w_g v_{xc}(r_g)
+    //! e^{-iG\cdot r_g}\f$ is an ordinary real-space quadrature that takes ANY mesh, and \f$v_{xc}\f$ is
+    //! pointwise-NONLINEAR so it must be evaluated at points on any route -- the FFT is an optimisation
+    //! available when the points happen to be that raster, never a requirement.
+    //!
+    //! EMPTY (the default) = fall back to the fit basis's own raster, i.e. exactly the historical points and
+    //! weights.  So this changes the DEPENDENCY DIRECTION without changing a number; the caller may now hand
+    //! a different mesh (a \c UnitCell midpoint grid, a Becke mesh) and the term will integrate there.
+    //! \note The two "uniform" grids are NOT the same point set: the fit raster is at fractional CORNERS
+    //! \f$i/N\f$ with N from the fit G-ball, while \c UnitCell::CreateIntegrationMesh(Uniform) is at
+    //! MIDPOINTS \f$(i+\tfrac12)/n\f$ with \c n=mp.nUniform.  Both are valid \f$\Omega/N\f$ rules and
+    //! agree on well-resolved integrands, but they differ in aliasing phase -- so swapping them is a
+    //! behaviour change, not a refactor.
+    PWFittedVxc(const xc_t&, fbs_t vxcFitBasisSet, std::shared_ptr<const qcMesh::Mesh> quad={});
     ~PWFittedVxc();
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
@@ -240,6 +258,11 @@ private:
     //! quadrature comes from the FIT basis, not the orbital basis (so relCutoff / GridCutoffFactor control it).
     //! The term borrows that ONE grid via itsScalarFitter->Grid() -- no second cross-cast of the fit basis (#7).
     std::unique_ptr<Fitting::GriddedScalarFitter> itsScalarFitter;
+    //! The quadrature (see the ctor).  Null = the fit basis's own raster, resolved through \c Quad() below.
+    std::shared_ptr<const qcMesh::Mesh> itsQuad;
+    //! \f$\int f\,d^3r\f$ on THIS term's quadrature.  Routed through one place so the grid decision has a
+    //! single owner; identical to the fitter's \c Grid().Integral when \c itsQuad is null.
+    double Integrate(const rvec_t& f) const;
     mutable rvec_t itsRhoGrid;   //!< rho(r) on the fit grid for the current density (MakeMatrix builds; GetEnergy reuses)
     //! \brief Whether \c itsRhoGrid is the RAW collocated \f$\rho_{DM}\f$ (doc/GPWPlan 0.5(f2)) rather than
     //! the ball-projected round trip.  Set per refresh from the density's \c GetRhoOnGrid answer; when true,

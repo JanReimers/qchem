@@ -185,6 +185,8 @@ public:
     rvec3_t  EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalFieldGradient(c,r);}
     //! Gather \f$c(G)=\tilde V(G)\f$ over this evaluator's \f$\{G\}\f$ (the fitted field for op(r) plotting).
     ΔG_Map   FieldCoeffs(const cvec_t& Vt) const override;
+    //! \copydoc BasisSet::G_FieldEvaluator::ProjectField
+    ΔG_Map   ProjectField(const rvec3vec_t& pts, const rvec_t& w, const rvec_t& vals) const override;
     //! Analytic structure-factor density over this evaluator's \f$\{G\}\f$ (the SAD seed's \f$\tilde\rho\f$; grid-free).
     ΔG_Map   MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const override;
