@@ -1196,6 +1196,103 @@ them orbital), and the naming trap (a δ basis's `Sample` is the FIT coefficient
 
 Re-verified after all three: 756/756, and the two-route Si gate still prints −7.115067665 / −7.115059008 at 11/11 iterations.
 
+---
+
+## ★★★ NEXT INCREMENT, SPECCED FOR A FRESH SESSION — ONE FIT-BASIS INTERFACE (user, 2026-08-22)
+
+**THE GOAL, in one sentence.**  A δ fit basis is a family of FUNCTIONS — n_pts genuine δ functions with a
+diagonal metric — so it must present EXACTLY the interface a Gaussian auxiliary fit basis presents, and
+every "point" word must come off the fit-basis faces.
+
+**WHY (the finding that opened it).**  The 2026-08-22 work put `NumPoints()` / `Sample(field)` /
+`Integrate(values)` on `FIT_SF_ABS<T>`.  Those are the IMPLEMENTATION leaking through: they describe a
+quadrature, not a family of functions.  They looked right only because for a δ basis n_functions ==
+n_points, so the wrong accessor gives the right number.  The user's ruling: *"a DeltaFitBasis is also a
+family of functions ... as such it should have exactly the same interface as the Gaussian fit basis set."*
+
+### THE INTERFACE DELTA
+
+| remove (point vocabulary) | replace with (function vocabulary) | δ's realization |
+|---|---|---|
+| `FIT_SF_ABS<T>::NumPoints()` | `IrrepBasisSet<T>::GetNumFunctions()` (already there) | n_pts |
+| `FIT_SF_ABS<T>::Sample(f)` → per-POINT values | **`Overlap(const ScalarFunction<double>&)` → `vec_t<T>`, per FUNCTION** — moved UP from `FIT_SF_NonOrtho`, where it already exists, onto `FIT_SF_ABS<T>` | \f$\langle\delta_g\|f\rangle = w_g f(r_g)\f$ |
+| `FIT_SF_ABS<T>::Integrate(values)` | the coefficients dotted with the per-function integrals \f$\langle f_a\|1\rangle\f$ (`Charge()` already has that shape on the CD side; add its SF sibling) | \f$\int\delta_g = w_g\f$, so \f$c\cdot w = \sum_g w_g f_g\f$ |
+| `FIT_SF_Delta::Values(orb)` (Φ tables) | the 3-CENTRE overlap \f$\langle\delta_g\|\chi_i\chi_j\rangle\f$ every fit basis provides; its adjoint contraction is today's `Quadrature(orb,v)` | \f$w_g\chi_i(r_g)\chi_j(r_g)\f$ |
+
+**`Overlap(field)` unifies across all three representations**, which is the load-bearing claim of the whole
+increment — verify it early:
+- **Gaussian**: projects on its own Becke mesh (the existing `Fit_IBS::Overlap(Sf)` body, unchanged).
+- **δ**: \f$w_g f(r_g)\f$.
+- **plane wave**: the FORWARD FFT — literally what `OrthoNormalScalarFitter::DoFit` does by hand today
+  (sample, `ForwardFFT`, `FieldCoeffs`).  Moving it onto the basis is what makes the fitters uniform.
+
+Each FITTER then applies its own metric to that one projection: \f$S^{-1}\f$ solve (Gaussian), divide by
+`OverlapDiagonal()` (δ), or nothing (orthonormal PW).  **This is where `OverlapDiagonal()` finally gets a
+consumer** — it has none today beyond its gate.
+
+### THE XC TERM RE-PLUMB (what makes the deletions possible)
+
+The molecular term is already the template (`Imp/FittedVxc.C`): compose a FIELD \f$v_{xc}\circ\rho\f$, hand
+it to `DoFit`, contract with `Overlap(orbitalBasis)`.  Port the periodic terms to the same two calls:
+- **H**: `ContractAdjoint(Overlap3C(fitBasis), c)` — for δ that IS \f$\Phi^\dagger\mathrm{diag}(wc)\Phi\f$.
+- **E_xc**: \f$\sum_a e_a\langle\rho|f_a\rangle\f$ — the ε-fit coefficients against the density's projection
+  ONTO the fit basis.  For δ, \f$\langle\rho|\delta_g\rangle=w_g\rho(r_g)\f$, so it stays \f$O(n_{pts})\f$
+  and reuses the ρ samples already in hand.  (Do NOT route it through an E-MATRIX + `DM_Contract`: that is
+  the molecular shape and it costs an extra \f$O(n_{pts}n^2)\f$ GEMM per iteration here.)
+
+**THE ONE IRREDUCIBLE POINT-NESS, and it does not belong in a signature.**  \f$v_{xc}\f$ is pointwise
+nonlinear, so something must evaluate ρ, apply the functional, and project.  That stays INSIDE: the term
+composes the field, the BASIS samples it inside `Overlap(field)`, the field's BULK evaluation asks the
+density, and the density gets its Φ tables by asking the basis (`DM_RhoAtPoints(q)`, already landed).  The
+user's D-GEMM ruling survives intact and no coordinate appears in any interface.
+
+### PINS AND TRAPS
+
+- ⚠ **BITWISE.**  δ's fit is \f$c_g=\langle\delta_g|f\rangle/w_g = w_g f_g/w_g\f$.  Today `Sample` returns
+  \f$f_g\f$ DIRECTLY because the \f$w_g\f$ cancels exactly; going through multiply-then-divide can move the
+  last bit of every coefficient, and the pinned gates print 10 digits.  Decide deliberately: either keep the
+  cancellation explicit inside the δ fitter (recommended — same interface, exact arithmetic) or accept the
+  ulp move and re-pin.  **Measure first**: `GPW_SCF.DeltaFitUniformGridMatchesPWFit_SiGamma` must still
+  print −7.115067665 (pair) and −7.115059008 (singles) at 11/11 iterations.
+- **MIXED SCALARS.**  A real TRIM block wants `hmat_t<double>` while its complex siblings want
+  `hmat_t<dcmplx>` (doc/RealComplexPlan.md 3c-3).  That is what `Fitting::FitContraction<U>` exists for —
+  do not collapse it back into a single-scalar face.
+- **NO GETTERS.**  Nothing may hand out points, weights, or a mesh.  The current tree has zero such
+  escapes; keep it that way (the whole 2026-08-22 arc was closing them one at a time).
+- **NAMING.**  `Sample` ≠ `Overlap`: the first is per-POINT values, the second per-FUNCTION integrals.  They
+  coincide in length only for δ.  Do not blanket-rename onto the `MakeOverlap` family without re-deriving
+  each one (R1.0 records this trap).
+- **`SiteIntegrals` does not belong on a fit basis at all** — it is an atomic-moment OBSERVABLE.  Move it to
+  whatever owns the partition; it is the last non-fit-basis question on `FIT_SF_Delta`.
+
+### EXPECTED END STATE
+
+`FIT_SF_Delta` mostly dissolves: δ becomes a fit basis whose metric is diagonal, distinguished by
+`isOrtho()` + `OverlapDiagonal()` rather than by having its own face.  What legitimately remains δ-specific
+is `SymmetrizeSpin` (the magnetic (ρ,m) pair projection — δ is the only representation a polarized run can
+use, a plane-wave fit having no per-channel collocation).
+
+### VERIFICATION
+
+`ninja allTests && scripts/memsafe ctest -j8` — **757 tests, all passing**, and the count must not DROP
+(a vanished test is a silent regression; see CLAUDE.md on `_NOT_BUILT`).  Beyond the suite: the Si
+two-route gate above (both numbers, both iteration counts), `M_DFT.*` for the molecular lineage, and
+`GPW.OverlapDiagonalPerRepresentation` which pins the three metric diagonals.
+
+### SUGGESTED ORDER
+
+1. `Overlap(field)` onto `FIT_SF_ABS<T>`; implement for PW (forward FFT) and δ; Gaussian inherits its
+   existing body.  Suite green here — nothing consumes it yet.
+2. Fitters take their projection from it and apply their own metric.  `OverlapDiagonal` gets its consumer.
+3. Periodic XC terms onto the two-call shape (H via `Overlap3C`, E via coefficients·integrals).
+4. Delete `Sample` / `Integrate` / `NumPoints` / `Values`, and whatever of `FIT_SF_Delta` is left empty.
+5. Then the ruled MOLECULAR conformance (ρ through the D-GEMM; sample ONCE and derive both \f$v_{xc}\f$ and
+   \f$\epsilon_{xc}\f$ from it) — worth MEASURING first, since molecular meshes are small and the win may
+   be uniformity rather than time.
+
+Background and the full 2026-08-22 record: `doc/CleanupCandidates.md` R1.0.
+
+
 ### Q1 — can we use this for Vxc IN COMBINATION WITH MIXING?
 
 **Partial answer: yes, and there are three routes, but the cheap one is not obviously the accurate one.**
