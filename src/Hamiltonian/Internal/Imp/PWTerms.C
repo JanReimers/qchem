@@ -425,23 +425,17 @@ void XC_PairQuadrature::Refresh(const cChargeDensity* cd) const
     }
 }
 
-// The ensure-block hint is a SINGLES concept (there is no Phi table here), so both overloads just refresh.
 double XC_PairQuadrature::Integrate(const rvec_t& f) const {return qcMesh::Integrate(Mesh(), f);}
 size_t XC_PairQuadrature::NumPoints() const {return Mesh().size();}
 
-const rvec_t& XC_PairQuadrature::Rho(const cChargeDensity* cd, const cobs_t*) const {Refresh(cd); return itsRho;}
-const rvec_t& XC_PairQuadrature::Rho(const cChargeDensity* cd, const robs_t*) const {Refresh(cd); return itsRho;}
+const rvec_t& XC_PairQuadrature::Rho(const cChargeDensity* cd) const {Refresh(cd); return itsRho;}
 
-const rvec_t& XC_PairQuadrature::RhoPol(const cChargeDensity*, const Spin&, const cobs_t*) const
+const rvec_t& XC_PairQuadrature::RhoPol(const cChargeDensity*, const Spin&) const
 {
     throw std::logic_error("XC_PairQuadrature: the pair (collocation) route is not spin-native -- there is "
         "no per-channel rho_sigma collocation, and a per-spin pair route with its own rho caches is not "
         "designed.  Use the delta/singles quadrature (VxcFit::Delta), which is spin-native on any mesh; "
         "VxcFit::Auto already selects it for a polarized run.");
-}
-const rvec_t& XC_PairQuadrature::RhoPol(const cChargeDensity* cd, const Spin& s, const robs_t*) const
-{
-    return RhoPol(cd, s, static_cast<const cobs_t*>(nullptr));
 }
 
 // <i|v|j>, THE EXACT ADJOINT of whichever route Refresh took (which is why both live on one object):
@@ -508,73 +502,7 @@ XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit)
 // The quadrature questions go THROUGH the basis: it owns points, weights and the site partition, and
 // answers integrals rather than handing them over.
 double XC_SinglesQuadrature::Integrate(const rvec_t& f) const {return itsFit->Integrate(f);}
-size_t XC_SinglesQuadrature::NumPoints() const {return itsFit->Mesh().size();}
-
-// The (npts x n) basis table for one Bloch block: chi_i at every mesh point -- the ONE image-summed
-// Bloch evaluation sweep this block ever pays (geometry-fixed, so it serves every SCF iteration).
-// Keyed by the block's SPATIAL Irrep (never a pointer).  Irrep -- not BasisSetID -- because the table
-// is a property of the irrep/k block within THIS run; BasisSetID's extra radial resolution exists for
-// the cross-RUN disk cache, which this in-memory per-run table does not share.
-// GPW_PHI_SPARSITY=1: how sparse is Phi REALLY?  The Phi-SPARSITY item (doc/OpenWork.md Step 3) asserts
-// that Phi is stored dense (npts x n) while the true object is sparse, so batching the mesh with a
-// per-batch SIGNIFICANT-FUNCTION list makes every Phi-shaped cost -- the rho GEMM and the H_xc GEMM --
-// O(npts n_sig^2).  That is a claim about a number nobody has measured, and the win is quadratic in it,
-// so measure before building the machinery (the standing lesson of this campaign).
-//
-// Two granularities, because the mesh already carries BOTH batchings and neither had to be built:
-//   SITE   -- the per-atom blocks the Becke build records (Mesh::NSites/SiteBegin/SiteEnd);
-//   BATCH  -- contiguous runs of points, which INSIDE a site are radial-shell groups, because a site's
-//             points are laid out radial-outer x angular-inner by ProductMesh.
-// The reported ratio is the CEILING on the GEMM win: sum_b npts_b n_sig_b^2 against npts n^2.
-template <class U> void ReportPhiSparsity(const mat_t<U>& P, const qcMesh::Mesh& mesh)
-{
-    static const bool on=std::getenv("GPW_PHI_SPARSITY")!=nullptr;
-    if (!on) return;
-    const size_t npts=P.rows(), n=P.columns();
-    if (npts==0 || n==0) return;
-    const double eps=1e-10;                       // the house pointwise magnitude floor (PGData::Reaches)
-
-    auto sigIn=[&](size_t lo, size_t hi)          // functions with ANY significant value on [lo,hi)
-    {
-        size_t c=0;
-        for (size_t i=0;i<n;i++)
-            for (size_t q=lo;q<hi;q++)
-                if (std::abs(P(q,i))>eps) { c++; break; }
-        return c;
-    };
-    size_t nnz=0;
-    for (size_t q=0;q<npts;q++) for (size_t i=0;i<n;i++) if (std::abs(P(q,i))>eps) nnz++;
-
-    const double dense=double(npts)*double(n)*double(n);
-    double wSite=0.0; size_t sigMax=0; double sigMean=0.0;
-    const size_t nsite=mesh.NSites();
-    for (size_t a=0;a<nsite;a++)
-    {
-        const size_t lo=mesh.SiteBegin(a), hi=mesh.SiteEnd(a), sg=sigIn(lo,hi);
-        wSite+=double(hi-lo)*double(sg)*double(sg);
-        sigMax=std::max(sigMax,sg); sigMean+=double(sg)/double(std::max<size_t>(nsite,1));
-    }
-    std::cout<<"[Phi sparsity] npts="<<npts<<" n="<<n
-             <<"  nonzero="<<100.0*double(nnz)/(double(npts)*double(n))<<"%"<<std::endl;
-    if (nsite>0)
-        std::cout<<"[Phi sparsity] SITE batching ("<<nsite<<" blocks): n_sig mean="<<sigMean
-                 <<" max="<<sigMax<<" of "<<n<<"  GEMM ceiling="<<dense/std::max(wSite,1.0)<<"x"<<std::endl;
-    else
-        std::cout<<"[Phi sparsity] SITE batching UNAVAILABLE: this mesh carries no site blocks"<<std::endl;
-    // Batch-size sweep: the ceiling rises as batches shrink (more locality) but the per-batch bookkeeping
-    // and the GEMM's own efficiency fall, so the useful answer is the TREND, not one number.
-    for (size_t bs : {64ul, 256ul, 1024ul, 4096ul})
-    {
-        double w=0.0; size_t sgMax=0;
-        for (size_t lo=0; lo<npts; lo+=bs)
-        {
-            const size_t hi=std::min(npts,lo+bs), sg=sigIn(lo,hi);
-            w+=double(hi-lo)*double(sg)*double(sg); sgMax=std::max(sgMax,sg);
-        }
-        std::cout<<"[Phi sparsity] BATCH "<<bs<<" pts: n_sig max="<<sgMax<<" of "<<n
-                 <<"  GEMM ceiling="<<dense/std::max(w,1.0)<<"x"<<std::endl;
-    }
-}
+size_t XC_SinglesQuadrature::NumPoints() const {return itsFit->NumPoints();}
 
 // THE XC DM-rho REPAIR (doc/OpenWork.md, the factored-rho section).  Under rho-tilde mixing the density
 // driving the Fock build is a G-space FIELD, so XC has to inverse-transform a truncated series at every
@@ -638,19 +566,21 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
 // exists to integrate.  And it is not loud: SlaterExchange::GetVxc guards `if (ro > 0.0)` and returns 0, so
 // such a point contributes NOTHING to v_xc or E_xc with no diagnostic.  Hence the WEIGHTED MASS, not just
 // the count -- that is the E_xc being silently dropped.
-void ReportNegativeRho(const qcMesh::Mesh& mesh, const rvec_t& rho, const char* route)
+// Takes the QUADRATURE, not its mesh: the two masses are integrals, so it asks for them (R1.0) and never
+// touches a weight -- which is what let the last Mesh() use out of this diagnostic.
+void ReportNegativeRho(const BasisSet::cFIT_SF_Delta& q, const rvec_t& rho, const char* route)
 {
     static const bool on=std::getenv("GPW_RHO_NEGATIVE")!=nullptr;
     if (!on || rho.size()==0) return;
-    const rvec_t& W=mesh.Weights();
-    assert(W.size()==rho.size());
-    size_t cnt=0; double negMass=0.0, minRho=0.0, absMass=0.0;
+    rvec_t negOnly(rho.size(), 0.0), absRho(rho.size());
+    size_t cnt=0; double minRho=0.0;
     for (size_t g=0; g<rho.size(); g++)
     {
-        absMass+=W[g]*std::fabs(rho[g]);
+        absRho[g]=std::fabs(rho[g]);
         if (rho[g]>=0.0) continue;
-        cnt++; negMass+=W[g]*rho[g]; minRho=std::min(minRho,rho[g]);
+        cnt++; negOnly[g]=rho[g]; minRho=std::min(minRho,rho[g]);
     }
+    const double negMass=q.Integrate(negOnly), absMass=q.Integrate(absRho);
     std::cout<<"[rho<0] route="<<route<<"  points="<<cnt<<" of "<<rho.size()
              <<" ("<<100.0*double(cnt)/double(rho.size())<<"%)"
              <<"  negative mass="<<negMass<<" e ("<<100.0*std::fabs(negMass)/std::max(absMass,1e-30)
@@ -658,99 +588,10 @@ void ReportNegativeRho(const qcMesh::Mesh& mesh, const rvec_t& rho, const char* 
              <<"   [these points contribute ZERO to E_xc -- GetVxc guards rho>0]"<<std::endl;
 }
 
-// THE Phi TABLE, over an ARBITRARY POINT SET.  Phi[g][i]=chi_i(r_g) is a property of (points x basis) and
-// knows nothing about whether the points came from an atom-centred Becke mesh or a uniform raster -- the
-// mesh choice and the rho route are ORTHOGONAL concepts (user, 2026-08-22).  One body, so that stays true.
-template <class U> mat_t<U> MakePhiAt(const tobs_t<U>* bs, const rvec3vec_t& R, const char* bucket)
-{
-    qchem::report::Timed timed(bucket);
-    // THE dominant SETUP bucket on an atom-centred XC mesh (MnO Γ, 48k points x 122 Bloch functions:
-    // 56 s serial, and it DOUBLES on an imposed run's invariant mesh).  Each point is an independent
-    // Bloch image sum writing its OWN row, so the loop parallelises with no reduction and no ordering
-    // question -- the table is bit-identical at any thread count.  Opt-in (GPW_OMP_THREADS) like every
-    // other parallel region here; see qchem.Parallel for why serial is the default.
-    //
-    // FILL LOCALITY: A CLOSED QUESTION -- DO NOT "FIX" THIS (measured 2026-08-20).  `mat_t` is blaze
-    // COLUMN-major and the sweep produces a point's whole ROW, so P(g,0..n-1) strides by npts per element,
-    // which LOOKS like the classic cache disaster.  It is not, and the reason is worth keeping: element
-    // (g,i) sits at i*npts+g, so CONSECUTIVE POINTS write ADJACENT elements of the SAME cache line.  This
-    // is 122 interleaved SEQUENTIAL streams, not a scatter -- one miss per 8 points per function, which
-    // the prefetchers handle.  Timed in isolation at this exact shape (99370 x 122): 13 ms column-major
-    // vs 8 ms row-major, i.e. ~1.1 ns/element, already the memory-BANDWIDTH floor for writing a 97 MB
-    // table at all -- and the row-major route then owes a 21 ms transpose, so it is a NET LOSS as well as
-    // a transient second copy of the table.  The whole fill is 0.04% of this bucket; the cost that WAS
-    // here lived in the per-image spherical transform (see PG_Spherical's LatticeView) and in the missing
-    // pointwise magnitude screen (PGData::Reaches), both now fixed.
-    // BATCHED, IN CHUNKS.  The basis is asked for a whole BLOCK of points (VectorFunction's point-set
-    // op), not one point at a time, because a periodic basis can then do work once per point that the
-    // pointwise call forces it to do once per lattice IMAGE -- see LatticeSum1E::BlochPointValues.  The
-    // default op just loops pointwise, so a basis that does not override is unaffected.
-    // Chunked rather than one call for the whole mesh so THIS loop keeps the threading: qcMath is a leaf
-    // and cannot host OpenMP, and molecular bases reach here too (CreateXCQuadrature is a generic basis
-    // face), so handing the whole set to a serial default would deserialise them.  Each chunk writes its
-    // own disjoint rows, so the table stays bit-identical at any thread count.
-    const size_t n=bs->GetVectorSize(), npts=R.size();
-    mat_t<U> P(npts, n);
-    const size_t nchunk=std::max<size_t>(1, npts/256);          // ~256 chunks: amortises, still balances
-    const size_t nblk  =(npts+nchunk-1)/nchunk;
-    auto fill=[&](size_t b)
-    {
-        const size_t lo=b*nchunk, hi=std::min(npts, lo+nchunk);
-        if (lo>=hi) return;
-        rvec3vec_t sub(hi-lo);
-        for (size_t g=lo; g<hi; g++) sub[g-lo]=R[g];
-        const mat_t<U> B=(*bs)(sub);
-        for (size_t g=lo; g<hi; g++) for (size_t i=0; i<n; i++) P(g,i)=B(g-lo,i);
-    };
-#ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
-    {
-        std::exception_ptr firstEx;                 // throw containment (an escape = std::terminate)
-        #pragma omp parallel for schedule(static) num_threads(nthreads)
-        for (size_t b=0; b<nblk; b++)
-        {
-            try { fill(b); }
-            catch (...)
-            {
-                #pragma omp critical (xc_phi_throw)
-                if (!firstEx) firstEx=std::current_exception();
-            }
-        }
-        if (firstEx) std::rethrow_exception(firstEx);
-        return P;
-    }
-#endif
-    for (size_t b=0; b<nblk; b++) fill(b);
-    return P;
-}
-template <class U> mat_t<U> XC_SinglesQuadrature::MakePhi(const tobs_t<U>* bs) const
-{
-    mat_t<U> P=MakePhiAt<U>(bs, itsFit->Mesh().Points(), "setup: XC-mesh Phi tables");
-    ReportPhiSparsity(P,itsFit->Mesh());   // mesh-aware (it reports SITE batching), hence outside the builder
-    return P;
-}
-const mat_t<dcmplx>& XC_SinglesQuadrature::Phi(const cobs_t* bs) const
-{
-    const Irrep id=bs->GetIrrep(Spin::None);
-    auto it=itsPhi.find(id);
-    if (it!=itsPhi.end()) return it->second;
-    return itsPhi.emplace(id, MakePhi<dcmplx>(bs)).first->second;
-}
-// The real block's table (Step 3c): its own typed cache -- real blocks are distinct irreps, so the two
-// maps' key sets are disjoint.  The rho GEMM (Rho/RhoPol) hands the density BOTH maps (the 3-arg
-// DM_RhoAtPoints, 3c-3): a real child GEMMs this table exactly as a complex child GEMMs itsPhi.
-const mat_t<double>& XC_SinglesQuadrature::PhiR(const robs_t* bs) const
-{
-    const Irrep id=bs->GetIrrep(Spin::None);
-    auto it=itsPhiR.find(id);
-    if (it!=itsPhiR.end()) return it->second;
-    return itsPhiR.emplace(id, MakePhi<double>(bs)).first->second;
-}
-
 // rho at the mesh points, once per density serial for the WHOLE pair: the density GEMMs the cached
 // tables against its private D (DM_RhoAtPoints; blocks not yet tabled self-evaluate pointwise -- first
 // pass only).  A non-DM density (no DM face) falls back to the pointwise ScalarFunction sweep.
-const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd, const cobs_t* ensureBlock) const
+const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
 {
     assert(cd);
     // R2.9(i): the scalar and spin-resolved caches do not cross-invalidate (see the \warning on the
@@ -758,14 +599,13 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd, const cobs_t* 
     // only one of the two routes is ever driven.  Pin it here rather than trusting the comment.
     assert(itsPolVersion==size_t(-1) && "XC_SinglesQuadrature: this engine already served RhoPol -- the scalar "
            "and spin-resolved rho caches have no cross-invalidation, so one of them would go stale");
-    if (ensureBlock) Phi(ensureBlock);
     if (cd->Version()==itsRhoVersion) return itsRho;
     itsRhoVersion=cd->Version();
     qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
     {
-        itsRho=dm->DM_RhoAtPoints(itsFit->Mesh().Points(), itsPhi, itsPhiR);   // both typed maps (3c-3)
-        ReportNegativeRho(itsFit->Mesh(), itsRho, "DM");
+        itsRho=dm->DM_RhoAtPoints(*itsFit);   // the density asks the basis for each block's table
+        ReportNegativeRho(*itsFit, itsRho, "DM");
     }
     else if (auto ex=ExactSourceOf(cd))
     {   // THE REPAIR, unpolarized sibling of the RhoPol branch below: the field retains the D it was mixed
@@ -775,14 +615,14 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd, const cobs_t* 
                      <<" but its retained density matrix did NOT (still "<<itsSrcVersion
                      <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
         itsSrcVersion=ex.cd->Version();
-        DampXCChannel(itsXCMix, ex.cd->DM_RhoAtPoints(itsFit->Mesh().Points(), itsPhi, itsPhiR), ex.alpha);
+        DampXCChannel(itsXCMix, ex.cd->DM_RhoAtPoints(*itsFit), ex.alpha);
         itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
-        ReportNegativeRho(itsFit->Mesh(), itsRho, "DM-source");
+        ReportNegativeRho(*itsFit, itsRho, "DM-source");
     }
     else
     {
         itsRho=itsFit->Sample(*cd);   // non-DM (mixed rho-tilde / seed) densities batch through the basis
-        ReportNegativeRho(itsFit->Mesh(), itsRho, "matrix-free");
+        ReportNegativeRho(*itsFit, itsRho, "matrix-free");
     }
     itsFit->Symmetrize(itsRho);   // §6a W1: the basis's own orbit-mean projector (no-op on a free run)
     return itsRho;
@@ -790,39 +630,28 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd, const cobs_t* 
 
 // The real-block ensure siblings (3c-3): build the real block's OWN typed table first (PhiR), then the
 // shared sampling path -- the exact mirror of the complex ensureBlock argument.
-const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const
-{
-    if (ensureRealBlock) PhiR(ensureRealBlock);
-    return Rho(cd);
-}
-const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin& s, const robs_t* ensureRealBlock) const
-{
-    if (ensureRealBlock) PhiR(ensureRealBlock);
-    return RhoPol(cd, s);
-}
 
 // The spin-resolved sibling of Rho: the {up,down} PAIR is cached under ONE density serial (a polarized
 // density's Version() forwards to its Up child -- a single scalar cache would hand the Up raster to the
 // Down channel).  A cPolarized_CD answers per channel (each channel composite GEMMs its own D against the
 // SHARED Phi tables); a spin-agnostic density (the seed) collapses to rho/2 per channel, so the first
 // iterations run the exact unpolarized collapse (v^sigma(rho/2,rho/2)=v^P(rho)).
-const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock) const
+const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin& s) const
 {
     assert(cd);
     assert(itsRhoVersion==size_t(-1) && "XC_SinglesQuadrature: this engine already served the scalar Rho -- the "
            "two rho caches have no cross-invalidation, so one of them would go stale");
     assert(s!=Spin::None && "XC_SinglesQuadrature::RhoPol: ask for a channel, not the total");
-    if (ensureBlock) Phi(ensureBlock);
     if (cd->Version()!=itsPolVersion)
     {
         itsPolVersion=cd->Version();
         qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
         if (auto pol=dynamic_cast<const ChargeDensity::cPolarized_CD*>(cd))
         {
-            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(itsFit->Mesh().Points(), itsPhi, itsPhiR);
-            itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(itsFit->Mesh().Points(), itsPhi, itsPhiR);
-            ReportNegativeRho(itsFit->Mesh(), itsRhoUp, "DM(up)");
-            ReportNegativeRho(itsFit->Mesh(), itsRhoDn, "DM(dn)");
+            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(*itsFit);
+            itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(*itsFit);
+            ReportNegativeRho(*itsFit, itsRhoUp, "DM(up)");
+            ReportNegativeRho(*itsFit, itsRhoDn, "DM(dn)");
         }
         else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
         {   // MATRIX-FREE spin-resolved density: the seed (PolarizedSeedCD, SCFSeedingPlan §10) at
@@ -847,27 +676,27 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
                              <<" but its retained density matrix did NOT (still "<<itsSrcVersion
                              <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
                 itsSrcVersion=exUp.cd->Version();
-                rvec_t up=exUp.cd->DM_RhoAtPoints(itsFit->Mesh().Points(), itsPhi, itsPhiR);
-                rvec_t dn=exDn.cd->DM_RhoAtPoints(itsFit->Mesh().Points(), itsPhi, itsPhiR);
+                rvec_t up=exUp.cd->DM_RhoAtPoints(*itsFit);
+                rvec_t dn=exDn.cd->DM_RhoAtPoints(*itsFit);
                 DampXCChannel(itsXCMixUp, up, exUp.alpha);   // match the damping Hartree gets, so the map
                 DampXCChannel(itsXCMixDn, dn, exDn.alpha);   //   is not half-damped
                 itsRhoUp=itsXCMixUp; itsRhoDn=itsXCMixDn;
-                ReportNegativeRho(itsFit->Mesh(), itsRhoUp, "DM-source(up)");
-                ReportNegativeRho(itsFit->Mesh(), itsRhoDn, "DM-source(dn)");
+                ReportNegativeRho(*itsFit, itsRhoUp, "DM-source(up)");
+                ReportNegativeRho(*itsFit, itsRhoDn, "DM-source(dn)");
             }
             else
             {
             qchem::report::Timed seed("scf: XC-mesh rho sampling (matrix-free density)");
             itsRhoUp=itsFit->Sample(*sr->GetChannel(Spin::Up  ));
             itsRhoDn=itsFit->Sample(*sr->GetChannel(Spin::Down));
-            ReportNegativeRho(itsFit->Mesh(), itsRhoUp, "matrix-free(up)");
-            ReportNegativeRho(itsFit->Mesh(), itsRhoDn, "matrix-free(dn)");
+            ReportNegativeRho(*itsFit, itsRhoUp, "matrix-free(up)");
+            ReportNegativeRho(*itsFit, itsRhoDn, "matrix-free(dn)");
             }
         }
         else
         {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
             if (auto dm=dynamic_cast<const cDM_CD*>(cd))
-                itsRhoUp=dm->DM_RhoAtPoints(itsFit->Mesh().Points(), itsPhi, itsPhiR);
+                itsRhoUp=dm->DM_RhoAtPoints(*itsFit);
             else
                 itsRhoUp=itsFit->Sample(*cd);
             itsRhoUp*=0.5;
@@ -1009,8 +838,8 @@ template <class U> hmat_t<U> XC_SinglesQuadrature::MatrixT(const mat_t<U>& P, co
             H(i,j)=M(i,j);
     return H;
 }
-chmat_t XC_SinglesQuadrature::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(Phi (bs), v);}
-rsmat_t XC_SinglesQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(PhiR(bs), v);}
+chmat_t XC_SinglesQuadrature::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(itsFit->Values(*bs), v);}
+rsmat_t XC_SinglesQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(itsFit->Values(*bs), v);}
 
 // ---- Vxc_Quadrature ------------------------------------------------------------------------------------------
 
@@ -1028,7 +857,7 @@ Vxc_Quadrature::Vxc_Quadrature(const xc_t& xc, quad_t quad)
 // ensure hint (complex map) and the final quadrature (typed Phi table) differ, both handled below.
 template <class U> hmat_t<U> Vxc_Quadrature::MakeMatrixT(const tobs_t<U>* bs, const Spin&, const cChargeDensity* cd) const
 {
-    const rvec_t& rho=itsQuad->Rho(cd, bs);   // ensure THIS block's typed table first (overloads on U -- 3c-3)
+    const rvec_t& rho=itsQuad->Rho(cd);
     rvec_t v(rho.size());
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
     return itsQuad->Matrix(bs, v);
@@ -1068,7 +897,7 @@ Vxc_QuadraturePol::Vxc_QuadraturePol(const xc_t& xc, quad_t quad)
 template <class U> hmat_t<U> Vxc_QuadraturePol::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "Vxc_QuadraturePol: a polarized term needs an Up/Down spin");
-    const rvec_t& rho=itsQuad->RhoPol(cd, s, bs);   // ensure THIS block's typed table first (overloads on U -- 3c-3)
+    const rvec_t& rho=itsQuad->RhoPol(cd, s);
     rvec_t v(rho.size());
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
     return itsQuad->Matrix(bs, v);
@@ -1108,8 +937,8 @@ Vcorr_QuadraturePol::Vcorr_QuadraturePol(const corr_t& corr, quad_t quad)
 template <class U> hmat_t<U> Vcorr_QuadraturePol::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "Vcorr_QuadraturePol: a polarized term needs an Up/Down spin");
-    const rvec_t& up=itsQuad->RhoPol(cd, Spin::Up  , bs);   // ensure THIS block's typed table first (overloads on U -- 3c-3)
-    const rvec_t& dn=itsQuad->RhoPol(cd, Spin::Down, bs);
+    const rvec_t& up=itsQuad->RhoPol(cd, Spin::Up  );
+    const rvec_t& dn=itsQuad->RhoPol(cd, Spin::Down);
     rvec_t v(up.size());
     for (size_t g=0; g<up.size(); g++) v[g]=itsCorr->GetVc(up[g], dn[g], s);
     return itsQuad->Matrix(bs, v);

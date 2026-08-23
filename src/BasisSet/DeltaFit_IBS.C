@@ -18,6 +18,7 @@
 // item is about.  (The one survivor is Quadrature::Mesh(); see the \todo on FIT_SF_Delta.)
 module;
 #include <cassert>
+#include <map>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -69,6 +70,11 @@ public:
     //! \copydoc BasisSet::Quadrature::Mesh  (the one remaining getter -- see the \todo on \c FIT_SF_Delta)
     const qcMesh::Mesh& Mesh() const override {return *itsQuad.mesh;}
 
+    // ---- Collocation: what the DENSITY asks of me (tables + sampling); bodies in Imp/ ----------------
+    size_t NumPoints() const override {return itsQuad.mesh->size();}
+    const mat_t<double>& Values(const Orbital_1E_IBS<double>& orb) const override;
+    const mat_t<dcmplx>& Values(const Orbital_1E_IBS<dcmplx>& orb) const override;
+
     // ---- the quadrature operations (see FIT_SF_Delta) -------------------------------------------------
     double Integrate    (const rvec_t& f) const override {return qcMesh::Integrate   (*itsQuad.mesh, f);}
     rvec_t SiteIntegrals(const rvec_t& f) const override
@@ -115,6 +121,11 @@ public:
         {return os << Name() << " fit IBS: " << itsQuad.mesh->size() << " delta functions on the XC mesh";}
 
 private:
+    //! ONE body for both \c Values overloads, each with its own typed cache.  R2.9(i) idiom: the accessors
+    //! are const and the tables are a lazily-built, geometry-fixed cache, so the maps are \c mutable.
+    template <class U> const mat_t<U>& Table(std::map<Irrep,mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
+    mutable std::map<Irrep,mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n)
+    mutable std::map<Irrep,mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (disjoint irreps -- 3c-3)
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
 };
 

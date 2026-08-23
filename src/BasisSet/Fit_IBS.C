@@ -10,6 +10,7 @@ export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the FitQuadrature orbit partition (§6a W1)
 import qchem.Structure;               // Structure (the ctor builds the quadrature mesh from it)
+export import qchem.BasisSet.Orbital_1E_IBS;  // Orbital_1E_IBS<U> -- the block Collocation::Values tabulates
 
 export namespace qchem::BasisSet
 {
@@ -81,6 +82,38 @@ public:
 };
 using rFIT_CD_ABS = FIT_CD_ABS<double>;  //!< real (Gaussian/Slater/BSpline) density-fit basis
 using cFIT_CD_ABS = FIT_CD_ABS<dcmplx>;  //!< complex (plane-wave, G-space) density-fit basis
+
+//! \brief WHAT A DENSITY NEEDS FROM A QUADRATURE-CARRYING FIT BASIS in order to collocate itself on it:
+//! the table \f$\Phi_{gi}=\chi_i(r_g)\f$ of an orbital block's functions at MY points, and the sampling of
+//! a field at MY points.  Both cached and geometry-fixed; both keep the points themselves inside.
+//!
+//! THE POINT OF THE FACE (2026-08-22).  \f$\rho\f$ for a real-space XC quadrature is
+//! \f$\rho_g=[\Phi D\Phi^\dagger]_{gg}\f$, and \f$D\f$ is the DENSITY's private business while \f$\Phi\f$
+//! is the BASIS's -- so one of them has to travel.  It used to be \f$\Phi\f$: the XC engine built the
+//! tables, kept them in two \c Irrep-keyed maps, and handed them to \c DM_RhoAtPoints ALONG WITH the raw
+//! point list, which is what forced a coordinate getter to survive on the fit basis.  Now the density
+//! receives the BASIS and asks it per block, which puts \f$\Phi\f$ where it belongs (it is an integral
+//! over the basis's own functions), removes the map plumbing and its "block not yet tabled, fall back to
+//! pointwise" branch, and leaves no coordinate escape at all.
+//!
+//! TWO \c Values overloads, not a template, because the face is virtual and a run can be MIXED: a real
+//! TRIM block wants a real table while its complex siblings want complex ones (doc/RealComplexPlan.md
+//! 3c-3).  Each child asks with its OWN scalar and gets the matching table, which is what retired the
+//! second (\c PhiR) map argument.
+class Collocation
+{
+public:
+    virtual ~Collocation() = default;
+    //! How many points I sample at (the length of every array below).
+    virtual size_t NumPoints() const=0;
+    //! \f$\Phi_{gi}=\chi_i(r_g)\f$ for a REAL orbital block, cached (built once per run per block).
+    virtual const mat_t<double>& Values(const Orbital_1E_IBS<double>& orb) const=0;
+    //! \f$\Phi_{gi}=\chi_i(r_g)\f$ for a COMPLEX (Bloch) orbital block, cached.
+    virtual const mat_t<dcmplx>& Values(const Orbital_1E_IBS<dcmplx>& orb) const=0;
+    //! Sample a field that can evaluate itself anywhere, AT my points -- the matrix-free-density route
+    //! (a seed, a \f$\tilde\rho\f$-mixed field).  The caller supplies the field, not the coordinates.
+    virtual rvec_t Sample(const ScalarFunction<double>& f) const=0;
+};
 
 //! \brief EVALUATE AN EXPANSION over this basis: \f$f(\vec r)=\sum_a c_a f_a(\vec r)\f$ and its
 //! gradient, given the coefficients.
@@ -182,6 +215,7 @@ template <class T> class FIT_SF_Delta
     //! Closing it means flipping that call to take THIS basis and ask it per block -- then \f$\Phi\f$ and
     //! both contractions come here too, and no coordinate leaves at all.
     , public virtual Quadrature
+    , public virtual Collocation   // what the DENSITY asks of me: my tables and my sampling
 {
 public:
     //! ORTHOGONAL, with \f$\langle\delta_g|\delta_g\rangle=w_g\f$ -- diagonal, so no metric SOLVE, which
@@ -191,12 +225,15 @@ public:
 
     //! \name The quadrature operations -- what this basis is FOR
     //!
-    //! FOUR, and each earns its place by being a question only the owner of the points and weights can
-    //! answer: a SCALAR out (\c Integrate), a per-BLOCK vector out (\c SiteIntegrals), a per-POINT vector
-    //! in (\c Sample), and the one projection that needs TWO fields at once (\c SymmetrizeSpin).  The
-    //! single-field projection is NOT here -- it is \c FIT_SF_ABS::Symmetrize, which every fit basis
-    //! already answers; only the magnetic pair is δ-specific, because δ is the only representation a
-    //! polarized run can use at all (a plane-wave fit has no per-channel collocation).
+    //! Each earns its place by being a question only the owner of the points and weights can answer: a
+    //! SCALAR out (\c Integrate), a per-BLOCK vector out (\c SiteIntegrals), and the one projection that
+    //! needs TWO fields at once (\c SymmetrizeSpin).  The single-field projection is NOT here -- it is
+    //! \c FIT_SF_ABS::Symmetrize, which every fit basis already answers; only the magnetic pair is
+    //! δ-specific, because δ is the only representation a polarized run can use at all (a plane-wave fit
+    //! has no per-channel collocation).  Sampling and the \f$\Phi\f$ tables are on \c Collocation above,
+    //! the face the DENSITY consumes.
+    //! \todo Under the Liskov target (doc/CleanupCandidates.md R1.0) \c Integrate folds into
+    //! \f$\sum_a e_a\langle\rho|f_a\rangle\f$ and \c SiteIntegrals leaves the fit face entirely.
     //!@{
     //! \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field sampled at my points (the \f$E_{xc}\f$ quadrature).
     virtual double Integrate(const rvec_t& f) const=0;
@@ -204,9 +241,6 @@ public:
     //! atom-centred quadrature for an atomic quantity (a spin moment), since the weights already carry the
     //! partition.  EMPTY when the mesh has no site structure (a uniform grid has no basins): ask, do not assume.
     virtual rvec_t SiteIntegrals(const rvec_t& f) const=0;
-    //! Sample a field that can evaluate itself anywhere, AT my points -- the matrix-free-density route
-    //! (a seed, a \f$\tilde\rho\f$-mixed field).  The caller supplies the field, not the coordinates.
-    virtual rvec_t Sample(const ScalarFunction<double>& f) const=0;
     //! \brief The MAGNETIC (Shubnikov S3) sibling of \c FIT_SF_ABS::Symmetrize: project the
     //! \f$(\rho,m)\f$ PAIR, which is what
     //! diagonalizes \f$\sigma\f$ -- \f$\rho\f$ even under the plain orbit mean, \f$m\f$ odd under the

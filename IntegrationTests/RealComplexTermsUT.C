@@ -358,13 +358,19 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     EXPECT_EQ(mixed.DM_Contract(static_cast<const cDynamic_CC*>(&vh), cdrun.get()),
               cplx .DM_Contract(static_cast<const cDynamic_CC*>(&vh), cdrun.get()));
 
-    // RHO arm: the cross-scalar child self-evaluates pointwise; same rho(r) either way.
+    // RHO arm: same rho(r) whether the run is mixed-scalar or all-complex.  Since 2026-08-22 each child
+    // asks the QUADRATURE for its own typed table (the real child a real one, its complex siblings complex
+    // ones) instead of the caller threading two table maps -- so this arm now exercises the GEMM path on
+    // both sides rather than the retired pointwise fallback, which is the stronger test of the same claim.
     rvec3vec_t pts(3);
     pts[0]=rig.cell.ToCartesian(rvec3_t(0.3,0.4,0.7));
     pts[1]=rig.cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
     pts[2]=rig.cell.ToCartesian(rvec3_t(0.1,0.9,0.2));
-    const rvec_t rm=mixed.DM_RhoAtPoints(pts, {});
-    const rvec_t rc=cplx .DM_RhoAtPoints(pts, {});
+    auto qpts=std::make_shared<const BasisSet::DeltaFit_IBS>(
+                  BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}},
+                  Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    const rvec_t rm=mixed.DM_RhoAtPoints(*qpts);
+    const rvec_t rc=cplx .DM_RhoAtPoints(*qpts);
     for (size_t g=0; g<pts.size(); g++) EXPECT_EQ(rm[g], rc[g]) << "rho mismatch at point "<<g;
 
     // And the composite Fourier trio (the generic visit) now reaches the REAL child's face too.

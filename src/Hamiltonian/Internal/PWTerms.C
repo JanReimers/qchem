@@ -234,17 +234,14 @@ public:
     virtual double Integrate(const rvec_t& f) const=0;
     //! How many points I sample at -- for reporting only (a term's \c Write line).
     virtual size_t NumPoints() const=0;
-    //! \f$\rho(r_g)\f$ for \a cd's current serial, cached across the XC pair.  \a ensureBlock (when given)
-    //! lets a Φ-backed implementation table THAT block first; implementations that need no table ignore it.
-    virtual const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr) const=0;
-    //! The REAL-BLOCK ensure sibling (3c-3), overload-resolving on the caller's block scalar.
-    virtual const rvec_t& Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const=0;
+    //! \brief \f$\rho(r_g)\f$ for \a cd's current serial, cached across the XC pair.
+    //! (No "ensure this block is tabled first" hint any more: the density now asks the QUADRATURE for each
+    //! of its own blocks' tables, so there is no first-pass gap for a caller to plug -- 2026-08-22.)
+    virtual const rvec_t& Rho(const cChargeDensity* cd) const=0;
     //! Spin channel \f$\rho_\sigma(r_g)\f$ -- the SPIN-NATIVE sibling of \c Rho (§4 tier 4b).  Not every
     //! quadrature can answer it (the pair route has no per-spin collocation): those THROW, and the
     //! Hamiltonian's Auto rule keeps a polarized run off them.
-    virtual const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr) const=0;
-    //! The REAL-BLOCK ensure sibling of \c RhoPol (3c-3).
-    virtual const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const robs_t* ensureRealBlock) const=0;
+    virtual const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const=0;
     //! \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}v_g\chi_j(r_g)\f$ -- the EXACT ADJOINT of
     //! whatever route \c Rho took, weights included (a caller passes the bare field \f$v\f$).
     virtual chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const=0;
@@ -293,22 +290,16 @@ public:
     //! mesh -- §6a W1.  The E/H pair needs nothing else: on orbit-symmetric weights the projector is
     //! self-adjoint and \f$v(\rho_\mathrm{sym})\f$ is already symmetric, so \c Matrix below is the
     //! exact derivative untouched).
-    //! \a ensureBlock (when given) has its \f$\Phi\f$ table built FIRST, so the rho GEMM covers it even on
-    //! the very first call; blocks not yet tabled self-evaluate pointwise inside the density (first pass
-    //! only).  GetEnergy passes null (no basis at hand) and reuses the iteration's table.
-    const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr) const override;
-    //! The REAL-BLOCK ensure sibling (3c-3): build the real block's typed table first, so the rho GEMM's
-    //! real children never pay the pointwise first pass.  Overload-resolves on the caller's block scalar.
-    const rvec_t& Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const override;
+    //! ONE overload, since 2026-08-22: the density asks ME for each of its own blocks' tables (typed per
+    //! block -- 3c-3), so there is no first-pass gap and no "ensure this block first" hint to pass.
+    const rvec_t& Rho(const cChargeDensity* cd) const override;
     //! \brief Spin channel \f$\rho_\sigma(r_g)\f$ for \a cd's current serial -- the SPIN-NATIVE sibling of
     //! \c Rho (SymmetryUpgradePlan §4 tier 4b), cached as the {↑,↓} PAIR under ONE serial (a polarized
     //! density's \c Version() forwards to its Up child, so a single scalar cache would alias the channels).
     //! A \c cPolarized_CD answers per channel; a spin-agnostic density (the seed) collapses to
     //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
-    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr) const override;
-    //! The REAL-BLOCK ensure sibling of \c RhoPol (3c-3), as for \c Rho above.
-    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const robs_t* ensureRealBlock) const override;
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
@@ -333,9 +324,6 @@ private:
     //! Report the current \f$\rho_\sigma\f$ pair's site moments -- called from \c RhoPol's serial-advance
     //! branch, so exactly once per NEW density and never on a cache hit.  No-op without site blocks.
     void EmitSiteMoments() const;
-    const mat_t<dcmplx>& Phi (const cobs_t* bs) const;   //!< lazily built per block (geometry-fixed)
-    const mat_t<double>& PhiR(const robs_t* bs) const;   //!< the real block's table (Step 3c; own cache)
-    template <class U> mat_t<U> MakePhi(const tobs_t<U>* bs) const;              // ONE table-build body
     template <class U> hmat_t<U> MatrixT(const mat_t<U>& P, const rvec_t& v) const;  // ONE quadrature body
 
     // R2.9(i): the four accessors above are CONST and everything they touch is a lazily-built cache, so the
@@ -344,8 +332,6 @@ private:
     // methods reached from const term methods through a non-const shared_ptr, which laundered the constness
     // without ever stating it.  itsFit is NOT mutable: it is construction-time and must not move.
     fit_t itsFit;                                 //!< the δ basis: points, weights, fold, σ tags -- and the ops
-    mutable std::map<Irrep,mat_t<dcmplx>> itsPhi;  //!< spatial Irrep -> (npts x n) basis table
-    mutable std::map<Irrep,mat_t<double>> itsPhiR; //!< the real blocks' tables (disjoint irreps -- Step 3c)
     //! \warning The scalar cache (itsRho) and the spin-resolved pair (itsRhoUp/Dn) have NO cross-
     //! invalidation: each guards only its own serial, so if one term drove \c Rho and another \c RhoPol on
     //! the SAME engine for different densities, both would report "fresh" while one held a stale raster.
@@ -408,12 +394,10 @@ public:
     ~XC_PairQuadrature();
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override;
-    const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr) const override;
-    const rvec_t& Rho(const cChargeDensity* cd, const robs_t* ensureRealBlock) const override;
+    const rvec_t& Rho(const cChargeDensity* cd) const override;
     //! THROWS: the pair route has no per-spin collocation (a spin-native pair quadrature is not designed).
     //! The Hamiltonian's \c VxcFit::Auto rule sends every polarized run to the δ/singles route instead.
-    const rvec_t& RhoPol(const cChargeDensity*, const Spin&, const cobs_t* =nullptr) const override;
-    const rvec_t& RhoPol(const cChargeDensity*, const Spin&, const robs_t*) const override;
+    const rvec_t& RhoPol(const cChargeDensity*, const Spin&) const override;
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
 private:

@@ -418,20 +418,17 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     return true;
 }
 
-template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
+template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::Collocation& q) const
 {
-    rvec_t ro(r.size(), 0.0);
+    rvec_t ro(q.NumPoints(), 0.0);
     if (IsZero()) return ro;
-    // Spatial key: Phi is a property of the basis block alone, so the two spin channels of one
-    // spatial block share one table (Irrep interleaves spin into its ordering, hence Spin::None).
-    auto it=Phi.find(Irrep(Spin::None,itsIrrep.sym));
-    if (it==Phi.end())
-    {
-        for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);
-        return ro;
-    }
-    const mat_t<T>& P=it->second;
-    assert(P.rows()==r.size());
+    // ASK THE QUADRATURE for MY block's table, with MY scalar: it owns the points and caches the table
+    // (geometry-fixed, one build per run per block).  No key, no lookup, and no "not tabled yet, fall back
+    // to pointwise" branch -- that branch existed only because the CALLER carried the tables and could not
+    // know every block in advance.
+    const size_t npts=q.NumPoints();
+    const mat_t<T>& P=q.Values(*itsBasisSet);
+    assert(P.rows()==q.NumPoints());
     assert(P.columns()==itsDensityMatrix.rows());
     // rho_g = Phi_g^dag D Phi_g, as (P D) row-dotted back into P: O(npts n^2), paid once per density
     // serial and THE largest per-iteration bucket of the atom-centred XC route (MnO Γ: 12 s/iteration
@@ -462,14 +459,14 @@ template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const rvec3vec_t& r, c
         }
     };
 #ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && r.size()>size_t(nthreads))
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && npts>size_t(nthreads))
     {
-        const size_t blk=(r.size()+size_t(nthreads)-1)/size_t(nthreads);
+        const size_t blk=(npts+size_t(nthreads)-1)/size_t(nthreads);
         std::exception_ptr firstEx;                   // throw containment (an escape = std::terminate)
         #pragma omp parallel for schedule(static,1) num_threads(nthreads)
-        for (size_t b=0; b<(r.size()+blk-1)/blk; b++)
+        for (size_t b=0; b<(npts+blk-1)/blk; b++)
         {
-            try { block(b*blk, std::min(r.size(), (b+1)*blk)); }
+            try { block(b*blk, std::min(npts, (b+1)*blk)); }
             catch (...)
             {
                 #pragma omp critical (cd_rho_throw)
@@ -483,7 +480,7 @@ template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const rvec3vec_t& r, c
     // Serial: multiply the WHOLE table, not a full-height view -- a submatrix operand costs blaze its
     // aligned/padded kernel choice, and this is the default (unthreaded) path every suite run takes.
     mat_t<T> PD = P*D;
-    for (size_t g=0; g<r.size(); g++)
+    for (size_t g=0; g<npts; g++)
     {
         T acc{};
         for (size_t j=0; j<PD.columns(); j++)
@@ -652,15 +649,10 @@ template class PeriodicIrrepCD<dcmplx>;
 // DM_RhoAtPoints, i.e. an O(n^3) pstrf on EVERY call -- and XC_Quadrature::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
-template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(
-        const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
+template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::Collocation& q) const
 {
-    if (this->IsZero()) return rvec_t(r.size(), 0.0);
-    // No table for this block yet (the caller's first pass): the base self-evaluates pointwise, and there is
-    // no GEMM to factor.  Ask the Leaf rather than duplicating that decision here.
-    auto it=Phi.find(Irrep(Spin::None,this->itsIrrep.sym));
-    if (it==Phi.end()) return Leaf::DM_RhoAtPoints(r,Phi);
-    const mat_t<T>& P=it->second;
+    if (this->IsZero()) return rvec_t(q.NumPoints(), 0.0);
+    const mat_t<T>& P=q.Values(*this->itsBasisSet);
 
     // Tr(D) -- the memo's integrity check AND, on a miss, the value to remember.  A STALE FACTOR IS A
     // SILENTLY WRONG rho, so the version key is not trusted alone: any mutation of D that failed to bump
@@ -694,11 +686,11 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(
     // GEMM plus the O(n^3) factorisation is not obviously cheaper than the square one.  A fat rank is not an
     // error -- it is the answer for a metal at large smearing, where the thermal tail fills the spectrum --
     // so it takes the fallback, not a throw.
-    if (!itsFactorable || 2*itsRank >= P.columns()) return Leaf::DM_RhoAtPoints(r,Phi);
+    if (!itsFactorable || 2*itsRank >= P.columns()) return Leaf::DM_RhoAtPoints(q);
 
-    assert(P.rows()==r.size());
+    assert(P.rows()==q.NumPoints());
     assert(P.columns()==this->itsDensityMatrix.rows());
-    rvec_t ro(r.size(), 0.0);
+    rvec_t ro(q.NumPoints(), 0.0);
     // Threaded by MESH-POINT BLOCK, exactly as the base is: rho_g depends on row g alone, so each block is
     // an independent GEMM + norm and the result is bit-identical at any thread count (a partition of the
     // OUTPUT, not of a reduction).  Opt-in via GPW_OMP_THREADS (qchem.Parallel).
@@ -714,14 +706,14 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(
         }
     };
 #ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && r.size()>size_t(nthreads))
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && q.NumPoints()>size_t(nthreads))
     {
-        const size_t blk=(r.size()+size_t(nthreads)-1)/size_t(nthreads);
+        const size_t blk=(q.NumPoints()+size_t(nthreads)-1)/size_t(nthreads);
         std::exception_ptr firstEx;                   // throw containment (an escape = std::terminate)
         #pragma omp parallel for schedule(static,1) num_threads(nthreads)
-        for (size_t b=0; b<(r.size()+blk-1)/blk; b++)
+        for (size_t b=0; b<(q.NumPoints()+blk-1)/blk; b++)
         {
-            try { block(b*blk, std::min(r.size(), (b+1)*blk)); }
+            try { block(b*blk, std::min(q.NumPoints(), (b+1)*blk)); }
             catch (...)
             {
                 #pragma omp critical (cd_rho_throw)
@@ -732,7 +724,7 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(
         return ro;
     }
 #endif
-    block(0, r.size());
+    block(0, q.NumPoints());
     return ro;
 }
 

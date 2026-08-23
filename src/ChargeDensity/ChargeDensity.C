@@ -11,7 +11,7 @@ module;
 export module qchem.ChargeDensity;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
-export import qchem.Symmetry.Irrep;   // Irrep: the DM_RhoAtPoints Phi-table key (spatial block identity)
+export import qchem.Symmetry.Irrep;   // Irrep: the block identity (Phi-table cache key, basis-side)
 export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (tPolarized_CD's periodic face)
 import qchem.ScalarFunction;
 import qchem.ChargeDensity.Types;
@@ -300,31 +300,22 @@ public:
     //! implements it, including the periodic path (PW_Hartree contracts its long-range blocks here).
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const=0;
 
-    //! \brief \f$\rho\f$ at MANY points from caller-supplied basis tables -- the FIELD dual of
-    //! DM_ContractBlocks.  \a Phi maps BasisSetID -> the (npoints x n) table \f$\Phi_{gi}=\chi_i(r_g)\f$
-    //! for that block; the return is \f$\rho(r_g)=\sum_b\mathrm{Re}\,[\Phi_b D_b\Phi_b^\dagger]_{gg}\f$.
-    //! The caller owns the (geometry-fixed, cacheable-for-the-whole-run) basis tables; the density keeps
-    //! \f$D\f$ private and contracts them as GEMMs -- the seam that makes a mesh XC quadrature (the SINGLES route)
-    //! O(GEMM) per SCF iteration instead of re-evaluating Bloch sums pointwise.  A block whose ID is absent
-    //! from \a Phi self-evaluates pointwise (correct, slower -- heals a caller's first pass before it has
-    //! met every block).  Default: the plain pointwise loop over this density's ScalarFunction face, so
-    //! EVERY density answers correctly; composite/leaf overrides accelerate.
-    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& /*Phi*/) const
-    {
-        rvec_t ro(r.size());
-        for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);
-        return ro;
-    }
-    //! \brief The MIXED-RUN overload (doc/RealComplexPlan.md 3c-3): \a PhiR carries the REAL blocks'
-    //! tables beside \a Phi's run-typed ones (the engine keeps one typed table cache per block scalar;
-    //! the two irrep key sets are disjoint).  Default forwards and drops \a PhiR -- only a composite
-    //! holding a cross-scalar (real) child consumes it, by handing the real leaf \a PhiR through the
-    //! leaf's OWN 2-arg face (T==double there), so the leaf's GEMM path needs no new code.  Without
-    //! this seam a real TRIM block's rho sampling fell to the pointwise loop -- measured 832 s vs 1 s
-    //! over 10 MnO iterations (48k-point Becke mesh), i.e. the seam is load-bearing, not cosmetic.
-    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi,
-                                  const std::map<Irrep,mat_t<double>>& /*PhiR*/) const
-    { return DM_RhoAtPoints(r, Phi); }
+    //! \brief \f$\rho\f$ ON A QUADRATURE \a q -- the FIELD dual of \c DM_ContractBlocks:
+    //! \f$\rho(r_g)=\sum_b\mathrm{Re}\,[\Phi_b D_b\Phi_b^\dagger]_{gg}\f$ at \a q's points.
+    //!
+    //! THE DENSITY ASKS THE BASIS (2026-08-22).  \f$D\f$ is this class's private business and \f$\Phi\f$
+    //! is the basis's, so exactly one of them has to travel -- and it is \f$\Phi\f$, because a table of
+    //! basis-function values is an integral over the BASIS's own functions.  So the argument is the
+    //! quadrature itself: each block asks \a q for its own typed table (\c Collocation::Values) and
+    //! contracts it as a GEMM against its private \f$D\f$.  This is the seam that makes a real-space XC
+    //! quadrature O(GEMM) per SCF iteration instead of re-evaluating Bloch sums pointwise -- and it is
+    //! MIXED-aware for free, a real TRIM block asking with \c double while its complex siblings ask with
+    //! \c dcmplx (doc/RealComplexPlan.md 3c-3), which retired the second table-map argument this used to
+    //! carry beside a raw point list.
+    //!
+    //! Default: hand \a q this density's own \c ScalarFunction face and let it sample -- correct for
+    //! EVERY density (a matrix-free seed included), just without the GEMM; composite/leaf override.
+    virtual rvec_t DM_RhoAtPoints(const BasisSet::Collocation& q) const {return q.Sample(*this);}
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
     // below (V1.6).  They were four asserting defaults on this general face, which every concrete family

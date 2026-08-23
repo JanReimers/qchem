@@ -512,6 +512,21 @@ MnO campaign proceeds undisturbed in qchem6.
   general path: \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$, and dropping the denominator
   (right for orthonormal, wrong here) is an error of a factor \f$w_g\f$.
 
+  **✅ INCREMENT 1 LANDED: the density asks the basis (`DM_RhoAtPoints(quadrature)`).**  The Φ tables and
+  their build moved OUT of the XC quadrature and INTO the δ basis, behind a new `BasisSet::Collocation`
+  face (`NumPoints` / `Values(orbitalBlock)` / `Sample(field)`) — because Φ is an integral over the
+  basis's own functions, which is the R1.0 rule.  `DM_RhoAtPoints(points, Φmap, ΦRmap)` became
+  `DM_RhoAtPoints(q)`: each density block asks `q` for ITS table with ITS OWN scalar, so the mixed-run
+  (3c-3) second map argument is gone, the "block not yet tabled ⇒ fall back to pointwise" branch is gone
+  (there is no first pass to heal), and with it the whole `ensureBlock` hint — `Rho`/`RhoPol` lost their
+  four ensure overloads down to two methods.  756/756, Si gate unmoved at 11/11 iterations.
+
+  **What is left of the coordinate escape: ONE line** — `itsFit->Mesh().Weights()` in the singles
+  quadrature's \f$\Phi^\dagger\mathrm{diag}(wv)\Phi\f$ GEMM.  It closes when `Matrix` itself becomes a
+  basis operation, i.e. in increment 2 (δ conforms to `DoFit`/`Overlap`), where that contraction is
+  `Overlap(orbitalBasis)` on the fit basis and the weights never leave.  The negative-ρ diagnostic already
+  stopped touching weights: it asks for its two masses as integrals.
+
   ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
   promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is
   the remaining scope of step (1): convert `PP_Local::CalculateMatrix` and `PP_NonLocal`'s

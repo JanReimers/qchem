@@ -6,6 +6,7 @@ target_sources(qcBasisSet PRIVATE
   Imp/Orbital_DFT_IBS.C
   Imp/Orbital_DHF_IBS.C
   Imp/Fit_IBS.C
+  Imp/DeltaFit_IBS.C
   Imp/SymmetryAdapted_IBS.C
   Internal/Imp/Orbital_DHF_IBS.C
   Internal/Imp/Orbital_ERI4_IBS.C

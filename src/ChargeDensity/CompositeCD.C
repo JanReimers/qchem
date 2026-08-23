@@ -90,10 +90,8 @@ public:
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;   // sum over irrep blocks
-    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t&, const std::map<Irrep,mat_t<T>>&) const;   // sum over irrep blocks
+    virtual rvec_t DM_RhoAtPoints(const BasisSet::Collocation&) const;   // sum over irrep blocks
     //! The mixed-run overload (3c-3): a REAL child GEMMs its own PhiR table instead of the pointwise fallback.
-    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t&, const std::map<Irrep,mat_t<T>>&,
-                                  const std::map<Irrep,mat_t<double>>&) const;
 
     virtual double GetTotalCharge      (                     ) const;
 
