@@ -80,6 +80,14 @@ rvec3_t Fit_IBS::EvalFieldGradient(const rvec_t& c, const rvec3_t& r) const
 // <f_a|f_a> = 1/Norm_a^2 -- the cached normalisation, un-inverted.  A non-orthogonal basis's fit does not
 // use it (it solves with the full S^-1); it is here because the metric DIAGONAL is a question every scalar
 // fit basis can answer, and answering it is what makes the orthogonal-vs-orthonormal distinction usable.
+// The QUADRATURE OPERATIONS (FIT_SF_ABS), over the mesh this class already owns and already runs
+// Norm()/Overlap(f) on.  A Gaussian auxiliary basis is a family of FUNCTIONS -- the mesh is how it does
+// its integrals, not what it is (see the caveat on the face) -- but "sample a field on it" and "integrate
+// a sampled field over it" are exactly as well defined here as on a raster or a delta mesh.
+//
+// NO CALLER ON THIS LINEAGE YET (2026-08-22): the molecular XC term still fits through Overlap(f)+S^-1
+// and evaluates rho pointwise.  These are what the ruled molecular conformance will use -- rho through
+// the D-GEMM, sampled ONCE and both functionals applied to the values (doc/CleanupCandidates.md R1.0).
 size_t Fit_IBS::NumPoints() const {return itsMesh.size();}
 rvec_t Fit_IBS::Sample(const ScalarFunction<double>& f) const {return f(itsMesh.Points());}
 double Fit_IBS::Integrate(const rvec_t& f) const {return qcMesh::Integrate(itsMesh, f);}

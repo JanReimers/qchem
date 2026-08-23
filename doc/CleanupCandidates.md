@@ -576,6 +576,23 @@ MnO campaign proceeds undisturbed in qchem6.
   observable rather than part of the XC contract), and `SymmetrizeSpin` (the magnetic pair projection, δ
   being the only representation a polarized run can use).  757/757, Si two-route gate bit-unmoved.
 
+  ⚠ **TWO CORRECTIONS TO THE ABOVE (user, on reading it).**
+  - **`Sample` is not an overlap integral.**  It returns `NumPoints()` values, \f$f(r_g)\f$, one per
+    POINT; the projection \f$\langle f_a|f\rangle\f$ is `FIT_SF_NonOrtho::Overlap(f)`, one per FUNCTION.
+    They have the same length only for a δ basis (functions = points) and even there differ by the weight,
+    \f$\langle\delta_g|f\rangle=w_g f(r_g)\f$.  Documented on the face now, with the contrast spelled out.
+  - ⛔ **"a fit basis is a family of weight vectors over shared points, so it always HAS points" is WRONG**
+    as a general statement, and it was justifying the three quadrature ops on the neutral face.  That is
+    the δ picture: there the functions ARE the points and the mesh is constitutive.  A GAUSSIAN auxiliary
+    basis is a family of FUNCTIONS, and the mesh it carries is the DEVICE it computes its own integrals
+    with — if those integrals were analytic it would have no points at all.  The honest justification, now
+    in the code, is the narrower one: *every scalar fit basis in this project integrates NUMERICALLY on a
+    quadrature it owns*, which is a property of the three implementations and not a claim about fit bases.
+    An analytic-integral fit basis would be the counterexample that pushes these three onto a narrower face.
+  - And the related fact, recorded rather than hidden: **on the molecular lineage `NumPoints`/`Sample`/
+    `Integrate` have NO caller yet.**  They get one in the ruled molecular conformance (ρ through the
+    D-GEMM, sampled once with both functionals applied to the values), which is the next increment.
+
   ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
   promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is
   the remaining scope of step (1): convert `PP_Local::CalculateMatrix` and `PP_NonLocal`'s

@@ -136,19 +136,35 @@ public:
     //! selects the no-solve scalar fitter.  Every fit basis must declare its metric.
     virtual bool isOrtho() const=0;
 
-    //! \name The QUADRATURE I am defined over -- as operations, never as a mesh
-    //! A fit basis is a family of weight vectors over shared points, so it always HAS points; what it does
-    //! not do is hand them out.  These three are what every consumer of "the fit grid" actually wanted, and
-    //! together they retired \c BasisSet::Quadrature::Mesh() -- the last getter on this side (2026-08-22).
-    //! Every scalar fit basis answers them: a Gaussian auxiliary basis over its Becke mesh, a plane-wave
-    //! basis over its FFT raster, a \f$\delta\f$ basis over whichever mesh it was built on.
+    //! \name The QUADRATURE I INTEGRATE ON -- as operations, never as a mesh
+    //! Every scalar fit basis in this project computes its own integrals NUMERICALLY, on a quadrature it
+    //! owns and does not hand out: \c Fit_IBS's \c Norm()/\c Overlap(f) are mesh quadratures over its
+    //! Becke mesh, a plane-wave basis samples and transforms on its raster, a \f$\delta\f$ basis IS its
+    //! mesh.  These three say so, and let a consumer sample and integrate WITHOUT coordinates -- which is
+    //! what retired \c BasisSet::Quadrature::Mesh(), the last getter on this side (2026-08-22).
+    //!
+    //! ⚠ NOT "a fit basis is a family of weight vectors over shared points, so it always HAS points" --
+    //! that was in this comment and it is wrong (user, 2026-08-22).  The weight-vector picture is the
+    //! \f$\delta\f$ case, where the functions ARE the points; it does not generalize.  A Gaussian
+    //! auxiliary basis is a family of FUNCTIONS, and the mesh it carries is the DEVICE it evaluates its
+    //! own integrals with, not what it is.  So: constitutive for \f$\delta\f$, a choice for the others.
+    //! A fit basis with ANALYTIC integrals would have no points at all and could not answer these three
+    //! honestly -- that is the counterexample that would push them onto a narrower face.
     //!@{
-    //! How many points I sample at (the length of every value array below).
+    //! How many points I integrate on -- the length of every value array below, in MY point order.
     virtual size_t NumPoints() const=0;
-    //! Sample a field that can evaluate itself anywhere, AT my points -- the caller supplies the field,
-    //! not the coordinates.  This is how a fitter projects, and how a matrix-free density collocates.
+    //! \brief EVALUATE a field at my quadrature points: \c NumPoints() values, in my own point order.
+    //!
+    //! ⚠ NOT an integral, and NOT the projection.  \c FIT_SF_NonOrtho::Overlap(f) is
+    //! \f$\langle f_a|f\rangle\f$ -- one entry per FUNCTION, the fit RHS; this is \f$f(r_g)\f$ -- one
+    //! entry per POINT.  The two have the same length only for a \f$\delta\f$ basis, where the functions
+    //! ARE the points, and even there they differ by the weight: \f$\langle\delta_g|f\rangle=w_g f(r_g)\f$.
+    //! What it is FOR: the caller hands a field that can evaluate itself anywhere and gets values back, so
+    //! a fitter can project and a matrix-free density can collocate without any coordinate changing hands.
     virtual rvec_t Sample(const ScalarFunction<double>& f) const=0;
-    //! \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field sampled at my points (the \f$E_{xc}\f$ quadrature).
+    //! \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field ALREADY SAMPLED at my points (\c NumPoints() of
+    //! them, my order) -- the \f$E_{xc}\f$ quadrature.  Takes values, not a field: the caller has usually
+    //! just put a pointwise-nonlinear functional through \c Sample's output.
     virtual double Integrate(const rvec_t& f) const=0;
     //!@}
 
