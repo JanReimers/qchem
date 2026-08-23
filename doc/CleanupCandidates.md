@@ -542,14 +542,20 @@ MnO campaign proceeds undisturbed in qchem6.
     `OverlapDiagonal()=={1,1,...}` and never calls it.  (For a raster that diagonal is npts ones nobody
     should materialise, and the forward FFT already delivers the coefficients.)
 
-  ⚠ **WHAT BLOCKS THE REST OF INCREMENT 2 — a real finding, not a scheduling excuse.**  Routing the δ route
-  through `FunctionFitter_Scalar` (which is what would delete `Sample` and `Integrate`) is blocked because
-  **that face is SINGLE-SCALAR** — `hmat_t<T> Overlap(const robs_t<T>*)` — while the XC quadrature is
-  MIXED: a real TRIM block needs `hmat_t<double>` while its complex siblings need `hmat_t<dcmplx>`.  That
-  is exactly why `XC_Quadrature::Matrix` and `Collocation::Values` carry two overloads apiece.  The fitter
-  interface predates doc/RealComplexPlan.md's real/complex split and has never met it.  So the next step is
-  to widen `FunctionFitter_Scalar` to the two-scalar shape the rest of the tree already uses; only then can
-  δ and Gaussian be substituted through one fitter face.
+  **✅ AND THAT BLOCKER IS GONE — `FunctionFitter_Scalar` LOST ITS TYPE PARAMETER** (user, 2026-08-22).
+  `T` appeared in exactly ONE place on that face, `hmat_t<T> Overlap(const robs_t<T>*)`, because the
+  scalar fitter's INPUT is an untyped real-space FIELD.  (Contrast `FunctionFitter_Density<T>`, whose
+  `DoFit` takes a typed `ProjectedDensity<T>` — it keeps its parameter, and the asymmetry is the tell.)
+  So the class-level `T` was standing for TWO independent things: what my fit basis is made of, and what
+  scalar the orbital block I contract against uses.  Those coincided — real Gaussians with real orbitals,
+  complex plane waves with complex orbitals — until 3c-3 made mixed runs real, which is the same failure
+  mode as the fit/grid welding: one parameter for two axes, and it only shows when the axes disagree.
+  Split per ISP into a neutral `FunctionFitter_Scalar` (DoFit / ReScale / Write / the evaluatable field)
+  plus `FitContraction<U>`, which a fitter declares once per block scalar it can actually serve: the
+  molecular Gaussian fit declares `double` only (its basis has no Bloch 3-centre path), a raster fit
+  declares `dcmplx`, and a δ fitter will declare both.  No fitter carries an `Overlap` it would have to
+  throw from, and consumers cross-cast to the contraction they need.  757/757, molecular and periodic.
+
 
   ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
   promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is

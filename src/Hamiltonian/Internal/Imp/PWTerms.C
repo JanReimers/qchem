@@ -458,7 +458,9 @@ template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, con
     if constexpr (std::is_same_v<U,dcmplx>)
     {
         itsScalarFitter->DoFit(PWVxcField(v, &Mesh()));   // our quadrature IS the fitter's: one owner, the fit basis
-        return itsScalarFitter->Overlap(bs);                                    // <i|v_xc|j> (no kernel)
+        // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks; the
+        // real-block branch above never reaches here (it takes the raw adjoint or throws).
+        return dynamic_cast<const Fitting::FitContraction<dcmplx>&>(*itsScalarFitter).Overlap(bs);
     }
     else
         // The legacy BALL-fit route's fitter Overlap is dcmplx-faced; nothing real-block reaches it (the

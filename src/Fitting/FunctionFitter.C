@@ -131,7 +131,7 @@ public:
 //! coefficients over real functions; the ortho (plane-wave) fit inverse-transforms its Hermitian G-space
 //! coefficients -- \f$v_{xc,fit}(r)=\mathrm{Re}\sum_G c_G e^{iG\cdot r}\f$ is real either way (this is what the
 //! GUI plots, and the seed of the fit-residual diagnostic \f$v_{xc}-v_{xc,fit}\f$).
-template <class T> class FunctionFitter_Scalar
+class FunctionFitter_Scalar
     : public virtual ScalarFunction<double>   // the fitted field f(r) is real + evaluatable (AO eval / PW inverse-transform)
 {
 public:
@@ -142,9 +142,29 @@ public:
     //! transforms (the projection IS the fit).  The field's fast bulk sampling (FFT for PW) is its own private
     //! optimization behind \c ScalarFunction::operator()(rvec3vec_t).
     virtual void      DoFit        (const ProjectedScalar_R&)              =0;
-    virtual hmat_t<T> Overlap      (const robs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a|Oj>
     virtual void   ReScale         (double factor)                         =0;  //!< c *= factor
     virtual std::ostream& Write    (std::ostream&) const                   =0;  //!< describe the fit
+};
+
+//! \brief "I can contract my fit against a \a U-scalar ORBITAL BLOCK":
+//! \f$\sum_a c_a\langle O_i|f_a|O_j\rangle\f$.
+//!
+//! WHY IT IS ITS OWN FACE (user, 2026-08-22 -- ISP).  \c FunctionFitter_Scalar used to be templated, and
+//! \a T was its ONLY type parameter: it appeared in \c Overlap and nowhere else, because the fitter's
+//! INPUT is an untyped real-space FIELD (contrast \c FunctionFitter_Density, whose \c DoFit takes a typed
+//! \c ProjectedDensity<T> and which therefore keeps its parameter).  So the class-level \a T was standing
+//! for two independent things at once -- what my fit basis is made of, and what scalar the orbital block I
+//! contract against uses.  Those coincided (real Gaussians with real orbitals, complex plane waves with
+//! complex orbitals) right up until doc/RealComplexPlan.md 3c-3 made MIXED runs real: a complex fit basis
+//! contracting against REAL TRIM blocks.  Splitting the contraction off lets a fitter declare exactly the
+//! block scalars it can serve -- the molecular Gaussian fit declares \c double only (its basis has no
+//! Bloch 3-centre path), a periodic fit declares both -- instead of every fitter carrying a second
+//! \c Overlap it would have to throw from.  Consumers reach it by the sanctioned "I want more" cross-cast.
+template <class U> class FitContraction
+{
+public:
+    virtual ~FitContraction() = default;
+    virtual hmat_t<U> Overlap(const robs_t<U>*) const=0;   //!< Sum_a c_a <Oi|f_a|Oj>
 };
 
 // RETIRED 2026-08-22: the GriddedScalarFitter refinement.  It existed so the XC term could borrow the
@@ -193,7 +213,9 @@ public:
 //!@{
 
 //! Create a SCALAR (overlap-metric) fitter on the given real (Gaussian/Slater/BSpline) potential-fit basis.
-std::unique_ptr<FunctionFitter_Scalar<double>>
+//! \note Returns the NEUTRAL fitter face; the caller cross-casts to the \c FitContraction<U> it needs
+//! (this one carries \c FitContraction<double> -- a real Gaussian fit has no Bloch 3-centre path).
+std::unique_ptr<FunctionFitter_Scalar>
 Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
 
 //! Create a SCALAR fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  The projection IS the fit (no
@@ -201,7 +223,8 @@ Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
 //! it, then Overlap looks the coefficients up at the orbital basis's reciprocal-index differences.  The XC
 //! sibling of the ortho density overload.  WHERE it samples is the fit basis's business (its own
 //! quadrature, reached through \c BasisSet::Quadrature), not something this face hands out.
-std::unique_ptr<FunctionFitter_Scalar<dcmplx>>
+//! \note Returns the NEUTRAL fitter face; this one carries \c FitContraction<dcmplx>.
+std::unique_ptr<FunctionFitter_Scalar>
 Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>&);
 
 //! Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.  Returns the

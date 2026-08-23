@@ -40,10 +40,14 @@ public: // Client code needs read access to this data.
 };
 
 //---------------------------------------------------------------------- Scalar (overlap-metric) impl
+//! The molecular (Gaussian/Slater/BSpline) scalar fit.  It declares \c FitContraction<T> and NOT the
+//! other scalar: its basis has no Bloch 3-centre path, so "contract me against a complex orbital block"
+//! is a question it cannot answer -- and now one it is never asked (ISP, 2026-08-22).
 template <class T> class FunctionFitterImp
-    : public FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_NonOrtho>
+    : public FitImpBase<T, FunctionFitter_Scalar, BasisSet::FIT_SF_NonOrtho>
+    , public virtual FitContraction<T>
 {
-    typedef FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_NonOrtho> Base;
+    typedef FitImpBase<T, FunctionFitter_Scalar, BasisSet::FIT_SF_NonOrtho> Base;
 public:
     typedef typename Base::fbs_t fbs_t;
 

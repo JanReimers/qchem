@@ -411,7 +411,7 @@ private:
     fbs_t itsFitBasis;      //!< the raster fit basis: quadrature, collocation key, Overlap3C key
     //! The ortho scalar fitter over that basis -- used ONLY by the BALL fallback (the RAW route fits
     //! nothing: "no ball fit anywhere").  Built once; its own grid is this basis's raster.
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<dcmplx>> itsScalarFitter;
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsScalarFitter;
     mutable rvec_t itsRho;                        //!< ρ(r) on the raster for the current density serial
     mutable size_t itsRhoVersion=size_t(-1);      //!< density logical-clock serial itsRho was built for
     mutable bool   itsRhoIsRaw=false;             //!< is itsRho the RAW collocated ρ_DM (vs the ball round trip)?

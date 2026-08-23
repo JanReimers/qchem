@@ -17,7 +17,7 @@ module;
 #include <memory>
 #include <ostream>
 export module qchem.Fitting.Internal.OrthoNormalFunctionFitter;
-export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar<dcmplx>, ProjectedScalar_R, ΔG_Map
+export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<dcmplx>, ProjectedScalar_R
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_SF_ABS (the held fit basis)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
@@ -36,7 +36,8 @@ export namespace qchem::Fitting
 //! relCutoff / the functional's GridCutoffFactor now actually control the XC quadrature.  Created through
 //! Factory(cFIT_SF_ABS).
 class OrthoNormalScalarFitter
-    : public virtual FunctionFitter_Scalar<dcmplx>
+    : public virtual FunctionFitter_Scalar
+    , public virtual FitContraction<dcmplx>   // a raster fit contracts against COMPLEX Bloch blocks
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;

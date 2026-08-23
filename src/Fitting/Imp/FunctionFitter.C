@@ -28,7 +28,7 @@ rvec_t CoulombMetric_ProjectedDensity::GetUnconstrainedFit(const BasisSet::rFIT_
     return no->InvRepulsion() * GetRepulsion3C(fbs);   // c0 = J^-1 <rho|c>
 }
 
-std::unique_ptr<FunctionFitter_Scalar<double>>
+std::unique_ptr<FunctionFitter_Scalar>
 Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs)
 {
     // A real (Gaussian/Slater/BSpline) potential fit needs the overlap metric-solve face.  isOrtho()==false is
@@ -40,7 +40,7 @@ Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs)
     return std::make_unique<FunctionFitterImp<double>>(nonOrtho);
 }
 
-std::unique_ptr<FunctionFitter_Scalar<dcmplx>>
+std::unique_ptr<FunctionFitter_Scalar>
 Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
 {
     // An orthonormal (plane-wave) {G} scalar fit basis: the projection IS the fit, so no metric solve.

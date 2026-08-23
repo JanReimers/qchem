@@ -278,8 +278,8 @@ private:
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity*) const override;
 
     ex_t itsEx;   //!< the XC functional (owned, shared): supplies BOTH GetVxc (V) and GetEpsXc (E)
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;    //!< V: the v_xc fit
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsEpsFitter; //!< E: the eps_xc fit (same fit basis)
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsFitter;    //!< V: the v_xc fit
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsEpsFitter; //!< E: the eps_xc fit (same fit basis)
     mutable rsmat_t     itsEpsMat;                   //!< GetEMatrix's returned block
     mutable size_t      itsEpsVersion=size_t(-1);    //!< density serial the eps_xc fit was last computed for
 };
@@ -343,8 +343,8 @@ private:
     virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;
 
     corr_t itsCorr;                                                      //!< the correlation functional (owned)
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsVcFitter; //!< v_c^sigma potential fit
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsEpsFitter;//!< E_c = integral eps_c rho (energy)
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsVcFitter; //!< v_c^sigma potential fit
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsEpsFitter;//!< E_c = integral eps_c rho (energy)
     mutable rsmat_t                                         itsEpsMat;   //!< GetEMatrix's returned block
 };
 
