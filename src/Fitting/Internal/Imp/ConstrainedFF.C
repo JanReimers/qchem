@@ -96,7 +96,8 @@ template <class T> double ConstrainedFF<T>::FitGetSelfRepulsion() const
 
 template <class T> double ConstrainedFF<T>::Integral() const
 {
-    return blazem::trans(this->itsFitCoeff) * this->itsBasisSet->Charge();
+    const vec_t<T> q=this->itsBasisSet->Charge();   // <f_a|1>, by value (one signature for both fit faces)
+    return blazem::trans(this->itsFitCoeff) * q;
 }
 
 template <class T> std::ostream& ConstrainedFF<T>::Write(std::ostream& os) const

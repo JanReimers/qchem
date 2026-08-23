@@ -420,75 +420,16 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
 
 template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
 {
-    rvec_t ro(q.GetNumFunctions(), 0.0);
-    if (IsZero()) return ro;
-    // ASK THE QUADRATURE for MY block's table, with MY scalar: it owns the points and caches the table
-    // (geometry-fixed, one build per run per block).  No key, no lookup, and no "not tabled yet, fall back
-    // to pointwise" branch -- that branch existed only because the CALLER carried the tables and could not
-    // know every block in advance.
-    const size_t npts=q.GetNumFunctions();
-    const mat_t<T>& P=q.Values(*itsBasisSet);
-    assert(P.rows()==q.GetNumFunctions());
-    assert(P.columns()==itsDensityMatrix.rows());
-    // rho_g = Phi_g^dag D Phi_g, as (P D) row-dotted back into P: O(npts n^2), paid once per density
-    // serial and THE largest per-iteration bucket of the atom-centred XC route (MnO Γ: 12 s/iteration
-    // at 48k points x 122 functions).  Threaded by MESH-POINT BLOCK: rho_g depends on row g alone, so
-    // each block is an independent GEMM + dot and the result is bit-identical at any thread count (a
-    // partition of the OUTPUT, not of a reduction).  Opt-in via GPW_OMP_THREADS (qchem.Parallel).
-    // D as a PLAIN matrix: an adaptor operand (HermitianMatrix) is not BLAS-dispatchable, so under
-    // BLAZE_BLAS_MODE the product would silently fall back to blaze's own kernel -- 16x slower than
-    // zgemm on this shape (measured).  One n x n copy per call is nothing beside the npts x n x n GEMM.
-    // THE FULL QUADRATIC FORM -- the truth this class owns.  The FACTORED route (rho = ||L^dag Phi||^2,
-    // O(npts n r)) is not here: it is a DERIVED LEAF, FactoredRho<Leaf>, which overrides this virtual and
-    // calls back into it whenever the factor does not apply.  That is the design ruling in
-    // doc/OpenWork.md -- D stays the truth, and the fallback is expressed as INHERITANCE, not a branch --
-    // and it keeps the factorisation state off every density that never factors.
+    if (IsZero()) return rvec_t(q.GetNumFunctions(), 0.0);
+    // ASK THE BASIS FOR ITS INTEGRAL, then contract MY matrix into it (R1.0; the 3-centre form,
+    // 2026-08-23).  <delta_g|rho> = Sum_ij D_ij <delta_g|chi_i chi_j>, so what crosses is D -- which this
+    // class owns -- and what stays inside is the basis's own Phi table and weights.  The GEMM itself, its
+    // BLAS-dispatch constraints and its output-block threading moved with the integral, into
+    // BasisSet::DeltaFit_IBS, where they sit beside the adjoint contraction that must match them.
     ReportDMRank<T>(itsDensityMatrix, itsIrrep);   // hmat_t<T> is a conditional_t: T is non-deduced
-    const mat_t<T> D(itsDensityMatrix);
-    auto block=[&](size_t g0, size_t g1)
-    {
-        auto Pb = blazem::submatrix(P, g0, size_t(0), g1-g0, P.columns());
-        mat_t<T> PD = Pb*D;
-        for (size_t g=g0; g<g1; g++)
-        {
-            T acc{};
-            for (size_t j=0; j<PD.columns(); j++)
-                if constexpr (std::is_same_v<T,dcmplx>) acc+=PD(g-g0,j)*std::conj(P(g,j));
-                else                                    acc+=PD(g-g0,j)*P(g,j);
-            ro[g]=std::real(acc);
-        }
-    };
-#ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && npts>size_t(nthreads))
-    {
-        const size_t blk=(npts+size_t(nthreads)-1)/size_t(nthreads);
-        std::exception_ptr firstEx;                   // throw containment (an escape = std::terminate)
-        #pragma omp parallel for schedule(static,1) num_threads(nthreads)
-        for (size_t b=0; b<(npts+blk-1)/blk; b++)
-        {
-            try { block(b*blk, std::min(npts, (b+1)*blk)); }
-            catch (...)
-            {
-                #pragma omp critical (cd_rho_throw)
-                if (!firstEx) firstEx=std::current_exception();
-            }
-        }
-        if (firstEx) std::rethrow_exception(firstEx);
-        return ro;
-    }
-#endif
-    // Serial: multiply the WHOLE table, not a full-height view -- a submatrix operand costs blaze its
-    // aligned/padded kernel choice, and this is the default (unthreaded) path every suite run takes.
-    mat_t<T> PD = P*D;
-    for (size_t g=0; g<npts; g++)
-    {
-        T acc{};
-        for (size_t j=0; j<PD.columns(); j++)
-            if constexpr (std::is_same_v<T,dcmplx>) acc+=PD(g,j)*std::conj(P(g,j));
-            else                                    acc+=PD(g,j)*P(g,j);
-        ro[g]=std::real(acc);
-    }
-    return ro;
+    const Projector3<T>& o3=q.Overlap3C(*itsBasisSet);
+    assert(o3.applyRaw && "IrrepCD: a delta fit basis must realise the 3-centre forward contraction");
+    return o3.applyRaw(itsDensityMatrix);
 }
 
 template <class T> double IrrepCD_Core<T>::GetTotalCharge() const
@@ -652,7 +593,6 @@ template class PeriodicIrrepCD<dcmplx>;
 template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
 {
     if (this->IsZero()) return rvec_t(q.GetNumFunctions(), 0.0);
-    const mat_t<T>& P=q.Values(*this->itsBasisSet);
 
     // Tr(D) -- the memo's integrity check AND, on a miss, the value to remember.  A STALE FACTOR IS A
     // SILENTLY WRONG rho, so the version key is not trusted alone: any mutation of D that failed to bump
@@ -674,7 +614,7 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::c
         // for what would break that -- a density-space Pulay, alpha>1, MP/cold smearing's negative
         // occupations, or a DIFFERENCE of densities behind a DM face.
         // The census rides the memo MISS, which is the right cadence for it: once per density serial, not
-        // once per call.  (It lives in the base too, for the Direct route -- the factored route never
+        // once per call.  (It lives in the Leaf too, for the Direct route -- the factored route never
         // reaches that body, so without this line GPW_DM_RANK=1 would go dark exactly here.)
         ReportDMRank<T>(this->itsDensityMatrix, this->itsIrrep);
         itsL.clear(); itsRank=0;
@@ -686,46 +626,14 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::c
     // GEMM plus the O(n^3) factorisation is not obviously cheaper than the square one.  A fat rank is not an
     // error -- it is the answer for a metal at large smearing, where the thermal tail fills the spectrum --
     // so it takes the fallback, not a throw.
-    if (!itsFactorable || 2*itsRank >= P.columns()) return Leaf::DM_RhoAtPoints(q);
+    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::DM_RhoAtPoints(q);
 
-    assert(P.rows()==q.GetNumFunctions());
-    assert(P.columns()==this->itsDensityMatrix.rows());
-    rvec_t ro(q.GetNumFunctions(), 0.0);
-    // Threaded by MESH-POINT BLOCK, exactly as the base is: rho_g depends on row g alone, so each block is
-    // an independent GEMM + norm and the result is bit-identical at any thread count (a partition of the
-    // OUTPUT, not of a reduction).  Opt-in via GPW_OMP_THREADS (qchem.Parallel).
-    auto block=[&](size_t g0, size_t g1)
-    {
-        auto Pb = blazem::submatrix(P, g0, size_t(0), g1-g0, P.columns());
-        mat_t<T> Psi = Pb*itsL;                       // (npts_b x rank) -- the thin GEMM
-        for (size_t g=g0; g<g1; g++)
-        {
-            double acc=0.0;
-            for (size_t m=0; m<Psi.columns(); m++) acc+=std::norm(std::complex<double>(Psi(g-g0,m)));
-            ro[g]=acc;   // rho_g = ||L^dag Phi_g||^2: real, and NON-NEGATIVE, by construction
-        }
-    };
-#ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && q.GetNumFunctions()>size_t(nthreads))
-    {
-        const size_t blk=(q.GetNumFunctions()+size_t(nthreads)-1)/size_t(nthreads);
-        std::exception_ptr firstEx;                   // throw containment (an escape = std::terminate)
-        #pragma omp parallel for schedule(static,1) num_threads(nthreads)
-        for (size_t b=0; b<(q.GetNumFunctions()+blk-1)/blk; b++)
-        {
-            try { block(b*blk, std::min(q.GetNumFunctions(), (b+1)*blk)); }
-            catch (...)
-            {
-                #pragma omp critical (cd_rho_throw)
-                if (!firstEx) firstEx=std::current_exception();
-            }
-        }
-        if (firstEx) std::rethrow_exception(firstEx);
-        return ro;
-    }
-#endif
-    block(0, q.GetNumFunctions());
-    return ro;
+    // ONE integral, TWO representations of D (2026-08-23).  Which form this density holds -- and whether
+    // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against
+    // <delta_g|chi_i chi_j> is the BASIS's, exactly as the full quadratic form above is.
+    const Projector3<T>& o3=q.Overlap3C(*this->itsBasisSet);
+    assert(o3.applyRawFactored && "FactoredRho: this fit basis cannot contract against a thin factor");
+    return o3.applyRawFactored(itsL);
 }
 
 template class FactoredRho<IrrepCD<double>>;

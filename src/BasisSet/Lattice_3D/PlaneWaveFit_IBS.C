@@ -79,10 +79,10 @@ public:
         for (size_t a=0; a<Gs.size(); a++) p[a]=rootOmega*PW_Grid_Evaluator::GridCoeff(Vt, Gs[a]);
         return p;
     }
-    //! \copydoc BasisSet::FIT_SF_ABS::Integrals
-    //! \f$\int e^{iG\cdot r}/\sqrt\Omega\,d^3r=\sqrt\Omega\,\delta_{G,0}\f$ -- a cell integral kills every
-    //! wave but the constant one.  (So \f$\int\sum_a c_a f_a=\sqrt\Omega\,c_0\f$: the mean, as it must be.)
-    vec_t<dcmplx> Integrals() const override
+    //! \copydoc BasisSet::FIT_SF_ABS::Charge
+    //! \f$\langle e^{iG\cdot r}/\sqrt\Omega|1\rangle=\sqrt\Omega\,\delta_{G,0}\f$ -- a cell integral kills
+    //! every wave but the constant one.  (So \f$\int\sum_a c_a f_a=\sqrt\Omega\,c_0\f$: the mean.)
+    vec_t<dcmplx> Charge() const override
     {
         const auto& Gs=PW_Evaluator::Gs();
         vec_t<dcmplx> I(Gs.size(), dcmplx(0.0));

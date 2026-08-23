@@ -73,25 +73,21 @@ public:
                                 itsQuad.sigmas.empty() ? std::string() : std::string("magnetic (Shubnikov)"));
     }
 
-    // ---- the tables the DENSITY asks for; bodies in Imp/ ---------------------------------------------
-    const mat_t<double>& Values(const Orbital_1E_IBS<double>& orb) const override;
-    const mat_t<dcmplx>& Values(const Orbital_1E_IBS<dcmplx>& orb) const override;
-
-    //! \copydoc BasisSet::FIT_SF_Delta::Quadrature  (bodies in Imp/; ONE templated body serves both)
-    hmat_t<double> Quadrature(const Orbital_1E_IBS<double>& orb, const rvec_t& v) const override;
-    hmat_t<dcmplx> Quadrature(const Orbital_1E_IBS<dcmplx>& orb, const rvec_t& v) const override;
+    //! \copydoc BasisSet::FIT_SF_Delta::Overlap3C  (bodies in Imp/; ONE templated body serves both)
+    const Projector3<double>& Overlap3C(const Orbital_1E_IBS<double>& orb) const override;
+    const Projector3<dcmplx>& Overlap3C(const Orbital_1E_IBS<dcmplx>& orb) const override;
 
     // ---- the integrals over my own functions, one entry per FUNCTION (FIT_SF_ABS) ---------------------
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal
     //! \f$\langle\delta_g|\delta_g\rangle=w_g\f$: orthogonal, NOT orthonormal -- so a general fit
     //! through this basis divides by these, giving \f$c_g=w_g f_g/w_g=f(r_g)\f$, the point values.
     vec_t<dcmplx> OverlapDiagonal() const override {return AsComplex(itsQuad.mesh->Weights());}
-    //! \copydoc BasisSet::FIT_SF_ABS::Integrals
-    //! \f$\int\delta_g\,d^3r=w_g\f$.  Same numbers as \c OverlapDiagonal here and NOT the same question:
-    //! that one is \f$\langle\delta_g|\delta_g\rangle\f$ (a metric), this is \f$\langle\delta_g|1\rangle\f$
-    //! (an integral).  They coincide because \f$\delta\f$ is idempotent under this quadrature, which is a
-    //! fact about this representation, not a shared definition.
-    vec_t<dcmplx> Integrals() const override {return AsComplex(itsQuad.mesh->Weights());}
+    //! \copydoc BasisSet::FIT_SF_ABS::Charge
+    //! \f$\langle\delta_g|1\rangle=\int\delta_g\,d^3r=w_g\f$.  Same numbers as \c OverlapDiagonal here
+    //! and NOT the same question: that one is \f$\langle\delta_g|\delta_g\rangle\f$ (a metric), this is
+    //! \f$\langle\delta_g|1\rangle\f$ (an integral).  They coincide because \f$\delta\f$ is idempotent
+    //! under this quadrature -- a fact about this representation, not a shared definition.
+    vec_t<dcmplx> Charge() const override {return AsComplex(itsQuad.mesh->Weights());}
     //! \copydoc BasisSet::FIT_SF_ABS::Overlap
     //! \f$\langle\delta_g|f\rangle=w_g f(r_g)\f$ -- I evaluate the field at MY points (the field's own
     //! bulk fast path does the work) and weight it.  The caller sees only a vector indexed by FUNCTION.
@@ -104,8 +100,6 @@ public:
         for (size_t g=0; g<v.size(); g++) p[g]=dcmplx(w[g]*v[g]);
         return p;
     }
-    rvec_t SiteIntegrals(const rvec_t& f) const override
-        {return itsQuad.mesh->NSites()==0 ? rvec_t() : qcMesh::SiteIntegrals(*itsQuad.mesh, f);}
 
     //! \copydoc BasisSet::FIT_SF_ABS::Symmetrize  (my mesh's orbit-mean projector)
     void Symmetrize(rvec_t& f) const override
@@ -113,17 +107,17 @@ public:
         if (itsQuad.fold.owner.empty()) return;              // free run: the projector is the identity
         Symmetry::Lattice_3D::SymmetrizeValues(itsQuad.fold, f);
     }
+    //! \copydoc BasisSet::FIT_SF_ABS::SymmetrizeSpin
+    //! The MAGNETIC case, and the only reason this override exists: with \f$\sigma\f$ tags the pair does
+    //! NOT separate -- a Flip op maps \f$\rho_\uparrow\f$ onto \f$\rho_\downarrow\f$, not onto itself
+    //! -- so \f$\rho\f$ takes the plain orbit mean while \f$m\f$ takes the \f$\chi\f$-signed one, with
+    //! \f$m\f$ zeroed first at every function some Flip op fixes (where the exact projector annihilates
+    //! it).  WITHOUT tags this falls through to the base's per-channel default, which is bit-identical to
+    //! the branch that used to live here.
     void SymmetrizeSpin(rvec_t& rho, rvec_t& m) const override
     {
-        if (itsQuad.fold.owner.empty()) return;
-        if (itsQuad.sigmas.empty()) {                        // grey/free: the two channels are independent
-            Symmetry::Lattice_3D::SymmetrizeValues(itsQuad.fold, rho);
-            Symmetry::Lattice_3D::SymmetrizeValues(itsQuad.fold, m);
-            return;
-        }
-        // Shubnikov S3: rho is EVEN under sigma, m is ODD -- and m must vanish exactly at points a
-        // sigma=Flip op maps onto themselves, where the exact projector annihilates it.  Per-CHANNEL
-        // averaging would be wrong here: a Flip op maps rho_up onto rho_dn, not onto itself.
+        if (itsQuad.fold.owner.empty() || itsQuad.sigmas.empty())
+            return FIT_SF_ABS<dcmplx>::SymmetrizeSpin(rho, m);   // free / grey: each channel on its own
         for (size_t g=0; g<itsQuad.flipFixed.size(); ++g) if (itsQuad.flipFixed[g]) m[g]=0.0;
         Symmetry::Lattice_3D::SymmetrizeValues      (itsQuad.fold, rho);
         Symmetry::Lattice_3D::SymmetrizeValuesSigned(itsQuad.fold, itsQuad.sigmas, m);
@@ -156,12 +150,25 @@ private:
         for (size_t g=0; g<r.size(); g++) c[g]=dcmplx(r[g]);
         return c;
     }
-    //! ONE body for both \c Values overloads, each with its own typed cache.  R2.9(i) idiom: the accessors
-    //! are const and the tables are a lazily-built, geometry-fixed cache, so the maps are \c mutable.
+    //! ONE body for both \c Overlap3C overloads, each with its own typed cache.  R2.9(i) idiom: the
+    //! accessor is const and the tensor is a lazily-built, geometry-fixed cache, so the maps are \c mutable.
+    template <class U> const Projector3<U>& Tensor(std::map<Irrep,Projector3<U>>& cache,
+                                                   std::map<Irrep,mat_t<U>>& phis,
+                                                   const Orbital_1E_IBS<U>& orb) const;
+    //! \f$\Phi_{gi}=\chi_i(r_g)\f$ -- HOW this class evaluates its own 3-centre integral, cached per block.
+    //! Entirely private since 2026-08-23: a table of values is not an integral and has no business in an
+    //! interface (user).  The three contractions below are what leaves.
     template <class U> const mat_t<U>& Table(std::map<Irrep,mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
-    template <class U> hmat_t<U> QuadratureT(const Orbital_1E_IBS<U>& orb, const rvec_t& v) const;
+    //! \f$\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle=\Phi^\dagger\mathrm{diag}(w\,c)\Phi\f$
+    template <class U> hmat_t<U> AdjointT(const mat_t<U>& P, const rvec_t& c) const;
+    //! \f$\langle\delta_g|\rho[D]\rangle/w_g=[\Phi D\Phi^\dagger]_{gg}\f$ -- the full quadratic form
+    template <class U> rvec_t ForwardT(const mat_t<U>& P, const hmat_t<U>& D) const;
+    //! ...and the same thing for a caller holding \f$D=LL^\dagger\f$: \f$\sum_m|[\Phi L]_{gm}|^2\f$
+    template <class U> rvec_t ForwardFactoredT(const mat_t<U>& P, const mat_t<U>& L) const;
     mutable std::map<Irrep,mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n)
     mutable std::map<Irrep,mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (disjoint irreps -- 3c-3)
+    mutable std::map<Irrep,Projector3<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors
+    mutable std::map<Irrep,Projector3<double>> itsO3R;  //!< ...and the real TRIM blocks'
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
 };
 

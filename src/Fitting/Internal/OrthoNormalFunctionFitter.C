@@ -67,16 +67,15 @@ public:
     //! orbital-specific step); the fit grid's GridCoeff lookup is the shared G_FieldEvaluator grid engine.
     virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
     {
-        // The orbital basis is CALLER-supplied and carries no compile-time guarantee of being plane-wave, so
-        // this is a genuine "is it?" cross-cast: a reference-cast THROWS std::bad_cast (not release-mode UB)
-        // for any future non-PW complex orbital basis.  (Contrast the fitter's own itsFitBasis casts, which
-        // its isOrtho() contract guarantees.)  Ties to the item-C dynamic_cast survey.
-        const BasisSet::Orbital_DFT_IBS<dcmplx>&      orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx>&>(*bs);   // the assembly bridge
-        const BasisSet::G_RasterTransform&            fit=FitRaster();                           // the coefficient lookup
+        // ASK THE FIT BASIS for <i|f_a|j> (2026-08-23): FIT_SF_ABS::Overlap3C's default delegates straight
+        // back to orb.Overlap3C(*this), so this is the same cached tensor this line used to fetch by hand --
+        // and the genuine "is it a DFT-capable orbital basis?" cross-cast now happens once, inside that
+        // default, instead of in every fitter.
+        const BasisSet::G_RasterTransform& fit=FitRaster();                           // the coefficient lookup
         // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
         // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the
         // SAME grid the density was collocated on (doc/GPWPlan §0e step 2).  No grid-less MakeOverlap(field).
-        return ContractAdjoint(orb.Overlap3C(*itsFitBasis),
+        return ContractAdjoint(itsFitBasis->Overlap3C(*bs),
                                      [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
 

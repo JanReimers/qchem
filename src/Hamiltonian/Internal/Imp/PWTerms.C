@@ -470,7 +470,8 @@ rsmat_t XC_PairQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {retu
 // raster-backed one carries the FFT transforms and keys the 3-centre tensor -> pair.  One decision, taken
 // once, and latched for the run by the simple fact that the Hamiltonian builds this object once.
 std::shared_ptr<const XC_Quadrature>
-MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb)
+MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
+                 std::shared_ptr<const qcMesh::Mesh> partition)
 {
     assert(fb);
     // CAPABILITY decides.  A basis that carries the {r}<->{G} transforms is raster-backed, so its
@@ -482,13 +483,14 @@ MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb)
     auto fit=std::dynamic_pointer_cast<const BasisSet::cFIT_SF_Delta>(fb);
     assert(fit && "MakeXCQuadrature: a non-raster Vxc fit basis must be able to answer its own quadrature "
                   "(integrate / sample / symmetrize) -- i.e. it must be a FIT_SF_Delta");
-    return std::make_shared<const XC_SinglesQuadrature>(fit);
+    return std::make_shared<const XC_SinglesQuadrature>(fit, std::move(partition));
 }
 
 // ---- XC_SinglesQuadrature: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
 
-XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit)
+XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit, std::shared_ptr<const qcMesh::Mesh> partition)
     : itsFit(std::move(fit))
+    , itsPartition(std::move(partition))
 {
     // The fitter comes from the SAME Factory the molecular XC term uses; it inspects the basis and hands
     // back the delta fitter (R1.0 conformance).  A named lvalue because Factory takes its argument by
@@ -511,7 +513,7 @@ const rvec_t& XC_SinglesQuadrature::FunctionIntegrals() const
 {
     if (itsIntegrals.size()==0)
     {
-        const vec_t<dcmplx> I=itsFit->Integrals();
+        const vec_t<dcmplx> I=itsFit->Charge();
         itsIntegrals.resize(I.size());
         for (size_t a=0; a<I.size(); a++) itsIntegrals[a]=std::real(I[a]);
     }
@@ -752,8 +754,8 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
 // the mesh carries no site partition (a uniform grid has no atomic basins to integrate over).
 void XC_SinglesQuadrature::EmitSiteMoments() const
 {
-    const rvec_t mu=itsFit->SiteIntegrals(rvec_t(itsRhoUp-itsRhoDn));
-    if (mu.size()==0) return;                      // no site partition on this quadrature
+    const rvec_t mu=PartitionedMoments(rvec_t(itsRhoUp-itsRhoDn));
+    if (mu.size()==0) return;                      // no site partition injected / no site blocks on it
     double net=0.0, absSum=0.0;
     for (size_t a=0;a<mu.size();a++) { net+=mu[a]; absSum+=std::fabs(mu[a]); }
     if (absSum < 1e-8) return;                    // an unpolarized density has nothing to say
@@ -784,7 +786,18 @@ rvec_t XC_SinglesQuadrature::SiteMoments(const cChargeDensity* cd) const
     assert(cd);
     const rvec_t& up=RhoPol(cd, Spin::Up);
     const rvec_t& dn=RhoPol(cd, Spin::Down);
-    return itsFit->SiteIntegrals(rvec_t(up-dn));   // empty when the quadrature has no site partition
+    return PartitionedMoments(rvec_t(up-dn));      // empty when no partition was injected
+}
+
+// The ONE place the injected partition is read: Integral w_A f over each site block.  Not a fit-basis
+// question and no longer asked of one -- the mesh arrives from the factory that built it for the basis,
+// so this and the basis index the SAME points in the SAME order (one object, two collaborators).
+rvec_t XC_SinglesQuadrature::PartitionedMoments(const rvec_t& f) const
+{
+    if (!itsPartition || itsPartition->NSites()==0) return rvec_t();
+    assert(f.size()==itsPartition->size() && "XC_SinglesQuadrature: the injected partition and the fit "
+           "basis must be the same quadrature -- one field value per mesh point");
+    return qcMesh::SiteIntegrals(*itsPartition, f);
 }
 
 // <i|v|j>: ASK THE BASIS.  It owns the points, the weights and the Phi table, so the whole quadrature

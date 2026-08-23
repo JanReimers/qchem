@@ -1219,9 +1219,29 @@ Three things the spec below did not anticipate, all recorded there in full:
   carries no self-overlap ⟨i|j⟩ at all — that lives on the orbital `EPW_Orbital1E_IBS` tier, which an
   auxiliary fit basis does not ride.)
 - the ⚠ BITWISE pin was real (δ's fit is now `fl(w·f)/w`, not `f`) but ~1e-13 Ha against a 1e-10 gate.
-- **`Values` → the 3-centre overlap (row 4) DID NOT LAND, deliberately**: it needs an `Overlap3C(δ basis)`
-  overload on every orbital lineage and moves the Φ/D contraction across the boundary increment 1 drew.
-  Own increment.  `SiteIntegrals` likewise stays — there is still no partition owner to move it to.
+- **`Values` → the 3-centre overlap (row 4) ⛔ first written off, then LANDED the same day.**  "It needs an
+  `Overlap3C(δ)` overload on every orbital lineage" follows only if the ORBITAL basis receives; with the
+  FIT basis receiving (user: δ does \f$H_{xc}\f$ itself, needing only `op(r)`) no orbital lineage is
+  touched.  `Values` and `Quadrature(orb,v)` are gone, replaced by `Overlap3C(orb)`; `Integrals()` became
+  `Charge()` per the house convention (⟨i|j⟩/⟨i|f|j⟩/⟨i|f⟩ = Overlap, ⟨i|1⟩ = Charge, 2e = Repulsion).
+  The fitter holds the coefficients and contracts — the same two calls the Gaussian fitter makes.
+  Then TWO more left the δ face (user): `Overlap3C` went up to `FIT_SF_ABS<T>` with the default
+  `return orb.Overlap3C(*this)` — Gaussian and PW inherit their existing tensor untouched, δ overrides —
+  and `SymmetrizeSpin` went up with the default `{Symmetrize(rho); Symmetrize(m);}`, which is bit-identical
+  to the branch δ already ran without σ tags, leaving δ only the Shubnikov case.  **`FIT_SF_Delta` is down
+  to three declarations**: `isOrtho()`, the mixed real-TRIM `Overlap3C` overload, and `SiteIntegrals` —
+  and then `SiteIntegrals` went too, **by INJECTION**: `CreateVxcFitBasisSet` — which BUILDS the mesh —
+  now also hands the same `shared_ptr<const qcMesh::Mesh>` to the XC strategy, which takes the moments
+  where ρ_σ is already cached.  No getter; a creator gave its creation to two collaborators.
+  **`FIT_SF_Delta` is down to ONE declaration**: the mixed-run real-TRIM `Overlap3C` overload.
+  ⛔ **And the probe that verified the injection found a DEFECT — tracked as R1.0d:** an IMPOSED-symmetry
+  Becke mesh silently loses its site blocks (the orbit-consistency filter re-emits into a fresh
+  `MeshBuilder` without `BeginSite`), so per-site moments vanish on exactly the runs that want them — free
+  1-atom run reports `NSites()==1` and prints moments; both imposed 2-atom runs report `0` and are silent.
+  The MnO AFM campaign is imposed by construction.
+  ⚠ `ForwardFactoredT<dcmplx>` is exercised by NO enabled test (measured) — pre-existing, not a
+  regression, but live code on the default route.  Tracked as **R1.0c** in doc/CleanupCandidates.md with a
+  cheap unit gate (`applyRawFactored(L)` == `applyRaw(LL†)`, both scalars).
 
 #### ★ NEXT INCREMENT, SPECCED NOT BUILT (user, 2026-08-23) — SEPARATE THE METRIC AXIS INTO FACES
 

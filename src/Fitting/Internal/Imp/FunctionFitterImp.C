@@ -55,11 +55,14 @@ template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedScalar_R& r)
     this->itsFitCoeff = Sinv * this->itsBasisSet->Overlap(*r.GetScalarFunction());
 }
 
+// ASK THE FIT BASIS for <i|f_a|j>, then contract MY coefficients into it (2026-08-23).  Same object and
+// same cache as the old orb->Overlap3C(fitBasis): FIT_SF_ABS::Overlap3C's DEFAULT is exactly that call.
+// Spelling it this way is what makes all three representations one shape -- a delta basis, which builds
+// the tensor itself from op(r) rather than delegating, is reached by the identical line.
 template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const robs_t<T>* bs) const
 {
-    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // robs_t is the 1E base; need the 3-centre one
-    assert(dftbs && "FunctionFitterImp::Overlap: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
-    const Projector3<T>& O3=dftbs->Overlap3C(*this->itsBasisSet);
+    assert(bs);
+    const Projector3<T>& O3=this->itsBasisSet->Overlap3C(*bs);
     hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
     size_t i=0;
     for (auto c:this->itsFitCoeff) J+=c*O3.dense[i++];

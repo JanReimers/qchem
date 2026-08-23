@@ -63,12 +63,12 @@ public:
     }
 
     //! \copydoc Fitting::FitContraction::Overlap
-    //! \f$\sum_g c_g\langle\chi_i|\delta_g|\chi_j\rangle=\Phi^\dagger\mathrm{diag}(w\,c)\Phi\f$ -- the
-    //! basis performs it (it owns the weights and the table); this only supplies \f$c\f$.
-    virtual hmat_t<double> Overlap(const robs_t<double>* bs) const override
-        {assert(bs); return itsFitBasis->Quadrature(*bs, itsC);}
-    virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
-        {assert(bs); return itsFitBasis->Quadrature(*bs, itsC);}
+    //! \f$\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle\f$: ask the basis for the 3-centre overlap over
+    //! ITS functions and contract it with MY coefficients.  Structurally the same two calls the Gaussian
+    //! fitter makes (\c Overlap3C then contract) -- which is what Liskov substitutability of the
+    //! representations means in practice, rather than by analogy.
+    virtual hmat_t<double> Overlap(const robs_t<double>* bs) const override {return Contract(bs);}
+    virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override {return Contract(bs);}
 
     virtual void ReScale(double factor) override {itsC *= factor;}
 
@@ -80,8 +80,17 @@ public:
         {return os << "DeltaScalarFitter (delta basis: the fit coefficients ARE the sampled values)" << std::endl;}
 
 private:
-    fbs_t  itsFitBasis;   //!< the δ basis -- the points, the weights, the Φ tables and the quadrature
-    rvec_t itsC;          //!< the fit = the field's values at its points (see DoFit)
+    //! ONE body for both block scalars: the basis's \f$\langle\chi_i|\delta_g|\chi_j\rangle\f$, contracted
+    //! against my coefficients.  A mixed run (3c-3) reaches it with either scalar.
+    template <class U> hmat_t<U> Contract(const robs_t<U>* bs) const
+    {
+        assert(bs);
+        const Projector3<U>& o3=itsFitBasis->Overlap3C(*bs);
+        assert(o3.applyRawAdjoint && "DeltaScalarFitter: a delta basis must realise the 3-centre adjoint");
+        return o3.applyRawAdjoint(itsC);
+    }
+    fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
+    rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
 };
 
 } //namespace

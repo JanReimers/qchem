@@ -11,7 +11,8 @@ export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the FitQuadrature orbit partition (§6a W1)
 import qchem.Structure;               // Structure (the ctor builds the quadrature mesh from it)
-export import qchem.BasisSet.Orbital_1E_IBS;  // Orbital_1E_IBS<U> -- the block Collocation::Values tabulates
+export import qchem.BasisSet.Orbital_1E_IBS;  // Orbital_1E_IBS<U> -- the block FIT_SF_Delta::Overlap3C takes
+export import qchem.BasisSet.Internal.Projector3;  // Projector3<U> -- the house CONTRACTIBLE 3-centre object
 
 export namespace qchem::BasisSet
 {
@@ -62,6 +63,16 @@ enum class VxcFit {Auto, PlaneWave, Delta};
 //! \cdot r}\f$ functions -- honestly complex, no NA-stub).  The two design axes are ORTHOGONAL: this T axis is
 //! the representation; the \c FIT_CD_NonOrtho refinement below is the metric axis.  (ISP sibling of \c
 //! FIT_SF_ABS.)
+//! Forward declaration of the two types the FIT_SF_ABS::Overlap3C default needs (defined below /
+//! in the implementation unit).
+template <class T> class FIT_SF_ABS;
+//! \brief \c FIT_SF_ABS::Overlap3C's default body, as a free template.
+//!
+//! DEFINED in the IMPLEMENTATION unit (Imp/Fit_IBS.C) and explicitly instantiated there, because it
+//! needs \c Orbital_DFT_IBS -- whose interface imports THIS one, so importing it back here would close
+//! a module cycle.  An implementation unit may import it; the interface may not.
+template <class T> const Projector3<T>& OrbitalOverlap3C(const Orbital_1E_IBS<T>& orb, const FIT_SF_ABS<T>& fit);
+
 template <class T> class FIT_CD_ABS
     : public virtual IrrepBasisSet<T>
 {
@@ -117,7 +128,10 @@ class FIT_CD_NonOrtho
     , public virtual FieldEvaluator<double>   // rho_fit(r) = Sum_a c_a f_a(r) -- an OPERATION, not op(r)
 {
 public:
-    virtual const  rvec_t& Charge      () const=0;  //!< <f_a|1> per fit function (the charge constraint RHS)
+    //! \copydoc BasisSet::FIT_SF_ABS::Charge  (the charge-constraint RHS on this side)
+    //! BY VALUE, not by cached reference: \c FIT_SF_ABS declares the same question, and a class carrying
+    //! both faces cannot override two same-signature virtuals with different return types.
+    virtual rvec_t Charge() const=0;
     virtual const rsmat_t& Repulsion   () const=0;  //!< Coulomb metric <f_a|1/r12|f_b>, cached
     virtual const  rmat_t& Repulsion   (const rFIT_CD_ABS&) const=0; //!< cross Coulomb <f_a|1/r12|g_b> (arg = functions)
     virtual const rsmat_t& InvRepulsion() const=0;  //!< inverse of the Coulomb metric, cached
@@ -168,15 +182,38 @@ public:
     //! the metric.  Un-hide the metric \c Integrals_Overlap::Overlap() past it with a \c using where a
     //! class carries both (\c FIT_SF_NonOrtho and \c Fit_IBS do).
     virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0;
-    //! \brief MY FUNCTIONS' OWN INTEGRALS: \f$\langle f_a|1\rangle=\int f_a\,d^3r\f$, one per FUNCTION.
+    //! \brief \f$\langle\chi_i|f_a|\chi_j\rangle\f$ -- the 3-CENTRE overlap between an orbital block's
+    //! functions and MY OWN.  Job (2) of a fit basis: the integral a Hamiltonian term needs from me in
+    //! order to form \f$H_{ij}\f$ and \f$E\f$ (user, 2026-08-23).
     //!
-    //! The SF sibling of \c FIT_CD_NonOrtho::Charge() (identical quantity on a basis that carries both;
-    //! \c Fit_IBS simply forwards).  What it is FOR: \f$\int\sum_a c_a f_a = c\cdot\langle f|1\rangle\f$,
-    //! i.e. the integral of anything expanded over me -- which is how \f$E_{xc}\f$ is accumulated once the
-    //! functional's values are fit coefficients.  For \f$\delta\f$ these ARE the quadrature weights
-    //! (\f$\int\delta_g=w_g\f$), so \f$c\cdot w=\sum_g w_g f_g\f$ -- the old \c Integrate(values), now
-    //! derived rather than declared.
-    virtual vec_t<T> Integrals() const=0;
+    //! Rank-3 and never materialised, so it is delivered as the house CONTRACTIBLE object: the FITTER
+    //! contracts its coefficients into the adjoint direction, the DENSITY its \f$D\f$ into the forward
+    //! one.  Neither ever appears in a signature here -- each is supplied by the object that owns it.
+    //!
+    //! DEFAULT: delegate to the orbital basis, \c orb.Overlap3C(*this).  That is where a Gaussian and a
+    //! plane-wave fit basis's tensor already comes from (\c Orbital_DFT_IBS::Overlap3C serves BOTH -- it
+    //! was never a molecular-vs-lattice split), so those two inherit their existing machinery unchanged.
+    //! A \f$\delta\f$ basis OVERRIDES, because it needs no such machinery: in principle just \c op(r)
+    //! from the orbital basis, in practice a cached \f$\Phi\f$ table, which is an implementation detail.
+    //!
+    //! SAME-SCALAR only, and that is a real limit rather than an oversight: the orbital-side tensor is
+    //! typed by the FIT scalar (\c Projector3<TFit>) while a \f$\delta\f$ table is typed by the ORBITAL
+    //! block's, so the mixed real-TRIM-block-on-a-complex-fit-basis case (doc/RealComplexPlan.md 3c-3)
+    //! cannot share one signature.  It stays where it is served: an extra overload on \c FIT_SF_Delta
+    //! (which contracts a real block in REAL arithmetic) and a \c NarrowExact at the raster route's call
+    //! site (which narrows a complex result).
+    virtual const Projector3<T>& Overlap3C(const Orbital_1E_IBS<T>& orb) const
+        {return OrbitalOverlap3C(orb, *this);}
+
+    //! \brief \f$\langle f_a|1\rangle=\int f_a\,d^3r\f$, one per FUNCTION.
+    //!
+    //! CHARGE is the house name for \f$\langle i|1\rangle\f$ (user, 2026-08-23), so this is the SAME
+    //! declaration \c FIT_CD_NonOrtho carries -- one quantity, and a basis implementing both fit faces
+    //! (\c Fit_IBS) satisfies both with one override.  What it is FOR:
+    //! \f$\int\sum_a c_a f_a = c\cdot\langle f_a|1\rangle\f$, i.e. the integral of anything expanded
+    //! over me -- which is how \f$E_{xc}\f$ is accumulated once the functional's values are fit
+    //! coefficients.  For \f$\delta\f$ these ARE the quadrature weights (\f$\int\delta_g=w_g\f$).
+    virtual vec_t<T> Charge() const=0;
     //!@}
 
     //! \brief The DIAGONAL of my overlap metric, \f$\langle f_a|f_a\rangle\f$ -- the denominator of a
@@ -208,6 +245,22 @@ public:
     //! by position.  A Gaussian auxiliary basis would symmetrize by permuting shells instead; it takes the
     //! default no-op because a molecular run imposes nothing.
     virtual void Symmetrize(rvec_t&) const {}
+
+    //! \brief The MAGNETIC sibling: project the \f$(\rho,m)\f$ PAIR, which is what diagonalizes
+    //! \f$\sigma\f$ -- \f$\rho\f$ EVEN under the orbit mean, \f$m\f$ ODD under the \f$\chi\f$-signed
+    //! one with the flip-fixed functions zeroed first (Shubnikov S3, doc/SymmetryUpgradePlan.md §7).
+    //!
+    //! HERE, not on \c FIT_SF_Delta, since 2026-08-23 (user: why would this differ by representation?).
+    //! It does not.  The DEFAULT below is the grey/free semantics -- average each channel independently --
+    //! and is BIT-IDENTICAL to the branch the \f$\delta\f$ basis used to run for itself whenever the run
+    //! carried no \f$\sigma\f$ tags.  A representation that knows nothing of magnetic symmetry therefore
+    //! gets the right answer for free (a Gaussian basis: two no-ops; a raster: two star-averages), and the
+    //! ONE override that remains is \f$\delta\f$'s genuinely different Shubnikov projection.
+    //!
+    //! The old justification for keeping it δ-only -- "δ is the only representation a polarized run can
+    //! use" -- was about which representation gets SELECTED, not about what the operation means; a fact
+    //! of the Hamiltonian's \c VxcFit::Auto policy has no business shaping a basis face.
+    virtual void SymmetrizeSpin(rvec_t& rho, rvec_t& m) const {Symmetrize(rho); Symmetrize(m);}
 };
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
 using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis
@@ -244,62 +297,66 @@ public:
     //! by that diagonal: \f$c_g=\langle\delta_g|f\rangle/w_g = f(r_g)\f$, the point values.)
     bool isOrtho() const override {return true;}
 
-    //! \name The quadrature operations -- what this basis is FOR
+    //! \name The 3-CENTRE OVERLAP over my own functions -- job (2) of a fit basis
     //!
-    //! \name What the DENSITY asks of me, to collocate itself on my points
-    //! \f$\rho_g=[\Phi D\Phi^\dagger]_{gg}\f$: \f$D\f$ is the density's private business and \f$\Phi\f$ is
-    //! mine, so exactly one of them travels -- and it is \f$\Phi\f$, a table of MY functions' values,
-    //! which is an integral over my own basis.  TWO overloads because a run can be MIXED (3c-3): each
-    //! density block asks with ITS OWN scalar and gets the matching table, which is what retired the two
-    //! \c Irrep-keyed table maps the caller used to thread.  (Sampling and \c NumPoints are on
-    //! \c FIT_SF_ABS above -- every fit basis answers those, only a δ basis tabulates.)
-    //!@{
-    //! \f$\Phi_{gi}=\chi_i(r_g)\f$ for a REAL orbital block, cached (built once per run per block).
-    virtual const mat_t<double>& Values(const Orbital_1E_IBS<double>& orb) const=0;
-    //! \f$\Phi_{gi}=\chi_i(r_g)\f$ for a COMPLEX (Bloch) orbital block, cached.
-    virtual const mat_t<dcmplx>& Values(const Orbital_1E_IBS<dcmplx>& orb) const=0;
-    //!@}
-
-    //! \brief \f$\langle\chi_i|v|\chi_j\rangle=\sum_g w_g\overline{\chi_i(r_g)}\,v_g\,\chi_j(r_g)\f$ --
-    //! the quadrature of a POTENTIAL SAMPLED AT MY POINTS against an orbital block.
+    //! \f$\langle\chi_i|\delta_g|\chi_j\rangle = w_g\,\overline{\chi_i(r_g)}\,\chi_j(r_g)\f$: the one
+    //! integral a Hamiltonian term needs from me in order to form \f$H_{ij}\f$ and \f$E\f$, and it is an
+    //! integral over MY OWN function \f$\delta_g\f$ (user, 2026-08-23 -- a fit basis is not a public
+    //! quadrature service for third-party integrands; \f$\langle i|f|j\rangle\f$ for an arbitrary \f$f\f$
+    //! would be the orbital basis's question, not mine).
     //!
-    //! It is MY operation because I own all three ingredients: the points, the weights, and the
-    //! \f$\Phi\f$ table.  A caller hands the bare field \f$v\f$ and gets the matrix -- it never sees a
-    //! weight, which is what retired the last coordinate escape (2026-08-22).  Two overloads for the
-    //! MIXED run, as on \c Collocation::Values: a real TRIM block's table is real, so its quadrature runs
-    //! in real arithmetic.
-    //! \note This IS \f$\sum_g c_g\langle\chi_i|\delta_g|\chi_j\rangle\f$ with \f$c=v\f$ -- i.e. the
-    //! \f$\delta\f$ representation's realization of a fitter's \c Overlap(orbitalBasis).  The Liskov
-    //! target (R1.0) is to reach it THROUGH that face; what blocks it today is that
-    //! \c FunctionFitter_Scalar<T> is single-scalar while this is mixed.
-    virtual hmat_t<double> Quadrature(const Orbital_1E_IBS<double>& orb, const rvec_t& v) const=0;
-    virtual hmat_t<dcmplx> Quadrature(const Orbital_1E_IBS<dcmplx>& orb, const rvec_t& v) const=0;
+    //! It is rank-3 (\f$n_{pts}\times n\times n\f$) and must never be materialised, so it is delivered as
+    //! the house CONTRACTIBLE object, exactly as \c Orbital_DFT_IBS::Overlap3C delivers its own:
+    //!  - ADJOINT \f$\;\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle=\sum_g c_g w_g\overline{\chi_i}\chi_j\f$
+    //!    -- the fit COEFFICIENTS come from the fitter, which is the object that holds a fit.  This is why
+    //!    no coefficient vector appears in a signature here (user, 2026-08-23).
+    //!  - FORWARD \f$\;\langle\delta_g|\rho\rangle=\sum_{ij}D_{ij}\langle\delta_g|\chi_i\chi_j\rangle\f$,
+    //!    divided by \f$w_g\f$ -- i.e. \f$\rho\f$'s expansion coefficients over me.  \f$D\f$ comes from
+    //!    the density, which is the object that holds a density matrix, in whichever of its two forms
+    //!    (full, or the thin factor -- see \c Projector3::applyRawFactored).
+    //!
+    //! HOW it is evaluated is not in the interface: in principle \f$\chi_i(r_g)\f$ from the orbital
+    //! basis's \c op(r), in practice a cached \f$\Phi\f$ table (user).  What it does NOT do is ask the
+    //! orbital basis for a 3-centre tensor over me -- \f$\delta\f$ needs no such machinery.
+    //!
+    //! TWO overloads because a run can be MIXED (3c-3): a real TRIM block contracts in real arithmetic
+    //! while its complex Bloch siblings contract in complex.  Cached per block, like every 3-centre
+    //! tensor in the project.
+    //!
+    //! ONE declaration here, not two: the same-scalar case is \c FIT_SF_ABS::Overlap3C (which a
+    //! \f$\delta\f$ basis overrides rather than delegating).  What is genuinely extra is the MIXED run
+    //! (3c-3) -- a REAL TRIM block against this complex fit basis -- because only a \f$\delta\f$ table
+    //! is typed by the ORBITAL scalar and can therefore contract a real block in real arithmetic; the
+    //! raster route's tensor is complex and narrows at the call site instead.
+    using FIT_SF_ABS<T>::Overlap3C;                  // un-hide the same-scalar one past the overload below
+    virtual const Projector3<double>& Overlap3C(const Orbital_1E_IBS<double>& orb) const=0;
 
     //! TWO left.  Everything a δ basis shares with the other representations is on \c FIT_SF_ABS
-    //! (\c Overlap / \c Integrals / \c OverlapDiagonal / \c Symmetrize) and is answered there in the SAME
+    //! (\c Overlap / \c Charge / \c OverlapDiagonal / \c Symmetrize) and is answered there in the SAME
     //! per-FUNCTION vocabulary a Gaussian auxiliary basis uses; what remains is what only a δ
     //! representation can answer: the ATOMIC PARTITION its mesh may carry, and the MAGNETIC pair
     //! projection -- δ being the only representation a polarized run can use at all, since a plane-wave
     //! fit has no per-channel collocation.
-    //! \todo \c SiteIntegrals is an observable, not part of the XC contract; it belongs to whatever owns
-    //! the partition, and is the last thing here that is not obviously a fit-basis question.  It has no
-    //! home yet: the partition lives in the mesh, and the mesh is this basis's private business.
+    //! ✅ \c SiteIntegrals is GONE (2026-08-23).  It was an atomic-moment OBSERVABLE that had no business
+    //! on a fit face -- \a f is an expansion over my functions, so it was not a third-party quadrature
+    //! service, but the SITE structure it partitions by is the mesh's concept, not a fit basis's.  It
+    //! lived here only because this object was the sole holder of a partitioned mesh at run time.  Cured
+    //! by INJECTION: \c CreateVxcFitBasisSet, which builds that mesh, now hands the same
+    //! \c shared_ptr<const qcMesh::Mesh> to the XC strategy as well, and the moments are taken there --
+    //! where \f$\rho_\sigma\f$ is already cached.  No getter was added; a creator gave its creation to
+    //! two collaborators.
     //!@{
-    //! \brief The per-SITE integrals \f$\int w_A f\f$, one per mesh site block -- the honest way to ask an
-    //! atom-centred quadrature for an atomic quantity (a spin moment), since the weights already carry the
-    //! partition.  EMPTY when the mesh has no site structure (a uniform grid has no basins): ask, do not assume.
-    virtual rvec_t SiteIntegrals(const rvec_t& f) const=0;
-    //! \brief The MAGNETIC (Shubnikov S3) sibling of \c FIT_SF_ABS::Symmetrize: project the
-    //! \f$(\rho,m)\f$ PAIR, which is what
-    //! diagonalizes \f$\sigma\f$ -- \f$\rho\f$ even under the plain orbit mean, \f$m\f$ odd under the
-    //! \f$\chi\f$-signed one with the flip-fixed points zeroed first.  Falls back to averaging each
-    //! argument independently when the run carries no \f$\sigma\f$ tags (grey/free semantics), so again
-    //! the caller does not branch.
-    virtual void SymmetrizeSpin(rvec_t& rho, rvec_t& m) const=0;
     //!@}
 };
 using rFIT_SF_Delta = FIT_SF_Delta<double>;  //!< δ basis over a real (molecular) fit path
 using cFIT_SF_Delta = FIT_SF_Delta<dcmplx>;  //!< δ basis over a periodic (Bloch) fit path
+
+//! \brief \c FIT_SF_ABS::Overlap3C's default body, as a free template.
+//!
+//! It lives in the IMPLEMENTATION unit (Imp/Fit_IBS.C) and is explicitly instantiated there, because it
+//! needs \c Orbital_DFT_IBS -- whose interface imports THIS one, so importing it back here would close a
+//! module cycle.  An implementation unit may import it; the interface may not.
+
 
 //! \brief THE ORTHOGONAL FIT: \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$ -- the projection
 //! divided by the metric diagonal, which is the whole of a fit when \c isOrtho() is true.
@@ -367,7 +424,6 @@ public:
     //! A Gaussian/Slater/BSpline auxiliary basis is inherently NON-orthonormal (it carries both metric-solve
     //! refinements) -- the single override that satisfies the \c isOrtho contract for BOTH fit faces.
     bool isOrtho() const override {return false;}
-    const  rvec_t& Charge   () const override;
     const rsmat_t& Repulsion() const override;
     const  rmat_t& Repulsion(const rFIT_CD_ABS& b) const override;
     const rsmat_t& InvOverlap() const override;
@@ -394,10 +450,10 @@ public:
     //! convention -- \f$\langle\hat f_a|f\rangle\f$ with \f$\hat f_a=f_a\,\mathrm{Norm}_a\f$, which is what
     //! \c InvOverlap()'s metric and \c Charge() are also in)
     rvec_t        Overlap(const Sf& f) const override; //!< projection <f_a|f> (Vxc fit RHS; NOT cached)
-    //! \copydoc BasisSet::FIT_SF_ABS::Integrals
-    //! IDENTICALLY \c Charge(): \f$\langle f_a|1\rangle\f$ is one quantity, and this class implements both
-    //! fit faces, so the SF sibling forwards to the CD one rather than recomputing it on the mesh.
-    rvec_t        Integrals() const override;
+    //! \copydoc BasisSet::FIT_SF_ABS::Charge
+    //! ONE override satisfying BOTH fit faces -- \f$\langle f_a|1\rangle\f$ is one quantity, so it is
+    //! declared once per face with the same signature and answered once here.
+    rvec_t        Charge() const override;
     //! \copydoc BasisSet::FieldEvaluator::EvalField  (\f$\sum_a c_a f_a(r)\f$ over this basis's functions)
     double  EvalField        (const rvec_t& c, const rvec3_t& r) const override;
     rvec3_t EvalFieldGradient(const rvec_t& c, const rvec3_t& r) const override;

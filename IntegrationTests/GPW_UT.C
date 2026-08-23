@@ -1784,7 +1784,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
     BasisSet::FitQuadrature q=gpw.CreateXCQuadrature(&cell, mp);
     BasisSet::DeltaFit_IBS dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     ASSERT_EQ(dfit.GetNumFunctions(), q.mesh->size()) << "one delta function per mesh point";
-    const vec_t<dcmplx> pD=dfit.Overlap(wave), iD=dfit.Integrals();
+    const vec_t<dcmplx> pD=dfit.Overlap(wave), iD=dfit.Charge();
     ASSERT_EQ(pD.size(), dfit.GetNumFunctions());
     ASSERT_EQ(iD.size(), dfit.GetNumFunctions());
     for (size_t g=0; g<iD.size(); g++)
@@ -1802,7 +1802,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
     // (2) PLANE WAVE: <e^{iG r}/sqrt(Omega)|1> = sqrt(Omega) delta_{G,0} -- a cell integral kills every
     // wave but the constant one.
     std::unique_ptr<const BasisSet::cFIT_SF_ABS> pwFit(gpw.CreateVxcFitBasisSet(&cell, mp));
-    const vec_t<dcmplx> iPW=pwFit->Integrals();
+    const vec_t<dcmplx> iPW=pwFit->Charge();
     ASSERT_EQ(iPW.size(), pwFit->GetNumFunctions());
     size_t nNonZero=0;
     for (size_t g=0; g<iPW.size(); g++) if (std::abs(iPW[g])>1e-12) { nNonZero++; EXPECT_NEAR(std::real(iPW[g]), std::sqrt(Omega), 1e-9); }
@@ -1816,7 +1816,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
         auto integrateFit=[&](const BasisSet::cFIT_SF_ABS& b)
         {
             const rvec_t  c=BasisSet::OrthogonalFit(b, *f);
-            const vec_t<dcmplx> I=b.Integrals();
+            const vec_t<dcmplx> I=b.Charge();
             double s=0.0;
             for (size_t k=0; k<c.size(); k++) s+=std::real(I[k])*c[k];
             return s;

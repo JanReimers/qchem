@@ -710,16 +710,135 @@ MnO campaign proceeds undisturbed in qchem6.
   qcFitting and close a cycle).  ⚠ But it dissolves `FunctionFitter_Scalar` as a polymorphic type, which is
   a much bigger claim than a metric split — hence: recorded, not assumed.
 
-  **WHAT DELIBERATELY DID NOT LAND: the spec's row 4, `FIT_SF_Delta::Values` → the 3-centre overlap.**
-  Replacing the Φ tables with \f$\langle\delta_g|\chi_i\chi_j\rangle\f$ (whose adjoint contraction is
-  today's `Quadrature(orb,v)`) is the move that would let `FIT_SF_Delta` dissolve to `SymmetrizeSpin`
-  alone — but it is not a rename.  `Overlap3C` lives on `Orbital_DFT_IBS<U,TFit>`, so it means a new
-  overload taking a δ fit basis on EVERY orbital lineage (GPW, plane wave, molecular), and it moves the
-  Φ tables and the D-contraction across the boundary increment 1 deliberately drew (*"D is the density's
-  private business and Φ is mine, so exactly one of them travels — and it is Φ"*).  That is a design
-  question, not a cleanup, and it wants its own increment.  `SiteIntegrals` also stays on the δ face for
-  the same kind of reason: it is an observable and does not belong there, but the partition lives in the
-  mesh and the mesh is the basis's private business, so there is no owner to move it to yet.
+  ⛔ **RETRACTED, SAME DAY: "row 4 deliberately did not land" — it was solving the wrong problem.**  I
+  wrote that replacing `Values` with \f$\langle\delta_g|\chi_i\chi_j\rangle\f$ needs an `Overlap3C(δ)`
+  overload on EVERY orbital lineage.  That follows only if the ORBITAL basis receives, which I assumed
+  from the spec's suggested mechanism.  The user's correction: *"the delta fit basis should be able to do
+  \f$H_{xc}(i,j)=\langle i|\text{delta fit to }V_{xc}|j\rangle\f$ **without** calling
+  `orb->Overlap3C(delta fit basis)`.  In principle it just needs `op(r)` from the orbital basis; in
+  practice it uses cached \f$\Phi\f$, but that is an implementation detail."*  Verified in the code: the
+  contraction's only call into the orbital basis is `(*bs)(sub)`, the batched point-set `op(r)`.  With the
+  FIT basis receiving, no orbital lineage is touched at all.
+
+  **✅ SO IT LANDED, 2026-08-23.  758/758, Si two-route gate bit-unmoved (11/11 iterations).**
+
+  **THE RULE THAT ORGANISED IT (user).**  A fit basis is not a public quadrature-integration engine.  It
+  has exactly two jobs: **(1)** provide the integrals needed to do the fit; **(2)** provide integrals
+  *over itself, not over third parties* so a Hamiltonian term can form \f$H_{ij}\f$/\f$E\f$.  And the
+  house names for integrals are fixed: \f$\langle i|j\rangle\f$, \f$\langle i|f|j\rangle\f$,
+  \f$\langle i|f\rangle\f$ are all **Overlap**; \f$\langle i|1\rangle\f$ is **Charge**; two-electron is
+  **Repulsion**.  Words like grid / raster / quadrature / collocate / values are implementation, and a
+  comment on one of these must say which \f$\langle\cdot|\cdot|\cdot\rangle\f$ it returns.
+
+  | was | is | why |
+  |---|---|---|
+  | `FIT_SF_ABS::Integrals()` | **`Charge()`** | \f$\langle f_a|1\rangle\f$ is a Charge by the house convention; it is the SAME declaration `FIT_CD_NonOrtho` carries, so `Fit_IBS` satisfies both faces with one override (the CD one went by-value to make that legal) |
+  | `FIT_SF_Delta::Quadrature(orb,v)` | — | it named the mechanism, and it took \f$v\f$ |
+  | `FIT_SF_Delta::Values(orb)` | — | \f$\Phi_{gi}=\chi_i(r_g)\f$ is **not an integral** (the integral is \f$w_g\chi_i(r_g)\f$), so no name fits it: a value table has no business in an interface |
+  | both | **`Overlap3C(orb)` ×2** | \f$\langle\chi_i|\delta_g|\chi_j\rangle\f$ — one integral over MY function, rank-3, so delivered as the house `Projector3` |
+
+  **WHERE THE COEFFICIENTS WENT, and it answers the "why is `v` in the signature" objection.**  The
+  object that IS a fit is the FITTER (basis + coefficients), and its face already reads right:
+  `FitContraction<U>::Overlap(orb)`.  Below it, `DeltaScalarFitter` asks the basis for
+  \f$\langle i|f_a|j\rangle\f$ and contracts its own \f$c\f$ into it — `Overlap3C` then contract, the
+  *same two calls the Gaussian fitter already makes*, so Liskov substitutability is now literal rather
+  than by analogy.  No coefficient vector appears in a basis signature.  Symmetrically, the density
+  contracts its own \f$D\f$ through the forward direction of the same object, so \f$\Phi\f$ became
+  private and increment 1's *"exactly one of them travels"* is settled the other way: NEITHER travels,
+  because the integral is the thing that crosses.
+
+  ⚠ **`Projector3` grew a THIRD contraction, and this is the one genuine wrinkle.**  A density holds
+  \f$D\f$ in two forms — full, or the thin pivoted-Cholesky factor \f$L\f$ — and both are contractions of
+  the same integral, so `applyRawFactored(L)` joins `applyRaw(D)`.  WHICH form the caller has, and whether
+  the rank pays, stayed density-side with the factor and its memo (`FactoredRho`); only the GEMM moved.
+  Free side-benefit: the ρ forward and the H adjoint now sit in one file, next to the BLAS-dispatch
+  constraint they already shared and had documented twice.
+
+  ⚠ **COVERAGE OF THE MOVED CODE, instrumented and counted rather than assumed.**  The factored branch
+  fires exactly ONCE in the whole integration suite, and it is the `double` (real TRIM) instantiation:
+  **`ForwardFactoredT<dcmplx>` is never exercised**.  Not a regression — the same body was previously a
+  `FactoredRho<PeriodicIrrepCD<dcmplx>>` template that no ENABLED test instantiates through (the MnO
+  recipes that would are `DISABLED`) — but it is a real hole under code that just moved, and a green
+  suite should not be read as covering it.
+
+  **✅ AND TWO MORE MEMBERS LEFT THE δ FACE, same day (user).**
+  - **`Overlap3C` was never δ-specific** — every fit basis has \f$\langle\chi_i|f_a|\chi_j\rangle\f$, and
+    `Orbital_DFT_IBS::MakeOverlap3C` already serves a Gaussian AND a plane-wave fit basis, so it was never a
+    molecular-vs-lattice split.  It is now on **`FIT_SF_ABS<T>` with the default the user specified,
+    `return orb.Overlap3C(*this)`**: Gaussian and PW inherit their existing machinery untouched (same cached
+    tensor, verified bit-identical), δ overrides because it needs none of it.  Both other fitters now call
+    `fitBasis->Overlap3C(orb)`, so all three representations are one line, and the genuine
+    "is this a DFT-capable orbital basis?" cross-cast happens ONCE, in that default, instead of per fitter.
+    ⚠ *Same-scalar only*, and it is a type limit rather than an oversight: the orbital-side tensor is keyed
+    by the FIT scalar (`Projector3<TFit>`) while a δ table is keyed by the ORBITAL block's, so the mixed
+    real-TRIM-on-complex-fit case (3c-3) cannot share one signature.  It stays as an extra δ overload (real
+    arithmetic for a real block) and a `NarrowExact` at the raster route's call site.
+    ⚠ *Module-cycle note for whoever touches it:* the default's BODY cannot live in the interface —
+    `qchem.BasisSet.Orbital_DFT_IBS` imports `qchem.BasisSet.Fit_IBS`, so importing it back would close a
+    cycle.  It is a free template `OrbitalOverlap3C<T>` declared in the interface, defined and EXPLICITLY
+    INSTANTIATED (two scalars) in the implementation unit, which may import it.
+  - **`SymmetrizeSpin` did not need to differ by representation either** (user's question, and the answer
+    is no).  It is now on `FIT_SF_ABS<T>` with the default `{Symmetrize(rho); Symmetrize(m);}` — which is
+    **bit-identical to the branch δ already ran** whenever the run carried no σ tags.  A Gaussian basis gets
+    two no-ops, a raster gets two star-averages, and δ's override shrinks to the one case that genuinely
+    differs: the Shubnikov projection, where a Flip op maps \f$\rho_\uparrow\f$ onto
+    \f$\rho_\downarrow\f$ so the pair does NOT separate.  The old justification — "δ is the only
+    representation a polarized run can use" — was about which representation gets SELECTED by the
+    Hamiltonian's `VxcFit::Auto` policy, and a policy fact has no business shaping a basis face.
+
+  **WHAT REMAINS ON `FIT_SF_Delta`: three declarations** — `isOrtho()` (the inherited metric contract),
+  `Overlap3C(real block)` (the mixed-run overload above), `SiteIntegrals(f)`, plus the narrowed
+  `SymmetrizeSpin` override.
+  ⇒ **`SiteIntegrals` is the last thing that does not belong, and it reads as another public quadrature
+  service** (user, 2026-08-23).  Half-fair: its argument IS an expansion over this basis's own functions
+  (\f$\mu_A=\sum_{g\in A}c_g\langle\delta_g|1\rangle\f$ — a partitioned `Charge`, not a third-party
+  integrand), so it is not the \f$\langle i|f|j\rangle\f$-for-arbitrary-\f$f\f$ smell.  What is foreign
+  is the SITE structure: partitioning functions into atomic basins is not a fit-basis concept, it is the
+  mesh's, and it exists here only because the mesh is private.  Still no owner to move it to.
+  ⚠ Naming debt, unchanged: `applyRaw`/`applyRawAdjoint`/`applyRawFactored` are exactly the
+  implementation vocabulary the house convention rejects.  Left alone because they are internal and shared
+  with the GPW and plane-wave lineages.
+
+  **✅ AND `SiteIntegrals` IS GONE TOO — BY INJECTION, NOT A GETTER (user ruling, 2026-08-23).**  The survey
+  that preceded it: `grep` finds exactly ONE shareable handle to a mesh in the whole tree,
+  `FitQuadrature::mesh`, and its sole owner was `DeltaFit_IBS`.  Everyone else who wants a unit-cell
+  quadrature (the KB projector assembly, `PP_Local`/`PP_NonLocal`, `Fit_IBS`) builds one by value and
+  either drops it per call or copies it into itself.  So the atom PARTITION — a general-purpose object with
+  nothing to do with \f$v_{xc}\f$ or \f$\rho\f$ fitting — existed at run time in exactly one place: a fit
+  basis.  That, and not any argument about the operation, is why the observable was stuck on that face.
+  - **The cure is that the CREATOR hands its creation to both collaborators.**  `CreateVxcFitBasisSet` (the
+    one factory call that already makes every representation decision) gained an optional out-parameter
+    carrying the `shared_ptr<const qcMesh::Mesh>` it built; `Ham_PW_DFT::BuildTerms` passes it straight to
+    `MakeVxcTerms` → `MakeXCQuadrature` → `XC_SinglesQuadrature`.  The moments are taken THERE, where
+    \f$\rho_\sigma\f$ is already cached, through `qcMesh::SiteIntegrals`.
+  - **Why not a `Mesh()` getter on the fit basis:** same face cleanup, but it re-opens the escape the
+    2026-08-22 arc spent itself closing, and once it exists anything may use it for anything.  A creator
+    injecting downward and an object publishing its own private state are different acts.
+  - **Cost, stated rather than hidden:** an invariant became a convention.  \f$\rho\f$ is indexed by the
+    δ basis's FUNCTIONS and the site blocks by mesh POINTS; they agreed *by construction* while one object
+    owned both.  They now agree because it is literally the same immutable `Mesh` handed to both — pinned
+    by a size assert, which is weaker than the type system was.
+  - A raster (PlaneWave) fit basis leaves the out-parameter null, so no Becke mesh is built on a route that
+    would not use it, and `SiteMoments` answers empty exactly as before.
+  - **VERIFIED END TO END, not just green:** a null partition would make the moments silently empty and the
+    suite would still pass, so it was instrumented — `PolarizedRunKeepsItsSpin` reports partition non-null,
+    `npts==f.size()`, `NSites()==1`, and prints `[site moments] 0:5.00462`.  The same probe is what turned
+    up **R1.0d** above.
+
+  ⇒ **`FIT_SF_Delta` is now ONE declaration**: `Overlap3C(const Orbital_1E_IBS<double>&)`, the MIXED-run
+  real-TRIM overload — plus an `isOrtho()` override and a `using`.  Everything else a δ fit basis does it
+  does through `FIT_SF_ABS<T>`, in the same vocabulary as a Gaussian auxiliary basis.  The face survives
+  only because a δ table is typed by the ORBITAL block's scalar while every other 3-centre tensor is typed
+  by the FIT scalar (doc/RealComplexPlan.md 3c-3); settle that and the type disappears entirely.
+
+- **R1.0e The `qcHamiltonian` PWTerms TU needs a structural break-up — USER, 2026-08-23** (*"the enormous
+  PWTerms TU is going to need a massive refactoring cleanup eventually"*).  584 lines of interface + 944 of
+  implementation, holding at least five unrelated things: the three external-PP terms, the Hartree term,
+  the `XC_Quadrature` strategy pair (ρ caching, the DM-source damping valves, the route latch, four
+  environment-variable diagnostics), the four XC term classes, and `MakeVxcTerms`.  The XC half in
+  particular is a module in its own right — nothing in it is shared with the PP terms beyond the term base
+  classes.  Not attempted as part of R1.0: a file split is a big diff with no behaviour change, and it
+  should follow the design moves rather than be interleaved with them.
 
   ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
   promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is
@@ -728,6 +847,52 @@ MnO campaign proceeds undisturbed in qchem6.
   which the derivation drops and nothing evaluates an atom block from outside.  The relocation makes that
   a LOCAL change per call site instead of a tree-wide one, because the face no longer forces the promise
   on everybody.
+
+- **R1.0c ⚠ COVERAGE HOLE: the COMPLEX factored-\f$\rho\f$ contraction is exercised by NO enabled test.**
+  **MEASURED 2026-08-23** (instrumented `DeltaFit_IBS::ForwardFactoredT`, counted over the whole
+  integration suite): the low-rank route fires **exactly once**, and it is the **`double`** (real TRIM)
+  instantiation.  `ForwardFactoredT<dcmplx>` never runs.
+  *Not a regression* — the same body was previously inline in `FactoredRho<PeriodicIrrepCD<dcmplx>>`, which
+  no ENABLED test instantiates through (the MnO recipes that would are `DISABLED`) — but it is live
+  production code on the default route (`QCHEM_DM_LOWRANK` unset ⇒ pivoted Cholesky is ON), so a green
+  758/758 must not be read as covering it.
+  **Why it matters more than a normal gap:** a wrong factored \f$\rho\f$ is not loud.  It is
+  \f$\sum_m|[\Phi L]_{gm}|^2\f$, non-negative by construction, so a mistake shows up as a plausible-looking
+  density and a mistuned SCF, not a crash — exactly the failure mode the `FactoredRho` staleness assert was
+  added for.
+  **Cheapest fix: a UNIT gate, not an SCF one.** For one Bloch block, build \f$D=LL^\dagger\f$ from a
+  random thin \f$L\f$ and assert `applyRawFactored(L)` == `applyRaw(D)` to ~1e-12, on both scalars.  That
+  pins the identity the whole route rests on without needing a converging magnetic cell, and it would also
+  cover the `double` path with something sharper than "MnO happens to run".
+  *(A second, weaker option is to enable one small polarized periodic SCF; that costs suite time and still
+  only covers whichever scalar that cell happens to use.)*
+
+- **R1.0d ⛔ DEFECT, FOUND 2026-08-23: an IMPOSED-symmetry Becke mesh SILENTLY LOSES ITS SITE BLOCKS, so
+  every per-site integrated observable vanishes on exactly the runs that want it.**
+  `UnitCell::CreateIntegrationMesh(mp, ops)` (Structure/Imp/UnitCell.C) builds the site-adapted Becke mesh
+  via `MakePeriodicBeckeMesh`, which DOES record one block per atom (`MeshBuilder::BeginSite`).  The
+  orbit-consistency filter that follows — the pass that drops eps-borderline points whose orbit partners
+  were tail-dropped — then rebuilds the whole mesh into a **fresh `qcMesh::MeshBuilder` and never calls
+  `BeginSite`**.  The result has `NSites()==0`.
+  **MEASURED, three runs:**
+
+  | run | ops | atoms | `NSites()` | moments |
+  |---|---|---|---|---|
+  | `GPW_SCF.PolarizedRunKeepsItsSpin` | free | 1 | **1** | `[site moments] 0:5.00462  net=5.00462` |
+  | `GPW_SCF.O2TripletInBoxMatchesFinite` | 16 (Shubnikov) | 2 | **0** | silent |
+  | `GPW_SCF.ImposedShubnikovHoldsAFMThroughSCF_Mn2Box` | 96 (Shubnikov) | 2 | **0** | silent |
+
+  **Why it stayed invisible:** the consumer contract is *"EMPTY when the mesh has no site blocks — ask, do
+  not assume"*, which is right for a uniform grid and indistinguishable from this.  So an imposed run
+  reports no moments and looks like it correctly had none.  The MnO AFM campaign is imposed by
+  construction, i.e. the atomic moments the *"integrated observables, not point probes"* rule exists to
+  produce are precisely the ones that are missing.
+  ⚠ **NOT a simple `BeginSite()` insertion.**  The filter iterates ORBITS and appends their members, so its
+  output is orbit-major; site blocks require contiguous per-site runs.  The fix is to compute a KEEP mask
+  from the orbit test and then re-emit in the ORIGINAL mesh order (site-major), calling `BeginSite` at each
+  original boundary — which also CHANGES THE POINT ORDER relative to today, hence the summation order of
+  every integral over that mesh.  Algebraically identical, last-bits different: it needs its own
+  measurement against the imposed-run pins, not a drive-by.
 
 - **R1.1 ✅ DONE `06e23f5d`. `FittedVxcPol::GetEnergy` clobbers `te.Exc`** — `te.Exc = 0.0;` before delegating.  **→ doc/CleanupHistory.md**
 - **R1.2 ✅ DONE `06e23f5d` (with one CORRECTION, below). `=` vs `+=` on `EnergyBreakdown`.**  Assigners:.  **→ doc/CleanupHistory.md**

@@ -42,8 +42,17 @@ public:
     //! lineage's fitted basis): \c VxcFit::Delta returns the \f$\delta\f$ basis over the run's XC
     //! quadrature (\c CreateXCQuadrature -- mesh + fold + Shubnikov tags), anything else the lineage's
     //! fitted one.  A molecular caller passes \c Auto and gets its Gaussian auxiliary basis, as always.
+    //! \param partition OPTIONAL out: the real-space quadrature the returned basis was built over, when it
+    //! has one (\c VxcFit::Delta; null otherwise).  INJECTION, not a getter (user, 2026-08-23): this
+    //! factory CREATES the mesh, so handing it to a second collaborator is what a creator does -- whereas
+    //! a \c Mesh() accessor on the fit basis would hand out its own private state, which is exactly the
+    //! escape the 2026-08-22 arc spent itself closing.  The point is that an atom-partitioned quadrature
+    //! is a GENERALLY useful object with nothing to do with \f$v_{xc}\f$ or \f$\rho\f$ fitting, and
+    //! today this is the only place in a run where one is built; a consumer of atomic observables gets the
+    //! SAME object the basis integrates on rather than rebuilding it.
     virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&,
-                                                VxcFit fit=VxcFit::Auto) const;
+                                                VxcFit fit=VxcFit::Auto,
+                                                std::shared_ptr<const qcMesh::Mesh>* partition=nullptr) const;
     //! The DELTA-fit sibling of \c CreateVxcFitBasisSet: the finished real-space XC quadrature (mesh +
     //! symmetry fold), assembled by the basis -- which owns the cell and the §3-imposed ops -- so the
     //! Hamiltonian does no mesh work.  Default/plain path: the Structure's integration mesh, no fold.

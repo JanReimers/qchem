@@ -96,6 +96,15 @@ template <class T> struct Projector3
     //! zero-pad -- then the analytic per-pair gather), so \f$H_{xc}=\partial E_{xc}[\rho_{DM}]/\partial D\f$
     //! holds to machine precision.  Set/empty together with \ref applyRaw.
     std::function<hmat_t<T>(const rvec_t& v)> applyRawAdjoint;
+    //! \brief The SAME forward as \ref applyRaw, for a caller holding \f$D\f$ in FACTORED form
+    //! \f$D=LL^\dagger\f$ (a thin \f$n\times r\f$ pivoted-Cholesky / natural-orbital factor):
+    //! \f$\rho_g=\sum_m\left|[\Phi L]_{gm}\right|^2\f$, i.e. \f$O(n_{pts}nr)\f$ instead of
+    //! \f$O(n_{pts}n^2)\f$.
+    //!
+    //! One integral, two contractions -- WHICH one is the caller's business, because the factor, its
+    //! rank memo and the pays-for-itself test are all density-matrix state (ChargeDensity::FactoredRho).
+    //! Empty unless the producing basis realises the raw pair over a value table it can left-multiply.
+    std::function<rvec_t(const mat_t<T>& L)> applyRawFactored;
 };
 
 //! \brief G-space FORWARD contraction: \f$\tilde\rho(\Delta m)=\frac{k_c}\Omega\sum_{(i,j)\in

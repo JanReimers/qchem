@@ -1,10 +1,18 @@
 // File: BasisSet/Imp/DeltaFit_IBS.C  The delta basis's collocation tables.
 //
-// Phi_gi = chi_i(r_g): the values of an ORBITAL block's functions at MY points.  It lives here, and not in
-// the XC quadrature that consumes it, because it is an integral over this basis's own functions -- the
-// R1.0 discipline ("code that wants an integral asks the basis for it") applied to the one table the
-// DENSITY needs in order to contract its private D against this quadrature.  Moving it here is what let
-// DM_RhoAtPoints stop taking a raw point list, i.e. what closed the last coordinate escape.
+// THE 3-CENTRE OVERLAP <chi_i|delta_g|chi_j> = w_g conj(chi_i(r_g)) chi_j(r_g) -- job (2) of a fit basis
+// (user, 2026-08-23): provide the integrals over ITS OWN functions that a Hamiltonian term needs to form
+// H_ij and E.  Both contraction directions live here, beside each other:
+//
+//   ADJOINT  <i|Sum_g c_g delta_g|j>   -- the term/fitter's side; c comes from the FITTER, which is the
+//                                         object that holds a fit
+//   FORWARD  <delta_g|rho[D]>/w_g      -- the density's side; D comes from the DENSITY, in whichever of
+//                                         its two forms (full, or a thin factor)
+//
+// Phi_gi = chi_i(r_g) is HOW this class evaluates that integral -- in principle op(r) from the orbital
+// basis, in practice a cached table (user) -- and is entirely private: a table of values is not an
+// integral and has no business in an interface.  Cached per BLOCK and geometry-fixed: built once per run
+// per block, serving every SCF iteration.
 //
 // Cached per BLOCK and geometry-fixed: built once per run per block, serving every SCF iteration.  Keyed
 // by the block's spatial Irrep (never a pointer), with the real and complex tables in separate maps --
@@ -17,6 +25,7 @@ module;
 #include <map>         // the per-block table caches
 #include <exception>
 #include <iostream>
+#include <type_traits> // std::is_same_v (the real/complex contraction bodies)
 #include <vector>
 module qchem.BasisSet.DeltaFit_IBS;
 import qchem.Blaze;
@@ -162,14 +171,34 @@ template <class U> const mat_t<U>& DeltaFit_IBS::Table(std::map<Irrep,mat_t<U>>&
     return cache.emplace(id, std::move(P)).first->second;
 }
 
-const mat_t<double>& DeltaFit_IBS::Values(const Orbital_1E_IBS<double>& orb) const {return Table(itsPhiR, orb);}
-const mat_t<dcmplx>& DeltaFit_IBS::Values(const Orbital_1E_IBS<dcmplx>& orb) const {return Table(itsPhi , orb);}
-
-// <i|v|j> = Phi^dag diag(w v) Phi over the cached table: scale the rows, one zgemm, hermitize.  (The
-// GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
-template <class U> hmat_t<U> DeltaFit_IBS::QuadratureT(const Orbital_1E_IBS<U>& orb, const rvec_t& v) const
+// THE 3-CENTRE OVERLAP <chi_i|delta_g|chi_j> = w_g conj(chi_i(r_g)) chi_j(r_g), as the house CONTRACTIBLE
+// object: rank-3 and never materialised, so what the caller gets is the two contractions of it (three, once
+// the density's factored form is counted -- one integral, two representations of D).  Phi and w stay in
+// here; the caller supplies only what it owns, its coefficients or its density matrix.
+template <class U> const Projector3<U>& DeltaFit_IBS::Tensor(std::map<Irrep,Projector3<U>>& cache,
+                                                             std::map<Irrep,mat_t<U>>& phis,
+                                                             const Orbital_1E_IBS<U>& orb) const
 {
-    const mat_t<U>&      P=Values(orb);              // my table for this block (built once, cached)
+    const Irrep id=orb.GetIrrep(Spin::None);       // SPATIAL key, as for the table itself
+    auto it=cache.find(id);
+    if (it!=cache.end()) return it->second;
+    // Bind the table ONCE here: std::map nodes are address-stable, so the closures may capture it by
+    // reference and no contraction re-does the lookup.
+    const mat_t<U>& P=Table(phis, orb);
+    Projector3<U> g;
+    g.applyRawAdjoint  =[this,&P](const rvec_t& c)   {return AdjointT<U>(P, c);};
+    g.applyRaw         =[this,&P](const hmat_t<U>& D){return ForwardT<U>(P, D);};
+    g.applyRawFactored =[this,&P](const mat_t<U>& L) {return ForwardFactoredT<U>(P, L);};
+    return cache.emplace(id, std::move(g)).first->second;
+}
+
+const Projector3<double>& DeltaFit_IBS::Overlap3C(const Orbital_1E_IBS<double>& orb) const {return Tensor(itsO3R, itsPhiR, orb);}
+const Projector3<dcmplx>& DeltaFit_IBS::Overlap3C(const Orbital_1E_IBS<dcmplx>& orb) const {return Tensor(itsO3 , itsPhi , orb);}
+
+// THE ADJOINT: <i|Sum_g c_g delta_g|j> = Phi^dag diag(w c) Phi -- scale the rows, one zgemm, hermitize.
+// (The GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
+template <class U> hmat_t<U> DeltaFit_IBS::AdjointT(const mat_t<U>& P, const rvec_t& v) const
+{
     const rvec_t&        w=itsQuad.mesh->Weights();  // my weights -- they never leave
     assert(v.size()==P.rows());
     qchem::report::Timed timed("scf: XC-mesh quadrature H_xc (all iterations)");
@@ -243,7 +272,107 @@ template <class U> hmat_t<U> DeltaFit_IBS::QuadratureT(const Orbital_1E_IBS<U>& 
     return H;
 }
 
-hmat_t<double> DeltaFit_IBS::Quadrature(const Orbital_1E_IBS<double>& orb, const rvec_t& v) const {return QuadratureT(orb,v);}
-hmat_t<dcmplx> DeltaFit_IBS::Quadrature(const Orbital_1E_IBS<dcmplx>& orb, const rvec_t& v) const {return QuadratureT(orb,v);}
+// THE FORWARD: <delta_g|rho[D]>/w_g = [Phi D Phi^dag]_gg -- rho's expansion coefficients over my
+// functions.  Moved here VERBATIM from IrrepCD_Core::DM_RhoAtPoints (2026-08-23): it is a contraction of
+// MY integral, so it belongs beside its adjoint, and having the two GEMMs in one file is also where the
+// shared BLAS-dispatch reasoning above belongs.  Threaded by OUTPUT BLOCK -- row g depends on row g alone,
+// so the result is bit-identical at any thread count.  Opt-in via GPW_OMP_THREADS (qchem.Parallel).
+template <class U> rvec_t DeltaFit_IBS::ForwardT(const mat_t<U>& P, const hmat_t<U>& D) const
+{
+    const size_t npts=P.rows();
+    assert(P.columns()==D.rows());
+    rvec_t ro(npts, 0.0);
+    // D as a PLAIN matrix: an adaptor operand (HermitianMatrix) is not BLAS-dispatchable, so under
+    // BLAZE_BLAS_MODE the product would silently fall back to blaze's own kernel -- 16x slower than zgemm
+    // on this shape (measured).  One n x n copy per call is nothing beside the npts x n x n GEMM.
+    const mat_t<U> Dp(D);
+    auto block=[&](size_t g0, size_t g1)
+    {
+        auto Pb = blazem::submatrix(P, g0, size_t(0), g1-g0, P.columns());
+        mat_t<U> PD = Pb*Dp;
+        for (size_t g=g0; g<g1; g++)
+        {
+            U acc{};
+            for (size_t j=0; j<PD.columns(); j++)
+                if constexpr (std::is_same_v<U,dcmplx>) acc+=PD(g-g0,j)*std::conj(P(g,j));
+                else                                    acc+=PD(g-g0,j)*P(g,j);
+            ro[g]=std::real(acc);
+        }
+    };
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && npts>size_t(nthreads))
+    {
+        const size_t blk=(npts+size_t(nthreads)-1)/size_t(nthreads);
+        std::exception_ptr firstEx;                   // throw containment (an escape = std::terminate)
+        #pragma omp parallel for schedule(static,1) num_threads(nthreads)
+        for (size_t b=0; b<(npts+blk-1)/blk; b++)
+        {
+            try { block(b*blk, std::min(npts, (b+1)*blk)); }
+            catch (...)
+            {
+                #pragma omp critical (cd_rho_throw)
+                if (!firstEx) firstEx=std::current_exception();
+            }
+        }
+        if (firstEx) std::rethrow_exception(firstEx);
+        return ro;
+    }
+#endif
+    // Serial: multiply the WHOLE table, not a full-height view -- a submatrix operand costs blaze its
+    // aligned/padded kernel choice, and this is the default (unthreaded) path every suite run takes.
+    mat_t<U> PD = P*Dp;
+    for (size_t g=0; g<npts; g++)
+    {
+        U acc{};
+        for (size_t j=0; j<PD.columns(); j++)
+            if constexpr (std::is_same_v<U,dcmplx>) acc+=PD(g,j)*std::conj(P(g,j));
+            else                                    acc+=PD(g,j)*P(g,j);
+        ro[g]=std::real(acc);
+    }
+    return ro;
+}
+
+// THE SAME FORWARD for a caller holding D in FACTORED form, D = L L^dag: rho_g = ||[Phi L]_g||^2, a thin
+// (npts x r) GEMM plus a row norm instead of the square one.  Non-negative BY CONSTRUCTION.  WHICH form
+// the caller has -- and whether the rank pays -- is its business (ChargeDensity::FactoredRho owns the
+// factor, its memo and the pays-for-itself test); this only knows how to contract against my table.
+template <class U> rvec_t DeltaFit_IBS::ForwardFactoredT(const mat_t<U>& P, const mat_t<U>& L) const
+{
+    const size_t npts=P.rows();
+    assert(P.columns()==L.rows());
+    rvec_t ro(npts, 0.0);
+    auto block=[&](size_t g0, size_t g1)
+    {
+        auto Pb = blazem::submatrix(P, g0, size_t(0), g1-g0, P.columns());
+        mat_t<U> Psi = Pb*L;                          // (npts_b x rank) -- the thin GEMM
+        for (size_t g=g0; g<g1; g++)
+        {
+            double acc=0.0;
+            for (size_t m=0; m<Psi.columns(); m++) acc+=std::norm(std::complex<double>(Psi(g-g0,m)));
+            ro[g]=acc;
+        }
+    };
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && npts>size_t(nthreads))
+    {
+        const size_t blk=(npts+size_t(nthreads)-1)/size_t(nthreads);
+        std::exception_ptr firstEx;
+        #pragma omp parallel for schedule(static,1) num_threads(nthreads)
+        for (size_t b=0; b<(npts+blk-1)/blk; b++)
+        {
+            try { block(b*blk, std::min(npts, (b+1)*blk)); }
+            catch (...)
+            {
+                #pragma omp critical (cd_rho_throw)
+                if (!firstEx) firstEx=std::current_exception();
+            }
+        }
+        if (firstEx) std::rethrow_exception(firstEx);
+        return ro;
+    }
+#endif
+    block(0, npts);
+    return ro;
+}
 
 } //namespace

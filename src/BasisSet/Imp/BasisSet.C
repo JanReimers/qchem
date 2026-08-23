@@ -32,8 +32,12 @@ template <class T> FIT_CD_ABS<T>* tBasisSet<T>::CreateCDFitBasisSet(const Struct
     return dft->CreateCDFitBasisSet(cl,mp);
 }
 template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
-                                                                    VxcFit fit) const
+                                                                    VxcFit fit,
+                                                                    std::shared_ptr<const qcMesh::Mesh>* partition) const
 {
+    // No partition on the real path: the Gaussian auxiliary basis keeps its own private quadrature mesh
+    // (Fit_IBS::itsMesh, by value), and nothing molecular asks for atom-partitioned observables yet.
+    if (partition) partition->reset();
     // The REAL (molecular) path has exactly one representation -- the Gaussian auxiliary basis -- so a
     // delta request has nothing to build here: DeltaFit_IBS carries a Bloch irrep and the molecular XC
     // quadrature route is not wired to it.  Loud, not silent, so "it quietly fitted Gaussians" cannot happen.
@@ -73,11 +77,23 @@ template <> FitQuadrature tBasisSet<dcmplx>::CreateXCQuadrature(const Structure*
 //   else  -- the lineage's own fitted representation, from the first periodic DFT block's factory (an
 //            unresolved Auto lands here, the historical pairing).
 template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
-                                                                       VxcFit fit) const
+                                                                       VxcFit fit,
+                                                                       std::shared_ptr<const qcMesh::Mesh>* partition) const
 {
+    if (partition) partition->reset();
     if (fit==VxcFit::Delta)
-        return new DeltaFit_IBS(CreateXCQuadrature(cl,mp),
+    {
+        // ONE mesh, built ONCE, INJECTED into both collaborators that need it (user, 2026-08-23): the
+        // delta basis (for which it is constitutive) and -- optionally -- whoever wants the ATOMIC
+        // PARTITION it carries, which is a general-purpose observable and no part of a fit basis's job.
+        // Both get the same shared_ptr to the same immutable Mesh, so their orderings agree by
+        // construction rather than by convention.  A raster (PlaneWave) fit basis has no such mesh and
+        // leaves  partition null -- no Becke build is paid for on a route that would not use it.
+        FitQuadrature q=CreateXCQuadrature(cl,mp);
+        if (partition) *partition=q.mesh;
+        return new DeltaFit_IBS(std::move(q),
                                 Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    }
     return FirstPeriodicDFT(*this, [&](const auto* dft){return dft->CreateVxcFitBasisSet(cl,mp);});
 }
 

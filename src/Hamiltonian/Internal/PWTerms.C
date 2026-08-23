@@ -288,7 +288,12 @@ public:
     //! source \f$\rho\f$ comes from this iteration, per-serial caching, the spin channels, the
     //! DM-source damping -- none of which is basis business.
     typedef std::shared_ptr<const BasisSet::cFIT_SF_Delta> fit_t;
-    explicit XC_SinglesQuadrature(fit_t);
+    //! \a partition is the SAME \c qcMesh::Mesh the fit basis was built over, injected by the factory
+    //! that created both (never taken from the basis -- it has no getter).  It carries the ATOMIC site
+    //! blocks, which is a general-purpose observable and no part of a fit basis's contract; this strategy
+    //! is where it is USED because this is where \f$\rho_\sigma\f$ is already cached.  Null => no
+    //! partition => \c SiteMoments answers empty, exactly as a raster quadrature does.
+    XC_SinglesQuadrature(fit_t, std::shared_ptr<const qcMesh::Mesh> partition={});
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override;
     //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
@@ -330,13 +335,20 @@ private:
     //! Report the current \f$\rho_\sigma\f$ pair's site moments -- called from \c RhoPol's serial-advance
     //! branch, so exactly once per NEW density and never on a cache hit.  No-op without site blocks.
     void EmitSiteMoments() const;
+    //! \f$\int w_A f\f$ per site over the INJECTED partition; empty when none was injected (or it has
+    //! no site blocks -- a uniform grid has no atomic basins).  Ask, do not assume.
+    rvec_t PartitionedMoments(const rvec_t& f) const;
 
     // R2.9(i): the four accessors above are CONST and everything they touch is a lazily-built cache, so the
     // caches are `mutable` -- the same idiom every other cache in this module already uses (tHT_Common::
     // itsCache, tDynamic_HT_Imp::itsCacheVersion, Dynamic_HF_HT_Imp::itsJKs).  Previously they were non-const
     // methods reached from const term methods through a non-const shared_ptr, which laundered the constness
     // without ever stating it.  itsFit is NOT mutable: it is construction-time and must not move.
-    fit_t itsFit;                                 //!< the δ basis: points, weights, fold, σ tags -- and the ops
+    fit_t itsFit;                                 //!< the δ basis: my functions, their metric, their 3-centre overlap
+    //! The atomic PARTITION of the same quadrature -- injected, shared, immutable, possibly null.  Its
+    //! point order IS the fit basis's function order (one object, handed to both), which is what makes
+    //! \c SiteMoments' indexing correct by construction; the assert there pins it anyway.
+    std::shared_ptr<const qcMesh::Mesh> itsPartition;
     //! The δ SCALAR FITTER over that basis, from the same \c Fitting::Factory the molecular XC term uses
     //! (R1.0 Liskov conformance, 2026-08-22).  H_xc is now "fit the field, contract against this block",
     //! the same two calls on either representation -- so this strategy no longer performs a quadrature
@@ -447,7 +459,8 @@ private:
 //! path and the one whose screening pays on large cells.  There is no extra input to supply: both routes
 //! are already functions of (orbital basis, fit basis).
 std::shared_ptr<const XC_Quadrature>
-MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb);
+MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
+                 std::shared_ptr<const qcMesh::Mesh> partition={});
 
 //! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian, carrying ONE LDA functional
 //! (a full LDA is a Dirac instance + a VWN instance, mirroring the molecular SlaterExchange+VWN split).
@@ -550,9 +563,10 @@ private:
 //! lets one call serve both branches.
 template <class C> std::vector<std::unique_ptr<cDynamic_HT>>
 MakeVxcTerms(const std::shared_ptr<ExFunctional>& exch, const std::shared_ptr<C>& corr,
-             const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb, bool polarized)
+             const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb, bool polarized,
+             std::shared_ptr<const qcMesh::Mesh> partition={})
 {
-    std::shared_ptr<const XC_Quadrature> q=MakeXCQuadrature(fb);
+    std::shared_ptr<const XC_Quadrature> q=MakeXCQuadrature(fb, std::move(partition));
     std::vector<std::unique_ptr<cDynamic_HT>> terms;
     if (polarized)
     {

@@ -7,10 +7,28 @@ module;
 module qchem.BasisSet.Fit_IBS;
 import qchem.Mesh.Quadrature;          // qcMesh::Mesh, Normalize, Overlap (over qcMath Vector/ScalarFunction)
 import qchem.BasisSet.Internal.DB_Cache;
+import qchem.BasisSet.Orbital_DFT_IBS;   // Orbital_DFT_IBS<T,T>: where a non-delta fit basis's 3-centre
+                                          // tensor actually lives.  LEGAL HERE AND NOWHERE ELSE IN THIS
+                                          // MODULE: that interface imports qchem.BasisSet.Fit_IBS, so the
+                                          // INTERFACE unit importing it back would close a module cycle --
+                                          // an IMPLEMENTATION unit importing it does not.
 import qchem.Blaze;
 
 namespace qchem::BasisSet
 {
+
+// FIT_SF_ABS<T>::Overlap3C's default, as a free template so its definition can live in this unit.  A
+// virtual member of a class template must be instantiable wherever the class is; a free template need only
+// be EXPLICITLY instantiated once, which is what the two lines below do (there are exactly two scalars).
+//
+// The cast is a genuine "is it?" -- the orbital basis is caller-supplied and only a DFT-capable one carries
+// a 3-centre tensor -- so a reference cast, which throws rather than being release-mode UB.
+template <class T> const Projector3<T>& OrbitalOverlap3C(const Orbital_1E_IBS<T>& orb, const FIT_SF_ABS<T>& fit)
+{
+    return dynamic_cast<const Orbital_DFT_IBS<T,T>&>(orb).Overlap3C(fit);
+}
+template const Projector3<double>& OrbitalOverlap3C<double>(const Orbital_1E_IBS<double>&, const FIT_SF_ABS<double>&);
+template const Projector3<dcmplx>& OrbitalOverlap3C<dcmplx>(const Orbital_1E_IBS<dcmplx>&, const FIT_SF_ABS<dcmplx>&);
 
 Fit_IBS::Fit_IBS(const Structure& st, const qcMesh::MeshParams& mp)
     : itsMesh  (st.CreateIntegrationMesh(mp))   // the geometry's own mesh
@@ -21,7 +39,7 @@ Fit_IBS::Fit_IBS(const Structure& st, const qcMesh::MeshParams& mp)
     assert(!itsMeshID.empty() && "Fit_IBS: MeshParams::ID() is the Norm cache key -- it must not be empty");
 }
 
-const  rvec_t& Fit_IBS::Charge   () const
+rvec_t Fit_IBS::Charge() const
 {
     return theCache<double>().Get(IntegralsCache_Base::I1C::Charge,this,
         [this]{ return MakeCharge(); });
@@ -77,18 +95,12 @@ rvec3_t Fit_IBS::EvalFieldGradient(const rvec_t& c, const rvec3_t& r) const
     return ret;
 }
 
-// <f_a|1> (FIT_SF_ABS::Integrals) IS <f_a|1> (FIT_CD_NonOrtho::Charge) -- one quantity, two faces of the
-// one object, so the SF sibling forwards instead of re-deriving it on the mesh.  Both are in the
-// NORMALISED convention (the per-function norm folded in), which is also the convention Overlap(f) and the
-// InvOverlap() metric use, so c.Integrals() is the integral of the fitted field.
-rvec_t Fit_IBS::Integrals() const {return Charge();}
-
 // <f_a|f_a> = 1/Norm_a^2 -- the cached normalisation, un-inverted.  A non-orthogonal basis's fit does not
 // use it (it solves with the full S^-1); it is here because the metric DIAGONAL is a question every scalar
 // fit basis can answer, and answering it is what makes the orthogonal-vs-orthonormal distinction usable.
 //
 // WARNING, FOUND 2026-08-23: this is the ONLY member of the fit face in the UN-normalised convention.
-// Overlap(f) below multiplies by Norm(), Charge()/Integrals() fold the norm in, and MakeOverlap()'s metric
+// Overlap(f) below multiplies by Norm(), Charge() folds the norm in, and MakeOverlap()'s metric
 // has a unit diagonal -- so a general orthogonal fitter pairing THIS diagonal with THIS projection would be
 // wrong by Norm_a^2.  Nothing does: isOrtho()==false sends every Gaussian fit to the S^-1 solve, which
 // never reads the diagonal.
