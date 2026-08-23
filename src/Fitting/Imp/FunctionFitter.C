@@ -4,7 +4,8 @@ module;
 #include <cassert>
 module qchem.Fitting.FunctionFitter;
 import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp (Scalar) + IntegralConstrainedFF (Density)
-import qchem.Fitting.Internal.OrthoFunctionFitter; // OrthoFunctionFitter (the orthonormal G-space density fit)
+import qchem.Fitting.Internal.OrthoFunctionFitter;       // OrthoFunctionFitter (the orthonormal G-space density fit)
+import qchem.Fitting.Internal.OrthoNormalFunctionFitter; // OrthoNormalScalarFitter (the orthoNORMAL potential fit)
 import qchem.BasisSet.Fit_IBS;                     // FIT_CD_NonOrtho (the Coulomb metric-solve face)
 import qchem.BasisSet.G_FieldEvaluator;            // G_FieldEvaluator / G_RasterTransform (the raster half of the contract)
 import qchem.BasisSet.Quadrature;                  // BasisSet::Quadrature (the points+weights half)
@@ -72,7 +73,7 @@ Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
     assert(dynamic_cast<const BasisSet::G_FieldEvaluator*>(bs.get())
            && "Fitting::Factory(cFIT_SF_ABS): the fit basis must provide G_FieldEvaluator so the fitted "
               "v_xc,fit(r) stays evaluatable (GUI / fit-residual)");
-    return std::make_unique<OrthoScalarFitter>(bs);
+    return std::make_unique<OrthoNormalScalarFitter>(bs);
 }
 
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>

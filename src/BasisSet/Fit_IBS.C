@@ -169,6 +169,19 @@ public:
     //! selects the no-solve scalar fitter.  Every fit basis must declare its metric.
     virtual bool isOrtho() const=0;
 
+    //! \brief The DIAGONAL of my overlap metric, \f$\langle f_a|f_a\rangle\f$ -- the denominator of a
+    //! projection-is-the-fit expansion, \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$.
+    //!
+    //! On the neutral face because it is what makes \c isOrtho()==true USABLE: orthogonal says the metric
+    //! has no off-diagonal, and this is the diagonal that remains.  A plane-wave \f$\{G\}\f$ basis answers
+    //! all ones (it is orthoNORMAL, and its fitter never even asks -- see \c OrthoNormalScalarFitter); a
+    //! \f$\delta\f$ basis answers its weights \f$w_g\f$; a Gaussian auxiliary basis answers
+    //! \f$1/\mathrm{Norm}_a^2\f$, though its fit takes the full \f$S^{-1}\f$ solve and never reads just
+    //! the diagonal.  Getting this wrong is not cosmetic: dropping the denominator -- correct for an
+    //! orthonormal basis, wrong for a merely orthogonal one -- is an error of a factor \f$w_g\f$
+    //! (user, 2026-08-22).
+    virtual vec_t<T> OverlapDiagonal() const=0;
+
     //! \brief STAR-AVERAGE a field SAMPLED AT MY POINTS, in place, over the crystal point group (the IBZ
     //! density symmetrization).  REAL-space, so it PRESERVES ρ≥0 -- XC stays on the non-negative ρ_DM
     //! samples, never routed onto ρ̃ (doc/GPWPlan1.md item 3).
@@ -225,6 +238,21 @@ public:
 
     //! \name The quadrature operations -- what this basis is FOR
     //!
+    //! \brief \f$\langle\chi_i|v|\chi_j\rangle=\sum_g w_g\overline{\chi_i(r_g)}\,v_g\,\chi_j(r_g)\f$ --
+    //! the quadrature of a POTENTIAL SAMPLED AT MY POINTS against an orbital block.
+    //!
+    //! It is MY operation because I own all three ingredients: the points, the weights, and the
+    //! \f$\Phi\f$ table.  A caller hands the bare field \f$v\f$ and gets the matrix -- it never sees a
+    //! weight, which is what retired the last coordinate escape (2026-08-22).  Two overloads for the
+    //! MIXED run, as on \c Collocation::Values: a real TRIM block's table is real, so its quadrature runs
+    //! in real arithmetic.
+    //! \note This IS \f$\sum_g c_g\langle\chi_i|\delta_g|\chi_j\rangle\f$ with \f$c=v\f$ -- i.e. the
+    //! \f$\delta\f$ representation's realization of a fitter's \c Overlap(orbitalBasis).  The Liskov
+    //! target (R1.0) is to reach it THROUGH that face; what blocks it today is that
+    //! \c FunctionFitter_Scalar<T> is single-scalar while this is mixed.
+    virtual hmat_t<double> Quadrature(const Orbital_1E_IBS<double>& orb, const rvec_t& v) const=0;
+    virtual hmat_t<dcmplx> Quadrature(const Orbital_1E_IBS<dcmplx>& orb, const rvec_t& v) const=0;
+
     //! Each earns its place by being a question only the owner of the points and weights can answer: a
     //! SCALAR out (\c Integrate), a per-BLOCK vector out (\c SiteIntegrals), and the one projection that
     //! needs TWO fields at once (\c SymmetrizeSpin).  The single-field projection is NOT here -- it is
@@ -317,6 +345,9 @@ protected:
 public:
     // Numerical (mesh-quadrature) versions -- run over the fit basis's OWN mesh (itsMesh).
     const rvec_t& Norm   ()           const override; //!< 1/sqrt(<f_a|f_a>), cached
+    //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal  (\f$1/\mathrm{Norm}_a^2\f$ -- the same numbers,
+    //! un-inverted; a Gaussian fit takes the full \f$S^{-1}\f$ solve and never reads just this)
+    rvec_t OverlapDiagonal() const override;
     rvec_t        Overlap(const Sf& f) const override; //!< projection <f_a|f> (Vxc fit RHS; NOT cached)
     //! \copydoc BasisSet::FieldEvaluator::EvalField  (\f$\sum_a c_a f_a(r)\f$ over this basis's functions)
     double  EvalField        (const rvec_t& c, const rvec3_t& r) const override;

@@ -324,7 +324,6 @@ private:
     //! Report the current \f$\rho_\sigma\f$ pair's site moments -- called from \c RhoPol's serial-advance
     //! branch, so exactly once per NEW density and never on a cache hit.  No-op without site blocks.
     void EmitSiteMoments() const;
-    template <class U> hmat_t<U> MatrixT(const mat_t<U>& P, const rvec_t& v) const;  // ONE quadrature body
 
     // R2.9(i): the four accessors above are CONST and everything they touch is a lazily-built cache, so the
     // caches are `mutable` -- the same idiom every other cache in this module already uses (tHT_Common::

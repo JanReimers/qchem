@@ -77,6 +77,17 @@ rvec3_t Fit_IBS::EvalFieldGradient(const rvec_t& c, const rvec3_t& r) const
     return ret;
 }
 
+// <f_a|f_a> = 1/Norm_a^2 -- the cached normalisation, un-inverted.  A non-orthogonal basis's fit does not
+// use it (it solves with the full S^-1); it is here because the metric DIAGONAL is a question every scalar
+// fit basis can answer, and answering it is what makes the orthogonal-vs-orthonormal distinction usable.
+rvec_t Fit_IBS::OverlapDiagonal() const
+{
+    const rvec_t& nrm=Norm();
+    rvec_t d(nrm.size());
+    for (size_t a=0; a<nrm.size(); a++) d[a]=1.0/(nrm[a]*nrm[a]);
+    return d;
+}
+
 rvec_t Fit_IBS::MakeNorm() const
 {
     return qcMesh::Normalize(itsMesh, *this);

@@ -527,6 +527,30 @@ MnO campaign proceeds undisturbed in qchem6.
   `Overlap(orbitalBasis)` on the fit basis and the weights never leave.  The negative-ρ diagnostic already
   stopped touching weights: it asks for its two masses as integrals.
 
+  **✅ INCREMENT 2 (part): the quadrature contraction is the BASIS's, and the metric diagonal is explicit.**
+  - \f$\langle\chi_i|v|\chi_j\rangle=\sum_g w_g\overline{\chi_i}v_g\chi_j\f$ moved out of the XC
+    strategy and onto the δ basis as `Quadrature(orbitalBlock, v)` (two overloads, mixed-run as `Values`).
+    It owns the points, the weights AND the Φ table, so the whole contraction is its operation and a caller
+    hands only the bare field.  **That closed the last coordinate escape**: nothing outside the basis reads
+    a weight or a point any more.
+  - `FIT_SF_ABS<T>::OverlapDiagonal()` (user directive): PW → ones, δ → \f$w_g\f$, Gaussian →
+    \f$1/\mathrm{Norm}_a^2\f$.  Pinned by `GPW.OverlapDiagonalPerRepresentation` — the two periodic cases
+    against their definitions, with an explicit `EXPECT_NE(1)` on the δ one so the distinction stays
+    load-bearing rather than decorative.
+  - `OrthoScalarFitter` → `OrthoNormalScalarFitter` in its own
+    `src/Fitting/Internal/OrthoNormalFunctionFitter.C`, **named for the metric it assumes**: it takes
+    `OverlapDiagonal()=={1,1,...}` and never calls it.  (For a raster that diagonal is npts ones nobody
+    should materialise, and the forward FFT already delivers the coefficients.)
+
+  ⚠ **WHAT BLOCKS THE REST OF INCREMENT 2 — a real finding, not a scheduling excuse.**  Routing the δ route
+  through `FunctionFitter_Scalar` (which is what would delete `Sample` and `Integrate`) is blocked because
+  **that face is SINGLE-SCALAR** — `hmat_t<T> Overlap(const robs_t<T>*)` — while the XC quadrature is
+  MIXED: a real TRIM block needs `hmat_t<double>` while its complex siblings need `hmat_t<dcmplx>`.  That
+  is exactly why `XC_Quadrature::Matrix` and `Collocation::Values` carry two overloads apiece.  The fitter
+  interface predates doc/RealComplexPlan.md's real/complex split and has never met it.  So the next step is
+  to widen `FunctionFitter_Scalar` to the two-scalar shape the rest of the tree already uses; only then can
+  δ and Gaussian be substituted through one fitter face.
+
   ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
   promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is
   the remaining scope of step (1): convert `PP_Local::CalculateMatrix` and `PP_NonLocal`'s

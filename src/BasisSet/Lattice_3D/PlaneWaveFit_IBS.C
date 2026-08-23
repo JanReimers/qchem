@@ -57,6 +57,12 @@ public:
         , itsDirectOps(std::move(directOps))
     { AnnounceGrid(role); }
 
+    //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal
+    //! ALL ONES: plane waves over the cell are orthoNORMAL, which is the special case
+    //! \c OrthoNormalFunctionFitter is built on -- it asserts this contract and then never calls this,
+    //! so the vector below is materialised only if someone asks (a test, or a general fitter).
+    vec_t<dcmplx> OverlapDiagonal() const override {return vec_t<dcmplx>(PW_Evaluator::size(), dcmplx(1.0));}
+
     //! A plane-wave {G} fit basis IS orthonormal (metric = I, the projection IS the fit) -- the single override
     //! satisfying the \c isOrtho contract for BOTH the density and potential fit faces.
     bool isOrtho() const override {return true;}

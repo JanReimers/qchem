@@ -165,4 +165,85 @@ template <class U> const mat_t<U>& DeltaFit_IBS::Table(std::map<Irrep,mat_t<U>>&
 const mat_t<double>& DeltaFit_IBS::Values(const Orbital_1E_IBS<double>& orb) const {return Table(itsPhiR, orb);}
 const mat_t<dcmplx>& DeltaFit_IBS::Values(const Orbital_1E_IBS<dcmplx>& orb) const {return Table(itsPhi , orb);}
 
+// <i|v|j> = Phi^dag diag(w v) Phi over the cached table: scale the rows, one zgemm, hermitize.  (The
+// GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
+template <class U> hmat_t<U> DeltaFit_IBS::QuadratureT(const Orbital_1E_IBS<U>& orb, const rvec_t& v) const
+{
+    const mat_t<U>&      P=Values(orb);              // my table for this block (built once, cached)
+    const rvec_t&        w=itsQuad.mesh->Weights();  // my weights -- they never leave
+    assert(v.size()==P.rows());
+    qchem::report::Timed timed("scf: XC-mesh quadrature H_xc (all iterations)");
+    mat_t<U> WP(P.rows(), P.columns());
+    auto scale=[&](size_t g)
+    {
+        const double wv=w[g]*v[g];
+        for (size_t i=0; i<P.columns(); i++) WP(g,i)=wv*P(g,i);
+    };
+    const size_t n=P.columns(), npts=P.rows();
+    mat_t<U> M(n, n, U(0.0));
+    // The per-iteration quadrature GEMM (once per XC term per spin): O(npts n^2), and with the rho
+    // sampling dispatched to BLAS this is the SCF loop's largest bucket.  The row scaling above is
+    // trivially parallel (row g is private to g) either way; the PRODUCT has two shapes:
+    //
+    //  * WITH BLAZE_BLAS_MODE -- ONE whole-matrix product, NO blocking and NO OpenMP.  Blaze hands a
+    //    product to zgemm only when the DESTINATION is a plain matrix: assigning into a submatrix view
+    //    silently drops it back to Blaze's own kernel.  Measured on this exact shape (48033x122,
+    //    1 thread): whole-matrix 34.1 GFlop/s vs 1.87 for ANY blocked/viewed form -- so blocking to
+    //    halve the flops (Hermitian) or to spread over 8 threads LOSES 13x to save 2x or 8x.  One
+    //    dispatched zgemm beats every hand-parallel arrangement here, and it composes with the pin
+    //    (qchem::PinBlasToOneThread): our parallelism stays at the levels above.
+    //  * WITHOUT it -- the TRIANGULAR, output-blocked, threaded form: H is Hermitian and chmat_t
+    //    stores i<=j, so column block [j0,j1) needs only rows [0,j1) of the left operand.  Every
+    //    element M(i,j) is still ONE dot product over ALL mesh points accumulated by ONE thread in the
+    //    serial order (a partition of the OUTPUT, not of the reduction), so it is bit-identical at any
+    //    thread count.  Blocks carry unequal work, hence dynamic scheduling over ~4 blocks per thread.
+    //
+    // Either way only the upper triangle is READ below; the retired `½(M+M†)` symmetrisation acted on
+    // roundoff alone (w and v are real, so M is Hermitian in exact arithmetic).
+#ifdef BLAZE_BLAS_MODE
+#ifdef QCHEM_OPENMP
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1)
+    {
+        #pragma omp parallel for schedule(static) num_threads(nthreads)
+        for (size_t g=0; g<npts; g++) scale(g);
+    }
+    else
+#endif
+        for (size_t g=0; g<npts; g++) scale(g);
+    M = blazem::trans(blazem::conj(P))*WP;                    // one zgemm; see the note above
+#else
+    auto triBlock=[&](size_t j0, size_t nj)
+    {
+        const size_t j1=j0+nj;
+        blazem::submatrix(M,0,j0,j1,nj) = blazem::trans(blazem::conj(blazem::submatrix(P,0,size_t(0),npts,j1)))
+                                        * blazem::submatrix(WP,0,j0,npts,nj);
+    };
+#ifdef QCHEM_OPENMP
+    const int nthreads=qchem::WorkerThreads();
+    if (nthreads>1)
+    {
+        #pragma omp parallel for schedule(static) num_threads(nthreads)
+        for (size_t g=0; g<npts; g++) scale(g);
+        const size_t blk=std::max<size_t>(1, (n+4*size_t(nthreads)-1)/(4*size_t(nthreads)));
+        const size_t nb=(n+blk-1)/blk;
+        #pragma omp parallel for schedule(dynamic,1) num_threads(nthreads)
+        for (size_t b=0; b<nb; b++) triBlock(b*blk, std::min(blk, n-b*blk));
+    }
+    else
+#endif
+    {
+        for (size_t g=0; g<npts; g++) scale(g);
+        triBlock(0, n);
+    }
+#endif
+    hmat_t<U> H(n);
+    for (size_t i=0; i<n; i++)
+        for (size_t j=i; j<n; j++)
+            H(i,j)=M(i,j);
+    return H;
+}
+
+hmat_t<double> DeltaFit_IBS::Quadrature(const Orbital_1E_IBS<double>& orb, const rvec_t& v) const {return QuadratureT(orb,v);}
+hmat_t<dcmplx> DeltaFit_IBS::Quadrature(const Orbital_1E_IBS<dcmplx>& orb, const rvec_t& v) const {return QuadratureT(orb,v);}
+
 } //namespace

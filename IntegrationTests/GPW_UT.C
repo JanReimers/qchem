@@ -35,6 +35,8 @@ import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may che
 import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::CollocateDensity (analytic collocation)
 import qchem.LASolver;                       // LASolver<dcmplx> (the k=1/4 spectrum gate)
 import qchem.Symmetry.Factory;               // BlochFactory (arbitrary-shift k for the k=1/4 continuity gate)
+import qchem.BasisSet.DeltaFit_IBS;          // DeltaFit_IBS (the delta representation's OverlapDiagonal gate)
+import qchem.Mesh.Quadrature;                // qcMesh::Mesh (the delta basis's quadrature)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
 import qchem.BasisSet.Internal.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the v_xc/eps_xc face; XC-consistency probe)
@@ -1696,6 +1698,43 @@ TEST(GPW, MagneticSymmetryDefectsSeparateMirrorKeepersFromBreakers)
 // local PP is PURE erf, V_short == 0 -- the whole E_loc rides V_long).  Basis: s+p+d shells at
 // {0.18, 0.38, 24.0} -- the convicted diffuse d, the healthy-control d, and a tight exponent so the
 // multigrid ladder is DEEP (the failing runs' routing conditions).  DISABLED: ~2-4 min hand gate.
+// THE METRIC DIAGONAL OF EACH SCALAR FIT BASIS, against its definition -- the gate behind the
+// orthogonal-vs-orthoNORMAL distinction (user, 2026-08-22).  isOrtho() asks ORTHOGONAL: metric DIAGONAL,
+// hence no linear solve.  That admits two cases, and the difference between them is a factor w_g in the
+// fit coefficients, so each basis's answer is PINNED here rather than assumed:
+//
+//   plane-wave {G} : orthoNORMAL -- all ones (OrthoNormalScalarFitter is built on this and never asks)
+//   delta          : orthogonal  -- <delta_g|delta_g> = w_g, the quadrature weights
+//
+// The Gaussian auxiliary basis (1/Norm_a^2) is not exercised here: its fit takes the full S^-1 solve and
+// never reads the diagonal, so the molecular suite pins it end-to-end instead.
+TEST(GPW, OverlapDiagonalPerRepresentation)
+{
+    const double a=6.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+    qcMesh::MeshParams mp;
+
+    // (1) The PLANE-WAVE fit representation: ones, one per {G}.
+    std::unique_ptr<const BasisSet::cFIT_SF_ABS> pwFit(gpw.CreateVxcFitBasisSet(&cell, mp));
+    const vec_t<dcmplx> dPW=pwFit->OverlapDiagonal();
+    ASSERT_EQ(dPW.size(), pwFit->GetNumFunctions()) << "one metric diagonal entry per fit function";
+    for (size_t g=0; g<dPW.size(); g++) EXPECT_EQ(dPW[g], dcmplx(1.0)) << "plane waves are orthoNORMAL";
+
+    // (2) The DELTA representation: the weights themselves, over this cell's own XC quadrature.
+    BasisSet::FitQuadrature q=gpw.CreateXCQuadrature(&cell, mp);
+    BasisSet::DeltaFit_IBS dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    const vec_t<dcmplx> dD=dfit.OverlapDiagonal();
+    ASSERT_EQ(dD.size(), q.mesh->size()) << "a delta basis has one function per mesh point";
+    for (size_t g=0; g<dD.size(); g++)
+        EXPECT_EQ(dD[g], dcmplx(q.mesh->Weights()[g])) << "<delta_g|delta_g> = w_g (orthogonal, NOT orthonormal)";
+    // ...which is exactly what makes its fit the point VALUES: c_g = <delta_g|f>/w_g = f(r_g).  If these
+    // were ones the two cases would be indistinguishable and the distinction would not be load-bearing.
+    EXPECT_NE(dD[0], dcmplx(1.0));
+}
+
 TEST(GPW, DISABLED_DiffuseDPairVlongOracle)
 {
     const double a=8.40;

@@ -75,7 +75,21 @@ public:
     const mat_t<double>& Values(const Orbital_1E_IBS<double>& orb) const override;
     const mat_t<dcmplx>& Values(const Orbital_1E_IBS<dcmplx>& orb) const override;
 
+    //! \copydoc BasisSet::FIT_SF_Delta::Quadrature  (bodies in Imp/; ONE templated body serves both)
+    hmat_t<double> Quadrature(const Orbital_1E_IBS<double>& orb, const rvec_t& v) const override;
+    hmat_t<dcmplx> Quadrature(const Orbital_1E_IBS<dcmplx>& orb, const rvec_t& v) const override;
+
     // ---- the quadrature operations (see FIT_SF_Delta) -------------------------------------------------
+    //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal
+    //! \f$\langle\delta_g|\delta_g\rangle=w_g\f$: orthogonal, NOT orthonormal -- so a general fit
+    //! through this basis divides by these, giving \f$c_g=w_g f_g/w_g=f(r_g)\f$, the point values.
+    vec_t<dcmplx> OverlapDiagonal() const override
+    {
+        const rvec_t& w=itsQuad.mesh->Weights();
+        vec_t<dcmplx> d(w.size());
+        for (size_t g=0; g<w.size(); g++) d[g]=dcmplx(w[g]);
+        return d;
+    }
     double Integrate    (const rvec_t& f) const override {return qcMesh::Integrate   (*itsQuad.mesh, f);}
     rvec_t SiteIntegrals(const rvec_t& f) const override
         {return itsQuad.mesh->NSites()==0 ? rvec_t() : qcMesh::SiteIntegrals(*itsQuad.mesh, f);}
@@ -124,6 +138,7 @@ private:
     //! ONE body for both \c Values overloads, each with its own typed cache.  R2.9(i) idiom: the accessors
     //! are const and the tables are a lazily-built, geometry-fixed cache, so the maps are \c mutable.
     template <class U> const mat_t<U>& Table(std::map<Irrep,mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
+    template <class U> hmat_t<U> QuadratureT(const Orbital_1E_IBS<U>& orb, const rvec_t& v) const;
     mutable std::map<Irrep,mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n)
     mutable std::map<Irrep,mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (disjoint irreps -- 3c-3)
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
