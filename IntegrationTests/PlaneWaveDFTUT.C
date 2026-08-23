@@ -849,19 +849,20 @@ TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
     {
         qcMesh::MeshParams mp; mp.relCutoff=rc;
         auto fb=qchem::Hamiltonian::XC_PairQuadrature::fbs_t(pw.CreateVxcFitBasisSet(nullptr, mp));
-        // The two halves of the fit basis's grid contract, each asked for by name (2026-08-22): the mesh
-        // (points+weights, universal) and the raster transforms (FFT, raster-only).
-        auto qd=dynamic_cast<const qchem::BasisSet::Quadrature*>(fb.get());
+        // The fit basis answers its own quadrature (NumPoints / Integrate) and, separately, the raster
+        // transforms; no mesh changes hands (2026-08-22).
         auto ge=dynamic_cast<const qchem::BasisSet::G_RasterTransform*>(fb.get());
-        size_t nG=fb->GetNumFunctions(), Npts=qd->Mesh().size();
+        size_t nG=fb->GetNumFunctions(), Npts=fb->NumPoints();
 
         rvec_t rgrid=ge->RhoOnGrid(rho), exc(rgrid.size());
         for (size_t q=0;q<rgrid.size();q++) exc[q]=epsOf(rgrid[q])*rgrid[q];
-        double Exc=qcMesh::Integrate(qd->Mesh(), exc);
+        double Exc=fb->Integrate(exc);
 
         auto fitter=qchem::Fitting::Factory(fb);
         fitter->DoFit(vtrue);
-        const ScalarFunction<double>& vfit=*fitter;
+        // The fitted FIELD is a capability now, not part of the fitter face (a delta fit has no
+        // value between its points), so ask for it: a plane-wave fit inverse-transforms and can.
+        const ScalarFunction<double>& vfit=dynamic_cast<const ScalarFunction<double>&>(*fitter);
         double s=0.0;
         for (const rvec3_t& r : ref){double d=vfit(r)-vtrue(r); s+=d*d;}
         double resid=std::sqrt(s/ref.size());

@@ -5,7 +5,6 @@ module;
 #include <vector>   // FitQuadrature::sigmas/flipFixed (Shubnikov S3)
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
-export import qchem.BasisSet.Quadrature;   // BasisSet::Quadrature -- "I carry the points+weights I am defined over"
 export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the FitQuadrature orbit partition (§6a W1)
@@ -83,38 +82,6 @@ public:
 using rFIT_CD_ABS = FIT_CD_ABS<double>;  //!< real (Gaussian/Slater/BSpline) density-fit basis
 using cFIT_CD_ABS = FIT_CD_ABS<dcmplx>;  //!< complex (plane-wave, G-space) density-fit basis
 
-//! \brief WHAT A DENSITY NEEDS FROM A QUADRATURE-CARRYING FIT BASIS in order to collocate itself on it:
-//! the table \f$\Phi_{gi}=\chi_i(r_g)\f$ of an orbital block's functions at MY points, and the sampling of
-//! a field at MY points.  Both cached and geometry-fixed; both keep the points themselves inside.
-//!
-//! THE POINT OF THE FACE (2026-08-22).  \f$\rho\f$ for a real-space XC quadrature is
-//! \f$\rho_g=[\Phi D\Phi^\dagger]_{gg}\f$, and \f$D\f$ is the DENSITY's private business while \f$\Phi\f$
-//! is the BASIS's -- so one of them has to travel.  It used to be \f$\Phi\f$: the XC engine built the
-//! tables, kept them in two \c Irrep-keyed maps, and handed them to \c DM_RhoAtPoints ALONG WITH the raw
-//! point list, which is what forced a coordinate getter to survive on the fit basis.  Now the density
-//! receives the BASIS and asks it per block, which puts \f$\Phi\f$ where it belongs (it is an integral
-//! over the basis's own functions), removes the map plumbing and its "block not yet tabled, fall back to
-//! pointwise" branch, and leaves no coordinate escape at all.
-//!
-//! TWO \c Values overloads, not a template, because the face is virtual and a run can be MIXED: a real
-//! TRIM block wants a real table while its complex siblings want complex ones (doc/RealComplexPlan.md
-//! 3c-3).  Each child asks with its OWN scalar and gets the matching table, which is what retired the
-//! second (\c PhiR) map argument.
-class Collocation
-{
-public:
-    virtual ~Collocation() = default;
-    //! How many points I sample at (the length of every array below).
-    virtual size_t NumPoints() const=0;
-    //! \f$\Phi_{gi}=\chi_i(r_g)\f$ for a REAL orbital block, cached (built once per run per block).
-    virtual const mat_t<double>& Values(const Orbital_1E_IBS<double>& orb) const=0;
-    //! \f$\Phi_{gi}=\chi_i(r_g)\f$ for a COMPLEX (Bloch) orbital block, cached.
-    virtual const mat_t<dcmplx>& Values(const Orbital_1E_IBS<dcmplx>& orb) const=0;
-    //! Sample a field that can evaluate itself anywhere, AT my points -- the matrix-free-density route
-    //! (a seed, a \f$\tilde\rho\f$-mixed field).  The caller supplies the field, not the coordinates.
-    virtual rvec_t Sample(const ScalarFunction<double>& f) const=0;
-};
-
 //! \brief EVALUATE AN EXPANSION over this basis: \f$f(\vec r)=\sum_a c_a f_a(\vec r)\f$ and its
 //! gradient, given the coefficients.
 //!
@@ -169,6 +136,22 @@ public:
     //! selects the no-solve scalar fitter.  Every fit basis must declare its metric.
     virtual bool isOrtho() const=0;
 
+    //! \name The QUADRATURE I am defined over -- as operations, never as a mesh
+    //! A fit basis is a family of weight vectors over shared points, so it always HAS points; what it does
+    //! not do is hand them out.  These three are what every consumer of "the fit grid" actually wanted, and
+    //! together they retired \c BasisSet::Quadrature::Mesh() -- the last getter on this side (2026-08-22).
+    //! Every scalar fit basis answers them: a Gaussian auxiliary basis over its Becke mesh, a plane-wave
+    //! basis over its FFT raster, a \f$\delta\f$ basis over whichever mesh it was built on.
+    //!@{
+    //! How many points I sample at (the length of every value array below).
+    virtual size_t NumPoints() const=0;
+    //! Sample a field that can evaluate itself anywhere, AT my points -- the caller supplies the field,
+    //! not the coordinates.  This is how a fitter projects, and how a matrix-free density collocates.
+    virtual rvec_t Sample(const ScalarFunction<double>& f) const=0;
+    //! \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field sampled at my points (the \f$E_{xc}\f$ quadrature).
+    virtual double Integrate(const rvec_t& f) const=0;
+    //!@}
+
     //! \brief The DIAGONAL of my overlap metric, \f$\langle f_a|f_a\rangle\f$ -- the denominator of a
     //! projection-is-the-fit expansion, \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$.
     //!
@@ -222,13 +205,6 @@ using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) pote
 //! -- grid sizing, memory reports, cache dimensions -- must not choke on that.
 template <class T> class FIT_SF_Delta
     : public virtual FIT_SF_ABS<T>
-    //! \todo THE ONE REMAINING GETTER.  \c Quadrature::Mesh() survives because the \f$\rho\f$ GEMM is
-    //! initiated by the DENSITY (\c cDM_CD::DM_RhoAtPoints, which owns \f$D\f$ and lives in a library
-    //! above this one), so the points must still reach it, and with them the \f$\Phi\f$ table cache.
-    //! Closing it means flipping that call to take THIS basis and ask it per block -- then \f$\Phi\f$ and
-    //! both contractions come here too, and no coordinate leaves at all.
-    , public virtual Quadrature
-    , public virtual Collocation   // what the DENSITY asks of me: my tables and my sampling
 {
 public:
     //! ORTHOGONAL, with \f$\langle\delta_g|\delta_g\rangle=w_g\f$ -- diagonal, so no metric SOLVE, which
@@ -238,6 +214,20 @@ public:
 
     //! \name The quadrature operations -- what this basis is FOR
     //!
+    //! \name What the DENSITY asks of me, to collocate itself on my points
+    //! \f$\rho_g=[\Phi D\Phi^\dagger]_{gg}\f$: \f$D\f$ is the density's private business and \f$\Phi\f$ is
+    //! mine, so exactly one of them travels -- and it is \f$\Phi\f$, a table of MY functions' values,
+    //! which is an integral over my own basis.  TWO overloads because a run can be MIXED (3c-3): each
+    //! density block asks with ITS OWN scalar and gets the matching table, which is what retired the two
+    //! \c Irrep-keyed table maps the caller used to thread.  (Sampling and \c NumPoints are on
+    //! \c FIT_SF_ABS above -- every fit basis answers those, only a δ basis tabulates.)
+    //!@{
+    //! \f$\Phi_{gi}=\chi_i(r_g)\f$ for a REAL orbital block, cached (built once per run per block).
+    virtual const mat_t<double>& Values(const Orbital_1E_IBS<double>& orb) const=0;
+    //! \f$\Phi_{gi}=\chi_i(r_g)\f$ for a COMPLEX (Bloch) orbital block, cached.
+    virtual const mat_t<dcmplx>& Values(const Orbital_1E_IBS<dcmplx>& orb) const=0;
+    //!@}
+
     //! \brief \f$\langle\chi_i|v|\chi_j\rangle=\sum_g w_g\overline{\chi_i(r_g)}\,v_g\,\chi_j(r_g)\f$ --
     //! the quadrature of a POTENTIAL SAMPLED AT MY POINTS against an orbital block.
     //!
@@ -253,18 +243,15 @@ public:
     virtual hmat_t<double> Quadrature(const Orbital_1E_IBS<double>& orb, const rvec_t& v) const=0;
     virtual hmat_t<dcmplx> Quadrature(const Orbital_1E_IBS<dcmplx>& orb, const rvec_t& v) const=0;
 
-    //! Each earns its place by being a question only the owner of the points and weights can answer: a
-    //! SCALAR out (\c Integrate), a per-BLOCK vector out (\c SiteIntegrals), and the one projection that
-    //! needs TWO fields at once (\c SymmetrizeSpin).  The single-field projection is NOT here -- it is
-    //! \c FIT_SF_ABS::Symmetrize, which every fit basis already answers; only the magnetic pair is
-    //! δ-specific, because δ is the only representation a polarized run can use at all (a plane-wave fit
-    //! has no per-channel collocation).  Sampling and the \f$\Phi\f$ tables are on \c Collocation above,
-    //! the face the DENSITY consumes.
-    //! \todo Under the Liskov target (doc/CleanupCandidates.md R1.0) \c Integrate folds into
-    //! \f$\sum_a e_a\langle\rho|f_a\rangle\f$ and \c SiteIntegrals leaves the fit face entirely.
+    //! TWO left.  Everything a δ basis shares with the other representations has moved UP to
+    //! \c FIT_SF_ABS (\c NumPoints / \c Sample / \c Integrate / \c Symmetrize / \c OverlapDiagonal) or
+    //! onto \c Collocation (the \f$\Phi\f$ tables the density consumes); what remains is what only a
+    //! δ representation can answer: the ATOMIC PARTITION its mesh may carry, and the MAGNETIC pair
+    //! projection -- δ being the only representation a polarized run can use at all, since a plane-wave
+    //! fit has no per-channel collocation.
+    //! \todo \c SiteIntegrals is an observable, not part of the XC contract; it belongs to whatever owns
+    //! the partition, and is the last thing here that is not obviously a fit-basis question.
     //!@{
-    //! \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field sampled at my points (the \f$E_{xc}\f$ quadrature).
-    virtual double Integrate(const rvec_t& f) const=0;
     //! \brief The per-SITE integrals \f$\int w_A f\f$, one per mesh site block -- the honest way to ask an
     //! atom-centred quadrature for an atomic quantity (a spin moment), since the weights already carry the
     //! partition.  EMPTY when the mesh has no site structure (a uniform grid has no basins): ask, do not assume.
@@ -344,6 +331,11 @@ protected:
 
 public:
     // Numerical (mesh-quadrature) versions -- run over the fit basis's OWN mesh (itsMesh).
+    // The QUADRATURE OPERATIONS (FIT_SF_ABS), over the mesh this class already owns and already integrates
+    // Norm()/Overlap(f) on -- so a Gaussian auxiliary basis answers them exactly like the periodic ones.
+    size_t NumPoints() const override;
+    rvec_t Sample(const ScalarFunction<double>& f) const override;
+    double Integrate(const rvec_t& f) const override;
     const rvec_t& Norm   ()           const override; //!< 1/sqrt(<f_a|f_a>), cached
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal  (\f$1/\mathrm{Norm}_a^2\f$ -- the same numbers,
     //! un-inverted; a Gaussian fit takes the full \f$S^{-1}\f$ solve and never reads just this)

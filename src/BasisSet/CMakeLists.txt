@@ -28,7 +28,6 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   ImplicitAngular_IBS.C
   Band_DFT_IBS.C
   G_FieldEvaluator.C
-  Quadrature.C
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C
   Orbital_DHF_IBS.C

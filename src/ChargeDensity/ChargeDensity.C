@@ -306,7 +306,7 @@ public:
     //! THE DENSITY ASKS THE BASIS (2026-08-22).  \f$D\f$ is this class's private business and \f$\Phi\f$
     //! is the basis's, so exactly one of them has to travel -- and it is \f$\Phi\f$, because a table of
     //! basis-function values is an integral over the BASIS's own functions.  So the argument is the
-    //! quadrature itself: each block asks \a q for its own typed table (\c Collocation::Values) and
+    //! quadrature itself: each block asks \a q for its own typed table (\c FIT_SF_Delta::Values) and
     //! contracts it as a GEMM against its private \f$D\f$.  This is the seam that makes a real-space XC
     //! quadrature O(GEMM) per SCF iteration instead of re-evaluating Bloch sums pointwise -- and it is
     //! MIXED-aware for free, a real TRIM block asking with \c double while its complex siblings ask with
@@ -315,7 +315,7 @@ public:
     //!
     //! Default: hand \a q this density's own \c ScalarFunction face and let it sample -- correct for
     //! EVERY density (a matrix-free seed included), just without the GEMM; composite/leaf override.
-    virtual rvec_t DM_RhoAtPoints(const BasisSet::Collocation& q) const {return q.Sample(*this);}
+    virtual rvec_t DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const {return q.Sample(*this);}
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
     // below (V1.6).  They were four asserting defaults on this general face, which every concrete family

@@ -23,7 +23,6 @@ export module qchem.BasisSet.Lattice_3D.Evaluators.PW;
 export import qchem.ReciprocalLattice;   // ReciprocalLattice / UnitCell (the B cell; source of G, |k+G|)
 export import qchem.BasisSet.Internal.GMap;           // ΔG_Map: the G-space coefficient map RhoOnGrid/ForwardFFT speak
 export import qchem.BasisSet.G_FieldEvaluator;  // the abstract grid-engine seam PW_Evaluator implements
-export import qchem.BasisSet.Quadrature;        // BasisSet::Quadrature -- the universal points+weights face
 import qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator; // the shared FFT/Poisson grid engine (held, delegated to)
 import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
 import qchem.Blaze;                      // hmat_t<dcmplx> (chmat_t)
@@ -151,7 +150,6 @@ private:
 class PW_Grid_Evaluator
     : public PW_Evaluator
     , public virtual BasisSet::G_FieldEvaluator     // evaluate a fitted field (the ortho fitters' op(r))
-    , public virtual BasisSet::Quadrature           // the points+weights this fit basis is defined over
     , public virtual BasisSet::G_RasterTransform    // the {r}<->{G} FFT pair (raster-only, by construction)
     , public virtual BasisSet::G_StructureFactor    // the SAD seed's analytic rho-tilde
     , public virtual BasisSet::G_SpectralFilter     // the mixer's raster Kerker step
@@ -167,8 +165,10 @@ public:
 
     // Quadrature / G_RasterTransform / G_SpectralFilter: the points+weights and the pure {r}<->{G} FFT
     // transforms, delegated to the held k-independent grid engine.
-    //! \copydoc BasisSet::Quadrature::Mesh  (the raster: corners \f$i/N\f$, weight \f$\Omega/N_{pts}\f$)
-    const qcMesh::Mesh& Mesh() const override                   {return itsGrid->Mesh();}
+    //! The raster as points+weights (corners \f$i/N\f$, weight \f$\Omega/N_{pts}\f$).  NON-virtual and
+    //! not a capability face any more: the owning fit basis answers \c NumPoints / \c Sample /
+    //! \c Integrate from it, so no consumer needs the mesh itself (2026-08-22).
+    const qcMesh::Mesh& Mesh() const                            {return itsGrid->Mesh();}
     //! The raster's points alone -- \c Mesh().Points(), the name the collocation paths ask by (non-virtual:
     //! it is a convenience over the Quadrature face, not a capability of its own).
     const rvec3vec_t& GridPoints() const                        {return itsGrid->GridPoints();}

@@ -21,6 +21,8 @@ export namespace qchem::Fitting
 //! metric-specific DoFit + contraction live in the leaf impls below.
 template <class T, class Face, class FBS> class FitImpBase
     : public virtual Face
+    , public virtual ScalarFunction<double>   // BOTH its users evaluate their expansion: an AO fit of a
+                                              // potential or of a density is a genuine real-space field
 {
 public:
     typedef std::shared_ptr<const FBS> fbs_t;

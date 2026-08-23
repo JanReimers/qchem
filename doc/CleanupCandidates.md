@@ -557,6 +557,25 @@ MnO campaign proceeds undisturbed in qchem6.
   throw from, and consumers cross-cast to the contraction they need.  757/757, molecular and periodic.
 
 
+  **✅ INCREMENT 2 COMPLETE: δ GOES THROUGH THE FITTER, AND THREE FACES DISSOLVED.**  `Fitting::Factory`
+  now returns a `DeltaScalarFitter` for a δ basis, and `XC_SinglesQuadrature::Matrix` is *fit the sampled
+  field, then contract against this block* — the same two calls the molecular XC term makes, on either
+  representation.  The strategy no longer performs a quadrature; it composes one.  What that let go:
+
+  | removed | why it could go |
+  |---|---|
+  | `BasisSet::Quadrature` (whole face + module) | its `Mesh()` getter had three consumers, all of which wanted an OPERATION: `NumPoints` / `Sample` / `Integrate` now sit on `FIT_SF_ABS<T>`, answered by all THREE fit bases (Gaussian over its Becke mesh, PW over its raster, δ over whichever mesh it was built on). No mesh changes hands anywhere. |
+  | `BasisSet::Collocation` (whole face) | `NumPoints`/`Sample` went up to `FIT_SF_ABS`; `Values` (the Φ tables) went onto `FIT_SF_Delta`, which is the only representation that tabulates. `DM_RhoAtPoints` takes that face directly. |
+  | `FIT_SF_Delta::Integrate` | every fit basis can integrate a field sampled at its own points — it was never δ-specific. |
+  | `FunctionFitter_Scalar : ScalarFunction<double>` | a δ fit has no value BETWEEN its points (Σc_gδ_g is a distribution).  Same lesson as `IrrepBasisSet` losing `VectorFunction`: the fitters that CAN evaluate derive it themselves; the one consumer (a test) cross-casts. |
+  | `XC_PairQuadrature::Mesh()`, `MatrixT`, the field's point-identity check | all downstream of the above. |
+
+  **`FIT_SF_Delta` is down to FOUR members**, and each is now something only a δ representation can
+  answer: `Values` ×2 (the tables the density collocates against), `Quadrature(orb,v)` (the weighted
+  contraction the fitter drives), `SiteIntegrals` (the atomic partition — still the odd one out, an
+  observable rather than part of the XC contract), and `SymmetrizeSpin` (the magnetic pair projection, δ
+  being the only representation a polarized run can use).  757/757, Si two-route gate bit-unmoved.
+
   ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
   promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is
   the remaining scope of step (1): convert `PP_Local::CalculateMatrix` and `PP_NonLocal`'s

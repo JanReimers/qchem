@@ -21,7 +21,6 @@ export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContr
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_SF_ABS (the held fit basis)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
-import qchem.BasisSet.Quadrature;             // BasisSet::Quadrature -- where the fit basis says it samples
 import qchem.BasisSet.Orbital_DFT_IBS;            // the orbital assembly bridge (MakeOverlap) for the XC matrix
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
@@ -38,6 +37,7 @@ export namespace qchem::Fitting
 class OrthoNormalScalarFitter
     : public virtual FunctionFitter_Scalar
     , public virtual FitContraction<dcmplx>   // a raster fit contracts against COMPLEX Bloch blocks
+    , public virtual ScalarFunction<double>   // ...and its fit IS an evaluatable field (inverse transform)
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
@@ -50,7 +50,7 @@ public:
     virtual void DoFit(const ProjectedScalar_R& ps) override
     {
         const BasisSet::G_RasterTransform& ge=FitRaster();
-        rvec_t vals=(*ps.GetScalarFunction())(FitMesh().Points());   // batch-sample v_xc on the fit grid
+        rvec_t vals=itsFitBasis->Sample(*ps.GetScalarFunction());   // the BASIS samples: it owns the points
         itsVt =ge.ForwardFFT(vals);                               // full /Npts G grid (for the assembly)
         itsMap=ge.FieldCoeffs(itsVt);                             // fit-basis coefficients (for op(r) plotting)
     }
@@ -89,15 +89,6 @@ public:
         {return os << "OrthoNormalScalarFitter (orthonormal {G}: the projection IS the fit)" << std::endl;}
 
 private:
-    //! The fit basis's QUADRATURE -- points+weights, the universal half (the DIP seam), reached from the
-    //! neutral fit face we hold.  Guaranteed by Factory(cFIT_SF_ABS)'s construction-time contract, so
-    //! asserts (not throws) suffice.
-    const qcMesh::Mesh& FitMesh() const
-    {
-        auto* q=dynamic_cast<const BasisSet::Quadrature*>(itsFitBasis.get());
-        assert(q && "OrthoNormalScalarFitter: the {G} fit basis must carry its quadrature (BasisSet::Quadrature)");
-        return q->Mesh();
-    }
     //! The fit basis's RASTER TRANSFORMS -- the FFT half, which only a raster-backed basis can answer.
     const BasisSet::G_RasterTransform& FitRaster() const
     {

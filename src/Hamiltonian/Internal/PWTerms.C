@@ -331,6 +331,13 @@ private:
     // methods reached from const term methods through a non-const shared_ptr, which laundered the constness
     // without ever stating it.  itsFit is NOT mutable: it is construction-time and must not move.
     fit_t itsFit;                                 //!< the δ basis: points, weights, fold, σ tags -- and the ops
+    //! The δ SCALAR FITTER over that basis, from the same \c Fitting::Factory the molecular XC term uses
+    //! (R1.0 Liskov conformance, 2026-08-22).  H_xc is now "fit the field, contract against this block",
+    //! the same two calls on either representation -- so this strategy no longer performs a quadrature
+    //! itself, it composes one.
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsScalarFitter;
+    mutable rvec_t itsFittedV;                    //!< the v the fitter currently holds (refit only on change)
+    template <class U> hmat_t<U> MatrixT(const tobs_t<U>* bs, const rvec_t& v) const;
     //! \warning The scalar cache (itsRho) and the spin-resolved pair (itsRhoUp/Dn) have NO cross-
     //! invalidation: each guards only its own serial, so if one term drove \c Rho and another \c RhoPol on
     //! the SAME engine for different densities, both would report "fresh" while one held a stale raster.
@@ -401,9 +408,6 @@ public:
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
 private:
     template <class U> hmat_t<U> MatrixT(const tobs_t<U>* bs, const rvec_t& v) const;
-    //! My points+weights, from the fit basis's \c BasisSet::Quadrature face (a raster answers with its
-    //! corners i/N at weight Omega/Npts).  PRIVATE: what leaves this object is integrals and matrices.
-    const qcMesh::Mesh& Mesh() const;
     //! Ensure \c itsRho holds \f$\rho(r)\f$ on the raster for \a cd, recomputing only on a new density
     //! serial -- so the XC pair's two terms and their energies share ONE collocation per iteration.
     void Refresh(const cChargeDensity* cd) const;

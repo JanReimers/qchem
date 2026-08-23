@@ -418,7 +418,7 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     return true;
 }
 
-template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::Collocation& q) const
+template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
 {
     rvec_t ro(q.NumPoints(), 0.0);
     if (IsZero()) return ro;
@@ -649,7 +649,7 @@ template class PeriodicIrrepCD<dcmplx>;
 // DM_RhoAtPoints, i.e. an O(n^3) pstrf on EVERY call -- and XC_Quadrature::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
-template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::Collocation& q) const
+template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
 {
     if (this->IsZero()) return rvec_t(q.NumPoints(), 0.0);
     const mat_t<T>& P=q.Values(*this->itsBasisSet);

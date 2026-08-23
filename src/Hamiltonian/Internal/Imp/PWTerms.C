@@ -271,43 +271,35 @@ namespace
 // fitter consumes (the BALL route's only client).  The values are v_xc(rho(r_g)), computed by the TERM --
 // which is where the functional lives, so no qcBasisSet->qcHamiltonian library cycle appears here.
 // It is GRID-BOUND: only the ortho fitter samples it, in bulk, on exactly the points it was built for.
-class PWVxcField
+class SampledField
     : public virtual ScalarFunction<double>
     , public         Fitting::ProjectedScalar_R
 {
 public:
-    PWVxcField(const rvec_t& vals, const qcMesh::Mesh* grid) : itsVals(vals), itsGrid(grid) {}
+    //! \a npts is the fit basis's own point count -- the only thing this field needs to know about the
+    //! quadrature, now that the BASIS does the sampling (it used to hold the mesh and identity-check the
+    //! points the fitter passed in; there are no points to check when the owner of them is the sampler).
+    SampledField(const rvec_t& vals, size_t npts) : itsVals(vals), itsNPts(npts) {}
 
     // Pointwise is NOT supported: this field carries only grid values, and nothing samples it pointwise (the
     // ortho fitter uses the bulk overload).  Make the grid-bound contract explicit rather than silently wrong.
     virtual double  operator()(const rvec3_t&) const override
-        {throw std::logic_error("PWVxcField is grid-bound: sample it in bulk on the fit grid, not pointwise");}
+        {throw std::logic_error("SampledField is grid-bound: sample it in bulk on the fit grid, not pointwise");}
     virtual rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
 
-    // Bulk: the precomputed values.  The points MUST be the ones they were computed at -- assert IDENTITY
-    // (not merely size), so a future diagnostic that samples a different same-cardinality point set fails
-    // loudly instead of pairing values to the wrong points (review #2).
+    // Bulk: the precomputed values, which were computed AT the fit basis's own points -- so the only thing
+    // that can go wrong is a different point COUNT, and that is what the assert pins.
     virtual rvec_t  operator()(const rvec3vec_t& rs) const override
     {
-        assert(SampledOnGrid(rs) && "PWVxcField: must be sampled on the fit basis's own grid (identity)");
+        assert(rs.size()==itsNPts && itsVals.size()==itsNPts &&
+               "SampledField: sampled on a different point set than the values were computed on");
         return itsVals;
     }
 
     virtual const ScalarFunction<double>* GetScalarFunction() const override {return this;}
 private:
-    bool SampledOnGrid(const rvec3vec_t& rs) const   // debug-only identity check (the points are cached)
-    {
-        const rvec3vec_t& g=itsGrid->Points();
-        if (rs.size()!=g.size()) return false;
-        for (size_t q=0;q<rs.size();q++)
-        {
-            double dx=rs[q].x-g[q].x, dy=rs[q].y-g[q].y, dz=rs[q].z-g[q].z;
-            if (dx*dx+dy*dy+dz*dz > 1e-24) return false;
-        }
-        return true;
-    }
-    const rvec_t&        itsVals;   // v_xc at the quadrature points (owned by the caller; field is transient)
-    const qcMesh::Mesh*  itsGrid;   // those points, for the identity check
+    const rvec_t& itsVals;   // precomputed v_xc at the fit basis's points (owned by the caller; transient)
+    size_t        itsNPts;
 };
 } // anonymous
 
@@ -324,15 +316,6 @@ XC_PairQuadrature::XC_PairQuadrature(fbs_t fb)
 }
 XC_PairQuadrature::~XC_PairQuadrature() = default;   // itsScalarFitter's abstract type is complete here
 
-// My points+weights -- PRIVATE.  A raster answers with its corners i/N at weight Omega/Npts; what leaves
-// this object is Integrate() and Matrix(), the same two questions the singles strategy answers, which is
-// what lets ONE term run on either.
-const qcMesh::Mesh& XC_PairQuadrature::Mesh() const
-{
-    auto* q=dynamic_cast<const BasisSet::Quadrature*>(itsFitBasis.get());
-    assert(q && "XC_PairQuadrature: the fit basis must carry its quadrature (BasisSet::Quadrature)");
-    return q->Mesh();
-}
 
 // rho(r) on the raster for cd -- recomputed only on a new density serial, so the XC pair's two terms and
 // their two energies share ONE collocation per iteration (it used to be one per TERM: the same raw
@@ -425,8 +408,9 @@ void XC_PairQuadrature::Refresh(const cChargeDensity* cd) const
     }
 }
 
-double XC_PairQuadrature::Integrate(const rvec_t& f) const {return qcMesh::Integrate(Mesh(), f);}
-size_t XC_PairQuadrature::NumPoints() const {return Mesh().size();}
+// Both go straight to the fit basis: it owns the points and the weights and answers with numbers.
+double XC_PairQuadrature::Integrate(const rvec_t& f) const {return itsFitBasis->Integrate(f);}
+size_t XC_PairQuadrature::NumPoints() const {return itsFitBasis->NumPoints();}
 
 const rvec_t& XC_PairQuadrature::Rho(const cChargeDensity* cd) const {Refresh(cd); return itsRho;}
 
@@ -457,7 +441,7 @@ template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, con
     }
     if constexpr (std::is_same_v<U,dcmplx>)
     {
-        itsScalarFitter->DoFit(PWVxcField(v, &Mesh()));   // our quadrature IS the fitter's: one owner, the fit basis
+        itsScalarFitter->DoFit(SampledField(v, itsFitBasis->NumPoints()));
         // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks; the
         // real-block branch above never reaches here (it takes the raw adjoint or throws).
         return dynamic_cast<const Fitting::FitContraction<dcmplx>&>(*itsScalarFitter).Overlap(bs);
@@ -495,6 +479,11 @@ MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb)
 XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit)
     : itsFit(std::move(fit))
 {
+    // The fitter comes from the SAME Factory the molecular XC term uses; it inspects the basis and hands
+    // back the delta fitter (R1.0 conformance).  A named lvalue because Factory takes its argument by
+    // non-const reference, as its siblings do.
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> fb=itsFit;
+    itsScalarFitter=Fitting::Factory(fb);
     assert(itsFit && "XC_SinglesQuadrature: the delta fit basis IS the quadrature -- it cannot be null");
     // The bundle's own invariants (fold partitions the mesh, sigmas need a fold, flags cover it) are
     // checked where the bundle becomes an object -- in the basis's ctor -- and the star-average it will
@@ -767,8 +756,23 @@ rvec_t XC_SinglesQuadrature::SiteMoments(const cChargeDensity* cd) const
 // <i|v|j>: ASK THE BASIS.  It owns the points, the weights and the Phi table, so the whole quadrature
 // -- Phi^dag diag(w v) Phi -- is its operation; this strategy only decides WHICH v to hand it.  That is
 // what closed the last weight/coordinate escape (doc/CleanupCandidates.md R1.0 increment 2).
-chmat_t XC_SinglesQuadrature::Matrix(const cobs_t* bs, const rvec_t& v) const {return itsFit->Quadrature(*bs, v);}
-rsmat_t XC_SinglesQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {return itsFit->Quadrature(*bs, v);}
+// <i|v|j> THROUGH THE FITTER, exactly as the molecular XC term does it (the Liskov conformance,
+// doc/CleanupCandidates.md R1.0): fit the sampled field, then contract against this block.  The fit is
+// re-done only when v CHANGES -- the Fock build calls this once per block with the same v, and DoFit
+// on a delta basis is a copy, but re-copying per block would still be per-block work for nothing.
+template <class U> hmat_t<U> XC_SinglesQuadrature::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
+{
+    bool same = itsFittedV.size()==v.size();
+    for (size_t g=0; same && g<v.size(); g++) same = (itsFittedV[g]==v[g]);
+    if (!same)
+    {
+        itsScalarFitter->DoFit(SampledField(v, itsFit->NumPoints()));
+        itsFittedV=v;
+    }
+    return dynamic_cast<const Fitting::FitContraction<U>&>(*itsScalarFitter).Overlap(bs);
+}
+chmat_t XC_SinglesQuadrature::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
+rsmat_t XC_SinglesQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
 
 // ---- Vxc_Quadrature ------------------------------------------------------------------------------------------
 

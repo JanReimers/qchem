@@ -6,9 +6,9 @@ module qchem.Fitting.FunctionFitter;
 import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp (Scalar) + IntegralConstrainedFF (Density)
 import qchem.Fitting.Internal.OrthoFunctionFitter;       // OrthoFunctionFitter (the orthonormal G-space density fit)
 import qchem.Fitting.Internal.OrthoNormalFunctionFitter; // OrthoNormalScalarFitter (the orthoNORMAL potential fit)
+import qchem.Fitting.Internal.DeltaFunctionFitter;       // DeltaScalarFitter (the delta/identity potential fit)
 import qchem.BasisSet.Fit_IBS;                     // FIT_CD_NonOrtho (the Coulomb metric-solve face)
 import qchem.BasisSet.G_FieldEvaluator;            // G_FieldEvaluator / G_RasterTransform (the raster half of the contract)
-import qchem.BasisSet.Quadrature;                  // BasisSet::Quadrature (the points+weights half)
 import qchem.Blaze;                                // rsmat_t * rvec_t (the J^-1 solve)
 
 namespace qchem::Fitting
@@ -50,9 +50,8 @@ Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
     //   isOrtho()         -- the METRIC axis: DIAGONAL, so no linear solve.  Genuinely general; an
     //                        orthogonal wavelet basis, or a delta basis (metric diag(w_g)), satisfies it
     //                        too -- the projection IS the fit up to that known diagonal.
-    //   Quadrature        -- the POINTS+WEIGHTS axis: where the fit is sampled and E_xc integrated.  This
-    //                        one IS general -- any point set answers it (that is the whole point of the
-    //                        2026-08-22 split), and a fit basis without it is not defined at all.
+    //   (the QUADRATURE axis needs no check any more: NumPoints/Sample/Integrate are on FIT_SF_ABS
+    //    itself, because every scalar fit basis has points -- so it is a compile-time guarantee.)
     //   G_RasterTransform -- the TRANSFORM axis: the FFT pair the projection is batched through.  NOT
     //                        general -- that face is reciprocal-space BY INTERFACE (ΔG_Map, ForwardFFT,
     //                        GridCoeff keyed by an integer ivec3_t reciprocal-index difference), so only a
@@ -63,10 +62,9 @@ Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
     // The grid check used to live in OrthoScalarFitter::FitGrid, i.e. at FIRST GRID USE: an ortho-but-not-
     // G-space fit basis constructed happily and tripped later, somewhere else.  Two-phase contract, same
     // smell as R2.10's SetMesh -- so it is established once, where the object is made.
-    assert(bs->isOrtho() && "Fitting::Factory(cFIT_SF_ABS): a plane-wave potential-fit basis must be orthogonal");
-    assert(dynamic_cast<const BasisSet::Quadrature*>(bs.get())
-           && "Fitting::Factory(cFIT_SF_ABS): the fit basis must CARRY ITS QUADRATURE (BasisSet::Quadrature) "
-              "-- a fit basis is a family of weight vectors over shared points, so it is not defined without them");
+    assert(bs->isOrtho() && "Fitting::Factory(cFIT_SF_ABS): a complex potential-fit basis must be orthogonal");
+    if (auto d=std::dynamic_pointer_cast<const BasisSet::cFIT_SF_Delta>(bs))
+        return std::make_unique<DeltaScalarFitter>(d);   // delta: no raster, metric diag(w_g)
     assert(dynamic_cast<const BasisSet::G_RasterTransform*>(bs.get())
            && "Fitting::Factory(cFIT_SF_ABS): the fit basis must ALSO provide the G_RasterTransform FFT "
               "pair -- this fitter batch-projects by forward FFT, which only a raster can do");

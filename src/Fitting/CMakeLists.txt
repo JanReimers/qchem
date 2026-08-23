@@ -7,6 +7,7 @@ target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/FunctionFitterImp.C
     Internal/OrthoFunctionFitter.C
     Internal/OrthoNormalFunctionFitter.C
+    Internal/DeltaFunctionFitter.C
     Types.C
 )
 set_property(TARGET qcFitting PROPERTY CXX_STANDARD 20)

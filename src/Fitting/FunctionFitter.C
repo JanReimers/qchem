@@ -131,8 +131,14 @@ public:
 //! coefficients over real functions; the ortho (plane-wave) fit inverse-transforms its Hermitian G-space
 //! coefficients -- \f$v_{xc,fit}(r)=\mathrm{Re}\sum_G c_G e^{iG\cdot r}\f$ is real either way (this is what the
 //! GUI plots, and the seed of the fit-residual diagnostic \f$v_{xc}-v_{xc,fit}\f$).
+//! \note It does NOT promise an evaluatable fitted FIELD.  \c ScalarFunction<double> used to be a base
+//! here, so every scalar fitter advertised \f$f_{fit}(r)\f$ at an arbitrary \a r -- and a \f$\delta\f$
+//! fit has no such value: \f$\sum_g c_g\delta_g(r)\f$ is a distribution, defined at the points and
+//! nowhere between them.  Same lesson as \c IrrepBasisSet losing \c VectorFunction (R1.0): the fitters
+//! that CAN evaluate -- the AO one over its Gaussians, the plane-wave one by inverse transform -- derive
+//! \c ScalarFunction themselves, and a consumer that wants the field (the GUI, the fit-residual
+//! diagnostic) cross-casts for it.
 class FunctionFitter_Scalar
-    : public virtual ScalarFunction<double>   // the fitted field f(r) is real + evaluatable (AO eval / PW inverse-transform)
 {
 public:
     virtual ~FunctionFitter_Scalar() = default;

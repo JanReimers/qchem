@@ -15,7 +15,7 @@
 // what leaves this class is an integral, a per-site integral, a sampled field, or a symmetrized field --
 // operations over value arrays in its own point ORDER.  No consumer knows whether these points are an
 // atom-centred Becke build or a uniform cell grid, which is exactly the fit/grid separation the design
-// item is about.  (The one survivor is Quadrature::Mesh(); see the \todo on FIT_SF_Delta.)
+// item is about.  Since 2026-08-22 NOTHING leaves: the mesh getter is gone with the Quadrature face.
 module;
 #include <cassert>
 #include <map>
@@ -67,11 +67,8 @@ public:
                                 itsQuad.sigmas.empty() ? std::string() : std::string("magnetic (Shubnikov)"));
     }
 
-    //! \copydoc BasisSet::Quadrature::Mesh  (the one remaining getter -- see the \todo on \c FIT_SF_Delta)
-    const qcMesh::Mesh& Mesh() const override {return *itsQuad.mesh;}
-
-    // ---- Collocation: what the DENSITY asks of me (tables + sampling); bodies in Imp/ ----------------
-    size_t NumPoints() const override {return itsQuad.mesh->size();}
+    // ---- the tables the DENSITY asks for + the quadrature ops; bodies in Imp/ ------------------------
+    size_t NumPoints() const override {return itsQuad.mesh->size();}   // FIT_SF_ABS + Collocation
     const mat_t<double>& Values(const Orbital_1E_IBS<double>& orb) const override;
     const mat_t<dcmplx>& Values(const Orbital_1E_IBS<dcmplx>& orb) const override;
 

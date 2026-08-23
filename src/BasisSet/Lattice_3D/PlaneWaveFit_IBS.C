@@ -57,6 +57,15 @@ public:
         , itsDirectOps(std::move(directOps))
     { AnnounceGrid(role); }
 
+    // The QUADRATURE OPERATIONS (FIT_SF_ABS): my raster, answered as questions rather than handed over.
+    // The mesh stays inside -- itsGrid->Mesh() is a private detail of the held grid engine.
+    size_t NumPoints() const override {return PW_Grid_Evaluator::Mesh().size();}
+    rvec_t Sample(const ScalarFunction<double>& f) const override
+        {return f(PW_Grid_Evaluator::Mesh().Points());}
+    //! \f$(\sum_g f_g)\,\Omega/N_{pts}\f$ -- the raster's own uniform rule, in its own summation order
+    //! (algebraically \f$\sum_g w_g f_g\f$; kept verbatim so the historical path stays bit-identical).
+    double Integrate(const rvec_t& f) const override {return PW_Grid_Evaluator::Integral(f);}
+
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal
     //! ALL ONES: plane waves over the cell are orthoNORMAL, which is the special case
     //! \c OrthoNormalFunctionFitter is built on -- it asserts this contract and then never calls this,
