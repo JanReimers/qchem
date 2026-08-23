@@ -1198,7 +1198,52 @@ Re-verified after all three: 756/756, and the two-route Si gate still prints −
 
 ---
 
-## ★★★ NEXT INCREMENT, SPECCED FOR A FRESH SESSION — ONE FIT-BASIS INTERFACE (user, 2026-08-22)
+## ★★★ ONE FIT-BASIS INTERFACE (user, 2026-08-22) — ✅ DONE 2026-08-23 (the spec follows, annotated)
+
+#### ✅ WHAT LANDED.  758/758 (count UP by one gate, not down); Si two-route gate BIT-UNMOVED at 11/11.
+
+`FIT_SF_ABS<T>` lost `NumPoints` / `Sample(f)` / `Integrate(values)` and gained the two integrals every
+fit basis can answer **per FUNCTION** — `Overlap(f)` = ⟨f_a|f⟩ (moved UP from `FIT_SF_NonOrtho`) and
+`Integrals()` = ⟨f_a|1⟩ (on the Gaussian side, literally `Charge()`).  The count is `GetNumFunctions()`,
+which the removed `NumPoints` was shadowing.  Each fitter applies its own metric to that one projection:
+`BasisSet::OrthogonalFit(b,f)` = ⟨f_a|f⟩/⟨f_a|f_a⟩ is the δ fitter's whole `DoFit` **and** the default
+`DM_RhoAtPoints`, which is where `OverlapDiagonal()` finally got a production consumer.  Full record,
+including both risks measured rather than assumed: `doc/CleanupCandidates.md` R1.0 increment 3.
+
+Three things the spec below did not anticipate, all recorded there in full:
+- **⚠ the plane-wave fitter must NOT fit through `Overlap`, and not for bitwise reasons** — the XC
+  assembly looks ṽ up at orbital index differences that run to twice the orbital ball, outside the fit
+  ball, where the honest projection is ZERO and the raster's `GridCoeff` aliases.  Routing it through the
+  ball would delete most of v_xc.  So `G_RasterTransform` grew `RasterSize()`/`Sample(f)`/`Integral(v)` —
+  point vocabulary belongs on the face that is honestly about voxels.  (Not a name clash: the PW fit basis
+  carries no self-overlap ⟨i|j⟩ at all — that lives on the orbital `EPW_Orbital1E_IBS` tier, which an
+  auxiliary fit basis does not ride.)
+- the ⚠ BITWISE pin was real (δ's fit is now `fl(w·f)/w`, not `f`) but ~1e-13 Ha against a 1e-10 gate.
+- **`Values` → the 3-centre overlap (row 4) DID NOT LAND, deliberately**: it needs an `Overlap3C(δ basis)`
+  overload on every orbital lineage and moves the Φ/D contraction across the boundary increment 1 drew.
+  Own increment.  `SiteIntegrals` likewise stays — there is still no partition owner to move it to.
+
+#### ★ NEXT INCREMENT, SPECCED NOT BUILT (user, 2026-08-23) — SEPARATE THE METRIC AXIS INTO FACES
+
+`OverlapDiagonal()` sits on the metric-NEUTRAL fit face, so a basis that has no diagonal metric must invent
+an answer — and `Fit_IBS`'s invented one is in a different normalisation from every other member of its own
+face.  Move it to a new `FIT_SF_Ortho<T>` (mirror `FIT_CD_*`; **both sides in the same increment**, user)
+and `Fit_IBS` simply loses it: the landmine is deleted, not corrected.  No orthonormal marker face —
+orthonormal is orthogonal with a unit diagonal, and a memberless face is the null-object pattern already
+rejected twice.
+
+⚠ **ACCEPTANCE CRITERION, and it is the point of the item (user):** removing `isOrtho()` must NOT be
+replaced by `if (dynamic_cast<FIT_SF_NonOrtho*>(fbs)) … else …` — a type switch wearing a cast is worse
+than the bool.  Measured and reassuring: **all eight `isOrtho()` call sites today are `assert`s, zero live
+branches**, so there is nothing to replace; narrowing a PARAMETER type (`OrthogonalFit(const
+FIT_SF_Ortho<T>&)`) is the sanctioned substitute.  The one real branch in the tree — `Factory`'s δ-vs-PW
+`dynamic_pointer_cast` — is a REPRESENTATION branch at a creation boundary, not a metric one, and must be
+left alone rather than laundered into a metric test.  Full spec, including the open question that would
+delete even that branch: `doc/CleanupCandidates.md` R1.0.
+
+---
+
+### The spec as written (user, 2026-08-22)
 
 **THE GOAL, in one sentence.**  A δ fit basis is a family of FUNCTIONS — n_pts genuine δ functions with a
 diagonal metric — so it must present EXACTLY the interface a Gaussian auxiliary fit basis presents, and

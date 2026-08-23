@@ -1,10 +1,12 @@
 // File: BasisSet/Fit_IBS.C  Interfaces for a fitting (auxiliary) Basis Set.
 module;
+#include <cassert>  // OrthogonalFit's metric/size guards
 #include <memory>
 #include <string>
 #include <vector>   // FitQuadrature::sigmas/flipFixed (Shubnikov S3)
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
+import qchem.Blaze;                  // blazem::real -- OrthogonalFit is a TEMPLATE, so it needs it HERE
 export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the FitQuadrature orbit partition (§6a W1)
@@ -136,36 +138,45 @@ public:
     //! selects the no-solve scalar fitter.  Every fit basis must declare its metric.
     virtual bool isOrtho() const=0;
 
-    //! \name The QUADRATURE I INTEGRATE ON -- as operations, never as a mesh
-    //! Every scalar fit basis in this project computes its own integrals NUMERICALLY, on a quadrature it
-    //! owns and does not hand out: \c Fit_IBS's \c Norm()/\c Overlap(f) are mesh quadratures over its
-    //! Becke mesh, a plane-wave basis samples and transforms on its raster, a \f$\delta\f$ basis IS its
-    //! mesh.  These three say so, and let a consumer sample and integrate WITHOUT coordinates -- which is
-    //! what retired \c BasisSet::Quadrature::Mesh(), the last getter on this side (2026-08-22).
+    //! \name THE TWO INTEGRALS EVERY FIT BASIS ANSWERS -- one entry per FUNCTION, always
     //!
-    //! ⚠ NOT "a fit basis is a family of weight vectors over shared points, so it always HAS points" --
-    //! that was in this comment and it is wrong (user, 2026-08-22).  The weight-vector picture is the
-    //! \f$\delta\f$ case, where the functions ARE the points; it does not generalize.  A Gaussian
-    //! auxiliary basis is a family of FUNCTIONS, and the mesh it carries is the DEVICE it evaluates its
-    //! own integrals with, not what it is.  So: constitutive for \f$\delta\f$, a choice for the others.
-    //! A fit basis with ANALYTIC integrals would have no points at all and could not answer these three
-    //! honestly -- that is the counterexample that would push them onto a narrower face.
+    //! A \f$\delta\f$ fit basis is a family of FUNCTIONS (user ruling, 2026-08-22), so it presents
+    //! EXACTLY the interface a Gaussian auxiliary basis presents and every "point" word comes off this
+    //! face.  What stood here until then -- \c NumPoints() / \c Sample(f) / \c Integrate(values) --
+    //! described a QUADRATURE, and it looked right only because for a \f$\delta\f$ basis
+    //! \c n_functions == \c n_points, so the wrong accessor returned the right number.  The count is
+    //! \c IrrepBasisSet<T>::GetNumFunctions(); the two integrals are these.
+    //!
+    //! WHERE the numbers come from stays private and differs per representation -- \c Fit_IBS
+    //! quadratures on the \c qcMesh::Mesh its Structure handed it (ANY mesh: the Becke build is what
+    //! \c CreateIntegrationMesh happens to produce today, not something this code knows), a plane-wave
+    //! basis forward-transforms on its raster, a \f$\delta\f$ basis reads its own weights -- and none of
+    //! them hands out a point.
     //!@{
-    //! How many points I integrate on -- the length of every value array below, in MY point order.
-    virtual size_t NumPoints() const=0;
-    //! \brief EVALUATE a field at my quadrature points: \c NumPoints() values, in my own point order.
+    //! \brief PROJECT a field onto my functions: \f$\langle f_a|f\rangle\f$, one entry per FUNCTION.
     //!
-    //! ⚠ NOT an integral, and NOT the projection.  \c FIT_SF_NonOrtho::Overlap(f) is
-    //! \f$\langle f_a|f\rangle\f$ -- one entry per FUNCTION, the fit RHS; this is \f$f(r_g)\f$ -- one
-    //! entry per POINT.  The two have the same length only for a \f$\delta\f$ basis, where the functions
-    //! ARE the points, and even there they differ by the weight: \f$\langle\delta_g|f\rangle=w_g f(r_g)\f$.
-    //! What it is FOR: the caller hands a field that can evaluate itself anywhere and gets values back, so
-    //! a fitter can project and a matrix-free density can collocate without any coordinate changing hands.
-    virtual rvec_t Sample(const ScalarFunction<double>& f) const=0;
-    //! \f$\int f\,d^3r=\sum_g w_g f_g\f$ for a field ALREADY SAMPLED at my points (\c NumPoints() of
-    //! them, my order) -- the \f$E_{xc}\f$ quadrature.  Takes values, not a field: the caller has usually
-    //! just put a pointwise-nonlinear functional through \c Sample's output.
-    virtual double Integrate(const rvec_t& f) const=0;
+    //! The fit RHS, and the ONE primitive that unifies the three representations -- Gaussian: a mesh
+    //! quadrature over whatever mesh it was built with; \f$\delta\f$: \f$w_g f(r_g)\f$; plane wave: the forward
+    //! transform \f$\sqrt\Omega\,\tilde f(G_a)\f$.  Each FITTER then applies its own metric to this one
+    //! projection (\f$S^{-1}\f$ solve, divide by \c OverlapDiagonal(), or nothing).
+    //!
+    //! \a f is a field that can evaluate itself ANYWHERE; the basis decides where to ask it.  That is
+    //! what keeps the one irreducible point-ness of a pointwise-nonlinear \f$v_{xc}\f$ INSIDE: the term
+    //! composes the field, the basis samples it in here, and no coordinate appears in any signature.
+    //!
+    //! ⚠ Was \c FIT_SF_NonOrtho::Overlap(Sf) -- moved UP, because the projection is not a property of
+    //! the metric.  Un-hide the metric \c Integrals_Overlap::Overlap() past it with a \c using where a
+    //! class carries both (\c FIT_SF_NonOrtho and \c Fit_IBS do).
+    virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0;
+    //! \brief MY FUNCTIONS' OWN INTEGRALS: \f$\langle f_a|1\rangle=\int f_a\,d^3r\f$, one per FUNCTION.
+    //!
+    //! The SF sibling of \c FIT_CD_NonOrtho::Charge() (identical quantity on a basis that carries both;
+    //! \c Fit_IBS simply forwards).  What it is FOR: \f$\int\sum_a c_a f_a = c\cdot\langle f|1\rangle\f$,
+    //! i.e. the integral of anything expanded over me -- which is how \f$E_{xc}\f$ is accumulated once the
+    //! functional's values are fit coefficients.  For \f$\delta\f$ these ARE the quadrature weights
+    //! (\f$\int\delta_g=w_g\f$), so \f$c\cdot w=\sum_g w_g f_g\f$ -- the old \c Integrate(values), now
+    //! derived rather than declared.
+    virtual vec_t<T> Integrals() const=0;
     //!@}
 
     //! \brief The DIAGONAL of my overlap metric, \f$\langle f_a|f_a\rangle\f$ -- the denominator of a
@@ -181,9 +192,10 @@ public:
     //! (user, 2026-08-22).
     virtual vec_t<T> OverlapDiagonal() const=0;
 
-    //! \brief STAR-AVERAGE a field SAMPLED AT MY POINTS, in place, over the crystal point group (the IBZ
-    //! density symmetrization).  REAL-space, so it PRESERVES ρ≥0 -- XC stays on the non-negative ρ_DM
-    //! samples, never routed onto ρ̃ (doc/GPWPlan1.md item 3).
+    //! \brief STAR-AVERAGE an EXPANSION OVER ME, in place, over the crystal point group (the IBZ density
+    //! symmetrization): the argument is a coefficient vector, one entry per FUNCTION, and comes back
+    //! projected onto the group-invariant subspace.  REAL-space, so it PRESERVES ρ≥0 -- XC stays on the
+    //! non-negative ρ_DM samples, never routed onto ρ̃ (doc/GPWPlan1.md item 3).
     //!
     //! ONE operation, two mechanisms, because the basis owns its own geometry: a raster-backed basis
     //! permutes voxels (g→W·g) and applies the glide τ by the FFT shift theorem; a δ basis applies its
@@ -191,6 +203,10 @@ public:
     //! symmetry structure -- so a caller never asks whether symmetry was imposed, it just symmetrizes.
     //! (Was \c SymmetrizeRaster: named for the PW mechanism, which is why the δ route grew a duplicate
     //! declaration of its own before this was noticed -- 2026-08-22.)
+    //! \note The two implementations permute FUNCTIONS the group maps onto each other, and for both of
+    //! them that IS a permutation of points -- because both are representations whose functions are keyed
+    //! by position.  A Gaussian auxiliary basis would symmetrize by permuting shells instead; it takes the
+    //! default no-op because a molecular run imposes nothing.
     virtual void Symmetrize(rvec_t&) const {}
 };
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
@@ -259,14 +275,15 @@ public:
     virtual hmat_t<double> Quadrature(const Orbital_1E_IBS<double>& orb, const rvec_t& v) const=0;
     virtual hmat_t<dcmplx> Quadrature(const Orbital_1E_IBS<dcmplx>& orb, const rvec_t& v) const=0;
 
-    //! TWO left.  Everything a δ basis shares with the other representations has moved UP to
-    //! \c FIT_SF_ABS (\c NumPoints / \c Sample / \c Integrate / \c Symmetrize / \c OverlapDiagonal) or
-    //! onto \c Collocation (the \f$\Phi\f$ tables the density consumes); what remains is what only a
-    //! δ representation can answer: the ATOMIC PARTITION its mesh may carry, and the MAGNETIC pair
+    //! TWO left.  Everything a δ basis shares with the other representations is on \c FIT_SF_ABS
+    //! (\c Overlap / \c Integrals / \c OverlapDiagonal / \c Symmetrize) and is answered there in the SAME
+    //! per-FUNCTION vocabulary a Gaussian auxiliary basis uses; what remains is what only a δ
+    //! representation can answer: the ATOMIC PARTITION its mesh may carry, and the MAGNETIC pair
     //! projection -- δ being the only representation a polarized run can use at all, since a plane-wave
     //! fit has no per-channel collocation.
     //! \todo \c SiteIntegrals is an observable, not part of the XC contract; it belongs to whatever owns
-    //! the partition, and is the last thing here that is not obviously a fit-basis question.
+    //! the partition, and is the last thing here that is not obviously a fit-basis question.  It has no
+    //! home yet: the partition lives in the mesh, and the mesh is this basis's private business.
     //!@{
     //! \brief The per-SITE integrals \f$\int w_A f\f$, one per mesh site block -- the honest way to ask an
     //! atom-centred quadrature for an atomic quantity (a spin moment), since the weights already carry the
@@ -284,6 +301,28 @@ public:
 using rFIT_SF_Delta = FIT_SF_Delta<double>;  //!< δ basis over a real (molecular) fit path
 using cFIT_SF_Delta = FIT_SF_Delta<dcmplx>;  //!< δ basis over a periodic (Bloch) fit path
 
+//! \brief THE ORTHOGONAL FIT: \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$ -- the projection
+//! divided by the metric diagonal, which is the whole of a fit when \c isOrtho() is true.
+//!
+//! One definition, because two layers need the same three lines and neither owns the other: the
+//! \c DeltaScalarFitter (this IS its \c DoFit) and a matrix-free density asked to express itself over a
+//! \f$\delta\f$ basis (\c tChargeDensity::DM_RhoAtPoints, which lives above qcBasisSet).
+//!
+//! REAL by return type, and honestly so: \a f is a real field and the representations that reach here have
+//! a real metric diagonal (\f$\delta\f$: \f$w_g\f$) and hence a real projection.  Divided COMPONENT-WISE on
+//! the real parts rather than as a complex quotient: \c std::complex division of \f$(x,0)/(y,0)\f$ goes
+//! through \f$(xy)/(y^2)\f$, which is not \f$x/y\f$ to the last bit -- and for \f$\delta\f$ the whole point
+//! is that \f$w_g f_g/w_g\f$ cancels.
+template <class T> inline rvec_t OrthogonalFit(const FIT_SF_ABS<T>& b, const ScalarFunction<double>& f)
+{
+    assert(b.isOrtho() && "OrthogonalFit: the fit is projection/diagonal only for an ORTHOGONAL basis");
+    const vec_t<T> p=b.Overlap(f), d=b.OverlapDiagonal();
+    assert(p.size()==d.size() && "OrthogonalFit: one projection and one metric entry per fit function");
+    rvec_t c(p.size());
+    for (size_t a=0; a<p.size(); a++) c[a]=blazem::real(p[a])/blazem::real(d[a]);
+    return c;
+}
+
 //! \brief A NON-orthonormal (Gaussian/Slater/BSpline) potential-fit basis: adds the overlap metric-solve
 //! inputs the least-squares potential fit needs -- the projection RHS \c Overlap(Sf) \f$=\langle f_a|f\rangle\f$
 //! (the field \a f is always the real \f$v_{xc}(\vec r)\f$), the normalisation, the overlap matrix
@@ -299,9 +338,9 @@ class FIT_SF_NonOrtho
 public:
     using Integrals_Overlap<double>::Overlap;       // the metric <f_a|f_b> (un-hidden past Overlap(Sf))
     using Integrals_Overlap<double>::MakeOverlap;
+    using rFIT_SF_ABS::Overlap;                     // ...and the projection <f_a|f>, now inherited
     typedef ScalarFunction<double> Sf;
     virtual const  rvec_t& Norm   ()            const=0; //!< 1/sqrt(<f_a|f_a>), cached
-    virtual        rvec_t  Overlap(const Sf& f) const=0; //!< projection <f_a|f> (the fit RHS; NOT cached)
     virtual const rsmat_t& InvOverlap()         const=0; //!< inverse of the overlap metric, cached
 };
 
@@ -347,16 +386,18 @@ protected:
 
 public:
     // Numerical (mesh-quadrature) versions -- run over the fit basis's OWN mesh (itsMesh).
-    // The QUADRATURE OPERATIONS (FIT_SF_ABS), over the mesh this class already owns and already integrates
-    // Norm()/Overlap(f) on -- so a Gaussian auxiliary basis answers them exactly like the periodic ones.
-    size_t NumPoints() const override;
-    rvec_t Sample(const ScalarFunction<double>& f) const override;
-    double Integrate(const rvec_t& f) const override;
     const rvec_t& Norm   ()           const override; //!< 1/sqrt(<f_a|f_a>), cached
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal  (\f$1/\mathrm{Norm}_a^2\f$ -- the same numbers,
     //! un-inverted; a Gaussian fit takes the full \f$S^{-1}\f$ solve and never reads just this)
     rvec_t OverlapDiagonal() const override;
+    //! \copydoc BasisSet::FIT_SF_ABS::Overlap  (a mesh quadrature over \c itsMesh, in the NORMALISED
+    //! convention -- \f$\langle\hat f_a|f\rangle\f$ with \f$\hat f_a=f_a\,\mathrm{Norm}_a\f$, which is what
+    //! \c InvOverlap()'s metric and \c Charge() are also in)
     rvec_t        Overlap(const Sf& f) const override; //!< projection <f_a|f> (Vxc fit RHS; NOT cached)
+    //! \copydoc BasisSet::FIT_SF_ABS::Integrals
+    //! IDENTICALLY \c Charge(): \f$\langle f_a|1\rangle\f$ is one quantity, and this class implements both
+    //! fit faces, so the SF sibling forwards to the CD one rather than recomputing it on the mesh.
+    rvec_t        Integrals() const override;
     //! \copydoc BasisSet::FieldEvaluator::EvalField  (\f$\sum_a c_a f_a(r)\f$ over this basis's functions)
     double  EvalField        (const rvec_t& c, const rvec3_t& r) const override;
     rvec3_t EvalFieldGradient(const rvec_t& c, const rvec3_t& r) const override;

@@ -408,9 +408,20 @@ void XC_PairQuadrature::Refresh(const cChargeDensity* cd) const
     }
 }
 
-// Both go straight to the fit basis: it owns the points and the weights and answers with numbers.
-double XC_PairQuadrature::Integrate(const rvec_t& f) const {return itsFitBasis->Integrate(f);}
-size_t XC_PairQuadrature::NumPoints() const {return itsFitBasis->NumPoints();}
+// Both go to the fit basis's RASTER face.  Not to the fit face: these two questions are about VOXELS (the
+// array this strategy passes around is one value per voxel), and a plane-wave fit basis's own count is its
+// {G} ball, which is a smaller and different number -- the exact confusion the 2026-08-23 "one fit-basis
+// interface" pass removed by taking NumPoints/Integrate off FIT_SF_ABS.  Integral stays the raster's own
+// (sum f)*Omega/N summation order, which the periodic energies are pinned to at 10 digits.
+const BasisSet::G_RasterTransform& XC_PairQuadrature::Raster() const
+{
+    auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
+    assert(ge && "XC_PairQuadrature: the pair route's fit basis is raster-backed by construction "
+                 "(MakeXCQuadrature selects this strategy on exactly that capability)");
+    return *ge;
+}
+double XC_PairQuadrature::Integrate(const rvec_t& f) const {return Raster().Integral(f);}
+size_t XC_PairQuadrature::NumPoints() const {return Raster().RasterSize();}
 
 const rvec_t& XC_PairQuadrature::Rho(const cChargeDensity* cd) const {Refresh(cd); return itsRho;}
 
@@ -441,7 +452,7 @@ template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, con
     }
     if constexpr (std::is_same_v<U,dcmplx>)
     {
-        itsScalarFitter->DoFit(SampledField(v, itsFitBasis->NumPoints()));
+        itsScalarFitter->DoFit(SampledField(v, NumPoints()));
         // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks; the
         // real-block branch above never reaches here (it takes the raw adjoint or throws).
         return dynamic_cast<const Fitting::FitContraction<dcmplx>&>(*itsScalarFitter).Overlap(bs);
@@ -490,10 +501,31 @@ XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit)
     // apply announces itself there too (providers self-report).  Nothing left to validate here.
 }
 
-// The quadrature questions go THROUGH the basis: it owns points, weights and the site partition, and
-// answers integrals rather than handing them over.
-double XC_SinglesQuadrature::Integrate(const rvec_t& f) const {return itsFit->Integrate(f);}
-size_t XC_SinglesQuadrature::NumPoints() const {return itsFit->NumPoints();}
+// The quadrature questions go THROUGH the basis, and since 2026-08-23 in its own FUNCTION vocabulary:
+// f is an expansion over the delta basis (c_g = f(r_g), which is what makes a pointwise functional
+// applicable to it at all), so its integral is the coefficients dotted with the functions' own integrals,
+// Integral(sum_g c_g delta_g) = sum_g c_g <delta_g|1> = sum_g c_g w_g.  Algebraically the old
+// Integrate(values) and, written as this loop, the SAME summation order as qcMesh::Integrate was -- which
+// is what keeps the pinned energies bit-unmoved.
+const rvec_t& XC_SinglesQuadrature::FunctionIntegrals() const
+{
+    if (itsIntegrals.size()==0)
+    {
+        const vec_t<dcmplx> I=itsFit->Integrals();
+        itsIntegrals.resize(I.size());
+        for (size_t a=0; a<I.size(); a++) itsIntegrals[a]=std::real(I[a]);
+    }
+    return itsIntegrals;
+}
+double XC_SinglesQuadrature::Integrate(const rvec_t& f) const
+{
+    const rvec_t& I=FunctionIntegrals();
+    assert(f.size()==I.size() && "XC_SinglesQuadrature::Integrate: one coefficient per fit function");
+    double s=0.0;
+    for (size_t a=0; a<f.size(); a++) s+=I[a]*f[a];
+    return s;
+}
+size_t XC_SinglesQuadrature::NumPoints() const {return itsFit->GetNumFunctions();}
 
 // THE XC DM-rho REPAIR (doc/OpenWork.md, the factored-rho section).  Under rho-tilde mixing the density
 // driving the Fock build is a G-space FIELD, so XC has to inverse-transform a truncated series at every
@@ -558,8 +590,10 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
 // such a point contributes NOTHING to v_xc or E_xc with no diagnostic.  Hence the WEIGHTED MASS, not just
 // the count -- that is the E_xc being silently dropped.
 // Takes the QUADRATURE, not its mesh: the two masses are integrals, so it asks for them (R1.0) and never
-// touches a weight -- which is what let the last Mesh() use out of this diagnostic.
-void ReportNegativeRho(const BasisSet::cFIT_SF_Delta& q, const rvec_t& rho, const char* route)
+// touches a weight -- which is what let the last Mesh() use out of this diagnostic.  It asks the STRATEGY
+// rather than the fit basis (2026-08-23): integrating an expansion is the quadrature's question, and the
+// basis now answers only the per-function pieces it is built from.
+void ReportNegativeRho(const XC_Quadrature& q, const rvec_t& rho, const char* route)
 {
     static const bool on=std::getenv("GPW_RHO_NEGATIVE")!=nullptr;
     if (!on || rho.size()==0) return;
@@ -596,7 +630,7 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
     {
         itsRho=dm->DM_RhoAtPoints(*itsFit);   // the density asks the basis for each block's table
-        ReportNegativeRho(*itsFit, itsRho, "DM");
+        ReportNegativeRho(*this, itsRho, "DM");
     }
     else if (auto ex=ExactSourceOf(cd))
     {   // THE REPAIR, unpolarized sibling of the RhoPol branch below: the field retains the D it was mixed
@@ -608,12 +642,12 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
         itsSrcVersion=ex.cd->Version();
         DampXCChannel(itsXCMix, ex.cd->DM_RhoAtPoints(*itsFit), ex.alpha);
         itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
-        ReportNegativeRho(*itsFit, itsRho, "DM-source");
+        ReportNegativeRho(*this, itsRho, "DM-source");
     }
     else
     {
-        itsRho=itsFit->Sample(*cd);   // non-DM (mixed rho-tilde / seed) densities batch through the basis
-        ReportNegativeRho(*itsFit, itsRho, "matrix-free");
+        itsRho=BasisSet::OrthogonalFit(*itsFit, *cd);   // non-DM (mixed rho-tilde / seed): fit it onto the basis
+        ReportNegativeRho(*this, itsRho, "matrix-free");
     }
     itsFit->Symmetrize(itsRho);   // §6a W1: the basis's own orbit-mean projector (no-op on a free run)
     return itsRho;
@@ -641,8 +675,8 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
         {
             itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(*itsFit);
             itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(*itsFit);
-            ReportNegativeRho(*itsFit, itsRhoUp, "DM(up)");
-            ReportNegativeRho(*itsFit, itsRhoDn, "DM(dn)");
+            ReportNegativeRho(*this, itsRhoUp, "DM(up)");
+            ReportNegativeRho(*this, itsRhoDn, "DM(dn)");
         }
         else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
         {   // MATRIX-FREE spin-resolved density: the seed (PolarizedSeedCD, SCFSeedingPlan §10) at
@@ -672,16 +706,16 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
                 DampXCChannel(itsXCMixUp, up, exUp.alpha);   // match the damping Hartree gets, so the map
                 DampXCChannel(itsXCMixDn, dn, exDn.alpha);   //   is not half-damped
                 itsRhoUp=itsXCMixUp; itsRhoDn=itsXCMixDn;
-                ReportNegativeRho(*itsFit, itsRhoUp, "DM-source(up)");
-                ReportNegativeRho(*itsFit, itsRhoDn, "DM-source(dn)");
+                ReportNegativeRho(*this, itsRhoUp, "DM-source(up)");
+                ReportNegativeRho(*this, itsRhoDn, "DM-source(dn)");
             }
             else
             {
             qchem::report::Timed seed("scf: XC-mesh rho sampling (matrix-free density)");
-            itsRhoUp=itsFit->Sample(*sr->GetChannel(Spin::Up  ));
-            itsRhoDn=itsFit->Sample(*sr->GetChannel(Spin::Down));
-            ReportNegativeRho(*itsFit, itsRhoUp, "matrix-free(up)");
-            ReportNegativeRho(*itsFit, itsRhoDn, "matrix-free(dn)");
+            itsRhoUp=BasisSet::OrthogonalFit(*itsFit, *sr->GetChannel(Spin::Up  ));
+            itsRhoDn=BasisSet::OrthogonalFit(*itsFit, *sr->GetChannel(Spin::Down));
+            ReportNegativeRho(*this, itsRhoUp, "matrix-free(up)");
+            ReportNegativeRho(*this, itsRhoDn, "matrix-free(dn)");
             }
         }
         else
@@ -689,7 +723,7 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
             if (auto dm=dynamic_cast<const cDM_CD*>(cd))
                 itsRhoUp=dm->DM_RhoAtPoints(*itsFit);
             else
-                itsRhoUp=itsFit->Sample(*cd);
+                itsRhoUp=BasisSet::OrthogonalFit(*itsFit, *cd);
             itsRhoUp*=0.5;
             itsRhoDn=itsRhoUp;
         }
@@ -766,7 +800,7 @@ template <class U> hmat_t<U> XC_SinglesQuadrature::MatrixT(const tobs_t<U>* bs, 
     for (size_t g=0; same && g<v.size(); g++) same = (itsFittedV[g]==v[g]);
     if (!same)
     {
-        itsScalarFitter->DoFit(SampledField(v, itsFit->NumPoints()));
+        itsScalarFitter->DoFit(SampledField(v, NumPoints()));
         itsFittedV=v;
     }
     return dynamic_cast<const Fitting::FitContraction<U>&>(*itsScalarFitter).Overlap(bs);

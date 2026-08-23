@@ -131,7 +131,7 @@ template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std
 // by the same call it would make in a real run.
 template <class T> rvec_t tComposite_CD<T>::DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
 {
-    rvec_t ro(q.NumPoints(), 0.0);
+    rvec_t ro(q.GetNumFunctions(), 0.0);
     for (auto& c:itsCDs)
         std::visit([&](const auto& b){ ro+=b->DM_RhoAtPoints(q); }, c);
     return ro;

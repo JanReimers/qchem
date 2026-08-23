@@ -16,6 +16,7 @@ export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.BasisSet.Orbital_DFT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
 import qchem.BasisSet.Fit_IBS;               // cFIT_CD_ABS (the density-fit basis Vee_Hartree is built with)
+import qchem.BasisSet.G_FieldEvaluator;      // G_RasterTransform -- the pair route asks its raster for size/quadrature
 import qchem.Fitting.FunctionFitter;         // FunctionFitter_Density<dcmplx> (the fitter Vee_Hartree holds, built once)
 import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assembly mixin + the local/separable models the term owns
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
@@ -231,6 +232,10 @@ public:
     virtual ~XC_Quadrature() = default;
     //! \f$\int f\,d^3r\f$ for a field sampled at MY points -- the \f$E_{xc}\f$ quadrature.  A term hands
     //! back a value array and never learns where the points are (nor which kind of mesh they came from).
+    //! \note POINT vocabulary is correct HERE and nowhere below it: this face IS a quadrature (its whole
+    //! job is \f$\rho\f$ at points and the adjoint back), which is exactly what the fit BASIS is not.  How
+    //! each strategy answers differs accordingly -- the \f$\delta\f$ one dots the coefficients with its
+    //! functions' integrals (\c FIT_SF_ABS::Integrals), the raster one uses the raster's uniform rule.
     virtual double Integrate(const rvec_t& f) const=0;
     //! How many points I sample at -- for reporting only (a term's \c Write line).
     virtual size_t NumPoints() const=0;
@@ -277,8 +282,9 @@ class XC_SinglesQuadrature
 {
 public:
     //! \brief Built ON the \f$\delta\f$ fit basis, which IS the quadrature: it owns the points, the
-    //! weights, the orbit fold and the Shubnikov tags, and ANSWERS with integrals, samples and
-    //! symmetrizations rather than handing any of that out.  What is left here is pure POLICY -- which
+    //! weights, the orbit fold and the Shubnikov tags, and ANSWERS with per-FUNCTION integrals,
+    //! projections and symmetrizations rather than handing any of that out.  What is left here is pure
+    //! POLICY -- which
     //! source \f$\rho\f$ comes from this iteration, per-serial caching, the spin channels, the
     //! DM-source damping -- none of which is basis business.
     typedef std::shared_ptr<const BasisSet::cFIT_SF_Delta> fit_t;
@@ -337,6 +343,12 @@ private:
     //! itself, it composes one.
     std::unique_ptr<Fitting::FunctionFitter_Scalar> itsScalarFitter;
     mutable rvec_t itsFittedV;                    //!< the v the fitter currently holds (refit only on change)
+    //! \f$\langle f_a|1\rangle\f$ from the fit basis -- what \c Integrate dots the coefficients against.
+    //! Cached because it is geometry-fixed and ~100k entries wide, and \c Integrate runs a few times per
+    //! SCF iteration; REAL because a \f$\delta\f$ basis's own integrals are its (real) weights, widened to
+    //! the face's Bloch scalar on the way out and narrowed once, here.
+    const rvec_t& FunctionIntegrals() const;
+    mutable rvec_t itsIntegrals;
     template <class U> hmat_t<U> MatrixT(const tobs_t<U>* bs, const rvec_t& v) const;
     //! \warning The scalar cache (itsRho) and the spin-resolved pair (itsRhoUp/Dn) have NO cross-
     //! invalidation: each guards only its own serial, so if one term drove \c Rho and another \c RhoPol on
@@ -421,6 +433,10 @@ private:
     mutable bool   itsRhoIsRaw=false;             //!< is itsRho the RAW collocated ρ_DM (vs the ball round trip)?
     mutable bool   itsRouteLatched=false;         //!< has a matrix-backed density fixed the route yet?
     mutable bool   itsLatchedRaw=false;           //!< ... and to which one
+    //! The fit basis's RASTER face -- where the voxel count and the uniform quadrature rule live.  Not on
+    //! the fit face: a plane-wave basis counts \f$\{G\}\f$ FUNCTIONS, and its raster has more voxels than
+    //! it has functions, so a caller holding a raster array must ask the raster (2026-08-23).
+    const BasisSet::G_RasterTransform& Raster() const;
 };
 
 //! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.

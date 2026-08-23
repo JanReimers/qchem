@@ -12,10 +12,16 @@
 // and the grid were separate returns of one question.
 //
 // It ANSWERS, it does not hand out (user ruling 2026-08-22).  The mesh and its orbit fold are private:
-// what leaves this class is an integral, a per-site integral, a sampled field, or a symmetrized field --
-// operations over value arrays in its own point ORDER.  No consumer knows whether these points are an
-// atom-centred Becke build or a uniform cell grid, which is exactly the fit/grid separation the design
-// item is about.  Since 2026-08-22 NOTHING leaves: the mesh getter is gone with the Quadrature face.
+// what leaves this class is an integral over its own functions or a projected/symmetrized coefficient
+// vector -- arrays indexed by FUNCTION, in its own order.  No consumer knows whether these functions sit
+// on an atom-centred Becke build or a uniform cell grid, which is exactly the fit/grid separation the
+// design item is about.  Since 2026-08-22 NOTHING leaves: the mesh getter is gone with the Quadrature face.
+//
+// AND SINCE 2026-08-23 NOTHING SAYS "POINT" EITHER (user).  A delta basis is a family of FUNCTIONS, so it
+// presents exactly the interface a Gaussian auxiliary basis presents: GetNumFunctions() for the count,
+// Overlap(f) = <delta_g|f> for the projection, Integrals() = <delta_g|1> for the per-function integrals.
+// The old NumPoints/Sample/Integrate trio described the QUADRATURE behind them, and read as correct only
+// because here n_functions == n_points, so the wrong accessor returned the right number.
 module;
 #include <cassert>
 #include <map>
@@ -27,7 +33,7 @@ export import qchem.BasisSet.Fit_IBS;                    // cFIT_SF_Delta (the f
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
 import qchem.Types;                                      // dcmplx, rvec3_t, vec_t
-import qchem.Mesh.Quadrature;                            // qcMesh::Integrate / SiteIntegrals (my own quadrature)
+import qchem.Mesh.Quadrature;                            // qcMesh::SiteIntegrals (the atomic-partition observable)
 import qchem.Symmetry.Lattice_3D.Fold;                   // SymmetrizeValues / SymmetrizeValuesSigned (my orbit fold)
 import qchem.Reporting;                                  // EmitFold -- this basis announces its own star-average
 
@@ -67,8 +73,7 @@ public:
                                 itsQuad.sigmas.empty() ? std::string() : std::string("magnetic (Shubnikov)"));
     }
 
-    // ---- the tables the DENSITY asks for + the quadrature ops; bodies in Imp/ ------------------------
-    size_t NumPoints() const override {return itsQuad.mesh->size();}   // FIT_SF_ABS + Collocation
+    // ---- the tables the DENSITY asks for; bodies in Imp/ ---------------------------------------------
     const mat_t<double>& Values(const Orbital_1E_IBS<double>& orb) const override;
     const mat_t<dcmplx>& Values(const Orbital_1E_IBS<dcmplx>& orb) const override;
 
@@ -76,21 +81,31 @@ public:
     hmat_t<double> Quadrature(const Orbital_1E_IBS<double>& orb, const rvec_t& v) const override;
     hmat_t<dcmplx> Quadrature(const Orbital_1E_IBS<dcmplx>& orb, const rvec_t& v) const override;
 
-    // ---- the quadrature operations (see FIT_SF_Delta) -------------------------------------------------
+    // ---- the integrals over my own functions, one entry per FUNCTION (FIT_SF_ABS) ---------------------
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal
     //! \f$\langle\delta_g|\delta_g\rangle=w_g\f$: orthogonal, NOT orthonormal -- so a general fit
     //! through this basis divides by these, giving \f$c_g=w_g f_g/w_g=f(r_g)\f$, the point values.
-    vec_t<dcmplx> OverlapDiagonal() const override
+    vec_t<dcmplx> OverlapDiagonal() const override {return AsComplex(itsQuad.mesh->Weights());}
+    //! \copydoc BasisSet::FIT_SF_ABS::Integrals
+    //! \f$\int\delta_g\,d^3r=w_g\f$.  Same numbers as \c OverlapDiagonal here and NOT the same question:
+    //! that one is \f$\langle\delta_g|\delta_g\rangle\f$ (a metric), this is \f$\langle\delta_g|1\rangle\f$
+    //! (an integral).  They coincide because \f$\delta\f$ is idempotent under this quadrature, which is a
+    //! fact about this representation, not a shared definition.
+    vec_t<dcmplx> Integrals() const override {return AsComplex(itsQuad.mesh->Weights());}
+    //! \copydoc BasisSet::FIT_SF_ABS::Overlap
+    //! \f$\langle\delta_g|f\rangle=w_g f(r_g)\f$ -- I evaluate the field at MY points (the field's own
+    //! bulk fast path does the work) and weight it.  The caller sees only a vector indexed by FUNCTION.
+    vec_t<dcmplx> Overlap(const ScalarFunction<double>& f) const override
     {
+        const rvec_t  v=f(itsQuad.mesh->Points());
         const rvec_t& w=itsQuad.mesh->Weights();
-        vec_t<dcmplx> d(w.size());
-        for (size_t g=0; g<w.size(); g++) d[g]=dcmplx(w[g]);
-        return d;
+        assert(v.size()==w.size());
+        vec_t<dcmplx> p(v.size());
+        for (size_t g=0; g<v.size(); g++) p[g]=dcmplx(w[g]*v[g]);
+        return p;
     }
-    double Integrate    (const rvec_t& f) const override {return qcMesh::Integrate   (*itsQuad.mesh, f);}
     rvec_t SiteIntegrals(const rvec_t& f) const override
         {return itsQuad.mesh->NSites()==0 ? rvec_t() : qcMesh::SiteIntegrals(*itsQuad.mesh, f);}
-    rvec_t Sample(const ScalarFunction<double>& f) const override {return f(itsQuad.mesh->Points());}
 
     //! \copydoc BasisSet::FIT_SF_ABS::Symmetrize  (my mesh's orbit-mean projector)
     void Symmetrize(rvec_t& f) const override
@@ -132,6 +147,15 @@ public:
         {return os << Name() << " fit IBS: " << itsQuad.mesh->size() << " delta functions on the XC mesh";}
 
 private:
+    //! The face is templated on the scalar of the ORBITAL blocks I contract against (Bloch => dcmplx), not
+    //! on what my own functions are made of -- and a \f$\delta\f$ function and its weight are real.  So
+    //! every integral over my own functions widens here, in one place.
+    static vec_t<dcmplx> AsComplex(const rvec_t& r)
+    {
+        vec_t<dcmplx> c(r.size());
+        for (size_t g=0; g<r.size(); g++) c[g]=dcmplx(r[g]);
+        return c;
+    }
     //! ONE body for both \c Values overloads, each with its own typed cache.  R2.9(i) idiom: the accessors
     //! are const and the tables are a lazily-built, geometry-fixed cache, so the maps are \c mutable.
     template <class U> const mat_t<U>& Table(std::map<Irrep,mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;

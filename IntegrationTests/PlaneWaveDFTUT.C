@@ -849,14 +849,15 @@ TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
     {
         qcMesh::MeshParams mp; mp.relCutoff=rc;
         auto fb=qchem::Hamiltonian::XC_PairQuadrature::fbs_t(pw.CreateVxcFitBasisSet(nullptr, mp));
-        // The fit basis answers its own quadrature (NumPoints / Integrate) and, separately, the raster
-        // transforms; no mesh changes hands (2026-08-22).
+        // The fit BASIS counts its own {G} FUNCTIONS; the RASTER counts voxels and owns the uniform
+        // quadrature rule over them.  Two different numbers, asked of the two different faces
+        // (2026-08-23: NumPoints/Integrate came off the fit face, which is about functions).
         auto ge=dynamic_cast<const qchem::BasisSet::G_RasterTransform*>(fb.get());
-        size_t nG=fb->GetNumFunctions(), Npts=fb->NumPoints();
+        size_t nG=fb->GetNumFunctions(), Npts=ge->RasterSize();
 
         rvec_t rgrid=ge->RhoOnGrid(rho), exc(rgrid.size());
         for (size_t q=0;q<rgrid.size();q++) exc[q]=epsOf(rgrid[q])*rgrid[q];
-        double Exc=fb->Integrate(exc);
+        double Exc=ge->Integral(exc);
 
         auto fitter=qchem::Fitting::Factory(fb);
         fitter->DoFit(vtrue);

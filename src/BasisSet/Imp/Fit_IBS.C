@@ -77,21 +77,28 @@ rvec3_t Fit_IBS::EvalFieldGradient(const rvec_t& c, const rvec3_t& r) const
     return ret;
 }
 
+// <f_a|1> (FIT_SF_ABS::Integrals) IS <f_a|1> (FIT_CD_NonOrtho::Charge) -- one quantity, two faces of the
+// one object, so the SF sibling forwards instead of re-deriving it on the mesh.  Both are in the
+// NORMALISED convention (the per-function norm folded in), which is also the convention Overlap(f) and the
+// InvOverlap() metric use, so c.Integrals() is the integral of the fitted field.
+rvec_t Fit_IBS::Integrals() const {return Charge();}
+
 // <f_a|f_a> = 1/Norm_a^2 -- the cached normalisation, un-inverted.  A non-orthogonal basis's fit does not
 // use it (it solves with the full S^-1); it is here because the metric DIAGONAL is a question every scalar
 // fit basis can answer, and answering it is what makes the orthogonal-vs-orthonormal distinction usable.
-// The QUADRATURE OPERATIONS (FIT_SF_ABS), over the mesh this class already owns and already runs
-// Norm()/Overlap(f) on.  A Gaussian auxiliary basis is a family of FUNCTIONS -- the mesh is how it does
-// its integrals, not what it is (see the caveat on the face) -- but "sample a field on it" and "integrate
-// a sampled field over it" are exactly as well defined here as on a raster or a delta mesh.
 //
-// NO CALLER ON THIS LINEAGE YET (2026-08-22): the molecular XC term still fits through Overlap(f)+S^-1
-// and evaluates rho pointwise.  These are what the ruled molecular conformance will use -- rho through
-// the D-GEMM, sampled ONCE and both functionals applied to the values (doc/CleanupCandidates.md R1.0).
-size_t Fit_IBS::NumPoints() const {return itsMesh.size();}
-rvec_t Fit_IBS::Sample(const ScalarFunction<double>& f) const {return f(itsMesh.Points());}
-double Fit_IBS::Integrate(const rvec_t& f) const {return qcMesh::Integrate(itsMesh, f);}
-
+// WARNING, FOUND 2026-08-23: this is the ONLY member of the fit face in the UN-normalised convention.
+// Overlap(f) below multiplies by Norm(), Charge()/Integrals() fold the norm in, and MakeOverlap()'s metric
+// has a unit diagonal -- so a general orthogonal fitter pairing THIS diagonal with THIS projection would be
+// wrong by Norm_a^2.  Nothing does: isOrtho()==false sends every Gaussian fit to the S^-1 solve, which
+// never reads the diagonal.
+//
+// AND THE FIX IS NOT TO CORRECT IT (user ruling, 2026-08-23) -- it is to DELETE it, by moving
+// OverlapDiagonal off the metric-NEUTRAL face onto a FIT_SF_Ortho refinement, so a non-orthogonal basis is
+// never asked a question it has no honest answer to.  A corrected value here would be all ones, which is
+// indistinguishable from the plane-wave answer and would quietly retire the orthogonal-vs-orthoNORMAL
+// distinction the periodic gate exists to keep load-bearing.  Specced as the next increment (both fit
+// faces together) in doc/CleanupCandidates.md R1.0; until it lands, THIS COMMENT is the only guard.
 rvec_t Fit_IBS::OverlapDiagonal() const
 {
     const rvec_t& nrm=Norm();

@@ -9,11 +9,11 @@
 //
 //     c_g = <delta_g|f> / <delta_g|delta_g> = w_g f(r_g) / w_g = f(r_g),
 //
-// i.e. the fit coefficients ARE the field's values at the mesh points, and the division is exact rather
-// than merely convenient.  That identity is why this fitter samples and stores, where its orthoNORMAL
-// sibling samples and forward-FFTs: same shape, and the diagonal it divides by is the one that sibling
-// asserts to be all ones (OrthoNormalFunctionFitter.C).  Sampling is done BY THE BASIS -- it owns the
-// points -- so nothing here knows where they are or what kind of mesh they came from.
+// i.e. the fit coefficients ARE the field's values at the mesh points -- but that is a FACT about this
+// representation, not the shape of the code: the code is "projection, then my metric", the same two steps
+// the Gaussian fitter takes with S^-1 and the orthoNORMAL sibling takes with nothing (the diagonal it
+// asserts to be all ones -- OrthoNormalFunctionFitter.C).  Both halves are the BASIS's: it owns its
+// functions and its metric, so nothing here knows where its points are or what kind of mesh they came from.
 //
 // AND WHY THE CONTRACTION IS THE BASIS'S.  Overlap is sum_g c_g <chi_i|delta_g|chi_j>, which is the
 // weighted quadrature Phi^dag diag(w c) Phi -- the basis owns the points, the weights AND the Phi table,
@@ -49,13 +49,17 @@ public:
                "DeltaScalarFitter: a delta basis is orthogonal (diagonal metric) by construction");
     }
 
-    //! The fit: the BASIS samples the field at its own points, and the coefficients are those values --
-    //! \f$c_g=\langle\delta_g|f\rangle/w_g\f$, with the \f$w_g\f$ cancelling exactly (see the file header).
-    //! Written as the sample rather than as multiply-then-divide precisely BECAUSE it cancels: forming
-    //! \f$w_g f_g\f$ and dividing it back would move the last bit of every coefficient for nothing.
+    //! The fit, in the ONE shape every scalar fitter has: take the basis's projection and apply my metric.
+    //! Here the metric is diagonal, so \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$ -- which for
+    //! \f$\delta\f$ is \f$w_g f(r_g)/w_g\f$.  \c BasisSet::OrthogonalFit is that one line, shared with the
+    //! only other consumer of it (a matrix-free density expressing itself over a \f$\delta\f$ basis).
+    //! \note This is where \c OverlapDiagonal() finally gets a production consumer.  The division does NOT
+    //! cancel to the last bit -- \f$\mathrm{fl}(w_gf_g)/w_g\ne f_g\f$ in general -- so the coefficients can
+    //! move by an ulp against the old direct sample.  Measured on the pinned Si two-route gate: no printed
+    //! digit and no iteration count moved (doc/CleanupCandidates.md R1.0 increment 3).
     virtual void DoFit(const ProjectedScalar_R& ps) override
     {
-        itsC=itsFitBasis->Sample(*ps.GetScalarFunction());
+        itsC=BasisSet::OrthogonalFit(*itsFitBasis, *ps.GetScalarFunction());
     }
 
     //! \copydoc Fitting::FitContraction::Overlap

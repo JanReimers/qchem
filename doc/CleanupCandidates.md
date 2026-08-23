@@ -593,6 +593,134 @@ MnO campaign proceeds undisturbed in qchem6.
     `Integrate` have NO caller yet.**  They get one in the ruled molecular conformance (ρ through the
     D-GEMM, sampled once with both functionals applied to the values), which is the next increment.
 
+  **✅ INCREMENT 3 LANDED 2026-08-23 — ONE FIT-BASIS INTERFACE: THE POINT VOCABULARY IS OFF THE FIT FACE.**
+  The user's ruling that opened it: *"a DeltaFitBasis is also a family of functions … as such it should
+  have exactly the same interface as the Gaussian fit basis set."*  `NumPoints` / `Sample(f)` /
+  `Integrate(values)` described a QUADRATURE, and read as correct only because for δ n_functions ==
+  n_points, so the wrong accessor returned the right number.  `FIT_SF_ABS<T>` now carries exactly two
+  integrals, both **per FUNCTION**, and every representation answers both:
+
+  | | Gaussian (`Fit_IBS`) | δ (`DeltaFit_IBS`) | plane wave (`PlaneWaveFit_IBS`) |
+  |---|---|---|---|
+  | count | `GetNumFunctions()` (already there — the removed `NumPoints` was its shadow) | n_pts | n_G in the ball |
+  | `Overlap(f)` = ⟨f_a\|f⟩ | its existing mesh quadrature, moved UP from `FIT_SF_NonOrtho` | \f$w_g f(r_g)\f$ | \f$\sqrt\Omega\,\tilde f(G_a)\f$ (sample + forward FFT + ball gather) |
+  | `Integrals()` = ⟨f_a\|1⟩ | **is** `Charge()` — one quantity, two faces, so it forwards | \f$w_g\f$ | \f$\sqrt\Omega\,\delta_{G,0}\f$ |
+
+  Each fitter then applies its own metric to that one projection, which is where **`OverlapDiagonal()`
+  finally got its production consumer**: `BasisSet::OrthogonalFit(basis,f)` = ⟨f_a|f⟩/⟨f_a|f_a⟩ is now the
+  δ fitter's whole `DoFit`, and the same one-liner is the default `tDM_CD::DM_RhoAtPoints` (a matrix-free
+  density expressing itself over a δ basis).  E_xc is *coefficients · `Integrals()`* inside
+  `XC_SinglesQuadrature`, not a weight sum — algebraically the same and, written as the same loop, the
+  same summation order.
+
+  **VERIFIED, and the two risks named in the spec both came back clean.**  758/758 (count UP by the new
+  gate, not down), and the pinned Si two-route SCF prints **−7.115067665** (pair) / **−7.115059008**
+  (singles) at 11/11 iterations, bit-unmoved.
+  - The ⚠ BITWISE pin was real but did not bite: δ's fit is now `fl(w_g f_g)/w_g` where it used to be
+    `f_g` directly, and that is NOT exact — but the perturbation is ~1 ulp with random sign over ~10⁵
+    coefficients, i.e. ~1e-13 Ha against a gate that prints 1e-10.  Measured, not assumed.  (Two things
+    were needed to keep it that small: divide on the REAL parts, since `std::complex` (x,0)/(y,0) goes
+    through xy/y² and is worse; and keep `qcMesh::Integrate`'s summation order in the new dot product.)
+  - **NEW FINDING — the unification claim is TRUE but the plane-wave fitter must NOT use it, and the
+    reason is not bit-preservation.**  `OrthoNormalScalarFitter::Overlap(bs)` looks \f$\tilde v\f$ up at
+    ORBITAL index differences \f$m_i-m_j\f$, which run to TWICE the orbital ball — outside the fit ball,
+    where a projection onto the fit basis's own \f$\{G\}\f$ honestly reads ZERO while the raster's
+    `GridCoeff` wraps and returns the resolved value.  Fitting through `Overlap` would therefore delete
+    most of \f$v_{xc}\f$, not move a last bit.  This is `G_FieldEvaluator::ProjectField`'s
+    truncation-vs-aliasing warning meeting a real call site: for assembly purposes that fitter's "fit
+    basis" is the RASTER's \f$\{G\}\f$, not the declared ball, and it now says so by asking the raster
+    face for both halves.  `PlaneWaveFit_IBS::Overlap`/`Integrals` are still implemented (the face is the
+    face) and pinned by the new gate.
+    ⚠ NB this is NOT a name collision with a self-overlap: `Overlap(f)` is the PROJECTION and the metric
+    \f$\langle f_a|f_b\rangle\f$ is `Integrals_Overlap::Overlap()`, and a plane-wave fit basis **has no
+    metric member at all** — it rides `EPW_Irrep_IBS` (op(r)/Gradient/GetNumFunctions), not the orbital
+    `EPW_Orbital1E_IBS` tier that carries `MakeOverlap` (user, 2026-08-23; verified).  Only a class that
+    genuinely carries BOTH — `FIT_SF_NonOrtho` and `Fit_IBS` — needs the `using` that un-hides one past
+    the other.
+  - Consequently `G_RasterTransform` grew `RasterSize()` / `Sample(field)` / `Integral(values)` — the
+    three raster-array questions that used to ride the fit face.  Point vocabulary is CORRECT there: that
+    face is keyed by voxel and integer reciprocal index by construction, and a plane-wave basis's voxel
+    count is a different number from its function count, which is precisely the conflation being removed.
+  - **NEW GATE `GPW.FitProjectionAndIntegralsPerRepresentation`** pins the claim rather than asserting it:
+    δ's ⟨δ_g|f⟩ and ⟨δ_g|1⟩ against their definitions, PW's ⟨e^{iG}|1⟩ = √Ω δ_{G,0}, and — the
+    representation-independent invariant the XC energy actually rides — ∫f == c·⟨f_a|1⟩ on BOTH
+    representations for two fields of known cell integral.  That last one is what would catch the
+    \f$1/\sqrt\Omega\f$ normalisation slip the plane-wave side is exposed to.
+  - **Secondary finding, recorded not fixed:** `Fit_IBS::OverlapDiagonal()` is the ONLY member of the
+    Gaussian fit face in the UN-normalised convention (\f$1/\mathrm{Norm}_a^2\f$), while `Overlap(f)`,
+    `Charge()`/`Integrals()` and the `InvOverlap()` metric all fold the norm in.  Latent, not live —
+    `isOrtho()==false` sends every Gaussian fit to the S⁻¹ solve, which never reads the diagonal — but a
+    future general orthogonal fitter pairing the two would be wrong by \f$\mathrm{Norm}_a^2\f$.  Not
+    flipped here because the consistent answer is all-ones, which makes it indistinguishable from the
+    plane-wave one, and the gate that keeps the orthogonal-vs-orthoNORMAL distinction load-bearing is on
+    the periodic pair: the fix wants its own measurement.
+
+  **⇒ NEXT INCREMENT, SPECCED AND NOT BUILT (user ruling, 2026-08-23): SEPARATE THE METRIC AXIS INTO
+  FACES, BOTH SIDES TOGETHER.**  The `Fit_IBS::OverlapDiagonal()` convention clash above is a symptom, not
+  the disease: `OverlapDiagonal()` sits on the metric-NEUTRAL face, so a basis that never has a diagonal
+  metric is obliged to invent an answer — and the answer it invented is in a different normalisation from
+  every other member of its own face.  Move the question to where it is always meaningful and the wrong
+  answer stops existing.
+
+  **THE SHAPE (decided).**
+  - New `FIT_SF_Ortho<T>` carrying `OverlapDiagonal()`; `FIT_SF_NonOrtho` keeps `Norm()`/`InvOverlap()`.
+    `FIT_SF_ABS<T>` keeps only what EVERY fit basis answers: `Overlap(f)`, `Integrals()`, `Symmetrize()`.
+  - `Fit_IBS` **loses `OverlapDiagonal()` outright** — the un-normalised member is deleted, not corrected,
+    which is the only fix that cannot drift again.  `FIT_SF_Delta` and `PlaneWaveFit_IBS` derive the new
+    face; `OrthogonalFit(b,f)` takes `const FIT_SF_Ortho<T>&` and its `assert(b.isOrtho())` disappears
+    because the parameter type now carries the guarantee.
+  - **The CD side moves in the same increment** (user): `FIT_CD_ABS::isOrtho()` has the identical shape and
+    the identical Factory pattern, and its `FIT_CD_NonOrtho` Coulomb-metric split is the mirror image.
+    Doing one and not the other leaves the two fit faces asymmetric, which is what the ISP work has been
+    steadily removing.
+  - **NO orthonormal marker face.**  Orthonormal is orthogonal with a unit diagonal, which
+    `PlaneWaveFit_IBS` already answers on the Ortho face; a memberless `FIT_SF_OrthoNormal` would be the
+    null-object pattern rejected on 2026-08-01 and again on `FIT_SF_Delta`.  `OrthoNormalScalarFitter`
+    keeps stating its assumption in its name and its assert.
+
+  **⚠ THE ACCEPTANCE CRITERION, AND IT IS THE POINT OF THE ITEM (user, 2026-08-23).**  *"We can remove
+  `isOrtho` — but only if it does not get immediately replaced by SOLID/LSP-violating if statements"* of
+  the form `if (dynamic_cast<FIT_SF_NonOrtho*>(fbs)) {non-ortho stuff} else {ortho stuff}`.  That is a type
+  switch wearing a cast, and it is worse than the bool it replaced.  So the increment is **rejected** if
+  any such branch appears.  Three facts make that a low risk rather than a hope:
+  - **MEASURED: all EIGHT `isOrtho()` call sites are `assert`s.  There is not one live branch on it in the
+    tree** (`OrthogonalFit`, `DeltaScalarFitter`'s ctor, and six in the four `Fitting::Factory` overloads).
+    So retiring it has nothing to replace — each assert is a run-time re-check of a contract the type
+    system would carry for free, exactly the R2.10 two-phase-construction smell one level up.
+  - **Narrowing a PARAMETER TYPE is not a cast and not a branch.**  `OrthogonalFit(const FIT_SF_Ortho<T>&)`
+    is the sanctioned replacement: the caller must already hold the capability, the compiler checks it, and
+    no code asks a question at run time.  Prefer this everywhere over "cross-cast, then test".
+  - **The ONE genuine branch in the tree is NOT a metric branch and the split does not touch it.**
+    `Factory(cFIT_SF_ABS&)` picks `DeltaScalarFitter` vs `OrthoNormalScalarFitter` by
+    `dynamic_pointer_cast<cFIT_SF_Delta>` — a "what IS it" cast.  Both of those bases are orthogonal, so
+    the metric faces cannot distinguish them: the difference is the REPRESENTATION (δ divides by its
+    diagonal and contracts through a Φ table; PW batch-projects by FFT and contracts through
+    `Overlap3C` + the raster's aliased `GridCoeff`).  It must therefore be left exactly as it is by this
+    increment, at the creation boundary where a factory is allowed to know, and NOT laundered into a
+    metric test that would read as principled and be wrong.
+
+  **⇒ AND THE OPEN QUESTION THAT WOULD DELETE THAT LAST BRANCH — needs a ruling before anyone attempts it.**
+  The scalar fitter has exactly two operations, and on BOTH representations both are already delegated
+  straight back to the basis (`DoFit` → `OrthogonalFit`/the ortho projection; `Overlap(orb)` →
+  `FIT_SF_Delta::Quadrature` / `orb.Overlap3C` + the raster).  If those became basis operations outright —
+  `Fit(field)` and `Contract(orb, c)` — there would be ONE fitter class, zero casts and zero branches, with
+  the polymorphism living where the metric and the representation both actually are.  That is
+  "replace conditional with polymorphism" taken to its end, and it needs no library-DAG inversion (the
+  operations sit on the basis; the basis does not construct a fitter, which would make qcBasisSet depend on
+  qcFitting and close a cycle).  ⚠ But it dissolves `FunctionFitter_Scalar` as a polymorphic type, which is
+  a much bigger claim than a metric split — hence: recorded, not assumed.
+
+  **WHAT DELIBERATELY DID NOT LAND: the spec's row 4, `FIT_SF_Delta::Values` → the 3-centre overlap.**
+  Replacing the Φ tables with \f$\langle\delta_g|\chi_i\chi_j\rangle\f$ (whose adjoint contraction is
+  today's `Quadrature(orb,v)`) is the move that would let `FIT_SF_Delta` dissolve to `SymmetrizeSpin`
+  alone — but it is not a rename.  `Overlap3C` lives on `Orbital_DFT_IBS<U,TFit>`, so it means a new
+  overload taking a δ fit basis on EVERY orbital lineage (GPW, plane wave, molecular), and it moves the
+  Φ tables and the D-contraction across the boundary increment 1 deliberately drew (*"D is the density's
+  private business and Φ is mine, so exactly one of them travels — and it is Φ"*).  That is a design
+  question, not a cleanup, and it wants its own increment.  `SiteIntegrals` also stays on the δ face for
+  the same kind of reason: it is an observable and does not belong there, but the partition lives in the
+  mesh and the mesh is the basis's private business, so there is no owner to move it to yet.
+
   ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
   promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is
   the remaining scope of step (1): convert `PP_Local::CalculateMatrix` and `PP_NonLocal`'s

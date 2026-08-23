@@ -420,15 +420,15 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
 
 template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
 {
-    rvec_t ro(q.NumPoints(), 0.0);
+    rvec_t ro(q.GetNumFunctions(), 0.0);
     if (IsZero()) return ro;
     // ASK THE QUADRATURE for MY block's table, with MY scalar: it owns the points and caches the table
     // (geometry-fixed, one build per run per block).  No key, no lookup, and no "not tabled yet, fall back
     // to pointwise" branch -- that branch existed only because the CALLER carried the tables and could not
     // know every block in advance.
-    const size_t npts=q.NumPoints();
+    const size_t npts=q.GetNumFunctions();
     const mat_t<T>& P=q.Values(*itsBasisSet);
-    assert(P.rows()==q.NumPoints());
+    assert(P.rows()==q.GetNumFunctions());
     assert(P.columns()==itsDensityMatrix.rows());
     // rho_g = Phi_g^dag D Phi_g, as (P D) row-dotted back into P: O(npts n^2), paid once per density
     // serial and THE largest per-iteration bucket of the atom-centred XC route (MnO Γ: 12 s/iteration
@@ -651,7 +651,7 @@ template class PeriodicIrrepCD<dcmplx>;
 //
 template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
 {
-    if (this->IsZero()) return rvec_t(q.NumPoints(), 0.0);
+    if (this->IsZero()) return rvec_t(q.GetNumFunctions(), 0.0);
     const mat_t<T>& P=q.Values(*this->itsBasisSet);
 
     // Tr(D) -- the memo's integrity check AND, on a miss, the value to remember.  A STALE FACTOR IS A
@@ -688,9 +688,9 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::c
     // so it takes the fallback, not a throw.
     if (!itsFactorable || 2*itsRank >= P.columns()) return Leaf::DM_RhoAtPoints(q);
 
-    assert(P.rows()==q.NumPoints());
+    assert(P.rows()==q.GetNumFunctions());
     assert(P.columns()==this->itsDensityMatrix.rows());
-    rvec_t ro(q.NumPoints(), 0.0);
+    rvec_t ro(q.GetNumFunctions(), 0.0);
     // Threaded by MESH-POINT BLOCK, exactly as the base is: rho_g depends on row g alone, so each block is
     // an independent GEMM + norm and the result is bit-identical at any thread count (a partition of the
     // OUTPUT, not of a reduction).  Opt-in via GPW_OMP_THREADS (qchem.Parallel).
@@ -706,14 +706,14 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::c
         }
     };
 #ifdef QCHEM_OPENMP
-    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && q.NumPoints()>size_t(nthreads))
+    if (const int nthreads=qchem::WorkerThreads(); nthreads>1 && q.GetNumFunctions()>size_t(nthreads))
     {
-        const size_t blk=(q.NumPoints()+size_t(nthreads)-1)/size_t(nthreads);
+        const size_t blk=(q.GetNumFunctions()+size_t(nthreads)-1)/size_t(nthreads);
         std::exception_ptr firstEx;                   // throw containment (an escape = std::terminate)
         #pragma omp parallel for schedule(static,1) num_threads(nthreads)
-        for (size_t b=0; b<(q.NumPoints()+blk-1)/blk; b++)
+        for (size_t b=0; b<(q.GetNumFunctions()+blk-1)/blk; b++)
         {
-            try { block(b*blk, std::min(q.NumPoints(), (b+1)*blk)); }
+            try { block(b*blk, std::min(q.GetNumFunctions(), (b+1)*blk)); }
             catch (...)
             {
                 #pragma omp critical (cd_rho_throw)
@@ -724,7 +724,7 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::c
         return ro;
     }
 #endif
-    block(0, q.NumPoints());
+    block(0, q.GetNumFunctions());
     return ro;
 }
 

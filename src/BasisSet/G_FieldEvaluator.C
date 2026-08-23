@@ -27,6 +27,7 @@ module;
 export module qchem.BasisSet.G_FieldEvaluator;
 import qchem.BasisSet.Internal.GMap;   // ΔG_Map (the G-space coefficient map to evaluate)
 import qchem.Types;       // rvec3_t, rvec_t, cvec_t, rvec3vec_t, ivec3_t, dcmplx
+export import qchem.ScalarFunction;   // ScalarFunction<double> -- the field G_RasterTransform::Sample evaluates (on the face => exported)
 import qchem.Structure;   // Structure, Atom (MakeFourierDensity's structure-factor sum)
 
 export namespace qchem::BasisSet
@@ -88,6 +89,29 @@ class G_RasterTransform
 {
 public:
     virtual ~G_RasterTransform() = default;
+    //! \brief How many VOXELS the raster has -- the length of every real-space array below.
+    //!
+    //! Here and not on a fit face (2026-08-23): a fit basis counts FUNCTIONS
+    //! (\c IrrepBasisSet::GetNumFunctions), and for a plane-wave basis that is the \f$\{G\}\f$ ball, which
+    //! is a different and smaller number than the raster it transforms on.  A caller holding a raster
+    //! array needs the raster's own length, so it asks the raster.
+    virtual size_t     RasterSize () const=0;
+    //! \brief EVALUATE a field at my voxels: \c RasterSize() values, in raster order -- the input half of
+    //! the transform pair (\c ForwardFFT is the other).
+    //!
+    //! Point vocabulary, on the face that is honestly about points.  It is NOT the fit basis's
+    //! \c FIT_SF_ABS::Overlap: that returns one PROJECTION per fit FUNCTION over the \f$\{G\}\f$ ball,
+    //! this returns one VALUE per voxel, and the two differ in length, in meaning, and -- for the XC
+    //! assembly -- in whether an out-of-ball index reads as zero (the ball) or wraps (the raster).
+    virtual rvec_t     Sample     (const ScalarFunction<double>& f) const=0;
+    //! \brief \f$\int f\,d^3r=(\sum_g f_g)\,\Omega/N\f$ for a field on the raster -- the uniform rule, in
+    //! the raster's own summation order.
+    //!
+    //! Also honestly raster-only, for the same reason: the argument is one value per VOXEL, not one
+    //! coefficient per function.  A fit basis integrates an EXPANSION over itself
+    //! (\f$c\cdot\langle f_a|1\rangle\f$, \c FIT_SF_ABS::Integrals) -- for a \f$\{G\}\f$ basis that route
+    //! would need a forward FFT to compute a plain sum, and would not reproduce this summation order.
+    virtual double     Integral   (const rvec_t& f) const=0;
     //! Inverse-FFT a G-space coefficient map (keyed by reciprocal-index difference) to \f$\rho(r)\f$ on the grid.
     virtual rvec_t     RhoOnGrid  (const ΔG_Map& rhoTilde) const=0;
     //! Forward-FFT a real-space grid field to the FULL normalised (\f$/N_{pts}\f$) G-space grid (raster order).

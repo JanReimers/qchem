@@ -43,15 +43,21 @@ public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
     explicit OrthoNormalScalarFitter(const fbs_t& fbs) : itsFitBasis(fbs) {}
 
-    //! The "fit": batch-sample v_xc(r) at the fit basis's own quadrature POINTS, then project.  Orthonormal
-    //! exactness => the projection IS the fit (no metric solve).  The two lines below are the two halves:
-    //! WHERE to sample is the mesh's business, and the forward FFT is the raster's batch form of the
-    //! per-\f$G\f$ weight-vector contraction (the field's own FFT fast path is its own business).
+    //! The "fit": batch-sample v_xc(r) on the fit basis's own RASTER, then forward-transform.  Orthonormal
+    //! exactness => the projection IS the fit (no metric solve).
+    //!
+    //! \note It does NOT go through \c FIT_SF_ABS::Overlap, and the reason is not bit-preservation
+    //! (2026-08-23).  That face projects onto the fit basis's \f$\{G\}\f$ BALL -- one coefficient per fit
+    //! FUNCTION, zero outside -- whereas \c Overlap(bs) below looks \f$\tilde v\f$ up at ORBITAL index
+    //! differences \f$m_i-m_j\f$, which run to twice the orbital ball and are answered by the RASTER's
+    //! wrap-around (\c GridCoeff).  Fitting through the ball would silently delete most of \f$v_{xc}\f$.
+    //! So this fitter's "fit basis" for assembly purposes is the raster's \f$\{G\}\f$, and it says so by
+    //! asking the raster face for both halves.  (\c G_FieldEvaluator::ProjectField carries the same
+    //! truncation-vs-aliasing warning in the abstract; this is where it bites.)
     virtual void DoFit(const ProjectedScalar_R& ps) override
     {
         const BasisSet::G_RasterTransform& ge=FitRaster();
-        rvec_t vals=itsFitBasis->Sample(*ps.GetScalarFunction());   // the BASIS samples: it owns the points
-        itsVt =ge.ForwardFFT(vals);                               // full /Npts G grid (for the assembly)
+        itsVt =ge.ForwardFFT(ge.Sample(*ps.GetScalarFunction())); // full /Npts G grid (for the assembly)
         itsMap=ge.FieldCoeffs(itsVt);                             // fit-basis coefficients (for op(r) plotting)
     }
 

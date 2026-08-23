@@ -166,12 +166,14 @@ public:
     // Quadrature / G_RasterTransform / G_SpectralFilter: the points+weights and the pure {r}<->{G} FFT
     // transforms, delegated to the held k-independent grid engine.
     //! The raster as points+weights (corners \f$i/N\f$, weight \f$\Omega/N_{pts}\f$).  NON-virtual and
-    //! not a capability face any more: the owning fit basis answers \c NumPoints / \c Sample /
-    //! \c Integrate from it, so no consumer needs the mesh itself (2026-08-22).
+    //! not a capability face: what a consumer may ask about the raster -- its size, a sampling, its
+    //! quadrature rule, the FFT pair -- is on \c G_RasterTransform, so no consumer needs the mesh itself.
     const qcMesh::Mesh& Mesh() const                            {return itsGrid->Mesh();}
     //! The raster's points alone -- \c Mesh().Points(), the name the collocation paths ask by (non-virtual:
     //! it is a convenience over the Quadrature face, not a capability of its own).
     const rvec3vec_t& GridPoints() const                        {return itsGrid->GridPoints();}
+    size_t   RasterSize () const override                       {return itsGrid->Mesh().size();}
+    rvec_t   Sample     (const ScalarFunction<double>& f) const override {return f(itsGrid->GridPoints());}
     rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override {return itsGrid->RhoOnGrid(rhoTilde);}
     cvec_t   ForwardFFT (const rvec_t& V) const override        {return itsGrid->ForwardFFT(V);}
     //! Complex-input forward FFT (general-k Bloch products); non-virtual sibling of the \c G_FieldEvaluator
@@ -183,10 +185,10 @@ public:
     rvec_t   ApplySpectralFilter(const rvec_t& f, const std::function<double(double g2)>& k) const override
                                                                 {return itsGrid->ApplySpectralFilter(f,k);}
     dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override {return itsGrid->GridCoeff(Vt,dm);}
-    //! \f$\int f\,d^3r\f$ by the raster's own uniform rule, \f$(\sum_g f_g)\,\Omega/N_{pts}\f$.  Non-virtual:
-    //! integration is a MESH operation (\c qcMesh::Integrate over \c Mesh()), and the two are algebraically
-    //! identical here -- this form survives as the raster's own summation order, used by the direct-grid tests.
-    double   Integral   (const rvec_t& f) const                 {return itsGrid->Integral(f);}
+    //! \f$\int f\,d^3r\f$ by the raster's own uniform rule, \f$(\sum_g f_g)\,\Omega/N_{pts}\f$ -- the
+    //! \c G_RasterTransform face's quadrature.  Algebraically \c qcMesh::Integrate over \c Mesh(); kept as
+    //! this summation order because the periodic energies are pinned to 10 digits against it.
+    double   Integral   (const rvec_t& f) const override        {return itsGrid->Integral(f);}
     //! Forward the construction-time grid announcement to the engine (non-virtual -- reporting is the
     //! owning fit basis's own act, not a G_FieldEvaluator capability).
     void     AnnounceGrid(const std::string& role) const        {itsGrid->AnnounceGrid(role);}

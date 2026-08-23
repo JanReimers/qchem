@@ -313,9 +313,17 @@ public:
     //! \c dcmplx (doc/RealComplexPlan.md 3c-3), which retired the second table-map argument this used to
     //! carry beside a raw point list.
     //!
-    //! Default: hand \a q this density's own \c ScalarFunction face and let it sample -- correct for
-    //! EVERY density (a matrix-free seed included), just without the GEMM; composite/leaf override.
-    virtual rvec_t DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const {return q.Sample(*this);}
+    //! \return MY EXPANSION COEFFICIENTS over \a q -- one per fit FUNCTION, not one per point.  For a
+    //! \f$\delta\f$ basis the two coincide numerically (\f$c_g=\rho(r_g)\f$), which is exactly why the
+    //! pointwise-nonlinear XC functional may be applied to them directly; the name of the array is the
+    //! coefficient vector, and the equality is a property of the representation.
+    //!
+    //! Default: hand \a q this density's own \c ScalarFunction face and let it project itself, then divide
+    //! by \a q's metric diagonal -- correct for EVERY density (a matrix-free seed included), just without
+    //! the GEMM; composite/leaf override.  \c BasisSet::OrthogonalFit is the shared one-liner it and the
+    //! \f$\delta\f$ scalar fitter both use, so "fit onto this basis" has ONE definition.
+    virtual rvec_t DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
+        {return BasisSet::OrthogonalFit(q, *this);}
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
     // below (V1.6).  They were four asserting defaults on this general face, which every concrete family

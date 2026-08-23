@@ -1735,6 +1735,97 @@ TEST(GPW, OverlapDiagonalPerRepresentation)
     EXPECT_NE(dD[0], dcmplx(1.0));
 }
 
+// A lambda as a real-space field, so a fit basis can be asked to project it (GPW_UT's own copy of
+// PlaneWaveDFTUT's FieldFn -- one struct, not worth a shared header).
+namespace {
+struct CellField : public ScalarFunction<double>
+{
+    std::function<double(const rvec3_t&)> f;
+    explicit CellField(std::function<double(const rvec3_t&)> g) : f(std::move(g)) {}
+    virtual double  operator()(const rvec3_t& r) const override {return f(r);}
+    virtual rvec3_t Gradient  (const rvec3_t&  ) const override {return rvec3_t(0,0,0);}
+};
+} //anon
+
+// THE LOAD-BEARING CLAIM OF "ONE FIT-BASIS INTERFACE" (user, 2026-08-22; landed 2026-08-23): a delta fit
+// basis is a family of FUNCTIONS, so it answers the SAME two integrals a Gaussian auxiliary basis answers,
+// per FUNCTION and never per point --
+//
+//     Overlap(f)  = <f_a|f>     the projection (the fit RHS)
+//     Integrals() = <f_a|1>     each function's own integral
+//
+// -- and the two REPRESENTATIONS a periodic run can pick between must agree about what they mean.  The
+// invariant that ties all three of Overlap / OverlapDiagonal / Integrals together, and the one the XC
+// energy actually rides, is
+//
+//     integral f d3r  ==  c . <f_a|1>,   c = OrthogonalFit(f) = <f_a|f> / <f_a|f_a>
+//
+// i.e. "integrate the fit of f".  It is representation-INDEPENDENT by construction, so pinning it on both
+// catches a normalisation slip on either (the plane-wave side carries a 1/sqrt(Omega) in its functions,
+// which is exactly the kind of factor that used to hide inside a fitter).
+TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
+{
+    const double a=6.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+    qcMesh::MeshParams mp;
+    const double Omega=cell.GetCellVolume();
+
+    // Two fields with an EXACTLY known cell integral, both band-limited so a raster quadrature is exact:
+    // the constant (which isolates the normalisation) and one that adds a zero-mean lattice harmonic
+    // (which proves nothing is silently dropping the non-constant content).
+    const double twoPi=2.0*M_PI;
+    CellField one ([ ](const rvec3_t&  ){return 2.0;});
+    CellField wave([&](const rvec3_t& r){return 2.0 + std::cos(twoPi*r.x/a)*std::sin(twoPi*r.y/a);});
+
+    // (1) DELTA: <delta_g|f> = w_g f(r_g) and <delta_g|1> = w_g, both one entry per FUNCTION.
+    BasisSet::FitQuadrature q=gpw.CreateXCQuadrature(&cell, mp);
+    BasisSet::DeltaFit_IBS dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    ASSERT_EQ(dfit.GetNumFunctions(), q.mesh->size()) << "one delta function per mesh point";
+    const vec_t<dcmplx> pD=dfit.Overlap(wave), iD=dfit.Integrals();
+    ASSERT_EQ(pD.size(), dfit.GetNumFunctions());
+    ASSERT_EQ(iD.size(), dfit.GetNumFunctions());
+    for (size_t g=0; g<iD.size(); g++)
+    {
+        const double w=q.mesh->Weights()[g];
+        EXPECT_EQ(iD[g], dcmplx(w))                                  << "<delta_g|1> = w_g";
+        EXPECT_EQ(pD[g], dcmplx(w*wave(q.mesh->Points()[g])))        << "<delta_g|f> = w_g f(r_g)";
+    }
+    // ...and the fit divides that back out EXACTLY at the printed precision -- the property that lets the
+    // pointwise-nonlinear functional be applied straight to the coefficients.
+    const rvec_t cD=BasisSet::OrthogonalFit(dfit, wave);
+    for (size_t g=0; g<cD.size(); g++)
+        EXPECT_NEAR(cD[g], wave(q.mesh->Points()[g]), 1e-13) << "c_g = w_g f_g / w_g = f(r_g)";
+
+    // (2) PLANE WAVE: <e^{iG r}/sqrt(Omega)|1> = sqrt(Omega) delta_{G,0} -- a cell integral kills every
+    // wave but the constant one.
+    std::unique_ptr<const BasisSet::cFIT_SF_ABS> pwFit(gpw.CreateVxcFitBasisSet(&cell, mp));
+    const vec_t<dcmplx> iPW=pwFit->Integrals();
+    ASSERT_EQ(iPW.size(), pwFit->GetNumFunctions());
+    size_t nNonZero=0;
+    for (size_t g=0; g<iPW.size(); g++) if (std::abs(iPW[g])>1e-12) { nNonZero++; EXPECT_NEAR(std::real(iPW[g]), std::sqrt(Omega), 1e-9); }
+    EXPECT_EQ(nNonZero, size_t(1)) << "exactly one plane wave (G=0) survives a cell integral";
+
+    // (3) THE UNIFICATION: integral f == c . <f_a|1> on BOTH, for both fields.  Delta is a trapezoidal rule
+    // on a uniform periodic mesh (spectrally exact here); plane wave is exact by band limitation.
+    for (const auto& [name, f, exact] : {std::tuple<const char*, const CellField*, double>{"constant", &one,  2.0*Omega},
+                                         std::tuple<const char*, const CellField*, double>{"harmonic", &wave, 2.0*Omega}})
+    {
+        auto integrateFit=[&](const BasisSet::cFIT_SF_ABS& b)
+        {
+            const rvec_t  c=BasisSet::OrthogonalFit(b, *f);
+            const vec_t<dcmplx> I=b.Integrals();
+            double s=0.0;
+            for (size_t k=0; k<c.size(); k++) s+=std::real(I[k])*c[k];
+            return s;
+        };
+        EXPECT_NEAR(integrateFit(dfit),  exact, 1e-8*Omega) << "delta: "      << name;
+        EXPECT_NEAR(integrateFit(*pwFit), exact, 1e-8*Omega) << "plane wave: " << name;
+    }
+}
+
 TEST(GPW, DISABLED_DiffuseDPairVlongOracle)
 {
     const double a=8.40;

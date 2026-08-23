@@ -50,8 +50,9 @@ Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
     //   isOrtho()         -- the METRIC axis: DIAGONAL, so no linear solve.  Genuinely general; an
     //                        orthogonal wavelet basis, or a delta basis (metric diag(w_g)), satisfies it
     //                        too -- the projection IS the fit up to that known diagonal.
-    //   (the QUADRATURE axis needs no check any more: NumPoints/Sample/Integrate are on FIT_SF_ABS
-    //    itself, because every scalar fit basis has points -- so it is a compile-time guarantee.)
+    //   (the PROJECTION axis needs no check: Overlap(f) and Integrals() are on FIT_SF_ABS itself --
+    //    every fit basis is a family of functions and can be asked for both -- so it is a compile-time
+    //    guarantee.  What a raster fitter needs BEYOND that is the transform face, checked below.)
     //   G_RasterTransform -- the TRANSFORM axis: the FFT pair the projection is batched through.  NOT
     //                        general -- that face is reciprocal-space BY INTERFACE (ΔG_Map, ForwardFFT,
     //                        GridCoeff keyed by an integer ivec3_t reciprocal-index difference), so only a

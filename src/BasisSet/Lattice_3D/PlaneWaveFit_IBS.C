@@ -57,14 +57,39 @@ public:
         , itsDirectOps(std::move(directOps))
     { AnnounceGrid(role); }
 
-    // The QUADRATURE OPERATIONS (FIT_SF_ABS): my raster, answered as questions rather than handed over.
-    // The mesh stays inside -- itsGrid->Mesh() is a private detail of the held grid engine.
-    size_t NumPoints() const override {return PW_Grid_Evaluator::Mesh().size();}
-    rvec_t Sample(const ScalarFunction<double>& f) const override
-        {return f(PW_Grid_Evaluator::Mesh().Points());}
-    //! \f$(\sum_g f_g)\,\Omega/N_{pts}\f$ -- the raster's own uniform rule, in its own summation order
-    //! (algebraically \f$\sum_g w_g f_g\f$; kept verbatim so the historical path stays bit-identical).
-    double Integrate(const rvec_t& f) const override {return PW_Grid_Evaluator::Integral(f);}
+    //! \copydoc BasisSet::FIT_SF_ABS::Overlap
+    //! \f$\langle e^{iG_a\cdot r}/\sqrt\Omega\,|\,f\rangle=\sqrt\Omega\,\tilde f(G_a)\f$ over THIS basis's
+    //! own \f$\{G\}\f$ -- sample on my raster, forward-FFT, gather the ball.  My functions carry the
+    //! \f$1/\sqrt\Omega\f$ norm (\c PW_Evaluator::Eval), which is why the projection carries
+    //! \f$\sqrt\Omega\f$ and \c OverlapDiagonal() below is exactly one.
+    //!
+    //! \warning TRUNCATION, and that is WHY \c OrthoNormalScalarFitter does not fit through this.  The
+    //! XC assembly looks \f$\tilde v\f$ up at ORBITAL index differences \f$m_i-m_j\f$, which reach twice
+    //! the orbital ball -- outside this fit ball, where the honest answer here is ZERO but the raster's
+    //! \c GridCoeff wraps (aliases) and returns the resolved value.  Routing that fitter through this
+    //! projection would therefore silently DELETE the bulk of \f$v_{xc}\f$, not move a last bit; the
+    //! same distinction \c G_FieldEvaluator::ProjectField warns about, met here for real.  So this is the
+    //! representation's honest self-projection and its fitter keeps the raster path (2026-08-23).
+    vec_t<dcmplx> Overlap(const ScalarFunction<double>& f) const override
+    {
+        const cvec_t  Vt=PW_Grid_Evaluator::ForwardFFT(f(PW_Grid_Evaluator::Mesh().Points()));
+        const double  rootOmega=std::sqrt(PW_Evaluator::Volume());
+        const auto&   Gs=PW_Evaluator::Gs();
+        vec_t<dcmplx> p(Gs.size());
+        for (size_t a=0; a<Gs.size(); a++) p[a]=rootOmega*PW_Grid_Evaluator::GridCoeff(Vt, Gs[a]);
+        return p;
+    }
+    //! \copydoc BasisSet::FIT_SF_ABS::Integrals
+    //! \f$\int e^{iG\cdot r}/\sqrt\Omega\,d^3r=\sqrt\Omega\,\delta_{G,0}\f$ -- a cell integral kills every
+    //! wave but the constant one.  (So \f$\int\sum_a c_a f_a=\sqrt\Omega\,c_0\f$: the mean, as it must be.)
+    vec_t<dcmplx> Integrals() const override
+    {
+        const auto& Gs=PW_Evaluator::Gs();
+        vec_t<dcmplx> I(Gs.size(), dcmplx(0.0));
+        for (size_t a=0; a<Gs.size(); a++)
+            if (Gs[a].x==0 && Gs[a].y==0 && Gs[a].z==0) I[a]=dcmplx(std::sqrt(PW_Evaluator::Volume()));
+        return I;
+    }
 
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal
     //! ALL ONES: plane waves over the cell are orthoNORMAL, which is the special case

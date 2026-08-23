@@ -144,7 +144,7 @@ public:
     virtual ~FunctionFitter_Scalar() = default;
     //! \brief Fit a REAL-SPACE scalar field \f$f(r)\f$ (e.g. \f$v_{xc}(\rho(r))\f$).  BOTH metrics take the
     //! SAME real field: the fitter samples it on ITS OWN quadrature mesh -- an AO fit projects in the overlap
-    //! norm over its Becke mesh; an orthonormal (plane-wave) fit batch-samples on its FFT grid and forward-
+    //! norm over its own quadrature mesh; an orthonormal (plane-wave) fit batch-samples on its FFT grid and forward-
     //! transforms (the projection IS the fit).  The field's fast bulk sampling (FFT for PW) is its own private
     //! optimization behind \c ScalarFunction::operator()(rvec3vec_t).
     virtual void      DoFit        (const ProjectedScalar_R&)              =0;
@@ -179,7 +179,7 @@ public:
 // directly, so the fitter's grid accessors had one redundant caller and (after the raster/mesh split) one
 // caller with none at all.  A face nobody consumes is not an abstraction, so the ortho scalar fitter is
 // once again just a FunctionFitter_Scalar<dcmplx> that happens to fit on a raster -- which is its own
-// business, exactly as the AO fitter's Becke mesh is.
+// business, exactly as the AO fitter's own quadrature mesh is.
 
 //! \brief Abstract density fitter -- the MINIMAL CORE a Hartree term needs: fit a density, then contract it
 //! against an orbital basis as a Coulomb (Vee) matrix Sum_a c_a <Oi|f_a/r12|Oj>.  Orthonormality-neutral (no
