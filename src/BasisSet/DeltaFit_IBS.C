@@ -29,7 +29,8 @@ module;
 #include <string>
 #include <utility>
 export module qchem.BasisSet.DeltaFit_IBS;
-export import qchem.BasisSet.Fit_IBS;                    // cFIT_SF_Delta (the face) + FitQuadrature (the bundle)
+export import qchem.BasisSet.Fit_IBS;
+export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary                    // cFIT_SF_ABS + Integrals_Overlap3C + FitQuadrature
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
 import qchem.Types;                                      // dcmplx, rvec3_t, vec_t
@@ -49,10 +50,17 @@ export namespace qchem::BasisSet
 //! two of these -- but nothing keys an integral cache on a \f$\delta\f$ basis today: it has no 3-centre
 //! tensor, because the quadrature route never forms one.
 class DeltaFit_IBS
-    : public virtual cFIT_SF_Delta            // FIT_SF_Delta<dcmplx> : cFIT_SF_ABS + Quadrature
-    , public         IrrepBasisSetImp<dcmplx> // GetSymmetry/GetSymt/GetIrrep
+    : public virtual cFIT_SF_ABS                     // the neutral scalar-fit face (+ Integrals_Overlap3C<dcmplx>)
+    , public virtual Integrals_Overlap3C<double>     // ...and a REAL TRIM block, in real arithmetic (3c-3)
+    , public         IrrepBasisSetImp<dcmplx>        // GetSymmetry/GetSymt/GetIrrep
 {
 public:
+    //! ORTHOGONAL, with \f$\langle\delta_g|\delta_g\rangle=w_g\f$ -- diagonal, so no metric SOLVE, which
+    //! is what \c isOrtho asks.  (Not orthoNORMAL: a fit through this basis divides by that diagonal,
+    //! \f$c_g=\langle\delta_g|f\rangle/w_g=f(r_g)\f$.)  Answered HERE since 2026-08-23 -- it was the last
+    //! thing holding up a \f$\delta\f$-only FACE, and "my metric is diagonal" is a fact about this
+    //! implementation, not a type other code needs to name.
+    bool isOrtho() const override {return true;}
     //! \a q is the FINISHED quadrature (mesh + fold + Shubnikov tags) from the owning basis's
     //! \c CreateXCQuadrature, and \a sym the \f$\Gamma\f$ Bloch irrep.
     DeltaFit_IBS(FitQuadrature q, const sym_t& sym)
@@ -73,7 +81,12 @@ public:
                                 itsQuad.sigmas.empty() ? std::string() : std::string("magnetic (Shubnikov)"));
     }
 
-    //! \copydoc BasisSet::FIT_SF_Delta::Overlap3C  (bodies in Imp/; ONE templated body serves both)
+    //! \copydoc BasisSet::Integrals_Overlap3C::Overlap3C
+    //! \f$\langle\chi_i|\delta_g|\chi_j\rangle=w_g\overline{\chi_i(r_g)}\chi_j(r_g)\f$, built from the
+    //! orbital basis's own \c op(r) -- no orbital-side 3-centre machinery is asked for or needed.  BOTH
+    //! block scalars, which is the whole of what a \f$\delta\f$ representation adds: its \f$\Phi\f$ table
+    //! is typed by the ORBITAL block, so a real TRIM block contracts in real arithmetic.  (Bodies in Imp/;
+    //! ONE templated body serves both.)
     const Projector3<double>& Overlap3C(const Orbital_1E_IBS<double>& orb) const override;
     const Projector3<dcmplx>& Overlap3C(const Orbital_1E_IBS<dcmplx>& orb) const override;
 
@@ -123,7 +136,8 @@ public:
         Symmetry::Lattice_3D::SymmetrizeValuesSigned(itsQuad.fold, itsQuad.sigmas, m);
     }
 
-    //! One \f$\delta\f$ function per mesh point.  ~100k of them: see the sizing warning on \c FIT_SF_Delta.
+    //! One \f$\delta\f$ function per mesh point -- ~100k of them, so anything reasoning about a fit basis
+    //! by COUNTING functions (grid sizing, memory reports, cache dimensions) must not choke on that.
     size_t GetNumFunctions() const override {return itsQuad.mesh->size();}
 
     // NO op(r)/Gradient, and no stub either: since 2026-08-22 IrrepBasisSet does not promise pointwise

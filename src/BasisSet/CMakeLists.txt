@@ -31,7 +31,9 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C
   Orbital_DHF_IBS.C
+  Fit_Types.C
   Fit_IBS.C
+  FitOperations.C
   DeltaFit_IBS.C
   SymmetryAdapted_IBS.C
   Internal/BasisSetImp.C

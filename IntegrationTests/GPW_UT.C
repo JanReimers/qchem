@@ -36,6 +36,7 @@ import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::Coll
 import qchem.LASolver;                       // LASolver<dcmplx> (the k=1/4 spectrum gate)
 import qchem.Symmetry.Factory;               // BlochFactory (arbitrary-shift k for the k=1/4 continuity gate)
 import qchem.BasisSet.DeltaFit_IBS;          // DeltaFit_IBS (the delta representation's OverlapDiagonal gate)
+import qchem.BasisSet.FitOperations;         // OrthogonalFit -- the projection/metric invariant this gate pins
 import qchem.Mesh.Quadrature;                // qcMesh::Mesh (the delta basis's quadrature)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
 import qchem.BasisSet.Internal.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)

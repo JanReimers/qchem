@@ -786,15 +786,12 @@ MnO campaign proceeds undisturbed in qchem6.
     representation a polarized run can use" — was about which representation gets SELECTED by the
     Hamiltonian's `VxcFit::Auto` policy, and a policy fact has no business shaping a basis face.
 
-  **WHAT REMAINS ON `FIT_SF_Delta`: three declarations** — `isOrtho()` (the inherited metric contract),
-  `Overlap3C(real block)` (the mixed-run overload above), `SiteIntegrals(f)`, plus the narrowed
-  `SymmetrizeSpin` override.
-  ⇒ **`SiteIntegrals` is the last thing that does not belong, and it reads as another public quadrature
-  service** (user, 2026-08-23).  Half-fair: its argument IS an expansion over this basis's own functions
+  ⇒ **`SiteIntegrals` then read as another public quadrature service** (user, 2026-08-23).  Half-fair: its
+  argument IS an expansion over this basis's own functions
   (\f$\mu_A=\sum_{g\in A}c_g\langle\delta_g|1\rangle\f$ — a partitioned `Charge`, not a third-party
   integrand), so it is not the \f$\langle i|f|j\rangle\f$-for-arbitrary-\f$f\f$ smell.  What is foreign
   is the SITE structure: partitioning functions into atomic basins is not a fit-basis concept, it is the
-  mesh's, and it exists here only because the mesh is private.  Still no owner to move it to.
+  mesh's, and it was here only because the mesh is private.  Cured below.
   ⚠ Naming debt, unchanged: `applyRaw`/`applyRawAdjoint`/`applyRawFactored` are exactly the
   implementation vocabulary the house convention rejects.  Left alone because they are internal and shared
   with the GPW and plane-wave lineages.
@@ -825,11 +822,51 @@ MnO campaign proceeds undisturbed in qchem6.
     `npts==f.size()`, `NSites()==1`, and prints `[site moments] 0:5.00462`.  The same probe is what turned
     up **R1.0d** above.
 
-  ⇒ **`FIT_SF_Delta` is now ONE declaration**: `Overlap3C(const Orbital_1E_IBS<double>&)`, the MIXED-run
-  real-TRIM overload — plus an `isOrtho()` override and a `using`.  Everything else a δ fit basis does it
-  does through `FIT_SF_ABS<T>`, in the same vocabulary as a Gaussian auxiliary basis.  The face survives
-  only because a δ table is typed by the ORBITAL block's scalar while every other 3-centre tensor is typed
-  by the FIT scalar (doc/RealComplexPlan.md 3c-3); settle that and the type disappears entirely.
+  **✅ AND THEN `FIT_SF_Delta` WENT ENTIRELY (user: "remove FIT_SF_Delta completely… isOrtho can move up
+  to the imp layer").**  Its last member was *"I can serve a REAL orbital block"* — a CAPABILITY, not an
+  identity — so it became **`Integrals_Overlap3C<U>`**, the basis-side mirror of
+  `Fitting::FitContraction<U>` and split for the same ISP reason: a fit basis's own scalar and the scalar
+  of the block it contracts against are INDEPENDENT axes that only look like one until 3c-3 makes them
+  differ.  `FIT_SF_ABS<T>` supplies it for its own scalar; `DeltaFit_IBS` additionally declares
+  `Integrals_Overlap3C<double>`, which is the whole of what a δ representation adds.  `isOrtho()` moved
+  down to the concrete class — "my metric is diagonal" is a fact about an implementation, not a type other
+  code needs to name.
+
+  **TWO CONSEQUENCES I DID NOT ANTICIPATE, both improvements:**
+  - **The fitter Factory stopped asking "what IS it".**  It selected on
+    `dynamic_pointer_cast<cFIT_SF_Delta>`; with that type gone the check HAD to become what the basis can
+    DO — raster-backed ⇒ FFT projection + aliased grid lookup, otherwise the general orthogonal fit.  Both
+    candidates are orthogonal, so the METRIC cannot separate them; the TRANSFORM face can, and is the
+    property actually being used.  This was the one genuine "what is it" branch flagged in the metric-axis
+    spec above as the thing a metric split must NOT launder — it is simply gone instead.
+  - **A shared helper replaced what would have been two copies.**  The fitter (adjoint) and a density
+    block (forward) both need "the 3-centre face for THIS block's scalar", in different libraries: one
+    `Overlap3CFace<U>(basis)` — `if constexpr` same-scalar conversion, reference cross-cast otherwise.
+    Compile-time dispatch on the scalar, not a run-time type switch.
+
+  **✅ AND Fit_IBS.C IS NOW INTERFACES ONLY (user, 2026-08-23: "FitQuadrature, enum class VxcFit,
+  OrthogonalFit do not belong in the interface definition file").**  Correct — no fit-basis face names any
+  of them.  338 lines, declaring `Integrals_Overlap3C`, `FIT_CD_ABS`, `FieldEvaluator`, `FIT_CD_NonOrtho`,
+  `FIT_SF_ABS`, `FIT_SF_NonOrtho`, `Fit_IBS` and their aliases, and nothing else.
+
+  | moved out | to | why there |
+  |---|---|---|
+  | `FitQuadrature`, `enum class VxcFit` | **`qchem.BasisSet.Fit_Types`** | the factory VOCABULARY: `VxcFit` goes IN (which representation?), `FitQuadrature` comes OUT (the finished quadrature).  A LEAF module — it needs the mesh and the fold and nothing else — so it sits BELOW both `Orbital_DFT_IBS` and `tBasisSet`, the two that declare `CreateXCQuadrature`, and neither has to import the fit faces to name its own return type. |
+  | `OrthogonalFit`, `Overlap3CFace` | **`qchem.BasisSet.FitOperations`** | free ALGORITHMS written in terms of a face, not part of any face's contract.  Each exists only because two consumers in DIFFERENT libraries need the same few lines (qcFitting's scalar fitter and qcChargeDensity's density). |
+
+  ⇒ **NEXT, and the user's own reading of the obstacle.**  `FIT_SF_ABS<T>::Overlap3C` should take
+  `const Orbital_DFT_IBS<T>&` rather than `Orbital_1E_IBS<T>` — the caller must already hold a DFT-capable
+  basis, so the `dynamic_cast` inside the default disappears (compile-time over run-time).  **Attempted and
+  it does not compile**, for a structural reason worth recording: a cross-module forward declaration makes
+  a DISTINCT entity —
+  *"error: declaration of 'Orbital_DFT_IBS' in module qchem.BasisSet.Orbital_DFT_IBS follows declaration in
+  module qchem.BasisSet.Fit_IBS"* — and a real import is a cycle, because
+  `Orbital_DFT_IBS::Overlap3C(const FIT_SF_ABS<TFit>&)` already names the fit face.  ⇒ **The cure is not to
+  merge the modules but to move the DEFAULT further toward the implementation** (user): make
+  `FIT_SF_ABS<T>::Overlap3C` pure, and put the delegating `orb.Overlap3C(*this)` body in a mixin declared
+  where BOTH faces are visible, which the concrete Gaussian and plane-wave fit bases derive.  Then only
+  that mixin names `Orbital_DFT_IBS`, no cycle, no cast — and it also retires the explicit-instantiation
+  trick the current default needs, which is a good sign it is the right shape.
 
 - **R1.0e The `qcHamiltonian` PWTerms TU needs a structural break-up — USER, 2026-08-23** (*"the enormous
   PWTerms TU is going to need a massive refactoring cleanup eventually"*).  584 lines of interface + 944 of

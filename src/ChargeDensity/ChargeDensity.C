@@ -14,6 +14,7 @@ export import qchem.Symmetry.Spin;
 export import qchem.Symmetry.Irrep;   // Irrep: the block identity (Phi-table cache key, basis-side)
 export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (tPolarized_CD's periodic face)
 import qchem.ScalarFunction;
+import qchem.BasisSet.FitOperations;   // OrthogonalFit -- a matrix-free density's fit onto an ortho basis
 import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
@@ -306,8 +307,8 @@ public:
     //! THE DENSITY ASKS THE BASIS (2026-08-22).  \f$D\f$ is this class's private business and \f$\Phi\f$
     //! is the basis's, so exactly one of them has to travel -- and it is \f$\Phi\f$, because a table of
     //! basis-function values is an integral over the BASIS's own functions.  So the argument is the
-    //! quadrature itself: each block asks \a q for its own typed table (\c FIT_SF_Delta::Values) and
-    //! contracts it as a GEMM against its private \f$D\f$.  This is the seam that makes a real-space XC
+    //! quadrature itself: each block asks \a q for its own typed 3-centre overlap
+    //! (\c Integrals_Overlap3C) and contracts its private \f$D\f$ into it.  This is the seam that makes a real-space XC
     //! quadrature O(GEMM) per SCF iteration instead of re-evaluating Bloch sums pointwise -- and it is
     //! MIXED-aware for free, a real TRIM block asking with \c double while its complex siblings ask with
     //! \c dcmplx (doc/RealComplexPlan.md 3c-3), which retired the second table-map argument this used to
@@ -322,7 +323,7 @@ public:
     //! by \a q's metric diagonal -- correct for EVERY density (a matrix-free seed included), just without
     //! the GEMM; composite/leaf override.  \c BasisSet::OrthogonalFit is the shared one-liner it and the
     //! \f$\delta\f$ scalar fitter both use, so "fit onto this basis" has ONE definition.
-    virtual rvec_t DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
+    virtual rvec_t DM_RhoAtPoints(const BasisSet::cFIT_SF_ABS& q) const
         {return BasisSet::OrthogonalFit(q, *this);}
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD

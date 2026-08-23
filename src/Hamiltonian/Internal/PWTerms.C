@@ -287,7 +287,7 @@ public:
     //! POLICY -- which
     //! source \f$\rho\f$ comes from this iteration, per-serial caching, the spin channels, the
     //! DM-source damping -- none of which is basis business.
-    typedef std::shared_ptr<const BasisSet::cFIT_SF_Delta> fit_t;
+    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit_t;
     //! \a partition is the SAME \c qcMesh::Mesh the fit basis was built over, injected by the factory
     //! that created both (never taken from the basis -- it has no getter).  It carries the ATOMIC site
     //! blocks, which is a general-purpose observable and no part of a fit basis's contract; this strategy
@@ -453,7 +453,7 @@ private:
 
 //! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.
 //!
-//! A δ fit basis (\c BasisSet::FIT_SF_Delta) carries points and nothing else, so it can only be contracted
+//! A δ fit basis carries points and nothing else, so it can only be contracted
 //! through a Φ table: SINGLES.  A raster-backed one additionally carries the FFT transforms and keys the
 //! orbital's 3-centre tensor, so the PAIR route is available and is chosen -- it is the production GPW
 //! path and the one whose screening pays on large cells.  There is no extra input to supply: both routes

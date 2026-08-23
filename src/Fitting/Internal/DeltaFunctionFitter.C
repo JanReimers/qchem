@@ -25,10 +25,12 @@ module;
 #include <memory>
 #include <ostream>
 #include <stdexcept>
+#include <type_traits>   // std::is_same_v (same-scalar face vs the mixed-run cross-cast)
 export module qchem.Fitting.Internal.DeltaFunctionFitter;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<U>, ProjectedScalar_R
 import qchem.Fitting.Types;                   // robs_t<U>
-import qchem.BasisSet.Fit_IBS;                // cFIT_SF_Delta (the held fit basis)
+import qchem.BasisSet.Fit_IBS;                // cFIT_SF_ABS + Integrals_Overlap3C<U> (the held fit basis)
+import qchem.BasisSet.FitOperations;          // OrthogonalFit / Overlap3CFace -- the two shared algorithms
 import qchem.Blaze;                           // hmat_t<U>
 
 export namespace qchem::Fitting
@@ -42,7 +44,7 @@ class DeltaScalarFitter
     , public virtual FitContraction<dcmplx>   // ...its complex siblings' in complex
 {
 public:
-    typedef std::shared_ptr<const BasisSet::cFIT_SF_Delta> fbs_t;
+    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
     explicit DeltaScalarFitter(const fbs_t& fbs) : itsFitBasis(fbs)
     {
         assert(itsFitBasis && itsFitBasis->isOrtho() &&
@@ -85,10 +87,13 @@ private:
     template <class U> hmat_t<U> Contract(const robs_t<U>* bs) const
     {
         assert(bs);
-        const Projector3<U>& o3=itsFitBasis->Overlap3C(*bs);
-        assert(o3.applyRawAdjoint && "DeltaScalarFitter: a delta basis must realise the 3-centre adjoint");
+        const Projector3<U>& o3=Face<U>().Overlap3C(*bs);
+        assert(o3.applyRawAdjoint && "DeltaScalarFitter: this fit basis must realise the 3-centre adjoint");
         return o3.applyRawAdjoint(itsC);
     }
+    //! \copydoc BasisSet::Overlap3CFace
+    template <class U> const BasisSet::Integrals_Overlap3C<U>& Face() const
+        {return BasisSet::Overlap3CFace<U>(*itsFitBasis);}
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
     rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
 };

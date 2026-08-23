@@ -64,15 +64,20 @@ Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
     // G-space fit basis constructed happily and tripped later, somewhere else.  Two-phase contract, same
     // smell as R2.10's SetMesh -- so it is established once, where the object is made.
     assert(bs->isOrtho() && "Fitting::Factory(cFIT_SF_ABS): a complex potential-fit basis must be orthogonal");
-    if (auto d=std::dynamic_pointer_cast<const BasisSet::cFIT_SF_Delta>(bs))
-        return std::make_unique<DeltaScalarFitter>(d);   // delta: no raster, metric diag(w_g)
-    assert(dynamic_cast<const BasisSet::G_RasterTransform*>(bs.get())
-           && "Fitting::Factory(cFIT_SF_ABS): the fit basis must ALSO provide the G_RasterTransform FFT "
-              "pair -- this fitter batch-projects by forward FFT, which only a raster can do");
-    assert(dynamic_cast<const BasisSet::G_FieldEvaluator*>(bs.get())
-           && "Fitting::Factory(cFIT_SF_ABS): the fit basis must provide G_FieldEvaluator so the fitted "
-              "v_xc,fit(r) stays evaluatable (GUI / fit-residual)");
-    return std::make_unique<OrthoNormalScalarFitter>(bs);
+    // CAPABILITY decides, and it is the same question MakeXCQuadrature asks (2026-08-23).  This used to be
+    // dynamic_pointer_cast<cFIT_SF_Delta> -- a "what IS it?" cast -- which is why removing that face freed
+    // the check to be about what the basis can DO: a RASTER-backed basis batch-projects by forward FFT and
+    // assembles through its grid's (aliased) coefficient lookup; anything else takes the general ORTHOGONAL
+    // fit, projection divided by the metric diagonal.  Both are orthogonal, so the metric cannot separate
+    // them -- the transform face can, and is the property actually being used.
+    if (dynamic_cast<const BasisSet::G_RasterTransform*>(bs.get()))
+    {
+        assert(dynamic_cast<const BasisSet::G_FieldEvaluator*>(bs.get())
+               && "Fitting::Factory(cFIT_SF_ABS): a raster fit basis must provide G_FieldEvaluator so the "
+                  "fitted v_xc,fit(r) stays evaluatable (GUI / fit-residual)");
+        return std::make_unique<OrthoNormalScalarFitter>(bs);
+    }
+    return std::make_unique<DeltaScalarFitter>(bs);   // no raster: projection / metric diagonal
 }
 
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>

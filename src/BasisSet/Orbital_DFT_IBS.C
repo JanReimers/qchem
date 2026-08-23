@@ -5,6 +5,7 @@ export module qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Fit_IBS;
+export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary
 export import qchem.BasisSet.Internal.Projector3;
 import qchem.Structure;  // Structure::CreateIntegrationMesh (the default FitQuadrature build)
 

@@ -1233,7 +1233,20 @@ Three things the spec below did not anticipate, all recorded there in full:
   and then `SiteIntegrals` went too, **by INJECTION**: `CreateVxcFitBasisSet` — which BUILDS the mesh —
   now also hands the same `shared_ptr<const qcMesh::Mesh>` to the XC strategy, which takes the moments
   where ρ_σ is already cached.  No getter; a creator gave its creation to two collaborators.
-  **`FIT_SF_Delta` is down to ONE declaration**: the mixed-run real-TRIM `Overlap3C` overload.
+  **`FIT_SF_Delta` IS GONE** (user): its last member was a CAPABILITY, not an identity, so it became
+  `Integrals_Overlap3C<U>` — the basis-side mirror of `FitContraction<U>`, declared by `FIT_SF_ABS<T>` for
+  its own scalar and by `DeltaFit_IBS` for the other (3c-3).  `isOrtho()` moved down to the concrete class.
+  Two unplanned wins: the fitter Factory stopped selecting on `dynamic_pointer_cast<cFIT_SF_Delta>` (a
+  "what IS it" cast) and now asks the TRANSFORM capability, which is the property it actually uses; and the
+  two libraries that need "the 3-centre face for this block's scalar" share one `Overlap3CFace<U>` helper.
+  **And `Fit_IBS.C` is interfaces only** (user): `FitQuadrature` + `VxcFit` → the leaf module
+  `qchem.BasisSet.Fit_Types` (the factory vocabulary, below everything that declares `CreateXCQuadrature`);
+  `OrthogonalFit` + `Overlap3CFace` → `qchem.BasisSet.FitOperations` (free algorithms over a face, shared
+  by two libraries).
+  ⇒ NEXT: `Overlap3C` should take `const Orbital_DFT_IBS<T>&`.  Blocked in `Fit_IBS.C` — a cross-module
+  forward declaration makes a distinct entity and a real import is a cycle — so the DEFAULT moves toward
+  the implementation instead (user): pure on `FIT_SF_ABS<T>`, delegating body in a mixin where both faces
+  are visible.  Kills the cast and the explicit-instantiation trick together.
   ⛔ **And the probe that verified the injection found a DEFECT — tracked as R1.0d:** an IMPOSED-symmetry
   Becke mesh silently loses its site blocks (the orbit-consistency filter re-emits into a fresh
   `MeshBuilder` without `BeginSite`), so per-site moments vanish on exactly the runs that want them — free

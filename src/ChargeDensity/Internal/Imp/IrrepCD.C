@@ -15,6 +15,7 @@ module;
 
 module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Symmetry;
+import qchem.BasisSet.FitOperations;   // Overlap3CFace<T> -- this block's scalar arm of the fit basis's 3C
 import qchem.Blaze;
 import qchem.Parallel;                  // WorkerThreads (GPW_OMP_THREADS -- the rho-sampling GEMM)
 import qchem.BasisSet.Orbital_DFT_IBS;   // cast the basis UP to the G-space capability (dcmplx path)
@@ -418,7 +419,7 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     return true;
 }
 
-template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
+template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::cFIT_SF_ABS& q) const
 {
     if (IsZero()) return rvec_t(q.GetNumFunctions(), 0.0);
     // ASK THE BASIS FOR ITS INTEGRAL, then contract MY matrix into it (R1.0; the 3-centre form,
@@ -427,7 +428,7 @@ template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::cFIT_S
     // BLAS-dispatch constraints and its output-block threading moved with the integral, into
     // BasisSet::DeltaFit_IBS, where they sit beside the adjoint contraction that must match them.
     ReportDMRank<T>(itsDensityMatrix, itsIrrep);   // hmat_t<T> is a conditional_t: T is non-deduced
-    const Projector3<T>& o3=q.Overlap3C(*itsBasisSet);
+    const Projector3<T>& o3=BasisSet::Overlap3CFace<T>(q).Overlap3C(*itsBasisSet);
     assert(o3.applyRaw && "IrrepCD: a delta fit basis must realise the 3-centre forward contraction");
     return o3.applyRaw(itsDensityMatrix);
 }
@@ -590,7 +591,7 @@ template class PeriodicIrrepCD<dcmplx>;
 // DM_RhoAtPoints, i.e. an O(n^3) pstrf on EVERY call -- and XC_Quadrature::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
-template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::cFIT_SF_Delta& q) const
+template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::cFIT_SF_ABS& q) const
 {
     if (this->IsZero()) return rvec_t(q.GetNumFunctions(), 0.0);
 
@@ -631,7 +632,7 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::c
     // ONE integral, TWO representations of D (2026-08-23).  Which form this density holds -- and whether
     // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against
     // <delta_g|chi_i chi_j> is the BASIS's, exactly as the full quadratic form above is.
-    const Projector3<T>& o3=q.Overlap3C(*this->itsBasisSet);
+    const Projector3<T>& o3=BasisSet::Overlap3CFace<T>(q).Overlap3C(*this->itsBasisSet);
     assert(o3.applyRawFactored && "FactoredRho: this fit basis cannot contract against a thin factor");
     return o3.applyRawFactored(itsL);
 }

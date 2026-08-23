@@ -1,59 +1,17 @@
 // File: BasisSet/Fit_IBS.C  Interfaces for a fitting (auxiliary) Basis Set.
 module;
-#include <cassert>  // OrthogonalFit's metric/size guards
 #include <memory>
 #include <string>
-#include <vector>   // FitQuadrature::sigmas/flipFixed (Shubnikov S3)
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
-import qchem.Blaze;                  // blazem::real -- OrthogonalFit is a TEMPLATE, so it needs it HERE
 export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
-export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the FitQuadrature orbit partition (§6a W1)
 import qchem.Structure;               // Structure (the ctor builds the quadrature mesh from it)
-export import qchem.BasisSet.Orbital_1E_IBS;  // Orbital_1E_IBS<U> -- the block FIT_SF_Delta::Overlap3C takes
+export import qchem.BasisSet.Orbital_1E_IBS;  // Orbital_1E_IBS<U> -- the block Integrals_Overlap3C takes
 export import qchem.BasisSet.Internal.Projector3;  // Projector3<U> -- the house CONTRACTIBLE 3-centre object
 
 export namespace qchem::BasisSet
 {
-
-//! \brief A FINISHED real-space XC quadrature (doc/SymmetryUpgradePlan.md §6a): the mesh, plus its orbit
-//! \c fold when the run imposes symmetry (empty = free run).  This is what the DELTA-fit XC route consumes
-//! -- a pure quadrature, deliberately NOT a fit basis (the delta "fit" has no functions and no metric).
-//! Produced by \c CreateXCQuadrature so all the low-level mesh work (grid build, group-averaging it
-//! invariant under the imposed ops, fold preparation) lives with the basis factories -- which own the
-//! cell and the §3 policy -- not in the Hamiltonian assembly.
-struct FitQuadrature
-{
-    std::shared_ptr<const qcMesh::Mesh> mesh;   //!< the quadrature (group-average invariant when fold is live)
-    Symmetry::Lattice_3D::Fold          fold;   //!< its orbit partition ({} = no star-averaging)
-    //! Shubnikov S3 (doc/SymmetryUpgradePlan.md §7 step 7) -- filled only on a MAGNETICALLY imposed run:
-    //! the per-op spin actions PARALLEL to the op list the fold was built under (the edge opIndex indexes
-    //! it), and the odd-field zero flags (mesh points some σ=Flip op maps onto themselves, where the
-    //! magnetization m must vanish exactly).  Both empty = grey/free semantics: the engine star-averages
-    //! each channel independently, exactly as before.
-    std::vector<Symmetry::SpinAction>   sigmas;
-    std::vector<char>                   flipFixed;
-};
-
-//! \brief WHICH REPRESENTATION carries \f$v_{xc}\f$ -- the argument that picks between the fit-basis types
-//! declared below, and therefore an argument of \c CreateVxcFitBasisSet.
-//!  - \c Delta: the \f$\delta\f$ basis (\c FIT_SF_Delta) -- \c n_pts delta functions on the quadrature
-//!    mesh, diagonal metric, fit = identity, so the "coefficients" ARE the point values.
-//!  - \c PlaneWave: the lineage's own FITTED representation -- plane waves on the \f$\{G\}\f$ ball for a
-//!    periodic basis (band-limited; the projection is an FFT on its raster).
-//!  - \c Auto: the caller did not choose.  Resolved by the POLICY layer -- the Hamiltonian, which is the
-//!    only layer that knows whether the run is polarized -- and, if it reaches a factory unresolved, read
-//!    as "your own fitted representation" (the historical pairing; \c qcMesh::UnitCellKind::Auto falls
-//!    through the same way).  A molecular basis, which has only its Gaussian auxiliary representation,
-//!    is asked with \c Auto and never needs to interpret the other two.
-//!
-//! It lives HERE and not in \c qcMesh (where it briefly did, 2026-08-22): \c MeshParams describes POINTS,
-//! and this describes FUNCTIONS -- the two are exactly the orthogonal axes the XC separation is about, so
-//! folding one into the other's parameter block would have re-welded them at the type level while the code
-//! was busy unwelding them.  It also does not live in qcHamiltonian, because the factory that reads it is
-//! here.  \c qchem::Hamiltonian::VxcFit is an alias, so the user-facing spelling is unchanged.
-enum class VxcFit {Auto, PlaneWave, Delta};
 
 //! \brief The MINIMAL, metric-neutral face of a CHARGE-DENSITY fit basis: just "I am a density-fit basis" --
 //! its fit FUNCTIONS, via \c IrrepBasisSet<T>.  This is what \c CreateCDFitBasisSet returns and what the
@@ -63,6 +21,24 @@ enum class VxcFit {Auto, PlaneWave, Delta};
 //! \cdot r}\f$ functions -- honestly complex, no NA-stub).  The two design axes are ORTHOGONAL: this T axis is
 //! the representation; the \c FIT_CD_NonOrtho refinement below is the metric axis.  (ISP sibling of \c
 //! FIT_SF_ABS.)
+//! \brief "I can answer the 3-CENTRE OVERLAP \f$\langle\chi_i|f_a|\chi_j\rangle\f$ against a
+//! \a U-scalar ORBITAL BLOCK."
+//!
+//! The basis-side sibling of \c Fitting::FitContraction<U>, and split off for the same ISP reason: a fit
+//! basis's own scalar and the scalar of the orbital block it contracts against are INDEPENDENT axes, and
+//! they only look like one until a MIXED run makes a real TRIM block meet a complex fit basis
+//! (doc/RealComplexPlan.md 3c-3).  \c FIT_SF_ABS<T> supplies this for its OWN scalar; a representation
+//! that can also serve the other one -- today only \f$\delta\f$, whose \f$\Phi\f$ table is typed by the
+//! ORBITAL block and can therefore contract a real block in REAL arithmetic -- declares the extra
+//! instantiation, and a consumer cross-casts to the one it needs.  A raster fit basis does NOT: its tensor
+//! is complex and the real-block route narrows at the call site instead.
+template <class U> class Integrals_Overlap3C
+{
+public:
+    virtual ~Integrals_Overlap3C() = default;
+    virtual const Projector3<U>& Overlap3C(const Orbital_1E_IBS<U>& orb) const=0;
+};
+
 //! Forward declaration of the two types the FIT_SF_ABS::Overlap3C default needs (defined below /
 //! in the implementation unit).
 template <class T> class FIT_SF_ABS;
@@ -144,6 +120,7 @@ public:
 //! refinement below is the overlap-metric axis.  (ISP sibling of \c FIT_CD_ABS -- identical shape.)
 template <class T> class FIT_SF_ABS
     : public virtual IrrepBasisSet<T>
+    , public virtual Integrals_Overlap3C<T>   // ...against an orbital block of MY OWN scalar
 {
 public:
     //! \brief Is this fit basis ORTHOGONAL (metric DIAGONAL)?  Mirror of \c FIT_CD_ABS::isOrtho on the
@@ -199,10 +176,10 @@ public:
     //! SAME-SCALAR only, and that is a real limit rather than an oversight: the orbital-side tensor is
     //! typed by the FIT scalar (\c Projector3<TFit>) while a \f$\delta\f$ table is typed by the ORBITAL
     //! block's, so the mixed real-TRIM-block-on-a-complex-fit-basis case (doc/RealComplexPlan.md 3c-3)
-    //! cannot share one signature.  It stays where it is served: an extra overload on \c FIT_SF_Delta
-    //! (which contracts a real block in REAL arithmetic) and a \c NarrowExact at the raster route's call
-    //! site (which narrows a complex result).
-    virtual const Projector3<T>& Overlap3C(const Orbital_1E_IBS<T>& orb) const
+    //! cannot share one signature.  It stays where it is served: a representation that can contract a
+    //! real block in REAL arithmetic declares \c Integrals_Overlap3C<double> as well (today only
+    //! \f$\delta\f$), and the raster route narrows a complex result with \c NarrowExact at its call site.
+    const Projector3<T>& Overlap3C(const Orbital_1E_IBS<T>& orb) const override
         {return OrbitalOverlap3C(orb, *this);}
 
     //! \brief \f$\langle f_a|1\rangle=\int f_a\,d^3r\f$, one per FUNCTION.
@@ -250,7 +227,7 @@ public:
     //! \f$\sigma\f$ -- \f$\rho\f$ EVEN under the orbit mean, \f$m\f$ ODD under the \f$\chi\f$-signed
     //! one with the flip-fixed functions zeroed first (Shubnikov S3, doc/SymmetryUpgradePlan.md §7).
     //!
-    //! HERE, not on \c FIT_SF_Delta, since 2026-08-23 (user: why would this differ by representation?).
+    //! HERE, not on a \f$\delta\f$-only face, since 2026-08-23 (user: why would this differ by representation?).
     //! It does not.  The DEFAULT below is the grey/free semantics -- average each channel independently --
     //! and is BIT-IDENTICAL to the branch the \f$\delta\f$ basis used to run for itself whenever the run
     //! carried no \f$\sigma\f$ tags.  A representation that knows nothing of magnetic symmetry therefore
@@ -264,121 +241,6 @@ public:
 };
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
 using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis
-
-//! \brief The \f$\delta\f$ (IDENTITY) potential-fit basis: \c n_pts genuine delta functions on a
-//! quadrature mesh, \f$\langle\delta_g|\delta_{g'}\rangle=w_g\delta_{gg'}\f$ (DIAGONAL metric), so the
-//! least-squares fit of any field is the field's own point values.
-//!
-//! It is a BASIS, not a null object (user ruling 2026-08-22).  The 2026-08-01 objection was to a
-//! ZERO-FUNCTION pseudo-basis -- an object with nothing to represent, invented so a signature could be
-//! satisfied.  Under "a fit basis is a family of weight vectors over shared points" this is the most
-//! natural basis there is: its weight vector for function \a g is \f$W_g[h]=w_g\delta_{gh}\f$, entirely
-//! determined by the mesh, which is why the mesh is CONSTITUTIVE of it and travels with it.
-//!
-//! WHAT IT ANSWERS ARE OPERATIONS, NOT DATA (user ruling 2026-08-22 -- the second one).  A fit basis is
-//! for DOING the fit and delivering \f$E\f$ and the \f$H\f$ matrix; it is not a struct that holds its
-//! functions (here: its grid) and hands them out through getters.  So every method below takes or returns
-//! a FIELD SAMPLED AT ITS OWN POINTS -- a value array whose ORDER is the only thing a caller must respect
-//! -- and no caller needs to know where those points are, or that they are a Becke mesh rather than a
-//! uniform one.  The face this replaced exposed exactly one thing: the quadrature struct.
-//!
-//! \warning \c op(r) THROWS, by design.  The value of \f$\delta_g\f$ at a point is a distribution, and
-//! nothing in the code wants it (the \f$\delta\f$ route never expands a field back into functions -- the
-//! coefficients ARE the values); a throwing \c op(r) states that, where returning
-//! \f$\{0,\dots,1,\dots,0\}\f$ would be a plausible-looking lie.  Sizing trap worth carrying: this basis
-//! has \c mesh.size() "functions" (~100k), so anything reasoning about a fit basis by COUNTING functions
-//! -- grid sizing, memory reports, cache dimensions -- must not choke on that.
-template <class T> class FIT_SF_Delta
-    : public virtual FIT_SF_ABS<T>
-{
-public:
-    //! ORTHOGONAL, with \f$\langle\delta_g|\delta_g\rangle=w_g\f$ -- diagonal, so no metric SOLVE, which
-    //! is what \c isOrtho asks.  (It is not orthoNORMAL, and a general fit through this basis must divide
-    //! by that diagonal: \f$c_g=\langle\delta_g|f\rangle/w_g = f(r_g)\f$, the point values.)
-    bool isOrtho() const override {return true;}
-
-    //! \name The 3-CENTRE OVERLAP over my own functions -- job (2) of a fit basis
-    //!
-    //! \f$\langle\chi_i|\delta_g|\chi_j\rangle = w_g\,\overline{\chi_i(r_g)}\,\chi_j(r_g)\f$: the one
-    //! integral a Hamiltonian term needs from me in order to form \f$H_{ij}\f$ and \f$E\f$, and it is an
-    //! integral over MY OWN function \f$\delta_g\f$ (user, 2026-08-23 -- a fit basis is not a public
-    //! quadrature service for third-party integrands; \f$\langle i|f|j\rangle\f$ for an arbitrary \f$f\f$
-    //! would be the orbital basis's question, not mine).
-    //!
-    //! It is rank-3 (\f$n_{pts}\times n\times n\f$) and must never be materialised, so it is delivered as
-    //! the house CONTRACTIBLE object, exactly as \c Orbital_DFT_IBS::Overlap3C delivers its own:
-    //!  - ADJOINT \f$\;\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle=\sum_g c_g w_g\overline{\chi_i}\chi_j\f$
-    //!    -- the fit COEFFICIENTS come from the fitter, which is the object that holds a fit.  This is why
-    //!    no coefficient vector appears in a signature here (user, 2026-08-23).
-    //!  - FORWARD \f$\;\langle\delta_g|\rho\rangle=\sum_{ij}D_{ij}\langle\delta_g|\chi_i\chi_j\rangle\f$,
-    //!    divided by \f$w_g\f$ -- i.e. \f$\rho\f$'s expansion coefficients over me.  \f$D\f$ comes from
-    //!    the density, which is the object that holds a density matrix, in whichever of its two forms
-    //!    (full, or the thin factor -- see \c Projector3::applyRawFactored).
-    //!
-    //! HOW it is evaluated is not in the interface: in principle \f$\chi_i(r_g)\f$ from the orbital
-    //! basis's \c op(r), in practice a cached \f$\Phi\f$ table (user).  What it does NOT do is ask the
-    //! orbital basis for a 3-centre tensor over me -- \f$\delta\f$ needs no such machinery.
-    //!
-    //! TWO overloads because a run can be MIXED (3c-3): a real TRIM block contracts in real arithmetic
-    //! while its complex Bloch siblings contract in complex.  Cached per block, like every 3-centre
-    //! tensor in the project.
-    //!
-    //! ONE declaration here, not two: the same-scalar case is \c FIT_SF_ABS::Overlap3C (which a
-    //! \f$\delta\f$ basis overrides rather than delegating).  What is genuinely extra is the MIXED run
-    //! (3c-3) -- a REAL TRIM block against this complex fit basis -- because only a \f$\delta\f$ table
-    //! is typed by the ORBITAL scalar and can therefore contract a real block in real arithmetic; the
-    //! raster route's tensor is complex and narrows at the call site instead.
-    using FIT_SF_ABS<T>::Overlap3C;                  // un-hide the same-scalar one past the overload below
-    virtual const Projector3<double>& Overlap3C(const Orbital_1E_IBS<double>& orb) const=0;
-
-    //! TWO left.  Everything a δ basis shares with the other representations is on \c FIT_SF_ABS
-    //! (\c Overlap / \c Charge / \c OverlapDiagonal / \c Symmetrize) and is answered there in the SAME
-    //! per-FUNCTION vocabulary a Gaussian auxiliary basis uses; what remains is what only a δ
-    //! representation can answer: the ATOMIC PARTITION its mesh may carry, and the MAGNETIC pair
-    //! projection -- δ being the only representation a polarized run can use at all, since a plane-wave
-    //! fit has no per-channel collocation.
-    //! ✅ \c SiteIntegrals is GONE (2026-08-23).  It was an atomic-moment OBSERVABLE that had no business
-    //! on a fit face -- \a f is an expansion over my functions, so it was not a third-party quadrature
-    //! service, but the SITE structure it partitions by is the mesh's concept, not a fit basis's.  It
-    //! lived here only because this object was the sole holder of a partitioned mesh at run time.  Cured
-    //! by INJECTION: \c CreateVxcFitBasisSet, which builds that mesh, now hands the same
-    //! \c shared_ptr<const qcMesh::Mesh> to the XC strategy as well, and the moments are taken there --
-    //! where \f$\rho_\sigma\f$ is already cached.  No getter was added; a creator gave its creation to
-    //! two collaborators.
-    //!@{
-    //!@}
-};
-using rFIT_SF_Delta = FIT_SF_Delta<double>;  //!< δ basis over a real (molecular) fit path
-using cFIT_SF_Delta = FIT_SF_Delta<dcmplx>;  //!< δ basis over a periodic (Bloch) fit path
-
-//! \brief \c FIT_SF_ABS::Overlap3C's default body, as a free template.
-//!
-//! It lives in the IMPLEMENTATION unit (Imp/Fit_IBS.C) and is explicitly instantiated there, because it
-//! needs \c Orbital_DFT_IBS -- whose interface imports THIS one, so importing it back here would close a
-//! module cycle.  An implementation unit may import it; the interface may not.
-
-
-//! \brief THE ORTHOGONAL FIT: \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$ -- the projection
-//! divided by the metric diagonal, which is the whole of a fit when \c isOrtho() is true.
-//!
-//! One definition, because two layers need the same three lines and neither owns the other: the
-//! \c DeltaScalarFitter (this IS its \c DoFit) and a matrix-free density asked to express itself over a
-//! \f$\delta\f$ basis (\c tChargeDensity::DM_RhoAtPoints, which lives above qcBasisSet).
-//!
-//! REAL by return type, and honestly so: \a f is a real field and the representations that reach here have
-//! a real metric diagonal (\f$\delta\f$: \f$w_g\f$) and hence a real projection.  Divided COMPONENT-WISE on
-//! the real parts rather than as a complex quotient: \c std::complex division of \f$(x,0)/(y,0)\f$ goes
-//! through \f$(xy)/(y^2)\f$, which is not \f$x/y\f$ to the last bit -- and for \f$\delta\f$ the whole point
-//! is that \f$w_g f_g/w_g\f$ cancels.
-template <class T> inline rvec_t OrthogonalFit(const FIT_SF_ABS<T>& b, const ScalarFunction<double>& f)
-{
-    assert(b.isOrtho() && "OrthogonalFit: the fit is projection/diagonal only for an ORTHOGONAL basis");
-    const vec_t<T> p=b.Overlap(f), d=b.OverlapDiagonal();
-    assert(p.size()==d.size() && "OrthogonalFit: one projection and one metric entry per fit function");
-    rvec_t c(p.size());
-    for (size_t a=0; a<p.size(); a++) c[a]=blazem::real(p[a])/blazem::real(d[a]);
-    return c;
-}
 
 //! \brief A NON-orthonormal (Gaussian/Slater/BSpline) potential-fit basis: adds the overlap metric-solve
 //! inputs the least-squares potential fit needs -- the projection RHS \c Overlap(Sf) \f$=\langle f_a|f\rangle\f$

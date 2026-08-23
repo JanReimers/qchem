@@ -17,6 +17,7 @@ import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
+import qchem.BasisSet.FitOperations;       // OrthogonalFit -- a matrix-free density's fit onto the delta basis
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
@@ -480,10 +481,7 @@ MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
     // table: SINGLES.  Note this asks what the basis CAN do, never what it IS.
     if (dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get()))
         return std::make_shared<const XC_PairQuadrature>(fb);
-    auto fit=std::dynamic_pointer_cast<const BasisSet::cFIT_SF_Delta>(fb);
-    assert(fit && "MakeXCQuadrature: a non-raster Vxc fit basis must be able to answer its own quadrature "
-                  "(integrate / sample / symmetrize) -- i.e. it must be a FIT_SF_Delta");
-    return std::make_shared<const XC_SinglesQuadrature>(fit, std::move(partition));
+    return std::make_shared<const XC_SinglesQuadrature>(fb, std::move(partition));
 }
 
 // ---- XC_SinglesQuadrature: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
