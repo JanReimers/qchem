@@ -904,6 +904,72 @@ MnO campaign proceeds undisturbed in qchem6.
   that mixin names `Orbital_DFT_IBS`, no cycle, no cast — and it also retires the explicit-instantiation
   trick the current default needs, which is a good sign it is the right shape.
 
+  **✅ INCREMENTS 8–10 LANDED 2026-08-24 — THE FITTING BOUNDARY.**  The four items the user set on
+  2026-08-24 (doc/OpenWork.md), three of them closed outright.  758/758 after each; the pinned Si
+  two-route gate printed **−7.115067665** / **−7.115059008** at 11/11 iterations after each — bit-unmoved.
+
+  **8 (items 0 + 1) — the fitter's contraction face is keyed on BOTH scalars and takes the DFT block.**
+  `FitContraction<U>::Overlap(const Orbital_1E_IBS<U>*)` became
+  `FitContraction<U,TFit>::Overlap(const Orbital_DFT_IBS<U,TFit>&)`.  One change, two reasons:
+  - *Both axes*, because doc/RealComplexPlan.md 3c-3 makes them differ in production — a real TRIM block on
+    a periodic run contracts against the run's COMPLEX fit basis, and `<U>` alone means `<U,U>`, a face no
+    fitter in the tree declares.  Exactly the correction `BasisSet::Integrals_Overlap3C` took in increment
+    7, so the two mirror faces now say the same thing in the same words, with **no default for `TFit` on
+    either** (`TFit==U` is a fact about the molecular lineage, not a property of the face).
+  - *The DFT block*, because what the contraction needs from the block is its 3-centre tier.  THREE casts
+    disappeared outright (`FunctionFitterImp`, `OrthoNormalScalarFitter`, `DeltaScalarFitter::Contract`)
+    and the survivors moved UP into `XC_SinglesQuadrature::MatrixT` / `XC_PairQuadrature::MatrixT` — the
+    right place, since `cDynamic_HT::MakeMatrix` is deliberately method-neutral (a Kinetic term must not
+    see DFT types) while an XC strategy is DFT-specific by construction.
+  - **The molecular terms needed no new cast at all**: `FittedVxc` / `FittedVcorrPol` already held
+    `odftbs_t` and were merely widening it back to the 1E base to make the call.  Their pointer casts
+    became reference casts on the way past, which retired one unchecked deref.
+
+  **9 (item 3) — `Symmetrize` / `SymmetrizeSpin` are off the fit face.**  User: *"these look like functions
+  that need access to Fit_IBS's internal (none of your business) integration mesh.  They do not belong in a
+  fit basis set interface."*  Right twice over: star-averaging a coefficient vector over a crystal point
+  group is not a FITTING question, and the only thing the basis contributed was geometry it happened to
+  own.  Same cure as `SiteIntegrals`, and the two halves died differently because the operation genuinely
+  differs by representation:
+
+  | | what it is | where it went |
+  |---|---|---|
+  | δ | one line over the free `SymmetrizeValues` / `SymmetrizeValuesSigned`; the basis supplies only the `Fold` | **INJECTED**, exactly as increment 6 injected the mesh: `CreateVxcFitBasisSet`'s out-parameter widened from `shared_ptr<const Mesh>` to the whole `FitQuadrature` (the fold and the Shubnikov tags are its SIBLING FIELDS), and `XC_SinglesQuadrature` calls the free algorithms itself |
+  | plane wave | a voxel permutation plus an FFT shift-theorem glide | **`G_RasterTransform`** (default no-op), where every other raster-only operation already lives.  `PlaneWaveFit_IBS`'s body is unchanged and now overrides that face; its one caller, `Composite_Fourier::GetRhoOnGrid`, cross-casts for the raster — the same "I want more" ask that route is built on, and it is holding a raster array by construction |
+
+  `FIT_SF_ABS<T>` is now four integrals and `isOrtho()`, with **no operation on it that needs a mesh**.
+  The grey/magnetic/free three-way stayed ONE method rather than becoming a call-site branch, and its
+  no-tags path is still `Symmetrize(rho); Symmetrize(m)` — bit-identical to the deleted base default.
+  ⚠ **The MnO Shubnikov gate caught the omission on the first run**, which is the argument for injection
+  over a getter working as intended: a probe that built the basis over one bundle and the strategy over
+  another failed loudly.  The fix is a probe helper (`SinglesEngineOver`) that hands ONE bundle to both
+  collaborators, exactly as the production factory does.
+
+  **10 (item 2) — `Overlap3CFace` deleted, `OrthogonalFit` moved to qcFitting.**
+  - `Overlap3CFace` was one reference cross-cast wrapped in an `if constexpr`, saving two lines at three
+    call sites — and after increments 7/8 the `if constexpr` arm bought nothing: the same-scalar case is a
+    derived-to-virtual-base cast that cannot fail, and every call site runs once per Fock block, not in a
+    loop.  Each site now spells its own cast, beside the `Orbital_DFT_IBS` cast it already made.
+  - `OrthogonalFit` moved `src/BasisSet/FitOperations.C` → `src/Fitting/FitOperations.C`, module
+    `qchem.BasisSet.FitOperations` → `qchem.Fitting.FitOperations`; qcBasisSet loses the module entirely.
+    User: *"OrthogonalFit belongs in the qcFitting library.  Client code needs to use that framework, not
+    dodge around it."*  Performing a fit is what that library is for, and a fit algorithm sitting in the
+    BASIS library was an invitation to use it instead of a fitter.
+
+  ⇒ **THE ONE THING LEFT, AND IT NEEDS A RULING — the second half of that sentence (R1.0g).**  Two callers
+  still use the algorithm INSTEAD of a `FunctionFitter_Scalar`: `XC_SinglesQuadrature`'s matrix-free
+  branches and `tDM_CD::DM_RhoAtPoints`'s default.  Both want the COEFFICIENT VECTOR, and the fitter face
+  deliberately has no accessor for one — adding `Coefficients()` is precisely the smell deleted in
+  increment 6.  The spec's own ⚠ concedes the coefficients must reach the term regardless: \f$v_{xc}\f$ is
+  pointwise NONLINEAR, so for δ they ARE \f$\rho(r_g)\f$ and the functional is applied to them directly.
+  **So the open question is not how to hide them but WHAT TYPE carries them** — and a bare `rvec_t` is the
+  weakest possible answer.  The shape of the answer is visible: the object that would carry them is *an
+  EXPANSION over a fit basis*, offering `Integrate()` (\f$c\cdot\langle f_a|1\rangle\f$), `Map(functional)`
+  and `Contract(orb)` — which is what `XC_Quadrature` and `FunctionFitter_Scalar` jointly are today, split
+  across two objects with the coefficient array passed between them as a raw vector.  Introducing it
+  reshapes the term/quadrature/fitter triangle, so it is a design ruling, not a refactor.  Being in
+  qcFitting at least makes the bypass legible as what it is: framework algorithm, no framework object.
+
 - **R1.0e The `qcHamiltonian` PWTerms TU needs a structural break-up — USER, 2026-08-23** (*"the enormous
   PWTerms TU is going to need a massive refactoring cleanup eventually"*).  584 lines of interface + 944 of
   implementation, holding at least five unrelated things: the three external-PP terms, the Hartree term,

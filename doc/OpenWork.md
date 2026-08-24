@@ -1198,10 +1198,52 @@ Re-verified after all three: 756/756, and the two-route Si gate still prints −
 
 ---
 
-## ★★★ NEXT SESSION, SPECCED 2026-08-24 — THE FITTING BOUNDARY: `Orbital_DFT_IBS` THROUGHOUT, AND THREE FACES THAT DO NOT BELONG
+## ★★★ THE FITTING BOUNDARY — SPECCED 2026-08-24, ✅ BUILT THE SAME DAY (the spec follows, annotated)
+
+#### ✅ WHAT LANDED: items 0, 1, 3 and half of 2, as three commits.  758/758 after each; the pinned Si
+#### two-route gate bit-unmoved at −7.115067665 / −7.115059008, 11/11 iterations, after each.
+
+| item | commit | outcome |
+|---|---|---|
+| **0** `TFit`/`U` keying | increment 8 | `FitContraction<U>` → `FitContraction<U,TFit>` — the mirror of `Integrals_Overlap3C`, no default for `TFit` on either.  `DeltaScalarFitter` declares `<double,dcmplx>` + `<dcmplx,dcmplx>`: the 3c-3 mixed run, finally spelled |
+| **1** qcFitting speaks `Orbital_DFT_IBS` | increment 8 | same commit, because it is one change to one signature.  THREE casts deleted; the survivors moved up into `XC_*Quadrature::MatrixT`.  The molecular terms needed no new cast at all — `FittedVxc`/`FittedVcorrPol` already held `odftbs_t` and were widening it back to the 1E base to make the call |
+| **3** `Symmetrize`/`SymmetrizeSpin` | increment 9 | gone from `FIT_SF_ABS`.  δ's fold+tags INJECTED (the factory out-parameter widened from the mesh to the whole `FitQuadrature` — they are its sibling fields); the plane-wave voxel/FFT version went to `G_RasterTransform`.  The fit face now has **no operation on it that needs a mesh** |
+| **2a** `Overlap3CFace` | increment 10 | deleted; three call sites spell their own cast |
+| **2b** `OrthogonalFit` | increment 10 | MOVED to qcFitting (`qchem.Fitting.FitOperations`); qcBasisSet loses the module.  ⚠ **the bypass itself is NOT fixed — see the ruling wanted below** |
+
+**Two things worth carrying forward:**
+- **The MnO Shubnikov gate caught increment 9's omission on the first run** — a probe that built the basis
+  over one quadrature and the strategy over another failed loudly.  That is injection working as intended,
+  and the fix (`SinglesEngineOver`, one bundle to both collaborators) is what the production factory does.
+- **`if constexpr` did not earn its keep in `Overlap3CFace`**: after the face carried both axes, the
+  same-scalar arm was a derived-to-virtual-base cast that cannot fail, at call sites that run once per Fock
+  block.  A compile-time branch is still worth writing only where the run-time one could actually be wrong
+  or hot.
+
+#### ⇒ THE ONE THING LEFT, AND IT WANTS A RULING (R1.0g in doc/CleanupCandidates.md)
+
+The user's sentence had two halves and only the first is done.  *"OrthogonalFit belongs in the qcFitting
+library"* — done.  *"Client code needs to use that framework, not dodge around it"* — **not** done: two
+callers still use the algorithm INSTEAD of a `FunctionFitter_Scalar` (`XC_SinglesQuadrature`'s matrix-free
+branches, and `tDM_CD::DM_RhoAtPoints`'s default).  Both want the COEFFICIENT VECTOR, and the fitter face
+has no accessor for one — adding `Coefficients()` is exactly the smell deleted in increment 6.
+
+The spec's own ⚠ already concedes the coefficients must reach the term regardless (\f$v_{xc}\f$ is
+pointwise nonlinear; for δ they ARE \f$\rho(r_g)\f$), so **the question is what TYPE carries them, and
+that is a design ruling, not a refactor.**  The shape of the answer is visible in the tree: the object
+would be *an EXPANSION over a fit basis* — `Integrate()` = \f$c\cdot\langle f_a|1\rangle\f$,
+`Map(functional)`, `Contract(orb)`.  That is precisely what `XC_Quadrature` and `FunctionFitter_Scalar`
+jointly are today, split across two objects with the coefficient array passed between them as a raw
+`rvec_t`.  Introducing it reshapes the term/quadrature/fitter triangle — which is why it is not being
+done on my own initiative.
+
+---
+
+### The spec as written (user, 2026-08-24)
 
 Four items the user set, plus the keying work they all lean on.  **Suggested order is 0 → 3 → 1 → 2**, and
-the reason is at the bottom.
+the reason is at the bottom.  (Built as 0+1 together, then 3, then 2 — 0 and 1 turned out to be one edit to
+one signature, and doing them apart would have meant touching every `FitContraction` site twice.)
 
 ### 0. FIRST, because FOUR separate items now pay for it: the `TFit`/`U` keying (RealComplexPlan 3c-3)
 
