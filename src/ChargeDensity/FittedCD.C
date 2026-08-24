@@ -1,20 +1,23 @@
-// File: FittedCD.C  Fitted charge density (a ScalarFunction you can fit to a density and query).
+// File: FittedCD.C  Fitted charge density: fit it to a density, then query its Coulomb matrix.
 export module qchem.FittedCD;
 import qchem.ChargeDensity.Types;
 import qchem.ChargeDensity;            // rDM_CD (the density to fit; cross-cast to its AO face in the Imp)
-import qchem.ScalarFunction;           // ScalarFunction<double>
 
 export namespace qchem::ChargeDensity
 {
 
 //----------------------------------------------------------------------------------
 //
-//  A real-space charge density rho(r) that can be (re)fit to a density matrix and queried for its
-//  Coulomb (repulsion) matrix and self energy.  The fitting itself is done by a composed FunctionFitter
-//  (hidden in FittedCDImp).
+//  A charge density that can be (re)fit to a density matrix and queried for its Coulomb (repulsion)
+//  matrix and self energy.  The fitting itself is done by a composed FunctionFitter (hidden in
+//  FittedCDImp).
 //
+//  NOT a ScalarFunction any more (2026-08-24).  It advertised rho_fit(r) and delivered it by forwarding to
+//  the fitter, which delivered it by handing its COEFFICIENTS back to the fit basis -- the chain that got
+//  deleted for exposing them.  Nothing ever called it: its sole holder, FittedVee, uses DoFit /
+//  GetRepulsion / GetSelfRepulsion only, and the two forwarding lines carried a "No UT coverage" marker
+//  someone had already added.  Measured before removal: zero calls across all 758 tests.
 class FittedCD
-    : public virtual ScalarFunction<double>
 {
 public:
     //! "Fit me to this density."  Takes the density by its common tChargeDensity base.  EVERY finite density

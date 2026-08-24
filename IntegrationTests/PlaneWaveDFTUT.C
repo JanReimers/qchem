@@ -1245,11 +1245,15 @@ TEST_F(PlaneWaveDFT, OrthoFitterRealSpaceField)
     D(0,0)=1.0; D(0,1)=1.0; D(1,1)=1.0;                   // Hermitian, non-uniform -> a non-trivial rho~(dm)
     ΔG_Map rhoTilde=RhoTilde(F.pw, D);
 
-    // The Factory-built ortho density fitter (the production path); the core IS-A ScalarFunction<double> now.
+    // The Factory-built ortho density fitter (the production path).
     auto fb=std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS>(F.pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
     auto fitter=qchem::Fitting::Factory(fb);
     fitter->DoFit(qchem::Fitting::ProjectedDensity_G(rhoTilde));
-    const ScalarFunction<double>& rhoFit=*fitter;         // item B: FunctionFitter_Density<dcmplx> : ScalarFunction
+    // The fitted FIELD is a CAPABILITY, not part of the fitter face (2026-08-24): an AO fit could only
+    // deliver it by handing its coefficients back to the basis, so the whole chain went.  A plane-wave fit
+    // genuinely can -- it inverse-transforms its own {G} -- so it derives ScalarFunction itself and a
+    // consumer asks.  Same cross-cast the scalar-fitter sibling above already makes.
+    const ScalarFunction<double>& rhoFit=dynamic_cast<const ScalarFunction<double>&>(*fitter);
 
     const UnitCell& B=F.B();
     auto direct=[&](const rvec3_t& r)                     // independent inverse transform (B.ToCartesian, not GetGCartesian)

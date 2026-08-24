@@ -187,8 +187,16 @@ public:
 //! nothing more (mirror of the rFIT_CD_ABS / FIT_CD_NonOrtho split on the fit-basis side).  Like the scalar
 //! core, the fitted density \f$\rho_{fit}(r)\f$ is a real, evaluatable \c ScalarFunction (AO eval / PW inverse
 //! transform) -- the GUI plots it and the fit-residual \f$\rho-\rho_{fit}\f$ measures the fit quality.
+//! \note It does NOT promise an evaluatable fitted FIELD.  \c ScalarFunction<double> used to be a base
+//! here, so every density fitter advertised \f$\rho_{fit}(r)\f$ at an arbitrary \a r -- and the AO fitter
+//! could only deliver it by handing its COEFFICIENTS back to the basis (\c FieldEvaluator::EvalField), i.e.
+//! by exposing them, which is the smell that got the whole chain deleted (user, 2026-08-24): anything
+//! holding \a c holds the basis too, so a separate hand-the-coefficients-over face buys nothing.  Measured
+//! before removal: ZERO calls across all 758 tests, and none in pybind/, viz-demo/ or CLIapps/ either.
+//! Same shape as \c FunctionFitter_Scalar, which lost the base earlier for the same kind of reason: the
+//! fitters that CAN evaluate -- the plane-wave one, by inverse transform over its own \f$\{G\}\f$ --
+//! derive \c ScalarFunction themselves, and a consumer that wants the field cross-casts for it.
 template <class T> class FunctionFitter_Density
-    : public virtual ScalarFunction<double>   // the fitted density rho_fit(r) is real + evaluatable
 {
 public:
     virtual ~FunctionFitter_Density() = default;

@@ -33,6 +33,7 @@ export namespace qchem::Fitting
 //! \brief Density fitter on an orthonormal (plane-wave, G-space) fit basis -- the minimal CORE face only.
 class OrthoFunctionFitter
     : public virtual FunctionFitter_Density<dcmplx>
+    , public virtual ScalarFunction<double>   // ...and ITS fit IS a field: the inverse transform over {G}
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;

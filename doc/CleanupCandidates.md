@@ -854,6 +854,42 @@ MnO campaign proceeds undisturbed in qchem6.
   | `FitQuadrature`, `enum class VxcFit` | **`qchem.BasisSet.Fit_Types`** | the factory VOCABULARY: `VxcFit` goes IN (which representation?), `FitQuadrature` comes OUT (the finished quadrature).  A LEAF module — it needs the mesh and the fold and nothing else — so it sits BELOW both `Orbital_DFT_IBS` and `tBasisSet`, the two that declare `CreateXCQuadrature`, and neither has to import the fit faces to name its own return type. |
   | `OrthogonalFit`, `Overlap3CFace` | **`qchem.BasisSet.FitOperations`** | free ALGORITHMS written in terms of a face, not part of any face's contract.  Each exists only because two consumers in DIFFERENT libraries need the same few lines (qcFitting's scalar fitter and qcChargeDensity's density). |
 
+  **✅ AND `FieldEvaluator<T>::EvalField` WENT — the whole chain was dead (user, 2026-08-24).**
+  The user's reasoning, which is the general form of the objection: *"any entity that has access to the fit
+  expansion coefficients c also has access to the basis functions f(r), so it can do the field evaluation
+  without going through this peculiar interface.  Why is it peculiar?  Because we are exposing the fit
+  coefficients — instant bad smell."*
+  ⇒ And the deeper reason the alternative is not available either: pulling \f$f_a(r)\f$ UP to the fitter is
+  the PRE-2026-08-22 code, and it is what forced \c IrrepBasisSet to promise \c op(r) that an atom block
+  (fake radial) and a \f$\delta\f$ basis (a distribution) could not honestly give.  **The motive was never
+  abstract purity: `DeltaFit_IBS::op(r)` would be a very expensive and totally useless function** (user).
+  So there were exactly three options — pass \a c down (exposes it), pull \f$f_a(r)\f$ up (resurrects the
+  fake promise), or DELETE — and only the third exposes nothing.
+
+  **MEASURED BEFORE REMOVING, because the static trace had already been wrong twice this session.**  Both
+  bodies instrumented, full suite run: **0 hits across 758 tests**, 0 on a direct `M_DFT.*:M_HF.*` run, and
+  nothing in `pybind/`, `viz-demo/` or `CLIapps/`.  The static picture agreed and explains why:
+  `EvalField` ← `FitImpBase::operator()` (the ONLY direct caller) ← `FittedCD_Imp::operator()` (already
+  annotated *"// No UT coverage"*) ← nobody.  `FittedVee` is the sole production holder of a `FittedCD` and
+  uses `DoFit` / `GetRepulsion` / `GetSelfRepulsion` only.
+  ⚠ Keep straight which `EvalField`: `G_FieldEvaluator::EvalField(ΔG_Map, r)` is a DIFFERENT function on a
+  different class and is genuinely live — it is how a plane-wave fit evaluates its own inverse transform.
+
+  | removed | |
+  |---|---|
+  | `FieldEvaluator<T>` + its derivations on `FIT_CD_NonOrtho` / `FIT_SF_NonOrtho` | the face whose whole job was to carry \a c across |
+  | `Fit_IBS::EvalField` / `EvalFieldGradient` | |
+  | `FitImpBase::operator()` / `Gradient`, and its `ScalarFunction<double>` base | the sole caller |
+  | `FunctionFitter_Density<T> : ScalarFunction<double>` | the AO fitter could no longer keep the promise, so the FIELD became a capability: `OrthoFunctionFitter` (plane-wave) derives `ScalarFunction` itself — it genuinely can, by inverse transform over its own \f$\{G\}\f$ — and a consumer cross-casts.  Exactly what `FunctionFitter_Scalar` did earlier for the same reason. |
+  | `FittedCD : ScalarFunction<double>` + its two forwarding lines | |
+
+  ONE call site changed (`PlaneWaveDFTUT.C:1252`, now a cross-cast — the same one its scalar-fitter sibling
+  200 lines earlier already makes).  758/758, Si gate bit-unmoved.
+  ⚠ **The capability is cheap to restore and should NOT come back in this shape.**  `Fit_IBS` still derives
+  `Evaluatable_IBS<double>` privately (it needs its own \c op(r) for `Norm()` and `Overlap(f)`), so ten
+  lines bring it back — but as an operation returning the RESIDUAL, not one taking coefficients.  See
+  **R1.0f** for what a GUI actually needs and why \f$v_{xc}(r)\f$ is not a fit-basis question.
+
   ⇒ **NEXT, and the user's own reading of the obstacle.**  `FIT_SF_ABS<T>::Overlap3C` should take
   `const Orbital_DFT_IBS<T>&` rather than `Orbital_1E_IBS<T>` — the caller must already hold a DFT-capable
   basis, so the `dynamic_cast` inside the default disappears (compile-time over run-time).  **Attempted and
@@ -884,6 +920,25 @@ MnO campaign proceeds undisturbed in qchem6.
   which the derivation drops and nothing evaluates an atom block from outside.  The relocation makes that
   a LOCAL change per call site instead of a tree-wide one, because the face no longer forces the promise
   on everybody.
+
+- **R1.0f ⚠ THE GUI STILL NEEDS \f$v_{xc}(r)\f$ AND \f$\rho_{DM}-\rho_{fit}\f$, AND THE δ ROUTE HAS NO
+  WAY TO GIVE THEM — USER, 2026-08-24.**  Recorded when `FieldEvaluator::EvalField` was deleted (below):
+  nothing in the tree evaluates a fitted field any more, but a plotting front end will want both.
+  **The two are NOT the same problem, and only one of them is hard:**
+  - **\f$v_{xc}(r)\f$ is not a fit-basis question at all.**  It is a POINTWISE functional of the density,
+    \f$v_{xc}=f(\rho(r))\f$, and \f$\rho\f$ is evaluatable on any grid the GUI likes.  So the honest route
+    is *evaluate \f$\rho\f$ there, apply the functional* — exact, representation-independent, and cheaper
+    than interpolating a fit.  Going through a fit expansion would be a worse answer to an easier question.
+  - **\f$\rho_{DM}-\rho_{fit}\f$ is representation-dependent, and for \f$\delta\f$ it is IDENTICALLY
+    ZERO.**  The δ fit is the identity (\f$c_g=\rho(r_g)\f$), so the residual vanishes at every point where
+    the fit is defined and is undefined everywhere else.  The diagnostic measures *how badly does my fit
+    basis represent this*, and a δ basis has no fit error by construction — it has QUADRATURE error instead.
+    So the δ-side quantity a user actually wants is a DIFFERENT pair: \f$\rho_{DM}\f$ against the
+    band-limited \f$\tilde\rho\f$ the Hartree term integrates, which is where the representation error
+    actually lives.  Name it for that; do not spell it \f$\rho-\rho_{fit}\f$.
+  - ⇒ **If a genuine "evaluate my δ expansion at an arbitrary \a r" is ever needed, it is an INTERPOLATION
+    problem on a scattered atom-centred mesh** — expensive, approximate, and owed a name that says so.  It
+    must not come back disguised as `op(r)`, which is exactly the trap this whole arc removed.
 
 - **R1.0c ⚠ COVERAGE HOLE: the COMPLEX factored-\f$\rho\f$ contraction is exercised by NO enabled test.**
   **MEASURED 2026-08-23** (instrumented `DeltaFit_IBS::ForwardFactoredT`, counted over the whole

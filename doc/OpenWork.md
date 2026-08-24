@@ -1243,6 +1243,15 @@ Three things the spec below did not anticipate, all recorded there in full:
   `qchem.BasisSet.Fit_Types` (the factory vocabulary, below everything that declares `CreateXCQuadrature`);
   `OrthogonalFit` + `Overlap3CFace` → `qchem.BasisSet.FitOperations` (free algorithms over a face, shared
   by two libraries).
+  **And `FieldEvaluator::EvalField(c,r)` is gone** (user, 2026-08-24): it took the fit COEFFICIENTS across
+  an interface, and the alternative (pull `f_a(r)` up to the fitter) is the pre-2026-08-22 code that forced
+  `op(r)` promises an atom block and a δ basis cannot keep — `DeltaFit_IBS::op(r)` being expensive AND
+  useless was the original motive.  Measured dead first: 0 calls in 758 tests, none in pybind/viz/CLIapps.
+  The cascade took `FitImpBase`'s field face, `FunctionFitter_Density<T> : ScalarFunction` (now a
+  capability the plane-wave fitter derives and consumers cross-cast for) and `FittedCD : ScalarFunction`.
+  ⚠ **R1.0f**: a GUI still needs v_xc(r) and ρ_DM−ρ_fit.  v_xc is NOT a fit-basis question (it is a
+  pointwise functional of an evaluatable ρ); ρ−ρ_fit is identically ZERO for δ (its fit is the identity),
+  so the δ-side quantity worth plotting is ρ_DM vs the band-limited ρ̃ instead.
   ⇒ NEXT: `Overlap3C` should take `const Orbital_DFT_IBS<T>&`.  Blocked in `Fit_IBS.C` — a cross-module
   forward declaration makes a distinct entity and a real import is a cycle — so the DEFAULT moves toward
   the implementation instead (user): pure on `FIT_SF_ABS<T>`, delegating body in a mixin where both faces

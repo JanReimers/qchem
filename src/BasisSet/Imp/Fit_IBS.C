@@ -77,24 +77,6 @@ const rvec_t& Fit_IBS::Norm() const
         [this]{ return MakeNorm(); });
 }
 
-// The expansion over this basis, evaluated: the two bodies moved here VERBATIM from the AO fitter, which
-// used to reach in for op(r)/Gradient and sum them itself (Fitting/Internal/Imp/FunctionFitterImp.C).
-// Same arithmetic, same order -- what changed is who owns it.
-double Fit_IBS::EvalField(const rvec_t& c, const rvec3_t& r) const
-{
-    return blazem::trans(c) * (*this)(r);
-}
-
-rvec3_t Fit_IBS::EvalFieldGradient(const rvec_t& c, const rvec3_t& r) const
-{
-    vec_t<rvec3_t> br = this->Gradient(r);
-    rvec3_t ret(0,0,0);
-    auto ci(c.begin());
-    auto b(br.begin());
-    for (; b!=br.end() && ci!=c.end(); b++,ci++) ret+=(*ci) * (*b);
-    return ret;
-}
-
 // <f_a|f_a> = 1/Norm_a^2 -- the cached normalisation, un-inverted.  A non-orthogonal basis's fit does not
 // use it (it solves with the full S^-1); it is here because the metric DIAGONAL is a question every scalar
 // fit basis can answer, and answering it is what makes the orthogonal-vs-orthonormal distinction usable.

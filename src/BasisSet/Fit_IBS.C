@@ -13,25 +13,7 @@ export import qchem.BasisSet.Internal.Projector3;  // Projector3<U> -- the house
 export namespace qchem::BasisSet
 {
 
-//! \brief The MINIMAL, metric-neutral face of a CHARGE-DENSITY fit basis: just "I am a density-fit basis" --
-//! its fit FUNCTIONS, via \c IrrepBasisSet<T>.  This is what \c CreateCDFitBasisSet returns and what the
-//! 3-centre \c Repulsion3C consumes (it needs the functions that define each \f$f_c\f$, not their metric).
-//! Templated on the representation \a T so a real (Gaussian) fit basis is \c rFIT_CD_ABS (=FIT_CD_ABS<double>,
-//! real \c VectorFunction) and a plane-wave one is \c cFIT_CD_ABS (=FIT_CD_ABS<dcmplx>, the complex \f$e^{iG
-//! \cdot r}\f$ functions -- honestly complex, no NA-stub).  The two design axes are ORTHOGONAL: this T axis is
-//! the representation; the \c FIT_CD_NonOrtho refinement below is the metric axis.  (ISP sibling of \c
-//! FIT_SF_ABS.)
-//! \brief "I can answer the 3-CENTRE OVERLAP \f$\langle\chi_i|f_a|\chi_j\rangle\f$ against a
-//! \a U-scalar ORBITAL BLOCK."
-//!
-//! The basis-side sibling of \c Fitting::FitContraction<U>, and split off for the same ISP reason: a fit
-//! basis's own scalar and the scalar of the orbital block it contracts against are INDEPENDENT axes, and
-//! they only look like one until a MIXED run makes a real TRIM block meet a complex fit basis
-//! (doc/RealComplexPlan.md 3c-3).  \c FIT_SF_ABS<T> supplies this for its OWN scalar; a representation
-//! that can also serve the other one -- today only \f$\delta\f$, whose \f$\Phi\f$ table is typed by the
-//! ORBITAL block and can therefore contract a real block in REAL arithmetic -- declares the extra
-//! instantiation, and a consumer cross-casts to the one it needs.  A raster fit basis does NOT: its tensor
-//! is complex and the real-block route narrows at the call site instead.
+//! \brief Common base interface for the two 3-centre overlap integrals.
 template <class U> class Integrals_Overlap3C
 {
 public:
@@ -49,164 +31,61 @@ template <class T> class FIT_SF_ABS;
 //! a module cycle.  An implementation unit may import it; the interface may not.
 template <class T> const Projector3<T>& OrbitalOverlap3C(const Orbital_1E_IBS<T>& orb, const FIT_SF_ABS<T>& fit);
 
+
+//! \brief Abstract interface for an orthogonal (not necessarily normalized) charge density auxilliary fit basis set.
+//! No behaviour beyond IrrepBasisSet is defined at this level.
 template <class T> class FIT_CD_ABS
     : public virtual IrrepBasisSet<T>
 {
 public:
-    //! \brief Is this fit basis ORTHOGONAL -- metric DIAGONAL, \f$\langle f_a|f_b\rangle=0\f$ for
-    //! \f$a\ne b\f$?  The metric axis, declared as a mandatory contract so the fitter Factory can pick the
-    //! right fitter WITHOUT interrogating concrete identity: \c false selects the metric-SOLVE (non-ortho)
-    //! fitter and GUARANTEES the object IS-A \c FIT_CD_NonOrtho; \c true selects the fitter that needs no
-    //! solve.  Every fit basis must declare its metric.
-    //!
-    //! ORTHOGONAL, not orthoNORMAL (user, 2026-08-22 -- correcting the older wording here, which said
-    //! "metric = I").  A plane-wave \f$\{G\}\f$ basis happens to be orthonormal; a \f$\delta\f$ basis is
-    //! orthogonal with \f$\langle\delta_g|\delta_g\rangle=w_g\f$.  Both answer \c true, because what the
-    //! Factory is really asking is "can the fit be done without a linear SOLVE" -- and dividing by a known
-    //! diagonal is not a solve.  The distinction matters the moment a diagonal-but-not-unit basis is fitted
-    //! through the general path: the coefficients are \f$\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$,
-    //! and dropping the denominator (right for orthonormal, wrong here) is an error of a factor \f$w_g\f$.
-    virtual bool isOrtho() const=0;
+    virtual bool isOrtho() const=0; //!< Is the metric/self-overlap DIAGONAL?, \f$\langle f_a|f_b\rangle=0\f$ for a!=b.
 };
 using rFIT_CD_ABS = FIT_CD_ABS<double>;  //!< real (Gaussian/Slater/BSpline) density-fit basis
 using cFIT_CD_ABS = FIT_CD_ABS<dcmplx>;  //!< complex (plane-wave, G-space) density-fit basis
 
-//! \brief EVALUATE AN EXPANSION over this basis: \f$f(\vec r)=\sum_a c_a f_a(\vec r)\f$ and its
-//! gradient, given the coefficients.
-//!
-//! The ONE question anyone asks a fit basis pointwise -- what the GUI plots, and the seed of the
-//! \f$\rho-\rho_{fit}\f$ / \f$v_{xc}-v_{xc,fit}\f$ residual diagnostics.  As an OPERATION rather than
-//! "hand me your functions and I will sum them myself": the basis owns how its functions are represented,
-//! which is what lets a representation that cannot answer \c op(r) answer this (\c G_FieldEvaluator is
-//! exactly this face for a \f$\{G\}\f$ basis, over a \c ΔG_Map of coefficients instead of a vector),
-//! and lets one that has no expansion at all -- the \f$\delta\f$ basis -- simply not offer it.
-//!
-//! It sits on the NON-ORTHO refinements below, not on the neutral \c FIT_*_ABS faces: a Gaussian/Slater/
-//! BSpline fit basis is by construction a set of evaluatable real functions, so this is a promise made
-//! where it can always be kept.
-template <class T> class FieldEvaluator
-{
-public:
-    virtual ~FieldEvaluator() = default;
-    virtual double  EvalField        (const vec_t<T>& c, const rvec3_t& r) const=0;
-    virtual rvec3_t EvalFieldGradient(const vec_t<T>& c, const rvec3_t& r) const=0;
-};
-
-//! \brief A NON-orthonormal (Gaussian/Slater/BSpline) density-fit basis: adds the Coulomb metric-solve inputs
-//! the least-squares density fit needs.  Density fitting solves \f$\min_c \|\rho-\sum_c c_c f_c\|_V\f$ in the
+//! \brief Extension of FIT_CD_ABS for non-orthogonal (Gaussian/Slater/BSpline) density-fit basis sets.
+//! For molecules the charge density fit error is minimized by using the Dunlap algorithm (B. I. Dunlap, J. W. D. Connolly, and J. R. Sabin, The Journal of Chemical Physics 71, 3396 (1979)). 
+//! Density fitting solves \f$\min_c \|\rho-\sum_c c_c f_c\|_V\f$ in the
 //! Coulomb norm under a charge constraint, so this face serves the Coulomb metric \c Repulsion (the
 //! \f$\langle f_a|1/r_{12}|f_b\rangle\f$ system matrix), its inverse, the cross-repulsion against another CD
 //! fit basis (self-energy), and the per-function \c Charge.  SOLE consumer: the non-ortho \c ConstrainedFF
-//! density fitter.  It refines \c rFIT_CD_ABS -- a non-orthonormal fit basis is inherently REAL (there are no
-//! complex non-ortho fit bases); an orthonormal plane-wave basis omits ALL of this (the projection IS the fit).
+//! density fitter. So far only the real version is required.
 class FIT_CD_NonOrtho
     : public virtual rFIT_CD_ABS
-    , public virtual FieldEvaluator<double>   // rho_fit(r) = Sum_a c_a f_a(r) -- an OPERATION, not op(r)
 {
 public:
-    //! \copydoc BasisSet::FIT_SF_ABS::Charge  (the charge-constraint RHS on this side)
-    //! BY VALUE, not by cached reference: \c FIT_SF_ABS declares the same question, and a class carrying
-    //! both faces cannot override two same-signature virtuals with different return types.
-    virtual rvec_t Charge() const=0;
-    virtual const rsmat_t& Repulsion   () const=0;  //!< Coulomb metric <f_a|1/r12|f_b>, cached
-    virtual const  rmat_t& Repulsion   (const rFIT_CD_ABS&) const=0; //!< cross Coulomb <f_a|1/r12|g_b> (arg = functions)
-    virtual const rsmat_t& InvRepulsion() const=0;  //!< inverse of the Coulomb metric, cached
+    
+    virtual rvec_t Charge() const=0; //!< \copydoc BasisSet::FIT_SF_ABS::Charge 
+    virtual const rsmat_t& Repulsion   () const=0;  //!< Coulomb metric <f_a|1/r12|f_b>, cached.
+    virtual const  rmat_t& Repulsion   (const rFIT_CD_ABS& g) const=0; //!< cross Coulomb <f_a|1/r12|g_b>, cached.
+    virtual const rsmat_t& InvRepulsion() const=0;  //!< inverse of the Coulomb metric, cached.
 };
 
-//! \brief The MINIMAL, metric-neutral face of a SCALAR-FUNCTION (potential) fit basis: just "I am a
-//! potential-fit basis" -- its fit FUNCTIONS, via \c IrrepBasisSet<T>.  This is what \c CreateVxcFitBasisSet
-//! returns.  Templated on the representation \a T (mirror of \c FIT_CD_ABS): real \c rFIT_SF_ABS (Gaussian)
-//! and complex \c cFIT_SF_ABS (plane-wave).  The T axis is the representation; the \c FIT_SF_NonOrtho
-//! refinement below is the overlap-metric axis.  (ISP sibling of \c FIT_CD_ABS -- identical shape.)
+//! \brief Abstract interface for an orthogonal (not necessarily normalized) auxilliary fit basis set, for fitting  scalar functions.
+//! Typical scalar functions that require fitting are Vxc, Vc, Vex potentials.  Charge density is also a scalar function,
+//! but we almost never fit the CD using op(r), insterad we take advantage of density matrix representation and use analytic
+//! integrals to compute the projection onto the fit basis.  
 template <class T> class FIT_SF_ABS
     : public virtual IrrepBasisSet<T>
-    , public virtual Integrals_Overlap3C<T>   // ...against an orbital block of MY OWN scalar
+    , public virtual Integrals_Overlap3C<T>   // Support overlap between this fit,f and and orbital basis block, <chi_i|f|chi_j>
 {
 public:
-    //! \brief Is this fit basis ORTHOGONAL (metric DIAGONAL)?  Mirror of \c FIT_CD_ABS::isOrtho on the
-    //! overlap-metric axis -- see there for why the question is orthogonal and NOT orthonormal: \c false
-    //! selects the overlap metric-SOLVE fitter and GUARANTEES the object IS-A \c FIT_SF_NonOrtho; \c true
-    //! selects the no-solve scalar fitter.  Every fit basis must declare its metric.
-    virtual bool isOrtho() const=0;
-
-    //! \name THE TWO INTEGRALS EVERY FIT BASIS ANSWERS -- one entry per FUNCTION, always
-    //!
-    //! A \f$\delta\f$ fit basis is a family of FUNCTIONS (user ruling, 2026-08-22), so it presents
-    //! EXACTLY the interface a Gaussian auxiliary basis presents and every "point" word comes off this
-    //! face.  What stood here until then -- \c NumPoints() / \c Sample(f) / \c Integrate(values) --
-    //! described a QUADRATURE, and it looked right only because for a \f$\delta\f$ basis
-    //! \c n_functions == \c n_points, so the wrong accessor returned the right number.  The count is
-    //! \c IrrepBasisSet<T>::GetNumFunctions(); the two integrals are these.
-    //!
-    //! WHERE the numbers come from stays private and differs per representation -- \c Fit_IBS
-    //! quadratures on the \c qcMesh::Mesh its Structure handed it (ANY mesh: the Becke build is what
-    //! \c CreateIntegrationMesh happens to produce today, not something this code knows), a plane-wave
-    //! basis forward-transforms on its raster, a \f$\delta\f$ basis reads its own weights -- and none of
-    //! them hands out a point.
-    //!@{
-    //! \brief PROJECT a field onto my functions: \f$\langle f_a|f\rangle\f$, one entry per FUNCTION.
-    //!
-    //! The fit RHS, and the ONE primitive that unifies the three representations -- Gaussian: a mesh
-    //! quadrature over whatever mesh it was built with; \f$\delta\f$: \f$w_g f(r_g)\f$; plane wave: the forward
-    //! transform \f$\sqrt\Omega\,\tilde f(G_a)\f$.  Each FITTER then applies its own metric to this one
-    //! projection (\f$S^{-1}\f$ solve, divide by \c OverlapDiagonal(), or nothing).
-    //!
-    //! \a f is a field that can evaluate itself ANYWHERE; the basis decides where to ask it.  That is
-    //! what keeps the one irreducible point-ness of a pointwise-nonlinear \f$v_{xc}\f$ INSIDE: the term
-    //! composes the field, the basis samples it in here, and no coordinate appears in any signature.
-    //!
-    //! ⚠ Was \c FIT_SF_NonOrtho::Overlap(Sf) -- moved UP, because the projection is not a property of
-    //! the metric.  Un-hide the metric \c Integrals_Overlap::Overlap() past it with a \c using where a
-    //! class carries both (\c FIT_SF_NonOrtho and \c Fit_IBS do).
-    virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0;
+    virtual bool isOrtho() const=0; //!< \copydoc BasisSet::FIT_CD_ABS::isOrtho 
+    virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0; //!< \brief \f$\langle f_a|f\rangle\f$ -- the projection of a scalar function onto this basis, NOT cached.
     //! \brief \f$\langle\chi_i|f_a|\chi_j\rangle\f$ -- the 3-CENTRE overlap between an orbital block's
-    //! functions and MY OWN.  Job (2) of a fit basis: the integral a Hamiltonian term needs from me in
-    //! order to form \f$H_{ij}\f$ and \f$E\f$ (user, 2026-08-23).
-    //!
-    //! Rank-3 and never materialised, so it is delivered as the house CONTRACTIBLE object: the FITTER
-    //! contracts its coefficients into the adjoint direction, the DENSITY its \f$D\f$ into the forward
-    //! one.  Neither ever appears in a signature here -- each is supplied by the object that owns it.
-    //!
-    //! DEFAULT: delegate to the orbital basis, \c orb.Overlap3C(*this).  That is where a Gaussian and a
-    //! plane-wave fit basis's tensor already comes from (\c Orbital_DFT_IBS::Overlap3C serves BOTH -- it
-    //! was never a molecular-vs-lattice split), so those two inherit their existing machinery unchanged.
-    //! A \f$\delta\f$ basis OVERRIDES, because it needs no such machinery: in principle just \c op(r)
-    //! from the orbital basis, in practice a cached \f$\Phi\f$ table, which is an implementation detail.
-    //!
-    //! SAME-SCALAR only, and that is a real limit rather than an oversight: the orbital-side tensor is
-    //! typed by the FIT scalar (\c Projector3<TFit>) while a \f$\delta\f$ table is typed by the ORBITAL
-    //! block's, so the mixed real-TRIM-block-on-a-complex-fit-basis case (doc/RealComplexPlan.md 3c-3)
-    //! cannot share one signature.  It stays where it is served: a representation that can contract a
-    //! real block in REAL arithmetic declares \c Integrals_Overlap3C<double> as well (today only
-    //! \f$\delta\f$), and the raster route narrows a complex result with \c NarrowExact at its call site.
+    //! functions and this fit, used by Hamiltonian terms to form \f$H_{ij}\f$ and \f$E\f$ 
     const Projector3<T>& Overlap3C(const Orbital_1E_IBS<T>& orb) const override
         {return OrbitalOverlap3C(orb, *this);}
 
-    //! \brief \f$\langle f_a|1\rangle=\int f_a\,d^3r\f$, one per FUNCTION.
-    //!
-    //! CHARGE is the house name for \f$\langle i|1\rangle\f$ (user, 2026-08-23), so this is the SAME
-    //! declaration \c FIT_CD_NonOrtho carries -- one quantity, and a basis implementing both fit faces
-    //! (\c Fit_IBS) satisfies both with one override.  What it is FOR:
-    //! \f$\int\sum_a c_a f_a = c\cdot\langle f_a|1\rangle\f$, i.e. the integral of anything expanded
-    //! over me -- which is how \f$E_{xc}\f$ is accumulated once the functional's values are fit
-    //! coefficients.  For \f$\delta\f$ these ARE the quadrature weights (\f$\int\delta_g=w_g\f$).
-    virtual vec_t<T> Charge() const=0;
-    //!@}
+    
+    virtual vec_t<T> Charge() const=0; //!< \copydoc BasisSet::FIT_SF_ABS::Charge 
+    
 
-    //! \brief The DIAGONAL of my overlap metric, \f$\langle f_a|f_a\rangle\f$ -- the denominator of a
-    //! projection-is-the-fit expansion, \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$.
-    //!
-    //! On the neutral face because it is what makes \c isOrtho()==true USABLE: orthogonal says the metric
-    //! has no off-diagonal, and this is the diagonal that remains.  A plane-wave \f$\{G\}\f$ basis answers
-    //! all ones (it is orthoNORMAL, and its fitter never even asks -- see \c OrthoNormalScalarFitter); a
-    //! \f$\delta\f$ basis answers its weights \f$w_g\f$; a Gaussian auxiliary basis answers
-    //! \f$1/\mathrm{Norm}_a^2\f$, though its fit takes the full \f$S^{-1}\f$ solve and never reads just
-    //! the diagonal.  Getting this wrong is not cosmetic: dropping the denominator -- correct for an
-    //! orthonormal basis, wrong for a merely orthogonal one -- is an error of a factor \f$w_g\f$
-    //! (user, 2026-08-22).
+    //! \brief The DIAGONAL of the fit basis self overlap metric, \f$\langle f_a|f_a\rangle\f$ 
     virtual vec_t<T> OverlapDiagonal() const=0;
 
-    //! \brief STAR-AVERAGE an EXPANSION OVER ME, in place, over the crystal point group (the IBZ density
+    //! \brief This function does not belong in the fit IBS interface.
+    //! STAR-AVERAGE an EXPANSION OVER ME, in place, over the crystal point group (the IBZ density
     //! symmetrization): the argument is a coefficient vector, one entry per FUNCTION, and comes back
     //! projected onto the group-invariant subspace.  REAL-space, so it PRESERVES ρ≥0 -- XC stays on the
     //! non-negative ρ_DM samples, never routed onto ρ̃ (doc/GPWPlan1.md item 3).
@@ -223,7 +102,8 @@ public:
     //! default no-op because a molecular run imposes nothing.
     virtual void Symmetrize(rvec_t&) const {}
 
-    //! \brief The MAGNETIC sibling: project the \f$(\rho,m)\f$ PAIR, which is what diagonalizes
+    //! \brief This function does not belong in the fit IBS interface.
+    //! The MAGNETIC sibling: project the \f$(\rho,m)\f$ PAIR, which is what diagonalizes
     //! \f$\sigma\f$ -- \f$\rho\f$ EVEN under the orbit mean, \f$m\f$ ODD under the \f$\chi\f$-signed
     //! one with the flip-fixed functions zeroed first (Shubnikov S3, doc/SymmetryUpgradePlan.md §7).
     //!
@@ -242,17 +122,10 @@ public:
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
 using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis
 
-//! \brief A NON-orthonormal (Gaussian/Slater/BSpline) potential-fit basis: adds the overlap metric-solve
-//! inputs the least-squares potential fit needs -- the projection RHS \c Overlap(Sf) \f$=\langle f_a|f\rangle\f$
-//! (the field \a f is always the real \f$v_{xc}(\vec r)\f$), the normalisation, the overlap matrix
-//! (\c Integrals_Overlap), and the inverse metric \f$S^{-1}\f$ (the fit is \f$c=S^{-1}\langle f|v\rangle\f$).
-//! SOLE consumer: the non-ortho \c FunctionFitterImp scalar fitter.  It refines \c rFIT_SF_ABS -- a
-//! non-orthonormal fit basis is inherently REAL; an orthonormal plane-wave basis omits ALL of this (\f$S=I\f$,
-//! the projection IS the fit -- \c cFIT_SF_ABS stays the empty marker).  Mirror of \c FIT_CD_NonOrtho.
+//! \brief Extension of FIT_SF_ABS for non-orthogonal (Gaussian/Slater/BSpline) density-fit basis sets.
 class FIT_SF_NonOrtho
     : public virtual rFIT_SF_ABS
-    , public virtual Integrals_Overlap<double>
-    , public virtual FieldEvaluator<double>   // v_xc,fit(r) = Sum_a c_a f_a(r) -- an OPERATION, not op(r)
+    , public virtual Integrals_Overlap<double> 
 {
 public:
     using Integrals_Overlap<double>::Overlap;       // the metric <f_a|f_b> (un-hidden past Overlap(Sf))
@@ -263,22 +136,12 @@ public:
     virtual const rsmat_t& InvOverlap()         const=0; //!< inverse of the overlap metric, cached
 };
 
-//! \brief A fit basis that can do BOTH fits -- the Gaussian auxiliary basis implements all of it.  The
-//! concrete-facing union of the two ISP faces; it carries the shared quadrature mesh (built from the
-//! Structure at CONSTRUCTION) and the cached-accessor implementations.  Clients take the narrow face
-//! (rFIT_CD_ABS for a density fit, FIT_SF_ABS for a potential fit) for type safety; the union exists so
-//! one concrete object can be handed to either creator.
+//! \brief One class that implelements all four abstract interfaces.
+//! Design question: Does the client code really need to see this class, or should it just be working with abstract interfaces? 
 class Fit_IBS
     : public virtual FIT_CD_NonOrtho
     , public virtual FIT_SF_NonOrtho
-    // PRIVATE, deliberately (user, 2026-08-22).  A Gaussian aux basis IS evaluatable and NEEDS to be --
-    // Norm() and Overlap(f) below are mesh quadratures over its own functions -- but that is HOW it
-    // answers, not something its clients may ask: nothing outside has ever passed a Fit_IBS as a
-    // VectorFunction, and the two uses are both members of this class.  So the capability is inherited
-    // for implementation and kept out of the interface.  PROTECTED, not private: a concrete fit basis (the
-    // molecular EFit_IBS) reaches the virtual base through its own AO path, and the most-derived class must
-    // be able to destroy it.
-    , protected virtual Evaluatable_IBS<double>
+    , protected virtual Evaluatable_IBS<double> //Support op(r)
 {
 public:
     using Integrals_Overlap<double>::Overlap;       // un-hide the metric Overlap() past the Overlap(Sf) override
@@ -316,9 +179,6 @@ public:
     //! ONE override satisfying BOTH fit faces -- \f$\langle f_a|1\rangle\f$ is one quantity, so it is
     //! declared once per face with the same signature and answered once here.
     rvec_t        Charge() const override;
-    //! \copydoc BasisSet::FieldEvaluator::EvalField  (\f$\sum_a c_a f_a(r)\f$ over this basis's functions)
-    double  EvalField        (const rvec_t& c, const rvec3_t& r) const override;
-    rvec3_t EvalFieldGradient(const rvec_t& c, const rvec3_t& r) const override;
 
 protected:
     virtual  rvec_t MakeCharge      () const=0;

@@ -29,10 +29,6 @@ public:
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
     virtual double    GetSelfRepulsion(               ) const;  //Does GetRepulsion(*this);
 
-    // ScalarFunction
-    virtual double  operator()(const rvec3_t& r) const {return (*itsFitter)(r);}      // No UT coverage
-    virtual rvec3_t Gradient  (const rvec3_t& r) const {return itsFitter->Gradient(r);} // No UT coverage
-
 private:
     std::unique_ptr<Fitting::FunctionFitter_Density_NonOrtho<T>> itsFitter;   //!< COMPOSED non-ortho fit (was inherited)
 };
