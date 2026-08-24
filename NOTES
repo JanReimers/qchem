@@ -457,4 +457,60 @@ timing
 [MnO AFM-II] |m-tilde(q_AFM)|*Omega/2 = 3.126 e- (staggered moment scale)
 [       OK ] GPW_SCF.DISABLED_MnO_AFM2_RhombohedralGamma (492515 ms)
 
+Real-Trim work:
+timing
+ scf: XC-mesh rho sampling (matrix-free density)                 87.6999    
+ scf: collocate density (pair scatter)                           87.4713    
+ scf: XC-mesh quadrature H_xc (all iterations)                   49.3621    
+ scf: integrate-back (pair gather)                               41.0961    
+ scf: iterate (contains the lazy first-iteration setup buckets)  33.4005    
+ setup: becke mesh build                                         32.0956    
+ setup: hamiltonian ctor (fit bases + becke mesh)                27.0002    
+ setup: collocation stream build                                 23.4795    
+ setup: XC-mesh Phi tables                                       10.2761    
+ setup: local-PP LONG (custom G-ball)                            5.86995    
+ scf: XC-mesh rho sampling (all iterations)                      3.07443    
+ setup: local-PP SHORT (analytic lattice sum)                    0.450777   
+ setup: analytic 1E lattice sums (S,T,V)                         0.224315   
+ setup: seed + ortho (iterator ctor)                             0.160307   
+ setup: separable PP (KB)                                        0.0592048  
+ setup: GPW basis build                                          0.00473059 
+ setup: vet basis (analytic S)                                   0.00325955 
+[MnO AFM-II] site moments m(r): Mn1(+seed)=0.6592  Mn2(-seed)=-0.6435  m_stag=½(m1−m2)=0.6513  m_net=m1+m2=0.01574
+[MnO AFM-II] |m-tilde(q_AFM)|*Omega/2 = 3.126 e- (staggered moment scale)
+[       OK ] GPW_SCF.DISABLED_MnO_AFM2_RhombohedralGamma (402638 ms)
+[----------] 1 test from GPW_SCF (402638 ms total)
 
+
+real-Trim pair streams:
+timing
+ scf: collocate density (pair scatter)                           61.4804    
+ scf: XC-mesh quadrature H_xc (all iterations)                   49.677     
+ scf: iterate (contains the lazy first-iteration setup buckets)  33.8595    
+ setup: becke mesh build                                         32.4048    
+ scf: XC-mesh rho sampling (matrix-free density)                 30.9314    
+ scf: integrate-back (pair gather)                               28.1207    
+ setup: hamiltonian ctor (fit bases + becke mesh)                27.5445    
+ setup: collocation stream build                                 24.7195    
+ setup: XC-mesh Phi tables                                       10.5256    
+ setup: local-PP LONG (custom G-ball)                            5.76294    
+ scf: XC-mesh rho sampling (all iterations)                      3.31968    
+ setup: local-PP SHORT (analytic lattice sum)                    0.439964   
+ setup: analytic 1E lattice sums (S,T,V)                         0.231417   
+ setup: seed + ortho (iterator ctor)                             0.164768   
+ setup: separable PP (KB)                                        0.0526686  
+ setup: GPW basis build                                          0.00488358 
+ setup: vet basis (analytic S)                                   0.00330081 
+[MnO AFM-II] site moments m(r): Mn1(+seed)=0.6592  Mn2(-seed)=-0.6435  m_stag=½(m1−m2)=0.6513  m_net=m1+m2=0.01574
+[MnO AFM-II] |m-tilde(q_AFM)|*Omega/2 = 3.126 e- (staggered moment scale)
+[       OK ] GPW_SCF.DISABLED_MnO_AFM2_RhombohedralGamma (309972 ms)
+[----------] 1 test from GPW_SCF (309972 ms total)
+
+
+
+OK remaining items for a new session: 
+-Get rid of src/BasisSet/FitOperations.C 
+      -OrthogonalFit belongs in the qcFitting library.  Cleint code needs to use that framework, not dodge around it.
+      -Overlap3CFace looks like helper function which does not need is own file and module.
+-Get rid of FIT_SF_ABS::Symmetrize and SymmetrizeSpin ... these look like functions that need access to 
+ Fit_IBS's internal (none of your business) integration mesh.  They do not belong in a fot basis set interface.

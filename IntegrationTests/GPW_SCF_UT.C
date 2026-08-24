@@ -85,12 +85,23 @@ import qchem.Calculation;                        // qchem::Calculation, CalcOpti
 import qchem.AtomCalculation;                    // AtomCalculation, AtomType, BasisSetAccuracy (Slater/High pseudo-atom ref)
 import qchem.Types;
 
-// The delta fit basis the SINGLES quadrature runs on: it owns the mesh, the fold and the sigma tags, and
-// answers integrals/samples/symmetrizations -- so a probe builds one instead of passing a loose bundle.
+// The delta fit basis the SINGLES quadrature runs on: it owns the mesh's points, weights and functions.
 static std::shared_ptr<const qchem::BasisSet::DeltaFit_IBS> DeltaFitOver(qchem::BasisSet::FitQuadrature q)
 {
     return std::make_shared<const qchem::BasisSet::DeltaFit_IBS>(std::move(q),
                qchem::Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+}
+
+// ...and the SINGLES engine over that same bundle -- which since 2026-08-24 needs it too, because the
+// atomic partition, the orbit fold and the Shubnikov tags are INJECTED into the strategy rather than asked
+// of the basis (BasisSet::FIT_SF_ABS lost Symmetrize/SymmetrizeSpin).  ONE bundle, handed to both
+// collaborators, exactly as tBasisSet::CreateVxcFitBasisSet does it in production -- so a probe cannot
+// accidentally give the basis one quadrature and the strategy another.
+static std::shared_ptr<qchem::Hamiltonian::XC_SinglesQuadrature>
+SinglesEngineOver(qchem::BasisSet::FitQuadrature q)
+{
+    auto fit=DeltaFitOver(q);   // NOT inline with the move below: argument evaluation order is unspecified
+    return std::make_shared<qchem::Hamiltonian::XC_SinglesQuadrature>(std::move(fit), std::move(q));
 }
 
 
@@ -1473,7 +1484,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         auto corr=std::make_shared<VWN_Correlation>();
         BasisSet::FitQuadrature q = bs->CreateXCQuadrature(lat.GetStructure().get(),
                                                           qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}));
-        auto engine=std::make_shared<XC_SinglesQuadrature>(DeltaFitOver(std::move(q)));
+        auto engine=SinglesEngineOver(std::move(q));
         Vxc_QuadraturePol   x(exch, engine);
         Vcorr_QuadraturePol c(corr, engine);
         const size_t k=2;
@@ -2733,8 +2744,8 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
 {
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
-    auto engine=std::make_shared<Hamiltonian::XC_SinglesQuadrature>(               // ONE quadrature, shared by the pair
-                    DeltaFitOver({std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB)), {}}));  // free probe: no fold
+    auto engine=SinglesEngineOver(                                                 // ONE quadrature, shared by the pair
+                    {std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB)), {}});   // free probe: no fold
     Hamiltonian::Vxc_Quadrature x(exch,engine), c(corr,engine);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     return ProbeXC(label, h, x, c, e);
@@ -4071,9 +4082,9 @@ TEST(GPW_SCF, MnOSeedVxcMirrorOnBeckeMesh)
     ASSERT_GT(N, 0u);
 
     // The channel rasters EXACTLY as the Fock build gets them (RhoPol's cSpinResolved_CD seed branch).
-    qchem::Hamiltonian::XC_SinglesQuadrature engine(DeltaFitOver({mesh, {}}));
-    const rvec_t ru=engine.RhoPol(&seedCD, Spin::Up);
-    const rvec_t rd=engine.RhoPol(&seedCD, Spin::Down);
+    auto engine=SinglesEngineOver({mesh, {}});
+    const rvec_t ru=engine->RhoPol(&seedCD, Spin::Up);
+    const rvec_t rd=engine->RhoPol(&seedCD, Spin::Down);
 
     // Mirror-partner lookup: hash each point's wrapped fractional coords; partner(g) = the mesh index at
     // wrapped(frac(p_g) + (1/2,1/2,1/2)).  Quantized key + 27-neighbour probe rides out wrap roundoff.
@@ -4208,9 +4219,9 @@ TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
     const std::map<size_t,int> ionic{{25,5},{8,8}};
     PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
 
-    qchem::Hamiltonian::XC_SinglesQuadrature engine(DeltaFitOver(q));
-    const rvec_t up=engine.RhoPol(&seedCD, Spin::Up);
-    const rvec_t dn=engine.RhoPol(&seedCD, Spin::Down);
+    auto engine=SinglesEngineOver(q);
+    const rvec_t up=engine->RhoPol(&seedCD, Spin::Up);
+    const rvec_t dn=engine->RhoPol(&seedCD, Spin::Down);
 
     // (a) The staggering SURVIVES the imposed projector: the magnetization raster keeps its full scale.
     double maxM=0; for (size_t g=0; g<up.size(); g++) maxM=std::max(maxM, std::abs(up[g]-dn[g]));
@@ -4234,9 +4245,9 @@ TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
     // (c) The GREY control: the SAME mesh and fold with the sigma tags withheld = the historical
     // per-channel spatial average, which maps +m sites onto -m sites and ERASES the order.  This is the
     // unit-level half of the S4 negative control ("imposing the grey group kills m_stag").
-    qchem::Hamiltonian::XC_SinglesQuadrature grey(DeltaFitOver({q.mesh, q.fold}));
-    const rvec_t gup=grey.RhoPol(&seedCD, Spin::Up);
-    const rvec_t gdn=grey.RhoPol(&seedCD, Spin::Down);
+    auto grey=SinglesEngineOver({q.mesh, q.fold});
+    const rvec_t gup=grey->RhoPol(&seedCD, Spin::Up);
+    const rvec_t gdn=grey->RhoPol(&seedCD, Spin::Down);
     double maxGrey=0; for (size_t g=0; g<gup.size(); g++) maxGrey=std::max(maxGrey, std::abs(gup[g]-gdn[g]));
     EXPECT_LT(maxGrey, 1e-10) << "the grey average must ERASE the staggering -- if it does not, the "
                                  "Shubnikov machinery is not actually load-bearing";

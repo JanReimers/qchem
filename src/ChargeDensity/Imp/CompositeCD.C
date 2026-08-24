@@ -11,6 +11,7 @@ module;
 module qchem.CompositeCD;
 import qchem.ChargeDensity.Types;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO (each finite block's AO face)
+import qchem.BasisSet.G_FieldEvaluator;  // G_RasterTransform -- the raster face that star-averages a grid field
 import qchem.Blaze;
 
 namespace qchem::ChargeDensity
@@ -312,8 +313,11 @@ template <class Comp> rvec_t Composite_Fourier<Comp>::GetRhoOnGrid(const BasisSe
         else               sum+=r;
     }
     // IBZ: star-average the summed raster IN REAL SPACE (voxel permutation) so XC sees ρ_sym while staying
-    // on the non-negative ρ_DM grid.  The fit basis owns its grid + the τ=0 direct ops; no-op unless folded.
-    c.Symmetrize(sum);
+    // on the non-negative ρ_DM grid.  ASK THE RASTER (2026-08-24): the operation is a voxel permutation plus
+    // an FFT glide, so it lives on G_RasterTransform, not on the fit face -- and this array IS a raster
+    // array, so the cross-cast is the same "I want more" ask GetRhoOnGrid's whole route is built on.  A fit
+    // basis without a raster cannot answer, and cannot have produced this array either.
+    dynamic_cast<const BasisSet::G_RasterTransform&>(c).Symmetrize(sum);
     return sum;
 }
 

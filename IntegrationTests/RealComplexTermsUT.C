@@ -155,7 +155,7 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
 
     auto q = rig.cx->CreateXCQuadrature(rig.st.get(), qcMesh::MeshParams{});
     auto dfb=std::make_shared<const BasisSet::DeltaFit_IBS>(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
-    auto engine=std::make_shared<const XC_SinglesQuadrature>(dfb);
+    auto engine=std::make_shared<const XC_SinglesQuadrature>(dfb, q);   // ONE bundle to both collaborators
     Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), engine);
     {
         auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);

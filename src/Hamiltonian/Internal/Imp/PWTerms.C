@@ -476,7 +476,7 @@ rsmat_t XC_PairQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {retu
 // once, and latched for the run by the simple fact that the Hamiltonian builds this object once.
 std::shared_ptr<const XC_Quadrature>
 MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
-                 std::shared_ptr<const qcMesh::Mesh> partition)
+                 BasisSet::FitQuadrature quad)
 {
     assert(fb);
     // CAPABILITY decides.  A basis that carries the {r}<->{G} transforms is raster-backed, so its
@@ -485,14 +485,14 @@ MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
     // table: SINGLES.  Note this asks what the basis CAN do, never what it IS.
     if (dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get()))
         return std::make_shared<const XC_PairQuadrature>(fb);
-    return std::make_shared<const XC_SinglesQuadrature>(fb, std::move(partition));
+    return std::make_shared<const XC_SinglesQuadrature>(fb, std::move(quad));
 }
 
 // ---- XC_SinglesQuadrature: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
 
-XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit, std::shared_ptr<const qcMesh::Mesh> partition)
+XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit, BasisSet::FitQuadrature quad)
     : itsFit(std::move(fit))
-    , itsPartition(std::move(partition))
+    , itsQuad(std::move(quad))
 {
     // The fitter comes from the SAME Factory the molecular XC term uses; it inspects the basis and hands
     // back the delta fitter (R1.0 conformance).  A named lvalue because Factory takes its argument by
@@ -501,8 +501,35 @@ XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit, std::shared_ptr<const qcMe
     itsScalarFitter=Fitting::Factory(fb);
     assert(itsFit && "XC_SinglesQuadrature: the delta fit basis IS the quadrature -- it cannot be null");
     // The bundle's own invariants (fold partitions the mesh, sigmas need a fold, flags cover it) are
-    // checked where the bundle becomes an object -- in the basis's ctor -- and the star-average it will
-    // apply announces itself there too (providers self-report).  Nothing left to validate here.
+    // checked where the bundle becomes an object -- in the basis's ctor -- and the star-average announces
+    // itself there too (providers self-report).  What IS this object's business is that the bundle it was
+    // handed is the same one the basis holds: same length, so the fold's orbit indices and my coefficient
+    // vectors index the same functions.
+    assert((!itsQuad.mesh || itsQuad.mesh->size()==itsFit->GetNumFunctions()) &&
+           "XC_SinglesQuadrature: the injected quadrature and the delta fit basis must be the SAME object "
+           "-- one mesh point per fit function");
+}
+
+// THE STAR-AVERAGE, applied to a coefficient vector over the delta basis (§6a W1).  It lives here, not on
+// the fit basis, since 2026-08-24 (user): the operation is not a fitting question and the basis contributed
+// only the fold -- which now arrives with the mesh, through the same factory out-parameter.  Both bodies are
+// the free Symmetry::Lattice_3D algorithms, called directly.
+void XC_SinglesQuadrature::Symmetrize(rvec_t& f) const
+{
+    if (itsQuad.fold.owner.empty()) return;              // free run: the projector is the identity
+    Symmetry::Lattice_3D::SymmetrizeValues(itsQuad.fold, f);
+}
+
+// The MAGNETIC pair: with sigma tags the (rho,m) pair does NOT separate -- a Flip op maps rho_up onto
+// rho_down, not onto itself -- so rho takes the plain orbit mean while m takes the chi-signed one, with m
+// zeroed first at every point some Flip op fixes (where the exact projector annihilates it).  Without tags
+// this is each channel on its own, which is bit-identical to what the removed base-class default did.
+void XC_SinglesQuadrature::SymmetrizeSpin(rvec_t& rho, rvec_t& m) const
+{
+    if (itsQuad.fold.owner.empty() || itsQuad.sigmas.empty()) {Symmetrize(rho); Symmetrize(m); return;}
+    for (size_t g=0; g<itsQuad.flipFixed.size(); ++g) if (itsQuad.flipFixed[g]) m[g]=0.0;
+    Symmetry::Lattice_3D::SymmetrizeValues      (itsQuad.fold, rho);
+    Symmetry::Lattice_3D::SymmetrizeValuesSigned(itsQuad.fold, itsQuad.sigmas, m);
 }
 
 // The quadrature questions go THROUGH the basis, and since 2026-08-23 in its own FUNCTION vocabulary:
@@ -653,7 +680,7 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
         itsRho=BasisSet::OrthogonalFit(*itsFit, *cd);   // non-DM (mixed rho-tilde / seed): fit it onto the basis
         ReportNegativeRho(*this, itsRho, "matrix-free");
     }
-    itsFit->Symmetrize(itsRho);   // §6a W1: the basis's own orbit-mean projector (no-op on a free run)
+    Symmetrize(itsRho);   // §6a W1: the injected quadrature's orbit-mean projector (no-op on a free run)
     return itsRho;
 }
 
@@ -732,12 +759,12 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
             itsRhoDn=itsRhoUp;
         }
         {
-            // The basis projects the (ρ,m) PAIR: it knows whether the run is magnetic (σ tags -> ρ even,
-            // m odd with the flip-fixed zeros), grey (each argument averaged independently) or free (a
-            // no-op).  This used to be a three-way branch here over the fold's raw contents.
+            // Project the (ρ,m) PAIR over the injected quadrature: magnetic (σ tags -> ρ even, m odd with
+            // the flip-fixed zeros), grey (each argument averaged independently) or free (a no-op).  The
+            // three-way decision is ONE private method, not a branch spelled out at the call site.
             rvec_t rho = itsRhoUp + itsRhoDn;
             rvec_t m   = itsRhoUp - itsRhoDn;
-            itsFit->SymmetrizeSpin(rho, m);
+            SymmetrizeSpin(rho, m);
             itsRhoUp = 0.5*(rho + m);
             itsRhoDn = 0.5*(rho - m);
         }
@@ -796,10 +823,10 @@ rvec_t XC_SinglesQuadrature::SiteMoments(const cChargeDensity* cd) const
 // so this and the basis index the SAME points in the SAME order (one object, two collaborators).
 rvec_t XC_SinglesQuadrature::PartitionedMoments(const rvec_t& f) const
 {
-    if (!itsPartition || itsPartition->NSites()==0) return rvec_t();
-    assert(f.size()==itsPartition->size() && "XC_SinglesQuadrature: the injected partition and the fit "
-           "basis must be the same quadrature -- one field value per mesh point");
-    return qcMesh::SiteIntegrals(*itsPartition, f);
+    if (!itsQuad.mesh || itsQuad.mesh->NSites()==0) return rvec_t();
+    assert(f.size()==itsQuad.mesh->size() && "XC_SinglesQuadrature: the injected quadrature and the fit "
+           "basis must be the same object -- one field value per mesh point");
+    return qcMesh::SiteIntegrals(*itsQuad.mesh, f);
 }
 
 // <i|v|j>: ASK THE BASIS.  It owns the points, the weights and the Phi table, so the whole quadrature

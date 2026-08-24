@@ -287,12 +287,19 @@ public:
     //! source \f$\rho\f$ comes from this iteration, per-serial caching, the spin channels, the
     //! DM-source damping -- none of which is basis business.
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit_t;
-    //! \a partition is the SAME \c qcMesh::Mesh the fit basis was built over, injected by the factory
-    //! that created both (never taken from the basis -- it has no getter).  It carries the ATOMIC site
-    //! blocks, which is a general-purpose observable and no part of a fit basis's contract; this strategy
-    //! is where it is USED because this is where \f$\rho_\sigma\f$ is already cached.  Null => no
-    //! partition => \c SiteMoments answers empty, exactly as a raster quadrature does.
-    XC_SinglesQuadrature(fit_t, std::shared_ptr<const qcMesh::Mesh> partition={});
+    //! \a quad is the SAME \c BasisSet::FitQuadrature the \f$\delta\f$ fit basis was built over, injected
+    //! by the factory that created both (never taken from the basis -- it has no getter).  Two of its
+    //! fields are consumed here and neither is a fitting question:
+    //!  - \c mesh carries the ATOMIC site blocks -- a general-purpose observable, used here because this is
+    //!    where \f$\rho_\sigma\f$ is already cached (\c SiteMoments);
+    //!  - \c fold + \c sigmas + \c flipFixed are the crystal orbit partition and Shubnikov spin tags, which
+    //!    star-average \f$\rho\f$ (and the \f$(\rho,m)\f$ pair) on every iteration.  Those reached this
+    //!    strategy as \c FIT_SF_ABS::Symmetrize / \c SymmetrizeSpin until 2026-08-24 -- two members on a fit
+    //!    face whose only contribution was the geometry the basis happened to own (user).  Injecting the
+    //!    sibling fields the same way as the mesh removed both.
+    //! Empty (default-constructed) => a free run with no partition: no star-average, and \c SiteMoments
+    //! answers empty -- exactly as a raster quadrature does.
+    XC_SinglesQuadrature(fit_t, BasisSet::FitQuadrature quad={});
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override;
     //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
@@ -334,9 +341,18 @@ private:
     //! Report the current \f$\rho_\sigma\f$ pair's site moments -- called from \c RhoPol's serial-advance
     //! branch, so exactly once per NEW density and never on a cache hit.  No-op without site blocks.
     void EmitSiteMoments() const;
-    //! \f$\int w_A f\f$ per site over the INJECTED partition; empty when none was injected (or it has
-    //! no site blocks -- a uniform grid has no atomic basins).  Ask, do not assume.
+    //! \f$\int w_A f\f$ per site over the INJECTED quadrature's mesh; empty when none was injected (or it
+    //! has no site blocks -- a uniform grid has no atomic basins).  Ask, do not assume.
     rvec_t PartitionedMoments(const rvec_t& f) const;
+    //! \brief STAR-AVERAGE a coefficient vector over the injected quadrature's orbit fold, in place (§6a W1).
+    //! No fold => a free run => exact no-op, so no caller asks whether symmetry was imposed.  REAL-space, so
+    //! it PRESERVES \f$\rho\ge0\f$ -- XC stays on the non-negative \f$\rho_{DM}\f$ samples.
+    void Symmetrize(rvec_t& f) const;
+    //! \brief The MAGNETIC sibling: project the \f$(\rho,m)\f$ PAIR, which is what diagonalizes
+    //! \f$\sigma\f$ -- \f$\rho\f$ EVEN under the orbit mean, \f$m\f$ ODD under the \f$\chi\f$-signed
+    //! one, with the flip-fixed entries of \f$m\f$ zeroed first (Shubnikov S3, doc/SymmetryUpgradePlan.md
+    //! §7).  No \f$\sigma\f$ tags => grey/free semantics => each channel averaged independently.
+    void SymmetrizeSpin(rvec_t& rho, rvec_t& m) const;
 
     // R2.9(i): the four accessors above are CONST and everything they touch is a lazily-built cache, so the
     // caches are `mutable` -- the same idiom every other cache in this module already uses (tHT_Common::
@@ -344,10 +360,11 @@ private:
     // methods reached from const term methods through a non-const shared_ptr, which laundered the constness
     // without ever stating it.  itsFit is NOT mutable: it is construction-time and must not move.
     fit_t itsFit;                                 //!< the δ basis: my functions, their metric, their 3-centre overlap
-    //! The atomic PARTITION of the same quadrature -- injected, shared, immutable, possibly null.  Its
-    //! point order IS the fit basis's function order (one object, handed to both), which is what makes
-    //! \c SiteMoments' indexing correct by construction; the assert there pins it anyway.
-    std::shared_ptr<const qcMesh::Mesh> itsPartition;
+    //! The SAME quadrature bundle the \f$\delta\f$ basis was built over -- injected, immutable, possibly
+    //! empty.  Its mesh's point order IS the fit basis's function order (one object, handed to both), which
+    //! is what makes \c SiteMoments' indexing and the fold's orbit indexing correct by construction; the
+    //! asserts pin it anyway.
+    BasisSet::FitQuadrature itsQuad;
     //! The δ SCALAR FITTER over that basis, from the same \c Fitting::Factory the molecular XC term uses
     //! (R1.0 Liskov conformance, 2026-08-22).  H_xc is now "fit the field, contract against this block",
     //! the same two calls on either representation -- so this strategy no longer performs a quadrature
@@ -459,7 +476,7 @@ private:
 //! are already functions of (orbital basis, fit basis).
 std::shared_ptr<const XC_Quadrature>
 MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
-                 std::shared_ptr<const qcMesh::Mesh> partition={});
+                 BasisSet::FitQuadrature quad={});
 
 //! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian, carrying ONE LDA functional
 //! (a full LDA is a Dirac instance + a VWN instance, mirroring the molecular SlaterExchange+VWN split).
@@ -563,9 +580,9 @@ private:
 template <class C> std::vector<std::unique_ptr<cDynamic_HT>>
 MakeVxcTerms(const std::shared_ptr<ExFunctional>& exch, const std::shared_ptr<C>& corr,
              const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb, bool polarized,
-             std::shared_ptr<const qcMesh::Mesh> partition={})
+             BasisSet::FitQuadrature quad={})
 {
-    std::shared_ptr<const XC_Quadrature> q=MakeXCQuadrature(fb, std::move(partition));
+    std::shared_ptr<const XC_Quadrature> q=MakeXCQuadrature(fb, std::move(quad));
     std::vector<std::unique_ptr<cDynamic_HT>> terms;
     if (polarized)
     {

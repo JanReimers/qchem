@@ -258,17 +258,18 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // separately, under grids.vxcFitGrid).
     qchem::report::EmitAt("grids", "xcQuadrature",
                           {{"kind", delta ? (becke ? "Becke" : "DeltaUniform") : "PlaneWave"}});
-    // ONE factory call still makes every representation decision.  The second output is the run's ATOMIC
-    // PARTITION -- the same mesh the delta basis was built over, or null on the raster route -- taken here
-    // only to hand it straight back down to the terms.  This builder does not read it, does not know what
-    // is in it, and pays for no mesh it would not otherwise have built.
-    std::shared_ptr<const qcMesh::Mesh> partition;
+    // ONE factory call still makes every representation decision.  The second output is the run's XC
+    // QUADRATURE -- the same bundle the delta basis was built over (mesh + atomic partition + orbit fold +
+    // Shubnikov tags), empty on the raster route -- taken here only to hand it straight back down to the
+    // terms.  This builder does not read it, does not know what is in it, and pays for no mesh it would not
+    // otherwise have built.
+    BasisSet::FitQuadrature quadrature;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> XFitBasis(
-        bs->CreateVxcFitBasisSet(st.get(), xc, delta ? VxcFit::Delta : VxcFit::PlaneWave, &partition));
+        bs->CreateVxcFitBasisSet(st.get(), xc, delta ? VxcFit::Delta : VxcFit::PlaneWave, &quadrature));
     // SPIN-NATIVE (tier 4b) exchange must be channel-native: a spin-tagged SlaterExchange does NOT halve
     // rho, because it is fed rho_sigma per channel.  Correlation's two-channel face serves both cases.
     for (auto& t : MakeVxcTerms(polarized ? std::make_shared<SlaterExchange>(2.0/3.0, Spin::Up) : exch,
-                                corr, XFitBasis, polarized, partition))
+                                corr, XFitBasis, polarized, std::move(quadrature)))
         Add(t.release());
 
     Add(new IonIon<dcmplx>(st, loc->ZionFn()));                  // ion-ion Ewald: Zion from the PP, not itsZ

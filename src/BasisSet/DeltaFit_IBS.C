@@ -2,8 +2,9 @@
 //
 // The OTHER representation a periodic Vxc fit basis can take (PlaneWaveFit_IBS being the {G} one): the
 // delta basis, whose n_pts functions are the mesh's own delta functions.  Everything it knows is the
-// quadrature -- points, weights, and the orbit fold the run's imposed ops gave that mesh -- because that
-// IS what a delta basis is: W_g[h] = w_g delta_gh, a family of weight vectors with nothing left over.
+// quadrature -- points and weights -- because that IS what a delta basis is: W_g[h] = w_g delta_gh, a
+// family of weight vectors with nothing left over.  (It still HOLDS the whole FitQuadrature bundle, since
+// that is what its factory builds and hands it, but nothing it answers reads the fold.)
 //
 // It exists so that CreateVxcFitBasisSet can make BOTH decisions -- which representation AND which points
 // -- and return ONE object (doc/OpenWork.md, "separation of concerns in the XC terms").  Before this the
@@ -11,11 +12,12 @@
 // to re-decide which term class to build in order to know which of the two answers to use; the fit basis
 // and the grid were separate returns of one question.
 //
-// It ANSWERS, it does not hand out (user ruling 2026-08-22).  The mesh and its orbit fold are private:
-// what leaves this class is an integral over its own functions or a projected/symmetrized coefficient
-// vector -- arrays indexed by FUNCTION, in its own order.  No consumer knows whether these functions sit
-// on an atom-centred Becke build or a uniform cell grid, which is exactly the fit/grid separation the
-// design item is about.  Since 2026-08-22 NOTHING leaves: the mesh getter is gone with the Quadrature face.
+// It ANSWERS, it does not hand out (user ruling 2026-08-22).  The mesh is private: what leaves this class
+// is an integral over its own functions or a projection onto them -- arrays indexed by FUNCTION, in its own
+// order.  No consumer knows whether these functions sit on an atom-centred Becke build or a uniform cell
+// grid, which is exactly the fit/grid separation the design item is about.  Since 2026-08-22 NOTHING leaves:
+// the mesh getter went with the Quadrature face, and since 2026-08-24 the two operations that were reaching
+// PAST that -- the symmetrizations -- are gone too (the fold travels to their consumer with the mesh).
 //
 // AND SINCE 2026-08-23 NOTHING SAYS "POINT" EITHER (user).  A delta basis is a family of FUNCTIONS, so it
 // presents exactly the interface a Gaussian auxiliary basis presents: GetNumFunctions() for the count,
@@ -35,7 +37,6 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
 import qchem.Types;                                      // dcmplx, rvec3_t, vec_t
 import qchem.Mesh.Quadrature;                            // qcMesh::SiteIntegrals (the atomic-partition observable)
-import qchem.Symmetry.Lattice_3D.Fold;                   // SymmetrizeValues / SymmetrizeValuesSigned (my orbit fold)
 import qchem.Reporting;                                  // EmitFold -- this basis announces its own star-average
 
 export namespace qchem::BasisSet
@@ -114,27 +115,11 @@ public:
         return p;
     }
 
-    //! \copydoc BasisSet::FIT_SF_ABS::Symmetrize  (my mesh's orbit-mean projector)
-    void Symmetrize(rvec_t& f) const override
-    {
-        if (itsQuad.fold.owner.empty()) return;              // free run: the projector is the identity
-        Symmetry::Lattice_3D::SymmetrizeValues(itsQuad.fold, f);
-    }
-    //! \copydoc BasisSet::FIT_SF_ABS::SymmetrizeSpin
-    //! The MAGNETIC case, and the only reason this override exists: with \f$\sigma\f$ tags the pair does
-    //! NOT separate -- a Flip op maps \f$\rho_\uparrow\f$ onto \f$\rho_\downarrow\f$, not onto itself
-    //! -- so \f$\rho\f$ takes the plain orbit mean while \f$m\f$ takes the \f$\chi\f$-signed one, with
-    //! \f$m\f$ zeroed first at every function some Flip op fixes (where the exact projector annihilates
-    //! it).  WITHOUT tags this falls through to the base's per-channel default, which is bit-identical to
-    //! the branch that used to live here.
-    void SymmetrizeSpin(rvec_t& rho, rvec_t& m) const override
-    {
-        if (itsQuad.fold.owner.empty() || itsQuad.sigmas.empty())
-            return FIT_SF_ABS<dcmplx>::SymmetrizeSpin(rho, m);   // free / grey: each channel on its own
-        for (size_t g=0; g<itsQuad.flipFixed.size(); ++g) if (itsQuad.flipFixed[g]) m[g]=0.0;
-        Symmetry::Lattice_3D::SymmetrizeValues      (itsQuad.fold, rho);
-        Symmetry::Lattice_3D::SymmetrizeValuesSigned(itsQuad.fold, itsQuad.sigmas, m);
-    }
+    // NO Symmetrize / SymmetrizeSpin since 2026-08-24 (user): the star-average was never a fit-basis
+    // question -- this class was merely the only object holding the orbit fold.  The fold and the
+    // Shubnikov tags now travel to the XC strategy WITH the mesh, through the same factory out-parameter,
+    // and it applies the free SymmetrizeValues / SymmetrizeValuesSigned itself.  Same cure, and the same
+    // reason, as SiteIntegrals leaving here in increment 5.
 
     //! One \f$\delta\f$ function per mesh point -- ~100k of them, so anything reasoning about a fit basis
     //! by COUNTING functions (grid sizing, memory reports, cache dimensions) must not choke on that.

@@ -121,6 +121,19 @@ public:
     //! The evaluatable fitted-field coefficients \f$c(G)=\tilde V(G)\f$ over THIS basis's own \f$\{G\}\f$ (a
     //! \c GridCoeff gather).  \c G_FieldEvaluator::EvalField then plots \f$\sum_G c(G)e^{iG\cdot r}\f$.
     virtual ΔG_Map     FieldCoeffs(const cvec_t& Vt) const=0;
+    //! \brief IBZ REAL-SPACE STAR-AVERAGE of a raster field, in place:
+    //! \f$\rho_{sym}[x]=\frac1{|ops|}\sum_{\{W|\tau\}}\rho(W\cdot x+\tau)\f$ over the crystal DIRECT ops
+    //! (doc/GPWPlan1.md items 3 + 5).  Real-space, so a (near-)non-negative raster stays \f$\ge0\f$ and XC
+    //! keeps its \f$\rho_{DM}\f$ feed.  Default NO-OP: an unfolded raster, or one whose engine carries no
+    //! ops, symmetrizes to itself, so a caller never asks whether symmetry was imposed.
+    //!
+    //! HERE since 2026-08-24, moved off \c FIT_SF_ABS (user): it is a VOXEL PERMUTATION plus an FFT
+    //! shift-theorem glide -- \f$W\cdot x\f$ is an exact integer permutation of the grid and \f$\tau\f$ is
+    //! applied through \c ForwardFFT/\c BackwardFFT -- so it needs the raster and nothing else.  It is not a
+    //! FITTING question, and a fit basis was merely the object that happened to hold the geometry.  (The
+    //! \f$\delta\f$ representation's version of the same operation is an orbit-mean over its mesh's fold,
+    //! which travels to its consumer with the mesh instead.)
+    virtual void       Symmetrize (rvec_t& /*f*/) const {}
     // NB: grid REPORTING is deliberately not here: the owning fit basis self-reports at construction,
     // role-labeled (see PlaneWaveFit_IBS; user ruling 2026-08-16).
 };

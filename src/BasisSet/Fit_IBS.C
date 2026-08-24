@@ -99,40 +99,17 @@ public:
     //! \brief The DIAGONAL of the fit basis self overlap metric, \f$\langle f_a|f_a\rangle\f$ 
     virtual vec_t<T> OverlapDiagonal() const=0;
 
-    //! \brief This function does not belong in the fit IBS interface.
-    //! STAR-AVERAGE an EXPANSION OVER ME, in place, over the crystal point group (the IBZ density
-    //! symmetrization): the argument is a coefficient vector, one entry per FUNCTION, and comes back
-    //! projected onto the group-invariant subspace.  REAL-space, so it PRESERVES ρ≥0 -- XC stays on the
-    //! non-negative ρ_DM samples, never routed onto ρ̃ (doc/GPWPlan1.md item 3).
-    //!
-    //! ONE operation, two mechanisms, because the basis owns its own geometry: a raster-backed basis
-    //! permutes voxels (g→W·g) and applies the glide τ by the FFT shift theorem; a δ basis applies its
-    //! mesh's orbit-mean projector.  Default NO-OP -- molecules, unfolded crystals, any fit basis with no
-    //! symmetry structure -- so a caller never asks whether symmetry was imposed, it just symmetrizes.
-    //! (Was \c SymmetrizeRaster: named for the PW mechanism, which is why the δ route grew a duplicate
-    //! declaration of its own before this was noticed -- 2026-08-22.)
-    //! \note The two implementations permute FUNCTIONS the group maps onto each other, and for both of
-    //! them that IS a permutation of points -- because both are representations whose functions are keyed
-    //! by position.  A Gaussian auxiliary basis would symmetrize by permuting shells instead; it takes the
-    //! default no-op because a molecular run imposes nothing.
-    virtual void Symmetrize(rvec_t&) const {}
-
-    //! \brief This function does not belong in the fit IBS interface.
-    //! The MAGNETIC sibling: project the \f$(\rho,m)\f$ PAIR, which is what diagonalizes
-    //! \f$\sigma\f$ -- \f$\rho\f$ EVEN under the orbit mean, \f$m\f$ ODD under the \f$\chi\f$-signed
-    //! one with the flip-fixed functions zeroed first (Shubnikov S3, doc/SymmetryUpgradePlan.md §7).
-    //!
-    //! HERE, not on a \f$\delta\f$-only face, since 2026-08-23 (user: why would this differ by representation?).
-    //! It does not.  The DEFAULT below is the grey/free semantics -- average each channel independently --
-    //! and is BIT-IDENTICAL to the branch the \f$\delta\f$ basis used to run for itself whenever the run
-    //! carried no \f$\sigma\f$ tags.  A representation that knows nothing of magnetic symmetry therefore
-    //! gets the right answer for free (a Gaussian basis: two no-ops; a raster: two star-averages), and the
-    //! ONE override that remains is \f$\delta\f$'s genuinely different Shubnikov projection.
-    //!
-    //! The old justification for keeping it δ-only -- "δ is the only representation a polarized run can
-    //! use" -- was about which representation gets SELECTED, not about what the operation means; a fact
-    //! of the Hamiltonian's \c VxcFit::Auto policy has no business shaping a basis face.
-    virtual void SymmetrizeSpin(rvec_t& rho, rvec_t& m) const {Symmetrize(rho); Symmetrize(m);}
+    // GONE 2026-08-24 (user): Symmetrize / SymmetrizeSpin.  "These look like functions that need access to
+    // Fit_IBS's internal (none of your business) integration mesh.  They do not belong in a fit basis set
+    // interface."  Correct twice over -- star-averaging a coefficient vector over a crystal point group is
+    // not a FITTING question, and the only thing the basis contributed was the geometry it happens to own
+    // (the delta basis's orbit fold; the plane-wave basis's raster).  Same cure as SiteIntegrals, for the
+    // same reason: give the geometry to the consumer instead of the operation to the basis.
+    //   delta      -- the FitQuadrature's fold + Shubnikov tags now travel with its mesh through
+    //                 CreateVxcFitBasisSet's out-parameter, and the XC strategy calls the free
+    //                 Symmetry::Lattice_3D::SymmetrizeValues / SymmetrizeValuesSigned itself.
+    //   plane wave -- a voxel permutation plus an FFT shift-theorem glide, which NEEDS the raster: it went
+    //                 to G_RasterTransform, where every other raster-only operation already lives.
 };
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
 using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis

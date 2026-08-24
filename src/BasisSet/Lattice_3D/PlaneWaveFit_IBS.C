@@ -101,6 +101,7 @@ public:
     //! satisfying the \c isOrtho contract for BOTH the density and potential fit faces.
     bool isOrtho() const override {return true;}
 
+    //! \copydoc BasisSet::G_RasterTransform::Symmetrize
     //! IBZ real-space raster star-average (doc/GPWPlan1.md items 3 + 5): ρ_sym[x]=(1/|ops|)Σ_op ρ(W·x + τ) over
     //! the crystal DIRECT ops \f${W|\tau}\f$.  The rotation \f$W\cdot x\f$ is an exact integer voxel permutation;
     //! the glide translation \f$\tau\f$ is applied EXACTLY via the FFT shift theorem (\f$\rho(x+\tau)=\mathcal
@@ -109,6 +110,9 @@ public:
     //! alias/blur the density and mistune the SCF).  τ=0 for a symmorphic crystal, so this collapses to the plain
     //! permutation average.  Real-space average of a (near-)non-negative raster stays ≥0, so XC keeps its ρ_DM
     //! feed.  No-op when unfolded ({} ops).  Needs the CUBIC FFT grid (axis-mixing W).
+    //! \note It overrides the RASTER face since 2026-08-24, not the fit face: every line below is voxels and
+    //! FFTs, which is what \c G_RasterTransform is.  The override stays HERE rather than on the grid engine
+    //! because \c itsDirectOps -- the ops to average over -- is this class's ctor-injected state.
     void Symmetrize(rvec_t& rho) const override
     {
         if (itsDirectOps.empty()) return;                                  // trivial {E}: exact no-op
