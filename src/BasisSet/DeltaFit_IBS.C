@@ -29,7 +29,7 @@ module;
 #include <string>
 #include <utility>
 export module qchem.BasisSet.DeltaFit_IBS;
-export import qchem.BasisSet.Fit_IBS;
+export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary                    // cFIT_SF_ABS + Integrals_Overlap3C + FitQuadrature
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
@@ -51,7 +51,7 @@ export namespace qchem::BasisSet
 //! tensor, because the quadrature route never forms one.
 class DeltaFit_IBS
     : public virtual cFIT_SF_ABS                     // the neutral scalar-fit face (+ Integrals_Overlap3C<dcmplx>)
-    , public virtual Integrals_Overlap3C<double>     // ...and a REAL TRIM block, in real arithmetic (3c-3)
+    , public virtual Integrals_Overlap3C<double,dcmplx>  // ...and a REAL TRIM block (3c-3), in real arithmetic
     , public         IrrepBasisSetImp<dcmplx>        // GetSymmetry/GetSymt/GetIrrep
 {
 public:
@@ -87,8 +87,8 @@ public:
     //! block scalars, which is the whole of what a \f$\delta\f$ representation adds: its \f$\Phi\f$ table
     //! is typed by the ORBITAL block, so a real TRIM block contracts in real arithmetic.  (Bodies in Imp/;
     //! ONE templated body serves both.)
-    const Projector3<double>& Overlap3C(const Orbital_1E_IBS<double>& orb) const override;
-    const Projector3<dcmplx>& Overlap3C(const Orbital_1E_IBS<dcmplx>& orb) const override;
+    const Projector3<double>& Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const override;
+    const Projector3<dcmplx>& Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override;
 
     // ---- the integrals over my own functions, one entry per FUNCTION (FIT_SF_ABS) ---------------------
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal

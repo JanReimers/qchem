@@ -5,7 +5,7 @@ module;
 
 export module qchem.BasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
-export import qchem.BasisSet.Fit_IBS;
+export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary
 export import qchem.Structure;
 export import qchem.Symmetry;

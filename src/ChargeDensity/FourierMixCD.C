@@ -24,7 +24,7 @@ export module qchem.ChargeDensity.FourierMixCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>
 export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
 export import qchem.ReciprocalLattice;             // ReciprocalLattice (|G| for f_K, the Coulomb kernel for V_H)
-import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS / cFIT_SF_ABS (the FourierDensity face args)
+import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS / cFIT_SF_ABS (the FourierDensity face args)
 import qchem.Types;                                 // dcmplx
 
 export namespace qchem::ChargeDensity

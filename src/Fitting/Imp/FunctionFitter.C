@@ -7,7 +7,7 @@ import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp (Scalar)
 import qchem.Fitting.Internal.OrthoFunctionFitter;       // OrthoFunctionFitter (the orthonormal G-space density fit)
 import qchem.Fitting.Internal.OrthoNormalFunctionFitter; // OrthoNormalScalarFitter (the orthoNORMAL potential fit)
 import qchem.Fitting.Internal.DeltaFunctionFitter;       // DeltaScalarFitter (the delta/identity potential fit)
-import qchem.BasisSet.Fit_IBS;                     // FIT_CD_NonOrtho (the Coulomb metric-solve face)
+import qchem.BasisSet.Orbital_DFT_IBS;                     // FIT_CD_NonOrtho (the Coulomb metric-solve face)
 import qchem.BasisSet.G_FieldEvaluator;            // G_FieldEvaluator / G_RasterTransform (the raster half of the contract)
 import qchem.Blaze;                                // rsmat_t * rvec_t (the J^-1 solve)
 

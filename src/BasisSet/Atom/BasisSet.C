@@ -11,7 +11,7 @@ export import qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.ElectronConfiguration;
 
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;   // the ERI4 substrate the concrete atom IBS realizes
-import qchem.BasisSet.Fit_IBS;
+import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.Symmetry.Atom.Spherical;   // Symmetry::Atom::Getl (per-l exponent-list ctor)
 import qchem.BasisSet.Atom.IBS;

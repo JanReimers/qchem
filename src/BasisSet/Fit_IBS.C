@@ -2,7 +2,7 @@
 module;
 #include <memory>
 #include <string>
-export module qchem.BasisSet.Fit_IBS;
+export module qchem.BasisSet.Orbital_DFT_IBS:Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
@@ -14,22 +14,32 @@ export namespace qchem::BasisSet
 {
 
 //! \brief Common base interface for the two 3-centre overlap integrals.
-template <class U> class Integrals_Overlap3C
+//! Forward declaration: \c Orbital_DFT_IBS is defined in this module's PRIMARY interface unit, which
+//! imports this partition.  Legal and it names the SAME entity, because both are attached to this module --
+//! the very thing that fails across modules (2026-08-24).  No default argument here: the primary's
+//! definition supplies \c TFit=T.
+template <class T, class TFit> class Orbital_DFT_IBS;
+
+//! \brief Common base interface for the two 3-centre overlap integrals.
+//!
+//! BOTH axes are template parameters, and that is not redundancy (2026-08-24): \a U is the ORBITAL block's
+//! scalar and \a TFit the scalar of the fit axis it was built on, and doc/RealComplexPlan.md 3c-3 makes
+//! them differ -- a real TRIM block on a periodic run is \c Orbital_DFT_IBS<double,dcmplx>.  Keying on
+//! \a U alone (via \c Orbital_DFT_IBS<U>, i.e. \c <U,U>) would silently exclude exactly that block, which
+//! is the one case this face exists to serve.
+//!
+//! The argument is the DFT face, not \c Orbital_1E_IBS: a 3-centre overlap against a fit basis is a
+//! DFT-tier question, so an orbital basis that has no such tier cannot be passed at all -- a COMPILE error
+//! instead of a \c dynamic_cast somewhere downstream (user, 2026-08-24).  The cost is that callers holding
+//! only the 1E face must cross-cast; that is deliberate and correct, since they are the ones asserting the
+//! block is DFT-capable.
+template <class U, class TFit> class Integrals_Overlap3C
 {
 public:
     virtual ~Integrals_Overlap3C() = default;
-    virtual const Projector3<U>& Overlap3C(const Orbital_1E_IBS<U>& orb) const=0;
+    virtual const Projector3<U>& Overlap3C(const Orbital_DFT_IBS<U,TFit>& orb) const=0;
 };
 
-//! Forward declaration of the two types the FIT_SF_ABS::Overlap3C default needs (defined below /
-//! in the implementation unit).
-template <class T> class FIT_SF_ABS;
-//! \brief \c FIT_SF_ABS::Overlap3C's default body, as a free template.
-//!
-//! DEFINED in the IMPLEMENTATION unit (Imp/Fit_IBS.C) and explicitly instantiated there, because it
-//! needs \c Orbital_DFT_IBS -- whose interface imports THIS one, so importing it back here would close
-//! a module cycle.  An implementation unit may import it; the interface may not.
-template <class T> const Projector3<T>& OrbitalOverlap3C(const Orbital_1E_IBS<T>& orb, const FIT_SF_ABS<T>& fit);
 
 
 //! \brief Abstract interface for an orthogonal (not necessarily normalized) charge density auxilliary fit basis set.
@@ -67,15 +77,20 @@ public:
 //! integrals to compute the projection onto the fit basis.  
 template <class T> class FIT_SF_ABS
     : public virtual IrrepBasisSet<T>
-    , public virtual Integrals_Overlap3C<T>   // Support overlap between this fit,f and and orbital basis block, <chi_i|f|chi_j>
+    , public virtual Integrals_Overlap3C<T,T>   // <chi_i|f|chi_j> against a SAME-SCALAR orbital block
 {
 public:
     virtual bool isOrtho() const=0; //!< \copydoc BasisSet::FIT_CD_ABS::isOrtho 
     virtual vec_t<T> Overlap(const ScalarFunction<double>& f) const=0; //!< \brief \f$\langle f_a|f\rangle\f$ -- the projection of a scalar function onto this basis, NOT cached.
     //! \brief \f$\langle\chi_i|f_a|\chi_j\rangle\f$ -- the 3-CENTRE overlap between an orbital block's
     //! functions and this fit, used by Hamiltonian terms to form \f$H_{ij}\f$ and \f$E\f$ 
-    const Projector3<T>& Overlap3C(const Orbital_1E_IBS<T>& orb) const override
-        {return OrbitalOverlap3C(orb, *this);}
+    //! DEFAULT: delegate to the orbital basis, \c orb.Overlap3C(*this) -- where a Gaussian's and a
+    //! plane-wave's tensor already lives.  A \f$\delta\f$ basis OVERRIDES: it builds its own from
+    //! \c op(r) and needs no orbital-side machinery.
+    //! \note DEFINED OUT-OF-LINE in this module's PRIMARY interface unit, after \c Orbital_DFT_IBS is
+    //! complete.  That is the whole reason this file became a partition of it (2026-08-24): the body needs
+    //! the orbital face, which used to be a different module and therefore a cycle.
+    const Projector3<T>& Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const override;
 
     
     virtual vec_t<T> Charge() const=0; //!< \copydoc BasisSet::FIT_SF_ABS::Charge 

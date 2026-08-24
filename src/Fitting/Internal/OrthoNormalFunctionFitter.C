@@ -19,9 +19,8 @@ module;
 export module qchem.Fitting.Internal.OrthoNormalFunctionFitter;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<dcmplx>, ProjectedScalar_R
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
-import qchem.BasisSet.Fit_IBS;                // cFIT_SF_ABS (the held fit basis)
+import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_SF_ABS (the held fit basis)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
-import qchem.BasisSet.Orbital_DFT_IBS;            // the orbital assembly bridge (MakeOverlap) for the XC matrix
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
 export namespace qchem::Fitting
@@ -75,7 +74,10 @@ public:
         // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
         // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the
         // SAME grid the density was collocated on (doc/GPWPlan §0e step 2).  No grid-less MakeOverlap(field).
-        return ContractAdjoint(itsFitBasis->Overlap3C(*bs),
+        // The fit face takes the DFT block (2026-08-24), so the "is it DFT-capable?" question is asked
+        // HERE, by reference-cast, rather than thrown from inside the fit basis's default.
+        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*bs);
+        return ContractAdjoint(itsFitBasis->Overlap3C(orb),
                                      [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
 

@@ -23,7 +23,7 @@ export module qchem.ChargeDensity.SeedCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>, cSpinResolved_CD, Spin
 export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
 import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
-import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS (the density-fit basis it builds rho-tilde through)
+import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS (the density-fit basis it builds rho-tilde through)
 import qchem.Structure;                             // Structure, Atom
 import qchem.UnitCell;                              // UnitCell (the flip-group sub-cells of a channel seed)
 import qchem.ReciprocalLattice;                     // ReciprocalLattice (the seed's own Poisson metric B)

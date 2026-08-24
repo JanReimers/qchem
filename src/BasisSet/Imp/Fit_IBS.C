@@ -4,31 +4,13 @@
 // Fit_IBS is-a pointwise VectorFunction, so it is passed straight to the quadrature (no adapter).
 module;
 #include <cassert>
-module qchem.BasisSet.Fit_IBS;
+module qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Mesh.Quadrature;          // qcMesh::Mesh, Normalize, Overlap (over qcMath Vector/ScalarFunction)
 import qchem.BasisSet.Internal.DB_Cache;
-import qchem.BasisSet.Orbital_DFT_IBS;   // Orbital_DFT_IBS<T,T>: where a non-delta fit basis's 3-centre
-                                          // tensor actually lives.  LEGAL HERE AND NOWHERE ELSE IN THIS
-                                          // MODULE: that interface imports qchem.BasisSet.Fit_IBS, so the
-                                          // INTERFACE unit importing it back would close a module cycle --
-                                          // an IMPLEMENTATION unit importing it does not.
 import qchem.Blaze;
 
 namespace qchem::BasisSet
 {
-
-// FIT_SF_ABS<T>::Overlap3C's default, as a free template so its definition can live in this unit.  A
-// virtual member of a class template must be instantiable wherever the class is; a free template need only
-// be EXPLICITLY instantiated once, which is what the two lines below do (there are exactly two scalars).
-//
-// The cast is a genuine "is it?" -- the orbital basis is caller-supplied and only a DFT-capable one carries
-// a 3-centre tensor -- so a reference cast, which throws rather than being release-mode UB.
-template <class T> const Projector3<T>& OrbitalOverlap3C(const Orbital_1E_IBS<T>& orb, const FIT_SF_ABS<T>& fit)
-{
-    return dynamic_cast<const Orbital_DFT_IBS<T,T>&>(orb).Overlap3C(fit);
-}
-template const Projector3<double>& OrbitalOverlap3C<double>(const Orbital_1E_IBS<double>&, const FIT_SF_ABS<double>&);
-template const Projector3<dcmplx>& OrbitalOverlap3C<dcmplx>(const Orbital_1E_IBS<dcmplx>&, const FIT_SF_ABS<dcmplx>&);
 
 Fit_IBS::Fit_IBS(const Structure& st, const qcMesh::MeshParams& mp)
     : itsMesh  (st.CreateIntegrationMesh(mp))   // the geometry's own mesh

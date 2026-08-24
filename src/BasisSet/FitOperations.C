@@ -14,7 +14,7 @@ module;
 #include <cassert>
 #include <type_traits>   // std::is_same_v -- Overlap3CFace's same-scalar/mixed arm
 export module qchem.BasisSet.FitOperations;
-export import qchem.BasisSet.Fit_IBS;   // FIT_SF_ABS<T> / Integrals_Overlap3C<U> -- what these operate on
+export import qchem.BasisSet.Orbital_DFT_IBS;   // FIT_SF_ABS<T> / Integrals_Overlap3C<U> -- what these operate on
 import qchem.Blaze;                     // blazem::real -- these are TEMPLATES, so they need it HERE
 
 export namespace qchem::BasisSet
@@ -44,10 +44,10 @@ template <class T> inline rvec_t OrthogonalFit(const FIT_SF_ABS<T>& b, const Sca
 //! genuine "can you?" question -- a REFERENCE cross-cast, which throws rather than being release-mode UB.
 //! \c if \c constexpr, not a run-time branch: which arm applies is fixed by the block's type.
 template <class U, class TFit>
-inline const Integrals_Overlap3C<U>& Overlap3CFace(const FIT_SF_ABS<TFit>& b)
+inline const Integrals_Overlap3C<U,TFit>& Overlap3CFace(const FIT_SF_ABS<TFit>& b)
 {
     if constexpr (std::is_same_v<U,TFit>) return b;
-    else return dynamic_cast<const Integrals_Overlap3C<U>&>(b);
+    else return dynamic_cast<const Integrals_Overlap3C<U,TFit>&>(b);
 }
 
 }//namespace

@@ -29,7 +29,7 @@ module;
 export module qchem.Fitting.Internal.DeltaFunctionFitter;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<U>, ProjectedScalar_R
 import qchem.Fitting.Types;                   // robs_t<U>
-import qchem.BasisSet.Fit_IBS;                // cFIT_SF_ABS + Integrals_Overlap3C<U> (the held fit basis)
+import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_SF_ABS + Integrals_Overlap3C<U> (the held fit basis)
 import qchem.BasisSet.FitOperations;          // OrthogonalFit / Overlap3CFace -- the two shared algorithms
 import qchem.Blaze;                           // hmat_t<U>
 
@@ -87,12 +87,17 @@ private:
     template <class U> hmat_t<U> Contract(const robs_t<U>* bs) const
     {
         assert(bs);
-        const Projector3<U>& o3=Face<U>().Overlap3C(*bs);
+        // The 3-centre overlap is a DFT-TIER question, so the face demands the DFT block and the caller --
+        // us, who asserted this block has one -- does the cross-cast (user, 2026-08-24).  By reference, so
+        // a non-DFT orbital basis throws instead of being release-mode UB.  TFit is dcmplx: our fit basis
+        // is the periodic one, and a real TRIM block against it is the 3c-3 mixed case.
+        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
+        const Projector3<U>& o3=Face<U>().Overlap3C(orb);
         assert(o3.applyRawAdjoint && "DeltaScalarFitter: this fit basis must realise the 3-centre adjoint");
         return o3.applyRawAdjoint(itsC);
     }
     //! \copydoc BasisSet::Overlap3CFace
-    template <class U> const BasisSet::Integrals_Overlap3C<U>& Face() const
+    template <class U> const BasisSet::Integrals_Overlap3C<U,dcmplx>& Face() const
         {return BasisSet::Overlap3CFace<U>(*itsFitBasis);}
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
     rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)

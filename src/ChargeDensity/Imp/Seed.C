@@ -20,7 +20,6 @@ import qchem.ChargeDensity.NumericCD;// NumericCD (the molecular SAD seed, doubl
 import qchem.ChargeDensity.SeedCD;    // SeedCD (the plane-wave SAD seed, dcmplx only)
 import qchem.ChargeDensity.AtomicDensity;    // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
 import qchem.BasisSet.Orbital_DFT_IBS;           // Orbital_DFT_IBS<dcmplx> (the PW block: CreateCDFitBasisSet for the seed)
-import qchem.BasisSet.Fit_IBS;               // cFIT_CD_ABS (the density-fit basis the PW seed builds through)
 import qchem.Mesh;                            // qcMesh::MeshParams (CreateCDFitBasisSet arg)
 import qchem.Structure;                       // Structure, Atom (atom Z + positions)
 import qchem.Blaze;                           // blazem::zeroH, hmat_t

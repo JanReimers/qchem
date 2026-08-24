@@ -48,7 +48,11 @@ template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedScalar_R& r)
 template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const robs_t<T>* bs) const
 {
     assert(bs);
-    const Projector3<T>& O3=this->itsBasisSet->Overlap3C(*bs);
+    // The DFT-tier cross-cast is the CALLER's since 2026-08-24: the fit face takes Orbital_DFT_IBS, so a
+    // Gaussian fit contracting against a non-DFT orbital basis is caught here, loudly, by a reference cast.
+    // TFit==T on this lineage -- a molecular Gaussian block is Orbital_DFT_IBS<double,double>.
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,T>&>(*bs);
+    const Projector3<T>& O3=this->itsBasisSet->Overlap3C(orb);
     hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
     size_t i=0;
     for (auto c:this->itsFitCoeff) J+=c*O3.dense[i++];

@@ -22,7 +22,6 @@ import qchem.BasisSet.Lattice_3D.Evaluators.PW; // PW_Evaluator (base subobject)
                                                 // is INTERNAL to qcLattice_BS.  Clients use the abstract faces
                                                 // (Orbital_DFT_IBS<dcmplx> / G_FieldEvaluator), never the concrete evaluator.
 import qchem.BasisSet.Lattice_3D.IBS;           // EPW_Orbital1E_IBS<E> (the evaluator-templated mixins)
-import qchem.BasisSet.Fit_IBS;                  // cFIT_CD_ABS (the auxiliary fit basis it creates) + qcMesh::MeshParams
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
 export import qchem.Pseudopotential.Integrals_Pseudo;    // the external-PP operator-assembly mixin (+ its models)

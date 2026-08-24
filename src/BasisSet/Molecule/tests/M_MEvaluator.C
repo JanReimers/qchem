@@ -18,7 +18,6 @@ import qchem.BasisSet.Molecule.IBS;                           // Orbital_{1E,DFT
 import qchem.BasisSet.Orbital_1E_IBS;                         // public Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Orbital_DFT_IBS;                        // public Overlap3C()/Repulsion3C() + Fit_IBS
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;               // public Direct()/Exchange()
-import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.Projector3;                    // Projector3<double>, fnorm
 import qchem.BasisSet.Internal.ERI4;                          // ERI4, fnorm
 import qchem.Structure;

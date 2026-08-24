@@ -19,7 +19,6 @@ import qchem.VectorFunction;                          // VectorFunction<T> (the 
 import qchem.BasisSet.IrrepBasisSet;                  // IrrepBasisSet<T> (op()(r), GetNumFunctions)
 import qchem.BasisSet.Orbital_1E_IBS;                 // Orbital_1E_IBS<T> (MakeOverlap/MakeKinetic/MakeNuclear)
 import qchem.BasisSet.Orbital_DFT_IBS;                    // Orbital_DFT_IBS<T,dcmplx> (MakeRepulsion3C/MakeOverlap3C) + Projector3<dcmplx>
-import qchem.BasisSet.Fit_IBS;                        // cFIT_CD_ABS / cFIT_SF_ABS (the 3-centre fit-basis args)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;       // PW_Evaluator + isPW_1E_Evaluator / isPW_DFT_Evaluator
 import qchem.Structure;                               // Structure (MakeNuclear arg)
 import qchem.Types;                                   // cvec_t, cvec3vec_t, chmat_t, rvec3_t

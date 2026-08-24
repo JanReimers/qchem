@@ -24,7 +24,7 @@ export module qchem.ChargeDensity.NumericCD;
 export import qchem.ChargeDensity;             // tChargeDensity<double>
 import qchem.ScalarFunction;                   // ScalarFunction<double>
 import qchem.Fitting.FunctionFitter;           // ProjectedDensity_AO (the seed's own density-fit projection)
-import qchem.BasisSet.Fit_IBS;                 // rFIT_CD_ABS (the fitter's narrow density-fit-basis face)
+import qchem.BasisSet.Orbital_DFT_IBS;                 // rFIT_CD_ABS (the fitter's narrow density-fit-basis face)
 
 export namespace qchem::ChargeDensity
 {

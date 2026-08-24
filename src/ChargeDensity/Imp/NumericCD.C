@@ -7,7 +7,7 @@ module;
 
 module qchem.ChargeDensity.NumericCD;
 import qchem.Blaze;                        // rvec3_t vector arithmetic (Gradient accumulation) + rvec_t
-import qchem.BasisSet.Fit_IBS;             // FIT_SF_NonOrtho (the overlap metric-solve face)
+import qchem.BasisSet.Orbital_DFT_IBS;             // FIT_SF_NonOrtho (the overlap metric-solve face)
 
 namespace qchem::ChargeDensity
 {

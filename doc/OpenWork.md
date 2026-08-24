@@ -1256,6 +1256,33 @@ Three things the spec below did not anticipate, all recorded there in full:
   forward declaration makes a distinct entity and a real import is a cycle — so the DEFAULT moves toward
   the implementation instead (user): pure on `FIT_SF_ABS<T>`, delegating body in a mixin where both faces
   are visible.  Kills the cast and the explicit-instantiation trick together.
+
+##### ★ NAMING INSIGHT, recorded 2026-08-24 for whenever those files are open anyway (user)
+
+`{Orbital_DFT_IBS, Orbital_HF_IBS}` are named for **the method that first needed them**, not for what
+they compute — and the real axis is **3-index (auxiliary basis) vs 4-index (explicit ERIs)**.  Both names
+are therefore already wrong in the SAME direction:
+
+| face | what it actually declares | who else needs it |
+|---|---|---|
+| `Orbital_DFT_IBS` | `Overlap3C(fit)`, `Repulsion3C(fit)` + the three auxiliary-basis factories | `Repulsion3C` is the RI/DF primitive of **RI-HF, RI-MP2, DF-CC, CASPT2/NEVPT2, F12 (CABS), RPA/GW** — none of them DFT |
+| `Orbital_HF_IBS` | `AccumulateDirect`/`Exchange`/`DirectBoth` — it hands out NO integrals, it contracts them into J and K | **every hybrid functional** (B3LYP, PBE0, HSE) needs exact exchange, so hybrid DFT must reach through a face named "HF" |
+
+⇒ **Suggested names**: `Orbital_DFT_IBS` → **`Orbital_Aux_IBS`** ("auxiliary basis" is universal, spans
+both the Dunlap *density-fitting* and Ahlrichs *RI* traditions, and does NOT claim *density* — which would
+be wrong for the \f$v_{xc}\f$ overlap tensor).  `Orbital_HF_IBS` → **`Orbital_JK_IBS`** (J and K are as
+standard as vocabulary gets, and it is exactly what those three methods accumulate).
+- ⛔ `Orbital_ERI3_IBS` is RULED OUT by an earlier decision recorded in `Internal/Projector3.C`: *"ERI3 was
+  rejected as inaccurate -- the overlap-metric tensor has no 'repulsion integral' in it."*
+- ⛔ `Orbital_ERI4_IBS` is TAKEN — R1.7 made it the internal substrate beneath `Orbital_HF_IBS`.
+- `Orbital_3C_IBS`/`Orbital_4C_IBS` also read correctly to a chemist ("three-centre integrals" is proper
+  vocabulary, unlike "3-index") and match the existing `*3C` suffixes — but they name the INDEX COUNT,
+  which is the same mechanism-not-purpose register as grid/raster/quadrature.
+- ⚠ Pure renames, ~27 + ~20 importers.  Mechanical, no behaviour change: fold into a change that has those
+  files open anyway, do not spend a session on it alone.
+- ⇒ And the CD/SF split applies INSIDE `Orbital_Aux_IBS`: an RI-MP2 wants `Repulsion3C` + `FIT_CD_*`
+  without dragging the XC scalar-fit half, which is the same metric-axis cut as the `FIT_SF_Ortho` item.
+
   ⛔ **And the probe that verified the injection found a DEFECT — tracked as R1.0d:** an IMPOSED-symmetry
   Becke mesh silently loses its site blocks (the orbit-consistency filter re-emits into a fresh
   `MeshBuilder` without `BeginSite`), so per-site moments vanish on exactly the runs that want them — free

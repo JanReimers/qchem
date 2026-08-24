@@ -6,7 +6,6 @@ export module qchem.ChargeDensity.Types;
 export import qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;
-export import qchem.BasisSet.Fit_IBS;
 import qchem.Types;   // dcmplx (for the c* instantiations)
 
 export namespace qchem::ChargeDensity

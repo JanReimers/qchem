@@ -192,8 +192,8 @@ template <class U> const Projector3<U>& DeltaFit_IBS::Tensor(std::map<Irrep,Proj
     return cache.emplace(id, std::move(g)).first->second;
 }
 
-const Projector3<double>& DeltaFit_IBS::Overlap3C(const Orbital_1E_IBS<double>& orb) const {return Tensor(itsO3R, itsPhiR, orb);}
-const Projector3<dcmplx>& DeltaFit_IBS::Overlap3C(const Orbital_1E_IBS<dcmplx>& orb) const {return Tensor(itsO3 , itsPhi , orb);}
+const Projector3<double>& DeltaFit_IBS::Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const {return Tensor(itsO3R, itsPhiR, orb);}
+const Projector3<dcmplx>& DeltaFit_IBS::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const {return Tensor(itsO3 , itsPhi , orb);}
 
 // THE ADJOINT: <i|Sum_g c_g delta_g|j> = Phi^dag diag(w c) Phi -- scale the rows, one zgemm, hermitize.
 // (The GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)

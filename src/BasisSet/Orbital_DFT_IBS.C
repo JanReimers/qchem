@@ -4,7 +4,7 @@ module;
 export module qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
-export import qchem.BasisSet.Fit_IBS;
+export import :Fit_IBS;   // the fit-basis faces: a PARTITION of this module since 2026-08-24
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary
 export import qchem.BasisSet.Internal.Projector3;
 import qchem.Structure;  // Structure::CreateIntegrationMesh (the default FitQuadrature build)
@@ -72,4 +72,22 @@ protected:
 };
 
 typedef Orbital_DFT_IBS<double> Real_DFT_OIBS;
+// FIT_SF_ABS<T>::Overlap3C's DEFAULT, defined here because it needs Orbital_DFT_IBS complete -- which is
+// exactly why Fit_IBS became a partition of this module rather than staying a module of its own.  Before
+// that it had to be a free template declared in the fit interface, defined in an implementation unit and
+// EXPLICITLY INSTANTIATED for both scalars, purely to dodge the module cycle; all three of those props are
+// now gone.
+//
+// And since 2026-08-24 there is no cast in it: the parameter IS the DFT face, so "this orbital basis has a
+// 3-centre tier" is checked by the compiler at every call site instead of thrown from here.
+template <class T> const Projector3<T>& FIT_SF_ABS<T>::Overlap3C(const Orbital_DFT_IBS<T,T>& orb) const
+{
+    return orb.Overlap3C(*this);
+}
+// ...and it must still be EXPLICITLY INSTANTIATED.  The partition move removed the module cycle and with
+// it the free-function indirection, but not this: the class is declared in a sibling partition, so Clang
+// does not instantiate the out-of-line member on demand in a downstream TU.  Two scalars, two lines.
+template const Projector3<double>& FIT_SF_ABS<double>::Overlap3C(const Orbital_DFT_IBS<double,double>&) const;
+template const Projector3<dcmplx>& FIT_SF_ABS<dcmplx>::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>&) const;
+
 } //namespace

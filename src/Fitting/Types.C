@@ -4,7 +4,6 @@ module;
 export module qchem.Fitting.Types;
 
 export import qchem.BasisSet.Orbital_DFT_IBS;
-export import qchem.BasisSet.Fit_IBS;
 
 export namespace qchem::Fitting
 {

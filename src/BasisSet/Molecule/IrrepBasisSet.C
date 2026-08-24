@@ -20,7 +20,6 @@ export module qchem.BasisSet.Molecule.IBS;
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
-import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Molecule.Evaluators;      // concepts + generic 1E matrix builders
 export import qchem.Symmetry.Molecule.OperationRep;      // Symmetry::Molecule::AoShell (the molecule-specific 1E addition)

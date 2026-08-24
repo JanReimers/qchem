@@ -60,7 +60,7 @@ import qchem.ChargeDensity.SeedCD;                  // SeedCD + PolarizedSeedCD 
 import qchem.Fitting.FunctionFitter;                // Factory / ProjectedDensity_G / FunctionFitter_Density (item B)
 import qchem.BasisSet.G_FieldEvaluator;             // the grid-engine seam (GridPoints/RhoOnGrid/Integral) for the item-K probe
 import qchem.BasisSet.Internal.GMap;                             // ΔG_Map (the G-space coefficient map)
-import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS (the ortho density-fit basis face)
+import qchem.BasisSet.Orbital_DFT_IBS;                      // cFIT_CD_ABS (the ortho density-fit basis face)
 import qchem.Symmetry.Irrep;                        // Irrep
 import qchem.LASolver;                              // complex Hermitian eigensolver
 import qchem.Structure;                             // Molecule, Atom (the Si diamond basis)

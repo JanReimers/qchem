@@ -34,7 +34,6 @@ import qchem.Math.DIIS;                             // the shared Pulay/DIIS bor
 import qchem.Blaze;                                 // rsmat_t/rvec_t/ivec3_t + blazem::zero (the Pulay B-solve)
 import qchem.BasisSet;                             // tBasisSet<T>, operator[]
 import qchem.BasisSet.Orbital_DFT_IBS;                 // Orbital_DFT_IBS<dcmplx>::CreateVxcFitBasisSet
-import qchem.BasisSet.Fit_IBS;                     // cFIT_SF_ABS (the FourierDensity face arg)
 import qchem.BasisSet.G_FieldEvaluator;            // G_SpectralFilter: the raster Kerker step (0.5(f2))
 import qchem.ReciprocalLattice;                    // ReciprocalLattice
 import qchem.UnitCell;                             // UnitCell (+ MakeReciprocalCell)

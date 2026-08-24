@@ -428,7 +428,12 @@ template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::cFIT_S
     // BLAS-dispatch constraints and its output-block threading moved with the integral, into
     // BasisSet::DeltaFit_IBS, where they sit beside the adjoint contraction that must match them.
     ReportDMRank<T>(itsDensityMatrix, itsIrrep);   // hmat_t<T> is a conditional_t: T is non-deduced
-    const Projector3<T>& o3=BasisSet::Overlap3CFace<T>(q).Overlap3C(*itsBasisSet);
+    // The fit face takes the DFT block (2026-08-24), so this density -- which asserted its basis is
+    // DFT-capable by being fitted at all -- makes the cross-cast.  By reference: it throws rather than
+    // being release-mode UB.  TFit is dcmplx (the periodic fit axis) for BOTH block scalars; T==double is
+    // the 3c-3 real TRIM block, which is exactly why the face carries both axes.
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*itsBasisSet);
+    const Projector3<T>& o3=BasisSet::Overlap3CFace<T>(q).Overlap3C(orb);
     assert(o3.applyRaw && "IrrepCD: a delta fit basis must realise the 3-centre forward contraction");
     return o3.applyRaw(itsDensityMatrix);
 }
@@ -632,7 +637,8 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::c
     // ONE integral, TWO representations of D (2026-08-23).  Which form this density holds -- and whether
     // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against
     // <delta_g|chi_i chi_j> is the BASIS's, exactly as the full quadratic form above is.
-    const Projector3<T>& o3=BasisSet::Overlap3CFace<T>(q).Overlap3C(*this->itsBasisSet);
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*this->itsBasisSet);
+    const Projector3<T>& o3=BasisSet::Overlap3CFace<T>(q).Overlap3C(orb);
     assert(o3.applyRawFactored && "FactoredRho: this fit basis cannot contract against a thin factor");
     return o3.applyRawFactored(itsL);
 }
