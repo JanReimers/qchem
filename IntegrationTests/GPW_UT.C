@@ -36,7 +36,7 @@ import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::Coll
 import qchem.LASolver;                       // LASolver<dcmplx> (the k=1/4 spectrum gate)
 import qchem.Symmetry.Factory;               // BlochFactory (arbitrary-shift k for the k=1/4 continuity gate)
 import qchem.BasisSet.DeltaFit_IBS;          // DeltaFit_IBS (the delta representation's OverlapDiagonal gate)
-import qchem.BasisSet.FitOperations;         // OrthogonalFit -- the projection/metric invariant this gate pins
+import qchem.Fitting.FitOperations;          // OrthogonalFit -- the projection/metric invariant this gate pins
 import qchem.Mesh.Quadrature;                // qcMesh::Mesh (the delta basis's quadrature)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
 import qchem.BasisSet.Internal.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
@@ -1796,7 +1796,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
     }
     // ...and the fit divides that back out EXACTLY at the printed precision -- the property that lets the
     // pointwise-nonlinear functional be applied straight to the coefficients.
-    const rvec_t cD=BasisSet::OrthogonalFit(dfit, wave);
+    const rvec_t cD=Fitting::OrthogonalFit(dfit, wave);
     for (size_t g=0; g<cD.size(); g++)
         EXPECT_NEAR(cD[g], wave(q.mesh->Points()[g]), 1e-13) << "c_g = w_g f_g / w_g = f(r_g)";
 
@@ -1816,7 +1816,7 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
     {
         auto integrateFit=[&](const BasisSet::cFIT_SF_ABS& b)
         {
-            const rvec_t  c=BasisSet::OrthogonalFit(b, *f);
+            const rvec_t  c=Fitting::OrthogonalFit(b, *f);
             const vec_t<dcmplx> I=b.Charge();
             double s=0.0;
             for (size_t k=0; k<c.size(); k++) s+=std::real(I[k])*c[k];

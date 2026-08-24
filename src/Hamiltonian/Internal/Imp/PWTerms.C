@@ -17,7 +17,7 @@ import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
-import qchem.BasisSet.FitOperations;       // OrthogonalFit -- a matrix-free density's fit onto the delta basis
+import qchem.Fitting.FitOperations;        // OrthogonalFit -- a matrix-free density's fit onto the delta basis
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
@@ -677,7 +677,7 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
     }
     else
     {
-        itsRho=BasisSet::OrthogonalFit(*itsFit, *cd);   // non-DM (mixed rho-tilde / seed): fit it onto the basis
+        itsRho=Fitting::OrthogonalFit(*itsFit, *cd);   // non-DM (mixed rho-tilde / seed): fit it onto the basis
         ReportNegativeRho(*this, itsRho, "matrix-free");
     }
     Symmetrize(itsRho);   // §6a W1: the injected quadrature's orbit-mean projector (no-op on a free run)
@@ -743,8 +743,8 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
             else
             {
             qchem::report::Timed seed("scf: XC-mesh rho sampling (matrix-free density)");
-            itsRhoUp=BasisSet::OrthogonalFit(*itsFit, *sr->GetChannel(Spin::Up  ));
-            itsRhoDn=BasisSet::OrthogonalFit(*itsFit, *sr->GetChannel(Spin::Down));
+            itsRhoUp=Fitting::OrthogonalFit(*itsFit, *sr->GetChannel(Spin::Up  ));
+            itsRhoDn=Fitting::OrthogonalFit(*itsFit, *sr->GetChannel(Spin::Down));
             ReportNegativeRho(*this, itsRhoUp, "matrix-free(up)");
             ReportNegativeRho(*this, itsRhoDn, "matrix-free(dn)");
             }
@@ -754,7 +754,7 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
             if (auto dm=dynamic_cast<const cDM_CD*>(cd))
                 itsRhoUp=dm->DM_RhoAtPoints(*itsFit);
             else
-                itsRhoUp=BasisSet::OrthogonalFit(*itsFit, *cd);
+                itsRhoUp=Fitting::OrthogonalFit(*itsFit, *cd);
             itsRhoUp*=0.5;
             itsRhoDn=itsRhoUp;
         }

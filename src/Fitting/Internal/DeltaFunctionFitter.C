@@ -29,8 +29,8 @@ module;
 export module qchem.Fitting.Internal.DeltaFunctionFitter;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<U,TFit>, ProjectedScalar_R
 import qchem.Fitting.Types;                   // robs_t<U>
-import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_SF_ABS + Integrals_Overlap3C<U> (the held fit basis)
-import qchem.BasisSet.FitOperations;          // OrthogonalFit / Overlap3CFace -- the two shared algorithms
+import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_SF_ABS + Integrals_Overlap3C<U,TFit> (the held fit basis)
+import qchem.Fitting.FitOperations;           // OrthogonalFit -- this library's projection/diagonal fit
 import qchem.Blaze;                           // hmat_t<U>
 
 export namespace qchem::Fitting
@@ -53,7 +53,7 @@ public:
 
     //! The fit, in the ONE shape every scalar fitter has: take the basis's projection and apply my metric.
     //! Here the metric is diagonal, so \f$c_a=\langle f_a|f\rangle/\langle f_a|f_a\rangle\f$ -- which for
-    //! \f$\delta\f$ is \f$w_g f(r_g)/w_g\f$.  \c BasisSet::OrthogonalFit is that one line, shared with the
+    //! \f$\delta\f$ is \f$w_g f(r_g)/w_g\f$.  \c OrthogonalFit is that one line, shared with the
     //! only other consumer of it (a matrix-free density expressing itself over a \f$\delta\f$ basis).
     //! \note This is where \c OverlapDiagonal() finally gets a production consumer.  The division does NOT
     //! cancel to the last bit -- \f$\mathrm{fl}(w_gf_g)/w_g\ne f_g\f$ in general -- so the coefficients can
@@ -61,7 +61,7 @@ public:
     //! digit and no iteration count moved (doc/CleanupCandidates.md R1.0 increment 3).
     virtual void DoFit(const ProjectedScalar_R& ps) override
     {
-        itsC=BasisSet::OrthogonalFit(*itsFitBasis, *ps.GetScalarFunction());
+        itsC=OrthogonalFit(*itsFitBasis, *ps.GetScalarFunction());
     }
 
     //! \copydoc Fitting::FitContraction::Overlap
@@ -90,13 +90,15 @@ private:
         // too: both overloads above take the DFT block, so the cross-cast that used to stand here belongs
         // to (and now lives with) the caller.  TFit is dcmplx throughout -- our fit basis is the periodic
         // one, and a real TRIM block against it is exactly the 3c-3 mixed case.
-        const Projector3<U>& o3=Face<U>().Overlap3C(orb);
+        // ...and MY fit basis's 3-centre face for THIS block's scalar.  For a Bloch block that face is a
+        // (virtual) base of the fit face I hold and the cast never fails; for a real TRIM block it is the
+        // genuine 3c-3 "can you serve a real block?" question, so by reference -- it throws rather than
+        // being release-mode UB.  One line per site since 2026-08-24; it was a shared helper.
+        const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<U,dcmplx>&>(*itsFitBasis);
+        const Projector3<U>& o3=face.Overlap3C(orb);
         assert(o3.applyRawAdjoint && "DeltaScalarFitter: this fit basis must realise the 3-centre adjoint");
         return o3.applyRawAdjoint(itsC);
     }
-    //! \copydoc BasisSet::Overlap3CFace
-    template <class U> const BasisSet::Integrals_Overlap3C<U,dcmplx>& Face() const
-        {return BasisSet::Overlap3CFace<U>(*itsFitBasis);}
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
     rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
 };

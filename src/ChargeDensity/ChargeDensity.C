@@ -14,7 +14,7 @@ export import qchem.Symmetry.Spin;
 export import qchem.Symmetry.Irrep;   // Irrep: the block identity (Phi-table cache key, basis-side)
 export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (tPolarized_CD's periodic face)
 import qchem.ScalarFunction;
-import qchem.BasisSet.FitOperations;   // OrthogonalFit -- a matrix-free density's fit onto an ortho basis
+import qchem.Fitting.FitOperations;   // OrthogonalFit -- a matrix-free density's fit onto an ortho basis
 import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
@@ -321,10 +321,10 @@ public:
     //!
     //! Default: hand \a q this density's own \c ScalarFunction face and let it project itself, then divide
     //! by \a q's metric diagonal -- correct for EVERY density (a matrix-free seed included), just without
-    //! the GEMM; composite/leaf override.  \c BasisSet::OrthogonalFit is the shared one-liner it and the
+    //! the GEMM; composite/leaf override.  \c Fitting::OrthogonalFit is the shared one-liner it and the
     //! \f$\delta\f$ scalar fitter both use, so "fit onto this basis" has ONE definition.
     virtual rvec_t DM_RhoAtPoints(const BasisSet::cFIT_SF_ABS& q) const
-        {return BasisSet::OrthogonalFit(q, *this);}
+        {return Fitting::OrthogonalFit(q, *this);}
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
     // below (V1.6).  They were four asserting defaults on this general face, which every concrete family

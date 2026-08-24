@@ -15,7 +15,7 @@ module;
 
 module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Symmetry;
-import qchem.BasisSet.FitOperations;   // Overlap3CFace<T> -- this block's scalar arm of the fit basis's 3C
+import qchem.BasisSet.Orbital_DFT_IBS;  // Integrals_Overlap3C<T,TFit> -- this block's scalar arm of the fit basis's 3C
 import qchem.Blaze;
 import qchem.Parallel;                  // WorkerThreads (GPW_OMP_THREADS -- the rho-sampling GEMM)
 import qchem.BasisSet.Orbital_DFT_IBS;   // cast the basis UP to the G-space capability (dcmplx path)
@@ -433,7 +433,11 @@ template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::cFIT_S
     // being release-mode UB.  TFit is dcmplx (the periodic fit axis) for BOTH block scalars; T==double is
     // the 3c-3 real TRIM block, which is exactly why the face carries both axes.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*itsBasisSet);
-    const Projector3<T>& o3=BasisSet::Overlap3CFace<T>(q).Overlap3C(orb);
+    // ...and the fit basis's 3-centre face for THIS block's scalar.  T==dcmplx is a (virtual) base of the
+    // fit face and the cast never fails; T==double is the genuine 3c-3 "can you serve a real block?"
+    // question.  Spelled here since 2026-08-24 -- it was a shared one-line helper.
+    const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<T,dcmplx>&>(q);
+    const Projector3<T>& o3=face.Overlap3C(orb);
     assert(o3.applyRaw && "IrrepCD: a delta fit basis must realise the 3-centre forward contraction");
     return o3.applyRaw(itsDensityMatrix);
 }
@@ -638,7 +642,8 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::c
     // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against
     // <delta_g|chi_i chi_j> is the BASIS's, exactly as the full quadratic form above is.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*this->itsBasisSet);
-    const Projector3<T>& o3=BasisSet::Overlap3CFace<T>(q).Overlap3C(orb);
+    const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<T,dcmplx>&>(q);   // see the sibling above
+    const Projector3<T>& o3=face.Overlap3C(orb);
     assert(o3.applyRawFactored && "FactoredRho: this fit basis cannot contract against a thin factor");
     return o3.applyRawFactored(itsL);
 }
