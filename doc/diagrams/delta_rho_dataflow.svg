@@ -1,0 +1,142 @@
+<svg viewBox="0 0 1180 880" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif" font-size="12">
+  <defs>
+    <marker id="tri" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="none" stroke="#444"/>
+    </marker>
+    <marker id="triA" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="none" stroke="#a40"/>
+    </marker>
+    <marker id="triG" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="none" stroke="#2e7d32"/>
+    </marker>
+  </defs>
+  <style>
+    .lanebox { fill:#fafafa; stroke:#ddd; stroke-width:1; }
+    .lane    { font-size:11px; fill:#888; font-style:italic; }
+    .ham  { fill:#eef4ff; stroke:#3a6ea5; stroke-width:1.4; }
+    .fit  { fill:#f4eefc; stroke:#6a41a5; stroke-width:1.4; }
+    .cd   { fill:#eaf7ea; stroke:#2e7d32; stroke-width:1.4; }
+    .bs   { fill:#fff8e6; stroke:#b8860b; stroke-width:1.4; }
+    .odd  { fill:#ffecec; stroke:#c62828; stroke-width:1.6; stroke-dasharray:5 3; }
+    .name { font-weight:bold; }
+    .note { font-size:10px; fill:#555; }
+    .nb   { font-size:10px; fill:#c62828; }
+    path.edge  { stroke:#444; stroke-width:1.2; fill:none; }
+    path.aedge { stroke:#a40; stroke-width:1.3; fill:none; }
+    path.gedge { stroke:#2e7d32; stroke-width:1.2; fill:none; stroke-dasharray:4 3; }
+    .sect { font-size:13px; font-weight:bold; fill:#333; }
+  </style>
+
+  <text x="20" y="26" font-size="16" class="name">Who needs what from whom: rho on the delta (singles) XC route</text>
+  <text x="20" y="44" class="note">Read DOWN for the FORWARD pass (build rho), then DOWN again for the ADJOINT pass (build H and E).  Columns are LIBRARIES; an arrow crossing a column is a call across a library boundary.</text>
+  <text x="20" y="58" class="note">black = forward (density -&gt; coefficients) · amber = adjoint (coefficients -&gt; matrix) · green dashed = "ask the basis for an integral over its own functions"</text>
+
+  <rect class="lanebox" x="20"  y="72" width="255" height="720" rx="4"/>
+  <rect class="lanebox" x="290" y="72" width="245" height="720" rx="4"/>
+  <rect class="lanebox" x="550" y="72" width="265" height="720" rx="4"/>
+  <rect class="lanebox" x="830" y="72" width="330" height="720" rx="4"/>
+  <text x="32"  y="88" class="lane">qcHamiltonian</text>
+  <text x="302" y="88" class="lane">qcFitting</text>
+  <text x="562" y="88" class="lane">qcChargeDensity</text>
+  <text x="842" y="88" class="lane">qcBasisSet  (fit basis + orbital block)</text>
+
+  <text x="32" y="112" class="sect">FORWARD — build rho</text>
+
+  <rect class="ham" x="32" y="122" width="235" height="46" rx="3"/>
+  <text x="42" y="139" class="name">Vxc_Quadrature (the TERM)</text>
+  <text x="42" y="154" class="note">owns the FUNCTIONAL and nothing else</text>
+  <text x="42" y="165" class="note">asks: rho = itsQuad-&gt;Rho(cd)</text>
+
+  <path class="edge" d="M149,168 L149,196" marker-end="url(#tri)"/>
+
+  <rect class="ham" x="32" y="200" width="235" height="72" rx="3"/>
+  <text x="42" y="217" class="name">XC_SinglesQuadrature</text>
+  <text x="42" y="232" class="note">POLICY only: which source this</text>
+  <text x="42" y="243" class="note">iteration, per-density-serial cache,</text>
+  <text x="42" y="254" class="note">DM-source damping, spin channels</text>
+  <text x="42" y="266" class="nb">chooses between the TWO routes below</text>
+
+  <path class="edge" d="M267,225 L560,225 L560,258" marker-end="url(#tri)"/>
+  <text x="300" y="220" class="note">(A) has a density MATRIX</text>
+
+  <rect class="cd" x="562" y="262" width="243" height="44" rx="3"/>
+  <text x="572" y="279" class="name">tComposite_CD::DM_RhoAtPoints(q)</text>
+  <text x="572" y="294" class="note">sums its irrep-block children</text>
+
+  <path class="edge" d="M683,306 L683,332" marker-end="url(#tri)"/>
+
+  <rect class="cd" x="562" y="336" width="243" height="60" rx="3"/>
+  <text x="572" y="353" class="name">IrrepCD_Core&lt;T&gt; / FactoredRho</text>
+  <text x="572" y="368" class="note">owns D (or the thin factor L) and the</text>
+  <text x="572" y="379" class="note">pays-for-itself rank test.  Contracts</text>
+  <text x="572" y="390" class="note">its OWN matrix into the basis's tensor</text>
+
+  <path class="gedge" d="M805,352 L860,352" marker-end="url(#triG)"/>
+  <text x="812" y="345" class="note">Overlap3C(orb)</text>
+
+  <rect class="bs" x="862" y="326" width="290" height="80" rx="3"/>
+  <text x="872" y="343" class="name">FIT_SF_ABS / DeltaFit_IBS</text>
+  <text x="872" y="358" class="note">returns Projector3&lt;T&gt; — a CONTRACTIBLE</text>
+  <text x="872" y="369" class="note">3-centre overlap &lt;chi_i|delta_g|chi_j&gt;</text>
+  <text x="872" y="380" class="note">private: Phi table (from the orbital block's</text>
+  <text x="872" y="391" class="note">op(r)) and the weights w_g</text>
+  <text x="872" y="402" class="note">applyRaw(D) | applyRawFactored(L)</text>
+
+  <path class="edge" d="M683,396 L683,430 L268,430" marker-end="url(#tri)"/>
+  <text x="300" y="425" class="note">rho coefficients (one per fit FUNCTION)</text>
+
+  <path class="edge" d="M267,258 L520,258 L520,470" marker-end="url(#tri)"/>
+  <text x="300" y="253" class="note">(B) matrix-FREE (seed / mixed rho-tilde)</text>
+
+  <rect class="odd" x="862" y="452" width="290" height="58" rx="3"/>
+  <text x="872" y="469" class="name">BasisSet::OrthogonalFit(q, cd)</text>
+  <text x="872" y="484" class="note">the density is only a ScalarFunction, so the</text>
+  <text x="872" y="495" class="note">BASIS samples it and divides by its metric</text>
+  <text x="872" y="506" class="note">diagonal.  A FREE function — outside the</text>
+  <path class="edge" d="M520,470 L858,470" marker-end="url(#tri)"/>
+  <text x="640" y="465" class="nb">no D to contract — nothing to put in the tensor</text>
+
+  <rect class="odd" x="862" y="514" width="290" height="20" rx="3"/>
+  <text x="872" y="528" class="nb">fitter framework.  THIS IS THE ODD ONE OUT.</text>
+
+  <path class="edge" d="M860,490 L560,490 L560,530 L268,530" marker-end="url(#tri)"/>
+
+  <rect class="bs" x="862" y="552" width="290" height="44" rx="3"/>
+  <text x="872" y="569" class="name">Symmetrize(rho) / SymmetrizeSpin(rho,m)</text>
+  <text x="872" y="584" class="note">orbit-mean over the Fold the basis holds</text>
+  <path class="gedge" d="M268,560 L858,570" marker-end="url(#triG)"/>
+
+  <text x="32" y="620" class="sect">ADJOINT — build H_ij and E</text>
+
+  <rect class="ham" x="32" y="630" width="235" height="46" rx="3"/>
+  <text x="42" y="647" class="name">v[g] = GetVxc(rho[g])</text>
+  <text x="42" y="662" class="nb">POINTWISE NONLINEAR — this is why the</text>
+  <text x="42" y="673" class="nb">coefficients must leave the fitter at all</text>
+
+  <path class="aedge" d="M267,652 L300,652" marker-end="url(#triA)"/>
+
+  <rect class="fit" x="302" y="630" width="225" height="60" rx="3"/>
+  <text x="312" y="647" class="name">DeltaScalarFitter</text>
+  <text x="312" y="662" class="note">DoFit: projection / metric diagonal</text>
+  <text x="312" y="673" class="note">holds c privately; no coefficient getter</text>
+  <text x="312" y="685" class="note">FitContraction&lt;U,TFit&gt;::Overlap(orb)</text>
+
+  <path class="aedge" d="M527,660 L858,660" marker-end="url(#triA)"/>
+
+  <rect class="bs" x="862" y="630" width="290" height="58" rx="3"/>
+  <text x="872" y="647" class="name">same Projector3, ADJOINT direction</text>
+  <text x="872" y="662" class="note">applyRawAdjoint(c) = Phi^dag diag(w c) Phi</text>
+  <text x="872" y="678" class="note">-&gt; H_ij, back to the term</text>
+
+  <path class="aedge" d="M1005,688 L1005,706 L149,706 L149,726" marker-end="url(#triA)"/>
+
+  <rect class="ham" x="32" y="730" width="235" height="46" rx="3"/>
+  <text x="42" y="747" class="name">H_ij, and E = exc . Charge()</text>
+  <text x="42" y="762" class="note">integrate the expansion: c . &lt;f_a|1&gt;</text>
+
+  <rect x="20" y="800" width="1140" height="66" rx="4" fill="#fff" stroke="#c62828" stroke-width="1.4"/>
+  <text x="32" y="818" class="name" fill="#c62828">THE PATTERN, AND THE ONE ASYMMETRY</text>
+  <text x="32" y="833" class="note">EVERY box on the right is one object: the 3-centre overlap over the fit basis's own functions.  The FORWARD direction contracts what the DENSITY owns (D, or a thin factor L); the ADJOINT contracts what the FITTER owns (c).  Neither ever hands its data out — the integral is what crosses.</text>
+  <text x="32" y="848" class="note">EXCEPT route (B).  A matrix-free density has no D, so there is nothing to contract INTO the tensor and it must be sampled instead — which is why OrthogonalFit exists as a free function that bypasses the fitter framework entirely.</text>
+  <text x="32" y="861" class="note">⇒ The Coulomb-metric path already solved exactly this: Fitting::ProjectedDensity_AO lets a density PRESENT its own projection (GetUnconstrainedFit / GetRepulsion3C) and the fitter applies the metric.  The delta path invented DM_RhoAtPoints in parallel instead of reusing that shape.</text>
+</svg>

@@ -1198,6 +1198,99 @@ Re-verified after all three: 756/756, and the two-route Si gate still prints −
 
 ---
 
+## ★★★ NEXT SESSION, SPECCED 2026-08-24 — THE FITTING BOUNDARY: `Orbital_DFT_IBS` THROUGHOUT, AND THREE FACES THAT DO NOT BELONG
+
+Four items the user set, plus the keying work they all lean on.  **Suggested order is 0 → 3 → 1 → 2**, and
+the reason is at the bottom.
+
+### 0. FIRST, because FOUR separate items now pay for it: the `TFit`/`U` keying (RealComplexPlan 3c-3)
+
+An orbital block carries TWO scalars — its own (`U`) and the fit axis it was built on (`TFit`) — and they
+differ exactly once, but that once is production: `tGPW_IBS<double>` IS-A `Orbital_DFT_IBS<double,dcmplx>`,
+the real TRIM block.  Everything below trips over it:
+
+| item | how it trips |
+|---|---|
+| `FitContraction<U>` (item 1) | must become `<U,TFit>`, same as `Integrals_Overlap3C` already did |
+| making `Orbital_DFT_IBS::Overlap3C` non-public | `XC_PairQuadrature` needs `Projector3<dcmplx>` for a possibly-REAL block — a combination the fit-side face (keyed by the orbital scalar) cannot express, so the pair route cannot be moved off the orbital-side entry |
+| `orb.Overlap3C(deltaBasis)` still compiling | same blocker |
+| the third `Integrals_Overlap3C` combination | ditto |
+
+Do it once, deliberately, rather than four times by accident.
+
+### 1. qcFitting should speak `Orbital_DFT_IBS&`, not `Orbital_1E_IBS&` (user)
+
+`FitContraction<U>::Overlap(const robs_t<U>*)` is the last fitter face taking the 1E base.  It becomes
+`FitContraction<U,TFit>` over `Orbital_DFT_IBS<U,TFit>`, exactly as `Integrals_Overlap3C` did in increment 7.
+The cast then moves up into `XC_SinglesQuadrature::MatrixT` / `XC_PairQuadrature::MatrixT` — **which is the
+right place**: the generic term machinery (`cDynamic_HT::MakeMatrix(const cobs_t*)`) is deliberately
+method-neutral and a Kinetic term must not see DFT types, whereas an XC strategy is DFT-specific by
+construction.  So the DFT assumption ends up stated where it actually lives.
+
+### 2. `src/BasisSet/FitOperations.C` should go (user) — but its two halves die differently
+
+- **`Overlap3CFace` — just delete it.**  Since the parameter became the DFT face it is an `if constexpr`
+  saving two lines at two call sites.  Inline at both; the file's second reason to exist evaporates.
+- **`OrthogonalFit` — the principle is right, the destination needs the diagram below.**  User: *"OrthogonalFit
+  belongs in the qcFitting library.  Client code needs to use that framework, not dodge around it."*  Agreed
+  that a free function client code calls INSTEAD of the fitter is a bypass.  What blocks a straight move is
+  that `FunctionFitter_Scalar` deliberately has **no coefficient accessor** (`DoFit` / `ReScale` / `Write` /
+  `FitContraction::Overlap`), while the caller — `tDM_CD::DM_RhoAtPoints` — wants precisely the coefficient
+  vector.  Adding a `Coefficients()` getter would be the same smell deleted in increment 6.
+
+#### The data flow, because the question is really "who needs what from whom"
+
+![rho on the delta XC route — who needs what from whom](diagrams/delta_rho_dataflow.svg)
+
+**The pattern IS clean, and the diagram shows it.**  Every basis-side box is ONE object: the 3-centre
+overlap over the fit basis's own functions.  The FORWARD direction contracts what the DENSITY owns
+(\f$D\f$, or the thin factor \f$L\f$); the ADJOINT contracts what the FITTER owns (\f$c\f$).  Neither
+side hands its data out — the integral is what crosses.
+
+**One box breaks the pattern**, and it is exactly `OrthogonalFit`: a MATRIX-FREE density (the seed, or a
+\f$\tilde\rho\f$-mixed density) has no \f$D\f$, so there is nothing to contract into the tensor and it
+must be SAMPLED instead.  That is why the bypass exists — not carelessness, an absent operand.
+
+⇒ **AND THE CURE ALREADY EXISTS IN THE TREE, on the other metric.**  The Coulomb-metric path solved this
+years-equivalent ago: `Fitting::ProjectedDensity_AO` lets a density PRESENT its own projection
+(`GetUnconstrainedFit` / `GetRepulsion3C`, the strategy chosen by which face it derives) and the FITTER
+applies the metric and the charge constraint.  The \f$\delta\f$/XC path invented `DM_RhoAtPoints` in
+parallel instead of reusing that shape.  So the target is a `ProjectedScalar`-style presentation: a
+matrix-backed density offers the tensor contraction, a matrix-free one offers itself as a field, and the
+fitter applies the metric either way.  `OrthogonalFit` then IS the fitter's metric step, in qcFitting, and
+no client dodges anything.
+⚠ **The one thing that does NOT dissolve**, and it should be stated rather than designed around:
+\f$v_{xc}\f$ is POINTWISE NONLINEAR, so the coefficients genuinely must reach the term — for \f$\delta\f$
+they are \f$\rho(r_g)\f$ and the functional is applied to them directly.  That is forced by the physics,
+not by the interface.  The open question is therefore not *how do we hide the coefficients* but *what type
+should carry them*; a bare `rvec_t` from `DM_RhoAtPoints` is the weakest possible answer.
+
+### 3. `FIT_SF_ABS::Symmetrize` / `SymmetrizeSpin` should go (user) — and there is a clean exit
+
+User: *"these look like functions that need access to Fit_IBS's internal (none of your business) integration
+mesh.  They do not belong in a fit basis set interface."*  Agreed, and both are already thin:
+- **δ**: `Symmetrize` is ONE line over `Symmetry::Lattice_3D::SymmetrizeValues(fold, vals)` and
+  `SymmetrizeSpin` is that plus the signed variant — free functions that already exist.  All the basis
+  contributes is the `Fold`.  **Inject the `Fold` exactly as increment 6 injected the mesh** (it is the
+  sibling field of the same `FitQuadrature`), and both overrides vanish with the caller using the free
+  functions directly.
+- **plane wave**: genuinely different — a voxel permutation plus an FFT shift-theorem glide, which needs the
+  raster.  That belongs on `G_RasterTransform`, where every other raster-only operation already went.
+
+Do both and `FIT_SF_ABS` loses both members outright — the same cure as `SiteIntegrals`, for the same
+reason: the operation was never a fitting question, the basis was merely the only object holding the
+geometry.
+
+### Why this order
+
+3 is smallest and independent — do it first and `FIT_SF_ABS` is down to the four integrals.  1 needs 0.
+2's `Overlap3CFace` half is free once 1 lands; 2's `OrthogonalFit` half should go LAST, because by then it
+will be clear whether the retyped fitter face can absorb the projection presentation without a coefficient
+getter.  ⚠ 1 and 3 both touch `XC_SinglesQuadrature`, and 2 touches `DM_RhoAtPoints`, which 1's cast also
+passes through — so they are not independent enough to parallelise across sessions.
+
+---
+
 ## ★★★ ONE FIT-BASIS INTERFACE (user, 2026-08-22) — ✅ DONE 2026-08-23 (the spec follows, annotated)
 
 #### ✅ WHAT LANDED.  758/758 (count UP by one gate, not down); Si two-route gate BIT-UNMOVED at 11/11.
