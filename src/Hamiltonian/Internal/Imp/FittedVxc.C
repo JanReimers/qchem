@@ -17,12 +17,13 @@ namespace qchem::Hamiltonian
 namespace
 {
 // The fit CONTRACTION face (ISP, 2026-08-22): a fitter no longer declares which orbital scalar it can
-// contract against -- it carries a FitContraction<U> per scalar it CAN serve, and the consumer asks for
-// the one it needs.  A molecular term always needs the real one, and the factory that built this fitter
-// guarantees it, so this is the sanctioned "I want more" cross-cast (reference form: throws, never UB).
-const Fitting::FitContraction<double>& RealContraction(const Fitting::FunctionFitter_Scalar& f)
+// contract against -- it carries a FitContraction<U,TFit> per (block scalar, fit scalar) pair it CAN serve,
+// and the consumer asks for the one it needs.  A molecular term always needs <double,double> -- real
+// orbitals on a real Gaussian auxiliary basis -- and the factory that built this fitter guarantees it, so
+// this is the sanctioned "I want more" cross-cast (reference form: throws, never UB).
+const Fitting::FitContraction<double,double>& RealContraction(const Fitting::FunctionFitter_Scalar& f)
 {
-    return dynamic_cast<const Fitting::FitContraction<double>&>(f);
+    return dynamic_cast<const Fitting::FitContraction<double,double>&>(f);
 }
 } // namespace
 
@@ -88,7 +89,7 @@ rsmat_t FittedVxc::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensit
 {
     if (newCD(cd))
         itsFitter->DoFit(VxcDensity(itsEx.get(),cd));   // fit v_xc(rho) onto the aux basis
-    auto dftbs=dynamic_cast<const odftbs_t*>(bs);
+    const odftbs_t& dftbs=dynamic_cast<const odftbs_t&>(*bs);
     return RealContraction(*itsFitter).Overlap(dftbs);
 }
 
@@ -107,8 +108,7 @@ const rsmat_t& FittedVxc::GetEMatrix(const robs_t* bs,const Spin&,const rChargeD
         itsEpsFitter->DoFit(epsxc);                      // fit eps_xc(rho) for this density
         itsEpsVersion=cd->Version();
     }
-    auto dftbs=dynamic_cast<const odftbs_t*>(bs);
-    assert(dftbs);
+    const odftbs_t& dftbs=dynamic_cast<const odftbs_t&>(*bs);
     itsEpsMat=RealContraction(*itsEpsFitter).Overlap(dftbs);  // Sum_a c_a <Oi|f_a|Oj>  (per-irrep basis; runs every call)
     return itsEpsMat;
 }

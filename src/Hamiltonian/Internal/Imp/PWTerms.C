@@ -454,9 +454,13 @@ template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, con
     if constexpr (std::is_same_v<U,dcmplx>)
     {
         itsScalarFitter->DoFit(SampledField(v, NumPoints()));
-        // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks; the
-        // real-block branch above never reaches here (it takes the raw adjoint or throws).
-        return dynamic_cast<const Fitting::FitContraction<dcmplx>&>(*itsScalarFitter).Overlap(bs);
+        // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks on a complex
+        // fit axis, i.e. <dcmplx,dcmplx>; the real-block branch above never reaches here (it takes the raw
+        // adjoint or throws).  The DFT cross-cast is THIS strategy's to make (2026-08-24): the contraction
+        // face takes the DFT block, and an XC strategy is DFT-specific by construction -- unlike the generic
+        // term machinery it is reached through, which must stay method-neutral.
+        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*bs);
+        return dynamic_cast<const Fitting::FitContraction<dcmplx,dcmplx>&>(*itsScalarFitter).Overlap(orb);
     }
     else
         // The legacy BALL-fit route's fitter Overlap is dcmplx-faced; nothing real-block reaches it (the
@@ -814,7 +818,12 @@ template <class U> hmat_t<U> XC_SinglesQuadrature::MatrixT(const tobs_t<U>* bs, 
         itsScalarFitter->DoFit(SampledField(v, NumPoints()));
         itsFittedV=v;
     }
-    return dynamic_cast<const Fitting::FitContraction<U>&>(*itsScalarFitter).Overlap(bs);
+    // TWO scalars on the face, and they DIFFER here (3c-3): the block is U, but the delta fit basis this
+    // strategy holds is the run's periodic one, so the fit axis is dcmplx for both.  <U> alone would name
+    // <U,U>, which for a real TRIM block is a face no fitter in the tree declares.  And the DFT cross-cast
+    // is the XC strategy's, for the reason given on FitContraction: this layer is DFT by construction.
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
+    return dynamic_cast<const Fitting::FitContraction<U,dcmplx>&>(*itsScalarFitter).Overlap(orb);
 }
 chmat_t XC_SinglesQuadrature::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
 rsmat_t XC_SinglesQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}

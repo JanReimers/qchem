@@ -38,12 +38,14 @@ public: // Client code needs read access to this data.
 };
 
 //---------------------------------------------------------------------- Scalar (overlap-metric) impl
-//! The molecular (Gaussian/Slater/BSpline) scalar fit.  It declares \c FitContraction<T> and NOT the
+//! The molecular (Gaussian/Slater/BSpline) scalar fit.  It declares \c FitContraction<T,T> and NOT the
 //! other scalar: its basis has no Bloch 3-centre path, so "contract me against a complex orbital block"
-//! is a question it cannot answer -- and now one it is never asked (ISP, 2026-08-22).
+//! is a question it cannot answer -- and now one it is never asked (ISP, 2026-08-22).  \c TFit==T is
+//! written out rather than defaulted: on this lineage the fit basis IS real, and that is a fact about the
+//! lineage, not a property of the face (2026-08-24).
 template <class T> class FunctionFitterImp
     : public FitImpBase<T, FunctionFitter_Scalar, BasisSet::FIT_SF_NonOrtho>
-    , public virtual FitContraction<T>
+    , public virtual FitContraction<T,T>
 {
     typedef FitImpBase<T, FunctionFitter_Scalar, BasisSet::FIT_SF_NonOrtho> Base;
 public:
@@ -53,7 +55,7 @@ public:
     FunctionFitterImp(fbs_t& fbs) : Base(fbs) {}
 
     virtual void      DoFit  (const ProjectedScalar_R&) override;  // overlap-metric projection of the field f(r)
-    virtual hmat_t<T> Overlap(const robs_t<T>*) const      override;  // Sum_a c_a <Oi|f_a|Oj>
+    virtual hmat_t<T> Overlap(const BasisSet::Orbital_DFT_IBS<T,T>&) const override;  // Sum_a c_a <Oi|f_a|Oj>
 };
 
 //---------------------------------------------------------------- Density (Coulomb-metric) impl

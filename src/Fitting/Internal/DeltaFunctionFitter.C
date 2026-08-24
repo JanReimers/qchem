@@ -18,8 +18,8 @@
 // AND WHY THE CONTRACTION IS THE BASIS'S.  Overlap is sum_g c_g <chi_i|delta_g|chi_j>, which is the
 // weighted quadrature Phi^dag diag(w c) Phi -- the basis owns the points, the weights AND the Phi table,
 // so it performs it and this class only decides WHICH c to hand over.  Both block scalars are served
-// (FitContraction<double> and <dcmplx>), which a mixed real/complex run needs and which is exactly what
-// the single-scalar fitter face could not express before the FitContraction split.
+// (FitContraction<double,dcmplx> and <dcmplx,dcmplx>), which a mixed real/complex run needs and which is
+// exactly what the single-scalar fitter face could not express before the FitContraction split.
 module;
 #include <cassert>
 #include <memory>
@@ -27,7 +27,7 @@ module;
 #include <stdexcept>
 #include <type_traits>   // std::is_same_v (same-scalar face vs the mixed-run cross-cast)
 export module qchem.Fitting.Internal.DeltaFunctionFitter;
-export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<U>, ProjectedScalar_R
+export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<U,TFit>, ProjectedScalar_R
 import qchem.Fitting.Types;                   // robs_t<U>
 import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_SF_ABS + Integrals_Overlap3C<U> (the held fit basis)
 import qchem.BasisSet.FitOperations;          // OrthogonalFit / Overlap3CFace -- the two shared algorithms
@@ -40,8 +40,8 @@ export namespace qchem::Fitting
 //! the basis's own metric diagonal.  Serves BOTH orbital-block scalars, as a mixed run requires.
 class DeltaScalarFitter
     : public virtual FunctionFitter_Scalar
-    , public virtual FitContraction<double>   // a real TRIM block's quadrature runs in real arithmetic
-    , public virtual FitContraction<dcmplx>   // ...its complex siblings' in complex
+    , public virtual FitContraction<double,dcmplx>   // a real TRIM block's quadrature runs in real arithmetic
+    , public virtual FitContraction<dcmplx,dcmplx>   // ...its complex siblings' in complex
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
@@ -69,8 +69,8 @@ public:
     //! ITS functions and contract it with MY coefficients.  Structurally the same two calls the Gaussian
     //! fitter makes (\c Overlap3C then contract) -- which is what Liskov substitutability of the
     //! representations means in practice, rather than by analogy.
-    virtual hmat_t<double> Overlap(const robs_t<double>* bs) const override {return Contract(bs);}
-    virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override {return Contract(bs);}
+    virtual hmat_t<double> Overlap(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Contract(orb);}
+    virtual hmat_t<dcmplx> Overlap(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return Contract(orb);}
 
     virtual void ReScale(double factor) override {itsC *= factor;}
 
@@ -84,14 +84,12 @@ public:
 private:
     //! ONE body for both block scalars: the basis's \f$\langle\chi_i|\delta_g|\chi_j\rangle\f$, contracted
     //! against my coefficients.  A mixed run (3c-3) reaches it with either scalar.
-    template <class U> hmat_t<U> Contract(const robs_t<U>* bs) const
+    template <class U> hmat_t<U> Contract(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
     {
-        assert(bs);
-        // The 3-centre overlap is a DFT-TIER question, so the face demands the DFT block and the caller --
-        // us, who asserted this block has one -- does the cross-cast (user, 2026-08-24).  By reference, so
-        // a non-DFT orbital basis throws instead of being release-mode UB.  TFit is dcmplx: our fit basis
-        // is the periodic one, and a real TRIM block against it is the 3c-3 mixed case.
-        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
+        // The 3-centre overlap is a DFT-TIER question, and since 2026-08-24 the CONTRACTION face says so
+        // too: both overloads above take the DFT block, so the cross-cast that used to stand here belongs
+        // to (and now lives with) the caller.  TFit is dcmplx throughout -- our fit basis is the periodic
+        // one, and a real TRIM block against it is exactly the 3c-3 mixed case.
         const Projector3<U>& o3=Face<U>().Overlap3C(orb);
         assert(o3.applyRawAdjoint && "DeltaScalarFitter: this fit basis must realise the 3-centre adjoint");
         return o3.applyRawAdjoint(itsC);

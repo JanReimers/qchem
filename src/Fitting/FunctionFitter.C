@@ -29,7 +29,7 @@ export module qchem.Fitting.FunctionFitter;
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
 export import qchem.BasisSet.Internal.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
-import qchem.BasisSet.Orbital_DFT_IBS;        // rFIT_SF_ABS / rFIT_CD_ABS (the two narrow fit-basis faces)
+export import qchem.BasisSet.Orbital_DFT_IBS;  // rFIT_SF_ABS / rFIT_CD_ABS (the fit faces) + Orbital_DFT_IBS (FitContraction's argument)
 import qchem.Blaze;                   // hmat_t<T>
 
 export namespace qchem::Fitting
@@ -152,7 +152,7 @@ public:
     virtual std::ostream& Write    (std::ostream&) const                   =0;  //!< describe the fit
 };
 
-//! \brief "I can contract my fit against a \a U-scalar ORBITAL BLOCK":
+//! \brief "I can contract my fit against a \a U-scalar ORBITAL BLOCK built on a \a TFit fit axis":
 //! \f$\sum_a c_a\langle O_i|f_a|O_j\rangle\f$.
 //!
 //! WHY IT IS ITS OWN FACE (user, 2026-08-22 -- ISP).  \c FunctionFitter_Scalar used to be templated, and
@@ -166,11 +166,27 @@ public:
 //! block scalars it can serve -- the molecular Gaussian fit declares \c double only (its basis has no
 //! Bloch 3-centre path), a periodic fit declares both -- instead of every fitter carrying a second
 //! \c Overlap it would have to throw from.  Consumers reach it by the sanctioned "I want more" cross-cast.
-template <class U> class FitContraction
+//!
+//! BOTH AXES ARE PARAMETERS (2026-08-24), exactly as on the basis-side mirror \c BasisSet::Integrals_Overlap3C
+//! -- and for the same reason, so the two stay spellable in the same words.  \a U is the ORBITAL block's
+//! scalar, \a TFit the scalar of the fit axis the run was built on, and doc/RealComplexPlan.md 3c-3 makes
+//! them differ in production: a real TRIM block on a periodic run is \c <double,dcmplx>.  Keying on \a U
+//! alone means \c <U,U>, which silently excludes precisely that block.  No default for \a TFit, again as
+//! on the basis side: the coincidence \c TFit==U is a FACT about the molecular lineage, and writing it out
+//! is what stops it being assumed.
+//!
+//! And the argument is the DFT face, not \c Orbital_1E_IBS (user, item 1): what this contraction needs from
+//! the block is its 3-centre tier, so a basis without one cannot be passed at all -- a COMPILE error rather
+//! than a \c dynamic_cast inside every fitter.  The cast moves UP to the caller, which is the right place:
+//! the generic term machinery is deliberately method-neutral (a Kinetic term must not see DFT types), while
+//! an XC strategy is DFT-specific by construction, so the assumption ends up stated where it lives.
+template <class U, class TFit> class FitContraction
 {
 public:
     virtual ~FitContraction() = default;
-    virtual hmat_t<U> Overlap(const robs_t<U>*) const=0;   //!< Sum_a c_a <Oi|f_a|Oj>
+    //! Sum_a c_a <Oi|f_a|Oj>.  By REFERENCE: there is no meaningful null block, and a caller that had to
+    //! cross-cast to get here gets a throw rather than release-mode UB.
+    virtual hmat_t<U> Overlap(const BasisSet::Orbital_DFT_IBS<U,TFit>&) const=0;
 };
 
 // RETIRED 2026-08-22: the GriddedScalarFitter refinement.  It existed so the XC term could borrow the
@@ -227,8 +243,8 @@ public:
 //!@{
 
 //! Create a SCALAR (overlap-metric) fitter on the given real (Gaussian/Slater/BSpline) potential-fit basis.
-//! \note Returns the NEUTRAL fitter face; the caller cross-casts to the \c FitContraction<U> it needs
-//! (this one carries \c FitContraction<double> -- a real Gaussian fit has no Bloch 3-centre path).
+//! \note Returns the NEUTRAL fitter face; the caller cross-casts to the \c FitContraction<U,TFit> it
+//! needs (this one carries \c FitContraction<double,double> -- a real Gaussian fit has no Bloch 3-centre path).
 std::unique_ptr<FunctionFitter_Scalar>
 Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
 
@@ -237,7 +253,8 @@ Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
 //! it, then Overlap looks the coefficients up at the orbital basis's reciprocal-index differences.  The XC
 //! sibling of the ortho density overload.  WHERE it samples is the fit basis's business (its own
 //! quadrature, reached through \c BasisSet::Quadrature), not something this face hands out.
-//! \note Returns the NEUTRAL fitter face; this one carries \c FitContraction<dcmplx>.
+//! \note Returns the NEUTRAL fitter face; this one carries \c FitContraction<dcmplx,dcmplx> (raster) or,
+//! for a \f$\delta\f$ basis, BOTH \c <double,dcmplx> and \c <dcmplx,dcmplx> (the 3c-3 mixed run).
 std::unique_ptr<FunctionFitter_Scalar>
 Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>&);
 

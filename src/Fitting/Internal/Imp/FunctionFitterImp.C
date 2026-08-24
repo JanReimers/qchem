@@ -45,15 +45,13 @@ template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedScalar_R& r)
 // same cache as the old orb->Overlap3C(fitBasis): FIT_SF_ABS::Overlap3C's DEFAULT is exactly that call.
 // Spelling it this way is what makes all three representations one shape -- a delta basis, which builds
 // the tensor itself from op(r) rather than delegating, is reached by the identical line.
-template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const robs_t<T>* bs) const
+// The DFT-tier cross-cast is the CALLER's since 2026-08-24, and since the face itself took the DFT type
+// there is no cast left here at all: a Gaussian fit contracting against a non-DFT orbital basis does not
+// compile.  TFit==T on this lineage -- a molecular Gaussian block is Orbital_DFT_IBS<double,double>.
+template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const
 {
-    assert(bs);
-    // The DFT-tier cross-cast is the CALLER's since 2026-08-24: the fit face takes Orbital_DFT_IBS, so a
-    // Gaussian fit contracting against a non-DFT orbital basis is caught here, loudly, by a reference cast.
-    // TFit==T on this lineage -- a molecular Gaussian block is Orbital_DFT_IBS<double,double>.
-    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,T>&>(*bs);
     const Projector3<T>& O3=this->itsBasisSet->Overlap3C(orb);
-    hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
+    hmat_t<T> J=blazem::zeroH<T>(orb.GetNumFunctions());
     size_t i=0;
     for (auto c:this->itsFitCoeff) J+=c*O3.dense[i++];
     assert(!blazem::isnan(J));

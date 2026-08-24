@@ -25,12 +25,13 @@ namespace qchem::Hamiltonian
 namespace
 {
 // The fit CONTRACTION face (ISP, 2026-08-22): a fitter no longer declares which orbital scalar it can
-// contract against -- it carries a FitContraction<U> per scalar it CAN serve, and the consumer asks for
-// the one it needs.  A molecular term always needs the real one, and the factory that built this fitter
-// guarantees it, so this is the sanctioned "I want more" cross-cast (reference form: throws, never UB).
-const Fitting::FitContraction<double>& RealContraction(const Fitting::FunctionFitter_Scalar& f)
+// contract against -- it carries a FitContraction<U,TFit> per (block scalar, fit scalar) pair it CAN serve,
+// and the consumer asks for the one it needs.  A molecular term always needs <double,double> -- real
+// orbitals on a real Gaussian auxiliary basis -- and the factory that built this fitter guarantees it, so
+// this is the sanctioned "I want more" cross-cast (reference form: throws, never UB).
+const Fitting::FitContraction<double,double>& RealContraction(const Fitting::FunctionFitter_Scalar& f)
 {
-    return dynamic_cast<const Fitting::FitContraction<double>&>(f);
+    return dynamic_cast<const Fitting::FitContraction<double,double>&>(f);
 }
 } // namespace
 
@@ -96,8 +97,7 @@ FittedVcorrPol::~FittedVcorrPol() = default;   // out-of-line for the unique_ptr
 rsmat_t FittedVcorrPol::MakeMatrix(const robs_t* bs, const Spin& s, const rChargeDensity* cd) const
 {
     assert(s != Spin::None && "FittedVcorrPol: a polarized term needs an Up/Down spin");
-    auto dftbs = dynamic_cast<const odftbs_t*>(bs);
-    assert(dftbs);
+    const odftbs_t& dftbs = dynamic_cast<const odftbs_t&>(*bs);
 
     const Polarized_CD* pol = dynamic_cast<const Polarized_CD*>(cd);
     if (pol)
@@ -128,8 +128,7 @@ const rsmat_t& FittedVcorrPol::GetEMatrix(const robs_t* bs, const Spin&, const r
     assert(pol && "FittedVcorrPol::GetEMatrix: the polarized correlation energy requires a Polarized_CD");
     PolEpsCDensity eps(itsCorr.get(), pol->GetChargeDensity(Spin::Up), pol->GetChargeDensity(Spin::Down));
     itsEpsFitter->DoFit(eps);
-    auto dftbs = dynamic_cast<const odftbs_t*>(bs);
-    assert(dftbs);
+    const odftbs_t& dftbs = dynamic_cast<const odftbs_t&>(*bs);
     itsEpsMat = RealContraction(*itsEpsFitter).Overlap(dftbs);
     return itsEpsMat;
 }

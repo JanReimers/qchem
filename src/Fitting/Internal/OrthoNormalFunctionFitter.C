@@ -17,7 +17,7 @@ module;
 #include <memory>
 #include <ostream>
 export module qchem.Fitting.Internal.OrthoNormalFunctionFitter;
-export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<dcmplx>, ProjectedScalar_R
+export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar + FitContraction<dcmplx,dcmplx>, ProjectedScalar_R
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Orbital_DFT_IBS;                // cFIT_SF_ABS (the held fit basis)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
@@ -35,7 +35,7 @@ export namespace qchem::Fitting
 //! Factory(cFIT_SF_ABS).
 class OrthoNormalScalarFitter
     : public virtual FunctionFitter_Scalar
-    , public virtual FitContraction<dcmplx>   // a raster fit contracts against COMPLEX Bloch blocks
+    , public virtual FitContraction<dcmplx,dcmplx>   // a raster fit contracts COMPLEX blocks on a COMPLEX fit axis
     , public virtual ScalarFunction<double>   // ...and its fit IS an evaluatable field (inverse transform)
 {
 public:
@@ -64,19 +64,16 @@ public:
     //! reciprocal-index difference up in OUR fit-grid coefficients -- so the fit grid may be denser than (or
     //! offset from) the orbital's.  The orbital's assembly is its applyAdjoint realization (the
     //! orbital-specific step); the fit grid's GridCoeff lookup is the shared G_FieldEvaluator grid engine.
-    virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
+    virtual hmat_t<dcmplx> Overlap(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
     {
         // ASK THE FIT BASIS for <i|f_a|j> (2026-08-23): FIT_SF_ABS::Overlap3C's default delegates straight
-        // back to orb.Overlap3C(*this), so this is the same cached tensor this line used to fetch by hand --
-        // and the genuine "is it a DFT-capable orbital basis?" cross-cast now happens once, inside that
-        // default, instead of in every fitter.
+        // back to orb.Overlap3C(*this), so this is the same cached tensor this line used to fetch by hand.
         const BasisSet::G_RasterTransform& fit=FitRaster();                           // the coefficient lookup
         // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
         // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the
         // SAME grid the density was collocated on (doc/GPWPlan §0e step 2).  No grid-less MakeOverlap(field).
-        // The fit face takes the DFT block (2026-08-24), so the "is it DFT-capable?" question is asked
-        // HERE, by reference-cast, rather than thrown from inside the fit basis's default.
-        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*bs);
+        // The CONTRACTION FACE takes the DFT block since 2026-08-24, so "is it DFT-capable?" is answered by
+        // the compiler at the call site and there is no cast in this fitter at all.
         return ContractAdjoint(itsFitBasis->Overlap3C(orb),
                                      [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
