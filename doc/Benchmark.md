@@ -6,6 +6,56 @@ single hand-run disabled test at `GPW_MNO_NMAX=3`, which is how two charter prem
 while being wrong.  A row here is only meaningful with its PROVENANCE columns — same span held full-rank by
 both codes, and the fold/threading/BLAS state that produced the number.
 
+## ★★★ BENCHMARK PROTOCOL — the three rules a comparable row must satisfy (user, 2026-08-25)
+
+A timing number is a claim about two codes doing the same work on the same hardware.  Three things break
+that silently, and all three have already bitten this table, so they are rules rather than advice.
+
+### 1. EVERY TIMING TABLE STATES ITS THREAD STATE — per table, for BOTH codes
+
+Not in prose somewhere above it: in the caption or a column, so a row cannot be quoted out of context.
+Today's tables carry a prose warning and it is not enough — the warning is right (CP2K is genuinely serial
+here at 97–99% CPU; qchem is not, at 115–239%) but a reader lifting one row will not carry it.
+
+⚠ **qchem has no `GLOBAL| Number of threads` banner** — this document has asked for one twice.  Until it
+exists the thread state is asserted by the person taking the row, which is exactly the discipline that
+fails.  **Build the banner** (index item 2): thread counts AND the feature flags below, printed by the run
+itself, so every future row is self-describing.
+
+### 2. SINGLE-THREAD PARITY FIRST, THEN THREADS — in that order (user)
+
+The systematic procedure, and the reason for it: a threaded comparison against a serial code measures two
+different things at once — the algorithm and the parallel efficiency — and if the single-thread gap is
+unknown you cannot tell which one you are looking at.  So:
+
+1. **Get qchem's SINGLE-THREAD time roughly in line with CP2K.**  `OMP_NUM_THREADS=1 GPW_OMP_THREADS=1`,
+   which pins both our own OpenMP regions and the BLAS underneath blaze.  This is the honest
+   algorithm-to-algorithm number and the one that should drive optimisation.
+2. **THEN turn on N=8 or 16 and look for OMP-SHAPED GAPS** — poor scaling, barrier waits, regions that do
+   not thread at all.  Those are a different class of defect with different fixes, and they only read
+   cleanly once step 1 is settled.
+
+⚠ Related and already measured: our OpenMP threads **BUSY-WAIT at the barrier**, so a threaded qchem run
+bills far more CPU than it uses (a 294 s serial build billed ~590 s CPU at 16 threads).  That is why the
+CPU column overstates qchem wherever it threads — and another reason the single-thread row is the clean one.
+
+### 3. qchem-ONLY ACCELERATIONS ARE **OFF** FOR A HEAD-TO-HEAD ROW (user)
+
+If qchem runs an algorithm CP2K does not, the row stops being a comparison and becomes an advertisement.
+Turn them off, take the comparable number, and report the acceleration SEPARATELY as a qchem-vs-qchem
+delta — which is the more useful statement anyway.
+
+| flag | default | for a head-to-head row |
+|---|---|---|
+| `QCHEM_DM_LOWRANK` — the factored/low-rank \f$\rho\f$ (\f$D=LL^\dagger\f$, so \f$\rho_g=\lVert L^\dagger\Phi_g\rVert^2\f$)  | **ON** | **`=0`.**  CP2K collocates PAIRS; this is a singles/low-rank route it does not run.  ⚠ Every row taken since `07d13bf6` has it ON. |
+| `GPW_XC_DM_SOURCE` — XC fed the retained DM ρ instead of the mixed ρ̃ | off | leave off; and see the pin — it is a TRAJECTORY change, so it must be pinned one way for Step 5's term-by-term breakdown either way |
+| `GPW_OMP_THREADS` / `OMP_NUM_THREADS` | 1 / inherited | `=1` for the parity row (rule 2) |
+| the T3 pair-stream orbit fold | **ARMED** | **DECLARE it, decide per row.**  Do not assume CP2K has no equivalent — state the fold state in the row and let the reader judge. |
+
+**The general rule, so this table does not have to be exhaustive:** anything that makes qchem faster and is
+not in CP2K's algorithm gets declared in the row and defaults to OFF in the comparison.  A new accelerator
+is not finished until it is on this list.
+
 ## How to produce a row — the SAME wrapper for both codes
 
 ```bash
@@ -91,7 +141,7 @@ invisible).  It is now ENABLED at ~14 s and reads −7.868473428, converged in 1
 `|Re(D_ij · conj(phase))| · maxv < eps` — a REAL PART used as if it were a magnitude.  `Re[D e^{-ikR}]` is
 the right coefficient on the COLLOCATION side, where it multiplies a real pair product and a zero means a
 genuinely zero contribution to ρ; the integrate-back's term is `phase·b`, whose size is `|b|` however the
-phase is oriented.  **At a quarter-integer k, $e^{2\pi ikn}=i^n$ is purely imaginary for every ODD
+phase is oriented.  **At a quarter-integer k, \f$e^{2\pi ikn}=i^n\f$ is purely imaginary for every ODD
 offset**, so for real-ish D the screen discarded every odd-offset term and the Hartree/XC matrix came out
 EXACTLY REAL — measured `maxIm(dV) = 0` at k=¼ against 0.067 at k=0.25001.  An H missing its imaginary part
 has the wrong spectrum, so the SCF converged 2.5 Ha high.  Fix: screen on the true magnitude `|D_ij|`

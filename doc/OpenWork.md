@@ -23,7 +23,7 @@ CONCRETE action and the ONE section to point a session at.  If it is not in this
 | # | open item | the next concrete action | point a session at |
 |---|---|---|---|
 | **1** | **Vxc must be fed the DM ρ(r)** — the cure is BUILT and opt-in; pinned *"first thing in Step 3, ahead of anything else"* (accuracy repair + documented-decision regression + ~20× on the top bucket) | **MEASURE, do not code.** Arm `GPW_XC_DM_SOURCE=1` on the MnO row; read per-iteration SCF time, the ρ<0 fraction and negative mass (`GPW_RHO_NEGATIVE=1`), and the iteration count. Then it earns the default or it does not. | Step 3 → *"Vxc MUST BE FED THE DM ρ(r)"* |
-| **2** | **ρ GEMM — low-rank D**: the largest per-iteration bucket (MnO 1.35e9 MAC/spin/iteration), and the only remaining plan for it after Φ-sparsity was refuted | Build the user's 4-step decomposition, starting with ONE pivoted-Cholesky (rank-revealing, so rank and factor arrive together). Potential 6–9× (n=118, r≈13). | Step 3 → *"THE ρ GEMM — LOW-RANK D"*, with the **factoring-D dossier** below as its evidence |
+| **2** | **BENCHMARK PROTOCOL — no timing table is comparable until this holds** (user, 2026-08-25). Two defects today: no table states its THREAD state per row, and qchem runs accelerations CP2K does not — the factored/low-rank ρ is **ON BY DEFAULT** (`QCHEM_DM_LOWRANK`), so every row since `07d13bf6` has it | (a) build the self-describing BANNER `doc/Benchmark.md` already asks for — thread counts + the qchem-only feature flags — so rows describe themselves instead of relying on discipline; (b) re-take the rows under the two-phase rule: **single-thread parity FIRST**, then N=8/16 for OMP-shaped gaps. | `doc/Benchmark.md` → *"BENCHMARK PROTOCOL"*, and Step 0 (instruments) |
 | **3** | **The imposed XC mesh loses its site blocks** — a live DEFECT: the Step 0a site-moment instrument is silently dead on every imposed run, and every benchmark row is imposed | Restore `BeginSite` through the symmetrise + `FoldPointsPeriodic` path; the `assert` that should have caught it is compiled out under `NDEBUG`, so add a live check. | Step 3 → *"NEW DEFECT … LOSES ITS SITE BLOCKS"* |
 | **4** | **Step 5 — MnO accuracy, name the operator**: the sharpest coordinate on the list, with a banked oracle, and its first move is cheap | ⚠ **PIN `GPW_XC_DM_SOURCE` first** — individual terms move ~100 mHa with it, so the term-by-term CP2K breakdown means nothing until item 1 is settled. Then the cheap first move. | Step 5 |
 | **5** | **Step 0c — the instruments report WHAT, not WHEN** | Timestamp per report item (+ optional order-preserving render). Cheap, and it gates the pre-SCF work. | Step 0 |
@@ -33,7 +33,10 @@ CONCRETE action and the ONE section to point a session at.  If it is not in this
 
 **CLOSED — reference, not work.**  Step 1 (the head-to-head table STANDS → `doc/Benchmark.md`) · Step 2
 (the T3 pair-stream orbit fold is ARMED BY DEFAULT) · Step 4 (RAM largely answered by Step 2 — *do not open
-it as a track*) · and both history files.
+it as a track*) · **the ρ-GEMM low-rank D** (BUILT, guarded, exact, and default-ON via `QCHEM_DM_LOWRANK`;
+its own bullet carries the correction that closed it — the bucket was MISIDENTIFIED, the DM GEMM measured
+**1.70 s** against the matrix-free ρ̃ sampling's **35.0 s**, which is index item 1, so the 7–8× rank win had
+almost nothing to bite on) · and both history files.
 
 **EVIDENCE DOSSIERS — no action inside them.**  *"NEW IDEA — fast evaluation of DM-ρ(r) by FACTORING D"*
 and its Q1/Q2/Q3, the tier-0 results, the spectrum finding and the LSP design ruling (~440 lines) are the
@@ -183,6 +186,14 @@ construction points would make the **pre-SCF sequence** legible directly — whi
 known problems in that sequence, and today the only way to establish what runs when is to instrument and
 dump a stack.  An instrument that makes ORDER visible is a prerequisite for hunting them, exactly as 0a/0b
 were prerequisites for Step 1.
+
+- **0d — THE SELF-DESCRIBING BENCHMARK BANNER (added 2026-08-25, user).**  qchem has no equivalent of
+  CP2K's `GLOBAL| Number of threads` line, so every row in `doc/Benchmark.md` asserts its thread state by
+  hand — and `doc/Benchmark.md` has now asked for this twice.  Print, at run start: the OpenMP thread count
+  (`GPW_OMP_THREADS`), the BLAS thread state, and the **qchem-only accelerator flags** (`QCHEM_DM_LOWRANK`
+  — ON by default — and `GPW_XC_DM_SOURCE`, plus the T3 fold state).  That makes a row self-describing
+  instead of relying on the person taking it, which is the discipline that keeps failing.  See
+  `doc/Benchmark.md` → **BENCHMARK PROTOCOL** for the three rules this instrument serves.
 
 ### Step 1 — THE HEAD-TO-HEAD TABLE, built as a standing benchmark  ·  **table: `doc/Benchmark.md`**  ·  ✅ THE TABLE STANDS
 
@@ -639,8 +650,11 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   rather than on the argument above.  ⚠ Compare **CPU time, not wall** (qchem threads here, CP2K does not),
   and note the class names in this item: the engine is `XC_SinglesQuadrature` / `XC_PairQuadrature` since
   the 2026-08-22 absorption.
-- **★★ THE ρ GEMM — LOW-RANK D.  The successor to the refuted Φ-sparsity item, and the only remaining plan
-  for the largest per-iteration bucket.**  `IrrepCD_Core::DM_RhoAtPoints` forms
+- **★★ THE ρ GEMM — LOW-RANK D.  ✅ BUILT AND DEFAULT-ON (`QCHEM_DM_LOWRANK=0` is the A/B valve), and then
+  ⛔ LARGELY NEUTERED BY ITS OWN MEASUREMENT — read the correction below before quoting the 7–8×.**  It was
+  written as *"the successor to the refuted Φ-sparsity item, and the only remaining plan for the largest
+  per-iteration bucket"*; the bucket turned out to be something else.  ⚠ It is also the headline example of
+  an acceleration CP2K does not run, so it must be OFF for any head-to-head row (index item 2).  `IrrepCD_Core::DM_RhoAtPoints` forms
   \f$\rho(r_g)=\Phi_g^\dagger D\,\Phi_g\f$ as `(P·D)` row-dotted back into `P` — **O(npts·n²)**, i.e. on MnO
   97160 × 118² ≈ 1.35e9 MAC per spin per iteration, and it is a real BLAS `gemm` so there is no waste to
   screen out.  But **D is a density matrix: its rank is the OCCUPIED count, not n.**  With \f$D=LL^\dagger\f$,
