@@ -14,7 +14,8 @@ export import qchem.Symmetry.Spin;
 export import qchem.Symmetry.Irrep;   // Irrep: the block identity (Phi-table cache key, basis-side)
 export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (tPolarized_CD's periodic face)
 import qchem.ScalarFunction;
-import qchem.Fitting.FitOperations;   // OrthogonalFit -- a matrix-free density's fit onto an ortho basis
+export import qchem.Fitting.FunctionFitter;   // Fitting::ScalarProjector -- named on tDM_CD's own face,
+                                              // so every consumer of that face needs it
 import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
@@ -319,12 +320,17 @@ public:
     //! pointwise-nonlinear XC functional may be applied to them directly; the name of the array is the
     //! coefficient vector, and the equality is a property of the representation.
     //!
-    //! Default: hand \a q this density's own \c ScalarFunction face and let it project itself, then divide
-    //! by \a q's metric diagonal -- correct for EVERY density (a matrix-free seed included), just without
-    //! the GEMM; composite/leaf override.  \c Fitting::OrthogonalFit is the shared one-liner it and the
-    //! \f$\delta\f$ scalar fitter both use, so "fit onto this basis" has ONE definition.
-    virtual rvec_t DM_RhoAtPoints(const BasisSet::cFIT_SF_ABS& q) const
-        {return Fitting::OrthogonalFit(q, *this);}
+    //! Default: hand \a p this density's own \c ScalarFunction face and let the FITTER project it --
+    //! correct for EVERY density (a matrix-free seed included), just without the GEMM; composite/leaf
+    //! override to contract their matrix instead.
+    //!
+    //! The argument is the FITTER since 2026-08-24 (user), not the fit basis: performing a projection is
+    //! qcFitting's job, and a density reaching past it to run the algorithm itself was the last client
+    //! dodging the framework.  \c Fitting::ScalarProjector offers exactly the two things a density can be
+    //! projected by -- its block's 3-centre overlap, or the field route -- and the fitter holds the
+    //! \f$\Phi\f$ handles for both directions.
+    virtual rvec_t DM_RhoAtPoints(const Fitting::ScalarProjector& p) const
+        {return p.Project(*this);}
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
     // below (V1.6).  They were four asserting defaults on this general face, which every concrete family

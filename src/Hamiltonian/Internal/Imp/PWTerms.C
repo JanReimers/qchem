@@ -17,7 +17,6 @@ import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
-import qchem.Fitting.FitOperations;        // OrthogonalFit -- a matrix-free density's fit onto the delta basis
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
@@ -510,6 +509,18 @@ XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit, BasisSet::FitQuadrature qu
            "-- one mesh point per fit function");
 }
 
+// THE FITTER'S PROJECTION FACE.  Since 2026-08-24 rho does NOT go to the fit basis: a projection is
+// qcFitting's operation, and this strategy holds a fitter that already owns the fit basis's Phi handles
+// for the adjoint direction (user).  So both directions of the SAME tensor now come off ONE object, which
+// is the invariant this class's own header argues for one level up.  The cross-cast is the sanctioned
+// "I want more" ask, made once per call on a face the delta fitter always carries.
+const Fitting::ScalarProjector& XC_SinglesQuadrature::Projector() const
+{
+    auto* sp=dynamic_cast<const Fitting::ScalarProjector*>(itsScalarFitter.get());
+    assert(sp && "XC_SinglesQuadrature: the delta scalar fitter must carry the projection face");
+    return *sp;
+}
+
 // THE STAR-AVERAGE, applied to a coefficient vector over the delta basis (§6a W1).  It lives here, not on
 // the fit basis, since 2026-08-24 (user): the operation is not a fitting question and the basis contributed
 // only the fold -- which now arrives with the mesh, through the same factory out-parameter.  Both bodies are
@@ -660,7 +671,7 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
     qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
     {
-        itsRho=dm->DM_RhoAtPoints(*itsFit);   // the density asks the basis for each block's table
+        itsRho=dm->DM_RhoAtPoints(Projector());   // the density contracts its D into the fitter's handles
         ReportNegativeRho(*this, itsRho, "DM");
     }
     else if (auto ex=ExactSourceOf(cd))
@@ -671,13 +682,13 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
                      <<" but its retained density matrix did NOT (still "<<itsSrcVersion
                      <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
         itsSrcVersion=ex.cd->Version();
-        DampXCChannel(itsXCMix, ex.cd->DM_RhoAtPoints(*itsFit), ex.alpha);
+        DampXCChannel(itsXCMix, ex.cd->DM_RhoAtPoints(Projector()), ex.alpha);
         itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
         ReportNegativeRho(*this, itsRho, "DM-source");
     }
     else
     {
-        itsRho=Fitting::OrthogonalFit(*itsFit, *cd);   // non-DM (mixed rho-tilde / seed): fit it onto the basis
+        itsRho=Projector().Project(*cd);   // non-DM (mixed rho-tilde / seed): the fitter projects the FIELD
         ReportNegativeRho(*this, itsRho, "matrix-free");
     }
     Symmetrize(itsRho);   // §6a W1: the injected quadrature's orbit-mean projector (no-op on a free run)
@@ -704,8 +715,8 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
         qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
         if (auto pol=dynamic_cast<const ChargeDensity::cPolarized_CD*>(cd))
         {
-            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(*itsFit);
-            itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(*itsFit);
+            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(Projector());
+            itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(Projector());
             ReportNegativeRho(*this, itsRhoUp, "DM(up)");
             ReportNegativeRho(*this, itsRhoDn, "DM(dn)");
         }
@@ -732,8 +743,8 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
                              <<" but its retained density matrix did NOT (still "<<itsSrcVersion
                              <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
                 itsSrcVersion=exUp.cd->Version();
-                rvec_t up=exUp.cd->DM_RhoAtPoints(*itsFit);
-                rvec_t dn=exDn.cd->DM_RhoAtPoints(*itsFit);
+                rvec_t up=exUp.cd->DM_RhoAtPoints(Projector());
+                rvec_t dn=exDn.cd->DM_RhoAtPoints(Projector());
                 DampXCChannel(itsXCMixUp, up, exUp.alpha);   // match the damping Hartree gets, so the map
                 DampXCChannel(itsXCMixDn, dn, exDn.alpha);   //   is not half-damped
                 itsRhoUp=itsXCMixUp; itsRhoDn=itsXCMixDn;
@@ -743,8 +754,8 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
             else
             {
             qchem::report::Timed seed("scf: XC-mesh rho sampling (matrix-free density)");
-            itsRhoUp=Fitting::OrthogonalFit(*itsFit, *sr->GetChannel(Spin::Up  ));
-            itsRhoDn=Fitting::OrthogonalFit(*itsFit, *sr->GetChannel(Spin::Down));
+            itsRhoUp=Projector().Project(*sr->GetChannel(Spin::Up  ));
+            itsRhoDn=Projector().Project(*sr->GetChannel(Spin::Down));
             ReportNegativeRho(*this, itsRhoUp, "matrix-free(up)");
             ReportNegativeRho(*this, itsRhoDn, "matrix-free(dn)");
             }
@@ -752,9 +763,9 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
         else
         {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
             if (auto dm=dynamic_cast<const cDM_CD*>(cd))
-                itsRhoUp=dm->DM_RhoAtPoints(*itsFit);
+                itsRhoUp=dm->DM_RhoAtPoints(Projector());
             else
-                itsRhoUp=Fitting::OrthogonalFit(*itsFit, *cd);
+                itsRhoUp=Projector().Project(*cd);
             itsRhoUp*=0.5;
             itsRhoDn=itsRhoUp;
         }

@@ -130,11 +130,11 @@ template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std
 // (3c-3): each child asks the quadrature with its OWN scalar and gets the matching table back, which is
 // what replaced the two threaded table maps.  A cross-scalar (real) child inside a complex run is served
 // by the same call it would make in a real run.
-template <class T> rvec_t tComposite_CD<T>::DM_RhoAtPoints(const BasisSet::cFIT_SF_ABS& q) const
+template <class T> rvec_t tComposite_CD<T>::DM_RhoAtPoints(const Fitting::ScalarProjector& p) const
 {
-    rvec_t ro(q.GetNumFunctions(), 0.0);
+    rvec_t ro(p.NumCoefficients(), 0.0);
     for (auto& c:itsCDs)
-        std::visit([&](const auto& b){ ro+=b->DM_RhoAtPoints(q); }, c);
+        std::visit([&](const auto& b){ ro+=b->DM_RhoAtPoints(p); }, c);
     return ro;
 }
 

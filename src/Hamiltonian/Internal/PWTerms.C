@@ -353,6 +353,10 @@ private:
     //! one, with the flip-fixed entries of \f$m\f$ zeroed first (Shubnikov S3, doc/SymmetryUpgradePlan.md
     //! §7).  No \f$\sigma\f$ tags => grey/free semantics => each channel averaged independently.
     void SymmetrizeSpin(rvec_t& rho, rvec_t& m) const;
+    //! \brief MY FITTER'S PROJECTION FACE -- what a density projects itself onto (2026-08-24).
+    //! The fitter holds the fit basis's \f$\Phi\f$ handles, so the \f$\rho\f$ FORWARD and the
+    //! \f$H_{xc}\f$ ADJOINT come off one object instead of two callers asking the basis separately.
+    const Fitting::ScalarProjector& Projector() const;
 
     // R2.9(i): the four accessors above are CONST and everything they touch is a lazily-built cache, so the
     // caches are `mutable` -- the same idiom every other cache in this module already uses (tHT_Common::

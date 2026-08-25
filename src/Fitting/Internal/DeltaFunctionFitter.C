@@ -22,6 +22,7 @@
 // exactly what the single-scalar fitter face could not express before the FitContraction split.
 module;
 #include <cassert>
+#include <map>           // the per-block Phi handles (shallow Projector3 copies)
 #include <memory>
 #include <ostream>
 #include <stdexcept>
@@ -40,6 +41,7 @@ export namespace qchem::Fitting
 //! the basis's own metric diagonal.  Serves BOTH orbital-block scalars, as a mixed run requires.
 class DeltaScalarFitter
     : public virtual FunctionFitter_Scalar
+    , public virtual ScalarProjector                 // ...and the FORWARD direction, off the same handles
     , public virtual FitContraction<double,dcmplx>   // a real TRIM block's quadrature runs in real arithmetic
     , public virtual FitContraction<dcmplx,dcmplx>   // ...its complex siblings' in complex
 {
@@ -72,6 +74,20 @@ public:
     virtual hmat_t<double> Overlap(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Contract(orb);}
     virtual hmat_t<dcmplx> Overlap(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return Contract(orb);}
 
+    //! \copydoc Fitting::ScalarProjector::Overlap3C
+    //! The SAME held handle the adjoint above contracts -- which is the point of holding it.
+    const Projector3<double>& Overlap3C(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override
+        {return Handle(itsO3R, orb);}
+    const Projector3<dcmplx>& Overlap3C(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
+        {return Handle(itsO3 , orb);}
+
+    //! \copydoc Fitting::ScalarProjector::Project
+    //! Structurally identical to \c DoFit above and deliberately NOT sharing its buffer: the same
+    //! projection, returned instead of stored.
+    rvec_t Project(const ScalarFunction<double>& f) const override {return OrthogonalFit(*itsFitBasis, f);}
+    //! \copydoc Fitting::ScalarProjector::NumCoefficients
+    size_t NumCoefficients() const override {return itsFitBasis->GetNumFunctions();}
+
     virtual void ReScale(double factor) override {itsC *= factor;}
 
     //! \warning NO evaluatable fitted field, by design.  A \f$\delta\f$ expansion has no value BETWEEN its
@@ -90,15 +106,36 @@ private:
         // too: both overloads above take the DFT block, so the cross-cast that used to stand here belongs
         // to (and now lives with) the caller.  TFit is dcmplx throughout -- our fit basis is the periodic
         // one, and a real TRIM block against it is exactly the 3c-3 mixed case.
-        // ...and MY fit basis's 3-centre face for THIS block's scalar.  For a Bloch block that face is a
-        // (virtual) base of the fit face I hold and the cast never fails; for a real TRIM block it is the
-        // genuine 3c-3 "can you serve a real block?" question, so by reference -- it throws rather than
-        // being release-mode UB.  One line per site since 2026-08-24; it was a shared helper.
-        const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<U,dcmplx>&>(*itsFitBasis);
-        const Projector3<U>& o3=face.Overlap3C(orb);
+        const Projector3<U>& o3=Handle(Cache<U>(), orb);
         assert(o3.applyRawAdjoint && "DeltaScalarFitter: this fit basis must realise the 3-centre adjoint");
         return o3.applyRawAdjoint(itsC);
     }
+    //! \brief THE SHALLOW Φ HANDLE for one orbital block, held for the run (user, 2026-08-24).
+    //!
+    //! \c Projector3 is three closures over the fit basis's OWN address-stable \f$\Phi\f$ table, so a copy
+    //! is ~100 bytes and the npts×n table is never duplicated -- which is what makes "hold it" affordable
+    //! at all.  Held rather than re-fetched so BOTH directions demonstrably come off one object.
+    //! \warning the closures capture the producing basis: valid only while \c itsFitBasis lives, which it
+    //! does, because this class co-owns it.
+    template <class U> const Projector3<U>& Handle(std::map<Irrep,Projector3<U>>& cache,
+                                                   const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
+    {
+        const Irrep id=orb.GetIrrep(Spin::None);   // SPATIAL key, as the basis's own table cache uses
+        auto it=cache.find(id);
+        if (it!=cache.end()) return it->second;
+        // The genuine 3c-3 "can you serve a REAL block?" question for U==double; for U==dcmplx it is a
+        // derived-to-virtual-base cast that cannot fail.  Asked ONCE per block per run, here.
+        const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<U,dcmplx>&>(*itsFitBasis);
+        return cache.emplace(id, face.Overlap3C(orb)).first->second;   // shallow: closures, not the table
+    }
+    //! Which typed cache \a U uses -- so \c Contract and \c Overlap3C name one place, not two.
+    template <class U> std::map<Irrep,Projector3<U>>& Cache() const
+    {
+        if constexpr (std::is_same_v<U,double>) return itsO3R;
+        else                                    return itsO3;
+    }
+    mutable std::map<Irrep,Projector3<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3)
+    mutable std::map<Irrep,Projector3<dcmplx>> itsO3;    //!< Bloch blocks' handles
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
     rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
 };

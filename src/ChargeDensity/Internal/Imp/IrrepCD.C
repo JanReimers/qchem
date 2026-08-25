@@ -426,25 +426,23 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     return true;
 }
 
-template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const BasisSet::cFIT_SF_ABS& q) const
+template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const Fitting::ScalarProjector& p) const
 {
-    if (IsZero()) return rvec_t(q.GetNumFunctions(), 0.0);
+    if (IsZero()) return rvec_t(p.NumCoefficients(), 0.0);
     // ASK THE BASIS FOR ITS INTEGRAL, then contract MY matrix into it (R1.0; the 3-centre form,
     // 2026-08-23).  <delta_g|rho> = Sum_ij D_ij <delta_g|chi_i chi_j>, so what crosses is D -- which this
     // class owns -- and what stays inside is the basis's own Phi table and weights.  The GEMM itself, its
     // BLAS-dispatch constraints and its output-block threading moved with the integral, into
     // BasisSet::DeltaFit_IBS, where they sit beside the adjoint contraction that must match them.
     ReportDMRank<T>(itsDensityMatrix, itsIrrep);   // hmat_t<T> is a conditional_t: T is non-deduced
-    // The fit face takes the DFT block (2026-08-24), so this density -- which asserted its basis is
+    // The projector takes the DFT block (2026-08-24), so this density -- which asserted its basis is
     // DFT-capable by being fitted at all -- makes the cross-cast.  By reference: it throws rather than
     // being release-mode UB.  TFit is dcmplx (the periodic fit axis) for BOTH block scalars; T==double is
-    // the 3c-3 real TRIM block, which is exactly why the face carries both axes.
+    // the 3c-3 real TRIM block, which is exactly why the face carries both axes.  The SECOND cast that
+    // used to stand here -- picking the fit basis's face for this scalar -- is gone: the FITTER holds the
+    // handles now, so overload resolution on the block type does that job at compile time.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*itsBasisSet);
-    // ...and the fit basis's 3-centre face for THIS block's scalar.  T==dcmplx is a (virtual) base of the
-    // fit face and the cast never fails; T==double is the genuine 3c-3 "can you serve a real block?"
-    // question.  Spelled here since 2026-08-24 -- it was a shared one-line helper.
-    const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<T,dcmplx>&>(q);
-    const Projector3<T>& o3=face.Overlap3C(orb);
+    const Projector3<T>& o3=p.Overlap3C(orb);
     assert(o3.applyRaw && "IrrepCD: a delta fit basis must realise the 3-centre forward contraction");
     return o3.applyRaw(itsDensityMatrix);
 }
@@ -607,9 +605,9 @@ template class PeriodicIrrepCD<dcmplx>;
 // DM_RhoAtPoints, i.e. an O(n^3) pstrf on EVERY call -- and XC_Quadrature::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
-template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::cFIT_SF_ABS& q) const
+template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const Fitting::ScalarProjector& p) const
 {
-    if (this->IsZero()) return rvec_t(q.GetNumFunctions(), 0.0);
+    if (this->IsZero()) return rvec_t(p.NumCoefficients(), 0.0);
 
     // Tr(D) -- the memo's integrity check AND, on a miss, the value to remember.  A STALE FACTOR IS A
     // SILENTLY WRONG rho, so the version key is not trusted alone: any mutation of D that failed to bump
@@ -643,14 +641,13 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const BasisSet::c
     // GEMM plus the O(n^3) factorisation is not obviously cheaper than the square one.  A fat rank is not an
     // error -- it is the answer for a metal at large smearing, where the thermal tail fills the spectrum --
     // so it takes the fallback, not a throw.
-    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::DM_RhoAtPoints(q);
+    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::DM_RhoAtPoints(p);
 
     // ONE integral, TWO representations of D (2026-08-23).  Which form this density holds -- and whether
     // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against
     // <delta_g|chi_i chi_j> is the BASIS's, exactly as the full quadratic form above is.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*this->itsBasisSet);
-    const auto& face=dynamic_cast<const BasisSet::Integrals_Overlap3C<T,dcmplx>&>(q);   // see the sibling above
-    const Projector3<T>& o3=face.Overlap3C(orb);
+    const Projector3<T>& o3=p.Overlap3C(orb);   // the fitter's held handle -- see the sibling above
     assert(o3.applyRawFactored && "FactoredRho: this fit basis cannot contract against a thin factor");
     return o3.applyRawFactored(itsL);
 }

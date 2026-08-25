@@ -123,6 +123,55 @@ public:
     virtual const ScalarFunction<double>* GetScalarFunction() const=0;   //!< the real-space field f(r)
 };
 
+//! \brief WHAT A DENSITY PROJECTS ITSELF ONTO -- the scalar (collocation-metric) mirror of
+//! \c ProjectedDensity_AO's Coulomb-side arrangement, and the seam that stops client code doing its own
+//! fit (user, 2026-08-24: *"client code needs to use that framework, not dodge around it"*).
+//!
+//! It offers the two things a density can be projected BY, and a density picks by what it has:
+//!  - it carries a MATRIX (or a thin factor) -> ask for its block's \c Overlap3C and contract its OWN
+//!    \f$D\f$/\f$L\f$ into it.  Nothing but the integral crosses, exactly as before;
+//!  - it carries NO matrix (a seed, a \f$\tilde\rho\f$-mixed field) -> \c Project itself as a FIELD.
+//!
+//! WHY THE FITTER HOLDS THE \f$\Phi\f$ HANDLES (user, 2026-08-24: *"DeltaScalarFitter needs to hold a
+//! shallow copy of \f$\Phi_{gi}=\chi_i(r_g)\f$"*).  \c Projector3 IS that shallow copy: three closures
+//! over the fit basis's own address-stable table, ~100 bytes against the table's tens of MB.  Holding it
+//! here is what makes the adjoint pairing a CLASS INVARIANT rather than a convention -- the \f$\rho\f$
+//! FORWARD (\c applyRaw / \c applyRawFactored) and the \f$H_{xc}\f$ ADJOINT (\c applyRawAdjoint) now come
+//! off ONE held object, where they used to be reached by two different callers (the density, and the
+//! fitter) each asking the basis independently.  Same argument \c XC_Quadrature makes for its own two
+//! faces, one level down.
+//!
+//! LIFETIME, and it is a real hazard now that copies are STORED: those closures capture the producing
+//! basis.  Safe by construction here because a fitter co-owns its fit basis through a \c shared_ptr, so
+//! the basis outlives every handle -- an invariant to keep, not an accident of ordering.
+//!
+//! \note Two overloads rather than a template: a virtual cannot be templated, and these are exactly the
+//! two combinations doc/RealComplexPlan.md 3c-3 admits (a real TRIM block or a Bloch block, both on the
+//! run's COMPLEX fit axis).  The face is periodic by construction -- the \f$\delta\f$/collocation route
+//! is -- which is why \c TFit is spelled \c dcmplx rather than parameterised.
+class ScalarProjector
+{
+public:
+    virtual ~ScalarProjector() = default;
+    //! \f$\langle\chi_i|f_a|\chi_j\rangle\f$ for a \a U-scalar orbital block -- the handle a
+    //! matrix-backed density contracts its own \f$D\f$ (or thin \f$L\f$) into.
+    virtual const Projector3<double>& Overlap3C(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;
+    virtual const Projector3<dcmplx>& Overlap3C(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;
+    //! \brief The MATRIX-FREE route: project \a f onto my fit basis and return the coefficients.
+    //!
+    //! A PROJECTION, not a fit: it RETURNS the coefficients rather than storing them, which is the whole
+    //! difference from \c FunctionFitter_Scalar::DoFit and the reason no \c Coefficients() getter is
+    //! needed anywhere.  (It must not store them: this same fitter holds \f$v_{xc}\f$'s fit, and the Fock
+    //! build and the energy path interleave -- one buffer for both would clobber, the way \c itsXCMix once
+    //! did.)  \f$\rho\f$'s coefficients then reach the pointwise-nonlinear functional as a return value,
+    //! which is what the physics requires and the interface never had a home for.
+    virtual rvec_t Project(const ScalarFunction<double>& f) const=0;
+    //! \brief How many coefficients a projection returns -- the length of EVERY vector this face produces.
+    //! A caller sizing an accumulator (a composite summing its blocks) or answering for an empty block asks
+    //! rather than assuming.  A count of FUNCTIONS, in the 2026-08-23 vocabulary: never of points.
+    virtual size_t NumCoefficients() const=0;
+};
+
 //! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) CORE.  Fit a pointwise field
 //! (e.g. v_xc(rho(r))) onto the fit basis in the overlap norm, then contract it against an orbital basis as an
 //! operator matrix Sum_a c_a <Oi|f_a|Oj>.  Orthonormality-neutral, so an orthonormal (plane-wave) scalar fitter

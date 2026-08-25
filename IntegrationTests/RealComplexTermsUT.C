@@ -129,6 +129,23 @@ namespace
 {
 inline rvec3_t rig_pt(double a,double b,double c) {return rvec3_t(a,b,c);}
 
+//! A delta fit basis PLUS the fitter over it, held as its projection face -- what a density projects
+//! itself onto since 2026-08-24 (a density no longer reaches the fit basis directly).  Built through the
+//! same Fitting::Factory production uses, so a probe cannot get a fitter production would not.
+struct DeltaProjector
+{
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS>    basis;
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> fitter;
+    explicit DeltaProjector(qchem::BasisSet::FitQuadrature q)
+        : basis(std::make_shared<const BasisSet::DeltaFit_IBS>(
+                    std::move(q), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0))))
+        , fitter(Fitting::Factory(basis)) {}
+    const Fitting::ScalarProjector& operator()() const
+        {return dynamic_cast<const Fitting::ScalarProjector&>(*fitter);}
+    const BasisSet::DeltaFit_IBS&   Basis() const
+        {return dynamic_cast<const BasisSet::DeltaFit_IBS&>(*basis);}
+};
+
 //! A deterministic thin factor: no RNG, so a failure is reproducible from the test name alone.
 template <class U> U FactorEntry(size_t i, size_t m)
 {
@@ -190,9 +207,8 @@ TEST(RealComplexTerms, FactoredRhoMatchesFullQuadraticFormBothScalars)
     pts[0]=rig.cell.ToCartesian(rvec3_t(0.3,0.4,0.7));
     pts[1]=rig.cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
     pts[2]=rig.cell.ToCartesian(rvec3_t(0.1,0.9,0.2));
-    BasisSet::DeltaFit_IBS dfit(
-        BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}},
-        Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    DeltaProjector dp(BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}});
+    const BasisSet::DeltaFit_IBS& dfit=dp.Basis();
 
     ExpectFactoredMatchesFull<double>(dfit, *rig.re, "ForwardFactoredT<double> (the real TRIM block)");
     ExpectFactoredMatchesFull<dcmplx>(dfit, *rig.cx, "ForwardFactoredT<dcmplx> (the Bloch block)");
@@ -216,9 +232,7 @@ TEST(RealComplexTerms, FactoredLeafMatchesDirectLeafBothScalars)
     pts[2]=rig_pt(0.1,0.9,0.2); pts[3]=rig_pt(0.62,0.15,0.44);
     Rig rig;
     for (size_t g=0; g<pts.size(); g++) pts[g]=rig.cell.ToCartesian(pts[g]);
-    BasisSet::DeltaFit_IBS dfit(
-        BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}},
-        Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    DeltaProjector dp(BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}});
 
     auto arm=[&](auto tag, const auto& orb, const char* what)
     {
@@ -241,7 +255,7 @@ TEST(RealComplexTerms, FactoredLeafMatchesDirectLeafBothScalars)
         }
         FactoredRho<PeriodicIrrepCD<U>> fac(D, &orb, orb.GetIrrep(Spin::None));
         PeriodicIrrepCD<U>              dir(D, &orb, orb.GetIrrep(Spin::None));
-        const rvec_t rf=fac.DM_RhoAtPoints(dfit), rd=dir.DM_RhoAtPoints(dfit);
+        const rvec_t rf=fac.DM_RhoAtPoints(dp()), rd=dir.DM_RhoAtPoints(dp());
         ASSERT_EQ(rf.size(), rd.size()) << what;
         double scale=0.0;
         for (size_t g=0; g<rd.size(); g++) scale=std::max(scale, std::fabs(rd[g]));
@@ -517,11 +531,9 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     pts[0]=rig.cell.ToCartesian(rvec3_t(0.3,0.4,0.7));
     pts[1]=rig.cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
     pts[2]=rig.cell.ToCartesian(rvec3_t(0.1,0.9,0.2));
-    auto qpts=std::make_shared<const BasisSet::DeltaFit_IBS>(
-                  BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}},
-                  Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
-    const rvec_t rm=mixed.DM_RhoAtPoints(*qpts);
-    const rvec_t rc=cplx .DM_RhoAtPoints(*qpts);
+    DeltaProjector qpts(BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}});
+    const rvec_t rm=mixed.DM_RhoAtPoints(qpts());
+    const rvec_t rc=cplx .DM_RhoAtPoints(qpts());
     for (size_t g=0; g<pts.size(); g++) EXPECT_EQ(rm[g], rc[g]) << "rho mismatch at point "<<g;
 
     // And the composite Fourier trio (the generic visit) now reaches the REAL child's face too.
