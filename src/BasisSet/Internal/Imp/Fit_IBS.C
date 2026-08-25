@@ -1,10 +1,10 @@
-// File: BasisSet/Imp/Fit_IBS.C  Implement the numerical (mesh-quadrature) parts of a fit basis set.
+// File: BasisSet/Internal/Imp/Fit_IBS.C  Implement the numerical (mesh-quadrature) parts of a fit basis set.
 //
 // A fit basis OWNS its quadrature mesh (built from its Structure AT CONSTRUCTION).  The numerical integrals run over that mesh via the qcMesh free-function quadrature;
 // Fit_IBS is-a pointwise VectorFunction, so it is passed straight to the quadrature (no adapter).
 module;
 #include <cassert>
-module qchem.BasisSet.Orbital_DFT_IBS;
+module qchem.BasisSet.Internal.Fit_IBS;
 import qchem.Mesh.Quadrature;          // qcMesh::Mesh, Normalize, Overlap (over qcMath Vector/ScalarFunction)
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;

@@ -5,7 +5,7 @@ target_sources(qcBasisSet PRIVATE
   Imp/Orbital_1E_IBS.C
   Imp/Orbital_DFT_IBS.C
   Imp/Orbital_DHF_IBS.C
-  Imp/Fit_IBS.C
+  Internal/Imp/Fit_IBS.C
   Imp/DeltaFit_IBS.C
   Imp/SymmetryAdapted_IBS.C
   Internal/Imp/Orbital_DHF_IBS.C
@@ -33,6 +33,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_DHF_IBS.C
   Fit_Types.C
   Fit_IBS.C
+  Internal/Fit_IBS.C
   DeltaFit_IBS.C
   SymmetryAdapted_IBS.C
   Internal/BasisSetImp.C

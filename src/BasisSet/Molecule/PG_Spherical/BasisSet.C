@@ -18,6 +18,7 @@ import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
 import qchem.Structure;
 import qchem.Types;
 

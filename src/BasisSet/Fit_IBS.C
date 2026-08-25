@@ -1,4 +1,7 @@
-// File: BasisSet/Fit_IBS.C  Interfaces for a fitting (auxiliary) Basis Set.
+// File: BasisSet/Fit_IBS.C  Interfaces for a fitting (auxiliary) Basis Set -- INTERFACES ONLY.
+//
+// The concrete Gaussian-family implementation base moved to Internal/Fit_IBS.C 2026-08-25: nothing above
+// the basis-set libraries ever named it (measured -- see that file), so it is not part of this contract.
 module;
 #include <memory>
 #include <string>
@@ -128,63 +131,5 @@ public:
     virtual const rsmat_t& InvOverlap()         const=0; //!< inverse of the overlap metric, cached
 };
 
-//! \brief One class that implelements all four abstract interfaces.
-//! Design question: Does the client code really need to see this class, or should it just be working with abstract interfaces? 
-class Fit_IBS
-    : public virtual FIT_CD_NonOrtho
-    , public virtual FIT_SF_NonOrtho
-    , protected virtual Evaluatable_IBS<double> //Support op(r)
-{
-public:
-    using Integrals_Overlap<double>::Overlap;       // un-hide the metric Overlap() past the Overlap(Sf) override
-    using Integrals_Overlap<double>::MakeOverlap;
-    //! A Gaussian/Slater/BSpline auxiliary basis is inherently NON-orthonormal (it carries both metric-solve
-    //! refinements) -- the single override that satisfies the \c isOrtho contract for BOTH fit faces.
-    bool isOrtho() const override {return false;}
-    const rsmat_t& Repulsion() const override;
-    const  rmat_t& Repulsion(const rFIT_CD_ABS& b) const override;
-    const rsmat_t& InvOverlap() const override;
-    const rsmat_t& InvRepulsion() const override;
-
-protected:
-    //! \brief Build and OWN the fit quadrature mesh (from the structure) AT CONSTRUCTION.
-    //!
-    //! Every numerical integral this class provides -- \c Norm(), \c Overlap(f) -- runs over that mesh, so
-    //! there is no valid state between "constructed" and "has a mesh": a mesh-less fit basis can answer
-    //! nothing it exists to answer.  It was a post-ctor \c SetMesh (two-phase construction) whose only guard
-    //! was an assert inside each numerical accessor -- i.e. the invariant was re-checked at every use
-    //! instead of established once.  The creators (\c CreateCDFitBasisSet / \c CreateVxcFitBasisSet) already
-    //! hold the Structure and the MeshParams, so they simply pass them down (R2.10).
-    Fit_IBS(const Structure&, const qcMesh::MeshParams&);
-
-public:
-    // Numerical (mesh-quadrature) versions -- run over the fit basis's OWN mesh (itsMesh).
-    const rvec_t& Norm   ()           const override; //!< 1/sqrt(<f_a|f_a>), cached
-    //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal  (\f$1/\mathrm{Norm}_a^2\f$ -- the same numbers,
-    //! un-inverted; a Gaussian fit takes the full \f$S^{-1}\f$ solve and never reads just this)
-    rvec_t OverlapDiagonal() const override;
-    //! \copydoc BasisSet::FIT_SF_ABS::Overlap  (a mesh quadrature over \c itsMesh, in the NORMALISED
-    //! convention -- \f$\langle\hat f_a|f\rangle\f$ with \f$\hat f_a=f_a\,\mathrm{Norm}_a\f$, which is what
-    //! \c InvOverlap()'s metric and \c Charge() are also in)
-    rvec_t        Overlap(const Sf& f) const override; //!< projection <f_a|f> (Vxc fit RHS; NOT cached)
-    //! \copydoc BasisSet::FIT_SF_ABS::Charge
-    //! ONE override satisfying BOTH fit faces -- \f$\langle f_a|1\rangle\f$ is one quantity, so it is
-    //! declared once per face with the same signature and answered once here.
-    rvec_t        Charge() const override;
-
-protected:
-    virtual  rvec_t MakeCharge      () const=0;
-    virtual rsmat_t MakeRepulsion   () const=0;
-    virtual  rmat_t MakeRepulsion   (const rFIT_CD_ABS&) const=0;
-    virtual rsmat_t MakeInvOverlap  () const;
-    virtual rsmat_t MakeInvRepulsion() const;
-
-    virtual  rvec_t MakeNorm   () const; //Numerical, over itsMesh.
-
-private:
-    qcMesh::Mesh itsMesh;   //!< the fit basis's own quadrature mesh.
-    std::string  itsMeshID; //!< identity of itsMesh (= MeshParams::ID()); the cache key axis for Norm()
-                            //!< so the SAME fit basis built with a DIFFERENT mesh gets a distinct Norm.
-};
 
 }//namespace

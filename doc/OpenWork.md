@@ -76,7 +76,7 @@ per iteration), plus a **Mulliken site moment** for the exact CP2K-comparable nu
 probe is renamed so it cannot be read as a moment and carries its units.  The actual effort is PLUMBING:
 `GpwOptions::orderProbe` receives only a `cDM_CD&` and does two point evaluations, so a partitioned
 integral needs the mesh and its per-atom weights to reach that seam.
-**★★ MEASURED 2026-08-19 — THE MOMENT GAP WAS THE INSTRUMENT.**  With `XC_GridEngine` now reporting the
+**★★ MEASURED 2026-08-19 — THE MOMENT GAP WAS THE INSTRUMENT.**  With `XC_SinglesQuadrature` now reporting the
 Becke-partitioned \f$\int w_A(\rho_\uparrow-\rho_\downarrow)\f$ (`QCHEM_SITE_MOMENTS=1`), the MnO magnetic
 cell reads, in ELECTRONS, per iteration:
 
@@ -462,7 +462,7 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   2026-07-23** on measured evidence: the collapse basin removed, NaF 1.3 → **0.2 mHa** vs CP2K, and *"the raw
   feed removed the ball-Gibbs noise from the XC residual"* so the coarse stage converged in **45 iterations
   instead of 515**.
-  **What happens now instead.**  `XC_GridEngine::RhoPol` takes the DM route only when the density it is
+  **What happens now instead.**  `XC_SinglesQuadrature::RhoPol` takes the DM route only when the density it is
   handed carries a D (`cPolarized_CD` → `DM_RhoAtPoints`).  On the ρ̃-mixing recipes (Kerker/Pulay — the MnO
   production recipe) the mixed density is a `PolarizedMixCD over FourierMixCD` with **no D**, so XC falls to
   the matrix-free branch: a batched inverse FT over the whole {G} at every mesh point, every iteration.
@@ -960,7 +960,7 @@ confirmation that **the rank helps the density side and never the operator side*
 flag sourcing ρ from a Φ GEMM inside `PWFittedVxc` while leaving H_xc on the screened pair gather.  Si went
 14 → 60 iterations and the energy moved 35 μHa.  **Vxc and Exc must reach D by ONE discrete path** (the
 `GPW.RawXCConsistencyFD` gate is what enforces it); ρ from an unscreened GEMM paired with a screened adjoint
-is two functionals.  `XC_GridEngine` owns ρ AND its quadrature over one Φ table, making the mismatch
+is two functionals.  `XC_SinglesQuadrature` owns ρ AND its quadrature over one Φ table, making the mismatch
 unrepresentable; `PWFittedVxc` splits those owners, which is what permitted the bug.  Reverted.
 
 ### ★★★ DESIGN ITEM — SEPARATION OF CONCERNS IN THE XC TERMS (user, 2026-08-22)
@@ -994,7 +994,7 @@ latch exists for).
 **3. ★ THE ONE MATHEMATICAL COUPLING: the ρ-route and the H-route MUST BE ADJOINT.**  \f$H=\partial
 E/\partial D\f$ holds only if the integrate-back is the EXACT adjoint of the collocation *on the same
 truncated operator* — what `GPW.RawXCConsistencyFD` gates.  So these are **not two axes; they are one object
-with two faces.**  `XC_GridEngine` already is that (`Rho()` and `Matrix()` over one Φ).  `PWFittedVxc` splits
+with two faces.**  `XC_SinglesQuadrature` already is that (`Rho()` and `Matrix()` over one Φ).  `PWFittedVxc` splits
 them across two owners, which is exactly why a mismatch was expressible there — MEASURED 2026-08-22:
 unscreened singles ρ + screened pair H sent Si from 14 to 60 iterations and moved E by 35 μHa.
 
@@ -1015,7 +1015,7 @@ from grid quadrature while H comes from the fit — TWO DEFINITIONS OF ONE ENERG
 **⇒ THE ABSORPTION.**  `PWFittedVxc`'s production behaviour IS `DeltaFittedVxc` over a raster-backed mesh
 with the pair strategy.  Its points are already expressible (wrap `G_Quadrature::GridPoints()` with weight
 Ω/N).  So:
-- `XC_GridEngine` gains the strategy — same two faces, internally Φ-backed (singles) or 3C-tensor-backed
+- `XC_SinglesQuadrature` gains the strategy — same two faces, internally Φ-backed (singles) or 3C-tensor-backed
   (pair).  ⚠ One structural wrinkle: the pair strategy needs `Overlap3C(*fitBasis)`'s
   `applyRaw`/`applyRawAdjoint`, so a pair-strategy engine takes the FIT BASIS where a singles engine takes
   only the mesh.  Different ctors, same faces.
@@ -1058,7 +1058,7 @@ into the fit basis and `BuildTerms` stops switching, because **under the weight-
 not defined without points** (\f$W_c[g]=w_g c^*(r_g)\f$), so the mesh is CONSTITUTIVE of the basis, not a
 sibling of it.  `PlaneWaveFit_IBS` already works this way (it IS a `G_Quadrature`).
 - ⚠ NOT an "XCEngine" (user): *"Engine just means something that does some work, so it adds no info"* --
-  and `XC_GridEngine` is already an instance of that non-name.  The factory keeps its name and its job.
+  and `XC_SinglesQuadrature` is already an instance of that non-name.  The factory keeps its name and its job.
 - **The δ case stops being a null-object smell.**  The 2026-08-01 objection was to a ZERO-FUNCTION
   pseudo-basis; a **delta basis** is a different object -- n_pts genuine δ functions, exact on that point
   set, metric DIAGONAL (\f$\langle\delta_g|\delta_{g'}\rangle=w_g\delta_{gg'}\f$), fit = identity.  Under
@@ -1102,7 +1102,7 @@ landed, in the order it was built and tested:
 | **2** | `GriddedScalarFitter::Grid()` → `Mesh()` + `Raster()`; `OrthoScalarFitter` cross-casts each half separately. |
 | **3** | **`BasisSet::FIT_SF_Delta<T>`** (face) + **`DeltaFit_IBS`** (concrete, Bloch Γ) — the δ basis carries the `XCQuadrature` bundle (mesh + fold + σ tags), `Mesh()` from it, `isOrtho`, and `op(r)`/`Gradient` **throw** (user ruling: the value is a distribution and nothing wants it; `MakeOverlap` never appears because it lives on `FIT_SF_NonOrtho`, not on the face δ implements). |
 | **4** | `VxcFit` moved DOWN into `qcMesh::MeshParams` (alias kept in `qchem::Hamiltonian`) so `CreateVxcFitBasisSet` can read it: ONE factory call returns δ-over-mesh or PW-over-raster.  `BuildTerms` resolves only `Auto` — the one decision that needs to know the run is polarized — and stamps it. |
-| **absorption** | **`XC_Quadrature`** = the abstract two-faced object (ρ, and its exact adjoint H).  Two strategies: **`XC_SinglesQuadrature`** (ex `XC_GridEngine`, Φ table) and **`XC_PairQuadrature`** (ex `PWFittedVxc`'s guts — raw collocation + `applyRawAdjoint`, the BALL fallback, the R2.16 route latch).  `MakeXCQuadrature(fitBasis)` picks by CAPABILITY.  `PWFittedVxc` is GONE; `DeltaFittedVxc*` → **`Vxc_Quadrature` / `Vxc_QuadraturePol` / `Vcorr_QuadraturePol`**, one term set for every combination. |
+| **absorption** | **`XC_Quadrature`** = the abstract two-faced object (ρ, and its exact adjoint H).  Two strategies: **`XC_SinglesQuadrature`** (ex `XC_SinglesQuadrature`, Φ table) and **`XC_PairQuadrature`** (ex `PWFittedVxc`'s guts — raw collocation + `applyRawAdjoint`, the BALL fallback, the R2.16 route latch).  `MakeXCQuadrature(fitBasis)` picks by CAPABILITY.  `PWFittedVxc` is GONE; `DeltaFittedVxc*` → **`Vxc_Quadrature` / `Vxc_QuadraturePol` / `Vcorr_QuadraturePol`**, one term set for every combination. |
 
 **MEASURED, not asserted.**  `GPW_SCF.DeltaFitUniformGridMatchesPWFit_SiGamma` drives BOTH strategies
 end-to-end; stashed/rebuilt/reran to compare against the pre-change binary:
@@ -1621,7 +1621,7 @@ every iteration, so the factor L (or \f$U\sqrt\lambda\f$) changes with it and th
 geometry-fixed.  What is cacheable is the **npts × n basis table Φ**, built once; each iteration CONTRACTS
 it, \f$\Psi=\Phi L\f$ (npts × r), and row-norms.  So storage is O(grid·n) ≈ 60 MB for a 40³ grid — not the
 O(grid·r) ≈ 8.7 MB first written here.  **This makes the proposal exactly "run the collocation grid the way
-the XC mesh already runs":** Φ-cache + per-iteration GEMM is the existing `XC_GridEngine` pattern, so the
+the XC mesh already runs":** Φ-cache + per-iteration GEMM is the existing `XC_SinglesQuadrature` pattern, so the
 machinery is not new.  A delocalised orbital covering the whole cell costs one grid sweep, and 17 grid
 sweeps is nothing beside 8778 boxes.  **Locality is a BONUS (compact boxes), not a precondition** — I had
 elevated it to a gate, which was wrong.
@@ -1990,7 +1990,7 @@ now by a performance idea.
 ### Further questions (mine)
 
 1. **Does the INTEGRATE-BACK factor too?**  Partly answered: \f$h_{ij}=\langle\chi_i|V|\chi_j\rangle
-   =(\Phi^\dagger W\Phi)_{ij}\f$ is already a Φ-shaped GEMM in `XC_GridEngine` — so the XC side is ALREADY
+   =(\Phi^\dagger W\Phi)_{ij}\f$ is already a Φ-shaped GEMM in `XC_SinglesQuadrature` — so the XC side is ALREADY
    pair-free.  It is the HARTREE/density-collocation path on the uniform grid that still pays pairs, so Q3
    is really about that path alone.
 2. **The rank does NOT help \f$h\f$.**  \f$\Phi^\dagger W\Phi\f$ is O(npts·n²) with no D in it, so the

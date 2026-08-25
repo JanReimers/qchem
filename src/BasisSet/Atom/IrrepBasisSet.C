@@ -13,6 +13,7 @@ import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.ImplicitAngular_IBS;   // the radial/implicit-Y_lm capability atoms realize
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.Internal.Fit_IBS;   // the shared Gaussian-family implementation base we DERIVE
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Atom.Evaluators;
