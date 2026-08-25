@@ -3737,7 +3737,7 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     GpwOptions o;
     o.label=label;
     o.Nelec=26; o.multiplicity=multiplicity;          // 2 x (Mn q7 + O q6); AFM: the explicit two-channel singlet
-    o.species={{"Mn",7},{"O",6}};                     // densityEcut stays AUTO (= 2*alpha_max = 60, the trimmed d)
+    o.species={{"Mn",7},{"O",6}};                     // densityEcut stays AUTO (= cutoffFactor*alpha_max)
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;   // Mn2+ d^5 pair + diffuse O2- (the basin chooser)
     // MNO_IMPOSE (Shubnikov S4, doc/SymmetryUpgradePlan.md §7 step 7): 0 = FREE (default -- the banked
     // runs 30-34 ensemble, the §8 reference); 1 = impose the SHUBNIKOV group of the declared AFM ordering
@@ -3783,6 +3783,18 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // modes; RAISING it sharpens it (G0=3: 0.146 vs 0.045, ratio 3.3).  That is a linear-response argument
     // about which mode is actually pathological, so it is a PREDICTION to be swept, not a setting to trust.
     o.scf.StartingRelaxRo=envd("MNO_ALPHA",0.45); o.scf.KerkerG0=envd("MNO_KERKER_G0",1.0);
+    // MNO_CUTOFF_FACTOR / MNO_ECUT -- THE DENSITY G-BALL, sweepable at last (2026-08-25).  rho = Sum D_ij
+    // chi_i chi_j is a product of Gaussians, so its G content runs to 2*alpha_max and C=2 is the NAIVE
+    // Nyquist floor -- which is what this cell has always run at (densityEcut 72 Ha against alpha_max 36).
+    // But a BALL that only just reaches the product's own exponent still ALIASES the cusp tail: GPW_IBS.C's
+    // grid note records F needing ~8*alpha_max to take negCharge from -9 e to -0.03 e.  Measured here at
+    // C=2: 15.2% of the 97160 Becke points carry rho<0 (min -0.154), and SlaterExchange::GetVxc guards
+    // rho>0, so a sixth of the atom-centred quadrature contributes NOTHING to E_xc.  If that is an
+    // under-resolved ball rather than an intrinsic property of band-limiting, widening C cures it on the
+    // DEFAULT path -- one density for Hartree AND XC, no representation split to reconcile.
+    // MNO_ECUT pins the cutoff absolutely; MNO_CUTOFF_FACTOR scales it with alpha_max (AUTO, preferred).
+    o.cutoffFactor = envd("MNO_CUTOFF_FACTOR", 2.0);
+    o.densityEcut  = envd("MNO_ECUT", -1.0);          // <0 = AUTO (cutoffFactor*alpha_max)
     // DENSITY-HISTORY MIXING (MNO_PULAY / MNO_PULAY_START, 2026-08-10).  Never exercised on MnO before: every
     // run to date used PulayDepth=0, i.e. a damped Kerker step with NO density history, while the CP2K oracle
     // runs BROYDEN_MIXING with NBUFFER 8 -- a quasi-Newton density history -- and reaches the magnetic state
@@ -4350,7 +4362,7 @@ TEST(GPW_SCF, ImposedShubnikovHoldsAFMThroughSCF_Mn2Box)
 //     is not the convergence measure (lastdrho 3.2e-2 vs 1e-5) -- and it is still NON-AUFBAU (a 0.21 Ha
 //     hole), so the residual 0.55 Ha may BE that hole.  NB `cfg *` is only a hopping diagnostic while the
 //     energy ORDER is stable: it keys off orbital index, which re-shuffles freely under MOM.
-// Knobs: MNO_ALPHA MNO_KERKER_G0 MNO_KT MNO_MOM MNO_MOM_START MNO_MOM_SEED MNO_MOM_PENALTY MNO_MOM_HOLD
+// Knobs: MNO_ALPHA MNO_KERKER_G0 MNO_CUTOFF_FACTOR MNO_ECUT MNO_KT MNO_MOM MNO_MOM_START MNO_MOM_SEED MNO_MOM_PENALTY MNO_MOM_HOLD
 //        MNO_ANNEAL="kT,kT,..."  GPW_MNO_VERBOSE GPW_MNO_NMAX  QCHEM_MOM_SCORES
 //
 // DISABLED until the OCCUPIED-d nonlocal-PP defect is fixed (2026-08-06 find, the campaign's blocker):
