@@ -996,6 +996,38 @@ MnO campaign proceeds undisturbed in qchem6.
   if the basis dies first.  Safe by construction — a fitter co-owns its fit basis by `shared_ptr` — but
   that is an invariant to keep, not an accident of ordering.
 
+  **✅ AND INCREMENT 12 FINISHED THE FACE (user, 2026-08-25).**  ⚠ **NAMING NOTE FOR READERS OF OLDER
+  RECORDS: `tDM_CD::DM_RhoAtPoints` is now `tDM_CD::ProjectOnto`.**  Every mention of the old name
+  elsewhere in this file and in `doc/OpenWork.md` is a historical record and was true when written.
+  - **The rename.**  It returns COEFFICIENTS over the fit basis, not values at points, so "AtPoints" was
+    the last of the point vocabulary the 2026-08-23 pass took off everything else — and it made the method
+    read like a competing entry point to `operator()(rvec3vec_t)` when it is the identity-carrying version
+    of it.  `ProjectOnto(p)` is true of every implementation and pairs with `ScalarProjector::Project`.
+    ⛔ `EvalFromOrbitalValues` was considered and rejected on two counts: `Values` is the exact word
+    increment 3 removed from the interfaces, and it names the mechanism of ONE branch — the base default
+    used no orbital values at all.
+  - **The dead default went, and it was measured dead first**: 0 calls across all 760 tests, with a control
+    probe on the `IrrepCD` override firing to prove the instrument worked.  Structural, not accidental —
+    this face is `tDM_CD`, so arriving here means HAVING a matrix, and a matrix-free density is not a
+    `tDM_CD` and never enters (its caller asks `ScalarProjector::Project` directly).  The field route was a
+    default on the WRONG FACE.
+  - ⇒ **And making it pure immediately earned its keep**: `tPolarized_CDImp` was leaning on that default
+    and became abstract, i.e. a whole density family had no stated answer to "project yourself".  It has
+    one now (\f$\rho_\uparrow+\rho_\downarrow\f$, the projection being linear).  Nothing called it, so
+    it was not a bug — but it was a class that would have silently taken the pointwise field route the
+    first time anything did.
+
+  ⇒ **AND THE QUESTION THAT SETTLED THE WHOLE SHAPE (user, 2026-08-25), worth keeping because it is
+  general:** why can an `operator()(rvec3vec_t)` override not just BE the fast path?  Because that face
+  receives COORDINATES, and \f$\chi_i(r_g)\f$ is not reachable from them — so an override could only
+  RECOMPUTE the table, which costs what the pointwise sweep costs.  **Measured** at 4000 points × n=16:
+  `op(points)` 77 ms, tensor cold (table build + GEMM) 81 ms, tensor **warm 0.4 ms**.  The ~200–500× is the
+  CACHE, not the contraction — materialising Φ is not cheaper than evaluating it, only cheaper the second
+  time.  And the override could not cache either: a density is a FRESH OBJECT every SCF iteration
+  (`TOrbitalsImp::GetChargeDensity` news one) and is asked for ρ once per iteration, so a density-side
+  table has a zero hit rate.  A bare point list is universal precisely BECAUSE it carries no identity, and
+  uncacheable for the same reason; passing the projector is how the point set gets one.
+
 - **R1.0e The `qcHamiltonian` PWTerms TU needs a structural break-up — USER, 2026-08-23** (*"the enormous
   PWTerms TU is going to need a massive refactoring cleanup eventually"*).  584 lines of interface + 944 of
   implementation, holding at least five unrelated things: the three external-PP terms, the Hartree term,
