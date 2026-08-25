@@ -224,7 +224,7 @@ public:
     //  rho at MANY points is INHERITED, not re-declared: ScalarFunction<double>::operator()(rvec3vec_t)
     //  already IS that function (same signature after alias expansion), with the same pointwise-loop
     //  default.  A density that can vectorize the batch overrides THAT (FourierMixCD's factorized phase
-    //  tables); the DM densities have the richer, table-driven DM_RhoAtPoints instead.  The mesh-XC
+    //  tables); the DM densities have the richer, table-driven ProjectOnto instead.  The mesh-XC
     //  quadrature engine's entry for non-DM densities.  (There WAS a duplicate `EvalBatch` spelling here,
     //  and it had forked: FourierMixCD overrode only EvalBatch, so any caller reaching a density through
     //  the neutral ScalarFunction batch face would have silently taken the per-G std::exp loop instead.
@@ -265,7 +265,7 @@ public:
 //! its subject, and nothing else.
 //!
 //! ISP (user, 2026-08-08).  \c LinearMixer uses exactly \c GetChangeFrom, \c MixIn and \c GetTotalCharge,
-//! yet it used to take a \c tDM_CD -- dragging in \c DM_Contract, \c DM_ContractBlocks, \c DM_RhoAtPoints
+//! yet it used to take a \c tDM_CD -- dragging in \c DM_Contract, \c DM_ContractBlocks, \c ProjectOnto
 //! and the four HF J/K accumulators, none of which mixing has any business knowing about.  This is the
 //! sibling of the \c GField / \c tFieldMixer split on the G-space side: each mixer family now names the
 //! narrowest subject that supports its arithmetic.
@@ -302,35 +302,42 @@ public:
     //! implements it, including the periodic path (PW_Hartree contracts its long-range blocks here).
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const=0;
 
-    //! \brief \f$\rho\f$ ON A QUADRATURE \a q -- the FIELD dual of \c DM_ContractBlocks:
-    //! \f$\rho(r_g)=\sum_b\mathrm{Re}\,[\Phi_b D_b\Phi_b^\dagger]_{gg}\f$ at \a q's points.
+    //! \brief PROJECT ME ONTO \a p's fit basis -- the FIELD dual of \c DM_ContractBlocks:
+    //! \f$c_a=\langle f_a|\rho\rangle/\langle f_a|f_a\rangle\f$, realized here as
+    //! \f$\sum_b\mathrm{Re}\,[\Phi_b D_b\Phi_b^\dagger]_{gg}\f$.
     //!
-    //! THE DENSITY ASKS THE BASIS (2026-08-22).  \f$D\f$ is this class's private business and \f$\Phi\f$
-    //! is the basis's, so exactly one of them has to travel -- and it is \f$\Phi\f$, because a table of
-    //! basis-function values is an integral over the BASIS's own functions.  So the argument is the
-    //! quadrature itself: each block asks \a q for its own typed 3-centre overlap
-    //! (\c Integrals_Overlap3C) and contracts its private \f$D\f$ into it.  This is the seam that makes a real-space XC
-    //! quadrature O(GEMM) per SCF iteration instead of re-evaluating Bloch sums pointwise -- and it is
-    //! MIXED-aware for free, a real TRIM block asking with \c double while its complex siblings ask with
-    //! \c dcmplx (doc/RealComplexPlan.md 3c-3), which retired the second table-map argument this used to
-    //! carry beside a raw point list.
+    //! THE DENSITY ASKS THE FITTER (2026-08-24).  \f$D\f$ is this class's private business and the
+    //! \f$\Phi\f$ TABLE is the fit basis's, so neither travels: the fitter hands over the CONTRACTIBLE
+    //! integral (\c Projector3, a shallow handle on its cached table) and each block contracts its own
+    //! \f$D\f$ or thin \f$L\f$ into it.  MIXED-aware for free -- a real TRIM block asks with \c double
+    //! while its complex siblings ask with \c dcmplx (doc/RealComplexPlan.md 3c-3).
     //!
-    //! \return MY EXPANSION COEFFICIENTS over \a q -- one per fit FUNCTION, not one per point.  For a
+    //! \note WHY NOT \c operator()(rvec3vec_t) (user, 2026-08-25).  That face receives COORDINATES, and
+    //! the table \f$\chi_i(r_g)\f$ is not reachable from them -- so an override there could only
+    //! RECOMPUTE it, which costs what the pointwise sweep costs (measured: 80 ms vs 77 ms at 4000×16; the
+    //! ~500× is the CACHE, not the contraction).  Nor could it cache: a density is a fresh object every
+    //! SCF iteration (\c TOrbitalsImp::GetChargeDensity news one), and it is asked for \f$\rho\f$ once per
+    //! iteration, so a density-side table would have a zero hit rate.  \a p is exactly that face PLUS the
+    //! identity needed to reach the run-lifetime cache.  Renamed from \c DM_RhoAtPoints for the same
+    //! reason: it does not return values at points, and "points" was the last of the vocabulary the
+    //! 2026-08-23 pass took off everything else.
+    //!
+    //! \return MY EXPANSION COEFFICIENTS over \a p's fit basis -- one per fit FUNCTION, not one per point.  For a
     //! \f$\delta\f$ basis the two coincide numerically (\f$c_g=\rho(r_g)\f$), which is exactly why the
     //! pointwise-nonlinear XC functional may be applied to them directly; the name of the array is the
     //! coefficient vector, and the equality is a property of the representation.
     //!
-    //! Default: hand \a p this density's own \c ScalarFunction face and let the FITTER project it --
-    //! correct for EVERY density (a matrix-free seed included), just without the GEMM; composite/leaf
-    //! override to contract their matrix instead.
+    //! PURE, with no default (2026-08-25).  There WAS one -- hand \a p this density's own
+    //! \c ScalarFunction face and let the fitter sample it -- and it was DEAD: measured 0 calls across
+    //! all 760 tests, with a control probe on the \c IrrepCD override firing to prove the instrument
+    //! worked.  It could not be otherwise: this face is \c tDM_CD, so reaching it means HAVING a matrix,
+    //! and a density that has one always has a better answer than being sampled pointwise.  A density with
+    //! NO matrix never arrives here at all -- it is not a \c tDM_CD, and its caller asks
+    //! \c ScalarProjector::Project directly.  So the field route was a default on the wrong face.
     //!
-    //! The argument is the FITTER since 2026-08-24 (user), not the fit basis: performing a projection is
-    //! qcFitting's job, and a density reaching past it to run the algorithm itself was the last client
-    //! dodging the framework.  \c Fitting::ScalarProjector offers exactly the two things a density can be
-    //! projected by -- its block's 3-centre overlap, or the field route -- and the fitter holds the
-    //! \f$\Phi\f$ handles for both directions.
-    virtual rvec_t DM_RhoAtPoints(const Fitting::ScalarProjector& p) const
-        {return p.Project(*this);}
+    //! Same shape as V1.16 on the Coulomb side: each capability is a face you either HAVE or do not, and
+    //! there is no fallback left to hit by accident.
+    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector& p) const=0;
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
     // below (V1.6).  They were four asserting defaults on this general face, which every concrete family
@@ -414,6 +421,14 @@ public:
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;   // sum both spins
+    //! \copydoc tDM_CD::ProjectOnto
+    //! BOTH CHANNELS SUMMED -- \f$\rho=\rho_\uparrow+\rho_\downarrow\f$, the same shape as
+    //! \c DM_ContractBlocks above and as \c Polarized_Fourier::GetRhoOnGrid on the raster side.
+    //! Stated rather than inherited since 2026-08-25: the base default was measured dead and removed, and
+    //! a polarized density genuinely does have an answer here (a spin-agnostic consumer asking a polarized
+    //! density for \f$\rho\f$ wants the total).  Note the SPIN-RESOLVED consumer does not come here at
+    //! all -- \c XC_SinglesQuadrature::RhoPol asks each CHANNEL, because it needs them apart.
+    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector&) const;
 
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>

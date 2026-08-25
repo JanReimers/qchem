@@ -273,7 +273,7 @@ template <class U> hmat_t<U> DeltaFit_IBS::AdjointT(const mat_t<U>& P, const rve
 }
 
 // THE FORWARD: <delta_g|rho[D]>/w_g = [Phi D Phi^dag]_gg -- rho's expansion coefficients over my
-// functions.  Moved here VERBATIM from IrrepCD_Core::DM_RhoAtPoints (2026-08-23): it is a contraction of
+// functions.  Moved here VERBATIM from IrrepCD_Core::ProjectOnto (2026-08-23): it is a contraction of
 // MY integral, so it belongs beside its adjoint, and having the two GEMMs in one file is also where the
 // shared BLAS-dispatch reasoning above belongs.  Threaded by OUTPUT BLOCK -- row g depends on row g alone,
 // so the result is bit-identical at any thread count.  Opt-in via GPW_OMP_THREADS (qchem.Parallel).

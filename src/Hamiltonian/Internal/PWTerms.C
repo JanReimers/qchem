@@ -271,7 +271,7 @@ public:
 //! \brief The shared quadrature of an XC pair: the mesh, the per-Bloch-block cached basis
 //! tables \f$\Phi_{gi}=\chi_i(r_g)\f$ (GEOMETRY-FIXED -- built once per run per block, keyed by
 //! BasisSetID), and \f$\rho\f$ at the mesh points for the current
-//! density serial (built ONCE per SCF iteration for the whole pair, via cDM_CD::DM_RhoAtPoints -- the
+//! density serial (built ONCE per SCF iteration for the whole pair, via cDM_CD::ProjectOnto -- the
 //! density GEMMs the tables against its private \f$D\f$).  This is what makes the route O(GEMM) per
 //! iteration: without it the pair re-evaluated the Bloch image sums pointwise FOUR times per iteration
 //! (2 terms x (rho sample + matrix quadrature)) -- measured 4.8 s/iteration on NaF, ~all of the Becke

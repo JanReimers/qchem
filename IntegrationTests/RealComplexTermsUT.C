@@ -255,7 +255,7 @@ TEST(RealComplexTerms, FactoredLeafMatchesDirectLeafBothScalars)
         }
         FactoredRho<PeriodicIrrepCD<U>> fac(D, &orb, orb.GetIrrep(Spin::None));
         PeriodicIrrepCD<U>              dir(D, &orb, orb.GetIrrep(Spin::None));
-        const rvec_t rf=fac.DM_RhoAtPoints(dp()), rd=dir.DM_RhoAtPoints(dp());
+        const rvec_t rf=fac.ProjectOnto(dp()), rd=dir.ProjectOnto(dp());
         ASSERT_EQ(rf.size(), rd.size()) << what;
         double scale=0.0;
         for (size_t g=0; g<rd.size(); g++) scale=std::max(scale, std::fabs(rd[g]));
@@ -532,8 +532,8 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
     pts[1]=rig.cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
     pts[2]=rig.cell.ToCartesian(rvec3_t(0.1,0.9,0.2));
     DeltaProjector qpts(BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}});
-    const rvec_t rm=mixed.DM_RhoAtPoints(qpts());
-    const rvec_t rc=cplx .DM_RhoAtPoints(qpts());
+    const rvec_t rm=mixed.ProjectOnto(qpts());
+    const rvec_t rc=cplx .ProjectOnto(qpts());
     for (size_t g=0; g<pts.size(); g++) EXPECT_EQ(rm[g], rc[g]) << "rho mismatch at point "<<g;
 
     // And the composite Fourier trio (the generic visit) now reaches the REAL child's face too.

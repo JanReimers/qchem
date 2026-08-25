@@ -426,7 +426,7 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     return true;
 }
 
-template <class T> rvec_t IrrepCD_Core<T>::DM_RhoAtPoints(const Fitting::ScalarProjector& p) const
+template <class T> rvec_t IrrepCD_Core<T>::ProjectOnto(const Fitting::ScalarProjector& p) const
 {
     if (IsZero()) return rvec_t(p.NumCoefficients(), 0.0);
     // ASK THE BASIS FOR ITS INTEGRAL, then contract MY matrix into it (R1.0; the 3-centre form,
@@ -602,10 +602,10 @@ template class PeriodicIrrepCD<dcmplx>;
 // lineage capabilities -- is the Leaf's, inherited untouched.
 //
 // THE MEMO IS THE POINT AS MUCH AS THE GEMM.  Before this leaf existed the factorisation ran INSIDE
-// DM_RhoAtPoints, i.e. an O(n^3) pstrf on EVERY call -- and XC_Quadrature::RhoPol calls it twice per
+// ProjectOnto, i.e. an O(n^3) pstrf on EVERY call -- and XC_Quadrature::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
-template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const Fitting::ScalarProjector& p) const
+template <class Leaf> rvec_t FactoredRho<Leaf>::ProjectOnto(const Fitting::ScalarProjector& p) const
 {
     if (this->IsZero()) return rvec_t(p.NumCoefficients(), 0.0);
 
@@ -641,7 +641,7 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::DM_RhoAtPoints(const Fitting::Sc
     // GEMM plus the O(n^3) factorisation is not obviously cheaper than the square one.  A fat rank is not an
     // error -- it is the answer for a metal at large smearing, where the thermal tail fills the spectrum --
     // so it takes the fallback, not a throw.
-    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::DM_RhoAtPoints(p);
+    if (!itsFactorable || 2*itsRank >= this->itsBasisSet->GetNumFunctions()) return Leaf::ProjectOnto(p);
 
     // ONE integral, TWO representations of D (2026-08-23).  Which form this density holds -- and whether
     // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against

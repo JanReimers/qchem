@@ -12,7 +12,7 @@
 //
 // ⚠ WHAT THE MOVE DOES NOT YET FIX, and it is the second half of the user's sentence.  Two callers still
 // use this INSTEAD of a FunctionFitter_Scalar -- XC_SinglesQuadrature's matrix-free branches and
-// tDM_CD::DM_RhoAtPoints's default -- because both want the COEFFICIENT VECTOR and the fitter face
+// tDM_CD::ProjectOnto's default -- because both want the COEFFICIENT VECTOR and the fitter face
 // deliberately has no accessor for one (a Coefficients() getter is the smell deleted in increment 6).
 // Being in this library at least makes that visible for what it is: framework algorithm, no framework
 // object.  The remaining question is not how to hide the coefficients -- v_xc is pointwise NONLINEAR, so

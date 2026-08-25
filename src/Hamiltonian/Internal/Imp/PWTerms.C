@@ -656,7 +656,7 @@ void ReportNegativeRho(const XC_Quadrature& q, const rvec_t& rho, const char* ro
 }
 
 // rho at the mesh points, once per density serial for the WHOLE pair: the density GEMMs the cached
-// tables against its private D (DM_RhoAtPoints; blocks not yet tabled self-evaluate pointwise -- first
+// tables against its private D (ProjectOnto; blocks not yet tabled self-evaluate pointwise -- first
 // pass only).  A non-DM density (no DM face) falls back to the pointwise ScalarFunction sweep.
 const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
 {
@@ -671,7 +671,7 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
     qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
     {
-        itsRho=dm->DM_RhoAtPoints(Projector());   // the density contracts its D into the fitter's handles
+        itsRho=dm->ProjectOnto(Projector());   // the density contracts its D into the fitter's handles
         ReportNegativeRho(*this, itsRho, "DM");
     }
     else if (auto ex=ExactSourceOf(cd))
@@ -682,7 +682,7 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
                      <<" but its retained density matrix did NOT (still "<<itsSrcVersion
                      <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
         itsSrcVersion=ex.cd->Version();
-        DampXCChannel(itsXCMix, ex.cd->DM_RhoAtPoints(Projector()), ex.alpha);
+        DampXCChannel(itsXCMix, ex.cd->ProjectOnto(Projector()), ex.alpha);
         itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
         ReportNegativeRho(*this, itsRho, "DM-source");
     }
@@ -715,8 +715,8 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
         qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
         if (auto pol=dynamic_cast<const ChargeDensity::cPolarized_CD*>(cd))
         {
-            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(Projector());
-            itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(Projector());
+            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->ProjectOnto(Projector());
+            itsRhoDn=pol->GetChargeDensity(Spin::Down)->ProjectOnto(Projector());
             ReportNegativeRho(*this, itsRhoUp, "DM(up)");
             ReportNegativeRho(*this, itsRhoDn, "DM(dn)");
         }
@@ -743,8 +743,8 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
                              <<" but its retained density matrix did NOT (still "<<itsSrcVersion
                              <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
                 itsSrcVersion=exUp.cd->Version();
-                rvec_t up=exUp.cd->DM_RhoAtPoints(Projector());
-                rvec_t dn=exDn.cd->DM_RhoAtPoints(Projector());
+                rvec_t up=exUp.cd->ProjectOnto(Projector());
+                rvec_t dn=exDn.cd->ProjectOnto(Projector());
                 DampXCChannel(itsXCMixUp, up, exUp.alpha);   // match the damping Hartree gets, so the map
                 DampXCChannel(itsXCMixDn, dn, exDn.alpha);   //   is not half-damped
                 itsRhoUp=itsXCMixUp; itsRhoDn=itsXCMixDn;
@@ -763,7 +763,7 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
         else
         {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
             if (auto dm=dynamic_cast<const cDM_CD*>(cd))
-                itsRhoUp=dm->DM_RhoAtPoints(Projector());
+                itsRhoUp=dm->ProjectOnto(Projector());
             else
                 itsRhoUp=Projector().Project(*cd);
             itsRhoUp*=0.5;

@@ -65,6 +65,16 @@ template <class T> double tPolarized_CD<T>::DM_ContractBlocks(const std::map<std
     return GetChargeDensity(Spin::Up  )->DM_ContractBlocks(blocks)+GetChargeDensity(Spin::Down)->DM_ContractBlocks(blocks);
 }
 
+// rho_total = rho_up + rho_dn over the SAME fit basis: each channel projects itself and the coefficients
+// add, because the projection is LINEAR in the density.  (A spin-resolved consumer asks the channels
+// separately -- see the header.)
+template <class T> rvec_t tPolarized_CD<T>::ProjectOnto(const Fitting::ScalarProjector& p) const
+{
+    rvec_t ro=GetChargeDensity(Spin::Up)->ProjectOnto(p);
+    ro+=GetChargeDensity(Spin::Down)->ProjectOnto(p);
+    return ro;
+}
+
 
 template <class T> double tPolarized_CD<T>::GetTotalCharge() const
 {
