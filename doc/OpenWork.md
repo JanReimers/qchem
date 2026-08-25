@@ -1,11 +1,44 @@
 # Open Work — the live tracker (v2, cut 2026-08-19)
 
-**READ THIS AT SESSION START.**  One place for everything in flight, in the order we intend to do it.
-Only still-open work lives here.  Closed threads are retired to two history files:
+**READ THIS AT SESSION START — and read `▶ WHAT IS OPEN` below first: it is the whole of the open work,
+eight rows, each with its next concrete action and the one section to point a session at.**  Everything
+after it is a mix of open items and the evidence that produced them; the evidence is kept deliberately
+(three open items exist because a measurement refuted the obvious answer) but it interleaves, so the index
+is the map.  Closed threads are retired to two history files:
 `doc/OpenWork_History1.md` (threads A–E, the 2026-06-30 and 2026-08-15 orderings, runtime rounds 1–4) and
 `doc/OpenWork_History2.md` (cut 2026-08-25 — the Vxc repair thread and the three-part fit-basis interface
 refactor of 2026-08-21 → 08-24).  Durable design rulings live in `doc/CleanupCandidates.md` R1.0, not in
 either history.
+
+---
+
+## ▶ WHAT IS OPEN — START HERE
+
+Everything after this index is a MIX of open work and the evidence that produced it.  The evidence stays on
+purpose — it is what stops items being re-litigated, and three items on this list exist because a measurement
+refuted the obvious answer — but it interleaves, and you cannot see the shape of the work by scrolling.
+**This table is the whole of the open work.**  One row per item, in priority order, each with the next
+CONCRETE action and the ONE section to point a session at.  If it is not in this table, it does not need doing.
+
+| # | open item | the next concrete action | point a session at |
+|---|---|---|---|
+| **1** | **Vxc must be fed the DM ρ(r)** — the cure is BUILT and opt-in; pinned *"first thing in Step 3, ahead of anything else"* (accuracy repair + documented-decision regression + ~20× on the top bucket) | **MEASURE, do not code.** Arm `GPW_XC_DM_SOURCE=1` on the MnO row; read per-iteration SCF time, the ρ<0 fraction and negative mass (`GPW_RHO_NEGATIVE=1`), and the iteration count. Then it earns the default or it does not. | Step 3 → *"Vxc MUST BE FED THE DM ρ(r)"* |
+| **2** | **ρ GEMM — low-rank D**: the largest per-iteration bucket (MnO 1.35e9 MAC/spin/iteration), and the only remaining plan for it after Φ-sparsity was refuted | Build the user's 4-step decomposition, starting with ONE pivoted-Cholesky (rank-revealing, so rank and factor arrive together). Potential 6–9× (n=118, r≈13). | Step 3 → *"THE ρ GEMM — LOW-RANK D"*, with the **factoring-D dossier** below as its evidence |
+| **3** | **The imposed XC mesh loses its site blocks** — a live DEFECT: the Step 0a site-moment instrument is silently dead on every imposed run, and every benchmark row is imposed | Restore `BeginSite` through the symmetrise + `FoldPointsPeriodic` path; the `assert` that should have caught it is compiled out under `NDEBUG`, so add a live check. | Step 3 → *"NEW DEFECT … LOSES ITS SITE BLOCKS"* |
+| **4** | **Step 5 — MnO accuracy, name the operator**: the sharpest coordinate on the list, with a banked oracle, and its first move is cheap | ⚠ **PIN `GPW_XC_DM_SOURCE` first** — individual terms move ~100 mHa with it, so the term-by-term CP2K breakdown means nothing until item 1 is settled. Then the cheap first move. | Step 5 |
+| **5** | **Step 0c — the instruments report WHAT, not WHEN** | Timestamp per report item (+ optional order-preserving render). Cheap, and it gates the pre-SCF work. | Step 0 |
+| **6** | **`FIT_SF_Ortho` — separate the metric axis into faces**: specced 2026-08-23, not built. `OverlapDiagonal` sits on the metric-NEUTRAL face, so `Fit_IBS` invents an answer in the wrong normalisation | Move it to `FIT_SF_Ortho<T>` (both fit faces in one increment) and `Fit_IBS` simply loses it — delete the landmine, do not correct it. ⚠ Acceptance criterion: must NOT become a `dynamic_cast` type switch. | *"★ SPECCED, NOT BUILT"* (near the end) |
+| **7** | **Continuous cleanup** — a rhythm between the steps, not a phase | `doc/CleanupCandidates.md` D1–D13, plus **V1.32** (de-template the finite `IrrepCD` leaf). | Continuous — CLEANUP |
+| **8** | **Step 6 — the 136-function span**: a capability gap, no longer a blocker | Time-boxed research only. Do not let it grow into a track. | Step 6 |
+
+**CLOSED — reference, not work.**  Step 1 (the head-to-head table STANDS → `doc/Benchmark.md`) · Step 2
+(the T3 pair-stream orbit fold is ARMED BY DEFAULT) · Step 4 (RAM largely answered by Step 2 — *do not open
+it as a track*) · and both history files.
+
+**EVIDENCE DOSSIERS — no action inside them.**  *"NEW IDEA — fast evaluation of DM-ρ(r) by FACTORING D"*
+and its Q1/Q2/Q3, the tier-0 results, the spectrum finding and the LSP design ruling (~440 lines) are the
+worked evidence for **item 2**, not a separate thread.  Likewise the ✅/⛔ bullets inside Step 3 are the
+record of what was taken or refuted — five of its twelve items are closed and stay for the reasoning.
 
 ---
 
@@ -833,7 +866,13 @@ run 64 cannot show whether it dove or stalled).
 
 ---
 
-## NEW IDEA — fast evaluation of DM-ρ(r) by FACTORING D
+## EVIDENCE DOSSIER (no action here) — fast evaluation of DM-ρ(r) by FACTORING D
+
+> **This section and everything under it — Q1/Q2/Q3, the tier-0 results, the spectrum finding, the LSP
+> design ruling — is the worked evidence for INDEX ITEM 2 (Step 3's low-rank-D ρ GEMM).  It is not a
+> separate thread and there is nothing to start here.**  Read it when you build that item, or when you are
+> about to re-propose something it already refuted.
+
 
 **The idea.**  \f$\rho(r)=\Phi(r)^\dagger D\,\Phi(r)\f$ is evaluated everywhere in this code as a quadratic
 form in D — a sum over PAIRS of basis functions.  D is a density matrix, so it is PSD with rank = the
