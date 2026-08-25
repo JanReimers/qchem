@@ -3,6 +3,7 @@ module;
 #include <iomanip>
 #include <cassert>
 #include <cstdlib>   // std::getenv (the GPW_OMP_THREADS cap on the Becke mesh build)
+#include <stdexcept> // RequireSiteBlocks -- a Becke-mesh invariant that must survive NDEBUG
 #include <iostream>
 #include <string>
 #include <vector>
@@ -72,6 +73,24 @@ struct BeckePointCost
     unsigned dead=0;      // P-set members whose P underflowed to 0 (the whole i iteration bought nothing)
     unsigned deadWork=0;  // final-loop pairs spent on those members -- work that provably bought nothing
 };
+
+//! \brief An ATOM-CENTRED mesh must carry one site block per centre -- checked LIVE, not by \c assert.
+//!
+//! The Becke build's whole point is that each point belongs to a named centre and its weight already
+//! carries that centre's partition \f$w_A\f$, which is what makes \f$\int w_A f\f$ a real atomic
+//! integral (doc/OpenWork.md Step 0a).  A path that rebuilds the mesh and forgets to reopen the blocks
+//! does not FAIL -- \c qcMesh::SiteIntegrals is simply never reached and the site-moment instrument
+//! prints nothing.  That happened, in Release, on every imposed run, for as long as the invariant-mesh
+//! filter walked orbits instead of sites; the \c assert that should have caught it is compiled out under
+//! NDEBUG.  So this throws: a silently missing instrument is worse than a stopped run.
+void RequireSiteBlocks(const qcMesh::Mesh& m, const char* who)
+{
+    if (m.NSites()>0) return;
+    throw std::runtime_error(std::string(who)+": the atom-centred (Becke) mesh came out with NO site "
+        "blocks.  Its per-centre partition is what makes an integrated site moment/charge possible, so a "
+        "mesh without them silently disables that instrument -- some rebuild of the point list dropped "
+        "MeshBuilder::BeginSite.");
+}
 
 //! \a angPerAtom (optional) = per-atom angular sets -- the §6a W2b SITE-ADAPTED path (rep atoms carry
 //! site-group-invariant sets, partners the op-rotated copies; the ops-taking CreateIntegrationMesh
@@ -504,7 +523,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     SL::Fold f = SL::FoldPointsPeriodic([&]{ std::vector<rvec3_t> fp;
         for (size_t i = 0; i < mesh.size(); ++i) fp.push_back(ToFractional(mesh.Points()[i]));
         return fp; }(), ops, 1e-8);
-    qcMesh::MeshBuilder out;
+    std::vector<char> keep(mesh.size(), 0);
     size_t nDropped = 0;
     for (size_t o = 0; o < f.Reps(); ++o)
     {
@@ -512,13 +531,31 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
         size_t  stab = 0;
         for (const auto& op : ops) if (fixes(op, fr)) ++stab;
         if (f.members[o].size()*stab == ops.size())
-            for (auto [mi, oi] : f.members[o]) out.Append(mesh.Points()[mi], mesh.Weights()[mi]);
+            for (auto [mi, oi] : f.members[o]) keep[mi] = 1;
         else nDropped += f.members[o].size();
     }
     if (nDropped>0)
         std::cout<<"[Becke grid] orbit-consistency: dropped "<<nDropped
                  <<" eps-borderline points whose orbit partners were tail-dropped"<<std::endl;
+    // CARRY THE SITE BLOCKS THROUGH THE FILTER (doc/OpenWork.md, "the imposed XC mesh loses its site
+    // blocks").  This rebuild used to walk the ORBITS, which interleaves the atoms' points and destroys
+    // the contiguous per-centre blocks MakePeriodicBeckeMesh recorded -- so every imposed run handed the
+    // engine a mesh with NSites()==0 and the Becke site moment (the Step 0a instrument) silently printed
+    // nothing.  The filter is a per-point keep/drop, so walking the ORIGINAL order instead simply shrinks
+    // each block: the site partition survives, and nothing else cares about the point ORDER (the caller
+    // rebuilds its orbit fold FROM the finished mesh, GPW_IBS.C).
+    qcMesh::MeshBuilder out;
+    const size_t nSite = mesh.NSites();
+    for (size_t a = 0; a < nSite; ++a)
+    {
+        out.BeginSite();
+        for (size_t i = mesh.SiteBegin(a); i < mesh.SiteEnd(a); ++i)
+            if (keep[i]) out.Append(mesh.Points()[i], mesh.Weights()[i]);
+    }
+    if (nSite==0)   // a builder with no site structure: keep the points, say so, never silently
+        for (size_t i = 0; i < mesh.size(); ++i) if (keep[i]) out.Append(mesh.Points()[i], mesh.Weights()[i]);
     qcMesh::Mesh mb=out.take();
+    RequireSiteBlocks(mb, "UnitCell::CreateIntegrationMesh(imposed, Becke)");
     ReportMeshPlaneWaveOrtho(*this, mb);   // the BECKE arm: built for cusps, asked about plane waves
     return mb;
 }
@@ -537,6 +574,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
     if (mp.cellKind==qcMesh::UnitCellKind::Becke)
     {
         qcMesh::Mesh mB=MakePeriodicBeckeMesh(*this,mp);
+        RequireSiteBlocks(mB, "UnitCell::CreateIntegrationMesh(free, Becke)");
         ReportMeshPlaneWaveOrtho(*this, mB);   // the FREE (non-imposed) Becke arm
         return mB;
     }
