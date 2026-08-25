@@ -22,14 +22,87 @@ CONCRETE action and the ONE section to point a session at.  If it is not in this
 
 | # | open item | the next concrete action | point a session at |
 |---|---|---|---|
-| **1** | **Vxc must be fed the DM ρ(r)** — the cure is BUILT and opt-in; pinned *"first thing in Step 3, ahead of anything else"* (accuracy repair + documented-decision regression + ~20× on the top bucket) | **MEASURE, do not code.** Arm `GPW_XC_DM_SOURCE=1` on the MnO row; read per-iteration SCF time, the ρ<0 fraction and negative mass (`GPW_RHO_NEGATIVE=1`), and the iteration count. Then it earns the default or it does not. | Step 3 → *"Vxc MUST BE FED THE DM ρ(r)"* |
+| **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25). *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
+| **N1** | ★★★ **PROTECT THE USER FROM A PLAUSIBLE WRONG NUMBER** (user, 2026-08-25: *"a grad student on their first day"*). `SolidCalculation::Energy()` has **no precondition on `Converged()`** — every collapse measured today (−45.5, −46.3, −56.4, −38.5) is returnable from the public facade as a plain double with no signal; `Density()` only `assert`s, which is gone under NDEBUG. | **T1 first:** `Converge()` returns a `ConvergedCalculation`, and `Energy()`/`EnergyTerms()`/`Density()` exist ONLY on that type — the project's own *compile-time over runtime* bias applied. Then T2–T5. | *"★★★ N1 — PROTECTING THE USER"* |
+| **N2** | ★ **THE ALIAS-FREE G BALL — now a DIAGNOSTIC FOR N4, not a rival cure** (user: *"if the N2 sweep is useful anyway, then go ahead"*). It cannot be the cure — a wider ball makes ρ̃ less junky but never gives \f$V_{xc}\f$ the cusp. It IS the instrument that **sizes** the problem: how much of the measured 15.2% ρ<0 is ALIASING (curable by C) versus the intrinsic CUSP DEFICIT (curable only by the DM). MnO runs `cutoffFactor=2`, the bare product-exponent floor, while `GPW_IBS.C:53` records F needing ~8·α_max. | Sweep `MNO_CUTOFF_FACTOR` = 2,3,4,6,8 with `GPW_RHO_NEGATIVE=1`. The residual ρ<0 at large C **is** N4's correction term, and its \f${G}\f$ extent answers N4's one open cost question (can the correction be truncated?). Knob added 2026-08-25. | *"★ N2 — THE DENSITY G BALL"* |
+| **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
+| **1** | ✅ **ANSWERED 2026-08-25 — the flag does NOT earn the default**, and the reason is a mechanism this row never considered: **Kerker's low-G charge-slosh damping is what holds the MnO AFM basin**, and a flat \f$\alpha_{eff}\f$ on the XC channel throws it away. Its ACCURACY claim is UPHELD (ρ≥0 exactly, 0 negatives in 154 samplings vs 15.2%); its ROUTE is what fails. | ⚠ **Read row N4 before quoting this row.** "Does not earn the default" is true of the flag AS IMPLEMENTED (wholesale replacement) and is NOT a verdict on feeding \f$V_{xc}\f$ an exact ρ≥0 — the measurement convicts the MIXER. Leave the flag opt-in; build the **cusp-deficit** form instead (N4). | *"✅ ITEM 1 MEASURED"* (below the index) |
 | **2** | **BENCHMARK PROTOCOL — no timing table is comparable until this holds** (user, 2026-08-25). Two defects today: no table states its THREAD state per row, and qchem runs accelerations CP2K does not — the factored/low-rank ρ is **ON BY DEFAULT** (`QCHEM_DM_LOWRANK`), so every row since `07d13bf6` has it | (a) build the self-describing BANNER `doc/Benchmark.md` already asks for — thread counts + the qchem-only feature flags — so rows describe themselves instead of relying on discipline; (b) re-take the rows under the two-phase rule: **single-thread parity FIRST**, then N=8/16 for OMP-shaped gaps. | `doc/Benchmark.md` → *"BENCHMARK PROTOCOL"*, and Step 0 (instruments) |
-| **3** | **The imposed XC mesh loses its site blocks** — a live DEFECT: the Step 0a site-moment instrument is silently dead on every imposed run, and every benchmark row is imposed | Restore `BeginSite` through the symmetrise + `FoldPointsPeriodic` path; the `assert` that should have caught it is compiled out under `NDEBUG`, so add a live check. | Step 3 → *"NEW DEFECT … LOSES ITS SITE BLOCKS"* |
+| **3** | ✅ **DONE 2026-08-25** — the imposed XC mesh keeps its site blocks. The filter walked ORBITS (interleaving the atoms); it now walks the ORIGINAL site order with a keep-mask. Verified **energy-neutral** (−61.40297621 to 10 s.f., identical stage counts, identical mesh) with the Becke site moment ALIVE on an imposed run for the first time: **Mn ±4.78 e** against CP2K's Mulliken ±4.654. | — | Step 3 → *"NEW DEFECT … LOSES ITS SITE BLOCKS"* |
 | **4** | **Step 5 — MnO accuracy, name the operator**: the sharpest coordinate on the list, with a banked oracle, and its first move is cheap | ⚠ **PIN `GPW_XC_DM_SOURCE` first** — individual terms move ~100 mHa with it, so the term-by-term CP2K breakdown means nothing until item 1 is settled. Then the cheap first move. | Step 5 |
 | **5** | **Step 0c — the instruments report WHAT, not WHEN** | Timestamp per report item (+ optional order-preserving render). Cheap, and it gates the pre-SCF work. | Step 0 |
 | **6** | **`FIT_SF_Ortho` — separate the metric axis into faces**: specced 2026-08-23, not built. `OverlapDiagonal` sits on the metric-NEUTRAL face, so `Fit_IBS` invents an answer in the wrong normalisation | Move it to `FIT_SF_Ortho<T>` (both fit faces in one increment) and `Fit_IBS` simply loses it — delete the landmine, do not correct it. ⚠ Acceptance criterion: must NOT become a `dynamic_cast` type switch. | *"★ SPECCED, NOT BUILT"* (near the end) |
 | **7** | **Continuous cleanup** — a rhythm between the steps, not a phase | `doc/CleanupCandidates.md` D1–D13, plus **V1.32** (de-template the finite `IrrepCD` leaf). | Continuous — CLEANUP |
 | **8** | **Step 6 — the 136-function span**: a capability gap, no longer a blocker | Time-boxed research only. Do not let it grow into a track. | Step 6 |
+
+### ✅ ITEM 1 MEASURED, 2026-08-25 — AND THE MECHANISM IS BIGGER THAN THE ITEM
+
+**All rows: MnO AFM-II, VA (N=118), `MNO_IMPOSE=1`, SINGLE THREAD (`OMP_NUM_THREADS=1 GPW_OMP_THREADS=1`),
+same binary as the banked row.**  The baseline reproduces `doc/Benchmark.md` to all 10 s.f.
+(−61.40297621, 14+17 iterations) — **there was never a regression on the default path**, and every
+collapse below is an armed arm.
+
+| arm | Etot | **Eee** | m_stag | verdict |
+|---|---|---|---|---|
+| **baseline** | **−61.40297621** | **13.480** | 0.646 → 0.667 survived | conv, PASSED |
+| `GPW_XC_DM_SOURCE=1` | −45.52875429 | 28.995 | died it 12 | FAILED |
+| + `GPW_XC_DM_BOOST=2` | −45.36 (st1) | — | died it 10 | FAILED |
+| + `GPW_XC_DM_BOOST=0.5` | −45.52847324 | — | died it 19 | FAILED |
+| + `QCHEM_DM_LOWRANK=0` | −45.52875429 | — | died it 12 | FAILED — *identical to lowrank ON* |
+| + `MNO_PULAY=8` | −46.32003443 | 30.060 | st1 SURVIVES (0.540), st2 collapses | FAILED |
+| baseline + `MNO_PULAY=8` | **−61.40297621** | 13.480 | survived | conv — *so Pulay×GDM is fine* |
+| `MNO_KERKER_G0=0.01` (flat filter), **NO FLAG** | **−38.45368688** | **35.098** | **died it 7** | FAILED |
+| `MNO_KERKER_G0=0` (→ linear D-mix), **NO FLAG** | −56.38756586 | 13.609 | died it 13 | FAILED |
+
+**★★★ THE MECHANISM — A MONOTONE DOSE-RESPONSE IN Eee.**  The AFM staggering's shortest mode is
+\f$|G|=1.24\f$ (\f$f=0.61\f$ at \f$G_0=1\f$); the lowest CHARGE mode is \f$|G|=0.65\f$ (\f$f=0.30\f$) —
+the arithmetic already in `GPW_SCF_UT.C`, which notes Kerker "already favours the magnetism 2:1".
+Arming the flag replaces \f$\alpha f(G)\f$ on the XC channel with a FLAT \f$\alpha_{eff}=0.33\f$
+(\f$\alpha=0.45\f$): the AFM mode goes 0.275 → 0.33 (**1.2× less damped**, barely touched) while the
+charge mode goes 0.135 → 0.33 (**2.4× less damped**).  It destroys the selectivity, not the step size.
+
+| low-G charge-mode damping | Eee | m_stag dies | Etot |
+|---|---|---|---|
+| 0.135 (baseline, f=0.30) | 13.480 | never | −61.403 |
+| 0.33 (armed — XC channel only) | 28.995 | it 12 | −45.529 |
+| 0.45 (flat Kerker — BOTH channels) | **35.098** | **it 7** | **−38.454** |
+
+Monotone in every column.  ⇒ **KERKER'S LOW-G CHARGE-SLOSH DAMPING IS WHAT HOLDS THIS AFM BASIN.**  The
+moment death is a CONSEQUENCE of the charge runaway, not a spin-channel effect.  ⚠ The linear-D-mix arm
+is a **different** failure (Eee stays 13.6 — no slosh, moment still dies): same symptom, other mechanism,
+**do not conflate them**.
+
+**★ Eee IS NOW A VALIDATED CHARGE-SLOSH DETECTOR.**  Already computed, zero cost, and it ordered all four
+failures correctly without having been designed for any of them.  See the grad-student item below.
+
+**THREE CORRECTIONS TO THIS ROW'S OWN NUMBERS, all measured today:**
+1. ⛔ The ρ̃ bucket is **15% of this row's CPU (76.2 s of 500.4 s)**, NOT the 51% recorded 2026-08-21 — the
+   Becke-ε and Φ-table work shrank the row around it.  **The perf ceiling is ~1.17× on the row, not ~20×**,
+   and 20× was never available on a row whose stage 2 is GDM (already D-backed).
+2. ✅ The ACCURACY claim is **fully upheld**: matrix-free ρ̃ gives a mean **15.2%** of 97160 points with ρ<0
+   (max 18.2%, min ρ −0.154); the DM route gives **0 negatives over 154 samplings**.  Per-sampling the DM
+   route is **130×** cheaper (5.077 s → 0.039 s), against the banked ~124×.  *The item's GOAL is right; its
+   ROUTE is what fails.*
+3. Single-thread CPU is **500 s** against the table's threaded 663 s — the busy-wait inflation the
+   benchmark protocol warns about, measured.
+
+**⚠ AND IT BEARS ON STEP 5 — UNTESTED, BUT CHECK BEFORE BUILDING ON THE OFFSET.**  If Kerker's charge-slosh
+damping is load-bearing for the AFM basin, the AFM and FM arms are not necessarily converged under equally
+safe conditions — and Step 5's ~37 mHa *configuration-selective* FM-favouring bias is measured BETWEEN
+those two arms.  Not asserted; worth one control.
+
+**LOW-RANK FACTORING — EXONERATED, AND ONE CLAIM QUALIFIED.**  `QCHEM_DM_LOWRANK=0` vs ON give
+**−45.52875429 identically** (10 digits, both stages) across a 160-iteration pathological trajectory: the
+factoring is exact and is not the cause.  ⚠ But the code's justification — *"the rank is the same from tol
+1e-6 to 1e-12, so the occupied block is cleanly separated … the cut is not a tuning decision"* — is a
+**kT=0 statement** (user, 2026-08-25: at kT>0 the gap fills with weak modes and the cutoff gets hard to
+pick).  MEASURED pivot spectrum at kT=5e-3: 14 occupied modes at O(0.1–5), a **thermal tail at ~7e-6**,
+then roundoff ~2e-13 — a 4–5 decade gap, not 12, and the doc's own "safe" tol=1e-6 sits within ~8× of the
+thermal modes.  It is SAFE here only because pstrf uses LAPACK's roundoff floor (not that tol) and because
+MnO's gap swamps this kT: rank stayed **13 of 118 in 124 of 154 calls**, and only **4 calls** showed a tail
+at all.  A smaller gap or hotter stage would populate it persistently.  Qualify the claim; do not delete it.
+
+---
 
 **CLOSED — reference, not work.**  Step 1 (the head-to-head table STANDS → `doc/Benchmark.md`) · Step 2
 (the T3 pair-stream orbit fold is ARMED BY DEFAULT) · Step 4 (RAM largely answered by Step 2 — *do not open
@@ -44,6 +117,140 @@ worked evidence for **item 2**, not a separate thread.  Likewise the ✅/⛔ bul
 record of what was taken or refuted — five of its twelve items are closed and stay for the reasoning.
 
 ---
+
+## ★★★ N4 — THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$
+
+> **USER, 2026-08-25:** *"'GPW_XC_DM_SOURCE does not earn the default' bothers me because it means we are
+> forced to feed ρ̃_mix into Vxc … Granted ρ̃_mix is **not** exactly garbage … but I think it is still pretty
+> junky for Vxc.  We can improve it with bigger G balls (the N2 sweeps) … but I still think that is barking
+> up the wrong tree.  I think the right tree is figure out how to make everything else robust with
+> Vxc[non junky ρ>0]."*
+
+**⇒ THE HEADLINE WAS WRONG FOR THE MEASUREMENT.**  *"The flag does not earn the default"* is true of the
+flag AS IMPLEMENTED, but it reads as "keep feeding ρ̃_mix to \f$V_{xc}\f$", which is NOT what the data say.
+What the dose-response actually convicts is **the MIXER** — a flat \f$\alpha_{eff}\f$ destroying Kerker's
+mode selectivity — **not the act of feeding \f$V_{xc}\f$ the exact ρ**.  The ρ≥0 goal is untouched by the
+result and remains right (0 negatives in 154 samplings vs 15.2%).
+
+**THE FLAG IS ONE OF TWO ROUTES, AND IT IS THE WORSE ONE.**  `GPW_XC_DM_SOURCE` implements the
+**WHOLESALE REPLACEMENT** (route b): discard \f$\tilde\rho_{mix}\f$, hand XC a separately-damped
+\f$\rho[D]\f$.  That is what forces a damping choice to exist at all — and the damping choice is precisely
+what breaks.  The plan's own algebra had already derived the better form, then shelved it on cost:
+\f[ \rho_{XC}(r)=\underbrace{\rho_{mix}(r)}_{\text{HARTREE'S OWN ARRAY}}+\underbrace{\big(\rho[D](r)_{exact}-\rho[D](r)_{BL}\big)}_{\text{the CUSP DEFICIT}} \f]
+- **The mode-selectivity failure cannot occur here, by construction.**  The band-limited content XC sees is
+  *literally the array Hartree sees* — same Kerker filter, same \f$f(G)\f$, same 2:1 selectivity.  There is
+  **no \f$\alpha_{eff}\f$ to pick**, so the entire flat-vs-shaped mismatch is not solved but VACUOUS.
+- **The added term needs little or no damping**: the cusp deficit is dominated by core density, which barely
+  moves between iterations — accurate well before convergence, exact at it.
+- ⛔ **THE COST OBJECTION WAS THE WRONG TIEBREAKER.**  The plan rejected this as *"a net LOSS unless the
+  correction's {G} can be truncated"*, comparing GEMM counts.  Measurement changes the comparison: the
+  wholesale route is not costlier-or-cheaper, it is **UNSTABLE** (−61.40 → −45.53).  Robustness outranks a
+  GEMM.
+
+**WHAT "EVERYTHING ELSE" HAS TO BECOME ROBUST — the concrete list:**
+1. **The mixer must precondition CHANNELS, not densities** (→ **N3**): charge gets Kerker, spin gets its own
+   policy, and the XC feed stops being a second, independently-damped copy of the density.
+2. **The XC feed must not be a separate mixing decision at all** — the cusp-deficit form above.
+3. **A collapse must not be able to masquerade as an answer** (→ **N1**, T1–T3), so that landing 1 and 2
+   cannot silently trade one failure for another.
+
+⚠ **NOT YET MEASURED — this is a design argument, not a result.**  Two things need testing before it is
+believed: (a) whether \f$\rho_{mix}+\Delta_{cusp}\f$ is actually pointwise non-negative (the negative lobes
+sit AT the cusps and \f$\Delta_{cusp}\f$ is exactly the positive sharp content missing there, so large
+cancellation is expected but not guaranteed) — the existing `GPW_RHO_NEGATIVE` census answers it directly;
+and (b) whether \f$\Delta_{cusp}\f$ is as iteration-static as the core-electron argument claims.
+
+## ★★★ N1 — PROTECTING THE USER FROM A PLAUSIBLE WRONG NUMBER
+
+> **THE ASK (user, 2026-08-25):** *"how do we protect the user from getting wrong results by selecting a
+> bad combo … I like to think of a grad student on their first day trying to get some results out of our
+> code."*
+
+Today's session produced **four** different collapsed states (−45.5, −46.3, −56.4, −38.5), every one of
+them a plausible-looking Hartree number from a run that did not converge.  `SolidCalculation` documents
+itself as *"A converged (or ATTEMPTED) periodic SCF"* and then offers `double Energy() const` with **no
+precondition**.  So the trap does not even require a bad combination: it requires only not calling
+`Converged()`.
+
+**THE ORGANISING PRINCIPLE: you cannot enumerate bad COMBOS, but you can detect bad OUTCOMES.**  T1–T3
+below catch combinations nobody has thought of yet; T4–T5 only catch the ones we have.  That asymmetry is
+why the ordering is what it is.
+
+- **T1 — MAKE A WRONG ANSWER UNRETURNABLE (types, not checks).  The single highest-value change found
+  today.**  `Converge()` hands back a `ConvergedCalculation` (or `std::optional`); `Energy()`,
+  `EnergyTerms()`, `Density()` exist ONLY on that type.  Then no one can *write* code that reads an
+  unconverged energy — not by discipline, by construction.  This is exactly the project's standing
+  *prefer build-failure to runtime crash / give capabilities only to types that have them* bias
+  (`feedback_compile_time_over_runtime`), applied to the facade.
+- **T2 — A POSTCONDITION ON THE IMPOSITION.**  Imposing an AFM Shubnikov group and converging to
+  \f$m_A=m_B=0\f$ is a run that **contradicted its own constraint**; that is a postcondition, not a
+  diagnostic, and it should fail hard.  ★ Newly possible: item 3 restored the site blocks, so this can use
+  the **integrated** site moment instead of the point probe that misled this campaign for months.  The SSB
+  release-audit is the existing symmetry analogue.
+- **T3 — ALWAYS-ON OUTCOME DETECTORS.**  (a) **Eee doubling** — validated today (13.48 → 29.0 → 35.1),
+  already computed, zero cost, and it ranked four failures correctly without being designed for any of
+  them.  (b) **Moment collapse** — the `** DIED at iteration N` logic EXISTS but lives in the MnO *test*,
+  not the library, so no user gets it.
+- **T4 — STOP EXPOSING KNOBS THAT INTERACT.**  `KerkerG0`, `PulayDepth` and the XC ρ source are not three
+  independent physics choices; today's evidence is that getting the combination wrong silently costs the
+  magnetic basin.  Per *prefer classes to answer high-level questions*: derive a **MixingPolicy** from
+  (ordering, cell, functional).  The user says "AFM MnO", not `G0=1.0, Pulay=0`.  Expert overrides stay,
+  behind a named policy, so a bad combo becomes a deliberate act.
+- **T5 — SELF-DESCRIPTION (index item 2, widened).**  A run must state mixer, \f$G_0\f$, Pulay depth, XC ρ
+  source, thread state and accelerations.  ⚠ Measured today: with `MNO_KERKER_G0=0` the run prints **no
+  mixer line at all** — the fallback to linear D-mixing is entirely silent.
+
+## ★ N2 — THE DENSITY G BALL (a DIAGNOSTIC for N4, not a rival cure)
+
+\f$\rho=\sum_{ij}D_{ij}\chi_i\chi_j\f$ is a product of Gaussians, so its G content runs to
+\f$2\alpha_{\max}\f$ and \f$C=2\f$ is the NAIVE Nyquist floor — which is what MnO has always run
+(`densityEcut 72 Ha` against `alpha_max 36`).  But a ball that only just reaches the product's own exponent
+still ALIASES the cusp tail, and `GPW_IBS.C:53` already records the consequence: *"under-resolving it
+aliases rho into large spurious negative lobes → the XC collapse … F needed ~8*alpha_max for negCharge
+−9 e → −0.03 e."*  Measured here at C=2: **15.2% of the 97160 Becke points carry ρ<0** (min −0.154), and
+`SlaterExchange::GetVxc` guards `ro>0`, so a sixth of the atom-centred quadrature contributes NOTHING to
+\f$E_{xc}\f$.
+
+**Why this outranks item 1's route:** if those lobes are an under-resolved ball rather than an intrinsic
+property of band-limiting, widening C cures them **on the default path, with ONE density feeding Hartree
+and XC** — no representation split, no mixing-shape mismatch, no basin loss.  Item 1's goal survives; only
+its route dies.
+**NEXT ACTION:** sweep `MNO_CUTOFF_FACTOR` = 2,3,4,6,8 with `GPW_RHO_NEGATIVE=1`; read the ρ<0 fraction,
+Etot and cost.  ⚠ Cost scales: \f$N\propto\sqrt{E_{cut}}\f$ per axis, so C=8 is ~8× the FFT work of C=2 —
+find the knee, do not assume 8.
+
+## ★★ N3 — THE MIXING POLICY: CHARGE AND SPIN ARE DIFFERENT CHANNELS
+
+Kerker is applied PER SPIN CHANNEL (`[Kerker] ENABLED (↑)` / `(↓)`), and by linearity that damps the
+CHARGE and the SPIN channel alike.  **But \f$v_H\f$ depends only on \f$\rho_\uparrow+\rho_\downarrow\f$, so
+\f$\partial v_H/\partial m\equiv 0\f$: there is no \f$4\pi/G^2\f$ anywhere in the spin channel, for any
+magnetic order.**  Kerker's \f$G^2/(G^2+G_0^2)\f$ shape is derived from screening a Coulomb divergence the
+spin channel does not have.  cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`.
+
+⚠ **KERNEL ≠ RESPONSE (user's question, "only true for AFMs?").**  The KERNEL statement is universal.  The
+RESPONSE is not: \f$\chi_m(q\to0)\f$ genuinely diverges approaching a Stoner instability, so the spin block
+of the SCF Jacobian CAN be ill-conditioned at small q for a near-critical ferromagnet — with no Coulomb
+divergence in sight.  "Finite kernel" therefore does NOT license "no spin preconditioner"; it licenses "not
+*Kerker's*".
+✅ **The \f$G=0\f$ carve-out is already correct, for a stated CHARGE reason.**  `FourierMixCD.C:36` exempts
+\f$G=0\f$ (`f=1`, "not frozen") because ρ̃'s (0,0,0) coefficient is a shape-dependent fit projection and
+*"freezing it strands the XC's mean density at the seed value."*  That same line is what keeps the TOTAL
+MOMENT — the FM order parameter — mixable, and nothing records it.  The FM arm is protected by accident of
+a charge-motivated decision: fragile documentation, not fragile code.
+
+⚠⚠ **DO NOT LAND N3 BEFORE N1's DETECTORS.**  Today's AFM basin is propped up by the very behaviour N3
+removes (ITEM 1 MEASURED, the dose-response table), so a correct fix will *look* like a regression on MnO.
+
+## DEFECTS FOUND EN ROUTE, 2026-08-25 (recorded, not fixed)
+
+- **SEGFAULT (rc=139), pre-existing and flag-INDEPENDENT:** `MNO_MOM=1 MNO_MOM_START=1 MNO_MOM_SEED=1`
+  with `MNO_ANNEAL` + `MNO_ANNEAL_PENALTY` crashes at SCF start.  Armed AND control both die, so it is not
+  `GPW_XC_DM_SOURCE`.  Not diagnosed.
+- **STALE COMMENT** `GPW_SCF_UT.C` *"this KerkerG0 is currently INERT on the AFM arm"* (2026-08-07) — the
+  spin-resolved ρ̃ mixer it was waiting on has landed; the baseline prints `[Kerker] ENABLED (↑)/(↓)`.
+- **THE LINEAR-MIXER FALLBACK IS SILENT** — see N1/T5.
+- ⚠ **A TRAP FOR THE NEXT SESSION:** `MNO_MOM=0` sets `UseMOM=false`, so `MNO_ANNEAL_PENALTY` has no MOM
+  reference and silently does nothing.  Cost me one arm before I noticed.
 
 ## Where we are, in one paragraph
 
@@ -642,7 +849,17 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
      terms move by ~100 mHa with it.  (It does NOT explain the ~100 mHa offset Step 5 is chasing: the total
      barely moves.)
 
-  **THE NEXT ACTION IS A MEASUREMENT, NOT CODE** (the standing lesson: cost attribution before
+  **⇒ ✅ MEASURED 2026-08-25 — THE ANSWER IS NO.  See *"✅ ITEM 1 MEASURED"* above the plan for the full
+  evidence.**  The flag takes MnO AFM-II from converged −61.40297621 to collapsed −45.5, in BOTH mixer
+  configurations (with and without Pulay history) and with the low-rank factoring both ON and OFF.  The
+  cause is NOT ρ[D]: it is that a flat \f$\alpha_{eff}\f$ destroys **Kerker's mode selectivity**, un-damping
+  the low-G CHARGE mode 2.4× while barely touching the AFM mode — confirmed by a monotone dose-response in
+  Eee (13.5 → 29.0 → 35.1).  ⚠ The three cost/accuracy numbers quoted in THIS bullet are superseded there:
+  the ρ̃ bucket is **15% of the row, not 51%**, so the ceiling is **~1.17×, not ~20×**; the ρ≥0 accuracy
+  claim is UPHELD (0 negatives in 154 samplings vs 15.2%).  The GOAL survives; the ROUTE does not — its
+  successor is the **alias-free G ball** (index row N2).
+
+  **THE ORIGINAL NEXT ACTION, kept for the reasoning (now executed)** (the standing lesson: cost attribution before
   optimisation).  Arm `GPW_XC_DM_SOURCE=1` on the MnO benchmark row and read three numbers off one run:
   per-iteration SCF time (the claim is the matrix-free inverse-FT sweep disappears), the ρ<0 point fraction
   and negative mass (`GPW_RHO_NEGATIVE=1` — the accuracy half; ρ[D] is pointwise non-negative for a PSD D by
@@ -775,8 +992,17 @@ Measure against Step 1, after Step 2 (folding changes what is hot).
   above that floor.
   *Not a clever trick:* evaluating ρ in ORBITAL space rather than DM space is what most codes do; the only
   observation here is that this one took the DM route, which is a reasonable choice that happens to cost n/r.
-- **★ NEW DEFECT, found by the instrument above: THE IMPOSED XC MESH LOSES ITS SITE BLOCKS — and the
-  Step 0a site-moment instrument is SILENTLY DEAD on every imposed run.**  `MakePeriodicBeckeMesh` records
+- **★ ✅ FIXED 2026-08-25 — THE IMPOSED XC MESH LOST ITS SITE BLOCKS, and the Step 0a site-moment
+  instrument was SILENTLY DEAD on every imposed run.**  *Cause:* the orbit-consistency filter in
+  `UnitCell::CreateIntegrationMesh(imposed, Becke)` rebuilt the mesh by walking ORBITS, which
+  interleaves the atoms' points and destroys the contiguous per-centre blocks; it now walks the
+  ORIGINAL site order with a keep-mask (point ORDER is free — the caller rebuilds its fold FROM the
+  finished mesh — the BLOCKS are not).  `RequireSiteBlocks()` now **throws** on both Becke arms so the
+  invariant survives NDEBUG, and `EmitSiteMoments` announces its own silence instead of returning
+  quietly.  *Verified:* Etot −61.40297621 to 10 s.f., identical stage counts (14+17), identical mesh
+  (97160 pts / 4220 orbits / 414 dropped) — and **29 `[site moments]` reports where there were zero**,
+  reading **Mn ±4.78 e** against CP2K's Mulliken ±4.654, O at 4e-08, net 3.5e-08.  The original
+  description follows.  `MakePeriodicBeckeMesh` records
   one block per atom (`BeginSite`), which is what makes \f$\int w_A m\f$ a real integral instead of a point
   sample.  The imposed/invariant mesh path (symmetrise + `FoldPointsPeriodic`) drops them: the engine's
   mesh reports `NSites()==0`.  `qcMesh::SiteIntegrals` guards this with an `assert`, which is COMPILED OUT
