@@ -50,7 +50,11 @@ public:
     //! collocated \f$\tilde\rho_{out}\f$ (from the diagonalized D).  \a alpha is the linear mixing fraction,
     //! \a G0 the Kerker screening wavevector (a.u.\f$^{-1}\f$; \f$G_0\!\to\!0\f$ recovers plain linear mixing).
     //! The caller owns the returned heap object.
-    static FourierMixCD* KerkerMix(const FourierMixCD& in, const ΔG_Map& out, double alpha, double G0);
+    //! \a withCuspCorrection (N4) additionally deposits \f$\tilde\rho_{mix}-\tilde\rho_{out}\f$ as
+    //! \c XCCorrection().  FALSE leaves this function bit-identical to its pre-N4 self and forms no
+    //! correction at all -- the CP2K-conforming path.
+    static FourierMixCD* KerkerMix(const FourierMixCD& in, const ΔG_Map& out, double alpha, double G0,
+                                   bool withCuspCorrection=false);
 
     // --- FourierDensity: the map IS the density (metric-free), like SeedCD ---
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const override;  //!< the overlap projection = rho-tilde

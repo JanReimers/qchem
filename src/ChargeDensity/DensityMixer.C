@@ -274,8 +274,9 @@ class KerkerMixer : public tDensityMixer<dcmplx>, public virtual tFieldMixer
 {
 public:
     KerkerMixer(double relax, double G0, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
-                std::shared_ptr<FourierMixCD> rho0, rvec_t raw0)
+                std::shared_ptr<FourierMixCD> rho0, rvec_t raw0, bool cusp=false)
         : itsRelax(relax), itsKerkerG0(G0), itsKerkerFit(std::move(fit)), itsMixedRho(std::move(rho0))
+        , itsCuspDeficit(cusp)
         , itsRawIn(std::move(raw0))
     { if (itsRawIn.size()) itsMixedRho->SetRawRho(itsRawIn); }
 
@@ -303,7 +304,7 @@ public:
         }
         for (const auto& [dm, ri] : rho_in)
             if (rho_out.find(dm)==rho_out.end()) resid = std::max(resid, std::abs(dcmplx(ri)));
-        itsMixedRho.reset(FourierMixCD::KerkerMix(*itsMixedRho, rho_out, itsRelax, itsKerkerG0));
+        itsMixedRho.reset(FourierMixCD::KerkerMix(*itsMixedRho, rho_out, itsRelax, itsKerkerG0, itsCuspDeficit));
         itsMixedRho->SetDMSource(itsDMSource);     // replay the deposit onto the freshly allocated mix
         // RAW-raster shadow (0.5(f2)): the same Kerker step on rho_raw(r), deposited so the XC feed stays raw
         // through the DYNAMICS.  Late-activates the first time the working density answers raw (a SAD-seeded
@@ -330,6 +331,9 @@ public:
     { itsDMSource=std::move(dm); if (itsMixedRho) itsMixedRho->SetDMSource(itsDMSource); }
 private:
     double itsRelax, itsKerkerG0;
+    //! N4: form + deposit the cusp-deficit correction for XC.  A CONSTRUCTION policy (see
+    //! SCFParams::XCCuspDeficit) -- false leaves this mixer bit-identical to its pre-N4 self.
+    bool   itsCuspDeficit=false;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
     std::shared_ptr<FourierMixCD>                itsMixedRho;
     rvec_t itsRawIn;   //!< the raster shadow of itsMixedRho (empty = raw pipeline off)
@@ -795,7 +799,7 @@ private:
 inline std::unique_ptr<tDensityMixer<dcmplx>> MakeGSpaceMixer(
     double relax0, double kerkerG0, int pulayDepth, int pulayStart,
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip,
-    GField seed0, double charge, const std::string& label="")
+    GField seed0, double charge, const std::string& label="", bool cuspDeficit=false)
 {
     ΔG_Map rho0 = std::move(seed0.tilde);
     rvec_t raw0 = std::move(seed0.raster);       // raw-raster shadow seed (0.5(f2)); empty = late-activate
@@ -804,10 +808,19 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakeGSpaceMixer(
               << ", ρ̃-mixing on " << charge << " electrons (" << rho0.size() << " G-vectors"
               << (raw0.size() ? ", raw-XC shadow ON" : "") << ")." << std::endl;
     if (pulayDepth>0)
+    {   // N4 is wired on the KERKER arm only.  Pulay's step is an EXTRAPOLATION over a density history, so
+        // "rho_mix - rho_out" is not the single-step object the correction is derived from; deriving it
+        // there needs its own algebra.  Fail loudly rather than silently dropping the correction the caller
+        // asked for -- a silently-plain V_xc is exactly the class of defect this session was cleaning up.
+        if (cuspDeficit)
+            throw std::runtime_error("MakeGSpaceMixer: XCCuspDeficit is not implemented for the Pulay "
+                "(density-history) mixer -- only for plain Kerker.  Set PulayDepth=0 or XCCuspDeficit=false.");
         return std::make_unique<PulayMixer>(relax0, kerkerG0, pulayDepth, pulayStart, std::move(fit), recip,
                                             std::move(rho0), charge, std::move(raw0));
+    }
     auto mixed = std::make_shared<FourierMixCD>(std::move(rho0), recip, charge);
-    return std::make_unique<KerkerMixer>(relax0, kerkerG0, std::move(fit), std::move(mixed), std::move(raw0));
+    return std::make_unique<KerkerMixer>(relax0, kerkerG0, std::move(fit), std::move(mixed), std::move(raw0),
+                                        cuspDeficit);
 }
 
 //! Convenience overload seeded from a DENSITY -- it just reads the field off the density's Fourier face.
@@ -815,13 +828,13 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakeGSpaceMixer(
 inline std::unique_ptr<tDensityMixer<dcmplx>> MakeGSpaceMixer(
     double relax0, double kerkerG0, int pulayDepth, int pulayStart,
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip,
-    const tChargeDensity<dcmplx>* seed, const std::string& label="")
+    const tChargeDensity<dcmplx>* seed, const std::string& label="", bool cuspDeficit=false)
 {
     auto* fd = dynamic_cast<const FourierDensity*>(seed);
     assert(fd && "MakeGSpaceMixer: the seed density must carry the FourierDensity face");
     return MakeGSpaceMixer(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip,
                            GField{fd->GetFourierDensity(*fit), fd->GetRhoOnGrid(*fit)},
-                           seed->GetTotalCharge(), label);
+                           seed->GetTotalCharge(), label, cuspDeficit);
 }
 
 //! The structure-neutral density mixer: plain linear D-mixing.  \a relax0 = StartingRelaxRo
@@ -844,9 +857,13 @@ template <class T> std::unique_ptr<tDensityMixer<T>> MakeLinearMixer(double rela
 //! NB the SPIN branching below is a different question and keeps its graceful fallback: a spin-resolved
 //! density that cannot hand out mutable channels is a real configuration to degrade from, not a broken
 //! precondition -- so it warns and takes linear D-mixing, which at least keeps both channels.
+//! \a cuspDeficit (N4, default false) picks the mixer that ALSO deposits the cusp-deficit correction for
+//! \f$V_{xc}\f$.  It is a factory decision on purpose: CP2K parity is a property of WHICH MIXER WAS BUILT,
+//! so the plain Kerker mixer stays bit-identical and no consumer has to read a flag to get it.
 inline std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
     double relax0, double kerkerG0, int pulayDepth, int pulayStart,
-    const BasisSet::tBasisSet<dcmplx>* basis, const Structure* structure, const tDM_CD<dcmplx>* seed)
+    const BasisSet::tBasisSet<dcmplx>* basis, const Structure* structure, const tDM_CD<dcmplx>* seed,
+    bool cuspDeficit=false)
 {
     auto* fd  = dynamic_cast<const FourierDensity*>(seed);
     if (!basis || !isPeriodicCell(structure) || !fd)
@@ -873,6 +890,12 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
         // Hartree restoring force against long-wavelength CHARGE fluctuations; m has none.
         if (std::getenv("QCHEM_MIX_RHO_M"))
         {
+            // N4 x (ρ,m): the correction is derived PER CHANNEL from that channel's own rho_mix - rho_out,
+            // and this branch redefines what the channels ARE, so the two do not compose without new
+            // algebra.  Refuse rather than quietly hand XC an uncorrected feed.
+            if (cuspDeficit)
+                throw std::runtime_error("MakePeriodicMixer: XCCuspDeficit is not defined for the (rho,m) "
+                    "channel basis (QCHEM_MIX_RHO_M) -- the correction is per-(up,dn) channel.");
             const auto* up=pol->GetChargeDensity(Spin::Up), *dn=pol->GetChargeDensity(Spin::Down);
             const auto& fu=dynamic_cast<const FourierDensity&>(*up);
             const auto& fd2=dynamic_cast<const FourierDensity&>(*dn);
@@ -887,8 +910,8 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
             return std::make_unique<PolarizedDensityMixer>(std::move(mr), std::move(mm), fit, recip,
                                                            ChannelBasis::TotalAndMoment);
         }
-        auto up=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Up  ),"↑");
-        auto dn=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Down),"↓");
+        auto up=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Up  ),"↑",cuspDeficit);
+        auto dn=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Down),"↓",cuspDeficit);
         return std::make_unique<PolarizedDensityMixer>(std::move(up), std::move(dn), fit, recip,
                                                        ChannelBasis::SpinChannels);
     }
@@ -901,7 +924,7 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
                   << "channels) rather than collapsing v_xc to the unpolarized branch." << std::endl;
         return std::make_unique<LinearMixer<dcmplx>>(relax0);
     }
-    return MakeGSpaceMixer(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip, seed);
+    return MakeGSpaceMixer(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip, seed, "", cuspDeficit);
 }
 
 

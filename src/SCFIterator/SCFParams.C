@@ -32,6 +32,13 @@ export struct SCFParams
     double StartingRelaxRo = 1.0;    //relaxation for mixing Ro.  Dynamically adjusted during iterations.
     double MergeTol        = 1e-4;   //Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol
     bool   Verbose         = false;  //Display iteration details.
+    //! \brief Feed \f$V_{xc}\f$ the CUSP-DEFICIT correction \f$\rho[D]_{exact}-\rho[D]_{BL}\f$ on top of the
+    //! mixed density, instead of the band-limited \f$\tilde\rho_{mix}\f$ alone (doc/OpenWork.md N4).
+    //!
+    //! A MIXER-CONSTRUCTION policy, deliberately, not a switch the XC code reads: CP2K parity is a property
+    //! of WHICH MIXER WAS BUILT, so it must be decidable at the factory and leave the plain Kerker mixer
+    //! bit-identical.  false (default) = CP2K-conforming plain Kerker; the correction is not even formed.
+    bool   XCCuspDeficit   = false;
     double KerkerG0        = 0.0;    //Kerker density-mixing screening wavevector G0 (a.u.^-1).  0 (default) =
                                      //  OFF -> classic linear density-matrix mixing (atoms/molecules unchanged).
                                      //  >0 -> preconditioned rho-mixing on the periodic (GPW/PW) path: damp the

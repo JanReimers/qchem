@@ -2315,6 +2315,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
     o.scf.MergeTol=1e-4;
     o.scf.StartingRelaxRo=envd("NAF_ALPHA",0.25); o.scf.KerkerG0=1.0;   // Kerker damps the low-G charge-transfer slosh
+    o.scf.XCCuspDeficit=envd("NAF_XC_CUSP",0.0)!=0.0;   // N4: the cusp-deficit mixer (doc/OpenWork.md)
     o.scf.UseMOM=true; o.scf.MOMStartIter=10;             // delayed-IMOM: descend, then pin the occupied subspace through the crossing
     o.scf.SmearingkT=envd("NAF_SMEAR",0.0); o.scf.MOMSmearPenalty=envd("NAF_PENALTY",0.0);   // MOM-masked Fermi (experiment)
     // XC quadrature: flip cellKind to try the atom-centred Becke XC route (doc/GPWPlan1.md; the recipe is
@@ -3783,6 +3784,8 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // modes; RAISING it sharpens it (G0=3: 0.146 vs 0.045, ratio 3.3).  That is a linear-response argument
     // about which mode is actually pathological, so it is a PREDICTION to be swept, not a setting to trust.
     o.scf.StartingRelaxRo=envd("MNO_ALPHA",0.45); o.scf.KerkerG0=envd("MNO_KERKER_G0",1.0);
+    // MNO_XC_CUSP: build the cusp-deficit mixer instead of the plain Kerker one (doc/OpenWork.md N4).
+    o.scf.XCCuspDeficit=envd("MNO_XC_CUSP",0.0)!=0.0;
     // MNO_CUTOFF_FACTOR / MNO_ECUT -- THE DENSITY G-BALL, sweepable at last (2026-08-25).  rho = Sum D_ij
     // chi_i chi_j is a product of Gaussians, so its G content runs to 2*alpha_max and C=2 is the NAIVE
     // Nyquist floor -- which is what this cell has always run at (densityEcut 72 Ha against alpha_max 36).

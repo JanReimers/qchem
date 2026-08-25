@@ -591,25 +591,25 @@ struct ExactSource
     std::shared_ptr<const cChargeDensity> corr;   //!< N4: rho_mix - rho[D] as a field (null = wholesale route)
     explicit operator bool() const {return cd;}
 };
-// THE CUSP-DEFICIT ROUTE (doc/OpenWork.md N4).  GPW_XC_CUSP_DEFICIT=1 selects
+// THE CUSP-DEFICIT ROUTE (doc/OpenWork.md N4):
 //     rho_XC = rho[D]_exact + IFT[rho_mix - rho[D]]
-// instead of the WHOLESALE replacement (damped rho[D]) the plain GPW_XC_DM_SOURCE takes.  The difference is
-// not cosmetic: the correction form's BAND-LIMITED content is identically rho_mix -- the array Hartree uses
-// -- so Kerker's f(G) reaches XC unmodified and there is NO alpha_eff to choose.  The wholesale route's flat
-// alpha_eff cannot reproduce that shape, and measurement (2026-08-25) says destroying the selectivity costs
-// the MnO magnetic basin (-61.403 -> -45.529, Eee 13.5 -> 29.0 Ha).
-bool UseCuspDeficit()
-{
-    static const bool on=[]{ const char* e=std::getenv("GPW_XC_CUSP_DEFICIT"); return e && std::atoi(e)!=0; }();
-    return on;
-}
+// instead of the WHOLESALE replacement (damped rho[D]) GPW_XC_DM_SOURCE takes.  The difference is not
+// cosmetic: this form's BAND-LIMITED content is identically rho_mix -- the array Hartree uses -- so Kerker's
+// f(G) reaches XC unmodified and there is NO alpha_eff to choose.  A flat alpha_eff cannot reproduce that
+// SHAPE, and measurement (2026-08-25) says destroying the selectivity costs the MnO magnetic basin
+// (-61.403 -> -45.529, Eee 13.5 -> 29.0 Ha).
+// NOT A FLAG HERE, BY DESIGN (user, 2026-08-25): whether the correction exists is decided when the MIXER is
+// BUILT (SCFParams::XCCuspDeficit -> MakePeriodicMixer), so CP2K parity is a property of the constructed
+// object and the plain Kerker mixer stays bit-identical.  This code just uses what it was handed: a
+// non-null XCCorrection() means the run asked for the correction route.
 ExactSource ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd)
 {
-    if ((!UseDMSource() && !UseCuspDeficit()) || !cd) return {};
+    if (!cd) return {};
     auto* src=dynamic_cast<const qchem::ChargeDensity::cDM_Sourced_CD*>(cd);
     if (!src) return {};
-    return {src->DMSource().get(), src->EffectiveAlpha(),
-            UseCuspDeficit() ? src->XCCorrection() : nullptr};
+    auto corr=src->XCCorrection();
+    if (!corr && !UseDMSource()) return {};      // neither route armed
+    return {src->DMSource().get(), src->EffectiveAlpha(), std::move(corr)};
 }
 // GPW_XC_DM_MIX overrides alpha_eff for CONTROLS only (=1 reproduces the undamped route); unset = use the
 // mix's own.  GPW_XC_DM_BOOST scales it: alpha_eff came out ~0.20 on NaF and ~0.35 on MnO -- measured, but

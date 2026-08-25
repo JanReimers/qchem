@@ -22,10 +22,11 @@ CONCRETE action and the ONE section to point a session at.  If it is not in this
 
 | # | open item | the next concrete action | point a session at |
 |---|---|---|---|
+| **N5** | ★★ **`CP2K_COMPAT` — one switch for every deviation** (user, 2026-08-25), and the SAME work as item 2's self-describing banner. Six deviations already exist and nothing states or resolves them centrally. | Build it WITH the banner: `CP2K_COMPAT=1` resolves to a POLICY consulted at the FACTORIES (as `XCCuspDeficit` now is), never a getenv inside a kernel; the banner prints the resolved state. | *"★★ N5 — `CP2K_COMPAT`"* |
 | **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25). *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
 | **N1** | ★★★ **PROTECT THE USER FROM A PLAUSIBLE WRONG NUMBER** (user, 2026-08-25: *"a grad student on their first day"*). `SolidCalculation::Energy()` has **no precondition on `Converged()`** — every collapse measured today (−45.5, −46.3, −56.4, −38.5) is returnable from the public facade as a plain double with no signal; `Density()` only `assert`s, which is gone under NDEBUG. | **T1 first:** `Converge()` returns a `ConvergedCalculation`, and `Energy()`/`EnergyTerms()`/`Density()` exist ONLY on that type — the project's own *compile-time over runtime* bias applied. Then T2–T5. | *"★★★ N1 — PROTECTING THE USER"* |
 | **N2** | ✅ **RESOLVED 2026-08-25 — THE ρ<0 LOBES ARE BAND-LIMITING, NOT ALIASING.** Controlled A/B at **fixed {G}** (nG 8623, 870 stars; `BallOnly` 40³ vs `AliasFree` 80³ = 8× the raster points): the lobes move **1%**. Widening the ball DOES kill them (~6000× in negative mass by C=6) because it enlarges {G}. ⇒ every cheap alternative to **N4** is eliminated: raster geometry does nothing, and a bigger ball does not scale (2×2×2 supercell = 8× volume ⇒ >10 GB of raster at today's C=2). | Nothing further — it fed N4. ★ **Two by-products worth landing separately:** `BallOnly` is VINDICATED as the default (closes the code's own never-taken A/B: fold-back = 2.6 µHa, `AliasFree` costs 2.3× CPU / 3.5× RAM); and production **C=2 carries ~0.15 mHa of grid error** (C=3 also converges FASTER, 12 vs 17 it) — worth a default review on its own merits. | *"★ N2 — THE DENSITY G BALL"* |
-| **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
+| **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING — ⚠ HALF-BUILT ALREADY (corrected 2026-08-25): `QCHEM_MIX_RHO_M=1` in `MakePeriodicMixer` ALREADY selects the (ρ,m) basis with "Kerker on ρ, PLAIN LINEAR on m", carrying the same *"m has none"* argument. So this needs a MEASUREMENT and a promotion, not a build.** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
 | **1** | ✅ **ANSWERED 2026-08-25 — the flag does NOT earn the default**, and the reason is a mechanism this row never considered: **Kerker's low-G charge-slosh damping is what holds the MnO AFM basin**, and a flat \f$\alpha_{eff}\f$ on the XC channel throws it away. Its ACCURACY claim is UPHELD (ρ≥0 exactly, 0 negatives in 154 samplings vs 15.2%); its ROUTE is what fails. | ⚠ **Read row N4 before quoting this row.** "Does not earn the default" is true of the flag AS IMPLEMENTED (wholesale replacement) and is NOT a verdict on feeding \f$V_{xc}\f$ an exact ρ≥0 — the measurement convicts the MIXER. Leave the flag opt-in; build the **cusp-deficit** form instead (N4). | *"✅ ITEM 1 MEASURED"* (below the index) |
 | **2** | **BENCHMARK PROTOCOL — no timing table is comparable until this holds** (user, 2026-08-25). Two defects today: no table states its THREAD state per row, and qchem runs accelerations CP2K does not — the factored/low-rank ρ is **ON BY DEFAULT** (`QCHEM_DM_LOWRANK`), so every row since `07d13bf6` has it | (a) build the self-describing BANNER `doc/Benchmark.md` already asks for — thread counts + the qchem-only feature flags — so rows describe themselves instead of relying on discipline; (b) re-take the rows under the two-phase rule: **single-thread parity FIRST**, then N=8/16 for OMP-shaped gaps. | `doc/Benchmark.md` → *"BENCHMARK PROTOCOL"*, and Step 0 (instruments) |
 | **3** | ✅ **DONE 2026-08-25** — the imposed XC mesh keeps its site blocks. The filter walked ORBITS (interleaving the atoms); it now walks the ORIGINAL site order with a keep-mask. Verified **energy-neutral** (−61.40297621 to 10 s.f., identical stage counts, identical mesh) with the Becke site moment ALIVE on an imposed run for the first time: **Mn ±4.78 e** against CP2K's Mulliken ±4.654. | — | Step 3 → *"NEW DEFECT … LOSES ITS SITE BLOCKS"* |
@@ -166,6 +167,33 @@ believed: (a) whether \f$\rho_{mix}+\Delta_{cusp}\f$ is actually pointwise non-n
 sit AT the cusps and \f$\Delta_{cusp}\f$ is exactly the positive sharp content missing there, so large
 cancellation is expected but not guaranteed) — the existing `GPW_RHO_NEGATIVE` census answers it directly;
 and (b) whether \f$\Delta_{cusp}\f$ is as iteration-static as the core-electron argument claims.
+
+## ★★ N5 — `CP2K_COMPAT`: ONE SWITCH FOR EVERY DEVIATION (user, 2026-08-25)
+
+> *"there will eventually be a number of CP2K deviations so we will need one env bool (like CP2K_COMPAT)
+> to trigger off."*
+
+**This is the SAME WORK as index item 2's self-describing banner, and it should be built once.**  A run has
+to be able to (a) STATE which deviations it is running and (b) turn them ALL off with one switch.  Today
+neither exists, and the list is already longer than anyone tracks by hand:
+
+| deviation | today's default | knob |
+|---|---|---|
+| `QCHEM_DM_LOWRANK` — factored/low-rank ρ (a singles route CP2K does not run) | **ON** | `=0` |
+| `SCFParams::XCCuspDeficit` — the N4 XC feed | off | factory policy |
+| the T3 pair-stream orbit fold | **ARMED** | per-row declaration |
+| `QCHEM_MIX_RHO_M` — (ρ,m) channel basis instead of (ρ↑,ρ↓) | off | env |
+| `RasterPolicy` — `BallOnly` IS CP2K's bet (✅ vindicated, N2) | BallOnly | `GPW_RASTER_POLICY` |
+| `cutoffFactor` — C=2 vs CP2K's own grid policy | 2 | `MNO_CUTOFF_FACTOR` |
+
+**THE DESIGN, so it does not become a scattered set of `if (getenv(...))`:** `CP2K_COMPAT=1` should resolve
+to a POLICY OBJECT consulted where the choices are MADE (the factories), exactly as `XCCuspDeficit` now is
+— never a flag read deep inside a kernel.  That is what makes "CP2K parity is a property of what was
+BUILT" true rather than aspirational, and it is what lets the banner print the resolved state instead of
+guessing at it.
+⇒ **Ordering:** build it WITH the banner (item 2), not before — the banner is what makes the switch
+verifiable, and a switch nobody can verify is worse than no switch.
+⚠ And a new accelerator is not finished until it is on the table above (`doc/Benchmark.md`'s standing rule).
 
 ## ★★★ N1 — PROTECTING THE USER FROM A PLAUSIBLE WRONG NUMBER
 

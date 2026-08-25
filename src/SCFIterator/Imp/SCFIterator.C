@@ -817,7 +817,7 @@ SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, co
 {
     if (ipar.KerkerG0>0.0 || ipar.PulayDepth>0)
         return qchem::ChargeDensity::MakePeriodicMixer(ipar.StartingRelaxRo, ipar.KerkerG0, ipar.PulayDepth,
-                                                       ipar.PulayStart, bs, cell, seed);
+                                                       ipar.PulayStart, bs, cell, seed, ipar.XCCuspDeficit);
     return qchem::ChargeDensity::MakeLinearMixer<dcmplx>(ipar.StartingRelaxRo);
 }
 
