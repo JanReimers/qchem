@@ -24,7 +24,7 @@ CONCRETE action and the ONE section to point a session at.  If it is not in this
 |---|---|---|---|
 | **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25). *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
 | **N1** | ★★★ **PROTECT THE USER FROM A PLAUSIBLE WRONG NUMBER** (user, 2026-08-25: *"a grad student on their first day"*). `SolidCalculation::Energy()` has **no precondition on `Converged()`** — every collapse measured today (−45.5, −46.3, −56.4, −38.5) is returnable from the public facade as a plain double with no signal; `Density()` only `assert`s, which is gone under NDEBUG. | **T1 first:** `Converge()` returns a `ConvergedCalculation`, and `Energy()`/`EnergyTerms()`/`Density()` exist ONLY on that type — the project's own *compile-time over runtime* bias applied. Then T2–T5. | *"★★★ N1 — PROTECTING THE USER"* |
-| **N2** | ★ **THE ALIAS-FREE G BALL — now a DIAGNOSTIC FOR N4, not a rival cure** (user: *"if the N2 sweep is useful anyway, then go ahead"*). It cannot be the cure — a wider ball makes ρ̃ less junky but never gives \f$V_{xc}\f$ the cusp. It IS the instrument that **sizes** the problem: how much of the measured 15.2% ρ<0 is ALIASING (curable by C) versus the intrinsic CUSP DEFICIT (curable only by the DM). MnO runs `cutoffFactor=2`, the bare product-exponent floor, while `GPW_IBS.C:53` records F needing ~8·α_max. | Sweep `MNO_CUTOFF_FACTOR` = 2,3,4,6,8 with `GPW_RHO_NEGATIVE=1`. The residual ρ<0 at large C **is** N4's correction term, and its \f${G}\f$ extent answers N4's one open cost question (can the correction be truncated?). Knob added 2026-08-25. | *"★ N2 — THE DENSITY G BALL"* |
+| **N2** | ✅ **RESOLVED 2026-08-25 — THE ρ<0 LOBES ARE BAND-LIMITING, NOT ALIASING.** Controlled A/B at **fixed {G}** (nG 8623, 870 stars; `BallOnly` 40³ vs `AliasFree` 80³ = 8× the raster points): the lobes move **1%**. Widening the ball DOES kill them (~6000× in negative mass by C=6) because it enlarges {G}. ⇒ every cheap alternative to **N4** is eliminated: raster geometry does nothing, and a bigger ball does not scale (2×2×2 supercell = 8× volume ⇒ >10 GB of raster at today's C=2). | Nothing further — it fed N4. ★ **Two by-products worth landing separately:** `BallOnly` is VINDICATED as the default (closes the code's own never-taken A/B: fold-back = 2.6 µHa, `AliasFree` costs 2.3× CPU / 3.5× RAM); and production **C=2 carries ~0.15 mHa of grid error** (C=3 also converges FASTER, 12 vs 17 it) — worth a default review on its own merits. | *"★ N2 — THE DENSITY G BALL"* |
 | **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
 | **1** | ✅ **ANSWERED 2026-08-25 — the flag does NOT earn the default**, and the reason is a mechanism this row never considered: **Kerker's low-G charge-slosh damping is what holds the MnO AFM basin**, and a flat \f$\alpha_{eff}\f$ on the XC channel throws it away. Its ACCURACY claim is UPHELD (ρ≥0 exactly, 0 negatives in 154 samplings vs 15.2%); its ROUTE is what fails. | ⚠ **Read row N4 before quoting this row.** "Does not earn the default" is true of the flag AS IMPLEMENTED (wholesale replacement) and is NOT a verdict on feeding \f$V_{xc}\f$ an exact ρ≥0 — the measurement convicts the MIXER. Leave the flag opt-in; build the **cusp-deficit** form instead (N4). | *"✅ ITEM 1 MEASURED"* (below the index) |
 | **2** | **BENCHMARK PROTOCOL — no timing table is comparable until this holds** (user, 2026-08-25). Two defects today: no table states its THREAD state per row, and qchem runs accelerations CP2K does not — the factored/low-rank ρ is **ON BY DEFAULT** (`QCHEM_DM_LOWRANK`), so every row since `07d13bf6` has it | (a) build the self-describing BANNER `doc/Benchmark.md` already asks for — thread counts + the qchem-only feature flags — so rows describe themselves instead of relying on discipline; (b) re-take the rows under the two-phase rule: **single-thread parity FIRST**, then N=8/16 for OMP-shaped gaps. | `doc/Benchmark.md` → *"BENCHMARK PROTOCOL"*, and Step 0 (instruments) |
@@ -154,7 +154,14 @@ what breaks.  The plan's own algebra had already derived the better form, then s
 3. **A collapse must not be able to masquerade as an answer** (→ **N1**, T1–T3), so that landing 1 and 2
    cannot silently trade one failure for another.
 
-⚠ **NOT YET MEASURED — this is a design argument, not a result.**  Two things need testing before it is
+★ **N2 NOW SUPPLIES THE EVIDENCE THIS ARGUMENT WAS MISSING (2026-08-25).**  The ρ<0 lobes survive an
+EXACT raster unchanged (8× the real-space points at identical {G} moves them 1%), so they are band-limiting
+— content the ball cannot represent — and no raster geometry or mixing choice can remove them.  Widening the
+ball does remove them but cannot scale (an 8× supercell overflows this box at today's C=2).  **That
+eliminates every cheaper route and leaves the cusp deficit as the only one**, which is a stronger position
+than the design argument alone.
+
+⚠ **STILL NOT MEASURED — the FORM below is a design argument, not a result.**  Two things need testing before it is
 believed: (a) whether \f$\rho_{mix}+\Delta_{cusp}\f$ is actually pointwise non-negative (the negative lobes
 sit AT the cusps and \f$\Delta_{cusp}\f$ is exactly the positive sharp content missing there, so large
 cancellation is expected but not guaranteed) — the existing `GPW_RHO_NEGATIVE` census answers it directly;
@@ -200,7 +207,7 @@ why the ordering is what it is.
   source, thread state and accelerations.  ⚠ Measured today: with `MNO_KERKER_G0=0` the run prints **no
   mixer line at all** — the fallback to linear D-mixing is entirely silent.
 
-## ★ N2 — THE DENSITY G BALL (a DIAGNOSTIC for N4, not a rival cure)
+## ✅ N2 — THE DENSITY G BALL: RESOLVED (the lobes are BAND-LIMITING)
 
 \f$\rho=\sum_{ij}D_{ij}\chi_i\chi_j\f$ is a product of Gaussians, so its G content runs to
 \f$2\alpha_{\max}\f$ and \f$C=2\f$ is the NAIVE Nyquist floor — which is what MnO has always run
@@ -211,13 +218,59 @@ aliases rho into large spurious negative lobes → the XC collapse … F needed 
 `SlaterExchange::GetVxc` guards `ro>0`, so a sixth of the atom-centred quadrature contributes NOTHING to
 \f$E_{xc}\f$.
 
-**Why this outranks item 1's route:** if those lobes are an under-resolved ball rather than an intrinsic
-property of band-limiting, widening C cures them **on the default path, with ONE density feeding Hartree
-and XC** — no representation split, no mixing-shape mismatch, no basin loss.  Item 1's goal survives; only
-its route dies.
-**NEXT ACTION:** sweep `MNO_CUTOFF_FACTOR` = 2,3,4,6,8 with `GPW_RHO_NEGATIVE=1`; read the ρ<0 fraction,
-Etot and cost.  ⚠ Cost scales: \f$N\propto\sqrt{E_{cut}}\f$ per axis, so C=8 is ~8× the FFT work of C=2 —
-find the knee, do not assume 8.
+**⇒ ✅ RESOLVED 2026-08-25 — AND THE MECHANISM IS THE OPPOSITE OF WHAT I FIRST WROTE.**
+
+**(a) THE CONTROLLED EXPERIMENT: `RasterPolicy`, WITH {G} HELD FIXED.**  `RasterPolicy::AliasFree` chooses
+divisions so the product of ANY two ball waves is sampled exactly; `BallOnly` (CP2K's bet, and what GPW
+actually runs — `BasisSet.C:326`) resolves the ball alone and accepts the fold-back.  Crucially the BALL IS
+IDENTICAL in both — nG 8623, 870 G-stars — only the raster differs (level-0 40³ vs 80³, 8× the points).
+That separates ALIASING from BAND-LIMITING, which a `cutoffFactor` sweep cannot, because C moves both.
+
+| matched end-of-stage-1 | BallOnly (prod) | AliasFree | ratio |
+|---|---|---|---|
+| points ρ<0 | 15464 (15.92%) | 15380 (15.83%) | 0.99× |
+| negative mass | −1.812e-3 e | −1.816e-3 e | 1.00× |
+| min ρ | −0.1460 | −0.1468 | 1.01× |
+| Etot | −61.40297621 | −61.40297359 | **2.6 µHa** |
+| CPU / RSS | 500 s / 1316 MB | 1155 s / 4652 MB | **2.3× / 3.5×** |
+
+**8× the raster points moves the lobes by 1%.**  ⇒ they are **GIBBS RINGING from band-limiting**, exactly
+what a truncated Fourier series does at a cusp — NOT fold-back.  ✅ **By-product: this closes the
+calibration the code itself flags as never taken** (*"the A/B is the measurement"*, `Evaluator.C:250`):
+**`BallOnly` is vindicated as the default.**
+
+**(b) THE `cutoffFactor` SWEEP — real, but my mechanism reading was BACKWARDS.**  Matched end-of-stage-1:
+
+| C | Ecut | pts ρ<0 | negative mass (e) | min ρ | Etot | st2 it | CPU / RSS |
+|---|---|---|---|---|---|---|---|
+| 2 | 72 | 15.9% | −1.81e-3 | −0.146 | −61.40297621 | 17 | 500 s / 1316 MB |
+| 3 | 108 | 14.2% | −1.88e-4 | −0.0366 | −61.40282017 | **12** | 619 s / 1973 MB |
+| 4 | 144 | 6.6% | −1.65e-5 | −0.0071 | −61.40283283 | 13 | 814 s / 2638 MB |
+| 6 | 216 | 5.6% | **−3.02e-7** | −5.49e-4 | (stopped after st 1) | — | — |
+
+Negative MASS falls ~geometrically (**6000× by C=6**) while the point COUNT flattens at 5–6% — ringing
+amplitude decaying with its support unchanged.  C works because it **ENLARGES {G}** (less band-limiting),
+NOT because it reduces aliasing; (a) proves that directly.
+★ **Two findings worth acting on independently of N4:** production **C=2 carries ~0.15 mHa of grid error**
+(C=2→3 moves 0.15 mHa, C=3→4 only 1.3e-5 Ha), and **C=3 CONVERGES FASTER** (12 vs 17 stage-2 iterations)
+for 1.24× CPU.  The C=2 default deserves a review on its own merits.
+
+**(c) ⛔ BUT C DOES NOT SCALE — AND THAT IS THE DECIDING ARGUMENT (user, 2026-08-25).**  *"Imagine doing
+Li_0.125MnO2 in a 2x2x2 supercell of LiMnO2, with C=4."*  Raster cost is per unit VOLUME, so an 8× supercell
+gives ~10.3 GB (C=2) / 15.4 GB (C=3) / 20.6 GB (C=4) of raster ALONE on a 14 GB box — **even today's C=2
+does not fit**, before the pair streams.  Raising C pays a **GLOBAL** price (the whole cell volume) to fix a
+**LOCAL** defect (cusps within a fraction of a bohr of each nucleus).
+*(Caveat: the measured RSS exponent is C^1.00, not the ideal raster's C^1.5, so the C-scaling is the soft
+part of that estimate; the 8× volume factor is solid and C=2 alone already overflows.)*
+
+**⇒ NET: EVERY CHEAP ALTERNATIVE TO N4 IS ELIMINATED.**  Raster geometry does nothing; a bigger ball works
+but cannot scale.  The only remaining cure is to give \f$V_{xc}\f$ content the ball CANNOT represent — the
+cusp deficit, whose support is LOCAL (O(n_atoms × a small ball), linear in system size).
+★ **AND THE MACHINERY LARGELY EXISTS:** GPW already builds an automatic factor-4 **grid ladder** with a
+REL_CUTOFF-style pair→level rule and a top completion rung, so ρ is ASSEMBLED with the sharp content on
+fine levels.  The information is lost AFTERWARDS, when everything is folded into ONE {G} ball for the mixer
+and the XC feed.  **The ladder already knows which content is sharp** — N4 may be closer to an assembly
+than a build.
 
 ## ★★ N3 — THE MIXING POLICY: CHARGE AND SPIN ARE DIFFERENT CHANNELS
 

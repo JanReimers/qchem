@@ -32,3 +32,23 @@ Full commands are in each log's header.
 
 **Read Eee.**  It orders the failures by charge slosh (13.5 → 29.0 → 35.1) and separates the two distinct
 mechanisms: the flag and flat-Kerker SLOSH, while linear-D-mix loses the moment with Eee normal.
+
+## 2026-08-25 (cont.) — N2: is the ρ<0 ringing ALIASING or BAND-LIMITING?
+
+| log | arm | pts ρ<0 (matched, end of stage 1) | neg mass (e) | min ρ | Etot | CPU / RSS |
+|---|---|---|---|---|---|---|
+| `st_baseline` | C=2, **BallOnly** (production) | 15.92% | −1.81e-3 | −0.146 | −61.40297621 | 500 s / 1316 MB |
+| `st_aliasfree` | C=2, **AliasFree** — *same {G}*, 8× raster pts | **15.83%** | **−1.82e-3** | **−0.147** | −61.40297359 | 1155 s / 4652 MB |
+| `st_C3` | C=3 (ecut 108) | 14.19% | −1.88e-4 | −0.0366 | −61.40282017 | 619 s / 1973 MB |
+| `st_C4` | C=4 (ecut 144) | 6.55% | −1.65e-5 | −0.0071 | −61.40283283 | 814 s / 2638 MB |
+| `st_C6` | C=6 (ecut 216), stopped after stage 1 | 5.61% | −3.02e-7 | −5.49e-4 | — | — |
+
+**The raster A/B holds {G} FIXED** (nG 8623, 870 G-stars in both arms; BallOnly level-0 40³, AliasFree 80³).
+8× the real-space points changes the lobes by **1%** ⇒ they are **Gibbs ringing from band-limiting, not
+fold-back aliasing**.  Widening the ball (C) *does* kill them — ~6000× in negative mass by C=6 — because it
+enlarges {G}, not because it reduces aliasing.
+
+**Two verdicts fall out:** `BallOnly` is vindicated as the default (the never-taken A/B the code asks for —
+fold-back is worth 2.6 µHa, AliasFree costs 2.3× CPU / 3.5× RAM); and since raster geometry does nothing
+while a bigger ball does not scale (8× volume for a 2×2×2 supercell ⇒ >10 GB of raster at today's C=2),
+the only remaining cure is the LOCAL cusp deficit — `doc/OpenWork.md` N4.
