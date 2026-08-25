@@ -795,7 +795,22 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
 void XC_SinglesQuadrature::EmitSiteMoments() const
 {
     const rvec_t mu=PartitionedMoments(rvec_t(itsRhoUp-itsRhoDn));
-    if (mu.size()==0) return;                      // no site partition injected / no site blocks on it
+    if (mu.size()==0)
+    {   // No site partition on this mesh -- legitimate for a uniform grid, a DEFECT for an atom-centred
+        // one, and the difference used to be invisible: the instrument just printed nothing (it did so on
+        // EVERY imposed run for as long as the invariant-mesh filter dropped the blocks).  Say which it is,
+        // once, whenever the user asked for the moments.
+        static bool said=false;
+        if (std::getenv("QCHEM_SITE_MOMENTS") && !said)
+        {
+            said=true;
+            std::cout<<"[site moments] UNAVAILABLE: the XC quadrature mesh carries no site blocks"
+                     <<(itsQuad.mesh ? "" : " (no mesh injected at all)")
+                     <<" -- an integrated site moment needs an atom-centred (Becke) mesh, and an "
+                       "atom-centred mesh that lost its blocks is a defect, not a configuration."<<std::endl;
+        }
+        return;
+    }
     double net=0.0, absSum=0.0;
     for (size_t a=0;a<mu.size();a++) { net+=mu[a]; absSum+=std::fabs(mu[a]); }
     if (absSum < 1e-8) return;                    // an unpolarized density has nothing to say
