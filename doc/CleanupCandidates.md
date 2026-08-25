@@ -970,6 +970,32 @@ MnO campaign proceeds undisturbed in qchem6.
   reshapes the term/quadrature/fitter triangle, so it is a design ruling, not a refactor.  Being in
   qcFitting at least makes the bypass legible as what it is: framework algorithm, no framework object.
 
+  **✅ RULED AND BUILT SAME DAY (increment 11) — and the answer was cheaper than the question.**  The user:
+  *"DeltaScalarFitter needs to hold a shallow copy of \f$\Phi_{gi}=\chi_i(r_g)\f$."*  Two facts made it
+  work with no new machinery: **`Projector3` already IS that shallow copy** (three closures over the fit
+  basis's address-stable table — ~100 bytes against tens of MB, so the table itself never leaves), and the
+  **fitter has RUN lifetime** where the density does not (`XC_SinglesQuadrature`'s ctor builds it once;
+  `SCFIterator.C:343` builds a fresh density every iteration, which is why a density-side Φ cache was never
+  an option).  New face `Fitting::ScalarProjector` — `Overlap3C(block)` ×2 for a matrix-backed density to
+  contract its own \f$D\f$/\f$L\f$ into, `Project(field)` for a matrix-free one, `NumCoefficients()` so a
+  composite can size its accumulator — and `tDM_CD::DM_RhoAtPoints` takes it instead of the fit basis.
+  `OrthogonalFit` is down to TWO callers, both inside qcFitting: **no client bypass remains.**
+
+  **And the coefficient question dissolved rather than being solved**: a PROJECTION returns coefficients, a
+  FIT stores them, and \f$\rho\f$ only ever needed the first — so `Project()` returns `rvec_t` and no
+  `Coefficients()` getter is needed anywhere.  It *must* not store, either: the same fitter holds
+  \f$v_{xc}\f$'s fit and the Fock build interleaves with the energy path, so one buffer for both would
+  clobber exactly the way `itsXCMix` once did.  The "expansion type" sketched above is therefore NOT needed
+  for this, and is parked unless something else asks for it.
+
+  ⇒ The real payoff is not the saved map lookup: the \f$\rho\f$ FORWARD used to go density→basis while the
+  \f$H_{xc}\f$ ADJOINT went fitter→basis — two callers reaching one tensor, agreeing by convention.  Both
+  now come off ONE held handle, so the adjoint pairing is a class invariant, which is the argument
+  `XC_Quadrature`'s own header makes for its two faces one level up.
+  ⚠ **Lifetime is now load-bearing**: those closures capture the producing basis, so a STORED copy dangles
+  if the basis dies first.  Safe by construction — a fitter co-owns its fit basis by `shared_ptr` — but
+  that is an invariant to keep, not an accident of ordering.
+
 - **R1.0e The `qcHamiltonian` PWTerms TU needs a structural break-up — USER, 2026-08-23** (*"the enormous
   PWTerms TU is going to need a massive refactoring cleanup eventually"*).  584 lines of interface + 944 of
   implementation, holding at least five unrelated things: the three external-PP terms, the Hartree term,
@@ -1103,6 +1129,45 @@ MnO campaign proceeds undisturbed in qchem6.
   catch both.
 
 ### R2 — mechanical hygiene
+
+- **R2.21 ✅ FOUND AND FIXED `9da2e825` (2026-08-24). `blaze::conj` IS A NO-OP ON A COMPLEX SCALAR — and it
+  had silently corrupted the pivoted-Cholesky factor.**  Found by the R1.0c gate on its first run.
+
+  **THE TRAP.**  `blaze::conj` conjugates a MATRIX or a VECTOR but is the **identity** on a
+  `std::complex` scalar.  Measured directly against this submodule (clang 21):
+
+  | expression | result |
+  |---|---|
+  | `blaze::conj(M)(0,0)` | `(1,-2)` ✅ |
+  | `blaze::conj(M(0,0))` | `(1, 2)` ⛔ — conjugating an ELEMENT |
+  | `std::conj(z)` | `(1,-2)` ✅ |
+
+  So the natural-looking `blazem::conj(M(i,j))` compiles, reads correctly, and does nothing.
+
+  **WHAT IT BROKE.**  `LowRankFactor` built \f$L=PU^{T}\f$ instead of \f$PU^{\dagger}\f$, hence
+  \f$LL^{\dagger}=\bar D=D^{T}\f$, and
+  \f[ \rho'-\rho=\sum_{i<j}4\,\mathrm{Im}(D_{ij})\,\mathrm{Im}\!\left(\Phi_{gi}\overline{\Phi_{gj}}\right). \f]
+  **Both factors must be nonzero to see it**, and that is the whole story of why it survived: the second
+  vanishes for REAL \f$\Phi\f$ — every Γ/TRIM block, which is all the enabled suite ever ran. At
+  \f$k=(1/4,0,0)\f$ on a 4×4×4 mesh it is wrong by **~1e-1 relative in \f$\rho\f$**.
+  - **It was LIVE production code**: `QCHEM_DM_LOWRANK` defaults ON, so `FactoredRho` is the default for
+    every Bloch block.
+  - **And it was silent.**  The existing PSD guard compares \f$\mathrm{Tr}(LL^\dagger)\f$ to
+    \f$\mathrm{Tr}(D)\f$ through \f$|L|^2\f$ — and a conjugation error does not move a modulus.  A guard
+    can only catch what it is sensitive to.
+
+  **FIX.**  `blazem::conjs(x)` — an explicitly OVERLOADED scalar conjugate (`double`→`double`, so the real
+  case cannot pick up a `std::complex` return) added to `qchem.Blaze` with the trap documented on it.  Two
+  call sites corrected: `LowRankFactor` (the bug) and the `[DM subspace]` diagnostic (a wrong printed
+  overlap only).  **A survey of the other seven `blazem::conj` uses in the tree found them all to be
+  matrix/vector expressions, which are correct** — so the blast radius was exactly these two.
+
+  ⚠ **THE TRANSFERABLE LESSON, and it is about the GATE, not the bug.**  The pre-existing complex rig could
+  not have caught this no matter what it asserted, because every k on a 2×2×2 mesh is TRIM
+  (\f$2k\f$ is a reciprocal lattice vector), so its "complex" block carried REAL \f$\Phi\f$ in a complex
+  matrix.  **A complex TYPE is not a complex VALUE**: a gate meant to exercise complex arithmetic has to be
+  built at a geometry where the numbers are actually complex, and that has to be stated in the test rather
+  than assumed from the scalar.  The gate now says so, and names the k it uses and why.
 
 - **R2.1 ✅ DONE `06e23f5d`. `tDM_CD::DM_ContractBlocks` → pure virtual.**  The asserting default is DEAD — all three.  **→ doc/CleanupHistory.md**
 - **R2.2 ✅ DONE `48e25b74`. Collapse `Kinetic` + `PW_Kinetic` → `Kinetic<T>`.**  Both are 0.5×(kinetic matrix);.  **→ doc/CleanupHistory.md**

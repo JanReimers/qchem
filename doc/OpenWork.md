@@ -1220,7 +1220,35 @@ Re-verified after all three: 756/756, and the two-route Si gate still prints −
   block.  A compile-time branch is still worth writing only where the run-time one could actually be wrong
   or hot.
 
-#### ⇒ THE ONE THING LEFT, AND IT WANTS A RULING (R1.0g in doc/CleanupCandidates.md)
+#### ✅ AND THE ONE THING LEFT WAS RULED AND BUILT (user, 2026-08-24) — increments R1.0c + 11
+
+*"DeltaScalarFitter needs to hold a shallow copy of \f$\Phi_{gi}=\chi_i(r_g)\f$."*  It needed no new
+machinery: **`Projector3` already IS that shallow copy** (three closures over the basis's address-stable
+table, ~100 bytes against tens of MB), and the **fitter has RUN lifetime** where the density does not — a
+fresh density object is built every iteration (`SCFIterator.C:343`), which is why a density-side Φ cache
+was never available.  New face `Fitting::ScalarProjector`; `tDM_CD::DM_RhoAtPoints` takes it instead of the
+fit basis; **`OrthogonalFit` is down to two callers, both inside qcFitting — no client bypass remains.**
+
+And the coefficient question **dissolved rather than being solved**: a PROJECTION returns coefficients, a
+FIT stores them, and ρ only ever needed the first.  So no `Coefficients()` getter is needed anywhere, and
+the "expansion type" sketched below is parked unless something else asks for it.
+
+⚠ **THE SESSION'S REAL FIND, though, was the gate that had to land first (R2.21).**  `blaze::conj`
+conjugates a matrix or a vector but is the **identity on a complex SCALAR** — so `blazem::conj(M(i,j))`
+compiles, reads correctly, and does nothing.  `LowRankFactor` built \f$L=PU^T\f$ instead of
+\f$PU^\dagger\f$, giving \f$LL^\dagger=D^T\f$ and a ρ wrong by ~1e-1 relative on any block with
+genuinely complex Φ.  Live production code (`QCHEM_DM_LOWRANK` defaults on), invisible for two compounding
+reasons: no enabled test exercised the factored complex path, and the PSD guard checks
+\f$\mathrm{Tr}(LL^\dagger)\f$ through \f$|L|^2\f$, which a conjugation error does not move.
+
+⇒ **Carry this one forward: a complex TYPE is not a complex VALUE.**  Every k on a 2×2×2 mesh is TRIM, so
+the pre-existing "complex" rig held REAL Φ in a complex matrix and could not have caught this whatever it
+asserted.  A gate meant to exercise complex arithmetic must be built at a geometry where the numbers are
+actually complex, and must say so.
+
+---
+
+#### The ruling as it stood before that (R1.0g in doc/CleanupCandidates.md)
 
 The user's sentence had two halves and only the first is done.  *"OrthogonalFit belongs in the qcFitting
 library"* — done.  *"Client code needs to use that framework, not dodge around it"* — **not** done: two
