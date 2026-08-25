@@ -6,6 +6,7 @@ target_sources(qcCommon PRIVATE  Imp/PeriodicTable.C Imp/Reporting.C Imp/Paralle
 target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     PeriodicTable.C
     Iterators.C
+    Outcome.C
     stl_io.C
     stream.C
     Strings.C

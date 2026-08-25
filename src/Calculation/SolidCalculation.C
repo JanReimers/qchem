@@ -28,6 +28,7 @@
 // overload), so this file imports ZERO internals, exactly as the molecular facades already manage.
 module;
 #include <memory>
+#include <string>    // SCFFailure::details
 #include <vector>
 #include <string>
 #include <utility>
@@ -45,6 +46,7 @@ import qchem.ChargeDensity;                   // cDM_CD
 import qchem.ChargeDensity.Seed;              // SeedStrategy
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
 import qchem.LASolver;                        // qchem::Ortho
+import qchem.Outcome;                         // Outcome<T,E> -- the fallible-call vocabulary (N1/T1)
 
 export namespace qchem
 {
@@ -121,10 +123,63 @@ struct SolidCalcOptions
     //!@}
 };
 
-//! \brief A converged (or attempted) periodic SCF.
+//! \brief WHY an SCF attempt produced no usable answer (doc/OpenWork.md N1).
+//!
+//! Carried as a VALUE, not thrown: a non-convergent SCF is a legitimate outcome the caller must act on,
+//! not a broken invariant.  \c why exists because the detectors distinguish cases that look identical from
+//! the energy alone -- a run that simply ran out of iterations, one whose Hartree term ran away
+//! (measured 2026-08-25: Eee 13.5 -> 29.0 Ha), and one that converged to the WRONG STATE, e.g. an imposed
+//! AFM cell that relaxed to zero moment, which contradicts its own constraint.
+struct SCFFailure
+{
+    enum class Why
+    {
+        NotConverged,   //!< ran to the iteration limit with the residual still above tolerance
+        ChargeSlosh,    //!< the Hartree term ran away (the low-G charge mode un-damped)
+        OrderLost       //!< converged, but NOT to the state that was imposed (e.g. imposed AFM -> m=0)
+    };
+    Why         why        = Why::NotConverged;
+    size_t      iterations = 0;
+    double      residual   = 0.0;
+    //! The last iterate's energy.  DIAGNOSTIC ONLY -- it is deliberately not reachable as "the energy",
+    //! because handing back a plausible number from a failed run is the defect this whole type exists to
+    //! prevent (four such numbers were produced in one session: -45.5, -46.3, -56.4, -38.5).
+    double      lastEnergy = 0.0;
+    std::string details;
+};
+
+//! \brief A periodic SCF: attempt it, and get back either the ANSWERS or the reason there are none.
 class SolidCalculation
 {
+    struct Imp;   //!< fwd: \c Converged holds one (the definition lives in the .C, as always)
 public:
+    //! \brief PROOF that the SCF converged, and the only place the answers live.
+    //!
+    //! WHY A SEPARATE TYPE rather than \c Fallible<double> on each accessor (user, 2026-08-25).
+    //! "Did it converge?" is ONE fact governing a whole FAMILY of queries; wrapping each accessor repeats
+    //! it and asks the caller to check N times.  Worse, a Fallible-style accessor ASSERTS on misuse, and
+    //! an assert is compiled out under NDEBUG -- exactly how the imposed-mesh site-blocks defect stayed
+    //! invisible in Release.  Here there is no check to forget and nothing to compile out: \b the
+    //! \b accessors \b do \b not \b exist \b without \b the \b proof.  (CLAUDE.md: give capabilities only
+    //! to types that have them.)
+    //!
+    //! \warning NON-OWNING, and invalidated by the next \c Converge() -- the same contract \c Density()
+    //! has always carried.  Take it fresh from each attempt; do not store one across a re-run.
+    class Converged
+    {
+    public:
+        double                 Energy()         const;   //!< total energy (hartree)
+        qchem::EnergyBreakdown EnergyTerms()    const;
+        double                 TotalCharge()    const;   //!< the electron count (a charge-conservation check)
+        size_t                 IterationCount() const;
+        //! rho(r) of the converged state (see the class \warning for its lifetime).
+        const ScalarFunction<double>& Density() const;
+    private:
+        friend class SolidCalculation;
+        explicit Converged(const Imp* imp) : itsImp(imp) {}
+        const Imp* itsImp;
+    };
+
     using sf_t     = ScalarFunction<double>;
     using Observer = qchem::SCFIterator::SolidSCFIterator::Observer;
 
@@ -140,21 +195,36 @@ public:
     SolidCalculation(const SolidCalculation&)            = delete;   // owns raw resources
     SolidCalculation& operator=(const SolidCalculation&) = delete;
 
-    //! Re-run the SCF (e.g. with tighter tolerances).  Invalidates references handed out by Density().
-    bool Converge(const SCFParams& params = {});
+    //! \brief Re-run the SCF (e.g. with tighter tolerances) and hand back the ANSWERS or the REASON.
+    //! Invalidates any \c Converged handed out by an earlier attempt.
+    //! \c [[nodiscard]] via \c Outcome: dropping the result is a compile-time warning.
+    Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
+    //! \brief The outcome of the attempt the CONSTRUCTOR made, so a caller that never re-converges still
+    //! has to face it.  (The ctor converges on construction; without this, its result would be silently
+    //! unreachable and the old \c Energy() would happily serve a failed run.)
+    Outcome<Converged, SCFFailure> Result() const;
     //! Live per-iteration telemetry.  Set BEFORE a Converge() call to observe it (the ctor's initial
     //! convergence runs before any observer can be attached).
     void OnIteration(Observer obs);
 
-    bool                   Converged()      const;
+    //! Did it converge?  A cheap STATUS question, kept because reporting and tests ask it without wanting
+    //! the answers.  It is NOT the gate on the results any more -- \c Converge()/\c Result() are.
+    bool                   DidConverge()    const;
     size_t                 IterationCount() const;
-    double                 Energy()         const;   //!< total energy (hartree)
-    qchem::EnergyBreakdown EnergyTerms()    const;
-    double                 TotalCharge()    const;   //!< the converged electron count (a charge-conservation check)
 
-    //! rho(r) of the converged state.  A periodic density is dcmplx-backed but rho is real, so this is the
-    //! same \c ScalarFunction<double> face the molecular facade returns -- sample it, or take its Gradient.
-    const sf_t& Density() const;
+    //! \name The LAST ITERATE, converged or not -- DIAGNOSTICS, deliberately named so
+    //! A fixed-iteration A/B (run both arms for exactly one step and compare the arithmetic) is a real and
+    //! legitimate need, and the point of N1/T1 is NOT to make unconverged numbers unreachable -- it is to
+    //! make them IMPOSSIBLE TO MISTAKE FOR AN ANSWER.  These say what they are in their names; \c Energy()
+    //! on the proof says what it is by existing at all.
+    //!@{
+    qchem::EnergyBreakdown LastIterateTerms()  const;
+    double                 LastIterateCharge() const;
+    //!@}
+
+    // ⛔ Energy() / EnergyTerms() / TotalCharge() / Density() DELIBERATELY DO NOT LIVE HERE any more
+    // (doc/OpenWork.md N1/T1).  They are on Converged, reachable only through Converge()/Result(), because
+    // every one of them used to return a plausible number from a run that had failed.
 
     //! \brief WHICH XC quadrature this run actually used, after \c Auto was resolved.
     //!
@@ -163,7 +233,9 @@ public:
     const qcMesh::MeshParams& ResolvedXCMesh() const;
 
 private:
-    struct Imp;
+    //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift
+    //! apart in what they call a success.
+    Outcome<Converged, SCFFailure> Outcome_() const;
     std::unique_ptr<Imp> itsImp;
 };
 

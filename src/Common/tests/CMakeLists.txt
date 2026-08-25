@@ -5,6 +5,7 @@ add_executable(UTCommon gtestmain.C
     Blaze.C
     FFT.C
     Reporting.C
+    Outcome.C
 )
 
 target_compile_definitions(UTCommon PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

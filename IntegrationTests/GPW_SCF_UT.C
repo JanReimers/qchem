@@ -3075,9 +3075,11 @@ TEST(GPW_SCF, SolidCalculationMatchesTheSiAnchor)
     qchem::SolidCalculation calc(lat, MakeBasisSR(cell),
                                  {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
 
-    EXPECT_TRUE(calc.Converged());
-    EXPECT_NEAR(calc.TotalCharge(), 8.0, 1e-6);
-    EXPECT_NEAR(calc.Energy(), -7.11506, 2e-3)      // the SiliconGammaConverges anchor, same tolerance
+    // N1/T1: the answers are reachable only through the PROOF, so a non-converged run cannot serve them.
+    auto r = calc.Result();
+    ASSERT_TRUE(r) << "SCF did not converge: " << (r ? std::string() : r.Error().details);
+    EXPECT_NEAR(r->TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(r->Energy(), -7.11506, 2e-3)        // the SiliconGammaConverges anchor, same tolerance
         << "SolidCalculation must reproduce the driver's physics -- a facade that drifts from the "
            "recipe it fronts is worse than no facade";
     // The facade OWNS the grid decision, so it must be able to say what it chose (V1.26/V2.4): Si is soft
@@ -3086,7 +3088,7 @@ TEST(GPW_SCF, SolidCalculationMatchesTheSiAnchor)
     EXPECT_GT(calc.ResolvedXCMesh().eCut, 0.0) << "an Auto-resolved uniform mesh must carry its own cutoff, "
                                                   "never fall back on nUniform's basis-blind default";
     // rho(r) is reachable through the same neutral ScalarFunction face the molecular facade exposes.
-    EXPECT_GT(calc.Density()(rvec3_t(0.1,0.1,0.1)), 0.0);
+    EXPECT_GT(r->Density()(rvec3_t(0.1,0.1,0.1)), 0.0);
 }
 
 //================================================================================================
@@ -3118,8 +3120,9 @@ TEST(GPW_SCF, CrossRunFirstRunAnomalyProbe)
         std::cout<<"[xrun] ================= RUN "<<r<<" ================="<<std::endl;
         qchem::SolidCalculation calc(lat, MakeBasisSR(cell),
                                      {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
-        EXPECT_TRUE(calc.Converged());
-        E[r]=calc.Energy();
+        auto res=calc.Result();
+        ASSERT_TRUE(res) << "run "<<r<<" did not converge: "<<res.Error().details;
+        E[r]=res->Energy();
         std::cout.precision(15);
         std::cout<<"[xrun] run "<<r<<" E="<<E[r]<<std::endl;
     }
@@ -3165,7 +3168,8 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const UnitCell& cell, 
 
     {   // (1) the arithmetic arm: exactly one iteration each
         qchem::SolidCalculation on(lat, MakeBasisSR(cell), optOn, one), off(lat, MakeBasisSR(cell), optOff, one);
-        const qchem::EnergyBreakdown En=on.EnergyTerms(), Ec=off.EnergyTerms();
+        // ONE iteration by construction, so these are LAST-ITERATE diagnostics, not answers (N1/T1).
+        const qchem::EnergyBreakdown En=on.LastIterateTerms(), Ec=off.LastIterateTerms();
         // 1e-8: real-vs-complex roundoff headroom -- Een's large-cancellation assembly (vs Enn~8 Ha)
         // measured 2e-9 across the 3-block mesh.  Roundoff grade, far below any defect scale.
         EXPECT_NEAR(En.GetTotalEnergy(), Ec.GetTotalEnergy(), 1e-8) << what << " (iteration 1)";
@@ -3173,21 +3177,22 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const UnitCell& cell, 
         EXPECT_NEAR(En.Een,     Ec.Een,     1e-8) << what << " (iteration 1)";
         EXPECT_NEAR(En.Eee,     Ec.Eee,     1e-8) << what << " (iteration 1)";
         EXPECT_NEAR(En.Exc,     Ec.Exc,     1e-8) << what << " (iteration 1)";
-        EXPECT_NEAR(on.TotalCharge(), off.TotalCharge(), 1e-10) << what << " (iteration 1)";
+        EXPECT_NEAR(on.LastIterateCharge(), off.LastIterateCharge(), 1e-10) << what << " (iteration 1)";
     }
     {   // (2) the physics arm: both converge on the production-shaped gates
         SCFParams par;
         par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
         par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
         qchem::SolidCalculation on(lat, MakeBasisSR(cell), optOn, par), off(lat, MakeBasisSR(cell), optOff, par);
-        ASSERT_TRUE(on .Converged()) << what;
-        ASSERT_TRUE(off.Converged()) << what;
-        EXPECT_NEAR(on.Energy(), off.Energy(), 2e-5) << what;        // MinΔE=1e-6 resolution (measured 4.8e-6)
+        auto ron=on.Result(), roff=off.Result();
+        ASSERT_TRUE(ron)  << what << ": " << (ron  ? std::string() : ron .Error().details);
+        ASSERT_TRUE(roff) << what << ": " << (roff ? std::string() : roff.Error().details);
+        EXPECT_NEAR(ron->Energy(), roff->Energy(), 2e-5) << what;    // MinΔE=1e-6 resolution (measured 4.8e-6)
         const rvec3_t pts[]={ cell.ToCartesian(rvec3_t(0.3,0.4,0.7)),
                               cell.ToCartesian(rvec3_t(0.25,0.25,0.25)),
                               cell.ToCartesian(rvec3_t(0.1,0.9,0.2)) };
         for (const auto& r : pts)                                     // MinΔρ=1e-3 resolution (measured ≤9.1e-6)
-            EXPECT_NEAR(on.Density()(r), off.Density()(r), 1e-4) << what;
+            EXPECT_NEAR(ron->Density()(r), roff->Density()(r), 1e-4) << what;
     }
 }
 
@@ -3243,11 +3248,13 @@ TEST(GPW_SCF, RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh)
                                 {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
     qchem::SolidCalculation off(lat, MakeBasisSR(cell),
                                 {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true}, par);
-    ASSERT_TRUE(on .Converged()) << "MOM on a mixed real/complex mesh must converge (R2.21)";
-    ASSERT_TRUE(off.Converged());
-    EXPECT_NEAR(on.Energy(), off.Energy(), 1e-9)
+    auto ron=on.Result(), roff=off.Result();
+    ASSERT_TRUE(ron)  << "MOM on a mixed real/complex mesh must converge (R2.21): "
+                      << (ron ? std::string() : ron.Error().details);
+    ASSERT_TRUE(roff) << (roff ? std::string() : roff.Error().details);
+    EXPECT_NEAR(ron->Energy(), roff->Energy(), 1e-9)
         << "a real TRIM block's MOM reference must behave exactly like its complex twin's";
-    EXPECT_NEAR(on.TotalCharge(), off.TotalCharge(), 1e-10);
+    EXPECT_NEAR(ron->TotalCharge(), roff->TotalCharge(), 1e-10);
 }
 
 //================================================================================================

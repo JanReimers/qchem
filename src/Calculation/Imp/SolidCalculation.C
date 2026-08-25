@@ -124,13 +124,46 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
         itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
         opts.seed, itsImp->st.get(), opts.ortho, opts.orthoTol);
 
-    Converge(params);
+    (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
 }
 
 SolidCalculation::~SolidCalculation() = default;
 
 //---------------------------------------------------------------------------------------------------
-bool SolidCalculation::Converge(const SCFParams& params)
+// THE ANSWERS LIVE ON THE PROOF (doc/OpenWork.md N1/T1).  Each of these used to sit on SolidCalculation
+// itself with no precondition, so a run that never converged served a plausible number to anyone who did
+// not think to ask Converged() first.  Reaching them now REQUIRES having been handed a Converged, and the
+// only source of one is a successful attempt.
+double SolidCalculation::Converged::Energy()      const {return itsImp->scf->GetEnergy().GetTotalEnergy();}
+qchem::EnergyBreakdown SolidCalculation::Converged::EnergyTerms() const {return itsImp->scf->GetEnergy();}
+double SolidCalculation::Converged::TotalCharge() const {return itsImp->charge;}
+size_t SolidCalculation::Converged::IterationCount() const {return itsImp->scf->GetIterationCount();}
+
+const ScalarFunction<double>& SolidCalculation::Converged::Density() const
+{
+    // Still an assert, and legitimately so: reaching here without a density would be a BROKEN INVARIANT
+    // (a Converged is only ever minted beside one), not a user error.  The user-error case is what the
+    // type now prevents outright.
+    assert(itsImp->cd && "SolidCalculation::Converged::Density: converged without a density");
+    return *itsImp->cd;
+}
+
+//---------------------------------------------------------------------------------------------------
+//! Mint the outcome from the state the last attempt left behind -- one place, so Converge() and Result()
+//! cannot drift apart in what they call a success.
+Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() const
+{
+    using O = Outcome<Converged, SCFFailure>;
+    if (itsImp->converged) return O::Ok(Converged(itsImp.get()));
+    SCFFailure f;
+    f.why        = SCFFailure::Why::NotConverged;
+    f.iterations = itsImp->scf->GetIterationCount();
+    f.lastEnergy = itsImp->scf->GetEnergy().GetTotalEnergy();
+    f.details    = "the SCF reached its iteration limit with the residual still above tolerance";
+    return O::Fail(std::move(f));
+}
+
+Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(const SCFParams& params)
 {
     assert(itsImp->scf);
     itsImp->scf->Iterate(params);
@@ -140,21 +173,17 @@ bool SolidCalculation::Converge(const SCFParams& params)
     auto cd = itsImp->scf->GetWaveFunction()->GetChargeDensity();   // BUILT for us; we take it
     itsImp->charge = cd->GetTotalCharge();
     itsImp->cd = std::move(cd);
-    return itsImp->converged;
+    return Outcome_();
 }
+
+Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Result() const {return Outcome_();}
+
+qchem::EnergyBreakdown SolidCalculation::LastIterateTerms()  const {return itsImp->scf->GetEnergy();}
+double                 SolidCalculation::LastIterateCharge() const {return itsImp->charge;}
 
 void   SolidCalculation::OnIteration(Observer obs)      { itsImp->scf->SetObserver(std::move(obs)); }
-bool   SolidCalculation::Converged()      const         { return itsImp->converged; }
+bool   SolidCalculation::DidConverge()    const         { return itsImp->converged; }
 size_t SolidCalculation::IterationCount() const         { return itsImp->scf->GetIterationCount(); }
-double SolidCalculation::Energy()         const         { return itsImp->scf->GetEnergy().GetTotalEnergy(); }
-qchem::EnergyBreakdown SolidCalculation::EnergyTerms() const { return itsImp->scf->GetEnergy(); }
-double SolidCalculation::TotalCharge()    const         { return itsImp->charge; }
-
-const SolidCalculation::sf_t& SolidCalculation::Density() const
-{
-    assert(itsImp->cd && "SolidCalculation::Density: no converged density (Converge() not run?)");
-    return *itsImp->cd;
-}
 
 const qcMesh::MeshParams& SolidCalculation::ResolvedXCMesh() const { return itsImp->xcMesh; }
 

@@ -135,7 +135,7 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
         par.NMaxIter=2; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30;
         par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
         SolidCalculation calc(lat, mol, {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
-        (void)calc.Energy();
+        (void)calc.Result();   // NMaxIter=2: this deliberately does NOT converge -- the trace is the subject
     });
     const std::string h = HeaderLine(trace);
     ASSERT_FALSE(h.empty()) << "the solid layout printed no trace at all:\n" << trace;
