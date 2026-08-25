@@ -585,13 +585,31 @@ bool UseDMSource()
 }
 //! The exact density behind a field-backed one + THE DAMPING THAT FIELD APPLIED -- always together, because
 //! taking the first without the second is the half-damped map (see cDM_Sourced_CD::EffectiveAlpha).
-struct ExactSource { const cDM_CD* cd=nullptr; double alpha=0.0; explicit operator bool() const {return cd;} };
+struct ExactSource
+{
+    const cDM_CD* cd=nullptr; double alpha=0.0;
+    std::shared_ptr<const cChargeDensity> corr;   //!< N4: rho_mix - rho[D] as a field (null = wholesale route)
+    explicit operator bool() const {return cd;}
+};
+// THE CUSP-DEFICIT ROUTE (doc/OpenWork.md N4).  GPW_XC_CUSP_DEFICIT=1 selects
+//     rho_XC = rho[D]_exact + IFT[rho_mix - rho[D]]
+// instead of the WHOLESALE replacement (damped rho[D]) the plain GPW_XC_DM_SOURCE takes.  The difference is
+// not cosmetic: the correction form's BAND-LIMITED content is identically rho_mix -- the array Hartree uses
+// -- so Kerker's f(G) reaches XC unmodified and there is NO alpha_eff to choose.  The wholesale route's flat
+// alpha_eff cannot reproduce that shape, and measurement (2026-08-25) says destroying the selectivity costs
+// the MnO magnetic basin (-61.403 -> -45.529, Eee 13.5 -> 29.0 Ha).
+bool UseCuspDeficit()
+{
+    static const bool on=[]{ const char* e=std::getenv("GPW_XC_CUSP_DEFICIT"); return e && std::atoi(e)!=0; }();
+    return on;
+}
 ExactSource ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd)
 {
-    if (!UseDMSource() || !cd) return {};
+    if ((!UseDMSource() && !UseCuspDeficit()) || !cd) return {};
     auto* src=dynamic_cast<const qchem::ChargeDensity::cDM_Sourced_CD*>(cd);
     if (!src) return {};
-    return {src->DMSource().get(), src->EffectiveAlpha()};
+    return {src->DMSource().get(), src->EffectiveAlpha(),
+            UseCuspDeficit() ? src->XCCorrection() : nullptr};
 }
 // GPW_XC_DM_MIX overrides alpha_eff for CONTROLS only (=1 reproduces the undamped route); unset = use the
 // mix's own.  GPW_XC_DM_BOOST scales it: alpha_eff came out ~0.20 on NaF and ~0.35 on MnO -- measured, but
@@ -682,9 +700,20 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
                      <<" but its retained density matrix did NOT (still "<<itsSrcVersion
                      <<") -- V_xc is being built from the PREVIOUS iteration's D."<<std::endl;
         itsSrcVersion=ex.cd->Version();
-        DampXCChannel(itsXCMix, ex.cd->ProjectOnto(Projector()), ex.alpha);
-        itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
-        ReportNegativeRho(*this, itsRho, "DM-source");
+        if (ex.corr)
+        {   // N4: exact cusps + the band-limited difference.  No damping decision exists here by design.
+            itsRho=ex.cd->ProjectOnto(Projector());
+            const rvec_t c=Projector().Project(*ex.corr);
+            assert(c.size()==itsRho.size() && "XC cusp-deficit: correction and rho must share the mesh");
+            for (size_t g=0; g<itsRho.size(); ++g) itsRho[g]+=c[g];
+            ReportNegativeRho(*this, itsRho, "cusp-deficit");
+        }
+        else
+        {
+            DampXCChannel(itsXCMix, ex.cd->ProjectOnto(Projector()), ex.alpha);
+            itsRho=itsXCMix;   // the running mix lives in its OWN buffer -- see the \warning on itsXCMix
+            ReportNegativeRho(*this, itsRho, "DM-source");
+        }
     }
     else
     {
@@ -745,11 +774,24 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
                 itsSrcVersion=exUp.cd->Version();
                 rvec_t up=exUp.cd->ProjectOnto(Projector());
                 rvec_t dn=exDn.cd->ProjectOnto(Projector());
-                DampXCChannel(itsXCMixUp, up, exUp.alpha);   // match the damping Hartree gets, so the map
-                DampXCChannel(itsXCMixDn, dn, exDn.alpha);   //   is not half-damped
-                itsRhoUp=itsXCMixUp; itsRhoDn=itsXCMixDn;
-                ReportNegativeRho(*this, itsRhoUp, "DM-source(up)");
-                ReportNegativeRho(*this, itsRhoDn, "DM-source(dn)");
+                if (exUp.corr && exDn.corr)
+                {   // N4, per channel: each channel's own rho_mix - rho[D] (the polarized split gives the
+                    // mixer one FourierMixCD per spin, so the corrections are already channel-private).
+                    const rvec_t cu=Projector().Project(*exUp.corr), cd_=Projector().Project(*exDn.corr);
+                    assert(cu.size()==up.size() && cd_.size()==dn.size());
+                    for (size_t g=0; g<up.size(); ++g) {up[g]+=cu[g]; dn[g]+=cd_[g];}
+                    itsRhoUp=up; itsRhoDn=dn;
+                    ReportNegativeRho(*this, itsRhoUp, "cusp-deficit(up)");
+                    ReportNegativeRho(*this, itsRhoDn, "cusp-deficit(dn)");
+                }
+                else
+                {
+                    DampXCChannel(itsXCMixUp, up, exUp.alpha);   // match the damping Hartree gets, so the map
+                    DampXCChannel(itsXCMixDn, dn, exDn.alpha);   //   is not half-damped
+                    itsRhoUp=itsXCMixUp; itsRhoDn=itsXCMixDn;
+                    ReportNegativeRho(*this, itsRhoUp, "DM-source(up)");
+                    ReportNegativeRho(*this, itsRhoDn, "DM-source(dn)");
+                }
             }
             else
             {

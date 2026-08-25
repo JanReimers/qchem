@@ -529,6 +529,28 @@ public:
     //! \return 0 when nothing has been mixed yet (iteration 0) -- callers should treat that as "no damping
     //! information", not as "damp to zero".
     virtual double EffectiveAlpha() const=0;
+
+    //! \brief \f$\tilde\rho_{mix}-\tilde\rho[D]\f$ AS A FIELD -- the band-limited half of the CUSP-DEFICIT
+    //! XC feed (doc/OpenWork.md N4).  Null when none was built (seed, or a mixer that does not form one).
+    //!
+    //! WHY THIS EXISTS, AND WHY IT BEATS \c EffectiveAlpha.  Taking \c DMSource() and damping it by
+    //! \f$\alpha_{\rm eff}\f$ REPLACES the mixed density wholesale, which forces a damping choice -- and a
+    //! flat scalar cannot reproduce Kerker's \f$f(G)\f$ SHAPE.  Measured 2026-08-25: that destroys Kerker's
+    //! mode selectivity (on MnO it leaves the AFM mode at \f$|G|=1.24\f$ almost untouched while un-damping
+    //! the CHARGE mode at \f$|G|=0.65\f$ by 2.4x), the charge channel runs away (Eee 13.5 -> 29.0 Ha) and the
+    //! magnetic basin is lost (-61.403 -> -45.529).
+    //!
+    //! The correction form has no such freedom:
+    //! \f[ \rho_{XC}=\rho[D]_{exact}+\mathrm{IFT}\big[\tilde\rho_{mix}-\tilde\rho[D]\big] \f]
+    //! Its BAND-LIMITED content is IDENTICALLY \f$\rho_{mix}\f$ -- the array Hartree itself uses -- so
+    //! \f$f(G)\f$ reaches XC unmodified and the selectivity is preserved BY CONSTRUCTION; what is added is
+    //! only the cusp content no \f${G}\f$ ball can represent.  There is no \f$\alpha_{\rm eff}\f$ to choose.
+    //!
+    //! COST: one sampling sweep of THIS field plus the \f$\rho[D]\f$ GEMM -- i.e. today's cost, not double.
+    //! Forming the difference in G-space first is what collapses the two sweeps the naive form would need.
+    //! And since \f$\tilde\rho_{mix}-\tilde\rho[D]=(\alpha f(G)-1)\,\tilde\delta\f$ is proportional to the SCF
+    //! RESIDUAL, it vanishes at convergence: the fixed point is the EXACT-density one.
+    virtual std::shared_ptr<const tChargeDensity<T>> XCCorrection() const=0;
 };
 
 using rDM_Sourced_CD = tDM_Sourced_CD<double>;

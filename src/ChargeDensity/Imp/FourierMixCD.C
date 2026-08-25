@@ -8,6 +8,7 @@ module;
 #include <iomanip>
 #include <iostream>    // the residual-spectrum census goes to cout, like the other GPW_* instruments
 #include <map>
+#include <memory>      // shared_ptr (the deposited cusp-deficit correction field)
 #include <stdexcept>
 #include <vector>
 module qchem.ChargeDensity.FourierMixCD;
@@ -66,12 +67,18 @@ FourierMixCD* FourierMixCD::KerkerMix(const FourierMixCD& in, const ΔG_Map& out
         binPow[b]+=d2; binF[b]+=fk*d2; gPow+=g*d2;
     };
     // rho_mix = rho_in + alpha*f_K*(rho_out - rho_in), over the union of {G} in `in` and `out`.
+    // THE CUSP-DEFICIT CORRECTION (doc/OpenWork.md N4), formed HERE because both terms are already in hand:
+    // corr = rho_mix - rho_out = (alpha*f(G) - 1) * delta.  XC samples rho[D]_exact + IFT[corr], whose
+    // band-limited content is IDENTICALLY rho_mix -- so Kerker's f(G) reaches XC unmodified and there is no
+    // alpha_eff to choose.  One subtraction per G; the map is deposited below.
+    ΔG_Map corr;
     for (const auto& [dm, rin] : in.itsRho)
     {
         auto io = out.find(dm);
         const dcmplx rout = (io!=out.end()) ? dcmplx(io->second) : dcmplx(0.0);
         const double f=fK(dm);
         mix[dm] = dcmplx(rin) + alpha*f*(rout - dcmplx(rin));
+        corr[dm]= dcmplx(mix[dm]) - rout;                            // rho_out absent => rho[D] = 0 there
         accum(f, rout - dcmplx(rin), in.itsRecip.GetGLength(dm));
     }
     for (const auto& [dm, rout] : out)
@@ -79,9 +86,14 @@ FourierMixCD* FourierMixCD::KerkerMix(const FourierMixCD& in, const ΔG_Map& out
         {
             const double f=fK(dm);
             mix[dm] = alpha*f*dcmplx(rout);
+            corr[dm]= dcmplx(mix[dm]) - dcmplx(rout);                // = (alpha*f - 1) * rho_out
             accum(f, dcmplx(rout), in.itsRecip.GetGLength(dm));      // delta = rho_out - 0
         }
     auto* r = new FourierMixCD(std::move(mix), in.itsRecip, in.itsCharge);   // charge conserved by the SCF diagonalization
+    // The correction carries ~ZERO net charge (a difference of two densities of the same N), which is the
+    // honest value to hand its ctor -- it is a correction field, not a density.
+    r->itsXCCorrection = std::shared_ptr<const FourierMixCD>(
+                             new FourierMixCD(std::move(corr), in.itsRecip, 0.0));
     r->itsEffectiveAlpha = (den>0.0) ? std::sqrt(num/den) : 0.0;      // den==0 => rho_out==rho_in (converged)
     if (spectrum && den>0.0)
     {
