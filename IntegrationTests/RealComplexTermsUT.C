@@ -16,8 +16,10 @@
 // accidentally sharing one DBCache'd closure.  The pair-quadrature RAW-route real path needs the full
 // collocation feed and is gated with the 3c-2 SCF wiring.
 #include "gtest/gtest.h"
+#include <cmath>
 #include <complex>
 #include <memory>
+#include <type_traits>
 
 import qchem.Structure;
 import qchem.UnitCell;
@@ -110,6 +112,155 @@ void ExpectMachineEqual(const rsmat_t& R, const chmat_t& C, const char* what)
             EXPECT_NEAR(R(i,j), std::real(C(i,j)), 1e-13) << what << " (" << i << "," << j << ")";
 }
 } //anon
+
+// ---- R1.0c: the FACTORED forward contraction, on BOTH scalars ------------------------------------------
+//
+// One integral, two representations of D: applyRaw(D) is the full quadratic form [Phi D Phi^dag]_gg and
+// applyRawFactored(L) is Sum_m |[Phi L]_gm|^2 for a caller holding D = L L^dag.  They must agree, and
+// NOTHING WAS CHECKING THAT.  Measured 2026-08-23 by instrumenting DeltaFit_IBS::ForwardFactoredT over the
+// whole suite: the factored branch fires exactly ONCE, on the `double` instantiation, so
+// ForwardFactoredT<dcmplx> -- live code on the default route -- was exercised by no enabled test at all.
+//
+// It matters more than a normal coverage gap because a wrong factored rho is NOT LOUD: it is a slightly
+// wrong density feeding a pointwise-nonlinear functional, which reads as a degraded SCF rather than a bug.
+// A UNIT gate, deliberately, not an SCF one: build D from L so the two inputs are the same object by
+// construction, and compare the two contractions of the ONE tensor.
+namespace
+{
+inline rvec3_t rig_pt(double a,double b,double c) {return rvec3_t(a,b,c);}
+
+//! A deterministic thin factor: no RNG, so a failure is reproducible from the test name alone.
+template <class U> U FactorEntry(size_t i, size_t m)
+{
+    const double a=std::sin(1.0+0.7*double(i)+1.3*double(m))/(1.0+0.1*double(i));
+    if constexpr (std::is_same_v<U,dcmplx>) return dcmplx(a, std::cos(0.4+0.9*double(i)-0.6*double(m))*0.5);
+    else                                    return a;
+}
+
+//! \f$\rho\f$ from \f$L\f$ two ways over ONE \c Projector3: the factored contraction against the full
+//! quadratic form of \f$D=LL^\dagger\f$.  PSD by construction, so the factored route is always applicable.
+template <class U>
+void ExpectFactoredMatchesFull(const BasisSet::DeltaFit_IBS& dfit,
+                               const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb,
+                               const char* what)
+{
+    const size_t n=orb.GetNumFunctions(), r=3;
+    ASSERT_GT(n, r) << what << ": the factor must be thin for this to be the interesting case";
+    mat_t<U> L(n,r);
+    for (size_t i=0;i<n;i++) for (size_t m=0;m<r;m++) L(i,m)=FactorEntry<U>(i,m);
+    // D = L L^dag, built ELEMENTWISE so hmat_t's Hermitian invariant holds exactly rather than to roundoff.
+    hmat_t<U> D(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+    {
+        U s=U(0.0);
+        // std::conj, NOT blazem::conj: blaze's conj() conjugates a MATRIX or VECTOR but is the IDENTITY
+        // on a std::complex SCALAR (measured 2026-08-24).  That trap is what this gate first tripped over,
+        // and then found in production -- see R2.21 in doc/CleanupCandidates.md.
+        for (size_t m=0;m<r;m++)
+        {
+            if constexpr (std::is_same_v<U,dcmplx>) s += L(i,m)*std::conj(L(j,m));
+            else                                    s += L(i,m)*L(j,m);
+        }
+        if (i==j) s=U(std::real(std::complex<double>(s)));   // a Hermitian diagonal is real by construction
+        D(i,j)=s;
+    }
+
+    const Projector3<U>& o3=dfit.Overlap3C(orb);
+    ASSERT_TRUE(bool(o3.applyRaw))         << what << ": the delta basis must realise the raw forward";
+    ASSERT_TRUE(bool(o3.applyRawFactored)) << what << ": ...and its factored sibling";
+    const rvec_t full=o3.applyRaw(D), fact=o3.applyRawFactored(L);
+    ASSERT_EQ(full.size(), fact.size()) << what;
+
+    // Not bitwise, and the reason is the point of having two routes: Sum_m |[Phi L]_gm|^2 accumulates over
+    // the RANK where [Phi D Phi^dag]_gg accumulates over the BASIS, so the summation orders differ.
+    double scale=0.0;
+    for (size_t g=0; g<full.size(); g++) scale=std::max(scale, std::fabs(full[g]));
+    EXPECT_GT(scale, 1e-6) << what << ": a vacuous (all-zero) rho would pass anything";
+    for (size_t g=0; g<full.size(); g++)
+        EXPECT_NEAR(fact[g], full[g], 1e-12*std::max(scale,1.0)) << what << " at point " << g;
+}
+} //anon
+
+TEST(RealComplexTerms, FactoredRhoMatchesFullQuadraticFormBothScalars)
+{
+    Rig rig;
+    // Three arbitrary interior points -- this is about the CONTRACTION algebra, not the quadrature, so a
+    // tiny mesh keeps it a unit gate.  Weight 1 each: applyRaw/applyRawFactored return rho itself.
+    rvec3vec_t pts(3);
+    pts[0]=rig.cell.ToCartesian(rvec3_t(0.3,0.4,0.7));
+    pts[1]=rig.cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
+    pts[2]=rig.cell.ToCartesian(rvec3_t(0.1,0.9,0.2));
+    BasisSet::DeltaFit_IBS dfit(
+        BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}},
+        Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+
+    ExpectFactoredMatchesFull<double>(dfit, *rig.re, "ForwardFactoredT<double> (the real TRIM block)");
+    ExpectFactoredMatchesFull<dcmplx>(dfit, *rig.cx, "ForwardFactoredT<dcmplx> (the Bloch block)");
+}
+
+// ...and the SECOND half of R1.0c, which is the half that bites: the gate above supplies its OWN factor,
+// so it pins the CONTRACTION pair but never reaches LowRankFactor -- the code that BUILDS L from D on the
+// production default route (QCHEM_DM_LOWRANK is on unless explicitly disabled).  So drive the two leaves
+// against the same D and demand the same rho: FactoredRho (pivoted Cholesky, then the thin contraction)
+// against the plain periodic leaf (the full quadratic form).
+//
+// It is deliberately END-TO-END rather than a direct L L^dag == D check, because LowRankFactor lives in an
+// implementation unit and, more to the point, rho is the quantity anything downstream actually consumes.
+// NB the existing PSD guard inside LowRankFactor cannot stand in for this: it compares Tr(L L^H) to Tr(D)
+// through |L|^2, and a conjugation error does not move a modulus.
+TEST(RealComplexTerms, FactoredLeafMatchesDirectLeafBothScalars)
+{
+    using namespace qchem::ChargeDensity;
+    rvec3vec_t pts(4);
+    pts[0]=rig_pt(0.3,0.4,0.7); pts[1]=rig_pt(0.5,0.5,0.5);
+    pts[2]=rig_pt(0.1,0.9,0.2); pts[3]=rig_pt(0.62,0.15,0.44);
+    Rig rig;
+    for (size_t g=0; g<pts.size(); g++) pts[g]=rig.cell.ToCartesian(pts[g]);
+    BasisSet::DeltaFit_IBS dfit(
+        BasisSet::FitQuadrature{std::make_shared<const qcMesh::Mesh>(pts, rvec_t(pts.size(),1.0)), {}},
+        Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+
+    auto arm=[&](auto tag, const auto& orb, const char* what)
+    {
+        using U = decltype(tag);
+        const size_t n=orb.GetNumFunctions(), r=3;
+        ASSERT_GT(n, 2*r) << what << ": D must be low-rank enough that FactoredRho does not fall back";
+        mat_t<U> L(n,r);
+        for (size_t i=0;i<n;i++) for (size_t m=0;m<r;m++) L(i,m)=FactorEntry<U>(i,m);
+        hmat_t<U> D(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+        {
+            U s=U(0.0);
+            for (size_t m=0;m<r;m++)
+            {
+                if constexpr (std::is_same_v<U,dcmplx>) s += L(i,m)*std::conj(L(j,m));
+                else                                    s += L(i,m)*L(j,m);
+            }
+            if (i==j) s=U(std::real(std::complex<double>(s)));
+            D(i,j)=s;
+        }
+        FactoredRho<PeriodicIrrepCD<U>> fac(D, &orb, orb.GetIrrep(Spin::None));
+        PeriodicIrrepCD<U>              dir(D, &orb, orb.GetIrrep(Spin::None));
+        const rvec_t rf=fac.DM_RhoAtPoints(dfit), rd=dir.DM_RhoAtPoints(dfit);
+        ASSERT_EQ(rf.size(), rd.size()) << what;
+        double scale=0.0;
+        for (size_t g=0; g<rd.size(); g++) scale=std::max(scale, std::fabs(rd[g]));
+        EXPECT_GT(scale, 1e-6) << what << ": a vacuous rho would pass anything";
+        for (size_t g=0; g<rd.size(); g++)
+            EXPECT_NEAR(rf[g], rd[g], 1e-11*std::max(scale,1.0)) << what << " at point " << g;
+    };
+    arm(double(0.0), *rig.re, "FactoredRho<PeriodicIrrepCD<double>> (the real TRIM block)");
+    arm(dcmplx(0.0), *rig.cx, "FactoredRho<PeriodicIrrepCD<dcmplx>> (Bloch at GAMMA -- Phi is real)");
+
+    // ...AND A BLOCK WHERE Phi IS GENUINELY COMPLEX, which is the only arm that discriminates.  Every k on
+    // a 2x2x2 mesh is TRIM (2k is a reciprocal lattice vector), so rig.cx carries REAL Phi stored in a
+    // complex matrix -- and with Im(Phi)=0 a transposed D gives the SAME rho, because
+    //     rho' - rho = sum_{i<j} 4 Im(D_ij) Im(Phi_gi conj(Phi_gj)).
+    // k=(1/4,0,0) on a 4x4x4 mesh is not TRIM, so the second factor is nonzero and a conjugation error in
+    // the factor becomes visible.  This is the arm that caught R2.21.
+    tGPW_IBS<dcmplx> kb(rig.cell, ivec3_t(4,4,4), ivec3_t(1,0,0), rig.mol, /*densityEcut*/20.0);
+    arm(dcmplx(0.0), kb, "FactoredRho<PeriodicIrrepCD<dcmplx>> (Bloch at k=(1/4,0,0) -- Phi complex)");
+}
 
 // The STATIC set: kinetic + the three PP terms.  One capability cross-cast each, then bitwise equality.
 TEST(RealComplexTerms, StaticTermsServeTheRealBlockBitwise)

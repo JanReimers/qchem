@@ -1,6 +1,7 @@
 // File: Common/Convert.C
 module;
 #include <blaze/Math.h>
+#include <complex>   // std::conj -- conjs() below (blaze::conj is NOT scalar conjugation)
 #include <utility>
 export module qchem.Blaze;
 export import qchem.Types;
@@ -89,6 +90,21 @@ export namespace qchem::blazem
     using blaze::isSquare;
     using blaze::conj;
     using blaze::real;
+
+    //! \brief SCALAR complex conjugate -- use this, NOT \c blazem::conj, on a single number.
+    //!
+    //! \warning \c blaze::conj conjugates a MATRIX or a VECTOR but is the IDENTITY on a \c std::complex
+    //! SCALAR.  Measured 2026-08-24 (clang 21, this submodule): \c blaze::conj(cx(1,2)) returns \c (1,2)
+    //! while \c blaze::conj(M)(0,0) returns \c (1,-2).  So the natural-looking \c blazem::conj(M(i,j)) --
+    //! conjugating an ELEMENT -- silently does nothing, and it did: it built the pivoted-Cholesky factor
+    //! as \f$L=PU^T\f$ instead of \f$PU^\dagger\f$, giving \f$LL^\dagger=\bar D\f$ and a wrong
+    //! \f$\rho\f$ on every block with a genuinely complex \f$\Phi\f$ (doc/CleanupCandidates.md R2.21).
+    //! It is invisible for real scalars and for \f$\Gamma\f$/TRIM blocks, which is why it survived.
+    //!
+    //! Overloaded rather than templated so the real case stays \c double -> \c double: \c std::conj(double)
+    //! returns \c std::complex<double>, which would not assign back into a real matrix.
+    inline double        conjs(double x)         {return x;}
+    inline dcmplx        conjs(const dcmplx& z)  {return std::conj(z);}
     using blaze::potrf;
     using blaze::pstrf;   // PIVOTED Cholesky (rank-revealing): rank + permutation for truncating ortho
     using blaze::blas_int_t;   // the LAPACK integer width (int32/int64) -- pstrf's pivot array element type

@@ -293,7 +293,8 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
                 double f2=0.0;
                 for (size_t a=0;a<rk;a++) for (size_t b=0;b<rk;b++)
                 {
-                    T d{}; for (size_t i=0;i<n;i++) d+=blazem::conj(Up(i,a))*Uk(i,b);
+                    // conjS: the SCALAR conjugate (see R2.21 -- blazem::conj is a no-op on an element)
+                    T d{}; for (size_t i=0;i<n;i++) d+=blazem::conjs(Up(i,a))*Uk(i,b);
                     f2+=std::norm(std::complex<double>(d));
                 }
                 std::cout<<"[DM subspace] r="<<rk<<"  overlap with previous iteration = "<<f2/double(rk)
@@ -349,10 +350,16 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
 
     // L = P U^H, i.e. L(piv[a],k) = conj(U(k,a)) -- U is m x n upper TRAPEZOIDAL, so k<=a only, and pstrf
     // leaves the strict-lower part undefined (never read here).  Then L L^H = P U^H U P^T = D.
+    // blazem::conjS, NOT blazem::conj (R2.21, 2026-08-24): blaze's conj() conjugates a MATRIX or VECTOR but
+    // is the IDENTITY on a std::complex SCALAR, so conjugating an ELEMENT silently did nothing and this
+    // built L = P U^T.  That gives L L^H = conj(D) = D^T, hence rho' - rho =
+    // sum_{i<j} 4 Im(D_ij) Im(Phi_gi conj(Phi_gj)) -- ZERO for real Phi (every Gamma/TRIM block, which is
+    // all the suite had) and wrong by ~1e-1 relative at a general k.  Gate:
+    // RealComplexTerms.FactoredLeafMatchesDirectLeafBothScalars.
     L=mat_t<T>(n, m, T(0));
     for (size_t a=0;a<n;++a)
         for (size_t k=0;k<m && k<=a;++k)
-            L(piv[a],k)=blazem::conj(Um(k,a));
+            L(piv[a],k)=blazem::conjs(Um(k,a));
 
     // PSD GUARD.  LAPACK pstrf does NOT fail on an indefinite matrix -- it simply stops when the pivot goes
     // non-positive and reports the rank it reached, so a non-PSD D would silently yield a TRUNCATED (wrong)
