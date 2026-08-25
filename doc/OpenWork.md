@@ -266,11 +266,42 @@ part of that estimate; the 8× volume factor is solid and C=2 alone already over
 **⇒ NET: EVERY CHEAP ALTERNATIVE TO N4 IS ELIMINATED.**  Raster geometry does nothing; a bigger ball works
 but cannot scale.  The only remaining cure is to give \f$V_{xc}\f$ content the ball CANNOT represent — the
 cusp deficit, whose support is LOCAL (O(n_atoms × a small ball), linear in system size).
-★ **AND THE MACHINERY LARGELY EXISTS:** GPW already builds an automatic factor-4 **grid ladder** with a
-REL_CUTOFF-style pair→level rule and a top completion rung, so ρ is ASSEMBLED with the sharp content on
-fine levels.  The information is lost AFTERWARDS, when everything is folded into ONE {G} ball for the mixer
-and the XC feed.  **The ladder already knows which content is sharp** — N4 may be closer to an assembly
-than a build.
+⛔ **RETRACTED, 2026-08-25 (user asked the right question: "is this about ρ̃ or the DM ρ?").**  An earlier
+cut of this section said the grid ladder "already knows which content is sharp" and that the XC feed
+"throws that away", implying N4 might be an ASSEMBLY of existing machinery.  **That is wrong.**  The levels
+are FFT'd individually and \f$\tilde\rho\f$ is *"combined NESTED in G-space"* (`GPW/Evaluator.C:302`), so
+coarse content is embedded into the finer ball and the result lives on the **RUNG's** ball — the sharpest
+level there is.  Verified: the Kerker line's G-count equals the rung's nG on every run (C=2: 24263 at
+ecut 144; C=3: 44873 at 216; C=4: 69261 at 288; AliasFree: 24263, same ball, finer raster).
+**Nothing is discarded in the assembly.**  The band limit is that ball's radius, and the cusp content above
+it was never captured at ANY level — **absent, not thrown away**.
+⇒ There is no "stop collapsing the ladder" shortcut.  The missing content can only come from something with
+NO grid at all, i.e. the analytic \f$\rho[D]\f$ — which **strengthens** N4 and makes it a BUILD, not an
+assembly.
+⚠ Note also: the production row's EFFECTIVE density cutoff is **144 Ha (4·α_max)**, not the nominal 72 —
+the top rung extends it — so the C sweep's cutoffs are 144/216/288.  (Trend unaffected.)
+
+★ **WHERE THE PAIRS ACTUALLY ARE** (user, 2026-08-25: *"I have lost track of where the pairs are used if
+not in evaluating DM ρ(r) for Vxc"*).  `MakeCollocator(coulomb, grid)` has two outputs: `coulomb=false` →
+\f$\tilde\rho(G)\f$ (what Kerker MIXES, and what the matrix-free XC route inverse-FTs), and `coulomb=true`
+→ \f$V_H\f$ with \f$4\pi/G^2\f$ folded in (the POISSON solve).  Its adjoint `MakeIntegrator` turns
+grid-borne potentials into \f$\langle\chi_i|V|\chi_j\rangle\f$ and backs the Overlap3C/Repulsion3C tensors.
+**So pairs are the HARTREE/POISSON path and the 3-centre tensor path — XC never uses them** (it is Φ-table
+SINGLES on the Becke mesh already).  Cost on the production row: scatter 41.3 s + gather 22.8 s + stream
+build 27.3 s = **91 s of 500 s (18%)**, which bounds what any pairs→singles rework can win *on this cell*.
+⇒ **THE OPEN QUESTION IS NARROWER THAN "DO WE NEED PAIRS":** it is whether the RASTER/Poisson path can go
+singles too, given \f$D=LL^\dagger\f$.  ✅ NEW EVIDENCE: the Cholesky orbitals ARE localised — measured
+**IPR = 3.49 effective basis functions of 118** (range 3.23–3.95 over 154 factorisations), which satisfies
+the code's own stated criterion for the singles route being viable.  ⚠ Three counterweights: (a) the WEIGHT
+is localised but the SUPPORT is not (73 of 118 functions carry |L|>1e-3, 90 carry >1e-5, and collocation
+accuracy is set by `GPW_DENSITY_EPS=1e-10`, i.e. by the tails); (b) the enumeration is (i,R) vs (i,j,R) and
+pairs screen EXPONENTIALLY in separation via the Gaussian product theorem while orbitals do not; (c) ★ **an
+orbital MIXES ALL EXPONENTS, so it has no single bandwidth and cannot be assigned to a ladder level** — it
+needs the FINEST grid everywhere, which dissolves the multigrid's entire economy (levels 1–4 are 20³/9³/5³/3³
+against level 0's 40³).  ⇒ it would trade 1909 folded pairs *on cheap levels* for ~13 orbitals *all on the
+fine grid*.  **The census the plan already demands** — (i,R) vs (i,j,R) at matched ε, weighted by box
+volume — is what settles it, and the answer likely FLIPS at battery-supercell sizes, where screened pairs
+grow ~N² while occupied orbitals grow ~N.
 
 ## ★★ N3 — THE MIXING POLICY: CHARGE AND SPIN ARE DIFFERENT CHANNELS
 
