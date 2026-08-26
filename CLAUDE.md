@@ -108,6 +108,7 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     abstract base classes, never from an abstract base to a concrete implementation. Please flag violations as
     you work. I have a TODO item to do a system-wide survey of these casts and throw custom exceptions full of
     relevant information in the event they fail. Again, unit tests are allowed to cheat.
+- a call that can legitimately fail returns an Outcome; a broken invariant no caller can act on throws. RequireSiteBlocks is the second kind; Converge is the first.
 
 ## Style
 
