@@ -119,6 +119,28 @@ record of what was taken or refuted — five of its twelve items are closed and 
 
 ---
 
+## ★ ONLY THE CELL IS MATERIAL-SPECIFIC (user, 2026-08-25) — what the SECOND magnetic material needs
+
+Reading the inlined MnO run, the user's observation: it does (1) make the lattice, (2) set
+`SolidCalcOptions`, (3) set `SCFParams`, (4) define the order parameter, (5) define the anneal schedule,
+(6) define the accelerator ladder — **and only (1) is about MnO.**
+
+Sharpened: it is the SHAPE of 2–6 that is generic; a handful of VALUES are MnO's (the cell, `Nelec` /
+`species` / `multiplicity`, the two Mn probe positions, and the tuned numbers — α=0.45 because MnO sloshes
+worse than NaF, `orthoTol=1e-3` because cond(S)~7e8, kT=5e-3 for the open d manifold).  Everything else a
+second magnetic material would repeat verbatim.
+
+**★ THE HIGHEST-VALUE GENERALISATION IS (4), BECAUSE IT CAN NOW BE DERIVED.**  `m_stag` hardcodes MnO's two
+Mn positions and a 0.7 bohr offset.  But the run now holds the magnetic decoration
+(`SolidCalcOptions::siteSpins`, \f$\sigma_A=\pm1\f$) AND the integrated site moments (T2's
+`Hamiltonian::SiteMoments`, \f$\mu_A\f$) in the same object, so for ANY collinear ordering
+\f[ m_{order}=\frac{\sum_A \sigma_A\,\mu_A}{\sum_A|\sigma_A|} \f]
+— no probe geometry, no guessed offset, no per-material closure, and it is the INTEGRATED observable rather
+than the point sample that misled this campaign for months (Step 0a).  Deriving it would delete step (4)
+for every future material and leave the schedule as the only thing a new cell must state.
+⇒ Do it when the SECOND magnetic material arrives, not before: one cell is not enough to see which of the
+tuned values are really material-specific and which were MnO's accidents.
+
 ## ▶ NEXT SESSION STARTS HERE — the N1 tiers, T3 onward
 
 **T1 and T2 are BUILT (2026-08-25).**  What follows is the remainder, in order, with the state each one
