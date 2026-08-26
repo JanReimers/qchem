@@ -4299,6 +4299,12 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
 
         MnOArm arm;
         arm.cell=cellp;
+        // THE REPORTING BRACKET (2026-08-26).  RunMnO drives SolidCalculation directly, and
+        // SolidCalculation opens no report run -- so the MnO arm was the ONE campaign run with no timing
+        // ledger and no PEAK RSS line, which is exactly why the on-the-fly cost had to be quoted as
+        // "3-iteration CPU minus an ESTIMATED setup".  The same RAII every other GPW driver holds gives it
+        // the per-bucket exclusive ledger (and GPW_REPORT=1 to render it) with no other behaviour change.
+        GpwReport report(label, false);
 
         // ============================ THE WHOLE RECIPE, IN ONE BLOCK ============================
         qchem::SolidCalcOptions o;
@@ -4406,6 +4412,7 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
         arm.calc=std::make_unique<qchem::SolidCalculation>(
                      lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
         arm.result=arm.calc->Result();
+        qchem::report::EmitTimings();   // sorted by cost + PEAK RSS, inside the bracket (as RunGpw does)
         return arm;
     };
 
