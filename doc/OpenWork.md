@@ -326,70 +326,138 @@ PEAKED at **39.98** and came back to 15.64 (end/floor 1.233).  A peak-based dete
 and convicted it of charge slosh; the end-based one correctly reports `NotConverged` — which is exactly
 what is wrong with it — and stays silent on both other channels.
 
-## ★★★ NEXT SESSION STARTS HERE — THE ON-THE-FLY COLLOCATION KERNEL (~100× off CP2K)
+## ★★★ THE ON-THE-FLY BOX WALK — **2.21× ON MnO, DONE 2026-08-26** (was "~100× off CP2K")
 
 > **USER, 2026-08-26:** *"I think it makes sense to chase the 100x gap in on the fly basis function
 > evaluation.  Even if we just achieve 2 or 3x, then we can resolve other issues (MnO mixing) more
 > rapidly."*
 
-**WHY THIS ONE FIRST.**  A win here is a MULTIPLIER on every other open item: the MnO mixing question
-(below) needs many SCF runs, and today each one costs 7–45 minutes.  2–3× on the kernel pays for itself
-inside the next investigation, which is not true of any other item on this list.
+**RESULT: 2.21× on the MnO acceptance probe, 2.63× on Si, and the anchors did not move.**  Four edits to
+the shell-blocked box walk (`NR_Evaluator::ForShellPairBox` and the two lambdas that consume it,
+`scatterShell` / `integrateShell`), each one found by PROFILE and not by guessing.  Commits `5c0aca8d`,
+`2cbdfaca`, `e8339cf2`.
 
-**THE MEASUREMENT THAT MOTIVATES IT** (doc/Benchmark.md carries the table).  MnO, per SCF iteration:
-CP2K **8.5 s** / 217 MB · qchem cached **~31 s** / 4218 MB · qchem UNCACHED **~853 s** / 353 MB.
-⇒ The pair-stream cache is not an advantage over CP2K — it is a **28× workaround for a collocation kernel
-~100× off theirs**, bought with 3.9 GB.  Uncached, our RAM is 1.6× CP2K's, i.e. essentially competitive.
-Fixing the kernel wins BOTH axes; caching more cleverly wins neither.
-⚠ The 853 s/iteration subtracts an ESTIMATED ~182 s setup from a 3-iteration probe — read it as "order
-10²", not a precise ratio.  **Getting a defensible number is step 0.**
+⚠ **"KERNEL" WAS AN OVERLOADED WORD AND IS NOW RETIRED** (user, 2026-08-26).  Everything below says **BOX
+WALK** and means one thing: the code that, for one shell pair at one cross-cell offset, walks the grid
+points of the product's compact box and evaluates \f$\chi_i(r)\chi_j(r-R)\f$ there.  Every number is the sum
+of exactly two timing-ledger buckets — `scf: integrate-back (pair gather)` + `scf: collocate density (pair
+scatter)` — which are EXCLUSIVE and DISJOINT, so no setup subtraction appears anywhere in this section.
 
-**★ THE FAST HARNESS — USE Si, NOT MnO.**  Measured 2026-08-26:
-`GPW_STREAM_BUDGET_PTS=0 GPW_STREAM_BUDGET_PTS_F32=0` on `GPW_SCF.SiliconGammaConverges` runs the SAME
-uncached path in **7.19 s wall / 8.51 s CPU against 2.49 s / 3.81 s cached (2.9×)** — seconds, not the
-45 minutes an MnO probe costs.  The ratio is far smaller than MnO's 28× (Si is small and its pair set is
-tiny), so Si is the EDIT-MEASURE loop and MnO is the ACCEPTANCE run, never the other way round.
+### ★ STEP 0 IS DONE, AND IT WAS AN INSTRUMENT PROBLEM, NOT A MEASUREMENT PROBLEM
 
-**★ THE FIRST PROFILE IS ALREADY TAKEN (2026-08-26)** — Si uncached, `perf -F 499`, flat self-time.
-⚠ **THIN: ~4k samples** (499 Hz over 8.5 s CPU), so the 39/12/10% entries are solid and the ~1% tail is
-noise.  Re-take on the mid-size case before trusting anything below 5%.
+The "853 s/iteration, read it as order 10²" caveat existed because `RunMnO` drives `SolidCalculation`
+directly and **`SolidCalculation` opens no report run** — so the MnO arm was the one campaign run with no
+timing ledger, and its cost had to be reconstructed as *3-iteration CPU minus an estimated ~182 s setup*.
+`e8339cf2` gives the arm the same `GpwReport` bracket every other GPW driver holds.  The ledger then sums
+to the wall clock (1201.3 s of 1202.1 s), so nothing is estimated:
 
-| % self | symbol |
-|---|---|
-| **39.0** | `NR_Evaluator::IntegratePotential(...)::$_1::operator()(size_t)` |
-| **12.1** | `Polarization::operator()(Vector3D<double>)` |
-| 10.7 | OpenBLAS (unresolved) |
-| **9.6** | `NR_Evaluator::CollocateDensity(...)::$_1::operator()` |
-| **6.1** | `uintpow(double, unsigned)` |
-| 5.9 + 3.5 | `__ieee754_exp_fma` + `exp` |
-| 1.7 / 1.2 | `Polarization::operator()` **@plt** / `uintpow` **@plt** |
-| 1.2 | `IVec3Less::operator()` (a `std::map` comparator) |
+⇒ **the true before-figure is 573 s/iteration, not 853 — the estimate was 1.5× pessimistic.**
 
-**FOUR CANDIDATES, and they all say "close to naive" rather than "needs a rewrite":**
-1. **`Polarization` and `uintpow` go through the PLT** — cross-DSO, NOT INLINED, in the innermost loop
-   (13.7% and 7.3% including their stubs).  They live in different shared libraries from the caller.
-2. **`uintpow(double,unsigned)` ~7%** computing \f$x^a y^b z^c\f$ per point, where (a,b,c) are 0..4 and
-   FIXED PER SHELL — a specialised/unrolled path should erase this.
-3. **`exp` 9.4%: one transcendental per point.**  The structural one.  Along a run of collinear grid
-   points \f$e^{-\alpha(x+nd)^2}\f$ obeys a two-term MULTIPLICATIVE RECURRENCE — essentially what CP2K's
-   cube-mapped collocate exploits.  The CACHED path already walks run-length spans
-   (`runs 7077963, mean 10.557 pts`); the fallback appears not to, which is candidate 4 restated.
-4. **`IVec3Less` 1.2%** — a `std::map<Vector3D<int>,...>` lookup inside the hot region.
+### THE MEASUREMENT — MnO AFM-II Γ, uncached, A/B back-to-back on the same box
 
-**THE THREE-TIER HARNESS (measured 2026-08-26):**
-- **Si** `GPW_SCF.SiliconGammaConverges` — 7.19 s wall / 8.51 s CPU uncached vs 2.49 / 3.81 cached
-  (**2.9×**).  The EDIT-MEASURE loop.
-- **NaF** `DISABLED_NaFRocksaltGamma` (Γ, SR2) — 39.5 s wall / 94.5 s CPU *cached*, so uncached should
-  land in the **1–5 minute** window: the PROFILING case (enough samples, multi-species, and it exercises
-  the sharp-F pairs Si does not).
-- **MnO** — the ACCEPTANCE run ONLY.  Never the edit loop: 45 min per uncached probe.
+`MNO_SKIP_FM=1 GPW_MNO_NMAX=2 GPW_REPORT=1 GPW_STREAM_BUDGET_PTS=0 GPW_STREAM_BUDGET_PTS_F32=0`, the two
+binaries differing ONLY in the box-walk diff (`git apply -R` of the src patch, same test source both sides).
 
-**THEN, and only then**, read what CP2K does differently in KIND (its collocate/integrate is a cube-mapped
-multigrid routine keyed on `REL_CUTOFF`).  That is research, and candidates 1–4 may make it unnecessary.
-⚠ `feedback_no_broad_fs_scans`: clean up the multi-GB `perf.data` afterwards (done for the run above).
+```
+[MnO AFM-II Gamma run] system: 4 atoms, 26 valence e, multiplicity 1 (POLARIZED), seed=IonicSAD
+[MnO AFM-II Gamma run] grids: densityEcut=auto C=2 raster=BallOnly xcMesh=Becke (nR=40 L=29)
+[MnO AFM-II Gamma run] symmetry: FREE;  threads: OMP_NUM_THREADS=unset GPW_OMP_THREADS=1 (BLAS pinned to 1)
+[MnO AFM-II Gamma run] CP2K_COMPAT=0 -> DEVIATING;  QCHEM_DM_LOWRANK=on*  GPW_STREAM_FOLD=on*  ...
+[fold] collocation streams (T3 pairs): NONE (7503 items evaluated in full)  [free/multi-k run]
+```
+★ **NO FOLD IS ACTIVE** on this row (free run) — the walk did the full unreduced pair set both sides, which
+is what makes it a clean algorithm-to-algorithm A/B.  Measured 103% CPU, i.e. serial.
 
-**ACCEPTANCE:** the Si and MnO anchors must not move, and the win must show on the MnO uncached probe,
-not only on Si.
+| bucket | before | after | ratio |
+|---|---|---|---|
+| `scf: collocate density (pair scatter)` | 753.78 s (41.88 s/call ×18) | **341.48 s** (18.97 ×18) | **2.21×** |
+| `scf: integrate-back (pair gather)` | 386.06 s (38.61 s/call ×10) | **173.17 s** (17.32 ×10) | **2.23×** |
+| **BOX WALK, total** | **1139.84 s** | **514.65 s** | **2.21×** |
+| box walk PER ITERATION | 569.9 s | **257.3 s** | |
+| `setup: collocation stream build` (same walk) | 30.83 s | 20.32 s | 1.52× |
+| `setup: local-PP LONG` (same walk) | 15.46 s | 7.87 s | 1.96× |
+| wall / CPU | 1202.1 / 1243.6 s | **558.9 / 596.3 s** | 2.15× / 2.09× |
+| PEAK RSS | 165.8 MB | 166.0 MB | — |
+
+**THE ANCHORS DID NOT MOVE.**  Identical trajectory both sides: `iters=2`, `lastΔρ=0.00854547`,
+`m_stag 0.4121 → 0.3180`, `Eee 14.159 → 15.203`, integrated site moment `4.781 → 3.631 e`.  `Efinal`
+differs by **2e-8 Ha** on a −59.7 Ha number (−59.69580385 → −59.69580383), entirely from the one edit that
+is not bit-identical (below).
+
+⇒ **Against CP2K's 8.5 s/iteration the standing on the uncached path goes from ~67× to ~31×.**  Note this
+recalibrates the charter claim: it was never 100×.
+
+### THE FOUR EDITS, in the order the profile produced them
+
+| # | edit | Si box walk | bit-identical? |
+|---|---|---|---|
+| — | baseline | 4.818 s | — |
+| 1+2 | **monomial power tables**, and `uintpow` split so it is not self-recursive | 3.803 s | ✅ |
+| 4 | **incremental modulo wrap** | 2.541 s | ✅ |
+| 3 | **`key/nn` decode hoisted out of the point loop** | 2.529 s | ✅ |
+| 5 | **screen (3) = the reach SPHERE, not its rectangular hull** | **1.829 s** | sub-ε (see below) |
+
+1. **THE HANDOFF'S CANDIDATES 1 AND 2 WERE ONE DEFECT.**  `pols[i](d)` per component was three
+   `uintpow` calls, and BOTH `Polarization::operator()` and `uintpow` were out-of-line CROSS-DSO calls from
+   the walk (12.1% + 1.7%@plt and 6.1% + 1.2%@plt ≈ 21%).  A shell's components are monomials over the SAME
+   displacement, so the per-axis powers \f$x^0..x^{L_x}\f$ are shared: build them once per point and index.
+   `uintpow` would not inline because clang will not inline a self-recursive function — the n>4 binary-
+   powering tail moved to `uintpow_tail`, associations unchanged.  ★ **Grid-agnostic**, as the handoff said.
+2. **THE MODULO WRAP** cost SIX integer divisions per point although the grid index advances by one per
+   step.  `mx`/`my` and the row offset hoist to their own loops; the innermost keeps one compare.  A debug
+   assert pins the incremental residue against the modulo.
+3. **`fI[key/nn - si.begin]`** put a hardware integer divide on the innermost path — `divl` at **13.9%**,
+   the single largest instruction in the profile.  The component-local slots are a property of the
+   (pair, offset) pre-filter, not of the point.  Most of that 13.9% turned out to be the local-PP sweep,
+   which is why the SCF buckets barely moved while `setup: local-PP LONG` fell 1.21 → 0.92 s.
+4. ⚠ **THE ONE THAT IS NOT BIT-IDENTICAL — and the biggest single win (1.39×).**  Screen (3)'s bound was a
+   fixed `lnE+12`, and for a DIFFUSE pair that exceeds the bounding box entirely (pMin=0.3 gives
+   r_screen=10.8 au against reach=9.76), so **the screen never fired** and the CORNERS of the box — ~48% of
+   its points, every one with an envelope already below `epsEff` — paid the full exp/poly evaluation, after
+   which the consumer's own `|val|<eps` test threw the results away.  The bound is now
+   \f$\min(\ln\varepsilon^{-1}+12,\ p_{\min}\mathrm{reach}^2+\mathrm{pf})\f$, i.e. the reach sphere the box
+   is already the bounding box OF.  **The margin is not lost** — that expression is reach's own +1 a.u.
+   polynomial margin restated in logs (+5.5 at pMin=0.3) — and the rectangular hull was an artifact of the
+   walk order, not of any tolerance.  Evidence it sits beneath the noise: Si unchanged in every printed
+   digit on both the cached and uncached path; NaF `Etot` identical to 12 s.f. against a cached-vs-uncached
+   spread of 1.25e-6; MnO 2e-8 Ha; 771/771 twice.  `GPW_SPHERE_SCREEN=0` restores the hull for A/B.
+
+### THE THREE-TIER HARNESS — CONFIRMED, with one correction to the handoff
+
+- **Si** `GPW_SCF.SiliconGammaConverges` — the EDIT-MEASURE loop.  Box walk 4.818 → 1.829 s (**2.63×**);
+  wall 7.13 → 4.00 s.  ⚠ Its XC mesh resolves to **Uniform**, so a Si profile is silent about Becke.
+- **NaF** `DISABLED_NaFRocksaltGamma` — the PROFILING case.  ✅ It resolves to **BECKE**, so it does not
+  share Si's blind spot.  Box walk 241.2 → 177.4 s for edit 4 alone; total run 271 → 206 s.
+  ★ **AND IT SETTLES THE BECKE QUESTION**: the whole Becke side is Φ tables 1.03 s + ρ sampling 6.9 s +
+  H_xc 0.8 s ≈ **8.8 s against the box walk's 241 s**.  The Φ tables are built once and cached, so that
+  path is SETUP, not per-iteration.
+  ★★ **AND WHY, from the user (2026-08-26): the Becke XC route uses a factored density MATRIX**
+  (\f$D=LL^\dagger \Rightarrow \rho_g=\lVert L^\dagger\Phi_g\rVert^2\f$), so it needs **SINGLES, not pairs**
+  — Φ per function plus a GEMM.  The two paths are disjoint by construction, which is why nothing here
+  touches it and why the Si profile's Becke blind spot was harmless.
+- **MnO** — the ACCEPTANCE run.  `MNO_SKIP_FM=1 GPW_MNO_NMAX=2` makes it a 9-minute probe rather than a
+  45-minute one, and the ledger's per-call numbers make a bounded probe as good as a full run for cost.
+
+### WHAT IS LEFT, and it is now ONE item
+
+**`exp` IS THE WHOLE REMAINING STRUCTURE: 29% of the NaF profile** (`__ieee754_exp_fma` 17.2% +
+`exp@@GLIBC_2.29` 9.8% + 2.3% of plt stubs — note ~⅓ of that is the glibc wrapper, not the evaluation).
+Everything else is flat: after the four edits no single instruction in the walk exceeds 3%.
+
+**The candidate is the handoff's #3, unchanged**: along a run of collinear grid points
+\f$e^{-\alpha(x+nd)^2}\f$ obeys a two-term MULTIPLICATIVE RECURRENCE, which is what CP2K's cube-mapped
+collocate exploits.  Two things to weigh before starting:
+- ⚠ **It cannot be bit-identical** (accumulated rounding along the line), and unlike the sphere screen it is
+  not a sub-ε truncation — it is a different arithmetic for the SAME term.  That needs the user's call, and
+  a drift bound measured against the direct form rather than asserted.
+- ⚠ **It is uniform-ladder-only** (user, 2026-08-26) — the Becke Φ path has no collinear runs to walk.
+  Given the point above, that costs nothing here: the Becke path is singles + GEMM and is already ~3%.
+- Ceiling: if exp became free the walk would go 2.53 → ~1.8 s on Si, i.e. ~1.4×.  **Worth doing, but it is
+  the last 1.4×, not another 2×** — the cheap structural fat is gone.
+
+**Two smaller things the profile still shows** (both grid-agnostic, both ~2%): `IVec3Less` at 1.9% (the
+handoff's candidate 4 — a `std::map<Vector3D<int>,…>` comparator, in `Projector3`/`SymmetrizeGMap`, NOT in
+the box walk), and `qcMesh::BeckeCutoff` at 3.2% on NaF.
 
 ### ⚠ THE COVERAGE GAP — now the ONLY thing open under N1
 `RunMnO` and the new Na2 gate go through `SolidCalculation`, so those are covered.  Other GPW tests still
@@ -398,6 +466,16 @@ construct `SolidSCFIterator` directly (`RunGpw`, `RunGpwAnnealed`), so **none of
 control for the T2 gate, is one of them: the pair currently proves the detector discriminates only because
 a human read both outputs.  Retiring both drivers onto the facade is the rest of
 `doc/TestFacadeMigrationPlan.md`, and it is now a mechanical follow-through rather than a design problem.
+
+★ **AND THE GAP RUNS THE OTHER WAY TOO (found 2026-08-26).**  The facade covers the OUTCOME side but not
+the REPORTING side: `SolidCalculation` opens no `report::Begin/End` run, so a test that went through it
+LOST the timing ledger, the `grids` section and the PEAK RSS line that `GpwReport` gives every other GPW
+driver.  MnO is the case that mattered — it is the benchmark's most expensive row and it was the one with
+no instrument (`e8339cf2` patches it at the call site).  So the migration has to carry the reporting
+bracket ACROSS, not just the `Outcome`: the natural home is `SolidCalculation` bracketing its own run (it
+already prints its banner unconditionally, which is the same argument), with `Depth()` deciding whether it
+nests inside a driver's existing bracket.  Until then, every new `SolidCalculation` caller silently opts
+out of the measurement discipline `doc/Benchmark.md` depends on.
 
 ### ⚠ TWO SMALLER LOOSE ENDS LEFT BY THIS SESSION
 - **Na2's polarized singlet will not converge from an AFM seed at α=0.3** — Δρ parks at ~1e-2 and

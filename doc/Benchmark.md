@@ -165,16 +165,27 @@ matter (doc/OpenWork.md N5 carries the full list):
   |---|---|---|
   | CP2K (44 steps, 373 s CPU; its own log prints 8.4–8.5 s/step) | **8.5 s** | **217 MB** |
   | qchem, cache ON  | ~31 s (3.6×) | 4218 MB (19×) |
-  | qchem, cache OFF | **~853 s (100×)** | **353 MB (1.6×)** |
+  | qchem, cache OFF — **as measured 2026-08-25, ESTIMATED** | ~853 s (100×) | 353 MB (1.6×) |
+  | qchem, cache OFF — **MEASURED from the ledger, before the box-walk work** | **573 s (67×)** | **166 MB (0.8×)** |
+  | qchem, cache OFF — **MEASURED, after it (2026-08-26)** | **260 s (31×)** | **166 MB (0.8×)** |
 
-  ⇒ **The cache is not an advantage we hold over CP2K; it is a 28× workaround for a collocation kernel
-  that is ~100× off theirs, bought with 3.9 GB.**  Without it our RAM is essentially competitive (1.6×).
-  So the target is NOT "cache more cleverly" or "trade RAM for CPU" — it is **make the on-the-fly pair
-  evaluation fast**, which would deliver CP2K's memory profile AND better CPU than we have today.  Likely
-  a soft target: every optimisation so far (run-length stream geometry, the T3 orbit fold) went into the
-  CACHED path, so the fallback is probably close to naive.
-  ⚠ The 853 s/iteration is (2740 s CPU for 3 iterations) minus an ESTIMATED ~182 s setup — read it as
-  "order 10²", not a precise ratio.  There is no policy hook for the cache, only the raw budget knob.
+  ⇒ **The cache is not an advantage we hold over CP2K; it is a workaround for an on-the-fly box walk that
+  was 67× off theirs, bought with 4 GB.**  Without it our RAM is BETTER than CP2K's (166 vs 217 MB), so
+  the target was never "cache more cleverly" or "trade RAM for CPU" — it was **make the on-the-fly pair
+  evaluation fast**.  That is now half done: **2.21× measured on this very probe** (doc/OpenWork.md, the
+  box-walk section), which is the "even 2 or 3× would pay for itself" the user asked for.
+  ⚠ **THE 853 FIGURE WAS AN INSTRUMENT ARTEFACT, NOT A MEASUREMENT.**  It was (2740 s CPU for 3
+  iterations) minus an ESTIMATED ~182 s setup, because `RunMnO` drives `SolidCalculation`, which opens no
+  report run — so the benchmark's most expensive row was the ONE campaign run with no timing ledger.
+  `e8339cf2` gives the arm the same `GpwReport` bracket every other driver holds; the ledger's exclusive
+  buckets then sum to the wall clock (1201.3 s of 1202.1 s) and nothing is subtracted.  **The estimate was
+  1.5× pessimistic** — hence "67×", not "100×".  There is still no policy hook for the cache, only the raw
+  budget knob.
+  ⚠ Provenance for both measured rows: `MNO_SKIP_FM=1 GPW_MNO_NMAX=2 GPW_REPORT=1
+  GPW_STREAM_BUDGET_PTS=0 GPW_STREAM_BUDGET_PTS_F32=0`, AFM arm, **symmetry FREE and NO fold active**
+  (`[fold] collocation streams (T3 pairs): NONE`), `GPW_OMP_THREADS=1`, BLAS pinned to 1, measured 103%
+  CPU — i.e. serial, unfolded, and the two binaries differed ONLY in the box-walk diff.  Trajectory
+  identical both sides (iters, lastΔρ, m_stag, Eee, site moment); `Efinal` moves 2e-8 Ha.
 - ~~**`imposeSymmetry` ITSELF.**~~  ✅ **WIRED 2026-08-26** — `CP2K_COMPAT=1` now implies
   `imposeSymmetry=0` (knob `QCHEM_IMPOSE_SYMMETRY`).
 
