@@ -45,6 +45,7 @@ import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis co
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Molecule.PG_Spherical.LatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
+import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); Vxc_Quadrature + the two XC_Quadrature strategies
@@ -3696,7 +3697,48 @@ TEST(GPW_SCF, PolarizedRunKeepsItsSpin)
 // iterations.  LSDA q7 (semicore q15 = follow-on; +U = follow-on).
 namespace
 {
-struct MnOArm { GpwResult R; GpwHandles h; std::shared_ptr<UnitCell> cell; };
+// THE MnO ARM, ON THE FACADE (2026-08-25).  What used to be GpwResult+GpwHandles from a 268-line driver
+// is now: the calculation (which owns the graph), its outcome, and the telemetry the campaign reports on.
+// The whole recipe is stated in ONE block below instead of being assembled across MakeGpwAccelerator (449),
+// RunGpw (608), RunGpwAnnealed (761) and this function -- four thousand lines for one run.
+struct MnOArm
+{
+    std::shared_ptr<UnitCell>                cell;
+    std::unique_ptr<qchem::SolidCalculation> calc;    //!< owns basis/Hamiltonian/iterator; outlives `result`
+    qchem::Outcome<qchem::SolidCalculation::Converged, qchem::SCFFailure> result
+        = qchem::Outcome<qchem::SolidCalculation::Converged, qchem::SCFFailure>::Fail(qchem::SCFFailure{});
+    std::vector<FpRow>                       series;  //!< per-iteration telemetry, for Instrumentation()
+    std::vector<double>                      stageKT; //!< each stage's kT, so the report can name its stages
+};
+
+//! THE CAMPAIGN INSTRUMENTATION, in ONE call (user's suggestion, 2026-08-25).  RunGpwAnnealed did two jobs
+//! -- RUN and REPORT -- and only the first belongs in a library.  Splitting them is what let the facade take
+//! the run while the fingerprint, the order trajectory and the magnetic diagnostics stayed in the test,
+//! where a campaign's instruments belong.
+void Instrumentation(const MnOArm& arm, const std::string& label)
+{
+    // PER STAGE, not over the concatenation.  The observer accumulates every stage into one series and the
+    // iteration counter RESTARTS each stage, so a single fingerprint over the whole thing reads a
+    // discontinuity as a trajectory -- and the campaign reads its stages separately anyway.  Split where
+    // the iteration number goes backwards; that IS the stage boundary.
+    size_t begin=0, nStage=0;
+    for (size_t i=1; i<=arm.series.size(); ++i)
+        if (i==arm.series.size() || arm.series[i].it<=arm.series[i-1].it)
+        {
+            const std::vector<FpRow> stage(arm.series.begin()+begin, arm.series.begin()+i);
+            const std::string tag = label + " kT="
+                                  + (nStage<arm.stageKT.size() ? std::to_string(arm.stageKT[nStage])
+                                                               : std::string("?"));
+            Fingerprint(stage, tag.c_str());
+            OrderTrajectory(stage, "m_stag", tag.c_str());
+            begin=i; ++nStage;
+        }
+    if (!arm.result) { std::cout<<"["<<label<<"] NO ANSWER: "<<arm.result.Error().details<<std::endl; return; }
+    // The INTEGRATED site moments (T2's instrument, the Becke basins) beside the historical point probe --
+    // the honest observable, in electrons, rather than a spin DENSITY sampled at one guessed offset.
+    std::cout<<"["<<label<<"] Etot="<<std::setprecision(10)<<arm.result->Energy()
+             <<" charge="<<arm.result->TotalCharge()<<std::endl;
+}
 
 MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
 {
@@ -3742,228 +3784,118 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     const int nk = std::getenv("MNO_KMESH") ? std::atoi(std::getenv("MNO_KMESH")) : 1;
     Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
 
-    GpwOptions o;
+    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
+    auto envi=[](const char* n, int    d){ const char* s=std::getenv(n); return s ? std::atoi(s) : d; };
+
+    MnOArm arm;
+    arm.cell=cellp;
+
+    // ============================ THE WHOLE RECIPE, IN ONE BLOCK ============================
+    qchem::SolidCalcOptions o;
     o.label=label;
-    o.Nelec=26; o.multiplicity=multiplicity;          // 2 x (Mn q7 + O q6); AFM: the explicit two-channel singlet
-    o.species={{"Mn",7},{"O",6}};                     // densityEcut stays AUTO (= cutoffFactor*alpha_max)
-    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;   // Mn2+ d^5 pair + diffuse O2- (the basin chooser)
-    // MNO_IMPOSE (Shubnikov S4, doc/SymmetryUpgradePlan.md §7 step 7): 0 = FREE (default -- the banked
-    // runs 30-34 ensemble, the §8 reference); 1 = impose the SHUBNIKOV group of the declared AFM ordering
-    // (S3 resolves it from the flip bits automatically; the first magnetic imposition -- the Δρ tie-floor
-    // measurement); 2 = impose the DETECTED grey group with the decoration suppressed.  MEASURED (run 36,
-    // 2026-08-11): arm 2 is NOT an erasure control on this cell -- FindTau keeps the FIRST tau coset per W,
-    // and every detected W fixes both Mn sites with tau=0, so the detected 12 are sublattice-PRESERVING
-    // and the staggering survives them (iteration 1: m1=+0.42, E=-52.76 vs the free -52.80).  The ops that
-    // WOULD erase m -- the tau=(1/2,1/2,1/2) coset -- exist only in the coset-complete magnetic set, which
-    // S3 routes exclusively through the Shubnikov (sigma-aware) path: the erasure hazard the pre-S3
-    // comment feared is structurally unreachable in production, and the erasure MECHANICS are proven at
-    // the unit tier (the S2/S3 grey-control gates).
-    {
-        const char* im=std::getenv("MNO_IMPOSE");
-        const int   iv=im?std::atoi(im):0;
+    o.Nelec=26; o.multiplicity=multiplicity;      // 2 x (Mn q7 + O q6); AFM = the two-channel singlet
+    o.species={{"Mn",7},{"O",6}};
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;   // Mn2+ d^5 + diffuse O2- -- the basin chooser
+    o.ortho=qchem::CholeskyPivoted;                        // cond(S)~7e8: plain Cholesky explodes
+    o.orthoTol=envd("MNO_ORTHO_TOL",1e-4);
+    o.cutoffFactor=envd("MNO_CUTOFF_FACTOR",2.0);
+    o.densityEcut =envd("MNO_ECUT",-1.0);                  // <0 = AUTO (cutoffFactor*alpha_max)
+    o.spinsShareFermi=envi("MNO_SHARED_MU",0)!=0;
+    o.momFromSeed    =envi("MNO_MOM_SEED",0)!=0;
+    o.forceComplex   =envi("MNO_REAL",1)==0;               // MNO_REAL=0 -> the all-complex twin
+    {   // MNO_IMPOSE: 0 FREE, 1 the SHUBNIKOV group of the declared ordering, 2 the grey erasure control
+        const int iv=envi("MNO_IMPOSE",0);
         o.imposeSymmetry = iv!=0;
         o.greyImposition = iv==2;
     }
-    // cond(S) ~ 7e8 on this dense oblique cell (lambdaMin ~ 2e-8 passes the vet, barely): plain Cholesky
-    // EXPLODES the eigenproblem (measured: E ~ 1e9 Ha, [F,D] ~ 1e10 at iteration 1).  The NaF-class
-    // recipe: pivoted Cholesky with a rank tolerance.
-    // MNO_ORTHO_TOL (run 51, 2026-08-13): the pivoted-Cholesky rank tolerance, sweepable.  The v2
-    // (CP2K-span) spherical cell vets lambdaMin 1.9e-5 / cond 3.8e5 -- the diffuse re-additions
-    // restore the INTER-SITE redundancy the SR trim cured -- and collapsed to E=-455 from iteration 1
-    // (near-null modes + eps-screened operators = the classic variational-collapse recipe).  A stiffer
-    // rank filter drops those modes at the door.
-    o.ortho=qchem::CholeskyPivoted;
-    o.orthoTol=std::getenv("MNO_ORTHO_TOL") ? std::atof(std::getenv("MNO_ORTHO_TOL")) : 1e-4;
-    // DIIS + plain linear mixing overshoots once the ramp reaches full step (measured run 3: healthy
-    // -454.8 -> -456.5 over 3 iterations, then a +21 Ha slosh at Lin 1.00) -- the NaF-class ionic
-    // charge-transfer dynamic.  Adopt the NaF Becke gate's full recipe: Ladder + Kerker-damped mixing
-    // + MOM (masked Fermi) once the branch structure sets.
-    o.accelerator="Ladder";
-    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
-    // MIXING KNOBS (sweepable, 2026-08-07).  alpha=0.45 came from the NaF BECKE gate; the NaF Gamma run --
-    // the one whose recipe actually targets "the low-G charge-transfer slosh" -- uses 0.25, and MnO sloshes
-    // WORSE than NaF, so 0.45 is the aggressive half of the borrowed recipe (user).  G0 selects WHICH modes
-    // get damped, and for this cell the arithmetic matters: A=(a/2)(I+J) => B=(4pi/a)(I-J/4), the AFM
-    // staggering lives at odd (h+k+l) whose shortest mode m=(1,0,0) has |G|=(4pi/a)*sqrt(0.6875)=1.24 a.u.,
-    // while the lowest mode m=(1,1,1) has |G|=0.65.  At G0=1 the Kerker factor G^2/(G^2+G0^2) is 0.61 on the
-    // AFM mode vs 0.30 on the lowest charge mode -- i.e. Kerker already favours the magnetism 2:1.  LOWERING
-    // G0 FLATTENS that selectivity (G0=0.3: 0.94 vs 0.82, ratio 2.05->1.15) and un-damps exactly the sloshing
-    // modes; RAISING it sharpens it (G0=3: 0.146 vs 0.045, ratio 3.3).  That is a linear-response argument
-    // about which mode is actually pathological, so it is a PREDICTION to be swept, not a setting to trust.
-    o.scf.StartingRelaxRo=envd("MNO_ALPHA",0.45); o.scf.KerkerG0=envd("MNO_KERKER_G0",1.0);
-    // MNO_XC_CUSP: build the cusp-deficit mixer instead of the plain Kerker one (doc/OpenWork.md N4).
-    o.scf.XCCuspDeficit=envd("MNO_XC_CUSP",0.0)!=0.0;
-    // MNO_CUTOFF_FACTOR / MNO_ECUT -- THE DENSITY G-BALL, sweepable at last (2026-08-25).  rho = Sum D_ij
-    // chi_i chi_j is a product of Gaussians, so its G content runs to 2*alpha_max and C=2 is the NAIVE
-    // Nyquist floor -- which is what this cell has always run at (densityEcut 72 Ha against alpha_max 36).
-    // But a BALL that only just reaches the product's own exponent still ALIASES the cusp tail: GPW_IBS.C's
-    // grid note records F needing ~8*alpha_max to take negCharge from -9 e to -0.03 e.  Measured here at
-    // C=2: 15.2% of the 97160 Becke points carry rho<0 (min -0.154), and SlaterExchange::GetVxc guards
-    // rho>0, so a sixth of the atom-centred quadrature contributes NOTHING to E_xc.  If that is an
-    // under-resolved ball rather than an intrinsic property of band-limiting, widening C cures it on the
-    // DEFAULT path -- one density for Hartree AND XC, no representation split to reconcile.
-    // MNO_ECUT pins the cutoff absolutely; MNO_CUTOFF_FACTOR scales it with alpha_max (AUTO, preferred).
-    o.cutoffFactor = envd("MNO_CUTOFF_FACTOR", 2.0);
-    o.densityEcut  = envd("MNO_ECUT", -1.0);          // <0 = AUTO (cutoffFactor*alpha_max)
-    // DENSITY-HISTORY MIXING (MNO_PULAY / MNO_PULAY_START, 2026-08-10).  Never exercised on MnO before: every
-    // run to date used PulayDepth=0, i.e. a damped Kerker step with NO density history, while the CP2K oracle
-    // runs BROYDEN_MIXING with NBUFFER 8 -- a quasi-Newton density history -- and reaches the magnetic state
-    // with no MOM at all.  Note CP2K's BETA 1.5 IS its Kerker damping, i.e. it damps HARDER than our G0=1.0
-    // and still keeps the moment, which points away from "Kerker suppresses the moment" and at the missing
-    // history instead.  USER 2026-08-10, correcting me: if swapping the mixer changes whether m_stag
-    // survives, that IMPLICATES the mixing path rather than exonerating it -- so Pulay/Broyden is a
-    // first-class candidate, not the weak one I had called it.
-    o.scf.PulayDepth=(int)envd("MNO_PULAY",0.0);
-    o.scf.PulayStart=(int)envd("MNO_PULAY_START",5.0);
-    // NB (2026-08-07) this KerkerG0 is currently INERT on the AFM arm: MakeDensityMixer refuses the ρ̃
-    // mixers on a POLARIZED density and falls back (loudly) to linear D-mixing, because the ρ̃ mixers carry
-    // the TOTAL density only and collapse v_xc to ζ=0 from iteration 1 -- the AFM collapse, diagnosed here
-    // with the m_stag order parameter below.  QCHEM_SPINBLIND_KERKER=1 restores the broken arm for the A/B.
-    // Once the spin-resolved ρ̃ mixer lands, this line becomes live again (and linear mixing's slosh --
-    // measured: E swinging -51/-55/-44/-28 over 6 iterations -- is exactly why we want it back).
-    // ---- OCCUPATION KNOBS: the kT / MOM-TIMING experiment (2026-08-08, plan §7 step 7) --------------------
-    // The run-10/11 diagnosis left ONE live defect: the occupied configuration re-shuffles EVERY iteration
-    // (`cfg *` on every row) between a MAGNETIC and a NON-magnetic branch 4-6 Ha apart.  That is an OCCUPATION
-    // defect, and no density-mixing knob can reach it.  Two instruments exist and BOTH were mis-set:
-    //   * kT=5e-3 against a frontier gap that WANDERS 0.026-0.27 Ha -- 5x to 50x too cold to bridge the branch
-    //     tie.  It fractionalises the ties (the `m` flag) without ever letting mu choose between the branches.
-    //   * UseMOM was INERT.  tIrrepWF::FillOrbitals gives SmearingkT>0 precedence, and that branch consults the
-    //     MOM reference ONLY when MOMSmearPenalty>0 (default 0) -- so `UseMOM=true` alongside kT=5e-3 has never
-    //     changed a single occupation in ANY MnO run.  And even reached, MOMStartIter=10 captures the reference
-    //     at iteration 10, nine iterations after m_stag died (0.366 -> 0.0046 at iteration 1): a delayed capture
-    //     is built for a seed you want to settle AWAY from, and MnO's seed is the physics.
-    // Hence: kT is now the SWEEPABLE knob it should always have been, MOM is reachable under smearing via the
-    // penalty, and momFromSeed pins the reference to the seed's own staggered d^5 character.
-    auto envi=[](const char* n, int d){ const char* s=std::getenv(n); return s ? std::atoi(s) : d; };
-    o.scf.UseMOM=envi("MNO_MOM",1)!=0; o.scf.MOMStartIter=envi("MNO_MOM_START",10);
-    o.scf.MOMSmearPenalty=envd("MNO_MOM_PENALTY",0.0);   // >0 makes MOM live UNDER smearing (masked Fermi)
-    o.momFromSeed=envi("MNO_MOM_SEED",0)!=0;             // pin the reference to the SEED's occupied subspace
-    // MNO_REAL (doc/RealComplexPlan.md 3c-3): build the Γ TRIM block(s) REAL -- the Becke H_xc
-    // quadrature and the ρ-sampling GEMM then run blaze's real kernels (measured 2.0x / 2.2x on this
-    // system).  COMBINES FREELY WITH MOM since R2.21: the occupation STATE now stores each block's
-    // reference under the BLOCK's own scalar, so the full seed-pinned recipe runs flipped.  Follows
-    // the harness default (now ON); MNO_REAL=0 is the A/B door back to the all-complex build, and
-    // MNO_KMESH=2 is ALL-TRIM, so there the whole k-sum goes real, not just Γ.
-    o.realTRIMBlocks=envi("MNO_REAL",o.realTRIMBlocks?1:0)!=0;
-    // The 0h MOM GUARD releases the reference after 3 consecutive NON-AUFBAU (hole) iterations, on the premise
-    // that a hole means the reference is wrong.  That premise was calibrated on NaF, where the hole IS the
-    // pathology (a diving diffuse ghost pinned by a stale reference).  It does NOT hold here: until the
-    // self-consistent exchange splitting opens, the magnetic branch's occupied d^5-on-Mn1 states sit ABOVE
-    // empty d states of the other sublattice in the raw eps ordering, so a hole is the SIGNATURE of the branch
-    // we are trying to hold, not evidence against it.  MNO_MOM_HOLD raises the persistence (large = never
-    // release) so the guard cannot silently undo the experiment.
-    o.scf.Guard.HolePersistence=envi("MNO_MOM_HOLD",3);
-    // MNO_NR / MNO_L shrink the Becke mesh so its per-atom numbers can be read by eye (GPW_BECKE_ATOMS).
-    // MNO_XC_UNIFORM: run the XC quadrature on the UNIFORM raster instead of the atom-centred Becke mesh,
-    // changing nothing else.  The site asymmetry (moment dies on the CORNER atom) and the 56 Ha rigid-
-    // translation violation must vanish if the atom-centred path is the guilty one -- a uniform raster has
-    // no per-atom structure to get a site wrong (2026-08-11).
     if (std::getenv("MNO_XC_UNIFORM")) o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
     if (const char* nr=std::getenv("MNO_NR")) o.xcMesh.nRadial=std::atoi(nr);
     if (const char* ll=std::getenv("MNO_L"))  o.xcMesh.angularDegree=std::atoi(ll);
-    o.scf.SmearingkT=envd("MNO_KT",5e-3);                // the open-d-manifold knob (MNO_ANNEAL for a schedule)
-    // MNO_SHARED_MU: ONE chemical potential over both spin channels, so the MOMENT IS AN OUTPUT.  With it
-    // off (the default, and every MnO run through 29) the fill conserves nUp and nDn separately, which is
-    // two reservoirs and two μ -- run 29 ended with μ↑−μ↓ = 27 mHa, an unrelieved driving force to move
-    // charge ↓→↑ that the constraint holds open, so the converged state is not the free minimum.  It also
-    // makes the AFM constraint IMPOSED rather than found: m_net ≡ 0 by construction.  CP2K's deck does NOT
-    // constrain the populations (Fermi smearing, one μ; &BS seeds the ATOMIC guess only), so THIS is the
-    // oracle-comparable ensemble -- and m_stag is the instrument for whether the moment survives unaided.
-    o.spinsShareFermi=envi("MNO_SHARED_MU",0)!=0;
-    // GPW_MNO_NMAX bounds a HAND-RUN diagnosis (measured 2026-08-05: ~9 min PER analytic sweep on a 14 GB
-    // box -- the free-run magnetic cell exceeds the stream budget, so every iteration pays collocate +
-    // integrate analytically; an unbounded 80-iter run is a >24 h affair).
-    const char* nx=std::getenv("GPW_MNO_NMAX");
-    o.scf.NMaxIter=nx?std::atoi(nx):80; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.MergeTol=1e-4;                              // (RelaxRo set above with the Ladder/Kerker recipe)
 
-    // THE ORDER PARAMETER (plan §7 step 7 + §9): the STAGGERED moment m_stag = ½[m(Mn1)−m(Mn2)], with
-    // m(r)=ρ↑(r)−ρ↓(r) sampled 0.7 bohr off each Mn nucleus (the d-shell peak -- the d density VANISHES at
-    // the nucleus).  This is the AFM-II order itself, and it is the WHOLE order: the run fixes nUp=nDn, so
-    // the net moment is identically zero and a ferromagnetic drift is not an available escape -- m_stag→0
-    // means the magnetism died, full stop.  Run 6 converged to EXACTLY zero site moments from a provably
-    // staggered seed (PolarizedSeedAFMStaggering), so the loss happens somewhere INSIDE the SCF; watching
-    // m_stag per iteration is what brackets the iteration where it goes (doc/SymmetryUpgradePlan.md:1054).
-    // Two point evaluations of the Bloch density per iteration -- negligible beside a collocation sweep.
+    // The BASE SCF parameters; the anneal schedule below overrides kT (and the MOM penalty) per stage.
+    SCFParams base;
+    base.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
+    base.StartingRelaxRo=envd("MNO_ALPHA",0.45);  base.KerkerG0=envd("MNO_KERKER_G0",1.0);
+    base.XCCuspDeficit  =envd("MNO_XC_CUSP",0.0)!=0.0;
+    base.PulayDepth=(int)envd("MNO_PULAY",0.0);  base.PulayStart=(int)envd("MNO_PULAY_START",5.0);
+    base.UseMOM=envi("MNO_MOM",1)!=0;  base.MOMStartIter=envi("MNO_MOM_START",10);
+    base.MOMSmearPenalty=envd("MNO_MOM_PENALTY",0.0);
+    base.Guard.HolePersistence=envi("MNO_MOM_HOLD",3);
+    base.SmearingkT=envd("MNO_KT",5e-3);
+    base.NMaxIter=envi("GPW_MNO_NMAX",80);
+    base.MinΔρ=1e-5; base.MinΔE=1e30; base.MinΔFD=1e30; base.MinVirial=1e30; base.MinFD=1e30;
+    base.MergeTol=1e-4;
+
+    // THE ORDER PARAMETER.  m(r) in ONE call now (SolidCalculation hands back rho AND m): the old form
+    // cross-cast the polarized CD and subtracted two channel evaluations to build the same number.
     {
-        const double ds=2.0*sh*a;                                // A*(sh,sh,sh) = 2*sh*a*(1,1,1)
-        const rvec3_t off(0.7,0,0), rMn1(ds,ds,ds), rMn2(a+ds,a+ds,a+ds);  // A*(½,½,½) = a(1,1,1), shifted
+        const double ds=2.0*sh*a;                                        // A*(sh,sh,sh)
+        const rvec3_t off(0.7,0,0), rMn1(ds,ds,ds), rMn2(a+ds,a+ds,a+ds);
         o.orderName="m_stag";
         o.orderProbe=[off,rMn1,rMn2](const qchem::ChargeDensity::cDM_CD& cd)->double
         {
-            // Cross-cast to the spin-resolved FACE (abstract->abstract, the sanctioned dynamic_cast): an
-            // unpolarized run simply has no order parameter to report.
             const auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&cd);
             if (!pol) return 0.0;
             const auto* up=pol->GetChargeDensity(Spin::Up);
             const auto* dn=pol->GetChargeDensity(Spin::Down);
             const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
             const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
-            // GPW_MNO_SITES: the two site moments SEPARATELY, plus the channel charges.  m_stag alone is
-            // ½(m1−m2), which is BLIND to the thing under investigation: for one magnetic species on one
-            // Wyckoff site the two Mn are related by the (½,½,½) translation, so ANY valid solution has
-            // m1 = −m2 and N↑ = N↓.  Printed from iteration 0, so a seed that is not already a mirror pair
-            // is separated from a Fock build that breaks one (2026-08-11).
             if (std::getenv("GPW_MNO_SITES"))
-                std::cout << "[sites] m1=" << m1 << " m2=" << m2 << " m1+m2=" << m1+m2
-                          << "  N↑=" << up->GetTotalCharge() << " N↓=" << dn->GetTotalCharge()
-                          << " (N↑−N↓=" << up->GetTotalCharge()-dn->GetTotalCharge() << ")" << std::endl;
+                std::cout << "[sites] m1=" << m1 << " m2=" << m2 << " m1+m2=" << m1+m2 << std::endl;
             return 0.5*(m1-m2);
         };
     }
-    MnOArm arm;
-    arm.cell=cellp;
-    const bool verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
-    // MNO_ACC (run 39, 2026-08-11): the accelerator policy, sweepable at last.  A single name
-    // (DIIS|GDM|Ladder|Null) applies throughout; under MNO_ANNEAL a comma-list parallel to the kT
-    // schedule gives each stage its own -- the RunGpwAnnealed-doc'd {"Ladder","GDM"} x {5e-3, 0}
-    // experiment: GDM's Engageable veto requires INTEGER occupations (run 38 stayed on DIIS for all
-    // 41 iterations because kT=5e-3 makes D' non-idempotent), so a GDM stage must run kT=0.
-    std::vector<std::string> accSched;
-    if (const char* ac=std::getenv("MNO_ACC"))
+    o.onIteration=[&arm](const qchem::SCFIterator::SCFProgress& p)
+                  { arm.series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order}); };
+
+    // THE ANNEAL SCHEDULE: MNO_ANNEAL lists the kTs, MNO_ACC the per-stage accelerator, MNO_ANNEAL_PENALTY
+    // the per-stage MOM Lambda.  One stage (the base parameters) when no schedule is given.
+    auto split=[](const char* env)
     {
-        for (std::string s(ac), tok; !s.empty(); )
-        {
-            size_t c=s.find(','); tok=s.substr(0,c);
-            if (!tok.empty()) accSched.push_back(tok);
-            if (c==std::string::npos) break;
-            s=s.substr(c+1);
-        }
-        if (accSched.size()==1) { o.accelerator=accSched.front(); accSched.clear(); }
-    }
-    // ANNEALED ARM (MNO_ANNEAL="0.05,0.02,0.01,0"): a DESCENDING kT schedule with density continuation, and
-    // -- when MNO_MOM_SEED=1 -- occupied-character continuation too, so the configuration a hot stage settles
-    // on is what the next stage holds.  The single-kT path stays the default: one run, one temperature.
-    if (const char* sched=std::getenv("MNO_ANNEAL"))
-    {
-        std::vector<double> kTs;
-        for (std::string s(sched), tok; !s.empty(); )
-        {
-            size_t c=s.find(','); tok=s.substr(0,c);
-            if (!tok.empty()) kTs.push_back(std::atof(tok.c_str()));
-            if (c==std::string::npos) break;
-            s=s.substr(c+1);
-        }
-        assert(!kTs.empty() && "MNO_ANNEAL must list at least one kT");
-        // MNO_ANNEAL_PENALTY: the per-stage MOM Λ, parallel to MNO_ANNEAL.  "1.5,0" = hold the branch, then
-        // RELEASE the constraint and see whether the exchange splitting can keep it without help.
-        std::vector<double> lams;
-        if (const char* ls=std::getenv("MNO_ANNEAL_PENALTY"))
-            for (std::string t(ls), tok; !t.empty(); )
+        std::vector<std::string> out;
+        if (const char* v=std::getenv(env))
+            for (std::string t(v), tok; !t.empty(); )
             {
                 size_t c=t.find(','); tok=t.substr(0,c);
-                if (!tok.empty()) lams.push_back(std::atof(tok.c_str()));
+                if (!tok.empty()) out.push_back(tok);
                 if (c==std::string::npos) break;
                 t=t.substr(c+1);
             }
-        assert((lams.empty() || lams.size()==kTs.size()) && "MNO_ANNEAL_PENALTY must parallel MNO_ANNEAL");
-        assert((accSched.empty() || accSched.size()==kTs.size()) && "MNO_ACC list must parallel MNO_ANNEAL");
-        arm.R=RunGpwAnnealed(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, kTs, verbose,
-                             accSched, &arm.h, lams);
-        return arm;
-    }
-    arm.R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, verbose, &arm.h);
+        return out;
+    };
+    auto accType=[](const std::string& n)
+    {
+        using T=qchem::SCFAccelerators::Type;
+        if (n=="DIIS")   return T::DIIS;
+        if (n=="GDM")    return T::GDM;
+        if (n=="Ladder") return T::Ladder;
+        if (n=="Null")   return T::Null;
+        throw std::runtime_error("MNO_ACC: unknown accelerator \"" + n + "\" (DIIS|GDM|Ladder|Null)");
+    };
+    const std::vector<std::string> kTs=split("MNO_ANNEAL"), accs=split("MNO_ACC"), lams=split("MNO_ANNEAL_PENALTY");
+    assert((lams.empty() || lams.size()==kTs.size()) && "MNO_ANNEAL_PENALTY must parallel MNO_ANNEAL");
+    assert((accs.size()<=1 || kTs.empty() || accs.size()==kTs.size()) && "MNO_ACC must parallel MNO_ANNEAL");
+
+    std::vector<qchem::SCFStage> schedule;
+    if (kTs.empty())
+        schedule.push_back({base, accs.empty() ? qchem::SCFAccelerators::Type::Ladder : accType(accs[0])});
+    else
+        for (size_t i=0;i<kTs.size();++i)
+        {
+            SCFParams p=base;
+            p.SmearingkT=std::atof(kTs[i].c_str());
+            if (!lams.empty()) p.MOMSmearPenalty=std::atof(lams[i].c_str());
+            // A non-final stage stops the moment the accelerator ladder is exhausted: further grinding
+            // buys its successor nothing, and the colder stage re-arms GDM.
+            p.StopOnAccelExhausted = (i+1<kTs.size());
+            schedule.push_back({p, accs.empty() ? qchem::SCFAccelerators::Type::Ladder
+                                  : accType(accs.size()==1 ? accs[0] : accs[i])});
+        }
+
+    for (const auto& st : schedule) arm.stageKT.push_back(st.params.SmearingkT);
+    arm.calc=std::make_unique<qchem::SolidCalculation>(
+                 lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
+    arm.result=arm.calc->Result();
     return arm;
 }
 } //anon
@@ -4397,26 +4329,29 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
     if (std::getenv("MNO_SKIP_AFM"))
     {
         MnOArm F=RunMnO(/*multiplicity*/11, /*afm*/false, "MnO FM Gamma");
-        ASSERT_TRUE(F.R.converged);
-        EXPECT_NEAR(F.R.charge, 26.0, 1e-6);
+        Instrumentation(F, "MnO FM Gamma");
+        ASSERT_TRUE(F.result) << F.result.Error().details;
+        EXPECT_NEAR(F.result->TotalCharge(), 26.0, 1e-6);
         return;
     }
     MnOArm A=RunMnO(/*multiplicity*/1,  /*afm*/true,  "MnO AFM-II Gamma");
 
     // ---- the STAGGERED order parameter (reported BEFORE the convergence assert, so a bounded
     //      GPW_MNO_NMAX diagnosis run still yields the physics readout) ----
-    auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(A.h.cd.get());
-    ASSERT_TRUE(pol) << "a multiplicity>=1 run must produce a polarized density";
-    const auto* up=pol->GetChargeDensity(Spin::Up);
-    const auto* dn=pol->GetChargeDensity(Spin::Down);
+    Instrumentation(A, "MnO AFM-II Gamma");
+    // m(r) DIRECTLY (2026-08-25): the facade hands back rho AND m, so the magnetic readout no longer
+    // cross-casts a polarized CD and subtracts two channel evaluations to rebuild the same field.
+    ASSERT_TRUE(A.result) << A.result.Error().details;
+    const ScalarFunction<double>* m=A.result->SpinDensity();
+    ASSERT_TRUE(m) << "a multiplicity>=1 run must produce a spin density";
 
     // (i) real space: m(r)=rho_up-rho_dn near the two Mn sites (d-shell peak ~0.7 bohr off the nucleus --
     // the d density is zero AT the nucleus) must be large and OPPOSITE, the sign following the seed pattern.
     const double a=8.40;
     const rvec3_t off(0.7,0,0);
     const rvec3_t rMn1(0,0,0), rMn2(a,a,a);           // cartesian: A*(1/2,1/2,1/2) = a(1,1,1)
-    const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
-    const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
+    const double m1=(*m)(rMn1+off);
+    const double m2=(*m)(rMn2+off);
     // m_stag = ½(m1−m2) is the ORDER, but it is DEGENERATE between the AFM state (+m,−m) and a
     // sublattice-disproportionated one (0,−2m) -- both give the same m_stag.  Measured 2026-08-08 (run 12):
     // a seed-pinned MOM run reported "order SURVIVED, m_stag=0.29" while the sites read (+0.0006, −0.579),
@@ -4429,8 +4364,7 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
               << (std::abs(m1+m2) > 0.2*std::abs(m1-m2)
                   ? "  ** NOT STAGGERED: the moment sits on ONE sublattice" : "")
               << std::endl;
-    ASSERT_TRUE(A.R.converged);                       // gate AFTER the readout (see above)
-    EXPECT_NEAR(A.R.charge, 26.0, 1e-6);
+    EXPECT_NEAR(A.result->TotalCharge(), 26.0, 1e-6);   // the proof was already asserted above
     EXPECT_GT(m1,  0.01) << "Mn1 must stay in the +m basin the seed chose";
     EXPECT_LT(m2, -0.01) << "Mn2 must stay in the -m basin the seed chose";
     EXPECT_NEAR(m1, -m2, 0.2*std::abs(m1)) << "the two sublattices should stagger symmetrically";
@@ -4438,9 +4372,13 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
     // (ii) G-space: |m-tilde| at the AFM wavevector (dm=(1,0,0): 2pi m.f = pi between the Mn sublattices),
     // scaled by the cell volume back to electrons-scale.
     {
-        Hamiltonian::XC_PairQuadrature::fbs_t fit(A.h.bs->CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
-        auto* fu=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(up);
-        auto* fdn=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(dn);
+        Hamiltonian::XC_PairQuadrature::fbs_t fit(A.calc->Basis().CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
+        // The G-space arm needs the CHANNELS' Fourier faces, which m(r) cannot provide -- so ask the
+        // density object what it can do (the tree's normal way to reach a capability).
+        auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&A.result->DensityMatrix());
+        ASSERT_TRUE(pol) << "a multiplicity>=1 run must produce a polarized density";
+        auto* fu =dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChargeDensity(Spin::Up));
+        auto* fdn=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChargeDensity(Spin::Down));
         ASSERT_TRUE(fu && fdn);
         ΔG_Map mu=fu->GetFourierDensity(*fit), md=fdn->GetFourierDensity(*fit);
         const ivec3_t q(1,0,0);
@@ -4457,9 +4395,10 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
     // failure at Gamma-only+LSDA: run 38 measured FM 38 mHa BELOW AFM-II.)
     if (std::getenv("MNO_SKIP_FM")) return;
     MnOArm F=RunMnO(/*multiplicity*/11, /*afm*/false, "MnO FM Gamma");
-    ASSERT_TRUE(F.R.converged);
-    EXPECT_NEAR(F.R.charge, 26.0, 1e-6);
-    const double Eafm=A.R.E.GetTotalEnergy(), Efm=F.R.E.GetTotalEnergy();
+    Instrumentation(F, "MnO FM Gamma");
+    ASSERT_TRUE(F.result) << F.result.Error().details;
+    EXPECT_NEAR(F.result->TotalCharge(), 26.0, 1e-6);
+    const double Eafm=A.result->Energy(), Efm=F.result->Energy();
     std::cout << "[MnO ordering] E_AFM="<<Eafm<<"  E_FM="<<Efm<<"  dE="<<(Efm-Eafm)*1000<<" mHa"<<std::endl;
     EXPECT_LT(Eafm, Efm) << "AFM-II must be the LSDA ground state ordering";
 }

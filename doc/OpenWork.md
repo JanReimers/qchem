@@ -119,6 +119,56 @@ record of what was taken or refuted — five of its twelve items are closed and 
 
 ---
 
+## ▶ NEXT SESSION STARTS HERE — the N1 tiers, T3 onward
+
+**T1 and T2 are BUILT (2026-08-25).**  What follows is the remainder, in order, with the state each one
+starts from.  Everything they need now exists: `Outcome<T,E>`, `SCFFailure::Why`, the Hamiltonian's
+`SiteMoments` aggregate, and the MnO Gamma test running through `SolidCalculation`.
+
+### ✅ T1 — DONE.  A non-converged energy is UNRETURNABLE
+`Converge()`/`Result()` return `Outcome<Converged, SCFFailure>`; `Energy`/`EnergyTerms`/`TotalCharge`/
+`Density`/`SpinDensity`/`DensityMatrix` live ONLY on `Converged`.  `LastIterateTerms()`/
+`LastIterateCharge()` keep deliberately-unconverged numbers reachable under a name that cannot lie.
+
+### ✅ T2 — DONE.  An imposed magnetic symmetry is a POSTCONDITION
+An imposed run that converges to zero moment fails as `Why::OrderLost`, judged on the INTEGRATED Becke
+site moment.  Self-calibrating (imposed ∧ seed carried order >0.1 e ∧ collapse below 1% of it), so a FREE
+run finding m=0 — physics — is never touched.
+⚠ **Its positive path is still UNEXERCISED**, because every order-losing run measured that day ALSO failed
+to converge and tripped `NotConverged` first.  Building the case is a real task: Becke mesh (a uniform one
+has no site blocks and the check correctly skips), polarized, imposed, magnetic seed, non-magnetic ground
+state.  **Do this first** — an unexercised guard is a guess.
+
+### ★ T3 — THE Eee CHARGE-SLOSH DETECTOR.  The cheapest one left, and it has somewhere to report
+`SCFFailure::Why::ChargeSlosh` is already defined and unused.  The number is already computed.  MEASURED
+2026-08-25, and it ordered four failures correctly WITHOUT being designed for any of them:
+
+| run | Eee | verdict |
+|---|---|---|
+| baseline | 13.480 | healthy |
+| `GPW_XC_DM_SOURCE=1` | **28.995** | slosh |
+| flat Kerker (`G0=0.01`) | **35.098** | worse slosh |
+| linear D-mix (`G0=0`) | 13.609 | a DIFFERENT failure — moment dies, NO slosh |
+
+⚠ **The threshold is the whole design question**, and that last row is why: Eee must not be compared to an
+absolute number.  Suggest the same self-calibrating shape T2 uses — compare against the SEED's Eee, or
+against the first few iterations' — so it transfers to cells whose healthy Eee is nothing like 13.5.
+
+### ★ T4 — MOVE THE DETECTORS INTO THE LIBRARY
+The `** DIED at iteration N` collapse logic still lives in the MnO TEST, so no library user gets it.  With
+the test now on the facade, the natural home is beside T2/T3 in `Outcome_()`.
+
+### ★ T5 — SELF-DESCRIPTION, and it is the SAME WORK AS N5 (`CP2K_COMPAT`)
+A run must state mixer, \f$G_0\f$, Pulay depth, XC ρ source, thread counts and every qchem-only
+accelerator; `CP2K_COMPAT=1` must turn them all off.  Build them together — see N5 — and note the measured
+defect that motivates it: with `MNO_KERKER_G0=0` the run prints **no mixer line at all**.
+
+### ⚠ AND THE COVERAGE GAP T2/T3 STILL HAVE
+`RunMnO` now goes through `SolidCalculation`, so the MnO Gamma test IS covered.  Other GPW tests still
+construct `SolidSCFIterator` directly (`RunGpw` at ~608, `RunGpwAnnealed` at ~761 remain for them), so the
+detectors do not reach those.  Retiring both drivers onto the facade is the rest of
+`doc/TestFacadeMigrationPlan.md`, and it is now a mechanical follow-through rather than a design problem.
+
 ## ★★★ N4 — THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$
 
 > **USER, 2026-08-25:** *"'GPW_XC_DM_SOURCE does not earn the default' bothers me because it means we are

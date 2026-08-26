@@ -6,6 +6,7 @@ module;
 #include <algorithm>   // std::max (the T2 site-moment scan)
 #include <cmath>       // std::fabs
 #include <map>         // the magnetic decoration's IonicSAD targets
+#include <iomanip>     // the stage summary's stated precision
 #include <iostream>    // the per-stage anneal banner
 #include <cassert>
 #include <memory>
@@ -78,6 +79,20 @@ struct SolidCalculation::Imp
     double seedOrder = 0.0;     //!< max |site moment| of the SEED -- the baseline the postcondition uses
     double charge    = 0.0;
 };
+
+//! The per-stage summary the campaign reads its numbers from.  AT A STATED PRECISION: these are the
+//! figures doc/Benchmark.md's rows are transcribed from, and 6 s.f. cannot express a sub-mHa delta on a
+//! -61 Ha crystal ("A=E-TS=-61.4" was once the whole energy this line reported).
+void EmitStageSummary(const std::string& label, size_t s, size_t n, double kT,
+                      bool converged, size_t iters, const qchem::EnergyBreakdown& E)
+{
+    const std::streamsize prec0=std::cout.precision();
+    std::cout << "["<<label<<" stage "<<s+1<<"/"<<n<<"] kT="<<kT<<" conv="<<converged<<" iters="<<iters
+              << std::setprecision(10)
+              << " A=E-TS="<<E.GetTotalEnergy()<<" -TS="<<E.MinusTS
+              << " E(internal)="<<(E.GetTotalEnergy()-E.MinusTS)
+              << std::setprecision(prec0) << std::endl;
+}
 
 //---------------------------------------------------------------------------------------------------
 SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
@@ -154,6 +169,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
     // missed stage 0 (see SolidCalcOptions::onIteration).
     if (opts.onIteration) itsImp->scf->SetObserver(opts.onIteration);
+    if (opts.orderProbe)  itsImp->scf->SetOrderParameter(opts.orderName, opts.orderProbe);
 
     // MOM CONTINUATION FROM THE SEED (S0e): pin the reference to the seed's OWN freshly-filled occupied
     // subspace before iteration 1, so the CONFIGURATION the seed chose survives, not merely its density.
@@ -190,14 +206,15 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     if (schedule.empty())
         throw std::runtime_error("SolidCalculation: an EMPTY anneal schedule has no meaning -- pass at "
                                  "least one stage, or use the single-SCFParams constructor.");
-    // Stage 0 has already run (the delegated ctor converged it); continue through the remainder.
+    // Stage 0 has already run (the delegated ctor converged it) -- report it, then continue.
+    EmitStageSummary(itsImp->opts.label, 0, schedule.size(), schedule.front().params.SmearingkT,
+                     itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     for (size_t s=1; s<schedule.size(); ++s)
     {
         BuildStage(schedule[s].accelerator, std::move(itsImp->cd));
-        std::cout << "["<<itsImp->opts.label<<" anneal "<<s+1<<"/"<<schedule.size()
-                  << "] kT="<<schedule[s].params.SmearingkT
-                  << " MOM-Lambda="<<schedule[s].params.MOMSmearPenalty << std::endl;
         (void)Converge(schedule[s].params);
+        EmitStageSummary(itsImp->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
+                         itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     }
 }
 
@@ -214,6 +231,7 @@ double SolidCalculation::Converged::TotalCharge() const {return itsImp->charge;}
 size_t SolidCalculation::Converged::IterationCount() const {return itsImp->scf->GetIterationCount();}
 
 const ScalarFunction<double>* SolidCalculation::Converged::SpinDensity() const {return itsImp->spin.get();}
+const qchem::ChargeDensity::cDM_CD& SolidCalculation::Converged::DensityMatrix() const {return *itsImp->cd;}
 
 const ScalarFunction<double>& SolidCalculation::Converged::Density() const
 {
@@ -306,6 +324,7 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
     // EVERY stage is observed, not just the first: this iterator is brand new, so the telemetry has to be
     // re-attached or an annealed run goes quiet after stage 0 -- silently, which is the worst kind.
     if (itsImp->opts.onIteration) itsImp->scf->SetObserver(itsImp->opts.onIteration);
+    if (itsImp->opts.orderProbe)  itsImp->scf->SetOrderParameter(itsImp->opts.orderName, itsImp->opts.orderProbe);
 }
 
 Outcome<SolidCalculation::Converged, SCFFailure>
@@ -319,10 +338,9 @@ SolidCalculation::Converge(const std::vector<SCFStage>& schedule)
     {
         if (s>0)   // stage 0's graph is already standing (the ctor built it); later stages re-seed from it
             BuildStage(schedule[s].accelerator, std::move(itsImp->cd));
-        std::cout << "["<<itsImp->opts.label<<" anneal "<<s+1<<"/"<<schedule.size()
-                  << "] kT="<<schedule[s].params.SmearingkT
-                  << " MOM-Lambda="<<schedule[s].params.MOMSmearPenalty << std::endl;
         last = Converge(schedule[s].params);
+        EmitStageSummary(itsImp->opts.label, s, schedule.size(), schedule[s].params.SmearingkT,
+                         itsImp->converged, itsImp->scf->GetIterationCount(), itsImp->scf->GetEnergy());
     }
     return last;   // the FINAL stage's -- the earlier ones exist to feed it
 }
@@ -352,5 +370,6 @@ bool   SolidCalculation::DidConverge()    const         { return itsImp->converg
 size_t SolidCalculation::IterationCount() const         { return itsImp->scf->GetIterationCount(); }
 
 const qcMesh::MeshParams& SolidCalculation::ResolvedXCMesh() const { return itsImp->xcMesh; }
+const BasisSet::Complex_BS& SolidCalculation::Basis() const { return *itsImp->bs; }
 
 } //namespace qchem

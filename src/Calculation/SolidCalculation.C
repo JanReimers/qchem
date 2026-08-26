@@ -27,6 +27,7 @@
 // (qchem.Hamiltonian.Factory's cHamiltonian overload; qchem.SCFAccelerator.Factory's typed-options
 // overload), so this file imports ZERO internals, exactly as the molecular facades already manage.
 module;
+#include <functional>  // the order-parameter probe
 #include <memory>
 #include <vector>     // the anneal schedule
 #include <string>    // SCFFailure::details
@@ -156,6 +157,14 @@ struct SolidCalcOptions
     //! recipe, is the stage whose trajectory the fingerprint most wants.  Put it here and the run is
     //! observed from its first iteration, with the rest of the recipe, in one place.
     qchem::SCFIterator::SolidSCFIterator::Observer onIteration = nullptr;
+    //! \name The run's ORDER PARAMETER -- named, and measured every iteration
+    //! A campaign watches a scalar the library cannot know about (a staggered moment, a charge disproportion,
+    //! a distortion amplitude).  It belongs beside \c onIteration for the same reason: the ctor CONVERGES,
+    //! so a probe attached afterwards has already missed stage 0.  Empty probe = no order column.
+    //!@{
+    std::string orderName;
+    std::function<double(const qchem::ChargeDensity::cDM_CD&)> orderProbe;
+    //!@}
     //!@}
     //!@}
 };
@@ -236,6 +245,13 @@ public:
         //! the physical split the obvious one.  It is also what a magnetic diagnostic actually wants --
         //! \f$m(r)\f$ near a site, in one call rather than a cross-cast and a subtraction.
         const ScalarFunction<double>* SpinDensity() const;
+        //! \brief The converged density OBJECT, for a caller that must CROSS-CAST it for a capability --
+        //! \c FourierDensity to take a G-space component, \c cPolarized_CD to reach the channels.
+        //!
+        //! \c Density()/\c SpinDensity() are the convenient views and cover most consumers; this is the
+        //! escape hatch for a campaign diagnostic that needs to ASK THE DENSITY WHAT IT CAN DO, which is
+        //! how capabilities are reached everywhere else in this tree.  Same lifetime as the rest.
+        const qchem::ChargeDensity::cDM_CD& DensityMatrix() const;
     private:
         friend class SolidCalculation;
         explicit Converged(const Imp* imp) : itsImp(imp) {}
@@ -306,6 +322,14 @@ public:
     //! Exposed because the resolution is a real decision made here on the run's behalf, and a caller that
     //! wants to reproduce, pin, or report the run needs to see what was chosen rather than re-deriving it.
     const qcMesh::MeshParams& ResolvedXCMesh() const;
+
+    //! \brief The GPW (Bloch) basis this run built, for a caller that must ASK IT SOMETHING -- e.g. build a
+    //! fit basis to take a Fourier component of the converged density.
+    //!
+    //! Exposed for the same reason \c ResolvedXCMesh is: the facade MADE this object on the run's behalf,
+    //! and a campaign diagnostic that needs to interrogate it should not have to rebuild a second one and
+    //! hope the two agree.  It is a const view -- the calculation keeps ownership.
+    const BasisSet::Complex_BS& Basis() const;
 
 private:
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.
