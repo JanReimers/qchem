@@ -573,7 +573,23 @@ public:
         const double rbz=std::sqrt(fex.z*fex.z+fey.z*fey.z+fez.z*fez.z);
         const int hwx=int(std::ceil(reach*rbx*N.x))+1, hwy=int(std::ceil(reach*rby*N.y))+1, hwz=int(std::ceil(reach*rbz*N.z))+1;
         const long cx=std::lround(fP.x*N.x), cy=std::lround(fP.y*N.y), cz=std::lround(fP.z*N.z);
-        const double lnCut=lnE+12.0;                         // ellipsoid pre-screen bound (screen 3)
+        // Screen (3) is the REACH SPHERE the box is already the BOUNDING BOX OF -- capped by the historical
+        // fixed log margin lnE+12 (2026-08-26).  The old bound was lnE+12 alone, and for a DIFFUSE pair that
+        // exceeds the box entirely (pMin=0.3 gives r_screen=10.8 au against reach=9.76): the screen never
+        // fired, so the CORNERS of the bounding box -- ~48% of its points, every one with an exponential
+        // envelope already below epsEff -- paid the full exp/poly evaluation, and the consumer's own
+        // |val|<eps test then threw the results away.  Screening on the sphere makes the kept set ISOTROPIC
+        // instead of a rectangular hull (which was an artifact of the walk order, not of any tolerance).
+        //
+        // THE MARGIN IS NOT LOST, it is the one the box already grants: pMin*reach^2+pf expands to
+        // lnE + 2 sqrt(pMin (lnE-pf)) + pMin, i.e. reach's +1 a.u. polynomial margin re-expressed in logs
+        // (+5.5 at pMin=0.3), and the min() keeps the old +12 wherever it is the tighter of the two (sharp
+        // pairs).  So this drops ONLY terms the axis-wise box truncation was already dropping at the same
+        // radius.  Measured: Si and NaF total energies unchanged to every printed digit on BOTH the cached
+        // and the uncached path (NaF to 12 s.f.), against a cached-vs-uncached spread of 1.25e-6 that this
+        // sits far beneath; 771/771.  GPW_SPHERE_SCREEN=0 restores the rectangular hull for A/B.
+        static const bool kSphere=[]{const char* s=std::getenv("GPW_SPHERE_SCREEN"); return !s || std::atoi(s)!=0;}();
+        const double lnCut = kSphere ? std::min(lnE+12.0, pMin*reach*reach+pfExp) : lnE+12.0;   // screen (3)
         // INCREMENTAL grid walk: r = A(g/N) advances by a CONSTANT lattice step per index, so the per-point
         // ToCartesian call (a 3x3 matrix multiply + PLT hop; ~14% of the box-loop profile) hoists to three
         // axis steps + adds.  Accumulation drift over <=few-hundred steps is ~1e-13 -- far below kScreenEps.
