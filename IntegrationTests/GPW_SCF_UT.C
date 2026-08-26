@@ -3740,164 +3740,6 @@ void Instrumentation(const MnOArm& arm, const std::string& label)
              <<" charge="<<arm.result->TotalCharge()<<std::endl;
 }
 
-MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
-{
-    const double a=8.40;                              // rocksalt a ~ 4.445 A (a.u.)
-    Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);   // rhombohedral AFM-II cell (symmetric)
-    auto cellp=std::make_shared<UnitCell>(A);
-    UnitCell& cell=*cellp;
-    // MNO_SWAP_SUBLATTICE: put the -m flip on the FIRST Mn instead of the second.  The two sites are related
-    // by the (1/2,1/2,1/2) lattice translation, so the swapped run must be the EXACT MIRROR of the unswapped
-    // one -- same energy, site moments exchanged.  It is the discriminator for where the observed asymmetry
-    // lives (2026-08-11): mirror-image result => the code is equivariant under SITE exchange and the defect
-    // is between the SPIN CHANNELS; identical result => the defect is tied to a SITE.
-    const bool swapSub = std::getenv("MNO_SWAP_SUBLATTICE")!=nullptr;
-    // MNO_SWAP_ORDER: add the (1/2,1/2,1/2) Mn FIRST, so the atom INDICES swap while the geometry and the
-    // probe points are untouched.  This separates the last two candidates: if the moment still dies at the
-    // ORIGIN the defect follows the POSITION; if it moves to (1/2,1/2,1/2) it follows the atom INDEX.
-    const bool swapOrder = std::getenv("MNO_SWAP_ORDER")!=nullptr;
-    // MNO_SHIFT=f RIGIDLY TRANSLATES the whole crystal by (f,f,f) fractional.  A rigid translation is an
-    // EXACT symmetry -- every energy and every site moment must be invariant -- and it moves the Mn at
-    // (0,0,0) OFF the cell corner.  That is the discriminator for the site asymmetry found 2026-08-11 (the
-    // moment dies at the ORIGIN atom and survives at the cell-centre one, whichever spin each was seeded
-    // with): a CORNER atom's atom-centred XC mesh must be reassembled from periodic images, a centre atom's
-    // need not.  Same bug CLASS as DISABLED_TermTranslationInvariance (2026-07-09: "a boundary-straddling
-    // corner orbital lost its wrapped tail") -- which covers Kinetic/Vloc/Vnl and NOT the Becke XC mesh,
-    // because that mesh did not exist when it was written.
-    const double sh = std::getenv("MNO_SHIFT") ? std::atof(std::getenv("MNO_SHIFT")) : 0.0;
-    if (swapOrder)
-    {
-        cell.AddAtom(25, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // -m sublattice, added FIRST
-        cell.AddAtom(25, {sh,    sh,    sh    }, afm && swapSub);
-    }
-    else
-    {
-        cell.AddAtom(25, {sh,    sh,    sh    }, afm && swapSub);  // Mn sublattice +m (-m when swapped)
-        cell.AddAtom(25, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // Mn sublattice -m (flipped for the AFM arm)
-    }
-    cell.AddAtom(8,  {0.25+sh,0.25+sh,0.25+sh});
-    cell.AddAtom(8,  {0.75+sh,0.75+sh,0.75+sh});
-    // MNO_KMESH=n (run 40, 2026-08-12): an n^3 Γ-centred Monkhorst-Pack mesh on the magnetic cell.
-    // The ORDERING experiment: a Γ-only 2-f.u. cell cannot resolve superexchange bandwidth (run 38
-    // measured FM 38 mHa BELOW AFM-II), so the FM/AFM comparison needs k.  A magnetic imposed run
-    // keeps the full mesh by construction (S3: recipFold left empty when the decoration is staggered).
-    const int nk = std::getenv("MNO_KMESH") ? std::atoi(std::getenv("MNO_KMESH")) : 1;
-    Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
-
-    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
-    auto envi=[](const char* n, int    d){ const char* s=std::getenv(n); return s ? std::atoi(s) : d; };
-
-    MnOArm arm;
-    arm.cell=cellp;
-
-    // ============================ THE WHOLE RECIPE, IN ONE BLOCK ============================
-    qchem::SolidCalcOptions o;
-    o.label=label;
-    o.Nelec=26; o.multiplicity=multiplicity;      // 2 x (Mn q7 + O q6); AFM = the two-channel singlet
-    o.species={{"Mn",7},{"O",6}};
-    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;   // Mn2+ d^5 + diffuse O2- -- the basin chooser
-    o.ortho=qchem::CholeskyPivoted;                        // cond(S)~7e8: plain Cholesky explodes
-    o.orthoTol=envd("MNO_ORTHO_TOL",1e-4);
-    o.cutoffFactor=envd("MNO_CUTOFF_FACTOR",2.0);
-    o.densityEcut =envd("MNO_ECUT",-1.0);                  // <0 = AUTO (cutoffFactor*alpha_max)
-    o.spinsShareFermi=envi("MNO_SHARED_MU",0)!=0;
-    o.momFromSeed    =envi("MNO_MOM_SEED",0)!=0;
-    o.forceComplex   =envi("MNO_REAL",1)==0;               // MNO_REAL=0 -> the all-complex twin
-    {   // MNO_IMPOSE: 0 FREE, 1 the SHUBNIKOV group of the declared ordering, 2 the grey erasure control
-        const int iv=envi("MNO_IMPOSE",0);
-        o.imposeSymmetry = iv!=0;
-        o.greyImposition = iv==2;
-    }
-    if (std::getenv("MNO_XC_UNIFORM")) o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
-    if (const char* nr=std::getenv("MNO_NR")) o.xcMesh.nRadial=std::atoi(nr);
-    if (const char* ll=std::getenv("MNO_L"))  o.xcMesh.angularDegree=std::atoi(ll);
-
-    // The BASE SCF parameters; the anneal schedule below overrides kT (and the MOM penalty) per stage.
-    SCFParams base;
-    base.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
-    base.StartingRelaxRo=envd("MNO_ALPHA",0.45);  base.KerkerG0=envd("MNO_KERKER_G0",1.0);
-    base.XCCuspDeficit  =envd("MNO_XC_CUSP",0.0)!=0.0;
-    base.PulayDepth=(int)envd("MNO_PULAY",0.0);  base.PulayStart=(int)envd("MNO_PULAY_START",5.0);
-    base.UseMOM=envi("MNO_MOM",1)!=0;  base.MOMStartIter=envi("MNO_MOM_START",10);
-    base.MOMSmearPenalty=envd("MNO_MOM_PENALTY",0.0);
-    base.Guard.HolePersistence=envi("MNO_MOM_HOLD",3);
-    base.SmearingkT=envd("MNO_KT",5e-3);
-    base.NMaxIter=envi("GPW_MNO_NMAX",80);
-    base.MinΔρ=1e-5; base.MinΔE=1e30; base.MinΔFD=1e30; base.MinVirial=1e30; base.MinFD=1e30;
-    base.MergeTol=1e-4;
-
-    // THE ORDER PARAMETER.  m(r) in ONE call now (SolidCalculation hands back rho AND m): the old form
-    // cross-cast the polarized CD and subtracted two channel evaluations to build the same number.
-    {
-        const double ds=2.0*sh*a;                                        // A*(sh,sh,sh)
-        const rvec3_t off(0.7,0,0), rMn1(ds,ds,ds), rMn2(a+ds,a+ds,a+ds);
-        o.orderName="m_stag";
-        o.orderProbe=[off,rMn1,rMn2](const qchem::ChargeDensity::cDM_CD& cd)->double
-        {
-            const auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&cd);
-            if (!pol) return 0.0;
-            const auto* up=pol->GetChargeDensity(Spin::Up);
-            const auto* dn=pol->GetChargeDensity(Spin::Down);
-            const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
-            const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
-            if (std::getenv("GPW_MNO_SITES"))
-                std::cout << "[sites] m1=" << m1 << " m2=" << m2 << " m1+m2=" << m1+m2 << std::endl;
-            return 0.5*(m1-m2);
-        };
-    }
-    o.onIteration=[&arm](const qchem::SCFIterator::SCFProgress& p)
-                  { arm.series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order}); };
-
-    // THE ANNEAL SCHEDULE: MNO_ANNEAL lists the kTs, MNO_ACC the per-stage accelerator, MNO_ANNEAL_PENALTY
-    // the per-stage MOM Lambda.  One stage (the base parameters) when no schedule is given.
-    auto split=[](const char* env)
-    {
-        std::vector<std::string> out;
-        if (const char* v=std::getenv(env))
-            for (std::string t(v), tok; !t.empty(); )
-            {
-                size_t c=t.find(','); tok=t.substr(0,c);
-                if (!tok.empty()) out.push_back(tok);
-                if (c==std::string::npos) break;
-                t=t.substr(c+1);
-            }
-        return out;
-    };
-    auto accType=[](const std::string& n)
-    {
-        using T=qchem::SCFAccelerators::Type;
-        if (n=="DIIS")   return T::DIIS;
-        if (n=="GDM")    return T::GDM;
-        if (n=="Ladder") return T::Ladder;
-        if (n=="Null")   return T::Null;
-        throw std::runtime_error("MNO_ACC: unknown accelerator \"" + n + "\" (DIIS|GDM|Ladder|Null)");
-    };
-    const std::vector<std::string> kTs=split("MNO_ANNEAL"), accs=split("MNO_ACC"), lams=split("MNO_ANNEAL_PENALTY");
-    assert((lams.empty() || lams.size()==kTs.size()) && "MNO_ANNEAL_PENALTY must parallel MNO_ANNEAL");
-    assert((accs.size()<=1 || kTs.empty() || accs.size()==kTs.size()) && "MNO_ACC must parallel MNO_ANNEAL");
-
-    std::vector<qchem::SCFStage> schedule;
-    if (kTs.empty())
-        schedule.push_back({base, accs.empty() ? qchem::SCFAccelerators::Type::Ladder : accType(accs[0])});
-    else
-        for (size_t i=0;i<kTs.size();++i)
-        {
-            SCFParams p=base;
-            p.SmearingkT=std::atof(kTs[i].c_str());
-            if (!lams.empty()) p.MOMSmearPenalty=std::atof(lams[i].c_str());
-            // A non-final stage stops the moment the accelerator ladder is exhausted: further grinding
-            // buys its successor nothing, and the colder stage re-arms GDM.
-            p.StopOnAccelExhausted = (i+1<kTs.size());
-            schedule.push_back({p, accs.empty() ? qchem::SCFAccelerators::Type::Ladder
-                                  : accType(accs.size()==1 ? accs[0] : accs[i])});
-        }
-
-    for (const auto& st : schedule) arm.stageKT.push_back(st.params.SmearingkT);
-    arm.calc=std::make_unique<qchem::SolidCalculation>(
-                 lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
-    arm.result=arm.calc->Result();
-    return arm;
-}
 } //anon
 
 // THE RAW SEED of the MnO AFM-II cell: are the two Mn sublattices actually equal and opposite?
@@ -4323,6 +4165,169 @@ TEST(GPW_SCF, ImposedShubnikovHoldsAFMThroughSCF_Mn2Box)
 // dynamics recipe (Ladder+Kerker+MOM) is staged in RunMnO.  Hand-run: GPW_MNO_VERBOSE=1 GPW_MNO_NMAX=n.
 TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
 {
+    // ================== THE MnO RUN, INLINE ==================
+    // Inlined from a free function (2026-08-25, user: "then I can better picture what is actually
+    // going on").  It has no other callers -- the three below are all in this test -- so as a lambda
+    // the CELL, the RECIPE, the SCHEDULE and the ASSERTIONS are finally one contiguous thing to read.
+    auto RunMnO = [](int multiplicity, bool afm, const std::string& label) -> MnOArm
+    {
+        const double a=8.40;                              // rocksalt a ~ 4.445 A (a.u.)
+        Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);   // rhombohedral AFM-II cell (symmetric)
+        auto cellp=std::make_shared<UnitCell>(A);
+        UnitCell& cell=*cellp;
+        // MNO_SWAP_SUBLATTICE: put the -m flip on the FIRST Mn instead of the second.  The two sites are related
+        // by the (1/2,1/2,1/2) lattice translation, so the swapped run must be the EXACT MIRROR of the unswapped
+        // one -- same energy, site moments exchanged.  It is the discriminator for where the observed asymmetry
+        // lives (2026-08-11): mirror-image result => the code is equivariant under SITE exchange and the defect
+        // is between the SPIN CHANNELS; identical result => the defect is tied to a SITE.
+        const bool swapSub = std::getenv("MNO_SWAP_SUBLATTICE")!=nullptr;
+        // MNO_SWAP_ORDER: add the (1/2,1/2,1/2) Mn FIRST, so the atom INDICES swap while the geometry and the
+        // probe points are untouched.  This separates the last two candidates: if the moment still dies at the
+        // ORIGIN the defect follows the POSITION; if it moves to (1/2,1/2,1/2) it follows the atom INDEX.
+        const bool swapOrder = std::getenv("MNO_SWAP_ORDER")!=nullptr;
+        // MNO_SHIFT=f RIGIDLY TRANSLATES the whole crystal by (f,f,f) fractional.  A rigid translation is an
+        // EXACT symmetry -- every energy and every site moment must be invariant -- and it moves the Mn at
+        // (0,0,0) OFF the cell corner.  That is the discriminator for the site asymmetry found 2026-08-11 (the
+        // moment dies at the ORIGIN atom and survives at the cell-centre one, whichever spin each was seeded
+        // with): a CORNER atom's atom-centred XC mesh must be reassembled from periodic images, a centre atom's
+        // need not.  Same bug CLASS as DISABLED_TermTranslationInvariance (2026-07-09: "a boundary-straddling
+        // corner orbital lost its wrapped tail") -- which covers Kinetic/Vloc/Vnl and NOT the Becke XC mesh,
+        // because that mesh did not exist when it was written.
+        const double sh = std::getenv("MNO_SHIFT") ? std::atof(std::getenv("MNO_SHIFT")) : 0.0;
+        if (swapOrder)
+        {
+            cell.AddAtom(25, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // -m sublattice, added FIRST
+            cell.AddAtom(25, {sh,    sh,    sh    }, afm && swapSub);
+        }
+        else
+        {
+            cell.AddAtom(25, {sh,    sh,    sh    }, afm && swapSub);  // Mn sublattice +m (-m when swapped)
+            cell.AddAtom(25, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // Mn sublattice -m (flipped for the AFM arm)
+        }
+        cell.AddAtom(8,  {0.25+sh,0.25+sh,0.25+sh});
+        cell.AddAtom(8,  {0.75+sh,0.75+sh,0.75+sh});
+        // MNO_KMESH=n (run 40, 2026-08-12): an n^3 Γ-centred Monkhorst-Pack mesh on the magnetic cell.
+        // The ORDERING experiment: a Γ-only 2-f.u. cell cannot resolve superexchange bandwidth (run 38
+        // measured FM 38 mHa BELOW AFM-II), so the FM/AFM comparison needs k.  A magnetic imposed run
+        // keeps the full mesh by construction (S3: recipFold left empty when the decoration is staggered).
+        const int nk = std::getenv("MNO_KMESH") ? std::atoi(std::getenv("MNO_KMESH")) : 1;
+        Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
+
+        auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
+        auto envi=[](const char* n, int    d){ const char* s=std::getenv(n); return s ? std::atoi(s) : d; };
+
+        MnOArm arm;
+        arm.cell=cellp;
+
+        // ============================ THE WHOLE RECIPE, IN ONE BLOCK ============================
+        qchem::SolidCalcOptions o;
+        o.label=label;
+        o.Nelec=26; o.multiplicity=multiplicity;      // 2 x (Mn q7 + O q6); AFM = the two-channel singlet
+        o.species={{"Mn",7},{"O",6}};
+        o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;   // Mn2+ d^5 + diffuse O2- -- the basin chooser
+        o.ortho=qchem::CholeskyPivoted;                        // cond(S)~7e8: plain Cholesky explodes
+        o.orthoTol=envd("MNO_ORTHO_TOL",1e-4);
+        o.cutoffFactor=envd("MNO_CUTOFF_FACTOR",2.0);
+        o.densityEcut =envd("MNO_ECUT",-1.0);                  // <0 = AUTO (cutoffFactor*alpha_max)
+        o.spinsShareFermi=envi("MNO_SHARED_MU",0)!=0;
+        o.momFromSeed    =envi("MNO_MOM_SEED",0)!=0;
+        o.forceComplex   =envi("MNO_REAL",1)==0;               // MNO_REAL=0 -> the all-complex twin
+        {   // MNO_IMPOSE: 0 FREE, 1 the SHUBNIKOV group of the declared ordering, 2 the grey erasure control
+            const int iv=envi("MNO_IMPOSE",0);
+            o.imposeSymmetry = iv!=0;
+            o.greyImposition = iv==2;
+        }
+        if (std::getenv("MNO_XC_UNIFORM")) o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+        if (const char* nr=std::getenv("MNO_NR")) o.xcMesh.nRadial=std::atoi(nr);
+        if (const char* ll=std::getenv("MNO_L"))  o.xcMesh.angularDegree=std::atoi(ll);
+
+        // The BASE SCF parameters; the anneal schedule below overrides kT (and the MOM penalty) per stage.
+        SCFParams base;
+        base.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
+        base.StartingRelaxRo=envd("MNO_ALPHA",0.45);  base.KerkerG0=envd("MNO_KERKER_G0",1.0);
+        base.XCCuspDeficit  =envd("MNO_XC_CUSP",0.0)!=0.0;
+        base.PulayDepth=(int)envd("MNO_PULAY",0.0);  base.PulayStart=(int)envd("MNO_PULAY_START",5.0);
+        base.UseMOM=envi("MNO_MOM",1)!=0;  base.MOMStartIter=envi("MNO_MOM_START",10);
+        base.MOMSmearPenalty=envd("MNO_MOM_PENALTY",0.0);
+        base.Guard.HolePersistence=envi("MNO_MOM_HOLD",3);
+        base.SmearingkT=envd("MNO_KT",5e-3);
+        base.NMaxIter=envi("GPW_MNO_NMAX",80);
+        base.MinΔρ=1e-5; base.MinΔE=1e30; base.MinΔFD=1e30; base.MinVirial=1e30; base.MinFD=1e30;
+        base.MergeTol=1e-4;
+
+        // THE ORDER PARAMETER.  m(r) in ONE call now (SolidCalculation hands back rho AND m): the old form
+        // cross-cast the polarized CD and subtracted two channel evaluations to build the same number.
+        {
+            const double ds=2.0*sh*a;                                        // A*(sh,sh,sh)
+            const rvec3_t off(0.7,0,0), rMn1(ds,ds,ds), rMn2(a+ds,a+ds,a+ds);
+            o.orderName="m_stag";
+            o.orderProbe=[off,rMn1,rMn2](const qchem::ChargeDensity::cDM_CD& cd)->double
+            {
+                const auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&cd);
+                if (!pol) return 0.0;
+                const auto* up=pol->GetChargeDensity(Spin::Up);
+                const auto* dn=pol->GetChargeDensity(Spin::Down);
+                const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
+                const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
+                if (std::getenv("GPW_MNO_SITES"))
+                    std::cout << "[sites] m1=" << m1 << " m2=" << m2 << " m1+m2=" << m1+m2 << std::endl;
+                return 0.5*(m1-m2);
+            };
+        }
+        o.onIteration=[&arm](const qchem::SCFIterator::SCFProgress& p)
+                      { arm.series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order}); };
+
+        // THE ANNEAL SCHEDULE: MNO_ANNEAL lists the kTs, MNO_ACC the per-stage accelerator, MNO_ANNEAL_PENALTY
+        // the per-stage MOM Lambda.  One stage (the base parameters) when no schedule is given.
+        auto split=[](const char* env)
+        {
+            std::vector<std::string> out;
+            if (const char* v=std::getenv(env))
+                for (std::string t(v), tok; !t.empty(); )
+                {
+                    size_t c=t.find(','); tok=t.substr(0,c);
+                    if (!tok.empty()) out.push_back(tok);
+                    if (c==std::string::npos) break;
+                    t=t.substr(c+1);
+                }
+            return out;
+        };
+        auto accType=[](const std::string& n)
+        {
+            using T=qchem::SCFAccelerators::Type;
+            if (n=="DIIS")   return T::DIIS;
+            if (n=="GDM")    return T::GDM;
+            if (n=="Ladder") return T::Ladder;
+            if (n=="Null")   return T::Null;
+            throw std::runtime_error("MNO_ACC: unknown accelerator \"" + n + "\" (DIIS|GDM|Ladder|Null)");
+        };
+        const std::vector<std::string> kTs=split("MNO_ANNEAL"), accs=split("MNO_ACC"), lams=split("MNO_ANNEAL_PENALTY");
+        assert((lams.empty() || lams.size()==kTs.size()) && "MNO_ANNEAL_PENALTY must parallel MNO_ANNEAL");
+        assert((accs.size()<=1 || kTs.empty() || accs.size()==kTs.size()) && "MNO_ACC must parallel MNO_ANNEAL");
+
+        std::vector<qchem::SCFStage> schedule;
+        if (kTs.empty())
+            schedule.push_back({base, accs.empty() ? qchem::SCFAccelerators::Type::Ladder : accType(accs[0])});
+        else
+            for (size_t i=0;i<kTs.size();++i)
+            {
+                SCFParams p=base;
+                p.SmearingkT=std::atof(kTs[i].c_str());
+                if (!lams.empty()) p.MOMSmearPenalty=std::atof(lams[i].c_str());
+                // A non-final stage stops the moment the accelerator ladder is exhausted: further grinding
+                // buys its successor nothing, and the colder stage re-arms GDM.
+                p.StopOnAccelExhausted = (i+1<kTs.size());
+                schedule.push_back({p, accs.empty() ? qchem::SCFAccelerators::Type::Ladder
+                                      : accType(accs.size()==1 ? accs[0] : accs[i])});
+            }
+
+        for (const auto& st : schedule) arm.stageKT.push_back(st.params.SmearingkT);
+        arm.calc=std::make_unique<qchem::SolidCalculation>(
+                     lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
+        arm.result=arm.calc->Result();
+        return arm;
+    };
+
     // MNO_SKIP_AFM (run 41, 2026-08-12): the FM-ONLY hand run -- the same-code Δ(AFM−FM) energy
     // breakdown needs the FM arm at full print precision in the same (annealed/GDM) class as the
     // AFM arm, without paying the ~40 min AFM leg again.  Mirror of MNO_SKIP_FM.
