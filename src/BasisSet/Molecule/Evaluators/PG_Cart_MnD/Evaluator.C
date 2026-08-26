@@ -38,6 +38,7 @@ import qchem.BasisSet.Molecule.Evaluators;                             // Evalua
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;// Polarization
+import qchem.IntPow;                                             // uintpow (the monomial power tables of the collocation box walk)
 import qchem.BasisSet.Molecule.LatticeSum1E;                       // GaussianFunction (the <chi_i|g> seam type)
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;                // DirectOp {W|τ} (the T3 stream-fold ops)
 import qchem.Structure;
@@ -530,6 +531,21 @@ public:
     //! 72 + 72.  The caller forms \f$val=f^I_a f^J_b\f$ for the component pairs it wants and applies its own
     //! \f$|val|<\varepsilon\f$ screen -- the product expression is associated exactly as the unblocked form
     //! was, so values are BIT-IDENTICAL.
+    //! Fill \a pw[0..L] with \f$x^k\f$ using EXACTLY \c uintpow's associations -- including its \f$x=0\f$
+    //! and \f$k=0\f$ conventions -- so indexing this table is BIT-IDENTICAL to the \c uintpow call it
+    //! replaces.  \a L is bounded by \c kMaxDeg (the caller sizes \a pw).
+    static void PowerTable(double x, int L, double* pw)
+    {
+        pw[0]=1.0;
+        if (L<1) return;
+        if (x==0.0) { for (int k=1;k<=L;k++) pw[k]=0.0; return; }   // uintpow's x==0 early-out (+0.0, never -0.0)
+        pw[1]=x;
+        if (L>=2) pw[2]=x*x;
+        if (L>=3) pw[3]=x*x*x;
+        if (L>=4) pw[4]=(x*x)*(x*x);
+        for (int k=5;k<=L;k++) pw[k]=uintpow(x,(unsigned)k);        // the binary-powering tail, unchanged
+    }
+
     //! \param f called \c f(rasterIndex, fI, fJ) at each point surviving the ellipsoid pre-screen.
     template <class F>
     void ForShellPairBox(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
@@ -569,14 +585,51 @@ public:
         static constexpr size_t kMaxShell=45;
         assert(nI<=kMaxShell && nJ<=kMaxShell && "ForShellPairBox: shell wider than kMaxShell components");
         double fI[kMaxShell], fJ[kMaxShell];
+        // MONOMIAL POWER TABLES (2026-08-26).  The point body used to evaluate pols[i](d) per component --
+        // three intpow/uintpow calls each -- and BOTH Polarization::operator() and uintpow are out-of-line
+        // CROSS-DSO calls from here (perf on the uncached Si kernel: Polarization 12.1% + 1.7% @plt,
+        // uintpow 6.1% + 1.2% @plt = ~21% of the walk spent producing x^n y^l z^m).  But a shell's
+        // components are the monomials of ONE degree over the SAME displacement, so the per-axis powers
+        // x^0..x^{Lx} are SHARED across them: build the three tables once per point and index them.
+        // PowerTable reproduces uintpow's exact associations, so every fI/fJ is BIT-IDENTICAL.
+        static constexpr int kMaxDeg=8;                     // (L+1)(L+2)/2 = 45 = kMaxShell at L=8
+        int pnI[kMaxShell], plI[kMaxShell], pmI[kMaxShell], pnJ[kMaxShell], plJ[kMaxShell], pmJ[kMaxShell];
+        int LxI=0,LyI=0,LzI=0, LxJ=0,LyJ=0,LzJ=0;
+        for (size_t a=0;a<nI;a++)
+        {
+            const Polarization& p=pols[i0+a];
+            pnI[a]=p.n; plI[a]=p.l; pmI[a]=p.m;
+            LxI=std::max(LxI,p.n); LyI=std::max(LyI,p.l); LzI=std::max(LzI,p.m);
+        }
+        for (size_t b=0;b<nJ;b++)
+        {
+            const Polarization& p=pols[j0+b];
+            pnJ[b]=p.n; plJ[b]=p.l; pmJ[b]=p.m;
+            LxJ=std::max(LxJ,p.n); LyJ=std::max(LyJ,p.l); LzJ=std::max(LzJ,p.m);
+        }
+        assert(LxI<=kMaxDeg && LyI<=kMaxDeg && LzI<=kMaxDeg && LxJ<=kMaxDeg && LyJ<=kMaxDeg && LzJ<=kMaxDeg
+               && "ForShellPairBox: monomial degree beyond kMaxDeg");
+        double pxI[kMaxDeg+1], pyI[kMaxDeg+1], pzI[kMaxDeg+1], pxJ[kMaxDeg+1], pyJ[kMaxDeg+1], pzJ[kMaxDeg+1];
+        // INCREMENTAL MODULO WRAP (2026-08-26).  The wrap used to cost SIX integer divisions per point
+        // (((g%N)+N)%N on each axis) even though the grid index advances by exactly ONE per loop step.
+        // Starting from an in-range residue and bumping it by 1 with a compare reproduces the same
+        // residue for ANY number of wraps, so mx/my hoist to their own loops (their residue is constant
+        // across the inner ones) and the row offset (mx*N.y+my)*N.z hoists with them -- the innermost
+        // body keeps one compare.  Integer arithmetic: identical indices, not merely equivalent ones.
+        auto wrap0=[](long g, int n){ return size_t(((g%n)+n)%n); };   // once per axis per loop, not per point
         rvec3_t rx=r00;
-        for (int dx=-hwx; dx<=hwx; dx++, rx=rx+sx)
+        size_t mx=wrap0(cx-hwx,N.x);
+        for (int dx=-hwx; dx<=hwx; dx++, rx=rx+sx, mx=(mx+1==size_t(N.x)?0:mx+1))
         {
             rvec3_t ry=rx;
-            for (int dy=-hwy; dy<=hwy; dy++, ry=ry+sy)
+            size_t my=wrap0(cy-hwy,N.y);
+            const size_t planeBase=mx*size_t(N.y);
+            for (int dy=-hwy; dy<=hwy; dy++, ry=ry+sy, my=(my+1==size_t(N.y)?0:my+1))
             {
                 rvec3_t r=ry;
-                for (int dz=-hwz; dz<=hwz; dz++, r=r+sz)
+                size_t mz=wrap0(cz-hwz,N.z);
+                const size_t rowBase=(planeBase+my)*size_t(N.z);
+                for (int dz=-hwz; dz<=hwz; dz++, r=r+sz, mz=(mz+1==size_t(N.z)?0:mz+1))
                 {
                     const rvec3_t di=r-Ri, dj=r-Rj;
                     const double ri2=di.x*di.x+di.y*di.y+di.z*di.z, rj2=dj.x*dj.x+dj.y*dj.y+dj.z*dj.z;
@@ -584,11 +637,12 @@ public:
                     double radI=0.0; for (size_t p=0;p<ei.size();p++) radI+=gi[p]*std::exp(-ei[p]*ri2);
                     double radJ=0.0; for (size_t q=0;q<ej.size();q++) radJ+=gj[q]*std::exp(-ej[q]*rj2);
                     // Associated exactly as the unblocked (ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ) was.
-                    for (size_t a=0;a<nI;a++) fI[a]=ns[i0+a]*pols[i0+a](di)*radI;
-                    for (size_t b=0;b<nJ;b++) fJ[b]=ns[j0+b]*pols[j0+b](dj)*radJ;
-                    const long gx=cx+dx, gy=cy+dy, gz=cz+dz;     // unwrapped grid index (may lie outside [0,N))
-                    const long mx=((gx%N.x)+N.x)%N.x, my=((gy%N.y)+N.y)%N.y, mz=((gz%N.z)+N.z)%N.z;  // wrap
-                    f((size_t(mx)*N.y+my)*N.z+mz, fI, fJ);
+                    PowerTable(di.x,LxI,pxI); PowerTable(di.y,LyI,pyI); PowerTable(di.z,LzI,pzI);
+                    PowerTable(dj.x,LxJ,pxJ); PowerTable(dj.y,LyJ,pyJ); PowerTable(dj.z,LzJ,pzJ);
+                    for (size_t a=0;a<nI;a++) fI[a]=ns[i0+a]*((pxI[pnI[a]]*pyI[plI[a]])*pzI[pmI[a]])*radI;
+                    for (size_t b=0;b<nJ;b++) fJ[b]=ns[j0+b]*((pxJ[pnJ[b]]*pyJ[plJ[b]])*pzJ[pmJ[b]])*radJ;
+                    assert(mz==size_t((((cz+dz)%N.z)+N.z)%N.z) && "incremental z wrap drifted from the modulo");
+                    f(rowBase+mz, fI, fJ);
                 }
             }
         }
@@ -1441,9 +1495,14 @@ public:
             rvec_t& r=dst[L];
             std::vector<size_t> here;                                   // this offset's live pairs
             std::vector<double> cwHere, epsHere;
+            // The component-LOCAL slots of each live pair in the shell-pair factor arrays.  Decoding them
+            // from the packed key inside the point loop (key/nn, key%nn) put a HARDWARE INTEGER DIVIDE on
+            // the innermost path -- 13.9% of the uncached kernel, measured 2026-08-26.  They are properties
+            // of the (pair, offset) pre-filter, not of the point, so they are resolved once here.
+            std::vector<size_t> iaHere, jbHere;
             ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& n, const rvec3_t& Roff)
             {
-                here.clear(); cwHere.clear(); epsHere.clear();
+                here.clear(); cwHere.clear(); epsHere.clear(); iaHere.clear(); jbHere.clear();
                 double epsUnion=0.0;
                 const double pf=PairPrefactorExp(si.begin,sj.begin,Roff);   // screen (1), shared by the shell pair
                 for (size_t key : want)
@@ -1465,6 +1524,7 @@ public:
                     const double e=std::max(kDensityEps(), kDensityEps()/std::fabs(c));
                     if (pf>=-std::log(e)) continue;                     // whole box below THIS pair's eps
                     here.push_back(key); cwHere.push_back(c*wm); epsHere.push_back(e);
+                    iaHere.push_back(i-si.begin); jbHere.push_back(j-sj.begin);
                     epsUnion = epsUnion==0.0 ? e : std::min(epsUnion,e);
                 }
                 if (here.empty()) return;
@@ -1473,7 +1533,7 @@ public:
                 {
                     for (size_t k=0;k<here.size();k++)
                     {
-                        const double v=fI[here[k]/nn-si.begin]*fJ[here[k]%nn-sj.begin];
+                        const double v=fI[iaHere[k]]*fJ[jbHere[k]];
                         if (std::fabs(v)<epsHere[k]) continue;          // each pair keeps its OWN screen
                         r[idx]+=cwHere[k]*v;
                     }
@@ -1779,9 +1839,10 @@ public:
             std::vector<dcmplx> s(want.size(), dcmplx(0.0));      // (integratePair already set memo->B[].level)
             std::vector<size_t> here;
             std::vector<double> wmHere, epsHere, bHere;
+            std::vector<size_t> iaHere, jbHere;      // the component-LOCAL slots -- see scatterShell
             ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& n, const rvec3_t& Roff)
             {
-                here.clear(); wmHere.clear(); epsHere.clear();
+                here.clear(); wmHere.clear(); epsHere.clear(); iaHere.clear(); jbHere.clear();
                 double epsUnion=0.0;
                 const double pf=PairPrefactorExp(si.begin,sj.begin,Roff);   // screen (1), shared by the shell pair
                 for (size_t k=0;k<want.size();k++)
@@ -1806,6 +1867,7 @@ public:
                     }
                     if (pf>=-std::log(e)) continue;                     // whole box below THIS pair's eps
                     here.push_back(k); wmHere.push_back(wm); epsHere.push_back(e);
+                    iaHere.push_back(i-si.begin); jbHere.push_back(j-sj.begin);
                     epsUnion = epsUnion==0.0 ? e : std::min(epsUnion,e);
                 }
                 if (here.empty()) return;
@@ -1816,8 +1878,7 @@ public:
                     const double Vv=V[idx];
                     for (size_t q=0;q<here.size();q++)
                     {
-                        const size_t key=want[here[q]];
-                        const double v=fI[key/nn-si.begin]*fJ[key%nn-sj.begin];
+                        const double v=fI[iaHere[q]]*fJ[jbHere[q]];
                         if (std::fabs(v)<epsHere[q]) continue;          // each pair keeps its OWN screen
                         bHere[q]+=v*Vv;
                     }
