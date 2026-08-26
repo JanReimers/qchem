@@ -6,6 +6,7 @@ module;
 #include <algorithm>   // std::max (the T2 site-moment scan)
 #include <cmath>       // std::fabs
 #include <map>         // the magnetic decoration's IonicSAD targets
+#include <iostream>    // the per-stage anneal banner
 #include <cassert>
 #include <memory>
 #include <stdexcept>
@@ -167,6 +168,32 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
 }
 
+// THE ANNEALED CTOR.  Delegates to the single-stage one with the FIRST stage's parameters/accelerator --
+// so the graph is built exactly once and stage 0 runs as the plain ctor's convergence -- then continues
+// through the rest of the schedule.  (Delegating rather than duplicating the build is what keeps the two
+// ctors from drifting; every DECISION in the build is made in one place.)
+SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                   const SolidCalcOptions& opts, const std::vector<SCFStage>& schedule,
+                                   const SCFAccelerators::SolidAcceleratorOptions& acc)
+    : SolidCalculation(lat, mol,
+                       schedule.empty() ? opts : [&]{ SolidCalcOptions o=opts;
+                                                      o.accelerator=schedule.front().accelerator; return o; }(),
+                       schedule.empty() ? SCFParams{} : schedule.front().params, acc)
+{
+    if (schedule.empty())
+        throw std::runtime_error("SolidCalculation: an EMPTY anneal schedule has no meaning -- pass at "
+                                 "least one stage, or use the single-SCFParams constructor.");
+    // Stage 0 has already run (the delegated ctor converged it); continue through the remainder.
+    for (size_t s=1; s<schedule.size(); ++s)
+    {
+        BuildStage(schedule[s].accelerator, std::move(itsImp->cd));
+        std::cout << "["<<itsImp->opts.label<<" anneal "<<s+1<<"/"<<schedule.size()
+                  << "] kT="<<schedule[s].params.SmearingkT
+                  << " MOM-Lambda="<<schedule[s].params.MOMSmearPenalty << std::endl;
+        (void)Converge(schedule[s].params);
+    }
+}
+
 SolidCalculation::~SolidCalculation() = default;
 
 //---------------------------------------------------------------------------------------------------
@@ -238,6 +265,54 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
     f.lastEnergy = itsImp->scf->GetEnergy().GetTotalEnergy();
     f.details    = "the SCF reached its iteration limit with the residual still above tolerance";
     return O::Fail(std::move(f));
+}
+
+// ONE STAGE: a FRESH Hamiltonian + accelerator (a kT change must not carry stale DIIS history across the
+// re-seed), an iterator seeded from \a carried when there is one, and MOM continuation from \a prev.
+// Ownership: the iterator OWNS ham and accel and deletes them, so \a prev must outlive the adoption and is
+// released immediately after it -- the same ordering the driver this replaces used.
+void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
+                                  std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried)
+{
+    const bool polarized = itsImp->opts.multiplicity>=1;
+    itsImp->ham = qchem::Hamiltonian::Factory(
+        polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
+        itsImp->st, itsImp->bs.get(), itsImp->opts.species, "LDA", itsImp->xcMesh, itsImp->opts.vxcFit);
+    auto* accel = SCFAccelerators::Factory(accType, itsImp->accOpts);
+
+    auto prev = std::move(itsImp->scf);      // held ONLY until the new stage has copied its MOM reference
+    itsImp->scf = carried
+        ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
+              itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
+              carried.release(), itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol)
+        : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
+              itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
+              itsImp->opts.seed, itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol);
+    // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
+    // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on
+    // survives the fresh wavefunction, exactly as the density does.
+    if (itsImp->opts.momFromSeed)
+        itsImp->scf->AdoptMOMReference(prev ? *prev->GetWaveFunction() : *itsImp->scf->GetWaveFunction());
+    prev.reset();                            // the adoption copied what it needed
+}
+
+Outcome<SolidCalculation::Converged, SCFFailure>
+SolidCalculation::Converge(const std::vector<SCFStage>& schedule)
+{
+    if (schedule.empty())
+        throw std::runtime_error("SolidCalculation::Converge: an EMPTY anneal schedule has no meaning -- "
+                                 "pass at least one stage, or use the single-SCFParams overload.");
+    Outcome<Converged, SCFFailure> last = Outcome<Converged, SCFFailure>::Fail(SCFFailure{});
+    for (size_t s=0; s<schedule.size(); ++s)
+    {
+        if (s>0)   // stage 0's graph is already standing (the ctor built it); later stages re-seed from it
+            BuildStage(schedule[s].accelerator, std::move(itsImp->cd));
+        std::cout << "["<<itsImp->opts.label<<" anneal "<<s+1<<"/"<<schedule.size()
+                  << "] kT="<<schedule[s].params.SmearingkT
+                  << " MOM-Lambda="<<schedule[s].params.MOMSmearPenalty << std::endl;
+        last = Converge(schedule[s].params);
+    }
+    return last;   // the FINAL stage's -- the earlier ones exist to feed it
 }
 
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(const SCFParams& params)

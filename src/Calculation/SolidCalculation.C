@@ -28,6 +28,7 @@
 // overload), so this file imports ZERO internals, exactly as the molecular facades already manage.
 module;
 #include <memory>
+#include <vector>     // the anneal schedule
 #include <string>    // SCFFailure::details
 #include <vector>
 #include <string>
@@ -177,6 +178,21 @@ struct SCFFailure
     std::string details;
 };
 
+//! \brief ONE STAGE of an ANNEALED convergence: its own SCF parameters and its own accelerator.
+//!
+//! A descending-kT schedule with density + MOM continuation between stages is a DECISION ABOVE THE SCF
+//! ITERATOR, which is what this class exists to own -- it lived in an integration-test driver instead,
+//! which is why an MnO recipe was spread across four thousand lines of that file.
+//!
+//! Each stage gets a FRESH Hamiltonian and accelerator: a kT change must not carry stale DIIS history
+//! across the re-seed.  What DOES carry across is the density, and -- under \c momFromSeed -- the occupied
+//! SUBSPACE, so the configuration a hot stage settled on survives into the colder one.
+struct SCFStage
+{
+    SCFParams             params;        //!< this stage's parameters; \c SmearingkT is its temperature
+    SCFAccelerators::Type accelerator;   //!< per stage, so a recipe can anneal on DIIS and finish on GDM
+};
+
 //! \brief A periodic SCF: attempt it, and get back either the ANSWERS or the reason there are none.
 class SolidCalculation
 {
@@ -219,6 +235,13 @@ public:
                      const SolidCalcOptions& opts = {},
                      const SCFParams& params = {},
                      const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+    //! \brief The ANNEALED constructor: build the graph and run \a schedule end to end.  The peer of the
+    //! single-stage ctor above, and the shape an annealed recipe wants -- one options block, one list of
+    //! stages, nothing assembled by the caller in between.
+    SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                     const SolidCalcOptions& opts,
+                     const std::vector<SCFStage>& schedule,
+                     const SCFAccelerators::SolidAcceleratorOptions& acc = {});
     ~SolidCalculation();
 
     SolidCalculation(const SolidCalculation&)            = delete;   // owns raw resources
@@ -228,6 +251,12 @@ public:
     //! Invalidates any \c Converged handed out by an earlier attempt.
     //! \c [[nodiscard]] via \c Outcome: dropping the result is a compile-time warning.
     Outcome<Converged, SCFFailure> Converge(const SCFParams& params = {});
+    //! \brief Run an ANNEALED schedule: each stage in turn, seeded from the one before it.
+    //!
+    //! The outcome is the FINAL stage's -- which is the honest one, since the earlier stages exist only to
+    //! deliver a good starting density to it.  Every stage's own summary is still printed.
+    //! An empty schedule is a caller error (there is no sensible "no stages" run) and throws.
+    Outcome<Converged, SCFFailure> Converge(const std::vector<SCFStage>& schedule);
     //! \brief The outcome of the attempt the CONSTRUCTOR made, so a caller that never re-converges still
     //! has to face it.  (The ctor converges on construction; without this, its result would be silently
     //! unreachable and the old \c Energy() would happily serve a failed run.)
@@ -262,6 +291,8 @@ public:
     const qcMesh::MeshParams& ResolvedXCMesh() const;
 
 private:
+    //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.
+    void BuildStage(SCFAccelerators::Type, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried);
     //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift
     //! apart in what they call a success.
     Outcome<Converged, SCFFailure> Outcome_() const;
