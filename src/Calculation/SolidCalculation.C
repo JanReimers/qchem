@@ -149,6 +149,13 @@ struct SolidCalcOptions
     // polarity (both feed GPWParams::hamPreservesReal).  One decision, one field.
     //! Names this run in its own console output -- the fingerprint, the stage banners, the order trace.
     std::string label = "gpw";
+    //! \brief Per-iteration telemetry, live FROM CONSTRUCTION.
+    //!
+    //! It belongs in the options block rather than only on \c OnIteration because the constructor
+    //! CONVERGES: an observer attached afterwards has already missed stage 0 -- which, on an annealed
+    //! recipe, is the stage whose trajectory the fingerprint most wants.  Put it here and the run is
+    //! observed from its first iteration, with the rest of the recipe, in one place.
+    qchem::SCFIterator::SolidSCFIterator::Observer onIteration = nullptr;
     //!@}
     //!@}
 };
@@ -219,6 +226,16 @@ public:
         size_t                 IterationCount() const;
         //! rho(r) of the converged state (see the class \warning for its lifetime).
         const ScalarFunction<double>& Density() const;
+        //! \brief \f$m(r)=\rho_\uparrow-\rho_\downarrow\f$, or NULL on an unpolarized run.
+        //!
+        //! WHY (ρ, m) AND NOT (ρ↑, ρ↓).  They are the same information -- \f$\rho_\uparrow=(\rho+m)/2\f$ --
+        //! but they are not equally good to hand out.  Charge and spin are the channels that BEHAVE
+        //! differently: the Hartree restoring force acts on ρ alone, which is why Kerker preconditions the
+        //! charge channel and has no business on the spin one (doc/OpenWork.md N3).  Exposing (↑,↓) invites
+        //! exactly the channel-blind handling that costs magnetic runs their basin; exposing (ρ, m) makes
+        //! the physical split the obvious one.  It is also what a magnetic diagnostic actually wants --
+        //! \f$m(r)\f$ near a site, in one call rather than a cross-cast and a subtraction.
+        const ScalarFunction<double>* SpinDensity() const;
     private:
         friend class SolidCalculation;
         explicit Converged(const Imp* imp) : itsImp(imp) {}

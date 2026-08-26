@@ -69,6 +69,9 @@ struct SolidCalculation::Imp
     qcMesh::MeshParams                          xcMesh;          // AFTER Auto resolution
     std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf;
     std::unique_ptr<qchem::ChargeDensity::cDM_CD>         cd;    // the converged density (outlives the WF)
+    //! m(r) of the converged state.  OWNED: WaveFunction::GetSpinDensity() hands back a raw `new`, so it
+    //! goes straight into a unique_ptr here (CLAUDE.md ownership) -- null on an unpolarized run.
+    std::unique_ptr<SolidCalculation::sf_t>               spin;
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
     bool   converged = false;
     bool   imposed   = false;   //!< the run imposed a symmetry, so its solution must still carry it (T2)
@@ -148,6 +151,10 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
         itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
         opts.seed, itsImp->st.get(), opts.ortho, opts.orthoTol);
 
+    // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
+    // missed stage 0 (see SolidCalcOptions::onIteration).
+    if (opts.onIteration) itsImp->scf->SetObserver(opts.onIteration);
+
     // MOM CONTINUATION FROM THE SEED (S0e): pin the reference to the seed's OWN freshly-filled occupied
     // subspace before iteration 1, so the CONFIGURATION the seed chose survives, not merely its density.
     // No-op unless SCFParams::UseMOM is also set.
@@ -205,6 +212,8 @@ double SolidCalculation::Converged::Energy()      const {return itsImp->scf->Get
 qchem::EnergyBreakdown SolidCalculation::Converged::EnergyTerms() const {return itsImp->scf->GetEnergy();}
 double SolidCalculation::Converged::TotalCharge() const {return itsImp->charge;}
 size_t SolidCalculation::Converged::IterationCount() const {return itsImp->scf->GetIterationCount();}
+
+const ScalarFunction<double>* SolidCalculation::Converged::SpinDensity() const {return itsImp->spin.get();}
 
 const ScalarFunction<double>& SolidCalculation::Converged::Density() const
 {
@@ -294,6 +303,9 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
     if (itsImp->opts.momFromSeed)
         itsImp->scf->AdoptMOMReference(prev ? *prev->GetWaveFunction() : *itsImp->scf->GetWaveFunction());
     prev.reset();                            // the adoption copied what it needed
+    // EVERY stage is observed, not just the first: this iterator is brand new, so the telemetry has to be
+    // re-attached or an annealed run goes quiet after stage 0 -- silently, which is the worst kind.
+    if (itsImp->opts.onIteration) itsImp->scf->SetObserver(itsImp->opts.onIteration);
 }
 
 Outcome<SolidCalculation::Converged, SCFFailure>
@@ -325,6 +337,8 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     auto cd = itsImp->scf->GetWaveFunction()->GetChargeDensity();   // BUILT for us; we take it
     itsImp->charge = cd->GetTotalCharge();
     itsImp->cd = std::move(cd);
+    // m(r) the same way: BUILT for us (a raw `new`), so it is adopted here rather than leaked.
+    itsImp->spin.reset(itsImp->scf->GetWaveFunction()->GetSpinDensity());
     return Outcome_();
 }
 
