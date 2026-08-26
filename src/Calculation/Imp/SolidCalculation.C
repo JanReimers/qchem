@@ -5,6 +5,7 @@
 module;
 #include <algorithm>   // std::max (the T2 site-moment scan)
 #include <cmath>       // std::fabs
+#include <map>         // the magnetic decoration's IonicSAD targets
 #include <cassert>
 #include <memory>
 #include <stdexcept>
@@ -91,10 +92,28 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // TRUE here; it is asserted against the constructed Hamiltonian below, so a future term that
     // breaks realness must also flip this forecast.  forceComplex is the §6 ansatz-policy downgrade.
     const bool hamPreservesReal = !opts.forceComplex;
+    // THE MAGNETIC DECORATION (S3).  An imposition is only SHUBNIKOV if the factory is told which sites
+    // carry which spin; without it an "imposed AFM" run star-averages under the SPATIAL group and the
+    // order is erased.  DERIVED here rather than passed in: every input is already an option this class
+    // owns, so a caller cannot get it inconsistent with the seed it asked for (the IonicSAD targets are
+    // the same resolution the seed itself uses -- see ChargeDensity::IonicSADTargets).
+    //   unpolarized  -> {} (no channels to decorate)
+    //   greyImposition -> {} DELIBERATELY: that arm is the erasure NEGATIVE CONTROL
+    std::vector<int> siteSpins;
+    if (!opts.siteSpins.empty() && !opts.greyImposition)
+        siteSpins = opts.siteSpins;                 // STATED: a specific ordering, not the seed's guess
+    else if (opts.multiplicity>=1 && !opts.greyImposition)
+    {
+        const std::map<size_t,int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
+                                           ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), "LDA")
+                                           : std::map<size_t,int>{};
+        siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), "LDA", targets);
+    }
     itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
         .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
         .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-        .imposeSymmetry = opts.imposeSymmetry, .hamPreservesReal = hamPreservesReal}));
+        .imposeSymmetry = opts.imposeSymmetry, .siteSpins = siteSpins,
+        .hamPreservesReal = hamPreservesReal}));
 
     // DECISION 1 -- the XC quadrature.  Resolve Auto HERE, once, from facts about the run.  Downstream
     // consumers compare ==Becke, so an unresolved Auto would silently read as Uniform; resolving it at the
@@ -110,7 +129,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
                                  +" parity disagrees with Nelec "+std::to_string(opts.Nelec));
     auto irreps = itsImp->bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry Sum_k)
     itsImp->ec = std::make_unique<Crystal_EC>(irreps, (opts.Nelec+twoS)/2, (opts.Nelec-twoS)/2,
-                                              opts.globalFermi);
+                                              opts.globalFermi, opts.spinsShareFermi);
 
     itsImp->ham = qchem::Hamiltonian::Factory(
         polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
@@ -127,6 +146,11 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
         itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
         opts.seed, itsImp->st.get(), opts.ortho, opts.orthoTol);
+
+    // MOM CONTINUATION FROM THE SEED (S0e): pin the reference to the seed's OWN freshly-filled occupied
+    // subspace before iteration 1, so the CONFIGURATION the seed chose survives, not merely its density.
+    // No-op unless SCFParams::UseMOM is also set.
+    if (opts.momFromSeed) itsImp->scf->AdoptMOMReference(*itsImp->scf->GetWaveFunction());
 
     // T2 BASELINE (doc/OpenWork.md N1/T2).  Capture the SEED's site moments BEFORE iterating: the
     // postcondition below is "did the order the run was SEEDED WITH survive", which is self-calibrating --

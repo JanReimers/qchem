@@ -120,6 +120,35 @@ struct SolidCalcOptions
     //! measured identical to the forced-complex twin (Si (3,1,1), ΔE = 1.8e-15) at the real run's cost.
     //! No knob, and no surprise: turning MOM on no longer changes what the run is made of.
     bool forceComplex = false;
+
+    //! \name Knobs the GPW test driver carried that this struct did not (2026-08-25)
+    //! Added so a periodic recipe can be stated in ONE place instead of being assembled across a test's
+    //! options struct, its run driver and its accelerator helper (user: "some parameters are set in TESTF,
+    //! some in RunGpw, some in MakeGpwAccelerator, all spread out by 100's of lines").
+    //!@{
+    //! One Fermi level shared by BOTH spin channels (the moment becomes an OUTPUT) rather than a fixed
+    //! per-channel electron count.
+    bool spinsShareFermi = false;
+    //! Impose the DETECTED grey group with the magnetic decoration suppressed -- the erasure control.
+    bool greyImposition  = false;
+    //! Pin the MOM reference to the SEED's own occupied subspace before iteration 1, so a hot stage's
+    //! CHARACTER continues, not just its density.
+    bool momFromSeed     = false;
+    //! \brief THE MAGNETIC DECORATION: one entry per cell site, +1 / -1 / 0, naming which sublattice each
+    //! site belongs to.  It is what makes an imposition SHUBNIKOV rather than merely spatial -- without it
+    //! an "imposed AFM" run star-averages under the spatial group and the order is ERASED.
+    //!
+    //! EMPTY (the default) = DERIVE it from the seed, which reproduces the historical driver behaviour and
+    //! is right for the common case.  SET IT to state a specific ordering: a cell usually admits several
+    //! (AFM-I vs AFM-II vs ferrimagnetic), the derived one is only the seed's guess, and comparing orderings
+    //! is the whole point of a magnetic campaign.  Ignored unless \c imposeSymmetry.
+    //! \note \c greyImposition forces the empty decoration regardless -- that arm is the erasure control.
+    std::vector<int> siteSpins = {};
+    // NB: the test driver's `realTRIMBlocks` is NOT added here -- it is \c forceComplex with the opposite
+    // polarity (both feed GPWParams::hamPreservesReal).  One decision, one field.
+    //! Names this run in its own console output -- the fingerprint, the stage banners, the order trace.
+    std::string label = "gpw";
+    //!@}
     //!@}
 };
 
