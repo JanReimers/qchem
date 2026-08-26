@@ -334,7 +334,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             DisplayColumns(cout, ipar, tr);
             prevConfig=std::move(config);
         }
-        if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange, order});
+        if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange, order, eb});
         // Adaptive [F,D]-keyed density-mixing policy (LinearMixer only; Kerker takes the no-op defaults).  The
         // re-damp re-fetches the fresh density + recomputes the energy -- the density LIFECYCLE stays here.
         // SKIPPED under direct-min: GDM/OT own the density update, so no post-step re-mix (see lineSearch above).

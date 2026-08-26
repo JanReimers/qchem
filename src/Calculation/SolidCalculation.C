@@ -182,7 +182,10 @@ struct SCFFailure
     {
         NotConverged,   //!< ran to the iteration limit with the residual still above tolerance
         ChargeSlosh,    //!< the Hartree term ran away (the low-G charge mode un-damped)
-        OrderLost       //!< converged, but NOT to the state that was imposed (e.g. imposed AFM -> m=0)
+        //! \brief the run did NOT keep the magnetic order it was set up to carry -- either it converged
+        //! to zero moment, or the moment rose and then collapsed mid-run.  An imposed Shubnikov group is
+        //! an ASSERTION about the answer, so contradicting it is a failed postcondition, not a diagnostic.
+        OrderLost
     };
     Why         why        = Why::NotConverged;
     size_t      iterations = 0;
@@ -192,6 +195,123 @@ struct SCFFailure
     //! prevent (four such numbers were produced in one session: -45.5, -46.3, -56.4, -38.5).
     double      lastEnergy = 0.0;
     std::string details;
+};
+
+//! \brief WHAT THE RUN DID, iteration by iteration, in the two quantities the OUTCOME DETECTORS judge
+//! (doc/OpenWork.md N1/T3-T4).  Measured by the facade itself, so a library user gets the detectors the
+//! MnO campaign had to write into its own test file.
+//!
+//! THE ORGANISING PRINCIPLE (N1): you cannot enumerate bad COMBINATIONS of knobs, but you can detect bad
+//! OUTCOMES.  These two instruments catch combinations nobody has thought of yet, which is why they run
+//! ALWAYS rather than behind a diagnostic flag.
+//!
+//! THE TWO INSTRUMENTS, and why exactly these:
+//!   - **The INTEGRATED site moment** \f$\max_A|\mu_A|\f$ over the Becke basins.  INTEGRATED, never a
+//!     point sample of \f$m(\mathbf r)\f$: a point probe cannot tell an AFM pair \f$(+m,-m)\f$ from a
+//!     disproportionated one \f$(0,-2m)\f$ -- measured 2026-08-08, a run reporting "order SURVIVED,
+//!     m_stag=0.29" actually sat at sites \f$(+0.0006,-0.579)\f$ -- and its value depends on WHICH
+//!     direction you step away from the nucleus.  It is a spin DENSITY, not a moment.
+//!   - **The Hartree term** \f$E_{ee}\f$.  A low-G charge runaway roughly DOUBLES it while the total
+//!     stays a plausible negative number: measured 2026-08-25 across four MnO collapse arms it read
+//!     13.48 (healthy) / 29.0 / 35.1 / 13.6, ranking them correctly WITHOUT having been designed for
+//!     any of them -- and the 13.6 row is the one that matters, a run whose moment died with NO slosh.
+//!     Two failures with the same symptom and different mechanisms, which is exactly why a detector on
+//!     the moment alone is not enough.
+//!
+//! BOTH ARE FREE.  The moment is a block sum over a raster the XC term has already built for this
+//! iteration's density serial; \f$E_{ee}\f$ is already in every iteration's breakdown.  Neither adds a
+//! matrix build, so there is nothing to gate behind a flag.
+class RunDiagnostics
+{
+public:
+    //! \name The ORDER (magnetic) channel
+    //!@{
+    //! Did this run have any order to lose?  False on an unpolarized run, on a run whose XC quadrature
+    //! owns no site basins (a uniform mesh -- \c SiteMoments correctly returns empty and the detectors
+    //! SKIP rather than guess), and on a genuinely closed-shell one.
+    bool   HasOrder() const;
+    //! \brief The YARDSTICK: the largest integrated site moment this run ever carried -- the RAW SEED's,
+    //! or any iteration's, whichever is bigger.
+    //!
+    //! WHY THE HIGH-WATER MARK AND NOT THE SEED ALONE.  Both ends of the run mislead.  Iteration 1 is a
+    //! terrible baseline for a quantity that GROWS before it dies (MnO reads 0.0046 at iteration 1,
+    //! peaks at 0.106 by iteration 7 as the exchange splitting builds it back, then decays to 7e-5 --
+    //! judged against iteration 1 that is "survived"; judged against the peak it is a 1400x collapse).
+    //! And the seed alone is not enough either, for the mirror-image reason: the density available at
+    //! construction is ALREADY post-iteration-0 (the wave function builds a Fock from the seed and fills
+    //! it), so a run whose order dies in the very first fill would show no baseline at all -- measured
+    //! on Na2, a seed staggered at +/-1 e reads +/-0.07 e one fill later.  Hence: the raw seed, measured
+    //! before it is consumed, OR any later peak.
+    double OrderPeak() const;
+    double OrderFinal() const;   //!< the last iteration's integrated moment
+    //! \brief Did the order RISE AND THEN DIE -- fall below 1% of \c OrderPeak and stay there?
+    //! The same rule the MnO test's post-mortem used, now where every caller gets it.
+    bool   OrderCollapsed() const;
+    //! \brief The first STEP from which the order stayed dead; 0 when it never died.
+    //! A STEP, not an SCF iteration number: the trajectory accumulates across an annealed schedule's
+    //! stages (and across a re-\c Converge), because an order that died in stage 1 must not become
+    //! invisible just because stage 2 got a fresh iterator and restarted its counter.
+    size_t OrderDiedAt() const;
+    //!@}
+
+    //! \name The CHARGE channel
+    //!@{
+    bool   HasHartree() const;    //!< at least two iterations were observed (one point is not a trend)
+    double HartreeFloor() const;  //!< the run's own healthy level: the MINIMUM \f$E_{ee}\f$ it visited
+    double HartreePeak()  const;  //!< the largest \f$E_{ee}\f$ it visited
+    //! \brief Did the Hartree term RUN AWAY -- did the run END above \c kSloshFactor times its own floor?
+    //!
+    //! SELF-CALIBRATING, and it has to be: \f$E_{ee}\f$ is extensive and has no universal scale (13.5 Ha
+    //! is healthy for the MnO cell and would be a catastrophe for Si), so an absolute threshold would be
+    //! an MnO constant wearing a library's clothes.
+    //!
+    //! \note IT IS A REFINEMENT OF A NON-CONVERGENT OUTCOME, NOT A VERDICT ON A CONVERGED ONE, and it
+    //! says so ITSELF -- a converged run answers \c false whatever the ratio, rather than leaving the
+    //! caller to remember the rule.  A converged density is stationary by definition, so there is
+    //! nothing left sloshing; whereas a run that legitimately RESTRUCTURES on its way to the answer can
+    //! raise \c Eee a long way and be perfectly healthy (measured: Na2 in a box, 0.114 -> 0.195 Ha =
+    //! 1.71x, converged and correct).  Convicting such a run would trade a missed diagnosis for a WRONG
+    //! one, which is much the worse error.
+    bool   ChargeSloshed() const;
+    double SloshRatio()    const; //!< the LAST \f$E_{ee}\f$ over \c HartreeFloor (1 if it never moved)
+    //!@}
+
+    //! \brief The one-line post-mortem -- what the MnO test used to print for itself.  It always says
+    //! something: a run with no basins reports that it could not measure, which is a different fact from
+    //! "the order was zero" and the two must not be allowed to read alike.
+    std::string Summary() const;
+
+    //! \name The rules, named and in one place so they can be argued with
+    //!@{
+    //! A quantity below 1% of its own high-water mark, and staying there, is DEAD.  Shared by the
+    //! trajectory detector and the postcondition, so "collapsed" means one thing in this class.
+    static constexpr double kCollapseFraction = 0.01;
+    //! Below this many electrons the run never carried order, so there is nothing for a collapse to
+    //! contradict.  It is the guard that keeps a closed-shell imposed run -- the common case -- silent.
+    static constexpr double kOrderFloor = 0.05;
+    //! \brief Ending above this multiple of the run's OWN \f$E_{ee}\f$ floor is a charge runaway.
+    //!
+    //! CALIBRATED, not guessed (doc/OpenWork.md T3).  Healthy converged runs measured 2026-08-26:
+    //! MnO AFM-II imposed **1.05** (Eee 12.51 -> 13.18 Ha, after an early transient to 15.23 -- which
+    //! is why the ratio is taken at the END and not at the peak), Na2-in-a-box **1.71** (a genuine
+    //! restructuring from diffuse atoms into a bond).  Against that, the two MnO collapse arms measure
+    //! **2.48** (flat Kerker, `MNO_KERKER_G0=0.01`: Eee 14.17 -> 35.10 Ha) and **2.01** (the banked
+    //! aufbau/shared-mu recipe with `GPW_XC_DM_SOURCE=1`: 14.42 -> 29.00 Ha).  The flat-Kerker arm is
+    //! worth looking at: after iteration 9 its Eee is a clean PERIOD-2 LIMIT CYCLE (35.210, 35.098,
+    //! 35.210, ...) for seventy iterations, which is charge sloshing in the most literal sense
+    //! available.  1.5 sits above every healthy run measured and below both collapses -- and because the
+    //! detector is only ever consulted on a run that ALREADY failed, being wrong here costs a label,
+    //! never a good answer.
+    static constexpr double kSloshFactor = 1.5;
+    //!@}
+
+private:
+    friend class SolidCalculation;
+    bool                itsConverged = false; //!< the last attempt's verdict -- ChargeSloshed() needs it
+    double              itsSeedOrder = 0.0;   //!< the RAW seed's max_A |mu_A|, taken before Init consumes it
+    bool                itsHasBasins = false; //!< the XC quadrature owns an atom-centred partition at all
+    std::vector<double> itsOrder;             //!< per iteration, max_A |mu_A| (integrated)
+    std::vector<double> itsEee;               //!< per iteration, the Hartree term
 };
 
 //! \brief ONE STAGE of an ANNEALED convergence: its own SCF parameters and its own accelerator.
@@ -303,6 +423,11 @@ public:
     bool                   DidConverge()    const;
     size_t                 IterationCount() const;
 
+    //! \brief What the OUTCOME DETECTORS saw (doc/OpenWork.md N1/T3-T4).  Available whether the run
+    //! succeeded or failed -- on a failure it is the evidence behind \c SCFFailure::details, and on a
+    //! success it is the reassurance that the order survived and the charge channel never ran away.
+    const RunDiagnostics& Diagnostics() const;
+
     //! \name The LAST ITERATE, converged or not -- DIAGNOSTICS, deliberately named so
     //! A fixed-iteration A/B (run both arms for exactly one step and compare the arithmetic) is a real and
     //! legitimate need, and the point of N1/T1 is NOT to make unconverged numbers unreachable -- it is to
@@ -337,6 +462,9 @@ private:
     //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift
     //! apart in what they call a success.
     Outcome<Converged, SCFFailure> Outcome_() const;
+    //! Install the composed order probe + observer on the current iterator (see the .C for why the
+    //! facade takes both hooks and hands the caller's back through them).
+    void AttachProbes();
     std::unique_ptr<Imp> itsImp;
 };
 

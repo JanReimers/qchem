@@ -7,9 +7,10 @@ module;
 #include <sstream>   // irrep label for the pre-flight basis.perIrrep rows
 #include <variant>   // the mixed child-slot visits (Step 3c-2)
 #include <algorithm> // std::min (min singular value)
-#include <cstdlib>   // std::getenv/std::atoi (GPW_STREAM_FOLD opt-out -- the T3.2 A/B instrument)
+#include <cstdlib>   // std::getenv/std::atoi
 #include <vector>    // std::vector (the k-block list + the space-group atom basis)
 module qchem.BasisSet.Lattice_3D.BasisSet;
+import qchem.RunPolicy;   // theRunPolicy().StreamFold() -- the T3.2 fold, declared with the deviations (N5)
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;     // GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (the shared grid face the mixed EmitGpwGrids visit casts to)
@@ -197,14 +198,14 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     // replay now reads the ORBIT-PROJECTED D instead (NR_Evaluator::FoldProjectedD), and since collocation is
     // linear and equivariant that makes P ρ_red[D] == ρ[P D] == P ρ_full[D] for ANY iterate: the folded and
     // the unfolded imposed run compute the SAME density, so arming is a pure COST decision and needs no
-    // auto-arm criterion.  GPW_STREAM_FOLD=0 is the opt-OUT (read fresh, not static, so the gate tests can
-    // A/B in one process).
+    // auto-arm criterion.  GPW_STREAM_FOLD=0 is the opt-OUT, resolved through qchem::theRunPolicy() with the
+    // other CP2K deviations (N5) rather than read here -- a gate that A/Bs it in one process calls
+    // ReresolveRunPolicy() between the arms.
     if (ops.policy.Imposes() && blocks.size()==1
         && blocks[0].ik.x==0 && blocks[0].ik.y==0 && blocks[0].ik.z==0
         && kShift.x==0.0 && kShift.y==0.0 && kShift.z==0.0)
     {
-        const char* e=std::getenv("GPW_STREAM_FOLD");
-        if (!e || std::atoi(e)!=0)
+        if (theRunPolicy().StreamFold())
         {
             // S3 guard: the stream fold asserts D ITSELF symmetric under its ops PER CHANNEL, and a
             // flip op relates D_up to D_dn -- so a magnetic imposition may fold streams only under the

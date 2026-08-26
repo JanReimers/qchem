@@ -22,9 +22,9 @@ CONCRETE action and the ONE section to point a session at.  If it is not in this
 
 | # | open item | the next concrete action | point a session at |
 |---|---|---|---|
-| **N5** | ★★ **`CP2K_COMPAT` — one switch for every deviation** (user, 2026-08-25), and the SAME work as item 2's self-describing banner. Six deviations already exist and nothing states or resolves them centrally. | Build it WITH the banner: `CP2K_COMPAT=1` resolves to a POLICY consulted at the FACTORIES (as `XCCuspDeficit` now is), never a getenv inside a kernel; the banner prints the resolved state. | *"★★ N5 — `CP2K_COMPAT`"* |
+| **N5** | ✅ **DONE 2026-08-26 — `CP2K_COMPAT` + the self-describing banner, built together.** `qchem.RunPolicy` resolves the four env-flag deviations once and the factories consult it; `SolidCalculation` prints the resolved state (system, grids, symmetry, threads, deviations, mixer) unconditionally. Closes the measured defect that `MNO_KERKER_G0=0` printed **no mixer line at all**. | ⚠ Remaining increment: `raster` and `cutoffFactor` are TYPED options, so `CP2K_COMPAT` does not reach them — wire the policy into `SolidCalcOptions`' defaults. | *"✅ T5 / N5"* |
 | **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25). *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
-| **N1** | ★★★ **PROTECT THE USER FROM A PLAUSIBLE WRONG NUMBER** (user, 2026-08-25: *"a grad student on their first day"*). `SolidCalculation::Energy()` has **no precondition on `Converged()`** — every collapse measured today (−45.5, −46.3, −56.4, −38.5) is returnable from the public facade as a plain double with no signal; `Density()` only `assert`s, which is gone under NDEBUG. | **T1 first:** `Converge()` returns a `ConvergedCalculation`, and `Energy()`/`EnergyTerms()`/`Density()` exist ONLY on that type — the project's own *compile-time over runtime* bias applied. Then T2–T5. | *"★★★ N1 — PROTECTING THE USER"* |
+| **N1** | ✅ **T1–T5 ALL DONE (T3–T5 landed 2026-08-26).** Left here because the *principle* stays live: detectors judge OUTCOMES, and every new failure mode wants one. ⚠ The COVERAGE GAP below is the open remainder — `RunGpw`/`RunGpwAnnealed` still build `SolidSCFIterator` directly, so the detectors do not reach those tests. Original ask: ★★★ **PROTECT THE USER FROM A PLAUSIBLE WRONG NUMBER** (user, 2026-08-25: *"a grad student on their first day"*). `SolidCalculation::Energy()` has **no precondition on `Converged()`** — every collapse measured today (−45.5, −46.3, −56.4, −38.5) is returnable from the public facade as a plain double with no signal; `Density()` only `assert`s, which is gone under NDEBUG. | **T1 first:** `Converge()` returns a `ConvergedCalculation`, and `Energy()`/`EnergyTerms()`/`Density()` exist ONLY on that type — the project's own *compile-time over runtime* bias applied. Then T2–T5. | *"★★★ N1 — PROTECTING THE USER"* |
 | **N2** | ✅ **RESOLVED 2026-08-25 — THE ρ<0 LOBES ARE BAND-LIMITING, NOT ALIASING.** Controlled A/B at **fixed {G}** (nG 8623, 870 stars; `BallOnly` 40³ vs `AliasFree` 80³ = 8× the raster points): the lobes move **1%**. Widening the ball DOES kill them (~6000× in negative mass by C=6) because it enlarges {G}. ⇒ every cheap alternative to **N4** is eliminated: raster geometry does nothing, and a bigger ball does not scale (2×2×2 supercell = 8× volume ⇒ >10 GB of raster at today's C=2). | Nothing further — it fed N4. ★ **Two by-products worth landing separately:** `BallOnly` is VINDICATED as the default (closes the code's own never-taken A/B: fold-back = 2.6 µHa, `AliasFree` costs 2.3× CPU / 3.5× RAM); and production **C=2 carries ~0.15 mHa of grid error** (C=3 also converges FASTER, 12 vs 17 it) — worth a default review on its own merits. | *"★ N2 — THE DENSITY G BALL"* |
 | **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING — ⚠ HALF-BUILT ALREADY (corrected 2026-08-25): `QCHEM_MIX_RHO_M=1` in `MakePeriodicMixer` ALREADY selects the (ρ,m) basis with "Kerker on ρ, PLAIN LINEAR on m", carrying the same *"m has none"* argument. So this needs a MEASUREMENT and a promotion, not a build.** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
 | **1** | ✅ **ANSWERED 2026-08-25 — the flag does NOT earn the default**, and the reason is a mechanism this row never considered: **Kerker's low-G charge-slosh damping is what holds the MnO AFM basin**, and a flat \f$\alpha_{eff}\f$ on the XC channel throws it away. Its ACCURACY claim is UPHELD (ρ≥0 exactly, 0 negatives in 154 samplings vs 15.2%); its ROUTE is what fails. | ⚠ **Read row N4 before quoting this row.** "Does not earn the default" is true of the flag AS IMPLEMENTED (wholesale replacement) and is NOT a verdict on feeding \f$V_{xc}\f$ an exact ρ≥0 — the measurement convicts the MIXER. Leave the flag opt-in; build the **cusp-deficit** form instead (N4). | *"✅ ITEM 1 MEASURED"* (below the index) |
@@ -152,44 +152,263 @@ starts from.  Everything they need now exists: `Outcome<T,E>`, `SCFFailure::Why`
 `Density`/`SpinDensity`/`DensityMatrix` live ONLY on `Converged`.  `LastIterateTerms()`/
 `LastIterateCharge()` keep deliberately-unconverged numbers reachable under a name that cannot lie.
 
-### ✅ T2 — DONE.  An imposed magnetic symmetry is a POSTCONDITION
-An imposed run that converges to zero moment fails as `Why::OrderLost`, judged on the INTEGRATED Becke
-site moment.  Self-calibrating (imposed ∧ seed carried order >0.1 e ∧ collapse below 1% of it), so a FREE
-run finding m=0 — physics — is never touched.
-⚠ **Its positive path is still UNEXERCISED**, because every order-losing run measured that day ALSO failed
-to converge and tripped `NotConverged` first.  Building the case is a real task: Becke mesh (a uniform one
-has no site blocks and the check correctly skips), polarized, imposed, magnetic seed, non-magnetic ground
-state.  **Do this first** — an unexercised guard is a guess.
+### ✅ T2 — DONE, AND ITS POSITIVE PATH IS NOW EXERCISED (2026-08-26)
+An imposed run that loses its magnetic order fails as `Why::OrderLost`, judged on the INTEGRATED Becke
+site moment.  Self-calibrating (imposed ∧ the run carried order > 0.05 e ∧ collapse below 1% of its peak),
+so a FREE run finding m=0 — physics — is never touched.
 
-### ★ T3 — THE Eee CHARGE-SLOSH DETECTOR.  The cheapest one left, and it has somewhere to report
-`SCFFailure::Why::ChargeSlosh` is already defined and unused.  The number is already computed.  MEASURED
-2026-08-25, and it ordered four failures correctly WITHOUT being designed for any of them:
+**★ THE POSITIVE PATH: `GPW_SCF.ImposedOrderLostIsAPostconditionFailure_Na2Box`.**  Na2 in a box at its
+bond length: two neutral Na (so the SAD seed plants the library's spin pair, ±1 e), AFM flip on the
+second, imposed, Becke mesh PINNED — and a ground state, the closed-shell σ², that has no order to keep.
+It converges in 66 iterations and fails as `OrderLost` with the moment dead from iteration 9.  Its mirror
+is `ImposedShubnikovHoldsAFMThroughSCF_Mn2Box` (same shape, real magnet, order SURVIVES), so the pair says
+the detector *discriminates* rather than always firing.
 
-| run | Eee | verdict |
+**⛔ AND BUILDING IT FOUND A DEFECT IN T2's OWN BASELINE, now fixed.**  T2 took its yardstick from
+`GetWaveFunction()->GetChargeDensity()` at construction — which is NOT the seed.  `Initialize` builds a
+Fock from the seed, diagonalizes and FILLS, so the earliest reachable density is already one aufbau fill
+downstream, and that fill is exactly where a fragile order dies.  Measured: a Na2 seed staggered at
+**±1 e** reads **±0.07 e** one fill later — under any honest floor, so the postcondition SKIPPED the very
+case it exists for.  ⇒ `SolidCalculation` now BUILDS THE SEED ITSELF (the same `MakeSeedDensity` call the
+iterator would have made) and hands it to the explicit-seed ctor, measuring the raw seed's moments first:
+**0.4686 e**, and the check has teeth.  Two ends, two ways to be misled — the yardstick is now
+`max(raw seed, any iterate)`, because a moment that GROWS before it dies (MnO: 0.0046 → 0.106 → 7e-5)
+needs the high-water mark just as much.
+
+### ✅ T3 — DONE.  THE Eee CHARGE-SLOSH DETECTOR, AND ITS THRESHOLD IS MEASURED
+`RunDiagnostics::ChargeSloshed()` on `SolidCalculation`, feeding `Why::ChargeSlosh`.  Eee is now carried on
+`SCFProgress` (the whole `EnergyBreakdown`, not the one term today's detector reads), the facade records it
+every iteration, and the rule is:
+
+**Eee at the END, over the run's OWN floor, and only on a run that DID NOT CONVERGE.**  Three decisions,
+each of which a measurement forced:
+
+1. **END, not peak.**  Measured on the healthy MnO baseline 2026-08-26: Eee runs `14.17, 15.23, 12.51`
+   and then settles at `13.18`.  A peak-based ratio reads **1.22** on a run that did nothing wrong —
+   every SCF passes through a transient leaving the seed, and one that overshoots and comes back is
+   a healthy run doing its job.
+2. **The run's own floor, never an absolute number.**  Eee is extensive; 13.5 Ha is healthy for this MnO
+   cell and would be a catastrophe for Si.  (This is the shape T2 uses, and the row below is why it had
+   to be self-calibrating.)
+3. **⛔ NON-CONVERGED RUNS ONLY — and the predicate says so ITSELF, rather than trusting the caller to
+   remember.**  This is the sharpest thing the calibration turned up.  A converged density is stationary,
+   so "it sloshed" cannot be true of it; meanwhile a run that legitimately RESTRUCTURES on its way to the
+   answer can move Eee a long way — **Na2 measures 1.71×, converged and correct**.  Without the gate the
+   detector fails a good run, trading a missed diagnosis for a WRONG one.
+
+| run (2026-08-26 unless noted) | Eee floor → end | end/floor | converged | verdict |
+|---|---|---|---|---|
+| MnO AFM-II imposed, baseline | 12.51 → 13.18 | **1.05** | yes | healthy |
+| MnO AFM-II imposed, `GPW_XC_DM_SOURCE=1`, MOM **on** | 10.99 → 13.15 | **1.20** | yes | healthy — see the recipe note below |
+| MnO VA-spherical imposed, `GPW_XC_DM_SOURCE=1`, MOM **on** | 11.00 → 13.18 | **1.20** | yes | healthy — same |
+| Na2-in-a-box, AFM seed → singlet | 0.114 → 0.195 | **1.71** | yes | healthy (a real restructuring) |
+| **MnO AFM-II imposed, `MNO_KERKER_G0=0.01`** (flat filter) | **14.17 → 35.10** | **2.48** | **no** | **SLOSH — detector FIRES** |
+| **MnO, the BANKED recipe + `GPW_XC_DM_SOURCE=1`** | **14.42 → 29.00** (peak 65.01) | **2.01** | **no** | **SLOSH — detector FIRES** |
+
+⇒ **`kSloshFactor = 1.5`**, above every healthy run measured and below every collapse; and because the
+detector is only consulted on a run that ALREADY failed, being wrong costs a LABEL, never a good answer.
+
+**★ THE POSITIVE PATH IS EXERCISED TOO** (the same "an unexercised guard is a guess" rule T2 got held to).
+The flat-Kerker arm re-run 2026-08-26 reproduces its 2026-08-25 collapse exactly and the facade reports it
+as `Why::ChargeSlosh`, not as `NotConverged`:
+
+```
+[MnO AFM-II Gamma] NO ANSWER: the Hartree term ran away and the SCF never converged: Eee ended at
+2.476827x the lowest value this run reached, which is the signature of an UNDAMPED low-G charge mode
+[order(integrated site moment): seed 4.781 e, peak 4.781 e, final 4.3e-15 e -- DIED at step 7;
+ Eee 14.17 -> 35.1 Ha (peak 37.99, end/floor 2.477)]
+```
+
+E = −38.510, 80 iterations, `OSCILLATING`.  And the Eee series is worth reading — after iteration 9 it is a
+clean PERIOD-2 LIMIT CYCLE, `35.210, 35.098, 35.210, 35.098, …` for seventy iterations.  That is charge
+sloshing in the most literal sense available, and it is the reason the term is the right instrument.
+⚠ Note both detectors are live on this run and the ranking picks the mechanism: the order died at step 7
+(4.781 e → 4e-15 e, the integrated moment) and rides in `details`, while `why` names the charge runaway
+that caused it.  It is a demonstration of the ordering rule, not an accident.
+
+✅ **AND THE ONE THING THAT FIRST LOOKED LIKE A NON-REPRODUCTION IS RESOLVED — IT WAS THE RECIPE.**
+Re-running `GPW_XC_DM_SOURCE=1` on 2026-08-26 it first CONVERGED to −61.41457 with the order intact, which
+did not match the −45.53 of 2026-08-25.  Two hypotheses were tested and both REFUTED before the real cause
+turned up, and both are worth keeping because they are the obvious guesses:
+
+- **NOT the diffuse end of the basis.**  `SR` and `VA` have the SAME \f$\alpha_{\min}=0.1\f$ on this cell.
+  (`SR` is diffuse-trimmed relative to `valence_lowq`, α_min 0.03 → 0.1; `VA` descends from `SPH` which
+  descends from `SR`, so it inherits that trim.)  What they differ in is CONDITIONING, not reach:
+  `SR` = 122 hand-trimmed at full rank, min kept pivot **0.0236681**; `VA` under Cartesian d = 132 that the
+  pivot filter auto-drops to 122, min kept pivot **0.0236681** (the same set, two routes — see the vet-stage
+  trim item under *Continuous — CLEANUP*); `VA` spherical = 118 hand-trimmed at full rank, min kept pivot
+  **0.00381699**, i.e. ~6× worse conditioned than SR while being full rank and equally diffuse.
+- **NOT the basis at all.**  The armed flag on the banked `VA`+spherical basis STILL converges
+  (−61.41127, 48 iterations, order survives, end/floor 1.20).
+
+**IT IS THE OCCUPATION MACHINERY.**  The banked command is
+`MNO_ANNEAL="5e-3,0" MNO_ACC="Ladder,GDM" MNO_MOM=0 MNO_ORTHO_TOL=1e-3 MNO_SHARED_MU=1` — **MOM OFF
+(aufbau) and a SHARED Fermi level**, so the moment is free to relax and nothing holds the occupation.  This
+test's own STATUS block already says it: *the order and ~9 Ha of binding are BOTH bought by holding the
+occupation*.  Run verbatim with the flag, 2026-08-26, it reproduces the banked collapse **to all ten
+significant figures**: **−45.52875429**, Eee 29.00 against the banked 28.995, the integrated site moment
+4.781 e → 1.1e-14 e dead from step 4.
+⇒ Item 1's row STANDS, and now with its scope stated: the flag collapses **the fragile recipe** (aufbau +
+shared μ), and leaves the MOM-held recipe alone.  ⚠ Do not quote it as "the flag always collapses", and do
+not quote today's converging rows as a retraction — they are a different recipe.
+
+### ✅ T4 — DONE.  THE DETECTORS ARE IN THE LIBRARY
+The `** DIED at iteration N` post-mortem is now `RunDiagnostics` on `SolidCalculation`, reachable through
+`Diagnostics()`, so every caller gets it — the MnO test only PRINTS it now.  Two hooks, composed by the
+facade so the caller's telemetry still works: the **order probe** is the only place this iteration's
+density is in hand (where the integrated site moment is free — the XC term has already rastered that
+density serial), the **observer** is the only thing that fires exactly once per iteration.  So the probe
+measures and the observer files.  A caller that sets no probe of its own gets the integrated moment in
+the trace column under `m_site` — an INTEGRATED observable, not a point sample of m(r).
+
+### ✅ T5 / N5 — DONE.  SELF-DESCRIPTION AND `CP2K_COMPAT`, BUILT TOGETHER
+`qchem.RunPolicy` (a qcCommon leaf) resolves the deviation set ONCE, and the four env flags that were read
+at their point of use now come from it: `QCHEM_DM_LOWRANK` (ChargeDensity factory), `GPW_STREAM_FOLD`
+(GPW basis factory), `QCHEM_MIX_RHO_M` (`MakePeriodicMixer`), `GPW_XC_DM_SOURCE` (the XC term).
+`CP2K_COMPAT=1` turns them all off; **an explicitly-set individual knob still WINS** (saying
+`CP2K_COMPAT=1 GPW_STREAM_FOLD=1` is a deliberate act, and the banner marks it `(stated)` so a run that
+thinks it has parity and does not says so out loud).  `ReresolveRunPolicy()` is the named escape hatch for
+the two acceptance gates that A/B the fold in one process — named, rather than making "resolved once" a
+comment instead of a property.
+
+`SolidCalculation` prints the banner UNCONDITIONALLY, four lines at construction plus one per `Converge`:
+
+```
+[MnO AFM-II Gamma run] system: 4 atoms, 26 valence e, multiplicity 1 (POLARIZED), seed=IonicSAD
+[MnO AFM-II Gamma run] grids: densityEcut=auto C=2 raster=BallOnly xcMesh=Becke (nR=40 L=29)
+[MnO AFM-II Gamma run] symmetry: IMPOSED (Shubnikov from the decoration);  threads: OMP_NUM_THREADS=1 GPW_OMP_THREADS=1 (BLAS pinned to 1)
+[MnO AFM-II Gamma run] CP2K_COMPAT=0 -> DEVIATING;  QCHEM_DM_LOWRANK=on*  GPW_STREAM_FOLD=on*  QCHEM_MIX_RHO_M=off  GPW_XC_DM_SOURCE=off   [* = differs from CP2K]
+[MnO AFM-II Gamma scf] mixer: Kerker(G0=1.000000) alpha=0.45;  XC rho source: rho_mix;  accel: Ladder;  kT=0.005 MOM=on NMaxIter=80
+```
+
+That closes the measured defect this item names — with `MNO_KERKER_G0=0` the fall back to linear D-mixing
+was ENTIRELY silent (the mixer identity appeared only in the Verbose per-iteration column) — and it is
+what makes a `doc/Benchmark.md` row self-describing instead of relying on discipline.
+⚠ **STILL OPEN under N5 — and the table is SHORTER THAN THE TRUTH.**  Four deviations are wired; at least
+four more are known and not, so a `CP2K_COMPAT=1` row today is closer to parity than the default but is
+NOT parity.  Measured/checked 2026-08-26:
+
+| missing deviation | why it is not in the table | measured effect |
 |---|---|---|
-| baseline | 13.480 | healthy |
-| `GPW_XC_DM_SOURCE=1` | **28.995** | slosh |
-| flat Kerker (`G0=0.01`) | **35.098** | worse slosh |
-| linear D-mix (`G0=0`) | 13.609 | a DIFFERENT failure — moment dies, NO slosh |
+| **the pair-stream CACHE** (gap 2, user) | predates the table; only the raw `GPW_STREAM_BUDGET_PTS` knob, no policy hook | CP2K re-evaluates every iteration and caches nothing — this is the single biggest RAM term |
+| ~~**`imposeSymmetry` ITSELF**~~ | ✅ **WIRED 2026-08-26** (user: *"CP2K_COMPAT should do (imply) imposeSymmetry=0"*) — the fifth declared deviation, knob `QCHEM_IMPOSE_SYMMETRY` | CP2K does **NO** symmetry work in these decks (see below); our imposed row folds the BZ, star-averages ρ, uses the site-adapted invariant XC mesh (~2×) and folds the streams (5.2× on MnO pairs) |
+| `raster` (`BallOnly`) | typed option | BallOnly IS CP2K's bet (N2) — a deviation in mechanism only |
+| `cutoffFactor` (C=2) | typed option | ~0.15 mHa of grid error at C=2 (N2) |
 
-⚠ **The threshold is the whole design question**, and that last row is why: Eee must not be compared to an
-absolute number.  Suggest the same self-calibrating shape T2 uses — compare against the SEED's Eee, or
-against the first few iterations' — so it transfers to cells whose healthy Eee is nothing like 13.5.
+★ **CP2K DOES NO SYMMETRY BLOCKING AT ALL — verified locally, not assumed.**  The 1129-line
+`IntegrationTests/CP2K/bench_MnO_AFM2_VA_cp2k.log` contains **zero** occurrences of "irrep", "symmetry" or
+"point group": QuickStep keeps K and P as DBCSR sparse **atom-block** matrices over the full AO basis and
+diagonalizes the whole thing — its blocking is atom-pair SPARSITY, not irrep.  No SALC blocking, no
+k-block splitting by irrep.  The one symmetry knob that exists is BZ-side and is OFF in our own deck:
+`BRILLOUIN| K-Point point group symmetrization  OFF`, with all 8 k-points of the 2×2×2 mesh listed.
+⇒ **doc/Benchmark.md's MnO rows compared qchem-WITH-symmetry against CP2K-WITHOUT**, which flattered
+qchem on exactly the axis the table measures.
 
-### ★ T4 — MOVE THE DETECTORS INTO THE LIBRARY
-The `** DIED at iteration N` collapse logic still lives in the MnO TEST, so no library user gets it.  With
-the test now on the facade, the natural home is beside T2/T3 in `Outcome_()`.
+✅ **FIXED 2026-08-26: `CP2K_COMPAT=1` now IMPLIES `imposeSymmetry=0`.**  It is the fifth entry in the
+deviation table (`QCHEM_IMPOSE_SYMMETRY`), and it is the ONE that OVERRULES THE CALLER rather than merely
+supplying a default — because every banked recipe sets `MNO_IMPOSE=1`, so a switch that let the recipe win
+would need the recipe edited too, and then it would not be one switch.  The facade ANDs the caller's flag
+with the policy's permission ONCE (`const bool imposed = opts.imposeSymmetry && ...`) and nothing below
+reads the raw option again.  A vetoed imposition is NEVER silent: the banner prints
+`symmetry: FREE  [asked for, VETOED by CP2K_COMPAT]`, the mirror of the hazard that made `imposeSymmetry`
+opt-in in the first place.  `QCHEM_IMPOSE_SYMMETRY=1` is the stated escape hatch.
+★ **MEASURED SAME DAY, AND THE EXPECTATION WAS HALF WRONG — IN THE INFORMATIVE HALF.**  The user
+predicted this "may break MnO AFM convergence".  It breaks the CONVERGENCE and NOT the ORDER:
+- stage 1 caps at 80 iterations at −60.431, stage 2 at 80 more at **−57.620** — 3.8 Ha short of the
+  −61.40297618 the imposed compat run reaches in 24 iterations;
+- but **m_stag 0.66 / 0.59 and the integrated site moment 4.781 → 4.222 e: the AFM order SURVIVED.**
+⇒ **The imposed star-average was buying CONVERGENCE, not the magnetic basin.**  That is the opposite of
+the standing assumption (S3/S4 read as "the imposition is what holds the order") and it moves the open
+question from SYMMETRY to the MIXER — where the CP2K deck already points: 44 steps at Broyden α=0.2 /
+NBUFFER 8 / MAX_SCF 200, against our α=0.45 / PulayDepth 0 / 80.
+★ **AND IT VALIDATED T3's END-VS-PEAK RULE ON A RUN IT WAS NOT CALIBRATED AGAINST.**  This run's Eee
+PEAKED at **39.98** and came back to 15.64 (end/floor 1.233).  A peak-based detector would have read 3.15×
+and convicted it of charge slosh; the end-based one correctly reports `NotConverged` — which is exactly
+what is wrong with it — and stays silent on both other channels.
 
-### ★ T5 — SELF-DESCRIPTION, and it is the SAME WORK AS N5 (`CP2K_COMPAT`)
-A run must state mixer, \f$G_0\f$, Pulay depth, XC ρ source, thread counts and every qchem-only
-accelerator; `CP2K_COMPAT=1` must turn them all off.  Build them together — see N5 — and note the measured
-defect that motivates it: with `MNO_KERKER_G0=0` the run prints **no mixer line at all**.
+## ★★★ NEXT SESSION STARTS HERE — THE ON-THE-FLY COLLOCATION KERNEL (~100× off CP2K)
 
-### ⚠ AND THE COVERAGE GAP T2/T3 STILL HAVE
-`RunMnO` now goes through `SolidCalculation`, so the MnO Gamma test IS covered.  Other GPW tests still
-construct `SolidSCFIterator` directly (`RunGpw` at ~608, `RunGpwAnnealed` at ~761 remain for them), so the
-detectors do not reach those.  Retiring both drivers onto the facade is the rest of
+> **USER, 2026-08-26:** *"I think it makes sense to chase the 100x gap in on the fly basis function
+> evaluation.  Even if we just achieve 2 or 3x, then we can resolve other issues (MnO mixing) more
+> rapidly."*
+
+**WHY THIS ONE FIRST.**  A win here is a MULTIPLIER on every other open item: the MnO mixing question
+(below) needs many SCF runs, and today each one costs 7–45 minutes.  2–3× on the kernel pays for itself
+inside the next investigation, which is not true of any other item on this list.
+
+**THE MEASUREMENT THAT MOTIVATES IT** (doc/Benchmark.md carries the table).  MnO, per SCF iteration:
+CP2K **8.5 s** / 217 MB · qchem cached **~31 s** / 4218 MB · qchem UNCACHED **~853 s** / 353 MB.
+⇒ The pair-stream cache is not an advantage over CP2K — it is a **28× workaround for a collocation kernel
+~100× off theirs**, bought with 3.9 GB.  Uncached, our RAM is 1.6× CP2K's, i.e. essentially competitive.
+Fixing the kernel wins BOTH axes; caching more cleverly wins neither.
+⚠ The 853 s/iteration subtracts an ESTIMATED ~182 s setup from a 3-iteration probe — read it as "order
+10²", not a precise ratio.  **Getting a defensible number is step 0.**
+
+**★ THE FAST HARNESS — USE Si, NOT MnO.**  Measured 2026-08-26:
+`GPW_STREAM_BUDGET_PTS=0 GPW_STREAM_BUDGET_PTS_F32=0` on `GPW_SCF.SiliconGammaConverges` runs the SAME
+uncached path in **7.19 s wall / 8.51 s CPU against 2.49 s / 3.81 s cached (2.9×)** — seconds, not the
+45 minutes an MnO probe costs.  The ratio is far smaller than MnO's 28× (Si is small and its pair set is
+tiny), so Si is the EDIT-MEASURE loop and MnO is the ACCEPTANCE run, never the other way round.
+
+**★ THE FIRST PROFILE IS ALREADY TAKEN (2026-08-26)** — Si uncached, `perf -F 499`, flat self-time.
+⚠ **THIN: ~4k samples** (499 Hz over 8.5 s CPU), so the 39/12/10% entries are solid and the ~1% tail is
+noise.  Re-take on the mid-size case before trusting anything below 5%.
+
+| % self | symbol |
+|---|---|
+| **39.0** | `NR_Evaluator::IntegratePotential(...)::$_1::operator()(size_t)` |
+| **12.1** | `Polarization::operator()(Vector3D<double>)` |
+| 10.7 | OpenBLAS (unresolved) |
+| **9.6** | `NR_Evaluator::CollocateDensity(...)::$_1::operator()` |
+| **6.1** | `uintpow(double, unsigned)` |
+| 5.9 + 3.5 | `__ieee754_exp_fma` + `exp` |
+| 1.7 / 1.2 | `Polarization::operator()` **@plt** / `uintpow` **@plt** |
+| 1.2 | `IVec3Less::operator()` (a `std::map` comparator) |
+
+**FOUR CANDIDATES, and they all say "close to naive" rather than "needs a rewrite":**
+1. **`Polarization` and `uintpow` go through the PLT** — cross-DSO, NOT INLINED, in the innermost loop
+   (13.7% and 7.3% including their stubs).  They live in different shared libraries from the caller.
+2. **`uintpow(double,unsigned)` ~7%** computing \f$x^a y^b z^c\f$ per point, where (a,b,c) are 0..4 and
+   FIXED PER SHELL — a specialised/unrolled path should erase this.
+3. **`exp` 9.4%: one transcendental per point.**  The structural one.  Along a run of collinear grid
+   points \f$e^{-\alpha(x+nd)^2}\f$ obeys a two-term MULTIPLICATIVE RECURRENCE — essentially what CP2K's
+   cube-mapped collocate exploits.  The CACHED path already walks run-length spans
+   (`runs 7077963, mean 10.557 pts`); the fallback appears not to, which is candidate 4 restated.
+4. **`IVec3Less` 1.2%** — a `std::map<Vector3D<int>,...>` lookup inside the hot region.
+
+**THE THREE-TIER HARNESS (measured 2026-08-26):**
+- **Si** `GPW_SCF.SiliconGammaConverges` — 7.19 s wall / 8.51 s CPU uncached vs 2.49 / 3.81 cached
+  (**2.9×**).  The EDIT-MEASURE loop.
+- **NaF** `DISABLED_NaFRocksaltGamma` (Γ, SR2) — 39.5 s wall / 94.5 s CPU *cached*, so uncached should
+  land in the **1–5 minute** window: the PROFILING case (enough samples, multi-species, and it exercises
+  the sharp-F pairs Si does not).
+- **MnO** — the ACCEPTANCE run ONLY.  Never the edit loop: 45 min per uncached probe.
+
+**THEN, and only then**, read what CP2K does differently in KIND (its collocate/integrate is a cube-mapped
+multigrid routine keyed on `REL_CUTOFF`).  That is research, and candidates 1–4 may make it unnecessary.
+⚠ `feedback_no_broad_fs_scans`: clean up the multi-GB `perf.data` afterwards (done for the run above).
+
+**ACCEPTANCE:** the Si and MnO anchors must not move, and the win must show on the MnO uncached probe,
+not only on Si.
+
+### ⚠ THE COVERAGE GAP — now the ONLY thing open under N1
+`RunMnO` and the new Na2 gate go through `SolidCalculation`, so those are covered.  Other GPW tests still
+construct `SolidSCFIterator` directly (`RunGpw`, `RunGpwAnnealed`), so **none of T1–T5 reaches them** — no
+`Outcome`, no detectors, no banner.  `ImposedShubnikovHoldsAFMThroughSCF_Mn2Box`, which is the negative
+control for the T2 gate, is one of them: the pair currently proves the detector discriminates only because
+a human read both outputs.  Retiring both drivers onto the facade is the rest of
 `doc/TestFacadeMigrationPlan.md`, and it is now a mechanical follow-through rather than a design problem.
+
+### ⚠ TWO SMALLER LOOSE ENDS LEFT BY THIS SESSION
+- **Na2's polarized singlet will not converge from an AFM seed at α=0.3** — Δρ parks at ~1e-2 and
+  oscillates forever while E is flat to 1e-9, on DIIS, GDM, Kerker, Pulay and smearing alike; α=0.5
+  converges in 66.  The same cell run UNPOLARIZED converges in 30 at α=0.3.  Not chased (the gate only
+  needed one converging recipe), but "the two-channel run of a ζ=0 system is much harder to converge than
+  its unpolarized twin" is a claim worth either explaining or fixing — it is the sort of thing that will
+  cost a magnetic campaign later.
+- **`VALENCE_LOWQ_VA` under CARTESIAN d is rank-deficient by 10** and the pivot filter auto-drops to
+  exactly SR's 122-function span (same min pivot to six digits).  That is the free controlled experiment
+  for the user's hand-trim-beats-auto-trim rule — see the vet-stage trim item under *Continuous — CLEANUP*.
 
 ## ★★★ N4 — THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$
 
@@ -1282,6 +1501,19 @@ run 64 cannot show whether it dove or stalled).
     58–60 dropped O₁'s p(0.18) but O₂'s s(0.15), and different d(0.18) m-components on the two Mn),
     breaking site equivalence at the same ~sub-1% order as run 59's site-moment asymmetry.
     Direction-space (eigen/SVD canonical-ortho) trimming stays a numerical fallback, never user-facing policy.
+  - **★ AND THE SYMMETRY PIN IS ALSO A CONVERGENCE PIN** (user, 2026-08-26): pivot-filtering *"would
+    sometimes remove only 3/4"* of a symmetry-equivalent set, and hand-removing functions BEFORE S vetting
+    has proved more reliable for convergence than letting the filter choose.  That is the SAME mechanism
+    as the equivariance pin above, not a separate argument -- a partial orbit is a symmetry-broken basis,
+    and what it costs is not only site-equivalence in the reported numbers but the run's ability to
+    converge at all.  ⇒ The vet-stage trim is not a tidier way to do what ortho-time pivoting does; it is
+    a DIFFERENT and better-behaved thing, and ortho-time filtering should end up as the fallback that
+    fires when the vetted basis was still not good enough.
+    ⚠ **The partial-orbit case is the one to reproduce** -- when the filter lands on a whole orbit there
+    is by construction nothing to see.  (Measured 2026-08-26 in passing: on the MnO cell `VALENCE_LOWQ_SR`
+    is 122 hand-trimmed at full rank and `VALENCE_LOWQ_VA` under Cartesian d is 132 auto-dropped to 122,
+    both at min kept pivot 0.0236681 -- the same kept set two ways, so THAT pair is a null control, not a
+    test.  Runs 58-60 above are the real evidence: O1's p(0.18) dropped against O2's s(0.15).)
 - Δρ/N convergence gate (`doc/SCFStrategyPlan.md`); GDM fallback-diagonalize breadcrumb (run 59's silent
   +302 mHa hop); the per-channel ortho duplication above; the fingerprint's overconfident
   "raise NMaxIter" advice.

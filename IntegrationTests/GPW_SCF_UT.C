@@ -46,6 +46,7 @@ import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetD
 import qchem.BasisSet.Molecule.PG_Spherical.LatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
+import qchem.RunPolicy;                         // ReresolveRunPolicy() -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); Vxc_Quadrature + the two XC_Quadrature strategies
@@ -208,7 +209,7 @@ struct GpwReport
 // Three pathologies have DISTINCT time-series signatures, so one line names which regime the run is in --
 // separating "the iteration can't find the min" (dynamics: sloshing/divergence) from "the min is a fit floor"
 // (functional).  Captured from qchem::SCFIterator::SCFProgress {iteration, energy, dE=|ΔE|, [F,D], Δρ}.
-struct FpRow { size_t it; double E, dEabs, fd, drho, order=0; };
+struct FpRow { size_t it; double E, dEabs, fd, drho, order=0, eee=0; };
 
 // The ORDER-PARAMETER trajectory, one compact line (printed only when a probe was set).  The per-iteration
 // SCF column already shows it live; this line is the POST-MORTEM -- the whole time series in one place, with
@@ -1907,11 +1908,11 @@ TEST(GPW_SCF, StreamFoldImposedGamma_SiDiamond)
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
 
-    setenv("GPW_STREAM_FOLD","0",1);
+    setenv("GPW_STREAM_FOLD","0",1);  qchem::ReresolveRunPolicy();
     GpwResult R0=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
-    setenv("GPW_STREAM_FOLD","1",1);
+    setenv("GPW_STREAM_FOLD","1",1);  qchem::ReresolveRunPolicy();
     GpwResult R1=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
-    unsetenv("GPW_STREAM_FOLD");
+    unsetenv("GPW_STREAM_FOLD");  qchem::ReresolveRunPolicy();
 
     EXPECT_TRUE(R0.converged); EXPECT_TRUE(R1.converged);
     std::cout << "[stream fold A/B] E(full)=" << R0.E.GetTotalEnergy()
@@ -1951,11 +1952,11 @@ TEST(GPW_SCF, StreamFoldOpenShellMatchesUnfolded_SiAtomInBox)
     o.scf.NMaxIter=40; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
 
-    setenv("GPW_STREAM_FOLD","0",1);
+    setenv("GPW_STREAM_FOLD","0",1);  qchem::ReresolveRunPolicy();
     GpwResult R0=RunGpw(lat, MakeBasis(cell), o, /*verbose*/false);
-    setenv("GPW_STREAM_FOLD","1",1);
+    setenv("GPW_STREAM_FOLD","1",1);  qchem::ReresolveRunPolicy();
     GpwResult R1=RunGpw(lat, MakeBasis(cell), o, /*verbose*/false);
-    unsetenv("GPW_STREAM_FOLD");
+    unsetenv("GPW_STREAM_FOLD");  qchem::ReresolveRunPolicy();
 
     std::cout << "[open-shell fold A/B] E(full)=" << R0.E.GetTotalEnergy()
               << "  E(folded)=" << R1.E.GetTotalEnergy()
@@ -3731,8 +3732,17 @@ void Instrumentation(const MnOArm& arm, const std::string& label)
                                                                : std::string("?"));
             Fingerprint(stage, tag.c_str());
             OrderTrajectory(stage, "m_stag", tag.c_str());
+            // The T3 instrument's raw time series (doc/OpenWork.md T3): Eee is the CHARGE channel's
+            // health, and the threshold that convicts a runaway can only be calibrated against the
+            // healthy arm's own trajectory -- so print it, per stage, beside the order.
+            std::cout<<"["<<tag<<" Eee]";
+            for (const auto& r : stage) std::cout<<" "<<std::fixed<<std::setprecision(3)<<r.eee;
+            std::cout<<std::defaultfloat<<std::endl;
             begin=i; ++nStage;
         }
+    // The LIBRARY's own post-mortem (doc/OpenWork.md T4): the detectors now live in SolidCalculation, so
+    // this line is what any caller gets, not something this test computes for itself.
+    std::cout<<"["<<label<<" diag] "<<arm.calc->Diagnostics().Summary()<<std::endl;
     if (!arm.result) { std::cout<<"["<<label<<"] NO ANSWER: "<<arm.result.Error().details<<std::endl; return; }
     // The INTEGRATED site moments (T2's instrument, the Becke basins) beside the historical point probe --
     // the honest observable, in electrons, rather than a spin DENSITY sampled at one guessed offset.
@@ -4109,6 +4119,77 @@ TEST(GPW_SCF, ImposedShubnikovHoldsAFMThroughSCF_Mn2Box)
     EXPECT_NEAR(pol->GetTotalSpin(), 0.0, 1e-8) << "an imposed AFM pair carries zero net moment";
 }
 
+// ★ T2's POSITIVE PATH (doc/OpenWork.md N1/T2, built 2026-08-26).  The OrderLost postcondition shipped
+// with only its negative side exercised: every order-losing run measured on 2026-08-25 ALSO ran out of
+// iterations, so NotConverged tripped first and the branch that MINTS an OrderLost had never once run.
+// An unexercised guard is a guess, so this is the case that fires it.
+//
+// THE FIXTURE, and why each ingredient is load-bearing:
+//   - Na2 in a box at its bond length.  Two neutral Na, so the SAD seed plants the library's spin pair on
+//     each site (+-1 e), while the GROUND STATE is the closed-shell sigma^2 singlet -- m=0 is the honest
+//     answer here, which is exactly the contradiction T2 exists to catch when it is asked for beside an
+//     imposition.  It is also the cheapest such cell: two valence electrons.
+//   - AFM FLIP on the second atom -- without it the decoration is ferromagnetic and the seed carries no
+//     STAGGERING for the imposed Shubnikov group to preserve.
+//   - imposeSymmetry -- T2 is gated on it (a FREE run finding m=0 is physics and must never be touched).
+//   - A BECKE mesh, PINNED.  The postcondition reads the INTEGRATED site moment, and the integration
+//     basins are the Becke site blocks; a uniform mesh has none and SiteMoments correctly returns empty,
+//     so the check silently skips.  Auto would route this soft cell to the uniform mesh.
+// The mirror-image gate is ImposedShubnikovHoldsAFMThroughSCF_Mn2Box above: same shape, real magnet,
+// order SURVIVES.  The two together say the detector discriminates rather than always firing.
+TEST(GPW_SCF, ImposedOrderLostIsAPostconditionFailure_Na2Box)
+{
+    const double a=16.0, d=5.8;                       // ~Na2 bond length (au) in the Si gate's box
+    UnitCell cell(a);
+    cell.AddAtom(11, {0.5-0.5*d/a,0.5,0.5}, false);   // Na +m
+    cell.AddAtom(11, {0.5+0.5*d/a,0.5,0.5}, true);    // Na -m -- the AFM flip the SAD seed plants
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    SCFParams par;
+    // alpha=0.5 and a generous cap are LOAD-BEARING, not decoration: this gate needs a run that
+    // CONVERGES, because a run that merely hits the cap trips NotConverged first and leaves the
+    // postcondition unexercised all over again.  Measured 2026-08-26: alpha=0.3 oscillates at
+    // Δρ~1e-2 forever (E is flat to 1e-9 the whole time -- the density, not the energy, is what will
+    // not settle), while 0.5 converges in 66.  Unwinding an AFM seed that the answer does not want is
+    // simply harder than starting unpolarized: the same cell run unpolarized converges in 30.
+    par.NMaxIter=100; par.MinΔρ=1e-6; par.MinΔE=1e30;
+    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
+    par.StartingRelaxRo=0.5; par.MergeTol=1e-4;
+
+    qchem::SolidCalcOptions o;
+    o.label="Na2 AFM-seeded singlet";
+    o.Nelec=2; o.multiplicity=1;                              // the explicit two-channel singlet, nUp=nDn=1
+    o.species={{"Na",1}};
+    o.seed=qchem::ChargeDensity::SeedStrategy::SAD;           // neutral Na: the library's 3s^1 spin pair
+    o.imposeSymmetry=true;                                    // S3 resolves the SHUBNIKOV group from the flips
+    o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);             // coarse: this gate tests the POSTCONDITION
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;            // PINNED -- see the header (Auto would pick Uniform)
+
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    auto r=calc.Result();
+    std::cout << "[Na2 T2] converged="<<calc.DidConverge()<<" iters="<<calc.IterationCount()
+              << " E(last iterate)="<<calc.LastIterateTerms().GetTotalEnergy()
+              << "\n[Na2 T2] "<<calc.Diagnostics().Summary() << std::endl;
+
+    // THE RUN MUST CONVERGE -- otherwise this gate silently stops testing what it is named for.
+    ASSERT_TRUE(calc.DidConverge()) << "the fixture stopped converging, so the postcondition below is "
+                                       "unexercised again: " << calc.Diagnostics().Summary();
+    ASSERT_FALSE(r) << "an imposed, magnetically-seeded run that relaxes to m=0 must NOT hand back an energy";
+    EXPECT_EQ(r.Error().why, qchem::SCFFailure::Why::OrderLost)
+        << "the failure must be the POSTCONDITION and nothing else: " << r.Error().details;
+
+    // ...and the diagnostics must AGREE with the verdict, measured on the INTEGRATED site moment: the
+    // seed carried real order (~0.47 e in the Becke basins), the answer carries none.
+    const auto& diag=calc.Diagnostics();
+    EXPECT_TRUE(diag.HasOrder())      << "the seed must be measurably magnetic, or the check has no teeth";
+    EXPECT_GT(diag.OrderPeak(), 0.2)  << "the RAW seed's staggering, before Init's first fill eats it";
+    EXPECT_TRUE(diag.OrderCollapsed());
+    EXPECT_LT(diag.OrderFinal(), 0.01*diag.OrderPeak());
+    // The charge channel must stay QUIET on a run that is merely non-magnetic -- the two detectors have
+    // to discriminate, or the more specific one is worthless.
+    EXPECT_FALSE(diag.ChargeSloshed()) << "a healthy converged run must not read as a charge runaway";
+}
+
 // ===================== MnO STATUS: THE OCCUPATION IS THE DEFECT (2026-08-08) ==========================
 // Recorded HERE and not only in the plan doc, because the next person to touch this test needs it before
 // they reach for another mixing knob.  Every mixing-side candidate is fixed or eliminated (spin-blind rho~
@@ -4275,7 +4356,7 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
             };
         }
         o.onIteration=[&arm](const qchem::SCFIterator::SCFProgress& p)
-                      { arm.series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order}); };
+                      { arm.series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order,p.eb.Eee}); };
 
         // THE ANNEAL SCHEDULE: MNO_ANNEAL lists the kTs, MNO_ACC the per-stage accelerator, MNO_ANNEAL_PENALTY
         // the per-stage MOM Lambda.  One stage (the base parameters) when no schedule is given.

@@ -12,6 +12,7 @@ module;
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
 module qchem.Hamiltonian.Internal.PWTerms;
+import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
@@ -578,11 +579,7 @@ size_t XC_SinglesQuadrature::NumPoints() const {return itsFit->GetNumFunctions()
 // is LINEAR and diagonal in G -- while XC, a NONLINEAR POINTWISE functional, gets the cusp.  At the fixed
 // point they agree, so this changes the SCF TRAJECTORY, not the answer.
 // GPW_XC_DM_SOURCE=1 to arm it.  OPT-IN: a trajectory change must earn its place against banked recipes.
-bool UseDMSource()
-{
-    static const bool on=[]{ const char* e=std::getenv("GPW_XC_DM_SOURCE"); return e && std::atoi(e)!=0; }();
-    return on;
-}
+bool UseDMSource() {return theRunPolicy().XCFromDM();}
 //! The exact density behind a field-backed one + THE DAMPING THAT FIELD APPLIED -- always together, because
 //! taking the first without the second is the half-damped map (see cDM_Sourced_CD::EffectiveAlpha).
 struct ExactSource

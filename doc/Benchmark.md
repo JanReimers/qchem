@@ -17,10 +17,22 @@ Not in prose somewhere above it: in the caption or a column, so a row cannot be 
 Today's tables carry a prose warning and it is not enough — the warning is right (CP2K is genuinely serial
 here at 97–99% CPU; qchem is not, at 115–239%) but a reader lifting one row will not carry it.
 
-⚠ **qchem has no `GLOBAL| Number of threads` banner** — this document has asked for one twice.  Until it
-exists the thread state is asserted by the person taking the row, which is exactly the discipline that
-fails.  **Build the banner** (index item 2): thread counts AND the feature flags below, printed by the run
-itself, so every future row is self-describing.
+✅ **THE BANNER EXISTS AS OF 2026-08-26** (doc/OpenWork.md T5/N5).  `qchem::SolidCalculation` prints it
+UNCONDITIONALLY — no verbose flag, no opt-in — four lines at construction plus one per `Converge`:
+
+```
+[<label> run] system: 4 atoms, 26 valence e, multiplicity 1 (POLARIZED), seed=IonicSAD
+[<label> run] grids: densityEcut=auto C=2 raster=BallOnly xcMesh=Becke (nR=40 L=29)
+[<label> run] symmetry: IMPOSED (Shubnikov from the decoration);  threads: OMP_NUM_THREADS=1 GPW_OMP_THREADS=1 (BLAS pinned to 1)
+[<label> run] CP2K_COMPAT=0 -> DEVIATING;  QCHEM_DM_LOWRANK=on*  GPW_STREAM_FOLD=on*  QCHEM_MIX_RHO_M=off  GPW_XC_DM_SOURCE=off   [* = differs from CP2K]
+[<label> scf] mixer: Kerker(G0=1.000000) alpha=0.45;  XC rho source: rho_mix;  accel: Ladder;  kT=0.005 MOM=on NMaxIter=80
+```
+
+**So a row is now taken by COPYING those lines beside it, not by remembering what was set.**  The
+deviation line is generated from the SAME policy object the factories consult (`qchem.RunPolicy`), so it
+cannot drift from what was actually built, and `CP2K_COMPAT=1` turns the whole set off in one place.
+⚠ The standing rule is unchanged and now has somewhere to point: **a new accelerator is not finished until
+it appears on that deviation line.**
 
 ### 2. SINGLE-THREAD PARITY FIRST, THEN THREADS — in that order (user)
 
@@ -127,7 +139,69 @@ printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrappe
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.430944039 | −24.432293467 | **+1.349 mHa** | 2m44s / 1m42s | 219 / 102 s | 2.1× | 3090 / 186 MB |
 | MnO AFM-II | Γ | **VA (N=118)** | −61.40297621 ⁴ | −61.303325178 | **−99.65 mHa** | 6m56s / 6m14s | 663 / 373 s | **1.8×** | **1323** / 217 MB |
 | MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
+| **MnO AFM-II, `CP2K_COMPAT=1`** | Γ | **VA (N=118)** | **−61.40297618** | −61.303325178 | −99.65 mHa | **15m34s** / 6m14s | **921** / 373 s | **2.5×** | **5034** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
+
+### ★ THE `CP2K_COMPAT=1` ROW — WHAT THE DEFAULT ROW ABOVE IT WAS HIDING (2026-08-26)
+
+**First, the reassuring half: the deviations are pure ACCELERATIONS, not physics.**  Turning all four off
+moves the MnO total by **3e-8 Ha** (−61.40297621 → −61.40297618, agreeing to 10 s.f.) on a different
+trajectory (10+14 iterations against 14+17).  That is the property `CP2K_COMPAT` most needed to demonstrate
+about itself, and it is now measured rather than asserted.
+
+**Then the uncomfortable half.**  Stripped of our own accelerations the standing against CP2K is
+**2.5× CPU and 23× RAM**, not the 1.8×/6.1× the default row reports — and 1.79× per ITERATION (38.4 s
+against 21.4 s), since the compat run happened to need fewer of them.  The default row is not wrong, but it
+is qchem-with-accelerations against CP2K-plain, and it should never be quoted as an algorithm-to-algorithm
+comparison.
+
+**⚠ AND `CP2K_COMPAT=1` IS STILL NOT PARITY** — the switch covers four deviations and at least two more
+matter (doc/OpenWork.md N5 carries the full list):
+- **The pair-stream CACHE — and MEASURING it inverted the priority (2026-08-26).**  CP2K caches NOTHING
+  on the grid: it re-evaluates the orbital pairs every iteration.  Zeroing our budgets
+  (`GPW_STREAM_BUDGET_PTS=0`, all 8778 pairs dropped to on-the-fly) on the MnO 3-iteration probe:
+
+  | MnO, per SCF iteration | CPU/iter | peak RSS |
+  |---|---|---|
+  | CP2K (44 steps, 373 s CPU; its own log prints 8.4–8.5 s/step) | **8.5 s** | **217 MB** |
+  | qchem, cache ON  | ~31 s (3.6×) | 4218 MB (19×) |
+  | qchem, cache OFF | **~853 s (100×)** | **353 MB (1.6×)** |
+
+  ⇒ **The cache is not an advantage we hold over CP2K; it is a 28× workaround for a collocation kernel
+  that is ~100× off theirs, bought with 3.9 GB.**  Without it our RAM is essentially competitive (1.6×).
+  So the target is NOT "cache more cleverly" or "trade RAM for CPU" — it is **make the on-the-fly pair
+  evaluation fast**, which would deliver CP2K's memory profile AND better CPU than we have today.  Likely
+  a soft target: every optimisation so far (run-length stream geometry, the T3 orbit fold) went into the
+  CACHED path, so the fallback is probably close to naive.
+  ⚠ The 853 s/iteration is (2740 s CPU for 3 iterations) minus an ESTIMATED ~182 s setup — read it as
+  "order 10²", not a precise ratio.  There is no policy hook for the cache, only the raw budget knob.
+- ~~**`imposeSymmetry` ITSELF.**~~  ✅ **WIRED 2026-08-26** — `CP2K_COMPAT=1` now implies
+  `imposeSymmetry=0` (knob `QCHEM_IMPOSE_SYMMETRY`).
+
+  ⛔ **AND THE RE-TAKEN ROW DOES NOT EXIST: AT TRUE PARITY OUR MnO RECIPE DOES NOT CONVERGE.**  Measured
+  2026-08-26, the banked recipe under `CP2K_COMPAT=1` with the imposition vetoed: stage 1 caps at 80
+  iterations at −60.431, stage 2 caps at 80 more at **−57.620** — 3.8 Ha short of the −61.40297618 the
+  imposed compat run reaches in 24 iterations (2555 s CPU, 42m57s, 4.76 GB).  **So there is currently no
+  honest MnO row to put in this table**, and that absence is the finding: the imposed star-average was
+  buying CONVERGENCE, not accuracy and not the magnetic basin.
+  ★ **The AFM ORDER SURVIVED the free run** (m_stag 0.66/0.59, integrated site moment 4.781 → 4.222 e), so
+  the imposition was NOT what held the basin — which is the opposite of what was expected, and it moves
+  the question from symmetry to the MIXER.  Note where CP2K stands on the same cell: 44 steps at 8.5 s
+  each with Broyden α=0.2 / NBUFFER 8 / MAX_SCF 200, against our α=0.45 / PulayDepth 0 / 80.  ⇒ A fair
+  MnO row needs a CP2K-like mixing recipe first; taking one before that would be comparing their converged
+  answer against our iteration cap.
+  Verified locally 2026-08-26: CP2K does NO symmetry work in these decks.
+  The 1129-line `bench_MnO_AFM2_VA_cp2k.log` contains **zero** occurrences of "irrep", "symmetry" or
+  "point group" — QuickStep keeps K and P as DBCSR sparse ATOM-BLOCK matrices over the full AO basis and
+  diagonalizes the lot (blocking by atom-pair SPARSITY, not by irrep; no SALC blocking, no k-block
+  splitting).  The one symmetry knob that exists is BZ-side and defaults OFF: our own Si 2×2×2 log reads
+  `BRILLOUIN| K-Point point group symmetrization  OFF` and lists all 8 k-points.
+  ⇒ Our imposed MnO row folds the BZ, star-averages ρ every iteration, uses the site-adapted invariant XC
+  mesh (~2×) and folds the collocation streams (5.2× on pairs).  **The CP2K row does none of it.**  These
+  rows compare a SYMMETRY-exploiting code against a SPARSITY-exploiting one on a small, high-symmetry
+  cell — the regime that most favours us, and a 100-water box would invert it.  (CP2K's design centre is
+  large disordered systems, where every one of {G}, {k}, {r} has a group of order 1, so the folding payoff
+  is exactly 1× for what they build for.  That reading of WHY is inference; the WHAT above is from the logs.)
 
 Δ(AFM−FM) on the VA span: **qchem +38.61 mHa, CP2K +1.46 mHa** — both order FM first, and the
 **configuration-SELECTIVE part of the offset is −37.15 mHa** (`OpenWork` Step 5).  Every one of these four

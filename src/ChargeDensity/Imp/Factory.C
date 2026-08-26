@@ -1,6 +1,5 @@
 // File: ChargeDensity/Factory.C  Create some charge densitytypes.
 module;
-#include <cstdlib>     // getenv/atoi -- the QCHEM_DM_LOWRANK route valve
 #include <memory>
 #include <stdexcept>
 #include <type_traits>
@@ -9,17 +8,20 @@ import qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.BasisSet.Orbital_DFT_IBS;   // the periodic-lineage probe (Orbital_DFT_IBS<T,dcmplx>)
 import qchem.ChargeDensity.Imp.FittedCD;
 import qchem.ChargeDensity.Imp.PolarizedCD;
+import qchem.RunPolicy;   // the resolved deviation set (doc/OpenWork.md N5) -- NOT a getenv here
 
 namespace qchem::ChargeDensity
 {
 
-// The default rho ROUTE.  Read once: QCHEM_DM_LOWRANK=0 is the A/B valve, and the escape hatch if a future
-// density ever needs the plain quadratic form.  Policy belongs HERE, in the factory -- putting it inside
-// the density would have given factorisation state to every block including those that never factor.
+// The default rho ROUTE.  QCHEM_DM_LOWRANK=0 is the A/B valve, and the escape hatch if a future density
+// ever needs the plain quadratic form.  Policy belongs HERE, in the factory -- putting it inside the
+// density would have given factorisation state to every block including those that never factor.
+// The VALUE comes from qchem::theRunPolicy() rather than a getenv on this line, because it is one of the
+// deviations from CP2K that a run has to be able to STATE and to turn off in one place (N5): a flag read
+// where it is used can be neither reported nor overridden coherently.
 RhoRoute DefaultRhoRoute()
 {
-    static const bool on=[]{ const char* e=std::getenv("QCHEM_DM_LOWRANK"); return !e || std::atoi(e)!=0; }();
-    return on ? RhoRoute::PivotedCholesky : RhoRoute::Direct;
+    return theRunPolicy().DMLowRank() ? RhoRoute::PivotedCholesky : RhoRoute::Direct;
 }
 
 // TWO ORTHOGONAL AXES, ONE ENUM.

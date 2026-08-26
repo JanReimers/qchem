@@ -2,7 +2,7 @@
 #   clang++-20 -std=c++23 -stdlib=libc++     -Wno-reserved-identifier -Wno-reserved-module-identifier     --precompile -o std.pcm /usr/lib/llvm-20/share/libc++/v1/std.cppm
 # qcCommon: the non-math residue (pure utility/data).  All math lives in qcMath now (../Math).
 add_library(qcCommon)
-target_sources(qcCommon PRIVATE  Imp/PeriodicTable.C Imp/Reporting.C Imp/Parallel.C)
+target_sources(qcCommon PRIVATE  Imp/PeriodicTable.C Imp/Reporting.C Imp/Parallel.C Imp/RunPolicy.C)
 target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     PeriodicTable.C
     Iterators.C
@@ -12,6 +12,7 @@ target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Strings.C
     Reporting.C
     Parallel.C
+    RunPolicy.C
     )
 
 set_property(TARGET qcCommon PROPERTY CXX_STANDARD 20)

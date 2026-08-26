@@ -6,6 +6,7 @@ add_executable(UTCommon gtestmain.C
     FFT.C
     Reporting.C
     Outcome.C
+    RunPolicy.C
 )
 
 target_compile_definitions(UTCommon PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

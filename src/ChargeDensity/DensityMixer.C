@@ -28,6 +28,7 @@ module;
 #include <cstdlib>   // getenv (the QCHEM_SPINBLIND_KERKER A/B valve)
 export module qchem.ChargeDensity.DensityMixer;
 export import qchem.ChargeDensity;                 // tChargeDensity<T>, tDM_CD<T>
+import qchem.RunPolicy;   // theRunPolicy().MixRhoM() -- the declared channel-basis deviation (N5)
 import qchem.ChargeDensity.FourierDensity;         // FourierDensity, ΔG_Map
 import qchem.ChargeDensity.FourierMixCD;           // FourierMixCD / KerkerMix
 import qchem.Math.DIIS;                             // the shared Pulay/DIIS bordered-solve engine
@@ -883,12 +884,14 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
     const bool spinBlind = std::getenv("QCHEM_SPINBLIND_KERKER");
     if (auto* pol = spinBlind ? nullptr : dynamic_cast<const tPolarized_CD<dcmplx>*>(seed))
     {
-        // CHANNEL BASIS.  Default (ρ↑,ρ↓) reproduces CP2K's Kerker exactly.  QCHEM_MIX_RHO_M=1
+        // CHANNEL BASIS.  Default (ρ↑,ρ↓) reproduces CP2K's Kerker exactly -- which is why the choice is
+        // one of the declared CP2K deviations (qchem::theRunPolicy(), doc/OpenWork.md N5) and not a
+        // getenv on the line below.  QCHEM_MIX_RHO_M=1
         // selects (ρ,m): Kerker on ρ, PLAIN LINEAR on m (G0=0 -- the filter is identically 1), the
         // construction the G₀ sweep could NOT test, because a uniform filter on (ρ↑,ρ↓) is
         // algebraically the same operator as that filter on (ρ,m).  Physics: Kerker models the
         // Hartree restoring force against long-wavelength CHARGE fluctuations; m has none.
-        if (std::getenv("QCHEM_MIX_RHO_M"))
+        if (theRunPolicy().MixRhoM())
         {
             // N4 x (ρ,m): the correction is derived PER CHANNEL from that channel's own rho_mix - rho_out,
             // and this branch redefines what the channels ARE, so the two do not compose without new

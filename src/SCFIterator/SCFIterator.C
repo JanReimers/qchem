@@ -47,6 +47,15 @@ struct SCFProgress
     double commutator;   //!< [F,D] (the accelerator/DIIS error)
     double drho;         //!< relative charge-density change
     double order=0;      //!< the ORDER PARAMETER (tSCFIterator::SetOrderParameter); 0 when no probe is set
+    //! \brief THIS iteration's full energy breakdown, of which \c energy is \c GetTotalEnergy().
+    //!
+    //! Carried because a total energy alone cannot tell a healthy run from a collapsed one, but its TERMS
+    //! can: a low-G charge runaway roughly DOUBLES the Hartree term \c Eee while the total stays a
+    //! plausible negative number (MnO 2026-08-25: 13.48 -> 29.0 -> 35.1 Ha across three collapse arms,
+    //! ranked correctly by \c Eee alone).  The number is already computed for the trace one line earlier,
+    //! so carrying the whole breakdown -- rather than the one term today's detector reads -- costs nothing
+    //! and does not force the next diagnostic to widen this struct again.
+    EnergyBreakdown eb;
 };
 
 //! Everything one SCF step exposes to the per-system iteration display (doc/GPWPlan1.md item 2).  The base
