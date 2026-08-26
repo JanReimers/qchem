@@ -90,6 +90,10 @@ public:
     {return GetMatrix(bs,s,cd);}
     //! Add this term's energy contribution (density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
+    //! \brief The INTEGRATED per-site spin moments \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$ of
+    //! \a cd, from a term that owns an ATOM-CENTRED partition.  EMPTY by default: most terms have no
+    //! basins to integrate over, and a caller must ask rather than assume (doc/OpenWork.md N1/T2).
+    virtual rvec_t           SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
     virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
     //! \brief Does the VIRIAL THEOREM still hold with this term in the Hamiltonian?  (default yes)
@@ -235,6 +239,16 @@ public:
     //! through a DFT sibling to manufacture a D0).  tHamiltonianImp DERIVES this from the term lists (holds an
     //! HF term, or is relativistic) -- no concrete Hamiltonian declares it.  See project_numericcd_refactor.
     virtual bool            RequiresDensityMatrix() const {return false;}
+    //! \brief The INTEGRATED per-site spin moments of \a cd -- an AGGREGATE question, folded over the
+    //! terms exactly as \c IsVirialValid is, rather than exposing the term list.  EMPTY when no term owns
+    //! an atom-centred partition (a uniform-raster run has no basins).
+    //!
+    //! WHY THE HAMILTONIAN ANSWERS IT.  The partition belongs to the XC quadrature, which lives behind an
+    //! \c .Internal. module a facade may not import (CLAUDE.md).  Folding it here keeps the capability
+    //! reachable from above the SCF without opening the term list, and it is what lets
+    //! \c SolidCalculation enforce the POSTCONDITION ON AN IMPOSITION: a run that imposes a magnetic
+    //! (Shubnikov) group and then converges to zero moment has contradicted its own constraint.
+    virtual rvec_t          SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
 };
 
 // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t).  No bare (prefix-less) alias: it would shadow the

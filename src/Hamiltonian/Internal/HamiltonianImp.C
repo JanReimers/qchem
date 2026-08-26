@@ -41,6 +41,14 @@ public:
     //! an exact-exchange HF term (K needs D) or is relativistic (the non-rel LDA-sibling SAD bootstrap does
     //! not apply -- see SCFIterator).  Derived from the term lists, so no concrete Hamiltonian need declare it.
     virtual bool            RequiresDensityMatrix() const {return !itsHF_HTs.empty() || itsIsRelativistic;}
+    //! FIRST term that owns an atom-centred partition wins (there is exactly one XC quadrature in a term
+    //! stack; a second would be a construction error, not a case to average).
+    virtual rvec_t          SiteMoments(const tChargeDensity<T>* cd) const
+    {
+        for (const auto& t : itsDHTs)
+            if (rvec_t m=t->SiteMoments(cd); m.size()>0) return m;
+        return rvec_t();
+    }
     virtual std::ostream&   Write(std::ostream&) const;
 
 protected:

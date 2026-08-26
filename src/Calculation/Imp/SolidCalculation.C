@@ -3,6 +3,8 @@
 // Imports ZERO .Internal. modules -- the same discipline Imp/Calculation.C and Imp/AtomCalculation.C
 // already keep, and the reason Step 4 had to open two public doors before this file could exist.
 module;
+#include <algorithm>   // std::max (the T2 site-moment scan)
+#include <cmath>       // std::fabs
 #include <cassert>
 #include <memory>
 #include <stdexcept>
@@ -67,6 +69,8 @@ struct SolidCalculation::Imp
     std::unique_ptr<qchem::ChargeDensity::cDM_CD>         cd;    // the converged density (outlives the WF)
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
     bool   converged = false;
+    bool   imposed   = false;   //!< the run imposed a symmetry, so its solution must still carry it (T2)
+    double seedOrder = 0.0;     //!< max |site moment| of the SEED -- the baseline the postcondition uses
     double charge    = 0.0;
 };
 
@@ -124,6 +128,18 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
         itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
         opts.seed, itsImp->st.get(), opts.ortho, opts.orthoTol);
 
+    // T2 BASELINE (doc/OpenWork.md N1/T2).  Capture the SEED's site moments BEFORE iterating: the
+    // postcondition below is "did the order the run was SEEDED WITH survive", which is self-calibrating --
+    // a genuinely non-magnetic system seeds at ~0 and is therefore never subject to the check.  Comparing
+    // against an absolute threshold instead would fire on every closed-shell imposed run.
+    itsImp->imposed = opts.imposeSymmetry;
+    if (itsImp->imposed)
+        if (auto seed = itsImp->scf->GetWaveFunction()->GetChargeDensity())
+        {
+            const rvec_t m = itsImp->ham->SiteMoments(seed.get());
+            for (size_t a=0; a<m.size(); ++a) itsImp->seedOrder = std::max(itsImp->seedOrder, std::fabs(m[a]));
+        }
+
     (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
 }
 
@@ -154,7 +170,44 @@ const ScalarFunction<double>& SolidCalculation::Converged::Density() const
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() const
 {
     using O = Outcome<Converged, SCFFailure>;
-    if (itsImp->converged) return O::Ok(Converged(itsImp.get()));
+    if (itsImp->converged)
+    {
+        // ★ T2 -- THE POSTCONDITION ON AN IMPOSITION (doc/OpenWork.md N1/T2).  Imposing a MAGNETIC
+        // (Shubnikov) group asserts that the solution carries that order.  A run that imposes it and then
+        // relaxes to zero moment has not found a worse answer -- it has answered a DIFFERENT QUESTION than
+        // it was asked, and its energy is not comparable with the one that was wanted.  So it is a
+        // FAILURE, not a diagnostic.
+        // NEWLY POSSIBLE: this reads the INTEGRATED site moment (the Becke basins restored by the
+        // site-blocks fix), not the point probe that misled this campaign for months.
+        // Gated three ways so it cannot false-positive: the run must have IMPOSED, the SEED must have
+        // carried real order, and only then is the collapse a contradiction.  A FREE run that finds m=0 is
+        // PHYSICS and is never touched by this.
+        constexpr double kSeedFloor   = 0.1;   // e -- below this the seed had no order to lose
+        constexpr double kLostFraction= 0.01;  // the same 1%-of-peak rule the m_stag collapse detector uses
+        if (itsImp->imposed && itsImp->seedOrder > kSeedFloor)
+        {
+            const rvec_t m = itsImp->ham->SiteMoments(itsImp->cd.get());
+            if (m.size()>0)
+            {
+                double now=0.0;
+                for (size_t a=0;a<m.size();++a) now=std::max(now,std::fabs(m[a]));
+                if (now < kLostFraction*itsImp->seedOrder)
+                {
+                    SCFFailure f;
+                    f.why        = SCFFailure::Why::OrderLost;
+                    f.iterations = itsImp->scf->GetIterationCount();
+                    f.lastEnergy = itsImp->scf->GetEnergy().GetTotalEnergy();
+                    f.details    = "the run IMPOSED a magnetic symmetry and then converged to zero moment "
+                                   "(max |site moment| "+std::to_string(now)+" e against a seed's "
+                                   +std::to_string(itsImp->seedOrder)+" e): the solution does not carry "
+                                   "the order the imposition assumed, so this energy answers a different "
+                                   "question than the one asked";
+                    return O::Fail(std::move(f));
+                }
+            }
+        }
+        return O::Ok(Converged(itsImp.get()));
+    }
     SCFFailure f;
     f.why        = SCFFailure::Why::NotConverged;
     f.iterations = itsImp->scf->GetIterationCount();

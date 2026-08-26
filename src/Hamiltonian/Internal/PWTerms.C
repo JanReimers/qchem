@@ -527,6 +527,9 @@ class Vxc_QuadraturePol
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
+    //! The atom-centred partition lives on my quadrature, so I am the term that can answer this
+    //! (doc/OpenWork.md N1/T2).  Empty when the quadrature has no site blocks (a uniform raster).
+    virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
     typedef std::shared_ptr<ExFunctional>  xc_t;
     typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
     Vxc_QuadraturePol(const xc_t&, quad_t);

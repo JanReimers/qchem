@@ -984,6 +984,10 @@ template <class U> hmat_t<U> Vxc_QuadraturePol::MakeMatrixT(const tobs_t<U>* bs,
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
     return itsQuad->Matrix(bs, v);
 }
+// T2 (doc/OpenWork.md N1): forward to the quadrature, which owns the atom-centred partition.  Empty when
+// it has none -- the caller (SolidCalculation) treats empty as "this run cannot answer", never as "zero".
+rvec_t Vxc_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return itsQuad->SiteMoments(cd);}
+
 chmat_t Vxc_QuadraturePol::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
 rsmat_t Vxc_QuadraturePol::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
