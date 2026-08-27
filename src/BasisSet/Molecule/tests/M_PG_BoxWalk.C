@@ -220,6 +220,189 @@ struct SeparableCube
     }
 };
 
+//--------------------------------------------------------------------------------------------------------
+// THE SKEWED-STEP GRID (CP2K's "general"; every production cell we run is one of these -- Si and NaF are
+// FCC PRIMITIVE cells whose vectors sit at 60 degrees, MnO is rhombohedral).  The Cartesian coordinate is
+// then a linear combination of ALL THREE grid indices, so nothing separates per axis and the 1-D tables
+// above do not exist.  What survives is:
+//
+//   * "MATHIEU'S TRICK" for the exponential.  With u = SUM_a e_a s_a and metric h_ab = s_a . s_b,
+//         |u|^2 = SUM_a e_a^2 h_aa + 2 SUM_{a<b} e_a e_b h_ab
+//     and that splits EXACTLY into three 2-D tables:
+//         e^{-p|u|^2} = T12(e1,e2) * T23(e2,e3) * T31(e3,e1),
+//         T12 = e^{-p(e1^2 h11 + 2 e1 e2 h12)},  and cyclic.
+//     So the exponential costs O(n^2) table entries and THREE LOOKUPS + two multiplies per point.
+//
+//   * The POLYNOMIAL re-expanded in GRID-INDEX powers.  u_x = SUM_a e_a s_a.x is linear in the indices, so
+//     a polynomial of degree lp in (u_x,u_y,u_z) is a polynomial of degree lp in (e1,e2,e3).  Folding e3
+//     per plane and e2 per line leaves lp+1 fused multiply-adds per point, exactly as in the orthogonal
+//     case.
+//--------------------------------------------------------------------------------------------------------
+struct SkewGrid
+{
+    rvec3_t s[3];        // the three grid step vectors
+    double  h[3][3];     // the metric h_ab = s_a . s_b
+    ivec3_t N;
+
+    SkewGrid(const UnitCell& A, const ivec3_t& n) : N(n)
+    {
+        s[0]=A.ToCartesian(rvec3_t(1.0/n.x,0,0));
+        s[1]=A.ToCartesian(rvec3_t(0,1.0/n.y,0));
+        s[2]=A.ToCartesian(rvec3_t(0,0,1.0/n.z));
+        for (int a=0;a<3;a++)
+            for (int b=0;b<3;b++) h[a][b]=s[a].x*s[b].x+s[a].y*s[b].y+s[a].z*s[b].z;
+    }
+    bool Orthogonal(double tol=1e-12) const
+    {
+        return std::fabs(h[0][1])<tol && std::fabs(h[1][2])<tol && std::fabs(h[2][0])<tol;
+    }
+    size_t idx(long i, long j, long k) const
+    {
+        const long mi=((i%N.x)+N.x)%N.x, mj=((j%N.y)+N.y)%N.y, mk=((k%N.z)+N.z)%N.z;
+        return (size_t(mi)*N.y+mj)*N.z+mk;
+    }
+};
+
+//! A polynomial in the three grid-index offsets \c (e1,e2,e3), degree-bounded by \c SeparableCube::kMaxS.
+struct IndexPoly
+{
+    static constexpr int K=6;          // degree <= lp = La+Lb; 5 covers every shell pair in these bases
+    double q[K][K][K];                 // NOT zero-initialised: Zero(deg) clears only what is used
+    void Zero(int deg)
+    {
+        for (int a=0;a<=deg;a++)
+            for (int b=0;a+b<=deg;b++)
+                for (int c=0;a+b+c<=deg;c++) q[a][b][c]=0.0;
+    }
+    //! Multiply in place by the linear form \f$L_0 e_1+L_1 e_2+L_2 e_3\f$, raising the degree by one.
+    //! ⚠ EVERY loop is bounded by the actual degree.  A first cut ran the temp's zero-and-copy over the
+    //! full \c K^3 = 729 slots ~375 times per cube; that setup alone swamped the contraction and made the
+    //! non-ortho gate read 2.7x when the kernel was never the cost.  A prototype's OWN overhead is the
+    //! easiest way to measure the wrong thing.
+    void MulLinear(const double L[3], int deg)
+    {
+        double n[K][K][K];
+        for (int a=0;a<=deg+1;a++)
+            for (int b=0;a+b<=deg+1;b++)
+                for (int c=0;a+b+c<=deg+1;c++) n[a][b][c]=0.0;
+        for (int a=0;a<=deg;a++)
+            for (int b=0;a+b<=deg;b++)
+                for (int c=0;a+b+c<=deg;c++)
+                {
+                    const double v=q[a][b][c];
+                    if (v==0.0) continue;
+                    n[a+1][b][c]+=v*L[0];  n[a][b+1][c]+=v*L[1];  n[a][b][c+1]+=v*L[2];
+                }
+        for (int a=0;a<=deg+1;a++)
+            for (int b=0;a+b<=deg+1;b++)
+                for (int c=0;a+b+c<=deg+1;c++) q[a][b][c]=n[a][b][c];
+    }
+};
+
+//! Re-expand \f$\sum c_{s_xs_ys_z}u_x^{s_x}u_y^{s_y}u_z^{s_z}\f$ into powers of the grid-index offsets.
+IndexPoly ToIndexPoly(const SeparableCube& sc, const SkewGrid& g)
+{
+    const double Lx[3]={g.s[0].x,g.s[1].x,g.s[2].x};
+    const double Ly[3]={g.s[0].y,g.s[1].y,g.s[2].y};
+    const double Lz[3]={g.s[0].z,g.s[1].z,g.s[2].z};
+    IndexPoly out; out.Zero(sc.lp);
+    IndexPoly t;
+    for (int sx=0;sx<=sc.lp;sx++)
+        for (int sy=0;sy+sx<=sc.lp;sy++)
+            for (int sz=0;sz+sy+sx<=sc.lp;sz++)
+            {
+                const double cf=sc.c[sx][sy][sz];
+                if (cf==0.0) continue;
+                t.Zero(sx+sy+sz); t.q[0][0][0]=cf;
+                int deg=0;
+                for (int r=0;r<sx;r++) { t.MulLinear(Lx,deg); deg++; }
+                for (int r=0;r<sy;r++) { t.MulLinear(Ly,deg); deg++; }
+                for (int r=0;r<sz;r++) { t.MulLinear(Lz,deg); deg++; }
+                for (int a=0;a<=deg;a++)
+                    for (int b=0;a+b<=deg;b++)
+                        for (int cc=0;a+b+cc<=deg;cc++) out.q[a][b][cc]+=t.q[a][b][cc];
+            }
+    return out;
+}
+
+//! \brief The SKEWED-grid contraction: Mathieu's three 2-D exponential tables plus a grid-index
+//! polynomial, innermost loop = \c lp+1 fused multiply-adds and three table lookups.
+void ContractSkew(const SeparableCube& sc, const SkewGrid& g, const long c0[3], const int hw[3],
+                  const double f[3], double rad2, rvec_t& rho)
+{
+    const int n[3]={2*hw[0]+1, 2*hw[1]+1, 2*hw[2]+1};
+    const IndexPoly Q=ToIndexPoly(sc,g);
+    // e_a at local table position t along axis a
+    auto eOf=[&](int a, int t){ return double(c0[a]-hw[a]+t)-f[a]; };
+    // The three 2-D tables.  Built with direct exp calls -- O(n^2) of them against the walk's O(n^3), and
+    // a real implementation would use the multiplicative recurrence CP2K does, so this is if anything
+    // PESSIMISTIC for the new form.
+    static thread_local std::vector<double> T12, T23, T31;   // scratch, reused across cubes
+    T12.assign(size_t(n[0])*n[1],0.0); T23.assign(size_t(n[1])*n[2],0.0); T31.assign(size_t(n[2])*n[0],0.0);
+    for (int i=0;i<n[0];i++) for (int j=0;j<n[1];j++)
+    { const double e1=eOf(0,i), e2=eOf(1,j); T12[size_t(i)*n[1]+j]=std::exp(-sc.p*(e1*e1*g.h[0][0]+2*e1*e2*g.h[0][1])); }
+    for (int j=0;j<n[1];j++) for (int k=0;k<n[2];k++)
+    { const double e2=eOf(1,j), e3=eOf(2,k); T23[size_t(j)*n[2]+k]=std::exp(-sc.p*(e2*e2*g.h[1][1]+2*e2*e3*g.h[1][2])); }
+    for (int k=0;k<n[2];k++) for (int i=0;i<n[0];i++)
+    { const double e3=eOf(2,k), e1=eOf(0,i); T31[size_t(k)*n[0]+i]=std::exp(-sc.p*(e3*e3*g.h[2][2]+2*e3*e1*g.h[2][0])); }
+    // e1 powers, so the innermost loop reads a table instead of building powers.
+    static thread_local std::vector<double> E1;
+    E1.assign(size_t(sc.lp+1)*n[0],0.0);
+    for (int i=0;i<n[0];i++) { double e=1.0; const double e1=eOf(0,i);
+                               for (int a=0;a<=sc.lp;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
+
+    double cij[SeparableCube::kMaxS][SeparableCube::kMaxS], ci[SeparableCube::kMaxS];
+    for (int k=0;k<n[2];k++)
+    {
+        const double e3=eOf(2,k);
+        for (int a=0;a<=sc.lp;a++)                       // fold e3: cijk -> cij, once per plane
+            for (int b=0;a+b<=sc.lp;b++)
+            {
+                double v=0.0, e=1.0;
+                for (int cc=0;a+b+cc<=sc.lp;cc++) { v+=Q.q[a][b][cc]*e; e*=e3; }
+                cij[a][b]=v;
+            }
+        for (int j=0;j<n[1];j++)
+        {
+            const double e2=eOf(1,j);
+            for (int a=0;a<=sc.lp;a++)                   // fold e2: cij -> ci, once per line
+            {
+                double v=0.0, e=1.0;
+                for (int b=0;a+b<=sc.lp;b++) { v+=cij[a][b]*e; e*=e2; }
+                ci[a]=v;
+            }
+            // the chord: h11 e1^2 + 2 e1 (h12 e2 + h31 e3) + (h22 e2^2 + h33 e3^2 + 2 h23 e2 e3) <= rad2
+            const double A2=g.h[0][0];
+            const double B2=2.0*(g.h[0][1]*e2+g.h[2][0]*e3);
+            const double C2=g.h[1][1]*e2*e2+g.h[2][2]*e3*e3+2.0*g.h[1][2]*e2*e3-rad2;
+            const double D2=B2*B2-4.0*A2*C2;
+            if (D2<0.0) continue;                        // this line misses the sphere
+            const double sq=std::sqrt(D2), inv=0.5/A2;
+            double lo=(-B2-sq)*inv, hi=(-B2+sq)*inv;     // in e1, i.e. absolute index minus f[0]
+            // Widened by a point at each end -- same discipline as the production chord skip: the bracket
+            // must be a strict SUPERSET of the accepted set, never a second truncation.
+            long ia=long(std::floor(lo+f[0]))-(c0[0]-hw[0])-1, ib=long(std::ceil(hi+f[0]))-(c0[0]-hw[0])+1;
+            if (ia<0) ia=0;
+            if (ib>n[0]-1) ib=n[0]-1;
+            const double t23=T23[size_t(j)*n[2]+k];
+            // The wrap is HOISTED, as in the production walk: mx/my (and their row offset) are constant
+            // across this line and mz advances by one with a compare.  Three modulo operations per point
+            // is the same defect that cost 13.9% there; a prototype must not reintroduce it and then be
+            // read as evidence about the algorithm.
+            const size_t my=size_t(((( c0[1]-hw[1]+j)%g.N.y)+g.N.y)%g.N.y);
+            const size_t mk=size_t((((c0[2]-hw[2]+k)%g.N.z)+g.N.z)%g.N.z);
+            size_t mi=size_t((((c0[0]-hw[0]+ia)%g.N.x)+g.N.x)%g.N.x);
+            for (long i=ia; i<=ib; i++, mi=(mi+1==size_t(g.N.x)?0:mi+1))
+            {
+                double v=0.0;
+                for (int a=0;a<=sc.lp;a++) v+=ci[a]*E1[size_t(a)*n[0]+i];   // <- lp+1 FMAs
+                rho[(mi*size_t(g.N.y)+my)*size_t(g.N.z)+mk]
+                    += sc.Eij*v*T12[size_t(i)*n[1]+j]*t23*T31[size_t(k)*n[0]+i];
+            }
+        }
+    }
+}
+
 //! The cube geometry both paths agree on: the reach sphere and its index bounding box.
 struct CubeGeom { long lo[3], hi[3]; double rad2; };
 
@@ -294,6 +477,61 @@ bool FindShell(const NR_Evaluator& ev, const rvec3_t& centre, double exponent, i
     }
     return false;
 }
+
+//! The cube ForShellPairBox would walk, in the SAME terms it uses: centre index, half-widths, the
+//! fractional centre in grid units, and the chord radius^2 (in Cartesian a.u.).
+struct SkewGeom { long c0[3]; int hw[3]; double f[3]; double rad2; };
+
+SkewGeom MakeSkewGeom(const NR_Evaluator& ev, size_t i0, size_t j0, const rvec3_t& Roff,
+                      const UnitCell& A, const ivec3_t& N, double eps)
+{
+    const double a=ev.radials[i0]->GetExponents()[0], b=ev.radials[j0]->GetExponents()[0];
+    const rvec3_t Ai=ev.radials[i0]->GetCenter(), Bj=ev.radials[j0]->GetCenter()+Roff;
+    const double pMin=a+b;
+    const rvec3_t P=(a*Ai+b*Bj)/pMin, dij=Ai-Bj;
+    const double pf=(a*b/pMin)*(dij.x*dij.x+dij.y*dij.y+dij.z*dij.z);
+    const double lnE=-std::log(eps);
+    const double reach=std::sqrt(std::max(0.0,lnE-pf)/pMin)+1.0;
+    const double lnCut=std::min(lnE+12.0, pMin*reach*reach+pf);
+    const rvec3_t fP=A.ToFractional(P);
+    const rvec3_t fex=A.ToFractional(rvec3_t(1,0,0)), fey=A.ToFractional(rvec3_t(0,1,0)),
+                  fez=A.ToFractional(rvec3_t(0,0,1));
+    const double rb[3]={std::sqrt(fex.x*fex.x+fey.x*fey.x+fez.x*fez.x),
+                        std::sqrt(fex.y*fex.y+fey.y*fey.y+fez.y*fez.y),
+                        std::sqrt(fex.z*fex.z+fey.z*fey.z+fez.z*fez.z)};
+    const double fPc[3]={fP.x,fP.y,fP.z};
+    const int    Nc[3] ={N.x,N.y,N.z};
+    SkewGeom g;
+    g.rad2=(lnCut-pf)/pMin;
+    for (int d=0; d<3; d++)
+    {
+        g.hw[d]=int(std::ceil(reach*rb[d]*Nc[d]))+1;
+        g.c0[d]=std::lround(fPc[d]*Nc[d]);
+        g.f [d]=fPc[d]*Nc[d];
+    }
+    return g;
+}
+
+//! Two centres in an ARBITRARY cell -- the production shape (FCC primitive / rhombohedral), where the grid
+//! step vectors are NOT mutually orthogonal.
+struct SkewFixture
+{
+    Molecule                     mol;
+    std::unique_ptr<Orbital_IBS> ibs;
+    UnitCell                     cell;
+    ivec3_t                      N;
+    rvec3_t                      cA, cB;
+
+    SkewFixture(const UnitCell& c, const ivec3_t& n, const rvec3_t& a0, const rvec3_t& b0,
+                double aExp, double bExp)
+        : cell(c), N(n), cA(a0), cB(b0)
+    {
+        mol.Insert(new Atom(25, 0, a0));
+        mol.Insert(new Atom( 8, 0, b0));
+        ibs=std::make_unique<Orbital_IBS>(rvec_t{aExp,bExp}, 2, &mol);
+    }
+    const NR_Evaluator& Ev() const {return *ibs;}
+};
 
 } // anonymous namespace
 
@@ -428,4 +666,135 @@ TEST(M_PG_BoxWalk, SeparableContractionGate)
     // The gate is on the REPRESENTATIVE cases, not the s x s floor (a 1-FMA innermost loop cannot show the
     // structural win).  Reported for all; asserted on the worst of the three L>0 cases.
     EXPECT_GT(worstRatio, 1.0) << "the separable form must at least not be slower";
+}
+
+
+//========================================================================================================
+// THE SKEWED-STEP GRID -- the ONLY shape any production cell has.
+//
+// Si and NaF run on FCC PRIMITIVE cells, whose vectors (0,a/2,a/2), (a/2,0,a/2), (a/2,a/2,0) sit at 60
+// degrees to each other; MnO's magnetic cell is rhombohedral.  Their CRYSTAL SYSTEMS are cubic, cubic and
+// rhombohedral -- irrelevant here.  What matters is that the grid METRIC h_ab = s_a . s_b is NOT diagonal,
+// so no Cartesian coordinate is a function of one grid index and the per-axis 1-D tables above do not
+// exist.  The orthogonal-step tests in this file are the atom-in-box shape only.
+//========================================================================================================
+TEST(M_PG_BoxWalk, SkewGridStepsAreNotOrthogonal)
+{
+    const FCCUnitCell si(10.26);
+    const UnitCell    mno(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
+    const UnitCell    box(Matrix3D<double>(16.0,0,0, 0,16.0,0, 0,0,16.0));
+    EXPECT_FALSE(SkewGrid(si ,ivec3_t(24,24,24)).Orthogonal()) << "FCC primitive: 60 degrees between steps";
+    EXPECT_FALSE(SkewGrid(mno,ivec3_t(32,32,32)).Orthogonal()) << "MnO rhombohedral";
+    EXPECT_TRUE (SkewGrid(box,ivec3_t(96,96,96)).Orthogonal()) << "the atom-in-box shape";
+}
+
+TEST(M_PG_BoxWalk, SkewContractionMatchesTheWalk)
+{
+    const FCCUnitCell cell(10.26);
+    const ivec3_t     N(24,24,24);
+    SkewFixture fx(cell, N, rvec3_t(0,0,0), rvec3_t(2.565,2.565,2.565), 1.2, 2.0);
+    const NR_Evaluator& ev=fx.Ev();
+    size_t i0,nI,j0,nJ;
+    ASSERT_TRUE(FindShell(ev, fx.cA, 1.2, 2, i0, nI));
+    ASSERT_TRUE(FindShell(ev, fx.cB, 2.0, 1, j0, nJ));
+    std::vector<double> w(nI*nJ);
+    for (size_t t=0;t<w.size();t++) w[t]=0.25+0.5*double((t*7)%5);
+
+    const size_t npts=size_t(N.x)*N.y*N.z;
+    rvec_t ref(npts,0.0), got(npts,0.0);
+    std::vector<char> visited(npts,0);
+    ev.ForShellPairBox(i0,nI,j0,nJ,rvec3_t(0,0,0),fx.cell,N,
+        [&](size_t idx, const double* fI, const double* fJ)
+        {
+            double v=0.0;
+            for (size_t a=0;a<nI;a++)
+                for (size_t b=0;b<nJ;b++) v += w[a*nJ+b]*fI[a]*fJ[b];
+            ref[idx]+=v; visited[idx]=1;
+        }, 1e-10);
+
+    const SeparableCube sc(ev,i0,nI,j0,nJ,rvec3_t(0,0,0),w);
+    const SkewGrid      g(fx.cell,N);
+    const SkewGeom      gm=MakeSkewGeom(ev,i0,j0,rvec3_t(0,0,0),fx.cell,N,1e-10);
+    ContractSkew(sc,g,gm.c0,gm.hw,gm.f,gm.rad2,got);
+
+    // TWO STATEMENTS, because the two paths do not keep the identical point set and pretending otherwise
+    // is what produced a misleading tolerance on the first cut.  The walk applies its screen PER POINT;
+    // the contraction brackets the chord and deliberately widens it by a point at each end, so it keeps a
+    // few extra points at the boundary.  Both statements below are needed, and neither implies the other:
+    //
+    //   (1) WHERE THE WALK WENT, the values must agree -- this is the correctness claim.
+    //   (2) WHERE IT DID NOT, whatever the contraction added must be BELOW THE COLLOCATION EPS -- this is
+    //       the claim that the extra points are the sub-eps tail and not a real difference.
+    //
+    // ⚠ A single "worst absolute difference vs the cube's peak" criterion conflates the two and gets its
+    // scale from the wrong quantity: the boundary terms are set by exp(-lnCut), which has NOTHING to do
+    // with the peak.  Measured here, the extra points sit at 4.4e-13 -- 4e-3 of the 1e-10 eps.
+    double worst=0.0, peak=0.0, extra=0.0;
+    for (size_t t=0;t<npts;t++) peak=std::max(peak, std::fabs(ref[t]));
+    ASSERT_GT(peak, 1e-6) << "the cube must carry real density";
+    for (size_t t=0;t<npts;t++)
+        if (visited[t]) worst=std::max(worst, std::fabs(got[t]-ref[t]));
+        else            extra=std::max(extra, std::fabs(got[t]));
+    EXPECT_LT(worst, 1e-11*peak) << "skew contraction disagrees where the walk went (peak "<<peak<<")";
+    EXPECT_LT(extra, 1e-10)      << "the points the contraction adds must be below the collocation eps";
+}
+
+//========================================================================================================
+// STEP 0b -- THE GATE THAT ACTUALLY COUNTS.  The step-0 gate above ran on an orthogonal-step grid, which
+// NO production cell has; this one runs on the real Si and MnO metrics.
+//========================================================================================================
+TEST(M_PG_BoxWalk, SkewSeparableContractionGate)
+{
+    struct Case { const char* name; UnitCell cell; ivec3_t N; rvec3_t A,B; double a,b; int La,Lb; };
+    const std::vector<Case> cases={
+        {"Si FCC primitive, d x p",  FCCUnitCell(10.26), ivec3_t(24,24,24),
+         rvec3_t(0,0,0), rvec3_t(2.565,2.565,2.565), 1.2, 2.0, 2, 1},
+        {"MnO rhombohedral, d x p",  UnitCell(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40)),
+         ivec3_t(32,32,32), rvec3_t(0,0,0), rvec3_t(2.4249,2.4249,2.4249), 1.2, 2.0, 2, 1},
+        {"MnO rhombohedral, DIFFUSE d x p", UnitCell(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40)),
+         ivec3_t(32,32,32), rvec3_t(0,0,0), rvec3_t(2.4249,2.4249,2.4249), 0.38, 0.46, 2, 1},
+        {"MnO rhombohedral, d x d",  UnitCell(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40)),
+         ivec3_t(32,32,32), rvec3_t(0,0,0), rvec3_t(2.4249,2.4249,2.4249), 1.2, 1.5, 2, 2},
+    };
+    double worst=1e30;
+    std::printf("\n  %-38s %10s %10s %8s\n","skewed-step case","walk (ms)","contract","ratio");
+    for (const Case& C : cases)
+    {
+        SkewFixture fx(C.cell, C.N, C.A, C.B, C.a, C.b);
+        const NR_Evaluator& ev=fx.Ev();
+        size_t i0,nI,j0,nJ;
+        ASSERT_TRUE(FindShell(ev, C.A, C.a, C.La, i0, nI)) << C.name;
+        ASSERT_TRUE(FindShell(ev, C.B, C.b, C.Lb, j0, nJ)) << C.name;
+        std::vector<double> w(nI*nJ, 1.0);
+        const SkewGrid g(fx.cell,C.N);
+        const SkewGeom gm=MakeSkewGeom(ev,i0,j0,rvec3_t(0,0,0),fx.cell,C.N,1e-10);
+        ASSERT_FALSE(g.Orthogonal()) << C.name << ": this gate is meaningless on an orthogonal grid";
+
+        rvec_t rho(size_t(C.N.x)*C.N.y*C.N.z, 0.0);
+        // A pair whose prefactor screen kills the WHOLE box walks nothing and times 0.00 ms -- a
+        // DEGENERATE case, not a fast one.  Assert the cube is real before timing it.
+        size_t visited=0;
+        ev.ForShellPairBox(i0,nI,j0,nJ,rvec3_t(0,0,0),fx.cell,C.N,
+                           [&](size_t,const double*,const double*){visited++;}, 1e-10);
+        ASSERT_GT(visited, 500u) << C.name << ": the box is empty or trivial, nothing to time";
+        const int reps=20;
+        auto t0=std::chrono::steady_clock::now();
+        for (int t=0;t<reps;t++) WalkInto(ev,i0,nI,j0,nJ,rvec3_t(0,0,0),fx.cell,C.N,w,1e-10,rho);
+        auto t1=std::chrono::steady_clock::now();
+        for (int t=0;t<reps;t++)
+        {
+            const SeparableCube sc(ev,i0,nI,j0,nJ,rvec3_t(0,0,0),w);   // its own collapse every rep
+            ContractSkew(sc,g,gm.c0,gm.hw,gm.f,gm.rad2,rho);           // and its own tables
+        }
+        auto t2=std::chrono::steady_clock::now();
+        const double walk=std::chrono::duration<double,std::milli>(t1-t0).count();
+        const double cont=std::chrono::duration<double,std::milli>(t2-t1).count();
+        std::printf("  %-38s %10.2f %10.2f %7.2fx\n", C.name, walk, cont, walk/cont);
+        worst=std::min(worst, walk/cont);
+    }
+    std::printf("\n");
+    // A REGRESSION GUARD, not the gate itself -- the gate is a human decision read off the printed table
+    // (this box is shared, so absolute times swing ~2x between runs while the RATIOS hold to ~20%).
+    // Observed floor across runs: 2.6x (Si d x p).  Anything under 2x means something structural broke.
+    EXPECT_GT(worst, 2.0) << "the separable form lost its margin on a non-orthogonal metric";
 }

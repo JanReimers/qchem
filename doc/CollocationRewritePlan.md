@@ -12,6 +12,15 @@ cache down with the same change.  Forward plan; the measured record that motivat
   for one shell pair at one cross-cell offset, walks the grid points of the product's compact box.
 - **"DENSITY-MATRIX SUB-BLOCK", never "D-block"** (user).  In a codebase whose hardest case is Mn *d
   shells*, "D-block" reads as angular momentum.  \f$D_{ij}\f$ over \f$i\in\f$ shell I, \f$j\in\f$ shell J.
+- **ORTHO vs NON-ORTHO METRIC**, never crystal-system names (user, 2026-08-27).  The only thing that
+  matters is whether the grid metric \f$h_{ab}=s_a\!\cdot\!s_b\f$ (with \f$s_a=A\hat e_a/N_a\f$ the grid
+  step vectors) is DIAGONAL.  It is unrelated to the crystal system: Si diamond and NaF rocksalt are
+  **cubic** crystals and MnO's magnetic cell is **rhombohedral**, yet all three raster on cells whose steps
+  are NOT mutually orthogonal — Si and NaF because `FCCUnitCell` is the PRIMITIVE cell
+  (\f$(0,\tfrac a2,\tfrac a2)\f$ etc., 60° apart), MnO because its cell is
+  \f$(a,\tfrac a2,\tfrac a2;\ldots)\f$.  ⇒ **EVERY production cell we run has a NON-ORTHO metric.**  The
+  only ortho-metric grids in the suite are the atom-in-box tests (Na, O₂, Mn₂, Na₂).
+  CP2K calls these `ortho` and `general`; the distinction is theirs, the vocabulary confusion was mine.
 - **EVERY speed number is the sum of exactly two timing-ledger buckets** — `scf: integrate-back (pair
   gather)` + `scf: collocate density (pair scatter)`.  They are EXCLUSIVE and DISJOINT, so no setup
   subtraction ever appears.  `GPW_REPORT=1` prints them.
@@ -94,8 +103,8 @@ a table-reuse flatter.
 counter-example: a 1-FMA innermost loop has no structural win to show, and s×s pairs are not where the
 time goes.  ★ The DIFFUSE case gains most (8.4×), which is the right way round — diffuse pairs own the
 biggest boxes and therefore most of the cost.
-⚠ **ORTHORHOMBIC only, i.e. the OPTIMISTIC case.**  This gate could only ever KILL the plan; passing it
-does not prove the triclinic path pays.  Step 5 needs its own number.
+⛔ **AND THIS ROW IS NOT THE ANSWER: it is an ORTHO-METRIC grid, which NO production cell has.**  Quote
+the non-ortho gate below instead.
 
 <details><summary>the original statement of the gate</summary>
 Time a single representative (shell pair, offset) from MnO (an Mn *d* × O *p* pair at a real level) two
@@ -110,6 +119,46 @@ and bought 3%, after a full gated implementation.  A cube-level number would hav
 **A hot symbol's share is an upper bound on the win, not an estimate of it** — and the only cheap way to
 tell the difference is to build the replacement kernel in isolation FIRST.
 </details>
+
+### ✅ Step 0b — THE GATE THAT COUNTS: **non-ortho metric, 3.5–7×** (2026-08-27)
+`SkewSeparableContractionGate`, on the REAL metrics: Si `FCCUnitCell(10.26)` at 24³ and MnO
+\f$(8.4,4.2,4.2;\ldots)\f$ at 32³, centres at the true contact distances (Si–Si 4.44 a.u., Mn–O 4.2 a.u.).
+Mathieu's three 2-D exponential tables + the polynomial re-expanded in grid-index powers; innermost loop
+\f$l_p{+}1\f$ FMAs and three table lookups.  Ratios over three runs (absolute times swing ~2× on this
+shared box; the ratios hold to ~20%):
+
+| non-ortho case | ratio |
+|---|---|
+| Si FCC primitive, d × p | 2.6–3.6× |
+| MnO rhombohedral, d × p | 3.6–4.5× |
+| **MnO rhombohedral, DIFFUSE d × p** | **6.3–7.2×** |
+| MnO rhombohedral, d × d | 4.2–4.6× |
+
+⇒ **Lower than the ortho row's 6.4–8.4×, as expected**: with an ortho metric the exponential tables are
+\f$O(n)\f$ (1-D); with a non-ortho one they are \f$O(n^2)\f$ (three 2-D tables), so the transcendental
+saving drops from \f$\sim n^2\f$ to \f$\sim n\f$.
+★ **The DIFFUSE pair gains most (6–7×), and it is the one that matters** — its cube costs 114–128 ms
+against 16–34 ms for the mid pairs, so it dominates the cost-weighted answer.
+⇒ **VERDICT: the gate is cleared**, but on a smaller margin than the ortho number advertised, and the
+projected 5–15× in §4 should be read as 4–7× until measured in situ.
+
+★ **KNOWN HEADROOM, and it resurrects the parked branch AT THE RIGHT LEVEL.**  The prototype builds its
+2-D tables with \f$3n^2\f$ DIRECT `exp` calls; CP2K builds the same tables with the multiplicative
+recurrence (`grid_cpu_collint.h:752`, seeded symmetrically outward from the cube centre).  That is exactly
+the identity rejected in doc/OpenWork.md — rejected there because it sat inside an \f$O(n^3)\f$ point
+loop and was z-anisotropic.  On an \f$O(n^2)\f$ TABLE it is neither.  So these ratios are a FLOOR.
+
+⚠ **THREE PROTOTYPE DEFECTS FOUND AND FIXED WHILE GETTING THIS NUMBER — all of them made the algorithm
+look worse than it is, and the first two would have been quoted as fact:**
+1. `IndexPoly::MulLinear` zeroed and copied its full \f$9^3=729\f$ slots ~375× per cube; degree-bounding
+   every loop was worth ~2×.
+2. The innermost loop called a helper doing THREE modulo operations per point — the identical defect that
+   cost 13.9% in the production walk, reintroduced in the thing meant to measure it.
+3. Two MnO cases had the centres 7.27 a.u. apart, where the prefactor screen kills the whole box: the walk
+   timed **0.00 ms** and the ratio read 0.00×.  A DEGENERATE case, not a fast one.  The gate now asserts
+   the cube is non-trivial before timing it.
+⇒ **A prototype's own overhead is the easiest way to measure the wrong thing.**  First reading was 2.6×
+across the board; after the fixes, 3.5–7×.
 
 ### ✅ Step 1 — THE ORACLE: DONE 2026-08-27 (two tests, same file)
 `SeparableCollapseMatchesTheWalkPointwise` sweeps \f$L_a,L_b\in\{0,1,2\}\f$ × three \f$\alpha_I\f$ × two
@@ -152,11 +201,12 @@ pre-filtering on it is what made the shell hoist pay at all — measured 1.03–
   unchanged.
 - **Only if that fails:** derive a bound on \f$|c_{NLM}|\f$ and screen the coefficient tensor.
 
-### Step 4 — The ORTHORHOMBIC kernel, gated.
-Three 1-D tables, three-step contraction.  Simpler, and it gets the contraction machinery right without
-cross terms.  Validated against the step-1 oracle, then the cubic-box integration cases (Na, O2, Mn2, Na2).
+### Step 4 — The ORTHO-METRIC kernel — ⚠ DEMOTED: a stepping stone that ships NOTHING
+Three 1-D tables, three-step contraction.  ⛔ **No production cell has an ortho metric** — only the
+atom-in-box tests do.  So this buys simpler bring-up of the contraction machinery and nothing else; do it
+only if step 5 proves hard to land in one go, and never quote its numbers as the result.
 
-### Step 5 — The TRICLINIC kernel — what Si/FCC, NaF and MnO actually run.
+### Step 5 — The NON-ORTHO kernel — **THE ONLY ONE WITH PRODUCTION USERS**.
 "Mathieu's trick" (`cp2k/src/grid/cpu/grid_cpu_collint.h:532,752`): the quadratic form factors EXACTLY into
 three 2-D tables, \f$e^{-\zeta_p Q(i,j,k)}=T_{ij}T_{jk}T_{ki}\f$ with
 \f$T_{ij}=e^{-\zeta_p(d_i^2h_{ii}+2d_id_jh_{ij})}\f$, plus re-expansion of the polynomial in grid-index
