@@ -940,3 +940,70 @@ TEST(M_PG_BoxWalk, ContractedCubeReproducesThePairIntegrals)
     EXPECT_LT(worstAll, 1e-10)
         << "the boundary points the contraction adds moved an integral by more than the collocation eps";
 }
+
+
+//========================================================================================================
+// THE TASK-LIST QUESTION (user, 2026-08-27): "since we plan to re-evaluate every iteration rather than
+// cache, would it make sense to build a list of (i,j) pairs -- or (i,j,R) triples -- that pass the screen?"
+//
+// This is exactly CP2K's TASK LIST (cp2k/src/grid/grid_task_list.h): a task is
+// (level, iatom, jatom, iset, jset, ipgf, jpgf, border_mask, block_num, radius, rab) -- the (shell pair,
+// primitive pair, image) triple with the reach precomputed.  The question this test answers is WHICH of
+// the candidate benefits is real, because the obvious one turns out not to be.
+//
+// Measured here: the per-call cost of ENUMERATING and SCREENING the (shell pair, offset) set -- everything
+// a task list would hoist out of the per-iteration path -- against the cost of actually walking it.
+//========================================================================================================
+TEST(M_PG_BoxWalk, OffsetEnumerationIsNotTheCost)
+{
+    // A 4-atom MnO-shaped cell with three exponents per atom: enough shell pairs for the enumeration
+    // cost to be visible if it is there at all.
+    const UnitCell cell(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
+    const ivec3_t  N(32,32,32);
+    Molecule mol;
+    mol.Insert(new Atom(25, 0, rvec3_t(0,0,0)));
+    mol.Insert(new Atom(25, 0, rvec3_t(4.20,4.20,4.20)));
+    mol.Insert(new Atom( 8, 0, rvec3_t(2.4249,2.4249,2.4249)));
+    mol.Insert(new Atom( 8, 0, rvec3_t(6.20,6.20,6.20)));
+    Orbital_IBS ibs(rvec_t{0.38,1.2,4.0}, 2, &mol);
+    const NR_Evaluator& ev=ibs;
+    const std::vector<NR_Evaluator::Shell>& shells=ev.Shells();
+    ASSERT_GT(shells.size(), 20u) << "the fixture must have a realistic shell count";
+
+    // (a) enumeration + the pair prefactor screen ONLY -- what a task list hoists.
+    size_t nOffsets=0;
+    auto t0=std::chrono::steady_clock::now();
+    for (size_t a=0;a<shells.size();a++)
+        for (size_t b=a;b<shells.size();b++)
+            ev.ForImageOffsets(shells[a].begin, shells[b].begin, cell,
+                               [&](const ivec3_t&, const rvec3_t&){ nOffsets++; });
+    auto t1=std::chrono::steady_clock::now();
+
+    // (b) the same set, actually walked.
+    size_t nPoints=0;
+    for (size_t a=0;a<shells.size();a++)
+        for (size_t b=a;b<shells.size();b++)
+        {
+            const NR_Evaluator::Shell& si=shells[a]; const NR_Evaluator::Shell& sj=shells[b];
+            ev.ForImageOffsets(si.begin, sj.begin, cell, [&](const ivec3_t&, const rvec3_t& Roff)
+            {
+                ev.ForShellPairBox(si.begin, si.end-si.begin, sj.begin, sj.end-sj.begin, Roff, cell, N,
+                                   [&](size_t, const double*, const double*){ nPoints++; }, 1e-10);
+            });
+        }
+    auto t2=std::chrono::steady_clock::now();
+
+    const double enu=std::chrono::duration<double,std::milli>(t1-t0).count();
+    const double walk=std::chrono::duration<double,std::milli>(t2-t1).count();
+    std::printf("\n  [task list] %zu shells, %zu (shell pair, offset) tasks, %zu grid points\n"
+                "              enumerate+screen %.2f ms   walk %.2f ms   -> enumeration is %.2f%% of the pass\n"
+                "              value cache would be %.1f MB; a task list is %.3f MB (%.0fx smaller)\n\n",
+                shells.size(), nOffsets, nPoints, enu, walk, 100.0*enu/(enu+walk),
+                double(nPoints)*8.0/1048576.0, double(nOffsets)*48.0/1048576.0,
+                (double(nPoints)*8.0)/(double(nOffsets)*48.0));
+    ASSERT_GT(nOffsets, 100u);
+    ASSERT_GT(nPoints, 100000u);
+    // The claim under test is NOT "the task list is fast" -- it is that ENUMERATION IS NOT WHERE THE TIME
+    // GOES, so a task list must be justified on RAM, precomputed per-task geometry and batching instead.
+    EXPECT_LT(enu, 0.25*walk) << "enumeration unexpectedly significant -- revisit the task-list rationale";
+}

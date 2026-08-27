@@ -297,6 +297,58 @@ pre-filtering on it is what made the shell hoist pay at all — measured 1.03–
 - **Only if that fails:** derive a bound on \f$|c_{NLM}|\f$ and screen the coefficient tensor.
 </details>
 
+### ✅ Step 3c — THE TASK LIST: **yes, build it — but NOT for the reason it looks like** (user, 2026-08-27)
+
+> *"Since we are planning to re-evaluate at every iteration rather than cache, would it make sense to build
+> a list of i,j pairs (or i,j,R triples) that pass the screen?"*
+
+**This is exactly CP2K's TASK LIST** (`cp2k/src/grid/grid_task_list.h`): a task is
+`(level, iatom, jatom, iset, jset, ipgf, jpgf, border_mask, block_num, radius, rab)` — the (shell pair,
+primitive pair, image) triple with the reach precomputed and the level resolved.  Same object, same reason.
+
+⛔ **BUT THE OBVIOUS JUSTIFICATION IS FALSE, and measuring it first is what makes this worth doing.**
+`OffsetEnumerationIsNotTheCost`, on a 4-atom MnO-shaped cell, 36 shells, 32³ grid:
+
+| | |
+|---|---|
+| enumerate + screen all 4482 (shell pair, offset) tasks | **2.26 ms** |
+| actually walk them (102,450,921 grid points) | **2294 ms** |
+| ⇒ enumeration's share of the pass | **0.10 %** |
+
+So hoisting the enumeration saves **nothing**.  `ForImageOffsets` rebuilds a `CellsInSphere` vector per
+shell pair per call and it does not matter.  The same goes for the per-task geometry (reach, \f$P\f$,
+\f$\alpha_p\f$, \f$E_{ij}\f$, the fractional bounding box): ~100 flops against ~100 M grid points.
+
+★ **WHAT THE TASK LIST IS ACTUALLY FOR — and it is the whole point of the rewrite:**
+
+| | measured on the fixture above |
+|---|---|
+| the equivalent VALUE cache (what we store today) | **781.6 MB** |
+| a TASK LIST over the same set (48 B/task) | **0.205 MB** |
+| ratio | **3810×** |
+
+and on the REAL NaF counts (406 pairs, 5514 offsets, 57,444,703 cached points): 459 MB of values against
+265 KB of tasks, **~1700×**.
+
+⇒ **The task list is what makes "re-evaluate every iteration" a DESIGN rather than a regression.**  Today
+"uncached" means re-deriving everything and paying 4218 MB to avoid it.  With a task list the GEOMETRY is
+derived once into a few MB, and only the ARITHMETIC repeats — which the rewrite makes 4–7× cheaper.  That
+is precisely CP2K's posture, and it is the first configuration that beats them on BOTH axes at once.
+
+**The other three reasons, in honest order (none of them enumeration):**
+1. **BATCHING BY \f$(L_a,L_b)\f$.**  Sorting the list groups tasks with the same total degree, so the
+   contraction's innermost `for a<=lp` runs with \f$l_p\f$ known at compile time.  CP2K dispatches exactly
+   this way (`grid_cpu_collocate.c`, `always_inline` low-\f$l_p\f$ variants).  ⚠ Unmeasured here.
+2. **A FLAT, SORTABLE PARALLEL LOOP.**  Today there are two nested `schedule(dynamic)` loops (pairs, then
+   shell pairs); one list sorted longest-first balances better and is trivially chunkable.
+3. **THE D-AWARE FILTER BECOMES AN \f$O(1)\f$ PER-TASK PREDICATE**, cleanly outside the walk — and the
+   static list is a strict SUPERSET, since \f$\varepsilon_{ij}=\varepsilon/|c_{ij}|\ge\varepsilon\f$ means
+   a per-iteration \f$D\f$ can only ever remove tasks, never add one.  So the list is built once at
+   \f$\varepsilon\f$ and filtered per iteration.
+
+⚠ **Do NOT put \f$D\f$ in the task list** (§2a): the list is geometry, valid across iterations AND
+k-blocks; the density is a per-iteration filter and a per-iteration coefficient contraction.
+
 ### Step 4 — The ORTHO-METRIC kernel — ⚠ DEMOTED: a stepping stone that ships NOTHING
 Three 1-D tables, three-step contraction.  ⛔ **No production cell has an ortho metric** — only the
 atom-in-box tests do.  So this buys simpler bring-up of the contraction machinery and nothing else; do it
