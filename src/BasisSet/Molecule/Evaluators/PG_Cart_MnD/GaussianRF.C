@@ -8,6 +8,7 @@
 // on.  Each GaussianRF named kernel is the explicit contraction loop over primitive pairs/triples/quads
 // calling the matching PrimGaussian kernel -- no enum/switch, no dynamic_cast, no re-dispatch.
 module;
+#include <cmath>     // std::exp (GaussProduct's prefactor)
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -34,6 +35,38 @@ import qchem.Structure;
 //  (Previously these were the separate Internal.GData / Internal.Omega modules; folded in here since
 //  nothing else uses them -- which also lets findH3 build the block directly, no cycle-breaker lambda.)
 //
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
+{
+//! \brief THE GAUSSIAN PRODUCT THEOREM, in ONE place (user, 2026-08-27: "it is a shame that we are
+//! duplicating the code inside the Ω structure").
+//!
+//! Two primitive Gaussians \f$a@A\f$ and \f$b@B\f$ collapse to a SINGLE Gaussian of exponent
+//! \f$p=a+b\f$ about \f$P=(aA+bB)/p\f$, times the constant \f$E_{ij}=e^{-\frac{ab}p|A-B|^2}\f$.
+//!
+//! BOTH consumers need exactly this and used to derive it separately: the analytic M&D path (\c Ω, which
+//! then builds \c H2 on top) and the collocation contraction kernel
+//! (\c NR_Evaluator::MakePairPoly, which then builds the per-axis binomials on top).  Two copies of one
+//! identity is how they drift, and the drift would have been silent -- both would still have produced
+//! plausible numbers.  \c Ω keeps its own members and layout; it just stops re-deriving them.
+//!
+//! ⚠ NOTE WHAT IS *NOT* HERE: the contraction coefficients.  \c Ω is a PRIMITIVE-pair object, so
+//! \f$E_{ij}\f$ carries no \f$g_i g_j\f$; a caller working with contracted radials folds those in itself.
+struct GaussProduct
+{
+    double  a, b, ab, p;   //!< the two exponents, their product, and their sum
+    rvec3_t AB;            //!< \f$A-B\f$
+    rvec3_t P;             //!< the product centre
+    double  Eij;           //!< \f$e^{-\frac{ab}p|AB|^2}\f$
+    rvec3_t PA, PB;        //!< \f$P-A\f$ and \f$P-B\f$ -- the Hermite / binomial shifts
+
+    GaussProduct(double aExp, const rvec3_t& A, double bExp, const rvec3_t& B)
+        : a(aExp), b(bExp), ab(a*b), p(a+b)
+        , AB(A-B), P((a*A + b*B)/p), Eij(std::exp(-ab/p*(AB*AB)))
+        , PA(P-A), PB(P-B) {}
+};
+
+} // export namespace
+
 namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 using ::qchem::BasisSet::Molecule::Evaluators::Internal::MnD::RNLM;  // Ω's self-auxiliary
@@ -102,6 +135,9 @@ private:
 struct Ω : public Cacheable2
 {
     Ω(const GData&,const GData&);
+    //! Delegated-to by the above: the (a,b,ab,p,AB,P,Eij) block comes from the SHARED GaussProduct so
+    //! that the Gaussian product theorem has one definition in the codebase, not two.
+    Ω(const GData&,const GData&,const GaussProduct&);
     ~Ω();
     GData GetGData() const {return GData{itsIndex,αₚ,P,Ltotal};}
 

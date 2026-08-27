@@ -236,17 +236,24 @@ void Ω::MakeNMLs()
     for (int L=0; L<=10; L++) theNMLs.push_back(MakeAllPolarizations(L));
 }
 
+// The (a,b,ab,p,AB,P,Eij) block is the GAUSSIAN PRODUCT THEOREM and now has exactly one definition --
+// GaussProduct, shared with the collocation contraction kernel (user, 2026-08-27).  Ω keeps its own
+// members and layout; it just stops re-deriving them.  Delegating ctor so the helper is built once.
 Ω::Ω(const GData& g1,const GData& g2)
+    : Ω(g1, g2, GaussProduct(g1.α, g1.R, g2.α, g2.R))
+{}
+
+Ω::Ω(const GData& g1,const GData& g2,const GaussProduct& gp)
     : itsIndex(theIds().ChargeDist(g1.ID, g2.ID))   // content-based id (disjoint from primitive ids)
     , Ltotal(g1.L + g2.L)
-    , a     (g1.α)
-    , b     (g2.α)
-    , ab    (a * b)
-    , αₚ(a + b)
-    , AB    (g1.R - g2.R)
-    , P     ( (a*g1.R + b*g2.R) / αₚ)
-    , Eij   ( exp(-ab / αₚ * (AB*AB)) )
-    , H2    (αₚ, P - g1.R, P - g2.R, g1.L+1, g2.L+1)
+    , a     (gp.a)
+    , b     (gp.b)
+    , ab    (gp.ab)
+    , αₚ(gp.p)
+    , AB    (gp.AB)
+    , P     (gp.P)
+    , Eij   (gp.Eij)
+    , H2    (αₚ, gp.PA, gp.PB, g1.L+1, g2.L+1)
 {
     if (theNMLs.size()==0) MakeNMLs();
 }

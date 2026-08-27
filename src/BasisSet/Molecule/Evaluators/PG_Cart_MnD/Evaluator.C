@@ -673,13 +673,14 @@ public:
         for (int a=0;a<=q.lp;a++)
             for (int b=0;a+b<=q.lp;b++)
                 for (int cc=0;a+b+cc<=q.lp;cc++) q.c[a][b][cc]=0.0;
-        const double a0=ei[0], b0=ej[0];
-        const rvec3_t A0=radials[i0]->GetCenter(), B0=radials[j0]->GetCenter()+Roff;
-        q.p=a0+b0;
-        q.P=(a0*A0+b0*B0)/q.p;
-        const rvec3_t AB=A0-B0;
-        q.Eij=gi[0]*gj[0]*std::exp(-(a0*b0/q.p)*(AB.x*AB.x+AB.y*AB.y+AB.z*AB.z));
-        q.PA=q.P-A0; q.PB=q.P-B0;
+        // THE GAUSSIAN PRODUCT THEOREM comes from the SHARED GaussProduct, not from a second copy of the
+        // same algebra here (user, 2026-08-27).  The contraction coefficients are folded in on top: Omega
+        // is a PRIMITIVE-pair object and its Eij carries no g_i g_j.
+        const GaussProduct gp(ei[0], radials[i0]->GetCenter(), ej[0], radials[j0]->GetCenter()+Roff);
+        q.p=gp.p;
+        q.P=gp.P;
+        q.Eij=gi[0]*gj[0]*gp.Eij;
+        q.PA=gp.PA; q.PB=gp.PB;
         const rvec3_t PA=q.PA, PB=q.PB;
         if (!w) { q.live=true; return q; }                    // Gaussian part only (the gather)
         double ax[kMaxPoly], ay[kMaxPoly], az[kMaxPoly];
