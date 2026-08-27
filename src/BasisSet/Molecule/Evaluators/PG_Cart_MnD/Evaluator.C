@@ -546,6 +546,288 @@ public:
         for (int k=5;k<=L;k++) pw[k]=uintpow(x,(unsigned)k);        // the binary-powering tail, unchanged
     }
 
+    //! \brief The BOX GEOMETRY of one (shell pair, cross-cell offset): everything the walk derives before
+    //! it touches a grid point.  Extracted 2026-08-27 so the walk and the separable-contraction kernel
+    //! (doc/CollocationRewritePlan.md step 5) CANNOT DRIFT APART -- they are the same geometry by
+    //! construction, not by two copies of the same twenty lines.  Pure move: every expression and its
+    //! evaluation order is unchanged, so \c ForShellPairBox stays bit-identical.
+    struct BoxGeom
+    {
+        bool     live=false;      //!< false = screen (1) killed the whole box; nothing to walk
+        double   pMin=0.0;        //!< aMinI+aMinJ, the slowest-decaying product exponent
+        double   pfExp=0.0;       //!< the prefactor exponent (screen 1)
+        double   reach=0.0;       //!< shrunk exp-tail radius, +1 a.u. polynomial margin
+        double   lnCut=0.0;       //!< screen (3) bound
+        double   Rq=0.0;          //!< |r-P|^2 chord bound, widened so the bracket is a strict superset
+        double   Csz=0.0;         //!< |sz|^2, the chord quadratic's leading coefficient
+        rvec3_t  P{0,0,0};        //!< product centre
+        rvec3_t  sx{0,0,0}, sy{0,0,0}, sz{0,0,0};   //!< the three grid step vectors
+        rvec3_t  r00{0,0,0};      //!< Cartesian position of the box's first corner point
+        int      hw[3]={0,0,0};   //!< half-widths in grid indices
+        long     c0[3]={0,0,0};   //!< centre grid index
+        double   fc[3]={0,0,0};   //!< the product centre in GRID units (fP*N) -- the non-ortho kernel's origin
+    };
+
+    //! Build \c BoxGeom for (shell i0, shell j0 imaged to \a Roff) on the \a N-division grid of cell \a A.
+    BoxGeom MakeBoxGeom(size_t i0, size_t j0, const rvec3_t& Roff,
+                        const UnitCell& A, const ivec3_t& N, double epsEff) const
+    {
+        BoxGeom g;
+        const rvec_t ei=radials[i0]->GetExponents();
+        const rvec_t ej=radials[j0]->GetExponents();
+        const rvec3_t Ri=radials[i0]->GetCenter(), Rj=radials[j0]->GetCenter()+Roff;
+        double aMinI=ei[0]; for (double e:ei) aMinI=std::min(aMinI,e);
+        double aMinJ=ej[0]; for (double e:ej) aMinJ=std::min(aMinJ,e);
+        g.pMin=aMinI+aMinJ;
+        g.P=(aMinI*Ri+aMinJ*Rj)/g.pMin;
+        const double lnE=-std::log(epsEff);
+        const rvec3_t dij=Ri-Rj;
+        g.pfExp=(aMinI*aMinJ/g.pMin)*(dij.x*dij.x+dij.y*dij.y+dij.z*dij.z);
+        if (g.pfExp>=lnE) return g;                          // live stays false
+        g.reach=std::sqrt((lnE-g.pfExp)/g.pMin)+1.0;
+        const rvec3_t fP=A.ToFractional(g.P);
+        const rvec3_t fex=A.ToFractional(rvec3_t(1,0,0)), fey=A.ToFractional(rvec3_t(0,1,0)), fez=A.ToFractional(rvec3_t(0,0,1));
+        const double rbx=std::sqrt(fex.x*fex.x+fey.x*fey.x+fez.x*fez.x);
+        const double rby=std::sqrt(fex.y*fex.y+fey.y*fey.y+fez.y*fez.y);
+        const double rbz=std::sqrt(fex.z*fex.z+fey.z*fey.z+fez.z*fez.z);
+        g.hw[0]=int(std::ceil(g.reach*rbx*N.x))+1;
+        g.hw[1]=int(std::ceil(g.reach*rby*N.y))+1;
+        g.hw[2]=int(std::ceil(g.reach*rbz*N.z))+1;
+        g.c0[0]=std::lround(fP.x*N.x); g.c0[1]=std::lround(fP.y*N.y); g.c0[2]=std::lround(fP.z*N.z);
+        g.fc[0]=fP.x*N.x;              g.fc[1]=fP.y*N.y;              g.fc[2]=fP.z*N.z;
+        static const bool kSphere=[]{const char* s=std::getenv("GPW_SPHERE_SCREEN"); return !s || std::atoi(s)!=0;}();
+        g.lnCut = kSphere ? std::min(lnE+12.0, g.pMin*g.reach*g.reach+g.pfExp) : lnE+12.0;
+        g.sx=A.ToCartesian(rvec3_t(1.0/N.x,0,0));
+        g.sy=A.ToCartesian(rvec3_t(0,1.0/N.y,0));
+        g.sz=A.ToCartesian(rvec3_t(0,0,1.0/N.z));
+        g.r00=A.ToCartesian(rvec3_t(double(g.c0[0]-g.hw[0])/N.x, double(g.c0[1]-g.hw[1])/N.y,
+                                    double(g.c0[2]-g.hw[2])/N.z));
+        g.Rq=((g.lnCut-g.pfExp)/g.pMin)*(1.0+1e-12)+1e-12;
+        g.Csz=g.sz.x*g.sz.x+g.sz.y*g.sz.y+g.sz.z*g.sz.z;
+        g.live=true;
+        return g;
+    }
+
+    // =========================== THE SEPARABLE-CONTRACTION KERNEL ===========================
+    // doc/CollocationRewritePlan.md step 5.  Replaces the per-point walk for one (shell pair, offset) with:
+    //   1. COLLAPSE the whole shell pair into ONE Gaussian about the product centre times ONE polynomial
+    //      (PairPoly) -- the density-matrix weights summed in, so there is no per-component-pair loop left;
+    //   2. re-expand that polynomial in GRID-INDEX powers (GridPoly), because on a NON-ORTHO metric -- which
+    //      is every production cell (doc there) -- no Cartesian coordinate is a function of one grid index;
+    //   3. contract onto the cube with "Mathieu's trick": the quadratic form factors EXACTLY into three 2-D
+    //      exponential tables, e^{-p|u|^2} = T12 T23 T31, so the innermost loop is lp+1 fused multiply-adds
+    //      and three table lookups -- no exp, no monomial, no component loop.
+    // Gated on GPW_CONTRACT_CUBE while it is proven; ForShellPairBox remains the reference implementation
+    // and src/BasisSet/Molecule/tests/M_PG_BoxWalk.C is the oracle.
+
+    //! \f$(u+p_a)^{n_a}(u+p_b)^{n_b}=\sum_s\alpha_s u^s\f$ -- the ONE-DIMENSIONAL re-expansion about the
+    //! product centre.  Per axis, which is exactly what makes the cube a tensor contraction.
+    static void Binom1D(int na, int nb, double pa, double pb, double* alpha)
+    {
+        for (int t=0;t<=na+nb;t++) alpha[t]=0.0;
+        for (int k=0;k<=na;k++)
+        {
+            const double ca=Choose(na,k)*IntPow(pa,na-k);
+            for (int l=0;l<=nb;l++) alpha[k+l]+=ca*Choose(nb,l)*IntPow(pb,nb-l);
+        }
+    }
+    static double Choose(int n, int k) { double c=1.0; for (int t=0;t<k;t++) c*=double(n-t)/double(t+1); return c; }
+    static double IntPow(double x, int n) { double r=1.0; for (int t=0;t<n;t++) r*=x; return r; }
+
+    static constexpr int kMaxPoly=9;      //!< polynomial extent: lp = La+Lb, so L<=4 per shell
+    static constexpr size_t kMaxShell=45; //!< widest Cartesian shell: (L+1)(L+2)/2 = 45 at L=8
+
+    //! The collapsed shell pair: one Gaussian \f$e^{-p|r-P|^2}\f$ times one polynomial in \f$u=r-P\f$,
+    //! with the caller's per-component weights already summed in.
+    struct PairPoly
+    {
+        bool    live=false;
+        double  p=0.0, Eij=0.0;
+        rvec3_t P{0,0,0};
+        int     lp=0;
+        double  c[kMaxPoly][kMaxPoly][kMaxPoly];
+    };
+
+    //! Collapse (shell i0 x shell j0 at \a Roff) weighted by \a w (row-major nI x nJ) into a PairPoly.
+    //! \note UNCONTRACTED shells only -- a contracted shell is a SUM over primitive pairs, each with its own
+    //! \f$p\f$, \f$P\f$ and box, so it needs one cube per primitive pair (plan open question 2).  Returns
+    //! \c live=false otherwise, and the caller falls back to the walk.
+    PairPoly MakePairPoly(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
+                          const double* w) const
+    {
+        PairPoly q;
+        const rvec_t ei=radials[i0]->GetExponents(), gi=radials[i0]->GetCoeffs();
+        const rvec_t ej=radials[j0]->GetExponents(), gj=radials[j0]->GetCoeffs();
+        if (ei.size()!=1 || ej.size()!=1) return q;           // contracted: not this kernel
+        int lp=0;
+        for (size_t a=0;a<nI;a++) lp=std::max(lp, pols[i0+a].GetTotalL());
+        int lpj=0;
+        for (size_t b=0;b<nJ;b++) lpj=std::max(lpj, pols[j0+b].GetTotalL());
+        q.lp=lp+lpj;
+        if (q.lp>=kMaxPoly) return q;                         // beyond the tensor extent: fall back
+        for (int a=0;a<=q.lp;a++)
+            for (int b=0;a+b<=q.lp;b++)
+                for (int cc=0;a+b+cc<=q.lp;cc++) q.c[a][b][cc]=0.0;
+        const double a0=ei[0], b0=ej[0];
+        const rvec3_t A0=radials[i0]->GetCenter(), B0=radials[j0]->GetCenter()+Roff;
+        q.p=a0+b0;
+        q.P=(a0*A0+b0*B0)/q.p;
+        const rvec3_t AB=A0-B0;
+        q.Eij=gi[0]*gj[0]*std::exp(-(a0*b0/q.p)*(AB.x*AB.x+AB.y*AB.y+AB.z*AB.z));
+        const rvec3_t PA=q.P-A0, PB=q.P-B0;
+        double ax[kMaxPoly], ay[kMaxPoly], az[kMaxPoly];
+        for (size_t a=0;a<nI;a++)
+            for (size_t b=0;b<nJ;b++)
+            {
+                const double wt=w[a*nJ+b]*ns[i0+a]*ns[j0+b];
+                if (wt==0.0) continue;
+                const Polarization& pi=pols[i0+a];
+                const Polarization& pj=pols[j0+b];
+                Binom1D(pi.n,pj.n,PA.x,PB.x,ax);
+                Binom1D(pi.l,pj.l,PA.y,PB.y,ay);
+                Binom1D(pi.m,pj.m,PA.z,PB.z,az);
+                for (int sx=0;sx<=pi.n+pj.n;sx++)
+                    for (int sy=0;sy<=pi.l+pj.l;sy++)
+                    {
+                        const double axy=wt*ax[sx]*ay[sy];
+                        if (axy==0.0) continue;
+                        for (int sz=0;sz<=pi.m+pj.m;sz++) q.c[sx][sy][sz]+=axy*az[sz];
+                    }
+            }
+        q.live=true;
+        return q;
+    }
+
+    //! A polynomial in the three GRID-INDEX offsets, degree-bounded throughout (a full-extent zero/copy
+    //! here costs more than the contraction it feeds -- measured while prototyping).
+    struct GridPoly
+    {
+        double q[kMaxPoly][kMaxPoly][kMaxPoly];
+        void Zero(int deg)
+        {
+            for (int a=0;a<=deg;a++)
+                for (int b=0;a+b<=deg;b++)
+                    for (int c=0;a+b+c<=deg;c++) q[a][b][c]=0.0;
+        }
+        void MulLinear(const double L[3], int deg)
+        {
+            double n[kMaxPoly][kMaxPoly][kMaxPoly];
+            for (int a=0;a<=deg+1;a++)
+                for (int b=0;a+b<=deg+1;b++)
+                    for (int c=0;a+b+c<=deg+1;c++) n[a][b][c]=0.0;
+            for (int a=0;a<=deg;a++)
+                for (int b=0;a+b<=deg;b++)
+                    for (int c=0;a+b+c<=deg;c++)
+                    {
+                        const double v=q[a][b][c];
+                        if (v==0.0) continue;
+                        n[a+1][b][c]+=v*L[0]; n[a][b+1][c]+=v*L[1]; n[a][b][c+1]+=v*L[2];
+                    }
+            for (int a=0;a<=deg+1;a++)
+                for (int b=0;a+b<=deg+1;b++)
+                    for (int c=0;a+b+c<=deg+1;c++) q[a][b][c]=n[a][b][c];
+        }
+    };
+
+    //! Re-expand the PairPoly's Cartesian polynomial in powers of the grid-index offsets.
+    static GridPoly ToGridPoly(const PairPoly& q, const BoxGeom& g)
+    {
+        const double Lx[3]={g.sx.x,g.sy.x,g.sz.x};
+        const double Ly[3]={g.sx.y,g.sy.y,g.sz.y};
+        const double Lz[3]={g.sx.z,g.sy.z,g.sz.z};
+        GridPoly out; out.Zero(q.lp);
+        GridPoly t;
+        for (int sx=0;sx<=q.lp;sx++)
+            for (int sy=0;sy+sx<=q.lp;sy++)
+                for (int sz=0;sz+sy+sx<=q.lp;sz++)
+                {
+                    const double cf=q.c[sx][sy][sz];
+                    if (cf==0.0) continue;
+                    t.Zero(sx+sy+sz); t.q[0][0][0]=cf;
+                    int deg=0;
+                    for (int r=0;r<sx;r++) { t.MulLinear(Lx,deg); deg++; }
+                    for (int r=0;r<sy;r++) { t.MulLinear(Ly,deg); deg++; }
+                    for (int r=0;r<sz;r++) { t.MulLinear(Lz,deg); deg++; }
+                    for (int a=0;a<=deg;a++)
+                        for (int b=0;a+b<=deg;b++)
+                            for (int c=0;a+b+c<=deg;c++) out.q[a][b][c]+=t.q[a][b][c];
+                }
+        return out;
+    }
+
+    //! \brief Scatter the collapsed shell pair onto \a dst over its cube.  The NON-ORTHO kernel: three 2-D
+    //! exponential tables (Mathieu) and a grid-index polynomial, innermost loop \c lp+1 FMAs.
+    void ContractCube(const BoxGeom& g, const PairPoly& q, const ivec3_t& N, rvec_t& dst) const
+    {
+        const int n[3]={2*g.hw[0]+1, 2*g.hw[1]+1, 2*g.hw[2]+1};
+        const GridPoly Q=ToGridPoly(q,g);
+        // the metric h_ab = s_a . s_b, and e_a = index_a - fc[a]
+        const rvec3_t sv[3]={g.sx,g.sy,g.sz};
+        double h[3][3];
+        for (int a=0;a<3;a++)
+            for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
+        auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
+        static thread_local rvec_t T12,T23,T31,E1;
+        T12.resize(size_t(n[0])*n[1]); T23.resize(size_t(n[1])*n[2]); T31.resize(size_t(n[2])*n[0]);
+        E1.resize(size_t(q.lp+1)*n[0]);
+        for (int i=0;i<n[0];i++) for (int j=0;j<n[1];j++)
+        { const double e1=eOf(0,i), e2=eOf(1,j); T12[size_t(i)*n[1]+j]=std::exp(-q.p*(e1*e1*h[0][0]+2*e1*e2*h[0][1])); }
+        for (int j=0;j<n[1];j++) for (int k=0;k<n[2];k++)
+        { const double e2=eOf(1,j), e3=eOf(2,k); T23[size_t(j)*n[2]+k]=std::exp(-q.p*(e2*e2*h[1][1]+2*e2*e3*h[1][2])); }
+        for (int k=0;k<n[2];k++) for (int i=0;i<n[0];i++)
+        { const double e3=eOf(2,k), e1=eOf(0,i); T31[size_t(k)*n[0]+i]=std::exp(-q.p*(e3*e3*h[2][2]+2*e3*e1*h[2][0])); }
+        for (int i=0;i<n[0];i++) { double e=1.0; const double e1=eOf(0,i);
+                                   for (int a=0;a<=q.lp;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
+        double cij[kMaxPoly][kMaxPoly], ci[kMaxPoly];
+        for (int k=0;k<n[2];k++)
+        {
+            const double e3=eOf(2,k);
+            for (int a=0;a<=q.lp;a++)                        // fold e3 once per plane
+                for (int b=0;a+b<=q.lp;b++)
+                {
+                    double v=0.0, e=1.0;
+                    for (int c=0;a+b+c<=q.lp;c++) { v+=Q.q[a][b][c]*e; e*=e3; }
+                    cij[a][b]=v;
+                }
+            const size_t mk=size_t((((g.c0[2]-g.hw[2]+k)%N.z)+N.z)%N.z);
+            for (int j=0;j<n[1];j++)
+            {
+                const double e2=eOf(1,j);
+                for (int a=0;a<=q.lp;a++)                    // fold e2 once per line
+                {
+                    double v=0.0, e=1.0;
+                    for (int b=0;a+b<=q.lp;b++) { v+=cij[a][b]*e; e*=e2; }
+                    ci[a]=v;
+                }
+                // the chord in e1: h00 e1^2 + 2 e1 (h01 e2 + h20 e3) + (h11 e2^2 + h22 e3^2 + 2 h12 e2 e3) <= Rq
+                const double B2=2.0*(h[0][1]*e2+h[2][0]*e3);
+                const double C2=h[1][1]*e2*e2+h[2][2]*e3*e3+2.0*h[1][2]*e2*e3-g.Rq;
+                const double D2=B2*B2-4.0*h[0][0]*C2;
+                if (D2<0.0) continue;                        // the line misses the sphere
+                const double sq=std::sqrt(D2), inv=0.5/h[0][0];
+                long ia=long(std::floor((-B2-sq)*inv+g.fc[0]))-(g.c0[0]-g.hw[0])-1;
+                long ib=long(std::ceil ((-B2+sq)*inv+g.fc[0]))-(g.c0[0]-g.hw[0])+1;
+                if (ia<0) ia=0;
+                if (ib>n[0]-1) ib=n[0]-1;
+                if (ia>ib) continue;
+                const double t23=T23[size_t(j)*n[2]+k];
+                const size_t my=size_t((((g.c0[1]-g.hw[1]+j)%N.y)+N.y)%N.y);
+                size_t mi=size_t((((g.c0[0]-g.hw[0]+ia)%N.x)+N.x)%N.x);
+                for (long ii=ia; ii<=ib; ii++, mi=(mi+1==size_t(N.x)?0:mi+1))
+                {
+                    double v=0.0;
+                    for (int a=0;a<=q.lp;a++) v+=ci[a]*E1[size_t(a)*n[0]+ii];   // <- lp+1 FMAs
+                    dst[(mi*size_t(N.y)+my)*size_t(N.z)+mk]
+                        += q.Eij*v*T12[size_t(ii)*n[1]+j]*t23*T31[size_t(k)*n[0]+ii];
+                }
+            }
+        }
+    }
+    //! GPW_CONTRACT_CUBE=1 routes the collocation scatter through ContractCube (default off while it is
+    //! proven; the integrate direction still walks, so the two are not exact adjoints under this flag).
+    static bool UseContractCube()
+    { static const bool b=[]{const char* s=std::getenv("GPW_CONTRACT_CUBE"); return s && std::atoi(s)!=0;}(); return b; }
+
     //! \param f called \c f(rasterIndex, fI, fJ) at each point surviving the ellipsoid pre-screen.
     template <class F>
     void ForShellPairBox(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
@@ -557,22 +839,15 @@ public:
         const rvec3_t Ri=radials[i]->GetCenter(), Rj=radials[j]->GetCenter()+Roff;   // chi_j imaged to cell Roff
         double aMinI=ei[0]; for (double e:ei) aMinI=std::min(aMinI,e);
         double aMinJ=ej[0]; for (double e:ej) aMinJ=std::min(aMinJ,e);
-        const double pMin=aMinI+aMinJ;                       // slowest-decaying product term -> the box size
-        const rvec3_t P=(aMinI*Ri+aMinJ*Rj)/pMin;            // its product centre (box centre)
-        const double lnE=-std::log(epsEff);
-        const rvec3_t dij=Ri-Rj;
-        const double pfExp=(aMinI*aMinJ/pMin)*(dij.x*dij.x+dij.y*dij.y+dij.z*dij.z); // prefactor exponent (screen 1)
-        if (pfExp>=lnE) return;                              // the whole box is below eps
-        const double reach=std::sqrt((lnE-pfExp)/pMin)+1.0;  // shrunk exp-tail radius (+1 a.u. poly margin)
-        const rvec3_t fP=A.ToFractional(P);
-        // Exact fractional bounding box of the reach-sphere (screen 2): hw_frac(axis) = reach*||(A^-1) row axis||
-        // (ToFractional(e_b) is column b of A^-1, so row norms assemble from the three unit-vector images).
-        const rvec3_t fex=A.ToFractional(rvec3_t(1,0,0)), fey=A.ToFractional(rvec3_t(0,1,0)), fez=A.ToFractional(rvec3_t(0,0,1));
-        const double rbx=std::sqrt(fex.x*fex.x+fey.x*fey.x+fez.x*fez.x);
-        const double rby=std::sqrt(fex.y*fex.y+fey.y*fey.y+fez.y*fez.y);
-        const double rbz=std::sqrt(fex.z*fex.z+fey.z*fey.z+fez.z*fez.z);
-        const int hwx=int(std::ceil(reach*rbx*N.x))+1, hwy=int(std::ceil(reach*rby*N.y))+1, hwz=int(std::ceil(reach*rbz*N.z))+1;
-        const long cx=std::lround(fP.x*N.x), cy=std::lround(fP.y*N.y), cz=std::lround(fP.z*N.z);
+        // The box geometry now lives in MakeBoxGeom, so the separable-contraction kernel shares it rather
+        // than re-deriving it (see BoxGeom).  Identical expressions in identical order -> bit-identical.
+        const BoxGeom bg=MakeBoxGeom(i0,j0,Roff,A,N,epsEff);
+        if (!bg.live) return;                                // screen (1): the whole box is below eps
+        const double pMin=bg.pMin;
+        const rvec3_t P=bg.P;
+        const double reach=bg.reach;
+        const int hwx=bg.hw[0], hwy=bg.hw[1], hwz=bg.hw[2];
+        const long cx=bg.c0[0], cy=bg.c0[1], cz=bg.c0[2];
         // Screen (3) is the REACH SPHERE the box is already the BOUNDING BOX OF -- capped by the historical
         // fixed log margin lnE+12 (2026-08-26).  The old bound was lnE+12 alone, and for a DIFFUSE pair that
         // exceeds the box entirely (pMin=0.3 gives r_screen=10.8 au against reach=9.76): the screen never
@@ -588,27 +863,12 @@ public:
         // radius.  Measured: Si and NaF total energies unchanged to every printed digit on BOTH the cached
         // and the uncached path (NaF to 12 s.f.), against a cached-vs-uncached spread of 1.25e-6 that this
         // sits far beneath; 771/771.  GPW_SPHERE_SCREEN=0 restores the rectangular hull for A/B.
-        static const bool kSphere=[]{const char* s=std::getenv("GPW_SPHERE_SCREEN"); return !s || std::atoi(s)!=0;}();
-        const double lnCut = kSphere ? std::min(lnE+12.0, pMin*reach*reach+pfExp) : lnE+12.0;   // screen (3)
-        // INCREMENTAL grid walk: r = A(g/N) advances by a CONSTANT lattice step per index, so the per-point
-        // ToCartesian call (a 3x3 matrix multiply + PLT hop; ~14% of the box-loop profile) hoists to three
-        // axis steps + adds.  Accumulation drift over <=few-hundred steps is ~1e-13 -- far below kScreenEps.
-        const rvec3_t sx=A.ToCartesian(rvec3_t(1.0/N.x,0,0)), sy=A.ToCartesian(rvec3_t(0,1.0/N.y,0)),
-                      sz=A.ToCartesian(rvec3_t(0,0,1.0/N.z));
-        const rvec3_t r00=A.ToCartesian(rvec3_t(double(cx-hwx)/N.x, double(cy-hwy)/N.y, double(cz-hwz)/N.z));
-        // THE CHORD (2026-08-27).  Screen (3) is a SPHERE about the product centre: by the Gaussian product
-        // identity aI|r-Ri|^2 + aJ|r-Rj|^2 == pMin|r-P|^2 + pfExp, so the test is exactly |r-P|^2 <= Rq.
-        // Along a z-line r(t)=r0+t*sz that is a CONVEX QUADRATIC in t, so the accepted set is an INTERVAL --
-        // solvable in closed form.  The walk can then follow the sphere's chord instead of the whole box row,
-        // and a line that misses the sphere is skipped without visiting a single point of it.
-        // Rq is widened by a relative epsilon here, and the solved interval by one point at each end, so the
-        // bracket is a strict SUPERSET of what the per-point test accepts -- the test below remains the sole
-        // AUTHORITY on what is kept, which is what makes this BIT-IDENTICAL rather than a second truncation.
-        const double Rq=((lnCut-pfExp)/pMin)*(1.0+1e-12)+1e-12;   // |r-P|^2 bound (pfExp<lnE<=lnCut => positive)
-        const double Csz=sz.x*sz.x+sz.y*sz.y+sz.z*sz.z;           // |sz|^2, the quadratic's leading coefficient
+        const double lnCut=bg.lnCut;                         // screen (3), see BoxGeom
+        const rvec3_t sx=bg.sx, sy=bg.sy, sz=bg.sz;          // the constant per-index lattice steps
+        const rvec3_t r00=bg.r00;                            // the box's first corner
+        const double Rq=bg.Rq, Csz=bg.Csz;                   // the chord bound and its leading coefficient
         // The per-component factor arrays, allocated ONCE per box (kMaxShell bounds a Cartesian shell:
         // (L+1)(L+2)/2 = 45 at L=8, well past any basis this evaluator sees).
-        static constexpr size_t kMaxShell=45;
         assert(nI<=kMaxShell && nJ<=kMaxShell && "ForShellPairBox: shell wider than kMaxShell components");
         double fI[kMaxShell], fJ[kMaxShell];
         // MONOMIAL POWER TABLES (2026-08-26).  The point body used to evaluate pols[i](d) per component --
@@ -1571,6 +1831,27 @@ public:
                     epsUnion = epsUnion==0.0 ? e : std::min(epsUnion,e);
                 }
                 if (here.empty()) return;
+                // THE SEPARABLE-CONTRACTION ROUTE (GPW_CONTRACT_CUBE, doc/CollocationRewritePlan.md step 5).
+                // The whole shell pair collapses into ONE Gaussian x ONE polynomial with these weights
+                // summed in, so the per-component-pair loop below disappears entirely.  Note the
+                // per-component |v|<epsHere screen has NO analogue here and needs none: the box is already
+                // sized by epsUnion, so that test never shrank the walk -- it only declined to accumulate a
+                // value it had already computed (step 3).  Not accumulating is the only thing it bought,
+                // and the contracted cube is formed regardless, so dropping it costs nothing and removes a
+                // truncation.  The kernel DECLINES contracted shells and lp>=kMaxPoly; those fall through.
+                if (UseContractCube())
+                {
+                    const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
+                    double wd[kMaxShell*kMaxShell];
+                    for (size_t t=0;t<nIs*nJs;t++) wd[t]=0.0;
+                    for (size_t k=0;k<here.size();k++) wd[iaHere[k]*nJs+jbHere[k]]=cwHere[k];
+                    const BoxGeom bg=MakeBoxGeom(si.begin,sj.begin,Roff,A,N_L[L],epsUnion);
+                    if (bg.live)
+                    {
+                        const PairPoly q=MakePairPoly(si.begin,nIs,sj.begin,nJs,Roff,wd);
+                        if (q.live) { ContractCube(bg,q,N_L[L],r); return; }
+                    }
+                }
                 ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N_L[L],
                                 [&](size_t idx, const double* fI, const double* fJ)
                 {

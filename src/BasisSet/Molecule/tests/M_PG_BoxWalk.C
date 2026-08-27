@@ -1007,3 +1007,168 @@ TEST(M_PG_BoxWalk, OffsetEnumerationIsNotTheCost)
     // GOES, so a task list must be justified on RAM, precomputed per-task geometry and batching instead.
     EXPECT_LT(enu, 0.25*walk) << "enumeration unexpectedly significant -- revisit the task-list rationale";
 }
+
+
+//========================================================================================================
+// THE PRODUCTION KERNEL (NR_Evaluator::MakePairPoly + ContractCube), against the walk it replaces.
+// The prototype above proved the ALGEBRA; this proves the code that will actually run it.
+//========================================================================================================
+TEST(M_PG_BoxWalk, ProductionContractCubeMatchesTheWalk)
+{
+    // Swept over La,Lb so the lp-DEPENDENCE of the accuracy is visible rather than discovered later.
+    // ⚠ The grid-index re-expansion evaluates the polynomial in INDEX units (|e| up to the box half-width,
+    // ~10-15) where the Cartesian form uses |u| ~ a few bohr, so intermediate magnitudes are ~|e|^lp larger
+    // and relative precision degrades with lp.  That is intrinsic to the non-ortho route (CP2K shares it),
+    // so it is measured and bounded here, not assumed away.
+    const UnitCell mno(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
+    const ivec3_t  N(32,32,32);
+    const rvec3_t  A0(0,0,0), B0(2.4249,2.4249,2.4249);
+    std::printf("\n  %-6s %12s %12s %12s\n","lp","rel err","abs err","cube peak");
+    double worstRel=0.0, worstAbs=0.0;
+    for (int La=0; La<=2; La++)
+        for (int Lb=0; Lb<=2; Lb++)
+        {
+            SkewFixture fx(mno, N, A0, B0, 1.2, 1.5);
+            const NR_Evaluator& ev=fx.Ev();
+            size_t i0,nI,j0,nJ;
+            ASSERT_TRUE(FindShell(ev, A0, 1.2, La, i0, nI));
+            ASSERT_TRUE(FindShell(ev, B0, 1.5, Lb, j0, nJ));
+            std::vector<double> w(nI*nJ);
+            for (size_t t=0;t<w.size();t++) w[t]=0.25+0.5*double((t*7)%5);
+
+            const size_t npts=size_t(N.x)*N.y*N.z;
+            rvec_t ref(npts,0.0), got(npts,0.0);
+            std::vector<char> visited(npts,0);
+            ev.ForShellPairBox(i0,nI,j0,nJ,rvec3_t(0,0,0),fx.cell,N,
+                [&](size_t idx, const double* fI, const double* fJ)
+                {
+                    double v=0.0;
+                    for (size_t a=0;a<nI;a++)
+                        for (size_t b=0;b<nJ;b++) v += w[a*nJ+b]*fI[a]*fJ[b];
+                    ref[idx]+=v; visited[idx]=1;
+                }, 1e-10);
+
+            const NR_Evaluator::BoxGeom  bg=ev.MakeBoxGeom(i0,j0,rvec3_t(0,0,0),fx.cell,N,1e-10);
+            ASSERT_TRUE(bg.live);
+            const NR_Evaluator::PairPoly q =ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data());
+            ASSERT_TRUE(q.live) << "the kernel declined La="<<La<<" Lb="<<Lb;
+            ev.ContractCube(bg,q,N,got);
+
+            double worst=0.0, peak=0.0, extra=0.0;
+            for (size_t t=0;t<npts;t++) peak=std::max(peak,std::fabs(ref[t]));
+            ASSERT_GT(peak, 1e-8) << "La="<<La<<" Lb="<<Lb;
+            for (size_t t=0;t<npts;t++)
+                if (visited[t]) worst=std::max(worst, std::fabs(got[t]-ref[t]));
+                else            extra=std::max(extra, std::fabs(got[t]));
+            std::printf("  %-6d %12.3e %12.3e %12.3e\n", q.lp, worst/peak, worst, peak);
+            worstRel=std::max(worstRel, worst/peak);
+            worstAbs=std::max(worstAbs, worst);
+            EXPECT_LT(extra, 1e-10) << "La="<<La<<" Lb="<<Lb<<": adds a point above the collocation eps";
+        }
+    std::printf("\n");
+    // TWO bounds, because either alone can mislead.  RELATIVE is the one that scales with the pair's own
+    // magnitude (a sharp pair has a large peak); ABSOLUTE is the one that must stay under the collocation
+    // eps we already accept as a truncation.
+    EXPECT_LT(worstRel, 1e-10) << "grid-index re-expansion lost more relative precision than budgeted";
+    EXPECT_LT(worstAbs, 1e-10) << "...and more than the collocation eps in absolute terms";
+}
+
+
+//========================================================================================================
+// HOW ACCURATE IS THE CONTRACTION, AGAINST A NAIVE EXACT EVALUATION?
+//
+// Adjudicated with a THIRD implementation: chi_i(r) chi_j(r-R) straight from the primitives at
+// r = A.ToCartesian(index/N), no accumulation and no contraction -- but the SAME screen, because a
+// reference has to keep the same point set, not merely the same arithmetic.  (A first cut omitted the
+// screen; the box can exceed the cell, so rejected corners ALIAS onto visited cells and the reference
+// picked up contributions neither other path had -- making walk and contraction look equally wrong by an
+// identical amount.)
+//
+// ⛔ THE RESULT REFUTES THE HYPOTHESIS IT WAS WRITTEN TO TEST.  The guess was that the WALK drifts, since
+// it advances r by repeated addition.  It does not: the walk tracks the exact evaluation to ~1e-14
+// relative.  The CONTRACTION is the less accurate of the two, by ~1000x -- the grid-index re-expansion
+// evaluates a polynomial in INDEX units (|e| up to the box half-width) and multiplies three 2-D
+// exponential tables whose individual magnitudes span e^{+-60} and cancel.  That is intrinsic to the
+// non-ortho route.  It is recorded here as a MEASURED BUDGET, swept over box size, rather than assumed.
+//========================================================================================================
+TEST(M_PG_BoxWalk, ContractionAccuracyBudgetVsTheWalk)
+{
+    const UnitCell mno(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
+    const ivec3_t  N(32,32,32);
+    const rvec3_t  A0(0,0,0), B0(2.4249,2.4249,2.4249);
+    struct Case { double a,b; int La,Lb; };
+    // Exponents chosen so the prefactor screen leaves a real box at this separation (a=4.0,b=3.0 does
+    // not: pf=30.2 against lnE=23.03, and the whole term is below eps).
+    const Case cases[]={{2.0,1.5,2,2},{1.2,1.5,2,2},{0.38,0.46,2,2},{0.38,0.46,0,0}};
+    std::printf("\n  %5s %4s %4s %13s %13s %13s\n","a","lp","hw","peak","walk rel","contract rel");
+    double worstRel=0.0;
+    for (const Case& C : cases)
+    {
+        SkewFixture fx(mno, N, A0, B0, C.a, C.b);
+        const NR_Evaluator& ev=fx.Ev();
+        size_t i0,nI,j0,nJ;
+        ASSERT_TRUE(FindShell(ev, A0, C.a, C.La, i0, nI));
+        ASSERT_TRUE(FindShell(ev, B0, C.b, C.Lb, j0, nJ));
+        std::vector<double> w(nI*nJ);
+        for (size_t t=0;t<w.size();t++) w[t]=0.25+0.5*double((t*7)%5);
+
+        const size_t npts=size_t(N.x)*N.y*N.z;
+        rvec_t walk(npts,0.0), cube(npts,0.0), exact(npts,0.0);
+        std::vector<char> visited(npts,0);
+        ev.ForShellPairBox(i0,nI,j0,nJ,rvec3_t(0,0,0),fx.cell,N,
+            [&](size_t idx, const double* fI, const double* fJ)
+            {
+                double v=0.0;
+                for (size_t a=0;a<nI;a++)
+                    for (size_t b=0;b<nJ;b++) v += w[a*nJ+b]*fI[a]*fJ[b];
+                walk[idx]+=v; visited[idx]=1;
+            }, 1e-10);
+
+        const NR_Evaluator::BoxGeom  bg=ev.MakeBoxGeom(i0,j0,rvec3_t(0,0,0),fx.cell,N,1e-10);
+        const NR_Evaluator::PairPoly q =ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data());
+        ASSERT_TRUE(bg.live) << "prefactor screen killed the box for a="<<C.a<<" b="<<C.b;
+        ASSERT_TRUE(q.live)  << "the kernel declined a="<<C.a<<" b="<<C.b;
+        ev.ContractCube(bg,q,N,cube);
+
+        const rvec3_t Ri=ev.radials[i0]->GetCenter(), Rj=ev.radials[j0]->GetCenter();
+        const double  ai=ev.radials[i0]->GetExponents()[0], gi=ev.radials[i0]->GetCoeffs()[0];
+        const double  aj=ev.radials[j0]->GetExponents()[0], gj=ev.radials[j0]->GetCoeffs()[0];
+        for (long dx=-bg.hw[0]; dx<=bg.hw[0]; dx++)
+         for (long dy=-bg.hw[1]; dy<=bg.hw[1]; dy++)
+          for (long dz=-bg.hw[2]; dz<=bg.hw[2]; dz++)
+          {
+            const long gx=bg.c0[0]+dx, gy=bg.c0[1]+dy, gz=bg.c0[2]+dz;
+            const rvec3_t r=fx.cell.ToCartesian(rvec3_t(double(gx)/N.x, double(gy)/N.y, double(gz)/N.z));
+            const rvec3_t di=r-Ri, dj=r-Rj;
+            const double ri2=di.x*di.x+di.y*di.y+di.z*di.z, rj2=dj.x*dj.x+dj.y*dj.y+dj.z*dj.z;
+            if (ai*ri2+aj*rj2 > bg.lnCut) continue;          // the SAME screen the walk applies
+            const double radI=gi*std::exp(-ai*ri2), radJ=gj*std::exp(-aj*rj2);
+            double v=0.0;
+            for (size_t a=0;a<nI;a++)
+                for (size_t b=0;b<nJ;b++)
+                    v += w[a*nJ+b]*(ev.ns[i0+a]*ev.pols[i0+a](di)*radI)*(ev.ns[j0+b]*ev.pols[j0+b](dj)*radJ);
+            const size_t idx=(size_t(((gx%N.x)+N.x)%N.x)*N.y+size_t(((gy%N.y)+N.y)%N.y))*N.z
+                            + size_t(((gz%N.z)+N.z)%N.z);
+            exact[idx]+=v;
+          }
+
+        double peak=0.0, dWalk=0.0, dCube=0.0;
+        for (size_t t=0;t<npts;t++) peak=std::max(peak,std::fabs(exact[t]));
+        for (size_t t=0;t<npts;t++)
+            if (visited[t])
+            {
+                dWalk=std::max(dWalk, std::fabs(walk[t]-exact[t]));
+                dCube=std::max(dCube, std::fabs(cube[t]-exact[t]));
+            }
+        ASSERT_GT(peak, 1e-9);
+        std::printf("  %5.2f %4d %4d %13.3e %13.3e %13.3e\n",
+                    C.a, q.lp, bg.hw[0], peak, dWalk/peak, dCube/peak);
+        worstRel=std::max(worstRel, dCube/peak);
+    }
+    std::printf("\n");
+    // THE BUDGET.  Not a claim that the contraction matches the walk -- it does not, and pretending
+    // otherwise would hide a real property of the non-ortho route.  The claim is that its relative error
+    // stays far below the tolerances that already govern this code: the 1e-10 collocation eps and the
+    // 1.25e-6 cached-vs-uncached spread doc/OpenWork.md records.
+    EXPECT_LT(worstRel, 1e-9) << "the contraction's relative error left its measured budget";
+}
