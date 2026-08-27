@@ -21,7 +21,7 @@ cache down with the same change.  Forward plan; the measured record that motivat
   crystallography.  What comes apart is this: **the crystal SYSTEM classifies the LATTICE, while the metric
   belongs to the CELL chosen to represent it.**
 
-  | cell as rastered | \f$\|a\|$ | \f$\alpha=\beta=\gamma\f$ | \f$G\f$ off-diag | volume |
+  | cell as rastered | \f$|a|\f$ | \f$\alpha=\beta=\gamma\f$ | \f$G\f$ off-diag | volume |
   |---|---|---|---|---|
   | Si / NaF `FCCUnitCell(10.26)` — PRIMITIVE | 7.2549 | **60.000°** | 26.32 | 270.0 |
   | ...the same lattice's CONVENTIONAL cell | 10.2600 | 90.000° | 0.00 | 1080.0 |
