@@ -12,15 +12,32 @@ cache down with the same change.  Forward plan; the measured record that motivat
   for one shell pair at one cross-cell offset, walks the grid points of the product's compact box.
 - **"DENSITY-MATRIX SUB-BLOCK", never "D-block"** (user).  In a codebase whose hardest case is Mn *d
   shells*, "D-block" reads as angular momentum.  \f$D_{ij}\f$ over \f$i\in\f$ shell I, \f$j\in\f$ shell J.
-- **ORTHO vs NON-ORTHO METRIC**, never crystal-system names (user, 2026-08-27).  The only thing that
-  matters is whether the grid metric \f$h_{ab}=s_a\!\cdot\!s_b\f$ (with \f$s_a=A\hat e_a/N_a\f$ the grid
-  step vectors) is DIAGONAL.  It is unrelated to the crystal system: Si diamond and NaF rocksalt are
-  **cubic** crystals and MnO's magnetic cell is **rhombohedral**, yet all three raster on cells whose steps
-  are NOT mutually orthogonal — Si and NaF because `FCCUnitCell` is the PRIMITIVE cell
-  (\f$(0,\tfrac a2,\tfrac a2)\f$ etc., 60° apart), MnO because its cell is
-  \f$(a,\tfrac a2,\tfrac a2;\ldots)\f$.  ⇒ **EVERY production cell we run has a NON-ORTHO metric.**  The
-  only ortho-metric grids in the suite are the atom-in-box tests (Na, O₂, Mn₂, Na₂).
-  CP2K calls these `ortho` and `general`; the distinction is theirs, the vocabulary confusion was mine.
+- **ORTHO vs NON-ORTHO METRIC** — and the metric is CELL geometry, not a crystal-system label
+  (user, 2026-08-27, correcting an earlier claim here that it was "unrelated to the crystal system").
+  The grid metric IS the cell's metric tensor, rescaled per axis:
+  \f[ h_{ab}=s_a\!\cdot\!s_b=\frac{G_{ab}}{N_aN_b},\qquad G_{ab}=\mathbf a_a\!\cdot\!\mathbf a_b,
+      \qquad s_a=A\hat e_a/N_a \f]
+  and \f$G\f$ is exactly what fixes the cell's lengths and angles.  So it has EVERYTHING to do with
+  crystallography.  What comes apart is this: **the crystal SYSTEM classifies the LATTICE, while the metric
+  belongs to the CELL chosen to represent it.**
+
+  | cell as rastered | \f$\|a\|$ | \f$\alpha=\beta=\gamma\f$ | \f$G\f$ off-diag | volume |
+  |---|---|---|---|---|
+  | Si / NaF `FCCUnitCell(10.26)` — PRIMITIVE | 7.2549 | **60.000°** | 26.32 | 270.0 |
+  | ...the same lattice's CONVENTIONAL cell | 10.2600 | 90.000° | 0.00 | 1080.0 |
+  | MnO AFM-II \f$(a,\tfrac a2,\tfrac a2;\ldots)\f$, \f$a=8.40\f$ | 10.2879 | **33.557°** | 88.20 | 296.4 |
+  | ...MnO's own FCC primitive, for the ratio | 5.9397 | 60.000° | 17.64 | 148.2 |
+
+  ⇒ **ALL THREE PRODUCTION CELLS ARE RHOMBOHEDRAL** — Si and NaF at 60° (the FCC primitive of a CUBIC
+  lattice), MnO at 33.557° (and its volume 296.35 is exactly 2× the FCC primitive's 148.18, i.e. the AFM-II
+  magnetic doubling).  "Non-ortho metric" here means *rhombohedral*, specifically.  The only ortho-metric
+  grids in the suite are the atom-in-box tests (Na, O₂, Mn₂, Na₂).
+
+  ★ **AND THE ORTHO FAST PATH IS PURCHASABLE — IT IS JUST NOT WORTH BUYING.**  A cubic lattice CAN be given
+  a diagonal metric by rastering its conventional cell: for Si that is 4× the volume (1080 vs 270), hence
+  4× the grid points at the same resolution.  Paying 4× the points to unlock maybe 2× from 1-D tables is a
+  clear loss.  ⇒ We are in the general case **by a deliberate cell choice**, so the non-ortho kernel is not
+  a fallback — it is the target.  (CP2K calls the two paths `ortho` and `general`.)
 - **EVERY speed number is the sum of exactly two timing-ledger buckets** — `scf: integrate-back (pair
   gather)` + `scf: collocate density (pair scatter)`.  They are EXCLUSIVE and DISJOINT, so no setup
   subtraction ever appears.  `GPW_REPORT=1` prints them.
