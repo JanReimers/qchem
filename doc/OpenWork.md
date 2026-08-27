@@ -478,7 +478,93 @@ excluded cases.  **An audit that cannot see its own worst case is not evidence.*
 **TO RESURRECT:** pair it with the interval skip below (which removes the wasted advances) and settle the
 anisotropy first.  Neither is likely to change the MnO verdict.
 
-### WHAT IS LEFT, and it is now ONE item
+### ✅ THE CHORD — bit-identical, and the acceptance case is the biggest winner (2026-08-27)
+
+Screen (3) is a sphere about the product centre, so by the Gaussian product identity
+\f$a_I|r-R_i|^2 + a_J|r-R_j|^2 \equiv p_{\min}|r-P|^2 + \mathrm{pf}\f$ the test is exactly
+\f$|r-P|^2\le R_q\f$ — a CONVEX QUADRATIC in \f$t\f$ along a z-line, so the accepted set is an INTERVAL
+with a closed form.  A line that misses the sphere is now skipped without visiting a single point of it.
+
+| | box walk before | after | |
+|---|---|---|---|
+| Si | 1.829 s | 1.508 s | 1.21× |
+| NaF | 177.4 s | 150.0 s | 1.18× |
+| **MnO** | **514.6 s** | **366.9 s** | **1.40×** |
+
+★ **MnO gains MOST, and the reason is the cell.**  A sphere spans more FRACTIONAL width in a skewed cell
+than in a cubic one (the same sqrt(3)/sqrt(2) effect screen (2) was fixed for), so a rhombohedral cell's
+bounding box wastes more of itself on corners.  The prediction was 1.15–1.25× from the Si-shaped estimate;
+the acceptance case beat it.
+
+**BIT-IDENTICAL BY CONSTRUCTION, not by measurement.**  \f$R_q\f$ is widened by a relative epsilon and the
+solved interval by one point at each end, so the bracket is a strict SUPERSET of what the per-point test
+accepts — that test stays the sole authority on what is kept.  And \c r is still ACCUMULATED through the
+skipped head, never jumped to \f$r_y+t_0 s_z\f$: jumping would round differently AND make the walk
+anisotropic, which is the defect that sank the exp recurrence.
+
+**⇒ SESSION TOTAL on the MnO box walk: 1139.8 → 366.9 s = 3.11×** (per iteration 569.9 → 183.5 s), so the
+standing against CP2K's 8.5 s/iteration goes **67× → ~22×**.
+
+## ★★★ NEXT: WHY CP2K IS STILL ~22× FASTER — READ FROM ITS SOURCE, NOT FROM MEMORY
+
+> **USER, 2026-08-27:** *"I think it is time to investigate more deeply into what CP2K is actually doing."*
+
+Source read at `/home/janr/Code/cp2k` (2026.1, `757bb76`), backend `src/grid/cpu/`.  **The gap is
+ARCHITECTURAL, not micro** — every line below is a structural difference, and together they explain an
+order of magnitude in a way no further tuning of our loop can.
+
+**THE ROOT MOVE: CP2K NEVER CARRIES TWO GAUSSIANS TO A GRID POINT.**  `cab_to_cxyz`
+(`grid_cpu_collint.h:1047`) binomially re-expands \f$(x-a)^{l_a}(x-b)^{l_b}=\sum_s\alpha_s(x-p)^s\f$ ONCE
+per (shell pair, offset), collapsing the pair into **one** Gaussian \f$e^{-\zeta_p|r-P|^2}\f$ times **one**
+polynomial in \f$(r-P)\f$.  The whole D-matrix block is already folded into `cab` before this, so the
+entire shell-pair block becomes a single `cxyz` tensor.  We instead carry two Gaussians, two Cartesian
+monomials AND a loop over live component pairs to every point.  Everything below follows from this one
+difference.
+
+1. **ONE ISOTROPIC GAUSSIAN ⇒ THE EXPONENTIAL FACTORISES, so there are NO transcendentals per point.**
+   - *Orthorhombic*: three 1-D tables `pol[dir][power][ig]` = \f$(x-x_p)^{l}e^{-\zeta_p(x-x_p)^2}\f$
+     (`grid_cpu_collint.h:409`) — **O(n) exps for the whole cube**, and the polynomial power rides in the
+     same table.
+   - *General / triclinic — OUR CASE (FCC, rhombohedral)*: **"Mathieu's trick"**
+     (`grid_cpu_collint.h:532, 752`).  The quadratic form factors into THREE 2-D tables,
+     \f$e^{-\zeta_p Q(i,j,k)}=T_{ij}\,T_{jk}\,T_{ki}\f$ with
+     \f$T_{ij}=e^{-\zeta_p(d_i^2h_{ii}+2d_id_jh_{ij})}\f$ — the cross terms distribute exactly.  Per grid
+     point the 3-D Gaussian is then **three table lookups and two multiplies**.
+2. **THE TABLES ARE BUILT BY THE MULTIPLICATIVE RECURRENCE WE JUST REJECTED** — the comment at
+   `grid_cpu_collint.h:414` is literally *"Reuse the result from the previous gridpoint to avoid to many
+   exps"*.  ⇒ **Our recurrence experiment was the right identity at the wrong LEVEL.**  They apply it to an
+   O(n) (or O(n²)) TABLE built once per cube; we applied it inside an O(n³) point loop, so we still paid
+   O(n²) seedings and still evaluated everything else per point.  They also seed *symmetrically outward
+   from the cube centre* (`general_fill_exp_table`) — the numerically safe start we identified and skipped.
+   And because their tables are per-DIRECTION-PAIR rather than along z only, the anisotropy that flipped
+   `NaPseudoAtomInBoxDoublet` does not arise.
+3. **THE CUBE IS A TENSOR CONTRACTION, NOT A POINT SWEEP.**  cxyz → cxy → cx → grid as nested 1-D passes.
+   The innermost loop (`grid_cpu_collint.h:38`) is `lp+1` fused multiply-adds against the table, **four
+   grid points at a time, under `#pragma omp simd`** — no exp, no monomial, no component-pair loop.  There
+   is also a whole alternative backend (`src/grid/dgemm/`) that recasts the same contraction as BLAS calls.
+4. **THE CHORD BOUNDS ARE CACHED, NOT RE-SOLVED.**  `grid_sphere_cache_lookup`
+   (`common/grid_sphere_cache.h:43`) memoises the per-line sphere bounds by discretized radius and cell.
+   We now compute the same interval (above) but solve a quadratic per line, every line, every pair.
+
+**WHAT THIS MEANS FOR US, stated as a cost law rather than a wish.**  Per (pair, offset) cube of edge n:
+
+| | transcendentals | per-point work |
+|---|---|---|
+| qchem today | \f$2n^3\f$ | 2 exps + 6 power tables + \f$(n_I{+}n_J)\f$ products + a loop over live pairs |
+| CP2K (general cell) | \f$O(n^2)\f$ table entries, \f$O(n)\f$ exps | \f$l_p{+}1\f$ FMAs against a table |
+
+⇒ **There is no remaining 2× inside our current loop shape** — the exp experiment demonstrated that
+directly (removing 20% of the profile bought 3%).  Closing the rest means adopting the SHAPE: the
+product-centre re-expansion first, then separable tables, then contraction.  That is a real piece of work,
+but it is a well-defined one, and CP2K's own file layout is a serviceable specification.
+
+⚠ **ONE HONEST CAVEAT BEFORE ANYONE SCHEDULES IT.**  The re-expansion folds the D-block into `cab` up
+front, which is a different truncation seam from our D-aware per-component `epsHere` screen — the thing
+that made the shell hoist pay (doc there).  Whether the no-cut discipline survives that fold, and what it
+does to the T3 orbit fold and the stream cache (both keyed on per-(pair, offset) geometry), has to be
+answered BEFORE the kernel is written, not after.
+
+### WHAT WAS LEFT, and it is now CLOSED
 
 **`exp` IS THE WHOLE REMAINING STRUCTURE: 29% of the NaF profile** (`__ieee754_exp_fma` 17.2% +
 `exp@@GLIBC_2.29` 9.8% + 2.3% of plt stubs — note ~⅓ of that is the glibc wrapper, not the evaluation).
