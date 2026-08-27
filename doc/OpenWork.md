@@ -516,10 +516,39 @@ order of magnitude in a way no further tuning of our loop can.
 **THE ROOT MOVE: CP2K NEVER CARRIES TWO GAUSSIANS TO A GRID POINT.**  `cab_to_cxyz`
 (`grid_cpu_collint.h:1047`) binomially re-expands \f$(x-a)^{l_a}(x-b)^{l_b}=\sum_s\alpha_s(x-p)^s\f$ ONCE
 per (shell pair, offset), collapsing the pair into **one** Gaussian \f$e^{-\zeta_p|r-P|^2}\f$ times **one**
-polynomial in \f$(r-P)\f$.  The whole D-matrix block is already folded into `cab` before this, so the
-entire shell-pair block becomes a single `cxyz` tensor.  We instead carry two Gaussians, two Cartesian
-monomials AND a loop over live component pairs to every point.  Everything below follows from this one
-difference.
+polynomial in \f$(r-P)\f$.  We instead carry two Gaussians, two Cartesian monomials AND a loop over live
+component pairs to every point.  Everything below follows from this one difference.
+
+★★ **AND WE ALREADY HAVE THE COLLAPSE — IT IS `Ω` (user, 2026-08-27).**
+`src/BasisSet/Molecule/Evaluators/PG_Cart_MnD/GaussianRF.C`, `struct Ω : public Cacheable2`, interned in
+the process-global `Cache2` keyed on the primitive pair, carries exactly CP2K's four quantities:
+\f$\alpha_p=a+b\f$ (their `zetp`), the product centre \f$P\f$ (their `rp`), the prefactor `Eij` (their
+`prefactor`), and `H2` — the M&D expansion coefficients.  And `Hermite2` stores them as `d`,`e`,`f`
+indexed \f$(N,n_a,n_b)\f$, \f$(L,l_a,l_b)\f$, \f$(M,m_a,m_b)\f$: **already PER-DIRECTION SEPARABLE**,
+which is precisely the property that makes \f$\Lambda_{NLM}(r-P)\f$ factor into three 1-D functions.
+⇒ **`cab_to_cxyz` is not something to write.**  Our starting point is better than CP2K's, not worse: they
+re-derive the collapse per task, we have it cached as geometry.
+
+⛔ **AND THE "FOLD THE DENSITY MATRIX IN UP FRONT" CAVEAT THIS SECTION FIRST CARRIED WAS WRONG — do NOT
+copy that half.**  (It also said "D-block", which in a discussion of Mn *d shells* is an unforgivable
+overload: read **density-matrix sub-block**, \f$D_{ij}\f$ over \f$i\in\f$ shell I, \f$j\in\f$ shell J,
+never a block of d-type Gaussians.)  Three corrections:
+1. **\f$D\f$ is the ONLY thing in the whole walk that changes between SCF iterations.**  \f$\Omega\f$,
+   \f$\alpha_p\f$, \f$P\f$, `Eij`, `H2`, the boxes and the chords are all GEOMETRY.  CP2K folds `pab`
+   in early because it re-derives the cube per task anyway; we do not, so the right split is: separable
+   tables from \f$\Omega\f$ alone (cacheable across iterations AND across k-blocks), then contract the
+   COEFFICIENT TENSOR with \f$D\f$ per iteration — \f$O(n_I n_J n_{NLM})\f$ per pair, **no grid points
+   involved**.  ⇒ The no-cut discipline and the D-aware screen need not move at all, because \f$D\f$
+   never enters the geometry object.
+2. **It is not \f$D_{ij}\f$ that multiplies the pair product** but
+   \f$\mathrm{fold}\cdot\mathrm{Re}[D_{ij}\overline{e^{ikR_n}}]\f$ — a REAL scalar per (pair,
+   **offset**), since the Bloch phase rides on the image.  Any weighting is per-offset.
+3. **The integrate direction has no \f$D\f$ at all.**  `IntegratePotential` PRODUCES \f$h_{ij}\f$;
+   its `screenD` is a screening magnitude, not a weight.  The tensor structure still applies (grid →
+   coefficients → block, CP2K's mirror), but "fold D in" was never a statement about that direction.
+⚠ One distinction to keep: \f$D\f$ is over CONTRACTED, normalized components (`ns[i]`), \f$\Omega\f$
+over PRIMITIVE pairs.  Every current basis is uncontracted so they coincide TODAY — `gi[p]` exists for a
+reason and the mapping must not be assumed.
 
 1. **ONE ISOTROPIC GAUSSIAN ⇒ THE EXPONENTIAL FACTORISES, so there are NO transcendentals per point.**
    - *Orthorhombic*: three 1-D tables `pol[dir][power][ig]` = \f$(x-x_p)^{l}e^{-\zeta_p(x-x_p)^2}\f$
@@ -558,11 +587,18 @@ directly (removing 20% of the profile bought 3%).  Closing the rest means adopti
 product-centre re-expansion first, then separable tables, then contraction.  That is a real piece of work,
 but it is a well-defined one, and CP2K's own file layout is a serviceable specification.
 
-⚠ **ONE HONEST CAVEAT BEFORE ANYONE SCHEDULES IT.**  The re-expansion folds the D-block into `cab` up
-front, which is a different truncation seam from our D-aware per-component `epsHere` screen — the thing
-that made the shell hoist pay (doc there).  Whether the no-cut discipline survives that fold, and what it
-does to the T3 orbit fold and the stream cache (both keyed on per-(pair, offset) geometry), has to be
-answered BEFORE the kernel is written, not after.
+★ **AND IT ATTACKS BOTH BENCHMARK AXES WITH ONE CHANGE.**  The stream cache costs **4218 MB** because it
+stores per-point VALUES — \f$O(n^3)\f$ per (pair, offset).  Separable tables are \f$O(n)\f$ (orthorhombic)
+or \f$O(n^2)\f$ (triclinic).  So this route is the first one that can deliver CP2K's memory profile AND
+its CPU, which is exactly what doc/Benchmark.md said was needed and what caching never gave.
+
+⚠ **THE REAL DESIGN QUESTION IS THE SCREEN, NOT THE DENSITY MATRIX.**  Today the D-aware tolerance is PER
+COMPONENT PAIR (`epsHere[k]`, applied to \f$|val|\f$ at each point) — and pre-filtering on it is what
+made the shell hoist pay at all (1.03–1.08× without it against 2.13× with).  In a contracted cube the
+per-component identity is GONE: one cube serves the whole shell pair.  So the screen has to move onto the
+COEFFICIENT TENSOR, and whether that can be done without either loosening the no-cut discipline or
+re-inflating the boxes is the question to settle BEFORE the kernel is written.  The T3 orbit fold (keyed
+per (pair, offset), reading the orbit-projected \f$D\f$) needs the same re-derivation.
 
 ### WHAT WAS LEFT, and it is now CLOSED
 
