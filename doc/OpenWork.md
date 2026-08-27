@@ -582,6 +582,7 @@ reason and the mapping must not be assumed.
 | qchem today | \f$2n^3\f$ | 2 exps + 6 power tables + \f$(n_I{+}n_J)\f$ products + a loop over live pairs |
 | CP2K (general cell) | \f$O(n^2)\f$ table entries, \f$O(n)\f$ exps | \f$l_p{+}1\f$ FMAs against a table |
 
+⇒ **THE PLAN IS `doc/CollocationRewritePlan.md`** (2026-08-27), steps 0–8 with the gate first.
 ⇒ **There is no remaining 2× inside our current loop shape** — the exp experiment demonstrated that
 directly (removing 20% of the profile bought 3%).  Closing the rest means adopting the SHAPE: the
 product-centre re-expansion first, then separable tables, then contraction.  That is a real piece of work,
