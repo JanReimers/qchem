@@ -2,6 +2,7 @@
 
 add_executable(UTMolecule_BS ../../Atom/tests/gtestmain.C
    M_PGSymmetry.C
+   M_PG_BoxWalk.C
    M_PG_MeshIntegrals.C
    M_PG_Oracle.C
    M_Evaluator.C
