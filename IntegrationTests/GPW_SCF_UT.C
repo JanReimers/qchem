@@ -4148,13 +4148,44 @@ TEST(GPW_SCF, ImposedOrderLostIsAPostconditionFailure_Na2Box)
     SCFParams par;
     // alpha=0.5 and a generous cap are LOAD-BEARING, not decoration: this gate needs a run that
     // CONVERGES, because a run that merely hits the cap trips NotConverged first and leaves the
-    // postcondition unexercised all over again.  Measured 2026-08-26: alpha=0.3 oscillates at
-    // Δρ~1e-2 forever (E is flat to 1e-9 the whole time -- the density, not the energy, is what will
-    // not settle), while 0.5 converges in 66.  Unwinding an AFM seed that the answer does not want is
-    // simply harder than starting unpolarized: the same cell run unpolarized converges in 30.
-    par.NMaxIter=100; par.MinΔρ=1e-6; par.MinΔE=1e30;
+    // postcondition unexercised all over again.
+    //
+    // ⚠ THIS WAS A FLAKY TEST, and the 2026-08-27 sweep says why (user: "textbook example of a flaky
+    // test ... much more flaky than average+3sigma").  It binds a DETERMINISTIC subject -- does
+    // OrderLost get minted -- to a NON-deterministic precondition: whether a marginal SCF converges
+    // inside the cap.  A 100-iteration cap left 34 iterations of margin, and a change four layers down
+    // in the collocation kernel spent all of it.  The detector RULES are now unit-tested on synthetic
+    // trajectories (src/Calculation/tests/RunDiagnostics.C), so this gate is no longer the only thing
+    // standing between us and an untested postcondition; what remains here is the WIRING.
+    //
+    // MEASURED 2026-08-27, sweeping alpha x criterion x kernel (NA2_* knobs below), NMaxIter=400:
+    //   alpha  0.3: 311 iters (walk) / 306 (contracted)      <- NOT "oscillates forever"; the earlier
+    //   alpha  0.4: 300              / never (oscillates)       comment said that against a 100 cap
+    //   alpha  0.5:  66              / 290                    <- 0.5+walk is a lucky sweet spot
+    // and five of those six share ONE mode: E is dead at -0.3320448527 (dE~1e-15) by iteration ~200
+    // while Δρ grinds down geometrically, every run stopping the instant it crosses MinΔρ.  So the long
+    // tail is not oscillation, it is a slow LINEAR density mode.
+    // ⇒ SMALLER ALPHA DOES NOT HELP (0.3 is slower than 0.5, and 0.4 is worse than either).
+    // ⇒ NEITHER DOES DENSITY-PULAY, and its failure is the instructive one: NA2_PULAY=5 converges in 8
+    //   iterations (walk) / 14 (contracted) -- but to a DIFFERENT state, E 4.4e-5 higher with the moment
+    //   still alive at 0.031 e, so OrderLost never fires and the gate is defeated a third way.  The
+    //   SCFParams note about history mixing being unstable far from the fixed point applies here.
+    // ⇒ THE LONG RUN IS NOT SLOP: the fixture NEEDS it, because the MOMENT is a slower mode than Δρ and
+    //   has to fall below 1% of its peak before the postcondition can fire at all.
+    // So the cap is raised to 400 -- the minimal honest change, buying margin without altering what is
+    // tested.  Cost: ~3 s on the walk, ~13 s on the contracted kernel.  Unwinding an AFM seed that the
+    // answer does not want is simply harder than starting unpolarized: the same cell unpolarized
+    // converges in 30.
+    // NA2_ALPHA / NA2_NMAX / NA2_TRACE: the fixture's convergence recipe is INSTRUMENTAL (it exists so
+    // the run converges, so NotConverged does not pre-empt the OrderLost this gate is named for), which
+    // makes it exactly the thing an investigation needs to sweep.  Same idiom as MNO_ALPHA.
+    auto envd2=[](const char* n, double d){ const char* v=std::getenv(n); return v ? std::atof(v) : d; };
+    auto envi2=[](const char* n, int    d){ const char* v=std::getenv(n); return v ? std::atoi(v) : d; };
+    par.NMaxIter=envi2("NA2_NMAX",400); par.MinΔρ=envd2("NA2_DRHO",1e-6); par.MinΔE=1e30;
     par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
-    par.StartingRelaxRo=0.5; par.MergeTol=1e-4;
+    par.StartingRelaxRo=envd2("NA2_ALPHA",0.5); par.MergeTol=1e-4;
+    par.PulayDepth=envi2("NA2_PULAY",0); par.PulayStart=envi2("NA2_PULAY_START",5);
+    par.KerkerG0=envd2("NA2_KERKER",0.0);
 
     qchem::SolidCalcOptions o;
     o.label="Na2 AFM-seeded singlet";
@@ -4165,6 +4196,16 @@ TEST(GPW_SCF, ImposedOrderLostIsAPostconditionFailure_Na2Box)
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);             // coarse: this gate tests the POSTCONDITION
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;            // PINNED -- see the header (Auto would pick Uniform)
 
+    if (std::getenv("NA2_TRACE"))
+        o.onIteration=[](const qchem::SCFIterator::SCFProgress& p)
+        {
+            std::cout << "[Na2 iter] " << std::setw(4) << p.iteration
+                      << "  E=" << std::setprecision(10) << std::setw(15) << p.energy
+                      << std::setprecision(4)
+                      << "  dE=" << std::setw(11) << p.dE
+                      << "  drho=" << std::setw(11) << p.drho
+                      << "  [F,D]=" << std::setw(11) << p.commutator << std::endl;
+        };
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
     auto r=calc.Result();
     std::cout << "[Na2 T2] converged="<<calc.DidConverge()<<" iters="<<calc.IterationCount()
