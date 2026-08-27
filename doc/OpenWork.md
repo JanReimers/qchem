@@ -1,7 +1,8 @@
 # Open Work — the live tracker (v2, cut 2026-08-19)
 
-**READ THIS AT SESSION START — and read `▶ WHAT IS OPEN` below first: it is the whole of the open work,
-eight rows, each with its next concrete action and the one section to point a session at.**  Everything
+**READ THIS AT SESSION START — and read `▶ WHAT IS OPEN` below first: it names the ONE next action, then
+lists the open work, each row with its next concrete action and the one section to point a session at.
+CLOSED items are not in that table (they keep their sections further down).**  Everything
 after it is a mix of open items and the evidence that produced them; the evidence is kept deliberately
 (three open items exist because a measurement refuted the obvious answer) but it interleaves, so the index
 is the map.  Closed threads are retired to two history files:
@@ -14,22 +15,37 @@ either history.
 
 ## ▶ WHAT IS OPEN — START HERE
 
+> **▶ NEXT SESSION: `doc/CollocationRewritePlan.md` steps 7–8.**  Step 7 is now *delete the pair-stream
+> cache and keep the task list* (the 4.2 GB buys ~1.4× after this session, down from ~18×); step 8 is the
+> `doc/Benchmark.md` row that follows.  Everything else on this page is a queue, not a next action.
+
 Everything after this index is a MIX of open work and the evidence that produced it.  The evidence stays on
-purpose — it is what stops items being re-litigated, and three items on this list exist because a measurement
-refuted the obvious answer — but it interleaves, and you cannot see the shape of the work by scrolling.
-**This table is the whole of the open work.**  One row per item, in priority order, each with the next
+purpose — it is what stops items being re-litigated, and several items exist because a measurement refuted
+the obvious answer — but it interleaves, and you cannot see the shape of the work by scrolling.
+**This table is the whole of the open work.**  One row per OPEN item, in priority order, each with the next
 CONCRETE action and the ONE section to point a session at.  If it is not in this table, it does not need doing.
+
+⚠ **CLOSED items are NOT listed here any more** (2026-08-27, user: *"START HERE is now unclear because it
+mostly lists done stuff"*).  An index whose rows are mostly ✅ cannot be read for what to do next, which is
+the one job it has.  The closed threads keep their SECTIONS below — the evidence is the point — they just
+stop competing for the reader's attention here:
+
+| closed | what it settled | its section |
+|---|---|---|
+| **A — the on-the-fly box walk** | 2026-08-26/27: **14.5× on MnO** (570 → 39 s per iteration), CP2K standing 67× → ~5×.  Four bit-identical edits, then the separable-contraction kernel (`GPW_CONTRACT_CUBE`, built + gated OFF pending the anchor re-bank). | *"THE ON-THE-FLY BOX WALK"* + `doc/CollocationRewritePlan.md` |
+| **N5** | `CP2K_COMPAT` + the self-describing banner.  ⚠ Remainder: `raster`/`cutoffFactor` are TYPED options the policy does not reach. | *"✅ T5 / N5"* |
+| **N1** | T1–T5 all built.  ⚠ Remainder: the COVERAGE GAP (`RunGpw`/`RunGpwAnnealed` bypass the facade). ★ The detector RULES are now unit-tested (`src/Calculation/tests/RunDiagnostics.C`). | *"★★★ N1"* |
+| **N2** | The ρ<0 lobes are BAND-LIMITING, not aliasing — which eliminated every cheap alternative to N4. | *"★ N2"* |
+| **1** | `GPW_XC_DM_SOURCE` does not earn the default; the measurement convicts the MIXER, not the exact ρ. | *"✅ ITEM 1 MEASURED"* |
+| **3** | The imposed XC mesh keeps its site blocks. | (below) |
 
 | # | open item | the next concrete action | point a session at |
 |---|---|---|---|
-| **N5** | ✅ **DONE 2026-08-26 — `CP2K_COMPAT` + the self-describing banner, built together.** `qchem.RunPolicy` resolves the four env-flag deviations once and the factories consult it; `SolidCalculation` prints the resolved state (system, grids, symmetry, threads, deviations, mixer) unconditionally. Closes the measured defect that `MNO_KERKER_G0=0` printed **no mixer line at all**. | ⚠ Remaining increment: `raster` and `cutoffFactor` are TYPED options, so `CP2K_COMPAT` does not reach them — wire the policy into `SolidCalcOptions`' defaults. | *"✅ T5 / N5"* |
+| **C** | ★★★ **THE COLLOCATION REWRITE, steps 7–8** — the kernel is BUILT and gated; what is left is deleting the cache it made pointless, and the benchmark row. | Re-measure both sides of the cache trade (the ~1.4× mixes a measured box walk with banked XC buckets), then delete the cache and keep the task list. Then the row. | `doc/CollocationRewritePlan.md` step 7 |
+| **S** | ★★ **THE ANCHOR-MOVING SPRINT** — seven items that each move banked numbers, to be done in ONE re-bank so they do not mask each other (user, 2026-08-27). | Pick the sprint window. A1 and A7 (the kernel default and dropping the cache) MUST land together; A5 (the `IonicSAD` seed default) re-seeds every GPW anchor, so it goes first or last. | *"THE ANCHOR-MOVING SPRINT"* |
 | **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25). *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
-| **N1** | ✅ **T1–T5 ALL DONE (T3–T5 landed 2026-08-26).** Left here because the *principle* stays live: detectors judge OUTCOMES, and every new failure mode wants one. ⚠ The COVERAGE GAP below is the open remainder — `RunGpw`/`RunGpwAnnealed` still build `SolidSCFIterator` directly, so the detectors do not reach those tests. Original ask: ★★★ **PROTECT THE USER FROM A PLAUSIBLE WRONG NUMBER** (user, 2026-08-25: *"a grad student on their first day"*). `SolidCalculation::Energy()` has **no precondition on `Converged()`** — every collapse measured today (−45.5, −46.3, −56.4, −38.5) is returnable from the public facade as a plain double with no signal; `Density()` only `assert`s, which is gone under NDEBUG. | **T1 first:** `Converge()` returns a `ConvergedCalculation`, and `Energy()`/`EnergyTerms()`/`Density()` exist ONLY on that type — the project's own *compile-time over runtime* bias applied. Then T2–T5. | *"★★★ N1 — PROTECTING THE USER"* |
-| **N2** | ✅ **RESOLVED 2026-08-25 — THE ρ<0 LOBES ARE BAND-LIMITING, NOT ALIASING.** Controlled A/B at **fixed {G}** (nG 8623, 870 stars; `BallOnly` 40³ vs `AliasFree` 80³ = 8× the raster points): the lobes move **1%**. Widening the ball DOES kill them (~6000× in negative mass by C=6) because it enlarges {G}. ⇒ every cheap alternative to **N4** is eliminated: raster geometry does nothing, and a bigger ball does not scale (2×2×2 supercell = 8× volume ⇒ >10 GB of raster at today's C=2). | Nothing further — it fed N4. ★ **Two by-products worth landing separately:** `BallOnly` is VINDICATED as the default (closes the code's own never-taken A/B: fold-back = 2.6 µHa, `AliasFree` costs 2.3× CPU / 3.5× RAM); and production **C=2 carries ~0.15 mHa of grid error** (C=3 also converges FASTER, 12 vs 17 it) — worth a default review on its own merits. | *"★ N2 — THE DENSITY G BALL"* |
 | **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING — ⚠ HALF-BUILT ALREADY (corrected 2026-08-25): `QCHEM_MIX_RHO_M=1` in `MakePeriodicMixer` ALREADY selects the (ρ,m) basis with "Kerker on ρ, PLAIN LINEAR on m", carrying the same *"m has none"* argument. So this needs a MEASUREMENT and a promotion, not a build.** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
-| **1** | ✅ **ANSWERED 2026-08-25 — the flag does NOT earn the default**, and the reason is a mechanism this row never considered: **Kerker's low-G charge-slosh damping is what holds the MnO AFM basin**, and a flat \f$\alpha_{eff}\f$ on the XC channel throws it away. Its ACCURACY claim is UPHELD (ρ≥0 exactly, 0 negatives in 154 samplings vs 15.2%); its ROUTE is what fails. | ⚠ **Read row N4 before quoting this row.** "Does not earn the default" is true of the flag AS IMPLEMENTED (wholesale replacement) and is NOT a verdict on feeding \f$V_{xc}\f$ an exact ρ≥0 — the measurement convicts the MIXER. Leave the flag opt-in; build the **cusp-deficit** form instead (N4). | *"✅ ITEM 1 MEASURED"* (below the index) |
 | **2** | **BENCHMARK PROTOCOL — no timing table is comparable until this holds** (user, 2026-08-25). Two defects today: no table states its THREAD state per row, and qchem runs accelerations CP2K does not — the factored/low-rank ρ is **ON BY DEFAULT** (`QCHEM_DM_LOWRANK`), so every row since `07d13bf6` has it | (a) build the self-describing BANNER `doc/Benchmark.md` already asks for — thread counts + the qchem-only feature flags — so rows describe themselves instead of relying on discipline; (b) re-take the rows under the two-phase rule: **single-thread parity FIRST**, then N=8/16 for OMP-shaped gaps. | `doc/Benchmark.md` → *"BENCHMARK PROTOCOL"*, and Step 0 (instruments) |
-| **3** | ✅ **DONE 2026-08-25** — the imposed XC mesh keeps its site blocks. The filter walked ORBITS (interleaving the atoms); it now walks the ORIGINAL site order with a keep-mask. Verified **energy-neutral** (−61.40297621 to 10 s.f., identical stage counts, identical mesh) with the Becke site moment ALIVE on an imposed run for the first time: **Mn ±4.78 e** against CP2K's Mulliken ±4.654. | — | Step 3 → *"NEW DEFECT … LOSES ITS SITE BLOCKS"* |
 | **4** | **Step 5 — MnO accuracy, name the operator**: the sharpest coordinate on the list, with a banked oracle, and its first move is cheap | ⚠ **PIN `GPW_XC_DM_SOURCE` first** — individual terms move ~100 mHa with it, so the term-by-term CP2K breakdown means nothing until item 1 is settled. Then the cheap first move. | Step 5 |
 | **5** | **Step 0c — the instruments report WHAT, not WHEN** | Timestamp per report item (+ optional order-preserving render). Cheap, and it gates the pre-SCF work. | Step 0 |
 | **6** | **`FIT_SF_Ortho` — separate the metric axis into faces**: specced 2026-08-23, not built. `OverlapDiagonal` sits on the metric-NEUTRAL face, so `Fit_IBS` invents an answer in the wrong normalisation | Move it to `FIT_SF_Ortho<T>` (both fit faces in one increment) and `Fit_IBS` simply loses it — delete the landmine, do not correct it. ⚠ Acceptance criterion: must NOT become a `dynamic_cast` type switch. | *"★ SPECCED, NOT BUILT"* (near the end) |
@@ -141,7 +157,7 @@ for every future material and leave the schedule as the only thing a new cell mu
 ⇒ Do it when the SECOND magnetic material arrives, not before: one cell is not enough to see which of the
 tuned values are really material-specific and which were MnO's accidents.
 
-## ▶ NEXT SESSION STARTS HERE — the N1 tiers, T3 onward
+## ✅ CLOSED — the N1 tiers, T1 through T5 (kept for the evidence, not as a next action)
 
 **T1 and T2 are BUILT (2026-08-25).**  What follows is the remainder, in order, with the state each one
 starts from.  Everything they need now exists: `Outcome<T,E>`, `SCFFailure::Why`, the Hamiltonian's
@@ -505,7 +521,7 @@ anisotropic, which is the defect that sank the exp recurrence.
 **⇒ SESSION TOTAL on the MnO box walk: 1139.8 → 366.9 s = 3.11×** (per iteration 569.9 → 183.5 s), so the
 standing against CP2K's 8.5 s/iteration goes **67× → ~22×**.
 
-## ★★★ NEXT: WHY CP2K IS STILL ~22× FASTER — READ FROM ITS SOURCE, NOT FROM MEMORY
+## ★★★ WHY CP2K WAS ~22× FASTER — READ FROM ITS SOURCE (and now acted on: see the rewrite plan)
 
 > **USER, 2026-08-27:** *"I think it is time to investigate more deeply into what CP2K is actually doing."*
 
