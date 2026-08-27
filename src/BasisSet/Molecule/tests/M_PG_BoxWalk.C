@@ -1089,6 +1089,160 @@ TEST(M_PG_BoxWalk, TaskListIsExactlyTheEnumerationItReplaces)
 }
 
 //========================================================================================================
+// WHERE DOES THE CONTRACTION ACTUALLY SPEND ITS TIME?  (doc/CollocationRewritePlan.md 3c-bis, step 1)
+//
+// The proposed next lever is compile-time \c lp -- template<int LP> on the grid kernel, and possibly
+// template<int LA,int LB> on the coefficient collapse.  BEFORE templating anything, this measures which
+// half is worth templating, because the last two things this campaign templated-or-hoisted "obviously"
+// measured 0.10% (OffsetEnumerationIsNotTheCost) and 0.6% (the Omega symmetry fold).
+//
+// THE DECOMPOSITION.  Per (shell pair, offset) task the contraction does three things:
+//   (A) COEFFICIENTS -- MakePairPoly (collapse nI x nJ component pairs into one tensor) + ToGridPoly
+//       (re-expand it in grid-index powers).  O(nI nJ lp^3).  NO grid points.  This is the part that
+//       would want template<int LA,int LB>.
+//   (B) TABLES -- the three 2-D Mathieu exponentials T12/T23/T31 and the power table E1.  O(n^2) exps.
+//       lp-INDEPENDENT (E1 is O(lp n) and negligible beside three n^2 exp planes).
+//   (C) POINTS -- the chord loop: lp+1 FMAs + three table lookups + one store per grid point.  O(n^3),
+//       and the ONLY part whose cost rises with lp.  This is what template<int LP> unrolls.
+//
+// HOW (B) AND (C) ARE SEPARATED WITHOUT TOUCHING THE KERNEL: hold the EXPONENTS fixed and vary only
+// La,Lb.  The box, the tables and the chord are then bit-for-bit identical across the sweep, and the only
+// thing that changes is lp -- so a straight line through contract-time vs (lp+1) has the lp-DEPENDENT work
+// as its slope and everything else as its intercept.  Two public calls, no replicated kernel, no drift.
+//========================================================================================================
+TEST(M_PG_BoxWalk, WhereTheContractionSpendsItsTime)
+{
+    const UnitCell mno(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
+    const rvec3_t  A0(0,0,0), B0(2.4249,2.4249,2.4249);        // the MnO Mn-O contact
+    // TIMING HYGIENE, learned on the first cut of this test: WARM UP each region and take the MIN of
+    // several trials.  Without it the first configuration measured read 325 us against 146 for the same
+    // work -- frequency ramp, cold thread_local tables, cold branch predictors -- and it dragged the
+    // regression below to a NEGATIVE slope.  A mean over a run that includes a warm-up is not a measurement.
+    auto best=[](auto&& body, int reps, int trials)
+    {
+        body();                                                // warm-up, untimed
+        double lo=1e300;
+        for (int t=0;t<trials;t++)
+        {
+            auto t0=std::chrono::steady_clock::now();
+            for (int r=0;r<reps;r++) body();
+            auto t1=std::chrono::steady_clock::now();
+            lo=std::min(lo, std::chrono::duration<double,std::micro>(t1-t0).count()/reps);
+        }
+        return lo;
+    };
+
+    // ---- (1) THE lp SWEEP, exponents held FIXED so the box, the tables and the chord are identical ----
+    const ivec3_t N(32,32,32);
+    SkewFixture fx(mno, N, A0, B0, 1.2, 1.5);
+    const NR_Evaluator& ev=fx.Ev();
+    rvec_t dst(size_t(N.x)*N.y*N.z, 0.0);
+    std::printf("\n  %-3s %-3s %-4s %-6s %10s %10s %10s %8s\n",
+                "La","Lb","lp","nIxnJ","coef us","gridpoly","contract","setup %");
+    struct Row { int lp; double coef, poly, contract; };
+    std::vector<Row> rows;
+    double worstSetupShare=0.0;
+    long   boxPts=0;
+    for (int La=0; La<=2; La++)
+        for (int Lb=0; Lb<=2; Lb++)
+        {
+            size_t i0,nI,j0,nJ;
+            ASSERT_TRUE(FindShell(ev, A0, 1.2, La, i0, nI));
+            ASSERT_TRUE(FindShell(ev, B0, 1.5, Lb, j0, nJ));
+            std::vector<double> w(nI*nJ);
+            for (size_t t=0;t<w.size();t++) w[t]=0.25+0.5*double((t*7)%5);
+            const NR_Evaluator::BoxGeom bg=ev.MakeBoxGeom(i0,j0,rvec3_t(0,0,0),fx.cell,N,1e-10);
+            ASSERT_TRUE(bg.live);
+            boxPts=long(2*bg.hw[0]+1)*long(2*bg.hw[1]+1)*long(2*bg.hw[2]+1);
+            const NR_Evaluator::PairPoly q=ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data());
+            ASSERT_TRUE(q.live) << "the kernel declined La="<<La<<" Lb="<<Lb;
+
+            volatile double sink=0.0;
+            const double coef=best([&]{ const auto p=ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data());
+                                       sink=sink+p.Eij; }, 20000, 3);
+            const double poly=best([&]{ const auto gp=NR_Evaluator::ToGridPoly(q,bg);
+                                       sink=sink+gp.q[0][0][0]; }, 20000, 3);
+            const double contract=best([&]{ ev.ContractCube(bg,q,N,dst); }, 300, 3);
+            const double share=100.0*(coef+poly)/(coef+contract);   // contract runs its OWN ToGridPoly
+            std::printf("  %-3d %-3d %-4d %-6zu %10.3f %10.3f %10.1f %8.2f\n",
+                        La,Lb,q.lp,nI*nJ,coef,poly,contract,share);
+            rows.push_back({q.lp,coef,poly,contract});
+            worstSetupShare=std::max(worstSetupShare, share/100.0);
+        }
+
+    // contract(lp) ~ intercept + slope*(lp+1).  Box fixed => the intercept is the exp TABLES plus the
+    // lp-independent per-point work, and the slope is exactly the FMA loop template<int LP> would unroll.
+    double sx=0,sy=0,sxx=0,sxy=0; const double n=double(rows.size());
+    for (const Row& r : rows) { const double x=r.lp+1; sx+=x; sy+=r.contract; sxx+=x*x; sxy+=x*r.contract; }
+    const double slope=(n*sxy-sx*sy)/(n*sxx-sx*sx), intercept=(sy-slope*sx)/n;
+
+    // ---- (2) TABLES vs POINTS: scale the RASTER, nothing else ----
+    // The three 2-D Mathieu exponentials are O(n^2) in the box's linear size; the chord loop is O(n^3).
+    // Doubling N doubles n and leaves eps, the cell, the pair and the chord FRACTION alone -- so
+    // contract(N) = a*N^2 + b*N^3 separates them with two measurements and no replicated kernel.
+    auto contractAt=[&](int Ndiv)->double
+    {
+        const ivec3_t Nl(Ndiv,Ndiv,Ndiv);
+        SkewFixture f2(mno, Nl, A0, B0, 1.2, 1.5);
+        const NR_Evaluator& e2=f2.Ev();
+        size_t i0,nI,j0,nJ;
+        EXPECT_TRUE(FindShell(e2, A0, 1.2, 1, i0, nI));
+        EXPECT_TRUE(FindShell(e2, B0, 1.5, 1, j0, nJ));
+        std::vector<double> w(nI*nJ, 0.5);
+        const NR_Evaluator::BoxGeom bg=e2.MakeBoxGeom(i0,j0,rvec3_t(0,0,0),f2.cell,Nl,1e-10);
+        EXPECT_TRUE(bg.live);
+        const NR_Evaluator::PairPoly q=e2.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data());
+        EXPECT_TRUE(q.live);
+        rvec_t d2(size_t(Ndiv)*Ndiv*Ndiv, 0.0);
+        return best([&]{ e2.ContractCube(bg,q,Nl,d2); }, 120, 3);
+    };
+    int nAx[3]={0,0,0};
+    {   size_t i0,nI,j0,nJ;
+        EXPECT_TRUE(FindShell(ev, A0, 1.2, 1, i0, nI));
+        EXPECT_TRUE(FindShell(ev, B0, 1.5, 1, j0, nJ));
+        const NR_Evaluator::BoxGeom bg=ev.MakeBoxGeom(i0,j0,rvec3_t(0,0,0),fx.cell,N,1e-10);
+        for (int d=0;d<3;d++) nAx[d]=2*bg.hw[d]+1;
+    }
+    const double c32=contractAt(32), c48=contractAt(48);
+    const double s2=32.0*32.0, s3=32.0*32.0*32.0, t2=48.0*48.0, t3=48.0*48.0*48.0;
+    const double det=s2*t3-s3*t2;
+    const double aT=(c32*t3-c48*s3)/det, bP=(c48*s2-c32*t2)/det;      // a*N^2 + b*N^3
+    const double tableShare32=100.0*aT*s2/c32;
+
+    std::printf("\n  [contraction cost] box %ld pts at N=32^3, lp swept 0..4 at FIXED exponents\n"
+                "     contract(lp) = %.1f + %.1f*(lp+1) us   ->  the lp-DEPENDENT FMA loop is"
+                " %.0f%% at lp=2, %.0f%% at lp=4\n"
+                "     raster scaling: %.1f us at 32^3, %.1f us at 48^3  ->  O(N^2) exp tables ~%.0f%%"
+                " of the kernel at 32^3, O(N^3) point loop ~%.0f%%\n"
+                "     CORROBORATION: box is %dx%dx%d, so the tables are 3n^2 = %ld std::exp calls against"
+                " %ld box points\n"
+                "                    -> the fitted table term implies %.1f ns per exp (a scalar libm exp is"
+                " ~15-25 ns)\n"
+                "     coefficients (MakePairPoly+ToGridPoly): %.2f%% of a task at lp=0, %.2f%% at lp=4\n\n",
+                boxPts, intercept, slope,
+                100.0*3*slope/(intercept+3*slope), 100.0*5*slope/(intercept+5*slope),
+                c32, c48, tableShare32, 100.0-tableShare32,
+                nAx[0],nAx[1],nAx[2],
+                long(nAx[0])*nAx[1]+long(nAx[1])*nAx[2]+long(nAx[2])*nAx[0], boxPts,
+                1000.0*aT*s2/double(long(nAx[0])*nAx[1]+long(nAx[1])*nAx[2]+long(nAx[2])*nAx[0]),
+                100.0*rows.front().coef/(rows.front().coef+rows.front().contract),
+                100.0*worstSetupShare);
+    (void)bP;
+
+    ASSERT_GT(boxPts, 1000) << "the fixture must present a realistic box";
+    // A sanity check on the TIMING, not on the kernel -- and phrased on the raw endpoints rather than the
+    // fitted slope, because this runs inside `ctest -j8` where one unlucky configuration could tip a fit
+    // negative.  Measured spread lp=0 -> lp=4 is ~34%; 5% is a floor, not an expectation.
+    EXPECT_GT(rows.back().contract, 1.05*rows.front().contract)
+        << "contraction time must RISE with lp, or these numbers are noise";
+    // THE CLAIM UNDER TEST, and it is what decides how far to take 3c-bis: the COEFFICIENT half is not
+    // where a task's time goes, so template<int LA,int LB> on MakePairPoly/MomentsToPairs is a FOOTPRINT
+    // argument (the 16 KB kMaxShell scratch arrays), not a speed one.  If this fires, that has expired.
+    EXPECT_LT(worstSetupShare, 0.25)
+        << "the coefficient collapse is now a quarter of a task -- revisit template<int LA,int LB>";
+}
+
+//========================================================================================================
 // THE PRODUCTION KERNEL (NR_Evaluator::MakePairPoly + ContractCube), against the walk it replaces.
 // The prototype above proved the ALGEBRA; this proves the code that will actually run it.
 //========================================================================================================

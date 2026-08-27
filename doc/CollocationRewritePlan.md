@@ -410,12 +410,48 @@ setup buckets are a larger share of what is left", which is the same argument as
 half — but they do not overlap: §4b measured that collocation and integrate-back never touch \f$\Omega\f$ at
 all.  Two independent levers on the same rising share.
 
-**▶ FIRST ACTION, and it is a MEASUREMENT (§1).**  Time `MakePairPoly` + `ToGridPoly` against `ContractCube`
-over the existing MnO-shaped fixture in `M_PG_BoxWalk.C` — the same shape as `OffsetEnumerationIsNotTheCost`
-— and let it decide whether the setup half is worth templating at all.  ⚠ The envelope says a few percent,
-and this campaign's envelopes have been wrong twice in the same direction: enumeration was "obviously worth
-hoisting" and measured **0.10%**, the \f$\Omega\f$ fold was elegant and measured **0.6% of an MnO run**.
-Measure before templating anything on \f$(L_a,L_b)\f$; `LP` on the grid side needs no such permission.
+### ✅ FIRST ACTION DONE — `M_PG_BoxWalk.WhereTheContractionSpendsItsTime`, 2026-08-27
+
+Measured at the UNIT level (user: *"too much stuff is getting dumped into IntegrationTests as full SCF
+runs"*), on the MnO-shaped rhombohedral cell at 32³, exponents held FIXED across the \f$(L_a,L_b)\f$ sweep
+so the box, the tables and the chord are identical and \f$l_p\f$ is the only thing that moves.
+
+| \f$l_p\f$ | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| `ContractCube`, µs/task | 127.6 | 135.9 | 147.0 | 151.5 | 170.5 |
+| coefficient half (`MakePairPoly`+`ToGridPoly`) | 0.22% | 0.24% | 0.79% | 2.4% | **5.6%** |
+
+**⛔ TWO RESULTS, AND THE SECOND ONE RE-ORDERS THE QUEUE.**
+
+1. ✅ **THE COEFFICIENT HALF IS NOT WHERE THE TIME IS — 0.2% to 5.6% of a task.**  So
+   `template<int LA,int LB>` on `MakePairPoly`/`MomentsToPairs` is a FOOTPRINT argument (the 16 KB
+   `kMaxShell` scratch arrays), **not a speed one**.  That is the third time in this campaign the
+   "obviously worth hoisting" setup work has measured out — after enumeration at 0.10% and the
+   \f$\Omega\f$ fold at 0.6% of an MnO run.  The test asserts it (`< 25%`), so the conclusion has a
+   tripwire rather than a date.
+2. ⛔ **AND `template<int LP>` HAS A CEILING OF 20–29%, BECAUSE THE KERNEL IS DOMINATED BY `std::exp`.**
+   Fitting \f$\text{contract}(l_p)=116.7+9.7\,(l_p{+}1)\f$ µs puts the \f$l_p\f$-DEPENDENT FMA loop —
+   exactly the part `LP` unrolls — at **20% of the kernel at \f$l_p{=}2\f$ and 29% at \f$l_p{=}4\f$**.
+   Scaling the RASTER instead (32³ → 48³, 143.8 → 383.4 µs) separates the rest:
+   \f[ \text{contract}(N)=aN^2+bN^3,\qquad aN^2\big|_{32}=\textbf{63\%},\quad bN^3\big|_{32}=37\% \f]
+   ★ **The \f$O(N^2)\f$ term is the three 2-D Mathieu exponential tables**, and the corroboration is not
+   subtle: the box is 43³, so the tables are \f$3n^2=5547\f$ **scalar `std::exp` calls**, and the fitted
+   table term works out at **16.3 ns per exp** — squarely a scalar libm `exp`.
+
+⇒ **THE NEXT LEVER IS THE TABLE BUILD, NOT THE BATCHING.**  And this is the one place the kernel does NOT
+follow CP2K: step 5 above already notes *"seed the table recurrences symmetrically outward from the cube
+centre, as CP2K does"* — **they build these tables by RECURRENCE; we call `exp` \f$3n^2\f$ times.**  Two
+candidate routes, in increasing order of risk:
+- **Vectorise the three table loops.**  They are contiguous, branch-free and perfectly SIMD-shaped; a
+  `#pragma omp simd` reaches glibc's `libmvec` vector `exp` under the `-fopenmp` this tree already carries
+  (`QCHEM_OPENMP`).  Bit-changing, so it is anchor-moving, but it needs no new algebra.
+- **The recurrence CP2K uses.**  ⚠ Read the 2026-08-26 verdict first: an exp recurrence was tried on the
+  per-point walk and REJECTED (1.03× on MnO, anisotropic, flipped a degenerate SCF basin; parked on branch
+  `exp-recurrence-experiment`).  That was a different loop — \f$O(n^3)\f$ per-point, not \f$O(n^2)\f$
+  per-row — so the verdict does not transfer, but the underflow-seeding warning in step 5 does.
+
+⚠ **AND KEEP THE PROPORTION IN VIEW.**  The two box-walk buckets are 477 s of MnO's 976 s CPU, so 63% of
+them is ~31% of the run and 25% of them is ~12%.  Neither is the 2× the batching idea implicitly promised.
 
 ### Step 4 — The ORTHO-METRIC kernel — ⚠ DEMOTED: a stepping stone that ships NOTHING
 Three 1-D tables, three-step contraction.  ⛔ **No production cell has an ortho metric** — only the
