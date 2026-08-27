@@ -856,8 +856,16 @@ TEST(M_PG_BoxWalk, PerComponentScreenDropsSubEpsOnly)
         peak =std::max(peak , std::fabs(full[t]));
         worst=std::max(worst, std::fabs(full[t]-screened[t]));
     }
+    // The INTEGRATED loss is the one the SCF feels: these drops are the sub-eps TAIL of a pair product,
+    // so for one pair they share a sign and do not cancel.
+    double sumFull=0.0, sumScr=0.0;
+    for (size_t t=0;t<npts;t++) { sumFull+=full[t]; sumScr+=screened[t]; }
     std::printf("\n  [screen] %zu of %zu (component pair, point) terms dropped; worst pointwise loss %.3e"
-                " against peak %.3e and eps %.0e\n\n", nDropped, nPoints*nI*nJ, worst, peak, kEps);
+                " against peak %.3e and eps %.0e\n"
+                "           integrated loss %.3e absolute, %.3e relative -- the contracted cube keeps these,\n"
+                "           so it is MORE accurate than the walk by exactly this much\n\n",
+                nDropped, nPoints*nI*nJ, worst, peak, kEps,
+                std::fabs(sumFull-sumScr), std::fabs(sumFull-sumScr)/(std::fabs(sumFull)+1e-300));
     // The screen is a MAGNITUDE screen: what it drops is bounded by eps per (component pair, point), so
     // the pointwise loss cannot exceed nI*nJ*eps however the weights are spread.
     EXPECT_LT(worst, double(nI*nJ)*kEps) << "the per-component screen dropped more than its own bound";
@@ -1024,7 +1032,7 @@ TEST(M_PG_BoxWalk, ProductionContractCubeMatchesTheWalk)
     const ivec3_t  N(32,32,32);
     const rvec3_t  A0(0,0,0), B0(2.4249,2.4249,2.4249);
     std::printf("\n  %-6s %12s %12s %12s\n","lp","rel err","abs err","cube peak");
-    double worstRel=0.0, worstAbs=0.0;
+    double worstRel=0.0, worstAbs=0.0, worstInt=0.0;
     for (int La=0; La<=2; La++)
         for (int Lb=0; Lb<=2; Lb++)
         {
@@ -1060,9 +1068,17 @@ TEST(M_PG_BoxWalk, ProductionContractCubeMatchesTheWalk)
             for (size_t t=0;t<npts;t++)
                 if (visited[t]) worst=std::max(worst, std::fabs(got[t]-ref[t]));
                 else            extra=std::max(extra, std::fabs(got[t]));
-            std::printf("  %-6d %12.3e %12.3e %12.3e\n", q.lp, worst/peak, worst, peak);
+            // THE INTEGRATED difference, not just the pointwise one.  Pointwise errors that are RANDOM
+            // cancel in an integral; ones that are SYSTEMATIC (e.g. the extra boundary points of a
+            // positive-definite s-type pair all add) do not -- and it is the integral that the SCF sees.
+            double sumRef=0.0, sumGot=0.0;
+            for (size_t t=0;t<npts;t++) { sumRef+=ref[t]; sumGot+=got[t]; }
+            std::printf("  %-6d %12.3e %12.3e %12.3e   integral rel %11.3e\n",
+                        q.lp, worst/peak, worst, peak,
+                        std::fabs(sumGot-sumRef)/(std::fabs(sumRef)+1e-300));
             worstRel=std::max(worstRel, worst/peak);
             worstAbs=std::max(worstAbs, worst);
+            worstInt=std::max(worstInt, std::fabs(sumGot-sumRef)/(std::fabs(sumRef)+1e-300));
             EXPECT_LT(extra, 1e-10) << "La="<<La<<" Lb="<<Lb<<": adds a point above the collocation eps";
         }
     std::printf("\n");
@@ -1071,6 +1087,7 @@ TEST(M_PG_BoxWalk, ProductionContractCubeMatchesTheWalk)
     // eps we already accept as a truncation.
     EXPECT_LT(worstRel, 1e-10) << "grid-index re-expansion lost more relative precision than budgeted";
     EXPECT_LT(worstAbs, 1e-10) << "...and more than the collocation eps in absolute terms";
+    EXPECT_LT(worstInt, 1e-10) << "the INTEGRATED difference is what the SCF sees, and it left its budget";
 }
 
 
@@ -1171,4 +1188,76 @@ TEST(M_PG_BoxWalk, ContractionAccuracyBudgetVsTheWalk)
     // stays far below the tolerances that already govern this code: the 1e-10 collocation eps and the
     // 1.25e-6 cached-vs-uncached spread doc/OpenWork.md records.
     EXPECT_LT(worstRel, 1e-9) << "the contraction's relative error left its measured budget";
+}
+
+
+//========================================================================================================
+// STEP 6 -- ADJOINTNESS.  The load-bearing invariant: Integral rho V == Tr(D h) to machine precision, which
+// is what makes the GPW energy variational.  It holds when collocate and integrate keep the SAME points and
+// use the SAME coefficients -- so it must hold walk/walk and contract/contract, and must FAIL for the mixed
+// pairing.  That last row is the point: it is why the two directions are wired to one flag, and it is what
+// moved Si's Etot by 2.4e-7 Ha when only the scatter was switched.
+//========================================================================================================
+TEST(M_PG_BoxWalk, CollocateIntegrateAreExactAdjoints)
+{
+    const UnitCell mno(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
+    const ivec3_t  N(32,32,32);
+    const rvec3_t  A0(0,0,0), B0(2.4249,2.4249,2.4249);
+    SkewFixture fx(mno, N, A0, B0, 1.2, 1.5);
+    const NR_Evaluator& ev=fx.Ev();
+    size_t i0,nI,j0,nJ;
+    ASSERT_TRUE(FindShell(ev, A0, 1.2, 2, i0, nI));
+    ASSERT_TRUE(FindShell(ev, B0, 1.5, 1, j0, nJ));
+    std::vector<double> w(nI*nJ);
+    for (size_t t=0;t<w.size();t++) w[t]=0.25+0.5*double((t*7)%5);
+
+    const size_t npts=size_t(N.x)*N.y*N.z;
+    rvec_t V(npts);
+    { unsigned long long r=88172645463325252ULL;
+      for (size_t t=0;t<npts;t++) { r^=r<<13; r^=r>>7; r^=r<<17; V[t]=double(r%2000)/1000.0-1.0; } }
+
+    // --- the WALK, both directions
+    rvec_t rhoWalk(npts,0.0);
+    std::vector<double> hWalk(nI*nJ,0.0);
+    ev.ForShellPairBox(i0,nI,j0,nJ,rvec3_t(0,0,0),fx.cell,N,
+        [&](size_t idx, const double* fI, const double* fJ)
+        {
+            for (size_t a=0;a<nI;a++)
+                for (size_t b=0;b<nJ;b++)
+                {
+                    rhoWalk[idx]+=w[a*nJ+b]*fI[a]*fJ[b];
+                    hWalk[a*nJ+b]+=V[idx]*fI[a]*fJ[b];
+                }
+        }, 1e-10);
+
+    // --- the CONTRACTION, both directions
+    const NR_Evaluator::BoxGeom  bg=ev.MakeBoxGeom(i0,j0,rvec3_t(0,0,0),fx.cell,N,1e-10);
+    ASSERT_TRUE(bg.live);
+    const NR_Evaluator::PairPoly qw=ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data());
+    const NR_Evaluator::PairPoly qg=ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),nullptr);
+    ASSERT_TRUE(qw.live && qg.live);
+    rvec_t rhoCube(npts,0.0);
+    ev.ContractCube(bg,qw,N,rhoCube);
+    NR_Evaluator::GridPoly W;
+    ev.GatherCube(bg,qg,N,V,W);
+    std::vector<double> hCube(nI*nJ,0.0);
+    ev.MomentsToPairs(bg,qg,W,i0,nI,j0,nJ,hCube.data());
+
+    auto dot=[&](const rvec_t& rho){ double v=0.0; for (size_t t=0;t<npts;t++) v+=rho[t]*V[t]; return v; };
+    auto tr =[&](const std::vector<double>& h){ double v=0.0; for (size_t t=0;t<h.size();t++) v+=w[t]*h[t]; return v; };
+    const double lhsW=dot(rhoWalk), rhsW=tr(hWalk);
+    const double lhsC=dot(rhoCube), rhsC=tr(hCube);
+    const double scale=std::max(std::fabs(lhsW), std::fabs(lhsC));
+    ASSERT_GT(scale, 1e-9) << "the pairing must be non-trivial";
+    std::printf("\n  [adjoint] walk/walk         |Int rho V - Tr(D h)| = %.3e  (rel %.2e)\n"
+                "            contract/contract  |Int rho V - Tr(D h)| = %.3e  (rel %.2e)\n"
+                "            MIXED (rho cube, h walk)                 = %.3e  (rel %.2e)\n\n",
+                std::fabs(lhsW-rhsW), std::fabs(lhsW-rhsW)/scale,
+                std::fabs(lhsC-rhsC), std::fabs(lhsC-rhsC)/scale,
+                std::fabs(lhsC-rhsW), std::fabs(lhsC-rhsW)/scale);
+    EXPECT_LT(std::fabs(lhsW-rhsW), 1e-13*scale) << "the walk is not self-adjoint -- something is very wrong";
+    EXPECT_LT(std::fabs(lhsC-rhsC), 1e-13*scale) << "the contraction is not self-adjoint";
+    EXPECT_GT(std::fabs(lhsC-rhsW), std::fabs(lhsC-rhsC))
+        << "the MIXED pairing should be worse than either matched one -- if it is not, the two directions "
+           "are accidentally interchangeable and the one-flag wiring is over-cautious";
 }

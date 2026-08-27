@@ -644,6 +644,9 @@ public:
         bool    live=false;
         double  p=0.0, Eij=0.0;
         rvec3_t P{0,0,0};
+        rvec3_t PA{0,0,0}, PB{0,0,0};   //!< P-A and P-(B+Roff): the binomial shifts, kept so the GATHER
+                                        //!< can rebuild the same per-axis coefficients without re-deriving
+                                        //!< the image offset (which is not otherwise recoverable from P).
         int     lp=0;
         double  c[kMaxPoly][kMaxPoly][kMaxPoly];
     };
@@ -652,6 +655,8 @@ public:
     //! \note UNCONTRACTED shells only -- a contracted shell is a SUM over primitive pairs, each with its own
     //! \f$p\f$, \f$P\f$ and box, so it needs one cube per primitive pair (plan open question 2).  Returns
     //! \c live=false otherwise, and the caller falls back to the walk.
+    //! \a w may be null: the GATHER direction needs only the Gaussian part (p, P, Eij, lp), since the
+    //! per-component coefficients enter there on the way OUT, not on the way in.
     PairPoly MakePairPoly(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
                           const double* w) const
     {
@@ -674,7 +679,9 @@ public:
         q.P=(a0*A0+b0*B0)/q.p;
         const rvec3_t AB=A0-B0;
         q.Eij=gi[0]*gj[0]*std::exp(-(a0*b0/q.p)*(AB.x*AB.x+AB.y*AB.y+AB.z*AB.z));
-        const rvec3_t PA=q.P-A0, PB=q.P-B0;
+        q.PA=q.P-A0; q.PB=q.P-B0;
+        const rvec3_t PA=q.PA, PB=q.PB;
+        if (!w) { q.live=true; return q; }                    // Gaussian part only (the gather)
         double ax[kMaxPoly], ay[kMaxPoly], az[kMaxPoly];
         for (size_t a=0;a<nI;a++)
             for (size_t b=0;b<nJ;b++)
@@ -805,8 +812,16 @@ public:
                 const double D2=B2*B2-4.0*h[0][0]*C2;
                 if (D2<0.0) continue;                        // the line misses the sphere
                 const double sq=std::sqrt(D2), inv=0.5/h[0][0];
-                long ia=long(std::floor((-B2-sq)*inv+g.fc[0]))-(g.c0[0]-g.hw[0])-1;
-                long ib=long(std::ceil ((-B2+sq)*inv+g.fc[0]))-(g.c0[0]-g.hw[0])+1;
+                // THE EXACT CHORD.  A point t is kept iff the quadratic is <=0 there, i.e. iff
+                // ceil(root1) <= t <= floor(root2) -- so those ARE the bounds.  A first cut used
+                // floor(root1)-1 .. ceil(root2)+1, which keeps up to three extra points at each end; for
+                // one pair those all carry the SAME SIGN, so they do not cancel in an integral.  Measured:
+                // the integrated per-pair difference was ~30x the pointwise one and accumulated over ~400
+                // pairs into 6.2e-6 Ha on NaF.  The +-kChordFuzz guard (1e-9 of an index) keeps a point
+                // that sits on the boundary rather than dropping it to a rounding difference.
+                constexpr double kChordFuzz=1e-9;
+                long ia=long(std::ceil ((-B2-sq)*inv+g.fc[0]-kChordFuzz))-(g.c0[0]-g.hw[0]);
+                long ib=long(std::floor((-B2+sq)*inv+g.fc[0]+kChordFuzz))-(g.c0[0]-g.hw[0]);
                 if (ia<0) ia=0;
                 if (ib>n[0]-1) ib=n[0]-1;
                 if (ia>ib) continue;
@@ -823,6 +838,133 @@ public:
             }
         }
     }
+    //! \brief The GATHER: the exact TRANSPOSE of ContractCube.  Accumulates the grid-index MOMENTS
+    //! \f$W_{abc}=\sum_g V(g)\,e_1^ae_2^be_3^c\,e^{-p|u|^2}\f$ over the same cube, same tables, same chord.
+    //! Because it is the transpose of the scatter -- not merely "the same physics backwards" -- the
+    //! collocate/integrate pair stays an EXACT ADJOINT, which is what makes the GPW energy variational.
+    void GatherCube(const BoxGeom& g, const PairPoly& q, const ivec3_t& N, const rvec_t& V,
+                    GridPoly& W) const
+    {
+        const int n[3]={2*g.hw[0]+1, 2*g.hw[1]+1, 2*g.hw[2]+1};
+        const rvec3_t sv[3]={g.sx,g.sy,g.sz};
+        double h[3][3];
+        for (int a=0;a<3;a++)
+            for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
+        auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
+        static thread_local rvec_t T12,T23,T31,E1;
+        T12.resize(size_t(n[0])*n[1]); T23.resize(size_t(n[1])*n[2]); T31.resize(size_t(n[2])*n[0]);
+        E1.resize(size_t(q.lp+1)*n[0]);
+        for (int i=0;i<n[0];i++) for (int j=0;j<n[1];j++)
+        { const double e1=eOf(0,i), e2=eOf(1,j); T12[size_t(i)*n[1]+j]=std::exp(-q.p*(e1*e1*h[0][0]+2*e1*e2*h[0][1])); }
+        for (int j=0;j<n[1];j++) for (int k=0;k<n[2];k++)
+        { const double e2=eOf(1,j), e3=eOf(2,k); T23[size_t(j)*n[2]+k]=std::exp(-q.p*(e2*e2*h[1][1]+2*e2*e3*h[1][2])); }
+        for (int k=0;k<n[2];k++) for (int i=0;i<n[0];i++)
+        { const double e3=eOf(2,k), e1=eOf(0,i); T31[size_t(k)*n[0]+i]=std::exp(-q.p*(e3*e3*h[2][2]+2*e3*e1*h[2][0])); }
+        for (int i=0;i<n[0];i++) { double e=1.0; const double e1=eOf(0,i);
+                                   for (int a=0;a<=q.lp;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
+        W.Zero(q.lp);
+        double cij[kMaxPoly][kMaxPoly], ci[kMaxPoly];
+        for (int k=0;k<n[2];k++)
+        {
+            const double e3=eOf(2,k);
+            for (int a=0;a<=q.lp;a++) for (int b=0;a+b<=q.lp;b++) cij[a][b]=0.0;
+            const size_t mk=size_t((((g.c0[2]-g.hw[2]+k)%N.z)+N.z)%N.z);
+            for (int j=0;j<n[1];j++)
+            {
+                const double e2=eOf(1,j);
+                const double B2=2.0*(h[0][1]*e2+h[2][0]*e3);
+                const double C2=h[1][1]*e2*e2+h[2][2]*e3*e3+2.0*h[1][2]*e2*e3-g.Rq;
+                const double D2=B2*B2-4.0*h[0][0]*C2;
+                if (D2<0.0) continue;
+                const double sq=std::sqrt(D2), inv=0.5/h[0][0];
+                // THE EXACT CHORD.  A point t is kept iff the quadratic is <=0 there, i.e. iff
+                // ceil(root1) <= t <= floor(root2) -- so those ARE the bounds.  A first cut used
+                // floor(root1)-1 .. ceil(root2)+1, which keeps up to three extra points at each end; for
+                // one pair those all carry the SAME SIGN, so they do not cancel in an integral.  Measured:
+                // the integrated per-pair difference was ~30x the pointwise one and accumulated over ~400
+                // pairs into 6.2e-6 Ha on NaF.  The +-kChordFuzz guard (1e-9 of an index) keeps a point
+                // that sits on the boundary rather than dropping it to a rounding difference.
+                constexpr double kChordFuzz=1e-9;
+                long ia=long(std::ceil ((-B2-sq)*inv+g.fc[0]-kChordFuzz))-(g.c0[0]-g.hw[0]);
+                long ib=long(std::floor((-B2+sq)*inv+g.fc[0]+kChordFuzz))-(g.c0[0]-g.hw[0]);
+                if (ia<0) ia=0;
+                if (ib>n[0]-1) ib=n[0]-1;
+                if (ia>ib) continue;
+                for (int a=0;a<=q.lp;a++) ci[a]=0.0;
+                const double t23=T23[size_t(j)*n[2]+k];
+                const size_t my=size_t((((g.c0[1]-g.hw[1]+j)%N.y)+N.y)%N.y);
+                size_t mi=size_t((((g.c0[0]-g.hw[0]+ia)%N.x)+N.x)%N.x);
+                for (long ii=ia; ii<=ib; ii++, mi=(mi+1==size_t(N.x)?0:mi+1))
+                {
+                    const double gv=V[(mi*size_t(N.y)+my)*size_t(N.z)+mk]
+                                    *T12[size_t(ii)*n[1]+j]*t23*T31[size_t(k)*n[0]+ii];
+                    for (int a=0;a<=q.lp;a++) ci[a]+=gv*E1[size_t(a)*n[0]+ii];   // <- lp+1 FMAs
+                }
+                for (int a=0;a<=q.lp;a++)                    // unfold e2, once per line
+                {
+                    double e=1.0;
+                    for (int b=0;a+b<=q.lp;b++) { cij[a][b]+=ci[a]*e; e*=e2; }
+                }
+            }
+            for (int a=0;a<=q.lp;a++)                        // unfold e3, once per plane
+                for (int b=0;a+b<=q.lp;b++)
+                {
+                    double e=1.0;
+                    for (int c=0;a+b+c<=q.lp;c++) { W.q[a][b][c]+=cij[a][b]*e; e*=e3; }
+                }
+        }
+    }
+
+    //! \brief Turn the grid-index moments \a W into the per-component-pair integrals
+    //! \f$b_{ab}=\sum_g V\chi_i\chi_j\f$ (row-major nI x nJ into \a bOut).  This is the transpose of the
+    //! collapse: each Cartesian monomial's grid-index polynomial is contracted against \a W, then the same
+    //! per-axis binomials that BUILT the coefficient tensor read it back out.
+    void MomentsToPairs(const BoxGeom& g, const PairPoly& q, const GridPoly& W,
+                        size_t i0, size_t nI, size_t j0, size_t nJ, double* bOut) const
+    {
+        const double Lx[3]={g.sx.x,g.sy.x,g.sz.x};
+        const double Ly[3]={g.sx.y,g.sy.y,g.sz.y};
+        const double Lz[3]={g.sx.z,g.sy.z,g.sz.z};
+        // M[sx][sy][sz] = Eij * <grid-index polynomial of u^s , W>
+        static thread_local double M[kMaxPoly][kMaxPoly][kMaxPoly];
+        GridPoly t;
+        for (int sx=0;sx<=q.lp;sx++)
+            for (int sy=0;sy+sx<=q.lp;sy++)
+                for (int sz=0;sz+sy+sx<=q.lp;sz++)
+                {
+                    t.Zero(sx+sy+sz); t.q[0][0][0]=1.0;
+                    int deg=0;
+                    for (int r=0;r<sx;r++) { t.MulLinear(Lx,deg); deg++; }
+                    for (int r=0;r<sy;r++) { t.MulLinear(Ly,deg); deg++; }
+                    for (int r=0;r<sz;r++) { t.MulLinear(Lz,deg); deg++; }
+                    double v=0.0;
+                    for (int a=0;a<=deg;a++)
+                        for (int b=0;a+b<=deg;b++)
+                            for (int c=0;a+b+c<=deg;c++) v+=t.q[a][b][c]*W.q[a][b][c];
+                    M[sx][sy][sz]=q.Eij*v;
+                }
+        const rvec3_t PA=q.PA, PB=q.PB;                       // carried on the PairPoly, image offset included
+        double ax[kMaxPoly], ay[kMaxPoly], az[kMaxPoly];
+        for (size_t a=0;a<nI;a++)
+            for (size_t b=0;b<nJ;b++)
+            {
+                const Polarization& pi=pols[i0+a];
+                const Polarization& pj=pols[j0+b];
+                Binom1D(pi.n,pj.n,PA.x,PB.x,ax);
+                Binom1D(pi.l,pj.l,PA.y,PB.y,ay);
+                Binom1D(pi.m,pj.m,PA.z,PB.z,az);
+                double v=0.0;
+                for (int sx=0;sx<=pi.n+pj.n;sx++)
+                    for (int sy=0;sy<=pi.l+pj.l;sy++)
+                    {
+                        const double axy=ax[sx]*ay[sy];
+                        if (axy==0.0) continue;
+                        for (int sz=0;sz<=pi.m+pj.m;sz++) v+=axy*az[sz]*M[sx][sy][sz];
+                    }
+                bOut[a*nJ+b]=ns[i0+a]*ns[j0+b]*v;
+            }
+    }
+
     //! GPW_CONTRACT_CUBE=1 routes the collocation scatter through ContractCube (default off while it is
     //! proven; the integrate direction still walks, so the two are not exact adjoints under this flag).
     static bool UseContractCube()
@@ -2196,6 +2338,31 @@ public:
                 }
                 if (here.empty()) return;
                 bHere.assign(here.size(),0.0);
+                // THE GATHER, the exact transpose of the scatter (doc/CollocationRewritePlan.md step 6).
+                // Same tables, same chord, same coefficients -- so with GPW_CONTRACT_CUBE on BOTH directions
+                // the collocate/integrate pair stays an exact adjoint.  Switching only one breaks it (that
+                // is what moved Si's Etot by 2.4e-7 Ha in step 5a), so the two are deliberately wired to the
+                // SAME flag.
+                bool didContract=false;
+                if (UseContractCube())
+                {
+                    const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
+                    const BoxGeom bg=MakeBoxGeom(si.begin,sj.begin,Roff,A,N_L[l],epsUnion);
+                    if (bg.live)
+                    {
+                        const PairPoly pq=MakePairPoly(si.begin,nIs,sj.begin,nJs,Roff,nullptr);
+                        if (pq.live)
+                        {
+                            GridPoly W;
+                            GatherCube(bg,pq,N_L[l],V,W);
+                            double bAll[kMaxShell*kMaxShell];
+                            MomentsToPairs(bg,pq,W,si.begin,nIs,sj.begin,nJs,bAll);
+                            for (size_t qq=0;qq<here.size();qq++) bHere[qq]=bAll[iaHere[qq]*nJs+jbHere[qq]];
+                            didContract=true;
+                        }
+                    }
+                }
+                if (!didContract)
                 ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N_L[l],
                                 [&](size_t idx, const double* fI, const double* fJ)
                 {
