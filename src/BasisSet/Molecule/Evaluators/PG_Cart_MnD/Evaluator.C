@@ -531,6 +531,37 @@ public:
     //! 72 + 72.  The caller forms \f$val=f^I_a f^J_b\f$ for the component pairs it wants and applies its own
     //! \f$|val|<\varepsilon\f$ screen -- the product expression is associated exactly as the unblocked form
     //! was, so values are BIT-IDENTICAL.
+    //! \brief The \c GPW_EXP_RECURRENCE=2 audit sink: the largest RELATIVE deviation between a recurrence
+    //! value and the direct \c exp, reported once at process exit.  An INSTRUMENT, not production state --
+    //! it is written only in audit mode, which is serial by construction.
+    struct ExpDriftAudit
+    {
+        double maxRel=0.0; double atValue=0.0; double maxAbs=0.0; double absRec=0.0, absDir=0.0;
+        long long n=0, nDirZero=0;
+        static ExpDriftAudit& Get() { static ExpDriftAudit a; return a; }
+        static void Note(double rec, double direct)
+        {
+            ExpDriftAudit& a=Get();
+            a.n++;
+            // ABSOLUTE first, and unconditionally.  An earlier cut of this audit returned early when
+            // `direct` underflowed to zero -- which silently excluded the single most dangerous failure
+            // mode (direct underflows, the recurrence does not) and made a broken run look clean at 5e-14.
+            const double ad=std::fabs(rec-direct);
+            if (ad>a.maxAbs) { a.maxAbs=ad; a.absRec=rec; a.absDir=direct; }
+            if (direct==0.0) { a.nDirZero++; return; }
+            const double rel=ad/std::fabs(direct);
+            if (rel>a.maxRel) { a.maxRel=rel; a.atValue=direct; }
+        }
+        ~ExpDriftAudit()
+        {
+            if (n>0) std::cerr << "[exp recurrence audit] max |rel dev| = " << maxRel
+                               << " (at exp value " << atValue << ");  max |abs dev| = " << maxAbs
+                               << " (rec " << absRec << " vs direct " << absDir << ");  "
+                               << nDirZero << " of " << n << " sampled evaluations had direct==0"
+                               << std::endl;
+        }
+    };
+
     //! Fill \a pw[0..L] with \f$x^k\f$ using EXACTLY \c uintpow's associations -- including its \f$x=0\f$
     //! and \f$k=0\f$ conventions -- so indexing this table is BIT-IDENTICAL to the \c uintpow call it
     //! replaces.  \a L is bounded by \c kMaxDeg (the caller sizes \a pw).
@@ -626,6 +657,46 @@ public:
         assert(LxI<=kMaxDeg && LyI<=kMaxDeg && LzI<=kMaxDeg && LxJ<=kMaxDeg && LyJ<=kMaxDeg && LzJ<=kMaxDeg
                && "ForShellPairBox: monomial degree beyond kMaxDeg");
         double pxI[kMaxDeg+1], pyI[kMaxDeg+1], pzI[kMaxDeg+1], pxJ[kMaxDeg+1], pyJ[kMaxDeg+1], pzJ[kMaxDeg+1];
+        // ---- THE exp RECURRENCE (GPW_EXP_RECURRENCE, default OFF, 2026-08-26) ---------------------------
+        // Along a z-line r = r0 + t*sz the argument is a QUADRATIC in t:
+        //    -e*r_i^2(t) = -e*(A + B t + C t^2),   A=|d0|^2, B=2 d0.sz, C=|sz|^2
+        // so E(t) = exp(-e r_i^2(t)) obeys a two-term MULTIPLICATIVE recurrence
+        //    E(t+1) = E(t) R(t),   R(t+1) = R(t) W2,   R(0) = u w,  u = e^{-eB}, w = e^{-eC}, W2 = w^2
+        // -- 2 exps per LINE per primitive instead of one per POINT, plus 2 multiplies per point.  W2 is a
+        // BOX constant (it depends only on the exponent and the grid step), so it is hoisted here.
+        // This is the same identity CP2K's cube-mapped collocate exploits.
+        //
+        // ⚠ NOT bit-identical: each step carries a rounding error, and since those errors are independent
+        // the relative drift over an n-point line grows like sqrt(n)*2^-53 in RMS (user, 2026-08-26 -- the
+        // LINEAR n*2^-53 form is the worst case, requiring every error to conspire).  The debug assert in
+        // the loop body pins it against the direct exp; the measured bound is quoted with the flag.
+        //
+        // THE UNDERFLOW GUARD, and why it is needed rather than paranoid.  The recurrence starts at the
+        // line's FIRST point, which is in the tail, and multiplies UPWARD toward the vertex.  Growing is
+        // harmless (a multiply does not lose relative precision), but if E(0) underflows to zero the whole
+        // line stays zero -- including the vertex, where the true value may be significant.  For the
+        // UNCONTRACTED bases in this project that cannot happen: aMin IS the shell's only exponent, the box
+        // is sized by pMin = aMinI+aMinJ, so e*r^2 is bounded by ~3*(lnE+12) ~ 105 at the box corner.  A
+        // CONTRACTED shell breaks that bound (a core primitive inside a box sized by the diffuse one), so
+        // any line whose start would underflow -- or any exponent too sharp for the level's step -- falls
+        // back to the direct exp for that line.  The guard costs one compare per line per primitive.
+        static const int  kExpRec=[]{const char* v=std::getenv("GPW_EXP_RECURRENCE"); return v ? std::atoi(v) : 0;}();
+        // GPW_EXP_RECURRENCE=2: AUDIT mode -- run the recurrence, evaluate the direct exp beside it, and
+        // report the largest relative deviation seen.  This is the instrument that turns the drift from a
+        // bound into a measurement (the RMS should grow like sqrt(n)*2^-53 over an n-point line, since the
+        // per-step roundings are independent; the linear n*2^-53 form is worst-case).  Serial only.
+        static constexpr size_t kMaxPrim=32;                 // fixed buffers; longer contractions go direct
+        static constexpr double kExpFloor=700.0;             // exp(-700) ~ 1e-304, the last comfortably NORMAL double
+        const double Csz=sz.x*sz.x+sz.y*sz.y+sz.z*sz.z;                    // |sz|^2 -- the z-step's squared length
+        double W2I[kMaxPrim], W2J[kMaxPrim], EI[kMaxPrim], EJ[kMaxPrim], RI[kMaxPrim], RJ[kMaxPrim];
+        const size_t nPI=ei.size(), nPJ=ej.size();
+        bool rec = kExpRec!=0 && nPI<=kMaxPrim && nPJ<=kMaxPrim;
+        const bool audit = kExpRec==2;
+        if (rec)
+        {
+            for (size_t p=0;p<nPI && rec;p++) { if (ei[p]*Csz>kExpFloor) rec=false; else { const double w=std::exp(-ei[p]*Csz); W2I[p]=w*w; } }
+            for (size_t q=0;q<nPJ && rec;q++) { if (ej[q]*Csz>kExpFloor) rec=false; else { const double w=std::exp(-ej[q]*Csz); W2J[q]=w*w; } }
+        }
         // INCREMENTAL MODULO WRAP (2026-08-26).  The wrap used to cost SIX integer divisions per point
         // (((g%N)+N)%N on each axis) even though the grid index advances by exactly ONE per loop step.
         // Starting from an in-range residue and bumping it by 1 with a compare reproduces the same
@@ -645,13 +716,53 @@ public:
                 rvec3_t r=ry;
                 size_t mz=wrap0(cz-hwz,N.z);
                 const size_t rowBase=(planeBase+my)*size_t(N.z);
+                // SEED the line's recurrences (2 exps per primitive per shell, against one per point).
+                bool lrec=rec;
+                if (lrec)
+                {
+                    const rvec3_t d0i=r-Ri, d0j=r-Rj;
+                    const double Ai=d0i.x*d0i.x+d0i.y*d0i.y+d0i.z*d0i.z, Bi=2.0*(d0i.x*sz.x+d0i.y*sz.y+d0i.z*sz.z);
+                    const double Aj=d0j.x*d0j.x+d0j.y*d0j.y+d0j.z*d0j.z, Bj=2.0*(d0j.x*sz.x+d0j.y*sz.y+d0j.z*sz.z);
+                    for (size_t p=0;p<nPI && lrec;p++)
+                    {
+                        if (ei[p]*Ai>kExpFloor) { lrec=false; break; }        // the start would underflow: go direct
+                        EI[p]=std::exp(-ei[p]*Ai);  RI[p]=std::exp(-ei[p]*(Bi+Csz));
+                    }
+                    for (size_t q=0;q<nPJ && lrec;q++)
+                    {
+                        if (ej[q]*Aj>kExpFloor) { lrec=false; break; }
+                        EJ[q]=std::exp(-ej[q]*Aj);  RJ[q]=std::exp(-ej[q]*(Bj+Csz));
+                    }
+                }
                 for (int dz=-hwz; dz<=hwz; dz++, r=r+sz, mz=(mz+1==size_t(N.z)?0:mz+1))
                 {
                     const rvec3_t di=r-Ri, dj=r-Rj;
                     const double ri2=di.x*di.x+di.y*di.y+di.z*di.z, rj2=dj.x*dj.x+dj.y*dj.y+dj.z*dj.z;
-                    if (aMinI*ri2+aMinJ*rj2 > lnCut) continue;   // slowest term < eps*e^-12 -> skip exp/poly evals
-                    double radI=0.0; for (size_t p=0;p<ei.size();p++) radI+=gi[p]*std::exp(-ei[p]*ri2);
-                    double radJ=0.0; for (size_t q=0;q<ej.size();q++) radJ+=gj[q]*std::exp(-ej[q]*rj2);
+                    if (aMinI*ri2+aMinJ*rj2 <= lnCut)   // else: slowest term < eps*e^-12, skip the exp/poly evals
+                    {
+                    double radI=0.0, radJ=0.0;
+                    if (lrec)
+                    {
+                        // The recurrence value must track the direct evaluation to within the drift bound --
+                        // a debug-only cross-check on EVERY point, which is what makes the flag safe to try.
+                        assert([&]{ for (size_t p=0;p<nPI;p++) { const double d=std::exp(-ei[p]*ri2);
+                                        if (std::fabs(EI[p]-d) > 1e-10*std::fabs(d)+1e-300) return false; }
+                                    for (size_t q=0;q<nPJ;q++) { const double d=std::exp(-ej[q]*rj2);
+                                        if (std::fabs(EJ[q]-d) > 1e-10*std::fabs(d)+1e-300) return false; }
+                                    return true; }() && "exp recurrence drifted from the direct evaluation");
+                        if (audit)
+                        {
+                            for (size_t p=0;p<nPI;p++) ExpDriftAudit::Note(EI[p], std::exp(-ei[p]*ri2));
+                            for (size_t q=0;q<nPJ;q++) ExpDriftAudit::Note(EJ[q], std::exp(-ej[q]*rj2));
+                        }
+                        for (size_t p=0;p<nPI;p++) radI+=gi[p]*EI[p];
+                        for (size_t q=0;q<nPJ;q++) radJ+=gj[q]*EJ[q];
+                    }
+                    else
+                    {
+                        for (size_t p=0;p<nPI;p++) radI+=gi[p]*std::exp(-ei[p]*ri2);
+                        for (size_t q=0;q<nPJ;q++) radJ+=gj[q]*std::exp(-ej[q]*rj2);
+                    }
                     // Associated exactly as the unblocked (ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ) was.
                     PowerTable(di.x,LxI,pxI); PowerTable(di.y,LyI,pyI); PowerTable(di.z,LzI,pzI);
                     PowerTable(dj.x,LxJ,pxJ); PowerTable(dj.y,LyJ,pyJ); PowerTable(dj.z,LzJ,pzJ);
@@ -659,6 +770,13 @@ public:
                     for (size_t b=0;b<nJ;b++) fJ[b]=ns[j0+b]*((pxJ[pnJ[b]]*pyJ[plJ[b]])*pzJ[pmJ[b]])*radJ;
                     assert(mz==size_t((((cz+dz)%N.z)+N.z)%N.z) && "incremental z wrap drifted from the modulo");
                     f(rowBase+mz, fI, fJ);
+                    }
+                    // ADVANCE UNCONDITIONALLY -- a screened-out point still consumes its step of the line.
+                    if (lrec)
+                    {
+                        for (size_t p=0;p<nPI;p++) { EI[p]*=RI[p]; RI[p]*=W2I[p]; }
+                        for (size_t q=0;q<nPJ;q++) { EJ[q]*=RJ[q]; RJ[q]*=W2J[q]; }
+                    }
                 }
             }
         }
