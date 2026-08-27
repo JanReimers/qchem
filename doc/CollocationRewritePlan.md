@@ -489,6 +489,41 @@ pairs* to *\f$l_p{+}1\f$ fused multiply-adds against a table*.  That SUGGESTS 5�
 campaign was off by 7×.**  It is not a commitment, and step 0 exists precisely to replace it with a
 measurement before anyone spends a week.
 
+## 4b. ⏸ PARKED — folding the \f$\Omega_{ij}\f$ list by symmetry (user, 2026-08-27)
+
+> *"Is it possible to symmetry fold the \f$\Omega_{ij}\f$ list?"*
+
+**YES, and the structure is unusually favourable — but MEASUREMENT says it is not where the time is.**
+
+**THE ALGEBRA.**  With \f$p=a+b\f$, \f$P-A=-\tfrac bp\overline{AB}\f$, \f$P-B=\tfrac ap\overline{AB}\f$ and
+\f$E_{ij}=e^{-\frac{ab}p|\overline{AB}|^2}\f$ — so \f$E_{ij}\f$ and every `H2` coefficient depend on the
+centres ONLY through the difference vector \f$\overline{AB}=A-B\f$.  Only \f$P\f$ carries absolute
+position.  ⇒ **\f$\Omega\f$'s content is TRANSLATION-INVARIANT**, a function of
+\f$(a,b,L_A,L_B,\overline{AB})\f$, and the expensive part (the E-coefficient recursion) is shared by every
+pair with the same separation vector.
+
+**AND UNDER A CUBIC POINT OP THE FOLD IS AN INDEX REMAP, NOT A RECOMPUTATION.**  The 48 ops of \a m-3m are
+SIGNED AXIS PERMUTATIONS in Cartesian coordinates, and `Hermite2` already stores `d`,`e`,`f` PER AXIS
+indexed \f$(N,n_a,n_b)\f$ — so \f$\Omega(W\overline{AB})\f$ is \f$\Omega(\overline{AB})\f$ with the axis
+tables permuted and odd powers sign-flipped.  (A general op needs the Cartesian representation matrices,
+which is the machinery the T3 fold already carries.)
+
+⛔ **WHY IT IS PARKED.**  Measured 2026-08-27 with the contraction kernel on, the \f$\Omega\f$-consuming
+buckets (analytic 1E lattice sums + local-PP SHORT + vet basis) are **6% of a Si run and 0.6% of an MnO
+run**.  Collocation and integrate-back do not touch \f$\Omega\f$ at all — the walk reads `radials`/`pols`
+directly and `MakePairPoly` derives \f$\alpha_p,P,E_{ij}\f$ itself.  ⇒ Folding it PERFECTLY would buy less
+than the exp recurrence did, and that bought 3%.
+
+★ **WHERE IT WOULD PAY, and the second one is the interesting case:**
+1. **The molecular / 4-centre path**, where \f$\Omega\f$ IS the central object (`Repulsion4C` takes two by
+   reference) — see `doc/ERI4Rework.md`, which is already about banking pairs.
+2. **The lattice path PRECISELY BECAUSE IT CANNOT CACHE.**  `GeometryCacheBudget(0)` deliberately evicts
+   every \f$\Omega\f$ immediately on lattice paths (the 2026-07-22 OOM: ~2M Hermite3 tables, 11 GB), so it
+   rebuilds per (pair, offset) BY DESIGN.  A symmetry fold gives **reuse WITHOUT storage** — the same
+   "task list, not value cache" insight as §3c, applied to \f$\Omega\f$.  That is the version of this idea
+   worth revisiting, and the moment to revisit it is AFTER step 7, when the setup buckets are a larger
+   share of what is left.
+
 ## 5. Open questions to answer before step 4
 
 1. **The screen** (step 3) — the only one that can force a redesign.
