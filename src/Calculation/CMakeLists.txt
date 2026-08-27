@@ -13,5 +13,8 @@ target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES
     ValenceBasisGen.C
 )
 target_include_directories(qchem PRIVATE
+    ${PROJECT_SOURCE_DIR}/src                       # forward.H (the unit-test friend declarations)
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
 )
+
+add_subdirectory(tests)

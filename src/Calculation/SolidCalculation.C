@@ -27,6 +27,7 @@
 // (qchem.Hamiltonian.Factory's cHamiltonian overload; qchem.SCFAccelerator.Factory's typed-options
 // overload), so this file imports ZERO internals, exactly as the molecular facades already manage.
 module;
+#include "forward.H"   // RunDiagnosticsTests -- the unit-test friend (CLAUDE.md: tests may cheat)
 #include <functional>  // the order-parameter probe
 #include <memory>
 #include <vector>     // the anneal schedule
@@ -307,6 +308,11 @@ public:
 
 private:
     friend class SolidCalculation;
+    //! The detector RULES are pure functions of the two trajectories below, so they are unit-tested on
+    //! SYNTHETIC ones (src/Calculation/tests/RunDiagnostics.C).  Before that they were reachable only by
+    //! coaxing a full SCF into the outcome under test -- which made a LOGIC test hostage to whether a
+    //! marginal run converged inside its iteration cap, and it was silently disarmed twice that way.
+    friend ::RunDiagnosticsTests;
     bool                itsConverged = false; //!< the last attempt's verdict -- ChargeSloshed() needs it
     double              itsSeedOrder = 0.0;   //!< the RAW seed's max_A |mu_A|, taken before Init consumes it
     bool                itsHasBasins = false; //!< the XC quadrature owns an atom-centred partition at all
