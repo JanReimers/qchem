@@ -438,13 +438,60 @@ recalibrates the charter claim: it was never 100×.
 - **MnO** — the ACCEPTANCE run.  `MNO_SKIP_FM=1 GPW_MNO_NMAX=2` makes it a 9-minute probe rather than a
   45-minute one, and the ledger's per-call numbers make a bounded probe as good as a full run for cost.
 
+### ⛔ THE exp RECURRENCE — TRIED, MEASURED, REJECTED (2026-08-26).  Branch `exp-recurrence-experiment`
+
+> **USER:** *"We have to try it, and yes we need to be able to turn it on and off."*
+
+Built behind `GPW_EXP_RECURRENCE` (=1 on, =2 audits against the direct \c exp, plus a debug assert on
+every point), measured on all three tiers, and **parked on a branch rather than merged.**
+
+**IT WORKS — the transcendental really is eliminated.**  \c exp falls from ~21% of the Si profile to
+**1.39%**.  Numerically it is sound: max \f$|\Delta_{rel}|\f$ **4.8e-14**, max \f$|\Delta_{abs}|\f$
+**1.5e-14**, and zero cases where the direct evaluation underflowed while the recurrence did not.
+
+**AND IT IS STILL NOT WORTH IT.**  The box walk gains **1.13× (Si), 1.18× (NaF), 1.03× (MnO)** — and MnO
+is the acceptance case.  The reason is structural and was not visible before measuring: the payoff scales
+with LINE LENGTH, and the recurrence must be advanced on **every walked point** — including the ~48% the
+sphere screen now rejects, where the direct form paid no \c exp at all.  MnO's lines are short, so a
+transcendental on half the points was traded for four multiplies on all of them: a wash exactly where it
+was needed.  ⇒ **Removing 20% of the profile bought 3%.**  Worth remembering as a general caution: a hot
+symbol's share is an upper bound on the win, not an estimate of it.
+
+⛔ **AND THE HAZARD IS WORTH MORE THAN THE SPEED — THE RECURRENCE IS ANISOTROPIC BY CONSTRUCTION.**  It
+runs along z, so z is computed by a different arithmetic path than x and y.
+`GPW_SCF.NaPseudoAtomInBoxDoublet` (one electron, 48 imposed ops, degenerate) converges to a DIFFERENT
+BASIN, **0.97 mHa high**, in 9 iterations instead of 23 — while ISOTROPIC perturbations FOUR ORDERS
+LARGER (`GPW_DENSITY_EPS` ×2 and ×0.5) all land in the correct basin to 9 digits.  Si and NaF, both
+gapped, do not move at all.  **A 1e-14 axis asymmetry selecting an SCF basin is a different class of risk
+from drift**, and it lands on exactly the degenerate open shells this campaign already fights (the
+"Becke × degenerate open shell oscillates — fixed-axis angular grid vs rotating ρ" entry is the same
+disease).
+⚠ **AND MERELY HAVING THE CODE COSTS 5–8%**: the per-point branch put the default-OFF Si box walk at
+1.92–2.00 s against **1.83 s** with the code absent.  A hot loop does not carry an off switch for free.
+
+★ **A METHOD NOTE.**  The audit first reported a clean 4.8e-14 on the very run that was 1 mHa wrong,
+because it returned early when the direct value underflowed to zero — silently excluding the single most
+dangerous failure mode (direct 0, recurrence not).  The blind spot turned out to be empty here, but the
+instrument was only trustworthy AFTER it was widened to the absolute deviation and made to count the
+excluded cases.  **An audit that cannot see its own worst case is not evidence.**
+
+**TO RESURRECT:** pair it with the interval skip below (which removes the wasted advances) and settle the
+anisotropy first.  Neither is likely to change the MnO verdict.
+
 ### WHAT IS LEFT, and it is now ONE item
 
 **`exp` IS THE WHOLE REMAINING STRUCTURE: 29% of the NaF profile** (`__ieee754_exp_fma` 17.2% +
 `exp@@GLIBC_2.29` 9.8% + 2.3% of plt stubs — note ~⅓ of that is the glibc wrapper, not the evaluation).
 Everything else is flat: after the four edits no single instruction in the walk exceeds 3%.
 
-**The candidate is the handoff's #3, unchanged**: along a run of collinear grid points
+⛔ **SUPERSEDED BY MEASUREMENT — see the rejected-experiment section above.  What follows was the
+PREDICTION; the measured answer is 1.03× on MnO, and the remaining item is now the INTERVAL SKIP:**
+under the sphere screen the accepted set on a line is a CONTIGUOUS dz interval (the screen is a convex
+quadratic in t), so it can be solved analytically and the loop bounded to it.  That removes the wasted
+`ri2`/screen work on the ~48% of points the screen rejects, it is **BIT-IDENTICAL** provided `r` is still
+accumulated through the skipped region, and it needs no flag.  **Not yet built or measured.**
+
+**The candidate was the handoff's #3**: along a run of collinear grid points
 \f$e^{-\alpha(x+nd)^2}\f$ obeys a two-term MULTIPLICATIVE RECURRENCE, which is what CP2K's cube-mapped
 collocate exploits.  Two things to weigh before starting:
 - ⚠ **It cannot be bit-identical** (accumulated rounding along the line), and unlike the sphere screen it is
