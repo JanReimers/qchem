@@ -354,7 +354,60 @@ Three 1-D tables, three-step contraction.  ⛔ **No production cell has an ortho
 atom-in-box tests do.  So this buys simpler bring-up of the contraction machinery and nothing else; do it
 only if step 5 proves hard to land in one go, and never quote its numbers as the result.
 
-### Step 5 — The NON-ORTHO kernel — **THE ONLY ONE WITH PRODUCTION USERS**.
+### ✅ Steps 5 + 6 — BUILT AND MEASURED 2026-08-27.  **4.98× on the MnO acceptance case.**
+Gated on `GPW_CONTRACT_CUBE`, **default OFF** (see the verdict below).  `ForShellPairBox` remains the
+reference implementation; `BoxGeom`/`MakeBoxGeom` is shared by both so they cannot drift.
+
+| box walk (two ledger buckets), streams disabled | walk | contract | |
+|---|---|---|---|
+| Si Γ | 1.474 s | 0.372 s | **3.96×** |
+| NaF Γ | 140.3 s | 38.9 s | **3.61×** |
+| **MnO AFM-II Γ (acceptance)** | **392.7 s** | **78.9 s** | **4.98×** |
+
+MnO wall 429 → 113 s, CPU 470 → 154 s, **peak RSS unchanged** (166.2 → 168.5 MB), trajectory identical
+(iters, lastΔρ, Eamp all unchanged), `Etot` −59.69580383 → −59.69580301 (8.2e-7 Ha).
+
+⇒ **SESSION TOTAL on the MnO box walk: 1139.8 → 78.9 s = 14.5×**, i.e. 569.9 → 39.4 s per iteration.
+Against CP2K's 8.5 s/iteration the standing goes **67× → ~5×**.
+
+**ADJOINTNESS IS THE ACCEPTANCE TEST, and it passes** (`CollocateIntegrateAreExactAdjoints`).
+\f$|\int\rho V-\mathrm{Tr}(Dh)|\f$ relative: walk/walk 5.5e-15, **contract/contract 4.4e-15**, mixed
+1.4e-14.  `GatherCube` is the literal transpose of `ContractCube` — same tables, same chord, same
+coefficients — so this holds by construction, not by tuning.
+
+⛔ **THE ONE REAL BUG, and it was mine, not the method's.**  The chord bracket used
+`floor(root1)-1 .. ceil(root2)+1`.  The correct bracket is `ceil(root1) .. floor(root2)` — a point is kept
+iff the quadratic is ≤0 there.  The extra points all carry the SAME SIGN for a given pair, so they did not
+cancel in an integral:
+
+| | over-wide bracket | exact bracket |
+|---|---|---|
+| pointwise relative error | 2.4e-11 | **2.4e-14** |
+| INTEGRATED relative error | ~5e-10 | **~7e-15** |
+
+★ This retracts an earlier claim in this file that the deficit was *"intrinsic to the non-ortho route"*
+(index-unit polynomials times cancelling 2-D tables).  It was not intrinsic; it was a sloppy bracket.
+⇒ **MEASURE THE INTEGRATED DIFFERENCE, NOT ONLY THE POINTWISE ONE.**  Systematic pointwise errors do not
+cancel, and the SCF sees the integral.  The pointwise number looked acceptable at every stage while the
+integrated one was 30× worse.
+
+**WHAT STILL DIFFERS between the two paths is the per-component screen** (step 3), which the contracted
+cube has no analogue for and needs none.  Measured integrated cost of that screen: 1.5e-7 absolute, 5.8e-5
+relative on a pair whose weights span four decades.  ⇒ **THE CONTRACTION IS THE MORE ACCURATE OF THE TWO**;
+Si's residual 1.8e-7 Ha is the WALK's truncation, not the kernel's.
+
+### ⚠ THE DEFAULT: still OFF, on one piece of evidence
+`ctest` is **783/783 with the flag off** and **782/783 with it on**.  The single failure is
+`GPW_SCF.ImposedOrderLostIsAPostconditionFailure_Na2Box`, whose own comment records that its recipe is
+marginal — *"alpha=0.5 and a generous cap are LOAD-BEARING, not decoration"*, converging in **66 of a
+100-iteration cap**.  The kernel's perturbation pushes it past the cap; its ORDER behaviour is still
+correct (the moment dies at step 65, which is what the gate is about), but `DidConverge()` is asserted
+first.
+⇒ Same fragility class as the exp recurrence's Na-doublet flip: a marginal SCF, a small perturbation, a
+different trajectory.  **Not evidence that the kernel is wrong — but not nothing either.**  Defaulting on
+should wait for either a robust Na2 fixture or an understanding of the trajectory sensitivity.
+
+### Step 5 (original statement) — The NON-ORTHO kernel — **THE ONLY ONE WITH PRODUCTION USERS**.
 "Mathieu's trick" (`cp2k/src/grid/cpu/grid_cpu_collint.h:532,752`): the quadratic form factors EXACTLY into
 three 2-D tables, \f$e^{-\zeta_p Q(i,j,k)}=T_{ij}T_{jk}T_{ki}\f$ with
 \f$T_{ij}=e^{-\zeta_p(d_i^2h_{ii}+2d_id_jh_{ij})}\f$, plus re-expansion of the polynomial in grid-index
