@@ -448,9 +448,20 @@ that, and it belongs on the anchor-moving roster (doc/OpenWork.md) beside A1 —
 since doing them separately means each masks the other.
 
 **The other two consumers still need reconciling, and neither is optional:**
-- **The T3 orbit fold** — keyed per (pair, offset), reading the orbit-projected \f$D\f$; needs
-  re-derivation against a per-shell-pair cube.  ⚠ Note the MnO acceptance rows were taken on a FREE run
-  with no fold active, so the fold × contraction interaction is **entirely unmeasured**.
+- **The T3 orbit fold** — ✅ **IT ALREADY COMPOSES, and is NOT a step-7 blocker** (corrected 2026-08-27; an
+  earlier cut of this line claimed the interaction was "entirely unmeasured", which was wrong).  The
+  uncached Si run is IMPOSED and folded — `48/48 ops`, `300 -> 24 representatives = 12.50x` — and converges
+  correctly with `GPW_CONTRACT_CUBE=1`.  It composes for a structural reason: the fold decides WHICH
+  (pair, offset) terms are live and with what weight (`pmul`, the offset multiplicity, the orbit-projected
+  \f$D\f$), all of which is UPSTREAM of the cube; the cube simply receives the resulting weights.
+  ⚠ What is genuinely unmeasured is MnO's MAGNETIC (Shubnikov) fold, since that acceptance probe ran free.
+
+  ★ **AND IT IS DELIBERATELY LAST ANYWAY** (user, 2026-08-27): *"that will be icing on the cake later when
+  we get qchem RAM/CPU into the CP2K ball park while using CP2K algos, or as close as we can."*  This is
+  `doc/Benchmark.md` rule 3 applied one level up — a qchem-only acceleration measured on top of a SLOW
+  kernel flatters itself, and the fold's real worth is only visible against a baseline that is already
+  competitive.  ⇒ Reach parity with CP2K-comparable algorithms FIRST; the fold is then a separately
+  reported qchem-vs-qchem delta, which is the more useful statement anyway.
 - **The static local-PP sweep** — same walk, different tolerance rule (absolute \f$\kappa\f$, explicit
   `pairLevels`).  Already benefits (5.52 → 1.49 s on the MnO probe) because it shares `integrateShell`.
 
