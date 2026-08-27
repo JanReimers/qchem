@@ -33,11 +33,43 @@ cache down with the same change.  Forward plan; the measured record that motivat
   magnetic doubling).  "Non-ortho metric" here means *rhombohedral*, specifically.  The only ortho-metric
   grids in the suite are the atom-in-box tests (Na, O₂, Mn₂, Na₂).
 
-  ★ **AND THE ORTHO FAST PATH IS PURCHASABLE — IT IS JUST NOT WORTH BUYING.**  A cubic lattice CAN be given
-  a diagonal metric by rastering its conventional cell: for Si that is 4× the volume (1080 vs 270), hence
-  4× the grid points at the same resolution.  Paying 4× the points to unlock maybe 2× from 1-D tables is a
-  clear loss.  ⇒ We are in the general case **by a deliberate cell choice**, so the non-ortho kernel is not
-  a fallback — it is the target.  (CP2K calls the two paths `ortho` and `general`.)
+  ★ **AND THE ORTHO FAST PATH IS PURCHASABLE — at 2×, not 4×** (corrected 2026-08-27; the first cut of
+  this paragraph quoted the CONVENTIONAL cubic cell).  The smallest ORTHOGONAL-metric cell of the FCC
+  lattice is **body-centred tetragonal at 2× the primitive volume**: \f$a(0,0,1)\f$,
+  \f$\tfrac a2(1,-1,0)\f$, \f$\tfrac a2(-1,-1,0)\f$, lengths \f$a,\tfrac a{\sqrt2},\tfrac a{\sqrt2}\f$
+  (enumerated, not recalled).  So the trade is 2× the grid points to buy a path measured ~1.5–2× faster per
+  point — roughly BREAK-EVEN, not the clear loss first claimed here.  The conclusion survives, but only
+  just.  ⇒ We stay in the general case, and the non-ortho kernel is the target rather than a fallback.
+  (CP2K calls the two paths `ortho` and `general`.)
+
+  ⛔ **AND FOR MnO IT IS NOT A CHOICE AT ALL.**  Its cell is rhombohedral because the MAGNETIC ORDER is —
+  AFM-II stacks along [111], reducing the lattice to trigonal — so no low-index orthogonal cell exists.
+  That settles it independently of the Si arithmetic.
+
+### 2b. ★ THE PRIMITIVE-vs-CONVENTIONAL DICHOTOMY — the symmetry half is a NON-issue (user, 2026-08-27)
+
+> *"Primitive: less atoms, fake low symmetry. FCC: 4x the atoms, proper full symmetry.  There must be some
+> (group theory) technique that allows you to work with less atoms and maintain the full symmetry…"*
+
+**The premise does not hold, and that is the good news: the primitive cell HAS the full symmetry.**  All
+**48/48** cubic point-group operations are INTEGER matrices in the primitive basis (\f$P^{-1}WP\f$ integral
+for every \f$W\in O_h\f$ — enumerated).  Only the cell's SHAPE is rhombohedral; the LATTICE is cubic and
+every operation maps it to itself.  The code already relies on this: the Si Γ run prints
+`[IBZ] point group |ops|=48` and `[stream fold] 48/48 ops folded`, on the FCC PRIMITIVE cell.
+
+**And the sought technique IS the primitive cell.**  FCC's four "extra" centring translations are not
+non-lattice — they ARE lattice translations, and look extra only because the conventional description
+carries four lattice points.  The primitive cell is precisely the quotient by them.  So *fewer atoms +
+full symmetry* is already achieved; what it costs is the diagonal metric, which is geometry, not group
+theory.  (SALC is a different axis: it reduces the BASIS, block-diagonalising H and S by irrep — see
+doc/MolecularSymmetryPlan.md — not the grid.)
+
+⚠ **ONE IDEA THAT MIGHT ESCAPE THE TRADE — parked, not scheduled.**  Decouple the GRID from the CELL: use
+cubic voxels commensurate with the CONVENTIONAL cell (diagonal metric) but store only a primitive cell's
+worth, wrapping through the centring translations.  Metric diagonal, storage primitive.  The catch is the
+Poisson solve — the FFT domain stops being a simple box, and an FCC-periodic function has nonzero Fourier
+components only on the BCC reciprocal sublattice (3/4 of the conventional box's G-vectors are identically
+zero).  Real, non-trivial, and orthogonal to this plan.
 - **EVERY speed number is the sum of exactly two timing-ledger buckets** — `scf: integrate-back (pair
   gather)` + `scf: collocate density (pair scatter)`.  They are EXCLUSIVE and DISJOINT, so no setup
   subtraction ever appears.  `GPW_REPORT=1` prints them.
