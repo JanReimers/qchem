@@ -596,6 +596,16 @@ public:
         const rvec3_t sx=A.ToCartesian(rvec3_t(1.0/N.x,0,0)), sy=A.ToCartesian(rvec3_t(0,1.0/N.y,0)),
                       sz=A.ToCartesian(rvec3_t(0,0,1.0/N.z));
         const rvec3_t r00=A.ToCartesian(rvec3_t(double(cx-hwx)/N.x, double(cy-hwy)/N.y, double(cz-hwz)/N.z));
+        // THE CHORD (2026-08-27).  Screen (3) is a SPHERE about the product centre: by the Gaussian product
+        // identity aI|r-Ri|^2 + aJ|r-Rj|^2 == pMin|r-P|^2 + pfExp, so the test is exactly |r-P|^2 <= Rq.
+        // Along a z-line r(t)=r0+t*sz that is a CONVEX QUADRATIC in t, so the accepted set is an INTERVAL --
+        // solvable in closed form.  The walk can then follow the sphere's chord instead of the whole box row,
+        // and a line that misses the sphere is skipped without visiting a single point of it.
+        // Rq is widened by a relative epsilon here, and the solved interval by one point at each end, so the
+        // bracket is a strict SUPERSET of what the per-point test accepts -- the test below remains the sole
+        // AUTHORITY on what is kept, which is what makes this BIT-IDENTICAL rather than a second truncation.
+        const double Rq=((lnCut-pfExp)/pMin)*(1.0+1e-12)+1e-12;   // |r-P|^2 bound (pfExp<lnE<=lnCut => positive)
+        const double Csz=sz.x*sz.x+sz.y*sz.y+sz.z*sz.z;           // |sz|^2, the quadratic's leading coefficient
         // The per-component factor arrays, allocated ONCE per box (kMaxShell bounds a Cartesian shell:
         // (L+1)(L+2)/2 = 45 at L=8, well past any basis this evaluator sees).
         static constexpr size_t kMaxShell=45;
@@ -642,10 +652,27 @@ public:
             const size_t planeBase=mx*size_t(N.y);
             for (int dy=-hwy; dy<=hwy; dy++, ry=ry+sy, my=(my+1==size_t(N.y)?0:my+1))
             {
+                // Solve this line's chord: t^2 Csz + t bq + cq <= 0, t = dz+hwz in [0, 2hwz].
+                const rvec3_t g0=ry-P;
+                const double bq=2.0*(g0.x*sz.x+g0.y*sz.y+g0.z*sz.z);
+                const double cq=(g0.x*g0.x+g0.y*g0.y+g0.z*g0.z)-Rq;
+                const double Dq=bq*bq-4.0*Csz*cq;
+                if (Dq<0.0) continue;                                  // the line misses the sphere entirely
+                const double sq=std::sqrt(Dq), inv=0.5/Csz;
+                int t0=int(std::floor((-bq-sq)*inv))-1;                // widened by a point at each end
+                int t1=int(std::ceil ((-bq+sq)*inv))+1;
+                if (t0<0) t0=0;
+                if (t1>2*hwz) t1=2*hwz;
+                if (t0>t1) continue;
                 rvec3_t r=ry;
                 size_t mz=wrap0(cz-hwz,N.z);
                 const size_t rowBase=(planeBase+my)*size_t(N.z);
-                for (int dz=-hwz; dz<=hwz; dz++, r=r+sz, mz=(mz+1==size_t(N.z)?0:mz+1))
+                // Walk the HEAD the cheap way.  r is still ACCUMULATED point by point (never jumped to
+                // ry + t0*sz, which would round differently and, being a z-only shortcut, would make the
+                // walk anisotropic -- the defect that sank the exp recurrence, doc/OpenWork.md).  So every
+                // point the body sees carries exactly the r it carried before.
+                for (int t=0;t<t0;t++) { r=r+sz; mz=(mz+1==size_t(N.z)?0:mz+1); }
+                for (int dz=-hwz+t0; dz<=-hwz+t1; dz++, r=r+sz, mz=(mz+1==size_t(N.z)?0:mz+1))
                 {
                     const rvec3_t di=r-Ri, dj=r-Rj;
                     const double ri2=di.x*di.x+di.y*di.y+di.z*di.z, rj2=dj.x*dj.x+dj.y*dj.y+dj.z*dj.z;
