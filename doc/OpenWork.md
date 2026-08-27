@@ -629,6 +629,59 @@ collocate exploits.  Two things to weigh before starting:
 handoff's candidate 4 — a `std::map<Vector3D<int>,…>` comparator, in `Projector3`/`SymmetrizeGMap`, NOT in
 the box walk), and `qcMesh::BeckeCutoff` at 3.2% on NaF.
 
+## ★★★ THE ANCHOR-MOVING SPRINT — the roster (assembled 2026-08-27)
+
+> **USER, 2026-08-27:** *"the only thing pulling me in the other direction is that we actually have a queue
+> of (other) anchor moving improvements.  And the thinking was to tackle them all in one sprint."*
+
+**WHY BATCHING IS RIGHT, stated once so it does not have to be re-argued.**  Every anchor re-bank costs a
+full MnO acceptance cycle plus a doc pass, and — the part that matters more — doing them ONE AT A TIME
+means each re-bank partially MASKS the next one's effect, because the reference it is measured against has
+just moved.  Batch them, re-bank once, and every delta is attributable.
+
+**THE PROBLEM THIS SECTION FIXES:** the concept already existed in the docs ("the bit-moving batch", "the
+V1.22/§K class") but the roster did not — it was scattered across `doc/OpenWork.md` and
+`doc/CleanupCandidates.md` with no single place to read it off.  That is the thing most likely to make the
+sprint cost more than it should.
+
+| # | item | where it is described | state | delta |
+|---|---|---|---|---|
+| A1 | **the collocation contraction kernel** (`GPW_CONTRACT_CUBE`) | `doc/CollocationRewritePlan.md` steps 5–6 | **BUILT, gated OFF, 792/792 both ways** | **MEASURED** (below) |
+| A2 | **V1.22** — Becke per-representative partition | this file, *Continuous — CLEANUP* | not built | unmeasured; imposed runs only |
+| A3 | **§K** | `doc/CleanupCandidates.md` (deferred, user) | not built | unmeasured |
+| A4 | **the Δρ/N convergence gate** | `doc/SCFStrategyPlan.md` | not built | unmeasured |
+| A5 | **GPW default seed → `IonicSAD`** | `doc/CleanupCandidates.md` ("every pinned GPW anchor re-seeds") | not built | unmeasured; re-seeds EVERY GPW anchor |
+| A6 | **`SCFParams::XCCuspDeficit`** — the N4 XC feed | N4 above | flag exists, off | a TRAJECTORY change by its own description |
+
+⚠ **A5 is the one to sequence FIRST or LAST, not in the middle**: it re-seeds every GPW anchor, so anything
+measured against a pre-A5 reference has to be re-measured after it.
+
+### A1 — the contraction kernel: ready, and its deltas are ALREADY MEASURED
+So the sprint does not have to discover them.  All three converge, all three keep their verdict:
+
+| system | before | after | shift |
+|---|---|---|---|
+| Si Γ | −7.115067662 | −7.115067844 | −1.8e-7 |
+| NaF Γ | −24.5468825477 | −24.5468834873 | −9.4e-7 |
+| MnO AFM-II Γ | −59.69580383 | −59.69580301 | +8.2e-7 |
+
+★ **AND THE SHIFT IS THE WALK'S ERROR, NOT THE KERNEL'S.**  Against a naive exact reference the contraction
+tracks to 2.4e-14 relative and the walk to ~3e-14; and the walk additionally applies a per-component screen
+the contracted cube has no analogue for, whose integrated cost measures 1.5e-7 absolute (5.8e-5 relative on
+a pair whose weights span four decades).  ⇒ Re-banking to the contracted values is moving the anchors
+TOWARD the truth, not away from it.  Speed: **4.98× MnO / 3.96× Si / 3.61× NaF** on the box walk.
+
+⚠ **AND ONE THING TO DO WHEN IT LANDS** (the standing provenance rule): the run banner must state WHICH
+collocation kernel produced a row, or a future `doc/Benchmark.md` entry is not reproducible.  It is NOT a
+`CP2K_COMPAT` deviation — CP2K collocates exactly this way — so it does not belong on that table.
+
+### ⚠ WHAT ROTS WHILE A1 SITS GATED, and what does not
+- **The KERNEL itself cannot rot**: `src/BasisSet/Molecule/tests/M_PG_BoxWalk.C` calls `MakePairPoly` /
+  `ContractCube` / `GatherCube` DIRECTLY, not through the flag, so it is exercised on every default sweep.
+- **The WIRING can**: the `scatterShell` / `integrateShell` routing is flag-gated and therefore unexercised
+  by default.  ⇒ Run `GPW_CONTRACT_CUBE=1 ctest -j8` alongside the plain sweep at any breakpoint that
+  touches the collocation path.  Measured 2026-08-27: 792/792 both ways.
+
 ### ⚠ THE COVERAGE GAP — now the ONLY thing open under N1
 `RunMnO` and the new Na2 gate go through `SolidCalculation`, so those are covered.  Other GPW tests still
 construct `SolidSCFIterator` directly (`RunGpw`, `RunGpwAnnealed`), so **none of T1–T5 reaches them** — no
