@@ -79,7 +79,7 @@ current basis is uncontracted so they coincide TODAY — `gi[p]` exists for a re
 
 ### ✅ Step 0 — THE GATE: **PASSED 2026-08-27, 6.4× on the MnO-representative cube**
 `src/BasisSet/Molecule/tests/M_PG_BoxWalk.C`, in `UTMolecule_BS`.  Cubic 16 a.u. cell, 96³ grid, two
-centres 4.0 a.u. apart (the MnO Mn–O contact), $arepsilon=10^{-10}$.  The contraction pays its OWN
+centres 4.0 a.u. apart (the MnO Mn–O contact), \f$\varepsilon=10^{-10}\f$.  The contraction pays its OWN
 setup every repetition — the collapse AND the tables — so this is the honest per-(pair, offset) cost, not
 a table-reuse flatter.
 
@@ -90,7 +90,7 @@ a table-reuse flatter.
 | d × d | 4.92 ms | 0.76 ms | **6.48×** |
 | s × s (the cheap end) | 12.5 ms | 2.97 ms | 4.23× |
 
-⇒ **Above the ≥5× bar on every case with $L>0$.**  The s×s row is expected and is not a
+⇒ **Above the ≥5× bar on every case with \f$L>0\f$.**  The s×s row is expected and is not a
 counter-example: a 1-FMA innermost loop has no structural win to show, and s×s pairs are not where the
 time goes.  ★ The DIFFUSE case gains most (8.4×), which is the right way round — diffuse pairs own the
 biggest boxes and therefore most of the cost.
@@ -112,17 +112,17 @@ tell the difference is to build the replacement kernel in isolation FIRST.
 </details>
 
 ### ✅ Step 1 — THE ORACLE: DONE 2026-08-27 (two tests, same file)
-`SeparableCollapseMatchesTheWalkPointwise` sweeps $L_a,L_b\in\{0,1,2\}$ × three $lpha_I$ × two
-$lpha_J$ (36 shell pairs) and checks the NAIVE collapse against the walk at every point the walk
+`SeparableCollapseMatchesTheWalkPointwise` sweeps \f$L_a,L_b\in\{0,1,2\}\f$ × three \f$\alpha_I\f$ × two
+\f$\alpha_J\f$ (36 shell pairs) and checks the NAIVE collapse against the walk at every point the walk
 visits — so a failure convicts the ALGEBRA, not the contraction.  `ContractionMatchesTheWalkOverTheCube`
 then checks the fast three-step contraction over the whole cube.
 
 ⚠ **AND THE ORACLE'S FIRST CUT WAS WRONG IN A WAY WORTH RECORDING.**  It used a RELATIVE per-point error
-and reported deviations of $10^{12}$ on a correct collapse.  A shell pair summed over components with
-mixed-sign weights passes through ZERO at points inside the cube (a d shell's $x^2$-like combinations
-do it routinely), so the relative criterion divides by ~0 and converts a $10^{-16}$ error into a
+and reported deviations of \f$10^{12}\f$ on a correct collapse.  A shell pair summed over components with
+mixed-sign weights passes through ZERO at points inside the cube (a d shell's \f$x^2\f$-like combinations
+do it routinely), so the relative criterion divides by ~0 and converts a \f$10^{-16}\f$ error into a
 catastrophic-looking one.  **The collocated value's meaning is absolute** — the walk screens it at
-absolute $arepsilon$ — so the tolerance is absolute, scaled to the cube's own peak.  Same family of
+absolute \f$\varepsilon\f$ — so the tolerance is absolute, scaled to the cube's own peak.  Same family of
 mistake as the drift audit that could not see its own worst case: *the criterion has to match what the
 quantity means.*
 
