@@ -18,7 +18,7 @@ module;
 #include <string>
 #include <ostream>
 #include <fstream>   // /proc/self/statm (GPW_RSS_TRACE diagnostics)
-#include <iostream>   // std::cerr (the one-line stream-cache coverage readout)
+#include <iostream>   // std::cout (the one-line [collocation] kernel + task-list provenance)
 #include <vector>
 #include <cmath>      // std::sqrt/std::log (the lattice-sum magnitude-screening reach radius)
 #include <algorithm>  // std::min (alpha_min per radial)
@@ -45,7 +45,7 @@ import qchem.Structure;
 import qchem.UnitCell;                                             // UnitCell (ToCartesian/ToFractional: grid<->cell for collocation)
 import qchem.Types;
 import qchem.Blaze;                                                // rsmat_t (the lattice-sum matrices)
-import qchem.Reporting;                                            // fold the stream-cache coverage into grids.stream
+import qchem.Reporting;                                            // fold the task-list geometry into grids.boxTasks
 
 export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
@@ -118,7 +118,7 @@ public:
     //! as the screens: a single orbital's tail reach is sqrt(-ln eps/alpha), a pair's conservative reach is
     //! the sum -- worst pair = diffuse x diffuse = 2*sqrt(-ln eps/alpha_min).  The CellsInSphere count over
     //! that reach is the per-pair image-enumeration size a grad student sees JUMP when diffuse functions
-    //! arrive; the screens then prune it per term (kept counts = the [stream cache] offsets readout).
+    //! arrive; the screens then prune it per term (kept counts = the [collocation] task-list readout).
     void EmitLatticeSumReport(const UnitCell& A) const
     {
         const double aMin=MinExponent(), aMax=MaxExponent();
@@ -130,7 +130,7 @@ public:
                  <<"  analytic 1E/V_local: eps="<<kScreenEps()<<" (GPW_SCREEN_EPS) pair reach="<<reachS
                  <<" au = "<<cellsS<<" cells;  collocation offsets: eps="<<kDensityEps()
                  <<" (GPW_DENSITY_EPS) pair reach="<<reachD<<" au = "<<cellsD
-                 <<" cells (kept counts on the [stream cache] line)"<<std::endl;
+                 <<" cells (kept counts on the [collocation] line)"<<std::endl;
         qchem::report::EmitAt("grids", "latticeSums", {
             {"alphaMin",aMin}, {"alphaMax",aMax},
             {"screenEps",kScreenEps()},  {"pairReach1E",reachS},   {"cells1E",cellsS},
@@ -617,7 +617,7 @@ public:
     //   3. contract onto the cube with "Mathieu's trick": the quadratic form factors EXACTLY into three 2-D
     //      exponential tables, e^{-p|u|^2} = T12 T23 T31, so the innermost loop is lp+1 fused multiply-adds
     //      and three table lookups -- no exp, no monomial, no component loop.
-    // Gated on GPW_CONTRACT_CUBE while it is proven; ForShellPairBox remains the reference implementation
+    // ON BY DEFAULT since 2026-08-27 (GPW_CONTRACT_CUBE=0 opts out); ForShellPairBox remains the reference
     // and src/BasisSet/Molecule/tests/M_PG_BoxWalk.C is the oracle.
 
     //! \f$(u+p_a)^{n_a}(u+p_b)^{n_b}=\sum_s\alpha_s u^s\f$ -- the ONE-DIMENSIONAL re-expansion about the
@@ -966,10 +966,14 @@ public:
             }
     }
 
-    //! GPW_CONTRACT_CUBE=1 routes the collocation scatter through ContractCube (default off while it is
-    //! proven; the integrate direction still walks, so the two are not exact adjoints under this flag).
+    //! The COLLOCATION KERNEL, both directions at once (they must agree or the adjoint breaks).  DEFAULT ON
+    //! since 2026-08-27: the separable contraction is 3.6-5.0x faster than the walk AND measurably more
+    //! accurate (it carries no per-component screen -- doc/CollocationRewritePlan.md steps 5+6), and step 7
+    //! deleted the value cache that used to hide the walk's cost, so the walk is no longer an affordable
+    //! default.  \c GPW_CONTRACT_CUBE=0 is the opt-OUT, back onto \c ForShellPairBox -- kept because that
+    //! walk is the REFERENCE implementation the unit oracle in \c M_PG_BoxWalk.C checks the kernel against.
     static bool UseContractCube()
-    { static const bool b=[]{const char* s=std::getenv("GPW_CONTRACT_CUBE"); return s && std::atoi(s)!=0;}(); return b; }
+    { static const bool b=[]{const char* s=std::getenv("GPW_CONTRACT_CUBE"); return !s || std::atoi(s)!=0;}(); return b; }
 
     //! \param f called \c f(rasterIndex, fI, fJ) at each point surviving the ellipsoid pre-screen.
     template <class F>
@@ -1129,122 +1133,99 @@ public:
                             f(idx,val);
                         }, epsEff);
     }
-    // --- STREAM CACHE for the analytic collocation / integrate-back ----------------------------------------
-    // The per-(pair, cross-cell offset) box streams -- wrapped grid RUNS + analytic pair values -- are pure
-    // GEOMETRY: identical across SCF iterations AND across k-blocks (the Bloch phase enters only at the
-    // contraction), while their evaluation (exp/poly per point) is essentially 100% of the GPW DFT tier's
-    // per-iteration cost (perf 2026-07-14: exp 24%, box-loop bodies 41%, ToCartesian 14%...).  So each stream
-    // is built ONCE per grid-ladder shape and replayed as a pure gather/scatter -- the analytic sibling of the
-    // deleted PhiOnGrid cache, but per-pair-compact instead of dense.  One cache per distinct ladder shape
-    // (the SCF ladder and the K=1 local-PP / unit-gate shape coexist); replay order == build order == the
-    // uncached loop order, so results are BIT-IDENTICAL to the uncached path.
-    //! TWO value tiers: fp64 (\c val) for pairs inside the primary budget, fp32 (\c val32) for the overflow
-    //! tier -- exactly one of the two is filled per stream.  \c maxv (the stream's largest |value|) powers the
-    //! D-AWARE replay kill: an offset whose |weight|*maxv is below the density tolerance contributes nothing
-    //! resolvable and is skipped whole.
-    //!
-    //! \b RUN-LENGTH \b GEOMETRY (2026-08-19).  The raster indices are not stored per point: \c ForPairBox
-    //! walks the box's innermost axis (\f$z\f$) in unit steps, so the wrapped indices it emits come in long
-    //! CONTIGUOUS runs (one per \f$(dx,dy)\f$ column, split only where the modulo wrap or the value screen
-    //! interrupts it).  A stream therefore stores \c runBase/\c runLen -- (first index, length) per run --
-    //! and the values alone; the replay walks \c val sequentially and the destination grid contiguously
-    //! (\c dst[t] \c += \c cw*v[k]).
-    //! WHY: the replay is DRAM-BANDWIDTH bound, not arithmetic bound (perf 2026-08-19 on the MnO magnetic
-    //! cell: 49% of \c CollocateDensity's self time sat on the two sequential loads -- the index stream and
-    //! the value stream -- against ~1% on the arithmetic and 0% on the Bloch-phase contraction).  Per-point
-    //! indices doubled the fp32 tier's traffic (4 B value + 4 B index) and added a third of the fp64 tier's;
-    //! a run head costs 8 B once per RUN instead, so the encoding pays whenever the mean run exceeds 2
-    //! points.  Measured \c meanRun: 10.2 on the MnO magnetic cell (647 M points in 63.7 M runs -- tiers
-    //! 12 -> 8.8 and 8 -> 4.8 B/pt, stream RAM 5.78 -> 3.70 GB) and 4.2 on the small Si crystal gate.
-    //! Replay order, values and screens are UNCHANGED, so every replay stays bit-identical.
-    struct PairOffsetStream
+    // --- THE BOX TASK LIST for the analytic collocation / integrate-back -----------------------------------
+    // doc/CollocationRewritePlan.md 3c.  A TASK is one (shell pair, cross-cell offset): the unit of work that
+    // the box walk and the separable-contraction kernel both consume.  Enumerating and screening them is pure
+    // GEOMETRY -- identical across SCF iterations, across k-blocks and across the two directions -- so it is
+    // derived ONCE per basis instance (the cell and the centres ARE this basis's own data) and only the
+    // ARITHMETIC repeats.
+    //
+    // THIS REPLACED A 4 GB VALUE CACHE (2026-08-27, plan step 7).  The old design stored the per-point pair
+    // VALUES, O(n^3) per (pair, offset) -- 3.9 GB on the MnO magnetic cell -- because the on-the-fly walk was
+    // ~100x off CP2K's and re-evaluating every iteration was unaffordable.  Once the separable contraction
+    // landed the same 3.9 GB bought only ~1.1x on the run (2.9x on the two box-walk buckets, which are now
+    // ~58% of it), so the trade stopped being defensible: measured on the MnO acceptance probe, peak RSS
+    // 3915 -> 155 MB against ~1.1x CPU.  The task list is the O(1)-per-task residue of that cache -- ~40 B
+    // against ~100 kB per task -- and it is what makes "re-evaluate every iteration" a DESIGN rather than a
+    // regression.
+    //
+    // THE LIST IS NOT WHERE THE TIME WAS, and that is measured, not assumed
+    // (M_PG_BoxWalk.OffsetEnumerationIsNotTheCost): enumerating + screening all 4482 tasks of an MnO-shaped
+    // fixture costs 2.26 ms against 2294 ms to walk them -- 0.10% of the pass.  So this hoists the geometry
+    // for the reasons above and for the longest-first parallel order below, NOT to save the enumeration.
+    //
+    // D NEVER ENTERS IT (plan 2a).  The list is screened at the bare tolerance kDensityEps; a per-iteration
+    // density weight can only RAISE a pair's tolerance (eps_ij = eps/|c_ij| >= eps), hence only ever REMOVE
+    // tasks, never add one.  The static list is therefore a strict SUPERSET, and the D-aware screen stays an
+    // O(1) per-task predicate outside the walk.  The T3 fold is likewise a per-iteration filter, so the list
+    // is fold-independent and survives every fold change.
+    struct BoxTask
     {
-        ivec3_t n;
-        std::vector<unsigned> runBase;   //!< first raster index of each contiguous run
-        std::vector<unsigned> runLen;    //!< its length; \f$\sum\f$ runLen == the stream's point count
-        std::vector<double> val;         //!< tier 1 values, run-major (exactly one of val/val32 is filled)
-        std::vector<float>  val32;       //!< tier 2 values
-        double maxv=0.0;
-        //! The stream's point count (the budget currency) -- the filled value tier's length.
-        size_t Points() const {return val.empty() ? val32.size() : val.size();}
-        //! Append one screened-in point: extend the open run when \a idx continues it, else open a new one.
-        void Append(size_t idx, double v, bool f32)
-        {
-            if (!runLen.empty() && size_t(runBase.back())+runLen.back()==idx) runLen.back()++;
-            else { runBase.push_back(unsigned(idx)); runLen.push_back(1); }
-            if (f32) val32.push_back(float(v)); else val.push_back(v);
-            maxv=std::max(maxv,std::fabs(v));
-        }
+        ivec3_t n{0,0,0};      //!< the integer cell offset (the caller's Bloch-phase key)
+        rvec3_t Roff{0,0,0};   //!< its Cartesian translation
+        double  pf=0.0;        //!< PairPrefactorExp: screen (1), a shell-pair property of this offset
     };
-    struct PairStreams     { size_t level=0; bool cached=false; std::vector<PairOffsetStream> offsets; };
-    struct StreamCache
+    struct ShellPairTasks { std::vector<BoxTask> tasks; };
+    //! The tasks of every shell pair, indexed exactly as the (a<=b) shell-pair loops enumerate them.  Built
+    //! lazily on first use and never invalidated -- \a A and the centres are this basis instance's own data,
+    //! the same assumption the integrate-back memo makes.
+    const std::vector<ShellPairTasks>& BoxTasks(const UnitCell& A) const
     {
-        std::vector<ivec3_t> N_L; std::vector<double> ecut_L;   // the ladder shape (snapshot key)
-        double absRelCutoff=0.0;                                //   + the assignment rule key (0=relative, >0=absolute Ha/exponent)
-        double relFieldSharp=-1.0;                              //   + the relative rule's beta floor (part of the level-assignment identity)
-        std::vector<PairStreams> pairs;                         // indexed [i*n+j], j>=i only
-        size_t droppedPts=0;                                    // points that fell past BOTH tiers at build time
-        size_t availAtBuild64=0, availAtBuild32=0;              // the budget headroom this build was offered --
-                                                                //   an INCOMPLETE cache rebuilds when headroom grows
-                                                                //   (a resident shape was released; doc/GPWPlan 0.5(b))
-        bool SameShape(const std::vector<ivec3_t>& N, const std::vector<double>& e) const
+        if (!itsBoxTasks.empty()) return itsBoxTasks;
+        qchem::report::Timed timer("setup: box task list");
+        const std::vector<Shell>& shells=Shells();
+        const double lnE=-std::log(kDensityEps());
+        size_t nTasks=0;
+        for (size_t a=0;a<shells.size();a++)
+            for (size_t b=a;b<shells.size();b++)
+            {
+                itsBoxTasks.emplace_back();
+                std::vector<BoxTask>& t=itsBoxTasks.back().tasks;
+                ForImageOffsets(shells[a].begin,shells[b].begin,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+                {
+                    const double pf=PairPrefactorExp(shells[a].begin,shells[b].begin,Roff);
+                    if (pf<lnE) t.push_back({n,Roff,pf});   // else the whole box is sub-eps for EVERY D
+                });
+                nTasks+=t.size();
+            }
+        // PROVENANCE, unconditionally (doc/Benchmark.md's standing rule): a timing row is not reproducible
+        // unless it says WHICH collocation kernel produced it.  Printed from the kernel's own side rather
+        // than from the run banner, so there is no second copy of the default rule to drift (it is NOT a
+        // CP2K deviation -- CP2K collocates exactly this way -- so it does not belong on that table).
+        std::cout<<"[collocation] kernel="<<(UseContractCube() ? "separable contraction"
+                                                              : "reference box walk (GPW_CONTRACT_CUBE=0)")
+                 <<";  task list: "<<itsBoxTasks.size()<<" shell pairs, "<<nTasks<<" (pair, offset) tasks, "
+                 <<(double(nTasks*sizeof(BoxTask))/1048576.0)<<" MB"<<std::endl;
+        if (qchem::report::Depth() > 0)
         {
-            if (ecut_L!=e || N_L.size()!=N.size()) return false;
-            for (size_t l=0;l<N.size();l++)
-                if (N_L[l].x!=N[l].x || N_L[l].y!=N[l].y || N_L[l].z!=N[l].z) return false;
-            return true;
+            qchem::report::json s;
+            s["kernel"]     = UseContractCube() ? "contract" : "walk";
+            s["shellPairs"] = (long)itsBoxTasks.size();
+            s["tasks"]      = (long)nTasks;
+            s["bytes"]      = (long)(nTasks*sizeof(BoxTask));
+            s["eps"]        = kDensityEps();
+            qchem::report::EmitAt("grids", "boxTasks", s);
         }
-    };
-    static constexpr size_t kMaxStreamCaches=4;                 // ladder + K=1 + unit-gate shapes; guards churn
-    //! Global stream-cache budgets in POINTS, TWO TIERS.  A diffuse basis in a small cell keeps hundreds of
-    //! screened offsets per pair -- caching them ALL blew past physical RAM on NaF (uncapped: 27 GB virt on a
-    //! 16 GB box; measured demand 952M pts).  Tier 1 (fp64, ~8.8 B/pt since the run-length encoding,
-    //! ~1.3 GB): replay is BIT-IDENTICAL to
-    //! on-the-fly evaluation; sized so the Si SR ladder caches completely (demand 104.9M) -- every Si anchor
-    //! and machine-precision kernel gate lives entirely in this tier.  Tier 2 (fp32 values, ~4.8 B/pt, ~4.1 GB):
-    //! the overflow pairs store float values instead of falling to on-the-fly -- replay noise is ~6e-8
-    //! RELATIVE per value (NaF anchors are 1e-3-scale; Tr(DS) charge is analytic, unaffected), and the
-    //! collocate/integrate ADJOINT stays machine-exact because both directions replay the SAME stream.
-    //! Pairs beyond BOTH budgets fall back to on-the-fly evaluation (correct, slower).
-    static constexpr size_t kStreamBudgetPts   =150'000'000;   // tier 1: fp64, bit-identical replay
-    //! Tier 2 sized so NaF's MEASURED demand (952M total: 150M fp64 + 802M fp32) caches COMPLETELY -- at
-    //! 700M its last 314 (small) pairs re-evaluated on the fly every sweep.  Peak stream RAM ~ 8.6 GB.
-    static constexpr size_t kStreamBudgetPtsF32=850'000'000;   // tier 2: fp32 values (the NaF coverage lever)
-    //! RUNTIME budget overrides (POINTS; 0/unset = the compile-time defaults above).  A MEMORY-SAFETY valve
-    //! for boxes where the defaults' ~8.6 GB peak cannot fit beside the rest of a run (measured 2026-07-22:
-    //! the FULL VALENCE_LOWQ_SR basis -- alpha_min=0.05, reach ~21.5 au, hundreds of offsets/pair -- drove
-    //! UTMain to 12.6 GB on a 14 GB box and the kernel OOM-killed the desktop).  Dropped pairs fall back to
-    //! on-the-fly evaluation: correct, slower -- never a physics knob.
-    static size_t BudgetPts()    { const char* e=std::getenv("GPW_STREAM_BUDGET_PTS");     return e?size_t(std::atoll(e)):kStreamBudgetPts; }
-    static size_t BudgetPtsF32() { const char* e=std::getenv("GPW_STREAM_BUDGET_PTS_F32"); return e?size_t(std::atoll(e)):kStreamBudgetPtsF32; }
-    //! The budget headroom a NEW build would be offered: the global tier budgets minus the points every
-    //! cache EXCEPT \a skip already holds (budgets are GLOBAL across cache shapes).
-    std::pair<size_t,size_t> StreamBudgetHeadroom(const StreamCache* skip) const
-    {
-        size_t a64=BudgetPts(), a32=BudgetPtsF32();
-        for (const auto& cc : itsStreamCaches)
-        {
-            if (&cc==skip) continue;
-            for (const auto& ps : cc.pairs)
-                for (const auto& st : ps.offsets)
-                    if (!st.val.empty()) a64 -= std::min(a64, st.Points());
-                    else                 a32 -= std::min(a32, st.Points());
-        }
-        return {a64,a32};
+        return itsBoxTasks;
     }
-    //! doc/GPWPlan.md 0.5(b): drop the caches for one ladder shape (any assignment rule), refunding the
-    //! global budget.  Realises Molecule::LatticeSum1E::ReleaseStreams (forwarded by the host IBS); called
-    //! by a dying grid client (GPW_Evaluator dtor) so a finished stage's streams stop squatting on the
-    //! budget.  An INCOMPLETE surviving cache picks the refund up via the self-heal rebuild in EnsureStreams.
-    void ReleaseStreams(const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L) const
+    //! The shell-pair visiting order for the THREADED loops: LONGEST FIRST, so a \c schedule(dynamic) loop
+    //! cannot end on its biggest chunk (plan 3c reason 2).  The task COUNT is the proxy -- boxes within one
+    //! shell pair differ only by the offset's prefactor, so the count tracks the work.
+    //! \note The SERIAL loops keep the natural order: reordering changes the cross-pair grid reduction, and
+    //! serial is the bit-anchor path.  A threaded run already reorders that reduction by construction.
+    const std::vector<size_t>& BoxTaskOrder(const UnitCell& A) const
     {
-        for (auto ci=itsStreamCaches.begin(); ci!=itsStreamCaches.end(); )
-            if (ci->SameShape(N_L,ecut_L)) ci=itsStreamCaches.erase(ci);
-            else ++ci;
+        if (!itsBoxTaskOrder.empty()) return itsBoxTaskOrder;
+        const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        itsBoxTaskOrder.resize(tl.size());
+        for (size_t i=0;i<tl.size();i++) itsBoxTaskOrder[i]=i;
+        std::stable_sort(itsBoxTaskOrder.begin(),itsBoxTaskOrder.end(),
+                         [&tl](size_t p, size_t q){return tl[p].tasks.size()>tl[q].tasks.size();});
+        return itsBoxTaskOrder;
     }
     // --- T3 route (b) STREAM FOLD (doc/SymmetryUpgradePlan.md §6b) -----------------------------------------
     // Fold the (pair i<=j, offset n) collocation terms under the imposed crystal ops {W|tau}.  Pure
-    // geometry-fixed bookkeeping, cached like the stream caches: per accepted op, the basis map
+    // geometry-fixed bookkeeping, derived once like the box task list: per accepted op, the basis map
     // i -> (i', s_i, L_i) (partner function + Cartesian-monomial sign + integer cell offset of the image
     // centre); per canonical pair slot, either REPRESENTATIVE (with the pair-stabilizer's action on its
     // offset list) or IMAGE (edge to its rep: sigma = s_i s_j, Hermitian flip).  A triple maps as
@@ -1315,7 +1296,7 @@ public:
     }
     //! Realises \c Molecule::LatticeSum1E::SetStreamSymmetryOps (forwarded by the host IBS): build (or
     //! clear, \a ops empty) the stream fold for a block at fractional crystal momentum \a kFrac
-    //! (default \f$\Gamma\f$).  Returns the number of ops actually used.  Const like the stream caches --
+    //! (default \f$\Gamma\f$).  Returns the number of ops actually used.  Const like the box task list --
     //! the fold is derived, geometry-fixed bookkeeping.
     //! T3.4: ops must lie in the LITTLE GROUP of \a kFrac (\c SpaceGroup::LittleGroupDirectOps); a
     //! non-little-group op is DROPPED here (belt + braces -- it relates different k-blocks, not terms
@@ -1326,8 +1307,10 @@ public:
                                 const rvec3_t& kFrac=rvec3_t(0,0,0)) const
     {
         // IDEMPOTENT: sibling k-blocks re-inject the same set (the evaluator is shared); an identical set
-        // keeps the existing fold AND the stream caches built under it.  Any CHANGE (including clearing)
-        // invalidates the caches -- a REDUCED-built cache must never serve a free-run replay (§6b/T3.2).
+        // keeps the existing fold.  A CHANGE invalidates NOTHING but the fold itself: the box task list is
+        // the eps-superset of every (shell pair, offset) term and the fold is applied as a PER-ITERATION
+        // filter on top of it, so the same list serves a folded and a free run alike (it did not, while the
+        // cache existed -- a REDUCED-built cache could never serve a free-run replay, §6b/T3.2).
         auto sameOps=[&]()->bool
         {
             if (!itsStreamFold || itsStreamFold->srcOps.size()!=ops.size()) return false;
@@ -1342,7 +1325,7 @@ public:
             return true;
         };
         if (sameOps()) return itsStreamFold->maps.size();
-        if (itsStreamFold || !ops.empty()) itsStreamCaches.clear();
+        itsFoldReported=false;                            // a fold CHANGE gets its own [fold] line
         itsStreamFold.reset();
         if (ops.empty()) return 0;
         auto sf=std::make_unique<StreamFold>();
@@ -1560,249 +1543,24 @@ public:
         return m;
     }
 
-    const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
-                                     const std::vector<double>& ecut_L, double absRelCutoff,
-                                     double relFieldSharp=-1.0) const
+    //! Announce the T3 pair-term fold in the shared [fold] format -- ALWAYS, including when it is off,
+    //! because a disarmed run looks identical to an armed one on the console otherwise.  Emitted once, from
+    //! the first collocation of a run (it used to ride the stream-cache build, which no longer exists).
+    void ReportPairFold() const
     {
-        for (auto ci=itsStreamCaches.begin(); ci!=itsStreamCaches.end(); ++ci)
-        {
-            const StreamCache& c=*ci;
-            if (c.absRelCutoff!=absRelCutoff || c.relFieldSharp!=relFieldSharp || !c.SameShape(N_L,ecut_L)) continue;
-            if (c.droppedPts==0) return c;                        // complete: replay is bit-stable, never rebuilt
-            // SELF-HEAL (doc/GPWPlan 0.5(b)): this cache dropped pairs because OTHER resident caches held the
-            // budget when it was built (the grid-continuation seed builds the FINE shape while the coarse
-            // stage still squats).  If a release has since grown the headroom, rebuild -- the dropped pairs
-            // re-evaluate EVERY iteration, so one rebuild sweep is always the cheaper side of the trade.
-            auto [a64,a32]=StreamBudgetHeadroom(&c);
-            if (a64<=c.availAtBuild64 && a32<=c.availAtBuild32) return c;
-            itsStreamCaches.erase(ci);
-            break;                                                // fall through to a fresh build
-        }
-        if (itsStreamCaches.size()>=kMaxStreamCaches) itsStreamCaches.clear();   // unexpected shape churn
-        qchem::report::Timed timer("setup: collocation stream build");           // THE diffuse-basis setup cost
-        itsStreamCaches.emplace_back();
-        StreamCache& c=itsStreamCaches.back();
-        c.N_L=N_L; c.ecut_L=ecut_L; c.absRelCutoff=absRelCutoff; c.relFieldSharp=relFieldSharp;
-        const size_t n=size();
-        c.pairs.resize(n*n);
-        auto [budget64,budget32]=StreamBudgetHeadroom(&c);        // (empty c contributes nothing)
-        c.availAtBuild64=budget64; c.availAtBuild32=budget32;
-        size_t nPairs=0, nCached64=0, nCached32=0, pts64=0, pts32=0, ptsDropped=0, nOffs=0;
-        // T3 route (b) REDUCED BUILD (§6b/T3.2): under an armed fold, only orbit-REPRESENTATIVE pairs and
-        // representative offsets are built (the replay never touches the rest) -- demand and build time
-        // fall by ~|orbit|, which also lifts pairs INTO the fp64 tier (the §6b measured accuracy note).
-        // SetStreamSymmetryOps clears the caches on any fold change, so a reduced cache never serves an
-        // unfolded replay (and vice versa).
-        const StreamFold* bsf=itsStreamFold.get();
-        auto pairSkip=[&](size_t i, size_t j)->bool
-        {   return bsf && (bsf->pairs[i*n+j].dead || bsf->pairs[i*n+j].rep!=int(i*n+j)); };
-        auto offSkip=[&](size_t i, size_t j, const ivec3_t& nn)->bool
-        {
-            if (!bsf) return false;
-            const auto& mm=bsf->offMult[i*n+j];
-            const auto it=mm.find(OffKey(nn));
-            return it==mm.end() || it->second==0;
-        };
-        // ---- SHELL-BLOCKED TWO-PASS BUILD (2026-08-19, doc/GPWPlan1.md "Round 4") ------------------------
-        // Everything the box walk needs -- the pair->level assignment, the screened offset list, the box
-        // centre/reach/half-widths, the ellipsoid pre-screen, the incremental r walk and the modulo wrap --
-        // is a SHELL property (it reads radials[i] only), and a shell's components share one contracted
-        // radial.  So the walk runs ONCE PER SHELL PAIR and every component pair takes its value from the
-        // two per-point FACTOR arrays ForShellPairBox hands back: a d x d shell pair evaluates 2 contracted
-        // radials + 12 polynomials per point instead of 72 + 72.  Values are bit-identical (same expression,
-        // same association), so replay is unchanged.
-        //
-        // WHY TWO PASSES, ALWAYS (this replaced a serial one-pass build beside a threaded two-pass one).
-        // The TIERING ORDER is part of the result: each pair's fp64/fp32/drop tier consumes the GLOBAL
-        // budgets in ROW-MAJOR COMPONENT-pair order, so a shell-major single pass would tier differently.
-        // Splitting into (1) count, (2) a serial row-major budget walk on the counts, (3) build only the
-        // tiered pairs keeps the budget walk in its original order while both EVALUATION passes go
-        // shell-major -- and it retires the one-pass path's transient-bound abort and its streaming fp32
-        // demotion outright, since a two-pass build knows every pair's size before it materialises anything.
-        // Cost: ~2x box evaluations (the counting pass IS an evaluation pass -- the |val|>=eps screen needs
-        // the values), repaid many times over by the shell hoist.  Threading (opt-in, GPW_OMP_THREADS)
-        // partitions both passes over SHELL pairs; a shell pair owns a DISJOINT set of component pairs, so
-        // there is no reduction anywhere and serial and threaded builds stay bit-identical.
-        const std::vector<Shell>& shells=Shells();
-        std::vector<std::pair<size_t,size_t>> sprs;               // shell pairs (a<=b)
-        for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
-        std::vector<std::pair<size_t,size_t>> prs;                // component pairs, ROW-MAJOR upper triangle
-        for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
-        const double eps=kDensityEps();                           // the build's UNIFORM value screen
-        std::vector<size_t> ptsAll(n*n,0);                        // per component pair (disjoint across shells)
-        std::vector<char>   tierBuild(n*n,0), tierF32(n*n,0);     // filled by the budget walk between the passes
-        std::exception_ptr  firstEx;                              // throw containment -- see CollocateDensity
-
-        // The component pairs a shell pair owns (upper triangle), minus the fold's image/dead ones and --
-        // when \a tiered -- minus everything the budget walk did not tier.
-        auto ownedPairs=[&](size_t sp, bool tiered, std::vector<std::pair<size_t,size_t>>& out)
-        {
-            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
-            out.clear();
-            for (size_t i=si.begin;i<si.end;i++)
-                for (size_t j=std::max(i,sj.begin);j<sj.end;j++)      // b>a => every j exceeds every i
-                    if (!pairSkip(i,j) && (!tiered || tierBuild[i*n+j])) out.push_back({i,j});
-        };
-        // PASS 1 -- count every component pair's surviving points.  Pure arithmetic, nothing stored.
-        auto countShellPair=[&](size_t sp)
-        {
-            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
-            // The level is a SHELL-pair property (PairLevel reads MaxExponent(i), i.e. the shared radial),
-            // so compute it once and assert it per component.  Set for EVERY pair -- folded-out ones
-            // included -- exactly as the per-pair build did.
-            const size_t L=PairLevel(si.begin,sj.begin,ecut_L,absRelCutoff,0.0,relFieldSharp);
-            for (size_t i=si.begin;i<si.end;i++)
-                for (size_t j=std::max(i,sj.begin);j<sj.end;j++)
-                {
-                    assert(PairLevel(i,j,ecut_L,absRelCutoff,0.0,relFieldSharp)==L
-                           && "the pair->level assignment must be a shell-pair property");
-                    c.pairs[i*n+j].level=L;
-                }
-            std::vector<std::pair<size_t,size_t>> want;
-            ownedPairs(sp,/*tiered*/false,want);
-            if (want.empty()) return;
-            const ivec3_t N=N_L[L];
-            std::vector<std::pair<size_t,size_t>> here;
-            ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
-            {
-                here.clear();
-                for (const auto& [i,j] : want) if (!offSkip(i,j,nn)) here.push_back({i,j});
-                if (here.empty()) return;                     // reduced build: member offsets never built
-                ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N,
-                                [&](size_t, const double* fI, const double* fJ)
-                {
-                    for (const auto& [i,j] : here)
-                        if (std::fabs(fI[i-si.begin]*fJ[j-sj.begin])>=eps) ptsAll[i*n+j]++;
-                }, eps);
-            });
-        };
-        // PASS 2 -- materialise the streams of the pairs the budget walk tiered, and only those.
-        auto buildShellPair=[&](size_t sp)
-        {
-            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
-            std::vector<std::pair<size_t,size_t>> want;
-            ownedPairs(sp,/*tiered*/true,want);
-            if (want.empty()) return;
-            const ivec3_t N=N_L[PairLevel(si.begin,sj.begin,ecut_L,absRelCutoff,0.0,relFieldSharp)];
-            std::vector<std::pair<size_t,size_t>> here;
-            std::vector<PairOffsetStream> st;
-            ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
-            {
-                here.clear();
-                for (const auto& [i,j] : want) if (!offSkip(i,j,nn)) here.push_back({i,j});
-                if (here.empty()) return;
-                st.assign(here.size(),PairOffsetStream());
-                for (auto& s : st) s.n=nn;
-                ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N,
-                                [&](size_t idx, const double* fI, const double* fJ)
-                {
-                    for (size_t k=0;k<here.size();k++)
-                    {
-                        const double val=fI[here[k].first-si.begin]*fJ[here[k].second-sj.begin];
-                        if (std::fabs(val)<eps) continue;
-                        st[k].Append(idx,val,tierF32[here[k].first*n+here[k].second]!=0);
-                    }
-                }, eps);
-                for (size_t k=0;k<here.size();k++)
-                    if (st[k].Points())
-                        c.pairs[here[k].first*n+here[k].second].offsets.push_back(std::move(st[k]));
-            });
-            for (const auto& [i,j] : want) c.pairs[i*n+j].cached=true;
-        };
-        // One driver for both evaluation passes: shell-major, optionally threaded (the two passes have the
-        // identical partition, so this is written once).
-        auto runPass=[&](auto&& body)
-        {
-#ifdef QCHEM_OPENMP
-            if (const int nthreads=PairThreads(); nthreads>1)
-            {
-                #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
-                for (size_t sp=0;sp<sprs.size();sp++)
-                {
-                    try { body(sp); }
-                    catch (...)
-                    {
-                        #pragma omp critical (gpw_pair_throw)
-                        if (!firstEx) firstEx=std::current_exception();
-                    }
-                }
-                if (firstEx) std::rethrow_exception(firstEx);
-                return;
-            }
-#endif
-            for (size_t sp=0;sp<sprs.size();sp++) body(sp);
-        };
-
-        runPass(countShellPair);
-        // THE BUDGET WALK: row-major over COMPONENT pairs -- the tiering order every cache was ever built
-        // in.  fp64 while the primary budget holds (bit-identical replay), fp32 for the overflow tier, drop
-        // only past BOTH.  Per-pair skip-and-continue, never a lockout -- a later (smaller) pair may still
-        // fit a tier.  (The old budget=0 lockout un-cached every subsequent pair after the first oversized
-        // one -- the dominant cost in the 2026-07-15 multi-k profile.)  The both-tiers-exhausted "+1"
-        // bookkeeping quirk is kept verbatim: the readouts report it.
-        for (const auto& [i,j] : prs)
+        if (itsFoldReported) return;
+        itsFoldReported=true;
+        const StreamFold* sf=itsStreamFold.get();
+        const size_t nn=size();
+        size_t nPairs=0, nRepPairs=0;
+        for (auto i:indices()) for (auto j:indices(i))
         {
             nPairs++;
-            if (pairSkip(i,j)) continue;                   // fold image/dead: holds NO streams -- never
-                                                           //   counted into a tier (fp64/fp32 report the
-                                                           //   pairs that actually STORE)
-            if (budget64==0 && budget32==0) { ptsDropped++; continue; }
-            const size_t pts=ptsAll[i*n+j];
-            if      (pts<=budget64) { budget64-=pts; pts64+=pts; nCached64++; tierBuild[i*n+j]=1; }
-            else if (pts<=budget32) { budget32-=pts; pts32+=pts; nCached32++; tierBuild[i*n+j]=1;
-                                                                              tierF32  [i*n+j]=1; }
-            else                    { ptsDropped+=pts; }   // past both tiers: re-evaluated on the fly
+            if (!sf || (!sf->pairs[i*nn+j].dead && sf->pairs[i*nn+j].rep==int(i*nn+j))) nRepPairs++;
         }
-        runPass(buildShellPair);
-        for (const auto& ps : c.pairs) nOffs+=ps.offsets.size();   // kept (pair, offset) terms
-        c.droppedPts=ptsDropped;
-        // Coverage readout per cache build (static setup, not per-iteration): the budget headroom is THE lever
-        // for the analytic path's speed, so make coverage visible (dropped pairs re-evaluate every iteration).
-        // Fold it into the run report's grids.stream when a run is open (it is grid metadata -- the density-
-        // collocation coverage over the grid ladder); else keep the legacy one-line cerr (unbracketed builds).
-        size_t nRepPairs=0;
-        if (bsf) for (auto i:indices()) for (auto j:indices(i)) if (!pairSkip(i,j)) nRepPairs++;
-        // The RUN count is the encoding's payoff, so report it: bytes/pt = valueWidth + 8*runs/pts, i.e.
-        // the mean run length is what turns the index stream into a rounding error (see PairOffsetStream).
-        size_t nRuns=0;
-        for (const auto& ps : c.pairs) for (const auto& st : ps.offsets) nRuns+=st.runBase.size();
-        const double meanRun = nRuns ? double(pts64+pts32)/double(nRuns) : 0.0;
-        // Step 0b: announce the T3 pair-stream fold in the shared [fold] format -- ALWAYS, including when
-        // it is off, because a disarmed run looks identical to an armed one on the console otherwise.
-        // Armed by default on an imposed Γ run since T3.5; a NONE therefore means a FREE run, a multi-k run
-        // (T3.4b) or an explicit opt-out.
-        qchem::report::EmitFold("collocation streams (T3 pairs)", bsf ? bsf->maps.size() : 0,
-                                nPairs, bsf ? nRepPairs : nPairs,
-                                bsf ? std::string() : std::string("free/multi-k run, or GPW_STREAM_FOLD=0"));
-        if (qchem::report::Depth() > 0)
-        {
-            qchem::report::json s;
-            s["rule"]      = (absRelCutoff > 0.0 ? "abs" : "rel");
-            s["relCutoff"] = absRelCutoff;
-            s["pairs"]     = (long)nPairs;
-            if (bsf) { s["foldOps"]=(long)bsf->maps.size(); s["repPairs"]=(long)nRepPairs; }
-            s["fp64"]      = (long)nCached64;  s["pts64"] = (long)pts64;
-            s["fp32"]      = (long)nCached32;  s["pts32"] = (long)pts32;
-            s["offsets"]   = (long)nOffs;      // kept (pair, image-offset) terms across all pairs
-            s["runs"]      = (long)nRuns;      // contiguous index runs (the stored geometry)
-            s["meanRun"]   = meanRun;          //   and their mean length -- the bandwidth lever
-            s["dropped"]   = (long)ptsDropped;
-            s["budget64"]  = (long)BudgetPts(); s["budget32"] = (long)BudgetPtsF32();
-            qchem::report::EmitAt("grids", "stream", s);
-        }
-        else
-        {
-            std::cerr << "[stream cache] shape=(";
-            for (size_t l=0;l<N_L.size();l++) std::cerr << (l?",":"") << N_L[l].x;
-            std::cerr << ") rule=" << (absRelCutoff>0.0 ? "abs " : "rel ") << absRelCutoff;
-            if (bsf) std::cerr << "  FOLD |ops|=" << bsf->maps.size() << " repPairs " << nRepPairs << "/" << nPairs;
-            std::cerr << "  pairs " << nPairs
-                      << ": fp64 " << nCached64 << " (" << pts64 << " pts), fp32 " << nCached32
-                      << " (" << pts32 << " pts), offsets " << nOffs
-                      << ", runs " << nRuns << " (mean " << meanRun << " pts), dropped " << ptsDropped
-                      << " pts (budgets " << BudgetPts() << "/" << BudgetPtsF32() << ")" << std::endl;
-        }
-        return c;
+        qchem::report::EmitFold("collocation pair terms (T3)", sf ? sf->maps.size() : 0,
+                                nPairs, nRepPairs,
+                                sf ? std::string() : std::string("free/multi-k run, or GPW_STREAM_FOLD=0"));
     }
 
     // Collocate the grid density onto the multi-grid ladder (Molecule::LatticeSum1E::CollocateDensity).  The
@@ -1819,96 +1577,25 @@ public:
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K);
         // THE per-iteration cost bucket (doc/GPWPlan1.md "fast-recompute campaign"): every SCF step
-        // scatters every (pair, offset) term, either as a cached-stream replay or -- past the budget --
-        // as a live box evaluation.  The stream BUILD nested inside (EnsureStreams) charges its own
-        // bucket, so this one reads as the pure per-iteration scatter.
+        // evaluates every (shell pair, offset) task live -- there is no value cache any more (plan step 7).
+        // The TASK LIST build nested inside charges its own setup bucket, so this one reads as the pure
+        // per-iteration scatter.
         qchem::report::Timed timer("scf: collocate density (pair scatter)");
+        ReportPairFold();
         std::vector<rvec_t> rho(K);
         for (size_t l=0; l<K; l++) rho[l]=rvec_t(size_t(N_L[l].x)*N_L[l].y*N_L[l].z, 0.0);
         // Hermitian fold: the (j,i,-R) term contributes the SAME (idx, value, weight) as (i,j,R) -- the product
         // field is the lattice-translated twin and D_ji e^{-ik(-R)} = conj(D_ij e^{-ikR}) -- so loop j>=i and
         // double the off-diagonal weight (a 2x saving over the full n^2 loop, exact).
-        const StreamCache& sc=EnsureStreams(A,N_L,ecut_L,0.0,relFieldSharp);   // density: the relative smooth-field rule
         const size_t nn=size();
         const StreamFold* sf=itsStreamFold.get();               // T3 route (b): reduced scatter (§6b), null = full
         // T3.5: the reduced scatter reads the ORBIT-PROJECTED D at each representative, never the
         // representative's own element -- see FoldProjectedD.  O(n^2) per call beside an O(pairs x points)
         // scatter, and it is what makes the folded density equal the unfolded imposed one for ANY iterate.
         const std::vector<dcmplx> Dsym=FoldProjectedD(D);
-        // TWO PASSES over the pair set (stage B, 2026-08-19).  A pair with a CACHED stream replays it here,
-        // in the original ROW-MAJOR order, so a fully-cached run (every anchor) accumulates into `rho` in
-        // exactly the order it always did -- bit-identical.  Pairs with NO stream (over the budget) are left
-        // to `scatterShell` below, which walks their boxes SHELL-BLOCKED.  The split is what keeps the
-        // in-budget regime untouched while the over-budget one gets the kernel.
-        //
-        // Per-pair scatter into a caller-supplied set of level densities (`dst`): the SAME `rho` when serial,
-        // a private per-thread accumulator when threaded -- so the arithmetic PER PAIR is bit-identical either
-        // way; only the cross-pair reduction order changes (see PairThreads).
-        auto scatter=[&](size_t i, size_t j, std::vector<rvec_t>& dst)
-        {
-            // Reduced mode: only orbit-REPRESENTATIVE pairs scatter, each rep offset weighted by its full
-            // triple-orbit multiplicity (pairMult x within) and the ORBIT-PROJECTED D (T3.5); the caller's
-            // dense group-average completes it.  The D-aware kill stays on the MEMBER weight |c|
-            // (orbit-invariant -- exactly so now that the projected D is one value per orbit), so reduced
-            // and full keep the identical active set (§6b item 6).
-            const std::map<long long,unsigned>* fm=nullptr;
-            double pmul=1.0;
-            dcmplx Dij(D(i,j));
-            if (sf)
-            {
-                const PairEdge& pe=sf->pairs[i*nn+j];
-                if (pe.dead || pe.rep!=int(i*nn+j)) return;     // image/dead pair: its rep carries the orbit
-                fm=&sf->offMult[i*nn+j];
-                pmul=double(pe.pairMult);
-                Dij=Dsym[i*nn+j];
-            }
-            if (Dij==dcmplx(0.0)) return;
-            const double fold=(i==j)?1.0:2.0;
-            const PairStreams& ps=sc.pairs[i*nn+j];
-            rvec_t& r=dst[ps.level];
-            if (ps.cached)
-                for (const PairOffsetStream& st : ps.offsets)
-                {
-                    double wm=1.0;
-                    if (fm)
-                    {
-                        const auto it=fm->find(OffKey(st.n));
-                        assert(it!=fm->end());
-                        if (it==fm->end() || it->second==0) continue;   // member offset: its rep carries it
-                        wm=pmul*double(it->second);
-                    }
-                    const double c=fold*std::real(Dij*std::conj(phase(st.n)));  // Re[D_ij e^{-ik.R_n}] offset weight
-                    if (std::fabs(c)*st.maxv < kDensityEps()) continue;   // D-aware kill: sub-eps density term
-                    const double cw=c*wm;
-                    // Run-major replay: one CONTIGUOUS destination span per run, values streamed in build
-                    // order -- the same points in the same order as the per-point-index form, so the sums
-                    // are bit-identical; the index stream is gone (see PairOffsetStream).
-                    const unsigned* rb=st.runBase.data();
-                    const unsigned* rl=st.runLen.data();
-                    const size_t nr=st.runBase.size();
-                    if (!st.val.empty())
-                    {
-                        const double* v=st.val.data();
-                        for (size_t q=0, k=0; q<nr; q++)
-                        {
-                            double* d=&r[rb[q]];
-                            for (unsigned t=0, m=rl[q]; t<m; t++, k++) d[t]+=cw*v[k];
-                        }
-                    }
-                    else                                            // fp32 overflow tier (values demoted)
-                    {
-                        const float* v=st.val32.data();
-                        for (size_t q=0, k=0; q<nr; q++)
-                        {
-                            double* d=&r[rb[q]];
-                            for (unsigned t=0, m=rl[q]; t<m; t++, k++) d[t]+=cw*double(v[k]);
-                        }
-                    }
-                }
-            // (no `else`: an uncached pair is scattered SHELL-BLOCKED by scatterShell below)
-        };
-        // The SHELL-BLOCKED on-the-fly scatter (stage B): the over-budget pairs of ONE shell pair, whose box
-        // walk -- offsets, level, geometry, ellipsoid pre-screen, wrap -- is shared by all of them.
+        const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        // THE SHELL-BLOCKED SCATTER -- now the ONLY route.  Every component pair of ONE shell pair shares
+        // its box walk: offsets, level, geometry, ellipsoid pre-screen and wrap are all shell properties.
         //
         // THE D-AWARE BOX, resolved across the shell pair (the design decision, doc/GPWPlan1.md "Round 4"):
         // per component pair the tolerance is still eps/|c_ij| (its own |D| weight), but ONE box must serve
@@ -1924,20 +1611,25 @@ public:
         auto scatterShell=[&](size_t sp, std::vector<rvec_t>& dst)
         {
             const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
-            // The component pairs of this shell pair with NO stream, a live D and (under a fold) a
-            // representative edge -- exactly the pairs `scatter` above declined.
+            // The component pairs of this shell pair with a live D and (under a fold) a representative edge.
             std::vector<size_t> want;                                   // encoded i*nn+j
             for (size_t i=si.begin;i<si.end;i++)
                 for (size_t j=std::max(i,sj.begin);j<sj.end;j++)
                 {
-                    if (sc.pairs[i*nn+j].cached) continue;
                     if (sf) { const PairEdge& pe=sf->pairs[i*nn+j];
                               if (pe.dead || pe.rep!=int(i*nn+j)) continue; }
                     if ((sf ? Dsym[i*nn+j] : dcmplx(D(i,j)))==dcmplx(0.0)) continue;
                     want.push_back(i*nn+j);
                 }
             if (want.empty()) return;
-            const size_t L=sc.pairs[want.front()].level;                // a shell-pair property (see the build)
+            // The level is a SHELL-pair property (PairLevel reads the shared radial's MaxExponent), asserted
+            // per component below in a debug build.
+            const size_t L=PairLevel(si.begin,sj.begin,ecut_L,0.0,0.0,relFieldSharp);
+#ifndef NDEBUG
+            for (size_t key : want)
+                assert(L==PairLevel(key/nn,key%nn,ecut_L,0.0,0.0,relFieldSharp)
+                       && "the pair->level assignment must be a shell-pair property");
+#endif
             rvec_t& r=dst[L];
             std::vector<size_t> here;                                   // this offset's live pairs
             std::vector<double> cwHere, epsHere;
@@ -1946,11 +1638,12 @@ public:
             // the innermost path -- 13.9% of the uncached kernel, measured 2026-08-26.  They are properties
             // of the (pair, offset) pre-filter, not of the point, so they are resolved once here.
             std::vector<size_t> iaHere, jbHere;
-            ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+            for (const BoxTask& task : tl[sp].tasks)                     // the hoisted geometry (see BoxTasks)
             {
+                const ivec3_t& n=task.n; const rvec3_t& Roff=task.Roff;
                 here.clear(); cwHere.clear(); epsHere.clear(); iaHere.clear(); jbHere.clear();
                 double epsUnion=0.0;
-                const double pf=PairPrefactorExp(si.begin,sj.begin,Roff);   // screen (1), shared by the shell pair
+                const double pf=task.pf;                                 // screen (1), shared by the shell pair
                 for (size_t key : want)
                 {
                     const size_t i=key/nn, j=key%nn;
@@ -1973,7 +1666,7 @@ public:
                     iaHere.push_back(i-si.begin); jbHere.push_back(j-sj.begin);
                     epsUnion = epsUnion==0.0 ? e : std::min(epsUnion,e);
                 }
-                if (here.empty()) return;
+                if (here.empty()) continue;
                 // THE SEPARABLE-CONTRACTION ROUTE (GPW_CONTRACT_CUBE, doc/CollocationRewritePlan.md step 5).
                 // The whole shell pair collapses into ONE Gaussian x ONE polynomial with these weights
                 // summed in, so the per-component-pair loop below disappears entirely.  Note the
@@ -1982,6 +1675,7 @@ public:
                 // value it had already computed (step 3).  Not accumulating is the only thing it bought,
                 // and the contracted cube is formed regardless, so dropping it costs nothing and removes a
                 // truncation.  The kernel DECLINES contracted shells and lp>=kMaxPoly; those fall through.
+                bool didContract=false;
                 if (UseContractCube())
                 {
                     const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
@@ -1992,32 +1686,40 @@ public:
                     if (bg.live)
                     {
                         const PairPoly q=MakePairPoly(si.begin,nIs,sj.begin,nJs,Roff,wd);
-                        if (q.live) { ContractCube(bg,q,N_L[L],r); return; }
+                        if (q.live) { ContractCube(bg,q,N_L[L],r); didContract=true; }
                     }
                 }
+                if (didContract) continue;
+                // ⛔ NO PER-COMPONENT |v| SCREEN HERE ANY MORE (2026-08-27, plan step 7).  It used to read
+                // `if (fabs(v)<epsHere[k]) continue;`, and dropping it is what makes the walk and the
+                // contracted cube truncate IDENTICALLY -- same box, same terms -- which is what keeps
+                // collocate/integrate an EXACT ADJOINT on either route.  Two facts settle it: the screen
+                // never shrank the walk (the box is already sized by epsUnion, so it only declined to
+                // accumulate a value it had ALREADY computed -- plan step 3), and while the value cache
+                // existed both directions replayed ONE frozen stream, so the asymmetry it creates was
+                // invisible.  Deleting the cache exposed it at once: GPW.AnalyticIntegrateBackAdjoint and
+                // the two XC finite-difference gates all sat ~1.2e-8 relative off on the walk, scaling
+                // linearly with GPW_DENSITY_EPS (green again at 1e-12).  epsHere survives only as the
+                // input to epsUnion, which is where a component pair's own tolerance belongs.
                 ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N_L[L],
                                 [&](size_t idx, const double* fI, const double* fJ)
                 {
-                    for (size_t k=0;k<here.size();k++)
-                    {
-                        const double v=fI[iaHere[k]]*fJ[jbHere[k]];
-                        if (std::fabs(v)<epsHere[k]) continue;          // each pair keeps its OWN screen
-                        r[idx]+=cwHere[k]*v;
-                    }
+                    for (size_t k=0;k<here.size();k++) r[idx]+=cwHere[k]*fI[iaHere[k]]*fJ[jbHere[k]];
                 }, epsUnion);
-            });
+            }
         };
 #ifdef QCHEM_OPENMP
         if (const int nthreads=PairThreads(); nthreads>1)
         {
-            // OpenMP over the pairs.  Each thread owns a PRIVATE level-density accumulator `mine` (declared
-            // inside the parallel region -> genuinely thread-local, so no omp_get_thread_num / <omp.h>
-            // needed), scatters its share of the pairs into it, then folds it into the shared rho under a
+            // OpenMP over the SHELL pairs.  Each thread owns a PRIVATE level-density accumulator `mine`
+            // (declared inside the parallel region -> genuinely thread-local, so no omp_get_thread_num /
+            // <omp.h> needed), scatters its share into it, then folds it into the shared rho under a
             // critical section (the "per-thread accumulators + reduce").  The reduction reorders the
             // cross-pair grid sums, so a threaded run drifts a few ULPs from serial -- accepted; the Si
             // bit-anchors always run serial (GPW_OMP_THREADS unset -> nthreads==1 -> the branch below).
-            std::vector<std::pair<size_t,size_t>> prs;
-            for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+            // LONGEST FIRST (plan 3c reason 2): the task list already knows each shell pair's size, so the
+            // dynamic loop cannot end on its biggest chunk.  Serial keeps the natural order (see BoxTaskOrder).
+            const std::vector<size_t>& order=BoxTaskOrder(A);
             // THROW CONTAINMENT: an exception escaping an OpenMP construct is an instant std::terminate
             // (the intermittent threaded-NaF abort: "terminate called recursively" -- several workers
             // throwing at once).  Capture the FIRST worker exception, finish the region, rethrow it
@@ -2028,19 +1730,9 @@ public:
                 std::vector<rvec_t> mine(K);
                 for (size_t l=0;l<K;l++) mine[l]=rvec_t(rho[l].size(),0.0);
                 #pragma omp for schedule(dynamic) nowait
-                for (size_t p=0;p<prs.size();p++)
+                for (size_t q=0;q<order.size();q++)
                 {
-                    try { scatter(prs[p].first,prs[p].second,mine); }
-                    catch (...)
-                    {
-                        #pragma omp critical (gpw_pair_throw)
-                        if (!firstEx) firstEx=std::current_exception();
-                    }
-                }
-                #pragma omp for schedule(dynamic) nowait
-                for (size_t sp=0;sp<sprs.size();sp++)          // the over-budget remainder, shell-blocked
-                {
-                    try { scatterShell(sp,mine); }
+                    try { scatterShell(order[q],mine); }
                     catch (...)
                     {
                         #pragma omp critical (gpw_pair_throw)
@@ -2055,8 +1747,7 @@ public:
             return rho;
         }
 #endif
-        for (auto i:indices()) for (auto j:indices(i)) scatter(i,j,rho);   // serial (byte-identical default)
-        for (size_t sp=0;sp<sprs.size();sp++) scatterShell(sp,rho);       // the over-budget remainder
+        for (size_t sp=0;sp<sprs.size();sp++) scatterShell(sp,rho);       // serial (byte-identical default)
         return rho;
     }
     // --- Phase-independent integrate-back memo ---------------------------------------------------------------
@@ -2065,7 +1756,7 @@ public:
     // is integrated repeatedly: the static local PP by EVERY k-block (once per SCF each), and the per-iteration
     // KS fields once per k-block within an iteration.  So memoize {B_ij(n)} keyed on the EXACT (ladder shape,
     // scale, V_L): the first caller pays the sweep, every other k-block only contracts phases (2026-07-15
-    // multi-k profile: the per-k MakeLocalPP sweep alone was ~10% of the anchor).  Like itsStreamCaches, the
+    // multi-k profile: the per-k MakeLocalPP sweep alone was ~10% of the anchor).  Like the box task list, the
     // cell A is assumed fixed per basis instance (the centres ARE this basis's data) and is not in the key.
     // Field equality is EXACT per-element (never blaze relaxed equal); contraction order == the direct
     // evaluation's offset order, so a memo hit is BIT-IDENTICAL to recomputation.
@@ -2153,15 +1844,10 @@ public:
                     }
                     return h;
                 }
-        // Miss: compute (streams replay where cached, on-the-fly otherwise), recording B for the next caller.
-        // absRelCutoff > 0 marks a STATIC sharp-field call (the local PP, built once per SCF): evaluate on
-        // the fly -- caching a single-shot sweep wastes the whole budget the per-iteration path needs.  (Its
-        // B reductions land in the memo, so the other k-blocks never repeat the sweep.)  An EXPLICIT
-        // pairLevels assignment likewise bypasses the streams (they were built at the internal rule's
-        // levels); its memo key is honest because the caller's ladder (the custom top level) already
-        // distinguishes it from every internal-rule shape.
-        const StreamCache* sc = (absRelCutoff==0.0 && !pairLevels)
-                              ? &EnsureStreams(A,N_L,ecut_L,absRelCutoff,relFieldSharp) : nullptr;
+        // Miss: evaluate every (shell pair, offset) task live, recording B for the next caller.  There is
+        // no value cache any more (plan step 7) -- the TASK LIST supplies the geometry and the contraction
+        // kernel supplies the arithmetic, in both directions.
+        const std::vector<ShellPairTasks>& tl=BoxTasks(A);
         IntegrateMemo* memo=nullptr;
         if (memoize)
         {
@@ -2172,103 +1858,12 @@ public:
             memo->relFieldSharp=relFieldSharp; memo->V_L=V_L;
             memo->B.resize(nn*nn);
         }
-        // Per-pair integrate-back.  Each pair writes ONLY its own h(i,j) and its own (pre-sized, disjoint)
-        // memo->B[i*nn+j] slot -- so this is embarrassingly parallel with NO reduction (unlike collocation,
-        // whose pairs scatter into a shared grid).
-        auto integratePair=[&](size_t i, size_t j)           // j>=i (Hermitian upper triangle)
-        {
-            // Reduced mode (§6b item 5): gather REPRESENTATIVE pairs only, rep offsets weighted by their
-            // within-pair multiplicity; image pairs are filled by the representation transform after the
-            // loop (h_{i'j'} = sigma h_ij; dead pairs h = 0 -- the projected value).
-            const std::map<long long,unsigned>* fm=nullptr;
-            if (sf)
-            {
-                const PairEdge& pe=sf->pairs[i*nn+j];
-                if (pe.dead || pe.rep!=int(i*nn+j)) return;
-                fm=&sf->offMult[i*nn+j];
-            }
-            const size_t  l = pairLevels ? (*pairLevels)[i*nn+j]
-                            : sc         ? sc->pairs[i*nn+j].level
-                            :              PairLevel(i,j,ecut_L,absRelCutoff,fieldSharpness,relFieldSharp);
-            const rvec_t& V=V_L[l];
-            const double  w=A.GetCellVolume()/double(V.size());   // the level's quadrature weight Omega/Npts(l)
-            // pb.nb records the per-offset B(n) reductions FOR THE MEMO only (the phase-independent replay).  On
-            // the per-iteration density path (memo==null, V changes each SCF step so the memo can never hit) the
-            // recording is pure waste -- pb points at a throwaway `dummy`, and emplace_back'ing ~1M offsets into
-            // it per run just churns allocations.  Record only when there's a memo to serve.
-            PairB  dummy;
-            PairB& pb = memo ? memo->B[i*nn+j] : dummy;
-            if (memo) pb.level=l;
-            // The D-aware offset screen.  It used to reuse the density collocation's COEFFICIENT,
-            // fold*Re[D_ij e^{-ik.R_n}], so that both directions kept the identical active set.  That is
-            // correct on the COLLOCATION side -- there Re[D e^{-ikR}] multiplies a real pair product, so a
-            // zero coefficient contributes exactly nothing to rho -- and WRONG here, because a real part is
-            // not a magnitude.  This direction's term is phase(n)*b, whose size is |b| however the phase is
-            // oriented, so a term with Re[D conj(phase)] = 0 still adds a purely IMAGINARY, entirely
-            // non-negligible amount to H.
-            //
-            // At a QUARTER-INTEGER k that is not an accident but a systematic kill: e^{2 pi i k n} = i^n is
-            // purely imaginary for every ODD offset, so for real-ish D the old test discarded EVERY odd-offset
-            // term and the Hartree/XC matrix came out exactly real (measured: maxIm(dV) = 0 at k=1/4 against
-            // 0.067 at k=0.25001).  The resulting H is missing its imaginary part, its spectrum is wrong, and
-            // the SCF converges to a state 2.5 Ha high -- doc/Benchmark.md footnote 1, the shifted-MP defect.
-            // The screen is now the true magnitude |D_ij| (= |D_ij conj(phase)|, since |phase|=1), which is
-            // what "the magnitude screen is the only truncation" means; it is strictly MORE conservative than
-            // the old test, so it can only keep terms the old one dropped.
-            const double fold=(i==j)?1.0:2.0;
-            const double Dmag = !screenD          ? 0.0
-                              : Dscreen.empty()   ? fold*std::abs(dcmplx((*screenD)(i,j)))
-                              :                     fold*Dscreen[i*nn+j];
-            dcmplx s(0.0);
-            if (sc && sc->pairs[i*nn+j].cached)
-                for (const PairOffsetStream& st : sc->pairs[i*nn+j].offsets)
-                {
-                    double wm=1.0;
-                    if (fm)
-                    {
-                        const auto it=fm->find(OffKey(st.n));
-                        assert(it!=fm->end());
-                        if (it==fm->end() || it->second==0) continue;   // member offset: its rep carries it
-                        wm=double(it->second);
-                    }
-                    if (screenD && Dmag*st.maxv < kDensityEps()) continue;   // TRUE magnitude, not Re[]
-                    double b=0.0;
-                    // Run-major gather -- the exact mirror of the collocation scatter (same runs, same
-                    // order), so the reduction stays bit-identical to the per-point-index form and the
-                    // collocate/integrate adjoint stays machine-exact.
-                    const unsigned* rb=st.runBase.data();
-                    const unsigned* rl=st.runLen.data();
-                    const size_t nr=st.runBase.size();
-                    if (!st.val.empty())
-                    {
-                        const double* v=st.val.data();
-                        for (size_t q=0, k=0; q<nr; q++)
-                        {
-                            const double* Vp=&V[rb[q]];
-                            for (unsigned t=0, m=rl[q]; t<m; t++, k++) b+=v[k]*Vp[t];
-                        }
-                    }
-                    else                                            // fp32 overflow tier (values demoted)
-                    {
-                        const float* v=st.val32.data();
-                        for (size_t q=0, k=0; q<nr; q++)
-                        {
-                            const double* Vp=&V[rb[q]];
-                            for (unsigned t=0, m=rl[q]; t<m; t++, k++) b+=double(v[k])*Vp[t];
-                        }
-                    }
-                    if (memo) pb.nb.emplace_back(st.n,b);
-                    s+=phase(st.n)*(wm*b);
-                }
-            else return;      // static sharp-field call or over-budget pair: gathered SHELL-BLOCKED below
-            s*=w;
-            h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
-        };
-        // The SHELL-BLOCKED on-the-fly gather (stage B) -- the exact mirror of `scatterShell`.  It serves the
-        // over-budget pairs AND, since those calls hold no stream cache at all, the whole STATIC SHARP-FIELD
-        // sweep (MakeLocalPP's kappa rule, the explicit-pairLevels V_loc ball): every pair of a shell pair
-        // shares one box walk.  The D-aware box resolves as the UNION with per-component screens, exactly as
-        // on the density side, so collocate and integrate keep the SAME active set and stay adjoints.
+        // The SHELL-BLOCKED gather -- the exact mirror of `scatterShell`, and now the ONLY route.  It serves
+        // both the per-iteration density path and the STATIC SHARP-FIELD sweeps (MakeLocalPP's kappa rule,
+        // the explicit-pairLevels V_loc ball): every pair of a shell pair shares one box walk.  The D-aware
+        // box resolves as the UNION of the component pairs' tolerances, exactly as on the density side, and
+        // NEITHER side applies a per-component |v| screen on top of it -- which is what keeps collocate and
+        // integrate on the SAME active set, hence exact adjoints (see the note in `scatterShell`).
         // Each pair still writes only its own h(i,j) and its own memo slot -- no reduction, so unlike the
         // scatter this pass may run in any order.
         const std::vector<Shell>& shells=Shells();
@@ -2281,37 +1876,36 @@ public:
             for (size_t i=si.begin;i<si.end;i++)
                 for (size_t j=std::max(i,sj.begin);j<sj.end;j++)
                 {
-                    if (sc && sc->pairs[i*nn+j].cached) continue;       // replayed by integratePair
                     if (sf) { const PairEdge& pe=sf->pairs[i*nn+j];
                               if (pe.dead || pe.rep!=int(i*nn+j)) continue; }
                     want.push_back(i*nn+j);
                 }
             if (want.empty()) return;
-            // The level is a shell-pair property in all three regimes: the explicit pairLevels assignment
-            // (StaticFieldPairLevels keys on MaxExponent(i)+MaxExponent(j)), the stream cache's stored
-            // level, and PairLevel itself all read the shared radial.
+            // The level is a shell-pair property in both regimes: the explicit pairLevels assignment
+            // (StaticFieldPairLevels keys on MaxExponent(i)+MaxExponent(j)) and PairLevel itself both read
+            // the shared radial.
             const size_t i0=want.front()/nn, j0=want.front()%nn;
             const size_t l = pairLevels ? (*pairLevels)[i0*nn+j0]
-                           : sc         ? sc->pairs[i0*nn+j0].level
                            :              PairLevel(i0,j0,ecut_L,absRelCutoff,fieldSharpness,relFieldSharp);
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());
 #ifndef NDEBUG
             for (size_t key : want)                              // every component pair must agree on it
                 assert(l==(pairLevels ? (*pairLevels)[key]
-                          : sc        ? sc->pairs[key].level
                           :             PairLevel(key/nn,key%nn,ecut_L,absRelCutoff,fieldSharpness,relFieldSharp))
                        && "the pair->level assignment must be a shell-pair property");
 #endif
-            std::vector<dcmplx> s(want.size(), dcmplx(0.0));      // (integratePair already set memo->B[].level)
+            if (memo) for (size_t key : want) memo->B[key].level=l;
+            std::vector<dcmplx> s(want.size(), dcmplx(0.0));
             std::vector<size_t> here;
             std::vector<double> wmHere, epsHere, bHere;
             std::vector<size_t> iaHere, jbHere;      // the component-LOCAL slots -- see scatterShell
-            ForImageOffsets(si.begin,sj.begin,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+            for (const BoxTask& task : tl[sp].tasks)                     // the hoisted geometry (see BoxTasks)
             {
+                const ivec3_t& n=task.n; const rvec3_t& Roff=task.Roff;
                 here.clear(); wmHere.clear(); epsHere.clear(); iaHere.clear(); jbHere.clear();
                 double epsUnion=0.0;
-                const double pf=PairPrefactorExp(si.begin,sj.begin,Roff);   // screen (1), shared by the shell pair
+                const double pf=task.pf;                                 // screen (1), shared by the shell pair
                 for (size_t k=0;k<want.size();k++)
                 {
                     const size_t key=want[k], i=key/nn, j=key%nn;
@@ -2327,17 +1921,31 @@ public:
                     double e=kDensityEps();      // collocation floor (decoupled from the analytic kScreenEps)
                     if (screenD)
                     {
-                        const double c=std::fabs(((i==j)?1.0:2.0)
-                                                 *std::real(dcmplx((*screenD)(i,j))*std::conj(phase(n))));
-                        if (c==0.0) continue;
-                        e=std::max(kDensityEps(), kDensityEps()/c);
+                        // ⛔ THE SCREEN IS THE MAGNITUDE |D_ij|, NEVER Re[D conj(phase)] -- the SAME defect
+                        // this direction's per-pair path was fixed for, and this copy of it survived because
+                        // until 2026-08-27 the value cache sent every in-budget pair down the other path
+                        // (doc/Benchmark.md footnote 1, the shifted-MP defect; deleting the cache in plan
+                        // step 7 routed all of them here and it fired at once: Si 2x2x2 shifted MP came out
+                        // 4.1 Ha high and NON-AUFBAU).  A real part is not a magnitude: this direction's
+                        // term is phase(n)*b, whose size is |b| however the phase is oriented, so a term
+                        // with Re[D conj(phase)] = 0 still adds a purely IMAGINARY, entirely non-negligible
+                        // amount to H.  At a QUARTER-INTEGER k that is systematic, not accidental --
+                        // e^{2 pi i k n} = i^n is purely imaginary for every ODD offset, and screenD is a
+                        // matrix of MAGNITUDES (real, positive), so the old test discarded EVERY odd-offset
+                        // term and H came out exactly real.  |D_ij| = |D_ij conj(phase)| is strictly MORE
+                        // conservative, so it can only keep terms the old test dropped.
+                        const double Dmag = ((i==j)?1.0:2.0)
+                                          * (Dscreen.empty() ? std::abs(dcmplx((*screenD)(i,j)))
+                                                             : Dscreen[key]);
+                        if (Dmag==0.0) continue;
+                        e=std::max(kDensityEps(), kDensityEps()/Dmag);
                     }
                     if (pf>=-std::log(e)) continue;                     // whole box below THIS pair's eps
                     here.push_back(k); wmHere.push_back(wm); epsHere.push_back(e);
                     iaHere.push_back(i-si.begin); jbHere.push_back(j-sj.begin);
                     epsUnion = epsUnion==0.0 ? e : std::min(epsUnion,e);
                 }
-                if (here.empty()) return;
+                if (here.empty()) continue;
                 bHere.assign(here.size(),0.0);
                 // THE GATHER, the exact transpose of the scatter (doc/CollocationRewritePlan.md step 6).
                 // Same tables, same chord, same coefficients -- so with GPW_CONTRACT_CUBE on BOTH directions
@@ -2363,24 +1971,19 @@ public:
                         }
                     }
                 }
-                if (!didContract)
+                if (!didContract)                    // no per-component |v| screen -- see scatterShell
                 ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N_L[l],
                                 [&](size_t idx, const double* fI, const double* fJ)
                 {
                     const double Vv=V[idx];
-                    for (size_t q=0;q<here.size();q++)
-                    {
-                        const double v=fI[iaHere[q]]*fJ[jbHere[q]];
-                        if (std::fabs(v)<epsHere[q]) continue;          // each pair keeps its OWN screen
-                        bHere[q]+=v*Vv;
-                    }
+                    for (size_t q=0;q<here.size();q++) bHere[q]+=fI[iaHere[q]]*fJ[jbHere[q]]*Vv;
                 }, epsUnion);
                 for (size_t q=0;q<here.size();q++)
                 {
                     if (memo) memo->B[want[here[q]]].nb.emplace_back(n,bHere[q]);
                     s[here[q]]+=phase(n)*(wmHere[q]*bHere[q]);
                 }
-            });
+            }
             for (size_t k=0;k<want.size();k++)
             {
                 const size_t i=want[k]/nn, j=want[k]%nn;
@@ -2409,23 +2012,12 @@ public:
 #ifdef QCHEM_OPENMP
         if (const int nthreads=PairThreads(); nthreads>1)
         {
-            std::vector<std::pair<size_t,size_t>> prs;
-            for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+            const std::vector<size_t>& order=BoxTaskOrder(A);   // longest first (see BoxTaskOrder)
             std::exception_ptr firstEx;   // throw containment -- see CollocateDensity
             #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
-            for (size_t p=0;p<prs.size();p++)
+            for (size_t q=0;q<order.size();q++)
             {
-                try { integratePair(prs[p].first,prs[p].second); }
-                catch (...)
-                {
-                    #pragma omp critical (gpw_pair_throw)
-                    if (!firstEx) firstEx=std::current_exception();
-                }
-            }
-            #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
-            for (size_t sp=0;sp<sprs.size();sp++)              // the uncached remainder, shell-blocked
-            {
-                try { integrateShell(sp); }
+                try { integrateShell(order[q]); }
                 catch (...)
                 {
                     #pragma omp critical (gpw_pair_throw)
@@ -2437,8 +2029,7 @@ public:
             return h;
         }
 #endif
-        for (auto i:indices()) for (auto j:indices(i)) integratePair(i,j);   // serial (byte-identical default)
-        for (size_t sp=0;sp<sprs.size();sp++) integrateShell(sp);           // the uncached remainder
+        for (size_t sp=0;sp<sprs.size();sp++) integrateShell(sp);           // serial (byte-identical default)
         fillImages();
         return h;
     }
@@ -2517,7 +2108,9 @@ private:
     }
 
     mutable std::vector<Shell>         itsShells;          //!< the shell partition (lazy; geometry-fixed)
-    mutable std::vector<StreamCache>   itsStreamCaches;    //!< analytic pair-box streams, one per ladder shape
+    mutable std::vector<ShellPairTasks> itsBoxTasks;      //!< the (shell pair, offset) geometry, derived once
+    mutable std::vector<size_t>        itsBoxTaskOrder;  //!< its longest-first permutation (threaded loops)
+    mutable bool                       itsFoldReported=false;  //!< the [fold] line is emitted once per run
     mutable std::vector<IntegrateMemo> itsIntegrateMemos;  //!< phase-independent B_ij(n) per exact field (LRU)
     mutable std::unique_ptr<StreamFold> itsStreamFold;     //!< T3 route (b) (pair, R) orbit fold (null = free run)
 };

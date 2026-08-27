@@ -63,6 +63,7 @@ delta — which is the more useful statement anyway.
 | `GPW_XC_DM_SOURCE` — XC fed the retained DM ρ instead of the mixed ρ̃ | off | leave off; and see the pin — it is a TRAJECTORY change, so it must be pinned one way for Step 5's term-by-term breakdown either way |
 | `GPW_OMP_THREADS` / `OMP_NUM_THREADS` | 1 / inherited | `=1` for the parity row (rule 2) |
 | the T3 pair-stream orbit fold | **ARMED** | **DECLARE it, decide per row.**  Do not assume CP2K has no equivalent — state the fold state in the row and let the reader judge. |
+| `GPW_CONTRACT_CUBE` — the separable-contraction collocation kernel | **ON** (default since 2026-08-27) | **LEAVE IT ON.**  It is NOT a deviation: CP2K collocates exactly this way (`grid_cpu_collint.h`, Mathieu's three 2-D tables).  It is on this list only so a row states which kernel produced it — every run prints `[collocation] kernel=…` unconditionally.  `=0` reverts to the reference box walk, which is an investigation opt-out, not a comparison setting. |
 
 **The general rule, so this table does not have to be exhaustive:** anything that makes qchem faster and is
 not in CP2K's algorithm gets declared in the row and defaults to OFF in the comparison.  A new accelerator
@@ -129,18 +130,55 @@ printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrappe
 > Wall time therefore FLATTERS qchem by the number of cores it took; **CPU time (user+sys) is the honest
 > ratio** and it is roughly 2× the wall ratio.
 
+**★ RE-TAKEN 2026-08-27** on the cache-free, contracted-collocation default (`doc/CollocationRewritePlan.md`
+steps 7–8 — the 3.9 GB pair-stream value cache deleted, `GPW_CONTRACT_CUBE` on).  The two MnO rows marked
+⚠ STALE are still the 08-19 binary; every other qchem row below was measured today through `scripts/bench`,
+same recipes, same box, CP2K column untouched.
+
 | system | k-mesh | span | qchem Etot | CP2K Etot | Δ (qchem−CP2K) | wall q / c | **CPU q / c** | **CPU ×** | peak RSS q / c |
 |---|---|---|---|---|---|---|---|---|---|
-| Si (FCC) | Γ | SIPP_SR | −7.115068508 | −7.115057882 | **−10.6 µHa** | 6.1 s / 5.2 s | 7.4 / 5.0 s | 1.5× | 267 / 148 MB |
-| Si (FCC) | 2×2×2 Γ-centred | SIPP_SR | −7.778472814 | −7.778457865 | **−14.9 µHa** | 8.3 s / 5.8 s | 9.6 / 5.6 s | 1.7× | 269 / 153 MB |
-| Si (FCC) | 2×2×2 shifted MP | SIPP_SR | −7.868473428 ¹ | −7.867436530 | **−1.04 mHa** | 14.3 s / 6.1 s | 15.6 / 6.0 s | 2.6× | 269 / 153 MB |
-| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.430336482 | −24.431213375 | **+0.877 mHa** | 39.5 s / 7.4 s | 94.5 / 7.2 s | **13.2×** | 577 / 173 MB |
-| NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.546883793 | — ² | | 57.4 s / — | 112 s / — | — | 590 / — MB |
-| NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.430944039 | −24.432293467 | **+1.349 mHa** | 2m44s / 1m42s | 219 / 102 s | 2.1× | 3090 / 186 MB |
-| MnO AFM-II | Γ | **VA (N=118)** | −61.40297621 ⁴ | −61.303325178 | **−99.65 mHa** | 6m56s / 6m14s | 663 / 373 s | **1.8×** | **1323** / 217 MB |
-| MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
-| **MnO AFM-II, `CP2K_COMPAT=1`** | Γ | **VA (N=118)** | **−61.40297618** | −61.303325178 | −99.65 mHa | **15m34s** / 6m14s | **921** / 373 s | **2.5×** | **5034** / 217 MB |
+| Si (FCC) | Γ | SIPP_SR | −7.115067844 | −7.115057882 | **−10.0 µHa** | **1.0 s** / 5.2 s | **2.4** / 5.0 s | **0.48×** | **28** / 148 MB |
+| Si (FCC) | 2×2×2 Γ-centred | SIPP_SR | −7.778472833 | −7.778457865 | **−15.0 µHa** | 7.5 s / 5.8 s | 8.9 / 5.6 s | 1.6× | **30** / 153 MB |
+| Si (FCC) | 2×2×2 shifted MP | SIPP_SR | −7.868473428 ¹ | −7.867436530 | **−1.04 mHa** | 16.2 s / 6.1 s | 17.5 / 6.0 s | 2.9× | **31** / 153 MB |
+| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 23.3 s / 7.4 s | 39.7 / 7.2 s | **5.5×** | **54** / 173 MB |
+| NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
+| NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **26.8 s** / 1m42s | **43.4** / 102 s | **0.43×** | **58** / 186 MB |
+| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | 12m00.7s / 6m14s | **976** / 373 s | **2.6×** | **463** / 217 MB |
+| ⚠ STALE MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
+| ⚠ STALE **MnO AFM-II, `CP2K_COMPAT=1`** | Γ | **VA (N=118)** | **−61.40297618** | −61.303325178 | −99.65 mHa | **15m34s** / 6m14s | **921** / 373 s | **2.5×** | **5034** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
+
+### ★★★ WHAT DELETING THE CACHE DID TO THIS TABLE — read the RAM column and the MnO row together
+
+| system | CPU before → after | peak RSS before → after |
+|---|---|---|
+| Si Γ | 7.4 → **2.4 s** (3.1× faster) | 267 → **28 MB** (9.5×) |
+| Si 2×2×2 Γ-centred | 9.6 → 8.9 s | 269 → **30 MB** (9.0×) |
+| Si 2×2×2 shifted MP | 15.6 → 17.5 s | 269 → **31 MB** (8.7×) |
+| NaF SR2 Γ | 94.5 → **39.7 s** (2.4×) | 577 → **54 MB** (10.7×) |
+| NaF SR2 2×2×2 | 112 → **84.5 s** | 590 → **68 MB** (8.7×) |
+| NaF full-SR Γ | 219 → **43.4 s** (5.0×) | 3090 → **58 MB** (**53×**) |
+| **MnO AFM-II Γ (imposed, VA)** | 663 → **976 s** (**1.47× SLOWER**) | 1323 → **463 MB** (2.9×) |
+
+**Two rows now BEAT CP2K on CPU outright** — Si Γ at 0.48× and NaF full-SR at 0.43× — and **every** qchem
+row is now well under CP2K's RAM (28–68 MB against 148–186 MB on the small cells), which is the first time
+that has been true.  The NaF full-SR row is the headline: 3090 MB and 219 s CPU became 58 MB and 43 s, and
+it was the row whose 3 GB used to force `scripts/memsafe`.
+
+⛔ **AND THE MnO ROW GOT SLOWER — 1.47×, and it is not noise.**  That row is a long IMPOSED run (14+17
+iterations) where the two box-walk buckets are **477 s of 976 s CPU**, so the cache's measured 2.91× on
+those buckets translates almost exactly into the 1.47× the row lost.  ⇒ **The cache was still buying real
+CPU on the one row that matters most**, and the case for deleting it rests on the RAM axis and on the two
+latent defects it was hiding, not on a free lunch.  ⚠ The 663 s "before" is the 2026-08-19 banked row on an
+older binary, so treat the MnO delta as indicative; the directly-measured, same-binary A/B is the
+2.91×-on-the-buckets figure in `doc/CollocationRewritePlan.md` step 7.
+⇒ **The next lever on this row is `(L_a,L_b)` batching** (plan §3c reason 1): compile-time \f$l_p\f$ in the
+contraction's innermost loop, which the task list now makes possible and nothing has measured.
+
+**Energies moved by ≤ 1e-6 Ha everywhere** — Si Γ −6.6e-7, Si 2×2×2 +1.9e-8, shifted MP 0 (10 s.f.),
+NaF SR2 Γ +6.5e-9, NaF SR2 2×2×2 −3.1e-7, NaF full-SR +3.2e-6, MnO −7.0e-7 — which is the anchor re-bank
+A1+A7 predicted (doc/OpenWork.md, the anchor-moving sprint) and it does not change any verdict in the Δ
+column.
 
 ### ★ THE `CP2K_COMPAT=1` ROW — WHAT THE DEFAULT ROW ABOVE IT WAS HIDING (2026-08-26)
 
@@ -157,9 +195,15 @@ comparison.
 
 **⚠ AND `CP2K_COMPAT=1` IS STILL NOT PARITY** — the switch covers four deviations and at least two more
 matter (doc/OpenWork.md N5 carries the full list):
-- **The pair-stream CACHE — and MEASURING it inverted the priority (2026-08-26).**  CP2K caches NOTHING
-  on the grid: it re-evaluates the orbital pairs every iteration.  Zeroing our budgets
-  (`GPW_STREAM_BUDGET_PTS=0`, all 8778 pairs dropped to on-the-fly) on the MnO 3-iteration probe:
+- ~~**The pair-stream CACHE**~~ ✅ **DELETED 2026-08-27** (`doc/CollocationRewritePlan.md` step 7), so this
+  deviation no longer exists: like CP2K, qchem now re-evaluates the orbital pairs every iteration and keeps
+  only a ~0.2–0.4 MB (shell pair, offset) TASK LIST.  The history below is kept because it is what turned
+  the campaign toward making the on-the-fly evaluation fast instead of caching harder — and because its
+  last row is the one that finally made the cache indefensible.  **What ACTUALLY closed it**: after the
+  contraction kernel, the cache bought 2.91× on the two box-walk buckets and ~1.1–1.5× on a whole run,
+  against 25× the RAM on the unfolded probe.  ⚠ Read the MnO row above before quoting this as a pure win.
+  Original measurement, zeroing the budgets (`GPW_STREAM_BUDGET_PTS=0`, all 8778 pairs on-the-fly) on the
+  MnO 3-iteration probe:
 
   | MnO, per SCF iteration | CPU/iter | peak RSS |
   |---|---|---|
@@ -168,6 +212,7 @@ matter (doc/OpenWork.md N5 carries the full list):
   | qchem, cache OFF — **as measured 2026-08-25, ESTIMATED** | ~853 s (100×) | 353 MB (1.6×) |
   | qchem, cache OFF — **MEASURED from the ledger, before the box-walk work** | **573 s (67×)** | **166 MB (0.8×)** |
   | qchem, cache OFF — **MEASURED, after it (2026-08-26)** | **260 s (31×)** | **166 MB (0.8×)** |
+  | qchem, cache OFF + contracted kernel — **MEASURED 2026-08-27, and this is now the DEFAULT** | **35.5 s (4.2×)** | **155 MB (0.7×)** |
 
   ⇒ **The cache is not an advantage we hold over CP2K; it is a workaround for an on-the-fly box walk that
   was 67× off theirs, bought with 4 GB.**  Without it our RAM is BETTER than CP2K's (166 vs 217 MB), so

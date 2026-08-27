@@ -310,13 +310,11 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     }
 }
 
-// doc/GPWPlan.md 0.5(b): hand this block's ladder-shaped streams back to the global budget.  itsLevelN is
-// populated lazily (EnsureLevels) -- a block that never ran the DFT tier has nothing to release.  itsMol
-// (a member) outlives this body, so itsLat stays valid here.
-GPW_Evaluator::~GPW_Evaluator()
-{
-    if (itsLat && !itsLevelN.empty()) itsLat->ReleaseStreams(itsLevelN, itsLevelEcut);
-}
+// Out of line (the class is polymorphic and the dtor is the key function).  It used to hand this block's
+// ladder-shaped collocation STREAMS back to a global point budget (doc/GPWPlan.md 0.5(b)); the value cache
+// is gone (doc/CollocationRewritePlan.md step 7) and its replacement -- the (shell pair, offset) task list --
+// is a few hundred kB of pure geometry with nothing to refund, so there is nothing left to release.
+GPW_Evaluator::~GPW_Evaluator() = default;
 
 // The Bloch phase closure the analytic kernels call back per screened cross-cell offset: e^{2 pi i k_frac.n}
 // (n the INTEGER cell index -- convention-safe, same convention as BuildImages).  Gamma: the constant 1.

@@ -1018,6 +1018,77 @@ TEST(M_PG_BoxWalk, OffsetEnumerationIsNotTheCost)
 
 
 //========================================================================================================
+// THE TASK LIST (doc/CollocationRewritePlan.md 3c, built at step 7 when the 4 GB value cache was deleted).
+// The list is a HOIST, so the property that matters is that it hoists NOTHING AWAY: it must hold exactly
+// the (shell pair, offset) terms the un-hoisted enumeration + prefactor screen produced, in the same order
+// (the collocation scatter accumulates into a shared grid, so order is part of the result), and it must be
+// a strict SUPERSET of whatever a per-iteration density weight then keeps.
+//========================================================================================================
+TEST(M_PG_BoxWalk, TaskListIsExactlyTheEnumerationItReplaces)
+{
+    const UnitCell cell(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
+    Molecule mol;
+    mol.Insert(new Atom(25, 0, rvec3_t(0,0,0)));
+    mol.Insert(new Atom(25, 0, rvec3_t(4.20,4.20,4.20)));
+    mol.Insert(new Atom( 8, 0, rvec3_t(2.4249,2.4249,2.4249)));
+    mol.Insert(new Atom( 8, 0, rvec3_t(6.20,6.20,6.20)));
+    Orbital_IBS ibs(rvec_t{0.38,1.2,4.0}, 2, &mol);
+    const NR_Evaluator& ev=ibs;
+    const std::vector<NR_Evaluator::Shell>& shells=ev.Shells();
+    const std::vector<NR_Evaluator::ShellPairTasks>& tl=ev.BoxTasks(cell);
+
+    // The list is indexed exactly as the (a<=b) shell-pair loops enumerate the pairs.
+    size_t nSP=0;
+    for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) nSP++;
+    ASSERT_EQ(tl.size(), nSP);
+
+    const double lnE=-std::log(NR_Evaluator::kDensityEps());
+    size_t sp=0, nTasks=0, nScreened=0;
+    for (size_t a=0;a<shells.size();a++)
+        for (size_t b=a;b<shells.size();b++, sp++)
+        {
+            std::vector<NR_Evaluator::BoxTask> want;
+            ev.ForImageOffsets(shells[a].begin, shells[b].begin, cell,
+                               [&](const ivec3_t& n, const rvec3_t& Roff)
+            {
+                const double pf=ev.PairPrefactorExp(shells[a].begin, shells[b].begin, Roff);
+                if (pf<lnE) want.push_back({n,Roff,pf}); else nScreened++;
+            });
+            ASSERT_EQ(tl[sp].tasks.size(), want.size()) << "shell pair " << sp;
+            for (size_t t=0;t<want.size();t++)
+            {
+                const NR_Evaluator::BoxTask& g=tl[sp].tasks[t];
+                EXPECT_EQ(g.n.x,want[t].n.x); EXPECT_EQ(g.n.y,want[t].n.y); EXPECT_EQ(g.n.z,want[t].n.z);
+                EXPECT_EQ(g.Roff.x,want[t].Roff.x);          // the SAME expression, so bitwise
+                EXPECT_EQ(g.Roff.y,want[t].Roff.y);
+                EXPECT_EQ(g.Roff.z,want[t].Roff.z);
+                EXPECT_EQ(g.pf,   want[t].pf);
+            }
+            nTasks+=want.size();
+        }
+    ASSERT_GT(nTasks, 100u);
+    // ★ AND THE BUILD-TIME PREFACTOR SCREEN IS A NO-OP AT THE DEFAULT TOLERANCES -- measured here, not
+    // assumed.  ForImageOffsets keeps an offset iff |d| <= sqrt(-ln(kScreenEps)*(1/aI+1/aJ)), and
+    // pf < -ln(kDensityEps) is |d|^2*(aI aJ/(aI+aJ)) < -ln(kDensityEps), i.e. THE SAME THRESHOLD whenever
+    // GPW_SCREEN_EPS == GPW_DENSITY_EPS (both 1e-10 by default).  The screen is kept because it is the
+    // honest superset boundary and it does bite when the two knobs are set apart -- but do NOT cite it as
+    // work the task list saves.
+    EXPECT_EQ(nScreened, 0u) << "at equal eps the two screens are the same test -- if this fires, they diverged";
+
+    // A SUPERSET, never an exact set: the per-iteration tolerance is eps/|c_ij| >= eps, so raising it can
+    // only kill tasks the list holds (plan 2a -- this is why D never enters the list).
+    for (double c : {1.0, 0.1, 1e-4, 1e-8})
+    {
+        const double e=std::max(NR_Evaluator::kDensityEps(), NR_Evaluator::kDensityEps()/c);
+        size_t live=0;
+        for (const auto& t : tl) for (const auto& g : t.tasks) if (g.pf < -std::log(e)) live++;
+        EXPECT_LE(live, nTasks) << "a per-iteration weight must never ADD a task";
+    }
+    std::printf("\n  [task list] %zu shell pairs, %zu tasks kept, %zu offsets screened out, %.3f MB\n\n",
+                tl.size(), nTasks, nScreened, double(nTasks*sizeof(NR_Evaluator::BoxTask))/1048576.0);
+}
+
+//========================================================================================================
 // THE PRODUCTION KERNEL (NR_Evaluator::MakePairPoly + ContractCube), against the walk it replaces.
 // The prototype above proved the ALGEBRA; this proves the code that will actually run it.
 //========================================================================================================

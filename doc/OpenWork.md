@@ -15,9 +15,14 @@ either history.
 
 ## ▶ WHAT IS OPEN — START HERE
 
-> **▶ NEXT SESSION: `doc/CollocationRewritePlan.md` steps 7–8.**  Step 7 is now *delete the pair-stream
-> cache and keep the task list* (the 4.2 GB buys ~1.4× after this session, down from ~18×); step 8 is the
-> `doc/Benchmark.md` row that follows.  Everything else on this page is a queue, not a next action.
+> **▶ NEXT SESSION: the anchor-moving sprint, minus the two that already landed.**  ✅ **THE COLLOCATION
+> REWRITE IS DONE** (steps 7–8, 2026-08-27): the 3.9 GB pair-stream cache is DELETED, the (shell pair,
+> offset) task list replaces it, and `GPW_CONTRACT_CUBE` is the DEFAULT — A1 and A7 landed together as the
+> roster required, and `doc/Benchmark.md`'s rows are re-taken.  What is left of the sprint is **A2–A6**
+> (`doc/CleanupCandidates.md` V1.22, §K, the Δρ/N gate, the `IonicSAD` seed default, the N4 cusp deficit),
+> and A4 now has a second reason to exist: the Na2 gate's flakiness is a density-degenerate state the
+> run's own fingerprint calls benign while `DidConverge()` calls it a failure.  Everything else on this
+> page is a queue, not a next action.
 
 Everything after this index is a MIX of open work and the evidence that produced it.  The evidence stays on
 purpose — it is what stops items being re-litigated, and several items exist because a measurement refuted
@@ -38,11 +43,11 @@ stop competing for the reader's attention here:
 | **N2** | The ρ<0 lobes are BAND-LIMITING, not aliasing — which eliminated every cheap alternative to N4. | *"★ N2"* |
 | **1** | `GPW_XC_DM_SOURCE` does not earn the default; the measurement convicts the MIXER, not the exact ρ. | *"✅ ITEM 1 MEASURED"* |
 | **3** | The imposed XC mesh keeps its site blocks. | (below) |
+| **C — the collocation rewrite** | 2026-08-27, steps 7–8: the 3.9 GB pair-stream VALUE cache is deleted and the (shell pair, offset) TASK LIST replaces it (~0.2 MB); `GPW_CONTRACT_CUBE` defaults ON. MnO peak RSS **3915 → 155 MB** with the box-walk buckets ~1.1× slower on the whole run — the trade the cache existed for had evaporated. 792/792 green on BOTH kernel settings. Two latent defects fell out: the integrate-back's `Re[D·conj(phase)]` screen (the shifted-MP defect, 4.1 Ha, previously reached only by over-budget pairs) and the walk's per-component `|v|` screen (broke the collocate/integrate adjoint at 1.2e-8 once the shared frozen stream was gone). | `doc/CollocationRewritePlan.md` step 7 |
 
 | # | open item | the next concrete action | point a session at |
 |---|---|---|---|
-| **C** | ★★★ **THE COLLOCATION REWRITE, steps 7–8** — the kernel is BUILT and gated; what is left is deleting the cache it made pointless, and the benchmark row. | Re-measure both sides of the cache trade (the ~1.4× mixes a measured box walk with banked XC buckets), then delete the cache and keep the task list. Then the row. | `doc/CollocationRewritePlan.md` step 7 |
-| **S** | ★★ **THE ANCHOR-MOVING SPRINT** — seven items that each move banked numbers, to be done in ONE re-bank so they do not mask each other (user, 2026-08-27). | Pick the sprint window. A1 and A7 (the kernel default and dropping the cache) MUST land together; A5 (the `IonicSAD` seed default) re-seeds every GPW anchor, so it goes first or last. | *"THE ANCHOR-MOVING SPRINT"* |
+| **S** | ★★ **THE ANCHOR-MOVING SPRINT — A1 and A7 ARE DONE (2026-08-27), A2–A6 remain.** Five items that each move banked numbers, to be done in ONE re-bank so they do not mask each other (user, 2026-08-27). | Pick the sprint window. A5 (the `IonicSAD` seed default) re-seeds every GPW anchor, so it goes first or last. A4 (the Δρ/N gate) is now doubly motivated — see the Na2 note in the sprint section. | *"THE ANCHOR-MOVING SPRINT"* |
 | **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25). *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
 | **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING — ⚠ HALF-BUILT ALREADY (corrected 2026-08-25): `QCHEM_MIX_RHO_M=1` in `MakePeriodicMixer` ALREADY selects the (ρ,m) basis with "Kerker on ρ, PLAIN LINEAR on m", carrying the same *"m has none"* argument. So this needs a MEASUREMENT and a promotion, not a build.** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
 | **2** | **BENCHMARK PROTOCOL — no timing table is comparable until this holds** (user, 2026-08-25). Two defects today: no table states its THREAD state per row, and qchem runs accelerations CP2K does not — the factored/low-rank ρ is **ON BY DEFAULT** (`QCHEM_DM_LOWRANK`), so every row since `07d13bf6` has it | (a) build the self-describing BANNER `doc/Benchmark.md` already asks for — thread counts + the qchem-only feature flags — so rows describe themselves instead of relying on discipline; (b) re-take the rows under the two-phase rule: **single-thread parity FIRST**, then N=8/16 for OMP-shaped gaps. | `doc/Benchmark.md` → *"BENCHMARK PROTOCOL"*, and Step 0 (instruments) |
@@ -306,7 +311,7 @@ NOT parity.  Measured/checked 2026-08-26:
 
 | missing deviation | why it is not in the table | measured effect |
 |---|---|---|
-| **the pair-stream CACHE** (gap 2, user) | predates the table; only the raw `GPW_STREAM_BUDGET_PTS` knob, no policy hook | CP2K re-evaluates every iteration and caches nothing — this is the single biggest RAM term |
+| ~~**the pair-stream CACHE**~~ (gap 2, user) | ✅ **DELETED 2026-08-27** (`doc/CollocationRewritePlan.md` step 7) — there is no deviation left to declare: qchem re-evaluates every iteration exactly as CP2K does, off a ~0.2–0.4 MB task list | it WAS the single biggest RAM term: MnO peak RSS 3915 → 155 MB on the free probe, 1323 → 463 MB on the imposed benchmark row |
 | ~~**`imposeSymmetry` ITSELF**~~ | ✅ **WIRED 2026-08-26** (user: *"CP2K_COMPAT should do (imply) imposeSymmetry=0"*) — the fifth declared deviation, knob `QCHEM_IMPOSE_SYMMETRY` | CP2K does **NO** symmetry work in these decks (see below); our imposed row folds the BZ, star-averages ρ, uses the site-adapted invariant XC mesh (~2×) and folds the streams (5.2× on MnO pairs) |
 | `raster` (`BallOnly`) | typed option | BallOnly IS CP2K's bet (N2) — a deviation in mechanism only |
 | `cutoffFactor` (C=2) | typed option | ~0.15 mHa of grid error at C=2 (N2) |
@@ -662,25 +667,35 @@ sprint cost more than it should.
 
 | # | item | where it is described | state | delta |
 |---|---|---|---|---|
-| A1 | **the collocation contraction kernel** (`GPW_CONTRACT_CUBE`) | `doc/CollocationRewritePlan.md` steps 5–6 | **BUILT, gated OFF, 792/792 both ways** | **MEASURED** (below) |
+| A1 | **the collocation contraction kernel** (`GPW_CONTRACT_CUBE`) | `doc/CollocationRewritePlan.md` steps 5–6 | ✅ **LANDED 2026-08-27 — DEFAULT ON**, with A7 | re-banked, below |
 | A2 | **V1.22** — Becke per-representative partition | this file, *Continuous — CLEANUP* | not built | unmeasured; imposed runs only |
 | A3 | **§K** | `doc/CleanupCandidates.md` (deferred, user) | not built | unmeasured |
 | A4 | **the Δρ/N convergence gate** | `doc/SCFStrategyPlan.md` | not built | unmeasured |
 | A5 | **GPW default seed → `IonicSAD`** | `doc/CleanupCandidates.md` ("every pinned GPW anchor re-seeds") | not built | unmeasured; re-seeds EVERY GPW anchor |
 | A6 | **`SCFParams::XCCuspDeficit`** — the N4 XC feed | N4 above | flag exists, off | a TRAJECTORY change by its own description |
-| A7 | **dropping the pair-stream cache** | `doc/CollocationRewritePlan.md` step 7 | not built | **1.25e-6 on NaF** — the measured cached-vs-uncached spread, i.e. BIGGER than A1 |
+| A7 | **dropping the pair-stream cache** | `doc/CollocationRewritePlan.md` step 7 | ✅ **LANDED 2026-08-27**, with A1 | re-banked, below |
 
-★ **A7 IS NEW AND IT IS THE BIGGEST OF THE SMALL ONES.**  The cached and uncached paths have never agreed
-(NaF −24.5468837982 against −24.5468825477), so deleting the cache moves every banked GPW number by up to
-1.25e-6 — more than A1's 9.4e-7 on the same system.  ⇒ **A1 and A7 should land in the SAME re-bank**, or
-each masks the other.  And A7 is now nearly free to take: after this session the 4.2 GB cache buys ~1.4×
-rather than the ~18× it bought this morning (see the plan; both sides need re-measuring first).
+✅ **A1 + A7 LANDED TOGETHER, 2026-08-27, exactly as this section required.**  The re-measurement that
+opened step 7 said the 3.9 GB was buying ~1.1× on the whole MnO run (2.91× on the two box-walk buckets, and
+those are only ~58% of it), against 25× the RAM — so the cache went, the (shell pair, offset) task list took
+its place, and the contraction kernel became the default because the cache-less walk is ~18× slower and the
+two were therefore never separable.  ⇒ **A2–A6 are what is left of the sprint.**  Full record:
+`doc/CollocationRewritePlan.md` step 7; re-taken rows: `doc/Benchmark.md`.
+
+⚠ **AND A4 PICKED UP A SECOND MOTIVATION ON THE WAY.**  `ImposedOrderLostIsAPostconditionFailure_Na2Box`
+went red, and sweeping it found NO stable mixing step: α = 0.65 ✔, 0.7 ✔, 0.75 ✘, 0.8 ✔ on the contracted
+kernel.  In every arm — converged or capped — the moment dies and E lands on the same −0.332045 state; what
+oscillates is one slow, nearly-degenerate DENSITY mode that E cannot see, and the run's own fingerprint
+already calls it *"DENSITY-DEGENERATE (E settled, ρ rotates — benign)"* while `DidConverge()` calls it a
+failure.  **A convergence criterion that disagrees with the run's own diagnosis is the thing A4 fixes.**
+The gate now sweeps its mixing step instead of betting on one draw (four measured-good values, first that
+converges wins), which is a stopgap, not the fix.
 
 ⚠ **A5 is the one to sequence FIRST or LAST, not in the middle**: it re-seeds every GPW anchor, so anything
 measured against a pre-A5 reference has to be re-measured after it.
 
-### A1 — the contraction kernel: ready, and its deltas are ALREADY MEASURED
-So the sprint does not have to discover them.  All three converge, all three keep their verdict:
+### A1 — the contraction kernel: its deltas, measured BEFORE it landed
+Kept as the record of what the re-bank was told to expect (the re-taken rows are in `doc/Benchmark.md`):
 
 | system | before | after | shift |
 |---|---|---|---|
@@ -698,12 +713,14 @@ TOWARD the truth, not away from it.  Speed: **4.98× MnO / 3.96× Si / 3.61× Na
 collocation kernel produced a row, or a future `doc/Benchmark.md` entry is not reproducible.  It is NOT a
 `CP2K_COMPAT` deviation — CP2K collocates exactly this way — so it does not belong on that table.
 
-### ⚠ WHAT ROTS WHILE A1 SITS GATED, and what does not
-- **The KERNEL itself cannot rot**: `src/BasisSet/Molecule/tests/M_PG_BoxWalk.C` calls `MakePairPoly` /
-  `ContractCube` / `GatherCube` DIRECTLY, not through the flag, so it is exercised on every default sweep.
-- **The WIRING can**: the `scatterShell` / `integrateShell` routing is flag-gated and therefore unexercised
-  by default.  ⇒ Run `GPW_CONTRACT_CUBE=1 ctest -j8` alongside the plain sweep at any breakpoint that
-  touches the collocation path.  Measured 2026-08-27: 792/792 both ways.
+### ⚠ WHAT ROTS NOW THAT A1 IS THE DEFAULT — the polarity has REVERSED
+- **The KERNEL cannot rot**: `src/BasisSet/Molecule/tests/M_PG_BoxWalk.C` calls `MakePairPoly` /
+  `ContractCube` / `GatherCube` DIRECTLY, and it is now also the production route.
+- **THE REFERENCE WALK is the one that can rot**: `GPW_CONTRACT_CUBE=0` is an investigation opt-out and
+  nothing exercises it by default.  ⇒ Run `GPW_CONTRACT_CUBE=0 ctest -j8` alongside the plain sweep at any
+  breakpoint that touches the collocation path.  Measured 2026-08-27: **792/792 both ways** (and getting the
+  walk arm green is what surfaced its per-component `|v|` screen breaking the collocate/integrate adjoint —
+  see the plan's step 7).
 
 ### ⚠ THE COVERAGE GAP — now the ONLY thing open under N1
 `RunMnO` and the new Na2 gate go through `SolidCalculation`, so those are covered.  Other GPW tests still

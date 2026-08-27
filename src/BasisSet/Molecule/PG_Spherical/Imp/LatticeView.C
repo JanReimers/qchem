@@ -241,8 +241,6 @@ public:
                                                       double beta, double lnEps) const override
     { return itsLat->StaticFieldPairLevels(ecut_L,beta,lnEps); }
     virtual void EmitLatticeSumReport(const UnitCell& A) const override {itsLat->EmitLatticeSumReport(A);}
-    virtual void ReleaseStreams(const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L) const override
-    { itsLat->ReleaseStreams(N_L,ecut_L); }
     virtual size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops,
                                         const UnitCell& A, const rvec3_t& kFrac=rvec3_t(0,0,0)) const override
     { return itsLat->SetStreamSymmetryOps(ops,A,kFrac); }   // the fold acts on the INNER Cartesian streams

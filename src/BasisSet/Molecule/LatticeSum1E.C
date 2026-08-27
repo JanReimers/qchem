@@ -264,17 +264,6 @@ public:
     //! for bases with no lattice economy to describe.
     virtual void EmitLatticeSumReport(const UnitCell& /*A*/) const {}
 
-    //! \brief Release any cached collocation streams for ONE ladder shape (\a N_L, \a ecut_L), refunding
-    //! their points to the GLOBAL stream budget.  The streams are pure geometry replayed every iteration, so
-    //! an implementation may keep them resident across calls -- but this evaluator is SHARED (one molecular
-    //! basis serves every k-block and every collocation-grid client), so a client that is DONE with its ladder
-    //! must say so or its streams squat on the budget for the process lifetime.  Measured failure
-    //! (doc/GPWPlan.md 0.5(b)): a grid-continuation run's RESIDENT coarse-stage caches starved the fine
-    //! stage to ~0% coverage -- billions of points re-evaluated per iteration (the 8.45-h NaF full-SR run).
-    //! Called by \c GPW_Evaluator's dtor with its own ladder; releasing a shape another live client still
-    //! uses is CORRECT (it rebuilds on demand) -- this is a budget/perf lever, never a correctness one.
-    virtual void ReleaseStreams(const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L) const = 0;
-
     //! \brief T3 route (b) STREAM FOLD (doc/SymmetryUpgradePlan.md §6b): fold the \f$(pair, R)\f$
     //! collocation/integrate-back terms under the IMPOSED crystal ops \f$\{W|\tau\}\f$.  With a non-empty
     //! fold, \c CollocateDensity scatters only orbit-REPRESENTATIVE terms, each weighted by its orbit

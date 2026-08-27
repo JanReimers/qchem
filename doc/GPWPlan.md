@@ -220,7 +220,12 @@ the full-SR diagnostic ran 8.45 h vs 88.6 s — its pathology is items (b)+(c) b
 (dependency-aware leverage; letters are stable labels, kept for cross-references).  Prelude: the
 test-side `ctest -j16` upgrade (separate session) lands before (b) so every step below gets fast
 confirmation runs.
-- **(b) DONE 2026-07-23 — free the coarse stage's stream caches after the seed handoff.**  The class fix
+- **(b) DONE 2026-07-23, then RETIRED WHOLESALE 2026-08-27 — free the coarse stage's stream caches after
+  the seed handoff.**  ⛔ **The stream cache, `ReleaseStreams`, the global budget, the self-heal rebuild and
+  the `GPW.StreamCacheReleaseUnstarvesLaterGrid` gate are all DELETED** (`doc/CollocationRewritePlan.md`
+  step 7): with the separable-contraction kernel the 3.9 GB value cache bought ~1.1–1.5× on a run, so the
+  whole starvation class it created went with it (the grid-continuation run's fine stage cannot be starved
+  of a budget that no longer exists).  Kept below as the record of the class fix.  The class fix
   is TWO halves, both needed because the fine shape's cache is built DURING the handoff (the coarse block
   collocates the seed on the fine fit grid) while the coarse caches still hold the budget:
   (1) RELEASE — new seam capability `Molecule::LatticeSum1E::ReleaseStreams(N_L, ecut_L)` (PG_Cart

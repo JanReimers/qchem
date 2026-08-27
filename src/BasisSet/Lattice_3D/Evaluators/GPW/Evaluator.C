@@ -90,12 +90,7 @@ public:
                   bool homeCellOnly = false, double cutoffFactor = 2.0,
                   RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
                   RasterFields rasterFields = RasterFields::HartreeXC);
-    //! Polymorphic (reached by the EPW_* mixin's Cast() cross-cast).  Releases this block's ladder-shaped
-    //! collocation streams on the SHARED molecular evaluator (\c LatticeSum1E::ReleaseStreams) -- the streams
-    //! are keyed by ladder shape, not by block, so without the release a finished stage's caches squat on the
-    //! global stream budget for the process lifetime and starve any later grid (doc/GPWPlan.md 0.5(b): the
-    //! grid-continuation fine stage at ~0% coverage).  Sibling k-blocks share the shape: the first dtor
-    //! releases it, the rest no-op; a same-shape client that is still live simply rebuilds on demand.
+    //! Polymorphic (reached by the EPW_* mixin's Cast() cross-cast); out of line as the key function.
     virtual ~GPW_Evaluator();
 
     // --- isPW_1E_Evaluator surface (exact signatures the concept demands) ---

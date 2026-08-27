@@ -386,104 +386,15 @@ TEST(GPW, AnalyticCollocationConservesCharge)
     EXPECT_NEAR(cInterior, cCorner, 1e-6) << "collocated charge must be translation-invariant (wrap == interior)";
 }
 
-namespace
-{
-// Scoped env override with restore (the stream-budget knobs are read per EnsureStreams call).
-struct EnvGuard
-{
-    std::string name, old; bool had;
-    EnvGuard(const char* n, const std::string& v) : name(n)
-    {   const char* o=std::getenv(n); had=(o!=nullptr); if (o) old=o; setenv(n, v.c_str(), 1); }
-    void Set(const std::string& v) { setenv(name.c_str(), v.c_str(), 1); }
-    ~EnvGuard() { if (had) setenv(name.c_str(), old.c_str(), 1); else unsetenv(name.c_str()); }
-};
-// The last "[stream cache]" build readout in a captured stderr blob.  built=false means EnsureStreams HIT an
-// existing cache (no build ran) -- itself an assertable outcome (rebuild stability).
-struct StreamReadout { bool built=false; size_t pts64=0, pts32=0, dropped=0; };
-StreamReadout ParseStreamReadout(const std::string& err)
-{
-    StreamReadout r;
-    size_t p=err.rfind("[stream cache]");
-    if (p==std::string::npos) return r;
-    r.built=true;
-    auto ptsInParens=[&](const std::string& tag)->size_t     // "fp64 N (P pts)" -> P
-    {
-        size_t b=err.find(tag, p);
-        if (b==std::string::npos) { ADD_FAILURE() << "readout tag missing: " << tag; return 0; }
-        return std::stoull(err.substr(err.find('(', b)+1));
-    };
-    r.pts64=ptsInParens("fp64 "); r.pts32=ptsInParens("fp32 ");
-    size_t d=err.find("dropped ", p);
-    if (d==std::string::npos) { ADD_FAILURE() << "readout tag missing: dropped"; return r; }
-    r.dropped=std::stoull(err.substr(d+8));
-    return r;
-}
-} //anon
-
-// STREAM-CACHE RESIDENCY (doc/GPWPlan.md 0.5(b)).  The pair-box streams live on the SHARED molecular
-// evaluator keyed by ladder shape, with a GLOBAL point budget -- so in a grid-continuation run the RESIDENT
-// coarse-stage caches starve the fine stage to ~0% coverage (measured: the 8.45-h NaF full-SR diagnostic,
-// billions of points re-evaluated per iteration).  The fix under test, both halves:
-//   (1) RELEASE: destroying a GPW block (bsC.reset() in the SCF test) hands its ladder's streams back to the
-//       budget (GPW_Evaluator dtor -> LatticeSum1E::ReleaseStreams);
-//   (2) SELF-HEAL: a cache built STARVED (the fine shape is built during the seed handoff, while the coarse
-//       stage still squats) rebuilds when the headroom grows -- and ONLY then (a complete cache never
-//       rebuilds: bit-stable replay; an unchanged starved cache never churns).
-TEST(GPW, StreamCacheReleaseUnstarvesLaterGrid)
-{
-    const double a=12.0;
-    UnitCell cell(a);
-    cell.AddAtom(14,{0.5,0.5,0.5});                            // Si, interior
-    std::shared_ptr<const Real_BS> mol = MakeBasis(cell);      // ONE molecular basis shared by both grids
-    const double ecutC=16.0, ecutF=32.0;                       // coarse/fine density grids (>= the 8*alpha_max floor)
-
-    // One OverlapMatrix(V) call drives IntegratePotential -> EnsureStreams for the block's ladder shape.
-    // A FRESH constant per call defeats the static-field IntegrateMemo (same shape + same field replays the
-    // memoised reductions and never consults the stream cache), so every trigger reaches EnsureStreams.
-    auto trigger=[call=0](const GPW_Evaluator& ev) mutable -> StreamReadout
-    {
-        const dcmplx v(double(++call));
-        testing::internal::CaptureStderr();
-        ev.OverlapMatrix([v](const ivec3_t&)->dcmplx { return v; });
-        return ParseStreamReadout(testing::internal::GetCapturedStderr());
-    };
-
-    // MEASURE the two shapes' demand under an ample single-tier budget (fp32 tier off: one number per shape).
-    EnvGuard b64("GPW_STREAM_BUDGET_PTS",     "2000000000");
-    EnvGuard b32("GPW_STREAM_BUDGET_PTS_F32", "0");
-    size_t ptsC=0, ptsF=0;
-    {
-        GPW_IBS c(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecutC);
-        auto r=trigger(c);
-        ASSERT_TRUE(r.built); ASSERT_EQ(r.dropped,0u); ptsC=r.pts64+r.pts32;
-    }   // dtor releases the coarse shape
-    {
-        GPW_IBS f(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecutF);
-        auto r=trigger(f);
-        ASSERT_TRUE(r.built) << "coarse dtor must have released its shape (fresh build expected)";
-        ASSERT_EQ(r.dropped,0u); ptsF=r.pts64+r.pts32;
-    }
-    ASSERT_GE(ptsC,2u);
-    ASSERT_GT(ptsF,ptsC) << "the finer grid must demand more stream points";
-
-    // THE GRID-CONTINUATION CONFIGURATION under a budget that fits EITHER shape but not BOTH:
-    b64.Set(std::to_string(ptsF + ptsC/2));
-    auto coarse=std::make_unique<GPW_IBS>(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecutC);
-    auto r=trigger(*coarse);
-    ASSERT_TRUE(r.built); EXPECT_EQ(r.dropped,0u);             // coarse fits alone
-    GPW_IBS fine(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecutF);
-    r=trigger(fine);
-    ASSERT_TRUE(r.built); EXPECT_GT(r.dropped,0u)              // STARVED by the resident coarse caches
-        << "expected the fine shape to be starved while the coarse caches squat on the budget";
-    r=trigger(fine);
-    EXPECT_FALSE(r.built) << "starved cache with UNCHANGED headroom must not churn/rebuild";
-    coarse.reset();                                            // the bsC.reset() fix: refund the coarse points
-    r=trigger(fine);
-    ASSERT_TRUE(r.built); EXPECT_EQ(r.dropped,0u)              // SELF-HEAL: rebuilt into the refunded budget
-        << "released coarse budget must reach the starved fine shape";
-    r=trigger(fine);
-    EXPECT_FALSE(r.built) << "complete cache must never rebuild (bit-stable replay)";
-}
+// ⛔ THE STREAM-CACHE RESIDENCY TEST LIVED HERE, and it is DELETED rather than ported
+// (doc/CollocationRewritePlan.md step 7, 2026-08-27).  It gated a real defect -- a grid-continuation run's
+// RESIDENT coarse-stage caches starving the fine stage to ~0% coverage under a GLOBAL point budget
+// (doc/GPWPlan.md 0.5(b)) -- together with the release and self-heal machinery that fixed it.  The
+// per-point VALUE cache all of that served is gone: the separable-contraction kernel made re-evaluating
+// cheaper than the 3.9 GB it cost, so there is no budget, no residency, no starvation and no self-heal
+// left to gate.  Its replacement, the (shell pair, offset) TASK LIST, is ~0.2 MB of pure geometry with
+// nothing to compete for, and it is unit-tested where the testing-level pin says it belongs:
+// src/BasisSet/Molecule/tests/M_PG_BoxWalk.C, TaskListIsExactlyTheEnumerationItReplaces.
 
 // ANALYTIC COLLOCATION on a CRYSTAL (cross-cell pairs), through the SCF SEAM (Overlap3CTensor's matrix-free
 // `apply` -> the REL_CUTOFF multi-grid ladder).  The periodic Gamma density is a product of BLOCH orbitals,
@@ -656,7 +567,7 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     const rvec_t V=project(v0);
     const double ecut=12.0;                            // K=1: every pair lands on the single level
 
-    // FULL reference (no fold), then REDUCED (fold set), same streams either way.
+    // FULL reference (no fold), then REDUCED (fold set) -- same task list either way.
     const rvec_t  rhoFull=lat->CollocateDensity(D, ph, cell, {N}, {ecut})[0];
     const chmat_t hFull  =lat->IntegratePotential({V}, ph, cell, {N}, {ecut});
     const size_t used=lat->SetStreamSymmetryOps(dops, cell, kFrac);
@@ -670,9 +581,28 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     const double dRho=maxDiff(rhoSym, rhoFull);
     std::cout << "  [diag] full-path self-defect max|P(rho_full)-rho_full|=" << maxDiff(project(rhoFull), rhoFull)
               << std::endl;
+    // ★ THE TIER THESE GATES SIT IN DEPENDS ON k, and the reason is the D-AWARE BOX (2026-08-27, when the
+    // stream cache went away and the separable contraction became the default).  Until then BOTH arms
+    // REPLAYED the same per-pair streams, so the truncation was frozen at build time and shared, and
+    // reduced==full held BITWISE.  Now each arm sizes ONE union box per (shell pair, offset) from the
+    // tolerances eps_ij = eps/|c_ij| of ITS OWN live pair set, and the contracted cube -- unlike the walk it
+    // replaced -- carries no per-component |v|<eps_ij screen to undo the difference (doc/CollocationRewrite
+    // Plan.md steps 5+6: that screen is a truncation the cube does not need).  So:
+    //   AT GAMMA the offset phase is 1, every member of a pair orbit carries the SAME |c|, the two arms
+    //   pick the SAME union tolerance, and agreement stays at machine precision;
+    //   AT GENERAL k the phase VARIES ACROSS AN ORBIT, so min_pairs eps_ij differs between the reduced and
+    //   the full set, the two boxes differ, and the arms agree at the SCREENING tier instead.
+    // Both are eps-converged answers to the same sum; the difference is measured to scale LINEARLY with
+    // GPW_DENSITY_EPS (1.18e-10 at 1e-10, 1.37e-12 at 1e-12) and to VANISH under GPW_CONTRACT_CUBE=0.
+    // ⚠ Do NOT paper over a k=0 regression by quoting the general-k tier: they are separate rows here on
+    // purpose.  And note the UNWEIGHTED integrate-back gate below keeps the tight tier at every k -- it has
+    // no D weight, so its boxes coincide by construction, which is the control for this whole argument.
+    const double kRhoTol = kZero ? 1e-12 : 1e-9;      // vs `scale`
+    const double kQTol   = kZero ? 1e-10 : 1e-9;      // vs |qFull|
+    const double kHSTol  = kZero ? 1e-8  : 1e-7;      // vs `hScale` (the SCREENED gather, also D-weighted)
     // Charge is preserved even before projection (orbit-multiplicity weights).
     double qRed=0.0, qFull=0.0; for (size_t p=0;p<rhoFull.size();p++) { qRed+=rhoRed[p]; qFull+=rhoFull[p]; }
-    EXPECT_NEAR(qRed, qFull, 1e-10*std::fabs(qFull)) << tag << ": reduced charge";
+    EXPECT_NEAR(qRed, qFull, kQTol*std::fabs(qFull)) << tag << ": reduced charge";
     // Gate 2: reduced h == full h (representation transform fills the images).
     double dH=0.0, hScale=0.0;
     for (size_t i=0;i<nf;i++) for (size_t j=0;j<nf;j++)
@@ -688,8 +618,7 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     // O2-in-box triplet before this gate existed, 2026-08-19).  Reduced and full must agree at the screening
     // tier -- the orbit max keeps a superset of any member's terms, so the two differ only by sub-eps ones.
     // (Both arms are taken WITHOUT re-arming the fold -- the reduced one here, the full one down in the
-    // negative-control block after the fold is cleared -- because SetStreamSymmetryOps invalidates the
-    // stream caches, so a re-arm here would cost two extra full stream builds.)
+    // negative-control block after the fold is cleared -- so the gate reads one fold state at a time.)
     chmat_t Dabs(nf);
     for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++) Dabs(i,j)=dcmplx(std::abs(dcmplx(D(i,j))),0.0);
     const chmat_t hRedS=lat->IntegratePotential({V}, ph, cell, {N}, {ecut}, 0.0, &Dabs);
@@ -703,7 +632,7 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
               << "  max|P(rho_red)-rho_full|=" << dRho << " (scale " << scale << ")"
               << "  max|h_red-h_full|=" << dH << " (scale " << hScale << ")"
               << "  adjoint lhs=" << lhs << " rhs=" << std::real(rhs) << std::endl;
-    EXPECT_LT(dRho, 1e-12*scale)  << tag << ": reduced collocation must match full (reordering tier)";
+    EXPECT_LT(dRho, kRhoTol*scale) << tag << ": reduced collocation must match full (see the tier note above)";
     EXPECT_LT(dH,   1e-12*hScale) << tag << ": reduced integrate-back must match full (rep transform)";
     // Adjoint at the D-kill class (the precedent gate above): the rho side applies the D-aware
     // |c|*maxv kill, the plain h side keeps every term -- they share the operator to ~kDensityEps.
@@ -725,7 +654,7 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     for (size_t i=0;i<nf;i++) for (size_t j=0;j<nf;j++)
         dHS=std::max(dHS, std::abs(dcmplx(hRedS(i,j))-dcmplx(hFullS(i,j))));
     std::cout << "  [screened h] max|h_red-h_full| (D-aware screen)=" << dHS << " (scale " << hScale << ")" << std::endl;
-    EXPECT_LT(dHS, 1e-8*hScale) << tag << ": the SCREENED reduced gather must match the full one";
+    EXPECT_LT(dHS, kHSTol*hScale) << tag << ": the SCREENED reduced gather must match the full one";
     EXPECT_GT(maxDiff(rhoRedB, rhoFullB), 1e-8*scale)
         << tag << ": a symmetry-broken D must NOT survive the reduced path unchanged";
     // ...but it must not survive DIFFERENTLY from the way the unfolded IMPOSED run kills it (T3.5, the

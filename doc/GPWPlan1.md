@@ -387,6 +387,15 @@ its atomic `gap_mHa` become the objective function (that's the oracle-matching t
 
 # Stream-cache RAM/CPU trade — promote the knob + the fast-recompute campaign (USER, 2026-08-13)
 
+> ⛔ **HISTORY ONLY — THE STREAM CACHE NO LONGER EXISTS (deleted 2026-08-27,
+> `doc/CollocationRewritePlan.md` step 7).**  Everything below about budgets, tiers, `GPW_STREAM_BUDGET_PTS`,
+> run-length geometry and replay bit-identity describes code that has been removed; the section is kept
+> because it is the record of the campaign that led here.  ★ AND NOTE WHERE IT LANDS: the paragraph below
+> already names CP2K's design point — *"no stored streams at all — every pair product recomputed per
+> iteration by ferociously optimized compact-box grid kernels"* — and that is exactly the configuration
+> qchem now runs, off a ~0.2–0.4 MB (shell pair, offset) task list.  The item was resolved by adopting the
+> other side of the trade, not by promoting the knob.
+
 Born from the spherical MnO arm-2 runs (doc/SphericalLatticePlan.md): the CP2K-span basis (n=152
 Cartesian inner, diffuse-heavy) drives the stream cache to ~9 GB where the SR-trimmed runs took ~6 —
 the diffuse pairs' collocation boxes, not the function count, are the cost.  CP2K's design point is
