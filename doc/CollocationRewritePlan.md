@@ -235,13 +235,59 @@ this is exactly the "integrated observables" rule's dual — for a CORRECTNESS o
 is the observable.
 </details>
 
-### Step 2 — Choose the expansion basis.  **Unit level.**
+### ✅ Step 2 — RESOLVED 2026-08-27: **binomial monomials about P, with \f$\alpha_p,P,E_{ij}\f$ from the cached \f$\Omega\f$**
+
+⛔ **THE CRITERION THIS PLAN PROPOSED DOES NOT DISCRIMINATE.**  It said to choose on "which keeps
+integrate-back an exact adjoint".  Adjointness follows from using the SAME coefficients in both directions
+with the contraction reversed — available in ANY polynomial basis.  `ContractedCubeReproducesThePairIntegrals`
+measures it: against an arbitrary pseudo-random field \f$V\f$, every component pair's
+\f$\sum_g V\chi_i\chi_j\f$ from the contracted cube matches the walk's to **2.1e-19 on a scale of 3.2e-5**
+(relative 7e-15, i.e. machine precision), and to 9.5e-13 including the boundary points the contraction adds
+— under the 1e-10 collocation \f$\varepsilon\f$.  ⇒ Adjointness is available either way; decide on other
+grounds.
+
+**THE GROUNDS THAT DO DECIDE:**
+1. **On the grid, Hermite buys nothing.**  \f$\Lambda_{NLM}\f$ is *polynomial × the same Gaussian*, so it is
+   a change of POLYNOMIAL BASIS, not of structure.  And the non-ortho path re-expands the polynomial in
+   GRID-INDEX powers regardless — so starting from Hermite would add a Hermite→monomial conversion that
+   the binomial route never needs.
+2. **\f$\Omega\f$ is reused for the part that matters anyway** — \f$\alpha_p\f$, \f$P\f$, \f$E_{ij}\f$ and
+   the `Cache2` identity are the structural, cached quantities; the per-axis binomial is ~10 lines of
+   geometry-only arithmetic.
+3. The binomial route is what CP2K runs, so it is proven at scale.
+
+⚠ The \f$\Omega\f$/`H2` convention was CONFIRMED from the code, not assumed:
+`Overlap2C = (\pi/\alpha_p)^{3/2} E_{ij} H2(0,p_a,p_b)` (`Imp/GaussianRF.C:335`) pins
+\f$\Lambda_{000}=e^{-p|r-P|^2}\f$ and \f$E_{ij}=e^{-ab|AB|^2/p}\f$ — the standard M&D convention, and the
+one the prototype uses.
+
+<details><summary>the original statement of the step</summary>
 Hermite (reuse `H2`'s `d`/`e`/`f`) or binomial re-expansion to monomials about \f$P\f$ (CP2K's route).
 **The criterion is NOT arithmetic count.**  It is which one makes integrate-back come out as the EXACT
 ADJOINT with the same coefficients: \f$\int\rho V = \mathrm{Tr}(Dh)\f$ to machine precision is load-bearing
 (it is what makes the GPW energy variational), and it is far easier to preserve than to repair.
+</details>
 
-### Step 3 — Settle the SCREEN.  This is the real blocker, not the density matrix.  **Unit level.**
+### ✅ Step 3 — RESOLVED 2026-08-27: **the screen DISSOLVES.  It was not the blocker.**
+
+**THE OBSERVATION THAT SETTLES IT, and it is in the walk's own code:** the BOX is already sized by the
+UNION tolerance (`ForShellPairBox` is handed `epsUnion`).  So the per-component `epsHere[k]` test does NOT
+shrink the walk — it only declines to ACCUMULATE a value it has already computed.  A contracted cube has
+nothing to decline: the cube is formed for the whole shell pair regardless.
+⇒ **Dropping the per-point component screen costs NO work and REMOVES a truncation** — the contracted form
+is strictly MORE accurate, not less.
+
+Measured (`PerComponentScreenDropsSubEpsOnly`, weights spread over four decades so the per-component
+tolerances differ widely — the case the screen exists for): the screen drops **48322 of 60984 (component
+pair, point) terms — 79% of them** — for a worst pointwise loss of **4.4e-10** against a cube peak of
+5.1e-5.  That is 4.4× \f$\varepsilon\f$, inside the \f$n_In_J\varepsilon\f$ bound a magnitude screen
+guarantees.  ⇒ It drops a great deal and costs almost nothing either way.
+
+**WHAT SURVIVES, and it is where the real saving always was:** the per-(pair, offset) PREFACTOR pre-filter
+(`PairPrefactorExp` ≥ −ln ε kills the whole term).  It touches no grid points, it is what shrank the
+D-aware boxes, and it carries over to the contracted form unchanged.
+
+<details><summary>the original statement of the step</summary>
 Today's D-aware tolerance is PER COMPONENT PAIR (`epsHere[k]`, applied to \f$|val|\f$ at each point), and
 pre-filtering on it is what made the shell hoist pay at all — measured 1.03–1.08× without it against
 2.13× with.  A contracted cube has no per-component identity: one cube serves the whole shell pair.
@@ -249,6 +295,7 @@ pre-filtering on it is what made the shell hoist pay at all — measured 1.03–
   contraction.  It already runs once per offset with no grid points involved, so it may carry over
   unchanged.
 - **Only if that fails:** derive a bound on \f$|c_{NLM}|\f$ and screen the coefficient tensor.
+</details>
 
 ### Step 4 — The ORTHO-METRIC kernel — ⚠ DEMOTED: a stepping stone that ships NOTHING
 Three 1-D tables, three-step contraction.  ⛔ **No production cell has an ortho metric** — only the
