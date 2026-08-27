@@ -652,6 +652,13 @@ sprint cost more than it should.
 | A4 | **the Δρ/N convergence gate** | `doc/SCFStrategyPlan.md` | not built | unmeasured |
 | A5 | **GPW default seed → `IonicSAD`** | `doc/CleanupCandidates.md` ("every pinned GPW anchor re-seeds") | not built | unmeasured; re-seeds EVERY GPW anchor |
 | A6 | **`SCFParams::XCCuspDeficit`** — the N4 XC feed | N4 above | flag exists, off | a TRAJECTORY change by its own description |
+| A7 | **dropping the pair-stream cache** | `doc/CollocationRewritePlan.md` step 7 | not built | **1.25e-6 on NaF** — the measured cached-vs-uncached spread, i.e. BIGGER than A1 |
+
+★ **A7 IS NEW AND IT IS THE BIGGEST OF THE SMALL ONES.**  The cached and uncached paths have never agreed
+(NaF −24.5468837982 against −24.5468825477), so deleting the cache moves every banked GPW number by up to
+1.25e-6 — more than A1's 9.4e-7 on the same system.  ⇒ **A1 and A7 should land in the SAME re-bank**, or
+each masks the other.  And A7 is now nearly free to take: after this session the 4.2 GB cache buys ~1.4×
+rather than the ~18× it bought this morning (see the plan; both sides need re-measuring first).
 
 ⚠ **A5 is the one to sequence FIRST or LAST, not in the middle**: it re-seeds every GPW anchor, so anything
 measured against a pre-A5 reference has to be re-measured after it.

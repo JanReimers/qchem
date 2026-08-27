@@ -420,7 +420,41 @@ underflow floor and stay zero through the vertex, where the value is significant
 Same tables, reversed contraction (grid → coefficients → block).  The adjointness gate from step 2 is the
 acceptance test.
 
-### Step 7 — Reconcile the three consumers of the current geometry.
+### ▶ Step 7 — NEXT SESSION STARTS HERE.  ★ AND THE MEASUREMENT HAS ALREADY CHANGED THE QUESTION.
+
+**THE PAIR-STREAM CACHE'S ADVANTAGE HAS COLLAPSED.**  `doc/Benchmark.md`'s standing argument was that the
+cache is *"not an advantage we hold over CP2K; it is a 28× workaround for a box walk ~100× off theirs,
+bought with 3.9 GB"*.  After this session the workaround is buying almost nothing:
+
+| MnO, per SCF iteration | before this session | now |
+|---|---|---|
+| cache ON (banked) | ~31 s, **4218 MB** | ~31 s, **4218 MB** |
+| cache OFF | ~573 s | **~42 s** (39.4 s box walk + ~2.9 s XC) |
+| ⇒ what the 4.2 GB buys | **~18×** | **~1.4×** |
+
+⚠ The ~42 s combines a MEASURED box walk with the earlier ledger's XC buckets, and the ~31 s is banked
+rather than re-measured, so read 1.4× as "order unity", not a precise ratio — **re-measuring both sides is
+step 7's first act.**  But the direction is not in doubt, and it inverts the whole caching argument:
+paying 4.2 GB for 28× was defensible; paying it for ~1.4× is not.
+
+⇒ **Step 7 is therefore no longer "reconcile the cache with the kernel" — it is "DELETE the cache and keep
+the task list" (§3c).**  That is the configuration `doc/Benchmark.md` has been asking for: CP2K's memory
+profile AND better CPU, from one change.
+
+⛔ **AND STEP 7 IS ITSELF ANCHOR-MOVING — BY MORE THAN A1.**  The cached and uncached paths do not agree
+today: measured NaF −24.5468837982 (cached) against −24.5468825477 (uncached), a spread of **1.25e-6**,
+against A1's own 9.4e-7 on the same system.  So dropping the cache moves every banked GPW number by up to
+that, and it belongs on the anchor-moving roster (doc/OpenWork.md) beside A1 — ideally in the SAME re-bank,
+since doing them separately means each masks the other.
+
+**The other two consumers still need reconciling, and neither is optional:**
+- **The T3 orbit fold** — keyed per (pair, offset), reading the orbit-projected \f$D\f$; needs
+  re-derivation against a per-shell-pair cube.  ⚠ Note the MnO acceptance rows were taken on a FREE run
+  with no fold active, so the fold × contraction interaction is **entirely unmeasured**.
+- **The static local-PP sweep** — same walk, different tolerance rule (absolute \f$\kappa\f$, explicit
+  `pairLevels`).  Already benefits (5.52 → 1.49 s on the MnO probe) because it shares `integrateShell`.
+
+### Step 7 (original statement) — Reconcile the three consumers of the current geometry.
 - **The stream cache** — this is where the RAM win lands.  It costs **4218 MB** because it stores per-point
   VALUES, \f$O(n^3)\f$ per (pair, offset); separable tables are \f$O(n)\f$ / \f$O(n^2)\f$.  It may become
   unnecessary outright.  ★ First route that can deliver CP2K's memory profile AND its CPU — which is what
