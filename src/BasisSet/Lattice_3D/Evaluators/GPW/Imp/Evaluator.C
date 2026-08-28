@@ -351,32 +351,21 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
     auto memo   = itsCollocMemo;                            // ONE memo across the Coulomb + overlap closures
     return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb,memo,relFS=itsRelFieldSharp](const chmat_t& D) -> ΔG_Map
     {
-        // Same D as the last collocation (the sibling tensor's call this iteration): replay the level
-        // densities.  EXACT equality (bit-identical or recompute); phase/cell/ladder are fixed per evaluator.
-        auto sameD=[&]() -> bool
-        {
-            if (!memo->valid || memo->D.rows()!=D.rows()) return false;
-            if (memo->ecut!=ecut_L) return false;   // SAME D but a DIFFERENT ladder -> the cached rho is the
-                                                    // wrong grid (cross-block seed): recompute, never replay it
-            for (size_t i=0;i<D.rows();i++)
-                for (size_t j=i;j<D.columns();j++) if (memo->D(i,j)!=D(i,j)) return false;
-            return true;
-        };
+        // ⚠ CALL CENSUS (2026-08-28).  These four closures are the ONLY consumers of the analytic
+        // collocate/integrate pair, so bucketing their bodies gives the ledger a per-SITE call COUNT for
+        // free -- and, because the inner CollocateDensity/IntegratePotential buckets are exclusive
+        // CHILDREN, the site bucket's own time is exactly the FFT + spectral-transfer work that was
+        // previously unattributed.  Two answers from one label; see doc/OpenWork.md's call-census note.
+        qchem::report::Timed timer("scf: rho ball closure (FFT + G-combine)");
+        // Replay a density this evaluator has ALREADY collocated on this ladder (the sibling tensor's call,
+        // or the other spin channel's).  Exact equality or recompute -- see CollocMemo::Lookup.
         std::vector<rvec_t> rho;
-        if (sameD()) rho = memo->rho;
-        else
+        if (!memo->Lookup(D, ecut_L, rho))
         {
             rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, relFS);
-            // Dscr = the UNION screen (see CollocMemo): reset on a new ladder/shape, else widen to
-            // cover this channel's active set too (a polarized run collocates D_up then D_dn here).
-            const bool reset = !memo->valid || memo->Dscr.rows()!=D.rows() || memo->ecut!=ecut_L;
-            if (reset) memo->Dscr=chmat_t(D.rows());
-            for (size_t i=0;i<D.rows();i++)
-                for (size_t j=i;j<D.columns();j++)
-                    memo->Dscr(i,j) = reset ? std::abs(dcmplx(D(i,j)))
-                                            : std::max(std::real(dcmplx(memo->Dscr(i,j))), std::abs(dcmplx(D(i,j))));
-            memo->D=D; memo->rho=rho; memo->ecut=ecut_L; memo->valid=true;
+            memo->Store(D, rho, ecut_L);
         }
+        else { qchem::report::Timed t("scf: rho memo replay (D seen before)"); }
         ΔG_Map out;
         for (size_t l=0; l<levels.size(); l++)
         {
@@ -437,6 +426,7 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
     auto memo  = itsCollocMemo;                             // shared D-aware screen (adjoint of the collocation)
     return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const std::function<dcmplx(const ivec3_t&)>& Vtilde) -> chmat_t
     {
+        qchem::report::Timed timer("scf: h ball closure (level restrict + inverse FFT)");
         const size_t K=levels.size();
         std::vector<rvec_t> V_L(K);
         for (size_t L=0;L<K;L++)
@@ -466,6 +456,63 @@ static void TransferBand(const cvec_t& src, const ivec3_t& Ns, cvec_t& dst, cons
                 src[(w(ix,Ns.x)*Ns.y+w(iy,Ns.y))*Ns.z+w(iz,Ns.z)];
 }
 
+// --- CollocMemo: the density replay cache (doc/OpenWork.md, the 2026-08-28 call census) ---------------
+// ONE copy of the match/store logic.  It used to be written out twice -- once in MakeCollocator, once in
+// MakeRawCollocator with the comment "the MakeCollocator memo logic, verbatim" -- and this tree has already
+// paid once for a second copy of a screening rule that drifted (the integrate-back Re[D conj(phase)] defect,
+// doc/CollocationRewritePlan.md step 7).  Two call sites, one definition.
+size_t GPW_Evaluator::CollocMemo::Depth()
+{
+    static const size_t d=[]{ const char* s=std::getenv("GPW_COLLOC_MEMO"); return s ? size_t(std::atoi(s)) : 4u; }();
+    return d;
+}
+namespace {
+//! EXACT equality on the upper triangle -- never a relaxed compare.  A replay must be bit-identical to the
+//! collocation it stands in for, or the memo becomes a silent accuracy knob.
+bool SameDensity(const chmat_t& a, const chmat_t& b)
+{
+    if (a.rows()!=b.rows()) return false;
+    for (size_t i=0;i<a.rows();i++)
+        for (size_t j=i;j<a.columns();j++) if (a(i,j)!=b(i,j)) return false;
+    return true;
+}
+} // anon
+bool GPW_Evaluator::CollocMemo::Lookup(const chmat_t& d, const std::vector<double>& ec,
+                                       std::vector<rvec_t>& rhoOut)
+{
+    // The ladder is part of the key: the SAME D on a DIFFERENT ladder has a different rho (the cross-block
+    // seed hands one density to two grids), and replaying the wrong grid is the one way this can be wrong.
+    if (valid && ecut==ec && SameDensity(D,d)) { rhoOut=rho; return true; }
+    for (size_t k=0;k<past.size();k++)
+        if (past[k].ecut==ec && SameDensity(past[k].D,d))
+        {
+            Entry hit=std::move(past[k]);                  // PROMOTE: `D` must stay "the most recent"
+            past.erase(past.begin()+long(k));
+            if (valid) past.insert(past.begin(), Entry{D, rho, ecut});
+            D=hit.D; rho=hit.rho; ecut=hit.ecut; valid=true;
+            if (past.size()>Depth()) past.resize(Depth());
+            rhoOut=rho;
+            return true;
+        }
+    return false;
+}
+void GPW_Evaluator::CollocMemo::Store(const chmat_t& d, const std::vector<rvec_t>& r,
+                                      const std::vector<double>& ec)
+{
+    // Dscr = the UNION screen: reset on a new ladder/shape, else WIDEN to cover this channel's active set
+    // too (a polarized run collocates D_up then D_dn through the same memo).  Widen-only is a PIN -- see
+    // the CollocMemo interface note; an epoch reset was tried and rejected.
+    const bool reset = !valid || Dscr.rows()!=d.rows() || ecut!=ec;
+    if (reset) Dscr=chmat_t(d.rows());
+    for (size_t i=0;i<d.rows();i++)
+        for (size_t j=i;j<d.columns();j++)
+            Dscr(i,j) = reset ? std::abs(dcmplx(d(i,j)))
+                              : std::max(std::real(dcmplx(Dscr(i,j))), std::abs(dcmplx(d(i,j))));
+    if (valid) past.insert(past.begin(), Entry{D, rho, ecut});   // retire the previous most-recent
+    if (past.size()>Depth()) past.resize(Depth());
+    D=d; rho=r; ecut=ec; valid=true;
+}
+
 // D -> rho_DM(r) on grid's raster: level 0 (== grid) RAW, every other level spectrally transferred in.
 std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shared_ptr<const PW_Grid_Evaluator> grid) const
 {
@@ -482,28 +529,14 @@ std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shar
     auto memo  = itsCollocMemo;
     return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const chmat_t& D) -> rvec_t
     {
-        auto sameD=[&]() -> bool                            // the MakeCollocator memo logic, verbatim
-        {
-            if (!memo->valid || memo->D.rows()!=D.rows()) return false;
-            if (memo->ecut!=ecut_L) return false;
-            for (size_t i=0;i<D.rows();i++)
-                for (size_t j=i;j<D.columns();j++) if (memo->D(i,j)!=D(i,j)) return false;
-            return true;
-        };
-        std::vector<rvec_t> rho;
-        if (sameD()) rho = memo->rho;
-        else
+        qchem::report::Timed timer("scf: rho raw closure (spectral transfer)");
+        std::vector<rvec_t> rho;                            // ONE memo, ONE definition (see CollocMemo::Lookup)
+        if (!memo->Lookup(D, ecut_L, rho))
         {
             rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, relFS);
-            // Dscr union update -- verbatim the MakeCollocator logic (see CollocMemo).
-            const bool reset = !memo->valid || memo->Dscr.rows()!=D.rows() || memo->ecut!=ecut_L;
-            if (reset) memo->Dscr=chmat_t(D.rows());
-            for (size_t i=0;i<D.rows();i++)
-                for (size_t j=i;j<D.columns();j++)
-                    memo->Dscr(i,j) = reset ? std::abs(dcmplx(D(i,j)))
-                                            : std::max(std::real(dcmplx(memo->Dscr(i,j))), std::abs(dcmplx(D(i,j))));
-            memo->D=D; memo->rho=rho; memo->ecut=ecut_L; memo->valid=true;
+            memo->Store(D, rho, ecut_L);
         }
+        else { qchem::report::Timed t("scf: rho memo replay (D seen before)"); }
         const ivec3_t NT=N_L[0];                            // the integration raster (level 0 == grid)
         cvec_t acc(size_t(NT.x)*NT.y*NT.z, dcmplx(0.0));
         for (size_t l=1; l<levels.size(); l++)              // coarse levels up, top rung band-dropped down
@@ -532,6 +565,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
     auto memo  = itsCollocMemo;
     return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const rvec_t& v) -> chmat_t
     {
+        qchem::report::Timed timer("scf: h raw closure (spectral transfer)");
         const size_t K=levels.size();
         const ivec3_t NT=N_L[0];
         assert(v.size()==size_t(NT.x)*NT.y*NT.z);

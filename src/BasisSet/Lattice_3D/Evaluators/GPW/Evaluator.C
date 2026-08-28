@@ -286,7 +286,30 @@ private:
     //! union was tried and REJECTED: it violates the widen-only pin above, and trailing report-time
     //! collocations -- Density()/charge, never followed by an integrate -- dangle into the next run's
     //! seed burst.)  Gate: GPW_SCF.CrossRunFirstRunAnomalyProbe.
-    struct CollocMemo { bool valid=false; chmat_t D, Dscr; std::vector<rvec_t> rho; std::vector<double> ecut; };
+    //! ⚠ AND IT IS A CACHE OF DEPTH \c Depth()+1, NOT 1 (2026-08-28).  A CALL CENSUS on the MnO row
+    //! measured **64 closure calls with 4 memo hits — 6%** — because \c sameD compared against the LAST
+    //! collocation only, and a POLARIZED run alternates \f$D_\uparrow\f$ and \f$D_\downarrow\f$ through the
+    //! same memo: every call evicted the entry the next one wanted.  The unpolarized runs that the memo was
+    //! written against never showed it (Si Γ makes 1.45 collocations per iteration; MnO makes ~20).
+    //! Keeping a few OLDER (D, ρ) pairs turns that thrash into replay; the match rule is unchanged
+    //! (EXACT equality on the upper triangle, plus the ladder), so a hit is bit-identical as before.
+    //! \c GPW_COLLOC_MEMO sets how many extra entries are kept (0 restores the old depth-1 behaviour).
+    struct CollocMemo
+    {
+        bool valid=false;                        //!< \c D / \c Dscr / \c rho / \c ecut describe the MOST RECENT
+        chmat_t D, Dscr;                         //!<   collocation -- \c D is also the seam's density screen
+        std::vector<rvec_t> rho;                 //!<   (ApplyAdjoint reads it), so "most recent" is load-bearing
+        std::vector<double> ecut;
+        struct Entry { chmat_t D; std::vector<rvec_t> rho; std::vector<double> ecut; };
+        std::vector<Entry> past;                 //!< older pairs, most-recent-first, bounded by \c Depth()
+        //! Exact (D, ladder) lookup.  A hit is PROMOTED to the most-recent slot, so \c D keeps meaning
+        //! "the density this evaluator last collocated" for every other consumer.  \c rho is filled on a hit.
+        bool Lookup(const chmat_t& d, const std::vector<double>& ec, std::vector<rvec_t>& rhoOut);
+        //! Record a fresh collocation, retire the previous most-recent into \c past, and WIDEN \c Dscr
+        //! (the union screen: reset on a new ladder/shape, else max -- see the pin above).
+        void Store(const chmat_t& d, const std::vector<rvec_t>& r, const std::vector<double>& ec);
+        static size_t Depth();                   //!< GPW_COLLOC_MEMO extra entries (default 4)
+    };
     mutable std::shared_ptr<CollocMemo> itsCollocMemo;    //!< shared so both framework-cached closures see it
     //! The Bloch phase of an integer cell offset \f$n\f$: \f$e^{2\pi i\,k_{frac}\cdot n}\f$ -- the closure the
     //! analytic kernels call back for each screened cross-cell pair offset (the k-CONVENTION stays here,

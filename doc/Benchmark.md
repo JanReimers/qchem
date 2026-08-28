@@ -148,7 +148,7 @@ same recipes, same box, CP2K column untouched.
 | NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 23.3 s / 7.4 s | 39.7 / 7.2 s | **5.5×** | **54** / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **26.8 s** / 1m42s | **43.4** / 102 s | **0.43×** | **58** / 186 MB |
-| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | 9m46.6s / 6m14s | **837** / 373 s | **2.24×** | **466** / 217 MB |
+| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | 7m09.5s / 6m14s | **678** / 373 s | **1.82×** | **476** / 217 MB |
 | ⚠ STALE MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
 | ⚠ STALE **MnO AFM-II, `CP2K_COMPAT=1`** | Γ | **VA (N=118)** | **−61.40297618** | −61.303325178 | −99.65 mHa | **15m34s** / 6m14s | **921** / 373 s | **2.5×** | **5034** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
@@ -163,7 +163,7 @@ same recipes, same box, CP2K column untouched.
 | NaF SR2 Γ | 94.5 → **39.7 s** (2.4×) | 577 → **54 MB** (10.7×) |
 | NaF SR2 2×2×2 | 112 → **84.5 s** | 590 → **68 MB** (8.7×) |
 | NaF full-SR Γ | 219 → **43.4 s** (5.0×) | 3090 → **58 MB** (**53×**) |
-| **MnO AFM-II Γ (imposed, VA)** | 663 → 976 → **837 s** (**1.26× SLOWER**) | 1323 → **466 MB** (2.8×) |
+| **MnO AFM-II Γ (imposed, VA)** | 663 → 976 → 837 → **678 s** (**1.02×** — square) | 1323 → **476 MB** (2.8×) |
 
 **Two rows now BEAT CP2K on CPU outright** — Si Γ at 0.48× and NaF full-SR at 0.43× — and **every** qchem
 row is now well under CP2K's RAM (28–68 MB against 148–186 MB on the small cells), which is the first time
@@ -177,11 +177,37 @@ CPU on the one row that matters most**, and the case for deleting it rests on th
 latent defects it was hiding, not on a free lunch.  ⚠ The 663 s "before" is the 2026-08-19 banked row on an
 older binary, so treat the MnO delta as indicative; the directly-measured, same-binary A/B is the
 2.91×-on-the-buckets figure in `doc/CollocationRewritePlan.md` step 7.
-✅ **AND 1.47× IS ALREADY BACK TO 1.26×** — the `template<int LP>` collocation dispatch (plan §3c-bis
-stage 1, 2026-08-28) took the box-walk buckets 477 → 344 s **bit-identically**, so this row's 976 → 837 s
-CPU cost no anchors and needed no re-bank.
-⇒ **The next lever is NOT the batching.**  Measured at the unit level, **84% of the contraction kernel is
-now the three 2-D Mathieu `exp` tables** (\f$3n^2\f$ scalar `std::exp` calls), worth up to ~35% of this
+✅ **AND THE ROW HAS SINCE COME ALL THE WAY BACK — 976 → 837 → 678 s, i.e. square with the 663 s the
+cache used to buy, on 2.8× less RAM.**  Two bit-identical changes did it, neither needing a re-bank: the
+`template<int LP>` collocation dispatch (plan §3c-bis stage 1) took the box-walk buckets 477 → 344 s, and
+the **collocation memo depth fix** (below) took them 344 → **192 s**.  ⇒ Against CP2K this row now stands
+at **1.82× CPU** (was 2.24×) and **2.57× CPU per ITERATION** (was 3.2×).
+### ★★★ THE COLLOCATION MEMO HAD DEPTH 1, AND A POLARIZED RUN ALTERNATES TWO DENSITIES (2026-08-28)
+
+Found by a CALL CENSUS — bucketing the four closure sites so the ledger reports a per-site call count.  On
+the MnO row: **64 closure calls, 4 memo hits — 6%.**  `sameD` compared against the LAST collocation only,
+so \f$D_\uparrow\f$ and \f$D_\downarrow\f$ evicted each other every single call.  The unpolarized runs the
+memo was written against never showed it (Si Γ collocates 1.45×/iteration; MnO was collocating ~20×).
+
+Keeping four older (D, ρ) pairs — same EXACT match rule, so a replay is bit-identical — on the 3-iteration
+probe:
+
+| | collocations | memo hits | bucket |
+|---|---|---|---|
+| depth 1 (as shipped) | 60 | 4 (6%) | 36.7 s |
+| **depth 5** | **16** | **48 (75%)** | **9.8 s (3.74×)** |
+
+16 misses is the true number of DISTINCT densities, so depth 5 catches every repeat.  On the full row:
+collocate calls **368 → 120**, its bucket **221 → 71 s**, `Etot` unmoved at −61.40297551, +10 MB of RSS.
+⚠ This is not an acceleration CP2K lacks — it is removing OUR OWN redundancy; CP2K collocates ρ once per
+step.  Knob `GPW_COLLOC_MEMO` (0 restores depth 1).
+
+★ **AND THE INTEGRATE SIDE IS NOW THE BIGGER BUCKET** — 121 s over **184 calls, 5.9 per iteration**, because
+the per-iteration KS path passes `screenD` and screened calls bypass `IntegrateMemo` by design.  Whether
+those 5.9 are distinct fields is unmeasured, and it is the obvious next census.
+
+⇒ **And the next KERNEL lever is NOT the batching.**  Measured at the unit level, **84% of the contraction
+kernel is the three 2-D Mathieu `exp` tables** (\f$3n^2\f$ scalar `std::exp` calls), worth up to ~35% of this
 row.  CP2K builds those tables by RECURRENCE where we call `exp`, and doing the same is the one route that
 keeps this table apples-to-apples — a vectorised `exp` would be a qchem-only acceleration under rule 3
 above, declared on the deviation line and switched OFF for every head-to-head row, i.e. speed we could not
