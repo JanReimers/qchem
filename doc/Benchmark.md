@@ -142,13 +142,13 @@ same recipes, same box, CP2K column untouched.
 
 | system | k-mesh | span | qchem Etot | CP2K Etot | Δ (qchem−CP2K) | wall q / c | **CPU q / c** | **CPU ×** | peak RSS q / c |
 |---|---|---|---|---|---|---|---|---|---|
-| Si (FCC) | Γ | SIPP_SR | −7.115067844 | −7.115057882 | **−10.0 µHa** | **1.0 s** / 5.2 s | **2.4** / 5.0 s | **0.48×** | **28** / 148 MB |
+| Si (FCC) | Γ | SIPP_SR | −7.115067844 | −7.115057882 | **−10.0 µHa** | **1.1 s** / 5.2 s | **2.4** / 5.0 s | **0.48×** | **30** / 148 MB |
 | Si (FCC) | 2×2×2 Γ-centred | SIPP_SR | −7.778472833 | −7.778457865 | **−15.0 µHa** | 7.5 s / 5.8 s | 8.9 / 5.6 s | 1.6× | **30** / 153 MB |
 | Si (FCC) | 2×2×2 shifted MP | SIPP_SR | −7.868473428 ¹ | −7.867436530 | **−1.04 mHa** | 16.2 s / 6.1 s | 17.5 / 6.0 s | 2.9× | **31** / 153 MB |
-| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 23.3 s / 7.4 s | 39.7 / 7.2 s | **5.5×** | **54** / 173 MB |
+| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 22.1 s / 7.4 s | 38.6 / 7.2 s | **5.4×** | **60** / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
-| NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **26.8 s** / 1m42s | **43.4** / 102 s | **0.43×** | **58** / 186 MB |
-| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | 7m09.5s / 6m14s | **678** / 373 s | **1.82×** | **476** / 217 MB |
+| NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **25.0 s** / 1m42s | **41.4** / 102 s | **0.41×** | **65** / 186 MB |
+| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | **6m07.3s** / 6m14s | **620** / 373 s | **1.66×** | **491** / 217 MB |
 | ⚠ STALE MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
 | ⚠ STALE **MnO AFM-II, `CP2K_COMPAT=1`** | Γ | **VA (N=118)** | **−61.40297618** | −61.303325178 | −99.65 mHa | **15m34s** / 6m14s | **921** / 373 s | **2.5×** | **5034** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
@@ -163,7 +163,7 @@ same recipes, same box, CP2K column untouched.
 | NaF SR2 Γ | 94.5 → **39.7 s** (2.4×) | 577 → **54 MB** (10.7×) |
 | NaF SR2 2×2×2 | 112 → **84.5 s** | 590 → **68 MB** (8.7×) |
 | NaF full-SR Γ | 219 → **43.4 s** (5.0×) | 3090 → **58 MB** (**53×**) |
-| **MnO AFM-II Γ (imposed, VA)** | 663 → 976 → 837 → **678 s** (**1.02×** — square) | 1323 → **476 MB** (2.8×) |
+| **MnO AFM-II Γ (imposed, VA)** | 663 → 976 → 837 → 678 → **620 s** (**0.93× — FASTER**) | 1323 → **491 MB** (2.7×) |
 
 **Two rows now BEAT CP2K on CPU outright** — Si Γ at 0.48× and NaF full-SR at 0.43× — and **every** qchem
 row is now well under CP2K's RAM (28–68 MB against 148–186 MB on the small cells), which is the first time
@@ -177,11 +177,12 @@ CPU on the one row that matters most**, and the case for deleting it rests on th
 latent defects it was hiding, not on a free lunch.  ⚠ The 663 s "before" is the 2026-08-19 banked row on an
 older binary, so treat the MnO delta as indicative; the directly-measured, same-binary A/B is the
 2.91×-on-the-buckets figure in `doc/CollocationRewritePlan.md` step 7.
-✅ **AND THE ROW HAS SINCE COME ALL THE WAY BACK — 976 → 837 → 678 s, i.e. square with the 663 s the
-cache used to buy, on 2.8× less RAM.**  Two bit-identical changes did it, neither needing a re-bank: the
-`template<int LP>` collocation dispatch (plan §3c-bis stage 1) took the box-walk buckets 477 → 344 s, and
-the **collocation memo depth fix** (below) took them 344 → **192 s**.  ⇒ Against CP2K this row now stands
-at **1.82× CPU** (was 2.24×) and **2.57× CPU per ITERATION** (was 3.2×).
+✅ **AND THE ROW HAS SINCE GONE PAST WHERE THE CACHE LEFT IT — 976 → 837 → 678 → 620 s, against the
+663 s the 4 GB cache used to buy, on 2.7× less RAM.**  Three bit-identical changes did it, none needing a
+re-bank: the `template<int LP>` collocation dispatch (plan §3c-bis stage 1) took the box-walk buckets
+477 → 344 s, the **collocation memo depth fix** took them 344 → 192 s, and the **gather memo** took them
+192 → **123 s**.  ⇒ Against CP2K this row now stands at **1.66× CPU** (was 2.24×), **2.35× CPU per
+ITERATION** (was 3.2×) — and **0.98× on WALL, i.e. level with CP2K for the first time.**
 ### ★★★ THE COLLOCATION MEMO HAD DEPTH 1, AND A POLARIZED RUN ALTERNATES TWO DENSITIES (2026-08-28)
 
 Found by a CALL CENSUS — bucketing the four closure sites so the ledger reports a per-site call count.  On
@@ -202,9 +203,31 @@ collocate calls **368 → 120**, its bucket **221 → 71 s**, `Etot` unmoved at 
 ⚠ This is not an acceleration CP2K lacks — it is removing OUR OWN redundancy; CP2K collocates ρ once per
 step.  Knob `GPW_COLLOC_MEMO` (0 restores depth 1).
 
-★ **AND THE INTEGRATE SIDE IS NOW THE BIGGER BUCKET** — 121 s over **184 calls, 5.9 per iteration**, because
-the per-iteration KS path passes `screenD` and screened calls bypass `IntegrateMemo` by design.  Whether
-those 5.9 are distinct fields is unmeasured, and it is the obvious next census.
+### ★★★ AND THE SAME CENSUS ON THE GATHER SIDE: 53% OF THE INTEGRATES WERE EXACT DUPLICATES (2026-08-28)
+
+`GPW_INTEGRATE_CENSUS=1` classifies each gather against a short history of (field, screen) hashes.  On the
+MnO probe: **30 gathers, 14 distinct, 16 with V AND screen bit-identical** — and not one "same V, widened
+screen", so the repeats were pure redundancy, not a screening artefact.
+
+The molecular `IntegrateMemo` could not catch them, for two *correct* reasons: screened calls bypass it (its
+key is \f$V\f$ alone while the active set moves with \f$D\f$), and FOLDED calls bypass it (its `nb` records
+\f$b\f$ without the orbit multiplicity and the replay never runs `fillImages`).  An imposed polarized run is
+both, so it never memoized at all.  ⇒ The fix caches the FINISHED \f$h\f$ on \f$(V_L,\ \text{screen})\f$
+in `GPW_Evaluator` — per k-block by construction, which is what makes it exact whatever route produced
+\f$h\f$.  Gathers **184 → 74**, bucket **121 → 50 s**, `Etot` unmoved.
+
+⚠ **AND THE PROFILE HAS RE-ORDERED — the box walk is no longer the biggest block on this row:**
+
+| block | s (of 367 s wall) | share |
+|---|---|---|
+| **Becke XC mesh** (ρ sampling 74 + Φ tables 42 + H_xc 23 + mesh build 17 + 3) | **158** | **43%** |
+| collocate + integrate-back | 123 | 33% |
+| unaccounted (LA, mixing, FFT) | ~75 | 20% |
+| local-PP, 1E sums, closures | ~11 | 3% |
+
+⇒ The atom-centred XC quadrature is now the largest single cost, and it is a **qchem-only algorithm** —
+CP2K runs XC on the uniform grid.  It is not on the deviation table above and it should be, which is the
+`raster`/`cutoffFactor` gap N5 already flags: these are TYPED options the policy does not reach.
 
 ⇒ **And the next KERNEL lever is NOT the batching.**  Measured at the unit level, **84% of the contraction
 kernel is the three 2-D Mathieu `exp` tables** (\f$3n^2\f$ scalar `std::exp` calls), worth up to ~35% of this

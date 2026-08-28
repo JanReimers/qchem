@@ -29,6 +29,7 @@ module;
 #include <exception>  // std::exception_ptr (throw containment across the OpenMP pair loops)
 #include <memory>     // std::shared_ptr (the per-atom operator GaussianRF, shared across its polynomial terms)
 #include <cstdlib>    // std::getenv/std::atoi (the GPW_OMP_THREADS opt-in knob)
+#include <cstring>    // std::memcpy (the integrate-census field hash)
 // GPW pair-loop parallelism (opt-in via GPW_OMP_THREADS).  Gated on QCHEM_OPENMP -- our OWN macro (defined
 // by CMake when the OpenMP flags are applied) rather than _OPENMP, because this LLVM toolchain ships no
 // libomp and the libgomp fallback (-fopenmp=libgomp) honours the pragmas but does NOT define _OPENMP.  The
@@ -1848,6 +1849,57 @@ public:
         }
         return true;
     }
+    // --- INTEGRATE-BACK CALL CENSUS (GPW_INTEGRATE_CENSUS=1) ----------------------------------------------
+    // An INSTRUMENT, not a feature: off by default, costs one hash of the field per call when on.  It exists
+    // because the collocation side's call count turned out to hide a 3.7x (the depth-1 CollocMemo, 2026-08-28)
+    // and the same question is open here -- the per-iteration KS path passes `screenD`, and screened calls
+    // bypass IntegrateMemo BY DESIGN (the active set moves with D while the memo is keyed on V alone), so
+    // nothing has ever counted how many of those fields are actually distinct.
+    //
+    // THREE OUTCOMES, and they call for different fixes:
+    //   NEW                      -- genuinely distinct work; the count is the physics.
+    //   REPEAT (V and screen)    -- straight redundancy; a (V, screen)-keyed memo would replay it exactly.
+    //   REPEAT (V only)          -- the SAME field re-integrated under a WIDENED screen.  Not replayable as
+    //                              is, but it says the screen is what defeats the memo, which is a different
+    //                              and more interesting problem than "the caller asks twice".
+    static bool IntegrateCensus()
+    { static const bool b=[]{const char* s=std::getenv("GPW_INTEGRATE_CENSUS"); return s && std::atoi(s)!=0;}(); return b; }
+    //! FNV-1a over the raw bit patterns.  A diagnostic: a collision mislabels one line of a report and
+    //! changes no result, which is why this is not the exact compare IntegrateMemo::SameField uses.
+    static size_t BitHash(size_t h, double v)
+    {
+        unsigned long long b=0; std::memcpy(&b,&v,sizeof(b));
+        for (int k=0;k<8;k++) { h^=size_t((b>>(8*k))&0xff); h*=1099511628211ull; }
+        return h;
+    }
+    static size_t FieldHash(const std::vector<rvec_t>& V_L)
+    {
+        size_t h=1469598103934665603ull;
+        for (const rvec_t& v : V_L) { h=BitHash(h,double(v.size())); for (double x : v) h=BitHash(h,x); }
+        return h;
+    }
+    size_t ScreenHash(const chmat_t* screenD) const
+    {
+        if (!screenD) return 0;
+        size_t h=1469598103934665603ull;
+        for (size_t i=0;i<screenD->rows();i++)
+            for (size_t j=i;j<screenD->columns();j++) h=BitHash(h,std::abs(dcmplx((*screenD)(i,j))));
+        return h;
+    }
+    //! Classify this call against the recent history and charge the matching ledger bucket (the ledger's
+    //! [xN] IS the census).  Keeps the last 32 (field, screen) hashes -- more than an SCF iteration's worth.
+    void CensusIntegrateCall(const std::vector<rvec_t>& V_L, const chmat_t* screenD) const
+    {
+        const size_t fh=FieldHash(V_L), sh=ScreenHash(screenD);
+        bool sameBoth=false, sameField=false;
+        for (const auto& [f,c] : itsFieldHistory)
+            if (f==fh) { sameField=true; if (c==sh) { sameBoth=true; break; } }
+        qchem::report::Timed t(sameBoth  ? "census: h field REPEAT (V and screen seen)"
+                             : sameField ? "census: h field REPEAT (V only -- screen widened)"
+                                         : "census: h field NEW");
+        itsFieldHistory.emplace_back(fh,sh);
+        if (itsFieldHistory.size()>32) itsFieldHistory.erase(itsFieldHistory.begin());
+    }
     // Integrate-back (the collocation ADJOINT): h_ij = <chi_i^k|V|chi_j^k> = Sum_R e^{+ik.R} w_l Sum_box
     // chi_i chi_j^R V, over the SAME screened offsets + compact boxes + wrap + level assignment as collocation
     // -> exact adjoint (Integral rho.V == Tr(D h) to machine precision, variational).  The offset phase here is
@@ -1876,7 +1928,11 @@ public:
         // pairLevels) stay uncharged on purpose: they already sit inside their own named setup buckets
         // (setup: local-PP LONG/SHORT, separable PP), and an exclusive child here would hollow those out.
         std::optional<qchem::report::Timed> timer;
-        if (absRelCutoff==0.0 && !pairLevels) timer.emplace("scf: integrate-back (pair gather)");
+        if (absRelCutoff==0.0 && !pairLevels)
+        {
+            timer.emplace("scf: integrate-back (pair gather)");
+            if (IntegrateCensus()) CensusIntegrateCall(V_L, screenD);
+        }
         chmat_t h(size());
         // T3 route (b) (§6b): the reduced gather runs only on the per-iteration density-rule path (the
         // static sharp-field sweeps and explicit-level calls keep their own machinery, incl. T1).  It
@@ -2167,6 +2223,7 @@ private:
     }
 
     mutable std::vector<Shell>         itsShells;          //!< the shell partition (lazy; geometry-fixed)
+    mutable std::vector<std::pair<size_t,size_t>> itsFieldHistory;  //!< GPW_INTEGRATE_CENSUS (field, screen) hashes
     mutable std::vector<ShellPairTasks> itsBoxTasks;      //!< the (shell pair, offset) geometry, derived once
     mutable std::vector<size_t>        itsBoxTaskOrder;  //!< its longest-first permutation (threaded loops)
     mutable bool                       itsFoldReported=false;  //!< the [fold] line is emitted once per run

@@ -423,8 +423,10 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
     const Molecule::LatticeSum1E* lat = itsLat;
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
-    auto memo  = itsCollocMemo;                             // shared D-aware screen (adjoint of the collocation)
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const std::function<dcmplx(const ivec3_t&)>& Vtilde) -> chmat_t
+    if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
+    auto memo  = itsCollocMemo;
+    auto gmemo = itsGatherMemo;                             // shared D-aware screen (adjoint of the collocation)
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,gmemo,relFS=itsRelFieldSharp](const std::function<dcmplx(const ivec3_t&)>& Vtilde) -> chmat_t
     {
         qchem::report::Timed timer("scf: h ball closure (level restrict + inverse FFT)");
         const size_t K=levels.size();
@@ -436,7 +438,11 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
             V_L[L]=levels[L]->RhoOnGrid(vmapL);
         }
         const chmat_t* screenD = (memo && memo->valid) ? &memo->Dscr : nullptr;   // the UNION screen (all channels; see CollocMemo)
-        return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);   // 0 = the relative rule (adjoint-paired with collocation)
+        chmat_t h;
+        if (gmemo->Lookup(V_L, screenD, h)) { qchem::report::Timed t("scf: h memo replay (V+screen seen)"); return h; }
+        h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);   // 0 = the relative rule (adjoint-paired with collocation)
+        gmemo->Store(V_L, screenD, h);
+        return h;
     };
 }
 // doc/GPWPlan 0.5(f2): spectral transfer between two FFT rasters, in ForwardFFT coefficient layout.
@@ -513,6 +519,41 @@ void GPW_Evaluator::CollocMemo::Store(const chmat_t& d, const std::vector<rvec_t
     D=d; rho=r; ecut=ec; valid=true;
 }
 
+bool GPW_Evaluator::GatherMemo::Lookup(const std::vector<rvec_t>& V_L, const chmat_t* screen,
+                                       chmat_t& hOut) const
+{
+    auto sameField=[&](const std::vector<rvec_t>& a)->bool
+    {
+        if (a.size()!=V_L.size()) return false;
+        for (size_t l=0;l<a.size();l++)
+        {
+            if (a[l].size()!=V_L[l].size()) return false;
+            for (size_t k=0,m=a[l].size(); k<m; k++) if (a[l][k]!=V_L[l][k]) return false;   // exact
+        }
+        return true;
+    };
+    auto sameScreen=[&](const Entry& e)->bool
+    {
+        if (e.hasScreen != (screen!=nullptr)) return false;
+        if (!screen) return true;
+        if (e.screen.rows()!=screen->rows()) return false;
+        for (size_t i=0;i<screen->rows();i++)
+            for (size_t j=i;j<screen->columns();j++) if (e.screen(i,j)!=(*screen)(i,j)) return false;
+        return true;
+    };
+    for (const Entry& e : entries)
+        if (sameScreen(e) && sameField(e.V_L)) { hOut=e.h; return true; }
+    return false;
+}
+void GPW_Evaluator::GatherMemo::Store(const std::vector<rvec_t>& V_L, const chmat_t* screen, const chmat_t& h)
+{
+    Entry e;
+    e.V_L=V_L; e.h=h; e.hasScreen=(screen!=nullptr);
+    if (screen) e.screen=*screen;
+    entries.insert(entries.begin(), std::move(e));
+    if (entries.size()>CollocMemo::Depth()) entries.resize(CollocMemo::Depth());
+}
+
 // D -> rho_DM(r) on grid's raster: level 0 (== grid) RAW, every other level spectrally transferred in.
 std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shared_ptr<const PW_Grid_Evaluator> grid) const
 {
@@ -526,7 +567,9 @@ std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shar
     const Molecule::LatticeSum1E* lat = itsLat;
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
+    if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
     auto memo  = itsCollocMemo;
+    auto gmemo = itsGatherMemo;
     return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const chmat_t& D) -> rvec_t
     {
         qchem::report::Timed timer("scf: rho raw closure (spectral transfer)");
@@ -562,8 +605,10 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
     const Molecule::LatticeSum1E* lat = itsLat;
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
+    if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
     auto memo  = itsCollocMemo;
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const rvec_t& v) -> chmat_t
+    auto gmemo = itsGatherMemo;
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,gmemo,relFS=itsRelFieldSharp](const rvec_t& v) -> chmat_t
     {
         qchem::report::Timed timer("scf: h raw closure (spectral transfer)");
         const size_t K=levels.size();
@@ -579,7 +624,11 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
             V_L[l]=levels[l]->BackwardFFT(ctL);
         }
         const chmat_t* screenD = (memo && memo->valid) ? &memo->Dscr : nullptr;   // the UNION screen (all channels; see CollocMemo)
-        return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);
+        chmat_t h;
+        if (gmemo->Lookup(V_L, screenD, h)) { qchem::report::Timed t("scf: h memo replay (V+screen seen)"); return h; }
+        h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);
+        gmemo->Store(V_L, screenD, h);
+        return h;
     };
 }
 

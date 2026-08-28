@@ -311,6 +311,32 @@ private:
         static size_t Depth();                   //!< GPW_COLLOC_MEMO extra entries (default 4)
     };
     mutable std::shared_ptr<CollocMemo> itsCollocMemo;    //!< shared so both framework-cached closures see it
+
+    //! \brief The GATHER's sibling: an exact \f$(V_L,\ \text{screen})\to h\f$ replay cache, per k-block.
+    //!
+    //! ⚠ WHY IT IS HERE AND NOT THE MOLECULAR SIDE'S \c IntegrateMemo (2026-08-28 census).  That memo
+    //! stores the PHASE-INDEPENDENT per-offset reductions \f$B_{ij}(n)\f$ so a second k-block can contract
+    //! new phases over one sweep — a different and still valuable capability — and it deliberately bypasses
+    //! itself on two paths: screened calls (the active set moves with \f$D\f$ while its key is \f$V\f$
+    //! alone) and FOLDED calls (its \c nb records \f$b\f$ WITHOUT the orbit multiplicity \c wm, and the
+    //! replay never runs \c fillImages, so a folded replay would be wrong).  An imposed polarized run is
+    //! BOTH, so it never memoized at all.
+    //!
+    //! The census measured what that costs: **30 gathers, 14 distinct, 16 with V AND screen bit-identical**
+    //! — 53% pure repeat.  Caching the FINISHED \f$h\f$ sidesteps both bypasses, because if the field, the
+    //! screen, the fold and the k-block all match then \f$h\f$ matches, whatever route produced it.  Living
+    //! in \c GPW_Evaluator is what makes "the same k-block" true by construction — the molecular evaluator
+    //! is SHARED across k and only ever sees the phase as an opaque callable.
+    struct GatherMemo
+    {
+        struct Entry { std::vector<rvec_t> V_L; chmat_t screen; bool hasScreen=false; chmat_t h; };
+        std::vector<Entry> entries;                      //!< most-recent-first, bounded by CollocMemo::Depth()
+        //! EXACT match on every field sample and every screen element — never a relaxed compare, for the
+        //! same reason the density memo is exact: a replay must be bit-identical to the sweep it replaces.
+        bool Lookup(const std::vector<rvec_t>& V_L, const chmat_t* screen, chmat_t& hOut) const;
+        void Store (const std::vector<rvec_t>& V_L, const chmat_t* screen, const chmat_t& h);
+    };
+    mutable std::shared_ptr<GatherMemo> itsGatherMemo;    //!< shared by the ball and raw integrator closures
     //! The Bloch phase of an integer cell offset \f$n\f$: \f$e^{2\pi i\,k_{frac}\cdot n}\f$ -- the closure the
     //! analytic kernels call back for each screened cross-cell pair offset (the k-CONVENTION stays here,
     //! lattice-side; the molecular basis never sees \f$k\f$).
