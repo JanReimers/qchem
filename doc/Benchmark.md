@@ -82,7 +82,7 @@ obtainable without touching CP2K: no in-program hook was ever needed, and measur
 wrapper is what makes the two columns comparable.  On a qchem row the wrapper also prints qchem's OWN
 internal `VmHWM` as a cross-check — they should agree (measured: 266 vs 266.7 MB on Si Γ).
 
-For the qchem detail (per-bucket ledger, folds, stream coverage) add `GPW_REPORT=1`:
+For the qchem detail (per-bucket ledger, folds, task-list geometry) add `GPW_REPORT=1`:
 
 ```bash
 GPW_REPORT=1 build/Release/IntegrationTests/ITMain --gtest_filter=<test> --gtest_also_run_disabled_tests
@@ -96,7 +96,7 @@ Every GPW run now prints, without extra flags:
 | wall time, and the per-bucket ledger | the `timing` section |
 | **PEAK RSS (MB, process high-water)** | `timing`, from Linux `VmHWM` (added 2026-08-19) |
 | `[fold] <site>: … = F×` for every fold site | `EmitFold`, Step 0b |
-| `[stream cache] … pts64/pts32/runs/meanRun/dropped` | the stream-cache readout |
+| `[collocation] kernel=… ;  task list: … tasks, … MB` | the kernel + task-list readout (unconditional) |
 | `[site moments] … [e]` (polarized) | `QCHEM_SITE_MOMENTS=1`, Step 0a |
 
 …**including the ANNEALED driver**, which had none of the summary half until 2026-08-19 — and every MnO row
@@ -143,7 +143,7 @@ same recipes, same box, CP2K column untouched.
 | NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 23.3 s / 7.4 s | 39.7 / 7.2 s | **5.5×** | **54** / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **26.8 s** / 1m42s | **43.4** / 102 s | **0.43×** | **58** / 186 MB |
-| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | 12m00.7s / 6m14s | **976** / 373 s | **2.6×** | **463** / 217 MB |
+| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | 9m46.6s / 6m14s | **837** / 373 s | **2.24×** | **466** / 217 MB |
 | ⚠ STALE MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
 | ⚠ STALE **MnO AFM-II, `CP2K_COMPAT=1`** | Γ | **VA (N=118)** | **−61.40297618** | −61.303325178 | −99.65 mHa | **15m34s** / 6m14s | **921** / 373 s | **2.5×** | **5034** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
@@ -158,22 +158,29 @@ same recipes, same box, CP2K column untouched.
 | NaF SR2 Γ | 94.5 → **39.7 s** (2.4×) | 577 → **54 MB** (10.7×) |
 | NaF SR2 2×2×2 | 112 → **84.5 s** | 590 → **68 MB** (8.7×) |
 | NaF full-SR Γ | 219 → **43.4 s** (5.0×) | 3090 → **58 MB** (**53×**) |
-| **MnO AFM-II Γ (imposed, VA)** | 663 → **976 s** (**1.47× SLOWER**) | 1323 → **463 MB** (2.9×) |
+| **MnO AFM-II Γ (imposed, VA)** | 663 → 976 → **837 s** (**1.26× SLOWER**) | 1323 → **466 MB** (2.8×) |
 
 **Two rows now BEAT CP2K on CPU outright** — Si Γ at 0.48× and NaF full-SR at 0.43× — and **every** qchem
 row is now well under CP2K's RAM (28–68 MB against 148–186 MB on the small cells), which is the first time
 that has been true.  The NaF full-SR row is the headline: 3090 MB and 219 s CPU became 58 MB and 43 s, and
 it was the row whose 3 GB used to force `scripts/memsafe`.
 
-⛔ **AND THE MnO ROW GOT SLOWER — 1.47×, and it is not noise.**  That row is a long IMPOSED run (14+17
-iterations) where the two box-walk buckets are **477 s of 976 s CPU**, so the cache's measured 2.91× on
-those buckets translates almost exactly into the 1.47× the row lost.  ⇒ **The cache was still buying real
+⛔ **AND THE MnO ROW GOT SLOWER — 1.26×, and it is not noise.**  That row is a long IMPOSED run (14+17
+iterations) where the two box-walk buckets were **477 s of 976 s CPU**, so the cache's measured 2.91× on
+those buckets translated almost exactly into the 1.47× the row lost when it went.  ⇒ **The cache was still buying real
 CPU on the one row that matters most**, and the case for deleting it rests on the RAM axis and on the two
 latent defects it was hiding, not on a free lunch.  ⚠ The 663 s "before" is the 2026-08-19 banked row on an
 older binary, so treat the MnO delta as indicative; the directly-measured, same-binary A/B is the
 2.91×-on-the-buckets figure in `doc/CollocationRewritePlan.md` step 7.
-⇒ **The next lever on this row is `(L_a,L_b)` batching** (plan §3c reason 1): compile-time \f$l_p\f$ in the
-contraction's innermost loop, which the task list now makes possible and nothing has measured.
+✅ **AND 1.47× IS ALREADY BACK TO 1.26×** — the `template<int LP>` collocation dispatch (plan §3c-bis
+stage 1, 2026-08-28) took the box-walk buckets 477 → 344 s **bit-identically**, so this row's 976 → 837 s
+CPU cost no anchors and needed no re-bank.
+⇒ **The next lever is NOT the batching.**  Measured at the unit level, **84% of the contraction kernel is
+now the three 2-D Mathieu `exp` tables** (\f$3n^2\f$ scalar `std::exp` calls), worth up to ~35% of this
+row.  CP2K builds those tables by RECURRENCE where we call `exp`, and doing the same is the one route that
+keeps this table apples-to-apples — a vectorised `exp` would be a qchem-only acceleration under rule 3
+above, declared on the deviation line and switched OFF for every head-to-head row, i.e. speed we could not
+quote here (user, 2026-08-28).
 
 **Energies moved by ≤ 1e-6 Ha everywhere** — Si Γ −6.6e-7, Si 2×2×2 +1.9e-8, shifted MP 0 (10 s.f.),
 NaF SR2 Γ +6.5e-9, NaF SR2 2×2×2 −3.1e-7, NaF full-SR +3.2e-6, MnO −7.0e-7 — which is the anchor re-bank

@@ -1230,11 +1230,17 @@ TEST(M_PG_BoxWalk, WhereTheContractionSpendsItsTime)
     (void)bP;
 
     ASSERT_GT(boxPts, 1000) << "the fixture must present a realistic box";
-    // A sanity check on the TIMING, not on the kernel -- and phrased on the raw endpoints rather than the
-    // fitted slope, because this runs inside `ctest -j8` where one unlucky configuration could tip a fit
-    // negative.  Measured spread lp=0 -> lp=4 is ~34%; 5% is a floor, not an expectation.
-    EXPECT_GT(rows.back().contract, 1.05*rows.front().contract)
-        << "contraction time must RISE with lp, or these numbers are noise";
+    // ⛔ THE lp MONOTONICITY IS PRINTED, NOT ASSERTED, and the reason is worth keeping.  A first cut
+    // asserted contract(lp=4) > 1.05*contract(lp=0) -- true by 18% on a quiet box -- and it FAILED inside
+    // `ctest -j8`, where one preemption during the lp=0 configuration read 155.5 us against lp=4's 142.7.
+    // An ~18% signal cannot be asserted against 8-way contention no matter how many trials are taken, and a
+    // timing assertion that flakes is the class this project keeps having to clean up.  ⇒ Read the lp
+    // column from a QUIET box; the SWEEP is the instrument, the assertion below is the gate.
+    //
+    // ★ WHAT SURVIVES CONTENTION IS THE RATIOS, measured: the setup share read 7.80% under -j8 against
+    // 7.81% quiet, and the table share 84% both times -- because each is two timings taken back to back,
+    // so the noise divides out.  That is why the gate is phrased as a share.
+    //
     // THE CLAIM UNDER TEST, and it is what decides how far to take 3c-bis: the COEFFICIENT half is not
     // where a task's time goes, so template<int LA,int LB> on MakePairPoly/MomentsToPairs is a FOOTPRINT
     // argument (the 16 KB kMaxShell scratch arrays), not a speed one.  If this fires, that has expired.

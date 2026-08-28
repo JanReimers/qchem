@@ -765,7 +765,15 @@ public:
 
     //! \brief Scatter the collapsed shell pair onto \a dst over its cube.  The NON-ORTHO kernel: three 2-D
     //! exponential tables (Mathieu) and a grid-index polynomial, innermost loop \c lp+1 FMAs.
-    void ContractCube(const BoxGeom& g, const PairPoly& q, const ivec3_t& N, rvec_t& dst) const
+    //! \brief The \f$l_p\f$-SPECIALIZED body.  \a LP is \c q.lp, and every loop bound that was a runtime
+    //! `q.lp` is now a compile-time constant: the innermost accumulation unrolls, \c ci[] can live in
+    //! registers across the point loop, and the fold arrays shrink from \c kMaxPoly to what is used.
+    //! ⚠ BIT-IDENTICAL BY CONSTRUCTION — a pure substitution of one constant for one variable.  The terms
+    //! and their summation ORDER are untouched (C++ may not reassociate floating point), which is what lets
+    //! this land outside an anchor re-bank.  Dropping the \c E1 table for Horner would NOT be, and is a
+    //! separate increment (doc/CollocationRewritePlan.md §3c-bis).
+    template <int LP>
+    void ContractCubeN(const BoxGeom& g, const PairPoly& q, const ivec3_t& N, rvec_t& dst) const
     {
         const int n[3]={2*g.hw[0]+1, 2*g.hw[1]+1, 2*g.hw[2]+1};
         const GridPoly Q=ToGridPoly(q,g);
@@ -777,7 +785,7 @@ public:
         auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
         static thread_local rvec_t T12,T23,T31,E1;
         T12.resize(size_t(n[0])*n[1]); T23.resize(size_t(n[1])*n[2]); T31.resize(size_t(n[2])*n[0]);
-        E1.resize(size_t(q.lp+1)*n[0]);
+        E1.resize(size_t(LP+1)*n[0]);
         for (int i=0;i<n[0];i++) for (int j=0;j<n[1];j++)
         { const double e1=eOf(0,i), e2=eOf(1,j); T12[size_t(i)*n[1]+j]=std::exp(-q.p*(e1*e1*h[0][0]+2*e1*e2*h[0][1])); }
         for (int j=0;j<n[1];j++) for (int k=0;k<n[2];k++)
@@ -785,26 +793,26 @@ public:
         for (int k=0;k<n[2];k++) for (int i=0;i<n[0];i++)
         { const double e3=eOf(2,k), e1=eOf(0,i); T31[size_t(k)*n[0]+i]=std::exp(-q.p*(e3*e3*h[2][2]+2*e3*e1*h[2][0])); }
         for (int i=0;i<n[0];i++) { double e=1.0; const double e1=eOf(0,i);
-                                   for (int a=0;a<=q.lp;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
-        double cij[kMaxPoly][kMaxPoly], ci[kMaxPoly];
+                                   for (int a=0;a<=LP;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
+        double cij[LP+1][LP+1], ci[LP+1];
         for (int k=0;k<n[2];k++)
         {
             const double e3=eOf(2,k);
-            for (int a=0;a<=q.lp;a++)                        // fold e3 once per plane
-                for (int b=0;a+b<=q.lp;b++)
+            for (int a=0;a<=LP;a++)                        // fold e3 once per plane
+                for (int b=0;a+b<=LP;b++)
                 {
                     double v=0.0, e=1.0;
-                    for (int c=0;a+b+c<=q.lp;c++) { v+=Q.q[a][b][c]*e; e*=e3; }
+                    for (int c=0;a+b+c<=LP;c++) { v+=Q.q[a][b][c]*e; e*=e3; }
                     cij[a][b]=v;
                 }
             const size_t mk=size_t((((g.c0[2]-g.hw[2]+k)%N.z)+N.z)%N.z);
             for (int j=0;j<n[1];j++)
             {
                 const double e2=eOf(1,j);
-                for (int a=0;a<=q.lp;a++)                    // fold e2 once per line
+                for (int a=0;a<=LP;a++)                    // fold e2 once per line
                 {
                     double v=0.0, e=1.0;
-                    for (int b=0;a+b<=q.lp;b++) { v+=cij[a][b]*e; e*=e2; }
+                    for (int b=0;a+b<=LP;b++) { v+=cij[a][b]*e; e*=e2; }
                     ci[a]=v;
                 }
                 // the chord in e1: h00 e1^2 + 2 e1 (h01 e2 + h20 e3) + (h11 e2^2 + h22 e3^2 + 2 h12 e2 e3) <= Rq
@@ -832,7 +840,7 @@ public:
                 for (long ii=ia; ii<=ib; ii++, mi=(mi+1==size_t(N.x)?0:mi+1))
                 {
                     double v=0.0;
-                    for (int a=0;a<=q.lp;a++) v+=ci[a]*E1[size_t(a)*n[0]+ii];   // <- lp+1 FMAs
+                    for (int a=0;a<=LP;a++) v+=ci[a]*E1[size_t(a)*n[0]+ii];   // <- lp+1 FMAs
                     dst[(mi*size_t(N.y)+my)*size_t(N.z)+mk]
                         += q.Eij*v*T12[size_t(ii)*n[1]+j]*t23*T31[size_t(k)*n[0]+ii];
                 }
@@ -843,8 +851,10 @@ public:
     //! \f$W_{abc}=\sum_g V(g)\,e_1^ae_2^be_3^c\,e^{-p|u|^2}\f$ over the same cube, same tables, same chord.
     //! Because it is the transpose of the scatter -- not merely "the same physics backwards" -- the
     //! collocate/integrate pair stays an EXACT ADJOINT, which is what makes the GPW energy variational.
-    void GatherCube(const BoxGeom& g, const PairPoly& q, const ivec3_t& N, const rvec_t& V,
-                    GridPoly& W) const
+    //! The \f$l_p\f$-specialized gather body; see \c ContractCubeN for why it is bit-identical.
+    template <int LP>
+    void GatherCubeN(const BoxGeom& g, const PairPoly& q, const ivec3_t& N, const rvec_t& V,
+                     GridPoly& W) const
     {
         const int n[3]={2*g.hw[0]+1, 2*g.hw[1]+1, 2*g.hw[2]+1};
         const rvec3_t sv[3]={g.sx,g.sy,g.sz};
@@ -854,7 +864,7 @@ public:
         auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
         static thread_local rvec_t T12,T23,T31,E1;
         T12.resize(size_t(n[0])*n[1]); T23.resize(size_t(n[1])*n[2]); T31.resize(size_t(n[2])*n[0]);
-        E1.resize(size_t(q.lp+1)*n[0]);
+        E1.resize(size_t(LP+1)*n[0]);
         for (int i=0;i<n[0];i++) for (int j=0;j<n[1];j++)
         { const double e1=eOf(0,i), e2=eOf(1,j); T12[size_t(i)*n[1]+j]=std::exp(-q.p*(e1*e1*h[0][0]+2*e1*e2*h[0][1])); }
         for (int j=0;j<n[1];j++) for (int k=0;k<n[2];k++)
@@ -862,13 +872,13 @@ public:
         for (int k=0;k<n[2];k++) for (int i=0;i<n[0];i++)
         { const double e3=eOf(2,k), e1=eOf(0,i); T31[size_t(k)*n[0]+i]=std::exp(-q.p*(e3*e3*h[2][2]+2*e3*e1*h[2][0])); }
         for (int i=0;i<n[0];i++) { double e=1.0; const double e1=eOf(0,i);
-                                   for (int a=0;a<=q.lp;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
-        W.Zero(q.lp);
-        double cij[kMaxPoly][kMaxPoly], ci[kMaxPoly];
+                                   for (int a=0;a<=LP;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
+        W.Zero(LP);
+        double cij[LP+1][LP+1], ci[LP+1];
         for (int k=0;k<n[2];k++)
         {
             const double e3=eOf(2,k);
-            for (int a=0;a<=q.lp;a++) for (int b=0;a+b<=q.lp;b++) cij[a][b]=0.0;
+            for (int a=0;a<=LP;a++) for (int b=0;a+b<=LP;b++) cij[a][b]=0.0;
             const size_t mk=size_t((((g.c0[2]-g.hw[2]+k)%N.z)+N.z)%N.z);
             for (int j=0;j<n[1];j++)
             {
@@ -891,7 +901,7 @@ public:
                 if (ia<0) ia=0;
                 if (ib>n[0]-1) ib=n[0]-1;
                 if (ia>ib) continue;
-                for (int a=0;a<=q.lp;a++) ci[a]=0.0;
+                for (int a=0;a<=LP;a++) ci[a]=0.0;
                 const double t23=T23[size_t(j)*n[2]+k];
                 const size_t my=size_t((((g.c0[1]-g.hw[1]+j)%N.y)+N.y)%N.y);
                 size_t mi=size_t((((g.c0[0]-g.hw[0]+ia)%N.x)+N.x)%N.x);
@@ -899,21 +909,70 @@ public:
                 {
                     const double gv=V[(mi*size_t(N.y)+my)*size_t(N.z)+mk]
                                     *T12[size_t(ii)*n[1]+j]*t23*T31[size_t(k)*n[0]+ii];
-                    for (int a=0;a<=q.lp;a++) ci[a]+=gv*E1[size_t(a)*n[0]+ii];   // <- lp+1 FMAs
+                    for (int a=0;a<=LP;a++) ci[a]+=gv*E1[size_t(a)*n[0]+ii];   // <- lp+1 FMAs
                 }
-                for (int a=0;a<=q.lp;a++)                    // unfold e2, once per line
+                for (int a=0;a<=LP;a++)                    // unfold e2, once per line
                 {
                     double e=1.0;
-                    for (int b=0;a+b<=q.lp;b++) { cij[a][b]+=ci[a]*e; e*=e2; }
+                    for (int b=0;a+b<=LP;b++) { cij[a][b]+=ci[a]*e; e*=e2; }
                 }
             }
-            for (int a=0;a<=q.lp;a++)                        // unfold e3, once per plane
-                for (int b=0;a+b<=q.lp;b++)
+            for (int a=0;a<=LP;a++)                        // unfold e3, once per plane
+                for (int b=0;a+b<=LP;b++)
                 {
                     double e=1.0;
-                    for (int c=0;a+b+c<=q.lp;c++) { W.q[a][b][c]+=cij[a][b]*e; e*=e3; }
+                    for (int c=0;a+b+c<=LP;c++) { W.q[a][b][c]+=cij[a][b]*e; e*=e3; }
                 }
         }
+    }
+
+    //! \brief THE \f$l_p\f$ DISPATCH (doc/CollocationRewritePlan.md §3c-bis, stage 1).  One arm per
+    //! degree, so the grid loops run with \f$l_p\f$ known at compile time — CP2K dispatches its collocation
+    //! the same way (`grid_cpu_collocate.c`, `always_inline` low-\f$l_p\f$ variants).
+    //!
+    //! ⚠ WHAT THIS CAN AND CANNOT BUY, measured before it was built
+    //! (`M_PG_BoxWalk.WhereTheContractionSpendsItsTime`): with the box held fixed,
+    //! \f$\text{contract}(l_p)=116.7+9.7(l_p{+}1)\f$ µs, so the \f$l_p\f$-DEPENDENT work this
+    //! specializes is **20% of the kernel at \f$l_p{=}2\f$ and 29% at \f$l_p{=}4\f$**.  The other
+    //! ~63% is the three 2-D exponential tables — \f$3n^2\f$ scalar `std::exp` calls — and no amount of
+    //! unrolling touches them.  Do not quote this dispatch as "the collocation got faster"; quote the two
+    //! ledger buckets.
+    //!
+    //! The switch is TOTAL: \c MakePairPoly declines \f$l_p\ge\f$ \c kMaxPoly and returns \c live=false,
+    //! so a caller that reached here has \f$0\le l_p<9\f$.
+    void ContractCube(const BoxGeom& g, const PairPoly& q, const ivec3_t& N, rvec_t& dst) const
+    {
+        switch (q.lp)
+        {
+            case 0: ContractCubeN<0>(g,q,N,dst); return;
+            case 1: ContractCubeN<1>(g,q,N,dst); return;
+            case 2: ContractCubeN<2>(g,q,N,dst); return;
+            case 3: ContractCubeN<3>(g,q,N,dst); return;
+            case 4: ContractCubeN<4>(g,q,N,dst); return;
+            case 5: ContractCubeN<5>(g,q,N,dst); return;
+            case 6: ContractCubeN<6>(g,q,N,dst); return;
+            case 7: ContractCubeN<7>(g,q,N,dst); return;
+            case 8: ContractCubeN<8>(g,q,N,dst); return;
+        }
+        assert(false && "lp outside [0,kMaxPoly) -- MakePairPoly should have declined this pair");
+    }
+    //! The gather's dispatch; the two MUST stay in step or they stop being adjoints.
+    void GatherCube(const BoxGeom& g, const PairPoly& q, const ivec3_t& N, const rvec_t& V,
+                    GridPoly& W) const
+    {
+        switch (q.lp)
+        {
+            case 0: GatherCubeN<0>(g,q,N,V,W); return;
+            case 1: GatherCubeN<1>(g,q,N,V,W); return;
+            case 2: GatherCubeN<2>(g,q,N,V,W); return;
+            case 3: GatherCubeN<3>(g,q,N,V,W); return;
+            case 4: GatherCubeN<4>(g,q,N,V,W); return;
+            case 5: GatherCubeN<5>(g,q,N,V,W); return;
+            case 6: GatherCubeN<6>(g,q,N,V,W); return;
+            case 7: GatherCubeN<7>(g,q,N,V,W); return;
+            case 8: GatherCubeN<8>(g,q,N,V,W); return;
+        }
+        assert(false && "lp outside [0,kMaxPoly) -- MakePairPoly should have declined this pair");
     }
 
     //! \brief Turn the grid-index moments \a W into the per-component-pair integrals

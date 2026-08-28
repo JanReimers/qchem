@@ -440,18 +440,53 @@ so the box, the tables and the chord are identical and \f$l_p\f$ is the only thi
 
 ⇒ **THE NEXT LEVER IS THE TABLE BUILD, NOT THE BATCHING.**  And this is the one place the kernel does NOT
 follow CP2K: step 5 above already notes *"seed the table recurrences symmetrically outward from the cube
-centre, as CP2K does"* — **they build these tables by RECURRENCE; we call `exp` \f$3n^2\f$ times.**  Two
-candidate routes, in increasing order of risk:
-- **Vectorise the three table loops.**  They are contiguous, branch-free and perfectly SIMD-shaped; a
-  `#pragma omp simd` reaches glibc's `libmvec` vector `exp` under the `-fopenmp` this tree already carries
-  (`QCHEM_OPENMP`).  Bit-changing, so it is anchor-moving, but it needs no new algebra.
-- **The recurrence CP2K uses.**  ⚠ Read the 2026-08-26 verdict first: an exp recurrence was tried on the
-  per-point walk and REJECTED (1.03× on MnO, anisotropic, flipped a degenerate SCF basin; parked on branch
-  `exp-recurrence-experiment`).  That was a different loop — \f$O(n^3)\f$ per-point, not \f$O(n^2)\f$
-  per-row — so the verdict does not transfer, but the underflow-seeding warning in step 5 does.
+centre, as CP2K does"* — **they build these tables by RECURRENCE; we call `exp` \f$3n^2\f$ times.**
 
-⚠ **AND KEEP THE PROPORTION IN VIEW.**  The two box-walk buckets are 477 s of MnO's 976 s CPU, so 63% of
-them is ~31% of the run and 25% of them is ~12%.  Neither is the 2× the batching idea implicitly promised.
+★ **AND THE ROUTE IS DECIDED: THE RECURRENCE, NOT A VECTORISED `exp`** (user, 2026-08-28: *"we just want to
+keep consistent with CP2K for now so we are always comparing apples to apples"*).  A `#pragma omp simd`
+reaching glibc's `libmvec` vector `exp` is the cheaper build — the three table loops are contiguous,
+branch-free and perfectly SIMD-shaped — but it is a **qchem-only acceleration**, which puts it under
+`doc/Benchmark.md` rule 3: it would have to be declared on the deviation line and turned OFF for every
+head-to-head row, so it buys speed we could not quote.  The recurrence is what CP2K actually runs, so it
+keeps the comparison apples-to-apples and the win is one we can report.
+⚠ Read the 2026-08-26 verdict before starting: an exp recurrence was tried on the per-point walk and
+REJECTED (1.03× on MnO, anisotropic, flipped a degenerate SCF basin; parked on branch
+`exp-recurrence-experiment`).  That was a different loop — \f$O(n^3)\f$ per-point, not \f$O(n^2)\f$
+per-row — so the verdict does not transfer, but the underflow-seeding warning in step 5 does.
+
+### ✅ STAGE 1 BUILT — `template<int LP>`, 2026-08-28.  **1.39× on the kernel, and bit-identical.**
+
+`ContractCubeN<LP>` / `GatherCubeN<LP>` carry the bodies; `ContractCube` / `GatherCube` are now nine-arm
+dispatchers (`MakePairPoly` declines \f$l_p\ge\f$ `kMaxPoly`, so the switch is total).  The `E1` power
+table is KEPT — this is a pure substitution of a constant for a variable, so the terms and their summation
+order are untouched and no anchor moves.
+
+| \f$l_p\f$ | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| before, µs/task | 127.6 | 135.9 | 147.0 | 151.5 | 170.5 |
+| **after** | **104.1** | **103.9** | **106.5** | **114.7** | **122.4** |
+| | 1.23× | 1.31× | **1.38×** | 1.32× | **1.39×** |
+
+The fitted slope halved, \f$9.7\to4.8\f$ µs per unit \f$l_p\f$ — the unroll did exactly what it was
+supposed to and roughly halved the \f$l_p\f$-dependent work.  ★ **And the decomposition validates itself**:
+the fitted table term is \f$92.3\to92.9\f$ µs across the two builds — INVARIANT, as it must be, since the
+tables never changed.  Its share rises 63% → **84%** simply because everything else got cheaper.
+
+**At the SCF level, bit-identical and measured on all three systems:**
+
+| | box-walk buckets before → after | Etot |
+|---|---|---|
+| Si Γ | 0.368 → **0.290 s** (1.27×) | −7.115067844, unmoved to 10 s.f. |
+| NaF SR2 Γ | 2.36 → **1.71 s** (1.38×) | −24.4303364755, unmoved |
+| **MnO AFM-II Γ (imposed, VA)** | 477.0 → **344.2 s** (1.39×) | −61.40297551, unmoved |
+
+⇒ MnO's whole run: **976.5 → 836.6 s CPU (1.17×)**, 12m00.7s → 9m46.6s wall, RSS unchanged at 466 MB.
+Against CP2K the standing goes **2.6× → 2.24× CPU**.  793/793 on both kernel settings.
+
+⚠ **AND KEEP THE PROPORTION IN VIEW.**  After stage 1 the two box-walk buckets are 344 s of MnO's 837 s
+CPU, and **84% of the contraction is now the `exp` tables** — so the table recurrence is worth up to ~35%
+of the whole run, and every remaining `LP`-side idea (Horner, stage 2) is fighting over the 16% that is
+left.  ⇒ **Do the tables next; stage 2 is no longer worth its anchor re-bank on its own.**
 
 ### Step 4 — The ORTHO-METRIC kernel — ⚠ DEMOTED: a stepping stone that ships NOTHING
 Three 1-D tables, three-step contraction.  ⛔ **No production cell has an ortho metric** — only the
