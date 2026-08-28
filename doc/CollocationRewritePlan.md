@@ -442,13 +442,19 @@ so the box, the tables and the chord are identical and \f$l_p\f$ is the only thi
 follow CP2K: step 5 above already notes *"seed the table recurrences symmetrically outward from the cube
 centre, as CP2K does"* — **they build these tables by RECURRENCE; we call `exp` \f$3n^2\f$ times.**
 
-★ **AND THE ROUTE IS DECIDED: THE RECURRENCE, NOT A VECTORISED `exp`** (user, 2026-08-28: *"we just want to
-keep consistent with CP2K for now so we are always comparing apples to apples"*).  A `#pragma omp simd`
-reaching glibc's `libmvec` vector `exp` is the cheaper build — the three table loops are contiguous,
-branch-free and perfectly SIMD-shaped — but it is a **qchem-only acceleration**, which puts it under
-`doc/Benchmark.md` rule 3: it would have to be declared on the deviation line and turned OFF for every
-head-to-head row, so it buys speed we could not quote.  The recurrence is what CP2K actually runs, so it
-keeps the comparison apples-to-apples and the win is one we can report.
+★ **BOTH ROUTES ARE OPEN, AND THE ORDER MATTERS MORE THAN THE CHOICE** (user, 2026-08-28: *"we just want
+to keep consistent with CP2K for now so we are always comparing apples to apples"*, then: *"it's ok to code
+up non-CP2K accelerations as long as they are guarded with the CP2K_COMPAT flag"*).
+
+| route | what it is | status under `doc/Benchmark.md` rule 3 |
+|---|---|---|
+| **the RECURRENCE** | what CP2K actually runs: build each table row by second-difference recurrence instead of \f$n\f$ `exp` calls | **PARITY.**  Not a deviation, so it improves the HEAD-TO-HEAD number itself |
+| **`#pragma omp simd`** | glibc `libmvec` vector `exp`; the three table loops are contiguous, branch-free and perfectly SIMD-shaped | **A DEVIATION — allowed, but it must be a declared, `CP2K_COMPAT`-guarded knob in `qchem.RunPolicy`**, i.e. on the banner's deviation line and OFF for every comparison row |
+
+⇒ **Do the RECURRENCE first.**  Not because the simd route is forbidden — it is not, once guarded — but
+because the recurrence is the one that moves the number we are allowed to quote against CP2K.  The simd
+version then layers on top as a declared acceleration for the DEFAULT row, and the pair of them gives
+exactly the qchem-vs-qchem delta rule 3 asks for.
 ⚠ Read the 2026-08-26 verdict before starting: an exp recurrence was tried on the per-point walk and
 REJECTED (1.03× on MnO, anisotropic, flipped a degenerate SCF basin; parked on branch
 `exp-recurrence-experiment`).  That was a different loop — \f$O(n^3)\f$ per-point, not \f$O(n^2)\f$

@@ -69,6 +69,11 @@ delta — which is the more useful statement anyway.
 not in CP2K's algorithm gets declared in the row and defaults to OFF in the comparison.  A new accelerator
 is not finished until it is on this list.
 
+★ **AND THE RULE IS A PERMISSION, NOT A BAN** (user, 2026-08-28: *"it's ok to code up non-CP2K
+accelerations as long as they are guarded with the `CP2K_COMPAT` flag"*).  Nothing here says do not build
+it — it says build it THROUGH `qchem.RunPolicy` so it appears on the deviation line and one switch turns it
+off.  An acceleration that cannot be switched off is the only kind this table cannot live with.
+
 ## How to produce a row — the SAME wrapper for both codes
 
 ```bash
