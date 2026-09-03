@@ -489,6 +489,39 @@ tables never changed.  Its share rises 63% → **84%** simply because everything
 ⇒ MnO's whole run: **976.5 → 836.6 s CPU (1.17×)**, 12m00.7s → 9m46.6s wall, RSS unchanged at 466 MB.
 Against CP2K the standing goes **2.6× → 2.24× CPU**.  793/793 on both kernel settings.
 
+### ▶ WHERE THE KERNEL STANDS AFTER THE 2026-08-28 BIN-1 PASS, and what item 3 is now worth
+
+| | at lp=2 | at lp=4 |
+|---|---|---|
+| `ContractCube` total | 63.0 µs | 75.3 µs |
+| — per-POINT (O(N³)), of which the \f$l_p\f$-dependent FMA loop | 52% / 26% | 52% / 36% |
+| — per-LINE (O(N²) minus the tables) | ~40% | ~35% |
+| — the three exp tables (**measured**, not fitted) | **8%** | 7% |
+| — coefficients (`MakePairPoly`+`ToGridPoly`) | 1.9% | **12.9%** |
+
+⛔ **THE PER-LINE RESIDUE LOOKS CLOSE TO IRREDUCIBLE.**  ~25 µs over 1849 lines is **13.5 ns ≈ 47 cycles
+per line**, for: the \f$e_2\f$ fold, the chord's \f$B_2/C_2/D_2\f$ (≈6 flops), a **`sqrt`** (~15–20 cycles
+of latency on its own), two `ceil`/`floor` with double→long conversions, and two table loads.  There is no
+cheap recurrence for a square root — the chord half-width traces a semicircle in \f$j\f$ — so removing it
+means changing the geometry, not the code.  ⇒ Do not chase this without a new idea.
+
+★ **AND ITEM 3 HAS INVERTED: the coefficient half is now the LARGEST remaining setup item at high
+\f$l_p\f$** — 12.9% of a d×d task, up from 5.6%, purely because the grid side got 2.7× faster around it.
+But the lever is NOT `template<int LA,int LB>`:
+
+> **`ToGridPoly`'s answer is a per-LEVEL constant, not a per-task one.**  It re-expands each Cartesian
+> monomial \f$u_x^{s_x}u_y^{s_y}u_z^{s_z}\f$ in grid-index powers using only \c g.sx/\c g.sy/\c g.sz —
+> and those are \c A.ToCartesian(1/N), i.e. functions of the CELL and the RASTER alone.  Every task on a
+> level therefore recomputes the SAME linear map, monomial by monomial, through a chain of \c MulLinear
+> calls each of which zeroes a 5.8 kB \f$9^3\f$ stack array.  Precompute the map once per (level,
+> \f$l_p\f$) and \c ToGridPoly becomes a contraction of ~35 coefficients against ~35 stored polynomials.
+
+⇒ **Estimated ~8× on `ToGridPoly`, which is ~10% of a d×d task and ~3–5% weighted over MnO's task mix.**
+⚠ NOT bit-identical (the accumulation order changes), and ~3–5% is small enough that it should be
+MEASURED against that estimate before being built — the estimate is exactly the kind this campaign has now
+had refuted four times.  Recorded here rather than done, because at 3–5% it is no longer the biggest thing
+on the list.
+
 ⚠ **AND KEEP THE PROPORTION IN VIEW.**  After stage 1 the two box-walk buckets are 344 s of MnO's 837 s
 CPU, and **84% of the contraction is now the `exp` tables** — so the table recurrence is worth up to ~35%
 of the whole run, and every remaining `LP`-side idea (Horner, stage 2) is fighting over the 16% that is
