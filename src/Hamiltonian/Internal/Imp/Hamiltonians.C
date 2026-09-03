@@ -216,26 +216,23 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // The route ANNOUNCES itself (user pin: the console always says which XC route is in play --
     // this is the one selection site).
     const bool becke = xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
-    // Auto picks DELTA whenever the plane-wave fit cannot do the job -- on a Becke grid (it has no G-space
-    // raster) and, since 2026-08-08, on ANY grid for a POLARIZED run (the pair route is not spin-native).  Delta
-    // works on either grid, which the doc above already said; Auto simply never chose that combination, so a
-    // polarized run on a uniform grid used to hit the throw below and tell the user to ask for Delta by hand.
-    // Exposed by arming the V1.26 selector (V2.4): once Auto could route a soft system to the uniform grid, a
-    // polarized soft system became reachable for the first time -- Si's spin-collapse gates.
+    // ★★★ AUTO NOW READS THE GRID ALONE.  The rule used to be `becke || polarized`, and the `polarized`
+    // half was a CONFLATION of two orthogonal things (user, 2026-08-28: *"polarization and XC grids ... in
+    // my mind they have nothing to do with each other ... the user should be able to select any XC grid,
+    // and pol and unpol systems, with no if statements in the code blocking that"*).  It was there only
+    // because XC_PairQuadrature::RhoPol threw; that route is spin-native as of the same day, so the
+    // coupling has nothing left to stand on.
     //
-    // RESOLVING Auto IS THE ONE DECISION THAT STAYS HERE (2026-08-22).  Everything else about the Vxc fit
-    // basis -- the representation, the points, the fold -- is now made by ONE factory call below, because a
-    // fit basis is not defined without its points.  But Auto's rule reads `polarized`, which is a property
-    // of the RUN and not of any basis, so it is resolved here (policy, beside qcMesh::ResolveXCMesh) and
-    // STAMPED into the MeshParams the factory reads.  From there down, nothing re-decides.
-    const bool delta = fit==VxcFit::Delta || (fit==VxcFit::Auto && (becke || polarized));
-    // HARD throw, not an assert: a Release-compiled assert would silently hand a polarized run the
-    // UNPOLARIZED term pair -- wrong physics, no diagnostic (the tier-4b Delta-only pin).  Only reachable
-    // via an EXPLICIT VxcFit::PlaneWave on a polarized run; Auto routes polarized to Delta above.
-    if (polarized && !delta)
-        throw std::runtime_error("Ham_PW_DFT polarized: VxcFit::PlaneWave is not spin-native (the pair "
-            "collocation route has no per-channel rho_sigma).  Use VxcFit::Delta, which works on either "
-            "grid, or VxcFit::Auto, which now selects it for you on a polarized run.");
+    // ⚠ WHAT THE COUPLING COST, measured before it was removed: it forced EVERY polarized run onto the Φ
+    // table whatever its grid, so a polarized run could never take the collocation route -- the one CP2K
+    // uses, and the only VARIATIONAL one (H_xc = dE_xc/dD to machine precision, gate
+    // GPW.RawXCConsistencyFD).  On MnO with the Becke mesh vetoed that meant 1805 s CPU and 4.5 GB of Φ
+    // tables over 571787 uniform points, against 584 s and 491 MB with Becke.  It also meant CP2K_COMPAT=1
+    // could not reach CP2K's own XC algorithm, which is the whole point of the switch.
+    //
+    // Delta remains available on EITHER grid -- it is the general route, and the only one on a Becke mesh
+    // (no G-space raster).  What is gone is the run PROPERTY steering the grid decision.
+    const bool delta = fit==VxcFit::Delta || (fit==VxcFit::Auto && becke);
     // A PlaneWave fit ON a Becke grid (I3) is asserted out until its one-functional E/H derivative pairing
     // is designed (the projection sum is trivial; the DISCIPLINE is that H must be the exact derivative of
     // the quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).

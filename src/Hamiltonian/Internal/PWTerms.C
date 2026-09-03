@@ -445,9 +445,22 @@ public:
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override;
     const rvec_t& Rho(const cChargeDensity* cd) const override;
-    //! THROWS: the pair route has no per-spin collocation (a spin-native pair quadrature is not designed).
-    //! The Hamiltonian's \c VxcFit::Auto rule sends every polarized run to the δ/singles route instead.
-    const rvec_t& RhoPol(const cChargeDensity*, const Spin&) const override;
+    //! \brief \f$\rho_\sigma(r)\f$ on the raster — SPIN-NATIVE since 2026-08-28.
+    //!
+    //! ⚠ IT USED TO THROW, and the throw was the tail of a CONFLATION (user, 2026-08-28: *"polarization
+    //! and XC grids ... in my mind they have nothing to do with each other ... the user should be able to
+    //! select any XC grid, and pol and unpol systems, with no if statements in the code blocking that"*).
+    //! Because this route could not answer per channel, \c VxcFit::Auto sent EVERY polarized run to the
+    //! δ/singles route whatever its grid — so a polarized run could never take the collocation route,
+    //! which is the one CP2K uses and the only variational one.  Measured cost of that coupling on MnO
+    //! with the Becke mesh vetoed: 1805 s CPU and 4.5 GB, against 584 s and 491 MB, essentially all of it
+    //! Φ tables over 571787 uniform points.
+    //!
+    //! There was never anything spin-specific in the way: \c applyRaw takes a \f$D\f$, so a channel is
+    //! one call with that channel's density, and the ADJOINT needs no change at all — \c Matrix already
+    //! takes a bare field, which is exactly what \f$v_{xc,\sigma}\to H_{xc,\sigma}\f$ wants.  What was
+    //! missing was the per-channel CACHE and the channel walk, both of which the singles route already had.
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
 private:
@@ -455,6 +468,14 @@ private:
     //! Ensure \c itsRho holds \f$\rho(r)\f$ on the raster for \a cd, recomputing only on a new density
     //! serial -- so the XC pair's two terms and their energies share ONE collocation per iteration.
     void Refresh(const cChargeDensity* cd) const;
+    //! The spin-resolved sibling: fill \c itsRhoUp / \c itsRhoDn for \a cd, once per density serial.
+    void RefreshPol(const cChargeDensity* cd) const;
+    //! \brief Sample ONE density object onto the raster, RAW if it can collocate and BALL otherwise.
+    //! The single place that decision is made, so the scalar and the two spin channels cannot diverge.
+    rvec_t SampleOne(const cChargeDensity* cd, bool& isRaw) const;
+    //! Latch the RAW/BALL route on the first matrix-backed density and THROW if it ever changes (R2.16 --
+    //! the two routes minimise DIFFERENT discrete functionals, so switching mid-SCF moves the target).
+    void LatchRoute(const cChargeDensity* cd, bool isRaw) const;
 
     fbs_t itsFitBasis;      //!< the raster fit basis: quadrature, collocation key, Overlap3C key
     //! The ortho scalar fitter over that basis -- used ONLY by the BALL fallback (the RAW route fits
@@ -465,6 +486,10 @@ private:
     mutable bool   itsRhoIsRaw=false;             //!< is itsRho the RAW collocated ρ_DM (vs the ball round trip)?
     mutable bool   itsRouteLatched=false;         //!< has a matrix-backed density fixed the route yet?
     mutable bool   itsLatchedRaw=false;           //!< ... and to which one
+    //! \warning The scalar cache (\c itsRho) and the spin pair have NO cross-invalidation -- the same
+    //! warning the singles route carries, and the same asserts enforce it: ONE engine answers one shape.
+    mutable rvec_t itsRhoUp, itsRhoDn;            //!< per-channel rasters (the polarized pair, one serial)
+    mutable size_t itsPolVersion=size_t(-1);      //!< density serial the {↑,↓} pair was built for
     //! The fit basis's RASTER face -- where the voxel count and the uniform quadrature rule live.  Not on
     //! the fit face: a plane-wave basis counts \f$\{G\}\f$ FUNCTIONS, and its raster has more voxels than
     //! it has functions, so a caller holding a raster array must ask the raster (2026-08-23).

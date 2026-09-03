@@ -244,14 +244,29 @@ the run still converges — full `CP2K_COMPAT` does not, see below):
 | **peak RSS** | **491 MB** | **4494 MB (9.2×)** |
 | the XC buckets | 158 s | **1592 s** (ρ sampling 874 + Φ tables 488 + H_xc 230) |
 
-⇒ **The problem is not that Becke is an unfair advantage; it is that our UNIFORM route — the parity route —
-is ~10× dearer than Becke on this cell.**  And that is a qchem defect, not a law: CP2K evaluates
-\f$v_{xc}(\rho(r))\f$ POINTWISE on the realspace grid it already holds, while ours goes through the full
-XC-mesh machinery — 244 s per Φ-table build, 58 s per ρ sampling — for a job that should be a functional
-evaluation over an existing array.  **⇒ The lever is to make the uniform XC route be the cheap thing CP2K
-does, NOT to remove Becke.**  Until that lands, an honest parity row on this system will be far WORSE than
-the default row's 1.57×, and quoting the default row as though Becke were free is the mistake in the other
-direction.
+⇒ **The problem was not that Becke is an unfair advantage; it was that our UNIFORM route — the parity
+route — was ~10× dearer than Becke on this cell.**  ✅ **FIXED 2026-08-28, and it was a CONFLATION, not an
+algorithm.**  `XC_PairQuadrature` — ρ via the GPW collocation, \f$v_{xc}\f$ pointwise, \f$H_{xc}\f$ via the
+exact transpose, i.e. **CP2K's algorithm, no Φ table anywhere** — already existed and Si Γ already used it.
+But `VxcFit::Auto` read `becke || polarized`, and that `polarized` half forced EVERY polarized run onto the
+Φ table whatever its grid, because `XC_PairQuadrature::RhoPol` threw.  Nothing spin-specific was ever in the
+way: `applyRaw` takes a \f$D\f$, so a channel is one call with that channel's density, and the adjoint
+needed no change at all.
+
+| MnO AFM-II Γ, VA, imposed, `QCHEM_BECKE_XC=0` | Φ-table route | **collocation (pair) route** |
+|---|---|---|
+| **CPU** | 1805 s | **246.5 s — 7.3× faster** |
+| wall | 30m10.9s | **4m05.4s** |
+| **peak RSS** | 4494 MB | **105 MB — 43× smaller** |
+| the XC buckets | 1592 s | **5.2 s** |
+| Etot / iterations | −61.40295935 / 13 | −61.40358773 / 25 |
+
+★ **And on that route qchem BEATS CP2K on both axes — 246 s against 373 s CPU, 105 MB against 217 MB.**
+⚠ It is still not a parity ROW: the imposition, the low-rank ρ and the stream fold are all still on.  What
+it says is that the parity ROUTE is no longer the thing standing in the way.
+⚠ The two uniform-XC energies differ by 6.3e-4 Ha because they are different discretisations of the same
+quadrature; the pair route is the variational one (\f$H_{xc}=\partial E_{xc}/\partial D\f$ to machine
+precision, gate `GPW.RawXCConsistencyFD`).
 
 ⇒ The atom-centred XC quadrature is the largest single cost of the DEFAULT row, and it is a **qchem-only
 algorithm** — CP2K runs XC on the uniform grid.  ✅ **DECLARED 2026-08-28** as `QCHEM_BECKE_XC` (`RunPolicy::BeckeXC`), so

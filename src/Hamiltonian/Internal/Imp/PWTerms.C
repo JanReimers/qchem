@@ -321,50 +321,123 @@ XC_PairQuadrature::~XC_PairQuadrature() = default;   // itsScalarFitter's abstra
 // rho(r) on the raster for cd -- recomputed only on a new density serial, so the XC pair's two terms and
 // their two energies share ONE collocation per iteration (it used to be one per TERM: the same raw
 // collocation ran twice an iteration because each term owned its own copy of this).
+// Forward declarations: these two helpers are defined below, beside the singles route that shares them.
+// Declared rather than moved so the diff stays about the pair route (and so ONE definition still serves
+// both, which is the point).
+bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
+void ReportNegativeRho(const XC_Quadrature& q, const rvec_t& rho, const char* route);
+
+// ONE density object -> rho(r) on the raster.  RAW when it can collocate, BALL otherwise; extracted
+// 2026-08-28 so the scalar route and the two spin channels cannot make that decision differently.
+rvec_t XC_PairQuadrature::SampleOne(const cChargeDensity* cd, bool& isRaw) const
+{
+    assert(cd);
+    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
+    assert(fd && "XC_PairQuadrature requires a FourierDensity (periodic) charge density");
+    rvec_t rho=fd->GetRhoOnGrid(*itsFitBasis);
+    isRaw=(rho.size()!=0);
+    if (!isRaw)
+    {
+        auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
+        assert(ge && "XC_PairQuadrature: the BALL route needs the fit basis's raster transforms");
+        rho=ge->RhoOnGrid(fd->GetFourierDensity(*itsFitBasis));
+    }
+    return rho;
+}
+
+// ROUTE STABILITY (R2.16), in one place for both shapes -- see the declaration.
+void XC_PairQuadrature::LatchRoute(const cChargeDensity* cd, bool isRaw) const
+{
+    if (!dynamic_cast<const ChargeDensity::cDM_CD*>(cd)) return;   // the seed cannot answer RAW; exempt it
+    if (!itsRouteLatched) { itsRouteLatched=true; itsLatchedRaw=isRaw; return; }
+    if (itsLatchedRaw!=isRaw)
+        throw std::runtime_error(
+            std::string("XC_PairQuadrature: the XC route changed mid-SCF (")
+            + (itsLatchedRaw?"RAW -> BALL":"BALL -> RAW")
+            + ").  These minimise DIFFERENT functionals -- BALL's ball-projected rho is non-variational "
+              "-- so the optimiser would be chasing a moving target.  The route is a property of the "
+              "orbital basis and must not change once the SCF is running.");
+}
+
+// THE SPIN-NATIVE SIBLING (2026-08-28).  Structurally the mirror of Refresh, once per channel -- and it
+// walks the SAME two density shapes the singles route walks: a D-backed cPolarized_CD, and a matrix-free
+// cSpinResolved_CD (the polarized seed, and the rho-tilde-mixed density on every Kerker/Pulay iteration).
+void XC_PairQuadrature::RefreshPol(const cChargeDensity* cd) const
+{
+    assert(cd);
+    assert(itsRhoVersion==size_t(-1) && "XC_PairQuadrature: this engine already served the scalar Rho -- the "
+           "two rho caches have no cross-invalidation, so one of them would go stale");
+    if (cd->Version()==itsPolVersion) return;
+    itsPolVersion=cd->Version();
+    const cChargeDensity* up=nullptr;
+    const cChargeDensity* dn=nullptr;
+    if (auto pol=dynamic_cast<const ChargeDensity::cPolarized_CD*>(cd))
+    {   up=pol->GetChargeDensity(Spin::Up); dn=pol->GetChargeDensity(Spin::Down); }
+    else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
+    {   up=sr->GetChannel(Spin::Up);        dn=sr->GetChannel(Spin::Down); }
+
+    qchem::report::Timed timed("scf: XC raw rho sampling (per channel)");
+    if (!up || !dn)
+    {
+        // THE SPIN-AGNOSTIC SEED: rho_up = rho_dn = rho/2, the same HalfDensity rule the singles route
+        // applies (cd85d13c).  Iteration 0's density has no channels to sample -- that is inherent to
+        // seeding, not a gap here -- and its energy is discarded anyway.
+        bool raw=false;
+        itsRhoUp=SampleOne(cd, raw);
+        itsRhoUp*=0.5;
+        itsRhoDn=itsRhoUp;
+        LatchRoute(cd, raw);                      // a no-op here: the seed carries no D, hence no latch
+        // ★ THE SEED TAKES THE RAW ADJOINT EVEN WHEN ITS rho CAME FROM THE BALL ROUND TRIP, and that is
+        // the exemption the route latch already grants in so many words: "a matrix-free density has no D
+        // to collocate ... that is inherent to seeding, not a design choice, and iteration 0's energy is
+        // discarded anyway".  Without it a SEEDED POLARIZED run on a real TRIM block has no adjoint at all
+        // (the ball fit has no real contraction face -- see Matrix), which would put a grid restriction
+        // back on a polarization property, i.e. re-make the conflation this change removed.
+        // ⚠ What it costs: at iteration 0 ONLY, H_xc is not the exact derivative of the ball E_xc.  From
+        // the first density-matrix-backed density both sides are RAW and the pairing is exact again --
+        // and the latch makes that a checked property, not a hope.
+        itsRhoIsRaw=raw;
+        ReportNegativeRho(*this, itsRhoUp, "half-density seed");
+        return;
+    }
+    // ⚠ NOT WIRED HERE: the DM-source repair and the N4 cusp deficit (GPW_XC_DM_SOURCE, XCCuspDeficit),
+    // which the singles route applies per channel.  Both are default OFF.  Loud rather than silent,
+    // because silently sampling the MIXED field where the caller asked for the retained D would be a
+    // physics change wearing a performance change's clothes.
+    if (HasExactSource(up) || HasExactSource(dn))
+        throw std::logic_error("XC_PairQuadrature: GPW_XC_DM_SOURCE / XCCuspDeficit are not wired on the "
+            "collocation (pair) route -- its rho comes from applyRaw, not from a projector, so the "
+            "retained-D repair needs its own design.  Use the delta/singles quadrature for those flags.");
+    bool rawUp=false, rawDn=false;
+    itsRhoUp=SampleOne(up, rawUp);
+    itsRhoDn=SampleOne(dn, rawDn);
+    assert(rawUp==rawDn && "the two channels of one density must take the same XC route");
+    LatchRoute(cd, rawUp);
+    itsRhoIsRaw=rawUp;
+    ReportNegativeRho(*this, itsRhoUp, "raw(up)");
+    ReportNegativeRho(*this, itsRhoDn, "raw(dn)");
+}
+
 void XC_PairQuadrature::Refresh(const cChargeDensity* cd) const
 {
     assert(cd);
+    assert(itsPolVersion==size_t(-1) && "XC_PairQuadrature: this engine already served RhoPol -- the scalar "
+           "and spin-resolved rho caches have no cross-invalidation, so one of them would go stale");
     if (cd->Version()==itsRhoVersion) return;
     itsRhoVersion=cd->Version();
-    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(fd && "XC_PairQuadrature requires a FourierDensity (periodic) charge density");
     // RAW-FIRST (doc/GPWPlan 0.5(f2)): a collocation-backed density answers with rho_DM(r) directly --
     // pointwise >= 0 for an aufbau D, so the rho>0 guard never bites and the grid calibration can relax
     // (the C=8 driver was the BALL path's Gibbs lobes).  A plane-wave density (or a matrix-free seed)
-    // answers EMPTY and we take the ball round trip below -- bit-identical to the pre-f2 path.
-    itsRho=fd->GetRhoOnGrid(*itsFitBasis);
-    itsRhoIsRaw=(itsRho.size()!=0);
-    // ROUTE STABILITY (R2.16).  RAW and BALL are not two ways to compute one number: BALL's ball-projected
-    // rho is non-variational (H_xc != dE_xc/dD), RAW's is exact, so switching route mid-SCF switches the
-    // FUNCTIONAL BEING MINIMISED underneath the optimiser.  The capability is a property of the ORBITAL
-    // BASIS lineage -- GPW's Overlap3CTensor always sets applyRaw, a plane-wave basis never does -- i.e. it
-    // is fixed at construction, and so the route must be too.
-    //
-    // The ONE unavoidable exception is the SEED: a matrix-free density (iteration 0) has no D to collocate,
-    // so rho_DM = phi^T D phi does not exist and it can only answer BALL.  That is inherent to seeding, not
-    // a design choice, and iteration 0's energy is discarded anyway.  So: exempt the matrix-free seed,
-    // LATCH the route on the first density-matrix-backed density, and THROW if it ever changes after that.
-    // A silent mid-SCF functional change becomes a loud error.
-    if (dynamic_cast<const ChargeDensity::cDM_CD*>(cd))    // matrix-backed: the route must be stable from here
-    {
-        if (!itsRouteLatched) {itsRouteLatched=true; itsLatchedRaw=itsRhoIsRaw;}
-        else if (itsLatchedRaw!=itsRhoIsRaw)
-            throw std::runtime_error(
-                std::string("XC_PairQuadrature: the XC route changed mid-SCF (")
-                + (itsLatchedRaw?"RAW -> BALL":"BALL -> RAW")
-                + ").  These minimise DIFFERENT functionals -- BALL's ball-projected rho is non-variational "
-                  "-- so the optimiser would be chasing a moving target.  The route is a property of the "
-                  "orbital basis and must not change once the SCF is running.");
-    }
-    if (!itsRhoIsRaw)
-    {
-        // The BALL round trip is a RASTER operation by nature (an inverse FFT of rho-tilde onto the fit
-        // basis's own grid), which is why this strategy -- and not the mesh-general singles one -- is
-        // where it lives.
-        auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
-        assert(ge && "XC_PairQuadrature: the BALL route needs the fit basis's raster transforms");
-        itsRho=ge->RhoOnGrid(fd->GetFourierDensity(*itsFitBasis));   // rho-tilde via Overlap3C, onto the FIT grid
-    }
+    // answers EMPTY and takes the ball round trip -- bit-identical to the pre-f2 path.  ONE decision,
+    // in SampleOne, shared with the spin-resolved sibling.
+    bool raw=false;
+    itsRho=SampleOne(cd, raw);
+    // THE SEED EXEMPTION, stated once for both shapes (see RefreshPol): a density with no D IS the seed,
+    // it can only answer BALL, and it takes the RAW adjoint because the ball fit has no real contraction
+    // face.  Iteration 0's energy is discarded and the latch below never fires on it, so the pairing is
+    // exact from the first matrix-backed density onward.
+    itsRhoIsRaw = raw;
+    LatchRoute(cd, raw);
     // DIAGNOSTIC (env GPW_XCROUTE): which V_xc route fires this iteration -- RAW (applyRawAdjoint, FD-exact/
     // variational; gate GPW.RawXCConsistencyFD) vs BALL (DoFit/Overlap, non-variational under BallOnly;
     // gate GPW.XCPotentialConsistencyFD).  Answers whether GDM is fighting the ball non-variationality.
@@ -426,12 +499,11 @@ size_t XC_PairQuadrature::NumPoints() const {return Raster().RasterSize();}
 
 const rvec_t& XC_PairQuadrature::Rho(const cChargeDensity* cd) const {Refresh(cd); return itsRho;}
 
-const rvec_t& XC_PairQuadrature::RhoPol(const cChargeDensity*, const Spin&) const
+const rvec_t& XC_PairQuadrature::RhoPol(const cChargeDensity* cd, const Spin& s) const
 {
-    throw std::logic_error("XC_PairQuadrature: the pair (collocation) route is not spin-native -- there is "
-        "no per-channel rho_sigma collocation, and a per-spin pair route with its own rho caches is not "
-        "designed.  Use the delta/singles quadrature (VxcFit::Delta), which is spin-native on any mesh; "
-        "VxcFit::Auto already selects it for a polarized run.");
+    assert(s!=Spin::None && "XC_PairQuadrature::RhoPol: ask for a channel, not the total");
+    RefreshPol(cd);
+    return s==Spin::Up ? itsRhoUp : itsRhoDn;
 }
 
 // <i|v|j>, THE EXACT ADJOINT of whichever route Refresh took (which is why both live on one object):
@@ -442,31 +514,47 @@ const rvec_t& XC_PairQuadrature::RhoPol(const cChargeDensity*, const Spin&) cons
 // Two-axis face (V1.1): the tensor follows TFit==dcmplx for both block scalars; narrow at the end.
 template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
 {
-    assert(itsRhoVersion!=size_t(-1) && "XC_PairQuadrature::Matrix before Rho: the adjoint must follow the "
-           "collocation that fixed the route");
-    if (itsRhoIsRaw)
-    {
-        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws)
-        const Projector3<dcmplx>& g=orb.Overlap3C(*itsFitBasis);
-        assert(g.applyRawAdjoint && "raw rho without a raw adjoint: Overlap3C must carry both");
+    assert((itsRhoVersion!=size_t(-1) || itsPolVersion!=size_t(-1))
+           && "XC_PairQuadrature::Matrix before Rho/RhoPol: the adjoint must follow the collocation that "
+              "fixed the route");
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws)
+    const Projector3<dcmplx>& g=orb.Overlap3C(*itsFitBasis);
+    // ★ THE ADJOINT FOLLOWS THE LINEAGE'S CAPABILITY; rho follows the DENSITY's.  They differ on exactly
+    // one iteration and the design already grants it: a matrix-free SEED has no D to collocate, so it can
+    // only sample BALL, while the route latch exempts it and iteration 0's energy is discarded anyway.
+    // From the first matrix-backed density a GPW lineage always answers RAW, so the pairing is exact from
+    // there on -- and the latch makes that a CHECKED property rather than a hope.
+    //
+    // ⚠ WHY THE TEST IS THE CAPABILITY AND NOT THE SEED FLAG.  A plane-wave lineage never sets applyRaw at
+    // all, so it takes the ball fit throughout -- as it always has.  A GPW lineage always has the raw
+    // adjoint.  So `does this lineage have one?` decides it, and it can only be asked HERE, with `bs` in
+    // hand.  Trying to decide it back in Refresh needs a "is this the seed?" flag, and the polarized seed
+    // showed why that is the wrong question: PolarizedSeedCD IS spin-resolved, so it HAS channels and looks
+    // matrix-backed from the parent, while its channels carry no D.
+    //
+    // ⚠ AND WITHOUT THIS a seeded POLARIZED run on a real TRIM block has no adjoint at all -- the ball fit
+    // has no FitContraction<double,dcmplx> face -- which would put a grid restriction back on a
+    // polarization property, i.e. re-make the conflation this change removed.
+    if (g.applyRawAdjoint)
         return NarrowExact<U>(g.applyRawAdjoint(v));
-    }
     if constexpr (std::is_same_v<U,dcmplx>)
     {
         itsScalarFitter->DoFit(SampledField(v, NumPoints()));
         // The COMPLEX contraction face (ISP): this fitter's raster basis serves Bloch blocks on a complex
-        // fit axis, i.e. <dcmplx,dcmplx>; the real-block branch above never reaches here (it takes the raw
-        // adjoint or throws).  The DFT cross-cast is THIS strategy's to make (2026-08-24): the contraction
-        // face takes the DFT block, and an XC strategy is DFT-specific by construction -- unlike the generic
-        // term machinery it is reached through, which must stay method-neutral.
-        const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*bs);
+        // fit axis.  The DFT cross-cast is THIS strategy's to make (2026-08-24): the contraction face takes
+        // the DFT block, and an XC strategy is DFT-specific by construction -- unlike the generic term
+        // machinery it is reached through, which must stay method-neutral.
         return dynamic_cast<const Fitting::FitContraction<dcmplx,dcmplx>&>(*itsScalarFitter).Overlap(orb);
     }
     else
-        // The legacy BALL-fit route's fitter Overlap is dcmplx-faced; nothing real-block reaches it (the
-        // raw feed is the production default, and a real TRIM block implies a GPW lineage).  Loud, not silent.
+        // ⛔ A REAL TRIM BLOCK ON THE BALL FIT IS STILL UNWIRED, and now we know exactly why rather than
+        // "nothing reaches it": the ortho scalar fitter implements FitContraction<dcmplx,dcmplx> and NOT
+        // the <double,dcmplx> face, so the cast is a std::bad_cast (verified 2026-08-28).  The face is
+        // expressible -- FitContraction is templated on the block scalar -- so this is a hole in the
+        // FITTING layer, not a fact about XC.  The seed exemption below is what keeps it unreachable.
         throw std::logic_error("XC_PairQuadrature: a real TRIM block on the legacy ball-fit XC route is not "
-                               "wired -- use the raw collocated feed (the default) or the delta quadrature");
+                               "wired -- the ortho scalar fitter has no FitContraction<double,dcmplx> face. "
+                               "Use the raw collocated feed (the default) or the delta quadrature");
 }
 chmat_t XC_PairQuadrature::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
 rsmat_t XC_PairQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
@@ -650,6 +738,10 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
 // touches a weight -- which is what let the last Mesh() use out of this diagnostic.  It asks the STRATEGY
 // rather than the fit basis (2026-08-23): integrating an expansion is the quadrature's question, and the
 // basis now answers only the per-function pieces it is built from.
+//! Does \a cd carry a retained-D source (GPW_XC_DM_SOURCE / the N4 cusp deficit)?  A bool-returning
+//! wrapper so a caller declared ABOVE ExactSource's definition can still ask.
+bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd));}
+
 void ReportNegativeRho(const XC_Quadrature& q, const rvec_t& rho, const char* route)
 {
     static const bool on=std::getenv("GPW_RHO_NEGATIVE")!=nullptr;

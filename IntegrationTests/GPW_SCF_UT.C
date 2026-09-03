@@ -4139,6 +4139,15 @@ TEST(GPW_SCF, ImposedShubnikovHoldsAFMThroughSCF_Mn2Box)
 // order SURVIVES.  The two together say the detector discriminates rather than always firing.
 TEST(GPW_SCF, ImposedOrderLostIsAPostconditionFailure_Na2Box)
 {
+    // ⛔ THIS GATE CANNOT RUN WITHOUT THE BECKE MESH, and the header above already says why: the
+    // postcondition reads the INTEGRATED SITE MOMENT, whose basins ARE the Becke site blocks.  Vetoing the
+    // atom-centred mesh (QCHEM_BECKE_XC=0 / CP2K_COMPAT=1) leaves SiteMoments correctly empty, the run is
+    // then a perfectly good non-magnetic answer, and OrderLost has nothing to fire on -- the diagnostics
+    // say so in as many words ("order: not measurable (no atom-centred basins on this XC mesh)").  So the
+    // honest outcome is SKIP: the subject is unmeasurable in that configuration, not broken by it.
+    if (!qchem::theRunPolicy().BeckeXC())
+        GTEST_SKIP() << "the OrderLost postcondition is measured on Becke site basins, which the run "
+                        "policy has vetoed (QCHEM_BECKE_XC=0 / CP2K_COMPAT=1)";
     const double a=16.0, d=5.8;                       // ~Na2 bond length (au) in the Si gate's box
     UnitCell cell(a);
     cell.AddAtom(11, {0.5-0.5*d/a,0.5,0.5}, false);   // Na +m
