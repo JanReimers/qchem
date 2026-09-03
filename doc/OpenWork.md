@@ -57,6 +57,91 @@ stop competing for the reader's attention here:
 | **7** | **Continuous cleanup** — a rhythm between the steps, not a phase | `doc/CleanupCandidates.md` D1–D13, plus **V1.32** (de-template the finite `IrrepCD` leaf). | Continuous — CLEANUP |
 | **8** | **Step 6 — the 136-function span**: a capability gap, no longer a blocker | Time-boxed research only. Do not let it grow into a track. | Step 6 |
 
+### ★★★ THE GAP-CLOSE PRIORITY ORDER (user, 2026-08-28) — and what goes in which bin
+
+> *"Right now I think these gap close priorities make sense: 1) Per iteration CPU time, 2) Init (pre
+> iteration) time, 3) top RAM usage (mostly solved I think), 4) very roughly match the # of iterations.
+> I think items that fall into bin 4 can just be documented in OpenWork.md."*
+
+| bin | the axis | where it stands (MnO AFM-II VA, 2026-08-28) |
+|---|---|---|
+| **1** | **per-iteration CPU** | **2.22× CP2K** on the default row (18.8 s vs 8.5 s), **3.5×** at full parity — the parity figure is worse because parity strips the STREAM FOLD, so each collocation covers ~5× more pairs |
+| **2** | **init / pre-iteration time** | on the default row: Becke mesh build 16.7 s + XC Φ tables 40.3 s ≈ **57 s of 328 s wall**.  ⚠ Both vanish on the XC pair route (`QCHEM_BECKE_XC=0`), so bin 2 is largely a Becke-mesh question |
+| **3** | **peak RAM** | ✅ **solved**: 1323 → 491 MB default, **105–112 MB on the parity routes against CP2K's 217 MB** |
+| **4** | **iteration count** | 31 (default) / 93-and-capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  The findings are below |
+
+### ⚠ BIN 4 — THE ITERATION COUNTS ARE NOT COMPARABLE YET, AND HERE IS EXACTLY WHY (2026-08-28)
+
+⛔ **THE TWO CODES DO NOT RUN THE SAME ρ-MIXING ALGORITHM** (checked on the user's instruction against
+`IntegrationTests/CP2K/mno_afm2_gpw_va.inp`, which is the deck every MnO row is compared to):
+
+| | CP2K's MnO deck | qchem's MnO recipe |
+|---|---|---|
+| density mixing | `BROYDEN_MIXING`, `ALPHA 0.2`, **`BETA 1.5`**, `NBUFFER 8` | `Kerker(G0=1.0)` α=0.45, **no history** |
+| orbital step | `&DIAGONALIZATION STANDARD` | `Ladder` → **`GDM`** (direct minimisation) |
+| smearing | Fermi-Dirac, kT 5.0e-3 au | Fermi-Dirac, kT 5e-3 ✅ **matches** |
+| convergence | `EPS_SCF 1.0E-6` | `MinΔρ 1e-5` |
+| cap | `MAX_SCF 200` + `IGNORE_CONVERGENCE_FAILURE` | `NMaxIter 80` |
+| extra virtuals | `ADDED_MOS 20` | the full basis (N=118) |
+
+Three things follow, and none of them is "qchem converges worse":
+1. **CP2K composes Kerker WITH Broyden** — `BETA` inside `&MIXING` IS the Kerker damping denominator, so
+   its recipe is *Kerker-damped 8-vector quasi-Newton*.  ✅ **AND SO IS OURS** — `MakeGSpaceMixer` passes
+   `kerkerG0` straight into `PulayMixer`, and the run confirms it: `[Pulay] ENABLED (↑): G0=1`.  So
+   `MNO_PULAY=8 MNO_ALPHA=0.2` IS the same CLASS of mixer as CP2K's deck (Kerker-damped history), and the
+   remaining differences are the quasi-Newton flavour (Pulay/DIIS vs Broyden) and the Kerker parameter
+   (our `G0=1` against their `BETA=1.5`).
+   ⚠ **The SCF banner is misleading and that is worth fixing**: it prints
+   `mixer: Pulay(depth 8, start 5) alpha=0.2` and never mentions Kerker, so a reader of a benchmark row
+   would conclude the preconditioner had been swapped out.  The `[Pulay] ENABLED … G0=` line has the truth;
+   the banner — which is the line `doc/Benchmark.md` tells people to copy — does not.
+2. **The orbital steps are different classes.**  CP2K diagonalises and mixes the density; qchem's stage 2
+   is GDM, a direct minimiser that does NOT mix.  An iteration means a different amount of work and a
+   different amount of progress on the two sides — which is bin 4's whole point.
+3. **The convergence measures are different quantities**, so "44 steps vs 31" compares two thresholds as
+   much as two trajectories.
+
+### ⛔ AND MATCHING THE MIXER DID NOT HELP — MEASURED, 2026-08-28
+
+Since our Pulay composes with Kerker exactly as CP2K's Broyden does, `MNO_ALPHA=0.2 MNO_PULAY=8` under
+`CP2K_COMPAT=1` puts qchem in the same mixer CLASS as the deck.  Run it:
+
+| MnO AFM-II VA, `CP2K_COMPAT=1` | qchem default mixer (α=0.45, no history) | **CP2K-matched (α=0.2, Pulay 8)** |
+|---|---|---|
+| stage 1 (kT=5e-3) | UNSETTLED at **13** iters, −61.41070717 | **OSCILLATING at 80**, −61.40861546, Eamp 0.53 |
+| stage 2 (kT=0) | FIT-FLOOR STALL at 80, **−61.39789688**, Δρ 1.69e-5 | FIT-FLOOR STALL at 80, **−61.39789768**, Δρ 8.97e-5 |
+| the AFM order | survived | survived |
+| CPU / wall / RSS | 2736 s / 45m40s / 112 MB | 3654 s / 1h01m / 242 MB |
+
+**Three findings, and the second is the useful one:**
+1. ⛔ **The CP2K-matched mixer is WORSE here, not better.**  α=0.2 with an 8-vector history OSCILLATES for
+   80 iterations in stage 1 where plain α=0.45 Kerker settles in 13.  Matching CP2K's mixer parameters is
+   therefore NOT a route to matching its iteration count on this system.
+2. ★★★ **BOTH MIXERS LAND ON THE SAME ANSWER: −61.39789688 and −61.39789768 — 8e-7 Ha apart, from two
+   different mixing algorithms.**  That is strong evidence the stall is a genuine FIXED POINT of the
+   discretisation and not a mixing artefact: at parity the answer really is ~5.1 mHa above the imposed
+   −61.40297551, and no amount of mixer tuning will move it.  ⇒ The remaining parity gap is a GRID/FIT
+   question, which is what the detector called it ("functional/grid").
+3. ⚠ **And the two runs FLOOR at Δρ values 5× apart (1.69e-5 vs 8.97e-5) while agreeing on E to 8e-7.**
+   Δρ is measuring the mixer's own step, not the distance to the answer — the sharpest single argument for
+   A4 that this session has produced.
+
+★ **AND A4 HAS A CONCRETE, SMALL FINDING SITTING IN IT: `MinΔρ` IS COMPARED AGAINST THREE DIFFERENT
+QUANTITIES.**  One threshold, three scales:
+
+| site | what it returns |
+|---|---|
+| `LinearMixer::Mix` | `GetChangeFrom(old)/GetTotalCharge()` — **normalised**, "relative MaxAbs change" |
+| `LinearMixer::ReDampMix` | `GetChangeFrom(old)` — **un-normalised**, and the code says so ("matches the legacy re-damp") |
+| `DirectMinDriver::Step` (GDM) | `GetChangeFrom/GetTotalCharge` — normalised |
+| `KerkerMixer::MixField` | \f$\lVert\tilde\rho_{out}-\tilde\rho_{in}\rVert_\infty\f$ over **G-space coefficients** — a different norm of a different object |
+
+⇒ A fixed `MinΔρ` therefore means something different per RECIPE and per SYSTEM SIZE, which is exactly
+what A4 (the Δρ/N gate, `doc/SCFStrategyPlan.md`) exists to fix — and it is now the **fourth** thing this
+session has pointed at A4, after the Na2 gate's chaotic α-dependence, the density-degenerate Na2 state, and
+the parity run's FIT-FLOOR STALL.  ⚠ Note the MnO parity stall is on the GDM path, which IS normalised, so
+this finding does not explain that one; it is a separate defect found while looking.
+
 ### ✅ ITEM 1 MEASURED, 2026-08-25 — AND THE MECHANISM IS BIGGER THAN THE ITEM
 
 **All rows: MnO AFM-II, VA (N=118), `MNO_IMPOSE=1`, SINGLE THREAD (`OMP_NUM_THREADS=1 GPW_OMP_THREADS=1`),

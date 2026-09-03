@@ -186,11 +186,19 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
 // because that is where these take effect -- and an anneal changes them stage by stage.
 static void EmitSCFBanner(const std::string& label, const SCFParams& p, SCFAccelerators::Type acc)
 {
+    // ⚠ THE PRECONDITIONER AND THE HISTORY ARE INDEPENDENT, AND THE BANNER USED TO HIDE IT (2026-08-28).
+    // It printed "Pulay(depth 8, start 5)" whenever PulayDepth>0 and never mentioned Kerker, so a reader
+    // of a benchmark row would conclude the G-space preconditioner had been swapped OUT.  It has not:
+    // MakeGSpaceMixer passes kerkerG0 straight into PulayMixer, so the two COMPOSE -- which matters
+    // because that composition is exactly CP2K's own recipe (its &MIXING BETA is the Kerker damping
+    // denominator, applied alongside BROYDEN_MIXING).  This line is the one doc/Benchmark.md tells people
+    // to copy beside a row, so it has to say both.
     std::cout<<"["<<label<<" scf] mixer: "
-             <<(p.PulayDepth>0 ? "Pulay(depth "+std::to_string(p.PulayDepth)+", start "
+             <<(p.KerkerG0>0.0 ? "Kerker(G0="+std::to_string(p.KerkerG0)+")"
+                               : std::string("LINEAR D-mixing (no G-space preconditioner)"))
+             <<(p.PulayDepth>0 ? " + Pulay history(depth "+std::to_string(p.PulayDepth)+", start "
                                  +std::to_string(p.PulayStart)+")"
-               : p.KerkerG0>0.0 ? "Kerker(G0="+std::to_string(p.KerkerG0)+")"
-               :                  std::string("LINEAR D-mixing (no G-space preconditioner)"))
+                               : std::string())
              <<" alpha="<<p.StartingRelaxRo
              <<";  XC rho source: "<<(theRunPolicy().XCFromDM() ? "rho[D] WHOLESALE"
                                      : p.XCCuspDeficit         ? "rho_mix + cusp deficit"
