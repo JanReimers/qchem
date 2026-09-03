@@ -3039,6 +3039,43 @@ MnO campaign proceeds undisturbed in qchem6.
   union riding the DBCache'd `Projector3` closures — was fixed 2026-08-18 by instance-scoping the GPW
   3C tensors in `tGPW_IBS`; see `GPW_SCF.CrossRunFirstRunAnomalyProbe`.)
 
+- **V1.34 THE FITTER'S CONTRACTION FACE IS TEMPLATED BUT ONLY HALF-REALISED — an ISP hole with a
+  `bad_cast` for a diagnostic** (found 2026-08-28, while decoupling the XC grid from polarization).
+  `Fitting::FitContraction<U,TFit>` is templated on the BLOCK scalar and declares one method,
+  `hmat_t<U> Overlap(const BasisSet::Orbital_DFT_IBS<U,TFit>&)`.  The ortho scalar fitter implements
+  **only** the `<dcmplx,dcmplx>` face.  So `XC_PairQuadrature`'s ball-fit branch, asked for a REAL TRIM
+  block, gets a `std::bad_cast` — and carried a hand-written throw saying *"a real TRIM block on the
+  legacy ball-fit XC route is not wired"* with the reason recorded as **"nothing real-block reaches
+  it"**, which was an observation about reachability, not about the interface.  It stopped being true
+  the moment a polarized run could take that route.
+
+  ⛔ **WHY THIS IS AN OOD ITEM AND NOT A MISSING OVERLOAD** (user, 2026-08-28: *"it sounds like we have
+  an OOD design problem in the fitter interfaces"*).  A templated interface that exists for two scalars
+  and is realised for one is a face that LIES: every caller must either know which instantiation is real
+  — knowledge the abstraction exists to remove — or discover it as a `bad_cast` at runtime, in Release,
+  mid-SCF.  That is the same failure the project already ruled on elsewhere: *give capabilities only to
+  types that have them* (\c feedback_compile_time_over_runtime), and the house style of asking a face
+  what it CAN do rather than what it IS.  The current shape supports neither: you cannot ask, and you
+  cannot fail to compile.
+
+  ⇒ **The ruling to take, not the patch.**  Three shapes, and picking between them is the item:
+    1. **Realise the `<double,dcmplx>` face** — smallest, but it leaves the next unrealised combination
+       to be discovered the same way.
+    2. **Make the capability ASKABLE** — a `bool CanContract<U>()`-shaped question, or split the face so
+       a fitter advertises exactly the scalars it serves.  Matches the `applyRaw`/`applyRawAdjoint`
+       pattern the XC pair route already uses (an empty `std::function` IS the capability answer), and
+       it is how `MakeXCQuadrature` already decides between its two strategies.
+    3. **Make it a compile-time error** — the fitter only exposes the instantiations it defines, so a
+       caller that needs another one does not link.  Strongest, and the project's stated preference
+       (build-failure over runtime crash); needs the caller side to be scalar-generic in a way it may
+       not be.
+  ⚠ NOT urgent: the hole is currently unreachable again (the XC adjoint follows the lineage's
+  capability, so the ball fit only ever sees complex blocks).  It is on this list because the NEXT
+  route change will rediscover it, and because a half-realised templated face is a design defect
+  whether or not anything is standing on it today.
+  ★ RELATED: [`project_functionfitter_isp_split`] already split `FunctionFitter` into Scalar/Density
+  faces on exactly this kind of argument, so this is the same axis, one level down.
+
 ### V1.33 — THE BasisSet TAXONOMY IS THE WRONG AXIS (user, 2026-08-20)
 
 `src/BasisSet/{Atom, Molecule, Lattice_3D}` classifies by PHYSICAL SYSTEM, but what the directories

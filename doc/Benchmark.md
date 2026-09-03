@@ -136,10 +136,20 @@ printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrappe
 > Wall time therefore FLATTERS qchem by the number of cores it took; **CPU time (user+sys) is the honest
 > ratio** and it is roughly 2× the wall ratio.
 
-**★ RE-TAKEN 2026-08-27** on the cache-free, contracted-collocation default (`doc/CollocationRewritePlan.md`
-steps 7–8 — the 3.9 GB pair-stream value cache deleted, `GPW_CONTRACT_CUBE` on).  The two MnO rows marked
-⚠ STALE are still the 08-19 binary; every other qchem row below was measured today through `scripts/bench`,
-same recipes, same box, CP2K column untouched.
+**★ RE-TAKEN 2026-08-27/28**, most recently on the spin-native XC pair route.  ⚠ **THE ROWS ARE NOT ALL
+FROM THE SAME BINARY**, and this session moved fast enough that saying so matters more than usual — five
+changes landed in two days (cache deletion, `template<int LP>`, the two memo fixes, the exp recurrence, the
+XC decoupling), and a row is only as current as the last time it was run.  The `taken` column says when.
+
+| row | last taken | why it may have moved since |
+|---|---|---|
+| Si Γ, NaF SR2 Γ, NaF full-SR Γ, MnO AFM-II, **MnO parity** | **08-28, current** | — |
+| Si 2×2×2 (both), NaF SR2 2×2×2 | 08-28, mid-session | predate the exp recurrence (~1.4× on the box walk); ⚠ CHEAP to re-take (8–68 s) |
+| **MnO `CP2K_COMPAT=1`** | **08-28, current** | the old row's *"does not converge"* verdict is RETRACTED — see ⁷ |
+| **MnO FM** | **08-19** | predates EVERYTHING; ~20 min to re-take |
+
+⇒ **The `CP2K_COMPAT=1` row is now real rather than aspirational**, because the XC pair route made the
+parity ROUTE affordable — see the parity row and the note below it.  CP2K column untouched throughout.
 
 | system | k-mesh | span | qchem Etot | CP2K Etot | Δ (qchem−CP2K) | wall q / c | **CPU q / c** | **CPU ×** | peak RSS q / c |
 |---|---|---|---|---|---|---|---|---|---|
@@ -150,9 +160,44 @@ same recipes, same box, CP2K column untouched.
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **25.0 s** / 1m42s | **41.4** / 102 s | **0.41×** | **65** / 186 MB |
 | MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | **5m28.1s** / 6m14s | **584** / 373 s | **1.57×** | **491** / 217 MB |
+| **MnO AFM-II, `QCHEM_BECKE_XC=0`** ⁶ | Γ | **VA (N=118)** | −61.40358773 | −61.303325178 | −100.26 mHa | **4m05.4s** / 6m14s | **246** / 373 s | **0.66×** | **105** / 217 MB |
 | ⚠ STALE MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
-| ⚠ STALE **MnO AFM-II, `CP2K_COMPAT=1`** | Γ | **VA (N=118)** | **−61.40297618** | −61.303325178 | −99.65 mHa | **15m34s** / 6m14s | **921** / 373 s | **2.5×** | **5034** / 217 MB |
+| **MnO AFM-II, `CP2K_COMPAT=1`** ⁷ | Γ | **VA (N=118)** | −61.39789688 ⁷ | −61.303325178 | −94.57 mHa | 45m40s / 6m14s | **2736** / 373 s | **7.3×** | **112** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
+
+⁷ **THE PARITY ROW — IT EXISTS AGAIN, AND THE OLD VERDICT IS RETRACTED (re-measured 2026-08-28).**
+`doc/OpenWork.md` and this file have carried *"AT TRUE PARITY OUR MnO RECIPE DOES NOT CONVERGE ... stage 2
+caps at −57.620, 3.8 Ha short"* since 2026-08-26.  Re-run on today's tree, same recipe, `CP2K_COMPAT=1`
+(so the imposition, the low-rank ρ, the stream fold AND the Becke mesh are all off):
+
+| | 2026-08-26 | **2026-08-28** |
+|---|---|---|
+| stage 1 | caps at 80, −60.431 | UNSETTLED at 13, −61.41070717 |
+| stage 2 | caps at 80, **−57.620** | **FIT-FLOOR STALL at 80, −61.39789688** |
+| against the imposed answer (−61.40297551) | **3.8 Ha short** | **5.1 mHa short** |
+| the AFM order | — | **SURVIVED both stages** (m_stag 0.636, 0.610) |
+| peak RSS | 5034 MB | **112 MB** |
+
+⇒ **It still hits the cap, but for a completely different and far more benign reason.**  It is no longer
+collapsing: the energy is settled (ΔE amplitude 2.7e-8), the magnetic order holds without any imposition,
+and Δρ has FLOORED at 1.69e-5 against a 1e-5 target — the run's own detector calls it a *"FIT-FLOOR STALL
+(Δρ floored, ΔE tiny -- functional/grid)"*, not an oscillation.  That is **A4 territory** (the Δρ/N
+convergence gate, `doc/SCFStrategyPlan.md`), which is the third independent thing this session has pointed
+at A4.
+
+⚠ **THE HONEST PARITY STANDING, then**: 2736 s against 373 s CPU is **7.3×**, or **3.5× PER ITERATION**
+(29.4 s against 8.5 s) since we took 93 iterations to CP2K's 44 — and **0.52× on RAM**.  The per-iteration
+gap is bigger than the default row's 2.22× because parity also strips the stream fold, so each collocation
+covers ~5× more pairs (2.2 s/call against 0.5 s).  ⇒ **The fold is now the largest single thing the
+comparison removes**, which is exactly the qchem-vs-qchem delta rule 3 asks to be reported separately.
+
+⁶ **THE XC-PARITY ROW, and the first MnO row on which qchem beats CP2K on BOTH axes** — 246 s against
+373 s CPU and 105 MB against 217 MB.  It is the default recipe with ONE deviation removed: the Becke mesh,
+so XC runs the way CP2K runs it (`XC_PairQuadrature` — ρ via the GPW collocation, \f$v_{xc}\f$ pointwise,
+\f$H_{xc}\f$ via the exact transpose).  ⚠ **It is NOT the parity row**: the imposition, the low-rank ρ and
+the stream fold are all still on.  What it establishes is that the parity ROUTE is no longer what stands in
+the way — before 2026-08-28 the same configuration cost 1805 s and 4.5 GB, because a polarized run could not
+reach that route at all.
 
 ### ★★★ WHAT DELETING THE CACHE DID TO THIS TABLE — read the RAM column and the MnO row together
 
