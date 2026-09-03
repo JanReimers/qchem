@@ -117,11 +117,20 @@ Since our Pulay composes with Kerker exactly as CP2K's Broyden does, `MNO_ALPHA=
 1. ⛔ **The CP2K-matched mixer is WORSE here, not better.**  α=0.2 with an 8-vector history OSCILLATES for
    80 iterations in stage 1 where plain α=0.45 Kerker settles in 13.  Matching CP2K's mixer parameters is
    therefore NOT a route to matching its iteration count on this system.
-2. ★★★ **BOTH MIXERS LAND ON THE SAME ANSWER: −61.39789688 and −61.39789768 — 8e-7 Ha apart, from two
-   different mixing algorithms.**  That is strong evidence the stall is a genuine FIXED POINT of the
-   discretisation and not a mixing artefact: at parity the answer really is ~5.1 mHa above the imposed
-   −61.40297551, and no amount of mixer tuning will move it.  ⇒ The remaining parity gap is a GRID/FIT
-   question, which is what the detector called it ("functional/grid").
+2. ★★★ **BOTH MIXERS FLOOR AT THE SAME PLACE: −61.39789688 and −61.39789768 — 8e-7 Ha apart, from two
+   different mixing algorithms.**  So the stall is a property of the MAP, not of either mixer, and no
+   amount of mixer tuning will move it.
+   ⛔ **BUT DO NOT READ THAT AS "THE UNIFORM GRID CANNOT CONVERGE" — THE CONTROL SAYS OTHERWISE.**  The
+   detector prints "functional/grid" and an earlier cut of this section took it at face value.  It is
+   wrong, and the run that refutes it was taken the same day: **`QCHEM_BECKE_XC=0` with the imposition
+   KEPT — same uniform XC mesh, same pair route — CONVERGED in 25 iterations at Δρ 3.47e-6** (−61.40358773).
+   The uniform mesh is therefore perfectly capable of converging this system.  What the two stalled runs
+   have that the converged one does not is **the imposition switched OFF**, which is exactly the banked
+   2026-08-26 finding: *"the imposed star-average was buying CONVERGENCE, not accuracy and not the magnetic
+   basin"*.  ⇒ The parity stall belongs to the FREE run, not to the grid, and the 5.1 mHa is how far a
+   stalled run sits from an answer it never reached — NOT a physical grid bias.
+   ⚠ The grid's genuine ACCURACY cost is a separate, also-measured number: **6.1e-4 Ha** between the
+   converged Becke and converged uniform imposed runs (−61.40297551 vs −61.40358773).
 3. ⚠ **And the two runs FLOOR at Δρ values 5× apart (1.69e-5 vs 8.97e-5) while agreeing on E to 8e-7.**
    Δρ is measuring the mixer's own step, not the distance to the answer — the sharpest single argument for
    A4 that this session has produced.
