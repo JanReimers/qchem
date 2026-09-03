@@ -165,6 +165,25 @@ parity ROUTE affordable — see the parity row and the note below it.  CP2K colu
 | **MnO AFM-II, `CP2K_COMPAT=1`** ⁷ | Γ | **VA (N=118)** | −61.39789688 ⁷ | −61.303325178 | −94.57 mHa | 45m40s / 6m14s | **2736** / 373 s | **7.3×** | **112** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
 
+### ⚠ THE `CPU` COLUMN IS A WHOLE-RUN TOTAL — DIVIDE BY THE ITERATIONS BEFORE COMPARING
+
+The user's gap-close priority is **per-iteration CPU** (bin 1, doc/OpenWork.md), and this table has never
+carried it: `CPU q / c` is the total for the run, and two runs in it differ by 3× in iteration count.  A
+run that needs twice the steps looks twice as slow on a per-ITERATION basis it may actually be winning.
+For the MnO ladder, where the campaign currently is:
+
+| the row | iterations | **CPU / ITERATION** | vs CP2K's 8.5 s/step |
+|---|---|---|---|
+| **ALL DEFAULTS** | 14+17 = **31** | **18.8 s** | **2.2×** |
+| **`QCHEM_BECKE_XC=0`** | 25 (stage 2; stage 1 not recorded) | ❓ — re-read the ledger when this row is next taken | ❓ |
+| **`CP2K_COMPAT=1`** | 13+80 = **93**, both CAPPED | **29.4 s** | **3.5×** |
+| CP2K (its own log) | 44 | 8.5 s | — |
+
+⇒ Two separate facts the whole-run column blurs together: we are **2.2–3.5× per step**, and at parity we
+take **93 steps to CP2K's 44** (bin 4, and both of ours hit the cap rather than converging).  The parity
+row's per-step figure is the WORSE of the two because parity also removes the stream fold — 5.2× on MnO's
+pair count — so its 2667 s of box walk is 97% of the run.
+
 ★ **THE THREE `MnO AFM-II` ROWS ARE ONE SYSTEM AND ONE RECIPE, with progressively more of OUR deviations
 switched off.**  Read them as a ladder, not as three experiments — the only thing changing is which of the
 six declared deviations are on:
