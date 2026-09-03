@@ -143,13 +143,13 @@ same recipes, same box, CP2K column untouched.
 
 | system | k-mesh | span | qchem Etot | CP2K Etot | Δ (qchem−CP2K) | wall q / c | **CPU q / c** | **CPU ×** | peak RSS q / c |
 |---|---|---|---|---|---|---|---|---|---|
-| Si (FCC) | Γ | SIPP_SR | −7.115067844 | −7.115057882 | **−10.0 µHa** | **1.1 s** / 5.2 s | **2.4** / 5.0 s | **0.48×** | **30** / 148 MB |
+| Si (FCC) | Γ | SIPP_SR | −7.115067844 | −7.115057882 | **−10.0 µHa** | **0.8 s** / 5.2 s | **2.2** / 5.0 s | **0.44×** | **29** / 148 MB |
 | Si (FCC) | 2×2×2 Γ-centred | SIPP_SR | −7.778472833 | −7.778457865 | **−15.0 µHa** | 7.5 s / 5.8 s | 8.9 / 5.6 s | 1.6× | **30** / 153 MB |
 | Si (FCC) | 2×2×2 shifted MP | SIPP_SR | −7.868473428 ¹ | −7.867436530 | **−1.04 mHa** | 16.2 s / 6.1 s | 17.5 / 6.0 s | 2.9× | **31** / 153 MB |
-| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 22.1 s / 7.4 s | 38.6 / 7.2 s | **5.4×** | **60** / 173 MB |
+| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 21.1 s / 7.4 s | 37.9 / 7.2 s | **5.3×** | **61** / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **25.0 s** / 1m42s | **41.4** / 102 s | **0.41×** | **65** / 186 MB |
-| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | **6m07.3s** / 6m14s | **620** / 373 s | **1.66×** | **491** / 217 MB |
+| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | **5m28.1s** / 6m14s | **584** / 373 s | **1.57×** | **491** / 217 MB |
 | ⚠ STALE MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
 | ⚠ STALE **MnO AFM-II, `CP2K_COMPAT=1`** | Γ | **VA (N=118)** | **−61.40297618** | −61.303325178 | −99.65 mHa | **15m34s** / 6m14s | **921** / 373 s | **2.5×** | **5034** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
@@ -164,7 +164,7 @@ same recipes, same box, CP2K column untouched.
 | NaF SR2 Γ | 94.5 → **39.7 s** (2.4×) | 577 → **54 MB** (10.7×) |
 | NaF SR2 2×2×2 | 112 → **84.5 s** | 590 → **68 MB** (8.7×) |
 | NaF full-SR Γ | 219 → **43.4 s** (5.0×) | 3090 → **58 MB** (**53×**) |
-| **MnO AFM-II Γ (imposed, VA)** | 663 → 976 → 837 → 678 → **620 s** (**0.93× — FASTER**) | 1323 → **491 MB** (2.7×) |
+| **MnO AFM-II Γ (imposed, VA)** | 663 → 976 → 837 → 678 → 620 → **584 s** (**0.88× — FASTER**) | 1323 → **491 MB** (2.7×) |
 
 **Two rows now BEAT CP2K on CPU outright** — Si Γ at 0.48× and NaF full-SR at 0.43× — and **every** qchem
 row is now well under CP2K's RAM (28–68 MB against 148–186 MB on the small cells), which is the first time
@@ -178,12 +178,13 @@ CPU on the one row that matters most**, and the case for deleting it rests on th
 latent defects it was hiding, not on a free lunch.  ⚠ The 663 s "before" is the 2026-08-19 banked row on an
 older binary, so treat the MnO delta as indicative; the directly-measured, same-binary A/B is the
 2.91×-on-the-buckets figure in `doc/CollocationRewritePlan.md` step 7.
-✅ **AND THE ROW HAS SINCE GONE PAST WHERE THE CACHE LEFT IT — 976 → 837 → 678 → 620 s, against the
-663 s the 4 GB cache used to buy, on 2.7× less RAM.**  Three bit-identical changes did it, none needing a
-re-bank: the `template<int LP>` collocation dispatch (plan §3c-bis stage 1) took the box-walk buckets
-477 → 344 s, the **collocation memo depth fix** took them 344 → 192 s, and the **gather memo** took them
-192 → **123 s**.  ⇒ Against CP2K this row now stands at **1.66× CPU** (was 2.24×), **2.35× CPU per
-ITERATION** (was 3.2×) — and **0.98× on WALL, i.e. level with CP2K for the first time.**
+✅ **AND THE ROW HAS SINCE GONE PAST WHERE THE CACHE LEFT IT — 976 → 837 → 678 → 620 → 584 s, against
+the 663 s the 4 GB cache used to buy, on 2.7× less RAM.**  Four changes did it, none needing a re-bank —
+the box-walk buckets went 477 → 344 (the `template<int LP>` dispatch) → 192 (the **collocation memo depth
+fix**) → 123 (the **gather memo**) → **91 s** (the **exp-table recurrence**).  The first three are
+bit-identical by construction; the fourth is not, and moved nothing anybody pins (below).  ⇒ Against CP2K
+this row now stands at **1.57× CPU** (was 2.24×), **2.22× CPU per ITERATION** (was 3.2×) — and **0.88× on
+WALL, i.e. faster in wall clock.**
 ### ★★★ THE COLLOCATION MEMO HAD DEPTH 1, AND A POLARIZED RUN ALTERNATES TWO DENSITIES (2026-08-28)
 
 Found by a CALL CENSUS — bucketing the four closure sites so the ledger reports a per-site call count.  On
@@ -237,8 +238,31 @@ unchanged two-argument resolver), and that is measured, not asserted: Si Γ repr
 exactly one, already marked ⚠ STALE.
 ⇒ `raster` and `cutoffFactor` remain the last two typed options outside the policy (N5).
 
-⇒ **And the next KERNEL lever is NOT the batching.**  Measured at the unit level, **84% of the contraction
-kernel is the three 2-D Mathieu `exp` tables** (\f$3n^2\f$ scalar `std::exp` calls), worth up to ~35% of this
+### ✅ THE EXP-TABLE RECURRENCE — the one place the kernel did not follow CP2K (2026-08-28)
+
+The table build was \f$3n^2\f$ scalar `std::exp` calls where CP2K uses a recurrence.  The exponent is
+LINEAR in the inner index of each table (only the cross term \f$2e_ae_bh_{ab}\f$ moves), so a row is one
+seed and \f$n\f$ multiplies — **2 exps per row instead of \f$n\f$**.  Seeded at the LARGEST entry and
+walked downward, which is the 2026-08-26 underflow rule: a recurrence seeded in the tail can start below
+the underflow floor and stay zero through entries that matter.
+
+| | kernel at 32³ | box walk, Si Γ | NaF SR2 Γ | MnO row |
+|---|---|---|---|---|
+| direct `exp` | 111.8 µs | 0.290 s | 1.71 s | 123 s |
+| **recurrence** | **72.9 µs (1.53×)** | **0.204 s** | **1.23 s** | **91 s** |
+
+⚠ It is **NOT bit-identical** — a product of \f$n\f$ rounded factors is not the rounded product — so it was
+built default-OFF and defaulted ON only on evidence: against a naive exact reference the contraction goes
+1e-15 → **7e-15 relative, flat in box size** (it is \f$n\varepsilon\f$), still **4× better than the WALK's
+3e-14**; `ctest -j8` is **793/793 on both settings**; and all three anchors above are unchanged **to all 10
+printed s.f.**  ⇒ Anchor-moving in principle, moved nothing in practice.  `GPW_EXP_RECURRENCE=0` is the A/B.
+
+⚠ **AND IT ONLY HALVED THE TABLE TERM, not eliminated it** (89 → 45 µs): with the exps gone the build is
+bound by writing \f$n^2\f$ entries, which no algorithm removes — the table has to exist.  The kernel's
+\f$O(N^2)\f$ share is 80% → **62%**.
+
+⇒ **And the next KERNEL lever is still NOT the batching.**  Before the recurrence, **84% of the contraction
+kernel was the three 2-D Mathieu `exp` tables** (\f$3n^2\f$ scalar `std::exp` calls), worth up to ~35% of this
 row.  CP2K builds those tables by RECURRENCE where we call `exp`, and doing the same is the one route that
 keeps this table apples-to-apples — a vectorised `exp` would be a qchem-only acceleration under rule 3
 above, declared on the deviation line and switched OFF for every head-to-head row, i.e. speed we could not

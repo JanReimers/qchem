@@ -766,6 +766,86 @@ public:
 
     //! \brief Scatter the collapsed shell pair onto \a dst over its cube.  The NON-ORTHO kernel: three 2-D
     //! exponential tables (Mathieu) and a grid-index polynomial, innermost loop \c lp+1 FMAs.
+    //! \brief One row of a 2-D Mathieu table by RECURRENCE: \c out[t] = \f$e^{base+t\,step}\f$.
+    //!
+    //! CP2K builds these tables this way and we did not (doc/CollocationRewritePlan.md §3c-bis): measured at
+    //! the unit level, the three \f$O(n^2)\f$ exponential planes are **84% of the contraction kernel** —
+    //! \f$3n^2\f$ scalar `std::exp` calls at ~16 ns each — against 16% for the \f$O(n^3)\f$ point loop.
+    //! The exponent is LINEAR in the inner index of each table (only the cross term \f$2e_ae_bh_{ab}\f$
+    //! moves), so a row is one seed and \f$n\f$ multiplies: **2 exps per row instead of \f$n\f$.**
+    //!
+    //! ⚠ SEEDED AT THE LARGEST ENTRY AND WALKED DOWNWARD, ALWAYS.  This is the underflow rule from the
+    //! 2026-08-26 analysis, and it is the whole reason the direction is branched on rather than fixed: a
+    //! recurrence seeded in the TAIL can start at (or below) the underflow floor and stay identically zero
+    //! through entries where the value is significant.  Seeded at the peak, each step only shrinks — an
+    //! entry that underflows to 0 is one that `std::exp` would have returned 0 for anyway.
+    //! ⚠ And the decrement is \c exp(-step), never \c 1/exp(step): for a steep row \c exp(step) overflows
+    //! to infinity and its reciprocal is 0, which would zero the entire row after its seed.
+    static void ExpRow(double base, double step, int n, double* out)
+    {
+        if (step<=0.0)                                   // decreasing in t: t=0 is the largest
+        {
+            double v=std::exp(base); const double m=std::exp(step);
+            for (int t=0;t<n;t++) { out[t]=v; v*=m; }
+        }
+        else                                             // increasing in t: t=n-1 is the largest
+        {
+            double v=std::exp(base+double(n-1)*step); const double m=std::exp(-step);
+            for (int t=n-1;t>=0;t--) { out[t]=v; v*=m; }
+        }
+    }
+    //! Build the Mathieu tables by \c ExpRow instead of \f$3n^2\f$ \c std::exp calls.  **DEFAULT ON**
+    //! (\c GPW_EXP_RECURRENCE=0 opts out); NOT a CP2K deviation — it is what CP2K does.
+    //!
+    //! ⚠ IT IS NOT BIT-IDENTICAL — a product of \f$n\f$ rounded factors is not the rounded product — so it
+    //! was built default-OFF and defaulted ON only on measurement.  What the measurement said:
+    //!   - against a NAIVE EXACT reference the contraction goes 1e-15 → **7e-15 relative, FLAT in box size**
+    //!     (it is \f$n\varepsilon\f$, and \f$n\f$ is bounded by the box) — still **4× better than the
+    //!     WALK's 3e-14**, so the contraction remains the most accurate of the three routes;
+    //!   - `ctest -j8` is **793/793 on BOTH settings**;
+    //!   - and all three benchmark anchors are unchanged **to all 10 printed s.f.** — Si Γ −7.115067844,
+    //!     NaF SR2 Γ −24.4303364755, MnO AFM-II −61.40297551.
+    //! ⇒ It is anchor-moving in principle and moved nothing anybody pins.  Keep the knob: it is the A/B for
+    //! any future accuracy question, and the first thing to try if a system ever disagrees.
+    static bool UseExpRecurrence()
+    { static const bool b=[]{const char* s=std::getenv("GPW_EXP_RECURRENCE"); return !s || std::atoi(s)!=0;}(); return b; }
+
+    //! \brief Build the three 2-D Mathieu tables and the \f$e_1\f$ power table for one cube.
+    //! ONE definition, shared by \c ContractCubeN and \c GatherCubeN — they held two verbatim copies, and a
+    //! second copy of a rule is the defect class that has already cost this tree twice (the integrate-back
+    //! \c Re[] screen, the memo logic).  The two directions MUST see identical tables or they stop being
+    //! adjoints, which is now true by construction rather than by inspection.
+    void BuildCubeTables(const BoxGeom& g, double p, int lp, const int n[3], const double h[3][3],
+                         rvec_t& T12, rvec_t& T23, rvec_t& T31, rvec_t& E1) const
+    {
+        T12.resize(size_t(n[0])*n[1]); T23.resize(size_t(n[1])*n[2]); T31.resize(size_t(n[2])*n[0]);
+        E1.resize(size_t(lp+1)*n[0]);
+        auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
+        if (UseExpRecurrence())
+        {
+            // The inner index steps e_b by exactly 1, so the exponent steps by the constant -2 p e_a h_ab.
+            for (int i=0;i<n[0];i++)
+            { const double e1=eOf(0,i);
+              ExpRow(-p*(e1*e1*h[0][0]+2*e1*eOf(1,0)*h[0][1]), -2.0*p*e1*h[0][1], n[1], &T12[size_t(i)*n[1]]); }
+            for (int j=0;j<n[1];j++)
+            { const double e2=eOf(1,j);
+              ExpRow(-p*(e2*e2*h[1][1]+2*e2*eOf(2,0)*h[1][2]), -2.0*p*e2*h[1][2], n[2], &T23[size_t(j)*n[2]]); }
+            for (int k=0;k<n[2];k++)
+            { const double e3=eOf(2,k);
+              ExpRow(-p*(e3*e3*h[2][2]+2*e3*eOf(0,0)*h[2][0]), -2.0*p*e3*h[2][0], n[0], &T31[size_t(k)*n[0]]); }
+        }
+        else
+        {
+            for (int i=0;i<n[0];i++) for (int j=0;j<n[1];j++)
+            { const double e1=eOf(0,i), e2=eOf(1,j); T12[size_t(i)*n[1]+j]=std::exp(-p*(e1*e1*h[0][0]+2*e1*e2*h[0][1])); }
+            for (int j=0;j<n[1];j++) for (int k=0;k<n[2];k++)
+            { const double e2=eOf(1,j), e3=eOf(2,k); T23[size_t(j)*n[2]+k]=std::exp(-p*(e2*e2*h[1][1]+2*e2*e3*h[1][2])); }
+            for (int k=0;k<n[2];k++) for (int i=0;i<n[0];i++)
+            { const double e3=eOf(2,k), e1=eOf(0,i); T31[size_t(k)*n[0]+i]=std::exp(-p*(e3*e3*h[2][2]+2*e3*e1*h[2][0])); }
+        }
+        for (int i=0;i<n[0];i++) { double e=1.0; const double e1=eOf(0,i);
+                                   for (int a=0;a<=lp;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
+    }
     //! \brief The \f$l_p\f$-SPECIALIZED body.  \a LP is \c q.lp, and every loop bound that was a runtime
     //! `q.lp` is now a compile-time constant: the innermost accumulation unrolls, \c ci[] can live in
     //! registers across the point loop, and the fold arrays shrink from \c kMaxPoly to what is used.
@@ -785,16 +865,7 @@ public:
             for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
         auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
         static thread_local rvec_t T12,T23,T31,E1;
-        T12.resize(size_t(n[0])*n[1]); T23.resize(size_t(n[1])*n[2]); T31.resize(size_t(n[2])*n[0]);
-        E1.resize(size_t(LP+1)*n[0]);
-        for (int i=0;i<n[0];i++) for (int j=0;j<n[1];j++)
-        { const double e1=eOf(0,i), e2=eOf(1,j); T12[size_t(i)*n[1]+j]=std::exp(-q.p*(e1*e1*h[0][0]+2*e1*e2*h[0][1])); }
-        for (int j=0;j<n[1];j++) for (int k=0;k<n[2];k++)
-        { const double e2=eOf(1,j), e3=eOf(2,k); T23[size_t(j)*n[2]+k]=std::exp(-q.p*(e2*e2*h[1][1]+2*e2*e3*h[1][2])); }
-        for (int k=0;k<n[2];k++) for (int i=0;i<n[0];i++)
-        { const double e3=eOf(2,k), e1=eOf(0,i); T31[size_t(k)*n[0]+i]=std::exp(-q.p*(e3*e3*h[2][2]+2*e3*e1*h[2][0])); }
-        for (int i=0;i<n[0];i++) { double e=1.0; const double e1=eOf(0,i);
-                                   for (int a=0;a<=LP;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
+        BuildCubeTables(g,q.p,LP,n,h,T12,T23,T31,E1);            // ONE definition -- see BuildCubeTables
         double cij[LP+1][LP+1], ci[LP+1];
         for (int k=0;k<n[2];k++)
         {
@@ -864,16 +935,7 @@ public:
             for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
         auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
         static thread_local rvec_t T12,T23,T31,E1;
-        T12.resize(size_t(n[0])*n[1]); T23.resize(size_t(n[1])*n[2]); T31.resize(size_t(n[2])*n[0]);
-        E1.resize(size_t(LP+1)*n[0]);
-        for (int i=0;i<n[0];i++) for (int j=0;j<n[1];j++)
-        { const double e1=eOf(0,i), e2=eOf(1,j); T12[size_t(i)*n[1]+j]=std::exp(-q.p*(e1*e1*h[0][0]+2*e1*e2*h[0][1])); }
-        for (int j=0;j<n[1];j++) for (int k=0;k<n[2];k++)
-        { const double e2=eOf(1,j), e3=eOf(2,k); T23[size_t(j)*n[2]+k]=std::exp(-q.p*(e2*e2*h[1][1]+2*e2*e3*h[1][2])); }
-        for (int k=0;k<n[2];k++) for (int i=0;i<n[0];i++)
-        { const double e3=eOf(2,k), e1=eOf(0,i); T31[size_t(k)*n[0]+i]=std::exp(-q.p*(e3*e3*h[2][2]+2*e3*e1*h[2][0])); }
-        for (int i=0;i<n[0];i++) { double e=1.0; const double e1=eOf(0,i);
-                                   for (int a=0;a<=LP;a++) { E1[size_t(a)*n[0]+i]=e; e*=e1; } }
+        BuildCubeTables(g,q.p,LP,n,h,T12,T23,T31,E1);            // ONE definition -- see BuildCubeTables
         W.Zero(LP);
         double cij[LP+1][LP+1], ci[LP+1];
         for (int k=0;k<n[2];k++)
