@@ -159,11 +159,26 @@ parity ROUTE affordable — see the parity row and the note below it.  CP2K colu
 | NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 21.1 s / 7.4 s | 37.9 / 7.2 s | **5.3×** | **61** / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **25.0 s** / 1m42s | **41.4** / 102 s | **0.41×** | **65** / 186 MB |
-| MnO AFM-II | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | **5m28.1s** / 6m14s | **584** / 373 s | **1.57×** | **491** / 217 MB |
+| **MnO AFM-II — ALL DEFAULTS** ⁴ | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | **5m28.1s** / 6m14s | **584** / 373 s | **1.57×** | **491** / 217 MB |
 | **MnO AFM-II, `QCHEM_BECKE_XC=0`** ⁶ | Γ | **VA (N=118)** | −61.40358773 | −61.303325178 | −100.26 mHa | **4m05.4s** / 6m14s | **246** / 373 s | **0.66×** | **105** / 217 MB |
 | ⚠ STALE MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
 | **MnO AFM-II, `CP2K_COMPAT=1`** ⁷ | Γ | **VA (N=118)** | −61.39789688 ⁷ | −61.303325178 | −94.57 mHa | 45m40s / 6m14s | **2736** / 373 s | **7.3×** | **112** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
+
+★ **THE THREE `MnO AFM-II` ROWS ARE ONE SYSTEM AND ONE RECIPE, with progressively more of OUR deviations
+switched off.**  Read them as a ladder, not as three experiments — the only thing changing is which of the
+six declared deviations are on:
+
+| the row | what is off | CPU | RSS |
+|---|---|---|---|
+| **ALL DEFAULTS** | nothing — every deviation at its qchem default (Becke XC, imposition, low-rank ρ, stream fold) | 584 s | 491 MB |
+| **`QCHEM_BECKE_XC=0`** | the Becke XC mesh only — so XC runs CP2K's way, everything else still ours | **246 s** | **105 MB** |
+| **`CP2K_COMPAT=1`** | ALL SIX — the honest algorithm-to-algorithm row | 2736 s | 112 MB |
+
+⚠ The middle row is the fastest because Becke's atom-centred quadrature is expensive machinery, and the
+bottom row is the slowest because parity also removes the STREAM FOLD (5.2× on MnO's pair count) and the
+low-rank ρ.  ⇒ **Always say WHICH of the three** — "the MnO row" has meant all three of these in the space
+of one day, and they differ by 11× in CPU.
 
 ⁷ **THE PARITY ROW — IT EXISTS AGAIN, AND THE OLD VERDICT IS RETRACTED (re-measured 2026-08-28).**
 `doc/OpenWork.md` and this file have carried *"AT TRUE PARITY OUR MnO RECIPE DOES NOT CONVERGE ... stage 2
