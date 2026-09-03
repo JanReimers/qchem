@@ -866,6 +866,26 @@ public:
         auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
         static thread_local rvec_t T12,T23,T31,E1;
         BuildCubeTables(g,q.p,LP,n,h,T12,T23,T31,E1);            // ONE definition -- see BuildCubeTables
+        // ⚠ THE O(n^2) COST IS THE PER-LINE WORK, NOT THE TABLES -- measured, and it refuted a fit
+        // (M_PG_BoxWalk.WhereTheContractionSpendsItsTime, 2026-08-28).  A raster-scaling fit attributed 56%
+        // of the kernel to an O(N^2) term and the obvious suspect was the three exponential tables; calling
+        // BuildCubeTables directly says they are **7%**.  What is really O(n^2) is THIS: the (j,k) line
+        // setup, run n1*n2 ~ 1849 times per task -- the e2 fold, a sqrt, and the modulo wraps.  Two cheap
+        // consequences, both bit-identical:
+        //   (1) WRAP TABLES.  The wrapped raster index of an axis depends only on that axis's index, so it
+        //       is O(n) to tabulate and O(n^2) to recompute.  The per-line integer modulos (a hardware
+        //       divide each -- the same instruction the 2026-08-26 box-walk work took off the inner path)
+        //       become loads from an n-element table built once per task.
+        //   (2) CHORD BEFORE FOLD.  ~21% of (j,k) lines miss the sphere entirely (pi/4 of a square), and
+        //       the e2 fold used to run BEFORE the test that discovers it.  Test first, fold only if the
+        //       line has points.
+        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;
+        auto wrapAxis=[&](int a, long N_a, std::vector<size_t>& w)
+        {
+            w.resize(size_t(n[a]));
+            for (int t=0;t<n[a];t++) w[size_t(t)]=size_t((((g.c0[a]-g.hw[a]+t)%N_a)+N_a)%N_a);
+        };
+        wrapAxis(0,N.x,wrapX); wrapAxis(1,N.y,wrapY); wrapAxis(2,N.z,wrapZ);
         double cij[LP+1][LP+1], ci[LP+1];
         for (int k=0;k<n[2];k++)
         {
@@ -877,16 +897,10 @@ public:
                     for (int c=0;a+b+c<=LP;c++) { v+=Q.q[a][b][c]*e; e*=e3; }
                     cij[a][b]=v;
                 }
-            const size_t mk=size_t((((g.c0[2]-g.hw[2]+k)%N.z)+N.z)%N.z);
+            const size_t mk=wrapZ[size_t(k)];
             for (int j=0;j<n[1];j++)
             {
                 const double e2=eOf(1,j);
-                for (int a=0;a<=LP;a++)                    // fold e2 once per line
-                {
-                    double v=0.0, e=1.0;
-                    for (int b=0;a+b<=LP;b++) { v+=cij[a][b]*e; e*=e2; }
-                    ci[a]=v;
-                }
                 // the chord in e1: h00 e1^2 + 2 e1 (h01 e2 + h20 e3) + (h11 e2^2 + h22 e3^2 + 2 h12 e2 e3) <= Rq
                 const double B2=2.0*(h[0][1]*e2+h[2][0]*e3);
                 const double C2=h[1][1]*e2*e2+h[2][2]*e3*e3+2.0*h[1][2]*e2*e3-g.Rq;
@@ -906,9 +920,15 @@ public:
                 if (ia<0) ia=0;
                 if (ib>n[0]-1) ib=n[0]-1;
                 if (ia>ib) continue;
+                for (int a=0;a<=LP;a++)                    // fold e2 -- ONLY for a line with points
+                {
+                    double v=0.0, e=1.0;
+                    for (int b=0;a+b<=LP;b++) { v+=cij[a][b]*e; e*=e2; }
+                    ci[a]=v;
+                }
                 const double t23=T23[size_t(j)*n[2]+k];
-                const size_t my=size_t((((g.c0[1]-g.hw[1]+j)%N.y)+N.y)%N.y);
-                size_t mi=size_t((((g.c0[0]-g.hw[0]+ia)%N.x)+N.x)%N.x);
+                const size_t my=wrapY[size_t(j)];
+                size_t mi=wrapX[size_t(ia)];
                 for (long ii=ia; ii<=ib; ii++, mi=(mi+1==size_t(N.x)?0:mi+1))
                 {
                     double v=0.0;
@@ -937,12 +957,21 @@ public:
         static thread_local rvec_t T12,T23,T31,E1;
         BuildCubeTables(g,q.p,LP,n,h,T12,T23,T31,E1);            // ONE definition -- see BuildCubeTables
         W.Zero(LP);
+        // Wrap tables, exactly as in ContractCubeN (see the note there): the per-line integer modulos are
+        // O(n^2) hardware divides for an O(n) fact.  The gather already tests the chord before its fold.
+        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;
+        auto wrapAxis=[&](int a, long N_a, std::vector<size_t>& w)
+        {
+            w.resize(size_t(n[a]));
+            for (int t=0;t<n[a];t++) w[size_t(t)]=size_t((((g.c0[a]-g.hw[a]+t)%N_a)+N_a)%N_a);
+        };
+        wrapAxis(0,N.x,wrapX); wrapAxis(1,N.y,wrapY); wrapAxis(2,N.z,wrapZ);
         double cij[LP+1][LP+1], ci[LP+1];
         for (int k=0;k<n[2];k++)
         {
             const double e3=eOf(2,k);
             for (int a=0;a<=LP;a++) for (int b=0;a+b<=LP;b++) cij[a][b]=0.0;
-            const size_t mk=size_t((((g.c0[2]-g.hw[2]+k)%N.z)+N.z)%N.z);
+            const size_t mk=wrapZ[size_t(k)];
             for (int j=0;j<n[1];j++)
             {
                 const double e2=eOf(1,j);
@@ -966,8 +995,8 @@ public:
                 if (ia>ib) continue;
                 for (int a=0;a<=LP;a++) ci[a]=0.0;
                 const double t23=T23[size_t(j)*n[2]+k];
-                const size_t my=size_t((((g.c0[1]-g.hw[1]+j)%N.y)+N.y)%N.y);
-                size_t mi=size_t((((g.c0[0]-g.hw[0]+ia)%N.x)+N.x)%N.x);
+                const size_t my=wrapY[size_t(j)];
+                size_t mi=wrapX[size_t(ia)];
                 for (long ii=ia; ii<=ib; ii++, mi=(mi+1==size_t(N.x)?0:mi+1))
                 {
                     const double gv=V[(mi*size_t(N.y)+my)*size_t(N.z)+mk]

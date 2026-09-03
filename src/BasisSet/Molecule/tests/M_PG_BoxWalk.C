@@ -1176,6 +1176,54 @@ TEST(M_PG_BoxWalk, WhereTheContractionSpendsItsTime)
     for (const Row& r : rows) { const double x=r.lp+1; sx+=x; sy+=r.contract; sxx+=x*x; sxy+=x*r.contract; }
     const double slope=(n*sxy-sx*sy)/(n*sxx-sx*sx), intercept=(sy-slope*sx)/n;
 
+    // ---- (1b) THE TABLE TERM, MEASURED DIRECTLY -- and against a pure MEMORY FLOOR ----
+    // The raster fit below infers the O(n^2) share; this measures it, because BuildCubeTables is callable.
+    // The FLOOR is the same 3n^2 doubles written sequentially into pre-sized vectors and nothing else: if
+    // the table build sits ON that floor it is memory-bound and only REMOVING the materialisation can help
+    // (which is what fusing the tables into the chord loop would do); if it sits well ABOVE, the gap is
+    // overhead worth finding before anything is redesigned.
+    {
+        size_t i0,nI,j0,nJ;
+        ASSERT_TRUE(FindShell(ev, A0, 1.2, 1, i0, nI));
+        ASSERT_TRUE(FindShell(ev, B0, 1.5, 1, j0, nJ));
+        std::vector<double> w(nI*nJ, 0.5);
+        const NR_Evaluator::BoxGeom bg=ev.MakeBoxGeom(i0,j0,rvec3_t(0,0,0),fx.cell,N,1e-10);
+        ASSERT_TRUE(bg.live);
+        const NR_Evaluator::PairPoly q=ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data());
+        ASSERT_TRUE(q.live);
+        const int nx[3]={2*bg.hw[0]+1, 2*bg.hw[1]+1, 2*bg.hw[2]+1};
+        const rvec3_t sv[3]={bg.sx,bg.sy,bg.sz};
+        double hm[3][3];
+        for (int a=0;a<3;a++) for (int b=0;b<3;b++)
+            hm[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
+
+        rvec_t T12,T23,T31,E1;
+        const double tTab=best([&]{ ev.BuildCubeTables(bg,q.p,q.lp,nx,hm,T12,T23,T31,E1); }, 3000, 3);
+
+        // THE FLOOR: identical geometry, identical write pattern, no exps and no recurrence -- three
+        // sequential fills of pre-sized buffers.  Pre-sized on purpose: it isolates the WRITES from any
+        // resize/allocation the real build may be paying per task.
+        rvec_t F12(size_t(nx[0])*nx[1]), F23(size_t(nx[1])*nx[2]), F31(size_t(nx[2])*nx[0]);
+        volatile double sink2=0.0;
+        const double tFloor=best([&]{
+            for (size_t t=0;t<F12.size();t++) F12[t]=double(t)*1.000001;
+            for (size_t t=0;t<F23.size();t++) F23[t]=double(t)*1.000001;
+            for (size_t t=0;t<F31.size();t++) F31[t]=double(t)*1.000001;
+            sink2=sink2+F12[0]+F23[0]+F31[0]; }, 3000, 3);
+
+        const double tCube=best([&]{ ev.ContractCubeN<2>(bg,q,N,dst); }, 300, 3);
+        const long   nEnt =long(nx[0])*nx[1]+long(nx[1])*nx[2]+long(nx[2])*nx[0];
+        std::printf("\n  [table term, MEASURED not fitted]  box %dx%dx%d, %ld table entries\n"
+                    "     BuildCubeTables      %8.2f us   (%.2f ns/entry)\n"
+                    "     pure-write FLOOR     %8.2f us   (%.2f ns/entry)\n"
+                    "     -> the build is %.2fx the floor; ContractCube total %.1f us, so tables are %.0f%%\n",
+                    nx[0],nx[1],nx[2], nEnt,
+                    tTab,   1000.0*tTab  /double(nEnt),
+                    tFloor, 1000.0*tFloor/double(nEnt),
+                    tTab/tFloor, tCube, 100.0*tTab/tCube);
+        EXPECT_GT(tCube, tTab) << "the tables cannot cost more than the whole contraction that contains them";
+    }
+
     // ---- (2) TABLES vs POINTS: scale the RASTER, nothing else ----
     // The three 2-D Mathieu exponentials are O(n^2) in the box's linear size; the chord loop is O(n^3).
     // Doubling N doubles n and leaves eps, the cell, the pair and the chord FRACTION alone -- so
