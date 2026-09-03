@@ -63,6 +63,7 @@ delta — which is the more useful statement anyway.
 | `GPW_XC_DM_SOURCE` — XC fed the retained DM ρ instead of the mixed ρ̃ | off | leave off; and see the pin — it is a TRAJECTORY change, so it must be pinned one way for Step 5's term-by-term breakdown either way |
 | `GPW_OMP_THREADS` / `OMP_NUM_THREADS` | 1 / inherited | `=1` for the parity row (rule 2) |
 | the T3 pair-stream orbit fold | **ARMED** | **DECLARE it, decide per row.**  Do not assume CP2K has no equivalent — state the fold state in the row and let the reader judge. |
+| `QCHEM_BECKE_XC` — the atom-centred (Becke) XC quadrature | **ON** (default since 2026-08-02) | **`=0`, and `CP2K_COMPAT=1` now does it for you.**  CP2K evaluates \f$V_{xc}\f$ on the uniform realspace grid.  ⚠ **This is 43% of the MnO row** (158 s of 367 s wall, the single largest block) — by far the biggest item ever added to this table, and it sat outside it until 2026-08-28 because it is a TYPED option rather than an env flag. |
 | `GPW_CONTRACT_CUBE` — the separable-contraction collocation kernel | **ON** (default since 2026-08-27) | **LEAVE IT ON.**  It is NOT a deviation: CP2K collocates exactly this way (`grid_cpu_collint.h`, Mathieu's three 2-D tables).  It is on this list only so a row states which kernel produced it — every run prints `[collocation] kernel=…` unconditionally.  `=0` reverts to the reference box walk, which is an investigation opt-out, not a comparison setting. |
 
 **The general rule, so this table does not have to be exhaustive:** anything that makes qchem faster and is
@@ -226,8 +227,15 @@ in `GPW_Evaluator` — per k-block by construction, which is what makes it exact
 | local-PP, 1E sums, closures | ~11 | 3% |
 
 ⇒ The atom-centred XC quadrature is now the largest single cost, and it is a **qchem-only algorithm** —
-CP2K runs XC on the uniform grid.  It is not on the deviation table above and it should be, which is the
-`raster`/`cutoffFactor` gap N5 already flags: these are TYPED options the policy does not reach.
+CP2K runs XC on the uniform grid.  ✅ **DECLARED 2026-08-28** as `QCHEM_BECKE_XC` (`RunPolicy::BeckeXC`), so
+it is on the deviation table above and `CP2K_COMPAT=1` routes XC to a **basis-sized** uniform grid — the
+sizing stays in `qcMesh::ResolveXCMesh`, because handing back a bare `cellKind` would leave `nUniform`'s
+basis-blind default of 20 in charge, which is the under-resolution that selector exists to prevent.
+⚠ The DEFAULT path is untouched by the change (with `BeckeXC()` true the new overload delegates to the
+unchanged two-argument resolver), and that is measured, not asserted: Si Γ reproduces −7.115067844 to all
+10 s.f. and `ctest -j8` is 793/793.  What DOES move is every `CP2K_COMPAT=1` row — of which this table has
+exactly one, already marked ⚠ STALE.
+⇒ `raster` and `cutoffFactor` remain the last two typed options outside the policy (N5).
 
 ⇒ **And the next KERNEL lever is NOT the batching.**  Measured at the unit level, **84% of the contraction
 kernel is the three 2-D Mathieu `exp` tables** (\f$3n^2\f$ scalar `std::exp` calls), worth up to ~35% of this

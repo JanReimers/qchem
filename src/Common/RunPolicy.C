@@ -80,13 +80,25 @@ public:
     //! supposed to remove, and every banked recipe sets it -- a switch that needed the recipe edited too
     //! would not be one switch.  \c QCHEM_IMPOSE_SYMMETRY=1 is the stated escape hatch.
     bool SymmetryImposition() const {return itsImpose.value;}
+    //! \brief May a run use the ATOM-CENTRED (Becke) XC quadrature?  DEFAULT true; false under
+    //! \c CP2K_COMPAT, which then routes XC onto the uniform grid however the caller set \c xcMesh.
+    //!
+    //! WHY IT IS ON THIS LIST (2026-08-28).  CP2K evaluates \f$V_{xc}\f$ on the uniform realspace grid;
+    //! qchem's default since 2026-08-02 is a periodic Becke atom-centred mesh, and on the MnO benchmark row
+    //! that mesh is **158 s of 367 s wall — 43%, the single largest block**, ahead of the collocation.  A
+    //! head-to-head row that leaves it on is qchem-with-Becke against CP2K-plain.  It reached this table
+    //! late because it is a TYPED option (\c SolidCalcOptions::xcMesh) rather than an env flag — the same
+    //! gap \c raster and \c cutoffFactor still sit in.
+    //! ⚠ Like \c SymmetryImposition this OVERRULES the caller, for the same reason: every banked recipe
+    //! sets the mesh, and a switch that needed the recipe edited too would not be one switch.
+    bool BeckeXC() const {return itsBeckeXC.value;}
     //!@}
 
     bool CP2KCompat() const {return itsCP2KCompat;}   //!< the umbrella was asked for
     //! Every deviation, in one list, whatever its value -- the banner prints the WHOLE table, because a
     //! row that lists only what is ON cannot be read as evidence that the rest is OFF.
     std::vector<Deviation> Deviations() const
-    {return {itsDMLowRank, itsStreamFold, itsMixRhoM, itsXCFromDM, itsImpose};}
+    {return {itsDMLowRank, itsStreamFold, itsMixRhoM, itsXCFromDM, itsImpose, itsBeckeXC};}
     //! Are we actually at parity?  (CP2K_COMPAT=1 plus an explicit knob that contradicts it is NOT.)
     bool AtParity() const;
     //! One line naming every deviation and its state, with `*` on the ones that differ from CP2K.
@@ -95,7 +107,7 @@ public:
 private:
     Deviation Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault);
     bool      itsCP2KCompat = false;
-    Deviation itsDMLowRank{}, itsStreamFold{}, itsMixRhoM{}, itsXCFromDM{}, itsImpose{};
+    Deviation itsDMLowRank{}, itsStreamFold{}, itsMixRhoM{}, itsXCFromDM{}, itsImpose{}, itsBeckeXC{};
 };
 
 //! The process's policy.  A function rather than a global so it is constructed on first use, after

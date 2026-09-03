@@ -229,6 +229,15 @@ inline constexpr double kRadialRatioFloor = 3.0;
 //! existing GPW test print its own crossover data, which IS the instrument that calibration needs.
 MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness&);
 
+//! \brief \a allowBecke=false FORCES the uniform grid, sized from the basis, whatever \a mp asked for.
+//!
+//! The seam for \c qchem::RunPolicy::BeckeXC (\c CP2K_COMPAT): CP2K evaluates \f$V_{xc}\f$ on the uniform
+//! realspace grid, so a head-to-head row must too.  The POLICY lives with the caller and the SIZING lives
+//! here — handing back a bare \c cellKind would leave \c nUniform's basis-blind default of 20 in charge,
+//! which is precisely the under-resolution the selector exists to prevent.  \a allowBecke=true is exactly
+//! the two-argument overload above.
+MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness&, bool allowBecke);
+
 //! \brief The no-information overload: resolve \c Auto to Becke, the SAFE grid.
 //!
 //! Not a convenience -- a deliberate fallback for a caller that cannot state the run's sharpness.  Becke is
@@ -333,6 +342,18 @@ long BeckeMeshCost(const MeshParams& mp, const XCMeshSharpness& s)
 // The one place the choice is made and narrated.  Both branches print, because the standing pin is that a run
 // always says which XC route is in play -- and here it must also say WHY, since the answer now depends on the
 // system rather than on a fixed default.
+MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s, bool allowBecke)
+{
+    if (allowBecke) return ResolveXCMesh(mp,s);
+    // CP2K PARITY: the atom-centred mesh is off the table, so resolve to the uniform grid AT THE CUTOFF THIS
+    // SYSTEM NEEDS -- the same sizing the Auto branch applies, never the caller's (or nUniform's) guess.
+    MeshParams u=mp;
+    u.cellKind=UnitCellKind::Uniform;
+    u.eCut    = s.Known() ? RequiredUniformCutoff(s) : mp.eCut;
+    std::cout<<"[XC grid choice] BECKE VETOED by CP2K_COMPAT -> UNIFORM (eCut="<<u.eCut<<" Ha)"<<std::endl;
+    return u;
+}
+
 MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
 {
     if (!s.Known()) return ResolveXCMesh(mp);   // caller could not state the sharpness -> the safe grid

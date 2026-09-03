@@ -43,7 +43,8 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
 {
     Restore r;
     Env a("CP2K_COMPAT",nullptr), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
-        d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr);
+        d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
+        g("QCHEM_BECKE_XC",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
     EXPECT_FALSE(p.CP2KCompat());
@@ -54,7 +55,7 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
     EXPECT_FALSE(p.MixRhoM());
     EXPECT_FALSE(p.XCFromDM());
     EXPECT_TRUE (p.SymmetryImposition()) << "by default the caller's imposeSymmetry is obeyed";
-    EXPECT_EQ(p.Deviations().size(), 5u) << "a new accelerator is not finished until it is in this list";
+    EXPECT_EQ(p.Deviations().size(), 6u) << "a new accelerator is not finished until it is in this list";
     EXPECT_NE(p.Banner().find("DEVIATING"), std::string::npos);
 }
 
@@ -63,7 +64,8 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
 {
     Restore r;
     Env a("CP2K_COMPAT","1"), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
-        d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr);
+        d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
+        g("QCHEM_BECKE_XC",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
     EXPECT_TRUE (p.CP2KCompat());
@@ -83,8 +85,9 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
 TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
 {
     Restore r;
-    Env a("CP2K_COMPAT","1"), b("GPW_STREAM_FOLD","1"), c("QCHEM_DM_LOWRANK",nullptr),
-        d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr);
+    Env a("CP2K_COMPAT","1"), b("GPW_STREAM_FOLD","1"), c("QCHEM_DM_LOWRANK",nullptr), h("QCHEM_BECKE_XC",nullptr),
+        d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
+        g("QCHEM_BECKE_XC",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
     EXPECT_TRUE (p.CP2KCompat());
@@ -99,7 +102,7 @@ TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
 TEST(RunPolicy, SetToZeroCountsAsStated)
 {
     Restore r;
-    Env a("CP2K_COMPAT",nullptr), b("GPW_STREAM_FOLD","0");
+    Env a("CP2K_COMPAT",nullptr), b("GPW_STREAM_FOLD","0"), c("QCHEM_BECKE_XC",nullptr);
     ReresolveRunPolicy();
     EXPECT_FALSE(theRunPolicy().StreamFold());
     bool found=false;
