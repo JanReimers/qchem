@@ -218,7 +218,9 @@ both, so it never memoized at all.  ⇒ The fix caches the FINISHED \f$h\f$ on \
 in `GPW_Evaluator` — per k-block by construction, which is what makes it exact whatever route produced
 \f$h\f$.  Gathers **184 → 74**, bucket **121 → 50 s**, `Etot` unmoved.
 
-⚠ **AND THE PROFILE HAS RE-ORDERED — the box walk is no longer the biggest block on this row:**
+⚠ **AND THE PROFILE HAS RE-ORDERED — the box walk is no longer the biggest block on this row.**  ⚠ "This
+row" means the DEFAULT row (`CP2K_COMPAT=0`), which runs Becke; the parity row is a different measurement
+and is dealt with below.
 
 | block | s (of 367 s wall) | share |
 |---|---|---|
@@ -227,8 +229,32 @@ in `GPW_Evaluator` — per k-block by construction, which is what makes it exact
 | unaccounted (LA, mixing, FFT) | ~75 | 20% |
 | local-PP, 1E sums, closures | ~11 | 3% |
 
-⇒ The atom-centred XC quadrature is now the largest single cost, and it is a **qchem-only algorithm** —
-CP2K runs XC on the uniform grid.  ✅ **DECLARED 2026-08-28** as `QCHEM_BECKE_XC` (`RunPolicy::BeckeXC`), so
+⛔ **AND MEASURING IT INVERTED WHAT THAT SHARE SEEMS TO IMPLY — BECKE IS A 3× NET WIN, NOT AN ADVERTISEMENT.**
+"43% of the row" does NOT mean "43% to be had by turning it off".  The uniform grid this system needs is
+**571787 points against Becke's 48320** — 11.8× more — which is exactly why the `Auto` selector picks Becke
+here.  Measured 2026-08-28 with `QCHEM_BECKE_XC=0` and everything else at default (the imposition KEPT, so
+the run still converges — full `CP2K_COMPAT` does not, see below):
+
+| MnO AFM-II Γ, VA, imposed | Becke (default) | **uniform XC** |
+|---|---|---|
+| Etot | −61.40297551 | −61.40295935 (1.6e-5 Ha — the quadrature difference) |
+| iterations | 17 | 13 |
+| **CPU** | **584 s** | **1805 s (3.09× SLOWER)** |
+| wall | 5m28.1s | 30m10.9s |
+| **peak RSS** | **491 MB** | **4494 MB (9.2×)** |
+| the XC buckets | 158 s | **1592 s** (ρ sampling 874 + Φ tables 488 + H_xc 230) |
+
+⇒ **The problem is not that Becke is an unfair advantage; it is that our UNIFORM route — the parity route —
+is ~10× dearer than Becke on this cell.**  And that is a qchem defect, not a law: CP2K evaluates
+\f$v_{xc}(\rho(r))\f$ POINTWISE on the realspace grid it already holds, while ours goes through the full
+XC-mesh machinery — 244 s per Φ-table build, 58 s per ρ sampling — for a job that should be a functional
+evaluation over an existing array.  **⇒ The lever is to make the uniform XC route be the cheap thing CP2K
+does, NOT to remove Becke.**  Until that lands, an honest parity row on this system will be far WORSE than
+the default row's 1.57×, and quoting the default row as though Becke were free is the mistake in the other
+direction.
+
+⇒ The atom-centred XC quadrature is the largest single cost of the DEFAULT row, and it is a **qchem-only
+algorithm** — CP2K runs XC on the uniform grid.  ✅ **DECLARED 2026-08-28** as `QCHEM_BECKE_XC` (`RunPolicy::BeckeXC`), so
 it is on the deviation table above and `CP2K_COMPAT=1` routes XC to a **basis-sized** uniform grid — the
 sizing stays in `qcMesh::ResolveXCMesh`, because handing back a bare `cellKind` would leave `nUniform`'s
 basis-blind default of 20 in charge, which is the under-resolution that selector exists to prevent.

@@ -350,7 +350,8 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s, bool al
     MeshParams u=mp;
     u.cellKind=UnitCellKind::Uniform;
     u.eCut    = s.Known() ? RequiredUniformCutoff(s) : mp.eCut;
-    std::cout<<"[XC grid choice] BECKE VETOED by CP2K_COMPAT -> UNIFORM (eCut="<<u.eCut<<" Ha)"<<std::endl;
+    std::cout<<"[XC grid choice] BECKE VETOED by run policy (QCHEM_BECKE_XC/CP2K_COMPAT) -> UNIFORM (eCut="
+             <<u.eCut<<" Ha)"<<std::endl;
     return u;
 }
 
