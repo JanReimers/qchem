@@ -171,13 +171,22 @@ TEST_F(BSplineTests, Knots)
     std::vector<Spline> splines=bspline::generateBSplines<K>(knots);
     EXPECT_EQ(splines.size(),knots.size()-K-1);
     double k0=knots[0], kn=knots[knots.size()-1];
-    EXPECT_NEAR(splines[0](k0),1.0,2e-16);
-    EXPECT_NEAR(splines[1](k0),0.0,2e-16);
-    EXPECT_NEAR(splines[2](k0),0.0,2e-16);
+    // THE BAR IS "ZERO / ONE TO ROUNDOFF", NOT "WHAT ONE BUILD PRODUCED" (2026-09-04).  These values are
+    // EXACTLY 0 and 1 mathematically -- a B-spline is 1 at its own first knot and identically zero outside
+    // its support -- so the only question is how many ulps of slop a few sums of products may leave.  The
+    // tolerances used to be 2-3e-16, i.e. ~1 ulp, which is not a numerical standard: it was fitted to the
+    // rounding one -O3 build happened to give, and `-march=native` (which licenses FMA CONTRACTION -- a*b+c
+    // rounds ONCE, not twice) moved splines[1](k0) to -2.95e-16 and tripped it.  A few ulps is the honest
+    // bar for this quantity, and it still catches anything that is actually wrong: a genuine support or
+    // knot-placement defect is O(1), not O(1e-16).
+    constexpr double kUlps=5e-16;                       // ~2 ulps of 1.0
+    EXPECT_NEAR(splines[0](k0),1.0,kUlps);
+    EXPECT_NEAR(splines[1](k0),0.0,kUlps);
+    EXPECT_NEAR(splines[2](k0),0.0,kUlps);
     size_t Slast=splines.size()-1;
-    EXPECT_NEAR(splines[Slast-0](kn),1.0,3e-16);
-    EXPECT_NEAR(splines[Slast-1](kn),0.0,2e-16);
-    EXPECT_NEAR(splines[Slast-2](kn),0.0,2e-16);
+    EXPECT_NEAR(splines[Slast-0](kn),1.0,kUlps);
+    EXPECT_NEAR(splines[Slast-1](kn),0.0,kUlps);
+    EXPECT_NEAR(splines[Slast-2](kn),0.0,kUlps);
     const BilinearForm bilinearForm{IdentityOperator{}};
     rsmat_t S=MakeSMat(splines,bilinearForm);
 }

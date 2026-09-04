@@ -301,7 +301,11 @@ TEST_F(DBCach1Tests,SlaterRepulsion3C)
 TEST_F(DBCach1Tests,BSplineDirect)
 {
     Init(BSpline6);
-    TestDirect(6e-13);
+    // ⚠ 6e-13 -> 8e-13 (2026-09-04): the residual is ||J - J^T||, mathematically EXACTLY zero, so the
+    // number here is a roundoff floor and not a physics bar.  It was fitted just above what one -O3 build
+    // produced (1.05x headroom), and `-march=native`'s FMA contraction moved it to 6.30e-13.  Widened to
+    // keep ~1.3x headroom over the contracted value; a real bra-ket asymmetry is O(1e-3), not O(1e-13).
+    TestDirect(8e-13);
 }
 TEST_F(DBCach1Tests,BSplinerDirect)
 {
@@ -321,7 +325,7 @@ TEST_F(DBCach1Tests,SlaterDirect)
 TEST_F(DBCach1Tests,BSplineExchange)
 {
     Init(BSpline6);
-    TestExchange(1.4e-13);
+    TestExchange(2e-13);   // 1.4e-13 -> 2e-13, same roundoff-floor reason as TestDirect above (FMA: 1.63e-13)
 }
 TEST_F(DBCach1Tests,BSplinerExchange)
 {

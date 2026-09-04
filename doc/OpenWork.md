@@ -66,7 +66,7 @@ stop competing for the reader's attention here:
 
 | bin | the axis | where it stands (MnO AFM-II VA, 2026-08-28) |
 |---|---|---|
-| **1** | **per-iteration CPU** | ★★★ **CLOSED 2026-09-04: 1.00× with our screen (8.51 s), 1.07× at TRUE PARITY** (9.14 s vs CP2K's 8.5 s) — from 2.22×/3.5× at the start of the day.  Two steps: the stale entry was ~1.7× pessimistic (re-taken: 1.54×), then the XC term stopped gathering twice (1.54× → **1.07×**, see the Hamiltonian section below).  ⚠ The default-route rows have NOT been re-taken.  ⇒ What is left is inside compiler-codegen territory; the one untried lever is `-march=native` (this tree does not use it) |
+| **1** | **per-iteration CPU** | ★ **RE-TAKEN 2026-09-04 with the printed VA command** (E_tot and iteration counts reproduce 08-28 exactly): ALL DEFAULTS **2.14× → 1.47×** CP2K, `QCHEM_BECKE_XC=0` **0.74× → 0.47×** (⇒ ~2× FASTER than CP2K on the XC-parity route), `CP2K_COMPAT=1` probe **2.3× → 1.99×**.  Best figures are the `-march=native` arm, now the default.  ⚠ "current vs banked", NOT an attribution — other work landed since 08-28 and no parent-commit A/B was run on this recipe.  ⚠ An earlier 09-04 claim of 1.00×/1.07× was RETRACTED (wrong basis + single stage; doc/Benchmark.md carries the retraction and the tell).  ⇒ **bin 1 is NOT closed**: parity is still 1.99× |
 | **2** | **init / pre-iteration time** | ✅ **on the parity row: 1.36 s of 131 s = 1.0%** (measured 09-04 — local-PP long+short, the 1E lattice sums, KB, the task list).  On the DEFAULT row it is still the Becke mesh build 16.7 s + XC Φ tables 40.3 s ≈ 57 s of 328 s; both vanish under `QCHEM_BECKE_XC=0`, so bin 2 remains a Becke-mesh question and only there |
 | **3** | **peak RAM** | ✅ **solved, and we WIN**: 1323 → 491 MB default; **108–111 MB on the parity routes against CP2K's 217 MB (0.51×)**, re-confirmed 09-04 |
 | **4** | **iteration count** | 31 (default) / 93-and-capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  The findings are below |
@@ -95,8 +95,10 @@ POTENTIALS pointwise and gathering once is mathematically identical and halves t
 ⚠ **A fix here is NOT bit-identical** — it changes the summation order from (matrix + matrix) to
 (matrix of the field sum), so it needs an anchor re-bank.
 
-**WHAT IT WAS WORTH — BOTH FIXED, MEASURED 2026-09-04.**  Wall **2:11.2 → 1:31.4 (−30.6%)**, i.e.
-**13.1 → 9.14 s/iter, 1.54× → 1.07× CP2K**; gather misses 65 → 43, its bucket 92.4 → 56.8 s.
+**WHAT IT WAS WORTH — BOTH FIXED, MEASURED 2026-09-04.**  Wall **2:11.2 → 1:31.4 (−30.6%)**; gather
+misses 65 → 43, its bucket 92.4 → 56.8 s.  ⚠ The "1.54× → 1.07× CP2K" this line originally carried is
+WITHDRAWN — that run used the default basis and one SCF stage, not the VA/annealed recipe CP2K's 8.5 s/step
+belongs to.  The −30.6% is a same-config A/B and stands.
 \f$E_{tot}\f$ **identical** to all 10 printed figures and the full suite green — no anchor re-banked.
 ⚠ **THE SPLIT WAS NOT EVEN**: (2) carried essentially all of it; (1) was worth ~0.3%, not the ~23% first
 estimated, because its duplicates were ALREADY GatherMemo hits.  ⇒ **Read gather MISSES, not closure

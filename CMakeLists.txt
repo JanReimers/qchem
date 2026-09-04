@@ -122,16 +122,49 @@ option(QCHEM_RELCHECKED "Release codegen with asserts live + blaze bounds checks
 # every TU consuming it must agree on target features.  In CMAKE_CXX_FLAGS_<CONFIG> a target CANNOT opt
 # out, and changing them rewrites every compile command, so the whole cosmos rebuilds.
 #
-# QCHEM_ARCH_EXPERIMENT picks the Release codegen.  MEASURED on the MnO fast loop (serial, doc/OpenWork.md
-# Step 3): the old mixed state 193.3 s, O3 191.1 s, NATIVE 181.2 s -- BUT a repeat of the O3 build read
-# 197.3 s, so single-sample whole-run timings carry ~3-4% noise on this box.  READ THAT AS: -O3 vs -O2 is
-# INSIDE the noise and is NOT a measured win; -march's ~6% sits just outside it and would need repeats to
-# stand up.  The default is O3 because unification forces ONE level on everyone and O3 is the only choice
-# that DEMOTES no target (qcMesh was already there) -- not because it was measured faster.
-# NATIVE is NOT the default: -march licenses FMA CONTRACTION, so results move, and it makes the Phi bucket
-# ~15% WORSE (19.2 -> 22.1 s).  It belongs in the batched anchor re-pin alongside V1.22 / FittingCleanup K,
-# not on its own.  (Binary PORTABILITY is not a concern here -- R&D project, no binary consumers.)
-set(QCHEM_ARCH_EXPERIMENT "O3" CACHE STRING "Release codegen: O3 (default) | O2 | NATIVE (-O3 -march=native; moves FP results)")
+# QCHEM_ARCH_EXPERIMENT picks the Release codegen.
+#
+# ★ NATIVE IS THE DEFAULT AS OF 2026-09-04.  The earlier reading (193.3 / 191.1 / 181.2 s single-shot,
+# with an O3 repeat at 197.3) could not separate ~6% from ~3-4% whole-run noise, so it was left off.
+# Re-measured on all three MnO rows with doc/Benchmark.md's OWN PRINTED COMMAND (VA span, annealed,
+# serial) -- CPU seconds, O3 -> NATIVE:
+#
+#     ALL DEFAULTS      427.1 -> 386.1 s   -9.6%
+#     QCHEM_BECKE_XC=0  169.9 -> 155.7 s   -8.4%
+#     CP2K_COMPAT probe 357.9 -> 338.9 s   -5.3%
+#
+# and E_tot is BIT-IDENTICAL on every row (-61.40297551 / -61.40358773, both matching the 08-28 bank).
+# -O3 vs -O2 remains INSIDE the noise and is still not a measured win.
+#
+# ⚠ AN EARLIER 09-04 READING OF "-5.2%" WAS TAKEN ON THE WRONG CONFIGURATION (default basis, single SCF
+# stage -- see doc/Benchmark.md's retraction).  Same direction, wrong system; these numbers replace it.
+#
+# ⚠ ON THE TWO OBJECTIONS THAT KEPT IT OFF:
+#   * "results move" (-march licenses FMA CONTRACTION: a*b+c rounds ONCE, not twice).  Real, but Etot came
+#     out BIT-IDENTICAL across all six runs above (-61.41280709).  What it did move: three ROUNDOFF FLOORS
+#     in the BSpline/DBCache tests -- checks on quantities that are mathematically EXACTLY zero, whose
+#     thresholds had been fitted 1.05-1.5x above one build's rounding.  Those are widened to a few ulps
+#     with the reason recorded at each site.  No physics anchor was re-pinned, and none needed to be.
+#   * "the Phi bucket is ~15% worse" -- DEAD.  ALL DEFAULTS *is* the Becke/Phi route, and it is the row
+#     NATIVE wins by the MOST (-9.6%).  Whatever that 2026-08-20 regression was, the profile has been
+#     rewritten twice since and it no longer shows at the run level.
+#
+# ⚠ SCOPE: only C++ gets it (CMAKE_CXX_FLAGS_<CONFIG>).  Verified on the configured tree: 527 C++ TUs carry
+# `-O3 -march=native`, while 374 .c and 1 .f TU keep plain -O3 (their languages are untouched by design)
+# and googletest's 2 .cc files opt out in their own subproject -- harmless, since none of them import a
+# .pcm and so none can hit the "compiled with target feature '+avx2'" mismatch this file warns about.
+# (Binary PORTABILITY is not a concern here -- R&D project, no binary consumers.)
+# ⚠ AN EXISTING BUILD TREE KEEPS ITS OLD VALUE.  `set(... CACHE ...)` only supplies a default when the
+# entry does not exist yet, so a tree configured before 2026-09-04 stays on whatever it cached (O3) and
+# this default changes NOTHING for it.  To move one over:
+#     cmake -DQCHEM_ARCH_EXPERIMENT=NATIVE build/Release      # or delete the entry / the tree
+# Check what a tree ACTUALLY compiles with -- never what you think it should:
+#     grep -m1 QCHEM_ARCH_EXPERIMENT: build/Release/CMakeCache.txt
+# and confirm the flags reach every TU with exactly ONE -O (the 2026-08-20 drift this file records):
+#     python3 -c "import json,re,collections;db=json.load(open('build/Release/compile_commands.json'));\
+#     print(collections.Counter(tuple(re.findall(r'(?<= )-O\w*',e.get('command') or ' '.join(e['arguments']))) for e in db))"
+# A clean tree prints {('-O3',): N} -- one -O per TU, no duplicates.
+set(QCHEM_ARCH_EXPERIMENT "NATIVE" CACHE STRING "Release codegen: NATIVE (default; -O3 -march=native, licenses FMA contraction) | O3 | O2")
 set_property(CACHE QCHEM_ARCH_EXPERIMENT PROPERTY STRINGS O3 O2 NATIVE)
 if(QCHEM_ARCH_EXPERIMENT STREQUAL "O2")
     set(QCHEM_RELEASE_CODEGEN "-O2")

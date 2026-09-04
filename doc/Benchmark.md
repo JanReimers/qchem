@@ -172,22 +172,41 @@ carried it: `CPU q / c` is the total for the run, and two runs in it differ by 3
 run that needs twice the steps looks twice as slow on a per-ITERATION basis it may actually be winning.
 For the MnO ladder, where the campaign currently is:
 
-| the row | iterations | **CPU / ITERATION** | vs CP2K's 8.5 s/step |
-|---|---|---|---|
-| **`CP2K_COMPAT=1`, `GPW_DAWARE_SCREEN=1`**, NMAX=10 AFM ★ 09-04 | 10 | **11.5 s** | **1.35×** |
-| **`CP2K_COMPAT=1`** = TRUE PARITY (geometry-only screen), NMAX=10 AFM ★ 09-04 | 10 | **13.1 s** | **1.54×** |
-| ⚠ STALE — ALL DEFAULTS, 08-28 | 14+17 = **31** | 18.2 s | 2.14× |
-| ⚠ STALE — `QCHEM_BECKE_XC=0`, 08-28 | 25 (stage 2; stage 1 not recorded) | ❓ never read | ❓ |
-| ⚠ STALE — `CP2K_COMPAT=1`, `GPW_MNO_NMAX=10` probe, 08-28 | 10+10 = **20** | 19.3 s | 2.3× |
-| ⚠ STALE — `CP2K_COMPAT=1`, the full table row | 13+80 = **93**, both CAPPED | 29.4 s ⁸ | 3.5× ⁸ |
-| CP2K (its own log) | 44 | 8.5 s | — |
+★ **RE-TAKEN 2026-09-04 WITH THE PRINTED COMMAND** (serial; `-O3` and `-O3 -march=native` arms).  Every
+row reproduces its banked \f$E_{tot}\f$ and iteration count EXACTLY -- which is the correctness statement
+for the whole 09-04 change set (screener seam + one-gather XC term + CacheSpin + the codegen flip):
 
-⛔ **EVERY 08-28 ROW ABOVE IS SUPERSEDED — the box walk got ~1.45× faster after they were taken** (the
-run-length stream geometry) and nothing re-banked them, so the standing *"we are 2.2–3.5× per step"*
-premise was ~1.7× too pessimistic for six days.  The two ★ rows are the current instrument (09-04, serial,
-one binary, both arms in one session; full provenance at footnote ⁹).  **The two default-route rows have
-NOT been re-taken** — they need a run each and are the honest gap in this table.
-⚠ The ★ rows run the AFM arm only (`MNO_SKIP_FM=1`), so their iteration count is 10, not 10+10.
+| the row | iterations | banked 08-28 | **O3 now** | **NATIVE now** | \f$E_{tot}\f$ |
+|---|---|---|---|---|---|
+| **ALL DEFAULTS** | 14+17 = **31** | 18.2 s (2.14×) | **13.78 s (1.62×)** | **12.45 s (1.47×)** | −61.40297551 = banked |
+| **`QCHEM_BECKE_XC=0`** | 14+25 = **39** | 6.31 s (0.74×) ⁸ᵇ | **4.36 s (0.51×)** | **3.99 s (0.47×)** | −61.40358773 = banked |
+| **`CP2K_COMPAT=1`**, `GPW_MNO_NMAX=10` probe | 10+10 = **20** | 19.3 s (2.3×) | **17.89 s (2.11×)** | **16.94 s (1.99×)** | (capped, both arms equal) |
+| ⚠ `CP2K_COMPAT=1`, the full table row | 13+80 = **93**, both CAPPED | 29.4 s ⁸ | not re-taken (45 min) | — | |
+| CP2K (its own log) | 44 | 8.5 s | — | — | |
+
+⁸ᵇ the banked `QCHEM_BECKE_XC=0` row recorded 246 s CPU but only stage 2's iteration count; stage 1 is
+assumed 14 (this re-take's value, and its \f$E_{tot}\f$ matches to all digits), so 6.31 s/iter is derived,
+not banked.
+
+⇒ **WHAT MOVED, honestly**: ALL DEFAULTS **−24.3%** CPU against 08-28, `BECKE_XC=0` **−30.9%**, the parity
+probe only **−7.3%**.  ⚠ THIS IS "CURRENT vs BANKED", NOT AN ATTRIBUTION: other work landed between 08-28
+and now, and no A/B against the parent commit was run on this recipe, so it is NOT established how much of
+it today's three changes account for.
+⇒ **BIN 1 IS NOT CLOSED.**  Best case 1.47× (defaults, NATIVE); parity still 1.99×.  The `BECKE_XC=0` row
+is the standout -- **0.47×, i.e. we are ~2× FASTER than CP2K per step on the XC-parity route.**
+
+⛔⛔ **A 2026-09-04 ATTEMPT TO RE-TAKE THESE ROWS WAS RETRACTED — READ THIS BEFORE QUOTING ANY 09-04 NUMBER.**
+The re-take ran `MNO_SKIP_FM=1 GPW_REPORT=1` and NOTHING ELSE, i.e. it silently used the DEFAULT basis
+(`VALENCE_LOWQ_SR`, Cartesian) and a SINGLE SCF stage — where every row in this table is
+`GPW_SPHERICAL=1 GPW_BASIS_SPAN=va` (VA, 118 functions, spherical) with the two-stage
+`MNO_ANNEAL="5e-3,0" MNO_ACC="Ladder,GDM" MNO_MOM=0 …` recipe printed under "the commands" below.
+⇒ It was a DIFFERENT SYSTEM, so "1.35× / 1.54× / 1.07× / 1.00× vs CP2K" and the claim that these rows were
+"stale by ~1.45×" are ALL WITHDRAWN.  CP2K's 8.5 s/step is a VA-deck number and only a VA run may be
+divided by it.
+★ **THE TELL, recorded so the next person catches it in one minute instead of an afternoon**: this probe is
+documented as *"~6 minutes"* and the retracted runs finished in **90 seconds**.  A 4× discrepancy against
+the written cost of the SAME probe is a CONFIGURATION difference until proven otherwise -- it is not your
+speedup.  ⇒ **A row is comparable only if it names its recipe.  Copy the command, do not reconstruct it.**
 
 ⁸ ⚠ **THE 93-ITERATION FIGURE IS PRE-FIX AND ITS STAGE MIX DIFFERS — do not read 29.4 → 19.3 as a 1.5×.**
 The two runs make different numbers of collocations PER iteration (13.4 against 10.0) because a longer
@@ -199,21 +218,27 @@ cap-independent measure is PER CALL**, straight off the ledger, and that is what
 | collocate / gather, ALL DEFAULTS | 0.444 / 0.509 s | **0.402 / 0.419 s** |
 | collocate / gather, `CP2K_COMPAT=1` | 2.03 / 2.24 s | 1.84 / 1.88 s ⁹ |
 
-⁹ ⛔ **STALE AS OF 2026-09-04 — RE-TAKEN, AND THE BOX WALK IS ~1.45× FASTER THAN THIS ROW SAYS.**  The
-run-length stream geometry landed after these numbers and nothing re-banked them, so the standing "we are
-~2.3× CP2K per step" premise was ~1.7× too pessimistic.  Re-measured serially,
-`CP2K_COMPAT=1 GPW_MNO_NMAX=10 MNO_SKIP_FM=1`, both arms one binary one session:
+⁹ ⛔ **WITHDRAWN 2026-09-04.**  This footnote claimed the row above was "stale by ~1.45×"; the run behind
+that claim used the DEFAULT basis and a single SCF stage, not the VA/annealed recipe these rows are taken
+with, so it measured a different system and said nothing about this row.  The 08-28 numbers stand until
+someone re-takes them WITH THE PRINTED COMMAND.  What the 09-04 session did establish, on its own
+configuration and as A/B deltas only:
 
-| MnO, `CP2K_COMPAT=1`, serial | collocate/call | gather/call | wall (10 it) | **s/iter** | **vs CP2K 8.5 s** |
-|---|---|---|---|---|---|
-| ⚠ pre-fix, `GPW_DAWARE_SCREEN=1` | 1.266 s | 1.254 s | 1:54.6 | 11.5 | 1.35× |
-| ⚠ pre-fix, `GPW_DAWARE_SCREEN=0` = TRUE PARITY ¹⁰ | 1.520 s | 1.421 s | 2:11.2 | 13.1 | 1.54× |
-| ★ **after the one-gather XC term**, `GPW_DAWARE_SCREEN=1` ¹¹ | **1.256 s** | **1.241 s** | **1:25.1** | **8.51** | **1.00×** |
-| ★ **after the one-gather XC term**, TRUE PARITY ¹¹ | **1.393 s** | **1.321 s** | **1:31.4** | **9.14** | **1.07×** |
+⚠ **THE 09-04 A/B DELTAS ARE VALID; THEIR ABSOLUTE COLUMN IS NOT.**  Every pair below ran the SAME
+(non-VA, single-stage) configuration on both sides in one session on one binary, so the RATIOS stand and
+are what the changes are worth.  There is NO CP2K column, deliberately: that configuration has no CP2K
+counterpart (see the retraction above).  ⇒ Read these as "what the change did", never as a scoreboard.
 
-⇒ ★★★ **BIN 1 IS CLOSED: BOTH ARMS ARE AT CP2K's PER-STEP TIME** — 1.00× with our density screen, 1.07× at
-true algorithm-to-algorithm parity, from 2.22×/3.5× the same morning.  \f$E_{tot}\f$ is unchanged on both
-arms (−61.41280732 / −61.41280709, matching their pre-fix values to all 10 printed figures).
+| MnO, `CP2K_COMPAT=1`, serial, NMAX=10 (⚠ default basis, 1 stage — NOT a table row) | collocate/call | gather/call | wall |
+|---|---|---|---|
+| D-aware screen, before the XC fix | 1.266 s | 1.254 s | 1:54.6 |
+| geometry-only screen, before the XC fix | 1.520 s | 1.421 s | 2:11.2 |
+| D-aware screen, AFTER the one-gather XC term | 1.256 s | 1.241 s | **1:25.1** |
+| geometry-only screen, AFTER the one-gather XC term | 1.393 s | 1.321 s | **1:31.4** |
+
+⇒ the D-aware screen is worth **+14.5% wall**; the one-gather XC term is worth **−30.6% wall** (gather
+misses 65 → 43, its bucket 92.4 → 56.8 s) with \f$E_{tot}\f$ IDENTICAL to all 10 printed figures on both
+arms.  **Whether either lands us near CP2K is UNMEASURED** — it needs the VA recipe.
 
 Both arms: 65 gathers / 22 collocations, \f$E_{tot}\f$ agreeing to 2.3e-7 — identical trajectories, so the
 per-call column is a clean A/B.  Peak RSS 110 MB either way.  Threads: `OMP_NUM_THREADS=1
@@ -224,8 +249,8 @@ does not screen the collocation on the density, and this tree had been taking th
 the honest parity row is the second one, **1.54×**, and it is the first parity row that actually deserves
 the name.  The D-aware arm above is the qchem-vs-qchem delta: our screen buys **+14.5% wall**.
 
-¹¹ ★★★ **THE XC TERM NOW GATHERS ONCE, NOT TWICE (2026-09-04)** — and it is the largest single step this
-table has recorded.  Exchange and correlation were separate Hamiltonian TERMS, each doing its own
+¹¹ ★★★ **THE XC TERM NOW GATHERS ONCE, NOT TWICE (2026-09-04)** — a large step, though how large in
+TABLE terms is unmeasured (the numbers below are on the non-VA configuration; see the retraction).  Exchange and correlation were separate Hamiltonian TERMS, each doing its own
 real-space gather of its own potential onto the basis; the gather is LINEAR, so
 \f$\langle i|v_x|j\rangle+\langle i|v_c|j\rangle=\langle i|(v_x+v_c)|j\rangle\f$ and summing the two
 POTENTIALS pointwise gives the same operator for half the work.  `MakeVxcTerms` now returns ONE term
@@ -239,6 +264,8 @@ unpolarized branches.
 | wall | 2:11.2 | **1:31.4** (−30.6%) |
 | \f$E_{tot}\f$ | −61.41280709 | **−61.41280709** (identical) |
 | peak RSS | 110 MB | 116 MB |
+
+⚠ Non-VA configuration: the DELTA is the result, the absolute times are not comparable to any row above.
 
 ⚠ It is NOT bit-identical in principle (`gather(a)+gather(b)` vs `gather(a+b)` differ at roundoff), but
 NOTHING moved: \f$E_{tot}\f$ agrees to all 10 printed figures and the full 846-test suite is green with no
