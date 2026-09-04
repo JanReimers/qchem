@@ -159,7 +159,7 @@ parity ROUTE affordable — see the parity row and the note below it.  CP2K colu
 | NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 21.1 s / 7.4 s | 37.9 / 7.2 s | **5.3×** | **61** / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
 | NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **25.0 s** / 1m42s | **41.4** / 102 s | **0.41×** | **65** / 186 MB |
-| **MnO AFM-II — ALL DEFAULTS** ⁴ | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | **5m28.1s** / 6m14s | **584** / 373 s | **1.57×** | **491** / 217 MB |
+| **MnO AFM-II — ALL DEFAULTS** ⁴ | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | **5m16.6s** / 6m14s | **563** / 373 s | **1.51×** | **490** / 217 MB |
 | **MnO AFM-II, `QCHEM_BECKE_XC=0`** ⁶ | Γ | **VA (N=118)** | −61.40358773 | −61.303325178 | −100.26 mHa | **4m05.4s** / 6m14s | **246** / 373 s | **0.66×** | **105** / 217 MB |
 | ⚠ STALE MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
 | **MnO AFM-II, `CP2K_COMPAT=1`** ⁷ | Γ | **VA (N=118)** | −61.39789688 ⁷ | −61.303325178 | −94.57 mHa | 45m40s / 6m14s | **2736** / 373 s | **7.3×** | **112** / 217 MB |
@@ -174,10 +174,24 @@ For the MnO ladder, where the campaign currently is:
 
 | the row | iterations | **CPU / ITERATION** | vs CP2K's 8.5 s/step |
 |---|---|---|---|
-| **ALL DEFAULTS** | 14+17 = **31** | **18.8 s** | **2.2×** |
+| **ALL DEFAULTS** | 14+17 = **31** | **18.2 s** | **2.14×** |
 | **`QCHEM_BECKE_XC=0`** | 25 (stage 2; stage 1 not recorded) | ❓ — re-read the ledger when this row is next taken | ❓ |
-| **`CP2K_COMPAT=1`** | 13+80 = **93**, both CAPPED | **29.4 s** | **3.5×** |
+| **`CP2K_COMPAT=1`**, `GPW_MNO_NMAX=10` probe | 10+10 = **20** | **19.3 s** | **2.3×** |
+| ⚠ `CP2K_COMPAT=1`, the full table row | 13+80 = **93**, both CAPPED | 29.4 s ⁸ | 3.5× ⁸ |
 | CP2K (its own log) | 44 | 8.5 s | — |
+
+⁸ ⚠ **THE 93-ITERATION FIGURE IS PRE-FIX AND ITS STAGE MIX DIFFERS — do not read 29.4 → 19.3 as a 1.5×.**
+The two runs make different numbers of collocations PER iteration (13.4 against 10.0) because a longer
+stage 2 changes the GDM line-search mix, so per-ITERATION is not comparable across caps.  ⇒ **The
+cap-independent measure is PER CALL**, straight off the ledger, and that is what the bin-1 pass moved:
+
+| per call, MnO | before the 2026-08-28 per-line pass | after |
+|---|---|---|
+| collocate / gather, ALL DEFAULTS | 0.444 / 0.509 s | **0.402 / 0.419 s** |
+| collocate / gather, `CP2K_COMPAT=1` | 2.03 / 2.24 s | **1.84 / 1.88 s** |
+
+★ **STANDING PROBE for bin 1** (user, 2026-08-28: *"we just cut off at ~10 or so iterations, just to get a
+decent average"*): `CP2K_COMPAT=1 GPW_MNO_NMAX=10` — ~6 minutes, and quote per-call beside per-iteration.
 
 ⇒ Two separate facts the whole-run column blurs together: we are **2.2–3.5× per step**, and at parity we
 take **93 steps to CP2K's 44** (bin 4, and both of ours hit the cap rather than converging).  The parity
