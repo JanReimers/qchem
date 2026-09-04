@@ -63,39 +63,92 @@ Two concretes:
 - **`GeometryOnlyScreener`** — returns \f$\varepsilon\f$ and never kills.  CP2K's rule.  Stateless.
 - **`DAwareScreener`** — today's rule.
 
-## 4. ⚠ HOW `DAwareScreener` REACHES THE DENSITY — through a proxy, NOT through the interface (user)
+## 4. ⚠ OPEN DESIGN QUESTION — HOW DOES `DAwareScreener` REACH THE DENSITY?  **SETTLE THIS FIRST**
 
-> *"the `DAwareScreener` needs to get the density matrix through a proxy that holds a `DM*` at
-> construction (the pointer gets reassigned at each iteration), not through the interface."*
+**Do not start coding until this is decided** (user, 2026-08-28, having second thoughts about the proxy
+sketched in the first cut of this file).  It is the only genuinely contentious part of the design, and it
+is the part that decides whether the seam removes a bug class or relocates one.
 
-This is the load-bearing half of the design.  Putting \f$D\f$ in `Tolerance()`'s signature would push the
-density into every screener that does not want it — an ISP violation, and it would make
-`GeometryOnlyScreener` take an argument it must ignore.  Instead:
+**The constraint.**  `Tolerance()` needs \f$c_{ij}=\mathrm{fold}\cdot\mathrm{Re}[D_{ij}e^{-ikR_n}]\f$.
+\f$D\f$ changes every SCF iteration.  The screener is chosen once, at the top, and must be reachable from
+the innermost box walk — which runs under OpenMP over shell pairs.
+
+### Option A — the reseatable proxy (what the first cut proposed)
+
+`DAwareScreener` holds a `shared_ptr<const DensityHandle>` at construction; the SCF calls
+`handle->Reseat(&D)` once per iteration.  The screener object outlives the densities it reads.
+
+| for | against |
+|---|---|
+| screener built once; nothing per-iteration to allocate | ⛔ **`Tolerance(i,j,n)` stops being a pure function** — same arguments, different answers depending on *when* you ask |
+| the density never appears in the interface | ⛔ a **raw reseatable `DM*`**, i.e. a global mutable with a nicer name.  Who guarantees it outlives the read? |
+| | ⛔ **thread safety becomes an unwritten invariant** (reseat must happen outside every parallel region) |
+| | ⛔ **staleness is now possible and only a runtime check can catch it** — and this tree already carries three such checks for exactly this shape: the `CollocMemo` depth-1 thrash, the XC `itsSrcVersion` "STALE" warning, and the cross-run `Projector3` pollution that had to be fixed by instance-scoping |
+
+### Option B — construct the screener per iteration and pass it by `const&`  ★ RECOMMENDED
+
+The SCF (or the closure that already holds \f$D\f$) makes a fresh screener bound to this iteration's
+density and passes `const LatticeScreener&` down.  Immutable once constructed.
+
+★ **AND THE DENSITY IS ALREADY A PER-CALL PARAMETER ON BOTH FACES, WHICH IS THE ARGUMENT THAT DECIDES IT
+FOR ME.**  This is not a new dependency being threaded through — it is a dependency that is already there,
+untyped:
 
 ```cpp
-//! The density the screener reads, indirected so the SCF can re-seat it per iteration without the
-//! screener (or anything holding one) being rebuilt.  ONE owner writes it; the screener only reads.
-class DensityHandle
-{
-public:
-    void         Reseat(const chmat_t* d) { itsD=d; }     //!< the iterator, once per iteration
-    const chmat_t* Get() const            { return itsD; }
-private:
-    const chmat_t* itsD=nullptr;
-};
+// today
+std::vector<rvec_t> CollocateDensity(const chmat_t& D, ...) const;
+chmat_t IntegratePotential(..., const chmat_t* screenD, ...) const;   // <- the density, as a bare matrix
+
+// option B
+std::vector<rvec_t> CollocateDensity(const chmat_t& D, const LatticeScreener&, ...) const;
+chmat_t IntegratePotential(..., const LatticeScreener&, ...) const;   // <- SAME ARITY, better type
 ```
 
-`DAwareScreener` holds a `std::shared_ptr<const DensityHandle>` **at construction**.  The SCF reseats the
-handle each iteration; the screener object, the task list and every box that references them are untouched.
-⇒ The screener stays a POLICY object with a lifetime of the run, not a per-iteration allocation.
+`IntegratePotential`'s `screenD` parameter **becomes** the screener: same information, with the policy
+attached instead of implied.  That is a strict simplification of a signature, not an addition to one.
 
-⚠ Two invariants to gate:
-1. **Reseat happens before the first collocation of an iteration**, or the screen reads last iteration's
-   \f$D\f$ — the same staleness class the XC `itsSrcVersion` guard already watches for, and it should carry
-   the same kind of loud check (a serial number on the handle, compared).
-2. **`Kill` and `Tolerance` must agree with each other and with the INTEGRATE side**, or collocate and
-   integrate stop being adjoints.  That is what the shifted-MP defect was.  ⇒ ONE screener instance serves
-   both directions; it is not two objects that happen to be configured alike.
+| for | against |
+|---|---|
+| ✅ `Tolerance()` is a **pure function of its construction arguments** — the staleness class cannot exist | one object constructed per iteration (it holds a reference and a phase, not a copy — nothing to fear) |
+| ✅ trivially thread-safe: immutable, shared by every worker | the two faces gain a parameter (see above: one of them LOSES one) |
+| ✅ you cannot ask a screener about the wrong \f$D\f$, because there is no other \f$D\f$ it could answer for | |
+
+### Option C — hand down the tolerances as data, not the rule
+
+The SCF computes \f$\varepsilon_{ij}(n)\f$ into an array once per iteration; the walk just reads it.
+⛔ Materialises a per-iteration array over the task list (~35 k entries on MnO) and computes tolerances for
+tasks that are then killed anyway.  It also puts the RULE back at the call site, which is what the seam
+exists to remove.  Mentioned for completeness; I do not recommend it.
+
+### ▶ MY RECOMMENDATION — B, with a two-level split if state ever justifies it
+
+Take **Option B**.  The decisive point is that the density is already flowing through both faces per call,
+so B types an existing dependency rather than introducing one, while A introduces mutable shared state to
+hide a dependency that was never hidden in the first place.  This codebase's own bug record is the
+tiebreaker: its most expensive recent defects have all been *"an object answered for the wrong iteration"*,
+and A is that shape by construction while B makes it unrepresentable.
+
+⚠ **The one real argument for A is if the screener needs run-lifetime STATE** — a precomputed \f$|D|\f$
+magnitude matrix, `FoldScreenMax`'s orbit maxima, or anything else too dear to rebuild per iteration.  If
+that appears, do NOT reach for the proxy; split instead:
+
+```cpp
+class LatticeScreenerPolicy      // RUN lifetime, immutable, chosen in SolidCalculation, captured by closures
+{ public: virtual ScreenerPtr Bind(const chmat_t& D, const cellphase_t&) const = 0; ... };
+
+class LatticeScreener            // ITERATION lifetime, immutable, passed by const& into the walk
+{ public: virtual double Tolerance(...) const = 0; ... };
+```
+
+That keeps *"the decision is made at a very high level"* (the POLICY travels and is captured), keeps the
+hot object immutable, and still has nowhere for a stale pointer to live.  ⚠ Do not build the two-level
+form up front — one level is enough for two implementations, and the split is a refactor away if a
+screener ever earns it.
+
+⚠ **A NOTE ON THE FRAMEWORK-CACHED CLOSURES**, since it is the first objection someone will raise:
+`MakeCollocator` / `MakeIntegrator` build closures ONCE and call them per iteration, which sounds like it
+forces A.  It does not — the closures already receive \f$D\f$ as a call argument and merely need to capture
+the *policy* (immutable) and bind per call.  Checked before recommending B.
 
 ## 5. ★ THE PRIZE, and it is not just tidiness
 
