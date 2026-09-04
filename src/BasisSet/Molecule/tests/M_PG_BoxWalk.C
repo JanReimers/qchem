@@ -1540,3 +1540,197 @@ TEST(M_PG_BoxWalk, CollocateIntegrateAreExactAdjoints)
         << "the MIXED pairing should be worse than either matched one -- if it is not, the two directions "
            "are accidentally interchangeable and the one-flag wiring is over-cautious";
 }
+
+//========================================================================================================
+// WHAT THE §5 GEOMETRY HOIST WOULD BUY -- PRICED AT THE CUBE, BEFORE ANYTHING IS BUILT
+//========================================================================================================
+// doc/ScreeningPlan.md §5.  With a GeometryOnlyScreener the box tolerance is constant, so BoxGeom -- and
+// with it the per-line chord bounds -- become ITERATION-INVARIANT and could be hoisted into the task list.
+// The plan estimates that as "~40% of the kernel" against "~144 MB on MnO", and BOTH numbers are guesses.
+//
+// ⚠ THIS TEST EXISTS BECAUSE OF THE exp-RECURRENCE SCAR (doc/OpenWork.md): that idea removed 20% of the
+// profile on paper and returned 3% after a fully gated implementation, and a cube-level number would have
+// said so in an hour.  So: measure the CEILING first.  The hoist cannot beat "the chord arithmetic, gone".
+//
+// It is a MEASUREMENT, not a gate -- the assertions are only sanity rails, because the honest output is
+// the printed table.  The replicated chord loop below MUST track ContractCubeN's; if that kernel's chord
+// changes, this reads the wrong ceiling and the numbers silently rot.
+TEST(M_PG_BoxWalk, WhatTheGeometryHoistWouldBuy)
+{
+    const UnitCell mno(Matrix3D<double>(8.40,4.20,4.20, 4.20,8.40,4.20, 4.20,4.20,8.40));
+    const rvec3_t  A0(0,0,0), B0(2.4249,2.4249,2.4249);
+    const ivec3_t  N(40,40,40);                       // the raster the CP2K_COMPAT MnO row actually runs
+    SkewFixture fx(mno, N, A0, B0, 1.2, 1.5);
+    const NR_Evaluator& ev=fx.Ev();
+
+    auto best=[](auto&& body, int reps, int trials)   // warm up, take the MIN -- see WhereTheContraction...
+    {
+        body();
+        double lo=1e300;
+        for (int t=0;t<trials;t++)
+        {
+            auto t0=std::chrono::steady_clock::now();
+            for (int r=0;r<reps;r++) body();
+            auto t1=std::chrono::steady_clock::now();
+            lo=std::min(lo, std::chrono::duration<double,std::micro>(t1-t0).count()/reps);
+        }
+        return lo;
+    };
+
+    size_t i0,nI,j0,nJ;
+    ASSERT_TRUE(FindShell(ev, A0, 1.2, 1, i0, nI));
+    ASSERT_TRUE(FindShell(ev, B0, 1.5, 1, j0, nJ));
+    std::vector<double> w(nI*nJ, 0.5);
+    const NR_Evaluator::BoxGeom bg=ev.MakeBoxGeom(i0,j0,rvec3_t(0,0,0),fx.cell,N,1e-10);
+    ASSERT_TRUE(bg.live);
+    const NR_Evaluator::PairPoly q=ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data());
+    ASSERT_TRUE(q.live);
+
+    const int n[3]={2*bg.hw[0]+1, 2*bg.hw[1]+1, 2*bg.hw[2]+1};
+    const rvec3_t sv[3]={bg.sx,bg.sy,bg.sz};
+    double h[3][3];
+    for (int a=0;a<3;a++) for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
+    auto eOf=[&](int a, int t){ return double(bg.c0[a]-bg.hw[a]+t)-bg.fc[a]; };
+    const double inv=0.5/h[0][0];
+    constexpr double kChordFuzz=1e-9;
+
+    // ---- (1) the whole kernel, as it runs today --------------------------------------------------
+    rvec_t dst(size_t(N.x)*N.y*N.z, 0.0);
+    const double tCube=best([&]{ ev.ContractCube(bg,q,N,dst); }, 200, 3);
+
+    // ---- (2) the CHORD ARITHMETIC ALONE, replicated faithfully from ContractCubeN ----------------
+    // ⚠ Must mirror that loop expression for expression, or the ceiling below is fiction.
+    volatile long sink=0;
+    const double tChord=best([&]{
+        long acc=0;
+        for (int k=0;k<n[2];k++)
+        {
+            const double e3=eOf(2,k);
+            const double b3=h[2][0]*e3, c3=h[2][2]*e3*e3;
+            for (int j=0;j<n[1];j++)
+            {
+                const double e2=eOf(1,j);
+                const double B2=2.0*(h[0][1]*e2+b3);
+                const double C2=h[1][1]*e2*e2+c3+2.0*h[1][2]*e2*e3-bg.Rq;
+                const double D2=B2*B2-4.0*h[0][0]*C2;
+                if (D2<0.0) continue;
+                const double sq=std::sqrt(D2);
+                long ia=long(std::ceil ((-B2-sq)*inv+bg.fc[0]-kChordFuzz))-(bg.c0[0]-bg.hw[0]);
+                long ib=long(std::floor((-B2+sq)*inv+bg.fc[0]+kChordFuzz))-(bg.c0[0]-bg.hw[0]);
+                if (ia<0) ia=0;
+                if (ib>n[0]-1) ib=n[0]-1;
+                if (ia>ib) continue;
+                acc+=ia+ib;
+            }
+        }
+        sink=acc; }, 2000, 3);
+
+    // ---- (3) the SAME loop reading precomputed bounds -- i.e. what the hoist leaves behind -------
+    std::vector<int> loA(size_t(n[1])*n[2]), hiA(size_t(n[1])*n[2]);
+    {
+        for (int k=0;k<n[2];k++)
+        {
+            const double e3=eOf(2,k);
+            const double b3=h[2][0]*e3, c3=h[2][2]*e3*e3;
+            for (int j=0;j<n[1];j++)
+            {
+                const double e2=eOf(1,j);
+                const double B2=2.0*(h[0][1]*e2+b3);
+                const double C2=h[1][1]*e2*e2+c3+2.0*h[1][2]*e2*e3-bg.Rq;
+                const double D2=B2*B2-4.0*h[0][0]*C2;
+                int a2=1, b2=0;                                    // a2>b2 == "this line is empty"
+                if (D2>=0.0)
+                {
+                    const double sq=std::sqrt(D2);
+                    long ia=long(std::ceil ((-B2-sq)*inv+bg.fc[0]-kChordFuzz))-(bg.c0[0]-bg.hw[0]);
+                    long ib=long(std::floor((-B2+sq)*inv+bg.fc[0]+kChordFuzz))-(bg.c0[0]-bg.hw[0]);
+                    if (ia<0) ia=0;
+                    if (ib>n[0]-1) ib=n[0]-1;
+                    a2=int(ia); b2=int(ib);
+                }
+                loA[size_t(k)*n[1]+j]=a2; hiA[size_t(k)*n[1]+j]=b2;
+            }
+        }
+    }
+    const double tLookup=best([&]{
+        long acc=0;
+        for (int k=0;k<n[2];k++)
+            for (int j=0;j<n[1];j++)
+            {
+                const int ia=loA[size_t(k)*n[1]+j], ib=hiA[size_t(k)*n[1]+j];
+                if (ia>ib) continue;
+                acc+=ia+ib;
+            }
+        sink=acc; }, 2000, 3);
+
+    // ---- the ledger ------------------------------------------------------------------------------
+    // RAM: two ints per (j,k) line, per TASK.  The task count is the CP2K_COMPAT MnO row's own
+    // ([collocation] task list: 6152 tasks) -- quoted, not guessed, and it is NOT the imposed run's count.
+    const long   lines   = long(n[1])*n[2];
+    const double perTask = double(lines)*2.0*sizeof(int);
+    const long   mnoTasks= 6152;
+    const double ceilPct = 100.0*(tChord-tLookup)/tCube;
+    std::printf("\n  [§5 geometry hoist -- the CEILING, priced at the cube]  box %dx%dx%d, %ld (j,k) lines\n"
+                "     ContractCube (whole)      %9.2f us\n"
+                "     chord arithmetic alone    %9.2f us   (%.1f%% of the kernel)\n"
+                "     the same loop, table read %9.2f us\n"
+                "     -> HOIST CEILING          %9.2f us   = %.1f%% of the kernel, and NOT MORE\n"
+                "     RAM: %.1f kB/task x %ld tasks = %.0f MB (int32 pairs)\n",
+                n[0],n[1],n[2], lines,
+                tCube, tChord, 100.0*tChord/tCube, tLookup, tChord-tLookup, ceilPct,
+                perTask/1024.0, mnoTasks, perTask*double(mnoTasks)/1048576.0);
+
+    EXPECT_GT(tCube, tChord)   << "the chord cannot cost more than the kernel that contains it";
+    EXPECT_GT(tChord, tLookup) << "a table read must be cheaper than a sqrt";
+
+    // ---- (4) IS ONE BOX REPRESENTATIVE?  Sweep the box SIZE ---------------------------------------
+    // The chord is per (j,k) LINE -- O(n^2) -- while the point work inside it is O(n^3), so the chord's
+    // share goes like 1/n and a SMALL box is the hoist's BEST case.  One measurement at one box would
+    // therefore be an argument, not a number.  Sharper exponents shrink the reach, hence the box.
+    std::printf("\n  [is one box representative?  chord share vs box size]\n"
+                "  %6s %10s %12s %12s %10s\n", "n", "lines", "chord us", "cube us", "chord %");
+    for (double aE : {0.35, 0.7, 1.2, 2.5, 6.0})
+    {
+        SkewFixture f2(mno, N, A0, B0, aE, aE*1.25);
+        const NR_Evaluator& e2=f2.Ev();
+        size_t k0,kI,l0,lJ;
+        if (!FindShell(e2, A0, aE, 1, k0, kI) || !FindShell(e2, B0, aE*1.25, 1, l0, lJ)) continue;
+        std::vector<double> w2(kI*lJ, 0.5);
+        const NR_Evaluator::BoxGeom b2=e2.MakeBoxGeom(k0,l0,rvec3_t(0,0,0),f2.cell,N,1e-10);
+        if (!b2.live) continue;
+        const NR_Evaluator::PairPoly q2=e2.MakePairPoly(k0,kI,l0,lJ,rvec3_t(0,0,0),w2.data());
+        if (!q2.live) continue;
+        const int m[3]={2*b2.hw[0]+1, 2*b2.hw[1]+1, 2*b2.hw[2]+1};
+        const rvec3_t s2[3]={b2.sx,b2.sy,b2.sz};
+        double g2[3][3];
+        for (int a=0;a<3;a++) for (int b=0;b<3;b++) g2[a][b]=s2[a].x*s2[b].x+s2[a].y*s2[b].y+s2[a].z*s2[b].z;
+        auto eO=[&](int a, int t){ return double(b2.c0[a]-b2.hw[a]+t)-b2.fc[a]; };
+        const double iv=0.5/g2[0][0];
+        const double tC2=best([&]{
+            long acc=0;
+            for (int k=0;k<m[2];k++)
+            {
+                const double e3=eO(2,k), b3=g2[2][0]*e3, c3=g2[2][2]*e3*e3;
+                for (int j=0;j<m[1];j++)
+                {
+                    const double e2v=eO(1,j);
+                    const double B2=2.0*(g2[0][1]*e2v+b3);
+                    const double C2=g2[1][1]*e2v*e2v+c3+2.0*g2[1][2]*e2v*e3-b2.Rq;
+                    const double D2=B2*B2-4.0*g2[0][0]*C2;
+                    if (D2<0.0) continue;
+                    const double sq=std::sqrt(D2);
+                    long ia=long(std::ceil ((-B2-sq)*iv+b2.fc[0]-kChordFuzz))-(b2.c0[0]-b2.hw[0]);
+                    long ib=long(std::floor((-B2+sq)*iv+b2.fc[0]+kChordFuzz))-(b2.c0[0]-b2.hw[0]);
+                    if (ia<0) ia=0;
+                    if (ib>m[0]-1) ib=m[0]-1;
+                    if (ia>ib) continue;
+                    acc+=ia+ib;
+                }
+            }
+            sink=acc; }, 2000, 3);
+        rvec_t d3(size_t(N.x)*N.y*N.z, 0.0);
+        const double tK2=best([&]{ e2.ContractCube(b2,q2,N,d3); }, 200, 3);
+        std::printf("  %6d %10ld %12.2f %12.2f %9.1f%%\n",
+                    m[0], long(m[1])*m[2], tC2, tK2, 100.0*tC2/tK2);
+    }
+}
