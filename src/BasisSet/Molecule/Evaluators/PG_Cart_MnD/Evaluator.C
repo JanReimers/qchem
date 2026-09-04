@@ -114,6 +114,19 @@ public:
     //! collocate/integrate adjoint stays machine-exact on the kept operator).
     //! D-aware density-magnitude screen (sizes the collocation boxes).  Env instrument GPW_DENSITY_EPS.
     static double kDensityEps() { static const double e=[]{const char* s=std::getenv("GPW_DENSITY_EPS"); return s?std::atof(s):1e-10;}(); return e; }
+    //! \brief \c GPW_DAWARE_SCREEN=0 makes the box tolerance GEOMETRY-ONLY: \f$\varepsilon\f$ flat, no
+    //! \f$\varepsilon/|c_{ij}|\f$ widening and no per-(pair, offset) \f$D\f$ kill.  ⚠ AN EXPERIMENT'S
+    //! KNOB, NOT THE DESIGN.  The design this is measuring the case for is a \c LatticeScreener interface
+    //! with \c DAwareScreener / \c GeometryOnlyScreener behind it, chosen once at the \c SolidCalculation
+    //! level — see doc/ScreeningPlan.md.  Do not grow more branches on this bool; replace it.
+    //!
+    //! WHY IT IS WORTH MEASURING (2026-08-28): CP2K does NOT screen on the density
+    //! (\c task_list_methods.F: the radius takes no density argument, its eps is the global
+    //! \c eps_rho_rspace, and \c radius_list is fixed task-list data), and
+    //! \f$\varepsilon_{eff}\f$ is the ONLY \f$D\f$-dependent input to \c BoxGeom — so switching it off
+    //! makes the whole box geometry ITERATION-INVARIANT and hoistable into the task list.
+    static bool UseDAwareScreen()
+    { static const bool b=[]{const char* s=std::getenv("GPW_DAWARE_SCREEN"); return !s || std::atoi(s)!=0;}(); return b; }
 
     //! The lattice-sum ECONOMY report (LatticeSum1E face; doc there).  Reach numbers use the SAME formulas
     //! as the screens: a single orbital's tail reach is sqrt(-ln eps/alpha), a pair's conservative reach is
@@ -1826,7 +1839,8 @@ public:
                     const double c=((i==j)?1.0:2.0)*std::real(Dij*std::conj(phase(n)));
                     if (c==0.0) continue;
                     // MEMBER rule (|c|, not |c*wm|) so the reduced box matches every orbit member's.
-                    const double e=std::max(kDensityEps(), kDensityEps()/std::fabs(c));
+                    const double e=UseDAwareScreen() ? std::max(kDensityEps(), kDensityEps()/std::fabs(c))
+                                                     : kDensityEps();
                     if (pf>=-std::log(e)) continue;                     // whole box below THIS pair's eps
                     here.push_back(key); cwHere.push_back(c*wm); epsHere.push_back(e);
                     iaHere.push_back(i-si.begin); jbHere.push_back(j-sj.begin);
@@ -2140,7 +2154,7 @@ public:
                         wm=double(it->second);
                     }
                     double e=kDensityEps();      // collocation floor (decoupled from the analytic kScreenEps)
-                    if (screenD)
+                    if (screenD && UseDAwareScreen())
                     {
                         // ⛔ THE SCREEN IS THE MAGNITUDE |D_ij|, NEVER Re[D conj(phase)] -- the SAME defect
                         // this direction's per-pair path was fixed for, and this copy of it survived because
