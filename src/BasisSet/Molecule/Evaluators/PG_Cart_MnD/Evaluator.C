@@ -887,9 +887,22 @@ public:
         };
         wrapAxis(0,N.x,wrapX); wrapAxis(1,N.y,wrapY); wrapAxis(2,N.z,wrapZ);
         double cij[LP+1][LP+1], ci[LP+1];
+                // ⚠ HOISTED, and the reason is worth stating (user, 2026-08-28: *"the quadratic looks
+                // like something that does not depend on rho(r), and therefore does not change with
+                // iterations"*).  Almost right: h_ab and the e's ARE pure geometry, and the ONE
+                // D-dependent term is Rq, whose eps comes from the D-aware tolerance -- so the sphere's
+                // RADIUS breathes with the density and nothing else does.  Caching the geometry half is
+                // O(n^2) PER TASK, i.e. the value-cache trade step 7 deleted 4 GB of.  What IS free is
+                // this: several of these terms do not vary with j at all, and were being recomputed on
+                // every one of ~1849 lines -- including a floating-point DIVIDE for a task-invariant
+                // constant.  All three hoists are bit-identical (same expressions, same association,
+                // evaluated once instead of many times).
+        const double inv=0.5/h[0][0];                      // task-invariant: a DIVIDE, not a per-line one
         for (int k=0;k<n[2];k++)
         {
             const double e3=eOf(2,k);
+            const double b3=h[2][0]*e3;                    // per-PLANE halves of B2 and C2
+            const double c3=h[2][2]*e3*e3;
             for (int a=0;a<=LP;a++)                        // fold e3 once per plane
                 for (int b=0;a+b<=LP;b++)
                 {
@@ -902,11 +915,11 @@ public:
             {
                 const double e2=eOf(1,j);
                 // the chord in e1: h00 e1^2 + 2 e1 (h01 e2 + h20 e3) + (h11 e2^2 + h22 e3^2 + 2 h12 e2 e3) <= Rq
-                const double B2=2.0*(h[0][1]*e2+h[2][0]*e3);
-                const double C2=h[1][1]*e2*e2+h[2][2]*e3*e3+2.0*h[1][2]*e2*e3-g.Rq;
+                const double B2=2.0*(h[0][1]*e2+b3);
+                const double C2=h[1][1]*e2*e2+c3+2.0*h[1][2]*e2*e3-g.Rq;
                 const double D2=B2*B2-4.0*h[0][0]*C2;
                 if (D2<0.0) continue;                        // the line misses the sphere
-                const double sq=std::sqrt(D2), inv=0.5/h[0][0];
+                const double sq=std::sqrt(D2);
                 // THE EXACT CHORD.  A point t is kept iff the quadratic is <=0 there, i.e. iff
                 // ceil(root1) <= t <= floor(root2) -- so those ARE the bounds.  A first cut used
                 // floor(root1)-1 .. ceil(root2)+1, which keeps up to three extra points at each end; for
@@ -957,6 +970,7 @@ public:
         static thread_local rvec_t T12,T23,T31,E1;
         BuildCubeTables(g,q.p,LP,n,h,T12,T23,T31,E1);            // ONE definition -- see BuildCubeTables
         W.Zero(LP);
+        const double inv=0.5/h[0][0];                      // hoisted -- see ContractCubeN
         // Wrap tables, exactly as in ContractCubeN (see the note there): the per-line integer modulos are
         // O(n^2) hardware divides for an O(n) fact.  The gather already tests the chord before its fold.
         static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;
@@ -972,14 +986,15 @@ public:
             const double e3=eOf(2,k);
             for (int a=0;a<=LP;a++) for (int b=0;a+b<=LP;b++) cij[a][b]=0.0;
             const size_t mk=wrapZ[size_t(k)];
+            const double b3=h[2][0]*e3, c3=h[2][2]*e3*e3;   // per-PLANE halves of B2 and C2
             for (int j=0;j<n[1];j++)
             {
                 const double e2=eOf(1,j);
-                const double B2=2.0*(h[0][1]*e2+h[2][0]*e3);
-                const double C2=h[1][1]*e2*e2+h[2][2]*e3*e3+2.0*h[1][2]*e2*e3-g.Rq;
+                const double B2=2.0*(h[0][1]*e2+b3);
+                const double C2=h[1][1]*e2*e2+c3+2.0*h[1][2]*e2*e3-g.Rq;
                 const double D2=B2*B2-4.0*h[0][0]*C2;
                 if (D2<0.0) continue;
-                const double sq=std::sqrt(D2), inv=0.5/h[0][0];
+                const double sq=std::sqrt(D2);
                 // THE EXACT CHORD.  A point t is kept iff the quadratic is <=0 there, i.e. iff
                 // ceil(root1) <= t <= floor(root2) -- so those ARE the bounds.  A first cut used
                 // floor(root1)-1 .. ceil(root2)+1, which keeps up to three extra points at each end; for
