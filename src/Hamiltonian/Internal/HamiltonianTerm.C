@@ -19,7 +19,33 @@ import qchem.Symmetry.Irrep;
 export namespace qchem::Hamiltonian
 {
 
+//! \brief WHICH quantum numbers a term's matrix actually DEPENDS ON -- and therefore how many times the
+//! term is EVALUATED, which is the point of it.
+//!
+//! Every cache below keys on \c Irrep, i.e. on (spatial symmetry, SPIN).  For a spin-DEPENDENT term that
+//! is exactly right.  For a term whose matrix does not depend on the channel it is a doubled evaluation:
+//! the up and down calls miss each other and build the identical matrix twice.
+//!
+//! ⛔ THAT IS NOT A CACHE INEFFICIENCY, IT IS A DOUBLED BUILD OF THE MOST EXPENSIVE OBJECT IN THE RUN.
+//! Measured 2026-09-04 on the MnO parity row: \c Vee_Hartree -- whose \c MakeMatrixT takes an UNNAMED
+//! \c Spin&, i.e. provably ignores it -- was gathering ~2.1 duplicate KS matrices per SCF iteration, and
+//! the integrate-back is 71% of that run (doc/OpenWork.md bin 1).
+//!
+//! \note IT ASKS WHAT THE ANSWER DEPENDS ON, NOT WHAT KIND OF TERM THIS IS.  A predicate spelled
+//! \c IsSpinIndependent() would be the IDENTITY question this codebase rejects -- the caller would branch
+//! on the term's type, and a third answer would mean a third branch (doc/ScreeningPlan.md §5).  Overriding
+//! the KEY instead changes nothing at any call site: the caches go on keying, on one fewer quantum number.
+class HT_SpinDependence
+{
+public:
+    virtual ~HT_SpinDependence() = default;
+    //! The spin this term's matrix depends on.  Default \a s (spin-resolved, the safe answer).
+    //! Override to \c Spin::None when the matrix is the SAME for every channel.
+    virtual Spin CacheSpin(const Spin& s) const {return s;}
+};
+
 template <class T> class tHT_Common
+    : public virtual HT_SpinDependence
 {
 protected:
     typedef std::map<Irrep,hmat_t<T>> CacheMap;
@@ -35,7 +61,7 @@ public:
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s) const
     {
         assert(bs);
-        Irrep qns(bs->GetIrrep(s));
+        Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
         auto i=this->itsCache.find(qns);
         if (i==this->itsCache.end())
             return this->itsCache[qns]=MakeMatrix(bs,s);
@@ -69,7 +95,7 @@ public:
             this->itsCache.clear();
             itsCacheVersion=cd->Version();
         }
-        Irrep qns(bs->GetIrrep(s));
+        Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
         if (auto i=this->itsCache.find(qns);i==this->itsCache.end())
             return this->itsCache[qns]=MakeMatrix(bs,s,cd);
         else
@@ -119,6 +145,11 @@ public:
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const
     {
         assert(bs);
+        // ⛔ DELIBERATELY NOT CacheSpin(s) -- see R2.9(ii) above.  Here `qns` keys a SCRATCH SLOT whose job
+        // is the returned reference's LIFETIME, not the avoidance of an evaluation (this class recomputes
+        // unconditionally, by definition).  Folding two channels onto one key would make Up and Down alias
+        // again, which is precisely the trap that note documents.  CacheSpin belongs only where a hit
+        // SKIPS work.
         Irrep qns(bs->GetIrrep(s));
         return this->itsCache[qns]=MakeMatrix(bs,s,cd);   // assign, never look up: no caching
     }
@@ -137,12 +168,13 @@ protected:
 //  typed pair rather than a variant map so the molecular path is untouched.
 //====================================================================================================
 class Static_HT_RealBlock_Imp : public virtual Static_HT_RealBlock
+                              , public virtual HT_SpinDependence
 {
 public:
     virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s) const
     {
         assert(bs);
-        Irrep qns(bs->GetIrrep(s));
+        Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
         auto i=itsRealCache.find(qns);
         if (i==itsRealCache.end())
             return itsRealCache[qns]=MakeMatrixR(bs,s);
@@ -155,6 +187,7 @@ protected:
 };
 
 class Dynamic_HT_RealBlock_Imp : public virtual Dynamic_HT_RealBlock
+                               , public virtual HT_SpinDependence
 {
 public:
     virtual const hmat_t<double>& GetMatrix(const tobs_t<double>* bs,const Spin& s,const tChargeDensity<dcmplx>* cd) const
@@ -167,7 +200,7 @@ public:
             itsRealCache.clear();
             itsRealCacheVersion=cd->Version();
         }
-        Irrep qns(bs->GetIrrep(s));
+        Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
         if (auto i=itsRealCache.find(qns);i==itsRealCache.end())
             return itsRealCache[qns]=MakeMatrixR(bs,s,cd);
         else

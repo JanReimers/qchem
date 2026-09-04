@@ -3120,3 +3120,14 @@ point-value face is added to `LatticeSum1E` IN PLACE, and the ISP split of that 
 along with the taxonomy.  **`LatticeSum1E` therefore also wants an ISP review in its own right** — it now
 carries collocation, integrate-back and grid machinery that are not one-electron integrals, so even its
 NAME is stale.
+
+## `Vxc_QuadraturePol` is dead code (2026-09-04)
+
+`MakeVxcTerms` used to return the exchange/correlation PAIR for a polarized run; since the
+`CompositeExFunctional` change it returns ONE term (`Vcorr_QuadraturePol` carrying the composite), so
+`Vxc_QuadraturePol` — the exchange-only polarized term — has no constructor call anywhere.  Its
+`SiteMoments` already moved to the surviving term.
+
+⇒ Delete it, and while there consider RENAMING `Vcorr_QuadraturePol`: it is no longer "the correlation
+half of a pair", it is the spin-native XC term (`Vxc_SpinNative` or similar).  Not done inline because the
+rename touches three files and the measurement work wanted a small diff.

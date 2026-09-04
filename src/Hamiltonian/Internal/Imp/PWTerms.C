@@ -1076,6 +1076,7 @@ template <class U> hmat_t<U> Vxc_QuadraturePol::MakeMatrixT(const tobs_t<U>* bs,
 // T2 (doc/OpenWork.md N1): forward to the quadrature, which owns the atom-centred partition.  Empty when
 // it has none -- the caller (SolidCalculation) treats empty as "this run cannot answer", never as "zero".
 rvec_t Vxc_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return itsQuad->SiteMoments(cd);}
+rvec_t Vcorr_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return itsQuad->SiteMoments(cd);}
 
 chmat_t Vxc_QuadraturePol::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
 rsmat_t Vxc_QuadraturePol::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
@@ -1126,13 +1127,20 @@ void Vcorr_QuadraturePol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     const rvec_t& up=itsQuad->RhoPol(cd, Spin::Up  );
     const rvec_t& dn=itsQuad->RhoPol(cd, Spin::Down);
     rvec_t ec(up.size());
-    for (size_t g=0; g<up.size(); g++) ec[g]=itsCorr->GetEpsC(up[g], dn[g])*(up[g]+dn[g]);
-    te.Exc += itsQuad->Integrate(ec);   // E_c = ∫ ε_c(ρ↑,ρ↓) ρ_total
+    // The PER-VOLUME energy density, because that is the form that COMPOSES: exchange contributes
+    // Σ_σ ε_x(ρ_σ)ρ_σ and correlation ε_c·ρ_tot, and those share no denominator (see GetExcDensity).
+    // For a plain correlation functional the default IS ε_c·(ρ↑+ρ↓), so this line is bit-identical to the
+    // one it replaces; for the composite it is the only correct sum.
+    for (size_t g=0; g<up.size(); g++) ec[g]=itsCorr->GetExcDensity(up[g], dn[g]);
+    te.Exc += itsQuad->Integrate(ec);   // E_xc = ∫ e_xc(ρ↑,ρ↓)
 }
 
 std::ostream& Vcorr_QuadraturePol::Write(std::ostream& os) const
 {
-    return os << "    XC-mesh SPIN-NATIVE correlation v_c^sigma(rho_up,rho_down) ("
+    // It carries the WHOLE spin-native functional since 2026-09-04 (MakeVxcTerms hands it a
+    // CompositeExFunctional summing exchange AND correlation into one gather), so the line must not still
+    // say "correlation" -- the console is how a run states what it built.
+    return os << "    XC-mesh SPIN-NATIVE v_xc^sigma(rho_up,rho_down), exchange+correlation in ONE gather ("
               << itsQuad->NumPoints() << " atom-centred points)." << std::endl;
 }
 

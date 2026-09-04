@@ -47,7 +47,7 @@ stop competing for the reader's attention here:
 
 | # | open item | the next concrete action | point a session at |
 |---|---|---|---|
-| **SCR** | ★★★ **THE LATTICE-SCREENER SEAM** — replace the D-aware tolerance's implicit branch with a `LatticeScreener` DIP (`GeometryOnlyScreener` / `DAwareScreener`, the latter reaching \f$D\f$ through a reseatable `DensityHandle` proxy held at construction), chosen at the `SolidCalculation` level.  ⚠ Its own session (user, 2026-08-28). | Build the seam, then measure §5: with a geometry-only screener the whole box geometry is iteration-invariant, so the per-line chord (~40% of the kernel, `sqrt` and all) becomes task-list setup.  **PRICED ALREADY: dropping the D-aware screen costs ~10% on the box walk.**  The open question is the RAM of storing chord bounds (\f$O(n^2)\f$/task, ~144 MB on MnO). | `doc/ScreeningPlan.md` |
+| **SCR** | ✅ **THE SEAM IS BUILT (2026-09-04).**  `LatticeScreener` + `GeometryOnlyScreener`/`DAwareScreener` in `src/BasisSet/Molecule/LatticeScreener.C`; both collocation faces take a `const LatticeScreener&`; the `GPW_DAWARE_SCREEN` bool is gone from the box walk and survives only as `RunPolicy::DAwareScreen`, a declared CP2K deviation.  D-aware stays the default; suite unchanged.  ⚠ The `DensityHandle` proxy this row anticipated was NOT built and should not be: the screener is **stateless** — the walk already computes each term's weight and hands it in, so no density, no reseat, no staleness (`ScreeningPlan.md` §4). | ⛔ **§5 IS CLOSED — REFUTED ON MEASUREMENT (2026-09-04), do not build it.**  `M_PG_BoxWalk.WhatTheGeometryHoistWouldBuy` prices the hoist CEILING at **13.2% of the kernel** (chord share 10–17% across box sizes, not the ~40% claimed) against a **+14.5% wall** price for the geometry-only screener that makes it legal, plus **132 MB** on a run whose peak RSS is 110 MB.  Best case is a wash.  The ~40% was the per-LINE work, most of which is the \f$e_2\f$ fold — which reads the density-weighted coefficients and is not hoistable under any screener.  ▶ **The next lever is NOT in the kernel**: see the per-step field count below. | `doc/ScreeningPlan.md` |
 | **S** | ★★ **THE ANCHOR-MOVING SPRINT — A1 and A7 ARE DONE (2026-08-27), A2–A6 remain.** Five items that each move banked numbers, to be done in ONE re-bank so they do not mask each other (user, 2026-08-27). | Pick the sprint window. A5 (the `IonicSAD` seed default) re-seeds every GPW anchor, so it goes first or last. A4 (the Δρ/N gate) is now doubly motivated — see the Na2 note in the sprint section. | *"THE ANCHOR-MOVING SPRINT"* |
 | **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25). *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
 | **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING — ⚠ HALF-BUILT ALREADY (corrected 2026-08-25): `QCHEM_MIX_RHO_M=1` in `MakePeriodicMixer` ALREADY selects the (ρ,m) basis with "Kerker on ρ, PLAIN LINEAR on m", carrying the same *"m has none"* argument. So this needs a MEASUREMENT and a promotion, not a build.** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
@@ -66,10 +66,49 @@ stop competing for the reader's attention here:
 
 | bin | the axis | where it stands (MnO AFM-II VA, 2026-08-28) |
 |---|---|---|
-| **1** | **per-iteration CPU** | **2.22× CP2K** on the default row (18.8 s vs 8.5 s), **3.5×** at full parity — the parity figure is worse because parity strips the STREAM FOLD, so each collocation covers ~5× more pairs |
-| **2** | **init / pre-iteration time** | on the default row: Becke mesh build 16.7 s + XC Φ tables 40.3 s ≈ **57 s of 328 s wall**.  ⚠ Both vanish on the XC pair route (`QCHEM_BECKE_XC=0`), so bin 2 is largely a Becke-mesh question |
-| **3** | **peak RAM** | ✅ **solved**: 1323 → 491 MB default, **105–112 MB on the parity routes against CP2K's 217 MB** |
+| **1** | **per-iteration CPU** | ★★★ **CLOSED 2026-09-04: 1.00× with our screen (8.51 s), 1.07× at TRUE PARITY** (9.14 s vs CP2K's 8.5 s) — from 2.22×/3.5× at the start of the day.  Two steps: the stale entry was ~1.7× pessimistic (re-taken: 1.54×), then the XC term stopped gathering twice (1.54× → **1.07×**, see the Hamiltonian section below).  ⚠ The default-route rows have NOT been re-taken.  ⇒ What is left is inside compiler-codegen territory; the one untried lever is `-march=native` (this tree does not use it) |
+| **2** | **init / pre-iteration time** | ✅ **on the parity row: 1.36 s of 131 s = 1.0%** (measured 09-04 — local-PP long+short, the 1E lattice sums, KB, the task list).  On the DEFAULT row it is still the Becke mesh build 16.7 s + XC Φ tables 40.3 s ≈ 57 s of 328 s; both vanish under `QCHEM_BECKE_XC=0`, so bin 2 remains a Becke-mesh question and only there |
+| **3** | **peak RAM** | ✅ **solved, and we WIN**: 1323 → 491 MB default; **108–111 MB on the parity routes against CP2K's 217 MB (0.51×)**, re-confirmed 09-04 |
 | **4** | **iteration count** | 31 (default) / 93-and-capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  The findings are below |
+
+### ★★★ BIN 1's REMAINING GAP IS IN THE HAMILTONIAN, NOT THE KERNEL (2026-09-04)
+
+The 09-04 ledger shows **~8.6 KS-field integrations per SCF iteration** on a 2-channel system where the
+physics needs **3** (one \f$V_H\f$ + one \f$V_{xc}\f$ per spin).  `GPW_INTEGRATE_CENSUS=1` reports every
+miss as a genuinely NEW field, so this is **not** redundancy a memo can remove — the code really is
+integrating that many distinct potentials.  Traced to two independent causes, both structural:
+
+**(1) THE HARTREE MATRIX IS BUILT ONCE PER SPIN AND IS SPIN-INDEPENDENT.**  `Vee_Hartree::MakeMatrixT`
+takes `const Spin&` — *unnamed*, i.e. provably unused — so \f$\langle i|V_H|j\rangle\f$ is identical for up
+and down.  But `tDynamic_HT_Imp::GetMatrix` keys its cache on `Irrep qns(bs->GetIrrep(s))`, which DOES vary
+with spin, so the two channels miss each other and the same matrix is gathered twice.
+⇒ ~2.1 of the 4.2 "h ball" calls per iteration are an exact duplicate.
+✅ **A fix here is BIT-IDENTICAL** — the same matrix, computed once instead of twice.
+
+**(2) EXCHANGE AND CORRELATION ARE SEPARATE TERMS, EACH PAYING ITS OWN GATHER.**
+`Vxc_QuadraturePol::MakeMatrixT` builds \f$v_x\f$ and calls `itsQuad->Matrix(bs,v)`;
+`Vcorr_QuadraturePol::MakeMatrixT` builds \f$v_c\f$ and calls it again — same basis, same spin, same grid.
+The gather is LINEAR in the field, so
+\f$\langle i|v_x|j\rangle+\langle i|v_c|j\rangle=\langle i|(v_x+v_c)|j\rangle\f$: summing the two
+POTENTIALS pointwise and gathering once is mathematically identical and halves the XC gathers.
+⇒ 4.4 "h raw" calls per iteration where 2.2 would do (matches the prediction 2 terms × 2 spins = 4).
+⚠ **A fix here is NOT bit-identical** — it changes the summation order from (matrix + matrix) to
+(matrix of the field sum), so it needs an anchor re-bank.
+
+**WHAT IT WAS WORTH — BOTH FIXED, MEASURED 2026-09-04.**  Wall **2:11.2 → 1:31.4 (−30.6%)**, i.e.
+**13.1 → 9.14 s/iter, 1.54× → 1.07× CP2K**; gather misses 65 → 43, its bucket 92.4 → 56.8 s.
+\f$E_{tot}\f$ **identical** to all 10 printed figures and the full suite green — no anchor re-banked.
+⚠ **THE SPLIT WAS NOT EVEN**: (2) carried essentially all of it; (1) was worth ~0.3%, not the ~23% first
+estimated, because its duplicates were ALREADY GatherMemo hits.  ⇒ **Read gather MISSES, not closure
+calls** — the ledger prints both and only the first is work.  A cost estimate taken off call counts alone
+is wrong whenever a memo sits underneath.
+
+⚠ **THE DESIGN QUESTION THIS RAISES**, because the term architecture is otherwise good (open/closed: add a
+term, change nothing else): the inefficiency is that **the SUM OF MATRICES could be the MATRIX OF THE SUM**
+whenever terms share a quadrature and a grid.  Expressing that without destroying the term seam is the
+actual work — a term would contribute its FIELD to a shared quadrature rather than its finished matrix, and
+the quadrature would gather once.  ⇒ Do not paper over it with another cache; the caches are already
+correct and are catching everything catchable.
 
 ### ⚠ BIN 4 — THE ITERATION COUNTS ARE NOT COMPARABLE YET, AND HERE IS EXACTLY WHY (2026-08-28)
 

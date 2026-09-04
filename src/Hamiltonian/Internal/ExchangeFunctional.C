@@ -1,6 +1,12 @@
 // File: ExchangeFunctional.C   Exchange potential for DFT.
+module;
+#include <cassert>
+#include <memory>
+#include <vector>
+#include <ostream>
 export module qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Streamable;
+import qchem.Math;            // max (the composite's grid-cutoff reduction)
 import qchem.Symmetry.Spin;   // Spin -- the requested channel of the spin-native correlation face
 
 export namespace qchem::Hamiltonian
@@ -60,6 +66,102 @@ public:
     virtual double GetEpsC(double rhoUp, double rhoDown) const=0;
     //! Channel correlation potential \f$v_c^\sigma=\varepsilon_c+\rho\,\partial\varepsilon_c/\partial\rho_\sigma\f$.
     virtual double GetVc  (double rhoUp, double rhoDown, const Spin&) const=0;
+
+    //! \brief The XC energy DENSITY **PER UNIT VOLUME**, \f$e(\rho_\uparrow,\rho_\downarrow)\f$, so that
+    //! \f$E=\int e\,d^3r\f$.
+    //!
+    //! ⚠ PER VOLUME, NOT PER PARTICLE, and that is the whole reason it exists: a COMPOSITE of functionals
+    //! sums energy densities, and the per-particle forms do NOT share a denominator -- exchange carries
+    //! \f$\varepsilon_x(\rho_\sigma)\rho_\sigma\f$ summed over channels while correlation carries
+    //! \f$\varepsilon_c\rho_{tot}\f$.  Adding them per particle would need a division by \f$\rho_{tot}\f$,
+    //! which is ZERO in vacuum.  Per volume they just add.
+    //! Default: the single-correlation-functional form, so every existing functional is unchanged.
+    virtual double GetExcDensity(double rhoUp, double rhoDown) const
+    {return GetEpsC(rhoUp,rhoDown)*(rhoUp+rhoDown);}
+};
+
+//! \brief A SUM OF FUNCTIONALS behaving as ONE (user, 2026-09-04).
+//!
+//! ⛔ WHY IT EXISTS, AND IT IS NOT TIDINESS.  Exchange and correlation were separate Hamiltonian TERMS,
+//! and each term does its own real-space GATHER of its potential onto the basis.  The gather is LINEAR in
+//! the field, so
+//! \f$\langle i|v_x|j\rangle+\langle i|v_c|j\rangle=\langle i|(v_x+v_c)|j\rangle\f$: summing the two
+//! POTENTIALS pointwise and gathering ONCE is the same operator for half the work.  Measured on the MnO
+//! parity row (2026-09-04): 16 of 23 integrate-back calls per 3 SCF iterations were this split, against a
+//! gather that is 71% of the run (doc/OpenWork.md bin 1).
+//!
+//! ⚠ NOT BIT-IDENTICAL: \c gather(a)+gather(b) and \c gather(a+b) differ in the last bits, so pinned
+//! energies move at roundoff scale.  The OPERATOR is unchanged.
+//!
+//! IT IMPLEMENTS BOTH FACES, because its parts may be either.  A part that is only an \c ExFunctional is
+//! CHANNEL-SEPARABLE (exchange): through the two-channel face it contributes \f$v_x(\rho_\sigma)\f$,
+//! reading its own channel and ignoring the other.  A part that is also a \c SpinCorrelation contributes
+//! its coupled \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$.  ⇒ Adding a third functional is a
+//! \c push_back, not a new term and not a new branch.
+class CompositeExFunctional
+    : public virtual ExFunctional
+    , public virtual SpinCorrelation
+{
+public:
+    //! \a parts must be non-empty; each is kept alive by the composite.
+    //! \note THE CROSS-CAST IS RESOLVED ONCE, HERE.  \c GetVc / \c GetExcDensity run PER GRID POINT
+    //! (~64k points x 2 channels per matrix build), and a \c dynamic_cast on that path would be a
+    //! per-point RTTI lookup for a fact that is fixed at construction.  It is an abstract-to-abstract
+    //! cast between two capability faces, which is the legitimate kind (CLAUDE.md) -- it just has no
+    //! business in an inner loop.
+    explicit CompositeExFunctional(std::vector<std::shared_ptr<ExFunctional>> parts)
+    {
+        assert(!parts.empty() && "CompositeExFunctional: a sum of no functionals is not a functional");
+        for (auto& f : parts)
+        {
+            const SpinCorrelation* c=dynamic_cast<const SpinCorrelation*>(f.get());
+            itsParts.push_back(Part{std::move(f), c});
+        }
+    }
+
+    // ---- ExFunctional (the unpolarized face): a plain sum -------------------------------------------
+    virtual double GetVxc(double rho) const
+    {double v=0.0; for (const Part& p : itsParts) v+=p.f->GetVxc(rho); return v;}
+    virtual double GetEpsXc(double rho) const
+    {double e=0.0; for (const Part& p : itsParts) e+=p.f->GetEpsXc(rho); return e;}
+    //! The DENSEST part wins: a GGA in the mix sets the fit grid for the whole sum.
+    virtual double GridCutoffFactor() const
+    {double f=1.0; for (const Part& p : itsParts) f=max(f,p.f->GridCutoffFactor()); return f;}
+
+    // ---- SpinCorrelation (the spin-native face) ------------------------------------------------------
+    virtual double GetVc(double up, double dn, const Spin& s) const
+    {
+        double v=0.0;
+        for (const Part& p : itsParts)
+            if (p.spin) v+=p.spin->GetVc(up,dn,s);
+            else        v+=p.f->GetVxc(s==Spin::Down ? dn : up);   // channel-separable: its OWN channel
+        return v;
+    }
+    //! \note Present because the face demands it; the TERM integrates \c GetExcDensity instead, which is
+    //! the form that composes.  Dividing by \f$\rho_{tot}\f$ here would be undefined in vacuum, so this
+    //! reports the per-particle value only where that is meaningful and 0 where it is not.
+    virtual double GetEpsC(double up, double dn) const
+    {const double r=up+dn; return r>0.0 ? GetExcDensity(up,dn)/r : 0.0;}
+    virtual double GetExcDensity(double up, double dn) const
+    {
+        double e=0.0;
+        for (const Part& p : itsParts)
+            if (p.spin) e+=p.spin->GetExcDensity(up,dn);
+            else        e+=p.f->GetEpsXc(up)*up + p.f->GetEpsXc(dn)*dn;   // E_x = Σ_σ ∫ ε_x(ρ_σ)ρ_σ
+        return e;
+    }
+
+    std::ostream& Write(std::ostream& os) const
+    {for (const Part& p : itsParts) p.f->Write(os); return os;}
+
+private:
+    //! One summand, with its two-channel capability resolved at construction.
+    struct Part
+    {
+        std::shared_ptr<ExFunctional> f;            //!< owns the summand
+        const SpinCorrelation*        spin=nullptr; //!< non-null iff \c f also has the coupled face
+    };
+    std::vector<Part> itsParts;
 };
 
 } //namespace

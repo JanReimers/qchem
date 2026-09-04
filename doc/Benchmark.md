@@ -174,11 +174,20 @@ For the MnO ladder, where the campaign currently is:
 
 | the row | iterations | **CPU / ITERATION** | vs CP2K's 8.5 s/step |
 |---|---|---|---|
-| **ALL DEFAULTS** | 14+17 = **31** | **18.2 s** | **2.14×** |
-| **`QCHEM_BECKE_XC=0`** | 25 (stage 2; stage 1 not recorded) | ❓ — re-read the ledger when this row is next taken | ❓ |
-| **`CP2K_COMPAT=1`**, `GPW_MNO_NMAX=10` probe | 10+10 = **20** | **19.3 s** | **2.3×** |
-| ⚠ `CP2K_COMPAT=1`, the full table row | 13+80 = **93**, both CAPPED | 29.4 s ⁸ | 3.5× ⁸ |
+| **`CP2K_COMPAT=1`, `GPW_DAWARE_SCREEN=1`**, NMAX=10 AFM ★ 09-04 | 10 | **11.5 s** | **1.35×** |
+| **`CP2K_COMPAT=1`** = TRUE PARITY (geometry-only screen), NMAX=10 AFM ★ 09-04 | 10 | **13.1 s** | **1.54×** |
+| ⚠ STALE — ALL DEFAULTS, 08-28 | 14+17 = **31** | 18.2 s | 2.14× |
+| ⚠ STALE — `QCHEM_BECKE_XC=0`, 08-28 | 25 (stage 2; stage 1 not recorded) | ❓ never read | ❓ |
+| ⚠ STALE — `CP2K_COMPAT=1`, `GPW_MNO_NMAX=10` probe, 08-28 | 10+10 = **20** | 19.3 s | 2.3× |
+| ⚠ STALE — `CP2K_COMPAT=1`, the full table row | 13+80 = **93**, both CAPPED | 29.4 s ⁸ | 3.5× ⁸ |
 | CP2K (its own log) | 44 | 8.5 s | — |
+
+⛔ **EVERY 08-28 ROW ABOVE IS SUPERSEDED — the box walk got ~1.45× faster after they were taken** (the
+run-length stream geometry) and nothing re-banked them, so the standing *"we are 2.2–3.5× per step"*
+premise was ~1.7× too pessimistic for six days.  The two ★ rows are the current instrument (09-04, serial,
+one binary, both arms in one session; full provenance at footnote ⁹).  **The two default-route rows have
+NOT been re-taken** — they need a run each and are the honest gap in this table.
+⚠ The ★ rows run the AFM arm only (`MNO_SKIP_FM=1`), so their iteration count is 10, not 10+10.
 
 ⁸ ⚠ **THE 93-ITERATION FIGURE IS PRE-FIX AND ITS STAGE MIX DIFFERS — do not read 29.4 → 19.3 as a 1.5×.**
 The two runs make different numbers of collocations PER iteration (13.4 against 10.0) because a longer
@@ -188,15 +197,82 @@ cap-independent measure is PER CALL**, straight off the ledger, and that is what
 | per call, MnO | before the 2026-08-28 per-line pass | after |
 |---|---|---|
 | collocate / gather, ALL DEFAULTS | 0.444 / 0.509 s | **0.402 / 0.419 s** |
-| collocate / gather, `CP2K_COMPAT=1` | 2.03 / 2.24 s | **1.84 / 1.88 s** |
+| collocate / gather, `CP2K_COMPAT=1` | 2.03 / 2.24 s | 1.84 / 1.88 s ⁹ |
+
+⁹ ⛔ **STALE AS OF 2026-09-04 — RE-TAKEN, AND THE BOX WALK IS ~1.45× FASTER THAN THIS ROW SAYS.**  The
+run-length stream geometry landed after these numbers and nothing re-banked them, so the standing "we are
+~2.3× CP2K per step" premise was ~1.7× too pessimistic.  Re-measured serially,
+`CP2K_COMPAT=1 GPW_MNO_NMAX=10 MNO_SKIP_FM=1`, both arms one binary one session:
+
+| MnO, `CP2K_COMPAT=1`, serial | collocate/call | gather/call | wall (10 it) | **s/iter** | **vs CP2K 8.5 s** |
+|---|---|---|---|---|---|
+| ⚠ pre-fix, `GPW_DAWARE_SCREEN=1` | 1.266 s | 1.254 s | 1:54.6 | 11.5 | 1.35× |
+| ⚠ pre-fix, `GPW_DAWARE_SCREEN=0` = TRUE PARITY ¹⁰ | 1.520 s | 1.421 s | 2:11.2 | 13.1 | 1.54× |
+| ★ **after the one-gather XC term**, `GPW_DAWARE_SCREEN=1` ¹¹ | **1.256 s** | **1.241 s** | **1:25.1** | **8.51** | **1.00×** |
+| ★ **after the one-gather XC term**, TRUE PARITY ¹¹ | **1.393 s** | **1.321 s** | **1:31.4** | **9.14** | **1.07×** |
+
+⇒ ★★★ **BIN 1 IS CLOSED: BOTH ARMS ARE AT CP2K's PER-STEP TIME** — 1.00× with our density screen, 1.07× at
+true algorithm-to-algorithm parity, from 2.22×/3.5× the same morning.  \f$E_{tot}\f$ is unchanged on both
+arms (−61.41280732 / −61.41280709, matching their pre-fix values to all 10 printed figures).
+
+Both arms: 65 gathers / 22 collocations, \f$E_{tot}\f$ agreeing to 2.3e-7 — identical trajectories, so the
+per-call column is a clean A/B.  Peak RSS 110 MB either way.  Threads: `OMP_NUM_THREADS=1
+GPW_OMP_THREADS=1`, BLAS pinned to 1.  ⚠ The `[ FAILED ]` on this probe is the `NMAX=10` cap, not a defect.
+
+¹⁰ **`CP2K_COMPAT=1` NOW IMPLIES THE GEOMETRY-ONLY SCREENER** (2026-09-04, doc/ScreeningPlan.md §7).  CP2K
+does not screen the collocation on the density, and this tree had been taking that deviation silently — so
+the honest parity row is the second one, **1.54×**, and it is the first parity row that actually deserves
+the name.  The D-aware arm above is the qchem-vs-qchem delta: our screen buys **+14.5% wall**.
+
+¹¹ ★★★ **THE XC TERM NOW GATHERS ONCE, NOT TWICE (2026-09-04)** — and it is the largest single step this
+table has recorded.  Exchange and correlation were separate Hamiltonian TERMS, each doing its own
+real-space gather of its own potential onto the basis; the gather is LINEAR, so
+\f$\langle i|v_x|j\rangle+\langle i|v_c|j\rangle=\langle i|(v_x+v_c)|j\rangle\f$ and summing the two
+POTENTIALS pointwise gives the same operator for half the work.  `MakeVxcTerms` now returns ONE term
+holding a `CompositeExFunctional` (a sum of functionals behaving as one), in both the polarized and
+unpolarized branches.
+
+| | before | after |
+|---|---|---|
+| gather MISSES (10 iterations) | 65 | **43** (−34%) |
+| gather bucket | 92.4 s | **56.8 s** (−39%) |
+| wall | 2:11.2 | **1:31.4** (−30.6%) |
+| \f$E_{tot}\f$ | −61.41280709 | **−61.41280709** (identical) |
+| peak RSS | 110 MB | 116 MB |
+
+⚠ It is NOT bit-identical in principle (`gather(a)+gather(b)` vs `gather(a+b)` differ at roundoff), but
+NOTHING moved: \f$E_{tot}\f$ agrees to all 10 printed figures and the full 846-test suite is green with no
+anchor re-banked.  A second, smaller fix landed with it: `Vee_Hartree` is spin-INDEPENDENT (its
+`MakeMatrixT` takes an unnamed `Spin&`) but the term cache keyed on the spin-resolved Irrep, so both
+channels built the identical matrix — now expressed as `HT_SpinDependence::CacheSpin`.  ⚠ That one was
+worth only ~0.3%, not the ~23% first estimated from call counts: its duplicates were ALREADY memo hits.
+⇒ **Read gather MISSES, never closure calls** — the ledger prints both and only the first is work.
+
+★ **AND THE BOX WALK IS ~95% OF THIS RUN** (109 s of 114.6 s), of which the GATHER is 74% (81.5 s over 65
+calls, against 27.9 s over 22).  ⇒ Amdahl leaves nothing outside the walk worth touching, and any per-call
+win is worth ~3× more on the gather side than on the collocate side.
 
 ★ **STANDING PROBE for bin 1** (user, 2026-08-28: *"we just cut off at ~10 or so iterations, just to get a
 decent average"*): `CP2K_COMPAT=1 GPW_MNO_NMAX=10` — ~6 minutes, and quote per-call beside per-iteration.
 
-⇒ Two separate facts the whole-run column blurs together: we are **2.2–3.5× per step**, and at parity we
-take **93 steps to CP2K's 44** (bin 4, and both of ours hit the cap rather than converging).  The parity
-row's per-step figure is the WORSE of the two because parity also removes the stream fold — 5.2× on MnO's
-pair count — so its 2667 s of box walk is 97% of the run.
+⇒ Two separate facts the whole-run column blurs together: we are **1.35–1.54× per step** (09-04; it was
+2.2–3.5× when this line was written), and at parity we take **93 steps to CP2K's 44** (bin 4, and both of
+ours hit the cap rather than converging).  The parity row's per-step figure is the WORSE of the two because
+parity also removes the stream fold — 5.2× on MnO's pair count.
+
+⚠ **AND THE PER-STEP COMPARISON MAY NOT BE APPLES-TO-APPLES AT ALL — OPEN, 2026-09-04.**  The 09-04 ledger
+shows **~9 distinct KS-field integrations per SCF iteration** on a 2-channel system where the physics needs
+~3 (one \f$V_H\f$ gather + one \f$V_{xc}\f$ per channel); `GPW_INTEGRATE_CENSUS=1` says all of them are
+genuinely NEW fields, so it is NOT redundancy a memo could remove.  Two readings, and they call for
+opposite responses:
+- **the accelerator is buying bin 4 with bin 1 work** — if the Ladder line-search builds \f$H\f$ several
+  times per "iteration", then our iteration is not CP2K's step and per-iteration is the WRONG metric; the
+  honest one is total \f$H\f$-builds (or wall) to convergence;
+- **or the term assembly asks more often than it needs to**, in which case it is a ~3× on the dominant
+  bucket and would put the run BELOW CP2K.
+
+⇒ **Distinguish them before optimising either way**: count \f$H\f$-builds per SCF step directly, and read
+CP2K's own per-step \f$H\f$ count out of its log.  Cheap, and it decides whether bin 1 is finished.
 
 ★ **THE THREE `MnO AFM-II` ROWS ARE ONE SYSTEM AND ONE RECIPE, with progressively more of OUR deviations
 switched off.**  Read them as a ladder, not as three experiments — the only thing changing is which of the

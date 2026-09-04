@@ -200,6 +200,14 @@ public:
     explicit Vee_Hartree(fbs_t chargeDensityFitBasisSet);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
+    //! \brief \f$V_H[\rho]\f$ IS THE SAME OPERATOR FOR EVERY SPIN CHANNEL -- it depends on the TOTAL
+    //! density and nothing else, which is why \c MakeMatrixT ignores its \c Spin argument outright.
+    //!
+    //! Saying so here is what stops the two channels missing each other in the Irrep cache and building
+    //! the identical KS matrix twice.  Measured 2026-09-04 on the MnO parity row: ~2.1 duplicate gathers
+    //! per SCF iteration, against an integrate-back that is 71% of the run (doc/OpenWork.md bin 1).
+    //! ✅ BIT-IDENTICAL: the same matrix, evaluated once instead of twice.
+    virtual Spin CacheSpin(const Spin&) const {return Spin::None;}
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
     virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
@@ -576,6 +584,10 @@ private:
 //! face against BOTH channel rasters at each mesh point; \f$E_c=\int\epsilon_c(\rho_\uparrow,\rho_\downarrow)
 //! (\rho_\uparrow+\rho_\downarrow)\f$.  The spin-agnostic seed collapses inside \c XC_Quadrature::RhoPol
 //! (\f$\rho_\sigma=\rho/2\f$), so no term-side fallback is needed.
+//! ★ AND SINCE 2026-09-04 IT IS THE WHOLE SPIN-NATIVE XC TERM, not the correlation half of a pair.
+//! \c MakeVxcTerms hands it a \c CompositeExFunctional carrying exchange AND correlation, so its
+//! \c SpinCorrelation face returns \f$v_x^\sigma+v_c^\sigma\f$ and the term gathers ONCE per channel
+//! instead of twice.  See CompositeExFunctional for why that is the same operator for half the work.
 class Vcorr_QuadraturePol
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
@@ -585,6 +597,11 @@ public:
     typedef std::shared_ptr<SpinCorrelation> corr_t;
     typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
     Vcorr_QuadraturePol(const corr_t&, quad_t);
+    //! The atom-centred partition lives on my quadrature, so I am the term that can answer this
+    //! (doc/OpenWork.md N1/T2).  Empty when the quadrature has no site blocks (a uniform raster).
+    //! ⚠ MOVED HERE from Vxc_QuadraturePol when the pair collapsed into one term: the Hamiltonian polls
+    //! terms first-non-empty-wins, so the surviving XC term has to carry it.
+    virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual bool          IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;
@@ -616,16 +633,20 @@ MakeVxcTerms(const std::shared_ptr<ExFunctional>& exch, const std::shared_ptr<C>
 {
     std::shared_ptr<const XC_Quadrature> q=MakeXCQuadrature(fb, std::move(quad));
     std::vector<std::unique_ptr<cDynamic_HT>> terms;
+    // ★ ONE TERM, NOT A PAIR (2026-09-04).  Each term does its OWN real-space gather of its potential, and
+    // the gather is LINEAR: <i|v_x|j> + <i|v_c|j> == <i|(v_x+v_c)|j>.  Two terms therefore bought two
+    // gathers for one operator -- and the gather is 71% of the MnO parity run (doc/OpenWork.md bin 1).
+    // Summing the FUNCTIONALS instead of the MATRICES is the same physics for half the work, and it is the
+    // factory's business because the factory is already what decides the pair shares one quadrature.
+    // ⚠ NOT bit-identical (gather(a)+gather(b) vs gather(a+b) differ at roundoff); the operator is the same.
+    auto sum=std::make_shared<CompositeExFunctional>(
+        std::vector<std::shared_ptr<ExFunctional>>{exch, corr});
     if (polarized)
-    {
-        terms.push_back(std::make_unique<Vxc_QuadraturePol  >(exch, q));
-        terms.push_back(std::make_unique<Vcorr_QuadraturePol>(corr, q));
-    }
+        // The composite answers the two-channel face: exchange rides it channel-separably (v_x(rho_sigma)),
+        // correlation couples both rasters.  So the spin-native term carries the WHOLE functional.
+        terms.push_back(std::make_unique<Vcorr_QuadraturePol>(sum, q));
     else
-    {
-        terms.push_back(std::make_unique<Vxc_Quadrature>(exch, q));
-        terms.push_back(std::make_unique<Vxc_Quadrature>(corr, q));
-    }
+        terms.push_back(std::make_unique<Vxc_Quadrature>(sum, q));
     return terms;
 }
 
