@@ -116,13 +116,22 @@ must be argued, not assumed.
 `GPW_DAWARE_SCREEN=0`, which only removes the screening — it does NOT yet hoist anything, so it prices the
 COST side alone:
 
-| | D-aware (today) | geometry-only |
-|---|---|---|
-| Si Γ, collocate | 0.003296 s/call | 0.003567 s/call (**+8%**) |
-| Si Γ, trajectory | 11 iters, CONVERGED | 17 iters, OSCILLATING; `Etot` agrees to **2e-9** |
+| per call | D-aware (today) | geometry-only | cost |
+|---|---|---|---|
+| Si Γ, collocate | 0.003296 s | 0.003567 s | **+8%** |
+| **MnO parity probe, collocate** | **1.839 s** | **2.100 s** | **+14.2%** |
+| **MnO parity probe, gather** | **1.876 s** | **1.982 s** | **+5.7%** |
 
-⇒ The cost is single-digit percent per call.  The benefit is a large fraction of the per-line term, but it
-only materialises once §5 is built.  **Do not judge the idea on the knob.**
+Trajectories move (Si Γ: 11 iters CONVERGED → 17 OSCILLATING, `Etot` agreeing to **2e-9**; the MnO probe's
+call counts go 68/132 → 82/139), so read the PER-CALL column — whole-run CPU (386 → 464 s) mixes the cost
+with the extra calls.
+
+⇒ **THE D-AWARE SCREEN BUYS ~10% ON THE BOX WALK, WEIGHTED.**  That is the honest price of dropping it, and
+it is the first time it has been paid knowingly.  Set against it: the per-line term this would make
+hoistable is **~40% of the kernel** (§5), the defect list in §2, and CP2K parity.  ⇒ The trade looks
+clearly favourable — **pay ~10%, plausibly save ~30%** — but the ~30% is an ESTIMATE and the §5 RAM
+question is unresolved, which is exactly what the queued session is for.  **Do not judge the idea on the
+knob**: the knob only removes the screening, it hoists nothing.
 
 ## 7. Where the choice is made
 
