@@ -101,6 +101,56 @@ Three things follow, and none of them is "qchem converges worse":
 3. **The convergence measures are different quantities**, so "44 steps vs 31" compares two thresholds as
    much as two trajectories.
 
+### ★★★ CP2K DOES **NOT** DO D-AWARE SCREENING — checked in the source, 2026-08-28
+
+> *"The D-aware tolerance (ε/|c_ij|) has caused a number of problems, including very subtle bugs that were
+> hard to track down.  Does CP2K also do D-aware screening?"* (user)
+
+**No.**  From `/home/janr/Code/cp2k/src/task_list_methods.F`, the production task-list path:
+
+```fortran
+CALL compute_pgf_properties(cube_center, lb_cube, ub_cube, radius, ...,
+                            ra, rab, rab2, dft_control%qs_control%eps_rho_rspace)
+...
+SUBROUTINE compute_pgf_properties(..., la_max, zeta, la_min, lb_max, zetb, lb_min, ra, rab, rab2, eps)
+   cutoff    = 1.0_dp
+   prefactor = EXP(-zeta*f*rab2)                     ! the GAUSSIAN PRODUCT prefactor E_ij -- geometry
+   radius    = exp_radius_very_extended(..., eps=eps, prefactor=prefactor, cutoff=cutoff)
+```
+
+Three things settle it:
+1. **The subroutine takes no density argument at all** — its whole parameter list is angular momenta,
+   exponents, centres and one `eps`.
+2. **`eps` is `eps_rho_rspace`, a single GLOBAL threshold.**  Not \f$\varepsilon/|c_{ij}|\f$.
+3. **`radius_list[ntasks]` is fixed data on the task list**, built once, while `pab_blocks` is passed
+   SEPARATELY to `grid_collocate_task_list` per call.  CP2K keeps the GEOMETRY and the DENSITY strictly
+   apart; we mix them.
+
+What CP2K screens on the density side is DBCSR **block sparsity** — which blocks exist at all — a
+structural question, not a per-task radius that breathes with \f$|D|\f$.
+
+⇒ **THIS IS THE MOST INTERESTING PARITY ITEM LEFT, because three separate threads converge on it:**
+- **the bug record** — the D-aware screen is behind the shifted-MP `Re[]` defect (4.1 Ha), the union-vs-
+  per-component box design, `FoldScreenMax` (a 2.3 Ha collapse when the orbit reduction used the signed
+  average), and the reduced-vs-full tier split in the T3 gates.  It is the single most defect-dense idea
+  in the collocation path;
+- **CP2K parity** — it is a deviation we never declared, and it is not on the `CP2K_COMPAT` table;
+- **BIN 1** — and this is the part that was not obvious.  \f$\varepsilon_{eff}\f$ is the ONLY
+  \f$D\f$-dependent input to `BoxGeom` (user, same day: the chord quadratic *"does not depend on rho(r)"*
+  — correct except for \f$R_q\f$, which comes from \f$\varepsilon_{eff}\f$).  **Remove it and the ENTIRE
+  box geometry becomes iteration-invariant** — `hw`, `Rq`, the chord bounds, all of it — so the per-line
+  `sqrt` that was just measured at ~40% of the kernel and called "close to irreducible" moves OUT of the
+  SCF loop and into the task list, where it is paid once.
+
+⚠ **AND IT IS NOT FREE — the trade needs measuring, not assuming.**  Dropping it widens every box
+(\f$\varepsilon_{eff}=\varepsilon/|c|\ge\varepsilon\f$, so the D-aware box is always the smaller one)
+and, more importantly, retires the per-(pair, offset) KILL `pf >= -log(e)`, which removes whole terms
+rather than shrinking them.  Reach scales as \f$\sqrt{\ln}\f$ and work as its cube: a pair at
+\f$|c|=10^{-2}\f$ loses ~1.4× on volume, at \f$10^{-4}\f$ ~2.1×.  ⇒ **The experiment is one knob
+(`eps_eff := kDensityEps` unconditionally) and one bin-1 probe run**, and it is worth doing before any
+more per-line micro-optimisation — it either buys the sqrt back for free or prices the D-aware screen
+honestly for the first time.
+
 ### ⛔ AND MATCHING THE MIXER DID NOT HELP — MEASURED, 2026-08-28
 
 Since our Pulay composes with Kerker exactly as CP2K's Broyden does, `MNO_ALPHA=0.2 MNO_PULAY=8` under
