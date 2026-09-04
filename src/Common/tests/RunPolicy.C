@@ -44,7 +44,7 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
     Restore r;
     Env a("CP2K_COMPAT",nullptr), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
         d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
-        g("QCHEM_BECKE_XC",nullptr);
+        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
     EXPECT_FALSE(p.CP2KCompat());
@@ -55,7 +55,10 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
     EXPECT_FALSE(p.MixRhoM());
     EXPECT_FALSE(p.XCFromDM());
     EXPECT_TRUE (p.SymmetryImposition()) << "by default the caller's imposeSymmetry is obeyed";
-    EXPECT_EQ(p.Deviations().size(), 6u) << "a new accelerator is not finished until it is in this list";
+    // The collocation box tolerance: eps/|c_ij| by default, flat eps (CP2K's rule) under the umbrella.
+    // It selects a LatticeScreener object, not a branch in the box walk -- doc/ScreeningPlan.md §7.
+    EXPECT_TRUE (p.DAwareScreen());
+    EXPECT_EQ(p.Deviations().size(), 7u) << "a new accelerator is not finished until it is in this list";
     EXPECT_NE(p.Banner().find("DEVIATING"), std::string::npos);
 }
 
@@ -65,7 +68,7 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
     Restore r;
     Env a("CP2K_COMPAT","1"), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
         d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
-        g("QCHEM_BECKE_XC",nullptr);
+        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
     EXPECT_TRUE (p.CP2KCompat());
@@ -75,6 +78,10 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
     // THE ONE THAT OVERRULES THE CALLER: CP2K does no symmetry work at all, and every banked recipe asks
     // for an imposition -- so the veto has to come from the switch, not from editing each recipe.
     EXPECT_FALSE(p.SymmetryImposition());
+    // CP2K screens the collocation on geometry alone (task_list_methods.F: the radius takes no density
+    // argument), so parity means the geometry-only screener.  This tree had been taking the deviation
+    // SILENTLY until 2026-09-04, which is the reason it is on the table at all.
+    EXPECT_FALSE(p.DAwareScreen());
     for (const Deviation& dev : p.Deviations()) EXPECT_FALSE(dev.Deviates()) << dev.knob;
     EXPECT_NE(p.Banner().find("AT PARITY"), std::string::npos);
 }
@@ -85,9 +92,9 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
 TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
 {
     Restore r;
-    Env a("CP2K_COMPAT","1"), b("GPW_STREAM_FOLD","1"), c("QCHEM_DM_LOWRANK",nullptr), h("QCHEM_BECKE_XC",nullptr),
+    Env a("CP2K_COMPAT","1"), b("GPW_STREAM_FOLD","1"), c("QCHEM_DM_LOWRANK",nullptr),
         d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
-        g("QCHEM_BECKE_XC",nullptr);
+        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
     EXPECT_TRUE (p.CP2KCompat());
@@ -102,7 +109,8 @@ TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
 TEST(RunPolicy, SetToZeroCountsAsStated)
 {
     Restore r;
-    Env a("CP2K_COMPAT",nullptr), b("GPW_STREAM_FOLD","0"), c("QCHEM_BECKE_XC",nullptr);
+    Env a("CP2K_COMPAT",nullptr), b("GPW_STREAM_FOLD","0"), c("QCHEM_BECKE_XC",nullptr),
+        d("GPW_DAWARE_SCREEN",nullptr);
     ReresolveRunPolicy();
     EXPECT_FALSE(theRunPolicy().StreamFold());
     bool found=false;

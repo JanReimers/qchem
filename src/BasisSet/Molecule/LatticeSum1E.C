@@ -44,6 +44,9 @@ import qchem.UnitCell;       // UnitCell (the cell geometry the internal enumera
 import qchem.Types;          // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
 import qchem.Blaze;          // matrix machinery
 import qchem.Math.Angular;   // Math::CartTerm (the Cartesian-monomial expansion of a GaussianFunction)
+export import qchem.BasisSet.Molecule.LatticeScreener;   // LatticeScreener -- the collocation tolerance policy
+                                                         // (re-exported: every caller of the two faces below
+                                                         //  must be able to name a screener to pass in)
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // DirectOp {W|τ} (the T3 stream-fold op currency)
 
 export namespace qchem::BasisSet::Molecule
@@ -192,9 +195,15 @@ public:
     //! historical rule \f$\beta=\tfrac23\alpha_{\max}\f$ (\f$V_{xc}\sim\rho^{1/3}\f$; GPW_FIELDSHARP
     //! overrides the 2/3); 0 = pair-only routing (the raster serves the SMOOTHING Hartree solve only --
     //! RasterFields::HartreeOnly, the Becke-XC partner); >0 = an explicit floor.
+    //! \a screener: the TOLERANCE POLICY that sizes every collocation box and kills a (pair, offset) term
+    //! whole -- \c DAwareScreener (this tree's default) or \c GeometryOnlyScreener (CP2K's rule).  Chosen
+    //! once, at a high level, and passed down; the walk never branches on which rule answers
+    //! (doc/ScreeningPlan.md).  ⚠ It MUST be the same screener the paired \c IntegratePotential gets, or
+    //! the two directions truncate differently and stop being adjoints.
     virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                  const std::vector<ivec3_t>& N_L,
                                                  const std::vector<double>& ecut_L,
+                                                 const LatticeScreener& screener,
                                                  double relFieldSharp=-1.0) const = 0;
 
     //! \brief The collocation ADJOINT (integrate-back): the KS block \f$h_{ij}=\langle\chi_i^k|V|\chi_j^k\rangle
@@ -210,11 +219,27 @@ public:
     //! smooth \f$V_H/V_{xc}\f$ the field decays like the density, but the LOCAL PSEUDOPOTENTIAL is spectrally
     //! BROAD, so its integrate-back must place each pair on a finer level (~6x) -- while the ultra-diffuse
     //! pairs still fall to deep coarse levels (their own spectra kill the field's tail).
-    //! \a screenD: OPTIONAL density-magnitude screen -- when the caller supplies the density matrix whose
-    //! field \a V_L is being integrated, each (pair, image) term is kept exactly when \c CollocateDensity of
-    //! that density keeps it, so the collocate/integrate ADJOINT is exact on the shared truncated operator
-    //! and the sweep only touches terms the density resolves (the CP2K eps/|coef| radii).  Density language
-    //! only: this face already speaks \c chmat_t densities (\c CollocateDensity).
+    //! \a screener: the TOLERANCE POLICY, as on \c CollocateDensity -- and it MUST be the same screener
+    //! that collocated \a screenD, or the two directions truncate differently and stop being adjoints.
+    //! \a screenD: OPTIONAL density-magnitude screen -- the WEIGHTS the \a screener rules on (the policy is
+    //! \a screener's, the numbers are this one's).  When the caller supplies the density matrix whose field
+    //! \a V_L is being integrated, each (pair, image) term is kept exactly when \c CollocateDensity of that
+    //! density keeps it, so the collocate/integrate ADJOINT is exact on the shared truncated operator and the
+    //! sweep only touches terms the density resolves (the CP2K eps/|coef| radii).  \c nullptr = NO weight
+    //! information, which the walk presents to the screener as a unit weight -- i.e. every rule then answers
+    //! with its floor, which is what the STATIC sharp-field sweeps (local PP, explicit \a pairLevels) have
+    //! always done.  Density language only: this face already speaks \c chmat_t densities.
+    //!
+    //! ⚠ THE TWO DIRECTIONS DO NOT SCREEN ON THE SAME QUANTITY, and that is deliberate (doc/ScreeningPlan.md
+    //! §2, kept as-is 2026-09-04).  Collocating, the weight is the SIGNED
+    //! \f$c_{ij}=\mathrm{fold}\cdot\mathrm{Re}[D_{ij}e^{-ikR}]\f$, because there it IS the scatter weight.
+    //! Gathering, it is the MAGNITUDE \f$\mathrm{fold}\cdot|D_{ij}|\f$, because this direction's term is
+    //! \f$e^{ikR}B_{ij}\f$ -- whose size is \f$|B|\f$ however the phase is oriented -- and screening it on a
+    //! real part is the 4.1 Ha shifted-MP defect (at quarter-integer \f$k\f$ every odd-offset term was
+    //! discarded and \f$H\f$ came out exactly real).  \f$|D|\ge|\mathrm{Re}[De^{-ikR}]|\f$, so the gather's
+    //! tolerance is the TIGHTER one and its kept set is a SUPERSET of the scatter's: at general \f$k\f$ the
+    //! "identical active set" above is exact only up to that asymmetry.  Unifying the two is a separate,
+    //! gated change -- it moves numbers -- and is NOT what the screener seam did.
     //! \a absRelCutoff selects the pair->level assignment rule: \c 0 (default) = the RELATIVE smooth-field
     //! rule (\c RelCutoffSafety() \f$\cdot e_{cut}^{ref}(\alpha_i+\alpha_j)/2\alpha_{\max}\f$ -- MUST match
     //! \c CollocateDensity's assignment so collocate/integrate stay exact adjoints); \f$>0\f$ = the ABSOLUTE
@@ -236,7 +261,8 @@ public:
     //! the phase-independent memo still applies.
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
-                                       const std::vector<double>& ecut_L, double absRelCutoff=0.0,
+                                       const std::vector<double>& ecut_L,
+                                       const LatticeScreener& screener, double absRelCutoff=0.0,
                                        const chmat_t* screenD=nullptr, double fieldSharpness=0.0,
                                        double relFieldSharp=-1.0,
                                        const std::vector<size_t>* pairLevels=nullptr) const = 0;

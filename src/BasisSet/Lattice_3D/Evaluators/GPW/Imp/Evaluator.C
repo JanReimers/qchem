@@ -23,6 +23,7 @@ import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic 
 import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
 import qchem.Reporting;       // the run report -- EmitGridsReport builds the `grids` section
+import qchem.RunPolicy;       // theRunPolicy().DAwareScreen() -- WHICH LatticeScreener this evaluator builds (N5)
 import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the grid report's {G}-star column)
 
 namespace qchem::BasisSet::Lattice_3D
@@ -234,6 +235,16 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     itsOrb=only;
     itsN  =itsOrb->GetNumFunctions();
 
+    // THE COLLOCATION TOLERANCE POLICY, resolved ONCE (doc/ScreeningPlan.md §7): D-aware by default,
+    // geometry-only (CP2K's rule) under CP2K_COMPAT or GPW_DAWARE_SCREEN=0.  Built at the molecular side's
+    // own collocation floor, which is also what the box task list is enumerated at -- both walks assert
+    // the two agree, because a screener below the floor would want boxes the list never built.
+    itsScreener = theRunPolicy().DAwareScreen()
+                ? std::shared_ptr<const Molecule::LatticeScreener>(
+                      std::make_shared<Molecule::DAwareScreener>(Molecule::CollocationEps()))
+                : std::shared_ptr<const Molecule::LatticeScreener>(
+                      std::make_shared<Molecule::GeometryOnlyScreener>(Molecule::CollocationEps()));
+
     // Its periodic-1E capability, reached by an abstract->abstract cross-cast (a molecular Gaussian basis
     // realises Molecule::LatticeSum1E; anything else is a usage error).
     itsLat=dynamic_cast<const Molecule::LatticeSum1E*>(itsOrb);
@@ -349,7 +360,9 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
     ReciprocalLattice recip = grid->Recip();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     auto memo   = itsCollocMemo;                            // ONE memo across the Coulomb + overlap closures
-    return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb,memo,relFS=itsRelFieldSharp](const chmat_t& D) -> ΔG_Map
+    auto screen = itsScreener;                              // the tolerance POLICY: immutable, so the cached
+                                                            // closure may capture it (doc/ScreeningPlan.md §4)
+    return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb,memo,screen,relFS=itsRelFieldSharp](const chmat_t& D) -> ΔG_Map
     {
         // ⚠ CALL CENSUS (2026-08-28).  These four closures are the ONLY consumers of the analytic
         // collocate/integrate pair, so bucketing their bodies gives the ledger a per-SITE call COUNT for
@@ -362,7 +375,7 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
         std::vector<rvec_t> rho;
         if (!memo->Lookup(D, ecut_L, rho))
         {
-            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, relFS);
+            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, *screen, relFS);
             memo->Store(D, rho, ecut_L);
         }
         else { qchem::report::Timed t("scf: rho memo replay (D seen before)"); }
@@ -426,7 +439,9 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
     if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
     auto memo  = itsCollocMemo;
     auto gmemo = itsGatherMemo;                             // shared D-aware screen (adjoint of the collocation)
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,gmemo,relFS=itsRelFieldSharp](const std::function<dcmplx(const ivec3_t&)>& Vtilde) -> chmat_t
+    auto screen= itsScreener;                               // the SAME policy the collocation got -- adjointness
+                                                            // needs both directions truncating on one rule
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,gmemo,screen,relFS=itsRelFieldSharp](const std::function<dcmplx(const ivec3_t&)>& Vtilde) -> chmat_t
     {
         qchem::report::Timed timer("scf: h ball closure (level restrict + inverse FFT)");
         const size_t K=levels.size();
@@ -440,7 +455,7 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
         const chmat_t* screenD = (memo && memo->valid) ? &memo->Dscr : nullptr;   // the UNION screen (all channels; see CollocMemo)
         chmat_t h;
         if (gmemo->Lookup(V_L, screenD, h)) { qchem::report::Timed t("scf: h memo replay (V+screen seen)"); return h; }
-        h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);   // 0 = the relative rule (adjoint-paired with collocation)
+        h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, *screen, 0.0, screenD, 0.0, relFS);   // 0 = the relative rule (adjoint-paired with collocation)
         gmemo->Store(V_L, screenD, h);
         return h;
     };
@@ -570,13 +585,14 @@ std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shar
     if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
     auto memo  = itsCollocMemo;
     auto gmemo = itsGatherMemo;
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const chmat_t& D) -> rvec_t
+    auto screen= itsScreener;
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,screen,relFS=itsRelFieldSharp](const chmat_t& D) -> rvec_t
     {
         qchem::report::Timed timer("scf: rho raw closure (spectral transfer)");
         std::vector<rvec_t> rho;                            // ONE memo, ONE definition (see CollocMemo::Lookup)
         if (!memo->Lookup(D, ecut_L, rho))
         {
-            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, relFS);
+            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, *screen, relFS);
             memo->Store(D, rho, ecut_L);
         }
         else { qchem::report::Timed t("scf: rho memo replay (D seen before)"); }
@@ -608,7 +624,8 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
     if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
     auto memo  = itsCollocMemo;
     auto gmemo = itsGatherMemo;
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,gmemo,relFS=itsRelFieldSharp](const rvec_t& v) -> chmat_t
+    auto screen= itsScreener;
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,gmemo,screen,relFS=itsRelFieldSharp](const rvec_t& v) -> chmat_t
     {
         qchem::report::Timed timer("scf: h raw closure (spectral transfer)");
         const size_t K=levels.size();
@@ -626,7 +643,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
         const chmat_t* screenD = (memo && memo->valid) ? &memo->Dscr : nullptr;   // the UNION screen (all channels; see CollocMemo)
         chmat_t h;
         if (gmemo->Lookup(V_L, screenD, h)) { qchem::report::Timed t("scf: h memo replay (V+screen seen)"); return h; }
-        h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);
+        h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, *screen, 0.0, screenD, 0.0, relFS);
         gmemo->Store(V_L, screenD, h);
         return h;
     };
@@ -660,7 +677,7 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
     // sweep skips every term the density cannot resolve.  Before the first collocation (or for a field
     // unrelated to a density, e.g. the unit-field gates) the memo is empty -> complete sweep.
     const chmat_t* screenD = (itsCollocMemo && itsCollocMemo->valid) ? &itsCollocMemo->D : nullptr;
-    return itsLat->IntegratePotential(V_L, CellPhase(), A, itsLevelN, itsLevelEcut, 0.0, screenD, 0.0, itsRelFieldSharp);   // 0 = the relative rule (adjoint-paired with collocation)
+    return itsLat->IntegratePotential(V_L, CellPhase(), A, itsLevelN, itsLevelEcut, *itsScreener, 0.0, screenD, 0.0, itsRelFieldSharp);   // 0 = the relative rule (adjoint-paired with collocation)
 }
 
 // The REL_CUTOFF multi-grid density-grid ladder: the fine grid (L=0, reused) plus coarser grids each a factor
@@ -1059,7 +1076,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
         }
     const bool timeIt=(std::getenv("GPW_LOCALPP_RELCUTOFF")!=nullptr);
     auto t0=std::chrono::steady_clock::now();
-    chmat_t h=itsLat->IntegratePotential(V_L, CellPhase(), itsCell, itsLevelN, itsLevelEcut, kappa, nullptr, beta);
+    chmat_t h=itsLat->IntegratePotential(V_L, CellPhase(), itsCell, itsLevelN, itsLevelEcut, *itsScreener, kappa, nullptr, beta);
     if (timeIt)
     {
         double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
@@ -1149,7 +1166,7 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const Pseudopotentia
         V_L[L]=levels[L]->RhoOnGrid(vmapL);
     }
     qchem::report::EmitFold("V_loc-long {G}-star", rops.size(), gRaw, gReps);
-    return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_L, ecut_L,
+    return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_L, ecut_L, *itsScreener,
                                       0.0, nullptr, 0.0, itsRelFieldSharp, &lv);   // explicit harmonic routing; NO D screen
 }
 

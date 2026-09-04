@@ -92,13 +92,24 @@ public:
     //! ⚠ Like \c SymmetryImposition this OVERRULES the caller, for the same reason: every banked recipe
     //! sets the mesh, and a switch that needed the recipe edited too would not be one switch.
     bool BeckeXC() const {return itsBeckeXC.value;}
+    //! \brief D-AWARE COLLOCATION SCREENING: size each collocation box by \f$\varepsilon/|c_{ij}|\f$
+    //! rather than a flat \f$\varepsilon\f$.  DEFAULT ON; \c false selects \c GeometryOnlyScreener.
+    //!
+    //! WHY IT IS ON THIS TABLE (2026-09-04, doc/ScreeningPlan.md §7).  CP2K does NOT screen on the
+    //! density -- \c task_list_methods.F's radius takes no density argument, its eps is the global
+    //! \c eps_rho_rspace, and \c radius_list is fixed task-list data (checked in the source) -- so this
+    //! tree has been taking the deviation SILENTLY.  It is worth ~10% on the box walk, weighted
+    //! (measured: MnO collocate 1.839 s vs 2.100 s per call, gather 1.876 s vs 1.982 s).
+    //! ⚠ It is also the most defect-dense idea in the collocation path (ScreeningPlan.md §2), which is
+    //! why the value now selects a \c LatticeScreener OBJECT rather than a branch in the box walk.
+    bool DAwareScreen() const {return itsDAware.value;}
     //!@}
 
     bool CP2KCompat() const {return itsCP2KCompat;}   //!< the umbrella was asked for
     //! Every deviation, in one list, whatever its value -- the banner prints the WHOLE table, because a
     //! row that lists only what is ON cannot be read as evidence that the rest is OFF.
     std::vector<Deviation> Deviations() const
-    {return {itsDMLowRank, itsStreamFold, itsMixRhoM, itsXCFromDM, itsImpose, itsBeckeXC};}
+    {return {itsDMLowRank, itsStreamFold, itsMixRhoM, itsXCFromDM, itsImpose, itsBeckeXC, itsDAware};}
     //! Are we actually at parity?  (CP2K_COMPAT=1 plus an explicit knob that contradicts it is NOT.)
     bool AtParity() const;
     //! One line naming every deviation and its state, with `*` on the ones that differ from CP2K.
@@ -107,7 +118,8 @@ public:
 private:
     Deviation Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault);
     bool      itsCP2KCompat = false;
-    Deviation itsDMLowRank{}, itsStreamFold{}, itsMixRhoM{}, itsXCFromDM{}, itsImpose{}, itsBeckeXC{};
+    Deviation itsDMLowRank{}, itsStreamFold{}, itsMixRhoM{}, itsXCFromDM{}, itsImpose{}, itsBeckeXC{},
+              itsDAware{};
 };
 
 //! The process's policy.  A function rather than a global so it is constructed on first use, after

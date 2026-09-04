@@ -58,6 +58,16 @@ using qchem::BasisSet::Molecule::BasisSetData;
 
 namespace
 {
+// The collocation TOLERANCE POLICY these direct-face gates run under (doc/ScreeningPlan.md).  The tree's
+// DEFAULT is D-aware, so this is what the SCF path hands the same two faces -- which is what makes the
+// numbers pinned below the ones a real run produces.  A geometry-only arm would be a different gate, not a
+// different spelling of this one.
+const qchem::BasisSet::Molecule::LatticeScreener& TheScreener()
+{
+    static const qchem::BasisSet::Molecule::DAwareScreener s(qchem::BasisSet::Molecule::CollocationEps());
+    return s;
+}
+
 // The valence Si Gaussian basis (SIPP, Cartesian) on ANY structure -- the L_PP builder.  The Engine argument
 // is the integral-engine switch point (see Molecule::LatticeSum1E): Engine::MnD here (its AtCenter + analytic
 // 2C kernels make the periodic sum exact/trivial); Engine::LibCint would be the faster path once PG_LibCint
@@ -372,7 +382,7 @@ TEST(GPW, AnalyticCollocationConservesCharge)
         const size_t  n=ev.size();
         chmat_t D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.0);
         auto gamma=[](const ivec3_t&)->dcmplx { return dcmplx(1.0); };           // Gamma: every offset phase 1
-        rvec_t rho=lat->CollocateDensity(D, gamma, cell, {N}, {ev.DensityGrid().Ecut()})[0];   // K=1
+        rvec_t rho=lat->CollocateDensity(D, gamma, cell, {N}, {ev.DensityGrid().Ecut()}, TheScreener())[0];   // K=1
         double integral=blazem::sum(rho)*cell.GetCellVolume()/double(rho.size());
         const auto& S=static_cast<const Complex_OIBS&>(gpwRef).Overlap();        // Bloch overlap S^Bloch
         double trDS=0.0; for (size_t i=0;i<n;i++) trDS+=std::real(dcmplx(S(i,i)));
@@ -455,8 +465,8 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
     ΔG_Map vmap; for (const ivec3_t& dm : ev.DensityGrid().Gs()) vmap[dm]=field(dm);
     rvec_t V=ev.DensityGrid().RhoOnGrid(vmap);                 // V(r) on the fine grid
     const double ecut=ev.DensityGrid().Ecut();
-    chmat_t h=lat->IntegratePotential({V}, gamma, cell, {N}, {ecut});
-    rvec_t rho=lat->CollocateDensity(D, gamma, cell, {N}, {ecut})[0];
+    chmat_t h=lat->IntegratePotential({V}, gamma, cell, {N}, {ecut}, TheScreener());
+    rvec_t rho=lat->CollocateDensity(D, gamma, cell, {N}, {ecut}, TheScreener())[0];
     const double w=cell.GetCellVolume()/double(V.size());
     double lhs=0.0; for (size_t p=0;p<V.size();p++) lhs+=rho[p]*V[p]*w;
     dcmplx rhs(0.0); for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) rhs+=dcmplx(D(i,j))*dcmplx(h(j,i));
@@ -568,12 +578,12 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     const double ecut=12.0;                            // K=1: every pair lands on the single level
 
     // FULL reference (no fold), then REDUCED (fold set) -- same task list either way.
-    const rvec_t  rhoFull=lat->CollocateDensity(D, ph, cell, {N}, {ecut})[0];
-    const chmat_t hFull  =lat->IntegratePotential({V}, ph, cell, {N}, {ecut});
+    const rvec_t  rhoFull=lat->CollocateDensity(D, ph, cell, {N}, {ecut}, TheScreener())[0];
+    const chmat_t hFull  =lat->IntegratePotential({V}, ph, cell, {N}, {ecut}, TheScreener());
     const size_t used=lat->SetStreamSymmetryOps(dops, cell, kFrac);
     EXPECT_EQ(used, dops.size()) << tag << ": every (little-group) cubic op must enter the fold";
-    const rvec_t  rhoRed=lat->CollocateDensity(D, ph, cell, {N}, {ecut})[0];
-    const chmat_t hRed  =lat->IntegratePotential({V}, ph, cell, {N}, {ecut});
+    const rvec_t  rhoRed=lat->CollocateDensity(D, ph, cell, {N}, {ecut}, TheScreener())[0];
+    const chmat_t hRed  =lat->IntegratePotential({V}, ph, cell, {N}, {ecut}, TheScreener());
 
     // Gate 1: P(reduced collocation) == full collocation (reordering tier).
     const rvec_t rhoSym=project(rhoRed);
@@ -621,7 +631,7 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     // negative-control block after the fold is cleared -- so the gate reads one fold state at a time.)
     chmat_t Dabs(nf);
     for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++) Dabs(i,j)=dcmplx(std::abs(dcmplx(D(i,j))),0.0);
-    const chmat_t hRedS=lat->IntegratePotential({V}, ph, cell, {N}, {ecut}, 0.0, &Dabs);
+    const chmat_t hRedS=lat->IntegratePotential({V}, ph, cell, {N}, {ecut}, TheScreener(), 0.0, &Dabs);
 
     // Gate 3: the variational adjoint on the reduced operator: Tr(D hRed) == <P rhoRed, V>.
     const double w=cell.GetCellVolume()/double(V.size());
@@ -645,11 +655,11 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     chmat_t Db(nf);
     for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++)
         Db(i,j)=dcmplx(D(i,j))*(1.0+0.02*std::sin(1.0+7.0*double(i)+13.0*double(j)));
-    const rvec_t rhoRedB=project(lat->CollocateDensity(Db, ph, cell, {N}, {ecut})[0]);
+    const rvec_t rhoRedB=project(lat->CollocateDensity(Db, ph, cell, {N}, {ecut}, TheScreener())[0]);
     lat->SetStreamSymmetryOps({}, cell);                                  // clear the fold
-    const rvec_t rhoFullB=lat->CollocateDensity(Db, ph, cell, {N}, {ecut})[0];
+    const rvec_t rhoFullB=lat->CollocateDensity(Db, ph, cell, {N}, {ecut}, TheScreener())[0];
     // Gate 2b's other arm (see above): the SCREENED gather, now unfolded.
-    const chmat_t hFullS=lat->IntegratePotential({V}, ph, cell, {N}, {ecut}, 0.0, &Dabs);
+    const chmat_t hFullS=lat->IntegratePotential({V}, ph, cell, {N}, {ecut}, TheScreener(), 0.0, &Dabs);
     double dHS=0.0;
     for (size_t i=0;i<nf;i++) for (size_t j=0;j<nf;j++)
         dHS=std::max(dHS, std::abs(dcmplx(hRedS(i,j))-dcmplx(hFullS(i,j))));

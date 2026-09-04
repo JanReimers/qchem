@@ -339,14 +339,16 @@ double  Orbital_IBS::MinExponent() const {return NR_Evaluator::MinExponent();}
 double  Orbital_IBS::RelCutoffSafety() const {return NR_Evaluator::RelCutoffSafety();}
 std::vector<rvec_t> Orbital_IBS::CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                   const std::vector<ivec3_t>& N_L,
-                                                  const std::vector<double>& ecut_L, double relFieldSharp) const
-{   return NR_Evaluator::CollocateDensity(D,phase,A,N_L,ecut_L,relFieldSharp); }
+                                                  const std::vector<double>& ecut_L,
+                                                  const LatticeScreener& screener, double relFieldSharp) const
+{   return NR_Evaluator::CollocateDensity(D,phase,A,N_L,ecut_L,screener,relFieldSharp); }
 chmat_t Orbital_IBS::IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                         const std::vector<ivec3_t>& N_L,
-                                        const std::vector<double>& ecut_L, double relCutoffScale,
+                                        const std::vector<double>& ecut_L,
+                                        const LatticeScreener& screener, double relCutoffScale,
                                         const chmat_t* screenD, double fieldSharpness, double relFieldSharp,
                                         const std::vector<size_t>* pairLevels) const
-{   return NR_Evaluator::IntegratePotential(V_L,phase,A,N_L,ecut_L,relCutoffScale,screenD,fieldSharpness,relFieldSharp,pairLevels); }
+{   return NR_Evaluator::IntegratePotential(V_L,phase,A,N_L,ecut_L,screener,relCutoffScale,screenD,fieldSharpness,relFieldSharp,pairLevels); }
 std::vector<size_t> Orbital_IBS::StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                        double beta, double lnEps) const
 {   return NR_Evaluator::StaticFieldPairLevels(ecut_L,beta,lnEps); }

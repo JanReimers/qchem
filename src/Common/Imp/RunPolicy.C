@@ -7,6 +7,7 @@
 //   XCFromDM    -> Hamiltonian/Internal/Imp/PWTerms.C   (which rho the XC term is fed)
 //   SymmetryImposition -> Calculation/Imp/SolidCalculation.C (ANDed with SolidCalcOptions::imposeSymmetry)
 //   BeckeXC     -> Calculation/Imp/SolidCalculation.C          (passed to qcMesh::ResolveXCMesh as allowBecke)
+//   DAwareScreen-> BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C (WHICH LatticeScreener the evaluator builds)
 // Two further CP2K deviations are TYPED OPTIONS rather than env flags and are therefore NOT here:
 // SolidCalcOptions::raster (BallOnly -- which IS CP2K's bet, vindicated by doc/OpenWork.md N2) and
 // SolidCalcOptions::cutoffFactor (C=2).  They are chosen by the caller and reported by the run banner
@@ -45,6 +46,10 @@ RunPolicy::RunPolicy()
     itsImpose     = Resolve("QCHEM_IMPOSE_SYMMETRY", "space-group imposition available to the caller",
                             /*cp2k*/false, /*qchem default*/true);
     itsBeckeXC    = Resolve("QCHEM_BECKE_XC", "atom-centred (Becke) XC quadrature instead of the uniform grid",
+                            /*cp2k*/false, /*qchem default*/true);
+    // The knob NAME is unchanged from the experiment it grew out of, so every measurement banked against
+    // GPW_DAWARE_SCREEN=0 still reproduces -- but it now selects a screener OBJECT, not a branch.
+    itsDAware     = Resolve("GPW_DAWARE_SCREEN", "D-aware collocation box tolerance eps/|c_ij| instead of flat eps",
                             /*cp2k*/false, /*qchem default*/true);
 }
 

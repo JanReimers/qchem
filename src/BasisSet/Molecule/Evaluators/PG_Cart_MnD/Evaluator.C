@@ -102,31 +102,28 @@ public:
     // Env instrument GPW_SCREEN_EPS raises it to SHRINK the lattice-sum reach + collocation boxes
     // for diffuse bases (demo/robustness runs -- drops only sub-eps terms; not for production digits).
     static double kScreenEps() { static const double e=[]{const char* s=std::getenv("GPW_SCREEN_EPS"); return s?std::atof(s):1e-10;}(); return e; }
-    //! D-AWARE density-magnitude screen (CP2K's eps/|coef| radii, doc/GPWPlan.md 0a).  What lands on the grid
-    //! is weight*chi_i*chi_j (weight ~ the density-matrix element), and the accuracy target is ABSOLUTE on the
-    //! density -- so the tolerance a pair's box must honour is kDensityEps/|weight|, not kScreenEps: a
-    //! small-|D| pair keeps a SMALLER box (radius shrinks with sqrt(ln), work with its cube), and a
-    //! (pair, offset) whose |weight|*max|value| is below kDensityEps is skipped whole.  Dropping only
-    //! sub-eps DENSITY contributions with smooth exponential tails: a magnitude screen, no Gibbs (the
-    //! ringing ledger's class).  Clamped so a |weight|>1 never grows a box beyond the geometry screen
-    //! (replay is capped by what was built).  The same criterion drives the integrate-back when the caller
-    //! supplies its density (the SHARED ACTIVE SET: both directions skip identical terms, so the
-    //! collocate/integrate adjoint stays machine-exact on the kept operator).
-    //! D-aware density-magnitude screen (sizes the collocation boxes).  Env instrument GPW_DENSITY_EPS.
-    static double kDensityEps() { static const double e=[]{const char* s=std::getenv("GPW_DENSITY_EPS"); return s?std::atof(s):1e-10;}(); return e; }
-    //! \brief \c GPW_DAWARE_SCREEN=0 makes the box tolerance GEOMETRY-ONLY: \f$\varepsilon\f$ flat, no
-    //! \f$\varepsilon/|c_{ij}|\f$ widening and no per-(pair, offset) \f$D\f$ kill.  ⚠ AN EXPERIMENT'S
-    //! KNOB, NOT THE DESIGN.  The design this is measuring the case for is a \c LatticeScreener interface
-    //! with \c DAwareScreener / \c GeometryOnlyScreener behind it, chosen once at the \c SolidCalculation
-    //! level — see doc/ScreeningPlan.md.  Do not grow more branches on this bool; replace it.
+    //! \brief The collocation tolerance FLOOR: what sizes the (shell pair, offset) task list, and the
+    //! lower bound no screener may answer below (asserted at both walks).  ONE definition, in the screening
+    //! module beside the policies that are built at it -- see \c LatticeScreener.C's \c CollocationEps().
+    //! DECOUPLED from the analytic \c kScreenEps above: a collocated density and an analytic lattice sum
+    //! are not converged by the same tolerance.
+    static double kDensityEps() { return CollocationEps(); }
+    //! \brief ⛔ THE TOLERANCE POLICY IS NOT DECIDED HERE ANY MORE (doc/ScreeningPlan.md, 2026-09-04).
     //!
-    //! WHY IT IS WORTH MEASURING (2026-08-28): CP2K does NOT screen on the density
-    //! (\c task_list_methods.F: the radius takes no density argument, its eps is the global
-    //! \c eps_rho_rspace, and \c radius_list is fixed task-list data), and
-    //! \f$\varepsilon_{eff}\f$ is the ONLY \f$D\f$-dependent input to \c BoxGeom — so switching it off
-    //! makes the whole box geometry ITERATION-INVARIANT and hoistable into the task list.
-    static bool UseDAwareScreen()
-    { static const bool b=[]{const char* s=std::getenv("GPW_DAWARE_SCREEN"); return !s || std::atoi(s)!=0;}(); return b; }
+    //! It arrives as a \c LatticeScreener on the two collocation faces below, and neither walk asks which
+    //! rule answered -- that is the dependency inversion the seam exists to install, replacing a \c bool
+    //! (\c GPW_DAWARE_SCREEN) consulted inside the innermost geometry code.  The rule that used to live
+    //! here is now \c DAwareScreener: what lands on the grid is \f$c_{ij}\chi_i\chi_j\f$ and the accuracy
+    //! target is ABSOLUTE on the density, so a box honours \f$\varepsilon/|c_{ij}|\f$ -- a small-|c| term
+    //! keeps a SMALLER box (radius with \f$\sqrt{\ln}\f$, work with its cube) and a term whose whole box
+    //! is sub-tolerance is skipped.  Only sub-eps density with smooth exponential tails is dropped: a
+    //! magnitude screen, no Gibbs.  \c GeometryOnlyScreener is CP2K's flat-\f$\varepsilon\f$ alternative.
+    //! Which one a run gets is \c qchem::RunPolicy::DAwareScreen, resolved with the other declared CP2K
+    //! deviations -- CP2K screens on geometry alone.
+    //! \note The two directions hand the screener DIFFERENT weights (signed \f$c_{ij}\f$ collocating,
+    //! \f$|D_{ij}|\f$ gathering), so at general \f$k\f$ the gather's kept set is a strict SUPERSET of the
+    //! scatter's rather than identical to it.  Deliberate, and the reason is the 4.1 Ha shifted-MP defect
+    //! -- see \c LatticeSum1E::IntegratePotential, which carries the full note.
 
     //! The lattice-sum ECONOMY report (LatticeSum1E face; doc there).  Reach numbers use the SAME formulas
     //! as the screens: a single orbital's tail reach is sqrt(-ln eps/alpha), a pair's conservative reach is
@@ -1751,10 +1748,15 @@ public:
     // Each pair scatters on ITS level (PairLevel); Integral of the total = Tr(D S^k) to screening tolerance.
     std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                          const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                         const LatticeScreener& screener,
                                          double relFieldSharp=-1.0) const
     {
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K);
+        // THE SUPERSET INVARIANT (see BoxTasks): the task list is screened once at kDensityEps, and a
+        // screener may only RAISE a term's tolerance from there -- which can remove tasks, never add one.
+        // A screener with a lower floor would want boxes the list never enumerated.
+        assert(screener.Floor()>=kDensityEps() && "the box task list is a superset only at or above its floor");
         // THE per-iteration cost bucket (doc/GPWPlan1.md "fast-recompute campaign"): every SCF step
         // evaluates every (shell pair, offset) task live -- there is no value cache any more (plan step 7).
         // The TASK LIST build nested inside charges its own setup bucket, so this one reads as the pure
@@ -1810,19 +1812,28 @@ public:
                        && "the pair->level assignment must be a shell-pair property");
 #endif
             rvec_t& r=dst[L];
+            const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
             std::vector<size_t> here;                                   // this offset's live pairs
-            std::vector<double> cwHere, epsHere;
+            std::vector<double> cwHere;
             // The component-LOCAL slots of each live pair in the shell-pair factor arrays.  Decoding them
             // from the packed key inside the point loop (key/nn, key%nn) put a HARDWARE INTEGER DIVIDE on
             // the innermost path -- 13.9% of the uncached kernel, measured 2026-08-26.  They are properties
             // of the (pair, offset) pre-filter, not of the point, so they are resolved once here.
             std::vector<size_t> iaHere, jbHere;
+            // THE SCREENING-WEIGHT BLOCK and its scatter-weight twin: the screener rules on \c cij, the walk
+            // accumulates \c cw = c*wm.  Allocated ONCE per shell pair and reset per offset, so a task costs
+            // no allocation; the ScreenPlan's mask likewise reuses its buffer (see ScreenPlan).
+            rmat_t cij(nIs,nJs,0.0), cw(nIs,nJs,0.0);
+            ScreenPlan plan;
             for (const BoxTask& task : tl[sp].tasks)                     // the hoisted geometry (see BoxTasks)
             {
                 const ivec3_t& n=task.n; const rvec3_t& Roff=task.Roff;
-                here.clear(); cwHere.clear(); epsHere.clear(); iaHere.clear(); jbHere.clear();
-                double epsUnion=0.0;
+                cij.reset(); cw.reset();
                 const double pf=task.pf;                                 // screen (1), shared by the shell pair
+                // ONE phase query per TASK, not per component pair: the offset phase is a property of n and
+                // every component of this shell pair asked for the same one.  Bit-identical (same value, same
+                // multiplication order), and it pays for the block fill below.
+                const dcmplx ph=std::conj(phase(n));
                 for (size_t key : want)
                 {
                     const size_t i=key/nn, j=key%nn;
@@ -1836,21 +1847,32 @@ public:
                         wm=double(sf->pairs[key].pairMult)*double(it->second);
                     }
                     const dcmplx Dij = sf ? Dsym[key] : dcmplx(D(i,j));        // T3.5: the orbit-projected D
-                    const double c=((i==j)?1.0:2.0)*std::real(Dij*std::conj(phase(n)));
-                    if (c==0.0) continue;
-                    // MEMBER rule (|c|, not |c*wm|) so the reduced box matches every orbit member's.
-                    const double e=UseDAwareScreen() ? std::max(kDensityEps(), kDensityEps()/std::fabs(c))
-                                                     : kDensityEps();
-                    if (pf>=-std::log(e)) continue;                     // whole box below THIS pair's eps
-                    here.push_back(key); cwHere.push_back(c*wm); epsHere.push_back(e);
-                    iaHere.push_back(i-si.begin); jbHere.push_back(j-sj.begin);
-                    epsUnion = epsUnion==0.0 ? e : std::min(epsUnion,e);
+                    const double c=((i==j)?1.0:2.0)*std::real(Dij*ph);
+                    // MEMBER rule: the SCREEN sees |c|, never |c*wm|, so the reduced box matches every orbit
+                    // member's.  The scatter still gets c*wm.  (c==0 leaves the slot at 0 = "absent", which
+                    // is what every screener reads it as.)
+                    cij(i-si.begin, j-sj.begin)=c;
+                    cw (i-si.begin, j-sj.begin)=c*wm;
                 }
-                if (here.empty()) continue;
+                // ⇦ THE SEAM (doc/ScreeningPlan.md).  Which tolerance sizes this box, and which terms ride
+                // it, is the screener's business -- including the UNION rule that used to be open-coded here
+                // and again in the gather.  The walk below does not know which rule answered.
+                screener.Screen(n,pf,cij,plan);
+                if (plan.Dead()) continue;
+                const double epsUnion=plan.Tolerance();
+                here.clear(); cwHere.clear(); iaHere.clear(); jbHere.clear();
+                for (size_t key : want)
+                {
+                    const size_t a=key/nn-si.begin, b=key%nn-sj.begin;
+                    if (!plan.Keeps(a,b)) continue;
+                    here.push_back(key); cwHere.push_back(cw(a,b));
+                    iaHere.push_back(a); jbHere.push_back(b);
+                }
+                assert(!here.empty() && "a live plan must keep at least one term");
                 // THE SEPARABLE-CONTRACTION ROUTE (GPW_CONTRACT_CUBE, doc/CollocationRewritePlan.md step 5).
                 // The whole shell pair collapses into ONE Gaussian x ONE polynomial with these weights
-                // summed in, so the per-component-pair loop below disappears entirely.  Note the
-                // per-component |v|<epsHere screen has NO analogue here and needs none: the box is already
+                // summed in, so the per-component-pair loop below disappears entirely.  Note the old
+                // per-component |v|<eps_ij screen has NO analogue here and needs none: the box is already
                 // sized by epsUnion, so that test never shrank the walk -- it only declined to accumulate a
                 // value it had already computed (step 3).  Not accumulating is the only thing it bought,
                 // and the contracted cube is formed regardless, so dropping it costs nothing and removes a
@@ -1858,7 +1880,6 @@ public:
                 bool didContract=false;
                 if (UseContractCube())
                 {
-                    const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
                     double wd[kMaxShell*kMaxShell];
                     for (size_t t=0;t<nIs*nJs;t++) wd[t]=0.0;
                     for (size_t k=0;k<here.size();k++) wd[iaHere[k]*nJs+jbHere[k]]=cwHere[k];
@@ -1879,8 +1900,9 @@ public:
                 // existed both directions replayed ONE frozen stream, so the asymmetry it creates was
                 // invisible.  Deleting the cache exposed it at once: GPW.AnalyticIntegrateBackAdjoint and
                 // the two XC finite-difference gates all sat ~1.2e-8 relative off on the walk, scaling
-                // linearly with GPW_DENSITY_EPS (green again at 1e-12).  epsHere survives only as the
-                // input to epsUnion, which is where a component pair's own tolerance belongs.
+                // linearly with GPW_DENSITY_EPS (green again at 1e-12).  A component pair's own tolerance
+                // now survives ONLY inside the screener, as the input to the union -- which is exactly where
+                // it belongs, and the seam is what put it there (doc/ScreeningPlan.md).
                 ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N_L[L],
                                 [&](size_t idx, const double* fI, const double* fJ)
                 {
@@ -2034,6 +2056,7 @@ public:
     //! construction, and the active set changes with D while the memo is keyed on V alone).
     chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                               const LatticeScreener& screener,   // the tolerance POLICY (doc/ScreeningPlan.md)
                                double absRelCutoff=0.0, const chmat_t* screenD=nullptr,
                                double fieldSharpness=0.0,         // beta_loc: the sharp field's own exponent (local-PP)
                                double relFieldSharp=-1.0,         // the relative rule's beta floor (must match collocation)
@@ -2042,6 +2065,7 @@ public:
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K && V_L.size()==K);
         assert(!pairLevels || pairLevels->size()==size()*size());
+        assert(screener.Floor()>=kDensityEps() && "the box task list is a superset only at or above its floor");
         const size_t nn=size();
         // The collocation's sibling per-iteration bucket -- charged ONLY on the density-rule path (the KS
         // field, once per k-block per iteration).  The STATIC sharp-field sweeps (local PP, explicit
@@ -2133,13 +2157,21 @@ public:
             if (memo) for (size_t key : want) memo->B[key].level=l;
             std::vector<dcmplx> s(want.size(), dcmplx(0.0));
             std::vector<size_t> here;
-            std::vector<double> wmHere, epsHere, bHere;
+            std::vector<double> wmHere, bHere;
             std::vector<size_t> iaHere, jbHere;      // the component-LOCAL slots -- see scatterShell
+            const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
+            // The screening-weight block (this direction's currency: a MAGNITUDE -- see below) and the fold
+            // multiplicities that ride alongside.  One allocation per shell pair; reset per offset.
+            rmat_t cij(nIs,nJs,0.0), wmB(nIs,nJs,0.0);
+            ScreenPlan plan;
+            // Slot -> the `want` index, so the survivors can be read back in the order `s`/`memo` expect.
+            std::vector<size_t> slotOf(nIs*nJs,0);
+            for (size_t k=0;k<want.size();k++)
+                slotOf[(want[k]/nn-si.begin)*nJs + (want[k]%nn-sj.begin)]=k;
             for (const BoxTask& task : tl[sp].tasks)                     // the hoisted geometry (see BoxTasks)
             {
                 const ivec3_t& n=task.n; const rvec3_t& Roff=task.Roff;
-                here.clear(); wmHere.clear(); epsHere.clear(); iaHere.clear(); jbHere.clear();
-                double epsUnion=0.0;
+                cij.reset(); wmB.reset();
                 const double pf=task.pf;                                 // screen (1), shared by the shell pair
                 for (size_t k=0;k<want.size();k++)
                 {
@@ -2153,34 +2185,44 @@ public:
                         if (it==mm.end() || it->second==0) continue;
                         wm=double(it->second);
                     }
-                    double e=kDensityEps();      // collocation floor (decoupled from the analytic kScreenEps)
-                    if (screenD && UseDAwareScreen())
-                    {
-                        // ⛔ THE SCREEN IS THE MAGNITUDE |D_ij|, NEVER Re[D conj(phase)] -- the SAME defect
-                        // this direction's per-pair path was fixed for, and this copy of it survived because
-                        // until 2026-08-27 the value cache sent every in-budget pair down the other path
-                        // (doc/Benchmark.md footnote 1, the shifted-MP defect; deleting the cache in plan
-                        // step 7 routed all of them here and it fired at once: Si 2x2x2 shifted MP came out
-                        // 4.1 Ha high and NON-AUFBAU).  A real part is not a magnitude: this direction's
-                        // term is phase(n)*b, whose size is |b| however the phase is oriented, so a term
-                        // with Re[D conj(phase)] = 0 still adds a purely IMAGINARY, entirely non-negligible
-                        // amount to H.  At a QUARTER-INTEGER k that is systematic, not accidental --
-                        // e^{2 pi i k n} = i^n is purely imaginary for every ODD offset, and screenD is a
-                        // matrix of MAGNITUDES (real, positive), so the old test discarded EVERY odd-offset
-                        // term and H came out exactly real.  |D_ij| = |D_ij conj(phase)| is strictly MORE
-                        // conservative, so it can only keep terms the old test dropped.
-                        const double Dmag = ((i==j)?1.0:2.0)
-                                          * (Dscreen.empty() ? std::abs(dcmplx((*screenD)(i,j)))
-                                                             : Dscreen[key]);
-                        if (Dmag==0.0) continue;
-                        e=std::max(kDensityEps(), kDensityEps()/Dmag);
-                    }
-                    if (pf>=-std::log(e)) continue;                     // whole box below THIS pair's eps
-                    here.push_back(k); wmHere.push_back(wm); epsHere.push_back(e);
-                    iaHere.push_back(i-si.begin); jbHere.push_back(j-sj.begin);
-                    epsUnion = epsUnion==0.0 ? e : std::min(epsUnion,e);
+                    // ⛔ THE SCREEN IS THE MAGNITUDE |D_ij|, NEVER Re[D conj(phase)] -- the SAME defect
+                    // this direction's per-pair path was fixed for, and this copy of it survived because
+                    // until 2026-08-27 the value cache sent every in-budget pair down the other path
+                    // (doc/Benchmark.md footnote 1, the shifted-MP defect; deleting the cache in plan
+                    // step 7 routed all of them here and it fired at once: Si 2x2x2 shifted MP came out
+                    // 4.1 Ha high and NON-AUFBAU).  A real part is not a magnitude: this direction's
+                    // term is phase(n)*b, whose size is |b| however the phase is oriented, so a term
+                    // with Re[D conj(phase)] = 0 still adds a purely IMAGINARY, entirely non-negligible
+                    // amount to H.  At a QUARTER-INTEGER k that is systematic, not accidental --
+                    // e^{2 pi i k n} = i^n is purely imaginary for every ODD offset, and screenD is a
+                    // matrix of MAGNITUDES (real, positive), so the old test discarded EVERY odd-offset
+                    // term and H came out exactly real.  |D_ij| = |D_ij conj(phase)| is strictly MORE
+                    // conservative, so it can only keep terms the old test dropped.
+                    // ⚠ This is why the two directions hand the screener DIFFERENT weights, deliberately:
+                    // see LatticeSum1E::IntegratePotential's note on the asymmetry.
+                    // NO screenD = no weight information: a UNIT weight, which every rule answers at its
+                    // floor -- exactly what the STATIC sharp-field sweeps have always got here.
+                    const double Dmag = screenD ? ((i==j)?1.0:2.0)
+                                                * (Dscreen.empty() ? std::abs(dcmplx((*screenD)(i,j)))
+                                                                   : Dscreen[key])
+                                                : 1.0;
+                    cij(i-si.begin, j-sj.begin)=Dmag;
+                    wmB(i-si.begin, j-sj.begin)=wm;
                 }
-                if (here.empty()) continue;
+                // ⇦ THE SEAM, the gather's half (doc/ScreeningPlan.md).  Same policy object as the
+                // collocation's, so the two directions truncate on the same rule.
+                screener.Screen(n,pf,cij,plan);
+                if (plan.Dead()) continue;
+                const double epsUnion=plan.Tolerance();
+                here.clear(); wmHere.clear(); iaHere.clear(); jbHere.clear();
+                for (size_t a=0;a<nIs;a++)
+                    for (size_t b=0;b<nJs;b++)
+                    {
+                        if (!plan.Keeps(a,b)) continue;
+                        here.push_back(slotOf[a*nJs+b]); wmHere.push_back(wmB(a,b));
+                        iaHere.push_back(a); jbHere.push_back(b);
+                    }
+                assert(!here.empty() && "a live plan must keep at least one term");
                 bHere.assign(here.size(),0.0);
                 // THE GATHER, the exact transpose of the scatter (doc/CollocationRewritePlan.md step 6).
                 // Same tables, same chord, same coefficients -- so with GPW_CONTRACT_CUBE on BOTH directions
@@ -2190,7 +2232,6 @@ public:
                 bool didContract=false;
                 if (UseContractCube())
                 {
-                    const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
                     const BoxGeom bg=MakeBoxGeom(si.begin,sj.begin,Roff,A,N_L[l],epsUnion);
                     if (bg.live)
                     {

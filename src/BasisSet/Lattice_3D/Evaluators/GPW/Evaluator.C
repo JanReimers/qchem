@@ -230,6 +230,14 @@ private:
     std::shared_ptr<const BasisSet::Real_BS> itsMol;   //!< owns the molecular Gaussian basis (lifetime)
     const BasisSet::Real_OIBS*          itsOrb = nullptr; //!< its single orbital block (op()/Gradient/size)
     const Molecule::LatticeSum1E*       itsLat = nullptr; //!< the same block's periodic-1E capability (cross-cast)
+    //! \brief THE COLLOCATION TOLERANCE POLICY (doc/ScreeningPlan.md), chosen ONCE in the constructor from
+    //! \c qchem::theRunPolicy() beside the other declared CP2K deviations, and handed to every
+    //! \c CollocateDensity / \c IntegratePotential call this evaluator makes -- so the box walk never
+    //! branches on which rule answers.  Stateless and immutable, hence safe to share with the cached
+    //! closures and with every OpenMP worker inside the walk.
+    //! \note \c shared_ptr rather than a value because the closures outlive the call that built them; the
+    //! object itself is a few bytes of policy, not state.
+    std::shared_ptr<const Molecule::LatticeScreener> itsScreener;
     // INTERNAL Bloch-orbital image set for Eval/EvalGradient + the mesh-path KB quadrature (the ONLY places
     // that still walk an explicit image list -- the 1E matrices and the analytic KB/collocation enumerate
     // inside the molecular seam).  DERIVED from the eps-screen (single-orbital reach + cell span; home-only

@@ -221,11 +221,13 @@ public:
     virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                  const std::vector<ivec3_t>& N_L,
                                                  const std::vector<double>& ecut_L,
+                                                 const LatticeScreener& screener,
                                                  double relFieldSharp=-1.0) const override
-    { return itsLat->CollocateDensity(Expand(D),phase,A,N_L,ecut_L,relFieldSharp); }
+    { return itsLat->CollocateDensity(Expand(D),phase,A,N_L,ecut_L,screener,relFieldSharp); }
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
-                                       const std::vector<double>& ecut_L, double absRelCutoff=0.0,
+                                       const std::vector<double>& ecut_L,
+                                       const LatticeScreener& screener, double absRelCutoff=0.0,
                                        const chmat_t* screenD=nullptr, double fieldSharpness=0.0,
                                        double relFieldSharp=-1.0,
                                        const std::vector<size_t>* pairLevels=nullptr) const override
@@ -234,7 +236,8 @@ public:
         if (screenD) { Dexp=Expand(*screenD); sd=&Dexp; }
         // pairLevels is TOKEN-PASSED: produced by our StaticFieldPairLevels forward, so it is already
         // inner(Cartesian)-pair-indexed -- the two forwards stay a consistent pair by construction.
-        return CongruenceC(itsLat->IntegratePotential(V_L,phase,A,N_L,ecut_L,absRelCutoff,sd,
+        // The screener is a stateless RULE, so it token-passes too -- there is nothing basis-shaped in it.
+        return CongruenceC(itsLat->IntegratePotential(V_L,phase,A,N_L,ecut_L,screener,absRelCutoff,sd,
                                                       fieldSharpness,relFieldSharp,pairLevels));
     }
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
