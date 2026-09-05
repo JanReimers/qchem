@@ -15,7 +15,23 @@ either history.
 
 ## ▶ WHAT IS OPEN — START HERE
 
-> **▶ NEXT SESSION — ONE NEXT ACTION: THE `CP2K_COMPAT=1` ROW, AT 2.05× PER SCF ITERATION.**
+> **▶ NEXT SESSION — ONE NEXT ACTION: BUILD THE HARTREE ENERGY WITHOUT A MATRIX (`doc/Benchmark.md` §5f
+> lever A), THEN SUM \f$V_H+v_{xc}^\sigma\f$ INTO ONE GATHER PER SPIN (lever B).**
+>
+> ★★★ **THE 2.05× IS CALL COUNT, NOT KERNEL — MEASURED 2026-09-05 (§5f).**  Per call our gather is
+> **0.88×** CP2K's and our collocation **0.93×**; both codes spend ~99% of the run in those two routines.
+> But a fixed-point iteration issues **4 gathers + 2 collocations** where CP2K issues **2 and 2** (read off
+> its own `T I M I N G` block: `integrate_v_rspace` 88/44 steps, `calculate_rho_elec` 90/44).
+> The four are 2 XC (one per spin) and **2 HARTREE — one for the Fock at \f$\rho_{mix}\f$ and one for the
+> ENERGY at \f$\rho_{new}\f$** (`Vee_Hartree::GetEnergy` → `0.5*cd->DM_Contract(this,cd)`).
+> ⇒ **A**: \f$E_H=\tfrac12\sum_{\Delta G}V_H\tilde\rho^*\f$ in G space — equal to \f$\tfrac12\mathrm{Tr}(DV_H)\f$
+> BY CONSTRUCTION (the gather is the exact adjoint and both directions ride one `Repulsion3C`) ⇒ ~1.79×.
+> ⇒ **B**: CP2K's `sum_up_and_integrate` — the `CompositeExFunctional` argument one level up ⇒ ~1.56×.
+> ⇒ Both together put us on CP2K's own call counts, which at our per-call rate is **~0.91×**.
+> ⚠ **C is NOT free**: the GDM line search's trial densities are 42 of the probe's 82 collocations, but they
+> buy steps-to-convergence (bin 4).  Judge it on total \f$H\f$-builds to convergence, never per iteration.
+>
+> **AND THE ROW THIS DECIDES: `CP2K_COMPAT=1`, AT 2.05× PER SCF ITERATION.**
 > **THE TABLE THAT SAYS SO IS FILLED**: `doc/Benchmark.md` **§5a**, now its own section holding ONE table
 > (user, 2026-09-05), nine rows, BOTH codes pinned serial, and setup split out of the per-iteration figure.
 >

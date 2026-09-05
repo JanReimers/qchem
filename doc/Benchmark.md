@@ -6,7 +6,7 @@ same hardware; the sections below are what makes that claim checkable.
 out 2026-09-04).  Come back here for what is TRUE NOW; go there for why.
 
 **Read in this order:** §1 the process → §2 what parity actually means → §3 the rules → §4 the commands →
-**§5a the BIN-1 TABLE** → §5 the whole-run rows.
+**§5a the BIN-1 TABLE** → §5 the whole-run rows → **§5f why the parity row is 2.05×**.
 ★ **§5a is the one table to point at for per-iteration CPU** — it holds nothing else, by request
 (2026-09-05); the deltas and open questions that used to crowd it are in §5e.
 
@@ -502,7 +502,12 @@ more on the gather side than on the collocate side.
 (user, 2026-08-28: *"we just cut off at ~10 or so iterations, just to get a decent average"*):
 `CP2K_COMPAT=1 GPW_MNO_NMAX=10` — ~6 minutes, and quote per-call beside per-iteration.
 
-### ⚠ THE PER-STEP COMPARISON MAY NOT BE APPLES-TO-APPLES AT ALL — OPEN, 2026-09-04
+### ✅ THE PER-STEP COMPARISON — ANSWERED 2026-09-05, see §5f (kept for the question it asked)
+
+★ **RESOLVED BY COUNTING**: a fixed-point iteration issues **4 gathers + 2 collocations**, and both of the
+readings below turned out to be true of a different part of it — the term assembly asks twice for Hartree
+(§5f lever A) *and* the GDM line search does build extra densities once it engages (lever C, and it is
+bin-4 currency).  CP2K's own counters say it does 2 and 2.  The original entry, which framed the question:
 
 The 09-04 ledger shows **~9 distinct KS-field integrations per SCF iteration** on a 2-channel system where
 the physics needs ~3 (one \f$V_H\f$ gather + one \f$V_{xc}\f$ per channel); `GPW_INTEGRATE_CENSUS=1` says
@@ -516,6 +521,53 @@ call for opposite responses:
 
 ⇒ **Distinguish them before optimising either way**: count \f$H\f$-builds per SCF step directly, and read
 CP2K's own per-step \f$H\f$ count out of its log.  Cheap, and it decides whether bin 1 is finished.
+
+---
+
+## 5f. ★★★ WHERE THE 2.05× IS: **CALL COUNT, NOT KERNEL** (2026-09-05)
+
+**Our kernel is already FASTER than CP2K's, per call.**  Read the two codes' own counters side by side —
+CP2K's `T I M I N G` block (44 SCF steps) against our ledger (the parity probe, 20 iterations):
+
+| | calls per SCF step | s per call | who wins the call |
+|---|---|---|---|
+| CP2K `integrate_v_rspace` | **2.00** (88/44) | 2.133 | |
+| qchem gather | **4.0** (marginal, fixed-point) | **1.882** | **qchem, 0.88×** |
+| CP2K `calculate_rho_elec` | **2.05** (90/44) | 2.029 | |
+| qchem collocate | **2.0** (marginal, fixed-point) | **1.889** | **qchem, 0.93×** |
+
+Both codes spend ~99% of the run in these two routines (CP2K 370 s of 374; qchem 334 s of 341).
+⇒ **The whole 2.05× is that we call the gather TWICE as often as CP2K.**  Nothing in the kernel is behind.
+
+**HOW THE COUNTS WERE TAKEN — differencing, not instrumentation** (`GPW_MNO_NMAX` = n against n+4, so the
+setup/seed offset cancels and what is left is the marginal cost of one iteration):
+
+| stage | gathers / iteration | collocations / iteration |
+|---|---|---|
+| Ladder (fixed point) | **4.0** | **2.0** |
+| GDM (direct min) | 5.0 | 2.0, plus the LINE SEARCH's trials once it engages |
+
+★ **AND THE LEDGER NAMES THE FOUR.**  A fixed-point iteration closes 2 `h ball` fields and 2 `h raw` fields.
+On this route the raw adjoint is XC's (one field per spin) and the ball adjoint is Hartree's, so:
+
+> **THE HARTREE MATRIX IS BUILT TWICE PER ITERATION** — once for the FOCK at \f$\rho_{mix}\f$
+> (`Vee_Hartree::MakeMatrixT`) and once for the ENERGY at \f$\rho_{new}\f$
+> (`Vee_Hartree::GetEnergy` → `0.5*cd->DM_Contract(this,cd)`).  Two different densities, so the gather memo
+> cannot catch it.  ✅ Corroborated: with a pass-through mixer (\f$\alpha=1\f$, no Kerker) the two densities
+> coincide on some iterations and the count falls 4.0 → 3.5.
+
+**⇒ THREE LEVERS, IN ORDER OF CLEANLINESS.**  Per-iteration budget today is 4×1.882 + 2×1.889 = **11.3 s**
+against CP2K's 2×2.133 + 2×2.029 = **8.3 s**:
+
+| | lever | saves | parity row becomes |
+|---|---|---|---|
+| **A** | **\f$E_H\f$ WITHOUT A MATRIX.**  \f$E_H=\tfrac12\mathrm{Tr}(D V_H)=\tfrac12\sum_{\Delta G}V_H\tilde\rho^*\f$ — a G-space pairing on the fit ball.  It is not an approximation: the gather is the EXACT ADJOINT of the collocation (`Integral rho.V == Tr(D h)` to machine precision), and the forward/backward contractions ride the same `Repulsion3C` tensor, so the two expressions are equal by construction | 1 gather/iter | **≈1.79×** |
+| **B** | **ONE GATHER PER SPIN: \f$\langle i|V_H+v_{xc}^\sigma|j\rangle\f$.**  Exactly CP2K's `sum_up_and_integrate`, and exactly the argument `CompositeExFunctional` already won one level down (x+c).  ⚠ Needs both fields on ONE level ladder — Hartree's ball is the CD fit grid, XC's raw is the XC raster — so check the ladders before assuming a pointwise add | 1 more | **≈1.56×** |
+| **C** | the GDM LINE SEARCH's trial densities — 42 of the probe's 82 collocations, i.e. ~23% of that run.  ⚠ NOT a free win: it is bin-4 currency (steps to convergence) spent as bin-1 work, so it must be judged on total \f$H\f$-builds to convergence, not per iteration | up to 2.1 colloc/iter | — |
+
+⇒ **A+B alone would put the parity row at 2 gathers + 2 collocations — CP2K's own counts — and at our
+per-call rate that is 7.5 s against their 8.3 s, i.e. \f$\approx\f$0.91×.**  ★ This is the answer to
+*"is there one last single-thread optimisation"*: yes, and it is in the TERM ASSEMBLY, not the box walk.
 
 ---
 
@@ -548,6 +600,7 @@ if BOTH lists are known, and this one started at zero because nobody had looked.
 | # | what CP2K does | what it costs us | found |
 |---|---|---|---|
 | 1 | **TIME-REVERSAL k FOLDING** — a Monkhorst-Pack mesh is folded \f$8\to4\f$ (`BRILLOUIN\| List of Kpoints ... 4`, weights 0.25, with `K-Point point group symmetrization OFF`).  We run all 8. | up to **2×** on any non-TRIM mesh.  ⚠ It folds NOTHING on a Γ-centred 2×2×2, where every k is its own inverse — which is why the two Si k-rows behave differently | 09-04 |
+| 3 | **`sum_up_and_integrate` — ONE integrate per spin.**  CP2K adds \f$V_H\f$ and \f$v_{xc}^\sigma\f$ into one real-space potential and integrates it ONCE per spin: 88 `integrate_v_rspace` calls over 44 steps.  We call the gather 4× per iteration (2 Hartree + 2 XC).  ⚠ This is the whole of the parity row's 2.05×, since our per-call gather is 0.88× theirs | the parity row (§5f) | 09-05 |
 | 2 | **k-INDEPENDENT per-step cost** — their per-iteration time is flat from Γ to 8 k (0.383 → 0.385 s SCF-only) where ours rises **6.3×** (0.051 → 0.323).  Not a "feature" so much as a consequence of collocating the k-summed density once per step | most of the Γ lead (§5a, §5e) | 09-04 |
 
 ⚠ Item 1 is a REAL algorithmic advantage they hold, not a deviation to switch off; item 2 is a gap of ours
