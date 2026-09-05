@@ -112,6 +112,56 @@ actual work — a term would contribute its FIELD to a shared quadrature rather 
 the quadrature would gather once.  ⇒ Do not paper over it with another cache; the caches are already
 correct and are catching everything catchable.
 
+### ★★★ THE k-SCALING GAP, AND THE CROSS-k GATHER MEMO THAT WOULD CLOSE IT (2026-09-04)
+
+**THE GAP.** Per-ITERATION cost, Si SR, serial, against CP2K's own per-step:
+
+| | qchem s/iter | CP2K s/iter | ratio |
+|---|---|---|---|
+| Γ | **0.063** | 0.417 | **0.15×** (we are 6.7× FASTER) |
+| 2×2×2 Γ-centred (8 k) | 0.434 | 0.431 | 1.01× |
+| 2×2×2 shifted MP | 0.411 | 0.429 | 0.96× |
+
+⇒ **our per-iteration cost rises 6.9× from Γ to 8 k-points; CP2K's rises 1.03×.**  We start 6.7× ahead and
+spend the whole lead on k-points.  (CP2K also folds **8 → 4 by TIME REVERSAL** on the shifted mesh —
+confirmed in `bench_Si_222shift_cp2k.log`, with point-group symmetrization OFF — while we run all 8.  That
+is a separate 2× on that row.)
+
+**THE CAUSE, and it is a memo bypass.**  The per-offset reductions \f$B_{ij}(n)\f$ are k-INDEPENDENT (the
+Bloch phase enters only the final contraction), and `IntegrateMemo` exists to share them.  But
+`memoize = (screenD==nullptr && !sf)` bypasses it whenever the caller passes a density screen — which the
+per-iteration KS path always does.  So every k-block redoes the whole real-space sweep.
+`GPW_INTEGRATE_CENSUS=1` on Si 2×2×2: **32 of 51 gathers are the SAME FIELD** blocked only by the screen.
+⚠ The census labels that case *"screen widened"*, but it compares screen HASHES — it establishes
+*different*, not *wider*.  Across k-blocks the screens are merely different (each block's `Dscr` is the
+union over ITS channels, built from `D(k)`), so neither covers the other.
+
+**AN ATTEMPT THAT WORKED AND WAS STILL REVERTED (measured, then backed out).**  Withholding `screenD`
+whenever the screener ignores weights (which `CP2K_COMPAT=1` guarantees, since it selects
+`GeometryOnlyScreener`) unlocks the memo with no new machinery:
+
+| Si 2×2×2, `CP2K_COMPAT=1` | gather/call | iterations | total CPU |
+|---|---|---|---|
+| Γ-centred, before | 0.04057 s | 7 | **4.08 s** |
+| Γ-centred, after | **0.01467 s (2.77×)** | **16** | 6.59 s ⛔ |
+| shifted MP, before | 0.0429 s | 16 | 7.59 s |
+| shifted MP, after | **0.02187 s (1.96×)** | **14** | **5.30 s ✅** |
+
+\f$E_{tot}\f$ identical on both rows.  ⇒ **The per-call win is robust (1.96–2.77×); the NET is a coin flip**,
+because withholding the screen also changes the SEED Fock: the SAD seed density is DIAGONAL, so with a
+screen the first Fock is diagonal-only and without one it is a full sweep.  That is the same coupling the
+2026-08-18 cross-run pollution note describes.  Perturbing trajectories for a reason unrelated to the
+optimisation is not acceptable, so it was reverted.
+
+▶ **THE FIX THAT PRESERVES TRAJECTORIES EXACTLY.**  \f$B_{ij}(n)\f$ does not depend on the screen at all —
+the screen only decides which terms are COMPUTED.  So: memoize \f$B\f$ over the UNION of the active sets
+seen, and have each caller contract only ITS OWN active set out of `PairB::nb` (it can test its own screen
+per (pair, offset) in O(1) — that is just the existing pre-filter).  Replay is then valid whenever the
+memo's set COVERS the caller's, each k-block gets exactly the terms it would have computed, and no
+trajectory moves.  Cost: the stored sweep is the union, wider than any single block's.
+⚠ And raise `kMaxIntegrateMemos` (currently **4**) with it: 8 k-blocks × 2–3 distinct fields per iteration
+will thrash a depth-4 cache even once the key is right — the same shape as the `CollocMemo` depth-1 → 5 fix.
+
 ### ⚠ BIN 4 — THE ITERATION COUNTS ARE NOT COMPARABLE YET, AND HERE IS EXACTLY WHY (2026-08-28)
 
 ⛔ **THE TWO CODES DO NOT RUN THE SAME ρ-MIXING ALGORITHM** (checked on the user's instruction against
