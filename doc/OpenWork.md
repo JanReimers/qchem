@@ -153,7 +153,46 @@ screen the first Fock is diagonal-only and without one it is a full sweep.  That
 2026-08-18 cross-run pollution note describes.  Perturbing trajectories for a reason unrelated to the
 optimisation is not acceptable, so it was reverted.
 
-▶ **THE FIX THAT PRESERVES TRAJECTORIES EXACTLY.**  \f$B_{ij}(n)\f$ does not depend on the screen at all —
+### ⛔ ATTEMPT 2 (2026-09-04): FIX THE DIAGONAL-SEED DEFECT FIRST — REFUTED BY THE STREAM FOLD
+
+**THE DEFECT IS REAL, and naming it is the durable part** (user: *"the Screener system needs to properly
+handle diagonal seed densities"*).  \f$h_{ij}=\langle\chi_i|V|\chi_j\rangle\f$ is NOT weighted by
+\f$D_{ij}\f$.  Dropping a term because \f$D_{ij}=0\f$ is sound for the ENERGY alone — \f$\mathrm{Tr}(Dh)\f$
+is blind to it — but \f$h\f$ is DIAGONALIZED to make the next density, so zeroing \f$h_{ij}\f$ wherever the
+density vanishes is a SELF-FULFILLING truncation: a pair with no density can never acquire any.  With the
+SAD seed, whose \f$D\f$ is DIAGONAL, that is every off-diagonal element.  The tree had recorded the symptom
+(the cross-run note's *"a fresh process's ... is diagonal-only"*) without recognising it as a defect.
+⚠ ROOT CAUSE is an overload in the screener interface: `cij==0` means BOTH "structurally absent"
+(fold-dead) AND "zero density".  The first must be excluded; the second is NO INFORMATION and deserves the
+floor.
+
+**THE FIX WORKED ON BIN 1 AND WAS STILL REVERTED.**  Substituting a unit weight for a vanishing one, plus
+withholding `screenD` when the rule ignores weights (which is then bit-identical), gave:
+
+| Si 2×2×2, `CP2K_COMPAT=1` | gather/call | **CPU/iteration** | vs CP2K 0.43 s |
+|---|---|---|---|
+| Γ-centred | 0.0407 → **0.0146 (2.79×)** | 0.587 → **0.414 s** | 1.36× → **0.96×** |
+| shifted MP | 0.0427 → **0.0220 (1.94×)** | 0.473 → **0.379 s** | 1.10× → **0.88×** |
+
+\f$E_{tot}\f$ identical on both; the iteration-count movement (7→16, 16→14) is bin 4 and was accepted.
+
+⛔ **BUT IT BREAKS THE STREAM FOLD** — `GPW.StreamFoldReducedMatchesFull_{DimerInBox,SiDiamond_HalfK}`,
+gate `dHS` at **0.14 against a 2.4e-8 tolerance**.  The reduced arm screens on `FoldScreenMax`, the ORBIT
+MAX, which exists precisely so every orbit member truncates IDENTICALLY; the full arm uses each member's
+own \f$|D_{ij}|\f$.  A per-term substitution therefore gives a member whose own value is 0 the FLOOR in the
+full arm while the reduced arm derives it from the representative at the orbit-max tolerance — different
+boxes, different \f$h\f$.  ⇒ **"no information → floor" destroys the orbit-invariance the fold rests on.**
+⚠ And hoisting the substitution BEFORE the fold does not rescue it: \f$\max(1.0,\,|D|<1)=1.0\f$ would
+dominate every orbit and collapse D-aware screening to the floor everywhere.
+
+▶ **WHERE THIS POINTS.**  The two symptoms have one source: **we D-screen the gather at all.**  CP2K does
+not; `GeometryOnlyScreener` does not; the \f$\varepsilon/|c_{ij}|\f$ widening is an ENERGY-accuracy
+argument and \f$h\f$ has a second consumer.  Dropping the density screen from the GATHER (keeping it on the
+collocation, where the weight really is the scatter weight) would fix the diagonal seed, restore
+orbit-invariance for free, and unlock the cross-k memo — at a cost that has never been measured on the
+gather alone.  ⇒ That measurement is the next step, and it is a `RunPolicy`-level decision, not a local one.
+
+▶ **THE ALTERNATIVE THAT PRESERVES TRAJECTORIES EXACTLY.**  \f$B_{ij}(n)\f$ does not depend on the screen at all —
 the screen only decides which terms are COMPUTED.  So: memoize \f$B\f$ over the UNION of the active sets
 seen, and have each caller contract only ITS OWN active set out of `PairB::nb` (it can test its own screen
 per (pair, offset) in O(1) — that is just the existing pre-filter).  Replay is then valid whenever the

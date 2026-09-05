@@ -193,3 +193,56 @@ TEST(M_LatticeScreener, PlanReuseDoesNotLeakTheLastOffsetsMask)
     EXPECT_TRUE (p.Keeps(2,3));
     EXPECT_FALSE(p.Keeps(0,0));
 }
+
+// ⛔ THE DIAGONAL-SEED PIN (user, 2026-09-04: "the Screener system needs to properly handle diagonal seed
+// densities").  The SAD seed's density matrix is DIAGONAL, so a gather that forwarded |D_ij| straight
+// through would hand the screener a block that is ZERO everywhere off the diagonal.  A 0 here means
+// STRUCTURALLY ABSENT, so every off-diagonal term would be dropped and every off-diagonal h_ij would come
+// out 0 -- and h is DIAGONALIZED to make the next density, so the truncation is SELF-FULFILLING: a pair
+// with no density can never acquire any.  (h_ij is not weighted by D_ij; only the ENERGY Tr(D h) is blind
+// to these terms, and the energy is not the only consumer.)
+//
+// ⇒ THE CALLER'S CONTRACT is to send the UNIT weight for "no information", never 0.  This test pins both
+// halves: what the bug shape would have done, and what the contract does instead.
+TEST(M_LatticeScreener, DiagonalSeedKeepsItsOffDiagonals)
+{
+    const DAwareScreener d(kEps);
+    const GeometryOnlyScreener g(kEps);
+    ScreenPlan p;
+
+    // (1) THE BUG SHAPE: |D| forwarded raw from a diagonal seed -- off-diagonals arrive as 0.
+    d.Screen({0,0,0}, 0.0, Block(0.5, 0.0, 0.0,  0.0, 0.5, 0.0), p);
+    EXPECT_TRUE (p.Keeps(0,0)) << "the diagonal survives either way";
+    EXPECT_FALSE(p.Keeps(0,1)) << "a raw 0 IS read as structurally absent -- this is why the caller must "
+                                  "not send one for a merely-zero density";
+
+    // (2) THE CONTRACT: "no information" travels as the unit weight, so the term is KEPT at the floor.
+    const rmat_t seed=Block(0.5, 1.0, 1.0,  1.0, 0.5, 1.0);
+    const LatticeScreener* rules[]={&d,&g};
+    for (const LatticeScreener* s : rules)
+    {
+        s->Screen({0,0,0}, 0.0, seed, p);
+        EXPECT_FALSE(p.Dead());
+        for (size_t a=0;a<2;a++)
+            for (size_t b=0;b<3;b++)
+                EXPECT_TRUE(p.Keeps(a,b)) << "every present term must ride the box: a=" << a << " b=" << b;
+        // The union is the floor: the unit weights ask for eps, and the 0.5 diagonal asks for the LOOSER
+        // eps/0.5, so the tightest present tolerance -- the one that sizes the shared box -- is eps itself.
+        EXPECT_DOUBLE_EQ(p.Tolerance(), kEps);
+    }
+}
+
+// The other half of the same contract: on NONZERO weights a geometry-only rule answers IDENTICALLY whether
+// the caller sends real magnitudes or unit weights.  That equivalence is what a future cross-k gather memo
+// would rest on -- withholding the density screen could then be bit-identical rather than a widening --
+// and it holds ONLY away from zero, which is exactly the gap doc/OpenWork.md's k-scaling entry records.
+TEST(M_LatticeScreener, GeometryOnlyIsBlindToNonzeroWeights)
+{
+    const GeometryOnlyScreener g(kEps);
+    ScreenPlan withMagnitudes, withUnits;
+    g.Screen({1,0,0}, 3.0, Block(0.5, 2e-4, 7.0,  1e-9, 0.5, 3.3), withMagnitudes);
+    g.Screen({1,0,0}, 3.0, Block(1.0, 1.0,  1.0,  1.0,  1.0, 1.0), withUnits);
+    EXPECT_EQ(withMagnitudes.Tolerance(), withUnits.Tolerance());
+    for (size_t a=0;a<2;a++)
+        for (size_t b=0;b<3;b++) EXPECT_EQ(withMagnitudes.Keeps(a,b), withUnits.Keeps(a,b));
+}
