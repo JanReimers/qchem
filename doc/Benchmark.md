@@ -37,7 +37,7 @@ CPU column overstates qchem wherever it threads — and another reason the singl
 
 | bin | the axis | where it stands (MnO AFM-II VA, 2026-09-04) |
 |---|---|---|
-| **1** | **per-iteration CPU** | ALL DEFAULTS **1.47×** CP2K, `QCHEM_BECKE_XC=0` **0.47×** (we WIN), `CP2K_COMPAT=1` **1.99×**.  ⇒ **NOT closed** at parity |
+| **1** | **per-iteration CPU** | MnO: ALL DEFAULTS **1.47×** CP2K, `QCHEM_BECKE_XC=0` **0.47×** (we WIN), `CP2K_COMPAT=1` **1.99×**.  Si: **0.15×** at Γ but **1.01×** at 8 k — the k-scaling gap (§5a) is where the small-cell story is.  ⇒ **NOT closed** |
 | **2** | **init / pre-iteration** | ✅ **~1% of wall** on the parity routes.  On the DEFAULT route it is still the Becke mesh + Φ tables (~57 s of 328 s), so bin 2 is a Becke-mesh question and only there |
 | **3** | **peak RAM** | ✅ **solved, and we win**: ~470 MB defaults, **~105 MB on the parity routes against CP2K's 217 MB** |
 | **4** | **iteration count** | 31 (defaults) / capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  The two codes do not run the same ρ-mixing algorithm (doc/OpenWork.md) |
@@ -206,6 +206,13 @@ MNO_ORTHO_TOL=1e-3 MNO_SHARED_MU=1 MNO_IMPOSE=1 MNO_SKIP_FM=1 GPW_REPORT=1 \
     scripts/memsafe scripts/bench "MnO AFM2 VA qchem" -- build/Release/IntegrationTests/ITMain \
     --gtest_filter=GPW_SCF.DISABLED_MnO_AFM2_RhombohedralGamma --gtest_also_run_disabled_tests
 
+# Si k-MESH ROWS -- ⚠ THESE WERE MISSING FROM THIS BLOCK UNTIL 2026-09-04, i.e. two table rows had no
+# printed recipe at all (rule 3a's own failure mode).  Recovered by matching Etot to the banked value.
+GPW_REPORT=1 scripts/bench "Si 222g qchem" -- build/Release/IntegrationTests/ITMain \
+    --gtest_filter=GPW_SCF.DISABLED_SR_2x2x2GammaCentred_vs_CP2K --gtest_also_run_disabled_tests
+GPW_REPORT=1 scripts/bench "Si 222shift qchem" -- build/Release/IntegrationTests/ITMain \
+    --gtest_filter=GPW_SCF.SR_2x2x2ShiftedMP_vs_CP2K
+
 # CP2K -- from the DECK'S directory (relative BASIS_SET_FILE_NAME) and at one thread
 cd IntegrationTests/CP2K
 OMP_NUM_THREADS=1 ../../scripts/bench "Si Gamma cp2k"    -- mpirun -np 1 cp2k.psmp -i si_fcc_gpw.inp
@@ -263,6 +270,39 @@ parity ROUTE affordable — see footnote ⁷ (§5d).  CP2K column untouched thro
 
 
 ### 5a. Per-ITERATION CPU — the bin-1 ladder
+
+★★★ **THE SMALL ROWS, DECOMPOSED (2026-09-04).**  Splitting `CPU×` into (CPU/iteration) × (iteration count)
+dissolves most of the column's outliers.  All four re-taken with NATIVE codegen; **every one reproduces its
+banked \f$E_{tot}\f$ exactly**, which is what says they are the same systems:
+
+| row | CPU banked | **CPU now** | qchem iters | CP2K iters | **qchem s/iter** | CP2K s/iter | **per-iter ×** | old whole-run × |
+|---|---|---|---|---|---|---|---|---|
+| Si Γ | 2.2 s | **0.69 s** | 11 | 12 | **0.063** | 0.417 | **0.15×** | 0.44× |
+| Si 2×2×2 Γ-centred | 8.9 s | **3.04 s** | 7 | 13 | **0.434** | 0.431 | **1.01×** | 1.6× |
+| Si 2×2×2 shifted MP | 17.5 s | **6.57 s** | 16 | 14 | **0.411** | 0.429 | **0.96×** | 2.9× |
+| NaF SR2 Γ | 37.9 s | **26.3 s** | 29 | — | 0.906 | — | — | 5.3× |
+
+⇒ **PER ITERATION WE ARE AT OR BETTER THAN CP2K ON ALL THREE Si ROWS.**  The banked 1.6× and 2.9× were two
+artifacts stacked: rows stale by 2.7–3.2×, plus iteration-count differences (bin 4).
+
+⛔ **BUT THE k-SCALING IS THE REAL BIN-1 STORY HERE.**  Same system, same span, only the k-mesh changing:
+
+| | qchem s/iter | CP2K s/iter |
+|---|---|---|
+| Γ | 0.063 | 0.417 |
+| 8 k-points | 0.434 | 0.431 |
+| **rise** | **6.9×** | **1.03×** |
+
+We start **6.7× ahead** of CP2K at Γ and spend the entire lead on k-points.  Cause and the two refuted
+fixes: doc/OpenWork.md's k-scaling entry (the gather memo is bypassed whenever a density screen is passed,
+and 32 of 51 gathers on the 8-k run are the SAME FIELD).
+
+★ **AND NaF's 5.3× IS A BECKE COST, NOT A GPW ONE.**  Its ledger: Becke mesh build **6.96 s (27%)** +
+XC-mesh ρ sampling **8.16 s (31%)** + hamiltonian ctor 2.0 s (8%) — against a box walk of **~1 s (4%)**.
+⇒ On the system where Becke should be at its best, Becke IS the runtime.  That makes §6's open
+\f$\lVert V_{xc}-V_{xc}^{fit}\rVert\f$ study the deciding measurement for this row too.
+
+
 
 ★ **RE-TAKEN 2026-09-04 WITH THE PRINTED COMMAND** (serial; `-O3` and `-O3 -march=native` arms).  Every
 row reproduces its banked \f$E_{tot}\f$ and iteration count EXACTLY -- which is the correctness statement
@@ -395,6 +435,26 @@ this page only so a row can state which kernel produced it — every run prints 
 
 ---
 
+## 6b. ACCELERATIONS **CP2K** HAS THAT **WE** DO NOT — ⚠ ALSO AN EMERGING LIST
+
+§2 and §6 are one direction; this is the other, and it had no home until 2026-09-04.  A row is only fair
+if BOTH lists are known, and this one started at zero because nobody had looked.
+
+| # | what CP2K does | what it costs us | found |
+|---|---|---|---|
+| 1 | **TIME-REVERSAL k FOLDING** — a Monkhorst-Pack mesh is folded \f$8\to4\f$ (`BRILLOUIN\| List of Kpoints ... 4`, weights 0.25, with `K-Point point group symmetrization OFF`).  We run all 8. | up to **2×** on any non-TRIM mesh.  ⚠ It folds NOTHING on a Γ-centred 2×2×2, where every k is its own inverse — which is why the two Si k-rows behave differently | 09-04 |
+| 2 | **k-INDEPENDENT per-step cost** — their per-iteration time is flat from Γ to 8 k (0.417 → 0.431 s) where ours rises 6.9×.  Not a "feature" so much as a consequence of collocating the k-summed density once per step | the whole Γ lead (§5a) | 09-04 |
+
+⚠ Item 1 is a REAL algorithmic advantage they hold, not a deviation to switch off; item 2 is a gap of ours
+with a diagnosed cause.  ⇒ **Neither belongs in `CP2K_COMPAT`** — that switch turns OUR accelerations off,
+and turning theirs off is not available to us.
+
+⚠ CP2K also runs `Wavefunction type COMPLEX` on BOTH Si k-rows, including the all-TRIM Γ-centred one where
+we use REAL blocks.  So on that row we hold an advantage they decline to take — and are still only at
+parity per iteration.
+
+---
+
 ## 7. THE ROWS — threaded (OMP)
 
 ⛔ **EMPTY BY DESIGN, AND THAT IS THE POINT.**  Rule 1a says single-thread parity comes FIRST: a threaded
@@ -416,6 +476,20 @@ count, not left at `OMP_NUM_THREADS=1`.
 ---
 
 ## 8. WHAT IS STILL MISSING
+
+★ **AS OF 2026-09-04**, in rough priority order:
+- **the \f$\lVert V_{xc}-V_{xc}^{fit}\rVert\f$ study** — every Becke-vs-uniform cost comparison in this
+  file is taken at UNKNOWN-EQUAL accuracy (nR=40 × L=29 against a 20³ raster), which is not a controlled
+  comparison.  Becke may well WIN at equal fit quality, especially on NaF.  Until that is measured, §6's
+  "Becke is a negative acceleration" row is a cost statement only, NOT a verdict;
+- **the k-scaling gap** (§5a) — diagnosed, two fixes refuted, next step recorded in doc/OpenWork.md;
+- **the MnO FM row** (footnote ⁵) — the last pre-Step-2 measurement in the table, ~20 min to re-take;
+- **an attribution A/B** — the 09-04 deltas are "current vs banked" across everything that landed since
+  08-28, with no parent-commit A/B on the VA recipe;
+- **the threaded table** (§7), which needs the busy-wait barrier understood first;
+- **NaF's CP2K iteration count** — its log was not to hand, so that row has no per-iteration column.
+
+
 
 
 - **★ REPEAT THE WHOLE TABLE AT 12 THREADS** (user, 2026-08-19).  This cut is the SERIAL baseline — CP2K
