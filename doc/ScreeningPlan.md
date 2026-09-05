@@ -1,6 +1,17 @@
 # The lattice screener — a DIP seam for the collocation tolerance
 
-**STATUS: THE SEAM IS BUILT (2026-09-04).  §5's prize is NOT -- that is the next increment.**
+# ✅ CLOSED 2026-09-04 — NOT A LIVE PLAN.  The live tracker is `doc/OpenWork.md`.
+
+**Everything this file proposed is now decided**: the seam is BUILT and merged, and §5's "prize" was
+REFUTED on measurement (the chord is 10–17% of the kernel, not ~40%, against a +14.5% price — §5).  What
+is left is history plus four durable rulings worth not re-deriving:
+§4 the screener is STATELESS (none of options A/B/C) · §3 `IsGeometryOnly()` must not come back, and why ·
+§3 the two directions screen on different quantities, deliberately · §5 the hoist is dead, do not rebuild it.
+⇒ **Read this file to find out WHY something is the way it is.  Do not take work from it.**
+
+---
+
+**STATUS (as written 2026-09-04, before §5 was refuted later the same day):**
 `src/BasisSet/Molecule/LatticeScreener.C` carries the interface and both concretes; the two collocation
 faces take a `const LatticeScreener&`; `GPW_DAWARE_SCREEN` survives only as
 `qchem::RunPolicy::DAwareScreen`, which now selects a screener OBJECT instead of a branch in the box walk.

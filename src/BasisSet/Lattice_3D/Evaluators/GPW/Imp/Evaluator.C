@@ -452,7 +452,25 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
             for (const ivec3_t& dm : levels[L]->Gs()) vmapL[dm]=Vtilde(dm);   // restrict to level L's {G}
             V_L[L]=levels[L]->RhoOnGrid(vmapL);
         }
-        const chmat_t* screenD = (memo && memo->valid) ? &memo->Dscr : nullptr;   // the UNION screen (all channels; see CollocMemo)
+        // ⛔ THE GATHER IS NO LONGER D-SCREENED (2026-09-04).  Passing the density here was a qchem-only
+        // acceleration with three costs and no owner:
+        //   1. THE DIAGONAL-SEED DEFECT.  h_ij = <chi_i|V|chi_j> is NOT weighted by D_ij; dropping a term
+        //      because D_ij==0 is sound for the ENERGY alone (Tr(D h) is blind to it) but h is DIAGONALIZED
+        //      to make the next density, so the truncation is SELF-FULFILLING -- a pair with no density can
+        //      never acquire any.  The SAD seed's D is DIAGONAL, so that was EVERY off-diagonal element.
+        //   2. IT BROKE ORBIT-INVARIANCE under the stream fold: the reduced arm screens on FoldScreenMax
+        //      (the orbit MAX, so members truncate identically) while the full arm used each member's own
+        //      |D_ij|.  With no screen at all, every term arrives at the floor and the two arms agree by
+        //      construction.
+        //   3. IT DEFEATED THE k-INDEPENDENT MEMO.  IntegrateMemo's bypass is `screenD==nullptr`, so a
+        //      screened call re-swept real space for EVERY k-block -- and B_ij(n) does not depend on k at
+        //      all (the Bloch phase enters only the final contraction).  Measured: 32 of 51 gathers on
+        //      Si 2x2x2 were the SAME FIELD, and our per-iteration cost rose 6.9x from Gamma to 8 k where
+        //      CP2K's rose 1.03x.
+        // ⇒ CP2K does not screen its gather either.  The eps/|c_ij| widening is an ENERGY-accuracy argument
+        // for a matrix that has a SECOND consumer, so it never belonged on this side.  The collocation
+        // keeps its screen, where the weight really IS the scatter weight.
+        const chmat_t* screenD = nullptr;
         chmat_t h;
         if (gmemo->Lookup(V_L, screenD, h)) { qchem::report::Timed t("scf: h memo replay (V+screen seen)"); return h; }
         h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, *screen, 0.0, screenD, 0.0, relFS);   // 0 = the relative rule (adjoint-paired with collocation)
@@ -640,7 +658,25 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
             TransferBand(vt, NT, ctL, N_L[l]);
             V_L[l]=levels[l]->BackwardFFT(ctL);
         }
-        const chmat_t* screenD = (memo && memo->valid) ? &memo->Dscr : nullptr;   // the UNION screen (all channels; see CollocMemo)
+        // ⛔ THE GATHER IS NO LONGER D-SCREENED (2026-09-04).  Passing the density here was a qchem-only
+        // acceleration with three costs and no owner:
+        //   1. THE DIAGONAL-SEED DEFECT.  h_ij = <chi_i|V|chi_j> is NOT weighted by D_ij; dropping a term
+        //      because D_ij==0 is sound for the ENERGY alone (Tr(D h) is blind to it) but h is DIAGONALIZED
+        //      to make the next density, so the truncation is SELF-FULFILLING -- a pair with no density can
+        //      never acquire any.  The SAD seed's D is DIAGONAL, so that was EVERY off-diagonal element.
+        //   2. IT BROKE ORBIT-INVARIANCE under the stream fold: the reduced arm screens on FoldScreenMax
+        //      (the orbit MAX, so members truncate identically) while the full arm used each member's own
+        //      |D_ij|.  With no screen at all, every term arrives at the floor and the two arms agree by
+        //      construction.
+        //   3. IT DEFEATED THE k-INDEPENDENT MEMO.  IntegrateMemo's bypass is `screenD==nullptr`, so a
+        //      screened call re-swept real space for EVERY k-block -- and B_ij(n) does not depend on k at
+        //      all (the Bloch phase enters only the final contraction).  Measured: 32 of 51 gathers on
+        //      Si 2x2x2 were the SAME FIELD, and our per-iteration cost rose 6.9x from Gamma to 8 k where
+        //      CP2K's rose 1.03x.
+        // ⇒ CP2K does not screen its gather either.  The eps/|c_ij| widening is an ENERGY-accuracy argument
+        // for a matrix that has a SECOND consumer, so it never belonged on this side.  The collocation
+        // keeps its screen, where the weight really IS the scatter weight.
+        const chmat_t* screenD = nullptr;
         chmat_t h;
         if (gmemo->Lookup(V_L, screenD, h)) { qchem::report::Timed t("scf: h memo replay (V+screen seen)"); return h; }
         h = lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, *screen, 0.0, screenD, 0.0, relFS);
@@ -676,8 +712,9 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
     // directions then keep the IDENTICAL active set (adjoint exact on the shared truncated operator) and the
     // sweep skips every term the density cannot resolve.  Before the first collocation (or for a field
     // unrelated to a density, e.g. the unit-field gates) the memo is empty -> complete sweep.
-    const chmat_t* screenD = (itsCollocMemo && itsCollocMemo->valid) ? &itsCollocMemo->D : nullptr;
-    return itsLat->IntegratePotential(V_L, CellPhase(), A, itsLevelN, itsLevelEcut, *itsScreener, 0.0, screenD, 0.0, itsRelFieldSharp);   // 0 = the relative rule (adjoint-paired with collocation)
+    // Not D-screened -- see MakeIntegrator's note (self-fulfilling truncation, orbit-invariance, and the
+    // k-independent memo whose bypass is screenD==nullptr).
+    return itsLat->IntegratePotential(V_L, CellPhase(), A, itsLevelN, itsLevelEcut, *itsScreener, 0.0, nullptr, 0.0, itsRelFieldSharp);   // 0 = the relative rule (adjoint-paired with collocation)
 }
 
 // The REL_CUTOFF multi-grid density-grid ladder: the fine grid (L=0, reused) plus coarser grids each a factor

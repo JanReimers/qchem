@@ -15,14 +15,32 @@ either history.
 
 ## ▶ WHAT IS OPEN — START HERE
 
-> **▶ NEXT SESSION: the anchor-moving sprint, minus the two that already landed.**  ✅ **THE COLLOCATION
-> REWRITE IS DONE** (steps 7–8, 2026-08-27): the 3.9 GB pair-stream cache is DELETED, the (shell pair,
-> offset) task list replaces it, and `GPW_CONTRACT_CUBE` is the DEFAULT — A1 and A7 landed together as the
-> roster required, and `doc/Benchmark.md`'s rows are re-taken.  What is left of the sprint is **A2–A6**
-> (`doc/CleanupCandidates.md` V1.22, §K, the Δρ/N gate, the `IonicSAD` seed default, the N4 cusp deficit),
-> and A4 now has a second reason to exist: the Na2 gate's flakiness is a density-degenerate state the
-> run's own fingerprint calls benign while `DidConverge()` calls it a failure.  Everything else on this
-> page is a queue, not a next action.
+> **▶ NEXT SESSION — SINGLE-THREAD BINS 1+2, THEN THREADS (user, 2026-09-04).**  In order:
+>
+> **1. CLOSE BINS 1 AND 2 SINGLE-THREADED.**  Per-iteration CPU and pre-SCF setup, against CP2K.
+> `doc/Benchmark.md` **§5a** is the instrument and the table to finish; §5's whole-run table is NOT
+> informative (mixed thread states, 3× different iteration counts) and is now labelled as such.
+> ✅ The gather is no longer D-screened (2026-09-04) — that closed the diagonal-seed defect, restored the
+> fold's orbit-invariance and unlocked the k-independent memo (−40% gather/iteration on 8 k, +2–8% at Γ).
+> ⚠ **Bin 2 is unmeasured on the MnO default route**: NaF SR2's ledger says the Becke mesh build alone is
+> 27% of that run, and nothing has profiled MnO's setup buckets against CP2K's.
+>
+> **2. FIX THE BUSY-WAIT BARRIER, THEN RE-RUN EVERYTHING AT 12 THREADS** (`doc/Benchmark.md` §7, empty by
+> design until this holds).  **Cause identified 2026-09-04, not yet fixed**: nothing in the tree sets
+> `KMP_BLOCKTIME` or `OMP_WAIT_POLICY`, and LLVM's libomp spins **200 ms** after every parallel region —
+> with per-shell-pair regions that is mostly spin.  It matches the inflation already measured on this
+> page: **663 s threaded CPU against 500 s serial for the same work**.  First step is a one-line A/B
+> (`KMP_BLOCKTIME=0`), then wire it where a row cannot forget it (`scripts/bench` + the run banner, which
+> already prints thread state and should print the wait policy beside it).
+>
+> **3. Then the cheap gaps**: re-take the MnO FM row (footnote ⁵, the last pre-Step-2 measurement, ~20 min);
+> NaF's CP2K iteration count; an attribution A/B against the parent commit on the VA recipe.
+>
+> ⏸ **PARKED — the ‖V_xc − V_xc_fit‖ fit-quality study** (user: *"defocusing"*).  Still true that every
+> Becke-vs-uniform cost number in the tree is taken at unknown-equal accuracy, so "Becke is a negative
+> acceleration" is a COST statement and not a verdict — but it is not what bins 1 and 2 need.
+>
+> ⚠ `doc/ScreeningPlan.md` is CLOSED (2026-09-04) — read it for WHY, do not take work from it.
 
 Everything after this index is a MIX of open work and the evidence that produced it.  The evidence stays on
 purpose — it is what stops items being re-litigated, and several items exist because a measurement refuted

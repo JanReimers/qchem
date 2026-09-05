@@ -227,6 +227,12 @@ Verify each side reproduces its own history before reading a Δ: the CP2K decks 
 
 ## 5. THE ROWS — single thread
 
+⚠ **THE WHOLE-RUN TABLE BELOW IS NOT THE BIN-1 INSTRUMENT — §5a IS** (user, 2026-09-04: *"the previous
+table in section 5 is not very informative"*).  Its `wall` and `CPU` columns are whole-run totals across
+runs that differ by 3× in iteration count and were taken under mixed thread states, so they cannot be
+compared to each other.  **Read it for two things only: the ENERGY column (Δ vs CP2K, the accuracy claim)
+and peak RSS (bin 3).**  For runtime go to §5a.
+
 Energies in Ha.  **Both columns measured on this box (14 GB, 16 cores) through `scripts/bench`, 2026-08-19** —
 the CP2K side is no longer banked prose: `apt`'s CP2K 2025.2 reproduces every banked 2026.1 deck value to the
 printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrapper.  Provenance per row is in
@@ -270,6 +276,40 @@ parity ROUTE affordable — see footnote ⁷ (§5d).  CP2K column untouched thro
 
 
 ### 5a. Per-ITERATION CPU — the bin-1 ladder
+
+⚠ **METHOD NOTE, learned the hard way 2026-09-04: per-iteration TOTAL CPU is CONFOUNDED whenever the
+iteration count moves.**  Total = setup + N × scf, so total/N = setup/N + scf — a run that takes MORE
+iterations amortises its setup thinner and looks better per iteration without being faster at anything.
+⇒ For bin 1 compare **the SCF buckets per iteration** (gather + collocate off the ledger), or compare
+totals only between runs with the SAME iteration count.
+
+★★★ **THE UNSCREENED GATHER (2026-09-04) — A REAL SPLIT BY k-MESH, NOT A UNIFORM WIN.**  Removing the
+density screen from the integrate-back (see §6, and doc/OpenWork.md for why it is also a CORRECTNESS fix)
+unlocks the k-independent memo, so one real-space sweep serves every k-block.  Where there are no k-blocks
+to share it across, it is pure added width:
+
+| GATHER seconds PER ITERATION (ledger bucket ÷ iterations) | screened | **unscreened** | |
+|---|---|---|---|
+| Si Γ (1 k) | 0.00693 | 0.00784 | **+13%** ⛔ |
+| Si 2×2×2 Γ-centred (**8 k**) | 0.196 | **0.112** | **−43%** ✅ |
+| Si 2×2×2 shifted MP (**8 k**) | 0.187 | **0.111** | **−41%** ✅ |
+
+and on the MnO rows — all Γ, and all with IDENTICAL iteration counts before and after, so total CPU is a
+fair comparison there:
+
+| MnO, VA recipe, serial, NATIVE | iters | screened | **unscreened** | |
+|---|---|---|---|---|
+| ALL DEFAULTS | 31 | 386.1 s | 408.6 s | **+5.8%** ⛔ |
+| `QCHEM_BECKE_XC=0` | 39 | 155.7 s | 168.2 s | **+8.1%** ⛔ |
+| `CP2K_COMPAT=1` probe | 20 | 338.9 s | 346.1 s | **+2.1%** ⛔ |
+
+⇒ **IT SAVES ~40% OF GATHER TIME ON AN 8-k RUN AND COSTS 2–8% AT Γ.**  Every MnO row is Γ, so the flagship
+numbers get slightly worse while the multi-k rows get materially better.  **KEPT**: it is first a
+CORRECTNESS fix — the diagonal-seed defect and the stream fold's orbit-invariance, both in
+doc/OpenWork.md — and the Γ cost is the price of not having a self-fulfilling truncation in the Fock.
+⚠ It is NOT a `CP2K_COMPAT` matter: the screen is gone on every route, not just the parity one.
+
+
 
 ★★★ **THE SMALL ROWS, DECOMPOSED (2026-09-04).**  Splitting `CPU×` into (CPU/iteration) × (iteration count)
 dissolves most of the column's outliers.  All four re-taken with NATIVE codegen; **every one reproduces its
@@ -477,17 +517,24 @@ count, not left at `OMP_NUM_THREADS=1`.
 
 ## 8. WHAT IS STILL MISSING
 
-★ **AS OF 2026-09-04**, in rough priority order:
-- **the \f$\lVert V_{xc}-V_{xc}^{fit}\rVert\f$ study** — every Becke-vs-uniform cost comparison in this
-  file is taken at UNKNOWN-EQUAL accuracy (nR=40 × L=29 against a 20³ raster), which is not a controlled
-  comparison.  Becke may well WIN at equal fit quality, especially on NaF.  Until that is measured, §6's
-  "Becke is a negative acceleration" row is a cost statement only, NOT a verdict;
-- **the k-scaling gap** (§5a) — diagnosed, two fixes refuted, next step recorded in doc/OpenWork.md;
-- **the MnO FM row** (footnote ⁵) — the last pre-Step-2 measurement in the table, ~20 min to re-take;
-- **an attribution A/B** — the 09-04 deltas are "current vs banked" across everything that landed since
-  08-28, with no parent-commit A/B on the VA recipe;
-- **the threaded table** (§7), which needs the busy-wait barrier understood first;
-- **NaF's CP2K iteration count** — its log was not to hand, so that row has no per-iteration column.
+★ **AS OF 2026-09-04, in the user's priority order** (`doc/OpenWork.md` carries the same list as the
+forward queue):
+1. **CLOSE BIN 1 AND BIN 2 SINGLE-THREADED** — per-iteration CPU and pre-SCF setup, against CP2K.  §5a is
+   the table that measures it and is the one to finish; the whole-run table above it is NOT informative
+   (mixed thread states, 3× different iteration counts) and is kept only for \f$E_{tot}\f$ and RSS.
+2. **THE BUSY-WAIT BARRIER, then re-run everything at 12 threads** (§7).  Cause identified 2026-09-04:
+   nothing in the tree sets `KMP_BLOCKTIME` or `OMP_WAIT_POLICY`, and LLVM's libomp spins **200 ms** after
+   every parallel region — with per-shell-pair regions that is mostly spin.  It matches the inflation
+   already recorded: **663 s threaded CPU against 500 s serial for the same work**.
+3. **The MnO FM row** (footnote ⁵) — the last pre-Step-2 measurement in the table, ~20 min to re-take.
+4. **NaF's CP2K iteration count** — its log was not to hand, so that row has no per-iteration column.
+5. **An attribution A/B** — the 09-04 deltas are "current vs banked" across everything since 08-28, with
+   no parent-commit A/B on the VA recipe.
+
+⏸ **PARKED, deliberately** (user, 2026-09-04: *"defocusing"*): the
+\f$\lVert V_{xc}-V_{xc}^{fit}\rVert\f$ fit-quality study.  It stays worth doing one day — every
+Becke-vs-uniform cost number here is taken at UNKNOWN-EQUAL accuracy, so §6's "Becke is a negative
+acceleration" is a COST statement and not a verdict — but it is not what bins 1 and 2 need.
 
 
 
