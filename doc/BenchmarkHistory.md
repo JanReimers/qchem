@@ -537,3 +537,41 @@ the stream fold are all still on.  What it establishes is that the parity ROUTE 
 the way — before 2026-08-28 the same configuration cost 1805 s and 4.5 GB, because a polarized run could not
 reach that route at all.
 
+
+---
+
+## 9. The superseded 2026-09-04 per-iteration cut
+
+Replaced 2026-09-05 by `doc/Benchmark.md` §5a's single bin-1 table, which re-took every row on one binary
+at a MEASURED one thread and split setup out of the per-iteration figure.  Kept here because the 09-04
+numbers are quoted in commit messages and in `doc/OpenWork.md`, and because two of the rows moved for a
+reason worth remembering: **the 09-04 rows were taken with the gather's density screen still in**, and
+removing it (`a7561e92`) changed both the iteration counts and the per-iteration cost.
+
+★★★ **THE SMALL ROWS, DECOMPOSED (2026-09-04)** — the table this replaced:
+
+| row | CPU banked | **CPU now** | qchem iters | CP2K iters | **qchem s/iter** | CP2K s/iter | **per-iter ×** | old whole-run × |
+|---|---|---|---|---|---|---|---|---|
+| Si Γ | 2.2 s | **0.69 s** | 11 | 12 | **0.063** | 0.417 | **0.15×** | 0.44× |
+| Si 2×2×2 Γ-centred | 8.9 s | **3.04 s** | 7 | 13 | **0.434** | 0.431 | **1.01×** | 1.6× |
+| Si 2×2×2 shifted MP | 17.5 s | **6.57 s** | 16 | 14 | **0.411** | 0.429 | **0.96×** | 2.9× |
+| NaF SR2 Γ | 37.9 s | **26.3 s** | 29 | — | 0.906 | — | — | 5.3× |
+
+★ **THE MnO CODEGEN ARMS (2026-09-04)** — `-O3` against `-O3 -march=native`, the measurement that made
+native the Release default.  Its `×` column is per-iteration TOTAL CPU against CP2K's 8.5 s/step, i.e. the
+setup-contaminated figure §5a now separates:
+
+| the row | iterations | banked 08-28 | **O3** | **NATIVE** | \f$E_{tot}\f$ |
+|---|---|---|---|---|---|
+| **ALL DEFAULTS** | 14+17 = **31** | 18.2 s (2.14×) | **13.78 s (1.62×)** | **12.45 s (1.47×)** | −61.40297551 = banked |
+| **`QCHEM_BECKE_XC=0`** | 14+25 = **39** | 6.31 s (0.74×) ᵃ | **4.36 s (0.51×)** | **3.99 s (0.47×)** | −61.40358773 = banked |
+| **`CP2K_COMPAT=1`**, `GPW_MNO_NMAX=10` probe | 10+10 = **20** | 19.3 s (2.3×) | **17.89 s (2.11×)** | **16.94 s (1.99×)** | (capped, both arms equal) |
+| ⚠ `CP2K_COMPAT=1`, the full table row | 13+80 = **93**, both CAPPED | 29.4 s | not re-taken (45 min) | — | |
+| CP2K (its own log) | 44 | 8.5 s | — | — | |
+
+ᵃ the banked `QCHEM_BECKE_XC=0` row recorded 246 s CPU but only stage 2's iteration count; stage 1 is
+assumed 14, so 6.31 s/iter is derived, not banked.
+
+⇒ **WHAT MOVED against 08-28**: ALL DEFAULTS −24.3% CPU, `BECKE_XC=0` −30.9%, the parity probe −7.3%.
+⚠ That was "current vs banked", NOT an attribution — other work landed between 08-28 and 09-04 and no
+parent-commit A/B was run on this recipe.

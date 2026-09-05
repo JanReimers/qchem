@@ -6,7 +6,9 @@ same hardware; the sections below are what makes that claim checkable.
 out 2026-09-04).  Come back here for what is TRUE NOW; go there for why.
 
 **Read in this order:** §1 the process → §2 what parity actually means → §3 the rules → §4 the commands →
-§5 the rows.
+**§5a the BIN-1 TABLE** → §5 the whole-run rows.
+★ **§5a is the one table to point at for per-iteration CPU** — it holds nothing else, by request
+(2026-09-05); the deltas and open questions that used to crowd it are in §5e.
 
 ---
 
@@ -37,9 +39,9 @@ CPU column overstates qchem wherever it threads — and another reason the singl
 
 | bin | the axis | where it stands (MnO AFM-II VA, 2026-09-04) |
 |---|---|---|
-| **1** | **per-iteration CPU** | MnO: ALL DEFAULTS **1.47×** CP2K, `QCHEM_BECKE_XC=0` **0.47×** (we WIN), `CP2K_COMPAT=1` **1.99×**.  Si: **0.15×** at Γ but **1.01×** at 8 k — the k-scaling gap (§5a) is where the small-cell story is.  ⇒ **NOT closed** |
-| **2** | **init / pre-iteration** | ✅ **~1% of wall** on the parity routes.  On the DEFAULT route it is still the Becke mesh + Φ tables (~57 s of 328 s), so bin 2 is a Becke-mesh question and only there |
-| **3** | **peak RAM** | ✅ **solved, and we win**: ~470 MB defaults, **~105 MB on the parity routes against CP2K's 217 MB** |
+| **1** | **per-iteration CPU** | ★ **PER SCF ITERATION WE ARE AHEAD ON 7 OF 9 ROWS** (§5a, 2026-09-05, both codes pinned serial): MnO ALL DEFAULTS **0.90×**, MnO FM **0.83×**, `QCHEM_BECKE_XC=0` **0.53×**, Si **0.13× / 0.84× / 0.68×**, NaF full-SR **0.19×**.  The two losses are NaF SR2 **1.47×** (a Becke cost) and — the one that counts — `CP2K_COMPAT=1` **2.05×**.  ⇒ **NOT closed: the parity row decides it** |
+| **2** | **init / pre-iteration** | ⛔ **PROMOTED, and now measured serially: MnO's setup is 181 s = 44% of the default run against CP2K's 8.1 s (22×)**, of which **136.6 s is two Becke mesh builds** (§5a).  The earlier "~57 s of 328 s" was a THREADED ledger bucket — the build's partition loop is `omp parallel for`.  ✅ With `QCHEM_BECKE_XC=0` our setup is **1.76 s and beats CP2K's 8.1 s** — so bin 2 is a Becke-mesh question, exclusively |
+| **3** | **peak RAM** | ✅ **solved, and we win**: ~473 MB defaults, **107–130 MB on the parity routes against CP2K's 217 MB** |
 | **4** | **iteration count** | 31 (defaults) / capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  The two codes do not run the same ρ-mixing algorithm (doc/OpenWork.md) |
 
 The live tracker for these is `doc/OpenWork.md`; this file holds the measurements behind them.
@@ -225,63 +227,204 @@ Verify each side reproduces its own history before reading a Δ: the CP2K decks 
 
 ---
 
+## 5a. ★★★ THE BIN-1 TABLE — per-ITERATION CPU, qchem vs CP2K, one thread each
+
+**ONE TABLE, ON PURPOSE** (user, 2026-09-05: *"the important comparison table was the only table in
+section 5a, but now the section is flooded with other tables so I cannot easily point to it"*).  Every A/B
+delta, ledger split and open question that used to sit here is in **§5e**.  This is the bin-1 instrument
+and the only table to quote for bin 1.
+
+**THREAD STATE — SERIAL ON BOTH SIDES, AND MEASURED SO** (rule 3b): qchem `OMP_NUM_THREADS=1
+GPW_OMP_THREADS=1`, measured **99% CPU** on every row; CP2K `OMP_NUM_THREADS=1`, measured 97–99%.
+**Taken 2026-09-05**, one box (14 GB, 16 cores), qchem at `a3045163` built `-O3 -march=native`, CP2K 2025.2,
+commands copied from §4.  ⚠ **The qchem `setup` column is much larger than the 09-04 entry's ~57 s for MnO
+because the Becke mesh build THREADS** (`src/Structure/Imp/UnitCell.C:273` — the partition loop is
+`#pragma omp parallel for` over quadrature points, and `GPW_OMP_THREADS=1` pins it): 68.3 s serial per
+build against the 16.7 s that ledger read with threads free.  The serial figure is the one that belongs
+beside a serial CP2K row (`doc/BenchmarkHistory.md` §9).
+
+**HOW TO READ IT.**  `CPU` is whole-run user+sys.  `setup` is that run's own pre-SCF work — qchem: the sum
+of the ledger's `setup:` buckets; CP2K: total CPU minus the sum of its printed per-step times.  So
+
+- **`s/it (SCF)` = (CPU − setup) / iterations is the BIN-1 number**, and the `×` column is its ratio;
+- **`setup` is the BIN-2 number**, in the same row, on the same run.
+
+⇒ **Compare the SCF columns.**  The total column is kept only because it is what the whole-run table (§5)
+divides — and the two disagree by 1.8× on MnO precisely because 44% of that run is setup.
+
+| row | span / k | q iters | q CPU | q setup | **q s/it (SCF)** | c steps | c CPU | c setup | **c s/it (SCF)** | **BIN 1 ×** | q s/it (total) | total × |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Si Γ | SIPP_SR, 1 k | 17 | 1.01 s | 0.14 s | **0.051** | 12 | 5.03 s | 0.4 s | 0.383 | **0.13×** ✅ | 0.059 | 0.14× |
+| Si 2×2×2 Γ-centred | SIPP_SR, 8 k | 16 | 5.54 s | 0.37 s | **0.323** | 13 | 5.60 s | 0.6 s | 0.385 | **0.84×** ✅ | 0.346 | 0.80× |
+| Si 2×2×2 shifted MP | SIPP_SR, 8 k | 14 | 4.81 s | 1.13 s | **0.263** | 14 | 5.91 s | 0.5 s | 0.386 | **0.68×** ✅ | 0.344 | 0.81× |
+| NaF SR2 Γ | LOWQ_SR2, 1 k | 23 | 23.08 s | **9.74 s** | **0.580** | 16 | 7.18 s | 0.9 s | 0.394 | **1.47×** ⛔ | 1.003 | 2.24× |
+| NaF full-SR Γ | LOWQ_SR, 1 k | 30 | 31.41 s | **11.02 s** | **0.680** | 27 | 101.85 s | 6.9 s | 3.519 | **0.19×** ✅ | 1.047 | 0.28× |
+| **MnO AFM-II — ALL DEFAULTS** (5 of §2's 7 deviations active ᵃ) | VA, 1 k | 14+17 = **31** | 412.4 s | **181.4 s** | **7.451** | 44 | 372.9 s | 8.1 s | 8.291 | **0.90×** ✅ | 13.303 | 1.57× |
+| MnO AFM-II, `QCHEM_BECKE_XC=0` (4 of 7 — ONE rung down, NOT parity ᵃ) | VA, 1 k | 14+25 = **39** | 172.0 s | 1.76 s | **4.366** | 44 | 372.9 s | 8.1 s | 8.291 | **0.53×** ✅ | 4.411 | 0.52× |
+| ⚠ MnO AFM-II, `CP2K_COMPAT=1` probe (0 of 7 — `AT PARITY` as far as is KNOWN ᵃ) | VA, 1 k | 10+10 = **20**, CAPPED | 341.4 s | 1.73 s | **16.983** | 44 | 372.9 s | 8.1 s | 8.291 | **2.05×** ⛔ | 17.069 | 2.01× |
+| MnO **FM** — ALL DEFAULTS | VA, 1 k | 18+15 = **33** | 411.1 s | **182.5 s** | **6.928** | 22 | 192.4 s | 8.7 s | 8.350 | **0.83×** ✅ | 12.458 | 1.42× |
+
+ᵃ **counted off each run's own banner**, not from memory (rule 3b).  Defaults:
+`QCHEM_DM_LOWRANK=on* GPW_STREAM_FOLD=on* QCHEM_MIX_RHO_M=off GPW_XC_DM_SOURCE=off
+QCHEM_IMPOSE_SYMMETRY=on* QCHEM_BECKE_XC=on* GPW_DAWARE_SCREEN=on*` (`*` = differs from CP2K, five of
+them); the middle row is the same with `QCHEM_BECKE_XC=off(stated)`; the bottom row prints
+`CP2K_COMPAT=1 -> AT PARITY` with every flag off.
+
+⇒ **PER SCF ITERATION WE ARE AHEAD OF CP2K ON SEVEN OF THE NINE ROWS**, including MnO on its default
+route (0.90×) and its FM arm (0.83×).  Two rows are behind, and they are behind for two different reasons:
+
+⛔ **NaF SR2 Γ — 1.47×, and it is a Becke cost, not a GPW one.**  42% of that row's CPU is setup.  §5e.
+
+⛔ **THE PARITY ROW IS STILL 2.05×, AND IT IS THE ONE THAT DECIDES BIN 1.**  `CP2K_COMPAT=1` also removes
+the stream fold (5.2× on MnO's pair count) and the low-rank ρ, so this row is the honest
+algorithm-to-algorithm number and the other MnO rows are not.  ⚠ Two caveats, both real:
+`GPW_MNO_NMAX=10` CAPS it at 20 iterations with a different stage mix, so rule 3d applies (per-iteration is
+not strictly comparable across caps); and **`CP2K_COMPAT=1` is our best KNOWN parity, not proven parity** —
+§2's deviation list has grown every time anyone has looked (4 → 7 items), so a new find can move this row
+in either direction.
+⇒ **BIN 1 IS NOT CLOSED.**
+
+★★★ **AND THE TABLE HANDS BIN 2 ITS NEXT ACTION, MEASURED.**  MnO's serial setup is **181.4 s — 44% of the
+default run — against CP2K's 8.1 s (22×)**, and **136.6 s of it is TWO Becke mesh builds** (68.3 s each,
+one per anneal stage; the rest is 43.1 s of XC-mesh Φ tables).  Both vanish with `QCHEM_BECKE_XC=0`, where
+our setup is **1.76 s and BEATS CP2K's 8.1 s**.  ⇒ Bin 2 is a Becke-mesh question, exclusively, and on the
+MnO row it is now worth more than anything left in bin 1 on that route.
+⚠ **Two builds, and the second is for the same cell** — the anneal's two stages each build one.  Whether
+that is avoidable is the first thing to ask, before anything is optimised inside the build.
+
+⚠ **WHY THE ITERATION COUNTS AND LAST DIGITS MOVED against the 09-04 cut** (rule 3a's check, honestly
+reported): removing the gather's density screen (`a7561e92`) is not bit-identical, so the small rows took a
+different SCF path — Si Γ 11 → 17, Si 2×2×2 Γ-centred 7 → 16, shifted MP 16 → 14, NaF SR2 29 → 23.  Every
+\f$E_{tot}\f$ still reproduces its banked value: Si Γ to all 10 digits, the other Si rows to 2–7 nHa, NaF
+to 2.7–6.3 µHa, and **all three MnO rows reproduce their banked iteration counts exactly** (31 / 39 / 20)
+with \f$E_{tot}\f$ to 4e-8 or better.  The MnO **FM** row is the exception on purpose: it had not been
+re-taken since 08-19 (footnote ⁵) and this is its first measurement on the current code — 411 s CPU and
+474 MB against the stale row's 2321 s and 4947 MB.
+
+---
+
 ## 5. THE ROWS — single thread
 
-⚠ **THE WHOLE-RUN TABLE BELOW IS NOT THE BIN-1 INSTRUMENT — §5a IS** (user, 2026-09-04: *"the previous
-table in section 5 is not very informative"*).  Its `wall` and `CPU` columns are whole-run totals across
-runs that differ by 3× in iteration count and were taken under mixed thread states, so they cannot be
-compared to each other.  **Read it for two things only: the ENERGY column (Δ vs CP2K, the accuracy claim)
-and peak RSS (bin 3).**  For runtime go to §5a.
+⚠ **THE WHOLE-RUN TABLE BELOW IS NOT THE BIN-1 INSTRUMENT — §5a ABOVE IS** (user, 2026-09-04: *"the
+previous table in section 5 is not very informative"*).  Its `wall` and `CPU` columns are whole-run totals
+over runs whose iteration counts differ by 3×, and they charge each run's setup to its per-step cost.
+**Read it for two things: the ENERGY column (Δ vs CP2K, the accuracy claim) and peak RSS (bin 3).**
+For runtime go to §5a — same runs, decomposed.
 
-Energies in Ha.  **Both columns measured on this box (14 GB, 16 cores) through `scripts/bench`, 2026-08-19** —
-the CP2K side is no longer banked prose: `apt`'s CP2K 2025.2 reproduces every banked 2026.1 deck value to the
-printed digits (`doc/CP2KBuild.md`), so both codes are measured under one wrapper.  Provenance per row is in
+Energies in Ha.  **Both columns measured on this box (14 GB, 16 cores) through `scripts/bench`** — the CP2K
+side is no longer banked prose: `apt`'s CP2K 2025.2 reproduces every banked 2026.1 deck value to the printed
+digits (`doc/CP2KBuild.md`), so both codes are measured under one wrapper.  Provenance per row is in
 *How each row was produced*.
 
-> **⚠ THE TWO SIDES DO NOT USE THE SAME NUMBER OF CORES, SO READ THE CPU COLUMN.**  CP2K is genuinely serial
-> here (`OMP_NUM_THREADS=1`, measured 97–99% CPU).  qchem is NOT: `GPW_OMP_THREADS` is unset, but blaze runs
-> the BLAS multi-threaded regardless — measured 115–239% CPU.  **A thread-count knob is not a measurement**,
-> and an earlier cut of this table printed "1 thr" on the qchem rows on the strength of the unset knob.
-> Wall time therefore FLATTERS qchem by the number of cores it took; **CPU time (user+sys) is the honest
-> ratio** and it is roughly 2× the wall ratio.
+> ✅ **BOTH SIDES ARE NOW SERIAL AND MEASURED SO** (2026-09-05): qchem `OMP_NUM_THREADS=1
+> GPW_OMP_THREADS=1` at 99% CPU on every re-taken row, CP2K `OMP_NUM_THREADS=1` at 97–99%.  Wall and CPU
+> therefore agree to ~1% and the `CPU ×` column is finally a like-for-like ratio.
+> ⚠ **The history this replaces, because it will be quoted**: rows before 09-05 had `GPW_OMP_THREADS` unset
+> while blaze threaded the BLAS regardless — measured 115–239% CPU — so their wall column FLATTERED qchem
+> by the number of cores it happened to take.  **A thread-count knob is not a measurement**; an earlier cut
+> of this table printed "1 thr" on the qchem rows on the strength of the unset knob.
 
-**★ RE-TAKEN 2026-08-27/28**, most recently on the spin-native XC pair route.  ⚠ **THE ROWS ARE NOT ALL
-FROM THE SAME BINARY**, and this session moved fast enough that saying so matters more than usual — five
-changes landed in two days (cache deletion, `template<int LP>`, the two memo fixes, the exp recurrence, the
-XC decoupling), and a row is only as current as the last time it was run.  The `taken` column says when.
+**★ EVERY ROW BUT TWO RE-TAKEN 2026-09-05, SERIAL, ON ONE BINARY** (`a3045163`, `-march=native`) — the same
+runs §5a decomposes, so the two tables cannot disagree.  The `taken` column says which rows are not from
+that cut.
 
 | row | last taken | why it may have moved since |
 |---|---|---|
-| Si Γ, NaF SR2 Γ, NaF full-SR Γ, MnO AFM-II, **MnO parity** | **08-28, current** | — |
-| Si 2×2×2 (both), NaF SR2 2×2×2 | 08-28, mid-session | predate the exp recurrence (~1.4× on the box walk); ⚠ CHEAP to re-take (8–68 s) |
-| **MnO `CP2K_COMPAT=1`** | **08-28, current** | the old row's *"does not converge"* verdict is RETRACTED — see ⁷ |
-| **MnO FM** | **08-19** | predates EVERYTHING; ~20 min to re-take |
+| Si Γ, Si 2×2×2 (both), NaF SR2 Γ, NaF full-SR Γ, MnO AFM-II defaults, MnO `BECKE_XC=0`, **MnO FM** | **09-05, serial, current** | — |
+| NaF SR2 2×2×2 | 08-28 | no CP2K counterpart (footnote ²), so it is not a head-to-head row; ⚠ cheap to re-take |
+| **MnO `CP2K_COMPAT=1`** (the uncapped 93-step row) | **08-28** | ~45 min to re-take; the 09-05 cut used the documented `GPW_MNO_NMAX=10` probe instead (§5a, §5b).  The old row's *"does not converge"* verdict is RETRACTED — see ⁷ |
 
 ⇒ **The `CP2K_COMPAT=1` row is now real rather than aspirational**, because the XC pair route made the
 parity ROUTE affordable — see footnote ⁷ (§5d).  CP2K column untouched throughout.
 
 | system | k-mesh | span | qchem Etot | CP2K Etot | Δ (qchem−CP2K) | wall q / c | **CPU q / c** | **CPU ×** | peak RSS q / c |
 |---|---|---|---|---|---|---|---|---|---|
-| Si (FCC) | Γ | SIPP_SR | −7.115067844 | −7.115057882 | **−10.0 µHa** | **0.8 s** / 5.2 s | **2.2** / 5.0 s | **0.44×** | **29** / 148 MB |
-| Si (FCC) | 2×2×2 Γ-centred | SIPP_SR | −7.778472833 | −7.778457865 | **−15.0 µHa** | 7.5 s / 5.8 s | 8.9 / 5.6 s | 1.6× | **30** / 153 MB |
-| Si (FCC) | 2×2×2 shifted MP | SIPP_SR | −7.868473428 ¹ | −7.867436530 | **−1.04 mHa** | 16.2 s / 6.1 s | 17.5 / 6.0 s | 2.9× | **31** / 153 MB |
-| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303364755 | −24.431213375 | **+0.877 mHa** | 21.1 s / 7.4 s | 37.9 / 7.2 s | **5.3×** | **61** / 173 MB |
+| Si (FCC) | Γ | SIPP_SR | −7.115067844 | −7.115057882 | **−10.0 µHa** | **1.0 s** / 5.2 s | **1.0** / 5.0 s | **0.20×** | **29** / 148 MB |
+| Si (FCC) | 2×2×2 Γ-centred | SIPP_SR | −7.778472826 | −7.778457865 | **−15.0 µHa** | 5.6 s / 5.8 s | **5.5** / 5.6 s | **0.98×** | **35** / 153 MB |
+| Si (FCC) | 2×2×2 shifted MP | SIPP_SR | −7.868473426 ¹ | −7.867436530 | **−1.04 mHa** | 4.8 s / 6.1 s | **4.8** / 6.0 s | **0.80×** | **34** / 153 MB |
+| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303428212 | −24.431213375 | **+0.871 mHa** | 23.2 s / 7.4 s | **23.1** / 7.2 s | **3.2×** | **54** / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
-| NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309472653 | −24.432293467 | **+1.346 mHa** | **25.0 s** / 1m42s | **41.4** / 102 s | **0.41×** | **65** / 186 MB |
-| **MnO AFM-II — ALL DEFAULTS** ⁴ | Γ | **VA (N=118)** | −61.40297551 ⁴ | −61.303325178 | **−99.65 mHa** | **5m16.6s** / 6m14s | **563** / 373 s | **1.51×** | **490** / 217 MB |
-| **MnO AFM-II, `QCHEM_BECKE_XC=0`** ⁶ | Γ | **VA (N=118)** | −61.40358773 | −61.303325178 | −100.26 mHa | **4m05.4s** / 6m14s | **246** / 373 s | **0.66×** | **105** / 217 MB |
-| ⚠ STALE MnO FM | Γ | **VA (N=118)** | −61.441583060 ⁵ | −61.304782531 | **−136.80 mHa** | 21m45s / 3m13s | 2321 / 192 s | **12.1×** | 4947 / 217 MB |
+| NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309446032 | −24.432293467 | **+1.349 mHa** | **31.5 s** / 1m42s | **31.4** / 102 s | **0.31×** | **57** / 186 MB |
+| **MnO AFM-II — ALL DEFAULTS** ⁴ | Γ | **VA (N=118)** | −61.40297555 ⁴ | −61.303325178 | **−99.65 mHa** | **6m53s** / 6m14s | **412** / 373 s | **1.11×** | **473** / 217 MB |
+| **MnO AFM-II, `QCHEM_BECKE_XC=0`** ⁶ | Γ | **VA (N=118)** | −61.40358778 | −61.303325178 | −100.26 mHa | **2m52s** / 6m14s | **172** / 373 s | **0.46×** | **107** / 217 MB |
+| **MnO FM — ALL DEFAULTS** ⁵ | Γ | **VA (N=118)** | −61.44158232 ⁵ | −61.304782531 | **−136.80 mHa** | **6m51s** / 3m13s | **411** / 192 s | **2.14×** | **474** / 217 MB |
 | **MnO AFM-II, `CP2K_COMPAT=1`** ⁷ | Γ | **VA (N=118)** | −61.39789688 ⁷ | −61.303325178 | −94.57 mHa | 45m40s / 6m14s | **2736** / 373 s | **7.3×** | **112** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
 
 
-### 5a. Per-ITERATION CPU — the bin-1 ladder
+### 5d. Footnotes to the table
 
-⚠ **METHOD NOTE, learned the hard way 2026-09-04: per-iteration TOTAL CPU is CONFOUNDED whenever the
-iteration count moves.**  Total = setup + N × scf, so total/N = setup/N + scf — a run that takes MORE
-iterations amortises its setup thinner and looks better per iteration without being faster at anything.
-⇒ For bin 1 compare **the SCF buckets per iteration** (gather + collocate off the ledger), or compare
-totals only between runs with the SAME iteration count.
+Compact here; the full stories are in `doc/BenchmarkHistory.md` at the section named after each.
+
+- **¹** Si 2×2×2 shifted MP (−1.04 mHa) — the residual after a **D-aware integrate-back SCREEN defect** was
+  fixed 2026-08-19.  It is the suite's ONLY fractional-k SCF coverage (every other k is TRIM, where the
+  defect is structurally invisible), which is why it had rotted to −3.7351 while DISABLED.  *(history: the
+  screen was reading \f$\mathrm{Re}[D\overline{e^{ikR}}]\f$ where it needed \f$|D|\f$.)*
+- **²** No CP2K counterpart: CP2K's NaF decks carry no `&KPOINTS` section, i.e. they are Γ, while the qchem
+  test defaults to 2×2×2.
+- **⁴** MnO ALL DEFAULTS — **re-measured four times** (08-19/20, 09-04, 09-05), same command, same box;
+  every cut agrees on the energy to 4e-8 and on the iteration count (14+17 = 31) exactly.
+- **⁵** ✅ **RE-TAKEN 2026-09-05** (it had been the only pre-Step-2 measurement left): serial, VA recipe,
+  18+15 = 33 iterations, \f$E_{tot}\f$ −61.44158232 against the 08-19 row's −61.441583060 (7e-7, the
+  gather-screen removal).  Its cost columns fell 5.6× in CPU and 10× in RAM; per SCF iteration it is
+  **0.83× CP2K** (§5a).
+- **⁶** ⚠ **ONE of §2's seven deviations off, NOT parity** (user, 2026-09-05) — it makes XC run CP2K's way
+  and leaves everything else ours.  It is the first MnO row on which qchem beat CP2K on both axes and is
+  still the standout: **0.53× per SCF iteration**, 107 MB against 217 MB, and a setup of 1.76 s against
+  CP2K's 8.1 s.
+- **⁷** The parity row: an earlier *"at true parity our recipe does not converge"* verdict was **RETRACTED**
+  (08-28).  It still hits the iteration cap, but for a far more benign reason — 5.1 mHa short, not 3.8 Ha,
+  with the AFM order surviving both stages.
+- **⁸** The 93-iteration parity figure is pre-fix and its stage mix differs — **do not** read 29.4 → 19.3 as
+  a 1.5×; per-iteration is not comparable across iteration caps (rule 3d).
+
+### 5b. The three MnO rows are ONE system and ONE recipe
+
+★ **THE THREE `MnO AFM-II` ROWS ARE ONE SYSTEM AND ONE RECIPE, with progressively more of OUR deviations
+switched off.**  Read them as a ladder, not as three experiments — the only thing changing is which of §2's
+**seven** declared deviations are on.  ⚠ `QCHEM_BECKE_XC=0` is ONE of the seven: it is a rung on the way to
+parity, **not** parity (user, 2026-09-05: *"there is much more to parity than just BECKE_XC=0"*).
+
+| the row | what is off | CPU (serial, 09-05) | RSS |
+|---|---|---|---|
+| **ALL DEFAULTS** | nothing — every deviation at its qchem default (Becke XC, imposition, low-rank ρ, stream fold) | 412 s (31 it) | 473 MB |
+| **`QCHEM_BECKE_XC=0`** | ONE of the seven: the Becke XC mesh — so XC runs CP2K's way, everything else still ours | **172 s (39 it)** | **107 MB** |
+| **`CP2K_COMPAT=1`** | ALL SEVEN KNOWN — the honest algorithm-to-algorithm row | 341 s (20 it, CAPPED probe) | 130 MB |
+
+⚠ The middle row is the fastest because Becke's atom-centred quadrature is expensive machinery — and on the
+default route it is 44% of the run before SCF even starts (§5a).  The bottom row costs the most per step
+because parity also removes the STREAM FOLD (5.2× on MnO's pair count) and the low-rank ρ; its 341 s is a
+`GPW_MNO_NMAX=10` probe, not a converged run (the uncapped row was 2736 s over 93 capped steps).
+⇒ **Always say WHICH of the three** — "the MnO row" has meant all three of these in the space of one day.
+⚠ And **`CP2K_COMPAT=1` is our best KNOWN parity, not proven parity**: §2's list started at four items and
+is at seven, having grown every time anyone looked (user, 2026-09-05: *"CP2K_COMPAT=1 is supposed to be
+parity, but we keep finding new differences"*).  A new find moves the bottom row, in either direction.
+
+
+### 5c. Like-for-like: what "same span" costs
+
+
+CP2K can be forced down to the spherical spans qchem holds at FULL RANK — `IntegrationTests/CP2K/`
+`mno_{afm2,fm}_gpw_v{a,b}.inp` with the `VALENCE-LOWQ-V{A,B}` entries in `VALENCE-LOWQ-BASIS`; **VA = N 118**
+(full rank in both codes), **VB = N 128**.  So the MnO comparison does NOT wait on the 136-span question
+(`OpenWork` Step 6).
+
+On the qchem side that span used to be produced by `doc/scripts/bisect_valence_sph.py` **overwriting the
+committed `BasisSetData/valence_lowq_sph.bsd` in the working tree** — so a run could not state which span it
+had used, and no row over it was reproducible after the file was restored.  VA and VB are now committed
+basis sets (`valence_lowq_v{a,b}.bsd`, `BasisSetData::VALENCE_LOWQ_V{A,B}`) selected by
+**`GPW_BASIS_SPAN=va|vb|sph|sr`**, and the run prints its own `nFunctions` — reproducing run 61's basis block
+exactly (118 functions, λ_min 1.29e-3, cond 4.41e3).  Si and NaF already share one span per material.
+
+
+---
+
+## 5e. Bin-1 working notes — the deltas and the open questions BEHIND §5a's table
+
+⚠ **§5a holds ONE table on purpose.**  Everything that used to sit beside it and made it hard to point at
+lives here.  Nothing in this section is the bin-1 instrument; §5a is.
+
+### What removing the gather density screen cost and bought (2026-09-04)
 
 ★★★ **THE UNSCREENED GATHER (2026-09-04) — A REAL SPLIT BY k-MESH, NOT A UNIFORM WIN.**  Removing the
 density screen from the integrate-back (see §6, and doc/OpenWork.md for why it is also a CORRECTNESS fix)
@@ -309,83 +452,62 @@ CORRECTNESS fix — the diagonal-seed defect and the stream fold's orbit-invaria
 doc/OpenWork.md — and the Γ cost is the price of not having a self-fulfilling truncation in the Fock.
 ⚠ It is NOT a `CP2K_COMPAT` matter: the screen is gone on every route, not just the parity one.
 
+### ⚠ THE BECKE MESH BUILD THREADS — which collides with §7a's reading (open, 2026-09-05)
 
+§5a's setup column is SERIAL, and 68.3 s of it per build is the Becke mesh.  That loop is
+`#pragma omp parallel for` over quadrature points (`src/Structure/Imp/UnitCell.C:273`), so it is NOT
+structurally serial — yet §7a's NaF threading run inferred a ~9 s serial residual and matched it to the
+setup buckets, of which 7.0 s IS the mesh build.  Both cannot be the whole story.
+⇒ **Resolve it while profiling bin 2** (doc/OpenWork.md's named next action): measure the mesh build's own
+speed-up curve on MnO and on NaF separately.  Candidate explanation — NaF is a 2-atom cell whose point
+count is too small to amortise the region, so it threads on MnO and does not on NaF.
 
-★★★ **THE SMALL ROWS, DECOMPOSED (2026-09-04).**  Splitting `CPU×` into (CPU/iteration) × (iteration count)
-dissolves most of the column's outliers.  All four re-taken with NATIVE codegen; **every one reproduces its
-banked \f$E_{tot}\f$ exactly**, which is what says they are the same systems:
+★ **A note on units, since the two columns are subtracted**: the ledger's buckets are WALL seconds and
+`CPU` is user+sys.  Every §5a row measured 97–99% CPU, so the subtraction is sound there; it would NOT be
+on a threaded row, which is one more reason §5a is a serial-only table.
 
-| row | CPU banked | **CPU now** | qchem iters | CP2K iters | **qchem s/iter** | CP2K s/iter | **per-iter ×** | old whole-run × |
-|---|---|---|---|---|---|---|---|---|
-| Si Γ | 2.2 s | **0.69 s** | 11 | 12 | **0.063** | 0.417 | **0.15×** | 0.44× |
-| Si 2×2×2 Γ-centred | 8.9 s | **3.04 s** | 7 | 13 | **0.434** | 0.431 | **1.01×** | 1.6× |
-| Si 2×2×2 shifted MP | 17.5 s | **6.57 s** | 16 | 14 | **0.411** | 0.429 | **0.96×** | 2.9× |
-| NaF SR2 Γ | 37.9 s | **26.3 s** | 29 | — | 0.906 | — | — | 5.3× |
+### The k-SCALING gap — the one structural bin-1 defect the table shows
 
-⇒ **PER ITERATION WE ARE AT OR BETTER THAN CP2K ON ALL THREE Si ROWS.**  The banked 1.6× and 2.9× were two
-artifacts stacked: rows stale by 2.7–3.2×, plus iteration-count differences (bin 4).
-
-⛔ **BUT THE k-SCALING IS THE REAL BIN-1 STORY HERE.**  Same system, same span, only the k-mesh changing:
+Same system, same span, only the k-mesh changing (SCF-only seconds per iteration, §5a's numbers):
 
 | | qchem s/iter | CP2K s/iter |
 |---|---|---|
-| Γ | 0.063 | 0.417 |
-| 8 k-points | 0.434 | 0.431 |
-| **rise** | **6.9×** | **1.03×** |
+| Γ | **0.051** | 0.383 |
+| 8 k-points (Γ-centred) | **0.323** | 0.385 |
+| **rise** | **6.3×** | **1.01×** |
 
-We start **6.7× ahead** of CP2K at Γ and spend the entire lead on k-points.  Cause and the two refuted
-fixes: doc/OpenWork.md's k-scaling entry (the gather memo is bypassed whenever a density screen is passed,
-and 32 of 51 gathers on the 8-k run are the SAME FIELD).
+We start **7.5× ahead** of CP2K at Γ and keep only **1.2×** of it at 8 k — still a win, but the whole
+shape of the small-cell story is in that rise.  Cause and the two refuted fixes:
+doc/OpenWork.md's k-scaling entry (the gather memo is bypassed whenever a density screen is passed, and 32
+of 51 gathers on the 8-k run are the SAME FIELD).  ⚠ Part of their flatness is not an optimisation to copy
+but a fold we do not do: CP2K folds a shifted MP mesh 8→4 by time reversal (§6b item 1).
 
-★ **AND NaF's 5.3× IS A BECKE COST, NOT A GPW ONE.**  Its ledger: Becke mesh build **6.96 s (27%)** +
-XC-mesh ρ sampling **8.16 s (31%)** + hamiltonian ctor 2.0 s (8%) — against a box walk of **~1 s (4%)**.
-⇒ On the system where Becke should be at its best, Becke IS the runtime.  That makes §6's open
+### NaF's loss is a BECKE cost, not a GPW one
+
+`NaF SR2 Γ` is the one small row where we are behind per iteration, and its ledger says why —
+Becke mesh build **7.00 s (30% of the run)** + XC-mesh ρ sampling **6.55 s (28%)** + hamiltonian ctor
+**2.02 s (9%)**, against a box walk (gather + collocate) of **0.80 s (3%)**.
+⇒ On the system where Becke should be at its best, **Becke IS the runtime**, and 42% of that row's CPU is
+pre-SCF setup — i.e. it is mostly a bin-2 row wearing a bin-1 label.  That makes §6's parked
 \f$\lVert V_{xc}-V_{xc}^{fit}\rVert\f$ study the deciding measurement for this row too.
 
+### The box walk is ~95% of an MnO parity run
 
+109 s of 114.6 s, of which the GATHER is 74% (81.5 s over 65 calls, against 27.9 s over 22).
+⇒ Amdahl leaves nothing outside the walk worth touching on that route, and any per-call win is worth ~3×
+more on the gather side than on the collocate side.
 
-★ **RE-TAKEN 2026-09-04 WITH THE PRINTED COMMAND** (serial; `-O3` and `-O3 -march=native` arms).  Every
-row reproduces its banked \f$E_{tot}\f$ and iteration count EXACTLY -- which is the correctness statement
-for the whole 09-04 change set (screener seam + one-gather XC term + CacheSpin + the codegen flip):
+### STANDING PROBE for bin 1
 
-| the row | iterations | banked 08-28 | **O3 now** | **NATIVE now** | \f$E_{tot}\f$ |
-|---|---|---|---|---|---|
-| **ALL DEFAULTS** | 14+17 = **31** | 18.2 s (2.14×) | **13.78 s (1.62×)** | **12.45 s (1.47×)** | −61.40297551 = banked |
-| **`QCHEM_BECKE_XC=0`** | 14+25 = **39** | 6.31 s (0.74×) ⁸ᵇ | **4.36 s (0.51×)** | **3.99 s (0.47×)** | −61.40358773 = banked |
-| **`CP2K_COMPAT=1`**, `GPW_MNO_NMAX=10` probe | 10+10 = **20** | 19.3 s (2.3×) | **17.89 s (2.11×)** | **16.94 s (1.99×)** | (capped, both arms equal) |
-| ⚠ `CP2K_COMPAT=1`, the full table row | 13+80 = **93**, both CAPPED | 29.4 s ⁸ | not re-taken (45 min) | — | |
-| CP2K (its own log) | 44 | 8.5 s | — | — | |
+(user, 2026-08-28: *"we just cut off at ~10 or so iterations, just to get a decent average"*):
+`CP2K_COMPAT=1 GPW_MNO_NMAX=10` — ~6 minutes, and quote per-call beside per-iteration.
 
-⁸ᵇ the banked `QCHEM_BECKE_XC=0` row recorded 246 s CPU but only stage 2's iteration count; stage 1 is
-assumed 14 (this re-take's value, and its \f$E_{tot}\f$ matches to all digits), so 6.31 s/iter is derived,
-not banked.
+### ⚠ THE PER-STEP COMPARISON MAY NOT BE APPLES-TO-APPLES AT ALL — OPEN, 2026-09-04
 
-⇒ **WHAT MOVED, honestly**: ALL DEFAULTS **−24.3%** CPU against 08-28, `BECKE_XC=0` **−30.9%**, the parity
-probe only **−7.3%**.  ⚠ THIS IS "CURRENT vs BANKED", NOT AN ATTRIBUTION: other work landed between 08-28
-and now, and no A/B against the parent commit was run on this recipe, so it is NOT established how much of
-it today's three changes account for.
-⇒ **BIN 1 IS NOT CLOSED.**  Best case 1.47× (defaults, NATIVE); parity still 1.99×.  The `BECKE_XC=0` row
-is the standout -- **0.47×, i.e. we are ~2× FASTER than CP2K per step on the XC-parity route.**
-
-
-★ **AND THE BOX WALK IS ~95% OF THIS RUN** (109 s of 114.6 s), of which the GATHER is 74% (81.5 s over 65
-calls, against 27.9 s over 22).  ⇒ Amdahl leaves nothing outside the walk worth touching, and any per-call
-win is worth ~3× more on the gather side than on the collocate side.
-
-★ **STANDING PROBE for bin 1** (user, 2026-08-28: *"we just cut off at ~10 or so iterations, just to get a
-decent average"*): `CP2K_COMPAT=1 GPW_MNO_NMAX=10` — ~6 minutes, and quote per-call beside per-iteration.
-
-⇒ Two separate facts the whole-run column blurs together: we are **1.47× per step on the default route and
-1.99× at parity** (09-04, VA recipe; it was 2.14×/3.5× when this line was written), and at parity we take **93 steps to CP2K's 44** (bin 4, and both of
-ours hit the cap rather than converging).  The parity row's per-step figure is the WORSE of the two because
-parity also removes the stream fold — 5.2× on MnO's pair count.
-
-
-⚠ **AND THE PER-STEP COMPARISON MAY NOT BE APPLES-TO-APPLES AT ALL — OPEN, 2026-09-04.**  The 09-04 ledger
-shows **~9 distinct KS-field integrations per SCF iteration** on a 2-channel system where the physics needs
-~3 (one \f$V_H\f$ gather + one \f$V_{xc}\f$ per channel); `GPW_INTEGRATE_CENSUS=1` says all of them are
-genuinely NEW fields, so it is NOT redundancy a memo could remove.  Two readings, and they call for
-opposite responses:
+The 09-04 ledger shows **~9 distinct KS-field integrations per SCF iteration** on a 2-channel system where
+the physics needs ~3 (one \f$V_H\f$ gather + one \f$V_{xc}\f$ per channel); `GPW_INTEGRATE_CENSUS=1` says
+all of them are genuinely NEW fields, so it is NOT redundancy a memo could remove.  Two readings, and they
+call for opposite responses:
 - **the accelerator is buying bin 4 with bin 1 work** — if the Ladder line-search builds \f$H\f$ several
   times per "iteration", then our iteration is not CP2K's step and per-iteration is the WRONG metric; the
   honest one is total \f$H\f$-builds (or wall) to convergence;
@@ -394,63 +516,6 @@ opposite responses:
 
 ⇒ **Distinguish them before optimising either way**: count \f$H\f$-builds per SCF step directly, and read
 CP2K's own per-step \f$H\f$ count out of its log.  Cheap, and it decides whether bin 1 is finished.
-
-
-### 5d. Footnotes to the table
-
-Compact here; the full stories are in `doc/BenchmarkHistory.md` at the section named after each.
-
-- **¹** Si 2×2×2 shifted MP (−1.04 mHa) — the residual after a **D-aware integrate-back SCREEN defect** was
-  fixed 2026-08-19.  It is the suite's ONLY fractional-k SCF coverage (every other k is TRIM, where the
-  defect is structurally invisible), which is why it had rotted to −3.7351 while DISABLED.  *(history: the
-  screen was reading \f$\mathrm{Re}[D\overline{e^{ikR}}]\f$ where it needed \f$|D|\f$.)*
-- **²** No CP2K counterpart: CP2K's NaF decks carry no `&KPOINTS` section, i.e. they are Γ, while the qchem
-  test defaults to 2×2×2.
-- **⁴** MnO ALL DEFAULTS — **re-measured twice** (08-19/20), same command, same box; all cuts agree on the
-  energy to the printed digits, and re-taken again 09-04 with the same \f$E_{tot}\f$.
-- **⁵** ⚠ The MnO **FM** row is the only PRE-Step-2 measurement left in the table: its ENERGY is unaffected
-  but its COST is stale by everything since 08-19.  ~20 min to re-take.
-- **⁶** The XC-parity row — **the first MnO row on which qchem beat CP2K on BOTH axes**, and still the
-  standout (0.47× per step, ~105 MB against 217 MB).
-- **⁷** The parity row: an earlier *"at true parity our recipe does not converge"* verdict was **RETRACTED**
-  (08-28).  It still hits the iteration cap, but for a far more benign reason — 5.1 mHa short, not 3.8 Ha,
-  with the AFM order surviving both stages.
-- **⁸** The 93-iteration parity figure is pre-fix and its stage mix differs — **do not** read 29.4 → 19.3 as
-  a 1.5×; per-iteration is not comparable across iteration caps (rule 3d).
-
-### 5b. The three MnO rows are ONE system and ONE recipe
-
-★ **THE THREE `MnO AFM-II` ROWS ARE ONE SYSTEM AND ONE RECIPE, with progressively more of OUR deviations
-switched off.**  Read them as a ladder, not as three experiments — the only thing changing is which of the
-six declared deviations are on:
-
-| the row | what is off | CPU | RSS |
-|---|---|---|---|
-| **ALL DEFAULTS** | nothing — every deviation at its qchem default (Becke XC, imposition, low-rank ρ, stream fold) | 584 s | 491 MB |
-| **`QCHEM_BECKE_XC=0`** | the Becke XC mesh only — so XC runs CP2K's way, everything else still ours | **246 s** | **105 MB** |
-| **`CP2K_COMPAT=1`** | ALL SIX — the honest algorithm-to-algorithm row | 2736 s | 112 MB |
-
-⚠ The middle row is the fastest because Becke's atom-centred quadrature is expensive machinery, and the
-bottom row is the slowest because parity also removes the STREAM FOLD (5.2× on MnO's pair count) and the
-low-rank ρ.  ⇒ **Always say WHICH of the three** — "the MnO row" has meant all three of these in the space
-of one day, and they differ by 11× in CPU.
-
-
-### 5c. Like-for-like: what "same span" costs
-
-
-CP2K can be forced down to the spherical spans qchem holds at FULL RANK — `IntegrationTests/CP2K/`
-`mno_{afm2,fm}_gpw_v{a,b}.inp` with the `VALENCE-LOWQ-V{A,B}` entries in `VALENCE-LOWQ-BASIS`; **VA = N 118**
-(full rank in both codes), **VB = N 128**.  So the MnO comparison does NOT wait on the 136-span question
-(`OpenWork` Step 6).
-
-On the qchem side that span used to be produced by `doc/scripts/bisect_valence_sph.py` **overwriting the
-committed `BasisSetData/valence_lowq_sph.bsd` in the working tree** — so a run could not state which span it
-had used, and no row over it was reproducible after the file was restored.  VA and VB are now committed
-basis sets (`valence_lowq_v{a,b}.bsd`, `BasisSetData::VALENCE_LOWQ_V{A,B}`) selected by
-**`GPW_BASIS_SPAN=va|vb|sph|sr`**, and the run prints its own `nFunctions` — reproducing run 61's basis block
-exactly (118 functions, λ_min 1.29e-3, cond 4.41e3).  Si and NaF already share one span per material.
-
 
 ---
 
@@ -461,7 +526,7 @@ instead, which is the more useful statement.
 
 | acceleration | measured worth | provenance |
 |---|---|---|
-| Becke XC mesh (`QCHEM_BECKE_XC`) | ⚠ **NEGATIVE on MnO**: the default row is 2.8× the CPU of the `BECKE_XC=0` row (12.45 vs 3.99 s/iter, NATIVE).  It buys atom-centred accuracy, not speed | §5a |
+| Becke XC mesh (`QCHEM_BECKE_XC`) | ⚠ **NEGATIVE on MnO, and worse than it looked**: 1.7× on the SCF iteration (7.45 vs 4.37 s/iter) and **103× on setup** (181.4 vs 1.76 s — two mesh builds at 68.3 s each).  It buys atom-centred accuracy, not speed | §5a |
 | symmetry imposition | buys CONVERGENCE, not accuracy and not the magnetic basin — the AFM order survives a free run | history §2 |
 | stream fold (`GPW_STREAM_FOLD`) | 5.2× on MnO's pair COUNT | history §7 |
 | D-aware screen (`GPW_DAWARE_SCREEN`) | +14.5% wall on the collocation route | doc/ScreeningPlan.md §6 |
@@ -483,7 +548,7 @@ if BOTH lists are known, and this one started at zero because nobody had looked.
 | # | what CP2K does | what it costs us | found |
 |---|---|---|---|
 | 1 | **TIME-REVERSAL k FOLDING** — a Monkhorst-Pack mesh is folded \f$8\to4\f$ (`BRILLOUIN\| List of Kpoints ... 4`, weights 0.25, with `K-Point point group symmetrization OFF`).  We run all 8. | up to **2×** on any non-TRIM mesh.  ⚠ It folds NOTHING on a Γ-centred 2×2×2, where every k is its own inverse — which is why the two Si k-rows behave differently | 09-04 |
-| 2 | **k-INDEPENDENT per-step cost** — their per-iteration time is flat from Γ to 8 k (0.417 → 0.431 s) where ours rises 6.9×.  Not a "feature" so much as a consequence of collocating the k-summed density once per step | the whole Γ lead (§5a) | 09-04 |
+| 2 | **k-INDEPENDENT per-step cost** — their per-iteration time is flat from Γ to 8 k (0.383 → 0.385 s SCF-only) where ours rises **6.3×** (0.051 → 0.323).  Not a "feature" so much as a consequence of collocating the k-summed density once per step | most of the Γ lead (§5a, §5e) | 09-04 |
 
 ⚠ Item 1 is a REAL algorithmic advantage they hold, not a deviation to switch off; item 2 is a gap of ours
 with a diagnosed cause.  ⇒ **Neither belongs in `CP2K_COMPAT`** — that switch turns OUR accelerations off,
@@ -516,19 +581,29 @@ cross-code column here (rule 3b: give both codes the same core count or do not c
 
 Solve \f$S+P/12=t_{12}\f$ against \f$S+P=t_1\f$ for the effectively-serial fraction \f$S\f$:
 
-| row | Amdahl \f$S\f$ | as % of serial | measured setup buckets |
-|---|---|---|---|
-| NaF SR2 Γ | **9 s** | **40%** | **9.7 s** — Becke mesh 6.99 + ham ctor 2.02 + Φ tables 0.35 + local-PP 0.35 |
-| MnO `BECKE_XC=0` | 37 s | 22% | not yet broken out |
-| MnO ALL DEFAULTS | 97 s | 23% | not yet broken out |
+★ **The setup column is now measured on all three rows (serial, 2026-09-05, §5a):**
 
-⇒ **On NaF the inferred serial time and the measured setup time agree to ~7%** — i.e. the SCF itself is
-threading essentially perfectly and the whole shortfall is the serial setup.  At 12 threads a 40% serial
-fraction caps the speedup at 2.3× no matter how good the parallel part is, and we measure 2.21×.
+| row | Amdahl \f$S\f$ | as % of serial | measured SERIAL setup buckets | do they match? |
+|---|---|---|---|---|
+| NaF SR2 Γ | **9 s** | **40%** | **9.7 s** — Becke mesh 6.99 + ham ctor 2.02 + Φ tables 0.35 + local-PP 0.35 | ✅ to ~7% |
+| MnO `BECKE_XC=0` | 37 s | 22% | **1.76 s** | ⛔ **NO — off by 21×** |
+| MnO ALL DEFAULTS | 97 s | 23% | **181.4 s** — Becke mesh 136.6 (2 builds) + Φ tables 43.1 | ⛔ **NO — setup EXCEEDS \f$S\f$ by 1.9×** |
 
-⇒ **BIN 2 IS NO LONGER JUST ITS OWN LINE ITEM: IT IS THE THREADING CEILING.**  The Becke mesh build is
-serial, ~7 s on a 2-atom cell, and it caps every threaded run that uses it.  That is the strongest argument
-yet for attacking setup — stronger than its ~1% share of a SERIAL parity run suggested.
+⇒ **"THE CEILING IS BIN 2" HOLDS ON NaF AND ONLY THERE.**  The three rows say three different things, and
+the difference is the Becke mesh build's own OpenMP loop (`src/Structure/Imp/UnitCell.C:273`):
+- **NaF**: inferred serial time ≈ measured setup ⇒ the SCF threads essentially perfectly and setup is the
+  whole shortfall.  A 40% serial fraction caps the speedup at 2.3× and we measure 2.21×.
+- **MnO ALL DEFAULTS**: setup (181 s) is nearly TWICE the inferred serial time (97 s) ⇒ setup itself is
+  threading, roughly half of it — consistent with the mesh build's parallel loop.
+- **MnO `BECKE_XC=0`**: setup is 1.76 s against a 37 s serial residual ⇒ **that row's serial fraction is
+  inside the SCF, not in setup at all**, and bin 2 has nothing to do with it.
+
+⇒ **Bin 2 is worth attacking because it is 44% of the SERIAL default run (§5a), not because it is
+universally the threading ceiling.**  ⚠ The earlier flat claim *"the Becke mesh build is serial"* was
+wrong — it threads; what is unexplained is why NaF behaves as though it does not (§5e).
+
+★ **A cross-check worth noting**: §7's serial column and §5a's independent 09-05 re-take agree to ~1% on
+all three shared rows (NaF 23.3 / 23.08 s, MnO `BECKE_XC=0` 169.3 / 172.0 s, MnO defaults 414.7 / 412.4 s).
 
 ⚠ CPU inflation is 1.33–1.45× even with the spin gone (thread management, load imbalance, memory
 bandwidth).  Worth a look once the serial fraction is down; not worth chasing before.
@@ -541,15 +616,18 @@ bandwidth).  Worth a look once the serial fraction is down; not worth chasing be
 
 ★ **AS OF 2026-09-04, in the user's priority order** (`doc/OpenWork.md` carries the same list as the
 forward queue):
-1. **CLOSE BIN 1 AND BIN 2 SINGLE-THREADED** — per-iteration CPU and pre-SCF setup, against CP2K.  §5a is
-   the table that measures it and is the one to finish; the whole-run table above it is NOT informative
-   (mixed thread states, 3× different iteration counts) and is kept only for \f$E_{tot}\f$ and RSS.
+1. **CLOSE BIN 1 AND BIN 2 SINGLE-THREADED** — per-iteration CPU and pre-SCF setup, against CP2K.  ✅ §5a
+   is FILLED as of 2026-09-05 (nine rows, both codes serial, setup split out): bin 1 is ahead on seven of
+   nine and comes down to the `CP2K_COMPAT=1` row at 2.05×; bin 2 is the Becke mesh build.  The whole-run
+   table is NOT informative (mixed thread states, 3× different iteration counts) and is kept only for
+   \f$E_{tot}\f$ and RSS.
 2. **THE BUSY-WAIT BARRIER, then re-run everything at 12 threads** (§7).  Cause identified 2026-09-04:
    nothing in the tree sets `KMP_BLOCKTIME` or `OMP_WAIT_POLICY`, and LLVM's libomp spins **200 ms** after
    every parallel region — with per-shell-pair regions that is mostly spin.  It matches the inflation
    already recorded: **663 s threaded CPU against 500 s serial for the same work**.
-3. **The MnO FM row** (footnote ⁵) — the last pre-Step-2 measurement in the table, ~20 min to re-take.
-4. **NaF's CP2K iteration count** — its log was not to hand, so that row has no per-iteration column.
+3. ✅ **The MnO FM row** (footnote ⁵) — re-taken 2026-09-05: 411 s CPU / 474 MB, 0.83× CP2K per SCF step.
+4. ✅ **NaF's CP2K iteration counts** — read off its own logs (SR2 16 steps, full-SR 27); both rows now have
+   a per-iteration column in §5a.
 5. **An attribution A/B** — the 09-04 deltas are "current vs banked" across everything since 08-28, with
    no parent-commit A/B on the VA recipe.
 

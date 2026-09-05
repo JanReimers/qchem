@@ -15,28 +15,43 @@ either history.
 
 ## ▶ WHAT IS OPEN — START HERE
 
-> **▶ NEXT SESSION — ONE NEXT ACTION: PROFILE MnO's SETUP BUCKETS (bin 2).**
+> **▶ NEXT SESSION — ONE NEXT ACTION: THE `CP2K_COMPAT=1` ROW, AT 2.05× PER SCF ITERATION.**
+> **THE TABLE THAT SAYS SO IS FILLED**: `doc/Benchmark.md` **§5a**, now its own section holding ONE table
+> (user, 2026-09-05), nine rows, BOTH codes pinned serial, and setup split out of the per-iteration figure.
 >
-> Bin 2 stopped being a minor line item on 2026-09-04.  It is ~1% of a SERIAL parity run, which is why it
-> looked finished — but at 12 threads it is **the ceiling on everything**: on NaF the Amdahl-inferred
-> serial time (9 s) matches the measured setup buckets (9.7 s, of which the **Becke mesh build alone is
-> 7.0 s on a TWO-ATOM cell**) to ~7%.  The SCF threads essentially perfectly; the whole shortfall is setup.
-> MnO's serial fractions are **22–23%** (37 s and 97 s) and have NOT been broken into buckets.  That
-> breakdown is the next measurement, it is cheap, and it tells us what to attack.
+> **Per SCF iteration we are ahead of CP2K on seven of nine rows** — MnO defaults **0.90×**, MnO FM
+> **0.83×**, `QCHEM_BECKE_XC=0` **0.53×**, Si **0.13× / 0.84× / 0.68×**, NaF full-SR **0.19×**.  Two rows
+> are behind: NaF SR2 **1.47×** (a Becke cost — really bin 2) and **`CP2K_COMPAT=1` 2.05×**.
+> ⇒ **Single-thread parity now IS that one row**, because it is the only row with OUR accelerations off, and
+> nothing else on this list moves it.  Its setup is 1.73 s (1%), so bin 2 cannot help it; its cost is the
+> box walk (§5e: ~95% of that run, 74% of it the gather).
+> ⚠ It is a `GPW_MNO_NMAX=10` capped probe with a different stage mix (rule 3d), so **step one is an
+> uncapped or equal-cap comparison** before optimising against it.
+> ⚠ `QCHEM_BECKE_XC=0` is ONE of §2's seven deviations, **not** parity (user, 2026-09-05); and
+> `CP2K_COMPAT=1` is our best KNOWN parity, not proven parity — the list has grown 4 → 7 every time anyone
+> looked, so **finding deviation #8 is part of this item**, not a distraction from it.
 >
 > **THEN, in order:**
 >
-> **1. CLOSE BINS 1 AND 2 SINGLE-THREADED** — per-iteration CPU and pre-SCF setup, against CP2K.
-> `doc/Benchmark.md` **§5a** is the instrument and the table to finish.  ⚠ §5's whole-run table is NOT the
-> bin-1 instrument (mixed thread states, 3× different iteration counts) and is labelled as such.
-> ⚠ And per-iteration TOTAL CPU is confounded when the iteration count moves — compare the SCF buckets, or
-> only runs with equal iteration counts (§5a's method note).
+> **1. BIN 2 — THE BECKE MESH BUILD.  Measured serially 2026-09-05 and it is large**: MnO's setup is
+> **181.4 s = 44% of the DEFAULT run** against CP2K's 8.1 s (**22×**), of which **136.6 s is TWO Becke mesh
+> builds** (68.3 s each, one per anneal stage) + 43.1 s of XC-mesh Φ tables.  ⚠ It does NOT touch the
+> parity row (setup 1.76 s there, BEATING CP2K's 8.1 s), which is why it is item 1 and not the next action.
+> Two free questions first: (a) **why TWO builds** for the same cell; (b) the build THREADS
+> (`src/Structure/Imp/UnitCell.C:273`) — 68.3 s serial against the 16.7 s the 09-04 threaded ledger read —
+> which collides with the NaF Amdahl reading below.  Measure its speed-up curve on MnO and NaF separately
+> (`doc/Benchmark.md` §5e) before optimising anything inside it.
+> ⚠ The NaF threading finding that promoted bin 2 still stands as written: on NaF the Amdahl-inferred
+> serial time (9 s) matches the measured setup buckets (9.7 s, of which the Becke mesh build alone is 7.0 s
+> on a TWO-ATOM cell) to ~7%; the SCF threads essentially perfectly.
 >
 > **2. CP2K AT 12 THREADS** on the same decks — the one thing missing before any cross-code threaded row
-> (§7 has our side; rule 3b forbids comparing at different core counts).
+> (§7 has our side; rule 3b forbids comparing at different core counts).  ⚠ Threads are step 2 of §1a and
+> the user's focus is single-thread parity: do not let this jump the queue.
 >
-> **3. The cheap gaps**: re-take the MnO FM row (footnote ⁵, the last pre-Step-2 measurement, ~20 min);
-> NaF's CP2K iteration count; an attribution A/B against the parent commit on the VA recipe.
+> **3. The cheap gaps**: ✅ MnO FM re-taken 2026-09-05 (411 s CPU / 474 MB against the stale 2321 s /
+> 4947 MB; 0.83× CP2K per SCF iteration) · ✅ NaF's CP2K iteration counts read off its logs (SR2 16 steps,
+> full-SR 27) · ⬜ an attribution A/B against the parent commit on the VA recipe.
 >
 > **4. Only after the serial fraction is down**: the residual 1.33–1.45× CPU inflation at 12 threads
 > (load imbalance / memory bandwidth).  Not worth chasing while setup dominates.
@@ -96,10 +111,10 @@ stop competing for the reader's attention here:
 
 | bin | the axis | where it stands (MnO AFM-II VA, 2026-08-28) |
 |---|---|---|
-| **1** | **per-iteration CPU** | ★ **RE-TAKEN 2026-09-04 with the printed VA command** (E_tot and iteration counts reproduce 08-28 exactly): ALL DEFAULTS **2.14× → 1.47×** CP2K, `QCHEM_BECKE_XC=0` **0.74× → 0.47×** (⇒ ~2× FASTER than CP2K on the XC-parity route), `CP2K_COMPAT=1` probe **2.3× → 1.99×**.  Best figures are the `-march=native` arm, now the default.  ⚠ "current vs banked", NOT an attribution — other work landed since 08-28 and no parent-commit A/B was run on this recipe.  ⚠ An earlier 09-04 claim of 1.00×/1.07× was RETRACTED (wrong basis + single stage; doc/BenchmarkHistory.md §1 carries the retraction; doc/Benchmark.md §3a carries the tell).  ⇒ **bin 1 is NOT closed**: parity is still 1.99× |
-| **2** | **init / pre-iteration time** | ✅ **on the parity row: 1.36 s of 131 s = 1.0%** (measured 09-04 — local-PP long+short, the 1E lattice sums, KB, the task list).  On the DEFAULT row it is still the Becke mesh build 16.7 s + XC Φ tables 40.3 s ≈ 57 s of 328 s; both vanish under `QCHEM_BECKE_XC=0`, so bin 2 remains a Becke-mesh question and only there |
-| **3** | **peak RAM** | ✅ **solved, and we WIN**: 1323 → 491 MB default; **108–111 MB on the parity routes against CP2K's 217 MB (0.51×)**, re-confirmed 09-04 |
-| **4** | **iteration count** | 31 (default) / 93-and-capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  The findings are below |
+| **1** | **per-iteration CPU** | ★★★ **THE TABLE IS FILLED — `doc/Benchmark.md` §5a, 2026-09-05**, nine rows, BOTH codes pinned serial and measured at 97–99% CPU, with setup split out so the per-iteration figure is SCF-only.  **Ahead of CP2K on seven of nine**: MnO defaults **0.90×**, MnO FM **0.83×**, `QCHEM_BECKE_XC=0` **0.53×**, Si Γ **0.13×**, Si 8 k **0.84× / 0.68×**, NaF full-SR **0.19×**.  Losses: NaF SR2 **1.47×** (a Becke cost) and `CP2K_COMPAT=1` **2.05×**.  ⇒ **bin 1 is NOT closed, and it is now ONE row**: the parity row, which is also the only one with our accelerations off.  ⚠ Earlier cuts of this line (2.14×/1.47×/1.99×, and a RETRACTED 1.00×/1.07×) divided TOTAL CPU by iterations, i.e. they charged setup to bin 1 |
+| **2** | **init / pre-iteration time** | ⛔ **PROMOTED — MEASURED SERIALLY 2026-09-05: MnO's setup is 181.4 s = 44% of the default run against CP2K's 8.1 s (22×)**, of which **136.6 s is TWO Becke mesh builds** (68.3 s each) + 43.1 s XC-mesh Φ tables.  ✅ With `QCHEM_BECKE_XC=0` our setup is **1.76 s and BEATS CP2K's 8.1 s**.  ⇒ bin 2 is a Becke-mesh question, exclusively — and on the default MnO route it is now worth more than everything left in bin 1.  ⚠ The old "16.7 s" mesh-build figure was a THREADED ledger bucket; the build is `#pragma omp parallel for` (UnitCell.C:273) |
+| **3** | **peak RAM** | ✅ **solved, and we WIN**: 1323 → 473 MB default; **107–130 MB on the parity routes against CP2K's 217 MB**, re-confirmed 09-05 |
+| **4** | **iteration count** | 31 (default) / 93-and-capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  ⚠ Removing the gather's D-screen (`a7561e92`) moved the SMALL rows' counts (Si Γ 11 → 17, Si 2×2×2 Γ-centred 7 → 16, shifted MP 16 → 14, NaF SR2 29 → 23) at unchanged \f$E_{tot}\f$; the MnO counts did not move.  The findings are below |
 
 ### ★★★ BIN 1's REMAINING GAP IS IN THE HAMILTONIAN, NOT THE KERNEL (2026-09-04)
 
