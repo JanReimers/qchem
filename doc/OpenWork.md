@@ -15,38 +15,42 @@ either history.
 
 ## ▶ WHAT IS OPEN — START HERE
 
-> **▶ NEXT SESSION — SINGLE-THREAD BINS 1+2, THEN THREADS (user, 2026-09-04).**  In order:
+> **▶ NEXT SESSION — ONE NEXT ACTION: PROFILE MnO's SETUP BUCKETS (bin 2).**
 >
-> **1. CLOSE BINS 1 AND 2 SINGLE-THREADED.**  Per-iteration CPU and pre-SCF setup, against CP2K.
-> `doc/Benchmark.md` **§5a** is the instrument and the table to finish; §5's whole-run table is NOT
-> informative (mixed thread states, 3× different iteration counts) and is now labelled as such.
-> ✅ The gather is no longer D-screened (2026-09-04) — that closed the diagonal-seed defect, restored the
-> fold's orbit-invariance and unlocked the k-independent memo (−40% gather/iteration on 8 k, +2–8% at Γ).
-> ⚠ **Bin 2 is unmeasured on the MnO default route**: NaF SR2's ledger says the Becke mesh build alone is
-> 27% of that run, and nothing has profiled MnO's setup buckets against CP2K's.
+> Bin 2 stopped being a minor line item on 2026-09-04.  It is ~1% of a SERIAL parity run, which is why it
+> looked finished — but at 12 threads it is **the ceiling on everything**: on NaF the Amdahl-inferred
+> serial time (9 s) matches the measured setup buckets (9.7 s, of which the **Becke mesh build alone is
+> 7.0 s on a TWO-ATOM cell**) to ~7%.  The SCF threads essentially perfectly; the whole shortfall is setup.
+> MnO's serial fractions are **22–23%** (37 s and 97 s) and have NOT been broken into buckets.  That
+> breakdown is the next measurement, it is cheap, and it tells us what to attack.
 >
-> ✅ **DONE 2026-09-04 — item 2 below is CLOSED and it CHANGED item 1's priority.**  The barrier spin is
-> fixed in source (`StopOmpThreadsBusyWaiting`, 65% of billed CPU recovered) and §7 is filled: 12-thread
-> speedups are **2.21× / 3.51× / 3.37×** (18–29% efficiency).  ★ **The ceiling is now BIN 2**: on NaF the
-> Amdahl-inferred serial time (9 s) matches the measured setup buckets (9.7 s, of which the Becke mesh
-> build is 7.0) to ~7%, so the SCF threads essentially perfectly and a 40% serial fraction caps that row
-> at 2.3×.  ⇒ **Attack setup — it is no longer just its own line item, it is what limits every threaded
-> run.**  Remaining for a cross-code threaded row: CP2K at 12 threads on the same decks.
+> **THEN, in order:**
 >
-> ~~**2. FIX THE BUSY-WAIT BARRIER, THEN RE-RUN EVERYTHING AT 12 THREADS**~~ (`doc/Benchmark.md` §7, empty by
-> design until this holds).  **Cause identified 2026-09-04, not yet fixed**: nothing in the tree sets
-> `KMP_BLOCKTIME` or `OMP_WAIT_POLICY`, and LLVM's libomp spins **200 ms** after every parallel region —
-> with per-shell-pair regions that is mostly spin.  It matches the inflation already measured on this
-> page: **663 s threaded CPU against 500 s serial for the same work**.  First step is a one-line A/B
-> (`KMP_BLOCKTIME=0`), then wire it where a row cannot forget it (`scripts/bench` + the run banner, which
-> already prints thread state and should print the wait policy beside it).
+> **1. CLOSE BINS 1 AND 2 SINGLE-THREADED** — per-iteration CPU and pre-SCF setup, against CP2K.
+> `doc/Benchmark.md` **§5a** is the instrument and the table to finish.  ⚠ §5's whole-run table is NOT the
+> bin-1 instrument (mixed thread states, 3× different iteration counts) and is labelled as such.
+> ⚠ And per-iteration TOTAL CPU is confounded when the iteration count moves — compare the SCF buckets, or
+> only runs with equal iteration counts (§5a's method note).
 >
-> **3. Then the cheap gaps**: re-take the MnO FM row (footnote ⁵, the last pre-Step-2 measurement, ~20 min);
+> **2. CP2K AT 12 THREADS** on the same decks — the one thing missing before any cross-code threaded row
+> (§7 has our side; rule 3b forbids comparing at different core counts).
+>
+> **3. The cheap gaps**: re-take the MnO FM row (footnote ⁵, the last pre-Step-2 measurement, ~20 min);
 > NaF's CP2K iteration count; an attribution A/B against the parent commit on the VA recipe.
+>
+> **4. Only after the serial fraction is down**: the residual 1.33–1.45× CPU inflation at 12 threads
+> (load imbalance / memory bandwidth).  Not worth chasing while setup dominates.
+>
+> ✅ **CLOSED 2026-09-04, do not re-open**: the busy-wait barrier (`StopOmpThreadsBusyWaiting` — libomp
+> spun 200 ms after every parallel region, 65% of billed CPU; §7 is filled because of it) · the gather's
+> D-screen (removed: it was a self-fulfilling truncation of the Fock and broke the fold's
+> orbit-invariance) · the LatticeScreener seam · the one-gather XC term · `-march=native` as the default.
 >
 > ⏸ **PARKED — the ‖V_xc − V_xc_fit‖ fit-quality study** (user: *"defocusing"*).  Still true that every
 > Becke-vs-uniform cost number in the tree is taken at unknown-equal accuracy, so "Becke is a negative
 > acceleration" is a COST statement and not a verdict — but it is not what bins 1 and 2 need.
+> ⚠ Note it now COLLIDES with the bin-2 finding: the Becke mesh build is both the biggest setup cost and
+> the threading ceiling, so whoever attacks setup will be standing next to this question anyway.
 >
 > ⚠ `doc/ScreeningPlan.md` is CLOSED (2026-09-04) — read it for WHY, do not take work from it.
 
