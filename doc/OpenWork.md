@@ -25,7 +25,15 @@ either history.
 > ⚠ **Bin 2 is unmeasured on the MnO default route**: NaF SR2's ledger says the Becke mesh build alone is
 > 27% of that run, and nothing has profiled MnO's setup buckets against CP2K's.
 >
-> **2. FIX THE BUSY-WAIT BARRIER, THEN RE-RUN EVERYTHING AT 12 THREADS** (`doc/Benchmark.md` §7, empty by
+> ✅ **DONE 2026-09-04 — item 2 below is CLOSED and it CHANGED item 1's priority.**  The barrier spin is
+> fixed in source (`StopOmpThreadsBusyWaiting`, 65% of billed CPU recovered) and §7 is filled: 12-thread
+> speedups are **2.21× / 3.51× / 3.37×** (18–29% efficiency).  ★ **The ceiling is now BIN 2**: on NaF the
+> Amdahl-inferred serial time (9 s) matches the measured setup buckets (9.7 s, of which the Becke mesh
+> build is 7.0) to ~7%, so the SCF threads essentially perfectly and a 40% serial fraction caps that row
+> at 2.3×.  ⇒ **Attack setup — it is no longer just its own line item, it is what limits every threaded
+> run.**  Remaining for a cross-code threaded row: CP2K at 12 threads on the same decks.
+>
+> ~~**2. FIX THE BUSY-WAIT BARRIER, THEN RE-RUN EVERYTHING AT 12 THREADS**~~ (`doc/Benchmark.md` §7, empty by
 > design until this holds).  **Cause identified 2026-09-04, not yet fixed**: nothing in the tree sets
 > `KMP_BLOCKTIME` or `OMP_WAIT_POLICY`, and LLVM's libomp spins **200 ms** after every parallel region —
 > with per-shell-pair regions that is mostly spin.  It matches the inflation already measured on this

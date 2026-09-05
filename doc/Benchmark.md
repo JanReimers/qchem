@@ -497,21 +497,43 @@ parity per iteration.
 
 ## 7. THE ROWS — threaded (OMP)
 
-⛔ **EMPTY BY DESIGN, AND THAT IS THE POINT.**  Rule 1a says single-thread parity comes FIRST: a threaded
-comparison against a serial code measures the algorithm and the parallel efficiency at once, and if the
-single-thread gap is unknown you cannot tell which you are looking at.  Bin 1 is not closed at parity
-(1.99×), so this table stays empty on purpose.
+✅ **UNBLOCKED 2026-09-04.**  This table was empty because the CPU column was mostly barrier spin
+(`KMP_BLOCKTIME` defaulted to 200 ms; see `qchem::StopOmpThreadsBusyWaiting`).  That is fixed in the
+source, so these numbers mean something.  **`OMP wait=0 ms spin`** — the run banner prints it, per rule 3b.
 
-What it will need when bin 1 is settled:
+Serial and threaded are the SAME BINARY and the SAME recipe; \f$E_{tot}\f$ agrees to all printed digits on
+every pair.  ⚠ **The honest column is SPEEDUP AGAINST OUR OWN SERIAL**, not CPU — a threaded run still
+bills 1.3–1.5× the serial CPU, and CP2K has not yet been run at 12 threads, so there is deliberately no
+cross-code column here (rule 3b: give both codes the same core count or do not compare).
 
-| system | threads q / c | wall q / c | CPU q / c | **speedup vs own serial** | parallel efficiency |
-|---|---|---|---|---|---|
-| — | — | — | — | — | — |
+| row | serial wall | **12-thread wall** | **speedup** | efficiency | CPU inflation | RSS ser / 12t |
+|---|---|---|---|---|---|---|
+| NaF SR2 Γ | 23.3 s | **10.6 s** | **2.21×** | 18% | 1.33× | 55 / 73 MB |
+| MnO `QCHEM_BECKE_XC=0` | 169.3 s | **48.2 s** | **3.51×** | 29% | 1.42× | 116 / 198 MB |
+| MnO ALL DEFAULTS | 414.7 s | **123.2 s** | **3.37×** | 28% | 1.45× | 483 / 573 MB |
 
-⚠ **KNOWN BEFORE WE START**: our OpenMP threads **BUSY-WAIT at the barrier**, so a threaded qchem run bills
-far more CPU than it uses (a 294 s serial build billed ~590 s CPU at 16 threads).  ⇒ On this table the
-honest column is **speedup against our OWN serial time**, not CPU; and CP2K must be given the same core
-count, not left at `OMP_NUM_THREADS=1`.
+### ★★★ 7a. THE CEILING IS NOW BIN 2 — THE SERIAL SETUP
+
+Solve \f$S+P/12=t_{12}\f$ against \f$S+P=t_1\f$ for the effectively-serial fraction \f$S\f$:
+
+| row | Amdahl \f$S\f$ | as % of serial | measured setup buckets |
+|---|---|---|---|
+| NaF SR2 Γ | **9 s** | **40%** | **9.7 s** — Becke mesh 6.99 + ham ctor 2.02 + Φ tables 0.35 + local-PP 0.35 |
+| MnO `BECKE_XC=0` | 37 s | 22% | not yet broken out |
+| MnO ALL DEFAULTS | 97 s | 23% | not yet broken out |
+
+⇒ **On NaF the inferred serial time and the measured setup time agree to ~7%** — i.e. the SCF itself is
+threading essentially perfectly and the whole shortfall is the serial setup.  At 12 threads a 40% serial
+fraction caps the speedup at 2.3× no matter how good the parallel part is, and we measure 2.21×.
+
+⇒ **BIN 2 IS NO LONGER JUST ITS OWN LINE ITEM: IT IS THE THREADING CEILING.**  The Becke mesh build is
+serial, ~7 s on a 2-atom cell, and it caps every threaded run that uses it.  That is the strongest argument
+yet for attacking setup — stronger than its ~1% share of a SERIAL parity run suggested.
+
+⚠ CPU inflation is 1.33–1.45× even with the spin gone (thread management, load imbalance, memory
+bandwidth).  Worth a look once the serial fraction is down; not worth chasing before.
+
+⚠ **STILL MISSING for a cross-code threaded row**: CP2K at 12 threads on the same decks.
 
 ---
 
