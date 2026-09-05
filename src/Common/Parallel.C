@@ -46,4 +46,27 @@ inline int WorkerThreads()
 //! link time, not silently unpin the run).
 void PinBlasToOneThread();
 
+//! \brief Stop the OpenMP threads BUSY-WAITING between parallel regions.  Call ONCE at the top of
+//! \c main(), beside \c PinBlasToOneThread -- same shape, same reason: a process-wide runtime setting
+//! belongs in the source where it can be read, not in someone's shell.
+//!
+//! ⛔ WHY (measured 2026-09-04).  LLVM's libomp spins for **200 ms** after every parallel region before
+//! letting a thread sleep (`KMP_BLOCKTIME`, default 200).  Our regions are PER SHELL PAIR -- short and
+//! very numerous -- so the threads spend most of their life spinning on a barrier, and every spun cycle
+//! is billed as CPU.  On NaF SR2 Γ at 12 threads:
+//!
+//!     default            wall 10.99 s   CPU 94.6 s
+//!     KMP_BLOCKTIME=0    wall 10.92 s   CPU 32.6 s      <- same wall, same Etot, 62 s of pure spin gone
+//!
+//! ⇒ **65% of the billed CPU was doing nothing**, which made every threaded row in doc/Benchmark.md
+//! meaningless -- the protocol's standing warning ("a 294 s serial build billed ~590 s CPU at 16
+//! threads") was this, and §7's threaded table could not be filled while it stood.
+//!
+//! Set with overwrite=0, so an explicit `KMP_BLOCKTIME` / `OMP_WAIT_POLICY` in the environment still
+//! wins -- the A/B above has to stay runnable.  Env rather than \c kmp_set_blocktime() because that is a
+//! libomp extension needing <omp.h>, and this file deliberately makes no \c omp_*() calls.
+//! \note MUST run before the first parallel region: libomp reads these at its own init, which is the
+//! first OMP call in the process.  The top of \c main() is the only place that is guaranteed.
+void StopOmpThreadsBusyWaiting();
+
 } // namespace qchem

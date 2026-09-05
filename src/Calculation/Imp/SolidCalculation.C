@@ -179,7 +179,12 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
              // imposeSymmetry opt-in in the first place.
              <<(o.imposeSymmetry && !imposed ? "  [asked for, VETOED by CP2K_COMPAT]" : "")
              <<";  threads: OMP_NUM_THREADS="<<(omp?omp:"unset")
-             <<" GPW_OMP_THREADS="<<qchem::WorkerThreads()<<" (BLAS pinned to 1)"<<std::endl;
+             <<" GPW_OMP_THREADS="<<qchem::WorkerThreads()<<" (BLAS pinned to 1)"
+             // THE WAIT POLICY BELONGS ON THIS LINE, not in a footnote: with libomp's 200 ms default
+             // spin, 65% of a 12-thread run's billed CPU was the barrier, so a threaded row is
+             // uninterpretable unless it says which policy produced it (see StopOmpThreadsBusyWaiting).
+             <<";  OMP wait="<<[]{const char* b=std::getenv("KMP_BLOCKTIME"); return b?b:"?";}()
+             <<" ms spin"<<std::endl;
     std::cout<<"["<<o.label<<" run] "<<theRunPolicy().Banner()<<std::endl;
 }
 // WHAT THE SCF IS DOING: the mixer, the accelerator, the occupation machinery.  Emitted per Converge,

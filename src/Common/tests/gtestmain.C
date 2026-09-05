@@ -8,7 +8,8 @@ import qchem.Parallel;   // PinBlasToOneThread (the full rationale lives on the 
 
 int main(int argc, char **argv)
 {
-     qchem::PinBlasToOneThread();   // ONE level of parallelism (ours) + deterministic BLAS reductions
+     qchem::PinBlasToOneThread();
+     qchem::StopOmpThreadsBusyWaiting();   // ONE level of parallelism (ours) + deterministic BLAS reductions
      testing::InitGoogleTest(&argc, argv);
      return RUN_ALL_TESTS();
 }
