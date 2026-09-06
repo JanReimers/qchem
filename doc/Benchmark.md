@@ -816,9 +816,15 @@ atom-centred radial mesh.  Grid made as fine as the tolerance allows + centre-bu
 | peak RSS | 496 → 506 MB | 562 → 561 MB |
 
 `Etot = -61.40297529` on every arm before and after, to all printed digits — it is a data structure, not a
-numerical method.  814/814 green.  ⇒ **These supersede the MnO rows above; re-take §5a/§7a before quoting
-them.**  The largest setup bucket is now the Becke mesh build (8.15 s/call), then the site-adapted angular
-sets (4.03 s/call, never measured before).
+numerical method.  814/814 green.  The largest setup bucket is now the Becke mesh build (8.15 s/call), then
+the site-adapted angular sets (4.03 s/call, never measured before).
+
+⚠ **THE MnO ROWS IN §5a AND §7a ARE STALE, AND ARE NOT RE-TAKEN PER INCREMENT** (user, 2026-09-06).  A row
+is a CROSS-CODE artefact: it costs a CP2K arm as well as ours, and re-taking one after every speedup both
+burns the box and lets each increment mask the last.  Same discipline as the anchor-moving sprint
+(`doc/OpenWork.md` item **S**): **let the wins accumulate, then re-bank the rows ONCE**, at the end of
+Phase 1 — after 1.2 (BLAS-mode arm) and 1.3 (the 2×6), which move them again.  Until then read the ratios
+in §5a/§7a as a floor on our side and quote 1.1(b)'s numbers for anything that turns on the MnO wall.
 
 ⚠ **THE BECKE MESH BUILD ROW COLLIDES WITH THE TABLE ABOVE, AND IS NOT RESOLVED HERE.**  It measures the
 same in both arms (15.4 vs 15.8 s) where the banked row says 138.2 → 16.9 s (8.2×), and this run's UNSET
