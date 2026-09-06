@@ -32,7 +32,39 @@ section says exactly which of its open items are folded in here and which are no
 §7 settled that CP2K has no threading trick we are missing on this class of system (its own GPW hot
 routines run 1.09×/1.12× on 12 threads).  What §7c found instead is three non-scaling blocks of our own.
 
-### 1.1 INSTRUMENT THE UNBUCKETED WORK — do this first, and do not optimise before it
+### 1.1 ✅ DONE 2026-09-06 (`22b7f0b9`) — AND IT IS NOT THE LINEAR ALGEBRA
+
+Ten buckets added (the SCF step's three phases, the fill, the direct-min step, the line search's per-trial
+`MoveOrbitals`, the total energy, the mix, the density install; plus the facade's four construction
+phases).  `report::Timed` nests exclusively, so the existing GPW buckets read as children.
+
+**MnO ALL DEFAULTS, serial 393 s / 12 threads 122 s:**
+
+| what the plan suspected | measured |
+|---|---|
+| diagonalisation | **0.038 s TOTAL** over the whole run |
+| fill orbitals / accelerator projections | 0.11 s / 0.002 s |
+| total energy (all terms) | 0.84 s |
+| Fock assembly overhead (its term buckets excluded) | 1.44 s |
+| density mix | 2.47 s |
+| **all of it together** | **~5 s of 393 s** |
+
+⇒ **The SCF's linear algebra is not where the time is**, and the instrument was the cheapest possible way
+to find that out — a session spent threading the eigensolve would have bought 0.04 s.
+
+★ **WHAT IT DID FIND: `setup: hamiltonian ctor` = 23.9 s**, EXCLUSIVE of its children (the Becke mesh build
+16.1 s threaded, the Φ tables 6.2 s).  It runs once, it does not thread, and it is now the largest named
+block outside the box walk.
+⚠ **Unbucketed: 49 s → 25 s.**  What is left is inside `Iterate` but outside the per-iteration buckets.
+
+▶ **NEXT (start here)**: (a) bracket `SCFIterator::Iterate`'s loop body and the facade's `Converge` to name
+the residual 25 s; (b) then open up the 23.9 s Hamiltonian ctor — it is one call, it is serial, and at 12
+threads it is 20% of the wall.
+⚠ Note for anyone reading another row's ledger: the FACADE path's `seed + ortho` bucket is 0.001 s because
+it defers the first Fock into the SCF loop; the test harness's same-named bucket on `RunGpw` CONTAINS that
+first Fock.  Same label, different content — check which harness produced the row.
+
+### 1.1 (original brief) — INSTRUMENT THE UNBUCKETED WORK — do this first, and do not optimise before it
 
 **~59 s of a 128 s threaded MnO run is in no bucket at all**: diagonalisation, orthogonalisation, mixing,
 the fit solves, SCF bookkeeping.  That is larger than every known non-scaling bucket combined (~21 s), and
