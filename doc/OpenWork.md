@@ -86,8 +86,11 @@ either history.
 > ✅ **MEASURED 2026-09-06 — the ladder now carries the uniform route as its yardstick** (`BeckeLadder()`
 > in `IntegrationTests/GPW_SCF_UT.C`, V2.8 block; one frozen density per system, reference nR=100 GL-41,
 > scored by \f$\Delta E_{xc}\f$ and \f$\max|\Delta V_{xc}(i,j)|\f$ — the error in the operator that is
-> actually diagonalised).  Both routes are FITS of the same \f$v_{xc}\f$ — uniform onto the plane-wave
-> \f$\{G\}\f$ raster, Becke onto DELTA functions at its points — which is what makes them comparable:
+> actually diagonalised).  Both routes are FITS of the same \f$v_{xc}\f$, and a fit is **(integration
+> grid) × (fit basis)**, two INDEPENDENT axes: the uniform route is {uniform raster}×{plane-wave
+> \f$\{G\}\f$}, the Becke route is {Becke mesh}×{delta basis}, both metrics orthonormal — which is what
+> makes one scoreboard legitimate.  ⚠ The axes must stay orthogonal IN THE CODE (user, 2026-09-06): a grid
+> does not imply a basis, and which pairings are worth using is high-level POLICY, never hard-coded:
 >
 > | system | UNIFORM: pts, max\|dVxc\| | cheapest Becke rung ≤ that | production nR=40 GL-29 |
 > |---|---|---|---|

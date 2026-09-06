@@ -2929,11 +2929,18 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
 //  probe, same frozen density, same reference, same two numbers.
 //
 //  ★ FRAMING (user, 2026-09-06), and it is why the two are comparable at all: BOTH ROUTES ARE FITS of
-//    the same v_xc.  The uniform route fits onto the plane-wave {G} raster; Becke fits onto DELTA
-//    functions at its mesh points -- a trivial fit, orthonormal metric.  (The Hartree term is the same
-//    story: a fit with an orthonormal metric, and by Parseval an EXACT one -- which is what
-//    Vee_Hartree's matrix-free energy rests on.)  Think of them as fits and the high-level CODE becomes
-//    uniform, not just the vocabulary; qchem.BasisSet.DeltaFit_IBS already is that basis.
+//    the same v_xc, and a fit is (INTEGRATION GRID) x (FIT BASIS) -- two INDEPENDENT choices.  These two
+//    rows differ in both: the uniform route is {uniform raster} x {plane-wave {G} basis}, the Becke route
+//    is {atom-centred Becke mesh} x {DELTA basis at the mesh points} -- and both metrics are orthonormal,
+//    which is what makes one scoreboard legitimate.  (The Hartree term is the same story on a third
+//    pairing: {fit ball} x {{G} basis}, orthonormal and, by Parseval, EXACT -- which is what
+//    Vee_Hartree's matrix-free energy rests on.)
+//    ⚠ THE AXES ARE ORTHOGONAL AND MUST STAY SO IN THE CODE (user): "Becke" does not IMPLY delta, and
+//    delta does not imply Becke.  Any grid may pair with any fit basis; WHICH pairings are worth using is
+//    a high-level POLICY and must not be hard-coded anywhere.  This ladder happens to compare the two
+//    pairings we ship, not two grids and not two bases.  qchem.BasisSet.DeltaFit_IBS is the delta basis;
+//    st->CreateIntegrationMesh(mp) is the grid.  Think of it that way and the high-level CODE stays
+//    uniform, which is the point -- not the vocabulary.
 //
 //  MEASURED, all four systems, one frozen density each, reference nR=100 GL-41.  max|dVxc| is the worst
 //  V_xc MATRIX-element deviation -- the error in the operator that is actually diagonalised:
