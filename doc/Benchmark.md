@@ -39,9 +39,9 @@ CPU column overstates qchem wherever it threads — and another reason the singl
 
 | bin | the axis | where it stands (MnO AFM-II VA, 2026-09-04) |
 |---|---|---|
-| **1** | **per-iteration CPU** | ★ **PER SCF ITERATION WE ARE AHEAD ON 7 OF 9 ROWS** (§5a, 2026-09-05, both codes pinned serial): MnO ALL DEFAULTS **0.90×**, MnO FM **0.83×**, `QCHEM_BECKE_XC=0` **0.53×**, Si **0.13× / 0.84× / 0.68×**, NaF full-SR **0.19×**.  The two losses are NaF SR2 **1.47×** (a Becke cost) and — the one that counts — `CP2K_COMPAT=1` **2.05×**.  ⇒ **NOT closed: the parity row decides it** |
-| **2** | **init / pre-iteration** | ⛔ **PROMOTED, and now measured serially: MnO's setup is 181 s = 44% of the default run against CP2K's 8.1 s (22×)**, of which **136.6 s is two Becke mesh builds** (§5a).  The earlier "~57 s of 328 s" was a THREADED ledger bucket — the build's partition loop is `omp parallel for`.  ✅ With `QCHEM_BECKE_XC=0` our setup is **1.76 s and beats CP2K's 8.1 s** — so bin 2 is a Becke-mesh question, exclusively |
-| **3** | **peak RAM** | ✅ **solved, and we win**: ~473 MB defaults, **107–130 MB on the parity routes against CP2K's 217 MB** |
+| **1** | **per-iteration CPU** | ★ **PER SCF ITERATION WE ARE AHEAD ON 7 OF 9 ROWS** (§5a, 2026-09-05, both codes pinned serial): MnO ALL DEFAULTS **0.82×**, MnO FM **0.77×**, `QCHEM_BECKE_XC=0` **0.45×**, Si **0.14× / 0.66× / 0.56×**, NaF full-SR **0.18×**.  The two losses are NaF SR2 **1.45×** (a Becke cost) and — the one that counts — `CP2K_COMPAT=1` **1.72×** (was 2.05× before §5f's lever A).  ⇒ **NOT closed: the parity row decides it** |
+| **2** | **init / pre-iteration** | ⛔ **PROMOTED, and now measured serially: MnO's setup is 184 s = 47% of the default run against CP2K's 8.1 s (23×)**, of which **136.6 s is two Becke mesh builds** (§5a).  The earlier "~57 s of 328 s" was a THREADED ledger bucket — the build's partition loop is `omp parallel for`.  ✅ With `QCHEM_BECKE_XC=0` our setup is **1.76 s and beats CP2K's 8.1 s** — so bin 2 is a Becke-mesh question, exclusively |
+| **3** | **peak RAM** | ✅ **solved, and we win**: ~476 MB defaults, **113–132 MB on the parity routes against CP2K's 217 MB** |
 | **4** | **iteration count** | 31 (defaults) / capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  The two codes do not run the same ρ-mixing algorithm (doc/OpenWork.md) |
 
 The live tracker for these is `doc/OpenWork.md`; this file holds the measurements behind them.
@@ -236,8 +236,10 @@ and the only table to quote for bin 1.
 
 **THREAD STATE — SERIAL ON BOTH SIDES, AND MEASURED SO** (rule 3b): qchem `OMP_NUM_THREADS=1
 GPW_OMP_THREADS=1`, measured **99% CPU** on every row; CP2K `OMP_NUM_THREADS=1`, measured 97–99%.
-**Taken 2026-09-05**, one box (14 GB, 16 cores), qchem at `a3045163` built `-O3 -march=native`, CP2K 2025.2,
-commands copied from §4.  ⚠ **The qchem `setup` column is much larger than the 09-04 entry's ~57 s for MnO
+**Taken 2026-09-05**, one box (14 GB, 16 cores), qchem at `9f4f4ae2` built `-O3 -march=native`, CP2K 2025.2,
+commands copied from §4.  ★ **Every row RE-TAKEN after §5f's lever A** (the Hartree energy stopped building
+a matrix): the parity row fell 2.05× → 1.72×, the Si 8-k rows 0.84×/0.68× → 0.66×/0.56×, MnO defaults
+0.90× → 0.82×, `BECKE_XC=0` 0.53× → 0.45×.  ⚠ **The qchem `setup` column is much larger than the 09-04 entry's ~57 s for MnO
 because the Becke mesh build THREADS** (`src/Structure/Imp/UnitCell.C:273` — the partition loop is
 `#pragma omp parallel for` over quadrature points, and `GPW_OMP_THREADS=1` pins it): 68.3 s serial per
 build against the 16.7 s that ledger read with threads free.  The serial figure is the one that belongs
@@ -254,15 +256,15 @@ divides — and the two disagree by 1.8× on MnO precisely because 44% of that r
 
 | row | span / k | q iters | q CPU | q setup | **q s/it (SCF)** | c steps | c CPU | c setup | **c s/it (SCF)** | **BIN 1 ×** | q s/it (total) | total × |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Si Γ | SIPP_SR, 1 k | 17 | 1.01 s | 0.14 s | **0.051** | 12 | 5.03 s | 0.4 s | 0.383 | **0.13×** ✅ | 0.059 | 0.14× |
-| Si 2×2×2 Γ-centred | SIPP_SR, 8 k | 16 | 5.54 s | 0.37 s | **0.323** | 13 | 5.60 s | 0.6 s | 0.385 | **0.84×** ✅ | 0.346 | 0.80× |
-| Si 2×2×2 shifted MP | SIPP_SR, 8 k | 14 | 4.81 s | 1.13 s | **0.263** | 14 | 5.91 s | 0.5 s | 0.386 | **0.68×** ✅ | 0.344 | 0.81× |
-| NaF SR2 Γ | LOWQ_SR2, 1 k | 23 | 23.08 s | **9.74 s** | **0.580** | 16 | 7.18 s | 0.9 s | 0.394 | **1.47×** ⛔ | 1.003 | 2.24× |
-| NaF full-SR Γ | LOWQ_SR, 1 k | 30 | 31.41 s | **11.02 s** | **0.680** | 27 | 101.85 s | 6.9 s | 3.519 | **0.19×** ✅ | 1.047 | 0.28× |
-| **MnO AFM-II — ALL DEFAULTS** (5 of §2's 7 deviations active ᵃ) | VA, 1 k | 14+17 = **31** | 412.4 s | **181.4 s** | **7.451** | 44 | 372.9 s | 8.1 s | 8.291 | **0.90×** ✅ | 13.303 | 1.57× |
-| MnO AFM-II, `QCHEM_BECKE_XC=0` (4 of 7 — ONE rung down, NOT parity ᵃ) | VA, 1 k | 14+25 = **39** | 172.0 s | 1.76 s | **4.366** | 44 | 372.9 s | 8.1 s | 8.291 | **0.53×** ✅ | 4.411 | 0.52× |
-| ⚠ MnO AFM-II, `CP2K_COMPAT=1` probe (0 of 7 — `AT PARITY` as far as is KNOWN ᵃ) | VA, 1 k | 10+10 = **20**, CAPPED | 341.4 s | 1.73 s | **16.983** | 44 | 372.9 s | 8.1 s | 8.291 | **2.05×** ⛔ | 17.069 | 2.01× |
-| MnO **FM** — ALL DEFAULTS | VA, 1 k | 18+15 = **33** | 411.1 s | **182.5 s** | **6.928** | 22 | 192.4 s | 8.7 s | 8.350 | **0.83×** ✅ | 12.458 | 1.42× |
+| Si Γ | SIPP_SR, 1 k | 17 | 1.10 s | 0.16 s | **0.055** | 12 | 5.03 s | 0.4 s | 0.383 | **0.14×** ✅ | 0.065 | 0.15× |
+| Si 2×2×2 Γ-centred | SIPP_SR, 8 k | 16 | 4.46 s | 0.35 s | **0.253** | 13 | 5.60 s | 0.6 s | 0.385 | **0.66×** ✅ | 0.275 | 0.64× |
+| Si 2×2×2 shifted MP | SIPP_SR, 8 k | 14 | 4.26 s | 1.15 s | **0.218** | 14 | 5.91 s | 0.5 s | 0.386 | **0.56×** ✅ | 0.300 | 0.71× |
+| NaF SR2 Γ | LOWQ_SR2, 1 k | 23 | 23.0 s | **9.82 s** | **0.573** | 16 | 7.18 s | 0.9 s | 0.394 | **1.45×** ⛔ | 1.000 | 2.23× |
+| NaF full-SR Γ | LOWQ_SR, 1 k | 30 | 30.0 s | **11.17 s** | **0.628** | 27 | 101.85 s | 6.9 s | 3.519 | **0.18×** ✅ | 1.000 | 0.27× |
+| **MnO AFM-II — ALL DEFAULTS** (5 of §2's 7 deviations active ᵃ) | VA, 1 k | 14+17 = **31** | 395.6 s | **184.3 s** | **6.817** | 44 | 372.9 s | 8.1 s | 8.291 | **0.82×** ✅ | 12.76 | 1.51× |
+| MnO AFM-II, `QCHEM_BECKE_XC=0` (4 of 7 — ONE rung down, NOT parity ᵃ) | VA, 1 k | 14+25 = **39** | 147.0 s | 1.81 s | **3.723** | 44 | 372.9 s | 8.1 s | 8.291 | **0.45×** ✅ | 3.769 | 0.44× |
+| ⚠ MnO AFM-II, `CP2K_COMPAT=1` probe (0 of 7 — `AT PARITY` as far as is KNOWN ᵃ) | VA, 1 k | 10+10 = **20**, CAPPED | 287.5 s | 1.89 s | **14.28** | 44 | 372.9 s | 8.1 s | 8.291 | **1.72×** ⛔ | 14.38 | 1.70× |
+| MnO **FM** — ALL DEFAULTS | VA, 1 k | 18+15 = **33** | 398.0 s | **184.8 s** | **6.460** | 22 | 192.4 s | 8.7 s | 8.350 | **0.77×** ✅ | 12.06 | 1.38× |
 
 ᵃ **counted off each run's own banner**, not from memory (rule 3b).  Defaults:
 `QCHEM_DM_LOWRANK=on* GPW_STREAM_FOLD=on* QCHEM_MIX_RHO_M=off GPW_XC_DM_SOURCE=off
@@ -271,11 +273,11 @@ them); the middle row is the same with `QCHEM_BECKE_XC=off(stated)`; the bottom 
 `CP2K_COMPAT=1 -> AT PARITY` with every flag off.
 
 ⇒ **PER SCF ITERATION WE ARE AHEAD OF CP2K ON SEVEN OF THE NINE ROWS**, including MnO on its default
-route (0.90×) and its FM arm (0.83×).  Two rows are behind, and they are behind for two different reasons:
+route (0.82×) and its FM arm (0.77×).  Two rows are behind, and they are behind for two different reasons:
 
-⛔ **NaF SR2 Γ — 1.47×, and it is a Becke cost, not a GPW one.**  42% of that row's CPU is setup.  §5e.
+⛔ **NaF SR2 Γ — 1.45×, and it is a Becke cost, not a GPW one.**  43% of that row's CPU is setup.  §5e.
 
-⛔ **THE PARITY ROW IS STILL 2.05×, AND IT IS THE ONE THAT DECIDES BIN 1.**  `CP2K_COMPAT=1` also removes
+⛔ **THE PARITY ROW IS STILL 1.72×, AND IT IS THE ONE THAT DECIDES BIN 1.**  `CP2K_COMPAT=1` also removes
 the stream fold (5.2× on MnO's pair count) and the low-rank ρ, so this row is the honest
 algorithm-to-algorithm number and the other MnO rows are not.  ⚠ Two caveats, both real:
 `GPW_MNO_NMAX=10` CAPS it at 20 iterations with a different stage mix, so rule 3d applies (per-iteration is
@@ -284,22 +286,26 @@ not strictly comparable across caps); and **`CP2K_COMPAT=1` is our best KNOWN pa
 in either direction.
 ⇒ **BIN 1 IS NOT CLOSED.**
 
-★★★ **AND THE TABLE HANDS BIN 2 ITS NEXT ACTION, MEASURED.**  MnO's serial setup is **181.4 s — 44% of the
-default run — against CP2K's 8.1 s (22×)**, and **136.6 s of it is TWO Becke mesh builds** (68.3 s each,
+★★★ **AND THE TABLE HANDS BIN 2 ITS NEXT ACTION, MEASURED.**  MnO's serial setup is **184.3 s — 47% of the
+default run — against CP2K's 8.1 s (23×)**, and **136.6 s of it is TWO Becke mesh builds** (68.3 s each,
 one per anneal stage; the rest is 43.1 s of XC-mesh Φ tables).  Both vanish with `QCHEM_BECKE_XC=0`, where
 our setup is **1.76 s and BEATS CP2K's 8.1 s**.  ⇒ Bin 2 is a Becke-mesh question, exclusively, and on the
 MnO row it is now worth more than anything left in bin 1 on that route.
 ⚠ **Two builds, and the second is for the same cell** — the anneal's two stages each build one.  Whether
 that is avoidable is the first thing to ask, before anything is optimised inside the build.
 
-⚠ **WHY THE ITERATION COUNTS AND LAST DIGITS MOVED against the 09-04 cut** (rule 3a's check, honestly
-reported): removing the gather's density screen (`a7561e92`) is not bit-identical, so the small rows took a
-different SCF path — Si Γ 11 → 17, Si 2×2×2 Γ-centred 7 → 16, shifted MP 16 → 14, NaF SR2 29 → 23.  Every
-\f$E_{tot}\f$ still reproduces its banked value: Si Γ to all 10 digits, the other Si rows to 2–7 nHa, NaF
-to 2.7–6.3 µHa, and **all three MnO rows reproduce their banked iteration counts exactly** (31 / 39 / 20)
-with \f$E_{tot}\f$ to 4e-8 or better.  The MnO **FM** row is the exception on purpose: it had not been
-re-taken since 08-19 (footnote ⁵) and this is its first measurement on the current code — 411 s CPU and
-474 MB against the stale row's 2321 s and 4947 MB.
+⚠ **WHAT MOVED, AND WHY — rule 3a's check, honestly reported.**  **Iteration counts**: removing the
+gather's density screen (`a7561e92`) is not bit-identical, so the small rows took a different SCF path —
+Si Γ 11 → 17, Si 2×2×2 Γ-centred 7 → 16, shifted MP 16 → 14, NaF SR2 29 → 23.  **Every MnO row still
+reproduces its banked iteration count exactly** (31 / 39 / 20 / 18+15).
+**Energies**: they now differ in their last digits from the banked values, by two roundoff-scale effects
+stacked — the unscreened gather, and lever A's G-space \f$E_H\f$ (§5f), which sums the same integral in a
+different order.  Si Γ reproduces to all 10 printed digits; the other Si rows to 2–7 nHa; NaF to 2.7–6.3
+µHa; **MnO to 2.2–2.6e-7 Ha** (−61.40297529 against the banked −61.40297551), i.e. 4e-9 relative on a 61 Ha
+total and four orders below the 99.65 mHa the row is actually measuring.  ⚠ Anchors pinned tighter than
+1e-7 on a periodic total energy will need re-banking; none in the suite are (806/806 green).
+The MnO **FM** row is a different case: it had not been re-taken since 08-19 (footnote ⁵), so this is its
+first measurement on the current code — 398 s CPU and 481 MB against the stale row's 2321 s and 4947 MB.
 
 ---
 
@@ -339,15 +345,15 @@ parity ROUTE affordable — see footnote ⁷ (§5d).  CP2K column untouched thro
 
 | system | k-mesh | span | qchem Etot | CP2K Etot | Δ (qchem−CP2K) | wall q / c | **CPU q / c** | **CPU ×** | peak RSS q / c |
 |---|---|---|---|---|---|---|---|---|---|
-| Si (FCC) | Γ | SIPP_SR | −7.115067844 | −7.115057882 | **−10.0 µHa** | **1.0 s** / 5.2 s | **1.0** / 5.0 s | **0.20×** | **29** / 148 MB |
-| Si (FCC) | 2×2×2 Γ-centred | SIPP_SR | −7.778472826 | −7.778457865 | **−15.0 µHa** | 5.6 s / 5.8 s | **5.5** / 5.6 s | **0.98×** | **35** / 153 MB |
-| Si (FCC) | 2×2×2 shifted MP | SIPP_SR | −7.868473426 ¹ | −7.867436530 | **−1.04 mHa** | 4.8 s / 6.1 s | **4.8** / 6.0 s | **0.80×** | **34** / 153 MB |
-| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303428212 | −24.431213375 | **+0.871 mHa** | 23.2 s / 7.4 s | **23.1** / 7.2 s | **3.2×** | **54** / 173 MB |
+| Si (FCC) | Γ | SIPP_SR | −7.115067844 | −7.115057882 | **−10.0 µHa** | **1.1 s** / 5.2 s | **1.1** / 5.0 s | **0.22×** | **30** / 148 MB |
+| Si (FCC) | 2×2×2 Γ-centred | SIPP_SR | −7.778472833 | −7.778457865 | **−15.0 µHa** | 4.5 s / 5.8 s | **4.4** / 5.6 s | **0.79×** | **35** / 153 MB |
+| Si (FCC) | 2×2×2 shifted MP | SIPP_SR | −7.868473429 ¹ | −7.867436530 | **−1.04 mHa** | 4.3 s / 6.1 s | **4.2** / 6.0 s | **0.71×** | **34** / 153 MB |
+| NaF (rocksalt) | Γ | LOWQ_SR2 (both) | −24.4303428161 | −24.431213375 | **+0.871 mHa** | 23.2 s / 7.4 s | **23.0** / 7.2 s | **3.2×** | **55** / 173 MB |
 | NaF (rocksalt) | 2×2×2 Γ-centred | LOWQ_SR2 | −24.5468834873 | — ² | | 1m07.8s / — | 84.5 s / — | — | **68** / — MB |
-| NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309446032 | −24.432293467 | **+1.349 mHa** | **31.5 s** / 1m42s | **31.4** / 102 s | **0.31×** | **57** / 186 MB |
-| **MnO AFM-II — ALL DEFAULTS** ⁴ | Γ | **VA (N=118)** | −61.40297555 ⁴ | −61.303325178 | **−99.65 mHa** | **6m53s** / 6m14s | **412** / 373 s | **1.11×** | **473** / 217 MB |
-| **MnO AFM-II, `QCHEM_BECKE_XC=0`** ⁶ | Γ | **VA (N=118)** | −61.40358778 | −61.303325178 | −100.26 mHa | **2m52s** / 6m14s | **172** / 373 s | **0.46×** | **107** / 217 MB |
-| **MnO FM — ALL DEFAULTS** ⁵ | Γ | **VA (N=118)** | −61.44158232 ⁵ | −61.304782531 | **−136.80 mHa** | **6m51s** / 3m13s | **411** / 192 s | **2.14×** | **474** / 217 MB |
+| NaF (rocksalt) | Γ | LOWQ_SR (full) | −24.4309445921 | −24.432293467 | **+1.349 mHa** | **30.2 s** / 1m42s | **30.0** / 102 s | **0.29×** | **58** / 186 MB |
+| **MnO AFM-II — ALL DEFAULTS** ⁴ | Γ | **VA (N=118)** | −61.40297529 ⁴ | −61.303325178 | **−99.65 mHa** | **6m38s** / 6m14s | **396** / 373 s | **1.06×** | **476** / 217 MB |
+| **MnO AFM-II, `QCHEM_BECKE_XC=0`** ⁶ | Γ | **VA (N=118)** | −61.40358753 | −61.303325178 | −100.26 mHa | **2m28s** / 6m14s | **147** / 373 s | **0.39×** | **113** / 217 MB |
+| **MnO FM — ALL DEFAULTS** ⁵ | Γ | **VA (N=118)** | −61.44158219 ⁵ | −61.304782531 | **−136.80 mHa** | **6m40s** / 3m13s | **398** / 192 s | **2.07×** | **481** / 217 MB |
 | **MnO AFM-II, `CP2K_COMPAT=1`** ⁷ | Γ | **VA (N=118)** | −61.39789688 ⁷ | −61.303325178 | −94.57 mHa | 45m40s / 6m14s | **2736** / 373 s | **7.3×** | **112** / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
 
@@ -387,9 +393,9 @@ parity, **not** parity (user, 2026-09-05: *"there is much more to parity than ju
 
 | the row | what is off | CPU (serial, 09-05) | RSS |
 |---|---|---|---|
-| **ALL DEFAULTS** | nothing — every deviation at its qchem default (Becke XC, imposition, low-rank ρ, stream fold) | 412 s (31 it) | 473 MB |
-| **`QCHEM_BECKE_XC=0`** | ONE of the seven: the Becke XC mesh — so XC runs CP2K's way, everything else still ours | **172 s (39 it)** | **107 MB** |
-| **`CP2K_COMPAT=1`** | ALL SEVEN KNOWN — the honest algorithm-to-algorithm row | 341 s (20 it, CAPPED probe) | 130 MB |
+| **ALL DEFAULTS** | nothing — every deviation at its qchem default (Becke XC, imposition, low-rank ρ, stream fold) | 396 s (31 it) | 476 MB |
+| **`QCHEM_BECKE_XC=0`** | ONE of the seven: the Becke XC mesh — so XC runs CP2K's way, everything else still ours | **147 s (39 it)** | **113 MB** |
+| **`CP2K_COMPAT=1`** | ALL SEVEN KNOWN — the honest algorithm-to-algorithm row | 288 s (20 it, CAPPED probe) | 132 MB |
 
 ⚠ The middle row is the fastest because Becke's atom-centred quadrature is expensive machinery — and on the
 default route it is 44% of the run before SCF even starts (§5a).  The bottom row costs the most per step
@@ -556,18 +562,31 @@ On this route the raw adjoint is XC's (one field per spin) and the ball adjoint 
 > cannot catch it.  ✅ Corroborated: with a pass-through mixer (\f$\alpha=1\f$, no Kerker) the two densities
 > coincide on some iterations and the count falls 4.0 → 3.5.
 
-**⇒ THREE LEVERS, IN ORDER OF CLEANLINESS.**  Per-iteration budget today is 4×1.882 + 2×1.889 = **11.3 s**
-against CP2K's 2×2.133 + 2×2.029 = **8.3 s**:
+**⇒ THREE LEVERS WERE ON THE TABLE.  ONE LANDED, ONE IS REFUTED, ONE REMAINS** (2026-09-05).  The
+per-iteration budget was 4×1.882 + 2×1.889 = **11.3 s** against CP2K's 2×2.133 + 2×2.029 = **8.3 s**:
 
-| | lever | saves | parity row becomes |
-|---|---|---|---|
-| **A** | **\f$E_H\f$ WITHOUT A MATRIX.**  \f$E_H=\tfrac12\mathrm{Tr}(D V_H)=\tfrac12\sum_{\Delta G}V_H\tilde\rho^*\f$ — a G-space pairing on the fit ball.  It is not an approximation: the gather is the EXACT ADJOINT of the collocation (`Integral rho.V == Tr(D h)` to machine precision), and the forward/backward contractions ride the same `Repulsion3C` tensor, so the two expressions are equal by construction | 1 gather/iter | **≈1.79×** |
-| **B** | **ONE GATHER PER SPIN: \f$\langle i|V_H+v_{xc}^\sigma|j\rangle\f$.**  Exactly CP2K's `sum_up_and_integrate`, and exactly the argument `CompositeExFunctional` already won one level down (x+c).  ⚠ Needs both fields on ONE level ladder — Hartree's ball is the CD fit grid, XC's raw is the XC raster — so check the ladders before assuming a pointwise add | 1 more | **≈1.56×** |
-| **C** | the GDM LINE SEARCH's trial densities — 42 of the probe's 82 collocations, i.e. ~23% of that run.  ⚠ NOT a free win: it is bin-4 currency (steps to convergence) spent as bin-1 work, so it must be judged on total \f$H\f$-builds to convergence, not per iteration | up to 2.1 colloc/iter | — |
+| | lever | verdict |
+|---|---|---|
+| **A** | **\f$E_H\f$ WITHOUT A MATRIX** — \f$E_H=\tfrac12\mathrm{Tr}(DV_H)=\tfrac12\Omega\sum_{\Delta G}\overline{\tilde\rho}V_H\f$, a G-space pairing on the fit ball.  Not an approximation: the gather is the exact adjoint of the collocation, so Parseval makes the two expressions equal by construction.  ★ **AND ONE MAP IS ENOUGH** — \f$V_H=k\tilde\rho\f$ with \f$k\f$ real, so \f$\overline{\tilde\rho}V_H=|V_H|^2/k\f$ and \f$\tilde\rho\f$ is never fetched (a second fetch costs a second IBZ star-average of the whole map: 16 ms/call on Si Γ) | ✅ **LANDED `9f4f4ae2`.  Parity probe 341.4 → 287.5 s CPU (−15.8%), gathers 95 → 66, 2.05× → 1.72×.**  Si 2×2×2 rows −19.5% / −11.4% (the same fix memoizes \f$V_H\f$ across irrep blocks).  806/806, every iteration count and \f$E_{tot}\f$ reproduced |
+| **B** | **ONE GATHER PER SPIN: \f$\langle i|V_H+v_{xc}^\sigma|j\rangle\f$** — CP2K's `sum_up_and_integrate`, and the `CompositeExFunctional` argument one level up | ⛔ **REFUTED ON MEASUREMENT — the two fields are not on the same discretization.**  See below |
+| **C** | the GDM LINE SEARCH's trial densities — **42 of the probe's 82 collocations**, i.e. ~28% of the run after A.  ⚠ NOT a free win: bin-4 currency (steps to convergence) spent as bin-1 work | ▶ **NOW THE BIGGEST REMAINING ITEM**, and it must be judged on total \f$H\f$-builds to convergence, never per iteration |
 
-⇒ **A+B alone would put the parity row at 2 gathers + 2 collocations — CP2K's own counts — and at our
-per-call rate that is 7.5 s against their 8.3 s, i.e. \f$\approx\f$0.91×.**  ★ This is the answer to
-*"is there one last single-thread optimisation"*: yes, and it is in the TERM ASSEMBLY, not the box walk.
+⛔ **WHY B IS REFUTED (2026-09-05).**  Summing the two potentials needs them on ONE representation, and they
+are deliberately on two: **\f$V_H\f$ is a BALL field** (band-limited, Poisson in G, gathered by the ball
+adjoint's per-level \f$\{G\}\f$ restriction) while **\f$v_{xc}\f$ is a RAW RASTER field** (pointwise
+nonlinear, gathered by the raw adjoint's per-level spectral BOX truncation).  Measured directly — build the
+Hartree block both ways on Si Γ — they differ by **6e-5 relative**, so routing \f$V_H\f$ through the raw
+adjoint is a different operator, not a re-association: it breaks the adjointness with the collocation that
+made \f$\tilde\rho\f$, which is exactly the property lever A's Parseval identity rests on.
+⇒ **B is available only if BOTH fields ride the ball route** — i.e. only if XC gives up the raw
+\f$\rho_{DM}\ge0\f$ feed, which is the collapse-basin fix (`doc/GPWPlan` 0.5(f2)).  ⇒ **It becomes
+available if N4 lands** (`doc/OpenWork.md`: make everything robust with \f$V_{xc}[\rho\ge0]\f$), and not
+before.  Filed there, not here.
+
+⇒ **WHERE THAT LEAVES THE PARITY ROW** (re-measured after A): **3.3 gathers + 4.1 collocations per iteration** against CP2K's
+2 and 2.  With the term assembly now at its floor (1 Hartree + 2 XC = 3 gathers; CP2K reaches 2 only by
+summing them), **the remaining gap is the COLLOCATION count, i.e. lever C.**  At our per-call rate, 3
+gathers + 2 collocations would be 9.5 s against CP2K's 8.3 — **≈1.14×**.
 
 ---
 
@@ -578,7 +597,7 @@ instead, which is the more useful statement.
 
 | acceleration | measured worth | provenance |
 |---|---|---|
-| Becke XC mesh (`QCHEM_BECKE_XC`) | ⚠ **NEGATIVE on MnO, and worse than it looked**: 1.7× on the SCF iteration (7.45 vs 4.37 s/iter) and **103× on setup** (181.4 vs 1.76 s — two mesh builds at 68.3 s each).  It buys atom-centred accuracy, not speed | §5a |
+| Becke XC mesh (`QCHEM_BECKE_XC`) | ⚠ **NEGATIVE on MnO, and worse than it looked**: 1.8× on the SCF iteration (6.82 vs 3.72 s/iter) and **102× on setup** (184.3 vs 1.81 s — two mesh builds at 68.3 s each).  It buys atom-centred accuracy, not speed | §5a |
 | symmetry imposition | buys CONVERGENCE, not accuracy and not the magnetic basin — the AFM order survives a free run | history §2 |
 | stream fold (`GPW_STREAM_FOLD`) | 5.2× on MnO's pair COUNT | history §7 |
 | D-aware screen (`GPW_DAWARE_SCREEN`) | +14.5% wall on the collocation route | doc/ScreeningPlan.md §6 |

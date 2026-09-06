@@ -15,23 +15,34 @@ either history.
 
 ## ▶ WHAT IS OPEN — START HERE
 
-> **▶ NEXT SESSION — ONE NEXT ACTION: BUILD THE HARTREE ENERGY WITHOUT A MATRIX (`doc/Benchmark.md` §5f
-> lever A), THEN SUM \f$V_H+v_{xc}^\sigma\f$ INTO ONE GATHER PER SPIN (lever B).**
+> **▶ NEXT SESSION — ONE NEXT ACTION: COUNT \f$H\f$-BUILDS TO CONVERGENCE (`doc/Benchmark.md` §5f lever C).**
 >
-> ★★★ **THE 2.05× IS CALL COUNT, NOT KERNEL — MEASURED 2026-09-05 (§5f).**  Per call our gather is
-> **0.88×** CP2K's and our collocation **0.93×**; both codes spend ~99% of the run in those two routines.
-> But a fixed-point iteration issues **4 gathers + 2 collocations** where CP2K issues **2 and 2** (read off
-> its own `T I M I N G` block: `integrate_v_rspace` 88/44 steps, `calculate_rho_elec` 90/44).
-> The four are 2 XC (one per spin) and **2 HARTREE — one for the Fock at \f$\rho_{mix}\f$ and one for the
-> ENERGY at \f$\rho_{new}\f$** (`Vee_Hartree::GetEnergy` → `0.5*cd->DM_Contract(this,cd)`).
-> ⇒ **A**: \f$E_H=\tfrac12\sum_{\Delta G}V_H\tilde\rho^*\f$ in G space — equal to \f$\tfrac12\mathrm{Tr}(DV_H)\f$
-> BY CONSTRUCTION (the gather is the exact adjoint and both directions ride one `Repulsion3C`) ⇒ ~1.79×.
-> ⇒ **B**: CP2K's `sum_up_and_integrate` — the `CompositeExFunctional` argument one level up ⇒ ~1.56×.
-> ⇒ Both together put us on CP2K's own call counts, which at our per-call rate is **~0.91×**.
-> ⚠ **C is NOT free**: the GDM line search's trial densities are 42 of the probe's 82 collocations, but they
-> buy steps-to-convergence (bin 4).  Judge it on total \f$H\f$-builds to convergence, never per iteration.
+> ★★★ **THE PARITY GAP IS CALL COUNT, NOT KERNEL — MEASURED 2026-09-05 (§5f).**  Per call our gather is
+> **0.88×** CP2K's and our collocation **0.93×**, and both codes spend ~99% of the run in those two
+> routines.  But a fixed-point iteration issued **4 gathers + 2 collocations** where CP2K issues **2 and 2**
+> (read off its own `T I M I N G` block: `integrate_v_rspace` 88/44 steps, `calculate_rho_elec` 90/44).
 >
-> **AND THE ROW THIS DECIDES: `CP2K_COMPAT=1`, AT 2.05× PER SCF ITERATION.**
+> ✅ **LEVER A LANDED (`9f4f4ae2`) — the Hartree ENERGY stops building a matrix.**  Two of our four gathers
+> were the SAME TERM at two densities (the Fock's \f$V_H[\rho_{mix}]\f$ and `Vee_Hartree::GetEnergy`'s
+> \f$\tfrac12\mathrm{Tr}(DV_H[\rho_{new}])\f$).  Parseval kills the second one:
+> \f$E_H=\tfrac12\Omega\sum|V_H|^2/k\f$, no matrix.  **Parity probe 341.4 → 287.5 s CPU (−15.8%), gathers
+> 95 → 66, 2.05× → 1.72×**; Si 2×2×2 rows −19.5% / −11.4% (\f$V_H\f$ is now memoized across irrep blocks
+> too).  806/806, every iteration count and \f$E_{tot}\f$ reproduced.
+>
+> ⛔ **LEVER B IS REFUTED — do not build it.**  \f$V_H\f$ is a BALL field and \f$v_{xc}\f$ a RAW RASTER
+> field, on purpose; routing \f$V_H\f$ through the raw adjoint changes the Hartree block by **6e-5
+> relative** (measured on Si Γ), because the two adjoints truncate differently (per-level \f$\{G\}\f$ ball
+> vs spectral box) — it breaks the very adjointness lever A rests on.  ⇒ **B becomes available only if XC
+> gives up the raw \f$\rho_{DM}\ge0\f$ feed, i.e. only if N4 lands.**  Filed under N4, not as a bin-1 item.
+>
+> ▶ **SO THE REMAINING GAP IS THE COLLOCATION COUNT: 4.1 per iteration against CP2K's 2**, and 42 of the
+> probe's 82 collocations are the **GDM line search's trial densities**.  ⚠ That is bin-4 currency spent as
+> bin-1 work, so the FIRST move is a measurement, not an optimisation: **count \f$H\f$-builds (and
+> collocations) to CONVERGENCE on both codes** and compare that, not per-iteration cost.  If the line search
+> pays for itself in steps, bin 1 is finished at 3 gathers + 2 collocations ≈ **1.14×** and the honest
+> statement is about wall-to-convergence; if it does not, the trials are the last bin-1 lever.
+>
+> **THE ROW THIS ALL DECIDES: `CP2K_COMPAT=1`, now at 1.72× per SCF iteration.**
 > **THE TABLE THAT SAYS SO IS FILLED**: `doc/Benchmark.md` **§5a**, now its own section holding ONE table
 > (user, 2026-09-05), nine rows, BOTH codes pinned serial, and setup split out of the per-iteration figure.
 >
@@ -110,7 +121,7 @@ stop competing for the reader's attention here:
 |---|---|---|---|
 | **SCR** | ✅ **THE SEAM IS BUILT (2026-09-04).**  `LatticeScreener` + `GeometryOnlyScreener`/`DAwareScreener` in `src/BasisSet/Molecule/LatticeScreener.C`; both collocation faces take a `const LatticeScreener&`; the `GPW_DAWARE_SCREEN` bool is gone from the box walk and survives only as `RunPolicy::DAwareScreen`, a declared CP2K deviation.  D-aware stays the default; suite unchanged.  ⚠ The `DensityHandle` proxy this row anticipated was NOT built and should not be: the screener is **stateless** — the walk already computes each term's weight and hands it in, so no density, no reseat, no staleness (`ScreeningPlan.md` §4). | ⛔ **§5 IS CLOSED — REFUTED ON MEASUREMENT (2026-09-04), do not build it.**  `M_PG_BoxWalk.WhatTheGeometryHoistWouldBuy` prices the hoist CEILING at **13.2% of the kernel** (chord share 10–17% across box sizes, not the ~40% claimed) against a **+14.5% wall** price for the geometry-only screener that makes it legal, plus **132 MB** on a run whose peak RSS is 110 MB.  Best case is a wash.  The ~40% was the per-LINE work, most of which is the \f$e_2\f$ fold — which reads the density-weighted coefficients and is not hoistable under any screener.  ▶ **The next lever is NOT in the kernel**: see the per-step field count below. | `doc/ScreeningPlan.md` |
 | **S** | ★★ **THE ANCHOR-MOVING SPRINT — A1 and A7 ARE DONE (2026-08-27), A2–A6 remain.** Five items that each move banked numbers, to be done in ONE re-bank so they do not mask each other (user, 2026-08-27). | Pick the sprint window. A5 (the `IonicSAD` seed default) re-seeds every GPW anchor, so it goes first or last. A4 (the Δρ/N gate) is now doubly motivated — see the Na2 note in the sprint section. | *"THE ANCHOR-MOVING SPRINT"* |
-| **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25). *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
+| **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25).  ⚡ **AND IT NOW CARRIES A BIN-1 PRIZE**: `doc/Benchmark.md` §5f lever B (one gather per spin, CP2K's `sum_up_and_integrate`, worth ~1 of our 3 gathers per iteration) is blocked ONLY by XC needing the raw \f$\rho_{DM}\ge0\f$ feed — \f$V_H\f$ is a ball field, \f$v_{xc}\f$ a raw raster field, and routing \f$V_H\f$ through the raw adjoint moves the Hartree block by 6e-5 relative (measured).  If N4 makes the ball XC route safe, B becomes exact and free. *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
 | **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING — ⚠ HALF-BUILT ALREADY (corrected 2026-08-25): `QCHEM_MIX_RHO_M=1` in `MakePeriodicMixer` ALREADY selects the (ρ,m) basis with "Kerker on ρ, PLAIN LINEAR on m", carrying the same *"m has none"* argument. So this needs a MEASUREMENT and a promotion, not a build.** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
 | **2** | **BENCHMARK PROTOCOL — no timing table is comparable until this holds** (user, 2026-08-25). Two defects today: no table states its THREAD state per row, and qchem runs accelerations CP2K does not — the factored/low-rank ρ is **ON BY DEFAULT** (`QCHEM_DM_LOWRANK`), so every row since `07d13bf6` has it | (a) build the self-describing BANNER `doc/Benchmark.md` already asks for — thread counts + the qchem-only feature flags — so rows describe themselves instead of relying on discipline; (b) re-take the rows under the two-phase rule: **single-thread parity FIRST**, then N=8/16 for OMP-shaped gaps. | `doc/Benchmark.md` → *"BENCHMARK PROTOCOL"*, and Step 0 (instruments) |
 | **4** | **Step 5 — MnO accuracy, name the operator**: the sharpest coordinate on the list, with a banked oracle, and its first move is cheap | ⚠ **PIN `GPW_XC_DM_SOURCE` first** — individual terms move ~100 mHa with it, so the term-by-term CP2K breakdown means nothing until item 1 is settled. Then the cheap first move. | Step 5 |
@@ -127,9 +138,9 @@ stop competing for the reader's attention here:
 
 | bin | the axis | where it stands (MnO AFM-II VA, 2026-08-28) |
 |---|---|---|
-| **1** | **per-iteration CPU** | ★★★ **THE TABLE IS FILLED — `doc/Benchmark.md` §5a, 2026-09-05**, nine rows, BOTH codes pinned serial and measured at 97–99% CPU, with setup split out so the per-iteration figure is SCF-only.  **Ahead of CP2K on seven of nine**: MnO defaults **0.90×**, MnO FM **0.83×**, `QCHEM_BECKE_XC=0` **0.53×**, Si Γ **0.13×**, Si 8 k **0.84× / 0.68×**, NaF full-SR **0.19×**.  Losses: NaF SR2 **1.47×** (a Becke cost) and `CP2K_COMPAT=1` **2.05×**.  ⇒ **bin 1 is NOT closed, and it is now ONE row**: the parity row, which is also the only one with our accelerations off.  ⚠ Earlier cuts of this line (2.14×/1.47×/1.99×, and a RETRACTED 1.00×/1.07×) divided TOTAL CPU by iterations, i.e. they charged setup to bin 1 |
-| **2** | **init / pre-iteration time** | ⛔ **PROMOTED — MEASURED SERIALLY 2026-09-05: MnO's setup is 181.4 s = 44% of the default run against CP2K's 8.1 s (22×)**, of which **136.6 s is TWO Becke mesh builds** (68.3 s each) + 43.1 s XC-mesh Φ tables.  ✅ With `QCHEM_BECKE_XC=0` our setup is **1.76 s and BEATS CP2K's 8.1 s**.  ⇒ bin 2 is a Becke-mesh question, exclusively — and on the default MnO route it is now worth more than everything left in bin 1.  ⚠ The old "16.7 s" mesh-build figure was a THREADED ledger bucket; the build is `#pragma omp parallel for` (UnitCell.C:273) |
-| **3** | **peak RAM** | ✅ **solved, and we WIN**: 1323 → 473 MB default; **107–130 MB on the parity routes against CP2K's 217 MB**, re-confirmed 09-05 |
+| **1** | **per-iteration CPU** | ★★★ **THE TABLE IS FILLED — `doc/Benchmark.md` §5a, 2026-09-05**, nine rows, BOTH codes pinned serial and measured at 97–99% CPU, with setup split out so the per-iteration figure is SCF-only.  ★ Re-taken after §5f's lever A.  **Ahead of CP2K on seven of nine**: MnO defaults **0.82×**, MnO FM **0.77×**, `QCHEM_BECKE_XC=0` **0.45×**, Si Γ **0.14×**, Si 8 k **0.66× / 0.56×**, NaF full-SR **0.18×**.  Losses: NaF SR2 **1.45×** (a Becke cost) and `CP2K_COMPAT=1` **1.72×** (was 2.05×).  ⇒ **bin 1 is NOT closed, and it is now ONE row**: the parity row, which is also the only one with our accelerations off.  ⚠ Earlier cuts of this line (2.14×/1.47×/1.99×, and a RETRACTED 1.00×/1.07×) divided TOTAL CPU by iterations, i.e. they charged setup to bin 1 |
+| **2** | **init / pre-iteration time** | ⛔ **PROMOTED — MEASURED SERIALLY 2026-09-05: MnO's setup is 184.3 s = 47% of the default run against CP2K's 8.1 s (23×)**, of which **136.6 s is TWO Becke mesh builds** (68.3 s each) + 43.1 s XC-mesh Φ tables.  ✅ With `QCHEM_BECKE_XC=0` our setup is **1.76 s and BEATS CP2K's 8.1 s**.  ⇒ bin 2 is a Becke-mesh question, exclusively — and on the default MnO route it is now worth more than everything left in bin 1.  ⚠ The old "16.7 s" mesh-build figure was a THREADED ledger bucket; the build is `#pragma omp parallel for` (UnitCell.C:273) |
+| **3** | **peak RAM** | ✅ **solved, and we WIN**: 1323 → 476 MB default; **113–132 MB on the parity routes against CP2K's 217 MB**, re-confirmed 09-05 |
 | **4** | **iteration count** | 31 (default) / 93-and-capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  ⚠ Removing the gather's D-screen (`a7561e92`) moved the SMALL rows' counts (Si Γ 11 → 17, Si 2×2×2 Γ-centred 7 → 16, shifted MP 16 → 14, NaF SR2 29 → 23) at unchanged \f$E_{tot}\f$; the MnO counts did not move.  The findings are below |
 
 ### ★★★ BIN 1's REMAINING GAP IS IN THE HAMILTONIAN, NOT THE KERNEL (2026-09-04)
