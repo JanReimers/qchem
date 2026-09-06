@@ -152,6 +152,25 @@ public:
                           const std::function<double(int Z, double g2)>& formFactor) const=0;
 };
 
+//! \brief The diagonal POISSON kernel over this engine's own \f$\{G\}\f$: \f$k(\Delta m)=4\pi/|B\Delta m|^2\f$,
+//! with \f$k(0)=0\f$ (the dropped neutralising background).
+//!
+//! Its own face, and a small one, because exactly one kind of caller needs it: someone holding a Coulomb
+//! field over \f$\{G\}\f$ who wants the \f$\tilde\rho\f$ that made it.  The Hartree ENERGY is that caller --
+//! \f$E_H=\tfrac12\Omega\sum|V_H|^2/k\f$ pairs the field with its own source and needs no KS matrix at all
+//! (doc/Benchmark.md §5f) -- and it reaches the kernel through the fit basis rather than carrying a
+//! \c Structure of its own, which is the invariant that makes \c Vee_Hartree pure \f$V_H[\rho]\f$.
+//!
+//! The PHYSICS still lives on the lattice metric \f$B\f$ (\c ReciprocalLattice::CoulombKernel); this is the
+//! seam that lets a consumer holding only the abstract fit basis ask for it, exactly as \c G_FieldEvaluator
+//! is the seam for \f$\Delta m\to G\f$ evaluation.
+class G_PoissonKernel
+{
+public:
+    virtual ~G_PoissonKernel() = default;
+    virtual double CoulombKernel(const ivec3_t& dm) const=0;
+};
+
 //! \brief Apply an ISOTROPIC spectral multiplier to a real grid field over the FULL FFT box:
 //! \f$f\mapsto\mathcal F^{-1}[k(|G|^2)\,\mathcal F f]\f$.  A SMOOTH \a k truncates nothing, so no Gibbs
 //! ringing is introduced -- the raster-space Kerker preconditioner \f$k=G^2/(G^2+G_0^2)\f$ of the raw-XC

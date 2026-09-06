@@ -213,7 +213,25 @@ private:
     virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
+    //! \brief \f$V_H(\Delta G)\f$ for \a cd, MEMOIZED ON THE DENSITY'S LOGICAL-CLOCK SERIAL.
+    //!
+    //! The map is not free: assembling it star-averages the whole \f$\{G\}\f$ set over the imposed point
+    //! group (measured 16 ms/call on Si \f$\Gamma\f$, 48 ops).  Both consumers -- the KS matrix, once per
+    //! IRREP BLOCK, and the energy pairing -- ask for the SAME field whenever the density has not moved, so
+    //! the term keeps the last one.  The key is \c ChargeDensity::Version(), the same intrinsic serial the
+    //! Irrep matrix cache above it keys on (\c tDynamic_HT_Imp::GetMatrix).
+    const ΔG_Map& CoulombField(const cChargeDensity*) const;
+
+    //! \brief \f$\Omega\f$, the cell volume, as the fit raster's own quadrature answers it:
+    //! \f$\int 1\,d^3r\f$.  Asked ONCE (the grid is geometry-fixed) through the abstract raster face --
+    //! the term has no \c Structure by design (see the class note), and this is the only constant the
+    //! G-space energy pairing needs.
+    double Volume() const;
+
     fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
+    mutable double itsVolume=0.0;   //!< \c Volume()'s memo (0 = not asked yet)
+    mutable size_t itsFieldVersion=size_t(-1);  //!< density serial \c itsField holds (-1 = empty)
+    mutable ΔG_Map itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
 };
 
 //! \brief THE XC QUADRATURE: ONE OBJECT WITH TWO ADJOINT-PAIRED FACES -- \f$\rho\f$ at the points from

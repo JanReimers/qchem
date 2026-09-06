@@ -13,6 +13,8 @@
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
+import qchem.BasisSet.G_FieldEvaluator;      // G_PoissonKernel / G_RasterTransform -- the fit basis's G-space seams
+import qchem.Mesh;                            // qcMesh::MeshParams (the fit-basis factory's argument)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (H, Si pseudopotentials from the database)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.LASolver;
@@ -543,4 +545,32 @@ TEST_F(PlaneWaveTests, HGHSiliconHamiltonianWellFormed)
     std::vector<double> e=SolveBands(pw,&Vtot);          // generalized eigensolve succeeds, real spectrum
     ASSERT_EQ(e.size(),n);
     for (double ei : e) EXPECT_TRUE(std::isfinite(ei));
+}
+
+// THE TWO CONSTANTS THE MATRIX-FREE HARTREE ENERGY RESTS ON (doc/Benchmark.md §5f lever A).
+// E_H = 1/2 Omega Sum_dm |V_H(dm)|^2 / k(dm) asks the CD fit basis for BOTH: the Poisson kernel k through
+// G_PoissonKernel, and Omega as the raster's own Integral(1).  Neither had a test, and a silent factor
+// error in either would move every periodic total energy while every SHAPE stayed right -- exactly the
+// failure a converged SCF hides.  Cubic cell: B = (2pi/a) I, so k(dm) = 4 pi / |B dm|^2 = a^2/(pi |dm|^2).
+TEST_F(PlaneWaveTests, FitBasisAnswersPoissonKernelAndVolume)
+{
+    const double a=7.0;
+    UnitCell cell(a);
+    Lattice_3D lat(cell,ivec3_t(1,1,1));
+    PlaneWave_IBS pw(lat.Reciprocal(),ivec3_t(1,1,1),ivec3_t(0,0,0),5.0);
+    qcMesh::MeshParams mp;
+    std::unique_ptr<const BasisSet::cFIT_CD_ABS> fit(pw.CreateCDFitBasisSet(nullptr,mp));
+
+    auto* pk=dynamic_cast<const BasisSet::G_PoissonKernel*>(fit.get());
+    ASSERT_TRUE(pk) << "the CD fit basis must carry the Poisson-kernel seam (Vee_Hartree asks it)";
+    EXPECT_DOUBLE_EQ(pk->CoulombKernel(ivec3_t(0,0,0)),0.0);   // the dropped neutralising background
+    for (const ivec3_t& dm : {ivec3_t(1,0,0),ivec3_t(0,-2,0),ivec3_t(1,1,1),ivec3_t(2,-1,3)})
+    {
+        const double m2=dm.x*dm.x+dm.y*dm.y+dm.z*dm.z;
+        EXPECT_NEAR(pk->CoulombKernel(dm), a*a/(Pi*m2), 1e-12*a*a);
+    }
+
+    auto* rt=dynamic_cast<const BasisSet::G_RasterTransform*>(fit.get());
+    ASSERT_TRUE(rt) << "the CD fit basis must carry the raster seam (Vee_Hartree's Omega)";
+    EXPECT_NEAR(rt->Integral(rvec_t(rt->RasterSize(),1.0)), a*a*a, 1e-9*a*a*a);   // Omega = integral of 1
 }

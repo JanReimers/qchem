@@ -243,21 +243,87 @@ template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const
     // V_H(dm) [FORWARD]; the KS matrix <i|V_H|j> = Σ_k V_H(G_k) <i|e^{iG_k}|j> is the BACKWARD contraction of the
     // SAME Repulsion3C tensor over the CD fit basis (its applyAdjoint -- the overlap integrate-back on the fit
     // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
-    // (doc/GPWPlan §0e step 2).
-    ΔG_Map VH=fd->GetRepulsion3C(*itsFitBasis);
+    // (doc/GPWPlan §0e step 2).  The FIELD is memoized on the density serial (CoulombField): every irrep block
+    // of one Fock build asks for the identical map, and so does the energy.
+    const ΔG_Map& VH=CoulombField(cd);
     return NarrowExact<U>(ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
         [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; }));
 }
 chmat_t Vee_Hartree::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
 rsmat_t Vee_Hartree::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
+// V_H(dm) for this density, kept until the density's serial moves (declaration doc in PWTerms.C).
+const ΔG_Map& Vee_Hartree::CoulombField(const cChargeDensity* cd) const
+{
+    assert(cd);
+    if (cd->Version()!=itsFieldVersion)
+    {
+        qchem::report::Timed miss("scf: E_H V_H field build (memo miss)");
+        auto* fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
+        assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
+        itsField       =fd->GetRepulsion3C(*itsFitBasis);
+        itsFieldVersion=cd->Version();
+    }
+    return itsField;
+}
+
+// Omega = Integral(1) through the raster's OWN quadrature rule -- so the constant comes from the same face
+// (and the same summation order) every other raster integral in this file uses, and the term still holds no
+// Structure.  Geometry-fixed, so it is asked once and memoized.
+double Vee_Hartree::Volume() const
+{
+    if (itsVolume==0.0)
+    {
+        auto* rt=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
+        assert(rt && "Vee_Hartree: the CD fit basis is not a raster (G_RasterTransform) -- no volume to ask for");
+        itsVolume=rt->Integral(rvec_t(rt->RasterSize(),1.0));
+    }
+    return itsVolume;
+}
+
+// E_H = 1/2 integral rho V_H[rho] -- the 1/2 is the electron-electron double-counting factor.
+//
+// ★ IN G SPACE, AND THAT IS THE WHOLE POINT (2026-09-05).  The obvious form is 0.5*Tr(D <i|V_H|j>), and it
+// is what this did -- but <i|V_H|j> is a full real-space GATHER, and the ENERGY is evaluated at rho_new
+// while the FOCK was built at rho_mix, so the two are different fields and no memo can join them.  Measured
+// on the MnO parity row: the Hartree matrix was built TWICE per SCF iteration, 2 of the 4 gathers, against
+// CP2K's 2 integrate_v_rspace calls per step for the WHOLE KS matrix (doc/Benchmark.md §5f).
+//
+// The pairing needs no matrix.  The gather is the EXACT ADJOINT of the collocation on this same fit grid,
+// so by Parseval, with rho-tilde and V_H both given over the fit ball {G},
+//     Tr(D <i|V_H|j>) = integral rho V_H = Omega * Sum_{dm} conj(rho-tilde(dm)) V_H(dm),
+// and V_H is the density's OWN answer -- one collocation (a CollocMemo replay, since the Fock already
+// collocated this D) plus an FFT: ~0.01 s where the gather was ~1.9 s.
+// ★ AND ONE MAP IS ENOUGH.  V_H = k rho-tilde with the Poisson kernel k REAL, so
+// conj(rho-tilde) V_H = |V_H|^2/k -- the field pairs with its own source and rho-tilde is never fetched.
+// That matters: a second fetch costs a second IBZ STAR-AVERAGE of the whole map (measured 16 ms/call on
+// Si Gamma with 48 point ops -- five times the gather it was replacing there).  dm=0 drops out on its own
+// (k=0, the neutralising background) and the sum is manifestly REAL, which the trace form was only by
+// symmetry.
+//
+// ⚠ NOT BIT-IDENTICAL with the trace form: it is the same integral summed in a different order, so pinned
+// energies move at roundoff scale.  GPW_EH_TRACE=1 computes BOTH and prints the difference -- the A/B that
+// says so, kept as an instrument rather than deleted with the evidence.
 void Vee_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     newCD(cd);
-    // E_H = 1/2 integral rho V_H[rho] -- the 1/2 is the electron-electron double-counting factor.  The Fock
-    // block is now V_H ALONE, so this is a direct contraction: the old form computed Tr(D(V_H+V_long)) and
-    // subtracted Tr(D V_long) back off, because V_long was folded into the same matrix.
-    te.Eee += 0.5*cd->DM_Contract(this,cd);
+    // The kernel is asked of the FIT BASIS (its G-space Poisson seam), so this term still holds no Structure.
+    auto* pk=dynamic_cast<const BasisSet::G_PoissonKernel*>(itsFitBasis.get());
+    assert(pk && "Vee_Hartree: the CD fit basis carries no Poisson kernel (G_PoissonKernel) face");
+    qchem::report::Timed timer("scf: E_H G-space pairing (no matrix)");
+    const ΔG_Map& VH=CoulombField(cd);                     // 4pi rho-tilde/|G|^2 (Poisson, kernel baked)
+    double e=0.0;
+    for (const auto& [dm,v] : VH)
+        if (const double k=pk->CoulombKernel(dm); k>0.0) e+=std::norm(v)/k;   // conj(rho-tilde) V_H = |V_H|^2/k
+    e*=0.5*Volume();
+    if (std::getenv("GPW_EH_TRACE"))
+    {
+        const double eTrace=0.5*cd->DM_Contract(this,cd);
+        std::cout << "[E_H A/B] G-space=" << std::setprecision(12) << e << " trace=" << eTrace
+                  << " diff=" << e-eTrace << " rel=" << (eTrace!=0.0 ? (e-eTrace)/eTrace : 0.0)
+                  << std::setprecision(6) << std::endl;
+    }
+    te.Eee += e;
 }
 
 std::ostream& Vee_Hartree::Write(std::ostream& os) const

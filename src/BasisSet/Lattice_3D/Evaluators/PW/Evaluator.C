@@ -153,12 +153,17 @@ class PW_Grid_Evaluator
     , public virtual BasisSet::G_RasterTransform    // the {r}<->{G} FFT pair (raster-only, by construction)
     , public virtual BasisSet::G_StructureFactor    // the SAD seed's analytic rho-tilde
     , public virtual BasisSet::G_SpectralFilter     // the mixer's raster Kerker step
+    , public virtual BasisSet::G_PoissonKernel      // 4pi/|G|^2 for the matrix-free Hartree ENERGY
 {
 public:
     PW_Grid_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut,
                       RasterPolicy raster = RasterPolicy::AliasFree)
         : PW_Evaluator(recip, k, Ecut, raster)
         , itsGrid(std::make_shared<const PeriodicGridEvaluator>(recip, Volume(), FFTGrid())) {}
+
+    //! \copydoc BasisSet::G_PoissonKernel::CoulombKernel
+    //! The lattice metric owns the physics; this is the fit basis's seam onto it.
+    double CoulombKernel(const ivec3_t& dm) const override      {return Recip().CoulombKernel(dm);}
 
     //! Fractional \f$(i/n)\f$ FFT grid (exposed for the direct-grid unit-test oracles).
     std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const {return itsGrid->UniformGrid(n);}
