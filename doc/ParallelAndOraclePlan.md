@@ -77,6 +77,13 @@ brackets are in, and **both came back ~zero** — so the premise they were built
 | `scf: converge (residue — final density + m(r) extraction)` | **0.0009 s** |
 | `setup: facade ctor (residue — decisions between the named buckets)` | **0.011 s** |
 
+✅ **FIXED 2026-09-06 by `doc/CleanupCandidates.md` R2.22 (`0210cfb9`): it no longer does.**  The rebuild
+was never a physics requirement — `~tSCFIterator` deleted the Hamiltonian its own caller had built, so the
+facade had no way to keep one.  With the iterator holding it non-owning, ONE Hamiltonian serves the whole
+schedule: **MnO 12-thread wall 83.2 → 67.6 s (1.23×), `Etot=-61.40297529` bit-identical, 814/814**, and the
+ledger's `setup: hamiltonian ctor` / `setup: becke mesh build` show one call each.  The accelerator is still
+per stage (stale Pulay/DIIS, and the type changes Ladder→GDM) — cheap, and never the cost.
+
 ★ **WHERE IT ACTUALLY WAS: `SolidCalculation::BuildStage` REBUILDS THE WHOLE HAMILTONIAN FOR EVERY ANNEAL
 STAGE, and that call had no bucket.**  1.1 read the ledger's single `setup: hamiltonian ctor` entry and
 concluded "it runs once".  It runs **once per stage**, and the MnO recipe (`MNO_ANNEAL="5e-3,0"`) has two —

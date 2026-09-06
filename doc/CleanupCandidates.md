@@ -3133,7 +3133,28 @@ NAME is stale.
 half of a pair", it is the spin-native XC term (`Vxc_SpinNative` or similar).  Not done inline because the
 rename touches three files and the measurement work wanted a small diff.
 
-## R2.22 — `tSCFIterator` DELETES A HAMILTONIAN IT DID NOT CREATE, and it costs 19% of an annealed run (2026-09-06)
+## R2.22 ✅ DONE `0210cfb9` (2026-09-06) — MnO annealed **83.2 s → 67.6 s (1.23×)**, `Etot` bit-identical
+
+**Landed exactly as scoped** (step 1 only; the analysis that produced that scope is kept below).  One rule
+now covers the iterator's three collaborators — *what it is HANDED it does not delete, what it MAKES it
+holds in a `unique_ptr`*: the Hamiltonian is non-owning and the facade keeps ONE for the whole schedule;
+the accelerator is non-owning and still replaced per stage by its owner (stale Pulay/DIIS, and the type
+changes); the wave function became a `unique_ptr`; `~tSCFIterator` is `= default`.  Applied in all three
+facades — the molecular pair keep rebuilding their (cheap) Hamiltonian per `Converge()`, they just own it
+now.  The three misleading comments are gone.
+- **Acceptance met on both halves:** `Etot=-61.40297529` (bit-identical to the banked value), and
+  `setup: hamiltonian ctor` + `setup: becke mesh build` run **once** — the only `[x2]` buckets left are
+  the per-stage SCF residues, which should be per stage.  Physics unchanged (m_stag 0.6667, 14+17 iters).
+  814/814 green.
+- **A pre-existing LEAK fell out of it:** on `RunGpw`'s non-annealed path the Hamiltonian had no owner at
+  all once the iterator stopped deleting it — invisible while the iterator was silently cleaning up after
+  a caller that never owned anything.
+- ⚠ The Benchmark.md MnO row is now stale (83.2 s). **Deliberately NOT re-banked** — stale rows are
+  re-banked ONCE at the end of Phase 1, not per increment (`8fbb6132`).
+
+*(the item as filed, and the review that scoped it, follow)*
+
+## R2.22 (original) — `tSCFIterator` DELETES A HAMILTONIAN IT DID NOT CREATE, and it costs 19% of an annealed run (2026-09-06)
 
 `tSCFIterator<T>::~tSCFIterator()` does `delete itsHamiltonian;` on a raw `ham_t*` handed in by the
 caller.  CLAUDE.md: *"Raw `new` ops are fine if the pointer quickly goes into a `unique_ptr` or
