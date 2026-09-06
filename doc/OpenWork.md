@@ -124,9 +124,23 @@ either history.
 > serial time (9 s) matches the measured setup buckets (9.7 s, of which the Becke mesh build alone is 7.0 s
 > on a TWO-ATOM cell) to ~7%; the SCF threads essentially perfectly.
 >
-> **2. CP2K AT 12 THREADS** on the same decks — the one thing missing before any cross-code threaded row
-> (§7 has our side; rule 3b forbids comparing at different core counts).  ⚠ Threads are step 2 of §1a and
-> the user's focus is single-thread parity: do not let this jump the queue.
+> **2. ✅ DONE 2026-09-06 — THE THREADED TABLE IS FILLED, BOTH SIDES (`doc/Benchmark.md` §7), and it
+> INVERTS the question.**  CP2K at 12 OMP threads is **0.82–1.09×** its own serial on these decks (its
+> banner says 12 threads; it measures **196% CPU**), and 12 MPI ranks buy **1.44× for 8.3× the CPU**.  Ours:
+> **2.10–4.67×** (best on the pure box-walk parity route).  Cross-code at 12 cores on MnO: **4.14 s per SCF
+> step against CP2K's best 5.90 s (0.70×), on 596 s of CPU against 3107 s (0.19×)**.  ⇒ **We are not
+> missing parallel opportunities CP2K exploits — on THIS class of system** (4-atom, high-symmetry: the
+> regime §2 says most favours us; a 100-water box would invert it, and none of this is a many-node claim).
+>
+> ▶ **The opportunities we ARE missing are our own (§7c), in priority order**: (1) **~59 s of UNBUCKETED
+> work** in a 128 s threaded MnO run — diagonalise/ortho/mix/fit-solve, none of it timed, so the first move
+> is an INSTRUMENT not an optimisation; (2) the **XC-mesh quadrature GEMM at 1.21×**, on blaze's own
+> kernels because `QCHEM_BLAZE_BLAS` is OFF and blaze SMP is disabled — ⚠ `libblas`/`liblapack` on this box
+> now resolve to **openblas-pthread**, so a threaded GEMM is sitting there unused; (3) the **\f$V_H\f$ field
+> build at 0.89×**, i.e. `SymmetrizeGMap`'s serial 48-op star-average, now 6.6% of the threaded wall.
+> ✅ And §5e's open question is CLOSED: **the Becke mesh build threads at 8.2×** on MnO.  ⚠ NaF is still the
+> anomaly (serial fraction = its setup) — likeliest SIZE, not structure; settle it with §7c's bucket table
+> taken on NaF.
 >
 > **3. The cheap gaps**: ✅ MnO FM re-taken 2026-09-05 (411 s CPU / 474 MB against the stale 2321 s /
 > 4947 MB; 0.83× CP2K per SCF iteration) · ✅ NaF's CP2K iteration counts read off its logs (SR2 16 steps,

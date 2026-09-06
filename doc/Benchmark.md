@@ -684,55 +684,97 @@ parity per iteration.
 
 ---
 
-## 7. THE ROWS — threaded (OMP)
+## 7. THE ROWS — threaded (12 cores), AND THE OMP GAP ANALYSIS
 
-✅ **UNBLOCKED 2026-09-04.**  This table was empty because the CPU column was mostly barrier spin
-(`KMP_BLOCKTIME` defaulted to 200 ms; see `qchem::StopOmpThreadsBusyWaiting`).  That is fixed in the
-source, so these numbers mean something.  **`OMP wait=0 ms spin`** — the run banner prints it, per rule 3b.
+✅ **FILLED 2026-09-06, BOTH SIDES.**  The cross-code half was the thing missing since 09-04; it is here
+now, and it inverts the question that motivated it.  Same binaries and decks as §5a, 12 cores each,
+\f$E_{tot}\f$ agreeing to all printed digits with the serial runs on every row.
 
-Serial and threaded are the SAME BINARY and the SAME recipe; \f$E_{tot}\f$ agrees to all printed digits on
-every pair.  ⚠ **The honest column is SPEEDUP AGAINST OUR OWN SERIAL**, not CPU — a threaded run still
-bills 1.3–1.5× the serial CPU, and CP2K has not yet been run at 12 threads, so there is deliberately no
-cross-code column here (rule 3b: give both codes the same core count or do not compare).
+### 7a. Our side: 12 threads against our own serial
 
-| row | serial wall | **12-thread wall** | **speedup** | efficiency | CPU inflation | RSS ser / 12t |
-|---|---|---|---|---|---|---|
-| NaF SR2 Γ | 23.3 s | **10.6 s** | **2.21×** | 18% | 1.33× | 55 / 73 MB |
-| MnO `QCHEM_BECKE_XC=0` | 169.3 s | **48.2 s** | **3.51×** | 29% | 1.42× | 116 / 198 MB |
-| MnO ALL DEFAULTS | 414.7 s | **123.2 s** | **3.37×** | 28% | 1.45× | 483 / 573 MB |
+| row | serial wall | **12-thread wall** | **speedup** | 12t CPU / serial | RSS ser / 12t |
+|---|---|---|---|---|---|
+| NaF SR2 Γ | 23.0 s | **10.96 s** | **2.10×** | 1.41× | 55 / 73 MB |
+| MnO `QCHEM_BECKE_XC=0` | 147.0 s | **49.5 s** | **2.97×** | 1.50× | 113 / 197 MB |
+| MnO `CP2K_COMPAT=1` probe | 287.5 s | **61.6 s** | **4.67×** | 1.58× | 132 / 210 MB |
+| MnO ALL DEFAULTS | 395.6 s | **128.4 s** | **3.08×** | 1.51× | 476 / 563 MB |
 
-### ★★★ 7a. THE CEILING IS NOW BIN 2 — THE SERIAL SETUP
+★ **The parity route threads BEST (4.67×)** — it is nothing but the box walk, which is our OpenMP region.
+The Becke routes carry more serial residue, which 7c breaks down.
 
-Solve \f$S+P/12=t_{12}\f$ against \f$S+P=t_1\f$ for the effectively-serial fraction \f$S\f$:
+### 7b. ★★★ CP2K's side — AND THE HEADLINE IS THAT ITS PARALLELISM DOES NOT HELP HERE
 
-★ **The setup column is now measured on all three rows (serial, 2026-09-05, §5a):**
-
-| row | Amdahl \f$S\f$ | as % of serial | measured SERIAL setup buckets | do they match? |
+| CP2K row | serial wall | 12 OMP threads | 12 MPI ranks | best speedup |
 |---|---|---|---|---|
-| NaF SR2 Γ | **9 s** | **40%** | **9.7 s** — Becke mesh 6.99 + ham ctor 2.02 + Φ tables 0.35 + local-PP 0.35 | ✅ to ~7% |
-| MnO `BECKE_XC=0` | 37 s | 22% | **1.76 s** | ⛔ **NO — off by 21×** |
-| MnO ALL DEFAULTS | 97 s | 23% | **181.4 s** — Becke mesh 136.6 (2 builds) + Φ tables 43.1 | ⛔ **NO — setup EXCEEDS \f$S\f$ by 1.9×** |
+| Si Γ | 5.18 s | 5.49 s (**0.94×**) | — | **none** |
+| NaF SR2 Γ | 7.37 s | 8.95 s (**0.82×**) | — | **none** |
+| MnO AFM-II VA | 374.2 s | 342.7 s (**1.09×**) | **259.6 s (1.44×)** | **1.44×** |
 
-⇒ **"THE CEILING IS BIN 2" HOLDS ON NaF AND ONLY THERE.**  The three rows say three different things, and
-the difference is the Becke mesh build's own OpenMP loop (`src/Structure/Imp/UnitCell.C:273`):
-- **NaF**: inferred serial time ≈ measured setup ⇒ the SCF threads essentially perfectly and setup is the
-  whole shortfall.  A 40% serial fraction caps the speedup at 2.3× and we measure 2.21×.
-- **MnO ALL DEFAULTS**: setup (181 s) is nearly TWICE the inferred serial time (97 s) ⇒ setup itself is
-  threading, roughly half of it — consistent with the mesh build's parallel loop.
-- **MnO `BECKE_XC=0`**: setup is 1.76 s against a 37 s serial residual ⇒ **that row's serial fraction is
-  inside the SCF, not in setup at all**, and bin 2 has nothing to do with it.
+⚠ **These are CP2K's own thread counts, not a knob we set and hoped**: its banner reports
+`GLOBAL| Number of threads for this process 12`, and the run still measured **196% CPU** — ~2 cores of
+work spread over 12 threads.  On the two small cells it is *slower* than serial while billing 2× the CPU.
+The MPI arm is the honest one for CP2K (its design centre), and 12 ranks buy **1.44× for 8.3× the CPU**
+(3107 s against 374 s serial).
 
-⇒ **Bin 2 is worth attacking because it is 44% of the SERIAL default run (§5a), not because it is
-universally the threading ceiling.**  ⚠ The earlier flat claim *"the Becke mesh build is serial"* was
-wrong — it threads; what is unexplained is why NaF behaves as though it does not (§5e).
+⇒ **CROSS-CODE, AT 12 CORES, ON MnO** — per SCF step, since the iteration counts differ (rule 3d):
+**qchem 4.14 s/iteration against CP2K's best 5.90 s (0.70×)**, and we get there on **596 s of CPU against
+their 3107 s (0.19×)**.  ⚠ Rule 3c applies: that qchem row runs our accelerations.  ⚠ And the standing §2
+caveat is the whole explanation — this is a 4-atom, high-symmetry cell, the regime that most favours a
+symmetry-exploiting code and least favours CP2K's distribute-over-atoms design.  **On a 100-water box the
+verdict would invert**, and none of this says anything about many-node scaling.
 
-★ **A cross-check worth noting**: §7's serial column and §5a's independent 09-05 re-take agree to ~1% on
-all three shared rows (NaF 23.3 / 23.08 s, MnO `BECKE_XC=0` 169.3 / 172.0 s, MnO defaults 414.7 / 412.4 s).
+⇒ **SO: "ARE WE MISSING PARALLEL OPPORTUNITIES CP2K EXPLOITS?"  NOT ON THIS CLASS OF SYSTEM.**  We
+out-scale CP2K on both of its axes here.  The opportunities we are missing are our OWN, and 7c names them.
 
-⚠ CPU inflation is 1.33–1.45× even with the spin gone (thread management, load imbalance, memory
-bandwidth).  Worth a look once the serial fraction is down; not worth chasing before.
+### 7c. Where OUR threaded time actually goes — bucket by bucket
 
-⚠ **STILL MISSING for a cross-code threaded row**: CP2K at 12 threads on the same decks.
+MnO ALL DEFAULTS, the same run in both columns (serial 395.6 s → 12 threads 128.4 s):
+
+| bucket | serial | 12 threads | speedup | |
+|---|---|---|---|---|
+| setup: Becke mesh build | 138.2 s | 16.9 s | **8.2×** | ✅ |
+| scf: XC-mesh ρ sampling (matrix-free) | 74.9 s | 11.3 s | **6.6×** | ✅ |
+| scf: collocate (pair scatter) | 44.8 s | 8.3 s | **5.4×** | ✅ |
+| setup: XC-mesh Φ tables | 44.3 s | 6.8 s | **6.5×** | ✅ |
+| scf: integrate-back (pair gather) | 16.4 s | 2.7 s | **6.2×** | ✅ |
+| **scf: XC-mesh quadrature H_xc** | 11.2 s | **9.2 s** | **1.21×** | ⛔ |
+| **scf: E_H V_H field build** | 7.6 s | **8.5 s** | **0.89×** | ⛔ |
+| scf/setup: the FFT closures, local-PP short | ~3 s | ~3.4 s | ~0.9× | ⛔ |
+| **everything not in a bucket** | ~52 s | **~59 s** | **~0.9×** | ⛔ |
+
+★ **THE BECKE MESH BUILD THREADS AT 8.2× — §5e's open question is CLOSED, and the answer is "it threads
+fine on MnO".**  Whatever holds NaF back (7d) is not the loop being serial.
+
+⛔ **THE THREE THINGS THAT DO NOT SCALE, in priority order:**
+1. **~59 s of UNBUCKETED work** — the largest single block of a threaded run, and it is invisible because
+   nothing times it: diagonalisation, orthogonalisation, mixing, the fit solves, the SCF bookkeeping.
+   ▶ **The first action is an instrument, not an optimisation**: bucket the SCF's non-GPW work.
+2. **The XC-mesh quadrature \f$H_{xc}=\Phi^\dagger\,\mathrm{diag}(w\,v)\,\Phi\f$ at 1.21×** — a dense
+   GEMM running on blaze's own kernels, because `QCHEM_BLAZE_BLAS` is OFF by default and blaze's SMP is
+   disabled (the global `-fopenmp` conflict).  ⚠ **`libblas`/`liblapack` on this box currently resolve to
+   `openblas-pthread`** — so a threaded GEMM is available and unused.
+3. **The \f$V_H\f$ field build at 0.89×** — that bucket is 6.6% of the threaded wall and it is mostly
+   `SymmetrizeGMap`, the IBZ star-average over the point group (48 ops), which is a serial walk over a
+   \f$\{G\}\f$ map.  It got LOUDER, not quieter, when §5f's lever A removed the gathers around it.
+
+### 7d. The Amdahl residual, and the NaF anomaly that is still open
+
+Solve \f$S+P/12=t_{12}\f$ against \f$S+P=t_1\f$:
+
+| row | Amdahl \f$S\f$ | as % of serial | what 7c attributes it to |
+|---|---|---|---|
+| MnO ALL DEFAULTS | **104 s** | 26% | ~59 s unbucketed + ~21 s of non-scaling buckets + imbalance |
+| MnO `BECKE_XC=0` | 32 s | 22% | same shape, no mesh build |
+| NaF SR2 Γ | 9 s | 40% | ⚠ **matches its SERIAL setup buckets (9.8 s) to ~7%** |
+
+⚠ **NaF REMAINS THE ANOMALY.**  Its inferred serial fraction still equals its setup, yet the very same
+setup buckets thread at 6–8× on MnO.  The likeliest reading is now SIZE, not structure: NaF is a 2-atom
+cell whose mesh build is 7 s and whose Φ tables are 0.35 s — too little work per thread to amortise the
+regions.  ▶ Cheap to settle: the same bucket table as 7c, taken on NaF.
+
+⚠ **CPU inflation is 1.41–1.58×** on our side even with the barrier spin gone — thread management, load
+imbalance, memory bandwidth.  CP2K's is 1.8× threaded and **8.3× under MPI**, so this is not a gap against
+them; it is a cost of the last speedup increment.
 
 ---
 
@@ -740,12 +782,16 @@ bandwidth).  Worth a look once the serial fraction is down; not worth chasing be
 
 ★ **AS OF 2026-09-04, in the user's priority order** (`doc/OpenWork.md` carries the same list as the
 forward queue):
+0. ✅ **THREADED ROWS — DONE 2026-09-06, both sides (§7).**  CP2K at 12 threads was the missing piece; it
+   turns out its parallelism does not help on these cells (0.82–1.09× on OMP, 1.44× on 12 MPI ranks), so
+   the remaining threading work is entirely OUR OWN: ~59 s of unbucketed serial SCF work, a dense XC GEMM
+   on blaze's serial kernels, and the IBZ star-average.
 1. **CLOSE BIN 1 AND BIN 2 SINGLE-THREADED** — per-iteration CPU and pre-SCF setup, against CP2K.  ✅ §5a
    is FILLED as of 2026-09-05 (nine rows, both codes serial, setup split out): bin 1 is ahead on seven of
    nine and comes down to the `CP2K_COMPAT=1` row at 2.05×; bin 2 is the Becke mesh build.  The whole-run
    table is NOT informative (mixed thread states, 3× different iteration counts) and is kept only for
    \f$E_{tot}\f$ and RSS.
-2. **THE BUSY-WAIT BARRIER, then re-run everything at 12 threads** (§7).  Cause identified 2026-09-04:
+2. ✅ **THE BUSY-WAIT BARRIER** — fixed, and everything re-run at 12 threads (§7).  Cause was identified 2026-09-04:
    nothing in the tree sets `KMP_BLOCKTIME` or `OMP_WAIT_POLICY`, and LLVM's libomp spins **200 ms** after
    every parallel region — with per-shell-pair regions that is mostly spin.  It matches the inflation
    already recorded: **663 s threaded CPU against 500 s serial for the same work**.
