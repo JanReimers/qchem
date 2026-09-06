@@ -716,6 +716,23 @@ work spread over 12 threads.  On the two small cells it is *slower* than serial 
 The MPI arm is the honest one for CP2K (its design centre), and 12 ranks buy **1.44× for 8.3× the CPU**
 (3107 s against 374 s serial).
 
+★ **AND ITS OWN TIMING BLOCK SAYS WHERE**: on MnO, the two GPW hot routines — which are **98% of the run**
+— barely move between 1 and 12 threads:
+
+| CP2K routine (SELF time) | serial | 12 threads | speedup |
+|---|---|---|---|
+| `grid_collocate_task_list` | 182.6 s | 167.9 s | **1.09×** |
+| `grid_integrate_task_list` | 187.7 s | 167.2 s | **1.12×** |
+
+⇒ **It is precisely the GPW collocate/integrate route whose OMP axis does not scale here** — the same two
+routines whose per-call cost we beat by 0.88×/0.93× serially (§5f).  Two readings, and this measurement
+does not separate them: (a) the route's OpenMP was never a priority — CP2K's research centre is hundreds
+of small molecules in a box, where the parallel axis that matters is MPI over molecules/atoms, not OMP
+inside a solid's task list (user, 2026-09-06); (b) a 4-atom cell simply has too few tasks per level to
+spread.  ▶ **The discriminator is one deck we do not have**: the same run on a supercell (say 2×2×2 MnO,
+32 atoms).  If its grid routines start scaling, it was size; if they do not, it was the code.  ⚠ Until
+then, quote the measurement, not either explanation.
+
 ⇒ **CROSS-CODE, AT 12 CORES, ON MnO** — per SCF step, since the iteration counts differ (rule 3d):
 **qchem 4.14 s/iteration against CP2K's best 5.90 s (0.70×)**, and we get there on **596 s of CPU against
 their 3107 s (0.19×)**.  ⚠ Rule 3c applies: that qchem row runs our accelerations.  ⚠ And the standing §2
@@ -749,10 +766,21 @@ fine on MnO".**  Whatever holds NaF back (7d) is not the loop being serial.
 1. **~59 s of UNBUCKETED work** — the largest single block of a threaded run, and it is invisible because
    nothing times it: diagonalisation, orthogonalisation, mixing, the fit solves, the SCF bookkeeping.
    ▶ **The first action is an instrument, not an optimisation**: bucket the SCF's non-GPW work.
-2. **The XC-mesh quadrature \f$H_{xc}=\Phi^\dagger\,\mathrm{diag}(w\,v)\,\Phi\f$ at 1.21×** — a dense
-   GEMM running on blaze's own kernels, because `QCHEM_BLAZE_BLAS` is OFF by default and blaze's SMP is
-   disabled (the global `-fopenmp` conflict).  ⚠ **`libblas`/`liblapack` on this box currently resolve to
-   `openblas-pthread`** — so a threaded GEMM is available and unused.
+2. **The XC-mesh quadrature \f$H_{xc}=\Phi^\dagger\,\mathrm{diag}(w\,v)\,\Phi\f$ at 1.21×** — and this
+   one is a DELIBERATE TRADE, not an oversight (user, 2026-09-06; the reasoning is written into
+   `DeltaFit_IBS::AdjointT`).  **Our parallelism lives ABOVE the linear algebra** — per k-block / irrep /
+   spin — with BLAS pinned to one thread (`qchem::PinBlasToOneThread`), precisely to avoid OMP nesting.
+   The measurement behind it: one dispatched whole-matrix `zgemm` runs **34.1 GFlop/s against 1.87 for
+   ANY blocked or viewed form**, so hand-blocking to spread over threads loses 13× to gain 8×.
+   ⇒ **The bucket's 1.21× is the PRICE of that policy, and the thing to question is the WIDTH OF THE LEVEL
+   ABOVE, not the policy.**  On MnO at Γ that level is 2 spins × 1 k-block = **2-way**, so ten of twelve
+   cores have nothing to do in this bucket by construction.  On the 8-k Si rows the same policy has 16-way
+   width and nothing is left on the table.
+   ▶ **AND THERE IS A CHEAP TEST WORTH RUNNING**: the "one dispatched zgemm" arm needs
+   `QCHEM_BLAZE_BLAS=ON`, which was correctly refused on 2026-08-15 because the system BLAS was then
+   NETLIB.  ⚠ It is not any more — `libblas`/`liblapack` now resolve to `openblas-pthread` — so the 34
+   GFlop/s path is available again, **single-threaded, composing with the pin and with the levels above**.
+   That is a rebuild and one run.
 3. **The \f$V_H\f$ field build at 0.89×** — that bucket is 6.6% of the threaded wall and it is mostly
    `SymmetrizeGMap`, the IBZ star-average over the point group (48 ops), which is a serial walk over a
    \f$\{G\}\f$ map.  It got LOUDER, not quieter, when §5f's lever A removed the gathers around it.

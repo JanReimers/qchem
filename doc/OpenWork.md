@@ -126,7 +126,12 @@ either history.
 >
 > **2. ✅ DONE 2026-09-06 — THE THREADED TABLE IS FILLED, BOTH SIDES (`doc/Benchmark.md` §7), and it
 > INVERTS the question.**  CP2K at 12 OMP threads is **0.82–1.09×** its own serial on these decks (its
-> banner says 12 threads; it measures **196% CPU**), and 12 MPI ranks buy **1.44× for 8.3× the CPU**.  Ours:
+> banner says 12 threads; it measures **196% CPU**), and 12 MPI ranks buy **1.44× for 8.3× the CPU**.
+> ★ Its own timing block localises it: `grid_collocate_task_list` **1.09×** and `grid_integrate_task_list`
+> **1.12×** — the two routines that are 98% of the run.  ⚠ Whether that is "the GPW route's OMP was never
+> a priority" (their centre is hundreds of small molecules, where MPI over molecules is the axis) or "a
+> 4-atom cell has too few tasks to spread" is NOT separated by this measurement; the discriminator is a
+> supercell deck we do not have.  Ours:
 > **2.10–4.67×** (best on the pure box-walk parity route).  Cross-code at 12 cores on MnO: **4.14 s per SCF
 > step against CP2K's best 5.90 s (0.70×), on 596 s of CPU against 3107 s (0.19×)**.  ⇒ **We are not
 > missing parallel opportunities CP2K exploits — on THIS class of system** (4-atom, high-symmetry: the
@@ -134,9 +139,14 @@ either history.
 >
 > ▶ **The opportunities we ARE missing are our own (§7c), in priority order**: (1) **~59 s of UNBUCKETED
 > work** in a 128 s threaded MnO run — diagonalise/ortho/mix/fit-solve, none of it timed, so the first move
-> is an INSTRUMENT not an optimisation; (2) the **XC-mesh quadrature GEMM at 1.21×**, on blaze's own
-> kernels because `QCHEM_BLAZE_BLAS` is OFF and blaze SMP is disabled — ⚠ `libblas`/`liblapack` on this box
-> now resolve to **openblas-pthread**, so a threaded GEMM is sitting there unused; (3) the **\f$V_H\f$ field
+> is an INSTRUMENT not an optimisation; (2) the **XC-mesh quadrature GEMM at 1.21×** — ⚠ a
+> DELIBERATE trade, not an oversight (user): our parallelism lives ABOVE the linear algebra (per
+> k/irrep/spin) with BLAS pinned to one thread to avoid OMP nesting, and one dispatched whole-matrix
+> `zgemm` measured 34.1 GFlop/s against 1.87 for any blocked form.  The thing to question is the WIDTH of
+> the level above — at Γ with 2 spins it is 2-way, so ten cores idle in that bucket by construction.
+> ▶ **Cheap test worth running**: `QCHEM_BLAZE_BLAS=ON` was correctly refused on 2026-08-15 against NETLIB
+> BLAS; `libblas`/`liblapack` now resolve to **openblas-pthread**, so the 34 GFlop/s single-threaded path
+> is available again and composes with the pin.  One rebuild, one run; (3) the **\f$V_H\f$ field
 > build at 0.89×**, i.e. `SymmetrizeGMap`'s serial 48-op star-average, now 6.6% of the threaded wall.
 > ✅ And §5e's open question is CLOSED: **the Becke mesh build threads at 8.2×** on MnO.  ⚠ NaF is still the
 > anomaly (serial fraction = its setup) — likeliest SIZE, not structure; settle it with §7c's bucket table
