@@ -1347,10 +1347,11 @@ MnO campaign proceeds undisturbed in qchem6.
       `Make` has to go public, note WHY (which client needed the by-value form and why the cached one would
       not do).  Those reasons are the evidence a policy would be made from; the decision is cheap to defer
       and expensive to guess.
-  - **ONE STALE COMMENT LEFT BEHIND ON PURPOSE:** `src/SCFIterator/Imp/SCFIterator.C:186` still says
-    "Vxc::CalcMatrix".  It is a comment only, and SCFIterator is on the MnO campaign's DO-NOT-TOUCH list,
-    so it was NOT edited — reaching into their working set for a comment is not worth a collision.  Sweep it
-    when that list is released.
+  - **ONE STALE COMMENT LEFT BEHIND ON PURPOSE — ✅ GONE BY DRIFT (verified 2026-09-06: `grep -rn
+    "Vxc::CalcMatrix" src/` finds nothing).**  It said `src/SCFIterator/Imp/SCFIterator.C:186` still reads
+    "Vxc::CalcMatrix"; it was a comment only, and SCFIterator was on the MnO campaign's DO-NOT-TOUCH list,
+    so it was NOT edited — reaching into their working set for a comment is not worth a collision.  The
+    list is long released and some later edit swept it; nothing to do.
   - Found while writing up R2.9(ii), where "return by value" was considered as a fix to `GetMatrix` — the
     convention says that was the wrong half of the pair to reach for.
 
@@ -3160,3 +3161,76 @@ memo keys are logical density SERIALS (not pointers) since the Dynamic_HT fix, w
 the sequence across a stage boundary is fine, but that is an argument, not a measurement.
 ★ Acceptance: `Etot` bit-identical on the MnO annealed row, and the ledger showing
 `setup: hamiltonian ctor [x1]` instead of `[x2]`.
+
+---
+
+### Scope correction (2026-09-06, on review): it is THREE deletes, THREE facades, and the Hamiltonian is a SYMPTOM
+
+**(a) `~tSCFIterator` deletes three raw pointers, and one rule covers all of them.**
+
+| member | origin | today | verdict |
+|---|---|---|---|
+| `itsHamiltonian` | **given** by the caller | `delete` | ❌ the item above |
+| `itsAccelerator` | **given** by the caller | `delete` | ❌ the same defect, unstated |
+| `itsWaveFunction` | **created** in the ctor (`WaveFunction::Factory`) | `delete` | ✓ right to free, wrong to be raw |
+
+`itsMixer`, `itsOccPolicy` and `itsOccState` are already `unique_ptr`/by-value, so the class is half
+modernised and the three survivors ARE the three deletes.  One rule finishes it — **what you are handed you
+do not delete; what you make you hold in a `unique_ptr`** — and `~tSCFIterator` becomes `= default`.
+Do the accelerator WITH the Hamiltonian: "a stage needs a fresh accelerator" is a lifetime policy for the
+composition root, not a reason for a USER to own it.
+
+**Two comments die with it, both currently false or apologetic:**
+- `src/SCFIterator/Imp/SCFIterator.C`, three lines above the dtor: *"Recall that the wavefunction is not
+  owned buy this."* — the WF is the one of the three that IS owned.  A comment a future reader would trust
+  (the R1.9 lesson), plus the typo.
+- `src/WaveFunction/Internal/Imp/CompositeWF.C:224`: `// delete itsAccelerator; NO!!!! SCFiterator deletes
+  the accelerator.`  A comment that exists only to document the awkward ownership; it evaporates.
+
+**(b) THREE facades rebuild, not one.**  `Calculation::Converge` (Imp/Calculation.C:195) and
+`AtomCalculation::Converge` (Imp/AtomCalculation.C:159) both `delete itsScf` — *"releases the previous
+Hamiltonian + accelerator"* — and rebuild.  So a second `Converge()` on a MOLECULE or an ATOM rebuilds its
+Hamiltonian too.  Same fix, same rule; the call-site list is SolidCalculation ×3 **+ both molecular facades**.
+
+### WHAT IS A "STAGE BOUNDARY"? (user asked, 2026-09-06 — it is not only kT)
+
+A stage is `SCFStage = {SCFParams params, SCFAccelerators::Type accelerator}` (SolidCalculation.C:332).
+So a boundary changes **two** things: the whole `SCFParams` — of which `SmearingkT` is the headline, and the
+only one `EmitStageSummary` prints — **and the accelerator TYPE**, whose own field comment says *"per stage,
+so a recipe can anneal on DIIS and finish on GDM"*.  Two other transitions share this machinery: a plain
+re-`Converge(params)` on the same object (all three facades), and grid continuation (a DIFFERENT basis/mesh,
+hence genuinely a different object graph — out of scope here).
+
+**What should live through a boundary, and why:**
+
+| object | live? | reason |
+|---|---|---|
+| structure / basis / EC | ✅ already does | facade-owned; nothing per-stage touches them |
+| **Hamiltonian** | ✅ **should** | a pure function of (structure, basis, species, functional, xcMesh, vxcFit) — a stage changes NONE of them.  15.5 s × (N−1) thrown away today.  ⚠ still owed: confirm no term holds per-stage state.  Memo keys are density SERIALS (not pointers) since the Dynamic_HT fix, so continuing the sequence across a boundary should be fine — an argument, not a measurement. |
+| **SCFIterator** | ✅ **should** — and it is the one that buys the carries | it holds the `OccupationState` (MOM references + fill clocks, which **R2.21 built specifically to survive reconfiguration** — "annealed runs call Iterate per stage with DIFFERENT kT"), the density lineage, and the probe/observer slots.  Rebuilding it is what FORCES BuildStage's two hand-written carries.  ⚠ audit first: `itsMixer` holds ρ-mixing (Kerker/Pulay) history — the DENSITY-side analogue of stale DIIS — and a kT change re-seeds the occupations, so carrying it may be as wrong as carrying the accelerator's.  `itsIterationCount` / `itsConverged` must reset per stage. |
+| **SCFAccelerator** | ❌ **must not** (user, and for TWO reasons) | (i) stale DIIS/GDM history across a re-seed; (ii) **the TYPE changes by design** — anneal on DIIS/Ladder, finish on GDM, and *Ladder-with-GDM does not work at kT>0*.  Because the type changes, the operation is **replace, not reset** (there is no `Reset()` on the face, and adding one would not serve a type change anyway).  ⇒ the facade OWNS it and swaps it at the boundary; the iterator holds it non-owning.  "Handle it dynamically" is then just: the schedule names the type, the facade builds it. |
+| **WaveFunction** | ⚠ **coupled — and THIS is what forces today's rebuild** | `tCompositeWF` takes the accelerator MANAGER at construction and creates one `tSCFIrrepAccelerator` per irrep from it (`CompositeWF.C:213`).  So: new accelerator type ⇒ new per-irrep accelerator children ⇒ (today) new WaveFunction ⇒ new iterator ⇒ **new Hamiltonian, because the iterator deletes it**.  That chain is the whole item in one line.  Persisting the WF needs a way to re-create its per-irrep accelerators from a new manager (a `ResetAccelerators(acc&)` walk) — the real design question hiding behind "who owns the Ham?". |
+
+### ⇒ SEQUENCE — and step 1 is worth doing entirely on its own
+
+- **Step 1 — OWNERSHIP ONLY.**  Hamiltonian and accelerator become non-owning on the iterator (the facade
+  owns both), the WaveFunction becomes a `unique_ptr`, `~tSCFIterator` becomes `= default`.  `BuildStage`
+  keeps rebuilding the accelerator, the WF and the iterator; it simply stops rebuilding the **Hamiltonian**.
+  **This captures the ENTIRE measured 19%** with a mechanical, compiler-enforced diff and no behavioural
+  question anywhere.
+- **Step 2 — PERSIST THE ITERATOR (optional, gated).**  Buys the WF re-`Init` (a stage's first Fock and
+  diagonalisation) and DELETES the two carries rather than re-implementing them.  Gated on the
+  accelerator-in-WF coupling above and on the mixer-history audit.
+
+★ Acceptance, step 1: `Etot` bit-identical on the MnO annealed row + the ledger showing
+`setup: hamiltonian ctor [x1]` (unchanged from the item above).
+★ Acceptance, step 2: the `AdoptMOMReference(prev…)` and `AttachProbes()` calls in `BuildStage` DISAPPEAR —
+if either has to be reimplemented, the boundary was not actually removed.
+
+**Two compensations to read before starting** (they are the evidence the boundary destroys too much):
+`BuildStage` re-adopts the MOM reference from the previous iterator, and re-attaches the probes with the
+warning that forgetting it makes an annealed run *"go quiet — silently, which is the worst kind"*.
+
+*(Doc correction found while reviewing: R2.18's sub-note "ONE STALE COMMENT LEFT BEHIND ON PURPOSE —
+`SCFIterator.C:186` still says Vxc::CalcMatrix … sweep it when that list is released" is DONE BY DRIFT.
+`grep -rn "Vxc::CalcMatrix" src/` finds nothing tree-wide.)*
