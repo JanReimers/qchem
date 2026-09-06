@@ -812,6 +812,9 @@ atom-centred radial mesh.  Grid made as fine as the tolerance allows + centre-bu
 | `FoldMesh` | 9.47 → **0.151** s/call | 9.47 → **0.190** s/call |
 | Hamiltonian construction, all in | — | 34.4 → **15.5** s/call |
 | **WHOLE RUN** | 313.9 → **237.2 s** (**1.32×**) | 120.8 → **83.2 s** (**1.45×**) |
+
+⚠ The "GPW_OMP unset" column is a MIXED arm, not a serial one (see the protocol note below) — both sides
+of its 1.32× were taken the same way, so the ratio is sound, but do not read it as a serial figure.
 | setup / SCF split | 71.8 / 165.2 s | 32.1 / 51.1 s |
 | peak RSS | 496 → 506 MB | 562 → 561 MB |
 
@@ -826,11 +829,33 @@ burns the box and lets each increment mask the last.  Same discipline as the anc
 Phase 1 — after 1.2 (BLAS-mode arm) and 1.3 (the 2×6), which move them again.  Until then read the ratios
 in §5a/§7a as a floor on our side and quote 1.1(b)'s numbers for anything that turns on the MnO wall.
 
-⚠ **THE BECKE MESH BUILD ROW COLLIDES WITH THE TABLE ABOVE, AND IS NOT RESOLVED HERE.**  It measures the
-same in both arms (15.4 vs 15.8 s) where the banked row says 138.2 → 16.9 s (8.2×), and this run's UNSET
-figure sits next to the banked THREADED one.  Either the bucket got ~9× cheaper since (several speedups
-have landed) or the two "serial" arms are different configurations.  §5e already carries this as open.
-▶ One A/B on the current build settles it; until then quote neither figure as the mesh build's scaling.
+✅ **THE BECKE MESH BUILD "COLLISION" IS RESOLVED, AND THE BANKED ROW WAS RIGHT — MY ARM WAS WRONG**
+(2026-09-06).  The flag raised here said the mesh build measured the same in both arms (15.4 vs 15.8 s)
+where §7c banks 138.2 → 16.9 s (8.2×).  One run at `GPW_OMP_THREADS=1` settles it:
+
+| arm | CPU% | `setup: becke mesh build` |
+|---|---|---|
+| `GPW_OMP_THREADS=1` | **99%** | **68.74 s/call** |
+| `GPW_OMP_THREADS` unset | 188% | 7.10 s/call |
+| `GPW_OMP_THREADS=12` | 469% | 8.15 s/call |
+
+⇒ The mesh build threads at **8.4×**, §7c's 8.2× stands, and §5e's open question is closed.
+
+★★★ **THE REAL FINDING IS A PROTOCOL DEFECT: `GPW_OMP_THREADS` UNSET IS NOT A SERIAL ARM.**  The Becke
+build is *"parallel by DEFAULT under QCHEM_OPENMP; `GPW_OMP_THREADS`, when set, is honoured as the thread
+CAP"* (`UnitCell.C`) — so UNSET means **all cores** for that loop while the GPW pair loops stay serial.
+An "unset" row is therefore a MIXED arm, not a serial one, and its 169–188% CPU says so out loud.  This is
+§4's own *"a knob is not a measurement"* rule biting the person who wrote it down.
+▶ **A serial row MUST set `GPW_OMP_THREADS=1`** (99% CPU is the check).  Any row in this file whose serial
+arm reads much above 100% CPU was taken the mixed way and should be re-taken at the Phase-1 re-bank.
+
+**MnO ALL DEFAULTS, post-1.1(b), `Etot=-61.40297529` on all three arms:**
+
+| arm | wall | vs serial |
+|---|---|---|
+| `GPW_OMP_THREADS=1` (true serial) | **361.2 s** | 1.00× |
+| unset (mixed) | 237.2 s | 1.52× |
+| `=12` | **83.2 s** | **4.34×** |
 
 ★ **THE BECKE MESH BUILD THREADS AT 8.2× — §5e's open question is CLOSED, and the answer is "it threads
 fine on MnO".**  Whatever holds NaF back (7d) is not the loop being serial.

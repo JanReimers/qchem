@@ -101,13 +101,14 @@ ledger now reports it as a per-call price instead of two unrelated rows.
 8.7×), which is exactly why it went unnoticed: the bucket beside it scales beautifully.  At 12 threads it
 is 38% of the wall on its own.
 
-⚠ **AND ONE CROSS-ARM READING THAT DOES NOT MATCH THE BANKED TABLE, FLAGGED NOT RESOLVED.**  The Becke mesh
-build measures **15.4 s unset against 15.8 s at 12 threads — no change at all**, where `doc/Benchmark.md`
-§7c banks 138.2 s → 16.9 s (8.2×) for the same bucket.  This run's unset figure is close to §7c's THREADED
-one, so either the mesh build has become ~9× cheaper since those rows were taken (plausible — several
-speedups have landed) or the two "serial" arms are not the same configuration.  §5e already carries this as
-an open collision.  ▶ Settle it with one A/B on the CURRENT build before quoting either number again; do
-not fold it into (b)'s argument, which stands on the ctor's exclusive half regardless.
+✅ **ONE CROSS-ARM READING DID NOT MATCH THE BANKED TABLE — FLAGGED, THEN RESOLVED AGAINST ME.**  The Becke
+mesh build measured 15.4 s unset against 15.8 s at 12 threads (no change), where `doc/Benchmark.md` §7c
+banks 138.2 → 16.9 s (8.2×).  One `GPW_OMP_THREADS=1` run settled it: **68.74 s/call serial against
+8.15 s/call at 12 threads = 8.4×**.  §7c was right and my arm was wrong — **`GPW_OMP_THREADS` UNSET IS NOT
+A SERIAL ARM**: the Becke build is parallel by default and reads the variable only as a thread CAP, so
+"unset" runs that loop on all cores while the GPW pair loops stay serial (169–188% CPU, which is the tell).
+A serial row must set `GPW_OMP_THREADS=1` and check for 99% CPU.  Recorded in `doc/Benchmark.md` §7c as a
+protocol rule, because it invalidates the serial arm of any row taken the mixed way.
 
 ⇒ **THE LEDGER IS NOW A PARTITION OF THE RUN**, in both arms, which is the property that makes it an
 argument rather than a list: "everything not in a bucket" can no longer be the largest block in the table,
@@ -190,9 +191,12 @@ re-derives it: the duplication is real, it is now 0.3% of the ctor, and a correc
 **Do not spend a session on it.**
 
 ▶ **WHAT (b) LEAVES OPEN, now that the ctor is 15.5 s/call:**
-1. **The Becke mesh build, 8.15 s/call, is now the largest setup bucket** — and §7c's banked 8.2× threading
-   for it is contradicted by this session's own arms (see the ⚠ below the table above).  Settle that first.
-2. **Site-adapted angular sets, 4.03 s/call** — never measured before, never suspected.
+1. ✅ **The Becke mesh build is the largest setup bucket (8.15 s/call at 12 threads) and it THREADS at 8.4×**
+   — settled above, §7c stands.  Serially it is 68.74 s/call, i.e. **38% of a true-serial 361 s run**, so it
+   is the top target for 1.2/1.3's serial arm rather than for threaded work.
+2. **Site-adapted angular sets, 4.03 s/call, and they do NOT thread** (4.05 serial / 4.04 unset / 4.03 at
+   12 threads — flat across every arm).  Never measured before, never suspected; now ~5% of the threaded
+   wall and rising as everything around it gets faster.
 3. **Why it is built TWICE at all.**  ⚠ **ANSWERED, AND IT IS OWNERSHIP, NOT PHYSICS**: `tSCFIterator`'s
    destructor does `delete itsHamiltonian` — it deletes an object it did not create — so `BuildStage` MUST
    hand each stage a fresh one or the previous iterator's destructor takes it down.  The test harness says
