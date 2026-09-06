@@ -15,8 +15,9 @@ either history.
 
 ## ▶ WHAT IS OPEN — START HERE
 
-> **▶ NEXT SESSION — BIN 1 IS ONE GATHER WIDE, AND THAT GATHER IS BEHIND N4.  So the next action is
-> BIN 2: the Becke mesh build.**
+> **▶ NEXT SESSION — ONE NEXT ACTION: SIZE THE BECKE GRID (put the uniform probe on the existing Becke
+> ladder).**  Bin 1's like-for-like gap is one gather and that gather is behind N4; bin 2 is large but is
+> gated on the grid RECIPE, not on the build's code — see item 1 below for both.
 >
 > ★★★ **THE PARITY GAP IS CALL COUNT, NOT KERNEL — MEASURED 2026-09-05 (§5f).**  Per call our gather is
 > **0.88×** CP2K's and our collocation **0.93×**, and both codes spend ~99% of the run in those two
@@ -69,14 +70,36 @@ either history.
 >
 > **THEN, in order:**
 >
-> **1. ▶ BIN 2 — THE BECKE MESH BUILD (the live item).  Measured serially 2026-09-05 and it is large**: MnO's setup is
-> **181.4 s = 44% of the DEFAULT run** against CP2K's 8.1 s (**22×**), of which **136.6 s is TWO Becke mesh
-> builds** (68.3 s each, one per anneal stage) + 43.1 s of XC-mesh Φ tables.  ⚠ It does NOT touch the
-> parity row (setup 1.76 s there, BEATING CP2K's 8.1 s), which is why it is item 1 and not the next action.
-> Two free questions first: (a) **why TWO builds** for the same cell; (b) the build THREADS
-> (`src/Structure/Imp/UnitCell.C:273`) — 68.3 s serial against the 16.7 s the 09-04 threaded ledger read —
-> which collides with the NaF Amdahl reading below.  Measure its speed-up curve on MnO and NaF separately
-> (`doc/Benchmark.md` §5e) before optimising anything inside it.
+> **1. ⛔ BIN 2 — THE BECKE MESH BUILD IS GATED ON ITS GRID SIZE, NOT ON ITS CODE** (user, 2026-09-06:
+> *"I am reluctant to work on that until identify the proper becke grid size (Nradial=40, Nangular=29 is
+> big) that yields the same accuracy some metric (‖Vxc−Vxcfit‖?) as the uniform 20³ mesh.  Becke is always
+> more expensive to setup, no way around that.  It is parallel which helps."*)
+>
+> The cost is real — MnO's setup is **184.3 s = 47% of the DEFAULT run** against CP2K's 8.1 s (**23×**), of
+> which **136.6 s is TWO Becke mesh builds** (68.3 s each) + 43.1 s of XC-mesh Φ tables — but the first
+> question is how many points the recipe actually needs.  `nRadial=40, degree=29` sets the entire Becke side
+> of every cost comparison in this tracker and the build scales with it directly, so a recipe that is 2×
+> oversized is a 2× saving with no engineering at all.  ⇒ **CALIBRATE FIRST, AND POSSIBLY FIND THERE IS
+> NOTHING LEFT TO OPTIMISE.**  ⚠ It does NOT touch the parity row either way (setup 1.76 s there, BEATING
+> CP2K's 8.1 s).
+>
+> ✅ **THE HARNESS ALREADY EXISTS** in `IntegrationTests/GPW_SCF_UT.C`: `BeckeLadder()` sweeps the angular
+> degree at fixed \f$n_R\f$ and \f$n_R\f$ at fixed degree on ONE frozen density, scoring every rung against
+> a dense reference (nR=100, GL-41) by \f$\Delta E_{xc}\f$ and \f$\max|\Delta V_{xc}(i,j)|\f$ — and
+> `UniformXCProbe()` scores the uniform route on the SAME metric (it is what
+> `BeckeXCMatchesUniformXC_SiGamma` compares against today).  **What is missing is ONE ROW**: put the
+> uniform probe on the ladder, then read off the smallest \f$(n_R,\text{degree})\f$ whose error is ≤ the
+> uniform raster's.  That answers the question as asked, in the metric asked for.
+> ⚠ Two standing rules from the V2.6/V2.6a work, both still binding: a frozen density UNDERSTATES the
+> self-consistent shift on a METAL (Al moved 6.4e-4 in total energy where its ladder said 3.9e-4) ⇒
+> calibrate on a metal or do not ship a global default; and Al's convergence is NON-MONOTONIC in the angular
+> degree, so no "degree N suffices" claim survives a three-insulator sample.
+>
+> ⇒ **TWO ITEMS SURVIVE THE GATE and are worth having whatever the calibration says**: (a) **why TWO
+> builds** for the same cell — the anneal's two stages each build one, and that redundancy is independent of
+> grid size; (b) the build THREADS (`src/Structure/Imp/UnitCell.C:273` — 68.3 s serial against the 16.7 s
+> the 09-04 threaded ledger read, ~4×), which is the user's *"it is parallel which helps"* and which still
+> collides with the NaF Amdahl reading below (`doc/Benchmark.md` §5e).
 > ⚠ The NaF threading finding that promoted bin 2 still stands as written: on NaF the Amdahl-inferred
 > serial time (9 s) matches the measured setup buckets (9.7 s, of which the Becke mesh build alone is 7.0 s
 > on a TWO-ATOM cell) to ~7%; the SCF threads essentially perfectly.

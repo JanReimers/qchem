@@ -318,13 +318,25 @@ mix, so rule 3d applies; and **`CP2K_COMPAT=1` is our best KNOWN parity, not pro
 deviation list has grown every time anyone has looked (4 → 7 items).
 ⇒ **BIN 1 IS NOT CLOSED, but it is now one gather wide on the comparable algorithm.**
 
-★★★ **AND THE TABLE HANDS BIN 2 ITS NEXT ACTION, MEASURED.**  MnO's serial setup is **184.3 s — 47% of the
-default run — against CP2K's 8.1 s (23×)**, and **136.6 s of it is TWO Becke mesh builds** (68.3 s each,
-one per anneal stage; the rest is 43.1 s of XC-mesh Φ tables).  Both vanish with `QCHEM_BECKE_XC=0`, where
-our setup is **1.76 s and BEATS CP2K's 8.1 s**.  ⇒ Bin 2 is a Becke-mesh question, exclusively, and on the
-MnO row it is now worth more than anything left in bin 1 on that route.
-⚠ **Two builds, and the second is for the same cell** — the anneal's two stages each build one.  Whether
-that is avoidable is the first thing to ask, before anything is optimised inside the build.
+★★★ **AND THE TABLE SIZES BIN 2, MEASURED.**  MnO's serial setup is **184.3 s — 47% of the default run —
+against CP2K's 8.1 s (23×)**, and **136.6 s of it is TWO Becke mesh builds** (68.3 s each, one per anneal
+stage; the rest is 43.1 s of XC-mesh Φ tables).  Both vanish with `QCHEM_BECKE_XC=0`, where our setup is
+**1.76 s and BEATS CP2K's 8.1 s**.  ⇒ Bin 2 is a Becke-mesh question, exclusively.
+
+⛔ **BUT IT IS A GRID-SIZE QUESTION BEFORE IT IS A CODE QUESTION** (user, 2026-09-06): *"I am reluctant to
+work on that until identify the proper becke grid size (Nradial=40, Nangular=29 is big) that yields the
+same accuracy … as the uniform 20³ mesh.  Becke is always more expensive to setup, no way around that.  It
+is parallel which helps."*  The build scales with the point count, and `nR=40, degree=29` sets the entire
+Becke side of every cost figure on this page — so the recipe, not the loop, is what to attack first.
+⇒ **The calibration is the gate**, and the harness for it exists (`BeckeLadder` + `UniformXCProbe` in
+`IntegrationTests/GPW_SCF_UT.C`, scoring \f$\Delta E_{xc}\f$ and \f$\max|\Delta V_{xc}|\f$ on one frozen
+density); what is missing is putting the uniform probe on the ladder so the crossover can be read off.
+`doc/OpenWork.md`'s next action carries it, including the two standing rules the V2.6a work earned (a
+frozen density understates the self-consistent shift on a METAL; Al's angular convergence is
+non-monotonic).
+⚠ **Two things survive the gate whatever it says**: the build is `omp parallel for`
+(`src/Structure/Imp/UnitCell.C:273`, ~4× — the user's *"it is parallel which helps"*), and **there are two
+builds for the same cell**, one per anneal stage, which is a redundancy independent of grid size.
 
 ⚠ **WHAT MOVED, AND WHY — rule 3a's check, honestly reported.**  **Iteration counts**: removing the
 gather's density screen (`a7561e92`) is not bit-identical, so the small rows took a different SCF path —
