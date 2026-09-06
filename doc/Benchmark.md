@@ -39,7 +39,7 @@ CPU column overstates qchem wherever it threads — and another reason the singl
 
 | bin | the axis | where it stands (MnO AFM-II VA, 2026-09-04) |
 |---|---|---|
-| **1** | **per-iteration CPU** | ★ **PER SCF ITERATION WE ARE AHEAD ON 7 OF 9 ROWS** (§5a, 2026-09-05, both codes pinned serial): MnO ALL DEFAULTS **0.82×**, MnO FM **0.77×**, `QCHEM_BECKE_XC=0` **0.45×**, Si **0.14× / 0.66× / 0.56×**, NaF full-SR **0.18×**.  The two losses are NaF SR2 **1.45×** (a Becke cost) and — the one that counts — `CP2K_COMPAT=1` **1.72×** (was 2.05× before §5f's lever A).  ⇒ **NOT closed: the parity row decides it** |
+| **1** | **per-iteration CPU** | ★ **PER SCF ITERATION WE ARE AHEAD ON 7 OF 9 ROWS** (§5a, 2026-09-05, both codes pinned serial): MnO ALL DEFAULTS **0.82×**, MnO FM **0.77×**, `QCHEM_BECKE_XC=0` **0.45×**, Si **0.14× / 0.66× / 0.56×**, NaF full-SR **0.18×**.  The two losses are NaF SR2 **1.45×** (a Becke cost) and — the one that counts — `CP2K_COMPAT=1` **1.72×** (was 2.05× before §5f's lever A).  ⇒ **NOT closed** — but on the SAME ALGORITHM (our fixed-point stage against CP2K's diagonalise-and-mix decks) it is **1.13×**, three gathers against their two, and the third gather is §5f lever B, behind N4.  The 1.72× two-stage figure adds a GDM line search CP2K's runs have no counterpart for |
 | **2** | **init / pre-iteration** | ⛔ **PROMOTED, and now measured serially: MnO's setup is 184 s = 47% of the default run against CP2K's 8.1 s (23×)**, of which **136.6 s is two Becke mesh builds** (§5a).  The earlier "~57 s of 328 s" was a THREADED ledger bucket — the build's partition loop is `omp parallel for`.  ✅ With `QCHEM_BECKE_XC=0` our setup is **1.76 s and beats CP2K's 8.1 s** — so bin 2 is a Becke-mesh question, exclusively |
 | **3** | **peak RAM** | ✅ **solved, and we win**: ~476 MB defaults, **113–132 MB on the parity routes against CP2K's 217 MB** |
 | **4** | **iteration count** | 31 (defaults) / capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  The two codes do not run the same ρ-mixing algorithm (doc/OpenWork.md) |
@@ -264,7 +264,21 @@ divides — and the two disagree by 1.8× on MnO precisely because 44% of that r
 | **MnO AFM-II — ALL DEFAULTS** (5 of §2's 7 deviations active ᵃ) | VA, 1 k | 14+17 = **31** | 395.6 s | **184.3 s** | **6.817** | 44 | 372.9 s | 8.1 s | 8.291 | **0.82×** ✅ | 12.76 | 1.51× |
 | MnO AFM-II, `QCHEM_BECKE_XC=0` (4 of 7 — ONE rung down, NOT parity ᵃ) | VA, 1 k | 14+25 = **39** | 147.0 s | 1.81 s | **3.723** | 44 | 372.9 s | 8.1 s | 8.291 | **0.45×** ✅ | 3.769 | 0.44× |
 | ⚠ MnO AFM-II, `CP2K_COMPAT=1` probe (0 of 7 — `AT PARITY` as far as is KNOWN ᵃ) | VA, 1 k | 10+10 = **20**, CAPPED | 287.5 s | 1.89 s | **14.28** | 44 | 372.9 s | 8.1 s | 8.291 | **1.72×** ⛔ | 14.38 | 1.70× |
+| ★ **…the same row's FIXED-POINT stage alone — THE LIKE-FOR-LIKE NUMBER** ᵇ | VA, 1 k | marginal | 37.4 s / 4 it | cancels | **9.35** | 44 | 372.9 s | 8.1 s | 8.291 | **1.13×** | 9.35 | 1.13× |
 | MnO **FM** — ALL DEFAULTS | VA, 1 k | 18+15 = **33** | 398.0 s | **184.8 s** | **6.460** | 22 | 192.4 s | 8.7 s | 8.350 | **0.77×** ✅ | 12.06 | 1.38× |
+
+ᵇ **THE SCF DRIVERS ARE NOT THE SAME ALGORITHM, so the two-stage probe above is not one comparison but
+two.**  Our recipe anneals `Ladder,GDM`: stage 1 is a FIXED-POINT step (diagonalise the mixed Fock, mix the
+density), stage 2 is DIRECT MINIMISATION with a geodesic line search.  **CP2K's benchmarked decks
+diagonalise and mix** — `&DIAGONALIZATION` + Broyden (MnO, NaF) or DIIS/P_Mix (Si), verified in the decks
+and in every log's update-method column; **none of them run `&OT`** (only the unbenchmarked `naf_gpw.inp`
+does, and it says why: diagonalisation diverged on that diffuse basis).  ⇒ Stage 1 IS comparable to what
+CP2K is doing; stage 2 has no counterpart in these runs, and the line search's trial densities land in the
+probe's per-iteration average.  This row isolates stage 1 by DIFFERENCING `GPW_MNO_NMAX` (a single-stage
+`MNO_ANNEAL=5e-3` run at N=6 against N=2, so the setup and seed cancel and what is left is the marginal
+cost of one iteration): **3 gathers + 2 collocations per iteration against CP2K's 2 + 2**, and at our
+per-call rate that is 9.35 s against 8.29.  ⇒ **On the same algorithm we are 1.13×, and the whole residual
+is the third gather** — \f$V_H\f$ gathered separately from \f$v_{xc}^\sigma\f$ (§5f lever B).
 
 ᵃ **counted off each run's own banner**, not from memory (rule 3b).  Defaults:
 `QCHEM_DM_LOWRANK=on* GPW_STREAM_FOLD=on* QCHEM_MIX_RHO_M=off GPW_XC_DM_SOURCE=off
@@ -277,14 +291,19 @@ route (0.82×) and its FM arm (0.77×).  Two rows are behind, and they are behin
 
 ⛔ **NaF SR2 Γ — 1.45×, and it is a Becke cost, not a GPW one.**  43% of that row's CPU is setup.  §5e.
 
-⛔ **THE PARITY ROW IS STILL 1.72×, AND IT IS THE ONE THAT DECIDES BIN 1.**  `CP2K_COMPAT=1` also removes
-the stream fold (5.2× on MnO's pair count) and the low-rank ρ, so this row is the honest
-algorithm-to-algorithm number and the other MnO rows are not.  ⚠ Two caveats, both real:
-`GPW_MNO_NMAX=10` CAPS it at 20 iterations with a different stage mix, so rule 3d applies (per-iteration is
-not strictly comparable across caps); and **`CP2K_COMPAT=1` is our best KNOWN parity, not proven parity** —
-§2's deviation list has grown every time anyone has looked (4 → 7 items), so a new find can move this row
-in either direction.
-⇒ **BIN 1 IS NOT CLOSED.**
+⛔ **THE PARITY ROW, AND WHAT IT ACTUALLY MEASURES.**  `CP2K_COMPAT=1` removes the stream fold (5.2× on
+MnO's pair count) and the low-rank ρ as well, so this is the honest algorithm-to-algorithm row and the
+other MnO rows are not.  It reads **1.72×** — but the two-stage probe runs a MINIMISER (GDM) that CP2K's
+decks do not, so read the two rows separately (footnote ᵇ):
+- **on the same algorithm — fixed point, diagonalise and mix, both codes — we are 1.13×**, and the entire
+  residual is the third gather (§5f lever B, blocked behind N4);
+- the **1.72×** adds our stage-2 GDM line search, whose trial densities have no counterpart in a CP2K run
+  that is mixing rather than minimising.  ⇒ It is not a like-for-like step cost, and chasing it as one
+  would be optimising against a comparison that does not exist.
+⚠ Two further caveats, both real: `GPW_MNO_NMAX=10` CAPS the probe at 20 iterations with a different stage
+mix, so rule 3d applies; and **`CP2K_COMPAT=1` is our best KNOWN parity, not proven parity** — §2's
+deviation list has grown every time anyone has looked (4 → 7 items).
+⇒ **BIN 1 IS NOT CLOSED, but it is now one gather wide on the comparable algorithm.**
 
 ★★★ **AND THE TABLE HANDS BIN 2 ITS NEXT ACTION, MEASURED.**  MnO's serial setup is **184.3 s — 47% of the
 default run — against CP2K's 8.1 s (23×)**, and **136.6 s of it is TWO Becke mesh builds** (68.3 s each,
@@ -569,7 +588,7 @@ per-iteration budget was 4×1.882 + 2×1.889 = **11.3 s** against CP2K's 2×2.13
 |---|---|---|
 | **A** | **\f$E_H\f$ WITHOUT A MATRIX** — \f$E_H=\tfrac12\mathrm{Tr}(DV_H)=\tfrac12\Omega\sum_{\Delta G}\overline{\tilde\rho}V_H\f$, a G-space pairing on the fit ball.  Not an approximation: the gather is the exact adjoint of the collocation, so Parseval makes the two expressions equal by construction.  ★ **AND ONE MAP IS ENOUGH** — \f$V_H=k\tilde\rho\f$ with \f$k\f$ real, so \f$\overline{\tilde\rho}V_H=|V_H|^2/k\f$ and \f$\tilde\rho\f$ is never fetched (a second fetch costs a second IBZ star-average of the whole map: 16 ms/call on Si Γ) | ✅ **LANDED `9f4f4ae2`.  Parity probe 341.4 → 287.5 s CPU (−15.8%), gathers 95 → 66, 2.05× → 1.72×.**  Si 2×2×2 rows −19.5% / −11.4% (the same fix memoizes \f$V_H\f$ across irrep blocks).  806/806, every iteration count and \f$E_{tot}\f$ reproduced |
 | **B** | **ONE GATHER PER SPIN: \f$\langle i|V_H+v_{xc}^\sigma|j\rangle\f$** — CP2K's `sum_up_and_integrate`, and the `CompositeExFunctional` argument one level up | ⛔ **REFUTED ON MEASUREMENT — the two fields are not on the same discretization.**  See below |
-| **C** | the GDM LINE SEARCH's trial densities — **42 of the probe's 82 collocations**, i.e. ~28% of the run after A.  ⚠ NOT a free win: bin-4 currency (steps to convergence) spent as bin-1 work | ▶ **NOW THE BIGGEST REMAINING ITEM**, and it must be judged on total \f$H\f$-builds to convergence, never per iteration |
+| **C** | the GDM LINE SEARCH's trial densities — **42 of the probe's 82 collocations**, i.e. ~28% of the run after A | ⏸ **PARKED AS A TODO UNTIL WE HAVE OT** (user, 2026-09-06).  See below |
 
 ⛔ **WHY B IS REFUTED (2026-09-05).**  Summing the two potentials needs them on ONE representation, and they
 are deliberately on two: **\f$V_H\f$ is a BALL field** (band-limited, Poisson in G, gathered by the ball
@@ -583,10 +602,18 @@ made \f$\tilde\rho\f$, which is exactly the property lever A's Parseval identity
 available if N4 lands** (`doc/OpenWork.md`: make everything robust with \f$V_{xc}[\rho\ge0]\f$), and not
 before.  Filed there, not here.
 
-⇒ **WHERE THAT LEAVES THE PARITY ROW** (re-measured after A): **3.3 gathers + 4.1 collocations per iteration** against CP2K's
-2 and 2.  With the term assembly now at its floor (1 Hartree + 2 XC = 3 gathers; CP2K reaches 2 only by
-summing them), **the remaining gap is the COLLOCATION count, i.e. lever C.**  At our per-call rate, 3
-gathers + 2 collocations would be 9.5 s against CP2K's 8.3 — **≈1.14×**.
+⏸ **WHY C IS PARKED, NOT PURSUED (user, 2026-09-06).**  *"CP2K uses the OT method instead of GDM so we
+can't do proper parity timings against CP2K anyway."*  The line search is DIRECT MINIMISATION; CP2K's
+counterpart for that is OT, which we do not have — and (checked in the decks and logs, §5a footnote ᵇ) the
+benchmarked CP2K runs are not even using OT: they diagonalise and mix.  ⇒ There is no comparable step to
+optimise C against.  **Trial-density cost becomes a real question when OT exists and can be timed against
+GDM, minimiser to minimiser; until then it is a TODO, not a lever.**
+
+⇒ **WHERE THAT LEAVES BIN 1.**  Measure the stage CP2K's decks actually match — our FIXED-POINT stage —
+and it is **3 gathers + 2 collocations per iteration against CP2K's 2 + 2, i.e. 9.35 s against 8.29 =
+1.13×** (§5a's fixed-point row, differenced 2026-09-06).  The term assembly is at its floor: 1 Hartree +
+2 XC, and CP2K reaches 2 only by summing \f$V_H\f$ into \f$v_{xc}^\sigma\f$ before integrating.
+⇒ **The whole remaining like-for-like gap is lever B, and lever B is behind N4.**
 
 ---
 

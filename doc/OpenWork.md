@@ -15,7 +15,8 @@ either history.
 
 ## ▶ WHAT IS OPEN — START HERE
 
-> **▶ NEXT SESSION — ONE NEXT ACTION: COUNT \f$H\f$-BUILDS TO CONVERGENCE (`doc/Benchmark.md` §5f lever C).**
+> **▶ NEXT SESSION — BIN 1 IS ONE GATHER WIDE, AND THAT GATHER IS BEHIND N4.  So the next action is
+> BIN 2: the Becke mesh build.**
 >
 > ★★★ **THE PARITY GAP IS CALL COUNT, NOT KERNEL — MEASURED 2026-09-05 (§5f).**  Per call our gather is
 > **0.88×** CP2K's and our collocation **0.93×**, and both codes spend ~99% of the run in those two
@@ -35,14 +36,22 @@ either history.
 > vs spectral box) — it breaks the very adjointness lever A rests on.  ⇒ **B becomes available only if XC
 > gives up the raw \f$\rho_{DM}\ge0\f$ feed, i.e. only if N4 lands.**  Filed under N4, not as a bin-1 item.
 >
-> ▶ **SO THE REMAINING GAP IS THE COLLOCATION COUNT: 4.1 per iteration against CP2K's 2**, and 42 of the
-> probe's 82 collocations are the **GDM line search's trial densities**.  ⚠ That is bin-4 currency spent as
-> bin-1 work, so the FIRST move is a measurement, not an optimisation: **count \f$H\f$-builds (and
-> collocations) to CONVERGENCE on both codes** and compare that, not per-iteration cost.  If the line search
-> pays for itself in steps, bin 1 is finished at 3 gathers + 2 collocations ≈ **1.14×** and the honest
-> statement is about wall-to-convergence; if it does not, the trials are the last bin-1 lever.
+> ★★★ **AND THE LIKE-FOR-LIKE NUMBER IS 1.13× (measured 2026-09-06).**  Our recipe anneals `Ladder,GDM`;
+> CP2K's benchmarked decks DIAGONALISE AND MIX (`&DIAGONALIZATION` + Broyden/DIIS — checked in the decks and
+> in every log's update-method column; **none of them run `&OT`**).  So only our FIXED-POINT stage has a
+> counterpart there.  Differenced on its own (`GPW_MNO_NMAX` 6 against 2, single stage): **3 gathers + 2
+> collocations per iteration against CP2K's 2 + 2 = 9.35 s against 8.29 = 1.13×**, and the whole residual is
+> the third gather — lever B.  The two-stage probe's **1.72×** additionally carries the GDM line search's
+> trial densities, which have no counterpart in a run that is mixing rather than minimising.
 >
-> **THE ROW THIS ALL DECIDES: `CP2K_COMPAT=1`, now at 1.72× per SCF iteration.**
+> ⏸ **LEVER C (the trial densities) IS A TODO UNTIL WE HAVE OT** (user, 2026-09-06: *"CP2K uses the OT
+> method instead of GDM so we can't do proper parity timings against CP2K anyway"*).  It becomes a real
+> question when OT exists and can be timed against GDM, minimiser to minimiser.  Do not optimise it against
+> a comparison that does not exist.
+>
+> ⇒ **BIN 1's remaining like-for-like gap is ONE gather, and it is behind N4.**  So the live work is bin 2
+> (below), and the row to quote is `CP2K_COMPAT=1`: **1.13× on the comparable stage, 1.72× for the
+> two-stage probe.**
 > **THE TABLE THAT SAYS SO IS FILLED**: `doc/Benchmark.md` **§5a**, now its own section holding ONE table
 > (user, 2026-09-05), nine rows, BOTH codes pinned serial, and setup split out of the per-iteration figure.
 >
@@ -60,7 +69,7 @@ either history.
 >
 > **THEN, in order:**
 >
-> **1. BIN 2 — THE BECKE MESH BUILD.  Measured serially 2026-09-05 and it is large**: MnO's setup is
+> **1. ▶ BIN 2 — THE BECKE MESH BUILD (the live item).  Measured serially 2026-09-05 and it is large**: MnO's setup is
 > **181.4 s = 44% of the DEFAULT run** against CP2K's 8.1 s (**22×**), of which **136.6 s is TWO Becke mesh
 > builds** (68.3 s each, one per anneal stage) + 43.1 s of XC-mesh Φ tables.  ⚠ It does NOT touch the
 > parity row (setup 1.76 s there, BEATING CP2K's 8.1 s), which is why it is item 1 and not the next action.
@@ -127,6 +136,7 @@ stop competing for the reader's attention here:
 | **4** | **Step 5 — MnO accuracy, name the operator**: the sharpest coordinate on the list, with a banked oracle, and its first move is cheap | ⚠ **PIN `GPW_XC_DM_SOURCE` first** — individual terms move ~100 mHa with it, so the term-by-term CP2K breakdown means nothing until item 1 is settled. Then the cheap first move. | Step 5 |
 | **5** | **Step 0c — the instruments report WHAT, not WHEN** | Timestamp per report item (+ optional order-preserving render). Cheap, and it gates the pre-SCF work. | Step 0 |
 | **6** | **`FIT_SF_Ortho` — separate the metric axis into faces**: specced 2026-08-23, not built. `OverlapDiagonal` sits on the metric-NEUTRAL face, so `Fit_IBS` invents an answer in the wrong normalisation | Move it to `FIT_SF_Ortho<T>` (both fit faces in one increment) and `Fit_IBS` simply loses it — delete the landmine, do not correct it. ⚠ Acceptance criterion: must NOT become a `dynamic_cast` type switch. | *"★ SPECCED, NOT BUILT"* (near the end) |
+| **OT** | ⏸ **ORBITAL TRANSFORMATION (OT) — the minimiser CP2K actually ships, and the ONLY way to time a minimiser against theirs** (user, 2026-09-06: *"CP2K uses the OT method instead of GDM so we can't do proper parity timings against CP2K anyway"*).  Two things hang off it: a like-for-like STAGE-2 comparison (today only our fixed-point stage has a counterpart — CP2K's benchmarked decks diagonalise and mix), and `doc/Benchmark.md` §5f **lever C**, the GDM line search's trial densities (42 of the parity probe's 82 collocations), which cannot be judged without one. | Not scheduled.  When it is: build OT beside GDM under the existing accelerator/loop-driver seam (`doc/SCFStrategyPlan.md`'s role seams already anticipate another direct minimiser), then time OT-vs-OT and re-open lever C. | `doc/Benchmark.md` §5f + §5a footnote ᵇ |
 | **7** | **Continuous cleanup** — a rhythm between the steps, not a phase | `doc/CleanupCandidates.md` D1–D13, plus **V1.32** (de-template the finite `IrrepCD` leaf). | Continuous — CLEANUP |
 | **8** | **Step 6 — the 136-function span**: a capability gap, no longer a blocker | Time-boxed research only. Do not let it grow into a track. | Step 6 |
 
