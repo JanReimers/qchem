@@ -3192,44 +3192,81 @@ composition root, not a reason for a USER to own it.
 Hamiltonian + accelerator"* — and rebuild.  So a second `Converge()` on a MOLECULE or an ATOM rebuilds its
 Hamiltonian too.  Same fix, same rule; the call-site list is SolidCalculation ×3 **+ both molecular facades**.
 
-### WHAT IS A "STAGE BOUNDARY"? (user asked, 2026-09-06 — it is not only kT)
+### WHAT IS A "STAGE BOUNDARY"? (user asked, 2026-09-06) — ONE variable, and it is kT
 
-A stage is `SCFStage = {SCFParams params, SCFAccelerators::Type accelerator}` (SolidCalculation.C:332).
-So a boundary changes **two** things: the whole `SCFParams` — of which `SmearingkT` is the headline, and the
-only one `EmitStageSummary` prints — **and the accelerator TYPE**, whose own field comment says *"per stage,
-so a recipe can anneal on DIIS and finish on GDM"*.  Two other transitions share this machinery: a plain
-re-`Converge(params)` on the same object (all three facades), and grid continuation (a DIFFERENT basis/mesh,
-hence genuinely a different object graph — out of scope here).
+A stage is `SCFStage = {SCFParams params, SCFAccelerators::Type accelerator}` (SolidCalculation.C:332), so
+the TYPE says "any of ~15 SCF parameters may change per stage".  The tree says otherwise.  There is exactly
+**one** schedule builder anywhere (`GPW_SCF_UT.C:4580`, the MnO harness — `SolidCalculation::Converge(
+vector<SCFStage>)` is public API with no production or CLI caller), every stage starts from one shared
+`base`, and precisely three fields are then touched:
 
-**What should live through a boundary, and why:**
-
-| object | live? | reason |
+| varies per stage | source | independent? |
 |---|---|---|
-| structure / basis / EC | ✅ already does | facade-owned; nothing per-stage touches them |
-| **Hamiltonian** | ✅ **should** | a pure function of (structure, basis, species, functional, xcMesh, vxcFit) — a stage changes NONE of them.  15.5 s × (N−1) thrown away today.  ⚠ still owed: confirm no term holds per-stage state.  Memo keys are density SERIALS (not pointers) since the Dynamic_HT fix, so continuing the sequence across a boundary should be fine — an argument, not a measurement. |
-| **SCFIterator** | ✅ **should** — and it is the one that buys the carries | it holds the `OccupationState` (MOM references + fill clocks, which **R2.21 built specifically to survive reconfiguration** — "annealed runs call Iterate per stage with DIFFERENT kT"), the density lineage, and the probe/observer slots.  Rebuilding it is what FORCES BuildStage's two hand-written carries.  ⚠ audit first: `itsMixer` holds ρ-mixing (Kerker/Pulay) history — the DENSITY-side analogue of stale DIIS — and a kT change re-seeds the occupations, so carrying it may be as wrong as carrying the accelerator's.  `itsIterationCount` / `itsConverged` must reset per stage. |
-| **SCFAccelerator** | ❌ **must not** (user, and for TWO reasons) | (i) stale DIIS/GDM history across a re-seed; (ii) **the TYPE changes by design** — anneal on DIIS/Ladder, finish on GDM, and *Ladder-with-GDM does not work at kT>0*.  Because the type changes, the operation is **replace, not reset** (there is no `Reset()` on the face, and adding one would not serve a type change anyway).  ⇒ the facade OWNS it and swaps it at the boundary; the iterator holds it non-owning.  "Handle it dynamically" is then just: the schedule names the type, the facade builds it. |
-| **WaveFunction** | ⚠ **coupled — and THIS is what forces today's rebuild** | `tCompositeWF` takes the accelerator MANAGER at construction and creates one `tSCFIrrepAccelerator` per irrep from it (`CompositeWF.C:213`).  So: new accelerator type ⇒ new per-irrep accelerator children ⇒ (today) new WaveFunction ⇒ new iterator ⇒ **new Hamiltonian, because the iterator deletes it**.  That chain is the whole item in one line.  Persisting the WF needs a way to re-create its per-irrep accelerators from a new manager (a `ResetAccelerators(acc&)` walk) — the real design question hiding behind "who owns the Ham?". |
+| `SmearingkT` | `MNO_ANNEAL` | ✅ **the one real variable — this IS the anneal** |
+| accelerator type | `MNO_ACC` | ❌ a RESPONSE to kT (banked recipe: `MNO_ANNEAL="5e-3,0"` with `MNO_ACC="Ladder,GDM"` — Ladder while smeared, GDM once cold) |
+| `MOMSmearPenalty` (Λ) | `MNO_ANNEAL_PENALTY` | ❌ only MEANS anything when kT>0 — a companion to kT |
+| `StopOnAccelExhausted` | `(i+1<kTs.size())` | ❌ pure schedule POSITION ("am I the last stage?") |
+| every other `SCFParams` field | copied from `base` | — constant |
 
-### ⇒ SEQUENCE — and step 1 is worth doing entirely on its own
+⇒ **a boundary is: same everything, new kT** (plus one companion and one positional flag).  `SCFStage` is
+over-general for its single caller, and `MNO_ANNEAL`/`MNO_ACC` are two parallel env lists that must be the
+same length (enforced by an `assert`) — the classic shape of one thing modelled as two.  **PARKED, not
+filed as work**: per the cost ruling below this is a test-harness ergonomics wart, not a library defect.
 
-- **Step 1 — OWNERSHIP ONLY.**  Hamiltonian and accelerator become non-owning on the iterator (the facade
-  owns both), the WaveFunction becomes a `unique_ptr`, `~tSCFIterator` becomes `= default`.  `BuildStage`
-  keeps rebuilding the accelerator, the WF and the iterator; it simply stops rebuilding the **Hamiltonian**.
-  **This captures the ENTIRE measured 19%** with a mechanical, compiler-enforced diff and no behavioural
-  question anywhere.
-- **Step 2 — PERSIST THE ITERATOR (optional, gated).**  Buys the WF re-`Init` (a stage's first Fock and
-  diagonalisation) and DELETES the two carries rather than re-implementing them.  Gated on the
-  accelerator-in-WF coupling above and on the mixer-history audit.
+### Is "smeared ⇒ Ladder, cold ⇒ GDM" a LAW? — a law of the IMPLEMENTATION, not of the method
 
-★ Acceptance, step 1: `Etot` bit-identical on the MnO annealed row + the ledger showing
-`setup: hamiltonian ctor [x1]` (unchanged from the item above).
-★ Acceptance, step 2: the `AdoptMOMReference(prev…)` and `AttachProbes()` calls in `BuildStage` DISAPPEAR —
-if either has to be reimplemented, the boundary was not actually removed.
+Asked by the user 2026-09-06, because if it IS a law the accelerator stops being a stage field and gets
+DERIVED from kT.  It is not, and the reason is structural rather than empirical:
 
-**Two compensations to read before starting** (they are the evidence the boundary destroys too much):
-`BuildStage` re-adopts the MOM reference from the previous iterator, and re-attaches the probes with the
-warning that forgetting it makes an annealed run *"go quiet — silently, which is the worst kind"*.
+- A direct-min (GDM) leg rotates a **fixed** occupied block along a geodesic, and its trials fill under
+  `HeldOccupationPolicy`, whose `SmearingkT()` returns 0 **by override, not by configuration** — so its
+  \f$-TS\f$ is identically zero and **a held leg minimises \f$E\f$, never \f$A=E-TS\f$**.
+- At kT>0 the objective IS the free energy \f$A\f$.  So a GDM leg there would descend a different
+  functional from the one the fills and the reported energy use.
+- That mismatch is MEASURED, not theoretical: `E(t=0)` under the held fill differs from the previous
+  (smeared) iteration's E by **+14.5 Ha** on MnO — big enough that the line search rejected every `t` until
+  the reference was re-taken under the same held fill.  The code names it a "convention shift" and prints
+  it under `GPW_GDMTRACE` (SCFIterator.C ~L500).
+- ⇒ "cold ⇒ GDM" is a consequence of **GDM's occupancy being structurally integer**, and it stops being
+  true the day the missing sibling exists — which `HeldOccupationPolicy`'s own header already names:
+  *"Ready for OT+smearing: a coupled leg that holds the block but keeps kT is a new sibling with a Fermi
+  occupancy — a new object, not a new bool."*  Free-energy direct minimisation at finite T is standard
+  (CP2K's OT smears); we simply have not built that policy.
+
+★ **RULING: keep the accelerator an EXPLICIT stage field.**  Deriving it from kT would bake today's
+accelerator inventory into the schedule API and be wrong the day OT+smearing lands.  (This reverses the
+tentative "collapse `SCFStage` to `{kT, Λ}`" floated in the review — the law does not hold.)
+
+### ⇒ PRIORITY (user ruling, 2026-09-06): sort by CONSTRUCTION COST, not by ownership purity
+
+> *"A good reason to rebuild is Pulay history is no longer valid.  Rebuilding objects that are dirt cheap
+> to construct is a small (ignorable) problem.  An object cheaply reconstructed for a bad reason like
+> *just* changing the stored kT value, maybe just document and leave it for now.  We want focus on
+> rebuilding objects that are expensive to construct (Hamiltonian)."*
+
+| rebuilt per stage | cost to construct | reason it is rebuilt | verdict |
+|---|---|---|---|
+| **Hamiltonian** | **15.5 s/call** — the largest setup bucket in the run | ONLY because the iterator deletes it | ⛔ **FIX. This is the item.** 15.5 s × (N−1) = **19% of an 83 s run** |
+| **SCFAccelerator** | cheap (a Factory call) | **GOOD reason** — stale Pulay/DIIS history across a re-seed, AND the type genuinely changes (Ladder→GDM) | ✅ **correct as is; keep rebuilding** |
+| WaveFunction + iterator | cheap: all three residue buckets total **0.36 s of 121 s**, and the ledger is a partition (unbucketed 0.03 s).  The stage's first Fock is work that must happen for a new kT anyway | a BAD reason — the accelerator is baked into the WF's per-irrep children (`CompositeWF.C:213`), so a new accelerator forces a new WF forces a new iterator | 📝 **DOCUMENT AND LEAVE** (user).  Cheap object, bad reason: not worth unpicking |
+
+⇒ **R2.22 IS STEP 1 ONLY.**  The earlier two-step sequencing is superseded: "persist the iterator" is
+DEMOTED out of this item — it buys 0.36 s and costs a `ResetAccelerators(acc&)` walk plus a density-mixer
+history audit.  Revisit only if one of `BuildStage`'s two carries (`AdoptMOMReference(prev…)`,
+`AttachProbes()`) is itself found to cause a defect; both are cheap and both currently work.
+
+**So the whole item is:**
+1. The facade owns the Hamiltonian; the iterator holds it non-owning; **one Hamiltonian per run**.
+2. Riding along for free in the same hunk (compiler-enforced, no behaviour change): the accelerator also
+   becomes non-owning (the facade keeps replacing it per stage — that is correct), the WaveFunction becomes
+   a `unique_ptr`, `~tSCFIterator` becomes `= default`, and the two misleading comments die.
+3. Same fix in all THREE facades (see (b) above).
+
+★ Acceptance: `Etot` bit-identical on the MnO annealed row, and the ledger showing
+`setup: hamiltonian ctor [x1]` instead of `[x2]`.
+⚠ Still owed before sharing one across stages: confirm no term holds per-stage state.  Memo keys are
+density SERIALS (not pointers) since the Dynamic_HT fix, so continuing the sequence across a boundary
+should be fine — an argument, not a measurement.
 
 *(Doc correction found while reviewing: R2.18's sub-note "ONE STALE COMMENT LEFT BEHIND ON PURPOSE —
 `SCFIterator.C:186` still says Vxc::CalcMatrix … sweep it when that list is released" is DONE BY DRIFT.
