@@ -200,7 +200,15 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // The Hartree (CD) fit basis is created ONCE here from the basis's factory (never assuming orbital==fit),
     // exactly as the molecular DFT ctor builds FittedVee's fit basis -- rho is cell-periodic so it is
     // Gamma (k=0).  A plane-wave fit basis reads only mp.relCutoff.
-    Vee_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet (st.get(), mp));
+    // ★ 1.1(b): the four phases of this builder each get a bucket, so the ctor's 23 s/call stops being one
+    // number.  report::Timed is exclusive, so the Becke mesh build and the Φ tables -- already bucketed
+    // deeper down -- stay children of the two fit-basis scopes and are not double-counted here.
+    Vee_Hartree::fbs_t CFitBasis;                          // a shared_ptr; filled in the bucket below
+    {
+        qchem::report::Timed timed("setup: Hartree CD fit basis");
+        CFitBasis.reset(bs->CreateCDFitBasisSet (st.get(), mp));
+    }
+    qchem::report::Timed terms("setup: hamiltonian term ctors (kinetic, PP, Hartree, Ewald)");
     Add(new Kinetic<dcmplx>);
     // The local-PP RANGE SPLIT is three separate terms, so the term list states the physics and no term
     // has to re-ask at run time what the model is (see the PWTerms.C header).  `loc` is required by this
@@ -261,15 +269,31 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // terms.  This builder does not read it, does not know what is in it, and pays for no mesh it would not
     // otherwise have built.
     BasisSet::FitQuadrature quadrature;
-    std::shared_ptr<const BasisSet::cFIT_SF_ABS> XFitBasis(
-        bs->CreateVxcFitBasisSet(st.get(), xc, delta ? VxcFit::Delta : VxcFit::PlaneWave, &quadrature));
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> XFitBasis;
+    {
+        // EXCLUSIVE of "setup: becke mesh build", which happens inside here and has its own bucket -- so
+        // this one reads as the fit basis's OWN construction over an already-built mesh.
+        qchem::report::Timed timed("setup: Vxc fit basis (mesh build is its child)");
+        XFitBasis.reset(bs->CreateVxcFitBasisSet(st.get(), xc, delta ? VxcFit::Delta : VxcFit::PlaneWave,
+                                                 &quadrature));
+    }
     // SPIN-NATIVE (tier 4b) exchange must be channel-native: a spin-tagged SlaterExchange does NOT halve
     // rho, because it is fed rho_sigma per channel.  Correlation's two-channel face serves both cases.
-    for (auto& t : MakeVxcTerms(polarized ? std::make_shared<SlaterExchange>(2.0/3.0, Spin::Up) : exch,
-                                corr, XFitBasis, polarized, std::move(quadrature)))
-        Add(t.release());
+    {
+        // EXCLUSIVE of "setup: XC-mesh Phi tables" (built inside, own bucket) -- so this reads as the term
+        // assembly around them.
+        qchem::report::Timed timed("setup: XC term assembly (Phi tables are its child)");
+        for (auto& t : MakeVxcTerms(polarized ? std::make_shared<SlaterExchange>(2.0/3.0, Spin::Up) : exch,
+                                    corr, XFitBasis, polarized, std::move(quadrature)))
+            Add(t.release());
+    }
 
-    Add(new IonIon<dcmplx>(st, loc->ZionFn()));                  // ion-ion Ewald: Zion from the PP, not itsZ
+    {
+        // The Ewald sum is a real lattice computation, not a term ctor -- priced on its own so the
+        // "term ctors" residue beside it cannot be blamed for it (or excused by it).
+        qchem::report::Timed timed("setup: IonIon Ewald lattice sum");
+        Add(new IonIon<dcmplx>(st, loc->ZionFn()));              // ion-ion Ewald: Zion from the PP, not itsZ
+    }
 }
 
 // Explicit-models ctor: the caller owns the models (itsOwnedLocal/Sep stay null).
@@ -309,12 +333,18 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
 {
     auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
-    for (const auto& [element, valence] : species)
     {
-        int Z=thePeriodicTable().GetZ(element);          // atomic number = the atoms' itsZ key
-        Pseudopotential::GTH_PP pp=Pseudopotential::GetGTH(element, functional, valence);
-        loc->Add(Z, std::make_shared<Pseudopotential::HGH_LocalPotential>(pp.local));
-        sep->Add(Z, std::make_shared<Pseudopotential::HGH_SeparablePotential>(pp.nonlocal));
+        // A table lookup per species, and expected to be free -- bucketed anyway, because THIS ctor is the
+        // largest non-threading block in a GPW run (doc/ParallelAndOraclePlan.md 1.1(b)) and the point of
+        // opening it up is to leave nothing inside it unpriced.
+        qchem::report::Timed timed("setup: PP models (GTH lookup + per-Z routers)");
+        for (const auto& [element, valence] : species)
+        {
+            int Z=thePeriodicTable().GetZ(element);          // atomic number = the atoms' itsZ key
+            Pseudopotential::GTH_PP pp=Pseudopotential::GetGTH(element, functional, valence);
+            loc->Add(Z, std::make_shared<Pseudopotential::HGH_LocalPotential>(pp.local));
+            sep->Add(Z, std::make_shared<Pseudopotential::HGH_SeparablePotential>(pp.nonlocal));
+        }
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;

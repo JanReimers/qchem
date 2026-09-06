@@ -7,6 +7,7 @@ module;
 #include <iostream>
 #include <string>
 #include <vector>
+#include <memory>    // the scoped-but-early-stopped Timed on the site-adapted angular build (1.1(b))
 
 module qchem.UnitCell;
 import qchem.Math;
@@ -496,6 +497,9 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     };
 
     std::vector<qcMesh::AngularMesh> ang(F.size());
+    // Priced with the rest of the imposed build (1.1(b)); stopped explicitly just before the Becke build,
+    // which has its own bucket.
+    auto angTimer = std::make_unique<qchem::report::Timed>("setup: site-adapted angular sets (W2b)");
     for (size_t o = 0; o < af.Reps(); ++o)
     {
         const rvec3_t& fr = F[af.repRaw[o]];
@@ -512,6 +516,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
             ang[mi] = qcMesh::AngularMesh(std::move(d), std::move(w));
         }
     }
+    angTimer.reset();                       // the site-adapted angular sets are built; stop that bucket
     qcMesh::Mesh mesh = MakePeriodicBeckeMesh(*this, mp, &ang);
 
     // The raw point set is op-covariant BY CONSTRUCTION, but the builder's eps-tail DROP decisions
@@ -520,19 +525,27 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
     // at the production recipe (L=29, ~70k raw points).  Cure: drop every orbit-INCOMPLETE point
     // (complete <=> |orbit| x |site stabilizer| == |ops|).  Only eps-borderline points -- weight ~eps
     // or below -- can be incomplete, so this stays inside the eps-converged-series contract.
-    SL::Fold f = SL::FoldPointsPeriodic([&]{ std::vector<rvec3_t> fp;
-        for (size_t i = 0; i < mesh.size(); ++i) fp.push_back(ToFractional(mesh.Points()[i]));
-        return fp; }(), ops, 1e-8);
+    // ⚠ THIS IS THE RUN'S SECOND FULL ORBIT FOLD OVER THE SAME ~97k POINTS (bucketed 2026-09-06,
+    // doc/ParallelAndOraclePlan.md 1.1(b)).  The caller -- GPW_IBS::CreateXCQuadrature -- folds the
+    // FINISHED mesh again to get the fold it keeps, and the note below says so in as many words.  The two
+    // folds differ only in their input (this one runs on the pre-filter point list, at tol 1e-8) and in
+    // what they are used for.  Priced here so the duplication is a number, not a reading of the code.
     std::vector<char> keep(mesh.size(), 0);
     size_t nDropped = 0;
-    for (size_t o = 0; o < f.Reps(); ++o)
     {
-        rvec3_t fr = ToFractional(mesh.Points()[f.repRaw[o]]);
-        size_t  stab = 0;
-        for (const auto& op : ops) if (fixes(op, fr)) ++stab;
-        if (f.members[o].size()*stab == ops.size())
-            for (auto [mi, oi] : f.members[o]) keep[mi] = 1;
-        else nDropped += f.members[o].size();
+        qchem::report::Timed timed("setup: XC mesh orbit-consistency fold (the FIRST of two folds)");
+        SL::Fold f = SL::FoldPointsPeriodic([&]{ std::vector<rvec3_t> fp;
+            for (size_t i = 0; i < mesh.size(); ++i) fp.push_back(ToFractional(mesh.Points()[i]));
+            return fp; }(), ops, 1e-8);
+        for (size_t o = 0; o < f.Reps(); ++o)
+        {
+            rvec3_t fr = ToFractional(mesh.Points()[f.repRaw[o]]);
+            size_t  stab = 0;
+            for (const auto& op : ops) if (fixes(op, fr)) ++stab;
+            if (f.members[o].size()*stab == ops.size())
+                for (auto [mi, oi] : f.members[o]) keep[mi] = 1;
+            else nDropped += f.members[o].size();
+        }
     }
     if (nDropped>0)
         std::cout<<"[Becke grid] orbit-consistency: dropped "<<nDropped

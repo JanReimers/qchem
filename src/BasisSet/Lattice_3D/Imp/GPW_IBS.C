@@ -16,6 +16,7 @@ import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wid
                                             // (qcLattice_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;  // PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
 import qchem.SymmetrizeMesh;                     // MakeInvariant/FoldMesh (the §6a W1 invariant XC quadrature)
+import qchem.Reporting;                          // report::Timed -- the XC-quadrature buckets (ParallelAndOraclePlan 1.1(b))
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -112,7 +113,11 @@ template <class T> BasisSet::FitQuadrature tGPW_IBS<T>::CreateXCQuadrature(const
     // construction for Becke, group-average for uniform) is the cell's business -- this basis only needs
     // the invariance, which is the T2 precondition for the fold below.
     qcMesh::Mesh mesh = Cell().CreateIntegrationMesh(mp, ops);
-    auto fold = FoldMesh(mesh, A, ops, tol);
+    // ★ 1.1(b): CreateVxcFitBasisSet is 23.75 s/call EXCLUSIVE of the mesh build and the Φ tables, and it
+    // is the largest non-threading block in a GPW run.  These two buckets are the only candidates left
+    // inside it -- both are point-matching passes over ~97k mesh points against 24 ops.
+    auto fold = [&]{ qchem::report::Timed timed("setup: XC mesh orbit fold (FoldMesh)");
+                     return FoldMesh(mesh, A, ops, tol); }();
     std::cout << "[Becke grid] imposed symmetry (" << ops.size() << " ops): invariant mesh "
               << mesh.size() << " points in " << fold.Reps()
               << " orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a)" << std::endl;
@@ -124,11 +129,13 @@ template <class T> BasisSet::FitQuadrature tGPW_IBS<T>::CreateXCQuadrature(const
     std::vector<Symmetry::SpinAction> sigmas;
     sigmas.reserve(ops.size());
     for (const auto& op : ops) sigmas.push_back(op.sigma);
-    std::vector<rvec3_t> frac;
-    frac.reserve(mesh.size());
-    const Matrix3D<double> Ainv = Invert(A);
-    for (size_t i=0;i<mesh.size();++i) frac.push_back(Ainv*mesh.Points()[i]);
-    auto flags = Symmetry::Lattice_3D::FlipFixedPointsPeriodic(frac, ops, tol);
+    auto flags = [&]{
+        qchem::report::Timed timed("setup: XC mesh Shubnikov flip-fixed test");
+        std::vector<rvec3_t> frac;
+        frac.reserve(mesh.size());
+        const Matrix3D<double> Ainv = Invert(A);
+        for (size_t i=0;i<mesh.size();++i) frac.push_back(Ainv*mesh.Points()[i]);
+        return Symmetry::Lattice_3D::FlipFixedPointsPeriodic(frac, ops, tol); }();
     size_t nFixed=0; for (char c : flags) if (c) nFixed++;
     std::cout << "[Becke grid] Shubnikov: " << nFixed << " flip-fixed mesh points (m==0 there exactly)"
               << std::endl;

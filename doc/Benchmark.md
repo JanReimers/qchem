@@ -799,6 +799,27 @@ single lever on the MnO wall — bigger than either pair loop.  **The half that 
 own 1.11×**; its children scale fine, which is precisely why it hid.  ▶ Next: bucket the fit-basis half of
 that 23.2 s/call, and establish whether an anneal stage must rebuild the Hamiltonian at all (~34 s if not).
 
+★★★ **AND THEN THE CTOR WAS OPENED UP, AND THE ROW MOVED — 2026-09-06, `ParallelAndOraclePlan.md` 1.1(b).**
+Six more buckets found that the 23.75 s/call was **two calls to one bad index**: the run folds the same
+~97k mesh points twice per Hamiltonian (the orbit-consistency filter in `UnitCell::CreateIntegrationMesh`,
+then `FoldMesh` in `GPW_IBS::CreateXCQuadrature`), 9.6 + 9.5 s/call.  `TorusIndex` bucketed EVERY mesh on a
+constant 64³ grid — 0.37 points per bucket on average, which is the wrong statistic for a clustered
+atom-centred radial mesh.  Grid made as fine as the tolerance allows + centre-bucket-first probe:
+
+| | GPW_OMP unset | 12 threads |
+|---|---|---|
+| orbit-consistency fold | 9.61 → **0.163** s/call | 9.61 → **0.193** s/call |
+| `FoldMesh` | 9.47 → **0.151** s/call | 9.47 → **0.190** s/call |
+| Hamiltonian construction, all in | — | 34.4 → **15.5** s/call |
+| **WHOLE RUN** | 313.9 → **237.2 s** (**1.32×**) | 120.8 → **83.2 s** (**1.45×**) |
+| setup / SCF split | 71.8 / 165.2 s | 32.1 / 51.1 s |
+| peak RSS | 496 → 506 MB | 562 → 561 MB |
+
+`Etot = -61.40297529` on every arm before and after, to all printed digits — it is a data structure, not a
+numerical method.  814/814 green.  ⇒ **These supersede the MnO rows above; re-take §5a/§7a before quoting
+them.**  The largest setup bucket is now the Becke mesh build (8.15 s/call), then the site-adapted angular
+sets (4.03 s/call, never measured before).
+
 ⚠ **THE BECKE MESH BUILD ROW COLLIDES WITH THE TABLE ABOVE, AND IS NOT RESOLVED HERE.**  It measures the
 same in both arms (15.4 vs 15.8 s) where the banked row says 138.2 → 16.9 s (8.2×), and this run's UNSET
 figure sits next to the banked THREADED one.  Either the bucket got ~9× cheaper since (several speedups

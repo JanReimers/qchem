@@ -3131,3 +3131,32 @@ NAME is stale.
 ⇒ Delete it, and while there consider RENAMING `Vcorr_QuadraturePol`: it is no longer "the correlation
 half of a pair", it is the spin-native XC term (`Vxc_SpinNative` or similar).  Not done inline because the
 rename touches three files and the measurement work wanted a small diff.
+
+## R2.22 — `tSCFIterator` DELETES A HAMILTONIAN IT DID NOT CREATE, and it costs 19% of an annealed run (2026-09-06)
+
+`tSCFIterator<T>::~tSCFIterator()` does `delete itsHamiltonian;` on a raw `ham_t*` handed in by the
+caller.  CLAUDE.md: *"Raw `new` ops are fine if the pointer quickly goes into a `unique_ptr` or
+`shared_ptr` … As a result `delete` should be rare or non-existent."*  This is the opposite — the
+Hamiltonian is constructed by the composition root (`SolidCalculation`, or the GPW test harness), handed
+over as a bare pointer, and destroyed by an object that is one of its *users*.  `SolidCalculation::Imp`
+even documents the smell in a comment: `ham = nullptr;  // owned by the iterator once handed over`.
+
+**WHAT IT COSTS, MEASURED (`doc/ParallelAndOraclePlan.md` 1.1(b)).**  Because the previous stage's
+iterator deletes the Hamiltonian when it dies, `SolidCalculation::BuildStage` MUST build a fresh one for
+every anneal stage — so an N-stage schedule constructs N Hamiltonians.  The MnO recipe has two, and the
+build is **15.5 s** each: **19% of an 83 s threaded run, for an object that is a pure function of
+(structure, basis, species, functional, xcMesh, vxcFit)** — none of which change between stages.
+
+⚠ **THE PHYSICS REASON DOES NOT APPLY TO THE HAMILTONIAN.**  The test harness's comment reads *"Fresh
+Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not carry stale
+DIIS history across the re-seed)"* — and stale DIIS history is a property of the **accelerator**, which
+genuinely must be fresh each stage.  The Hamiltonian is there because of the `delete`, nothing else.
+
+⇒ **The fix**: `std::shared_ptr<ham_t>` on the iterator (or a non-owning raw pointer with the facade
+owning it), and the `delete` goes.  Call sites: `SolidCalculation` ×3, `GPW_SCF_UT.C` ×5-ish, plus the
+molecular `Calculation`/`AtomCalculation` path — all compiler-enforced, so the change is mechanical.
+⚠ Before sharing one across stages, confirm the terms carry no per-stage state that must be dropped: the
+memo keys are logical density SERIALS (not pointers) since the Dynamic_HT fix, which suggests continuing
+the sequence across a stage boundary is fine, but that is an argument, not a measurement.
+★ Acceptance: `Etot` bit-identical on the MnO annealed row, and the ledger showing
+`setup: hamiltonian ctor [x1]` instead of `[x2]`.

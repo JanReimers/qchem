@@ -288,6 +288,60 @@ TEST(InvariantAngularMesh, ProductionL29Growth)
     EXPECT_LT(growth, 2.5);
 }
 
+// ★ THE FOLD MUST NOT DEPEND ON THE INDEX THAT COMPUTES IT (2026-09-06).
+//
+// FoldPointsPeriodic matches images through a bucket index whose resolution used to be a CONSTANT 64
+// per axis.  With the mesh tolerance (1e-8) the shrink loop in its ctor never ran, so every mesh -- of
+// any size, of any shape -- was indexed on a 64^3 grid.  Average occupancy looked ideal (97256 points
+// in 262144 buckets = 0.37) and was meaningless: an ATOM-CENTRED RADIAL mesh is clustered, the inner
+// shells put thousands of points inside one bucket-edge of a nucleus, and every query near a nucleus
+// scanned all of them.  Measured on MnO: 9.5 s per fold, two folds per Hamiltonian, 38 s of a 121 s run.
+// The grid is now as fine as the tolerance allows.
+//
+// This gate holds the property that makes any such change safe: the ANSWER is a function of the points,
+// the ops and the tolerance -- never of the bucketing.  Folding the same clustered set at three
+// tolerances drives three different grids through the same orbits.
+TEST(SymmetrizeMesh, TorusFoldIsIndependentOfTheBucketGridOnAClusteredMesh)
+{
+    // Inversion on the torus: (x,y,z) -> (-x,-y,-z) mod 1.  Pairs +r with 1-r; fixes the origin.
+    Matrix3D<double> mI; mI(1,1)=mI(2,2)=mI(3,3)=-1.0;
+    Matrix3D<double> E;
+    const std::vector<SL::SymOp> ops = {{E, rvec3_t(0,0,0)}, {mI, rvec3_t(0,0,0)}};
+
+    // A RADIALLY CLUSTERED set spanning five decades -- the shape a Becke mesh has and a uniform grid
+    // does not.  Plus one point sitting exactly on a fine-grid bucket face (3/2^20), so the query and
+    // its image can land on opposite sides of a boundary: the 3x3x3 neighbourhood is what must catch it.
+    std::vector<rvec3_t> pts = {rvec3_t(0,0,0)};
+    for (double r : {1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 0.1, 0.2, 3.0/1048576.0})
+    {
+        pts.push_back(rvec3_t(r,0,0));
+        pts.push_back(rvec3_t(1.0-r,0,0));     // its inversion partner, written explicitly
+    }
+    const size_t nPairs = (pts.size()-1)/2;    // every r contributes one 2-orbit; the origin is fixed
+
+    std::vector<size_t> reps;
+    std::vector<std::vector<int>> stars;
+    for (double tol : {1e-9, 1e-8, 1e-7})      // three tolerances => three different bucket grids
+    {
+        SL::Fold f = SL::FoldPointsPeriodic(pts, ops, tol);
+        reps.push_back(f.Reps());
+        stars.push_back(std::vector<int>(f.starSize.begin(), f.starSize.end()));
+    }
+    EXPECT_EQ(reps[0], nPairs+1);              // the pairs, plus the self-inverse origin
+    EXPECT_EQ(reps[0], reps[1]);
+    EXPECT_EQ(reps[1], reps[2]);               // ...and the grid never enters the answer
+    EXPECT_EQ(stars[0], stars[1]);
+    EXPECT_EQ(stars[1], stars[2]);
+
+    // Every non-origin orbit really is a PAIR -- so the clustered points were resolved as distinct,
+    // not collapsed by a coarse bucket, and the partners were found, not orphaned.
+    SL::Fold f = SL::FoldPointsPeriodic(pts, ops, 1e-8);
+    size_t pairs=0, fixedPts=0;
+    for (size_t o=0; o<f.Reps(); ++o) (f.starSize[o]==2 ? pairs : fixedPts)++;
+    EXPECT_EQ(pairs, nPairs);
+    EXPECT_EQ(fixedPts, 1u);
+}
+
 TEST(SymmetrizeMesh, TorusFoldMatchesAcrossTheCellBoundary)
 {
     // {E|(3/4,3/4,3/4)} maps (1/2,1/2,1/2) -> (5/4,..) == (1/4,..) mod 1: only the TORUS fold merges.

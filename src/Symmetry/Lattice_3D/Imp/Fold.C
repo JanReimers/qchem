@@ -184,9 +184,22 @@ public:
     TorusIndex(const std::vector<rvec3_t>& wrapped, double tol)
         : itsPts(wrapped), itsTol(tol)
     {
-        // Bucket edge must exceed tol so a query only needs the 3x3x3 neighbourhood.
-        itsNb = 64;
-        while (itsNb > 1 && 1.0/itsNb <= 2.0*tol) itsNb /= 2;
+        // ★ THE GRID IS AS FINE AS THE TOLERANCE ALLOWS, NOT A CONSTANT 64 (2026-09-06,
+        // doc/ParallelAndOraclePlan.md 1.1(b)).  The ONLY correctness constraint is that a bucket edge
+        // exceed 2*tol, so the 3x3x3 neighbourhood is guaranteed to contain every point within tol; the
+        // old code started at 64 and only ever SHRANK, so with the mesh tolerance (1e-8) the shrink loop
+        // never ran and every mesh was indexed on a 64^3 grid.
+        //
+        // WHY THAT WAS SLOW, AND WHY "average occupancy" HID IT: on the MnO Becke mesh 64^3 = 262144
+        // buckets hold 97256 points -- 0.37 per bucket ON AVERAGE, which looks ideal and is meaningless.
+        // An atom-centred radial mesh is CLUSTERED: the inner shells put thousands of points inside one
+        // bucket-edge of a nucleus, so every query near a nucleus scanned thousands of candidates, and
+        // there are (points x ops) queries.  MEASURED: 9.5 s per fold on MnO, 19 s per Hamiltonian (two
+        // folds), 38 s of a 121 s run.  The buckets are a SPARSE unordered_map, so a far finer grid costs
+        // no memory it does not use -- at most one bucket per point.
+        itsNb = 1;
+        while (itsNb < kMaxNb && 1.0/(2*itsNb) > 2.0*tol) itsNb *= 2;   // finest edge still > 2*tol
+        itsBuckets.reserve(itsPts.size()*2);
         for (int i = 0; i < int(itsPts.size()); ++i)
             itsBuckets[Key(itsPts[i])].push_back(i);
     }
@@ -195,23 +208,40 @@ public:
     int Find(const rvec3_t& f) const
     {
         int bx = Bucket(f.x), by = Bucket(f.y), bz = Bucket(f.z);
+        // THE CENTRE BUCKET FIRST.  These meshes are op-INVARIANT by construction, so W*p+tau is another
+        // mesh point to ~1e-15 -- far inside tol -- and the query lands in the query point's OWN bucket
+        // essentially every time.  Probing it alone turns the common case from 27 hash lookups into 1;
+        // the full neighbourhood below remains the correctness path for a point near a bucket face.
+        if (const int i = Scan(Key(bx, by, bz), f); i >= 0) return i;
         for (int dx = -1; dx <= 1; ++dx)
         for (int dy = -1; dy <= 1; ++dy)
         for (int dz = -1; dz <= 1; ++dz)
         {
-            auto it = itsBuckets.find(Key((bx+dx+itsNb)%itsNb, (by+dy+itsNb)%itsNb, (bz+dz+itsNb)%itsNb));
-            if (it == itsBuckets.end()) continue;
-            for (int i : it->second)
-            {
-                const rvec3_t& p = itsPts[i];
-                double ex = TorusDelta(p.x, f.x), ey = TorusDelta(p.y, f.y), ez = TorusDelta(p.z, f.z);
-                if (ex*ex + ey*ey + ez*ez <= itsTol*itsTol) return i;
-            }
+            if (!dx && !dy && !dz) continue;                            // already probed, above
+            if (const int i = Scan(Key((bx+dx+itsNb)%itsNb, (by+dy+itsNb)%itsNb, (bz+dz+itsNb)%itsNb), f);
+                i >= 0) return i;
         }
         return -1;
     }
 
 private:
+    //! 2^20 buckets per axis: Key stays inside int64 (2^60) and no real mesh resolves finer.
+    static constexpr int kMaxNb = 1<<20;
+
+    //! Points of bucket \a key within tol of \a f, or -1.  (Split out of Find so the centre bucket can
+    //! be probed on its own without duplicating the distance test.)
+    int Scan(long long key, const rvec3_t& f) const
+    {
+        auto it = itsBuckets.find(key);
+        if (it == itsBuckets.end()) return -1;
+        for (int i : it->second)
+        {
+            const rvec3_t& p = itsPts[i];
+            double ex = TorusDelta(p.x, f.x), ey = TorusDelta(p.y, f.y), ez = TorusDelta(p.z, f.z);
+            if (ex*ex + ey*ey + ez*ez <= itsTol*itsTol) return i;
+        }
+        return -1;
+    }
     int       Bucket(double x) const {return int(Wrap01(x)*itsNb) % itsNb;}
     long long Key(int bx, int by, int bz) const {return (static_cast<long long>(bx)*itsNb + by)*itsNb + bz;}
     long long Key(const rvec3_t& p) const {return Key(Bucket(p.x), Bucket(p.y), Bucket(p.z));}

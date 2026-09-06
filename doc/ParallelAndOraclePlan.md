@@ -120,18 +120,7 @@ DIRECTLY, bypassing the iterator's bucketed `TotalEnergy()` helper — up to 12 
 evaluations per GDM iteration that nothing had ever measured.  It looked like the residual's obvious home.
 It is **1.21 s over 44 calls** (0.027 s/call).  Bucketed now, and cheap.
 
-▶ **NEXT — (b), AND IT IS A BIGGER PRIZE THAN 1.1 SIZED IT**: open up the **46.4 s exclusive** Hamiltonian
-ctor — exclusive meaning it is neither the Becke mesh nor the Φ tables, both of which are its children and
-both of which thread (8×/6.5× per §7c).  Two questions, in order:
-1. **What is the 23.2 s per call?**  The label says "fit bases + becke mesh" and the mesh is accounted
-   for separately, so the fit-basis construction is the unexamined half.  Same move as 1.1: bucket it
-   before optimising it.
-2. **Why is it built TWICE?**  Both stages construct it from the same `st`/`bs`/`xcMesh`/`vxcFit`, so the
-   second Becke mesh and the second Φ table set are recomputed identically.  `BuildStage` exists to give
-   the stage a fresh accelerator and iterator; the Hamiltonian rebuild is along for the ride.  If it can be
-   reused across stages, that is **~34 s of a 121 s run** for no numerical change.  ⚠ Establish WHY the
-   rebuild is there before removing it — the terms carry memo/cache state keyed on density serials, and a
-   stage boundary may be exactly where that must be dropped.
+▶ **NEXT — (b)**: open up the **46.4 s exclusive** Hamiltonian ctor.  ✅ **DONE — see 1.1(b) below.**
 
 ★ **FOLDED IN AND DONE — `doc/OpenWork.md` item 5 (Step 0c), "the instruments report WHAT, not WHEN"**:
 a timestamp per report item would localise the residual without adding a single bucket, because the GAPS
@@ -148,6 +137,72 @@ scf ▸ siteMoments  [t=95.93 s]                     ← first stage-2 line
 alone before any bucket was read.  (The same reading at the head of the run: `grids ▸ becke` at 11.50 s,
 first SCF item at 31.64 s = the 20 s of stage-0 ctor.)  ⇒ The claim in item 5 was right, and this is the
 run that demonstrates it.
+
+### 1.1(b) ✅ DONE 2026-09-06 — THE CTOR WAS ONE BAD INDEX, AND THE RUN IS **1.45× FASTER**
+
+Same method as 1.1: bucket before optimising.  Six buckets took the ctor's 23.75 s/call apart in one run,
+and the answer was not distributed at all — it was two calls to the same routine.
+
+| phase of the ctor | s/call | was it suspected? |
+|---|---|---|
+| **XC mesh orbit-consistency fold** (`UnitCell::CreateIntegrationMesh`) | **9.61 s** | no — it had no bucket |
+| **XC mesh orbit fold** (`GPW_IBS::CreateXCQuadrature` → `FoldMesh`) | **9.47 s** | no |
+| Becke mesh build | 8.15 s | already bucketed |
+| site-adapted angular sets (W2b) | 4.03 s | no |
+| XC-mesh Φ tables | 3.14 s | already bucketed |
+| Hartree CD fit basis · IonIon Ewald · term ctors · PP models (GTH) · `DeltaFit_IBS` ctor · quadrature copy | **< 0.001 s each** | all of them |
+
+★ **THE RUN FOLDS THE SAME ~97k MESH POINTS TWICE PER HAMILTONIAN** — once in `UnitCell` to build the
+orbit-consistency keep-mask, once in `GPW_IBS` to build the fold it keeps (the code says so: *"the caller
+rebuilds its orbit fold FROM the finished mesh"*).  **19.1 s per call, 38.2 s of a 121 s run.**
+
+★★★ **BUT DE-DUPLICATING THEM IS THE WRONG FIX, BECAUSE ONE FOLD WAS ALREADY 50× TOO SLOW.**
+`TorusIndex` (`src/Symmetry/Lattice_3D/Imp/Fold.C`) matched images through a bucket grid whose resolution
+was a **constant 64 per axis**: its ctor started at 64 and only ever SHRANK, and the shrink condition
+(`1/nb <= 2*tol`) is never true at the mesh tolerance 1e-8.  Average occupancy looked perfect — 97256
+points in 64³ = 262144 buckets is 0.37 per bucket — **and the average is the wrong statistic**: an
+atom-centred RADIAL mesh is clustered, the inner shells put thousands of points within one bucket-edge of a
+nucleus, and every query near a nucleus scanned all of them.  The buckets are a sparse `unordered_map`, so
+a far finer grid costs no memory it does not use.
+
+**FIXED**: the grid is now as fine as the tolerance allows (capped at 2^20/axis so the key stays in int64),
+and `Find` probes the query's OWN bucket first — these meshes are op-invariant by construction, so
+\f$Wp+\tau\f$ is another mesh point to ~1e-15 and the centre bucket hits essentially every time, turning
+27 hash lookups into 1.  The full 3×3×3 neighbourhood remains the correctness path for a point near a
+bucket face.
+
+| | before | after | |
+|---|---|---|---|
+| orbit-consistency fold | 9.61 s/call | **0.193 s/call** | **50×** |
+| `FoldMesh` | 9.47 s/call | **0.190 s/call** | **50×** |
+| Hamiltonian construction, all in | 34.4 s/call | **15.5 s/call** | 2.2× |
+| **MnO ALL DEFAULTS, 12 threads, WHOLE RUN** | 120.8 s | **83.2 s** | **1.45×** |
+
+✅ `Etot = -61.40297529` — **bit-identical to all printed digits**, as it must be: this is a data structure,
+not a numerical method.  813/813 green.  Pinned by
+`SymmetrizeMesh.TorusFoldIsIndependentOfTheBucketGridOnAClusteredMesh`, which folds a five-decade clustered
+set at three tolerances (hence three different grids) and asserts the orbits are the same — the property
+that makes any future index change safe.
+
+⚠ **THE SECOND FOLD IS STILL THERE, AND IT IS NO LONGER WORTH REMOVING** — 0.19 s/call.  Recorded so nobody
+re-derives it: the duplication is real, it is now 0.3% of the ctor, and a correctness-preserving merge
+(the two folds differ in input — pre- vs post-filter point list — and in tolerance) would buy 0.4 s a run.
+**Do not spend a session on it.**
+
+▶ **WHAT (b) LEAVES OPEN, now that the ctor is 15.5 s/call:**
+1. **The Becke mesh build, 8.15 s/call, is now the largest setup bucket** — and §7c's banked 8.2× threading
+   for it is contradicted by this session's own arms (see the ⚠ below the table above).  Settle that first.
+2. **Site-adapted angular sets, 4.03 s/call** — never measured before, never suspected.
+3. **Why it is built TWICE at all.**  ⚠ **ANSWERED, AND IT IS OWNERSHIP, NOT PHYSICS**: `tSCFIterator`'s
+   destructor does `delete itsHamiltonian` — it deletes an object it did not create — so `BuildStage` MUST
+   hand each stage a fresh one or the previous iterator's destructor takes it down.  The test harness says
+   so in a comment: *"Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT
+   change must not carry stale DIIS history across the re-seed)"* — and the stated physics reason (stale
+   DIIS history) applies to the **accelerator**, which genuinely must be fresh.  The Hamiltonian is a pure
+   function of (structure, basis, species, functional, xcMesh, vxcFit), none of which change between
+   stages, and it rides along only because of the `delete`.  Sharing it would now save **~15.5 s of an
+   83 s run (19%)**.  ★ This is `doc/CleanupCandidates.md` material as much as a perf item — CLAUDE.md
+   says `delete` should be rare or non-existent — so it is filed there; see **R2.22**.
 
 ### 1.2 THE BLAS-MODE SERIAL ARM  ·  `-DQCHEM_BLAZE_BLAS=ON`, **pin kept**
 

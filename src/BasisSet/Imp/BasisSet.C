@@ -7,6 +7,7 @@ module qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;   // the per-block fit factories this whole-set layer delegates to
 import qchem.BasisSet.DeltaFit_IBS;      // DeltaFit_IBS -- the delta representation this layer builds itself
 import qchem.Symmetry.Factory;           // BlochFactory (the delta basis's Gamma irrep)
+import qchem.Reporting;                  // report::Timed -- splitting the delta-fit build (ParallelAndOraclePlan 1.1(b))
 
 namespace qchem::BasisSet
 {
@@ -91,8 +92,23 @@ template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const St
         // same immutable Mesh through the same shared_ptr, so their orderings agree by construction rather
         // than by convention.  A raster (PlaneWave) fit basis has no such quadrature and leaves *quad
         // empty -- no Becke build is paid for on a route that would not use it.
-        FitQuadrature q=CreateXCQuadrature(cl,mp);
-        if (quad) *quad=q;
+        // ★ 1.1(b): three buckets, because this function is 23.75 s/call on MnO and the mesh build is only
+        // a third of it.  Timed is exclusive, so the mesh build / orbit fold / Shubnikov buckets inside
+        // CreateXCQuadrature stay children of the first one.
+        FitQuadrature q;
+        {
+            qchem::report::Timed timed("setup: XC quadrature build (mesh + fold are its children)");
+            q=CreateXCQuadrature(cl,mp);
+        }
+        if (quad)
+        {
+            // A full COPY of the quadrature -- mesh handle (cheap), but also the orbit fold, the σ tags
+            // and the flip-fixed flags over every mesh point.  Priced because "hand the same bundle to
+            // both collaborators" is an ownership decision, and nobody had ever asked what it costs.
+            qchem::report::Timed timed("setup: XC quadrature copy (to the term stack)");
+            *quad=q;
+        }
+        qchem::report::Timed timed("setup: DeltaFit_IBS ctor");
         return new DeltaFit_IBS(std::move(q),
                                 Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     }
