@@ -64,14 +64,12 @@ threads it is 20% of the wall.
 it defers the first Fock into the SCF loop; the test harness's same-named bucket on `RunGpw` CONTAINS that
 first Fock.  Same label, different content — check which harness produced the row.
 
-### 1.1 (original brief) — INSTRUMENT THE UNBUCKETED WORK — do this first, and do not optimise before it
-
-**~59 s of a 128 s threaded MnO run is in no bucket at all**: diagonalisation, orthogonalisation, mixing,
-the fit solves, SCF bookkeeping.  That is larger than every known non-scaling bucket combined (~21 s), and
-nothing times it.  ⇒ Add report buckets around the SCF's non-GPW work, re-run the 12-thread MnO row, and
-let the result choose between 1.2, 1.3 and something not yet on this list.
-★ **Fold in `doc/OpenWork.md` item 5 (Step 0c) here** — "the instruments report WHAT, not WHEN" is the same
-mechanism and the same file; adding a timestamp per report item while adding buckets is one job, not two.
+*(The brief this answered: ~59 s of a 128 s threaded run in no bucket at all — larger than every known
+non-scaling bucket combined — with the SCF's non-GPW work as the suspect list.  Instrument, re-run, and let
+the result choose what comes next.  It did, and it chose neither 1.2 nor 1.3.)*
+★ **STILL TO FOLD IN HERE — `doc/OpenWork.md` item 5 (Step 0c), "the instruments report WHAT, not WHEN"**:
+a timestamp per report item would have localised the residual 25 s without adding a single bucket, because
+the GAPS BETWEEN SECTIONS are exactly the unbucketed time.  Same file, same mechanism; do it with (a).
 
 ### 1.2 THE BLAS-MODE SERIAL ARM  ·  `-DQCHEM_BLAZE_BLAS=ON`, **pin kept**
 
