@@ -76,6 +76,18 @@ bool InSection(const std::string& name);
 //! An ISO-8601-ish "YYYY-MM-DDThh:mm:ss" stamp for Begin's startTime (production use).
 std::string NowIso();
 
+//! \brief Seconds since the current run's \c Begin (0.0 when no run is open) -- the run's own monotonic
+//! clock, and the one number that makes the report say WHEN as well as WHAT.
+//!
+//! WHY (doc/OpenWork.md item 5 / Step 0c, user 2026-08-20): the console is the user's view into a run, and
+//! a section's POSITION in it is not its construction time -- a Section renders when its ENCLOSING section
+//! closes, which once cost the better part of an hour chasing a "late" grid that was built early.  Every
+//! emitted item now carries this stamp, on the console and in the record, so ORDER is READ rather than
+//! inferred.  It is also an instrument in its own right: the GAPS BETWEEN CONSECUTIVE STAMPS are exactly
+//! the time no \c Timed bucket is charging, so unbucketed cost can be LOCALISED without adding a bucket
+//! (doc/ParallelAndOraclePlan.md 1.1).
+double RunElapsed();
+
 //============================================================================
 // Console configuration -- set ONCE at app startup, like a logging config.  Lets
 // providers Emit key-free with no ostream parameter (the console is implicit).
@@ -145,6 +157,8 @@ void EmitTimings(const std::string& name="timing");
 //! provider facet is exactly {CurrentRunReport(), EmitSection()} -- fully generic,
 //! no per-section methods, so `qchem.Reporting` carries no domain vocabulary.  Typo
 //! safety is recovered by a per-section schema-check test on the emitted json.
+//! \note Every emitted item is STAMPED with \c RunElapsed() -- in the console heading and in the run
+//! record's chronological \c timeline array.  See \c RunElapsed for why.
 void EmitSection(const std::string& name, json section);
 
 //----------------------------------------------------------------------------
@@ -212,6 +226,7 @@ public:
 private:
     std::string itsName;
     std::size_t itsDepth;
+    double      itsT0;   //!< RunElapsed() at OPEN, so the close render can print the scope's whole span
 };
 
 //! RAII: append a fresh row object to array `key` under the current cursor and descend

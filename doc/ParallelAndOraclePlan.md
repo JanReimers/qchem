@@ -57,9 +57,6 @@ to find that out — a session spent threading the eigensolve would have bought 
 block outside the box walk.
 ⚠ **Unbucketed: 49 s → 25 s.**  What is left is inside `Iterate` but outside the per-iteration buckets.
 
-▶ **NEXT (start here)**: (a) bracket `SCFIterator::Iterate`'s loop body and the facade's `Converge` to name
-the residual 25 s; (b) then open up the 23.9 s Hamiltonian ctor — it is one call, it is serial, and at 12
-threads it is 20% of the wall.
 ⚠ Note for anyone reading another row's ledger: the FACADE path's `seed + ortho` bucket is 0.001 s because
 it defers the first Fock into the SCF loop; the test harness's same-named bucket on `RunGpw` CONTAINS that
 first Fock.  Same label, different content — check which harness produced the row.
@@ -67,9 +64,90 @@ first Fock.  Same label, different content — check which harness produced the 
 *(The brief this answered: ~59 s of a 128 s threaded run in no bucket at all — larger than every known
 non-scaling bucket combined — with the SCF's non-GPW work as the suspect list.  Instrument, re-run, and let
 the result choose what comes next.  It did, and it chose neither 1.2 nor 1.3.)*
-★ **STILL TO FOLD IN HERE — `doc/OpenWork.md` item 5 (Step 0c), "the instruments report WHAT, not WHEN"**:
-a timestamp per report item would have localised the residual 25 s without adding a single bucket, because
-the GAPS BETWEEN SECTIONS are exactly the unbucketed time.  Same file, same mechanism; do it with (a).
+
+### 1.1(a) ✅ DONE 2026-09-06 — THE RESIDUAL 25 s WAS THE **SECOND** HAMILTONIAN, AND IT IS NOT IN `Iterate` AT ALL
+
+The brief was "bracket `Iterate`'s loop body and the facade's `Converge` to name the residual 25 s".  Both
+brackets are in, and **both came back ~zero** — so the premise they were built on ("what is left is inside
+`Iterate`") was wrong, and the instrument said so in one run:
+
+| the residue bucket | charged |
+|---|---|
+| `scf: iterate (residue — loop body outside the named buckets)` | **0.33 s** (×2 stages) |
+| `scf: converge (residue — final density + m(r) extraction)` | **0.0009 s** |
+| `setup: facade ctor (residue — decisions between the named buckets)` | **0.011 s** |
+
+★ **WHERE IT ACTUALLY WAS: `SolidCalculation::BuildStage` REBUILDS THE WHOLE HAMILTONIAN FOR EVERY ANNEAL
+STAGE, and that call had no bucket.**  1.1 read the ledger's single `setup: hamiltonian ctor` entry and
+concluded "it runs once".  It runs **once per stage**, and the MnO recipe (`MNO_ANNEAL="5e-3,0"`) has two —
+so stage 1's rebuild was invisible, and it is the 25 s.  With `BuildStage` charging the SAME bucket, the
+ledger now reports it as a per-call price instead of two unrelated rows.
+
+**MnO ALL DEFAULTS, BOTH ARMS, same build, `Etot=-61.40297529` on both to all printed digits** —
+`GPW_OMP_THREADS=12`: 121.0 s wall / 569.5 s CPU / 469% / 562 MB.  `GPW_OMP_THREADS` unset: 313.9 s wall /
+532 s CPU / **169%** / 496 MB (⚠ "unset" is not "serial" — blaze still took 1.7 cores; §4's own pin):
+
+| bucket | GPW_OMP unset | 12 threads | ratio | what 1.1 believed |
+|---|---|---|---|---|
+| `setup: hamiltonian ctor` (**exclusive**) | 51.43 s `[×2, 25.7/call]` | **46.36 s** `[×2, 23.2/call]` | **1.11×** ⛔ | 23.9 s, "runs once" |
+| ⤷ `setup: XC-mesh Φ tables` | 54.10 s `[×2]` | 6.25 s `[×2]` | **8.7×** ✅ | 6.2 s |
+| ⤷ `setup: becke mesh build` | 15.43 s `[×2]` | 15.77 s `[×2]` | **1.0×** ⚠ | 16.1 s |
+| **Hamiltonian construction, all in** | **121.0 s = 39%** | **68.4 s = 56%** | 1.77× | ~46 s = 38% |
+| all three residue buckets together | 0.36 s | 0.36 s | — | (did not exist) |
+| **everything not in a bucket** | **0.05 s** | **0.03 s** | — | 25 s |
+| *(39 buckets, summing to)* | *313.71 of 313.76 s* | *120.98 of 121.01 s* | | |
+
+★ **THE CTOR'S EXCLUSIVE HALF IS THE ONE THAT DOES NOT THREAD (1.11×)** — its two children do (Φ tables
+8.7×), which is exactly why it went unnoticed: the bucket beside it scales beautifully.  At 12 threads it
+is 38% of the wall on its own.
+
+⚠ **AND ONE CROSS-ARM READING THAT DOES NOT MATCH THE BANKED TABLE, FLAGGED NOT RESOLVED.**  The Becke mesh
+build measures **15.4 s unset against 15.8 s at 12 threads — no change at all**, where `doc/Benchmark.md`
+§7c banks 138.2 s → 16.9 s (8.2×) for the same bucket.  This run's unset figure is close to §7c's THREADED
+one, so either the mesh build has become ~9× cheaper since those rows were taken (plausible — several
+speedups have landed) or the two "serial" arms are not the same configuration.  §5e already carries this as
+an open collision.  ▶ Settle it with one A/B on the CURRENT build before quoting either number again; do
+not fold it into (b)'s argument, which stands on the ctor's exclusive half regardless.
+
+⇒ **THE LEDGER IS NOW A PARTITION OF THE RUN**, in both arms, which is the property that makes it an
+argument rather than a list: "everything not in a bucket" can no longer be the largest block in the table,
+so a future session cannot be sent chasing one.  And the split it reveals is the headline for bin 2:
+**setup 69.5 s against SCF 51.5 s at 12 threads** (122.8 vs 190.9 unset) — threaded, this run spends MORE
+time building the Hamiltonian than converging it.
+
+⛔ **ONE SUSPECT REFUTED IN PASSING.**  The direct-min line search calls `itsHamiltonian->GetTotalEnergy`
+DIRECTLY, bypassing the iterator's bucketed `TotalEnergy()` helper — up to 12 full density builds + energy
+evaluations per GDM iteration that nothing had ever measured.  It looked like the residual's obvious home.
+It is **1.21 s over 44 calls** (0.027 s/call).  Bucketed now, and cheap.
+
+▶ **NEXT — (b), AND IT IS A BIGGER PRIZE THAN 1.1 SIZED IT**: open up the **46.4 s exclusive** Hamiltonian
+ctor — exclusive meaning it is neither the Becke mesh nor the Φ tables, both of which are its children and
+both of which thread (8×/6.5× per §7c).  Two questions, in order:
+1. **What is the 23.2 s per call?**  The label says "fit bases + becke mesh" and the mesh is accounted
+   for separately, so the fit-basis construction is the unexamined half.  Same move as 1.1: bucket it
+   before optimising it.
+2. **Why is it built TWICE?**  Both stages construct it from the same `st`/`bs`/`xcMesh`/`vxcFit`, so the
+   second Becke mesh and the second Φ table set are recomputed identically.  `BuildStage` exists to give
+   the stage a fresh accelerator and iterator; the Hamiltonian rebuild is along for the ride.  If it can be
+   reused across stages, that is **~34 s of a 121 s run** for no numerical change.  ⚠ Establish WHY the
+   rebuild is there before removing it — the terms carry memo/cache state keyed on density serials, and a
+   stage boundary may be exactly where that must be dropped.
+
+★ **FOLDED IN AND DONE — `doc/OpenWork.md` item 5 (Step 0c), "the instruments report WHAT, not WHEN"**:
+a timestamp per report item would localise the residual without adding a single bucket, because the GAPS
+BETWEEN SECTIONS are exactly the unbucketed time.  ✅ **Built with (a), and it earned its keep on the first
+run** — every console heading now carries the run clock (`grids ▸ becke  [t=11.50 s]`), and the same MnO
+log reads:
+
+```
+[MnO AFM-II Gamma stage 1/2] … iters=14 …          ← last stage-1 line, t = 60.17 s
+scf ▸ siteMoments  [t=95.93 s]                     ← first stage-2 line
+```
+
+**35.8 seconds in which the run printed nothing** — the stage-2 Hamiltonian rebuild, named by the STAMPS
+alone before any bucket was read.  (The same reading at the head of the run: `grids ▸ becke` at 11.50 s,
+first SCF item at 31.64 s = the 20 s of stage-0 ctor.)  ⇒ The claim in item 5 was right, and this is the
+run that demonstrates it.
 
 ### 1.2 THE BLAS-MODE SERIAL ARM  ·  `-DQCHEM_BLAZE_BLAS=ON`, **pin kept**
 
@@ -204,7 +282,7 @@ all-electron arbiter, GPAW/SIESTA only if we want a second *timing* peer for the
 | item | where it lands here | why |
 |---|---|---|
 | **S** — the anchor-moving sprint (A2–A6) | **1.2** | the BLAS arm moves anchors; it must share the ONE re-bank window |
-| **5** — Step 0c, instruments report WHAT not WHEN | **1.1** | same mechanism, same file, one job |
+| **5** — Step 0c, instruments report WHAT not WHEN | **1.1** ✅ **DONE 2026-09-06** | same mechanism, same file, one job — and it located 1.1(a)'s answer before any bucket was read |
 | **6** — `FIT_SF_Ortho` metric axis | **2.5** | it is precisely "implementation detail in an abstract face" |
 | **7** — continuous cleanup (`CleanupCandidates` R1/R2/V1, V1.32) | **2.5** | the campaign IS this item, given a window |
 | **N3** — charge/spin mixing channels | **3.2** | +U on an AFM is spin-channel-sensitive; land the mixer split with it |

@@ -51,6 +51,7 @@ struct RunContext
     std::string          key;
     json                 doc = json::object();
     std::vector<PathSeg> savedCursor;            // the OUTER run's cursor, restored at End (nesting)
+    long long            t0ns = 0;               // steady_clock ns at Begin -- the run's own zero (RunElapsed)
 };
 
 std::vector<RunContext> g_stack;                 // the run-nesting stack (empty == no run)
@@ -68,7 +69,49 @@ json* cursorNode()
     return node;
 }
 
+//============================================================================
+// THE RUN CLOCK (doc/OpenWork.md item 5 / Step 0c).  One steady_clock read per emitted item -- the same
+// clock Timed already uses -- turning the report from a WHAT into a WHAT+WHEN.  Two consumers:
+//   * the console heading carries the stamp, so a reader never has to INFER order from position (a Section
+//     renders when its ENCLOSING section closes, which is precisely the trap this closes);
+//   * a chronological "timeline" array in the record, so the GUI/HDF5 side gets the order as DATA.
+// The nested document and the chronological one are both kept -- that was the open design question, and
+// keeping both costs one array and answers it without choosing.
+//============================================================================
+long long nowNs()
+{
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+               std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+//! Append one {item, [t0,] t} entry to the current run's chronological index.  Inert outside a run.
+void stampTimeline(const std::string& label, double tClose, const double* tOpen)
+{
+    if (g_stack.empty()) return;
+    json e = json::object();
+    e["item"] = label;
+    if (tOpen) e["t0"] = *tOpen;
+    e["t"] = tClose;
+    g_stack.back().doc["timeline"].push_back(std::move(e));
+}
+
+//! The console stamp for one heading: "  [t=12.34 s]", or "  [t=3.21->12.34 s]" for a scope with a span.
+std::string stampText(double tClose, const double* tOpen)
+{
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(2) << "  [t=";
+    if (tOpen) ss << *tOpen << "→";
+    ss << tClose << " s]";
+    return ss.str();
+}
+
 } // anonymous namespace
+
+double RunElapsed()
+{
+    if (g_stack.empty()) return 0.0;
+    return double(nowNs()-g_stack.back().t0ns)*1e-9;
+}
 
 json& CurrentRunReport()
 {
@@ -99,6 +142,7 @@ void Begin(const std::string& name, const std::string& startTime)
     RunContext ctx;
     ctx.key         = name + "@" + startTime;
     ctx.savedCursor = std::move(g_cursor);        // a nested run must not corrupt the outer cursor
+    ctx.t0ns        = nowNs();                    // the run's own zero -- every item is stamped against it
     g_cursor.clear();                             // ...it starts at its own run root
     g_stack.push_back(std::move(ctx));
 }
@@ -134,7 +178,10 @@ void ClearConsole()                          { g_console = nullptr; }
 
 void Log(const std::string& message)
 {
-    if (g_console) *g_console << "· " << message << " …" << std::endl;   // endl => flush now (the heartbeat)
+    // STAMPED like every other item: the heartbeat's whole job is to say what is happening RIGHT NOW, and
+    // until it carried the run clock a reader still could not tell how long the previous step had taken.
+    if (g_console) *g_console << "· " << message << " …" << stampText(RunElapsed(), nullptr)
+                              << std::endl;   // endl => flush now (the heartbeat)
 }
 
 //============================================================================
@@ -312,11 +359,22 @@ std::string RenderJson(const json& node) { return node.dump(2); }
 
 // Render one completed section to the console -- incremental, depth-1 only (nested
 // runs stay quiet on the console but are kept in full in the json).
-static void renderSectionToConsole(const std::string& name, const json& section)
+// STAMPED (doc/OpenWork.md item 5): the heading carries the run clock, and a SCOPED section carries its
+// whole span "[t=t0->t1 s]" -- which is the honest reading, because this render fires at scope CLOSE and
+// the block's position in the console is therefore not its construction time.
+//
+// ⚠ THE STAMP IS TAKEN BY THE CALLER, NOT HERE, AND THAT IS LOAD-BEARING.  stampTimeline INSERTS a
+// top-level "timeline" key, and ordered_json is VECTOR-BACKED -- so the first insert of a run REALLOCATES
+// the document's element storage and dangles any `const json&` already resolved into it.  Section::~Section
+// resolves exactly such a reference (doc[itsName]), so it must stamp BEFORE it resolves.  Doing the stamp
+// in here instead cost a segfault in GPW_SCF.AlFCCDegenerateShellAufbauStalls -- reproducible only when a
+// scoped Section closes before any Emit, i.e. when its own stamp is the run's first timeline entry.
+static void renderSectionToConsole(const std::string& name, const json& section,
+                                   double t, const double* tOpen = nullptr)
 {
     if (g_console && Depth() == 1 && !section.empty())
     {
-        *g_console << "\n" << name << "\n";
+        *g_console << "\n" << name << stampText(t, tOpen) << "\n";
         RenderConsole(section, *g_console, g_detail);
     }
 }
@@ -324,7 +382,9 @@ static void renderSectionToConsole(const std::string& name, const json& section)
 void EmitSection(const std::string& name, json section)
 {
     CurrentRunReport()[name] = section;                    // ALWAYS record (json is complete)
-    renderSectionToConsole(name, section);
+    const double t = RunElapsed();
+    stampTimeline(name, t, nullptr);
+    renderSectionToConsole(name, section, t);              // renders the BY-VALUE copy, not the doc's node
 }
 
 void Set(const std::string& key, json value)
@@ -347,9 +407,11 @@ void EmitAt(const std::string& section, const std::string& key, json value, Deta
     g_stack.back().doc[section][key] = value;          // ALWAYS record (the json record is complete)
     // Console gate: render only at depth 1, non-empty, AND when the configured detail meets this block's
     // minimum (so a Verbose-only block like basis.usage stays in the json but prints only at Detail::Verbose).
+    const double t = RunElapsed();
+    stampTimeline(section + " ▸ " + key, t, nullptr);
     if (g_console && Depth() == 1 && !value.empty() && (int)g_detail >= (int)minLevel)
     {
-        *g_console << "\n" << section << " ▸ " << key << "\n";
+        *g_console << "\n" << section << " ▸ " << key << stampText(t, nullptr) << "\n";
         RenderConsole(value, *g_console, g_detail);
     }
 }
@@ -407,10 +469,13 @@ void EmitFold(const std::string& site, size_t nOps, size_t raw, size_t reps, con
         std::cout.precision(prec0);
     }
     if (!note.empty()) std::cout << "  [" << note << "]";
-    std::cout << std::endl;
+    // STAMPED, like every other item (doc/OpenWork.md item 5): a fold line is one of the most useful
+    // "when did this happen" markers a run prints, and it announces at the fold's OWN trigger -- so the
+    // stamp says when the site actually folded, not where the line landed in the log.
+    std::cout << stampText(RunElapsed(), nullptr) << std::endl;
 }
 
-Section::Section(const std::string& name) : itsName(name), itsDepth(g_cursor.size())
+Section::Section(const std::string& name) : itsName(name), itsDepth(g_cursor.size()), itsT0(RunElapsed())
 {
     if (g_stack.empty()) return;                           // inert outside a run
     (*cursorNode())[name];                                 // ensure the member exists
@@ -421,8 +486,10 @@ Section::~Section()
 {
     g_cursor.resize(itsDepth);                             // pop back to the enclosing context
     if (g_stack.empty()) return;
-    const json& doc = g_stack.back().doc;
-    if (doc.contains(itsName)) renderSectionToConsole(itsName, doc[itsName]);
+    const double t = RunElapsed();
+    stampTimeline(itsName, t, &itsT0);                     // MAY reallocate the doc (see renderSectionToConsole)
+    const json& doc = g_stack.back().doc;                  // ...so resolve the node AFTERWARDS, never before
+    if (doc.contains(itsName)) renderSectionToConsole(itsName, doc[itsName], t, &itsT0);
 }
 
 Row::Row(const std::string& key) : itsDepth(g_cursor.size())

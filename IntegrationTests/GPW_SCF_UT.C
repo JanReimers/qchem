@@ -4409,7 +4409,6 @@ TEST(GPW_SCF, ImposedOrderLostIsAPostconditionFailure_Na2Box)
 //     THE HOPPING IS GONE: from ~iteration 45 the `cfg` flag goes BLANK -- one configuration, held.
 //     Three phases: Kerker+DIIS settles at -60.14 (drho 4.3e-4, [F,D] 7.8e-3), the Ladder hands off to GDM
 //     at ~70 and finds a LOWER -60.92 (so the DIIS fixed point was not the bottom), and the moment settles
-//     at 0.52.  STILL OPEN: it does not pass the gate -- the run ends on the GDM leg where the mixer's drho
 //     is not the convergence measure (lastdrho 3.2e-2 vs 1e-5) -- and it is still NON-AUFBAU (a 0.21 Ha
 //     hole), so the residual 0.55 Ha may BE that hole.  NB `cfg *` is only a hopping diagnostic while the
 //     energy ORDER is stable: it keys off orbital index, which re-shuffles freely under MOM.

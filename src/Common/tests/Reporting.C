@@ -287,6 +287,127 @@ TEST(Reporting, NestedRunCursorIsolated)
 
 // -- RenderJson is the model verbatim ---------------------------------------
 
+// -- THE RUN CLOCK: the report says WHEN, not only WHAT (doc/OpenWork.md item 5 / Step 0c) -------------
+//
+// The defect these guard: a report section RENDERS when its ENCLOSING section closes, so a block's
+// POSITION in the console is NOT its construction time -- which once cost the better part of an hour
+// chasing a grid that was built early and printed late.  Every emitted item now carries the run's own
+// monotonic stamp, on the console and in the record's chronological `timeline`.
+
+TEST(Reporting, RunElapsedIsInertOutsideARunAndAdvancesInside)
+{
+    ClearConsole();
+    EXPECT_EQ(RunElapsed(), 0.0);                   // inert with no run open -- like every other cursor op
+    Begin("clock", "t");
+    const double t0 = RunElapsed();
+    EXPECT_GE(t0, 0.0);
+    double burn = 0.0;                              // burn a little wall time (no sleep in a unit test)
+    for (int i = 1; i < 2000000; ++i) burn += 1.0/i;
+    EXPECT_GT(burn, 0.0);                           // ...and consume it, so the loop cannot be elided
+    EXPECT_GE(RunElapsed(), t0);                    // monotone -- steady_clock, never the wall clock
+    End();
+    EXPECT_EQ(RunElapsed(), 0.0);                   // ...and inert again once the run closes
+}
+
+TEST(Reporting, EveryEmittedItemLandsInTheTimelineInOrder)
+{
+    ClearConsole();
+    Begin("tl", "t");
+    EmitSection("first", { { "x", 1 } });
+    EmitAt("grids", "xcQuadrature", { { "kind", "Becke" } });
+    {
+        Section s("assembled");                     // renders (and stamps) at scope CLOSE, not here
+        Set("k", 7);
+    }
+    const json doc = CurrentRunReport();            // COPY before End (End moves the doc out)
+    End();
+
+    ASSERT_TRUE(doc.contains("timeline"));
+    ASSERT_TRUE(doc["timeline"].is_array());
+    ASSERT_EQ(doc["timeline"].size(), 3u);
+    EXPECT_EQ(doc["timeline"][0]["item"].get<std::string>(), "first");
+    EXPECT_EQ(doc["timeline"][1]["item"].get<std::string>(), "grids ▸ xcQuadrature");
+    EXPECT_EQ(doc["timeline"][2]["item"].get<std::string>(), "assembled");
+    // Chronological by construction: the stamps never go backwards.
+    for (std::size_t i = 1; i < doc["timeline"].size(); ++i)
+        EXPECT_GE(doc["timeline"][i]["t"].get<double>(), doc["timeline"][i-1]["t"].get<double>());
+    // A SCOPED section carries its whole SPAN (t0 = open), which is the half that answers "when was it
+    // built" as opposed to "when was it printed".  A one-shot Emit has no span, so it carries none.
+    ASSERT_TRUE(doc["timeline"][2].contains("t0"));
+    EXPECT_LE(doc["timeline"][2]["t0"].get<double>(), doc["timeline"][2]["t"].get<double>());
+    EXPECT_FALSE(doc["timeline"][0].contains("t0"));
+}
+
+// ⚠ REGRESSION (2026-09-06): a scoped Section that closes as the run's FIRST emitted item.  Its stamp is
+// then the first insert of the top-level "timeline" key, and ordered_json is vector-backed -- so that
+// insert REALLOCATES the document's storage.  Section::~Section resolves `doc[itsName]` and renders
+// through that reference, so stamping after resolving dangled it: a segfault in
+// GPW_SCF.AlFCCDegenerateShellAufbauStalls, and ONLY there, because every other run happened to Emit
+// something before its first Section closed.  Order matters; this test pins it.
+TEST(Reporting, SectionClosingFirstDoesNotDangleTheDocument)
+{
+    std::ostringstream os;
+    SetConsole(os, Detail::Normal);
+    Begin("firstSection", "t");
+    { Section sec("basis"); Set("nFunctions", 23); }   // NOTHING emitted before this closes
+    const json doc = CurrentRunReport();
+    End();
+    ClearConsole();
+    ASSERT_EQ(doc["timeline"].size(), 1u);
+    EXPECT_EQ(doc["timeline"][0]["item"].get<std::string>(), "basis");
+    EXPECT_EQ(doc["basis"]["nFunctions"].get<int>(), 23);
+    EXPECT_NE(os.str().find("nFunctions"), std::string::npos);   // the render survived the reallocation
+    EXPECT_NE(os.str().find("23"), std::string::npos);
+}
+
+TEST(Reporting, ConsoleHeadingsCarryTheStamp)
+{
+    std::ostringstream os;
+    SetConsole(os, Detail::Normal);
+    Begin("stamped", "t");
+    EmitSection("meta", { { "title", "H2O" } });
+    EmitAt("grids", "xcQuadrature", { { "kind", "Becke" } });
+    { Section s("assembled"); Set("k", 7); }
+    End();
+    ClearConsole();
+    const std::string out = os.str();
+    EXPECT_NE(out.find("meta  [t="), std::string::npos);
+    EXPECT_NE(out.find("grids ▸ xcQuadrature  [t="), std::string::npos);
+    EXPECT_NE(out.find("assembled  [t="), std::string::npos);
+    EXPECT_NE(out.find("→"), std::string::npos);    // the scoped section prints its SPAN, "t0→t1"
+}
+
+// The timeline is RUN-scoped, like every other part of the document: a nested run (the HF/DHF SAD
+// bootstrap) keeps its own, and must not append to its parent's.
+TEST(Reporting, TimelineIsRunScoped)
+{
+    ClearConsole();
+    Begin("outerTL", "t1");
+    EmitSection("a", { { "x", 1 } });
+    Begin("innerTL", "t2");
+    EmitSection("b", { { "y", 2 } });
+    EmitSection("c", { { "z", 3 } });
+    End();
+    End();
+    EXPECT_EQ(GlobalReport()["outerTL@t1"]["timeline"].size(), 1u);
+    EXPECT_EQ(GlobalReport()["innerTL@t2"]["timeline"].size(), 2u);
+}
+
+// EmitAt is IDEMPOTENT (an unchanged value is a complete no-op), and that must extend to the stamp --
+// otherwise a provider that re-announces the same grid every k-block would flood the timeline with
+// entries that record nothing but the announcement.
+TEST(Reporting, IdempotentEmitAtDoesNotRestampTheTimeline)
+{
+    ClearConsole();
+    Begin("dedup", "t");
+    EmitAt("grids", "xcQuadrature", { { "kind", "Becke" } });
+    EmitAt("grids", "xcQuadrature", { { "kind", "Becke" } });   // identical -> no-op
+    EmitAt("grids", "xcQuadrature", { { "kind", "Uniform" } }); // CHANGED -> writes + stamps
+    const json doc = CurrentRunReport();
+    End();
+    EXPECT_EQ(doc["timeline"].size(), 2u);
+}
+
 TEST(Reporting, RenderJsonRoundTrips)
 {
     const json r = SampleRun();

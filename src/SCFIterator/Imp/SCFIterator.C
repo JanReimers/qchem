@@ -240,6 +240,12 @@ template <class T> tSCFIterator<T>::~tSCFIterator()
 
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
 {
+    // ★ THE RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  report::Timed is EXCLUSIVE, so an outer
+    // scope around the whole loop charges itself precisely what its children do NOT -- i.e. this bucket IS
+    // the answer to "how much of the unbucketed time is inside Iterate", with no guessing about where to
+    // put the next probe.  With the facade's ctor and Converge bracketed the same way, the ledger becomes a
+    // PARTITION of the run: "everything not in a bucket" can no longer be the largest block in the table.
+    qchem::report::Timed residue("scf: iterate (residue -- loop body outside the named buckets)");
     assert(itsWaveFunction);
     assert(itsHamiltonian);
     assert(itsCD);
@@ -315,9 +321,19 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // The caller's ORDER PARAMETER on THIS iteration's working density (§9 diagnostic metric).  Measured
         // before the display so the trace and the observer see the same number, and unconditionally (not just
         // under Verbose): a headless client watching the observer needs it too.  No probe => no cost.
-        const double order = itsOrderProbe ? itsOrderProbe(*itsCD) : 0.0;
+        // Bucketed even though it is meant to be cheap (it rides a raster the Fock build already made for
+        // this density serial): "meant to be cheap" is exactly the claim an instrument exists to check.
+        double order = 0.0;
+        if (itsOrderProbe)
+        {
+            qchem::report::Timed timed("scf: order probe (site moments, per iteration)");
+            order = itsOrderProbe(*itsCD);
+        }
         if (ipar.Verbose)
         {
+            // "all fields, all cheap" is a CLAIM -- HomoLumo and ConfigString both walk every irrep's
+            // spectrum and occupations, once per iteration, and nothing was measuring them.
+            qchem::report::Timed timed("scf: iteration trace + display (HomoLumo, cfg, columns)");
             // Build the full per-iteration trace (all fields, all cheap) and let the per-system display
             // virtual render its honest columns (item 2).  The cfg '*' flags an occupation change vs the
             // previous iteration (blank on iteration 1 -- there is no prior config to differ from).
@@ -341,6 +357,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // SKIPPED under direct-min: GDM/OT own the density update, so no post-step re-mix (see lineSearch above).
         if (!lineSearch && itsMixer->WantsReDamp({E,FD,FDold}))
         {
+            // A SECOND density build + a SECOND energy in the same iteration -- so this branch doubles the
+            // per-iteration cost whenever it fires, and how often it fires is a policy decision nobody has
+            // ever been able to price.  (TotalEnergy keeps its own bucket; this one is the rest.)
+            qchem::report::Timed timed("scf: adaptive re-damp (density rebuild + re-mix)");
             SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
             ChargeDensityChange = itsMixer->ReDampMix(*itsCD, *itsOldCD);
             eb=TotalEnergy(itsCD.get());
@@ -458,6 +478,9 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // one because ComputeStep FAILED, the other because an exhausted RejectStep armed a forced diagonalize.
     auto mixedStep=[&]()
     {
+        // The FALLBACK is a whole fixed-point step taken inside a direct-min iteration, so it must be
+        // visible as one: without this bucket a stalled geodesic silently doubles the iteration's cost.
+        qchem::report::Timed timed("scf: direct-min MIXED fallback step (whole fixed-point step)");
         itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
         itsWaveFunction->FillOrbitals(*itsOccPolicy, mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
@@ -484,7 +507,8 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     // POLICY object wrapping the run's (shared IMOM clocks + the -TS aggregate), not a bool.
     qchem::HeldOccupationPolicy<T> held(*itsOccPolicy);
     itsWaveFunction->MoveOrbitals(held,0.0,false,mergeTol);
-    const double E0 = [&]{ cd_t cd0(itsWaveFunction->GetChargeDensity());
+    const double E0 = [&]{ qchem::report::Timed timed("scf: line-search energy E(t) (density build + all terms)");
+                           cd_t cd0(itsWaveFunction->GetChargeDensity());
                            return itsHamiltonian->GetTotalEnergy(cd0.get()).GetTotalEnergy()
                                 + itsOccPolicy->EntropyTerm(); }();
     const bool trace=(bool)std::getenv("GPW_GDMTRACE");
@@ -498,6 +522,11 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         for (;k<12;k++)
         {
             itsWaveFunction->MoveOrbitals(held,t,false,mergeTol);   //trial, ON the geodesic
+            // ★ THE LINE SEARCH'S OWN PRICE, and it went unmeasured because it does NOT go through the
+            // iterator's TotalEnergy() helper -- it calls the Hamiltonian directly, so the "scf: total
+            // energy" bucket never saw it.  Up to 12 of these per direct-min iteration, each one a full
+            // composite-density BUILD plus every energy term (doc/ParallelAndOraclePlan.md 1.1(a)).
+            qchem::report::Timed timed("scf: line-search energy E(t) (density build + all terms)");
             cd_t cdt(itsWaveFunction->GetChargeDensity());                //std-managed (no freed-address reuse)
             // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is
             // current); GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  GPWPlan1 4b.
@@ -518,6 +547,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         if (found)
         {
             itsWaveFunction->MoveOrbitals(held,t,true,mergeTol);    //commit at t
+            qchem::report::Timed timed("scf: line-search commit density");
             return cd_t(itsWaveFunction->GetChargeDensity());
         }
         // NO DESCENT AT ANY BACKTRACK -- do NOT take the step.  Committing here (the behaviour through

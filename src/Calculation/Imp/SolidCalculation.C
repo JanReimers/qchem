@@ -234,6 +234,12 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
                                    const SCFAccelerators::SolidAcceleratorOptions& acc)
     : itsImp(std::make_unique<Imp>())
 {
+    // ★ THE CTOR'S RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  Timed is EXCLUSIVE, so this
+    // outer scope charges itself exactly what the named setup buckets below do NOT -- the decisions
+    // between them (sharpness gather, magnetic decoration, IonicSAD targets, the irrep/EC build, the
+    // banner).  With the same bracket on Converge and on Iterate, the ledger PARTITIONS the run and
+    // "everything not in a bucket" stops being a place time can hide.
+    qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
     itsImp->opts    = opts;
     itsImp->accOpts = acc;
     itsImp->st      = lat.GetStructure();
@@ -575,10 +581,20 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
 void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
                                   std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried)
 {
+    // ★ EVERY ANNEAL STAGE REBUILDS THE HAMILTONIAN, and it is charged to the SAME bucket as the ctor's
+    // so the ledger reports it as "[xN, s/call]" rather than as two unrelated rows.  That matters here:
+    // the ctor's Hamiltonian is the largest named non-threading block in the run, and an N-stage schedule
+    // pays for it N times (doc/ParallelAndOraclePlan.md 1.1(b)).
+    // A SECOND residue bucket wraps the rest -- the accelerator, the fresh iterator (whose ctor Inits, so
+    // the first Fock of the stage is a child of it) and the MOM adoption.
+    qchem::report::Timed residue("setup: anneal stage rebuild (residue -- accel + iterator + MOM adopt)");
     const bool polarized = itsImp->opts.multiplicity>=1;
-    itsImp->ham = qchem::Hamiltonian::Factory(
-        polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
-        itsImp->st, itsImp->bs.get(), itsImp->opts.species, "LDA", itsImp->xcMesh, itsImp->opts.vxcFit);
+    {
+        qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
+        itsImp->ham = qchem::Hamiltonian::Factory(
+            polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
+            itsImp->st, itsImp->bs.get(), itsImp->opts.species, "LDA", itsImp->xcMesh, itsImp->opts.vxcFit);
+    }
     itsImp->stageAccel = accType;
     auto* accel = SCFAccelerators::Factory(accType, itsImp->accOpts);
 
@@ -659,6 +675,10 @@ SolidCalculation::Converge(const std::vector<SCFStage>& schedule)
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(const SCFParams& params)
 {
     assert(itsImp->scf);
+    // ★ THE CONVERGE RESIDUE (doc/ParallelAndOraclePlan.md 1.1(a)).  The work AFTER Iterate returns is not
+    // bookkeeping: GetChargeDensity() builds a fresh composite density and GetSpinDensity() rasters BOTH
+    // spin channels, once per stage -- and an annealed run has a stage per schedule entry.
+    qchem::report::Timed residue("scf: converge (residue -- final density + m(r) extraction)");
     EmitSCFBanner(itsImp->opts.label, params, itsImp->stageAccel);
     itsImp->scf->Iterate(params);
     itsImp->converged = itsImp->scf->Converged();

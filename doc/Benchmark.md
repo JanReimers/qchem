@@ -174,6 +174,21 @@ Every GPW run now prints, without extra flags:
 | `[fold] <site>: … = F×` for every fold site | `EmitFold`, Step 0b |
 | `[collocation] kernel=… ;  task list: … tasks, … MB` | the kernel + task-list readout (unconditional) |
 | `[site moments] … [e]` (polarized) | `QCHEM_SITE_MOMENTS=1`, Step 0a |
+| **`[t=12.34 s]` on every section heading, fold and log line** | the run clock, `report::RunElapsed()` (added 2026-09-06, `doc/OpenWork.md` Step 0c) |
+
+⚠ **A STAMP IS A MOMENT, NOT A DURATION — AND A GAP BELONGS TO WHAT RAN *BEFORE* IT, NOT TO THE LINE THAT
+CARRIES IT.**  The stamped line is the END of the silent stretch above it.  So in
+`scf ▸ siteMoments  [t=95.93 s]` after a stage boundary at 60.17 s, the 35.8 s is the stage rebuild that
+FINISHED at 95.93 — it says nothing about the cost of the site moments, which are **1.7 ms per call, 0.053 s
+over the whole run** (`scf: order probe`, bucketed 2026-09-06 for exactly this reason).  Attributing a gap
+to the item that closes it is the one wrong inference this instrument makes easy; the LEDGER is what prices
+an item, the stamps only localise WHEN.
+
+**READ THE STAMPS BEFORE THE LEDGER.**  The `timing` table says WHAT the run spent; the stamps say WHEN,
+and the GAPS BETWEEN CONSECUTIVE STAMPS are exactly the time no bucket is charging.  That is how the last
+25 s of unbucketed MnO time was located (a 35.8 s silent stretch between two anneal stages) without adding
+a bucket first — cheaper than guessing where to put the next probe, and it works on a run you have already
+taken.
 
 …**including the ANNEALED driver**, which had none of the summary half until 2026-08-19 — and every MnO row
 runs through it, so the "every GPW run reports PEAK RSS" claim above was false for precisely the runs whose
@@ -759,6 +774,37 @@ MnO ALL DEFAULTS, the same run in both columns (serial 395.6 s → 12 threads 12
 | scf/setup: the FFT closures, local-PP short | ~3 s | ~3.4 s | ~0.9× | ⛔ |
 | **everything not in a bucket** | ~52 s | **~59 s** | **~0.9×** | ⛔ |
 
+⚠ **THE LAST ROW IS SUPERSEDED — IT IS NOW 0.03 s** (2026-09-06, `doc/ParallelAndOraclePlan.md` 1.1 + 1.1(a)).
+Instrumenting it did not find "diagonalisation, orthogonalisation, mixing, the fit solves": the SCF's whole
+linear-algebra side is ~5 s of a serial run and the diagonalisation is **0.038 s**.  It found **the
+Hamiltonian being built once per ANNEAL STAGE** — `SolidCalculation::BuildStage` re-`Factory`s it and had no
+bucket at all.  On the same 12-thread MnO row (121.0 s wall, 39 buckets summing to 120.98 s):
+
+| bucket | GPW_OMP unset | 12 threads | speedup | |
+|---|---|---|---|---|
+| `setup: hamiltonian ctor` (exclusive of the two below) | 51.4 s `[×2, 25.7/call]` | **46.4 s** `[×2, 23.2/call]` | **1.11×** | ⛔ |
+| ⤷ `setup: XC-mesh Φ tables` | 54.1 s `[×2]` | 6.2 s `[×2]` | **8.7×** | ✅ |
+| ⤷ `setup: becke mesh build` | 15.4 s `[×2]` | 15.8 s `[×2]` | **1.0×** | ⚠ see below |
+| **Hamiltonian construction, all in** | **121.0 s = 39%** | **68.4 s = 56%** | 1.77× | ⛔ |
+| the three residue buckets together | 0.36 s | 0.36 s | — | — |
+| **everything not in a bucket** | **0.05 s** | **0.03 s** | — | ✅ |
+
+Same build, same recipe, `Etot=-61.40297529` on both arms to all printed digits; 313.9 s wall / 532 s CPU /
+**169%** unset, 121.0 s / 569.5 s CPU / 469% at 12 threads.  39 buckets summing to 313.71 of 313.76 s and
+120.98 of 121.01 s respectively.
+
+★ **SO THE SHAPE OF THIS ROW IS SETUP, NOT SCF — 69.5 s of setup against 51.5 s of SCF at 12 threads.**
+That is bin 2 ("Init (pre-iteration) time") in the gap-close priority order, and it is now the biggest
+single lever on the MnO wall — bigger than either pair loop.  **The half that does not thread is the ctor's
+own 1.11×**; its children scale fine, which is precisely why it hid.  ▶ Next: bucket the fit-basis half of
+that 23.2 s/call, and establish whether an anneal stage must rebuild the Hamiltonian at all (~34 s if not).
+
+⚠ **THE BECKE MESH BUILD ROW COLLIDES WITH THE TABLE ABOVE, AND IS NOT RESOLVED HERE.**  It measures the
+same in both arms (15.4 vs 15.8 s) where the banked row says 138.2 → 16.9 s (8.2×), and this run's UNSET
+figure sits next to the banked THREADED one.  Either the bucket got ~9× cheaper since (several speedups
+have landed) or the two "serial" arms are different configurations.  §5e already carries this as open.
+▶ One A/B on the current build settles it; until then quote neither figure as the mesh build's scaling.
+
 ★ **THE BECKE MESH BUILD THREADS AT 8.2× — §5e's open question is CLOSED, and the answer is "it threads
 fine on MnO".**  Whatever holds NaF back (7d) is not the loop being serial.
 
@@ -791,7 +837,7 @@ Solve \f$S+P/12=t_{12}\f$ against \f$S+P=t_1\f$:
 
 | row | Amdahl \f$S\f$ | as % of serial | what 7c attributes it to |
 |---|---|---|---|
-| MnO ALL DEFAULTS | **104 s** | 26% | ~59 s unbucketed + ~21 s of non-scaling buckets + imbalance |
+| MnO ALL DEFAULTS | **104 s** | 26% | ⚠ **re-attributed 2026-09-06**: the ~59 s "unbucketed" is the **Hamiltonian ctor's 46 s exclusive half** (×2, once per anneal stage) + ~21 s of non-scaling buckets + imbalance |
 | MnO `BECKE_XC=0` | 32 s | 22% | same shape, no mesh build |
 | NaF SR2 Γ | 9 s | 40% | ⚠ **matches its SERIAL setup buckets (9.8 s) to ~7%** |
 
