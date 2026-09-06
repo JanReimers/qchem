@@ -83,17 +83,34 @@ either history.
 > NOTHING LEFT TO OPTIMISE.**  ⚠ It does NOT touch the parity row either way (setup 1.76 s there, BEATING
 > CP2K's 8.1 s).
 >
-> ✅ **THE HARNESS ALREADY EXISTS** in `IntegrationTests/GPW_SCF_UT.C`: `BeckeLadder()` sweeps the angular
-> degree at fixed \f$n_R\f$ and \f$n_R\f$ at fixed degree on ONE frozen density, scoring every rung against
-> a dense reference (nR=100, GL-41) by \f$\Delta E_{xc}\f$ and \f$\max|\Delta V_{xc}(i,j)|\f$ — and
-> `UniformXCProbe()` scores the uniform route on the SAME metric (it is what
-> `BeckeXCMatchesUniformXC_SiGamma` compares against today).  **What is missing is ONE ROW**: put the
-> uniform probe on the ladder, then read off the smallest \f$(n_R,\text{degree})\f$ whose error is ≤ the
-> uniform raster's.  That answers the question as asked, in the metric asked for.
-> ⚠ Two standing rules from the V2.6/V2.6a work, both still binding: a frozen density UNDERSTATES the
-> self-consistent shift on a METAL (Al moved 6.4e-4 in total energy where its ladder said 3.9e-4) ⇒
-> calibrate on a metal or do not ship a global default; and Al's convergence is NON-MONOTONIC in the angular
-> degree, so no "degree N suffices" claim survives a three-insulator sample.
+> ✅ **MEASURED 2026-09-06 — the ladder now carries the uniform route as its yardstick** (`BeckeLadder()`
+> in `IntegrationTests/GPW_SCF_UT.C`, V2.8 block; one frozen density per system, reference nR=100 GL-41,
+> scored by \f$\Delta E_{xc}\f$ and \f$\max|\Delta V_{xc}(i,j)|\f$ — the error in the operator that is
+> actually diagonalised).  Both routes are FITS of the same \f$v_{xc}\f$ — uniform onto the plane-wave
+> \f$\{G\}\f$ raster, Becke onto DELTA functions at its points — which is what makes them comparable:
+>
+> | system | UNIFORM: pts, max\|dVxc\| | cheapest Becke rung ≤ that | production nR=40 GL-29 |
+> |---|---|---|---|
+> | Si covalent | 15625, **3.54e-4** | nR=40 GL-15, 6968 pts (**3.5×** fewer) | 24472 pts, 1.75e-5 |
+> | NaF ionic | 15625, **1.617e-1** | nR=40 GL-5, 920 pts (**26×**) | 23656 pts, 7.92e-5 |
+> | Al metal | 512, **5.75e-3** | nR=40 GL-15, 3448 pts (**3.5×**) | 12074 pts, 2.58e-4 |
+> | Mn atom-in-box | 262144, **1.303e-1** | nR=40 GL-5, 556 pts (**25×**) | 14104 pts, 1.31e-6 |
+>
+> ⇒ **(1) THE RECIPE IS OVER-GENEROUS ON EVERY SYSTEM** — 3.5× on the two hard ones, ~25× on the sharp
+> ones — and the build scales with the point count, so that factor comes straight off the 136.6 s.
+> ⇒ **(2) THE ENERGY AND THE MATRIX DISAGREE ABOUT WHICH ROUTE IS BETTER.**  The uniform route's
+> \f$\Delta E_{xc}\f$ is tiny everywhere (3e-7 on Si — better than every Becke rung below nR=60) while its
+> matrix error is 20× to 10⁵× worse.  Error that cancels in the integral does not cancel in the operator.
+> **Score the matrix.**
+> ⇒ **(3) SO "MATCH THE UNIFORM MESH" IS A WEAK TARGET EXACTLY WHERE BECKE EXISTS TO HELP** — on NaF and
+> Mn it would license GL-5, which nobody should ship.  ▶ **The threshold is a POLICY CALL and needs the
+> user**: at an ABSOLUTE \f$\max|\Delta V_{xc}|\le\f$ 1e-4 the answer is **nR=40, GL-17…21** — still
+> 2–3× cheaper than production.
+> ⚠ Both V2.6a rules survive: Al is NON-MONOTONIC on both axes here too (GL-9 beats GL-11, nR=25 beats
+> nR=30), and a frozen ladder UNDERSTATES the self-consistent shift on a metal ⇒ **no default may be
+> flipped on ladder evidence alone; it needs a converged A/B on Al.**  ⚠ And MnO — the system whose
+> 136.6 s started this — has no ladder of its own; the Mn sextet ATOM is a proxy for its sharpness, not
+> for its partition.
 >
 > ⇒ **TWO ITEMS SURVIVE THE GATE and are worth having whatever the calibration says**: (a) **why TWO
 > builds** for the same cell — the anneal's two stages each build one, and that redundancy is independent of

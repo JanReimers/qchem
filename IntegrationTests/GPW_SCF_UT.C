@@ -51,6 +51,7 @@ import qchem.SolidCalculation;                    // the NAMED periodic facade (
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); Vxc_Quadrature + the two XC_Quadrature strategies
 import qchem.BasisSet.DeltaFit_IBS;              // DeltaFit_IBS -- the delta basis the singles strategy runs on
+import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform -- the uniform probe's own point count
 import qchem.Mesh.Angular;                        // MakeAngular (the rotated-Lebedev bond-angle probe)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the LDA functional face the XC terms hold)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange, for the Becke XC gate)
@@ -2691,6 +2692,11 @@ struct XCProbe
 {
     std::string label;
     double Exc=0, rhoLost=0;
+    //! The quadrature's OWN point count -- asked of the mesh/raster, never computed from a rule.  Every
+    //! route is a FIT (user, 2026-09-06): Becke fits onto DELTA functions at its mesh points, the uniform
+    //! route onto the plane-wave \f${G}\f$ raster -- both orthonormal metrics -- so "how many points" is
+    //! the one cost axis they share, and the ladder can only compare rungs if each states its own.
+    size_t nPts=0;
     std::vector<hmat_t<dcmplx>> M;
 };
 
@@ -2739,7 +2745,11 @@ XCProbe UniformXCProbe(const GpwHandles& h, const std::shared_ptr<const Structur
     auto pair=Hamiltonian::MakeXCQuadrature(vfb);   // raster fit basis -> the pair/collocation strategy
     Hamiltonian::Vxc_Quadrature x(exch,pair), c(corr,pair);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
-    return ProbeXC("uniform", h, x, c, e);
+    XCProbe p=ProbeXC("uniform", h, x, c, e);
+    // Its own raster's size -- the same face the Hartree energy asks for its quadrature rule.
+    auto* rt=dynamic_cast<const BasisSet::G_RasterTransform*>(vfb.get());
+    p.nPts = rt ? rt->RasterSize() : 0;
+    return p;
 }
 
 XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>& st,
@@ -2747,11 +2757,13 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
 {
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
-    auto engine=SinglesEngineOver(                                                 // ONE quadrature, shared by the pair
-                    {std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB)), {}});   // free probe: no fold
+    auto mesh=std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB));
+    auto engine=SinglesEngineOver({mesh, {}});      // ONE quadrature, shared by the pair; free probe: no fold
     Hamiltonian::Vxc_Quadrature x(exch,engine), c(corr,engine);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
-    return ProbeXC(label, h, x, c, e);
+    XCProbe p=ProbeXC(label, h, x, c, e);
+    p.nPts=mesh->size();                            // the mesh's own count, not a (nR x degree) rule
+    return p;
 }
 
 // Print + return the elementwise V_xc gap between two probes; EXPECTs applied by the caller.
@@ -2906,6 +2918,56 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
 //  STANDING RULE EARNED HERE: calibrate a grid criterion on a simple METAL, or do not ship it as a
 //  global default.  Three insulator-fitted rules broke on Al in one session (the angular degree, the
 //  degenerate-shell assumption, and V2.7's radial threshold).
+//
+//  ================================================================================================
+//  V2.8 -- THE LADDER GETS ITS YARDSTICK: THE UNIFORM ROUTE, SCORED THE SAME WAY (2026-09-06).
+//
+//  The question the ladder could not answer was the one that decides whether the Becke mesh build is
+//  worth optimising at all (user): "what (nRadial, degree) yields the SAME ACCURACY as the uniform
+//  mesh?"  The rungs were scored against a dense BECKE reference and against each other -- never
+//  against the route they are competing with.  So the ladder now prints one more row: the UNIFORM
+//  probe, same frozen density, same reference, same two numbers.
+//
+//  ★ FRAMING (user, 2026-09-06), and it is why the two are comparable at all: BOTH ROUTES ARE FITS of
+//    the same v_xc.  The uniform route fits onto the plane-wave {G} raster; Becke fits onto DELTA
+//    functions at its mesh points -- a trivial fit, orthonormal metric.  (The Hartree term is the same
+//    story: a fit with an orthonormal metric, and by Parseval an EXACT one -- which is what
+//    Vee_Hartree's matrix-free energy rests on.)  Think of them as fits and the high-level CODE becomes
+//    uniform, not just the vocabulary; qchem.BasisSet.DeltaFit_IBS already is that basis.
+//
+//  MEASURED, all four systems, one frozen density each, reference nR=100 GL-41.  max|dVxc| is the worst
+//  V_xc MATRIX-element deviation -- the error in the operator that is actually diagonalised:
+//
+//      system        UNIFORM (pts, max|dVxc|)   cheapest Becke rung <= that   production nR40/GL29
+//      Si covalent    15625   3.54e-4           nR=40 GL-15  6968 pts (3.5x)   24472 pts  1.75e-5
+//      NaF ionic      15625   1.617e-1          nR=40 GL-5    920 pts (26x)    23656 pts  7.92e-5
+//      Al metal         512   5.75e-3           nR=40 GL-15  3448 pts (3.5x)   12074 pts  2.58e-4
+//      Mn atom-in-box 262144  1.303e-1          nR=40 GL-5    556 pts (25x)    14104 pts  1.31e-6
+//
+//  THREE FINDINGS, and the third is the one that matters:
+//
+//  (1) THE PRODUCTION RECIPE IS OVER-GENEROUS BY THIS YARDSTICK ON EVERY SYSTEM -- 3.5x on the two
+//      hard ones (Si, Al), 25x on the two sharp ones.  Since the mesh BUILD scales with the point
+//      count, that is the same factor off doc/Benchmark.md's 136.6 s of MnO mesh building.
+//
+//  (2) THE ENERGY AND THE MATRIX DISAGREE ABOUT WHICH ROUTE IS BETTER, and by orders of magnitude.
+//      The uniform route's dExc is tiny everywhere (3e-7 Si, -5.9e-6 Al, 3.6e-6 Mn, 8.4e-4 NaF) --
+//      better than EVERY Becke rung below nR=60 on Si -- while its max|dVxc| is 20x to 100000x worse.
+//      A quadrature error that cancels in the integral does not cancel in the operator.  => Score the
+//      MATRIX.  E_xc is what a route flatters itself with.
+//
+//  (3) SO "MATCH THE UNIFORM MESH" IS A WEAK TARGET EXACTLY WHERE BECKE EXISTS TO HELP.  On NaF and Mn
+//      the uniform raster's matrix error is 1.3-1.6e-1 -- a 556-point Becke mesh beats a 262144-point
+//      raster by 100x on Mn -- so uniform-parity would license GL-5, which nobody should ship.  The
+//      defensible target is an ABSOLUTE tolerance on max|dVxc|; at 1e-4 the answer is nR=40 GL-17..21
+//      (Si 5.8e-5 @ GL-17, NaF 1.28e-4 @ GL-21, Al 3.15e-4 @ GL-21, Mn 1.3e-6 @ GL-15), i.e. still
+//      2-3x cheaper than production.  THE THRESHOLD IS A POLICY CALL, and this ladder is its evidence.
+//
+//  ⚠ UNCHANGED BY ANY OF THIS: V2.6a's two rules.  Al is still NON-MONOTONIC on both axes here (GL-9
+//    beats GL-11; nR=25 beats nR=30), and a frozen-density ladder still UNDERSTATES the self-consistent
+//    shift on a metal -- so no default may be flipped on ladder evidence alone; it needs a converged
+//    A/B on Al.  ⚠ And MnO itself -- the system whose 136.6 s of mesh building started this -- has no
+//    ladder; the Mn sextet ATOM is a proxy for its sharpness, not for its partition.
 //================================================================================================
 namespace
 {
@@ -2922,24 +2984,39 @@ void BeckeLadder(const GpwHandles& h, const std::shared_ptr<const Structure>& st
     // would put a fixed alpha-mismatch offset under every rung here and read as an error FLOOR the axes
     // never get below.  A ladder needs its reference inside its own family.)
     const XCProbe REF=BeckeXCProbe(h, st, "REF", mesh(100,41));
-    const size_t nAtoms=st->GetNumAtoms();
-    std::printf("\n[V2.6 ladder %s] reference nR=100 GL-41 (same alpha=2.0 family): Exc=%.8f\n", system, REF.Exc);
-    auto row=[&](int nR, int deg)
+    std::printf("\n[V2.6 ladder %s] reference nR=100 GL-41 (same alpha=2.0 family): Exc=%.8f, %zu pts\n",
+                system, REF.Exc, REF.nPts);
+    // Worst |V_xc(i,j)| deviation from the reference, over all blocks -- the error in the matrix that
+    // actually enters the Fock, which is what a quadrature/fit has to get right.
+    auto dVxc=[&REF](const XCProbe& P)
     {
-        const XCProbe P=BeckeXCProbe(h, st, "rung", mesh(nR,deg));
-        double dV=0;                                   // worst |V_xc(i,j)| deviation over all blocks
+        double dV=0;
         for (size_t b=0; b<REF.M.size() && b<P.M.size(); b++)
             for (size_t i=0;i<REF.M[b].rows();++i)
                 for (size_t j=0;j<REF.M[b].columns();++j)
                     dV=std::max(dV, std::abs(dcmplx(P.M[b](i,j))-dcmplx(REF.M[b](i,j))));
-        const long pts=long(nAtoms)*nR*(((deg+1)/2)*(deg+1));
-        std::printf("[V2.6 ladder %s] nR=%-3d GL-%-3d  %9ld pts  dExc=%+.3e  max|dVxc|=%.3e\n",
-                    system, nR, deg, pts, P.Exc-REF.Exc, dV);
+        return dV;
     };
+    auto print=[&](const char* what, const XCProbe& P)
+    {
+        std::printf("[V2.6 ladder %s] %-14s %9zu pts  dExc=%+.3e  max|dVxc|=%.3e\n",
+                    system, what, P.nPts, P.Exc-REF.Exc, dVxc(P));
+    };
+    // ★ THE YARDSTICK (user, 2026-09-06): the question is not "has this rung converged" but "does it match
+    // what the UNIFORM route already delivers" -- because that is the accuracy the production runs get on
+    // the cheap route, and the Becke mesh is only worth its setup if it is at least that good.  Both routes
+    // are FITS of the same v_xc: the uniform one onto the plane-wave {G} raster, the Becke one onto DELTA
+    // functions at its mesh points, both with orthonormal metrics.  So they are scored identically here,
+    // against one reference, and the ANSWER TO READ OFF is the smallest (nR, degree) whose max|dVxc| is at
+    // or below the uniform row's.
+    const XCProbe UNI=UniformXCProbe(h, st);
+    print("UNIFORM", UNI);
     std::printf("[V2.6 ladder %s] --- ANGULAR sweep (nRadial=40 fixed) ---\n", system);
-    for (int deg : {5,7,9,11,15,17,21,23,29}) row(40,deg);
+    for (int deg : {5,7,9,11,15,17,21,23,29})
+        { char b[32]; std::snprintf(b,sizeof b,"nR=40 GL-%d",deg);  print(b, BeckeXCProbe(h,st,"rung",mesh(40,deg))); }
     std::printf("[V2.6 ladder %s] --- RADIAL sweep (degree=29 fixed) ---\n", system);
-    for (int nR : {10,15,20,25,30,40,60}) row(nR,29);
+    for (int nR : {10,15,20,25,30,40,60})
+        { char b[32]; std::snprintf(b,sizeof b,"nR=%d GL-29",nR);   print(b, BeckeXCProbe(h,st,"rung",mesh(nR,29))); }
 }
 } //anon
 
