@@ -229,16 +229,28 @@ template <class T> tCompositeWF<T>::~tCompositeWF()
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
+// THE THREE BUCKETS HERE ARE THE SCF STEP ITSELF (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  The GPW
+// side of a run has been bucketed for a year and the linear-algebra side never was, which is why a 12-thread
+// MnO run had ~59 s of its 128 s in no bucket at all -- more than every known NON-scaling bucket combined.
+// The term/box-walk buckets nest INSIDE the Fock one (report::Timed is exclusive), so "Fock assembly" reads
+// as the assembly overhead around them, and "next orbitals" is the eigensolve that nothing was measuring.
 template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
-    // itsBS (the whole/composite basis) IS the cross-irrep view a dynamic term may exploit: Iterate<tobs_t>()
-    // over it yields every irrep block (doc/ERI4Rework.md §5.4).  Static terms and most dynamic terms ignore it.
-    for (auto& w:itsIWFs) CalcH<T>(w,ham,cd,itsBS); //Feed F,D' into all the irrep accelerators.
-    // CalculateProjections() has the DIIS side effect (it accumulates the extrapolation history) so it
-    // must run every iteration regardless of MOM -- keep the call.  MOM activation is NO LONGER gated on
-    // the accelerator engaging (that was the parked molecular heuristic, and NaF's Null accelerator never
-    // engages); it is armed by the ranked reservoir fill as soon as a reference occupied subspace exists.
-    itsAccelerator->CalculateProjections();
+    {
+        // itsBS (the whole/composite basis) IS the cross-irrep view a dynamic term may exploit: Iterate<tobs_t>()
+        // over it yields every irrep block (doc/ERI4Rework.md §5.4).  Static terms and most dynamic terms ignore it.
+        qchem::report::Timed timed("scf: Fock assembly (its term buckets are children)");
+        for (auto& w:itsIWFs) CalcH<T>(w,ham,cd,itsBS); //Feed F,D' into all the irrep accelerators.
+    }
+    {
+        // CalculateProjections() has the DIIS side effect (it accumulates the extrapolation history) so it
+        // must run every iteration regardless of MOM -- keep the call.  MOM activation is NO LONGER gated on
+        // the accelerator engaging (that was the parked molecular heuristic, and NaF's Null accelerator never
+        // engages); it is armed by the ranked reservoir fill as soon as a reference occupied subspace exists.
+        qchem::report::Timed timed("scf: accelerator projections (DIIS/MOM history)");
+        itsAccelerator->CalculateProjections();
+    }
+    qchem::report::Timed timed("scf: next orbitals (extrapolate + DIAGONALIZE)");
     for (auto& w:itsIWFs) std::visit([](const auto& p){p->DoSCFIteration();}, w);
 }
 
@@ -256,7 +268,11 @@ template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::Init(tHamiltonian
 // (the seed step) -- the caller should fall back to DoSCFIteration().
 template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
-    for (auto& w:itsIWFs) CalcH<T>(w,ham,cd,itsBS);
+    {
+        qchem::report::Timed timed("scf: Fock assembly (its term buckets are children)");
+        for (auto& w:itsIWFs) CalcH<T>(w,ham,cd,itsBS);
+    }
+    qchem::report::Timed timed("scf: direct-min step (gradient + geodesic)");
     bool allStepped=true;
     for (auto& w:itsIWFs) allStepped &= std::visit([](const auto& p){return p->ComputeStep();}, w);
     return allStepped;
@@ -267,6 +283,9 @@ template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T
 template <class T> void tCompositeWF<T>::MoveOrbitals(OccupationPolicy<T>& pol, double t, bool commit,
                                                       double mergeTol)
 {
+    // The line search's per-TRIAL cost lands here (commit=false), which is what makes the direct-min
+    // route's iteration a different animal from a fixed-point one (doc/Benchmark.md §5f lever C).
+    qchem::report::Timed timed("scf: move orbitals (line-search trial or commit)");
     for (auto& w:itsIWFs) std::visit([&](const auto& p){p->MoveOrbitals(t,commit);}, w);
     FillOrbitals(pol,mergeTol);
 }
@@ -363,6 +382,7 @@ template <class T> void tCompositeWF<T>::EmitBasisUsage() const
 //    counts is also what a seed SHOULD do: there is no self-consistent spectrum yet to redistribute over.
 template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, double mergeTol)
 {
+    qchem::report::Timed timed("scf: fill orbitals (occupations + smearing)");
     itsELevels.clear();
     itsSpin_ELevels.clear();
     pol.BeginFill();                      // reset the run's per-fill aggregates (the -TS accumulator)

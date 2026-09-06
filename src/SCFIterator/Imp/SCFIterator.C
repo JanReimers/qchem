@@ -25,6 +25,7 @@ import qchem.WaveFunction.Factory;
 import qchem.Hamiltonian;
 import qchem.Hamiltonian.Factory;  // build a DFT sibling for the HF/DHF SAD bootstrap (molecular, double-only)
 import qchem.Mesh;                 // qcMesh::MeshParams (defaulted -- a seed-quality mesh for the sibling)
+import qchem.Reporting;             // report::Timed -- the SCF loop's own buckets (ParallelAndOraclePlan 1.1)
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
@@ -573,6 +574,9 @@ template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 // smearing) so GetTotalEnergy() reads the free energy A=E−TS.  doc/GPWPlan1.md 4b.
 template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>* cd) const
 {
+    // Bucketed because a term's GetEnergy is real per-iteration work, not bookkeeping: the Hartree pairing
+    // and the XC energies both live under here (doc/ParallelAndOraclePlan.md 1.1).
+    qchem::report::Timed timed("scf: total energy (all terms)");
     EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(cd);
     eb.MinusTS = itsOccPolicy->EntropyTerm();
     return eb;

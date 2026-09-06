@@ -26,6 +26,7 @@ import qchem.ElectronConfiguration.Crystal;    // Crystal_EC
 import qchem.Symmetry.Irrep;                   // Irrep, Spin
 import qchem.RunPolicy;                        // the declared CP2K deviations (doc/OpenWork.md N5/T5)
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
+import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
 
 namespace qchem
 {
@@ -268,11 +269,19 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
                                            : std::map<size_t,int>{};
         siteSpins = qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), "LDA", targets);
     }
-    itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
-        .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
-        .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-        .imposeSymmetry = imposed, .siteSpins = siteSpins,
-        .hamPreservesReal = hamPreservesReal}));
+    // ★ THE FACADE'S SETUP IS BUCKETED (doc/ParallelAndOraclePlan.md 1.1, 2026-09-06).  Every MnO row drives
+    // SolidCalculation directly, and until now only the phases INSIDE these calls were timed -- so the basis
+    // build, the Hamiltonian ctor's non-mesh half, the seed and the ortho landed in no bucket at all.  That
+    // was ~48 s of a 119 s threaded MnO run, i.e. the largest non-scaling block in it, and unnamed.  Labels
+    // match the GPW_SCF harness's so the two paths' ledgers read the same.
+    {
+        qchem::report::Timed timed("setup: GPW basis build");
+        itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
+            .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
+            .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
+            .imposeSymmetry = imposed, .siteSpins = siteSpins,
+            .hamPreservesReal = hamPreservesReal}));
+    }
 
     // DECISION 1 -- the XC quadrature.  Resolve Auto HERE, once, from facts about the run.  Downstream
     // consumers compare ==Becke, so an unresolved Auto would silently read as Uniform; resolving it at the
@@ -293,9 +302,12 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     itsImp->ec = std::make_unique<Crystal_EC>(irreps, (opts.Nelec+twoS)/2, (opts.Nelec-twoS)/2,
                                               opts.globalFermi, opts.spinsShareFermi);
 
-    itsImp->ham = qchem::Hamiltonian::Factory(
-        polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
-        itsImp->st, itsImp->bs.get(), opts.species, "LDA", itsImp->xcMesh, opts.vxcFit);
+    {
+        qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
+        itsImp->ham = qchem::Hamiltonian::Factory(
+            polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
+            itsImp->st, itsImp->bs.get(), opts.species, "LDA", itsImp->xcMesh, opts.vxcFit);
+    }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
     // that its terms cannot serve.
@@ -316,20 +328,32 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // time Init hands its density back, which is below any honest floor and made the postcondition
     // silently skip.  Measured before it is consumed, the baseline is the seed's own.
     const bool polarizedHam = itsImp->ham->IsPolarized();
-    std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed(
-        qchem::ChargeDensity::MakeSeedDensity<dcmplx>(opts.seed, itsImp->bs.get(), itsImp->st.get(),
-                                                      itsImp->ec.get(), polarizedHam));
+    std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed;
+    {
+        qchem::report::Timed timed("setup: seed density (SAD/IonicSAD atomic solves)");
+        seed.reset(qchem::ChargeDensity::MakeSeedDensity<dcmplx>(opts.seed, itsImp->bs.get(), itsImp->st.get(),
+                                                                 itsImp->ec.get(), polarizedHam));
+    }
     // MEASURED ONLY WHERE IT CAN MEAN SOMETHING.  SiteMoments rasters BOTH spin channels before it can
     // discover it has no basins to integrate over, and unlike the per-iteration probe -- which rides a
     // raster the Fock build has already made for this density serial -- nothing has been built yet at
     // seed time, so this one would be paid in full.  An unpolarized run has m == 0 identically and a
     // uniform XC mesh has no basins at all, and the facade knows both facts here without asking.
     if (seed && polarizedHam && itsImp->xcMesh.cellKind==qcMesh::UnitCellKind::Becke)
+    {
+        // "paid in full" (see above) -- so it gets its own bucket rather than hiding inside the seed's.
+        qchem::report::Timed timed("setup: seed order probe (site moments)");
         itsImp->diag.itsSeedOrder = MaxSiteMoment(*itsImp->ham, *seed, itsImp->diag.itsHasBasins);
+    }
 
-    itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
-        itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
-        seed.release(), itsImp->st.get(), opts.ortho, opts.orthoTol);   // the iterator consumes it in Init
+    {
+        // The iterator's Init builds a Fock from the seed, diagonalizes and fills -- so the FIRST Fock's
+        // lazy heavy builds (collocation task list, local-PP sweep, KB, analytic 1E) are children here.
+        qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
+        itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
+            itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
+            seed.release(), itsImp->st.get(), opts.ortho, opts.orthoTol);   // the iterator consumes it in Init
+    }
 
     // Observe from iteration ONE: the ctor converges, so an observer attached afterwards has already
     // missed stage 0 (see SolidCalcOptions::onIteration).

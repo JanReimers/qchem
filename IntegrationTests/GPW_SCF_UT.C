@@ -757,14 +757,27 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         const double kT=kTSchedule[s];
         // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
         // carry stale DIIS history across the re-seed).
-        auto* ham = qchem::Hamiltonian::Factory(polarizedA ? qchem::Hamiltonian::Pol::Polarized
+        // ⚠ BUCKETED SINCE 2026-09-06 (doc/ParallelAndOraclePlan.md 1.1): RunGpw brackets these two phases
+        // and this loop did not, so on the ANNEALED path -- every MnO row -- the seed, the ortho and the
+        // first Fock's lazy heavy builds landed in no bucket at all.  That is ~48 s of a 116 s threaded MnO
+        // run, and it looked like a mystery until the same brackets went on both paths.  Same labels as
+        // RunGpw's, so the two harnesses report comparably (and a per-STAGE [xN] count falls out).
+        qchem::Hamiltonian::cHamiltonian* ham=nullptr;
+        {
+            qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
+            ham = qchem::Hamiltonian::Factory(polarizedA ? qchem::Hamiltonian::Pol::Polarized
                                                             : qchem::Hamiltonian::Pol::UnPolarized,
                                         st, bs.get(), o.species, "LDA",
                                         qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit);
+        }
         auto* acc = MakeGpwAccelerator(accSchedule.empty() ? o.accelerator : accSchedule[s]);
-        std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
+        std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf;
+        {
+            qchem::report::Timed t("setup: seed + ortho (iterator ctor)");
+            scf.reset(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
                  : new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, seedCD, st.get(), o.ortho, o.orthoTol));
+        }
         // MOM continuation across TEMPERATURE (see the header comment): stage 0 self-adopts the seed's own
         // freshly-filled occupied subspace, every later stage adopts the stage before it -- so the character
         // the hot stage settled on survives the fresh wavefunction, exactly as the density does.

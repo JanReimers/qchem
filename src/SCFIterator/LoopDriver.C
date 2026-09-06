@@ -19,6 +19,7 @@ module;
 #include <functional>
 export module qchem.SCFIterator.LoopDriver;
 import qchem.Hamiltonian;
+import qchem.Reporting;   // report::Timed -- the mix/density-update buckets (ParallelAndOraclePlan 1.1)
 import qchem.WaveFunction.SCF;   // tSCFWaveFunction + OccupationPolicy (re-exported; the fill's policy arg)
 export import qchem.ChargeDensity.DensityMixer;   // tDensityMixer<T> (the density-face seam)
 import qchem.ChargeDensity;                        // tDM_CD<T>
@@ -60,10 +61,14 @@ public:
     {
         c.wf->DoSCFIteration(*c.H, c.mixer->FockDensity(**c.cur));  // eigen orbitals from the (mixed) Fock
         c.wf->FillOrbitals(*c.pol, c.mergeTol);
-        c.installNew(typename LoopContext<T>::cd_t(c.wf->GetChargeDensity()));
+        {
+            qchem::report::Timed timed("scf: new density from D (install + lineage)");
+            c.installNew(typename LoopContext<T>::cd_t(c.wf->GetChargeDensity()));
+        }
         // Hand the mixer SHARED ownership of the DM-backed rho_out before it builds the mixed FIELD from it,
         // so a quadrature consumer (XC) can reach the exact density while Hartree keeps the preconditioned
         // one.  No-op for every D-mixing mixer.  Must precede Mix: that is what allocates the new field.
+        qchem::report::Timed timed("scf: density mix (Kerker/linear/Pulay)");
         c.mixer->SetDMSource(*c.cur);
         return c.mixer->Mix(**c.cur, **c.old);                      // density-face: fold rho_out into rho_in
     }
