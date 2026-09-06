@@ -3213,29 +3213,60 @@ over-general for its single caller, and `MNO_ANNEAL`/`MNO_ACC` are two parallel 
 same length (enforced by an `assert`) — the classic shape of one thing modelled as two.  **PARKED, not
 filed as work**: per the cost ruling below this is a test-harness ergonomics wart, not a library defect.
 
-### Is "smeared ⇒ Ladder, cold ⇒ GDM" a LAW? — a law of the IMPLEMENTATION, not of the method
+### Is "smeared ⇒ Ladder, cold ⇒ GDM" a LAW? — no, at THREE levels (user, 2026-09-06)
 
-Asked by the user 2026-09-06, because if it IS a law the accelerator stops being a stage field and gets
-DERIVED from kT.  It is not, and the reason is structural rather than empirical:
+**(1) OUR GDM is kT=0 by IMPLEMENTATION, and the restriction is structural.**  A direct-min leg fills
+under `HeldOccupationPolicy`, whose `SmearingkT()` returns 0 **by override, not by configuration** — so
+\f$-TS\f$ is identically zero and **a held leg minimises \f$E\f$, never \f$A=E-TS\f$**, which at kT>0 is
+the wrong functional.  Measured, not theoretical: `E(t=0)` under the held fill sits **+14.5 Ha** off the
+previous smeared iteration on MnO — enough that the line search rejected every `t` until the reference was
+re-taken under the same held fill (the "convention shift", `GPW_GDMTRACE`, SCFIterator.C ~L500).
 
-- A direct-min (GDM) leg rotates a **fixed** occupied block along a geodesic, and its trials fill under
-  `HeldOccupationPolicy`, whose `SmearingkT()` returns 0 **by override, not by configuration** — so its
-  \f$-TS\f$ is identically zero and **a held leg minimises \f$E\f$, never \f$A=E-TS\f$**.
-- At kT>0 the objective IS the free energy \f$A\f$.  So a GDM leg there would descend a different
-  functional from the one the fills and the reported energy use.
-- That mismatch is MEASURED, not theoretical: `E(t=0)` under the held fill differs from the previous
-  (smeared) iteration's E by **+14.5 Ha** on MnO — big enough that the line search rejected every `t` until
-  the reference was re-taken under the same held fill.  The code names it a "convention shift" and prints
-  it under `GPW_GDMTRACE` (SCFIterator.C ~L500).
-- ⇒ "cold ⇒ GDM" is a consequence of **GDM's occupancy being structurally integer**, and it stops being
-  true the day the missing sibling exists — which `HeldOccupationPolicy`'s own header already names:
-  *"Ready for OT+smearing: a coupled leg that holds the block but keeps kT is a new sibling with a Fermi
-  occupancy — a new object, not a new bool."*  Free-energy direct minimisation at finite T is standard
-  (CP2K's OT smears); we simply have not built that policy.
+**(2) GDM IS NOT kT=0 BY DEFINITION.**  Geometric/geodesic direct minimisation is formulated on the
+Grassmann/Stiefel manifold of occupied SUBSPACES — \f$D=CC^\dagger\f$, idempotent — which is an
+integer-occupation object *by construction*.  That is the PARAMETERISATION, not the method.  The
+finite-\f$T\f$ generalisation is standard: promote the occupations to variational parameters and minimise
+the FREE ENERGY \f$A=E-TS\f$ over orbitals AND occupations (ensemble-DFT direct minimisation; Marzari,
+Vanderbilt & Payne 1997 is the canonical reference — their cold smearing exists partly to keep the entropy
+term well-behaved, and the occupation-space PRECONDITIONER is the hard part).
 
-★ **RULING: keep the accelerator an EXPLICIT stage field.**  Deriving it from kT would bake today's
-accelerator inventory into the schedule API and be wrong the day OT+smearing lands.  (This reverses the
-tentative "collapse `SCFStage` to `{kT, Λ}`" floated in the review — the law does not hold.)
+**(3) CP2K's OT IS IN EXACTLY OUR POSITION — scaffolded and switched off.**  Checked in their source
+(`/home/janr/Code/cp2k`, 2026-09-06), because the folklore "OT cannot smear" is not what the code says:
+- `qs_scf_loop_utils.F:274` passes `scf_control%smear` INTO the OT branch; `ot_scf_mini(mos, mo_derivs,
+  smear, …)` takes it and `set_mo_occupation(mo_set, smear=smear)` runs after the minimisation.
+- The variational occupation axis exists: `&OT`'s `ENERGIES` keyword sets `settings%do_ener`, and under it
+  `qs_ot_scf.F:196` builds *"the derivative of the free energy with respect to the evals"* — `rot_mat_u`
+  (rotate the subspace) beside `ener_gx = ∂A/∂ε` (vary the occupations), exactly the two-axis shape (2)
+  describes.  A sibling keyword `OCCUPATION_PRECONDITIONER` sits next to it.
+- **But `qs_ot_types.F:906` reads `! not yet fully implemented` / `CPASSERT(.NOT. settings%do_ener)`.**
+  So OT ships as a FIXED-occupation minimiser with the finite-\f$T\f$ axis designed in and asserted off.
+⚠ What their OT+`&SMEAR` combination does numerically is NOT established here — only what the source
+wires.  (Our own CP2K decks avoid `&OT` anyway; see doc/Benchmark.md §5a.)
+
+⇒ **DESIGN CONSEQUENCE — do not bake "direct minimiser ⇒ integer occupation" in anywhere.**  The thing to
+keep general is not which accelerator runs at which kT (ruled below: it stays an explicit stage field).  It
+is the CONFLATION inside `HeldOccupationPolicy`, which currently welds together two independent facts:
+  (i) **hold the occupied block** — do not re-decide WHICH states are occupied mid-line-search (real, and
+      the reason the item exists: a re-ranked fill makes \f$E(t)\f$ discontinuous in \f$t\f$); and
+  (ii) **do not smear** — `SmearingkT()≡0`, hence \f$-TS\equiv0\f$.
+A realistic finite-\f$T\f$ GDM/OT needs (i) WITHOUT (ii).  R2.21's two-axis policy already accommodates it
+— occupancy {Integer, **Fermi**} × ranking {Bare, MOM}, plus the `HoldsStoredBlocks` bit — so the missing
+concrete is simply **Fermi-occupancy-with-held-block**, which `HeldOccupationPolicy`'s own header already
+names (*"a coupled leg that holds the block but keeps kT is a new sibling with a Fermi occupancy — a new
+object, not a new bool"*).  **Nothing in R2.22 may narrow that.**
+
+★ **AND THE PLACE kT=0 IS ACTUALLY HARDCODED IS NOT THE ACCELERATOR — IT IS THE OBJECTIVE ASSEMBLY.**
+The direct-min leg builds its objective as
+`E(t) = itsHamiltonian->GetTotalEnergy(cd_t) + itsOccPolicy->EntropyTerm()` (SCFIterator.C ~L512/L490):
+the energy under the HELD (integer) fill, plus the \f$-TS\f$ of the last REAL fill.  At kT=0 that term is
+zero and the expression is exact.  Under a held leg at kT>0 it is a CONSTANT offset across \f$t\f$, so it
+cancels in the comparisons and the search still "works" — but the trial's OWN entropy never varies, so it
+is not a free-energy minimisation.  **That line is what must change when the Fermi-held policy lands**;
+record it here so the next reader does not conclude the accelerator was the blocker.
+
+★ **RULING (unchanged by the above): keep the accelerator an EXPLICIT stage field.**  Deriving it from kT
+would bake TODAY's accelerator inventory into the schedule API and be wrong the day the Fermi-held leg
+exists.  (This reverses the tentative "collapse `SCFStage` to `{kT, Λ}`" floated in the review.)
 
 ### ⇒ PRIORITY (user ruling, 2026-09-06): sort by CONSTRUCTION COST, not by ownership purity
 
