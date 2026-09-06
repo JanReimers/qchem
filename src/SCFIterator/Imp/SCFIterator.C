@@ -226,17 +226,13 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, *itsOccPolicy, 0.0001))); //first real (matrix-backed) density
     assert(itsCD);
 }
-//
-//  Recall that the wavefunction is not owned buy this.
-//
-
-template <class T> tSCFIterator<T>::~tSCFIterator()
-{
-    delete itsHamiltonian;
-    delete itsAccelerator;
-    delete itsWaveFunction;
-    // itsCD / itsOldCD are shared_ptr -- freed automatically.
-}
+// R2.22: there is nothing left to free by hand.  The Hamiltonian and the accelerator are the CALLER's
+// (this class never made them, so it never deletes them -- the composition root owns both and outlives
+// this); the wave function is a unique_ptr because the ctor's init list DID make it; the densities are
+// shared_ptr.  The previous body deleted all three, which is what forced every anneal stage to rebuild
+// a Hamiltonian its owner still held.  (The old comment here claimed the wave function was NOT owned --
+// it was the one of the three that was.)
+template <class T> tSCFIterator<T>::~tSCFIterator() = default;
 
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
 {
@@ -295,7 +291,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // (GDM/OT: geodesic line search, no mixing) or fixed-point (diagonalize + density-mix).  Queried
         // every iteration so a ladder tail hand-off flips the loop the moment it switches rungs.  The step
         // BODY is virtual (was a mode `if`); the density LIFECYCLE stays here behind the context callbacks.
-        LoopContext<T> lc{ itsHamiltonian, itsWaveFunction, itsOccPolicy.get(), itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
+        LoopContext<T> lc{ itsHamiltonian, itsWaveFunction.get(), itsOccPolicy.get(), itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
                            [this](cd_t x){ itsOldCD=itsCD; SetWorkingCD(std::move(x)); },
                            [this](double e,double tol){ return DirectMinStep(e,tol); } };
         // Direct-min (GDM/OT) OWNS the density update via its geodesic line search, so it must DISABLE the
@@ -337,8 +333,8 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             // Build the full per-iteration trace (all fields, all cheap) and let the per-system display
             // virtual render its honest columns (item 2).  The cfg '*' flags an occupation change vs the
             // previous iteration (blank on iteration 1 -- there is no prior config to differ from).
-            std::string config = ConfigString(itsWaveFunction);
-            const GapInfo g=HomoLumo(itsWaveFunction);   // frontier spectrum for the gap column
+            std::string config = ConfigString(itsWaveFunction.get());
+            const GapInfo g=HomoLumo(itsWaveFunction.get());   // frontier spectrum for the gap column
             const double N=itsCD->GetTotalCharge();      // Tr(DS); normalise the grid-charge leak per electron
             IterationTrace tr{ itsIterationCount, eb, itsMixer->GetRelax(), itsMixer->EffectiveRelax(),
                                itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
@@ -391,7 +387,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // a hole that survives them is reported loudly below, never silently.
         if (ipar.UseMOM)
         {
-            GapInfo g=HomoLumo(itsWaveFunction);
+            GapInfo g=HomoLumo(itsWaveFunction.get());
             holeRun = g.hole ? holeRun+1 : 0;
             if (holeRun>=ipar.Guard.HolePersistence && momReleases<ipar.Guard.MaxReleases)
             {
@@ -421,7 +417,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     }
     // NEVER SILENT: whatever the recipe, a run that ENDS non-aufbau is reported (the honest instrument --
     // the old εH/εL line masked exactly this; doc/GPWPlan 0h).
-    if (GapInfo g=HomoLumo(itsWaveFunction); g.hole)
+    if (GapInfo g=HomoLumo(itsWaveFunction.get()); g.hole)
         std::cerr << "[MOM guard] WARNING: run ended NON-AUFBAU (unoccupied ε=" << g.eLumo << " below occupied ε="
                   << g.eHomo << ") -- excited-state energy; check the occupation recipe (MOM reference/smearing)."
                   << std::endl;
@@ -808,7 +804,7 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
     if (ReportBandGap())
     {
         if (!GapIsPermanent()) WriteGapColumn(os, tr);
-        os << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction, 4, 4);
+        os << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction.get(), 4, 4);
     }
     os << endl;
 }

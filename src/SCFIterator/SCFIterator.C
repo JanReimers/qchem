@@ -167,7 +167,7 @@ public:
 
     // SCFIterator drives the mutable SCFWaveFunction, but only ever hands clients the const
     // read view (they can query the converged state, never drive someone else's SCF loop).
-    const wf_t* GetWaveFunction() const {return itsWaveFunction;}
+    const wf_t* GetWaveFunction() const {return itsWaveFunction.get();}
     //! Grid-continuation MOM (doc/GPWPlan §0e): adopt \a from's converged occupied subspace as this run's FIXED
     //! MOM reference.  Call AFTER construction and BEFORE Iterate; takes effect with SCFParams::UseMOM (the
     //! reference is then held from iteration 1, never re-captured).  \a from must be a converged WF on the SAME
@@ -251,10 +251,25 @@ private:
 
     void DisplayEigen   () const;
 
-    //Raw ptrs owned, see destructor; the charge densities are std-managed (cd_t).
+    //! \name The SCF's three collaborators, split by WHO MADE THEM (R2.22)
+    //!
+    //! The rule, and it is the whole of the ownership story here: **what this class is HANDED it does not
+    //! delete; what this class MAKES it holds in a `unique_ptr`.**  Before R2.22 all three were raw and all
+    //! three were deleted, which made the iterator destroy a Hamiltonian built by its own caller -- and
+    //! THAT is why an anneal stage had to rebuild one (15.5 s/call, 19% of a threaded MnO run): the
+    //! composition root could not keep the object it owned.
+    //!@{
+    //! NON-OWNING.  The composition root (SolidCalculation / Calculation / AtomCalculation, or a test
+    //! harness) owns the Hamiltonian and must outlive this iterator.  It is a pure function of
+    //! (structure, basis, species, functional, xcMesh, vxcFit), so ONE serves a whole annealed run.
     ham_t*          itsHamiltonian;
+    //! NON-OWNING, and deliberately REPLACED per anneal stage by the owner: a stage change invalidates the
+    //! Pulay/DIIS history, and the accelerator TYPE itself changes (anneal on Ladder, finish on GDM).
+    //! Cheap to construct, so rebuilding it is right -- it is the Hamiltonian that was never the problem.
     acc_t*          itsAccelerator;
-    scfwf_t*        itsWaveFunction;
+    //! OWNED -- this one the iterator genuinely makes (\c WaveFunction::Factory, in the ctor's init list).
+    std::unique_ptr<scfwf_t> itsWaveFunction;
+    //!@}
     //! The occupation SLOT (V1.11 inc 3; SCFStrategyPlan §6), now a STATE + a POLICY over it (R2.21).
     //!
     //! The STATE is the run's persistent memory -- MOM references, fill clocks, the −TS aggregate -- and is

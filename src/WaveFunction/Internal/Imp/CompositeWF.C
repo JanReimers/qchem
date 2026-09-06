@@ -221,7 +221,8 @@ template <class T> template <class U> void tCompositeWF<T>::MakeOneIrrepWF(const
 
 template <class T> tCompositeWF<T>::~tCompositeWF()
 {
-    // delete itsAccelerator; NO!!!! SCFiterator deletes the accelerator.
+    // itsAccelerator is NOT ours: the composition root owns it (R2.22) -- we only borrowed it to Create()
+    // one tSCFIrrepAccelerator per irrep at construction.
 };
 
 //----------------------------------------------------------------------------

@@ -608,7 +608,9 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
                                         lat.GetStructure(), bs.get(), o.species, "LDA",
                                         qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit);
     }
+    std::unique_ptr<qchem::Hamiltonian::cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     auto* acc = MakeGpwAccelerator(o.accelerator);
+    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
 
     qchem::report::Log("SCF start");
     // No Section("basis") here: the pre-flight already emitted basis, so MakeIrrepWFs stays silent
@@ -752,37 +754,43 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
     // The PREVIOUS stage's iterator, held alive only long enough for the next one to adopt its occupied
     // subspace (MOM continuation).  Declared AFTER bs/ec so it is destroyed BEFORE them.
     std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> prev;
+    // R2.22: ONE Hamiltonian for the whole schedule.  It used to be rebuilt per stage -- not for a physics
+    // reason, but because the iterator deleted the one it was handed.  It is a pure function of
+    // (structure, basis, species, functional, xcMesh, vxcFit) and a stage changes none of them.
+    std::unique_ptr<qchem::Hamiltonian::cHamiltonian> ham;
+    {
+        qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
+        ham.reset(qchem::Hamiltonian::Factory(polarizedA ? qchem::Hamiltonian::Pol::Polarized
+                                                         : qchem::Hamiltonian::Pol::UnPolarized,
+                                    st, bs.get(), o.species, "LDA",
+                                    qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit));
+    }
+    // The accelerator IS still per stage (stale Pulay/DIIS across a re-seed, and the type itself changes).
+    // Two slots: the previous stage's must outlive `prev`, which borrows it until the MOM adoption is done.
+    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> acc, prevAcc;
     for (size_t s=0; s<kTSchedule.size(); ++s)
     {
         const double kT=kTSchedule[s];
-        // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
-        // carry stale DIIS history across the re-seed).
         // ⚠ BUCKETED SINCE 2026-09-06 (doc/ParallelAndOraclePlan.md 1.1): RunGpw brackets these two phases
         // and this loop did not, so on the ANNEALED path -- every MnO row -- the seed, the ortho and the
         // first Fock's lazy heavy builds landed in no bucket at all.  That is ~48 s of a 116 s threaded MnO
         // run, and it looked like a mystery until the same brackets went on both paths.  Same labels as
         // RunGpw's, so the two harnesses report comparably (and a per-STAGE [xN] count falls out).
-        qchem::Hamiltonian::cHamiltonian* ham=nullptr;
-        {
-            qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
-            ham = qchem::Hamiltonian::Factory(polarizedA ? qchem::Hamiltonian::Pol::Polarized
-                                                            : qchem::Hamiltonian::Pol::UnPolarized,
-                                        st, bs.get(), o.species, "LDA",
-                                        qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit);
-        }
-        auto* acc = MakeGpwAccelerator(accSchedule.empty() ? o.accelerator : accSchedule[s]);
+        prevAcc = std::move(acc);   // `prev` still borrows it until the adoption below
+        acc.reset(MakeGpwAccelerator(accSchedule.empty() ? o.accelerator : accSchedule[s]));
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf;
         {
             qchem::report::Timed t("setup: seed + ortho (iterator ctor)");
             scf.reset(
-            s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
-                 : new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, seedCD, st.get(), o.ortho, o.orthoTol));
+            s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham.get(), acc.get(), o.seed,  st.get(), o.ortho, o.orthoTol)
+                 : new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham.get(), acc.get(), seedCD, st.get(), o.ortho, o.orthoTol));
         }
         // MOM continuation across TEMPERATURE (see the header comment): stage 0 self-adopts the seed's own
         // freshly-filled occupied subspace, every later stage adopts the stage before it -- so the character
         // the hot stage settled on survives the fresh wavefunction, exactly as the density does.
         if (o.momFromSeed) scf->AdoptMOMReference(prev ? *prev->GetWaveFunction() : *scf->GetWaveFunction());
         prev.reset();   // the adoption copied what we needed; release the previous stage's machinery
+        prevAcc.reset();   // ...and only now is the previous stage's accelerator unreferenced
 
         SCFParams par=o.scf; par.Verbose=verbose; par.SmearingkT=kT;
         // Ladder-exhaustion stage-end (user 2026-08-14, run 49's wasted tail): on a NON-FINAL stage, once
@@ -2454,8 +2462,10 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     auto ecC=std::make_unique<Crystal_EC>(bsC->GetIrreps(Spin::None), 8);
     rss("EC");
     cHamiltonian* hamC=new Ham_PW_DFT(st, bsC.get(), {{"Na",1},{"F",7}}, "LDA");
+    std::unique_ptr<cHamiltonian> hamCOwner(hamC);   // R2.22: the iterator borrows; this scope owns
     rss("Ham");
     auto* accC=new qchem::SCFAccelerators::SCFAcceleratorNull();   // no DIIS (the CP2K recipe)
+    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accCOwner(accC);   // R2.22: the iterator borrows; this scope owns
     auto scfC=std::make_unique<qchem::SCFIterator::SolidSCFIterator>(bsC.get(), ecC.get(), hamC, accC,
                                           qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                           qchem::Cholesky, 0.0);
@@ -2482,8 +2492,9 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     // ---- STAGE 2: seed the PRODUCTION fine grid (auto Ecut=8*alpha_max=320) with the converged coarse density. ----
     std::unique_ptr<Complex_BS> bsF(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_FINE_ECUT",-1.0)));  // <0 AUTO=320
     Crystal_EC ecF(bsF->GetIrreps(Spin::None), 8);
-    cHamiltonian* hamF=new Ham_PW_DFT(st, bsF.get(), {{"Na",1},{"F",7}}, "LDA");
-    auto* accF=new qchem::SCFAccelerators::SCFAcceleratorNull();
+    // R2.22: the iterator borrows these; this scope owns them, and they outlive scfF below.
+    std::unique_ptr<cHamiltonian> hamF(new Ham_PW_DFT(st, bsF.get(), {{"Na",1},{"F",7}}, "LDA"));
+    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accF(new qchem::SCFAccelerators::SCFAcceleratorNull());
     qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     qchem::SCFIterator::ReportBandGap()=true;
     // GC_SEED=0 A/Bs the fix OFF (ionic seed) -> the fine stage must dive into the -39 basin (the failure this
@@ -2492,7 +2503,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     std::unique_ptr<qchem::SCFIterator::cSCFIterator> scfF;
     if (useSeed)
     {
-        scfF.reset(new qchem::SCFIterator::SolidSCFIterator(bsF.get(), &ecF, hamF, accF, seedCD, st.get(),
+        scfF.reset(new qchem::SCFIterator::SolidSCFIterator(bsF.get(), &ecF, hamF.get(), accF.get(), seedCD, st.get(),
                                                         qchem::Cholesky, 0.0));   // explicit-seed ctor (consumes seedCD)
         // MOM transfer across the grid change is OFF by default: AdoptMOMReference across a discretization
         // change PINS AN EXCITED STATE (doc/GPWPlan 0h; measured 2026-07-23: -23.680 vs the -24.434 aufbau
@@ -2505,7 +2516,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     else
     {
         delete seedCD;   // A/B control: discard the coarse density, fall back to the ionic seed (dives to -39)
-        scfF.reset(new qchem::SCFIterator::SolidSCFIterator(bsF.get(), &ecF, hamF, accF,
+        scfF.reset(new qchem::SCFIterator::SolidSCFIterator(bsF.get(), &ecF, hamF.get(), accF.get(),
                                                         qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                                         qchem::Cholesky, 0.0));
     }
@@ -2574,7 +2585,9 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisRankReduction)
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
+    std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
+    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
     testing::internal::CaptureStdout();
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
@@ -2608,7 +2621,9 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
+    std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
+    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
                                          qchem::Eigen, 1e-6);   // (2): canonical ortho, drop the ~0 null cluster

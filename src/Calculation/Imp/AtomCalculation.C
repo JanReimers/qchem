@@ -122,7 +122,7 @@ AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
 
 AtomCalculation::~AtomCalculation()
 {
-    delete itsScf;     // owns + deletes the Hamiltonian and accelerator
+    delete itsScf;     // FIRST: the iterator references itsHam/itsAccel, which are freed after this body (R2.22)
     delete itsBasis;
     delete itsEC;
 }
@@ -156,7 +156,12 @@ bool AtomCalculation::Converge(const SCFParams& params)
     const AType atype = directmin ? AType::GDM : ts=="Ladder" ? AType::Ladder : ts=="GDM" ? AType::GDM : AType::DIIS;
     auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
 
-    delete itsScf;
+    // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
+    // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
+    // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
+    delete itsScf; itsScf = nullptr;
+    itsHam.reset(ham);
+    itsAccel.reset(accel);
     // Default seed for atoms is the core guess (atoms never use the molecular SAD seed).
     using qchem::ChargeDensity::SeedStrategy;
     const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed : SeedStrategy::CoreGuess;
@@ -183,7 +188,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
         rpt::Section basis("basis");
         rpt::Set("type",       AtomTypeName(itsOpts.type));
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
-        itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get(), ortho);
+        itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), ortho);
     }
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
     if (itsObserver) itsScf->SetObserver(itsObserver);

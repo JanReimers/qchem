@@ -70,7 +70,15 @@ struct SolidCalculation::Imp
     std::shared_ptr<const Structure>            st;
     std::unique_ptr<BasisSet::Complex_BS>       bs;
     std::unique_ptr<Crystal_EC>                 ec;
-    qchem::Hamiltonian::cHamiltonian*           ham = nullptr;   // owned by the iterator once handed over
+    //! OWNED HERE (R2.22).  It used to be a bare pointer handed to the iterator, which deleted it -- so
+    //! every anneal stage had to build a fresh one (15.5 s/call).  The Hamiltonian is a pure function of
+    //! (structure, basis, species, functional, xcMesh, vxcFit), and a stage changes NONE of those, so ONE
+    //! serves the whole schedule.  Declared BEFORE `scf` so it outlives every iterator built over it.
+    std::unique_ptr<qchem::Hamiltonian::cHamiltonian>     ham;
+    //! OWNED HERE, and deliberately REPLACED per stage: a stage invalidates the Pulay/DIIS history and may
+    //! change the accelerator TYPE outright (anneal on Ladder, finish on GDM).  Cheap to build, so that is
+    //! correct -- unlike the Hamiltonian above, which was only ever rebuilt because of the `delete`.
+    std::unique_ptr<SCFAccelerators::SCFAccelerator>      accel;
     qcMesh::MeshParams                          xcMesh;          // AFTER Auto resolution
     std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf;
     std::unique_ptr<qchem::ChargeDensity::cDM_CD>         cd;    // the converged density (outlives the WF)
@@ -310,9 +318,9 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
 
     {
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
-        itsImp->ham = qchem::Hamiltonian::Factory(
+        itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
-            itsImp->st, itsImp->bs.get(), opts.species, "LDA", itsImp->xcMesh, opts.vxcFit);
+            itsImp->st, itsImp->bs.get(), opts.species, "LDA", itsImp->xcMesh, opts.vxcFit));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built
@@ -322,7 +330,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
 
     // DECISION 3 -- the accelerator, by policy, through the public typed door.
     itsImp->stageAccel = opts.accelerator;
-    auto* accel = SCFAccelerators::Factory(opts.accelerator, acc);
+    itsImp->accel.reset(SCFAccelerators::Factory(opts.accelerator, acc));
 
     // THE SEED IS BUILT HERE, not inside the iterator -- the same factory call the SeedStrategy ctor
     // would have made (ChargeDensity::MakeSeedDensity with the Hamiltonian's own polarization), handed
@@ -357,7 +365,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
         // lazy heavy builds (collocation task list, local-PP sweep, KB, analytic 1E) are children here.
         qchem::report::Timed timed("setup: seed + ortho (iterator ctor)");
         itsImp->scf = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
-            itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
+            itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
             seed.release(), itsImp->st.get(), opts.ortho, opts.orthoTol);   // the iterator consumes it in Init
     }
 
@@ -581,30 +589,28 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Outcome_() co
 void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
                                   std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried)
 {
-    // ★ EVERY ANNEAL STAGE REBUILDS THE HAMILTONIAN, and it is charged to the SAME bucket as the ctor's
-    // so the ledger reports it as "[xN, s/call]" rather than as two unrelated rows.  That matters here:
-    // the ctor's Hamiltonian is the largest named non-threading block in the run, and an N-stage schedule
-    // pays for it N times (doc/ParallelAndOraclePlan.md 1.1(b)).
-    // A SECOND residue bucket wraps the rest -- the accelerator, the fresh iterator (whose ctor Inits, so
-    // the first Fock of the stage is a child of it) and the MOM adoption.
+    // ★ R2.22: A STAGE NO LONGER REBUILDS THE HAMILTONIAN.  It used to, and NOT for a physics reason --
+    // the iterator deleted the one it had been handed, so the facade had no choice but to build another.
+    // The Hamiltonian is a pure function of (structure, basis, species, functional, xcMesh, vxcFit) and a
+    // stage changes none of them; at 15.5 s/call that rebuild was 19% of a threaded MnO run
+    // (doc/ParallelAndOraclePlan.md 1.1(b), doc/CleanupCandidates.md R2.22).  `itsImp->ham` now simply
+    // persists, and the ledger's `setup: hamiltonian ctor` reads [x1] for any schedule length.
+    //
+    // What a stage DOES rebuild, and why each one is right: the ACCELERATOR (its Pulay/DIIS history is
+    // invalid across a re-seed, and the TYPE itself changes -- anneal on Ladder, finish on GDM) and the
+    // ITERATOR (whose ctor Inits, so the stage's first Fock is a child of this bucket).  Both are cheap;
+    // the residue bucket below measures exactly that and has stayed ~0.36 s of a 121 s run.
     qchem::report::Timed residue("setup: anneal stage rebuild (residue -- accel + iterator + MOM adopt)");
-    const bool polarized = itsImp->opts.multiplicity>=1;
-    {
-        qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
-        itsImp->ham = qchem::Hamiltonian::Factory(
-            polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
-            itsImp->st, itsImp->bs.get(), itsImp->opts.species, "LDA", itsImp->xcMesh, itsImp->opts.vxcFit);
-    }
     itsImp->stageAccel = accType;
-    auto* accel = SCFAccelerators::Factory(accType, itsImp->accOpts);
+    itsImp->accel.reset(SCFAccelerators::Factory(accType, itsImp->accOpts));
 
     auto prev = std::move(itsImp->scf);      // held ONLY until the new stage has copied its MOM reference
     itsImp->scf = carried
         ? std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
-              itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
+              itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
               carried.release(), itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol)
         : std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
-              itsImp->bs.get(), itsImp->ec.get(), itsImp->ham, accel,
+              itsImp->bs.get(), itsImp->ec.get(), itsImp->ham.get(), itsImp->accel.get(),
               itsImp->opts.seed, itsImp->st.get(), itsImp->opts.ortho, itsImp->opts.orthoTol);
     // MOM continuation across TEMPERATURE: stage 0 self-adopts the seed's own freshly-filled occupied
     // subspace, every later stage adopts the stage before it -- so the CHARACTER the hot stage settled on

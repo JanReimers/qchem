@@ -158,7 +158,7 @@ Calculation::Calculation(const Structure& st, const CalcOptions& opts, const Acc
 
 Calculation::~Calculation()
 {
-    delete itsScf;     // owns + deletes the Hamiltonian and accelerator
+    delete itsScf;     // FIRST: the iterator references itsHam/itsAccel, which are freed after this body (R2.22)
     delete itsBasis;
     delete itsEC;
 }
@@ -192,7 +192,12 @@ bool Calculation::Converge(const SCFParams& params)
                                                  itsAcc.type + "\" (expected DIIS | GDM | Ladder)");
     auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
 
-    delete itsScf;                                     // releases the previous Hamiltonian + accelerator
+    // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
+    // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
+    // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
+    delete itsScf; itsScf = nullptr;
+    itsHam.reset(ham);
+    itsAccel.reset(accel);
     // Seed: an explicit opts.seed wins; otherwise auto -- DFT from superposition-of-atomic-densities
     // (SAD), HF/1-e from the core guess (Default).
     using qchem::ChargeDensity::SeedStrategy;
@@ -217,7 +222,7 @@ bool Calculation::Converge(const SCFParams& params)
         rpt::Set("engine",     itsOpts.engine  == Engine::LibCint  ? "libcint"   : "mnd");
         rpt::Set("angular",    itsOpts.angular == Angular::Spherical ? "spherical" : "cartesian");
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
-        itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get());
+        itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
     }
 
     if (itsObserver) itsScf->SetObserver(itsObserver);

@@ -1395,10 +1395,12 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
         // Plane-wave LDA Kohn-Sham Hamiltonian: kinetic + external(pseudo) + Hartree + Dirac X + VWN5
         // (heap; the SCFIterator takes ownership).  Atoms from the lattice; the PP model lives on the term.
         cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+        std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
         // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D] history; damps the marginal drift
         // within Si's degenerate Gamma_25' manifold so it converges to a tight |Delta rho|.
         using qchem::SCFAccelerators::DIISParams;
         auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
+        std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
         qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
 
         SCFParams par;
@@ -1464,6 +1466,7 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
     qchem::Hamiltonian::cHamiltonian* ham=mkHam(bs.get());   // build the Ham WITH the basis (fit-basis seam)
+    std::unique_ptr<qchem::Hamiltonian::cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     Irrep  irr=bs->GetIrreps(Spin::None)[0];
     size_t n  =bs->GetNumFunctions();
     Crystal_EC ec(irr, Nelec);
@@ -1471,6 +1474,7 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     // EMax must exceed the ionic [F,D] error (~1.4-3) or DIIS bails ("En>EMax") and linear mixing
     // oscillates on the strong Madelung field.  Engage DIIS from the start (EMax large).
     auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{10, 8.0, 1e-10, 1e-9});
+    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
     // \a seed defaults to Uniform rho(r)=N/V; IonicSAD pre-bakes the formal-charge transfer (Na+ + F-).
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
     SCFParams par;
@@ -1677,8 +1681,10 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     Crystal_EC ec(irreps, Nelec);                          // Nval per k-block; weights handle the BZ sum
 
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+    std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
+    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
 
     // Uniform-density seed on the first block: D=(N/n0)I gives rho(r)=N/V (uniform), the total density
     // every block's first Hartree/XC needs (a single block suffices since rho is constant).  Built
