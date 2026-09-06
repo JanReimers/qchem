@@ -256,29 +256,39 @@ divides — and the two disagree by 1.8× on MnO precisely because 44% of that r
 
 | row | span / k | q iters | q CPU | q setup | **q s/it (SCF)** | c steps | c CPU | c setup | **c s/it (SCF)** | **BIN 1 ×** | q s/it (total) | total × |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Si Γ | SIPP_SR, 1 k | 17 | 1.10 s | 0.16 s | **0.055** | 12 | 5.03 s | 0.4 s | 0.383 | **0.14×** ✅ | 0.065 | 0.15× |
-| Si 2×2×2 Γ-centred | SIPP_SR, 8 k | 16 | 4.46 s | 0.35 s | **0.253** | 13 | 5.60 s | 0.6 s | 0.385 | **0.66×** ✅ | 0.275 | 0.64× |
-| Si 2×2×2 shifted MP | SIPP_SR, 8 k | 14 | 4.26 s | 1.15 s | **0.218** | 14 | 5.91 s | 0.5 s | 0.386 | **0.56×** ✅ | 0.300 | 0.71× |
-| NaF SR2 Γ | LOWQ_SR2, 1 k | 23 | 23.0 s | **9.82 s** | **0.573** | 16 | 7.18 s | 0.9 s | 0.394 | **1.45×** ⛔ | 1.000 | 2.23× |
-| NaF full-SR Γ | LOWQ_SR, 1 k | 30 | 30.0 s | **11.17 s** | **0.628** | 27 | 101.85 s | 6.9 s | 3.519 | **0.18×** ✅ | 1.000 | 0.27× |
-| **MnO AFM-II — ALL DEFAULTS** (5 of §2's 7 deviations active ᵃ) | VA, 1 k | 14+17 = **31** | 395.6 s | **184.3 s** | **6.817** | 44 | 372.9 s | 8.1 s | 8.291 | **0.82×** ✅ | 12.76 | 1.51× |
-| MnO AFM-II, `QCHEM_BECKE_XC=0` (4 of 7 — ONE rung down, NOT parity ᵃ) | VA, 1 k | 14+25 = **39** | 147.0 s | 1.81 s | **3.723** | 44 | 372.9 s | 8.1 s | 8.291 | **0.45×** ✅ | 3.769 | 0.44× |
-| ⚠ MnO AFM-II, `CP2K_COMPAT=1` probe (0 of 7 — `AT PARITY` as far as is KNOWN ᵃ) | VA, 1 k | 10+10 = **20**, CAPPED | 287.5 s | 1.89 s | **14.28** | 44 | 372.9 s | 8.1 s | 8.291 | **1.72×** ⛔ | 14.38 | 1.70× |
-| ★ **…the same row's FIXED-POINT stage alone — THE LIKE-FOR-LIKE NUMBER** ᵇ | VA, 1 k | marginal | 37.4 s / 4 it | cancels | **9.35** | 44 | 372.9 s | 8.1 s | 8.291 | **1.13×** | 9.35 | 1.13× |
-| MnO **FM** — ALL DEFAULTS | VA, 1 k | 18+15 = **33** | 398.0 s | **184.8 s** | **6.460** | 22 | 192.4 s | 8.7 s | 8.350 | **0.77×** ✅ | 12.06 | 1.38× |
+| Si Γ ᵇ✓ | SIPP_SR, 1 k | 17 | 1.10 s | 0.16 s | **0.055** | 12 | 5.03 s | 0.4 s | 0.383 | **0.14×** ✅ | 0.065 | 0.15× |
+| Si 2×2×2 Γ-centred ᵇ✓ | SIPP_SR, 8 k | 16 | 4.46 s | 0.35 s | **0.253** | 13 | 5.60 s | 0.6 s | 0.385 | **0.66×** ✅ | 0.275 | 0.64× |
+| Si 2×2×2 shifted MP ᵇ✓ | SIPP_SR, 8 k | 14 | 4.26 s | 1.15 s | **0.218** | 14 | 5.91 s | 0.5 s | 0.386 | **0.56×** ✅ | 0.300 | 0.71× |
+| NaF SR2 Γ ᵇ✓ | LOWQ_SR2, 1 k | 23 | 23.0 s | **9.82 s** | **0.573** | 16 | 7.18 s | 0.9 s | 0.394 | **1.45×** ⛔ | 1.000 | 2.23× |
+| NaF full-SR Γ ᵇ✓ | LOWQ_SR, 1 k | 30 | 30.0 s | **11.17 s** | **0.628** | 27 | 101.85 s | 6.9 s | 3.519 | **0.18×** ✅ | 1.000 | 0.27× |
+| **MnO AFM-II — ALL DEFAULTS** (5 of §2's 7 deviations active ᵃ) ᵇ⚠ | VA, 1 k | 14+17 = **31** | 395.6 s | **184.3 s** | **6.817** | 44 | 372.9 s | 8.1 s | 8.291 | **0.82×** ✅ | 12.76 | 1.51× |
+| MnO AFM-II, `QCHEM_BECKE_XC=0` (4 of 7 — ONE rung down, NOT parity ᵃ) ᵇ⚠ | VA, 1 k | 14+25 = **39** | 147.0 s | 1.81 s | **3.723** | 44 | 372.9 s | 8.1 s | 8.291 | **0.45×** ✅ | 3.769 | 0.44× |
+| ⚠ MnO AFM-II, `CP2K_COMPAT=1` probe (0 of 7 — `AT PARITY` as far as is KNOWN ᵃ) ᵇ⚠ | VA, 1 k | 10+10 = **20**, CAPPED | 287.5 s | 1.89 s | **14.28** | 44 | 372.9 s | 8.1 s | 8.291 | **1.72×** ⛔ | 14.38 | 1.70× |
+| ★ **…the same row's FIXED-POINT stage alone — THE LIKE-FOR-LIKE NUMBER** ᵇ✓ | VA, 1 k | marginal | 37.4 s / 4 it | cancels | **9.35** | 44 | 372.9 s | 8.1 s | 8.291 | **1.13×** | 9.35 | 1.13× |
+| MnO **FM** — ALL DEFAULTS ᵇ⚠ | VA, 1 k | 18+15 = **33** | 398.0 s | **184.8 s** | **6.460** | 22 | 192.4 s | 8.7 s | 8.350 | **0.77×** ✅ | 12.06 | 1.38× |
 
-ᵇ **THE SCF DRIVERS ARE NOT THE SAME ALGORITHM, so the two-stage probe above is not one comparison but
-two.**  Our recipe anneals `Ladder,GDM`: stage 1 is a FIXED-POINT step (diagonalise the mixed Fock, mix the
-density), stage 2 is DIRECT MINIMISATION with a geodesic line search.  **CP2K's benchmarked decks
-diagonalise and mix** — `&DIAGONALIZATION` + Broyden (MnO, NaF) or DIIS/P_Mix (Si), verified in the decks
-and in every log's update-method column; **none of them run `&OT`** (only the unbenchmarked `naf_gpw.inp`
-does, and it says why: diagonalisation diverged on that diffuse basis).  ⇒ Stage 1 IS comparable to what
-CP2K is doing; stage 2 has no counterpart in these runs, and the line search's trial densities land in the
-probe's per-iteration average.  This row isolates stage 1 by DIFFERENCING `GPW_MNO_NMAX` (a single-stage
-`MNO_ANNEAL=5e-3` run at N=6 against N=2, so the setup and seed cancel and what is left is the marginal
-cost of one iteration): **3 gathers + 2 collocations per iteration against CP2K's 2 + 2**, and at our
-per-call rate that is 9.35 s against 8.29.  ⇒ **On the same algorithm we are 1.13×, and the whole residual
-is the third gather** — \f$V_H\f$ gathered separately from \f$v_{xc}^\sigma\f$ (§5f lever B).
+ᵇ **✓ = BOTH CODES RUN THE SAME KIND OF SCF STEP ON THIS ROW; ⚠ = THEY DO NOT.**  A per-iteration ratio is
+only a comparison when the iteration is the same thing on both sides, so this was CHECKED per row, in each
+run's own trace, rather than assumed:
+
+| row | qchem's step | CP2K's step | |
+|---|---|---|---|
+| Si Γ, Si 2×2×2 (both) | DIIS + linear mixing on a diagonalise | `DIIS/Diag.` + `P_Mix` | ✓ |
+| NaF SR2 Γ, NaF full-SR Γ | DIIS + Kerker on a diagonalise — the ladder's GDM rung is **NOT ENGAGEABLE** (Fermi-smeared occupations sit outside the integer-occupation manifold GDM rotates, and it says so) | `Broy./Diag.` | ✓ |
+| the four MnO rows | **two stages**: `Ladder` (fixed point) then `accel: GDM` — DIRECT MINIMISATION with a geodesic line search | `Broy./Diag.` | ⚠ |
+
+⇒ **Only the MnO rows are affected, and only through their second stage.**  CP2K's counterpart for a direct
+minimiser is OT — and (checked in the decks and in every log's update-method column) **none of the
+benchmarked decks run `&OT` either**: they all diagonalise and mix.  The one deck with an `&OT` section is
+the unbenchmarked `naf_gpw.inp`, and its comment says why (diagonalisation diverged on that diffuse basis).
+So on these rows the mismatch is not GDM-vs-OT, it is **minimiser vs mixer**, and stage 2's line-search
+trial densities land in the probe's per-iteration average with nothing on the other side to match them.
+
+The ★ row isolates the comparable half by DIFFERENCING `GPW_MNO_NMAX` (a single-stage `MNO_ANNEAL=5e-3` run
+at N=6 against N=2, so setup and seed cancel and what is left is the marginal cost of one iteration):
+**3 gathers + 2 collocations per iteration against CP2K's 2 + 2**, and at our per-call rate that is 9.35 s
+against 8.29.  ⇒ **On the same algorithm we are 1.13×, and the whole residual is the third gather** —
+\f$V_H\f$ gathered separately from \f$v_{xc}^\sigma\f$ (§5f lever B).
 
 ᵃ **counted off each run's own banner**, not from memory (rule 3b).  Defaults:
 `QCHEM_DM_LOWRANK=on* GPW_STREAM_FOLD=on* QCHEM_MIX_RHO_M=off GPW_XC_DM_SOURCE=off
@@ -290,6 +300,9 @@ them); the middle row is the same with `QCHEM_BECKE_XC=off(stated)`; the bottom 
 route (0.82×) and its FM arm (0.77×).  Two rows are behind, and they are behind for two different reasons:
 
 ⛔ **NaF SR2 Γ — 1.45×, and it is a Becke cost, not a GPW one.**  43% of that row's CPU is setup.  §5e.
+✅ Its DRIVER is comparable (footnote ᵇ): both codes diagonalise and mix there — the ladder's GDM rung is
+not engageable under Fermi smearing — so unlike the MnO rows, this 1.45× is a like-for-like step cost and
+nothing about it is waiting on OT.
 
 ⛔ **THE PARITY ROW, AND WHAT IT ACTUALLY MEASURES.**  `CP2K_COMPAT=1` removes the stream fold (5.2× on
 MnO's pair count) and the low-rank ρ as well, so this is the honest algorithm-to-algorithm row and the
