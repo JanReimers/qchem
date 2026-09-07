@@ -582,9 +582,44 @@ the first Fock is built on a frontier the working rungs do not have.  A 2×2×2 
 onto Γ, making every state 8-fold degenerate; the working rungs fold 2 and 4.  That smearing did NOT cure
 it is the interesting part, and where the next session should start.
 
-⇒ **WHAT 2.1 ACTUALLY ESTABLISHED**: at production size, **what breaks first is SCF convergence, not
-parallelism** — which is a more useful answer than a speedup curve, and it re-prioritises tracker item
-**N3** (charge/spin preconditioning) above further threading work.  ⚠ It also means the speedups above are
+#### ✅ ROOT-CAUSED, AND THEN THE LADDER ANSWERED 2.1 AFTER ALL (2026-09-07)
+
+★★★ **IMPOSED SYMMETRY IS WRONG ON A NON-PRIMITIVE CELL.**  The tell was in the console the whole time: the
+16-atom rung reports `[IBZ] … point group |ops|=48`, the working 8-atom rung `|ops|=8`.
+`SpaceGroup::Detect` documents *"Assumes a primitive cell (one \f$\tau\f$ coset per W)"* — and a 2×2×2
+supercell is **8× non-primitive**, so for each W there are 8 valid \f$\tau\f$ and it picks one.  The
+imposed star-average then mixes points it should not, and the density is corrupt from the first Fock.
+**`GPW_IMPOSE=0` converges in 13 iterations to \f$E/\mathrm{prim}=-7.778472\f$ against the banked k-mesh
+\f$-7.77846\f$ — 1.2 µHa.**  The supercell was right all along; the imposition was not.
+⇒ **This is why all three earlier hypotheses missed: it was never an SCF problem.**
+⚠ **It is the SAME defect `doc/LatticeGasPlan.md` §3 flags for the cluster-expansion work**, written up an
+hour before it bit here.  It blocks every LiMn₂O₄ supercell configuration, so it sits on the BATTERY
+critical path, not just this ladder.  ▶ Fix: supply the supercell's internal translations BY CONSTRUCTION
+(we build them) instead of asking `Detect` for a group it cannot see.
+
+**THE LADDER, RE-RUN WITH `GPW_IMPOSE=0` AND THE NEW PER-ITERATION METRICS:**
+
+| rung | atoms | setup 1t | s/iter 1t | setup 12t | s/iter 12t | **s/iter speedup** |
+|---|---|---|---|---|---|---|
+| 1×1×1 | 2 | 0.13 s | 0.144 | 0.08 s | 0.0297 | **4.84×** |
+| 2×1×1 | 4 | ⚠ 32.4 s | 0.803 | 4.01 s | 0.162 | **4.97×** |
+| 2×2×1 | 8 | 0.98 s | 1.070 | 0.66 s | 0.174 | **6.14×** |
+| 2×2×2 | 16 | 2.16 s | 1.265 | 1.78 s | 0.231 | **5.47×** |
+
+★ **THE SPEEDUP CLIMBS WITH SIZE — 4.84 → 4.97 → 6.14 → 5.47× — and every large rung beats the 4.44× we
+measured on 4-atom MnO.**  ⇒ **2.1's question is answered: the threading gap was substantially an artefact
+of the DEVELOPMENT CELL.**  Read at the large end, Phase 1's ≥5× exit criterion is **already met** (5.5–6×),
+which retrospectively vindicates the decision not to chase the last 4.1 s on MnO.
+
+⚠ **TWO DATA-QUALITY CAVEATS, stated not buried.**  (1) The 32.4 s setup on the 4-atom SERIAL rung is a wild
+outlier against 0.98 s for the EIGHT-atom one — almost certainly box contention, not data; re-take before
+quoting it.  (2) Three rungs report `UNSETTLED` with imposition OFF where they CONVERGED with it on — the
+inverse of the 16-atom behaviour, and not understood.  The per-iteration COSTS are well defined either way,
+but the convergence story on these small cells is not.
+
+⇒ **AND THE ORIGINAL READING SURVIVES AS A WARNING**: at production size the thing that broke first LOOKED
+like SCF convergence, and it was a symmetry bug wearing convergence's clothes.  Three mixing/occupation
+hypotheses were tested against a cause that was in neither.  ⚠ It also means the speedups above are
 not a scaling curve worth quoting: the converging rungs run 0.8–6 s, where process startup and setup
 dominate, and the 8-atom rung is FASTER than the 4-atom one because it converged in 8 iterations against
 12.  A real curve needs runs that converge AND last long enough to measure.
