@@ -375,6 +375,9 @@ outer level over 2 blocks adds no cores to a 12-core box — it makes NESTED Ope
 
 **(ii) The width is 2 where we measure.**  MnO at Γ is 2 spins × 1 k-block.  It is 16 on the 8-k Si rows —
 which is where the question becomes interesting, so **re-ask it at 2.1 (the Si scaling curve)**, not here.
+⚠ **AND THAT IS AN ARGUMENT ABOUT OUR BENCHMARKS, NOT ABOUT THE WORLD** (user, 2026-09-07): *"all these Γ
+runs are mostly for development, in the real world multi-k is the norm."*  Correct, and it is the reason
+(iii) below is a DEFERRAL and not a refutation — see `doc/OpenWork.md` item **KP**.
 
 **(iii) ★ THE BLOCKER IS 20 `mutable` MEMO MEMBERS ON THE SHARED TERM STACK — AND THEY ARE THE DESIGN.**
 One Hamiltonian serves every irrep block, and each term caches per-density-SERIAL state precisely so that
@@ -387,6 +390,19 @@ work they exist to avoid**.  A `#pragma` cannot resolve that; only moving the me
 term stack onto a per-block context can, and then only for the terms whose state is genuinely per-block
 (the \f$V_H\f$ field and the Φ tables must STAY shared, or the duplication is the new cost).
 ★ That is a Phase 2.5 refactor with a measurement attached, not a threading change.
+
+⚠⚠ **BUT (iii) IS A DEFERRAL, NOT A REFUTATION, AND THE DISTINCTION MATTERS — `doc/OpenWork.md` item KP.**
+Checked against CP2K's source rather than asserted: it parallelises k-points across MPI GROUPS
+(`PARALLEL_GROUP_SIZE`, `kpoint%kp_range`, `para_env_inter_kp%sum`).  Their groups are separate ADDRESS
+SPACES, so each holds its own copy of the density-derived state — the duplication (iii) treats as
+disqualifying is simply what they pay, and it is cheap beside the per-k work.  ⇒ **Our coupling is a
+choice, not a constraint**, and "we cannot, because of our caching" is not a defensible resting place.
+★ It is also a smaller fix than (iii) implies: every one of those 20 memos is **k-INDEPENDENT** (the V_H
+map, the ρ and XC-mix rasters, the fitted v), i.e. exactly the objects a pool model computes ONCE and
+reads everywhere.  The obstacle is only that they are filled LAZILY ON FIRST BLOCK ACCESS.  An explicit
+eager refresh before the loop makes them read-only for its duration — shared prologue → parallel k loop →
+density reduction, which is CP2K's decomposition — and is better design regardless, because it makes the
+phase structure explicit instead of implicit in call order.
 
 ⚠ **AND THE HEADROOM THE QUESTION SENSES IS REAL BUT LIVES ELSEWHERE**: whole-run CPU is **587% on 12
 cores**, so half the box is idle — but the cause is the serial STRETCHES (the `SymmetrizeGMap` map walk of
