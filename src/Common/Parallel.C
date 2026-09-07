@@ -29,25 +29,40 @@ inline int WorkerThreads()
     return n;
 }
 
-//! \brief Pin the BLAS to ONE thread.  Call ONCE at the top of \c main() -- every test main and every
-//! CLI driver does.
+//! \brief BLAS worker threads: \c QCHEM_BLAS_THREADS (read ONCE per process), clamped to >=1.
+//! **Default 1** -- i.e. the historical pin, so every banked number is unchanged unless a run asks.
 //!
-//! The parallelism strategy is ONE level, ours: the flat OpenMP regions above (pair loops, XC-mesh
-//! tables and GEMMs).  A BLAS that also threads sits UNDERNEATH those and does two damaging things:
-//! it oversubscribes the box (our N workers x its M each), and -- the reason this is a correctness
-//! knob, not a tuning one -- OpenBLAS auto-sizes its pool FROM MACHINE LOAD, so the reduction order
-//! inside a GEMM becomes load-dependent and results drift in the last ULP between runs of the same
-//! binary.  That was measured: an SCF total energy moved by >2e-5 and the machine-eps anchors
-//! flapped.  Pinned, BLAS is deterministic and the threading we DO want stays where we can reason
-//! about it.
+//! ⚠ **DETERMINISM COMES FROM THE COUNT BEING FIXED, NOT FROM ITS BEING 1** (2026-09-06).  The
+//! original pin was a correctness knob because OpenBLAS **auto-sizes its pool from machine load** when
+//! left alone: the reduction order inside a GEMM then varies between runs of the same binary, and that
+//! was measured moving an SCF total by >2e-5 with the machine-eps anchors flapping.  A FIXED count of
+//! N is as deterministic as a fixed count of 1 -- it just sums in a different order, so it moves the
+//! last ULP ONCE, as a re-bank, rather than run to run.
+int BlasThreads();
+
+//! \brief Fix the BLAS to exactly \c BlasThreads() threads.  Call ONCE at the top of \c main() --
+//! every test main and every CLI driver does.
+//!
+//! ⚠ **WHEN >1 IS SAFE, AND WHY IT IS NOT THE NESTING HAZARD IT LOOKS LIKE** (measured 2026-09-06).
+//! The standing rule was "one level of parallelism, ours": flat OpenMP regions above (pair loops,
+//! XC-mesh tables), BLAS pinned underneath.  But at the site that motivated this -- the XC-mesh
+//! quadrature \f$H_{xc}=\Phi^\dagger\mathrm{diag}(wv)\Phi\f$ -- **there is no level above.**
+//! `CompositeWF`'s Fock assembly walks the irrep blocks in a PLAIN SERIAL `for`, and there is no
+//! `#pragma omp` anywhere in `WaveFunction` or `Hamiltonian`.  So the dispatched `zgemm` runs on one
+//! core with eleven idle, and letting BLAS have them oversubscribes nothing: our OpenMP regions and
+//! this GEMM never overlap in TIME.  (doc/Benchmark.md §7c read the same 1.21× as "the level above is
+//! only 2 wide"; the level above is not 2 wide, it is not parallel at all.)
+//! ⇒ Raise this only where that holds.  A future concurrent outer level over k-blocks/spins would make
+//! `outer_width x BlasThreads() ~ cores` the rule instead, which is why the count is a NUMBER here and
+//! not a bool.
 //!
 //! Deliberately a hard call into OpenBLAS rather than the \c OPENBLAS_NUM_THREADS env var (visible in
 //! the source, not in someone's shell) and rather than a weak symbol (a BLAS swap must fail LOUDLY at
 //! link time, not silently unpin the run).
-void PinBlasToOneThread();
+void FixBlasThreads();
 
 //! \brief Stop the OpenMP threads BUSY-WAITING between parallel regions.  Call ONCE at the top of
-//! \c main(), beside \c PinBlasToOneThread -- same shape, same reason: a process-wide runtime setting
+//! \c main(), beside \c FixBlasThreads -- same shape, same reason: a process-wide runtime setting
 //! belongs in the source where it can be read, not in someone's shell.
 //!
 //! ⛔ WHY (measured 2026-09-04).  LLVM's libomp spins for **200 ms** after every parallel region before

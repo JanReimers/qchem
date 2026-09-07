@@ -220,7 +220,8 @@ template <class U> hmat_t<U> DeltaFit_IBS::AdjointT(const mat_t<U>& P, const rve
     //    1 thread): whole-matrix 34.1 GFlop/s vs 1.87 for ANY blocked/viewed form -- so blocking to
     //    halve the flops (Hermitian) or to spread over 8 threads LOSES 13x to save 2x or 8x.  One
     //    dispatched zgemm beats every hand-parallel arrangement here, and it composes with the pin
-    //    (qchem::PinBlasToOneThread): our parallelism stays at the levels above.
+    //    (qchem::FixBlasThreads, 1 by default): see that declaration for when raising it is safe -- at THIS
+//    site there is no concurrent level above, so QCHEM_BLAS_THREADS>1 gives the zgemm the idle cores.
     //  * WITHOUT it -- the TRIANGULAR, output-blocked, threaded form: H is Hermitian and chmat_t
     //    stores i<=j, so column block [j0,j1) needs only rows [0,j1) of the left operand.  Every
     //    element M(i,j) is still ONE dot product over ALL mesh points accumulated by ONE thread in the

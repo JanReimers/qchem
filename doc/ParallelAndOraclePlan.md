@@ -263,6 +263,60 @@ is).  The real risk is plain oversubscription, which is what the budget exists t
 **Measure** 2×6 against 12×1 and 1×12 on MnO Γ.  **Exit criterion for Phase 1**: MnO Γ at 12 cores,
 **3.08× → ≥5×**.
 
+#### 1.3a ✅ THE BLAS HALF IS BUILT — AND THE PREMISE NEEDED CORRECTING FIRST (2026-09-06)
+
+⛔ **THERE IS NO CONCURRENT LEVEL ABOVE THE LINEAR ALGEBRA.  THERE NEVER WAS.**  This item, and §7c before
+it, assumed *"our parallelism lives ABOVE the linear algebra — per k-block / irrep / spin — with BLAS
+pinned to one thread, precisely to avoid OMP nesting"*, and concluded that on MnO at Γ that level is 2 wide
+so ten of twelve cores idle **by construction**.  A tree-wide survey says otherwise — **every** OpenMP
+region in the codebase:
+
+| file | regions | the loop is over |
+|---|---|---|
+| `BasisSet/Imp/DeltaFit_IBS.C` | 9 | mesh points, grid blocks |
+| `…/PG_Cart_MnD/Evaluator.C` | 6 | shell pairs, grid blocks |
+| `Structure/Imp/UnitCell.C` | 2 | Becke points |
+| `ChargeDensity/Imp/FourierMixCD.C` | 2 | G vectors |
+| `ChargeDensity/Imp/SeedCD.C` | 1 | points |
+
+…and no `std::thread` / `std::async` / `execution::par` anywhere.  **Every parallel axis is points-or-pairs
+WITHIN one block; nothing is parallel ACROSS irreps, k-blocks or spins.**  `CompositeWF`'s Fock assembly is
+a plain `for (auto& w : itsIWFs)`.  ⇒ Right conclusion, wrong mechanism: it is not that the level above is
+2 wide, it is that there is no level above.  **Eleven cores idle, not ten — and no nesting hazard to
+protect against**, which is what makes the simple fix legal.
+
+⇒ **1.3 is therefore a KNOB, not a budget.**  `PinBlasToOneThread()` → `BlasThreads()` + `FixBlasThreads()`
+(`QCHEM_BLAS_THREADS`, read once, **default 1** so nothing banked moves).  The count stays a NUMBER rather
+than a bool precisely so a future concurrent outer level can restore the `outer_width × blas ≈ cores` rule.
+
+★★★ **AND THE FIRST A/B FAILED, FOR A REASON THIS CODEBASE HAD ALREADY DIAGNOSED ONE RUNTIME UP.**
+
+| MnO, 12 GPW threads | wall | CPU% | `H_xc` bucket |
+|---|---|---|---|
+| `QCHEM_BLAS_THREADS=1` (today) | 67.07 s | 587% | 9.10 s |
+| `=6` | **69.68 s** ⛔ | 773% | 5.73 s |
+| `=12` | **76.97 s** ⛔ | 905% | 6.11 s |
+| **`=6` + `OPENBLAS_THREAD_TIMEOUT=1`** | **62.01 s** ✅ | 624% | 5.75 s |
+
+Threading the GEMM made its own bucket **1.6× faster and the whole run SLOWER**.  The OpenBLAS workers
+**spin between calls** and what they steal from is our own OpenMP regions — the identical defect
+`StopOmpThreadsBusyWaiting` fixes for libomp (`KMP_BLOCKTIME`), one runtime down.  With the spin off the
+bucket win reaches the wall, and \f$V_H\f$ drops 8.35 → 7.65 s for the same reason.
+
+⚠ **THE SOURCE-LEVEL SETTING ONLY GETS PART OF IT, AND THAT IS STATED NOT PAPERED OVER.**
+`setenv("OPENBLAS_THREAD_TIMEOUT","1",0)` in `FixBlasThreads()` gives **63.56 s at 803% CPU** against
+**62.01 s at 624%** when the variable is set in the environment before exec.  OpenBLAS appears to
+initialise its pool before `main()` runs, unlike libomp which reads its knobs at first use.  ⇒ The setenv
+stays (it costs nothing and helps), but **a benchmark row wanting the full effect must set
+`OPENBLAS_THREAD_TIMEOUT=1` in the environment**.
+
+✅ **Green**: 814/814 at the default, and `UTMolecule_BS` (52), `UTAtom_BS` (108), `UTCommon` (46) and
+`ITMain -A_*` all pass at `QCHEM_BLAS_THREADS=6` — plus `Etot=-61.40297529` bit-identical at 1, 6 and 12
+BLAS threads.  **No anchor was observed to move**, so flipping the default is a small decision, not a
+re-bank — but it is still the sprint's call, not this item's.
+
+▶ **1.3b, still open: \f$V_H\f$** — 7.65–8.35 s and threads at 1.00×.  Without it the criterion is not met.
+
 #### WHERE THE EXIT CRITERION ACTUALLY STANDS (measured 2026-09-06, post-1.1(b) + post-R2.22)
 
 **MnO ALL DEFAULTS, same build, `Etot=-61.40297529` on both arms to all printed digits:**
