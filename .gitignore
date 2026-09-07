@@ -59,3 +59,6 @@ tools/oracle/__pycache__/
 # CP2K run droppings beside the decks (the si_gpw-RESTART.wfn under version control is deliberate)
 IntegrationTests/CP2K/*-RESTART.wfn
 IntegrationTests/CP2K/*-RESTART.kp
+
+# Test artifact: src/Common/tests/PeriodicTable.C writes this into the CWD of whatever runs UTCommon.
+PeriodicTable.csv
