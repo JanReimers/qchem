@@ -1446,6 +1446,10 @@ DIRECT structural check — no energies, no SCF, no quadrature tolerance to argu
 `InvariantAngularMesh.SupercellBeckeGridIsThePrimitiveGridReplicated` (`UTStructure`) runs the half that
 is currently trustworthy.
 
+**THE 1×1×1 IMPOSED ENERGIES, for reference** (asked 2026-09-07): uniform mesh
+\f$E_{tot}=-7.115067844\f$ (17 iterations, charge 8) — matching the banked anchor \f$-7.11506\f$;
+Becke L=29 \f$-7.11493826\f$, against Becke L=29 FREE \f$-7.114983942\f$ (46 µHa apart).
+
 **WHAT IS ESTABLISHED** (asserted):
 
 | | primitive | 2×2×2 | |
@@ -1469,12 +1473,24 @@ polyhedra are overridden by the unit-cell edge.  So the real question is *"do th
 the MEASUREMENT was wrong, not the mesh.  ⇒ Expected signature of a genuine defect here: tens of points,
 all near cell faces, not hundreds scattered.
 
-▶ **TO REVIVE THE POINT-BY-POINT CHECK**, in order:
-1. **Establish the site↔atom correspondence independently first.**  A site block that really is atom
-   \f$a\f$'s must decompose cleanly into \f$N_r\f$ radii × \f$N_d\f$ directions about that atom's
-   centre — **assert that** before comparing anything between cells.  It is the self-check the retracted
-   attempt lacked, and it fails today, which is why the comparison was meaningless.
-2. Only then compare the two cells, and expect any true difference to be face-local and small.
+⛔ **AND THE SELF-CHECK NOW SAYS WHY, WHICH IS THE USEFUL PART.**  Primitive cell, `nRadial=10` (radial
+nodes 0, 0.0247, 0.125, 0.367, 0.889, 2, 4.5, 10.889, 32, 162), 128-direction site-adapted angular set
+whose vectors are exactly UNIT — all measured, not assumed:
+
+> **site 0 holds 868 points, but \f$|p-\mathbf{R}_0|\f$ takes 199 DISTINCT values, spanning [0.0247, 17.75].**
+
+A radial × angular product about atom 0 can only give **10** distinct \f$|offset|\f$, every one a radial
+node — and 17.75 is not a node.  ⇒ **`SiteBegin(0)..SiteEnd(0)` does not contain exactly atom 0's product
+mesh.**  "Offset from the site's atom" is therefore not a meaningful coordinate, and every comparison built
+on it — including the retracted 826/868 — was meaningless.
+
+▶ **THE ORDER OF WORK**:
+1. **Read the site-block semantics out of the code** (`MakePeriodicBeckeMesh` + the imposed rebuild in
+   `CreateIntegrationMesh`) and ASSERT them: a site's points must decompose into \f$N_r\f$ radii about a
+   known centre.  Until that passes there is no coordinate in which to compare two cells at all.
+2. Only then compare the cells — expecting any true difference to be **face-local and small** (truncation
+   differs where a Becke/Voronoi polyhedron meets a cell face), never a wholesale mismatch, which is what a
+   broken coordinate produces.
 
 ⚠ **WHAT REMAINS TRUE REGARDLESS**: the supercell symmetry fix stands on its own evidence — the group is
 closed, the fold factor scales exactly with cell multiplicity (43 orbits on both rungs at L=5), and Si
