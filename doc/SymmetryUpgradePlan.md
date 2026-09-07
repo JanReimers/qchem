@@ -1269,3 +1269,71 @@ tiers (review fix — one number would make correct code "fail"):
   favors (ρ,|m|)) vs for the ops/densities (SU(2) rotations and k-space bookkeeping →
   favors the spinor).  Decide when 4b's successor (non-collinear pipeline) is scoped; the
   collinear two-channel tier is a strict subset of either.
+
+---
+
+# ★★★ SUPERCELLS — IMPOSED SYMMETRY IS WRONG ON A NON-PRIMITIVE CELL (found 2026-09-07)
+
+**Status: DIAGNOSED WITH A MEASUREMENT, NOT FIXED.**  Raised by the Phase-2.1 scaling ladder
+(`doc/ParallelAndOraclePlan.md` 2.1) and on the critical path for the battery work, because every Li
+configuration in `doc/LatticeGasPlan.md` is a decorated supercell.
+
+## What was seen
+
+A Γ-only Si **2×2×2 supercell (16 atoms) DIVERGES** with imposition on — \f$E=-5.30\f$ Ha at iteration 1
+where \f$\approx-62\f$ is expected, then swings between \f$-46\f$ and \f$+215\f$ to the iteration cap.
+With `GPW_IMPOSE=0` it converges in 13 iterations to \f$E/\mathrm{prim}=-7.778472\f$ against the banked
+k-mesh value \f$-7.77846\f$ — **1.2 µHa**.  So the supercell and the basis are right; the imposition is not.
+⚠ Three plausible SCF explanations were tested and refuted first (conditioning — identical to the working
+rung; Kerker at \f$G_0=0.5/1.0/1.5\f$; smearing at \f$k_BT=0.005/0.02\f$).  **It was never an SCF problem**,
+and the run's own outcome label ("charge-transfer sloshing") is a name for the SIGNATURE, not a diagnosis.
+
+## The mechanism, measured
+
+`SpaceGroup::Detect` documents *"Assumes a primitive cell (one \f$\tau\f$ coset per W)"*.  On a cell that is
+\f$N\f$-fold non-primitive, \f$\tau\f$ is defined only **modulo the internal translations**, so one
+arbitrary representative per \f$W\f$ need not compose: \f$\{W_1|\tau_1\}\{W_2|\tau_2\}=\{W_1W_2\,|\,
+W_1\tau_2+\tau_1\}\f$ can land on a DIFFERENT coset representative than the set's entry for \f$W_1W_2\f$.
+**A non-closed op set is not a group, so the star-average is not a projector** — and projecting with a
+non-projector corrupts the density on the first Fock.
+
+`SupercellSymmetry.ProbeIsDetectsOpSetClosedOnANonPrimitiveCell` (in `UTStructure`) counts it directly:
+
+| cell | atoms | \|ops\| | products NOT in the set |
+|---|---|---|---|
+| 1×1×1 (primitive) | 2 | 48 | **0** of 2304 ✅ |
+| 2×2×1 | 8 | 8 | **0** of 64 ✅ — why this rung converged |
+| **2×2×2** | 16 | 48 | **864** of 2304 ⛔ **37.5%** |
+
+## ★ AND THE PROPER SYMMETRY IS AVAILABLE — the supercell is not symmetry-poor, it is symmetry-RICH
+
+(user, 2026-09-07: *"2×2×2 Si has a well defined (perhaps different from 1×1×1 Si) space group and well
+defined Wyckoff positions (different than 1×1×1 Si).  So there must be a way to get proper symmetry
+imposed."*)  Correct, and the arithmetic is the encouraging part: a supercell describes the SAME crystal, so
+in the larger setting its group contains the primitive group **times the internal translation coset** —
+\f$48\times8=384\f$ operations for Si 2×2×2, not 48.  ⇒ Done properly, imposition on a supercell should fold
+HARDER than on the primitive cell, not less.  What we have today is the worst of both: 48 ops that are not a
+group, so the run must choose between CORRECT (`GPW_IMPOSE=0`, no fold) and FAST (imposed, wrong).
+⚠ **Wyckoff positions change with the setting too**, which matters here specifically because the
+site-adapted Becke mesh (§6a W2b) is built from `SiteStabilizer` — the site symmetry of an atom in the
+supercell setting is not the primitive one, so the mesh construction inherits the same defect.
+
+## Two routes, and a safety net that should land first
+
+1. **DROP THE PRIMITIVE ASSUMPTION IN `Detect`** — enumerate every \f$\tau\f$ coset per \f$W\f$ rather than
+   the first that works.  General (it fixes any non-primitive input, however it arose), and the more
+   expensive detection is a once-per-run cost.
+2. **CONSTRUCT, DO NOT DETECT** — when *we* build the supercell we KNOW the internal translations, so
+   \f$G_{\text{super}} = G_{\text{prim}}(\text{lifted}) \ltimes \{t_{\text{replica}}\}\f$ is exact and free.
+   This is the same discipline the imposed path already follows elsewhere (ops are ctor-injected, not
+   rediscovered), and it is what `doc/LatticeGasPlan.md` §3 needs for configuration dedup anyway.
+   ⚠ It does NOT cover a supercell that arrives from a file or a relaxation, which is why (1) is the
+   general answer and (2) the fast path.
+3. ★ **THE SAFETY NET, WORTH LANDING BEFORE EITHER: ASSERT THAT ANY IMPOSED OP SET IS CLOSED.**  It is
+   \f$O(|G|^2)\f$ once per run against a group of tens of ops — free — and it converts a SILENT density
+   corruption into a loud failure at run 1.  This defect survived because nothing checked the one property
+   the whole star-average machinery assumes.  Consistent with the plan's standing **impose-on-assert** pin.
+
+**Acceptance**: the probe's carve-out for 2×2×2 is deleted and closure asserted for every cell; the Si
+2×2×2 supercell converges WITH imposition to the same \f$-7.778\f$ per primitive cell; and the ladder's
+imposed timings become quotable (today only the `GPW_IMPOSE=0` ones are).
