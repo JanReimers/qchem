@@ -142,7 +142,15 @@ private:
 //! A bucket entered more than once carries \c [xN, s/call] in its label -- the per-call price, which is
 //! the number an optimisation decision needs (see \c AddTime).  No-op when the ledger is empty.
 //! Call once at run end (after the SCF), when the lazy builds are done.
-void EmitTimings(const std::string& name="timing");
+//! \param nIterations  SCF iterations this run took.  >0 adds the two rows a PERFORMANCE comparison needs
+//! and a bucket list cannot give: the pre-SCF SETUP total, and the per-iteration cost of the SCF itself.
+//! ⚠ WHY THEY ARE MANDATORY FOR PERF WORK (user, 2026-09-07): *"for performance work we always need to
+//! report pre-SCF startup time and then average seconds/iteration so that #iterations does not muck up the
+//! interpretation."*  MEASURED CASE: on the Si supercell ladder the 8-atom rung came out FASTER than the
+//! 4-atom one (3.57 s against 6.09 s) purely because it converged in 8 iterations against 12 — a wall-time
+//! reading of that pair says the code gets faster with size, which is nonsense.  Setup and s/iteration are
+//! the two numbers that do not move when the iteration count does.
+void EmitTimings(const std::string& name="timing", size_t nIterations=0);
 
 //============================================================================
 // Emit -- append a COMPLETED section to the current run AND (at depth 1, if a

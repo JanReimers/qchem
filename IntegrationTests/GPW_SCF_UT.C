@@ -670,7 +670,9 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
               << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
               << " Enn="<<E.Enn<<" E_alphaZ="<<E.E_alphaZ<<")" << std::endl;
     GpwResult R{scf.Converged(), charge, E, scf.GetIterationCount()};
-    qchem::report::EmitTimings();       // the where-did-the-time-go ledger, sorted by cost (setup + scf)
+    // Iterations passed so the ledger can report SETUP TOTAL + s/ITERATION -- the two numbers a perf
+    // comparison needs, because a wall time moves with the iteration count and those two do not.
+    qchem::report::EmitTimings("timing", R.iters);
     if (keep) keep->bs=std::move(bs);   // the density's basis block -- must outlive keep->cd
     return R;
 }
@@ -847,7 +849,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
               << " Etot="<<std::setprecision(10)<<R.E.GetTotalEnergy()<<std::setprecision(6)
               << "  (Ekin="<<R.E.Kinetic<<" Een="<<R.E.Een<<" Eee="<<R.E.Eee<<" Exc="<<R.E.Exc
               << " Enn="<<R.E.Enn<<" E_alphaZ="<<R.E.E_alphaZ<<")" << std::endl;
-    qchem::report::EmitTimings();       // the where-did-the-time-go ledger + PEAK RSS, as in RunGpw
+    qchem::report::EmitTimings("timing", R.iters);   // + SETUP TOTAL / s/ITERATION, as in RunGpw
     if (keep) { keep->cd.reset(seedCD); keep->bs=std::move(bs); }   // bs is the density's block -- it must outlive cd
     else      delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
     return R;

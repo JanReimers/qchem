@@ -574,9 +574,18 @@ Timed::~Timed()
     if (!g_tchildren.empty()) g_tchildren.back()+=elapsed; // I am my parent's child, whole
 }
 
-void EmitTimings(const std::string& name)
+void EmitTimings(const std::string& name, size_t nIterations)
 {
     if (g_times.empty()) return;
+    // The two PERFORMANCE numbers, computed before the ledger is cleared (see the declaration).  The split
+    // is by bucket PREFIX, which is why every bucket in the tree is named "setup: …" or "scf: …" -- that
+    // convention is load-bearing here, not cosmetic.
+    double setupTotal=0.0, scfTotal=0.0;
+    for (const auto& [k,v] : g_times)
+    {
+        if      (k.rfind("setup:",0)==0) setupTotal+=v;
+        else if (k.rfind("scf:"  ,0)==0) scfTotal  +=v;
+    }
     std::vector<std::pair<std::string,double>> rows(g_times.begin(), g_times.end());
     std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b){return a.second>b.second;});
     json j;
@@ -602,6 +611,11 @@ void EmitTimings(const std::string& name)
     // process-wide high-water mark, so on a multi-run process it is monotone -- it reports the
     // WATERMARK SO FAR, which is the honest reading for a benchmark row run one config per process.
     if (const double mb=PeakRSS_MB(); mb>0.0) j["PEAK RSS (MB, process high-water)"]=mb;
+    // Emitted LAST so they sit at the foot of the sorted-by-cost table, where a reader looking for the
+    // comparison numbers finds them without hunting through the buckets.
+    j["SETUP TOTAL (pre-SCF, s)"]=setupTotal;
+    j["SCF TOTAL (s)"]=scfTotal;
+    if (nIterations>0) j["SCF s/ITERATION"]=scfTotal/double(nIterations);
     EmitSection(name, std::move(j));
 }
 
