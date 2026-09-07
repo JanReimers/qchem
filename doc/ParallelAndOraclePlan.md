@@ -215,24 +215,44 @@ re-derives it: the duplication is real, it is now 0.3% of the ctor, and a correc
    83 s run (19%)**.  ★ This is `doc/CleanupCandidates.md` material as much as a perf item — CLAUDE.md
    says `delete` should be rare or non-existent — so it is filed there; see **R2.22**.
 
-### 1.2 THE BLAS-MODE SERIAL ARM  ·  `-DQCHEM_BLAZE_BLAS=ON`, **pin kept**
+### 1.2 ⛔ CLOSED 2026-09-06 — **THERE IS NOTHING TO ENABLE.  IT HAS BEEN ON SINCE 2026-08-15.**
 
-The prize is SERIAL, not threaded: the two Φ-table GEMMs are **86 s of a 396 s serial run** (ρ sampling
-74.9 + H_xc 11.2), and `DeltaFit_IBS::AdjointT` already measured the two paths — one dispatched
-whole-matrix `zgemm` at **34.1 GFlop/s against 1.87 for any blocked or viewed form**.  That dispatch was
-correctly refused on 2026-08-15 because the system BLAS was then netlib; `libblas`/`liblapack` on this box
-now resolve to **openblas-pthread**, so the fast path is available again.
-⚠ **Keep `qchem::PinBlasToOneThread`** — this arm is about a faster serial GEMM, not about threaded BLAS.
-⚠ **CMake gotcha**: `set(... CACHE ...)` does not override an existing cache entry — use a fresh tree or
-pass `-DQCHEM_BLAZE_BLAS=ON` to `cmake` on the existing one explicitly.
-**Accept on**: serial CPU down on the MnO default + `BECKE_XC=0` rows, 806/806 green, and the anchor delta
-RECORDED (it will not be bit-identical — a different summation order, same class as §5f lever A).
-★ **THIS MOVES ANCHORS ⇒ it belongs to `doc/OpenWork.md` item S, the anchor-moving sprint** (A2–A6 still
-open, to be re-banked in ONE window so they do not mask each other).  Do not re-bank it alone.
+This item planned a session around switching `-DQCHEM_BLAZE_BLAS=ON` so the XC-mesh GEMMs would dispatch a
+whole-matrix `zgemm` (34.1 GFlop/s against 1.87 for any blocked or viewed form), on the reasoning that the
+dispatch *"was correctly refused on 2026-08-15 because the system BLAS was then netlib"*.  **The refusal is
+not what happened on that date — the option was made DEFAULT ON, with the measurement banked in
+`CMakeLists.txt` itself** (*"DEFAULT ON since 2026-08-15: measured 34.1 vs 2.55 GFlop/s on the XC-mesh
+product, and `ctest -j8` is 716/716 green with it (540 s vs 615 s)"*).  Verified on the current tree:
 
-### 1.3 NESTED THREADING — the 2×6 (user, 2026-09-06)
+| check | state |
+|---|---|
+| `CMakeLists.txt` | `option(QCHEM_BLAZE_BLAS ... ON)` |
+| `build/Release/CMakeCache.txt` | `QCHEM_BLAZE_BLAS:BOOL=ON` |
+| compiled defines | `BLAZE_BLAS_MODE=1`, `BLAZE_BLAS_IS_PARALLEL=0` |
+| `ldd ITMain` | `libopenblas.so.0` |
+| system BLAS | both `libblas.so.3` / `liblapack.so.3` → `openblas-pthread` |
+| the pin | `IntegrationTests/gtestmain.C` calls `qchem::PinBlasToOneThread()` at startup |
 
-Only if 1.2 wins.  Today our parallelism lives ABOVE the linear algebra (per k-block / irrep / spin) with
+⇒ **That is EXACTLY the configuration 1.2 proposed to create — BLAS mode on, OpenBLAS underneath, pinned to
+one thread.**  The arm is the shipped default and has been for three weeks.
+
+★ **WHERE THE ERROR CAME FROM, because it is the same lesson as item 5**: a stale COMMENT.  `CMakeLists.txt`
+line 50 still read *"OFF by default; `-DQCHEM_BLAZE_BLAS=ON` to try it"* fifteen lines above the `option(...
+ON)` that contradicted it.  The plan read the comment, not the option.  (Comment corrected 2026-09-06.)
+⇒ Cost of the stale line: one planned session that would have measured nothing.  Cheap to catch — six
+commands — but only if somebody checks the STATE before planning work on it.
+
+★★★ **AND CLOSING IT SHARPENS 1.3 RATHER THAN LEAVING A HOLE.**  Every number in this campaign — §5a, §7,
+1.1, 1.1(b) — was already taken through a pinned OpenBLAS `zgemm`.  So §7c's **1.21× on
+\f$H_{xc}=\Phi^\dagger\mathrm{diag}(wv)\Phi\f$ is not "blaze's SSE2 kernels being slow"** — that
+alternative explanation is dead.  It is a fast serial GEMM meeting a **2-way outer level** (2 spins × 1
+k-block at Γ), exactly as the policy note said.  ⇒ **1.3 is no longer conditional on 1.2 winning; it is the
+only remaining lever in Phase 1**, and the thing to question is the WIDTH OF THE LEVEL ABOVE.
+
+### 1.3 NESTED THREADING — the 2×6 (user, 2026-09-06)  ·  ▶ **NOW THE NEXT ACTION** (1.2 closed)
+
+⛔ *"Only if 1.2 wins"* no longer gates this: 1.2 was already shipped, so its win is IN every number here
+and the 1.21× bucket is a width problem, not a kernel problem.  Today our parallelism lives ABOVE the linear algebra (per k-block / irrep / spin) with
 BLAS pinned to one thread, and at Γ with 2 spins **that level is 2 wide** — ten of twelve cores idle in the
 XC quadrature bucket by construction.  ⇒ A THREAD BUDGET in `qchem.Parallel`:
 `outer_width × blas_threads ≈ cores`, with `outer_width` = the width the caller actually has
@@ -242,6 +262,39 @@ outer-OMP × inner-pthread is not an OMP nested region (`BLAZE_USE_SHARED_MEMORY
 is).  The real risk is plain oversubscription, which is what the budget exists to prevent.
 **Measure** 2×6 against 12×1 and 1×12 on MnO Γ.  **Exit criterion for Phase 1**: MnO Γ at 12 cores,
 **3.08× → ≥5×**.
+
+#### WHERE THE EXIT CRITERION ACTUALLY STANDS (measured 2026-09-06, post-1.1(b) + post-R2.22)
+
+**MnO ALL DEFAULTS, same build, `Etot=-61.40297529` on both arms to all printed digits:**
+
+| arm | wall | CPU% |
+|---|---|---|
+| `GPW_OMP_THREADS=1` (true serial) | **290.1 s** | 100% |
+| `GPW_OMP_THREADS=12` | **67.5 s** | 469% |
+| **speedup** | **4.30×** | (was 3.08× when the criterion was written) |
+
+⇒ **Two thirds of the 3.08 → 5 gap closed by 1.1(b) and R2.22 — neither of which was a threading change.**
+Removing serial work moves this ratio exactly as parallelising it would, and it was cheaper.
+
+**WHAT IS LEFT THAT DOES NOT SCALE**, from the two arms above (serial → 12 threads):
+
+| bucket | serial | 12 threads | speedup |
+|---|---|---|---|
+| `scf: XC-mesh quadrature H_xc` | 11.15 s | **9.12 s** | **1.22×** ⛔ |
+| `scf: E_H V_H field build` | 8.32 s | **8.36 s** | **1.00×** ⛔ |
+| `setup: site-adapted angular sets` | 3.86 s | **3.70 s** | **1.04×** ⛔ |
+
+**SO 1.3 ALONE DOES NOT REACH 5×, AND HERE IS THE ARITHMETIC BEFORE ANYONE BUILDS IT.**  Perfect 2×6 on
+the \f$H_{xc}\f$ bucket takes it to 11.15/6 = 1.86 s, saving 7.3 s ⇒ 60.2 s ⇒ **4.82×**.  Even an
+unattainable 12-way on it gives 4.89×.  ⇒ **The exit criterion needs \f$V_H\f$ too** — §7c's item 3, the
+8.4 s `SymmetrizeGMap` star-average over the point group, which is a serial walk over a \f${G}\f$ map and
+threads at 1.00×.  Together they clear 5× with room.  ▶ **Do them as ONE increment**, or the first will look
+like it missed the target.
+
+⚠ **And weigh them against simply deleting more serial work**, which is what actually moved this ratio
+today: the angular sets (3.70 s, 1.04×) have never been examined, and the diagnostic already shows one
+wasted NNLS restart at production L (`pool=82 FAIL → pool=164 ok`, `QCHEM_ANGMESH_DEBUG=1`).  That is worth
+maybe 30% of the bucket — ~1.2 s of 67.5 s — so it is NOT the next thing, but it is the cheapest thing.
 
 ---
 

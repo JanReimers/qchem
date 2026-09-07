@@ -47,7 +47,10 @@ if(OpenMP_CXX_FOUND)
     add_compile_definitions(BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0)
 endif()
 
-# Blaze -> BLAS for the dense products (OFF by default; -DQCHEM_BLAZE_BLAS=ON to try it).
+# Blaze -> BLAS for the dense products.  ⚠ DEFAULT **ON** -- see the "DEFAULT ON since 2026-08-15" note
+# below.  (This line used to read "OFF by default; -DQCHEM_BLAZE_BLAS=ON to try it", which stayed behind
+# when the option flipped and then misled doc/ParallelAndOraclePlan.md 1.2 into planning a session around
+# turning on something that had been on for three weeks.  Corrected 2026-09-06.)
 #
 # Blaze's own kernels are SIMD but build at the SSE2 baseline here (BUILD_MARCH_NATIVE is OFF), and the
 # GPW hot path is now dominated by big dense products -- the XC-mesh Phi GEMMs, O(npts n^2) per SCF
