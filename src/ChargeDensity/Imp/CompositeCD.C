@@ -13,6 +13,7 @@ import qchem.ChargeDensity.Types;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO (each finite block's AO face)
 import qchem.BasisSet.G_FieldEvaluator;  // G_RasterTransform -- the raster face that star-averages a grid field
 import qchem.Blaze;
+import qchem.Reporting;                 // report::Timed -- splitting the V_H field build (ParallelAndOraclePlan 1.3b)
 
 namespace qchem::ChargeDensity
 {
@@ -325,15 +326,23 @@ template <class Comp> rvec_t Composite_Fourier<Comp>::GetRhoOnGrid(const BasisSe
 // projection of the summed density).  Each block bakes the kernel via its own Repulsion3C(c).
 template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
 {
+    // ★ SPLIT INTO TWO BUCKETS (1.3b, 2026-09-06).  This whole call is 8.35 s of a 67 s MnO run and it
+    // threads at 1.00×; doc/Benchmark.md §7c attributes it to the star-average, which had never been
+    // measured apart from the per-block merge above it.  Both are ΔG_Map (std::map) walks, so both are
+    // plausible -- hence two buckets rather than one guess.
     ΔG_Map rg;
-    for (const auto& blk : self().itsCDs)
-        std::visit([&](const auto& b)
-        {
-            auto* fc=dynamic_cast<const FourierDensity*>(b.get());
-            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
-            for (const auto& kv : fc->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
-        }, blk);
+    {
+        qchem::report::Timed timed("scf: V_H per-block ΔG_Map merge");
+        for (const auto& blk : self().itsCDs)
+            std::visit([&](const auto& b)
+            {
+                auto* fc=dynamic_cast<const FourierDensity*>(b.get());
+                assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+                for (const auto& kv : fc->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
+            }, blk);
+    }
     // V_H is linear in ρ̃ and |UG|=|G|, so symmetrizing V_H(G) == V_H of the symmetrized density -- exact.
+    qchem::report::Timed timed("scf: V_H IBZ star-average (SymmetrizeGMap)");
     return SymmetrizeGMap(rg, self().itsPointOps);   // IBZ star-average (no-op when {E})
 }
 

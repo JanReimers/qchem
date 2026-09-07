@@ -38,14 +38,28 @@ inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Symmetry::Lat
     if (ops.empty()) return rg;                       // {E}: exact no-op
     ΔG_Map out;
     const double w = 1.0/double(ops.size());
+    // ⚠ THE GLIDE PHASE IS THE ONLY TRANSCENDENTAL IN HERE, AND FOR A SYMMORPHIC OP IT IS EXACTLY 1
+    // (2026-09-06, doc/ParallelAndOraclePlan.md 1.3b).  This loop runs |{G}| x |ops| times per call and
+    // this call is 6.8 s of a 67 s MnO run, so a sincos per iteration on ops that all have tau=0 is pure
+    // waste.  Hoisted, not branched-in-the-hot-loop: the test is per OP, evaluated once.
+    std::vector<char> symmorphic(ops.size());
+    for (size_t o=0; o<ops.size(); ++o)
+        symmorphic[o] = (ops[o].tau.x==0.0 && ops[o].tau.y==0.0 && ops[o].tau.z==0.0);
     for (const auto& [m, val] : rg)                   // scatter ρ̃(m) onto every U·m with the input-index phase
     {
-        for (const auto& op : ops)
+        const dcmplx wv = w*val;                      // loop-invariant in op
+        const rvec3_t md(double(m.x), double(m.y), double(m.z));
+        for (size_t o=0; o<ops.size(); ++o)
         {
-            rvec3_t um = op.U * rvec3_t(double(m.x), double(m.y), double(m.z));
+            const auto& op = ops[o];
+            rvec3_t um = op.U * md;
             ivec3_t Um((int)std::lround(um.x), (int)std::lround(um.y), (int)std::lround(um.z));
-            const double phase = 2.0*Pi*(m.x*op.tau.x + m.y*op.tau.y + m.z*op.tau.z);   // e^{+2πi m.τ} (input index)
-            out[Um] += w * std::polar(1.0, phase) * val;
+            if (symmorphic[o]) out[Um] += wv;         // e^{i0}=1 EXACTLY -- not an approximation
+            else
+            {
+                const double phase = 2.0*Pi*(m.x*op.tau.x + m.y*op.tau.y + m.z*op.tau.z);   // e^{+2πi m.τ}
+                out[Um] += std::polar(1.0, phase) * wv;
+            }
         }
     }
     return out;

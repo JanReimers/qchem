@@ -315,7 +315,44 @@ stays (it costs nothing and helps), but **a benchmark row wanting the full effec
 BLAS threads.  **No anchor was observed to move**, so flipping the default is a small decision, not a
 re-bank — but it is still the sprint's call, not this item's.
 
-▶ **1.3b, still open: \f$V_H\f$** — 7.65–8.35 s and threads at 1.00×.  Without it the criterion is not met.
+#### 1.3b \f$V_H\f$ — LOCALISED TO ONE LINE, AND THE OBVIOUS SUSPECT WAS WRONG (2026-09-06, PART DONE)
+
+§7c attributed the 8.35 s \f$V_H\f$ bucket to *"mostly `SymmetrizeGMap`, the IBZ star-average"* — never
+measured apart from the per-block merge sitting above it in the same call.  Two buckets settle it:
+
+| | s/call | total |
+|---|---|---|
+| `scf: V_H IBZ star-average (SymmetrizeGMap)` | 0.0440 | **6.78 s** |
+| `scf: V_H per-block ΔG_Map merge` | 0.0055 | 0.85 s |
+| the call's own residue | — | 0.87 s |
+
+✅ §7c was right: **81% is the star-average.**  (Note `[x154]` against the memo's `[x92]` — it runs more
+often than the field memo misses.)
+
+⛔ **AND THEN THE OBVIOUS OPTIMISATION FAILED.**  Its inner loop runs \f$|\{G\}|\times|ops|\f$ times and
+called `std::polar(1.0, phase)` — a `sincos` — on every iteration.  For a SYMMORPHIC op (\f$\tau=0\f$)
+that is exactly 1, so hoisting the test per op and lifting \f$w\cdot val\f$ out of the op loop should
+have been free money.  **Measured: 6.78 → 6.48 s, 4%.**  ⇒ The transcendental was never the cost.
+
+★ **THE COST IS THE `std::map`.**  `ΔG_Map` is `std::map<ivec3_t,dcmplx,IVec3Less>`, and the loop does
+`out[Um] += …` — a red-black tree lookup plus a node allocation for every (G, op) pair.  That is the same
+shape of defect as 1.1(b)'s `TorusIndex`: the arithmetic was never the problem, the lookup was.
+
+▶ **THE FIX IS A CACHED SCATTER PLAN, AND IT NEEDS DESIGN THOUGHT RATHER THAN A QUICK PATCH.**  The scatter
+\f$m \mapsto U\!\cdot\!m\f$ is GEOMETRY-FIXED — it depends on the key set and the ops, never on the
+values — and the output key set EQUALS the input's (the ball is closed under the point group).  So the
+per-call work could be: one structural copy, two linear walks, and a FLAT accumulate through a precomputed
+`(input ordinal, op) → output ordinal` table.  No tree operations at all.
+⚠ **The open question is WHERE THE PLAN LIVES, and it is not a detail.**  `SymmetrizeGMap` is a free
+function; the composite density that calls it is rebuilt every SCF iteration, so a per-object cache would
+never be reused, and a function-local static is process-global — **exactly the shape that caused the
+cross-run GPW pollution** (the 3C memo riding DBCache'd closures, fixed 2026-08-18 by making it
+instance-scoped).  ⇒ Do not bolt a static onto this.  The plan belongs to whoever owns the ops AND the
+ball for the lifetime of a run — most likely the CD fit basis.  **Prize: ~6 s of a ~63 s run**, which is
+what carries Phase 1 past its 5× criterion.
+
+*(The \f$w\cdot val\f$ / symmorphic-phase hoist is kept: 4% is small but real, and the loop reads better
+for it.)*
 
 #### WHERE THE EXIT CRITERION ACTUALLY STANDS (measured 2026-09-06, post-1.1(b) + post-R2.22)
 
