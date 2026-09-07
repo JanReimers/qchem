@@ -12,6 +12,7 @@
 import qchem.SymmetrizeMesh;   // FoldMesh/Symmetrize/UnmatchedCounts/MakeInvariant/MakeInvariantAngularMesh
 import qchem.Lattice_3D;       // Lattice_3D::GetSpaceGroup + FCCUnitCell/UnitCell (the site-adapted Becke gate)
 import qchem.Mesh.Angular;
+import qchem.Mesh.Product;   // MakeRadial
 import qchem.Mesh.XCPolicy;   // BeckeXCParams -- ask for the RECIPE, never for cellKind alone     // MakeAngular (the GL direction-count baseline for the growth measure)
 import qchem.Types;
 
@@ -529,5 +530,24 @@ TEST(InvariantAngularMesh, SupercellBeckeGridIsThePrimitiveGridReplicated)
     ASSERT_EQ(meshS.NSites(), 16u);
     EXPECT_EQ(meshS.size(), 8*meshP.size()) << "the supercell grid is not the primitive grid replicated";
     EXPECT_EQ(nOpsS, 8*nOpsP)               << "the supercell group is not the primitive group x 8";
+
+    // ⛔ STEP 1 FAILS TODAY, AND IT IS WHY NO MESH COMPARISON IS ATTEMPTED HERE (2026-09-07).
+    // Before two cells' grids can be compared, the site<->atom semantics must be established.  They are
+    // NOT what they look like.  MEASURED on the primitive cell with nRadial=10 (radial nodes
+    // 0, 0.0247, 0.125, 0.367, 0.889, 2, 4.5, 10.889, 32, 162) and a 128-direction site-adapted set whose
+    // vectors are exactly UNIT:
+    //
+    //   site 0 holds 868 points, but |point - atom0| takes 199 DISTINCT values and spans [0.0247, 17.75].
+    //
+    // A radial x angular product about atom 0 can only produce 10 distinct |offset|, all of them radial
+    // nodes; 17.75 is not a node.  ⇒ `SiteBegin(0)..SiteEnd(0)` does NOT contain exactly atom 0's
+    // product mesh, so "offset from the site's atom" is not a meaningful coordinate and every comparison
+    // built on it is meaningless (one was: see the retraction in doc/SymmetryUpgradePlan.md).
+    //
+    // ▶ THE ORDER OF WORK: read the site-block semantics out of MakePeriodicBeckeMesh + the imposed
+    // rebuild in CreateIntegrationMesh, assert THEM here (a site's points decompose into nRadial radii
+    // about a known centre), and only then compare cells.  Expect a genuine setting-dependence to be
+    // FACE-LOCAL and small -- truncation differs where a Becke/Voronoi polyhedron meets a cell face --
+    // never the wholesale mismatch a broken coordinate produces.
 
 }
