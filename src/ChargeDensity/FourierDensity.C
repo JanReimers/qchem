@@ -34,6 +34,24 @@ public:
     //! \c CoulombKernel to its \f$\tilde\rho\f$.  The Hartree term assembles \f$\langle i|V_H|j\rangle\f$ from it.
     virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const=0;
 
+    //! \brief \c GetRepulsion3C WITHOUT the IBZ star-average, paired with \c StarAverage which applies it.
+    //!
+    //! WHY THE PAIR EXISTS (2026-09-07, doc/ParallelAndOraclePlan.md 1.3b).  The star-average is LINEAR, so
+    //! \f$\mathrm{Sym}(a)+\mathrm{Sym}(b)=\mathrm{Sym}(a+b)\f$ -- and a POLARIZED density was paying it
+    //! once per spin channel and then merging, i.e. **twice for one field**.  Measured at 0.042 s a call on
+    //! MnO with the whole star-average at 6.5 s of a 63 s run, so the second one is ~3 s of pure duplication.
+    //! (Same shape as doc/Benchmark.md §5f lever A: the gap was CALL COUNT, not kernel.)  Splitting the raw
+    //! projection from the averaging lets a composer merge FIRST and average ONCE.
+    //!
+    //! Default = the symmetrized answer, which is always CORRECT because the star-average is a PROJECTOR
+    //! (\f$\mathrm{Sym}^2=\mathrm{Sym}\f$) -- a leaf that does not override simply saves nothing.
+    virtual ΔG_Map GetRepulsion3C_Raw(const BasisSet::cFIT_CD_ABS& c) const {return GetRepulsion3C(c);}
+
+    //! \brief Star-average \a rg over THIS density's own crystal point ops, in place.  Default: no ops, no-op.
+    //! The ops belong to whoever holds them (the composite), so the averaging stays with them rather than
+    //! being handed out to every caller that wants to compose raw fields.
+    virtual void StarAverage(ΔG_Map& /*rg*/) const {}
+
     //! \brief The density's RAW real-space \f$\rho(r)\f$ on fit basis \a c's integration raster
     //! (doc/GPWPlan 0.5(f2)): the collocation-native \f$\rho_{DM}=\phi^T D\phi\f$ -- pointwise
     //! \f$\ge 0\f$ for an aufbau (PSD) \f$D\f$ -- NOT the ball-projected Fourier round trip whose Gibbs

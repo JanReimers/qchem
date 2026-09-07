@@ -383,6 +383,10 @@ public:
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
     virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // empty if either channel lacks it
     virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
+    //! The raw/average pair (see FourierDensity).  A polarized density HAS no ops of its own -- both
+    //! channels carry the same ones -- so it merges raw and delegates the averaging to the up channel.
+    virtual ΔG_Map GetRepulsion3C_Raw(const BasisSet::cFIT_CD_ABS& c) const;
+    virtual void   StarAverage(ΔG_Map& rg) const;
 private:
     const Pol& self() const {return static_cast<const Pol&>(*this);}
 };

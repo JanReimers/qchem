@@ -354,6 +354,55 @@ what carries Phase 1 past its 5× criterion.
 *(The \f$w\cdot val\f$ / symmorphic-phase hoist is kept: 4% is small but real, and the loop reads better
 for it.)*
 
+✅ **AND THE FIRST HALF CAME FOR FREE — A POLARIZED RUN WAS STAR-AVERAGING TWICE (2026-09-07).**  Before
+touching the lookup at all: `Polarized_Fourier::GetRepulsion3C` called the SYMMETRIZED
+`GetRepulsion3C` on each spin channel and merged the results.  The star-average is **linear**, so
+\f$\mathrm{Sym}(\uparrow)+\mathrm{Sym}(\downarrow)\equiv\mathrm{Sym}(\uparrow+\downarrow)\f$ — and
+\f$V_H\f$ depends on the TOTAL density anyway.  Splitting the raw projection from the averaging
+(`GetRepulsion3C_Raw` + `StarAverage` on `FourierDensity`) lets the wrapper merge first and average once:
+
+| | before | after |
+|---|---|---|
+| `SymmetrizeGMap` calls | **[×154]** | **[×77]** |
+| star-average total | 6.48 s | **3.16 s** |
+| MnO 12-thread wall | 63–67 s | **61.14 s** |
+
+`Etot=-61.40297529` bit-identical, 814/814.  ★ **Third time this session the answer was CALL COUNT, not
+kernel** (after §5f lever A and 1.1(b)'s double fold) — worth treating as a standing first question.
+The default on `FourierDensity` returns the symmetrized map, which is always correct because the
+star-average is a PROJECTOR: a leaf that does not override simply saves nothing.
+
+#### ⚠ PHASE 1 STANDING, BOTH ARMS ON THE CURRENT TREE (2026-09-07) — **4.44×, AND THE CRITERION IS NOT MET**
+
+Measured together, so the ratio is honest: serial = `GPW_OMP_THREADS=1 QCHEM_BLAS_THREADS=1` (100% CPU);
+threaded = `GPW_OMP_THREADS=12 QCHEM_BLAS_THREADS=6 OPENBLAS_THREAD_TIMEOUT=1`.  `Etot` identical on both.
+
+| | serial | 12 threads | speedup |
+|---|---|---|---|
+| **WHOLE RUN** | **271.2 s** | **61.14 s** | **4.44×** |
+
+⚠ **This SUPERSEDES the 4.68× quoted on 2026-09-06**, which divided a stale serial baseline (290.1 s, taken
+before the V_H halving) by a current threaded one.  Both arms must move together or the ratio flatters.
+
+**What still does not scale, ranked by threaded cost:**
+
+| bucket | serial | 12t | speedup |
+|---|---|---|---|
+| `scf: XC-mesh quadrature H_xc` | 11.64 s | 6.03 s | 1.93× (was 1.22× before 1.3a) |
+| `setup: site-adapted angular sets (W2b)` | 4.16 s | 4.39 s | **0.95×** |
+| `scf: V_H IBZ star-average` | 3.21 s | 3.16 s | **1.01×** |
+| `scf: density mix (Kerker/linear/Pulay)` | 2.58 s | 2.58 s | **1.00×** |
+| `scf: rho ball closure (FFT + G-combine)` | 2.00 s | 2.05 s | **0.97×** |
+
+⇒ **THE HONEST ARITHMETIC: THE NAMED ITEMS NO LONGER ADD UP TO 5×.**  We need 61.14 → 54.2 s, i.e. **6.9 s
+more**.  The cached scatter plan on the star-average buys ~2.9 s and the angular-set NNLS restart ~1.2 s —
+**~4.1 s, reaching 4.76×**.  The rest would have to come from the density mix (2.58 s, 1.00×) and the ρ
+ball closure (2.05 s, 0.97×), neither of which has ever been examined.
+▶ **So Phase 1 closes on a JUDGEMENT, not on a lever**: either take those two unexamined buckets as well,
+or accept 4.4–4.8× and record that the 5× target was set against a different cost profile (3.08× on a run
+whose largest block was a Hamiltonian built twice).  **The criterion has done its job either way** — it
+drove 3.08 → 4.44× and every step of it was a measurement that refuted something.
+
 #### ⛔ "SHOULD THE IRREP LOOP BE OMP?" — ASKED 2026-09-07 (user), ANSWERED NO, WITH THE MEASUREMENT
 
 The natural follow-up to 1.3a's finding that `tCompositeWF<T>::DoSCFIteration` and

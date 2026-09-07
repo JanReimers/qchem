@@ -330,20 +330,34 @@ template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetRepulsion3C(const Basi
     // threads at 1.00×; doc/Benchmark.md §7c attributes it to the star-average, which had never been
     // measured apart from the per-block merge above it.  Both are ΔG_Map (std::map) walks, so both are
     // plausible -- hence two buckets rather than one guess.
-    ΔG_Map rg;
-    {
-        qchem::report::Timed timed("scf: V_H per-block ΔG_Map merge");
-        for (const auto& blk : self().itsCDs)
-            std::visit([&](const auto& b)
-            {
-                auto* fc=dynamic_cast<const FourierDensity*>(b.get());
-                assert(fc && "composite block is not a FourierDensity (plane-wave path)");
-                for (const auto& kv : fc->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
-            }, blk);
-    }
+    ΔG_Map rg=GetRepulsion3C_Raw(c);
     // V_H is linear in ρ̃ and |UG|=|G|, so symmetrizing V_H(G) == V_H of the symmetrized density -- exact.
+    StarAverage(rg);
+    return rg;
+}
+
+// The RAW half of the pair (FourierDensity): the per-block merge, WITHOUT the star-average -- so a
+// composer above (the polarized wrapper) can merge channels first and average ONCE.  See the declaration.
+template <class Comp> ΔG_Map Composite_Fourier<Comp>::GetRepulsion3C_Raw(const BasisSet::cFIT_CD_ABS& c) const
+{
+    qchem::report::Timed timed("scf: V_H per-block ΔG_Map merge");
+    ΔG_Map rg;
+    for (const auto& blk : self().itsCDs)
+        std::visit([&](const auto& b)
+        {
+            auto* fc=dynamic_cast<const FourierDensity*>(b.get());
+            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+            for (const auto& kv : fc->GetRepulsion3C_Raw(c)) rg[kv.first]+=kv.second;
+        }, blk);
+    return rg;
+}
+
+// The averaging half: THIS composite owns the crystal point ops, so it owns the star average.
+template <class Comp> void Composite_Fourier<Comp>::StarAverage(ΔG_Map& rg) const
+{
+    if (self().itsPointOps.empty()) return;                 // {E}: exact no-op, and no bucket entry either
     qchem::report::Timed timed("scf: V_H IBZ star-average (SymmetrizeGMap)");
-    return SymmetrizeGMap(rg, self().itsPointOps);   // IBZ star-average (no-op when {E})
+    rg=SymmetrizeGMap(rg, self().itsPointOps);
 }
 
 template class Composite_HFSystem<tComposite_CD<double>>;

@@ -130,14 +130,35 @@ template <class Pol> rvec_t Polarized_Fourier<Pol>::GetRhoOnGrid(const BasisSet:
     return u;
 }
 
+// ★ MERGE THE CHANNELS RAW, THEN STAR-AVERAGE ONCE (2026-09-07, doc/ParallelAndOraclePlan.md 1.3b).
+// This used to call the SYMMETRIZED GetRepulsion3C on each channel and merge the results -- so a polarized
+// run paid the IBZ star-average TWICE for one field.  The average is linear, so Sym(up)+Sym(dn) is
+// Sym(up+dn) exactly, and V_H depends on the TOTAL density anyway.  Measured on MnO: the star-average was
+// 6.5 s of a 63 s run at 0.042 s a call, so the duplicate was ~3 s of the wall.
+// (Same lesson as doc/Benchmark.md §5f lever A: the cost was CALL COUNT, not kernel.)
 template <class Pol> ΔG_Map Polarized_Fourier<Pol>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
+{
+    ΔG_Map rg=GetRepulsion3C_Raw(c);
+    StarAverage(rg);
+    return rg;
+}
+
+template <class Pol> ΔG_Map Polarized_Fourier<Pol>::GetRepulsion3C_Raw(const BasisSet::cFIT_CD_ABS& c) const
 {
     auto* up=dynamic_cast<const FourierDensity*>(self().GetChargeDensity(Spin::Up  ));
     auto* dn=dynamic_cast<const FourierDensity*>(self().GetChargeDensity(Spin::Down));
     assert(up && dn && "tPolarized_CD spin channel is not a FourierDensity (plane-wave path)");
-    ΔG_Map rg=up->GetRepulsion3C(c);
-    for (const auto& kv : dn->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
+    ΔG_Map rg=up->GetRepulsion3C_Raw(c);
+    for (const auto& kv : dn->GetRepulsion3C_Raw(c)) rg[kv.first]+=kv.second;
     return rg;
+}
+
+// A polarized density owns no ops -- the two channels carry the same set -- so the up channel averages.
+template <class Pol> void Polarized_Fourier<Pol>::StarAverage(ΔG_Map& rg) const
+{
+    auto* up=dynamic_cast<const FourierDensity*>(self().GetChargeDensity(Spin::Up));
+    assert(up && "tPolarized_CD spin channel is not a FourierDensity (plane-wave path)");
+    up->StarAverage(rg);
 }
 
 //-----------------------------------------------------------------------

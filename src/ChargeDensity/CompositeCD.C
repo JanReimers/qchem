@@ -39,6 +39,10 @@ public:
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
     virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // empty if any block lacks the raw path
     virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
+    //! The raw/average pair (see FourierDensity): this composite owns the crystal point ops, so it owns
+    //! the star average -- and splitting it out lets the polarized wrapper average ONCE for two channels.
+    virtual ΔG_Map GetRepulsion3C_Raw(const BasisSet::cFIT_CD_ABS& c) const;
+    virtual void   StarAverage(ΔG_Map& rg) const;
 private:
     const Comp& self() const {return static_cast<const Comp&>(*this);}
 };
