@@ -1389,8 +1389,44 @@ IRREDUCIBLE WEDGE unchanged.  That is what "a supercell is the same crystal" mea
 far stronger evidence than "it did not crash".  The site-adapted mesh is genuinely constructed in the
 supercell setting (18 dirs/atom against the free Lebedev's 12), so `SiteStabilizer` works on the new group.
 
-▶ **ONE OBSERVATION LEFT OPEN, AND IT IS NOT FROM THIS CHANGE**: on the Becke path imposed and free
-disagree — 40.6 mHa at 1×1×1, 3.2 mHa at 2×2×2.  The 1×1×1 case is a PRIMITIVE cell, which this fix does
+### ✅ SETTLED 2026-09-07 — THERE WAS NO GAP, AND THE HUNT FOUND A 2.9× INSTEAD
+
+⛔ **THE 40 mHa WAS A MEASUREMENT ARTEFACT, MINE.**  The ladder set `xcMesh.cellKind=Becke` and nothing
+else, which leaves the REST of the recipe at `MeshParams`' own defaults — **nR=30, α=1, L=5** — where
+`BeckeXCParams`' defaults are nR=40, α=2, **L=29**.  A degree-5 XC mesh is not a Becke run, and an
+imposed-vs-free comparison taken on one measures the coarseness of two rules, not the code.  ⇒ Ask for the
+RECIPE (`BeckeXCParams(-1,-1,-1)`), never for the kind alone.  ★ **This is a live trap for any caller** —
+see `doc/CleanupCandidates.md`.
+
+**At the production recipe the gap collapses ~900×** (user's expectation confirmed):
+
+| recipe | imposed | free | gap |
+|---|---|---|---|
+| L=5 (the artefact) | −7.199436 | −7.240032 | 40.6 mHa |
+| **L=29 (production)** | **−7.11493826** | **−7.114983942** | **0.046 mHa** |
+
+…and both agree with the uniform-mesh / k-mesh anchor −7.11506 to ~0.1 mHa, so the Becke and uniform routes
+agree too.  The residual 46 µHa is two genuinely different quadrature rules (886 vs 302 directions).
+
+★★★ **BUT THE OTHER HALF OF THE EXPECTATION — "the meshes should be IDENTICAL" — FOUND SOMETHING REAL.**
+They are not: imposed builds a SITE-ADAPTED rule at **886 dirs/atom** where free uses stock Lebedev at
+**302** (48128 vs 16392 mesh points, **2.9×**).  And the stock rule did not need replacing:
+
+> `InvariantAngularMesh.StockLebedevIsAlreadyInvariantUnderSiTdSiteGroup`:
+> **Lebedev-29, 302 dirs, unmatched under T_d: 0** (of 302 × 24 = 7248 rotated directions)
+
+**Lebedev rules are built from OCTAHEDRAL orbits, so they carry full \f$O_h\f$ symmetry about the
+coordinate axes — and any cubic site group aligned with those axes is a SUBGROUP of it.**  Si diamond's
+\f$T_d\f$ qualifies exactly.  So W2b spent 2.9× the angular points buying an invariance it already had.
+▶ **The fix is cheap and local: TEST THE STOCK RULE FOR SITE INVARIANCE FIRST, and reuse it when it
+passes** — the adapted construction is then the fallback for site groups the stock rule does not contain
+(low-symmetry sites, misaligned axes, magnetic decorations).  ⚠ The win is CELL-DEPENDENT: it is large on
+high-symmetry cubic cells and vanishes as site symmetry drops, so measure it on MnO before generalising.
+⚠ And it is not free correctness-wise — the invariance test must be exact (it is: a direction-coincidence
+count), because a false positive silently reintroduces the non-invariant-mesh bug W2b exists to prevent.
+
+▶ **AND THE ORIGINAL OBSERVATION IS WITHDRAWN**: the 40.6 mHa at 1×1×1 and 3.2 mHa at 2×2×2 were both
+taken on the degree-5 artefact.  The 1×1×1 case is a PRIMITIVE cell, which this fix does
 not touch, so the effect is pre-existing.
 ⚠ **It is also not yet an apples-to-apples comparison**: the two arms integrate on DIFFERENT MESHES
 (768 site-adapted points vs 552 Lebedev), so some of the gap is simply two quadrature rules at a very

@@ -3323,3 +3323,22 @@ should be fine — an argument, not a measurement.
 *(Doc correction found while reviewing: R2.18's sub-note "ONE STALE COMMENT LEFT BEHIND ON PURPOSE —
 `SCFIterator.C:186` still says Vxc::CalcMatrix … sweep it when that list is released" is DONE BY DRIFT.
 `grep -rn "Vxc::CalcMatrix" src/` finds nothing tree-wide.)*
+
+## Setting `MeshParams::cellKind=Becke` alone gives a DEGREE-5 mesh (2026-09-07)
+
+`qcMesh::BeckeXCParams()` is the recipe: nRadial 40, mhlAlpha 2, angularDegree **29**, and it honours
+`GPW_BECKE_NR/ALPHA/L` for any argument passed `<0`.  `MeshParams`' own member defaults are **30, 1, 5**.
+So a caller that writes `mp.cellKind = UnitCellKind::Becke` — the obvious thing, and what it looks like the
+type invites — gets a **degree-5 angular mesh** and no warning.
+
+MEASURED COST OF THE TRAP: it produced a 40 mHa imposed-vs-free discrepancy that read exactly like a
+symmetry bug and consumed a diagnosis before the recipe was checked (`doc/SymmetryUpgradePlan.md`,
+"SETTLED 2026-09-07").  At the real recipe the same comparison gives 0.046 mHa.
+
+⇒ Options, cheapest first: (a) make `MeshParams`' Becke-relevant defaults MATCH `BeckeXCParams`' so the
+two agree however the struct is reached; (b) have whoever resolves a Becke mesh reject an unresolved
+recipe rather than silently integrating at degree 5; (c) make `cellKind` unsettable on its own, so asking
+for Becke means asking for the recipe.  (c) is the compile-time answer and matches the project's
+preference for build failure over a plausible wrong number — a degree-5 XC mesh is exactly a plausible
+wrong number.
+

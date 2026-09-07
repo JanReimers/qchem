@@ -863,7 +863,11 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
                  BasisSet::Lattice_3D::CellImages images=BasisSet::Lattice_3D::CellImages::Periodic,
                  double smearkT=0.0,
-                 qcMesh::UnitCellKind xcKind=qcMesh::UnitCellKind::Auto)
+                 qcMesh::UnitCellKind xcKind=qcMesh::UnitCellKind::Auto,
+                 // The FULL Becke recipe when a caller has one.  Passing only xcKind leaves nRadial /
+                 // mhlAlpha / angularDegree at MeshParams' defaults (30, 1, 5) rather than the recipe's
+                 // (40, 2, 29) -- a degree-5 XC mesh, which is not what "Becke" means to anyone asking.
+                 const qcMesh::MeshParams* xcMeshFull=nullptr)
 {
     GpwOptions o;
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
@@ -873,7 +877,8 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     // in doc/Benchmark.md.  Diagnostics only: unset, nothing changes.
     if (const char* im=std::getenv("GPW_IMPOSE")) o.imposeSymmetry=std::atoi(im)!=0;
     o.label=label; o.Nelec=Nelec; o.species={{std::string(element), 4}};   // the Si callers: Zion=4
-    o.densityEcut=densityEcut; o.images=images; o.kShift=kShift; o.xcMesh.cellKind=xcKind;
+    o.densityEcut=densityEcut; o.images=images; o.kShift=kShift;
+    if (xcMeshFull) o.xcMesh=*xcMeshFull; else o.xcMesh.cellKind=xcKind;
     o.accelerator="DIIS"; o.seed=seed; o.ortho=ortho; o.orthoTol=orthoTol;
     o.scf.NMaxIter=(size_t)nmax; o.scf.MinΔρ=minDrho; o.scf.MinΔE=minDE;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
@@ -996,8 +1001,18 @@ TEST(GPW_SCF, DISABLED_SiSupercellLadder)
     // SI_XC=becke forces the atom-centred mesh.  ⚠ THIS IS THE PATH THAT EXERCISES `SiteStabilizer` IN THE
     // SUPERCELL SETTING (the §6a W2b site-adapted angular sets) -- the Wyckoff half of the supercell
     // symmetry fix, which the uniform-mesh ladder never touches.
+    // ⚠ SETTING cellKind ALONE IS A TRAP, and it cost a bogus measurement (2026-09-07): the REST of the
+    // recipe then stays at MeshParams' own defaults -- nR=30, alpha=1, L=5 -- where BeckeXCParams' defaults
+    // are nR=40, alpha=2, L=29.  A degree-5 XC mesh is not a Becke run, and an imposed-vs-free comparison
+    // taken on one measures the two rules' coarseness, not the code.  Ask for the RECIPE, which also makes
+    // GPW_BECKE_L / GPW_BECKE_NR live (they are only consulted for arguments passed as <0).
     qcMesh::UnitCellKind xcKind=qcMesh::UnitCellKind::Auto;
-    if (const char* x=std::getenv("SI_XC"); x && std::string(x)=="becke") xcKind=qcMesh::UnitCellKind::Becke;
+    qcMesh::MeshParams   xcMesh;
+    if (const char* x=std::getenv("SI_XC"); x && std::string(x)=="becke")
+    {
+        xcMesh = qcMesh::BeckeXCParams(-1,-1.0,-1);   // <0 = "take the default, or the env override"
+        xcKind = qcMesh::UnitCellKind::Becke;
+    }
 
     std::ostringstream label; label<<"Si supercell "<<n.x<<"x"<<n.y<<"x"<<n.z<<" ("<<nAtom<<" atoms) Gamma";
     Lattice_3D lat(cell, ivec3_t(1,1,1));            // Γ ONLY -- the folding equivalence above
@@ -1005,7 +1020,8 @@ TEST(GPW_SCF, DISABLED_SiSupercellLadder)
                        label.str().c_str(), /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
                        /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6,
                        qchem::ChargeDensity::SeedStrategy::Uniform,
-                       BasisSet::Lattice_3D::CellImages::Periodic, /*smearkT*/0.0, xcKind);
+                       BasisSet::Lattice_3D::CellImages::Periodic, /*smearkT*/0.0, xcKind,
+                       xcKind==qcMesh::UnitCellKind::Becke ? &xcMesh : nullptr);
 
     const double ePerPrim=R.E.GetTotalEnergy()/double(nPrim);
     std::cout<<"[ladder] "<<n.x<<"x"<<n.y<<"x"<<n.z<<"  atoms="<<nAtom

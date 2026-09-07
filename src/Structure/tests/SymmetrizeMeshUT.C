@@ -434,3 +434,44 @@ TEST(SupercellSymmetry, DetectedOpSetIsAGroupOnNonPrimitiveCellsToo)
         if (n.x==2 && n.y==2 && n.z==2) EXPECT_EQ(sg.Order(), 384u);
     }
 }
+
+// ★ IS THE PLAIN LEBEDEV SET ALREADY INVARIANT UNDER THE SITE GROUP? (2026-09-07)
+// W2b builds a SITE-ADAPTED angular rule so the mesh is invariant by construction.  But Lebedev grids are
+// built from OCTAHEDRAL orbits, so they carry full O_h symmetry about the coordinate axes -- and Si
+// diamond's site group is T_d, a SUBGROUP of O_h aligned with those same axes.  If the stock rule is
+// already invariant here, the adapted construction is buying invariance we already had, at 886 directions
+// per atom against Lebedev's 302 (2.9x) -- an efficiency question, not a correctness one.
+TEST(InvariantAngularMesh, StockLebedevIsAlreadyInvariantUnderSiTdSiteGroup)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const SL::SpaceGroup& sg = lat.GetSpaceGroup();
+    const Matrix3D<double>& A = cell.GetCellMatrix();
+    const Matrix3D<double> Ainv = Invert(A);
+    std::vector<Matrix3D<double>> siteOps;
+    for (const auto& op : sg.SiteStabilizer(rvec3_t(0,0,0))) siteOps.push_back(A*op.W*Ainv);
+    ASSERT_EQ(siteOps.size(), 24u);                       // T_d
+
+    qcMesh::MeshParams mp;
+    mp.angular=qcMesh::AngularKind::Lebedev; mp.angularDegree=29;
+    qcMesh::AngularMesh leb = qcMesh::MakeAngular(mp);   // the STOCK rule the free path uses
+
+    // Invariance of a DIRECTION set: every rotated direction must coincide with a member.
+    size_t unmatched=0;
+    for (const auto& R : siteOps)
+        for (size_t i=0;i<leb.size();++i)
+        {
+            const rvec3_t d = R*leb.Dirs()[i];
+            bool found=false;
+            for (size_t j=0;j<leb.size();++j)
+            {
+                const rvec3_t e=leb.Dirs()[j];
+                if ((d.x-e.x)*(d.x-e.x)+(d.y-e.y)*(d.y-e.y)+(d.z-e.z)*(d.z-e.z) < 1e-16) {found=true;break;}
+            }
+            if (!found) unmatched++;
+        }
+    std::cout<<"[angmesh] Lebedev-29 dirs="<<leb.size()<<"  unmatched under T_d: "<<unmatched<<std::endl;
+    EXPECT_EQ(unmatched, 0u) << "the stock Lebedev rule is NOT invariant under this site group";
+}
