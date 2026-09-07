@@ -993,11 +993,19 @@ TEST(GPW_SCF, DISABLED_SiSupercellLadder)
     const int    Nelec=4*int(nAtom);                 // Si Zion=4 via the PP
     const size_t nPrim=nAtom/2;                      // primitive cells in this supercell
 
+    // SI_XC=becke forces the atom-centred mesh.  ⚠ THIS IS THE PATH THAT EXERCISES `SiteStabilizer` IN THE
+    // SUPERCELL SETTING (the §6a W2b site-adapted angular sets) -- the Wyckoff half of the supercell
+    // symmetry fix, which the uniform-mesh ladder never touches.
+    qcMesh::UnitCellKind xcKind=qcMesh::UnitCellKind::Auto;
+    if (const char* x=std::getenv("SI_XC"); x && std::string(x)=="becke") xcKind=qcMesh::UnitCellKind::Becke;
+
     std::ostringstream label; label<<"Si supercell "<<n.x<<"x"<<n.y<<"x"<<n.z<<" ("<<nAtom<<" atoms) Gamma";
     Lattice_3D lat(cell, ivec3_t(1,1,1));            // Γ ONLY -- the folding equivalence above
     GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, Nelec, "Si",
                        label.str().c_str(), /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
-                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
+                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6,
+                       qchem::ChargeDensity::SeedStrategy::Uniform,
+                       BasisSet::Lattice_3D::CellImages::Periodic, /*smearkT*/0.0, xcKind);
 
     const double ePerPrim=R.E.GetTotalEnergy()/double(nPrim);
     std::cout<<"[ladder] "<<n.x<<"x"<<n.y<<"x"<<n.z<<"  atoms="<<nAtom
@@ -1008,6 +1016,11 @@ TEST(GPW_SCF, DISABLED_SiSupercellLadder)
     EXPECT_NEAR(R.charge, double(Nelec), 1e-5);
     // The folding equivalence, where this file banks the k-mesh counterpart.  Loose: the supercell and the
     // k-mesh differ in basis layout and grid, so they agree to the fit floor, not to the digit.
+    // ⚠ ONLY ON THE UNIFORM MESH: these anchors are the k-mesh totals from this file, all taken on the
+    // uniform XC grid.  A Becke run is a DIFFERENT quadrature and lands ~75 mHa away at the coarse default
+    // recipe (L=5, 18 dirs/atom) -- comparing it to them would be comparing two integration rules, not
+    // two calculations.  The Becke path's own gate is imposed-vs-unimposed agreement, run by hand.
+    if (xcKind==qcMesh::UnitCellKind::Becke) return;
     if (n.x==1 && n.y==1 && n.z==1) EXPECT_NEAR(ePerPrim, -7.11506, 5e-3);
     if (n.x==2 && n.y==1 && n.z==1) EXPECT_NEAR(ePerPrim, -7.45137, 8e-3);
     if (n.x==2 && n.y==2 && n.z==2) EXPECT_NEAR(ePerPrim, -7.77846, 1e-2);

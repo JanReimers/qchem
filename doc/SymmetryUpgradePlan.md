@@ -1371,6 +1371,31 @@ The invariant `ShubnikovOps().size() == 2*Order()` becomes **`== Order()`**: the
 same \f$(W,\tau)\f$ pairs as the detected grey group, and the decoration only assigns each one a
 \f$\sigma\f$.  The old factor of 2 was `ShubnikovOps` recovering a coset `Detect` had discarded.
 
-▶ **STILL OPEN**: the Wyckoff/`SiteStabilizer` half.  Site symmetry in the supercell setting now has the
-right group to ask, but whether the site-adapted Becke mesh (§6a W2b) builds correctly on it is UNVERIFIED
-— the Si ladder runs a uniform XC mesh.  A Becke-mesh supercell run is the next check.
+### ✅ THE WYCKOFF / `SiteStabilizer` HALF IS VERIFIED TOO (2026-09-07)
+
+Si with `SI_XC=becke`, so the §6a W2b **site-adapted** angular sets are built from `SiteStabilizer` in the
+supercell setting — the path the uniform-mesh ladder never touches:
+
+| rung | imposed | mesh points | ops | **orbits** | \f$E\f$/primitive |
+|---|---|---|---|---|---|
+| 1×1×1 | yes | 768 (SITE-ADAPTED, 18 dirs/atom) | 48 | **43** | −7.199436 |
+| 1×1×1 | no | 552 (Lebedev, 12 dirs) | — | — | −7.240032 |
+| 2×2×2 | yes | 6144 (SITE-ADAPTED, 18 dirs/atom) | 384 | **43** | −7.852812 |
+| 2×2×2 | no | 4416 (Lebedev, 12 dirs) | — | — | −7.855975 |
+
+★★★ **THE ORBIT COUNT IS IDENTICAL — 43 ON BOTH RUNGS — and that is the sharp check.**  \f$6144/768=8\f$
+and \f$384/48=8\f$ exactly: the fold factor scales precisely with the cell multiplicity, leaving the
+IRREDUCIBLE WEDGE unchanged.  That is what "a supercell is the same crystal" means operationally, and it is
+far stronger evidence than "it did not crash".  The site-adapted mesh is genuinely constructed in the
+supercell setting (18 dirs/atom against the free Lebedev's 12), so `SiteStabilizer` works on the new group.
+
+▶ **ONE OBSERVATION LEFT OPEN, AND IT IS NOT FROM THIS CHANGE**: on the Becke path imposed and free
+disagree — 40.6 mHa at 1×1×1, 3.2 mHa at 2×2×2.  The 1×1×1 case is a PRIMITIVE cell, which this fix does
+not touch, so the effect is pre-existing.
+⚠ **It is also not yet an apples-to-apples comparison**: the two arms integrate on DIFFERENT MESHES
+(768 site-adapted points vs 552 Lebedev), so some of the gap is simply two quadrature rules at a very
+coarse recipe (L=5, nR=30).  ⛔ An attempt to test that by converging the mesh FAILED and produced nothing:
+`GPW_BECKE_L` does not reach this path — the degree comes from `ResolveXCMesh`/`GatherSharpness` and stayed
+at L=5 for every value — so the three "identical" energies were three identical runs, not evidence.
+▶ The real test needs the degree forced where it is actually chosen; do that before treating the gap as a
+defect.
