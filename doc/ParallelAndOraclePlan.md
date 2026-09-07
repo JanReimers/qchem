@@ -403,6 +403,49 @@ or accept 4.4–4.8× and record that the 5× target was set against a different
 whose largest block was a Hamiltonian built twice).  **The criterion has done its job either way** — it
 drove 3.08 → 4.44× and every step of it was a measurement that refuted something.
 
+## ✅ PHASE 1 IS CLOSED AT 4.44× — THE REMAINING ~4.1 s IS DELIBERATELY NOT TAKEN (user, 2026-09-07)
+
+> *"I don't think we need to fight for the remaining ~4.1 s right now.  Once we start doing DFT+U on
+> something like a 2×2×2 supercell of LiMn₂O₄, then we can revisit and see where real hot spots are."*
+
+★ **AND THAT IS THE RIGHT TEST, NOT A CONCESSION.**  Everything in Phase 1 was measured on a **4-atom cell
+at Γ** chosen for development turnaround.  The last two candidates (density mix 2.58 s, ρ ball closure
+2.05 s) are small ABSOLUTELY, and their share on a 2×2×2 LiMn₂O₄ supercell is unknown and probably
+different — the buckets that dominate here are the ones that scale with basis size and mesh points, and the
+ranking will reshuffle.  Optimising the tail of a development cell is fitting to the wrong system.
+⇒ **The two unexamined buckets stay named and unclaimed** (above) so a future profile can pick them up if
+they survive the size change; nothing is lost by not doing them now.
+
+**Phase 1's ledger, for the record** — MnO ALL DEFAULTS, 12 threads, every step `Etot`-identical:
+
+| | wall | vs serial |
+|---|---|---|
+| at the start of Phase 1 | 128.4 s | 3.08× |
+| after 1.1(b) (the fold index) | 83.2 s | — |
+| after R2.22 (one Hamiltonian per schedule) | 67.6 s | 4.30× |
+| after 1.3a (BLAS knob) + 1.3b (one star-average) | **61.14 s** | **4.44×** |
+
+⚠ **AND NOT ONE OF THOSE WAS A THREADING CHANGE.**  1.3 — the only item in Phase 1 that set out to add
+parallelism — contributed a knob whose default is still 1.  Every metre of the 3.08 → 4.44× came from
+DELETING SERIAL WORK that instrumentation found: a fold index that scanned clustered buckets, a Hamiltonian
+built twice, a star-average applied twice.  ★ That is the phase's real lesson, and it is worth carrying
+into Phase 2: **measure first, and expect the answer to be work that should not have been happening.**
+
+---
+
+## PHASE 2 READINESS — CHECKED 2026-09-07
+
+| | ready? | what it needs |
+|---|---|---|
+| **2.1 our Si scaling curve** (2→4→8→16 atoms) | ✅ **no library gap** | ⚠ There is **no supercell facility** (`grep -i supercell` over `src/Structure` + `src/BasisSet/Lattice_3D` is empty) — but none is needed: `UnitCell(const Matrix3D<double>&)` + `AddAtom(Z, fractional)` build one directly, so an N×N×N replication helper is ~10 test-side lines.  Existing Si tests are all the 2-atom FCC cell with k-meshes, NOT supercells. ⚠ RAM at 16 atoms is the one real constraint on a 14 GB box — run under `scripts/memsafe`. |
+| **2.2 CP2K's 32-atom MnO** | ✅ **ready now** | CP2K is built and validated, and `IntegrationTests/CP2K/` already has five MnO decks to scale up.  Only THEIR side runs, so our RAM ceiling does not bind. |
+| **2.5 the SOLID/OOD cleanup campaign** | ✅ ready | `doc/CleanupCandidates.md` R1/R2 + V1, item 6's `FIT_SF_Ortho` split, the `dynamic_cast` survey, V1.32. |
+| **3 DFT+U** | ⚠ **gated by the user's own rule** | *"a new capability must land AFTER"* 2.5.  The oracle is installed (`&DFT_PLUS_U`). |
+
+★ **THE SUPERCELL HELPER IS NOT A DETOUR — IT IS ON THE NORTH-STAR PATH.**  The same replication 2.1 needs
+is what a 2×2×2 LiMn₂O₄ cell needs, and LiMn₂O₄ is the battery-voltage target.  Building it for the Si
+curve means it is already there when DFT+U wants it.
+
 #### ⛔ "SHOULD THE IRREP LOOP BE OMP?" — ASKED 2026-09-07 (user), ANSWERED NO, WITH THE MEASUREMENT
 
 The natural follow-up to 1.3a's finding that `tCompositeWF<T>::DoSCFIteration` and
