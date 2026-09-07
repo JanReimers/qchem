@@ -100,14 +100,33 @@ static std::vector<Matrix3D<double>> Holohedry(const Matrix3D<double>& A, double
 }
 
 //---------------------------------------------------------------------------------------
-//  Space-group compatibility: does holohedry op W admit a fractional translation tau so
-//  that {W|tau} maps the basis onto itself?  Trial tau values come from mapping atom 0 onto
-//  each same-species atom; the first that works is returned (primitive-cell assumption).
+//  Space-group compatibility: which fractional translations tau make {W|tau} map the basis onto
+//  itself?  Trial tau values come from mapping atom 0 onto each same-species atom.
 //
-static bool FindTau(const Matrix3D<double>& W, const std::vector<AtomSite>& basis,
-                    double tol, rvec3_t& tauOut)
+//  ★ EVERY VALID COSET IS KEPT, NOT THE FIRST (2026-09-07, doc/SymmetryUpgradePlan.md "SUPERCELLS").
+//  This used to return the first tau that worked, documented as "the primitive-cell assumption" -- and
+//  on a NON-PRIMITIVE cell that assumption is false in a way that silently corrupts results.  There tau
+//  is defined only MODULO the cell's internal translations, so one arbitrary representative per W need
+//  not COMPOSE with the others: the returned set is not a group, the star-average built from it is not a
+//  projector, and the density is wrong from the first Fock.  MEASURED on a Si 2x2x2 supercell: 48 ops
+//  with 864 of 2304 products falling outside the set, and an SCF that diverged to +215 Ha.
+//
+//  Keeping every coset fixes it at the root, because the missing operations are exactly the pure-
+//  translation coset: with all of them present the set closes (the "difference" between {W1|t1}{W2|t2}
+//  and the entry for W1W2 is a pure translation that is itself a symmetry, hence in the set).
+//  ⇒ A supercell now yields |G_prim| x |internal translations| ops -- 48 x 8 = 384 for Si 2x2x2 -- so
+//  imposition on a supercell folds HARDER than on the primitive cell, which is the physical truth.
+//
+//  ⚠ A PRIMITIVE CELL IS UNCHANGED, and that is what keeps every banked anchor safe: two distinct valid
+//  tau for one W differ by a pure-translation symmetry, which exists only if the cell is non-primitive.
+//  So this loop returns exactly one tau per W there, as before.
+//  (ShubnikovOps has always enumerated all cosets -- it needed the anti-translation on a magnetically
+//  doubled cell.  This brings Detect into line with the function that already knew better.)
+static void FindAllTau(const Matrix3D<double>& W, const std::vector<AtomSite>& basis,
+                       double tol, std::vector<rvec3_t>& tausOut)
 {
-    if (basis.empty()) { tauOut = rvec3_t(0,0,0); return true; }
+    tausOut.clear();
+    if (basis.empty()) { tausOut.push_back(rvec3_t(0,0,0)); return; }
 
     const AtomSite& a0 = basis.front();
     const rvec3_t   Wf0 = W * a0.f;
@@ -118,6 +137,9 @@ static bool FindTau(const Matrix3D<double>& W, const std::vector<AtomSite>& basi
         rvec3_t tau(Frac1(aj.f.x - Wf0.x, tol),
                     Frac1(aj.f.y - Wf0.y, tol),
                     Frac1(aj.f.z - Wf0.z, tol));
+        bool dup = false;                                  // two atoms can give the SAME tau
+        for (const rvec3_t& t : tausOut) if (SameSiteModLattice(t, tau, tol)) { dup = true; break; }
+        if (dup) continue;
 
         bool ok = true;
         for (const AtomSite& ak : basis)
@@ -129,9 +151,8 @@ static bool FindTau(const Matrix3D<double>& W, const std::vector<AtomSite>& basi
                     { matched = true; break; }
             if (!matched) { ok = false; break; }
         }
-        if (ok) { tauOut = tau; return true; }
+        if (ok) tausOut.push_back(tau);
     }
-    return false;
 }
 
 //---------------------------------------------------------------------------------------
@@ -139,11 +160,11 @@ SpaceGroup SpaceGroup::Detect(const Matrix3D<double>& A,
                               const std::vector<AtomSite>& basis, double tol)
 {
     std::vector<SpaceGroupOp> ops;
+    std::vector<rvec3_t> taus;
     for (const Matrix3D<double>& W : Holohedry(A, tol))
     {
-        rvec3_t tau;
-        if (FindTau(W, basis, tol, tau))
-            ops.push_back({W, tau});
+        FindAllTau(W, basis, tol, taus);                   // every coset, not the first (see FindAllTau)
+        for (const rvec3_t& tau : taus) ops.push_back({W, tau});
     }
     assert(!ops.empty());   // the identity is always a symmetry
     return SpaceGroup(A, std::move(ops));

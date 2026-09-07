@@ -384,12 +384,13 @@ TEST(SiteAdaptedBeckeMesh, ProductionAngularRecipeInvariantAfterTailDrop)
     for (int bad : UnmatchedCounts(adapted, sg)) EXPECT_EQ(bad, 0);
 }
 
-// ⚠ PROBE (2026-09-07): is Detect's op set on a NON-PRIMITIVE cell a GROUP?
-// Detect documents "Assumes a primitive cell (one tau coset per W)".  On a supercell tau is defined only
-// MODULO the internal translations, so picking one representative per W can break CLOSURE -- and a
-// non-closed op set makes the star-average not a projector, which is the suspected mechanism behind the
-// diverging Si 2x2x2 supercell (doc/ParallelAndOraclePlan.md 2.1).
-TEST(SupercellSymmetry, ProbeIsDetectsOpSetClosedOnANonPrimitiveCell)
+// ★ THE GROUP AXIOM NOTHING USED TO CHECK (2026-09-07).  Every star-average assumes its op set is a
+// GROUP -- that is what makes it a PROJECTOR.  Detect used to keep the FIRST valid tau per W ("the
+// primitive-cell assumption"), and on a non-primitive cell tau is defined only MODULO the internal
+// translations, so arbitrary per-W representatives did not compose: a Si 2x2x2 supercell got 48 ops with
+// 864 of 2304 products outside the set, and its SCF diverged to +215 Ha from the first Fock.
+// Detect now keeps every coset; this gate holds the axiom, and the op COUNTS pin the physics.
+TEST(SupercellSymmetry, DetectedOpSetIsAGroupOnNonPrimitiveCellsToo)
 {
     FCCUnitCell prim(10.26);
     prim.AddAtom(14,{0.00,0.00,0.00});
@@ -423,13 +424,13 @@ TEST(SupercellSymmetry, ProbeIsDetectsOpSetClosedOnANonPrimitiveCell)
         std::cout<<"[probe] "<<n.x<<"x"<<n.y<<"x"<<n.z<<"  atoms="<<cell.GetNumAtoms()
                  <<"  |ops|="<<sg.Order()<<"  products NOT in the set: "<<missing
                  <<" of "<<sg.Order()*sg.Order()<<std::endl;
-        // A DETECTED OP SET MUST BE A GROUP -- asserted where Detect's own precondition holds.
-        // ⚠ 2x2x2 is EXCLUDED because it currently FAILS (864 of 2304 products outside the set): the cell
-        // is 8x non-primitive, so tau is defined only modulo the internal translations and one arbitrary
-        // representative per W does not compose.  When supercell symmetry is fixed
-        // (doc/SymmetryUpgradePlan.md, "SUPERCELLS"), delete this carve-out -- the assert should then hold
-        // for every cell, and that is the acceptance test.
-        const bool nonPrimitive = (n.x*n.y*n.z>1) && (sg.Order()>8);
-        if (!nonPrimitive) EXPECT_EQ(missing, 0u) << "detected op set is not closed under composition";
+        // ★ A DETECTED OP SET MUST BE A GROUP -- FOR EVERY CELL, PRIMITIVE OR NOT.  The carve-out that
+        // used to sit here (2x2x2 failing with 864 of 2304 products outside the set) WAS the acceptance
+        // test for the supercell fix, and it is gone because Detect now keeps every tau coset.
+        EXPECT_EQ(missing, 0u) << "detected op set is not closed under composition";
+        // And the count is the physical one: a supercell describes the SAME crystal, so its group in the
+        // larger setting is the primitive group TIMES the internal translations.  Si 2x2x2 = 48 x 8.
+        if (n.x==1 && n.y==1 && n.z==1) EXPECT_EQ(sg.Order(),  48u);
+        if (n.x==2 && n.y==2 && n.z==2) EXPECT_EQ(sg.Order(), 384u);
     }
 }

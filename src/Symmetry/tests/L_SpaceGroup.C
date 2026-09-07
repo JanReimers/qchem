@@ -203,17 +203,23 @@ TEST(Shubnikov, MnO_AFM2_SplitsIntoSixNoneSixFlipPerCoset)
 {
     std::vector<AtomSite> afm = MnOBasis(+1,-1);
     SpaceGroup sg = SpaceGroup::Detect(MnOCell(), afm);   // detection ignores the spin decoration
-    const size_t nGrey = sg.Order();                       // one tau coset per W (12 for this cell)
-    EXPECT_EQ(nGrey, 12u);
+    // ⚠ THESE COUNTS CHANGED 2026-09-07, AND THE NEW ONES ARE THE PHYSICAL ONES.  Detect used to keep one
+    // tau coset per W ("the primitive-cell assumption") and reported 12 here; the MnO AFM-II cell is a
+    // DOUBLED chemical cell, so the species-only basis it detects on is NON-primitive and the second coset
+    // -- containing the anti-translation -- is a real symmetry it was discarding.  Detect now keeps every
+    // coset (doc/SymmetryUpgradePlan.md "SUPERCELLS"), so the grey group it reports is the whole 24.
+    const size_t nGrey = sg.Order();                       // 12 W x 2 chemical-lattice cosets
+    EXPECT_EQ(nGrey, 24u);
 
     auto M = sg.ShubnikovOps(afm);
-    // Every detected W admits BOTH chemical-lattice cosets (the cell is a doubled chemical cell),
-    // and for the AFM decoration each W contributes exactly one None and one Flip op.
-    ASSERT_EQ(M.size(), 2*nGrey);
+    // ⇒ AND THE INVARIANT IS NOW THE CLEANER ONE: the Shubnikov group has the SAME (W,tau) pairs as the
+    // detected grey group -- the decoration only assigns each one a sigma.  It used to read 2*nGrey
+    // because ShubnikovOps was recovering the coset Detect had thrown away.
+    ASSERT_EQ(M.size(), nGrey);
     size_t nNone=0, nFlip=0;
     for (const auto& op : M) (op.sigma==SpinAction::None ? nNone : nFlip)++;
-    EXPECT_EQ(nNone, nGrey);
-    EXPECT_EQ(nFlip, nGrey);
+    EXPECT_EQ(nNone, nGrey/2);                             // the AFM decoration splits it exactly in half
+    EXPECT_EQ(nFlip, nGrey/2);
 
     // The two named ops the machinery exists for: the identity, and the ANTI-TRANSLATION
     // {E|1/2,1/2,1/2}*Flip = the sublattice mirror m1=-m2 (invisible to Detect's one-coset rule).
@@ -252,7 +258,7 @@ TEST(Shubnikov, UndecoratedAndFMBasesGiveAllNone)
     std::vector<AtomSite> grey = MnOBasis(0,0);
     SpaceGroup sg = SpaceGroup::Detect(MnOCell(), grey);
     auto G = sg.ShubnikovOps(grey);
-    ASSERT_EQ(G.size(), 2*sg.Order());
+    ASSERT_EQ(G.size(), sg.Order());     // same (W,tau) pairs, sigma assigned by the decoration (see above)
     for (const auto& op : G) EXPECT_EQ(op.sigma, SpinAction::None);
 
     // FM decoration (+,+): every op still maps + onto +, so again all None -- including the plain

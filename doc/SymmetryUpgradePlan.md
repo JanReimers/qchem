@@ -1337,3 +1337,40 @@ supercell setting is not the primitive one, so the mesh construction inherits th
 **Acceptance**: the probe's carve-out for 2×2×2 is deleted and closure asserted for every cell; the Si
 2×2×2 supercell converges WITH imposition to the same \f$-7.778\f$ per primitive cell; and the ladder's
 imposed timings become quotable (today only the `GPW_IMPOSE=0` ones are).
+
+---
+
+## ✅ FIXED 2026-09-07 — AND ROUTES 1 AND 2 TURNED OUT TO BE THE SAME FIX
+
+Route 3 (the gate) landed first, then the root fix.  **The missing operations are exactly a pure-
+translation coset**, so no provenance is needed and "construct vs detect" collapses: `Detect`'s `FindTau`
+returned the FIRST valid \f$\tau\f$ per \f$W\f$ and now returns EVERY valid one (`FindAllTau`).  With all
+cosets present the set closes, because the difference between \f$\{W_1|\tau_1\}\{W_2|\tau_2\}\f$ and the
+entry for \f$W_1W_2\f$ is a pure translation that is itself a symmetry — hence in the set.
+
+★ `ShubnikovOps` had enumerated all cosets since it was written (it needed the anti-translation on a
+magnetically doubled cell) and its comment said so: *"Detect's FindTau keeps only one"*.  **The fix was to
+bring `Detect` into line with the function next to it that already knew better.**
+
+| cell | ops before | ops after | closed |
+|---|---|---|---|
+| Si 1×1×1 (primitive) | 48 | **48** — unchanged | ✅ |
+| Si 2×2×1 | 8 | **32** = 8 × 4 | ✅ |
+| Si 2×2×2 | 48 (not a group) | **384** = 48 × 8 | ✅ |
+
+⇒ **A PRIMITIVE CELL IS UNTOUCHED, which is what keeps every banked anchor safe**: two distinct valid
+\f$\tau\f$ for one \f$W\f$ differ by a pure-translation symmetry, which exists only if the cell is
+non-primitive.  Verified: MnO AFM-II \f$E_{tot}=-61.40297529\f$, bit-identical, Shubnikov group still 24 ops.
+
+**Si 2×2×2 WITH imposition now converges** — \f$E/\mathrm{prim}=-7.778471914\f$ against the unimposed
+\f$-7.778471942\f$: **0.028 µHa**.  819/819 green.
+
+⚠ **TWO TEST PREMISES MOVED, AND THE NEW ONES ARE BETTER.**  MnO AFM-II's cell is a DOUBLED chemical cell,
+so its species-only basis is non-primitive too and `Detect` now reports the whole grey group (12 → 24).
+The invariant `ShubnikovOps().size() == 2*Order()` becomes **`== Order()`**: the Shubnikov group has the
+same \f$(W,\tau)\f$ pairs as the detected grey group, and the decoration only assigns each one a
+\f$\sigma\f$.  The old factor of 2 was `ShubnikovOps` recovering a coset `Detect` had discarded.
+
+▶ **STILL OPEN**: the Wyckoff/`SiteStabilizer` half.  Site symmetry in the supercell setting now has the
+right group to ask, but whether the site-adapted Becke mesh (§6a W2b) builds correctly on it is UNVERIFIED
+— the Si ladder runs a uniform XC mesh.  A Becke-mesh supercell run is the next check.
