@@ -58,6 +58,37 @@ struct Fold
 Fold FoldPoints(const std::vector<rvec3_t>& pts,
                 const std::vector<SymOp>& ops, double tol);
 
+//! \brief Is \a ops CLOSED under composition -- i.e. actually a GROUP?
+//!
+//! ★ WHY THIS EXISTS (2026-09-07, doc/SymmetryUpgradePlan.md "SUPERCELLS").  Every star-average in the
+//! tree assumes its op set is a group, because that is what makes the average a PROJECTOR
+//! (\f$P^2=P\f$).  Nothing checked it, and a set that is not closed corrupts a density silently.
+//! MEASURED: `SpaceGroup::Detect` on a Si 2x2x2 SUPERCELL returns 48 ops of which **864 of the 2304
+//! products fall outside the set** -- because Detect assumes a primitive cell (one \f$\tau\f$ coset per
+//! \f$W\f$) and on an 8-fold non-primitive cell \f$\tau\f$ is only defined modulo the internal
+//! translations, so arbitrary per-\f$W\f$ representatives do not compose.  The run diverged from its
+//! first Fock and three SCF explanations were tested before anyone suspected the group.
+//!
+//! ⚠ **CLOSURE, NOT COMPLETENESS, IS THE INVARIANT.**  A proper SUBGROUP is perfectly legal here -- the
+//! imposed path deliberately hands the legacy faces only the \f$\sigma=\f$None subgroup, and a partial
+//! projector merely folds less.  What is never legal is a set that is not a group at all.
+//!
+//! Composition is \f$\{W_1|\tau_1\}\{W_2|\tau_2\}=\{W_1W_2\,|\,W_1\tau_2+\tau_1\}\f$ with
+//! \f$\tau\f$ compared modulo 1, and the Shubnikov \f$\sigma\f$ multiplying as \f$\pm1\f$
+//! (Flip\f$\circ\f$Flip = None) -- a magnetic set must close in \f$\sigma\f$ too.
+//! \note \f$O(|G|^3)\f$ naive, on groups of tens of ops, ONCE per run: microseconds.  Cheap enough that
+//! there is no argument for not doing it.
+bool IsClosedGroup(const std::vector<SymOp>& ops, double tol=1e-6);
+
+//! \brief Throw unless \a ops is closed (see \c IsClosedGroup); \a who names the imposition site.
+//!
+//! THROWS rather than asserts, and deliberately: every production run is Release, where \c assert is
+//! compiled out -- so an assert would have caught exactly none of the runs this defect actually spoiled.
+//! Same reasoning as \c RequireSiteBlocks in UnitCell.C: a silently wrong answer is worse than a stopped
+//! run.  A broken group is a broken INVARIANT no caller can act on, so it throws rather than returning an
+//! Outcome (CLAUDE.md).
+void RequireClosedGroup(const std::vector<SymOp>& ops, const char* who, double tol=1e-6);
+
 //! \brief The TORUS variant of \c FoldPoints for cell-periodic point sets (the periodic Becke
 //! mesh, T2): points are FRACTIONAL coordinates, images \f$W f + \tau\f$ are matched modulo the
 //! lattice (each component reduced into \f$[0,1)\f$, distance = the torus metric).  Input points

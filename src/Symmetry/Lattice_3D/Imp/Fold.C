@@ -1,6 +1,8 @@
 // File: Symmetry/Lattice_3D/Imp/Fold.C  Orbit-fold implementation.
 module;
 #include <vector>
+#include <string>
+#include <stdexcept>   // RequireClosedGroup -- a broken group is an invariant, not a recoverable failure
 #include <utility>
 #include <map>
 #include <unordered_map>
@@ -305,6 +307,51 @@ std::vector<char> FlipFixedPointsPeriodic(const std::vector<rvec3_t>& pts,
         }
     }
     return fixed;
+}
+
+//---------------------------------------------------------------------------------------
+//  CLOSURE -- the property every star-average assumes and nothing checked (rationale on the
+//  declaration).  Composition is {W1|t1}{W2|t2} = {W1 W2 | W1 t2 + t1}, tau compared mod 1, and sigma
+//  multiplying as +-1 so a Shubnikov set must close in sigma as well as in space.
+namespace {
+bool SameOp(const SymOp& a, const SymOp& b, double tol)
+{
+    for (int r=1;r<=3;r++) for (int c=1;c<=3;c++) if (fabs(a.W(r,c)-b.W(r,c))>tol) return false;
+    if (a.sigma!=b.sigma) return false;
+    const double dx=TorusDelta(Wrap01(a.tau.x),Wrap01(b.tau.x));   // tau is periodic: 0 and 1 are the same
+    const double dy=TorusDelta(Wrap01(a.tau.y),Wrap01(b.tau.y));
+    const double dz=TorusDelta(Wrap01(a.tau.z),Wrap01(b.tau.z));
+    return dx<=tol && dy<=tol && dz<=tol;
+}
+} // anon
+
+bool IsClosedGroup(const std::vector<SymOp>& ops, double tol)
+{
+    for (const auto& p : ops)
+    for (const auto& q : ops)
+    {
+        SymOp prod;
+        prod.W     = p.W*q.W;
+        const rvec3_t t = p.W*q.tau;
+        prod.tau   = rvec3_t(t.x+p.tau.x, t.y+p.tau.y, t.z+p.tau.z);
+        // Flip o Flip = None: sigma is a sign, so the product carries a flip iff exactly one factor does.
+        prod.sigma = (p.sigma==q.sigma) ? SpinAction::None : SpinAction::Flip;
+        bool found=false;
+        for (const auto& r : ops) if (SameOp(prod,r,tol)) {found=true; break;}
+        if (!found) return false;
+    }
+    return true;
+}
+
+void RequireClosedGroup(const std::vector<SymOp>& ops, const char* who, double tol)
+{
+    if (ops.empty() || IsClosedGroup(ops, tol)) return;
+    throw std::runtime_error(std::string(who)+": the op set being IMPOSED is not closed under composition "
+        "-- it is not a group, so the star-average built from it is not a projector and it will corrupt the "
+        "density silently.  The known cause is a NON-PRIMITIVE cell (a supercell): SpaceGroup::Detect "
+        "assumes one tau coset per W, but on an N-fold non-primitive cell tau is defined only modulo the "
+        "internal translations, so per-W representatives need not compose.  See doc/SymmetryUpgradePlan.md "
+        "\"SUPERCELLS\".  Workaround until that is fixed: run without imposition.");
 }
 
 } // namespace

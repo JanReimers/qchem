@@ -10,6 +10,7 @@ module;
 #include <cstdlib>   // std::getenv/std::atoi
 #include <vector>    // std::vector (the k-block list + the space-group atom basis)
 module qchem.BasisSet.Lattice_3D.BasisSet;
+import qchem.Symmetry.Lattice_3D.Fold;   // RequireClosedGroup -- the imposition gate
 import qchem.RunPolicy;   // theRunPolicy().StreamFold() -- the T3.2 fold, declared with the deviations (N5)
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;     // GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
@@ -131,6 +132,12 @@ static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWP
         // XC engine's (ρ,m) star-average under the full σ-carrying set (itsMagneticOps).  The total's
         // anti-translation component is then driven by the SCF rather than projected -- a PARTIAL
         // projector is legal (folding merely reduced, never wrong).
+        // ★ THE IMPOSITION GATE (doc/SymmetryUpgradePlan.md "SUPERCELLS", 2026-09-07): a star-average is a
+        // PROJECTOR only if its op set is a GROUP, and nothing checked that until a Si 2x2x2 supercell
+        // diverged from its first Fock on a set with 864 of 2304 products outside it.  Checked HERE
+        // because this is the one place a run decides what it imposes.  Closure, NOT completeness -- the
+        // sigma=None subgroup extracted just below is a legal partial projector (see the note there).
+        SL::RequireClosedGroup(ops.magneticDirect, "GPW imposition (Shubnikov group)");
         for (const auto& op : ops.magneticDirect)
             if (op.sigma==SL::SpinAction::None)
             {
@@ -145,6 +152,16 @@ static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWP
     ops.recipFold     = sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);  // fold: linear + TR
     ops.recipDensity  = sg.ReciprocalOps();                                    // density G-space: {U|τ}
     ops.directDensity = sg.DirectOps();                                        // density raster: {W|τ}
+    // ★ THE IMPOSITION GATE -- see the note in the magnetic branch above.  The reciprocal set is the
+    // transpose of this one, so closure of {W|τ} settles both.
+    // DirectOp carries no σ (a spatial group), so it lifts to SymOp with σ=None -- the closure test is
+    // then exactly the spatial one.
+    {
+        std::vector<SL::SymOp> spatial;
+        spatial.reserve(ops.directDensity.size());
+        for (const auto& op : ops.directDensity) spatial.push_back({op.W, op.tau});
+        SL::RequireClosedGroup(spatial, "GPW imposition (spatial space group)");
+    }
     return ops;
 }
 
