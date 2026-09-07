@@ -354,6 +354,45 @@ what carries Phase 1 past its 5× criterion.
 *(The \f$w\cdot val\f$ / symmorphic-phase hoist is kept: 4% is small but real, and the loop reads better
 for it.)*
 
+#### ⛔ "SHOULD THE IRREP LOOP BE OMP?" — ASKED 2026-09-07 (user), ANSWERED NO, WITH THE MEASUREMENT
+
+The natural follow-up to 1.3a's finding that `tCompositeWF<T>::DoSCFIteration` and
+`BuildFockAndComputeSteps` walk the irrep blocks serially.  Three reasons it is not the lever, in
+increasing order of how hard they are to remove:
+
+**(i) There is almost nothing in those loops.**  Their EXCLUSIVE cost on the MnO row:
+
+| bucket | total |
+|---|---|
+| `scf: Fock assembly (its term buckets are children)` | 1.66 s `[×33]` |
+| `scf: next orbitals (extrapolate + DIAGONALIZE)` | 0.056 s `[×16]` |
+| `scf: direct-min step (gradient + geodesic)` | 0.059 s `[×17]` |
+| **the two loops, all in** | **~1.8 s of 67 s** |
+
+All the time is in the CHILDREN, and the children already thread (collocate 5.4×, ρ sampling 6.6×).  An
+outer level over 2 blocks adds no cores to a 12-core box — it makes NESTED OpenMP, which is exactly what
+`BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0` is in the tree to prevent.
+
+**(ii) The width is 2 where we measure.**  MnO at Γ is 2 spins × 1 k-block.  It is 16 on the 8-k Si rows —
+which is where the question becomes interesting, so **re-ask it at 2.1 (the Si scaling curve)**, not here.
+
+**(iii) ★ THE BLOCKER IS 20 `mutable` MEMO MEMBERS ON THE SHARED TERM STACK — AND THEY ARE THE DESIGN.**
+One Hamiltonian serves every irrep block, and each term caches per-density-SERIAL state precisely so that
+blocks 2..N reuse block 1's work.  `Vee_Hartree::CoulombField` says so in its own comment: *"the FIELD is
+memoized on the density serial … every irrep block of one Fock build asks for the identical map, and so
+does the energy."*  The ledger confirms the saving is real — `scf: XC-mesh rho sampling (matrix-free)`
+fires **`[×15]` against `[×33]` Fock builds**, i.e. the second block is very nearly free.
+⇒ Parallelising the loop either **races on all twenty**, or privatises them and **duplicates exactly the
+work they exist to avoid**.  A `#pragma` cannot resolve that; only moving the memo state off the shared
+term stack onto a per-block context can, and then only for the terms whose state is genuinely per-block
+(the \f$V_H\f$ field and the Φ tables must STAY shared, or the duplication is the new cost).
+★ That is a Phase 2.5 refactor with a measurement attached, not a threading change.
+
+⚠ **AND THE HEADROOM THE QUESTION SENSES IS REAL BUT LIVES ELSEWHERE**: whole-run CPU is **587% on 12
+cores**, so half the box is idle — but the cause is the serial STRETCHES (the `SymmetrizeGMap` map walk of
+1.3b, the \f$H_{xc}\f$ GEMM before 1.3a's knob, the setup blocks), not the loop's width.  Those need
+lookups and a pin fixed, not a second level of parallelism.
+
 #### WHERE THE EXIT CRITERION ACTUALLY STANDS (measured 2026-09-06, post-1.1(b) + post-R2.22)
 
 **MnO ALL DEFAULTS, same build, `Etot=-61.40297529` on both arms to all printed digits:**
