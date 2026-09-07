@@ -876,6 +876,13 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     o.scf.NMaxIter=(size_t)nmax; o.scf.MinΔρ=minDrho; o.scf.MinΔE=minDE;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
     o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.Verbose=verbose; o.scf.SmearingkT=smearkT;
+    // GPW_KERKER_G0: the density-mixing PRECONDITIONER, off (0) by default like SCFParams itself.
+    // ⚠ ADDED FOR THE SUPERCELL LADDER (doc/ParallelAndOraclePlan.md 2.1, 2026-09-07): the 16-atom rung
+    // DIVERGES on plain linear mixing -- the outcome detector calls it "OSCILLATING (charge-transfer
+    // sloshing / mixing unstable)", Efinal +76.4 Ha -- and charge sloshing is a SIZE effect, since a bigger
+    // cell has a smaller minimum |G| and the 4π/G² Hartree kernel amplifies exactly that mode.  So a
+    // scaling ladder cannot be run at all without the knob that addresses it.
+    if (const char* kg=std::getenv("GPW_KERKER_G0")) o.scf.KerkerG0=std::atof(kg);
     // GPW_SMEAR / GPW_VERBOSE go AFTER the block above, or the fixed recipe silently overwrites them --
     // which it did: GPW_VERBOSE looked dead because o.scf.Verbose=verbose ran later and put back `false`.
     // An override that a later line can clobber is worse than no override, because it reads as evidence.
@@ -953,6 +960,55 @@ TEST(GPW_SCF, DISABLED_SiliconMultiKPlumbing)
     EXPECT_TRUE(R.converged);
     EXPECT_NEAR(R.charge, 8.0, 1e-6);                          // 8 valence e- (BZ-weighted Sum_k, not x Nk)
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.45137, 5e-3);         // did-E-move anchor (2x1x1 dispersion, analytic path)
+}
+
+// ★ THE SUPERCELL SCALING LADDER (doc/ParallelAndOraclePlan.md 2.1).  Every threading number we own was
+// measured on a 4-atom cell, and a small cell starves threads on both sides of the CP2K comparison -- so
+// the question this answers is whether our speedup is a property of the CODE or of the development cell.
+// ONE RUNG PER INVOCATION (`SI_LADDER=n1,n2,n3`, default 1,1,1): peak RSS is a PROCESS watermark, so a
+// single process walking the whole ladder would report one number for the largest rung (scripts/bench's
+// standing pin).
+//
+// ★★ AND IT IS A CORRECTNESS GATE FOR FREE, WHICH IS WHY THE LADDER IS AT Γ.  A Γ-only calculation on an
+// N1xN2xN3 SUPERCELL is band-folding-equivalent to an N1xN2xN3 k-MESH on the primitive cell: same Hilbert
+// space, same answer.  So each rung must reproduce the k-mesh total this file already banks --
+//   1x1x1 -> -7.11506   (SiliconGammaConverges)
+//   2x1x1 -> -7.45137   (DISABLED_SiliconMultiKPlumbing)
+//   2x2x2 -> -7.77846   (DISABLED_SR_2x2x2GammaCentred_vs_CP2K, itself checked against CP2K)
+// -- PER PRIMITIVE CELL, i.e. per 2 atoms.  A ladder that scales but drifts off these is measuring a bug.
+// (2x2x1 has no banked counterpart; that rung is timing-only.)
+TEST(GPW_SCF, DISABLED_SiSupercellLadder)
+{
+    const double a=10.26;
+    FCCUnitCell prim(a);
+    prim.AddAtom(14, {0,0,0});
+    prim.AddAtom(14, {0.25,0.25,0.25});
+
+    ivec3_t n(1,1,1);
+    if (const char* e=std::getenv("SI_LADDER")) {int x=1,y=1,z=1; sscanf(e,"%d,%d,%d",&x,&y,&z); n=ivec3_t(x,y,z);}
+    UnitCell cell=Supercell(prim, n);
+    const size_t nAtom=cell.GetNumAtoms();
+    const int    Nelec=4*int(nAtom);                 // Si Zion=4 via the PP
+    const size_t nPrim=nAtom/2;                      // primitive cells in this supercell
+
+    std::ostringstream label; label<<"Si supercell "<<n.x<<"x"<<n.y<<"x"<<n.z<<" ("<<nAtom<<" atoms) Gamma";
+    Lattice_3D lat(cell, ivec3_t(1,1,1));            // Γ ONLY -- the folding equivalence above
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, Nelec, "Si",
+                       label.str().c_str(), /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
+                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
+
+    const double ePerPrim=R.E.GetTotalEnergy()/double(nPrim);
+    std::cout<<"[ladder] "<<n.x<<"x"<<n.y<<"x"<<n.z<<"  atoms="<<nAtom
+             <<"  Etot="<<std::setprecision(10)<<R.E.GetTotalEnergy()
+             <<"  E/primitive="<<ePerPrim<<"  iters="<<R.iters<<std::endl;
+
+    EXPECT_TRUE(R.converged);
+    EXPECT_NEAR(R.charge, double(Nelec), 1e-5);
+    // The folding equivalence, where this file banks the k-mesh counterpart.  Loose: the supercell and the
+    // k-mesh differ in basis layout and grid, so they agree to the fit floor, not to the digit.
+    if (n.x==1 && n.y==1 && n.z==1) EXPECT_NEAR(ePerPrim, -7.11506, 5e-3);
+    if (n.x==2 && n.y==1 && n.z==1) EXPECT_NEAR(ePerPrim, -7.45137, 8e-3);
+    if (n.x==2 && n.y==2 && n.z==2) EXPECT_NEAR(ePerPrim, -7.77846, 1e-2);
 }
 
 // DISPERSIVE MULTI-K BULK (disabled: 8 k-blocks, ~4 min) -- the first REAL bulk GPW, unblocked by the KB

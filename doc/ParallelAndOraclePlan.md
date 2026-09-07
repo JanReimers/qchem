@@ -544,6 +544,51 @@ Cheap, and it is the honest answer to "do we have OMP gaps at PRODUCTION size": 
 4-atom cell, and a small cell starves threads on both sides of this comparison.  If our speedup climbs with
 size, Phase 1's exit criterion should be read at the large end.
 
+#### ⛔ RUN 2026-09-07 — **THE SIZE QUESTION IS NOT ANSWERED, BECAUSE CONVERGENCE FAILS BEFORE THREADING DOES**
+
+`GPW_SCF.DISABLED_SiSupercellLadder`, `SI_LADDER=n1,n2,n3`, one rung per invocation, Γ only.
+
+| rung | atoms | serial | 12 threads | speedup | E/primitive | |
+|---|---|---|---|---|---|---|
+| 1×1×1 | 2 | 0.95 s | 0.79 s | 1.20× | −7.115068 | ✅ banked −7.11506 |
+| 2×1×1 | 4 | 6.09 s | 1.76 s | 3.46× | −7.451621 | ✅ banked −7.45137 |
+| 2×2×1 | 8 | 3.57 s | 1.43 s | 2.50× | −7.670136 | ✅ (no counterpart) |
+| **2×2×2** | **16** | 30.75 s | 26.18 s | — | **−5.98** | ⛔ **DIVERGED** |
+
+✅ **THE HELPER AND THE PHYSICS ARE VALIDATED.**  A Γ-only \f$N_1\!\times\!N_2\!\times\!N_3\f$ supercell is
+band-folding-equivalent to the same k-MESH on the primitive cell, and the first two rungs reproduce this
+file's own banked k-mesh totals to 8 µHa and 0.25 mHa.  So `Supercell` builds the right crystal.
+
+⛔ **BUT THE TOP RUNG DIVERGES, AND FROM ITERATION ONE.**  Iteration 1 gives −5.30 Ha for 16 atoms where
+~−62 is expected (Δρ = 3.3), then it swings between −46 and +215 Ha to the 60-iteration cap.  This is not an
+SCF wandering off a good start; the first step is already wrong.  The charge is right (64.000), so it is not
+an electron-count error, and the outcome detector labels it *"OSCILLATING (charge-transfer sloshing /
+mixing unstable)"*.
+
+**THREE HYPOTHESES TESTED AND REFUTED — recorded so nobody re-tests them:**
+
+| hypothesis | test | result |
+|---|---|---|
+| basis conditioning collapses at size | compare the vetting report against the WORKING 8-atom rung | ⛔ **identical**: `cond` 221, `λmin` 0.0164 on both |
+| charge sloshing (the detector's own label) | `GPW_KERKER_G0` = 0.5, 1.0, 1.5 (knob added to `RunGPW`) | ⛔ all three still oscillate |
+| ambiguous aufbau at the folded degenerate frontier | `GPW_SMEAR` = 0.005, 0.02 | ⛔ both still oscillate |
+
+⚠ The detector's label is a NAME FOR THE SIGNATURE (oscillating energy, high \f$E_{ee}\f$), not a diagnosis —
+Kerker is the standard cure for sloshing and it does nothing here.  Do not quote the label as a cause.
+
+★ **THE ONE LIVE CLUE**: on the failing rung the frontier carries the partial-occupancy `m` flag at
+iteration 1 and the residual column that reads **1.8e-08 on the working 8-atom rung reads 1.4e-01** — so
+the first Fock is built on a frontier the working rungs do not have.  A 2×2×2 supercell folds 8 k-points
+onto Γ, making every state 8-fold degenerate; the working rungs fold 2 and 4.  That smearing did NOT cure
+it is the interesting part, and where the next session should start.
+
+⇒ **WHAT 2.1 ACTUALLY ESTABLISHED**: at production size, **what breaks first is SCF convergence, not
+parallelism** — which is a more useful answer than a speedup curve, and it re-prioritises tracker item
+**N3** (charge/spin preconditioning) above further threading work.  ⚠ It also means the speedups above are
+not a scaling curve worth quoting: the converging rungs run 0.8–6 s, where process startup and setup
+dominate, and the 8-atom rung is FASTER than the 4-atom one because it converged in 8 iterations against
+12.  A real curve needs runs that converge AND last long enough to measure.
+
 ### 2.2 THEN CP2K's 32-ATOM MnO SUPERCELL (user)
 
 Settles the one caveat §7b could not: is CP2K's 1.09× a route that was never parallelised (their research
