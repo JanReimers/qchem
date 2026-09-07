@@ -1438,51 +1438,45 @@ defect.
 
 ---
 
-# ⚠ OPEN: THE SUPERCELL GRID IS NOT THE PRIMITIVE GRID (found 2026-09-07)
+# ⚠ OPEN: DOES THE SUPERCELL GRID EQUAL THE PRIMITIVE GRID?  (asked 2026-09-07, NOT ANSWERED)
 
-**The right test, asked by the user**: *"I don't see why this is an imposed vs free issue.  We want to test
-2×2×2 vs 1×1×1 both imposed.  Any of the 8 unit cells in the 2×2×2 run should have exactly the same Becke
-grid as the 1×1×1 run."*  Correct — and it is a DIRECT structural check: no energies, no SCF, no quadrature
-tolerance.  `InvariantAngularMesh.SupercellBeckeGridIsThePrimitiveGridReplicated` (`UTStructure`) runs it,
-both cells imposed, same recipe.
+**The right test, framed by the user**: *"We want to test 2×2×2 vs 1×1×1 both imposed.  Any of the 8 unit
+cells in the 2×2×2 run should have exactly the same Becke grid as the 1×1×1 run."*  Correct, and it is a
+DIRECT structural check — no energies, no SCF, no quadrature tolerance to argue about.
+`InvariantAngularMesh.SupercellBeckeGridIsThePrimitiveGridReplicated` (`UTStructure`) runs the half that
+is currently trustworthy.
 
-**WHAT HOLDS** (asserted):
+**WHAT IS ESTABLISHED** (asserted):
 
 | | primitive | 2×2×2 | |
 |---|---|---|---|
 | mesh points | 1736 | **13888** | exactly 8× ✅ |
 | site blocks | 2 | 16 | ✅ |
-| space-group ops | 48 | 384 | 8× ✅ |
+| space-group ops | 48 | 384 | exactly 8× ✅ |
 | site stabiliser order | \f$T_d\f$ | \f$T_d\f$ | setting-independent ✅ |
 
-**WHAT DOES NOT** (reported, not yet asserted):
+⛔ **AND A RETRACTION.**  A point-by-point comparison was run and reported *"826 of 868 per-atom offsets
+unmatched"*.  **That number is withdrawn — the extraction behind it is provably broken.**  Decomposing the
+same 868 points onto the mesh's own two axes gives **"199 radii × 827 directions"**, a product of 164573,
+on a recipe with `nRadial=10`.  A radial × angular product cannot have 827 distinct directions among 868
+points, so the per-atom offsets were not being extracted correctly and nothing about the grids follows.
 
-> per-atom grid, site 0: **826 of 868 local offsets unmatched** against the primitive cell's.
+★ **THE USER'S PHYSICS IS WHAT CAUGHT IT, and it is the right standard to keep**: the mesh is
+\f$N_d\f$ directions carrying \f$N_r\f$ points each, truncated by the Becke/Voronoi polyhedra — and those
+polyhedra are overridden by the unit-cell edge.  So the real question is *"do the polyhedra INSIDE the
+2×2×2 cell differ from the primitive cell's unrecognised interior faces?"* — and if they do, it moves a
+**smallish number of points near those faces, never 95% of them**.  A number that large was the tell that
+the MEASUREMENT was wrong, not the mesh.  ⇒ Expected signature of a genuine defect here: tens of points,
+all near cell faces, not hundreds scattered.
 
-So the counts are all exactly right while the actual grids are not the same — which is a sharper and more
-useful failure than an energy discrepancy, because it needs no tolerance to interpret.  ⚠ Note the FIRST
-offset matches exactly, so this is not a gross indexing error.
+▶ **TO REVIVE THE POINT-BY-POINT CHECK**, in order:
+1. **Establish the site↔atom correspondence independently first.**  A site block that really is atom
+   \f$a\f$'s must decompose cleanly into \f$N_r\f$ radii × \f$N_d\f$ directions about that atom's
+   centre — **assert that** before comparing anything between cells.  It is the self-check the retracted
+   attempt lacked, and it fails today, which is why the comparison was meaningless.
+2. Only then compare the two cells, and expect any true difference to be face-local and small.
 
-⛔ **WHAT I COULD NOT ESTABLISH, STATED SO NOBODY INHERITS A GUESS**: whether the difference is radial or
-angular.  The decomposition in the test reports 199 distinct \f$|r|\f$ values on a mesh built with
-`nRadial=10`, which cannot be right for a radial × angular product — so that diagnostic is measuring
-something other than shells and **no radial-vs-angular conclusion should be drawn from it**.  Fix the
-diagnostic before believing its numbers.
-
-▶ **WHERE TO LOOK FIRST** (`UnitCell::CreateIntegrationMesh(mp, ops)`, the imposed Becke arm):
-1. the atom-orbit fold `af = FoldPointsPeriodic(F, ops, 1e-6)` — WHICH atom is the representative differs
-   between the two settings, and every partner's angular set is the rep's rotated by that partner's EDGE
-   OP, so a different rep gives a globally rotated family;
-2. `bondDirs(fr)` — the avoid-list steering the angular set away from bonds; the neighbour list within the
-   cell differs between settings even though the physical environment does not;
-3. the eps-tail drop in `MakePeriodicBeckeMesh` — computed from competitor IMAGES, and a supercell reaches
-   the same physical neighbours through a different image list, so borderline points can drop differently.
-   (This is the same class of effect the orbit-consistency filter already exists to repair.)
-
-★ **ACCEPTANCE**: turn the reported `bad` count into `EXPECT_EQ(bad, 0u)`.
-⚠ **AND NOTE WHAT THIS DOES NOT INVALIDATE**: the supercell symmetry fix itself stands — the group is
-closed, the fold factor scales exactly with cell multiplicity (43 orbits on both rungs), and Si 2×2×2
-converges imposed to −7.778471914 against the unimposed −7.778471942.  A DIFFERENT-but-still-invariant
-grid integrates to the same answer within quadrature error, which is why the energies agreed and the grids
-still differ.  This is a correctness-of-construction issue, not a wrong answer — but "the same crystal must
-give the same grid" is the kind of invariant that, left broken, makes every later comparison ambiguous.
+⚠ **WHAT REMAINS TRUE REGARDLESS**: the supercell symmetry fix stands on its own evidence — the group is
+closed, the fold factor scales exactly with cell multiplicity (43 orbits on both rungs at L=5), and Si
+2×2×2 converges imposed to \f$-7.778471914\f$ against the unimposed \f$-7.778471942\f$.  None of that
+depended on the retracted number.

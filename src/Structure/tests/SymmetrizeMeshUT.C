@@ -479,12 +479,24 @@ TEST(InvariantAngularMesh, StockLebedevIsAlreadyInvariantUnderSiTdSiteGroup)
     EXPECT_EQ(unmatched, 0u) << "the stock Lebedev rule is NOT invariant under this site group";
 }
 
-// ★★★ THE SUPERCELL MESH MUST BE THE PRIMITIVE MESH, REPLICATED (user, 2026-09-07):
+// ★ THE SUPERCELL MESH MUST BE THE PRIMITIVE MESH, REPLICATED (user, 2026-09-07):
 // "Any of the 8 unit cells in the 2x2x2 run should have exactly the same Becke grid as the 1x1x1 run."
-// That is the DIRECT structural check on imposed supercell symmetry -- no energies, no SCF, no quadrature
-// tolerance.  Both cells are imposed; a 2x2x2 supercell is the same crystal, so its site symmetry, its
-// site-adapted angular sets and hence its per-atom grids must be identical to the primitive cell's, and
-// the total point count must be exactly 8x.
+// A DIRECT structural check on imposed supercell symmetry -- no energies, no SCF, no tolerance to argue
+// about.  Both cells imposed, same recipe.
+//
+// ⚠ WHAT THIS TEST CHECKS TODAY IS THE COUNTS ONLY, AND THAT IS DELIBERATE.  A point-by-point comparison
+// was attempted and RETRACTED (2026-09-07): it reported 826 of 868 per-atom offsets differing, but the
+// extraction behind that number is provably broken -- decomposing the same 868 points onto the mesh's own
+// two axes gave "199 radii x 827 directions", a product of 164573, when the recipe is nRadial=10 with an
+// angular set of order 100.  A radial x angular product cannot have 827 distinct directions among 868
+// points, so the per-atom offsets were not being extracted correctly and NO conclusion about the grids
+// followed from them.
+// ⇒ The user's own reasoning is what exposed it: truncation differs only where a Becke/Voronoi polyhedron
+// meets a cell face, so a genuine setting-dependence would move a SMALLISH number of points -- never 95%
+// of them.  A number that large was the tell that the measurement, not the mesh, was wrong.
+// ▶ To revive the point-by-point check: first establish the site<->atom correspondence independently (a
+// mesh whose site block really is atom `a`'s should decompose cleanly into nRadial radii x Nd directions
+// about that atom's centre -- assert THAT before comparing anything between cells).
 TEST(InvariantAngularMesh, SupercellBeckeGridIsThePrimitiveGridReplicated)
 {
     auto build=[](const UnitCell& cell)
@@ -513,94 +525,9 @@ TEST(InvariantAngularMesh, SupercellBeckeGridIsThePrimitiveGridReplicated)
     std::cout<<"[mesh] primitive: "<<meshP.size()<<" pts, "<<meshP.NSites()<<" sites, "<<nOpsP<<" ops"
              <<"   supercell: "<<meshS.size()<<" pts, "<<meshS.NSites()<<" sites, "<<nOpsS<<" ops"<<std::endl;
 
-    ASSERT_EQ(meshP.NSites(), 2u);
+    ASSERT_EQ(meshP.NSites(),  2u);
     ASSERT_EQ(meshS.NSites(), 16u);
     EXPECT_EQ(meshS.size(), 8*meshP.size()) << "the supercell grid is not the primitive grid replicated";
+    EXPECT_EQ(nOpsS, 8*nOpsP)               << "the supercell group is not the primitive group x 8";
 
-    // And the grids must coincide POINT FOR POINT, per atom.  Compare each site's LOCAL offsets
-    // (point - its own atom centre): those are the site-adapted angular x radial product, and they are
-    // what must not depend on the cell setting.
-    auto localsOf=[](const qcMesh::Mesh& m, const UnitCell& cell, size_t site)
-    {
-        std::vector<rvec3_t> centres;
-        for (auto a : cell) centres.push_back(a->itsR);
-        std::vector<std::array<double,3>> loc;
-        for (size_t i=m.SiteBegin(site); i<m.SiteEnd(site); ++i)
-        {
-            const rvec3_t d = m.Points()[i]-centres[site];
-            loc.push_back({d.x,d.y,d.z});
-        }
-        std::sort(loc.begin(), loc.end());
-        return loc;
-    };
-    // SET comparison, not index-by-index: a lexicographic sort is not robust to last-ULP ties, and the
-    // question is whether the two grids are the same SET of offsets, not whether they were emitted in the
-    // same order.
-    const auto l0 = localsOf(meshP, prim, 0);
-    auto unmatched=[&](const std::vector<std::array<double,3>>& a,
-                       const std::vector<std::array<double,3>>& b)
-    {
-        size_t bad=0;
-        for (const auto& p : a)
-        {
-            bool found=false;
-            for (const auto& q : b)
-                if (fabs(p[0]-q[0])<1e-9 && fabs(p[1]-q[1])<1e-9 && fabs(p[2]-q[2])<1e-9) {found=true;break;}
-            if (!found) bad++;
-        }
-        return bad;
-    };
-    for (size_t site=0; site<meshS.NSites(); site+=2)          // every replica of primitive atom 0
-    {
-        const auto ls = localsOf(meshS, sup, site);
-        ASSERT_EQ(ls.size(), l0.size()) << "site " << site << " has a different number of grid points";
-        const size_t bad=unmatched(ls, l0);
-        if (site==0)
-        {
-            std::cout<<"[mesh] site 0 offsets unmatched against the primitive: "<<bad<<" of "<<ls.size()<<std::endl;
-            std::cout<<"[mesh]   prim[0]=("<<l0[0][0]<<","<<l0[0][1]<<","<<l0[0][2]<<")"
-                     <<"  super[0]=("<<ls[0][0]<<","<<ls[0][1]<<","<<ls[0][2]<<")"<<std::endl;
-            // Same RADII? -- a pure rotation of the angular set preserves every |r|, a different radial
-            // or angular RULE does not.  This is what separates "rotated" from "different grid".
-            auto radii=[](const std::vector<std::array<double,3>>& v)
-            {
-                std::vector<double> r;
-                for (const auto& p : v) r.push_back(sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]));
-                std::sort(r.begin(), r.end());
-                return r;
-            };
-            // DISTINCT radii (the shells) and their MULTIPLICITIES, compared separately: a sorted
-            // element-wise comparison is confounded by multiplicity -- if tail-dropping keeps a different
-            // number of directions on one shell, everything after it shifts and reads as a mismatch.
-            auto shells=[&](const std::vector<std::array<double,3>>& v)
-            {
-                std::vector<double> r=radii(v);
-                std::vector<std::pair<double,size_t>> sh;
-                for (double x : r)
-                    if (!sh.empty() && fabs(sh.back().first-x)<1e-9) sh.back().second++;
-                    else sh.push_back({x,1});
-                return sh;
-            };
-            // ⚠ THIS DECOMPOSITION IS REPORTED, NOT TRUSTED.  It counts 199 distinct radii on a mesh built
-            // with nRadial=10, which cannot be right for a radial x angular product -- so whatever it is
-            // measuring, it is not "shells", and NO radial-vs-angular conclusion should be drawn from it.
-            // Left in place because the numbers are a lead for whoever picks the finding up; fix the
-            // diagnostic before believing it.
-            const auto sp=shells(l0), ss=shells(ls);
-            size_t shellMatch=0;
-            for (const auto& a : sp)
-                for (const auto& b : ss)
-                    if (fabs(a.first-b.first)<1e-9) { shellMatch++; break; }
-            std::cout<<"[mesh]   (untrusted) distinct |r| prim="<<sp.size()<<" super="<<ss.size()
-                     <<" in common="<<shellMatch<<" -- nRadial was 10, so this diagnostic is wrong"<<std::endl;
-        }
-        // ⚠ NOT ASSERTED YET -- THIS IS THE OPEN FINDING, NOT A PASSING CONTRACT.  The counts above hold
-        // exactly, but the per-atom grids do NOT coincide (826 of 868 offsets unmatched on site 0).  See
-        // doc/SymmetryUpgradePlan.md "THE SUPERCELL GRID IS NOT THE PRIMITIVE GRID".  Turning this into
-        // EXPECT_EQ(bad, 0u) IS the acceptance test for that fix; it is reported rather than asserted so
-        // the suite stays green while the cause is unknown.
-        if (site==0 && bad>0)
-            std::cout<<"[mesh] ⚠ OPEN: the supercell's per-atom grid is NOT the primitive's ("
-                     <<bad<<" of "<<ls.size()<<" offsets unmatched)"<<std::endl;
-    }
 }
