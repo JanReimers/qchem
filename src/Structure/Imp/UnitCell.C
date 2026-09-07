@@ -757,4 +757,32 @@ std::ostream& UnitCell::Write(std::ostream& os) const
     return os;
 }
 
+//---------------------------------------------------------------------------------------------------
+//  SUPERCELL (rationale on the declaration).  Reads prim through its PUBLIC face and builds the result
+//  through AddAtom, so UnitCell itself is untouched.
+//
+//  The mapping, stated once because it is the whole function: an atom at fractional f in the primitive
+//  cell, in replica (i,j,k), sits at ((f.x+i)/n1, (f.y+j)/n2, (f.z+k)/n3) of the supercell -- because the
+//  supercell's own lattice vectors are n_i times the primitive ones.
+UnitCell Supercell(const UnitCell& prim, const ivec3_t& n)
+{
+    assert(n.x>0 && n.y>0 && n.z>0 && "Supercell: replication counts must be positive");
+    // Columns of A are the lattice vectors, so scaling column i by n_i is the whole cell change.
+    Matrix3D<double> A=prim.GetCellMatrix();
+    for (int r=1; r<=3; r++) {A(r,1)*=n.x; A(r,2)*=n.y; A(r,3)*=n.z;}
+    UnitCell out(A);
+    // Fractional coordinates are taken in the PRIMITIVE cell (prim.ToFractional), then re-expressed in
+    // the supercell -- never by round-tripping Cartesian through the new cell, which would fold atoms
+    // back into the first replica.
+    for (int i=0; i<n.x; i++)
+    for (int j=0; j<n.y; j++)
+    for (int k=0; k<n.z; k++)
+        for (auto a : prim)
+        {
+            const rvec3_t f=prim.ToFractional(a->itsR);
+            out.AddAtom(a->itsZ, rvec3_t((f.x+i)/n.x, (f.y+j)/n.y, (f.z+k)/n.z), a->itsSpinFlip);
+        }
+    return out;
+}
+
 } // namespace qchem

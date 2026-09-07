@@ -227,3 +227,82 @@ TEST_F(StructureTests, isFinite)
     si.AddAtom(14,{0,0,0});
     EXPECT_FALSE(si.isFinite());
 }
+
+//=====================================================================================================
+//  SUPERCELL -- replication for the size question (doc/ParallelAndOraclePlan.md 2.1) and, later, for the
+//  lattice-gas guest lattices.  The contract is small on purpose: same crystal, bigger box.
+//=====================================================================================================
+
+TEST(Supercell, ReplicatesAtomCountAndVolume)
+{
+    FCCUnitCell si(10.26);
+    si.AddAtom(14,{0.00,0.00,0.00});
+    si.AddAtom(14,{0.25,0.25,0.25});
+    const double v1=fabs(Determinant(si.GetCellMatrix()));
+
+    UnitCell s222=Supercell(si, ivec3_t(2,2,2));
+    EXPECT_EQ(s222.GetNumAtoms(), 8u*si.GetNumAtoms());              // 2 atoms x 8 replicas
+    EXPECT_NEAR(fabs(Determinant(s222.GetCellMatrix())), 8.0*v1, 1e-8*8.0*v1);
+
+    UnitCell s211=Supercell(si, ivec3_t(2,1,1));                     // anisotropic replication
+    EXPECT_EQ(s211.GetNumAtoms(), 2u*si.GetNumAtoms());
+    EXPECT_NEAR(fabs(Determinant(s211.GetCellMatrix())), 2.0*v1, 1e-8*2.0*v1);
+}
+
+// n=(1,1,1) must be a faithful copy: same atoms, same CARTESIAN positions, same cell.  This is the case a
+// caller hits when a ladder starts at its own base, and a silent fold-into-the-first-replica bug would
+// show up here first.
+TEST(Supercell, UnitReplicationIsACopy)
+{
+    FCCUnitCell si(10.26);
+    si.AddAtom(14,{0.00,0.00,0.00});
+    si.AddAtom(14,{0.25,0.25,0.25});
+    UnitCell one=Supercell(si, ivec3_t(1,1,1));
+    ASSERT_EQ(one.GetNumAtoms(), si.GetNumAtoms());
+    auto i=si.begin(); auto j=one.begin();
+    for (; i!=si.end() && j!=one.end(); ++i, ++j)
+    {
+        EXPECT_EQ((*j)->itsZ, (*i)->itsZ);
+        EXPECT_NEAR(norm((*j)->itsR - (*i)->itsR), 0.0, 1e-10);
+    }
+}
+
+// THE PHYSICS THE REPLICATION MUST PRESERVE: the atoms land on the SAME infinite lattice.  Every supercell
+// atom, expressed in PRIMITIVE fractional coordinates, must be an integer translation of some primitive
+// atom -- which is the statement that a supercell is the same crystal in a bigger box, and the thing a
+// coordinate slip (folding, or scaling the wrong axis) breaks.
+TEST(Supercell, AtomsLieOnTheSamePrimitiveLattice)
+{
+    FCCUnitCell si(10.26);
+    si.AddAtom(14,{0.00,0.00,0.00});
+    si.AddAtom(14,{0.25,0.25,0.25});
+    UnitCell sup=Supercell(si, ivec3_t(2,1,3));
+
+    for (auto a : sup)
+    {
+        const rvec3_t fp=si.ToFractional(a->itsR);     // in the PRIMITIVE cell's coordinates
+        bool matched=false;
+        for (auto b : si)
+        {
+            const rvec3_t fb=si.ToFractional(b->itsR);
+            const rvec3_t d(fp.x-fb.x, fp.y-fb.y, fp.z-fb.z);
+            if (fabs(d.x-round(d.x))<1e-9 && fabs(d.y-round(d.y))<1e-9 && fabs(d.z-round(d.z))<1e-9)
+                {matched=true; break;}
+        }
+        EXPECT_TRUE(matched) << "supercell atom is not an integer translation of any primitive atom";
+    }
+}
+
+// The spinFlip decoration rides along to every replica -- the faithful replication of the input.  (A
+// caller wanting a different magnetic stacking in the larger cell re-decorates; see the declaration.)
+TEST(Supercell, SpinFlipDecorationRidesAlong)
+{
+    UnitCell afm(8.0);
+    afm.AddAtom(25,{0.0,0.0,0.0}, /*spinFlip*/false);
+    afm.AddAtom(25,{0.5,0.5,0.5}, /*spinFlip*/true);
+    UnitCell sup=Supercell(afm, ivec3_t(2,1,1));
+    ASSERT_EQ(sup.GetNumAtoms(), 4u);
+    size_t flipped=0;
+    for (auto a : sup) if (a->itsSpinFlip) flipped++;
+    EXPECT_EQ(flipped, 2u);                            // one per replica, not lost and not smeared
+}

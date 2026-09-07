@@ -128,6 +128,29 @@ private:
 //! lattice vectors (columns of \f$A\f$) are the half-face diagonals \f$\tfrac a2(0,1,1),\,\tfrac a2(1,0,1),
 //! \,\tfrac a2(1,1,0)\f$; cell volume \f$a^3/4\f$.  Add the atom basis with AddAtom in fractional
 //! coordinates (e.g. diamond: \f$(0,0,0)\f$ and \f$(\tfrac14,\tfrac14,\tfrac14)\f$).
+
+//! \brief Replicate \a prim into an \f$n_1\times n_2\times n_3\f$ SUPERCELL: same crystal, bigger box.
+//!
+//! WHY A FREE FUNCTION AND NOT A TYPE (2026-09-07).  A supercell IS a \c UnitCell -- it has no behaviour of
+//! its own -- so a \c Supercell class would put replication into the abstract face and buy nothing.  This
+//! reads the cell through the public face (\c GetCellMatrix, \c ToFractional, atom iteration) and builds
+//! the result through \c AddAtom, so \c UnitCell is unchanged.
+//!
+//! WHY IT RETURNS ONLY THE CELL, given a known future use.  The lattice-gas / cluster-expansion work will
+//! want (a) the supercell's INTERNAL pure translations, to fold guest-occupation patterns onto
+//! symmetry-inequivalent representatives, and (b) an addressable guest-site list.  Neither belongs here:
+//! (a) is a function of \a n alone, which the caller already holds, and (b) is the caller's own site set.
+//! Returning them now would be speculative API on a face we want to keep small.
+//! ⚠ Note for that future use: \c Symmetry::Lattice_3D::SpaceGroup::Detect documents *"Assumes a primitive
+//! cell (one \f$\tau\f$ coset per W)"*, so it will NOT report those internal translations -- they must be
+//! supplied by construction, not detected.
+//!
+//! \a n must be positive in every direction; \f$n=(1,1,1)\f$ returns a copy.  The cell matrix scales
+//! column-wise (\f$a_i \to n_i a_i\f$) and each atom's \c spinFlip decoration rides along to every
+//! replica -- the faithful replication of the input; a caller wanting a different magnetic stacking in the
+//! larger cell re-decorates it.
+export UnitCell Supercell(const UnitCell& prim, const ivec3_t& n);
+
 export class FCCUnitCell : public UnitCell
 {
 public:
