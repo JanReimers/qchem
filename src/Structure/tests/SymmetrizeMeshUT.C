@@ -531,6 +531,44 @@ TEST(InvariantAngularMesh, SupercellBeckeGridIsThePrimitiveGridReplicated)
     EXPECT_EQ(meshS.size(), 8*meshP.size()) << "the supercell grid is not the primitive grid replicated";
     EXPECT_EQ(nOpsS, 8*nOpsP)               << "the supercell group is not the primitive group x 8";
 
+    // ⚠ CORNER-ATOM PROBE (user, 2026-09-07: past bugs at r=(0,0,0) came from cell imaging with NEGATIVE
+    // coordinates).  Si atom 0 is AT the corner (0,0,0); atom 1 is interior at (1/4,1/4,1/4).  If the
+    // corner is the problem, site 1 decomposes cleanly about atom 1 and site 0 does not.
+    std::vector<rvec3_t> cP; for (auto a : prim) cP.push_back(a->itsR);
+    // FREE construction (no ops) for comparison: if THIS decomposes cleanly the fault is in the imposed
+    // rebuild; if it does not, the site-block semantics are simply not per-atom-product.
+    const qcMesh::Mesh meshFree = prim.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11));
+    for (size_t site=0; site<meshFree.NSites(); ++site)
+    {
+        std::vector<double> rad; double lo=1e30, hi=-1e30;
+        for (size_t i=meshFree.SiteBegin(site); i<meshFree.SiteEnd(site); ++i)
+        {
+            const rvec3_t d=meshFree.Points()[i]-cP[site];
+            const double r=sqrt(d.x*d.x+d.y*d.y+d.z*d.z);
+            lo=std::min(lo,r); hi=std::max(hi,r);
+            bool f=false; for (double q : rad) if (fabs(q-r)<=1e-9*std::max(1.0,r)) {f=true;break;}
+            if (!f) rad.push_back(r);
+        }
+        std::cout<<"[corner] FREE site "<<site<<": "<<(meshFree.SiteEnd(site)-meshFree.SiteBegin(site))
+                 <<" pts, "<<rad.size()<<" distinct radii, |offset| in ["<<lo<<", "<<hi<<"]"<<std::endl;
+    }
+    for (size_t site=0; site<meshP.NSites(); ++site)
+    {
+        std::vector<double> rad; double lo=1e30, hi=-1e30;
+        for (size_t i=meshP.SiteBegin(site); i<meshP.SiteEnd(site); ++i)
+        {
+            const rvec3_t d=meshP.Points()[i]-cP[site];
+            const double r=sqrt(d.x*d.x+d.y*d.y+d.z*d.z);
+            lo=std::min(lo,r); hi=std::max(hi,r);
+            bool f=false; for (double q : rad) if (fabs(q-r)<=1e-9*std::max(1.0,r)) {f=true;break;}
+            if (!f) rad.push_back(r);
+        }
+        const rvec3_t f=prim.ToFractional(cP[site]);
+        std::cout<<"[corner] site "<<site<<" (atom at frac "<<f.x<<","<<f.y<<","<<f.z<<"): "
+                 <<(meshP.SiteEnd(site)-meshP.SiteBegin(site))<<" pts, "
+                 <<rad.size()<<" distinct radii, |offset| in ["<<lo<<", "<<hi<<"]"<<std::endl;
+    }
+
     // ⛔ STEP 1 FAILS TODAY, AND IT IS WHY NO MESH COMPARISON IS ATTEMPTED HERE (2026-09-07).
     // Before two cells' grids can be compared, the site<->atom semantics must be established.  They are
     // NOT what they look like.  MEASURED on the primitive cell with nRadial=10 (radial nodes
