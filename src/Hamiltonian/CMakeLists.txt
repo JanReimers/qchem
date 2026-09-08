@@ -15,7 +15,16 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/FittedVcorrPol.C
     Internal/Imp/FittedVee.C
     Internal/Imp/FittedVxc.C
-    Internal/Imp/PWTerms.C
+    # The periodic (plane-wave / GPW) term set -- ONE module interface, five implementation units, the
+    # same shape Internal/Terms.C has always had.  Split 2026-09-08 out of a single 1213-line TU.
+    Internal/Imp/PWTerms_PP.C
+    Internal/Imp/PWTerms_Hartree.C
+    Internal/Imp/PWTerms_XC.C
+    # ⚠ THESE TWO ARE THE RELOCATION CANDIDATE -- they are a SAMPLING ENGINE (rho at points, the adjoint
+    # back, Phi tables, per-serial caches, the orbit star-average), not "H_ij and E from a density".
+    # See doc/CleanupCandidates.md R1.0e.
+    Internal/Imp/XCQuadrature_Pair.C
+    Internal/Imp/XCQuadrature_Singles.C
     Internal/Imp/HamiltonianImp.C
     Internal/Imp/Hamiltonians.C 
     Internal/Imp/SlaterExchange.C 

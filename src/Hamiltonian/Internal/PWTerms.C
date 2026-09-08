@@ -6,6 +6,10 @@
 // level question -- "the external matrix", "the Hartree matrix for this density".  The basis owns the
 // integration; the term owns no G-vectors or mesh.  Energies delegate to the density's DM_Contract.
 module;
+#include <cassert>    // NarrowExact / SampledField (the module-internal helpers at the foot of this file)
+#include <complex>   // std::real/std::imag in NarrowExact
+#include <cstddef>
+#include <stdexcept>
 #include <iosfwd>
 #include <map>
 #include <set>      // Ven_PP_NonLocal::itsByLSeen (the GPW_NL_PER_L diagnostic)
@@ -667,5 +671,76 @@ MakeVxcTerms(const std::shared_ptr<ExFunctional>& exch, const std::shared_ptr<C>
         terms.push_back(std::make_unique<Vxc_Quadrature>(sum, q));
     return terms;
 }
+
+} //namespace
+
+//======================================================================================================
+// MODULE-INTERNAL HELPERS -- NOT exported.
+//
+// They are here, rather than in an anonymous namespace inside one implementation unit, because more than
+// one unit needs them and they must be ONE definition: `NarrowExact` is used by the PP, Hartree and both
+// quadrature units, `SampledField` by both quadrature units.  A non-exported entity in a module interface
+// has module linkage -- visible to every implementation unit of this module and to nothing outside it,
+// which is exactly the scope these want.  (Before the 2026-09-08 split all five units were one TU and
+// these were file-static; duplicating them per unit would have been an ODR trap dressed as tidiness.)
+//======================================================================================================
+namespace qchem::Hamiltonian
+{
+
+// EXACT narrow for the real-TRIM-block faces (doc/RealComplexPlan.md Step 3c): identity for U=dcmplx,
+// bitwise-asserted real part for U=double -- Step 0 made the phases exactly ±1, so a TRIM block's
+// complex-assembled term matrix has imag==0.0 EXACTLY (gate: GPW.TRIM_RealBlockMatchesComplexBitwise).
+// A sibling of BasisSet::Lattice_3D::ToScalar, duplicated here because qcHamiltonian must not import
+// qcLattice_BS (the DAG runs the other way); consolidate into qcMath if a third copy ever appears.
+template <class U> hmat_t<U> NarrowExact(const chmat_t& m)
+{
+    if constexpr (std::is_same_v<U,dcmplx>) return m;
+    else
+    {
+        hmat_t<U> r(m.rows());
+        for (size_t i=0;i<m.rows();i++)
+            for (size_t j=i;j<m.columns();j++)
+            {
+                assert(std::imag(m(i,j))==0.0 && "TRIM narrow: imaginary part must be EXACTLY zero (Step 0)");
+                r(i,j)=std::real(m(i,j));
+            }
+        return r;
+    }
+}
+
+// A field ALREADY SAMPLED at the quadrature's points, presented as the ProjectedScalar_R the ortho scalar
+// fitter consumes (the BALL route's only client).  The values are v_xc(rho(r_g)), computed by the TERM --
+// which is where the functional lives, so no qcBasisSet->qcHamiltonian library cycle appears here.
+// It is GRID-BOUND: only the ortho fitter samples it, in bulk, on exactly the points it was built for.
+class SampledField
+    : public virtual ScalarFunction<double>
+    , public         Fitting::ProjectedScalar_R
+{
+public:
+    //! \a npts is the fit basis's own point count -- the only thing this field needs to know about the
+    //! quadrature, now that the BASIS does the sampling (it used to hold the mesh and identity-check the
+    //! points the fitter passed in; there are no points to check when the owner of them is the sampler).
+    SampledField(const rvec_t& vals, size_t npts) : itsVals(vals), itsNPts(npts) {}
+
+    // Pointwise is NOT supported: this field carries only grid values, and nothing samples it pointwise (the
+    // ortho fitter uses the bulk overload).  Make the grid-bound contract explicit rather than silently wrong.
+    virtual double  operator()(const rvec3_t&) const override
+        {throw std::logic_error("SampledField is grid-bound: sample it in bulk on the fit grid, not pointwise");}
+    virtual rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
+
+    // Bulk: the precomputed values, which were computed AT the fit basis's own points -- so the only thing
+    // that can go wrong is a different point COUNT, and that is what the assert pins.
+    virtual rvec_t  operator()(const rvec3vec_t& rs) const override
+    {
+        assert(rs.size()==itsNPts && itsVals.size()==itsNPts &&
+               "SampledField: sampled on a different point set than the values were computed on");
+        return itsVals;
+    }
+
+    virtual const ScalarFunction<double>* GetScalarFunction() const override {return this;}
+private:
+    const rvec_t& itsVals;   // precomputed v_xc at the fit basis's points (owned by the caller; transient)
+    size_t        itsNPts;
+};
 
 } //namespace

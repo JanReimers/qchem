@@ -1038,22 +1038,70 @@ MnO campaign proceeds undisturbed in qchem6.
   table has a zero hit rate.  A bare point list is universal precisely BECAUSE it carries no identity, and
   uncacheable for the same reason; passing the projector is how the point set gets one.
 
-- **R1.0e The `qcHamiltonian` PWTerms TU needs a structural break-up — USER, 2026-08-23** (*"the enormous
-  PWTerms TU is going to need a massive refactoring cleanup eventually"*).  584 lines of interface + 944 of
-  implementation, holding at least five unrelated things: the three external-PP terms, the Hartree term,
-  the `XC_Quadrature` strategy pair (ρ caching, the DM-source damping valves, the route latch, four
-  environment-variable diagnostics), the four XC term classes, and `MakeVxcTerms`.  The XC half in
-  particular is a module in its own right — nothing in it is shared with the PP terms beyond the term base
-  classes.  Not attempted as part of R1.0: a file split is a big diff with no behaviour change, and it
-  should follow the design moves rather than be interleaved with them.
+- **R1.0e ✅ THE FILE SPLIT IS DONE 2026-09-08; THE SCOPE QUESTION IT EXPOSED IS THE OPEN PART.**
+  (Original: USER, 2026-08-23, *"the enormous PWTerms TU is going to need a massive refactoring cleanup
+  eventually"*, restated 2026-09-08: *"src/Hamiltonian/Internal/PWTerms.C is huge, again doing too many
+  things"*.)
 
-  ⚠ **The atom block still derives `Evaluatable_IBS`, and its `op(r)` is still the FAKE RADIAL** — the
-  promise kept in form and broken in substance, contained (not cured) by `ImplicitAngular_IBS`.  That is
-  the remaining scope of step (1): convert `PP_Local::CalculateMatrix` and `PP_NonLocal`'s
-  explicit-angular branch to ask the basis for the integral, then the atom density/orbital paths, after
-  which the derivation drops and nothing evaluates an atom block from outside.  The relocation makes that
-  a LOCAL change per call site instead of a tree-wide one, because the face no longer forces the promise
-  on everybody.
+  **What landed:** the 1213-line `Internal/Imp/PWTerms.C` is now FIVE implementation units of the same
+  module — the interface-plus-many-Imp-units shape `Internal/Terms.C` has always had:
+
+  | unit | what it holds | lines |
+  |---|---|---|
+  | `Imp/PWTerms_PP.C` | `Ven_PP_Short` / `_Long` / `_NonLocal` + the G=0 alignment | 212 |
+  | `Imp/PWTerms_Hartree.C` | `Vee_Hartree` | 148 |
+  | `Imp/PWTerms_XC.C` | `Vxc_Quadrature`, `Vxc_QuadraturePol`, `Vcorr_QuadraturePol`, `MakeVxcTerms` | 173 |
+  | `Imp/XCQuadrature_Pair.C` | the PAIR strategy | 319 |
+  | `Imp/XCQuadrature_Singles.C` | the SINGLES strategy | 477 |
+
+  Helpers used by more than one unit (`NarrowExact`, `SampledField`) moved to the interface's
+  **non-exported** section — module linkage is exactly their scope, and duplicating them per unit would
+  have been an ODR trap dressed as tidiness.  Verified line-for-line (6 scaffolding lines differ, no code);
+  827/827.
+
+  ★★★ **AND THE SPLIT MADE THE REAL PROBLEM VISIBLE AS A FILE BOUNDARY.**  The user's definition of this
+  library (2026-09-08) is the measuring stick:
+
+  > *"At a very high level Hamiltonian is just: charge density in, use orbital basis and fitted functions
+  > to evaluate all integrals, spit out \f$H_{ij}(\rho)\f$ and \f$E(\rho)\f$ for each term."*
+
+  By that definition a term is (physics) + (ask the basis for an integral) + (contract with ρ).  **The
+  two `XCQuadrature_*` units — 796 of the 1329 implementation lines, 60% — are none of those.**  They are a
+  SAMPLING ENGINE, and everything they own is (integration grid) × (fit basis) business, which is
+  `doc/Pins.md` pin 2's axis pair, not Hamiltonian business:
+
+  | what `XC_Quadrature` owns today | why it is not Hamiltonian work | where it belongs |
+  |---|---|---|
+  | ρ sampling + per-density-serial caches (scalar, the {↑,↓} pair, and a separate DM-mix buffer) | a caching policy over a grid, not a term | `qcFitting` |
+  | RAW-vs-BALL **route latching** (`LatchRoute`, `SampleOne`, `itsRhoIsRaw`) | which fit route to take is a FITTING decision | `qcFitting` |
+  | the **Φ table** contraction and the projector it goes through | χ(r) caching — basis business | `qcBasisSet` / `qcFitting` |
+  | **orbit star-averaging** of ρ and the (ρ,m) pair with Shubnikov spin tags (`Symmetrize`, `SymmetrizeSpin`) | crystal symmetry machinery | `qcSymmetry` / `qcFitting` |
+  | **site-partitioned moments** + their console/report emission (`SiteMoments`, `PartitionedMoments`, `EmitSiteMoments`) | an OBSERVABLE and its reporting | wherever site observables live — not in a term |
+  | **raster geometry** (`Raster()`, voxel counts, the uniform quadrature rule) | grid management | `qcBasisSet` |
+  | `bool& ReportGridCharge()` | process-wide MUTABLE state in a library | `theRunPolicy()`, which already carries every other run-scoped switch |
+
+  ✅ **THE MOVE IS LEGAL — CHECKED, NOT ASSUMED (2026-09-08):** nothing in `qcFitting`, `qcBasisSet`,
+  `qcMesh`, `qcSymmetry` or `qcChargeDensity` imports `qchem.Hamiltonian.*`, so there is no cycle; and
+  `qcFitting` already links `qcBasisSet qcSymmetry qcStructure qcMesh`, i.e. everything the engine touches.
+  `qchem.Hamiltonian.Types` — the only Hamiltonian-side thing the engine names — is a pure typedef module
+  over `BasisSet::Orbital_1E_IBS<T>` with no Hamiltonian dependency of its own.
+  ★ `src/Fitting/Imp/FunctionFitter.C:67` already says its capability question *"is the same question
+  `MakeXCQuadrature` asks"* — the duplication was noticed from the other side a year before this.
+
+  ▶ **THE INCREMENT, when it is scheduled:** promote the two `XCQuadrature_*` units + the `XC_Quadrature`
+  hierarchy out of `Internal/PWTerms.C` into their own module in `qcFitting` (`qchem.Fitting.XCQuadrature`),
+  leaving `PWTerms_XC.C`'s three term classes — which are genuinely thin, and genuinely "functional in,
+  \f$H_{ij}\f$ and \f$E\f$ out" — behind.  ⚠ **Do it AFTER `LatticeSum1E`'s ISP split** (item 5 on the
+  user's Stage-B list): both refactors touch the collocate/integrate-back seam from opposite sides, and
+  landing them together makes neither reviewable.
+
+  ⚠ **STILL OPEN from the original item:** the atom block still derives `Evaluatable_IBS`, and its `op(r)`
+  is still the FAKE RADIAL — the promise kept in form and broken in substance, contained (not cured) by
+  `ImplicitAngular_IBS`.  That is the remaining scope of step (1): convert `PP_Local::CalculateMatrix` and
+  `PP_NonLocal`'s explicit-angular branch to ask the basis for the integral, then the atom density/orbital
+  paths, after which the derivation drops and nothing evaluates an atom block from outside.  The relocation
+  makes that a LOCAL change per call site instead of a tree-wide one, because the face no longer forces the
+  promise on everybody.
 
 - **R1.0f ⚠ THE GUI STILL NEEDS \f$v_{xc}(r)\f$ AND \f$\rho_{DM}-\rho_{fit}\f$, AND THE δ ROUTE HAS NO
   WAY TO GIVE THEM — USER, 2026-08-24.**  Recorded when `FieldEvaluator::EvalField` was deleted (below):
