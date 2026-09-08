@@ -485,19 +485,20 @@ TEST(InvariantAngularMesh, StockLebedevIsAlreadyInvariantUnderSiTdSiteGroup)
 // A DIRECT structural check on imposed supercell symmetry -- no energies, no SCF, no tolerance to argue
 // about.  Both cells imposed, same recipe.
 //
-// ⚠ WHAT THIS TEST CHECKS TODAY IS THE COUNTS ONLY, AND THAT IS DELIBERATE.  A point-by-point comparison
-// was attempted and RETRACTED (2026-09-07): it reported 826 of 868 per-atom offsets differing, but the
-// extraction behind that number is provably broken -- decomposing the same 868 points onto the mesh's own
-// two axes gave "199 radii x 827 directions", a product of 164573, when the recipe is nRadial=10 with an
-// angular set of order 100.  A radial x angular product cannot have 827 distinct directions among 868
-// points, so the per-atom offsets were not being extracted correctly and NO conclusion about the grids
-// followed from them.
-// ⇒ The user's own reasoning is what exposed it: truncation differs only where a Becke/Voronoi polyhedron
-// meets a cell face, so a genuine setting-dependence would move a SMALLISH number of points -- never 95%
-// of them.  A number that large was the tell that the measurement, not the mesh, was wrong.
-// ▶ To revive the point-by-point check: first establish the site<->atom correspondence independently (a
-// mesh whose site block really is atom `a`'s should decompose cleanly into nRadial radii x Nd directions
-// about that atom's centre -- assert THAT before comparing anything between cells).
+// ▶ WHAT THIS TEST OWNS is the GROUP-LEVEL bookkeeping: the site stabiliser is setting-independent, the
+// supercell space group is 8x the primitive one, and the two grids have the counts that implies.  The
+// POINT-BY-POINT comparison -- and the site-block/atom-label semantics it needs first -- lives in
+// src/Structure/tests/BeckeMeshUT.C, which settled all of it on 2026-09-08:
+//   * a site block IS its own atom's radial x angular product grid, WRAPPED into the home cell
+//     (`kpt = r - A*n0`), so `|point - atom|` is not the offset and must be recovered modulo the lattice;
+//   * recovered that way both Si sites -- the CORNER atom at (0,0,0) and the interior one -- decompose
+//     onto the same 7 radial nodes, and each block decomposes about its OWN atom and no other;
+//   * folded into the primitive cell the 2x2x2 grid IS the 1x1x1 grid replicated, free AND imposed, to
+//     6e-15 in position, with weights inside the partition's own eps.
+// ⛔ RETRACTED, do not re-derive: the earlier "826 of 868 per-atom offsets differ" claim, and the
+// "199 distinct radii on the corner atom, span [0.0247, 17.75]" that followed it.  Both measured the
+// WRAPPED coordinate as if it were the offset; the corner atom looked worse only because an atom at
+// (0,0,0) has its whole grid straddling three cell faces.  There is no corner-atom defect here.
 TEST(InvariantAngularMesh, SupercellBeckeGridIsThePrimitiveGridReplicated)
 {
     auto build=[](const UnitCell& cell)
@@ -530,62 +531,4 @@ TEST(InvariantAngularMesh, SupercellBeckeGridIsThePrimitiveGridReplicated)
     ASSERT_EQ(meshS.NSites(), 16u);
     EXPECT_EQ(meshS.size(), 8*meshP.size()) << "the supercell grid is not the primitive grid replicated";
     EXPECT_EQ(nOpsS, 8*nOpsP)               << "the supercell group is not the primitive group x 8";
-
-    // ⚠ CORNER-ATOM PROBE (user, 2026-09-07: past bugs at r=(0,0,0) came from cell imaging with NEGATIVE
-    // coordinates).  Si atom 0 is AT the corner (0,0,0); atom 1 is interior at (1/4,1/4,1/4).  If the
-    // corner is the problem, site 1 decomposes cleanly about atom 1 and site 0 does not.
-    std::vector<rvec3_t> cP; for (auto a : prim) cP.push_back(a->itsR);
-    // FREE construction (no ops) for comparison: if THIS decomposes cleanly the fault is in the imposed
-    // rebuild; if it does not, the site-block semantics are simply not per-atom-product.
-    const qcMesh::Mesh meshFree = prim.CreateIntegrationMesh(qcMesh::BeckeXCParams(10, 2.0, 11));
-    for (size_t site=0; site<meshFree.NSites(); ++site)
-    {
-        std::vector<double> rad; double lo=1e30, hi=-1e30;
-        for (size_t i=meshFree.SiteBegin(site); i<meshFree.SiteEnd(site); ++i)
-        {
-            const rvec3_t d=meshFree.Points()[i]-cP[site];
-            const double r=sqrt(d.x*d.x+d.y*d.y+d.z*d.z);
-            lo=std::min(lo,r); hi=std::max(hi,r);
-            bool f=false; for (double q : rad) if (fabs(q-r)<=1e-9*std::max(1.0,r)) {f=true;break;}
-            if (!f) rad.push_back(r);
-        }
-        std::cout<<"[corner] FREE site "<<site<<": "<<(meshFree.SiteEnd(site)-meshFree.SiteBegin(site))
-                 <<" pts, "<<rad.size()<<" distinct radii, |offset| in ["<<lo<<", "<<hi<<"]"<<std::endl;
-    }
-    for (size_t site=0; site<meshP.NSites(); ++site)
-    {
-        std::vector<double> rad; double lo=1e30, hi=-1e30;
-        for (size_t i=meshP.SiteBegin(site); i<meshP.SiteEnd(site); ++i)
-        {
-            const rvec3_t d=meshP.Points()[i]-cP[site];
-            const double r=sqrt(d.x*d.x+d.y*d.y+d.z*d.z);
-            lo=std::min(lo,r); hi=std::max(hi,r);
-            bool f=false; for (double q : rad) if (fabs(q-r)<=1e-9*std::max(1.0,r)) {f=true;break;}
-            if (!f) rad.push_back(r);
-        }
-        const rvec3_t f=prim.ToFractional(cP[site]);
-        std::cout<<"[corner] site "<<site<<" (atom at frac "<<f.x<<","<<f.y<<","<<f.z<<"): "
-                 <<(meshP.SiteEnd(site)-meshP.SiteBegin(site))<<" pts, "
-                 <<rad.size()<<" distinct radii, |offset| in ["<<lo<<", "<<hi<<"]"<<std::endl;
-    }
-
-    // ⛔ STEP 1 FAILS TODAY, AND IT IS WHY NO MESH COMPARISON IS ATTEMPTED HERE (2026-09-07).
-    // Before two cells' grids can be compared, the site<->atom semantics must be established.  They are
-    // NOT what they look like.  MEASURED on the primitive cell with nRadial=10 (radial nodes
-    // 0, 0.0247, 0.125, 0.367, 0.889, 2, 4.5, 10.889, 32, 162) and a 128-direction site-adapted set whose
-    // vectors are exactly UNIT:
-    //
-    //   site 0 holds 868 points, but |point - atom0| takes 199 DISTINCT values and spans [0.0247, 17.75].
-    //
-    // A radial x angular product about atom 0 can only produce 10 distinct |offset|, all of them radial
-    // nodes; 17.75 is not a node.  ⇒ `SiteBegin(0)..SiteEnd(0)` does NOT contain exactly atom 0's
-    // product mesh, so "offset from the site's atom" is not a meaningful coordinate and every comparison
-    // built on it is meaningless (one was: see the retraction in doc/SymmetryUpgradePlan.md).
-    //
-    // ▶ THE ORDER OF WORK: read the site-block semantics out of MakePeriodicBeckeMesh + the imposed
-    // rebuild in CreateIntegrationMesh, assert THEM here (a site's points decompose into nRadial radii
-    // about a known centre), and only then compare cells.  Expect a genuine setting-dependence to be
-    // FACE-LOCAL and small -- truncation differs where a Becke/Voronoi polyhedron meets a cell face --
-    // never the wholesale mismatch a broken coordinate produces.
-
 }
