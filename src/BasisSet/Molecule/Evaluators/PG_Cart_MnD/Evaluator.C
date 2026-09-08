@@ -151,8 +151,7 @@ public:
     //! std::function type; the k-CONVENTION stays with the lattice-side caller, Gamma = the constant 1).
     using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
     // The series is summed to eps INTERNALLY per shell pair (ForImageOffsets -- the SAME exact-threshold
-    // magnitude screen the collocation kernels use): THERE IS NO CUT in the R direction (doc/GPWPlan.md
-    // pin).  The caller supplies only the phase oracle + the cell; no radius or translation list exists.
+    // magnitude screen the collocation kernels use): THERE IS NO CUT in r SPACE (doc/Pins.md pin 1).  The caller supplies only the phase oracle + the cell; no radius or translation list exists.
     // Hermitian: fill the upper triangle (the (i,j) Bloch element); the (i,i) enumeration is inversion-
     // symmetric so the diagonal is real (projected explicitly against roundoff).
     template <class Kernel> chmat_t LatticeSum(const cellphase_t& phase, const UnitCell& A, Kernel K) const

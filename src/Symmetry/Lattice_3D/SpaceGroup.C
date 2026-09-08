@@ -1,6 +1,6 @@
 // File: Symmetry/Lattice_3D/SpaceGroup.C  Crystal space-group detection from a unit cell.
 //
-// Tier A of the space-group plan (doc/SpaceGroupPlan.md): detect the symmetry operations
+// Tier A of the space-group plan (doc/OldPlans/SpaceGroupPlan.md): detect the symmetry operations
 // {R|tau} of a crystal from its cell matrix + atom basis, and expose the linear parts as
 // the crystal POINT group acting on reciprocal space (k).  Only the point-group part is
 // needed for Brillouin-zone reduction, so tau is carried but the k-side consumers ignore it.

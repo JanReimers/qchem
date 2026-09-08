@@ -142,6 +142,12 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     file as LIVE (has open work; read it), RECORD (executed; cite it, do not treat it as a queue) or
     RETIRED (`doc/OldPlans/`).  Forty-plus plan files is workable only while that index is current.
 - `doc/OpenWork.md` is THE tracker; its `▶ WHAT IS OPEN` table at the top is the map.
+- **`doc/Pins.md` holds the durable physics/numerics invariants** — rulings, not preferences (each is there
+    because violating it produced a wrong number at least once).  Pin 1: **"THERE IS NO CUT in r space,
+    Gibbs ringing is like a wrecking ball"**.  Cite them as `doc/Pins.md pin N`.
+- ⚠ **A plan file that names a WORKSPACE or a BRANCH rots silently.**  Three plans retired on 2026-09-08
+    described a tree or branch that no longer existed.  Check `ls ~/Code` and `git branch -a` before
+    believing one, and write "landed on main as X" in preference to "in progress on branch Y".
 - **A ✅ verdict goes to the matching history file the day it is written** (`OpenWork_History*.md`,
     `CleanupHistory.md`).  A closed item left in a live tracker is indistinguishable from open work — that
     is what made both trackers unreadable by 2026-09-08.  Move the full text, leave a one-line stub, and

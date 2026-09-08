@@ -2,10 +2,10 @@
 
 *Plan first, code second.* Scope: exploit lattice + point (and eventually magnetic)
 symmetry across **all** the redundant work in a PW/GPW SCF, not just the k-mesh.
-Companion to `doc/SpaceGroupPlan.md` (the detector + Tier A/B roadmap),
+Companion to `doc/OldPlans/SpaceGroupPlan.md` (the detector + Tier A/B roadmap),
 `doc/GPWPlan1.md` (the "SPACE-GROUP STREAM/COLLOCATION REDUCTION" plan section this
 consolidates), `doc/SpinNativeDFTPlan.md` (spin-native XC), and
-`doc/SymmetryRefactorPlan.md`.  SOLID/OOD debt encountered while executing this plan is
+`doc/OldPlans/SymmetryRefactorPlan.md`.  SOLID/OOD debt encountered while executing this plan is
 tracked in **`doc/CleanupCandidates.md`** (keep it growing; batch-fix in dedicated
 refactor sessions).
 

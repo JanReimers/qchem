@@ -37,7 +37,7 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
 {
     const bool spherical = (opts.angular == Angular::Spherical);
     // SALC now supports the Cartesian PGData basis AND the in-house MnD-spherical basis (SphData;
-    // doc/SphericalSALCPlan.md S3a/S4).  Only libcint-spherical is unwired (S3b) -- and it presents as a
+    // doc/OldPlans/SphericalSALCPlan.md S3a/S4).  Only libcint-spherical is unwired (S3b) -- and it presents as a
     // PGData with spherical components, which the Cartesian extractor would silently misread, so reject that
     // one combination clearly here rather than let SymmetryAdapt take the wrong path.
     if (opts.symmetry && spherical && opts.engine == Engine::LibCint)

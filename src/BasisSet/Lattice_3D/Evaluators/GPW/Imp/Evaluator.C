@@ -251,7 +251,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     if (!itsLat) throw std::runtime_error(
         "GPW_Evaluator: the orbital basis is not a molecular Gaussian basis (no Molecule::LatticeSum1E)");
 
-    // THERE IS NO CUT (user pin, doc/GPWPlan.md): every lattice sum is an eps-CONVERGED SERIES enumerated
+    // THERE IS NO CUT IN r SPACE -- Gibbs ringing is like a wrecking ball (user pin; doc/Pins.md pin 1): every lattice sum is an eps-CONVERGED SERIES enumerated
     // INSIDE the molecular seam per shell pair (1E matrices, analytic KB, collocation) -- no radius
     // parameter exists.  The ONE remaining explicit image list is the INTERNAL Bloch-orbital set for
     // Eval/EvalGradient + the mesh-path KB quadrature, DERIVED from the same eps-screen: a single orbital

@@ -4,7 +4,7 @@
 //! counterpart of \c PG_Cart::ExtractAoShells.  Each shell's components are the real solid harmonics, and
 //! the rep is built from the basis's OWN Cartesian expansion (\c SphData::comps[].terms) in the exact
 //! \f$m\f$-ordering and coefficients the basis uses -- self-consistent, no foreign convention to match
-//! (see doc/SphericalSALCPlan.md S3a).
+//! (see doc/OldPlans/SphericalSALCPlan.md S3a).
 module;
 #include <vector>
 export module qchem.BasisSet.Molecule.PG_Spherical.Symmetry;

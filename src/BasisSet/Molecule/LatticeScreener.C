@@ -106,7 +106,7 @@ public:
     //! \note THE UNION IS THE SCREENER'S DECISION, not the caller's.  One box must serve a whole shell
     //! pair, so it is sized by the tightest \f$\varepsilon\f$ present and each survivor rides a box at
     //! least as large as its own rule asked for.  That only ever ADDS sub-eps terms, never drops one, so
-    //! it keeps the no-cut discipline (doc/GPWPlan.md pin).  It was open-coded identically at both call
+    //! it keeps the no-cut discipline (doc/Pins.md pin 1).  It was open-coded identically at both call
     //! sites before this seam existed -- which is exactly the kind of duplicated decision §2's bug list
     //! is made of.
     virtual void Screen(const ivec3_t& n, double pf, const rmat_t& cij, ScreenPlan& plan) const = 0;

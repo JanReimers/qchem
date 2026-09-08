@@ -640,33 +640,14 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
 
 ---
 
-# Durable pins / invariants (carry into all GPW work)
-- **THERE IS NO CUT — IN THE R DIRECTION (user pin, 2026-07-16).**  Real-space lattice sums are
-  ε-CONVERGED SERIES for a FIXED operator: magnitude screening is the ONLY truncation mechanism; a radius
-  must never appear as a parameter, member, or concept in any interface — not user-facing, not internal.
-  A truncation radius yields a DIFFERENT operator, not "the operator to ε" (measured: the Rcut=2a NaF
-  metric lost 2.25 e per mid-slosh loading), AND must never be a conditioning crutch (that job belongs to
-  the basis or to rank-reduction).  The G DIRECTION is different in kind: the Ecut ball is a PROJECTION
-  onto a finite auxiliary subspace — variational (adjoint-exact), exponentially controlled, systematically
-  improvable — i.e. a legitimate resolution dial, not a cut.  End state: ONE knob per direction —
-  ε in R (convergence tolerance), Ecut in G (projection resolution).
-- **PP-smoothness is GPW's enabler; GAPW is out of scope (first pass).** All-electron cores are too sharp;
-  validate with a well-conditioned GTH valence basis, never all-electron.
-- **Use well-conditioned bases for SCF.** Ill-conditioning is a BASIS problem, not a solver/code bug (SIPP
-  diffuse → SIPP_SR; N3/N5 removed). "LASolver" symptoms are basis conditioning. `N3/N5` no longer exist.
-- **GPW is a Coulomb/Hartree STRATEGY orthogonal to the orbital basis** — a third one beside exact-4-centre
-  (`Vee`) and density-fitting (`FittedVee`). Same `⟨χ|V_H|χ⟩` out, different internals.
-- **Never assume `orbital == fit`.** Any fit/aux basis comes from the orbital basis via `Create{CD,Vxc}
-  FitBasisSet(...)` — the factory is the seam even when trivial.
-- **Fit quality is measured by grid-convergence of ρ, NEVER by ΔE_total** (the fit is non-variational).
-- **Spin-polarized is the native formulation**; unpolarized is the ζ=0 collapse. New periodic terms
-  spin-native (`FittedVxcPol`/`FittedVcorrPol`).
-- **Regression style:** periodic/GPW energies are "did-E-move" anchors (pin the converged value, no
-  `Converged()` guard). Where a real-space-on-lattice quantity must equal its finite counterpart, assert
-  bit-consistency (`L_PP`-style) rather than an absolute oracle.
-- **Two self-consistent schemes — do NOT mix:** (A) complete-Bloch analytic single-sum matrices (what GPW
-  has, correct as Rcut→∞); (B) truncated-Bloch collocation Gram matrices (always PSD). Scheme-B overlap +
-  scheme-A analytic kinetic gave `Ekin=−300`. Stay in scheme A at a converged Rcut (overlap PSD there).
+# Durable pins / invariants  ->  **`doc/Pins.md`**
+
+**MOVED 2026-09-08.**  They govern work all over the tree, not just GPW, and burying project-wide
+invariants inside a finished campaign's plan is how they get missed.  `doc/Pins.md` carries all of them,
+plus three user rulings that had lived only in session memory.
+
+⚠ One is restated there WITH ITS REASON, at the user's correction: **"THERE IS NO CUT in r space,
+Gibbs ringing is like a wrecking ball."**  "No cut" on its own reads as fastidiousness; it is not.
 
 ### Symmetry comes AFTER a working GPW (independent optimisation layer, does not gate GPW)
 Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane waves. None of these gate GPW.

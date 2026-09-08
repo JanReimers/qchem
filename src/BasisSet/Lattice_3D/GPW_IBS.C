@@ -36,8 +36,8 @@ export namespace qchem::BasisSet::Lattice_3D
 {
 
 //! \brief The lattice-image MODE.  \c Periodic (the default): every lattice sum is an
-//! \f$\varepsilon\f$-CONVERGED SERIES enumerated internally per shell pair -- THERE IS NO CUT in the R
-//! direction and no radius parameter exists (user pin, doc/GPWPlan.md).  \c HomeCellOnly: the
+//! \f$\varepsilon\f$-CONVERGED SERIES enumerated internally per shell pair -- THERE IS NO CUT in r SPACE
+//! direction and no radius parameter exists (user pin; doc/Pins.md pin 1).  \c HomeCellOnly: the
 //! FINITE-molecule configuration (no images anywhere; 1E == the finite matrices, KB bra = the raw home
 //! orbital) -- what the finite==lattice box gates compare against.  An \c enum \c class so a stray numeric
 //! argument can never silently select a mode.

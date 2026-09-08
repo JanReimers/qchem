@@ -21,7 +21,7 @@ Branch: `main` (local, ahead of origin). Anchor build/test: `cd build/Release &&
 
 ---
 
-## A. Spherical SALC  ·  PARTIAL (clean checkpoint)  ·  plan: `doc/SphericalSALCPlan.md`
+## A. Spherical SALC  ·  PARTIAL (clean checkpoint)  ·  plan: `doc/OldPlans/SphericalSALCPlan.md`
 
 Extend point-group SALC adaptation from the Cartesian PG basis to the two spherical bases.
 
@@ -100,7 +100,7 @@ about the *correlation* side (spin-native VWN5 + `Ham_DFTcorr` two-channel) + op
 
 ---
 
-## C. Namespace unification (review item 4)  ·  ✅ DONE `108ced3b`  ·  plan: `doc/APIErgonomicsReview.md` §4
+## C. Namespace unification (review item 4)  ·  ✅ DONE `108ced3b`  ·  plan: `doc/OldPlans/APIErgonomicsReview.md` §4
 
 Whole-tree sweep — **full unification** (user-chosen): not just the four review-named symbols but
 *everything* under `qchem::`. Moved: `ScalarFunction`, `Spin`, the `Vector3D` geometry family

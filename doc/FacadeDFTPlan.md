@@ -1,7 +1,7 @@
 # Facade DFT Plan — adding DFT to `qchem::Calculation`
 
 Plan for the one remaining lib-side facade follow-up: make `qchem::Calculation` run **DFT**, not
-just HF. Companion to the API-ergonomics work (`doc/APIErgonomicsReview.md`). Living document.
+just HF. Companion to the API-ergonomics work (`doc/OldPlans/APIErgonomicsReview.md`). Living document.
 
 ## First, untangle the two "item 4"s — they are unrelated
 

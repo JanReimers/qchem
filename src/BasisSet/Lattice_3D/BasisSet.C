@@ -35,7 +35,7 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
 //! Returns an abstract tBasisSet<dcmplx> (caller owns).  Unlike the PW \c Factory this needs a Gaussian
 //! orbital basis (GPW = Gaussian orbitals); the pseudopotential still lives on the Hamiltonian term, which
 //! reaches GPW's real-space \c Integrals_Pseudo<dcmplx> assembly -- so the same \c Ham_PW_DFT drives it.
-//! THERE IS NO CUT (doc/GPWPlan.md pin): every lattice sum is an eps-converged series enumerated inside the
+//! THERE IS NO CUT IN r SPACE -- Gibbs ringing is like a wrecking ball (doc/Pins.md pin 1): every lattice sum is an eps-converged series enumerated inside the
 //! molecular seam -- no radius parameter exists on this surface.
 //! \param kShift  fractional Monkhorst-Pack offset of the k-mesh (\f$0\f$ = Γ-centred; \f$½\f$ = the classic MP
 //!                offset, i.e. CP2K's default for even grids -- \f$k=\pm¼\f$ at \f$N=2\f$).

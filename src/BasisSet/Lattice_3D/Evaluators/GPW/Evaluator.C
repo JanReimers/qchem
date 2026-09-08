@@ -79,8 +79,8 @@ public:
     //!              molecule's; KB bra = the raw home orbital) -- the molecule-in-a-periodic-box configuration
     //!              the finite==lattice gates compare against.  A MODE, not a radius: in the periodic mode
     //!              (default) every lattice sum is an \f$\varepsilon\f$-CONVERGED SERIES enumerated internally
-    //!              per shell pair -- THERE IS NO CUT in the R direction, and no radius parameter exists
-    //!              (user pin, doc/GPWPlan.md).
+    //!              per shell pair -- THERE IS NO CUT in r SPACE, and no radius parameter exists
+    //!              (user pin; doc/Pins.md pin 1).
     //! \param rasterFields  WHICH terms the density raster serves (the field-sharpness ROUTING policy):
     //!              \c HartreeXC (default, bit-identical history) floors every density pair's grid level at
     //!              the XC core sharpness \f$\tfrac23\alpha_{\max}\f$; \c HartreeOnly (the Becke-XC partner)

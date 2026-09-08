@@ -1,6 +1,6 @@
 // File: Symmetry/Lattice_3D/BZReduction.C  Irreducible-BZ reduction of a Monkhorst-Pack mesh.
 //
-// Tier A of the space-group plan (doc/SpaceGroupPlan.md): fold a uniform Monkhorst-Pack
+// Tier A of the space-group plan (doc/OldPlans/SpaceGroupPlan.md): fold a uniform Monkhorst-Pack
 // k-mesh under the crystal point group (+ time reversal) into its irreducible wedge, with
 // symmetry weights.  Reduction is EXACT: every k-resolved integrand obeys f(Uk)=f(k), so
 // keeping one representative per star with weight |star|/N leaves the BZ sum unchanged.

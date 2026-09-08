@@ -54,7 +54,7 @@ struct CalcOptions
     int         multiplicity = 0;
     //! Basis construction variants (threaded into BasisSet::Molecule::Factory).  Defaults reproduce
     //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry is rejected until
-    //! the Spherical SALC track (doc/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
+    //! the Spherical SALC track (doc/OldPlans/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
     Engine      engine  = Engine::MnD;
     Angular     angular = Angular::Cartesian;
     //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used
@@ -68,7 +68,7 @@ struct CalcOptions
     //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
     //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade
     //! only builds the default Cartesian basis today, this is always the supported path; the guard
-    //! future-proofs the day spherical/libcint deliveries are exposed (see doc/SphericalSALCPlan.md).
+    //! future-proofs the day spherical/libcint deliveries are exposed (see doc/OldPlans/SphericalSALCPlan.md).
     bool        symmetry    = false;
     double      symmetryTol = 1e-4;   //!< geometry tolerance for point-group detection
     //! Replace the bare nuclear attraction with the GTH/HGH pseudopotential (valence-only): the atoms keep

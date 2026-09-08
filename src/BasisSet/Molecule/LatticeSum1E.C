@@ -6,7 +6,7 @@
 // one-electron matrices are the corresponding lattice sums of the ordinary (finite) two-centre integrals:
 //   S_ij = Sum_R e^{ik.R} <chi_i | chi_j(.-R)> ,  and likewise <p^2> and the nuclear attraction.
 //
-// THERE IS NO CUT -- in the R direction (user pin, doc/GPWPlan.md).  A lattice sum is a CONVERGENT SERIES,
+// THERE IS NO CUT IN r SPACE -- Gibbs ringing is like a wrecking ball (user pin; doc/Pins.md pin 1).  A lattice sum is a CONVERGENT SERIES,
 // summed to eps by the magnitude screen; it is never truncated at a radius.  The ENUMERATION therefore
 // lives HERE, per shell pair (the integrand's owner enumerates: which offsets matter is a function of the
 // Gaussian tails -- data only this side owns), exactly as CollocateDensity/IntegratePotential already do.
