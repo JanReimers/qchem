@@ -247,7 +247,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
 
     // Its periodic-1E capability, reached by an abstract->abstract cross-cast (a molecular Gaussian basis
     // realises Molecule::LatticeSum1E; anything else is a usage error).
-    itsLat=dynamic_cast<const Molecule::LatticeSum1E*>(itsOrb);
+    itsLat=dynamic_cast<const Molecule::Periodic_Gaussian_IBS*>(itsOrb);
     if (!itsLat) throw std::runtime_error(
         "GPW_Evaluator: the orbital basis is not a molecular Gaussian basis (no Molecule::LatticeSum1E)");
 
@@ -355,7 +355,7 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
     BuildLevels(grid, levels, N_L, ecut_L, nBase);
     const UnitCell A = itsCell;                             // the direct cell (stored; see the member note)
     auto mol    = itsMol;                                   // shared_ptr -> keep the molecular basis (lat) alive
-    const Molecule::LatticeSum1E* lat = itsLat;
+    const Molecule::Periodic_Gaussian_IBS* lat = itsLat;
     auto phase  = CellPhase();
     ReciprocalLattice recip = grid->Recip();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
@@ -433,7 +433,7 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
     BuildLevels(grid, levels, N_L, ecut_L, nBase);          // the fit grid's ladder
     const UnitCell A = itsCell;
     auto mol   = itsMol;                                    // keep the molecular basis (lat) alive in the closure
-    const Molecule::LatticeSum1E* lat = itsLat;
+    const Molecule::Periodic_Gaussian_IBS* lat = itsLat;
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
@@ -597,7 +597,7 @@ std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shar
     BuildLevels(grid, levels, N_L, ecut_L, nBase);
     const UnitCell A = itsCell;
     auto mol   = itsMol;
-    const Molecule::LatticeSum1E* lat = itsLat;
+    const Molecule::Periodic_Gaussian_IBS* lat = itsLat;
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();
@@ -636,7 +636,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
     BuildLevels(grid, levels, N_L, ecut_L, nBase);
     const UnitCell A = itsCell;
     auto mol   = itsMol;
-    const Molecule::LatticeSum1E* lat = itsLat;
+    const Molecule::Periodic_Gaussian_IBS* lat = itsLat;
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     if (!itsGatherMemo) itsGatherMemo=std::make_shared<GatherMemo>();

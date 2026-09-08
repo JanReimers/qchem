@@ -109,11 +109,11 @@ static rmat_t BuildCartToSphere(const std::vector<AoShell>& shells, const hmat_t
 // real diagonal), mirroring the GPW evaluator's own convention.
 class SphericalView_IBS
     : public virtual Molecule::Orbital_1E_IBS
-    , public virtual Molecule::LatticeSum1E
+    , public virtual Molecule::Periodic_Gaussian_IBS   // all four faces (ISP split 2026-09-08): this view FORWARDS every one
 {
 public:
     SphericalView_IBS(std::shared_ptr<const Real_BS> holder, const Molecule::Orbital_1E_IBS* obs,
-                      const Molecule::LatticeSum1E* lat, rmat_t T)
+                      const Molecule::Periodic_Gaussian_IBS* lat, rmat_t T)
         : itsHolder(std::move(holder)), itsObs(obs), itsLat(lat), itsT(std::move(T))
         , itsTc(itsT.rows(),itsT.columns())
     {
@@ -286,7 +286,7 @@ private:
 
     std::shared_ptr<const Real_BS> itsHolder;   //!< keeps the inner basis (and its evaluator) alive
     const Molecule::Orbital_1E_IBS* itsObs;     //!< the inner orbital faces (abstract)
-    const Molecule::LatticeSum1E*   itsLat;     //!< the inner periodic capability (abstract)
+    const Molecule::Periodic_Gaussian_IBS* itsLat;   //!< the inner periodic capability (abstract, all four faces)
     rmat_t        itsT;                         //!< cart->sphere, nCart x nSph
     mat_t<dcmplx> itsTc;                        //!< the same T, complex, for the chmat congruences
     //! T's nonzeros per spherical function: (cartesian index, coefficient), ascending index.  The
@@ -311,8 +311,8 @@ std::shared_ptr<const Real_BS> MakeSphericalLatticeView(std::shared_ptr<const Re
     const Molecule::Orbital_1E_IBS* obs=nullptr;
     for (auto ibs : const_cast<Real_BS&>(*cart).Iterate<Molecule::Orbital_1E_IBS>()) { obs=ibs; break; }
     if (!obs) throw std::runtime_error("MakeSphericalLatticeView: no Molecule::Orbital_1E_IBS block in the wrapped basis");
-    const auto* lat=dynamic_cast<const Molecule::LatticeSum1E*>(obs);
-    if (!lat) throw std::runtime_error("MakeSphericalLatticeView: the wrapped orbital block has no LatticeSum1E capability");
+    const auto* lat=dynamic_cast<const Molecule::Periodic_Gaussian_IBS*>(obs);
+    if (!lat) throw std::runtime_error("MakeSphericalLatticeView: the wrapped orbital block has no Periodic_Gaussian_IBS capability");
     const rmat_t T=BuildCartToSphere(obs->GetAoShells(), obs->Overlap(), obs->GetNumFunctions());
     auto* bs=new ViewBS;
     bs->Insert(new SphericalView_IBS(cart, obs, lat, T));

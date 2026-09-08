@@ -17,7 +17,7 @@ module;
 #include <vector>
 module qchem.SolidCalculation;
 
-import qchem.BasisSet.Molecule.LatticeSum1E;   // LatticeSum1E::MaxExponent -- alpha_max (a capability face)
+import qchem.BasisSet.Molecule.LatticeSum1E;   // GaussianSharpness::MaxExponent -- alpha_max (the NARROW face)
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alpha_pp
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
@@ -51,8 +51,11 @@ static qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Basi
     s.nAtoms   = int(lat.GetUnitCell().GetNumAtoms());
     s.imposed  = imposed;   // the RESOLVED value: CP2K_COMPAT can veto it, and the grid cost follows
     for (auto ibs : const_cast<BasisSet::Real_BS&>(mol).Iterate<BasisSet::Real_OIBS>())
-        if (const auto* ls=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(ibs))
-            { s.alphaMax = ls->MaxExponent(); break; }
+        // THE NARROW FACE, since the 2026-09-08 ISP split: this asks for ONE number, so it names the
+        // three-method GaussianSharpness capability and not the seventeen-method periodic aggregate it
+        // used to cross-cast to.  Nothing here wants a lattice sum, a collocation or a stream fold.
+        if (const auto* sh=dynamic_cast<const BasisSet::Molecule::GaussianSharpness*>(ibs))
+            { s.alphaMax = sh->MaxExponent(); break; }
     for (const auto& [element, valence] : o.species)
     {
         const int Z = int(thePeriodicTable().GetZ(element));

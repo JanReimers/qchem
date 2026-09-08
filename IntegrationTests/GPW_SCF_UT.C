@@ -412,8 +412,10 @@ qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Real_BS& mo
     s.nAtoms  =int(lat.GetUnitCell().GetNumAtoms());
     s.imposed =o.imposeSymmetry;
     for (auto ibs : const_cast<Real_BS&>(mol).Iterate<BasisSet::Real_OIBS>())
-        if (const auto* ls=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(ibs))
-            { s.alphaMax=ls->MaxExponent(); break; }
+        // the NARROW face (ISP split 2026-09-08) -- this asks for one scalar, like its production twin
+        // in Calculation/Imp/SolidCalculation.C
+        if (const auto* sh=dynamic_cast<const BasisSet::Molecule::GaussianSharpness*>(ibs))
+            { s.alphaMax=sh->MaxExponent(); break; }
     for (const auto& [element, valence] : o.species)
     {
         const int Z=int(thePeriodicTable().GetZ(element));

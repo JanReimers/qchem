@@ -1038,6 +1038,51 @@ MnO campaign proceeds undisturbed in qchem6.
   table has a zero hit rate.  A bare point list is universal precisely BECAUSE it carries no identity, and
   uncacheable for the same reason; passing the projector is how the point set gets one.
 
+- **R1.0g ✅ DONE 2026-09-08 — `Molecule::LatticeSum1E` ISP split: ONE 17-method face → FOUR, segregated
+  by CLIENT.**  (USER, 2026-09-08: *"We need to refactor Molecule::LatticeSum1E it seems to be doing too
+  many things for one class."*)
+
+  ★ **The seams were not a judgement call — they were measured.**  ISP's only real criterion is what
+  clients actually use, so that was counted across the tree first:
+
+  | client | methods it used | of 17 |
+  |---|---|---|
+  | `Calculation/Imp/SolidCalculation.C` | `MaxExponent` | **1** |
+  | `BasisSet/Lattice_3D/Imp/BasisSet.C` | `SetStreamSymmetryOps` | **1** |
+  | `BasisSet/Lattice_3D/.../GPW/Imp/Evaluator.C` | thirteen | 13 |
+  | `Molecule/PG_Spherical/Imp/LatticeView.C` | all — it FORWARDS | 17 (a decorator, not a client) |
+
+  **Two production clients were cross-casting to a seventeen-method interface to ask a single question.**
+  The result, 17 methods with none lost:
+
+  | face | methods | who names it now |
+  |---|---|---|
+  | `GaussianSharpness` | 3 — \f$\alpha_{\max}\f$, \f$\alpha_{\min}\f$, the `REL_CUTOFF` stiffness | `SolidCalculation.C`, `GPW_SCF_UT.C` |
+  | `LatticeSum1E` | 8 — the analytic Bloch 1E matrices (+`GaussianFunction`, `cellphase_t`, the economy report) | `GPW_UT.C`'s Bloch-overlap self-check |
+  | `LatticeCollocation` | 4 — \f$\Phi\f$ on a point set, collocate, integrate back, static-field pair levels | (via the aggregate today) |
+  | `StreamFoldable` | 2 — the T3 route-(b) stream fold | `Lattice_3D/Imp/BasisSet.C` |
+  | `Periodic_Gaussian_IBS` | 0 — virtual-inherits all four | the 2 IMPLEMENTORS + `GPW_Evaluator` |
+
+  ★ **AND THE NAME NOW MEANS WHAT IT SAYS.**  A class called `LatticeSum1E` was answering *"how sharp is
+  your sharpest primitive"*, *"collocate this density on a multigrid ladder"* and *"fold your pair streams
+  under these space-group ops"* — none of which is a lattice-summed 1E integral.  That mismatch is what the
+  user's "too many things" was pointing at, and it is gone.
+
+  ⚠ **`StreamFoldable`'s two methods already had DEFAULTS** — an OPTIONAL capability bolted onto a face
+  every implementor had to satisfy.  That is the same ISP smell from the other direction, and it is a
+  general tell worth keeping: *a non-pure virtual on an otherwise-pure interface is usually a face trying
+  to split.*
+
+  **Cost:** implementors and the wide client name the aggregate (one line each); no behaviour change;
+  827/827.
+
+  ▶ **WHAT IS DELIBERATELY NOT DONE.**  `Periodic_Gaussian_IBS` is an aggregate, and an aggregate is only
+  honest while it is what IMPLEMENTORS declare — it is not a licence for new clients.  Its header says so.
+  ⚠ And `LatticeCollocation` is the SAME CONCERN as the Hamiltonian-side `XC_Quadrature` engine (R1.0e),
+  from the other end of one seam: collocate-forward here, sample-and-adjoint there.  They should meet.
+  **Not merged in the same window, on purpose** — two refactors converging on one seam from opposite sides
+  makes neither reviewable.
+
 - **R1.0e ✅ THE FILE SPLIT IS DONE 2026-09-08; THE SCOPE QUESTION IT EXPOSED IS THE OPEN PART.**
   (Original: USER, 2026-08-23, *"the enormous PWTerms TU is going to need a massive refactoring cleanup
   eventually"*, restated 2026-09-08: *"src/Hamiltonian/Internal/PWTerms.C is huge, again doing too many

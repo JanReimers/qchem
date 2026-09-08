@@ -376,8 +376,8 @@ TEST(GPW, AnalyticCollocationConservesCharge)
         // (SIPP's diffuse alpha=0.06 reaches neighbour cells even at a=12), so the home-only Tr(D S) is ~3% off.
         GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0);
         const GPW_Evaluator& ev=gpw;
-        const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
-        EXPECT_TRUE(lat) << "orbital block must realise LatticeSum1E";
+        const auto* lat=dynamic_cast<const BasisSet::Molecule::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
+        EXPECT_TRUE(lat) << "orbital block must realise Periodic_Gaussian_IBS";
         const ivec3_t N=ev.DensityGrid().FFTGrid();
         const size_t  n=ev.size();
         chmat_t D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.0);
@@ -451,7 +451,7 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0);
     const GPW_Evaluator& ev=gpw;
-    const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
+    const auto* lat=dynamic_cast<const BasisSet::Molecule::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
     EXPECT_TRUE(lat);
     const ivec3_t N=ev.DensityGrid().FFTGrid();
     const size_t  n=ev.size();
@@ -516,8 +516,8 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     namespace SL=qchem::Symmetry::Lattice_3D;
     const bool kZero = kFrac.x==0.0 && kFrac.y==0.0 && kFrac.z==0.0;
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
-    const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
-    ASSERT_TRUE(lat) << "orbital block must realise LatticeSum1E";
+    const auto* lat=dynamic_cast<const BasisSet::Molecule::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
+    ASSERT_TRUE(lat) << "orbital block must realise Periodic_Gaussian_IBS";
     const SL::SpaceGroup sg=SL::SpaceGroup::Detect(cell.GetCellMatrix(), sites);
     const std::vector<SL::DirectOp> dops = kZero ? sg.DirectOps() : sg.LittleGroupDirectOps(kFrac);
     if (expectedOps) { ASSERT_EQ(dops.size(), expectedOps) << tag << ": unexpected (little-)group order"; }

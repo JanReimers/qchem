@@ -234,9 +234,11 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
                 if (op.sigma==SL::SpinAction::None) streamOps.push_back({op.W, op.tau});
             const BasisSet::Real_OIBS* orb=nullptr;
             for (auto ibs : const_cast<BasisSet::Real_BS&>(*mol).Iterate<BasisSet::Real_OIBS>()) { orb=ibs; break; }
-            if (const auto* ls=dynamic_cast<const Molecule::LatticeSum1E*>(orb))
+            // THE NARROW FACE (ISP split 2026-09-08): arming the fold is all this does, so it names the
+            // two-method StreamFoldable capability rather than the whole periodic aggregate.
+            if (const auto* sf=dynamic_cast<const Molecule::StreamFoldable*>(orb))
             {
-                const size_t used=ls->SetStreamSymmetryOps(streamOps, lat.GetUnitCell());
+                const size_t used=sf->SetStreamSymmetryOps(streamOps, lat.GetUnitCell());
                 std::cout << "[stream fold] imposed Γ run: " << used << "/" << streamOps.size()
                           << " ops folded into the collocation streams" << std::endl;
             }

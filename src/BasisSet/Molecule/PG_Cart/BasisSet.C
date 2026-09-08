@@ -68,7 +68,7 @@ class Orbital_IBS
     : public Molecule::EOrbital_1E_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Molecule::Orbital_ERI4_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Molecule::Orbital_DFT_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
-    , public virtual Molecule::LatticeSum1E   // the GPW periodic-1E seam (Gamma lattice sums)
+    , public virtual Molecule::Periodic_Gaussian_IBS   // the GPW periodic seam: all four faces (ISP split 2026-09-08)
     , public IrrepBasisSet
 {
 public:

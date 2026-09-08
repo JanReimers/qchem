@@ -1,40 +1,66 @@
-// File: BasisSet/Molecule/LatticeSum1E.C  Periodic (lattice-summed) 1-electron integrals of a molecular
-// Gaussian basis -- the GPW seam.
+// File: BasisSet/Molecule/LatticeSum1E.C  The periodic capabilities of a molecular Gaussian basis,
+// SEGREGATED BY CLIENT (ISP split, 2026-09-08).
 //
 // A molecular Gaussian orbital basis is a set of contracted Gaussians standing at the atoms.  Placed in a
 // periodic cell, the Bloch orbital is the lattice sum  chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), and its
 // one-electron matrices are the corresponding lattice sums of the ordinary (finite) two-centre integrals:
 //   S_ij = Sum_R e^{ik.R} <chi_i | chi_j(.-R)> ,  and likewise <p^2> and the nuclear attraction.
 //
-// THERE IS NO CUT IN r SPACE -- Gibbs ringing is like a wrecking ball (user pin; doc/Pins.md pin 1).  A lattice sum is a CONVERGENT SERIES,
-// summed to eps by the magnitude screen; it is never truncated at a radius.  The ENUMERATION therefore
-// lives HERE, per shell pair (the integrand's owner enumerates: which offsets matter is a function of the
-// Gaussian tails -- data only this side owns), exactly as CollocateDensity/IntegratePotential already do.
-// No radius, no translation list, no weighted point set crosses the interface: the caller hands the cell
-// geometry + a Bloch-phase ORACLE (cellphase_t -- "what is the weight of integer offset n") and gets the
-// summed matrices back.  The Gaussian machinery -- the primitives, the M&D kernels, GaussianRF::AtCenter
-// that places a radial at each image -- stays ENCAPSULATED on the molecular side (the caller never sees a
-// radial or an exponent); GPW stays purely lattice-side (it owns k and the phase convention e^{2 pi i k.n}).
-// A concrete molecular Gaussian basis realises this face and GPW reaches it by an abstract->abstract
-// cross-cast of the orbital block.
+// ---- WHY THERE ARE NOW FOUR FACES HERE AND NOT ONE ---------------------------------------------------
+// USER, 2026-09-08: *"We need to refactor Molecule::LatticeSum1E it seems to be doing too many things for
+// one class."*  It held SEVENTEEN pure virtuals spanning four unrelated concerns, and the split below is
+// not an aesthetic judgement -- it is what the CLIENTS actually ask for, which is the only ISP criterion
+// that means anything.  Measured across the tree before splitting:
 //
-// ENGINE-NEUTRAL SEAM (the integral-engine switch point).  This face is deliberately engine-agnostic: it
-// names no integral engine, so it can be realised by ANY molecular Gaussian basis.  Today the McMurchie-
-// Davidson Cartesian basis (PG_Cart::Orbital_IBS, Engine::MnD) implements it -- its AtCenter + analytic 2C
-// kernels make the per-image sum exact and trivial, ideal for the correctness increment.  The FASTER libCint
-// engine (PG_LibCint) can realise the same face (per image, the cross-centre integrals between the home and
-// R-shifted shells) -- a perf follow-up.  Because GPW consumes ONLY this abstract face (it takes any
-// Molecule::Real_BS and cross-casts, throwing cleanly if unsupported), switching engines is then just the
-// Engine argument to Molecule::Factory where the basis is built -- NO change to GPW itself.
+//   client                                      methods it uses   of 17
+//   Calculation/Imp/SolidCalculation.C          MaxExponent           1     <- cast to 17 to ask ONE number
+//   BasisSet/Lattice_3D/Imp/BasisSet.C          SetStreamSymmetryOps  1     <- likewise
+//   BasisSet/Lattice_3D/.../GPW/Imp/Evaluator.C thirteen             13
+//   Molecule/PG_Spherical/Imp/LatticeView.C     all (it FORWARDS)    17     <- a decorator, not a client
+//
+// Two clients were cross-casting to a seventeen-method interface to ask a single question.  That is the
+// textbook ISP violation, and it also made the NAME wrong: a class called "LatticeSum1E" was answering
+// "how sharp is your sharpest primitive", "collocate this density on a multigrid ladder", and "fold your
+// pair streams under these space-group ops" -- none of which is a lattice-summed 1E integral.
+//
+//   GaussianSharpness      alpha_max, alpha_min, the REL_CUTOFF stiffness.  Not periodic and not an
+//                          integral: it is a property of the Gaussian basis, equally true of a molecule.
+//   LatticeSum1E           the analytic Bloch 1E MATRICES.  The name now means exactly what it says.
+//   LatticeCollocation     the real-space GRID seam: Phi on a point set, collocate rho onto a multigrid
+//                          ladder, integrate a potential back, assign pair levels for a static field.
+//   StreamFoldable         the T3 route-(b) symmetry fold over the (pair, R) streams.  Both its methods
+//                          already had DEFAULTS -- an optional capability bolted onto a mandatory face,
+//                          which is the same smell from the other direction.
+//
+// \c Periodic_Gaussian_IBS aggregates all four for the two IMPLEMENTORS (PG_Cart's orbital block and the
+// PG_Spherical lattice view) and for the one client that genuinely needs the wide set (GPW_Evaluator), so
+// nothing that legitimately wants everything has to name four types.  Clients that want one concern name
+// that concern and cross-cast to IT -- which is the whole point, and is what SolidCalculation and the
+// Lattice_3D basis now do.
+//
+// THERE IS NO CUT IN r SPACE -- Gibbs ringing is like a wrecking ball (user pin; doc/Pins.md pin 1).  A
+// lattice sum is a CONVERGENT SERIES, summed to eps by the magnitude screen; it is never truncated at a
+// radius.  The ENUMERATION therefore lives HERE, per shell pair (the integrand's owner enumerates: which
+// offsets matter is a function of the Gaussian tails -- data only this side owns), exactly as
+// CollocateDensity/IntegratePotential already do.  No radius, no translation list, no weighted point set
+// crosses any of these interfaces: the caller hands the cell geometry + a Bloch-phase ORACLE
+// (cellphase_t -- "what is the weight of integer offset n") and gets the summed matrices back.  The
+// Gaussian machinery -- the primitives, the M&D kernels, GaussianRF::AtCenter that places a radial at each
+// image -- stays ENCAPSULATED on the molecular side (the caller never sees a radial or an exponent); GPW
+// stays purely lattice-side (it owns k and the phase convention e^{2 pi i k.n}).
+//
+// ENGINE-NEUTRAL SEAM (the integral-engine switch point).  These faces are deliberately engine-agnostic:
+// they name no integral engine, so they can be realised by ANY molecular Gaussian basis.  Today the
+// McMurchie-Davidson Cartesian basis (PG_Cart::Orbital_IBS, Engine::MnD) implements them -- its AtCenter +
+// analytic 2C kernels make the per-image sum exact and trivial.  The FASTER libCint engine (PG_LibCint)
+// can realise the same faces -- a perf follow-up.  Because GPW consumes ONLY these abstract faces (it
+// takes any Molecule::Real_BS and cross-casts, throwing cleanly if unsupported), switching engines is then
+// just the Engine argument to Molecule::Factory where the basis is built -- NO change to GPW itself.
 //
 // GENERAL k: the phase e^{ik.R} enters as a per-offset complex weight through the oracle, so the sums are
 // Hermitian (chmat_t) -- at Gamma every phase is 1 and the result is real (imaginary part exactly zero).
 // A physically rigorous periodic nuclear attraction (Ewald, vs. this large-cell single-image limit) is a
 // later increment.
-//
-// (The old "(Rs, phases) -> one cMesh" future note is MOOT for this seam -- no weighted point set crosses
-// the interface any more, the stronger form of that cleanup.  KMesh + the quadrature meshes still want the
-// Mesh<W> templating; see doc/GPWPlan.md section 5.)
 module;
 #include <functional>   // cellphase_t (the Bloch phase of an integer cell offset -- k stays lattice-side)
 #include <vector>
@@ -52,6 +78,41 @@ export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // DirectOp {W|τ} (the T3
 export namespace qchem::BasisSet::Molecule
 {
 
+
+
+//! \brief THE SHARPNESS/RESOLUTION METADATA of a Gaussian basis -- three scalars, no integrals.
+//!
+//! Segregated 2026-09-08.  Nothing here is periodic and nothing here is a lattice sum: these are
+//! properties of the basis itself, equally meaningful for a molecule, and they exist because a GRID has
+//! to be sized from them.  `Calculation/Imp/SolidCalculation.C` asks for exactly ONE of them
+//! (`MaxExponent`) and used to cross-cast to a seventeen-method interface to do it.
+class GaussianSharpness
+{
+public:
+    virtual ~GaussianSharpness() = default;
+    //! The largest primitive Gaussian exponent \f$\alpha_{\max}\f$ in the basis -- a scalar RESOLUTION summary
+    //! (NOT primitive exposure; the radials stay encapsulated).  A GPW density grid must resolve the sharpest
+    //! density feature, the product of the two tightest primitives (a Gaussian of exponent \f$2\alpha_{\max}\f$),
+    //! so its minimum plane-wave cutoff is \f$\propto\alpha_{\max}\f$.  This lets the grid consumer floor its own
+    //! \c densityEcut from the basis instead of leaving that (basis-dependent) burden on the caller.
+    virtual double MaxExponent() const = 0;
+
+    //! The coarsest primitive Gaussian exponent \f$\alpha_{\min}\f$ -- the diffuse end (mirrors \c MaxExponent).
+    //! Sets the coarsest useful GPW density-grid LEVEL for the multi-grid collocation ladder: the levels run
+    //! from the fine grid (\f$\propto\alpha_{\max}\f$) down to \f$\propto\alpha_{\min}\f$.
+    virtual double MinExponent() const = 0;
+
+    //! \brief The STIFFNESS of the internal pair\f$\to\f$level assignment (the CP2K \c REL_CUTOFF safety): a
+    //! pair \f$(i,j)\f$ demands a level with \f$e_{cut}\ge\f$ \c RelCutoffSafety()
+    //! \f$\cdot\,e_{cut}^{ref}\,(\alpha_i+\alpha_j)/(2\alpha_{\max})\f$, so the stiffest possible requirement
+    //! (the \f$\alpha_{\max}+\alpha_{\max}\f$ pair) is \c RelCutoffSafety() \f$\cdot\,e_{cut}^{ref}\f$.  A
+    //! ladder is COMPLETE (every pair's requirement satisfiable) iff it contains a level at that cutoff --
+    //! exposed as a scalar summary (like \c MaxExponent) so the ladder BUILDER can append the completion rung
+    //! without duplicating the constant; the assignment itself stays internal (doc/GPWPlan.md 0b').
+    virtual double RelCutoffSafety() const = 0;
+};
+
+
 //! \brief The periodic (lattice-summed) 1-electron capability of a molecular Gaussian basis: the general-k
 //! Bloch matrices \f$M_{ij}(k)=\sum_R e^{ik\cdot R}\langle\chi_i|\,\hat O\,|\chi_j(\cdot-R)\rangle\f$.
 //! The series is summed to \f$\varepsilon\f$ INTERNALLY, per shell pair (magnitude screening -- THERE IS NO
@@ -66,7 +127,6 @@ class LatticeSum1E
 {
 public:
     virtual ~LatticeSum1E() = default;
-
     //! \brief The Bloch phase of an INTEGER cell offset \f$n\f$: \f$e^{ik\cdot R_n}\f$.  The k-CONVENTION stays
     //! entirely on the lattice/GPW side (the caller supplies this closure); the molecular side only ever asks
     //! "what is the phase of offset \f$n\f$" for the offsets it enumerates internally (a pre-built
@@ -76,8 +136,6 @@ public:
 
     //! \f$S_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|\chi_j(\cdot-R)\rangle\f$ (normalised), summed to
     //! \f$\varepsilon\f$ internally per shell pair.
-    virtual chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const = 0;
-
     //! \brief A primitive Cartesian-Gaussian scalar function,
     //! \f$g(r)=\sum_t c_t\,(r-C)^{m_t}\,e^{-\alpha|r-C|^2}\f$ (one shared exponent, a finite Cartesian-
     //! monomial polynomial \f$(r-C)^{m}=x^{m_x}y^{m_y}z^{m_z}\f$ about the centre \f$C\f$) -- the family of
@@ -89,6 +147,8 @@ public:
         double  alpha;                          //!< the shared exponent \f$\alpha\f$
         std::vector<Math::CartTerm> terms;      //!< \f$\{(m_t,c_t)\}\f$ -- the polynomial about \f$C\f$
     };
+
+    virtual chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const = 0;
 
     //! \brief The lattice-summed overlap of every basis function with ONE Gaussian function \a g:
     //! \f$b_i=\sum_n \mathrm{phase}(n)\,\langle\chi_i|\,g(\cdot-C-R_n)\,\rangle\f$ -- the vector (\f$n\f$)
@@ -122,28 +182,29 @@ public:
     //! (no lattice), the sibling of the finite \c MakeOverlap(g) used by the home-only GPW mode.
     virtual chmat_t MakeLocalGaussian(const Structure* cl,
                                       const std::function<GaussianFunction(int Z)>& opForZ) const = 0;
+    //! \brief Announce this basis's lattice-sum ECONOMY (console + the run report's \c grids.latticeSums):
+    //! \f$\alpha_{\min/\max}\f$, the magnitude-screen \f$\varepsilon\f$ values in effect, and the
+    //! worst-pair (diffuse x diffuse) reach with its \c CellsInSphere count over \a A -- the numbers that
+    //! JUMP when diffuse functions are added, so a runtime blow-up comes with its own explanation
+    //! (doc/GPWPlan1.md).  The OWNER of the screens reports (no eps leaks through the face); default no-op
+    //! for bases with no lattice economy to describe.
+    virtual void EmitLatticeSumReport(const UnitCell& /*A*/) const {}
+};
 
-    //! The largest primitive Gaussian exponent \f$\alpha_{\max}\f$ in the basis -- a scalar RESOLUTION summary
-    //! (NOT primitive exposure; the radials stay encapsulated).  A GPW density grid must resolve the sharpest
-    //! density feature, the product of the two tightest primitives (a Gaussian of exponent \f$2\alpha_{\max}\f$),
-    //! so its minimum plane-wave cutoff is \f$\propto\alpha_{\max}\f$.  This lets the grid consumer floor its own
-    //! \c densityEcut from the basis instead of leaving that (basis-dependent) burden on the caller.
-    virtual double MaxExponent() const = 0;
 
-    //! The coarsest primitive Gaussian exponent \f$\alpha_{\min}\f$ -- the diffuse end (mirrors \c MaxExponent).
-    //! Sets the coarsest useful GPW density-grid LEVEL for the multi-grid collocation ladder: the levels run
-    //! from the fine grid (\f$\propto\alpha_{\max}\f$) down to \f$\propto\alpha_{\min}\f$.
-    virtual double MinExponent() const = 0;
-
-    //! \brief The STIFFNESS of the internal pair\f$\to\f$level assignment (the CP2K \c REL_CUTOFF safety): a
-    //! pair \f$(i,j)\f$ demands a level with \f$e_{cut}\ge\f$ \c RelCutoffSafety()
-    //! \f$\cdot\,e_{cut}^{ref}\,(\alpha_i+\alpha_j)/(2\alpha_{\max})\f$, so the stiffest possible requirement
-    //! (the \f$\alpha_{\max}+\alpha_{\max}\f$ pair) is \c RelCutoffSafety() \f$\cdot\,e_{cut}^{ref}\f$.  A
-    //! ladder is COMPLETE (every pair's requirement satisfiable) iff it contains a level at that cutoff --
-    //! exposed as a scalar summary (like \c MaxExponent) so the ladder BUILDER can append the completion rung
-    //! without duplicating the constant; the assignment itself stays internal (doc/GPWPlan.md 0b').
-    virtual double RelCutoffSafety() const = 0;
-
+//! \brief THE REAL-SPACE GRID SEAM: Bloch orbitals at points, density collocation onto a multigrid
+//! ladder, and the integrate-back adjoint.
+//!
+//! Segregated 2026-09-08 -- this is the (integration grid) x (fit basis) axis pair (doc/Pins.md pin 2),
+//! not a 1E integral, and it is the same concern the Hamiltonian-side `XC_Quadrature` engine owns from
+//! the other end (doc/CleanupCandidates.md R1.0e).  ⚠ The two are DELIBERATELY not merged yet: they are
+//! opposite ends of one seam and moving both at once makes neither reviewable.
+class LatticeCollocation
+{
+public:
+    virtual ~LatticeCollocation() = default;
+    //! Same Bloch-phase oracle as \c LatticeSum1E::cellphase_t (one convention, named once there).
+    using cellphase_t = LatticeSum1E::cellphase_t;
     //! \brief The BLOCH ORBITALS ON A POINT SET: \f$\Phi_{qi}=\chi^k_i(r_q)=\sum_R\mathrm{phase}(R)\,
     //! \chi_i(r_q-R)\f$ -- the \f$\Phi\f$ table the atom-centred XC quadrature runs on, and the point-value
     //! sibling of the MATRIX lattice sums above (same internal, magnitude-screened offset enumeration; THERE
@@ -281,15 +342,18 @@ public:
     //! \a pairLevels.  (doc/GPWPlan1.md 0i increment 3 -- the custom V_loc G-ball.)
     virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                       double beta, double lnEps) const = 0;
+};
 
-    //! \brief Announce this basis's lattice-sum ECONOMY (console + the run report's \c grids.latticeSums):
-    //! \f$\alpha_{\min/\max}\f$, the magnitude-screen \f$\varepsilon\f$ values in effect, and the
-    //! worst-pair (diffuse x diffuse) reach with its \c CellsInSphere count over \a A -- the numbers that
-    //! JUMP when diffuse functions are added, so a runtime blow-up comes with its own explanation
-    //! (doc/GPWPlan1.md).  The OWNER of the screens reports (no eps leaks through the face); default no-op
-    //! for bases with no lattice economy to describe.
-    virtual void EmitLatticeSumReport(const UnitCell& /*A*/) const {}
 
+//! \brief THE T3 ROUTE-(b) STREAM FOLD capability (doc/SymmetryUpgradePlan.md §6b) -- OPTIONAL.
+//!
+//! Segregated 2026-09-08: both methods already carried DEFAULTS, i.e. an optional capability bolted onto
+//! a face every implementor had to satisfy.  Its one client (`BasisSet/Lattice_3D/Imp/BasisSet.C`) arms
+//! the fold and never touches an integral, so it now names THIS and cross-casts to it.
+class StreamFoldable
+{
+public:
+    virtual ~StreamFoldable() = default;
     //! \brief T3 route (b) STREAM FOLD (doc/SymmetryUpgradePlan.md §6b): fold the \f$(pair, R)\f$
     //! collocation/integrate-back terms under the IMPOSED crystal ops \f$\{W|\tau\}\f$.  With a non-empty
     //! fold, \c CollocateDensity scatters only orbit-REPRESENTATIVE terms, each weighted by its orbit
@@ -317,6 +381,25 @@ public:
     //! unfolded evaluator produce DIFFERENT collocation tensors (reduced vs full), so any content-keyed
     //! framework cache must include this in its identity (the GPW \c IDFragment does).
     virtual size_t StreamFoldOrder() const {return 0;}
+};
+
+
+//! \brief The FULL periodic capability of a molecular Gaussian basis -- all four faces above.
+//!
+//! What the two IMPLEMENTORS realise (`PG_Cart::Orbital_IBS`, the `PG_Spherical` lattice view) and what
+//! the one client that genuinely uses the wide set (`GPW_Evaluator`) holds.  Virtual bases, per the
+//! project's diamond idiom -- a basis is all four things at once, and every one of them is data-free.
+//!
+//! ⚠ **Do not reach for this in a new client.**  Name the ONE face you need and cross-cast to it; that is
+//! what the split is for, and an aggregate is only honest while it is what implementors declare.
+class Periodic_Gaussian_IBS
+    : public virtual GaussianSharpness
+    , public virtual LatticeSum1E
+    , public virtual LatticeCollocation
+    , public virtual StreamFoldable
+{
+public:
+    virtual ~Periodic_Gaussian_IBS() = default;
 };
 
 } //namespace

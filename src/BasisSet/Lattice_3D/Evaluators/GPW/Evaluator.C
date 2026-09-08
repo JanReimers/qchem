@@ -229,7 +229,7 @@ private:
     std::vector<Symmetry::Lattice_3D::DirectOp> itsSymOps;   //!< imposed crystal ops ({} on a free run -- §3)
     std::shared_ptr<const BasisSet::Real_BS> itsMol;   //!< owns the molecular Gaussian basis (lifetime)
     const BasisSet::Real_OIBS*          itsOrb = nullptr; //!< its single orbital block (op()/Gradient/size)
-    const Molecule::LatticeSum1E*       itsLat = nullptr; //!< the same block's periodic-1E capability (cross-cast)
+    const Molecule::Periodic_Gaussian_IBS* itsLat = nullptr; //!< the same block's periodic-1E capability (cross-cast)
     //! \brief THE COLLOCATION TOLERANCE POLICY (doc/OldPlans/ScreeningPlan.md), chosen ONCE in the constructor from
     //! \c qchem::theRunPolicy() beside the other declared CP2K deviations, and handed to every
     //! \c CollocateDensity / \c IntegratePotential call this evaluator makes -- so the box walk never
