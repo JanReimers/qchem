@@ -1143,6 +1143,74 @@ MnO campaign proceeds undisturbed in qchem6.
   and no `if (auto* p = dynamic_cast…)` guard*.  That one found all six defects and, after excluding
   in-place `if` guards, produced only ONE false positive (a commented-out line).
 
+- **R1.0j ★★ WHAT THE "XC QUADRATURE" ACTUALLY IS — the user's critique, tested against the code
+  (2026-09-08).**  Four claims were put; three hold, one needs a correction, and one carries a constraint
+  the framing did not account for.
+
+  > *"The XC part suggests exchange and correlation, but I suspect XC proper has nothing to do with [it].
+  > When we integrate over a Quadrature, we are integrating either a `ScalarFunction<T>` or a
+  > `VectorFunction<T>` … but [the] Quadrature aspect shouldn't need to know anything about those
+  > realizations.  Now in general Quadrature integration belongs in the qcMesh library … which I suspect is
+  > getting worked around and maybe re-implemented.  Lastly is XCQuadrature also doing a bunch [of]
+  > operations that have nothing to [do with] Quadrature integration?"*
+
+  ✅ **(1) "XC" IS THE WRONG NAME — MEASURED, NOT ARGUED.**  The engine touches a functional **zero times**:
+  no `ExFunctional`, no `GetExcDensity`, no `GetVxc` anywhere in the interface or either implementation unit
+  (the one textual hit is inside a diagnostic *string*).  The functional lives entirely in the TERMS —
+  `Vxc_Quadrature(const xc_t& xc, quad_t quad)` holds it and maps it over the points.  ⇒ The engine is named
+  **for its client**, not for its responsibility.  `\rho` at points and the adjoint back is what it does, and
+  a Hartree term or a \f$+U\f$ projector would want the same object.  ▶ Rename with the relocation.
+
+  ✅ **(2) IT IS DOING A LOT THAT IS NOT QUADRATURE.**  Of `XC_SinglesQuadrature`'s 13 members, **2** are
+  quadrature (`Integrate`, `NumPoints`).  The rest: `Rho`/`RhoPol`/`WarmForDensity` (density sampling +
+  per-serial caching), `SiteMoments`/`PartitionedMoments`/`EmitSiteMoments` (an observable and its
+  reporting), `Symmetrize`/`SymmetrizeSpin` (symmetry projection), `Projector`/`FunctionIntegrals` (fitter
+  plumbing).  `XC_PairQuadrature` adds `Refresh`/`RefreshPol`/`SampleOne`/`LatchRoute` (route policy) and
+  `Raster` (grid geometry).
+
+  ✅ **(3) qcMesh IS BEING BYPASSED — and `qchem.Mesh.Quadrature` already has exactly the right shape.**  Its
+  own header states the principle the user is stating: *"The physics stays with the CALLER (it supplies the
+  field V); qcMesh only knows \f$\sum_i w_i(\ldots)\f$."*  It exports `Integrate(Mesh, ScalarFunction<T>)`,
+  `Overlap(Mesh, VectorFunction<T>)`, and **`WeightedOverlap(Mesh, VectorFunction<T>, const rvec_t& V)`** —
+  which IS \f$\langle i|v|j\rangle\f$ — knowing nothing about functionals or fit bases.  The engine imports
+  that module **for the `Mesh` type only** and re-implements the arithmetic.
+
+  ⛔ **CORRECTION TO MY OWN FIRST GUESS:** I expected to find a MISSING overload
+  (`Integrate(Mesh, tabulated values)`) that had forced the re-implementation.  **It is not missing** — it is
+  `qcMesh::Integrate(const Mesh&, const rvec_t&)` at `src/Mesh/Mesh.C:104`, and its doc comment names this
+  exact use case: *"what a consumer of the `BasisSet::Quadrature` face integrates with, whether the mesh
+  behind that face is an FFT raster, a uniform cell grid, or an atom-centred Becke build."*  The engine
+  bypasses a facility that exists and was written for it, which is a worse finding than a gap.
+  ⚖ **In fairness to the bypass**, `XC_SinglesQuadrature::Integrate` is a deliberate 2026-08-23 change of
+  vocabulary, not an oversight: it dots coefficients with the fit FUNCTIONS' own integrals
+  (\f$\sum_a c_a\langle f_a|1\rangle\f$) because on a \f$\delta\f$ basis \f$c_g=f(r_g)\f$ and
+  \f$\langle\delta_g|1\rangle=w_g\f$.  Its own comment concedes the arithmetic and the summation order are
+  identical to `qcMesh::Integrate`.  So: same sum, different vocabulary, and the question is whether the
+  vocabulary earns a duplicate.
+
+  ⚠ **(4) THE CONSTRAINT THE FRAMING MISSES — and it is load-bearing, not incidental.**  *"Integrate a
+  `ScalarFunction`/`VectorFunction` over the mesh"* describes ONE of the three routes.  The PAIR route's
+  \f$H_{ij}\f$ is **not a point sum at all**: it is `g.applyRawAdjoint(v)` — a contraction through the
+  orbital-pair 3-centre tensor, box-truncated per multigrid level with the same \f$\varepsilon\f$-screening
+  as the forward collocation.  That is the *point* of it: \f$H\f$ is \f$\partial E_{xc}/\partial D\f$ of the
+  **one raw discrete functional** to machine precision (gate: `GPW.RawXCConsistencyFD`).  Routing it through
+  `qcMesh::WeightedOverlap` would integrate a DIFFERENT operator from the one collocated, and the class
+  header records what that costs when it happens: an unscreened \f$\rho\f$ paired with a screened \f$H\f$
+  sent Si from **14 to 60 iterations** and moved E by 35 µHa.
+  ⇒ **The forward and the adjoint must stay one object.**  Any decomposition has to keep the pair together;
+  "move the integration to qcMesh" is right for the *scalar* `Integrate` and wrong for `Matrix`.
+
+  ▶ **THE DECOMPOSITION THIS IMPLIES** (not yet built):
+  1. `Integrate(rvec_t)` → delegate to `qcMesh::Integrate(mesh, f)`; keep the δ-basis vocabulary only if a
+     measurement says the fit-function framing buys something.  Bit-identical by construction (same order).
+  2. The observable (`SiteMoments` + emission) → out; it is `qcMesh::SiteIntegrals` plus a report line, and
+     it already calls exactly that.
+  3. `Symmetrize`/`SymmetrizeSpin` → out to the symmetry side; they are orbit projections over a `Fold`.
+  4. What remains — \f$\rho\f$ sampling, its caches, the route latch, and the ADJOINT-PAIRED `Matrix` — is
+     the real object, is not "XC", and is not "quadrature" either.  It is **the density↔operator seam**.
+     Name it for that.
+  ⚠ Sequence AFTER the library-home decision (R1.0e), since (1)-(3) shrink what has to move.
+
 - **R1.0h ⚠ THE \f$H_{ij}\f$ CACHE IS THE SAME MISTAKE AS THE ONE JUST UNDONE — and `DB_Cache` is not the
   answer (user, 2026-09-08).**
 
