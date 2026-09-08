@@ -1143,6 +1143,56 @@ MnO campaign proceeds undisturbed in qchem6.
   and no `if (auto* p = dynamic_cast…)` guard*.  That one found all six defects and, after excluding
   in-place `if` guards, produced only ONE false positive (a commented-out line).
 
+- **R1.0k ▶ THREE PROPOSED qcMesh EXTENSIONS — evaluated 2026-09-08.  TWO YES, ONE NO.**
+  (User: *"1) Extend qcMesh to support FoldedMesh … 2) Extend qcMesh to support 3 center Overlap, 3) Extend
+  qcMesh to support forward and adjoint matrix integrals."*)
+
+  ✅ **(1) `FoldedMesh` — YES, and it is the strongest of the three.**  It already exists in all but name and
+  in the wrong library: `BasisSet::FitQuadrature` is
+  `{shared_ptr<const qcMesh::Mesh> mesh; Fold fold; vector<SpinAction> sigmas; vector<char> flipFixed;}` —
+  a mesh plus its orbit structure, declared in `src/BasisSet/Fit_Types.C` (a *fitting* header) and passed by
+  value into the quadrature engine, which then wires `itsQuad.mesh` to `itsQuad.fold` by hand.
+  - **Legal:** `Fold` is pure INDEX bookkeeping (`owner`, `repRaw`, `starSize`, `members`) with no geometry,
+    and `SymmetrizeValues(fold, vals)` is a template over the value container.  `qcSymmetry` imports nothing
+    from `qcMesh`, so `qcMesh → qcSymmetry` closes no cycle. *(Checked in both directions this time.)*
+  - ★ **The real prize is an INVARIANT, not tidiness.**  The pointwise star-average is an EXACT projector
+    **only because the mesh is invariant under the ops the fold was built from** (the §6a W1 precondition).
+    Today nothing ties the two together: the fold arrives beside the mesh and the engine asserts sizes at
+    the point of use.  `FoldedMesh` makes "these stars belong to these points" a class invariant — the same
+    kind of win as keeping the forward and adjoint in one object (R1.0j(4)).
+  - It also retires a leak: the Shubnikov spin tags (`sigmas`, `flipFixed`) currently ride in a **fitting**
+    struct, which is neither fitting nor mesh business.
+
+  ⛔ **(2) 3-CENTRE OVERLAP IN qcMesh — NO, not now: it would have no caller.**  `qcMesh::Quadrature`
+  already offers the 1- and 2-`VectorFunction` overlaps, so a 3-centre sibling is a natural-looking gap —
+  but a mesh-level \f$\langle\chi_i f_c \chi_j\rangle\f$ is the naive \f$O(n_{pts}n^2n_{fit})\f$ triple
+  loop, and **a search for any mesh-based 3C consumer in the tree returns nothing.**  Every production 3C
+  goes through `Projector3`'s three realizations — dense per-column, plane-wave delta support, or
+  matrix-free analytic collocation — precisely because the naive form is unaffordable at production sizes.
+  ▶ It has one plausible future use: a REFERENCE implementation to gate the screened routes against.  That
+  makes it **test scaffolding when a gate wants it**, not library API on spec.  Adding an exported function
+  with no caller is how a library grows a face nobody maintains.
+
+  ✅ **(3) FORWARD + ADJOINT MATRIX INTEGRALS — YES, but NARROWLY, and the general version already exists.**
+  - ⚠ **The general one is `Projector3` and it cannot move.**  It already carries the pair —
+    `apply`/`applyAdjoint` and `applyRaw`/`applyRawAdjoint`, deliberately type-erased ("*so this leaf names
+    no GPW/grid type*").  But it is G-SPACE STEEPED: `ΔG_Map`, `ivec3_t` columns, `kernel` = \f$4\pi/|G|^2\f$,
+    a cell `volume`.  None of that belongs in a mesh library.
+  - ✅ **The narrow one is a real, small gap.**  qcMesh already has HALF the pair:
+    `WeightedOverlap(m, a, const rvec_t& V)` **IS** the adjoint (field \f$\to\f$ matrix).  What is missing is
+    the FORWARD — a `Collocate(m, a, D) -> rvec_t` giving
+    \f$\rho(r_g)=\sum_{ij}D_{ij}\chi_i(r_g)\chi_j(r_g)\f$.  That single function completes the dense
+    point-sum pair, and it is exactly what `XC_SinglesQuadrature` re-implements today.
+  - ⚠ **AND A WARNING THAT MUST TRAVEL WITH IT.**  Offering forward and adjoint as two independent free
+    functions makes a MISMATCH expressible again — a screened forward paired with an unscreened adjoint is
+    the defect the engine's one-object design was built to prevent, measured at Si 14 \f$\to\f$ 60 iterations
+    and 35 µHa.  qcMesh's two are consistent *with each other* by construction (same points, same weights,
+    no screening), so the pair is safe **as long as nobody mixes one of them with a screened partner**.
+    ▶ Say so at the declaration, and keep the PAIR route on its tensor adjoint where it belongs.
+
+  ▶ **ORDER:** (1) then (3); both shrink what R1.0e has to relocate, so do them before choosing the library
+  home.  (2) stays unbuilt until a gate asks for it.
+
 - **R1.0j ★★ WHAT THE "XC QUADRATURE" ACTUALLY IS — the user's critique, tested against the code
   (2026-09-08).**  Four claims were put; three hold, one needs a correction, and one carries a constraint
   the framing did not account for.
