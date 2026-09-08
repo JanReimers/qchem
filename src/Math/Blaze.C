@@ -3,6 +3,8 @@ module;
 #include <blaze/Math.h>
 #include <complex>   // std::conj -- conjs() below (blaze::conj is NOT scalar conjugation)
 #include <utility>
+#include <cassert>     // NarrowExact's exactness assert
+#include <type_traits> // NarrowExact's identity branch
 export module qchem.Blaze;
 export import qchem.Types;
 //
@@ -21,6 +23,35 @@ export namespace qchem::blazem
     // Hermitian counterpart of zero(): an NxN zeroed hmat_t (SymmetricMatrix for real T,
     // HermitianMatrix for complex T).  A zero matrix is trivially Hermitian, so the per-column
     // scalar zeroing keeps the adaptor's invariant.
+    //! \brief EXACT narrow of a Hermitian complex matrix to scalar \a U: identity for \c dcmplx, and for
+    //! \c double the real part with the imaginary part ASSERTED bitwise zero.
+    //!
+    //! The real-TRIM-block faces need it (doc/RealComplexPlan.md Step 3c): at a TRIM k every Bloch phase is
+    //! exactly ±1, so a complex-assembled block's imaginary part is 0.0 EXACTLY, not merely small -- and the
+    //! assert is what keeps that a THEOREM rather than a hope (gate:
+    //! \c GPW.TRIM_RealBlockMatchesComplexBitwise).
+    //!
+    //! It lives here because it now has THREE call sites in two libraries -- \c qcHamiltonian's periodic
+    //! terms, the XC quadrature engine, and \c BasisSet::Lattice_3D::ToScalar -- which is exactly the
+    //! condition its own comment named for promotion ("consolidate into qcMath if a third copy ever
+    //! appears", 2026-08).  Duplicating it a third time inside a module that cannot see the other two
+    //! would have been the wrong answer twice over.
+    template <class U> hmat_t<U> NarrowExact(const hmat_t<dcmplx>& m)
+    {
+        if constexpr (std::is_same_v<U,dcmplx>) return m;
+        else
+        {
+            hmat_t<U> r(m.rows());
+            for (size_t i=0;i<m.rows();i++)
+                for (size_t j=i;j<m.columns();j++)
+                {
+                    assert(std::imag(m(i,j))==0.0 && "NarrowExact: imaginary part must be EXACTLY zero");
+                    r(i,j)=std::real(m(i,j));
+                }
+            return r;
+        }
+    }
+
     template <typename T> hmat_t<T> zeroH(size_t N)
     {
         hmat_t<T> z(N);

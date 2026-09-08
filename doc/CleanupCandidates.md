@@ -1083,6 +1083,46 @@ MnO campaign proceeds undisturbed in qchem6.
   **Not merged in the same window, on purpose** — two refactors converging on one seam from opposite sides
   makes neither reviewable.
 
+- **R1.0h ⚠ THE \f$H_{ij}\f$ CACHE IS THE SAME MISTAKE AS THE ONE JUST UNDONE — and `DB_Cache` is not the
+  answer (user, 2026-09-08).**
+
+  > *"Maybe trying to cache Hij matrices in the Hamiltonian library is also a similar mistake.  I think they
+  > need to [be] cached somewhere so E_xyz[rho] calls don't recalculate Hij.  Can we delegate this to
+  > DB_Cache?"*
+
+  **The diagnosis is right.**  `tDynamic_HT_Imp::GetMatrix` stores its result in `mutable CacheMap itsCache`
+  keyed by `Irrep`, guarded by a density serial, filled DURING the per-block loop — exactly the automatic,
+  implicit, shared-across-blocks shape that `doc/Pins.md` pin 11 is about.  It exists for one reason: the
+  ENERGY pass re-asks for the same block (`GetEMatrix` defaults to `GetMatrix`, and
+  `IrrepCD::DM_Contract` drives it), so without the memo every term recomputes its block twice per
+  iteration.  It is also **the one remaining write inside the block loop** after the eager-refresh phase
+  landed — the k-independent memos are warmed now, but this one is k-DEPENDENT and cannot be.
+
+  ⛔ **BUT NOT `DB_Cache`, and the reason is structural, not stylistic.**  `DB_Cache` is a **process-wide
+  cache of GEOMETRY-KEYED STATIC integrals**, built for cross-RUN sharing — its own header says *"Global
+  integrals cache allow data sharing between separate runs"*, and every key axis is an identity string:
+  `BasisSetID`, `Structure_ID_t`, `Mesh_ID_t`, `RadialTypeID_t`.  Its entire value proposition is that the
+  same overlap matrix serves two `Calculation` objects.  The \f$H_{ij}\f$ memo is the opposite animal on
+  every axis that matters:
+
+  | | `DB_Cache` entries | the \f$H_{ij}\f$ memo |
+  |---|---|---|
+  | keyed on | basis / structure / mesh IDENTITY | a **density serial** |
+  | turnover | never (geometry-fixed) | **every SCF iteration** |
+  | reusable across runs | yes — the whole point | **never**: a different density |
+  | lifetime | process | one iteration |
+
+  Storing per-iteration matrices in a never-evicting process-wide store is an unbounded leak with extra
+  steps, and it would poison the one property `DB_Cache` exists for.
+
+  ▶ **THE FIX IN THE SPIRIT OF PIN 11: an explicit per-iteration SCOPE.**  Give the iteration an object
+  that owns this iteration's assembled blocks, created by the SCF around the Fock+energy passes and
+  destroyed with them.  It fixes both halves at once: the phase becomes visible instead of implicit in call
+  order (pin 11), **and** the shared-map write disappears, because each block writes its own slot rather
+  than inserting into one `std::map` — which is the last thing standing between the block loop and running
+  concurrently (`doc/OpenWork.md` item **KP**).
+  ⚠ Sequence it AFTER the `XCQuadrature` library move: both touch the term/engine boundary.
+
 - **R1.0e ✅ THE FILE SPLIT IS DONE 2026-09-08; THE SCOPE QUESTION IT EXPOSED IS THE OPEN PART.**
   (Original: USER, 2026-08-23, *"the enormous PWTerms TU is going to need a massive refactoring cleanup
   eventually"*, restated 2026-09-08: *"src/Hamiltonian/Internal/PWTerms.C is huge, again doing too many
@@ -1125,20 +1165,39 @@ MnO campaign proceeds undisturbed in qchem6.
   | **raster geometry** (`Raster()`, voxel counts, the uniform quadrature rule) | grid management | `qcBasisSet` |
   | `bool& ReportGridCharge()` | process-wide MUTABLE state in a library | `theRunPolicy()`, which already carries every other run-scoped switch |
 
-  ✅ **THE MOVE IS LEGAL — CHECKED, NOT ASSUMED (2026-09-08):** nothing in `qcFitting`, `qcBasisSet`,
-  `qcMesh`, `qcSymmetry` or `qcChargeDensity` imports `qchem.Hamiltonian.*`, so there is no cycle; and
-  `qcFitting` already links `qcBasisSet qcSymmetry qcStructure qcMesh`, i.e. everything the engine touches.
-  `qchem.Hamiltonian.Types` — the only Hamiltonian-side thing the engine names — is a pure typedef module
-  over `BasisSet::Orbital_1E_IBS<T>` with no Hamiltonian dependency of its own.
-  ★ `src/Fitting/Imp/FunctionFitter.C:67` already says its capability question *"is the same question
-  `MakeXCQuadrature` asks"* — the duplication was noticed from the other side a year before this.
+  ⛔ **RETRACTION — "the move to `qcFitting` is legal" WAS WRONG, and it was my own claim (2026-09-08).**
+  The check I ran looked for a cycle from the HAMILTONIAN side (nothing below imports `qchem.Hamiltonian.*`
+  — true) and at what `qcFitting` already links.  It never asked what **the engine** needs.  The engine
+  takes a `cChargeDensity` in **42 places** (`Version()`, `ProjectOnto`, the `cPolarized_CD` and
+  `FourierDensity` cross-casts) — and **`qcChargeDensity` LINKS `qcFitting`**.  So moving the engine down
+  into `qcFitting` closes a library cycle `qcFitting → qcChargeDensity → qcFitting`, which the linker
+  forbids and rightly.
+  ▶ **The lesson, which is more useful than the item:** *checking one direction of a dependency question is
+  not checking it.*  "Does anything below import me?" and "what do I import?" are different questions and
+  both have to be answered.
 
-  ▶ **THE INCREMENT, when it is scheduled:** promote the two `XCQuadrature_*` units + the `XC_Quadrature`
-  hierarchy out of `Internal/PWTerms.C` into their own module in `qcFitting` (`qchem.Fitting.XCQuadrature`),
-  leaving `PWTerms_XC.C`'s three term classes — which are genuinely thin, and genuinely "functional in,
-  \f$H_{ij}\f$ and \f$E\f$ out" — behind.  ⚠ **Do it AFTER `LatticeSum1E`'s ISP split** (item 5 on the
-  user's Stage-B list): both refactors touch the collocate/integrate-back seam from opposite sides, and
-  landing them together makes neither reviewable.
+  ✅ **DONE 2026-09-08 — THE MODULE IS EXTRACTED, which was always the load-bearing step.**
+  `qchem.Hamiltonian.Internal.XCQuadrature` (interface `Internal/XCQuadrature.C`, 422 lines; the two
+  `Imp/XCQuadrature_*.C` units retargeted onto it).  `PWTerms.C` drops from 671 → 383 lines and now
+  IMPORTS the engine; it is not re-exported (an `.Internal.` module never is — CLAUDE.md), so the three
+  test files that want `MakeXCQuadrature` name it directly.  The engine declares its OWN
+  `using ChargeDensity::cChargeDensity/cDM_CD` rather than inheriting them from `qchem.Hamiltonian`,
+  because importing the term face is precisely the dependency the extraction exists to break — and that
+  short list IS the coupling that makes `qcFitting` illegal.  830/830.
+  ★ Fallout worth having: `NarrowExact` was needed by both modules, so it was **promoted to `qcMath`**
+  (`blazem::NarrowExact`) — which is exactly the condition its own comment had named for promotion
+  (*"consolidate into qcMath if a third copy ever appears"*, 2026-08).
+
+  ▶ **THE LIBRARY HOME IS AN OPEN DECISION — one question, two candidates:**
+  1. **`qcChargeDensity`** — legal today, no new scaffolding, and the ρ-sampling half genuinely is its
+     business (`cDM_CD::ProjectOnto` is already the mechanism).  ⚠ But the ADJOINT half (field →
+     \f$H_{ij}\f$) is basis business, so the engine would sit slightly high.
+  2. **A new leaf library between `qcChargeDensity` and `qcHamiltonian`** — cleanest layering, and it is
+     what the concern actually is: the (grid × fit basis) layer of `doc/Pins.md` pin 2.  Costs one more
+     library in the DAG.
+
+  ★ `src/Fitting/Imp/FunctionFitter.C:67` already says its capability question *"is the same question
+  `MakeXCQuadrature` asks"* — the duplication was visible from the other side long before this.
 
   ⚠ **STILL OPEN from the original item:** the atom block still derives `Evaluatable_IBS`, and its `op(r)`
   is still the FAKE RADIAL — the promise kept in form and broken in substance, contained (not cured) by

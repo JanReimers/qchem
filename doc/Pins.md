@@ -90,14 +90,44 @@ Periodic/GPW energies are **"did-E-move" anchors** — pin the converged value, 
 a real-space-on-lattice quantity must equal its finite counterpart, assert **bit-consistency** (`L_PP`-style)
 rather than an absolute oracle.
 
-## 11. No grad-student knobs
+## 11. An explicit phase beats an automatic one — the `UseChargeDensity` lesson
+
+> **USER, 2026-09-08:** *"this code used to have exactly `tDynamic_HT::UseChargeDensity(cd)`, and I was too
+> clever by half trying to make it all 'automatic' which ended being a source of bugs and finally blocking
+> irrep omp … lesson learned!"*
+
+The term stack once had an EXPLICIT *"here is the density, prepare yourself"* call.  It was replaced by
+automatic, self-correcting, per-object density-serial guards — each one locally correct, and collectively:
+
+- a class of bugs (a memo believing it was fresh; the `itsRho`/`itsXCMix` aliasing that made
+  \f$\alpha=0.25\f$ and \f$\alpha=1.0\f$ produce **bit-identical** runs; the DM-source staleness guard
+  that had to be added back as a LIVE check because its `assert` was compiled out in Release), and
+- an architectural block: lazy-fill-on-first-touch turned every k-independent memo into a
+  write-on-first-touch, which is what stopped the per-block loop being threadable at all.
+
+`tHamiltonian::RefreshForDensity` (2026-09-08) is `UseChargeDensity` returning by another name.  ⇒ **When
+work must happen once per density / per iteration / per geometry, give it a PHASE and a name.**  An
+automatic guard hides the phase structure in call order, and call order is not a thing anyone can see.
+
+⚠ **The same suspicion now falls on the \f$H_{ij}\f$ cache** (user, same message): `tDynamic_HT_Imp` stores
+its result in `mutable CacheMap itsCache` keyed by `Irrep`, filled during the block loop, purely so the
+ENERGY pass (`GetEMatrix` → `IrrepCD::DM_Contract`) does not recompute what the Fock pass just built.  Same
+shape, same smell — and it is the one remaining write inside the loop.  ⛔ **`DB_Cache` is NOT the answer**:
+it is a process-wide cache of *geometry-keyed STATIC* integrals built for cross-run sharing (its own header:
+*"allow data sharing between separate runs"*), keyed on `BasisSetID` / `Structure_ID` / `Mesh_ID`.  The
+\f$H_{ij}\f$ memo is keyed on a DENSITY SERIAL that turns over every iteration and is never reusable across
+runs; putting it there is an unbounded leak with extra steps.  ▶ The fix in the spirit of this pin is an
+explicit **per-iteration scope** that owns the matrices and dies with the iteration — which also removes the
+shared-map write, because each block writes its own slot.  Filed as `doc/CleanupCandidates.md` R1.0h.
+
+## 12. No grad-student knobs
 
 Policy enums, not numeric dials.  A number a user has to tune is a design failure looking for somewhere to
 live.
 
 ---
 
-**Where these came from.**  1, 3, 5, 7, 8, 9, 10, 11 were `doc/GPWPlan.md`'s pins section (2026-07).
+**Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
 2, 4, 6 are user rulings recorded in session memory (`feedback_everything_is_a_fit`,
 `feedback_integrated_observables`, `feedback_pw_fitting_uniform_interface`) and had no home in the repo
 until now.

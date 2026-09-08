@@ -1,6 +1,7 @@
 // File: Hamiltonian/Internal/Imp/XCQuadrature_Singles.C  the SINGLES strategy: rho and H_xc both contracted through a cached Phi table.
 //
-// One implementation unit of module qchem.Hamiltonian.Internal.PWTerms.  Split 2026-09-08 out of a
+// One implementation unit of module qchem.Hamiltonian.Internal.XCQuadrature (extracted from
+// qchem.Hamiltonian.Internal.PWTerms 2026-09-08 -- see that module's header for why).  Split 2026-09-08 out of a
 // single 1213-line Imp/PWTerms.C (user: "PWTerms.C is huge, again doing too many things") into the
 // interface-plus-many-Imp-units shape Internal/Terms.C has always had.  Helpers shared by more than
 // one unit (NarrowExact, SampledField) live in the module INTERFACE's non-exported section, which is
@@ -18,7 +19,7 @@ module;
 #include <memory>
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
-module qchem.Hamiltonian.Internal.PWTerms;
+module qchem.Hamiltonian.Internal.XCQuadrature;
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.Energy;
 import qchem.ChargeDensity;

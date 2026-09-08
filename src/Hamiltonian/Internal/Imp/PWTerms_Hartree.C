@@ -58,7 +58,7 @@ template <class U> hmat_t<U> Vee_Hartree::MakeMatrixT(const tobs_t<U>* bs, const
     // (doc/GPWPlan §0e step 2).  The FIELD is memoized on the density serial (CoulombField): every irrep block
     // of one Fock build asks for the identical map, and so does the energy.
     const ΔG_Map& VH=CoulombField(cd);
-    return NarrowExact<U>(ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
+    return blazem::NarrowExact<U>(ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
         [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; }));
 }
 chmat_t Vee_Hartree::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}

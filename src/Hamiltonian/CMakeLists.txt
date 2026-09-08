@@ -20,9 +20,11 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/PWTerms_PP.C
     Internal/Imp/PWTerms_Hartree.C
     Internal/Imp/PWTerms_XC.C
-    # ⚠ THESE TWO ARE THE RELOCATION CANDIDATE -- they are a SAMPLING ENGINE (rho at points, the adjoint
-    # back, Phi tables, per-serial caches, the orbit star-average), not "H_ij and E from a density".
-    # See doc/CleanupCandidates.md R1.0e.
+    # ⚠ THE SAMPLING ENGINE -- its OWN module since 2026-09-08 (qchem.Hamiltonian.Internal.XCQuadrature).
+    # It is not "H_ij and E from a density" and does not belong in this library; the module boundary is the
+    # step that makes the library move a CMake change instead of surgery.  The HOME is an open decision:
+    # it cannot go to qcFitting (that would close a cycle -- see the module header).
+    # doc/CleanupCandidates.md R1.0e.
     Internal/Imp/XCQuadrature_Pair.C
     Internal/Imp/XCQuadrature_Singles.C
     Internal/Imp/HamiltonianImp.C
@@ -45,6 +47,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/IonIon.C
     Internal/Kinetic.C
     Internal/Terms.C
+    Internal/XCQuadrature.C
     Internal/PWTerms.C
 )
 

@@ -30,6 +30,9 @@ import qchem.Hamiltonian;                          // Static/Dynamic_HT_RealBloc
 import qchem.Hamiltonian.Internal.Kinetic;         // Kinetic<T> (tests may cheat-import internals)
 import qchem.Hamiltonian.Internal.Hamiltonian;     // tHamiltonianImp<dcmplx> (the 3c-2 assembly gate)
 import qchem.Hamiltonian.Internal.PWTerms;         // the periodic term set + the two XC_Quadrature strategies
+import qchem.Hamiltonian.Internal.XCQuadrature;  // the XC sampling engine (its own module
+                                                  // since 2026-09-08; .Internal. modules are
+                                                  // never re-exported, so name it directly)
 import qchem.BasisSet.DeltaFit_IBS;                // DeltaFit_IBS -- the delta basis the singles strategy runs on
 import qchem.Symmetry.Factory;                     // BlochFactory (its Gamma irrep)
 import qchem.Hamiltonian.Internal.SlaterExchange;  // SlaterExchange (the Dirac-exchange functional)

@@ -50,6 +50,9 @@ import qchem.RunPolicy;                         // ReresolveRunPolicy() -- the d
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); Vxc_Quadrature + the two XC_Quadrature strategies
+import qchem.Hamiltonian.Internal.XCQuadrature;  // the XC sampling engine (its own module
+                                                  // since 2026-09-08; .Internal. modules are
+                                                  // never re-exported, so name it directly)
 import qchem.BasisSet.DeltaFit_IBS;              // DeltaFit_IBS -- the delta basis the singles strategy runs on
 import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform -- the uniform probe's own point count
 import qchem.Mesh.Angular;                        // MakeAngular (the rotated-Lebedev bond-angle probe)
