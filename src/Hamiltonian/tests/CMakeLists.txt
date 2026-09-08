@@ -3,6 +3,7 @@
 add_executable(UTHamiltonian ../../Common/tests/gtestmain.C
    Libxc.C
    LDA_XC.C
+   EagerRefresh.C
 )
 
 target_compile_definitions(UTHamiltonian PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

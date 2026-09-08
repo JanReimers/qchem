@@ -238,6 +238,23 @@ template <class T> tCompositeWF<T>::~tCompositeWF()
 template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
     {
+        // ★ THE EAGER REFRESH PHASE, BEFORE THE BLOCK LOOP (doc/OpenWork.md item KP, 2026-09-07).
+        //
+        // Every term's expensive density-derived state -- the Hartree V_H field, rho on the XC
+        // quadrature's points -- is k-INDEPENDENT: ONE object, correct for every Bloch block below.  It
+        // used to be filled LAZILY by whichever block asked first, which makes a read-only shared resource
+        // into a WRITE-ON-FIRST-TOUCH and is the single thing standing between this loop and running its
+        // blocks concurrently (the k-point/irrep axis: CP2K's PARALLEL_GROUP_SIZE, QE's pools, VASP's
+        // KPAR).  Hoisting it here makes the phase structure EXPLICIT instead of implicit in call order --
+        // which is the better design whether or not the loop is ever threaded.
+        //
+        // ⚠ IT IS A PRE-WARM, NOT A REPLACEMENT.  Every memo keeps its own density-serial guard and those
+        // guards remain the correctness mechanism; this only means that in the ordinary path nothing is
+        // written below.  See tDynamic_HT::RefreshForDensity for why a stronger claim would be false.
+        qchem::report::Timed timed("scf: eager refresh (density-derived, k-independent)");
+        ham.RefreshForDensity(cd);
+    }
+    {
         // itsBS (the whole/composite basis) IS the cross-irrep view a dynamic term may exploit: Iterate<tobs_t>()
         // over it yields every irrep block (doc/ERI4Rework.md §5.4).  Static terms and most dynamic terms ignore it.
         qchem::report::Timed timed("scf: Fock assembly (its term buckets are children)");
@@ -269,6 +286,10 @@ template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::Init(tHamiltonian
 // (the seed step) -- the caller should fall back to DoSCFIteration().
 template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
+    {   // the same eager refresh the fixed-point path runs -- see DoSCFIteration for why
+        qchem::report::Timed timed("scf: eager refresh (density-derived, k-independent)");
+        ham.RefreshForDensity(cd);
+    }
     {
         qchem::report::Timed timed("scf: Fock assembly (its term buckets are children)");
         for (auto& w:itsIWFs) CalcH<T>(w,ham,cd,itsBS);

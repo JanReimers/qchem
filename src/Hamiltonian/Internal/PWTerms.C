@@ -202,6 +202,10 @@ public:
     //! Built with the density-fit basis (from the orbital basis's factory, exactly as \c FittedVee is).
     //! No structure and no pseudopotential model: pure \f$V_H[\rho]\f$ has no use for either.
     explicit Vee_Hartree(fbs_t chargeDensityFitBasisSet);
+    //! Pre-warm \f$V_H[\rho]\f$ for \a cd -- the EAGER REFRESH PHASE (doc/OpenWork.md **KP**).  The
+    //! Coulomb field is a function of the density alone, so ONE evaluation serves every Bloch block; it
+    //! was previously computed inside whichever block's \c MakeMatrix ran first.
+    virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
     //! \brief \f$V_H[\rho]\f$ IS THE SAME OPERATOR FOR EVERY SPIN CHANNEL -- it depends on the TOTAL
@@ -285,6 +289,19 @@ public:
     //! entry per site block of my quadrature.  Default EMPTY -- a quadrature with no atomic partition (a
     //! uniform raster) has no basins to integrate over, and the caller must ask rather than assume.
     virtual rvec_t SiteMoments(const cChargeDensity*) const {return rvec_t();}
+    //! \brief Pre-warm this engine's per-density caches for \a cd -- the EAGER REFRESH PHASE
+    //! (doc/OpenWork.md item **KP**).  \a polarized picks which shape to warm, because the two are
+    //! mutually exclusive on one engine (see the cross-invalidation warning on both implementations: an
+    //! engine answers \c Rho or \c RhoPol for a run, never both).
+    //!
+    //! It is expressed as ONE call rather than "the term calls Rho/RhoPol itself" so that the WARMING and
+    //! the SHAPE RULE stay in the engine that owns the caches; a term that reached in by name would have
+    //! to know the exclusivity rule too.
+    virtual void WarmForDensity(const cChargeDensity* cd, bool polarized) const
+    {
+        if (polarized) { RhoPol(cd, Spin::Up); RhoPol(cd, Spin::Down); }
+        else           { Rho(cd); }
+    }
 };
 
 //! \brief THE SINGLES STRATEGY: \f$\rho\f$ and \f$H_{xc}\f$ both contracted through a cached basis table
@@ -559,6 +576,9 @@ public:
     typedef std::shared_ptr<ExFunctional> xc_t;
     typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
     Vxc_Quadrature(const xc_t&, quad_t);
+    //! Pre-warm \f$\rho\f$ on the quadrature's points for \a cd (the EAGER REFRESH PHASE).  Delegated to
+    //! the shared engine, so the XC PAIR warms once between them.
+    virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
@@ -588,6 +608,8 @@ public:
     typedef std::shared_ptr<ExFunctional>  xc_t;
     typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
     Vxc_QuadraturePol(const xc_t&, quad_t);
+    //! Pre-warm the \f${\uparrow,\downarrow}\f$ pair on the quadrature's points (the EAGER REFRESH PHASE).
+    virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual bool          IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;
@@ -624,6 +646,8 @@ public:
     //! ⚠ MOVED HERE from Vxc_QuadraturePol when the pair collapsed into one term: the Hamiltonian polls
     //! terms first-non-empty-wins, so the surviving XC term has to carry it.
     virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
+    //! Pre-warm the \f${\uparrow,\downarrow}\f$ pair on the quadrature's points (the EAGER REFRESH PHASE).
+    virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual bool          IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;

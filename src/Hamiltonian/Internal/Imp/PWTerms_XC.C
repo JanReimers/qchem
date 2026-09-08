@@ -169,4 +169,15 @@ std::ostream& Vcorr_QuadraturePol::Write(std::ostream& os) const
               << itsQuad->NumPoints() << " atom-centred points)." << std::endl;
 }
 
+
+// ---- THE EAGER REFRESH PHASE (doc/OpenWork.md item KP) -------------------------------------------------
+// rho on the quadrature's points is k-INDEPENDENT -- one array, correct for every Bloch block -- but it was
+// filled by whichever block asked first.  Warming it here makes the block loop read-only in the ordinary
+// path, which is the precondition for running the blocks concurrently.  All three delegate to the shared
+// engine, so an XC PAIR (exchange + correlation over one quadrature) warms exactly once between them: the
+// engine's serial guard turns the second call into a lookup.
+void Vxc_Quadrature      ::RefreshForDensity(const cChargeDensity* cd) const {itsQuad->WarmForDensity(cd,false);}
+void Vxc_QuadraturePol   ::RefreshForDensity(const cChargeDensity* cd) const {itsQuad->WarmForDensity(cd,true );}
+void Vcorr_QuadraturePol ::RefreshForDensity(const cChargeDensity* cd) const {itsQuad->WarmForDensity(cd,true );}
+
 } //namespace

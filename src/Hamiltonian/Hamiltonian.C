@@ -82,6 +82,25 @@ public:
     //! This irrep's POTENTIAL block (V) for basis \a bs / spin \a s, built from the current density \a cd --
     //! what the Fock/KS assembly adds up.
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
+    //! \brief PRE-WARM every density-dependent memo of this term for \a cd -- the EAGER REFRESH PHASE.
+    //!
+    //! WHAT PROBLEM THIS SOLVES (doc/OpenWork.md item **KP**, 2026-09-07).  A term's expensive
+    //! density-derived state -- the Hartree \f$V_H\f$ field, \f$\rho\f$ on the XC quadrature's points --
+    //! is **k-INDEPENDENT**: one object, correct for every Bloch block of the iteration.  But it is filled
+    //! LAZILY, on whichever block asks first, which turns a read-only shared resource into a
+    //! **write-on-first-touch**.  That is the single thing standing between the per-block loop in
+    //! \c tCompositeWF::DoSCFIteration and running its blocks concurrently -- the k-point / irrep parallel
+    //! axis every other code has (CP2K's \c PARALLEL_GROUP_SIZE, QE's pools, VASP's \c KPAR).
+    //!
+    //! ⚠ **THIS DOES NOT REPLACE THE LAZY FILL, IT PRE-WARMS IT.**  Every memo keeps its own density-serial
+    //! guard, and those guards remain the correctness mechanism: a term reached with an unrefreshed density
+    //! still computes the right answer.  What the phase buys is that in the ORDINARY path nothing is
+    //! written during the block loop.  Claiming more -- asserting the lazy path unreachable -- would be
+    //! false: energy evaluation and the unit tests drive terms outside any prologue.
+    //!
+    //! Default: no-op.  A term with no density-dependent memo has nothing to warm and must not be made to
+    //! say so.
+    virtual void RefreshForDensity(const tChargeDensity<T>*) const {}
     //! \copybrief tDynamic_CC::GetEMatrix
     //! Default: \f$E=D\cdot V\f$, so the energy matrix IS the potential block.  Overridden ONLY where that
     //! identity fails -- the xc family, whose energy density \f$\epsilon_{xc}\f$ is not its potential
@@ -249,6 +268,14 @@ public:
     //! \c SolidCalculation enforce the POSTCONDITION ON AN IMPOSITION: a run that imposes a magnetic
     //! (Shubnikov) group and then converges to zero moment has contradicted its own constraint.
     virtual rvec_t          SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
+    //! \brief Run the EAGER REFRESH PHASE over every term: fill the k-independent density-dependent memos
+    //! ONCE, before any Bloch block is assembled.
+    //!
+    //! Folded over the term lists exactly as \c IsVirialValid and \c SiteMoments are, so the caller never
+    //! sees the term list.  The SCF drives it from \c tCompositeWF::DoSCFIteration immediately before the
+    //! per-block Fock loop.  See \c tDynamic_HT::RefreshForDensity for what it is for and -- importantly --
+    //! for what it does not promise.
+    virtual void            RefreshForDensity(const tChargeDensity<T>*) const {}
 };
 
 // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t).  No bare (prefix-less) alias: it would shadow the

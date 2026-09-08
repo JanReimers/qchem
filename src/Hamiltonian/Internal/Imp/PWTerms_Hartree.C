@@ -116,6 +116,18 @@ double Vee_Hartree::Volume() const
 // ⚠ NOT BIT-IDENTICAL with the trace form: it is the same integral summed in a different order, so pinned
 // energies move at roundoff scale.  GPW_EH_TRACE=1 computes BOTH and prints the difference -- the A/B that
 // says so, kept as an instrument rather than deleted with the evidence.
+// THE EAGER REFRESH PHASE (doc/OpenWork.md item KP).  V_H[rho] is a function of the density alone, so one
+// evaluation serves every Bloch block of the iteration -- but it used to be computed inside whichever
+// block's MakeMatrix ran first, which is a WRITE during what is otherwise a read-only per-block loop.
+// CoulombField() keeps its own serial guard, so this is a PRE-WARM and not a replacement: a caller that
+// reaches the term without a prologue still gets the right field, just built later.
+void Vee_Hartree::RefreshForDensity(const cChargeDensity* cd) const
+{
+    assert(cd);
+    Volume();              // geometry-fixed; memoised on first ask
+    CoulombField(cd);      // the density-dependent half -- the one that matters here
+}
+
 void Vee_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     newCD(cd);
