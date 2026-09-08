@@ -1,5 +1,7 @@
 // File: Cache4.C Cache object based on four unsigned integer indices.
 module;
+#include <stdexcept>   // RequireEngine (the survey fix, 2026-09-08)
+#include <string>
 #include <map>
 #include <memory>
 #include <string>
@@ -31,6 +33,34 @@ public:
     virtual bool isSupported(const Cache4_Client*) const=0;
     virtual size_t RAMsize() const=0;
 };
+
+//! \brief Cross-cast a \c Cacheable4 to the engine type that made it, THROWING with the type names when it
+//! is not that type.
+//!
+//! WHY IT EXISTS (the \c dynamic_cast survey, 2026-09-08; CLAUDE.md's standing TODO: *"throw custom
+//! exceptions full of relevant information in the event they fail"*).  Six call sites -- the
+//! \c direct/\c exchange function-pointer pair in each of the Gaussian, Slater and BSpline atom
+//! evaluators -- did this:
+//! \code
+//!     const RkEngine* cd = dynamic_cast<const RkEngine*>(c);
+//!     return cd->DirectRk(la,lc,Ak);          // <-- no null check
+//! \endcode
+//! The cast is correct BY CONSTRUCTION (the \c Cacheable4 came from the same evaluator's \c MakeCache4),
+//! but nothing enforced that, and the failure mode was a null dereference: a SEGFAULT in a static callback
+//! several layers below the mistake, with no evaluator, no engine and no operand in the message.  This
+//! turns that into a named exception, at the boundary, in Release as well as Debug -- an \c assert would be
+//! compiled out exactly where the benchmark runs (the same lesson \c RequireSiteBlocks records in
+//! src/Structure/Imp/UnitCell.C).
+//!
+//! \a who is the caller's own name, so the message says which engine and which operand.
+export template <class E> const E& RequireEngine(const Cacheable4* c, const char* who)
+{
+    if (const E* e=dynamic_cast<const E*>(c)) return *e;
+    throw std::runtime_error(std::string(who)+": this Cacheable4 is not the engine type this evaluator "
+        "makes.  The cache entry and the evaluator that reads it must come from the same radial family -- "
+        "a mismatch means a Cache4 built by one evaluator was handed to another, which is a composition "
+        "error, not a recoverable condition.");
+}
 
 //
 //  Derive from this class if you need to run four index loops in order to calculation HF Direct and Exchange

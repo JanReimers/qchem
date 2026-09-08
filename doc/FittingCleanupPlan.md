@@ -1,5 +1,13 @@
 # Fitting / PW-DFT-fit Cleanup Plan
 
+> **✅ ITEM C (the `dynamic_cast` survey) IS DONE — 2026-09-08.**  It was the last thing open in this
+> file.  Result: 253 cast sites censused; **6 real defects** (unchecked pointer casts dereferenced —
+> the `RkEngine` callbacks in the Gaussian/Slater/BSpline atom evaluators) fixed with a throwing
+> `RequireEngine<E>`; **no remaining abstract→concrete client cast** in production.  The largest
+> category turned out to be CRTP-through-`dynamic_cast` (53 sites), which is a performance question,
+> not a design violation.  Full write-up: `doc/CleanupCandidates.md` **R1.0i**.
+> ⇒ **This file is now a RECORD, not a live plan.**
+
 Follow-up cleanups surfaced while reviewing the plane-wave DFT-fit harmonization (see
 `doc/MolecularPP_HarmonizationFindings.md`). None block current use; this is a menu to sequence
 deliberately. Each item notes scope and whether it's bit-identical.

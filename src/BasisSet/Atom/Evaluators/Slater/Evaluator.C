@@ -96,13 +96,17 @@ public:
     using rvec11_t=rvec11_t;
     static double direct(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::qchem::Slater::RkEngine* cd = dynamic_cast<const ::qchem::Slater::RkEngine*>(c);
-        return cd->DirectRk  (la,lc,Ak); // contract over k Rk*Ak
+        // Survey fix 2026-09-08: was an unchecked dynamic_cast dereferenced on the next line --
+        // a segfault, not a diagnosis, if a Cache4 from another radial family ever arrived.
+        const ::qchem::Slater::RkEngine& cd = qchem::RequireEngine<::qchem::Slater::RkEngine>(c, "Slater::Evaluator::direct");
+        return cd.DirectRk  (la,lc,Ak); // contract over k Rk*Ak
     }
     static double exchange(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::qchem::Slater::RkEngine* cd = dynamic_cast<const ::qchem::Slater::RkEngine*>(c);
-        return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
+        // Survey fix 2026-09-08: was an unchecked dynamic_cast dereferenced on the next line --
+        // a segfault, not a diagnosis, if a Cache4 from another radial family ever arrived.
+        const ::qchem::Slater::RkEngine& cd = qchem::RequireEngine<::qchem::Slater::RkEngine>(c, "Slater::Evaluator::exchange");
+        return cd.ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
 
     int l;

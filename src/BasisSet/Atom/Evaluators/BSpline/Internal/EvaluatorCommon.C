@@ -45,13 +45,17 @@ public:
     virtual rvec_t Norm    () const override { return ns; }
     static double direct(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::qchem::BSpline::RkEngine<K>* cd = dynamic_cast<const ::qchem::BSpline::RkEngine<K>*>(c);
-        return cd->DirectRk  (la,lc,Ak); // contract over k Rk*Ak
+        // Survey fix 2026-09-08: was an unchecked dynamic_cast dereferenced on the next line --
+        // a segfault, not a diagnosis, if a Cache4 from another radial family ever arrived.
+        const ::qchem::BSpline::RkEngine<K>& cd = qchem::RequireEngine<::qchem::BSpline::RkEngine<K>>(c, "BSpline::EvaluatorCommon::direct");
+        return cd.DirectRk  (la,lc,Ak); // contract over k Rk*Ak
     }
     static double exchange(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::qchem::BSpline::RkEngine<K>* cd = dynamic_cast<const ::qchem::BSpline::RkEngine<K>*>(c);
-        return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
+        // Survey fix 2026-09-08: was an unchecked dynamic_cast dereferenced on the next line --
+        // a segfault, not a diagnosis, if a Cache4 from another radial family ever arrived.
+        const ::qchem::BSpline::RkEngine<K>& cd = qchem::RequireEngine<::qchem::BSpline::RkEngine<K>>(c, "BSpline::EvaluatorCommon::exchange");
+        return cd.ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
     virtual std::ostream& Write(std::ostream&) const override;
     virtual std::string   RadialID  () const override;

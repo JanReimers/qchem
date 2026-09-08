@@ -112,13 +112,14 @@ automatic guard hides the phase structure in call order, and call order is not a
 ⚠ **The same suspicion now falls on the \f$H_{ij}\f$ cache** (user, same message): `tDynamic_HT_Imp` stores
 its result in `mutable CacheMap itsCache` keyed by `Irrep`, filled during the block loop, purely so the
 ENERGY pass (`GetEMatrix` → `IrrepCD::DM_Contract`) does not recompute what the Fock pass just built.  Same
-shape, same smell — and it is the one remaining write inside the loop.  ⛔ **`DB_Cache` is NOT the answer**:
-it is a process-wide cache of *geometry-keyed STATIC* integrals built for cross-run sharing (its own header:
-*"allow data sharing between separate runs"*), keyed on `BasisSetID` / `Structure_ID` / `Mesh_ID`.  The
-\f$H_{ij}\f$ memo is keyed on a DENSITY SERIAL that turns over every iteration and is never reusable across
-runs; putting it there is an unbounded leak with extra steps.  ▶ The fix in the spirit of this pin is an
-explicit **per-iteration scope** that owns the matrices and dies with the iteration — which also removes the
-shared-map write, because each block writes its own slot.  Filed as `doc/CleanupCandidates.md` R1.0h.
+shape, same smell — and it is the one remaining write inside the loop.  ⛔ **`DB_Cache` is NOT the answer, and the
+reason is LIFETIME rather than the key**: it is a process-wide store that **never evicts**, built for
+cross-run sharing (its own header: *"allow data sharing between separate runs"*), while the
+\f$H_{ij}\f$ memo turns over **every SCF iteration** and is never reusable across runs.  Twenty iterations
+would leave twenty generations of every block in it.  *Ask what a cache EVICTS before asking what it keys
+on.*  ▶ The fix in the spirit of this pin is an explicit **per-iteration scope** that owns the matrices and
+dies with the iteration — which also retires the last write-shaped obstacle in the block loop, because the
+slots are CREATED in the phase and the loop only fills nodes that already exist.  Filed as `doc/CleanupCandidates.md` R1.0h.
 
 ## 12. No grad-student knobs
 

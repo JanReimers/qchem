@@ -1083,6 +1083,66 @@ MnO campaign proceeds undisturbed in qchem6.
   **Not merged in the same window, on purpose** — two refactors converging on one seam from opposite sides
   makes neither reviewable.
 
+- **R1.0i ✅ THE `dynamic_cast` SURVEY — DONE 2026-09-08.**  (CLAUDE.md's standing TODO: *"a system-wide
+  survey of these casts and throw custom exceptions full of relevant information in the event they fail"*;
+  also `doc/FittingCleanupPlan.md` item C, the last thing open in that file.)
+
+  **THE CENSUS: 253 cast sites, 220 in production, over 75 distinct target types.**  Classified, the
+  picture is not what the TODO's framing assumed — the tree is in better shape on the *design* axis and
+  worse on the *failure* axis:
+
+  | category | sites | verdict |
+  |---|---|---|
+  | **abstract → abstract capability cross-cast** (the intended idiom) | ~150 | ✅ fine — this is the design working |
+  | **CRTP-through-`dynamic_cast`** (`Cast()` = `dynamic_cast<const E&>(*this)`) | **53** | ⚠ not a violation, but see below |
+  | **unchecked pointer cast, dereferenced** | **6** | ⛔ **DEFECT — fixed here** |
+  | commented-out / test-only | rest | — |
+
+  ⛔ **THE DEFECT, AND IT WAS ONE SHAPE IN THREE PLACES.**  The `direct`/`exchange` static callbacks in the
+  **Gaussian**, **Slater** and **BSpline** atom evaluators each did:
+  ```
+  const RkEngine* cd = dynamic_cast<const RkEngine*>(c);   // c is a Cacheable4
+  return cd->DirectRk(la,lc,Ak);                           // <-- no null check
+  ```
+  The cast is abstract→CONCRETE **and** unchecked: a failure is a null dereference — a **segfault in a
+  static callback several layers below the mistake**, with no evaluator, no engine and no operand in the
+  message.  It is correct by construction today (the `Cacheable4` came from the same evaluator's
+  `MakeCache4`), which is exactly why it had survived: nothing enforces the construction.
+  ✅ **Fixed** by `qchem::RequireEngine<E>(c, who)` in `qchem.BasisSet.Internal.Cache4` — cross-cast or
+  **throw**, naming the caller and saying that a cache built by one radial family reached another, which is
+  a composition error rather than a recoverable condition.  ★ A `throw`, not an `assert`: an assert is
+  compiled out under `NDEBUG`, i.e. precisely where every benchmark and every production run lives — the
+  same lesson `RequireSiteBlocks` records in `src/Structure/Imp/UnitCell.C`, learnt there the hard way.
+
+  ★★ **THE SURVEY'S REAL SURPRISE: the single largest category of `dynamic_cast` in this tree is not a
+  design violation at all — it is CRTP.**  `Integrals_Overlap<E>`, `Integrals_Kinetic<E>` and their
+  siblings are mixins that reach their own host through `Cast()`:
+  ```
+  auto& Cast() const {return dynamic_cast<const E&>(*this);}
+  ```
+  `E` is known at COMPILE TIME.  This is a `static_cast` in every respect except that **virtual inheritance
+  makes `static_cast` illegal**, so the tree pays a runtime type-walk for a compile-time fact — on a face
+  that includes per-point `operator()` and `Gradient`.  ⇒ It is not a correctness problem and it is NOT on
+  the "abstract→concrete" list this survey was chartered to find, but it is a real, measurable cost with a
+  known cure (a non-virtual `Host()` accessor supplied by the leaf, or dropping virtual inheritance on this
+  one hierarchy).  ▶ **Filed as a PERFORMANCE question, not a cleanliness one — and it needs a MEASUREMENT
+  before anyone touches it**, because the cast may well be hoisted out of the loops that matter.  Do not
+  "fix" 53 sites on principle.
+
+  ✅ **AND THE HEADLINE FINDING IS THE NEGATIVE ONE:** after excluding the CRTP idiom and the six defects,
+  **the survey found no remaining abstract→concrete client cast in production code.**  The pattern
+  CLAUDE.md warns about is, as of today, not there.  Two of the last wide ones were retired earlier the
+  same day by R1.0g (`SolidCalculation` and the Lattice_3D basis had been cross-casting to a
+  seventeen-method face to ask one question).
+
+  ⚠ **METHOD NOTE, so this can be re-run rather than re-derived.**  The classifier is a heuristic and it
+  over-flags: `class X` bodies are matched textually, so a forward declaration, an aggregate of pure
+  abstract bases (`Periodic_Gaussian_IBS`), or an interface whose virtuals have inline `{}` defaults all
+  read as "concrete".  **Every flag must be hand-checked** — 18 flagged, 6 real.  The high-yield detector is
+  the other one: *pointer cast, assigned to a variable, dereferenced within a few lines with no null test
+  and no `if (auto* p = dynamic_cast…)` guard*.  That one found all six defects and, after excluding
+  in-place `if` guards, produced only ONE false positive (a commented-out line).
+
 - **R1.0h ⚠ THE \f$H_{ij}\f$ CACHE IS THE SAME MISTAKE AS THE ONE JUST UNDONE — and `DB_Cache` is not the
   answer (user, 2026-09-08).**
 
@@ -1098,29 +1158,39 @@ MnO campaign proceeds undisturbed in qchem6.
   iteration.  It is also **the one remaining write inside the block loop** after the eager-refresh phase
   landed — the k-independent memos are warmed now, but this one is k-DEPENDENT and cannot be.
 
-  ⛔ **BUT NOT `DB_Cache`, and the reason is structural, not stylistic.**  `DB_Cache` is a **process-wide
-  cache of GEOMETRY-KEYED STATIC integrals**, built for cross-RUN sharing — its own header says *"Global
-  integrals cache allow data sharing between separate runs"*, and every key axis is an identity string:
-  `BasisSetID`, `Structure_ID_t`, `Mesh_ID_t`, `RadialTypeID_t`.  Its entire value proposition is that the
-  same overlap matrix serves two `Calculation` objects.  The \f$H_{ij}\f$ memo is the opposite animal on
-  every axis that matters:
+  ⛔ **BUT NOT `DB_Cache` — and the reason is LIFETIME, not the key** (corrected by the user, 2026-09-08:
+  *"DB_Cache is actually keyed on enums and strings, but the other two points are valid"*).  ⚠ The earlier
+  framing here said `DB_Cache` was "geometry-keyed" and that this was what excluded a density serial.  That
+  was wrong and, worse, it was the WEAK argument: the key axes are an **operator ENUM** (`I1C`/`I2C`/`I2n`/
+  `I2x`/`I3C`/`I4C`) plus **identity STRINGS** (`IBS_ID_t`, `Structure_ID_t`, `Mesh_ID_t`,
+  `RadialTypeID_t`) — and a string will hold anything you put in it, a density serial included.  Keying is
+  not the obstacle.  **The obstacle is turnover against a store that never evicts:**
 
   | | `DB_Cache` entries | the \f$H_{ij}\f$ memo |
   |---|---|---|
-  | keyed on | basis / structure / mesh IDENTITY | a **density serial** |
-  | turnover | never (geometry-fixed) | **every SCF iteration** |
-  | reusable across runs | yes — the whole point | **never**: a different density |
+  | turnover | **never** — geometry-fixed for the process | **every SCF iteration** |
+  | reusable across runs | **yes — that is the whole point** (*"allow data sharing between separate runs"*) | **never**: a different density |
   | lifetime | process | one iteration |
 
-  Storing per-iteration matrices in a never-evicting process-wide store is an unbounded leak with extra
-  steps, and it would poison the one property `DB_Cache` exists for.
+  A 20-iteration SCF would leave 20 generations of every term's every block in a process-wide store that
+  has no reason to drop any of them — an unbounded leak with extra steps — and it would dilute the one
+  property `DB_Cache` exists for.  ⇒ *Ask what a cache EVICTS before asking what it keys on.*
 
-  ▶ **THE FIX IN THE SPIRIT OF PIN 11: an explicit per-iteration SCOPE.**  Give the iteration an object
-  that owns this iteration's assembled blocks, created by the SCF around the Fock+energy passes and
-  destroyed with them.  It fixes both halves at once: the phase becomes visible instead of implicit in call
-  order (pin 11), **and** the shared-map write disappears, because each block writes its own slot rather
-  than inserting into one `std::map` — which is the last thing standing between the block loop and running
-  concurrently (`doc/OpenWork.md` item **KP**).
+  ✅ **AND THE KEY IS ALREADY RIGHT — do not "fix" it** (user, 2026-09-08: *"you can just key off the irrep
+  object, `op<` is overloaded to use `SequenceIndex`.  We do this for irrep maps in many places."*).
+  `Irrep` orders through `Symmetry::SequenceIndex()`, so `std::map<Irrep,…>` is the tree's established
+  idiom and `itsCache` is using it correctly.  **Nothing about the KEY is the problem.**
+
+  ▶ **THE FIX IN THE SPIRIT OF PIN 11: an explicit per-iteration SCOPE.**  What is wrong is *when* and *by
+  whom* the entries appear: they are INSERTED lazily, from inside the per-block loop.  A `std::map`
+  insertion mutates the tree, so two blocks inserting concurrently race even though their keys differ —
+  whereas writing to two ALREADY-EXISTING nodes does not, since map nodes are address-stable.  So the cure
+  is the same shape as `RefreshForDensity`: an explicit phase that CREATES this iteration's slots (one per
+  irrep — the block list is known before the loop starts), after which the loop only fills nodes that are
+  already there.  Give that phase an owner — an object created by the SCF around the Fock+energy passes and
+  destroyed with them — and both halves fall out: the phase becomes visible instead of implicit in call
+  order (pin 11), and the last write-shaped obstacle in the block loop goes away
+  (`doc/OpenWork.md` item **KP**).
   ⚠ Sequence it AFTER the `XCQuadrature` library move: both touch the term/engine boundary.
 
 - **R1.0e ✅ THE FILE SPLIT IS DONE 2026-09-08; THE SCOPE QUESTION IT EXPOSED IS THE OPEN PART.**
