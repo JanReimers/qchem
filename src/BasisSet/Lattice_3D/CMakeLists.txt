@@ -1,5 +1,5 @@
 # src/BasisSet/Lattice_3D — plane-wave (3D periodic) basis set.
-# See doc/PlaneWavePlan.md.
+# See doc/OldPlans/PlaneWavePlan.md.
 add_library(qcLattice_BS)
 target_sources(qcLattice_BS PRIVATE
     Imp/PlaneWave_IBS.C

@@ -56,7 +56,7 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
     EXPECT_FALSE(p.XCFromDM());
     EXPECT_TRUE (p.SymmetryImposition()) << "by default the caller's imposeSymmetry is obeyed";
     // The collocation box tolerance: eps/|c_ij| by default, flat eps (CP2K's rule) under the umbrella.
-    // It selects a LatticeScreener object, not a branch in the box walk -- doc/ScreeningPlan.md §7.
+    // It selects a LatticeScreener object, not a branch in the box walk -- doc/OldPlans/ScreeningPlan.md §7.
     EXPECT_TRUE (p.DAwareScreen());
     EXPECT_EQ(p.Deviations().size(), 7u) << "a new accelerator is not finished until it is in this list";
     EXPECT_NE(p.Banner().find("DEVIATING"), std::string::npos);

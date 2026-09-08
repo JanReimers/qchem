@@ -1,6 +1,6 @@
 // File: BasisSet/Lattice_3D/LAPW_IBS.C  Linearized Augmented Plane Wave (LAPW) basis for one k-point.
 //
-// Lineage B, second IBS (see doc/PlaneWavePlan.md).  LAPW fixes APW's energy-dependent (nonlinear)
+// Lineage B, second IBS (see doc/OldPlans/PlaneWavePlan.md).  LAPW fixes APW's energy-dependent (nonlinear)
 // secular equation: inside the muffin-tin sphere the single energy-dependent radial function is replaced
 // by a fixed linear combination of u_l(r) = u_l(r,E_l) and its energy derivative udot_l = du_l/dE at a
 // FIXED linearization energy E_l.  Matching BOTH value and radial derivative at R fixes the two

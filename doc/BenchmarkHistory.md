@@ -53,7 +53,7 @@ Both arms: 65 gathers / 22 collocations, \f$E_{tot}\f$ agreeing to 2.3e-7 — id
 per-call column is a clean A/B.  Peak RSS 110 MB either way.  Threads: `OMP_NUM_THREADS=1
 GPW_OMP_THREADS=1`, BLAS pinned to 1.  ⚠ The `[ FAILED ]` on this probe is the `NMAX=10` cap, not a defect.
 
-¹⁰ **`CP2K_COMPAT=1` NOW IMPLIES THE GEOMETRY-ONLY SCREENER** (2026-09-04, doc/ScreeningPlan.md §7).  CP2K
+¹⁰ **`CP2K_COMPAT=1` NOW IMPLIES THE GEOMETRY-ONLY SCREENER** (2026-09-04, doc/OldPlans/ScreeningPlan.md §7).  CP2K
 does not screen the collocation on the density, and this tree had been taking that deviation silently — so
 the honest parity row is the second one, **1.54×**, and it is the first parity row that actually deserves
 the name.  The D-aware arm above is the qchem-vs-qchem delta: our screen buys **+14.5% wall**.

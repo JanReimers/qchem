@@ -58,7 +58,7 @@ using qchem::BasisSet::Molecule::BasisSetData;
 
 namespace
 {
-// The collocation TOLERANCE POLICY these direct-face gates run under (doc/ScreeningPlan.md).  The tree's
+// The collocation TOLERANCE POLICY these direct-face gates run under (doc/OldPlans/ScreeningPlan.md).  The tree's
 // DEFAULT is D-aware, so this is what the SCF path hands the same two faces -- which is what makes the
 // numbers pinned below the ones a real run produces.  A geometry-only arm would be a different gate, not a
 // different spelling of this one.

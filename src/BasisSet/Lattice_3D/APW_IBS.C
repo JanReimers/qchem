@@ -1,6 +1,6 @@
 // File: BasisSet/Lattice_3D/APW_IBS.C  Augmented Plane Wave (APW) basis for one k-point.
 //
-// Lineage B, first IBS (see doc/PlaneWavePlan.md): plane waves in the interstitial region, matched
+// Lineage B, first IBS (see doc/OldPlans/PlaneWavePlan.md): plane waves in the interstitial region, matched
 // (value-continuous) to free-particle radial solutions inside a single muffin-tin sphere at the cell
 // origin.  This is the fixed-energy / empty-lattice DEMONSTRATOR: the APW secular matrix
 //     Gamma(E) = H(E) - E O(E)

@@ -1,6 +1,6 @@
 // File: BasisSet/Molecule/tests/M_LatticeScreener.C
 //
-// THE COLLOCATION TOLERANCE SEAM, AT THE UNIT LEVEL (doc/ScreeningPlan.md).
+// THE COLLOCATION TOLERANCE SEAM, AT THE UNIT LEVEL (doc/OldPlans/ScreeningPlan.md).
 //
 // The rule that sizes every collocation box used to be one experimental bool consulted twice inside the
 // innermost geometry code, and it has the worst defect record in the collocation path (ScreeningPlan §2:

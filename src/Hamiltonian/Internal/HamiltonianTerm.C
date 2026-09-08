@@ -33,7 +33,7 @@ export namespace qchem::Hamiltonian
 //!
 //! \note IT ASKS WHAT THE ANSWER DEPENDS ON, NOT WHAT KIND OF TERM THIS IS.  A predicate spelled
 //! \c IsSpinIndependent() would be the IDENTITY question this codebase rejects -- the caller would branch
-//! on the term's type, and a third answer would mean a third branch (doc/ScreeningPlan.md §5).  Overriding
+//! on the term's type, and a third answer would mean a third branch (doc/OldPlans/ScreeningPlan.md §5).  Overriding
 //! the KEY instead changes nothing at any call site: the caches go on keying, on one fewer quantum number.
 class HT_SpinDependence
 {

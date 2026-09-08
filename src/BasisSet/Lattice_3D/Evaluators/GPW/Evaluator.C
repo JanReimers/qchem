@@ -230,7 +230,7 @@ private:
     std::shared_ptr<const BasisSet::Real_BS> itsMol;   //!< owns the molecular Gaussian basis (lifetime)
     const BasisSet::Real_OIBS*          itsOrb = nullptr; //!< its single orbital block (op()/Gradient/size)
     const Molecule::LatticeSum1E*       itsLat = nullptr; //!< the same block's periodic-1E capability (cross-cast)
-    //! \brief THE COLLOCATION TOLERANCE POLICY (doc/ScreeningPlan.md), chosen ONCE in the constructor from
+    //! \brief THE COLLOCATION TOLERANCE POLICY (doc/OldPlans/ScreeningPlan.md), chosen ONCE in the constructor from
     //! \c qchem::theRunPolicy() beside the other declared CP2K deviations, and handed to every
     //! \c CollocateDensity / \c IntegratePotential call this evaluator makes -- so the box walk never
     //! branches on which rule answers.  Stateless and immutable, hence safe to share with the cached

@@ -1,6 +1,6 @@
 // file: PlaneWaveUT.C  Empty-lattice (free-electron) validation of the plane-wave basis set.
 //
-// Milestone 1 of doc/PlaneWavePlan.md: with V_ext = 0 the band energies are exactly
+// Milestone 1 of doc/OldPlans/PlaneWavePlan.md: with V_ext = 0 the band energies are exactly
 // 1/2 |k+G|^2.  We build the PW basis for a cubic cell at several k-points, diagonalise
 // H = 1/2 * Kinetic() (V=0), and compare the eigenvalues to the analytic free-electron
 // ladder computed independently (cubic: B = (2 pi / a) I, so |k+G| = (2 pi/a)|k_frac+m|).
@@ -258,7 +258,7 @@ TEST_F(PlaneWaveTests, HydrogenPotentialMatrixElement)
 }
 
 // End-to-end: bare-Coulomb hydrogen converges toward -0.5 Ha FROM ABOVE, but only very slowly (the 1s
-// cusp; see doc/PlaneWavePlan.md sec.2.3).  At these modest cutoffs E0 is far from -0.5, so the robust,
+// cusp; see doc/OldPlans/PlaneWavePlan.md sec.2.3).  At these modest cutoffs E0 is far from -0.5, so the robust,
 // cheap assertions are: (1) variational monotonicity -- more plane waves never raise the energy at fixed
 // cell; (2) a bound state of the right order.  Observed (a=8): Ecut 4 -> -0.1364, 6 -> -0.1494.
 TEST_F(PlaneWaveTests, HydrogenVariationalConvergence)

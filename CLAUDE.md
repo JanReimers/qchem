@@ -136,6 +136,17 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     can document interfaces as you go, that should result in better docs, since you have full context while
     writing the code.
 
+## Docs
+
+- **`doc/README.md` is the index — read it before opening anything else in `doc/`.**  It classifies every
+    file as LIVE (has open work; read it), RECORD (executed; cite it, do not treat it as a queue) or
+    RETIRED (`doc/OldPlans/`).  Forty-plus plan files is workable only while that index is current.
+- `doc/OpenWork.md` is THE tracker; its `▶ WHAT IS OPEN` table at the top is the map.
+- **A ✅ verdict goes to the matching history file the day it is written** (`OpenWork_History*.md`,
+    `CleanupHistory.md`).  A closed item left in a live tracker is indistinguishable from open work — that
+    is what made both trackers unreadable by 2026-09-08.  Move the full text, leave a one-line stub, and
+    keep any surviving REMAINDER behind in the live file.
+
 ## Heads-up
 
 - FYI: I am constantly editing TODO, CLAUDE.md, and NOTES as you work. Just so you're not surprised when you

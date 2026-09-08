@@ -198,7 +198,7 @@ public:
     //! \a screener: the TOLERANCE POLICY that sizes every collocation box and kills a (pair, offset) term
     //! whole -- \c DAwareScreener (this tree's default) or \c GeometryOnlyScreener (CP2K's rule).  Chosen
     //! once, at a high level, and passed down; the walk never branches on which rule answers
-    //! (doc/ScreeningPlan.md).  ⚠ It MUST be the same screener the paired \c IntegratePotential gets, or
+    //! (doc/OldPlans/ScreeningPlan.md).  ⚠ It MUST be the same screener the paired \c IntegratePotential gets, or
     //! the two directions truncate differently and stop being adjoints.
     virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                  const std::vector<ivec3_t>& N_L,
@@ -230,7 +230,7 @@ public:
     //! with its floor, which is what the STATIC sharp-field sweeps (local PP, explicit \a pairLevels) have
     //! always done.  Density language only: this face already speaks \c chmat_t densities.
     //!
-    //! ⚠ THE TWO DIRECTIONS DO NOT SCREEN ON THE SAME QUANTITY, and that is deliberate (doc/ScreeningPlan.md
+    //! ⚠ THE TWO DIRECTIONS DO NOT SCREEN ON THE SAME QUANTITY, and that is deliberate (doc/OldPlans/ScreeningPlan.md
     //! §2, kept as-is 2026-09-04).  Collocating, the weight is the SIGNED
     //! \f$c_{ij}=\mathrm{fold}\cdot\mathrm{Re}[D_{ij}e^{-ikR}]\f$, because there it IS the scatter weight.
     //! Gathering, it is the MAGNITUDE \f$\mathrm{fold}\cdot|D_{ij}|\f$, because this direction's term is

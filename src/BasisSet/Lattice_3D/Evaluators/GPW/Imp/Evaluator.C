@@ -235,7 +235,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     itsOrb=only;
     itsN  =itsOrb->GetNumFunctions();
 
-    // THE COLLOCATION TOLERANCE POLICY, resolved ONCE (doc/ScreeningPlan.md §7): D-aware by default,
+    // THE COLLOCATION TOLERANCE POLICY, resolved ONCE (doc/OldPlans/ScreeningPlan.md §7): D-aware by default,
     // geometry-only (CP2K's rule) under CP2K_COMPAT or GPW_DAWARE_SCREEN=0.  Built at the molecular side's
     // own collocation floor, which is also what the box task list is enumerated at -- both walks assert
     // the two agree, because a screener below the floor would want boxes the list never built.
@@ -361,7 +361,7 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     auto memo   = itsCollocMemo;                            // ONE memo across the Coulomb + overlap closures
     auto screen = itsScreener;                              // the tolerance POLICY: immutable, so the cached
-                                                            // closure may capture it (doc/ScreeningPlan.md §4)
+                                                            // closure may capture it (doc/OldPlans/ScreeningPlan.md §4)
     return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb,memo,screen,relFS=itsRelFieldSharp](const chmat_t& D) -> ΔG_Map
     {
         // ⚠ CALL CENSUS (2026-08-28).  These four closures are the ONLY consumers of the analytic

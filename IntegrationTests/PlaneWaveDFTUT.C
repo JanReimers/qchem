@@ -1,5 +1,5 @@
 // file: PlaneWaveDFTUT.C  Prototype self-consistent plane-wave DFT, validated outside the Hamiltonian
-// framework (see doc/PlaneWavePlan.md sequencing + memory project_dft_upgrade_plan).
+// framework (see doc/OldPlans/PlaneWavePlan.md sequencing + memory project_dft_upgrade_plan).
 //
 // WHY this lives in a unit test, not a library: the prototype wires three libraries together --
 // BasisSet/Lattice_3D (PlaneWave_IBS primitives), Hamiltonian (the validated LDA ExFunctional), and

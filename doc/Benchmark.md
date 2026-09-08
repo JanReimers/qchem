@@ -667,7 +667,7 @@ instead, which is the more useful statement.
 | Becke XC mesh (`QCHEM_BECKE_XC`) | ⚠ **NEGATIVE on MnO, and worse than it looked**: 1.8× on the SCF iteration (6.82 vs 3.72 s/iter) and **102× on setup** (184.3 vs 1.81 s — two mesh builds at 68.3 s each).  It buys atom-centred accuracy, not speed | §5a |
 | symmetry imposition | buys CONVERGENCE, not accuracy and not the magnetic basin — the AFM order survives a free run | history §2 |
 | stream fold (`GPW_STREAM_FOLD`) | 5.2× on MnO's pair COUNT | history §7 |
-| D-aware screen (`GPW_DAWARE_SCREEN`) | +14.5% wall on the collocation route | doc/ScreeningPlan.md §6 |
+| D-aware screen (`GPW_DAWARE_SCREEN`) | +14.5% wall on the collocation route | doc/OldPlans/ScreeningPlan.md §6 |
 | collocation memo depth 5 | 3.74× on its bucket (60 → 16 collocations) | history §4 |
 | gather memo on (V, screen) | catches the exact duplicates; the remainder are genuinely distinct fields | history §5 |
 | `-march=native` (now the Release DEFAULT) | −9.6% / −8.4% / −5.3% CPU on the three MnO rows, \f$E_{tot}\f$ bit-identical | CMakeLists.txt |

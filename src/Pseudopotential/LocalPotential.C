@@ -6,7 +6,7 @@
 // a LocalPotential supplies ONLY the species form factor.
 //
 // This is the open/closed extension point for "lineage A" (plane waves + pseudopotentials, see
-// doc/PlaneWavePlan.md): the bare Coulomb nucleus, the Gaussian-smeared nucleus (rung-1 local
+// doc/OldPlans/PlaneWavePlan.md): the bare Coulomb nucleus, the Gaussian-smeared nucleus (rung-1 local
 // pseudopotential), and -- later -- tabulated norm-conserving pseudopotential form factors are all
 // just implementations of FormFactor(); the assembler never changes.
 module;

@@ -95,7 +95,7 @@ public:
     //! \brief D-AWARE COLLOCATION SCREENING: size each collocation box by \f$\varepsilon/|c_{ij}|\f$
     //! rather than a flat \f$\varepsilon\f$.  DEFAULT ON; \c false selects \c GeometryOnlyScreener.
     //!
-    //! WHY IT IS ON THIS TABLE (2026-09-04, doc/ScreeningPlan.md §7).  CP2K does NOT screen on the
+    //! WHY IT IS ON THIS TABLE (2026-09-04, doc/OldPlans/ScreeningPlan.md §7).  CP2K does NOT screen on the
     //! density -- \c task_list_methods.F's radius takes no density argument, its eps is the global
     //! \c eps_rho_rspace, and \c radius_list is fixed task-list data (checked in the source) -- so this
     //! tree has been taking the deviation SILENTLY.  It is worth ~10% on the box walk, weighted

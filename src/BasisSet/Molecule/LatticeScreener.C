@@ -1,6 +1,6 @@
 // File: BasisSet/Molecule/LatticeScreener.C  THE TOLERANCE POLICY OF THE GPW COLLOCATION BOX WALK.
 //
-// WHY THIS EXISTS (doc/ScreeningPlan.md; user, 2026-08-28: "I much prefer optionality to work through
+// WHY THIS EXISTS (doc/OldPlans/ScreeningPlan.md; user, 2026-08-28: "I much prefer optionality to work through
 // virtual dispatch rather than if statements in the low level code.  This makes the big code base much
 // easier to work with in the long run").  Which tolerance sizes a collocation box, and kills a
 // (pair, offset) term, used to be one experimental bool (GPW_DAWARE_SCREEN) consulted TWICE inside the

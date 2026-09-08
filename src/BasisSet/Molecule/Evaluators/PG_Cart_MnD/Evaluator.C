@@ -108,7 +108,7 @@ public:
     //! DECOUPLED from the analytic \c kScreenEps above: a collocated density and an analytic lattice sum
     //! are not converged by the same tolerance.
     static double kDensityEps() { return CollocationEps(); }
-    //! \brief ⛔ THE TOLERANCE POLICY IS NOT DECIDED HERE ANY MORE (doc/ScreeningPlan.md, 2026-09-04).
+    //! \brief ⛔ THE TOLERANCE POLICY IS NOT DECIDED HERE ANY MORE (doc/OldPlans/ScreeningPlan.md, 2026-09-04).
     //!
     //! It arrives as a \c LatticeScreener on the two collocation faces below, and neither walk asks which
     //! rule answered -- that is the dependency inversion the seam exists to install, replacing a \c bool
@@ -1854,7 +1854,7 @@ public:
                     cij(i-si.begin, j-sj.begin)=c;
                     cw (i-si.begin, j-sj.begin)=c*wm;
                 }
-                // ⇦ THE SEAM (doc/ScreeningPlan.md).  Which tolerance sizes this box, and which terms ride
+                // ⇦ THE SEAM (doc/OldPlans/ScreeningPlan.md).  Which tolerance sizes this box, and which terms ride
                 // it, is the screener's business -- including the UNION rule that used to be open-coded here
                 // and again in the gather.  The walk below does not know which rule answered.
                 screener.Screen(n,pf,cij,plan);
@@ -1902,7 +1902,7 @@ public:
                 // the two XC finite-difference gates all sat ~1.2e-8 relative off on the walk, scaling
                 // linearly with GPW_DENSITY_EPS (green again at 1e-12).  A component pair's own tolerance
                 // now survives ONLY inside the screener, as the input to the union -- which is exactly where
-                // it belongs, and the seam is what put it there (doc/ScreeningPlan.md).
+                // it belongs, and the seam is what put it there (doc/OldPlans/ScreeningPlan.md).
                 ForShellPairBox(si.begin,si.end-si.begin,sj.begin,sj.end-sj.begin,Roff,A,N_L[L],
                                 [&](size_t idx, const double* fI, const double* fJ)
                 {
@@ -2056,7 +2056,7 @@ public:
     //! construction, and the active set changes with D while the memo is keyed on V alone).
     chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
-                               const LatticeScreener& screener,   // the tolerance POLICY (doc/ScreeningPlan.md)
+                               const LatticeScreener& screener,   // the tolerance POLICY (doc/OldPlans/ScreeningPlan.md)
                                double absRelCutoff=0.0, const chmat_t* screenD=nullptr,
                                double fieldSharpness=0.0,         // beta_loc: the sharp field's own exponent (local-PP)
                                double relFieldSharp=-1.0,         // the relative rule's beta floor (must match collocation)
@@ -2209,7 +2209,7 @@ public:
                     cij(i-si.begin, j-sj.begin)=Dmag;
                     wmB(i-si.begin, j-sj.begin)=wm;
                 }
-                // ⇦ THE SEAM, the gather's half (doc/ScreeningPlan.md).  Same policy object as the
+                // ⇦ THE SEAM, the gather's half (doc/OldPlans/ScreeningPlan.md).  Same policy object as the
                 // collocation's, so the two directions truncate on the same rule.
                 screener.Screen(n,pf,cij,plan);
                 if (plan.Dead()) continue;

@@ -9,6 +9,30 @@ consolidates), `doc/SpinNativeDFTPlan.md` (spin-native XC), and
 tracked in **`doc/CleanupCandidates.md`** (keep it growing; batch-fix in dedicated
 refactor sessions).
 
+---
+
+# ▶ STATUS, 2026-09-08 — WHAT IS DONE AND WHAT IS NOT (asked by the user: *"I don't know if this is all done now or not"*)
+
+**The plan's own body — §§0–8 — is EXECUTED.**  §7 steps 1–7 are done (the MnO AFM-II arc, including the
+seed image-sum defect and its gate), the three reduction targets are landed and armed (T1 the {G}-star fold,
+T2 the site-adapted invariant Becke mesh, **T3 the pair-stream orbit fold — ARMED BY DEFAULT 2026-08-19**),
+and the SUPERCELL arc that opened 2026-09-07 closed 2026-09-08 (both sections at the end of this file).
+
+**FOUR THINGS ARE GENUINELY LEFT, and none of them blocks anything:**
+
+| what | where | why it is not blocking |
+|---|---|---|
+| **T3.4b — multi-k per-block arming** (union-of-reps stream caches, or the star-summed joint fold) | `doc/OpenWork.md` Step 2 | Γ runs are unaffected; this is on the multi-k path, which item **KP** is about anyway |
+| **§9 route (a) vs (b) for streams**, and the **variational-adjoint proof** under route (b) | §9 | Route (b) ships today under the asserted-imposition policy.  The proof is owed BEFORE (b) is trusted on a case where \f$\int\rho V=\mathrm{Tr}(Dh)\f$ stops being machine-exact by construction — write it, do not discover it in a failing virial |
+| **§9 commensurability cost on low-symmetry denominators** (τ=c/6 screw axes) | §9 | Measure before committing the stream fold on such a cell.  Nothing in the current deck set has one |
+| **§9 non-collinear representation** (2×2 spinor vs (ρ, m)) | §9 | Deliberately deferred to when a non-collinear pipeline is scoped; the collinear two-channel tier we run is a strict subset of either choice |
+
+⇒ **Treat this file as a REFERENCE, not a live queue.**  The live queues are `doc/OpenWork.md` (the tracker)
+and `doc/ParallelAndOraclePlan.md` (the sequenced phases).  §9 is a list of design questions to answer when
+the corresponding capability is scoped — it is not a backlog anyone is meant to burn down.
+
+---
+
 **WHERE WE LEFT OFF (2026-08-11, late).**  §7 steps 1–6 are DONE; step 7 (MnO AFM-II): **THE OPEN
 DEFECT IS FOUND AND FIXED.**  Point-in-time status blocks from earlier sessions, and the full MnO
 campaign narrative, are in **`doc/SymmetryUpgradeHistory.md`** — this section is the standing summary,
@@ -1274,7 +1298,7 @@ tiers (review fix — one number would make correct code "fail"):
 
 # ★★★ SUPERCELLS — IMPOSED SYMMETRY IS WRONG ON A NON-PRIMITIVE CELL (found 2026-09-07)
 
-**Status: DIAGNOSED WITH A MEASUREMENT, NOT FIXED.**  Raised by the Phase-2.1 scaling ladder
+**Status: ✅ FIXED 2026-09-07 — see the FIXED section below; this header was stale until 2026-09-08.**  Raised by the Phase-2.1 scaling ladder
 (`doc/ParallelAndOraclePlan.md` 2.1) and on the critical path for the battery work, because every Li
 configuration in `doc/LatticeGasPlan.md` is a decorated supercell.
 
@@ -1438,7 +1462,50 @@ defect.
 
 ---
 
-# ⚠ OPEN: DOES THE SUPERCELL GRID EQUAL THE PRIMITIVE GRID?  (asked 2026-09-07, NOT ANSWERED)
+# ✅ ANSWERED 2026-09-08: THE SUPERCELL GRID **IS** THE PRIMITIVE GRID, REPLICATED — free and imposed
+
+**The user's test, run as framed** (*"We want to test 2×2×2 vs 1×1×1 both imposed.  Any of the 8 unit cells
+in the 2×2×2 run should have exactly the same Becke grid as the 1×1×1 run."*).  Gates:
+`BeckeMesh.*` in `src/Structure/tests/BeckeMeshUT.C` (6 unit tests, no SCF).
+
+Folded back into the primitive cell, every one of the 2×2×2's 16 site blocks matches its primitive partner
+**bijectively — zero unmatched points, max \f$|\Delta r| = 6\times10^{-15}\f$** — in BOTH settings:
+
+| | free | imposed |
+|---|---|---|
+| points | 7680 = 8 × 960 | 13888 = 8 × 1736 |
+| unmatched / size-mismatched | 0 / 0 | 0 / 0 |
+| max \f$|\Delta r|\f$ | 6.5e-15 | 6.1e-15 |
+| max ABS \f$|\Delta w|\f$ | 8.2e-8 | 9.8e-8 |
+| max rel \f$|\Delta\,\mathrm{Sum}(w)|\f$ per site | 4.6e-9 | 1.3e-8 |
+
+★ The IMPOSED arm is the stronger claim: the two space groups differ by the 8 pure translations, so if the
+orbit decomposition or the chosen edge ops had made the site-adapted ANGULAR set setting-dependent, the
+points would have moved here while the free arm stayed clean.  They did not.
+
+⚠ **THE WEIGHT METRIC IS ABSOLUTE, NOT RELATIVE, AND THAT IS THE POINT.**  The partition is an
+eps-converged (1e-6) image series gathered in Chebyshev CELL shells, and a supercell shell is 8 primitive
+cells with twice the interplanar floor — so the two settings truncate the same convergent series at
+different places, agreeing to ABSOLUTE eps by construction.  A per-point RELATIVE comparison is noise in the
+tail and says so: the worst relative deviation is **9.6% — on a point whose weight is 3.8e-82**.
+
+⛔ **AND THE COORDINATE WAS THE WHOLE PROBLEM.**  `MakePeriodicBeckeMesh` emits every point WRAPPED into the
+home cell (`kpt = r - A*n0`), so the stored coordinate is not \f$R_a+v\f$ and \f$\|p-R_a\|\f$ IS NOT THE
+OFFSET.  Recover it modulo the lattice and a site block decomposes exactly onto its own atom's radial nodes:
+480/480 points, 7 distinct radii, zero off-direction, **corner atom and interior atom alike**.  The atom
+LABELS check out too — 480/480 own atom, 0/480 the other; on the 2×2×2, best WRONG-atom match 0 points.
+⇒ Both the "199 vs 49 distinct radii" corner-atom lead AND the retracted "826 of 868 offsets differ" came
+from reading a wrapped coordinate as an offset.  There was no cell-imaging bug.
+
+★ **THE USER'S PHYSICS IS STILL THE RIGHT STANDARD, and it is what stopped the wrong verdict shipping**: a
+genuine setting-dependence moves a *smallish number of points near cell faces*, never 95% of them — so a
+number that large was the tell that the MEASUREMENT was wrong.  Keep that test.
+
+*The original open section follows verbatim, for the reasoning it records.*
+
+---
+
+## (superseded) The section as it stood 2026-09-07, before the answer above
 
 **The right test, framed by the user**: *"We want to test 2×2×2 vs 1×1×1 both imposed.  Any of the 8 unit
 cells in the 2×2×2 run should have exactly the same Becke grid as the 1×1×1 run."*  Correct, and it is a

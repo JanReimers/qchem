@@ -1,6 +1,6 @@
 // File: BasisSet/SeparablePotential.C  Separable (Kleinman-Bylander) NONLOCAL potential.
 //
-// Rung 2 of "lineage A" (see doc/PlaneWavePlan.md): a norm-conserving pseudopotential's nonlocal part
+// Rung 2 of "lineage A" (see doc/OldPlans/PlaneWavePlan.md): a norm-conserving pseudopotential's nonlocal part
 // in Kleinman-Bylander separable form,
 //     V_NL = Sum_{atom a} Sum_{projector p} |beta^a_p> D_p <beta^a_p| .
 // In a plane-wave basis each projector contributes a reciprocal-space radial form factor

@@ -1544,7 +1544,7 @@ TEST(M_PG_BoxWalk, CollocateIntegrateAreExactAdjoints)
 //========================================================================================================
 // WHAT THE §5 GEOMETRY HOIST WOULD BUY -- PRICED AT THE CUBE, BEFORE ANYTHING IS BUILT
 //========================================================================================================
-// doc/ScreeningPlan.md §5.  With a GeometryOnlyScreener the box tolerance is constant, so BoxGeom -- and
+// doc/OldPlans/ScreeningPlan.md §5.  With a GeometryOnlyScreener the box tolerance is constant, so BoxGeom -- and
 // with it the per-line chord bounds -- become ITERATION-INVARIANT and could be hoisted into the task list.
 // The plan estimates that as "~40% of the kernel" against "~144 MB on MnO", and BOTH numbers are guesses.
 //
