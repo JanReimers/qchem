@@ -55,7 +55,7 @@ XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit, BasisSet::FitQuadrature qu
     // itself there too (providers self-report).  What IS this object's business is that the bundle it was
     // handed is the same one the basis holds: same length, so the fold's orbit indices and my coefficient
     // vectors index the same functions.
-    assert((!itsQuad.mesh || itsQuad.mesh->size()==itsFit->GetNumFunctions()) &&
+    assert((!itsQuad.GetMesh() || itsQuad.GetMesh()->size()==itsFit->GetNumFunctions()) &&
            "XC_SinglesQuadrature: the injected quadrature and the delta fit basis must be the SAME object "
            "-- one mesh point per fit function");
 }
@@ -76,10 +76,13 @@ const Fitting::ScalarProjector& XC_SinglesQuadrature::Projector() const
 // the fit basis, since 2026-08-24 (user): the operation is not a fitting question and the basis contributed
 // only the fold -- which now arrives with the mesh, through the same factory out-parameter.  Both bodies are
 // the free Symmetry::Lattice_3D algorithms, called directly.
+// Both symmetrisations now DELEGATE (2026-09-08).  They used to reach into a loose {mesh, fold, sigmas,
+// flipFixed} bundle and re-implement the orbit projection here -- the star-average is exact only because
+// the mesh is invariant under the ops the fold came from, and nothing tied the two together.  qcMesh::
+// FoldedMesh owns that pairing and checks it in its constructor, so this is two forwards.
 void XC_SinglesQuadrature::Symmetrize(rvec_t& f) const
 {
-    if (itsQuad.fold.owner.empty()) return;              // free run: the projector is the identity
-    Symmetry::Lattice_3D::SymmetrizeValues(itsQuad.fold, f);
+    itsQuad.Symmetrize(f);
 }
 
 // The MAGNETIC pair: with sigma tags the (rho,m) pair does NOT separate -- a Flip op maps rho_up onto
@@ -88,10 +91,7 @@ void XC_SinglesQuadrature::Symmetrize(rvec_t& f) const
 // this is each channel on its own, which is bit-identical to what the removed base-class default did.
 void XC_SinglesQuadrature::SymmetrizeSpin(rvec_t& rho, rvec_t& m) const
 {
-    if (itsQuad.fold.owner.empty() || itsQuad.sigmas.empty()) {Symmetrize(rho); Symmetrize(m); return;}
-    for (size_t g=0; g<itsQuad.flipFixed.size(); ++g) if (itsQuad.flipFixed[g]) m[g]=0.0;
-    Symmetry::Lattice_3D::SymmetrizeValues      (itsQuad.fold, rho);
-    Symmetry::Lattice_3D::SymmetrizeValuesSigned(itsQuad.fold, itsQuad.sigmas, m);
+    itsQuad.SymmetrizeSpin(rho, m);
 }
 
 // The quadrature questions go THROUGH the basis, and since 2026-08-23 in its own FUNCTION vocabulary:
@@ -398,7 +398,7 @@ void XC_SinglesQuadrature::EmitSiteMoments() const
         {
             said=true;
             std::cout<<"[site moments] UNAVAILABLE: the XC quadrature mesh carries no site blocks"
-                     <<(itsQuad.mesh ? "" : " (no mesh injected at all)")
+                     <<(itsQuad.GetMesh() ? "" : " (no mesh injected at all)")
                      <<" -- an integrated site moment needs an atom-centred (Becke) mesh, and an "
                        "atom-centred mesh that lost its blocks is a defect, not a configuration."<<std::endl;
         }
@@ -442,10 +442,10 @@ rvec_t XC_SinglesQuadrature::SiteMoments(const cChargeDensity* cd) const
 // so this and the basis index the SAME points in the SAME order (one object, two collaborators).
 rvec_t XC_SinglesQuadrature::PartitionedMoments(const rvec_t& f) const
 {
-    if (!itsQuad.mesh || itsQuad.mesh->NSites()==0) return rvec_t();
-    assert(f.size()==itsQuad.mesh->size() && "XC_SinglesQuadrature: the injected quadrature and the fit "
+    if (!itsQuad.GetMesh() || itsQuad.GetMesh()->NSites()==0) return rvec_t();
+    assert(f.size()==itsQuad.GetMesh()->size() && "XC_SinglesQuadrature: the injected quadrature and the fit "
            "basis must be the same object -- one field value per mesh point");
-    return qcMesh::SiteIntegrals(*itsQuad.mesh, f);
+    return qcMesh::SiteIntegrals(*itsQuad.GetMesh(), f);
 }
 
 // <i|v|j>: ASK THE BASIS.  It owns the points, the weights and the Phi table, so the whole quadrature

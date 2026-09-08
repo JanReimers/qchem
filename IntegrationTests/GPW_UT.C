@@ -1667,9 +1667,9 @@ TEST(GPW, OverlapDiagonalPerRepresentation)
     BasisSet::FitQuadrature q=gpw.CreateXCQuadrature(&cell, mp);
     BasisSet::DeltaFit_IBS dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
     const vec_t<dcmplx> dD=dfit.OverlapDiagonal();
-    ASSERT_EQ(dD.size(), q.mesh->size()) << "a delta basis has one function per mesh point";
+    ASSERT_EQ(dD.size(), q.GetMesh()->size()) << "a delta basis has one function per mesh point";
     for (size_t g=0; g<dD.size(); g++)
-        EXPECT_EQ(dD[g], dcmplx(q.mesh->Weights()[g])) << "<delta_g|delta_g> = w_g (orthogonal, NOT orthonormal)";
+        EXPECT_EQ(dD[g], dcmplx(q.GetMesh()->Weights()[g])) << "<delta_g|delta_g> = w_g (orthogonal, NOT orthonormal)";
     // ...which is exactly what makes its fit the point VALUES: c_g = <delta_g|f>/w_g = f(r_g).  If these
     // were ones the two cases would be indistinguishable and the distinction would not be load-bearing.
     EXPECT_NE(dD[0], dcmplx(1.0));
@@ -1723,21 +1723,21 @@ TEST(GPW, FitProjectionAndIntegralsPerRepresentation)
     // (1) DELTA: <delta_g|f> = w_g f(r_g) and <delta_g|1> = w_g, both one entry per FUNCTION.
     BasisSet::FitQuadrature q=gpw.CreateXCQuadrature(&cell, mp);
     BasisSet::DeltaFit_IBS dfit(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
-    ASSERT_EQ(dfit.GetNumFunctions(), q.mesh->size()) << "one delta function per mesh point";
+    ASSERT_EQ(dfit.GetNumFunctions(), q.GetMesh()->size()) << "one delta function per mesh point";
     const vec_t<dcmplx> pD=dfit.Overlap(wave), iD=dfit.Charge();
     ASSERT_EQ(pD.size(), dfit.GetNumFunctions());
     ASSERT_EQ(iD.size(), dfit.GetNumFunctions());
     for (size_t g=0; g<iD.size(); g++)
     {
-        const double w=q.mesh->Weights()[g];
+        const double w=q.GetMesh()->Weights()[g];
         EXPECT_EQ(iD[g], dcmplx(w))                                  << "<delta_g|1> = w_g";
-        EXPECT_EQ(pD[g], dcmplx(w*wave(q.mesh->Points()[g])))        << "<delta_g|f> = w_g f(r_g)";
+        EXPECT_EQ(pD[g], dcmplx(w*wave(q.GetMesh()->Points()[g])))        << "<delta_g|f> = w_g f(r_g)";
     }
     // ...and the fit divides that back out EXACTLY at the printed precision -- the property that lets the
     // pointwise-nonlinear functional be applied straight to the coefficients.
     const rvec_t cD=Fitting::OrthogonalFit(dfit, wave);
     for (size_t g=0; g<cD.size(); g++)
-        EXPECT_NEAR(cD[g], wave(q.mesh->Points()[g]), 1e-13) << "c_g = w_g f_g / w_g = f(r_g)";
+        EXPECT_NEAR(cD[g], wave(q.GetMesh()->Points()[g]), 1e-13) << "c_g = w_g f_g / w_g = f(r_g)";
 
     // (2) PLANE WAVE: <e^{iG r}/sqrt(Omega)|1> = sqrt(Omega) delta_{G,0} -- a cell integral kills every
     // wave but the constant one.

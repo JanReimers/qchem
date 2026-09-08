@@ -3,6 +3,7 @@
 add_executable(UTMesh ../../Common/tests/gtestmain.C
     MeshPrimitives.C
     XCPolicyTests.C
+    FoldedMeshUT.C
 )
 
 target_compile_definitions(UTMesh PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

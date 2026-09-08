@@ -166,8 +166,8 @@ template <class U> const mat_t<U>& DeltaFit_IBS::Table(std::map<Irrep,mat_t<U>>&
     const Irrep id=orb.GetIrrep(Spin::None);       // SPATIAL key: the two spin channels share one table
     auto it=cache.find(id);
     if (it!=cache.end()) return it->second;
-    mat_t<U> P=MakePhiAt<U>(&orb, itsQuad.mesh->Points(), "setup: XC-mesh Phi tables");
-    ReportPhiSparsity(P, *itsQuad.mesh);           // mesh-aware (it reports SITE batching), hence outside the builder
+    mat_t<U> P=MakePhiAt<U>(&orb, itsQuad.GetMesh()->Points(), "setup: XC-mesh Phi tables");
+    ReportPhiSparsity(P, *itsQuad.GetMesh());           // mesh-aware (it reports SITE batching), hence outside the builder
     return cache.emplace(id, std::move(P)).first->second;
 }
 
@@ -199,7 +199,7 @@ const Projector3<dcmplx>& DeltaFit_IBS::Overlap3C(const Orbital_DFT_IBS<dcmplx,d
 // (The GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
 template <class U> hmat_t<U> DeltaFit_IBS::AdjointT(const mat_t<U>& P, const rvec_t& v) const
 {
-    const rvec_t&        w=itsQuad.mesh->Weights();  // my weights -- they never leave
+    const rvec_t&        w=itsQuad.GetMesh()->Weights();  // my weights -- they never leave
     assert(v.size()==P.rows());
     qchem::report::Timed timed("scf: XC-mesh quadrature H_xc (all iterations)");
     mat_t<U> WP(P.rows(), P.columns());

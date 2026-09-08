@@ -15,7 +15,8 @@ module;
 #include <vector>   // FitQuadrature::sigmas/flipFixed (Shubnikov S3)
 export module qchem.BasisSet.Fit_Types;
 export import qchem.Mesh;                       // qcMesh::Mesh / MeshParams
-export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the FitQuadrature orbit partition (§6a W1)
+export import qchem.Mesh.Folded;                // qcMesh::FoldedMesh -- WHAT FitQuadrature now IS
+export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- re-exported: callers still build one to hand over
 
 export namespace qchem::BasisSet
 {
@@ -26,18 +27,16 @@ export namespace qchem::BasisSet
 //! Produced by \c CreateXCQuadrature so all the low-level mesh work (grid build, group-averaging it
 //! invariant under the imposed ops, fold preparation) lives with the basis factories -- which own the
 //! cell and the §3 policy -- not in the Hamiltonian assembly.
-struct FitQuadrature
-{
-    std::shared_ptr<const qcMesh::Mesh> mesh;   //!< the quadrature (group-average invariant when fold is live)
-    Symmetry::Lattice_3D::Fold          fold;   //!< its orbit partition ({} = no star-averaging)
-    //! Shubnikov S3 (doc/SymmetryUpgradePlan.md §7 step 7) -- filled only on a MAGNETICALLY imposed run:
-    //! the per-op spin actions PARALLEL to the op list the fold was built under (the edge opIndex indexes
-    //! it), and the odd-field zero flags (mesh points some σ=Flip op maps onto themselves, where the
-    //! magnetization m must vanish exactly).  Both empty = grey/free semantics: the engine star-averages
-    //! each channel independently.
-    std::vector<Symmetry::SpinAction>   sigmas;
-    std::vector<char>                   flipFixed;
-};
+//!
+//! ★ **IT IS NOW `qcMesh::FoldedMesh` (2026-09-08), and the alias is the point.**  This was four loose
+//! members -- mesh, fold, sigmas, flipFixed -- declared in a FITTING header, wired together by hand at
+//! every use, with nothing checking that the fold belonged to the mesh.  But the pointwise star-average is
+//! an EXACT projector only because the mesh is invariant under the ops the fold came from: that is a joint
+//! property of the two, so they are one type, the pairing is checked once in its constructor, and the
+//! star-average is a member instead of something each consumer re-writes (user, 2026-09-08).
+//! The name stays as the FIT-FACTORY's vocabulary for "the quadrature you asked me to build"; the TYPE is
+//! the mesh library's.
+using FitQuadrature = qcMesh::FoldedMesh;
 
 //! \brief WHICH REPRESENTATION carries \f$v_{xc}\f$ -- the argument that picks between the fit-basis types,
 //! and therefore an argument of \c CreateVxcFitBasisSet.

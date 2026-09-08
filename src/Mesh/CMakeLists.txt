@@ -8,6 +8,7 @@ target_sources(qcMesh PRIVATE
     Internal/LebedevAngularMesh.C
     Internal/GaussLegendreAngularMesh.C
     Internal/AngularFactory.C
+    Internal/FoldedMesh.C
     )
 # Module interface units (export the BMI .gcm files other modules import).
 target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
@@ -19,6 +20,7 @@ target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Quadrature.C
     Builder.C
     XCPolicy.C
+    FoldedMesh.C
     )
 # Flag uniformity is a BUILD CORRECTNESS requirement under C++20 modules: a .pcm and every TU that
 # consumes it must agree on target features, so a lib that opts out of the common set makes any
@@ -26,6 +28,9 @@ target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 set_property(TARGET qcMesh PROPERTY CXX_STANDARD 20)
 target_include_directories(qcMesh PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 # Linking qcCommon is also what lets cmake/gcc find its exported .gcm (BMI) files.
-target_link_libraries(qcMesh PUBLIC qcMath qcCommon)
+# qcSymmetry: FoldedMesh pairs a mesh with its orbit partition (Symmetry::Lattice_3D::Fold), which is pure
+# INDEX bookkeeping -- no geometry -- so the dependency is on a partition type, not on group theory.
+# qcSymmetry imports nothing from qcMesh, so this closes no cycle (checked both directions 2026-09-08).
+target_link_libraries(qcMesh PUBLIC qcMath qcCommon qcSymmetry)
 
 add_subdirectory(tests)

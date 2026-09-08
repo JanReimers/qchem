@@ -1147,7 +1147,21 @@ MnO campaign proceeds undisturbed in qchem6.
   (User: *"1) Extend qcMesh to support FoldedMesh … 2) Extend qcMesh to support 3 center Overlap, 3) Extend
   qcMesh to support forward and adjoint matrix integrals."*)
 
-  ✅ **(1) `FoldedMesh` — YES, and it is the strongest of the three.**  It already exists in all but name and
+  ✅ **(1) `FoldedMesh` — BUILT 2026-09-08.**  `qchem.Mesh.Folded` in qcMesh; `BasisSet::FitQuadrature` is
+  now an ALIAS for it, so all ~25 producers and consumers moved with one typedef.  The four loose members
+  became a class with a **checked constructor** (fold length vs mesh size, every representative index in
+  range, flip-flags one per point) that **throws** — an assert would be compiled out under `NDEBUG`, which
+  is where production runs.  `Symmetrize`/`SymmetrizeSpin` are members now, so
+  `XC_SinglesQuadrature`'s two hand-wired copies became two forwards, and `DeltaFit_IBS`'s three
+  consistency asserts were **deleted** — the constructor subsumes them, for every consumer, in Release.
+  Gates: `FoldedMesh.*` in `UTMesh` (6 unit tests), including the case that used to be undetectable —
+  right point count, but an orbit naming a point the mesh does not have, which passes every size assert and
+  then silently averages the wrong points together.  836/836.
+  ⚠ Read accessors (`GetSpinOps`, `IsFlipFixed`, `NumFlipFixed`) exist for OBSERVATION — a gate counting
+  flips, a report line — and are documented as such: the projection itself is `SymmetrizeSpin`, which is
+  where the tags and the fold are used together correctly.
+
+  *(original assessment)* **YES, and it is the strongest of the three.**  It already exists in all but name and
   in the wrong library: `BasisSet::FitQuadrature` is
   `{shared_ptr<const qcMesh::Mesh> mesh; Fold fold; vector<SpinAction> sigmas; vector<char> flipFixed;}` —
   a mesh plus its orbit structure, declared in `src/BasisSet/Fit_Types.C` (a *fitting* header) and passed by

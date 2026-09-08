@@ -68,18 +68,18 @@ public:
         : IrrepBasisSetImp<dcmplx>(sym)
         , itsQuad(std::move(q))
     {
-        assert(itsQuad.mesh && itsQuad.mesh->size()>0 && "DeltaFit_IBS: a delta basis IS its mesh -- it cannot be empty");
+        assert(itsQuad.GetMesh() && itsQuad.GetMesh()->size()>0 && "DeltaFit_IBS: a delta basis IS its mesh -- it cannot be empty");
         // The invariants of the bundle, checked HERE, once, where it becomes an object -- they used to be
         // re-checked by the consumer that received the loose struct.
-        assert(itsQuad.fold.owner.empty()   || itsQuad.fold.owner.size()==itsQuad.mesh->size());
-        assert(itsQuad.sigmas.empty()       || !itsQuad.fold.owner.empty());
-        assert(itsQuad.flipFixed.empty()    || itsQuad.flipFixed.size()==itsQuad.mesh->size());
+        // The mesh<->fold consistency asserts that used to sit here are GONE: qcMesh::FoldedMesh's
+        // constructor checks them once, for every consumer, and THROWS rather than asserting -- an assert
+        // is compiled out under NDEBUG, which is where production lives (2026-09-08).
         // Providers self-report (user ruling 2026-08-16): the star-average this basis will apply to rho on
         // EVERY iteration announces itself at birth, armed or not.  nOps is known only for a magnetic fold
         // (sigmas run parallel to the ops); 0 = "not reported", NOT "not armed".
-        qchem::report::EmitFold("XC mesh", itsQuad.sigmas.size(), itsQuad.mesh->size(),
-                                itsQuad.fold.owner.empty() ? itsQuad.mesh->size() : itsQuad.fold.Reps(),
-                                itsQuad.sigmas.empty() ? std::string() : std::string("magnetic (Shubnikov)"));
+        qchem::report::EmitFold("XC mesh", itsQuad.NumSpinOps(), itsQuad.GetMesh()->size(),
+                                itsQuad.NumOrbits(),
+                                (itsQuad.NumSpinOps()==0) ? std::string() : std::string("magnetic (Shubnikov)"));
     }
 
     //! \copydoc BasisSet::Integrals_Overlap3C::Overlap3C
@@ -95,20 +95,20 @@ public:
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal
     //! \f$\langle\delta_g|\delta_g\rangle=w_g\f$: orthogonal, NOT orthonormal -- so a general fit
     //! through this basis divides by these, giving \f$c_g=w_g f_g/w_g=f(r_g)\f$, the point values.
-    vec_t<dcmplx> OverlapDiagonal() const override {return AsComplex(itsQuad.mesh->Weights());}
+    vec_t<dcmplx> OverlapDiagonal() const override {return AsComplex(itsQuad.GetMesh()->Weights());}
     //! \copydoc BasisSet::FIT_SF_ABS::Charge
     //! \f$\langle\delta_g|1\rangle=\int\delta_g\,d^3r=w_g\f$.  Same numbers as \c OverlapDiagonal here
     //! and NOT the same question: that one is \f$\langle\delta_g|\delta_g\rangle\f$ (a metric), this is
     //! \f$\langle\delta_g|1\rangle\f$ (an integral).  They coincide because \f$\delta\f$ is idempotent
     //! under this quadrature -- a fact about this representation, not a shared definition.
-    vec_t<dcmplx> Charge() const override {return AsComplex(itsQuad.mesh->Weights());}
+    vec_t<dcmplx> Charge() const override {return AsComplex(itsQuad.GetMesh()->Weights());}
     //! \copydoc BasisSet::FIT_SF_ABS::Overlap
     //! \f$\langle\delta_g|f\rangle=w_g f(r_g)\f$ -- I evaluate the field at MY points (the field's own
     //! bulk fast path does the work) and weight it.  The caller sees only a vector indexed by FUNCTION.
     vec_t<dcmplx> Overlap(const ScalarFunction<double>& f) const override
     {
-        const rvec_t  v=f(itsQuad.mesh->Points());
-        const rvec_t& w=itsQuad.mesh->Weights();
+        const rvec_t  v=f(itsQuad.GetMesh()->Points());
+        const rvec_t& w=itsQuad.GetMesh()->Weights();
         assert(v.size()==w.size());
         vec_t<dcmplx> p(v.size());
         for (size_t g=0; g<v.size(); g++) p[g]=dcmplx(w[g]*v[g]);
@@ -123,7 +123,7 @@ public:
 
     //! One \f$\delta\f$ function per mesh point -- ~100k of them, so anything reasoning about a fit basis
     //! by COUNTING functions (grid sizing, memory reports, cache dimensions) must not choke on that.
-    size_t GetNumFunctions() const override {return itsQuad.mesh->size();}
+    size_t GetNumFunctions() const override {return itsQuad.GetMesh()->size();}
 
     // NO op(r)/Gradient, and no stub either: since 2026-08-22 IrrepBasisSet does not promise pointwise
     // evaluation (doc/CleanupCandidates.md R1.0 step 1), so a basis whose functions are DISTRIBUTIONS
@@ -134,10 +134,10 @@ public:
 
     std::string   Name      () const override {return "DeltaFit";}
     std::string   BasisSetID() const override
-        {return Name()+"|npts="+std::to_string(itsQuad.mesh->size())
-                      +"|orbits="+std::to_string(itsQuad.fold.owner.empty() ? itsQuad.mesh->size() : itsQuad.fold.Reps());}
+        {return Name()+"|npts="+std::to_string(itsQuad.GetMesh()->size())
+                      +"|orbits="+std::to_string(itsQuad.NumOrbits());}
     std::ostream& Write     (std::ostream& os) const override
-        {return os << Name() << " fit IBS: " << itsQuad.mesh->size() << " delta functions on the XC mesh";}
+        {return os << Name() << " fit IBS: " << itsQuad.GetMesh()->size() << " delta functions on the XC mesh";}
 
 private:
     //! The face is templated on the scalar of the ORBITAL blocks I contract against (Bloch => dcmplx), not

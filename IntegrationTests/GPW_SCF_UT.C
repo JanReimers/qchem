@@ -4218,10 +4218,10 @@ TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR),
         L3::GPWParams{.densityEcut=8.0, .imposeSymmetry=true, .siteSpins=spins}));
     BasisSet::FitQuadrature q = bs->CreateXCQuadrature(st.get(), qcMesh::BeckeXCParams(20, -1.0, 11));
-    ASSERT_EQ(q.sigmas.size(), 24u) << "the Shubnikov group of the AFM-II cell has 24 ops (12+12)";
-    size_t nFlip=0; for (auto s : q.sigmas) if (s==Symmetry::SpinAction::Flip) nFlip++;
+    ASSERT_EQ(q.NumSpinOps(), 24u) << "the Shubnikov group of the AFM-II cell has 24 ops (12+12)";
+    size_t nFlip=0; for (auto s : q.GetSpinOps()) if (s==Symmetry::SpinAction::Flip) nFlip++;
     EXPECT_EQ(nFlip, 12u);
-    ASSERT_EQ(q.flipFixed.size(), q.mesh->size());
+    ASSERT_EQ(q.NumFlipFixed(), q.GetMesh()->size());   // (FoldedMesh's ctor now checks this too)
 
     // The seed (the same PolarizedSeedCD the run uses), through the engine's channel-pair projector.
     qchem::BasisSet::Lattice_3D::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
@@ -4239,12 +4239,12 @@ TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
 
     // (b) ...and is EXACTLY mirror-antisymmetric on the raster: m must vanish at every flip-fixed point,
     // and the weighted net moment must be zero to machine precision (the signed projector's guarantees).
-    const rvec_t& W=q.mesh->Weights();
+    const rvec_t& W=q.GetMesh()->Weights();
     double net=0, worstFixed=0;
     for (size_t g=0; g<up.size(); g++)
     {
         net += W[g]*(up[g]-dn[g]);
-        if (q.flipFixed[g]) worstFixed=std::max(worstFixed, std::abs(up[g]-dn[g]));
+        if (q.IsFlipFixed(g)) worstFixed=std::max(worstFixed, std::abs(up[g]-dn[g]));
     }
     // The projector pairs every orbit's members +/- exactly; the residual is the ULP-level asymmetry of
     // the site-adapted builder's partner WEIGHTS (op-image copies, equal only to roundoff -- measured
@@ -4255,7 +4255,7 @@ TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
     // (c) The GREY control: the SAME mesh and fold with the sigma tags withheld = the historical
     // per-channel spatial average, which maps +m sites onto -m sites and ERASES the order.  This is the
     // unit-level half of the S4 negative control ("imposing the grey group kills m_stag").
-    auto grey=SinglesEngineOver({q.mesh, q.fold});
+    auto grey=SinglesEngineOver(qcMesh::FoldedMesh(q.GetMesh(), q.GetFold()));
     const rvec_t gup=grey->RhoPol(&seedCD, Spin::Up);
     const rvec_t gdn=grey->RhoPol(&seedCD, Spin::Down);
     double maxGrey=0; for (size_t g=0; g<gup.size(); g++) maxGrey=std::max(maxGrey, std::abs(gup[g]-gdn[g]));
