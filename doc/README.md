@@ -23,7 +23,7 @@ on what is actually next.
 
 | file | what it is | state |
 |---|---|---|
-| **`OpenWork.md`** | ★ **THE tracker.  READ IT AT SESSION START.**  The `▶ WHAT IS OPEN` table at the top is the index; everything below is the evidence that produced it | live |
+| **`OpenWork.md`** | ★ **THE tracker.  READ IT AT SESSION START.**  It opens with **THE QUEUED PROGRAMME** — a numbered running order agreed 2026-09-09; start at step 1.  The table under it is the index; everything below that is the evidence that produced it | live |
 | **`Pins.md`** | ★ **the durable invariants** — no cut in r space, everything is a fit, integrated observables, spin-native, fit quality = grid-convergence of ρ.  **Rulings, not preferences**: each one is there because violating it produced a wrong number at least once | live — read once, then obey |
 | **`ParallelAndOraclePlan.md`** | the sequenced phases: Phase 1 (our OMP gap) ✅ closed at 4.44× → Phase 2 (size) → **Phase 2.5 (the SOLID cleanup campaign)** → Phase 3 (DFT+U) → Phase 4 (a second code) | live — this is the road to +U |
 | **`CleanupCandidates.md`** | the SOLID/OOD debt worklist, and the home of the durable design rulings (R1.0) | live — 34 open items after the 2026-09-08 harvest |

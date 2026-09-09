@@ -141,7 +141,10 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
 - **`doc/README.md` is the index — read it before opening anything else in `doc/`.**  It classifies every
     file as LIVE (has open work; read it), RECORD (executed; cite it, do not treat it as a queue) or
     RETIRED (`doc/OldPlans/`).  Forty-plus plan files is workable only while that index is current.
-- `doc/OpenWork.md` is THE tracker; its `▶ WHAT IS OPEN` table at the top is the map.
+- `doc/OpenWork.md` is THE tracker.  **`▶ WHAT IS OPEN` opens with THE QUEUED PROGRAMME — a numbered,
+    agreed running order.  Start at step 1 and work down; the table below it is the reference, not the
+    queue.**  (Queued 2026-09-09: fix KP-0, then the CleanupCandidates sweep with test re-enablement
+    riding along, then the test-suite organisation, then the near-empty plan polish, then DFT+U.)
 - **`doc/Pins.md` holds the durable physics/numerics invariants** — rulings, not preferences (each is there
     because violating it produced a wrong number at least once).  Pin 1: **"THERE IS NO CUT in r space,
     Gibbs ringing is like a wrecking ball"**.  Cite them as `doc/Pins.md pin N`.
