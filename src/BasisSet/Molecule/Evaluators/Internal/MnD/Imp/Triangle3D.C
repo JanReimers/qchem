@@ -2,6 +2,8 @@
 module;
 #include <cassert>
 #include <iostream>
+#include <stdexcept>   // R2.5b: an out-of-range triangle index THROWS
+#include <string>
 #include <vector>
 module qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Triangle3D;
 import qchem.stl_io;
@@ -46,19 +48,16 @@ void Triangle3D::Check(int i,int j,int k) const
 {
     if(i+j+k > N)
     {
-        std::cerr << "Indecies (" << i << "," << j << "," << k
-                  << ") exceed the Triangle data structure limits"
-                  << std::endl << "MaxSum = " << N << std::endl;
-        assert(false);
-        exit(-1);
+        throw std::out_of_range("Triangle3D: indices ("+std::to_string(i)+","+std::to_string(j)+","
+            +std::to_string(k)+") sum to "+std::to_string(i+j+k)+", past this triangle's MaxSum of "
+            +std::to_string(N)+".  The caller built the table for one angular reach and indexed it for a "
+            "larger one -- a composition error, not a recoverable condition.");
     }
     if(i<0 || j<0 || k<0)
     {
-        std::cerr << "Negative indecies (" << i << "," << j << "," << k
-                  << ") are not allowed in Triangle data structures"
-                  << std::endl << "MaxSum = " << N << std::endl;
-        assert(false);
-        exit(-1);
+        throw std::out_of_range("Triangle3D: negative indices ("+std::to_string(i)+","+std::to_string(j)
+            +","+std::to_string(k)+").  A triangle is indexed by Cartesian POWERS, which are >= 0; a "
+            "negative one means a recurrence stepped below its base case without taking the branch.");
     }
 }
 

@@ -2445,3 +2445,31 @@ that precedent stops being an excuse and becomes a defect: `qcChargeDensity` and
 the basis-set family.  Filed as **V1.20b**, to be decided with **D2** — the two items are about
 `G_ERI3`/`ΔG_Map` from opposite ends.
 
+## The disabled-test cull — 18 deleted 2026-09-09 (user ruling)
+
+> *"Tests that are just printf sweeps are most likely left overs from a debugging, optimization or memory
+> leak hunt campaign.  They should most likely be deleted.  Any new campaigns of this sort will just
+> create new ones tailored to the current needs."*
+
+**Criterion applied MECHANICALLY, not by judgement of usefulness: zero `EXPECT_` / `ASSERT_` / `FAIL` in
+the test body.**  Every disabled test in the tree was parsed and classified; 19 had no assertion at all,
+22 had at least one.  Deleted the 19 minus one keep (below).  Disabled count 42 → 24; the enabled suite is
+unchanged at 850/850.
+
+| file | deleted |
+|---|---|
+| `IntegrationTests/GPW_SCF_UT.C` | `AlGlobalMuExperiment`, `FAtomInBoxDoubletProbe`, `GridRouteAB_AlFCC`, `GridRouteAB_SiGamma`, `ImposedGDMProbe_SiDiamondIBZ`, `MnOCellShapeProbe`, `Na2DimerInBoxProbe`, `NaFCCMetalExperiment`, `NaFOverlapConditioningSweep` |
+| `IntegrationTests/A_PP.C` | `MnOxygenAngularMeshBisect`, `MolecularMnDChannelVsOracle` |
+| `src/BasisSet/Lattice_3D/tests/` | `APWTests.Calibration`, `LAPWTests.{Calibration,HydrogenCalibration,HydrogenVsLmax}`, `PlaneWaveTests.{HGHCalibration,SmearedCalibration}`, `BandStructureTests.CosineGapCalibration` |
+
+⚠ **ONE ZERO-ASSERT TEST WAS KEPT: `Reporting.DISABLED_VisualDump`** (`src/Common/tests/Reporting.C`, 10
+lines).  It is not a campaign artifact — it renders ONE sample run through `RenderConsole` and the
+incremental `EmitSection` path so a human can eyeball the console LAYOUT while changing the renderer, and
+the renderer is under active change (`report::Timed`, the timeline array).  Every deleted test is a SWEEP
+over a parameter printing numbers to compare; this one is the renderer's own preview.  Flagged here rather
+than deleted silently, so the ruling can be extended to it if that reading is wrong.
+
+▶ **WHAT REMAINS, and it is the harder half of OpenWork TE(d): 24 disabled tests that DO assert.**  Those
+need a per-test verdict, and the triage rule KP-0 established is how to reach it — **judge a failing
+ENERGY anchor before believing it, but a failing CHARGE or count is physics and cannot go stale.**
+

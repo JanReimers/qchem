@@ -98,19 +98,6 @@ TEST_F(BandStructureTests, FreeElectronBandsLAPW)
     }
 }
 
-TEST_F(BandStructureTests, DISABLED_CosineGapCalibration)
-{
-    double a=8.0, Ecut=2.0; ivec3_t N(8,8,8), X(4,0,0);
-    UnitCell cell(a); Lattice_3D lat(cell,N);
-    auto recip=lat.Reciprocal();
-    for (double V0 : {0.0,0.05,0.1,0.2})
-    {
-        PlaneWave_IBS pw(recip,N,X,Ecut);
-        std::vector<double> b=ascending(SolveBands(pw, pw.OverlapMatrix(CosineVtilde(V0))));
-        printf("V0=%.2f  gap(X)=b1-b0=%.5f  (NFE: V0)\n",V0,b[1]-b[0]);
-    }
-}
-
 // Cosine potential -> a band gap.  Along Gamma->X the lowest two bands are degenerate at X for V=0;
 // turning on V0 cos(b.r) opens a gap there.  Nearly-free-electron theory: the zone-boundary gap is
 // 2|Vtilde(b)| = 2*(V0/2) = V0 (to first order; higher order ~ V0^2).

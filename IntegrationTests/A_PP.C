@@ -144,70 +144,6 @@ TEST(Si_PP_U, Polarized)
     EXPECT_LE (cPol.Energy(), cUnpol.Energy() + 1e-9);     // spin polarization lowers (or ties) the open-shell E
 }
 
-// ==================== THE OCCUPIED-d NONLOCAL DEFECT: diagnosis + FIX record (2026-08-06) ============
-// MnO exposed the ATOMIC route's Kleinman-Bylander assembly as broken.  ROOT CAUSE: an atomic block stores
-// PURELY RADIAL chi_i(r) with the irrep's Y_lm implicit (its 3-D face is "fake radial" -- user's term), so
-// PP_NonLocal's 3-D mesh overlap <chi|beta Y_lm> was structurally meaningless: with no angular structure to
-// integrate against, an l=0 projector leaked into blocks of EVERY l while every l>=1 projector integrated
-// to ~1e-33 (silently deleted).  FIXED by the BasisSet::ImplicitAngular_IBS capability + PP_NonLocal's
-// per-l RADIAL assembly (V = 4pi D b_i b_j on the l-matching block, exactly zero elsewhere).
-// Gate: A_PP.PerLKleinmanBylanderOracle (s,p,d,f vs the analytic reference + cross-l zeros).
-//
-// MEASURED, before -> after, against CP2K's numerically-exact ATOM code (decks in ~/Code/cp2k-runs/):
-//   Mn q7 (s+d):  -189.07 / -8.72 (mesh-dependent!)  ->  -14.230     oracle -14.243986
-//   O  q6 (s):    -13.9445                           ->  -15.744     oracle -15.748119
-//   F  q7 (s):    -20.8967                           ->  -24.028     oracle -24.046478
-//   Si q4 (s+p):  -3.329 / -3.714                    ->  -3.7426     oracle -3.747045
-//   (residuals are basis incompleteness; with GOOD bases the pinned anchors above now match the oracles to
-//    33 uHa (Si Slater/Medium) and 255 uHa (O Slater/High), and O agrees TERM BY TERM.)
-// The MOLECULAR/plane-wave path was never affected (those bases carry their angular factor explicitly) --
-// Si2_PP_U / OSi_PP_U / L_PP / GPW.AnalyticSeparablePPMatchesMesh all passed unchanged through the fix.
-// This probe stays as the mesh/radial-resolution bisector for future PP work.
-TEST(A_PP_Probe, DISABLED_MnOxygenAngularMeshBisect)
-{
-    auto run=[](int Z, int val, std::vector<std::pair<int,std::vector<double>>> shells, int nAng, int nR=50)
-    {
-        AtomCalcOptions o;
-        o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=val; o.exponentsByL=shells;
-        o.mesh.angularDegree=nAng;                  // degree 0 = the historical 1-direction default; 11 = Leb-50
-        o.mesh.nRadial=nR;                          // 50 = the historical default
-        SCFParams p; p.MinVirial=1e30; p.NMaxIter=60;
-        AtomCalculation atom(Z, Z-val, o, p);
-        return atom.Energy();
-    };
-    auto window=[](int n, double emin, double emax){ std::vector<double> es(n);
-        double b=(n>1)?std::pow(emax/emin,1.0/(n-1)):1.0, e=emin; for (auto& a:es){a=e;e*=b;} return es; };
-
-    std::vector<std::pair<int,std::vector<double>>> mn={{0,window(7,0.10,24.0)},{2,window(8,0.18,36.0)}};
-    std::vector<std::pair<int,std::vector<double>>> ox={{0,window(6,0.15,18.0)},{1,window(5,0.18,8.0)}};
-
-    std::vector<std::pair<int,std::vector<double>>> si={{0,window(7,0.08,20.0)},{1,window(6,0.10,10.0)}};
-    std::vector<std::pair<int,std::vector<double>>> ff={{0,window(7,0.27,40.0)},{1,window(5,0.34,12.0)}};
-
-    std::cout << "[d-probe] Mn q7: nAng=1 " << run(25,7,mn,1) << "   nAng=50 " << run(25,7,mn,50)
-              << "   (CP2K ATOM oracle -14.243986)" << std::endl;
-    std::cout << "[d-probe] O  q6: nAng=1 " << run(8,6,ox,1)  << "   nAng=50 " << run(8,6,ox,50)
-              << "   (CP2K ATOM oracle -15.748119; p channel has NO projectors)" << std::endl;
-    std::cout << "[d-probe] Si q4: nAng=1 " << run(14,4,si,1) << "   nAng=50 " << run(14,4,si,50)
-              << "   (CP2K ATOM oracle -3.747045, E_NL +0.8247)" << std::endl;
-    std::cout << "[d-probe] F  q7: nAng=1 " << run(9,7,ff,1)  << "   nAng=50 " << run(9,7,ff,50)
-              << "   (CP2K ATOM oracle -24.046478)" << std::endl;
-    std::cout << "[d-probe] radial sweep O  q6 nAng=50: nR=50 " << run(8,6,ox,50,50)
-              << "  nR=200 " << run(8,6,ox,50,200) << "  nR=400 " << run(8,6,ox,50,400)
-              << "   (oracle -15.748119; r_loc 0.248, C1 -16.58)" << std::endl;
-    std::cout << "[d-probe] radial sweep Mn q7 nAng=50: nR=50 " << run(25,7,mn,50,50)
-              << "  nR=200 " << run(25,7,mn,50,200) << "   (oracle -14.243986)" << std::endl;
-    {   // term-level localization for the s-only species (O): which term carries the +1.8 Ha gap?
-        AtomCalcOptions o; o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=6; o.exponentsByL=ox;
-        o.mesh.angularDegree=11;   // the 50-direction rule
-        SCFParams p2; p2.MinVirial=1e30; p2.NMaxIter=60;
-        AtomCalculation atom(8, 2, o, p2);
-        auto E=atom.EnergyTerms();
-        std::cout << "[d-probe] O terms: Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
-                  << "  (CP2K: Ekin 11.852 Eloc -39.381 Enl +1.306 EH 13.631 Exc -3.156 => Etot -15.748)" << std::endl;
-    }
-}
-
 // ---- THE PER-l KB ORACLE (the decisive unit-level measurement; s/p/d/f) ----
 // Compares the ATOMIC route's KB matrix (PP_NonLocal, mesh quadrature) against the analytic radial
 // reference, per angular channel, with NO SCF and NO basis-completeness confound.
@@ -285,32 +221,3 @@ TEST(A_PP, PerLKleinmanBylanderOracle)
     }
 }
 
-// The MOLECULAR (Cartesian, EXPLICIT-angular) route on an OCCUPIED-d species -- the arm the crystal shares.
-// The 2026-08-06 KB fix corrected the ATOMIC (radial) route only; the molecular/plane-wave bases carry their
-// angular factor explicitly and keep the 3-D mesh assembly, which the atomic oracle cannot test.  Mn q7 is
-// the first occupied-d species available to it, and CP2K's ATOM code gives -14.243986 for this pseudo-atom
-// (deck ~/Code/cp2k-runs/mn_atom_q7.inp) -- the SAME oracle the (now-fixed) atomic route matches to 14 mHa.
-// A large discrepancy here localises the MnO crystal's over-binding to the shared Cartesian KB path.
-TEST(A_PP_Probe, DISABLED_MolecularMnDChannelVsOracle)
-{
-    Molecule mn; mn.Insert(new Atom(25, 0.0, Vector3D<double>(0,0,0)));
-    Calculation c(mn, {.basis="valence_lowq_sr", .multiplicity=6, .pseudopotential=true, .ppValence=7});
-    const double E=c.Energy();
-    const auto   T=c.EnergyTerms();
-    std::cout << "[mol-d] Mn q7 MOLECULAR route E=" << E << "   (CP2K ATOM oracle -14.243986)\n"
-              << "[mol-d]   Ekin=" << T.Kinetic << " Eloc=" << T.Een-T.EenNL << " ENL=" << T.EenNL
-              << " Eee=" << T.Eee << " Exc=" << T.Exc << "\n"
-              << "[mol-d]   (CP2K ATOM UKS SEXTET oracle, deck mn_atom_q7_pol.inp, 2026-08-12: E=-14.674425"
-                 "  kin 24.7834  loc -33.6994  NL -16.0432  Coul 13.7232  XC -3.4384 -- the ensemble-matched"
-                 " reference; the restricted -14.243986 is the OLD oracle, 430 mHa above the sextet)" << std::endl;
-    // The ATOMIC route (fixed) for the same PP/charge state, as the in-process cross-check.
-    AtomCalcOptions o; o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=7;
-    o.exponentsByL={{0,{0.10,0.249,0.621,1.549,3.862,9.627,24.0}},
-                    {2,{0.18,0.384,0.818,1.744,3.717,7.923,16.888,36.0}}};
-    o.pol=Pol::Polarized;
-    SCFParams p; p.MinVirial=1e30; p.NMaxIter=60;
-    AtomCalculation a(25, 25-7, o, p);
-    const auto Ta=a.EnergyTerms();
-    std::cout << "[mol-d] Mn q7 ATOMIC route (fixed) E=" << a.Energy()
-              << "  Ekin=" << Ta.Kinetic << " Eloc=" << Ta.Een-Ta.EenNL << " ENL=" << Ta.EenNL << std::endl;
-}

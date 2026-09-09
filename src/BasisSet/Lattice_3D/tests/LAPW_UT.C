@@ -54,51 +54,6 @@ std::vector<double> FreeEnergies(double a, rvec3_t kf, int mr)
 
 class LAPWTests : public ::testing::Test {};
 
-TEST_F(LAPWTests, DISABLED_HydrogenVsLmax)
-{
-    double a=12.0, R=5.0, Ecut=1.0, El=-0.5, Z=1.0;
-    ivec3_t N(1,1,1), k(0,0,0);
-    UnitCell cell(a); Lattice_3D lat(cell,N);
-    for (size_t lmax : {0u,1u,2u,3u,4u})
-    {
-        LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El,Z);
-        printf("lmax=%zu  E0=% .6f\n",lmax,Bands(b,&cell).front());
-    }
-}
-
-TEST_F(LAPWTests, DISABLED_HydrogenCalibration)
-{
-    double El=-0.5, Z=1.0;          // hydrogen: 1s energy is exactly -0.5 Ha
-    ivec3_t N(1,1,1), k(0,0,0);     // Gamma, large cell => flat, 1s is the ground state
-    for (double a : {12.0})
-      for (double R : {4.0,5.0})    // R -> a/2 makes the sphere fill the cell (singular overlap)
-        for (double Ecut : {0.5,1.0,2.0})
-        {
-            size_t lmax=0;          // 1s is pure l=0 (l>=1 radial ODE needs a log grid -- follow-up)
-            UnitCell cell(a); Lattice_3D lat(cell,N);
-            LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El,Z);
-            std::vector<double> bands=Bands(b,&cell);
-            printf("a=%.0f R=%.0f Ecut=%.1f nPW=%3zu  E0=% .5f (want -0.5)\n",
-                   a,R,Ecut,b.GetNumFunctions(),bands.front());
-        }
-}
-
-TEST_F(LAPWTests, DISABLED_Calibration)
-{
-    double a=8.0, R=2.0, Ecut=2.0; size_t lmax=8;
-    ivec3_t N(4,4,4), k(1,0,0);  rvec3_t kf(0.25,0,0);
-    UnitCell cell(a); Lattice_3D lat(cell,N);
-    std::vector<double> fe=FreeEnergies(a,kf,3);
-    for (double El : {0.1,0.2,0.4})
-    {
-        LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El);
-        std::vector<double> bands=Bands(b,&cell);
-        printf("--- Elin=%.2f  nPW=%zu ---\n",El,b.GetNumFunctions());
-        for (int i=0;i<6 && i<(int)bands.size();i++)
-            printf("  band[%d]=% .6f  free=% .6f  d=% .2e\n",i,bands[i],fe[i],bands[i]-fe[i]);
-    }
-}
-
 // LAPW is a band solver: a single generalized eigenproblem reproduces the free-electron ladder.
 TEST_F(LAPWTests, EmptyLatticeBandsMatchFreeElectron)
 {

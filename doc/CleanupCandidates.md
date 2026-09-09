@@ -1717,16 +1717,23 @@ MnO campaign proceeds undisturbed in qchem6.
   Gate: `MixerLineage.PolarizedDensityRefusesAnUnpolarizedPartner` (`UTChargeDensity`).
   **→ doc/CleanupHistory.md**
 
-- **R2.5b ▶ NINE MORE `exit(-1)` SITES, OUTSIDE THE TWO LIBRARIES R2.5 COVERED** (counted 2026-09-09 while
-  closing it — filed rather than swept in silently, because they have different owners).
-  `src/BasisSet/Molecule/Readers/Imp/Gaussian94.C` **×5** — a basis-FILE PARSE ERROR is the most likely of
-  all of these to fire in front of a user, and it takes the GUI down with it;
-  `src/BasisSet/Molecule/Evaluators/Internal/MnD/Imp/Triangle3D.C` ×2;
-  `src/BasisSet/Molecule/Evaluators/PG_Cart_MnD/Imp/GaussianRF.C`; `src/Math/intpow.C`.
-  Same defect class and the same cure (throw, naming the input that was rejected).  ⚠ The reader ones are
-  the only ones a USER can trigger with a bad input file rather than a composition error, so they are
-  arguably a different KIND — a parse failure is a recoverable condition an `Outcome` could carry
-  (CLAUDE.md's rule) rather than an invariant.  Decide that before converting them wholesale.
+- **R2.5b ✅ DONE 2026-09-09 — ALL NINE CONVERTED, AND THE PROJECT NOW HAS AN INTERIM ERROR POLICY.**
+  ▶ **USER POLICY (2026-09-09), which is the durable part of this item:** *"we really don't have a proper
+  error handling policy.  I think throwing exceptions is the best interim solution for now.  The key is
+  that they are all easy to search and find (just hunt for the `throw` token), so if/when we do architect
+  a proper error/warning handling framework/policy we can locate all error points and react
+  accordingly."*  ⇒ **`throw` is a MARKER, not just a mechanism** — which is why the conversion is
+  wholesale and why `cerr`+`exit` (unsearchable as a class, and fatal) is never acceptable in library
+  code.  ⛔ **The tree is now `exit()`-free outside tests.**
+  Converted: `Gaussian94.C` ×5 (file-open, non-positive contraction count, the shared-radial/"SP"-shell
+  case → now names **R1.0b** as the missing feature rather than reading as corruption, missing L labels,
+  bad L character), `Triangle3D.C` ×2 (`std::out_of_range`, index sum past MaxSum / negative powers),
+  `GaussianRF.C` (`std::domain_error`, α<0 ⇒ exp(-αr²) DIVERGES), `intpow.C` (`std::domain_error`, 0^-n).
+  ⚠ **WHEN THE FRAMEWORK LANDS, THE READER IS THE FIRST FILE TO CHANGE AGAIN** — and the note is on it:
+  those five are the only sites a USER can trigger with a bad INPUT FILE rather than a composition error,
+  so by CLAUDE.md's own rule (a call that can legitimately fail returns an `Outcome`; a broken invariant
+  throws) a reader belongs on the `Outcome` side.  The messages were written to be worth carrying either
+  way: each names the subject and what was expected, not just where it stopped.
 
 - **R2.6 ✅ DONE 2026-08-07. The `LDAVxc` bundle** — a "Hamiltonian term" whose `CalcMatrix`/`GetEnergy` call.  **→ doc/CleanupHistory.md**
 - **R2.7 ✅ DONE 2026-08-07. `FittedCD::Clone()` — delete.**  Pure virtual (FittedCD.C:28) whose SOLE implementation.  **→ doc/CleanupHistory.md**
@@ -2048,15 +2055,19 @@ MnO campaign proceeds undisturbed in qchem6.
   `src/BasisSet/` tree, and nothing outside the family has business naming a SALC decorator.  The ruling is
   recorded at the module's own head so it is not re-litigated.
 
-- **V1.20b ▶ THE VIOLATIONS THE RULING EXPOSES — `qchem.BasisSet.Internal.GMap` crosses a REAL library
-  boundary** (filed 2026-09-09 as the consequence of V1.20, not a new discovery: the old V1.20 text cited
-  it as "precedent the rule is already bent").  Under the ruling that precedent stops being an excuse and
-  becomes the defect: `src/ChargeDensity` (`qcChargeDensity`) and `src/Fitting` (`qcFitting`) are not in
-  the basis-set family, and both import it.  ⇒ Either `G_ERI3`/`ΔG_Map` are a shared VOCABULARY that
-  belongs in a leaf module both families may name (cf. `qchem.BasisSet.Fit_Types`, split out for exactly
-  this reason), or the consumers should be asking their own faces for it.  ⚠ Related to **D2**, which
-  already names `G_ERI3` as "the multi-purpose data structure harmonizing the return-type differences" —
-  i.e. the two items are about the same type from opposite ends, and should be decided together.
+- **V1.20b ✅ DONE 2026-09-09 — `GMap` IS PROMOTED OUT OF `Internal`** (user ruling).
+  `qchem.BasisSet.Internal.GMap` → **`qchem.BasisSet.GMap`** (`src/BasisSet/GMap.C`).  ▶ **The point is
+  HONESTY, not architecture:** it genuinely is imported by `qcChargeDensity` (`FourierDensity`) and
+  `qcFitting` (`FunctionFitter`), so under the V1.20 ruling the `.Internal.` label was actively lying
+  about its reach.  *"Right now I recommend all we do is make GMap non-internal to make it obvious that
+  it is used across multiple libraries."*
+  ⚠ **THE DESIGN TENSION IS ACKNOWLEDGED AND DELIBERATELY LEFT OPEN** (user): *"it is a PW specific data
+  structure that should ideally not appear in the high level abstract interfaces.  BUT all the Integral
+  functions in those high level abstract interfaces have to return something.  And often the nature of
+  that something changes depending on details of the basis set."*  ⇒ The real question is a RETURN TYPE
+  THAT VARIES WITH THE BASIS WITHOUT NAMING THE REPRESENTATION — which is exactly **D2** asked from the
+  other end, governed by the PW-fitting-uniform-interface pin.  Decide the two together; until then the
+  visibility IS the deliverable.  Recorded at the module head so the rename is not read as a regression.
 
 - **V1.21 ✅ CLOSED 2026-09-09. The duplicate is dead and `BandStructure.C` STAYS in the library.**
   `PlaneWaveUT.C` now imports the one `SolveBands`; its local copy was not even the same solve (it forced

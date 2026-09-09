@@ -265,36 +265,7 @@ TEST_F(PlaneWaveTests, HydrogenVariationalConvergence)
 
 // --- Rung 1: Gaussian-smeared nucleus (local pseudopotential) -- the cusp is removed ---------------
 
-TEST_F(PlaneWaveTests, DISABLED_SmearedCalibration)
-{
-    double a=8.0;
-    for (double Ecut : {4.0,6.0,9.0,12.0})
-    {
-        double Eb=HydrogenE0(a,Ecut,BareCoulomb());
-        double Es=HydrogenE0(a,Ecut,GaussianSmearedNucleus(0.5));
-        printf("Ecut=%4.1f  bare=% .5f  smeared(0.5)=% .5f\n",Ecut,Eb,Es);
-    }
-}
-
 // --- Real norm-conserving pseudopotential: HGH hydrogen (local; H has no core projectors) ----------
-
-TEST_F(PlaneWaveTests, DISABLED_HGHCalibration)
-{
-    double a=7.0;
-    HGH_LocalPotential h=GetGTH("H","LDA").local;
-    for (double Ecut : {4.0,6.0,9.0,12.0})
-    {
-        size_t npw=0;
-        double Eh=HydrogenE0(a,Ecut,h,&npw);
-        double Eb=HydrogenE0(a,Ecut,BareCoulomb());
-        printf("Ecut=%5.1f  npw=%4zu  HGH-H=% .5f  bare=% .5f\n",Ecut,npw,Eh,Eb);
-    }
-    // form factor: HGH should track bare -4pi Z/G^2 at small G (Coulomb tail) and be Gaussian-soft at large G
-    for (double G2 : {0.1,1.0,5.0,25.0,100.0})
-        printf("G2=%6.1f  HGH=% .5f  bare=% .5f  ratio=% .4f\n",
-               G2,h.FormFactor(1,G2),BareCoulomb().FormFactor(1,G2),
-               h.FormFactor(1,G2)/BareCoulomb().FormFactor(1,G2));
-}
 
 // HGH hydrogen is a REAL norm-conserving pseudopotential -- but a degenerate one: hydrogen has no core
 // electrons to pseudize, so the PP carries no nonlocal projectors and its local part stays essentially

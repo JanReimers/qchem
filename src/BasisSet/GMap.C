@@ -1,4 +1,4 @@
-// File: BasisSet/Internal/GMap.C  Reciprocal-space (G-space) SYMMETRY currencies for the plane-wave / GPW paths.
+// File: BasisSet/GMap.C  Reciprocal-space (G-space) SYMMETRY currencies for the plane-wave / GPW paths.
 //
 // The ΔG_Map container and the 3-centre tensor now live in qchem.BasisSet.Internal.Projector3 (V1.1: one
 // Projector3<T> type serves the molecular dense and the reciprocal-space realizations); this module keeps the
@@ -10,7 +10,21 @@ module;
 #include <map>
 #include <vector>
 #include <utility>
-export module qchem.BasisSet.Internal.GMap;
+// ★ IT IS DELIBERATELY *NOT* `.Internal.` (V1.20b, user ruling 2026-09-09) -- and the name is the whole
+// point of the change: it IS used across real library boundaries (`qcChargeDensity`'s FourierDensity,
+// `qcFitting`'s FunctionFitter), so an `.Internal.` label was actively lying about its reach.  Under the
+// V1.20 ruling -- `.Internal.` marks the LIBRARY-FAMILY boundary -- those two imports stopped being
+// tolerated precedent and became a violation; promoting the module is the honest fix, not a workaround.
+//
+// ⚠ THE DESIGN TENSION IS REAL AND IS NOT RESOLVED BY THIS RENAME (user, 2026-09-09): *"it is a PW
+// specific data structure that should IDEALLY not appear in the high level abstract interfaces.  BUT all
+// the Integral functions in those high level abstract interfaces have to return something.  And often the
+// nature of that something changes depending on details of the basis set."*  ⇒ The right long-term answer
+// is a return type that varies with the basis without naming the representation -- the same question
+// `doc/CleanupCandidates.md` D2 asks from the other end ("why is a FourierCD different from a
+// tChargeDensity?"), governed by the PW-fitting-uniform-interface pin.  Until that lands, the visibility
+// is the deliverable: a module named for what it is, where anyone can see who depends on it.
+export module qchem.BasisSet.GMap;
 export import qchem.BasisSet.Internal.Projector3;  // IVec3Less, ΔG_Map, Projector3<T> + Contract/ContractAdjoint
 import qchem.Types;    // ivec3_t, dcmplx
 import qchem.Blaze;    // rvec_t, chmat_t + complex/double arithmetic (visible here; the qcMath leaf lacked it)

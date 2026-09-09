@@ -1,7 +1,7 @@
 // File: IntPower.H  real**int functions since C doesn't provide them.
 module;
 #include <iostream>
-#include <stdlib.h>
+#include <stdexcept>   // R2.5b: 0^negative THROWS
 
 export module qchem.IntPow;
 
@@ -50,8 +50,7 @@ export
                 return 0.0;
             else
             {
-                std::cerr << "intpow::Divide by zero" << std::endl;
-                exit(-1);
+                throw std::domain_error("intpow: 0 raised to a negative power is a division by zero.");
             }
         }
         double ret;

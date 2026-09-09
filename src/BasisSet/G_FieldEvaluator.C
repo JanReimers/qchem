@@ -25,7 +25,7 @@ module;
 #include <functional>
 #include <stdexcept>
 export module qchem.BasisSet.G_FieldEvaluator;
-import qchem.BasisSet.Internal.GMap;   // ΔG_Map (the G-space coefficient map to evaluate)
+import qchem.BasisSet.GMap;   // ΔG_Map (the G-space coefficient map to evaluate)
 import qchem.Types;       // rvec3_t, rvec_t, cvec_t, rvec3vec_t, ivec3_t, dcmplx
 export import qchem.ScalarFunction;   // ScalarFunction<double> -- the field G_RasterTransform::Sample evaluates (on the face => exported)
 import qchem.Structure;   // Structure, Atom (MakeFourierDensity's structure-factor sum)

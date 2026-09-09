@@ -82,7 +82,7 @@ import qchem.Symmetry.Factory;                   // BlochFactory (build a k-bloc
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
-import qchem.BasisSet.Internal.GMap;              // Projector3<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
+import qchem.BasisSet.GMap;              // Projector3<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
 import qchem.ChargeDensity.FourierDensity;        // FourierDensity (ρ̃ for the §3 order-parameter diagnostic)
 import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity.SeedCD;              // PolarizedSeedCD (the raw spin-SAD seed, for the sublattice gate)               // IrrepCD_Factory/PolarizedCD_Factory (fixed-density probe)
@@ -1671,65 +1671,6 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
     }
 }
 
-// PROBE (kept disabled): F atom in a box, DOUBLET (2p^5: nUp=4, nDn=3 -- open shell with BOTH channels
-// populated).  Discriminates "empty minority channel" (Na) from "open shell" as the Na-gap driver.
-// WARNING: slow -- the degenerate 2p^5 hole rotates under the fixed-axis Becke angular grid (the known
-// open-shell Becke oscillation; smearing would cure it), and the F q7 auto grid is large.
-TEST(GPW_SCF, DISABLED_FAtomInBoxDoubletProbe)
-{
-    Molecule f; f.Insert(new Atom(9, 0.0, {0,0,0}));
-    Calculation cRef(f, {.basis="valence_lowq_sr", .multiplicity=2, .pseudopotential=true, .ppValence=7});
-    const double Eref=cRef.Energy();
-    std::cout << "[F finite] valence_lowq_sr LSDA doublet (q7)="<<Eref<<std::endl;
-
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(9, {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o;
-    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="F atom-in-box doublet"; o.Nelec=7; o.multiplicity=2; o.species={{"F",7}};
-    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
-    o.scf.SmearingkT=1e-2;               // smear the degenerate 2p^5 hole (the Becke rotating-ρ cure)
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o);
-    std::cout << "[F probe] GPW="<<R.E.GetTotalEnergy()<<" finite="<<Eref
-              << " diff="<<R.E.GetTotalEnergy()-Eref<<std::endl;
-}
-
-// PROBE (kept disabled): Na2 dimer in a box, closed-shell singlet, UNPOLARIZED both sides -- bounds the
-// box-conventions + basis residual for the Na species without any spin machinery.  MEASURED 2026-08-04:
-// GPW −0.3281 vs finite −0.3529, diff +24.8 mHa for the dimer (~12 mHa/atom) -- the baseline the
-// DISABLED_NaPseudoAtomInBoxDoublet defect note compares against.
-TEST(GPW_SCF, DISABLED_Na2DimerInBoxProbe)
-{
-    const double d=5.8;   // ~Na2 bond length (au)
-    Molecule na2;
-    na2.Insert(new Atom(11, 0.0, {-d/2,0,0}));
-    na2.Insert(new Atom(11, 0.0, { d/2,0,0}));
-    Calculation cRef(na2, {.basis="valence_lowq_sr", .pseudopotential=true, .ppValence=1});
-    const double Eref=cRef.Energy();
-    std::cout << "[Na2 finite] valence_lowq_sr LDA singlet (q1)="<<Eref<<std::endl;
-
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(11, {0.5-0.5*d/a,0.5,0.5});
-    cell.AddAtom(11, {0.5+0.5*d/a,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o;
-    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="Na2 dimer-in-box"; o.Nelec=2; o.species={{"Na",1}};
-    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
-    o.scf.NMaxIter=40; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o);
-    std::cout << "[Na2 probe] GPW="<<R.E.GetTotalEnergy()<<" finite="<<Eref
-              << " diff="<<R.E.GetTotalEnergy()-Eref<<std::endl;
-}
-
 // (tier 4b, gate a) THE POLARIZED SOLID PIPELINE: Na pseudo-atom in a box, DOUBLET (doc/SymmetryUpgradePlan.md
 // §4).  The minimal end-to-end TWO-CHANNEL GPW run: Na q1 GTH PP, S=1/2, moment 1 -- spin-resolved D through
 // Crystal_EC(nUp=1,nDown=0), the dcmplx tPolarizedWF (two Bloch channels), and the spin-native Becke XC pair
@@ -2097,44 +2038,6 @@ TEST(GPW_SCF, StreamFoldOpenShellMatchesUnfolded_SiAtomInBox)
         << "a DEGENERATE OPEN SHELL must not care whether the streams are folded (the retracted 0.26 Ha)";
 }
 
-// ===== EXPERIMENTAL (scratch): imposed multi-k × GDM probe (user observation 2026-08-03) =====
-// OBSERVED on the user's multi-k NaF: imposeSymmetry=false + GDM reaches ΔE/E~1e-9 (Δρ~1e-3), while
-// imposeSymmetry=true + GDM stalls at ΔE/E~1e-7 with Δρ~1e-2.  Two competing explanations:
-//   (a) the imposed E/H pair is NOT exactly variational (a broken gradient -- GDM is the audit DIIS can't do);
-//   (b) the projector restores EXACT degeneracies across the k-star (a free run's ULP splittings act as a
-//       regularizer), so occupations/rotations tie at the filling and line-search level -- E flat, ρ wandering
-//       ("electron jumping between k branches", the crystal analog of the atom-in-box E-settled/ρ-rotates mode).
-// This probe A/Bs the in-suite proxy (Si diamond 2x2x2 IBZ): GDM_IMPOSE=0/1 toggles imposition,
-// GDM_KT sets Fermi smearing (smearing cures (b), cannot cure (a)).  Run manually:
-//   GDM_IMPOSE=1 GDM_KT=0.01 ./ITMain --gtest_filter='*ImposedGDMProbe*' --gtest_also_run_disabled_tests
-// MEASURED (2026-08-03, Si diamond SR, Becke-auto XC): imposition does NOT degrade GDM on the clean
-// insulator -- free and imposed both converge in 11 iterations to lastΔρ=3.0e-7, E_imposed=-7.77837 vs
-// E_free=-7.77835 (imposed 2e-5 LOWER, as a variational E should be once the projector removes the
-// free run's symmetry-defect noise; the free run's measured defect was 1.4e-5).  So (a) shows no
-// GDM-visible gradient inconsistency at multi-k on Si; the NaF stall points at (b) -- NaF's diffuse
-// near-gap virtuals + exactly-restored star degeneracies (branch ties).  Discriminator for the NaF
-// config: SmearingkT ~ 0.005-0.01 rescues (b), cannot rescue (a).
-TEST(GPW_SCF, DISABLED_ImposedGDMProbe_SiDiamondIBZ)
-{
-    auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwOptions o;
-    o.label="Si diamond IBZ GDM probe"; o.Nelec=8; o.species={{"Si",4}};
-    o.densityEcut=20.0; o.accelerator="GDM";
-    o.imposeSymmetry = envd("GDM_IMPOSE",1.0)!=0.0;
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
-    o.scf.NMaxIter=int(envd("GDM_NMAX",60.0)); o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e-10;   // let GDM run deep
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-    o.scf.SmearingkT=envd("GDM_KT",0.0);
-    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/envd("GDM_VERBOSE",0.0)!=0.0);
-    std::cout << "[GDM probe] impose=" << o.imposeSymmetry << " kT=" << o.scf.SmearingkT
-              << " E=" << R.E.GetTotalEnergy() << " converged=" << R.converged << std::endl;
-}
-
 // The NaF SIBLING of the probe above -- the SMEARING DISCRIMINATOR on the user's actual configuration
 // (multi-k 2x2x2 rocksalt NaF SR2, the DISABLED_NaFRocksaltGamma production recipe: IonicSAD seed, Kerker,
 // delayed-IMOM, pivoted Cholesky; Becke XC at NAFGDM_L, default the fast L=11 recipe).  GDM does NOT (yet)
@@ -2291,25 +2194,6 @@ TEST(GPW_SCF, BeckeXC_IBZ_SiDiamond)
            "on the invariant Becke mesh; doc/SymmetryUpgradePlan.md 6a)";
 }
 
-TEST(GPW_SCF, DISABLED_AlGlobalMuExperiment)
-{
-    auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
-    const int nk=(int)envd("AL_KGRID",1);
-    FCCUnitCell cell(7.653);
-    cell.AddAtom(13,{0,0,0});
-    Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
-    GpwOptions o=AlOptions();
-    o.globalFermi = envd("AL_GLOBAL",1.0)!=0.0;
-    o.imposeSymmetry = envd("AL_IBZ",0.0)!=0.0;
-    if (envd("AL_RASTER",0.0)!=0.0) o.raster=BasisSet::Lattice_3D::RasterPolicy::AliasFree;   // G-space XC route
-    o.scf.SmearingkT = envd("AL_KT",0.01);
-    o.scf.NMaxIter = (size_t)envd("AL_NMAX",60);
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell,BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/true);
-    std::cout<<"[Al global-μ] nk="<<nk<<" global="<<o.globalFermi<<" conv="<<R.converged
-             <<" charge="<<R.charge<<" A="<<R.E.GetTotalEnergy()
-             <<" -TS="<<R.E.MinusTS<<" E(internal)="<<(R.E.GetTotalEnergy()-R.E.MinusTS)<<std::endl;
-}
-
 // (item 4) THE HONEST METAL: FCC Na, a real half-filled-band Fermi surface.  Zion=1 (3s^1) => ONE valence
 // electron per cell, so the single conduction band is HALF-FILLED and μ cuts THROUGH it -- a genuine Fermi
 // surface (unlike Al's degenerate-3p at Γ).  SHIFTED Monkhorst-Pack 2×2×2 (kShift=½ => k at ±¼, CP2K's default
@@ -2341,43 +2225,6 @@ TEST(GPW_SCF, NaFCCMetalGlobalMu)
     EXPECT_NEAR(R.charge, 1.0, 1e-6);          // one valence electron, BZ-weighted Σ_k w_k n_k = 1
     EXPECT_LT(R.E.MinusTS, -1e-4);             // −TS<0 AND non-trivial: the Fermi surface IS fractionally filled
     EXPECT_NEAR(R.E.GetTotalEnergy(), 0.045543, 3e-3);    // did-E-move anchor (free energy A at kT=0.01)
-}
-
-// ===== EXPERIMENTAL (scratch, item 4): FCC Na -- the honest half-filled-band metal =====
-// FCC Na, Zion=1 (3s^1): ONE valence electron per cell => the single conduction band is HALF-FILLED, so μ
-// cuts THROUGH the band = a real Fermi surface (unlike Al's degenerate-3p, this is the textbook metal).
-// SHIFTED Monkhorst-Pack (kShift=½ => k at ±¼, CP2K's default; avoids the high-symmetry Γ, samples the Fermi
-// surface more evenly) + global μ + smearing.  Knobs: NA_KGRID (nxnxn), NA_A (lattice au), NA_KT, NA_SHIFT
-// (0=Γ-centred,1=shifted MP), NA_GLOBAL, NA_NMAX.  Basis = VALENCE_LOWQ_SR Na (s from 0.086; the metal WANTS
-// the 0.03 diffuse s but it makes the Bloch overlap singular -- the diffuse-basis tension, step-1 territory).
-TEST(GPW_SCF, DISABLED_NaFCCMetalExperiment)
-{
-    auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
-    const int nk=(int)envd("NA_KGRID",2);
-    const double a=envd("NA_A",10.0);              // FCC Na ~ 5.3 Å = 10 au (BCC-density-matched)
-    FCCUnitCell cell(a);
-    cell.AddAtom(11,{0,0,0});                       // Na (Zion=1): 3s^1
-    Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
-
-    GpwOptions o;
-    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="Na FCC metal"; o.Nelec=1; o.species={{"Na",1}};
-    o.densityEcut=-1.0; o.accelerator="DIIS";
-    o.globalFermi = envd("NA_GLOBAL",1.0)!=0.0;
-    const bool shifted = envd("NA_SHIFT",1.0)!=0.0;
-    o.kShift = shifted ? rvec3_t(0.5,0.5,0.5) : rvec3_t(0,0,0);   // shifted MP vs Γ-centred
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
-    o.scf.NMaxIter=(size_t)envd("NA_NMAX",60); o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=envd("NA_KT",0.01);
-    const BasisSetData bas = envd("NA_SR2",0.0)!=0.0 ? BasisSetData::VALENCE_LOWQ_SR2
-                                                     : BasisSetData::VALENCE_LOWQ_SR;
-    GpwResult R = envd("NA_ANNEAL",0.0)!=0.0
-        ? RunGpwAnnealed(lat, MakeBasisLowQ(cell,bas), o, {0.02,0.01,0.005}, /*verbose*/true)
-        : RunGpw       (lat, MakeBasisLowQ(cell,bas), o, /*verbose*/true);
-    std::cout<<"[Na metal] nk="<<nk<<" a="<<a<<" shift="<<shifted<<" global="<<o.globalFermi
-             <<" conv="<<R.converged<<" charge="<<R.charge<<" A="<<R.E.GetTotalEnergy()
-             <<" -TS="<<R.E.MinusTS<<" E(internal)="<<(R.E.GetTotalEnergy()-R.E.MinusTS)<<std::endl;
 }
 
 // (4) MULTI-SPECIES GPW: ionic NaF (rocksalt = FCC + 2-atom basis) at Gamma, driven by the multi-species
@@ -2745,67 +2592,6 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
     std::cout << "[NaF GPW full/Eigen(1e-6)] iters="<<scf.GetIterationCount()<<" charge="<<charge
               << " Etot="<<E.GetTotalEnergy() << std::endl;
     EXPECT_NEAR(charge, 8.0, 1e-6);
-}
-
-// (4b) FAST overlap-conditioning sweep for NaF: build ONLY the analytic Bloch overlap S(Gamma) (via GPW_IBS,
-// densityEcut=0 -> no collocation, no SCF) for the full vs SR valence basis across Rcut, and report min/max
-// eig(S) PLUS the ORTHOGONALISER RESIDUAL ‖VᴴSV − I‖ (V=S^-½ built by the SAME LASolver the SCF uses).  Seconds
-// per point (analytic 1E sum), so we settle the conditioning question before paying for a full SCF.
-//
-// PROBE 1 (disentangling, doc/GPWPlan §0): this SEPARATES the two pathologies that both read as "conditioning":
-//   (A) NEAR-SINGULAR but PSD (min eig>0, e.g. SR/Rcut=2a min eig 7.5e-4).  cond(S)~1/min_eig looks scary but
-//       cond(V)=√cond(S), so the orthogonaliser is essentially EXACT: ‖VᴴSV−I‖ ~ machine eps.  => conditioning
-//       here is a RED HERRING; whatever ails the SCF, it is NOT the metric.  (The plan's predicted result.)
-//   (B) INDEFINITE (min eig<0) at small Rcut from the SHARP |R|≤Rcut cutoff (full basis: -0.42 at Rcut=a).  No
-//       real S^-½ EXISTS -> Cholesky fails; this is a genuine problem, but a TRUNCATION one, fixed by
-//       MAGNITUDE-SCREENING the image pairs (CP2K's EPS_PGF_ORB), NOT by a better orthogonaliser.  Flagged, not
-//       measured (residual undefined).
-// So one cheap table closes axis A (conditioning-of-a-valid-metric = red herring) and names axis B (sharp-cutoff
-// truncation -> magnitude screening) as the real overlap work.
-TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
-{
-    namespace L3=BasisSet::Lattice_3D;
-    const double a=8.73;
-    FCCUnitCell cell(a);
-    cell.AddAtom(11, {0,0,0});          // Na
-    cell.AddAtom(9,  {0.5,0.5,0.5});    // F
-
-    // ‖VᴴSV − I‖_max for a given ortho method: Transform(S)=VᴴSV must be the identity iff V=S^-½ is exact.
-    auto residual=[](const hmat_t<dcmplx>& S, qchem::Ortho ortho, double tol=0.0)->double
-    {
-        std::unique_ptr<LASolver<dcmplx>> la(LASolver<dcmplx>::Factory(ortho, tol));
-        la->SetBasisOverlap(S);
-        hmat_t<dcmplx> I=la->Transform(S);     // VᴴSV (identity on the RETAINED subspace after truncation)
-        double r=0.0;
-        for (size_t i=0;i<I.rows();++i)
-            for (size_t j=0;j<I.columns();++j)
-                r=std::max(r, std::abs(dcmplx(I(i,j)) - (i==j ? 1.0 : 0.0)));
-        return r;
-    };
-
-    auto probe=[&](BasisSetData bd, const char* name)
-    {
-        auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-            bd, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
-        // BANISH-Rcut: the old Rcut sweep axis is unrepresentable (enumeration lives inside the seam);
-        // the one remaining question is the COMPLETE-enumeration conditioning of each basis.
-        {
-            L3::GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0);
-            const BasisSet::Complex_OIBS& g = gpw;
-            auto S = g.Overlap();
-            rvec_t d; mat_t<dcmplx> U; blazem::eigen(S, d, U);   // ascending eigenvalues of Hermitian S
-            std::cout << "[cond " << name << "] n=" << S.rows() << " (complete enumeration)"
-                      << "  eig[0..3]=" << d[0] << "," << d[1] << "," << d[2] << "," << d[3]
-                      << "  max=" << d[d.size()-1];
-            std::cout << "  ‖VᴴSV-I‖: Eigen(1e-6)=" << residual(S, qchem::Eigen, 1e-6)
-                      << " SVD(1e-6)=" << residual(S, qchem::SVD, 1e-6);
-            if (d[0] > 0.0) std::cout << " Chol=" << residual(S, qchem::Cholesky);
-            std::cout << std::endl;
-        }
-    };
-    probe(BasisSetData::VALENCE_LOWQ,     "full");
-    probe(BasisSetData::VALENCE_LOWQ_SR,  "SR  ");
-    probe(BasisSetData::VALENCE_LOWQ_SR2, "SR2 ");
 }
 
 //================================================================================================
@@ -3603,46 +3389,6 @@ void GridRouteAB(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, cons
     ScoreRoutes(r, probe, system);
 }
 } //anon
-
-// Si diamond: selector verdict UNIFORM (4,913 pts vs 36,000 Becke).
-TEST(GPW_SCF, DISABLED_GridRouteAB_SiGamma)
-{
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o;
-    o.label="Si V2.4"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0;
-    // imposeSymmetry LEFT AT THE DEFAULT (true), unlike the V2.6 ladders.  A ladder freezes one density
-    // and wants the bare angular RULE, so it turns the fold off; this test needs each route to reach a
-    // CONVERGED density, and free-mesh Si/Gamma oscillates in its degenerate manifold (measured: 3 of 4
-    // routes hit FIT-FLOOR STALL at 60 iterations, which made the first run's drho scores SCF noise
-    // rather than grid error).  Imposed is also the production configuration, so this is the A/B that
-    // matches what a user gets.
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
-    // SI_VXCFIT_DELTA=1: pair the DELTA quadrature with the UNIFORM grid -- the combination the §6a
-    // fit/grid separation always allowed and nothing ever ran (Auto gives the historical pairing:
-    // PlaneWave on uniform, Delta on Becke).  It is the SINGLES route on the uniform grid: rho from the
-    // Phi GEMM (so a factored density's leaf engages) and H_xc from Phi^dag diag(wv) Phi -- BOTH halves
-    // from one engine, hence one discrete functional.  Sourcing only rho that way and leaving H_xc on the
-    // pair gather desynchronises E from V and wrecks the SCF (measured 2026-08-22: Si 14 -> 60 iterations).
-    if (std::getenv("SI_VXCFIT_DELTA")) o.vxcFit=Hamiltonian::VxcFit::Delta;
-    GridRouteAB(lat, MakeBasisSR(cell), o, "Si");
-}
-
-// Al FCC: selector verdict UNIFORM (4,096 vs 36,000) -- and the system whose SCF amplified a
-// frozen-density 3.9e-4 into 6.4e-4 (V2.6a).  Smeared, so the density is converged and non-rotating.
-TEST(GPW_SCF, DISABLED_GridRouteAB_AlFCC)
-{
-    FCCUnitCell cell(7.653);
-    cell.AddAtom(13, {0,0,0});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o=AlOptions();
-    o.label="Al V2.4"; o.scf.SmearingkT=0.02; o.imposeSymmetry=false;
-    GridRouteAB(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, "Al");
-}
 
 // THE ROTATED-LEBEDEV EXPERIMENT (plan §6a rotation insight, increment (b)): quadrature exactness is
 // rotation-invariant, so rotating an efficient Lebedev grid OFF the bond axes should be a nearly-free
@@ -4804,22 +4550,3 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
     EXPECT_LT(Eafm, Efm) << "AFM-II must be the LSDA ground state ordering";
 }
 
-// TEMPORARY diagnosis probe (will be removed): is the -0.205 overlap eigenvalue on the MnO rhombohedral
-// cell a CELL-SHAPE problem (oblique lattice sum) or a BASIS problem (diffuse Mn/O windows)?
-TEST(GPW_SCF, DISABLED_MnOCellShapeProbe)
-{
-    const double a=8.40;
-    Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
-    UnitCell cell(A);
-    cell.AddAtom(14, {0.0,0.0,0.0});
-    cell.AddAtom(14, {0.5,0.5,0.5});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    cell.AddAtom(14, {0.75,0.75,0.75});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o;
-    o.label="rhombo cell probe (SIPP_SR Si)"; o.Nelec=16; o.species={{"Si",4}};
-    o.imposeSymmetry=false;
-    o.scf.NMaxIter=1; o.scf.MinΔρ=1e30; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/true);
-}

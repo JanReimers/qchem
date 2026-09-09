@@ -3,6 +3,7 @@
 module;
 #include <iostream>
 #include <iomanip>
+#include <stdexcept>   // R2.5b: a non-physical exponent THROWS
 #include <cassert>
 #include <string>
 #include <vector>
@@ -279,8 +280,9 @@ PrimGaussian::PrimGaussian(double theExponent, const rvec3_t& theCenter, int the
 {
     if (itsExponent < 0)
     {
-        std::cerr << "PrimGaussian exponent < 0" << std::endl;
-        exit(-1);
+        throw std::domain_error("PrimGaussian: exponent "+std::to_string(itsExponent)+" is negative.  "
+            "exp(-alpha r^2) with alpha<0 DIVERGES, so every integral over this primitive is infinite; "
+            "the usual source is a mis-parsed basis file or a sign lost in a contraction.");
     }
 }
 

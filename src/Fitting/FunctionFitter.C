@@ -28,7 +28,7 @@ module;
 export module qchem.Fitting.FunctionFitter;
 export import qchem.Mesh.Integrator;   // MatrixForward -- what ScalarProjector vends (2026-09-09)
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
-export import qchem.BasisSet.Internal.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
+export import qchem.BasisSet.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
 export import qchem.BasisSet.Orbital_DFT_IBS;  // rFIT_SF_ABS / rFIT_CD_ABS (the fit faces) + Orbital_DFT_IBS (FitContraction's argument)
 import qchem.Blaze;                   // hmat_t<T>

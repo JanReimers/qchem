@@ -2,12 +2,30 @@
 module;
 #include <iostream>
 #include <cassert>
+#include <stdexcept>   // R2.5b: a rejected basis file THROWS -- it no longer takes the process with it
+#include <string>
 #include <memory>
 #include <stdlib.h>
 #include <algorithm>
 #include <unistd.h>
 #include <vector>
 module qchem.BasisSet.Molecule.Readers.Gaussian94;
+// ★ R2.5b (2026-09-09): EVERY `exit(-1)` IN THIS READER IS NOW A THROW.
+//
+// USER POLICY, and the reason is SEARCHABILITY rather than semantics: "we really don't have a proper
+// error handling policy.  Throwing exceptions is the best interim solution for now.  The key is that they
+// are all easy to search and find (just hunt for the `throw` token), so if/when we do architect a proper
+// error/warning handling framework/policy we can locate all error points and react accordingly."
+// ⇒ `throw` is the MARKER a future framework will grep for, which is why the conversion was wholesale
+// rather than case-by-case.  The immediate win stands on its own: a malformed basis file used to kill the
+// pybind GUI and the test runner outright, taking the diagnostic with it.
+//
+// ⚠ AND THIS FILE IS THE FIRST CANDIDATE TO CHANGE AGAIN when that framework lands.  These are the only
+// sites in the batch a USER can trigger with a bad INPUT FILE rather than a composition error, so by
+// CLAUDE.md's own rule -- a call that can legitimately fail returns an Outcome; a broken invariant no
+// caller can act on throws -- a reader belongs on the Outcome side.  The messages below are written to be
+// worth carrying either way: each names the subject and what was expected, not just where it stopped.
+
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.PeriodicTable;
 import qchem.Structure;
@@ -30,9 +48,8 @@ Gaussian94Reader::Gaussian94Reader(std::string filename)
 {
     if(!itsStream)
     {
-        std::cerr << "Could not open Gaussian 94 format basis set data file :" << filename << std::endl;
-        std::cerr << "  current working directory = '" << get_current_dir_name() << "'" << std::endl;
-        exit(-1);
+        throw std::runtime_error("Gaussian94Reader: could not open the basis-set data file '"+filename
+            +"'.  Current working directory: '"+std::string(get_current_dir_name())+"'.");
     }
 };
 
@@ -135,8 +152,9 @@ GaussianRF* Gaussian94Reader::ReadNext(const Atom& atom)
         itsStream >> dummy;
         if (nCont<=0)
         {
-            std::cerr << "Gaussian94Reader::ReadNext number of primatives in contraction <=0" << std::endl;
-            exit(-1);
+            throw std::runtime_error("Gaussian94Reader::ReadNext: the number of primitives in a "
+                "contraction is "+std::to_string(nCont)+"; it must be positive.  The file is malformed at "
+                "this shell, or the previous shell consumed too many lines.");
         }
         if (nCont == 1)                //Read in a primative.
             ret = ReadPrimative(MaxL, atom);
@@ -171,8 +189,10 @@ GaussianRF* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Atom& at
     }
     if (itsLs.size()>1 && blazem::column(coeff,0) != blazem::column(coeff,1))
     {
-        std::cerr << "Gaussian94Reader::ReadContracted contraction coeffs vary with L, not handeled yet" << std::endl;
-        exit(-1);
+        throw std::runtime_error("Gaussian94Reader::ReadContracted: this is a shared-radial (SP/\"L\") "
+            "shell -- its contraction coefficients differ between the L values sharing one exponent set -- "
+            "and the reader does not build those yet (doc/CleanupCandidates.md R1.0b).  It is a MISSING "
+            "FEATURE, not a corrupt file: the basis is legal Gaussian94.");
     }
     rvec_t coeffs(nCont);
     for (int i=0; i<nCont; ++i) coeffs[i] = coeff(i,0);
@@ -193,8 +213,8 @@ int Gaussian94Reader::ReadLs()
 
     if (itsLs.size()==0 && l!=-1)
     {
-        std::cerr << "Gaussian94Reader::ReadLs didn't find any Ls" << std::endl;
-        exit(-1);
+        throw std::runtime_error("Gaussian94Reader::ReadLs: found no angular-momentum labels where a "
+            "shell header was expected.  The file is malformed, or the reader is out of step with it.");
     }
     if (l!=-1)
     {
@@ -245,9 +265,8 @@ int ToNumber(char c)
         break;
     default :
     {
-        std::cerr << "Can't convert '" << c << "' to a polarization quantum number" << std::endl;
-        assert(false);
-        exit(-1);
+        throw std::runtime_error(std::string("Gaussian94Reader: '")+c+"' is not an angular-momentum "
+            "label (expected one of S P D F G H I, upper or lower case).");
     }
     }
     return ret;

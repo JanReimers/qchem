@@ -15,7 +15,7 @@
 // BOUNDARIES" rule: `.Internal.` marks the family boundary, not the target boundary.  So this decorator —
 // which no consumer outside the basis-set family has any business naming — moves in, and the rule keeps
 // its teeth where it matters.  (The genuine violations the ruling exposes are the
-// `qchem.BasisSet.Internal.GMap` imports from `qcChargeDensity` and `qcFitting`, which are unrelated
+// `qchem.BasisSet.GMap` imports from `qcChargeDensity` and `qcFitting`, which are unrelated
 // libraries; filed as V1.20b.)
 module;
 #include <string>

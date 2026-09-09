@@ -47,29 +47,6 @@ std::vector<double> FreeEnergies(double a, rvec3_t kf, int mr)
 
 class APWTests : public ::testing::Test {};
 
-TEST_F(APWTests, DISABLED_Calibration)
-{
-    double a=8.0, R=2.0, Ecut=2.0;
-    ivec3_t N(4,4,4), k(1,0,0);
-    rvec3_t kf(0.25,0,0);
-    UnitCell cell(a);
-    Lattice_3D lat(cell,N);
-    std::vector<double> fe=FreeEnergies(a,kf,2);
-
-    for (size_t lmax : {4u,6u,8u,12u})
-    {
-        APW_IBS apw(lat.Reciprocal(),N,k,Ecut,R,lmax);
-        printf("--- lmax=%2zu  nPW=%zu ---\n",lmax,apw.GetNumFunctions());
-        for (int n=0;n<4;n++)
-        {
-            double Es=fe[n];
-            double Eoff=0.5*(fe[n]+fe[n+1]);
-            printf("  E*=%.5f  minEig(E*)=%.3e   Eoff=%.5f minEig(Eoff)=%.3e\n",
-                   Es,MinAbsEig(apw.MakeSecular(Es)),Eoff,MinAbsEig(apw.MakeSecular(Eoff)));
-        }
-    }
-}
-
 // The APW secular matrix is singular exactly at the free-electron energies and non-singular between
 // them -- the empty-lattice limit, recovered to machine precision at lmax=8.
 TEST_F(APWTests, EmptyLatticeSecularSingularAtFreeElectronEnergies)

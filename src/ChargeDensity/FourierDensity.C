@@ -11,7 +11,7 @@
 module;
 #include <type_traits>
 export module qchem.ChargeDensity.FourierDensity;
-export import qchem.BasisSet.Internal.GMap;
+export import qchem.BasisSet.GMap;
 import qchem.BasisSet.Orbital_DFT_IBS;   // cFIT_CD_ABS (the CD fit basis GetRepulsion3C keys by)
 import qchem.Types;   // dcmplx
 

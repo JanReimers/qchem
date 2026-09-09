@@ -12,7 +12,7 @@
 #include <cmath>     // std::lround, std::acos
 #include <complex>   // std::polar
 
-import qchem.BasisSet.Internal.GMap;              // ΔG_Map, SymmetrizeGMap, ReciprocalOp
+import qchem.BasisSet.GMap;              // ΔG_Map, SymmetrizeGMap, ReciprocalOp
 import qchem.Symmetry.Lattice_3D.SpaceGroup;      // SpaceGroup::Detect / ReciprocalOps (the crystal ops)
 import qchem.Types;
 

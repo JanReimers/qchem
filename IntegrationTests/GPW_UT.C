@@ -39,7 +39,7 @@ import qchem.BasisSet.DeltaFit_IBS;          // DeltaFit_IBS (the delta represen
 import qchem.Fitting.FitOperations;          // OrthogonalFit -- the projection/metric invariant this gate pins
 import qchem.Mesh.Quadrature;                // qcMesh::Mesh (the delta basis's quadrature)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
-import qchem.BasisSet.Internal.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
+import qchem.BasisSet.GMap;            // Projector3<dcmplx> / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the v_xc/eps_xc face; XC-consistency probe)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange -- the SCF's own X term)
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5 -- the SCF's own C term)
