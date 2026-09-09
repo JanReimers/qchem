@@ -21,6 +21,7 @@
 // (FitContraction<double,dcmplx> and <dcmplx,dcmplx>), which a mixed real/complex run needs and which is
 // exactly what the single-scalar fitter face could not express before the FitContraction split.
 module;
+#include <complex>   // std::real -- the Charge() narrow (2026-09-09)
 #include <cassert>
 #include <map>           // the per-block Phi handles (shallow Projector3 copies)
 #include <memory>
@@ -74,12 +75,13 @@ public:
     virtual hmat_t<double> Overlap(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override {return Contract(orb);}
     virtual hmat_t<dcmplx> Overlap(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override {return Contract(orb);}
 
-    //! \copydoc Fitting::ScalarProjector::Overlap3C
-    //! The SAME held handle the adjoint above contracts -- which is the point of holding it.
-    const Projector3<double>& Overlap3C(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override
-        {return Handle(itsO3R, orb);}
-    const Projector3<dcmplx>& Overlap3C(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
-        {return Handle(itsO3 , orb);}
+    //! \copydoc Fitting::ScalarProjector::Forward
+    //! Built over the SAME held handle the adjoint above contracts -- which is the point of holding it:
+    //! the density's forward and the term's adjoint provably come off ONE tensor.
+    const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override
+        {return Integrator(itsFwdR, itsO3R, orb);}
+    const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
+        {return Integrator(itsFwd , itsO3 , orb);}
 
     //! \copydoc Fitting::ScalarProjector::Project
     //! Structurally identical to \c DoFit above and deliberately NOT sharing its buffer: the same
@@ -134,8 +136,35 @@ private:
         if constexpr (std::is_same_v<U,double>) return itsO3R;
         else                                    return itsO3;
     }
+    //! \brief The \c MatrixForward VIEW of each held handle, cached beside it and keyed identically.
+    //!
+    //! It must be CACHED, not returned by value: the face hands back a reference, and a
+    //! \c ScreenedMatrixIntegrator borrows its \c Projector3, so a temporary would dangle the moment the
+    //! caller used it.  Keyed on the same \c Irrep as the tensor, and created only after the tensor is,
+    //! so the two maps never disagree about which blocks exist.
+    template <class U> const qcMesh::MatrixForward<U>&
+    Integrator(std::map<Irrep,ScreenedMatrixIntegrator<U>>& fwd,
+               std::map<Irrep,Projector3<U>>& tensors,
+               const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
+    {
+        const Irrep id=orb.GetIrrep(Spin::None);
+        auto it=fwd.find(id);
+        if (it!=fwd.end()) return it->second;
+        const Projector3<U>& g=Handle(tensors, orb);      // materialise (or find) the tensor first
+        // The integrator's "weights" are the FUNCTION integrals <f_a|1> of my coefficient axis, not point
+        // weights -- which on a delta basis are numerically the mesh weights, and on any other fit basis
+        // are still the right thing.  Charge() is that vector; it is real for a real-valued fit basis, and
+        // the narrow is where that fact is stated once.
+        const vec_t<dcmplx> q=itsFitBasis->Charge();
+        rvec_t w(q.size());
+        for (size_t a=0;a<q.size();a++) w[a]=std::real(q[a]);
+        return fwd.emplace(id, ScreenedMatrixIntegrator<U>(g, std::move(w))).first->second;
+    }
+
     mutable std::map<Irrep,Projector3<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3)
     mutable std::map<Irrep,Projector3<dcmplx>> itsO3;    //!< Bloch blocks' handles
+    mutable std::map<Irrep,ScreenedMatrixIntegrator<double>> itsFwdR;  //!< their MatrixForward views
+    mutable std::map<Irrep,ScreenedMatrixIntegrator<dcmplx>> itsFwd;
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
     rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
 };

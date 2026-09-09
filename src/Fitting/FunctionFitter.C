@@ -26,6 +26,7 @@ module;
 #include <iosfwd>
 #include <memory>
 export module qchem.Fitting.FunctionFitter;
+export import qchem.Mesh.Integrator;   // MatrixForward -- what ScalarProjector vends (2026-09-09)
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
 export import qchem.BasisSet.Internal.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
@@ -153,10 +154,21 @@ class ScalarProjector
 {
 public:
     virtual ~ScalarProjector() = default;
-    //! \f$\langle\chi_i|f_a|\chi_j\rangle\f$ for a \a U-scalar orbital block -- the handle a
-    //! matrix-backed density contracts its own \f$D\f$ (or thin \f$L\f$) into.
-    virtual const Projector3<double>& Overlap3C(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;
-    virtual const Projector3<dcmplx>& Overlap3C(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;
+    //! \brief THE FORWARD HALF of the assembly for a \a U-scalar orbital block -- what a matrix-backed
+    //! density contracts its own \f$D\f$ (or thin \f$L\f$) into.
+    //!
+    //! ★ IT RETURNS THE ABSTRACTION, NOT THE TENSOR (2026-09-09).  It used to hand back
+    //! \c const Projector3<U>& -- the concrete 3-centre tensor -- so \c IrrepCD reached into a
+    //! \c std::function member (`o3.applyRaw(D)`) and asserted on another (`o3.applyRawFactored`).  The
+    //! density has no business naming either: it owns \f$D\f$ and wants ONE thing done with it.
+    //! \c qcMesh::MatrixForward is that thing, and its factored overload has a default, so there is
+    //! nothing left to assert.
+    //!
+    //! \note By REFERENCE, deliberately: a \f$\delta\f$ fit basis always realises the forward, so
+    //! "haven't got one" is not a state this face can be in.  The nullable question -- *does this LINEAGE
+    //! collocate at all?* -- belongs to the BASIS-side vendor (\c Orbital_DFT_IBS), not here.
+    virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const=0;
+    virtual const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const=0;
     //! \brief The MATRIX-FREE route: project \a f onto my fit basis and return the coefficients.
     //!
     //! A PROJECTION, not a fit: it RETURNS the coefficients rather than storing them, which is the whole

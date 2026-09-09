@@ -1143,6 +1143,67 @@ MnO campaign proceeds undisturbed in qchem6.
   and no `if (auto* p = dynamic_cast…)` guard*.  That one found all six defects and, after excluding
   in-place `if` guards, produced only ONE false positive (a commented-out line).
 
+- **R1.0o ✅ THE PLUMBING — `ScalarProjector` VENDS THE ABSTRACTION (2026-09-09).**  844/844.
+
+  `Fitting::ScalarProjector::Overlap3C(orb) -> const Projector3<U>&` became
+  **`Forward(orb) -> const qcMesh::MatrixForward<U>&`**.  `DeltaFunctionFitter` — the one implementation —
+  caches a `ScreenedMatrixIntegrator` beside each held tensor, keyed on the same `Irrep`, created only
+  after the tensor so the two maps cannot disagree about which blocks exist.  It must be CACHED rather than
+  returned by value: the face hands back a reference and the integrator BORROWS its `Projector3`, so a
+  temporary would dangle at the point of use.
+
+  ★ **WHAT THE DENSITY LOOKS LIKE NOW.**  `IrrepCD::ProjectOnto` was
+  ```
+  const Projector3<T>& o3 = p.Overlap3C(orb);
+  assert(o3.applyRaw && "…must realise the 3-centre forward contraction");
+  return o3.applyRaw(itsDensityMatrix);
+  ```
+  and is now `return p.Forward(orb).Forward(itsDensityMatrix);`.  `FactoredRho` likewise, and **both
+  asserts are gone** — the first because holding a `MatrixForward` IS the guarantee, the second because the
+  factored overload has a default.  ⇒ **`qcChargeDensity` no longer names `Projector3` or any of its
+  closures on the fitter path.**  It owns \f$D\f$, it is handed a forward, it calls it.
+
+  ★ **AN INCIDENTAL FINDING WORTH MORE THAN THE PLUMBING.**  The integrator needs "weights" for
+  `Integrate`, and on a fit basis the right vector is not point weights but the FUNCTION INTEGRALS
+  \f$\langle f_a|1\rangle\f$ — `FIT_SF_ABS::Charge()`.  On a \f$\delta\f$ basis those are numerically the
+  mesh weights, which is why the two were never distinguished; on any other fit basis they are still
+  correct.  **That is the concrete evidence for the user's conjecture below**: nothing in this interface
+  needs a GRID, only a coefficient axis with integrals.
+
+  ▶ **STILL OPEN — the BASIS-side vendor, and it is the nullable one.**  `IrrepCD_Fourier::GetRhoOnGrid`
+  still does `g.applyRaw ? g.applyRaw(D) : rvec_t{}` off `Orbital_DFT_IBS::Overlap3C`, i.e. it asks a
+  CONCRETE tensor a capability question and signals the answer **in band** (an empty vector means "no
+  route, take the ball fit").  Cure, per R1.0n: `Orbital_DFT_IBS` vends `const MatrixForward<T>*`, null
+  meaning "this lineage collocates nothing".  ⚠ Bigger surface than the fitter's — `Overlap3C` is the
+  cached-tensor accessor with many callers on the ADJOINT side too — so it is its own increment.
+
+- **R1.0p ▶ THE CONJECTURE: DOES THIS PATTERN GENERALISE TO ANALYTIC INTEGRALS?** (user, 2026-09-09:
+  *"if it is done right (the integration grid is totally hidden inside the integrator) then this interface
+  should also work for analytic integrals.  If so then everything should move to this pattern."*)
+
+  ✅ **THE MECHANISM SAYS YES, AND THE TREE HAS ALREADY HALF-PROVED IT.**  Nothing in `MatrixForward` /
+  `MatrixAdjoint` mentions points: the arrays crossing the faces are COEFFICIENTS ON A FIT BASIS, and the
+  grid — where there is one — is an implementation detail of the realization.  Under `doc/Pins.md` pin 2
+  (*a fit is (integration grid) × (fit basis), orthogonal axes*) this interface is parameterised on the fit
+  basis alone, which is exactly the user's condition.  Evidence already in the tree:
+  - `Fitting::ScalarProjector::NumCoefficients` is documented *"A count of FUNCTIONS, in the 2026-08-23
+    vocabulary: never of points"* — the fitting layer moved to this vocabulary a year ago, for this reason.
+  - The plane-wave route already carries \f$v\f$ as G-COEFFICIENTS (`ΔG_Map`), not point values, through
+    the same forward/adjoint shape.
+  - The weights this session's plumbing needed turned out to be \f$\langle f_a|1\rangle\f$, not point
+    weights (above).
+  ⇒ ⚠ **`MatrixIntegrator`'s own `NumPoints()` is the thing out of step, not the design.**  Rename it
+  `NumCoefficients()` and the faces say nothing about grids at all.
+
+  ⛔ **BUT "EVERYTHING SHOULD MOVE TO THIS PATTERN" IS TOO STRONG, AND THE LIMIT IS SHARP.**  The pattern
+  is a FORWARD/ADJOINT PAIR around a density-dependent FIELD: \f$D\to\rho\to v[\rho]\to H\f$.  It fits
+  every term whose matrix depends on the density — Hartree, XC, and \f$+U\f$ when it lands.  It does NOT
+  fit the STATIC 1E integrals (overlap, kinetic, nuclear attraction, the KB projectors): those have no
+  \f$D\f$ to push forward and no field to pull back, so there is no pair to keep consistent and the
+  interface would be two methods nobody calls.  ⇒ **The right statement is "every DYNAMIC term should move
+  to this pattern"**, which is also exactly the set that `RefreshForDensity` applies to — the same
+  partition, arrived at from a different direction, which is some evidence it is the real one.
+
 - **R1.0n ✅ `MatrixIntegrator` ISP-SPLIT 2026-09-09 — and the ownership question ANSWERS ITSELF, because
   both pieces already exist.**
 
