@@ -49,28 +49,56 @@ template <class T> inline auto IReal(const T& x) {if constexpr (std::is_floating
 export namespace qchem::qcMesh
 {
 
+//! \brief THE FORWARD HALF: a density matrix to values at points.
+//!
+//! ★ SEGREGATED FROM THE ADJOINT (ISP, user 2026-09-09) BECAUSE THE TWO SIDES HAVE DIFFERENT CLIENTS.
+//! The forward is driven by the CHARGE DENSITY -- it owns \f$D\f$ as private state and contracts it
+//! against handles a caller supplies -- while the adjoint is driven by the BASIS, per block, with the
+//! orbital block in hand.  Neither client wants the other's method, and a face that forces both on them is
+//! the textbook ISP violation.
+//!
+//! ⚠ **SPLITTING THE INTERFACE DOES NOT SPLIT THE OBJECT, AND THAT IS THE WHOLE TRICK.**  The two halves
+//! are two FACES of one concrete realization (\c MatrixIntegrator below), so a density holding a
+//! \c MatrixForward and a basis holding a \c MatrixAdjoint that came from the SAME integrator cannot
+//! mismatch -- while each names only what it uses.  Hand out two faces of one object, never two objects.
+template <class T> class MatrixForward
+{
+public:
+    virtual ~MatrixForward() = default;
+    //! \brief \f$\rho(r_g)=\sum_{ij}D_{ij}\,\overline{\chi_i(r_g)}\,\chi_j(r_g)\f$ at my points.
+    //! Real by construction for Hermitian \a D -- a density is an observable.
+    virtual rvec_t Forward(const hmat_t<T>& D) const=0;
+    virtual size_t NumPoints() const=0;   //!< length of the array \c Forward returns
+};
+
+//! \brief THE ADJOINT HALF: values at points back to a matrix.  See \c MatrixForward for why they are
+//! separate faces of one object rather than one face or two objects.
+template <class T> class MatrixAdjoint
+{
+public:
+    virtual ~MatrixAdjoint() = default;
+    //! \brief \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}\,v_g\,\chi_j(r_g)\f$ for a field
+    //! TABULATED on the same points, in the same order, that the paired \c MatrixForward returned.
+    virtual hmat_t<T> Adjoint(const rvec_t& v) const=0;
+    //! \f$\int f\,d^3r\f$ over those same points -- the energy quadrature that goes with the pair.
+    virtual double Integrate(const rvec_t& f) const=0;
+    virtual size_t NumPoints() const=0;   //!< length of the array \c Adjoint accepts
+};
+
 //! \brief The forward/adjoint pair of a density-matrix <-> operator assembly, as ONE object.
 //!
 //! Realizations differ in what they TRUNCATE (a dense point sum truncates nothing; the GPW route screens
 //! per pair and boxes per multigrid level), never in semantics.  Which one a run uses is a cost decision
 //! LATCHED for the run -- switching mid-SCF would change the discrete functional being minimised.
+//!
+//! ▶ **THIS is what a factory hands out, and its two BASES are what clients hold.**  Virtual inheritance,
+//! so \c NumPoints is one function and the two halves provably describe the same point set.
 template <class T> class MatrixIntegrator
+    : public virtual MatrixForward<T>
+    , public virtual MatrixAdjoint<T>
 {
 public:
     virtual ~MatrixIntegrator() = default;
-
-    //! \brief FORWARD: \f$\rho(r_g)=\sum_{ij}D_{ij}\,\overline{\chi_i(r_g)}\,\chi_j(r_g)\f$ at my points.
-    //! Real by construction for Hermitian \a D -- a density is an observable.
-    virtual rvec_t Forward(const hmat_t<T>& D) const=0;
-
-    //! \brief ADJOINT: \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}\,v_g\,\chi_j(r_g)\f$ for
-    //! a field TABULATED on the same points, in the same order, that \c Forward returned.
-    virtual hmat_t<T> Adjoint(const rvec_t& v) const=0;
-
-    //! \f$\int f\,d^3r\f$ over my points -- the energy quadrature that goes with the pair.
-    virtual double Integrate(const rvec_t& f) const=0;
-
-    virtual size_t NumPoints() const=0;   //!< how many points the two arrays above are sized to
 };
 
 //! \brief The DENSE realization: an honest point sum over a mesh, with no screening anywhere.

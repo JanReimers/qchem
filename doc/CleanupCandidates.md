@@ -1143,6 +1143,42 @@ MnO campaign proceeds undisturbed in qchem6.
   and no `if (auto* p = dynamic_cast…)` guard*.  That one found all six defects and, after excluding
   in-place `if` guards, produced only ONE false positive (a commented-out line).
 
+- **R1.0n ✅ `MatrixIntegrator` ISP-SPLIT 2026-09-09 — and the ownership question ANSWERS ITSELF, because
+  both pieces already exist.**
+
+  > *"This is a common pattern in OOD.  We need to SOLID::ISP MatrixIntegrator so the two sides are split,
+  > but only at the abstract interface level.  Charge density holds pointer to the forward interface side,
+  > and basis holds a pointer to adjoint side.  The only issue is who constructs the concrete 'screened
+  > realization' and then who owns it … Maybe the block-aggregating decorator?"* (user, 2026-09-09)
+
+  ✅ **DONE, exactly at the interface level:** `MatrixForward<T>` (`Forward(D)`, `NumPoints`),
+  `MatrixAdjoint<T>` (`Adjoint(v)`, `Integrate`, `NumPoints`), and `MatrixIntegrator<T>` virtually
+  inheriting both.  Virtual, so `NumPoints` is ONE function and the two faces provably describe the same
+  point set — which is what a client sizing an array relies on.  Gate:
+  `MatrixIntegrator.TheTwoHalvesServeSeparateClientsAndStillPair` builds exactly the arrangement above (a
+  density-like client holding only the forward, an assembler-like client holding only the adjoint) and
+  checks the adjointness identity ACROSS them.  843/843.
+  ★ **The principle, stated once:** *splitting the INTERFACE does not split the OBJECT.*  Hand out two
+  faces of ONE integrator, never two objects — then each client names only what it calls and the pairing
+  still cannot be mismatched.
+
+  ★★ **AND THE OWNERSHIP QUESTION IS ALREADY ANSWERED BY THE TREE — both pieces exist:**
+  1. **The block-aggregating decorator is `tComposite_CD::ProjectOnto`** (`src/ChargeDensity/CompositeCD.C:97`,
+     *"sum over irrep blocks"*).  It is on the DENSITY side, which is correct: the density owns the block
+     structure and each block's \f$D\f$.  Nothing new is needed.
+  2. **The concrete realizations are already owned by the FITTER**, which caches them per block —
+     `DeltaFunctionFitter::itsO3`/`itsO3R` are `std::map<Irrep,Projector3<U>>`, and `Fitting::ScalarProjector`
+     is the face that vends them.
+  ⇒ **The remaining increment is one signature change, not a new owner.**  `ScalarProjector::Overlap3C`
+  currently returns `const Projector3<T>&` — the CONCRETE tensor — so `IrrepCD` reaches in and calls
+  `o3.applyRaw(itsDensityMatrix)` itself.  Return `const MatrixForward<T>&` instead and the density stops
+  naming the tensor at all; the adjoint side takes `const MatrixAdjoint<T>&` from the same integrator.
+  ⚠ **Scope check before starting:** the forward face the density actually needs is richer than
+  `Forward(D)` alone — `IrrepCD` also uses the FACTORED forward (`applyRawFactored(L)`, the
+  \f$O(n_{pts}nr)\f$ route for \f$D=LL^\dagger\f$) and a CAPABILITY TEST (`g.applyRaw ? … : rvec_t{}` at
+  `IrrepCD.C:529`).  So `MatrixForward` gains an optional factored overload and a `CanForward()` before
+  that plumbing lands — do not discover this halfway through.
+
 - **R1.0m ✅ THE SCREENED REALIZATION — BUILT 2026-09-09.  ⛔ AND THE ENGINE REWIRING IS BLOCKED BY AN
   OWNERSHIP BOUNDARY I DID NOT SEE WHEN I PROPOSED IT.**
 
