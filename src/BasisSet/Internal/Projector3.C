@@ -188,7 +188,17 @@ public:
                 "mismatch this interface exists to prevent.");
     }
 
+    //! Un-hide the base's FACTORED overload before overriding this one (see qchem.Mesh.Integrator's
+    //! warning): without it `Forward(L)` converts a thin factor into an hmat_t adaptor and Blaze throws.
+    using qcMesh::MatrixForward<T>::Forward;
     virtual rvec_t    Forward(const hmat_t<T>& D) const override {return itsG.applyRaw(D);}
+    //! The FAST factored path when the tensor has one; otherwise the base's default (form \f$LL^\dagger\f$,
+    //! delegate) answers -- correct either way, which is what makes it not a capability.
+    virtual rvec_t    Forward(const mat_t<T>& L) const override
+    {
+        if (itsG.applyRawFactored) return itsG.applyRawFactored(L);
+        return qcMesh::MatrixForward<T>::Forward(L);
+    }
     virtual hmat_t<T> Adjoint(const rvec_t& v)    const override {return itsG.applyRawAdjoint(v);}
     virtual double    Integrate(const rvec_t& f)  const override
     {

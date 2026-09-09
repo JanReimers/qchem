@@ -182,3 +182,33 @@ TEST(MatrixIntegrator, TheTwoHalvesServeSeparateClientsAndStillPair)
         << "the pairing did not survive the interface split -- two faces of one object must stay adjoint";
 }
 
+//---------------------------------------------------------------------------------------------------
+// ★ THE FACTORED FORWARD IS NOT A CAPABILITY (user, 2026-09-09: "any implementation of MatrixForward can
+// support both unfactored and factored forward.  Which one (or if both) gets used should be a non-issue").
+// The base supplies a default that forms D = L L^dagger and delegates, so EVERY implementation answers
+// both and the two agree exactly.  Overriding it is an optimisation, never a capability -- which is why
+// there is no CanForwardFactored() to ask.
+TEST(MatrixIntegrator, TheFactoredForwardAgreesWithTheUnfactoredOne)
+{
+    const qcMesh::Mesh m=SpreadMesh(18);
+    const TinyBasis    b;
+    const qcMesh::DenseMatrixIntegrator<double> I(m, b);   // does NOT override the factored overload
+
+    // A rank-2 factor over a 3-function basis: D = L L^T is PSD by construction, like a real density.
+    mat_t<double> L(3,2);
+    L(0,0)= 0.7; L(0,1)=-0.2;
+    L(1,0)=-1.1; L(1,1)= 0.4;
+    L(2,0)= 0.3; L(2,1)= 0.9;
+
+    hmat_t<double> D(3);
+    for (size_t i=0;i<3;i++) for (size_t j=i;j<3;j++)
+    { double s=0; for (size_t k=0;k<2;k++) s+=L(i,k)*L(j,k); D(i,j)=s; }
+
+    const rvec_t rhoD=I.Forward(D);
+    const rvec_t rhoL=I.Forward(L);
+    ASSERT_EQ(rhoD.size(), rhoL.size());
+    for (size_t g=0; g<rhoD.size(); g++)
+        EXPECT_NEAR(rhoL[g], rhoD[g], 1e-13*std::max(1.0,std::abs(rhoD[g])))
+            << "the factored forward must be the SAME map, not a second one";
+}
+

@@ -37,6 +37,7 @@ export import qchem.Mesh;
 export import qchem.Mesh.Quadrature;   // MatrixOverlap -- the dense adjoint
 export import qchem.VectorFunction;
 
+
 namespace qchem::qcMesh
 {
 // Module-internal scalar helpers that also work for real T -- the same pair Quadrature.C keeps
@@ -68,6 +69,43 @@ public:
     //! \brief \f$\rho(r_g)=\sum_{ij}D_{ij}\,\overline{\chi_i(r_g)}\,\chi_j(r_g)\f$ at my points.
     //! Real by construction for Hermitian \a D -- a density is an observable.
     virtual rvec_t Forward(const hmat_t<T>& D) const=0;
+
+    //! \brief The SAME forward for a caller holding \f$D\f$ in FACTORED form \f$D=LL^\dagger\f$ (a thin
+    //! \f$n\times r\f$ pivoted-Cholesky / natural-orbital factor):
+    //! \f$\rho_g=\sum_m\left|[\Phi L]_{gm}\right|^2\f$, i.e. \f$O(n_{pts}nr)\f$ instead of
+    //! \f$O(n_{pts}n^2)\f$.
+    //!
+    //! ★ **IT HAS A DEFAULT, AND THAT IS DELIBERATE** (user, 2026-09-09: *"any implementation of
+    //! MatrixForward can support both unfactored and factored forward.  Which one (or if both) gets used
+    //! should be a non-issue"*).  The default forms \f$D=LL^\dagger\f$ and calls the overload above, so
+    //! **every** implementation answers both and a caller never has to ask which it has.  Overriding it is
+    //! a pure OPTIMISATION -- the fast path skips materialising \f$D\f$ -- never a capability.
+    //!
+    //! ⚠ This replaces a runtime capability test: `applyRawFactored` is empty on realizations that cannot
+    //! left-multiply a value table, and `IrrepCD::FactoredRho` asserted on it before every use.  A default
+    //! makes the question disappear instead of moving it.
+    virtual rvec_t Forward(const mat_t<T>& L) const
+    {
+        const size_t n=L.rows(), r=L.columns();
+        hmat_t<T> D(n);
+        for (size_t i=0;i<n;i++)
+            for (size_t j=i;j<n;j++)
+            {
+                T s=T(0);
+                for (size_t m=0;m<r;m++) s += L(i,m)*IConj(L(j,m));
+                D(i,j)=s;
+            }
+        return Forward(D);
+    }
+
+    //! \warning ⚠ **AN IMPLEMENTATION THAT OVERRIDES ONE OVERLOAD HIDES THE OTHER.**  C++ name lookup
+    //! stops at the first scope containing \c Forward, so a derived class declaring only the \c hmat_t
+    //! override makes `integrator.Forward(L)` resolve to THAT one -- and since \c hmat_t is a Blaze
+    //! symmetric/Hermitian ADAPTOR with a converting constructor, a thin \f$n\times r\f$ factor is then
+    //! silently fed to it and Blaze throws *"Invalid setup of symmetric matrix"* at runtime, several
+    //! layers from the cause.  (Measured here, 2026-09-09, the first time the pair was exercised.)
+    //! ⇒ **Every implementation must say `using MatrixForward<T>::Forward;`** -- the two in this tree do,
+    //! and a new one that forgets fails the `TheFactoredForwardAgreesWithTheUnfactoredOne` gate.
     virtual size_t NumPoints() const=0;   //!< length of the array \c Forward returns
 };
 
@@ -117,6 +155,10 @@ public:
     //! a VIEW of a (mesh, basis) pair and copying either would be a lie about who owns them.
     DenseMatrixIntegrator(const Mesh& mesh, const VectorFunction<T>& basis)
         : itsMesh(mesh), itsBasis(basis) {}
+
+    //! Un-hide the base's FACTORED overload (see the warning on \c MatrixForward::NumPoints): overriding
+    //! the \c hmat_t one would otherwise hide it, and `Forward(L)` would convert into the wrong overload.
+    using MatrixForward<T>::Forward;
 
     virtual rvec_t Forward(const hmat_t<T>& D) const override;
     virtual hmat_t<T> Adjoint(const rvec_t& v) const override

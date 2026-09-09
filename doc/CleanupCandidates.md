@@ -1173,11 +1173,31 @@ MnO campaign proceeds undisturbed in qchem6.
   currently returns `const Projector3<T>&` — the CONCRETE tensor — so `IrrepCD` reaches in and calls
   `o3.applyRaw(itsDensityMatrix)` itself.  Return `const MatrixForward<T>&` instead and the density stops
   naming the tensor at all; the adjoint side takes `const MatrixAdjoint<T>&` from the same integrator.
-  ⚠ **Scope check before starting:** the forward face the density actually needs is richer than
-  `Forward(D)` alone — `IrrepCD` also uses the FACTORED forward (`applyRawFactored(L)`, the
-  \f$O(n_{pts}nr)\f$ route for \f$D=LL^\dagger\f$) and a CAPABILITY TEST (`g.applyRaw ? … : rvec_t{}` at
-  `IrrepCD.C:529`).  So `MatrixForward` gains an optional factored overload and a `CanForward()` before
-  that plumbing lands — do not discover this halfway through.
+  ✅ **SCOPE SETTLED 2026-09-09 — and my proposed `CanForward()` was WRONG.**
+  - **The FACTORED forward is an overload with a DEFAULT, not a capability** (user: *"any implementation of
+    MatrixForward can support both … Which one (or if both) gets used should be a non-issue"*).
+    `Forward(const mat_t<T>& L)` on the base forms \f$D=LL^\dagger\f$ and delegates; the screened
+    realization overrides it with `applyRawFactored` **when the tensor has one** and falls back to the base
+    otherwise.  So every implementation answers both, `IrrepCD::FactoredRho`'s
+    `assert(o3.applyRawFactored)` has nothing left to assert, and overriding is an OPTIMISATION.  Gate:
+    `TheFactoredForwardAgreesWithTheUnfactoredOne`.
+  - ⛔ **`CanForward()` REJECTED** (user: *"I don't understand why we need CanForward().  It is already a
+    Forward integration interface."*).  Correct, and it is CLAUDE.md's own bias — *give capabilities only
+    to types that have them*.  A `MatrixForward` that answers "no" is a Liskov violation: if you hold one,
+    it forwards.  ▶ The real question at `IrrepCD.C:529` is not *"can this integrator forward?"* but
+    *"does this BASIS have a collocation-native forward at all?"* — a question about the **vendor**.  So it
+    belongs on the factory: `ScalarProjector` returns a **pointer** (`const MatrixForward<T>*`), null
+    meaning "this lineage collocates nothing, take the ball route", and a non-null one forwards
+    unconditionally.  ★ That also retires an in-band error signal — `GetRhoOnGrid` currently returns an
+    EMPTY VECTOR to mean "no route", which the caller has to know to interpret.
+
+  ⚠ **A C++ TRAP THIS TURNED UP, worth carrying to any overloaded virtual in this tree.**  A derived class
+  that overrides ONE overload **hides the others**: name lookup stops at the first scope containing
+  `Forward`.  Because `hmat_t` is a Blaze symmetric/Hermitian ADAPTOR with a converting constructor, a thin
+  \f$n\times r\f$ factor then silently converts into the wrong overload and Blaze throws *"Invalid setup of
+  symmetric matrix"* at runtime, layers from the cause.  It bit on the first exercise of the pair.
+  ⇒ every implementation says `using MatrixForward<T>::Forward;`, the warning sits on the base, and the
+  agreement gate catches an implementer who forgets.
 
 - **R1.0m ✅ THE SCREENED REALIZATION — BUILT 2026-09-09.  ⛔ AND THE ENGINE REWIRING IS BLOCKED BY AN
   OWNERSHIP BOUNDARY I DID NOT SEE WHEN I PROPOSED IT.**
