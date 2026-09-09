@@ -72,28 +72,6 @@ const Fitting::ScalarProjector& XC_SinglesQuadrature::Projector() const
     return *sp;
 }
 
-// THE STAR-AVERAGE, applied to a coefficient vector over the delta basis (§6a W1).  It lives here, not on
-// the fit basis, since 2026-08-24 (user): the operation is not a fitting question and the basis contributed
-// only the fold -- which now arrives with the mesh, through the same factory out-parameter.  Both bodies are
-// the free Symmetry::Lattice_3D algorithms, called directly.
-// Both symmetrisations now DELEGATE (2026-09-08).  They used to reach into a loose {mesh, fold, sigmas,
-// flipFixed} bundle and re-implement the orbit projection here -- the star-average is exact only because
-// the mesh is invariant under the ops the fold came from, and nothing tied the two together.  qcMesh::
-// FoldedMesh owns that pairing and checks it in its constructor, so this is two forwards.
-void XC_SinglesQuadrature::Symmetrize(rvec_t& f) const
-{
-    itsQuad.Symmetrize(f);
-}
-
-// The MAGNETIC pair: with sigma tags the (rho,m) pair does NOT separate -- a Flip op maps rho_up onto
-// rho_down, not onto itself -- so rho takes the plain orbit mean while m takes the chi-signed one, with m
-// zeroed first at every point some Flip op fixes (where the exact projector annihilates it).  Without tags
-// this is each channel on its own, which is bit-identical to what the removed base-class default did.
-void XC_SinglesQuadrature::SymmetrizeSpin(rvec_t& rho, rvec_t& m) const
-{
-    itsQuad.SymmetrizeSpin(rho, m);
-}
-
 // The quadrature questions go THROUGH the basis, and since 2026-08-23 in its own FUNCTION vocabulary:
 // f is an expansion over the delta basis (c_g = f(r_g), which is what makes a pointwise functional
 // applicable to it at all), so its integral is the coefficients dotted with the functions' own integrals,
@@ -271,7 +249,8 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
         itsRho=Projector().Project(*cd);   // non-DM (mixed rho-tilde / seed): the fitter projects the FIELD
         ReportNegativeRho(*this, itsRho, "matrix-free");
     }
-    Symmetrize(itsRho);   // §6a W1: the injected quadrature's orbit-mean projector (no-op on a free run)
+    itsQuad.Symmetrize(itsRho);   // §6a W1: the orbit-mean projector, straight off the FoldedMesh I hold
+                                  // (no-op on a free run, so no caller asks whether symmetry was imposed)
     return itsRho;
 }
 
@@ -365,10 +344,11 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
         {
             // Project the (ρ,m) PAIR over the injected quadrature: magnetic (σ tags -> ρ even, m odd with
             // the flip-fixed zeros), grey (each argument averaged independently) or free (a no-op).  The
-            // three-way decision is ONE private method, not a branch spelled out at the call site.
+            // three-way decision belongs to the FoldedMesh, which owns the fold, the σ tags and the
+            // flip-fixed audit -- this class only knows WHICH pair to hand it.
             rvec_t rho = itsRhoUp + itsRhoDn;
             rvec_t m   = itsRhoUp - itsRhoDn;
-            SymmetrizeSpin(rho, m);
+            itsQuad.SymmetrizeSpin(rho, m);
             itsRhoUp = 0.5*(rho + m);
             itsRhoDn = 0.5*(rho - m);
         }

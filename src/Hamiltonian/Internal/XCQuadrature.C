@@ -221,15 +221,13 @@ private:
     //! \f$\int w_A f\f$ per site over the INJECTED quadrature's mesh; empty when none was injected (or it
     //! has no site blocks -- a uniform grid has no atomic basins).  Ask, do not assume.
     rvec_t PartitionedMoments(const rvec_t& f) const;
-    //! \brief STAR-AVERAGE a coefficient vector over the injected quadrature's orbit fold, in place (§6a W1).
-    //! No fold => a free run => exact no-op, so no caller asks whether symmetry was imposed.  REAL-space, so
-    //! it PRESERVES \f$\rho\ge0\f$ -- XC stays on the non-negative \f$\rho_{DM}\f$ samples.
-    void Symmetrize(rvec_t& f) const;
-    //! \brief The MAGNETIC sibling: project the \f$(\rho,m)\f$ PAIR, which is what diagonalizes
-    //! \f$\sigma\f$ -- \f$\rho\f$ EVEN under the orbit mean, \f$m\f$ ODD under the \f$\chi\f$-signed
-    //! one, with the flip-fixed entries of \f$m\f$ zeroed first (Shubnikov S3, doc/SymmetryUpgradePlan.md
-    //! §7).  No \f$\sigma\f$ tags => grey/free semantics => each channel averaged independently.
-    void SymmetrizeSpin(rvec_t& rho, rvec_t& m) const;
+    // ⛔ Symmetrize / SymmetrizeSpin ARE GONE FROM THIS CLASS (2026-09-09, user).  They were two members
+    // on the FITTING interface until 2026-08-24, moved here, then became one-line forwards when
+    // qcMesh::FoldedMesh grew them as members (R1.0k).  A forwarder that adds nothing is not a
+    // responsibility, it is a residue of where the code used to live -- and this class holds the
+    // FoldedMesh (itsQuad), so the two call sites in Rho/RhoPol simply say itsQuad.Symmetrize(...).
+    // ▶ THE RULE THAT FALLS OUT: symmetry projection belongs to whoever holds the FoldedMesh.  Any future
+    // client wanting it asks its own FoldedMesh; nobody should re-export it.
     //! \brief MY FITTER'S PROJECTION FACE -- what a density projects itself onto (2026-08-24).
     //! The fitter holds the fit basis's \f$\Phi\f$ handles, so the \f$\rho\f$ FORWARD and the
     //! \f$H_{xc}\f$ ADJOINT come off one object instead of two callers asking the basis separately.

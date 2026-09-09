@@ -77,11 +77,12 @@ public:
 
     //! \copydoc Fitting::ScalarProjector::Forward
     //! Built over the SAME held handle the adjoint above contracts -- which is the point of holding it:
-    //! the density's forward and the term's adjoint provably come off ONE tensor.
+    //! the density's forward and the term's adjoint come off ONE `qcMesh::MatrixIntegrator`, and since
+    //! 2026-09-09 that is enforced rather than asserted (see \c Contract).
     const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override
-        {return Integrator(itsFwdR, itsO3R, orb);}
+        {return Integrator<double>(orb);}
     const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
-        {return Integrator(itsFwd , itsO3 , orb);}
+        {return Integrator<dcmplx>(orb);}
 
     //! \copydoc Fitting::ScalarProjector::Project
     //! Structurally identical to \c DoFit above and deliberately NOT sharing its buffer: the same
@@ -102,15 +103,26 @@ public:
 private:
     //! ONE body for both block scalars: the basis's \f$\langle\chi_i|\delta_g|\chi_j\rangle\f$, contracted
     //! against my coefficients.  A mixed run (3c-3) reaches it with either scalar.
+    //! ★ THROUGH THE INTEGRATOR, NOT THE TENSOR (2026-09-09) -- the ADJOINT half of the R1.0o migration,
+    //! which had stopped after the forward.
+    //!
+    //! This used to be `Handle(...)` then `o3.applyRawAdjoint(itsC)` behind an `assert(o3.applyRawAdjoint)`:
+    //! reaching into a raw `std::function` on the CONCRETE tensor, guarded by a check that is compiled out
+    //! under NDEBUG -- i.e. in every production run.  Exactly the pattern `Forward` above stopped doing,
+    //! five lines away, on the SAME held handle.  ⇒ Both directions now come off ONE
+    //! `qcMesh::MatrixIntegrator`, so the sentence in `Forward`'s comment ("the density's forward and the
+    //! term's adjoint provably come off ONE tensor") is finally something the CODE enforces rather than
+    //! something the comment asserts.  The absent-pair check moved with it, from a dead assert to the
+    //! integrator's constructor, which THROWS.
+    //!
+    //! The 3-centre overlap is a DFT-TIER question, and since 2026-08-24 the CONTRACTION face says so
+    //! too: both overloads above take the DFT block, so the cross-cast that used to stand here belongs
+    //! to (and now lives with) the caller.  TFit is dcmplx throughout -- our fit basis is the periodic
+    //! one, and a real TRIM block against it is exactly the 3c-3 mixed case.
     template <class U> hmat_t<U> Contract(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
     {
-        // The 3-centre overlap is a DFT-TIER question, and since 2026-08-24 the CONTRACTION face says so
-        // too: both overloads above take the DFT block, so the cross-cast that used to stand here belongs
-        // to (and now lives with) the caller.  TFit is dcmplx throughout -- our fit basis is the periodic
-        // one, and a real TRIM block against it is exactly the 3c-3 mixed case.
-        const Projector3<U>& o3=Handle(Cache<U>(), orb);
-        assert(o3.applyRawAdjoint && "DeltaScalarFitter: this fit basis must realise the 3-centre adjoint");
-        return o3.applyRawAdjoint(itsC);
+        const qcMesh::MatrixAdjoint<U>& adj=Integrator<U>(orb);
+        return adj.Adjoint(itsC);
     }
     //! \brief THE SHALLOW Φ HANDLE for one orbital block, held for the run (user, 2026-08-24).
     //!
@@ -136,21 +148,27 @@ private:
         if constexpr (std::is_same_v<U,double>) return itsO3R;
         else                                    return itsO3;
     }
-    //! \brief The \c MatrixForward VIEW of each held handle, cached beside it and keyed identically.
+    //! Which typed integrator cache \a U uses -- the sibling of \c Cache, so the two never drift apart.
+    template <class U> std::map<Irrep,ScreenedMatrixIntegrator<U>>& IntCache() const
+    {
+        if constexpr (std::is_same_v<U,double>) return itsIntR;
+        else                                    return itsInt;
+    }
+    //! \brief The \c MatrixIntegrator VIEW of each held handle, cached beside it and keyed identically --
+    //! BOTH directions, since 2026-09-09 (it vended only the forward before; see \c Contract).
     //!
-    //! It must be CACHED, not returned by value: the face hands back a reference, and a
+    //! It must be CACHED, not returned by value: the faces hand back a reference, and a
     //! \c ScreenedMatrixIntegrator borrows its \c Projector3, so a temporary would dangle the moment the
     //! caller used it.  Keyed on the same \c Irrep as the tensor, and created only after the tensor is,
     //! so the two maps never disagree about which blocks exist.
-    template <class U> const qcMesh::MatrixForward<U>&
-    Integrator(std::map<Irrep,ScreenedMatrixIntegrator<U>>& fwd,
-               std::map<Irrep,Projector3<U>>& tensors,
-               const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
+    template <class U> const ScreenedMatrixIntegrator<U>&
+    Integrator(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
     {
+        auto& fwd=IntCache<U>();
         const Irrep id=orb.GetIrrep(Spin::None);
         auto it=fwd.find(id);
         if (it!=fwd.end()) return it->second;
-        const Projector3<U>& g=Handle(tensors, orb);      // materialise (or find) the tensor first
+        const Projector3<U>& g=Handle(Cache<U>(), orb);   // materialise (or find) the tensor first
         // The integrator's "weights" are the FUNCTION integrals <f_a|1> of my coefficient axis, not point
         // weights -- which on a delta basis are numerically the mesh weights, and on any other fit basis
         // are still the right thing.  Charge() is that vector; it is real for a real-valued fit basis, and
@@ -163,8 +181,9 @@ private:
 
     mutable std::map<Irrep,Projector3<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3)
     mutable std::map<Irrep,Projector3<dcmplx>> itsO3;    //!< Bloch blocks' handles
-    mutable std::map<Irrep,ScreenedMatrixIntegrator<double>> itsFwdR;  //!< their MatrixForward views
-    mutable std::map<Irrep,ScreenedMatrixIntegrator<dcmplx>> itsFwd;
+    //! Their \c MatrixIntegrator views -- FORWARD and ADJOINT off one object per block (2026-09-09).
+    mutable std::map<Irrep,ScreenedMatrixIntegrator<double>> itsIntR;
+    mutable std::map<Irrep,ScreenedMatrixIntegrator<dcmplx>> itsInt;
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
     rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
 };
