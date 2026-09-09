@@ -136,6 +136,33 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     can document interfaces as you go, that should result in better docs, since you have full context while
     writing the code.
 
+## Oracle codes — all four are BUILT and ready in `~/Code`
+
+Not just CP2K.  ABINIT, VASP and Quantum Espresso are built here too, with their own confirmation suites,
+so a second opinion on a number is available without a build first.  **Verified present 2026-09-09** (paths
+checked, not remembered — a path that names a tree rots silently, see the branch-rot warning above):
+
+| code | binary | notes |
+|---|---|---|
+| **CP2K** | `/usr/bin/cp2k.psmp` (`/usr/bin/cp2k` symlinks to it) | the primary oracle; decks in `IntegrationTests/CP2K/`, results in `doc/CP2Kresults.md`, build + recipe in `doc/CP2KBuild.md` |
+| **ABINIT** | `~/Code/abinit/build/src/98_main/abinit` | test suite in `~/Code/abinit/tests` |
+| **Quantum Espresso** | `~/Code/q-e/PW/src/pw.x` | test suite in `~/Code/q-e/test-suite` |
+| **VASP** | `~/Code/vasp.6.3.0/vasp.6.3.0/bin/vasp_std` | licensed — do not redistribute inputs/outputs |
+
+⛔ **THEY ARE ALL MPI BUILDS: NEVER RUN ONE DIRECTLY — IT HANGS.**  `./pw.x`, `./abinit`, `cp2k.psmp` invoked
+as a bare executable will sit there forever (the OpenMPI singleton-init hang on this box).  **Always
+`mpirun`**, even for one rank; ABINIT additionally needs `--force-mpirun`:
+```
+mpirun -np 1 cp2k.psmp -i deck.inp        # -np 1 keeps it comparable to the banked serial timings
+```
+*(Re-confirmed the hard way 2026-09-09: a bare `pw.x --version` hung and had to be killed.  It costs a
+two-minute timeout every time somebody forgets, so it is written here rather than only in session memory.)*
+
+⚠ **AND AN ORACLE IS ONLY AS GOOD AS ITS SETTINGS.**  CP2K's own `EPS_PGF_ORB` default once produced a
+3.5 Ha "oracle" that was retracted (`doc/GPWPlan.md`); on ill-conditioned bases always re-run tight-eps and
+converge the real density before quoting a number.  Copy the run command from `doc/Benchmark.md` §5a rather
+than reconstructing it.
+
 ## Docs
 
 - **`doc/README.md` is the index — read it before opening anything else in `doc/`.**  It classifies every
