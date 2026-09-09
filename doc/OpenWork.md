@@ -56,6 +56,13 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > (a REAL Release null-deref behind a compiled-out `assert`), **V1.21** (the duplicate `SolveBands`),
 > **V1.23** (`DirectOf` kept and now checked).  Two NEW rows filed rather than swept in: **R2.5b** (nine
 > more `exit(-1)`, different owners) and **R1.0r** (from KP-0).  850/850.
+> ▶ **BATCH 2 (2026-09-09) closed THREE more, two of them on USER RULINGS.**  **R2.17** was another
+> already-closed row (all three sub-items ✅; the header still said "the third is a design call").
+> **D1 — `Band_DFT_IBS` is DELETED**, superseding `doc/FittingCleanupPlan.md` §D: the argument was not
+> that it was dead but that the question it posed is ANSWERED by `qcMesh::MatrixIntegrator`, which +U is
+> being written against.  **V1.20 — `.Internal.` marks the FAMILY boundary, not the CMake target**, so
+> `SymmetryAdapted_IBS` moved in; the ruling turns the `Internal.GMap` imports from `qcChargeDensity` and
+> `qcFitting` from "precedent" into a defect, filed as **V1.20b** to be decided with **D2**.  850/850.
 > ★ **Re-enable disabled tests AS YOU PASS THROUGH THEIR AREA, not as a separate pass.**  Measured
 > 2026-09-09: of 43 disabled tests only **8 mention cost** (7 of those also hand-run probes); the dominant
 > category is **instruments** (23) — ladders, sweeps, A/B experiments — which are not gtest cases at any

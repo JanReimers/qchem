@@ -8,7 +8,7 @@
 import qchem.BasisSet.Molecule.PG_Cart.Symmetry;  // ExtractAoShells, StructureToSymPoints
 import qchem.BasisSet.Molecule.PG_Cart;           // Orbital_IBS
 import qchem.BasisSet.Orbital_1E_IBS;                         // cached Overlap() accessor (interface)
-import qchem.BasisSet.SymmetryAdapted_IBS;                    // SymmetryAdapted_IBS (1-e decorator)
+import qchem.BasisSet.Internal.SymmetryAdapted_IBS;                    // SymmetryAdapted_IBS (1-e decorator)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (per-irrep)
 import qchem.Symmetry.Molecule.SALC;                                   // BuildAbelianGroup, BuildSALCs, BuildOperationRep
 import qchem.Structure;                                         // Molecule, Atom

@@ -1,4 +1,4 @@
-// File: BasisSet/SymmetryAdapted_IBS.C  Symmetry-adapted (SALC) decorator over an orbital IBS.
+// File: BasisSet/Internal/SymmetryAdapted_IBS.C  Symmetry-adapted (SALC) decorator over an orbital IBS.
 //
 // Stage 4 of the molecular-symmetry plan (doc/MolecularSymmetryPlan.md): one point-group
 // irrep of a molecular basis, presented as a normal IrrepBasisSet so the SCF/accelerator
@@ -8,12 +8,21 @@
 // already-cached accessor (computed once, shared by all irreps); the transformed block is
 // memoized by the existing cache under an irrep-specific AngularID -- both cached, no new
 // cache code.  (The 2-electron Fock path -- build F_AO, slice per irrep -- comes next.)
+// ★ WHY `.Internal.` (V1.20, ruled 2026-09-09).  Its ONLY consumers are
+// `qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet` and a molecular unit test — both inside the
+// `src/BasisSet/` tree, but in a different CMake target (`qcMolecule_BS`).  The user ruled that the
+// **qcBasisSet* family counts as ONE library** for CLAUDE.md's "do not import internals across library
+// BOUNDARIES" rule: `.Internal.` marks the family boundary, not the target boundary.  So this decorator —
+// which no consumer outside the basis-set family has any business naming — moves in, and the rule keeps
+// its teeth where it matters.  (The genuine violations the ruling exposes are the
+// `qchem.BasisSet.Internal.GMap` imports from `qcChargeDensity` and `qcFitting`, which are unrelated
+// libraries; filed as V1.20b.)
 module;
 #include <string>
 #include <iosfwd>
 #include <map>
 #include <memory>
-export module qchem.BasisSet.SymmetryAdapted_IBS;
+export module qchem.BasisSet.Internal.SymmetryAdapted_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron CONTRACTION face (no ERI4 -- R1.7)
 export import qchem.BasisSet.Orbital_DFT_IBS;        // DFT 3-centre mixin (fitted Coulomb / Vxc)

@@ -1844,77 +1844,16 @@ MnO campaign proceeds undisturbed in qchem6.
       — today only the `GPW_XCROUTE` env var reports the route, it cannot select it).  That needs a
       capability question on the neutral `Band_FT_IBS` face so the factory can ask without a concrete cast.
       Worth doing when someone actually wants the A/B.
-- **R2.17 `UnitCell::CreateSiteAdaptedBeckeMesh` — the name carried three things it should not
-  (USER CRITIQUE 2026-08-07).**  ✅ TWO OF THREE DONE; the third is a design call.
-  1. ✅ **"Becke" merely repeated `mp.cellKind`** — and the body ASSERTED that value, i.e. the NAME was
-     carrying a precondition the PARAMETER already states.
-  2. ✅ **"SiteAdapted" named one of two STRATEGIES**, which is an implementation detail the caller should
-     not be choosing.  Both points fixed by making it an overload: `CreateIntegrationMesh(mp, ops)` —
-     the presence of \a ops is what distinguishes it, which is what a signature should say.
-     **Bigger win than a rename:** the caller (`GPW_IBS`'s XC-quadrature factory) was branching on
-     `mp.cellKind` to pick site-adapted-vs-group-average — a BASIS deciding how a STRUCTURE builds its own
-     mesh.  That branch moved INTO the overload, so the basis now just asks for "a mesh invariant under
-     these ops" and the cell owns how.  Same altitude error as V1.10b's mixer and R2.16's runtime probes.
-  3. ✅ **DONE — USER CHOSE (a)+(c) 2026-08-07.  `std::vector<Symmetry::Lattice_3D::SymOp>` is
-     structure-specific, but a site-adapted MOLECULAR mesh is equally plausible** (user).
-     **(a) the TYPE is promoted:** `SpinAction` + `SymOp` moved out of `Symmetry/Lattice_3D/Fold.C` into a
-     new root module `qchem.Symmetry.SymOp` (`src/Symmetry/SymOp.C`, namespace `qchem::Symmetry`), beside
-     `Irrep.C`/`Spin.C` — the root holds what all three structure families share.  `Lattice_3D` ALIASES
-     both, so every existing `Symmetry::Lattice_3D::SymOp` spelling still compiles unchanged (23 files
-     untouched).  `UnitCell::CreateIntegrationMesh(mp, ops)` now takes the neutral spelling, which was the
-     whole point: the signature is no longer crystal-specific.
-     **(c) the METHOD stays on `UnitCell`:** there is no molecular implementation yet and inventing an
-     unused one would be speculative.  When one is wanted, this signature is already the neutral one to
-     hoist onto `Structure`.
-     **WHEN THAT HOIST HAPPENS — reasoned through 2026-08-07, so it need not be re-derived:**
-     - **There is NO free generic default on `Structure`.**  `MakeInvariant` (the group-average route the
-       uniform branch uses) calls `Wrap01` on every image (SymmetrizeMesh.C:216) — it folds on the
-       FRACTIONAL TORUS.  For a molecule/atom that is simply wrong: a mesh point at 3.7 Bohr would wrap to
-       0.7 of a cell that does not exist.  So the base cannot offer "build the plain mesh, then average
-       it"; each structure family must implement its own.
-     - **Do NOT give `Atom` an ignore-ops-and-warn body** (the shape first proposed).  It is the LSP hole
-       this document forbids ("virtual functions that default to some sort of 'not implemented' behaviour")
-       and that R1.4 / R1.7 / V1.6 / V1.7 are all instances of.  A warning is also the wrong instrument:
-       warnings are for caller ERRORS, and passing ops to an atom is not an error — a symmetry-broken or
-       maximally-stretched atom has a real finite point group.  The warning would say "I ignored what you
-       correctly asked for".
-     - **And it is unnecessary, because `Atom` is the EASIEST genuine case, not a degenerate one.**  One
-       centre ⇒ one orbit trivially; τ=0 (a point group fixes the origin); no torus metric; so the ONLY
-       thing ops can affect is the angular set.  The whole implementation is `MakeInvariantAngularMesh(ops,
-       L)` in place of the default angular quadrature — ~3 lines, and CORRECT.  (Today
-       `Atom::CreateIntegrationMesh` is a one-liner onto `MakeMolecularMesh`, which at natom==1 is "just the
-       shifted product grid".)  It is strictly less work than the crystal case, which needs orbits, τ, the
-       torus stabilizer test and the bond-direction screen.
-     - **So two honest shapes, both stub-free:** (1) hoist to `Structure` and let `Atom` implement it for
-       real; or (2) do NOT declare it on `Structure` — declare it on the structures that have it, the
-       `tSpinResolved_CD` cross-cast-capability idiom.  Weigh (2) seriously: the atomic solver exploits
-       sphericity through IRREPS (l,m), not through mesh symmetrisation, so a caller handing ops to an
-       `Atom` may never materialise — the same (c) reasoning that deferred the molecular implementation.
-     **User notes worth keeping:** τ=0 for molecular point groups is fine ("we are not fighting
-     performance or RAM problems with this code") — a point group fixes a point, so it HAS no translation
-     part, and a consumer that Cartesianises via A·W·A⁻¹ needs no special case because a molecule's A is I.
-     And on atoms: a finite op list genuinely cannot represent a closed-shell atom's continuous O(3)
-     symmetry — "we are into Lie groups" — but nothing in the code asks it to.  Discrete ops are exactly
-     right for a symmetry-broken/stretched configuration or for a site group inside a crystal; the
-     continuous case is served by the `Symmetry::Atom` spherical machinery, which works in (l,m) instead of
-     enumerating operations.  That caveat is now recorded on the struct so nobody later tries to enumerate
-     O(3) for an atom.
-     *(The findings that shaped the choice:)*
-     - The builder needs BOTH the linear part and a translation (`op.W`, `op.tau`) — a screw axis or glide
-       plane has a nonzero τ that decides which atoms share an orbit.  So a plain
-       `std::vector<Matrix3D<double>>` of Cartesian rotations LOSES information the crystal needs; the
-       neutral type has to be the (W, τ) pair.
-     - Which is exactly `Lattice_3D::SymOp` minus its namespace — and it already works for a molecule:
-       τ=0, and the Cartesianisation `A·W·A⁻¹` is the identity when A is (`Molecule`'s A is I).  So the
-       STRUCT is already neutral; only its ADDRESS is not.
-     - **The decision is therefore a qcSymmetry organisation question, and it is the user's:** the doc's
-       own high-level goal says qcSymmetry has "separate folders for Atom/Molecule/Lattice_3D symmetry
-       types", so promoting `SymOp` to a neutral home cuts across that taxonomy.  Options: (a) a neutral
-       `Symmetry::SymOp` above the three folders, with Lattice_3D aliasing it; (b) leave the type where it
-       is and give `Structure` a virtual taking it (qcStructure already depends on qcSymmetry); (c) leave
-       as-is until a molecular site-adapted mesh is actually wanted.
-     - Note the site-stabilizer TEST also differs (torus metric mod 1 for a crystal, plain distance for a
-       molecule) — but that is implementation, and belongs in each override, not in the argument type.
+- **R2.17 ✅ CLOSED (harvested 2026-09-09 — ALL THREE sub-items were already ✅, including the one the
+  header still called "a design call").**  The rename became an OVERLOAD (`CreateIntegrationMesh(mp, ops)`
+  — the presence of \a ops is what distinguishes it), the basis stopped choosing the STRATEGY, and the
+  user ruled (a)+(c) on 2026-08-07: the TYPE was promoted to the structure-neutral `qchem.Symmetry.SymOp`,
+  the METHOD deliberately stays on `UnitCell` until a molecular implementation is actually wanted.
+  ▶ **The reasoning bank for that future hoist is preserved verbatim in `doc/CleanupHistory.md`** — there
+  is no free generic default on `Structure` (`MakeInvariant` folds on the fractional TORUS, meaningless for
+  a molecule), `Atom` must NOT get an ignore-ops-and-warn body, and `Atom` is the EASIEST genuine case
+  (~3 lines: `MakeInvariantAngularMesh(ops, L)`), not a degenerate one.  **→ doc/CleanupHistory.md**
+
 - **R2.15 ✅ COMPLETE — the Lebedev DEFAULT FLIP LANDED 2026-08-17, degree-gated** (`nAngular` → degree-typed angular interface; at degree 29 Lebedev delivers 302 directions against GaussLegendre's 450).  **→ doc/CleanupHistory.md**
 - **R2.15 (original text) `nAngular` → degree-typed angular interface.**  `nAngular` is a COUNT for Lebedev but a
   DEGREE for GL/EM (and the imposed site-adapted builder consumes it as the degree) — the dual
@@ -2101,11 +2040,24 @@ MnO campaign proceeds undisturbed in qchem6.
   (DensityMixer.C:312-320) — excludes the matrix-free seeds from seeding the mixer BY TYPE, not
   intent.
 - **V1.19 ✅ VISITOR + THROWS DONE 2026-08-17; bit-identical, 734/734.**  ⚠ **ONE DELIBERATE REMAINDER**: the seed's flip-group sub-cell duplication — removing it needs a per-SITE form-factor overload on the basis face, which the item itself weighs against the pseudo-wall pin.  That block is the seed's ONE remaining concrete-`Atom` consumer.  **→ doc/CleanupHistory.md**
-- **V1.20 `SymmetryAdapted_IBS` → Internal: decide the library-family rule first.**  Verified: all
-  consumers inside the src/BasisSet/ tree BUT in a different CMake target (qcMolecule_BS).  Moving
-  to `.Internal.` creates a cross-LIBRARY internal import under the CLAUDE.md rule.  Precedent the
-  rule is already bent: `qchem.BasisSet.Internal.GMap` imported by src/Fitting + src/ChargeDensity.
-  Decide: is the qcBasisSet* family "one library" for Internal purposes?
+- **V1.20 ✅ CLOSED 2026-09-09 — USER RULING: the `qcBasisSet*` family counts as ONE library for
+  `.Internal.` purposes.**  `.Internal.` marks the FAMILY boundary, not the CMake-target boundary.  So
+  `SymmetryAdapted_IBS` moved to `qchem.BasisSet.Internal.SymmetryAdapted_IBS`
+  (`src/BasisSet/Internal/{,Imp/}SymmetryAdapted_IBS.C`): its only consumers are
+  `qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet` and one molecular unit test, both inside the
+  `src/BasisSet/` tree, and nothing outside the family has business naming a SALC decorator.  The ruling is
+  recorded at the module's own head so it is not re-litigated.
+
+- **V1.20b ▶ THE VIOLATIONS THE RULING EXPOSES — `qchem.BasisSet.Internal.GMap` crosses a REAL library
+  boundary** (filed 2026-09-09 as the consequence of V1.20, not a new discovery: the old V1.20 text cited
+  it as "precedent the rule is already bent").  Under the ruling that precedent stops being an excuse and
+  becomes the defect: `src/ChargeDensity` (`qcChargeDensity`) and `src/Fitting` (`qcFitting`) are not in
+  the basis-set family, and both import it.  ⇒ Either `G_ERI3`/`ΔG_Map` are a shared VOCABULARY that
+  belongs in a leaf module both families may name (cf. `qchem.BasisSet.Fit_Types`, split out for exactly
+  this reason), or the consumers should be asking their own faces for it.  ⚠ Related to **D2**, which
+  already names `G_ERI3` as "the multi-purpose data structure harmonizing the return-type differences" —
+  i.e. the two items are about the same type from opposite ends, and should be decided together.
+
 - **V1.21 ✅ CLOSED 2026-09-09. The duplicate is dead and `BandStructure.C` STAYS in the library.**
   `PlaneWaveUT.C` now imports the one `SolveBands`; its local copy was not even the same solve (it forced
   \f$S=I\f$ and kept only the kinetic DIAGONAL — two plane-wave facts hard-coded into a routine that is
@@ -2548,10 +2500,17 @@ MnO campaign proceeds undisturbed in qchem6.
 
 ## DECIDED-ELSEWHERE
 
-- **D1 `Band_DFT_IBS`** — verified fully dead in code (zero imports/derivations/casts; only the
-  CMake entry).  Governing record: FittingCleanupPlan §D deliberately KEPT the module as the
-  intended future-GPW `<double>` interface.  NEW FACT flagged for re-decision: GPW has since
-  landed (`GPW_IBS.C`) and does NOT implement it.  (Stale comments → R2.4.)
+- **D1 ✅ RE-DECIDED AND EXECUTED 2026-09-09 — `Band_DFT_IBS` IS DELETED** (user ruling; supersedes
+  FittingCleanupPlan §D, which had deliberately KEPT it for a future GPW `<double>` basis).
+  ⇒ **The reason is not that it was dead — it is that the question it posed has been ANSWERED
+  ELSEWHERE.**  `Band_DFT_IBS` proposed "a basis assembles DFT matrices by integrating real-space fields
+  on its OWN mesh; tell-don't-ask; deliberately no getters".  That is exactly `qcMesh::MatrixIntegrator`
+  (R1.0l/R1.0n), which R1.0q makes the STANDING TARGET for every `Dynamic_HT` term and which `+U` is being
+  written against from the start.  Keeping a second, unimplemented answer to a settled question is how a
+  tree acquires two idioms for one job.  Secondary facts: GPW landed as `GPW_IBS` and never implemented
+  it; the `<dcmplx>` base was dropped off `PlaneWave_IBS` in the fitting cleanup; zero imports,
+  derivations or casts remained.  The design NOTE in its header (the tell-don't-ask rationale) is the part
+  worth keeping and it survives, in fuller form, on the `MatrixIntegrator` faces.
 - **D2 "Why is a FourierCD different than a tChargeDensity?"** — governed by the
   pw-fitting-uniform-interface pin (no "Fourier" in abstract faces; PW fitting looks identical to
   molecular fitting) — same campaign, don't re-derive here.  User context preserved: at a high

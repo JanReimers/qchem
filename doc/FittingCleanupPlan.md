@@ -80,6 +80,14 @@ the `FittedCD::DoFit` capability-probe (de-greyed by item E), the ortho fitters'
 `ProjectedScalar_G` casts (these are "I want more" — they pass). Give the survivors good throw messages.
 
 ### D. Drop `Band_DFT_IBS<dcmplx>` from `PlaneWave_IBS`  — ✅ DONE (Option 1, GPW-aware)
+
+> ⛔ **SUPERSEDED 2026-09-09 — the module itself is now DELETED** (user ruling; `doc/CleanupCandidates.md`
+> D1).  The decision recorded below KEPT the abstract `Band_DFT_IBS<T>` on the grounds that a future GPW
+> basis would implement it as `<double>`.  GPW landed as `GPW_IBS` and did not — and the design question
+> the module posed (a basis assembles DFT matrices by integrating real-space fields on its OWN mesh,
+> tell-don't-ask, no getters) is now answered by `qcMesh::MatrixIntegrator`, which is the standing target
+> for every `Dynamic_HT` term.  The paragraph below stands as the record of what was decided in 2026-08
+> and why; it is no longer the live ruling.
 Decision (user Q on GPW): the abstract `Band_DFT_IBS<T>` **module/interface is KEPT** — a future GPW basis
 (Gaussian orbitals, PW/FFT density) is its intended implementer (as `<double>`), per the file's own design
 note. Only the dead `<dcmplx>` **base on `PlaneWave_IBS`** is dropped (production went fully G-space via

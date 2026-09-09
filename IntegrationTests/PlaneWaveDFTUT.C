@@ -1016,7 +1016,7 @@ TEST_F(PlaneWaveDFT, ScfSiliconBZSampled)
     EXPECT_GT (R.gap, 0.0);                                                 // Si is a semiconductor
 }
 
-// --- Stage 2: the basis-level high-level DFT capability (Band_DFT_IBS), validated against the
+// --- Stage 2: the basis-level high-level DFT capability, validated against the
 // prototype's analytic/free-function results.  These are the questions the framework terms will ask --
 // the term hands a real-space ScalarFunction and the basis owns the integration (no G-vectors exposed).
 

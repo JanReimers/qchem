@@ -1,11 +1,11 @@
-// File: BasisSet/Imp/SymmetryAdapted_IBS.C
+// File: BasisSet/Internal/Imp/SymmetryAdapted_IBS.C
 module;
 #include <string>
 #include <iostream>
 #include <memory>
 #include <cassert>
 #include <stdexcept>
-module qchem.BasisSet.SymmetryAdapted_IBS;
+module qchem.BasisSet.Internal.SymmetryAdapted_IBS;
 import qchem.Blaze;          // trans, submatrix, matrix/vector ops
 
 namespace qchem::BasisSet
