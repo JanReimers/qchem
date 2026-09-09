@@ -19,6 +19,7 @@
 //   - apply*   : the matrix-free GPW realization -- closures that collocate/integrate on grids
 //                without ever materializing a per-column tensor.
 module;
+#include <stdexcept>   // ScreenedMatrixIntegrator: the missing-pair throw
 #include <cassert>
 #include <complex>    // std::operator*(double,complex) -- std header, not a Blaze dep
 #include <functional>
@@ -28,6 +29,7 @@ module;
 #include <utility>
 export module qchem.BasisSet.Internal.Projector3;
 export import qchem.Types;
+export import qchem.Mesh.Integrator;   // MatrixIntegrator<T> -- the forward/adjoint face the raw pair realises
 import qchem.Blaze;    // rvec_t, hmat_t<T> + complex/double arithmetic
 
 export namespace qchem {
@@ -145,5 +147,61 @@ template <class T> hmat_t<T> ContractAdjoint(const Projector3<T>& g,
 //! Frobenius distance between two DENSE realizations (test oracle).
 template <class T> double fnorm(const Projector3<T>& a, const Projector3<T>& b);
 template <class T> double relative_fnorm(const Projector3<T>& a, const Projector3<T>& b);
+
+
+//! \brief The SCREENED realization of \c qcMesh::MatrixIntegrator: a \c Projector3's raw forward/adjoint
+//! pair, presented behind the mesh-level face.
+//!
+//! ★ THE INTERFACE FIT WAS NOT ENGINEERED, IT WAS DISCOVERED (2026-09-08).  \c MatrixIntegrator was
+//! designed at the mesh level from the adjointness requirement alone, and its two signatures turn out to
+//! be EXACTLY the ones \c applyRaw and \c applyRawAdjoint already had:
+//! \code
+//!     std::function<rvec_t   (const hmat_t<T>& D)> applyRaw;         // Forward(D) -> rho
+//!     std::function<hmat_t<T>(const rvec_t&    v)> applyRawAdjoint;  // Adjoint(v) -> matrix
+//! \endcode
+//! So this is a THIN ADAPTER, not a reimplementation -- which is the strongest evidence available that the
+//! face is the right one: two independently-derived descriptions of the same seam agreed.
+//!
+//! WHAT IT TRUNCATES, and why that is the whole point.  Unlike the dense sibling this route screens per
+//! pair and box-truncates per multigrid level -- but it does so IDENTICALLY in both directions, which is
+//! what makes \f$H_{xc}=\partial E_{xc}[\rho_{DM}]/\partial D\f$ exact for the TRUNCATED functional.  The
+//! dense realization is its natural reference: same answer to quadrature accuracy, at
+//! \f$O(n_{pts}n^2)\f$ instead of the screened pair count.
+//!
+//! \warning It borrows the \c Projector3 -- which is owned by the basis's integral cache and outlives any
+//! assembly -- so this object is a VIEW and must not outlive it.
+template <class T> class ScreenedMatrixIntegrator
+    : public virtual qcMesh::MatrixIntegrator<T>
+{
+public:
+    //! \a g must realise the raw pair; \a weights are the integration raster's, for \c Integrate.
+    //! THROWS when the pair is absent rather than assembling half a route: a \c Projector3 with a forward
+    //! and no adjoint cannot be an integrator, and finding that out at the first \c Adjoint call -- inside
+    //! an SCF iteration -- is strictly worse than finding it out here.
+    ScreenedMatrixIntegrator(const Projector3<T>& g, rvec_t weights)
+        : itsG(g), itsW(std::move(weights))
+    {
+        if (!g.applyRaw || !g.applyRawAdjoint)
+            throw std::runtime_error("ScreenedMatrixIntegrator: this Projector3 does not realise the raw "
+                "forward/adjoint pair.  An integrator is the PAIR -- a tensor that can collocate but not "
+                "integrate back (or the reverse) is not one, and pretending otherwise is exactly the "
+                "mismatch this interface exists to prevent.");
+    }
+
+    virtual rvec_t    Forward(const hmat_t<T>& D) const override {return itsG.applyRaw(D);}
+    virtual hmat_t<T> Adjoint(const rvec_t& v)    const override {return itsG.applyRawAdjoint(v);}
+    virtual double    Integrate(const rvec_t& f)  const override
+    {
+        assert(f.size()==itsW.size() && "ScreenedMatrixIntegrator::Integrate: one value per raster point");
+        double s=0.0;
+        for (size_t g=0; g<f.size(); ++g) s+=itsW[g]*f[g];
+        return s;
+    }
+    virtual size_t NumPoints() const override {return itsW.size();}
+
+private:
+    const Projector3<T>& itsG;   //!< borrowed: owned by the basis's integral cache
+    rvec_t               itsW;   //!< the integration raster's weights
+};
 
 } // namespace qchem

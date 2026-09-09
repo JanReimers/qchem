@@ -1143,6 +1143,52 @@ MnO campaign proceeds undisturbed in qchem6.
   and no `if (auto* p = dynamic_cast…)` guard*.  That one found all six defects and, after excluding
   in-place `if` guards, produced only ONE false positive (a commented-out line).
 
+- **R1.0m ✅ THE SCREENED REALIZATION — BUILT 2026-09-09.  ⛔ AND THE ENGINE REWIRING IS BLOCKED BY AN
+  OWNERSHIP BOUNDARY I DID NOT SEE WHEN I PROPOSED IT.**
+
+  ✅ **`ScreenedMatrixIntegrator<T>`** (beside `Projector3`, in `qcBasisSet`) presents a tensor's raw
+  forward/adjoint pair behind `qcMesh::MatrixIntegrator`.  Gates: `ScreenedMatrixIntegrator.*` in
+  `UTLattice_3D_BS` (3 unit tests on synthetic closures — the adapter is what is under test, not GPW's
+  collocation), including the adjointness identity checked on the SCREENED route exactly as on the dense
+  one.  842/842.
+
+  ★★ **THE INTERFACE FIT WAS DISCOVERED, NOT ENGINEERED — which is the strongest evidence available that
+  the face is right.**  `MatrixIntegrator` was derived at the mesh level from the adjointness requirement
+  alone, with no reference to GPW.  Its two signatures turn out to be EXACTLY the ones `Projector3` already
+  carried:
+  ```
+  std::function<rvec_t   (const hmat_t<T>& D)> applyRaw;         // == Forward(D) -> rho
+  std::function<hmat_t<T>(const rvec_t&    v)> applyRawAdjoint;  // == Adjoint(v) -> matrix
+  ```
+  Two independently-derived descriptions of one seam agreed, so the "realization" is a 20-line adapter.
+
+  ⛔ **BUT THE SECOND FOLLOW-ON — "wire `XC_SinglesQuadrature` onto a `MatrixIntegrator`" — CANNOT BE DONE
+  AS I DESCRIBED IT, and the reason is structural.**  `MatrixIntegrator` assumes ONE owner holds both
+  directions.  In this tree they are owned on opposite sides of a boundary, and **both** routes have the
+  same shape:
+
+  | | who drives it | what it is |
+  |---|---|---|
+  | FORWARD | the **ChargeDensity** | `IrrepCD::ProjectOnto` / `GetRhoOnGrid` calls `o3.applyRaw(itsDensityMatrix)` — the density contracts its OWN private \f$D\f$, per block, and hands back a SUMMED raster |
+  | ADJOINT | the **basis**, per block | `orb.Overlap3C(fb).applyRawAdjoint(v)` (pair) or the fitter contraction (singles), with `bs` in hand |
+
+  So the forward is an AGGREGATE over blocks owned by the density; the adjoint is PER-BLOCK owned by the
+  basis.  A per-block integrator cannot own both without moving the block aggregation out of
+  `ChargeDensity` — and that aggregation is there for a good reason: \f$D\f$ is the density's private
+  state, and `ProjectOnto` is precisely "contract MY \f$D\f$ against handles you supply".
+  ⇒ **The pairing `XC_Quadrature` enforces is enforced ACROSS an ownership boundary**, which is why it
+  needed a bespoke class in the first place and why `LatchRoute` exists at all: the forward tests a DENSITY
+  capability (`GetRhoOnGrid` returning non-empty) while the adjoint tests a BASIS capability
+  (`applyRawAdjoint` present), and the latch is what stops those two answers diverging mid-SCF.
+
+  ▶ **WHAT THE REAL INCREMENT IS**, now that the shape is known: either
+  (a) give `MatrixIntegrator` a block-aggregating decorator that owns the loop the density currently owns —
+      the density keeps \f$D\f$ private and exposes per-block contraction, the decorator sums; or
+  (b) accept that the seam is two-sided and make the LATCH the invariant instead of the pairing — one
+      object that holds the density-side capability answer and the basis-side one and refuses to serve a
+      mixed pair, which is `LatchRoute` promoted from a runtime check to a type.
+  ⚠ Both are real designs; (a) is cleaner and larger.  **Do not attempt either as "a rewiring".**
+
 - **R1.0l ✅ `MatrixIntegrator` + the `MatrixOverlap` rename — BUILT 2026-09-08.**
   (User: *"Can we make a MatrixIntegrator class that enforces no mismatch?"* and *"WeightedOverlap should
   be renamed MatrixOverlap … Everything in there is Weighted."*)

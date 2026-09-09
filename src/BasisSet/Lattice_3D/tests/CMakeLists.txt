@@ -13,6 +13,7 @@ add_executable(UTLattice_3D_BS ../../Atom/tests/gtestmain.C
     LAPW_UT.C
     GTH_UT.C
     GMapUT.C
+    ScreenedIntegratorUT.C
     RealComplexUT.C
 )
 
