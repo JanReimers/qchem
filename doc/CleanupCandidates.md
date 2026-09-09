@@ -1177,6 +1177,26 @@ MnO campaign proceeds undisturbed in qchem6.
   meaning "this lineage collocates nothing".  ⚠ Bigger surface than the fitter's — `Overlap3C` is the
   cached-tensor accessor with many callers on the ADJOINT side too — so it is its own increment.
 
+- **R1.0r ▶ THE DENSITY IS STAR-AVERAGED UNDER A BIGGER GROUP THAN THE k-MESH HAS** (found 2026-09-09
+  while fixing KP-0; NOT fixed inline).  `DetectPointOps` (`src/BasisSet/Lattice_3D/Imp/BasisSet.C`) hands
+  `recipDensity`/`directDensity` the **full crystal space group** whatever the k-mesh is, while the fold
+  now correctly uses only the ops that leave the MESH invariant (\f$M=DUD^{-1}\f$ integral —
+  `FoldGrid`).  On an ANISOTROPIC mesh those are different groups: Si \f$2\times1\times1\f$ folds under 2
+  ops and symmetrizes \f$\rho\f$ under 48.
+
+  ⚠ **WHY IT IS NOT KP-0 AND DID NOT SHOW UP AS ONE.**  It breaks no count: a star-average is norm
+  preserving, so the charge stays 8 and the run converges.  What it does is project the iterate into a
+  symmetry the SAMPLING does not have — a BZ sum over an anisotropic k-sample is invariant only under the
+  mesh subgroup — so the SCF fixed point is not the one that sampling defines.  It is arguably a better
+  approximation to the true cubic answer (it symmetrizes the sampling error away), which is exactly why it
+  is a JUDGEMENT and not an obvious bug, and why it wants a ruling rather than a reflex.  ⇒ Note that
+  VASP/QE symmetrize the density under the intersection group (lattice ops **and** mesh ops) for this
+  reason.
+
+  ▶ Cheap once decided: the mesh-symmetry test is already computed inside `FoldGrid` and only needs
+  exposing (a `MeshSymmetryOps(N, shift, ops)` filter) for `DetectPointOps` to intersect with.  Γ-only and
+  isotropic meshes are unaffected either way (\f$M\equiv U\f$), so nothing banked moves.
+
 - **R1.0q ★★ THE STANDING TARGET: EVERY `Dynamic_HT` TERM MOVES TO THE `MatrixIntegrator` PATTERN.**
   (User, 2026-09-09, clarifying the scope of *"everything should move to this pattern"*: *"everything DFT
   specific, or everything running through the fitting process, or as you state everything on the

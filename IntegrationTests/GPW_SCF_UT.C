@@ -957,7 +957,17 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
 // k-point (GPW_BasisSet iterating MakeKMesh WITH BZ weights), the multi-block GetIrreps, Crystal_EC's
 // BZ-weighted (Sum_k w_k) occupation, the per-irrep k-loop, and the BZ-summed charge/energy (it caught a
 // missing BZ weight -> charge x Nk).  Energy-gated at the fit floor like the Gamma anchor.
-TEST(GPW_SCF, DISABLED_SiliconMultiKPlumbing)
+// ★ RE-ENABLED 2026-09-09, AND IT IS THE GATE ON KP-0.  Disabled since 2026-07-20; when it was run again
+// on 2026-09-09 it reported charge=12 against 8 valence electrons, with its own banner saying why --
+// "[IBZ] 2 k-points -> 2 irreducible; Σw=1.5", and 8 x 1.5 = 12 exactly.  The IBZ star weights did not
+// sum to 1 because `FoldGrid` applied the reciprocal op U to the grid INDEX vector and let the mod-N wrap
+// place the image: on an ANISOTROPIC 2x1x1 mesh an axis-permuting cubic op is not a mesh symmetry at all,
+// so the action was not a bijection and the two "orbits" overlapped (sizes 1 and 2 on a 2-point grid).
+// The index action is the CONJUGATED matrix M=D U D^{-1}; ops with non-integral M are not mesh symmetries
+// and are now skipped wholesale (src/Symmetry/Lattice_3D/Imp/Fold.C, gates in src/Symmetry/tests/L_Fold.C).
+// The charge assertion below is the one that caught it, and it is the kind that CANNOT go stale: 8 valence
+// electrons is physics, not a banked number.  It runs in ~3 s.
+TEST(GPW_SCF, SiliconMultiKPlumbing)
 {
     const double a=10.26;
     FCCUnitCell cell(a);
@@ -971,7 +981,13 @@ TEST(GPW_SCF, DISABLED_SiliconMultiKPlumbing)
 
     EXPECT_TRUE(R.converged);
     EXPECT_NEAR(R.charge, 8.0, 1e-6);                          // 8 valence e- (BZ-weighted Sum_k, not x Nk)
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.45137, 5e-3);         // did-E-move anchor (2x1x1 dispersion, analytic path)
+    // Did-E-move anchor, RE-PINNED 2026-09-09 to the value measured with correct weights (was -7.45137,
+    // banked 2026-07-15 before the IBZ fold path existed; the run drifted 1.6e-3 over the intervening GPW
+    // work and stayed inside this 5e-3 fit-floor window throughout).  JUDGED, not just refreshed: the
+    // Gamma-point 2x1x1 SUPERCELL -- band-folding-equivalent, a fully independent route -- gives
+    // -7.451621 per primitive cell (DISABLED_SiSupercellLadder, SI_LADDER=2,1,1, itself still descending
+    // at its iteration cap), so the two routes agree to 1.3e-3 and bracket the old anchor.
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.45294, 5e-3);
 }
 
 // ★ THE SUPERCELL SCALING LADDER (doc/ParallelAndOraclePlan.md 2.1).  Every threading number we own was
@@ -985,7 +1001,7 @@ TEST(GPW_SCF, DISABLED_SiliconMultiKPlumbing)
 // N1xN2xN3 SUPERCELL is band-folding-equivalent to an N1xN2xN3 k-MESH on the primitive cell: same Hilbert
 // space, same answer.  So each rung must reproduce the k-mesh total this file already banks --
 //   1x1x1 -> -7.11506   (SiliconGammaConverges)
-//   2x1x1 -> -7.45137   (DISABLED_SiliconMultiKPlumbing)
+//   2x1x1 -> -7.45294   (SiliconMultiKPlumbing; re-pinned 2026-09-09 with the KP-0 weight fix)
 //   2x2x2 -> -7.77846   (DISABLED_SR_2x2x2GammaCentred_vs_CP2K, itself checked against CP2K)
 // -- PER PRIMITIVE CELL, i.e. per 2 atoms.  A ladder that scales but drifts off these is measuring a bug.
 // (2x2x1 has no banked counterpart; that rung is timing-only.)

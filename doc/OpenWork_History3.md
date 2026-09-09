@@ -1352,3 +1352,71 @@ now by a performance idea.
 6. **Interaction with the T3 stream fold.**  The fold's 4.60× is a reduction on PAIRS.  Orbitals are not
    individually symmetry-adapted, so an equivalent fold on singles may not exist — in which case the
    honest comparison is singles against **1909 folded** pairs, not 8778 raw.
+
+
+---
+
+## KP-0 — the IBZ weights did not sum to 1 — CLOSED 2026-09-09 (was the queue's step 1)
+
+*(the full record; the tracker keeps a one-line stub)*
+
+## ✅ CLOSED — `FoldGrid` FOLDED AN ANISOTROPIC k-MESH UNDER OPS THAT ARE NOT ITS SYMMETRIES
+
+**THE SYMPTOM.**  `GPW_SCF.DISABLED_SiliconMultiKPlumbing` (Si, 2×1×1 MP mesh), disabled since
+2026-07-20, was run again on 2026-09-09 and reported **charge = 12 against 8 valence electrons**, with its
+own banner naming the cause: `[IBZ] 2 k-points -> 2 irreducible; Σw=1.5`.  8 × 1.5 = 12, exactly.  Star
+sizes were 1 and 2 **on a two-point grid**, so the stars did not PARTITION the mesh — they overlapped.
+
+**THE CAUSE, AND WHY IT SURVIVED A YEAR OF GREEN SUITES.**  A grid point is \f$k=(i+s)/N\f$
+**componentwise**, so a reciprocal op \f$U\f$ acts on the INDEX lattice not as \f$U\f$ but as the
+conjugated matrix \f$M = D U D^{-1}\f$, \f$D=\mathrm{diag}(N)\f$:
+\f[ i' = M(i+s)-s, \qquad M_{ab} = N_a U_{ab}/N_b. \f]
+`ApplyToGrid` applied \f$U\f$ to the index vector and reduced mod \f$N\f$.  **On an ISOTROPIC mesh
+\f$M\equiv U\f$** — which is every mesh the suite folds (1×1×1, 2×2×2, 4×4×4), so the distinction was
+invisible and every banked number is untouched by the fix.  On an ANISOTROPIC mesh a cubic op that
+PERMUTES AXES is not a symmetry of the mesh at all, but the mod-\f$N\f$ wrap put its image back onto a
+grid point anyway: \f$i=(1,0,0)\to(0,1,0)\to\f$ mod (2,1,1) \f$\to(0,0,0)\f$, while nothing mapped
+\f$(0,0,0)\f$ back.  A non-bijection, so the BFS orbit of the second seed swallowed a point the first
+seed already owned, and `starSize` counted it twice.
+
+★ **THE STANDING TRAP WAS NOT THE CAUSE.**  The row's own first guess was TRIM self-pairing
+(`feedback_complex_type_vs_value`: both k here are TRIM).  It is true and it is irrelevant — the two TRIM
+points are each their own star and always were; what was wrong was that a THIRD membership was invented
+for one of them by an op that had no business acting.
+
+**THE FIX** (`src/Symmetry/Lattice_3D/Imp/Fold.C`).  An op is either a mesh symmetry or it is not, and
+that is a property of the OP, not of the point:
+- \f$M\f$ must be INTEGRAL.  Then it is automatically unimodular over \f$\mathbb{Z}\f$
+  (\f$\det M=\det U=\pm1\f$) and \f$i\mapsto M(i+s)-s \bmod N\f$ is a genuine PERMUTATION of the grid
+  (well defined mod \f$N\f$ because \f$MD = DU\f$ with \f$U\f$ integral).
+- \f$(M-I)s\f$ must be integral — the SHIFTED mesh condition, which is what makes \f$i'\f$ integral for
+  every \f$i\f$.  Both tests are point-INDEPENDENT, so they are evaluated ONCE per op instead of once per
+  (op, point), and the action inside the fold became pure integer arithmetic with no tolerance in it.
+- Ops failing either test are skipped WHOLESALE: the IBZ is reduced under the mesh-symmetry SUBGROUP.
+  Folding is merely reduced, never wrong — the same doctrine as the symmorphic-only guard in
+  `SpaceGroup::ReciprocalPointOps`.
+
+**THE GATES.**  `src/Symmetry/tests/L_Fold.C`: `AnisotropicKMeshStarsStillPartition` (six anisotropic
+meshes through `CheckPartition` + `ReduceToIBZ`), `Si2x1x1WeightsSumToOne` (the original defect pinned
+exactly: two stars of size 1, Σw = 1), `ShiftedKMeshStarsStillPartition` (nine shift × N combinations, the
+\f$(M-I)s\f$ arm).  The test-side action replica `GridImage` was corrected to \f$M\f$ as well.  Sub-millisecond,
+all of them.
+
+▶ **AND `GPW_SCF.SiliconMultiKPlumbing` IS RE-ENABLED** (3.1 s).  Post-fix banner: `Σw=1`, `charge=8`,
+`Etot=-7.452943318`, converged in 12 iterations.
+
+**THE ENERGY ANCHOR, RE-JUDGED (the second half of the item).**  It was **-7.45137**, banked 2026-07-15 —
+i.e. BEFORE the IBZ fold path existed, on the uniform-weight route, so it was never a 12-electron number;
+that is why a badly broken run still landed 1.6e-3 from it and inside the 5e-3 fit-floor window.  Judged
+rather than merely refreshed, against the INDEPENDENT route the file already names: a Γ-point 2×1×1
+SUPERCELL is band-folding-equivalent to a 2×1×1 k-mesh on the primitive cell, and
+`DISABLED_SiSupercellLadder` at `SI_LADDER=2,1,1` gives **-7.451621 per primitive cell** (itself still
+descending at its iteration cap).  The two routes agree to 1.3e-3 and bracket the old anchor.  ⇒ Re-pinned
+to **-7.45294** at the same 5e-3 width, and the ladder comment's cross-check table updated with it.
+
+⚠ **WHAT THIS FIX DID NOT SETTLE — filed as `doc/CleanupCandidates.md` R1.0r.**  `DetectPointOps` still
+hands the DENSITY star-average the full crystal space group whatever the mesh is, so on an anisotropic
+mesh \f$\rho\f$ is projected under 48 ops while the BZ sample is invariant under 2.  It breaks no count (a
+star-average is norm preserving), which is why it is a judgement and not a second KP-0; VASP/QE
+symmetrize under the intersection group for exactly this reason.
+

@@ -160,10 +160,20 @@ template <class V> inline void SymmetrizeValuesSigned(const Fold& f,
 std::vector<char> FlipFixedPointsPeriodic(const std::vector<rvec3_t>& pts,
                                           const std::vector<SymOp>& ops, double tol);
 
-//! \brief Fold the periodic grid \f$\{(i+\mathrm{shift})/N\}\f$ under \f$i' = W(i+s) - s
-//! \pmod N\f$ -- the EXACT integer path for {k} and {G} grids (raw index = KMesh linear
-//! order).  \a tau is NOT applied to the points (on the reciprocal side it is phase-only,
-//! recovered from the edge op); an op that does not map the grid onto itself is skipped.
+//! \brief Fold the periodic grid \f$\{(i+\mathrm{shift})/N\}\f$ under the reciprocal ops --
+//! the EXACT integer path for {k} and {G} grids (raw index = KMesh linear order).  \a tau is NOT
+//! applied to the points (on the reciprocal side it is phase-only, recovered from the edge op).
+//!
+//! ⚠ **THE ACTION ON THE INDEX LATTICE IS \f$M=DUD^{-1}\f$, NOT \f$U\f$** (\f$D=\mathrm{diag}(N)\f$),
+//! because a grid point is \f$k=(i+s)/N\f$ COMPONENTWISE: \f$i' = M(i+s)-s \pmod N\f$ with
+//! \f$M_{ab}=N_a U_{ab}/N_b\f$.  On an isotropic mesh \f$M=U\f$ and the two coincide.
+//!
+//! An op is USED only when it is a symmetry of this mesh -- \f$M\f$ integral (then automatically
+//! unimodular, so the action is a PERMUTATION of the grid) and \f$(M-I)s\f$ integral (the shifted
+//! mesh is invariant).  Ops failing either test are skipped WHOLESALE, so the fold is under the
+//! mesh-symmetry SUBGROUP: reduced, never wrong.  ⛔ Applying \f$U\f$ and relying on the mod-\f$N\f$
+//! wrap to land somewhere -- what this used to do -- is NOT a bijection on an anisotropic mesh, and
+//! the resulting overlapping orbits put 12 electrons in an 8-electron Si cell (KP-0, 2026-09-09).
 Fold FoldGrid  (const ivec3_t& N, const rvec3_t& shift,
                 const std::vector<SymOp>& ops);
 

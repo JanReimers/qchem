@@ -74,25 +74,62 @@ static int LinearIndex(const ivec3_t& i, const ivec3_t& N)
     return (i.x * N.y + i.y) * N.z + i.z;
 }
 
-//! Apply linear part \a U to grid point \a i (with grid \a shift): a symmetry maps
-//! \f$k=(i+s)/N\f$ to \f$(i'+s)/N = U(i+s)/N\f$, so \f$i' = U(i+s)-s\f$ reduced mod \a N.
-//! Returns false if \f$i'\f$ is not integral (the op does not map this grid onto itself).
-static bool ApplyToGrid(const Matrix3D<double>& U, const ivec3_t& i,
-                        const ivec3_t& N, const rvec3_t& shift, ivec3_t& out)
+//---------------------------------------------------------------------------------------
+//  THE MESH-SYMMETRY SUBGROUP -- the fix for KP-0 (2026-09-09; doc/OpenWork.md item 1).
+//
+//  A grid point is k=(i+s)/N COMPONENTWISE, so a reciprocal op U acts on the INDEX lattice not as
+//  U but as the CONJUGATED matrix M = D U D^{-1} with D=diag(N):
+//      i'_a + s_a = N_a sum_b U_ab (i_b+s_b)/N_b   =>   i' = M(i+s) - s,   M_ab = N_a U_ab / N_b.
+//  For an ISOTROPIC mesh M==U and the distinction is invisible, which is why folding 4x4x4 grids
+//  was right for a year while 2x1x1 was silently wrong.
+//
+//  ⛔ WHAT WENT WRONG, AND WHY THE OLD CODE COULD NOT SEE IT.  The old action applied U to the index
+//  vector and then reduced mod N.  On an ANISOTROPIC mesh U is not a symmetry of the mesh at all --
+//  the cubic ops permute axes, and the 2x1x1 grid is not axis-symmetric -- but the mod-N reduction
+//  hides that by mapping the stray image back onto a grid point anyway.  The action is then NOT A
+//  BIJECTION, so the BFS "orbits" OVERLAP: on Si 2x1x1 an axis-swapping op sent i=(1,0,0) to (0,1,0)
+//  -> mod (2,1,1) -> (0,0,0), while nothing sent (0,0,0) back.  Star sizes came out 1 and 2 on a
+//  2-POINT grid, Sum(w)=3/2, and every BZ-summed quantity scaled by 1.5 -- the run carried 12
+//  electrons where Si has 8 (`GPW_SCF.SiliconMultiKPlumbing`).
+//
+//  ⇒ AN OP IS EITHER A MESH SYMMETRY OR IT IS NOT, AND THAT IS A PROPERTY OF THE OP, NOT OF THE
+//  POINT (doc/Pins.md pin 13).  M integral makes it one: det M = det U = +-1, so an integral M is
+//  unimodular over Z and i -> M(i+s)-s mod N is a genuine PERMUTATION of the grid (well defined mod N
+//  because M D = D U with U integral).  The shift adds one more per-op condition, (M-I)s integral, which is what makes
+//  i' integral for every i.  Ops failing either test are skipped WHOLESALE: the IBZ is then reduced
+//  under the mesh-symmetry SUBGROUP, which folds less but never wrong -- the same doctrine as the
+//  symmorphic-only guard in `SpaceGroup::ReciprocalPointOps`.
+//
+struct GridOp
 {
-    rvec3_t ks(double(i.x) + shift.x, double(i.y) + shift.y, double(i.z) + shift.z);
-    rvec3_t im = U * ks;                                                // U(i+shift)
-    double  t[3] = {im.x - shift.x, im.y - shift.y, im.z - shift.z};    // i' before mod
-    int     n[3] = {N.x, N.y, N.z};
-    int     r[3];
-    for (int c = 0; c < 3; ++c)
+    bool valid=false;    //!< Does this op map the SHIFTED mesh onto itself?  If not, it is skipped.
+    long M[3][3]{};      //!< \f$D U D^{-1}\f$, integral and unimodular when \c valid.
+    long b[3]{};         //!< \f$(M-I)s\f$, integral when \c valid; the action is \f$i'=Mi+b \bmod N\f$.
+};
+
+static GridOp MakeGridOp(const Matrix3D<double>& U, const ivec3_t& N, const rvec3_t& shift)
+{
+    const int    n[3]={N.x,N.y,N.z};
+    const double s[3]={shift.x,shift.y,shift.z};
+    GridOp g;
+    for (int a=0;a<3;++a)
+    for (int c=0;c<3;++c)
     {
-        long ii = lround(t[c]);
-        if (fabs(t[c] - double(ii)) > 1e-6) return false;   // not grid-closed under this op
-        r[c] = int(((ii % n[c]) + n[c]) % n[c]);            // reduce into [0,N)
+        const double m =double(n[a])*U(a+1,c+1)/double(n[c]);   // (D U D^{-1})_ac
+        const long   im=lround(m);
+        if (fabs(m-double(im))>1e-6) return g;                  // U does not map this MESH onto itself
+        g.M[a][c]=im;
     }
-    out = ivec3_t(r[0], r[1], r[2]);
-    return true;
+    for (int a=0;a<3;++a)                                       // b = (M-I)s must be integral too
+    {
+        double v=-s[a];
+        for (int c=0;c<3;++c) v+=double(g.M[a][c])*s[c];
+        const long iv=lround(v);
+        if (fabs(v-double(iv))>1e-6) return g;                  // the SHIFTED mesh is not invariant
+        g.b[a]=iv;
+    }
+    g.valid=true;
+    return g;
 }
 
 Fold FoldGrid(const ivec3_t& N, const rvec3_t& shift, const std::vector<SymOp>& ops)
@@ -105,11 +142,24 @@ Fold FoldGrid(const ivec3_t& N, const rvec3_t& shift, const std::vector<SymOp>& 
     for (int iz = 0; iz < N.z; ++iz)
         pts.push_back(ivec3_t(ix, iy, iz));
 
+    std::vector<GridOp> gops;                 // ONCE per op, not once per (op,point): the test is
+    gops.reserve(ops.size());                 // point-independent, and the action is then pure integer
+    for (const auto& op : ops) gops.push_back(MakeGridOp(op.W, N, shift));
+
+    const int n[3]={N.x,N.y,N.z};
     auto apply = [&](int o, int i) -> int
     {
-        ivec3_t img;
-        if (!ApplyToGrid(ops[o].W, pts[i], N, shift, img)) return -1;
-        return LinearIndex(img, N);
+        const GridOp& g=gops[o];
+        if (!g.valid) return -1;
+        const long p[3]={pts[i].x, pts[i].y, pts[i].z};
+        int r[3];
+        for (int a=0;a<3;++a)
+        {
+            long v=g.b[a];
+            for (int c=0;c<3;++c) v+=g.M[a][c]*p[c];
+            r[a]=int(((v % n[a]) + n[a]) % n[a]);
+        }
+        return LinearIndex(ivec3_t(r[0],r[1],r[2]), N);
     };
     return FoldByAction(Ntot, int(ops.size()), apply);
 }

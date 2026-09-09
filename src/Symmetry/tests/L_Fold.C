@@ -30,18 +30,29 @@ static int LinearIndex(const ivec3_t& i, const ivec3_t& N)
     return (i.x * N.y + i.y) * N.z + i.z;
 }
 
-//! Test-side replica of the grid action i' = U(i+s) - s mod N, for edge-op verification.
+//! Test-side replica of the grid action, for edge-op verification.  Note the CONJUGATED matrix
+//! M = D U D^{-1} (D=diag(N)): a grid point is k=(i+s)/N componentwise, so i' = M(i+s)-s mod N.
+//! On an isotropic mesh M==U; on an anisotropic one a non-integral M means U is not a symmetry of
+//! the MESH at all and the op does not act (see FoldGrid's contract).
 static bool GridImage(const Matrix3D<double>& U, const ivec3_t& i,
                       const ivec3_t& N, const rvec3_t& shift, ivec3_t& out)
 {
-    rvec3_t im = U * rvec3_t(i.x + shift.x, i.y + shift.y, i.z + shift.z);
-    double  t[3] = {im.x - shift.x, im.y - shift.y, im.z - shift.z};
-    int     n[3] = {N.x, N.y, N.z}, r[3];
-    for (int c = 0; c < 3; ++c)
+    const int    n[3] = {N.x, N.y, N.z};
+    const double s[3] = {shift.x, shift.y, shift.z};
+    const double ii[3]= {double(i.x), double(i.y), double(i.z)};
+    int r[3];
+    for (int a = 0; a < 3; ++a)
     {
-        long ii = lround(t[c]);
-        if (fabs(t[c] - double(ii)) > 1e-6) return false;
-        r[c] = int(((ii % n[c]) + n[c]) % n[c]);
+        double t = -s[a];
+        for (int c = 0; c < 3; ++c)
+        {
+            const double m = double(n[a])*U(a+1,c+1)/double(n[c]);
+            if (fabs(m - double(lround(m))) > 1e-6) return false;   // not a mesh symmetry
+            t += m*(ii[c] + s[c]);
+        }
+        long v = lround(t);
+        if (fabs(t - double(v)) > 1e-6) return false;
+        r[a] = int(((v % n[a]) + n[a]) % n[a]);
     }
     out = ivec3_t(r[0], r[1], r[2]);
     return true;
@@ -109,6 +120,60 @@ TEST(Fold, GridEdgeOpsMapRepToMember)
             ASSERT_TRUE(GridImage(ops[o].W, rep, N, s, img));
             EXPECT_EQ(LinearIndex(img, N), m);     // ops[o] maps rep -> member, exactly
         }
+    }
+}
+
+//---------------------------------------------------------------------------------------
+//  ⛔ KP-0 (2026-09-09): THE ANISOTROPIC MESH.  A cubic op that PERMUTES AXES is not a symmetry of a
+//  2x1x1 grid, but the old action applied U to the index vector and let the mod-N wrap land the image
+//  on a grid point anyway -- a non-bijection, so the BFS orbits OVERLAPPED and the star sizes came out
+//  1 and 2 on a TWO-point grid (Sum(w)=1.5).  Every BZ-summed quantity carries those weights, so the
+//  Si multi-k SCF ran on 12 electrons instead of 8.  The action is M=DUD^{-1}, and an op whose M is
+//  non-integral simply is not a mesh symmetry.
+//
+//  These meshes are the ones the ISOTROPIC 4x4x4 gates above cannot see: there M==U identically.
+//
+TEST(Fold, AnisotropicKMeshStarsStillPartition)
+{
+    SpaceGroup sg = DiamondSi();
+    const rvec3_t s(0,0,0);
+    for (const ivec3_t N : {ivec3_t(2,1,1), ivec3_t(1,2,1), ivec3_t(1,1,2),
+                            ivec3_t(2,2,1), ivec3_t(4,2,1), ivec3_t(3,2,1)})
+    {
+        Fold f = sg.FoldKMesh(N, s);
+        SCOPED_TRACE(testing::Message() << "N=" << N.x << "x" << N.y << "x" << N.z);
+        CheckPartition(f, size_t(N.x)*N.y*N.z);          // stars PARTITION -- Sum starSize == Ntot
+        ReduceToIBZ(N, s, sg.ReciprocalPointOps());      // and the weight-sum invariant holds (it throws)
+    }
+}
+
+// THE ORIGINAL DEFECT, PINNED EXACTLY.  Si 2x1x1 has Gamma and the zone boundary k=(1/2,0,0); both are
+// TRIM (k = -k modulo a reciprocal vector), so each is its OWN star and the two weights are 1/2 each.
+// The reported symptom was starSize {1,2} and Sum(w)=1.5 = 12/8 electrons.
+TEST(Fold, Si2x1x1WeightsSumToOne)
+{
+    SpaceGroup sg = DiamondSi();
+    IBZMesh ibz = ReduceToIBZ(ivec3_t(2,1,1), rvec3_t(0,0,0), sg.ReciprocalPointOps());
+
+    ASSERT_EQ(ibz.points.size(), 2u);                    // no reduction is possible: 2 TRIM points
+    EXPECT_EQ(ibz.points[0].starSize, 1);
+    EXPECT_EQ(ibz.points[1].starSize, 1);
+    EXPECT_NEAR(ibz.WeightSum(), 1.0, 1e-14);
+}
+
+// THE SHIFTED mesh adds the second per-op condition, (M-I)s integral: an op may map the GRID onto
+// itself and still miss the OFFSET point set.  A half-shifted 2x2x2 mesh is the standard MP case, and
+// its weights must partition just the same.
+TEST(Fold, ShiftedKMeshStarsStillPartition)
+{
+    SpaceGroup sg = DiamondSi();
+    for (const rvec3_t s : {rvec3_t(0.5,0.5,0.5), rvec3_t(0.5,0,0), rvec3_t(0,0.5,0.5)})
+    for (const ivec3_t N : {ivec3_t(2,2,2), ivec3_t(2,1,1), ivec3_t(4,2,2)})
+    {
+        SCOPED_TRACE(testing::Message() << "N=" << N.x << "x" << N.y << "x" << N.z
+                                        << " shift=" << s.x << "," << s.y << "," << s.z);
+        CheckPartition(sg.FoldKMesh(N, s), size_t(N.x)*N.y*N.z);
+        ReduceToIBZ(N, s, sg.ReciprocalPointOps());
     }
 }
 

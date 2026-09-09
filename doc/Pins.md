@@ -126,9 +126,29 @@ slots are CREATED in the phase and the loop only fills nodes that already exist.
 Policy enums, not numeric dials.  A number a user has to tune is a design failure looking for somewhere to
 live.
 
+## 13. A symmetry op acts on GRID INDICES as \f$DUD^{-1}\f$, never as \f$U\f$
+
+A grid point is \f$k=(i+s)/N\f$ **componentwise**, so an op \f$U\f$ induces on the index lattice the
+CONJUGATED map \f$M = D U D^{-1}\f$ with \f$D=\mathrm{diag}(N)\f$, i.e. \f$M_{ab}=N_a U_{ab}/N_b\f$ and
+\f$i' = M(i+s)-s\f$.  \f$M=U\f$ **only when the mesh is isotropic**, which is why applying \f$U\f$ to the
+indices is right on every \f$n\times n\times n\f$ mesh and silently wrong on \f$2\times1\times1\f$.
+
+⛔ **AND A MOD-\f$N\f$ WRAP IS NOT A LICENCE TO PROCEED.**  Reducing a stray image back into \f$[0,N)\f$
+always yields *a* grid point, so a map that is not a mesh symmetry looks like one.  The test is
+\f$M\f$ INTEGRAL (then \f$\det M=\det U=\pm1\f$ makes it unimodular over \f$\mathbb{Z}\f$, so the action is
+a PERMUTATION) plus \f$(M-I)s\f$ integral for a shifted mesh — both properties of the OP, checked once,
+not of the point.  An op failing either is not a symmetry of that mesh and must be dropped whole.
+
+**What it cost:** the IBZ stars overlapped on Si \f$2\times1\times1\f$, \f$\Sigma w=1.5\f$, and the SCF
+carried 12 electrons in an 8-electron cell (KP-0, 2026-09-09; record in `doc/OpenWork_History3.md`).
+▶ Corollary, still open: the group that symmetrizes \f$\rho\f$ must then be intersected with the mesh
+symmetries, or the density is projected into a symmetry the sampling does not have
+(`doc/CleanupCandidates.md` R1.0r).
+
 ---
 
 **Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
+13 is the KP-0 multi-k defect (2026-09-09).
 2, 4, 6 are user rulings recorded in session memory (`feedback_everything_is_a_fit`,
 `feedback_integrated_observables`, `feedback_pw_fitting_uniform_interface`) and had no home in the repo
 until now.
