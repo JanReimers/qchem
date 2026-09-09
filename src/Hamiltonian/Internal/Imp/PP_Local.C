@@ -3,7 +3,7 @@
 // The term owns only the MODEL (V_loc as a real-space field).  It asks the STRUCTURE for its integration
 // mesh -- CreateIntegrationMesh is a polymorphic geometry capability (Atom -> radial x angular, Molecule ->
 // Becke, lattice -> uniform), so the mesh TYPE follows the geometry, not this term -- and quadratures
-// <i|V_loc|j> with the generic qcMesh::WeightedOverlap (the same routine the XC path uses).  The term is
+// <i|V_loc|j> with the generic qcMesh::MatrixOverlap (the same routine the XC path uses).  The term is
 // thus geometry-neutral without any basis-specific dispatch.
 module;
 #include <cassert>
@@ -11,7 +11,7 @@ module;
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
-import qchem.Mesh.Quadrature;           // qcMesh::Mesh, WeightedOverlap (over qcMath Scalar/VectorFunction)
+import qchem.Mesh.Quadrature;           // qcMesh::Mesh, MatrixOverlap (over qcMath Scalar/VectorFunction)
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (the integrand source, passed direct)
 import qchem.Math;                      // norm(Vector3D)
 
@@ -33,7 +33,7 @@ public:
         for (size_t i=0;i<cl.GetNumAtoms();i++) { const Atom* a=cl[i]; s+=v.Vloc(a->itsZ, norm(r-a->itsR)); }
         return s;
     }
-    rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}   // unused by WeightedOverlap
+    rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}   // unused by MatrixOverlap
 };
 
 } //anon
@@ -48,7 +48,7 @@ PP_Local::PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp)
 rsmat_t PP_Local::MakeMatrix(const robs_t* bs, const Spin&) const
 {
     qcMesh::Mesh mesh = theStructure->CreateIntegrationMesh(itsMeshParams);   // the geometry's own mesh
-    return qcMesh::WeightedOverlap(mesh, *bs, VlocField(*theStructure, *itsVloc));
+    return qcMesh::MatrixOverlap(mesh, *bs, VlocField(*theStructure, *itsVloc));
 }
 
 void PP_Local::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const

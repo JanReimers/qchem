@@ -159,8 +159,8 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         rsmat_t Ven=oi->Nuclear(cl);
-        rsmat_t VenLnum = -Z*qcMesh::WeightedOverlap(itsMesh,*GetLarge(oi),OneOverR());
-        rsmat_t VenSnum = -Z*qcMesh::WeightedOverlap(itsMesh,*GetSmall(oi),OneOverR());
+        rsmat_t VenLnum = -Z*qcMesh::MatrixOverlap(itsMesh,*GetLarge(oi),OneOverR());
+        rsmat_t VenSnum = -Z*qcMesh::MatrixOverlap(itsMesh,*GetSmall(oi),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
@@ -176,8 +176,8 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         rsmat_t Ven=oi->Nuclear(cl);
-        rsmat_t VenLnum = -Z*qcMesh::WeightedOverlap(itsMesh,*GetLarge(oi),OneOverR());
-        rsmat_t VenSnum = -Z*qcMesh::WeightedOverlap(itsMesh,*GetSmall(oi),OneOverR());
+        rsmat_t VenLnum = -Z*qcMesh::MatrixOverlap(itsMesh,*GetLarge(oi),OneOverR());
+        rsmat_t VenSnum = -Z*qcMesh::MatrixOverlap(itsMesh,*GetSmall(oi),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;

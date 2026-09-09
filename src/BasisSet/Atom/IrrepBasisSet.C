@@ -51,7 +51,7 @@ public:
 // its op(r) returns the purely RADIAL chi_i(|r|) with the irrep's Y_lm silently omitted -- so the promise
 // is kept in form and broken in substance.  It is CONTAINED, not cured: ImplicitAngular_IBS makes the
 // fakeness explicit in the type system and PP_NonLocal cross-casts to it for a per-l radial assembly.
-// The cure is R1.0 step (1)'s remaining conversions -- PP_Local's WeightedOverlap and PP_NonLocal's
+// The cure is R1.0 step (1)'s remaining conversions -- PP_Local's MatrixOverlap and PP_NonLocal's
 // explicit-angular Overlap become MakeOverlap/MakeOverlap3C on the basis, and the atom density/orbital
 // paths follow -- after which this derivation drops and nothing evaluates an atom block from outside.
 // (Step (2), an HONEST op(r) with real Y_lm, is explicitly out of scope -- user 2026-08-22.)

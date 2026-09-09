@@ -170,7 +170,7 @@ TEST(Mesh_Quadrature, WeightedOverlap_OneOverR)
 {
     Mesh m=MakeProduct();
     ExpBasis a;
-    auto V=WeightedOverlap(m,a,OneOverR());    // <a|1/r|a> = integral exp(-4r)/r d^3r = pi/4
+    auto V=MatrixOverlap(m,a,OneOverR());    // <a|1/r|a> = integral exp(-4r)/r d^3r = pi/4
     EXPECT_NEAR(V(0,0),Pi/4.0,1e-7);           // 1/r is non-smooth at the origin -> not machine-precision
 }
 TEST(Mesh_Quadrature, KineticGrad2)

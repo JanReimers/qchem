@@ -13,7 +13,7 @@ import qchem.BasisSet;
 
 import qchem.Constants;
 import qchem.Structure;
-import qchem.Mesh.Quadrature;           // qcMesh::Overlap/WeightedOverlap/KineticGrad2 + views
+import qchem.Mesh.Quadrature;           // qcMesh::Overlap/MatrixOverlap/KineticGrad2 + views
 import qchem.VectorFunction;             // VectorFunction<double> (the basis evaluator interface)
 import qchem.Symmetry.Atom.Spherical;
 import qchem.Symmetry.Factory;
@@ -95,7 +95,7 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
     {
         rsmat_t Hn=oi->Nuclear(cl);
         //cout << S << endl;
-        rsmat_t Hnnum = -1*qcMesh::WeightedOverlap(itsMesh,*oi,OneOverR());
+        rsmat_t Hnnum = -1*qcMesh::MatrixOverlap(itsMesh,*oi,OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(Hn-Hnnum)),0.0,1e-8);
 
     }
@@ -111,7 +111,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
         int l=qchem::Symmetry::Atom::Getl(oi->GetSymmetry());;
         // ...which equals Grad2 (radial) + centrifugal l(l+1)<r^-2>, confirming the no-1/2 convention.
         rsmat_t Knum = qcMesh::KineticGrad2(itsMesh,*oi)
-                     + l*(l+1)*qcMesh::WeightedOverlap(itsMesh,*oi,OneOverR2());
+                     + l*(l+1)*qcMesh::MatrixOverlap(itsMesh,*oi,OneOverR2());
         EXPECT_NEAR(blazem::max(blazem::abs(K-Knum)),0.0,1e-12);
         
     }

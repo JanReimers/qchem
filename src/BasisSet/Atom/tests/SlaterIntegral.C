@@ -85,7 +85,7 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
         rsmat_t Hn=oi->Nuclear(cl);
-        rsmat_t Hnnum = -1*qcMesh::WeightedOverlap(itsMesh,*oi,OneOverR());
+        rsmat_t Hnnum = -1*qcMesh::MatrixOverlap(itsMesh,*oi,OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(Hn-Hnnum)),0.0,1e-7);
 
     }
@@ -100,7 +100,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
         int l=qchem::Symmetry::Atom::Getl(oi->GetSymmetry());;
         // ...which equals Grad2 (radial) + centrifugal l(l+1)<r^-2>, confirming the no-1/2 convention.
         rsmat_t Knum = qcMesh::KineticGrad2(itsMesh,*oi)
-                     + l*(l+1)*qcMesh::WeightedOverlap(itsMesh,*oi,OneOverR2());
+                     + l*(l+1)*qcMesh::MatrixOverlap(itsMesh,*oi,OneOverR2());
         EXPECT_NEAR(blazem::max(blazem::abs(K-Knum)),0.0,1e-10);
         
         // cout << "K=" << K << endl;

@@ -1143,6 +1143,39 @@ MnO campaign proceeds undisturbed in qchem6.
   and no `if (auto* p = dynamic_cast…)` guard*.  That one found all six defects and, after excluding
   in-place `if` guards, produced only ONE false positive (a commented-out line).
 
+- **R1.0l ✅ `MatrixIntegrator` + the `MatrixOverlap` rename — BUILT 2026-09-08.**
+  (User: *"Can we make a MatrixIntegrator class that enforces no mismatch?"* and *"WeightedOverlap should
+  be renamed MatrixOverlap … Everything in there is Weighted."*)
+
+  **`qchem.Mesh.Integrator`** in qcMesh: an abstract `MatrixIntegrator<T>` — `Forward(D) -> rho`,
+  `Adjoint(v) -> matrix`, `Integrate(f)`, `NumPoints()` — plus the DENSE realization over a mesh and a
+  `VectorFunction<T>`.  The screened realization (GPW's analytic collocation and its raw adjoint)
+  implements the same interface from above, in the library that owns the screening data; it cannot live
+  here because qcMesh knows nothing of shells, offsets or `REL_CUTOFF` ladders.
+  ★ **The gate is the property, not the plumbing:** `MatrixIntegrator.ForwardAndAdjointAreExactlyAdjoint`
+  asserts \f$\langle v,\mathrm{Forward}(D)\rangle_w=\langle\mathrm{Adjoint}(v),D\rangle\f$ to 1e-12 for a
+  generic \f$D\f$ and \f$v\f$.  That identity IS \f$H=\partial E/\partial D\f$; if a future realization
+  ever screens one direction and not the other, this is what breaks.  839/839.
+
+  ⚖ **TWO USER CONDITIONS WERE TESTED; ONE HELD AND ONE DID NOT.**
+  1. ⛔ *"If no one else needs it then I prefer [`WeightedOverlap`] become an implementation detail."*
+     **The condition is false, so it stayed public.**  It has callers that want the ADJOINT ALONE and never
+     collocate anything: the molecular `PP_Local::CalculateMatrix` matrix, and the atom gates' \f$1/r\f$ and
+     \f$1/r^2\f$ oracles (`GaussianIntegral`, `SlaterIntegral`, `BasisSet_Atom`, `BSplines`,
+     `DiracIntegral`).  Hiding it would have broken one-directional callers for a guarantee they cannot
+     violate — a caller that never runs a forward cannot mismatch one.
+  2. ✅ *"just `Overlap` if no signature conflict"* — **there IS a conflict**, so `MatrixOverlap` it is.
+     `Overlap(m, a, const ScalarFunction<double>&)` already exists with an IDENTICAL parameter list and a
+     `vec_t` return; the plain name would be a redeclaration, not an overload.  ★ And the rename is right
+     on its own terms: every quadrature in that file carries the mesh weights, so *"Weighted"*
+     distinguished nothing — what distinguishes these two is that one returns a MATRIX and the other a
+     VECTOR, which is now what the names say.
+
+  ★ **THE ASSUMPTION THAT MAKES THE GUARANTEE AIRTIGHT, recorded because it is a design rule and not a
+  detail** (user, 2026-09-08): *"if a class has two integrators that it needs to keep straight then
+  SOLID::SRP dictates that class be divided."*  So the class does not claim nobody can hold two
+  integrators — it makes a class that holds two **visibly** a single-responsibility problem.
+
 - **R1.0k ▶ THREE PROPOSED qcMesh EXTENSIONS — evaluated 2026-09-08.  TWO YES, ONE NO.**
   (User: *"1) Extend qcMesh to support FoldedMesh … 2) Extend qcMesh to support 3 center Overlap, 3) Extend
   qcMesh to support forward and adjoint matrix integrals."*)

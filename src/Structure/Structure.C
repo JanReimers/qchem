@@ -62,7 +62,7 @@ public:
     //! is the STRUCTURE's responsibility, not the basis's: an Atom builds its single-centre (radial x angular)
     //! grid, a Molecule the multi-centre Becke grid, a periodic lattice a uniform / unit-cell-Becke grid.
     //! Pure virtual -- each geometry owns its most efficient mesh (no central dispatch).  A real-space
-    //! orbital basis integrates a field on this via qcMesh::WeightedOverlap; plane waves own their G-grid and
+    //! orbital basis integrates a field on this via qcMesh::MatrixOverlap; plane waves own their G-grid and
     //! do not use it.
     virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const=0;
 

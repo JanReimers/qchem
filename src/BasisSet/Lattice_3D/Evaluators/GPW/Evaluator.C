@@ -142,7 +142,7 @@ public:
     // --- Real-space external (pseudo)potential assembly: the GPW external term.  Unlike the plane-wave
     //     basis (G-space form factors, which Gaussians cannot supply) GPW quadratures the pseudopotential in
     //     REAL SPACE against its Gaussians on the cell's uniform integration mesh -- the SAME machinery the
-    //     molecular PP_Local/PP_NonLocal terms use (qcMesh::WeightedOverlap / Overlap), so a Gaussian-in-a-box
+    //     molecular PP_Local/PP_NonLocal terms use (qcMesh::MatrixOverlap / Overlap), so a Gaussian-in-a-box
     //     GPW run reproduces the finite molecular PP matrices.  At \f$\Gamma\f$ the matrices are real (widened
     //     to complex).  These realise Integrals_Pseudo<dcmplx> on GPW_IBS -> the whole Ham_PW_DFT drives GPW.
     //! \brief Local PP matrix, assembled in G-SPACE from the analytic form factor -- IDENTICALLY to the

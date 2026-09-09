@@ -357,7 +357,7 @@ TEST_F(BSplineTests, Nuclear)
         for (auto i:iv_t(0,Ven.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,Ven.rows())) EXPECT_EQ(Ven(i,j),0.0);
         
-        rsmat_t Vennum = -cl->GetNuclearCharge()*qcMesh::WeightedOverlap(itsMesh,*ibs,OneOverR());
+        rsmat_t Vennum = -cl->GetNuclearCharge()*qcMesh::MatrixOverlap(itsMesh,*ibs,OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(Ven-Vennum)),0.0,1e-7);
 
         // cout << "Ven=" << Ven << endl;
@@ -379,7 +379,7 @@ TEST_F(BSplineTests, Kinetic)
         
         int l=qchem::Symmetry::Atom::Getl(ibs->GetSymmetry());
         rsmat_t Tnum = qcMesh::KineticGrad2(itsMesh,*ibs);
-        rsmat_t Cen  = qcMesh::WeightedOverlap(itsMesh,*ibs,OneOverR2());
+        rsmat_t Cen  = qcMesh::MatrixOverlap(itsMesh,*ibs,OneOverR2());
         Tnum+=l*(l+1)*Cen;
         EXPECT_NEAR(blazem::max(blazem::abs(T-Tnum)),0.0,3e-5);
         

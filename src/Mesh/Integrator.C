@@ -1,0 +1,128 @@
+// File: Mesh/Integrator.C  MatrixIntegrator -- a FORWARD/ADJOINT PAIR that cannot be mismatched.
+//
+// ★ WHY A CLASS AND NOT TWO FREE FUNCTIONS (user, 2026-09-08).
+//
+// A density-functional assembly runs one map in each direction:
+//
+//   FORWARD  D  ->  rho(r_g)        collocate the density matrix onto the points
+//   ADJOINT  v  ->  <i|v|j>         integrate a field on those points back to a matrix
+//
+// \f$H=\partial E/\partial D\f$ holds only if the adjoint is the EXACT adjoint of the forward ON THE SAME
+// TRUNCATED OPERATOR.  Offered as two independent free functions, a mismatch is EXPRESSIBLE -- and this
+// tree has measured what that costs: an unscreened \f$\rho\f$ paired with a screened \f$H\f$ sent Si from
+// 14 to 60 SCF iterations and moved E by 35 µHa (doc/CleanupCandidates.md R1.0j).  Behind one interface
+// the pairing is a class invariant: a caller cannot obtain half of one route and half of another.
+//
+// ⚠ THE ASSUMPTION THAT MAKES THAT AIRTIGHT, and it is the user's (2026-09-08): *"if a class has two
+// integrators that it needs to keep straight then SOLID::SRP dictates that class be divided."*  So the
+// guarantee is not "nobody can hold two integrators" -- it is that a class holding two has a
+// single-responsibility problem to fix, and the pairing is what makes that visible.
+//
+// ⚠ AND THE ADJOINT HALF STAYS PUBLIC ON ITS OWN.  qcMesh::MatrixOverlap has callers that want the
+// adjoint ALONE and never collocate anything -- the molecular PP_Local matrix, the atom gates' 1/r and
+// 1/r^2 oracles.  Making it private to this class would have broken them for a guarantee they do not
+// need; a one-directional caller cannot mismatch anything.
+//
+// THE DENSE REALIZATION IS THE ONLY ONE HERE, deliberately.  It is the honest point-sum: no screening, no
+// multigrid, no boxes -- so its two halves are adjoint by construction and it needs no proof.  The
+// SCREENED realization (GPW's analytic collocation and its raw adjoint, box-truncated per multigrid level)
+// implements this same interface FROM ABOVE, in the library that owns the screening data; it cannot live
+// here, because qcMesh knows nothing of shells, offsets or REL_CUTOFF ladders.
+module;
+#include <cassert>
+#include <complex>
+#include <type_traits>
+export module qchem.Mesh.Integrator;
+export import qchem.Mesh;
+export import qchem.Mesh.Quadrature;   // MatrixOverlap -- the dense adjoint
+export import qchem.VectorFunction;
+
+namespace qchem::qcMesh
+{
+// Module-internal scalar helpers that also work for real T -- the same pair Quadrature.C keeps
+// file-private, duplicated (two lines) rather than exported: they are an implementation detail of the
+// summation, not vocabulary this library wants to offer.
+template <class T> inline T    IConj(const T& x) {if constexpr (std::is_floating_point_v<T>) return x; else return std::conj(x);}
+template <class T> inline auto IReal(const T& x) {if constexpr (std::is_floating_point_v<T>) return x; else return std::real(x);}
+}
+
+export namespace qchem::qcMesh
+{
+
+//! \brief The forward/adjoint pair of a density-matrix <-> operator assembly, as ONE object.
+//!
+//! Realizations differ in what they TRUNCATE (a dense point sum truncates nothing; the GPW route screens
+//! per pair and boxes per multigrid level), never in semantics.  Which one a run uses is a cost decision
+//! LATCHED for the run -- switching mid-SCF would change the discrete functional being minimised.
+template <class T> class MatrixIntegrator
+{
+public:
+    virtual ~MatrixIntegrator() = default;
+
+    //! \brief FORWARD: \f$\rho(r_g)=\sum_{ij}D_{ij}\,\overline{\chi_i(r_g)}\,\chi_j(r_g)\f$ at my points.
+    //! Real by construction for Hermitian \a D -- a density is an observable.
+    virtual rvec_t Forward(const hmat_t<T>& D) const=0;
+
+    //! \brief ADJOINT: \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}\,v_g\,\chi_j(r_g)\f$ for
+    //! a field TABULATED on the same points, in the same order, that \c Forward returned.
+    virtual hmat_t<T> Adjoint(const rvec_t& v) const=0;
+
+    //! \f$\int f\,d^3r\f$ over my points -- the energy quadrature that goes with the pair.
+    virtual double Integrate(const rvec_t& f) const=0;
+
+    virtual size_t NumPoints() const=0;   //!< how many points the two arrays above are sized to
+};
+
+//! \brief The DENSE realization: an honest point sum over a mesh, with no screening anywhere.
+//!
+//! Its two directions are adjoint BY CONSTRUCTION -- same points, same weights, same basis evaluation, no
+//! truncation to get out of step -- so it is also the natural REFERENCE against which a screened
+//! realization is gated.
+//!
+//! \warning It is \f$O(n_{pts}n^2)\f$ per direction with no sparsity, which is why production periodic runs
+//! use the screened realization instead.  Do not reach for this one on a large cell because it is simple.
+template <class T> class DenseMatrixIntegrator
+    : public virtual MatrixIntegrator<T>
+{
+public:
+    //! \a mesh and \a basis must outlive this object: it holds them by reference, because an integrator is
+    //! a VIEW of a (mesh, basis) pair and copying either would be a lie about who owns them.
+    DenseMatrixIntegrator(const Mesh& mesh, const VectorFunction<T>& basis)
+        : itsMesh(mesh), itsBasis(basis) {}
+
+    virtual rvec_t Forward(const hmat_t<T>& D) const override;
+    virtual hmat_t<T> Adjoint(const rvec_t& v) const override
+    {
+        assert(v.size()==itsMesh.size() && "MatrixIntegrator::Adjoint: one field value per mesh point");
+        return MatrixOverlap(itsMesh, itsBasis, v);
+    }
+    virtual double Integrate(const rvec_t& f) const override {return qcMesh::Integrate(itsMesh, f);}
+    virtual size_t NumPoints() const override {return itsMesh.size();}
+
+private:
+    const Mesh&              itsMesh;
+    const VectorFunction<T>& itsBasis;
+};
+
+//! \f$\rho(r_g)=\sum_{ij}D_{ij}\overline{\chi_i}\chi_j\f$ -- the exact adjoint of \c MatrixOverlap: the
+//! same \f$\overline{\chi_i}\ldots\chi_j\f$ ordering, and the weights deliberately NOT applied here (they
+//! belong to the integration, not to the density, and applying them on both sides would square them).
+template <class T> rvec_t DenseMatrixIntegrator<T>::Forward(const hmat_t<T>& D) const
+{
+    const size_t n=itsBasis.GetVectorSize();
+    assert(D.rows()==n && "MatrixIntegrator::Forward: the density matrix must match the basis");
+    const rvec3vec_t& R=itsMesh.Points();
+    rvec_t rho(itsMesh.size(), 0.0);
+    for (size_t g=0; g<itsMesh.size(); g++)
+    {
+        vec_t<T> p=itsBasis(R[g]);
+        T s=T(0);
+        for (size_t i=0; i<n; i++)
+            for (size_t j=0; j<n; j++)
+                s += IConj(p[i])*D(i,j)*p[j];
+        rho[g] = IReal(s);          // Hermitian D => real; the imaginary part is roundoff and is dropped
+    }
+    return rho;
+}
+
+} // namespace

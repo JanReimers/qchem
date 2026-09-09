@@ -2,10 +2,10 @@
 //
 // MeshIntegrator-the-class is gone; these are plain functions taking const Mesh& first.  The
 // physics stays with the CALLER (it supplies the field V); qcMesh only knows  sum_i w_i (...).
-// Inv_r1 / Inv_r2 / the DFT IntegralPotential all collapse into ONE WeightedOverlap with V set to
+// Inv_r1 / Inv_r2 / the DFT IntegralPotential all collapse into ONE MatrixOverlap with V set to
 // 1/r, 1/r^2, or vxc respectively.
 //
-// The Hermitian forms (single-basis Overlap, WeightedOverlap, KineticGrad2) return hmat_t<T>:
+// The Hermitian forms (single-basis Overlap, MatrixOverlap, KineticGrad2) return hmat_t<T>:
 // for real T that is a SymmetricMatrix, for complex T a HermitianMatrix (the PW/Bloch convention).
 module;
 #include <complex>
@@ -111,9 +111,23 @@ export template <class T> vec_t<T> Overlap(const Mesh& m, const VectorFunction<T
     return p;
 }
 
-//! <a_i | V | a_j>  with V TABULATED at the mesh points (V[k] pairs with Points()[k]) -- for callers
-//! that already hold the field's values (e.g. v_xc(rho_k) with rho sampled once per SCF iteration).
-export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const VectorFunction<T>& a, const rvec_t& V)
+//! \brief \f$\langle a_i|V|a_j\rangle\f$ with \a V TABULATED at the mesh points (V[k] pairs with
+//! Points()[k]) -- for callers that already hold the field's values (e.g. \f$v_{xc}(\rho_k)\f$ with
+//! \f$\rho\f$ sampled once per SCF iteration).
+//!
+//! ★ NAMED FOR WHAT IT RETURNS, not for the weights (user, 2026-09-08: *"WeightedOverlap should be renamed
+//! MatrixOverlap … Everything in there is Weighted"*).  Every quadrature in this file carries the mesh
+//! weights, so "Weighted" distinguished nothing; what distinguishes this from the three-argument
+//! \c Overlap above is that one returns a MATRIX and the other a VECTOR.  ⚠ It could not simply become
+//! \c Overlap: \c Overlap(m, a, const ScalarFunction<double>&) already exists with an IDENTICAL parameter
+//! list and a \c vec_t return, so the plain name is a redeclaration, not an overload.
+//!
+//! \note This is the ADJOINT half of \c qcMesh::MatrixIntegrator (qchem.Mesh.Integrator).  It stays
+//! PUBLIC because it has callers that want the adjoint ALONE and no forward at all -- the molecular
+//! \c PP_Local matrix and the atom gates' \f$1/r\f$, \f$1/r^2\f$ oracles.  A caller that needs BOTH
+//! directions must take them from one \c MatrixIntegrator instead, which is what makes a forward/adjoint
+//! mismatch unrepresentable.
+export template <class T> hmat_t<T> MatrixOverlap(const Mesh& m, const VectorFunction<T>& a, const rvec_t& V)
 {
     size_t n=a.GetVectorSize();
     mat_t<T> M(n,n,T(0));
@@ -130,12 +144,12 @@ export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const VectorF
 }
 
 //! <a_i | V | a_j>  -- subsumes Inv_r1 (V=1/r), Inv_r2 (V=1/r^2) and the DFT potential (V=vxc).
-export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const VectorFunction<T>& a, const ScalarFunction<double>& V)
+export template <class T> hmat_t<T> MatrixOverlap(const Mesh& m, const VectorFunction<T>& a, const ScalarFunction<double>& V)
 {
     rvec_t v(m.size());
     const rvec3vec_t& R=m.Points();
     for (size_t k=0; k<m.size(); k++) v[k]=V(R[k]);
-    return WeightedOverlap(m,a,v);
+    return MatrixOverlap(m,a,v);
 }
 
 //! <grad a_i | grad a_j>  -- the kinetic <p^2> block (Hermitian).

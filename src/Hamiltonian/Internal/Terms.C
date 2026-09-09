@@ -73,7 +73,7 @@ private:
 //
 //  Local pseudopotential electron-ion term: the pseudized replacement for Ven.  Instead of the analytic
 //  -Z/r nuclear attraction it quadratures the smooth real-space V_loc(r) on the molecular/atomic mesh,
-//  <chi_i|V_loc|chi_j> = Sum_g w_g chi_i(r_g) chi_j(r_g) V_loc(r_g) (= the XC-path WeightedOverlap shape).
+//  <chi_i|V_loc|chi_j> = Sum_g w_g chi_i(r_g) chi_j(r_g) V_loc(r_g) (= the XC-path MatrixOverlap shape).
 //  STATIC (density-independent), so it is built once.  V_loc is the real-space PP face (LocalPotential_R).
 //
 class PP_Local : public virtual rStatic_HT, private rStatic_HT_Imp

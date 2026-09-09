@@ -151,7 +151,7 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r1 (double eps) 
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Inv_r1(i,j);
-        rsmat_t Snum = qcMesh::WeightedOverlap(itsMesh,*ev,OneOverR());
+        rsmat_t Snum = qcMesh::MatrixOverlap(itsMesh,*ev,OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,eps);
     }
         
@@ -165,7 +165,7 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) 
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Inv_r2(i,j);
-        rsmat_t Snum = qcMesh::WeightedOverlap(itsMesh,*ev,OneOverR2());
+        rsmat_t Snum = qcMesh::MatrixOverlap(itsMesh,*ev,OneOverR2());
         EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,eps);
     }
         
