@@ -8,8 +8,11 @@
 #include "gtest/gtest.h"
 #include <memory>
 #include <complex>
+#include <stdexcept>
 
 import qchem.ChargeDensity.FourierMixCD;   // FourierMixCD, KerkerMix, ΔG_Map
+import qchem.ChargeDensity.Imp.PolarizedCD; // tPolarized_CDImp (tests may import Internal)
+import qchem.ChargeDensity.Imp.IrrepCD;     // IrrepCD<double> -- a mixable density that is NOT polarized
 import qchem.UnitCell;                      // UnitCell + MakeReciprocalCell
 import qchem.ReciprocalLattice;             // ReciprocalLattice
 import qchem.Types;                         // dcmplx, ivec3_t, rvec3_t
@@ -72,4 +75,25 @@ TEST(KerkerMix, G0ZeroIsLinearMixing)
     FourierMixCD seed(in, Recip(a), N);
     std::unique_ptr<FourierMixCD> mix(FourierMixCD::KerkerMix(seed, out, alpha, /*G0*/0.0));
     EXPECT_NEAR(std::real(dcmplx(mix->RhoTilde().at(ivec3_t(2,0,0)))), 1.0 + alpha*(3.0-1.0), 1e-12); // 2.0
+}
+
+//---------------------------------------------------------------------------------------
+//  THE MIXER'S LINEAGE CONTRACT (R2.5's remainder, 2026-09-09).
+//
+//  `MixIn`/`GetChangeFrom` are BINARY operations on a hierarchy: both operands must be the same
+//  representation before the algebra means anything, and no single-dispatch signature can say so.  A
+//  polarized density handed an unpolarized partner used to print to `cerr` and call `exit(-1)` — killing
+//  the pybind GUI and the test runner outright, diagnostic and all.  It now THROWS, and this pins that:
+//  an `assert` would be compiled out under NDEBUG, which is where every production run lives.
+TEST(MixerLineage, PolarizedDensityRefusesAnUnpolarizedPartner)
+{
+    tPolarized_CDImp<double> pol(std::make_unique<IrrepCD<double>>(), std::make_unique<IrrepCD<double>>());
+    IrrepCD<double> plain;                        // mixable, but NOT a polarized (Up/Down) density
+
+    EXPECT_THROW(pol.MixIn(plain, 0.5),   std::runtime_error);
+    EXPECT_THROW(pol.GetChangeFrom(plain), std::runtime_error);
+
+    // ...and the same-lineage call is accepted, so the guard is not simply refusing everything.
+    tPolarized_CDImp<double> other(std::make_unique<IrrepCD<double>>(), std::make_unique<IrrepCD<double>>());
+    EXPECT_NO_THROW(pol.GetChangeFrom(other));
 }

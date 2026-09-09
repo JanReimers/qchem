@@ -165,14 +165,32 @@ template <class Pol> void Polarized_Fourier<Pol>::StarAverage(ΔG_Map& rg) const
 //
 //  Convergence.
 //
+// ★ WHY THESE TWO THROW (R2.5's remainder, closed 2026-09-09).  Both were `cerr` + `exit(-1)`, which kills
+// the pybind GUI and the test runner outright and takes the diagnostic with it.  A throw is the right
+// mechanism here for the same reason `RequireSiteBlocks` and `RequireEngine<E>` throw (R1.0i): an `assert`
+// is compiled out under NDEBUG, i.e. in every production run and every benchmark — exactly where a mixer
+// fed the wrong lineage would actually happen.
+//
+// ⚠ AND THE NARROWING IS NOT A DEFECT TO BE DESIGNED AWAY.  `MixIn`/`GetChangeFrom` are BINARY operations
+// on a hierarchy: `this` and `cd` must be the SAME representation before the algebra means anything, and no
+// single-dispatch signature can express that.  (Double dispatch would move the same run-time check into a
+// visitor and buy nothing.)  So the cast stays and it is the mixer's LINEAGE contract — one mixer, one
+// density family — that the message names.  Note it is abstract→abstract, the intended idiom; only the
+// FAILURE mechanism was wrong.
+static void RequirePolarizedPartner(const void* pcd, const char* who)
+{
+    if (pcd) return;
+    throw std::runtime_error(std::string(who)+": the partner density is not a POLARIZED density.  Mixing "
+        "and convergence are BINARY operations — both operands must be the same representation before the "
+        "algebra means anything — so a mixer holding a polarized (Up/Down) density can only be handed "
+        "another one.  Reaching here means a mixer was seeded from one density family and driven with "
+        "another, which is a composition error, not a recoverable condition.");
+}
+
 template <class T> void tPolarized_CD<T>::MixIn(const tMixableDensity<T>& cd,double c)
 {
     const tPolarized_CD* pcd = dynamic_cast<const tPolarized_CD*>(&cd);
-    if (!pcd)
-    {
-        std::cerr << "PolarizedCD::MixIn could not cast cd" << std::endl;
-        exit(-1);
-    }
+    RequirePolarizedPartner(pcd, "tPolarized_CD::MixIn");
     GetChargeDensity(Spin::Up)  -> MixIn(*pcd->GetChargeDensity(Spin::Up  ),c);
     GetChargeDensity(Spin::Down)-> MixIn(*pcd->GetChargeDensity(Spin::Down),c);
     this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
@@ -181,11 +199,7 @@ template <class T> void tPolarized_CD<T>::MixIn(const tMixableDensity<T>& cd,dou
 template <class T> double tPolarized_CD<T>::GetChangeFrom(const tMixableDensity<T>& cd) const
 {
     const tPolarized_CD* pcd = dynamic_cast<const tPolarized_CD*>(&cd);
-    if (!pcd)
-    {
-        std::cerr << "PolarizedCD::GetChangeFrom could not cast cd" << std::endl;
-        exit(-1);
-    }
+    RequirePolarizedPartner(pcd, "tPolarized_CD::GetChangeFrom");
     return GetChargeDensity(Spin::Up)  ->GetChangeFrom(*pcd->GetChargeDensity(Spin::Up  ))
            + GetChargeDensity(Spin::Down)->GetChangeFrom(*pcd->GetChargeDensity(Spin::Down)) ;
 }

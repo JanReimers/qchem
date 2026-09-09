@@ -44,9 +44,18 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > `doc/OpenWork_History3.md`; the follow-on judgement (the density is star-averaged under a bigger group
 > than the mesh has) is `doc/CleanupCandidates.md` **R1.0r**.
 >
-> ### 2. THE `doc/CleanupCandidates.md` SWEEP — with test RE-ENABLEMENT riding along
+> ### 2. ⏳ THE `doc/CleanupCandidates.md` SWEEP — IN PROGRESS, first batch landed 2026-09-09
 > ~28 genuinely open items (the 38 a grep finds include six PROCESS-lesson entries that are not tasks).
 > Several are one-liners now that the faces moved under them.
+> ▶ **BATCH 1 (2026-09-09) closed SIX — record in `doc/CleanupHistory.md` "HARVEST 2026-09-09".**  ★ **Two
+> of them (`R1.0c`, `R1.0d`) were ALREADY DONE IN THE TREE and had simply never been moved** — one of them
+> still reading ⛔ DEFECT for code fixed on 2026-08-25.  ⇒ **CHECK THE TREE BEFORE BELIEVING AN ITEM**;
+> that is the cheapest move available in this step and it is worth doing to every remaining row first.
+> Worked here: **R2.5** (the last two `exit(-1)` in `qcChargeDensity` → throw; the LSP narrowing it was
+> held back for is not a defect — a BINARY op on a hierarchy cannot state it in a signature), **V1.15**
+> (a REAL Release null-deref behind a compiled-out `assert`), **V1.21** (the duplicate `SolveBands`),
+> **V1.23** (`DirectOf` kept and now checked).  Two NEW rows filed rather than swept in: **R2.5b** (nine
+> more `exit(-1)`, different owners) and **R1.0r** (from KP-0).  850/850.
 > ★ **Re-enable disabled tests AS YOU PASS THROUGH THEIR AREA, not as a separate pass.**  Measured
 > 2026-09-09: of 43 disabled tests only **8 mention cost** (7 of those also hand-run probes); the dominant
 > category is **instruments** (23) — ladders, sweeps, A/B experiments — which are not gtest cases at any

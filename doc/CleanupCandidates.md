@@ -1680,51 +1680,16 @@ MnO campaign proceeds undisturbed in qchem6.
     problem on a scattered atom-centred mesh** — expensive, approximate, and owed a name that says so.  It
     must not come back disguised as `op(r)`, which is exactly the trap this whole arc removed.
 
-- **R1.0c ⚠ COVERAGE HOLE: the COMPLEX factored-\f$\rho\f$ contraction is exercised by NO enabled test.**
-  **MEASURED 2026-08-23** (instrumented `DeltaFit_IBS::ForwardFactoredT`, counted over the whole
-  integration suite): the low-rank route fires **exactly once**, and it is the **`double`** (real TRIM)
-  instantiation.  `ForwardFactoredT<dcmplx>` never runs.
-  *Not a regression* — the same body was previously inline in `FactoredRho<PeriodicIrrepCD<dcmplx>>`, which
-  no ENABLED test instantiates through (the MnO recipes that would are `DISABLED`) — but it is live
-  production code on the default route (`QCHEM_DM_LOWRANK` unset ⇒ pivoted Cholesky is ON), so a green
-  758/758 must not be read as covering it.
-  **Why it matters more than a normal gap:** a wrong factored \f$\rho\f$ is not loud.  It is
-  \f$\sum_m|[\Phi L]_{gm}|^2\f$, non-negative by construction, so a mistake shows up as a plausible-looking
-  density and a mistuned SCF, not a crash — exactly the failure mode the `FactoredRho` staleness assert was
-  added for.
-  **Cheapest fix: a UNIT gate, not an SCF one.** For one Bloch block, build \f$D=LL^\dagger\f$ from a
-  random thin \f$L\f$ and assert `applyRawFactored(L)` == `applyRaw(D)` to ~1e-12, on both scalars.  That
-  pins the identity the whole route rests on without needing a converging magnetic cell, and it would also
-  cover the `double` path with something sharper than "MnO happens to run".
-  *(A second, weaker option is to enable one small polarized periodic SCF; that costs suite time and still
-  only covers whichever scalar that cell happens to use.)*
+- **R1.0c ✅ CLOSED — the gate was BUILT 2026-08-23 and the item simply never moved.**  The COMPLEX
+  factored-\f$\rho\f$ contraction is covered by
+  `RealComplexTerms.FactoredRhoMatchesFullQuadraticFormBothScalars` (`IntegrationTests/RealComplexTermsUT.C`),
+  the exact unit gate this item specified — \f$D=LL^\dagger\f$ from a thin random \f$L\f$, both scalars.
+  **→ doc/CleanupHistory.md** (HARVEST 2026-09-09)
 
-- **R1.0d ⛔ DEFECT, FOUND 2026-08-23: an IMPOSED-symmetry Becke mesh SILENTLY LOSES ITS SITE BLOCKS, so
-  every per-site integrated observable vanishes on exactly the runs that want it.**
-  `UnitCell::CreateIntegrationMesh(mp, ops)` (Structure/Imp/UnitCell.C) builds the site-adapted Becke mesh
-  via `MakePeriodicBeckeMesh`, which DOES record one block per atom (`MeshBuilder::BeginSite`).  The
-  orbit-consistency filter that follows — the pass that drops eps-borderline points whose orbit partners
-  were tail-dropped — then rebuilds the whole mesh into a **fresh `qcMesh::MeshBuilder` and never calls
-  `BeginSite`**.  The result has `NSites()==0`.
-  **MEASURED, three runs:**
-
-  | run | ops | atoms | `NSites()` | moments |
-  |---|---|---|---|---|
-  | `GPW_SCF.PolarizedRunKeepsItsSpin` | free | 1 | **1** | `[site moments] 0:5.00462  net=5.00462` |
-  | `GPW_SCF.O2TripletInBoxMatchesFinite` | 16 (Shubnikov) | 2 | **0** | silent |
-  | `GPW_SCF.ImposedShubnikovHoldsAFMThroughSCF_Mn2Box` | 96 (Shubnikov) | 2 | **0** | silent |
-
-  **Why it stayed invisible:** the consumer contract is *"EMPTY when the mesh has no site blocks — ask, do
-  not assume"*, which is right for a uniform grid and indistinguishable from this.  So an imposed run
-  reports no moments and looks like it correctly had none.  The MnO AFM campaign is imposed by
-  construction, i.e. the atomic moments the *"integrated observables, not point probes"* rule exists to
-  produce are precisely the ones that are missing.
-  ⚠ **NOT a simple `BeginSite()` insertion.**  The filter iterates ORBITS and appends their members, so its
-  output is orbit-major; site blocks require contiguous per-site runs.  The fix is to compute a KEEP mask
-  from the orbit test and then re-emit in the ORIGINAL mesh order (site-major), calling `BeginSite` at each
-  original boundary — which also CHANGES THE POINT ORDER relative to today, hence the summation order of
-  every integral over that mesh.  Algebraically identical, last-bits different: it needs its own
-  measurement against the imposed-run pins, not a drive-by.
+- **R1.0d ✅ CLOSED — fixed `79c2e659` (2026-08-25); the item simply never moved.**  The imposed Becke
+  mesh keeps its site blocks: the orbit filter is now a per-point KEEP mask re-emitted in the ORIGINAL
+  site-major order with `BeginSite` at each boundary, and `RequireSiteBlocks` THROWS on any Becke mesh
+  that comes out with `NSites()==0` (both arms).  **→ doc/CleanupHistory.md** (HARVEST 2026-09-09)
 
 - **R1.1 ✅ DONE `06e23f5d`. `FittedVxcPol::GetEnergy` clobbers `te.Exc`** — `te.Exc = 0.0;` before delegating.  **→ doc/CleanupHistory.md**
 - **R1.2 ✅ DONE `06e23f5d` (with one CORRECTION, below). `=` vs `+=` on `EnergyBreakdown`.**  Assigners:.  **→ doc/CleanupHistory.md**
@@ -1744,16 +1709,25 @@ MnO campaign proceeds undisturbed in qchem6.
 - **R2.2 ✅ DONE `48e25b74`. Collapse `Kinetic` + `PW_Kinetic` → `Kinetic<T>`.**  Both are 0.5×(kinetic matrix);.  **→ doc/CleanupHistory.md**
 - **R2.3 ⛔ WITHDRAWN — NOT a free dedup; re-filed as part of V1.1 (verified 2026-08-07).**.  **→ doc/CleanupHistory.md**
 - **R2.4 ✅ DONE `38a1ebd6`. Stale-comment/import batch**: Band_DFT_IBS.C header claims PlaneWave_IBS implements it.  **→ doc/CleanupHistory.md**
-- **R2.5 ⚗️ HAMILTONIAN HALF DONE (3 of 5 sites); the 2 ChargeDensity sites remain. `exit(-1)` in library code → throw** (5 sites): ~~Imp/LDAVxc.C:33-43 (dies with R2.6),
-  Imp/FittedVxcPol.C:49-53, Imp/VxcPol.C:41~~, and `tPolarized_CD::MixIn`/`GetChangeFrom`
-  (Imp/ChargeDensity.C:149-167 — also an LSP narrowing: accepts any tDM_CD, requires Polarized).
-  Contrast the correct pattern at Imp/HF_HT.C:28-30.  These kill the pybind GUI / test runner.
-  Fold into the D7 cast-survey custom-exception work.
-  **DONE 2026-08-07:** LDAVxc's two died with the class (R2.6); FittedVxcPol/VxcPol now
-  `throw std::runtime_error` naming the Spin::None-on-a-polarized-term mistake.  `qcHamiltonian` is now
-  `exit()`-free.  **STILL OPEN: the two `tPolarized_CD` sites in qcChargeDensity** — left deliberately,
-  because their fix is not just a throw: the LSP narrowing (the signature accepts any `tDM_CD` but the
-  body requires a Polarized) is the actual defect, and that is V1.6/V1.8's seam.
+- **R2.5 ✅ CLOSED 2026-09-09. `exit(-1)` in library code → throw.**  The two `tPolarized_CD` sites now
+  throw through one `RequirePolarizedPartner` helper.  ▶ **The ruling that unblocked it:** the LSP
+  narrowing the item held back for is NOT a defect to design away — `MixIn`/`GetChangeFrom` are BINARY
+  operations on a hierarchy, so no single-dispatch signature can state the same-representation
+  precondition and double dispatch would only relocate the check.  Only the FAILURE MECHANISM was wrong.
+  Gate: `MixerLineage.PolarizedDensityRefusesAnUnpolarizedPartner` (`UTChargeDensity`).
+  **→ doc/CleanupHistory.md**
+
+- **R2.5b ▶ NINE MORE `exit(-1)` SITES, OUTSIDE THE TWO LIBRARIES R2.5 COVERED** (counted 2026-09-09 while
+  closing it — filed rather than swept in silently, because they have different owners).
+  `src/BasisSet/Molecule/Readers/Imp/Gaussian94.C` **×5** — a basis-FILE PARSE ERROR is the most likely of
+  all of these to fire in front of a user, and it takes the GUI down with it;
+  `src/BasisSet/Molecule/Evaluators/Internal/MnD/Imp/Triangle3D.C` ×2;
+  `src/BasisSet/Molecule/Evaluators/PG_Cart_MnD/Imp/GaussianRF.C`; `src/Math/intpow.C`.
+  Same defect class and the same cure (throw, naming the input that was rejected).  ⚠ The reader ones are
+  the only ones a USER can trigger with a bad input file rather than a composition error, so they are
+  arguably a different KIND — a parse failure is a recoverable condition an `Outcome` could carry
+  (CLAUDE.md's rule) rather than an invariant.  Decide that before converting them wholesale.
+
 - **R2.6 ✅ DONE 2026-08-07. The `LDAVxc` bundle** — a "Hamiltonian term" whose `CalcMatrix`/`GetEnergy` call.  **→ doc/CleanupHistory.md**
 - **R2.7 ✅ DONE 2026-08-07. `FittedCD::Clone()` — delete.**  Pure virtual (FittedCD.C:28) whose SOLE implementation.  **→ doc/CleanupHistory.md**
 - **R2.8 ✅ DONE 2026-08-07. `InsertStandardTerms<dcmplx>` = assert(false)** (Imp/HamiltonianImp.C:49-53) — a.  **→ doc/CleanupHistory.md**
@@ -2098,12 +2072,16 @@ MnO campaign proceeds undisturbed in qchem6.
   SCFIterator comment admits it).  Fix: a reporter/visitor that PULLS; toggles on SCFParams.
   **POST-MERGE (checked 2026-08-17: its three faces are src/WaveFunction + the IrrepBasisSet face +
   SCFIterator — all in the real-TRIM working set).**
-- **V1.15 `tBasisSet<T>::Create*FitBasisSet` defaults** — the generic body hard-codes
-  `Orbital_DFT_IBS<double>` regardless of T (only the explicit dcmplx specializations save it) and
-  derefs an unguarded iterator (a 1E/HF-only basis ⇒ null ⇒ UB in Release).  Also
-  `CreateXCQuadrature`'s default body is byte-identical in two places (Imp/BasisSet.C:42 ==
-  Band_FT_IBS.C:53).  Decide: pure, or a documented "this basis does not fit" contract; hoist the
-  shared default.  (Interacts with the V1.1 CreateXCQuadrature hoist.)
+- **V1.15 ✅ CLOSED 2026-09-09 — and the predicted UB was REAL.**  `CreateCDFitBasisSet` /
+  `CreateVxcFitBasisSet` did `*Iterate<Orbital_DFT_IBS<double>>().begin()` and called straight through it;
+  `D_IndexIterator::operator*` casts then `assert`s, so under NDEBUG a 1E/HF-only basis dereferenced a
+  **null**, and an EMPTY set indexed block 0.  Both now go through `FirstRealDFT(bs, who)`, which throws
+  naming the basis and what it was asked to build.  ✅ The generic body's `<double>` is deliberate (every
+  dcmplx factory is specialized, so the template body IS the molecular path) — now stated at the site.
+  ⏸ The "hoist the shared `CreateXCQuadrature` default" half is DECLINED: the only module below both
+  declarers is the deliberate leaf `qchem.BasisSet.Fit_Types`, and the body needs `Structure`.
+  **→ doc/CleanupHistory.md**
+
 - **V1.16 ✅ DONE `de0292cb`. `ProjectedDensity_AO::GetRepulsion3C` asserting default** — the metric is now
   two refinement faces (`CoulombMetric_ProjectedDensity` / `OverlapMetric_ProjectedDensity`); the base keeps
   only what the FITTER needs.  **The compiler found more than the item predicted:** `tPolarized_CD` and
@@ -2128,11 +2106,13 @@ MnO campaign proceeds undisturbed in qchem6.
   to `.Internal.` creates a cross-LIBRARY internal import under the CLAUDE.md rule.  Precedent the
   rule is already bent: `qchem.BasisSet.Internal.GMap` imported by src/Fitting + src/ChargeDensity.
   Decide: is the qcBasisSet* family "one library" for Internal purposes?
-- **V1.21 `BandStructure.C`: promote or demote.**  Confirmed test-only (sole import =
-  tests/BandStructureUT.C:13); worse, tests/PlaneWaveUT.C:59 defines its OWN local `SolveBands`
-  instead of importing.  Either promote (band plots are on the viz roadmap) or demote into the
-  test tree; either way kill the duplicate.  **POST-MERGE (checked 2026-08-17: the file is
-  src/BasisSet/Lattice_3D/ — the real-TRIM working set).**
+- **V1.21 ✅ CLOSED 2026-09-09. The duplicate is dead and `BandStructure.C` STAYS in the library.**
+  `PlaneWaveUT.C` now imports the one `SolveBands`; its local copy was not even the same solve (it forced
+  \f$S=I\f$ and kept only the kinetic DIAGONAL — two plane-wave facts hard-coded into a routine that is
+  lineage-agnostic one directory up).  PROMOTE, not demote: the file is the shared k-layer for BOTH
+  lattice lineages and the band plots on the viz roadmap will want it.  44/44 in `UTLattice_3D_BS`.
+  **→ doc/CleanupHistory.md**
+
 - **V1.22 `MakePeriodicBeckeMesh` ε-tail drops vs orbit consistency (W2c find).**  The builder's
   borderline drop decisions (`<eps` screens + `w>0` keep) are per-point and bit-sensitive, so the
   site-adapted caller post-filters orbit-incomplete points (`CreateSiteAdaptedBeckeMesh`).
@@ -2145,9 +2125,14 @@ MnO campaign proceeds undisturbed in qchem6.
   partner was tail-dropped (w·ρ=0.04, degree-11 Lebedev ⟨111⟩ into a neighbour core).  A
   per-representative drop rule would have made that configuration impossible by construction, so
   the item's case is STRONGER than when filed.
-- **V1.23 `Symmetry::Lattice_3D::DirectOf`** — currently unused after the CreateXCQuadrature move
-  (GPW uses its native direct ops).  Keep (documents the U=Wᵀ convention; T3 will want it) or fold
-  its doc into `ReciprocalOp` and drop — decide at the refactor session.
+- **V1.23 ✅ CLOSED 2026-09-09. `DirectOf` STAYS — and is now CHECKED, which was the item's real
+  content.**  Keep: it is the exact dual of `ReciprocalOf` (used), and deleting half a convention pair
+  leaves the survivor asserting a relation nothing states.  An uncalled inline documenting an unchecked
+  convention CAN drift against the accessors it mirrors, so
+  `SpaceGroup.DirectOfIsTheInverseOfTheReciprocalConvention` runs all 48 ops of the NON-SYMMORPHIC diamond
+  group through it (linear part **and** \f$\tau\f$ — the glide is where a dropped translation shows), plus
+  the round trip.  **→ doc/CleanupHistory.md**
+
 - **V1.24 `GDMParams::FDMax` naming + the fallback commit (2026-08-03 imposed×GDM investigation).**
   **(ii) ✅ DONE 2026-08-09 by the MnO dev — CLOSED.**  The fallback commit is fixed.  Diagnosed here
   2026-08-03 and independently re-derived from the MnO trace six days later, using this item's own two

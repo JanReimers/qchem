@@ -2218,3 +2218,116 @@ remainder stayed behind in the worklist (it is open work) and only the closed re
   insulator-fitted per its doc note: re-calibrate on {Si, Mn-atom, Al, MnO} before promoting it beyond
   a diagnostic.
 
+
+---
+
+# HARVEST 2026-09-09 — the queue's step-2 sweep, first batch
+
+Six items closed.  **Two of them were already DONE IN THE TREE and had simply never been moved** (R1.0c,
+R1.0d) — the exact failure the standing rule exists to prevent: a live tracker that still reads ⛔ DEFECT
+for code that was fixed weeks ago costs the next session a diagnosis it does not need.  Four were worked
+here (R2.5's remainder, V1.15, V1.21, V1.23).
+
+## R1.0c — harvested 2026-09-09 (the gate exists; the item never moved)
+
+⚠ **The coverage hole was CLOSED on 2026-08-23, by exactly the unit gate the item specified.**
+`IntegrationTests/RealComplexTermsUT.C` carries `RealComplexTerms.FactoredRhoMatchesFullQuadraticFormBothScalars`,
+which builds \f$D=LL^\dagger\f$ from a thin random \f$L\f$ on a tiny mesh and asserts
+`applyRawFactored(L) == applyRaw(D)` for **both** scalars — the `double` (real TRIM) path and
+`ForwardFactoredT<dcmplx>`, the one that had been exercised by no enabled test at all.  The item's own
+reasoning for preferring a unit gate over "enable a polarized periodic SCF" is what was built, and its
+warning stands as the reason the gate must not be deleted: a wrong factored \f$\rho\f$ is
+\f$\sum_m|[\Phi L]_{gm}|^2\f$, non-negative by construction, so it fails as a plausible density and a
+mistuned SCF rather than as a crash.
+
+## R1.0d — harvested 2026-09-09 (fixed `79c2e659`, 2026-08-25)
+
+⛔ **The defect — an imposed-symmetry Becke mesh silently losing its site blocks, so every per-site
+integrated observable vanished on exactly the runs that wanted them — is FIXED.**
+`UnitCell::CreateIntegrationMesh(mp, ops)` now does what the item prescribed: the orbit-consistency pass
+computes a per-point KEEP mask, and the rebuild walks the **original site-major order**, calling
+`BeginSite` at each original boundary, so the filter merely SHRINKS each block instead of interleaving the
+atoms.  ★ And the class of bug is now closed rather than merely this instance: `RequireSiteBlocks(m, who)`
+THROWS on a Becke mesh that comes out with `NSites()==0`, guarding both the imposed and the free arm.  A
+throw and not an assert, for the reason the site records — an assert is compiled out under NDEBUG, i.e.
+in every run this actually spoiled.
+
+## R2.5 — CLOSED 2026-09-09, the two `tPolarized_CD` sites
+
+The Hamiltonian half landed 2026-08-07; the two `qcChargeDensity` sites were left deliberately, because
+the item judged that their fix was "not just a throw" — the LSP narrowing (the signature takes any
+`tMixableDensity`, the body requires a polarized one) looked like the real defect.
+
+✅ **RULED: the narrowing is NOT a defect to be designed away, so a throw IS the fix.**  `MixIn` and
+`GetChangeFrom` are BINARY operations on a hierarchy — `this` and the partner must be the same
+representation before the algebra means anything — and no single-dispatch signature can express that.
+Double dispatch would relocate the identical run-time check into a visitor and buy nothing.  So the cast
+stays (it is abstract→abstract, the intended idiom); only the FAILURE MECHANISM was wrong.  `cerr` +
+`exit(-1)` killed the pybind GUI and the test runner outright and took the diagnostic with it; both sites
+now throw through one `RequirePolarizedPartner` helper that names the mixer's LINEAGE contract.
+▶ Gate: `MixerLineage.PolarizedDensityRefusesAnUnpolarizedPartner` in `UTChargeDensity` — both calls
+refused, and a same-lineage call accepted, so the guard is not simply refusing everything.
+⚠ **REMAINDER, honestly counted:** `qcChargeDensity` and `qcHamiltonian` are now `exit()`-free, but the
+TREE is not.  Nine sites survive outside those two libraries — `Gaussian94.C` ×5 (a basis-file parse
+error kills the GUI), `Triangle3D.C` ×2, `GaussianRF.C`, `intpow.C`.  Same defect class, different
+owners; filed as **R2.5b** in `doc/CleanupCandidates.md` rather than swept in silently here.
+
+## V1.15 — CLOSED 2026-09-09 (a REAL Release null-dereference, plus two rulings)
+
+⛔ **The UB the item predicted was real and is fixed.**  `tBasisSet<T>::CreateCDFitBasisSet` and
+`CreateVxcFitBasisSet` both did `auto dft = *Iterate<Orbital_DFT_IBS<double>>().begin();` and called
+straight through it.  `D_IndexIterator::operator*` performs the `dynamic_cast` and then `assert(d)` —
+compiled out under NDEBUG — so a 1E/HF-only basis got a **null** and dereferenced it, in Release.  And
+`begin()` on an EMPTY set equals `end()`, so the same expression additionally indexed block 0 of a basis
+with no blocks.  Both sites now go through `FirstRealDFT(bs, who)`, which walks the blocks and THROWS
+naming the basis and what it was asked to build — the double sibling of the `FirstPeriodicDFT` the dcmplx
+specializations already used.
+
+✅ **RULING 1 — the `<double>` in the generic body is deliberate, not an oversight.**
+`tBasisSet<dcmplx>` specializes every one of these factories, so the template body IS the real/molecular
+path; there is no `T` for which asking for the dcmplx face would be right there.  Now stated at the site
+instead of being re-derived.
+
+⏸ **RULING 2 — the "hoist the shared default" half is DECLINED, and the reason is the module DAG.**
+`tBasisSet<T>::CreateXCQuadrature` and `Orbital_DFT_IBS::CreateXCQuadrature` do carry byte-identical
+two-line bodies, but the only module below both declarers is `qchem.BasisSet.Fit_Types`, which states in
+its own header that it needs "the mesh and the symmetry fold and nothing else" — and the body needs
+`Structure`.  Hoisting two lines would drag `Structure` into a deliberate leaf to remove a duplication
+that cannot drift silently (both are *the Structure's own mesh, no fold*, and a change to either surfaces
+as a failing quadrature).  Recorded at the site.
+
+## V1.21 — CLOSED 2026-09-09: the duplicate is dead, and `BandStructure.C` STAYS
+
+▶ **The uncontroversial half, done: `PlaneWaveUT.C` no longer carries its own `SolveBands`.**  And it was
+never a straight copy — the local version forced \f$S=I\f$ and kept only the DIAGONAL of the kinetic,
+i.e. it hard-coded two facts about plane waves into a routine that already exists, lineage-agnostic, one
+directory up.  What survives in the test file is the `V=nullptr` convenience and the ascending sort its
+assertions compare against; the algebra is the library's.  44/44 in `UTLattice_3D_BS`, unchanged.
+
+✅ **PROMOTE-OR-DEMOTE: promote — i.e. leave it in the library.**  Demoting it into the test tree would
+have to be undone for the band plots on the viz roadmap, and the file is the shared k-layer for BOTH
+lattice lineages (PlaneWave and LAPW drive the same `SolveBands`), which is a library fact, not a test
+fixture.  With the duplicate gone its test-only import count is no longer evidence of anything.
+
+## V1.23 — CLOSED 2026-09-09: `DirectOf` STAYS, and is now CHECKED
+
+Keep, for two reasons.  It is the exact dual of `ReciprocalOf`, which IS used (the Shubnikov currency
+converter), and deleting one half of a convention pair leaves the survivor asserting a relation nothing
+states.  ▶ **But the item's real content was that an uncalled inline documents a convention NOTHING
+CHECKS**, so it can drift silently against the accessors it claims to mirror.  That is now false:
+`SpaceGroup.DirectOfIsTheInverseOfTheReciprocalConvention` runs all 48 ops of the NON-SYMMORPHIC diamond
+group through it and demands `DirectOf(ReciprocalOps()[i]) == DirectOps()[i]`, linear part and
+\f$\tau\f$ — the glide is where a dropped translation would show — plus the `ReciprocalOf`/`DirectOf`
+round trip.
+
+## The 7 disabled tests in `src/BasisSet/Lattice_3D/tests` — VERDICT: instruments, do not enable
+
+Passed through while doing V1.21.  `APW_UT.DISABLED_Calibration`, `LAPW_UT.DISABLED_{HydrogenVsLmax,
+HydrogenCalibration,Calibration}`, `BandStructureUT.DISABLED_CosineGapCalibration`,
+`PlaneWaveUT.DISABLED_{SmearedCalibration,HGHCalibration}`.  **Every one is a `printf` sweep with no
+assertion at all** — they print a ladder for a human to read.  Enabling them would add output to the suite
+log and gate exactly nothing, so they belong to the same class as the 27 disabled `GPW_SCF` instruments
+and should be decided WITH them (OpenWork **TE**, step 3d): promote to a `CLIapps/` probe binary, or
+delete the ones whose verdict is already banked in `doc/`.  ⇒ Not re-enabled, deliberately, and this
+records why so the next session does not re-derive it.
+

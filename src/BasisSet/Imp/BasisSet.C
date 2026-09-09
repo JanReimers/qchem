@@ -27,10 +27,33 @@ template <class F> static auto FirstPeriodicDFT(const tBasisSet<dcmplx>& bs, F&&
         else if (const auto* dft=dynamic_cast<const Orbital_DFT_IBS<dcmplx>*>(bs[i])) return serve(dft);
     throw std::logic_error("tBasisSet<dcmplx>: no block carries the periodic DFT (fit-factory) face");
 }
+// THE REAL (MOLECULAR) PATH'S FIRST DFT-CAPABLE BLOCK -- the double sibling of FirstPeriodicDFT above.
+//
+// ⛔ V1.15 (2026-09-09): THIS USED TO BE `*Iterate<Orbital_DFT_IBS<double>>().begin()`, WHICH IS A NULL
+// DEREFERENCE IN RELEASE ON ANY BASIS WITHOUT THE FACE.  `D_IndexIterator::operator*` does the
+// dynamic_cast and then `assert(d)` -- compiled out under NDEBUG, i.e. in every production run and every
+// benchmark -- so a 1E/HF-only basis got a null back and called through it.  Worse, `begin()` on an EMPTY
+// set equals `end()`, so the same expression also indexed block 0 of a basis that has none.  Same ruling
+// as R1.0i and RequireSiteBlocks: a composition error no caller can act on THROWS, and it says what the
+// basis was asked for.
+//
+// ⚠ AND THE `<double>` IN THE GENERIC BODY IS DELIBERATE, NOT AN OVERSIGHT.  `tBasisSet<dcmplx>`
+// specializes every one of these factories (just below), so the template body IS the real/molecular path
+// and there is no T for which asking for the dcmplx face would be right here.  Naming it once, here,
+// beats repeating the reasoning at each site.
+template <class T> static const Orbital_DFT_IBS<double>* FirstRealDFT(const tBasisSet<T>& bs, const char* who)
+{
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+        if (const auto* dft=dynamic_cast<const Orbital_DFT_IBS<double>*>(bs[i])) return dft;
+    throw std::logic_error(std::string(who)+": no block of this basis carries the DFT fit-factory face "
+        "(Orbital_DFT_IBS<double>), so it cannot build a fit basis.  A 1E- or HF-only basis reaches here "
+        "when something asked it to fit a density or a potential -- that is a composition error, not a "
+        "recoverable condition.");
+}
+
 template <class T> FIT_CD_ABS<T>* tBasisSet<T>::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
-    auto dft=*Iterate<Orbital_DFT_IBS<double>>().begin();
-    return dft->CreateCDFitBasisSet(cl,mp);
+    return FirstRealDFT(*this, "tBasisSet::CreateCDFitBasisSet")->CreateCDFitBasisSet(cl,mp);
 }
 template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp,
                                                                     VxcFit fit,
@@ -45,8 +68,7 @@ template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Struc
     if (fit==VxcFit::Delta)
         throw std::logic_error("tBasisSet: VxcFit::Delta has no real (molecular) realization -- there is no "
             "delta fit basis on the double path; the molecular Vxc route fits the Gaussian auxiliary basis.");
-    auto dft=*Iterate<Orbital_DFT_IBS<double>>().begin();
-    return dft->CreateVxcFitBasisSet(cl,mp);
+    return FirstRealDFT(*this, "tBasisSet::CreateVxcFitBasisSet")->CreateVxcFitBasisSet(cl,mp);
 }
 
 // The plane-wave (dcmplx) density-fit basis is created THROUGH the orbital basis's own factory, exactly
@@ -58,6 +80,12 @@ template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const St
 }
 // The XC quadrature (delta-fit) factory: generic T = the plain path (the Structure's own integration
 // mesh, no fold -- molecules / any basis without an imposed-symmetry override).
+// ⏸ V1.15 asked for this neutral default to be HOISTED, since Orbital_DFT_IBS::CreateXCQuadrature carries a
+// byte-identical body.  DECLINED 2026-09-09, and the reason is where the shared home would have to live:
+// the only module below BOTH declarers is qchem.BasisSet.Fit_Types, which states in its own header that it
+// "needs the mesh and the symmetry fold and nothing else" -- and this body needs `Structure`.  Hoisting two
+// lines would drag Structure into a deliberate leaf to save a duplication that cannot drift silently (both
+// are `the Structure's own mesh, no fold`, and a change to either shows up as a failing quadrature).
 template <class T> FitQuadrature tBasisSet<T>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};

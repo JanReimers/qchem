@@ -361,3 +361,48 @@ TEST(Shubnikov, SignedFoldFixesTheStaggeredPatternAndGreyErasesIt)
     SymmetrizeValues(f, g);
     EXPECT_NEAR(g[0], 0.025, 1e-12); EXPECT_NEAR(g[1], 0.025, 1e-12);
 }
+
+//---------------------------------------------------------------------------------------
+//  V1.23 (ruled 2026-09-09): `DirectOf` STAYS, and this is what makes "unused" false.
+//
+//  The item asked whether to delete it (no production caller after the CreateXCQuadrature move) or keep
+//  it as the documented U=W^T convention carrier.  KEEP, for two reasons: it is the exact dual of
+//  `ReciprocalOf`, which IS used (the Shubnikov currency converter), and deleting one half of a
+//  convention pair leaves the surviving half asserting a relation nothing states.  What was actually
+//  wrong is that an uncalled inline documents a convention NOTHING CHECKS — so it can drift silently
+//  against the accessors it claims to mirror.  This gate is the check: the two group accessors must agree
+//  through it, on a NON-SYMMORPHIC group, where a dropped tau would show.
+TEST(SpaceGroup, DirectOfIsTheInverseOfTheReciprocalConvention)
+{
+    std::vector<AtomSite> basis = {
+        {14, rvec3_t(0.0,  0.0,  0.0 )},
+        {14, rvec3_t(0.25, 0.25, 0.25)},
+    };
+    SpaceGroup sg = SpaceGroup::Detect(FCC(), basis);   // Fd-3m: 48 ops, non-symmorphic
+
+    const std::vector<ReciprocalOp> U = sg.ReciprocalOps();
+    const std::vector<DirectOp>     W = sg.DirectOps();
+    ASSERT_EQ(U.size(), W.size());
+    ASSERT_EQ(U.size(), 48u);
+
+    for (size_t i = 0; i < U.size(); ++i)
+    {
+        const DirectOp d = DirectOf(U[i]);              // U = W^T  =>  W = U^T, same tau
+        for (int r = 1; r <= 3; ++r)
+        for (int c = 1; c <= 3; ++c)
+            EXPECT_NEAR(d.W(r,c), W[i].W(r,c), 1e-12) << "op " << i << " element (" << r << "," << c << ")";
+        EXPECT_NEAR(d.tau.x, W[i].tau.x, 1e-12) << "op " << i;   // the glide must survive the conversion
+        EXPECT_NEAR(d.tau.y, W[i].tau.y, 1e-12) << "op " << i;
+        EXPECT_NEAR(d.tau.z, W[i].tau.z, 1e-12) << "op " << i;
+    }
+
+    // And the pair composes to the identity in both directions: ReciprocalOf carries a SymOp (it also
+    // carries sigma), so the round trip pins that the two spellings of "transpose, keep tau" agree.
+    for (const auto& w : W)
+    {
+        const SymOp    rec = ReciprocalOf(SymOp{w.W, w.tau});
+        const DirectOp back= DirectOf(ReciprocalOp{rec.W, rec.tau});
+        for (int r = 1; r <= 3; ++r)
+        for (int c = 1; c <= 3; ++c) EXPECT_NEAR(back.W(r,c), w.W(r,c), 1e-12);
+    }
+}
