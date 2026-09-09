@@ -442,6 +442,23 @@ template <class T> rvec_t IrrepCD_Core<T>::ProjectOnto(const Fitting::ScalarProj
     // used to stand here -- picking the fit basis's face for this scalar -- is gone: the FITTER holds the
     // handles now, so overload resolution on the block type does that job at compile time.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*itsBasisSet);
+    // TWO STEPS, AND THEY ARE DIFFERENT VERBS DESPITE THE SHARED NAME -- one SELECTS an operator, the
+    // other APPLIES it:
+    //
+    //   p.Forward(orb)   pick the forward integrator for THIS orbital block, i.e. the 3-centre overlap
+    //                    of my fit basis with that block's orbital pairs,
+    //                        \f$ W^{(a)}_{ij} \;=\; \langle f_a \,|\, \chi_i \chi_j \rangle \f$
+    //                    (a is the fit-function index, i/j the orbital indices of this block).
+    //
+    //   .Forward(D)      contract MY density matrix through it, giving rho's COEFFICIENTS on the fit basis
+    //                        \f$ \rho_a \;=\; \sum_{ij} D_{ij}\, W^{(a)}_{ij}
+    //                                  \;=\; \langle f_a \,|\, \rho \rangle \f$
+    //                    which is \f$\int f_a(r)\,\rho(r)\,d^3r\f$ with
+    //                    \f$\rho(r)=\sum_{ij}D_{ij}\chi_i(r)\chi_j(r)\f$.
+    //
+    // What crosses the boundary is D (mine) one way and the coefficients the other; the Phi table, the
+    // weights and any grid stay inside the integrator.
+    //
     // THE ABSTRACTION, NOT THE TENSOR (2026-09-09).  This used to take a `const Projector3<T>&` back and
     // reach into its `applyRaw` std::function, with an assert for the case where it was empty.  A density
     // owns D and wants ONE thing done with it; naming the concrete 3-centre tensor to get that was the
@@ -650,6 +667,14 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::ProjectOnto(const Fitting::Scala
     // the rank pays -- is decided HERE, where the factor and its memo live; the contraction against
     // <delta_g|chi_i chi_j> is the BASIS's, exactly as the full quadratic form above is.
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,dcmplx>&>(*this->itsBasisSet);
+    // The same two steps as ProjectOnto above, with D in FACTORED form \f$D=LL^\dagger\f$ (L thin,
+    // \f$n\times r\f$):
+    //     \f$ \rho_a \;=\; \sum_{ij}[LL^\dagger]_{ij}\,\langle f_a|\chi_i\chi_j\rangle
+    //             \;=\; \sum_{m}^{r} \big\langle f_a \,\big|\, |[\Phi L]_{m}|^2 \big\rangle \f$
+    // -- the same integral, summed over r columns instead of n^2 pairs, i.e. \f$O(n_{pts}nr)\f$ rather
+    // than \f$O(n_{pts}n^2)\f$.  Which form is cheaper is this class's call, because the factor and its
+    // rank memo are density-matrix state.
+    //
     // The FACTORED overload of the same face -- and note there is no longer anything to assert.  It used
     // to test `applyRawFactored` because a tensor that cannot left-multiply a value table leaves that
     // closure empty; MatrixForward's factored overload has a DEFAULT (form D=LL^dagger, delegate), so

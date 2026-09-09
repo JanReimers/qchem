@@ -50,7 +50,7 @@ template <class T> inline auto IReal(const T& x) {if constexpr (std::is_floating
 export namespace qchem::qcMesh
 {
 
-//! \brief THE FORWARD HALF: a density matrix to values at points.
+//! \brief THE FORWARD HALF: a density matrix to its COEFFICIENTS on a fit basis.
 //!
 //! ★ SEGREGATED FROM THE ADJOINT (ISP, user 2026-09-09) BECAUSE THE TWO SIDES HAVE DIFFERENT CLIENTS.
 //! The forward is driven by the CHARGE DENSITY -- it owns \f$D\f$ as private state and contracts it
@@ -66,7 +66,12 @@ template <class T> class MatrixForward
 {
 public:
     virtual ~MatrixForward() = default;
-    //! \brief \f$\rho(r_g)=\sum_{ij}D_{ij}\,\overline{\chi_i(r_g)}\,\chi_j(r_g)\f$ at my points.
+    //! \brief \f$\rho_a=\sum_{ij}D_{ij}\,\langle f_a|\chi_i\chi_j\rangle=\langle f_a|\rho\rangle\f$ --
+    //! the density's coefficients on my fit basis \f$\{f_a\}\f$.
+    //!
+    //! On a \f$\delta\f$ basis \f$f_a=\delta(r-r_a)\f$ this IS
+    //! \f$\rho(r_a)=\sum_{ij}D_{ij}\overline{\chi_i(r_a)}\chi_j(r_a)\f$, which is why the two readings
+    //! were never distinguished; on a plane-wave basis the same call returns \f$\tilde\rho(G_a)\f$.
     //! Real by construction for Hermitian \a D -- a density is an observable.
     virtual rvec_t Forward(const hmat_t<T>& D) const=0;
 
@@ -106,21 +111,26 @@ public:
     //! layers from the cause.  (Measured here, 2026-09-09, the first time the pair was exercised.)
     //! ⇒ **Every implementation must say `using MatrixForward<T>::Forward;`** -- the two in this tree do,
     //! and a new one that forgets fails the `TheFactoredForwardAgreesWithTheUnfactoredOne` gate.
-    virtual size_t NumPoints() const=0;   //!< length of the array \c Forward returns
+    virtual size_t NumCoefficients() const=0;   //!< length of the array \c Forward returns
 };
 
-//! \brief THE ADJOINT HALF: values at points back to a matrix.  See \c MatrixForward for why they are
-//! separate faces of one object rather than one face or two objects.
+//! \brief THE ADJOINT HALF: a field's coefficients back to a matrix.  See \c MatrixForward for why they
+//! are separate faces of one object rather than one face or two objects.
 template <class T> class MatrixAdjoint
 {
 public:
     virtual ~MatrixAdjoint() = default;
-    //! \brief \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}\,v_g\,\chi_j(r_g)\f$ for a field
-    //! TABULATED on the same points, in the same order, that the paired \c MatrixForward returned.
+    //! \brief \f$\langle\chi_i|v|\chi_j\rangle=\sum_a v_a\,\langle f_a|\chi_i\chi_j\rangle\f$ for a
+    //! field expanded on the SAME basis, in the same order, that the paired \c MatrixForward returns.
+    //! The exact transpose of \c Forward -- same \f$\langle f_a|\chi_i\chi_j\rangle\f$, contracted the
+    //! other way -- which is what makes \f$H=\partial E/\partial D\f$ hold.
     virtual hmat_t<T> Adjoint(const rvec_t& v) const=0;
-    //! \f$\int f\,d^3r\f$ over those same points -- the energy quadrature that goes with the pair.
+    //! \f$\int f\,d^3r=\sum_a f_a\,\langle f_a|1\rangle\f$ -- the energy quadrature on the same axis.
+    //! ⚠ The weights here are the FUNCTION INTEGRALS \f$\langle f_a|1\rangle\f$, not point weights; on a
+    //! \f$\delta\f$ basis they coincide, which is why that distinction only surfaced when a second
+    //! realization needed them (2026-09-09).
     virtual double Integrate(const rvec_t& f) const=0;
-    virtual size_t NumPoints() const=0;   //!< length of the array \c Adjoint accepts
+    virtual size_t NumCoefficients() const=0;   //!< length of the array \c Adjoint accepts
 };
 
 //! \brief The forward/adjoint pair of a density-matrix <-> operator assembly, as ONE object.
@@ -130,7 +140,16 @@ public:
 //! LATCHED for the run -- switching mid-SCF would change the discrete functional being minimised.
 //!
 //! ▶ **THIS is what a factory hands out, and its two BASES are what clients hold.**  Virtual inheritance,
-//! so \c NumPoints is one function and the two halves provably describe the same point set.
+//! so \c NumCoefficients is one function and the two halves provably describe the same axis.
+//!
+//! ★ **NOTHING HERE MENTIONS A GRID, AND THAT IS LOAD-BEARING** (user, 2026-09-09: *"if it is done right
+//! (the integration grid is totally hidden inside the integrator) then this interface should also work for
+//! analytic integrals"*).  What crosses these faces are COEFFICIENTS on a fit basis; whether a realization
+//! reaches them by quadrature on a mesh, by an FFT, by a screened multigrid collocation, or ANALYTICALLY
+//! is its own business.  That is \c doc/Pins.md pin 2 -- a fit is (integration grid) x (fit basis),
+//! orthogonal axes -- with this interface parameterised on the basis alone.  \c NumPoints was renamed
+//! \c NumCoefficients on 2026-09-09 for exactly this reason: it was the last word in the face that
+//! presumed a grid.
 template <class T> class MatrixIntegrator
     : public virtual MatrixForward<T>
     , public virtual MatrixAdjoint<T>
@@ -156,7 +175,7 @@ public:
     DenseMatrixIntegrator(const Mesh& mesh, const VectorFunction<T>& basis)
         : itsMesh(mesh), itsBasis(basis) {}
 
-    //! Un-hide the base's FACTORED overload (see the warning on \c MatrixForward::NumPoints): overriding
+    //! Un-hide the base's FACTORED overload (see the warning on \c MatrixForward::NumCoefficients): overriding
     //! the \c hmat_t one would otherwise hide it, and `Forward(L)` would convert into the wrong overload.
     using MatrixForward<T>::Forward;
 
@@ -167,7 +186,7 @@ public:
         return MatrixOverlap(itsMesh, itsBasis, v);
     }
     virtual double Integrate(const rvec_t& f) const override {return qcMesh::Integrate(itsMesh, f);}
-    virtual size_t NumPoints() const override {return itsMesh.size();}
+    virtual size_t NumCoefficients() const override {return itsMesh.size();}
 
 private:
     const Mesh&              itsMesh;

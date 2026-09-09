@@ -207,7 +207,7 @@ public:
         for (size_t g=0; g<f.size(); ++g) s+=itsW[g]*f[g];
         return s;
     }
-    virtual size_t NumPoints() const override {return itsW.size();}
+    virtual size_t NumCoefficients() const override {return itsW.size();}
 
 private:
     const Projector3<T>& itsG;   //!< borrowed: owned by the basis's integral cache

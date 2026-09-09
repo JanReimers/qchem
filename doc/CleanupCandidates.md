@@ -1177,6 +1177,40 @@ MnO campaign proceeds undisturbed in qchem6.
   meaning "this lineage collocates nothing".  ⚠ Bigger surface than the fitter's — `Overlap3C` is the
   cached-tensor accessor with many callers on the ADJOINT side too — so it is its own increment.
 
+- **R1.0q ★★ THE STANDING TARGET: EVERY `Dynamic_HT` TERM MOVES TO THE `MatrixIntegrator` PATTERN.**
+  (User, 2026-09-09, clarifying the scope of *"everything should move to this pattern"*: *"everything DFT
+  specific, or everything running through the fitting process, or as you state everything on the
+  Dynamic_HT route."*)
+
+  ⇒ **THE SET IS NAMED AND IT IS SMALL.**  A `Dynamic_HT` is exactly a term whose matrix depends on the
+  density, i.e. the \f$D\to\rho\to v[\rho]\to H\f$ loop the pattern IS.  Today:
+
+  | term | file | forward today | adjoint today |
+  |---|---|---|---|
+  | `Vee_Hartree` | `PWTerms.C` | the density's \f$\tilde\rho\f$ | `Orbital_DFT_IBS` Coulomb assembly |
+  | `Vxc_Quadrature`, `Vxc_QuadraturePol`, `Vcorr_QuadraturePol` | `PWTerms.C` | via `XC_Quadrature::Rho`/`RhoPol` | via `XC_Quadrature::Matrix` |
+  | `FittedVee`, `FittedVxc`, `FittedVxcPol`, `FittedVcorrPol` | `Terms.C` (molecular) | `FunctionFitter` `DoFit` | the fitter's contraction |
+  | **`+U`** | *not yet written* | — | — |
+
+  ★ **THE MOLECULAR FOUR ARE THE INTERESTING ONES**, because they are the test of the whole conjecture:
+  they run through the SAME `Fitting::FunctionFitter` seam with an ANALYTIC (Gaussian auxiliary) fit basis
+  and no grid anywhere.  If `MatrixIntegrator` fits them unchanged, the analytic claim in R1.0p is proved
+  by construction rather than by argument.  ▶ **Do one of them first, before the periodic ones** — it is
+  the cheapest possible falsification of the design, and failing there is worth knowing before four more
+  terms are moved onto it.
+
+  ▶ **AND `+U` SHOULD BE BORN ON IT**, not retrofitted: it is the next `Dynamic_HT` to be written
+  (`doc/ParallelAndOraclePlan.md` PHASE 3), its occupation-matrix forward and its potential adjoint are
+  the same pair, and writing it against the face is free where converting it later is not.
+
+  ⚠ **WHAT IS EXPLICITLY NOT IN SCOPE — and the boundary is sharp.**  The `Static_HT` terms (overlap,
+  kinetic, nuclear attraction, `Ven_PP_Short/_Long/_NonLocal`) have no \f$D\f$ to push forward and no
+  field to pull back, so there is no pair to keep consistent and the interface would be two methods nobody
+  calls.  ★ This is the SAME partition `tHamiltonian::RefreshForDensity` folds over — dynamic terms only,
+  because a static term has no density-dependent memo to warm.  Two different questions (what has a
+  forward/adjoint pair? what has a per-density cache?) selecting the same set is some evidence the seam is
+  real rather than drawn.
+
 - **R1.0p ▶ THE CONJECTURE: DOES THIS PATTERN GENERALISE TO ANALYTIC INTEGRALS?** (user, 2026-09-09:
   *"if it is done right (the integration grid is totally hidden inside the integrator) then this interface
   should also work for analytic integrals.  If so then everything should move to this pattern."*)
@@ -1192,8 +1226,10 @@ MnO campaign proceeds undisturbed in qchem6.
     the same forward/adjoint shape.
   - The weights this session's plumbing needed turned out to be \f$\langle f_a|1\rangle\f$, not point
     weights (above).
-  ⇒ ⚠ **`MatrixIntegrator`'s own `NumPoints()` is the thing out of step, not the design.**  Rename it
-  `NumCoefficients()` and the faces say nothing about grids at all.
+  ✅ **DONE 2026-09-09: `NumPoints()` → `NumCoefficients()`** across the family (both faces, both
+  realizations, all gates).  It was the last word in the interface that presumed a grid; the faces now say
+  nothing about one, and the Doxygen states the coefficient reading with the \f$\delta\f$-basis and
+  plane-wave specialisations beside it.
 
   ⛔ **BUT "EVERYTHING SHOULD MOVE TO THIS PATTERN" IS TOO STRONG, AND THE LIMIT IS SHARP.**  The pattern
   is a FORWARD/ADJOINT PAIR around a density-dependent FIELD: \f$D\to\rho\to v[\rho]\to H\f$.  It fits

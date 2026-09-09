@@ -97,16 +97,16 @@ TEST(MatrixIntegrator, ForwardOfAPSDDensityMatrixIsNonNegative)
 }
 
 //---------------------------------------------------------------------------------------------------
-// Integrate is the mesh's own rule, and NumPoints sizes both arrays -- so a caller can allocate a field
+// Integrate is the mesh's own rule, and NumCoefficients sizes both arrays -- so a caller can allocate a field
 // without reaching past the interface for the mesh.
-TEST(MatrixIntegrator, IntegrateIsTheMeshRuleAndNumPointsSizesTheArrays)
+TEST(MatrixIntegrator, IntegrateIsTheMeshRuleAndNumCoefficientsSizesTheArrays)
 {
     const qcMesh::Mesh m=SpreadMesh(10);
     const TinyBasis    b;
     const qcMesh::DenseMatrixIntegrator<double> I(m, b);
 
-    EXPECT_EQ(I.NumPoints(), m.size());
-    rvec_t ones(I.NumPoints(), 1.0);
+    EXPECT_EQ(I.NumCoefficients(), m.size());
+    rvec_t ones(I.NumCoefficients(), 1.0);
     double w=0.0; for (size_t g=0;g<m.size();g++) w+=m.Weights()[g];
     EXPECT_DOUBLE_EQ(I.Integrate(ones), w);      // integral of 1 == total weight
 }
@@ -162,9 +162,9 @@ TEST(MatrixIntegrator, TheTwoHalvesServeSeparateClientsAndStillPair)
     const qcMesh::MatrixForward<double>& fwd = I;
     const qcMesh::MatrixAdjoint<double>& adj = I;
 
-    // The two faces must describe the SAME point set -- virtual inheritance makes NumPoints one function,
+    // The two faces must describe the SAME point set -- virtual inheritance makes NumCoefficients one function,
     // and this is what a client sizing an array relies on.
-    EXPECT_EQ(fwd.NumPoints(), adj.NumPoints());
+    EXPECT_EQ(fwd.NumCoefficients(), adj.NumCoefficients());
 
     rvec_t v(m.size());
     for (size_t g=0; g<m.size(); g++) v[g]=std::cos(0.9*double(g))-0.3;

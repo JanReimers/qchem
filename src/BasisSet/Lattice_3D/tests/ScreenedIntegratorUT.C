@@ -69,7 +69,7 @@ TEST(ScreenedMatrixIntegrator, ItForwardsBothDirectionsToTheTensor)
 {
     const Projector3<double> g=MakeAdjointPair();
     const ScreenedMatrixIntegrator<double> I(g, W);
-    EXPECT_EQ(I.NumPoints(), 2u);
+    EXPECT_EQ(I.NumCoefficients(), 2u);
 
     hmat_t<double> D(2); D(0,0)=1.0; D(0,1)=0.5; D(1,1)=2.0;
     const rvec_t rho=I.Forward(D);
