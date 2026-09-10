@@ -1394,6 +1394,25 @@ MnO campaign proceeds undisturbed in qchem6.
   the XC term the adjoint through `FitContraction::Overlap`.  ⇒ `ScalarProjector` is a per-block FORWARD
   VENDOR, which the user ruled fine.  Note it vends N halves, one per block — not a single hidden pointer.
 
+  ✅ **THE PAIR ROUTE IS MIGRATED TOO (2026-09-09), and it needed the one decision this row had parked.**
+  `XC_PairQuadrature::MatrixT` no longer names `Projector3` or `applyRawAdjoint`: it asks `BlockAdjoint(orb)`
+  for a `const qcMesh::MatrixAdjoint<dcmplx>*` -- null meaning *this lineage has no raw pair, take the ball
+  fit* -- so the capability question is asked ONCE PER BLOCK instead of once per call, and the answer comes
+  back as the FACE.  The engine names the adjoint half and nothing else, per the ruling.
+
+  ▶ **THE PARKED DECISION, AND ITS ANSWER: `ScreenedMatrixIntegrator` NOW TAKES THE INTEGRATION RULE.**  Its
+  default `Integrate` is \f$\sum_a w_a f_a\f$; this route's authoritative rule is the raster's own
+  \f$(\sum_a f_a)\,\Omega/N\f$ -- algebraically identical, DIFFERENT IN THE LAST BITS, and the periodic
+  energies are pinned to it at ten digits.  Wrapping the tensor without addressing that would have produced
+  an object carrying a second, differently-ordered `Integrate` that must never be called -- a latent
+  mismatch inside the very family built to make mismatches unrepresentable.  ⇒ An optional
+  `std::function<double(const rvec_t&)>` ctor argument, defaulted, so existing call sites and the three
+  `ScreenedMatrixIntegrator` gates are untouched and the pair route hands in `Raster().Integral`.
+  ★ **A CONSTRUCTOR ARGUMENT AND NOT A SECOND METHOD, deliberately:** the integration rule is a DECISION
+  about which discrete functional the run minimises, so it belongs to whoever constructs -- the one actor
+  that knows.  Leaving it at the call site is how an object acquires two defensible answers and a caller
+  picking by accident.
+
   ⛔ **AND "INJECT AT CONSTRUCTION TIME" IS REACHABLE FOR THE FITTER BUT NOT FOR `IrrepCD`** — measured, not
   assumed.  `IrrepCD_Factory` is called from `src/Orbitals/Internal/Imp/TOrbitals.C:228` inside
   `GetChargeDensity()`; `qcOrbitals` links `qcChargeDensity qcBasisSet qcSymmetry qcStructure qcMath

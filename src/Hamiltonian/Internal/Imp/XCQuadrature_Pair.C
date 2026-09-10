@@ -258,7 +258,6 @@ template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, con
            && "XC_PairQuadrature::Matrix before Rho/RhoPol: the adjoint must follow the collocation that "
               "fixed the route");
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws)
-    const Projector3<dcmplx>& g=orb.Overlap3C(*itsFitBasis);
     // ★ THE ADJOINT FOLLOWS THE LINEAGE'S CAPABILITY; rho follows the DENSITY's.  They differ on exactly
     // one iteration and the design already grants it: a matrix-free SEED has no D to collocate, so it can
     // only sample BALL, while the route latch exempts it and iteration 0's energy is discarded anyway.
@@ -275,8 +274,14 @@ template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, con
     // ⚠ AND WITHOUT THIS a seeded POLARIZED run on a real TRIM block has no adjoint at all -- the ball fit
     // has no FitContraction<double,dcmplx> face -- which would put a grid restriction back on a
     // polarization property, i.e. re-make the conflation this change removed.
-    if (g.applyRawAdjoint)
-        return blazem::NarrowExact<U>(g.applyRawAdjoint(v));
+    //
+    // ▶ THE CAPABILITY TEST IS NOW `BlockAdjoint` RETURNING NULL (2026-09-09), which is the same question
+    // asked once per block instead of once per call -- and the answer comes back as the ADJOINT FACE rather
+    // than as the tensor, so this function no longer names `applyRawAdjoint` or `Projector3` at all.  The
+    // tensor is dcmplx whichever scalar the BLOCK is (a real TRIM block contracts against the run's complex
+    // fit axis, 3c-3), so the narrow stays here.
+    if (const qcMesh::MatrixAdjoint<dcmplx>* adj=BlockAdjoint(orb))
+        return blazem::NarrowExact<U>(adj->Adjoint(v));
     if constexpr (std::is_same_v<U,dcmplx>)
     {
         itsScalarFitter->DoFit(SampledField(v, NumPoints()));
@@ -296,6 +301,36 @@ template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, con
                                "wired -- the ortho scalar fitter has no FitContraction<double,dcmplx> face. "
                                "Use the raw collocated feed (the default) or the delta quadrature");
 }
+// MY ADJOINT HALF for one block, or null when this lineage has no raw pair (then the BALL fallback answers).
+//
+// ★ CONSTRUCTED WITH THE RASTER'S OWN ENERGY RULE, and that is the point of the ctor argument (2026-09-09).
+// ScreenedMatrixIntegrator's default Integrate is Sum_a w_a f_a; this route's authoritative rule is the
+// raster's (Sum f)*Omega/N, which is algebraically the same and DIFFERENT IN THE LAST BITS -- and the
+// periodic energies are pinned to it at ten digits.  Handing the rule in at construction means the object
+// cannot offer a second, differently-ordered answer, so `Integrate` below and this view agree by
+// construction rather than by the caller remembering which to use.
+//
+// ⚠ The view is CACHED per block because the face returns a reference and a ScreenedMatrixIntegrator
+// BORROWS its Projector3; a temporary would dangle on use.  The tensor itself is the basis's own cached
+// one, so this map holds ~100 bytes per block, not a table.
+template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
+XC_PairQuadrature::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
+{
+    const Irrep id=orb.GetIrrep(Spin::None);          // SPATIAL key, as the basis's own table cache uses
+    auto it=itsAdj.find(id);
+    if (it!=itsAdj.end()) return &it->second;
+    const Projector3<dcmplx>& g=orb.Overlap3C(*itsFitBasis);
+    if (!g.applyRawAdjoint) return nullptr;           // a plane-wave lineage: the ball fit answers instead
+    const BasisSet::G_RasterTransform& r=Raster();
+    rvec_t w(r.RasterSize(), 0.0);                    // sizes the coefficient axis; the RULE does the sum
+    // LIFETIME: the lambda captures the raster BY REFERENCE, and that reference points into *itsFitBasis --
+    // which this engine co-owns through a shared_ptr, so it outlives every view in this map.  The same
+    // invariant ScreenedMatrixIntegrator relies on for the Projector3 it borrows; stated because a stored
+    // closure over a reference is the kind of thing that is only safe on purpose.
+    return &itsAdj.emplace(id, ScreenedMatrixIntegrator<dcmplx>(g, std::move(w),
+                               [&r](const rvec_t& f){return r.Integral(f);})).first->second;
+}
+
 chmat_t XC_PairQuadrature::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
 rsmat_t XC_PairQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
 

@@ -51,6 +51,8 @@ import qchem.ChargeDensity;
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 import qchem.Symmetry.Irrep;                // Irrep: the Phi-table key (spatial block identity)
+import qchem.BasisSet.Internal.Projector3;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
+export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Blaze;                         // blazem::NarrowExact (the real-TRIM narrow, promoted to qcMath 2026-09-08)
 import qchem.Types;
 
@@ -369,6 +371,20 @@ private:
     //! the fit face: a plane-wave basis counts \f$\{G\}\f$ FUNCTIONS, and its raster has more voxels than
     //! it has functions, so a caller holding a raster array must ask the raster (2026-08-23).
     const BasisSet::G_RasterTransform& Raster() const;
+    //! \brief MY ADJOINT HALF for one orbital block -- null when this lineage has no raw pair (then the
+    //! BALL fallback answers).  The \c Projector3 behind it is the basis's own cached tensor; the view is
+    //! cached HERE, keyed by block, because the face hands back a reference and the view borrows.
+    //!
+    //! ★ I HOLD THE ADJOINT AND NOTHING ELSE (2026-09-09, user: *"nobody should need both sides"*).  The
+    //! FORWARD of this same tensor is what the DENSITY contracts its \f$D\f$ into; this class only needs
+    //! \f$v\to\langle i|v|j\rangle\f$, so that is the only face it names.  The object is constructed with
+    //! the RASTER's own energy rule, so its \c Integrate is the pinned one -- there is no second, differently
+    //! ordered quadrature reachable through it.
+    //! \note A template MEMBER defined in the implementation unit, like \c MatrixT beside it: both
+    //! instantiations are used in that same TU, so no explicit instantiation is needed.
+    template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
+    BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const;
+    mutable std::map<Irrep, ScreenedMatrixIntegrator<dcmplx>> itsAdj;
 };
 
 //! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.

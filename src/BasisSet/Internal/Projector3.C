@@ -182,12 +182,24 @@ template <class T> class ScreenedMatrixIntegrator
     , public virtual qcMesh::MatrixAdjoint<T>
 {
 public:
-    //! \a g must realise the raw pair; \a weights are the integration raster's, for \c Integrate.
-    //! THROWS when the pair is absent rather than assembling half a route: a \c Projector3 with a forward
-    //! and no adjoint cannot be an integrator, and finding that out at the first \c Adjoint call -- inside
-    //! an SCF iteration -- is strictly worse than finding it out here.
-    ScreenedMatrixIntegrator(const Projector3<T>& g, rvec_t weights)
-        : itsG(g), itsW(std::move(weights))
+    //! \a g must realise the raw pair; \a weights are the integration raster's (they size the coefficient
+    //! axis, and supply the default \c Integrate rule \f$\sum_a w_a f_a\f$).
+    //!
+    //! ★ \a rule OVERRIDES THAT QUADRATURE, AND IT EXISTS FOR A PINNED SUMMATION ORDER (2026-09-09).  The
+    //! GPW raster's own energy rule is \f$(\sum_a f_a)\,\Omega/N\f$ -- algebraically the same as uniform
+    //! weights, DIFFERENT in the last bits, and the periodic energies are pinned to it at ten digits.  A
+    //! client that must integrate the raster's way therefore supplies the rule instead of accepting ours.
+    //! ⚠ WHY A CONSTRUCTOR ARGUMENT AND NOT A SECOND `Integrate`: the integration rule is a DECISION about
+    //! which discrete functional the run minimises, so it belongs to whoever constructs -- the one actor
+    //! that knows.  Leaving it to the call site is how an object ends up with two defensible answers and a
+    //! caller picking by accident, which is the whole failure this family exists to prevent.
+    //!
+    //! THROWS when the raw pair is absent rather than assembling half a route: a \c Projector3 with a
+    //! forward and no adjoint cannot be an integrator, and finding that out at the first \c Adjoint call --
+    //! inside an SCF iteration -- is strictly worse than finding it out here.
+    ScreenedMatrixIntegrator(const Projector3<T>& g, rvec_t weights,
+                             std::function<double(const rvec_t&)> rule={})
+        : itsG(g), itsW(std::move(weights)), itsRule(std::move(rule))
     {
         if (!g.applyRaw || !g.applyRawAdjoint)
             throw std::runtime_error("ScreenedMatrixIntegrator: this Projector3 does not realise the raw "
@@ -211,6 +223,7 @@ public:
     virtual double    Integrate(const rvec_t& f)  const override
     {
         assert(f.size()==itsW.size() && "ScreenedMatrixIntegrator::Integrate: one value per raster point");
+        if (itsRule) return itsRule(f);                  // the client's pinned rule (see the ctor)
         double s=0.0;
         for (size_t g=0; g<f.size(); ++g) s+=itsW[g]*f[g];
         return s;
@@ -219,7 +232,9 @@ public:
 
 private:
     const Projector3<T>& itsG;   //!< borrowed: owned by the basis's integral cache
-    rvec_t               itsW;   //!< the integration raster's weights
+    rvec_t               itsW;   //!< the integration raster's weights (also the coefficient-axis length)
+    //! The constructing client's own energy quadrature, when it has a pinned one; empty => use \c itsW.
+    std::function<double(const rvec_t&)> itsRule;
 };
 
 } // namespace qchem
