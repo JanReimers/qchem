@@ -85,8 +85,8 @@ struct SolidCalculation::Imp
     qcMesh::MeshParams                          xcMesh;          // AFTER Auto resolution
     std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf;
     std::unique_ptr<qchem::ChargeDensity::cDM_CD>         cd;    // the converged density (outlives the WF)
-    //! m(r) of the converged state.  OWNED: WaveFunction::GetSpinDensity() hands back a raw `new`, so it
-    //! goes straight into a unique_ptr here (CLAUDE.md ownership) -- null on an unpolarized run.
+    //! m(r) of the converged state.  OWNED: SpinResolvedWF::GetSpinDensity() BUILDS it and hands over the
+    //! unique_ptr (V1.25).  EMPTY on an unpolarized run -- that WF does not implement the face at all (V1.17).
     std::unique_ptr<SolidCalculation::sf_t>               spin;
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, for the banner
@@ -697,8 +697,15 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     auto cd = itsImp->scf->GetWaveFunction()->GetChargeDensity();   // BUILT for us; we take it
     itsImp->charge = cd->GetTotalCharge();
     itsImp->cd = std::move(cd);
-    // m(r) the same way: BUILT for us (a raw `new`), so it is adopted here rather than leaked.
-    itsImp->spin.reset(itsImp->scf->GetWaveFunction()->GetSpinDensity());
+    // m(r): only a SPIN-POLARIZED wave function has one, so we ASK FOR THE CAPABILITY rather than call a
+    // base-class getter that answers null for half the hierarchy (V1.17).  Abstract->abstract cross-cast,
+    // the sanctioned kind.  RESET on the unpolarized branch: Converge runs once per anneal STAGE, so a
+    // stale m(r) from an earlier stage must not survive into a run that no longer has one.
+    const auto* wf = itsImp->scf->GetWaveFunction();
+    if (const auto* swf = dynamic_cast<const qchem::WaveFunction::cSpinResolvedWF*>(wf))
+        itsImp->spin = swf->GetSpinDensity();   // BUILT for us; we take it
+    else
+        itsImp->spin.reset();
     return Outcome_();
 }
 

@@ -20,6 +20,7 @@ using ChargeDensity::tDM_CD;
 // dispatches on Hamiltonian::IsPolarized() for both.
 template <class T> class tPolarizedWF
     : public virtual tSCFWaveFunction<T>
+    , public virtual tSpinResolvedWF<T>   //!< it HAS an m(r) -- the capability face, not a base-class stub (V1.17)
     , public tCompositeWF<T>
 {
 public:
@@ -31,7 +32,7 @@ public:
     using tCompositeWF<T>::GetChargeDensity;
 
     virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const;
-    virtual sf_t*           GetSpinDensity  () const;
+    virtual std::unique_ptr<sf_t> GetSpinDensity() const;
     virtual void            DisplayEigen    () const;
 
 };

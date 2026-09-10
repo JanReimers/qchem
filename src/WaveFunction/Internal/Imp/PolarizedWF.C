@@ -36,9 +36,9 @@ template <class T> std::unique_ptr<tDM_CD<T>> tPolarizedWF<T>::GetChargeDensity(
     return PolarizedCD_Factory(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
-template <class T> typename tPolarizedWF<T>::sf_t* tPolarizedWF<T>::GetSpinDensity() const
+template <class T> std::unique_ptr<typename tPolarizedWF<T>::sf_t> tPolarizedWF<T>::GetSpinDensity() const
 {
-    return new qchem::ChargeDensity::tSpinDensity<T>(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
+    return std::make_unique<qchem::ChargeDensity::tSpinDensity<T>>(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
 

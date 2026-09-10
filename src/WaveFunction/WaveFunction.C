@@ -38,7 +38,6 @@ public:
     virtual const Orbitals* GetOrbitals     (const Irrep&         ) const=0;
     //! \brief BUILDS the whole-system density -- ALLOCATES, hence the owning return (V1.25).
     virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const=0;
-    virtual sf_t*           GetSpinDensity  () const=0; //Returns a null ptr for un polarized WF.
     virtual EnergyLevels    GetEnergyLevels () const=0;
     virtual iqns_t          GetQNs          () const=0;
     virtual void            DisplayEigen    () const=0;
@@ -55,5 +54,30 @@ private:
 
 export using WaveFunction  = tWaveFunction<double>;
 export using cWaveFunction = tWaveFunction<dcmplx>;
+
+//---------------------------------------------------------------------------------------
+//
+//  Capability face: a COLLINEAR SPIN-POLARIZED wave function -- the one that HAS a magnetization
+//  \f$m(r)=\rho_\uparrow-\rho_\downarrow\f$.  This used to be a pure virtual on tWaveFunction
+//  returning a null pointer for the unpolarized half of the hierarchy (V1.17), which declared a
+//  capability that half the implementors do not have and made every client null-check a raw pointer.
+//  The polarized wave function is the PRIMARY type here, not a special case bolted onto the base --
+//  an unpolarized one simply does not answer this question, and now cannot be asked it.
+//
+//  The idiom is the one qcChargeDensity already uses for exactly this shape (tSpinResolved_CD): a
+//  data-free face that is NOT a tWaveFunction, reached by the sanctioned abstract->abstract
+//  dynamic_cast, so capabilities live only on the types that have them.
+//
+export template <class T> class tSpinResolvedWF
+{
+public:
+    typedef ScalarFunction<double> sf_t;
+    virtual ~tSpinResolvedWF() {}
+    //! \brief BUILDS \f$m(r)\f$ over BOTH channels -- ALLOCATES, hence the owning return (V1.25).
+    virtual std::unique_ptr<sf_t> GetSpinDensity() const=0;
+};
+
+export using SpinResolvedWF  = tSpinResolvedWF<double>;
+export using cSpinResolvedWF = tSpinResolvedWF<dcmplx>;
 
 } //namespace
