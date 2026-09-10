@@ -1,6 +1,6 @@
 // File: BasisSet/GMap.C  Reciprocal-space (G-space) SYMMETRY currencies for the plane-wave / GPW paths.
 //
-// The ΔG_Map container and the 3-centre tensor now live in qchem.BasisSet.Internal.Projector3 (V1.1: one
+// The ΔG_Map container and the 3-centre tensor now live in qchem.BasisSet.Projector3 (V1.1: one
 // Projector3<T> type serves the molecular dense and the reciprocal-space realizations); this module keeps the
 // SYMMETRY operations on a G-space field -- star averages, reduced evaluation, per-op defect diagnostics --
 // which need the Lattice_3D space-group vocabulary that the structure-neutral Projector3 module must not import.
@@ -25,7 +25,7 @@ module;
 // tChargeDensity?"), governed by the PW-fitting-uniform-interface pin.  Until that lands, the visibility
 // is the deliverable: a module named for what it is, where anyone can see who depends on it.
 export module qchem.BasisSet.GMap;
-export import qchem.BasisSet.Internal.Projector3;  // IVec3Less, ΔG_Map, Projector3<T> + Contract/ContractAdjoint
+export import qchem.BasisSet.Projector3;  // IVec3Less, ΔG_Map, Projector3<T> + Contract/ContractAdjoint
 import qchem.Types;    // ivec3_t, dcmplx
 import qchem.Blaze;    // rvec_t, chmat_t + complex/double arithmetic (visible here; the qcMath leaf lacked it)
 export import qchem.Matrix3D;  // Matrix3D (the reciprocal point ops for the G-space density symmetrization)

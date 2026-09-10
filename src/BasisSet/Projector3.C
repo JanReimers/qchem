@@ -1,4 +1,4 @@
-// File: BasisSet/Internal/Projector3.C  The 3-centre projection tensor <ab|c> -- ONE type, several realizations.
+// File: BasisSet/Projector3.C  The 3-centre projection tensor <ab|c> -- ONE type, several realizations.
 //
 // V1.1: the merge of the molecular ERI3 (a dense std::vector of <ab|c> matrices) and the reciprocal-space
 // G_ERI3 (delta support / matrix-free closures).  The NAME says what both contraction directions do
@@ -27,7 +27,23 @@ module;
 #include <type_traits> // std::type_identity_t (ContractAdjoint's non-deduced field parameter)
 #include <vector>
 #include <utility>
-export module qchem.BasisSet.Internal.Projector3;
+// ★ IT IS DELIBERATELY NOT `.Internal.` (promoted 2026-09-10) -- and the label was not merely unhelpful,
+// it was ILLEGAL.  CLAUDE.md: *"Only re-export modules that don't have `.Internal.` in the module name; the
+// goal is to avoid importing internals across library boundaries."*  Two PUBLIC modules were re-exporting
+// this one -- `qchem.BasisSet.Orbital_DFT_IBS` and `qchem.BasisSet.GMap` -- which means `Projector3<T>` and
+// `ΔG_Map` have been de facto public vocabulary for as long as `Overlap3C` / `Repulsion3C` have named them
+// in their signatures.  The label was a claim the interface had already falsified.
+//
+// ⇒ Its real consumers are in OTHER families -- `qcFitting` (the delta fitter holds one per block),
+// `qcChargeDensity` (`FourierDensity`), `qcHamiltonian` (the pair sampler) -- so under the V1.20 ruling
+// (`.Internal.` marks the LIBRARY-FAMILY boundary) this was the same defect as V1.20b's `GMap`, and
+// promoting `GMap` alone was only half the fix: the promoted module still re-exported this Internal one.
+//
+// ⚠ THE DESIGN TENSION IS UNCHANGED AND STILL OPEN, exactly as it is for `GMap`: a 3-centre tensor handle
+// is an implementation currency that ideally would not appear in high-level abstract faces, but the
+// `Overlap3C` family has to return SOMETHING and that something varies with the basis
+// (`doc/CleanupCandidates.md` D2 + V1.20b).  The visibility is the deliverable here, not the cure.
+export module qchem.BasisSet.Projector3;
 export import qchem.Types;
 export import qchem.Mesh.Integrator;   // MatrixForward<T>/MatrixAdjoint<T> -- the two halves the raw pair realises
 import qchem.Blaze;    // rvec_t, hmat_t<T> + complex/double arithmetic

@@ -1,7 +1,7 @@
 module;
 #include <cassert>
 #include <iostream>
-module qchem.BasisSet.Internal.Projector3;
+module qchem.BasisSet.Projector3;
 import qchem.Blaze;
 
 namespace qchem {

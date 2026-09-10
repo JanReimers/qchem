@@ -26,7 +26,7 @@ export module qchem.BasisSet.Molecule.Evaluators;
 export import qchem.Streamable;
 import qchem.Types;
 import qchem.Structure;  // Structure* threaded through the Nuclear kernel
-import qchem.BasisSet.Internal.Projector3; // Projector3<double> -- return type of the isM_DFT concept
+import qchem.BasisSet.Projector3; // Projector3<double> -- return type of the isM_DFT concept
 import qchem.BasisSet.Internal.ERI4;   // ERI4         -- return type of the isM_HF  concept
 
 export namespace qchem::BasisSet::Molecule::Evaluators

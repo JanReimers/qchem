@@ -29,7 +29,7 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators.PG_LibCint;
 import qchem.BasisSet.Molecule.Evaluators;                       // Evaluator + the isM_* concepts
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;    // PGData (component layout + ordering)
-import qchem.BasisSet.Internal.Projector3;                       // Projector3<double>
+import qchem.BasisSet.Projector3;                       // Projector3<double>
 import qchem.BasisSet.Internal.ERI4;                             // ERI4
 import qchem.Structure;
 import qchem.Types;

@@ -78,7 +78,7 @@ import qchem.ChargeDensity;
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 import qchem.Symmetry.Irrep;                // Irrep: the Phi-table key (spatial block identity)
-import qchem.BasisSet.Internal.Projector3;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
+import qchem.BasisSet.Projector3;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Blaze;                         // blazem::NarrowExact (the real-TRIM narrow, promoted to qcMath 2026-09-08)
 import qchem.Types;

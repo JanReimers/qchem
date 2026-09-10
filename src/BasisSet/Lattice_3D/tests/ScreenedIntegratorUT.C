@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 #include <stdexcept>
 
-import qchem.BasisSet.Internal.Projector3;
+import qchem.BasisSet.Projector3;
 import qchem.Types;
 import qchem.Blaze;
 

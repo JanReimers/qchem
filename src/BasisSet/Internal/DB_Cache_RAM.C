@@ -12,7 +12,7 @@ module;
 export module qchem.BasisSet.Internal.DB_Cache_RAM;
 export import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet.Internal.Projector3;    // Projector3<T> (the 3-centre tensor, all realizations)
+import qchem.BasisSet.Projector3;    // Projector3<T> (the 3-centre tensor, all realizations)
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;

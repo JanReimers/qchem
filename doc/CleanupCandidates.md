@@ -2202,6 +2202,35 @@ MnO campaign proceeds undisturbed in qchem6.
   `src/BasisSet/` tree, and nothing outside the family has business naming a SALC decorator.  The ruling is
   recorded at the module's own head so it is not re-litigated.
 
+- **V1.20c ✅ DONE 2026-09-10 — `Projector3` PROMOTED TOO, WHICH COMPLETES V1.20b AND FIXES A DIRECT RULE
+  VIOLATION.**  Found while settling R1.0e: `ScreenedMatrixIntegrator` (needed by `PairDensitySampler`) lives
+  in `Internal/Projector3.C`, so moving the sampler to `qcChargeDensity` would have created a cross-family
+  `.Internal.` import — and the cure turned out to be bigger and cleaner than promoting the integrator.
+
+  ⛔ **TWO PUBLIC MODULES WERE RE-EXPORTING IT**: `qchem.BasisSet.Orbital_DFT_IBS` and (after V1.20b)
+  `qchem.BasisSet.GMap` both carried `export import qchem.BasisSet.Internal.Projector3`.  CLAUDE.md: *"Only
+  re-export modules that don't have `.Internal.` in the module name."*  So this was not a judgement call like
+  V1.20 — it was a WRITTEN RULE being broken, and `Projector3<T>` / `ΔG_Map` have been de facto public
+  vocabulary for as long as `Overlap3C` / `Repulsion3C` have named them in their signatures.
+  ⇒ **`qchem.BasisSet.Internal.Projector3` → `qchem.BasisSet.Projector3`** (`src/BasisSet/{,Imp/}Projector3.C`).
+  ★ **And it shows my V1.20b fix was only HALF a fix**: promoting `GMap` left it re-exporting an Internal
+  module, so the violation moved rather than went away.  ▶ **THE CHECK THAT WOULD HAVE CAUGHT BOTH:**
+  `grep -rn "export import.*\.Internal\." --include=*.C src/` — it is a one-line audit of a written rule and
+  nothing was running it.  Worth a pre-commit hook or a CMake check.
+
+  ⛔ **AND IT FOUND TWO MORE ON ITS FIRST RUN (2026-09-10), filed as V1.20d.**  Of the 13 hits, 11 are an
+  Internal module re-exporting another Internal one -- legal in spirit, since the label still holds for the
+  consumer.  The other two are PUBLIC modules re-exporting Internal ones, i.e. the same violation this row
+  just fixed:
+  - `src/BasisSet/IrrepBasisSet.C:6` -- `export import qchem.BasisSet.Internal.DB_Cache;`, exposing
+    `DBCacheClient` (the cache-key contract) through a public face.
+  - `src/BasisSet/Atom/Evaluators/Slater/Evaluator.C:7` --
+    `export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;`.
+  ▶ Each needs the same judgement `Projector3` got: is the re-exported thing PUBLIC VOCABULARY (⇒ promote it)
+  or is the public face leaking an implementation detail (⇒ stop re-exporting, and hide what leaks)?  ⚠ Not
+  interchangeable — `DBCacheClient` being a *contract* public faces implement argues for promotion, while an
+  `ExponentialEvaluator` sounds like a detail.  Decide per site, and add the grep to CI either way.
+
 - **V1.20b ✅ DONE 2026-09-09 — `GMap` IS PROMOTED OUT OF `Internal`** (user ruling).
   `qchem.BasisSet.Internal.GMap` → **`qchem.BasisSet.GMap`** (`src/BasisSet/GMap.C`).  ▶ **The point is
   HONESTY, not architecture:** it genuinely is imported by `qcChargeDensity` (`FourierDensity`) and
