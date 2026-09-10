@@ -122,10 +122,10 @@ export template <class T> vec_t<T> Overlap(const Mesh& m, const VectorFunction<T
 //! \c Overlap: \c Overlap(m, a, const ScalarFunction<double>&) already exists with an IDENTICAL parameter
 //! list and a \c vec_t return, so the plain name is a redeclaration, not an overload.
 //!
-//! \note This is the ADJOINT half of \c qcMesh::MatrixIntegrator (qchem.Mesh.Integrator).  It stays
+//! \note This is what \c qcMesh::MatrixAdjoint (qchem.Mesh.Integrator) is built on.  It stays
 //! PUBLIC because it has callers that want the adjoint ALONE and no forward at all -- the molecular
 //! \c PP_Local matrix and the atom gates' \f$1/r\f$, \f$1/r^2\f$ oracles.  A caller that needs BOTH
-//! directions must take them from one \c MatrixIntegrator instead, which is what makes a forward/adjoint
+//! directions must take them as the two halves of ONE constructed object instead, which is what makes a forward/adjoint
 //! mismatch unrepresentable.
 export template <class T> hmat_t<T> MatrixOverlap(const Mesh& m, const VectorFunction<T>& a, const rvec_t& V)
 {

@@ -77,8 +77,10 @@ public:
 
     //! \copydoc Fitting::ScalarProjector::Forward
     //! Built over the SAME held handle the adjoint above contracts -- which is the point of holding it:
-    //! the density's forward and the term's adjoint come off ONE `qcMesh::MatrixIntegrator`, and since
-    //! 2026-09-09 that is enforced rather than asserted (see \c Contract).
+    //! the density's forward and the term's adjoint come off ONE constructed object, and since 2026-09-09
+    //! that is enforced rather than asserted (see \c Contract).  ▶ I AM "ACTOR 2": I build that object per
+    //! block and hand each client only its own half -- `IrrepCD` the FORWARD (through this face), the XC
+    //! term the ADJOINT (through \c Overlap).  Neither can name the other direction.
     const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const override
         {return Integrator<double>(orb);}
     const qcMesh::MatrixForward<dcmplx>& Forward(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override
@@ -110,9 +112,9 @@ private:
     //! reaching into a raw `std::function` on the CONCRETE tensor, guarded by a check that is compiled out
     //! under NDEBUG -- i.e. in every production run.  Exactly the pattern `Forward` above stopped doing,
     //! five lines away, on the SAME held handle.  ⇒ Both directions now come off ONE
-    //! `qcMesh::MatrixIntegrator`, so the sentence in `Forward`'s comment ("the density's forward and the
-    //! term's adjoint provably come off ONE tensor") is finally something the CODE enforces rather than
-    //! something the comment asserts.  The absent-pair check moved with it, from a dead assert to the
+    //! object, so the sentence in `Forward`'s comment ("the density's forward and the term's adjoint
+    //! provably come off ONE tensor") is finally something the CODE enforces rather than something the
+    //! comment asserts.  The absent-pair check moved with it, from a dead assert to the
     //! integrator's constructor, which THROWS.
     //!
     //! The 3-centre overlap is a DFT-TIER question, and since 2026-08-24 the CONTRACTION face says so
@@ -154,8 +156,10 @@ private:
         if constexpr (std::is_same_v<U,double>) return itsIntR;
         else                                    return itsInt;
     }
-    //! \brief The \c MatrixIntegrator VIEW of each held handle, cached beside it and keyed identically --
-    //! BOTH directions, since 2026-09-09 (it vended only the forward before; see \c Contract).
+    //! \brief The forward+adjoint VIEW of each held handle, cached beside it and keyed identically -- BOTH
+    //! directions, since 2026-09-09 (it vended only the forward before; see \c Contract).  Stored BY VALUE
+    //! in the map rather than as an owning pointer: the lifetime question then has no answer to get wrong,
+    //! which is what CLAUDE.md's ownership rule is for.
     //!
     //! It must be CACHED, not returned by value: the faces hand back a reference, and a
     //! \c ScreenedMatrixIntegrator borrows its \c Projector3, so a temporary would dangle the moment the
@@ -181,7 +185,7 @@ private:
 
     mutable std::map<Irrep,Projector3<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3)
     mutable std::map<Irrep,Projector3<dcmplx>> itsO3;    //!< Bloch blocks' handles
-    //! Their \c MatrixIntegrator views -- FORWARD and ADJOINT off one object per block (2026-09-09).
+    //! Their forward+adjoint views -- BOTH halves off one object per block (2026-09-09).
     mutable std::map<Irrep,ScreenedMatrixIntegrator<double>> itsIntR;
     mutable std::map<Irrep,ScreenedMatrixIntegrator<dcmplx>> itsInt;
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap

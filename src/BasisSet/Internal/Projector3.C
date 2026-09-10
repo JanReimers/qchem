@@ -29,7 +29,7 @@ module;
 #include <utility>
 export module qchem.BasisSet.Internal.Projector3;
 export import qchem.Types;
-export import qchem.Mesh.Integrator;   // MatrixIntegrator<T> -- the forward/adjoint face the raw pair realises
+export import qchem.Mesh.Integrator;   // MatrixForward<T>/MatrixAdjoint<T> -- the two halves the raw pair realises
 import qchem.Blaze;    // rvec_t, hmat_t<T> + complex/double arithmetic
 
 export namespace qchem {
@@ -149,12 +149,19 @@ template <class T> double fnorm(const Projector3<T>& a, const Projector3<T>& b);
 template <class T> double relative_fnorm(const Projector3<T>& a, const Projector3<T>& b);
 
 
-//! \brief The SCREENED realization of \c qcMesh::MatrixIntegrator: a \c Projector3's raw forward/adjoint
-//! pair, presented behind the mesh-level face.
+//! \brief The SCREENED realization of \c qcMesh::MatrixForward + \c qcMesh::MatrixAdjoint: a
+//! \c Projector3's raw forward/adjoint pair, presented behind the mesh-level faces.
 //!
-//! ★ THE INTERFACE FIT WAS NOT ENGINEERED, IT WAS DISCOVERED (2026-09-08).  \c MatrixIntegrator was
-//! designed at the mesh level from the adjointness requirement alone, and its two signatures turn out to
-//! be EXACTLY the ones \c applyRaw and \c applyRawAdjoint already had:
+//! ⚠ IT DERIVES FROM THE TWO HALVES, NOT FROM A PAIR FACE (2026-09-09).  There was a
+//! \c qcMesh::MatrixIntegrator<T> naming the pair; it was deleted because nothing held it (user: *"nobody
+//! should need both sides … it just adds confusion"*).  The no-mismatch guarantee is that ONE of these
+//! objects is constructed and its two halves are handed to the two clients that each need one -- a
+//! property of construction, not of a type.  Hence the ctor check below, which is the only place both
+//! directions are looked at together.
+//!
+//! ★ THE INTERFACE FIT WAS NOT ENGINEERED, IT WAS DISCOVERED (2026-09-08).  The two faces were designed at
+//! the mesh level from the adjointness requirement alone, and their signatures turn out to be EXACTLY the
+//! ones \c applyRaw and \c applyRawAdjoint already had:
 //! \code
 //!     std::function<rvec_t   (const hmat_t<T>& D)> applyRaw;         // Forward(D) -> rho
 //!     std::function<hmat_t<T>(const rvec_t&    v)> applyRawAdjoint;  // Adjoint(v) -> matrix
@@ -171,7 +178,8 @@ template <class T> double relative_fnorm(const Projector3<T>& a, const Projector
 //! \warning It borrows the \c Projector3 -- which is owned by the basis's integral cache and outlives any
 //! assembly -- so this object is a VIEW and must not outlive it.
 template <class T> class ScreenedMatrixIntegrator
-    : public virtual qcMesh::MatrixIntegrator<T>
+    : public virtual qcMesh::MatrixForward<T>
+    , public virtual qcMesh::MatrixAdjoint<T>
 {
 public:
     //! \a g must realise the raw pair; \a weights are the integration raster's, for \c Integrate.

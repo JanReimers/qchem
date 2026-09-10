@@ -1,4 +1,5 @@
-// File: Mesh/Integrator.C  MatrixIntegrator -- a FORWARD/ADJOINT PAIR that cannot be mismatched.
+// File: Mesh/Integrator.C  MatrixForward / MatrixAdjoint -- the two halves of a density-matrix <-> operator
+// assembly, and the dense realization of both.
 //
 // ★ WHY A CLASS AND NOT TWO FREE FUNCTIONS (user, 2026-09-08).
 //
@@ -10,13 +11,26 @@
 // \f$H=\partial E/\partial D\f$ holds only if the adjoint is the EXACT adjoint of the forward ON THE SAME
 // TRUNCATED OPERATOR.  Offered as two independent free functions, a mismatch is EXPRESSIBLE -- and this
 // tree has measured what that costs: an unscreened \f$\rho\f$ paired with a screened \f$H\f$ sent Si from
-// 14 to 60 SCF iterations and moved E by 35 µHa (doc/CleanupCandidates.md R1.0j).  Behind one interface
-// the pairing is a class invariant: a caller cannot obtain half of one route and half of another.
+// 14 to 60 SCF iterations and moved E by 35 µHa (doc/CleanupCandidates.md R1.0j).
 //
-// ⚠ THE ASSUMPTION THAT MAKES THAT AIRTIGHT, and it is the user's (2026-09-08): *"if a class has two
-// integrators that it needs to keep straight then SOLID::SRP dictates that class be divided."*  So the
-// guarantee is not "nobody can hold two integrators" -- it is that a class holding two has a
-// single-responsibility problem to fix, and the pairing is what makes that visible.
+// ★★ WHERE THE GUARANTEE ACTUALLY LIVES -- CORRECTED 2026-09-09 (user), AND A NAMED PAIR FACE WAS DELETED
+// FOR IT.  There used to be a `MatrixIntegrator<T>` deriving from both halves, described here as the thing
+// that made a mismatch unrepresentable.  It did not: *"nobody should need both sides (MatrixIntegrator).  I
+// believe the existence of the MatrixIntegrator interface is a mistake, it just adds confusion.  We should
+// remove it."*  And the census agreed -- NOTHING held it.  Every client holds a half (`IrrepCD` the
+// forward, `DeltaScalarFitter` the adjoint) and every producer names the CONCRETE realization; the middle
+// face was an inheritance waypoint wearing an abstraction's clothes.
+//
+// ⇒ THE PAIRING IS A PROPERTY OF CONSTRUCTION, NOT OF A TYPE.  One concrete object is built once, and its
+// two halves are handed to the two clients that each need one.  That is what cannot be mismatched: there is
+// only one truncation in play because there is only one object.  A named pair face adds nothing to that and
+// invites a third client to hold both -- which, per the user's own SRP rule (2026-09-08: *"if a class has
+// two integrators that it needs to keep straight then SOLID::SRP dictates that class be divided"*), is
+// already a design error it would have legitimised.
+//
+// ⚠ `NumCoefficients` is declared on BOTH halves, deliberately: each client must be able to size its own
+// arrays without holding the other face.  A realization's single override satisfies both declarations, and
+// since the two halves of one object describe one coefficient axis, they cannot disagree.
 //
 // ⚠ AND THE ADJOINT HALF STAYS PUBLIC ON ITS OWN.  qcMesh::MatrixOverlap has callers that want the
 // adjoint ALONE and never collocate anything -- the molecular PP_Local matrix, the atom gates' 1/r and
@@ -59,9 +73,9 @@ export namespace qchem::qcMesh
 //! the textbook ISP violation.
 //!
 //! ⚠ **SPLITTING THE INTERFACE DOES NOT SPLIT THE OBJECT, AND THAT IS THE WHOLE TRICK.**  The two halves
-//! are two FACES of one concrete realization (\c MatrixIntegrator below), so a density holding a
-//! \c MatrixForward and a basis holding a \c MatrixAdjoint that came from the SAME integrator cannot
-//! mismatch -- while each names only what it uses.  Hand out two faces of one object, never two objects.
+//! are two FACES of one concrete realization, so a density holding a \c MatrixForward and a fitter holding
+//! a \c MatrixAdjoint that came from the SAME object cannot mismatch -- while each names only what it
+//! uses.  Hand out two faces of one object, never two objects -- and never a third face that is both.
 template <class T> class MatrixForward
 {
 public:
@@ -133,32 +147,19 @@ public:
     virtual size_t NumCoefficients() const=0;   //!< length of the array \c Adjoint accepts
 };
 
-//! \brief The forward/adjoint pair of a density-matrix <-> operator assembly, as ONE object.
-//!
-//! Realizations differ in what they TRUNCATE (a dense point sum truncates nothing; the GPW route screens
-//! per pair and boxes per multigrid level), never in semantics.  Which one a run uses is a cost decision
-//! LATCHED for the run -- switching mid-SCF would change the discrete functional being minimised.
-//!
-//! ▶ **THIS is what a factory hands out, and its two BASES are what clients hold.**  Virtual inheritance,
-//! so \c NumCoefficients is one function and the two halves provably describe the same axis.
-//!
-//! ★ **NOTHING HERE MENTIONS A GRID, AND THAT IS LOAD-BEARING** (user, 2026-09-09: *"if it is done right
-//! (the integration grid is totally hidden inside the integrator) then this interface should also work for
-//! analytic integrals"*).  What crosses these faces are COEFFICIENTS on a fit basis; whether a realization
-//! reaches them by quadrature on a mesh, by an FFT, by a screened multigrid collocation, or ANALYTICALLY
-//! is its own business.  That is \c doc/Pins.md pin 2 -- a fit is (integration grid) x (fit basis),
-//! orthogonal axes -- with this interface parameterised on the basis alone.  \c NumPoints was renamed
-//! \c NumCoefficients on 2026-09-09 for exactly this reason: it was the last word in the face that
-//! presumed a grid.
-template <class T> class MatrixIntegrator
-    : public virtual MatrixForward<T>
-    , public virtual MatrixAdjoint<T>
-{
-public:
-    virtual ~MatrixIntegrator() = default;
-};
-
 //! \brief The DENSE realization: an honest point sum over a mesh, with no screening anywhere.
+//!
+//! ★ **NOTHING IN EITHER FACE MENTIONS A GRID, AND THAT IS LOAD-BEARING** (user, 2026-09-09: *"if it is
+//! done right (the integration grid is totally hidden inside the integrator) then this interface should
+//! also work for analytic integrals"*).  What crosses them are COEFFICIENTS on a fit basis; whether a
+//! realization reaches them by quadrature on a mesh, by an FFT, by a screened multigrid collocation, or
+//! ANALYTICALLY is its own business.  That is \c doc/Pins.md pin 2 -- a fit is (integration grid) x (fit
+//! basis), orthogonal axes -- with the faces parameterised on the basis alone.  \c NumPoints was renamed
+//! \c NumCoefficients on 2026-09-09 for exactly that reason: it was the last word that presumed a grid.
+//!
+//! Realizations differ in what they TRUNCATE (this one truncates nothing; the GPW route screens per pair
+//! and boxes per multigrid level), never in semantics.  Which one a run uses is a cost decision LATCHED for
+//! the run -- switching mid-SCF would change the discrete functional being minimised.
 //!
 //! Its two directions are adjoint BY CONSTRUCTION -- same points, same weights, same basis evaluation, no
 //! truncation to get out of step -- so it is also the natural REFERENCE against which a screened
@@ -167,7 +168,8 @@ public:
 //! \warning It is \f$O(n_{pts}n^2)\f$ per direction with no sparsity, which is why production periodic runs
 //! use the screened realization instead.  Do not reach for this one on a large cell because it is simple.
 template <class T> class DenseMatrixIntegrator
-    : public virtual MatrixIntegrator<T>
+    : public virtual MatrixForward<T>
+    , public virtual MatrixAdjoint<T>
 {
 public:
     //! \a mesh and \a basis must outlive this object: it holds them by reference, because an integrator is
@@ -182,7 +184,7 @@ public:
     virtual rvec_t Forward(const hmat_t<T>& D) const override;
     virtual hmat_t<T> Adjoint(const rvec_t& v) const override
     {
-        assert(v.size()==itsMesh.size() && "MatrixIntegrator::Adjoint: one field value per mesh point");
+        assert(v.size()==itsMesh.size() && "DenseMatrixIntegrator::Adjoint: one field value per mesh point");
         return MatrixOverlap(itsMesh, itsBasis, v);
     }
     virtual double Integrate(const rvec_t& f) const override {return qcMesh::Integrate(itsMesh, f);}
@@ -199,7 +201,7 @@ private:
 template <class T> rvec_t DenseMatrixIntegrator<T>::Forward(const hmat_t<T>& D) const
 {
     const size_t n=itsBasis.GetVectorSize();
-    assert(D.rows()==n && "MatrixIntegrator::Forward: the density matrix must match the basis");
+    assert(D.rows()==n && "DenseMatrixIntegrator::Forward: the density matrix must match the basis");
     const rvec3vec_t& R=itsMesh.Points();
     rvec_t rho(itsMesh.size(), 0.0);
     for (size_t g=0; g<itsMesh.size(); g++)

@@ -1362,6 +1362,48 @@ MnO campaign proceeds undisturbed in qchem6.
       mixed pair, which is `LatchRoute` promoted from a runtime check to a type.
   ⚠ Both are real designs; (a) is cleaner and larger.  **Do not attempt either as "a rewiring".**
 
+  ---
+
+  ✅ **RESOLVED 2026-09-09 — AND NEITHER DESIGN ABOVE WAS NEEDED.  THE PREMISE WAS WRONG.**
+  (User: *"IrrepCD needs the Forward side … DeltaFunctionFitter needs the Adjoint side … nobody should need
+  both sides (MatrixIntegrator).  I believe the existence of the MatrixIntegrator interface is a mistake, it
+  just adds confusion.  We should remove it."*)
+
+  ⛔ **The blocker above — "`MatrixIntegrator` assumes ONE owner holds both directions" — was an artefact of
+  the named pair face, not of the tree.**  Nothing ever needed to hold both.  The census says so: across the
+  whole tree NOTHING held `MatrixIntegrator<T>` as a face.  `IrrepCD` holds the FORWARD
+  (`p.Forward(orb).Forward(D)`), `DeltaScalarFitter` holds the ADJOINT, and both producers named the
+  CONCRETE realization.  The middle face was an inheritance waypoint wearing an abstraction's clothes, and
+  the "ownership boundary" it appeared to straddle was the boundary between two CLIENTS — which is exactly
+  what handing out two halves is for.
+
+  ⇒ ✅ **`qcMesh::MatrixIntegrator<T>` IS DELETED.**  `DenseMatrixIntegrator` and
+  `ScreenedMatrixIntegrator` now derive from `MatrixForward<T>` + `MatrixAdjoint<T>` directly.
+  ★ **THE GUARANTEE MOVED FROM A TYPE TO A CONSTRUCTION.**  The no-mismatch property is: ONE concrete object
+  is built once, and its two halves go to the two clients that each need one — there is only one truncation
+  in play because there is only one object.  A named pair face added nothing to that and actively invited a
+  third client to hold both, which by the user's own SRP rule (2026-09-08: *"if a class has two integrators
+  that it needs to keep straight then SOLID::SRP dictates that class be divided"*) is already a design error
+  it would have legitimised.
+  ⚠ `NumCoefficients` stays declared on BOTH halves so each client can size its own arrays without holding
+  the other face; one override satisfies both, and two halves of one object describe one axis.
+
+  ▶ **"ACTOR 2" IS `DeltaScalarFitter`, AND IT ALREADY WAS.**  It builds one `ScreenedMatrixIntegrator` per
+  block (keyed by `Irrep`, beside the tensor it borrows, BY VALUE so the lifetime question has no answer to
+  get wrong) and hands each client its half: `IrrepCD` the forward through `ScalarProjector::Forward(orb)`,
+  the XC term the adjoint through `FitContraction::Overlap`.  ⇒ `ScalarProjector` is a per-block FORWARD
+  VENDOR, which the user ruled fine.  Note it vends N halves, one per block — not a single hidden pointer.
+
+  ⛔ **AND "INJECT AT CONSTRUCTION TIME" IS REACHABLE FOR THE FITTER BUT NOT FOR `IrrepCD`** — measured, not
+  assumed.  `IrrepCD_Factory` is called from `src/Orbitals/Internal/Imp/TOrbitals.C:228` inside
+  `GetChargeDensity()`; `qcOrbitals` links `qcChargeDensity qcBasisSet qcSymmetry qcStructure qcMath
+  qcCommon qcElConfig` and the XC fit basis is created in `Ham_PW_DFT`'s ctor, ABOVE it.  At `IrrepCD`
+  construction the integrator does not exist and nothing at that layer owns it.  Compounding it: a density
+  is a FRESH OBJECT EVERY SCF ITERATION while the integrators are geometry-fixed for the run, so
+  construction injection would re-hand them ~20 times per run for nothing.  ⇒ The call-time vendor is doing
+  real work here, not hiding laziness — and the per-block lookup must happen inside `IrrepCD` because that
+  is the only place its own block is known.
+
 - **R1.0l ✅ `MatrixIntegrator` + the `MatrixOverlap` rename — BUILT 2026-09-08.**
   (User: *"Can we make a MatrixIntegrator class that enforces no mismatch?"* and *"WeightedOverlap should
   be renamed MatrixOverlap … Everything in there is Weighted."*)

@@ -1,5 +1,5 @@
 // File: BasisSet/Lattice_3D/tests/ScreenedIntegratorUT.C  ScreenedMatrixIntegrator -- the Projector3 raw
-// pair behind the mesh-level MatrixIntegrator face.
+// pair behind the mesh-level MatrixForward/MatrixAdjoint faces.
 //
 // Synthetic closures, deliberately: what is under test is the ADAPTER and its contract, not GPW's
 // collocation.  A real screened pair needs a periodic Gaussian basis and belongs in the GPW gates; the
