@@ -188,6 +188,11 @@ public:
     //! rather than a live bug -- and FittedVxcPol, one object serving both spin channels, is exactly where
     //! it would have been sprung.  Keying the scratch removes the asymmetry instead of documenting it;
     //! the cost is one matrix per Irrep, the same bound the sibling already carries.
+    //! \copydoc tDynamic_HT::PrepareSlots
+    //! The scratch slots are pre-created too: this class recomputes unconditionally, but it still WRITES
+    //! into a per-Irrep map node, and an absent node is an insertion like any other.
+    virtual void PrepareSlots(const tbs_t<T>* bs) const override {this->PrepareCacheSlots(bs);}
+
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const
     {
         assert(bs);

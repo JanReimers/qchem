@@ -9,7 +9,8 @@
 // `tHamiltonian::RefreshForDensity` hoists that fill into an explicit phase before the loop.  THIS FILE
 // TESTS THE PLUMBING, which is the part that can silently rot: that the Hamiltonian folds the call over
 // every DYNAMIC term exactly once, that a STATIC term is never asked (it is density-independent by
-// definition, so it has nothing to warm), and that a term which does not override the hook is undisturbed.
+// definition, so it has nothing to warm), and and -- since 2026-09-10 -- that EVERY term answers, because both hooks are pure (a defaulted no-op
+// was letting terms that needed the phase silently skip it).
 //
 // ⚠ WHY A SPY AND NOT A REAL RUN.  The production terms warm real caches whose freshness is only
 // observable through a full GPW SCF; asserting "the second call was a cache hit" there needs an
@@ -50,12 +51,20 @@ private:
     rsmat_t itsM;
 };
 
-//! A dynamic term that does NOT override the hook -- it must still be reachable and must not be disturbed.
+//! A dynamic term whose honest answer to BOTH phases is "nothing to do".
+//!
+//! ⛔ IT USED TO BE "a term that does NOT override the hook", and that class no longer exists: both hooks
+//! are PURE since 2026-09-10 (user).  The defaulted no-op was hiding three terms that DID need the phase --
+//! two refitting lazily inside the block loop, one a forwarding term whose children the fold never reached.
+//! ⇒ A term with genuinely nothing to do now says so explicitly, which is the only way the ones that DO
+//! have something to do stay visible.
 class SilentDynamic : public virtual rDynamic_HT
 {
 public:
     virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&, const rChargeDensity*) const override
     { return itsM; }
+    virtual void RefreshForDensity(const rChargeDensity*) const override {}   // no memo: nothing to warm
+    virtual void PrepareSlots(const rbs_t*) const override {}                 // no cache: no slots
     virtual void GetEnergy(EnergyBreakdown&, const rDM_CD*) const override {}
     virtual std::ostream& Write(std::ostream& os) const override {return os;}
 private:

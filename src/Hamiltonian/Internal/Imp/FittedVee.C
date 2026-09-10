@@ -43,6 +43,14 @@ rsmat_t FittedVee::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensit
     return itsFittedChargeDensity->GetRepulsion(dft_bs);
 }
 
+// THE EAGER PHASE (R1.0h): fit ONCE, before the block loop, instead of on whichever block asked first.
+// Same guard as MakeMatrix's -- newCD is the density-serial test, so driving it here simply moves WHEN the
+// one fit happens; a caller outside the phase still gets a correct (lazily fitted) answer.
+void FittedVee::RefreshForDensity(const rChargeDensity* cd) const
+{
+    if (cd && newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
+}
+
 void FittedVee::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     assert(itsFittedChargeDensity);

@@ -85,6 +85,14 @@ FittedVxc::~FittedVxc() = default;   // out-of-line for the unique_ptr<FunctionF
 //
 //  This last part is carried out by the base class FitImplementation.
 
+// THE EAGER PHASE (R1.0h): the v_xc fit is k-INDEPENDENT, so hoist it out of the block loop.  ⚠ Only the
+// V half: the eps_xc fit beside it keys on a DIFFERENT density (the energy pass's rho_out against this
+// pass's rho_in -- see GetEMatrix), so warming it here would fit the wrong one.
+void FittedVxc::RefreshForDensity(const rChargeDensity* cd) const
+{
+    if (cd && newCD(cd)) itsFitter->DoFit(VxcDensity(itsEx.get(),cd));
+}
+
 rsmat_t FittedVxc::MakeMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
     if (newCD(cd))

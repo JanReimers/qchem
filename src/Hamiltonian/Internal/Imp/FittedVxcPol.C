@@ -90,6 +90,37 @@ void FittedVxcPol::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
     itsDownVxc->GetEnergy(te,dcd);
 }
 
+// FORWARD BOTH PHASES TO THE CHILDREN.  This class owns no cache and no fit; its two children each own
+// both, and the Hamiltonian's fold reaches only top-level terms -- so without these the children did their
+// refit and their slot insertion lazily, from inside the block loop, which is what the phase exists to
+// prevent.  (Silently, until the hooks were made pure on 2026-09-10.)
+void FittedVxcPol::RefreshForDensity(const rChargeDensity* cd) const
+{
+    if (!cd) return;
+    // ⛔ EACH CHILD GETS **ITS OWN SPIN CHANNEL**, exactly as GetMatrix hands it one -- forwarding the TOTAL
+    // here is silently WRONG, and the mechanism is the standing polarized-Version trap: a Polarized_CD's
+    // Version() FORWARDS TO ITS UP CHILD, so warming the Up child with the total would stamp itsFitVersion
+    // with a serial that the real Up channel then MATCHES -- newCD returns false, the refit never happens,
+    // and the run proceeds with v_xc fitted to rho_TOTAL instead of rho_UP.  (Measured 2026-09-10: three
+    // polarized molecular DFT gates failed on exactly that.)
+    const Polarized_CD* pol=dynamic_cast<const Polarized_CD*>(cd);
+    if (!pol)
+    {
+        // The spin-agnostic SEED, same case GetMatrix documents: Vx^sigma(rho/2) == Vx_unpol(rho_total),
+        // so both children legitimately warm on the total.
+        itsUpVxc  ->RefreshForDensity(cd);
+        itsDownVxc->RefreshForDensity(cd);
+        return;
+    }
+    itsUpVxc  ->RefreshForDensity(pol->GetChargeDensity(Spin::Up  ));
+    itsDownVxc->RefreshForDensity(pol->GetChargeDensity(Spin::Down));
+}
+void FittedVxcPol::PrepareSlots(const rbs_t* bs) const
+{
+    itsUpVxc->PrepareSlots(bs);
+    itsDownVxc->PrepareSlots(bs);
+}
+
 std::ostream& FittedVxcPol::Write(std::ostream& os) const
 {
     assert(itsUpVxc);

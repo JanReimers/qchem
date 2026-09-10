@@ -2851,6 +2851,65 @@ MnO campaign proceeds undisturbed in qchem6.
   ★ RELATED: [`project_functionfitter_isp_split`] already split `FunctionFitter` into Scalar/Density
   faces on exactly this kind of argument, so this is the same axis, one level down.
 
+- **V1.35 ★★ `Dynamic`-vs-`Static` AND THE BLOCK SCALAR ARE ORTHOGONAL AXES, AND THE TERM HIERARCHY HAS
+  FUSED THEM** (user, 2026-09-10: *"'real-block capability faces don't derive from tDynamic_HT' — this makes
+  no sense.  Dynamic_HT vs Static_HT and Real vs Complex are orthogonal issues."*).
+
+  ⛔ **AND MY JUSTIFICATION FOR LIVING WITH IT WAS WRONG, WHICH IS WHY THIS ROW EXISTS.**  R1.0h needed TWO
+  slot hooks (`PrepareSlots` + `PrepareRealSlots`) and I defended that with *"one hook would need a diamond
+  nobody wants"*.  CLAUDE.md says the exact opposite in as many words: this project uses diamond inheritance
+  through virtual bases DELIBERATELY and considers it harmless (*"there is a lot of misunderstanding around
+  this, which is why multiple inheritance was incorrectly banished from Java and C#"*).  "Diamond" is not an
+  argument.  The REAL reason two hooks were needed is the fusion below.
+
+  **WHAT IS THERE:**
+  ```
+  class Static_HT_RealBlock  : public virtual ChargeDensity::tStatic_CC<double>
+  class Dynamic_HT_RealBlock : public virtual ChargeDensity::Dynamic_CC_RealBlock
+  ```
+  Two ad-hoc PRODUCTS of two axes, each given its own name, and neither deriving from `tStatic_HT` /
+  `tDynamic_HT` at all — they derive from the *ChargeDensity* faces.  So there is no common base to put one
+  hook on, and every capability that spans both axes must be declared twice.
+
+  ▶ **WHY THEY EXIST, AND WHAT THE AXES ACTUALLY ARE.**  Not real-vs-complex: the signatures differ in the
+  DENSITY, not just the block —
+  ```
+  Dynamic_HT_RealBlock::GetMatrix(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*)
+  tDynamic_HT<double>::GetMatrix (const tobs_t<double>*, const Spin&, const tChargeDensity<double>*)
+  ```
+  A real TRIM block in a COMPLEX run gets the run's COMPLEX density.  ⇒ The axes are **(BLOCK scalar) ×
+  (RUN/density scalar)**, and `Dynamic_HT_RealBlock` is just the mixed corner `(double, dcmplx)`.
+
+  ✅ **THE CURE IS THE TREE'S OWN ESTABLISHED ANSWER TO THIS EXACT SHAPE**: a two-parameter template, as in
+  `Orbital_DFT_IBS<U,TFit>` and `FitContraction<U,TFit>` (block scalar × fit/run scalar).
+  `tDynamic_HT<TBlock,TRun=TBlock>` makes `Dynamic_HT_RealBlock` simply `tDynamic_HT<double,dcmplx>`;
+  likewise for the static side.  The `*_RealBlock` faces disappear, the second hook evaporates, and a term
+  that serves both corners inherits two INSTANTIATIONS of one template — a diamond, done correctly, which is
+  the house style.
+  ⚠ **The one thing to design rather than assume:** both instantiations' `PrepareSlots` would take
+  `tbs_t<TRun>*`, hence the SAME signature, so a term inheriting both must write one explicit override
+  calling both bases.  That is a feature — it is a compile error until the term states that it has two
+  caches, which is true and worth saying — but it should be a deliberate choice, not a surprise.
+  Also to settle: `GetEnergy(EnergyBreakdown&, const tDM_CD<T>*)` — which of the two `T`s — and the
+  `StaticRealBlockBase` / `DynamicRealBlockBase` `conditional_t` machinery, which this subsumes.
+
+- **V1.36 ▶ `FittedVcorrPol` REFITS ON EVERY CALL WHILE ITS SIBLINGS REFIT ONCE PER DENSITY** (surfaced
+  2026-09-10 by making `RefreshForDensity` pure — user: *"which then isolates FittedVcorrPol and forces us to
+  ask why does it refit on every call when none of the other fitted terms need to do that?"*).
+
+  `FittedVee` and `FittedVxc` both guard with `newCD(cd)` and fit once per density serial; `FittedVcorrPol`
+  calls `itsVcFitter->DoFit(vc)` with **no guard at all**, so it pays a fit per block per spin.  It is the
+  only term in the set whose honest answer to the eager phase is `{}` — and that emptiness is a SYMPTOM, not
+  a property: it has nothing to warm *because it memoizes nothing*.
+
+  ▶ **The stated obstacle does not obviously hold.**  \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$ COUPLES
+  the channels, so a memo must key on (density serial, spin) rather than on the serial alone — which is
+  exactly what `FittedVxc`'s sibling pair under `FittedVxcPol` already does.  ⇒ Measure the cost first (it is
+  a molecular-path term, so the blocks are irreps not k-points, and the fit basis is the Gaussian auxiliary
+  one), then either add the two-key memo or record why the coupling really does forbid it.
+  ★ The process lesson is the durable half: **a defaulted no-op hid this for as long as it existed.**  Making
+  the hook pure did not fix a bug — it made an outlier state its own oddity out loud.
+
 ### V1.33 — THE BasisSet TAXONOMY IS THE WRONG AXIS (user, 2026-08-20)
 
 `src/BasisSet/{Atom, Molecule, Lattice_3D}` classifies by PHYSICAL SYSTEM, but what the directories

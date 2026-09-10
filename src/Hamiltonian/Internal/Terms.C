@@ -238,6 +238,10 @@ public:
     typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
     FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons);
     ~FittedVee();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
+    //! \copydoc tDynamic_HT::RefreshForDensity
+    //! The fitted charge density is k-INDEPENDENT and refit once per density serial, so it is exactly what
+    //! this phase is for.  It used to be fit LAZILY inside \c MakeMatrix, i.e. from inside the block loop.
+    virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
 private:
@@ -270,6 +274,11 @@ public:
 
     FittedVxc(fbs_t& VxcFitBasisSet, ex_t&);
     ~FittedVxc();
+    //! \copydoc tDynamic_HT::RefreshForDensity
+    //! Warms the POTENTIAL fit \f$v_{xc}[\rho]\f$ (the V half).  ⚠ NOT the \f$\epsilon_{xc}\f$ fit beside
+    //! it: that one keys on a DIFFERENT density -- the Fock build's \f$\rho_{in}\f$ against the energy's
+    //! \f$\rho_{out}\f$ -- so warming it here would fit the wrong one and it would be refit anyway.
+    virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const override;
     //! The ENERGY block: re-fits eps_xc for this density and returns Sum_a c_a <Oi|f_a|Oj> for contraction.
     virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const override;
@@ -301,6 +310,15 @@ public:
     //! child's: valid until the next call for the same Irrep on that child.
     virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
     // Required by HamiltonianTerm
+    //! \copydoc tDynamic_HT::RefreshForDensity
+    //! ⛔ A FORWARDING TERM MUST FORWARD, and until the hooks became pure (2026-09-10) this one silently did
+    //! not: the Hamiltonian's fold reaches only TOP-LEVEL terms, so these two children -- each a full
+    //! caching, fitting \c FittedVxc -- were never warmed and never pre-slotted, and did both lazily from
+    //! inside the block loop.  Owning children means owning their share of every phase.
+    virtual void RefreshForDensity(const rChargeDensity* cd) const override;
+    //! \copydoc tDynamic_HT::PrepareSlots
+    //! Forwarded for the same reason: this class owns no cache, its two children each own one.
+    virtual void PrepareSlots(const rbs_t* bs) const override;
     virtual void GetEnergy       (EnergyBreakdown&,const rDM_CD* cd         ) const;
     virtual bool IsPolarized() const {return true;}
 
@@ -332,6 +350,19 @@ public:
 
     FittedVcorrPol(fbs_t&, corr_t&);
    ~FittedVcorrPol();
+    //! \copydoc tDynamic_HT::RefreshForDensity
+    //! ⛔ **THE ONE GENUINE NO-OP IN THE TERM SET -- AND IT IS A QUESTION, NOT AN ANSWER.**
+    //!
+    //! This term has nothing to warm because it has no MEMO: it refits \f$v_c^\sigma\f$ on EVERY call
+    //! (`itsVcFitter->DoFit(vc)`, no density-serial guard), unlike \c FittedVee and \c FittedVxc, which both
+    //! guard with \c newCD and refit once per density.  So the empty body is not "this term is simple"; it
+    //! is "this term pays a fit per block per spin that its siblings pay once".
+    //!
+    //! ▶ The obstacle is not obviously real: \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$ COUPLES the
+    //! channels, so a memo must key on the density serial AND the spin -- which is exactly what
+    //! \c FittedVxc's sibling pair already does.  Making the hook PURE is what surfaced this (user,
+    //! 2026-09-10): a defaulted no-op kept it invisible.  Filed as \c doc/CleanupCandidates.md **V1.36**.
+    virtual void RefreshForDensity(const rChargeDensity*) const override {}
     virtual void GetEnergy (EnergyBreakdown&, const rDM_CD* cd) const override;
     //! The ENERGY block: fits eps_c(rho_up,rho_down) from the full Polarized_CD and returns its overlap
     //! matrix.  Spin-INDEPENDENT as a value, so contracting it over both channels gives

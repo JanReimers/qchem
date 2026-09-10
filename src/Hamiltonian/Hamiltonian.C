@@ -47,7 +47,8 @@ public:
     //! once and every later call is a lookup.  It is here anyway because iteration ONE would otherwise still
     //! insert from inside the block loop -- the phase is about the loop being read-only, and "read-only from
     //! the second iteration" is not that.
-    virtual void PrepareSlots(const tbs_t<T>*) const {}
+    //! ⛔ PURE, like the dynamic sibling: a defaulted no-op is how a term silently skips a phase it needs.
+    virtual void PrepareSlots(const tbs_t<T>*) const=0;
     //! Add this term's energy contribution (contracted against the density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
@@ -104,9 +105,17 @@ public:
     //! written during the block loop.  Claiming more -- asserting the lazy path unreachable -- would be
     //! false: energy evaluation and the unit tests drive terms outside any prologue.
     //!
-    //! Default: no-op.  A term with no density-dependent memo has nothing to warm and must not be made to
-    //! say so.
-    virtual void RefreshForDensity(const tChargeDensity<T>*) const {}
+    //! ⛔ **PURE, NOT DEFAULTED (user, 2026-09-10).**  It used to default to a no-op "because a term with no
+    //! density-dependent memo has nothing to warm".  That set turned out to be EMPTY, and the sentence was
+    //! hiding real gaps -- anything deriving from \c tDynamic_HT is density-dependent BY DEFINITION, so the
+    //! question always has a real answer.  A census of all eight concrete derivations found: four override
+    //! it; \c FittedVee and \c FittedVxc have a k-independent fitted potential they were refitting LAZILY,
+    //! from inside the block loop, which is exactly what this phase exists to hoist out; \c FittedVxcPol is
+    //! a FORWARDING term whose two children were never reached by the fold at all.  A silent default let all
+    //! three opt out of a phase they needed.
+    //! ⇒ Every term ANSWERS, and a term with genuinely nothing to warm writes `{}` and says WHY -- which
+    //! ISOLATES the one such term (\c FittedVcorrPol) instead of hiding it in a default.
+    virtual void RefreshForDensity(const tChargeDensity<T>*) const=0;
     //! \brief THE OTHER HALF OF THE SAME PHASE (R1.0h, 2026-09-09): CREATE this iteration's per-irrep cache
     //! slots for the blocks of \a bs, so the Fock loop below only FILLS nodes that already exist.
     //!
@@ -121,8 +130,10 @@ public:
     //! unit tests drive terms outside any prologue.  What the phase buys is that in the ORDINARY path the
     //! loop performs no insertion.
     //!
-    //! Default: no-op.  A term with no irrep-keyed cache has no slots and must not be made to say so.
-    virtual void PrepareSlots(const tbs_t<T>*) const {}
+    //! ⛔ PURE, for the same reason \c RefreshForDensity is (see there).  And more so: since R1.0h every
+    //! caching term has an irrep-keyed cache BY CONSTRUCTION, so "no slots to prepare" is an even smaller
+    //! set than "no memo to warm".
+    virtual void PrepareSlots(const tbs_t<T>*) const=0;
     //! \copybrief tDynamic_CC::GetEMatrix
     //! Default: \f$E=D\cdot V\f$, so the energy matrix IS the potential block.  Overridden ONLY where that
     //! identity fails -- the xc family, whose energy density \f$\epsilon_{xc}\f$ is not its potential
@@ -216,7 +227,7 @@ public:
     // GetMatrix(const tobs_t<double>*, const Spin&) comes from tStatic_CC<double> -- one declaration,
     // one override (the caching Imp mixin's), serving BOTH the Fock fold and the energy contraction.
     //! \copydoc Dynamic_HT_RealBlock::PrepareRealSlots
-    virtual void PrepareRealSlots(const tbs_t<dcmplx>*) const {}
+    virtual void PrepareRealSlots(const tbs_t<dcmplx>*) const=0;
 };
 class Dynamic_HT_RealBlock
     : public virtual ChargeDensity::Dynamic_CC_RealBlock
@@ -227,10 +238,20 @@ public:
     //! block-independent, so the real block consumes the same \f$V_H(G)\f$ / \f$\rho\f$ raster.
     virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const=0;
     //! \brief The real-block sibling of \c tDynamic_HT::PrepareSlots (R1.0h) -- see it for the rationale.
-    //! A SEPARATE virtual, and it has to be: this capability face does NOT derive from \c tDynamic_HT, so
-    //! there is no shared slot to override, and giving the two caches one hook would need a diamond nobody
-    //! wants.  Two caches, two hooks, folded together by the Hamiltonian.
-    virtual void PrepareRealSlots(const tbs_t<dcmplx>*) const {}
+    //!
+    //! ⛔ **A SEPARATE VIRTUAL ONLY BECAUSE THE HIERARCHY IS WRONG HERE, AND THAT IS A DEFECT, NOT A
+    //! JUSTIFICATION** (user, 2026-09-10).  An earlier version of this note blamed "a diamond nobody
+    //! wants".  That was backwards: CLAUDE.md states that this project uses diamond inheritance through
+    //! virtual bases DELIBERATELY and considers it harmless, so "diamond" is not an argument against
+    //! anything.  The real reason two hooks were needed is that **Dynamic-vs-Static and the BLOCK SCALAR
+    //! are ORTHOGONAL AXES that this hierarchy has fused**: this face does not derive from
+    //! \c tDynamic_HT at all, it derives from a \c ChargeDensity CC face, so there is no common base to
+    //! put ONE hook on.
+    //! ▶ The principled cure, filed as \c doc/CleanupCandidates.md **V1.35**: the axes are (BLOCK scalar)
+    //! x (RUN/density scalar), which is the shape \c Orbital_DFT_IBS<U,TFit> and \c FitContraction<U,TFit>
+    //! already solve with a two-parameter template.  \c tDynamic_HT<TBlock,TRun=TBlock> would make this
+    //! face simply \c tDynamic_HT<double,dcmplx>, and the second hook would evaporate.
+    virtual void PrepareRealSlots(const tbs_t<dcmplx>*) const=0;
 };
 
 //! \brief The REAL-BLOCK ASSEMBLY face of a complex-run Hamiltonian (Step 3c-2): fold the term set's
