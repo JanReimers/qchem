@@ -1538,6 +1538,45 @@ MnO campaign proceeds undisturbed in qchem6.
   **for its client**, not for its responsibility.  `\rho` at points and the adjoint back is what it does, and
   a Hartree term or a \f$+U\f$ projector would want the same object.  ▶ Rename with the relocation.
 
+  ✅ **RENAMED 2026-09-09 — `XC_Quadrature` → `DensitySampler`** (`SinglesDensitySampler` /
+  `PairDensitySampler` / `MakeDensitySampler`; module `qchem.Hamiltonian.Internal.DensitySampler`; files
+  `Internal/DensitySampler.C` + `Internal/Imp/DensitySampler_{Singles,Pair}.C`).  The terms' `quad_t itsQuad`
+  became `sampler_t itsSampler`; ⚠ `SinglesDensitySampler::itsQuad` KEEPS its name — that one is the
+  `FoldedMesh`, which genuinely IS a quadrature.  **850/850.**
+  ▶ **"Singles" and "Pair" are kept as real domain vocabulary**: \f$\rho\f$ from a table of SINGLE basis
+  functions \f$\Phi_{gi}\f$, versus \f$\rho\f$ collocated from the DM through the orbital-PAIR 3-centre
+  tensor.
+  ★ **RENAMED IN PLACE, ahead of the relocation this row originally wanted to bundle it with** (user
+  ruling): the library-home decision is parked as R1.0e and may sit, the misleading name costs reading time
+  every day, and a later `git mv` is cheap and independent.
+
+  ★★ **AND IT IS NAMED FOR WHAT IT WILL BE, NOT FOR WHAT IT STILL HOLDS — deliberately** (user: *"rename and
+  narrow"*).  `Matrix`, `Integrate`/`NumPoints` and `SiteMoments` are still in there and now read as the
+  misfits they are instead of being blessed by the name.  ⇒ **THEY ALL LEAVE WITH R1.0h, NOT SEPARATELY**,
+  and the reasons are structural, measured 2026-09-09:
+  - `Matrix` + `Integrate` cannot leave on their own without splitting the forward/adjoint pairing that
+    `LatchRoute` guards.  ⚠ **`LatchRoute` is NOT redundant** — an earlier guess that the per-block
+    `BlockAdjoint` had made it so was WRONG.  It guards the FORWARD's route (RAW collocated
+    \f$\rho_{DM}\f$ vs BALL round trip, which minimise different functionals) against changing mid-SCF, a
+    per-DENSITY decision taken in `SampleOne`.
+  - `SiteMoments` needs an observable owner AND the "fire exactly once per new density" coupling that only
+    the sampler knows (`EmitSiteMoments` is called from inside `RhoPol`'s serial-advance branch).
+    `PartitionedMoments` is already just a null-guard plus `qcMesh::SiteIntegrals` — nothing to move.
+
+  ★★★ **WHY R1.0h AND NOT A PROJECT OF ITS OWN.**  The class existed so the exchange and correlation terms
+  could share ONE collocation — without it the pair re-evaluated the Bloch image sums pointwise four times
+  per iteration (4.8 s/iteration on NaF, essentially the whole Becke premium), and the user confirms that
+  sharing is *"very important"*.  ⚠ But since the 2026-09-04 one-gather change `MakeVxcTerms` builds ONE
+  term (`Vxc_QuadraturePol` is now constructed only in a test), so the surviving sharing is between that
+  term's FOCK pass and its ENERGY pass — **the same shape and the same cause as R1.0h's \f$H_{ij}\f$ cache**
+  (the energy pass re-asks for what the Fock pass just built).  Solve them apart and you build the
+  per-iteration scope twice, or build it for \f$H_{ij}\f$ and leave \f$\rho\f$ on ad-hoc `mutable` serial
+  guards.  ⛔ And do not "eliminate" the sampler by pushing \f$\rho\f$ back into the terms: that is how the
+  4.8 s/iteration comes back.
+  ⚠ **Do not drop `itsSrcVersion` on the way out.**  It is a deliberately LIVE staleness check, not an
+  assert (the Step-0a defect was invisible under NDEBUG); without an equivalent, the DM-source route can be
+  served a stale \f$\rho\f$ that reports fresh.
+
   ✅ **(2) IT IS DOING A LOT THAT IS NOT QUADRATURE.**  Of `XC_SinglesQuadrature`'s 13 members, **2** are
   quadrature (`Integrate`, `NumPoints`).  The rest: `Rho`/`RhoPol`/`WarmForDensity` (density sampling +
   per-serial caching), `SiteMoments`/`PartitionedMoments`/`EmitSiteMoments` (an observable and its
@@ -1651,8 +1690,8 @@ MnO campaign proceeds undisturbed in qchem6.
   | `Imp/PWTerms_PP.C` | `Ven_PP_Short` / `_Long` / `_NonLocal` + the G=0 alignment | 212 |
   | `Imp/PWTerms_Hartree.C` | `Vee_Hartree` | 148 |
   | `Imp/PWTerms_XC.C` | `Vxc_Quadrature`, `Vxc_QuadraturePol`, `Vcorr_QuadraturePol`, `MakeVxcTerms` | 173 |
-  | `Imp/XCQuadrature_Pair.C` | the PAIR strategy | 319 |
-  | `Imp/XCQuadrature_Singles.C` | the SINGLES strategy | 477 |
+  | `Imp/DensitySampler_Pair.C` | the PAIR strategy | 319 |
+  | `Imp/DensitySampler_Singles.C` | the SINGLES strategy | 477 |
 
   Helpers used by more than one unit (`NarrowExact`, `SampledField`) moved to the interface's
   **non-exported** section — module linkage is exactly their scope, and duplicating them per unit would

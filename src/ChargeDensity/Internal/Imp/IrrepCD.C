@@ -622,7 +622,7 @@ template class PeriodicIrrepCD<dcmplx>;
 // lineage capabilities -- is the Leaf's, inherited untouched.
 //
 // THE MEMO IS THE POINT AS MUCH AS THE GEMM.  Before this leaf existed the factorisation ran INSIDE
-// ProjectOnto, i.e. an O(n^3) pstrf on EVERY call -- and XC_Quadrature::RhoPol calls it twice per
+// ProjectOnto, i.e. an O(n^3) pstrf on EVERY call -- and DensitySampler::RhoPol calls it twice per
 // iteration (one per spin channel).  Keyed on the density serial, the factor is now built once per D.
 //
 template <class Leaf> rvec_t FactoredRho<Leaf>::ProjectOnto(const Fitting::ScalarProjector& p) const

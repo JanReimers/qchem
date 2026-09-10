@@ -13,14 +13,14 @@ module;
 #include <iosfwd>
 #include <map>
 #include <set>      // Ven_PP_NonLocal::itsByLSeen (the GPW_NL_PER_L diagnostic)
-#include <vector>   // XC_SinglesQuadrature sigmas/flipFixed (Shubnikov S3)
+#include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
 #include <memory>
 #include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
-import qchem.Hamiltonian.Internal.XCQuadrature; // the XC SAMPLING ENGINE the three XC terms compose with.
+import qchem.Hamiltonian.Internal.DensitySampler; // the XC SAMPLING ENGINE the three XC terms compose with.
                                                 // NOT re-exported: it is an .Internal. module, so a client
-                                                // that wants MakeXCQuadrature imports it by name (CLAUDE.md).
+                                                // that wants MakeDensitySampler imports it by name (CLAUDE.md).
 import qchem.BasisSet.Orbital_DFT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
 import qchem.BasisSet.G_FieldEvaluator;      // G_RasterTransform -- the pair route asks its raster for size/quadrature
 import qchem.Fitting.FunctionFitter;         // FunctionFitter_Density<dcmplx> (the fitter Vee_Hartree holds, built once)
@@ -244,13 +244,13 @@ private:
 //! It owns the PHYSICS and nothing else: map the functional over \f$\rho\f$ at the quadrature's points,
 //! hand the resulting field back for the adjoint assembly, and integrate \f$\int\epsilon_{xc}\rho\f$ on
 //! the same weights.  WHICH points, WHICH representation and WHICH assembly strategy are all inside the
-//! \c XC_Quadrature it was built with, so this one term serves every combination -- δ on Becke, δ on the
+//! \c DensitySampler it was built with, so this one term serves every combination -- δ on Becke, δ on the
 //! uniform cell mesh, plane-wave on the raster.
 //!
 //! It was \c DeltaFittedVxc, the Becke-route term, while the raster route had a term of its own
 //! (\c PWFittedVxc) that duplicated this logic around its own ρ/H pair.  Two terms for one formula
 //! \f$H_{ij}=\sum_g w_g v(r_g)\chi_i\chi_j\f$: the difference between them was never the physics, only the
-//! evaluation order, which is exactly what \c XC_Quadrature's two implementations now hold.
+//! evaluation order, which is exactly what \c DensitySampler's two implementations now hold.
 class Vxc_Quadrature
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
@@ -258,8 +258,8 @@ class Vxc_Quadrature
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
-    typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
-    Vxc_Quadrature(const xc_t&, quad_t);
+    typedef std::shared_ptr<const DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
+    Vxc_Quadrature(const xc_t&, sampler_t);
     //! Pre-warm \f$\rho\f$ on the quadrature's points for \a cd (the EAGER REFRESH PHASE).  Delegated to
     //! the shared engine, so the XC PAIR warms once between them.
     virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
@@ -271,7 +271,7 @@ private:
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     xc_t     itsXc;
-    quad_t   itsQuad;   //!< the shared mesh + Phi tables + per-serial rho (one per XC pair)
+    sampler_t   itsSampler;   //!< the shared mesh + Phi tables + per-serial rho (one per XC pair)
 };
 
 //! SPIN-NATIVE exchange on the Becke quadrature (SymmetryUpgradePlan §4 tier 4b) -- the periodic sibling
@@ -279,7 +279,7 @@ private:
 //! spin-tagged \c SlaterExchange -- it must NOT halve \f$\rho\f$; construct with \c SlaterExchange(alpha,
 //! \c Spin::Up)) serves both channels: the Fock build calls \c MakeMatrix per spin block and each fits
 //! \f$v_x^\sigma=v_x(\rho_\sigma)\f$; \f$E_x=\sum_\sigma\int\epsilon_x(\rho_\sigma)\rho_\sigma\f$.
-//! Shares the pair's ONE \c XC_Quadrature with the correlation term, exactly like the unpolarized pair.
+//! Shares the pair's ONE \c DensitySampler with the correlation term, exactly like the unpolarized pair.
 class Vxc_QuadraturePol
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
@@ -290,8 +290,8 @@ public:
     //! (doc/OpenWork.md N1/T2).  Empty when the quadrature has no site blocks (a uniform raster).
     virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
     typedef std::shared_ptr<ExFunctional>  xc_t;
-    typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
-    Vxc_QuadraturePol(const xc_t&, quad_t);
+    typedef std::shared_ptr<const DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
+    Vxc_QuadraturePol(const xc_t&, sampler_t);
     //! Pre-warm the \f${\uparrow,\downarrow}\f$ pair on the quadrature's points (the EAGER REFRESH PHASE).
     virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
@@ -303,14 +303,14 @@ private:
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     xc_t     itsXc;       //!< channel-native (non-halving) exchange functional, shared across channels
-    quad_t   itsQuad;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
+    sampler_t   itsSampler;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
 };
 
 //! SPIN-NATIVE correlation on the Becke quadrature -- the periodic sibling of the molecular
 //! FittedVcorrPol.  Correlation does NOT separate by channel: \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$
 //! couples both densities (through \f$r_s\f$ and \f$\zeta\f$), so this term evaluates the \c SpinCorrelation
 //! face against BOTH channel rasters at each mesh point; \f$E_c=\int\epsilon_c(\rho_\uparrow,\rho_\downarrow)
-//! (\rho_\uparrow+\rho_\downarrow)\f$.  The spin-agnostic seed collapses inside \c XC_Quadrature::RhoPol
+//! (\rho_\uparrow+\rho_\downarrow)\f$.  The spin-agnostic seed collapses inside \c DensitySampler::RhoPol
 //! (\f$\rho_\sigma=\rho/2\f$), so no term-side fallback is needed.
 //! ★ AND SINCE 2026-09-04 IT IS THE WHOLE SPIN-NATIVE XC TERM, not the correlation half of a pair.
 //! \c MakeVxcTerms hands it a \c CompositeExFunctional carrying exchange AND correlation, so its
@@ -323,8 +323,8 @@ class Vcorr_QuadraturePol
 {
 public:
     typedef std::shared_ptr<SpinCorrelation> corr_t;
-    typedef std::shared_ptr<const XC_Quadrature> quad_t;   //!< const: every accessor is const (R2.9(i))
-    Vcorr_QuadraturePol(const corr_t&, quad_t);
+    typedef std::shared_ptr<const DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
+    Vcorr_QuadraturePol(const corr_t&, sampler_t);
     //! The atom-centred partition lives on my quadrature, so I am the term that can answer this
     //! (doc/OpenWork.md N1/T2).  Empty when the quadrature has no site blocks (a uniform raster).
     //! ⚠ MOVED HERE from Vxc_QuadraturePol when the pair collapsed into one term: the Hamiltonian polls
@@ -341,7 +341,7 @@ private:
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
 
     corr_t   itsCorr;     //!< the spin-native correlation functional (VWN5's two-channel face)
-    quad_t   itsQuad;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
+    sampler_t   itsSampler;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
 };
 
 
@@ -361,7 +361,7 @@ MakeVxcTerms(const std::shared_ptr<ExFunctional>& exch, const std::shared_ptr<C>
              const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb, bool polarized,
              BasisSet::FitQuadrature quad={})
 {
-    std::shared_ptr<const XC_Quadrature> q=MakeXCQuadrature(fb, std::move(quad));
+    std::shared_ptr<const DensitySampler> q=MakeDensitySampler(fb, std::move(quad));
     std::vector<std::unique_ptr<cDynamic_HT>> terms;
     // ★ ONE TERM, NOT A PAIR (2026-09-04).  Each term does its OWN real-space gather of its potential, and
     // the gather is LINEAR: <i|v_x|j> + <i|v_c|j> == <i|(v_x+v_c)|j>.  Two terms therefore bought two

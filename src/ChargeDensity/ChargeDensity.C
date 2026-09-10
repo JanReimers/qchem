@@ -431,7 +431,7 @@ public:
     //! Stated rather than inherited since 2026-08-25: the base default was measured dead and removed, and
     //! a polarized density genuinely does have an answer here (a spin-agnostic consumer asking a polarized
     //! density for \f$\rho\f$ wants the total).  Note the SPIN-RESOLVED consumer does not come here at
-    //! all -- \c XC_SinglesQuadrature::RhoPol asks each CHANNEL, because it needs them apart.
+    //! all -- \c SinglesDensitySampler::RhoPol asks each CHANNEL, because it needs them apart.
     virtual rvec_t ProjectOnto(const Fitting::ScalarProjector&) const;
 
     virtual double GetTotalCharge() const;  // <ro>
@@ -466,7 +466,7 @@ using cPolarized_CD = tPolarized_CD<dcmplx>;   // the polarized plane-wave (Bloc
 //  contract -- the matrix-free polarized sibling of tPolarized_CD's channel accessor.  A spin-SAD
 //  seed (doc/SCFSeedingPlan.md §10) has per-channel densities but no density matrix, so it cannot
 //  be a tPolarized_CD (whose channels are tDM_CD, with the DM-only pure virtuals); it exposes its
-//  channels through THIS face instead, and a spin-native consumer (XC_Quadrature::RhoPol) cross-casts
+//  channels through THIS face instead, and a spin-native consumer (DensitySampler::RhoPol) cross-casts
 //  abstract->abstract and reads each channel through the plain tChargeDensity face (the batched op()) --
 //  capabilities live only on the types that have them (no asserting DM stubs).
 //

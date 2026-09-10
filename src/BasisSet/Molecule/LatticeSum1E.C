@@ -196,7 +196,7 @@ public:
 //! ladder, and the integrate-back adjoint.
 //!
 //! Segregated 2026-09-08 -- this is the (integration grid) x (fit basis) axis pair (doc/Pins.md pin 2),
-//! not a 1E integral, and it is the same concern the Hamiltonian-side `XC_Quadrature` engine owns from
+//! not a 1E integral, and it is the same concern the Hamiltonian-side `DensitySampler` engine owns from
 //! the other end (doc/CleanupCandidates.md R1.0e).  ⚠ The two are DELIBERATELY not merged yet: they are
 //! opposite ends of one seam and moving both at once makes neither reviewable.
 class LatticeCollocation

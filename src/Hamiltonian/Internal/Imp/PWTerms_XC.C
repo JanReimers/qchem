@@ -41,11 +41,11 @@ namespace qchem::Hamiltonian
 
 // Built with the SHARED quadrature engine (the caller builds ONE engine per XC pair -- mesh + Phi tables
 // + per-serial rho -- and hands it to both the exchange and the correlation term).
-Vxc_Quadrature::Vxc_Quadrature(const xc_t& xc, quad_t quad)
+Vxc_Quadrature::Vxc_Quadrature(const xc_t& xc, sampler_t quad)
     : itsXc(xc)
-    , itsQuad(std::move(quad))
+    , itsSampler(std::move(quad))
 {
-    assert(itsQuad);
+    assert(itsSampler);
 }
 
 // v_xc(rho_g) pointwise on the engine's shared rho, then the engine's Phi-table quadrature (one GEMM).
@@ -53,21 +53,21 @@ Vxc_Quadrature::Vxc_Quadrature(const xc_t& xc, quad_t quad)
 // ensure hint (complex map) and the final quadrature (typed Phi table) differ, both handled below.
 template <class U> hmat_t<U> Vxc_Quadrature::MakeMatrixT(const tobs_t<U>* bs, const Spin&, const cChargeDensity* cd) const
 {
-    const rvec_t& rho=itsQuad->Rho(cd);
+    const rvec_t& rho=itsSampler->Rho(cd);
     rvec_t v(rho.size());
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
-    return itsQuad->Matrix(bs, v);
+    return itsSampler->Matrix(bs, v);
 }
 chmat_t Vxc_Quadrature::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
 rsmat_t Vxc_Quadrature::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
 void Vxc_Quadrature::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    const rvec_t& rho=itsQuad->Rho(cd);   // reuses the iteration's table (same density serial)
+    const rvec_t& rho=itsSampler->Rho(cd);   // reuses the iteration's table (same density serial)
     rvec_t exc(rho.size());
     for (size_t g=0; g<rho.size(); g++) exc[g]=itsXc->GetEpsXc(rho[g])*rho[g];
-    const double q=itsQuad->Integrate(rho);
-    te.Exc += itsQuad->Integrate(exc);     // E_xc = integral eps_xc(rho) rho, on the quadrature's weights
+    const double q=itsSampler->Integrate(rho);
+    te.Exc += itsSampler->Integrate(exc);     // E_xc = integral eps_xc(rho) rho, on the quadrature's weights
     // The mesh-charge leak (the quadrature's health metric -- CP2K's grid-charge-lost readout): the
     // quadrature integral of rho vs the analytic Tr(DS).
     te.GridChargeLost = q - cd->GetTotalCharge();
@@ -76,88 +76,88 @@ void Vxc_Quadrature::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 std::ostream& Vxc_Quadrature::Write(std::ostream& os) const
 {
     return os << "    XC-mesh exchange-correlation potential v_xc(rho(r)) ("
-              << itsQuad->NumPoints() << " atom-centred points)." << std::endl;
+              << itsSampler->NumPoints() << " atom-centred points)." << std::endl;
 }
 
 // ---- Vxc_QuadraturePol (spin-native exchange, tier 4b) --------------------------------------------------------
 
-Vxc_QuadraturePol::Vxc_QuadraturePol(const xc_t& xc, quad_t quad)
+Vxc_QuadraturePol::Vxc_QuadraturePol(const xc_t& xc, sampler_t quad)
     : itsXc(xc)
-    , itsQuad(std::move(quad))
+    , itsSampler(std::move(quad))
 {
     assert(itsXc);
-    assert(itsQuad);
+    assert(itsSampler);
 }
 
 // v_x^sigma(rho_sigma) pointwise on this block's own channel raster, then the shared Phi quadrature.
 template <class U> hmat_t<U> Vxc_QuadraturePol::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "Vxc_QuadraturePol: a polarized term needs an Up/Down spin");
-    const rvec_t& rho=itsQuad->RhoPol(cd, s);
+    const rvec_t& rho=itsSampler->RhoPol(cd, s);
     rvec_t v(rho.size());
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
-    return itsQuad->Matrix(bs, v);
+    return itsSampler->Matrix(bs, v);
 }
 // T2 (doc/OpenWork.md N1): forward to the quadrature, which owns the atom-centred partition.  Empty when
 // it has none -- the caller (SolidCalculation) treats empty as "this run cannot answer", never as "zero".
-rvec_t Vxc_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return itsQuad->SiteMoments(cd);}
-rvec_t Vcorr_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return itsQuad->SiteMoments(cd);}
+rvec_t Vxc_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return itsSampler->SiteMoments(cd);}
+rvec_t Vcorr_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return itsSampler->SiteMoments(cd);}
 
 chmat_t Vxc_QuadraturePol::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
 rsmat_t Vxc_QuadraturePol::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
 void Vxc_QuadraturePol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    const rvec_t& up=itsQuad->RhoPol(cd, Spin::Up  );
-    const rvec_t& dn=itsQuad->RhoPol(cd, Spin::Down);
+    const rvec_t& up=itsSampler->RhoPol(cd, Spin::Up  );
+    const rvec_t& dn=itsSampler->RhoPol(cd, Spin::Down);
     rvec_t exc(up.size());
     for (size_t g=0; g<up.size(); g++)
         exc[g]=itsXc->GetEpsXc(up[g])*up[g] + itsXc->GetEpsXc(dn[g])*dn[g];   // E_x = Σ_σ ∫ ε_x(ρ_σ) ρ_σ
-    const double q=itsQuad->Integrate(rvec_t(up+dn));
-    te.Exc += itsQuad->Integrate(exc);
+    const double q=itsSampler->Integrate(rvec_t(up+dn));
+    te.Exc += itsSampler->Integrate(exc);
     te.GridChargeLost = q - cd->GetTotalCharge();   // mesh-charge leak (same health metric as Vxc_Quadrature)
 }
 
 std::ostream& Vxc_QuadraturePol::Write(std::ostream& os) const
 {
     return os << "    XC-mesh SPIN-NATIVE exchange v_x(rho_sigma(r)) ("
-              << itsQuad->NumPoints() << " atom-centred points)." << std::endl;
+              << itsSampler->NumPoints() << " atom-centred points)." << std::endl;
 }
 
 // ---- Vcorr_QuadraturePol (spin-native correlation, tier 4b) ---------------------------------------------------
 
-Vcorr_QuadraturePol::Vcorr_QuadraturePol(const corr_t& corr, quad_t quad)
+Vcorr_QuadraturePol::Vcorr_QuadraturePol(const corr_t& corr, sampler_t quad)
     : itsCorr(corr)
-    , itsQuad(std::move(quad))
+    , itsSampler(std::move(quad))
 {
     assert(itsCorr);
-    assert(itsQuad);
+    assert(itsSampler);
 }
 
 // v_c^sigma(rho_up,rho_down) couples BOTH channel rasters at every point (through r_s and zeta).
 template <class U> hmat_t<U> Vcorr_QuadraturePol::MakeMatrixT(const tobs_t<U>* bs, const Spin& s, const cChargeDensity* cd) const
 {
     assert(s!=Spin::None && "Vcorr_QuadraturePol: a polarized term needs an Up/Down spin");
-    const rvec_t& up=itsQuad->RhoPol(cd, Spin::Up  );
-    const rvec_t& dn=itsQuad->RhoPol(cd, Spin::Down);
+    const rvec_t& up=itsSampler->RhoPol(cd, Spin::Up  );
+    const rvec_t& dn=itsSampler->RhoPol(cd, Spin::Down);
     rvec_t v(up.size());
     for (size_t g=0; g<up.size(); g++) v[g]=itsCorr->GetVc(up[g], dn[g], s);
-    return itsQuad->Matrix(bs, v);
+    return itsSampler->Matrix(bs, v);
 }
 chmat_t Vcorr_QuadraturePol::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
 rsmat_t Vcorr_QuadraturePol::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
 void Vcorr_QuadraturePol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    const rvec_t& up=itsQuad->RhoPol(cd, Spin::Up  );
-    const rvec_t& dn=itsQuad->RhoPol(cd, Spin::Down);
+    const rvec_t& up=itsSampler->RhoPol(cd, Spin::Up  );
+    const rvec_t& dn=itsSampler->RhoPol(cd, Spin::Down);
     rvec_t ec(up.size());
     // The PER-VOLUME energy density, because that is the form that COMPOSES: exchange contributes
     // Σ_σ ε_x(ρ_σ)ρ_σ and correlation ε_c·ρ_tot, and those share no denominator (see GetExcDensity).
     // For a plain correlation functional the default IS ε_c·(ρ↑+ρ↓), so this line is bit-identical to the
     // one it replaces; for the composite it is the only correct sum.
     for (size_t g=0; g<up.size(); g++) ec[g]=itsCorr->GetExcDensity(up[g], dn[g]);
-    te.Exc += itsQuad->Integrate(ec);   // E_xc = ∫ e_xc(ρ↑,ρ↓)
+    te.Exc += itsSampler->Integrate(ec);   // E_xc = ∫ e_xc(ρ↑,ρ↓)
 }
 
 std::ostream& Vcorr_QuadraturePol::Write(std::ostream& os) const
@@ -166,7 +166,7 @@ std::ostream& Vcorr_QuadraturePol::Write(std::ostream& os) const
     // CompositeExFunctional summing exchange AND correlation into one gather), so the line must not still
     // say "correlation" -- the console is how a run states what it built.
     return os << "    XC-mesh SPIN-NATIVE v_xc^sigma(rho_up,rho_down), exchange+correlation in ONE gather ("
-              << itsQuad->NumPoints() << " atom-centred points)." << std::endl;
+              << itsSampler->NumPoints() << " atom-centred points)." << std::endl;
 }
 
 
@@ -176,8 +176,8 @@ std::ostream& Vcorr_QuadraturePol::Write(std::ostream& os) const
 // path, which is the precondition for running the blocks concurrently.  All three delegate to the shared
 // engine, so an XC PAIR (exchange + correlation over one quadrature) warms exactly once between them: the
 // engine's serial guard turns the second call into a lookup.
-void Vxc_Quadrature      ::RefreshForDensity(const cChargeDensity* cd) const {itsQuad->WarmForDensity(cd,false);}
-void Vxc_QuadraturePol   ::RefreshForDensity(const cChargeDensity* cd) const {itsQuad->WarmForDensity(cd,true );}
-void Vcorr_QuadraturePol ::RefreshForDensity(const cChargeDensity* cd) const {itsQuad->WarmForDensity(cd,true );}
+void Vxc_Quadrature      ::RefreshForDensity(const cChargeDensity* cd) const {itsSampler->WarmForDensity(cd,false);}
+void Vxc_QuadraturePol   ::RefreshForDensity(const cChargeDensity* cd) const {itsSampler->WarmForDensity(cd,true );}
+void Vcorr_QuadraturePol ::RefreshForDensity(const cChargeDensity* cd) const {itsSampler->WarmForDensity(cd,true );}
 
 } //namespace

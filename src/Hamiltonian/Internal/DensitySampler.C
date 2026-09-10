@@ -1,5 +1,32 @@
-// File: Hamiltonian/Internal/XCQuadrature.C  The XC SAMPLING ENGINE: rho at a quadrature's points, and
-// the exact adjoint back to a matrix.
+// File: Hamiltonian/Internal/DensitySampler.C  The SCF iteration's rho on a fit basis's sampling axis.
+//
+// ★ RENAMED FROM `XC_Quadrature` 2026-09-09 (user: *"XC quadrature is now a random mix of unrelated things
+// that all need to find a new home … rename and narrow"*), and the old name was wrong twice over, measured
+// rather than argued:
+//   - "XC": the class touches a functional ZERO times.  No ExFunctional, no GetExcDensity, no GetVxc in the
+//     interface or either implementation unit.  The functional lives in the TERMS, which hold one of these
+//     and map it over the points.  A Hartree term or a +U projector would want the same object.
+//   - "Quadrature": of its members, TWO are quadrature (Integrate, NumPoints).
+//
+// WHAT IT IS, and therefore what the name now says: rho at the sampling points of a fit basis, for the
+// CURRENT SCF ITERATE -- sampled once per density serial, cached, route-latched, eagerly warmable, and
+// optionally damped against its DM source.  The lifetime is ONE SCF ITERATION and that is the cohesive
+// thing inside the old bundle.
+//
+// ⚠ IT IS NAMED FOR WHAT IT WILL BE, NOT FOR EVERYTHING IT STILL HOLDS -- deliberately.  `Matrix` (the
+// assembly adjoint), `Integrate`/`NumPoints` (the energy quadrature) and `SiteMoments` (an observable and
+// its reporting) are still here and now read as the misfits they are.  They leave with the PER-ITERATION
+// SCOPE work (`doc/CleanupCandidates.md` R1.0h): `Matrix` and `Integrate` cannot leave separately without
+// splitting the forward/adjoint pairing that `LatchRoute` guards, and `SiteMoments` needs an observable
+// owner plus the "fire exactly once per new density" coupling that only the sampler knows.
+//
+// ★★ AND THE SHARING IS THE POINT OF THE OBJECT -- do not dissolve it (user, 2026-09-09: the
+// exchange/correlation terms sharing ONE collocation is *"very important"*).  Without it the pair
+// re-evaluated the Bloch image sums pointwise FOUR times per iteration: measured 4.8 s/iteration on NaF,
+// essentially all of the Becke route's runtime premium.  ⚠ Since the 2026-09-04 one-gather change
+// `MakeVxcTerms` builds ONE term, so the surviving sharing is between that term's FOCK pass and its ENERGY
+// pass -- which is the same shape, and the same cause, as R1.0h's H_ij cache.  Any "elimination" that
+// pushes rho sampling back into the terms brings the 4.8 s/iteration back.
 //
 // ★ THIS IS NOT HAMILTONIAN WORK, AND THE MODULE BOUNDARY NOW SAYS SO (2026-09-08).
 //
@@ -40,8 +67,8 @@ module;
 #include <map>
 #include <memory>
 #include <string>
-#include <vector>   // XC_SinglesQuadrature sigmas/flipFixed (Shubnikov S3)
-export module qchem.Hamiltonian.Internal.XCQuadrature;
+#include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
+export module qchem.Hamiltonian.Internal.DensitySampler;
 import qchem.BasisSet.Orbital_DFT_IBS;      // the fit-basis faces + FitQuadrature
 import qchem.BasisSet.G_FieldEvaluator;     // G_RasterTransform -- the pair route asks its raster for size/quadrature
 import qchem.Fitting.FunctionFitter;        // FunctionFitter_Scalar / ScalarProjector
@@ -67,7 +94,7 @@ using ChargeDensity::cChargeDensity;
 using ChargeDensity::cDM_CD;
 
 //! Process-wide diagnostic toggle (default OFF).  When true,
-//! \c XC_PairQuadrature::Refresh emits a one-line report each time it (re)collocates the density: the grid-integrated
+//! \c PairDensitySampler::Refresh emits a one-line report each time it (re)collocates the density: the grid-integrated
 //! charge \f$\int\rho_{\text{grid}}\f$, the analytic charge \f$\mathrm{Tr}(DS)\f$, and their difference -- the
 //! CHARGE LOST TO GRID TRUNCATION (== CP2K's "Electronic density on regular grids: <int> <error>" readout).
 //! A cheap, controlled number for "is the density cutoff high enough" (see doc/GPWPlan.md \S0).  Flip in place:
@@ -89,12 +116,12 @@ bool& ReportGridCharge();
 //! compute \f$H_{ij}=\sum_g w_g v(r_g)\chi_i(r_g)\chi_j(r_g)\f$, differing only in evaluation order and
 //! hence in what each truncates (the pair route's ε-screening and multigrid boxes).  Neither always wins --
 //! pair scales with the SCREENED pair count, singles with \f$n_{pts}n^2\f$ -- so which one runs is decided
-//! by \c MakeXCQuadrature from the fit basis's capabilities, once, and LATCHED for the run (switching
+//! by \c MakeDensitySampler from the fit basis's capabilities, once, and LATCHED for the run (switching
 //! mid-SCF would change the truncated operator, i.e. the functional).
-class XC_Quadrature
+class DensitySampler
 {
 public:
-    virtual ~XC_Quadrature() = default;
+    virtual ~DensitySampler() = default;
     //! \f$\int f\,d^3r\f$ for a field sampled at MY points -- the \f$E_{xc}\f$ quadrature.  A term hands
     //! back a value array and never learns where the points are (nor which kind of mesh they came from).
     //! \note POINT vocabulary is correct HERE and nowhere below it: this face IS a quadrature (its whole
@@ -143,7 +170,7 @@ public:
 //! \f$\rho(r)\f$ comes from the density's own \f$D\f$ GEMMed against the table (no FFT, no fit --
 //! pointwise \f$\rho_{DM}\ge0\f$ for aufbau D, so the \f$\rho>0\f$ guard is inert), and
 //! \f$\langle i|v_{xc}|j\rangle = \Phi^\dagger\,\mathrm{diag}(w\,v_{xc})\,\Phi\f$ is its exact adjoint --
-//! the two faces of \c XC_Quadrature over ONE table, which is what makes a mismatch unrepresentable here.
+//! the two faces of \c DensitySampler over ONE table, which is what makes a mismatch unrepresentable here.
 //! It wins where \f$n\f$ is small against \f$n_{pts}\f$ or where screening is weak (MnO's 4-atom cell
 //! measured a Φ-sparsity ceiling of only ~2×); the pair strategy below wins where screening bites.
 //!
@@ -155,8 +182,8 @@ public:
 //! iteration: without it the pair re-evaluated the Bloch image sums pointwise FOUR times per iteration
 //! (2 terms x (rho sample + matrix quadrature)) -- measured 4.8 s/iteration on NaF, ~all of the Becke
 //! route's runtime premium.
-class XC_SinglesQuadrature
-    : public virtual XC_Quadrature
+class SinglesDensitySampler
+    : public virtual DensitySampler
 {
 public:
     //! \brief Built ON the \f$\delta\f$ fit basis, which IS the quadrature: it owns the points, the
@@ -178,7 +205,7 @@ public:
     //!    sibling fields the same way as the mesh removed both.
     //! Empty (default-constructed) => a free run with no partition: no star-average, and \c SiteMoments
     //! answers empty -- exactly as a raster quadrature does.
-    XC_SinglesQuadrature(fit_t, BasisSet::FitQuadrature quad={});
+    SinglesDensitySampler(fit_t, BasisSet::FitQuadrature quad={});
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override;
     //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
@@ -300,7 +327,7 @@ private:
 //! adjoint are box-truncated per multigrid level with the same ε-screening, so \f$H_{xc}\f$ is
 //! \f$\partial E_{xc}/\partial D\f$ of the ONE raw discrete functional to machine precision (gate:
 //! \c GPW.RawXCConsistencyFD).  Previously the same code lived in a TERM (\c PWFittedVxc), where the ρ
-//! route and the H route were two members that happened to agree -- see the \c XC_Quadrature header for
+//! route and the H route were two members that happened to agree -- see the \c DensitySampler header for
 //! what that permitted.
 //!
 //! \warning TWO ROUTES, LATCHED (R2.16).  A density-matrix-backed density answers \c GetRhoOnGrid with
@@ -309,16 +336,16 @@ private:
 //! ortho fitter, which is NON-variational.  These minimise DIFFERENT functionals, so the route is latched
 //! on the first matrix-backed density and any later change THROWS.  Iteration 0 is the one unavoidable
 //! exception -- with no \f$D\f$ there is nothing to collocate -- and its energy is discarded anyway.
-class XC_PairQuadrature
-    : public virtual XC_Quadrature
+class PairDensitySampler
+    : public virtual DensitySampler
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
     //! \a fb is the raster-backed \f$v_{xc}\f$ fit basis from \c CreateVxcFitBasisSet: it supplies the
     //! quadrature (\c BasisSet::Quadrature), keys the density's collocation and the orbital's
     //! \c Overlap3C, and -- on the BALL fallback -- backs the ortho scalar fitter built here.
-    explicit XC_PairQuadrature(fbs_t fb);
-    ~XC_PairQuadrature();
+    explicit PairDensitySampler(fbs_t fb);
+    ~PairDensitySampler();
     double Integrate(const rvec_t& f) const override;
     size_t NumPoints() const override;
     const rvec_t& Rho(const cChargeDensity* cd) const override;
@@ -394,8 +421,8 @@ private:
 //! orbital's 3-centre tensor, so the PAIR route is available and is chosen -- it is the production GPW
 //! path and the one whose screening pays on large cells.  There is no extra input to supply: both routes
 //! are already functions of (orbital basis, fit basis).
-std::shared_ptr<const XC_Quadrature>
-MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
+std::shared_ptr<const DensitySampler>
+MakeDensitySampler(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
                  BasisSet::FitQuadrature quad={});
 
 } //namespace

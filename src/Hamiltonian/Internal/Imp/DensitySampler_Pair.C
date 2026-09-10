@@ -1,6 +1,7 @@
-// File: Hamiltonian/Internal/Imp/XCQuadrature_Pair.C  the PAIR strategy: rho collocated through the 3-centre tensor, H by its raw adjoint.
+// File: Hamiltonian/Internal/Imp/DensitySampler_Pair.C  the PAIR strategy: rho collocated through the
+// orbital-PAIR 3-centre tensor, H by that tensor's raw adjoint.
 //
-// One implementation unit of module qchem.Hamiltonian.Internal.XCQuadrature (extracted from
+// One implementation unit of module qchem.Hamiltonian.Internal.DensitySampler (extracted from
 // qchem.Hamiltonian.Internal.PWTerms 2026-09-08 -- see that module's header for why).  Split 2026-09-08 out of a
 // single 1213-line Imp/PWTerms.C (user: "PWTerms.C is huge, again doing too many things") into the
 // interface-plus-many-Imp-units shape Internal/Terms.C has always had.  Helpers shared by more than
@@ -19,7 +20,7 @@ module;
 #include <memory>
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
-module qchem.Hamiltonian.Internal.XCQuadrature;
+module qchem.Hamiltonian.Internal.DensitySampler;
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.Energy;
 import qchem.ChargeDensity;
@@ -44,18 +45,18 @@ namespace qchem::Hamiltonian
 // run report should own instead (theRunPolicy() already carries every other run-scoped switch).
 bool& ReportGridCharge() { static bool on = false; return on; }
 
-// ---- XC_PairQuadrature: rho by collocation, H by the SAME tensor's raw adjoint -------------------------
+// ---- PairDensitySampler: rho by collocation, H by the SAME tensor's raw adjoint -------------------------
 
 // It carries the fit basis (quadrature + collocation key + Overlap3C key) and, for the BALL fallback only,
 // an ortho scalar fitter over it.  No grid announcement here: the fit basis self-reports at ITS
 // construction, role-labeled (user ruling 2026-08-16).
-XC_PairQuadrature::XC_PairQuadrature(fbs_t fb)
+PairDensitySampler::PairDensitySampler(fbs_t fb)
     : itsFitBasis(std::move(fb))
     , itsScalarFitter(Fitting::Factory(itsFitBasis))   // the ortho (G-space) scalar fit -- BALL route only
 {
     assert(itsFitBasis);
 }
-XC_PairQuadrature::~XC_PairQuadrature() = default;   // itsScalarFitter's abstract type is complete here
+PairDensitySampler::~PairDensitySampler() = default;   // itsScalarFitter's abstract type is complete here
 
 
 // rho(r) on the raster for cd -- recomputed only on a new density serial, so the XC pair's two terms and
@@ -65,34 +66,34 @@ XC_PairQuadrature::~XC_PairQuadrature() = default;   // itsScalarFitter's abstra
 // Declared rather than moved so the diff stays about the pair route (and so ONE definition still serves
 // both, which is the point).
 bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd);
-void ReportNegativeRho(const XC_Quadrature& q, const rvec_t& rho, const char* route);
+void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* route);
 
 // ONE density object -> rho(r) on the raster.  RAW when it can collocate, BALL otherwise; extracted
 // 2026-08-28 so the scalar route and the two spin channels cannot make that decision differently.
-rvec_t XC_PairQuadrature::SampleOne(const cChargeDensity* cd, bool& isRaw) const
+rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) const
 {
     assert(cd);
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(fd && "XC_PairQuadrature requires a FourierDensity (periodic) charge density");
+    assert(fd && "PairDensitySampler requires a FourierDensity (periodic) charge density");
     rvec_t rho=fd->GetRhoOnGrid(*itsFitBasis);
     isRaw=(rho.size()!=0);
     if (!isRaw)
     {
         auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
-        assert(ge && "XC_PairQuadrature: the BALL route needs the fit basis's raster transforms");
+        assert(ge && "PairDensitySampler: the BALL route needs the fit basis's raster transforms");
         rho=ge->RhoOnGrid(fd->GetFourierDensity(*itsFitBasis));
     }
     return rho;
 }
 
 // ROUTE STABILITY (R2.16), in one place for both shapes -- see the declaration.
-void XC_PairQuadrature::LatchRoute(const cChargeDensity* cd, bool isRaw) const
+void PairDensitySampler::LatchRoute(const cChargeDensity* cd, bool isRaw) const
 {
     if (!dynamic_cast<const ChargeDensity::cDM_CD*>(cd)) return;   // the seed cannot answer RAW; exempt it
     if (!itsRouteLatched) { itsRouteLatched=true; itsLatchedRaw=isRaw; return; }
     if (itsLatchedRaw!=isRaw)
         throw std::runtime_error(
-            std::string("XC_PairQuadrature: the XC route changed mid-SCF (")
+            std::string("PairDensitySampler: the XC route changed mid-SCF (")
             + (itsLatchedRaw?"RAW -> BALL":"BALL -> RAW")
             + ").  These minimise DIFFERENT functionals -- BALL's ball-projected rho is non-variational "
               "-- so the optimiser would be chasing a moving target.  The route is a property of the "
@@ -102,10 +103,10 @@ void XC_PairQuadrature::LatchRoute(const cChargeDensity* cd, bool isRaw) const
 // THE SPIN-NATIVE SIBLING (2026-08-28).  Structurally the mirror of Refresh, once per channel -- and it
 // walks the SAME two density shapes the singles route walks: a D-backed cPolarized_CD, and a matrix-free
 // cSpinResolved_CD (the polarized seed, and the rho-tilde-mixed density on every Kerker/Pulay iteration).
-void XC_PairQuadrature::RefreshPol(const cChargeDensity* cd) const
+void PairDensitySampler::RefreshPol(const cChargeDensity* cd) const
 {
     assert(cd);
-    assert(itsRhoVersion==size_t(-1) && "XC_PairQuadrature: this engine already served the scalar Rho -- the "
+    assert(itsRhoVersion==size_t(-1) && "PairDensitySampler: this engine already served the scalar Rho -- the "
            "two rho caches have no cross-invalidation, so one of them would go stale");
     if (cd->Version()==itsPolVersion) return;
     itsPolVersion=cd->Version();
@@ -145,7 +146,7 @@ void XC_PairQuadrature::RefreshPol(const cChargeDensity* cd) const
     // because silently sampling the MIXED field where the caller asked for the retained D would be a
     // physics change wearing a performance change's clothes.
     if (HasExactSource(up) || HasExactSource(dn))
-        throw std::logic_error("XC_PairQuadrature: GPW_XC_DM_SOURCE / XCCuspDeficit are not wired on the "
+        throw std::logic_error("PairDensitySampler: GPW_XC_DM_SOURCE / XCCuspDeficit are not wired on the "
             "collocation (pair) route -- its rho comes from applyRaw, not from a projector, so the "
             "retained-D repair needs its own design.  Use the delta/singles quadrature for those flags.");
     bool rawUp=false, rawDn=false;
@@ -158,10 +159,10 @@ void XC_PairQuadrature::RefreshPol(const cChargeDensity* cd) const
     ReportNegativeRho(*this, itsRhoDn, "raw(dn)");
 }
 
-void XC_PairQuadrature::Refresh(const cChargeDensity* cd) const
+void PairDensitySampler::Refresh(const cChargeDensity* cd) const
 {
     assert(cd);
-    assert(itsPolVersion==size_t(-1) && "XC_PairQuadrature: this engine already served RhoPol -- the scalar "
+    assert(itsPolVersion==size_t(-1) && "PairDensitySampler: this engine already served RhoPol -- the scalar "
            "and spin-resolved rho caches have no cross-invalidation, so one of them would go stale");
     if (cd->Version()==itsRhoVersion) return;
     itsRhoVersion=cd->Version();
@@ -227,21 +228,21 @@ void XC_PairQuadrature::Refresh(const cChargeDensity* cd) const
 // {G} ball, which is a smaller and different number -- the exact confusion the 2026-08-23 "one fit-basis
 // interface" pass removed by taking NumPoints/Integrate off FIT_SF_ABS.  Integral stays the raster's own
 // (sum f)*Omega/N summation order, which the periodic energies are pinned to at 10 digits.
-const BasisSet::G_RasterTransform& XC_PairQuadrature::Raster() const
+const BasisSet::G_RasterTransform& PairDensitySampler::Raster() const
 {
     auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
-    assert(ge && "XC_PairQuadrature: the pair route's fit basis is raster-backed by construction "
-                 "(MakeXCQuadrature selects this strategy on exactly that capability)");
+    assert(ge && "PairDensitySampler: the pair route's fit basis is raster-backed by construction "
+                 "(MakeDensitySampler selects this strategy on exactly that capability)");
     return *ge;
 }
-double XC_PairQuadrature::Integrate(const rvec_t& f) const {return Raster().Integral(f);}
-size_t XC_PairQuadrature::NumPoints() const {return Raster().RasterSize();}
+double PairDensitySampler::Integrate(const rvec_t& f) const {return Raster().Integral(f);}
+size_t PairDensitySampler::NumPoints() const {return Raster().RasterSize();}
 
-const rvec_t& XC_PairQuadrature::Rho(const cChargeDensity* cd) const {Refresh(cd); return itsRho;}
+const rvec_t& PairDensitySampler::Rho(const cChargeDensity* cd) const {Refresh(cd); return itsRho;}
 
-const rvec_t& XC_PairQuadrature::RhoPol(const cChargeDensity* cd, const Spin& s) const
+const rvec_t& PairDensitySampler::RhoPol(const cChargeDensity* cd, const Spin& s) const
 {
-    assert(s!=Spin::None && "XC_PairQuadrature::RhoPol: ask for a channel, not the total");
+    assert(s!=Spin::None && "PairDensitySampler::RhoPol: ask for a channel, not the total");
     RefreshPol(cd);
     return s==Spin::Up ? itsRhoUp : itsRhoDn;
 }
@@ -252,10 +253,10 @@ const rvec_t& XC_PairQuadrature::RhoPol(const cChargeDensity* cd, const Spin& s)
 //           precision (gate: GPW.RawXCConsistencyFD).  No ball fit anywhere.
 //   BALL -- fit v_xc on the {G} ball and contract: the legacy, non-variational pairing.
 // Two-axis face (V1.1): the tensor follows TFit==dcmplx for both block scalars; narrow at the end.
-template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
+template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
 {
     assert((itsRhoVersion!=size_t(-1) || itsPolVersion!=size_t(-1))
-           && "XC_PairQuadrature::Matrix before Rho/RhoPol: the adjoint must follow the collocation that "
+           && "PairDensitySampler::Matrix before Rho/RhoPol: the adjoint must follow the collocation that "
               "fixed the route");
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);   // genuine "is it?" cross-cast (throws)
     // ★ THE ADJOINT FOLLOWS THE LINEAGE'S CAPABILITY; rho follows the DENSITY's.  They differ on exactly
@@ -297,7 +298,7 @@ template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, con
         // the <double,dcmplx> face, so the cast is a std::bad_cast (verified 2026-08-28).  The face is
         // expressible -- FitContraction is templated on the block scalar -- so this is a hole in the
         // FITTING layer, not a fact about XC.  The seed exemption below is what keeps it unreachable.
-        throw std::logic_error("XC_PairQuadrature: a real TRIM block on the legacy ball-fit XC route is not "
+        throw std::logic_error("PairDensitySampler: a real TRIM block on the legacy ball-fit XC route is not "
                                "wired -- the ortho scalar fitter has no FitContraction<double,dcmplx> face. "
                                "Use the raw collocated feed (the default) or the delta quadrature");
 }
@@ -314,7 +315,7 @@ template <class U> hmat_t<U> XC_PairQuadrature::MatrixT(const tobs_t<U>* bs, con
 // BORROWS its Projector3; a temporary would dangle on use.  The tensor itself is the basis's own cached
 // one, so this map holds ~100 bytes per block, not a table.
 template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
-XC_PairQuadrature::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
+PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
 {
     const Irrep id=orb.GetIrrep(Spin::None);          // SPATIAL key, as the basis's own table cache uses
     auto it=itsAdj.find(id);
@@ -331,14 +332,14 @@ XC_PairQuadrature::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) 
                                [&r](const rvec_t& f){return r.Integral(f);})).first->second;
 }
 
-chmat_t XC_PairQuadrature::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
-rsmat_t XC_PairQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
+chmat_t PairDensitySampler::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
+rsmat_t PairDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
 
 // CAPABILITY DECIDES (doc/OpenWork.md): a delta basis carries points and nothing else -> singles; a
 // raster-backed one carries the FFT transforms and keys the 3-centre tensor -> pair.  One decision, taken
 // once, and latched for the run by the simple fact that the Hamiltonian builds this object once.
-std::shared_ptr<const XC_Quadrature>
-MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
+std::shared_ptr<const DensitySampler>
+MakeDensitySampler(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
                  BasisSet::FitQuadrature quad)
 {
     assert(fb);
@@ -347,8 +348,8 @@ MakeXCQuadrature(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
     // and preferred, being the production GPW path.  Anything else can only be contracted through a Phi
     // table: SINGLES.  Note this asks what the basis CAN do, never what it IS.
     if (dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get()))
-        return std::make_shared<const XC_PairQuadrature>(fb);
-    return std::make_shared<const XC_SinglesQuadrature>(fb, std::move(quad));
+        return std::make_shared<const PairDensitySampler>(fb);
+    return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
 }
 
 } //namespace

@@ -64,7 +64,7 @@ Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
     // G-space fit basis constructed happily and tripped later, somewhere else.  Two-phase contract, same
     // smell as R2.10's SetMesh -- so it is established once, where the object is made.
     assert(bs->isOrtho() && "Fitting::Factory(cFIT_SF_ABS): a complex potential-fit basis must be orthogonal");
-    // CAPABILITY decides, and it is the same question MakeXCQuadrature asks (2026-08-23).  This used to be
+    // CAPABILITY decides, and it is the same question MakeDensitySampler asks (2026-08-23).  This used to be
     // dynamic_pointer_cast<cFIT_SF_Delta> -- a "what IS it?" cast -- which is why removing that face freed
     // the check to be about what the basis can DO: a RASTER-backed basis batch-projects by forward FFT and
     // assembles through its grid's (aliased) coefficient lookup; anything else takes the general ORTHOGONAL

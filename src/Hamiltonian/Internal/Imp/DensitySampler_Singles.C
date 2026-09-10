@@ -1,6 +1,7 @@
-// File: Hamiltonian/Internal/Imp/XCQuadrature_Singles.C  the SINGLES strategy: rho and H_xc both contracted through a cached Phi table.
+// File: Hamiltonian/Internal/Imp/DensitySampler_Singles.C  the SINGLES strategy: rho and H_xc both
+// contracted through a cached table of SINGLE basis functions Phi_gi = chi_i(r_g).
 //
-// One implementation unit of module qchem.Hamiltonian.Internal.XCQuadrature (extracted from
+// One implementation unit of module qchem.Hamiltonian.Internal.DensitySampler (extracted from
 // qchem.Hamiltonian.Internal.PWTerms 2026-09-08 -- see that module's header for why).  Split 2026-09-08 out of a
 // single 1213-line Imp/PWTerms.C (user: "PWTerms.C is huge, again doing too many things") into the
 // interface-plus-many-Imp-units shape Internal/Terms.C has always had.  Helpers shared by more than
@@ -19,7 +20,7 @@ module;
 #include <memory>
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
-module qchem.Hamiltonian.Internal.XCQuadrature;
+module qchem.Hamiltonian.Internal.DensitySampler;
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.Energy;
 import qchem.ChargeDensity;
@@ -38,9 +39,9 @@ import qchem.Parallel;                         // WorkerThreads (GPW_OMP_THREADS
 namespace qchem::Hamiltonian
 {
 
-// ---- XC_SinglesQuadrature: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
+// ---- SinglesDensitySampler: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
 
-XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit, BasisSet::FitQuadrature quad)
+SinglesDensitySampler::SinglesDensitySampler(fit_t fit, BasisSet::FitQuadrature quad)
     : itsFit(std::move(fit))
     , itsQuad(std::move(quad))
 {
@@ -49,14 +50,14 @@ XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit, BasisSet::FitQuadrature qu
     // non-const reference, as its siblings do.
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> fb=itsFit;
     itsScalarFitter=Fitting::Factory(fb);
-    assert(itsFit && "XC_SinglesQuadrature: the delta fit basis IS the quadrature -- it cannot be null");
+    assert(itsFit && "SinglesDensitySampler: the delta fit basis IS the quadrature -- it cannot be null");
     // The bundle's own invariants (fold partitions the mesh, sigmas need a fold, flags cover it) are
     // checked where the bundle becomes an object -- in the basis's ctor -- and the star-average announces
     // itself there too (providers self-report).  What IS this object's business is that the bundle it was
     // handed is the same one the basis holds: same length, so the fold's orbit indices and my coefficient
     // vectors index the same functions.
     assert((!itsQuad.GetMesh() || itsQuad.GetMesh()->size()==itsFit->GetNumFunctions()) &&
-           "XC_SinglesQuadrature: the injected quadrature and the delta fit basis must be the SAME object "
+           "SinglesDensitySampler: the injected quadrature and the delta fit basis must be the SAME object "
            "-- one mesh point per fit function");
 }
 
@@ -65,10 +66,10 @@ XC_SinglesQuadrature::XC_SinglesQuadrature(fit_t fit, BasisSet::FitQuadrature qu
 // for the adjoint direction (user).  So both directions of the SAME tensor now come off ONE object, which
 // is the invariant this class's own header argues for one level up.  The cross-cast is the sanctioned
 // "I want more" ask, made once per call on a face the delta fitter always carries.
-const Fitting::ScalarProjector& XC_SinglesQuadrature::Projector() const
+const Fitting::ScalarProjector& SinglesDensitySampler::Projector() const
 {
     auto* sp=dynamic_cast<const Fitting::ScalarProjector*>(itsScalarFitter.get());
-    assert(sp && "XC_SinglesQuadrature: the delta scalar fitter must carry the projection face");
+    assert(sp && "SinglesDensitySampler: the delta scalar fitter must carry the projection face");
     return *sp;
 }
 
@@ -78,7 +79,7 @@ const Fitting::ScalarProjector& XC_SinglesQuadrature::Projector() const
 // Integral(sum_g c_g delta_g) = sum_g c_g <delta_g|1> = sum_g c_g w_g.  Algebraically the old
 // Integrate(values) and, written as this loop, the SAME summation order as qcMesh::Integrate was -- which
 // is what keeps the pinned energies bit-unmoved.
-const rvec_t& XC_SinglesQuadrature::FunctionIntegrals() const
+const rvec_t& SinglesDensitySampler::FunctionIntegrals() const
 {
     if (itsIntegrals.size()==0)
     {
@@ -88,15 +89,15 @@ const rvec_t& XC_SinglesQuadrature::FunctionIntegrals() const
     }
     return itsIntegrals;
 }
-double XC_SinglesQuadrature::Integrate(const rvec_t& f) const
+double SinglesDensitySampler::Integrate(const rvec_t& f) const
 {
     const rvec_t& I=FunctionIntegrals();
-    assert(f.size()==I.size() && "XC_SinglesQuadrature::Integrate: one coefficient per fit function");
+    assert(f.size()==I.size() && "SinglesDensitySampler::Integrate: one coefficient per fit function");
     double s=0.0;
     for (size_t a=0; a<f.size(); a++) s+=I[a]*f[a];
     return s;
 }
-size_t XC_SinglesQuadrature::NumPoints() const {return itsFit->GetNumFunctions();}
+size_t SinglesDensitySampler::NumPoints() const {return itsFit->GetNumFunctions();}
 
 // THE XC DM-rho REPAIR (doc/OpenWork.md, the factored-rho section).  Under rho-tilde mixing the density
 // driving the Fock build is a G-space FIELD, so XC has to inverse-transform a truncated series at every
@@ -182,7 +183,7 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
 //! wrapper so a caller declared ABOVE ExactSource's definition can still ask.
 bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd));}
 
-void ReportNegativeRho(const XC_Quadrature& q, const rvec_t& rho, const char* route)
+void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* route)
 {
     static const bool on=std::getenv("GPW_RHO_NEGATIVE")!=nullptr;
     if (!on || rho.size()==0) return;
@@ -205,13 +206,13 @@ void ReportNegativeRho(const XC_Quadrature& q, const rvec_t& rho, const char* ro
 // rho at the mesh points, once per density serial for the WHOLE pair: the density GEMMs the cached
 // tables against its private D (ProjectOnto; blocks not yet tabled self-evaluate pointwise -- first
 // pass only).  A non-DM density (no DM face) falls back to the pointwise ScalarFunction sweep.
-const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
+const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
 {
     assert(cd);
     // R2.9(i): the scalar and spin-resolved caches do not cross-invalidate (see the \warning on the
     // members).  An engine belongs to ONE xc/correlation pair, and a pair is either polarized or not, so
     // only one of the two routes is ever driven.  Pin it here rather than trusting the comment.
-    assert(itsPolVersion==size_t(-1) && "XC_SinglesQuadrature: this engine already served RhoPol -- the scalar "
+    assert(itsPolVersion==size_t(-1) && "SinglesDensitySampler: this engine already served RhoPol -- the scalar "
            "and spin-resolved rho caches have no cross-invalidation, so one of them would go stale");
     if (cd->Version()==itsRhoVersion) return itsRho;
     itsRhoVersion=cd->Version();
@@ -262,12 +263,12 @@ const rvec_t& XC_SinglesQuadrature::Rho(const cChargeDensity* cd) const
 // Down channel).  A cPolarized_CD answers per channel (each channel composite GEMMs its own D against the
 // SHARED Phi tables); a spin-agnostic density (the seed) collapses to rho/2 per channel, so the first
 // iterations run the exact unpolarized collapse (v^sigma(rho/2,rho/2)=v^P(rho)).
-const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin& s) const
+const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin& s) const
 {
     assert(cd);
-    assert(itsRhoVersion==size_t(-1) && "XC_SinglesQuadrature: this engine already served the scalar Rho -- the "
+    assert(itsRhoVersion==size_t(-1) && "SinglesDensitySampler: this engine already served the scalar Rho -- the "
            "two rho caches have no cross-invalidation, so one of them would go stale");
-    assert(s!=Spin::None && "XC_SinglesQuadrature::RhoPol: ask for a channel, not the total");
+    assert(s!=Spin::None && "SinglesDensitySampler::RhoPol: ask for a channel, not the total");
     if (cd->Version()!=itsPolVersion)
     {
         itsPolVersion=cd->Version();
@@ -365,7 +366,7 @@ const rvec_t& XC_SinglesQuadrature::RhoPol(const cChargeDensity* cd, const Spin&
 
 // One line + one report entry per NEW density, from inside the serial-advance branch above.  Silent when
 // the mesh carries no site partition (a uniform grid has no atomic basins to integrate over).
-void XC_SinglesQuadrature::EmitSiteMoments() const
+void SinglesDensitySampler::EmitSiteMoments() const
 {
     const rvec_t mu=PartitionedMoments(rvec_t(itsRhoUp-itsRhoDn));
     if (mu.size()==0)
@@ -409,7 +410,7 @@ void XC_SinglesQuadrature::EmitSiteMoments() const
 // and the mesh's weights already carry each site's Becke partition w_A, so this is a block sum over data
 // in hand.  An unpolarized density gives exactly zero (rho_up == rho_dn by the HalfDensity collapse),
 // which is the honest answer, not a special case.
-rvec_t XC_SinglesQuadrature::SiteMoments(const cChargeDensity* cd) const
+rvec_t SinglesDensitySampler::SiteMoments(const cChargeDensity* cd) const
 {
     assert(cd);
     const rvec_t& up=RhoPol(cd, Spin::Up);
@@ -420,10 +421,10 @@ rvec_t XC_SinglesQuadrature::SiteMoments(const cChargeDensity* cd) const
 // The ONE place the injected partition is read: Integral w_A f over each site block.  Not a fit-basis
 // question and no longer asked of one -- the mesh arrives from the factory that built it for the basis,
 // so this and the basis index the SAME points in the SAME order (one object, two collaborators).
-rvec_t XC_SinglesQuadrature::PartitionedMoments(const rvec_t& f) const
+rvec_t SinglesDensitySampler::PartitionedMoments(const rvec_t& f) const
 {
     if (!itsQuad.GetMesh() || itsQuad.GetMesh()->NSites()==0) return rvec_t();
-    assert(f.size()==itsQuad.GetMesh()->size() && "XC_SinglesQuadrature: the injected quadrature and the fit "
+    assert(f.size()==itsQuad.GetMesh()->size() && "SinglesDensitySampler: the injected quadrature and the fit "
            "basis must be the same object -- one field value per mesh point");
     return qcMesh::SiteIntegrals(*itsQuad.GetMesh(), f);
 }
@@ -435,7 +436,7 @@ rvec_t XC_SinglesQuadrature::PartitionedMoments(const rvec_t& f) const
 // doc/CleanupCandidates.md R1.0): fit the sampled field, then contract against this block.  The fit is
 // re-done only when v CHANGES -- the Fock build calls this once per block with the same v, and DoFit
 // on a delta basis is a copy, but re-copying per block would still be per-block work for nothing.
-template <class U> hmat_t<U> XC_SinglesQuadrature::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
+template <class U> hmat_t<U> SinglesDensitySampler::MatrixT(const tobs_t<U>* bs, const rvec_t& v) const
 {
     bool same = itsFittedV.size()==v.size();
     for (size_t g=0; same && g<v.size(); g++) same = (itsFittedV[g]==v[g]);
@@ -451,7 +452,7 @@ template <class U> hmat_t<U> XC_SinglesQuadrature::MatrixT(const tobs_t<U>* bs, 
     const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>&>(*bs);
     return dynamic_cast<const Fitting::FitContraction<U,dcmplx>&>(*itsScalarFitter).Overlap(orb);
 }
-chmat_t XC_SinglesQuadrature::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
-rsmat_t XC_SinglesQuadrature::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
+chmat_t SinglesDensitySampler::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
+rsmat_t SinglesDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
 
 } //namespace

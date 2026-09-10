@@ -49,8 +49,8 @@ import qchem.Outcome;                           // Outcome<Converged,SCFFailure>
 import qchem.RunPolicy;                         // ReresolveRunPolicy() -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
-import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); Vxc_Quadrature + the two XC_Quadrature strategies
-import qchem.Hamiltonian.Internal.XCQuadrature;  // the XC sampling engine (its own module
+import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); Vxc_Quadrature + the two DensitySampler strategies
+import qchem.Hamiltonian.Internal.DensitySampler;  // the XC sampling engine (its own module
                                                   // since 2026-09-08; .Internal. modules are
                                                   // never re-exported, so name it directly)
 import qchem.BasisSet.DeltaFit_IBS;              // DeltaFit_IBS -- the delta basis the singles strategy runs on
@@ -103,11 +103,11 @@ static std::shared_ptr<const qchem::BasisSet::DeltaFit_IBS> DeltaFitOver(qchem::
 // of the basis (BasisSet::FIT_SF_ABS lost Symmetrize/SymmetrizeSpin).  ONE bundle, handed to both
 // collaborators, exactly as tBasisSet::CreateVxcFitBasisSet does it in production -- so a probe cannot
 // accidentally give the basis one quadrature and the strategy another.
-static std::shared_ptr<qchem::Hamiltonian::XC_SinglesQuadrature>
+static std::shared_ptr<qchem::Hamiltonian::SinglesDensitySampler>
 SinglesEngineOver(qchem::BasisSet::FitQuadrature q)
 {
     auto fit=DeltaFitOver(q);   // NOT inline with the move below: argument evaluation order is unspecified
-    return std::make_shared<qchem::Hamiltonian::XC_SinglesQuadrature>(std::move(fit), std::move(q));
+    return std::make_shared<qchem::Hamiltonian::SinglesDensitySampler>(std::move(fit), std::move(q));
 }
 
 
@@ -497,7 +497,7 @@ static void ReportSymmetryFound(const Complex_BS& bs, const qchem::ChargeDensity
     }
     auto* fd = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(&cd);
     if (!fd) return;
-    Hamiltonian::XC_PairQuadrature::fbs_t fit(bs.CreateVxcFitBasisSet(st, qcMesh::MeshParams{}));
+    Hamiltonian::PairDensitySampler::fbs_t fit(bs.CreateVxcFitBasisSet(st, qcMesh::MeshParams{}));
     std::vector<double> d = SymmetryDefects(fd->GetFourierDensity(*fit), ops);
     double mx = 0; int broken = 0;
     for (double x : d) { mx = std::max(mx, x); if (x > 1e-3) ++broken; }
@@ -2663,8 +2663,8 @@ XCProbe UniformXCProbe(const GpwHandles& h, const std::shared_ptr<const Structur
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
     qcMesh::MeshParams mp; mp.relCutoff=std::max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
-    Hamiltonian::XC_PairQuadrature::fbs_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
-    auto pair=Hamiltonian::MakeXCQuadrature(vfb);   // raster fit basis -> the pair/collocation strategy
+    Hamiltonian::PairDensitySampler::fbs_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
+    auto pair=Hamiltonian::MakeDensitySampler(vfb);   // raster fit basis -> the pair/collocation strategy
     Hamiltonian::Vxc_Quadrature x(exch,pair), c(corr,pair);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     XCProbe p=ProbeXC("uniform", h, x, c, e);
@@ -3583,7 +3583,7 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
 
 // A POLARIZED RUN MUST STAY POLARIZED (SymmetryUpgradePlan §7 step 7, 2026-08-07).  The regression gate for
 // the AFM collapse: the ρ̃ density mixers (Kerker/Pulay) carry ONE FourierMixCD -- the ↑+↓ TOTAL, with no spin
-// channels -- and drive every Fock from it, so XC_SinglesQuadrature::RhoPol falls into its ρ↑=ρ↓=ρ/2 branch and the
+// channels -- and drive every Fock from it, so SinglesDensitySampler::RhoPol falls into its ρ↑=ρ↓=ρ/2 branch and the
 // run is silently UNPOLARIZED from iteration 1 (measured on MnO: a seed staggered at m_stag=+0.366 reads
 // EXACTLY +0.000000 at iteration 1 and never recovers).  MakeDensityMixer now refuses the ρ̃ mixers on a
 // polarized density and falls back, loudly, to linear D-mixing.  This gate asks a POLARIZED run for Kerker
@@ -3791,7 +3791,7 @@ TEST(GPW_SCF, MnOSeedSublatticesAreEqualAndOpposite)
     }
 
     // THE BATCH OVERLOAD vs THE SINGLE-POINT ONE.  Everything above used operator()(rvec3_t).  The XC mesh
-    // samples a MATRIX-FREE seed through the BATCHED operator()(rvec3vec_t) instead -- XC_SinglesQuadrature::RhoPol
+    // samples a MATRIX-FREE seed through the BATCHED operator()(rvec3vec_t) instead -- SinglesDensitySampler::RhoPol
     // takes its cSpinResolved_CD branch for exactly this density -- so the batch path is what the first Fock
     // build actually sees, and nothing has ever checked the two agree.  They must, pointwise.
     rvec3vec_t batch(2*probes.size());
@@ -3813,7 +3813,7 @@ TEST(GPW_SCF, MnOSeedSublatticesAreEqualAndOpposite)
 // By elimination (seed, Becke weights, Kinetic/Vloc/Vnl, Phi tables all exonerated) the first-Fock-build
 // mirror break must live in v_xc -- yet a pointwise LSDA functional "cannot" be site-dependent.  This probe
 // resolves the contradiction by testing what the Fock build ACTUALLY consumes: the channel rasters
-// XC_SinglesQuadrature::RhoPol hands the Vxc_Quadrature*Pol pair, at the mesh's own points.  The mesh stores its
+// SinglesDensitySampler::RhoPol hands the Vxc_Quadrature*Pol pair, at the mesh's own points.  The mesh stores its
 // points WRAPPED into the home cell (kpt = r - A*n0, MakePeriodicBeckeMesh) -- so a valid seed must satisfy
 // rho_up(p_g) = rho_dn(p_g + t) with t = A*(1/2,1/2,1/2) AT EVERY STORED POINT, and (v_xc being pointwise
 // in the channel pair) v_xc^up(p_g) = v_xc^dn(p_g + t).  The two Mn blocks' grids are exact t-translates of
@@ -3954,7 +3954,7 @@ TEST(GPW_SCF, MnOSeedVxcMirrorOnBeckeMesh)
 // staggering EXACTLY mirror-symmetric -- where the grey average would erase it.  Chain under test:
 // MagneticDecoration (the seed's own species rule) -> GPWParams::siteSpins -> the factory's Shubnikov
 // resolution -> CreateXCQuadrature (site-adapted invariant mesh + fold + sigma tags + flip-fixed zero
-// flags) -> XC_SinglesQuadrature::RhoPol's (rho,m) split.
+// flags) -> SinglesDensitySampler::RhoPol's (rho,m) split.
 TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
 {
     namespace L3=BasisSet::Lattice_3D;
@@ -4519,7 +4519,7 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
     // (ii) G-space: |m-tilde| at the AFM wavevector (dm=(1,0,0): 2pi m.f = pi between the Mn sublattices),
     // scaled by the cell volume back to electrons-scale.
     {
-        Hamiltonian::XC_PairQuadrature::fbs_t fit(A.calc->Basis().CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
+        Hamiltonian::PairDensitySampler::fbs_t fit(A.calc->Basis().CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
         // The G-space arm needs the CHANNELS' Fourier faces, which m(r) cannot provide -- so ask the
         // density object what it can do (the tree's normal way to reach a capability).
         auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&A.result->DensityMatrix());

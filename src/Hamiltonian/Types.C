@@ -27,9 +27,9 @@ export namespace qchem::Hamiltonian
 //! SEPARATION, user 2026-08-01): the fit-basis choice and the real-space grid choice
 //! (\c qcMesh::MeshParams) are ORTHOGONAL user knobs.
 //!  - \c PlaneWave: expand \f$v_{xc}\f$ on the \f$\{Q_j\}\f$ ball (band-limited; the projection
-//!    quadrature is the FFT on the uniform raster) -- the PAIR/collocation \c XC_Quadrature.
+//!    quadrature is the FFT on the uniform raster) -- the PAIR/collocation \c DensitySampler.
 //!  - \c Delta: the delta-function "fit" -- coefficients ARE the grid-point values, H by direct
-//!    quadrature -- the SINGLES (Φ-table) \c XC_Quadrature, on ANY real-space grid (Becke or uniform).
+//!    quadrature -- the SINGLES (Φ-table) \c DensitySampler, on ANY real-space grid (Becke or uniform).
 //!  - \c Auto: picks Delta whenever the plane-wave fit cannot do the job -- on a Becke grid (no G-space
 //!    raster) and on a POLARIZED run (the pair route is not spin-native) -- else PlaneWave.
 //! (PlaneWave fit ON a Becke grid = I3: the projection sum is trivial, but the one-functional E/H

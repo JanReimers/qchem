@@ -139,7 +139,7 @@ public:
 //! here is what makes the adjoint pairing a CLASS INVARIANT rather than a convention -- the \f$\rho\f$
 //! FORWARD (\c applyRaw / \c applyRawFactored) and the \f$H_{xc}\f$ ADJOINT (\c applyRawAdjoint) now come
 //! off ONE held object, where they used to be reached by two different callers (the density, and the
-//! fitter) each asking the basis independently.  Same argument \c XC_Quadrature makes for its own two
+//! fitter) each asking the basis independently.  Same argument \c DensitySampler makes for its own two
 //! faces, one level down.
 //!
 //! LIFETIME, and it is a real hazard now that copies are STORED: those closures capture the producing

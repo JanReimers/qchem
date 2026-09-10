@@ -9,7 +9,7 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
-import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, Vxc_Quadrature + MakeXCQuadrature (the periodic KS terms)
+import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, Vxc_Quadrature + MakeDensitySampler (the periodic KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
 import qchem.Types;                               // dcmplx (for IonIon<dcmplx>)
@@ -228,7 +228,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // half was a CONFLATION of two orthogonal things (user, 2026-08-28: *"polarization and XC grids ... in
     // my mind they have nothing to do with each other ... the user should be able to select any XC grid,
     // and pol and unpol systems, with no if statements in the code blocking that"*).  It was there only
-    // because XC_PairQuadrature::RhoPol threw; that route is spin-native as of the same day, so the
+    // because PairDensitySampler::RhoPol threw; that route is spin-native as of the same day, so the
     // coupling has nothing left to stand on.
     //
     // ⚠ WHAT THE COUPLING COST, measured before it was removed: it forced EVERY polarized run onto the Φ

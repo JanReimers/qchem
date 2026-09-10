@@ -29,8 +29,8 @@ import qchem.BasisSet.Lattice_3D.GPW_IBS;          // tGPW_IBS<T> (both block al
 import qchem.Hamiltonian;                          // Static/Dynamic_HT_RealBlock (the capability faces)
 import qchem.Hamiltonian.Internal.Kinetic;         // Kinetic<T> (tests may cheat-import internals)
 import qchem.Hamiltonian.Internal.Hamiltonian;     // tHamiltonianImp<dcmplx> (the 3c-2 assembly gate)
-import qchem.Hamiltonian.Internal.PWTerms;         // the periodic term set + the two XC_Quadrature strategies
-import qchem.Hamiltonian.Internal.XCQuadrature;  // the XC sampling engine (its own module
+import qchem.Hamiltonian.Internal.PWTerms;         // the periodic term set + the two DensitySampler strategies
+import qchem.Hamiltonian.Internal.DensitySampler;  // the XC sampling engine (its own module
                                                   // since 2026-09-08; .Internal. modules are
                                                   // never re-exported, so name it directly)
 import qchem.BasisSet.DeltaFit_IBS;                // DeltaFit_IBS -- the delta basis the singles strategy runs on
@@ -323,7 +323,7 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
 
     auto q = rig.cx->CreateXCQuadrature(rig.st.get(), qcMesh::MeshParams{});
     auto dfb=std::make_shared<const BasisSet::DeltaFit_IBS>(q, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
-    auto engine=std::make_shared<const XC_SinglesQuadrature>(dfb, q);   // ONE bundle to both collaborators
+    auto engine=std::make_shared<const SinglesDensitySampler>(dfb, q);   // ONE bundle to both collaborators
     Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), engine);
     {
         auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);
@@ -427,8 +427,8 @@ TEST(RealComplexTerms, RawRouteXcServesTheRealBlockBitwise)
     Rig rig;
     auto cd  = rig.MakeDensity();       // the complex arm's density
     auto cdr = rig.MakeRealDensity();   // the real arm's twin (screen-consistent pairing; file header)
-    XC_PairQuadrature::fbs_t fb(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
-    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), MakeXCQuadrature(fb));
+    PairDensitySampler::fbs_t fb(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
+    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), MakeDensitySampler(fb));
     auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);
     ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
     const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, cd.get());
