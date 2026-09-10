@@ -19,6 +19,46 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-09-10 — V1.32 `9a073f39`: the finite density leaf de-templated, `IrrepCD<T>` → `FiniteIrrepCD`
+
+Raised by the user on 2026-08-17, out of the RealComplexPlan 3c-2b lineage-as-class split, and it was
+exactly as small as the row said.  After that split the finite leaf had **one** instantiation, and
+`IrrepCD_Factory`'s `if constexpr` made a finite-complex density **unrepresentable** — it throws rather
+than instantiate one.  So the parameter was vestigial, and the name had stopped naming the load-bearing
+thing: *Finite* (molecules/atoms) is this leaf's identity; the scalar is not.
+
+**WHAT THE PARAMETER WAS ACTUALLY HOLDING UP — three conditionals with one live branch each:**
+
+| was | is |
+|---|---|
+| `ProjectedDensityBase<T>` (conditional on `T==double`) | `Fitting::CoulombMetric_ProjectedDensity`, named outright |
+| `IrrepHF_PairBase<T,Leaf>` | `IrrepCD_HFPair<FiniteIrrepCD>` — **and the alias is DELETED**, the finite leaf being its only user |
+| `if constexpr (is_same_v<T,double>)` inside `GetRepulsion3C`, else an inert empty `rvec_t` | gone; the else-branch covered a case that no longer has a spelling |
+
+★ **The dead branches were not costing runtime, they were costing READING.** Each conditional asked the
+reader to evaluate a compile-time test to learn something the class already knew about itself. That is the
+whole payoff here — it is why this is a cleanup row and not a performance one.
+
+⛔ **`IrrepCD_Factory`'s OWN `if constexpr` STAYS, and this is the one thing worth pausing on.** It looks
+like the same dead branch, and it is not: it is what keeps the now-unspellable name out of the `dcmplx`
+instantiation of the factory template in the first place. Remove it and the `<dcmplx>` build tries to name
+`FiniteIrrepCD` in a context where nothing can satisfy it. ⇒ *A guard that PREVENTS an instantiation is not
+the same as a branch that SERVES one, even when they are spelled identically.*
+
+⛔ **AND `PeriodicIrrepCD<T>` WAS ASKED THE SAME QUESTION AND DECLINED** — the row pre-ruled this and the
+ruling holds. Its T is genuinely load-bearing (the real TRIM block vs the general-k complex block), which
+is the entire point of the 3c-2b split. ★ Worth stating because the two leaves sit adjacent in the same
+file and look like a symmetry begging to be completed. They are not symmetric: one leaf's scalar is an
+accident of history, the other's is physics.
+
+Touchers were exactly the ones the row predicted (factory double-branch, the `template <>` member
+definitions and explicit instantiations in `Internal/Imp/IrrepCD.C`, the `IrrepCD_HFPair<...>` CRTP/friend
+spellings, `tests/Version.C`) plus `tests/KerkerMix.C` and two stale comments. Compiled first try.
+
+Rename + de-template only, no behaviour change. 851/851 under `scripts/memsafe ctest -j8`.
+
+---
+
 ## LANDED 2026-09-10 — V1.17 `95640bca`: m(r) becomes a CAPABILITY FACE, not a nullable getter on the base
 
 `tWaveFunction::GetSpinDensity()` was a **pure virtual on the base** that `tUnPolarizedWF` answered with

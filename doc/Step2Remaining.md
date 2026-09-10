@@ -17,13 +17,18 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 | **V1.20c/d** | ✅ `Projector3` promoted out of `Internal` (a written-rule violation, and my `GMap` fix had been half a fix).  ⏳ V1.20d: two more sites the audit found | `ee50a5a1` |
 | **V4.1 / V4.2** | ✅ CHECKED — neither trigger has fired | — |
 | **V1.17** | ✅ `GetSpinDensity` off the base and onto `tSpinResolvedWF<T>`, a data-free cross-cast face on the `tSpinResolved_CD` model; the raw `new` went with it | `95640bca` |
+| **V1.32** | ✅ `IrrepCD<T>` → non-template `FiniteIrrepCD`; three one-live-branch conditionals collapsed, `IrrepHF_PairBase` deleted.  `PeriodicIrrepCD<T>` asked and DECLINED | `9a073f39` |
 
 ★ **AND THREE ROWS WERE CREATED BY THIS WORK**, all live in `CleanupCandidates.md`: **R1.0r** (ρ is
 star-averaged under a bigger group than the k-mesh has), **V1.35** (the axis fusion — needs a PLAN, not a
 session), **V1.20d** (two more public modules re-exporting `Internal` ones).
 
-⇒ **Group C is untouched (and must stay whole — see its note).  Group D is now four rows: V1.17 closed
-2026-09-10, and it went exactly the way the row said it would — the design was already in the tree.**
+⇒ **Group C is untouched (and must stay whole — see its note).  Group D is now THREE rows: V1.17 and
+V1.32 both closed 2026-09-10, and both went exactly the way their rows said they would.**  ★ That is the
+finding worth carrying: group D was labelled *"genuinely open interface questions — just judgement"*, but
+the judgement had ALREADY BEEN MADE in each row and then left un-executed.  The two closed here needed no
+new decision — one pointed at an idiom already in the tree, the other carried its own pre-ruling on how far
+NOT to go.  **Before treating a group-D row as open, check whether its verdict is already written in it.**
 
 ▶ **The rows that ARE obvious are deliberately not listed.**  If a row is a one-liner, do it; it does not
 need a page.
@@ -163,11 +168,13 @@ to schedule; do not land these piecemeal.
   `ΔG_Map` and `PulayMixer` runs the whole DIIS algebra OUTSIDE the density; `SetRawRho` + an external
   `RasterKerker` is a get/compute/set straddle.  Separately, `MakeDensityMixer` takes `const tDM_CD*` but
   uses only `GetTotalCharge` + a Fourier cast — excluding the matrix-free seeds BY TYPE, not by intent.
-- **V1.32 — de-template the finite `IrrepCD<T>` → `FiniteIrrepCD`.**  After lineage-as-class the finite
-  leaf has exactly one instantiation and the factory's `if constexpr` makes finite-complex
-  UNREPRESENTABLE, so the parameter is vestigial and the name no longer says the load-bearing thing:
-  *Finite* is the identity, not the scalar.  ⚠ The row already rules that `PeriodicIrrepCD<T>` must NOT
-  follow — its T is load-bearing (real TRIM vs general k).  Small and self-contained.
+- **V1.32 — ✅ DONE 2026-09-10 (`9a073f39`).**  Small and self-contained exactly as advertised, and it
+  compiled first try.  The parameter was holding up THREE conditionals with one live branch each; the
+  `IrrepHF_PairBase` alias died with it.  ⚠ **One thing that looks like a fourth dead branch is not:**
+  `IrrepCD_Factory`'s own `if constexpr` STAYS — a guard that PREVENTS an instantiation is not a branch
+  that SERVES one, even spelled identically.  And `PeriodicIrrepCD<T>` was asked and DECLINED per the
+  row's pre-ruling: the two leaves sit adjacent and look like a symmetry begging to be completed, but
+  one leaf's scalar is an accident of history and the other's is physics.
 - **V1.2 — `Orbital_PP_IBS`, the structure-neutral PP-integral face.**  Would invert the
   `qcBasisSet(qcLattice_BS) → qcPseudopotential` dependency edge.  User APPROVED attempting it 2026-08-05;
   the feasibility probe is banked in the file's appendix.  Not blocked — just never started.
