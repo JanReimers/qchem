@@ -16,12 +16,14 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 | **V1.36** | ✅ `FittedVcorrPol` memoizes its \f$v_c\f$ fits (two fitters, one per spin) | `3b88f260` |
 | **V1.20c/d** | ✅ `Projector3` promoted out of `Internal` (a written-rule violation, and my `GMap` fix had been half a fix).  ⏳ V1.20d: two more sites the audit found | `ee50a5a1` |
 | **V4.1 / V4.2** | ✅ CHECKED — neither trigger has fired | — |
+| **V1.17** | ✅ `GetSpinDensity` off the base and onto `tSpinResolvedWF<T>`, a data-free cross-cast face on the `tSpinResolved_CD` model; the raw `new` went with it | `95640bca` |
 
 ★ **AND THREE ROWS WERE CREATED BY THIS WORK**, all live in `CleanupCandidates.md`: **R1.0r** (ρ is
 star-averaged under a bigger group than the k-mesh has), **V1.35** (the axis fusion — needs a PLAN, not a
 session), **V1.20d** (two more public modules re-exporting `Internal` ones).
 
-⇒ **Groups C and D below are untouched and are where the next self-contained work is.**
+⇒ **Group C is untouched (and must stay whole — see its note).  Group D is now four rows: V1.17 closed
+2026-09-10, and it went exactly the way the row said it would — the design was already in the tree.**
 
 ▶ **The rows that ARE obvious are deliberately not listed.**  If a row is a one-liner, do it; it does not
 need a page.
@@ -143,11 +145,16 @@ to schedule; do not land these piecemeal.
 
 ## D. Genuinely open interface questions — no blocker, just judgement
 
-- **V1.17 — `tWaveFunction::GetSpinDensity()` returns null as the unpolarized answer.**  A capability half
-  the hierarchy lacks, declared on the BASE, with every client null-checking a raw pointer (and the raw
-  `new` behind it).  The correct idiom exists one library over: `tSpinResolved_CD` as a cross-cast face.
-  ★ This one directly contradicts the spin-native-is-primary bias — the polarized WF is the PRIMARY type,
-  not a special case bolted on through a nullable getter — so it is the most overdue of the set.
+- **V1.17 — ✅ DONE 2026-09-10 (`95640bca`), and it was the smallest row in this file, not the biggest.**
+  `tSpinResolvedWF<T>` now carries `GetSpinDensity`, `tUnPolarizedWF` cannot be asked at all, and the
+  owning return finishes V1.25.  ★ **The row's own sentence "the correct idiom exists one library over"
+  WAS the implementation plan** — `tSpinResolved_CD` is the same shape solved the same way, and its
+  comment even states the rule being violated.  Nothing had to be designed, only noticed.
+  ⚠ Two lessons banked in the history entry: the measured scope was **2 implementors, 1 client** (the
+  row read far heavier than it was — measure before deferring), and the client's unconditional assign
+  had been correct only BY ACCIDENT of the null return, which the cross-cast forced into the open.
+  ⚠ It had also been parked since 2026-08-17 for a real-TRIM session that has since finished — **a park
+  note outlives its reason silently.**
 - **V1.14 — report-emission creep on neutral faces.**  `EmitBasisUsage`, `EmitRadialReport`,
   `EmitGridReport` (PURE — it forces every implementor), plus function-local-static
   `bool& ReportBandGap()` / `ReportGridCharge()` process-globals that LEAK STATE BETWEEN TESTS (the

@@ -85,8 +85,8 @@ staging step — a concurrent cleanup session should stay OUT of these:
   file** (`PreservesReal()` added per term), the run report, the GPW evaluator (`IsTRIM`).
 - Step 2 (next): `src/ChargeDensity` composites (`tComposite_CD`/`IrrepCD` child slot), `src/SCFAccelerator`.
 - Step 3+: `src/BasisSet/Lattice_3D`, `src/WaveFunction` (the variant child).  Plus `GPW_SCF_UT.C` runs.
-Consequently ALSO parked for now (they live in those files): V1.12, V1.17, V2.1, V2.3, R2.14's remaining
-renames, the I.1 residual; R1.0 stays "own session" (user), R2.21 stays deferred (user); **§K deferred
+Consequently ALSO parked for now (they live in those files): V1.12, ~~V1.17~~ (unparked and DONE
+2026-09-10 — the real-TRIM track completed), V2.1, V2.3, R2.14's remaining renames, the I.1 residual; R1.0 stays "own session" (user), R2.21 stays deferred (user); **§K deferred
 (user 2026-08-17, the V1.22 reason: non-bit-identical while the campaign runs — not just "wants the box")**.
 
 **Concurrent-cleanup assignment (2026-08-17): V3.1 + V3.2 (the atomic-solver bugs — atom path only),
@@ -2225,11 +2225,10 @@ MnO campaign proceeds undisturbed in qchem6.
   `tComposite_CD` were cross-casting to the PLAIN AO face and then calling the Coulomb-only
   `GetRepulsion3C` — the implicit pairing in action, since any `ProjectedDensity_AO` satisfied that cast and
   the poison fired later.  Both now ask for the capability they use.  **→ doc/CleanupHistory.md**
-- **V1.17 `tWaveFunction::GetSpinDensity()` returns null as the unpolarized answer**
-  (WaveFunction.C:39) — a capability half the hierarchy lacks, on the base, every client
-  null-checking a raw pointer.  Correct idiom one library over: `tSpinResolved_CD` as a cross-cast
-  face.  Move to a `SpinResolvedWF` face — also aligns with the spin-native-is-primary bias (the
-  polarized WF is the primary type, not a special case bolted on via nullable getter).
+- **V1.17 ✅ DONE 2026-09-10 `95640bca`. `tWaveFunction::GetSpinDensity()` returned null as the
+  unpolarized answer** — now `tSpinResolvedWF<T>`, a data-free cross-cast face on the model of
+  `tSpinResolved_CD`, inherited by `tPolarizedWF` only.  The raw `new` went with it (owning return,
+  V1.25's last step), and the one client's else-branch became explicit.  **→ doc/CleanupHistory.md**
 - **V1.18 `FourierMixCD` tell-don't-ask + `MakeDensityMixer` ISP.**  `RhoTilde()` hands out the
   raw ΔG_Map and PulayMixer runs the whole DIIS algebra outside the density
   (DensityMixer.C:183-233); `SetRawRho` + external `RasterKerker` is a get/compute/set straddle —

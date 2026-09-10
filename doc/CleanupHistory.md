@@ -19,6 +19,52 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-09-10 — V1.17 `95640bca`: m(r) becomes a CAPABILITY FACE, not a nullable getter on the base
+
+`tWaveFunction::GetSpinDensity()` was a **pure virtual on the base** that `tUnPolarizedWF` answered with
+`return 0`.  So the base declared a capability half its implementors do not have, and the one client
+null-checked a **raw `new`** to find out.  ★ It also read the house bias backwards: spin-polarized is the
+PRIMARY formulation and unpolarized is the ζ=0 collapse — but this interface said the opposite, with the
+polarized WF as the special case reachable only by testing the base's answer for null.
+
+⇒ **`tSpinResolvedWF<T>` in `qchem.WaveFunction`** — a data-free face that is **NOT** a `tWaveFunction`,
+carrying the one method, reached by the sanctioned abstract→abstract `dynamic_cast`.  `tPolarizedWF`
+inherits it virtually; `tUnPolarizedWF` loses its stub and **can no longer be asked the question at all**.
+
+★ **THE IDIOM WAS ALREADY IN THE TREE, ONE LIBRARY OVER.**  `tSpinResolved_CD` (ChargeDensity.C:473) is the
+same shape solved the same way, for the same reason, and its own comment states the rule this row was
+violating: *"capabilities live only on the types that have them (no asserting DM stubs)"*.  Nothing here
+had to be designed — it had to be **noticed**.  ⚠ Worth carrying forward: when a row says "the correct
+idiom exists one library over", that is not colour, it is the whole implementation plan.
+
+**TWO THINGS FELL OUT THAT THE ROW DID NOT PREDICT:**
+
+- **The raw `new` is gone, and this completes V1.25 rather than merely resembling it.**  V1.25 had already
+  fixed `tSpinDensity` to TAKE OWNERSHIP of its two channels (its comment records that the old form was a
+  double-delete waiting for a second caller).  But the WF that BUILT it still handed back a bare pointer,
+  so the owning boundary stopped one level short.  The face returns `std::unique_ptr<sf_t>` and the client's
+  `.reset(raw)` becomes a move.
+- **The single client had an INCIDENTAL correctness, now made explicit.**  `SolidCalculation::Converge`
+  assigned `spin` unconditionally, which was right only because the old getter answered null on the
+  unpolarized branch — and `Converge` runs **once per anneal STAGE**, so a stale m(r) from an earlier
+  polarized stage would otherwise survive into a stage that no longer has one.  The cross-cast forces the
+  else-branch to be written down (`itsImp->spin.reset()`) instead of arriving as a side effect of the
+  null return.  ⇒ *Removing a null-returning getter does not just delete null checks; it exposes every
+  place the null was doing unstated work.*
+
+**SCOPE, MEASURED FIRST:** exactly **two** implementors in the whole hierarchy (`tPolarizedWF`,
+`tUnPolarizedWF` — everything else derives from those or is abstract) and exactly **one** non-test client
+(`SolidCalculation.C:701`).  `pybind/` does not name it, so no binding-owner flag was needed.  The row had
+been parked since 2026-08-17 as living in the real-TRIM session's working set (`src/WaveFunction`, step 3);
+that track completed, and nobody had gone back to unpark it. ⚠ **A park note outlives its reason silently
+— the same failure mode as a plan file naming a dead branch.**
+
+851/851 under `scripts/memsafe ctest -j8`.  (First pass showed one failure,
+`M_PG_BoxWalk.WhereTheContractionSpendsItsTime` — it asserts on wall-clock RATIOS, so it is load-sensitive
+at `-j8`; clean on a rerun.)
+
+---
+
 ## LANDED 2026-08-17 — R2.20 `7c80e71e` (concurrent-cleanup session): the oracle helpers out of the test module
 
 `RelativeError` / `RelativeHF/DFT/DHFError` moved from `IntegrationTests/TestUtils.C` (module
