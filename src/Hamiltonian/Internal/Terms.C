@@ -316,7 +316,7 @@ public:
     //! caching, fitting \c FittedVxc -- were never warmed and never pre-slotted, and did both lazily from
     //! inside the block loop.  Owning children means owning their share of every phase.
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
-    //! \copydoc tDynamic_HT::PrepareSlots
+    //! \copydoc HT_SlotOwner::PrepareSlots
     //! Forwarded for the same reason: this class owns no cache, its two children each own one.
     virtual void PrepareSlots(const rbs_t* bs) const override;
     virtual void GetEnergy       (EnergyBreakdown&,const rDM_CD* cd         ) const;

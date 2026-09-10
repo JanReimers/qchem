@@ -2851,6 +2851,30 @@ MnO campaign proceeds undisturbed in qchem6.
   ★ RELATED: [`project_functionfitter_isp_split`] already split `FunctionFitter` into Scalar/Density
   faces on exactly this kind of argument, so this is the same axis, one level down.
 
+- **V1.35a ✅ DONE 2026-09-10 — THE SECOND HOOK IS DISSOLVED, VIA A DIAMOND DONE CORRECTLY.**
+  (User, on seeing it: *"I believe this a proper usage of the diamond pattern."*)
+
+  ▶ **THE INSIGHT: slot preparation is a property of OWNING A CACHE** — not of being dynamic rather than
+  static, and not of a block's scalar.  So it belongs on neither of those hierarchies, and putting it on
+  both is what produced two differently-named functions for one idea.  New data-free abstract face
+  `HT_SlotOwner<TRun>` carries the single `PrepareSlots`; `tStatic_HT<T>`, `tDynamic_HT<T>`,
+  `Static_HT_RealBlock` and `Dynamic_HT_RealBlock` all inherit it **virtually**, so a term reaching it by
+  two paths gets ONE subobject and ONE slot.  `PrepareRealSlots` is gone from the tree.
+
+  ★★ **AND THE AMBIGUITY IS THE FEATURE.**  Two caching mixins override the same function from the same
+  virtual base, so the final overrider is ambiguous until the TERM writes it — a compile error that forces
+  the term to state *"I own two caches"*, which is true and worth saying.  The compiler named all nine:
+  `Ven_PP_{Short,NonLocal,Long}`, `Vee_Hartree`, `Vxc_Quadrature`, `Vxc_QuadraturePol`,
+  `Vcorr_QuadraturePol`, and `IonIon<dcmplx>` / `Kinetic<dcmplx>`.  The last two reach their second cache
+  through the `StaticRealBlockBase<T>` conditional, so their override compiles the second call OUT on
+  `<double>` (`if constexpr`) rather than guarding it at run time.
+
+  ✅ **The fold lost its knowledge of the problem**: four calls with two `dynamic_cast`s and an
+  `if constexpr` became `for (t : itsSHTs) t->PrepareSlots(bs); for (t : itsDHTs) t->PrepareSlots(bs);`.
+  **851/851.**
+
+  ⚠ **THIS IS THE HOOK, NOT THE AXES.**  The fusion below is untouched — see the corrected scope in V1.35.
+
 - **V1.35 ★★ `Dynamic`-vs-`Static` AND THE BLOCK SCALAR ARE ORTHOGONAL AXES, AND THE TERM HIERARCHY HAS
   FUSED THEM** (user, 2026-09-10: *"'real-block capability faces don't derive from tDynamic_HT' — this makes
   no sense.  Dynamic_HT vs Static_HT and Real vs Complex are orthogonal issues."*).
@@ -2886,6 +2910,17 @@ MnO campaign proceeds undisturbed in qchem6.
   likewise for the static side.  The `*_RealBlock` faces disappear, the second hook evaporates, and a term
   that serves both corners inherits two INSTANTIATIONS of one template — a diamond, done correctly, which is
   the house style.
+  ⛔ **SCOPE, CORRECTED 2026-09-10 AFTER MEASURING — IT IS A TWO-LIBRARY CAMPAIGN, NOT A ROW.**  My first
+  estimate treated this as a `qcHamiltonian` change.  It is not: `Dynamic_HT_RealBlock` derives from
+  `ChargeDensity::Dynamic_CC_RealBlock`, which is ITSELF the mixed corner of `tDynamic_CC<T>` — so the same
+  fusion sits one library down, and retemplating properly means retemplating the CC faces and every density
+  that implements them (`IrrepCD`, `PeriodicIrrepCD`, the composites), i.e. the real-TRIM machinery a whole
+  campaign landed.  ▶ **Its fingerprint is the 31 `*R`-SUFFIXED METHODS** — `GetMatrixR`, `GetEMatrixR`,
+  `MakeMatrixR` across 12 files in two libraries — names that exist ONLY because the corners are separate
+  TYPES instead of two INSTANTIATIONS.  Counting them is the cheapest way to size this, and to know when it
+  is finished: **the suffixes disappear**.
+  ⇒ Plan it; do not start it as a cleanup increment.
+
   ⚠ **The one thing to design rather than assume:** both instantiations' `PrepareSlots` would take
   `tbs_t<TRun>*`, hence the SAME signature, so a term inheriting both must write one explicit override
   calling both bases.  That is a feature — it is a compile error until the term states that it has two

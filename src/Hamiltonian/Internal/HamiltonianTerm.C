@@ -52,7 +52,7 @@ protected:
     mutable CacheMap   itsCache;       //Cache the H matrices for total energy calculations.
 
     //! \brief CREATE (empty) one slot per irrep of \a bs, so the block loop only fills existing nodes.
-    //! R1.0h; the rationale is on \c tDynamic_HT::PrepareSlots.
+    //! R1.0h; the rationale is on \c HT_SlotOwner::PrepareSlots.
     //!
     //! ★ AN EMPTY MATRIX IS THE "NOT FILLED YET" SENTINEL, and it is a safe one: a Fock/KS block always has
     //! rows, so 0x0 cannot be a legitimate cached value.  That is what lets a pre-created slot be
@@ -98,7 +98,7 @@ public:
         return slot;
     }
 
-    //! \copydoc tStatic_HT::PrepareSlots
+    //! \copydoc HT_SlotOwner::PrepareSlots
     //! No clear: a static term's blocks are geometry-fixed, so a slot once filled stays valid for the run.
     virtual void PrepareSlots(const tbs_t<T>* bs) const override {this->PrepareCacheSlots(bs);}
 
@@ -138,7 +138,7 @@ public:
         return slot;   //Cache hit (same density serial, already computed for this Irrep)
     }
 
-    //! \copydoc tDynamic_HT::PrepareSlots
+    //! \copydoc HT_SlotOwner::PrepareSlots
     //! Drops the previous iteration's blocks first (the same density-serial test \c GetMatrix makes, and
     //! it must stay in BOTH: this phase is optional, that one is the correctness mechanism), then creates
     //! this iteration's empty slots.
@@ -188,7 +188,7 @@ public:
     //! rather than a live bug -- and FittedVxcPol, one object serving both spin channels, is exactly where
     //! it would have been sprung.  Keying the scratch removes the asymmetry instead of documenting it;
     //! the cost is one matrix per Irrep, the same bound the sibling already carries.
-    //! \copydoc tDynamic_HT::PrepareSlots
+    //! \copydoc HT_SlotOwner::PrepareSlots
     //! The scratch slots are pre-created too: this class recomputes unconditionally, but it still WRITES
     //! into a per-Irrep map node, and an absent node is an insertion like any other.
     virtual void PrepareSlots(const tbs_t<T>* bs) const override {this->PrepareCacheSlots(bs);}
@@ -230,8 +230,10 @@ public:
         if (slot.rows()==0) slot=MakeMatrixR(bs,s);
         return slot;
     }
-    //! \copydoc Static_HT_RealBlock::PrepareRealSlots
-    virtual void PrepareRealSlots(const tbs_t<dcmplx>* bs) const override
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! MY (real) cache's slots.  A term that also has a scalar cache overrides this once and calls BOTH
+    //! mixins -- see HT_SlotOwner for why the ambiguity until it does is the point.
+    virtual void PrepareSlots(const tbs_t<dcmplx>* bs) const override
     {
         if (!bs) return;                                // no clear: geometry-fixed, like the scalar sibling
         for (size_t i=0;i<bs->GetNumIBS();++i)
@@ -263,10 +265,10 @@ public:
         if (slot.rows()==0) slot=MakeMatrixR(bs,s,cd);
         return slot;
     }
-    //! \copydoc Dynamic_HT_RealBlock::PrepareRealSlots
+    //! \copydoc HT_SlotOwner::PrepareSlots
     //! The REAL blocks of \a bs -- \c GetRealIBS, not \c operator[]: this cache serves the real TRIM
     //! blocks of a complex-faced set (3c-3), and those are exactly the indices that answer non-null there.
-    virtual void PrepareRealSlots(const tbs_t<dcmplx>* bs) const override
+    virtual void PrepareSlots(const tbs_t<dcmplx>* bs) const override
     {
         itsRealCache.clear();
         if (!bs) return;

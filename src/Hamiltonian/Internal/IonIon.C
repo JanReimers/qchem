@@ -11,6 +11,7 @@
 // Fully inline (no separate Imp TU): a template term must have its definition visible where it is
 // instantiated -- IonIon<double> in the molecular Hamiltonians, IonIon<dcmplx> in the plane-wave ones.
 module;
+#include <type_traits>   // is_same_v -- the conditional real-block base (PrepareSlots)
 #include <cassert>
 #include <functional>
 #include <iostream>
@@ -39,6 +40,17 @@ template <class T> class IonIon
     , public         StaticRealBlockBase<T>   // real-block capability on the dcmplx instantiation (Step 3c)
 {
 public:
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! ⚠ THE CONDITIONAL-BASE CASE.  On \c <dcmplx> this term carries BOTH caches (its own and the
+    //! real-block mixin's) and must prepare both; on \c <double> \c StaticRealBlockBase is \c NoRealBlock,
+    //! which has no slots and no such method -- so the second call is compiled out rather than guarded at
+    //! run time.  The ambiguity that forces this override on the complex instantiation is the shared
+    //! \c HT_SlotOwner base doing its job (see it).
+    virtual void PrepareSlots(const tbs_t<T>* bs) const override
+    {
+        tStatic_HT_Imp<T>::PrepareSlots(bs);
+        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T>::PrepareSlots(bs);
+    }
     typedef std::shared_ptr<const Structure> st_t;
 
     //! All-electron: the ion charge IS the true nuclear charge \c itsZ (identity map).

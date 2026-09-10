@@ -14,6 +14,7 @@
 // instantiated -- Kinetic<double> in the molecular Hamiltonians, Kinetic<dcmplx> in the plane-wave
 // ones.  Mirrors IonIon<T> (the first of these collapses).
 module;
+#include <type_traits>   // is_same_v -- the conditional real-block base (PrepareSlots)
 #include <iostream>
 export module qchem.Hamiltonian.Internal.Kinetic;
 import qchem.Hamiltonian.Internal.Term;   // tStatic_HT<T> / tStatic_HT_Imp<T> (+ Energy/Types via re-export)
@@ -39,6 +40,17 @@ template <class T> class Kinetic
     , public         StaticRealBlockBase<T>   // real-block capability on the dcmplx instantiation (Step 3c)
 {
 public:
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! ⚠ THE CONDITIONAL-BASE CASE.  On \c <dcmplx> this term carries BOTH caches (its own and the
+    //! real-block mixin's) and must prepare both; on \c <double> \c StaticRealBlockBase is \c NoRealBlock,
+    //! which has no slots and no such method -- so the second call is compiled out rather than guarded at
+    //! run time.  The ambiguity that forces this override on the complex instantiation is the shared
+    //! \c HT_SlotOwner base doing its job (see it).
+    virtual void PrepareSlots(const tbs_t<T>* bs) const override
+    {
+        tStatic_HT_Imp<T>::PrepareSlots(bs);
+        if constexpr (std::is_same_v<T,dcmplx>) StaticRealBlockBase<T>::PrepareSlots(bs);
+    }
     Kinetic() : tStatic_HT_Imp<T>() {}
 
     virtual void GetEnergy(EnergyBreakdown& te, const tDM_CD<T>* cd) const override

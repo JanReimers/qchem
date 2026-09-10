@@ -33,22 +33,65 @@ using ChargeDensity::rDM_CD;
 //! lattice lineage).  \c hmat_t<double> IS \c rsmat_t and \c tobs_t<double> IS \c robs_t, so the \c <double>
 //! aliases below leave all existing real code unchanged.
 
+//! \brief THE CAPABILITY OF OWNING IRREP-KEYED PER-BLOCK CACHES -- and therefore of having SLOTS to
+//! pre-create before the Fock loop (R1.0h).  \a TRun is the RUN's scalar: the composite basis a term is
+//! handed, whatever the scalar of the individual blocks it serves.
+//!
+//! ★★ WHY THIS FACE EXISTS, AND WHY IT IS A DIAMOND ON PURPOSE (user, 2026-09-10: *"Diamonds are a very
+//! useful design pattern IF they are done correctly"*).  Slot preparation is a property of OWNING A CACHE.
+//! It is not a property of being dynamic rather than static, and not a property of a block's scalar -- so it
+//! belongs on neither of those hierarchies, and putting it on both is what produced two hooks
+//! (`PrepareSlots` + `PrepareRealSlots`) for one idea.  Hoisting it to a data-free abstract base that BOTH
+//! hierarchies inherit VIRTUALLY is exactly the pattern CLAUDE.md describes as this project's design, and
+//! it collapses the two hooks into one.
+//!
+//! ⇒ **A TERM SERVING BOTH CORNERS GETS ONE VIRTUAL AND MUST OVERRIDE IT ONCE.**  Its two caching mixins
+//! each override the same function from the same virtual base, so the final overrider is AMBIGUOUS until the
+//! term writes it -- a compile error that forces the term to state "I own two caches", which is true and
+//! worth saying.  That is the diamond doing its job, not a hazard.
+//!
+//! ⚠ **IT DOES NOT FIX THE UNDERLYING AXIS FUSION, and that is filed, not forgotten.**  `Dynamic`-vs-`Static`
+//! and the BLOCK scalar are orthogonal, yet `Dynamic_HT_RealBlock` is a separately NAMED type rather than
+//! `tDynamic_HT<double,dcmplx>` -- and the fusion runs one library deeper, into `qcChargeDensity`'s
+//! `tDynamic_CC<T>` / `Dynamic_CC_RealBlock` pair, whose fingerprint is the 31 `*R`-suffixed methods
+//! (`GetMatrixR`, `GetEMatrixR`, `MakeMatrixR`) that exist ONLY because the corners are separate types
+//! instead of two instantiations.  See \c doc/CleanupCandidates.md **V1.35**.
+template <class TRun> class HT_SlotOwner
+{
+public:
+    virtual ~HT_SlotOwner() = default;
+    //! \brief CREATE (empty) this iteration's per-irrep cache slots for the blocks of \a bs, so the Fock
+    //! loop below only FILLS nodes that already exist.
+    //!
+    //! ★ WHY SLOT CREATION IS THE THING THAT MATTERS, and not the fill.  A `std::map` INSERTION mutates the
+    //! tree, so two blocks inserting concurrently race even though their keys differ; writing to two
+    //! ALREADY-EXISTING nodes does not, because map nodes are address-stable.  \c tDynamic_HT::RefreshForDensity
+    //! hoisted the k-INDEPENDENT memos out of the loop; this hoists the per-block INSERTIONS, which is what
+    //! was left -- and unlike those memos these are k-DEPENDENT, so they cannot be warmed, only pre-slotted.
+    //!
+    //! ⚠ A PRE-CREATE, NOT A CONTRACT.  \c GetMatrix still creates a missing slot on demand, because energy
+    //! evaluation and the unit tests drive terms outside any prologue.  What the phase buys is that in the
+    //! ORDINARY path the loop performs no insertion.
+    //!
+    //! ⛔ PURE, never defaulted: a defaulted no-op is how a term silently skips a phase it needs, which is
+    //! exactly what happened while \c RefreshForDensity had one (see there).
+    virtual void PrepareSlots(const tbs_t<TRun>* bs) const=0;
+};
+
 //! \brief A density-INDEPENDENT Hamiltonian term (kinetic, nuclear attraction, ...): built once and reused
 //! unchanged every SCF iteration.
 template <class T> class tStatic_HT
     : public virtual Streamable
     , public virtual tStatic_CC<T>
+    , public virtual HT_SlotOwner<T>      //!< it owns an Irrep-keyed cache, so it has slots (R1.0h)
 {
 public:
     //! One-irrep matrix block \f$\langle i|\hat h|j\rangle\f$ for basis \a bs and spin \a s.
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
-    //! \copydoc tDynamic_HT::PrepareSlots
-    //! ⚠ A static term's cache is NEVER cleared (its blocks are geometry-fixed), so this creates each slot
-    //! once and every later call is a lookup.  It is here anyway because iteration ONE would otherwise still
-    //! insert from inside the block loop -- the phase is about the loop being read-only, and "read-only from
-    //! the second iteration" is not that.
-    //! ⛔ PURE, like the dynamic sibling: a defaulted no-op is how a term silently skips a phase it needs.
-    virtual void PrepareSlots(const tbs_t<T>*) const=0;
+    // PrepareSlots comes from HT_SlotOwner<T>.  ⚠ A static term's cache is NEVER cleared (its blocks are
+    // geometry-fixed), so it creates each slot once and every later call is a lookup -- it is in the phase
+    // anyway because iteration ONE would otherwise still insert from inside the block loop, and "read-only
+    // from the second iteration" is not read-only.
     //! Add this term's energy contribution (contracted against the density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
@@ -84,6 +127,7 @@ public:
 template <class T> class tDynamic_HT
     : public virtual Streamable
     , public virtual tDynamic_CC<T>
+    , public virtual HT_SlotOwner<T>      //!< it owns an Irrep-keyed cache, so it has slots (R1.0h)
 {
 public:
     //! This irrep's POTENTIAL block (V) for basis \a bs / spin \a s, built from the current density \a cd --
@@ -116,24 +160,8 @@ public:
     //! ⇒ Every term ANSWERS, and a term with genuinely nothing to warm writes `{}` and says WHY -- which
     //! ISOLATES the one such term (\c FittedVcorrPol) instead of hiding it in a default.
     virtual void RefreshForDensity(const tChargeDensity<T>*) const=0;
-    //! \brief THE OTHER HALF OF THE SAME PHASE (R1.0h, 2026-09-09): CREATE this iteration's per-irrep cache
-    //! slots for the blocks of \a bs, so the Fock loop below only FILLS nodes that already exist.
-    //!
-    //! ★ WHY SLOT CREATION IS THE THING THAT MATTERS, and not the fill.  A `std::map` INSERTION mutates the
-    //! tree, so two blocks inserting concurrently race even though their keys differ; writing to two
-    //! ALREADY-EXISTING nodes does not, because map nodes are address-stable.  \c RefreshForDensity hoisted
-    //! the k-INDEPENDENT memos out of the loop; this hoists the per-block INSERTIONS, which is what was
-    //! left -- and unlike those memos these are k-DEPENDENT, so they cannot be warmed, only pre-slotted.
-    //!
-    //! ⚠ A PRE-CREATE, NOT A CONTRACT -- exactly as \c RefreshForDensity is a pre-warm and not a
-    //! replacement.  \c GetMatrix still creates a missing slot on demand, because energy evaluation and the
-    //! unit tests drive terms outside any prologue.  What the phase buys is that in the ORDINARY path the
-    //! loop performs no insertion.
-    //!
-    //! ⛔ PURE, for the same reason \c RefreshForDensity is (see there).  And more so: since R1.0h every
-    //! caching term has an irrep-keyed cache BY CONSTRUCTION, so "no slots to prepare" is an even smaller
-    //! set than "no memo to warm".
-    virtual void PrepareSlots(const tbs_t<T>*) const=0;
+    // PrepareSlots comes from HT_SlotOwner<T> -- see it.  Hoisted there 2026-09-10 so that a term owning a
+    // SECOND cache (the real-block one) overrides ONE function instead of two.
     //! \copybrief tDynamic_CC::GetEMatrix
     //! Default: \f$E=D\cdot V\f$, so the energy matrix IS the potential block.  Overridden ONLY where that
     //! identity fails -- the xc family, whose energy density \f$\epsilon_{xc}\f$ is not its potential
@@ -221,37 +249,25 @@ public:
 //  one carries the run-typed GetEMatrixR (see ChargeDensity::Dynamic_CC_RealBlock).
 class Static_HT_RealBlock
     : public virtual ChargeDensity::tStatic_CC<double>
+    , public virtual HT_SlotOwner<dcmplx>   //!< a SECOND Irrep-keyed cache -> the SAME hook (R1.0h)
 {
 public:
     virtual ~Static_HT_RealBlock() {};
     // GetMatrix(const tobs_t<double>*, const Spin&) comes from tStatic_CC<double> -- one declaration,
     // one override (the caching Imp mixin's), serving BOTH the Fock fold and the energy contraction.
-    //! \copydoc Dynamic_HT_RealBlock::PrepareRealSlots
-    virtual void PrepareRealSlots(const tbs_t<dcmplx>*) const=0;
 };
 class Dynamic_HT_RealBlock
     : public virtual ChargeDensity::Dynamic_CC_RealBlock
+    , public virtual HT_SlotOwner<dcmplx>   //!< a SECOND Irrep-keyed cache -> the SAME hook (R1.0h)
 {
 public:
     virtual ~Dynamic_HT_RealBlock() {};
     //! \a cd is the RUN's density (complex-faced composite): the term's density-dependent state is
     //! block-independent, so the real block consumes the same \f$V_H(G)\f$ / \f$\rho\f$ raster.
     virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const=0;
-    //! \brief The real-block sibling of \c tDynamic_HT::PrepareSlots (R1.0h) -- see it for the rationale.
-    //!
-    //! ⛔ **A SEPARATE VIRTUAL ONLY BECAUSE THE HIERARCHY IS WRONG HERE, AND THAT IS A DEFECT, NOT A
-    //! JUSTIFICATION** (user, 2026-09-10).  An earlier version of this note blamed "a diamond nobody
-    //! wants".  That was backwards: CLAUDE.md states that this project uses diamond inheritance through
-    //! virtual bases DELIBERATELY and considers it harmless, so "diamond" is not an argument against
-    //! anything.  The real reason two hooks were needed is that **Dynamic-vs-Static and the BLOCK SCALAR
-    //! are ORTHOGONAL AXES that this hierarchy has fused**: this face does not derive from
-    //! \c tDynamic_HT at all, it derives from a \c ChargeDensity CC face, so there is no common base to
-    //! put ONE hook on.
-    //! ▶ The principled cure, filed as \c doc/CleanupCandidates.md **V1.35**: the axes are (BLOCK scalar)
-    //! x (RUN/density scalar), which is the shape \c Orbital_DFT_IBS<U,TFit> and \c FitContraction<U,TFit>
-    //! already solve with a two-parameter template.  \c tDynamic_HT<TBlock,TRun=TBlock> would make this
-    //! face simply \c tDynamic_HT<double,dcmplx>, and the second hook would evaporate.
-    virtual void PrepareRealSlots(const tbs_t<dcmplx>*) const=0;
+    // PrepareSlots comes from HT_SlotOwner<dcmplx>, shared with the scalar face -- ONE hook since
+    // 2026-09-10.  A term serving both corners overrides it once and prepares both caches; the ambiguity
+    // until it does is the diamond doing its job (see HT_SlotOwner).
 };
 
 //! \brief The REAL-BLOCK ASSEMBLY face of a complex-run Hamiltonian (Step 3c-2): fold the term set's

@@ -70,6 +70,13 @@ class Ven_PP_Short
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
+    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
+    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! this term, and the term is what states it.
+    virtual void PrepareSlots(const cbs_t* bs) const override
+    { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     virtual bool IsVirialValid() const {return false;}
@@ -97,6 +104,13 @@ class Ven_PP_NonLocal
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
+    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
+    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! this term, and the term is what states it.
+    virtual void PrepareSlots(const cbs_t* bs) const override
+    { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     virtual bool IsVirialValid() const {return false;}
@@ -134,6 +148,13 @@ class Ven_PP_Long
     , public         Static_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
+    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
+    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! this term, and the term is what states it.
+    virtual void PrepareSlots(const cbs_t* bs) const override
+    { cStatic_HT_Imp::PrepareSlots(bs); Static_HT_RealBlock_Imp::PrepareSlots(bs); }
     //! The virial theorem needs a Coulombic (degree -1 homogeneous) potential; a pseudopotential is not
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     virtual bool IsVirialValid() const {return false;}
@@ -194,6 +215,13 @@ class Vee_Hartree
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
+    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
+    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! this term, and the term is what states it.
+    virtual void PrepareSlots(const cbs_t* bs) const override
+    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
     //! Built with the density-fit basis (from the orbital basis's factory, exactly as \c FittedVee is).
     //! No structure and no pseudopotential model: pure \f$V_H[\rho]\f$ has no use for either.
@@ -257,6 +285,13 @@ class Vxc_Quadrature
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
+    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
+    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! this term, and the term is what states it.
+    virtual void PrepareSlots(const cbs_t* bs) const override
+    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
     typedef std::shared_ptr<ExFunctional> xc_t;
     typedef std::shared_ptr<const DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
     Vxc_Quadrature(const xc_t&, sampler_t);
@@ -286,6 +321,13 @@ class Vxc_QuadraturePol
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
+    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
+    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! this term, and the term is what states it.
+    virtual void PrepareSlots(const cbs_t* bs) const override
+    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
     //! The atom-centred partition lives on my quadrature, so I am the term that can answer this
     //! (doc/OpenWork.md N1/T2).  Empty when the quadrature has no site blocks (a uniform raster).
     virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
@@ -322,6 +364,13 @@ class Vcorr_QuadraturePol
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
 {
 public:
+    //! \copydoc HT_SlotOwner::PrepareSlots
+    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
+    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
+    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
+    //! this term, and the term is what states it.
+    virtual void PrepareSlots(const cbs_t* bs) const override
+    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
     typedef std::shared_ptr<SpinCorrelation> corr_t;
     typedef std::shared_ptr<const DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
     Vcorr_QuadraturePol(const corr_t&, sampler_t);

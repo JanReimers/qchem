@@ -63,21 +63,13 @@ public:
     //! first iteration the calls are pure lookups.
     virtual void            RefreshForDensity(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const
     {
-        for (const auto& t : itsDHTs)
-        {
-            t->PrepareSlots(bs);
-            // The REAL-block cache is a SECOND map behind a SEPARATE capability face, so it needs its own
-            // call.  A soft cast, not DynamicRealOf: most dynamic terms simply do not carry the face, and
-            // that is a legitimate configuration rather than a wiring error here.
-            if constexpr (std::is_same_v<T,dcmplx>)
-                if (const auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(t.get())) rb->PrepareRealSlots(bs);
-        }
-        for (const auto& t : itsSHTs)
-        {
-            t->PrepareSlots(bs);
-            if constexpr (std::is_same_v<T,dcmplx>)
-                if (const auto* rb=dynamic_cast<const Static_HT_RealBlock*>(t.get())) rb->PrepareRealSlots(bs);
-        }
+        // ONE call per term, whatever caches it owns (R1.0h + V1.35, 2026-09-10).  This used to be four
+        // calls with two cross-casts and an `if constexpr`, because the real-block cache sat behind a
+        // SEPARATE hook on a SEPARATE face.  Both faces now inherit `HT_SlotOwner<T>` virtually, so a term
+        // with two caches presents ONE `PrepareSlots` that prepares both -- the fold stopped needing to know
+        // that two caches are even possible.
+        for (const auto& t : itsSHTs) t->PrepareSlots(bs);
+        for (const auto& t : itsDHTs) t->PrepareSlots(bs);
         if (!cd) return;
         for (const auto& t : itsDHTs) t->RefreshForDensity(cd);
     }
