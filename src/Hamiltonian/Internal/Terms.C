@@ -351,18 +351,9 @@ public:
     FittedVcorrPol(fbs_t&, corr_t&);
    ~FittedVcorrPol();
     //! \copydoc tDynamic_HT::RefreshForDensity
-    //! ⛔ **THE ONE GENUINE NO-OP IN THE TERM SET -- AND IT IS A QUESTION, NOT AN ANSWER.**
-    //!
-    //! This term has nothing to warm because it has no MEMO: it refits \f$v_c^\sigma\f$ on EVERY call
-    //! (`itsVcFitter->DoFit(vc)`, no density-serial guard), unlike \c FittedVee and \c FittedVxc, which both
-    //! guard with \c newCD and refit once per density.  So the empty body is not "this term is simple"; it
-    //! is "this term pays a fit per block per spin that its siblings pay once".
-    //!
-    //! ▶ The obstacle is not obviously real: \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$ COUPLES the
-    //! channels, so a memo must key on the density serial AND the spin -- which is exactly what
-    //! \c FittedVxc's sibling pair already does.  Making the hook PURE is what surfaced this (user,
-    //! 2026-09-10): a defaulted no-op kept it invisible.  Filed as \c doc/CleanupCandidates.md **V1.36**.
-    virtual void RefreshForDensity(const rChargeDensity*) const override {}
+    //! Warms BOTH spin channels' \f$v_c^\sigma\f$ fits (V1.36, 2026-09-10).  ⚠ NOT the \f$\epsilon_c\f$ fit:
+    //! like \c FittedVxc's, that one keys on the ENERGY pass's density, not this pass's.
+    virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void GetEnergy (EnergyBreakdown&, const rDM_CD* cd) const override;
     //! The ENERGY block: fits eps_c(rho_up,rho_down) from the full Polarized_CD and returns its overlap
     //! matrix.  Spin-INDEPENDENT as a value, so contracting it over both channels gives
@@ -373,9 +364,26 @@ public:
 private:
     virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;
 
+    //! \brief The guarded \f$v_c^\sigma\f$ fitter for spin \a s -- refits only when \a cd is new to it.
+    Fitting::FunctionFitter_Scalar& VcFitter(const Spin& s, const rChargeDensity* cd) const;
+
     corr_t itsCorr;                                                      //!< the correlation functional (owned)
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsVcFitter; //!< v_c^sigma potential fit
+    //! ★ **TWO \f$v_c\f$ FITTERS, ONE PER SPIN (V1.36, 2026-09-10) -- and the reason is NOT the coupling.**
+    //!
+    //! \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$ genuinely couples the channels (see this class's
+    //! header), so each fit must be EVALUATED jointly -- but that never forbade MEMOIZING it.  What did was
+    //! that ONE fitter holds ONE set of coefficients: the Fock build is BLOCK-MAJOR (per irrep block, then
+    //! each spin), so a single fitter had \f$v_c^\uparrow\f$ clobbered by \f$v_c^\downarrow\f$ and back again
+    //! on every block, and a density-serial guard alone could not have helped.  That is exactly why
+    //! \c FittedVxcPol holds two CHILDREN; this term needs the same multiplicity one level down, at the
+    //! fitter, because its functional does NOT factorize into two single-channel terms.
+    //! ⇒ Before: one fit per block per spin.  After: one fit per spin per density.
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsVcFitterUp;//!< v_c^up potential fit
+    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsVcFitterDn;//!< v_c^down potential fit
+    mutable size_t itsVcVersionUp=size_t(-1);   //!< density serial itsVcFitterUp currently holds
+    mutable size_t itsVcVersionDn=size_t(-1);   //!< ...and itsVcFitterDn
     std::unique_ptr<Fitting::FunctionFitter_Scalar> itsEpsFitter;//!< E_c = integral eps_c rho (energy)
+    mutable size_t itsEpsVersion=size_t(-1);    //!< density serial the eps_c fit was built for
     mutable rsmat_t                                         itsEpsMat;   //!< GetEMatrix's returned block
 };
 

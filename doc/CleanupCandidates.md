@@ -2928,22 +2928,40 @@ MnO campaign proceeds undisturbed in qchem6.
   Also to settle: `GetEnergy(EnergyBreakdown&, const tDM_CD<T>*)` — which of the two `T`s — and the
   `StaticRealBlockBase` / `DynamicRealBlockBase` `conditional_t` machinery, which this subsumes.
 
-- **V1.36 ▶ `FittedVcorrPol` REFITS ON EVERY CALL WHILE ITS SIBLINGS REFIT ONCE PER DENSITY** (surfaced
-  2026-09-10 by making `RefreshForDensity` pure — user: *"which then isolates FittedVcorrPol and forces us to
-  ask why does it refit on every call when none of the other fitted terms need to do that?"*).
+- **V1.36 ✅ DONE 2026-09-10 — and the obstacle was NOT the one the row (or I) named.**
 
-  `FittedVee` and `FittedVxc` both guard with `newCD(cd)` and fit once per density serial; `FittedVcorrPol`
-  calls `itsVcFitter->DoFit(vc)` with **no guard at all**, so it pays a fit per block per spin.  It is the
-  only term in the set whose honest answer to the eager phase is `{}` — and that emptiness is a SYMPTOM, not
-  a property: it has nothing to warm *because it memoizes nothing*.
+  ✅ **THE PHYSICS QUESTION, CONFIRMED AGAINST THE FUNCTIONALS** (user: *"I think the physics (pol
+  dependence) of FittedVcorrPol is genuinely different than FittedVxcPol so we still need both"* — correct):
+  - **Slater/LDA exchange FACTORIZES**: \f$E_x=-C_x\sum_\sigma\int\rho_\sigma^{4/3}\f$, so
+    \f$v_x^\sigma=-(4/3)C_x\rho_\sigma^{1/3}\f$ depends on \f$\rho_\sigma\f$ ALONE.  The tree says so in code:
+    `SlaterExchange::GetVxc(double ro)` takes ONE density.  ⇒ "two independent single-channel terms" is an
+    EXACT factorization, which is what licenses `FittedVxcPol` being a forwarder to two `FittedVxc`.
+  - **VWN correlation does NOT**: \f$\varepsilon_c(r_s,\zeta)\f$ with \f$r_s\f$ from the TOTAL density and
+    \f$\zeta=(\rho_\uparrow-\rho_\downarrow)/\rho\f$, so
+    \f$v_c^\sigma=\varepsilon_c-\tfrac{r_s}{3}\partial_{r_s}\varepsilon_c+(\text{the }\zeta\text{ term, with }
+    \rho\,\partial\zeta/\partial\rho_\uparrow=1-\zeta)\f$ — both channels enter at every point.
+    `SpinCorrelation::GetVc(rhoUp, rhoDown, s)` takes BOTH, and must.
+  ⇒ **Both classes are genuinely needed; the code's asymmetry mirrors a real asymmetry in the physics.**
+  (Caveat worth keeping: exchange's separability is a property of LOCAL/semilocal exchange.  It holds for GGA
+  exchange too; exact exchange is a different term, `VxcPol`, separable for a different reason.)
 
-  ▶ **The stated obstacle does not obviously hold.**  \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$ COUPLES
-  the channels, so a memo must key on (density serial, spin) rather than on the serial alone — which is
-  exactly what `FittedVxc`'s sibling pair under `FittedVxcPol` already does.  ⇒ Measure the cost first (it is
-  a molecular-path term, so the blocks are irreps not k-points, and the fit basis is the Gaussian auxiliary
-  one), then either add the two-key memo or record why the coupling really does forbid it.
-  ★ The process lesson is the durable half: **a defaulted no-op hid this for as long as it existed.**  Making
-  the hook pure did not fix a bug — it made an outlier state its own oddity out loud.
+  ⛔ **BUT THE COUPLING WAS NEVER WHAT BLOCKED THE MEMO — the real obstacle was ONE FITTER HOLDING ONE FIT.**
+  `MakeMatrix(bs,Up,cd)` fitted \f$v_c^\uparrow\f$ into `itsVcFitter`, then `MakeMatrix(bs,Down,cd)` fitted
+  \f$v_c^\downarrow\f$ into the SAME fitter, clobbering it.  The Fock build is BLOCK-MAJOR (per irrep block,
+  then each spin), so the two alternated on every block and a density-serial guard alone could not have
+  helped — which is precisely why `FittedVxcPol` has two CHILDREN.  ⇒ The cure is the same multiplicity one
+  level DOWN: **two \f$v_c\f$ fitters, one per spin**, each guarded by the density serial, with the joint
+  two-channel evaluation untouched.  Plus the same serial guard on the \f$\varepsilon_c\f$ fit that
+  `FittedVxc::GetEMatrix` already carried.
+  ⇒ **one fit per block per spin → one fit per spin per density**, and the term now warms both channels in
+  the eager phase instead of answering it with `{}`.  ⚠ The \f$\varepsilon_c\f$ fit is deliberately NOT
+  warmed: it keys on the ENERGY pass's density, not the Fock pass's — same reasoning as `FittedVxc`'s.
+  **851/851.**
+
+  ★ **THE PROCESS LESSON, which is the durable half:** a defaulted no-op hid this for as long as it existed,
+  and the row's own diagnosis ("a memo must key on serial AND spin") was right about the KEY and wrong about
+  the BLOCKER.  Making the hook pure did not fix a bug — it made an outlier state its oddity out loud, and
+  then the oddity turned out to be one fitter where two were needed.
 
 ### V1.33 — THE BasisSet TAXONOMY IS THE WRONG AXIS (user, 2026-08-20)
 

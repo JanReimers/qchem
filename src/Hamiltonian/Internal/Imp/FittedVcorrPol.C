@@ -86,25 +86,37 @@ private:
 
 FittedVcorrPol::FittedVcorrPol(fbs_t& bs, corr_t& corr)
     : itsCorr     (corr)
-    , itsVcFitter (Fitting::Factory(bs))
-    , itsEpsFitter(Fitting::Factory(bs))   // E: eps_c fit -- same fit basis as the V fit above
+    , itsVcFitterUp(Fitting::Factory(bs))   // V: one fit per SPIN -- see the member's note (V1.36)
+    , itsVcFitterDn(Fitting::Factory(bs))
+    , itsEpsFitter (Fitting::Factory(bs))   // E: eps_c fit -- same fit basis as the V fits above
 {
     assert(itsCorr);
 }
 
 FittedVcorrPol::~FittedVcorrPol() = default;   // out-of-line for the unique_ptr<FunctionFitter> members
 
-rsmat_t FittedVcorrPol::MakeMatrix(const robs_t* bs, const Spin& s, const rChargeDensity* cd) const
+// THE GUARDED v_c^sigma FIT (V1.36, 2026-09-10).  One fitter per spin, each refitting only when the density
+// serial it holds changes -- so the cost is one fit per spin per DENSITY instead of one per spin per BLOCK.
+//
+// ⚠ THE JOINT EVALUATION IS UNCHANGED, AND MUST BE: v_c^sigma(rho_up,rho_down) couples both channels through
+// r_s (the TOTAL density) and zeta (the relative polarization), so each channel's fit still samples BOTH
+// densities at every point.  What the memo removes is the REPETITION, not the coupling -- which is why this
+// term still cannot be two independent single-channel terms the way FittedVxcPol can.
+Fitting::FunctionFitter_Scalar& FittedVcorrPol::VcFitter(const Spin& s, const rChargeDensity* cd) const
 {
     assert(s != Spin::None && "FittedVcorrPol: a polarized term needs an Up/Down spin");
-    const odftbs_t& dftbs = dynamic_cast<const odftbs_t&>(*bs);
+    assert(cd);
+    const bool up = (s==Spin::Up);
+    Fitting::FunctionFitter_Scalar& f = up ? *itsVcFitterUp : *itsVcFitterDn;
+    size_t& held = up ? itsVcVersionUp : itsVcVersionDn;
+    if (cd->Version()==held) return f;                       // this fitter already holds this density's v_c
+    held = cd->Version();
 
-    const Polarized_CD* pol = dynamic_cast<const Polarized_CD*>(cd);
-    if (pol)
+    if (const Polarized_CD* pol = dynamic_cast<const Polarized_CD*>(cd))
     {
         PolVcDensity vc(itsCorr.get(), pol->GetChargeDensity(Spin::Up),
                                        pol->GetChargeDensity(Spin::Down), s);
-        itsVcFitter->DoFit(vc);
+        f.DoFit(vc);
     }
     else
     {
@@ -113,9 +125,25 @@ rsmat_t FittedVcorrPol::MakeMatrix(const robs_t* bs, const Spin& s, const rCharg
         // the polarized-LDA + SAD path would deref a null Polarized_CD.
         HalfDensity half(cd);
         PolVcDensity vc(itsCorr.get(), &half, &half, s);
-        itsVcFitter->DoFit(vc);
+        f.DoFit(vc);
     }
-    return RealContraction(*itsVcFitter).Overlap(dftbs);
+    return f;
+}
+
+// THE EAGER PHASE (R1.0h): warm both channels before the block loop.  ⚠ The eps_c fit is deliberately NOT
+// warmed here -- it keys on the ENERGY pass's density (GetEMatrix), not this pass's, exactly as FittedVxc's
+// eps_xc fit does; warming it here would fit the wrong density and it would be refit anyway.
+void FittedVcorrPol::RefreshForDensity(const rChargeDensity* cd) const
+{
+    if (!cd) return;
+    VcFitter(Spin::Up,   cd);
+    VcFitter(Spin::Down, cd);
+}
+
+rsmat_t FittedVcorrPol::MakeMatrix(const robs_t* bs, const Spin& s, const rChargeDensity* cd) const
+{
+    const odftbs_t& dftbs = dynamic_cast<const odftbs_t&>(*bs);
+    return RealContraction(VcFitter(s,cd)).Overlap(dftbs);
 }
 
 // The E half of the V/E pair (see tDynamic_CC::GetEMatrix): fits eps_c(rho_up,rho_down) from the full
@@ -126,8 +154,15 @@ const rsmat_t& FittedVcorrPol::GetEMatrix(const robs_t* bs, const Spin&, const r
 {
     const Polarized_CD* pol = dynamic_cast<const Polarized_CD*>(cd);
     assert(pol && "FittedVcorrPol::GetEMatrix: the polarized correlation energy requires a Polarized_CD");
-    PolEpsCDensity eps(itsCorr.get(), pol->GetChargeDensity(Spin::Up), pol->GetChargeDensity(Spin::Down));
-    itsEpsFitter->DoFit(eps);
+    // Refit only when the density actually changes (V1.36) -- the same guard FittedVxc::GetEMatrix carries,
+    // and for the same reason: without it the fit re-ran on every irrep leaf of the energy contraction.
+    // eps_c is spin-INDEPENDENT as a value, so one serial is the whole key here (no spin axis).
+    if (cd->Version()!=itsEpsVersion)
+    {
+        PolEpsCDensity eps(itsCorr.get(), pol->GetChargeDensity(Spin::Up), pol->GetChargeDensity(Spin::Down));
+        itsEpsFitter->DoFit(eps);
+        itsEpsVersion=cd->Version();
+    }
     const odftbs_t& dftbs = dynamic_cast<const odftbs_t&>(*bs);
     itsEpsMat = RealContraction(*itsEpsFitter).Overlap(dftbs);
     return itsEpsMat;
