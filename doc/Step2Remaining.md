@@ -1,9 +1,27 @@
 # Step 2 — the remaining CleanupCandidates rows, and why each is not obvious
 
-Cut 2026-09-09, after batches 1–3 of the sweep (nine rows closed, three filed, `850/850`).
+Cut 2026-09-09 after batches 1–3 of the sweep; **done-markers added 2026-09-10 (`851/851`)**.
 This is a READING AID for `doc/CleanupCandidates.md`, not a second tracker — every row here is live in
 that file and the verdicts belong there.  It exists because "~24 open items" is not a plan, and because
 the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetical ordering hides.
+
+## ▶ STATE, 2026-09-10 — WHAT CLOSED SINCE THE CUT
+
+| row | verdict | commit |
+|---|---|---|
+| **R1.0j** | ✅ renamed `XC_Quadrature` → `DensitySampler`; forward AND adjoint migrated to `MatrixForward`/`MatrixAdjoint` on BOTH routes; `Symmetrize` forwarders deleted.  ⏳ the three leftover tenants go with R1.0h | `d180277b` `a7be9b35` `c7272a22` |
+| **R1.0e** | ✅ library home SETTLED and executed — `qcChargeDensity`, interface+factory public, concretes `.Internal.`, tests through the factory | `bd11b903` |
+| **R1.0h** | ⚗️ **HALF DONE** — slot pre-creation landed, the block loop performs no map insertion.  ⏳ the owning scope remains (now unblocked) | `56f3db12` `0b753d1e` |
+| **V1.35a** | ✅ the second slot hook DISSOLVED via `HT_SlotOwner<TRun>` — a diamond done correctly | `1ac9ae50` |
+| **V1.36** | ✅ `FittedVcorrPol` memoizes its \f$v_c\f$ fits (two fitters, one per spin) | `3b88f260` |
+| **V1.20c/d** | ✅ `Projector3` promoted out of `Internal` (a written-rule violation, and my `GMap` fix had been half a fix).  ⏳ V1.20d: two more sites the audit found | `ee50a5a1` |
+| **V4.1 / V4.2** | ✅ CHECKED — neither trigger has fired | — |
+
+★ **AND THREE ROWS WERE CREATED BY THIS WORK**, all live in `CleanupCandidates.md`: **R1.0r** (ρ is
+star-averaged under a bigger group than the k-mesh has), **V1.35** (the axis fusion — needs a PLAN, not a
+session), **V1.20d** (two more public modules re-exporting `Internal` ones).
+
+⇒ **Groups C and D below are untouched and are where the next self-contained work is.**
 
 ▶ **The rows that ARE obvious are deliberately not listed.**  If a row is a one-liner, do it; it does not
 need a page.
@@ -12,18 +30,20 @@ need a page.
 
 ## A. Blocked on a design question nobody has answered yet
 
-### R1.0j — "XC quadrature" is misnamed and does too much
+### R1.0j — ✅ LARGELY DONE 2026-09-09/10 — "XC quadrature" is misnamed and does too much
 Measured: the engine touches a functional **zero times** — no `ExFunctional`, no `GetVxc` anywhere in the
 interface or either implementation unit; the functional lives in the TERMS (`Vxc_Quadrature` holds it and
 maps it over the points).  And of `XC_SinglesQuadrature`'s members only **two** are quadrature
 (`Integrate`, `NumPoints`).  ⇒ It is named for its CLIENT, not its responsibility.
 
-**Not obvious because** the fix is a rename PLUS a relocation, and the destination is a parked decision
-(R1.0e: `qcChargeDensity` vs a new leaf library).  Renaming before that is churn.
-▶ See the dedicated section at the end of this file — the responsibilities and consumers were
-re-measured 2026-09-09 and the `MatrixIntegrator` question has a sharper answer than this row records.
+✅ **RENAMED `DensitySampler` / `SinglesDensitySampler` / `PairDensitySampler` (`c7272a22`) and RELOCATED to
+`qcChargeDensity` (`bd11b903`).**  Renamed IN PLACE first, ahead of the relocation this row wanted to bundle
+it with, on the user's ruling — the misleading name cost reading time every day and a later `git mv` was
+cheap.  Both halves of the assembly now go through `MatrixForward`/`MatrixAdjoint`.
+⏳ **WHAT REMAINS:** three tenants (`Matrix`, `Integrate`/`NumPoints`, `SiteMoments`) that cannot leave
+separately — see R1.0h below, and the re-measured appendix at the end of this file.
 
-### R1.0h — the \f$H_{ij}\f$ cache
+### R1.0h — ⚗️ HALF DONE 2026-09-09 — the \f$H_{ij}\f$ cache
 `tDynamic_HT_Imp::GetMatrix` memoizes per-`Irrep` INSIDE the block loop, and it is the **last remaining
 write** in that loop after the eager-refresh phase landed.  It exists because the ENERGY pass re-asks for
 the same block (`GetEMatrix` → `IrrepCD::DM_Contract`).
@@ -32,10 +52,17 @@ the same block (`GetEMatrix` → `IrrepCD::DM_Contract`).
 data sharing between separate runs"), while this memo turns over every SCF iteration, so twenty iterations
 would leave twenty generations of every block.  *Ask what a cache EVICTS before asking what it keys on.*
 
-**Not obvious because** the right shape is an explicit PER-ITERATION SCOPE that owns the matrices and dies
-with the iteration (`doc/Pins.md` pin 11) — a new lifetime concept, not a relocation.  Also on the
-critical path for **KP** (k-point parallelism): it is the one write that stops the block loop being
-read-only.
+✅ **PART 1 LANDED (`56f3db12`): the block loop performs no map INSERTION in the ordinary path.**
+`RefreshForDensity` now takes the basis as well as the density and has two duties — pre-create this
+iteration's per-irrep slots, then pre-warm the k-independent memos.  `operator[]` mutates the tree only when
+the key is ABSENT, so pre-creating the nodes is the whole fix; the bodies became FILL-IF-EMPTY with a 0×0
+matrix as the sentinel.  ⚠ There were **five** cache holders, not one.
+✅ **AND THE HOOKS ARE PURE (`0b753d1e`)** — which made the compiler name three terms that were silently
+skipping a phase they needed (`FittedVee`/`FittedVxc` refitting inside the loop; `FittedVxcPol` never
+forwarding to its children).
+⏳ **WHAT REMAINS: the OWNING SCOPE**, and it is where `DensitySampler`'s three tenants go.  ⚠ Measured
+before choosing: its bounded lifetime reclaims ~6 MB on MnO against a ~500 MB run, so the memory argument is
+weak — the value is a home for the tenants.  **Now unblocked**: the library move is done.
 
 ### V1.12 — `EnergyBreakdown`'s 13 public data members
 Two of them are not energies: `GridChargeLost` is a GPW health DIAGNOSTIC (its own comment says so) and
@@ -87,6 +114,9 @@ the interface, and it stopped being true the moment a polarized run could take t
 
 **Not obvious because** the fix is the DESIGN one (*give capabilities only to types that have them*), not
 an added overload — and which way it resolves depends on whether the ball-fit route survives **N4**.
+⚠ **CHECKED 2026-09-10: the adjoint migration did NOT dissolve this.**  I suspected it might; it did not.
+`FitContraction::Overlap` is still the adjoint path for the pair route's BALL FALLBACK and for the three
+molecular terms, so the half-realised face is still reachable.  Row stands as written.
 
 ---
 
@@ -141,73 +171,61 @@ to schedule; do not land these piecemeal.
 
 - **V4.1 / V4.2 are WATCH TRIGGERS, not items.**  Split `CollocMemo` when a THIRD consumer appears;
   promote `SolveSPD`/NNLS to qcMath when a SECOND consumer of small dense LS/NNLS appears.
-  ✅ **Checked 2026-09-09: neither trigger has fired** — NNLS still has exactly one consumer
-  (`SymmetrizeMesh.C`).
+  ✅ **Checked 2026-09-09, still true 2026-09-10: neither trigger has fired** — NNLS still has exactly one
+  consumer (`SymmetrizeMesh.C`), and `CollocMemo` still has two.
 - **V1.24(i)/(iii) and V1.30 are assigned to the MnO dev**, not to this sweep.
 
 ---
 
-## ▶ R1.0j RE-MEASURED, 2026-09-09 — the `MatrixIntegrator` question
+## ▶ R1.0j RE-MEASURED — the `MatrixIntegrator` question, and what became of it
 
-*(User: "XC quadrature has recently been worked on … I think a lot of its responsibilities have been moved
-elsewhere, in particular `qcMesh::MatrixIntegrator<T>`.  Who are the consumers?  And what are its current
-responsibilities?")*
+*(User, 2026-09-09: "XC quadrature has recently been worked on … I think a lot of its responsibilities have
+been moved elsewhere, in particular `qcMesh::MatrixIntegrator<T>`.  Who are the consumers?  And what are its
+current responsibilities?")*
 
-⛔ **NOTHING HAS MOVED YET.  `grep -rn "MatrixIntegrator\|MatrixForward\|MatrixAdjoint" src/Hamiltonian/`
-returns ZERO hits.**  The face was BUILT (R1.0l) and a second realization proved it
-(`ScreenedMatrixIntegrator`, R1.0m), but the rewiring was **blocked** and the engine still carries every
-responsibility it had.  See R1.0m: `MatrixIntegrator` assumes ONE owner holds both directions, and in this
-tree the FORWARD is driven by the ChargeDensity (which contracts its own private \f$D\f$ and aggregates
-over blocks) while the ADJOINT is driven by the BASIS, per block.  The pairing `XC_Quadrature` enforces is
-enforced ACROSS an ownership boundary — which is why it needed a bespoke class, and why `LatchRoute`
-exists at all.
+⛔ **THE 2026-09-09 ANSWER WAS "NOTHING HAS MOVED YET" — and that is no longer true.  Kept because the
+measurement is what drove everything after it.**  At the time, `grep MatrixIntegrator src/Hamiltonian/`
+returned zero hits: the face was BUILT (R1.0l) and a second realization proved it (R1.0m), but the rewiring
+was blocked and the engine carried every responsibility it had.
 
-### Consumers — there are only three, and all three are TERMS
+### ✅ WHAT ACTUALLY MOVED, 2026-09-09/10
 
-`MakeXCQuadrature` is called from exactly one production site (`PWTerms.C:364`, inside `MakeVxcTerms`) and
-from three test sites.  The `shared_ptr<const XC_Quadrature>` it returns is held by:
-
-| consumer | file | what it uses |
+| responsibility | then | now |
 |---|---|---|
-| `Vxc_Quadrature` | `Imp/PWTerms_XC.C` | `Rho`, `Integrate`, `Matrix`, `NumPoints` |
-| `Vxc_QuadraturePol` | `Imp/PWTerms_XC.C` | `RhoPol`, `Integrate`, `Matrix`, `NumPoints` |
-| `Vcorr_QuadraturePol` | `Imp/PWTerms_XC.C` | `RhoPol`, `Integrate`, `Matrix`, `NumPoints` |
+| FORWARD \f$D\to\rho(r_g)\f$ | the engine's own `Rho`/`RhoPol` | `qcMesh::MatrixForward`, via `ScalarProjector::Forward` |
+| ADJOINT \f$v\to\langle i|v|j\rangle\f$ | the engine reached into `applyRawAdjoint` on the concrete tensor | `qcMesh::MatrixAdjoint`, **both routes** (`d180277b`, `a7be9b35`) |
+| the integral rule | two differently-ordered `Integrate`s were possible | ONE: the integrator takes the RULE at construction |
+| symmetry projection | two members, then two forwarders | gone — the client calls its own `FoldedMesh` (`d180277b`) |
+| the name | `XC_Quadrature` (zero functional references, 2 of ~13 members quadrature) | `DensitySampler` (`c7272a22`) |
+| the library | `qcHamiltonian` | `qcChargeDensity`, interface+factory public (`bd11b903`) |
 
-★ **All three are XC/correlation terms, and ONE engine is SHARED by a pair** — that sharing is the whole
-performance reason the class exists (without it the pair re-evaluated the Bloch image sums pointwise four
-times per iteration: measured 4.8 s/iteration on NaF).
-▶ **So the client list does not justify the name either**: a Hartree term or a \f$+U\f$ projector would
-want the same object, and neither is XC.
+⛔ **AND `MatrixIntegrator` ITSELF IS DELETED (`7a41cca6`)** — user ruling: nobody needs both halves, so a
+named pair face only added confusion.  The census agreed: nothing held it.  ★ **The pairing guarantee turned
+out to be a property of CONSTRUCTION, not of a type** — one object is built once and its two halves go to the
+two clients that each need one.
 
-### Current responsibilities, by category
+⛔ **THAT ALSO REFUTED R1.0m's BLOCKER, WHICH WAS MINE.**  R1.0m said the rewiring could not be done because
+"`MatrixIntegrator` assumes ONE owner holds both directions" while this tree owns them on opposite sides of a
+boundary, and proposed two designs to bridge it.  Neither was needed: nothing ever needed to hold both, and
+the "boundary" was just the boundary between two CLIENTS — which is what handing out two halves is for.
 
-Interface: 8 virtuals.  Implementations: `XCQuadrature.C` 429 lines + `_Singles.C` 477 + `_Pair.C` 319.
+### ⏳ WHAT IS LEFT IN THE ENGINE, AND WHERE IT GOES
 
-| # | responsibility | members | is it quadrature? |
-|---|---|---|---|
-| 1 | **The integral rule** | `Integrate`, `NumPoints`, `FunctionIntegrals` | ✅ YES — this is the whole of it |
-| 2 | **FORWARD: \f$D\to\rho(r_g)\f$** | `Rho`, `RhoPol`, `Projector`, `SampleOne`, `Refresh`, `RefreshPol` | ⛔ this is `MatrixForward` |
-| 3 | **ADJOINT: \f$v\to\langle i|v|j\rangle\f$** | `Matrix`×2, `MatrixT` | ⛔ this is `MatrixAdjoint` |
-| 4 | **Per-density CACHING + staleness** | `itsRhoVersion`, `itsPolVersion`, `itsSrcVersion`, the cross-invalidation rule | ⛔ policy, not quadrature |
-| 5 | **Symmetry projection** | `Symmetrize`, `SymmetrizeSpin` | ⛔ belongs to `FoldedMesh` (and now IS there — these are forwards) |
-| 6 | **An OBSERVABLE and its reporting** | `SiteMoments`, `PartitionedMoments`, `EmitSiteMoments` | ⛔ a physics observable that happens to be free here |
-| 7 | **Cache-warming policy** | `WarmForDensity` | ⛔ the eager-refresh phase (KP) |
-| 8 | **DM-source damping** | `itsXCMix`, `itsXCMixUp/Dn`, `GPW_XC_DM_MIX` | ⛔ an SCF knob living in a quadrature |
-| 9 | **Route latching** (pair only) | `LatchRoute`, `itsRouteLatched`, `itsLatchedRaw` | ⛔ exists BECAUSE of the ownership split |
+Of the nine responsibilities the 2026-09-09 census found, one was always legitimate (the integral rule) and
+six have left.  Three remain, and they leave **together, with R1.0h's owning scope** — not separately:
 
-⇒ **Categories 2 and 3 together ARE `MatrixIntegrator`.**  That is the sharpest statement of R1.0j
-available: the row said "the engine is named for its client"; the re-measurement says **the engine is a
-`MatrixIntegrator` wearing six other hats**, and five of those hats (4, 6, 7, 8, 9) are POLICY that has no
-business in a quadrature at all.
+- **`Matrix` + `Integrate`** cannot leave on their own without splitting the forward/adjoint pairing that
+  `LatchRoute` guards.  ⚠ **`LatchRoute` is NOT redundant** — an earlier guess of mine that the per-block
+  `BlockAdjoint` had made it so was WRONG.  It guards the FORWARD's route (RAW collocated \f$\rho_{DM}\f$ vs
+  BALL round trip, which minimise different functionals) against changing mid-SCF: a per-DENSITY decision.
+- **`SiteMoments`** needs an observable owner AND the "fire exactly once per new density" coupling that only
+  the sampler knows (`EmitSiteMoments` fires inside `RhoPol`'s serial-advance branch).  `PartitionedMoments`
+  is already a null-guard plus `qcMesh::SiteIntegrals` — nothing to move there.
 
-### What that makes the real increment
-
-Not a rename, and not "wire it onto a `MatrixIntegrator`".  In order:
-1. **Resolve the ownership split** (R1.0m gives two designs: a block-aggregating decorator that owns the
-   loop the density currently owns, or promoting `LatchRoute` from a runtime check to a type).  Everything
-   else is downstream — category 9 EXISTS only because of it.
-2. **Then** categories 2+3 collapse onto `MatrixForward`/`MatrixAdjoint` and the class loses ~half its
-   surface.
-3. **Then** the rename is obvious and cheap, because what is left really is a quadrature plus a small,
-   nameable set of policies — and 6 (site moments) can move to whoever owns observables, 8 (DM damping) to
-   the SCF knobs where it belongs.
+★★★ **AND THE SHARING IS NOT NEGOTIABLE.**  The class exists so the exchange and correlation terms share ONE
+collocation — without it the pair re-evaluated the Bloch image sums pointwise four times per iteration, 4.8
+s/iteration on NaF, essentially the whole Becke premium (user, 2026-09-09: *"very important"*).  ⚠ Since the
+2026-09-04 one-gather change `MakeVxcTerms` builds ONE term, so the surviving sharing is between that term's
+FOCK pass and its ENERGY pass — **the same shape and cause as R1.0h's \f$H_{ij}\f$ cache**, which is why the
+two are one job.  ⛔ Never "eliminate" the sampler by pushing \f$\rho\f$ back into the terms.
+⚠ And do not drop `itsSrcVersion` on the way out: a deliberately LIVE staleness check, not an assert.
