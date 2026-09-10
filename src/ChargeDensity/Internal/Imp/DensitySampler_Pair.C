@@ -1,7 +1,7 @@
-// File: Hamiltonian/Internal/Imp/DensitySampler_Pair.C  the PAIR strategy: rho collocated through the
+// File: ChargeDensity/Internal/Imp/DensitySampler_Pair.C  the PAIR strategy: rho collocated through the
 // orbital-PAIR 3-centre tensor, H by that tensor's raw adjoint.
 //
-// One implementation unit of module qchem.Hamiltonian.Internal.DensitySampler (extracted from
+// One implementation unit of module qchem.ChargeDensity.DensitySampler (extracted from
 // qchem.Hamiltonian.Internal.PWTerms 2026-09-08 -- see that module's header for why).  Split 2026-09-08 out of a
 // single 1213-line Imp/PWTerms.C (user: "PWTerms.C is huge, again doing too many things") into the
 // interface-plus-many-Imp-units shape Internal/Terms.C has always had.  Helpers shared by more than
@@ -20,30 +20,22 @@ module;
 #include <memory>
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
-module qchem.Hamiltonian.Internal.DensitySampler;
+module qchem.ChargeDensity.Internal.DensitySampler;
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
-import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
-import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
-import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
 import qchem.Parallel;                         // WorkerThreads (GPW_OMP_THREADS -- the XC-mesh table + quadrature loops)
 
 
-namespace qchem::Hamiltonian
+namespace qchem::ChargeDensity
 {
 
-// The grid-charge diagnostic's process-wide toggle.  It lives with the PAIR route because that is the only
-// route that collocates rho onto a raster and can therefore report what the raster lost.
-// ⚠ Process-wide MUTABLE state in a library -- flagged in doc/CleanupCandidates.md R1.0e as something the
-// run report should own instead (theRunPolicy() already carries every other run-scoped switch).
-bool& ReportGridCharge() { static bool on = false; return on; }
 
 // ---- PairDensitySampler: rho by collocation, H by the SAME tensor's raw adjoint -------------------------
 
@@ -334,22 +326,5 @@ PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb)
 
 chmat_t PairDensitySampler::Matrix(const cobs_t* bs, const rvec_t& v) const {return MatrixT<dcmplx>(bs,v);}
 rsmat_t PairDensitySampler::Matrix(const robs_t* bs, const rvec_t& v) const {return MatrixT<double>(bs,v);}
-
-// CAPABILITY DECIDES (doc/OpenWork.md): a delta basis carries points and nothing else -> singles; a
-// raster-backed one carries the FFT transforms and keys the 3-centre tensor -> pair.  One decision, taken
-// once, and latched for the run by the simple fact that the Hamiltonian builds this object once.
-std::shared_ptr<const DensitySampler>
-MakeDensitySampler(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
-                 BasisSet::FitQuadrature quad)
-{
-    assert(fb);
-    // CAPABILITY decides.  A basis that carries the {r}<->{G} transforms is raster-backed, so its
-    // collocation pair (Overlap3C's applyRaw/applyRawAdjoint) exists and the PAIR route is available --
-    // and preferred, being the production GPW path.  Anything else can only be contracted through a Phi
-    // table: SINGLES.  Note this asks what the basis CAN do, never what it IS.
-    if (dynamic_cast<const BasisSet::G_RasterTransform*>(fb.get()))
-        return std::make_shared<const PairDensitySampler>(fb);
-    return std::make_shared<const SinglesDensitySampler>(fb, std::move(quad));
-}
 
 } //namespace

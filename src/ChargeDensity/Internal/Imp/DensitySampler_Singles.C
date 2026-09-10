@@ -1,7 +1,7 @@
-// File: Hamiltonian/Internal/Imp/DensitySampler_Singles.C  the SINGLES strategy: rho and H_xc both
+// File: ChargeDensity/Internal/Imp/DensitySampler_Singles.C  the SINGLES strategy: rho and H_xc both
 // contracted through a cached table of SINGLE basis functions Phi_gi = chi_i(r_g).
 //
-// One implementation unit of module qchem.Hamiltonian.Internal.DensitySampler (extracted from
+// One implementation unit of module qchem.ChargeDensity.DensitySampler (extracted from
 // qchem.Hamiltonian.Internal.PWTerms 2026-09-08 -- see that module's header for why).  Split 2026-09-08 out of a
 // single 1213-line Imp/PWTerms.C (user: "PWTerms.C is huge, again doing too many things") into the
 // interface-plus-many-Imp-units shape Internal/Terms.C has always had.  Helpers shared by more than
@@ -20,23 +20,20 @@ module;
 #include <memory>
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
-module qchem.Hamiltonian.Internal.DensitySampler;
+module qchem.ChargeDensity.Internal.DensitySampler;
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
-import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
-import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
-import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
 import qchem.Parallel;                         // WorkerThreads (GPW_OMP_THREADS -- the XC-mesh table + quadrature loops)
 
 
-namespace qchem::Hamiltonian
+namespace qchem::ChargeDensity
 {
 
 // ---- SinglesDensitySampler: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------

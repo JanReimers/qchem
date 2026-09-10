@@ -18,7 +18,7 @@ module;
 #include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
-import qchem.Hamiltonian.Internal.DensitySampler; // the XC SAMPLING ENGINE the three XC terms compose with.
+import qchem.ChargeDensity.DensitySampler; // the XC SAMPLING ENGINE the three XC terms compose with.
                                                 // NOT re-exported: it is an .Internal. module, so a client
                                                 // that wants MakeDensitySampler imports it by name (CLAUDE.md).
 import qchem.BasisSet.Orbital_DFT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
@@ -293,7 +293,7 @@ public:
     virtual void PrepareSlots(const cbs_t* bs) const override
     { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
     typedef std::shared_ptr<ExFunctional> xc_t;
-    typedef std::shared_ptr<const DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
+    typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
     Vxc_Quadrature(const xc_t&, sampler_t);
     //! Pre-warm \f$\rho\f$ on the quadrature's points for \a cd (the EAGER REFRESH PHASE).  Delegated to
     //! the shared engine, so the XC PAIR warms once between them.
@@ -332,7 +332,7 @@ public:
     //! (doc/OpenWork.md N1/T2).  Empty when the quadrature has no site blocks (a uniform raster).
     virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
     typedef std::shared_ptr<ExFunctional>  xc_t;
-    typedef std::shared_ptr<const DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
+    typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
     Vxc_QuadraturePol(const xc_t&, sampler_t);
     //! Pre-warm the \f${\uparrow,\downarrow}\f$ pair on the quadrature's points (the EAGER REFRESH PHASE).
     virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
@@ -372,7 +372,7 @@ public:
     virtual void PrepareSlots(const cbs_t* bs) const override
     { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
     typedef std::shared_ptr<SpinCorrelation> corr_t;
-    typedef std::shared_ptr<const DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
+    typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
     Vcorr_QuadraturePol(const corr_t&, sampler_t);
     //! The atom-centred partition lives on my quadrature, so I am the term that can answer this
     //! (doc/OpenWork.md N1/T2).  Empty when the quadrature has no site blocks (a uniform raster).
@@ -410,7 +410,7 @@ MakeVxcTerms(const std::shared_ptr<ExFunctional>& exch, const std::shared_ptr<C>
              const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb, bool polarized,
              BasisSet::FitQuadrature quad={})
 {
-    std::shared_ptr<const DensitySampler> q=MakeDensitySampler(fb, std::move(quad));
+    std::shared_ptr<const ChargeDensity::DensitySampler> q=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
     std::vector<std::unique_ptr<cDynamic_HT>> terms;
     // ★ ONE TERM, NOT A PAIR (2026-09-04).  Each term does its OWN real-space gather of its potential, and
     // the gather is LINEAR: <i|v_x|j> + <i|v_c|j> == <i|(v_x+v_c)|j>.  Two terms therefore bought two

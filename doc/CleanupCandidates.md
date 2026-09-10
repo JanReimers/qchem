@@ -1724,6 +1724,50 @@ MnO campaign proceeds undisturbed in qchem6.
   doing.  ⚠ Sequence THAT after the library move; the slot pre-creation did not need to wait, because it
   touches the term base classes rather than the term/engine boundary.
 
+- **R1.0e(ii) ✅ THE LIBRARY HOME IS SETTLED AND EXECUTED 2026-09-10 — `DensitySampler` LIVES IN
+  `qcChargeDensity`.**  (The parked decision was `qcChargeDensity` vs a new leaf library; the user added the
+  real test: *"it sounds like the DensitySampler interface belongs in the public area of the qcChargeDensity
+  library.  But if qcFitting also needs it then it needs to be in qcFitting."*)
+
+  ▶ **THE DAG DECIDED IT BEFORE TASTE GOT A VOTE.**  `qcChargeDensity → qcFitting → qcBasisSet → qcMesh`, and
+  the engine's whole interface takes a `const cChargeDensity*` (`Rho`, `RhoPol`, `WarmForDensity`,
+  `SiteMoments`).  So **qcFitting could not host it even if it wanted to** — it sits BELOW qcChargeDensity and
+  cannot import `qchem.ChargeDensity`.  And it does not want to: all three references there are COMMENTS
+  citing the engine as precedent.  Meanwhile qcChargeDensity already described how its own classes serve this
+  consumer in five places.  ⇒ The conditional did not fire.
+
+  ✅ **THE SHAPE IS THE PROJECT'S STANDING PATTERN** (user: *"abstract interface + factory and concrete imp
+  internal … Give the clients what they need and nothing more"*):
+  | unit | module | holds |
+  |---|---|---|
+  | `ChargeDensity/DensitySampler.C` | `qchem.ChargeDensity.DensitySampler` | the abstract face + `MakeDensitySampler` + `fitbasis_t` — the WHOLE client surface |
+  | `ChargeDensity/Imp/DensitySampler.C` | (same module) | the factory DEFINITION, free to import the Internal module |
+  | `ChargeDensity/Internal/DensitySampler.C` | `qchem.ChargeDensity.Internal.DensitySampler` | the two concrete strategies + the shared `SampledField` |
+  | `ChargeDensity/Internal/Imp/DensitySampler_{Singles,Pair}.C` | (same Internal module) | their implementations |
+  ★ The factory being an Imp unit of the PUBLIC module is what lets the concretes be Internal at all: module
+  linkage requires declaration and definition in one module, and a module's own Imp unit may import Internal.
+
+  ⚠ **THREE FRICTIONS, ALL MEASURED RATHER THAN ASSUMED:**
+  1. `import qchem.Hamiltonian.Types` (for `cobs_t`/`robs_t`) is unreachable from qcChargeDensity — and
+     unnecessary: `qchem.ChargeDensity.Types` already defines the IDENTICAL typedefs.  The import just dropped.
+  2. `ScreenedMatrixIntegrator` was `.Internal.` in the basis-set family ⇒ the move would have created a
+     cross-family internal import.  Fixed first, and it turned out to be a written-rule violation with two
+     more instances behind it — see **V1.20c** / **V1.20d**.
+  3. ⛔ **THE IMP UNITS CARRIED THREE DEAD IMPORTS, one of which would have forced a NEW LIBRARY EDGE.**
+     `qchem.Pseudopotential.Integrals_Pseudo` (qcChargeDensity does not link qcPseudopotential),
+     `qchem.Structure` and `qchem.Energy` were all inherited wholesale when R1.0e(i) split the monolithic
+     `PWTerms.C` into five units — and all three were UNUSED.  Deleting them cost nothing and removed the only
+     apparent blocker.  ▶ **LESSON FOR ANY FUTURE FILE SPLIT: the import list is part of the split, not
+     scaffolding to copy.**  A dead import is invisible until it blocks a move, and then it looks like a
+     dependency.
+
+  ✅ **AND THE TESTS NOW EXERCISE THE FACTORY** (user: *"If there is a factory available the tests should
+  exercise that interface instead of direct construction"*).  Three sites were `make_shared`-ing a concrete
+  strategy; a delta fit basis can only resolve to SINGLES, so naming it bought nothing but an Internal import.
+  Going through `MakeDensitySampler` also gates the CAPABILITY DECISION, which direct construction silently
+  skipped.  ⇒ **No test imports the Internal module, and no consumer anywhere names a strategy.**
+  `fitbasis_t` is named once, on the factory, so a caller never reaches into a concrete class for the spelling.
+
 - **R1.0e ✅ THE FILE SPLIT IS DONE 2026-09-08; THE SCOPE QUESTION IT EXPOSED IS THE OPEN PART.**
   (Original: USER, 2026-08-23, *"the enormous PWTerms TU is going to need a massive refactoring cleanup
   eventually"*, restated 2026-09-08: *"src/Hamiltonian/Internal/PWTerms.C is huge, again doing too many

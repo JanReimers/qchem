@@ -50,7 +50,7 @@ import qchem.RunPolicy;                         // ReresolveRunPolicy() -- the d
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); Vxc_Quadrature + the two DensitySampler strategies
-import qchem.Hamiltonian.Internal.DensitySampler;  // the XC sampling engine (its own module
+import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
                                                   // since 2026-09-08; .Internal. modules are
                                                   // never re-exported, so name it directly)
 import qchem.BasisSet.DeltaFit_IBS;              // DeltaFit_IBS -- the delta basis the singles strategy runs on
@@ -103,11 +103,16 @@ static std::shared_ptr<const qchem::BasisSet::DeltaFit_IBS> DeltaFitOver(qchem::
 // of the basis (BasisSet::FIT_SF_ABS lost Symmetrize/SymmetrizeSpin).  ONE bundle, handed to both
 // collaborators, exactly as tBasisSet::CreateVxcFitBasisSet does it in production -- so a probe cannot
 // accidentally give the basis one quadrature and the strategy another.
-static std::shared_ptr<qchem::Hamiltonian::SinglesDensitySampler>
+// ★ THROUGH THE FACTORY, NOT `make_shared` ON A STRATEGY (user, 2026-09-10: *"If there is a factory
+// available the tests should exercise that interface instead of direct construction"*).  A delta fit basis
+// carries points and nothing else, so `MakeDensitySampler` can only pick SINGLES -- which means naming the
+// strategy here bought nothing except a dependency on an Internal module.  Exercising the factory also gates
+// the capability decision itself, which direct construction silently skipped.
+static std::shared_ptr<const qchem::ChargeDensity::DensitySampler>
 SinglesEngineOver(qchem::BasisSet::FitQuadrature q)
 {
     auto fit=DeltaFitOver(q);   // NOT inline with the move below: argument evaluation order is unspecified
-    return std::make_shared<qchem::Hamiltonian::SinglesDensitySampler>(std::move(fit), std::move(q));
+    return qchem::ChargeDensity::MakeDensitySampler(std::move(fit), std::move(q));
 }
 
 
@@ -497,7 +502,7 @@ static void ReportSymmetryFound(const Complex_BS& bs, const qchem::ChargeDensity
     }
     auto* fd = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(&cd);
     if (!fd) return;
-    Hamiltonian::PairDensitySampler::fbs_t fit(bs.CreateVxcFitBasisSet(st, qcMesh::MeshParams{}));
+    ChargeDensity::fitbasis_t fit(bs.CreateVxcFitBasisSet(st, qcMesh::MeshParams{}));
     std::vector<double> d = SymmetryDefects(fd->GetFourierDensity(*fit), ops);
     double mx = 0; int broken = 0;
     for (double x : d) { mx = std::max(mx, x); if (x > 1e-3) ++broken; }
@@ -645,12 +650,12 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
                     { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho, p.order}); });
     if (o.orderProbe) scf.SetOrderParameter(o.orderName, o.orderProbe);
     SCFParams par = o.scf; par.Verbose = verbose;   // one `verbose` drives both the report console + the SCF table
-    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
+    qchem::ChargeDensity::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     {
         qchem::report::Timed t("scf: iterate (contains the lazy first-iteration setup buckets)");
         scf.Iterate(par);
     }
-    qchem::Hamiltonian::ReportGridCharge()=false;
+    qchem::ChargeDensity::ReportGridCharge()=false;
     Fingerprint(series, o.label.c_str());
     OrderTrajectory(series, o.orderProbe ? o.orderName : std::string(), o.label.c_str());
 
@@ -2425,9 +2430,9 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
                                           qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                           qchem::Cholesky, 0.0);
     rss("SCFctor");
-    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // step-2 probe: coarse-grid rho stats to compare vs fine
+    qchem::ChargeDensity::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // step-2 probe: coarse-grid rho stats to compare vs fine
     scfC->Iterate(makePar((size_t)envd("GC_COARSE_NMAX",200), 10, 35));
-    qchem::Hamiltonian::ReportGridCharge()=false;
+    qchem::ChargeDensity::ReportGridCharge()=false;
     auto Ecoarse=scfC->GetEnergy();
     std::cout << "[NaF grid-cont COARSE] Ecut=40 iters="<<scfC->GetIterationCount()
               << " Etot="<<Ecoarse.GetTotalEnergy() << std::endl;
@@ -2450,7 +2455,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     // R2.22: the iterator borrows these; this scope owns them, and they outlive scfF below.
     std::unique_ptr<cHamiltonian> hamF(new Ham_PW_DFT(st, bsF.get(), {{"Na",1},{"F",7}}, "LDA"));
     std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accF(new qchem::SCFAccelerators::SCFAcceleratorNull());
-    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
+    qchem::ChargeDensity::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     qchem::SCFIterator::ReportBandGap()=true;
     // GC_SEED=0 A/Bs the fix OFF (ionic seed) -> the fine stage must dive into the -39 basin (the failure this
     // test fixes); default ON = the converged-coarse-density explicit seed.
@@ -2485,7 +2490,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     rss("coarse stage freed");
     scfF->Iterate(makePar((size_t)envd("GC_FINE_NMAX",100),
                           (int)envd("GC_FINE_MOM_START",9999), (int)envd("GC_FINE_PULAY_START",12)));
-    qchem::Hamiltonian::ReportGridCharge()=false;
+    qchem::ChargeDensity::ReportGridCharge()=false;
     qchem::SCFIterator::ReportBandGap()=false;
 
     auto Efine=scfF->GetEnergy();
@@ -2584,9 +2589,9 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
                                          qchem::Eigen, 1e-6);   // (2): canonical ortho, drop the ~0 null cluster
     SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
     par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true; par.KerkerG0=1.0;
-    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
+    qchem::ChargeDensity::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     scf.Iterate(par);
-    qchem::Hamiltonian::ReportGridCharge()=false;
+    qchem::ChargeDensity::ReportGridCharge()=false;
     auto cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge();
     auto E=scf.GetEnergy();
     std::cout << "[NaF GPW full/Eigen(1e-6)] iters="<<scf.GetIterationCount()<<" charge="<<charge
@@ -2663,8 +2668,8 @@ XCProbe UniformXCProbe(const GpwHandles& h, const std::shared_ptr<const Structur
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
     qcMesh::MeshParams mp; mp.relCutoff=std::max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
-    Hamiltonian::PairDensitySampler::fbs_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
-    auto pair=Hamiltonian::MakeDensitySampler(vfb);   // raster fit basis -> the pair/collocation strategy
+    ChargeDensity::fitbasis_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
+    auto pair=ChargeDensity::MakeDensitySampler(vfb);   // raster fit basis -> the pair/collocation strategy
     Hamiltonian::Vxc_Quadrature x(exch,pair), c(corr,pair);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     XCProbe p=ProbeXC("uniform", h, x, c, e);
@@ -4519,7 +4524,7 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
     // (ii) G-space: |m-tilde| at the AFM wavevector (dm=(1,0,0): 2pi m.f = pi between the Mn sublattices),
     // scaled by the cell volume back to electrons-scale.
     {
-        Hamiltonian::PairDensitySampler::fbs_t fit(A.calc->Basis().CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
+        ChargeDensity::fitbasis_t fit(A.calc->Basis().CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
         // The G-space arm needs the CHANNELS' Fourier faces, which m(r) cannot provide -- so ask the
         // density object what it can do (the tree's normal way to reach a capability).
         auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&A.result->DensityMatrix());

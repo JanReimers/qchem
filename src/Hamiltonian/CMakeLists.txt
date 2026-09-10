@@ -25,9 +25,7 @@ target_sources(qcHamiltonian PRIVATE
     # step that makes the library move a CMake change instead of surgery.  The HOME is an open decision:
     # it cannot go to qcFitting (that would close a cycle -- see the module header).
     # doc/CleanupCandidates.md R1.0e.
-    Internal/Imp/DensitySampler_Pair.C
-    Internal/Imp/DensitySampler_Singles.C
-    Internal/Imp/HamiltonianImp.C
+        Internal/Imp/HamiltonianImp.C
     Internal/Imp/Hamiltonians.C 
     Internal/Imp/SlaterExchange.C 
     Internal/Imp/Libxc_LDA.C
@@ -47,8 +45,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/IonIon.C
     Internal/Kinetic.C
     Internal/Terms.C
-    Internal/DensitySampler.C
-    Internal/PWTerms.C
+      Internal/PWTerms.C
 )
 
    

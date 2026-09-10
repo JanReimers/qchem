@@ -48,7 +48,7 @@ import qchem.Hamiltonian.Internal.ExFunctional;     // the validated LDA functio
 import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3), eps_x = 3/4 v_x
 import qchem.Hamiltonian.Internal.VWN_Correlation;  // VWN5 correlation (validated vs libxc)
 import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long, Vee_Hartree (dcmplx Hamiltonian terms)
-import qchem.Hamiltonian.Internal.DensitySampler;  // the XC sampling engine (its own module
+import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
                                                   // since 2026-09-08; .Internal. modules are
                                                   // never re-exported, so name it directly)
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
@@ -101,8 +101,8 @@ qchem::Hamiltonian::Vee_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
 // here a plane-wave (raster) basis, so the pair/collocation one.
 qchem::Hamiltonian::Vxc_Quadrature* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::Vxc_Quadrature::xc_t& xc)
 {
-    return new qchem::Hamiltonian::Vxc_Quadrature(xc, qchem::Hamiltonian::MakeDensitySampler(
-        qchem::Hamiltonian::PairDensitySampler::fbs_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}))));
+    return new qchem::Hamiltonian::Vxc_Quadrature(xc, qchem::ChargeDensity::MakeDensitySampler(
+        qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}))));
 }
 // rho-tilde from a density matrix D via the basis's D-free Overlap3C tensor (the production path now that
 // GetG_ERI3 is retired): Overlap3C keys on a Vxc fit basis (its grid is ignored -- the delta support is
@@ -851,7 +851,7 @@ TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
     for (double rc : {1.0, 2.0, 4.0})
     {
         qcMesh::MeshParams mp; mp.relCutoff=rc;
-        auto fb=qchem::Hamiltonian::PairDensitySampler::fbs_t(pw.CreateVxcFitBasisSet(nullptr, mp));
+        auto fb=qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, mp));
         // The fit BASIS counts its own {G} FUNCTIONS; the RASTER counts voxels and owns the uniform
         // quadrature rule over them.  Two different numbers, asked of the two different faces
         // (2026-08-23: NumPoints/Integrate came off the fit face, which is about functions).
@@ -1201,10 +1201,10 @@ TEST_F(PlaneWaveDFT, ItemK_RelCutoffDensifiesAndConvergesVxc)
     auto vxcAt=[&](double relCutoff, size_t& nGfit)
     {
         qcMesh::MeshParams mp; mp.relCutoff=relCutoff;
-        auto fb=qchem::Hamiltonian::PairDensitySampler::fbs_t(F.pw.CreateVxcFitBasisSet(nullptr, mp));
+        auto fb=qchem::ChargeDensity::fitbasis_t(F.pw.CreateVxcFitBasisSet(nullptr, mp));
         nGfit=fb->GetNumFunctions();
         std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(
-            new qchem::Hamiltonian::Vxc_Quadrature(dirac, qchem::Hamiltonian::MakeDensitySampler(fb)));
+            new qchem::Hamiltonian::Vxc_Quadrature(dirac, qchem::ChargeDensity::MakeDensitySampler(fb)));
         return chmat_t(static_cast<qchem::Hamiltonian::cDynamic_HT*>(xc.get())->GetMatrix(&F.pw, Spin::None, &cd));
     };
     auto froDiff=[&](const chmat_t& A, const chmat_t& B)

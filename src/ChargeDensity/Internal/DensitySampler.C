@@ -1,63 +1,14 @@
-// File: Hamiltonian/Internal/DensitySampler.C  The SCF iteration's rho on a fit basis's sampling axis.
+// File: ChargeDensity/Internal/DensitySampler.C  The two concrete sampling strategies behind
+// `qchem.ChargeDensity.DensitySampler`, plus the helper both implementation units share.
 //
-// ★ RENAMED FROM `XC_Quadrature` 2026-09-09 (user: *"XC quadrature is now a random mix of unrelated things
-// that all need to find a new home … rename and narrow"*), and the old name was wrong twice over, measured
-// rather than argued:
-//   - "XC": the class touches a functional ZERO times.  No ExFunctional, no GetExcDensity, no GetVxc in the
-//     interface or either implementation unit.  The functional lives in the TERMS, which hold one of these
-//     and map it over the points.  A Hartree term or a +U projector would want the same object.
-//   - "Quadrature": of its members, TWO are quadrature (Integrate, NumPoints).
+// INTERNAL, deliberately: a client asks `MakeDensitySampler` which strategy fits its fit basis and holds the
+// abstract face (user, 2026-09-10: *"Give the clients what they need and nothing more"*).  ⚠ Unit tests DO
+// name these directly and that is sanctioned -- CLAUDE.md: *"Unit tests are allowed to cheat and import
+// Internal stuff."*
 //
-// WHAT IT IS, and therefore what the name now says: rho at the sampling points of a fit basis, for the
-// CURRENT SCF ITERATE -- sampled once per density serial, cached, route-latched, eagerly warmable, and
-// optionally damped against its DM source.  The lifetime is ONE SCF ITERATION and that is the cohesive
-// thing inside the old bundle.
-//
-// ⚠ IT IS NAMED FOR WHAT IT WILL BE, NOT FOR EVERYTHING IT STILL HOLDS -- deliberately.  `Matrix` (the
-// assembly adjoint), `Integrate`/`NumPoints` (the energy quadrature) and `SiteMoments` (an observable and
-// its reporting) are still here and now read as the misfits they are.  They leave with the PER-ITERATION
-// SCOPE work (`doc/CleanupCandidates.md` R1.0h): `Matrix` and `Integrate` cannot leave separately without
-// splitting the forward/adjoint pairing that `LatchRoute` guards, and `SiteMoments` needs an observable
-// owner plus the "fire exactly once per new density" coupling that only the sampler knows.
-//
-// ★★ AND THE SHARING IS THE POINT OF THE OBJECT -- do not dissolve it (user, 2026-09-09: the
-// exchange/correlation terms sharing ONE collocation is *"very important"*).  Without it the pair
-// re-evaluated the Bloch image sums pointwise FOUR times per iteration: measured 4.8 s/iteration on NaF,
-// essentially all of the Becke route's runtime premium.  ⚠ Since the 2026-09-04 one-gather change
-// `MakeVxcTerms` builds ONE term, so the surviving sharing is between that term's FOCK pass and its ENERGY
-// pass -- which is the same shape, and the same cause, as R1.0h's H_ij cache.  Any "elimination" that
-// pushes rho sampling back into the terms brings the 4.8 s/iteration back.
-//
-// ★ THIS IS NOT HAMILTONIAN WORK, AND THE MODULE BOUNDARY NOW SAYS SO (2026-09-08).
-//
-// The user's definition of the Hamiltonian library (2026-09-08):
-//
-//     "At a very high level Hamiltonian is just: charge density in, use orbital basis and fitted functions
-//      to evaluate all integrals, spit out H_ij(rho) and E(rho) for each term."
-//
-// By that definition a TERM is (physics) + (ask the basis for an integral) + (contract with rho).  What is
-// in this file is none of those.  It is a sampling engine, and everything it owns is
-// (integration GRID) x (FIT BASIS) business -- doc/Pins.md pin 2's axis pair:
-//
-//   * rho sampling and its per-density-serial caches (scalar, the {up,down} pair, the DM-mix buffer)
-//   * the RAW-vs-BALL route latch -- a FITTING decision
-//   * the Phi table contraction and the projector it goes through -- chi(r) caching, basis business
-//   * orbit star-averaging of rho and the (rho,m) pair with Shubnikov spin tags -- symmetry machinery
-//   * site-partitioned moments and their reporting -- an OBSERVABLE
-//   * raster geometry, voxel counts, the uniform quadrature rule -- grid management
-//
-// ⛔ IT CANNOT MOVE TO qcFitting, AND THE EARLIER CLAIM THAT IT COULD WAS WRONG (corrected 2026-09-08).
-// The engine takes a cChargeDensity in 42 places -- Version(), ProjectOnto, the cPolarized_CD and
-// FourierDensity cross-casts -- and qcChargeDensity LINKS qcFitting.  Moving the engine down into
-// qcFitting would therefore close a library cycle qcFitting -> qcChargeDensity -> qcFitting, which the
-// linker forbids and rightly.  The earlier legality check looked only for a cycle from the Hamiltonian
-// side (there is none) and for what qcFitting already links; it did not check what the ENGINE needs.
-//
-// ▶ THE LIBRARY HOME IS THEREFORE AN OPEN DECISION, recorded in doc/CleanupCandidates.md R1.0e.  The two
-// candidates are qcChargeDensity (legal today; the rho-sampling half genuinely is its business) and a new
-// leaf library between qcChargeDensity and qcHamiltonian (cleaner layering, more scaffolding).  Extracting
-// the MODULE first is what makes either one a CMake change instead of surgery -- and is worth doing on its
-// own account, because the boundary is now something the compiler enforces rather than a comment.
+// "Singles" vs "Pair" is real domain vocabulary, not an implementation accident: rho from a table of SINGLE
+// basis functions Phi_gi, versus rho collocated from the density matrix through the orbital-PAIR 3-centre
+// tensor.
 module;
 #include <cassert>
 #include <cstddef>
@@ -68,11 +19,13 @@ module;
 #include <memory>
 #include <string>
 #include <vector>   // SinglesDensitySampler sigmas/flipFixed (Shubnikov S3)
-export module qchem.Hamiltonian.Internal.DensitySampler;
+export module qchem.ChargeDensity.Internal.DensitySampler;
+export import qchem.ChargeDensity.DensitySampler;   // the abstract face these realise
 import qchem.BasisSet.Orbital_DFT_IBS;      // the fit-basis faces + FitQuadrature
 import qchem.BasisSet.G_FieldEvaluator;     // G_RasterTransform -- the pair route asks its raster for size/quadrature
 import qchem.Fitting.FunctionFitter;        // FunctionFitter_Scalar / ScalarProjector
-import qchem.Hamiltonian.Types;             // cobs_t / robs_t -- a PURE TYPEDEF module over BasisSet::Orbital_1E_IBS<T>,
+import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this library has its OWN, identical to the
+                                            // qcHamiltonian typedefs the engine used to borrow (R1.0e, 2026-09-10)
                                             // with no Hamiltonian dependency of its own; it moves with the engine
 import qchem.ChargeDensity;
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
@@ -83,23 +36,16 @@ export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE 
 import qchem.Blaze;                         // blazem::NarrowExact (the real-TRIM narrow, promoted to qcMath 2026-09-08)
 import qchem.Types;
 
-export namespace qchem::Hamiltonian
+export namespace qchem::ChargeDensity
 {
 
 // The density names this engine consumes, pulled in EXPLICITLY rather than inherited from
 // qchem.Hamiltonian.  The engine must not import the term face -- that is the dependency the extraction
 // exists to break -- so it states for itself what it takes.  This list IS the engine's coupling to
 // qcChargeDensity, and it is what makes qcFitting an illegal home (see the header).
-using ChargeDensity::cChargeDensity;
-using ChargeDensity::cDM_CD;
 
-//! Process-wide diagnostic toggle (default OFF).  When true,
-//! \c PairDensitySampler::Refresh emits a one-line report each time it (re)collocates the density: the grid-integrated
-//! charge \f$\int\rho_{\text{grid}}\f$, the analytic charge \f$\mathrm{Tr}(DS)\f$, and their difference -- the
-//! CHARGE LOST TO GRID TRUNCATION (== CP2K's "Electronic density on regular grids: <int> <error>" readout).
-//! A cheap, controlled number for "is the density cutoff high enough" (see doc/GPWPlan.md \S0).  Flip in place:
-//! `qchem::Hamiltonian::ReportGridCharge() = true;`.
-bool& ReportGridCharge();
+// NB `ReportGridCharge()` and the `using ChargeDensity::...` pulls live in the PUBLIC module -- this unit
+// re-exports it, so they are in scope here without being declared twice.
 
 //! \brief THE XC QUADRATURE: ONE OBJECT WITH TWO ADJOINT-PAIRED FACES -- \f$\rho\f$ at the points from
 //! the density, and \f$\langle i|v|j\rangle\f$ from a field at those SAME points.
@@ -118,51 +64,6 @@ bool& ReportGridCharge();
 //! pair scales with the SCREENED pair count, singles with \f$n_{pts}n^2\f$ -- so which one runs is decided
 //! by \c MakeDensitySampler from the fit basis's capabilities, once, and LATCHED for the run (switching
 //! mid-SCF would change the truncated operator, i.e. the functional).
-class DensitySampler
-{
-public:
-    virtual ~DensitySampler() = default;
-    //! \f$\int f\,d^3r\f$ for a field sampled at MY points -- the \f$E_{xc}\f$ quadrature.  A term hands
-    //! back a value array and never learns where the points are (nor which kind of mesh they came from).
-    //! \note POINT vocabulary is correct HERE and nowhere below it: this face IS a quadrature (its whole
-    //! job is \f$\rho\f$ at points and the adjoint back), which is exactly what the fit BASIS is not.  How
-    //! each strategy answers differs accordingly -- the \f$\delta\f$ one dots the coefficients with its
-    //! functions' integrals (\c FIT_SF_ABS::Integrals), the raster one uses the raster's uniform rule.
-    virtual double Integrate(const rvec_t& f) const=0;
-    //! How many points I sample at -- for reporting only (a term's \c Write line).
-    virtual size_t NumPoints() const=0;
-    //! \brief \f$\rho(r_g)\f$ for \a cd's current serial, cached across the XC pair.
-    //! (No "ensure this block is tabled first" hint any more: the density now asks the QUADRATURE for each
-    //! of its own blocks' tables, so there is no first-pass gap for a caller to plug -- 2026-08-22.)
-    virtual const rvec_t& Rho(const cChargeDensity* cd) const=0;
-    //! Spin channel \f$\rho_\sigma(r_g)\f$ -- the SPIN-NATIVE sibling of \c Rho (§4 tier 4b).  Not every
-    //! quadrature can answer it (the pair route has no per-spin collocation): those THROW, and the
-    //! Hamiltonian's Auto rule keeps a polarized run off them.
-    virtual const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const=0;
-    //! \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}v_g\chi_j(r_g)\f$ -- the EXACT ADJOINT of
-    //! whatever route \c Rho took, weights included (a caller passes the bare field \f$v\f$).
-    virtual chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const=0;
-    //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's quadrature runs in REAL arithmetic.
-    virtual rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const=0;
-    //! \brief The per-site INTEGRATED spin moment \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$, one
-    //! entry per site block of my quadrature.  Default EMPTY -- a quadrature with no atomic partition (a
-    //! uniform raster) has no basins to integrate over, and the caller must ask rather than assume.
-    virtual rvec_t SiteMoments(const cChargeDensity*) const {return rvec_t();}
-    //! \brief Pre-warm this engine's per-density caches for \a cd -- the EAGER REFRESH PHASE
-    //! (doc/OpenWork.md item **KP**).  \a polarized picks which shape to warm, because the two are
-    //! mutually exclusive on one engine (see the cross-invalidation warning on both implementations: an
-    //! engine answers \c Rho or \c RhoPol for a run, never both).
-    //!
-    //! It is expressed as ONE call rather than "the term calls Rho/RhoPol itself" so that the WARMING and
-    //! the SHAPE RULE stay in the engine that owns the caches; a term that reached in by name would have
-    //! to know the exclusivity rule too.
-    virtual void WarmForDensity(const cChargeDensity* cd, bool polarized) const
-    {
-        if (polarized) { RhoPol(cd, Spin::Up); RhoPol(cd, Spin::Down); }
-        else           { Rho(cd); }
-    }
-};
-
 //! \brief THE SINGLES STRATEGY: \f$\rho\f$ and \f$H_{xc}\f$ both contracted through a cached basis table
 //! \f$\Phi_{gi}=\chi_i(r_g)\f$ -- the implementation that works on ANY point set, and therefore the only
 //! one an atom-centred (Becke) mesh can use (doc/GPWPlan1.md "Becke XC grid").
@@ -414,23 +315,12 @@ private:
     mutable std::map<Irrep, ScreenedMatrixIntegrator<dcmplx>> itsAdj;
 };
 
-//! \brief Pick the assembly strategy for \a fb -- CAPABILITY decides, and the answer is fixed for the run.
-//!
-//! A δ fit basis carries points and nothing else, so it can only be contracted
-//! through a Φ table: SINGLES.  A raster-backed one additionally carries the FFT transforms and keys the
-//! orbital's 3-centre tensor, so the PAIR route is available and is chosen -- it is the production GPW
-//! path and the one whose screening pays on large cells.  There is no extra input to supply: both routes
-//! are already functions of (orbital basis, fit basis).
-std::shared_ptr<const DensitySampler>
-MakeDensitySampler(const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb,
-                 BasisSet::FitQuadrature quad={});
-
 } //namespace
 
 //======================================================================================================
 // MODULE-INTERNAL HELPER -- NOT exported.  Used by BOTH implementation units of this module.
 //======================================================================================================
-namespace qchem::Hamiltonian
+namespace qchem::ChargeDensity
 {
 
 // A field ALREADY SAMPLED at the quadrature's points, presented as the ProjectedScalar_R the ortho scalar
@@ -468,3 +358,4 @@ private:
 };
 
 } //namespace
+
