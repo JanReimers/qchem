@@ -12,7 +12,7 @@
 
 import qchem.ChargeDensity;                     // Lineage / LineagePtr (the Layer-2 SCF-lineage head)
 import qchem.CompositeCD;                       // tComposite_CD<double> (a top-level, lineage-tracked density)
-import qchem.ChargeDensity.Imp.IrrepCD;        // IrrepCD<double> (tests may import Internal)
+import qchem.ChargeDensity.Imp.IrrepCD;        // FiniteIrrepCD (tests may import Internal)
 import qchem.ChargeDensity.NumericCD;  // NumericCD (molecular SAD seed)
 import qchem.ChargeDensity.SeedCD;      // SeedCD (plane-wave SAD seed)
 import qchem.Lattice_3D;                        // UnitCell, Lattice_3D
@@ -37,9 +37,9 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
 
     // Interleave the three density kinds; record each one's freshness serial in construction order.
     std::vector<size_t> v;
-    IrrepCD<double>   a;                                          v.push_back(a.Version());
+    FiniteIrrepCD     a;                                          v.push_back(a.Version());
     NumericCD c1(8.0);                                   v.push_back(c1.Version());
-    IrrepCD<double>   b;                                         v.push_back(b.Version());
+    FiniteIrrepCD     b;                                         v.push_back(b.Version());
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(lat.GetStructure().get(), qcMesh::MeshParams{}));
     SeedCD     f(fb, lat.GetStructure().get(), "LDA");    v.push_back(f.Version());
     NumericCD c2(4.0);                                   v.push_back(c2.Version());
@@ -56,8 +56,8 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
 TEST(DensityLineage, SupersededHeadIsInactive)
 {
     auto lineage = std::make_shared<Lineage>();
-    tComposite_CD<double> A; A.Insert(std::make_unique<IrrepCD<double>>());   // A.Version() = its front leaf's serial
-    tComposite_CD<double> B; B.Insert(std::make_unique<IrrepCD<double>>());   // B constructed later -> higher serial
+    tComposite_CD<double> A; A.Insert(std::make_unique<FiniteIrrepCD>());   // A.Version() = its front leaf's serial
+    tComposite_CD<double> B; B.Insert(std::make_unique<FiniteIrrepCD>());   // B constructed later -> higher serial
 
     EXPECT_TRUE(A.isActive()) << "an un-tracked density (no lineage) is trivially active";
     EXPECT_TRUE(B.isActive());

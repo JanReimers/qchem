@@ -12,7 +12,7 @@
 
 import qchem.ChargeDensity.FourierMixCD;   // FourierMixCD, KerkerMix, ΔG_Map
 import qchem.ChargeDensity.Imp.PolarizedCD; // tPolarized_CDImp (tests may import Internal)
-import qchem.ChargeDensity.Imp.IrrepCD;     // IrrepCD<double> -- a mixable density that is NOT polarized
+import qchem.ChargeDensity.Imp.IrrepCD;     // FiniteIrrepCD -- a mixable density that is NOT polarized
 import qchem.UnitCell;                      // UnitCell + MakeReciprocalCell
 import qchem.ReciprocalLattice;             // ReciprocalLattice
 import qchem.Types;                         // dcmplx, ivec3_t, rvec3_t
@@ -87,13 +87,13 @@ TEST(KerkerMix, G0ZeroIsLinearMixing)
 //  an `assert` would be compiled out under NDEBUG, which is where every production run lives.
 TEST(MixerLineage, PolarizedDensityRefusesAnUnpolarizedPartner)
 {
-    tPolarized_CDImp<double> pol(std::make_unique<IrrepCD<double>>(), std::make_unique<IrrepCD<double>>());
-    IrrepCD<double> plain;                        // mixable, but NOT a polarized (Up/Down) density
+    tPolarized_CDImp<double> pol(std::make_unique<FiniteIrrepCD>(), std::make_unique<FiniteIrrepCD>());
+    FiniteIrrepCD plain;                          // mixable, but NOT a polarized (Up/Down) density
 
     EXPECT_THROW(pol.MixIn(plain, 0.5),   std::runtime_error);
     EXPECT_THROW(pol.GetChangeFrom(plain), std::runtime_error);
 
     // ...and the same-lineage call is accepted, so the guard is not simply refusing everything.
-    tPolarized_CDImp<double> other(std::make_unique<IrrepCD<double>>(), std::make_unique<IrrepCD<double>>());
+    tPolarized_CDImp<double> other(std::make_unique<FiniteIrrepCD>(), std::make_unique<FiniteIrrepCD>());
     EXPECT_NO_THROW(pol.GetChangeFrom(other));
 }

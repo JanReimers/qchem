@@ -7,14 +7,19 @@
 // it needs the Fourier trio and must NOT carry the AO/HF faces.  So lineage is now a CLASS axis:
 //
 //   IrrepCD_Core<T>      -- the shared density-matrix machinery (contractions, mixing, rho(r), ...)
-//   IrrepCD<T>           -- the FINITE leaf (molecules/atoms): core + AO projection + HF pair partner.
-//                           The name is unchanged, so every molecular consumer is untouched.
+//   FiniteIrrepCD        -- the FINITE leaf (molecules/atoms): core + AO projection + HF pair partner.
 //   PeriodicIrrepCD<T>   -- the PERIODIC leaf (Bloch blocks): core + the reciprocal trio, and for
 //                           T==double the run-typed energy-contract capability (RealBlockEnergy_CD).
 //
-// The scalar-keyed conditional bases are GONE, and with them IrrepCD<dcmplx>'s asserting HF stubs (the
+// The scalar-keyed conditional bases are GONE, and with them the finite leaf's asserting HF stubs (the
 // R2.8 denial smell): nothing instantiates a finite complex leaf, so nothing has to deny anything.
 // The lineage choice is made ONCE, in IrrepCD_Factory, by probing the basis for the G-space capability.
+//
+// V1.32: the finite leaf is NOT a template.  It had exactly one instantiation and the factory's
+// if-constexpr made a finite-complex density unrepresentable, so the parameter was vestigial -- and the
+// name said the wrong thing besides.  *Finite* is this leaf's identity; the scalar is not.  (The same
+// question was ASKED of PeriodicIrrepCD<T> and DECLINED: its T is load-bearing -- real TRIM block vs
+// general k -- which is the whole point of the lineage-as-class split above.)
 module;
 #include <iosfwd>
 #include <cstddef>
@@ -112,26 +117,22 @@ protected:
     size_t           itsVersion;   //!< TRANSIENT freshness serial (NextDensityVersion); never serialize.
 };
 
-//! The pair face on the finite leaf's double instantiation (the only one that exists), nothing otherwise.
-template <class T, class Leaf> using IrrepHF_PairBase =
-    std::conditional_t<std::is_same_v<T,double>, IrrepCD_HFPair<Leaf>, NoHF_Pair>;
-
-//! \brief THE FINITE LEAF (molecules/atoms; the historical name, so molecular consumers are untouched):
-//! the core plus the finite-only capabilities -- the AO (auxiliary-basis) projection, the exact-exchange
-//! pair partner, and the whole-system Fock route.  Only the \c <double> instantiation exists (a finite
-//! complex density is not a thing); the templated form is kept for symmetry with the family.
-template <class T> class IrrepCD
-    : public IrrepCD_Core<T>
-    , public ProjectedDensityBase<T> // AO projection (CoulombMetric_ProjectedDensity for double)
-    , public IrrepHF_PairBase<T,IrrepCD<T>>   // exact-exchange pair partner (double)
+//! \brief THE FINITE LEAF (molecules/atoms): the core plus the finite-only capabilities -- the AO
+//! (auxiliary-basis) projection, the exact-exchange pair partner, and the whole-system Fock route.
+//! NOT a template (V1.32): a finite density is real, full stop, so it names its bases outright rather
+//! than reaching them through scalar-keyed conditionals that had one live branch each.
+class FiniteIrrepCD
+    : public IrrepCD_Core<double>
+    , public Fitting::CoulombMetric_ProjectedDensity   // AO projection (was ProjectedDensityBase<T>)
+    , public IrrepCD_HFPair<FiniteIrrepCD>             // exact-exchange pair partner (was IrrepHF_PairBase)
 {
 public:
-    using IrrepCD_Core<T>::IrrepCD_Core;   // the core's ctors are the leaf's
+    using IrrepCD_Core<double>::IrrepCD_Core;   // the core's ctors are the leaf's
 
     //! V1.31 whole-system route: this block's basis answers the capability, and the block folds its own
     //! density up to AO.
-    virtual const BasisSet::WholeSystemFock_IBS<T>* WholeSystemFock() const;
-    virtual void AddAODensity(hmat_t<T>& Dao) const;
+    virtual const BasisSet::WholeSystemFock_IBS<double>* WholeSystemFock() const;
+    virtual void AddAODensity(rsmat_t& Dao) const;
     //! AO (auxiliary-basis) projection <rho|c> -- the finite path's ProjectedDensity_AO face.
     virtual double FitGetConstraint() const {return this->GetTotalCharge();}   // AO fit RHS: the charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
@@ -139,10 +140,10 @@ public:
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 
 private:
-    friend class IrrepCD_HFPair<IrrepCD<T>>;   // uses this block's own D/basis; nothing is exposed publicly
+    friend class IrrepCD_HFPair<FiniteIrrepCD>;   // uses this block's own D/basis; nothing is exposed publicly
     //! The diagonal (self-paired) HF contraction; called only from the pair mixin's self-pair branch.
-    void AccumulateDirect  (hmat_t<T>& Jii) const;
-    void AccumulateExchange(hmat_t<T>& Kii) const;
+    void AccumulateDirect  (rsmat_t& Jii) const;
+    void AccumulateExchange(rsmat_t& Kii) const;
 };
 
 //! Conditional real-block-energy base for the periodic leaf: ONLY the \c <double> instantiation (a real

@@ -62,14 +62,14 @@ template <class T> bool IrrepCD_Core<T>::IsZero() const
 //
 //  Total energy terms for a charge density.
 //
-template <> void IrrepCD<double>::AccumulateDirect(rsmat_t& Jii) const
+void FiniteIrrepCD::AccumulateDirect(rsmat_t& Jii) const
 {
     const rohfbs_t* bs=dynamic_cast<const rohfbs_t*>(itsBasisSet);
     assert(bs);
     if (!IsZero()) bs->AccumulateDirect(Jii,itsDensityMatrix,bs);   // diagonal: this block's basis on both sides
 }
 
-template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Kii) const
+void FiniteIrrepCD::AccumulateExchange(rsmat_t& Kii) const
 {
     const rohfbs_t* bs=dynamic_cast<const rohfbs_t*>(itsBasisSet);
     assert(bs);
@@ -80,7 +80,7 @@ template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Kii) const
 // SOLE entry point the composite loops over (i<=j, so the DIAGONAL i==j lands here too): when other IS this
 // (the self-pair) there is no bra-ket partner, so it collapses to a single localized contraction --
 // ScatterBoth on the diagonal would add J.D + J^T.D = 2 J.D (the block is bra-ket symmetric).  Off-diagonal:
-// the partner density is reached by a same-class cast (the IrrepCD<->IrrepCD idiom used by MixIn /
+// the partner density is reached by a same-class cast (the leaf<->leaf idiom used by MixIn /
 // GetChangeFrom); both empty -> nothing to build; the basis fetches ONLY the canonical J(i,j) block, so
 // J(j,i) is never materialized.
 template <class Leaf> void IrrepCD_HFPair<Leaf>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const tHF_Pair_CD<double>& other) const
@@ -109,12 +109,12 @@ template <class Leaf> void IrrepCD_HFPair<Leaf>::CompleteDirectPair(rsmat_t& Ji,
 // --- V1.31 whole-system route ---------------------------------------------------------------------------
 // The basis answers whether it has one; this block only has to fold its own density up to the AO space.  The
 // SLICE back down needs no density, so the composite drives that through the basis face directly.
-template <> const BasisSet::WholeSystemFock_IBS<double>* IrrepCD<double>::WholeSystemFock() const
+const BasisSet::WholeSystemFock_IBS<double>* FiniteIrrepCD::WholeSystemFock() const
 {
     return dynamic_cast<const BasisSet::WholeSystemFock_IBS<double>*>(itsBasisSet);
 }
 
-template <> void IrrepCD<double>::AddAODensity(rsmat_t& Dao) const
+void FiniteIrrepCD::AddAODensity(rsmat_t& Dao) const
 {
     const BasisSet::WholeSystemFock_IBS<double>* ws=WholeSystemFock();
     assert(ws && "IrrepCD::AddAODensity: this block's basis has no whole-system Fock route");
@@ -144,29 +144,24 @@ template <class Leaf> void IrrepCD_HFPair<Leaf>::CompleteExchangePair(rsmat_t& K
 //
 //  Required by fitting routines.
 //
-// AO density-fit projection <rho|c> = Sum_ab D_ab <ab|c>, the finite (double) path's ProjectedDensity_AO
-// face.  The periodic (dcmplx) density is NOT a ProjectedDensity_AO (see ProjectedDensityBase), so this is
-// never reached for dcmplx; the if-constexpr keeps the double-only 3-centre machinery out of that build.
-template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::rFIT_CD_ABS* fbs) const
+// AO density-fit projection <rho|c> = Sum_ab D_ab <ab|c>, the finite path's ProjectedDensity_AO face.
+// The periodic density is NOT a ProjectedDensity_AO and does not inherit this leaf at all, so there is
+// nothing to guard: V1.32 removed the if-constexpr along with the template parameter it tested.
+rvec_t FiniteIrrepCD::GetRepulsion3C(const BasisSet::rFIT_CD_ABS* fbs) const
 {
-    if constexpr (std::is_same_v<T,double>)
-    {
-        if (this->IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
-        auto dftbs=dynamic_cast<const todftbs_t<T>*>(this->itsBasisSet);
-        assert(dftbs);
-        // Contract the density matrix against the basis's CACHED, D-free 3-centre projection tensor <ab|c>
-        // HERE -- the DENSITY owns D, so the D-contraction is a density operation, not a basis one.  The
-        // basis exposes only the tensor (Repulsion3C(c) -> Projector3, built once, keyed by BasisSetID);
-        // D never crosses into qcBasisSet.  This is the real-space model for fixing MakeFourierDensity(D): the
-        // {G} 3-centre integral is the delta <ij|Dm>, and rho-tilde = Sum_ij D_ij <ij|Dm> is the SAME contraction.
-        const auto& R=dftbs->Repulsion3C(*fbs).dense;     // <ab|c> (dense realization: one smat per fit function c)
-        rvec_t ret(fbs->GetNumFunctions());
-        for (size_t i=0;i<R.size();++i)
-            ret[i]=blazem::sum(this->itsDensityMatrix % R[i]);  // <rho|c_i> = Sum_ab D_ab <ab|c_i>
-        return ret;
-    }
-    else
-        return rvec_t();   // inert: a periodic density carries no AO projection
+    if (this->IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
+    auto dftbs=dynamic_cast<const todftbs_t<double>*>(this->itsBasisSet);
+    assert(dftbs);
+    // Contract the density matrix against the basis's CACHED, D-free 3-centre projection tensor <ab|c>
+    // HERE -- the DENSITY owns D, so the D-contraction is a density operation, not a basis one.  The
+    // basis exposes only the tensor (Repulsion3C(c) -> Projector3, built once, keyed by BasisSetID);
+    // D never crosses into qcBasisSet.  This is the real-space model for fixing MakeFourierDensity(D): the
+    // {G} 3-centre integral is the delta <ij|Dm>, and rho-tilde = Sum_ij D_ij <ij|Dm> is the SAME contraction.
+    const auto& R=dftbs->Repulsion3C(*fbs).dense;     // <ab|c> (dense realization: one smat per fit function c)
+    rvec_t ret(fbs->GetNumFunctions());
+    for (size_t i=0;i<R.size();++i)
+        ret[i]=blazem::sum(this->itsDensityMatrix % R[i]);  // <rho|c_i> = Sum_ab D_ab <ab|c_i>
+    return ret;
 }
 
 
@@ -517,10 +512,10 @@ template <class T> double IrrepCD_Core<T>::operator()(const rvec3_t& r) const
     return std::real(blazem::trans(phir)*itsDensityMatrix*blazem::conj(phir));
 }
 
-template <class T> rvec3_t IrrepCD<T>::Gradient(const rvec3_t& r) const
+rvec3_t FiniteIrrepCD::Gradient(const rvec3_t& r) const
 {
     // No UT coverage
-    vec_t<T> phir=(*this->itsBasisSet)(r);
+    rvec_t phir=(*this->itsBasisSet)(r);
     vec_t<rvec3_t > gphir=this->itsBasisSet->Gradient(r);
     return GradientContraction(gphir,phir,this->itsDensityMatrix);
 }
@@ -570,12 +565,11 @@ template <class T> std::ostream& IrrepCD_Core<T>::Write(std::ostream& os) const
 
 template class IrrepCD_Core<double>;
 template class IrrepCD_Core<dcmplx>;
-template class IrrepCD_HFPair<IrrepCD<double>>;
-template class IrrepCD<double>;   // the FINITE leaf exists for double alone (no finite complex density)
+template class IrrepCD_HFPair<FiniteIrrepCD>;   // the finite leaf itself is no longer a template (V1.32)
 
 // --- THE PERIODIC LEAF (both scalars; Step 3c-2b).  Note what is NOT here: no HF denials, no AO-face
 // denial -- the leaf simply never inherits those capabilities, so nothing has to be denied (the R2.8
-// smell the old IrrepCD<dcmplx> specializations carried is GONE).
+// smell the old finite-complex specializations carried is GONE).
 
 // The complex overlap bypasses the (symmetric double) cache: MakeOverlap directly.  The REAL periodic
 // block's S caches fine (theCache<double>), so it takes the core's cached accessor path.
@@ -683,7 +677,7 @@ template <class Leaf> rvec_t FactoredRho<Leaf>::ProjectOnto(const Fitting::Scala
     return p.Forward(orb).Forward(itsL);
 }
 
-template class FactoredRho<IrrepCD<double>>;
+template class FactoredRho<FiniteIrrepCD>;
 template class FactoredRho<PeriodicIrrepCD<double>>;
 template class FactoredRho<PeriodicIrrepCD<dcmplx>>;
 

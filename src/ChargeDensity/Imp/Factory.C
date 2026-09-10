@@ -46,11 +46,12 @@ template <class T> tDM_CD<T>* IrrepCD_Factory(const hmat_t<T>& dm,const tobs_t<T
         return factored ? static_cast<tDM_CD<T>*>(new FactoredRho<PeriodicIrrepCD<T>>(dm,bs,qns))
                         : static_cast<tDM_CD<T>*>(new           PeriodicIrrepCD<T> (dm,bs,qns));
     if constexpr (std::is_same_v<T,double>)
-        return factored ? static_cast<tDM_CD<T>*>(new FactoredRho<IrrepCD<T>>(dm,bs,qns))
-                        : static_cast<tDM_CD<T>*>(new           IrrepCD<T> (dm,bs,qns));
+        return factored ? static_cast<tDM_CD<T>*>(new FactoredRho<FiniteIrrepCD>(dm,bs,qns))
+                        : static_cast<tDM_CD<T>*>(new           FiniteIrrepCD (dm,bs,qns));
     else
-        // A finite complex density is not a thing: the finite leaf exists for double alone, and this
-        // branch never instantiates it -- the compile-time guard that keeps it so.
+        // A finite complex density is not a thing, and since V1.32 it is not even SPELLABLE -- the leaf
+        // is non-template, so this branch could not instantiate it if it tried.  The if-constexpr stays:
+        // it is what keeps the un-instantiable name out of the dcmplx build in the first place.
         throw std::logic_error("IrrepCD_Factory: a complex block density requires a periodic (G-space) basis");
 }
 template <class T> tDM_CD<T>* IrrepCD_Factory(const hmat_t<T>& dm,const tobs_t<T>* bs, Irrep qns)

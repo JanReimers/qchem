@@ -62,7 +62,7 @@ struct NoProjectedDensity {};
 //
 //  These four operations used to be asserting defaults on tDM_CD<T>.  They are REAL-ONLY BY CONSTRUCTION:
 //  Vee/Vxc are added by the molecular HF Hamiltonians alone, while the periodic Ham_PW_DFT adds
-//  Vee_Hartree and never exact exchange -- which is why IrrepCD<dcmplx> carried four overrides saying "HF
+//  Vee_Hartree and never exact exchange -- which is why a finite complex leaf carried four overrides saying "HF
 //  is not applicable to a complex plane-wave density".  So they move to faces the REAL path inherits and
 //  the complex path does not: the dcmplx instantiation now grows NOTHING, instead of one more denial per
 //  method (the R2.8 smell).

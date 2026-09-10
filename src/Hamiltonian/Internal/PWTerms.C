@@ -205,7 +205,7 @@ private:
 //! many-to-one (it sums \f$D_{ab}\f$ over each difference \f$G_b-G_a\f$), so \f$D\f$ cannot be recovered
 //! from \f$\tilde\rho\f$; but Hartree and LDA only ever need the diagonal.  The full \f$\rho(r,r')\f$ WOULD
 //! be needed for exact exchange -- and consistently, the periodic density NA-asserts on the HF
-//! accumulators (\c IrrepCD<dcmplx>::AccumulateExchange).
+//! accumulators (the finite leaf's AccumulateExchange).
 //!
 //! The LONG-range local-PP fold that used to live here is now its own term, \c Ven_PP_Long: it is
 //! density-INDEPENDENT and electron-ION, so it belonged in neither this term's matrix nor its energy.
