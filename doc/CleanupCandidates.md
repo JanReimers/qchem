@@ -1627,7 +1627,7 @@ MnO campaign proceeds undisturbed in qchem6.
      Name it for that.
   ⚠ Sequence AFTER the library-home decision (R1.0e), since (1)-(3) shrink what has to move.
 
-- **R1.0h ⚠ THE \f$H_{ij}\f$ CACHE IS THE SAME MISTAKE AS THE ONE JUST UNDONE — and `DB_Cache` is not the
+- **R1.0h ⚗️ HALF DONE 2026-09-09 — THE \f$H_{ij}\f$ CACHE IS THE SAME MISTAKE AS THE ONE JUST UNDONE — and `DB_Cache` is not the
   answer (user, 2026-09-08).**
 
   > *"Maybe trying to cache Hij matrices in the Hamiltonian library is also a similar mistake.  I think they
@@ -1676,6 +1676,53 @@ MnO campaign proceeds undisturbed in qchem6.
   order (pin 11), and the last write-shaped obstacle in the block loop goes away
   (`doc/OpenWork.md` item **KP**).
   ⚠ Sequence it AFTER the `XCQuadrature` library move: both touch the term/engine boundary.
+
+
+  ---
+
+  ✅ **DONE 2026-09-09: THE SLOT PRE-CREATION.  The block loop performs no map INSERTION in the ordinary
+  path.**  `tHamiltonian::RefreshForDensity` now takes the BASIS as well as the density and has TWO duties —
+  pre-create this iteration's per-irrep slots, then pre-warm the k-independent memos — because they are one
+  thing: everything that must happen before the block loop so the loop can be read-only.  The driver already
+  held the block list (it passes the same object to `CalcH` on the very next line), so no plumbing.
+
+  ▶ **THE MECHANISM, and it is smaller than the row implied:** `std::map::operator[]` mutates the tree ONLY
+  when the key is absent.  So pre-creating the nodes is the whole fix — after it, `GetMatrix` finds its node
+  and assigns into an address-stable value, which two blocks with different keys can do concurrently.  The
+  find/insert bodies became **fill-if-empty**, with a 0×0 matrix as the "slot exists, not filled" sentinel:
+  a Fock block always has rows, so that cannot collide with a legitimate value, and it avoided rippling an
+  `optional` through five cache holders.
+
+  ⚠ **THERE WERE FIVE CACHE HOLDERS, NOT ONE** — the row's "the one remaining write inside the block loop"
+  undercounted.  `tHT_Common` (shared by `tStatic_HT_Imp`, `tDynamic_HT_Imp` and `tDynamic_HT_Imp_NoCache`)
+  plus `Static_HT_RealBlock_Imp` and `Dynamic_HT_RealBlock_Imp`, each with the identical lazy-insert shape.
+  ★ `tDynamic_HT_Imp_NoCache` is not a cache at all — it is a SCRATCH SLOT giving the returned reference a
+  per-`Irrep` lifetime (R2.9(ii)) — but it inserts on first touch like the rest, so the same fix covers it.
+  ★ STATIC terms are included too, and that does NOT breach *"the phase must never reach a static term"*:
+  that rule is about refreshing FOR A DENSITY.  Their caches never clear, so it is iteration ONE that would
+  otherwise insert from inside the loop — and "read-only from the second iteration" is not read-only.
+  ⇒ Two hooks, not one: `tDynamic_HT::PrepareSlots` / `tStatic_HT::PrepareSlots` for the scalar cache and
+  `{Static,Dynamic}_HT_RealBlock::PrepareRealSlots` for the real one.  A SEPARATE virtual is forced, not
+  chosen: the real-block capability faces do not derive from `tDynamic_HT`, so there is no shared slot to
+  override and one hook would need a diamond nobody wants.
+
+  ⛔ **AND THE MEASUREMENT THAT COST A ROUND: "WALK THE BLOCKS" IS NOT ONE LOOP ON A MIXED SET.**  The first
+  version walked `(*bs)[i]` and **32 integration tests failed** — every one a mixed real/complex run.
+  `operator[]` THROWS on a REAL TRIM block inside a complex-faced set (*"a basis block's scalar differs from
+  the set's face"*, doc/RealComplexPlan.md 3c-3).  Those blocks belong to the REAL cache and its own
+  `PrepareRealSlots`; the typed walk must `continue` past any index where `GetRealIBS(i)` answers non-null.
+  ▶ The throw did its job — this is the `feedback_compile_time_over_runtime` doctrine paying off at runtime.
+  Gate: `EagerRefresh.ThePhasePreparesSlotsOnEveryTermIncludingStatics` (call counts, not timings, per the
+  file's own rule).  **851/851.**
+
+  ⏸ **STILL OPEN — the other half: an OWNING SCOPE, and the `DensitySampler` tenants.**  The phase is a CALL,
+  not an object with a lifetime, so the caches still live between iterations.  ⚠ Measured before choosing:
+  that bounded lifetime would reclaim ~1 `hmat` per (dynamic term × irrep) — **~6 MB on MnO against a
+  ~500 MB run** — so the memory argument for the heavier version is weak and it was deliberately not built
+  (user ruling, 2026-09-09).  What a scope WOULD add is a home for `DensitySampler`'s three remaining
+  tenants (`Matrix`, `Integrate`/`NumPoints`, `SiteMoments` — see R1.0j), which is the part still worth
+  doing.  ⚠ Sequence THAT after the library move; the slot pre-creation did not need to wait, because it
+  touches the term base classes rather than the term/engine boundary.
 
 - **R1.0e ✅ THE FILE SPLIT IS DONE 2026-09-08; THE SCOPE QUESTION IT EXPOSED IS THE OPEN PART.**
   (Original: USER, 2026-08-23, *"the enormous PWTerms TU is going to need a massive refactoring cleanup

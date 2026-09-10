@@ -42,6 +42,12 @@ template <class T> class tStatic_HT
 public:
     //! One-irrep matrix block \f$\langle i|\hat h|j\rangle\f$ for basis \a bs and spin \a s.
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
+    //! \copydoc tDynamic_HT::PrepareSlots
+    //! ⚠ A static term's cache is NEVER cleared (its blocks are geometry-fixed), so this creates each slot
+    //! once and every later call is a lookup.  It is here anyway because iteration ONE would otherwise still
+    //! insert from inside the block loop -- the phase is about the loop being read-only, and "read-only from
+    //! the second iteration" is not that.
+    virtual void PrepareSlots(const tbs_t<T>*) const {}
     //! Add this term's energy contribution (contracted against the density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
@@ -101,6 +107,22 @@ public:
     //! Default: no-op.  A term with no density-dependent memo has nothing to warm and must not be made to
     //! say so.
     virtual void RefreshForDensity(const tChargeDensity<T>*) const {}
+    //! \brief THE OTHER HALF OF THE SAME PHASE (R1.0h, 2026-09-09): CREATE this iteration's per-irrep cache
+    //! slots for the blocks of \a bs, so the Fock loop below only FILLS nodes that already exist.
+    //!
+    //! ★ WHY SLOT CREATION IS THE THING THAT MATTERS, and not the fill.  A `std::map` INSERTION mutates the
+    //! tree, so two blocks inserting concurrently race even though their keys differ; writing to two
+    //! ALREADY-EXISTING nodes does not, because map nodes are address-stable.  \c RefreshForDensity hoisted
+    //! the k-INDEPENDENT memos out of the loop; this hoists the per-block INSERTIONS, which is what was
+    //! left -- and unlike those memos these are k-DEPENDENT, so they cannot be warmed, only pre-slotted.
+    //!
+    //! ⚠ A PRE-CREATE, NOT A CONTRACT -- exactly as \c RefreshForDensity is a pre-warm and not a
+    //! replacement.  \c GetMatrix still creates a missing slot on demand, because energy evaluation and the
+    //! unit tests drive terms outside any prologue.  What the phase buys is that in the ORDINARY path the
+    //! loop performs no insertion.
+    //!
+    //! Default: no-op.  A term with no irrep-keyed cache has no slots and must not be made to say so.
+    virtual void PrepareSlots(const tbs_t<T>*) const {}
     //! \copybrief tDynamic_CC::GetEMatrix
     //! Default: \f$E=D\cdot V\f$, so the energy matrix IS the potential block.  Overridden ONLY where that
     //! identity fails -- the xc family, whose energy density \f$\epsilon_{xc}\f$ is not its potential
@@ -193,6 +215,8 @@ public:
     virtual ~Static_HT_RealBlock() {};
     // GetMatrix(const tobs_t<double>*, const Spin&) comes from tStatic_CC<double> -- one declaration,
     // one override (the caching Imp mixin's), serving BOTH the Fock fold and the energy contraction.
+    //! \copydoc Dynamic_HT_RealBlock::PrepareRealSlots
+    virtual void PrepareRealSlots(const tbs_t<dcmplx>*) const {}
 };
 class Dynamic_HT_RealBlock
     : public virtual ChargeDensity::Dynamic_CC_RealBlock
@@ -202,6 +226,11 @@ public:
     //! \a cd is the RUN's density (complex-faced composite): the term's density-dependent state is
     //! block-independent, so the real block consumes the same \f$V_H(G)\f$ / \f$\rho\f$ raster.
     virtual const hmat_t<double>& GetMatrix(const tobs_t<double>*, const Spin&, const tChargeDensity<dcmplx>*) const=0;
+    //! \brief The real-block sibling of \c tDynamic_HT::PrepareSlots (R1.0h) -- see it for the rationale.
+    //! A SEPARATE virtual, and it has to be: this capability face does NOT derive from \c tDynamic_HT, so
+    //! there is no shared slot to override, and giving the two caches one hook would need a diamond nobody
+    //! wants.  Two caches, two hooks, folded together by the Hamiltonian.
+    virtual void PrepareRealSlots(const tbs_t<dcmplx>*) const {}
 };
 
 //! \brief The REAL-BLOCK ASSEMBLY face of a complex-run Hamiltonian (Step 3c-2): fold the term set's
@@ -275,7 +304,11 @@ public:
     //! sees the term list.  The SCF drives it from \c tCompositeWF::DoSCFIteration immediately before the
     //! per-block Fock loop.  See \c tDynamic_HT::RefreshForDensity for what it is for and -- importantly --
     //! for what it does not promise.
-    virtual void            RefreshForDensity(const tChargeDensity<T>*) const {}
+    //! ⚠ IT TAKES THE BASIS since 2026-09-09 (R1.0h): the second duty below -- pre-creating this
+    //! iteration's per-irrep cache slots -- needs the BLOCK LIST, and the driver has it in hand (it passes
+    //! the same object to the Fock loop on the very next line).  Two duties, ONE phase, because they are
+    //! one thing: everything that must happen before the block loop so the loop can be read-only.
+    virtual void            RefreshForDensity(const tbs_t<T>*, const tChargeDensity<T>*) const {}
 };
 
 // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t).  No bare (prefix-less) alias: it would shadow the

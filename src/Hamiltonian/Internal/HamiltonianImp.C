@@ -53,8 +53,31 @@ public:
     //! density-dependent memo, once, before the caller's per-block Fock loop.  Folded over the DYNAMIC
     //! terms only -- a static term is density-independent by definition, so it has nothing to warm.
     //! Priced in its own report bucket by the caller, not here (this face is I/O-free).
-    virtual void            RefreshForDensity(const tChargeDensity<T>* cd) const
+    //! ⚠ TWO DUTIES SINCE 2026-09-09 (R1.0h), and they are one phase: everything that must happen before
+    //! the block loop so the loop can be read-only.
+    //!  1. PRE-CREATE this iteration's per-irrep cache slots (needs \a bs -- the block list).
+    //!  2. PRE-WARM the k-independent density-derived memos (needs \a cd).
+    //! Duty 1 runs over STATIC terms too, and that does not breach the "the phase must never reach a static
+    //! term" rule: that rule is about refreshing FOR A DENSITY, which a static term has no business doing.
+    //! Creating its slots is density-INDEPENDENT -- and a static term's cache is never cleared, so after the
+    //! first iteration the calls are pure lookups.
+    virtual void            RefreshForDensity(const tbs_t<T>* bs, const tChargeDensity<T>* cd) const
     {
+        for (const auto& t : itsDHTs)
+        {
+            t->PrepareSlots(bs);
+            // The REAL-block cache is a SECOND map behind a SEPARATE capability face, so it needs its own
+            // call.  A soft cast, not DynamicRealOf: most dynamic terms simply do not carry the face, and
+            // that is a legitimate configuration rather than a wiring error here.
+            if constexpr (std::is_same_v<T,dcmplx>)
+                if (const auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(t.get())) rb->PrepareRealSlots(bs);
+        }
+        for (const auto& t : itsSHTs)
+        {
+            t->PrepareSlots(bs);
+            if constexpr (std::is_same_v<T,dcmplx>)
+                if (const auto* rb=dynamic_cast<const Static_HT_RealBlock*>(t.get())) rb->PrepareRealSlots(bs);
+        }
         if (!cd) return;
         for (const auto& t : itsDHTs) t->RefreshForDensity(cd);
     }

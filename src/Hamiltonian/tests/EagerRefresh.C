@@ -39,9 +39,11 @@ class SpyDynamic : public virtual rDynamic_HT
 public:
     mutable int refreshes=0;
     mutable int matrices=0;
+    mutable int slotPreps=0;
     virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&, const rChargeDensity*) const override
     { ++matrices; return itsM; }
     virtual void RefreshForDensity(const rChargeDensity*) const override {++refreshes;}
+    virtual void PrepareSlots(const rbs_t*) const override {++slotPreps;}
     virtual void GetEnergy(EnergyBreakdown&, const rDM_CD*) const override {}
     virtual std::ostream& Write(std::ostream& os) const override {return os;}
 private:
@@ -65,7 +67,9 @@ class SpyStatic : public virtual rStatic_HT
 {
 public:
     mutable int touched=0;
+    mutable int slotPreps=0;
     virtual const rsmat_t& GetMatrix(const robs_t*, const Spin&) const override {++touched; return itsM;}
+    virtual void PrepareSlots(const rbs_t*) const override {++slotPreps;}
     virtual void GetEnergy(EnergyBreakdown&, const rDM_CD*) const override {}
     virtual std::ostream& Write(std::ostream& os) const override {return os;}
 private:
@@ -83,18 +87,18 @@ TEST(EagerRefresh, TheHamiltonianFoldsTheRefreshOverEveryDynamicTermExactlyOnce)
 
     // A null density is the "nothing to refresh" case and must be a quiet no-op, not a crash: the SCF
     // reaches this phase on paths where the density is not yet built.
-    H.RefreshForDensity(nullptr);
+    H.RefreshForDensity(nullptr, nullptr);
     EXPECT_EQ(a->refreshes, 0);
     EXPECT_EQ(b->refreshes, 0);
 
     const rChargeDensity* cd=reinterpret_cast<const rChargeDensity*>(0x1);   // never dereferenced: the
-    H.RefreshForDensity(cd);                                                 // spies ignore it
+    H.RefreshForDensity(nullptr, cd);                                                 // spies ignore it
     EXPECT_EQ(a->refreshes, 1) << "the phase must reach every dynamic term";
     EXPECT_EQ(b->refreshes, 1) << "the phase must reach every dynamic term";
     EXPECT_EQ(st->touched,  0) << "a STATIC term is density-independent -- the phase must not touch it";
 
     // Once per call, not once per block: the whole point is that N blocks cost ONE warm.
-    H.RefreshForDensity(cd);
+    H.RefreshForDensity(nullptr, cd);
     EXPECT_EQ(a->refreshes, 2);
     EXPECT_EQ(a->matrices,  0) << "the refresh phase must not assemble any matrix";
 }
@@ -106,7 +110,7 @@ TEST(EagerRefresh, ATermThatDoesNotOverrideTheHookIsUndisturbed)
 {
     tHamiltonianImp<double> H;
     H.Add(new SilentDynamic);
-    EXPECT_NO_THROW(H.RefreshForDensity(reinterpret_cast<const rChargeDensity*>(0x1)));
+    EXPECT_NO_THROW(H.RefreshForDensity(nullptr, reinterpret_cast<const rChargeDensity*>(0x1)));
 }
 
 //---------------------------------------------------------------------------------------------------
@@ -122,4 +126,37 @@ TEST(EagerRefresh, AssemblyWithoutAPriorRefreshIsLegal)
     H.Add(a);
     EXPECT_NO_THROW(a->GetMatrix(nullptr, Spin::Up, nullptr));
     EXPECT_EQ(a->refreshes, 0) << "assembly must not require -- nor silently trigger -- the phase";
+}
+
+//---------------------------------------------------------------------------------------
+//  THE SECOND DUTY (R1.0h, 2026-09-09): the phase also PRE-CREATES this iteration's cache slots.
+//
+//  Same reasoning as the file header: this is PLUMBING, so pin CALL COUNTS.  What the slot pre-creation
+//  buys -- that the block loop performs no map INSERTION, hence no tree mutation, hence no race between
+//  blocks whose keys differ -- is not observable from outside the term (itsCache is protected, and rightly
+//  so).  What IS observable, and is what rots, is whether the fold reaches every term with the block list.
+TEST(EagerRefresh, ThePhasePreparesSlotsOnEveryTermIncludingStatics)
+{
+    tHamiltonianImp<double> H;
+    auto* d1=new SpyDynamic; auto* d2=new SpyDynamic; auto* st=new SpyStatic;
+    H.Add(d1); H.Add(d2); H.Add(new SilentDynamic); H.Add(st);
+
+    // ⚠ THE SLOT DUTY IS NOT GATED ON A DENSITY, and the density duty is: slots depend on the BLOCK LIST,
+    // rho does not exist yet on the paths that reach here with a null density.
+    H.RefreshForDensity(nullptr, nullptr);
+    EXPECT_EQ(d1->slotPreps, 1);
+    EXPECT_EQ(d2->slotPreps, 1);
+    EXPECT_EQ(st->slotPreps, 1) << "a STATIC term has slots too -- its cache is never cleared, so it is "
+                                   "iteration ONE that would otherwise insert from inside the block loop";
+    EXPECT_EQ(d1->refreshes, 0) << "no density => nothing to warm";
+    EXPECT_EQ(st->touched,   0) << "and a static term is still never asked to refresh FOR A DENSITY";
+
+    const rChargeDensity* cd=reinterpret_cast<const rChargeDensity*>(0x1);   // never dereferenced
+    H.RefreshForDensity(nullptr, cd);
+    EXPECT_EQ(d1->slotPreps, 2) << "the slot duty runs EVERY iteration: last iteration's blocks are stale";
+    EXPECT_EQ(d1->refreshes, 1);
+
+    // A term that overrides neither hook must be undisturbed by both -- the SilentDynamic above would have
+    // thrown or crashed if the fold assumed an override.
+    SUCCEED();
 }

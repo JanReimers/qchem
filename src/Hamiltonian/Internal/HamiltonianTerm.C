@@ -50,6 +50,34 @@ template <class T> class tHT_Common
 protected:
     typedef std::map<Irrep,hmat_t<T>> CacheMap;
     mutable CacheMap   itsCache;       //Cache the H matrices for total energy calculations.
+
+    //! \brief CREATE (empty) one slot per irrep of \a bs, so the block loop only fills existing nodes.
+    //! R1.0h; the rationale is on \c tDynamic_HT::PrepareSlots.
+    //!
+    //! ★ AN EMPTY MATRIX IS THE "NOT FILLED YET" SENTINEL, and it is a safe one: a Fock/KS block always has
+    //! rows, so 0x0 cannot be a legitimate cached value.  That is what lets a pre-created slot be
+    //! distinguished from a filled one WITHOUT changing the map's value type (an `optional` would have
+    //! rippled through five cache holders for the same information).
+    //!
+    //! All three spins, because \c CacheSpin decides which of them actually key distinct slots and this
+    //! layer must not second-guess it: a spin-independent term folds all three onto one key (duplicates
+    //! collapse), a polarized one keys Up and Down apart.  A few empty map nodes is the whole cost.
+    void PrepareCacheSlots(const tbs_t<T>* bs) const
+    {
+        if (!bs) return;
+        for (size_t i=0;i<bs->GetNumIBS();++i)
+        {
+            // ⛔ SKIP THE REAL BLOCKS OF A COMPLEX-FACED SET -- "walk the blocks" is NOT one loop on a
+            // MIXED set (doc/RealComplexPlan.md 3c-3), and `operator[]` says so by THROWING: *"a basis
+            // block's scalar differs from the set's face"*.  Those blocks are served by the real cache and
+            // its own PrepareRealSlots; reaching them through the typed view is the error, not the skip.
+            // (Measured the hard way 2026-09-09: 32 integration tests, every one a mixed-mesh run.)
+            if (bs->GetRealIBS(i)) continue;
+            if (const tobs_t<T>* b=(*bs)[i])
+                for (const Spin& s : {Spin::None, Spin::Up, Spin::Down})
+                    itsCache[b->GetIrrep(this->CacheSpin(s))];   // default-construct: 0x0 == unfilled
+        }
+    }
 };
 
 
@@ -62,12 +90,17 @@ public:
     {
         assert(bs);
         Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
-        auto i=this->itsCache.find(qns);
-        if (i==this->itsCache.end())
-            return this->itsCache[qns]=MakeMatrix(bs,s);
-        else
-            return i->second;
+        // FILL-IF-EMPTY (R1.0h).  operator[] mutates the tree ONLY when the key is absent, which the
+        // pre-create phase is there to prevent; a 0x0 matrix is the "slot exists, not filled" sentinel.
+        // A static term's cache is never cleared, so after the first iteration this is pure read.
+        hmat_t<T>& slot=this->itsCache[qns];
+        if (slot.rows()==0) slot=MakeMatrix(bs,s);
+        return slot;
     }
+
+    //! \copydoc tStatic_HT::PrepareSlots
+    //! No clear: a static term's blocks are geometry-fixed, so a slot once filled stays valid for the run.
+    virtual void PrepareSlots(const tbs_t<T>* bs) const override {this->PrepareCacheSlots(bs);}
 
 protected:
     // Unconditional calculation, does not use cache.
@@ -96,10 +129,23 @@ public:
             itsCacheVersion=cd->Version();
         }
         Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
-        if (auto i=this->itsCache.find(qns);i==this->itsCache.end())
-            return this->itsCache[qns]=MakeMatrix(bs,s,cd);
-        else
-            return i->second; //Cache hit (same density serial, already computed for this Irrep)
+        // FILL-IF-EMPTY (R1.0h): the pre-create phase has normally already made this node, so operator[]
+        // finds it and mutates nothing; a 0x0 matrix means "slot exists, not filled this iteration".
+        // Outside the phase (energy evaluation, unit tests) it still creates on demand -- a pre-create is
+        // not a contract, exactly as RefreshForDensity is a pre-warm and not a replacement.
+        hmat_t<T>& slot=this->itsCache[qns];
+        if (slot.rows()==0) slot=MakeMatrix(bs,s,cd);
+        return slot;   //Cache hit (same density serial, already computed for this Irrep)
+    }
+
+    //! \copydoc tDynamic_HT::PrepareSlots
+    //! Drops the previous iteration's blocks first (the same density-serial test \c GetMatrix makes, and
+    //! it must stay in BOTH: this phase is optional, that one is the correctness mechanism), then creates
+    //! this iteration's empty slots.
+    virtual void PrepareSlots(const tbs_t<T>* bs) const override
+    {
+        this->itsCache.clear();       // a new iteration's blocks: last iteration's values are all stale
+        this->PrepareCacheSlots(bs);
     }
 
 protected:
@@ -175,11 +221,18 @@ public:
     {
         assert(bs);
         Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
-        auto i=itsRealCache.find(qns);
-        if (i==itsRealCache.end())
-            return itsRealCache[qns]=MakeMatrixR(bs,s);
-        else
-            return i->second;
+        hmat_t<double>& slot=itsRealCache[qns];        // FILL-IF-EMPTY (R1.0h) -- see tDynamic_HT_Imp
+        if (slot.rows()==0) slot=MakeMatrixR(bs,s);
+        return slot;
+    }
+    //! \copydoc Static_HT_RealBlock::PrepareRealSlots
+    virtual void PrepareRealSlots(const tbs_t<dcmplx>* bs) const override
+    {
+        if (!bs) return;                                // no clear: geometry-fixed, like the scalar sibling
+        for (size_t i=0;i<bs->GetNumIBS();++i)
+            if (const tobs_t<double>* b=bs->GetRealIBS(i))
+                for (const Spin& s : {Spin::None, Spin::Up, Spin::Down})
+                    itsRealCache[b->GetIrrep(this->CacheSpin(s))];
     }
 protected:
     virtual hmat_t<double> MakeMatrixR(const tobs_t<double>*,const Spin&) const=0;
@@ -201,10 +254,21 @@ public:
             itsRealCacheVersion=cd->Version();
         }
         Irrep qns(bs->GetIrrep(this->CacheSpin(s)));
-        if (auto i=itsRealCache.find(qns);i==itsRealCache.end())
-            return itsRealCache[qns]=MakeMatrixR(bs,s,cd);
-        else
-            return i->second;
+        hmat_t<double>& slot=itsRealCache[qns];        // FILL-IF-EMPTY (R1.0h) -- see tDynamic_HT_Imp
+        if (slot.rows()==0) slot=MakeMatrixR(bs,s,cd);
+        return slot;
+    }
+    //! \copydoc Dynamic_HT_RealBlock::PrepareRealSlots
+    //! The REAL blocks of \a bs -- \c GetRealIBS, not \c operator[]: this cache serves the real TRIM
+    //! blocks of a complex-faced set (3c-3), and those are exactly the indices that answer non-null there.
+    virtual void PrepareRealSlots(const tbs_t<dcmplx>* bs) const override
+    {
+        itsRealCache.clear();
+        if (!bs) return;
+        for (size_t i=0;i<bs->GetNumIBS();++i)
+            if (const tobs_t<double>* b=bs->GetRealIBS(i))
+                for (const Spin& s : {Spin::None, Spin::Up, Spin::Down})
+                    itsRealCache[b->GetIrrep(this->CacheSpin(s))];
     }
     //! The run-typed ENERGY matrix (ChargeDensity::Dynamic_CC_RealBlock, Step 3c-2b): the E=D·V identity
     //! over the same real cache.  Valid for every term that takes the DM_Contract energy route (Hartree,

@@ -252,7 +252,7 @@ template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,con
         // guards remain the correctness mechanism; this only means that in the ordinary path nothing is
         // written below.  See tDynamic_HT::RefreshForDensity for why a stronger claim would be false.
         qchem::report::Timed timed("scf: eager refresh (density-derived, k-independent)");
-        ham.RefreshForDensity(cd);
+        ham.RefreshForDensity(itsBS, cd);
     }
     {
         // itsBS (the whole/composite basis) IS the cross-irrep view a dynamic term may exploit: Iterate<tobs_t>()
@@ -288,7 +288,7 @@ template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T
 {
     {   // the same eager refresh the fixed-point path runs -- see DoSCFIteration for why
         qchem::report::Timed timed("scf: eager refresh (density-derived, k-independent)");
-        ham.RefreshForDensity(cd);
+        ham.RefreshForDensity(itsBS, cd);
     }
     {
         qchem::report::Timed timed("scf: Fock assembly (its term buckets are children)");
