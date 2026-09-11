@@ -85,10 +85,19 @@ static void RenderUsageHeatMap()
     if (!run) return;
     const rpt::json& basis=(*run)["basis"];
 
-    std::map<string,std::vector<double>> exps;                          // irrep -> exponent list
+    // basis.exponents is announced by each SHELL at its own construction (V1.14), so its irrep label is the
+    // SPATIAL one ("s"/"p"/...); the WF's usage rows carry the spin suffix (" " unpolarized, "↑"/"↓" polarized).
+    // Strip the suffix to join.
+    auto spatial=[](string irr)->string{
+        for (const string& sfx : {string(" "), string("↑"), string("↓")})
+            if (irr.size()>=sfx.size() && irr.compare(irr.size()-sfx.size(), sfx.size(), sfx)==0)
+                return irr.substr(0, irr.size()-sfx.size());
+        return irr;
+    };
+    std::map<string,std::vector<double>> exps;                          // spatial irrep -> exponent list
     for (const auto& e : basis["exponents"])
         if (e.contains("irrep") && e.contains("values"))
-            exps[e["irrep"].get<string>()] = e["values"].get<std::vector<double>>();
+            exps[spatial(e["irrep"].get<string>())] = e["values"].get<std::vector<double>>();
 
     double pmax=0.0;
     for (const auto& u : basis["usage"]) pmax=std::max(pmax, std::abs(u["pop"].get<double>()));
@@ -96,10 +105,10 @@ static void RenderUsageHeatMap()
     rpt::json rows=rpt::json::array();
     for (const auto& u : basis["usage"])
     {
-        const string irr=u["irrep"].get<string>();
+        const string irr=u["irrep"].get<string>(), sp=spatial(irr);
         const size_t idx=u["index"].get<size_t>();
         const double pop=u["pop"].get<double>();
-        const double e  =(exps.count(irr) && idx<exps[irr].size()) ? exps[irr][idx] : 0.0;
+        const double e  =(exps.count(sp) && idx<exps[sp].size()) ? exps[sp][idx] : 0.0;
         rows.push_back(rpt::json{{"irrep",irr},{"exponent",e},{"pop",pop},{"bar",HeatBar(pop,pmax)}});
     }
     cout << "\nbasis usage  (occupation-weighted Mulliken population per primitive; Sum = electron count)\n";
@@ -113,8 +122,8 @@ static void RenderUsageHeatMap()
     auto shellOf=[&](const string& irr)->Shell&{ for (auto& s:sh) if (s.irrep==irr) return s; sh.push_back({irr,{},0,{}}); return sh.back(); };
     for (const auto& u : basis["usage"])
     {
-        const string irr=u["irrep"].get<string>(); const size_t idx=u["index"].get<size_t>();
-        const double e=(exps.count(irr)&&idx<exps[irr].size())?exps[irr][idx]:0.0;
+        const string irr=u["irrep"].get<string>(), sp=spatial(irr); const size_t idx=u["index"].get<size_t>();
+        const double e=(exps.count(sp)&&idx<exps[sp].size())?exps[sp][idx]:0.0;
         shellOf(irr).ep.emplace_back(e, u["pop"].get<double>());
     }
     if (basis.contains("perIrrep")) for (const auto& pr:basis["perIrrep"])

@@ -190,16 +190,8 @@ template <class T> template <class U> void tCompositeWF<T>::MakeOneIrrepWF(const
         }
         else
             lasb->SetBasisOverlap(S);   // ortho only -- no basis context, no report
-        // basis.exponents (report-only, Verbose console): the basis SERIALIZES its own radial parameters into
-        // this row -- {irrep, values:[...]} -- so a consumer (CLIapps/valgen) can label the basis.usage rows by
-        // exponent instead of index.  The evaluator writes the values (a no-op for a non-exponent basis); the
-        // exponents stay encapsulated (json sink, never a getter).
-        if (reporting)
-        {
-            rpt::Row r("exponents");
-            rpt::Set("irrep", IrrepLabel(qns));
-            b->EmitRadialReport();
-        }
+        // (basis.exponents is NOT written from here any more -- V1.14: an exponent shell announces its own
+        //  exponents when it is CONSTRUCTED, which the facades now do inside this same "basis" section.)
         // basis.removed (report-only detector, doc/GPWPlan1.md §4a): the redundant AO functions this irrep
         // carries.  {irrep, index} for now (exponent/atom naming awaits a per-function metadata accessor).
         if (reporting)

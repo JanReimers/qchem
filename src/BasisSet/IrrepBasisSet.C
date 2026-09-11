@@ -75,11 +75,8 @@ public:
     //! while still (pre-Step-3) storing \c dcmplx.
     bool IsReal() const {return GetSymmetry().IsReal();}
     virtual size_t GetNumFunctions() const=0;
-    //! Serialize this irrep's radial parameters (e.g. Gaussian exponents) into the OPEN run report's current
-    //! cursor row -- a basis-usage diagnostic (doc/GPWPlan1 §1, CLIapps/valgen).  A report-only sink, NOT a
-    //! value getter (values are written to json, never returned).  Default no-op; an atomic exponential basis
-    //! forwards to its evaluator.  A no-op anyway when no run is open.
-    virtual void EmitRadialReport() const {}
+    // (No Emit*() on this face -- V1.14: a basis that has something to report (an exponent shell) announces it
+    //  at its own construction; a class is never told by another WHEN to report.)
     // The single bridge that supplies DBCacheClient::CacheDim() for EVERY concrete cache client (they
     // are all IrrepBasisSet<T>); the abstract integral mixins stay CacheDim()-pure.
     virtual size_t CacheDim() const override {return GetNumFunctions();}

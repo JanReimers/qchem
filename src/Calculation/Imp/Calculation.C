@@ -151,8 +151,9 @@ Calculation::Calculation(const Structure& st, const CalcOptions& opts, const Acc
     // count -- built before the basis/EC, which both read it off the structure.
     if (itsOpts.pseudopotential) itsStructure = MakeValenceStructure(*itsStructure, itsOpts.ppValence);
 
-    itsBasis = BuildBasis(itsOpts, itsStructure);                  // raw, or SALC-blocked if .symmetry
     itsEC    = MakeMoleculeEC(int(itsStructure->GetNumElectrons()), itsOpts.multiplicity);
+    // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so a
+    // basis with something to announce does so as it is constructed (V1.14).
     Converge();                                       // so Energy()/Density() are ready on return
 }
 
@@ -168,15 +169,6 @@ bool Calculation::Converge(const SCFParams& params)
     const int  Z   = itsStructure->GetNuclearCharge();
     const bool dft = qchem::Hamiltonian::IsDFT(itsOpts.model);
 
-    // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh,
-    // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
-    // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
-    auto* ham = itsOpts.pseudopotential
-        ? qchem::Hamiltonian::Factory(itsOpts.pol, itsStructure, PPSpecies(*itsStructure, itsOpts.ppValence),
-                                      itsOpts.mesh, itsBasis)
-        : qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
-                                      itsOpts.mesh, itsBasis, itsOpts.xalpha);
-
     // DFT (and the LSDA pseudopotential) need DIIS engaged from iteration 0: the default Z-scaled EMax gate
     // keeps DIIS off and the SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism,
     // see M_DFT).  So default them to a high EMax ("DIIS from start") unless the caller pinned one.
@@ -191,13 +183,6 @@ bool Calculation::Converge(const SCFParams& params)
                       : throw std::runtime_error("qchem::Calculation: unknown accelerator type \"" +
                                                  itsAcc.type + "\" (expected DIIS | GDM | Ladder)");
     auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
-
-    // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
-    // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
-    // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
-    delete itsScf; itsScf = nullptr;
-    itsHam.reset(ham);
-    itsAccel.reset(accel);
     // Seed: an explicit opts.seed wins; otherwise auto -- DFT from superposition-of-atomic-densities
     // (SAD), HF/1-e from the core guess (Default).
     using qchem::ChargeDensity::SeedStrategy;
@@ -212,16 +197,35 @@ bool Calculation::Converge(const SCFParams& params)
     struct RunScope { ~RunScope() { rpt::End(); } } runScope;
     EmitScfSection(params, itsAcc.type);               // the "what recipe am I running" header
 
-    // The `basis` section is ASSEMBLED across layers: the orchestrator stamps the scalars, then the WF
-    // build (inside `new SCFIter`) fills basis.perIrrep + basis.removed via the cursor five layers down
-    // (MakeIrrepWFs owns the rows, the LASolver writes the conditioning).  The Section renders it once,
-    // complete, when this scope closes.
+    // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
+    // run: the FIRST Converge BUILDS the basis in here (a basis with something to announce does so as it is
+    // constructed -- nobody asks it to), the orchestrator stamps the scalars, and the WF build (inside `new
+    // SCFIter`) fills basis.perIrrep + basis.removed via the cursor five layers down (MakeIrrepWFs owns the
+    // rows, the LASolver writes the conditioning).  The Hamiltonian is built in between because it needs the
+    // basis; its own sections (grids, PP) are root-anchored EmitSection/EmitAt calls, so they file and render
+    // correctly from inside this scope.  A later Converge reuses the basis.  Renders once, complete, on close.
     {
         rpt::Section basis("basis");
+        if (!itsBasis) itsBasis = BuildBasis(itsOpts, itsStructure);   // raw, or SALC-blocked if .symmetry
         rpt::Set("name",       itsOpts.basis);
         rpt::Set("engine",     itsOpts.engine  == Engine::LibCint  ? "libcint"   : "mnd");
         rpt::Set("angular",    itsOpts.angular == Angular::Spherical ? "spherical" : "cartesian");
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
+
+        // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh,
+        // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
+        // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
+        auto* ham = itsOpts.pseudopotential
+            ? qchem::Hamiltonian::Factory(itsOpts.pol, itsStructure, PPSpecies(*itsStructure, itsOpts.ppValence),
+                                          itsOpts.mesh, itsBasis)
+            : qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
+                                          itsOpts.mesh, itsBasis, itsOpts.xalpha);
+        // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
+        // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
+        // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
+        delete itsScf; itsScf = nullptr;
+        itsHam.reset(ham);
+        itsAccel.reset(accel);
         itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get());
     }
 

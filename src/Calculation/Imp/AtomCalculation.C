@@ -116,7 +116,8 @@ AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
     itsEC = opts.pseudopotential ? static_cast<ElectronConfiguration*>(new PseudoAtom_EC(itsZ, PPZion(opts,itsNe)-itsNe))
           : IsDirac(opts.model)  ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
           :                        static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
-    itsBasis = BuildBasis(opts, Z, *itsEC);
+    // The basis is NOT built here: the first Converge builds it INSIDE its run report's "basis" section, so
+    // the shells' exponents are announced by the shells themselves as they are constructed (V1.14).
     Converge(params);
 }
 
@@ -130,14 +131,6 @@ AtomCalculation::~AtomCalculation()
 bool AtomCalculation::Converge(const SCFParams& params)
 {
     namespace H = qchem::Hamiltonian;
-    // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC
-    // functional override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
-    auto* ham = itsOpts.pseudopotential
-        ? H::Factory(itsOpts.pol, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis)
-        : itsOpts.xc.has_value()
-            ? H::Factory(itsOpts.pol, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis)
-            : H::Factory(itsOpts.model, itsOpts.pol, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha);
-
     // Atoms use the proven Z-scaled DIIS gate (EMax = Z^2*0.1/32) unless the caller pins one.  The json
     // escape hatch (opts.accelerator) then merges over these defaults and selects the accelerator TYPE --
     // the accelerator-tuning surface the scfrun driver needs (DIIS/GDM/Ladder/directmin).
@@ -155,13 +148,6 @@ bool AtomCalculation::Converge(const SCFParams& params)
     if (directmin) jsacc["EMax"]=1e10;   // GDM always steps; the direct-min loop seeds via diagonalize
     const AType atype = directmin ? AType::GDM : ts=="Ladder" ? AType::Ladder : ts=="GDM" ? AType::GDM : AType::DIIS;
     auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
-
-    // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
-    // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
-    // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
-    delete itsScf; itsScf = nullptr;
-    itsHam.reset(ham);
-    itsAccel.reset(accel);
     // Default seed for atoms is the core guess (atoms never use the molecular SAD seed).
     using qchem::ChargeDensity::SeedStrategy;
     const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed : SeedStrategy::CoreGuess;
@@ -181,13 +167,33 @@ bool AtomCalculation::Converge(const SCFParams& params)
     struct RunScope { ~RunScope() { rpt::End(); } } runScope;
     EmitScfSection(itsOpts, itsNe, ts, params);        // the "what recipe am I running" header
 
-    // The `basis` section is ASSEMBLED across layers: stamp the scalars here, then the WF build (inside
-    // `new SCFIter`) fills basis.perIrrep/removed via the cursor (the shared LASolver conditioning), and the
-    // Section renders it once, complete, when this scope closes.
+    // The `basis` section is ASSEMBLED across layers, and since V1.14 it spans the basis's whole LIFE in this
+    // run: the FIRST Converge BUILDS the basis in here (each exponent shell announces its own basis.exponents
+    // row as it is constructed -- nobody asks it to), the orchestrator stamps the scalars, and the WF build
+    // (inside `new SCFIter`) fills basis.perIrrep/removed via the cursor (the shared LASolver conditioning).
+    // The Hamiltonian is built in between because it needs the basis; its own sections (grids, PP) are
+    // root-anchored EmitSection/EmitAt calls, so they file and render correctly from inside this scope.  A
+    // later Converge reuses the basis and truthfully carries no exponents rows.  Renders once, complete, on
+    // scope close.
     {
         rpt::Section basis("basis");
+        if (!itsBasis) itsBasis = BuildBasis(itsOpts, itsZ, *itsEC);
         rpt::Set("type",       AtomTypeName(itsOpts.type));
         rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
+
+        // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC
+        // functional override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
+        auto* ham = itsOpts.pseudopotential
+            ? H::Factory(itsOpts.pol, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis)
+            : itsOpts.xc.has_value()
+                ? H::Factory(itsOpts.pol, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis)
+                : H::Factory(itsOpts.model, itsOpts.pol, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha);
+        // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
+        // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
+        // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
+        delete itsScf; itsScf = nullptr;
+        itsHam.reset(ham);
+        itsAccel.reset(accel);
         itsScf = new SCFIter(itsBasis, itsEC, itsHam.get(), itsAccel.get(), seed, itsStructure.get(), ortho);
     }
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)

@@ -2,6 +2,7 @@
 module;
 #include <cassert>
 #include <iostream>
+#include <sstream>   // the spatial irrep label for Announce
 #include <nlohmann/json.hpp>
 module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.Math;
@@ -11,14 +12,21 @@ import qchem.Reporting;   // serialize the exponents into the run report (a repo
 namespace qchem::BasisSet::Atom::Evaluators
 {
 
-// Write this shell's exponents into the CURRENT report cursor row as a "values" array.  The exponents are
-// SERIALIZED to json here, never returned for computation -- so they stay encapsulated (see the interface
-// note).  A no-op when no run is open (report::Set is inert then), so nothing pays outside a report.
-void ExponentialEvaluator::EmitRadialReport() const
+// Announce this shell's exponents as a basis.exponents row {irrep, values}.  The irrep label is the SPATIAL
+// one ("s"/"p"/...): exponents know nothing of spin, so a polarized consumer (CLIapps/valgen) strips the
+// spin suffix off its usage rows to join.  Silent unless a "basis" section is open -- the orchestrator's
+// choice of context (the same gate the LASolver's conditioning write uses), so a basis built outside any
+// run pays nothing and a run that did not build its basis truthfully carries no exponents rows.  The
+// exponents are SERIALIZED here, never returned for computation -- they stay encapsulated.
+void ExponentialEvaluator::Announce(const sym_t& ir) const
 {
     namespace rpt = qchem::report;
+    if (!rpt::InSection("basis")) return;
     rpt::json values = rpt::json::array();
     for (auto e : es) values.push_back(double(e));
+    std::ostringstream os; os << *ir;
+    rpt::Row r("exponents");
+    rpt::Set("irrep",  os.str());
     rpt::Set("values", values);
 }
 
