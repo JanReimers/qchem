@@ -2202,13 +2202,13 @@ MnO campaign proceeds undisturbed in qchem6.
   set of roles for the totals; move GridChargeLost to the run report/IterationTrace (which already
   carries it).
 - **V1.13 ✅ DONE 2026-08-07 — executed as the compiler-verified DELETION R2.6 made possible.  **→ doc/CleanupHistory.md**
-- **V1.14 Report-emission creep on neutral faces + global bool toggles** — `EmitBasisUsage`
-  (WaveFunction.C:48, defaulted no-op), `EmitRadialReport` (IrrepBasisSet.C:68), `EmitGridReport`
-  (G_FieldEvaluator.C:60, PURE — forces every implementor), plus function-local-static
-  `bool& ReportBandGap()`/`ReportGridCharge()` process-globals that leak state between tests (the
-  SCFIterator comment admits it).  Fix: a reporter/visitor that PULLS; toggles on SCFParams.
-  **POST-MERGE (checked 2026-08-17: its three faces are src/WaveFunction + the IrrepBasisSet face +
-  SCFIterator — all in the real-TRIM working set).**
+- **V1.14 ✅ DONE 2026-09-11 `fe78682a` + `d5d42fb4` — report-emission creep on neutral faces.**  Both live
+  `Emit*()` faces DELETED under the user's reporting ruling (each class reports at its OWN activity; a class
+  telling another WHEN to emit is the defect): basis usage is announced by `FillOrbitals` itself, and each
+  exponent shell announces its exponents at CONSTRUCTION — which required both facades to build the basis
+  INSIDE the run bracket.  ⛔ **The row's proposed fix (a PULLING reporter) was the WRONG direction, and the
+  `bool&` toggles are the DESIGN, not a defect** — Reporting.C's own header names them beside the sink.
+  **→ doc/CleanupHistory.md**
 - **V1.15 ✅ CLOSED 2026-09-09 — and the predicted UB was REAL.**  `CreateCDFitBasisSet` /
   `CreateVxcFitBasisSet` did `*Iterate<Orbital_DFT_IBS<double>>().begin()` and called straight through it;
   `D_IndexIterator::operator*` casts then `assert`s, so under NDEBUG a 1E/HF-only basis dereferenced a

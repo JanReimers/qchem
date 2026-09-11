@@ -19,6 +19,65 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-09-11 — V1.14 `fe78682a` `d5d42fb4`: report emission moved onto each provider's OWN trigger
+
+**THE RULING FIRST (user, 2026-09-11), because the row had the fix backwards.**  The design philosophy for
+the reporting feature: (1) `CurrentReport` is a global (singleton) so it is never threaded through the
+interfaces; (2) each class decides what to report CONTEMPORANEOUSLY with when its activity is actually
+happening, which is what makes the console respect execution order; (3) classes telling other classes to
+emit violates the design.  ⛔ The row proposed *"a reporter/visitor that PULLS; toggles on SCFParams"* —
+a pull model re-orders the trace by whoever walks the objects, and threading toggles is what (1) exists to
+avoid.  Both halves of the proposed fix were wrong; the DIAGNOSIS (Emit\*() methods on neutral faces) was
+right.  ★ The singleton already encoded the ruling: `EmitAt` is documented as idempotent *"so a provider may
+announce unconditionally at its own trigger"*, and `InSection` exists so *"a deep provider emits ONLY when
+the orchestrator has established the expected context"*.  The tools were there; two providers had never
+been moved onto them.
+
+**CENSUS, before touching anything:** of the row's three faces, `EmitGridReport` was ALREADY GONE (two stale
+comments); `EmitBasisUsage` had one caller (the SCFIterator, post-convergence); `EmitRadialReport` ran
+through THREE faces (`IrrepBasisSet` → `Atom::IrrepBasisSet` → `Evaluator` → `ExponentialEvaluator`) with
+one caller (the composite WF, inside a row it had opened).
+
+### Part 1 `fe78682a` — basis usage announced by `FillOrbitals`
+
+The WF's own trigger for occupation-weighted populations is the fill, so it announces there (private
+`AnnounceBasisUsage`, end of every fill: seed, iteration, line-search trial).  `EmitAt` is idempotent and
+absolute-path, so the record ends holding the LAST fill = the committed state whatever path the loop took;
+cost is one \f$(DS)_{ii}\f$ per irrep per fill.  Face method + iterator call deleted.  ⚠ **Consequence:** at
+`Detail::Verbose` the console now shows `basis.usage` after every fill whose values changed — that IS the
+trace the ruling asks for; if it proves too loud the lever is a Detail level, never moving the trigger back.
+
+### Part 2 `d5d42fb4` — the basis is built INSIDE the run, and each shell announces itself
+
+★ **THE REAL OBSTACLE WAS ORDERING, NOT THE FACES.**  A shell's activity is its construction, and both
+facades built the basis in their CONSTRUCTOR, before `Converge()` opened the run — so a self-announcing
+shell had nothing to write into, which is precisely why somebody had reached for "tell the basis to emit
+later".  The fix is the one the ruling implies: build the basis where the report is open.
+
+- Both facades move `BuildBasis` into `Converge`, inside the `basis` Section, on the first run
+  (`if (!itsBasis)`).  The Hamiltonian build follows inside the same scope because it needs the basis; its
+  sections are root-anchored `EmitSection`/`EmitAt`, so they file and render correctly from there (checked:
+  the ONLY cursor-relative writer outside the facades is the LASolver, and only the WF constructs one).  A
+  re-`Converge` reuses the basis and truthfully carries no exponents rows.
+- `ExponentialEvaluator` announces `{irrep, values}` from its constructor, gated on `InSection("basis")` —
+  the LASolver's gate.  Label = the SPATIAL irrep (exponents know nothing of spin).
+- The three face methods and the WF's row are DELETED.  `valgen` strips the spin suffix (`" "`, `"↑"`,
+  `"↓"` — `spins[]` in Strings.C) off the usage labels to join.
+
+⚠ **ONE TRADE ACCEPTED:** the `basis` Section's timeline span now includes the Hamiltonian build (it was
+already including the SCFIter/seed construction).  The alternative — close the section after the basis and
+re-open it for the WF's conditioning rows — renders the basis table TWICE on the console.  One span with an
+inflated stamp beat two tables; the `Timed` ledger still localises the cost.
+
+⛔ **WHAT THE ROW GOT WRONG ABOUT THE TOGGLES.**  `bool& ReportBandGap()` / `ReportGridCharge()` were
+called *"process-globals that leak state between tests"*.  Reporting.C's own header: *"a GLOBAL singleton
+(like the integral Cache and the **Report\* toggles**)"* — they were designed beside the sink, on purpose,
+and point (1) of the ruling is exactly their justification.  Tests save/restore them.  They stay.
+
+851/851 after each part.
+
+---
+
 ## LANDED 2026-09-10 — V1.32 `9a073f39`: the finite density leaf de-templated, `IrrepCD<T>` → `FiniteIrrepCD`
 
 Raised by the user on 2026-08-17, out of the RealComplexPlan 3c-2b lineage-as-class split, and it was

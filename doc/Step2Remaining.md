@@ -18,13 +18,15 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 | **V4.1 / V4.2** | ✅ CHECKED — neither trigger has fired | — |
 | **V1.17** | ✅ `GetSpinDensity` off the base and onto `tSpinResolvedWF<T>`, a data-free cross-cast face on the `tSpinResolved_CD` model; the raw `new` went with it | `95640bca` |
 | **V1.32** | ✅ `IrrepCD<T>` → non-template `FiniteIrrepCD`; three one-live-branch conditionals collapsed, `IrrepHF_PairBase` deleted.  `PeriodicIrrepCD<T>` asked and DECLINED | `9a073f39` |
+| **V1.14** | ✅ both `Emit*()` faces deleted under the USER'S REPORTING RULING (each class reports at its OWN trigger; nobody tells another when); basis built INSIDE the run so shells self-announce.  ⛔ the row's "pulling reporter + toggles on SCFParams" fix was the wrong direction; the `bool&` toggles are the design | `fe78682a` `d5d42fb4` |
 
 ★ **AND THREE ROWS WERE CREATED BY THIS WORK**, all live in `CleanupCandidates.md`: **R1.0r** (ρ is
 star-averaged under a bigger group than the k-mesh has), **V1.35** (the axis fusion — needs a PLAN, not a
 session), **V1.20d** (two more public modules re-exporting `Internal` ones).
 
-⇒ **Group C is untouched (and must stay whole — see its note).  Group D is now THREE rows: V1.17 and
-V1.32 both closed 2026-09-10, and both went exactly the way their rows said they would.**  ★ That is the
+⇒ **Group C is untouched (and must stay whole — see its note).  Group D is now TWO rows (V1.18, V1.2): V1.17
+and V1.32 closed 2026-09-10 exactly the way their rows said; V1.14 closed 2026-09-11 the OPPOSITE way —
+the user's reporting ruling reversed the row's proposed fix.**  ★ That is the
 finding worth carrying: group D was labelled *"genuinely open interface questions — just judgement"*, but
 the judgement had ALREADY BEEN MADE in each row and then left un-executed.  The two closed here needed no
 new decision — one pointed at an idiom already in the tree, the other carried its own pre-ruling on how far
@@ -160,10 +162,13 @@ to schedule; do not land these piecemeal.
   had been correct only BY ACCIDENT of the null return, which the cross-cast forced into the open.
   ⚠ It had also been parked since 2026-08-17 for a real-TRIM session that has since finished — **a park
   note outlives its reason silently.**
-- **V1.14 — report-emission creep on neutral faces.**  `EmitBasisUsage`, `EmitRadialReport`,
-  `EmitGridReport` (PURE — it forces every implementor), plus function-local-static
-  `bool& ReportBandGap()` / `ReportGridCharge()` process-globals that LEAK STATE BETWEEN TESTS (the
-  `SCFIterator` comment admits it).  Fix: a reporter/visitor that PULLS; toggles on `SCFParams`.
+- **V1.14 — ✅ DONE 2026-09-11 (`fe78682a` `d5d42fb4`), and the row's fix was BACKWARDS.**  User ruling:
+  `CurrentReport` is a global so nothing is threaded; each class reports CONTEMPORANEOUSLY with its own
+  activity (console order == execution order); a class telling another to emit is the defect.  So: no
+  pulling reporter, no toggles on `SCFParams` — the `Emit*()` faces were deleted and each provider announces
+  at its own trigger (`FillOrbitals` for usage; shell CONSTRUCTION for exponents, which meant building the
+  basis INSIDE the run bracket in both facades).  `EmitGridReport` was already gone.  The `bool&` toggles
+  are the design (Reporting.C names them beside the sink) and stay.
 - **V1.18 — `FourierMixCD` tell-don't-ask + `MakeDensityMixer` ISP.**  `RhoTilde()` hands out the raw
   `ΔG_Map` and `PulayMixer` runs the whole DIIS algebra OUTSIDE the density; `SetRawRho` + an external
   `RasterKerker` is a get/compute/set straddle.  Separately, `MakeDensityMixer` takes `const tDM_CD*` but
