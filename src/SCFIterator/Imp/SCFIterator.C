@@ -451,10 +451,8 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         DisplayEigen();
     }
 
-    // Basis-usage heat map (doc/GPWPlan1 §1): after convergence, record per-function occupation-weighted
-    // populations into the run report's basis.usage (Verbose-only console, always in the json).  Self-guards
-    // when no run is open, so non-reporting callers pay nothing.
-    itsWaveFunction->EmitBasisUsage();
+    // (The basis-usage heat map is NOT requested from here any more -- V1.14: the WF announces it from its own
+    //  FillOrbitals, so the record's basis.usage is the last fill's, and the iterator tells nobody to report.)
 
     return ChargeDensityChange <= ipar.MinΔρ;
 }

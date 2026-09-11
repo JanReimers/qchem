@@ -359,12 +359,16 @@ template <class T> typename tCompositeWF<T>::iqns_t tCompositeWF<T>::GetQNs() co
     return iqns;
 }
 
-// Emit the run report's `basis.usage` section: per-function occupation-weighted Mulliken populations across
+// Announce the run report's `basis.usage` block: per-function occupation-weighted Mulliken populations across
 // every irrep WF (both spins for a polarized run).  Rows are {irrep, index, pop} -- the WF reports only what
 // it knows (populations); a consumer (CLIapps/valgen) joins the exponent from basis.exponents and draws the
 // heat bar.  A LATE addendum to the already-rendered `basis` section (EmitAt, absolute path), gated to
-// Detail::Verbose on the console but ALWAYS recorded in the json.  Called by the SCFIterator post-convergence.
-template <class T> void tCompositeWF<T>::EmitBasisUsage() const
+// Detail::Verbose on the console but ALWAYS recorded in the json.
+// V1.14: called from FillOrbitals -- the WF's OWN trigger, the moment the occupations exist -- not by the
+// SCFIterator after convergence.  Every fill announces (seed, iteration, line-search trial); EmitAt is
+// idempotent and absolute-path, so the record holds the LAST fill, which is the committed state whatever
+// path the loop took.  Cost is one (DS)_ii per irrep per fill -- nothing beside the Fock build.
+template <class T> void tCompositeWF<T>::AnnounceBasisUsage() const
 {
     namespace rpt = qchem::report;
     if (rpt::Depth()==0) return;                           // no run open -> nothing to record or render
@@ -443,6 +447,7 @@ template <class T> void tCompositeWF<T>::FillOrbitals(OccupationPolicy<T>& pol, 
     // MOMStartIter, so useMOM would score against empty references for the first few fills).  The ACTIVE,
     // tested path is the crystal's WITHIN-irrep MOM in tIrrepWF::FillOrbitals.  Kept for the hard cases.
     if (!degrade && p.ranksIntegerFill) pol.ArmCrossIrrepMOM();   // no-op unless the run enables MOM
+    AnnounceBasisUsage();   // the occupations now exist -- report them HERE, not when somebody else asks (V1.14)
 }
 
 // RANKED integer fill of one reservoir -- the molecular aufbau, one spin channel (a ranked reservoir never

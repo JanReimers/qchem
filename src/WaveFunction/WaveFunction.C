@@ -41,12 +41,8 @@ public:
     virtual EnergyLevels    GetEnergyLevels () const=0;
     virtual iqns_t          GetQNs          () const=0;
     virtual void            DisplayEigen    () const=0;
-
-    //! Emit the run report's `basis.usage` section: per-function occupation-weighted populations (the basis-
-    //! usage heat map for valence-window tuning, doc/GPWPlan1 §1).  Verbose-only on the console; always recorded
-    //! in the json.  Default no-op -- only the composite (atom/molecular) WF implements it (a deserialized or
-    //! GPW-Bloch WF opts out), and it is a no-op anyway when no run is open.
-    virtual void            EmitBasisUsage  () const {}
+    // (No Emit*() here.  V1.14: a class does not tell another class WHEN to report -- the composite WF
+    // announces its basis usage itself, from FillOrbitals, the moment the occupations exist.)
 
 private:
     tWaveFunction& operator=(const tWaveFunction&);

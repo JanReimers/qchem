@@ -62,7 +62,6 @@ public:
     // (SetMOM/SetSmearing/GetEntropyTerm/AdoptMOMReference/ReleaseMOMReference are GONE -- the
     //  SCFIterator's OccupationPolicy slot owns that configuration and state, V1.11 inc 3.)
     virtual iqns_t          GetQNs          () const;
-    virtual void            EmitBasisUsage  () const;
 
     virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity(Spin) const;   //!< BUILDS it (V1.25)
     virtual EnergyLevels    GetEnergyLevels (Spin) const;
@@ -76,6 +75,11 @@ protected:
     template <class U> void MakeOneIrrepWF(const tobs_t<U>*, Spin);
 
 private:
+    //! Announce the run report's `basis.usage` block (per-function occupation-weighted populations) -- called
+    //! by FillOrbitals ITSELF, at the moment the occupations exist (V1.14: providers self-report at their
+    //! own trigger; nobody tells this class when).  EmitAt is idempotent and run-scoped, so announcing on
+    //! every fill is cheap and the json ends holding the LAST (converged) fill.  No-op when no run is open.
+    void AnnounceBasisUsage() const;
     typedef tIrrepWF<T> iwf_t;   // the same-face child kind (what MakeIrrepWFs builds today)
     //! RANKED integer fill of one reservoir (the molecular cross-irrep aufbau, one spin channel): pick which
     //! orbitals across the reservoir's blocks are occupied, then fill each block with its resulting count.

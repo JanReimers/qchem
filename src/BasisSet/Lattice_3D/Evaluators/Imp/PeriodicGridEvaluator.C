@@ -7,7 +7,7 @@ module;
 #include <cassert>
 #include <complex>
 #include <functional>   // the ApplySpectralFilter multiplier k(|G|^2)
-#include <iostream>     // EmitGridReport's console line
+#include <iostream>     // the grid report's console line
 #include <utility>      // std::move (handing the built raster to the Mesh)
 #include <vector>
 
@@ -16,7 +16,7 @@ import qchem.Math;        // cos, sin (EvalField's point evaluation)
 import qchem.FFT;         // FFT3D (RhoOnGrid / ForwardFFT / BackwardFFT)
 import qchem.Blaze;       // blazem::sum (Integral)
 import qchem.Vector3D;    // dot product (operator*) + vector arithmetic
-import qchem.Reporting;   // EmitGridReport's grids.xcQuadrature run-report entry (EmitAt)
+import qchem.Reporting;   // the grids.xcQuadrature run-report entry (EmitAt)
 
 namespace qchem::BasisSet::Lattice_3D
 {
