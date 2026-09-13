@@ -2229,82 +2229,17 @@ MnO campaign proceeds undisturbed in qchem6.
   unpolarized answer** — now `tSpinResolvedWF<T>`, a data-free cross-cast face on the model of
   `tSpinResolved_CD`, inherited by `tPolarizedWF` only.  The raw `new` went with it (owning return,
   V1.25's last step), and the one client's else-branch became explicit.  **→ doc/CleanupHistory.md**
-- **V1.18 — WIDENED 2026-09-13 into THE DENSITY-MIXER REORGANISATION (user code review of
-  `src/ChargeDensity/DensityMixer.C`).**  The original row (below, kept) is the ALGEBRA/OWNERSHIP half;
-  the review found the LAYOUT/FACE/FACTORY half.  They are one job because both resolve on the same axis —
-  *where does the G-field arithmetic live, and who owns the mixed field* — and a layout split done first
-  would only move the straddle into more files.  Measured 2026-09-13: 934 lines, ONE module, four concretes
-  + two capability faces + one density view + seven map helpers + three factories, all exported.
-
-  **THE REVIEW (user, 2026-09-13), point by point, with the finding beside each:**
-  1. *Interface/Imp separation* — the module should hold `tDensityMixer<T>` + factories only; each concrete
-     (`Linear`/`Kerker`/`Pulay`/`PolarizedDensityMixer`) goes to its own module under `Internal/`.  ✔ the
-     `tFieldMixer`/`tFieldExtrapolator`/`MixJointly` staging faces and `PolarizedMixCD` are Internal too:
-     their ONLY external consumer is `tests/JointPulay.C` (tests may import Internal).
-  2. *"Concretes:" head comment* should describe the INTERFACE; the implementation list belongs before the
-     factory.  ✔ mechanical.
-  3. *`FockDensity` default returning `&working`, with a Kerker mention in an abstract face* — make it pure.
-     ✔ Linear returns `&working`; Kerker/Pulay/Polarized already override.
-  4. *`SetDMSource` is out of place* — a stash for a QUADRATURE consumer has nothing to do with ρ mixing.
-     ✔ CONFIRMED and measured: the mixer is only the COURIER because it allocates a fresh `FourierMixCD` per
-     mix and must replay the deposit onto each one (three `itsDMSource` replays).  The deposit's real home
-     is the mixed DENSITY (`FourierMixCD::SetDMSource` already exists; `PolarizedMixCD` needs the per-channel
-     split, which is a density-side operation on a polarized DM source).  ⇒ a `DM_Sourced_Sink` face on the
-     two mixed-density presentations, seated by the LOOP DRIVER on `FockDensity()` (it already calls
-     `SetDMSource(*c.cur)` one line before `Mix`); the mixer face loses the method.
-  5. *`EffectiveRelax` looks unused* — ⚠ it IS used: the per-iteration ρ_mix trace column (`IterationTrace`,
-     SCFIterator.C:339), the α_eff instrument the comment defends ("on MnO it falls 0.33→0.20 ... previously
-     invisible").  Keep the QUANTITY; make it pure like `Tag()`.  (Or fold α/α_eff/tag into one
-     `MixerTrace` struct — one virtual instead of three; decide with #6.)
-  6. *`Tag()` defaults to "Lin"* — make it pure.  ✔
-  7. *`WantsReDamp`/`ReDampMix`/`UpdateRelax` — the ReDamp concept smells* — ⚠ it is NOT a line-search
-     failure (no line search exists in the fixed-point loop): it is the LinearMixer's **[F,D]-keyed adaptive
-     step size** — if this step made [F,D] worse, retract and re-step at α/4 (then shrink α); if it improved,
-     grow α ×1.5.  "Re-fetches" = the iterator rebuilds ρ_out from the WF because `MixIn` destroyed it in
-     place.  ★ **THE RE-FETCH IS UNNECESSARY**: `MixIn` is linear, so the re-damped density is reachable from
-     the ALREADY-MIXED one — ρ_in + (α'/α)(ρ_w − ρ_in) = `working.MixIn(old, 1−α'/α)` — no second density
-     build, and the energy recompute stays the ITERATOR's (the mixer is not an energy service; the hook
-     just returns *"I re-mixed, recompute what you derived"*).  ⇒ ONE method, and since only the LinearMixer
-     has the capability, a CROSS-CAST FACE (`tAdaptiveMixer::Adapt(signals, working, old, Δρ&) → bool`),
-     not three defaults on the base.  `PolarizedDensityMixer` stops forwarding them (its leaves are never
-     linear).  Rounding-level change only (re-mix of a mix vs re-mix from a rebuilt ρ_out).
-  8. *Free functions/classes clients should not see* (`RasterKerker`, `tFieldMixer`, `StagedResidual`,
-     `tFieldExtrapolator`, `MixJointly`, `ChannelBasis`) → Internal.  ✔ (see 1.)
-  9. *`GField`, `Map{Sub,Combine,Add,Scale,MaxAbs,InnerRe}`, `RawCombine` are not ρ mixing; give `ΔG_Map`
-     operators where it is defined* — `ΔG_Map` lives in `qchem.BasisSet.Projector3` (Projector3.C:62).  ✔
-     operators `+ − *scalar`, `MaxAbs`, `InnerRe` there (or a sibling `GMap` algebra module in qcBasisSet);
-     `GField` = (map, raster) is the mixers' VALUE type and stays Internal to the mixer family.
-  10. *`PolarizedMixCD` defines yet another density in the mixer interface* → Internal (a presentation the
-      polarized mixer owns).  ✔
-  11. *`MakePeriodicMixer`/`MakeLinearMixer`/`MakeGSpaceMixer` belong in the factory Imp.*  ✔
-  12. *Factory shape*: `LinearMixerFactory(...)`, `KerkerMixerFactory(...)`, `PulayMixerFactory(...)` in the
-      export namespace, each taking a GENERIC CD seed (`const tChargeDensity<T>*`; Kerker cross-casts to the
-      Fourier face) — which IS the original row's ISP finding (matrix-free seeds excluded BY TYPE).  The
-      polarized composition is detected from the seed (a `tPolarized_CD` cross-cast), not a second overload.
-      `MakeGSpaceMixer` forcing Kerker AND Pulay knobs on every caller goes — `SolidSCFIterator::CreateMixer`
-      already knows which it wants (`PulayDepth>0` → Pulay, `KerkerG0>0` → Kerker, else Linear).  Long
-      parameter lists → `KerkerParams{relax, G0, cuspDeficit}` / `PulayParams : KerkerParams{depth, start}`
-      + the geometry pair (fit basis, structure).
-  ⛔ NOT in scope: the json factory idiom (user: "questionable").
-
-  **THE ORIGINAL ROW, resolved by 9 + the ownership flip:** `RhoTilde()` hands out the raw ΔG_Map and
-  PulayMixer runs the whole DIIS algebra outside the density (the old DensityMixer.C:183-233); `SetRawRho` +
-  external `RasterKerker` is a get/compute/set straddle.  ✔ With the mixers OWNING their running `GField`
-  and building `FourierMixCD` as a PRESENTATION of it each step (rather than reading `RhoTilde()` back out of
-  the previous presentation and depositing `SetRawRho` into the next), the straddle disappears and
-  `RhoTilde`/`SetRawRho` can go; `KerkerMix` becomes a field→field function (with α_eff measured there).
-  Also `MakeDensityMixer` takes `const tDM_CD*` but uses only GetTotalCharge + a FourierDensity cast —
-  resolved by 12.
-
-  **INCREMENTS (each bit-identical or rounding-level, each a full sweep):**
-  (a) module split + comment hygiene (1, 2, 8, 10, 11) — pure motion;
-  (b) face hygiene: `FockDensity`/`Tag`/`EffectiveRelax` pure (3, 5, 6);
-  (c) `ΔG_Map` operators at its definition; mixers rewritten on them (9);
-  (d) the adaptive hook: three defaults → one cross-cast face, re-fetch dropped (7);
-  (e) `SetDMSource` off the mixer face onto the mixed density, seated by the driver (4);
-  (f) factories (12) + the ownership flip (original row);
-  (g) TE riding along: `PolarizedRunKeepsItsSpin` (251 s, 27% of the suite) is a MIXER unit test — build it
-      against the new faces in `src/ChargeDensity/tests/`.
+- **V1.18 ✅ DONE 2026-09-13 in seven increments (`e60087bd` `80a4dcfd` `2cd8ebf7` `da2a1475` `5eefc393`
+  `f53cf192` `ead8bfcb`) — THE DENSITY-MIXER REORGANISATION**, spec'd by the user's code review of
+  `DensityMixer.C` (12 points) with the original row as its algebra half.  Interface + factories public
+  (116 lines); one Internal module per concrete; `FockDensity`/`Tag` pure; α_eff DELETED (user: not physics);
+  the [F,D]-keyed adaptive step is ONE method on a cross-cast face with the re-fetch dropped; the DM source is
+  provenance seated by the loop driver; `ΔG_Map` has its field algebra beside its definition;
+  `Linear/Kerker/PulayMixerFactory` with param structs and a GENERIC seed; the mixers own their field and
+  `FourierMixCD` is a presentation built whole (`RhoTilde`/`SetRawRho`/`KerkerMix` deleted).  851/851 after
+  every increment.  ⏳ **LEFT OPEN** (in the history entry): (g) `PolarizedRunKeepsItsSpin` → a mixer unit test
+  (TE); the direct observable that replaces α_eff; NO test reaches the DM-source XC route; the opt-in
+  `GPW_XC_DM_SOURCE` wholesale route still consumes `cDM_Sourced_CD::EffectiveAlpha`.  **→ doc/CleanupHistory.md**
 - **V1.19 ✅ VISITOR + THROWS DONE 2026-08-17; bit-identical, 734/734.**  ⚠ **ONE DELIBERATE REMAINDER**: the seed's flip-group sub-cell duplication — removing it needs a per-SITE form-factor overload on the basis face, which the item itself weighs against the pseudo-wall pin.  That block is the seed's ONE remaining concrete-`Atom` consumer.  **→ doc/CleanupHistory.md**
 - **V1.20 ✅ CLOSED 2026-09-09 — USER RULING: the `qcBasisSet*` family counts as ONE library for
   `.Internal.` purposes.**  `.Internal.` marks the FAMILY boundary, not the CMake-target boundary.  So

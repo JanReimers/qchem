@@ -19,14 +19,16 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 | **V1.17** | ✅ `GetSpinDensity` off the base and onto `tSpinResolvedWF<T>`, a data-free cross-cast face on the `tSpinResolved_CD` model; the raw `new` went with it | `95640bca` |
 | **V1.32** | ✅ `IrrepCD<T>` → non-template `FiniteIrrepCD`; three one-live-branch conditionals collapsed, `IrrepHF_PairBase` deleted.  `PeriodicIrrepCD<T>` asked and DECLINED | `9a073f39` |
 | **V1.14** | ✅ both `Emit*()` faces deleted under the USER'S REPORTING RULING (each class reports at its OWN trigger; nobody tells another when); basis built INSIDE the run so shells self-announce.  ⛔ the row's "pulling reporter + toggles on SCFParams" fix was the wrong direction; the `bool&` toggles are the design | `fe78682a` `d5d42fb4` |
+| **V1.18** | ✅ WIDENED into the density-mixer reorganisation (user code review, 12 points) and executed in SEVEN increments: module split, pure faces, α_eff deleted, adaptive step → one cross-cast method (re-fetch dropped), DM source → provenance seated by the driver, `ΔG_Map` operators, three named factories with param structs, mixers own their field.  ⏳ (g) the PolarizedRunKeepsItsSpin unit test is TE work | `e60087bd`…`ead8bfcb` |
 
 ★ **AND THREE ROWS WERE CREATED BY THIS WORK**, all live in `CleanupCandidates.md`: **R1.0r** (ρ is
 star-averaged under a bigger group than the k-mesh has), **V1.35** (the axis fusion — needs a PLAN, not a
 session), **V1.20d** (two more public modules re-exporting `Internal` ones).
 
-⇒ **Group C is untouched (and must stay whole — see its note).  Group D is now TWO rows (V1.18, V1.2): V1.17
-and V1.32 closed 2026-09-10 exactly the way their rows said; V1.14 closed 2026-09-11 the OPPOSITE way —
-the user's reporting ruling reversed the row's proposed fix.**  ★ That is the
+⇒ **Group C is untouched (and must stay whole — see its note).  Group D is down to ONE row (V1.2): V1.17
+and V1.32 closed 2026-09-10 exactly the way their rows said; V1.14 closed 2026-09-11 the OPPOSITE way — the
+user's reporting ruling reversed the row's proposed fix; V1.18 closed 2026-09-13 as something much BIGGER
+than its row — the user's code review of the file turned it into a seven-increment reorganisation.**  ★ That is the
 finding worth carrying: group D was labelled *"genuinely open interface questions — just judgement"*, but
 the judgement had ALREADY BEEN MADE in each row and then left un-executed.  The two closed here needed no
 new decision — one pointed at an idiom already in the tree, the other carried its own pre-ruling on how far
@@ -169,10 +171,13 @@ to schedule; do not land these piecemeal.
   at its own trigger (`FillOrbitals` for usage; shell CONSTRUCTION for exponents, which meant building the
   basis INSIDE the run bracket in both facades).  `EmitGridReport` was already gone.  The `bool&` toggles
   are the design (Reporting.C names them beside the sink) and stay.
-- **V1.18 — `FourierMixCD` tell-don't-ask + `MakeDensityMixer` ISP.**  `RhoTilde()` hands out the raw
-  `ΔG_Map` and `PulayMixer` runs the whole DIIS algebra OUTSIDE the density; `SetRawRho` + an external
-  `RasterKerker` is a get/compute/set straddle.  Separately, `MakeDensityMixer` takes `const tDM_CD*` but
-  uses only `GetTotalCharge` + a Fourier cast — excluding the matrix-free seeds BY TYPE, not by intent.
+- **V1.18 — ✅ DONE 2026-09-13, seven increments (`e60087bd` … `ead8bfcb`).**  The row was the ALGEBRA half
+  of what the user's code review of `DensityMixer.C` found; the review supplied the other half (layout, faces,
+  factories) and became the spec.  The straddle is gone because the MIXERS OWN THEIR FIELD and `FourierMixCD`
+  is a presentation built whole; the ISP half is `Kerker/PulayMixerFactory` taking a GENERIC seed.  ⚠ Two
+  review premises were wrong and were resolved with the user (α_eff WAS used → deleted anyway, not physics;
+  ReDamp is NOT a line-search failure → one adaptive method on a cross-cast face).  Full record in
+  `doc/CleanupHistory.md`; (g) the `PolarizedRunKeepsItsSpin` mixer unit test is left for TE.
 - **V1.32 — ✅ DONE 2026-09-10 (`9a073f39`).**  Small and self-contained exactly as advertised, and it
   compiled first try.  The parameter was holding up THREE conditionals with one live branch each; the
   `IrrepHF_PairBase` alias died with it.  ⚠ **One thing that looks like a fourth dead branch is not:**
