@@ -19,6 +19,113 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-09-13 — V1.33 `c2cb79a3`..`d5ddb1a5`: the BasisSet taxonomy re-cut onto the two axes
+
+Executed `doc/BasisSetTaxonomyPlan.md` §4 in one session, eleven commits, each green on the full
+`ctest -j8` (855 → 856 with the new audit), no number touched — every step was a relocation, a rename, or
+a test.  The plan file (now RECORD) carries the per-step ✅ notes; the design rulings are its §1.
+
+### WHAT LANDED
+- **1a0** `c2cb79a3` — the G=T SPEC tier moved into the core: `qchem.BasisSet.Lattice_IBS`
+  (`isLattice_{1E,DFT}_Evaluator` + `Lattice::{Irrep,Orbital_1E,Orbital_DFT}_IBS<E,T>`), the concepts
+  out of the PW engine, the `static_assert`s beside the concrete IBSs.  The `OverlapMatrix(std::function)`
+  G-lookup term was DROPPED from the DFT concept (a fit-family fact; no mixin consumed it).
+- **1a** `8104e5fa` — `qcPlaneWave_BS` split out (`src/BasisSet/PlaneWave/`), a leaf over the core by `ldd`.
+- **1b** `e4cc3370` — GPW engine + `GPW_IBS` into the Gaussian library; `qcMolecule_BS → qcPlaneWave_BS`.
+- **1c** `c1466fc2` — confirmed by `ldd` + `nm`: PlaneWave → {core}; Gaussian → {core, PlaneWave};
+  Lattice → {core, PlaneWave, Gaussian, LASolver}.
+- **2** `f5461b8f` `1f602b2f` `b3a7b7c7` `cb44b2d1` — `Atom/→Radial/`, PlaneWave modules + namespace,
+  `Molecule/→Gaussian/{Evaluators, Point/, Lattice/}`, `Lattice_3D/→Lattice/`; targets `qcRadial_BS` /
+  `qcGaussian_BS` / `UT*` likewise; namespaces `BasisSet::{Radial, PlaneWave, Gaussian, Lattice}`.
+  `Symmetry::{Atom,Molecule,Lattice_3D}` and the `qchem::{Atom,Molecule,Lattice_3D}` classes untouched.
+- **3** `d5ddb1a5` — `scripts/audit-basisset-gtags`, ctest `BasisSetGTagAudit`.  It fired on exactly the
+  two predicted sites, both `PG_Cart::Orbital_IBS`'s lattice seam.  **Ruling: `PG_Cart` is UNTAGGED**
+  (`Gaussian/PG_Cart/`, `qchem.BasisSet.Gaussian.PG_Cart.*`) — it is the family's raw AO block, the G=1
+  SEED both constructions act on from outside (SALC → P in `Point/`, Bloch sums → T in `Lattice/`).
+- **4** — the three anticipated rows (APW/LAPW composite, NAOs, double groups) placed on paper, plan §2.1;
+  none needs a fourth axis.
+
+### RULINGS AND FINDINGS WORTH KEEPING
+- A concept is named for the G it serves, never for a family (`isPW_*` → `isLattice_*`); a family assumption
+  inside a spec is a defect (the dropped G-lookup term).
+- The spec is checked where engine meets spec, never inside the engine (`static_assert` beside each IBS).
+- The Gaussian library has ONE flat namespace; a `Gaussian::Lattice` sub-namespace would shadow the core
+  `BasisSet::Lattice` spec from inside GPW.  The G lives in the MODULE name.
+- `BasisSet::Lattice` holds spec + container in one namespace — the same arrangement as `BasisSet::Radial`.
+- GPW re-exports `RasterPolicy` / `RasterFields` (`using PlaneWave::…`) so a client names the knobs where
+  it names the block.
+- Naming warts accepted, not fixed: `BasisSet::Radial::Evaluators::{Gaussian,Slater,BSpline}::Radial`
+  (a class named Radial inside namespace Radial), and the three-way `Gaussian` (math namespace
+  `qchem::Gaussian`, `BasisSet::Radial::Evaluators::Gaussian`, `BasisSet::Gaussian`) — all compile, all
+  written with explicit qualification.
+- **Open for the §5 sequel** (Point spec + one thin class per (G, engine)): `PG_Spherical` / `PG_LibCint`
+  are seeds by the same argument as `PG_Cart` and pass the audit only because their lattice ability rides
+  `SphericalLatticeView`; the PW-only unit tests still sit on `UTLattice_BS` (a TE matter).
+- ⚠ `pybind/qchem_bridge.cpp` imports `qchem.BasisSet.Molecule.Factory` / names `BasisSet::Molecule::Factory`
+  — breaks under `-DQCHEM_PYBIND=ON`; flagged for the binding owner, not edited (CLAUDE.md).
+- One wall-clock test (`M_PG_BoxWalk.WhereTheContractionSpendsItsTime`, `EXPECT_GT` on two timings)
+  failed ONCE under the -j8 squeeze and passes alone — a load flake in an untouched library, noted here so
+  the next reader does not re-investigate it.
+
+### THE ORIGINAL ROW (moved in full from CleanupCandidates.md)
+
+### V1.33 — THE BasisSet TAXONOMY IS THE WRONG AXIS (user, 2026-08-20)
+
+`src/BasisSet/{Atom, Molecule, Lattice_3D}` classifies by PHYSICAL SYSTEM, but what the directories
+actually contain is classified by BASIS KIND.  The user's proposed axis:
+
+> `Radial` / `Polarized{Cartesian|Spherical}` / `<LocalPeriodic? = GPW>` / `PW`
+
+**The evidence that the current axis has already failed**, found while designing the Φ Bloch point-sum
+seam (`doc/OpenWork.md` Step 3):
+
+- `qchem.UnitCell` is imported at **five** sites INSIDE `BasisSet/Molecule/` — `PG_Cart/BasisSet.C`,
+  `PG_Cart/Imp/IrrepBasisSet.C`, `Evaluators/PG_Cart_MnD/Evaluator.C`, `PG_Spherical/Imp/LatticeView.C`
+  and `LatticeSum1E.C` itself.  A *molecule* has no unit cell.
+- The face `Molecule::LatticeSum1E` names a LATTICE inside the MOLECULE namespace, and defines
+  `cellphase_t` there.  Any new periodic capability (e.g. a Bloch point-value face) deepens it.
+- `PG_Cart::IrrepBasisSet::operator()`'s own comment reads *"the PERIODIC caller (GPW_Evaluator::Eval)"*.
+
+**Root cause (user):** *"Gaussian basis functions/sets are simply not a Molecule specific concept."*
+`Molecule` here has come to mean MULTI-CENTRE (as against `Atom` = single-centre), which stopped being
+true the moment GPW consumed the same basis periodically.
+
+**SCOPE PRECISION:** the smell is `BasisSet::Molecule` ONLY.  `Symmetry::Molecule` (point groups, against
+`Symmetry::Lattice_3D` space groups) is CORRECTLY named — a blanket rename would destroy a real
+distinction.
+
+**Two separable increments, both DEFERRED to their own session (user, 2026-08-20):**
+1. **Move the periodic capability faces to the system-neutral level** `qchem::BasisSet::`.  Measured as
+   dependency-FREE: `qcBasisSet` already links `qcStructure` (where `UnitCell` lives), already imports
+   `qchem.Symmetry.Lattice_3D.Fold` (`Internal/GMap.C:19`), and already hosts `Band_DFT_IBS.C` — a
+   periodic capability face at that level.  `qcMolecule_BS` depends on `qcBasisSet`, so moving a face UP
+   is the existing dependency direction (no cycle).  Blast radius: 9 module importers, 12 files, 68
+   textual uses, **no `pybind/` impact**.
+2. **Re-cut the taxonomy itself** onto the basis-kind axis above.  Much larger: directories, namespaces,
+   every `qchem.BasisSet.Molecule.*` MODULE NAME (see the module-rename dyndep hazard), the
+   `qcMolecule_BS` target, the `.vscode` test globs — **and it breaks `pybind/qchem_bridge.cpp`** (2
+   references), which is binding-owned: FLAG it, never fix it lib-side (CLAUDE.md).
+
+**RULING (user, 2026-08-20) on the near-term cost of NOT doing this:** `LatticeSum1E` *"has evolved from a
+simple three member lattice version of Make{Overlap,Kinetic,Nuclear} into a bit of a monster class … it is
+already a mess, making it slightly incrementally messier at this point is not a big concern."*  So the Φ
+point-value face is added to `LatticeSum1E` IN PLACE, and the ISP split of that class is deferred here
+along with the taxonomy.  **`LatticeSum1E` therefore also wants an ISP review in its own right** — it now
+carries collocation, integrate-back and grid machinery that are not one-electron integrals, so even its
+NAME is stale.
+
+**PLAN (2026-09-13): `doc/BasisSetTaxonomyPlan.md`.**  The two proposals above (2026-08-20 basis-kind, 2026-09-13
+symmetry) were the two AXES, not rivals: **libraries follow the FAMILY (the integral engine), module names carry
+the GROUP** — `qcRadial_BS` / `qcGaussian_BS` (`.Point.*` vs `.Lattice.*`) / `qcPlaneWave_BS` / thin `qcLattice_BS`
+container.  The GPW seam STAYS in the Gaussian engine (perf pin); `UnitCell` inside it is legitimate, and the
+V1.33 evidence becomes a ctest audit (no `.Point.` module imports a lattice).  Running order in the plan §4.
+**Progress:** 1a0 ✅ 2026-09-13 (the G=T spec tier is in the core: `qchem.BasisSet.Lattice_IBS`); 1a ✅ 2026-09-13
+(`qcPlaneWave_BS` split out, a leaf over the core by `ldd`); 1b ✅ 2026-09-13 (GPW engine + IBS under
+`Molecule/Lattice/`, `qcMolecule_BS → qcPlaneWave_BS`); step 2 ✅ 2026-09-13 (`qcRadial_BS` / `qcPlaneWave_BS` /
+`qcGaussian_BS{Point,Lattice}` / `qcLattice_BS`, modules + namespaces renamed, 4 commits).
+
+---
+
 ## LANDED 2026-09-13 — V1.12 `e1ac8527`: `EnergyBreakdown` — keyed contributions with ROLES, diagnostics apart
 
 **Measured before designing:** of the 13 public doubles, EIGHT summed to the total (`Kinetic Enn E_alphaZ Een

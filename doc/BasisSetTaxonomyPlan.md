@@ -1,6 +1,7 @@
 # BasisSet Taxonomy Plan — V1.33
 
-**Status: LIVE, agreed 2026-09-13; steps 1–3 done 2026-09-13, step 4 (acceptance on paper) next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
+**Status: RECORD — executed in full 2026-09-13 (eleven commits `c2cb79a3`..`d5ddb1a5`, 856/856).**  The rulings in §1 stand as
+the design; the per-step notes below are the execution log.  Closed row: `CleanupHistory.md` "LANDED 2026-09-13 — V1.33".  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
 taxonomy is on the wrong axis").  Read §1 once; it is the ruling.  §4 is the running order.
 
 Two proposals preceded this plan and they were NOT in conflict — they were the two axes:
@@ -152,6 +153,16 @@ Rules that follow:
 Nothing needs a fourth axis.  The only genuinely new KIND of entry is the composite family (APW), and it
 is what forces the T container layer to be its own library (rule 1.6 corollary).
 
+### 2.1 Acceptance, on paper (step 4, 2026-09-13) — where each anticipated row LANDS in the finished tree
+
+| row | library / module | tier | verdict |
+|---|---|---|---|
+| **APW / LAPW** | `qcLattice_BS` (`Lattice/{APW,LAPW}_IBS.C`, already there) — the composite is (PW outside) ⊗ (radial×$Y_{lm}$ inside), so the IBS lives in the T CONTAINER and pulls BOTH engines: `qcLattice_BS → qcPlaneWave_BS` (today) **and `→ qcRadial_BS`** (the day the sphere interior stops being hand-rolled: `LAPW_IBS.C` currently owns its own radial solver; when it asks `Radial.*` for $u_l(r)$ the edge appears, and NO new library does).  The sphere-matching is construction A + a boundary condition — a property of the composite family, not a new axis. | IBS (T, composite) | fits; forces the one edge the plan predicted |
+| **numerical atomic orbitals** (SIESTA / FHI-aims) | a NEW engine library `qcNumeric_BS` (family = numeric radial × $Y_{lm}$ on MULTIPLE centres), with `Numeric.Point.*` / `Numeric.Lattice.*` tags exactly like `Gaussian`.  **NOT** a fourth `Radial.*` sub-directory reused by `Gaussian.Point`: `qcRadial_BS` is the O(3) engine — one centre, every integral radial — and a multi-centre numeric basis has none of that machinery (its integrals are two-centre tables + grids).  The single-atom NAO GENERATOR is a `Radial.Numeric.*` row (like `valgen`); the basis it emits is consumed by the multi-centre engine — two libraries, the same way `Radial.Gaussian` and `Gaussian.*` are two today. | engine (family) | fits; the point of the exercise |
+| **double groups** (P\*, T⋊P\*, O(3)\* beyond the atom) | `qcSymmetry` rows (`Symmetry::{Molecule,Lattice_3D}::DoubleGroup…`), consumed through the SAME `Irrep` currency the containers already take.  Basis side: the RKB family gains `Gaussian.Point.RKB_*` / `Gaussian.Lattice.RKB_*` IBS classes (family = RKB Gaussian, G = P\*/T⋊P\*), no new library — the engine is still Gaussian.  Spin dissolving into G (§1.4) changes the BLOCK LABEL, not the axis count. | G (symmetry) | fits; a Symmetry row, not a BasisSet row |
+
+None of the three needs a fourth axis; the plan stands and step 5 may run.
+
 ---
 
 ## 3. Library map — current → target
@@ -297,9 +308,11 @@ forces `qcLattice_BS → qcRadial_BS`), a numerical-radial family (a fourth `Rad
 reused by `Gaussian.Point`? — NO: NAOs are their own multi-centre engine; that is the point of the exercise),
 the double groups (a `Symmetry` row, not a `BasisSet` row).  If any of them needs a fourth axis, the plan is
 wrong and comes back here before step 5.
+  ✅ 2026-09-13 — §2.1 above.  All three fit; the plan stands.
 
 **Step 5 — tracker hygiene.**  V1.33 ✅ → `CleanupHistory.md` the day it closes; one-line stub here and in
 `CleanupCandidates.md`; `README.md` moves this file to RECORD.
+  ✅ 2026-09-13.
 
 ---
 

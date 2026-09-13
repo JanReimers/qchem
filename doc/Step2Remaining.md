@@ -17,6 +17,7 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 | **V1.20c** | ✅ `Projector3` promoted out of `Internal` (a written-rule violation, and my `GMap` fix had been half a fix) | `ee50a5a1` |
 | **V1.20d** | ✅ the two remaining sites (`DBCacheClient` promoted alone; Slater's re-export → plain import); closing the first EXPOSED a live cross-family reach from `qcCalculation` into the cache mechanism, now `EmitIntegralsCacheReport()`; the audit is a ctest test (`InternalReexportAudit`).  ⚠ Had never been a row — only a paragraph saying "filed as V1.20d" | `0e07933e` |
 | **V4.1 / V4.2** | ✅ CHECKED — neither trigger has fired | — |
+| **V1.33** | ✅ the taxonomy re-cut, all five plan steps: `qcRadial_BS` / `qcPlaneWave_BS` / `qcGaussian_BS{Point,Lattice}` / `qcLattice_BS`, ctest `BasisSetGTagAudit`, `PG_Cart` untagged as the G=1 seed.  ⚠ pybind breaks (flagged) | `c2cb79a3`..`d5ddb1a5` |
 | **V1.17** | ✅ `GetSpinDensity` off the base and onto `tSpinResolvedWF<T>`, a data-free cross-cast face on the `tSpinResolved_CD` model; the raw `new` went with it | `95640bca` |
 | **V1.32** | ✅ `IrrepCD<T>` → non-template `FiniteIrrepCD`; three one-live-branch conditionals collapsed, `IrrepHF_PairBase` deleted.  `PeriodicIrrepCD<T>` asked and DECLINED | `9a073f39` |
 | **V1.14** | ✅ both `Emit*()` faces deleted under the USER'S REPORTING RULING (each class reports at its OWN trigger; nobody tells another when); basis built INSIDE the run so shells self-announce.  ⛔ the row's "pulling reporter + toggles on SCFParams" fix was the wrong direction; the `bool&` toggles are the design | `fe78682a` `d5d42fb4` |
@@ -88,21 +89,12 @@ two-number entry (E, Tr(D·V)) that makes the band form reachable, and +U now ad
 my premises were corrected on the way: −TS IS an energy (dimensions), and a second non-summed map is a
 data-structure choice the reporting ruling does not forbid.
 
-### V1.33 — the `BasisSet` taxonomy is on the wrong axis
-`src/BasisSet/{Atom, Molecule, Lattice_3D}` classifies by PHYSICAL SYSTEM; the contents are classified by
-BASIS KIND (`Radial` / `Polarized{Cartesian|Spherical}` / GPW / PW).
-**Evidence it has already failed:** `qchem.UnitCell` is imported at **five** sites inside
-`BasisSet/Molecule/`.  A molecule has no unit cell.
-
-**Not obvious because** it is a directory-and-target reorganisation of the largest library in the tree,
-and it interacts with V1.20's family ruling (`.Internal.` marks the FAMILY boundary).
-**PLAN AGREED 2026-09-13 → `doc/BasisSetTaxonomyPlan.md`**: libraries = engines (family), modules = group;
-5 steps, mechanical and bit-identical; the `UnitCell`-in-`Molecule/` evidence turns into a ctest audit.
+### V1.33 ✅ DONE 2026-09-13 — see the STATE table; record in `CleanupHistory.md`, plan `doc/BasisSetTaxonomyPlan.md` (RECORD)
 
 ### V1.37 — Pol/UnPol are imposed subgroups, not types (filed 2026-09-13)
 Spin is a factor of G (SU(2) imposed = UnPol = `Spin::None` doublet; U(1)_z = Pol = Up/Down; nothing = spinors).
 ONE composite over full `Irrep`s for WF and CD, `GetChannel(Spin)` a VIEW; `tPolarized_CD`'s two-level tree goes.
-Forward-incompatible otherwise with the double-group rows.  A campaign (53 files); **after V1.33**.  Full row in
+Forward-incompatible otherwise with the double-group rows.  A campaign (53 files); **V1.33 landed 2026-09-13, so this is unblocked**.  Full row in
 `CleanupCandidates.md`.
 
 ---
