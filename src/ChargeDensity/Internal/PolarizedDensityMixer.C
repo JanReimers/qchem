@@ -209,7 +209,6 @@ public:
         return &itsFock;
     }
     double      GetRelax() const override { return itsUp->GetRelax(); }
-    double      EffectiveRelax() const override { return itsUp->EffectiveRelax(); }  // as GetRelax: the leaf's
     const char* Tag     () const override { return itsUp->Tag(); }   // the trace reports the LEAF recipe
     bool   WantsReDamp(const MixSignals& s) const override
     { return itsUp->WantsReDamp(s) || itsDn->WantsReDamp(s); }        // either channel asking is enough

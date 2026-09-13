@@ -336,7 +336,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             std::string config = ConfigString(itsWaveFunction.get());
             const GapInfo g=HomoLumo(itsWaveFunction.get());   // frontier spectrum for the gap column
             const double N=itsCD->GetTotalCharge();      // Tr(DS); normalise the grid-charge leak per electron
-            IterationTrace tr{ itsIterationCount, eb, itsMixer->GetRelax(), itsMixer->EffectiveRelax(),
+            IterationTrace tr{ itsIterationCount, eb, itsMixer->GetRelax(),
                                itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
@@ -659,13 +659,7 @@ template <class T> void tSCFIterator<T>::WriteMixAccelCfg(std::ostream& os, cons
 {
     std::ostringstream mix;                                     // ρ_mix: "Lin 1.00" -- or "----" under direct-min
     if (tr.lineSearch) mix << "----";                           //   (GDM/OT own the density update; NO mixing)
-    else
-    {   // "Ker 0.45>0.33" -- alpha and, when a preconditioner made them differ, the alpha_eff it delivered.
-        // Only shown when it actually differs, so an unpreconditioned run's column is unchanged.
-        mix << tr.mixTag << " " << std::fixed << setprecision(2) << tr.relax;
-        if (std::fabs(tr.relaxEff-tr.relax) > 0.005)
-            mix << ">" << std::fixed << setprecision(2) << tr.relaxEff;
-    }
+    else mix << tr.mixTag << " " << std::fixed << setprecision(2) << tr.relax;   // "Ker 0.45"
     std::ostringstream acc; acc << tr.accelTag; if (tr.accelCount>0) acc << ":" << tr.accelCount;    // "DIIS:3"
     // svMin: the DIIS history's conditioning -- what SVTol is compared against.  Judge it against the [F,D]
     // column: B scales as [F,D]², so svMin ≪ [F,D]² is a DEPENDENT history that the absolute SVTol did not

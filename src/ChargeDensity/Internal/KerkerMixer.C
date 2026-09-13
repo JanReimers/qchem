@@ -75,9 +75,6 @@ public:
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
-    //! alpha_eff is measured by the mix itself (FourierMixCD::EffectiveAlpha); 0 before the first one.
-    double EffectiveRelax() const override
-    { const double a=itsMixedRho ? itsMixedRho->EffectiveAlpha() : 0.0; return a>0.0 ? a : itsRelax; }
     const char* Tag() const override { return "Ker"; }
     //! Stash it AND seat it: KerkerMix allocates a FRESH FourierMixCD on every mix, so the deposit has to be
     //! replayed onto each new one -- the same shape as the itsRawIn raster shadow beside it.

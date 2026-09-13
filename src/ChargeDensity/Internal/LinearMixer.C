@@ -21,7 +21,9 @@ public:
         working.MixIn(old, 1.0-itsRelax);                                      // (1−relax)ρ_in + relax ρ_out
         return dcd;
     }
+    const tChargeDensity<T>* FockDensity(const cd_t& working) const override { return &working; }   // D-mixing: the mixed D IS the Fock density
     double GetRelax() const override { return itsRelax; }
+    const char* Tag() const override { return "Lin"; }
 
     bool WantsReDamp(const MixSignals& s) const override
     {

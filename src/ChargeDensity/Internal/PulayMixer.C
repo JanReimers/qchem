@@ -130,9 +130,6 @@ public:
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
-    //! As KerkerMixer -- and for a Pulay step this may EXCEED alpha, since extrapolation overshoots on purpose.
-    double EffectiveRelax() const override
-    { const double a=itsMixedRho ? itsMixedRho->EffectiveAlpha() : 0.0; return a>0.0 ? a : itsRelax; }
     const char* Tag() const override { return "Pul"; }
     //! As KerkerMixer: ApplyJoint allocates a fresh mix, so the deposit is stashed and replayed.
     void SetDMSource(std::shared_ptr<const cDM_CD> dm) override

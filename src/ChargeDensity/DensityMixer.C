@@ -42,7 +42,7 @@ public:
     virtual double Mix(cd_t& working, const cd_t& old) = 0;
     //! The density that drives the NEXT Fock: the working density itself for a D-mixer, the running mixed
     //! field for a G-space mixer.
-    virtual const tChargeDensity<T>* FockDensity(const cd_t& working) const { return &working; }
+    virtual const tChargeDensity<T>* FockDensity(const cd_t& working) const = 0;
     //! \brief Deposit the DM-backed density the next mixed field is built FROM, so a quadrature consumer can
     //! reach the EXACT density through \c tDM_Sourced_CD while Hartree keeps the preconditioned field.
     //!
@@ -56,16 +56,11 @@ public:
     //! DM-backed density, so there is nothing to reach around.
     virtual void SetDMSource(std::shared_ptr<const tDM_CD<T>>) {}
     //! The current step size α (for the SCF trace only).
+    //! (No "effective α" beside it any more -- user ruling 2026-09-13: the fraction of a step that survived a
+    //! preconditioner is not physics, nothing consumes it, and printing it implied something did.)
     virtual double GetRelax() const = 0;
-    //! \brief The step size ACTUALLY DELIVERED, \f$\alpha_{\rm eff}\f$ -- for a preconditioned mixer the
-    //! fraction of the update that survived the filter, which is what the SCF is really stepping at.
-    //! Defaults to \c GetRelax(), exactly right for an unpreconditioned (linear) mix where the two coincide.
-    //! Reported beside α in the ρ_mix column so a user can SEE the preconditioner working rather than infer
-    //! it: on MnO it falls from 0.33 to 0.20 as the residual migrates into the damped low-G band, which is
-    //! the difference between a healthy run and a stalling one and was previously invisible.
-    virtual double EffectiveRelax() const { return GetRelax(); }
     //! A 3-char self-identifier for the per-iteration ρ_mix column (doc/GPWPlan1.md item 2).
-    virtual const char* Tag() const { return "Lin"; }
+    virtual const char* Tag() const = 0;
     //! Adaptive [F,D]-keyed policy (the D-mixer's; no-op elsewhere).  Post-energy re-damp on divergence.
     virtual bool   WantsReDamp(const MixSignals&) const { return false; }
     //! Re-mix \a working (already reseated to the fresh density by the iterator) more aggressively; ‖Δρ‖.
