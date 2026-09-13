@@ -32,7 +32,7 @@ on what is actually next.
 | **`GPWPlan1.md`** | the GPW forward queue (structs → display → LRU → diffuse+smearing → B_ij) | live |
 | **`SCFStrategyPlan.md`** | the convergence-acceleration abstraction boundaries (DIIS/GDM, mixing, occupation, loop mode) | live design note; OT is the open increment |
 | **`SphericalLatticePlan.md`** | the MnO accuracy campaign — spherical lattice view, the d-channel, the ordering question | live |
-| **`BasisSetTaxonomyPlan.md`** | V1.33: the BasisSet taxonomy ruling — **libraries follow the FAMILY (engine), module names carry the GROUP**; §1 is the pin (an IBS = a carrier of one irrep of G; construction = subduce or induce), §3 the current→target library map, §4 the 5-step running order | live — agreed 2026-09-13; 1a0–1b done, 1c next |
+| **`BasisSetTaxonomyPlan.md`** | V1.33: the BasisSet taxonomy ruling — **libraries follow the FAMILY (engine), module names carry the GROUP**; §1 is the pin (an IBS = a carrier of one irrep of G; construction = subduce or induce), §3 the current→target library map, §4 the 5-step running order | live — agreed 2026-09-13; step 1 done, step 2 (renames) next |
 | **`ModuleToolchainPlan.md`** | `import std;` + a modular Blaze fork — banish the preprocessor | live, not started |
 | **`LatticeGasPlan.md`** | Li/Na configuration enumeration for the battery work | SPECCED, NOT BUILT — deliberately deferred; the file exists so the design is not re-derived |
 | **`BatteryMaterialsRoadmap.md`** | the north star (Li/Na cathode voltage curves) above the individual plans | live orientation |

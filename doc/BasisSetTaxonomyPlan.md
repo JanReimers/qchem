@@ -1,6 +1,6 @@
 # BasisSet Taxonomy Plan — V1.33
 
-**Status: LIVE, agreed 2026-09-13; steps 1a0–1b done 2026-09-13, 1c next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
+**Status: LIVE, agreed 2026-09-13; step 1 (1a0–1c) done 2026-09-13, step 2 next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
 taxonomy is on the wrong axis").  Read §1 once; it is the ruling.  §4 is the running order.
 
 Two proposals preceded this plan and they were NOT in conflict — they were the two axes:
@@ -228,6 +228,9 @@ design rulings).  ✅ 2026-09-13 (this file written; R1.0 entry pending the user
 - 1c. What is left in `Lattice_3D/` is the container tier (`BasisSet`, `BandStructure`, `APW_IBS`,
   `LAPW_IBS`); `qcLattice_BS` links both engines.  Confirm with `ldd`/link order that `qcPlaneWave_BS`
   pulls in nothing from `qcMolecule_BS`.
+  ✅ 2026-09-13.  `Lattice_3D/` = `{BasisSet, BandStructure, APW_IBS, LAPW_IBS}.C` + `Imp/` + `tests/`.
+  `ldd libqcPlaneWave_BS.so` → core only; `nm -DC --undefined-only` has no `Molecule::`, `GPW`, or
+  container-tier symbol.  Step 1 complete — three commits (c2cb79a3, 8104e5fa, e4cc3370).
 
 **Step 2 — rename onto the two axes.**  Directories, library targets, module names, C++ namespaces, in
 one commit per library so `git log --follow` survives:
