@@ -162,8 +162,8 @@ rsmat_t PP_NonLocal::MakeMatrix(const robs_t* bs, const Spin&) const
 void PP_NonLocal::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const
 {
     const double eNL = cd->DM_Contract(this);   // electron-ion (KB nonlocal) energy = Tr(D V_NL)
-    te.Een   += eNL;
-    te.EenNL += eNL;                            // the diagnostic V_loc/V_NL split (Een keeps the total)
+    te.Add("Een", eNL, EnergyRole::Potential, eNL);   // linear
+    te.AddDiagnostic("EenNL", eNL);                    // the diagnostic V_loc/V_NL split (Een keeps the total)
 }
 
 std::ostream& PP_NonLocal::Write(std::ostream& os) const

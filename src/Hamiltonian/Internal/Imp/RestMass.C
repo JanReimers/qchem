@@ -24,7 +24,8 @@ rsmat_t RestMass::MakeMatrix(const robs_t* bs,const Spin&) const
 
 void RestMass::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
-    te.RestMass+=cd->DM_Contract(this);
+    const double e=cd->DM_Contract(this);
+    te.Add("RestMass", e, EnergyRole::RestMass, e);   // linear
 }
 
 std::ostream& RestMass::Write(std::ostream& os) const

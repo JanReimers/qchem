@@ -677,8 +677,8 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     std::cout << "["<<o.label<<"] iters="<<scf.GetIterationCount()<<" charge="<<charge
               << " Eelec="<<E.GetElectronicEnergy()
               << " Etot="<<std::setprecision(10)<<E.GetTotalEnergy()<<std::setprecision(6)
-              << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
-              << " Enn="<<E.Enn<<" E_alphaZ="<<E.E_alphaZ<<")" << std::endl;
+              << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]<<" Eee="<<E["Eee"]<<" Exc="<<E["Exc"]
+              << " Enn="<<E["Enn"]<<" E_alphaZ="<<E["E_alphaZ"]<<")" << std::endl;
     GpwResult R{scf.Converged(), charge, E, scf.GetIterationCount()};
     // Iterations passed so the ledger can report SETUP TOTAL + s/ITERATION -- the two numbers a perf
     // comparison needs, because a wall time moves with the iteration count and those two do not.
@@ -835,8 +835,8 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         const std::streamsize prec0=std::cout.precision();
         std::cout << "["<<o.label<<" stage "<<s+1<<"] kT="<<kT<<" conv="<<R.converged<<" iters="<<R.iters
                   << std::setprecision(10)
-                  << " A=E-TS="<<E.GetTotalEnergy()<<" -TS="<<E.MinusTS
-                  << " E(internal)="<<(E.GetTotalEnergy()-E.MinusTS)
+                  << " A=E-TS="<<E.GetTotalEnergy()<<" -TS="<<E["MinusTS"]
+                  << " E(internal)="<<(E.GetTotalEnergy()-E["MinusTS"])
                   << std::setprecision(prec0) << std::endl;
         prev = std::move(scf);   // held for the next stage's MOM adoption; released the moment it has copied
         // seedCD survives the hand-off -- its block is bs, which outlives the loop.
@@ -857,8 +857,8 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
     std::cout << "["<<o.label<<"] stages="<<kTSchedule.size()<<" iters(last)="<<R.iters
               << " charge="<<R.charge
               << " Etot="<<std::setprecision(10)<<R.E.GetTotalEnergy()<<std::setprecision(6)
-              << "  (Ekin="<<R.E.Kinetic<<" Een="<<R.E.Een<<" Eee="<<R.E.Eee<<" Exc="<<R.E.Exc
-              << " Enn="<<R.E.Enn<<" E_alphaZ="<<R.E.E_alphaZ<<")" << std::endl;
+              << "  (Ekin="<<R.E["Kinetic"]<<" Een="<<R.E["Een"]<<" Eee="<<R.E["Eee"]<<" Exc="<<R.E["Exc"]
+              << " Enn="<<R.E["Enn"]<<" E_alphaZ="<<R.E["E_alphaZ"]<<")" << std::endl;
     qchem::report::EmitTimings("timing", R.iters);   // + SETUP TOTAL / s/ITERATION, as in RunGpw
     if (keep) { keep->cd.reset(seedCD); keep->bs=std::move(bs); }   // bs is the density's block -- it must outlive cd
     else      delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
@@ -1167,8 +1167,8 @@ TEST(GPW_SCF, DISABLED_SingleKSweepProbe)
     std::cout << "[k sweep] s=" << s << (trim ? "  TRIM" : "  complex")
               << "  Etot=" << std::setprecision(10) << R.E.GetTotalEnergy() << std::setprecision(6)
               << "  charge=" << R.charge
-              << "  (Ekin=" << R.E.Kinetic << " Een=" << R.E.Een << " Eee=" << R.E.Eee
-              << " Exc=" << R.E.Exc << ")" << std::endl;
+              << "  (Ekin=" << R.E["Kinetic"] << " Een=" << R.E["Een"] << " Eee=" << R.E["Eee"]
+              << " Exc=" << R.E["Exc"] << ")" << std::endl;
     EXPECT_NEAR(R.charge, 8.0, 1e-6);               // the one thing that must hold at EVERY k
 }
 
@@ -1504,8 +1504,8 @@ TEST(GPW_SCF, O2TripletInBoxMatchesFinite)
     {
         auto E=cRef.EnergyTerms();
         std::cout << "[O2 finite] sipp GTH-q6 LSDA triplet="<<Eref
-                  << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
-                  << " Enn="<<E.Enn<<")"<<std::endl;
+                  << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]<<" Eee="<<E["Eee"]<<" Exc="<<E["Exc"]
+                  << " Enn="<<E["Enn"]<<")"<<std::endl;
     }
 
     const double a=16.0;
@@ -1571,17 +1571,17 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         auto* cd=dynamic_cast<cDM_CD*>(pol.get());
         qchem::EnergyBreakdown te = ham->GetTotalEnergy(cd);
         std::cout << "[fixed-D k="<<k<<"] charge="<<cd->GetTotalCharge()
-                  << " Ekin="<<te.Kinetic<<" Een="<<te.Een<<" Eee="<<te.Eee<<" Exc="<<te.Exc
-                  << " Enn="<<te.Enn<<" E_alphaZ="<<te.E_alphaZ
+                  << " Ekin="<<te["Kinetic"]<<" Een="<<te["Een"]<<" Eee="<<te["Eee"]<<" Exc="<<te["Exc"]
+                  << " Enn="<<te["Enn"]<<" E_alphaZ="<<te["E_alphaZ"]
                   << " Etot="<<te.GetTotalEnergy()<<std::endl;
         delete cd;
         return te;
     };
     auto t2=probe(2);   // alpha=0.6999271 s-Gaussian
     auto t3=probe(3);   // alpha=2.0       s-Gaussian
-    std::cout << "[fixed-D delta k2-k3] dEkin="<<t2.Kinetic-t3.Kinetic
-              << " dEen="<<t2.Een-t3.Een << " dEee="<<t2.Eee-t3.Eee
-              << " dExc="<<t2.Exc-t3.Exc
+    std::cout << "[fixed-D delta k2-k3] dEkin="<<t2["Kinetic"]-t3["Kinetic"]
+              << " dEen="<<t2["Een"]-t3["Een"] << " dEee="<<t2["Eee"]-t3["Eee"]
+              << " dExc="<<t2["Exc"]-t3["Exc"]
               << " dEtot="<<t2.GetTotalEnergy()-t3.GetTotalEnergy()<<std::endl;
     delete ham;
 
@@ -1599,15 +1599,15 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         auto* cd=IrrepCD_Factory<dcmplx>(D, obs, obs->GetIrrep(Spin::None));
         qchem::EnergyBreakdown te = hamU->GetTotalEnergy(cd);
         std::cout << "[fixed-D UNPOL k="<<k<<"] charge="<<cd->GetTotalCharge()
-                  << " Ekin="<<te.Kinetic<<" Een="<<te.Een<<" Eee="<<te.Eee<<" Exc="<<te.Exc<<std::endl;
+                  << " Ekin="<<te["Kinetic"]<<" Een="<<te["Een"]<<" Eee="<<te["Eee"]<<" Exc="<<te["Exc"]<<std::endl;
         delete cd;
         return te;
     };
     auto u2=probeU(2);
     auto u3=probeU(3);
-    std::cout << "[fixed-D UNPOL delta k2-k3] dEkin="<<u2.Kinetic-u3.Kinetic
-              << " dEen="<<u2.Een-u3.Een << " dEee="<<u2.Eee-u3.Eee
-              << " dExc="<<u2.Exc-u3.Exc<<std::endl;
+    std::cout << "[fixed-D UNPOL delta k2-k3] dEkin="<<u2["Kinetic"]-u3["Kinetic"]
+              << " dEen="<<u2["Een"]-u3["Een"] << " dEee="<<u2["Eee"]-u3["Eee"]
+              << " dExc="<<u2["Exc"]-u3["Exc"]<<std::endl;
     delete hamU;
 
     // SPIN-SWAP TEST: the polarized XC pair's FOCK matrices per channel on the one-hot ↑ density
@@ -1669,7 +1669,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
             Hamiltonian::VxcFit::Auto, /*polarized*/true);
         qchem::EnergyBreakdown te = hamP->GetTotalEnergy(cd);
         std::cout << "[oracle-D*] charge="<<cd->GetTotalCharge()
-                  << " Ekin="<<te.Kinetic<<" Een="<<te.Een<<" Eee="<<te.Eee<<" Exc="<<te.Exc
+                  << " Ekin="<<te["Kinetic"]<<" Een="<<te["Een"]<<" Eee="<<te["Eee"]<<" Exc="<<te["Exc"]
                   << " Etot="<<te.GetTotalEnergy()
                   << "  (SCF found -0.0699; oracle E[D*]=-0.1416)"<<std::endl;
         delete cd; delete hamP;
@@ -1756,7 +1756,7 @@ TEST(GPW_SCF, SmearingInertOnGap)
     EXPECT_TRUE(R.converged);
     EXPECT_NEAR(R.charge, 8.0, 1e-6);
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);       // == the no-smear anchor: smearing is inert on a gap
-    EXPECT_NEAR(R.E.MinusTS, 0.0, 1e-4);                     // −TS negligible when kT ≪ gap (f_i ∈ {0,1})
+    EXPECT_NEAR(R.E["MinusTS"], 0.0, 1e-4);                     // −TS negligible when kT ≪ gap (f_i ∈ {0,1})
 }
 
 // (4b-iii) FERMI SMEARING CONVERGES A DEGENERATE OPEN SHELL (doc/GPWPlan1.md 4b, gate iii + the cure).  The
@@ -1792,8 +1792,8 @@ TEST(GPW_SCF, SmearingConvergesDegenerateShell)
     // is the 3p-shell entropy −TS at this kT, which lowers A below E and below Esipp).  (Re-pinned when the
     // field-sharpness density rule landed -- doc/GPWPlan1.md 4b: the sharper XC grid moved it -3.779 -> -3.783.)
     EXPECT_NEAR(R.E.GetTotalEnergy(), -3.78260, 3e-3);
-    EXPECT_LT(R.E.MinusTS, 0.0);                             // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
-    EXPECT_NEAR(R.E.GetTotalEnergy()-R.E.MinusTS, Esipp, 3e-2) << "internal E=A−(−TS) vs finite SIPP molecular DFT";
+    EXPECT_LT(R.E["MinusTS"], 0.0);                             // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
+    EXPECT_NEAR(R.E.GetTotalEnergy()-R.E["MinusTS"], Esipp, 3e-2) << "internal E=A−(−TS) vs finite SIPP molecular DFT";
 }
 
 // ===== (item 2) DEGENERATE-SHELL METAL: FCC Al @ Gamma (3s^2 3p^1) =====
@@ -1833,7 +1833,7 @@ TEST(GPW_SCF, AlFCCDegenerateShellAufbauStalls)
 
     EXPECT_FALSE(R.converged) << "integer aufbau cannot converge Δρ of a partially-filled degenerate 3p shell";
     EXPECT_NEAR(R.charge, 3.0, 1e-6);                       // charge is still conserved (3 valence e-)
-    EXPECT_NEAR(R.E.MinusTS, 0.0, 1e-12);                   // no smearing => no entropy term
+    EXPECT_NEAR(R.E["MinusTS"], 0.0, 1e-12);                   // no smearing => no entropy term
 }
 
 // (item 2b) THE CURE + ANNEALING (doc/GPWPlan1.md item 2): a DESCENDING kT schedule (0.02 -> 0.01 -> 0.005 Ha),
@@ -1863,10 +1863,10 @@ TEST(GPW_SCF, AlFCCAnnealedMetal)
 
     EXPECT_TRUE(R.converged) << "Fermi-smearing annealing converges Δρ where integer aufbau cannot (degenerate 3p)";
     EXPECT_NEAR(R.charge, 3.0, 1e-6);
-    EXPECT_LT(R.E.MinusTS, 0.0);                            // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
+    EXPECT_LT(R.E["MinusTS"], 0.0);                            // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
     // did-E-move anchors at the coldest stage (kT=0.005): the free energy A and the kT-independent internal E.
     EXPECT_NEAR(R.E.GetTotalEnergy(), -1.934665, 2e-3);                        // A = E − TS at kT=0.005
-    EXPECT_NEAR(R.E.GetTotalEnergy()-R.E.MinusTS, -1.921148, 2e-3);            // internal E (T→0 physical value)
+    EXPECT_NEAR(R.E.GetTotalEnergy()-R.E["MinusTS"], -1.921148, 2e-3);            // internal E (T→0 physical value)
 }
 
 // (item 3) GLOBAL μ ACROSS k-BLOCKS -- the true metal fill.  FCC Al on a 2×2×2 Γ-centred Bloch mesh (8
@@ -1892,7 +1892,7 @@ TEST(GPW_SCF, AlFCCMetalGlobalMu)
 
     EXPECT_TRUE(R.converged) << "one μ across the BZ converges the dispersive metal (per-block filling cannot)";
     EXPECT_NEAR(R.charge, 3.0, 1e-6);          // BZ-weighted Σ_k w_k n_k = 3 (weight-consistency guard)
-    EXPECT_LT(R.E.MinusTS, 0.0);               // −TS<0 => A=GetTotalEnergy() is the free energy (gate iii)
+    EXPECT_LT(R.E["MinusTS"], 0.0);               // −TS<0 => A=GetTotalEnergy() is the free energy (gate iii)
     std::cout<<"[Al global-μ full-mesh] A="<<R.E.GetTotalEnergy()<<std::endl;   // the IBZ pin's route-matched partner
     EXPECT_NEAR(R.E.GetTotalEnergy(), -2.11681, 3e-3);   // did-E-move anchor (2×2×2 global-μ free energy A)
     EXPECT_LT(R.E.GetTotalEnergy(), -1.95);    // dispersion: well below the Γ-only -1.92 (k-sampling binds)
@@ -2228,7 +2228,7 @@ TEST(GPW_SCF, NaFCCMetalGlobalMu)
 
     EXPECT_TRUE(R.converged) << "global μ + smearing converges the half-filled-band metal";
     EXPECT_NEAR(R.charge, 1.0, 1e-6);          // one valence electron, BZ-weighted Σ_k w_k n_k = 1
-    EXPECT_LT(R.E.MinusTS, -1e-4);             // −TS<0 AND non-trivial: the Fermi surface IS fractionally filled
+    EXPECT_LT(R.E["MinusTS"], -1e-4);             // −TS<0 AND non-trivial: the Fermi surface IS fractionally filled
     EXPECT_NEAR(R.E.GetTotalEnergy(), 0.045543, 3e-3);    // did-E-move anchor (free energy A at kT=0.01)
 }
 
@@ -2497,8 +2497,8 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     auto cd=scfF->GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge();
     std::cout << "[NaF grid-cont FINE] auto-Ecut iters="<<scfF->GetIterationCount()<<" charge="<<charge
               << " Etot="<<Efine.GetTotalEnergy()
-              << " (Ekin="<<Efine.Kinetic<<" Een="<<Efine.Een<<" Eee="<<Efine.Eee<<" Exc="<<Efine.Exc
-              << " Enn="<<Efine.Enn<<" E_alphaZ="<<Efine.E_alphaZ<<")" << std::endl;
+              << " (Ekin="<<Efine["Kinetic"]<<" Een="<<Efine["Een"]<<" Eee="<<Efine["Eee"]<<" Exc="<<Efine["Exc"]
+              << " Enn="<<Efine["Enn"]<<" E_alphaZ="<<Efine["E_alphaZ"]<<")" << std::endl;
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
     // WHAT THIS GATES (re-derived 2026-07-23, post analytic-short/kappa/5-smooth + the 0.5(f2) raw-XC
     // feed): grid-continuation seeding makes the PRODUCTION fine grid converge CLEANLY to the aufbau
@@ -2653,7 +2653,7 @@ XCProbe ProbeXC(const std::string& label, const GpwHandles& h,
                 Hamiltonian::cDynamic_HT& x, Hamiltonian::cDynamic_HT& c,
                 const qchem::EnergyBreakdown& e)
 {
-    XCProbe p; p.label=label; p.Exc=e.Exc; p.rhoLost=e.GridChargeLost;
+    XCProbe p; p.label=label; p.Exc=e["Exc"]; p.rhoLost=e.charge.lost;
     for (size_t i=0;i<h.bs->GetNumIBS();++i)
     {
         hmat_t<dcmplx> M=ProbeBlockMatrix(x,*h.bs,i,h.cd.get());
@@ -3186,10 +3186,10 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const UnitCell& cell, 
         // 1e-8: real-vs-complex roundoff headroom -- Een's large-cancellation assembly (vs Enn~8 Ha)
         // measured 2e-9 across the 3-block mesh.  Roundoff grade, far below any defect scale.
         EXPECT_NEAR(En.GetTotalEnergy(), Ec.GetTotalEnergy(), 1e-8) << what << " (iteration 1)";
-        EXPECT_NEAR(En.Kinetic, Ec.Kinetic, 1e-8) << what << " (iteration 1)";
-        EXPECT_NEAR(En.Een,     Ec.Een,     1e-8) << what << " (iteration 1)";
-        EXPECT_NEAR(En.Eee,     Ec.Eee,     1e-8) << what << " (iteration 1)";
-        EXPECT_NEAR(En.Exc,     Ec.Exc,     1e-8) << what << " (iteration 1)";
+        EXPECT_NEAR(En["Kinetic"], Ec["Kinetic"], 1e-8) << what << " (iteration 1)";
+        EXPECT_NEAR(En["Een"],     Ec["Een"],     1e-8) << what << " (iteration 1)";
+        EXPECT_NEAR(En["Eee"],     Ec["Eee"],     1e-8) << what << " (iteration 1)";
+        EXPECT_NEAR(En["Exc"],     Ec["Exc"],     1e-8) << what << " (iteration 1)";
         EXPECT_NEAR(on.LastIterateCharge(), off.LastIterateCharge(), 1e-10) << what << " (iteration 1)";
     }
     {   // (2) the physics arm: both converge on the production-shaped gates
@@ -4421,7 +4421,7 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
             };
         }
         o.onIteration=[&arm](const qchem::SCFIterator::SCFProgress& p)
-                      { arm.series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order,p.eb.Eee}); };
+                      { arm.series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order,p.eb["Eee"]}); };
 
         // THE ANNEAL SCHEDULE: MNO_ANNEAL lists the kTs, MNO_ACC the per-stage accelerator, MNO_ANNEAL_PENALTY
         // the per-stage MOM Lambda.  One stage (the base parameters) when no schedule is given.

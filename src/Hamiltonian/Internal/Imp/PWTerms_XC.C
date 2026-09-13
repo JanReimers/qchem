@@ -67,10 +67,10 @@ void Vxc_Quadrature::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     rvec_t exc(rho.size());
     for (size_t g=0; g<rho.size(); g++) exc[g]=itsXc->GetEpsXc(rho[g])*rho[g];
     const double q=itsSampler->Integrate(rho);
-    te.Exc += itsSampler->Integrate(exc);     // E_xc = integral eps_xc(rho) rho, on the quadrature's weights
+    te.Add("Exc", itsSampler->Integrate(exc), EnergyRole::Potential);   // E_xc = integral eps_xc(rho) rho, on the quadrature's weights
     // The mesh-charge leak (the quadrature's health metric -- CP2K's grid-charge-lost readout): the
     // quadrature integral of rho vs the analytic Tr(DS).
-    te.GridChargeLost = q - cd->GetTotalCharge();
+    te.charge.lost = q - cd->GetTotalCharge();
 }
 
 std::ostream& Vxc_Quadrature::Write(std::ostream& os) const
@@ -114,8 +114,8 @@ void Vxc_QuadraturePol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     for (size_t g=0; g<up.size(); g++)
         exc[g]=itsXc->GetEpsXc(up[g])*up[g] + itsXc->GetEpsXc(dn[g])*dn[g];   // E_x = Σ_σ ∫ ε_x(ρ_σ) ρ_σ
     const double q=itsSampler->Integrate(rvec_t(up+dn));
-    te.Exc += itsSampler->Integrate(exc);
-    te.GridChargeLost = q - cd->GetTotalCharge();   // mesh-charge leak (same health metric as Vxc_Quadrature)
+    te.Add("Exc", itsSampler->Integrate(exc), EnergyRole::Potential);
+    te.charge.lost = q - cd->GetTotalCharge();   // mesh-charge leak (same health metric as Vxc_Quadrature)
 }
 
 std::ostream& Vxc_QuadraturePol::Write(std::ostream& os) const
@@ -157,7 +157,7 @@ void Vcorr_QuadraturePol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // For a plain correlation functional the default IS ε_c·(ρ↑+ρ↓), so this line is bit-identical to the
     // one it replaces; for the composite it is the only correct sum.
     for (size_t g=0; g<up.size(); g++) ec[g]=itsCorr->GetExcDensity(up[g], dn[g]);
-    te.Exc += itsSampler->Integrate(ec);   // E_xc = ∫ e_xc(ρ↑,ρ↓)
+    te.Add("Exc", itsSampler->Integrate(ec), EnergyRole::Potential);   // E_xc = ∫ e_xc(ρ↑,ρ↓)
 }
 
 std::ostream& Vcorr_QuadraturePol::Write(std::ostream& os) const

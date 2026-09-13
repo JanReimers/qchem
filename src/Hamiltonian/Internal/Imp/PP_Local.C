@@ -53,7 +53,8 @@ rsmat_t PP_Local::MakeMatrix(const robs_t* bs, const Spin&) const
 
 void PP_Local::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const
 {
-    te.Een += cd->DM_Contract(this);   // electron-ion (local PP) energy = Tr(D V_loc)
+    const double e=cd->DM_Contract(this);   // electron-ion (local PP) energy = Tr(D V_loc)
+    te.Add("Een", e, EnergyRole::Potential, e);   // linear
 }
 
 std::ostream& PP_Local::Write(std::ostream& os) const

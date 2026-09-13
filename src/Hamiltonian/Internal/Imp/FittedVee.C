@@ -55,13 +55,14 @@ void FittedVee::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     assert(itsFittedChargeDensity);
     if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
-    // Accumulate through locals: te.Eee is the Dunlap combination of THIS term's two fit pieces,
-    // so it must not read the (possibly already accumulated) te.EeeFit/te.EeeFitFit fields.
+    // The Dunlap combination of THIS term's two fit pieces is the contribution; the pieces themselves are
+    // diagnostics (reported, never summed).  Tr(D V) is left ABSENT: under density mixing the fitted V_H's
+    // expectation in the Fock is Tr(D_out V[rho_in]) -- the Harris-Foulkes subtlety -- not 2 eeeFit.
     double eeeFit   =0.5*cd->DM_Contract(this,cd);
     double eeeFitFit=itsFittedChargeDensity->GetSelfRepulsion();
-    te.EeeFit    += eeeFit;
-    te.EeeFitFit += eeeFitFit;
-    te.Eee       += 2*eeeFit - eeeFitFit;
+    te.AddDiagnostic("EeeFit",    eeeFit);
+    te.AddDiagnostic("EeeFitFit", eeeFitFit);
+    te.Add("Eee", 2*eeeFit - eeeFitFit, EnergyRole::Potential);
 }
 
 } //namespace

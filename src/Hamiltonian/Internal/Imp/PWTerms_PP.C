@@ -86,8 +86,9 @@ rsmat_t Ven_PP_Short::MakeMatrixR(const robs_t* bs, const Spin& s) const {return
 void Ven_PP_Short::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Een is the band expectation over the (G!=0) matrix (== the prototype's electron-ion energy).
-    te.Een     += cd->DM_Contract(this);                 // integral rho V_loc,short (G!=0)
-    te.E_alphaZ+= cd->GetTotalCharge()*itsAlphaZ;        // SHORT G=0 alignment (0 for a finite structure)
+    const double e=cd->DM_Contract(this);                                  // integral rho V_loc,short (G!=0)
+    te.Add("Een",      e, EnergyRole::Potential, e);                        // linear
+    te.Add("E_alphaZ", cd->GetTotalCharge()*itsAlphaZ, EnergyRole::Constant, 0.0);   // SHORT G=0 alignment (0 for a finite structure); not in any eigenvalue
 }
 
 std::ostream& Ven_PP_Short::Write(std::ostream& os) const
@@ -135,8 +136,8 @@ void Ven_PP_NonLocal::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Electron-ion, and short-ranged by construction, so no G=0 alignment of its own.
     const double eNL = cd->DM_Contract(this);            // Tr(D V_NL)
-    te.Een   += eNL;
-    te.EenNL += eNL;                                     // the diagnostic V_loc/V_NL split (Een keeps the total)
+    te.Add("Een", eNL, EnergyRole::Potential, eNL);      // linear
+    te.AddDiagnostic("EenNL", eNL);                      // the diagnostic V_loc/V_NL split (Een keeps the total)
     if (!itsByL.empty())
     {   // GPW_NL_PER_L: the per-channel decomposition of eNL (l=-1 = a basis that answered lumped).
         std::cout << "[NL per-l]";
@@ -194,8 +195,9 @@ rsmat_t Ven_PP_Long::MakeMatrixR(const robs_t* bs, const Spin& s) const {return 
 void Ven_PP_Long::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Electron-ION, so NO 1/2: the double-counting factor belongs to the electron-electron Hartree alone.
-    te.Een     += cd->DM_Contract(this);                 // Tr(D V_long) = E_een,long
-    te.E_alphaZ+= cd->GetTotalCharge()*itsAlphaZ;        // LONG G=0 alignment (0 for a finite structure)
+    const double e=cd->DM_Contract(this);                                  // Tr(D V_long) = E_een,long
+    te.Add("Een",      e, EnergyRole::Potential, e);                        // linear
+    te.Add("E_alphaZ", cd->GetTotalCharge()*itsAlphaZ, EnergyRole::Constant, 0.0);   // LONG G=0 alignment (0 for a finite structure)
 }
 
 std::ostream& Ven_PP_Long::Write(std::ostream& os) const

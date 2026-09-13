@@ -342,7 +342,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                                itsAccelerator->MinSV(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
                                itsIterationCount>1 && config!=prevConfig, lineSearch,
-                               (N!=0.0 ? eb.GridChargeLost/N : 0.0),
+                               (N!=0.0 ? eb.charge.lost/N : 0.0),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
                                itsOrderProbe ? itsOrderName.c_str() : nullptr, order };
             DisplayColumns(cout, ipar, tr);
@@ -425,7 +425,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
 //             Etotal       2+V/K    Del(E)  Del(Ro) [F,D]   Nproj    SVMin   Bail      relax
 // │ │                      (1e+05)  (1e-02) (2e-05) (2e-06) 
     itsIterationCount--;
-    size_t nprec=12,ndigits=log10(-eb.Een)+1,w=1+ndigits+1+nprec;
+    size_t nprec=12,ndigits=log10(-eb["Een"])+1,w=1+ndigits+1+nprec;
     nprec-=ndigits;
     if (ipar.Verbose)
     {
@@ -433,21 +433,21 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // cout << "ndigits=" << ndigits << " nprec=" << nprec << endl;
         cout << "Energy    Breakdown  "
         << "Total: " << std::fixed << setw(w) << setprecision(nprec) << eb.GetTotalEnergy() << "  "
-        << "Kinetic: " << std::fixed << setw(w) << setprecision(nprec) << eb.Kinetic << "  "
+        << "Kinetic: " << std::fixed << setw(w) << setprecision(nprec) << eb["Kinetic"] << "  "
         << "Potential: " << std::fixed << setw(w) << setprecision(nprec) << eb.GetPotentialEnergy() << endl;
         cout << "Potential Breakdown  "
-        << "Een  : " << std::fixed << setw(w) << setprecision(nprec) << eb.Een << "  "
-        << "Eee    : " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee << "  "
-        << "Eex      : " << std::fixed << setw(w) << setprecision(nprec) << eb.Exc << endl;
-        if (eb.EenNL!=0.0)   // PP runs only: the diagnostic V_loc/V_NL split of Een (Een is the total)
+        << "Een  : " << std::fixed << setw(w) << setprecision(nprec) << eb["Een"] << "  "
+        << "Eee    : " << std::fixed << setw(w) << setprecision(nprec) << eb["Eee"] << "  "
+        << "Eex      : " << std::fixed << setw(w) << setprecision(nprec) << eb["Exc"] << endl;
+        if (eb.Diagnostic("EenNL")!=0.0)   // PP runs only: the diagnostic V_loc/V_NL split of Een (Een is the total)
             cout << "Een       Breakdown  "
-            << "Eloc : " << std::fixed << setw(w) << setprecision(nprec) << eb.Een-eb.EenNL << "  "
-            << "EenNL  : " << std::fixed << setw(w) << setprecision(nprec) << eb.EenNL << endl;
+            << "Eloc : " << std::fixed << setw(w) << setprecision(nprec) << eb["Een"]-eb.Diagnostic("EenNL") << "  "
+            << "EenNL  : " << std::fixed << setw(w) << setprecision(nprec) << eb.Diagnostic("EenNL") << endl;
         cout << "Virial               V/K  : " << std::fixed << setw(w) << setprecision(11) << eb.GetVirial() << "  ";
-        if (eb.Exc!=0.0)
-            cout << "Eee/Exc: " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee/eb.Exc << "  " ;
-        if (eb.RestMass!=0.0)
-            cout << "RestMass : " << std::fixed << setw(w) << setprecision(nprec) << eb.RestMass ;
+        if (eb["Exc"]!=0.0)
+            cout << "Eee/Exc: " << std::fixed << setw(w) << setprecision(nprec) << eb["Eee"]/eb["Exc"] << "  " ;
+        if (eb["RestMass"]!=0.0)
+            cout << "RestMass : " << std::fixed << setw(w) << setprecision(nprec) << eb["RestMass"] ;
         cout << endl;
         DisplayEigen();
     }
@@ -603,7 +603,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>*
     // and the XC energies both live under here (doc/ParallelAndOraclePlan.md 1.1).
     qchem::report::Timed timed("scf: total energy (all terms)");
     EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(cd);
-    eb.MinusTS = itsOccPolicy->EntropyTerm();
+    eb.Add("MinusTS", itsOccPolicy->EntropyTerm(), EnergyRole::Entropy, 0.0);   // the Mermin -TS: an energy, not in any eigenvalue
     return eb;
 }
 

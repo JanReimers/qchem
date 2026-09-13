@@ -965,8 +965,8 @@ TEST_F(PlaneWaveDFT, VnnPeriodicUsesEwald)
     EnergyBreakdown eb;
     vnn.GetEnergy(eb, nullptr);                        // periodic branch ignores the density
     double ref=EwaldEnergy(*cell, rvec_t{4.0,4.0});
-    EXPECT_NEAR(eb.Enn, ref, 1e-9);                    // routes through Ewald
-    EXPECT_NEAR(eb.Enn, -8.40046, 1e-4);              // == the Si ion-ion Madelung energy
+    EXPECT_NEAR(eb["Enn"], ref, 1e-9);                    // routes through Ewald
+    EXPECT_NEAR(eb["Enn"], -8.40046, 1e-4);              // == the Si ion-ion Madelung energy
 }
 
 // (The GTH database-reader unit test lives in src/BasisSet/Lattice_3D/tests/GTH_UT.C -- it needs only
@@ -1360,7 +1360,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     }
     ASSERT_TRUE(converged);
     std::cout << "[Si framework-Gamma] charge="<<cd->GetTotalCharge()<<" Etot="<<E.GetTotalEnergy()
-              << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc<<")" << std::endl;
+              << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]<<" Eee="<<E["Eee"]<<" Exc="<<E["Exc"]<<")" << std::endl;
 
     EXPECT_NEAR(cd->GetTotalCharge(), 8.0, 1e-6);                 // 8 valence electrons
     // This manual Hamiltonian has no ion-ion term; the band-structure (electronic) energy is the
@@ -1432,14 +1432,14 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     Run uni=run(4.0, qchem::ChargeDensity::SeedStrategy::Uniform);
     std::cout << "[Si SCFIterator-Gamma] SAD iters="<<sad.iters<<"  Uniform iters="<<uni.iters
               << "  SAD Etot="<<sad.E.GetTotalEnergy()
-              << "  (Ekin="<<sad.E.Kinetic<<" Een="<<sad.E.Een<<" Eee="<<sad.E.Eee<<" Exc="<<sad.E.Exc<<")" << std::endl;
+              << "  (Ekin="<<sad.E["Kinetic"]<<" Een="<<sad.E["Een"]<<" Eee="<<sad.E["Eee"]<<" Exc="<<sad.E["Exc"]<<")" << std::endl;
 
     EXPECT_TRUE(sad.conv);
     EXPECT_NEAR(sad.charge,                  8.0,    1e-6);   // 8 valence electrons
     EXPECT_NEAR(sad.E.GetElectronicEnergy(), 1.468,  5e-3);   // band energy matches the standalone prototype
     // Physical total: electronic + ion-ion Ewald (Enn) + dropped-G=0 alignment (E_alphaZ) -- now NEGATIVE.
     // (Underconverged at Ecut=4 / Gamma-only; the converged Si total is ~-7.9 Ha/cell.)
-    EXPECT_NEAR(sad.E.GetTotalEnergy(),     -7.2273, 5e-3) << "Enn="<<sad.E.Enn<<" E_alphaZ="<<sad.E.E_alphaZ;
+    EXPECT_NEAR(sad.E.GetTotalEnergy(),     -7.2273, 5e-3) << "Enn="<<sad.E["Enn"]<<" E_alphaZ="<<sad.E["E_alphaZ"];
     EXPECT_TRUE(uni.conv);
     EXPECT_NEAR(sad.E.GetTotalEnergy(), uni.E.GetTotalEnergy(), 1e-3);   // seed cannot change the answer
 
@@ -1489,8 +1489,8 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     double charge=cd->GetTotalCharge();
     qchem::EnergyBreakdown E=scf.GetEnergy();
     std::cout << "["<<label<<"] nPW="<<n<<" iters="<<scf.GetIterationCount()<<" charge="<<charge
-              << " Etot="<<E.GetTotalEnergy() << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een
-              << " Eee="<<E.Eee<<" Exc="<<E.Exc<<" Enn="<<E.Enn<<" E_alphaZ="<<E.E_alphaZ<<")" << std::endl;
+              << " Etot="<<E.GetTotalEnergy() << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]
+              << " Eee="<<E["Eee"]<<" Exc="<<E["Exc"]<<" Enn="<<E["Enn"]<<" E_alphaZ="<<E["E_alphaZ"]<<")" << std::endl;
     return {scf.Converged(), charge, E, scf.GetIterationCount()};
 }
 } // namespace
@@ -1523,7 +1523,7 @@ TEST_F(PlaneWaveDFT, FrameworkNaFThroughSCFIterator)
     EXPECT_NEAR(I.charge, 8.0, 1e-6);             // 1 (Na) + 7 (F) valence electrons, conserved by the ionic seed
     // Regression anchor (Ecut=6, Gamma-only -> underconverged but deterministic), like the Si total.
     // Negative: the ionic Madelung (Enn~-14) + G=0 alignment dominate.
-    EXPECT_NEAR(I.E.GetTotalEnergy(), -20.3293, 5e-3) << "Enn="<<I.E.Enn<<" E_alphaZ="<<I.E.E_alphaZ;
+    EXPECT_NEAR(I.E.GetTotalEnergy(), -20.3293, 5e-3) << "Enn="<<I.E["Enn"]<<" E_alphaZ="<<I.E["E_alphaZ"];
     EXPECT_NEAR(I.E.GetTotalEnergy(), U.E.GetTotalEnergy(), 1e-3);   // seed-independence of the converged answer
     // IonicSAD now HALVES the iterations vs Uniform (17 vs 35 at Ecut=6) -- the DIFFUSE F- pseudo-valence
     // density does it.  History: the old seed scaled the NEUTRAL F valence x8/7 (too COMPACT -> high-G noise ->
@@ -1629,7 +1629,7 @@ TEST_F(PlaneWaveDFT, FrameworkCsIThroughSCFIterator)
     EXPECT_NEAR(R.charge, 8.0, 1e-6);             // 1 (Cs) + 7 (I) valence electrons (d-projectors active)
     // Regression anchor (Ecut=4, Gamma-only).  The point is the d-channel assembly runs end-to-end;
     // both species' l=2 Kleinman-Bylander projectors contribute via the (2l+1)P_2(cos gamma) path.
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -11.3868, 5e-3) << "Enn="<<R.E.Enn<<" E_alphaZ="<<R.E.E_alphaZ;
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -11.3868, 5e-3) << "Enn="<<R.E["Enn"]<<" E_alphaZ="<<R.E["E_alphaZ"];
 }
 
 // G-space Hartree path: V_H assembled directly from the density's Fourier coefficients rho-tilde(dm)
@@ -1721,13 +1721,13 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
 
     std::cout << "[Si SCFIterator-2x2x2] iters="<<scf.GetIterationCount()<<" charge="<<charge
               << " Etot="<<E.GetTotalEnergy()<<" gap="<<gap<<" Ha ("<<gap*27.2114<<" eV)"
-              << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc<<")" << std::endl;
+              << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]<<" Eee="<<E["Eee"]<<" Exc="<<E["Exc"]<<")" << std::endl;
 
     EXPECT_TRUE(scf.Converged());
     EXPECT_NEAR(charge,                  8.0,    1e-6);    // 8 valence electrons (BZ-weighted sum)
     EXPECT_NEAR(E.GetElectronicEnergy(), 0.934,  5e-3);    // band energy matches prototype ScfSiliconBZSampled
     // Physical total = electronic + ion-ion Ewald (same per-cell Madelung as Gamma) + G=0 alignment.
-    EXPECT_NEAR(E.GetTotalEnergy(),     -7.7613, 5e-3) << "Enn="<<E.Enn<<" E_alphaZ="<<E.E_alphaZ;
+    EXPECT_NEAR(E.GetTotalEnergy(),     -7.7613, 5e-3) << "Enn="<<E["Enn"]<<" E_alphaZ="<<E["E_alphaZ"];
     EXPECT_GT(gap, 0.0);                              // Si is a semiconductor
 }
 

@@ -234,8 +234,8 @@ void EmitStageSummary(const std::string& label, size_t s, size_t n, double kT,
     const std::streamsize prec0=std::cout.precision();
     std::cout << "["<<label<<" stage "<<s+1<<"/"<<n<<"] kT="<<kT<<" conv="<<converged<<" iters="<<iters
               << std::setprecision(10)
-              << " A=E-TS="<<E.GetTotalEnergy()<<" -TS="<<E.MinusTS
-              << " E(internal)="<<(E.GetTotalEnergy()-E.MinusTS)
+              << " A=E-TS="<<E.GetTotalEnergy()<<" -TS="<<E["MinusTS"]
+              << " E(internal)="<<(E.GetTotalEnergy()-E["MinusTS"])
               << std::setprecision(prec0) << std::endl;
 }
 
@@ -658,7 +658,7 @@ void SolidCalculation::AttachProbes()
     itsImp->scf->SetObserver([this,userObs](const qchem::SCFIterator::SCFProgress& p)
     {
         itsImp->diag.itsOrder.push_back(itsImp->lastOrder);
-        itsImp->diag.itsEee  .push_back(p.eb.Eee);
+        itsImp->diag.itsEee  .push_back(p.eb["Eee"]);
         if (userObs) userObs(p);
     });
 }

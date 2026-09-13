@@ -147,7 +147,7 @@ void Vee_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
                   << " diff=" << e-eTrace << " rel=" << (eTrace!=0.0 ? (e-eTrace)/eTrace : 0.0)
                   << std::setprecision(6) << std::endl;
     }
-    te.Eee += e;
+    te.Add("Eee", e, EnergyRole::Potential);   // Tr(D V_H[rho_mix]) under mixing is NOT 2e: not claimed (see FittedVee)
 }
 
 std::ostream& Vee_Hartree::Write(std::ostream& os) const

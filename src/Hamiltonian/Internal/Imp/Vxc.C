@@ -37,7 +37,8 @@ void Vxc::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     // E_x = 1/2 Tr(D.K_scaled) from this term's own whole-system (already itsScale-scaled) exchange blocks.
     ContractAll(cd);
-    te.Exc+=0.5*cd->DM_ContractBlocks(itsJKs);
+    const double trDK=cd->DM_ContractBlocks(itsJKs);
+    te.Add("Exc", 0.5*trDK, EnergyRole::Potential, trDK);   // quadratic: E = 1/2 Tr(D K), Tr(D V) = Tr(D K)
 }
 
 std::ostream& Vxc::Write(std::ostream& os) const

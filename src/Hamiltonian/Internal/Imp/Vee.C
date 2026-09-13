@@ -43,7 +43,8 @@ void Vee::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
     // E_ee = 1/2 Tr(D.J), taken from THIS term's own whole-system Coulomb blocks -- no per-irrep GetMatrix
     // round-trip through DM_Contract (which is what kept Vee tied to the 3-arg GetMatrix / tDynamic_CC).
     ContractAll(cd);
-    te.Eee+=0.5*cd->DM_ContractBlocks(itsJKs);
+    const double trDJ=cd->DM_ContractBlocks(itsJKs);
+    te.Add("Eee", 0.5*trDJ, EnergyRole::Potential, trDJ);   // quadratic: E = 1/2 Tr(D J), Tr(D V) = Tr(D J)
 }
 
 std::ostream& Vee::Write(std::ostream& os) const

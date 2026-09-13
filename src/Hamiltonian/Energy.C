@@ -1,77 +1,112 @@
-// File: Energy.C  Store and display a breakdown of the total energy.
+// File: Hamiltonian/Energy.C  The energy (and charge) accounting of one density: keyed contributions with ROLES.
+//
+// V1.12 (user review 2026-09-13).  This used to be a struct of 13 public doubles, of which eight summed to the
+// total, five were diagnostics that must NOT be summed (EenNL is a subset of Een; the Dunlap fit pieces are
+// already combined into Eee) and one was not an energy at all.  Every new term family edited the struct, the
+// totals, op+= and Display.  Now a term INSERTS its contribution under a unique name with a ROLE, and the
+// totals are role sums -- a relativistic Hamiltonian adds "RestMass", a DFT one "Exc" (or "Eex"+"Ecorr"),
+// +U adds "E_U", and nothing here changes.
+module;
+#include <map>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 export module qchem.Energy;
- 
-namespace qchem
+
+export namespace qchem
 {
 
-export class EnergyBreakdown
+//! \brief WHAT KIND of energy a contribution is -- the axis the totals are summed on.  A ROLE, not a name
+//! prefix: a naming convention is one nobody compiles.
+enum class EnergyRole
+{
+    Kinetic,    //!< \f$\langle T\rangle\f$ (NR \f$\tfrac12\langle p^2\rangle\f$, or the Dirac kinetic energy)
+    Potential,  //!< an electronic potential energy: electron-ion, Hartree, exchange, correlation, +U, ...
+    Constant,   //!< a density-INDEPENDENT constant of the structure: the ion-ion Madelung/Coulomb \f$E_{nn}\f$,
+                //!< the periodic \f$G=0\f$ alignment \f$E_{\alpha Z}\f$ (QE/CP2K's "alpha Z" -- the finite remainder
+                //!< of the divergent electron/ion \f$G=0\f$ terms once the neutralising background is imposed)
+    RestMass,   //!< \f$\langle mc^2\rangle\f$ of a Dirac run
+    Entropy     //!< the Mermin \f$-TS\le0\f$ of Fermi smearing: the ONLY footprint of smearing on the energy (the
+                //!< entropy never touches \f$H\f$; \f$f\f$ enters only \f$D\f$).  Stamped by the iterator at fill time.
+};
+
+//! \brief One contribution.  \c TrDV is the term's EXPECTATION in the Fock operator, \f$\mathrm{Tr}(D\,V_{\rm term})\f$
+//! -- the second number the BAND-ENERGY form of the total needs (\c GetBandEnergy).  Optional: a term supplies it
+//! where it is free (a linear term: \f$=E\f$; a Coulomb/exchange quadratic: \f$2E\f$; a constant: 0) and leaves it
+//! absent where it is not (the fitted Hartree and the XC terms under density MIXING, where \f$\mathrm{Tr}(D_{out}
+//! V[\rho_{in}])\f$ is the Harris–Foulkes subtlety and is not to be guessed).  Absent is honest; the band form
+//! then throws naming the term, rather than silently evaluating a different functional.
+struct EnergyTerm
+{
+    double                E    = 0.0;
+    std::optional<double> TrDV;
+    EnergyRole            role = EnergyRole::Potential;
+};
+
+//! \brief The CHARGE accounting of the same density -- the seed of the structure the user asked for
+//! (\f$\{N,\rho_\uparrow,\rho_\downarrow,\text{lost},\text{atoms}\{\rho_{i\uparrow},\rho_{i\downarrow},m_i\}\}\f$).
+//! Today it carries the one number that used to ride the energy struct as "GridChargeLost": the signed charge
+//! the collocation grid could not represent, \f$\int\tilde\rho\,d^3r-\mathrm{Tr}(DS)\f$ (== CP2K's "Electronic
+//! density on regular grids" error; 0 on a gridless path).  "Grid" is the MECHANISM, so it is not in the name.
+//! Growing this into the owner of the per-site moments is doc/CleanupCandidates.md R1.0h.
+struct ChargeBreakdown
+{
+    double lost = 0.0;
+};
+
+//! \brief The energy breakdown of one density: keyed, role-tagged, insertion-ORDERED contributions (Display
+//! reads in term order), plus a second map of DIAGNOSTICS that are reported but never summed.
+class EnergyBreakdown
 {
 public:
-    EnergyBreakdown();
+    //! A term's contribution.  Merges by name (\f$+=\f$): the two spin channels of a polarized term, or the
+    //! per-irrep pieces of one, land in ONE entry.  The role must agree with an existing entry's.
+    void Add(const std::string& name, double E, EnergyRole role, std::optional<double> TrDV = std::nullopt);
+    //! A diagnostic beside the contributions: reported, NEVER summed (a sub-split such as the nonlocal part of
+    //! \f$E_{en}\f$, or the Dunlap fit pieces whose combination is already in the Hartree entry).  Merges (+=).
+    void AddDiagnostic(const std::string& name, double v);
 
-    double GetPotentialEnergy() const
-    {
-        return Enn+Een+Eee+Exc+E_alphaZ;
-    }
-    //! Band-structure electronic energy: kinetic + electron-ion + electron-electron + xc, EXCLUDING the
-    //! lattice constant corrections -- the ion-ion Madelung (Enn) and the dropped-G=0 alignment (E_alphaZ).
-    //! For a plane-wave crystal this is exactly the prototype's "electronic" energy, a clean SCF
-    //! stationary-point cross-check; the physical total adds Enn + E_alphaZ on top.
-    double GetElectronicEnergy() const
-    {
-        return Kinetic+Een+Eee+Exc;
-    }
-    //! Total energy.  With Fermi smearing (SCFParams::SmearingkT>0) this is the Mermin FREE ENERGY
-    //! \f$A=E-TS\f$ -- the quantity the finite-T SCF makes stationary -- because \c MinusTS (\f$-TS\le0\f$)
-    //! is folded in here; with no smearing \c MinusTS is 0 and this is the plain internal energy \f$E\f$.
-    //! Kept honest at ONE seam: the iterator's E-flat gate, the facade GetEnergy(), and the display all
-    //! read this, so they gate/report the free energy automatically once smearing is on (doc/GPWPlan1.md 4b).
-    double GetTotalEnergy    () const
-    {
-        return Kinetic + GetPotentialEnergy()+RestMass+MinusTS;
-    }
-    double GetVirial         () const;
-    void   Display           () const;
+    double operator[](std::string_view name) const;   //!< a contribution's E; 0 if absent
+    double Diagnostic(std::string_view name) const;   //!< a diagnostic;       0 if absent
+    bool   Has(std::string_view name) const;
 
-    EnergyBreakdown& operator+=  (const EnergyBreakdown&);
+    //! Total energy = the sum of EVERY contribution.  With Fermi smearing this is the Mermin FREE ENERGY
+    //! \f$A=E-TS\f$ -- the quantity the finite-T SCF makes stationary -- because the Entropy entry is in the sum;
+    //! with no smearing that entry is absent and this is the plain internal energy.  Kept honest at ONE seam: the
+    //! iterator's E-flat gate, the facade GetEnergy() and the display all read this (doc/GPWPlan1.md 4b).
+    double GetTotalEnergy     () const;
+    //! \f$\sum\f$ {Potential, Constant} -- the virial's denominator (the constants count: the theorem is for the
+    //! whole system).
+    double GetPotentialEnergy () const;
+    //! \f$\sum\f$ {Kinetic, Potential} -- the band-structure electronic energy, EXCLUDING the structure constants
+    //! (\f$E_{nn}\f$, \f$E_{\alpha Z}\f$), rest mass and entropy: for a plane-wave crystal exactly the prototype's
+    //! "electronic" energy, a clean SCF stationary-point cross-check.
+    double GetElectronicEnergy() const;
+    //! \f$\sum\f$ {Kinetic}.
+    double GetKineticEnergy   () const;
+    double GetVirial          () const { return GetPotentialEnergy()/GetKineticEnergy(); }
+    //! \brief THE BAND FORM: \f$E=\sum_i f_i\epsilon_i+\sum_{\rm terms}(E_{\rm term}-\mathrm{Tr}(DV_{\rm term}))\f$.
+    //! The kinetic term's correction is identically 0, so this never evaluates \f$\langle T\rangle\f$ -- the
+    //! point of the form.  \a sumFEps = \f$\sum_i f_i\epsilon_i\f$ from the wave function.  THROWS, naming the
+    //! term, if any contribution has no \c TrDV.
+    double GetBandEnergy(double sumFEps) const;
 
-    double Kinetic;   //!< Kinetic ENERGY value \f$\langle T\rangle\f$ (NR: \f$\tfrac12\langle p^2\rangle\f$; Dirac: relativistic). The actual energy, not the <p^2> block.
-    double Enn;
-    double E_alphaZ;    //!< The "αZ term" (a.k.a. the G=0 potential-alignment): the electrons' interaction with
-                        //!< the CELL-AVERAGE (G=0 Fourier component) of the smooth local pseudopotential plus the
-                        //!< neutralising background, \f$(N/\Omega)\sum_a\alpha_a\f$ with \f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$.
-                        //!< This is the FINITE remainder of the divergent electron/ion G=0 Coulomb terms once the
-                        //!< neutralising background is imposed (bare G=0 electron self-energy is +∞; the background
-                        //!< sets it to 0, and this αZ constant is what's left).  Periodic plane-wave/GPW crystals
-                        //!< only (0 for a finite/molecular structure -- no background).  Named for QE/CP2K's "alpha Z".
-    double Een;
-    //! The NONLOCAL (Kleinman-Bylander separable) subset of \c Een: \f$\sum_{lm}\mathrm{Tr}(D\,V_{NL}^{lm})\f$,
-    //! filled by the PP nonlocal terms only (0 for an all-electron run; \c Een already CONTAINS it -- this is
-    //! a diagnostic split, so \c GetPotentialEnergy() never reads it).  Motivation (2026-08-12, MnO ordering
-    //! campaign): the FM/AFM ordering defect is a d-selective ~+30 mHa/state bias vs CP2K living in the
-    //! non-XC lump, and V_loc-vs-V_NL is the first cut that separates the KB channel from the grid class.
-    //! NB our Cartesian d shells carry an s-contaminant (x^2+y^2+z^2), so the l=0 projectors legitimately
-    //! act on "d" functions -- a per-l refinement would be the next cut if this one convicts V_NL.
-    double EenNL;
-    double Eee;
-    double EeeFit;
-    double EeeFitFit;
-    double Exc;
-    double ExcFit;
-    double ExcFitFit;
-    double RestMass;
-    //! GPW health DIAGNOSTIC (not an energy): signed grid-charge leak \f$\int\tilde\rho\,d^3r - \mathrm{Tr}(DS)\f$
-    //! -- the electrons lost to collocation-grid truncation (== CP2K's "Electronic density on regular grids"
-    //! error).  Set by the plane-wave XC term; 0 on the molecular path (no grid).  The per-iteration solid SCF
-    //! display normalises it by \f$N\f$ (ρ_lost/N) so it reads the same at N=8 or N=800.
-    double GridChargeLost;
-    //! Mermin electronic-entropy free-energy term \f$-TS\f$ (\f$\le0\f$), the ONLY footprint of Fermi
-    //! smearing on the energy (the entropy NEVER touches \f$H\f$: at fixed \f$T\f$ every operator is
-    //! unchanged, \f$f\f$ enters only the density \f$D\f$).  \f$S=-k\sum_i g_i[f_i\ln f_i+(1-f_i)\ln(1-f_i)]\f$
-    //! from the occupations; this stores \f$-TS=kT\sum_i g_i[f_i\ln f_i+(1-f_i)\ln(1-f_i)]\f$.  Computed by
-    //! the wavefunction at fill time and stamped in by the SCFIterator (the Hamiltonian terms never see it).
-    //! 0 with no smearing.  Folded into GetTotalEnergy() so that becomes the free energy \f$A=E-TS\f$.
-    double MinusTS;
+    EnergyBreakdown& operator+=(const EnergyBreakdown&);
+    void Display() const;
+
+    const std::vector<std::pair<std::string,EnergyTerm>>& Terms      () const { return itsTerms; }
+    const std::vector<std::pair<std::string,double>>&     Diagnostics() const { return itsDiagnostics; }
+
+    ChargeBreakdown charge;   //!< the charge accounting of the same density (see ChargeBreakdown)
+
+private:
+    double RoleSum(EnergyRole a) const;
+    double RoleSum(EnergyRole a, EnergyRole b) const;
+    std::vector<std::pair<std::string,EnergyTerm>> itsTerms;         //!< insertion-ordered; names unique
+    std::vector<std::pair<std::string,double>>     itsDiagnostics;   //!< insertion-ordered; names unique
 };
 
 } //namespace

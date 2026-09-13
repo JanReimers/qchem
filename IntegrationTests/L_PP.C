@@ -152,7 +152,7 @@ TEST(L_PP, FacadePreservesUnitCell)
     Molecule he; he.Insert(new Atom(2, 0.0, {0,0,0}));
     Calculation cFin(he, {.basis = "dzvp"});
     EXPECT_TRUE(cFin.GetStructure().isFinite());          // a Molecule stays finite
-    EXPECT_NEAR(cFin.EnergyTerms().Enn, 0.0, 1e-12);      // single finite atom -> no ion-ion
+    EXPECT_NEAR(cFin.EnergyTerms()["Enn"], 0.0, 1e-12);      // single finite atom -> no ion-ion
 
     // Lattice run: the same He centred in a cubic cell.  The facade must keep the UnitCell periodic.
     const double a = 10.0;
@@ -164,5 +164,5 @@ TEST(L_PP, FacadePreservesUnitCell)
     EXPECT_NEAR(cCell.GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone
 
     // The ion-ion term routed through the periodic Ewald sum (a sliced single-atom Molecule would give 0).
-    EXPECT_GT(std::fabs(cCell.EnergyTerms().Enn), 1e-3);
+    EXPECT_GT(std::fabs(cCell.EnergyTerms()["Enn"]), 1e-3);
 }

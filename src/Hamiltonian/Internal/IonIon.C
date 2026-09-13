@@ -76,7 +76,7 @@ public:
 
     virtual void GetEnergy(EnergyBreakdown& te, const tDM_CD<T>*) const override
     {
-        te.Enn += itsEnn;   // += not =: R1.2's rule (a second Enn contributor must not be clobbered)
+        te.Add("Enn", itsEnn, EnergyRole::Constant, 0.0);   // merges by name: a second Enn contributor adds, never clobbers (R1.2)
     }
 
     virtual std::ostream& Write(std::ostream& os) const override

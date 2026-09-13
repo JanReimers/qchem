@@ -55,7 +55,8 @@ public:
 
     virtual void GetEnergy(EnergyBreakdown& te, const tDM_CD<T>* cd) const override
     {
-        te.Kinetic += cd->DM_Contract(this);   // <T> = integral rho (1/2 p^2)
+        const double t=cd->DM_Contract(this);   // <T> = integral rho (1/2 p^2)
+        te.Add("Kinetic", t, EnergyRole::Kinetic, t);   // linear: E == Tr(D T), so its band correction is 0
     }
 
     virtual std::ostream& Write(std::ostream& os) const override

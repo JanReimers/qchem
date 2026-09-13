@@ -78,7 +78,7 @@ TEST(Si2_PP_U, LargeSeparation)
     // regression (mHa-scale).  E2 (the dimer SCF) is unaffected (moves ~6e-11), so it keeps the tight 1e-6.
     EXPECT_NEAR(E1, -3.759438815, 1e-5);      // pinned regression anchor: Si pseudo-atom (sipp basis)
     EXPECT_NEAR(E2, -7.516293157, 1e-6);      // pinned regression anchor: Si2 at R=20 bohr
-    EXPECT_NEAR(eb.Enn, 16.0/R,   1e-6);      // Zion=4 ion-ion (Z=14 -> 196/R would fail): the routing check
+    EXPECT_NEAR(eb["Enn"], 16.0/R,   1e-6);      // Zion=4 ion-ion (Z=14 -> 196/R would fail): the routing check
     EXPECT_NEAR(E2, 2.0*E1,       5e-3);      // multi-atom PP additivity: neutral fragments -> ~2x at large R
 }
 
@@ -99,7 +99,7 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
     osi.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));   // Si : GTH q4 -> Zion 4
     Calculation cOSi(osi, {.basis = "sipp", .pseudopotential = true});   // ctor builds the per-species PP + converges
 
-    EXPECT_NEAR(cOSi.EnergyTerms().Enn, 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
+    EXPECT_NEAR(cOSi.EnergyTerms()["Enn"], 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
     EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)
 }
 // Oxygen pseudo-atom, 6 valence electrons (GTH-LDA q6), via the ATOM path: Slater basis, High accuracy,

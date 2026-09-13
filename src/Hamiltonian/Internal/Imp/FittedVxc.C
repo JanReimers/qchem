@@ -126,7 +126,7 @@ void FittedVxc::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
     // E_xc = integral eps_xc rho: the density contracts THIS term's own E matrix (GetEMatrix), one irrep
     // block at a time -- uniform for exchange (eps_x = 3/4 v_x), correlation (eps_c != 3/4 v_c) and libxc.
     // Retires the old 3/4-virial shortcut.
-    te.Exc += cd->DM_Contract(this,cd);
+    te.Add("Exc", cd->DM_Contract(this,cd), EnergyRole::Potential);   // Tr(D V_xc) under mixing: not claimed (see FittedVee)
 }
 
 std::ostream& FittedVxc::Write(std::ostream& os) const

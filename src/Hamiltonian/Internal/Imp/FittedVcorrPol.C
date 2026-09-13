@@ -172,7 +172,7 @@ void FittedVcorrPol::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const
 {
     // E_c = integral eps_c(rho_up,rho_down) rho.  The polarized DM_Contract sums both channels against the
     // (spin-independent) eps_c fit, giving integral eps_c (rho_up+rho_down) = integral eps_c rho_total.
-    te.Exc += cd->DM_Contract(this, cd);
+    te.Add("Exc", cd->DM_Contract(this, cd), EnergyRole::Potential);   // Tr(D V) not claimed (mixing; see FittedVee)
 }
 
 std::ostream& FittedVcorrPol::Write(std::ostream& os) const
