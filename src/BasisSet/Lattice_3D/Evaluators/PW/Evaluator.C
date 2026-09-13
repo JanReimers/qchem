@@ -4,9 +4,11 @@
 // geometry of a plane-wave block -- the reciprocal lattice, the crystal momentum k, the cutoff set
 // {G} -- lives HERE, in one place, and the evaluator ANSWERS the grid-geometry questions (evaluate a
 // plane wave at r, the overlap/kinetic matrices, the reusable G-space potential assembly).  A concrete
-// lattice IBS then IS-A PW_Evaluator (a sibling base subobject reached by the templated EPW_* mixins via
-// dynamic_cast, exactly as EOrbital_1E_IBS<E> reaches its NR_Evaluator), so the ORBITAL plane-wave basis
-// and its (density-fit) auxiliary basis SHARE this evaluator instead of duplicating op(r)/overlap/etc.
+// lattice IBS then IS-A PW_Evaluator (a sibling base subobject reached by the templated Lattice::*_IBS
+// mixins via dynamic_cast, exactly as EOrbital_1E_IBS<E> reaches its NR_Evaluator), so the ORBITAL
+// plane-wave basis and its (density-fit) auxiliary basis SHARE this evaluator instead of duplicating
+// op(r)/overlap/etc.  The spec it satisfies (isLattice_{1E,DFT}_Evaluator + the mixins) lives in the core,
+// qchem.BasisSet.Lattice_IBS -- an engine knows nothing of the spec, it merely meets it (TaxonomyPlan §1.7).
 //
 // Scope note: the density-driven G-space assembly (rho-tilde -> Hartree, the FFT XC route) is currently
 // kept on the concrete PlaneWave_IBS -- it is orbital-only (an auxiliary fit basis does not answer it) and
@@ -14,7 +16,6 @@
 // the grid DATA + the tier the fit basis reuses; the accessors below let the IBS's G-space methods read
 // that shared data.
 module;
-#include <concepts>
 #include <functional>
 #include <memory>
 #include <string>
@@ -57,8 +58,8 @@ enum class RasterFields { HartreeXC, HartreeOnly };
 //! 3-centre tensors.  It is GRID-FREE by design: the FFT/Poisson density grid (a stored \c PeriodicGridEvaluator)
 //! lives on \c PW_Grid_Evaluator below, carried only by the auxiliary density/fit basis -- so an orbital block
 //! never drags the grid it does not use (and GPW's Gaussian orbital evaluator, a grid-free sibling, reuses that
-//! same grid for its density).  A concrete IBS derives this as a base subobject and the EPW_* mixins forward the
-//! interface virtuals to it (\c dynamic_cast, the atom \c Cast() pattern), so the polymorphic dtor is required.
+//! same grid for its density).  A concrete IBS derives this as a base subobject and the Lattice::*_IBS mixins
+//! forward the interface virtuals to it (\c dynamic_cast, the atom \c Cast() pattern), so the polymorphic dtor is required.
 class PW_Evaluator
 {
 public:
@@ -98,8 +99,9 @@ public:
 
     //! \brief Assemble \f$\langle G|V|G'\rangle=\tilde V(m(G)-m(G'))\f$ from a caller-supplied G-space
     //! potential keyed by the reciprocal-index difference.  The plane-wave potential->orbital-matrix bridge
-    //! (a Fourier lookup): satisfies \c isPW_DFT_Evaluator and is forwarded by \c EPW_Orbital_DFT_IBS to the
-    //! tensors' \c applyAdjoint closures (ex the Orbital_DFT_IBS<dcmplx>::MakeOverlap bridge).  Named like its siblings \c OverlapMatrix / \c KineticMatrix /
+    //! (a Fourier lookup): the tensors' \c applyAdjoint closures use it (ex the Orbital_DFT_IBS<dcmplx>::MakeOverlap
+    //! bridge).  NOT part of the lattice spec (\c isLattice_DFT_Evaluator): a G-vector lookup is a PW
+    //! fit-family fact, not a T fact (TaxonomyPlan §1.7).  Named like its siblings \c OverlapMatrix / \c KineticMatrix /
     //! \c NuclearMatrix (an EVALUATOR method, distinct from the interface virtual it feeds -- as on the atom
     //! side -- so the concrete IBS inherits no name clash).  Also used internally by \c NuclearMatrix /
     //! \c LocalPotentialMatrix.
@@ -209,31 +211,6 @@ public:
 
 private:
     std::shared_ptr<const PeriodicGridEvaluator> itsGrid; //!< FFT/Poisson grid (B, Omega, N); shareable across k
-};
-
-//! \brief The plane-wave 1E evaluator concept the EPW_Orbital1E_IBS mixin templates against (mirrors the
-//! molecular/atom \c is1E_Evaluator).  Grid evaluation (size/Eval) + the one-electron matrices
-//! (overlap/kinetic/nuclear).  A single evaluator today; the concept documents the contract as more arrive
-//! (GPW supplies its own \c isPW_1E_Evaluator model, and the mixin is reused unchanged).
-template <class E> concept isPW_1E_Evaluator = requires (const E e, const rvec3_t& r, const Structure* cl)
-{
-    {e.size()             } -> std::same_as<size_t>;
-    {e.Eval(r)            } -> std::same_as<cvec_t>;
-    {e.EvalGradient(r)    } -> std::same_as<cvec3vec_t>;
-    {e.OverlapMatrix()    } -> std::same_as<chmat_t>;
-    {e.KineticMatrix()    } -> std::same_as<chmat_t>;
-    {e.NuclearMatrix(cl)  } -> std::same_as<chmat_t>;
-};
-
-//! \brief The plane-wave DFT evaluator concept the EPW_Orbital_DFT_IBS mixin templates against (mirrors the
-//! atom \c isDFT_Evaluator): the D-free reciprocal-space 3-centre tensors on top of the 1E tier.  GPW
-//! supplies its own model (Gaussian orbitals, PW density) and reuses the mixin unchanged.
-template <class E> concept isPW_DFT_Evaluator = isPW_1E_Evaluator<E> &&
-    requires (const E e, const std::function<dcmplx(const ivec3_t&)>& vt)
-{
-    {e.Repulsion3CTensor()} -> std::same_as<Projector3<dcmplx>>;
-    {e.Overlap3CTensor()  } -> std::same_as<Projector3<dcmplx>>;
-    {e.OverlapMatrix(vt)} -> std::same_as<chmat_t>;   // the potential->orbital-matrix bridge (Fourier lookup)
 };
 
 } //namespace

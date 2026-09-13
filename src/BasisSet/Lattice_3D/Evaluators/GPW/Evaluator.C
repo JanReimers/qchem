@@ -2,7 +2,7 @@
 //
 // The GPW sibling of PW_Evaluator (BasisSet/Lattice_3D/Evaluators/PW): a periodic ORBITAL evaluator whose
 // orbitals are GAUSSIANS (compact, good for core/valence) instead of plane waves, standing on a lattice.  It
-// satisfies the SAME isPW_1E_Evaluator concept, so the SAME EPW_Orbital1E_IBS<E> mixin builds the concrete
+// satisfies the SAME isLattice_1E_Evaluator concept, so the SAME Lattice::Orbital_1E_IBS<E> mixin builds the concrete
 // GPW_IBS -- "GPW is a new evaluator, not a new IBS" (doc/MolecularPP_HarmonizationRound2.md section 2.5).
 //
 // The genuinely-new numerics of GPW's 1E tier are the PERIODIC Gaussian two-centre integrals -- the Bloch
@@ -15,7 +15,7 @@
 // the result.  No exponents or radials ever cross into qcLattice_BS.
 //
 // SCOPE (first increment): the GAMMA point (k=0).  The lattice sums are real (rsmat_t from the molecular side,
-// widened to chmat_t here); general-k Bloch phases, the DFT tier (isPW_DFT_Evaluator: Hartree/XC by
+// widened to chmat_t here); general-k Bloch phases, the DFT tier (isLattice_DFT_Evaluator: Hartree/XC by
 // collocation) and a rigorous periodic nuclear attraction (Ewald) are later increments.
 module;
 #include <cstddef>
@@ -26,7 +26,7 @@ module;
 #include <string>
 #include <vector>
 export module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
-export import qchem.BasisSet.Lattice_3D.Evaluators.PW; // isPW_1E/DFT_Evaluator + PW_Grid_Evaluator + RasterPolicy
+export import qchem.BasisSet.Lattice_3D.Evaluators.PW; // PW_Grid_Evaluator + RasterPolicy
                                                        // (re-exported since 0.5(a): RasterPolicy is a public knob)
 import qchem.BasisSet.Molecule.LatticeSum1E;       // Molecule::LatticeSum1E (the periodic-1E capability we call)
 import qchem.BasisSet.SpeciesField;                // SpeciesRadialField / SpeciesProjectorSet(_R): the species-field arguments (V1.2)
@@ -44,7 +44,7 @@ export namespace qchem::BasisSet::Lattice_3D
 //! \brief The GPW orbital evaluator: Gaussian orbitals on a lattice at a k-point (Gamma this increment).  Owns
 //! the molecular Gaussian basis built over the cell's atoms and reaches its periodic-1E capability
 //! (\c Molecule::LatticeSum1E) by an abstract cross-cast; supplies the lattice translation set from the cell.
-//! Satisfies \c isPW_1E_Evaluator, so the \c EPW_Orbital1E_IBS mixin drives the concrete \c GPW_IBS.
+//! Satisfies \c isLattice_1E_Evaluator, so the \c Lattice::Orbital_1E_IBS mixin drives the concrete \c GPW_IBS.
 class GPW_Evaluator
 {
 public:
@@ -89,15 +89,15 @@ public:
                   bool homeCellOnly = false, double cutoffFactor = 2.0,
                   RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
                   RasterFields rasterFields = RasterFields::HartreeXC);
-    //! Polymorphic (reached by the EPW_* mixin's Cast() cross-cast); out of line as the key function.
+    //! Polymorphic (reached by the Lattice::*_IBS mixins' Cast() cross-cast); out of line as the key function.
     virtual ~GPW_Evaluator();
 
-    // --- isPW_1E_Evaluator surface (exact signatures the concept demands) ---
+    // --- isLattice_1E_Evaluator surface (exact signatures the concept demands) ---
     size_t     size()                          const {return itsN;}
     cvec_t     Eval(const rvec3_t& r)          const;   //!< \f$\sum_R e^{ik\cdot R}\chi_i(r-R)\f$ (real at \f$\Gamma\f$)
     cvec3vec_t EvalGradient(const rvec3_t& r)  const;   //!< \f$\sum_R e^{ik\cdot R}\nabla\chi_i(r-R)\f$
     //! \brief \c Eval on a POINT SET, as an (npts x n) table -- the \f$\Phi\f$ build's entry point
-    //! (\c EPW_Irrep_IBS routes \c VectorFunction's point-set op here when the evaluator has this).
+    //! (\c Lattice::Irrep_IBS routes \c VectorFunction's point-set op here when the evaluator has this).
     //! It DELEGATES the image sum to the molecular seam (\c LatticeSum1E::BlochPointValues) instead of
     //! running it here, which is what lets a TRANSFORMED basis apply its transform once per POINT rather
     //! than once per image -- impossible from this side, which holds an abstract basis (OpenWork Step 3).
@@ -106,7 +106,7 @@ public:
     chmat_t    KineticMatrix()                 const;   //!< \f$\sum_R\langle i|-\nabla^2|j(\cdot-R)\rangle\f$ (no 1/2)
     chmat_t    NuclearMatrix(const Structure* cl) const;//!< \f$\sum_R\langle i|\sum_c -Z_c/|r-R_c||j(\cdot-R)\rangle\f$
 
-    // --- isPW_DFT_Evaluator surface: the DFT tier by COLLOCATION on the density grid (the genuinely-new GPW
+    // --- isLattice_DFT_Evaluator surface: the DFT tier by COLLOCATION on the density grid (the genuinely-new GPW
     //     primitive).  All three route through the held PW_Grid_Evaluator (its {r}/{G}/FFT/Poisson). ---
     //! \brief Coulomb 3-centre tensor.  The per-column WEIGHT is the OVERLAP-metric (single-\f$r\f$) Fourier
     //! coefficient of the orbital product, \f$W_c(i,j)=\tfrac1\Omega\int\chi_i(r)\chi_j(r)\,e^{-iG_c\cdot r}\,d^3r\f$
@@ -133,8 +133,8 @@ public:
     //! ringing), inverse-FFT'd to that level's grid, and each orbital pair gathers on the coarsest level that
     //! resolves its product exponent.  Only \f$V\f$ is ever sampled (weighted by the analytic Gaussians), so a
     //! diffuse pair on its matched coarse grid is accurate -- including against the SHARP local PP (the pair's
-    //! own bandwidth bounds what it can sense of \f$V\f$).  Satisfies \c isPW_DFT_Evaluator; forwarded by
-    //! \c EPW_Orbital_DFT_IBS to \c MakeOverlap.  (The CP2K analytic method, doc/GPWPlan.md \S0 -- replaces the
+    //! own bandwidth bounds what it can sense of \f$V\f$).  Reached by the PW-term applyAdjoint closures, NOT by
+    //! the lattice spec (a G-lookup bridge is a fit-family fact, TaxonomyPlan §1.7).  (The CP2K analytic method, doc/GPWPlan.md \S0 -- replaces the
     //! sampled \c PhiOnGrid dense/patched/multigrid integrate-backs.)
     chmat_t OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
@@ -391,7 +391,7 @@ private:
     mutable size_t                  itsNBaseLevels=0; //!< levels before the top rung (the local-PP sub-ladder)
 };
 
-static_assert(isPW_1E_Evaluator <GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_1E_Evaluator");
-static_assert(isPW_DFT_Evaluator<GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_DFT_Evaluator");
+// (The spec checks -- static_assert(isLattice_{1E,DFT}_Evaluator<GPW_Evaluator>) -- sit beside GPW_IBS, where
+//  engine meets spec; an engine never names its spec.  TaxonomyPlan §1.7 / step 1a0.)
 
 } //namespace

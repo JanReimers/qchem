@@ -7,7 +7,7 @@
 //
 // The pure grid geometry (the {G} set, op(r), the overlap/kinetic matrices, the reusable G-space
 // potential assembly) lives in the shared PW_Evaluator; this basis IS-A PW_Evaluator, and the
-// evaluator-templated EPW_Orbital1E_IBS<E> mixin forwards op()/Gradient/GetNumFunctions/MakeOverlap/
+// evaluator-templated Lattice::Orbital_1E_IBS<E> mixin forwards op()/Gradient/GetNumFunctions/MakeOverlap/
 // MakeKinetic to it (the molecular EOrbital_1E_IBS<E> pattern).  The density-driven G-space assembly
 // (rho-tilde -> Hartree, the FFT XC route) + the external pseudopotential stay here: they own atom/model
 // data and are orbital-only (an auxiliary fit basis does not answer them).
@@ -21,7 +21,7 @@ export import qchem.BasisSet.Orbital_DFT_IBS;       // the abstract G-space DFT 
 import qchem.BasisSet.Lattice_3D.Evaluators.PW; // PW_Evaluator (base subobject) -- NOT re-exported: the evaluator
                                                 // is INTERNAL to qcLattice_BS.  Clients use the abstract faces
                                                 // (Orbital_DFT_IBS<dcmplx> / G_FieldEvaluator), never the concrete evaluator.
-import qchem.BasisSet.Lattice_3D.IBS;           // EPW_Orbital1E_IBS<E> (the evaluator-templated mixins)
+import qchem.BasisSet.Lattice_IBS;              // the G=T spec: isLattice_{1E,DFT}_Evaluator + Lattice::Orbital_{1E,DFT}_IBS<E> (mixins)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
 export import qchem.BasisSet.Orbital_PP_IBS;             // the species-field integral service (V1.2)
@@ -32,11 +32,15 @@ import qchem.Types;
 export namespace qchem::BasisSet::Lattice_3D
 {
 
+// The spec is checked where engine meets spec (TaxonomyPlan §1.7 / 1a0), never inside the engine.
+static_assert(Lattice::isLattice_1E_Evaluator <PW_Evaluator>, "PW_Evaluator must satisfy isLattice_1E_Evaluator");
+static_assert(Lattice::isLattice_DFT_Evaluator<PW_Evaluator>, "PW_Evaluator must satisfy isLattice_DFT_Evaluator");
+
 //! \brief Plane-wave basis for a single k-point: the normalised waves
 //! \f$ e^{i(k+G)\cdot r}/\sqrt V \f$ over the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$.
 class PlaneWave_IBS
-    : public EPW_Orbital1E_IBS<PW_Evaluator>          // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
-    , public EPW_Orbital_DFT_IBS<PW_Evaluator>        // G-space DFT: MakeRepulsion3C/MakeOverlap3C (IS-A Orbital_DFT_IBS<dcmplx>)
+    : public Lattice::Orbital_1E_IBS<PW_Evaluator>    // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
+    , public Lattice::Orbital_DFT_IBS<PW_Evaluator>   // G-space DFT: MakeRepulsion3C/MakeOverlap3C (IS-A Orbital_DFT_IBS<dcmplx>)
     , public virtual Orbital_PP_IBS<dcmplx>              // G-space species-field assembly (a local field + a projector set)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
     , public         PW_Evaluator                     // the shared grid engine (Cast() target for the mixins)
@@ -62,7 +66,7 @@ public:
 
     // --- Orbital_DFT_IBS<dcmplx> capability: density-driven KS assembly in reciprocal space. ---
     // ENTIRELY on the evaluator now: the cached accessors Repulsion3C(c)/Overlap3C(c) come from Orbital_DFT_IBS<dcmplx>
-    // (theCache<dcmplx>()), their one-time builds from EPW_Orbital_DFT_IBS forwarding to the evaluator's
+    // (theCache<dcmplx>()), their one-time builds from Lattice::Orbital_DFT_IBS forwarding to the evaluator's
     // Repulsion3CTensor()/Overlap3CTensor(), and MakeFourierDensity (the SAD seed's rho-tilde) from the
     // PW_Evaluator grid engine (G_FieldEvaluator).  This basis adds nothing here.
 
@@ -73,7 +77,7 @@ public:
 
     // --- External pseudopotential assembly (owns the atom/model data). ---
     // (MakeNuclear -- the bare-Coulomb 1E block -- is now on the evaluator (NuclearMatrix), inherited via
-    //  EPW_Orbital1E_IBS, so it is no longer declared here.)
+    //  Lattice::Orbital_1E_IBS, so it is no longer declared here.)
 
     //! \brief Assemble any species local field \f$\langle G|V|G'\rangle=\frac1\Omega\sum_a
     //! \tilde v_{Z_a}(|\Delta G|^2)e^{-i\Delta G\cdot\tau_a}\f$, \f$\Delta G\ne 0\f$ (\f$\Delta G=0\f$ dropped),

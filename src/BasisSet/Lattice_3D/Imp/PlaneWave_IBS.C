@@ -1,7 +1,7 @@
 // File: BasisSet/Lattice_3D/Imp/PlaneWave_IBS.C  Plane-wave irrep basis set implementation.
 //
 // Grid-geometry methods (op(r), overlap/kinetic, the {G} set, MakeOverlap, the FFT grid) live in the
-// shared PW_Evaluator (this basis IS-A one, reached through the EPW_* mixins).  What remains here is the
+// shared PW_Evaluator (this basis IS-A one, reached through the Lattice::*_IBS mixins).  What remains here is the
 // orbital-only, atom/model-driven assembly: the density-driven G-space Hartree/XC route and the external
 // pseudopotential.  Those read the shared grid data through the evaluator accessors (Gs(), Volume(),
 // Recip(), kFrac(), GetGCartesian, MakeOverlap, the FFT-grid helpers).
@@ -46,7 +46,7 @@ PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
 // (the D-free {G} 3-centre builds) and MakeFourierDensity moved to the shared grid engine (PW_Evaluator).
 
 // MakeNuclear (bare-Coulomb 1E block) moved to the evaluator (PW_Evaluator::NuclearMatrix), inherited via
-// EPW_Orbital1E_IBS.
+// Lattice::Orbital_1E_IBS.
 
 // A species LOCAL FIELD: forward to the shared structure-factor assembly on the grid engine
 // (PW_Evaluator::LocalPotentialMatrix) with the field's form factor for the requested range.  The service

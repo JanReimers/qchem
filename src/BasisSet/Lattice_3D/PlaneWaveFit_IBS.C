@@ -9,7 +9,7 @@
 // the Hartree/XC contraction delegates to the orbital Orbital_DFT_IBS<dcmplx>).
 //
 // It carries NO grid logic of its own: it IS-A PW_Evaluator (a copy of the orbital basis's grid engine) and
-// the evaluator-templated EPW_Irrep_IBS<E> mixin supplies op()/Gradient/GetNumFunctions.  Both fit faces are
+// the evaluator-templated Lattice::Irrep_IBS<E> mixin supplies op()/Gradient/GetNumFunctions.  Both fit faces are
 // empty markers over IrrepBasisSet<dcmplx> (the Coulomb/overlap metrics live in the NonOrtho refinements,
 // which an orthonormal {G} basis omits), so there are ZERO stubs here.
 module;
@@ -21,7 +21,7 @@ module;
 export module qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;                    // cFIT_CD_ABS (the density-fit face)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;         // PW_Evaluator base -- INTERNAL to qcLattice_BS (not re-exported)
-import qchem.BasisSet.Lattice_3D.IBS;                    // EPW_Irrep_IBS<E> (the shared evaluation tier)
+import qchem.BasisSet.Lattice_IBS;                       // Lattice::Irrep_IBS<E> (the shared evaluation tier of the G=T spec)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep, shared with the orbital basis)
 import qchem.Symmetry.Lattice_3D.SpaceGroup;             // DirectOp {W|τ} -- the direct ops (glide τ) for the raster star-average
@@ -37,7 +37,7 @@ export namespace qchem::BasisSet::Lattice_3D
 class PlaneWaveFit_IBS
     : public virtual BasisSet::cFIT_CD_ABS            // FIT_CD_ABS<dcmplx> : IrrepBasisSet<dcmplx> (density-fit face)
     , public virtual BasisSet::cFIT_SF_ABS            // FIT_SF_ABS<dcmplx> : IrrepBasisSet<dcmplx> (potential-fit face)
-    , public         EPW_Irrep_IBS<PW_Grid_Evaluator> // op()/Gradient/GetNumFunctions from the evaluator
+    , public         Lattice::Irrep_IBS<PW_Grid_Evaluator> // op()/Gradient/GetNumFunctions from the evaluator
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // GetSymmetry/GetSymt/GetIrrep
     , public         PW_Grid_Evaluator                // the DENSITY/FIT evaluator (grid + G_FieldEvaluator); Cast() target
 {

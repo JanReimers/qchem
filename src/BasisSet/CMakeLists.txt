@@ -35,6 +35,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C
   Orbital_DHF_IBS.C
+    Lattice_IBS.C                         # the G=T SPEC tier: isLattice_{1E,DFT}_Evaluator + the Lattice::*_IBS<E,T> mixins (TaxonomyPlan 1a0)
   Fit_Types.C
   Fit_IBS.C
   Internal/Fit_IBS.C

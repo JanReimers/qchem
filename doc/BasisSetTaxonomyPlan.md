@@ -1,6 +1,6 @@
 # BasisSet Taxonomy Plan — V1.33
 
-**Status: LIVE, agreed 2026-09-13, not started.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
+**Status: LIVE, agreed 2026-09-13; step 1a0 done 2026-09-13, 1a next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
 taxonomy is on the wrong axis").  Read §1 once; it is the ruling.  §4 is the running order.
 
 Two proposals preceded this plan and they were NOT in conflict — they were the two axes:
@@ -198,6 +198,14 @@ design rulings).  ✅ 2026-09-13 (this file written; R1.0 entry pending the user
   `Lattice::Orbital_1E_IBS<E,T>` / `Lattice::Orbital_DFT_IBS<E,T>` / `Lattice::Irrep_IBS<E,T>` (mirroring the
   atom names).  Dependency-free by measurement (§1.7).  `static_assert(isLattice_1E_Evaluator<GPW_Evaluator>)`
   at each concrete IBS — the spec is checked where engine meets spec, never inside the engine.
+  ✅ 2026-09-13.  `src/BasisSet/Lattice_IBS.C` (git-mv'd from `Lattice_3D/IrrepBasisSet.C`, so `--follow`
+  survives), `qcBasisSet` FILE_SET; the two concepts left `Evaluators/PW/Evaluator.C` and the two
+  `static_assert`s left `Evaluators/GPW/Evaluator.C` for `GPW_IBS.C` (+ new ones beside `PlaneWave_IBS`).
+  `isLattice_DFT_Evaluator` does NOT carry the old `OverlapMatrix(std::function<dcmplx(const ivec3_t&)>)`
+  term — the §1.7 family leak; no mixin ever consumed it (the PW-term `applyAdjoint` closures reach the
+  method directly), so dropping it changed no call.  Both engines still satisfy the spec structurally; the
+  GPW engine module no longer names any concept.  Full `ctest -j8` green, no number touched (no numeric
+  code moved — a pure relocation + rename).
 - 1a. New library `qcPlaneWave_BS` from the PW half listed in §3.  `qcLattice_BS` links it.  Gate: build +
   `PlaneWaveDFTUT`, `GPW_UT`, `GPW_SCF_UT` unchanged.
 - 1b. Move `Lattice_3D/Evaluators/GPW` + `Lattice_3D/GPW_IBS.C` into `qcMolecule_BS` (physically under

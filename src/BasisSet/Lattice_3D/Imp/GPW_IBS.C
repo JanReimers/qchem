@@ -8,7 +8,7 @@ module;
 #include <vector>
 
 module qchem.BasisSet.Lattice_3D.GPW_IBS;
-import qchem.BasisSet.Lattice_3D.IBS;       // ToScalar (the Step-3 exact TRIM narrow; identity for dcmplx)
+import qchem.BasisSet.Lattice_IBS;          // Lattice::ToScalar (the Step-3 exact TRIM narrow; identity for dcmplx)
 import qchem.Symmetry.Factory;              // BlochFactory (the convenience ctor + the k=0 fit-basis irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
 import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ raster ops param type)
@@ -163,13 +163,13 @@ template <class T> hmat_t<T> tGPW_IBS<T>::MakeSpeciesFieldMatrix(const Structure
     {
     case FieldRange::Long:
         return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPLong, this, cl->ID(),
-            [this,cl,&f]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPPLong(cl, f)); });
+            [this,cl,&f]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPPLong(cl, f)); });
     case FieldRange::Short:
         return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPShort, this, cl->ID(),
-            [this,cl,&f]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPPShort(cl, f)); });
+            [this,cl,&f]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPPShort(cl, f)); });
     default:
         return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPP, this, cl->ID(),
-            [this,cl,&f]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPP(cl, f)); });
+            [this,cl,&f]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeLocalPP(cl, f)); });
     }
 }
 
@@ -178,7 +178,7 @@ template <class T> hmat_t<T> tGPW_IBS<T>::MakeProjectorMatrix(const Structure* c
     auto* sepR=dynamic_cast<const SpeciesProjectorSet_R*>(&nl);
     assert(sepR && "GPW MakeProjectorMatrix: the projector set must provide the real-space radial face (SpeciesProjectorSet_R)");
     return theCache<T>().Get(IntegralsCache_Base::I2n::SeparablePP, this, cl->ID(),
-        [this,cl,sepR]{ return ToScalar<T>(GPW_Evaluator::MakeSeparablePP(cl, *sepR)); });
+        [this,cl,sepR]{ return Lattice::ToScalar<T>(GPW_Evaluator::MakeSeparablePP(cl, *sepR)); });
 }
 
 template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeProjectorMatrixByL(const Structure* cl, const SpeciesProjectorSet& nl) const
@@ -188,7 +188,7 @@ template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeProjectorMatrixByL(c
     auto* sepR=dynamic_cast<const SpeciesProjectorSet_R*>(&nl);
     assert(sepR && "GPW MakeProjectorMatrixByL: the projector set must provide the real-space radial face (SpeciesProjectorSet_R)");
     std::map<int,hmat_t<T>> out;
-    for (auto& [l,m] : GPW_Evaluator::MakeSeparablePPByL(cl, *sepR)) out.emplace(l, ToScalar<T>(m));
+    for (auto& [l,m] : GPW_Evaluator::MakeSeparablePPByL(cl, *sepR)) out.emplace(l, Lattice::ToScalar<T>(m));
     return out;
 }
 
@@ -196,7 +196,7 @@ template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeProjectorMatrixByL(c
 // Hartree/XC term hands us is the one CreateCD/VxcFitBasisSet produced -- a PlaneWaveFit_IBS, which IS-A
 // PW_Grid_Evaluator carrying the density-fit {G}/grid policy.  Cross-cast to that grid and build the tensor on
 // it, so we RETURN THE REQUESTED TABLE rather than overriding the caller's fit-grid choice with the block's own
-// (the shared EPW_Orbital_DFT_IBS mixin dropped \a c).  Bit-identical while the factory wraps DensityGrid();
+// (the shared Lattice::Orbital_DFT_IBS mixin dropped \a c).  Bit-identical while the factory wraps DensityGrid();
 // the seam is what lets the fit grid diverge (the deferred GGA Vxc densification) without touching these.
 template <class T> Projector3<dcmplx> tGPW_IBS<T>::MakeRepulsion3C(const cFIT_CD_ABS& c) const
 {

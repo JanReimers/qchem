@@ -3,7 +3,7 @@
 // The GPW sibling of PlaneWave_IBS: a complex (dcmplx) Orbital_1E_IBS whose functions are periodic GAUSSIANS
 // (Bloch sums of contracted Gaussians standing at the cell's atoms) rather than plane waves.  As with the PW
 // basis, all the geometry lives in a shared evaluator (GPW_Evaluator) and the evaluator-templated
-// EPW_Orbital1E_IBS<E> mixin forwards op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear to it
+// Lattice::Orbital_1E_IBS<E> mixin forwards op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear to it
 // -- "GPW is a new evaluator, not a new IBS" (doc/MolecularPP_HarmonizationRound2.md section 2.5), so this
 // class is almost empty (ctors + identity).  The periodic Gaussian 1E integrals themselves are computed by the
 // molecular Gaussian basis GPW_Evaluator owns (via Molecule::LatticeSum1E), never here.
@@ -19,7 +19,7 @@ module;
 
 export module qchem.BasisSet.Lattice_3D.GPW_IBS;
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (base subobject) -- NOT re-exported (internal)
-import qchem.BasisSet.Lattice_3D.IBS;             // EPW_Orbital1E_IBS<E> + EPW_Orbital_DFT_IBS<E> (mixins)
+import qchem.BasisSet.Lattice_IBS;                // the G=T spec: isLattice_{1E,DFT}_Evaluator + Lattice::Orbital_{1E,DFT}_IBS<E,T> (mixins)
 import qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS; // the auxiliary PW fit basis the DFT factory returns
 import qchem.Matrix3D;                             // Matrix3D
 import qchem.Symmetry.Lattice_3D.SpaceGroup;       // DirectOp {W|τ} -- the direct ops threaded to the Vxc fit basis
@@ -34,6 +34,11 @@ import qchem.Types;
 
 export namespace qchem::BasisSet::Lattice_3D
 {
+
+// The spec is checked where engine meets spec (TaxonomyPlan §1.7 / 1a0): GPW_Evaluator is a Gaussian engine
+// that satisfies the LATTICE spec structurally, without inheriting from the plane-wave engine.
+static_assert(Lattice::isLattice_1E_Evaluator <GPW_Evaluator>, "GPW_Evaluator must satisfy isLattice_1E_Evaluator");
+static_assert(Lattice::isLattice_DFT_Evaluator<GPW_Evaluator>, "GPW_Evaluator must satisfy isLattice_DFT_Evaluator");
 
 //! \brief The lattice-image MODE.  \c Periodic (the default): every lattice sum is an
 //! \f$\varepsilon\f$-CONVERGED SERIES enumerated internally per shell pair -- THERE IS NO CUT in r SPACE
@@ -54,8 +59,8 @@ enum class CellImages { Periodic, HomeCellOnly };
 //! The evaluator base is UNCHANGED (complex internally); making its streams real is a later, purely
 //! performance increment.
 template <class T> class tGPW_IBS
-    : public EPW_Orbital1E_IBS<GPW_Evaluator,T>     // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
-    , public EPW_Orbital_DFT_IBS<GPW_Evaluator,T>   // DFT tier (IS-A Orbital_DFT_IBS<T,dcmplx>): MakeRepulsion3C/MakeOverlap3C
+    : public Lattice::Orbital_1E_IBS<GPW_Evaluator,T>   // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
+    , public Lattice::Orbital_DFT_IBS<GPW_Evaluator,T>  // DFT tier (IS-A Orbital_DFT_IBS<T,dcmplx>): MakeRepulsion3C/MakeOverlap3C
     , public BasisSet::IrrepBasisSetImp<T>          // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
     , public Orbital_PP_IBS<T>                     // species-field assembly (real-space); PW_Pseudo casts ACROSS to this
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
@@ -136,7 +141,7 @@ protected:
     //! block's \c DensityGrid.  \a c is the fit basis \c CreateCD/VxcFitBasisSet produced (it IS-A
     //! PW_Grid_Evaluator carrying the density-fit \f${G}\f$/grid policy), so we hand its grid to the evaluator:
     //! the table returned is the one REQUESTED, honouring the factory's grid choice rather than silently
-    //! overriding it with the block's own (doc/GPWPlan §0e).  Overrides the shared \c EPW_Orbital_DFT_IBS mixin
+    //! overriding it with the block's own (doc/GPWPlan §0e).  Overrides the shared \c Lattice::Orbital_DFT_IBS mixin
     //! (which dropped \a c); the block's own no-arg tensors remain the convenience/test path.
     virtual Projector3<dcmplx> MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
     virtual Projector3<dcmplx> MakeOverlap3C  (const cFIT_SF_ABS& c) const override;

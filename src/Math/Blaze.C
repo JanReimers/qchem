@@ -32,7 +32,7 @@ export namespace qchem::blazem
     //! \c GPW.TRIM_RealBlockMatchesComplexBitwise).
     //!
     //! It lives here because it now has THREE call sites in two libraries -- \c qcHamiltonian's periodic
-    //! terms, the XC quadrature engine, and \c BasisSet::Lattice_3D::ToScalar -- which is exactly the
+    //! terms, the XC quadrature engine, and \c BasisSet::Lattice::ToScalar -- which is exactly the
     //! condition its own comment named for promotion ("consolidate into qcMath if a third copy ever
     //! appears", 2026-08).  Duplicating it a third time inside a module that cannot see the other two
     //! would have been the wrong answer twice over.

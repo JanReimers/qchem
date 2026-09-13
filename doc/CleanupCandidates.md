@@ -643,8 +643,8 @@ MnO campaign proceeds undisturbed in qchem6.
     face) and pinned by the new gate.
     ⚠ NB this is NOT a name collision with a self-overlap: `Overlap(f)` is the PROJECTION and the metric
     \f$\langle f_a|f_b\rangle\f$ is `Integrals_Overlap::Overlap()`, and a plane-wave fit basis **has no
-    metric member at all** — it rides `EPW_Irrep_IBS` (op(r)/Gradient/GetNumFunctions), not the orbital
-    `EPW_Orbital1E_IBS` tier that carries `MakeOverlap` (user, 2026-08-23; verified).  Only a class that
+    metric member at all** — it rides `Lattice::Irrep_IBS` (op(r)/Gradient/GetNumFunctions), not the orbital
+    `Lattice::Orbital_1E_IBS` tier that carries `MakeOverlap` (user, 2026-08-23; verified; names as of 1a0).  Only a class that
     genuinely carries BOTH — `FIT_SF_NonOrtho` and `Fit_IBS` — needs the `using` that un-hides one past
     the other.
   - Consequently `G_RasterTransform` grew `RasterSize()` / `Sample(field)` / `Integral(values)` — the
@@ -3090,6 +3090,7 @@ symmetry) were the two AXES, not rivals: **libraries follow the FAMILY (the inte
 the GROUP** — `qcRadial_BS` / `qcGaussian_BS` (`.Point.*` vs `.Lattice.*`) / `qcPlaneWave_BS` / thin `qcLattice_BS`
 container.  The GPW seam STAYS in the Gaussian engine (perf pin); `UnitCell` inside it is legitimate, and the
 V1.33 evidence becomes a ctest audit (no `.Point.` module imports a lattice).  Running order in the plan §4.
+**Progress:** 1a0 ✅ 2026-09-13 (the G=T spec tier is in the core: `qchem.BasisSet.Lattice_IBS`).
 
 ### V1.37 — Pol/UnPol are IMPOSED SUBGROUPS, not types: ONE composite over full Irreps (user + Claude, 2026-09-13)
 
