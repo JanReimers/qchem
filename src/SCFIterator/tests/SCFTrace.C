@@ -24,7 +24,7 @@ import qchem.SolidCalculation;       // SolidCalculation -- the NAMED periodic f
 import qchem.Structure;              // FCCUnitCell
 import qchem.Lattice_3D;             // Lattice_3D
 import qchem.BasisSet;               // Real_BS
-import qchem.BasisSet.Molecule.Factory;  // Molecule::Factory, BasisSetData/Engine/Angular
+import qchem.BasisSet.Gaussian.Point.Factory;  // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.Types;                  // ivec3_t
 import qchem.SCFIterator;            // SCFParams
 using namespace qchem;
@@ -128,9 +128,9 @@ TEST(SCFTrace, SolidPP_ShowsGridColumnsAndNoVirial)
         cell.AddAtom(14, {0.25,0.25,0.25});
         Lattice_3D lat(cell, ivec3_t(1,1,1));
         auto mol = std::shared_ptr<const BasisSet::Real_BS>(
-            BasisSet::Molecule::Factory(BasisSet::Molecule::BasisSetData::SIPP_SR, &cell,
-                                        BasisSet::Molecule::Engine::MnD,
-                                        BasisSet::Molecule::Angular::Cartesian));
+            BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                        BasisSet::Gaussian::Engine::MnD,
+                                        BasisSet::Gaussian::Angular::Cartesian));
         SCFParams par;
         par.NMaxIter=2; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30;
         par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;

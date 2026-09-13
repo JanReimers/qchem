@@ -6,7 +6,7 @@
 # Internal G-vector / k+G helpers.  The G=T SPEC these engines satisfy (isLattice_{1E,DFT}_Evaluator +
 # the Lattice::*_IBS mixins) lives in the core (qchem.BasisSet.Lattice_IBS), not here.
 #
-# A LEAF over the core: links qcBasisSet + qcStructure + qcSymmetry only -- NOTHING from qcMolecule_BS or
+# A LEAF over the core: links qcBasisSet + qcStructure + qcSymmetry only -- NOTHING from qcGaussian_BS or
 # the qcLattice_BS container tier (measured 2026-09-13; the GPW engine depends on THIS library, never the
 # reverse).  Modules: qchem.BasisSet.PlaneWave.* ; namespace qchem::BasisSet::PlaneWave (step 2, 2026-09-13).
 add_library(qcPlaneWave_BS)

@@ -1,0 +1,93 @@
+// File: BasisSet/Gaussian/Point/Imp/Factory.C  Factory function for molecular basis sets (see Factory.C for the
+// three orthogonal axes: BasisSetData x Engine x Angular).
+module;
+#include <map>
+#include <string>
+#include <stdexcept>
+#include <nlohmann/json.hpp>
+
+module qchem.BasisSet.Gaussian.Point.Factory;
+import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
+import qchem.BasisSet.Gaussian.Point.BasisFiles;
+import qchem.BasisSet.Gaussian.Point.PG_Cart;
+import qchem.BasisSet.Gaussian.Point.PG_Spherical;
+import qchem.BasisSet.Gaussian.Point.PG_LibCint;
+
+using json = nlohmann::json;
+
+namespace qchem::BasisSet::Gaussian
+{
+    // The registries -- the single place each axis' names live.
+    static const std::map<BasisSetData, std::string> theFiles =      // axis 1: enum -> data file
+    {
+        {BasisSetData::DZVP , "dzvp.bsd" },
+        {BasisSetData::DZVP2, "dzvp2.bsd"},
+        {BasisSetData::TZVP , "tzvp.bsd" },
+        {BasisSetData::ORB  , "orb.bsd"  },
+        {BasisSetData::ORB1 , "orb1.bsd" },
+        {BasisSetData::SIPP , "sipp.bsd" },
+        {BasisSetData::SIPP_SR, "sipp_sr.bsd"},
+        {BasisSetData::VALENCE_LOWQ, "valence_lowq.bsd"},
+        {BasisSetData::VALENCE_LOWQ_SR, "valence_lowq_sr.bsd"},
+        {BasisSetData::VALENCE_LOWQ_SR2, "valence_lowq_sr2.bsd"},
+        {BasisSetData::VALENCE_LOWQ_SPH, "valence_lowq_sph.bsd"},
+        {BasisSetData::VALENCE_LOWQ_VA , "valence_lowq_va.bsd" },
+        {BasisSetData::VALENCE_LOWQ_VB , "valence_lowq_vb.bsd" },
+    };
+    static const std::map<std::string, BasisSetData> theBasisNames = // axis 1: json name -> enum
+    {
+        {"dzvp" , BasisSetData::DZVP }, {"dzvp2", BasisSetData::DZVP2}, {"tzvp", BasisSetData::TZVP},
+        {"orb"  , BasisSetData::ORB  }, {"orb1" , BasisSetData::ORB1 }, {"sipp", BasisSetData::SIPP},
+        {"sipp_sr", BasisSetData::SIPP_SR}, {"valence_lowq", BasisSetData::VALENCE_LOWQ},
+        {"valence_lowq_sr", BasisSetData::VALENCE_LOWQ_SR},
+        {"valence_lowq_sr2", BasisSetData::VALENCE_LOWQ_SR2},
+        {"valence_lowq_sph", BasisSetData::VALENCE_LOWQ_SPH},
+        {"valence_lowq_va" , BasisSetData::VALENCE_LOWQ_VA },
+        {"valence_lowq_vb" , BasisSetData::VALENCE_LOWQ_VB },
+    };
+    static const std::map<std::string, Engine>  theEngines  =        // axis 2: json name -> enum
+    { {"mnd", Engine::MnD}, {"libcint", Engine::LibCint} };
+    static const std::map<std::string, Angular> theAngulars =        // axis 3: json name -> enum
+    { {"cartesian", Angular::Cartesian}, {"spherical", Angular::Spherical} };
+
+    // Resolve a json string key against a name->enum registry, throwing a clear error listing the valid
+    // values.  `dflt` is used when the key is absent ("" = the key is required: an empty/absent value fails).
+    template <class E>
+    static E Resolve(const json& js, const char* key, const std::string& dflt,
+                     const std::map<std::string,E>& names)
+    {
+        const std::string name = js.value(key, dflt);
+        auto it = names.find(name);
+        if (it==names.end())
+        {
+            std::string valid; for (const auto& [n,e]:names) valid += (valid.empty()?"":", ") + n;
+            throw std::runtime_error(std::string("Gaussian::Factory: ")
+                + (name.empty() ? std::string("missing required \"")+key+"\""
+                                : std::string("unknown ")+key+" \""+name+"\"")
+                + "; valid: " + valid);
+        }
+        return it->second;
+    }
+
+    tBasisSet<double>* Factory(BasisSetData data, const Structure* cl, Engine engine, Angular angular)
+    {
+        Gaussian94Reader reader(BasisFile(theFiles.at(data)));
+        const bool spherical = (angular==Angular::Spherical);
+        switch (engine)
+        {
+        case Engine::LibCint: return new PG_LibCint::BasisSet(&reader, cl, spherical);
+        case Engine::MnD:     break;
+        }
+        // MnD: one IBS tree per angular kind.
+        if (spherical) return new PG_Spherical::BasisSet(&reader, cl);
+        return new PG_Cart::BasisSet(&reader, cl);
+    }
+
+    tBasisSet<double>* Factory(const json& js, const Structure* cl)
+    {
+        BasisSetData data    = Resolve(js, "basis",   "",          theBasisNames);  // required
+        Engine       engine  = Resolve(js, "engine",  "mnd",       theEngines);
+        Angular      angular = Resolve(js, "angular", "cartesian", theAngulars);
+        return Factory(data, cl, engine, angular);
+    }
+}

@@ -57,7 +57,7 @@ void random(ERI4& Jabcd)
 // The FACT it recorded is worth keeping, so it moved to the ERI4::MatMul declaration where a reader will
 // meet it: contracting over the cd index is several times faster than contracting over ab, because the ab
 // side is the outer (block) index and the cd side is contiguous within a block.  That belongs in a
-// benchmark (src/BasisSet/Molecule/bench) if it is ever to be MEASURED again, not in a correctness suite.
+// benchmark (src/BasisSet/Gaussian/bench) if it is ever to be MEASURED again, not in a correctness suite.
 
 TEST_F(ERI4Tests,Transpose)
 {

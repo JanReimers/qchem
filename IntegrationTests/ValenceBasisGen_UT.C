@@ -16,7 +16,7 @@
 import qchem.ValenceBasisGen;
 import qchem.Structure;                  // Molecule, Atom
 import qchem.BasisSet;                   // Real_BS
-import qchem.BasisSet.Molecule.Factory;  // Molecule::Factory, BasisSetData
+import qchem.BasisSet.Gaussian.Point.Factory;  // Gaussian::Factory, BasisSetData
 import qchem.Types;
 import qchem.Reporting;                  // report::GlobalReport -- inspect the recorded basis.usage
 
@@ -179,7 +179,7 @@ TEST(ValenceBasisGen, BasisUsageSumsToElectronCount)
 // generator -> file -> loader, and guards the committed .bsd against drift from the generator above.
 TEST(ValenceBasisGen, ValenceLowqFileLoads)
 {
-    using namespace qchem::BasisSet::Molecule;
+    using namespace qchem::BasisSet::Gaussian;
     auto nfun=[](int Z, BasisSetData d){
         Molecule m; m.Insert(new Atom(Z, 0.0, {0,0,0}));
         std::unique_ptr<qchem::BasisSet::Real_BS> bs(Factory(d, &m, Engine::MnD, Angular::Cartesian));

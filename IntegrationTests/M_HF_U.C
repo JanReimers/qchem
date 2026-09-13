@@ -1,6 +1,6 @@
 // File: UnitTests/M_HF_U.C  Molecular un-polarized Hartree-Fock total-energy tests (facade-driven).
 //
-// Production path: qchem::Calculation builds the BasisSet::Molecule::Factory PolarizedGaussian (M&D)
+// Production path: qchem::Calculation builds the BasisSet::Gaussian::Factory PolarizedGaussian (M&D)
 // basis and runs the canonical SCF.  Here we drive a full SCF for N2 and water through the facade and
 // check the converged total energy against a reference -- the same total-energy check used for the atom
 // A_HF tests.  (Integral correctness to machine precision is covered separately by M_PG_Oracle.)

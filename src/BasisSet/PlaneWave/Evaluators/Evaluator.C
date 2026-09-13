@@ -1,6 +1,6 @@
 // File: BasisSet/PlaneWave/Evaluators/Evaluator.C  Plane-wave grid evaluator.
 //
-// The plane-wave analog of the molecular Evaluators (BasisSet/Molecule/Evaluators): the pure grid
+// The plane-wave analog of the molecular Evaluators (BasisSet/Gaussian/Evaluators): the pure grid
 // geometry of a plane-wave block -- the reciprocal lattice, the crystal momentum k, the cutoff set
 // {G} -- lives HERE, in one place, and the evaluator ANSWERS the grid-geometry questions (evaluate a
 // plane wave at r, the overlap/kinetic matrices, the reusable G-space potential assembly).  A concrete

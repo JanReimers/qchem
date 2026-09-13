@@ -11,7 +11,7 @@ export module qchem.BasisSet.Lattice_3D.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
 export import qchem.BasisSet.PlaneWave.PlaneWave_IBS; // PlaneWave::PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
-export import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS + CellImages (the GPWFactory mode argument)
+export import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // Gaussian::GPW_IBS + Gaussian::CellImages (the GPWFactory mode argument)
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::RasterPolicy (a PUBLIC factory knob since 0.5(a))
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
 import qchem.Types;                                    // dcmplx
@@ -41,11 +41,11 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
 //!                offset, i.e. CP2K's default for even grids -- \f$k=\pm¼\f$ at \f$N=2\f$).
 //! \param densityEcut  \f$<0\f$ = AUTOMATIC density grid \a cutoffFactor\f$\cdot\alpha_{\max}\f$ (recommended);
 //!        \f$=0\f$ = 1E-only; \f$>0\f$ = explicit Hartree cutoff (\c cerr warning if under-resolved).
-//! \param images  the lattice-image MODE (\c CellImages::Periodic default; \c HomeCellOnly = the box gates).
+//! \param images  the lattice-image MODE (\c Gaussian::CellImages::Periodic default; \c HomeCellOnly = the box gates).
 //! \param cutoffFactor  \f$C\ge4\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                        double densityEcut, rvec3_t kShift={0,0,0},
-                       CellImages images=CellImages::Periodic, double cutoffFactor=2.0);
+                       Gaussian::CellImages images=Gaussian::CellImages::Periodic, double cutoffFactor=2.0);
 
 //! \brief The GPW factory knobs as ONE readable struct (doc/GPWPlan1.md item 1) -- designated
 //! initializers make test recipes self-documenting: GPWFactory(lat, mol, {.densityEcut=40.0}).
@@ -61,7 +61,7 @@ struct GPWParams
                                                     //!< after the 0.5(a) A/B: ~1 mHa at/above the C=2 floor, ~8x
                                                     //!< fewer raster points; AliasFree = the exact-quadrature
                                                     //!< option -- kernel gates and sub-floor grids want it)
-    CellImages   images = CellImages::Periodic;     //!< lattice-image MODE (HomeCellOnly = the finite-box gates)
+    Gaussian::CellImages   images = Gaussian::CellImages::Periodic;     //!< lattice-image MODE (HomeCellOnly = the finite-box gates)
     rvec3_t      kShift = rvec3_t(0,0,0);           //!< fractional MP offset of the k-mesh (0 = Gamma-centred)
     double       ladderFactor = 4.0;                //!< REL_CUTOFF multigrid PROGRESSION factor (CP2K's, default 3;
                                                     //!< ours 4): the per-step Ecut ratio of the coarse-level ladder.
@@ -97,7 +97,7 @@ struct GPWParams
     //! REALNESS, the term half (doc/RealComplexPlan.md Step 3c-3): the composition root's assertion
     //! that EVERY Hamiltonian term of the run preserves a real basis block (no SOC, no vector
     //! potential).  With it set, each TRIM block (\c irrep.IsReal(), exact integer arithmetic) is
-    //! BUILT REAL -- \c tGPW_IBS<double>: real S/T/V/KB and real quadrature GEMMs inside the
+    //! BUILT REAL -- \c Gaussian::tGPW_IBS<double>: real S/T/V/KB and real quadrature GEMMs inside the
     //! complex-faced set.  The basis cannot compute this itself (it would be a basis→Hamiltonian
     //! dependency cycle), so the root that constructs both threads the fact in.  Default FALSE: a bare
     //! factory caller keeps the historical all-complex build; the facades pass the computed fact.

@@ -1,6 +1,6 @@
 // File: UnitTests/M_DFT.C  Molecular un-polarized Xalpha-DFT total-energy tests (facade-driven).
 //
-// Production path: qchem::Calculation builds the BasisSet::Molecule::Factory PolarizedGaussian (M&D)
+// Production path: qchem::Calculation builds the BasisSet::Gaussian::Factory PolarizedGaussian (M&D)
 // basis; the Xalpha DFT Hamiltonian adds the fitted Coulomb + Xalpha exchange on a numerical mesh.  We
 // drive a full SCF for N2 and water through the facade and check the converged total energy against a
 // reference -- the same total-energy check used for the atom A_DFT tests.

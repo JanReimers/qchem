@@ -11,10 +11,10 @@ module;
 #include <nlohmann/json.hpp>
 module qchem.Calculation;
 
-import qchem.BasisSet.Molecule.Factory;             // BasisSet::Molecule::Factory
+import qchem.BasisSet.Gaussian.Point.Factory;             // BasisSet::Gaussian::Factory
 import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
-import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet; // SymmetryAdaptedBasisSet (return of SymmetryAdapt)
-import qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
+import qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet; // SymmetryAdaptedBasisSet (return of SymmetryAdapt)
+import qchem.BasisSet.Gaussian.Point.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
 import qchem.ElectronConfiguration.Molecule;        // Molecule_EC (global aufbau)
 import qchem.PeriodicTable;                          // thePeriodicTable (Z -> element symbol, for the PP lookup)
 import qchem.Pseudopotential.GTH_Potentials;         // GetGTH (Zion for the valence electron count + PP model)
@@ -26,7 +26,7 @@ import qchem.Reporting;                              // report:: run sink + the 
 namespace qchem
 {
 
-namespace PG = ::qchem::BasisSet::Molecule::PG_Cart;
+namespace PG = ::qchem::BasisSet::Gaussian::PG_Cart;
 using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/molecule display subclass
 
 // Build the molecular orbital basis, optionally SALC point-group-blocked.  When symmetry is off the
@@ -47,7 +47,7 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
 
     const char* engine  = (opts.engine  == Engine::LibCint) ? "libcint" : "mnd";
     const char* angular = spherical ? "spherical" : "cartesian";
-    BasisSet::Real_BS* raw = BasisSet::Molecule::Factory(
+    BasisSet::Real_BS* raw = BasisSet::Gaussian::Factory(
         nlohmann::json{{"basis", opts.basis}, {"engine", engine}, {"angular", angular}}, st.get());
     if (!opts.symmetry) return raw;
     std::shared_ptr<const BasisSet::Real_BS> rawShared(raw);

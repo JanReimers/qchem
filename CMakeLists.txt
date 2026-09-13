@@ -13,7 +13,7 @@ if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     )
 endif()
 
-# OpenMP: used ONLY for the GPW collocate/integrate pair-loop parallelism in qcMolecule_BS
+# OpenMP: used ONLY for the GPW collocate/integrate pair-loop parallelism in qcGaussian_BS
 # (PG_Cart_MnD::NR_Evaluator).  Opt-in at runtime (GPW_OMP_THREADS>1) and serial by default, so it never
 # changes the bit-anchors.  The code gates on our own QCHEM_OPENMP macro (set alongside the flag), a
 # holdover from the -fopenmp=libgomp era (link-compat only, no _OPENMP) that remains the project-owned
@@ -197,13 +197,13 @@ endif()
 #  CMAKE_CXX_FLAGS / add_compile_definitions / link_libraries -- truly global, not per-target vars.)
 
 target_compile_definitions(qchem PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcRadial_BS qcLattice_BS qcPlaneWave_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry lapack blas)
+target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcGaussian_BS qcRadial_BS qcLattice_BS qcPlaneWave_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry lapack blas)
 add_subdirectory(src)
 add_subdirectory(./IntegrationTests)
 add_subdirectory(./CLIapps)
 
 add_custom_target(allTests
-    DEPENDS ITMain UTCommon UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTMolecule_BS UTLattice_3D_BS UTLASolver UTSCFAccelerator UTSCFIterator
+    DEPENDS ITMain UTCommon UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTGaussian_BS UTLattice_3D_BS UTLASolver UTSCFAccelerator UTSCFIterator
     COMMENT "Build all unit test executables"
 )
 # Disable embedded submodule tests so ctest only runs this project's tests.
@@ -214,7 +214,7 @@ add_subdirectory(./submodules/libxc)
 set(ENABLE_STATIC ON CACHE BOOL "Build libcint as a static library" FORCE)
 set(WITH_FORTRAN  OFF CACHE BOOL "libcint Fortran interface (unused)" FORCE)
 add_subdirectory(./submodules/libcint)
-# qcMolecule_BS is a shared library, so the static cint must be position-independent.
+# qcGaussian_BS is a shared library, so the static cint must be position-independent.
 set_property(TARGET cint PROPERTY POSITION_INDEPENDENT_CODE ON)
 set(BUILD_TESTING ON CACHE BOOL "Enable testing for this project" FORCE)
 

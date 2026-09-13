@@ -52,7 +52,7 @@ struct CalcOptions
     //! the calculation to Pol::Polarized when 2S>0 (unrestricted open shell needs distinct up/down densities).
     //! A multiplicity whose parity disagrees with Ne (e.g. a singlet for odd Ne) is rejected.
     int         multiplicity = 0;
-    //! Basis construction variants (threaded into BasisSet::Molecule::Factory).  Defaults reproduce
+    //! Basis construction variants (threaded into BasisSet::Gaussian::Factory).  Defaults reproduce
     //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry is rejected until
     //! the Spherical SALC track (doc/OldPlans/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
     Engine      engine  = Engine::MnD;

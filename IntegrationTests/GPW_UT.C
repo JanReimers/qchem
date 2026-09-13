@@ -2,7 +2,7 @@
 //
 // GPW puts GAUSSIAN orbitals on a lattice.  Its one-electron matrices are lattice sums of the ordinary
 // (finite) two-centre integrals,  M_ij = Sum_R <chi_i | O | chi_j(.-R)>, computed by the molecular Gaussian
-// basis (Molecule::LatticeSum1E) and delegated to by GPW_Evaluator; GPW_IBS is the thin Orbital_1E_IBS on top.
+// basis (Gaussian::LatticeSum1E) and delegated to by GPW_Evaluator; GPW_IBS is the thin Orbital_1E_IBS on top.
 //
 // 1E validation mirrors L_PP: the SAME Si valence Gaussian basis gives the SAME overlap / kinetic (<p^2>) /
 // nuclear matrices whether the atom is a finite Molecule or centred in a large periodic UnitCell.  Two teeth:
@@ -26,13 +26,13 @@ import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell
 import qchem.BasisSet;                          // Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic()/Nuclear()
-import qchem.BasisSet.Molecule.Factory;         // Molecule::Factory, BasisSetData/Engine/Angular
-import qchem.BasisSet.Molecule.PG_Cart;         // direct PG_Cart construction (the diffuse-d V_long oracle gate)
-import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS (the basis under test)
+import qchem.BasisSet.Gaussian.Point.Factory;         // Gaussian::Factory, BasisSetData/Engine/Angular
+import qchem.BasisSet.Gaussian.Point.PG_Cart;         // direct PG_Cart construction (the diffuse-d V_long oracle gate)
+import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // GPW_IBS (the basis under test)
 import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the _R / _Gaussian faces (KB gate)
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
-import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
-import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::CollocateDensity (analytic collocation)
+import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
+import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // Gaussian::LatticeSum1E::CollocateDensity (analytic collocation)
 import qchem.LASolver;                       // LASolver<dcmplx> (the k=1/4 spectrum gate)
 import qchem.Symmetry.Factory;               // BlochFactory (arbitrary-shift k for the k=1/4 continuity gate)
 import qchem.BasisSet.DeltaFit_IBS;          // DeltaFit_IBS (the delta representation's OverlapDiagonal gate)
@@ -52,9 +52,9 @@ using namespace qchem;
 using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
 using BasisSet::Complex_OIBS;
-using BasisSet::Lattice_3D::GPW_IBS;
-using BasisSet::Lattice_3D::GPW_Evaluator;
-using qchem::BasisSet::Molecule::BasisSetData;
+using BasisSet::Gaussian::GPW_IBS;
+using BasisSet::Gaussian::GPW_Evaluator;
+using qchem::BasisSet::Gaussian::BasisSetData;
 
 namespace
 {
@@ -62,21 +62,21 @@ namespace
 // DEFAULT is D-aware, so this is what the SCF path hands the same two faces -- which is what makes the
 // numbers pinned below the ones a real run produces.  A geometry-only arm would be a different gate, not a
 // different spelling of this one.
-const qchem::BasisSet::Molecule::LatticeScreener& TheScreener()
+const qchem::BasisSet::Gaussian::LatticeScreener& TheScreener()
 {
-    static const qchem::BasisSet::Molecule::DAwareScreener s(qchem::BasisSet::Molecule::CollocationEps());
+    static const qchem::BasisSet::Gaussian::DAwareScreener s(qchem::BasisSet::Gaussian::CollocationEps());
     return s;
 }
 
 // The valence Si Gaussian basis (SIPP, Cartesian) on ANY structure -- the L_PP builder.  The Engine argument
-// is the integral-engine switch point (see Molecule::LatticeSum1E): Engine::MnD here (its AtCenter + analytic
+// is the integral-engine switch point (see Gaussian::LatticeSum1E): Engine::MnD here (its AtCenter + analytic
 // 2C kernels make the periodic sum exact/trivial); Engine::LibCint would be the faster path once PG_LibCint
 // realises LatticeSum1E -- GPW itself is unchanged either way.
 std::unique_ptr<Real_BS> MakeBasis(const Structure& st)
 {
     return std::unique_ptr<Real_BS>(
-        BasisSet::Molecule::Factory(BasisSetData::SIPP, &st,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSet::Gaussian::Factory(BasisSetData::SIPP, &st,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 }
 
 // The single orbital block of a raw (no-SALC) single-atom basis (real or complex flavour).
@@ -140,7 +140,7 @@ TEST(GPW, HomeCellMatchesFiniteExactly)
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0,
-                BasisSet::Lattice_3D::CellImages::HomeCellOnly); // the finite-molecule mode
+                BasisSet::Gaussian::CellImages::HomeCellOnly); // the finite-molecule mode
     const Complex_OIBS& g = gpw;
 
     ASSERT_EQ(g.GetNumFunctions(), fin.orb->GetNumFunctions());
@@ -244,7 +244,7 @@ TEST(GPW, SharpestPairChargeConservation)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, BasisSet::Lattice_3D::CellImages::Periodic, 2.0,
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
                 BasisSet::PlaneWave::RasterPolicy::AliasFree);   // EXACT-QUADRATURE gate (production default = BallOnly)
     const GPW_Evaluator& ev = gpw;
     const Complex_OIBS&  g  = gpw;
@@ -293,8 +293,8 @@ TEST(GPW, DISABLED_IllConditionedChargeProbe)
     FCCUnitCell cell(a);
     cell.AddAtom(11,{0,0,0});
     cell.AddAtom(9, {0.5,0.5,0.5});
-    std::shared_ptr<const Real_BS> mol(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    std::shared_ptr<const Real_BS> mol(BasisSet::Gaussian::Factory(
+        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const char* e=std::getenv("GPW_ILLCOND_ECUT");
     const double ecut=e?std::atof(e):40.0;
     // NOTE (banish-Rcut): the historical Rcut=2a leg that MEASURED the -2.247 e scheme mismatch is now
@@ -376,7 +376,7 @@ TEST(GPW, AnalyticCollocationConservesCharge)
         // (SIPP's diffuse alpha=0.06 reaches neighbour cells even at a=12), so the home-only Tr(D S) is ~3% off.
         GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0);
         const GPW_Evaluator& ev=gpw;
-        const auto* lat=dynamic_cast<const BasisSet::Molecule::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
+        const auto* lat=dynamic_cast<const BasisSet::Gaussian::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
         EXPECT_TRUE(lat) << "orbital block must realise Periodic_Gaussian_IBS";
         const ivec3_t N=ev.DensityGrid().FFTGrid();
         const size_t  n=ev.size();
@@ -404,7 +404,7 @@ TEST(GPW, AnalyticCollocationConservesCharge)
 // cheaper than the 3.9 GB it cost, so there is no budget, no residency, no starvation and no self-heal
 // left to gate.  Its replacement, the (shell pair, offset) TASK LIST, is ~0.2 MB of pure geometry with
 // nothing to compete for, and it is unit-tested where the testing-level pin says it belongs:
-// src/BasisSet/Molecule/tests/M_PG_BoxWalk.C, TaskListIsExactlyTheEnumerationItReplaces.
+// src/BasisSet/Gaussian/tests/M_PG_BoxWalk.C, TaskListIsExactlyTheEnumerationItReplaces.
 
 // ANALYTIC COLLOCATION on a CRYSTAL (cross-cell pairs), through the SCF SEAM (Overlap3CTensor's matrix-free
 // `apply` -> the REL_CUTOFF multi-grid ladder).  The periodic Gamma density is a product of BLOCH orbitals,
@@ -451,7 +451,7 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0);
     const GPW_Evaluator& ev=gpw;
-    const auto* lat=dynamic_cast<const BasisSet::Molecule::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
+    const auto* lat=dynamic_cast<const BasisSet::Gaussian::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
     EXPECT_TRUE(lat);
     const ivec3_t N=ev.DensityGrid().FFTGrid();
     const size_t  n=ev.size();
@@ -516,7 +516,7 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     namespace SL=qchem::Symmetry::Lattice_3D;
     const bool kZero = kFrac.x==0.0 && kFrac.y==0.0 && kFrac.z==0.0;
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
-    const auto* lat=dynamic_cast<const BasisSet::Molecule::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
+    const auto* lat=dynamic_cast<const BasisSet::Gaussian::Periodic_Gaussian_IBS*>(OrbitalBlock<Real_OIBS>(*mol));
     ASSERT_TRUE(lat) << "orbital block must realise Periodic_Gaussian_IBS";
     const SL::SpaceGroup sg=SL::SpaceGroup::Detect(cell.GetCellMatrix(), sites);
     const std::vector<SL::DirectOp> dops = kZero ? sg.DirectOps() : sg.LittleGroupDirectOps(kFrac);
@@ -748,7 +748,7 @@ TEST(GPW, XCPotentialConsistencyFD)
     cell.AddAtom(14,{0,0,0});
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Lattice_3D::CellImages::Periodic, 2.0,
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
                 BasisSet::PlaneWave::RasterPolicy::AliasFree);   // EXACT-QUADRATURE gate (production default = BallOnly)
     const GPW_Evaluator& ev=gpw;
     const auto& grid=ev.DensityGrid();
@@ -871,7 +871,7 @@ TEST(GPW, RawXCConsistencyFD)
     cell.AddAtom(14,{0,0,0});
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Lattice_3D::CellImages::Periodic, 2.0,
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Gaussian::CellImages::Periodic, 2.0,
                 BasisSet::PlaneWave::RasterPolicy::AliasFree);   // EXACT-QUADRATURE gate (production default = BallOnly)
     const GPW_Evaluator& ev=gpw;
     const auto& grid=ev.DensityGrid();
@@ -970,7 +970,7 @@ TEST(GPW, GeneralK_HomeCellIsKInvariantAndReal)
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
     GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0,
-                BasisSet::Lattice_3D::CellImages::HomeCellOnly); // k=(1/4,0,0), finite mode
+                BasisSet::Gaussian::CellImages::HomeCellOnly); // k=(1/4,0,0), finite mode
     const Complex_OIBS& g = gpw;
     EXPECT_LT(MaxImag(g.Overlap()), 1e-14);                        // phase inert at R=0 -> real
     EXPECT_LT(MaxImag(g.Kinetic()), 1e-14);
@@ -1074,7 +1074,7 @@ TEST(GPW, TRIM_RealBlockMatchesComplexBitwise)
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
 
-    using BasisSet::Lattice_3D::tGPW_IBS;
+    using BasisSet::Gaussian::tGPW_IBS;
     for (const ivec3_t ik : {ivec3_t(0,0,0), ivec3_t(1,1,1)})      // Gamma and k=(1/2,1/2,1/2)
     {
         tGPW_IBS<double> re(cell, ivec3_t(2,2,2), ik, molCell, /*densityEcut=*/0.0);
@@ -1154,8 +1154,8 @@ TEST(GPW, GeneralK_OneElectronMatricesAreContinuousAtQuarterK)
     FCCUnitCell cell(a);
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
-    std::shared_ptr<const Real_BS> mol(BasisSet::Molecule::Factory(
-        BasisSetData::SIPP_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    std::shared_ptr<const Real_BS> mol(BasisSet::Gaussian::Factory(
+        BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 
     // k = s(1,1,1) via the shift, so s is EXACT: N=1 makes k = (0+shift)/1 = shift.
     auto norms=[&](double s, double& nS, double& nT, double& nV)
@@ -1325,8 +1325,8 @@ TEST(GPW, GeneralK_OneElectronSpectrumIsContinuousAtQuarterK)
     FCCUnitCell cell(a);
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
-    std::shared_ptr<const Real_BS> mol(BasisSet::Molecule::Factory(
-        BasisSetData::SIPP_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    std::shared_ptr<const Real_BS> mol(BasisSet::Gaussian::Factory(
+        BasisSetData::SIPP_SR, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
 
     auto spectrum=[&](double s)
@@ -1392,8 +1392,8 @@ TEST(GPW, AnalyticSeparablePPMatchesMesh)
     // self-consistent schemes" pin, doc/GPWPlan.md) -- measured 9.3e-2 for diffuse SIPP at Rcut=1.5a vs
     // agreement at AUTO.  Complete enumeration is the production setting; the gate pins THAT.
     std::shared_ptr<const Real_BS> mol(
-        BasisSet::Molecule::Factory(BasisSetData::SIPP_SR, &cell,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSet::Gaussian::Factory(BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
 
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
@@ -1441,8 +1441,8 @@ TEST(GPW, DISABLED_AnalyticSeparablePPMatchesMesh_DChannel)
     cell.AddAtom(25, {0,0,0});
     cell.AddAtom(25, {0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol(
-        BasisSet::Molecule::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
 
     const auto gth = Pseudopotential::GetGTH("Mn","LDA",7);
@@ -1485,8 +1485,8 @@ TEST(GPW, LocalPPKappaSelfConverged)
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol(
-        BasisSet::Molecule::Factory(BasisSetData::SIPP_SR, &cell,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSet::Gaussian::Factory(BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     // densityEcut=10 keeps the sweeps cheap: the absolute rule's tail bound e^{-kappa/2} references NO grid
     // (that is its point), so kappa-independence is testable at any ladder.  (First measured at Ecut=20:
     // Full 7.6e-9 / Long 1.4e-9 / Short 1.6e-8 between kappa=30 and 60 -- the e^{-15} class on the nose.)
@@ -1772,8 +1772,8 @@ TEST(GPW, DISABLED_DiffuseDPairVlongOracle)
     Matrix3D<double> Amat(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);   // the MnO rhombohedral cell
     UnitCell cell(Amat);
     cell.AddAtom(25, {0.5,0.5,0.5});                                  // ONE Mn q7, off-corner
-    auto* cbs=new BasisSet::Molecule::PG_Cart::BasisSet;
-    cbs->Insert(new BasisSet::Molecule::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
     std::shared_ptr<const Real_BS> mol(cbs);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
     const GPW_Evaluator& ev=gpw;
@@ -1840,7 +1840,7 @@ TEST(GPW, DISABLED_DiffuseDPairVlongOracle)
         }
     }
     // Quadrature/Bloch SELF-CHECK against the analytic Bloch overlap (LatticeSum1E, Gamma phases).
-    const auto* lat1e=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(obs);
+    const auto* lat1e=dynamic_cast<const BasisSet::Gaussian::LatticeSum1E*>(obs);
     ASSERT_TRUE(lat1e);
     const chmat_t Sb=lat1e->MakeOverlap([](const ivec3_t&){return dcmplx(1.0);}, cell);
     for (size_t p=0;p<n;p++)
@@ -1899,8 +1899,8 @@ TEST(GPW, DISABLED_DiffuseDVlongSharpFieldOracle)
     UnitCell cell(Amat);
     cell.AddAtom(25, {0.5,0.5,0.5});
     cell.AddAtom( 8, {0.25,0.25,0.25});
-    auto* cbs=new BasisSet::Molecule::PG_Cart::BasisSet;
-    cbs->Insert(new BasisSet::Molecule::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
     std::shared_ptr<const Real_BS> mol(cbs);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
     const GPW_Evaluator& ev=gpw;
@@ -2016,8 +2016,8 @@ TEST(GPW, DISABLED_DiffuseDKBOracle)
     UnitCell cell(Amat);
     cell.AddAtom(25, {0.5,0.5,0.5});
     cell.AddAtom( 8, {0.25,0.25,0.25});
-    auto* cbs=new BasisSet::Molecule::PG_Cart::BasisSet;
-    cbs->Insert(new BasisSet::Molecule::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
+    auto* cbs=new BasisSet::Gaussian::PG_Cart::BasisSet;
+    cbs->Insert(new BasisSet::Gaussian::PG_Cart::Orbital_IBS(rvec_t{0.18,0.38,24.0}, 2, &cell));
     std::shared_ptr<const Real_BS> mol(cbs);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/48.0);
     const GPW_Evaluator& ev=gpw;

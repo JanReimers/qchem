@@ -17,7 +17,7 @@ module;
 #include <vector>
 module qchem.SolidCalculation;
 
-import qchem.BasisSet.Molecule.LatticeSum1E;   // GaussianSharpness::MaxExponent -- alpha_max (the NARROW face)
+import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;   // GaussianSharpness::MaxExponent -- alpha_max (the NARROW face)
 import qchem.BasisSet.Orbital_1E_IBS;          // Real_OIBS / Complex_OIBS (the per-irrep bases to iterate)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH -> HGH local PP -> alpha_pp
 import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (element symbol -> Z)
@@ -36,7 +36,7 @@ namespace qchem
 //
 //  Both sources come off ABSTRACT capability faces via the sanctioned abstract->abstract cross-cast, so
 //  nothing here touches a concrete basis or a concrete PP model:
-//    alpha_max -- BasisSet::Molecule::LatticeSum1E::MaxExponent(), documented there as "the GPW
+//    alpha_max -- BasisSet::Gaussian::LatticeSum1E::MaxExponent(), documented there as "the GPW
 //                 density-grid cutoff floor".
 //    alpha_pp  -- BasisSet::SpeciesRadialField_Gaussian::AsGaussians(Z, Short), whose terms carry
 //                 alpha = 1/(2 r_loc^2).  A model with no closed-Gaussian short part does not implement
@@ -54,7 +54,7 @@ static qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Basi
         // THE NARROW FACE, since the 2026-09-08 ISP split: this asks for ONE number, so it names the
         // three-method GaussianSharpness capability and not the seventeen-method periodic aggregate it
         // used to cross-cast to.  Nothing here wants a lattice sum, a collocation or a stream fold.
-        if (const auto* sh=dynamic_cast<const BasisSet::Molecule::GaussianSharpness*>(ibs))
+        if (const auto* sh=dynamic_cast<const BasisSet::Gaussian::GaussianSharpness*>(ibs))
             { s.alphaMax = sh->MaxExponent(); break; }
     for (const auto& [element, valence] : o.species)
     {

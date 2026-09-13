@@ -13,10 +13,10 @@ module qchem.BasisSet.Lattice_3D.BasisSet;
 import qchem.Symmetry.Lattice_3D.Fold;   // RequireClosedGroup -- the imposition gate
 import qchem.RunPolicy;   // theRunPolicy().StreamFold() -- the T3.2 fold, declared with the deviations (N5)
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
-import qchem.BasisSet.Lattice_3D.GPW_IBS;     // GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
-import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (the shared grid face the mixed EmitGpwGrids visit casts to)
+import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;     // Gaussian::GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
+import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator; // Gaussian::GPW_Evaluator (the shared grid face the mixed EmitGpwGrids visit casts to)
 import qchem.BasisSet.Orbital_1E_IBS;         // Real_OIBS (the molecular orbital block -- the stream-fold cross-cast)
-import qchem.BasisSet.Molecule.LatticeSum1E;  // SetStreamSymmetryOps (the T3 route (b) stream fold, §6b)
+import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;  // SetStreamSymmetryOps (the T3 route (b) stream fold, §6b)
 import qchem.Reporting;                        // route the grid diagnostic into the run report when one is open
 import qchem.Symmetry.Factory;                // BlochFactory (the Bloch irrep per k)
 import qchem.Symmetry;                         // Spin, Irrep (the Bloch block identity for the pre-flight)
@@ -195,7 +195,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
 {
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
-    const GPW_Evaluator* first=nullptr;   // the shared evaluator base -- serves ReportGrids for EITHER block scalar
+    const Gaussian::GPW_Evaluator* first=nullptr;   // the shared evaluator base -- serves ReportGrids for EITHER block scalar
     CrystalPointOps ops = DetectPointOps(lat, p);   // ONE detection + the §3 policy: fold ops + {U|τ} (ρ̃) + {W|τ} (raster)
     itsReciprocalOps = ops.recipDensity;            // exposed via GetReciprocalPointOps for the composite G-space density
     itsDetectedOps   = ops.recipDetected;           // the FULL detected group, imposed or not (§3 diagnostic reference)
@@ -236,7 +236,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
             for (auto ibs : const_cast<BasisSet::Real_BS&>(*mol).Iterate<BasisSet::Real_OIBS>()) { orb=ibs; break; }
             // THE NARROW FACE (ISP split 2026-09-08): arming the fold is all this does, so it names the
             // two-method StreamFoldable capability rather than the whole periodic aggregate.
-            if (const auto* sf=dynamic_cast<const Molecule::StreamFoldable*>(orb))
+            if (const auto* sf=dynamic_cast<const Gaussian::StreamFoldable*>(orb))
             {
                 const size_t used=sf->SetStreamSymmetryOps(streamOps, lat.GetUnitCell());
                 std::cout << "[stream fold] imposed Γ run: " << used << "/" << streamOps.size()
@@ -255,7 +255,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         // both alternatives; the typed Insert (Step 3b) files each under its own child slot.
         auto build=[&]<class U>()
         {
-            auto* b=new tGPW_IBS<U>(lat.GetUnitCell(), irrep,
+            auto* b=new Gaussian::tGPW_IBS<U>(lat.GetUnitCell(), irrep,
                                     mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor,
                                     ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
                                     p.rasterFields,       // field-sharpness routing (HartreeOnly = the Becke-XC partner)
@@ -288,7 +288,7 @@ void EmitGpwGrids(const Complex_BS& bs)
     {
         const bool done=std::visit([&](const auto& b)
         {
-            if (auto* ev=dynamic_cast<const GPW_Evaluator*>(b.get())) { ev->EmitGridsReport(); return true; }
+            if (auto* ev=dynamic_cast<const Gaussian::GPW_Evaluator*>(b.get())) { ev->EmitGridsReport(); return true; }
             return false;
         }, imp->GetChild(i));
         if (done) return;
@@ -340,7 +340,7 @@ Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const Bas
     return new GPW_BasisSet(lat, std::move(mol), p);
 }
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, rvec3_t kShift, CellImages images, double cutoffFactor)
+                       double densityEcut, rvec3_t kShift, Gaussian::CellImages images, double cutoffFactor)
 {
     return new GPW_BasisSet(lat, std::move(mol),
                             GPWParams{densityEcut, cutoffFactor, PlaneWave::RasterPolicy::BallOnly, images, kShift});

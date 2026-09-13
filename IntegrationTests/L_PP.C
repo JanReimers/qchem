@@ -21,7 +21,7 @@ import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell (uniform lattice mesh)
 import qchem.BasisSet;                          // Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS (== robs_t)
-import qchem.BasisSet.Molecule.Factory;         // Molecule::Factory, BasisSetData/Engine/Angular
+import qchem.BasisSet.Gaussian.Point.Factory;         // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian;                        // rStatic_HT (the public GetMatrix face)
 import qchem.Hamiltonian.Internal.Terms;        // PP_Local, PP_NonLocal (tests may import Internal)
 import qchem.Pseudopotential.LocalPotential;     // HGH_LocalPotential
@@ -33,7 +33,7 @@ import qchem.Blaze;                              // matrix element access (i,j) 
 import qchem.Types;
 using namespace qchem;
 using Real_OIBS = qchem::BasisSet::Real_OIBS;
-using qchem::BasisSet::Molecule::BasisSetData;
+using qchem::BasisSet::Gaussian::BasisSetData;
 // NB: Engine/Angular are NOT `using`-imported here -- qchem::Calculation also exports enums of those names
 // (the facade's engine/angular knobs), so name the basis-factory ones fully-qualified in MakeBasis below.
 
@@ -46,8 +46,8 @@ using Ptr = std::shared_ptr<const Structure>;
 std::unique_ptr<BasisSet::Real_BS> MakeBasis(const Structure& st)
 {
     return std::unique_ptr<BasisSet::Real_BS>(
-        BasisSet::Molecule::Factory(BasisSetData::SIPP, &st,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSet::Gaussian::Factory(BasisSetData::SIPP, &st,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 }
 
 // Relative Frobenius distance between two same-shaped matrices, ||A-B||_F / ||B||_F.

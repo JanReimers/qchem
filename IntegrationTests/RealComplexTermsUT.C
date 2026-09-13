@@ -24,8 +24,8 @@
 import qchem.Structure;
 import qchem.UnitCell;
 import qchem.BasisSet;
-import qchem.BasisSet.Molecule.Factory;
-import qchem.BasisSet.Lattice_3D.GPW_IBS;          // tGPW_IBS<T> (both block alternatives)
+import qchem.BasisSet.Gaussian.Point.Factory;
+import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;          // tGPW_IBS<T> (both block alternatives)
 import qchem.Hamiltonian;                          // Static/Dynamic_HT_RealBlock (the capability faces)
 import qchem.Hamiltonian.Internal.Kinetic;         // Kinetic<T> (tests may cheat-import internals)
 import qchem.Hamiltonian.Internal.Hamiltonian;     // tHamiltonianImp<dcmplx> (the 3c-2 assembly gate)
@@ -47,7 +47,7 @@ import qchem.Types;
 using namespace qchem;
 using namespace qchem::Hamiltonian;
 using BasisSet::Real_BS;
-using BasisSet::Lattice_3D::tGPW_IBS;
+using BasisSet::Gaussian::tGPW_IBS;
 
 namespace
 {
@@ -62,7 +62,7 @@ struct Rig
     {
         cell.AddAtom(14,{0.5,0.5,0.5});
         st=cell.Clone();
-        namespace M = qchem::BasisSet::Molecule;
+        namespace M = qchem::BasisSet::Gaussian;
         mol.reset(M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
         re=std::make_unique<tGPW_IBS<double>>(cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
         cx=std::make_unique<tGPW_IBS<dcmplx>>(cell, ivec3_t(2,2,2), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
@@ -351,7 +351,7 @@ struct FccRig
         cell.AddAtom(14,{0,0,0});
         cell.AddAtom(14,{0.25,0.25,0.25});
         st=cell.Clone();
-        namespace M = qchem::BasisSet::Molecule;
+        namespace M = qchem::BasisSet::Gaussian;
         mol.reset(M::Factory(M::BasisSetData::SIPP_SR, &cell, M::Engine::MnD, M::Angular::Cartesian));
         re=std::make_unique<tGPW_IBS<double>>(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
         cx=std::make_unique<tGPW_IBS<dcmplx>>(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);

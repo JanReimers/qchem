@@ -77,7 +77,7 @@ struct SolidCalcOptions
     double cutoffFactor = 2.0;    //!< C in that floor; 2 = the density's own product exponent.
     double ladderFactor = 4.0;    //!< multigrid ladder gradation (DEPTH is automatic).
     BasisSet::PlaneWave::RasterPolicy raster = BasisSet::PlaneWave::RasterPolicy::BallOnly;
-    BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
+    BasisSet::Gaussian::CellImages   images = BasisSet::Gaussian::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
     //! \brief The XC real-space quadrature.  DEFAULT \c Auto = "you choose": the class costs a uniform
     //! mesh sized to this run's sharpness against the atom-centred Becke mesh and takes the cheaper, with

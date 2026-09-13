@@ -9,7 +9,7 @@
 // memoized by the existing cache under an irrep-specific AngularID -- both cached, no new
 // cache code.  (The 2-electron Fock path -- build F_AO, slice per irrep -- comes next.)
 // ★ WHY `.Internal.` (V1.20, ruled 2026-09-09).  Its ONLY consumers are
-// `qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet` and a molecular unit test — both inside the
+// `qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet` and a molecular unit test — both inside the
 // `src/BasisSet/` tree, but in a different CMake target (`qcMolecule_BS`).  The user ruled that the
 // **qcBasisSet* family counts as ONE library** for CLAUDE.md's "do not import internals across library
 // BOUNDARIES" rule: `.Internal.` marks the family boundary, not the target boundary.  So this decorator —

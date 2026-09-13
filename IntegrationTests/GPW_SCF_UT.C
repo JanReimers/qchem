@@ -42,8 +42,8 @@ import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-sp
 import qchem.Blaze;                              // blazem::eigen, blaze::min/max (overlap spectrum)
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;   // PlaneWave_IBS (the seed's CD fit basis)
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
-import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
-import qchem.BasisSet.Molecule.PG_Spherical.LatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
+import qchem.BasisSet.Gaussian.Point.Factory;          // Gaussian::Factory, BasisSetData/Engine/Angular
+import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
 import qchem.RunPolicy;                         // ReresolveRunPolicy() -- the declared-deviation A/B hatch (N5)
@@ -61,7 +61,7 @@ import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac excha
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5, for the Becke XC gate)
 import qchem.Mesh;                                // qcMesh::MeshParams / UnitCellKind (the Becke XC quadrature)
 import qchem.Mesh.XCPolicy;                       // BeckeXCParams / ResolveXCMesh / XCMeshSharpness (the grid policy)
-import qchem.BasisSet.Molecule.LatticeSum1E;      // Molecule::LatticeSum1E::MaxExponent (alpha_max, for the selector)
+import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;      // Gaussian::LatticeSum1E::MaxExponent (alpha_max, for the selector)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH -> HGH local PP (alpha_pp = 1/2r_loc^2, for the selector)
 import qchem.PeriodicTable;                       // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.SCFIterator;                        // cSCFIterator, SCFParams
@@ -80,8 +80,8 @@ import qchem.Reporting;                          // report:: -- bracket the GPW 
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.Symmetry.Factory;                   // BlochFactory (build a k-block with a fractional MP shift)
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
-import qchem.BasisSet.Lattice_3D.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
-import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
+import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
+import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
 import qchem.BasisSet.GMap;              // Projector3<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
 import qchem.ChargeDensity.FourierDensity;        // FourierDensity (ρ̃ for the §3 order-parameter diagnostic)
 import qchem.ChargeDensity.Factory;
@@ -119,7 +119,7 @@ SinglesEngineOver(qchem::BasisSet::FitQuadrature q)
 using namespace qchem;
 using BasisSet::Real_BS;
 using BasisSet::Complex_BS;
-using qchem::BasisSet::Molecule::BasisSetData;
+using qchem::BasisSet::Gaussian::BasisSetData;
 
 namespace
 {
@@ -127,8 +127,8 @@ namespace
 std::shared_ptr<const Real_BS> MakeBasis(const Structure& st)
 {
     return std::shared_ptr<const Real_BS>(
-        BasisSet::Molecule::Factory(BasisSetData::SIPP, &st,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSet::Gaussian::Factory(BasisSetData::SIPP, &st,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 }
 // GPW_SPHERICAL=1 (doc/SphericalLatticePlan.md I1/I2): wrap the molecular basis in its spherical
 // (contaminant-free) lattice view -- the span-matched A/B against CP2K's spherical-d convention.
@@ -136,15 +136,15 @@ std::shared_ptr<const Real_BS> MakeBasis(const Structure& st)
 std::shared_ptr<const Real_BS> MaybeSpherical(std::shared_ptr<const Real_BS> bs)
 {
     if (std::getenv("GPW_SPHERICAL"))
-        return BasisSet::Molecule::PG_Spherical::MakeSphericalLatticeView(std::move(bs));
+        return BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(bs));
     return bs;
 }
 // The SHORT-RANGE variant (most diffuse valence primitives dropped) -- well-conditioned Bloch overlap in a solid.
 std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
 {
     return MaybeSpherical(std::shared_ptr<const Real_BS>(
-        BasisSet::Molecule::Factory(BasisSetData::SIPP_SR, &st,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian)));
+        BasisSet::Gaussian::Factory(BasisSetData::SIPP_SR, &st,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian)));
 }
 // The low-q GTH valence basis (valgen-generated; carries Al/Na/F) -- the Al block drives the FCC-Al metal test.
 // GPW_BASIS_SPH=1 swaps in VALENCE_LOWQ_SPH (the Mn true-s window restored -- doc/SphericalLatticePlan.md I3);
@@ -172,8 +172,8 @@ std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData w
         }
     }
     return MaybeSpherical(std::shared_ptr<const Real_BS>(
-        BasisSet::Molecule::Factory(which, &st,
-                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian)));
+        BasisSet::Gaussian::Factory(which, &st,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian)));
 }
 
 struct GpwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_t iters; };
@@ -324,7 +324,7 @@ struct GpwOptions
     double cutoffFactor = 2.0;
     double ladderFactor = 4.0;
     BasisSet::PlaneWave::RasterPolicy raster = BasisSet::PlaneWave::RasterPolicy::BallOnly;
-    BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
+    BasisSet::Gaussian::CellImages   images = BasisSet::Gaussian::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
     //! XC-quadrature policy, decided by \c xcMesh.cellKind.  DEFAULT \c Auto (2026-08-01 flip): the
     //! driver resolves it to the atom-centred periodic BECKE mesh (Vxc_Quadrature, the calibrated
@@ -408,7 +408,7 @@ namespace
 //
 // Both sharpness sources come off ABSTRACT capability faces, reached by the sanctioned abstract->abstract
 // cross-cast, so nothing here touches a concrete basis or a concrete PP model:
-//   alpha_max -- BasisSet::Molecule::LatticeSum1E::MaxExponent(), documented as "the GPW density-grid cutoff floor".
+//   alpha_max -- BasisSet::Gaussian::LatticeSum1E::MaxExponent(), documented as "the GPW density-grid cutoff floor".
 //   alpha_pp  -- BasisSet::SpeciesRadialField_Gaussian::AsGaussians(Z, qchem::BasisSet::FieldRange::Short), whose terms carry
 //                alpha = 1/(2 r_loc^2).  A model with no closed-Gaussian short part does not implement the
 //                face; that leaves alpha_pp at 0, which the selector reads as "not measurable" -- NOT as
@@ -422,7 +422,7 @@ qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Real_BS& mo
     for (auto ibs : const_cast<Real_BS&>(mol).Iterate<BasisSet::Real_OIBS>())
         // the NARROW face (ISP split 2026-09-08) -- this asks for one scalar, like its production twin
         // in Calculation/Imp/SolidCalculation.C
-        if (const auto* sh=dynamic_cast<const BasisSet::Molecule::GaussianSharpness*>(ibs))
+        if (const auto* sh=dynamic_cast<const BasisSet::Gaussian::GaussianSharpness*>(ibs))
             { s.alphaMax=sh->MaxExponent(); break; }
     for (const auto& [element, valence] : o.species)
     {
@@ -576,7 +576,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
         bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
             .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
             .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .imposeSymmetry=o.imposeSymmetry,
-            .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC,
+            .rasterFields=routeExperiment ? BasisSet::Gaussian::RasterFields::HartreeOnly : BasisSet::Gaussian::RasterFields::HartreeXC,
             .siteSpins=GatherSiteSpins(lat, o), .hamPreservesReal=o.realTRIMBlocks}));
     }
 
@@ -743,7 +743,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
         .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
         .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .imposeSymmetry=o.imposeSymmetry,
-        .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC,
+        .rasterFields=routeExperiment ? BasisSet::Gaussian::RasterFields::HartreeOnly : BasisSet::Gaussian::RasterFields::HartreeXC,
         .siteSpins=GatherSiteSpins(lat, o), .hamPreservesReal=o.realTRIMBlocks}));
     if (report.VetBasis(*bs) > 0)
     {
@@ -871,7 +871,7 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0,
                  rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30,
                  qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
-                 BasisSet::Lattice_3D::CellImages images=BasisSet::Lattice_3D::CellImages::Periodic,
+                 BasisSet::Gaussian::CellImages images=BasisSet::Gaussian::CellImages::Periodic,
                  double smearkT=0.0,
                  qcMesh::UnitCellKind xcKind=qcMesh::UnitCellKind::Auto,
                  // The FULL Becke recipe when a caller has one.  Passing only xcKind leaves nRadial /
@@ -1046,7 +1046,7 @@ TEST(GPW_SCF, DISABLED_SiSupercellLadder)
                        label.str().c_str(), /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
                        /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6,
                        qchem::ChargeDensity::SeedStrategy::Uniform,
-                       BasisSet::Lattice_3D::CellImages::Periodic, /*smearkT*/0.0, xcKind,
+                       BasisSet::Gaussian::CellImages::Periodic, /*smearkT*/0.0, xcKind,
                        xcKind==qcMesh::UnitCellKind::Becke ? &xcMesh : nullptr);
 
     const double ePerPrim=R.E.GetTotalEnergy()/double(nPrim);
@@ -1193,7 +1193,7 @@ TEST(GPW_SCF, DISABLED_SingleKSweepProbe)
 // 1600x below the ~1.7 Ha (pre-fix ~16 Ha) bug it protects against.
 TEST(GPW_SCF, DISABLED_TermTranslationInvariance)
 {
-    using BasisSet::Lattice_3D::GPW_IBS;
+    using BasisSet::Gaussian::GPW_IBS;
     auto tr=[](const chmat_t& M){ double s=0; for (size_t i=0;i<M.rows();i++) s+=std::real(dcmplx(M(i,i))); return s; };
     const double a=10.26, dE=30.0;   // N=64 (finer than CP2K's converged grid)
     auto traces=[&](double frac, double& kin, double& vloc, double& vnl)
@@ -1372,7 +1372,7 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
     GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/10.0, /*Nelec*/4, "Si", "Si atom-in-box",
                        /*verbose*/false, /*nmax*/40, qchem::Cholesky, 0.0, rvec3_t(0,0,0), 1e-6, 1e30,
                        qchem::ChargeDensity::SeedStrategy::Uniform,
-                       BasisSet::Lattice_3D::CellImages::HomeCellOnly,    // the finite-molecule mode
+                       BasisSet::Gaussian::CellImages::HomeCellOnly,    // the finite-molecule mode
                        /*smearkT*/0.0, qcMesh::UnitCellKind::Uniform);
 
     EXPECT_NEAR(R.charge, 4.0, 1e-6);                        // 4 valence electrons (Zion=4), charge conserved
@@ -1518,7 +1518,7 @@ TEST(GPW_SCF, O2TripletInBoxMatchesFinite)
     o.label="O2 in-box triplet";
     o.Nelec=12; o.multiplicity=3;                      // S=1: nUp=7, nDown=5
     o.species={{"O",6}};                               // densityEcut stays AUTO: O q6 is hard (alpha_max rules)
-    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
     o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
@@ -1546,7 +1546,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
     // not the grid (the O2 auto-cutoff lesson).  Env knob for the probe's own convergence sweep.
     const double ecut=std::getenv("NAFD_ECUT")?atof(std::getenv("NAFD_ECUT")):40.0;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR),
-        L3::GPWParams{.densityEcut=ecut, .images=L3::CellImages::HomeCellOnly}));
+        L3::GPWParams{.densityEcut=ecut, .images=BasisSet::Gaussian::CellImages::HomeCellOnly}));
 
     qchem::Hamiltonian::cHamiltonian* ham=new qchem::Hamiltonian::Ham_PW_DFT(
         lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
@@ -1719,7 +1719,7 @@ TEST(GPW_SCF, NaPseudoAtomInBoxDoublet)
     o.label="Na atom-in-box doublet";
     o.Nelec=1; o.multiplicity=2;                               // S=1/2: nUp=1, nDown=0
     o.species={{"Na",1}};
-    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;   // the finite-molecule mode
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;   // the finite-molecule mode
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;       // SEED PIN: Uniform has a stable wrong basin (header)
     o.scf.NMaxIter=40; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
@@ -1751,7 +1751,7 @@ TEST(GPW_SCF, SmearingInertOnGap)
                        "Si SR Gamma +smear", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
                        /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6,
                        qchem::ChargeDensity::SeedStrategy::Uniform,
-                       BasisSet::Lattice_3D::CellImages::Periodic, /*smearkT*/1e-3);
+                       BasisSet::Gaussian::CellImages::Periodic, /*smearkT*/1e-3);
 
     EXPECT_TRUE(R.converged);
     EXPECT_NEAR(R.charge, 8.0, 1e-6);
@@ -1784,7 +1784,7 @@ TEST(GPW_SCF, SmearingConvergesDegenerateShell)
                        /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, rvec3_t(0,0,0),
                        /*minDrho*/1e-6, /*minDE*/1e30,
                        qchem::ChargeDensity::SeedStrategy::Uniform,
-                       BasisSet::Lattice_3D::CellImages::HomeCellOnly, /*smearkT*/1e-2);
+                       BasisSet::Gaussian::CellImages::HomeCellOnly, /*smearkT*/1e-2);
 
     EXPECT_TRUE(R.converged) << "Fermi smearing should converge Δρ where integer aufbau cannot (degenerate 3p)";
     EXPECT_NEAR(R.charge, 4.0, 1e-6);
@@ -2020,7 +2020,7 @@ TEST(GPW_SCF, StreamFoldOpenShellMatchesUnfolded_SiAtomInBox)
     GpwOptions o;
     o.label="Si atom-in-box Γ open-shell fold A/B"; o.Nelec=4; o.species={{"Si",4}};
     o.densityEcut=10.0; o.accelerator="DIIS"; o.imposeSymmetry=true;
-    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;    // the finite-molecule mode of the parent gate
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode of the parent gate
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;            // ditto: the rotating degenerate density and
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;         //   a fixed-axis Becke grid do not mix
     o.ortho=qchem::Cholesky;
@@ -2276,8 +2276,8 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
         else if (v=="sr2") span=BasisSetData::VALENCE_LOWQ_SR2;
         else throw std::runtime_error("NAF_SPAN: expected sr|sr2, got '"+v+"'");
     }
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        span, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
+        span, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 
     // The production recipe as ONE GpwOptions literal (the full 2-week rationale is in the header above +
     // doc/GPWPlan §0b″).  The NAF_* env knobs stay as sweep INSTRUMENTS; the defaults ARE the committed recipe.
@@ -2389,8 +2389,8 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     const char* gcb=std::getenv("GC_BASIS");
     const BasisSetData basis = (gcb && std::string(gcb)=="SR") ? BasisSetData::VALENCE_LOWQ_SR
                                                                : BasisSetData::VALENCE_LOWQ_SR2;
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        basis, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
+        basis, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 
     // The converged Ecut=40 recipe (DISABLED_NaFRocksaltGamma): pure damped Kerker (NO DIIS), exit on E-flat,
     // delayed-IMOM MOM + Kerker-preconditioned Pulay.  Tunable per stage (near the fixed point the fine stage
@@ -2417,7 +2417,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     // The coarse SEED stage runs Ecut=40 -- SUB-FLOOR (below C*alpha_max=80), where BallOnly aliases
     // (-43 mHa); pin it to the exact-quadrature raster so the seed is the honest -24.4357 fixed point.
     std::unique_ptr<Complex_BS> bsC(L3::GPWFactory(lat, mol,
-        L3::GPWParams{.densityEcut=envd("GC_COARSE_ECUT",40.0), .raster=L3::RasterPolicy::AliasFree}));
+        L3::GPWParams{.densityEcut=envd("GC_COARSE_ECUT",40.0), .raster=BasisSet::Gaussian::RasterPolicy::AliasFree}));
     rss("basis");
     auto ecC=std::make_unique<Crystal_EC>(bsC->GetIrreps(Spin::None), 8);
     rss("EC");
@@ -2538,8 +2538,8 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisRankReduction)
     cell.AddAtom(11, {0,0,0});
     cell.AddAtom(9,  {0.5,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
+        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/20.0));   // low: cheap grid, plumbing only
     auto       irreps=bs->GetIrreps(Spin::None);
@@ -2574,8 +2574,8 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
     cell.AddAtom(11, {0,0,0});
     cell.AddAtom(9,  {0.5,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
+        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0));
     auto       irreps=bs->GetIrreps(Spin::None);
@@ -2988,8 +2988,8 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_NaF)
     cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
     cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
+        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 
     GpwOptions o;
     o.label="NaF V2.6 ladder"; o.Nelec=8; o.species={{"Na",1},{"F",7}};
@@ -3024,7 +3024,7 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_MnSextet)
     o.label="Mn V2.6 ladder";
     o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
     o.species={{"Mn",7}};
-    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.imposeSymmetry=false;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
@@ -3032,8 +3032,8 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_MnSextet)
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
     o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;
     std::shared_ptr<const Real_BS> mnbasis(
-        BasisSet::Molecule::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD,
-                                    BasisSet::Molecule::Angular::Cartesian));
+        BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Gaussian::Engine::MnD,
+                                    BasisSet::Gaussian::Angular::Cartesian));
     GpwHandles h;
     GpwResult R=RunGpw(lat, mnbasis, o, /*verbose*/false, &h);
     ASSERT_TRUE(R.converged);
@@ -3470,8 +3470,8 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
     cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
     cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
+        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 
     // The committed NaF production recipe (DISABLED_NaFRocksaltGamma) at PRODUCTION grids (auto Ecut=80,
     // BallOnly): the SCF only supplies the density; the comparison itself carries the reference-grade work.
@@ -3523,7 +3523,7 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
 //     functions, cond 7e8) sits in exactly that regime -- which fits -417 Ha vs the -61.47 oracle far
 //     better than the 3e-2 analytic-vs-mesh KB discrepancy does.
 //   * SPHERICAL d (5 pure components, no contaminant) is the natural cure but is NOT AVAILABLE on the
-//     GPW path: it throws "the orbital basis is not a molecular Gaussian basis (no Molecule::LatticeSum1E)"
+//     GPW path: it throws "the orbital basis is not a molecular Gaussian basis (no Gaussian::LatticeSum1E)"
 //     -- the spherical lineage does not implement the lattice-sum face (cf. the parked S3b spherical work).
 //   => CURED 2026-08-06 (user's insight): keep the d set and drop the s window to TWO functions.  The
 //      contaminants already span the mid/tight s space, so only the DIFFUSE 4s tail (0.10) and one tight
@@ -3558,7 +3558,7 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
     o.label="Mn atom-in-box sextet";
     o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
     o.species={{"Mn",7}};
-    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.imposeSymmetry=false;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
@@ -3572,10 +3572,10 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
     // NATIVE Angular::Spherical family has no LatticeSum1E capability (the historical blocker -- feeding
     // it here died on the GPW cross-cast), so the view over the Cartesian engine is the working door.
     std::shared_ptr<const Real_BS> mnbasis(
-        BasisSet::Molecule::Factory(sphBasis?BasisSetData::VALENCE_LOWQ_SPH:BasisSetData::VALENCE_LOWQ_SR,
-                                    &cell, BasisSet::Molecule::Engine::MnD,
-                                    BasisSet::Molecule::Angular::Cartesian));
-    if (spherical) mnbasis=BasisSet::Molecule::PG_Spherical::MakeSphericalLatticeView(mnbasis);
+        BasisSet::Gaussian::Factory(sphBasis?BasisSetData::VALENCE_LOWQ_SPH:BasisSetData::VALENCE_LOWQ_SR,
+                                    &cell, BasisSet::Gaussian::Engine::MnD,
+                                    BasisSet::Gaussian::Angular::Cartesian));
+    if (spherical) mnbasis=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(mnbasis);
     std::cout << "[Mn in-box] angular=" << (spherical?"SPHERICAL":"CARTESIAN") << std::endl;
     GpwResult R=RunGpw(lat, mnbasis, o, /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"));
     std::cout << "[Mn in-box] GPW="<<R.E.GetTotalEnergy()<<"  facade="<<Eref
@@ -3613,7 +3613,7 @@ TEST(GPW_SCF, PolarizedRunKeepsItsSpin)
     o.label="Mn sextet under Kerker";
     o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
     o.species={{"Mn",7}};
-    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.imposeSymmetry=false;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;

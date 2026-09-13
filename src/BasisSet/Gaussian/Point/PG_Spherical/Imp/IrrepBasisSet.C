@@ -1,0 +1,164 @@
+// File: BasisSet/Gaussian/Point/PG_Spherical/Imp/IrrepBasisSet.C  Spherical-Gaussian basis set, for MO calcs.
+module;
+#include <cassert>
+#include <algorithm> //std::max, std::find
+#include <string>
+#include <memory>
+#include <vector>
+
+module qchem.BasisSet.Gaussian.Point.PG_Spherical;
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
+import qchem.Math.Angular;                                                   // SphericalShell, CartTerm
+import qchem.BasisSet.Gaussian.Point.Reader;
+import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;   // the auto fit-basis reader
+import qchem.BasisSet.Gaussian.Point.BasisFiles;           // A1_coul/A1_exch path (owned by BasisFiles)
+import qchem.Structure;
+import qchem.Symmetry.Unit;
+import qchem.BasisSet.Gaussian.Point.PG_Spherical.Symmetry;   // ExtractAoShells(const SphData&) -- for GetAoShells()
+import qchem.stl_io;
+import qchem.Math;
+import qchem.Blaze;
+
+namespace qchem::BasisSet::Gaussian::PG_Spherical
+{
+using Cart::GaussianRF;
+using Cart::Polarization;
+using qchem::Math::SphericalShell;
+
+template <class T> T Max(const std::vector<T>& v) {return *std::max_element(v.begin(), v.end());}
+
+//----------------------------------------------------------------
+//
+//  Orbital spherical-Gaussian basis set.
+//
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
+{
+    //
+    //  Read in all the radial functions (contracted or single Gaussians), de-duplicating by exponent and
+    //  accumulating the L list.  Copied verbatim from PG_Cart so the (radial, Ls) set is identical -- the
+    //  only divergence is the angular expansion below (real solid harmonics, not Cartesian monomials).
+    //
+    std::vector<std::unique_ptr<GaussianRF>> radials;   // owns the radials: no manual delete, leak-proof
+    std::vector<std::vector<int> >    Ls;
+    for (auto atom:*cl) //Loop over atoms.
+    {
+        bsr->FindAtom(*atom);
+        while (std::unique_ptr<GaussianRF> rf{bsr->ReadNext(*atom)}) //Read in the radial function.
+        {
+            bool duplicate=false;
+            for (size_t i=0; i<radials.size(); i++)
+                if (*radials[i]==*rf) //Check for a duplicate, ignoring Lmax.
+                {
+                    duplicate=true;
+                    std::vector<int> newLs=bsr->GetLs();
+                    bool UseNewRF=Max(newLs) > Max(Ls[i]);
+                    for (auto l:newLs)
+                        if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l); //Add elements not in common.
+                    if (UseNewRF) radials[i]=std::move(rf);  // replace lower-Lmax dup: old freed, new owned (no erase/insert/delete)
+                    // else: rf is the lower-Lmax duplicate -> freed automatically at scope exit
+                    break;                                   // a radial appears at most once in radials (deduped)
+                }
+            if(!duplicate)
+            {
+                radials.push_back(std::move(rf));
+                Ls     .push_back(bsr->GetLs());
+            }
+        }
+    }
+    //
+    //  Expand each radial into the 2l+1 real solid harmonics for each of its L's.  itsRadials owns the
+    //  GaussianRF objects; comps hold borrowed pointers (the heap objects never move as itsRadials grows).
+    //
+    int i=0;
+    for (auto& r:radials)
+    {
+        itsRadials.push_back(std::move(r));
+        const GaussianRF* rp=itsRadials.back().get();
+        for (int L:Ls[i])
+            for (auto& terms:SphericalShell(L))
+                comps.push_back({rp, terms});
+        i++;
+    }
+    SphData::Init();
+};
+
+IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
+{
+    for (auto atom:*cl)
+        for (size_t L=0;L<=LMax;L++)
+            for (auto e:es)
+            {
+                itsRadials.push_back(std::make_unique<GaussianRF>(e,atom->itsR,L));
+                const GaussianRF* rp=itsRadials.back().get();
+                for (auto& terms:SphericalShell(L)) comps.push_back({rp, terms});
+            }
+    SphData::Init();
+}
+
+IrrepBasisSet::~IrrepBasisSet() {};
+
+// chi_i(r) = n_i * (sum_a c_a * monomial_a(r-R)) * radial(r).
+rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
+{
+    rvec_t ret(size());
+    for (size_t i=0;i<size();i++)
+    {
+        const GaussianRF& rf=*comps[i].radial;
+        rvec3_t dr=r-rf.GetCenter();
+        double ang=0.0;
+        for (const auto& t:comps[i].terms) { const Polarization p(t.p); ang += t.c * p(dr); }
+        ret[i]= ns[i]*ang*rf(r);
+    }
+    return ret;
+}
+rvec3vec_t IrrepBasisSet::Gradient (const rvec3_t& r) const
+{
+    rvec3vec_t ret(size());
+    for (size_t i=0;i<size();i++)
+    {
+        const GaussianRF& rf=*comps[i].radial;
+        rvec3_t dr=r-rf.GetCenter();
+        rvec3_t g(0,0,0);
+        for (const auto& t:comps[i].terms) { const Polarization p(t.p); g += t.c*(p.Gradient(dr)*rf(r) + p(dr)*rf.Gradient(r)); }
+        ret[i]= ns[i]*g;
+    }
+    return ret;
+}
+
+std::ostream& IrrepBasisSet::Write(std::ostream& os) const
+{
+    return os << BasisSetID();
+}
+
+//----------------------------------------------------------------
+//
+// Orbital spherical-Gaussian basis set (1E + HF + DFT 3-centre fit).
+//
+Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)            : IrrepBasisSet(bsr,cl) {};
+Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl) : IrrepBasisSet(es,L,cl) {};
+
+rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+{
+    // The A1 files support Z=1-54 (H-Te); A2 only to Zn.  Same auxiliary data as PG_Cart, read spherically.
+    Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
+    return new EFit_IBS(&reader,cl,mp);
+}
+rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+{
+    Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
+    return new EFit_IBS(&reader,cl,mp);
+}
+// Orbital_1E_IBS::GetAoShells: this orbital IBS IS-A SphData, so it hands its own spherical data to the extractor.
+std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
+
+//----------------------------------------------------------------
+//
+//  Fit spherical-Gaussian basis set.
+//
+EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl, const qcMesh::MeshParams& mp)
+    : Fit_IBS(*cl,mp), IrrepBasisSet(bsr,cl) {};
+
+} //namespace qchem::BasisSet::Gaussian::PG_Spherical

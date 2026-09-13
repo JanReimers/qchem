@@ -16,14 +16,14 @@
 #include <variant>
 
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> + ibs_child_t (the slot under test)
-import qchem.BasisSet.Lattice_3D.GPW_IBS;     // tGPW_IBS<T> (both alternatives)
-import qchem.BasisSet.Molecule.Factory;       // the molecular Gaussian basis over the cell's atoms
+import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;     // tGPW_IBS<T> (both alternatives)
+import qchem.BasisSet.Gaussian.Point.Factory;       // the molecular Gaussian basis over the cell's atoms
 import qchem.Lattice_3D;                      // UnitCell
 import qchem.Types;
 
 using namespace qchem;
 using namespace qchem::BasisSet;
-using BasisSet::Lattice_3D::tGPW_IBS;
+using BasisSet::Gaussian::tGPW_IBS;
 
 namespace
 {
@@ -40,7 +40,7 @@ public:
 
 std::shared_ptr<const Real_BS> MakeMol(const UnitCell& cell)
 {
-    namespace M = qchem::BasisSet::Molecule;   // disambiguate from qchem::Molecule (the Structure)
+    namespace M = qchem::BasisSet::Gaussian;   // disambiguate from qchem::Molecule (the Structure)
     return std::shared_ptr<const Real_BS>(
         M::Factory(M::BasisSetData::SIPP, &cell, M::Engine::MnD, M::Angular::Cartesian));
 }
