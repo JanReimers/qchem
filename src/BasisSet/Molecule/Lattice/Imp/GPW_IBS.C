@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Imp/GPW_IBS.C  GPW_IBS implementation (ctors + identity).
+// File: BasisSet/Molecule/Lattice/Imp/GPW_IBS.C  GPW_IBS implementation (ctors + identity).
 module;
 #include <cassert>
 #include <iostream>
@@ -13,7 +13,7 @@ import qchem.Symmetry.Factory;              // BlochFactory (the convenience cto
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
 import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ raster ops param type)
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
-                                            // (qcLattice_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
+                                            // (qcMolecule_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;  // PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
 import qchem.SymmetrizeMesh;                     // MakeInvariant/FoldMesh (the §6a W1 invariant XC quadrature)
 import qchem.Reporting;                          // report::Timed -- the XC-quadrature buckets (ParallelAndOraclePlan 1.1(b))

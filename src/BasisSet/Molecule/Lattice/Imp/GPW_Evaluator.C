@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C  GPW_Evaluator implementation.
+// File: BasisSet/Molecule/Lattice/Imp/GPW_Evaluator.C  GPW_Evaluator implementation.
 module;
 #include <cassert>
 #include <cmath>
@@ -91,7 +91,7 @@ double LocalPPRelCutoff()
 }
 
 // --- Real-space pseudopotential fields, replicated from the molecular PP_Local/PP_NonLocal terms (which live
-//     Hamiltonian-side and so are out of reach from qcLattice_BS).  They are pure functions of the qcPseudo-
+//     Hamiltonian-side and so are out of reach from a basis library).  They are pure functions of the qcPseudo-
 //     potential models + geometry, so the clean long-term home is qcPseudopotential (below both libraries);
 //     the DRY-move is a deferred cleanup (see doc/GPWPlan.md).  Kept bit-identical to the term versions so a
 //     Gaussian-in-a-box GPW PP matrix equals the finite molecular PP matrix. --------------------------------

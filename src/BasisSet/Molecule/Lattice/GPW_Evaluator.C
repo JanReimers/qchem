@@ -1,6 +1,6 @@
-// File: BasisSet/Lattice_3D/Evaluators/GPW/Evaluator.C  Gaussian-And-Plane-Waves orbital evaluator.
+// File: BasisSet/Molecule/Lattice/GPW_Evaluator.C  Gaussian-And-Plane-Waves orbital evaluator.
 //
-// The GPW sibling of PW_Evaluator (BasisSet/Lattice_3D/Evaluators/PW): a periodic ORBITAL evaluator whose
+// The GPW sibling of PW_Evaluator (BasisSet/PlaneWave/Evaluators): a periodic ORBITAL evaluator whose
 // orbitals are GAUSSIANS (compact, good for core/valence) instead of plane waves, standing on a lattice.  It
 // satisfies the SAME isLattice_1E_Evaluator concept, so the SAME Lattice::Orbital_1E_IBS<E> mixin builds the concrete
 // GPW_IBS -- "GPW is a new evaluator, not a new IBS" (doc/MolecularPP_HarmonizationRound2.md section 2.5).
@@ -12,7 +12,7 @@
 // cell's atoms and asks it the ONE high-level question Molecule::LatticeSum1E poses -- "sum these two-centre
 // integrals over these lattice translations."  The Gaussian internals stay encapsulated on the molecular
 // side; this evaluator only supplies the lattice geometry (the translation set from the cell) and complexifies
-// the result.  No exponents or radials ever cross into qcLattice_BS.
+// the result.  No exponents or radials ever cross this seam (the GPW engine holds an ABSTRACT basis, even now that it lives in the Gaussian library -- TaxonomyPlan 1b).
 //
 // SCOPE (first increment): the GAMMA point (k=0).  The lattice sums are real (rsmat_t from the molecular side,
 // widened to chmat_t here); general-k Bloch phases, the DFT tier (isLattice_DFT_Evaluator: Hartree/XC by

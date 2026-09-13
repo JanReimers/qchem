@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/GPW_IBS.C  Gaussian-And-Plane-Waves irrep basis set for one k-point.
+// File: BasisSet/Molecule/Lattice/GPW_IBS.C  Gaussian-And-Plane-Waves irrep basis set for one k-point.
 //
 // The GPW sibling of PlaneWave_IBS: a complex (dcmplx) Orbital_1E_IBS whose functions are periodic GAUSSIANS
 // (Bloch sums of contracted Gaussians standing at the cell's atoms) rather than plane waves.  As with the PW

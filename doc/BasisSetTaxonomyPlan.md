@@ -1,6 +1,6 @@
 # BasisSet Taxonomy Plan — V1.33
 
-**Status: LIVE, agreed 2026-09-13; steps 1a0+1a done 2026-09-13, 1b next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
+**Status: LIVE, agreed 2026-09-13; steps 1a0–1b done 2026-09-13, 1c next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
 taxonomy is on the wrong axis").  Read §1 once; it is the ruling.  §4 is the running order.
 
 Two proposals preceded this plan and they were NOT in conflict — they were the two axes:
@@ -219,6 +219,12 @@ design rulings).  ✅ 2026-09-13 (this file written; R1.0 entry pending the user
 - 1b. Move `Lattice_3D/Evaluators/GPW` + `Lattice_3D/GPW_IBS.C` into `qcMolecule_BS` (physically under
   `Molecule/` for now; they become `Gaussian/Lattice/` at step 2).  `qcMolecule_BS` links `qcPlaneWave_BS`.
   Gate: same + `A_PP`, `L_PP`, `RealComplexTermsUT`.
+  ✅ 2026-09-13.  `src/BasisSet/Molecule/Lattice/{GPW_Evaluator,GPW_IBS}.C` (+ `Imp/`), all `git mv`
+  (`Evaluators/GPW/Evaluator.C` → `GPW_Evaluator.C` so the name survives without its directory);
+  `qcMolecule_BS` links `qcPlaneWave_BS` PUBLIC.  `Lattice_3D/Evaluators/` is gone.  Module names and
+  the `BasisSet::Lattice_3D` namespace unchanged until step 2.  `ldd`: PlaneWave → {core}; Molecule →
+  {core, PlaneWave}; Lattice → {core, PlaneWave, Molecule, LASolver} — exactly §3's layering.
+  ctest -j8 855/855 (A_PP 1, L_PP 3, RealComplexTerms 10, PlaneWaveDFT 29, GPW 29, GPW_SCF 36).
 - 1c. What is left in `Lattice_3D/` is the container tier (`BasisSet`, `BandStructure`, `APW_IBS`,
   `LAPW_IBS`); `qcLattice_BS` links both engines.  Confirm with `ldd`/link order that `qcPlaneWave_BS`
   pulls in nothing from `qcMolecule_BS`.
