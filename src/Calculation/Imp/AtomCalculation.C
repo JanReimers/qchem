@@ -17,7 +17,7 @@ import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Fa
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Types;                                  // Vector3D / rvec3_t
-import qchem.BasisSet.IrrepBasisSet;                 // theCache<T>() / EmitReport (the run's `cache` section)
+import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
 import qchem.Reporting;                              // report:: run sink + the scf-section writer
 
 namespace qchem
@@ -201,7 +201,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
 
     bool ok = itsScf->Iterate(params);
     // Snapshot the (cumulative, process-wide) integrals cache into the run's `cache` section, inside the bracket.
-    qchem::BasisSet::theCache<double>().EmitReport();
+    qchem::BasisSet::EmitIntegralsCacheReport();
     RebuildSampling();
     return ok;
 }

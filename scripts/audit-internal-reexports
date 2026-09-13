@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# The written rule (CLAUDE.md, "Modules & libraries"): only re-export modules that don't have `.Internal.` in
+# the name.  This lists every PUBLIC module unit that `export import`s an `.Internal.` module and exits 1 if
+# there are any.  An Internal module re-exporting another Internal one is legal (the label still holds for
+# the consumer) and is not reported.  Run by ctest as `InternalReexportAudit` (V1.20c/d, 2026-09-13).
+set -u
+root="${1:-src}"
+bad=0
+while IFS= read -r f; do
+    m=$(grep -m1 '^export module' "$f" | awk '{print $3}' | tr -d ';')
+    case "$m" in *.Internal.*) continue;; esac
+    while IFS= read -r line; do
+        echo "$f: public module $m re-exports an Internal one: $line"
+        bad=1
+    done < <(grep -E '^\s*export import\s+[A-Za-z0-9_.]*\.Internal\.' "$f")
+done < <(grep -rlE '^\s*export import\s+[A-Za-z0-9_.]*\.Internal\.' --include='*.C' "$root")
+exit $bad

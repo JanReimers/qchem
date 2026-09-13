@@ -12,6 +12,7 @@ module;
 module qchem.Calculation;
 
 import qchem.BasisSet.Molecule.Factory;             // BasisSet::Molecule::Factory
+import qchem.BasisSet.IntegralsCacheReport;          // EmitIntegralsCacheReport (the run's `cache` section)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet; // SymmetryAdaptedBasisSet (return of SymmetryAdapt)
 import qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
 import qchem.ElectronConfiguration.Molecule;        // Molecule_EC (global aufbau)
@@ -235,7 +236,7 @@ bool Calculation::Converge(const SCFParams& params)
     // Snapshot the integrals cache into the run's `cache` section (RunReportPlan step 4), inside the bracket.
     // The cache is a process-wide singleton NEVER cleared between runs, so this is cumulative-to-this-point --
     // exact for a one-run process, the running total in a multi-run one.
-    qchem::BasisSet::theCache<double>().EmitReport();
+    qchem::BasisSet::EmitIntegralsCacheReport();
 
     RebuildSampling();
     return ok;

@@ -84,6 +84,8 @@ set(ChargeDensityDataPath "CHARGEDENSITY_DATA_PATH=\"${PROJECT_SOURCE_DIR}/src/C
 
 enable_language (Fortran)
 enable_testing()
+# The written module rule as a test: no PUBLIC module unit may re-export an .Internal. module (V1.20c/d).
+add_test(NAME InternalReexportAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-internal-reexports ${PROJECT_SOURCE_DIR}/src)
 include(CTest)
 include(GoogleTest)
 set(BUILD_GMOCK OFF CACHE BOOL "Disable GoogleMock for this project" FORCE)

@@ -4,7 +4,7 @@ module;
 #include <cassert>
 #include "forward.H"
 export module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
-export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
+import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;   // a base, not vocabulary: plain import like the Gaussian sibling (V1.20d)
 import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Atom.Evaluators.Internal.RKBL_Angular;
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals;

@@ -3,7 +3,7 @@ module;
 #include <string>
 export module qchem.BasisSet.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
-export import qchem.BasisSet.Internal.DB_Cache;     // DBCacheClient (the cache key contract)
+export import qchem.BasisSet.DBCacheClient;         // the cache-key contract this face implements (V1.20d: the cache MECHANISM is Internal and no longer re-exported)
 export import qchem.VectorFunction;   // Evaluatable_IBS's base (NOT IrrepBasisSet's -- see above)
 import qchem.Streamable;
 

@@ -1,9 +1,10 @@
-// File: BasisSet/DB_Cache1.C Global integrals cache allow data sharing between separate runs.
+// File: BasisSet/Internal/DB_Cache.C  Global integrals cache: allows data sharing between separate runs.
 module;
 #include <string>
 #include <variant>
 #include <functional>
 export module qchem.BasisSet.Internal.DB_Cache;
+export import qchem.BasisSet.DBCacheClient;   // the key contract (public since V1.20d); the mechanism stays here
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Projector3;    // Projector3<T> (the 3-centre tensor, all realizations)
 import qchem.BasisSet.Internal.IntegralEnums;
@@ -13,25 +14,6 @@ import qchem.BasisSet.Internal.Cache3;
 import qchem.Types;
  
 export namespace qchem::BasisSet {
-
-// A cache client supplies its own identity string.  The cache uses it verbatim as the per-basis
-// key axis and knows nothing about what is being cached (atoms, molecules, solids).  The contract:
-// equal physics (same exponents / angular momenta / contraction AND same centres / orientation)
-// MUST give equal strings, and any difference MUST give different strings -- the client owns ID
-// assembly because it differs completely for atoms, molecules and solids.  (See IrrepBasisSet_IDs
-// for the default atom assembly and PGData for the molecular, geometry-aware one.)
-struct DBCacheClient
-{
-    virtual ~DBCacheClient() = default;
-    virtual std::string BasisSetID() const = 0;
-    // The leading dimension this client expects its cached 2-centre matrices to have (= number of basis
-    // functions).  The cache cross-checks it on every hit/insert, so a BasisSetID() that is not specific
-    // enough (two differently-sized geometries colliding on one key) is caught right at the cache
-    // boundary -- with operator/ID/dims in hand -- instead of as a Cholesky segfault three layers down.
-    // Named CacheDim() (NOT size()) on purpose: size() collides with the VectorFunction/diamond
-    // hierarchy.  Final overrider is the single bridge in IrrepBasisSet<T>.
-    virtual size_t CacheDim() const = 0;
-};
 
 // Non-template bass class helps avoid so many annoying using statements in derived classes
 // (in C++ typedefs don't get pulled in from template base classes)
