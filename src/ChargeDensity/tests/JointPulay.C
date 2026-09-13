@@ -48,7 +48,7 @@ const ivec3_t Z(0,0,0), A(1,0,0), B(0,1,0), C(1,1,0);
     return m;
 }
 
-// --- the reference's own map arithmetic (deliberately NOT the module's MapSub/MapCombine/MapInnerRe) ---
+// --- the reference's own map arithmetic (deliberately NOT the ΔG_Map operators / ResidualInnerRe the mixers use) ---
 ΔG_Map Sub(const ΔG_Map& x, const ΔG_Map& y)
 {
     ΔG_Map r=x;

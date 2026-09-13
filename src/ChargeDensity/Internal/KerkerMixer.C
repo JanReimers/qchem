@@ -50,14 +50,7 @@ public:
         const rvec_t& rawOut  = out.raster;
         const ΔG_Map& rho_in  = itsMixedRho->RhoTilde();
         // SCF residual ‖ρ̃_out − ρ̃_in‖_∞ -- the RIGHT ρ-mixing gate (0 at the fixed point).
-        double resid = 0.0;
-        for (const auto& [dm, ro] : rho_out)
-        {
-            auto it = rho_in.find(dm);
-            resid = std::max(resid, std::abs(dcmplx(ro) - (it!=rho_in.end() ? dcmplx(it->second) : dcmplx(0.0))));
-        }
-        for (const auto& [dm, ri] : rho_in)
-            if (rho_out.find(dm)==rho_out.end()) resid = std::max(resid, std::abs(dcmplx(ri)));
+        const double resid = MaxAbs(rho_out - rho_in);
         itsMixedRho.reset(FourierMixCD::KerkerMix(*itsMixedRho, rho_out, itsRelax, itsKerkerG0, itsCuspDeficit));
         // RAW-raster shadow (0.5(f2)): the same Kerker step on rho_raw(r), deposited so the XC feed stays raw
         // through the DYNAMICS.  Late-activates the first time the working density answers raw (a SAD-seeded

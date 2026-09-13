@@ -87,9 +87,9 @@ public:
     // FourierDensity -- the ↑+↓ TOTAL.  Both quantities are LINEAR in ρ̃ (V_H = 4π ρ̃/|G|²), so summing the
     // channels' answers IS the total's answer.
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const override
-    { return MapAdd(Fourier(itsUp).GetFourierDensity(c), Fourier(itsDn).GetFourierDensity(c)); }
+    { return Fourier(itsUp).GetFourierDensity(c) + Fourier(itsDn).GetFourierDensity(c); }
     virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const override
-    { return MapAdd(Fourier(itsUp).GetRepulsion3C(c), Fourier(itsDn).GetRepulsion3C(c)); }
+    { return Fourier(itsUp).GetRepulsion3C(c) + Fourier(itsDn).GetRepulsion3C(c); }
     //! The raw-raster shadow, summed -- empty (pipeline off) unless BOTH channels answer on the same raster.
     virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const override
     {
@@ -204,8 +204,8 @@ public:
         const ΔG_Map up=fu.GetFourierDensity(*itsFit), dn=fd.GetFourierDensity(*itsFit);
         const rvec_t rup=fu.GetRhoOnGrid(*itsFit),     rdn=fd.GetRhoOnGrid(*itsFit);
         const bool spin=(itsBasis==ChannelBasis::SpinChannels);
-        const GField fa = spin ? GField{up, rup} : GField{MapAdd(up,dn), RawCombine(rup,rdn,+1.0,1.0)};
-        const GField fb = spin ? GField{dn, rdn} : GField{MapSub(up,dn), RawCombine(rup,rdn,-1.0,1.0)};
+        const GField fa = spin ? GField{up, rup} : GField{up+dn, RawCombine(rup,rdn,+1.0,1.0)};
+        const GField fb = spin ? GField{dn, rdn} : GField{up-dn, RawCombine(rup,rdn,-1.0,1.0)};
         // Every HISTORY-carrying channel goes into ONE extrapolation; a memoryless leaf just filters its own
         // channel, which for a channel-diagonal filter is the same operator either way.  (All four leaf
         // combinations are legitimate -- history on ρ with a plain filter on m is a real recipe -- and none
@@ -265,8 +265,8 @@ private:
     {
         const ΔG_Map& r=itsAF->Mixed().RhoTilde();
         const ΔG_Map& m=itsBF->Mixed().RhoTilde();
-        itsChUp=std::make_shared<FourierMixCD>(MapScale(MapAdd(r,m),0.5), itsRecip, qUp);
-        itsChDn=std::make_shared<FourierMixCD>(MapScale(MapSub(r,m),0.5), itsRecip, qDn);
+        itsChUp=std::make_shared<FourierMixCD>(0.5*(r+m), itsRecip, qUp);
+        itsChDn=std::make_shared<FourierMixCD>(0.5*(r-m), itsRecip, qDn);
         const rvec_t rr=itsAF->Mixed().GetRhoOnGrid(*itsFit), mm=itsBF->Mixed().GetRhoOnGrid(*itsFit);
         if (rvec_t u=RawCombine(rr,mm,+1.0,0.5); u.size()) itsChUp->SetRawRho(std::move(u));
         if (rvec_t d=RawCombine(rr,mm,-1.0,0.5); d.size()) itsChDn->SetRawRho(std::move(d));

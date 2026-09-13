@@ -66,9 +66,9 @@ public:
         const ΔG_Map& out    = field.tilde;
         const rvec_t& rawOut = field.raster;
         ΔG_Map in  = itsMixedRho->RhoTilde();               // ρ̃_in : the density fed to this iteration's Fock
-        ΔG_Map res = MapSub(out,in);                        // residual = ρ̃_out − ρ̃_in
+        ΔG_Map res = out-in;                                // residual = ρ̃_out − ρ̃_in
         StagedResidual sr;
-        sr.resid = MapMaxAbs(res);
+        sr.resid = MaxAbs(res);
         // RAW-raster shadow inputs (0.5(f2)); late-activates like KerkerMixer, drops out if answers stop.
         const bool raw = rawOut.size() && RasterEvaluator();
         if (raw && itsRawIn.size()!=rawOut.size()) itsRawIn=rawOut;                    // bootstrap/late-activate
@@ -91,7 +91,7 @@ public:
         {
             sr.B=blazem::zero<double>(n);                   // Bᵢⱼ = ⟨resᵢ,resⱼ⟩ (symmetric)
             for (size_t i=0;i<n;++i)
-                for (size_t j=i;j<n;++j) sr.B(i,j)=MapInnerRe(itsResiduals[i],itsResiduals[j]);
+                for (size_t j=i;j<n;++j) sr.B(i,j)=ResidualInnerRe(itsResiduals[i],itsResiduals[j]);
         }
         return sr;
     }
@@ -109,8 +109,8 @@ public:
         else
         {
             assert(c.size()==itsResiduals.size() && "PulayMixer::ApplyJoint: c does not span my history");
-            inStar =MapCombine(itsIns ,c);                 // ρ̃_in*  = Σ cᵢ ρ̃_inᵢ
-            outStar=MapCombine(itsOuts,c);                 // ρ̃_out* = Σ cᵢ ρ̃_outᵢ
+            inStar =LinearCombination(itsIns ,c);          // ρ̃_in*  = Σ cᵢ ρ̃_inᵢ
+            outStar=LinearCombination(itsOuts,c);          // ρ̃_out* = Σ cᵢ ρ̃_outᵢ
             // The raw shadow takes the SAME extrapolation coefficients -- but only once its history spans the
             // whole window (a late-activated shadow falls back to the plain pair until the deques align).
             if (p.raw && itsRawIns.size()==c.size())

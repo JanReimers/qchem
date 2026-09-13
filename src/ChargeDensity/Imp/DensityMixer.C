@@ -121,10 +121,10 @@ std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
             const ΔG_Map tu=fu.GetFourierDensity(*fit), td=fd2.GetFourierDensity(*fit);
             const rvec_t ru=fu.GetRhoOnGrid(*fit),      rd=fd2.GetRhoOnGrid(*fit);
             auto mr=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,
-                                    GField{MapAdd(tu,td), RawCombine(ru,rd,+1.0,1.0)},
+                                    GField{tu+td, RawCombine(ru,rd,+1.0,1.0)},
                                     up->GetTotalCharge()+dn->GetTotalCharge(), "ρ");
             auto mm=MakeGSpaceMixer(relax0,/*G0*/0.0,pulayDepth,pulayStart,fit,recip,
-                                    GField{MapSub(tu,td), RawCombine(ru,rd,-1.0,1.0)},
+                                    GField{tu-td, RawCombine(ru,rd,-1.0,1.0)},
                                     0.0, "m: LINEAR, undamped");
             return std::make_unique<PolarizedDensityMixer>(std::move(mr), std::move(mm), fit, recip,
                                                            ChannelBasis::TotalAndMoment);

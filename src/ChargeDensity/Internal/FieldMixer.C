@@ -11,7 +11,7 @@ module;
 #include <deque>
 #include <vector>
 export module qchem.ChargeDensity.Internal.FieldMixer;
-export import qchem.ChargeDensity.FourierDensity;         // FourierDensity, ΔG_Map
+export import qchem.ChargeDensity.FourierDensity;         // FourierDensity, ΔG_Map + its field algebra (Projector3)
 export import qchem.ChargeDensity.FourierMixCD;           // FourierMixCD (the field's PRESENTATION as a density)
 import qchem.BasisSet.G_FieldEvaluator;            // G_SpectralFilter: the raster Kerker step (0.5(f2))
 import qchem.Math.DIIS;                             // the shared Pulay/DIIS bordered-solve engine
@@ -144,30 +144,6 @@ inline double MixJointly(const std::vector<tFieldExtrapolator*>& channels, const
     return resid;
 }
 
-// --- ΔG_Map arithmetic for Pulay (keys = integer G-index, consistent across iterations) ---
-inline ΔG_Map MapSub(const ΔG_Map& a, const ΔG_Map& b)   // a - b
-{
-    ΔG_Map r=a;
-    for (const auto& [k,v]:b) r[k]-=v;
-    return r;
-}
-inline ΔG_Map MapCombine(const std::deque<ΔG_Map>& maps, const rvec_t& c)  // Σ cᵢ mapᵢ
-{
-    ΔG_Map r;
-    for (size_t i=0;i<maps.size();++i)
-        for (const auto& [k,v]:maps[i]) r[k]+=c[i]*v;
-    return r;
-}
-inline ΔG_Map MapAdd(ΔG_Map a, const ΔG_Map& b)          // a + b (the ↑+↓ channel sum)
-{
-    for (const auto& [k,v]:b) a[k]+=v;
-    return a;
-}
-inline ΔG_Map MapScale(ΔG_Map a, double s)               // s*a (the ½ of the (ρ±m)/2 channel rebuild)
-{
-    for (auto& [k,v]:a) v=s*v;
-    return a;
-}
 //! s*(a + sign*b) for the raster shadows, empty unless BOTH arms answer on the same raster.
 inline rvec_t RawCombine(const rvec_t& a, const rvec_t& b, double sign, double s)
 {
@@ -175,11 +151,10 @@ inline rvec_t RawCombine(const rvec_t& a, const rvec_t& b, double sign, double s
     rvec_t r=a; r+=sign*b; r*=s;
     return r;
 }
-inline double MapMaxAbs(const ΔG_Map& m)
-{
-    double x=0.0; for (const auto& [k,v]:m) x=std::max(x,std::abs(v)); return x;
-}
-inline double MapInnerRe(const ΔG_Map& a, const ΔG_Map& b)  // Re Σ_{G≠0} conj(aᵢ)·bⱼ (G=0 is never mixed)
+//! The Pulay RESIDUAL metric \f$\mathrm{Re}\sum_{G\neq0}\overline{a_G}\,b_G\f$ -- G=0 is excluded because it is
+//! never part of the mix's residual (the (0,0,0) coefficient is the charge, fixed by construction).  A
+//! mixer-specific inner product, which is why it is here and not with the field algebra in Projector3.
+inline double ResidualInnerRe(const ΔG_Map& a, const ΔG_Map& b)
 {
     double s=0.0;
     for (const auto& [k,v]:a)

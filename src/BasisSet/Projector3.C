@@ -21,6 +21,8 @@
 module;
 #include <stdexcept>   // ScreenedMatrixIntegrator: the missing-pair throw
 #include <cassert>
+#include <algorithm>   // std::max (MaxAbs)
+#include <cmath>       // std::abs (MaxAbs)
 #include <complex>    // std::operator*(double,complex) -- std header, not a Blaze dep
 #include <functional>
 #include <map>
@@ -60,6 +62,30 @@ struct IVec3Less
 //! G-space components (density \f$\tilde\rho\f$ or potential \f$\tilde V\f$) keyed by the reciprocal-index
 //! difference \f$\Delta m\f$ (\f$\Delta G = B\,\Delta m\f$).
 using ΔG_Map = std::map<ivec3_t, dcmplx, IVec3Less>;
+
+//---------------------------------------------------------------------------------------------------------
+//  THE FIELD ALGEBRA of a ΔG_Map -- a sparse G-space field with the usual linear-space operations.  Found by
+//  ADL through IVec3Less (namespace qchem), so a caller need only import this module.  A key absent from one
+//  operand reads as 0, so `a - b` spans the UNION of the two index sets (what a residual ‖out−in‖ needs).
+//  (V1.18: these were seven Map* helpers private to the density mixers; a mixer's arithmetic should READ as
+//  arithmetic, and the type's algebra belongs with the type.)
+//---------------------------------------------------------------------------------------------------------
+inline ΔG_Map& operator+=(ΔG_Map& a, const ΔG_Map& b) { for (const auto& [k,v] : b) a[k]+=v; return a; }
+inline ΔG_Map& operator-=(ΔG_Map& a, const ΔG_Map& b) { for (const auto& [k,v] : b) a[k]-=v; return a; }
+inline ΔG_Map& operator*=(ΔG_Map& a, double s)         { for (auto& [k,v] : a) v=s*v; return a; }
+inline ΔG_Map  operator+ (ΔG_Map a, const ΔG_Map& b)   { return a+=b; }
+inline ΔG_Map  operator- (ΔG_Map a, const ΔG_Map& b)   { return a-=b; }
+inline ΔG_Map  operator* (double s, ΔG_Map a)          { return a*=s; }
+inline ΔG_Map  operator* (ΔG_Map a, double s)          { return a*=s; }
+//! \f$\max_G|f(G)|\f$ -- the ∞-norm (a mixer's convergence gate).
+inline double  MaxAbs(const ΔG_Map& m) { double x=0.0; for (const auto& [k,v] : m) x=std::max(x,std::abs(v)); return x; }
+//! \f$\sum_i c_i f_i\f$ over any range of fields (a DIIS/Pulay extrapolation).
+template <class Range> inline ΔG_Map LinearCombination(const Range& fields, const rvec_t& c)
+{
+    ΔG_Map r; size_t i=0;
+    for (const auto& f : fields) { for (const auto& [k,v] : f) r[k]+=c[i]*v; ++i; }
+    return r;
+}
 
 //! \brief The 3-centre projection tensor \f$\langle ab|c\rangle\f$ between an orbital basis (indices a,b)
 //! and an auxiliary fit basis (index c) -- the currency of every density-fitted Coulomb/Vxc build.
