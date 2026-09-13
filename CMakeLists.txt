@@ -121,7 +121,7 @@ option(QCHEM_RELCHECKED "Release codegen with asserts live + blaze bounds checks
 # CXX_COMMON_COMPILE_OPTIONS had already drifted in three ways before anything forced the issue
 # (measured 2026-08-20): qcMesh and Atom/Evaluators applied it NOWHERE and inherited a bare -O3 with no
 # frame pointers (so the library owning BeckeCutoff, the hottest function in the code, was on a different
-# -O from its peers by accident and was invisible in perf call graphs); qcAtom_BS kept a private -O2 copy
+# -O from its peers by accident and was invisible in perf call graphs); qcRadial_BS kept a private -O2 copy
 # missing -g.  Adding -march=native then FAILED TO BUILD outright -- "precompiled file qchem.Math.pcm was
 # compiled with the target feature '+avx2' but the current translation unit is not" -- because a .pcm and
 # every TU consuming it must agree on target features.  In CMAKE_CXX_FLAGS_<CONFIG> a target CANNOT opt
@@ -197,13 +197,13 @@ endif()
 #  CMAKE_CXX_FLAGS / add_compile_definitions / link_libraries -- truly global, not per-target vars.)
 
 target_compile_definitions(qchem PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcLattice_BS qcPlaneWave_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry lapack blas)
+target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcRadial_BS qcLattice_BS qcPlaneWave_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry lapack blas)
 add_subdirectory(src)
 add_subdirectory(./IntegrationTests)
 add_subdirectory(./CLIapps)
 
 add_custom_target(allTests
-    DEPENDS ITMain UTCommon UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTAtom_BS UTMolecule_BS UTLattice_3D_BS UTLASolver UTSCFAccelerator UTSCFIterator
+    DEPENDS ITMain UTCommon UTCalculation UTHamiltonian UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTRadial_BS UTMolecule_BS UTLattice_3D_BS UTLASolver UTSCFAccelerator UTSCFIterator
     COMMENT "Build all unit test executables"
 )
 # Disable embedded submodule tests so ctest only runs this project's tests.

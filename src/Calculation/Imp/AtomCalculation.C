@@ -90,16 +90,16 @@ static BasisSet::Real_BS* BuildBasis(const AtomCalcOptions& opts, int Z, const E
     {
         nlohmann::json shells=nlohmann::json::array();
         for (const auto& [l,es] : opts.exponentsByL) shells.push_back({{"l",l},{"exponents",es}});
-        return BasisSet::Atom::Factory(nlohmann::json{{"type", opts.type}, {"shells", shells}}, ec);
+        return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.type}, {"shells", shells}}, ec);
     }
     // Explicit single exponent list ("bring your own exponents") -- applied to every occupied l (with ltrim).
     if (!opts.exponents.empty())
-        return BasisSet::Atom::Factory(nlohmann::json{{"type", opts.type},
+        return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.type},
                                                       {"exponents", opts.exponents}, {"ltrim", opts.ltrim}}, ec);
     if (opts.N > 0)
-        return BasisSet::Atom::Factory(nlohmann::json{{"type", opts.type}, {"N", opts.N},
+        return BasisSet::Radial::Factory(nlohmann::json{{"type", opts.type}, {"N", opts.N},
                                                       {"emin", opts.emin}, {"emax", opts.emax}}, ec);
-    return BasisSet::Atom::Factory(opts.accuracy, opts.type, Z, ec);
+    return BasisSet::Radial::Factory(opts.accuracy, opts.type, Z, ec);
 }
 
 AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,

@@ -14,7 +14,7 @@
 #include <memory>
 #include <iostream>
 #include <nlohmann/json.hpp>
-import qchem.BasisSet.Atom.Factory;            // atomic basis blocks for the per-l oracle
+import qchem.BasisSet.Radial.Factory;            // atomic basis blocks for the per-l oracle
 import qchem.BasisSet;                        // Real_BS
 import qchem.BasisSet.ImplicitAngular_IBS;    // the radial/implicit-Y_lm capability under test
 import qchem.Hamiltonian.Internal.Terms;      // PP_NonLocal (the atomic KB assembly under test)
@@ -172,7 +172,7 @@ TEST(A_PP, PerLKleinmanBylanderOracle)
     for (int l=0;l<=3;l++) shells.push_back({{"l",l},{"exponents",es}});
     ElectronConfiguration::syms_t dummy;
     std::unique_ptr<BasisSet::Real_BS> bs(
-        BasisSet::Atom::Factory(nlohmann::json{{"type", AtomType::Gaussian}, {"shells", shells}}, size_t(58)));
+        BasisSet::Radial::Factory(nlohmann::json{{"type", AtomType::Gaussian}, {"shells", shells}}, size_t(58)));
     //          ^ Ce: the EC occupies s,p,d AND f, so the factory emits all four angular blocks
 
     auto st=std::make_shared<Atom>(Z, 0.0, rvec3_t(0,0,0));

@@ -46,7 +46,7 @@ public:
         {"type",abs_t::Slater},
         {"N", N}, {"emin", 0.1}, {"emax", 10.0},
         };
-        bs=BasisSet::Atom::Factory(js,Z);
+        bs=BasisSet::Radial::Factory(js,Z);
         return pow(10/.1,1./N);
     }    
     Real_BS* bs;

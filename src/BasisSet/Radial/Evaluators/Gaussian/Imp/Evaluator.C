@@ -1,0 +1,76 @@
+// File: BasisSet/Radial/Gaussian/NR/Imp/Evaluator.C
+module;
+#include <cassert>
+#include <iostream>
+module qchem.BasisSet.Radial.Evaluators.Gaussian.IBS; 
+import qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.Rk; 
+import qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.GaussianIntegrals; 
+import qchem.BasisSet.Radial.Evaluators.Gaussian.Internal.ExponentScaler; 
+import qchem.Math;
+import qchem.Blaze;
+
+namespace qchem::BasisSet::Radial::Evaluators::Gaussian
+{
+//---------------------------------------------------------------------------
+//
+//  Start member functions.
+//
+std::string Radial::Name() const
+{
+    return "SG";
+}
+
+std::string Radial::RadialType() const
+{
+    return Name();
+}
+
+Cache4*    Radial::MakeCache4() const
+{
+    return new Gaussian_Cache4();
+}
+
+rvec_t Radial::exponents(size_t N, double emin, double emax, const sym_t& ir)
+{
+    size_t LMax=3; //TODO how do we get the real LMax(Z) into this?
+    ::qchem::Gaussian::ExponentScaler ss(N,emin,emax,LMax);
+    return ss.Get_es(ir);
+}
+
+rvec_t Radial::norms() const
+{
+    size_t N=es.size();    
+    rvec_t ret(N);
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::qchem::Gaussian::Integral(2*es[i],2*l)); 
+    return ret;
+}
+
+
+rvec_t Radial::operator() (const rvec3_t& r) const
+{
+    return gaussian(norm(r),l,es,ns); 
+}
+
+rvec3vec_t Radial::Gradient(const rvec3_t& r) const
+{
+    rvec3vec_t ret(size());
+    double mr=norm(r);
+    if (mr==0.0)
+    {
+        ret=rvec3_t{0,0,0};
+        return ret;
+    }
+    rvec_t grad=grad_gaussian(norm(r),l,es,ns);
+    rvec3_t rhat=r/norm(r);
+    size_t i=0;
+    for (auto& g:grad) ret[i++]=g*rhat;
+    return ret;
+}
+
+std::ostream&  Radial::Write(std::ostream& os) const
+{
+    return os << " N=" << es.size() << " α={" << es[0] << " ... " << es[size()-1] << "}";
+}
+
+
+} //namespace

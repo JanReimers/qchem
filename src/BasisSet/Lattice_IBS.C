@@ -8,7 +8,7 @@
 // qchem.BasisSet.Lattice_3D.IBS with the concepts inside the PW engine module; a spec that names a family
 // is a defect, plan §1.7.)
 //
-// The lattice analog of BasisSet/Atom/IrrepBasisSet.C (Atom::Orbital_1E_IBS<E> etc.): the interface
+// The lattice analog of BasisSet/Radial/IrrepBasisSet.C (Radial::Orbital_1E_IBS<E> etc.): the interface
 // virtuals whose bodies are pure grid geometry are basis-agnostic and driven by the evaluator, so they
 // live here once, templated on the evaluator E (constrained by isLattice_1E_Evaluator /
 // isLattice_DFT_Evaluator), and a concrete lattice basis (PlaneWave_IBS, its auxiliary density-fit basis,
@@ -117,7 +117,7 @@ template <class T> hmat_t<T> ToScalar(const chmat_t& m)
 }
 
 //====================================================================================================
-//  THE MIXINS: a conforming engine -> the role faces.  Same names as the atom tier (Atom::Orbital_1E_IBS<E>),
+//  THE MIXINS: a conforming engine -> the role faces.  Same names as the atom tier (Radial::Orbital_1E_IBS<E>),
 //  qualified BasisSet::X where the core face of the same name is meant.
 //====================================================================================================
 

@@ -22,7 +22,7 @@ export module qchem.AtomCalculation;
 import qchem.Structure;             // Structure, Atom
 import qchem.ScalarFunction;        // ScalarFunction<double>
 import qchem.BasisSet;              // BasisSet::Real_BS
-import qchem.BasisSet.Atom.Factory; // BasisSet::Atom::Type, BasisSetAccuracy (the atomic exponent-pool basis)
+import qchem.BasisSet.Radial.Factory; // BasisSet::Radial::Type, BasisSetAccuracy (the atomic exponent-pool basis)
 import qchem.Hamiltonian.Factory;   // Hamiltonian::Model, Hamiltonian::Pol
 import qchem.Mesh;                  // qcMesh::MeshParams
 import qchem.ElectronConfiguration; // ElectronConfiguration
@@ -39,8 +39,8 @@ export namespace qchem
 
 using Hamiltonian::Model;                 // {E1, HF, DE1, DHF, Xalpha, LDA}
 using Hamiltonian::Pol;                   // {UnPolarized, Polarized}
-using AtomType = BasisSet::Atom::Type;    // {Slater, Gaussian, BSpline6, BSpliner6, Gaussian_RKB, Slater_RKB}
-using BasisSet::Atom::BasisSetAccuracy;   // {Low, Medium, High}
+using AtomType = BasisSet::Radial::Type;    // {Slater, Gaussian, BSpline6, BSpliner6, Gaussian_RKB, Slater_RKB}
+using BasisSet::Radial::BasisSetAccuracy;   // {Low, Medium, High}
 
 //! How to set up a single-atom calculation.  Designated-initializer friendly:
 //!     AtomCalculation calc(18, 0, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::Medium});

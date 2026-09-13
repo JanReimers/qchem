@@ -1,6 +1,6 @@
 # Tests for qcMolecule_BS
 
-add_executable(UTMolecule_BS ../../Atom/tests/gtestmain.C
+add_executable(UTMolecule_BS ../../Radial/tests/gtestmain.C
    M_PGSymmetry.C
    M_PG_BoxWalk.C
    M_LatticeScreener.C

@@ -1,6 +1,6 @@
 // File: BasisSet/Molecule/IrrepBasisSet.C  Molecule-generic, evaluator-templated orbital IBS mixins.
 //
-// The molecular analog of BasisSet/Atom/IrrepBasisSet.C (module qchem.BasisSet.Atom.IBS): the i,j /
+// The molecular analog of BasisSet/Radial/IrrepBasisSet.C (module qchem.BasisSet.Radial.IBS): the i,j /
 // 3-centre / 4-centre matrix-build loops are basis-agnostic and driven purely by the evaluator's inline
 // kernels, so they live here once, templated on the evaluator E (constrained by the Evaluators concepts),
 // and every concrete molecular basis set (PolarizedGaussian today, SphericalGaussian / PRISM / libcint

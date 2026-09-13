@@ -1,6 +1,6 @@
 // File: BasisSet/Molecule/Evaluators/Evaluator.C
 //
-// Molecular evaluator interfaces.  COPIED from BasisSet/Atom/Evaluators/Evaluator.C and left free to
+// Molecular evaluator interfaces.  COPIED from BasisSet/Radial/Evaluators/Evaluator.C and left free to
 // diverge (the "copy, don't share" approach): once the molecular evaluators work end to end we can see
 // what genuinely remains common with the atom ones and lift that out -- guessing the shared abstraction
 // up front is what we are deliberately avoiding.

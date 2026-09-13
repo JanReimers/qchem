@@ -136,7 +136,7 @@ TEST_F(ElectronConfigurationTests, ElectronConfigurations)
 //         tabulate::RowStream rs;
 //         rs << Z;
 //         rs << pt.GetSymbol(Z);
-//         Real_BS* bs=BasisSet::Atom::Factory(js,Z);
+//         Real_BS* bs=BasisSet::Radial::Factory(js,Z);
 //         size_t l=0;
 //         std::ostringstream os[4];
 //         for (auto ibs:bs->Iterate<Real_OIBS>())

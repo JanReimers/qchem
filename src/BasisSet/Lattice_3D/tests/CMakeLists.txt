@@ -6,7 +6,7 @@
 # guarantees these stay true unit tests.  The self-consistent (SCF) integration tests that DO need the
 # upper stack live in UnitTests/PlaneWaveDFTUT.C instead.
 
-add_executable(UTLattice_3D_BS ../../Atom/tests/gtestmain.C
+add_executable(UTLattice_3D_BS ../../Radial/tests/gtestmain.C
     PlaneWaveUT.C
     BandStructureUT.C
     APW_UT.C

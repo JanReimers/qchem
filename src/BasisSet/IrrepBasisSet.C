@@ -11,7 +11,7 @@ export namespace qchem::BasisSet
 {
 
 //  BasisSetID() is the single identity string the integral cache keys on (see DBCacheClient): every
-//  concrete basis supplies it -- an atom composes it from radial|angular (Atom::RadialAngularID, an atom-
+//  concrete basis supplies it -- an atom composes it from radial|angular (Radial::RadialAngularID, an atom-
 //  only face in BasisSet/Atom), a molecular / solid basis folds in the centres / orientation (see
 //  PGData::BasisSetID).  This structure-neutral layer knows only the single BasisSetID identity.
 class IrrepBasisSet_IDs : public virtual DBCacheClient

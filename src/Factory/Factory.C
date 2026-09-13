@@ -1,13 +1,13 @@
 // File:: BasisSet/Factory.C  Interfaces for various basis set factories.
 export module qchem.Factory;
 
-export import qchem.BasisSet.Atom.Factory;
+export import qchem.BasisSet.Radial.Factory;
 export import qchem.BasisSet.Molecule.Factory;
 export import qchem.BasisSet;
 
 namespace qchem {
 export using Real_BS=BasisSet::tBasisSet<double>;
 export using Real_OIBS=BasisSet::Real_OIBS;
-export using abs_t=BasisSet::Atom::Type;
+export using abs_t=BasisSet::Radial::Type;
 
 } // namespace qchem
