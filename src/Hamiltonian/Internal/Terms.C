@@ -14,8 +14,7 @@ import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (compos
 import qchem.ChargeDensity;
 import qchem.FittedCD;
 import qchem.Hamiltonian.Types;
-import qchem.Pseudopotential.LocalPotential;   // LocalPotential_R (the real-space PP local view)
-import qchem.Pseudopotential.SeparablePotential; // SeparablePotential_R (the real-space KB projector view)
+import qchem.BasisSet.SpeciesField;            // SpeciesRadialField / SpeciesProjectorSet_R (the real-space views the molecular PP terms quadrature)
 import qchem.Mesh;                             // qcMesh::MeshParams (the quadrature mesh spec)
 import qchem.BasisSet.ImplicitAngular_IBS;      // the radial/implicit-Y_lm capability (atomic KB route)
 
@@ -74,7 +73,7 @@ private:
 //  Local pseudopotential electron-ion term: the pseudized replacement for Ven.  Instead of the analytic
 //  -Z/r nuclear attraction it quadratures the smooth real-space V_loc(r) on the molecular/atomic mesh,
 //  <chi_i|V_loc|chi_j> = Sum_g w_g chi_i(r_g) chi_j(r_g) V_loc(r_g) (= the XC-path MatrixOverlap shape).
-//  STATIC (density-independent), so it is built once.  V_loc is the real-space PP face (LocalPotential_R).
+//  STATIC (density-independent), so it is built once.  V_loc is the species radial field's real-space view (SpeciesRadialField::ValueR).
 //
 class PP_Local : public virtual rStatic_HT, private rStatic_HT_Imp
 {
@@ -83,7 +82,7 @@ public:
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
-    typedef std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc_t;
+    typedef std::shared_ptr<const BasisSet::SpeciesRadialField> vloc_t;
     PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp);
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP local) = DM_Contract
     virtual std::ostream& Write    (std::ostream&) const;
@@ -116,7 +115,7 @@ public:
     //! (erf-screened local part + KB projectors), so the SCF drops both the virial gate and column (V1.27).
     virtual bool IsVirialValid() const {return false;}
     typedef std::shared_ptr<const Structure> st_t;
-    typedef std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep_t;
+    typedef std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep_t;
     PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp);
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP nonlocal) = DM_Contract
     virtual std::ostream& Write    (std::ostream&) const;

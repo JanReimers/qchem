@@ -26,6 +26,6 @@ target_include_directories(UTLattice_3D_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
 )
 
-target_link_libraries(UTLattice_3D_BS PRIVATE qcLattice_BS lapack gtest)
+target_link_libraries(UTLattice_3D_BS PRIVATE qcLattice_BS qcPseudopotential lapack gtest)   # the tests use the GTH models directly
 
 gtest_discover_tests(UTLattice_3D_BS)

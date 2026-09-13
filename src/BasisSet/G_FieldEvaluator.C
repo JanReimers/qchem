@@ -143,7 +143,7 @@ public:
 //! radial form factor (an atomic density's 1-D Fourier transform).  The ANALYTIC assembly (no 3-D grid, so
 //! no aliasing of a peaked density) that builds a SAD seed's \f$\tilde\rho\f$; the seed reaches it through
 //! its OWN density-fit basis, never the orbital basis.  Keeps \f$G=0\f$ (the total charge).  The density
-//! analogue of the pseudopotential's MakeLocalPotential.
+//! analogue of Orbital_PP_IBS::MakeSpeciesFieldMatrix.
 class G_StructureFactor
 {
 public:

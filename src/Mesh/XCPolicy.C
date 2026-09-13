@@ -153,7 +153,7 @@ struct XCMeshSharpness
     //! \f$2\alpha_{\max}\f$ -- which is what \c cutoffFactor already calibrates.
     double alphaMax = 0.0;
     //! \brief Sharpest LOCAL-PP Gaussian exponent \f$\alpha_{pp}=1/2r_{loc}^2\f$
-    //! (\c LocalPotential_Gaussian::ShortRangeGaussian).  0 = no PP, or a model with no closed-Gaussian
+    //! (\c SpeciesRadialField_Gaussian::AsGaussians).  0 = no PP, or a model with no closed-Gaussian
     //! short part (which cannot be measured -- do not silently treat that as "smooth").  It matters because
     //! the PP integrand \f$\langle\chi_i|V_{short}|\chi_j\rangle\f$ carries exponent
     //! \f$2\alpha_{\max}+\alpha_{pp}\f$, i.e. a sharp PP raises the uniform grid's requirement even under a

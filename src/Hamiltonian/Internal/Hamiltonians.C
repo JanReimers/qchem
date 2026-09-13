@@ -85,7 +85,7 @@ public:
     //! Explicit models (shared with the caller).  \a vloc is the COMBINED local model: its real-space view
     //! (Vloc) feeds PP_Local and its \f$Z_{ion}\f$ feeds the ion-ion term.  \a sep may be null (local-only).
     Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
-           std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
+           std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
            const qcMesh::MeshParams&, const rbs_t* bs, bool polarized);
     //! Convenience: look up + OWN the GTH local + KB non-local models for \a element at valence \a q (LDA).
     Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs,

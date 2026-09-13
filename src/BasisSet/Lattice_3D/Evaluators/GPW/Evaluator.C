@@ -29,8 +29,7 @@ export module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
 export import qchem.BasisSet.Lattice_3D.Evaluators.PW; // isPW_1E/DFT_Evaluator + PW_Grid_Evaluator + RasterPolicy
                                                        // (re-exported since 0.5(a): RasterPolicy is a public knob)
 import qchem.BasisSet.Molecule.LatticeSum1E;       // Molecule::LatticeSum1E (the periodic-1E capability we call)
-import qchem.Pseudopotential.LocalPotential;       // LocalPotential_R  (the real-space local PP field V_loc(r))
-import qchem.Pseudopotential.SeparablePotential;   // SeparablePotential_R (the KB projector radials beta_p(r))
+import qchem.BasisSet.SpeciesField;                // SpeciesRadialField / SpeciesProjectorSet(_R): the species-field arguments (V1.2)
 import qchem.Mesh;                                 // qcMesh::MeshParams (the PP-quadrature integration mesh)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
@@ -162,26 +161,25 @@ public:
     //! FULL ladder with the ABSOLUTE pair->level rule \f$e_{cut}\ge\kappa(\alpha_i+\alpha_j)\f$
     //! (\f$\kappa=30\f$ Ha, \f$e^{-\kappa/2}\f$ pair tails -- CP2K's \c REL_CUTOFF), which makes each
     //! piece STANDALONE-exact (no long/short cancellation partner needed; doc/GPWPlan.md 0e-PP step (a)).
-    enum class LocalPart { Full, Long, Short };
-    chmat_t MakeLocalPP    (const Structure* cl, const Pseudopotential::LocalPotential& loc,
-                            LocalPart part=LocalPart::Full) const;
+    chmat_t MakeLocalPP    (const Structure* cl, const SpeciesRadialField& loc,
+                            FieldRange part=FieldRange::Full) const;
     //! \brief The LONG-range (softened-Coulomb) local-PP matrix \f$\langle i|V_{long}|j\rangle\f$, folded into
     //! the Hartree Poisson by \c PW_Hartree (doc/GPWPlan.md 0e-PP).  Convenience for \c MakeLocalPP(Long).
-    chmat_t MakeLocalPPLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
+    chmat_t MakeLocalPPLong(const Structure* cl, const SpeciesRadialField& loc) const;
     //! \brief The SHORT-range (compact poly \f$\times\f$ Gaussian) local-PP matrix \f$\langle i|V_{short}|j\rangle\f$.
-    //! ANALYTIC when the model exposes its short part in closed Gaussian form (\c LocalPotential_Gaussian): a
+    //! ANALYTIC when the model exposes its short part in closed Gaussian form (\c SpeciesRadialField_Gaussian): a
     //! lattice-summed 3-centre \c Overlap3C (\c LatticeSum1E::MakeLocalGaussian), NO grid sweep -- the
     //! increment-2 cost win (doc/GPWPlan.md 0e-PP).  Falls back to the grid sweep (\c MakeLocalPP(Short)) for a
     //! model without the closed-Gaussian face.
-    chmat_t MakeLocalPPShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
+    chmat_t MakeLocalPPShort(const Structure* cl, const SpeciesRadialField& loc) const;
     //! \brief KB separable nonlocal matrix \f$\sum_{a,p,m}D_p|b\rangle\langle b|\f$ with the projection vector
     //! \f$b_i=\langle\chi_i|\beta_p(|r-R_a|)Y_{lm}\rangle\f$ (mesh quadrature).  Real symmetric at \f$\Gamma\f$.
     //! == the sum over \c MakeSeparablePPByL's channels.
-    chmat_t MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;
+    chmat_t MakeSeparablePP(const Structure* cl, const SpeciesProjectorSet_R& sep) const;
     //! \brief The per-angular-channel decomposition of \c MakeSeparablePP: one matrix per projector l,
     //! summing exactly to the full \f$V_{NL}\f$ (the l loop is the SAME assembly, accumulated per channel).
     //! Diagnostic face for \f$E_{NL}^{(l)}\f$ (doc/SphericalLatticePlan.md I0).
-    std::map<int,chmat_t> MakeSeparablePPByL(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;
+    std::map<int,chmat_t> MakeSeparablePPByL(const Structure* cl, const SpeciesProjectorSet_R& sep) const;
 
     //! \brief The density/collocation grid engine — ONE object carrying TWO layers (don't let the member
     //! name mislead): it IS-A \c PW_Evaluator = the Ecut BALL \f$\{G:\tfrac12|G|^2<E_{cut}\}\f$ (its

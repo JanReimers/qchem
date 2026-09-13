@@ -48,32 +48,22 @@ PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
 // MakeNuclear (bare-Coulomb 1E block) moved to the evaluator (PW_Evaluator::NuclearMatrix), inherited via
 // EPW_Orbital1E_IBS.
 
-// The external LOCAL pseudopotential: forward to the shared structure-factor assembly on the grid engine
-// (PW_Evaluator::LocalPotentialMatrix) with this model's form factor.  The Integrals_Pseudo capability stays
-// here (it owns the LocalPotential model); the assembly loop lives ONCE on the evaluator (also drives MakeNuclear).
-chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+// A species LOCAL FIELD: forward to the shared structure-factor assembly on the grid engine
+// (PW_Evaluator::LocalPotentialMatrix) with the field's form factor for the requested range.  The service
+// face (Orbital_PP_IBS) stays here; the assembly loop lives ONCE on the evaluator (also drives MakeNuclear).
+// A plane-wave basis assembles every range analytically in G-space (no grid), so the range is a trivial
+// callback swap -- the CP2K split's efficiency payoff is GPW-side (it dodges the sharp-field local grid
+// sweep for the long, deep-well part), but the uniform face lets PW_Hartree/PW_Pseudo drive either basis
+// without a basis-type branch.
+chmat_t PlaneWave_IBS::MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange rng) const
 {
-    return LocalPotentialMatrix(cl, [&loc](int Z, double g2){ return loc.FormFactor(Z,g2); });
-}
-
-// The CP2K local-PP split (doc/GPWPlan.md 0e-PP): the SAME structure-factor assembly restricted to the
-// model's long/short form factor.  A plane-wave basis assembles both analytically in G-space (no grid), so
-// this is a trivial callback swap -- the split's efficiency payoff is GPW-side (it dodges the sharp-field
-// local-PP grid sweep for the long, deep-well part), but keeping the interface uniform across both bases
-// lets PW_Hartree/PW_Pseudo drive either without a basis-type branch.
-chmat_t PlaneWave_IBS::MakeLocalPotentialLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
-{
-    return LocalPotentialMatrix(cl, [&loc](int Z, double g2){ return loc.FormFactorLong(Z,g2); });
-}
-chmat_t PlaneWave_IBS::MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
-{
-    return LocalPotentialMatrix(cl, [&loc](int Z, double g2){ return loc.FormFactorShort(Z,g2); });
+    return LocalPotentialMatrix(cl, [&f,rng](int Z, double g2){ return f.ValueQ(Z,g2,rng); });
 }
 
 // V_NL(G,G') = (1/Omega) Sum_a e^{-i(G-G').tau_a} Sum_p (2l_p+1) P_{l_p}(cos gamma) betã_p(|k+G|) D_p
 //              betã_p(|k+G'|),  gamma = angle(k+G, k+G').
 // Per atom & projector & m this is rank-1: |beta> D <beta|.  Hermitian; real for atoms at the origin.
-chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& v) const
+chmat_t PlaneWave_IBS::MakeProjectorMatrix(const Structure* cl, const SpeciesProjectorSet& v) const
 {
     const UnitCell& B=Recip().GetCell();
     size_t n=GetNumFunctions();
@@ -82,8 +72,8 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudop
 
     int maxL=0;                                     // highest projector channel present
     for (Atom* a : *cl)
-        for (size_t p=0; p<v.NumProjectors(a->itsZ); p++)
-            maxL=std::max(maxL, v.AngularMomentum(a->itsZ,p));
+        for (size_t p=0; p<v.Count(a->itsZ); p++)
+            maxL=std::max(maxL, v.L(a->itsZ,p));
 
     chmat_t V=blazem::zeroH<dcmplx>(n);
     for (size_t i=0; i<n; i++)
@@ -95,11 +85,11 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudop
             for (Atom* a : *cl)
             {
                 double s=0.0;                       // Sum_p (2l+1)P_l(cos gamma) betã_p(q_i) D_p betã_p(q_j)
-                for (size_t p=0; p<v.NumProjectors(a->itsZ); p++)
+                for (size_t p=0; p<v.Count(a->itsZ); p++)
                 {
-                    int l=v.AngularMomentum(a->itsZ,p);
-                    s += (2*l+1)*P[l] * v.Projector(a->itsZ,p,kg.Norm(i))*v.Coefficient(a->itsZ,p)
-                                       *v.Projector(a->itsZ,p,kg.Norm(j));
+                    int l=v.L(a->itsZ,p);
+                    s += (2*l+1)*P[l] * v.RadialQ(a->itsZ,p,kg.Norm(i))*v.Weight(a->itsZ,p)
+                                       *v.RadialQ(a->itsZ,p,kg.Norm(j));
                 }
                 acc += s*std::exp(dcmplx(0.0,-(dG*a->itsR)));
             }

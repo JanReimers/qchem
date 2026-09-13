@@ -25,7 +25,7 @@ import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
-import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
+import qchem.BasisSet.Orbital_PP_IBS;             // cast bs ACROSS to the species-field integral service (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
@@ -70,15 +70,15 @@ Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential
 
 // Assemble the external matrix from the MODEL the term owns: hand the basis the abstract local model and
 // let it assemble <i|V_loc,short|j>.  The dynamic_cast is the sanctioned abstract->abstract move
-// (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Integrals_Pseudo capability); only a basis that supports
+// (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Orbital_PP_IBS service); only a basis that supports
 // reciprocal-space PP assembly answers it.
 template <class U> hmat_t<U> Ven_PP_Short::MakeMatrixT(const tobs_t<U>* bs, const Spin&) const
 {
-    auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<U>*>(bs);
-    assert(pw && "Ven_PP_Short requires an Integrals_Pseudo (e.g. plane-wave / GPW) basis");
+    auto pw=dynamic_cast<const BasisSet::Orbital_PP_IBS<U>*>(bs);
+    assert(pw && "Ven_PP_Short requires a basis with the species-field integral service (Orbital_PP_IBS: plane-wave / GPW)");
     // SHORT-range local only.  The LONG (softened-Coulomb) half is Ven_PP_Long and the KB projectors are
     // Ven_PP_NonLocal (the CP2K local-PP split, doc/GPWPlan.md 0e-PP).
-    return pw->MakeLocalPotentialShort(&*theStructure, *itsLocal);
+    return pw->MakeSpeciesFieldMatrix(&*theStructure, *itsLocal, BasisSet::FieldRange::Short);
 }
 chmat_t Ven_PP_Short::MakeMatrix (const cobs_t* bs, const Spin& s) const {return MakeMatrixT<dcmplx>(bs,s);}
 rsmat_t Ven_PP_Short::MakeMatrixR(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}
@@ -111,20 +111,20 @@ Ven_PP_NonLocal::Ven_PP_NonLocal(const st_t& st, const Pseudopotential::Separabl
 
 template <class U> hmat_t<U> Ven_PP_NonLocal::MakeMatrixT(const tobs_t<U>* bs, const Spin&) const
 {
-    auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<U>*>(bs);
-    assert(pw && "Ven_PP_NonLocal requires an Integrals_Pseudo (e.g. plane-wave / GPW) basis");
-    return pw->MakeSeparablePotential(&*theStructure, *itsSep);
+    auto pw=dynamic_cast<const BasisSet::Orbital_PP_IBS<U>*>(bs);
+    assert(pw && "Ven_PP_NonLocal requires a basis with the species-field integral service (Orbital_PP_IBS: plane-wave / GPW)");
+    return pw->MakeProjectorMatrix(&*theStructure, *itsSep);
 }
 chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin& s) const
 {
     if (std::getenv("GPW_NL_PER_L"))
     {   // I0 diagnostic (doc/SphericalLatticePlan.md): bank the per-l blocks once per irrep block.
         // Complex path only -- the itsByL bank is chmat_t; extend if the diagnostic ever needs real blocks.
-        auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
+        auto pw=dynamic_cast<const BasisSet::Orbital_PP_IBS<dcmplx>*>(bs);
         assert(pw);
         const std::string id=bs->BasisSetID();
         if (itsByLSeen.insert(id).second)
-            for (auto& lH : pw->MakeSeparablePotentialByL(&*theStructure, *itsSep))
+            for (auto& lH : pw->MakeProjectorMatrixByL(&*theStructure, *itsSep))
                 itsByL[lH.first].emplace(id, std::move(lH.second));
     }
     return MakeMatrixT<dcmplx>(bs,s);
@@ -167,7 +167,7 @@ std::ostream& Ven_PP_NonLocal::Write(std::ostream& os) const
 // Hartree term (summed into that term's matrix, then subtracted back out of its energy) purely because the
 // two are solved through the same G-space Poisson machinery; that is a COMPUTATIONAL kinship, not a
 // physical one, and it cost a nullable model, a second block cache, and a "Hartree" term that contributed
-// to E_een.  Assembled through the SAME Integrals_Pseudo cross-cast Ven_PP_Short uses.
+// to E_een.  Assembled through the SAME Orbital_PP_IBS cross-cast Ven_PP_Short uses.
 Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* loc)
     : cStatic_HT_Imp()
     , theStructure(st)
@@ -184,9 +184,9 @@ Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* 
 
 template <class U> hmat_t<U> Ven_PP_Long::MakeMatrixT(const tobs_t<U>* bs, const Spin&) const
 {
-    auto pp=dynamic_cast<const Pseudopotential::Integrals_Pseudo<U>*>(bs);
-    assert(pp && "Ven_PP_Long requires an Integrals_Pseudo (e.g. plane-wave / GPW) basis");
-    return pp->MakeLocalPotentialLong(&*theStructure, *itsLocal);
+    auto pp=dynamic_cast<const BasisSet::Orbital_PP_IBS<U>*>(bs);
+    assert(pp && "Ven_PP_Long requires a basis with the species-field integral service (Orbital_PP_IBS: plane-wave / GPW)");
+    return pp->MakeSpeciesFieldMatrix(&*theStructure, *itsLocal, BasisSet::FieldRange::Long);
 }
 chmat_t Ven_PP_Long::MakeMatrix (const cobs_t* bs, const Spin& s) const {return MakeMatrixT<dcmplx>(bs,s);}
 rsmat_t Ven_PP_Long::MakeMatrixR(const robs_t* bs, const Spin& s) const {return MakeMatrixT<double>(bs,s);}

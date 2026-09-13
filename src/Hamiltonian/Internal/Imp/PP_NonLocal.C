@@ -72,15 +72,15 @@ double RealYlm(int l, int m, double x, double y, double z)
 // guard the unit-vector division.
 class BetaYlmField : public ScalarFunction<double>
 {
-    rvec3_t R; const Pseudopotential::SeparablePotential_R& v; int Z; size_t p; int l, m;
+    rvec3_t R; const BasisSet::SpeciesProjectorSet_R& v; int Z; size_t p; int l, m;
 public:
-    BetaYlmField(const rvec3_t& R_, const Pseudopotential::SeparablePotential_R& v_, int Z_, size_t p_, int l_, int m_)
+    BetaYlmField(const rvec3_t& R_, const BasisSet::SpeciesProjectorSet_R& v_, int Z_, size_t p_, int l_, int m_)
         : R(R_), v(v_), Z(Z_), p(p_), l(l_), m(m_) {}
     double operator()(const rvec3_t& r) const override
     {
         rvec3_t d=r-R; double rr=norm(d);
-        if (rr<1e-12) return l==0 ? v.BetaR(Z,p,0.0)*RealYlm(0,0,0,0,0) : 0.0;
-        return v.BetaR(Z,p,rr) * RealYlm(l,m, d.x/rr, d.y/rr, d.z/rr);
+        if (rr<1e-12) return l==0 ? v.RadialR(Z,p,0.0)*RealYlm(0,0,0,0,0) : 0.0;
+        return v.RadialR(Z,p,rr) * RealYlm(l,m, d.x/rr, d.y/rr, d.z/rr);
     }
     rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}   // unused by Overlap
 };
@@ -114,14 +114,14 @@ rsmat_t PP_NonLocal::MakeMatrixRadial(const BasisSet::ImplicitAngular_IBS& ia, s
     const int   Z =at->itsZ;
 
     rmat_t V(n,n,0.0);
-    for (size_t p=0; p<itsSep->NumProjectors(Z); p++)
+    for (size_t p=0; p<itsSep->Count(Z); p++)
     {
-        if (itsSep->AngularMomentum(Z,p)!=lBlk) continue;     // orthogonal channels: exactly zero
-        const double D=itsSep->Coefficient(Z,p);
+        if (itsSep->L(Z,p)!=lBlk) continue;     // orthogonal channels: exactly zero
+        const double D=itsSep->Weight(Z,p);
         rvec_t b(n, 0.0);                                     // b_i = int chi_i beta_p r^2 dr
         for (size_t g=0; g<rad.R().size(); g++)
         {
-            const double w=rad.W()[g]*itsSep->BetaR(Z,p,rad.R()[g]);
+            const double w=rad.W()[g]*itsSep->RadialR(Z,p,rad.R()[g]);
             const rvec_t chi=ia.RadialValues(rad.R()[g]);
             for (size_t i=0;i<n;i++) b[i]+=w*chi[i];
         }
@@ -144,10 +144,10 @@ rsmat_t PP_NonLocal::MakeMatrix(const robs_t* bs, const Spin&) const
     {
         const Atom* at=(*theStructure)[a];
         int Z=at->itsZ;
-        for (size_t p=0; p<itsSep->NumProjectors(Z); p++)
+        for (size_t p=0; p<itsSep->Count(Z); p++)
         {
-            int    l=itsSep->AngularMomentum(Z,p);
-            double D=itsSep->Coefficient    (Z,p);
+            int    l=itsSep->L(Z,p);
+            double D=itsSep->Weight(Z,p);
             for (int m=-l; m<=l; m++)
             {
                 rvec_t b=qcMesh::Overlap(mesh, *bs, BetaYlmField(at->itsR,*itsSep,Z,p,l,m));

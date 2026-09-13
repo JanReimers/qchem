@@ -24,13 +24,13 @@ namespace {
 class VlocField : public ScalarFunction<double>
 {
     const Structure& cl;
-    const Pseudopotential::LocalPotential_R& v;
+    const BasisSet::SpeciesRadialField& v;
 public:
-    VlocField(const Structure& c, const Pseudopotential::LocalPotential_R& vl) : cl(c), v(vl) {}
+    VlocField(const Structure& c, const BasisSet::SpeciesRadialField& vl) : cl(c), v(vl) {}
     double operator()(const rvec3_t& r) const override
     {
         double s=0;
-        for (size_t i=0;i<cl.GetNumAtoms();i++) { const Atom* a=cl[i]; s+=v.Vloc(a->itsZ, norm(r-a->itsR)); }
+        for (size_t i=0;i<cl.GetNumAtoms();i++) { const Atom* a=cl[i]; s+=v.ValueR(a->itsZ, norm(r-a->itsR), BasisSet::FieldRange::Full); }
         return s;
     }
     rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}   // unused by MatrixOverlap

@@ -182,7 +182,7 @@ TEST(A_PP, PerLKleinmanBylanderOracle)
     for (int lProj : {0,1,2,3})
     {
         auto sep=std::make_shared<const HGH_SeparablePotential>(onechannel(lProj));
-        const double D=sep->Coefficient(Z,0);
+        const double D=sep->Weight(Z,0);
         Hamiltonian::PP_NonLocal term(st, sep, mp);
 
         for (auto* blk : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_OIBS>())
@@ -196,7 +196,7 @@ TEST(A_PP, PerLKleinmanBylanderOracle)
             for (size_t i=0;i<rad.R().size();i++)
             {
                 rvec_t chi=(*blk)(rvec3_t(rad.R()[i],0,0));    // radial-only face: chi(r xhat) = R(r)
-                const double w=rad.W()[i]*sep->BetaR(Z,0,rad.R()[i]);
+                const double w=rad.W()[i]*sep->RadialR(Z,0,rad.R()[i]);
                 for (size_t k=0;k<n;k++) bref[k]+=w*chi[k];
             }
             double maxV=0, maxRef=0, maxDiff=0;

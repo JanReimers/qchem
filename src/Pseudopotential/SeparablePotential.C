@@ -1,16 +1,16 @@
-// File: BasisSet/SeparablePotential.C  Separable (Kleinman-Bylander) NONLOCAL potential.
+// File: Pseudopotential/SeparablePotential.C  Separable (Kleinman-Bylander) NONLOCAL potential.
 //
 // Rung 2 of "lineage A" (see doc/OldPlans/PlaneWavePlan.md): a norm-conserving pseudopotential's nonlocal part
 // in Kleinman-Bylander separable form,
 //     V_NL = Sum_{atom a} Sum_{projector p} |beta^a_p> D_p <beta^a_p| .
 // In a plane-wave basis each projector contributes a reciprocal-space radial form factor
-// beta-tilde_p(|q|) (q = k+G) and a KB coefficient D_p; the basis set (PlaneWave_IBS::
-// MakeSeparablePotential) folds in 1/Omega and the structure-factor phase e^{-i(G-G').tau_a}.
+// beta-tilde_p(|q|) (q = k+G) and a KB coefficient D_p; the basis set (Orbital_PP_IBS::
+// MakeProjectorMatrix) folds in 1/Omega and the structure-factor phase e^{-i(G-G').tau_a}.
 //
 // This is the nonlocal sibling of LocalPotential: the external one-body potential is V = V_loc +
 // V_nonlocal, both model-parameterized contributions to the SAME external block.
 //
-// Angular channels: each projector carries an angular momentum l (AngularMomentum); MakeSeparablePotential
+// Angular channels: each projector carries an angular momentum l (L); MakeProjectorMatrix
 // weights its rank-1 radial product by the addition-theorem factor (2l+1) P_l(cos gamma), gamma the angle
 // between k+G and k+G' -- the SAME angular structure the APW/LAPW sphere terms use.  l=0 (P_0=1) is the
 // spherically-symmetric s-channel.  The radial form factor beta-tilde_l(|q|) is a model input here (the
@@ -24,86 +24,46 @@ module;
 #include <vector>
 
 export module qchem.Pseudopotential.SeparablePotential;
+export import qchem.BasisSet.SpeciesField;   // SpeciesProjectorSet(+_R,+_Gaussian), Math::Gaussian
 import qchem.Math;   // Pi, FourPi
 
 export namespace qchem::Pseudopotential
 {
 
-//! \brief The view-NEUTRAL structural core of a separable Kleinman-Bylander nonlocal potential: how many
-//! projectors a species has, their KB coefficients, and their angular momenta.  Shared by both spectral
-//! views (cf. doc/MolecularPseudopotentialPlan.md section 2: unlike LocalPotential, the core is common; only
-//! the radial leaf -- reciprocal Projector(q) vs real BetaR(r) -- splits).
-class SeparablePotential_Base
-{
-public:
-    virtual ~SeparablePotential_Base() {}
-    //! Number of (radial) projectors for nuclear species \a Z.
-    virtual size_t NumProjectors(int Z) const=0;
-    //! Kleinman-Bylander coefficient \f$D_p\f$ for projector \a p of species \a Z.  [energy]
-    virtual double Coefficient  (int Z, size_t p) const=0;
-    //! Angular momentum \a l of projector \a p (default 0 = s-channel).  Sets the \f$(2l+1)P_l(\cos\gamma)\f$
-    //! angular weight (PW) / the \f$Y_{lm}\f$ projector (real space).
-    virtual int    AngularMomentum(int /*Z*/, size_t /*p*/) const {return 0;}
-};
+using BasisSet::SpeciesProjectorSet;
+using BasisSet::SpeciesProjectorSet_R;
+using BasisSet::SpeciesProjectorSet_Gaussian;
 
-//! \brief The RECIPROCAL radial leaf (+ core): the view a PLANE-WAVE basis consumes.
-class SeparablePotential : public virtual SeparablePotential_Base
-{
-public:
-    //! Reciprocal-space radial projector form factor \f$\tilde\beta_p(|q|)\f$, \f$q=|k+G|\f$.
-    virtual double Projector(int Z, size_t p, double q) const=0;
-};
-
-//! \brief The REAL-space radial leaf (+ core): the view a MOLECULAR / ATOMIC basis consumes, the radial
-//! projector \f$\beta_p(r)\f$ (the \f$Y_{lm}\f$ angular factor for channel \c AngularMomentum(p) is applied
-//! by the assembler).  Its spherical-Bessel transform reproduces the reciprocal leaf:
-//! \f$\int_0^\infty\beta_p(r)\,j_l(qr)\,r^2\,dr = \mathrm{Projector}_p(q)/\sqrt{4\pi}\f$ -- the \f$1/\sqrt{4\pi}\f$
-//! is fixed by Kleinman-Bylander consistency (validated by UTPseudopotential).
-class SeparablePotential_R : public virtual SeparablePotential_Base
-{
-public:
-    virtual double BetaR(int Z, size_t p, double r) const=0;
-};
-
-//! One term \f$c\,r^{2n}\,e^{-\alpha r^2}\f$ of a radial function's closed Gaussian expansion (the channel's
-//! \f$r^l\f$ is carried separately -- see \c SeparablePotential_Gaussian).
-struct RadialGaussian { double c; int n; double alpha; };
-
-//! \brief CAPABILITY face: the real-space radial projector in CLOSED GAUSSIAN form,
-//! \f$\beta_p(r)=\sum_t c_t\,r^{\,l+2n_t}\,e^{-\alpha_t r^2}\f$ with \f$l=\f$ \c AngularMomentum(Z,p) --
-//! i.e. \c BetaR expressed exactly (not fitted) as polynomial x Gaussian.  A consumer holding a Gaussian
-//! orbital basis can then form \f$\langle\chi_i|\beta_p Y_{lm}\rangle\f$ ANALYTICALLY (the projector times
-//! the degree-\f$l\f$ solid harmonic is a finite Cartesian-Gaussian expansion) instead of quadraturing
-//! \c BetaR on a mesh.  Optional: reached by abstract->abstract cross-cast from \c SeparablePotential_R;
-//! a model whose radial is not Gaussian simply does not implement it (the consumer keeps its mesh path).
-class SeparablePotential_Gaussian : public virtual SeparablePotential_Base
-{
-public:
-    //! The closed Gaussian expansion of \c BetaR(Z,p,r): \f$\beta_p(r)=\sum_t c_t r^{\,l+2n_t}e^{-\alpha_t r^2}\f$.
-    virtual std::vector<RadialGaussian> BetaGaussian(int Z, size_t p) const=0;
-};
+//! \brief A separable (Kleinman-Bylander) nonlocal potential IS a species projector set -- the neutral face
+//! carries everything the structural core used to (count, angular momenta, the diagonalised per-projector
+//! weights, the reciprocal radial shape); the real-space and closed-Gaussian radial views are its optional
+//! capability faces.  V1.2: the abstract faces this module used to define (SeparablePotential_Base/_R/
+//! _Gaussian) live in qcBasisSet as those three; these names are kept as the pseudopotential-side words.
+using SeparablePotential          = SpeciesProjectorSet;
+using SeparablePotential_R        = SpeciesProjectorSet_R;
+using SeparablePotential_Gaussian = SpeciesProjectorSet_Gaussian;
 
 //! \brief A single Gaussian Kleinman-Bylander projector in channel \a l,
 //! \f$\tilde\beta(q)=e^{-\sigma^2 q^2/2}\f$ with coefficient \f$D\f$ -- a minimal analytic demonstrator
 //! of the separable nonlocal structure (each atom contributes a rank-1 \f$V_{NL}\f$ per channel).
 //! Defaults to l=0 (the s-channel), so existing callers are unaffected.
-class GaussianProjector : public SeparablePotential, public virtual SeparablePotential_R,
+class GaussianProjector : public virtual SeparablePotential, public virtual SeparablePotential_R,
                           public virtual SeparablePotential_Gaussian
 {
 public:
     GaussianProjector(double sigma, double D, int l=0) : itsSigma(sigma), itsD(D), itsL(l) {}
-    virtual size_t NumProjectors(int) const {return 1;}
-    virtual double Coefficient  (int, size_t) const {return itsD;}
-    virtual double Projector    (int, size_t, double q) const {return std::exp(-0.5*itsSigma*itsSigma*q*q);}
-    virtual int    AngularMomentum(int, size_t) const {return itsL;}
+    virtual size_t Count  (int) const {return 1;}
+    virtual double Weight (int, size_t) const {return itsD;}
+    virtual double RadialQ(int, size_t, double q) const {return std::exp(-0.5*itsSigma*itsSigma*q*q);}
+    virtual int    L      (int, size_t) const {return itsL;}
     //! Real-space s-channel demonstrator: the Gaussian whose j_0 transform is sqrt(4pi) e^{-sigma^2 q^2/2},
     //! i.e. beta(r) = (2 sqrt2 / sigma^3) e^{-r^2/2 sigma^2}.  (Consistent for l=0, the default channel.)
-    virtual double BetaR(int, size_t, double r) const
+    virtual double RadialR(int, size_t, double r) const
     {
         return 2.0*std::sqrt(2.0)/(itsSigma*itsSigma*itsSigma) * std::exp(-0.5*r*r/(itsSigma*itsSigma));
     }
     //! The same radial in closed Gaussian form (one term, n=0; BetaR == c e^{-alpha r^2} by construction).
-    virtual std::vector<RadialGaussian> BetaGaussian(int, size_t) const
+    virtual std::vector<Math::Gaussian> AsGaussians(int, size_t) const
     {
         return { { 2.0*std::sqrt(2.0)/(itsSigma*itsSigma*itsSigma), 0, 0.5/(itsSigma*itsSigma) } };
     }
@@ -126,17 +86,17 @@ private:
 //! \sum_i v_{\alpha,i}\,\pi^{5/4} q^l\sqrt{r_l^{2l+3}}Q_i^l e^{-(qr_l)^2/2}\f$, so the generic
 //! (2l+1)P_l(cosγ) assembler in PlaneWave_IBS reproduces \f$\frac1\Omega(2l+1)P_l\sum_{ij}\tilde\beta_i
 //! h_{ij}\tilde\beta_j\f$ exactly.
-class HGH_SeparablePotential : public SeparablePotential, public virtual SeparablePotential_R,
+class HGH_SeparablePotential : public virtual SeparablePotential, public virtual SeparablePotential_R,
                                public virtual SeparablePotential_Gaussian
 {
 public:
     //! Build by adding channels (AddChannel) from real GTH parameters; the GTH database reader
     //! (GetGTH in GTH_Potentials.C) is the per-element source, replacing hardcoded factories.
 
-    virtual size_t NumProjectors  (int)         const {return itsProj.size();}
-    virtual double Coefficient    (int, size_t p) const {return itsProj[p].D;}
-    virtual int    AngularMomentum(int, size_t p) const {return itsProj[p].l;}
-    virtual double Projector      (int, size_t p, double q) const
+    virtual size_t Count  (int)           const {return itsProj.size();}
+    virtual double Weight (int, size_t p) const {return itsProj[p].D;}
+    virtual int    L      (int, size_t p) const {return itsProj[p].l;}
+    virtual double RadialQ(int, size_t p, double q) const
     {
         const Proj& pr=itsProj[p];
         double s=0.0;                                          // (1/sqrt 4pi) Sum_i v_i projG_i(q)
@@ -146,7 +106,7 @@ public:
     //! Real-space radial projector \f$\beta_p(r)=\sum_i v_i\,p_i^l(r)\f$ (the diagonalised KB combination of
     //! the analytic HGH real-space radials).  Its \f$j_l\f$ transform reproduces \f$\mathrm{Projector}_p(q)/
     //! \sqrt{4\pi}\f$ (the SeparablePotential_R contract; checked in UTPseudopotential).
-    virtual double BetaR(int, size_t p, double r) const
+    virtual double RadialR(int, size_t p, double r) const
     {
         const Proj& pr=itsProj[p];
         double s=0.0;
@@ -156,10 +116,10 @@ public:
     //! The same radial in CLOSED Gaussian form: ProjR is \f$\sqrt2\,r^{l+2i}e^{-r^2/2r_l^2}/(r_l^a\sqrt{\Gamma(a)})\f$,
     //! so \f$\beta_p(r)=\sum_i c_i\,r^{\,l+2i}\,e^{-\alpha r^2}\f$ with \f$c_i=v_i\sqrt2/(r_l^{a_i}\sqrt{\Gamma(a_i)})\f$,
     //! \f$\alpha=1/2r_l^2\f$ -- term-by-term identical to BetaR (exact, not a fit).
-    virtual std::vector<RadialGaussian> BetaGaussian(int, size_t p) const
+    virtual std::vector<Math::Gaussian> AsGaussians(int, size_t p) const
     {
         const Proj& pr=itsProj[p];
-        std::vector<RadialGaussian> terms;
+        std::vector<Math::Gaussian> terms;
         for (size_t i=0;i<pr.v.size();i++)
         {
             double a = pr.l + (4*i+3)/2.0;
@@ -263,33 +223,33 @@ private:
 
 //! \brief A multi-species separable potential: the nonlocal sibling of MultiSpecies_LocalPotential -- a
 //! router keyed by atomic number \a Z forwarding to the per-species projector model.  Every method takes
-//! \a Z, so the basis assembly (which loops atoms and calls NumProjectors(a->itsZ) etc.) is unchanged.
+//! \a Z, so the basis assembly (which loops atoms and calls Count(a->itsZ) etc.) is unchanged.
 //! Register every species (even a purely-local one, whose model simply reports 0 projectors).
-class MultiSpecies_SeparablePotential : public SeparablePotential, public virtual SeparablePotential_R,
+class MultiSpecies_SeparablePotential : public virtual SeparablePotential, public virtual SeparablePotential_R,
                                         public virtual SeparablePotential_Gaussian
 {
 public:
     //! Register species \a Z's nonlocal projector model (atomic number, e.g. 53 for I).
     void Add(int Z, std::shared_ptr<const SeparablePotential> model) {itsByZ[Z]=std::move(model);}
-    virtual size_t NumProjectors  (int Z)            const override {return Get(Z).NumProjectors(Z);}
-    virtual double Coefficient    (int Z, size_t p)  const override {return Get(Z).Coefficient(Z,p);}
-    virtual double Projector      (int Z, size_t p, double q) const override {return Get(Z).Projector(Z,p,q);}
-    virtual int    AngularMomentum(int Z, size_t p)  const override {return Get(Z).AngularMomentum(Z,p);}
+    virtual size_t Count  (int Z)            const override {return Get(Z).Count(Z);}
+    virtual double Weight (int Z, size_t p)  const override {return Get(Z).Weight(Z,p);}
+    virtual double RadialQ(int Z, size_t p, double q) const override {return Get(Z).RadialQ(Z,p,q);}
+    virtual int    L      (int Z, size_t p)  const override {return Get(Z).L(Z,p);}
     //! The real-space view: cross-cast the sub-model to its real radial leaf (sanctioned abstract->abstract,
-    //! via the shared SeparablePotential_Base) -- a dual-view model (HGH) is-a SeparablePotential_R too.
-    virtual double BetaR(int Z, size_t p, double r) const override
+    //! via the shared SpeciesProjectorSet core) -- a dual-view model (HGH) is-a SeparablePotential_R too.
+    virtual double RadialR(int Z, size_t p, double r) const override
     {
         const auto* rface=dynamic_cast<const SeparablePotential_R*>(&Get(Z));
-        assert(rface && "MultiSpecies_SeparablePotential::BetaR: sub-model has no real-space view");
-        return rface->BetaR(Z,p,r);
+        assert(rface && "MultiSpecies_SeparablePotential::RadialR: sub-model has no real-space view");
+        return rface->RadialR(Z,p,r);
     }
     //! The closed-Gaussian view: forwarded the same way (every species model must supply it for the router
     //! to; today HGH and the Gaussian demonstrator both do).
-    virtual std::vector<RadialGaussian> BetaGaussian(int Z, size_t p) const override
+    virtual std::vector<Math::Gaussian> AsGaussians(int Z, size_t p) const override
     {
         const auto* gface=dynamic_cast<const SeparablePotential_Gaussian*>(&Get(Z));
-        assert(gface && "MultiSpecies_SeparablePotential::BetaGaussian: sub-model has no closed-Gaussian view");
-        return gface->BetaGaussian(Z,p);
+        assert(gface && "MultiSpecies_SeparablePotential::AsGaussians: sub-model has no closed-Gaussian view");
+        return gface->AsGaussians(Z,p);
     }
 private:
     const SeparablePotential& Get(int Z) const

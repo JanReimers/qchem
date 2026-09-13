@@ -45,8 +45,8 @@ public:
     // I2n = structure-dependent, matrix-valued 1-electron operators (keyed by BasisSetID + Structure::ID).
     // LocalPP/SeparablePP = the periodic external pseudopotential matrices (GPW real-space assembly): static
     // across an SCF but rebuilt per k-point, so process-wide caching lets multi-k / IBZ-vs-full-mesh runs reuse
-    // a k-block's PP across instances.  (The abstract Integrals_Pseudo lives in qcPseudopotential, below
-    // qcBasisSet, so the cached accessor sits on the BasisSet-family realiser -- GPW_IBS -- not here.)
+    // a k-block's PP across instances.  (The abstract Orbital_PP_IBS is a face of this library,
+    // so the cached accessor sits on the BasisSet-family realiser -- GPW_IBS -- not here.)
     // LocalPPLong/LocalPPShort = the CP2K local-PP split (doc/GPWPlan.md 0e-PP): distinct cache keys so the
     // long (Hartree-folded) and short (external) pieces don't collide with each other or the full LocalPP.
     enum class I2n  {Nuclear, LocalPP, LocalPPLong, LocalPPShort, SeparablePP};

@@ -22,6 +22,8 @@ target_sources(qcBasisSet PRIVATE
 
 )
 target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+    SpeciesField.C                        # the species-field ARGUMENT vocabulary (V1.2)
+    Orbital_PP_IBS.C                      # the species-field INTEGRAL SERVICE (V1.2; was Pseudopotential::Integrals_Pseudo)
   BasisSet.C
   IrrepBasisSet.C
   Orbital_1E_IBS.C

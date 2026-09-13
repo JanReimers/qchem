@@ -139,15 +139,15 @@ double RealYlm(int l, int m, double x, double y, double z)
 // singularity is harmless; guard the unit-vector division.
 class BetaYlmField : public ScalarFunction<double>
 {
-    rvec3_t R; const Pseudopotential::SeparablePotential_R& v; int Z; size_t p; int l, m;
+    rvec3_t R; const SpeciesProjectorSet_R& v; int Z; size_t p; int l, m;
 public:
-    BetaYlmField(const rvec3_t& R_, const Pseudopotential::SeparablePotential_R& v_, int Z_, size_t p_, int l_, int m_)
+    BetaYlmField(const rvec3_t& R_, const SpeciesProjectorSet_R& v_, int Z_, size_t p_, int l_, int m_)
         : R(R_), v(v_), Z(Z_), p(p_), l(l_), m(m_) {}
     double operator()(const rvec3_t& r) const override
     {
         rvec3_t d=r-R; double rr=norm(d);
-        if (rr<1e-12) return l==0 ? v.BetaR(Z,p,0.0)*RealYlm(0,0,0,0,0) : 0.0;
-        return v.BetaR(Z,p,rr) * RealYlm(l,m, d.x/rr, d.y/rr, d.z/rr);
+        if (rr<1e-12) return l==0 ? v.RadialR(Z,p,0.0)*RealYlm(0,0,0,0,0) : 0.0;
+        return v.RadialR(Z,p,rr) * RealYlm(l,m, d.x/rr, d.y/rr, d.z/rr);
     }
     rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}
 };
@@ -156,13 +156,13 @@ public:
 // polynomial x Gaussian, compactly supported in practice; used to SCREEN the (image, mesh-point) projection
 // loop in MakeSeparablePP.  Cheap (~1000 BetaR evals, once per projector).  1e-10 is far below any GPW anchor
 // tolerance, so screening is numerically exact.
-double BetaSupportRadius(const Pseudopotential::SeparablePotential_R& sep, int Z, size_t p)
+double BetaSupportRadius(const SpeciesProjectorSet_R& sep, int Z, size_t p)
 {
     const double h=0.02, rmax=25.0, tol=1e-10;
     double peak=0.0;
-    for (double r=0.0; r<=rmax; r+=h) peak=std::max(peak, std::fabs(sep.BetaR(Z,p,r)));
+    for (double r=0.0; r<=rmax; r+=h) peak=std::max(peak, std::fabs(sep.RadialR(Z,p,r)));
     double rsup=0.0;
-    for (double r=0.0; r<=rmax; r+=h) if (std::fabs(sep.BetaR(Z,p,r))>tol*peak) rsup=r;
+    for (double r=0.0; r<=rmax; r+=h) if (std::fabs(sep.RadialR(Z,p,r))>tol*peak) rsup=r;
     return rsup+2.0*h;   // a small margin past the last significant radius
 }
 
@@ -1037,7 +1037,7 @@ std::vector<Symmetry::Lattice_3D::ReciprocalOp> GPW_Evaluator::RecipSymOps() con
 // This inherits the PW G=0 / FormFactorG0-alignment convention EXACTLY, so the energy is box-independent (a
 // real-space quadrature of the raw -Zion/r-tailed V_loc has a cell-size-dependent mean -> box drift).  The KB
 // nonlocal (localized, no Coulomb tail, no G=0 issue) stays real-space (MakeSeparablePP).
-chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential& loc, LocalPart part) const
+chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField& loc, FieldRange part) const
 {
     // In production this sweep runs for the LONG part only (PW_Hartree's V_long block; the short part is
     // analytic, MakeLocalPPShort below) -- the bucket name says so.  The full/short grid forms only run
@@ -1062,9 +1062,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
         dcmplx  acc(0.0);                                            // form factor x structure factor
         for (Atom* a : *cl)                                          // full V_loc, or its long / short piece
         {
-            double f = part==LocalPart::Long  ? loc.FormFactorLong (a->itsZ,g2)
-                     : part==LocalPart::Short ? loc.FormFactorShort(a->itsZ,g2)
-                     :                          loc.FormFactor     (a->itsZ,g2);
+            double f = loc.ValueQ(a->itsZ,g2,part);
             acc += f*std::exp(dcmplx(0.0,-(dG*a->itsR)));
         }
         return acc/itsFFT_R_G_Grids->Volume();
@@ -1105,10 +1103,10 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
     // low diffuse eigenvalue (the NaF diving-ghost).  beta = max over species = the SHARPEST (smallest rloc) PP,
     // since V_loc sums over all atoms.  A soft PP (large rloc) or a non-Gaussian model -> beta=0 = old behaviour.
     double beta=0.0;
-    if (const auto* gauss=dynamic_cast<const Pseudopotential::LocalPotential_Gaussian*>(&loc))
+    if (const auto* gauss=dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc))
         for (Atom* a : *cl)
         {
-            const auto terms=gauss->ShortRangeGaussian(a->itsZ);
+            const auto terms=gauss->AsGaussians(a->itsZ,FieldRange::Short);
             if (!terms.empty()) beta=std::max(beta, terms[0].alpha);   // alpha = 1/(2 rloc^2)
         }
     const bool timeIt=(std::getenv("GPW_LOCALPP_RELCUTOFF")!=nullptr);
@@ -1145,18 +1143,18 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
 // were e^{-8.5}, measured sub-mHa vs CP2K); GPW_VLOC_EPS overrides for the self-convergence check.
 // GPW_LONG_SWEEP=1 = the kappa-sweep path (A/B verification instrument); non-Gaussian local models (no
 // closed beta) also fall back to it.
-chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialField& loc) const
 {
     // beta = the long part's effective exponent = the SHARPEST species' 1/(2 rloc^2) (V_long sums over atoms)
     double beta=0.0;
-    if (const auto* gauss=dynamic_cast<const Pseudopotential::LocalPotential_Gaussian*>(&loc))
+    if (const auto* gauss=dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc))
         for (Atom* a : *cl)
         {
-            const auto terms=gauss->ShortRangeGaussian(a->itsZ);
+            const auto terms=gauss->AsGaussians(a->itsZ,FieldRange::Short);
             if (!terms.empty()) beta=std::max(beta, terms[0].alpha);   // alpha = 1/(2 rloc^2)
         }
     static const bool oldSweep=(std::getenv("GPW_LONG_SWEEP")!=nullptr);
-    if (oldSweep || beta<=0.0) return MakeLocalPP(cl, loc, LocalPart::Long);
+    if (oldSweep || beta<=0.0) return MakeLocalPP(cl, loc, FieldRange::Long);
     qchem::report::Timed timed("setup: local-PP LONG (custom G-ball)");
     assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0)");
     EnsureLevels();
@@ -1188,7 +1186,7 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const Pseudopotentia
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));
         double  g2=dG*dG;
         dcmplx  acc(0.0);                                            // form factor x structure factor
-        for (Atom* a : *cl) acc += loc.FormFactorLong(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        for (Atom* a : *cl) acc += loc.ValueQ(a->itsZ,g2,FieldRange::Long)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
         return acc/itsFFT_R_G_Grids->Volume();
     };
     const size_t K=levels.size();
@@ -1214,15 +1212,15 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const Pseudopotentia
 // exposed in closed Gaussian form.  The per-species operator g_Z = Sum_t c_t r^{2n_t} e^{-alpha r^2} is a
 // Cartesian-Gaussian function: r^{2n} = MultiplyR2(1,n) (the l=0 s-harmonic is the constant), all sharing the
 // one exponent alpha = 1/(2 rloc^2); each atom places g_Z at its centre (the OPERATOR slot of Overlap3C).
-chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const SpeciesRadialField& loc) const
 {
-    const auto* gauss=dynamic_cast<const Pseudopotential::LocalPotential_Gaussian*>(&loc);
-    if (!gauss) return MakeLocalPP(cl, loc, LocalPart::Short);   // grid fallback (non-Gaussian short part)
+    const auto* gauss=dynamic_cast<const SpeciesRadialField_Gaussian*>(&loc);
+    if (!gauss) return MakeLocalPP(cl, loc, FieldRange::Short);   // grid fallback (non-Gaussian short part)
     qchem::report::Timed timed("setup: local-PP SHORT (analytic lattice sum)");
     auto opForZ=[gauss](int Z)->Molecule::LatticeSum1E::GaussianFunction
     {
         Molecule::LatticeSum1E::GaussianFunction g;
-        const auto terms=gauss->ShortRangeGaussian(Z);
+        const auto terms=gauss->AsGaussians(Z,FieldRange::Short);
         g.alpha = terms.empty() ? 1.0 : terms[0].alpha;
         for (const auto& rt : terms)
         {
@@ -1243,7 +1241,7 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const Pseudopotenti
     if (!cl->isFinite())
     {
         double vbar=0.0;
-        for (Atom* a : *cl) vbar += loc.FormFactorG0Short(a->itsZ);
+        for (Atom* a : *cl) vbar += loc.CellMeanQ(a->itsZ,FieldRange::Short);
         vbar /= itsCell.GetCellVolume();
         V -= vbar*OverlapMatrix();
     }
@@ -1267,7 +1265,7 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const Pseudopotenti
 // chi_i^k is precomputed on the mesh ONCE (Eval re-sums the image set per point, so evaluating it inside the
 // per-projector-image loop would be O(images^2)); the projection then reuses it.  V_ij = Sum D b_i conj(b_j)
 // is Hermitian by construction.
-chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
+chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const SpeciesProjectorSet_R& sep) const
 {
     // The lumped matrix == the exact sum of the per-channel decomposition (ONE assembly, two faces).
     chmat_t H=blazem::zeroH<dcmplx>(itsN);
@@ -1275,7 +1273,7 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
     return H;
 }
 
-std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
+std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, const SpeciesProjectorSet_R& sep) const
 {
     qchem::report::Timed timed("setup: separable PP (KB)");
     const size_t n=itsN;
@@ -1312,7 +1310,7 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
     // EXACT (no mesh, no quadrature error) and ~O(n x images) 2-centre integrals instead of the mesh sweep
     // (NaF: the 358k-point Eval quadrature was >20 min of setup; this is milliseconds).  Models without the
     // closed-Gaussian face keep the mesh quadrature below.
-    if (const auto* gsep=dynamic_cast<const Pseudopotential::SeparablePotential_Gaussian*>(&sep))
+    if (const auto* gsep=dynamic_cast<const SpeciesProjectorSet_Gaussian*>(&sep))
     {
         // b_i = <chi_i^k | beta at tau> = Sum_n phase(n) <chi_i | g(.-tau-R_n)> -- the seam enumerates the
         // series internally per (chi_i, g).  (The historical (-Rs, conj-phase) form was an artifact of the
@@ -1324,11 +1322,11 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
         {
             const Atom* at=(*cl)[a];
             int Z=at->itsZ;
-            for (size_t p=0; p<sep.NumProjectors(Z); p++)
+            for (size_t p=0; p<sep.Count(Z); p++)
             {
-                int    l=sep.AngularMomentum(Z,p);
-                double D=sep.Coefficient    (Z,p);
-                auto   radial=gsep->BetaGaussian(Z,p);
+                int    l=sep.L(Z,p);
+                double D=sep.Weight(Z,p);
+                auto   radial=gsep->AsGaussians(Z,p);
                 for (int m=-l; m<=l; m++)
                 {
                     auto ylm=YlmCartesian(l,m);
@@ -1375,10 +1373,10 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
     {
         const Atom* at=(*cl)[a];
         int Z=at->itsZ;
-        for (size_t p=0; p<sep.NumProjectors(Z); p++)
+        for (size_t p=0; p<sep.Count(Z); p++)
         {
-            int    l=sep.AngularMomentum(Z,p);
-            double D=sep.Coefficient    (Z,p);
+            int    l=sep.L(Z,p);
+            double D=sep.Weight(Z,p);
             const double rBeta=BetaSupportRadius(sep,Z,p);   // projector support radius (screening cutoff)
             for (int m=-l; m<=l; m++)
             {

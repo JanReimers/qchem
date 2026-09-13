@@ -38,7 +38,7 @@ namespace qchem
 //  nothing here touches a concrete basis or a concrete PP model:
 //    alpha_max -- BasisSet::Molecule::LatticeSum1E::MaxExponent(), documented there as "the GPW
 //                 density-grid cutoff floor".
-//    alpha_pp  -- Pseudopotential::LocalPotential_Gaussian::ShortRangeGaussian(Z), whose terms carry
+//    alpha_pp  -- BasisSet::SpeciesRadialField_Gaussian::AsGaussians(Z, Short), whose terms carry
 //                 alpha = 1/(2 r_loc^2).  A model with no closed-Gaussian short part does not implement
 //                 the face; that leaves alpha_pp at 0, which the selector reads as "not measurable" --
 //                 NOT as "smooth".
@@ -60,8 +60,8 @@ static qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Basi
     {
         const int Z = int(thePeriodicTable().GetZ(element));
         const Pseudopotential::HGH_LocalPotential loc = Pseudopotential::GetGTH(element,"LDA",valence).local;
-        const auto* g = static_cast<const Pseudopotential::LocalPotential_Gaussian*>(&loc);
-        for (const auto& t : g->ShortRangeGaussian(Z)) s.alphaPP = std::max(s.alphaPP, t.alpha);
+        const auto* g = static_cast<const BasisSet::SpeciesRadialField_Gaussian*>(&loc);
+        for (const auto& t : g->AsGaussians(Z, BasisSet::FieldRange::Short)) s.alphaPP = std::max(s.alphaPP, t.alpha);
     }
     return s;
 }

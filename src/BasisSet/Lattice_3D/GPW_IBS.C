@@ -12,7 +12,7 @@
 // external pseudopotential are NOT mixed in yet -- they are later increments.
 module;
 #include <iosfwd>
-#include <map>       // std::map<int,hmat_t<T>> (MakeSeparablePotentialByL, the per-l KB diagnostic)
+#include <map>       // std::map<int,hmat_t<T>> (MakeProjectorMatrixByL, the per-l KB diagnostic)
 #include <memory>
 #include <string>
 #include <vector>
@@ -25,7 +25,7 @@ import qchem.Matrix3D;                             // Matrix3D
 import qchem.Symmetry.Lattice_3D.SpaceGroup;       // DirectOp {W|τ} -- the direct ops threaded to the Vxc fit basis
 import qchem.BasisSet.Internal.IrrepBasisSetImp;  // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<T,dcmplx> (the DFT capability; Create*FitBasisSet)
-export import qchem.Pseudopotential.Integrals_Pseudo; // Integrals_Pseudo<dcmplx> (external-PP capability) + the models
+export import qchem.BasisSet.Orbital_PP_IBS;          // the species-field integral service (V1.2)
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
 export import qchem.UnitCell;                      // UnitCell (the direct lattice handed to the ctor)
 import qchem.Symmetry;                            // sym_t (the Bloch irrep)
@@ -57,7 +57,7 @@ template <class T> class tGPW_IBS
     : public EPW_Orbital1E_IBS<GPW_Evaluator,T>     // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
     , public EPW_Orbital_DFT_IBS<GPW_Evaluator,T>   // DFT tier (IS-A Orbital_DFT_IBS<T,dcmplx>): MakeRepulsion3C/MakeOverlap3C
     , public BasisSet::IrrepBasisSetImp<T>          // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
-    , public Pseudopotential::Integrals_Pseudo<T>   // external-PP assembly (real-space); PW_Pseudo casts ACROSS to this
+    , public Orbital_PP_IBS<T>                     // species-field assembly (real-space); PW_Pseudo casts ACROSS to this
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
 {
 public:
@@ -100,18 +100,18 @@ public:
     //! injection) -- ALL the low-level mesh work lives here, next to the sibling fit-basis factories.
     virtual BasisSet::FitQuadrature CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const override;
 
-    //! \brief The external-PP capability (Integrals_Pseudo<dcmplx>): assemble \f$\langle i|V_{loc}|j\rangle\f$ /
-    //! \f$\langle i|V_{NL}|j\rangle\f$ in REAL SPACE (cross-cast the model to its \c *_R face, delegate to the
-    //! evaluator's mesh quadrature).  This is what lets the plane-wave \c PW_Pseudo term (and thus the whole
-    //! \c Ham_PW_DFT) drive a GPW basis unchanged -- GPW answers the same abstract cross-cast a PW basis does.
-    virtual hmat_t<T> MakeLocalPotential   (const Structure* cl, const Pseudopotential::LocalPotential&     loc) const override;
-    //! \brief The long/short split of \c MakeLocalPotential (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb)
-    //! part is assembled analytically on the smooth density-grid integrate-back (\c GPW_Evaluator::MakeLocalPPLong,
-    //! folded into \c PW_Hartree); the SHORT (compact poly-Gaussian) part rides the sharp-field local-PP sweep.
-    virtual hmat_t<T> MakeLocalPotentialLong (const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
-    virtual hmat_t<T> MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
-    virtual hmat_t<T> MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl ) const override;
-    virtual std::map<int,hmat_t<T>> MakeSeparablePotentialByL(const Structure* cl, const Pseudopotential::SeparablePotential& nl ) const override;
+    //! \brief The species-field integral service (Orbital_PP_IBS<T>): assemble \f$\langle i|v|j\rangle\f$ for a
+    //! species radial field and \f$\langle i|V_{NL}|j\rangle\f$ for a projector set in REAL SPACE (cross-cast the
+    //! projector set to its \c _R face, delegate to the evaluator's mesh quadrature).  This is what lets the
+    //! plane-wave \c PW_Pseudo term (and thus the whole \c Ham_PW_DFT) drive a GPW basis unchanged -- GPW answers
+    //! the same abstract cross-cast a PW basis does.  The RANGE selects the route (doc/GPWPlan.md 0e-PP): the
+    //! LONG (softened-Coulomb) part is assembled analytically on the smooth density-grid integrate-back
+    //! (\c GPW_Evaluator::MakeLocalPPLong, folded into \c PW_Hartree); the SHORT (compact poly-Gaussian) part
+    //! rides the analytic 3-centre lattice sum (or the sharp-field sweep for a non-Gaussian field); Full is the
+    //! sweep over the whole field (a unit-test oracle == Long + Short).
+    virtual hmat_t<T> MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange) const override;
+    virtual hmat_t<T> MakeProjectorMatrix   (const Structure* cl, const SpeciesProjectorSet& nl) const override;
+    virtual std::map<int,hmat_t<T>> MakeProjectorMatrixByL(const Structure* cl, const SpeciesProjectorSet& nl) const override;
 
     virtual std::string Name      () const override {return "GPW";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)

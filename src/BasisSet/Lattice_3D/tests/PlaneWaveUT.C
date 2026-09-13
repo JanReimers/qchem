@@ -122,7 +122,7 @@ double HydrogenE0(double a, double Ecut, const LocalPotential& v, size_t* npw=nu
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),Ecut);
     if (npw) *npw=pw.GetNumFunctions();
     Atom H(1,rvec3_t(0,0,0));
-    chmat_t V=pw.MakeLocalPotential(&H,v);
+    chmat_t V=pw.MakeSpeciesFieldMatrix(&H, v, qchem::BasisSet::FieldRange::Full);
     std::vector<double> bands=SolveBands(pw,&V);
     return bands.front();
 }
@@ -298,8 +298,8 @@ TEST_F(PlaneWaveTests, SmearedZeroRecoversBareCoulomb)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
-    chmat_t Vbare    = pw.MakeLocalPotential(&H,BareCoulomb());
-    chmat_t Vtiny    = pw.MakeLocalPotential(&H,GaussianSmearedNucleus(1e-6));
+    chmat_t Vbare    = pw.MakeSpeciesFieldMatrix(&H, BareCoulomb(), qchem::BasisSet::FieldRange::Full);
+    chmat_t Vtiny    = pw.MakeSpeciesFieldMatrix(&H, GaussianSmearedNucleus(1e-6), qchem::BasisSet::FieldRange::Full);
     size_t n=pw.GetNumFunctions();
     for (size_t i=0;i<n;i++)
         for (size_t j=0;j<n;j++)
@@ -338,7 +338,7 @@ TEST_F(PlaneWaveTests, SeparableNonlocalMatrixElement)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
-    chmat_t V=pw.MakeSeparablePotential(&H,GaussianProjector(sigma,D));
+    chmat_t V=pw.MakeProjectorMatrix(&H,GaussianProjector(sigma,D));
     size_t n=pw.GetNumFunctions();
     double Omega=a*a*a, b=2*Pi/a;
     auto bfac=[&](size_t i){ ivec3_t m=pw.GetGIndex(i); double G2=b*b*(m.x*m.x+m.y*m.y+m.z*m.z);
@@ -362,7 +362,7 @@ TEST_F(PlaneWaveTests, SeparableNonlocalIsRankOne)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
-    chmat_t V=pw.MakeSeparablePotential(&H,GaussianProjector(1.0,0.7));
+    chmat_t V=pw.MakeProjectorMatrix(&H,GaussianProjector(1.0,0.7));
     size_t n=pw.GetNumFunctions();
     double trace=0.0;
     for (size_t i=0;i<n;i++) trace += std::real(dcmplx(V(i,i)));
@@ -388,7 +388,7 @@ TEST_F(PlaneWaveTests, SeparableNonlocalL1AngularFactor)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
-    chmat_t V=pw.MakeSeparablePotential(&H,GaussianProjector(sigma,D,/*l=*/1));
+    chmat_t V=pw.MakeProjectorMatrix(&H,GaussianProjector(sigma,D,/*l=*/1));
     size_t n=pw.GetNumFunctions();
     double Omega=a*a*a, b=2*Pi/a;
     auto idx=[&](ivec3_t m)->size_t{ for(size_t i=0;i<n;i++){ ivec3_t g=pw.GetGIndex(i);
@@ -415,7 +415,7 @@ TEST_F(PlaneWaveTests, SeparableNonlocalL1IsRankThree)
     PlaneWave_IBS pw(lat.Reciprocal(),N,k,6.0);
     Atom H(1,rvec3_t(0,0,0));
 
-    chmat_t V=pw.MakeSeparablePotential(&H,GaussianProjector(1.0,0.7,/*l=*/1));
+    chmat_t V=pw.MakeProjectorMatrix(&H,GaussianProjector(1.0,0.7,/*l=*/1));
     size_t n=pw.GetNumFunctions();
     double trace=0.0;
     for (size_t i=0;i<n;i++) trace += std::real(dcmplx(V(i,i)));
@@ -439,8 +439,8 @@ TEST_F(PlaneWaveTests, LocalPlusNonlocalRaisesGroundState)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
-    chmat_t Vloc=pw.MakeLocalPotential(&H,GaussianSmearedNucleus(0.5));
-    chmat_t Vnl =pw.MakeSeparablePotential(&H,GaussianProjector(1.0,0.5)); // repulsive
+    chmat_t Vloc=pw.MakeSpeciesFieldMatrix(&H, GaussianSmearedNucleus(0.5), qchem::BasisSet::FieldRange::Full);
+    chmat_t Vnl =pw.MakeProjectorMatrix(&H,GaussianProjector(1.0,0.5)); // repulsive
     chmat_t Vtot=Vloc+Vnl;
 
     std::vector<double> locOnly=SolveBands(pw,&Vloc);
@@ -456,11 +456,11 @@ TEST_F(PlaneWaveTests, LocalPlusNonlocalRaisesGroundState)
 TEST_F(PlaneWaveTests, HGHSiliconNonlocalChannels)
 {
     HGH_SeparablePotential si=GetGTH("Si","LDA",4).nonlocal;
-    ASSERT_EQ(si.NumProjectors(14), 3u);
+    ASSERT_EQ(si.Count(14), 3u);
 
     std::vector<int>    ls;
     std::vector<double> D;
-    for (size_t p=0;p<3;p++){ ls.push_back(si.AngularMomentum(14,p)); D.push_back(si.Coefficient(14,p)); }
+    for (size_t p=0;p<3;p++){ ls.push_back(si.L(14,p)); D.push_back(si.Weight(14,p)); }
     EXPECT_EQ(std::count(ls.begin(),ls.end(),0), 2);     // two s projectors
     EXPECT_EQ(std::count(ls.begin(),ls.end(),1), 1);     // one p projector
 
@@ -471,8 +471,8 @@ TEST_F(PlaneWaveTests, HGHSiliconNonlocalChannels)
 
     for (size_t p=0;p<3;p++)                             // angular character at q=0
     {
-        double b0=si.Projector(14,p,0.0);
-        if (si.AngularMomentum(14,p)==1) EXPECT_NEAR(b0,0.0,1e-12);   // p ~ q -> 0
+        double b0=si.RadialQ(14,p,0.0);
+        if (si.L(14,p)==1) EXPECT_NEAR(b0,0.0,1e-12);   // p ~ q -> 0
         else                             EXPECT_GT(std::abs(b0),0.0); // s finite
     }
 }
@@ -490,8 +490,8 @@ TEST_F(PlaneWaveTests, HGHSiliconHamiltonianWellFormed)
     Atom Si(14,rvec3_t(0,0,0));
 
     GTH_PP siPP=GetGTH("Si","LDA",4);
-    chmat_t Vloc=pw.MakeLocalPotential(&Si,siPP.local);
-    chmat_t Vnl =pw.MakeSeparablePotential(&Si,siPP.nonlocal);
+    chmat_t Vloc=pw.MakeSpeciesFieldMatrix(&Si, siPP.local, qchem::BasisSet::FieldRange::Full);
+    chmat_t Vnl =pw.MakeProjectorMatrix(&Si,siPP.nonlocal);
     size_t n=pw.GetNumFunctions();
 
     double vnlmax=0.0;                                   // nonlocal is non-trivial and Hermitian

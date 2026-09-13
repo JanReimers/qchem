@@ -30,7 +30,9 @@ target_compile_definitions(qcLattice_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS}
 # qcMolecule_BS: GPW's periodic Gaussian 1E integrals delegate to the molecular Gaussian basis's
 # Molecule::LatticeSum1E capability.  New edge (qcLattice_BS -> qcMolecule_BS); no cycle (qcMolecule_BS
 # never references Lattice).
-target_link_libraries(qcLattice_BS PUBLIC qcBasisSet qcStructure qcSymmetry qcLASolver qcPseudopotential qcMolecule_BS)
+# V1.2 (2026-09-13): qcPseudopotential is NO LONGER a dependency -- the species-field faces the PP models implement
+# live in qcBasisSet (Orbital_PP_IBS / SpeciesField), and the edge now runs the other way.
+target_link_libraries(qcLattice_BS PUBLIC qcBasisSet qcStructure qcSymmetry qcLASolver qcMolecule_BS)
 
 add_subdirectory(Evaluators)
 add_subdirectory(tests)

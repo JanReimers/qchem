@@ -5,7 +5,6 @@ target_sources(qcPseudopotential PRIVATE
 target_sources(qcPseudopotential PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     LocalPotential.C
     SeparablePotential.C
-    Integrals_Pseudo.C
     GTH_Potentials.C
     )
 target_include_directories(qcPseudopotential PRIVATE
@@ -14,6 +13,6 @@ target_include_directories(qcPseudopotential PRIVATE
 )
 set_property(TARGET qcPseudopotential PROPERTY CXX_STANDARD 20)
 target_compile_definitions(qcPseudopotential PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS} ${PseudoDataPath})
-target_link_libraries(qcPseudopotential PUBLIC qcMath qcCommon qcStructure)
+target_link_libraries(qcPseudopotential PUBLIC qcBasisSet qcMath qcCommon qcStructure)   # qcBasisSet: the SpeciesField faces this library IMPLEMENTS (V1.2)
 
 add_subdirectory(tests)

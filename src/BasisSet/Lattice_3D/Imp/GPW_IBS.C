@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <map>       // MakeSeparablePotentialByL (the per-l KB diagnostic)
+#include <map>       // MakeProjectorMatrixByL (the per-l KB diagnostic)
 #include <memory>
 #include <string>
 #include <vector>
@@ -143,54 +143,50 @@ template <class T> BasisSet::FitQuadrature tGPW_IBS<T>::CreateXCQuadrature(const
             std::move(sigmas), std::move(flags)};
 }
 
-// The external-PP capability.  Local: G-space form-factor assembly (the model's FormFactor is used directly,
-// no cross-cast -- mirrors the PW path).  Separable: the KB projectors need the real-space face, cross-cast.
-// Both PP matrices are STATIC across an SCF but rebuilt PER k-BLOCK, so they go through the process-wide cache
-// (theCache, keyed by BasisSetID + Structure::ID -- exactly the Nuclear() pattern): a multi-k / IBZ-vs-full-mesh
-// run then reuses a k-block's PP across GPW_IBS instances instead of re-quadraturing it.  The build is the
-// cache-miss `make` lambda; the outer Make* name is the Integrals_Pseudo override the term calls.
-template <class T> hmat_t<T> tGPW_IBS<T>::MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+// The species-field integral service.  Both matrices are STATIC across an SCF but rebuilt PER k-BLOCK, so
+// they go through the process-wide cache (theCache, keyed by BasisSetID + Structure::ID -- exactly the
+// Nuclear() pattern): a multi-k / IBZ-vs-full-mesh run then reuses a k-block's matrices across GPW_IBS
+// instances instead of re-quadraturing them.  The build is the cache-miss `make` lambda; the outer Make* is
+// the Orbital_PP_IBS override the term calls.
+//
+// The RANGE picks the route AND the cache key (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb) matrix rides
+// the smooth density-grid integrate-back (MakeLocalPPLong -- no sharp-field sweep); the SHORT matrix is the
+// ANALYTIC 3-centre Gaussian lattice sum (LatticeSum1E::MakeLocalGaussian, no grid; step (b), 2026-07-22 --
+// safe to wire ONLY because step (a) first made the grid LONG standalone-exact, the absolute kappa rule with
+// e^{-kappa/2} pair tails: the old grid short's ~0.5 Ha band-limit error used to CANCEL the grid long's, so
+// exact-short + sloppy-long missed the gate.  Cross-validated by GPW.LocalPPKappaSelfConverged; the grid sweep
+// remains the fallback inside MakeLocalPPShort for a field without the closed-Gaussian face).  Full is the
+// plain sweep over the whole field.  Distinct keys keep the three from colliding.
+template <class T> hmat_t<T> tGPW_IBS<T>::MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange rng) const
 {
-    return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPP, this, cl->ID(),
-        [this,cl,&loc]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPP(cl, loc)); });
+    switch (rng)
+    {
+    case FieldRange::Long:
+        return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPLong, this, cl->ID(),
+            [this,cl,&f]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPPLong(cl, f)); });
+    case FieldRange::Short:
+        return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPShort, this, cl->ID(),
+            [this,cl,&f]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPPShort(cl, f)); });
+    default:
+        return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPP, this, cl->ID(),
+            [this,cl,&f]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPP(cl, f)); });
+    }
 }
 
-// The CP2K local-PP split (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb) matrix rides the smooth
-// density-grid integrate-back (MakeLocalPPLong -- no sharp-field sweep); the SHORT (compact poly-Gaussian)
-// matrix rides the sharp-field local-PP sweep (MakeLocalPP restricted to FormFactorShort).  Distinct cache
-// keys keep them from colliding with each other or the full LocalPP.
-template <class T> hmat_t<T> tGPW_IBS<T>::MakeLocalPotentialLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+template <class T> hmat_t<T> tGPW_IBS<T>::MakeProjectorMatrix(const Structure* cl, const SpeciesProjectorSet& nl) const
 {
-    return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPLong, this, cl->ID(),
-        [this,cl,&loc]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPPLong(cl, loc)); });
-}
-
-template <class T> hmat_t<T> tGPW_IBS<T>::MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
-{
-    // ANALYTIC short assembly (doc/GPWPlan.md 0e-PP step (b), 2026-07-22): exact 3-centre Gaussian lattice
-    // sums (LatticeSum1E::MakeLocalGaussian), no grid.  Safe to wire ONLY because step (a) first made the
-    // grid LONG standalone-exact (the absolute kappa rule, e^{-kappa/2} pair tails) -- the old grid short's
-    // ~0.5 Ha band-limit error used to CANCEL the grid long's, so exact-short + sloppy-long missed the gate.
-    // Cross-validated against the kappa-ruled grid short by GPW.LocalPPKappaSelfConverged; falls back to the
-    // grid sweep inside MakeLocalPPShort for a model without the closed-Gaussian face.
-    return theCache<T>().Get(IntegralsCache_Base::I2n::LocalPPShort, this, cl->ID(),
-        [this,cl,&loc]{ return ToScalar<T>(GPW_Evaluator::MakeLocalPPShort(cl, loc)); });
-}
-
-template <class T> hmat_t<T> tGPW_IBS<T>::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
-{
-    auto* sepR=dynamic_cast<const Pseudopotential::SeparablePotential_R*>(&nl);
-    assert(sepR && "GPW MakeSeparablePotential: the KB model must provide the real-space projector face (SeparablePotential_R)");
+    auto* sepR=dynamic_cast<const SpeciesProjectorSet_R*>(&nl);
+    assert(sepR && "GPW MakeProjectorMatrix: the projector set must provide the real-space radial face (SpeciesProjectorSet_R)");
     return theCache<T>().Get(IntegralsCache_Base::I2n::SeparablePP, this, cl->ID(),
         [this,cl,sepR]{ return ToScalar<T>(GPW_Evaluator::MakeSeparablePP(cl, *sepR)); });
 }
 
-template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeSeparablePotentialByL(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
+template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeProjectorMatrixByL(const Structure* cl, const SpeciesProjectorSet& nl) const
 {
     // Diagnostic face (doc/SphericalLatticePlan.md I0): built on demand, NOT DB-cached -- its consumer
     // (the Ven_PP_NonLocal per-l energy print) caches the result term-side for the run's lifetime.
-    auto* sepR=dynamic_cast<const Pseudopotential::SeparablePotential_R*>(&nl);
-    assert(sepR && "GPW MakeSeparablePotentialByL: the KB model must provide the real-space projector face (SeparablePotential_R)");
+    auto* sepR=dynamic_cast<const SpeciesProjectorSet_R*>(&nl);
+    assert(sepR && "GPW MakeProjectorMatrixByL: the projector set must provide the real-space radial face (SpeciesProjectorSet_R)");
     std::map<int,hmat_t<T>> out;
     for (auto& [l,m] : GPW_Evaluator::MakeSeparablePPByL(cl, *sepR)) out.emplace(l, ToScalar<T>(m));
     return out;

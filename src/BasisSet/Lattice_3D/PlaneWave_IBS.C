@@ -24,7 +24,7 @@ import qchem.BasisSet.Lattice_3D.Evaluators.PW; // PW_Evaluator (base subobject)
 import qchem.BasisSet.Lattice_3D.IBS;           // EPW_Orbital1E_IBS<E> (the evaluator-templated mixins)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
-export import qchem.Pseudopotential.Integrals_Pseudo;    // the external-PP operator-assembly mixin (+ its models)
+export import qchem.BasisSet.Orbital_PP_IBS;             // the species-field integral service (V1.2)
 import qchem.Structure;
 import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;
@@ -37,7 +37,7 @@ export namespace qchem::BasisSet::Lattice_3D
 class PlaneWave_IBS
     : public EPW_Orbital1E_IBS<PW_Evaluator>          // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
     , public EPW_Orbital_DFT_IBS<PW_Evaluator>        // G-space DFT: MakeRepulsion3C/MakeOverlap3C (IS-A Orbital_DFT_IBS<dcmplx>)
-    , public virtual Pseudopotential::Integrals_Pseudo<dcmplx> // G-space external pseudopotential assembly (V_loc + V_NL)
+    , public virtual Orbital_PP_IBS<dcmplx>              // G-space species-field assembly (a local field + a projector set)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
     , public         PW_Evaluator                     // the shared grid engine (Cast() target for the mixins)
 {
@@ -75,14 +75,12 @@ public:
     // (MakeNuclear -- the bare-Coulomb 1E block -- is now on the evaluator (NuclearMatrix), inherited via
     //  EPW_Orbital1E_IBS, so it is no longer declared here.)
 
-    //! \brief Assemble any local external potential \f$\langle G|V|G'\rangle=\frac1\Omega\sum_a
-    //! v(Z_a,|\Delta G|^2)e^{-i\Delta G\cdot\tau_a}\f$, \f$\Delta G\ne 0\f$ (\f$\Delta G=0\f$ dropped).
-    virtual chmat_t MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
-    //! \brief The long/short pieces of \c MakeLocalPotential (the CP2K local-PP split, doc/GPWPlan.md 0e-PP).
-    virtual chmat_t MakeLocalPotentialLong (const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
-    virtual chmat_t MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
+    //! \brief Assemble any species local field \f$\langle G|V|G'\rangle=\frac1\Omega\sum_a
+    //! \tilde v_{Z_a}(|\Delta G|^2)e^{-i\Delta G\cdot\tau_a}\f$, \f$\Delta G\ne 0\f$ (\f$\Delta G=0\f$ dropped),
+    //! for the requested range of the field (the CP2K local-PP split rides the range, doc/GPWPlan.md 0e-PP).
+    virtual chmat_t MakeSpeciesFieldMatrix(const Structure* cl, const SpeciesRadialField& f, FieldRange) const override;
     //! \brief Assemble the separable (Kleinman-Bylander) nonlocal potential (rank-1 per atom, projector, m).
-    virtual chmat_t MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& v) const override;
+    virtual chmat_t MakeProjectorMatrix(const Structure* cl, const SpeciesProjectorSet& v) const override;
 
     //! \brief Create this basis's auxiliary plane-wave density-fit basis (a distinct PlaneWaveFit_IBS over
     //! the same \f$\{G\}\f$ grid): the Orbital_DFT_IBS<dcmplx> factory seam a Hartree term obtains its fitter through.

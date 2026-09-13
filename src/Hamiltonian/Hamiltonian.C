@@ -237,7 +237,7 @@ public:
 //  ONCE, typed by the RUN's working scalar (dcmplx) -- their block-independent state (V_H(G), the XC
 //  rho rasters, the models) is shared across blocks -- but a TRIM block's basis is tobs_t<double>
 //  (Step 3a) and its H block is real.  These CAPABILITY faces are how a complex term answers the real
-//  block's question: the same cross-cast idiom as Integrals_Pseudo / FourierDensity (V1.6/V1.7).
+//  block's question: the same cross-cast idiom as Orbital_PP_IBS / FourierDensity (V1.6/V1.7).
 //  Only terms that can serve a real block (the periodic set) implement them -- via ONE scalar-generic
 //  assembly body each, so there is no dual maintenance -- and the assembly cross-casts; a term
 //  without the face fails LOUDLY.  Molecular (double-native) terms never see these: their native

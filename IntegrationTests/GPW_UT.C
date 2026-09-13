@@ -1086,10 +1086,10 @@ TEST(GPW, TRIM_RealBlockMatchesComplexBitwise)
         const auto& Sr=gr.Overlap();        const auto& Sc=gc.Overlap();
         const auto& Tr=gr.Kinetic();        const auto& Tc=gc.Kinetic();
         const auto& Nr=gr.Nuclear(&cell);   const auto& Nc=gc.Nuclear(&cell);
-        const hmat_t<double> Kr=re.MakeSeparablePotential (&cell, gth.nonlocal);
-        const chmat_t        Kc=cx.MakeSeparablePotential (&cell, gth.nonlocal);
-        const hmat_t<double> Lr=re.MakeLocalPotentialShort(&cell, gth.local);
-        const chmat_t        Lc=cx.MakeLocalPotentialShort(&cell, gth.local);
+        const hmat_t<double> Kr=re.MakeProjectorMatrix(&cell, gth.nonlocal);
+        const chmat_t        Kc=cx.MakeProjectorMatrix(&cell, gth.nonlocal);
+        const hmat_t<double> Lr=re.MakeSpeciesFieldMatrix(&cell, gth.local, qchem::BasisSet::FieldRange::Short);
+        const chmat_t        Lc=cx.MakeSpeciesFieldMatrix(&cell, gth.local, qchem::BasisSet::FieldRange::Short);
         for (size_t i=0;i<Sr.rows();i++)
             for (size_t j=0;j<Sr.columns();j++)
             {
@@ -1368,16 +1368,16 @@ TEST(GPW, GeneralK_OneElectronSpectrumIsContinuousAtQuarterK)
 // model, and the two matrices must agree to the MESH's own quadrature error (the analytic one is exact).
 namespace
 {
-class MeshOnlyKB : public Pseudopotential::SeparablePotential, public virtual Pseudopotential::SeparablePotential_R
+class MeshOnlyKB : public virtual BasisSet::SpeciesProjectorSet_R   // a projector set WITHOUT the closed-Gaussian face: the mesh route only
 {
     const Pseudopotential::HGH_SeparablePotential& h;
 public:
     explicit MeshOnlyKB(const Pseudopotential::HGH_SeparablePotential& h_) : h(h_) {}
-    virtual size_t NumProjectors  (int Z)           const override {return h.NumProjectors(Z);}
-    virtual double Coefficient    (int Z, size_t p) const override {return h.Coefficient(Z,p);}
-    virtual int    AngularMomentum(int Z, size_t p) const override {return h.AngularMomentum(Z,p);}
-    virtual double Projector      (int Z, size_t p, double q) const override {return h.Projector(Z,p,q);}
-    virtual double BetaR          (int Z, size_t p, double r) const override {return h.BetaR(Z,p,r);}
+    virtual size_t Count(int Z)           const override {return h.Count(Z);}
+    virtual double Weight(int Z, size_t p) const override {return h.Weight(Z,p);}
+    virtual int    L(int Z, size_t p) const override {return h.L(Z,p);}
+    virtual double RadialQ(int Z, size_t p, double q) const override {return h.RadialQ(Z,p,q);}
+    virtual double RadialR(int Z, size_t p, double r) const override {return h.RadialR(Z,p,r);}
 };
 } //anon
 TEST(GPW, AnalyticSeparablePPMatchesMesh)
@@ -1446,8 +1446,8 @@ TEST(GPW, DISABLED_AnalyticSeparablePPMatchesMesh_DChannel)
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
 
     const auto gth = Pseudopotential::GetGTH("Mn","LDA",7);
-    int maxl=0; for (size_t p=0;p<gth.nonlocal.NumProjectors(25);++p)
-        maxl=std::max(maxl, gth.nonlocal.AngularMomentum(25,p));
+    int maxl=0; for (size_t p=0;p<gth.nonlocal.Count(25);++p)
+        maxl=std::max(maxl, gth.nonlocal.L(25,p));
     ASSERT_EQ(maxl, 2) << "Mn q7 must carry the l=2 (d) KB channel this gate exists to test";
 
     MeshOnlyKB meshOnly(gth.nonlocal);
@@ -1501,7 +1501,7 @@ TEST(GPW, LocalPPKappaSelfConverged)
             for (size_t j=0;j<A.columns();j++) { num+=std::norm(A(i,j)-B(i,j)); den+=std::norm(B(i,j)); }
         return std::sqrt(num/den);
     };
-    using LP=GPW_Evaluator::LocalPart;
+    using LP=BasisSet::FieldRange;
     const chmat_t Vf=ev.MakeLocalPP(&cell, gth.local, LP::Full);           // kappa=30 (the default)
     const chmat_t Vl=ev.MakeLocalPP(&cell, gth.local, LP::Long);
     const chmat_t Vs=ev.MakeLocalPP(&cell, gth.local, LP::Short);
@@ -2058,11 +2058,11 @@ TEST(GPW, DISABLED_DiffuseDKBOracle)
     const int     Zs  [2]={ 25, 8 };
     std::vector<PSlot> slots;
     for (int aI=0;aI<2;aI++)
-        for (size_t p=0;p<sep.NumProjectors(Zs[aI]);p++)
+        for (size_t p=0;p<sep.Count(Zs[aI]);p++)
         {
-            const int l=sep.AngularMomentum(Zs[aI],p);
+            const int l=sep.L(Zs[aI],p);
             ASSERT_LE(l,2) << "oracle Y table covers l<=2 only";
-            for (int m=-l;m<=l;m++) slots.push_back({Zs[aI], taus[aI], p, l, m, sep.Coefficient(Zs[aI],p)});
+            for (int m=-l;m<=l;m++) slots.push_back({Zs[aI], taus[aI], p, l, m, sep.Weight(Zs[aI],p)});
         }
     // Bloch image sets: chi reach 13.5 (the diffuse 0.18 tail, as the V_long gates); projector reach 6
     // (beta ~ e^{-r^2/2 r_l^2}, r_l <= 0.65 -> e^{-42} at 6 au; generous).
@@ -2093,8 +2093,8 @@ TEST(GPW, DISABLED_DiffuseDKBOracle)
             {
                 const rvec3_t d=r-R-sl.tau; const double rr=norm(d);
                 if (rr>reachB) continue;
-                if (rr<1e-12) { if (sl.l==0) g+=sep.BetaR(sl.atomZ,sl.p,0.0)*Y(0,0,rvec3_t(0,0,1)); continue; }
-                g+=sep.BetaR(sl.atomZ,sl.p,rr)*Y(sl.l,sl.m, d/rr);
+                if (rr<1e-12) { if (sl.l==0) g+=sep.RadialR(sl.atomZ,sl.p,0.0)*Y(0,0,rvec3_t(0,0,1)); continue; }
+                g+=sep.RadialR(sl.atomZ,sl.p,rr)*Y(sl.l,sl.m, d/rr);
             }
             if (g!=0.0) for (size_t q=0;q<n;q++) bs[s][q]+=w*chi[q]*g;
         }

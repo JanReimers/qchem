@@ -10,7 +10,7 @@ module;
 export module qchem.BasisSet.Lattice_3D.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
-export import qchem.BasisSet.Lattice_3D.PlaneWave_IBS; // PlaneWave_IBS + LocalPotential/SeparablePotential
+export import qchem.BasisSet.Lattice_3D.PlaneWave_IBS; // PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
 export import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS + CellImages (the GPWFactory mode argument)
 export import qchem.BasisSet.Lattice_3D.Evaluators.PW; // RasterPolicy (a PUBLIC factory knob since 0.5(a))
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
@@ -25,7 +25,7 @@ enum class Type { PW };
 //! \brief Build a 3D-periodic basis set for \a lat at energy cutoff \a Ecut.  Returns an abstract
 //! tBasisSet<dcmplx> on the heap (caller owns), so callers must use the polymorphic interface.
 //! \note The pseudopotential model is NOT configured here: it lives on the Vpseudo Hamiltonian term
-//!   (the pseudo-wall), which calls the basis's MakeLocalPotential/MakeSeparablePotential assembly.
+//!   (the pseudo-wall), which calls the basis's MakeSpeciesFieldMatrix/MakeProjectorMatrix assembly.
 //! \note Single-k for now: the returned basis holds ONE Bloch block at \f$\Gamma\f$.  Phase 2
 //!   generalises this to the full BZ k-list (intended to be the only k-loop in the framework).
 Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);

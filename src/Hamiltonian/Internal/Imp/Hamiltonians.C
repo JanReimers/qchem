@@ -112,7 +112,7 @@ Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const
 // Kinetic + PP_Local [+ PP_NonLocal] + Hartree + Dirac exchange + VWN5 + IonIon(Zion).  \a polarized selects the
 // spin-native XC (FittedVxcPol + FittedVcorrPol, open shell) vs the zeta=0 unpolarized collapse.
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
-               std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
+               std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
                const qcMesh::MeshParams& mp, const rbs_t* bs, bool polarized)
 {
     Add(new Kinetic<double>);
@@ -164,7 +164,7 @@ BuildMultiSpeciesLocal(const std::vector<std::pair<std::string,int>>& species)
                  std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local));
     return loc;
 }
-std::shared_ptr<const Pseudopotential::SeparablePotential_R>
+std::shared_ptr<const BasisSet::SpeciesProjectorSet_R>
 BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species)
 {
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();

@@ -11,3 +11,4 @@
 // re-exports Vector3D/Matrix3D, so importing it from those would be a cycle.
 export module qchem.Math;
 export import qchem.CMath;        // std::sqrt/… + Constants + IntPow + Factorials
+export import qchem.Math.Gaussian; // Math::Gaussian -- one radial Gaussian term (pure data)

@@ -24,7 +24,9 @@ import qchem.ChargeDensity.DensitySampler; // the XC SAMPLING ENGINE the three X
 import qchem.BasisSet.Orbital_DFT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
 import qchem.BasisSet.G_FieldEvaluator;      // G_RasterTransform -- the pair route asks its raster for size/quadrature
 import qchem.Fitting.FunctionFitter;         // FunctionFitter_Density<dcmplx> (the fitter Vee_Hartree holds, built once)
-import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assembly mixin + the local/separable models the term owns
+import qchem.BasisSet.Orbital_PP_IBS;              // the species-field integral service the terms cross-cast the basis to (V1.2)
+import qchem.Pseudopotential.LocalPotential;       // the local / separable models the terms own
+import qchem.Pseudopotential.SeparablePotential;
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
@@ -134,7 +136,7 @@ private:
 
 //! LONG-range half of the local pseudopotential (static, density-independent): the softened-Coulomb /
 //! Gaussian-core-charge matrix \f$\langle i|V_{long}|j\rangle\f$, assembled through the same
-//! \c Integrals_Pseudo cross-cast \c Ven_PP_Short uses.  Electron-ion, so its energy is
+//! \c Orbital_PP_IBS cross-cast \c Ven_PP_Short uses.  Electron-ion, so its energy is
 //! \f$E_{een,long}=\mathrm{Tr}(D\,V_{long})\f$ with NO \f$\tfrac12\f$ (contrast the Hartree
 //! double-counting factor), and it carries the LONG part's dropped-G=0 alignment.
 //!

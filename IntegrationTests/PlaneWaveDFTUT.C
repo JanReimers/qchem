@@ -663,7 +663,7 @@ SCFResult RunSCF_kpoints(const ReciprocalLattice& recip, const UnitCell& B, doub
             for (int kz=0;kz<Nmp.z;kz++)
             {
                 auto p=std::make_unique<PlaneWave_IBS>(recip, Nmp, ivec3_t(kx,ky,kz), Ecut);
-                Vext.push_back(p->MakeLocalPotential(&st,loc)+p->MakeSeparablePotential(&st,nl));
+                Vext.push_back(p->MakeSpeciesFieldMatrix(&st, loc, qchem::BasisSet::FieldRange::Full)+p->MakeProjectorMatrix(&st,nl));
                 K.push_back(p->MakeKinetic());
                 pw.push_back(std::move(p));
             }
@@ -909,7 +909,7 @@ TEST_F(PlaneWaveDFT, ScfSiliconDiamondConverges)
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
-    chmat_t Vext = pw.MakeLocalPotential(&si,loc) + pw.MakeSeparablePotential(&si,nl);
+    chmat_t Vext = pw.MakeSpeciesFieldMatrix(&si, loc, qchem::BasisSet::FieldRange::Full) + pw.MakeProjectorMatrix(&si,nl);
 
     qchem::Hamiltonian::SlaterExchange  ex(2.0/3.0);
     qchem::Hamiltonian::VWN_Correlation vwn;
@@ -1113,7 +1113,7 @@ TEST_F(PlaneWaveDFT, PWPseudoTermMatchesBasis)
     qchem::Hamiltonian::cStatic_HT*     termS=&extS;    // the public term interface (as the Hamiltonian holds it)
     qchem::Hamiltonian::cStatic_HT*     termN=&extN;
     chmat_t M  = termS->GetMatrix(&pw, Spin::None) + termN->GetMatrix(&pw, Spin::None);
-    chmat_t ref= pw.MakeLocalPotentialShort(si.get(),loc) + pw.MakeSeparablePotential(si.get(),nl);
+    chmat_t ref= pw.MakeSpeciesFieldMatrix(si.get(), loc, qchem::BasisSet::FieldRange::Short) + pw.MakeProjectorMatrix(si.get(),nl);
 
     size_t n=pw.GetNumFunctions();
     for (size_t i=0;i<n;i++)
@@ -1138,8 +1138,8 @@ TEST_F(PlaneWaveDFT, LocalPPLongPlusShortEqualsFull)
     si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
     const HGH_LocalPotential& loc=GetGTH("Si","LDA",4).local;
 
-    chmat_t full =pw.MakeLocalPotential     (si.get(),loc);
-    chmat_t split=pw.MakeLocalPotentialLong (si.get(),loc) + pw.MakeLocalPotentialShort(si.get(),loc);
+    chmat_t full =pw.MakeSpeciesFieldMatrix(si.get(), loc, qchem::BasisSet::FieldRange::Full);
+    chmat_t split=pw.MakeSpeciesFieldMatrix(si.get(), loc, qchem::BasisSet::FieldRange::Long) + pw.MakeSpeciesFieldMatrix(si.get(), loc, qchem::BasisSet::FieldRange::Short);
     size_t n=pw.GetNumFunctions();
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
