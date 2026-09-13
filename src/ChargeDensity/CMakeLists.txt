@@ -11,6 +11,7 @@ target_sources(qcChargeDensity PRIVATE
     Imp/NumericCD.C
     Imp/SeedCD.C
     Imp/FourierMixCD.C
+    Imp/DensityMixer.C                    # the mixer factories (the one unit that names the concretes)
     Imp/DensitySampler.C                  # the factory (public module's own Imp unit)
     Internal/Imp/DensitySampler_Singles.C
     Internal/Imp/DensitySampler_Pair.C
@@ -26,7 +27,12 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     NumericCD.C
     SeedCD.C
     FourierMixCD.C
-    DensityMixer.C
+    DensityMixer.C                        # abstract face + factories: the whole client surface
+    Internal/FieldMixer.C                 # the G-space mixing vocabulary (GField, faces, joint protocol)
+    Internal/LinearMixer.C
+    Internal/KerkerMixer.C
+    Internal/PulayMixer.C
+    Internal/PolarizedDensityMixer.C
     Types.C
     DensitySampler.C                      # abstract face + factory: the whole client surface
     Internal/DensitySampler.C             # the two concrete strategies

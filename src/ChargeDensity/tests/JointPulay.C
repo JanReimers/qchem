@@ -22,7 +22,8 @@
 #include <memory>
 #include <vector>
 
-import qchem.ChargeDensity.DensityMixer;   // PulayMixer, KerkerMixer, GField, MixJointly
+import qchem.ChargeDensity.Internal.PulayMixer;    // PulayMixer (+ GField, MixJointly via FieldMixer) -- tests may import Internal
+import qchem.ChargeDensity.Internal.KerkerMixer;   // KerkerMixer
 import qchem.ChargeDensity.FourierMixCD;   // FourierMixCD::RhoTilde
 import qchem.UnitCell;                     // UnitCell + MakeReciprocalCell
 import qchem.ReciprocalLattice;            // ReciprocalLattice
