@@ -1,12 +1,9 @@
-# src/BasisSet/Lattice_3D/Evaluators — plane-wave grid evaluators (the lattice analog of
-# Molecule/Evaluators).  One evaluator today (PW); expected to grow (APW/LAPW/GPW ...).
+# src/BasisSet/Lattice_3D/Evaluators — the GPW orbital evaluator (Bloch sums of Gaussians over a PW
+# density grid).  The plane-wave engine it builds on lives in ../../PlaneWave since plan step 1a; this
+# one leaves for the Gaussian library at step 1b.
 target_sources(qcLattice_BS PRIVATE
-    Imp/PeriodicGridEvaluator.C
-    PW/Imp/Evaluator.C
     GPW/Imp/Evaluator.C
 )
 target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
-    PeriodicGridEvaluator.C
-    PW/Evaluator.C
     GPW/Evaluator.C
 )

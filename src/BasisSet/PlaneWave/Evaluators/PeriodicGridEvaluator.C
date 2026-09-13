@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Evaluators/PeriodicGridEvaluator.C  The reciprocal-cell FFT/Poisson grid engine.
+// File: BasisSet/PlaneWave/Evaluators/PeriodicGridEvaluator.C  The reciprocal-cell FFT/Poisson grid engine.
 //
 // The k-INDEPENDENT density/potential grid machinery shared by every periodic evaluator (plane waves today,
 // GPW next).  Given the reciprocal cell B, the direct-cell volume Omega, and an FFT grid resolution N, it

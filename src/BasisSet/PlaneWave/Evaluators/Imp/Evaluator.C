@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Evaluators/PW/Imp/Evaluator.C  PW_Evaluator implementation.
+// File: BasisSet/PlaneWave/Evaluators/Imp/Evaluator.C  PW_Evaluator implementation.
 module;
 #include <cassert>
 #include <algorithm>

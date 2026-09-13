@@ -3090,7 +3090,8 @@ symmetry) were the two AXES, not rivals: **libraries follow the FAMILY (the inte
 the GROUP** — `qcRadial_BS` / `qcGaussian_BS` (`.Point.*` vs `.Lattice.*`) / `qcPlaneWave_BS` / thin `qcLattice_BS`
 container.  The GPW seam STAYS in the Gaussian engine (perf pin); `UnitCell` inside it is legitimate, and the
 V1.33 evidence becomes a ctest audit (no `.Point.` module imports a lattice).  Running order in the plan §4.
-**Progress:** 1a0 ✅ 2026-09-13 (the G=T spec tier is in the core: `qchem.BasisSet.Lattice_IBS`).
+**Progress:** 1a0 ✅ 2026-09-13 (the G=T spec tier is in the core: `qchem.BasisSet.Lattice_IBS`); 1a ✅ 2026-09-13
+(`qcPlaneWave_BS` split out, a leaf over the core by `ldd`).
 
 ### V1.37 — Pol/UnPol are IMPOSED SUBGROUPS, not types: ONE composite over full Irreps (user + Claude, 2026-09-13)
 

@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Internal/GVectors.C  Shared plane-wave G-vector set from an energy cutoff.
+// File: BasisSet/PlaneWave/Internal/GVectors.C  Shared plane-wave G-vector set from an energy cutoff.
 module;
 #include <cassert>
 #include <cmath>

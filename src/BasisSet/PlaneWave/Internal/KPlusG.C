@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Internal/KPlusG.C  Shared reciprocal vectors K=k+G with angular helpers.
+// File: BasisSet/PlaneWave/Internal/KPlusG.C  Shared reciprocal vectors K=k+G with angular helpers.
 //
 // Every plane-wave-based lattice basis set (PlaneWave KB nonlocal, APW/LAPW sphere terms) needs the same
 // per-plane-wave geometry: the Cartesian reciprocal vector K=k+G, its magnitude |K|, and the angle

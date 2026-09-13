@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/PlaneWave_IBS.C  Plane-wave irrep basis set for one k-point.
+// File: BasisSet/PlaneWave/PlaneWave_IBS.C  Plane-wave irrep basis set for one k-point.
 //
 // A complex (dcmplx) Orbital_1E_IBS whose functions are the normalised plane waves
 // e^{i(k+G).r}/sqrt(V) for the reciprocal lattice vectors G in the cutoff set
@@ -19,7 +19,7 @@ module;
 export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;       // the abstract G-space DFT capability (+ ΔG_Map)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW; // PW_Evaluator (base subobject) -- NOT re-exported: the evaluator
-                                                // is INTERNAL to qcLattice_BS.  Clients use the abstract faces
+                                                // is INTERNAL to qcPlaneWave_BS.  Clients use the abstract faces
                                                 // (Orbital_DFT_IBS<dcmplx> / G_FieldEvaluator), never the concrete evaluator.
 import qchem.BasisSet.Lattice_IBS;              // the G=T spec: isLattice_{1E,DFT}_Evaluator + Lattice::Orbital_{1E,DFT}_IBS<E> (mixins)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep

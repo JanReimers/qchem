@@ -1,6 +1,6 @@
 # BasisSet Taxonomy Plan — V1.33
 
-**Status: LIVE, agreed 2026-09-13; step 1a0 done 2026-09-13, 1a next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
+**Status: LIVE, agreed 2026-09-13; steps 1a0+1a done 2026-09-13, 1b next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
 taxonomy is on the wrong axis").  Read §1 once; it is the ruling.  §4 is the running order.
 
 Two proposals preceded this plan and they were NOT in conflict — they were the two axes:
@@ -208,6 +208,14 @@ design rulings).  ✅ 2026-09-13 (this file written; R1.0 entry pending the user
   code moved — a pure relocation + rename).
 - 1a. New library `qcPlaneWave_BS` from the PW half listed in §3.  `qcLattice_BS` links it.  Gate: build +
   `PlaneWaveDFTUT`, `GPW_UT`, `GPW_SCF_UT` unchanged.
+  ✅ 2026-09-13.  `src/BasisSet/PlaneWave/{Evaluators/{Evaluator,PeriodicGridEvaluator}, PlaneWave_IBS,
+  PlaneWaveFit_IBS, Internal/{GVectors,KPlusG}}` (all `git mv`), target `qcPlaneWave_BS` linking only
+  `qcBasisSet qcStructure qcSymmetry`; `qcLattice_BS` links it PUBLIC so every client reaching those modules
+  through `qcLattice_BS` is unchanged.  Module names/namespaces keep the `Lattice_3D` spelling until step 2.
+  `ldd libqcPlaneWave_BS.so` already shows the 1c property: no `qcMolecule_BS`, no `qcLattice_BS`.
+  ctest -j8 855/855.  Left where they were: `Lattice_3D/tests/{PlaneWaveUT,GMapUT,...}` — the PW-only
+  unit tests still ride `UTLattice_3D_BS`; splitting a `UTPlaneWave_BS` off is the TE (test-suite axes)
+  programme step's business, not a library-split step's.
 - 1b. Move `Lattice_3D/Evaluators/GPW` + `Lattice_3D/GPW_IBS.C` into `qcMolecule_BS` (physically under
   `Molecule/` for now; they become `Gaussian/Lattice/` at step 2).  `qcMolecule_BS` links `qcPlaneWave_BS`.
   Gate: same + `A_PP`, `L_PP`, `RealComplexTermsUT`.

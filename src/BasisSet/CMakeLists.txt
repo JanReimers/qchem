@@ -62,6 +62,7 @@ target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/b
 target_link_libraries(qcBasisSet PUBLIC qcElConfig qcStructure qcMesh)
 target_compile_definitions(qcBasisSet PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 add_subdirectory(Atom)
+add_subdirectory(PlaneWave)   # the plane-wave engine: a leaf over the core (TaxonomyPlan 1a)
 add_subdirectory(Molecule)
 add_subdirectory(Lattice_3D)
 

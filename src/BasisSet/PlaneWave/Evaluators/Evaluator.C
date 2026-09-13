@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Evaluators/PW/Evaluator.C  Plane-wave grid evaluator.
+// File: BasisSet/PlaneWave/Evaluators/Evaluator.C  Plane-wave grid evaluator.
 //
 // The plane-wave analog of the molecular Evaluators (BasisSet/Molecule/Evaluators): the pure grid
 // geometry of a plane-wave block -- the reciprocal lattice, the crystal momentum k, the cutoff set

@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/PlaneWaveFit_IBS.C  Plane-wave auxiliary (density + potential) fit basis.
+// File: BasisSet/PlaneWave/PlaneWaveFit_IBS.C  Plane-wave auxiliary (density + potential) fit basis.
 //
 // The auxiliary fit partner of PlaneWave_IBS: a plane-wave {G} basis implementing BOTH the density-fit face
 // cFIT_CD_ABS and the potential-fit face cFIT_SF_ABS (like the molecular EFit_IBS), over the same tunable
@@ -20,7 +20,7 @@ module;
 #include <complex>
 export module qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;                    // cFIT_CD_ABS (the density-fit face)
-import qchem.BasisSet.Lattice_3D.Evaluators.PW;         // PW_Evaluator base -- INTERNAL to qcLattice_BS (not re-exported)
+import qchem.BasisSet.Lattice_3D.Evaluators.PW;         // PW_Evaluator base -- INTERNAL to qcPlaneWave_BS (not re-exported)
 import qchem.BasisSet.Lattice_IBS;                       // Lattice::Irrep_IBS<E> (the shared evaluation tier of the G=T spec)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep, shared with the orbital basis)

@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Evaluators/Imp/PeriodicGridEvaluator.C  PeriodicGridEvaluator implementation.
+// File: BasisSet/PlaneWave/Evaluators/Imp/PeriodicGridEvaluator.C  PeriodicGridEvaluator implementation.
 //
 // The FFT/Poisson grid code, moved verbatim off PW_Evaluator: the {r}<->{G} transforms and the real-space
 // quadrature depend ONLY on (B, Omega, N), not on the orbitals -- so they live here, k-independent, and

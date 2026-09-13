@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Imp/PlaneWave_IBS.C  Plane-wave irrep basis set implementation.
+// File: BasisSet/PlaneWave/Imp/PlaneWave_IBS.C  Plane-wave irrep basis set implementation.
 //
 // Grid-geometry methods (op(r), overlap/kinetic, the {G} set, MakeOverlap, the FFT grid) live in the
 // shared PW_Evaluator (this basis IS-A one, reached through the Lattice::*_IBS mixins).  What remains here is the
