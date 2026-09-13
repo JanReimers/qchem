@@ -8,12 +8,12 @@ module;
 #include <algorithm>
 #include <vector>
 
-export module qchem.BasisSet.Lattice_3D.Internal.KPlusG;
+export module qchem.BasisSet.PlaneWave.Internal.KPlusG;
 import qchem.ReciprocalLattice;   // UnitCell (ToCartesian)
 import qchem.Vector3D;            // norm, operator* (dot)
 import qchem.Types;               // rvec3_t, rvec_t, ivec3_t
 
-export namespace qchem::BasisSet::Lattice_3D::Internal
+export namespace qchem::BasisSet::PlaneWave::Internal
 {
 //! |k+G| at or below this is treated as the zero vector (its direction is undefined, so cos(gamma)=1).
 inline constexpr double kZeroTol = 1e-12;   // TODO: Make External

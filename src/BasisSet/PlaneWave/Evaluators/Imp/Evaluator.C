@@ -11,14 +11,14 @@ module;
 #include <string>
 #include <vector>
 
-module qchem.BasisSet.Lattice_3D.Evaluators.PW;
+module qchem.BasisSet.PlaneWave.Evaluators;
 import qchem.Math;               // Pi, sqrt, cos, sin, Cube
-import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
+import qchem.BasisSet.PlaneWave.Internal.GVectors;   // BuildGs
 import qchem.FFT;                // NextPow2 (the XC grid geometry)
 import qchem.Blaze;              // blazem::zeroH
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
-namespace qchem::BasisSet::Lattice_3D
+namespace qchem::BasisSet::PlaneWave
 {
 
 PW_Evaluator::PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut,

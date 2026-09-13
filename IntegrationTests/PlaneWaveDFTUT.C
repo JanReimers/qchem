@@ -32,8 +32,8 @@
 #include <cstdio>
 #include "gtest/gtest.h"
 
-import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
+import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
+import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
                                                   // evaluator directly to exercise the FFT/Poisson grid oracles
                                                   // (the orbital PlaneWave_IBS is grid-free; the grid lives here).
 import qchem.BasisSet.Lattice_3D.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
@@ -78,8 +78,8 @@ import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;      // SCFAcceleratorD
 import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (single-block BasisSet container)
 using namespace qchem;
 
-using BasisSet::Lattice_3D::PlaneWave_IBS;
-using BasisSet::Lattice_3D::PW_Grid_Evaluator;   // internal grid evaluator (unit test may reach it directly)
+using BasisSet::PlaneWave::PlaneWave_IBS;
+using BasisSet::PlaneWave::PW_Grid_Evaluator;   // internal grid evaluator (unit test may reach it directly)
 using Pseudopotential::HGH_LocalPotential;
 using Pseudopotential::HGH_SeparablePotential;
 using Pseudopotential::GetGTH;
@@ -172,9 +172,9 @@ inline ΔG_Map ForwardDFTDiffSet(const std::vector<ivec3_t>& G, const std::vecto
 // The FFT/Poisson grid matching an orbital block: same (B,k,Ecut) -> same {G} -> same grid.  The orbital
 // PlaneWave_IBS is grid-free now (the grid is a density/fit concern), so these direct-grid oracles build the
 // density-grid evaluator themselves -- exactly the "test the evaluators directly" path.
-inline qchem::BasisSet::Lattice_3D::PW_Grid_Evaluator GridOf(const PlaneWave_IBS& pw)
+inline qchem::BasisSet::PlaneWave::PW_Grid_Evaluator GridOf(const PlaneWave_IBS& pw)
 {
-    return qchem::BasisSet::Lattice_3D::PW_Grid_Evaluator(pw.Recip(), pw.kFrac(), pw.Ecut());
+    return qchem::BasisSet::PlaneWave::PW_Grid_Evaluator(pw.Recip(), pw.kFrac(), pw.Ecut());
 }
 
 // <i|f|j> weighted overlap for a real-space scalar field f: sample f on the (Cartesian) grid, forward-DFT to

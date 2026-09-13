@@ -11,8 +11,8 @@ module qchem.BasisSet.Lattice_3D.APW_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
-import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
-import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
+import qchem.BasisSet.PlaneWave.Internal.GVectors;   // BuildGs
+import qchem.BasisSet.PlaneWave.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*), norm
 
@@ -31,7 +31,7 @@ APW_IBS::APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t
     , itsLmax(lmax)
 {
     assert(Rmt>0.0);
-    itsG = Internal::BuildGs(itsRecip, itsk, Ecut);
+    itsG = PlaneWave::Internal::BuildGs(itsRecip, itsk, Ecut);
 }
 
 // APW has a SINGLE radial function u_l per channel (not LAPW's {u_l, udot_l} pair), so the secular
@@ -57,7 +57,7 @@ chmat_t APW_IBS::MakeSecular(double E) const
     }
 
     // Per-plane-wave Cartesian K=k+G, magnitude (via KPlusG), and j_l(|K|R).
-    Internal::KPlusG kg(B, itsk, itsG);
+    PlaneWave::Internal::KPlusG kg(B, itsk, itsG);
     std::vector<rvec_t> jKR(n);
     for (size_t i=0; i<n; i++) jKR[i]=SpecialFunctions::SphericalBessel(lmax, kg.Norm(i)*Rmt);
 

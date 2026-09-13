@@ -8,8 +8,7 @@
 #
 # A LEAF over the core: links qcBasisSet + qcStructure + qcSymmetry only -- NOTHING from qcMolecule_BS or
 # the qcLattice_BS container tier (measured 2026-09-13; the GPW engine depends on THIS library, never the
-# reverse).  Module names keep their qchem.BasisSet.Lattice_3D.* spelling until plan step 2 renames them
-# onto the two axes (qchem.BasisSet.PlaneWave.*).
+# reverse).  Modules: qchem.BasisSet.PlaneWave.* ; namespace qchem::BasisSet::PlaneWave (step 2, 2026-09-13).
 add_library(qcPlaneWave_BS)
 target_sources(qcPlaneWave_BS PRIVATE
     Evaluators/Imp/PeriodicGridEvaluator.C

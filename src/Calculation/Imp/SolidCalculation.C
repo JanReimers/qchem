@@ -174,7 +174,7 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
              <<", seed="<<SeedName(o.seed)<<std::endl;
     std::cout<<"["<<o.label<<" run] grids: densityEcut="
              <<(o.densityEcut<0 ? std::string("auto") : std::to_string(o.densityEcut))
-             <<" C="<<o.cutoffFactor<<" raster="<<(o.raster==BasisSet::Lattice_3D::RasterPolicy::BallOnly
+             <<" C="<<o.cutoffFactor<<" raster="<<(o.raster==BasisSet::PlaneWave::RasterPolicy::BallOnly
                                                    ? "BallOnly" : "AliasFree")
              <<" xcMesh="<<MeshName(xc.cellKind);
     // The radial/angular pair describes an ATOM-CENTRED mesh; printing it beside "Uniform" would be

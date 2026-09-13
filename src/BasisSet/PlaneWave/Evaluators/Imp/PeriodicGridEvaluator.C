@@ -11,14 +11,14 @@ module;
 #include <utility>      // std::move (handing the built raster to the Mesh)
 #include <vector>
 
-module qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator;
+module qchem.BasisSet.PlaneWave.Evaluators.PeriodicGrid;
 import qchem.Math;        // cos, sin (EvalField's point evaluation)
 import qchem.FFT;         // FFT3D (RhoOnGrid / ForwardFFT / BackwardFFT)
 import qchem.Blaze;       // blazem::sum (Integral)
 import qchem.Vector3D;    // dot product (operator*) + vector arithmetic
 import qchem.Reporting;   // the grids.xcQuadrature run-report entry (EmitAt)
 
-namespace qchem::BasisSet::Lattice_3D
+namespace qchem::BasisSet::PlaneWave
 {
 
 rvec3_t PeriodicGridEvaluator::GetGCartesian(const ivec3_t& m) const

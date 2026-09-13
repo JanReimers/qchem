@@ -1,6 +1,6 @@
 // File: BasisSet/Molecule/Lattice/GPW_Evaluator.C  Gaussian-And-Plane-Waves orbital evaluator.
 //
-// The GPW sibling of PW_Evaluator (BasisSet/PlaneWave/Evaluators): a periodic ORBITAL evaluator whose
+// The GPW sibling of PlaneWave::PW_Evaluator (BasisSet/PlaneWave/Evaluators): a periodic ORBITAL evaluator whose
 // orbitals are GAUSSIANS (compact, good for core/valence) instead of plane waves, standing on a lattice.  It
 // satisfies the SAME isLattice_1E_Evaluator concept, so the SAME Lattice::Orbital_1E_IBS<E> mixin builds the concrete
 // GPW_IBS -- "GPW is a new evaluator, not a new IBS" (doc/MolecularPP_HarmonizationRound2.md section 2.5).
@@ -26,7 +26,7 @@ module;
 #include <string>
 #include <vector>
 export module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
-export import qchem.BasisSet.Lattice_3D.Evaluators.PW; // PW_Grid_Evaluator + RasterPolicy
+export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluator + RasterPolicy
                                                        // (re-exported since 0.5(a): RasterPolicy is a public knob)
 import qchem.BasisSet.Molecule.LatticeSum1E;       // Molecule::LatticeSum1E (the periodic-1E capability we call)
 import qchem.BasisSet.SpeciesField;                // SpeciesRadialField / SpeciesProjectorSet(_R): the species-field arguments (V1.2)
@@ -40,6 +40,11 @@ import qchem.Types;                                // rvec3_t, cvec_t, cvec3vec_
 
 export namespace qchem::BasisSet::Lattice_3D
 {
+
+// The two grid POLICY knobs a GPW block takes are the plane-wave engine's (the density fit IS a PW fit);
+// re-exported here so a GPW client names them where it names the block (the export import above).
+using PlaneWave::RasterPolicy;
+using PlaneWave::RasterFields;
 
 //! \brief The GPW orbital evaluator: Gaussian orbitals on a lattice at a k-point (Gamma this increment).  Owns
 //! the molecular Gaussian basis built over the cell's atoms and reaches its periodic-1E capability
@@ -107,7 +112,7 @@ public:
     chmat_t    NuclearMatrix(const Structure* cl) const;//!< \f$\sum_R\langle i|\sum_c -Z_c/|r-R_c||j(\cdot-R)\rangle\f$
 
     // --- isLattice_DFT_Evaluator surface: the DFT tier by COLLOCATION on the density grid (the genuinely-new GPW
-    //     primitive).  All three route through the held PW_Grid_Evaluator (its {r}/{G}/FFT/Poisson). ---
+    //     primitive).  All three route through the held PlaneWave::PW_Grid_Evaluator (its {r}/{G}/FFT/Poisson). ---
     //! \brief Coulomb 3-centre tensor.  The per-column WEIGHT is the OVERLAP-metric (single-\f$r\f$) Fourier
     //! coefficient of the orbital product, \f$W_c(i,j)=\tfrac1\Omega\int\chi_i(r)\chi_j(r)\,e^{-iG_c\cdot r}\,d^3r\f$
     //! (\c ONE integration variable -- it is the collocated product FT, i.e. the density-side of the two-electron
@@ -125,8 +130,8 @@ public:
     //! overridden by the block's own grid.  These are the seam \c GPW_IBS::MakeRepulsion3C/MakeOverlap3C call
     //! with the requested fit basis's grid; the no-arg overloads above are \c Repulsion3CTensor(itsFFT_R_G_Grids)
     //! convenience (tests + the block's own fit basis).  (doc/GPWPlan §0e -- "return the requested table".)
-    Projector3<dcmplx>  Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
-    Projector3<dcmplx>  Overlap3CTensor  (std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    Projector3<dcmplx>  Repulsion3CTensor(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    Projector3<dcmplx>  Overlap3CTensor  (std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! \brief The potential->KS-matrix bridge (collocation's EXACT adjoint): \f$\langle\chi_i^k|V|\chi_j^k\rangle\f$
     //! by the ANALYTIC per-pair integrate-back (\c Molecule::LatticeSum1E::IntegratePotential) on the REL_CUTOFF
     //! multi-grid ladder -- \a Vtilde is restricted to each level's own \f$\{G\}\f$ (a SPECTRAL low-pass, no
@@ -145,7 +150,7 @@ public:
     //     GPW run reproduces the finite molecular PP matrices.  At \f$\Gamma\f$ the matrices are real (widened
     //     to complex).  These realise Integrals_Pseudo<dcmplx> on GPW_IBS -> the whole Ham_PW_DFT drives GPW.
     //! \brief Local PP matrix, assembled in G-SPACE from the analytic form factor -- IDENTICALLY to the
-    //! plane-wave path (\c PW_Evaluator::LocalPotentialMatrix), so GPW inherits the PW G=0 / alignment
+    //! plane-wave path (\c PlaneWave::PW_Evaluator::LocalPotentialMatrix), so GPW inherits the PW G=0 / alignment
     //! convention exactly.  \f$\langle\chi_i|V_{loc}|\chi_j\rangle=\langle\chi_i|\tilde V|\chi_j\rangle\f$ with
     //! \f$\tilde V(\Delta G)=\tfrac1\Omega\sum_a v_{loc}(Z_a,|\Delta G|^2)e^{-i\Delta G\cdot\tau_a}\f$,
     //! \f$\Delta G=0\f$ DROPPED (the ill-defined \f$-Z_{ion}/r\f$ cell-mean; carried by \c FormFactorG0
@@ -182,12 +187,12 @@ public:
     std::map<int,chmat_t> MakeSeparablePPByL(const Structure* cl, const SpeciesProjectorSet_R& sep) const;
 
     //! \brief The density/collocation grid engine — ONE object carrying TWO layers (don't let the member
-    //! name mislead): it IS-A \c PW_Evaluator = the Ecut BALL \f$\{G:\tfrac12|G|^2<E_{cut}\}\f$ (its
+    //! name mislead): it IS-A \c PlaneWave::PW_Evaluator = the Ecut BALL \f$\{G:\tfrac12|G|^2<E_{cut}\}\f$ (its
     //! \c size()/\c Gs(), i.e. the FIT-BASIS dimension \f$n_G\f$), and it HOLDS the FFT raster \f$N\f$
     //! (5-smooth-padded, alias-free) as that ball's \f$\{r\}\leftrightarrow\{G\}\f$ QUADRATURE engine.
     //! \c CreateCDFitBasisSet wraps this, so \f$\{G\}_\rho\f$ == the BALL; the raster is scaffolding
     //! (N is never a physics dial — the 5-smooth flip re-pinned nothing).
-    const PW_Grid_Evaluator& DensityGrid() const {return *itsFFT_R_G_Grids;}
+    const PlaneWave::PW_Grid_Evaluator& DensityGrid() const {return *itsFFT_R_G_Grids;}
 
     //! \brief GRID DIAGNOSTIC (doc/GPWPlan §0e): the orbital-basis exponent line (\f$\alpha_{\min}/\alpha_{\max}\f$,
     //! \c cutoffFactor -- so the \f$C\cdot\alpha_{\max}\f$ grid policy is visible) followed by one line per STORED
@@ -202,7 +207,7 @@ public:
     void EmitGridsReport() const;
     //! One diagnostic line for any stored grid (the per-grid piece of \c ReportGrids; also used by the
     //! \c CreateCD/VxcFitBasisSet factories to print the fit grid they actually wrap).
-    static std::ostream& ReportGrid(std::ostream& os, const std::string& tag, const PW_Grid_Evaluator& g);
+    static std::ostream& ReportGrid(std::ostream& os, const std::string& tag, const PlaneWave::PW_Grid_Evaluator& g);
 
     //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).
@@ -262,7 +267,7 @@ private:
     double  itsRelFieldSharp=-1.0;
     RasterPolicy itsRaster=RasterPolicy::AliasFree;   //!< 0.5(a) FFT-raster policy for EVERY grid this block
                                                       //!< builds; A/B via the GPW_RASTER_POLICY instrument
-    std::shared_ptr<const PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
+    std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
     //! \brief Last-density collocation memo, SHARED by the two \c MakeCollocator closures (Coulomb + overlap
@@ -353,11 +358,11 @@ private:
     //! the \c Projector3<dcmplx>::apply realization.
     //! The collocator over an EXPLICIT fit grid: the ladder derives from \a grid (the tensor's requested
     //! \f$\{G\}\f$), NOT the block's own \c itsFFT_R_G_Grids -- the closure captures its own ladder built from \a grid.
-    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb, std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb, std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! The BACKWARD adjoint of \c MakeCollocator: a self-contained field->matrix integrate-back over \a grid's
     //! ladder -- the \c Projector3<dcmplx>::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
-        MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+        MakeIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     //! \brief The RAW-RASTER pair (doc/GPWPlan 0.5(f2)) -- \c Projector3<dcmplx>::applyRaw / \c applyRawAdjoint.
     //! \c MakeRawCollocator: \f$D\to\rho_{DM}(r)\f$ on \a grid's raster -- the finest ladder level kept RAW
     //! (its analytic samples are pointwise \f$\ge 0\f$ to screening-\f$\varepsilon\f$ for PSD \f$D\f$), every
@@ -366,8 +371,8 @@ private:
     //! and gathers through the SAME analytic \c IntegratePotential, so \f$H_{xc}=\partial E_{xc}/\partial D\f$
     //! exactly (the FFT normalisations cancel against the \f$\Omega/N_{pts}\f$ quadrature weights -- no factors).
     //! Both share \c CollocMemo with the ball closures (one collocation per (D, ladder) per iteration).
-    std::function<rvec_t(const chmat_t&)> MakeRawCollocator(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
-    std::function<chmat_t(const rvec_t&)> MakeRawIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    std::function<rvec_t(const chmat_t&)> MakeRawCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
+    std::function<chmat_t(const rvec_t&)> MakeRawIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 
     // The REL_CUTOFF multi-grid level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)
@@ -382,10 +387,10 @@ private:
     //! Build the REL_CUTOFF ladder from an ARBITRARY fine grid \a grid (level [0]==\a grid) into the output
     //! vectors -- the grid-parameterized core of \c EnsureLevels, so the collocator can build a ladder from the
     //! REQUESTED fit grid while the block's own paths keep the cached \c itsLevels.
-    void BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
-                     std::vector<std::shared_ptr<const PW_Grid_Evaluator>>& levels,
+    void BuildLevels(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid,
+                     std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>>& levels,
                      std::vector<ivec3_t>& levelN, std::vector<double>& levelEcut, size_t& nBaseLevels) const;
-    mutable std::vector<std::shared_ptr<const PW_Grid_Evaluator>> itsLevels;   //!< [0]==itsFFT_R_G_Grids (reference); coarser; top rung LAST
+    mutable std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> itsLevels;   //!< [0]==itsFFT_R_G_Grids (reference); coarser; top rung LAST
     mutable std::vector<ivec3_t>    itsLevelN;     //!< each level's FFT grid divisions
     mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (reference first)
     mutable size_t                  itsNBaseLevels=0; //!< levels before the top rung (the local-PP sub-ladder)

@@ -18,9 +18,9 @@ module;
 #include <vector>
 #include <cmath>
 #include <complex>
-export module qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS;
+export module qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;                    // cFIT_CD_ABS (the density-fit face)
-import qchem.BasisSet.Lattice_3D.Evaluators.PW;         // PW_Evaluator base -- INTERNAL to qcPlaneWave_BS (not re-exported)
+import qchem.BasisSet.PlaneWave.Evaluators;         // PW_Evaluator base -- INTERNAL to qcPlaneWave_BS (not re-exported)
 import qchem.BasisSet.Lattice_IBS;                       // Lattice::Irrep_IBS<E> (the shared evaluation tier of the G=T spec)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep, shared with the orbital basis)
@@ -28,7 +28,7 @@ import qchem.Symmetry.Lattice_3D.SpaceGroup;             // DirectOp {W|τ} -- t
 import qchem.Types;                                      // dcmplx
 import qchem.Matrix3D;                                   // Matrix3D
 
-export namespace qchem::BasisSet::Lattice_3D
+export namespace qchem::BasisSet::PlaneWave
 {
 
 //! \brief Plane-wave auxiliary fit basis: BOTH \c cFIT_CD_ABS (density) and \c cFIT_SF_ABS (potential) over a

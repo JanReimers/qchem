@@ -40,7 +40,7 @@ import qchem.Lattice_3D;                         // Lattice_3D
 import qchem.BasisSet;                           // Complex_BS, Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-spectrum diagnostic)
 import qchem.Blaze;                              // blazem::eigen, blaze::min/max (overlap spectrum)
-import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;   // PlaneWave_IBS (the seed's CD fit basis)
+import qchem.BasisSet.PlaneWave.PlaneWave_IBS;   // PlaneWave_IBS (the seed's CD fit basis)
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Molecule.PG_Spherical.LatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
@@ -323,7 +323,7 @@ struct GpwOptions
     double densityEcut  = -1.0;                        // <0 AUTO = cutoffFactor*alpha_max
     double cutoffFactor = 2.0;
     double ladderFactor = 4.0;
-    BasisSet::Lattice_3D::RasterPolicy raster = BasisSet::Lattice_3D::RasterPolicy::BallOnly;
+    BasisSet::PlaneWave::RasterPolicy raster = BasisSet::PlaneWave::RasterPolicy::BallOnly;
     BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
     //! XC-quadrature policy, decided by \c xcMesh.cellKind.  DEFAULT \c Auto (2026-08-01 flip): the
@@ -3751,7 +3751,7 @@ TEST(GPW_SCF, MnOSeedSublatticesAreEqualAndOpposite)
     o.imposeSymmetry=false;
     // The seed the run actually uses: PolarizedSeedCD over this cell, with the IonicSAD targets
     // (Mn2+ => 5 of the q7 valence, O2- => 8 of the q6).  Built directly -- no SCF, no Hamiltonian.
-    qchem::BasisSet::Lattice_3D::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
     const std::map<size_t,int> ionic{{25,5},{8,8}};
     qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
@@ -3846,7 +3846,7 @@ TEST(GPW_SCF, MnOSeedVxcMirrorOnBeckeMesh)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     // The seed the run uses (identical to MnOSeedSublatticesAreEqualAndOpposite).
-    qchem::BasisSet::Lattice_3D::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
     const std::map<size_t,int> ionic{{25,5},{8,8}};
     qchem::ChargeDensity::PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);
@@ -3991,7 +3991,7 @@ TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
     ASSERT_EQ(q.NumFlipFixed(), q.GetMesh()->size());   // (FoldedMesh's ctor now checks this too)
 
     // The seed (the same PolarizedSeedCD the run uses), through the engine's channel-pair projector.
-    qchem::BasisSet::Lattice_3D::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    qchem::BasisSet::PlaneWave::PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(pw.CreateCDFitBasisSet(&cell, qcMesh::MeshParams{}));
     const std::map<size_t,int> ionic{{25,5},{8,8}};
     PolarizedSeedCD seedCD(fb, &cell, "LDA", ionic);

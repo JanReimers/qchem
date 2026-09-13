@@ -1,6 +1,6 @@
 // File: BasisSet/Molecule/Lattice/GPW_IBS.C  Gaussian-And-Plane-Waves irrep basis set for one k-point.
 //
-// The GPW sibling of PlaneWave_IBS: a complex (dcmplx) Orbital_1E_IBS whose functions are periodic GAUSSIANS
+// The GPW sibling of PlaneWave::PlaneWave_IBS: a complex (dcmplx) Orbital_1E_IBS whose functions are periodic GAUSSIANS
 // (Bloch sums of contracted Gaussians standing at the cell's atoms) rather than plane waves.  As with the PW
 // basis, all the geometry lives in a shared evaluator (GPW_Evaluator) and the evaluator-templated
 // Lattice::Orbital_1E_IBS<E> mixin forwards op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear to it
@@ -20,7 +20,7 @@ module;
 export module qchem.BasisSet.Lattice_3D.GPW_IBS;
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (base subobject) -- NOT re-exported (internal)
 import qchem.BasisSet.Lattice_IBS;                // the G=T spec: isLattice_{1E,DFT}_Evaluator + Lattice::Orbital_{1E,DFT}_IBS<E,T> (mixins)
-import qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS; // the auxiliary PW fit basis the DFT factory returns
+import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS; // the auxiliary PW fit basis the DFT factory returns
 import qchem.Matrix3D;                             // Matrix3D
 import qchem.Symmetry.Lattice_3D.SpaceGroup;       // DirectOp {W|τ} -- the direct ops threaded to the Vxc fit basis
 import qchem.BasisSet.Internal.IrrepBasisSetImp;  // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
@@ -139,7 +139,7 @@ public:
 protected:
     //! \brief The DFT 3-centre tables (Orbital_DFT_IBS<dcmplx>) built over the REQUESTED fit basis's OWN grid -- NOT the
     //! block's \c DensityGrid.  \a c is the fit basis \c CreateCD/VxcFitBasisSet produced (it IS-A
-    //! PW_Grid_Evaluator carrying the density-fit \f${G}\f$/grid policy), so we hand its grid to the evaluator:
+    //! PlaneWave::PW_Grid_Evaluator carrying the density-fit \f${G}\f$/grid policy), so we hand its grid to the evaluator:
     //! the table returned is the one REQUESTED, honouring the factory's grid choice rather than silently
     //! overriding it with the block's own (doc/GPWPlan §0e).  Overrides the shared \c Lattice::Orbital_DFT_IBS mixin
     //! (which dropped \a c); the block's own no-arg tensors remain the convenience/test path.

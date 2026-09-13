@@ -76,7 +76,7 @@ struct SolidCalcOptions
     double densityEcut  = -1.0;   //!< <0 AUTO: floor at \c cutoffFactor*alpha_max (recommended).
     double cutoffFactor = 2.0;    //!< C in that floor; 2 = the density's own product exponent.
     double ladderFactor = 4.0;    //!< multigrid ladder gradation (DEPTH is automatic).
-    BasisSet::Lattice_3D::RasterPolicy raster = BasisSet::Lattice_3D::RasterPolicy::BallOnly;
+    BasisSet::PlaneWave::RasterPolicy raster = BasisSet::PlaneWave::RasterPolicy::BallOnly;
     BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
     //! \brief The XC real-space quadrature.  DEFAULT \c Auto = "you choose": the class costs a uniform

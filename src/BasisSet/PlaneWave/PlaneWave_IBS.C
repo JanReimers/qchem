@@ -16,9 +16,9 @@ module;
 #include <iosfwd>
 #include <string>
 
-export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
+export module qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;       // the abstract G-space DFT capability (+ ΔG_Map)
-import qchem.BasisSet.Lattice_3D.Evaluators.PW; // PW_Evaluator (base subobject) -- NOT re-exported: the evaluator
+import qchem.BasisSet.PlaneWave.Evaluators; // PW_Evaluator (base subobject) -- NOT re-exported: the evaluator
                                                 // is INTERNAL to qcPlaneWave_BS.  Clients use the abstract faces
                                                 // (Orbital_DFT_IBS<dcmplx> / G_FieldEvaluator), never the concrete evaluator.
 import qchem.BasisSet.Lattice_IBS;              // the G=T spec: isLattice_{1E,DFT}_Evaluator + Lattice::Orbital_{1E,DFT}_IBS<E> (mixins)
@@ -29,7 +29,7 @@ import qchem.Structure;
 import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;
 
-export namespace qchem::BasisSet::Lattice_3D
+export namespace qchem::BasisSet::PlaneWave
 {
 
 // The spec is checked where engine meets spec (TaxonomyPlan §1.7 / 1a0), never inside the engine.

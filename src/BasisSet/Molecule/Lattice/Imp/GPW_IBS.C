@@ -14,7 +14,7 @@ import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k
 import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ raster ops param type)
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcMolecule_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
-import qchem.BasisSet.Lattice_3D.Evaluators.PW;  // PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
+import qchem.BasisSet.PlaneWave.Evaluators;  // PlaneWave::PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
 import qchem.SymmetrizeMesh;                     // MakeInvariant/FoldMesh (the §6a W1 invariant XC quadrature)
 import qchem.Reporting;                          // report::Timed -- the XC-quadrature buckets (ParallelAndOraclePlan 1.1(b))
 
@@ -64,7 +64,7 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const ivec3_t& N,
 template <class T> BasisSet::cFIT_CD_ABS* tGPW_IBS<T>::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
 {
     // {G}_rho = DensityGrid() (cutoffFactor*alpha_max, resolving the density product); no relCutoff on the CD grid.
-    return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
+    return new PlaneWave::PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
                                 "densityFit");
 }
 template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
@@ -81,14 +81,14 @@ template <class T> BasisSet::cFIT_SF_ABS* tGPW_IBS<T>::CreateVxcFitBasisSet(cons
     // `grids.xcQuadrature kind Becke` from the route and then `grids.xcQuadrature kind Uniform` from here
     // -- the same report key answering the reader's question two different ways on one run.  The route now
     // owns that key exclusively (Hamiltonians.C, both branches).
-    return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
+    return new PlaneWave::PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
                                 "vxcFitGrid", SymmetryOps());
 }
 
 template <class T> BasisSet::FitQuadrature tGPW_IBS<T>::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     // The DELTA-fit quadrature (doc/SymmetryUpgradePlan.md §6a).  On a §3-imposed run this basis
-    // carries the crystal ops (ctor-injected, like the raster ops PlaneWaveFit_IBS gets):
+    // carries the crystal ops (ctor-injected, like the raster ops PlaneWave::PlaneWaveFit_IBS gets):
     //  - Becke grid: the SITE-ADAPTED mesh (W2b) -- rep atoms carry site-group-invariant angular sets,
     //    partners the op-rotated copies -- invariant BY CONSTRUCTION, no group-average growth pass;
     //  - uniform grid (the cross cell): group-average it invariant (W1's MakeInvariant -- a no-op
@@ -193,20 +193,20 @@ template <class T> std::map<int,hmat_t<T>> tGPW_IBS<T>::MakeProjectorMatrixByL(c
 }
 
 // The DFT 3-centre tables over the REQUESTED fit basis's grid (doc/GPWPlan §0e).  The fit basis \a c that the
-// Hartree/XC term hands us is the one CreateCD/VxcFitBasisSet produced -- a PlaneWaveFit_IBS, which IS-A
-// PW_Grid_Evaluator carrying the density-fit {G}/grid policy.  Cross-cast to that grid and build the tensor on
+// Hartree/XC term hands us is the one CreateCD/VxcFitBasisSet produced -- a PlaneWave::PlaneWaveFit_IBS, which IS-A
+// PlaneWave::PW_Grid_Evaluator carrying the density-fit {G}/grid policy.  Cross-cast to that grid and build the tensor on
 // it, so we RETURN THE REQUESTED TABLE rather than overriding the caller's fit-grid choice with the block's own
 // (the shared Lattice::Orbital_DFT_IBS mixin dropped \a c).  Bit-identical while the factory wraps DensityGrid();
 // the seam is what lets the fit grid diverge (the deferred GGA Vxc densification) without touching these.
 template <class T> Projector3<dcmplx> tGPW_IBS<T>::MakeRepulsion3C(const cFIT_CD_ABS& c) const
 {
-    const auto& grid = dynamic_cast<const PW_Grid_Evaluator&>(c);   // throws bad_cast on a non-grid fit basis (loud)
-    return GPW_Evaluator::Repulsion3CTensor(std::make_shared<const PW_Grid_Evaluator>(grid));
+    const auto& grid = dynamic_cast<const PlaneWave::PW_Grid_Evaluator&>(c);   // throws bad_cast on a non-grid fit basis (loud)
+    return GPW_Evaluator::Repulsion3CTensor(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid));
 }
 template <class T> Projector3<dcmplx> tGPW_IBS<T>::MakeOverlap3C(const cFIT_SF_ABS& c) const
 {
-    const auto& grid = dynamic_cast<const PW_Grid_Evaluator&>(c);
-    return GPW_Evaluator::Overlap3CTensor(std::make_shared<const PW_Grid_Evaluator>(grid));
+    const auto& grid = dynamic_cast<const PlaneWave::PW_Grid_Evaluator&>(c);
+    return GPW_Evaluator::Overlap3CTensor(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid));
 }
 
 // The INSTANCE-scoped 3C accessors (declaration doc in GPW_IBS.C): GPW's matrix-free tensor closures

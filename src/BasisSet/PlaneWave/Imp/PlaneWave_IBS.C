@@ -15,18 +15,18 @@ module;
 #include <string>
 #include <vector>
 
-module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-import qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS;   // the auxiliary density-fit basis CreateCDFitBasisSet builds
+module qchem.BasisSet.PlaneWave.PlaneWave_IBS;
+import qchem.BasisSet.PlaneWave.PlaneWaveFit_IBS;   // the auxiliary density-fit basis CreateCDFitBasisSet builds
 import qchem.Symmetry.Factory;   // BlochFactory (the convenience ctor builds the Bloch irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (prys k out of the abstract Bloch irrep)
 import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeNuclear
 import qchem.Math;               // Pi, FourPi, cos, sin
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
-import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
+import qchem.BasisSet.PlaneWave.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
 import qchem.Blaze;
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
-namespace qchem::BasisSet::Lattice_3D
+namespace qchem::BasisSet::PlaneWave
 {
 
 PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut)

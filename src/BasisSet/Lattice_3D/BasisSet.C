@@ -2,7 +2,7 @@
 //
 // The public entry point for building a crystal basis set: hand it a Lattice_3D (the cell + its
 // Brillouin-zone grid) and a cutoff, get back an abstract tBasisSet<dcmplx>.  The concrete container
-// (PW_BasisSet) and the per-k PlaneWave_IBS list it owns are an implementation detail (Imp/BasisSet.C);
+// (PW_BasisSet) and the per-k PlaneWave::PlaneWave_IBS list it owns are an implementation detail (Imp/BasisSet.C);
 // callers are forced through the polymorphic BasisSet interface, exactly as for molecular bases.
 module;
 #include <memory>
@@ -10,9 +10,9 @@ module;
 export module qchem.BasisSet.Lattice_3D.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
-export import qchem.BasisSet.Lattice_3D.PlaneWave_IBS; // PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
+export import qchem.BasisSet.PlaneWave.PlaneWave_IBS; // PlaneWave::PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
 export import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS + CellImages (the GPWFactory mode argument)
-export import qchem.BasisSet.Lattice_3D.Evaluators.PW; // RasterPolicy (a PUBLIC factory knob since 0.5(a))
+export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::RasterPolicy (a PUBLIC factory knob since 0.5(a))
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
 import qchem.Types;                                    // dcmplx
 
@@ -57,7 +57,7 @@ struct GPWParams
     double       densityEcut = -1.0;    //!< <0 AUTO floor cutoffFactor*alpha_max (recommended); =0 1E-only; >0 explicit Ha
     // --- Advanced ---
     double       cutoffFactor= 2.0;     //!< C in the auto floor C*alpha_max (2 = the density's own product exponent)
-    RasterPolicy raster = RasterPolicy::BallOnly;   //!< FFT-raster policy.  DEFAULT BallOnly (user 2026-07-23,
+    PlaneWave::RasterPolicy raster = PlaneWave::RasterPolicy::BallOnly;   //!< FFT-raster policy.  DEFAULT BallOnly (user 2026-07-23,
                                                     //!< after the 0.5(a) A/B: ~1 mHa at/above the C=2 floor, ~8x
                                                     //!< fewer raster points; AliasFree = the exact-quadrature
                                                     //!< option -- kernel gates and sub-floor grids want it)
@@ -82,7 +82,7 @@ struct GPWParams
                                                     //!< imposition of the full detected group (release-check audits
                                                     //!< SSB); false = a FREE run (nothing imposed; the detected group
                                                     //!< still feeds the order-parameter diagnostic).
-    RasterFields rasterFields = RasterFields::HartreeXC;  //!< field-sharpness ROUTING: which terms the raster serves.
+    PlaneWave::RasterFields rasterFields = PlaneWave::RasterFields::HartreeXC;  //!< field-sharpness ROUTING: which terms the raster serves.
                                                     //!< HartreeOnly (pair with the Becke XC route ONLY) drops the
                                                     //!< 2/3*alpha_max XC floor so diffuse density pairs route to
                                                     //!< coarse ladder levels -- the honest diffuse-basis speedup.
@@ -131,7 +131,7 @@ namespace qchem::BasisSet::Lattice_3D
 class PW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 {
 public:
-    //! Build one PlaneWave_IBS per Brillouin-zone k-point of \a lat at cutoff \a Ecut (a single Gamma block
+    //! Build one PlaneWave::PlaneWave_IBS per Brillouin-zone k-point of \a lat at cutoff \a Ecut (a single Gamma block
     //! for an N=(1,1,1) mesh).  The basis ctor is the sole place that enumerates k -- the framework's
     //! per-irrep loop then IS the BZ sum \f$\sum_k w_k\f$.
     PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut);

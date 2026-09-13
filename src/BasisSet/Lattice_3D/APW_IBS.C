@@ -15,7 +15,7 @@
 // so u_l'(R)/u_l(R) = q j_l'(qR)/j_l(qR).  The radial integral collapses to this surface log-derivative
 // (1/2 T_l - E R_l = 1/2 R^2 u_l(R) u_l'(R)), so no radial quadrature is needed.
 //
-// Framework note: APW_IBS shares the IrrepBasisSet<dcmplx> base with PlaneWave_IBS, but does NOT
+// Framework note: APW_IBS shares the IrrepBasisSet<dcmplx> base with PlaneWave::PlaneWave_IBS, but does NOT
 // implement Orbital_1E_IBS -- its overlap is energy-dependent, so the (E-independent) 1E-integral
 // interface does not apply.  Lineage B is a sequence of such IBS types (APW, LAPW, FLAPW, ...), each
 // with its own interface needs.

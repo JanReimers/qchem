@@ -20,16 +20,16 @@ module;
 #include <memory>
 #include <string>
 #include <vector>
-export module qchem.BasisSet.Lattice_3D.Evaluators.PW;
+export module qchem.BasisSet.PlaneWave.Evaluators;
 export import qchem.ReciprocalLattice;   // ReciprocalLattice / UnitCell (the B cell; source of G, |k+G|)
 export import qchem.BasisSet.GMap;           // ΔG_Map: the G-space coefficient map RhoOnGrid/ForwardFFT speak
 export import qchem.BasisSet.G_FieldEvaluator;  // the abstract grid-engine seam PW_Evaluator implements
-import qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator; // the shared FFT/Poisson grid engine (held, delegated to)
+import qchem.BasisSet.PlaneWave.Evaluators.PeriodicGrid; // the shared FFT/Poisson grid engine (held, delegated to)
 import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
 import qchem.Blaze;                      // hmat_t<dcmplx> (chmat_t)
 import qchem.Structure;                  // Structure, Atom (MakeFourierDensity's structure-factor sum)
 
-export namespace qchem::BasisSet::Lattice_3D
+export namespace qchem::BasisSet::PlaneWave
 {
 
 //! \brief The FFT-raster POLICY (doc/GPWPlan 0.5(a)) -- a policy enum, not a numeric dial:

@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include "gtest/gtest.h"
 
-import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
+import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.Pseudopotential.GTH_Potentials;
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Structure;      // Molecule, Atom
@@ -21,7 +21,7 @@ import qchem.Types;
 import qchem.Blaze;
 using namespace qchem;
 
-using BasisSet::Lattice_3D::PlaneWave_IBS;
+using BasisSet::PlaneWave::PlaneWave_IBS;
 using Pseudopotential::HGH_LocalPotential;
 using Pseudopotential::HGH_SeparablePotential;
 using Pseudopotential::GetGTH;

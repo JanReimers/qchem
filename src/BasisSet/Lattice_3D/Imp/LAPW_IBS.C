@@ -24,15 +24,15 @@ module qchem.BasisSet.Lattice_3D.LAPW_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
-import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
-import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma) + kZeroTol
+import qchem.BasisSet.PlaneWave.Internal.GVectors;   // BuildGs
+import qchem.BasisSet.PlaneWave.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma) + kZeroTol
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*), norm
 
 namespace qchem {
 namespace
 {
-using BasisSet::Lattice_3D::Internal::kZeroTol;  // |k+G| below this -> skip the j_l'(0) singularity
+using BasisSet::PlaneWave::Internal::kZeroTol;  // |k+G| below this -> skip the j_l'(0) singularity
 
 // integral f(r) dr over a LOGARITHMIC grid (r uniform in x=ln r): composite Simpson in x with the
 // dr = r dx Jacobian, so integral f dr = sum_i w_i^x f(r_i) r_i.  The log grid clusters points near the
@@ -143,7 +143,7 @@ LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3
     , itsZnuc(Znuc)
 {
     assert(Rmt>0.0);
-    itsG = Internal::BuildGs(itsRecip, itsk, Ecut);
+    itsG = PlaneWave::Internal::BuildGs(itsRecip, itsk, Ecut);
     // Assemble the blocks once, at construction (everything below is fixed by the inputs above).
     std::vector<RadialBlock>   blocks = MuffinTinRadialBlocks();   // Act 1
     std::vector<AugmentedWave> waves  = MatchAugmentation(blocks); // Act 2
@@ -190,7 +190,7 @@ std::vector<LAPW_IBS::AugmentedWave> LAPW_IBS::MatchAugmentation(const std::vect
     std::vector<rmat2d_t> boundaryInv(lmax+1);             // depends only on l, so invert once
     for (int l=0;l<=lmax;l++) boundaryInv[l]=Invert(blocks[l].boundary);
 
-    Internal::KPlusG kg(B, itsk, itsG);                    // Cartesian k+G, |k+G|
+    PlaneWave::Internal::KPlusG kg(B, itsk, itsG);                    // Cartesian k+G, |k+G|
     std::vector<AugmentedWave> waves;
     waves.reserve(n);
     for (size_t i=0;i<n;i++)
@@ -219,7 +219,7 @@ void LAPW_IBS::CombineBlocks(const std::vector<RadialBlock>& blocks, const std::
     double Vsphere=FourPi*Rmt*Rmt*Rmt/3.0;
     size_t n=GetNumFunctions();
 
-    Internal::KPlusG kg(itsRecip.GetCell(), itsk, itsG);   // Cartesian k+G, |k+G|, cos gamma
+    PlaneWave::Internal::KPlusG kg(itsRecip.GetCell(), itsk, itsG);   // Cartesian k+G, |k+G|, cos gamma
     itsOvlp=blazem::zeroH<dcmplx>(n);
     itsKp2 =blazem::zeroH<dcmplx>(n);
     itsVnuc=blazem::zeroH<dcmplx>(n);

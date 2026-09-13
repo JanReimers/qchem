@@ -15,13 +15,13 @@ module;
 #include <string>       // the AnnounceGrid role label
 #include <vector>
 #include <functional>   // the ApplySpectralFilter multiplier k(|G|^2)
-export module qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator;
+export module qchem.BasisSet.PlaneWave.Evaluators.PeriodicGrid;
 export import qchem.ReciprocalLattice;        // ReciprocalLattice / UnitCell (the B cell; source of G)
 export import qchem.BasisSet.GMap;   // ΔG_Map (the G-space coefficient map EvalField/RhoOnGrid speak)
 export import qchem.Mesh;                     // qcMesh::Mesh -- the raster AS points+weights (the universal face)
 import qchem.Types;                           // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, dcmplx
 
-export namespace qchem::BasisSet::Lattice_3D
+export namespace qchem::BasisSet::PlaneWave
 {
 
 //! \brief The k-independent FFT/Poisson grid engine of a periodic basis: the reciprocal cell \f$B\f$, the

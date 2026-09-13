@@ -11,7 +11,7 @@
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.Lattice_3D.BandStructure;   // SolveBands, KPath
-import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
+import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.BasisSet.Lattice_3D.LAPW_IBS;
 import qchem.Lattice_3D;                          // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Types;
@@ -20,7 +20,7 @@ using namespace qchem;
 
 using BasisSet::Lattice_3D::SolveBands;
 using BasisSet::Lattice_3D::KPath;
-using BasisSet::Lattice_3D::PlaneWave_IBS;
+using BasisSet::PlaneWave::PlaneWave_IBS;
 using BasisSet::Lattice_3D::LAPW_IBS;
 
 namespace

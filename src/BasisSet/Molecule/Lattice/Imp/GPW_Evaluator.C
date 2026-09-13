@@ -316,7 +316,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
                       << "*alpha_max=" << floor << " (basis alpha_max=" << aMax << "): the density grid "
                       << "under-resolves the basis -- charge will leak off-grid (integral rho_grid < N). Prefer "
                       << "densityEcut>=" << floor << ", or the automatic default (densityEcut<0)." << std::endl;
-        itsFFT_R_G_Grids=std::make_shared<const PW_Grid_Evaluator>(
+        itsFFT_R_G_Grids=std::make_shared<const PlaneWave::PW_Grid_Evaluator>(
                     ReciprocalLattice(cell.MakeReciprocalCell()), rvec3_t(0,0,0), ecut, itsRaster);
     }
 }
@@ -345,10 +345,10 @@ Molecule::LatticeSum1E::cellphase_t GPW_Evaluator::CellPhase() const
 // Coulomb the diagonal Poisson kernel 4pi/|G|^2 is folded in (V_H = 4pi rho-tilde/G^2; G=0 -> 0).  The closure
 // keeps the level grids + molecular basis alive (captured shared_ptrs) since it lives in the framework-cached
 // Projector3<dcmplx>.
-std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulomb, std::shared_ptr<const PW_Grid_Evaluator> grid) const
+std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulomb, std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
     // The ladder derives from the REQUESTED fit grid (not the block's own itsFFT_R_G_Grids); the closure captures it.
-    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels;
+    std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> levels;
     std::vector<ivec3_t> N_L;
     std::vector<double>  ecut_L;
     size_t nBase=0;
@@ -396,7 +396,7 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
 // short-circuits Contract), so `kernel` stays empty.
 // Over the REQUESTED fit grid: columns are grid's {G}, the collocation ladder derives from grid.  The no-arg
 // overloads below are the block's-own-grid convenience (Repulsion3CTensor(itsFFT_R_G_Grids)).
-Projector3<dcmplx> GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const
+Projector3<dcmplx> GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
     Projector3<dcmplx> g;
     g.volume=grid->Volume();
@@ -406,7 +406,7 @@ Projector3<dcmplx> GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const PW_Gri
     return g;
 }
 // Overlap 3-centre tensor: the same analytic map, no kernel (the density's own rho-tilde).
-Projector3<dcmplx> GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const
+Projector3<dcmplx> GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
     Projector3<dcmplx> g;
     g.volume=grid->Volume();
@@ -424,9 +424,9 @@ Projector3<dcmplx> GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PW_Grid_
 // carry BOTH directions on the fit grid; the KS matrix is built by ContractAdjoint (doc/GPWPlan §0e step2).
 // (OverlapMatrix below is the block's-own-itsFFT_R_G_Grids sibling that MakeLocalPP + the legacy MakeOverlap still use.)
 std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
-GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const
+GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels;
+    std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> levels;
     std::vector<ivec3_t> N_L;
     std::vector<double>  ecut_L;
     size_t nBase=0;
@@ -588,9 +588,9 @@ void GPW_Evaluator::GatherMemo::Store(const std::vector<rvec_t>& V_L, const chma
 }
 
 // D -> rho_DM(r) on grid's raster: level 0 (== grid) RAW, every other level spectrally transferred in.
-std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shared_ptr<const PW_Grid_Evaluator> grid) const
+std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels;
+    std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> levels;
     std::vector<ivec3_t> N_L;
     std::vector<double>  ecut_L;
     size_t nBase=0;
@@ -627,9 +627,9 @@ std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shar
 // The exact transpose: v(r) on grid's raster -> <i|v|j>.  V_0 = v identity (adjoint of the raw keep);
 // V_L = BackwardFFT_L(TransferBand(ForwardFFT_T(v))) -- the ForwardFFT 1/Npts against IntegratePotential's
 // internal Omega/Npts(L) weight leaves NO stray factors (derivation in the interface doc).
-std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const
+std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const
 {
-    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels;
+    std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> levels;
     std::vector<ivec3_t> N_L;
     std::vector<double>  ecut_L;
     size_t nBase=0;
@@ -735,8 +735,8 @@ void GPW_Evaluator::EnsureLevels() const
 // most-diffuse pair floor, plus the top completion rung -- built from \a grid, NOT the block's itsFFT_R_G_Grids, so the
 // collocator honours the requested fit grid.  (Orbital-exponent + cell state -- MaxExponent/MinExponent/itsCell/
 // itsCutoffFactor/RelCutoffSafety -- stays the block's; only the GRID is parameterized.)
-void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
-                                std::vector<std::shared_ptr<const PW_Grid_Evaluator>>& levels,
+void GPW_Evaluator::BuildLevels(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid,
+                                std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>>& levels,
                                 std::vector<ivec3_t>& levelN, std::vector<double>& levelEcut, size_t& nBaseLevels) const
 {
     assert(grid && "GPW_Evaluator::BuildLevels requires a density grid (densityEcut!=0)");
@@ -762,7 +762,7 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
                 std::cerr<<"[GPW] GPW_MGRID_ECUTS: skipping sub-level "<<e<<" >= reference "<<grid->Ecut()<<std::endl;
                 continue;
             }
-            levels.push_back(std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster));
+            levels.push_back(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster));
         }
         nBaseLevels=levels.size();          // no top rung: the explicit list IS the whole ladder
         for (const auto& g : levels)
@@ -785,7 +785,7 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
     while (e/f>=ecoarse)                              // factor-f coarsening down to the diffuse floor
     {
         e/=f;
-        auto g=std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster);
+        auto g=std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster);
         // DEGENERACY FLOOR (min grid points): the ONLY failure mode of a coarse level is a cell too small to
         // hold a coarser grid -- an FFT grid saturating at N~1-2 no longer scales like sqrt(Ecut) and loses
         // charge (a sigma~2 pair on h=7 lost percent-level charge -- the failed crystal gate).  Keep the
@@ -815,7 +815,7 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
     // (GPW.LocalPPKappaSelfConverged: analytic-vs-grid short 0.087 without the Ecut=20 rung at Ecut=10).
     static constexpr double kRungGateC=8.0;   // the C=8-era measured calibration, now standalone
     if (efine < itsLat->RelCutoffSafety()*kRungGateC*amax)
-        levels.push_back(std::make_shared<const PW_Grid_Evaluator>(
+        levels.push_back(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(
                                 grid->Recip(), rvec3_t(0,0,0), itsLat->RelCutoffSafety()*efine, itsRaster));
     for (const auto& g : levels)
     {
@@ -827,7 +827,7 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
 // GRID DIAGNOSTIC (doc/GPWPlan §0e): one line per stored grid, printed at run start so GPW's grids can be
 // lined up against CP2K's &MGRID log (NGRIDS/CUTOFF/REL_CUTOFF + per-level N).  |G|min is the smallest
 // NONZERO |G| (the cell scale 2*pi/a); |G|max the ball edge (sqrt(2*Ecut)).
-std::ostream& GPW_Evaluator::ReportGrid(std::ostream& os, const std::string& tag, const PW_Grid_Evaluator& g)
+std::ostream& GPW_Evaluator::ReportGrid(std::ostream& os, const std::string& tag, const PlaneWave::PW_Grid_Evaluator& g)
 {
     double gmin=-1.0, gmax=0.0;
     for (const ivec3_t& m : g.Gs())
@@ -902,7 +902,7 @@ void GPW_Evaluator::EmitGridsReport() const
         rpt::json ladder = rpt::json::array();
         for (size_t L = 0; L < itsLevels.size(); ++L)
         {
-            const PW_Grid_Evaluator& lv = *itsLevels[L];
+            const PlaneWave::PW_Grid_Evaluator& lv = *itsLevels[L];
             const ivec3_t N = lv.FFTGrid();
             // role: L==0 is the density/collocation reference (== FFT grid); the top rung completes the
             // ladder above the local-PP sub-ladder; everything between is a coarser multigrid level.
@@ -1031,7 +1031,7 @@ std::vector<Symmetry::Lattice_3D::ReciprocalOp> GPW_Evaluator::RecipSymOps() con
     return rops;
 }
 
-// Local PP: assembled in G-SPACE from the analytic form factor, IDENTICALLY to PW_Evaluator::LocalPotential-
+// Local PP: assembled in G-SPACE from the analytic form factor, IDENTICALLY to PlaneWave::PW_Evaluator::LocalPotential-
 // Matrix -- Vtilde(dG) = (1/Omega) Sum_a v_loc(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED, then <chi|Vtilde|chi>
 // via OverlapMatrix (the collocation adjoint reconstructs V_loc(r) on the density grid and quadratures it).
 // This inherits the PW G=0 / FormFactorG0-alignment convention EXACTLY, so the energy is box-independent (a
@@ -1168,12 +1168,12 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
     const double ecutTop=2.0*lnE*p2*beta/(p2+beta);
     std::vector<ivec3_t> N_L=itsLevelN;
     std::vector<double>  ecut_L=itsLevelEcut;
-    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels=itsLevels;
+    std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> levels=itsLevels;
     double emax=0.0;
     for (double e : ecut_L) emax=std::max(emax,e);
     if (ecutTop>emax)
     {
-        auto g=std::make_shared<const PW_Grid_Evaluator>(itsFFT_R_G_Grids->Recip(), rvec3_t(0,0,0), ecutTop, itsRaster);
+        auto g=std::make_shared<const PlaneWave::PW_Grid_Evaluator>(itsFFT_R_G_Grids->Recip(), rvec3_t(0,0,0), ecutTop, itsRaster);
         levels.push_back(g); N_L.push_back(g->FFTGrid()); ecut_L.push_back(g->Ecut());
     }
     const std::vector<size_t> lv=itsLat->StaticFieldPairLevels(ecut_L, beta, lnE);

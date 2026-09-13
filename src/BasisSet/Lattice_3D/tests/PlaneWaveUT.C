@@ -12,7 +12,7 @@
 #include <functional>
 #include "gtest/gtest.h"
 
-import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
+import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.BasisSet.Lattice_3D.BandStructure;  // THE SolveBands (V1.21: this file no longer keeps its own)
 import qchem.BasisSet.G_FieldEvaluator;      // G_PoissonKernel / G_RasterTransform -- the fit basis's G-space seams
 import qchem.Mesh;                            // qcMesh::MeshParams (the fit-basis factory's argument)
@@ -24,7 +24,7 @@ import qchem.Blaze;
 import qchem.Math;           // Pi
 using namespace qchem;
 
-using BasisSet::Lattice_3D::PlaneWave_IBS;
+using BasisSet::PlaneWave::PlaneWave_IBS;
 using Pseudopotential::LocalPotential;
 using Pseudopotential::BareCoulomb;
 using Pseudopotential::GaussianSmearedNucleus;

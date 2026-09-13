@@ -43,7 +43,7 @@ PW_BasisSet::PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut)
     for (const auto& kp : lat.MakeKMesh())
     {
         ivec3_t ik(std::lround(kp.k.x*N.x), std::lround(kp.k.y*N.y), std::lround(kp.k.z*N.z));
-        auto* pw=new PlaneWave_IBS(recip, Symmetry::BlochFactory(N, ik, kp.weight), Ecut);
+        auto* pw=new PlaneWave::PlaneWave_IBS(recip, Symmetry::BlochFactory(N, ik, kp.weight), Ecut);
         Insert(pw);                                 // BasisSetImp takes ownership (no PP: the Vpseudo
                                                     // Hamiltonian term owns the pseudopotential model)
     }
@@ -343,7 +343,7 @@ Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const Bas
                        double densityEcut, rvec3_t kShift, CellImages images, double cutoffFactor)
 {
     return new GPW_BasisSet(lat, std::move(mol),
-                            GPWParams{densityEcut, cutoffFactor, RasterPolicy::BallOnly, images, kShift});
+                            GPWParams{densityEcut, cutoffFactor, PlaneWave::RasterPolicy::BallOnly, images, kShift});
 }
 
 } //namespace
