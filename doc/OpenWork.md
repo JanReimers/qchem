@@ -94,6 +94,12 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > by itself, its claim is a MIXER property that belongs in `src/ChargeDensity/tests` with no SCF at all, and
 > fixing it roughly halves the dev loop for everything after.  ▶ Then decide the 27 disabled `GPW_SCF`
 > instruments as a CLASS — much easier once the axes exist to file them against.
+> ⚠ **COVERAGE GAP found 2026-09-13 (V1.18 inc. e): NO enabled test reaches the DM-source XC route at all** —
+> the `cDM_Sourced_CD` reach-around (`DensitySampler_Singles::ExactSourceOf`, both the N4 cusp-deficit route
+> and the opt-in `GPW_XC_DM_SOURCE` wholesale route) needs a SINGLES-route GPW run under Kerker, and no
+> enabled test is one.  Confirmed by arming `GPW_XC_DM_SOURCE` on `SiliconGammaConverges` before AND after
+> the change: never entered.  The relocation was equivalent by construction, but a route with zero coverage
+> is a row on the `{grid} × {mixer}` axis this step has to fill.
 >
 > ### 4. POLISH THE NEAR-EMPTY LIVE PLANS → RECORD
 > `doc/README.md` lists what is LIVE.  Several have one or two items left and should collapse to RECORD:
@@ -102,14 +108,15 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > `README.md` the same day its file changes tier.
 >
 > ### 5. THEN DFT+U — `doc/ParallelAndOraclePlan.md` PHASE 3
-> Oracle already validated (CP2K has `&DFT_PLUS_U`).  ★ **Write it against `qcMesh::MatrixIntegrator` from
-> the start** (`doc/CleanupCandidates.md` R1.0q): +U is a `Dynamic_HT`, its occupation-matrix forward and
-> its potential adjoint are exactly that pair, and being born on the face costs nothing where converting it
-> later does.
+> Oracle already validated (CP2K has `&DFT_PLUS_U`).  ★ **Write it against `MatrixForward<T>` and
+> `MatrixAdjoint<T>` from the start** (user wording 2026-09-11; `MatrixIntegrator` itself was DELETED
+> `7a41cca6` — nobody needs both halves, one object is built once and each client is handed its half):
+> +U is a `Dynamic_HT`, its occupation-matrix forward and its potential adjoint are exactly that pair, and
+> being born on the faces costs nothing where converting it later does.
 >
-> ⏸ **PARKED DECISIONS — both need a ruling, neither blocks the queue:** the `XCQuadrature` **library home**
-> (`qcChargeDensity` vs a new leaf library — R1.0e), and the **basis-side nullable vendor** that would
-> retire `GetRhoOnGrid`'s empty-vector-means-no-route signalling (R1.0n/R1.0o).
+> ⏸ **PARKED DECISION — needs a ruling, does not block the queue:** the **basis-side nullable vendor** that
+> would retire `GetRhoOnGrid`'s empty-vector-means-no-route signalling (R1.0n/R1.0o).  (The `XCQuadrature`
+> library home was SETTLED by R1.0e, `bd11b903`: `DensitySampler` lives in `qcChargeDensity`.)
 
 
 
