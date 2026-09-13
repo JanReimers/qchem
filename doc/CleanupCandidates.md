@@ -2259,18 +2259,31 @@ MnO campaign proceeds undisturbed in qchem6.
   `grep -rn "export import.*\.Internal\." --include=*.C src/` — it is a one-line audit of a written rule and
   nothing was running it.  Worth a pre-commit hook or a CMake check.
 
-  ⛔ **AND IT FOUND TWO MORE ON ITS FIRST RUN (2026-09-10), filed as V1.20d.**  Of the 13 hits, 11 are an
-  Internal module re-exporting another Internal one -- legal in spirit, since the label still holds for the
-  consumer.  The other two are PUBLIC modules re-exporting Internal ones, i.e. the same violation this row
-  just fixed:
-  - `src/BasisSet/IrrepBasisSet.C:6` -- `export import qchem.BasisSet.Internal.DB_Cache;`, exposing
-    `DBCacheClient` (the cache-key contract) through a public face.
-  - `src/BasisSet/Atom/Evaluators/Slater/Evaluator.C:7` --
-    `export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;`.
-  ▶ Each needs the same judgement `Projector3` got: is the re-exported thing PUBLIC VOCABULARY (⇒ promote it)
-  or is the public face leaking an implementation detail (⇒ stop re-exporting, and hide what leaks)?  ⚠ Not
-  interchangeable — `DBCacheClient` being a *contract* public faces implement argues for promotion, while an
-  `ExponentialEvaluator` sounds like a detail.  Decide per site, and add the grep to CI either way.
+  ⛔ **AND IT FOUND TWO MORE ON ITS FIRST RUN (2026-09-10) — see V1.20d, the next row.**  Of the 13 hits, 11
+  are an Internal module re-exporting another Internal one -- legal in spirit, since the label still holds
+  for the consumer.  The other two were PUBLIC modules re-exporting Internal ones.
+
+- **V1.20d ✅ DONE 2026-09-13 `0e07933e` — the last two public-re-exports-Internal sites, and the audit is a
+  ctest test.**  (⚠ This row existed only as a paragraph inside V1.20c until the user asked where it was —
+  "filed as V1.20d" filed nothing.)  Each site got the judgement `Projector3` got: is the re-exported thing
+  PUBLIC VOCABULARY (promote it) or a leaking detail (stop re-exporting)?
+  - `qchem.BasisSet.IrrepBasisSet` re-exported `Internal.DB_Cache` because the public face `IrrepBasisSet_IDs`
+    DERIVES from `DBCacheClient`.  A contract public faces implement is vocabulary ⇒ promoted, ALONE:
+    `qchem.BasisSet.DBCacheClient` (15 lines).  The cache MECHANISM (`IntegralsCache<T>`, `theCache`) stays
+    Internal.
+  - `qchem.BasisSet.Atom.Evaluators.Slater.IBS` re-exported `Internal.ExponentialEvaluator`; its Gaussian
+    sibling uses a plain `import`.  A base class is a detail ⇒ plain import.
+  ★ **CLOSING THE FIRST ONE EXPOSED WHAT THE LABEL HAD BEEN HIDING:** `qcCalculation` — a different library —
+  was calling `theCache<double>().EmitReport()`, the MECHANISM, through the public face: a cross-family
+  Internal import under the V1.20 ruling that no grep for `import ...Internal...` could see, because the
+  facade never wrote the word.  What the facades want is one sentence, so that sentence is the public face:
+  `qchem.BasisSet.IntegralsCacheReport::EmitIntegralsCacheReport()`.  (An orchestrator-side call by nature —
+  the cache's activity is continuous, and "what did this run accumulate" exists only at the run's end, which
+  the cache does not observe — so the reporting ruling's "each class at its own activity" has no better
+  trigger to offer here.)
+  ▶ **`scripts/audit-internal-reexports`, run by ctest as `InternalReexportAudit`**: the written rule now has
+  a test.  Zero violations.  Bit-identical, 855/855.  **→ doc/CleanupHistory.md** (this row IS the record;
+  nothing longer exists).
 
 - **V1.20b ✅ DONE 2026-09-09 — `GMap` IS PROMOTED OUT OF `Internal`** (user ruling).
   `qchem.BasisSet.Internal.GMap` → **`qchem.BasisSet.GMap`** (`src/BasisSet/GMap.C`).  ▶ **The point is

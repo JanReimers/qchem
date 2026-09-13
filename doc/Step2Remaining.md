@@ -14,7 +14,8 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 | **R1.0h** | ⚗️ **HALF DONE** — slot pre-creation landed, the block loop performs no map insertion.  ⏳ the owning scope remains (now unblocked) | `56f3db12` `0b753d1e` |
 | **V1.35a** | ✅ the second slot hook DISSOLVED via `HT_SlotOwner<TRun>` — a diamond done correctly | `1ac9ae50` |
 | **V1.36** | ✅ `FittedVcorrPol` memoizes its \f$v_c\f$ fits (two fitters, one per spin) | `3b88f260` |
-| **V1.20c/d** | ✅ `Projector3` promoted out of `Internal` (a written-rule violation, and my `GMap` fix had been half a fix).  ⏳ V1.20d: two more sites the audit found | `ee50a5a1` |
+| **V1.20c** | ✅ `Projector3` promoted out of `Internal` (a written-rule violation, and my `GMap` fix had been half a fix) | `ee50a5a1` |
+| **V1.20d** | ✅ the two remaining sites (`DBCacheClient` promoted alone; Slater's re-export → plain import); closing the first EXPOSED a live cross-family reach from `qcCalculation` into the cache mechanism, now `EmitIntegralsCacheReport()`; the audit is a ctest test (`InternalReexportAudit`).  ⚠ Had never been a row — only a paragraph saying "filed as V1.20d" | `0e07933e` |
 | **V4.1 / V4.2** | ✅ CHECKED — neither trigger has fired | — |
 | **V1.17** | ✅ `GetSpinDensity` off the base and onto `tSpinResolvedWF<T>`, a data-free cross-cast face on the `tSpinResolved_CD` model; the raw `new` went with it | `95640bca` |
 | **V1.32** | ✅ `IrrepCD<T>` → non-template `FiniteIrrepCD`; three one-live-branch conditionals collapsed, `IrrepHF_PairBase` deleted.  `PeriodicIrrepCD<T>` asked and DECLINED | `9a073f39` |
@@ -25,7 +26,7 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 
 ★ **AND THREE ROWS WERE CREATED BY THIS WORK**, all live in `CleanupCandidates.md`: **R1.0r** (ρ is
 star-averaged under a bigger group than the k-mesh has), **V1.35** (the axis fusion — needs a PLAN, not a
-session), **V1.20d** (two more public modules re-exporting `Internal` ones).
+session), ~~**V1.20d**~~ (closed 2026-09-13 — it had never actually been filed as a row).
 
 ⇒ **Group C is untouched (and must stay whole — see its note).  GROUP D IS CLOSED (2026-09-13): V1.17
 and V1.32 closed 2026-09-10 exactly the way their rows said; V1.14 closed 2026-09-11 the OPPOSITE way — the
