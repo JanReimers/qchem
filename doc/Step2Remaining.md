@@ -19,13 +19,14 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 | **V1.17** | ✅ `GetSpinDensity` off the base and onto `tSpinResolvedWF<T>`, a data-free cross-cast face on the `tSpinResolved_CD` model; the raw `new` went with it | `95640bca` |
 | **V1.32** | ✅ `IrrepCD<T>` → non-template `FiniteIrrepCD`; three one-live-branch conditionals collapsed, `IrrepHF_PairBase` deleted.  `PeriodicIrrepCD<T>` asked and DECLINED | `9a073f39` |
 | **V1.14** | ✅ both `Emit*()` faces deleted under the USER'S REPORTING RULING (each class reports at its OWN trigger; nobody tells another when); basis built INSIDE the run so shells self-announce.  ⛔ the row's "pulling reporter + toggles on SCFParams" fix was the wrong direction; the `bool&` toggles are the design | `fe78682a` `d5d42fb4` |
+| **V1.2** | ✅ `Orbital_PP_IBS` + the `SpeciesField` vocabulary in qcBasisSet, `Math::Gaussian` in qcMath; the PP models implement the faces; `qcLattice_BS → qcPseudopotential` REMOVED, `qcPseudopotential → qcBasisSet` added.  Bit-identical | `fd7f8099` |
 | **V1.18** | ✅ WIDENED into the density-mixer reorganisation (user code review, 12 points) and executed in SEVEN increments: module split, pure faces, α_eff deleted, adaptive step → one cross-cast method (re-fetch dropped), DM source → provenance seated by the driver, `ΔG_Map` operators, three named factories with param structs, mixers own their field.  ⏳ (g) the PolarizedRunKeepsItsSpin unit test is TE work | `e60087bd`…`ead8bfcb` |
 
 ★ **AND THREE ROWS WERE CREATED BY THIS WORK**, all live in `CleanupCandidates.md`: **R1.0r** (ρ is
 star-averaged under a bigger group than the k-mesh has), **V1.35** (the axis fusion — needs a PLAN, not a
 session), **V1.20d** (two more public modules re-exporting `Internal` ones).
 
-⇒ **Group C is untouched (and must stay whole — see its note).  Group D is down to ONE row (V1.2): V1.17
+⇒ **Group C is untouched (and must stay whole — see its note).  GROUP D IS CLOSED (2026-09-13): V1.17
 and V1.32 closed 2026-09-10 exactly the way their rows said; V1.14 closed 2026-09-11 the OPPOSITE way — the
 user's reporting ruling reversed the row's proposed fix; V1.18 closed 2026-09-13 as something much BIGGER
 than its row — the user's code review of the file turned it into a seven-increment reorganisation.**  ★ That is the
@@ -185,9 +186,12 @@ to schedule; do not land these piecemeal.
   that SERVES one, even spelled identically.  And `PeriodicIrrepCD<T>` was asked and DECLINED per the
   row's pre-ruling: the two leaves sit adjacent and look like a symmetry begging to be completed, but
   one leaf's scalar is an accident of history and the other's is physics.
-- **V1.2 — `Orbital_PP_IBS`, the structure-neutral PP-integral face.**  Would invert the
-  `qcBasisSet(qcLattice_BS) → qcPseudopotential` dependency edge.  User APPROVED attempting it 2026-08-05;
-  the feasibility probe is banked in the file's appendix.  Not blocked — just never started.
+- **V1.2 — ✅ DONE 2026-09-13 (`fd7f8099`).**  The probe held; the PP faces were ALREADY neutral in structure,
+  so the job was vocabulary + rename + delete `Integrals_Pseudo`.  Two rulings taken in a short design
+  discussion (faces live WITH the service in qcBasisSet, qcStructure untouched; the range split is an
+  argument), one nit (`Math::Gaussian`, not `RadialGaussianTerm`).  The edge did not invert so much as
+  reverse: qcLattice_BS no longer links qcPseudopotential, which now links qcBasisSet.  ⚠ Lesson: a row
+  parked as "never started" for five weeks was a two-hour job once the probe was re-checked.
 
 ---
 

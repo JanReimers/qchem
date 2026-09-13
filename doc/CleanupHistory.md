@@ -19,6 +19,62 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-09-13 — V1.2 `fd7f8099`: `Orbital_PP_IBS`, the species-field integral service — the PP edge reversed
+
+*(The 2026-08-05 feasibility probe is the appendix at the end of this file; it HELD against the 2026-09-13
+tree — the basis side consumed exactly what it listed — and it was executed with two simplifications.)*
+
+- **V1.2 (the row as it stood) 🔶 FEASIBILITY PROBE DONE + user APPROVED attempting it (appendix at the end of this file). `Orbital_PP_IBS` — a structure-neutral PP-integral face (dependency INVERSION).**  User
+  framing (2026-08-05): PPs require certain NEW TYPES of integrals from the IBS; the question is
+  whether there is a structure-neutral way to ask for them without spilling PP details — if yes, we
+  can break the qcBasisSet(qcLattice_BS)→qcPseudopotential dependence (today PlaneWave_IBS/GPW_IBS
+  implement `Pseudopotential::Integrals_Pseudo<dcmplx>` whose args are PP types).  Candidate
+  neutral primitives: (1) ⟨i|V|j⟩ for a species-attached local radial field (lattice-summed; the
+  long/short split as a range parameter, not a PP concept); (2) projector brackets ⟨i|β_lm⟩ for
+  species-attached radial×Y_lm functions.  qcPseudopotential then calls the face from ABOVE —
+  the dependency edge inverts.  Passes the pseudo-wall pin (these ARE new integral types).
+  Molecular PP (term-side quadrature today, by design) could optionally adopt the face later.
+  Related dead surface: `Integrals_Pseudo::MakeLocalPotential` (unsplit matrix) is documented
+  unit-test-only.  **USER (2026-08-05): approved to attempt — try it and see if we hit any
+  roadblocks.**  (Feasibility probe of the actual `LocalPotential`/`SeparablePotential` payloads
+  and the DAG: see the probe notes appended below when available.)
+
+### WHAT LANDED, and the two rulings that shaped it
+
+**The finding that made it small:** the PP model FACES (`LocalPotential_Q/_R/_Gaussian`,
+`SeparablePotential_Base/_R/_Gaussian`) were already abstract and structurally neutral — only their NAMES and
+their LIBRARY said "pseudopotential".  So the work was: define the vocabulary where the integral service lives,
+rename the models onto it, and delete `Integrals_Pseudo`.  ~20 files, bit-identical.
+
+| where | what |
+|---|---|
+| qcMath | `Math::Gaussian {c, n, alpha}` — ⚠ USER RENAME from the probe's `RadialGaussianTerm`: *"the Radial and Term aspects are basis function language ... in qcMath it is just a function with no context."*  It replaced TWO byte-identical structs (`LocalGaussianTerm`, `RadialGaussian`) kept apart purely so neither module named the other.  (`qchem::Gaussian` is an existing NAMESPACE — the atom evaluators — so the struct is `qchem::Math::Gaussian`.) |
+| qcBasisSet | `qchem.BasisSet.SpeciesField`: `FieldRange {Full,Long,Short}`; `SpeciesRadialField` (`ValueR`/`ValueQ`/`CellMeanQ`, dual-spectral); `SpeciesRadialField_Gaussian::AsGaussians(Z,range)`; `SpeciesProjectorSet` (`Count`/`L`/`Weight`/`RadialQ`); `SpeciesProjectorSet_R::RadialR`; `SpeciesProjectorSet_Gaussian::AsGaussians(Z,p)`.  The capabilities DERIVE virtually from their core face ("a projector set that also answers in r") so one reference serves a consumer that needs both — the diamonds are the house style. |
+| qcBasisSet | `qchem.BasisSet.Orbital_PP_IBS<T>`: `MakeSpeciesFieldMatrix(st, field, range)`, `MakeProjectorMatrix(st, set)`, `MakeProjectorMatrixByL` (the diagnostic default, lumped under −1 as before).  Implemented by `PlaneWave_IBS` and `GPW_IBS` (the GPW cache keys `LocalPP/Long/Short` ride the range). |
+| qcPseudopotential | `LocalPotential` KEEPS its piece structure — `FormFactorLong/Short`, `VlocLong/VlocShort` (new: the real-space split, honest for every model: HGH erf-tail vs poly-Gaussian, Coulomb all-long), the two G→0 alignments — and answers the neutral face's range switch ONCE in the base; the models never supply a sum.  `SeparablePotential` = `using SpeciesProjectorSet`; its models renamed onto the neutral methods.  `Integrals_Pseudo.C` DELETED.  Links qcBasisSet. |
+| consumers | GPW evaluator (`LocalPart` enum → `FieldRange`), the PP terms in qcHamiltonian cross-cast to `Orbital_PP_IBS<T>`, the molecular `PP_Local`/`PP_NonLocal` quadrature the `_R` views, `SolidCalculation`'s α_pp readout, seven test files. |
+
+**RULING 1 (user, on the fork I raised):** the probe put the argument faces in qcBasisSet with an ADAPTER in
+qcHamiltonian so qcPseudopotential could stay a leaf; I proposed qcStructure so neither library needed a new
+edge.  User: *"I would need to see what gets added to the qcStructure interface before approving ... Ideally
+qcBasisSet interfaces just look like an Integral calculation service.  We can keep qcPseudopotential as leaf
+for qcHamiltonian.  A qcPseudopotential→qcBasisSet dependency is fine."*  ⇒ the faces live WITH the service in
+qcBasisSet; qcStructure untouched; the adapter dissolved (it could not conditionally carry the optional
+capabilities anyway — the models carry them).  **THE DAG:** `qcLattice_BS → qcPseudopotential` REMOVED,
+`qcPseudopotential → qcBasisSet` ADDED (cycle-free, verified: nothing in qcBasisSet imports it back).
+
+**RULING 2:** the long/short split is a `FieldRange` ARGUMENT, not three methods (a molecular implementor
+answers Full).  The unit-test-only unsplit `MakeLocalPotential` went with it; its call sites take
+`FieldRange::Full`.
+
+**What the probe listed that dissolved:** the adapter (above) and its `EffectiveExponent(Z,range)` grid-sizing
+hint — the basis sizes its grids from `AsGaussians` exactly as it did from `ShortRangeGaussian`; a
+non-Gaussian field answers empty and the old fallback stands.
+
+Bit-identical.  851/851 under `scripts/memsafe ctest -j8`.
+
+---
+
 ## LANDED 2026-09-13 — V1.18 (WIDENED): the density-mixer reorganisation, seven increments, 851/851 each
 
 **The spec was the user's code review of `src/ChargeDensity/DensityMixer.C` (2026-09-13, twelve points), and

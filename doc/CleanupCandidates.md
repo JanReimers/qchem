@@ -2118,20 +2118,13 @@ MnO campaign proceeds undisturbed in qchem6.
   - Action: name the invariant where it lives (the fitter/energy pair), and fold the "which metric
     ⇒ which energy expression" rule into V1.16's explicit metric-strategy face.  Also ties the
     third leg of the CD taxonomy (D2's seeds) to a real correctness boundary.
-- **V1.2 🔶 FEASIBILITY PROBE DONE + user APPROVED attempting it (appendix below). `Orbital_PP_IBS` — a structure-neutral PP-integral face (dependency INVERSION).**  User
-  framing (2026-08-05): PPs require certain NEW TYPES of integrals from the IBS; the question is
-  whether there is a structure-neutral way to ask for them without spilling PP details — if yes, we
-  can break the qcBasisSet(qcLattice_BS)→qcPseudopotential dependence (today PlaneWave_IBS/GPW_IBS
-  implement `Pseudopotential::Integrals_Pseudo<dcmplx>` whose args are PP types).  Candidate
-  neutral primitives: (1) ⟨i|V|j⟩ for a species-attached local radial field (lattice-summed; the
-  long/short split as a range parameter, not a PP concept); (2) projector brackets ⟨i|β_lm⟩ for
-  species-attached radial×Y_lm functions.  qcPseudopotential then calls the face from ABOVE —
-  the dependency edge inverts.  Passes the pseudo-wall pin (these ARE new integral types).
-  Molecular PP (term-side quadrature today, by design) could optionally adopt the face later.
-  Related dead surface: `Integrals_Pseudo::MakeLocalPotential` (unsplit matrix) is documented
-  unit-test-only.  **USER (2026-08-05): approved to attempt — try it and see if we hit any
-  roadblocks.**  (Feasibility probe of the actual `LocalPotential`/`SeparablePotential` payloads
-  and the DAG: see the probe notes appended below when available.)
+- **V1.2 ✅ DONE 2026-09-13 `fd7f8099`. `Orbital_PP_IBS` — the species-field integral service; the
+  `qcBasisSet → qcPseudopotential` edge is GONE.**  Argument vocabulary `qchem.BasisSet.SpeciesField`
+  (`FieldRange`, `SpeciesRadialField`(+`_Gaussian`), `SpeciesProjectorSet`(+`_R`,`_Gaussian`)),
+  `Math::Gaussian` in qcMath (user's name: "in qcMath it is just a function with no context"), the PP
+  models implement the faces directly, `Integrals_Pseudo` deleted.  Ruling taken: the faces live in
+  qcBasisSet ("just an integral calculation service"), `qcPseudopotential → qcBasisSet` is fine,
+  qcStructure untouched.  Bit-identical, 851/851.  **→ doc/CleanupHistory.md**
 - **V1.3 ✅ MECHANISM DONE `72fecf8d`** (both ε-adapters deleted, via `GetEMatrix`).  ⚠ **STILL OPEN: the QUADRATURE-TERM face** — the second list in the original item (`FittedEpsXc`/`FittedVxc` simplification).  **→ doc/CleanupHistory.md**
 - **V1.4 ✅ DONE `80fc2ae8`. `DM_RhoAtPoints` Phi key → Irrep (USER RULING 2026-08-05).**.  **→ doc/CleanupHistory.md**
 - **V1.5 ✅ DONE `f18a6ee9`+`9ebaebdb` (2026-08-16) — FOUR faces, not three, and a reporting redesign fell
