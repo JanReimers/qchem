@@ -59,7 +59,6 @@ public:
         for (const auto& [dm, ri] : rho_in)
             if (rho_out.find(dm)==rho_out.end()) resid = std::max(resid, std::abs(dcmplx(ri)));
         itsMixedRho.reset(FourierMixCD::KerkerMix(*itsMixedRho, rho_out, itsRelax, itsKerkerG0, itsCuspDeficit));
-        itsMixedRho->SetDMSource(itsDMSource);     // replay the deposit onto the freshly allocated mix
         // RAW-raster shadow (0.5(f2)): the same Kerker step on rho_raw(r), deposited so the XC feed stays raw
         // through the DYNAMICS.  Late-activates the first time the working density answers raw (a SAD-seeded
         // run's iteration 1); deactivates for the run if a raw answer stops coming or changes raster.
@@ -76,10 +75,6 @@ public:
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
     const char* Tag() const override { return "Ker"; }
-    //! Stash it AND seat it: KerkerMix allocates a FRESH FourierMixCD on every mix, so the deposit has to be
-    //! replayed onto each new one -- the same shape as the itsRawIn raster shadow beside it.
-    void SetDMSource(std::shared_ptr<const cDM_CD> dm) override
-    { itsDMSource=std::move(dm); if (itsMixedRho) itsMixedRho->SetDMSource(itsDMSource); }
 private:
     double itsRelax, itsKerkerG0;
     //! N4: form + deposit the cusp-deficit correction for XC.  A CONSTRUCTION policy (see
@@ -88,7 +83,6 @@ private:
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
     std::shared_ptr<FourierMixCD>                itsMixedRho;
     rvec_t itsRawIn;   //!< the raster shadow of itsMixedRho (empty = raw pipeline off)
-    std::shared_ptr<const cDM_CD> itsDMSource;   //!< replayed onto each rebuilt itsMixedRho
 };
 
 } //namespace

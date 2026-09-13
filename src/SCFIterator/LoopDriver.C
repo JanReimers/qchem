@@ -53,6 +53,19 @@ public:
     virtual double Step(const LoopContext<T>&) const = 0;
 };
 
+//! After a mix: the field the NEXT Fock is built from remembers the exact DM density it was mixed FROM, so a
+//! quadrature consumer (XC) can reach ρ[D] through tDM_Sourced_CD while Hartree keeps the preconditioned
+//! field.  PROVENANCE, seated by the driver -- the one actor holding both -- through the density's own sink
+//! face (V1.18: the mixer used to courier it).  A D-mixer's Fock density IS the DM density and has no sink,
+//! so this is a no-op there.  Must follow Mix (that is what allocates the new field) and go through
+//! FockDensity (a polarized view re-seats its channels in that call).
+template <class T> void SeatDMSource(const qchem::ChargeDensity::tDensityMixer<T>& mixer,
+                                     const std::shared_ptr<qchem::ChargeDensity::tDM_CD<T>>& cur)
+{
+    if (auto* sink=dynamic_cast<const qchem::ChargeDensity::tDM_SourceSink<T>*>(mixer.FockDensity(*cur)))
+        sink->SetDMSource(cur);
+}
+
 //! Classic fixed-point step: diagonalise the (mixed-density) Fock, refill, then fold rho_out into rho_in.
 template <class T> class FixedPointDriver : public tLoopDriver<T>
 {
@@ -65,12 +78,10 @@ public:
             qchem::report::Timed timed("scf: new density from D (install + lineage)");
             c.installNew(typename LoopContext<T>::cd_t(c.wf->GetChargeDensity()));
         }
-        // Hand the mixer SHARED ownership of the DM-backed rho_out before it builds the mixed FIELD from it,
-        // so a quadrature consumer (XC) can reach the exact density while Hartree keeps the preconditioned
-        // one.  No-op for every D-mixing mixer.  Must precede Mix: that is what allocates the new field.
         qchem::report::Timed timed("scf: density mix (Kerker/linear/Pulay)");
-        c.mixer->SetDMSource(*c.cur);
-        return c.mixer->Mix(**c.cur, **c.old);                      // density-face: fold rho_out into rho_in
+        const double d = c.mixer->Mix(**c.cur, **c.old);            // density-face: fold rho_out into rho_in
+        SeatDMSource(*c.mixer, *c.cur);
+        return d;
     }
 };
 

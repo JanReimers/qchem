@@ -560,6 +560,25 @@ public:
 using rDM_Sourced_CD = tDM_Sourced_CD<double>;
 using cDM_Sourced_CD = tDM_Sourced_CD<dcmplx>;
 
+//! \brief The WRITE side of \c tDM_Sourced_CD: a field-backed density that can be TOLD which DM-backed
+//! density it was mixed from.  Seated by the SCF LOOP DRIVER on the mixer's Fock density right after each
+//! mix -- the one actor that holds both the fresh \f$D\f$ and the field built from it.
+//!
+//! V1.18: this used to be a method on the MIXER face, which made every G-space mixer a courier for a
+//! quadrature consumer's stash (stash, replay onto each freshly allocated mix, split per channel...) --
+//! none of it ρ-mixing.  The density that carries the source is the right place to be told about it.
+//! \c const because the source is PROVENANCE ("the \f$D\f$ that produced ρ_out"), not a change to the
+//! field's values: seating it alters no number the density answers, only what \c DMSource() reports.
+template <class T> class tDM_SourceSink
+{
+public:
+    virtual ~tDM_SourceSink() {}
+    virtual void SetDMSource(std::shared_ptr<const tDM_CD<T>>) const = 0;
+};
+
+using rDM_SourceSink = tDM_SourceSink<double>;
+using cDM_SourceSink = tDM_SourceSink<dcmplx>;
+
 //! The magnetization ρ↑−ρ↓ as a real ScalarFunction (any T -- ρ_σ(r) is real for both lineages).
 template <class T> class tSpinDensity : public virtual ScalarFunction<double>
 {

@@ -38,6 +38,7 @@ class FourierMixCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual FourierDensity
     , public virtual cDM_Sourced_CD   //!< the DM-backed density this field was mixed FROM (see the face)
+    , public virtual cDM_SourceSink   //!< ...and the write side the loop driver seats it through (V1.18)
 {
 public:
     //! Wrap a \f$\tilde\rho(G)\f$ map (\a rhoTilde) with its reciprocal lattice \a recip and the density's total
@@ -71,10 +72,11 @@ public:
     }
     void SetRawRho(rvec_t raw) {itsRhoRaw=std::move(raw);}   //!< mixer-side deposit (empty = raw pipeline off)
 
-    // --- cDM_Sourced_CD: the DM-backed density this field was mixed FROM ---
-    //! Mixer-side deposit, the exact sibling of \c SetRawRho above: the raster shadow keeps the XC feed RAW,
-    //! this keeps it EXACT.  Shared, not raw: XC samples it after the \c Mix() that produced it has returned.
-    void SetDMSource(std::shared_ptr<const cDM_CD> dm) {itsDMSource=std::move(dm);}
+    // --- cDM_Sourced_CD / cDM_SourceSink: the DM-backed density this field was mixed FROM ---
+    //! Seated by the loop driver after the mix that built this field (provenance -- see the face; the
+    //! raster shadow beside it keeps the XC feed RAW, this keeps it EXACT).  Shared, not raw: XC samples it
+    //! after the mix that produced it has returned.
+    virtual void SetDMSource(std::shared_ptr<const cDM_CD> dm) const override {itsDMSource=std::move(dm);}
     virtual std::shared_ptr<const cDM_CD> DMSource() const override {return itsDMSource;}
     //! \copydoc cDM_Sourced_CD::XCCorrection
     //! Built by \c KerkerMix in the same loop that forms the mix (it is one subtraction from terms already
@@ -107,7 +109,7 @@ public:
 private:
     ΔG_Map            itsRho;      //!< rho-tilde(G) coefficients (keyed by the integer difference index dm)
     rvec_t            itsRhoRaw;   //!< raw-raster shadow rho_raw(r) (0.5(f2)); empty = raw pipeline off
-    std::shared_ptr<const cDM_CD> itsDMSource;   //!< the D this field was mixed from; null = none deposited
+    mutable std::shared_ptr<const cDM_CD> itsDMSource;   //!< the D this field was mixed from; null = none deposited
     //! \brief \f$\tilde\rho_{mix}-\tilde\rho_{out}\f$ as a field: the BAND-LIMITED part of the cusp-deficit
     //! XC feed (see \c cDM_Sourced_CD::XCCorrection).  Null = not built (seed / non-Kerker mixer).
     std::shared_ptr<const FourierMixCD> itsXCCorrection;

@@ -121,7 +121,6 @@ public:
         }
         FourierMixCD inStarCD(inStar,itsRecip,itsCharge);  // Kerker step on the DIIS-extrapolated pair
         itsMixedRho.reset(FourierMixCD::KerkerMix(inStarCD,outStar,itsRelax,itsKerkerG0));
-        itsMixedRho->SetDMSource(itsDMSource);     // replay the deposit onto the freshly allocated mix
         if (p.raw)
         {
             itsRawIn=RasterKerker(*RasterEvaluator(), rawInStar, rawOutStar, itsRelax, itsKerkerG0);
@@ -131,11 +130,7 @@ public:
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
     const char* Tag() const override { return "Pul"; }
-    //! As KerkerMixer: ApplyJoint allocates a fresh mix, so the deposit is stashed and replayed.
-    void SetDMSource(std::shared_ptr<const cDM_CD> dm) override
-    { itsDMSource=std::move(dm); if (itsMixedRho) itsMixedRho->SetDMSource(itsDMSource); }
 private:
-    std::shared_ptr<const cDM_CD> itsDMSource;   //!< replayed onto each rebuilt itsMixedRho
     //! The raster-shadow evaluator, or nullptr when the fit basis cannot raster (⇒ the raw pipeline is off).
     const BasisSet::G_SpectralFilter* RasterEvaluator() const
     { return dynamic_cast<const BasisSet::G_SpectralFilter*>(itsKerkerFit.get()); }

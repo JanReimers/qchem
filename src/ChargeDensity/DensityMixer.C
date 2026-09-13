@@ -41,18 +41,8 @@ public:
     //! The density that drives the NEXT Fock: the working density itself for a D-mixer, the running mixed
     //! field for a G-space mixer.
     virtual const tChargeDensity<T>* FockDensity(const cd_t& working) const = 0;
-    //! \brief Deposit the DM-backed density the next mixed field is built FROM, so a quadrature consumer can
-    //! reach the EXACT density through \c tDM_Sourced_CD while Hartree keeps the preconditioned field.
-    //!
-    //! SHARED, and a SEPARATE hook rather than a widened \c Mix: \c Mix's subject is deliberately a plain
-    //! reference (mixing never re-seats the caller's pointer and never outlives the call), and that reasoning
-    //! is still right for mixing.  What is retained HERE outlives the call by construction -- XC samples it
-    //! later in the same iteration -- so it is a different question and gets its own signature rather than
-    //! quietly changing what \c Mix's argument means.
-    //!
-    //! No-op by default, which is correct for every D-mixing mixer: its \c FockDensity already IS the
-    //! DM-backed density, so there is nothing to reach around.
-    virtual void SetDMSource(std::shared_ptr<const tDM_CD<T>>) {}
+    // (No SetDMSource here -- V1.18: which D a mixed field was built from is PROVENANCE the loop driver seats
+    //  on the Fock density itself, through tDM_SourceSink.  A mixer neither stashes nor replays it.)
     //! The current step size α (for the SCF trace only).
     //! (No "effective α" beside it any more -- user ruling 2026-09-13: the fraction of a step that survived a
     //! preconditioner is not physics, nothing consumes it, and printing it implied something did.)

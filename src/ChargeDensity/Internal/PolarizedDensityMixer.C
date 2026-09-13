@@ -58,9 +58,24 @@ class PolarizedMixCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual FourierDensity
     , public virtual cSpinResolved_CD
+    , public virtual cDM_SourceSink   //!< the driver seats the polarized D here; the view splits it per channel
 {
 public:
     void Seat(const cChargeDensity* up, const cChargeDensity* dn) { itsUp=up; itsDn=dn; }
+
+    //! cDM_SourceSink -- split the polarized D into its channels and seat each on the channel it belongs to.
+    //! ALIASING shared_ptrs: each channel pointer keeps the PARENT density alive while pointing at the child,
+    //! the ownership the channel accessors (raw, non-owning) cannot express on their own -- and a retained
+    //! XC source genuinely outlives the call, unlike a mix.  A non-polarized D (the iteration-0 seed) seats
+    //! nothing.  Seated on whatever channels the view CURRENTLY presents -- which in (ρ,m) mode are the
+    //! rebuilt ones, closing a hole the mixer-side deposit had: it reached the leaves, never the rebuilt pair.
+    virtual void SetDMSource(std::shared_ptr<const cDM_CD> dm) const override
+    {
+        auto* pol = dynamic_cast<const cPolarized_CD*>(dm.get());
+        if (!pol) return;
+        Sink(itsUp).SetDMSource(std::shared_ptr<const cDM_CD>(dm, pol->GetChargeDensity(Spin::Up  )));
+        Sink(itsDn).SetDMSource(std::shared_ptr<const cDM_CD>(dm, pol->GetChargeDensity(Spin::Down)));
+    }
 
     //! cSpinResolved_CD -- the spin-native XC engine's channel access (the whole point of this class).
     virtual const cChargeDensity* GetChannel(const Spin& s) const override
@@ -119,6 +134,13 @@ private:
         auto* f=dynamic_cast<const FourierDensity*>(cd);
         assert(f && "PolarizedMixCD: a channel density must carry the FourierDensity face");
         return *f;
+    }
+    //! The channel's sink face -- a ρ̃ mixer's output always has it (a FourierMixCD).
+    static const cDM_SourceSink& Sink(const cChargeDensity* cd)
+    {
+        auto* k=dynamic_cast<const cDM_SourceSink*>(cd);
+        assert(k && "PolarizedMixCD: a channel density must carry the DM-source sink face");
+        return *k;
     }
     const cChargeDensity* itsUp=nullptr;
     const cChargeDensity* itsDn=nullptr;
@@ -211,18 +233,6 @@ public:
     double      GetRelax() const override { return itsUp->GetRelax(); }
     const char* Tag     () const override { return itsUp->Tag(); }   // the trace reports the LEAF recipe
     // (No adaptive hooks: the leaves are G-space mixers, none of which adapts its step -- V1.18.)
-    //! Split the polarized deposit into its two channels for the leaves.  ALIASING shared_ptrs: each channel
-    //! pointer keeps the PARENT density alive while pointing at the child, which is exactly the ownership the
-    //! channel accessors (raw, non-owning) cannot express on their own.  Note this is the one place where
-    //! shared ownership is genuinely needed -- Channels() below stays on plain pointers because a MIX never
-    //! outlives its call, whereas a retained XC source does.
-    void SetDMSource(std::shared_ptr<const cDM_CD> dm) override
-    {
-        auto* pol = dynamic_cast<const cPolarized_CD*>(dm.get());
-        if (!pol) return;    // not a polarized D (iteration 0 seed): leave the leaves with nothing to offer
-        itsUp->SetDMSource(std::shared_ptr<const cDM_CD>(dm, pol->GetChargeDensity(Spin::Up  )));
-        itsDn->SetDMSource(std::shared_ptr<const cDM_CD>(dm, pol->GetChargeDensity(Spin::Down)));
-    }
 
 private:
     //! The two spin channels.  Plain pointers now that the mixer's subject is a reference: the parent

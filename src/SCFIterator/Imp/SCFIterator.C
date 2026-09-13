@@ -479,8 +479,8 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
         itsWaveFunction->FillOrbitals(*itsOccPolicy, mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
-        itsMixer->SetDMSource(fresh);                    // the exact rho_out, for XC (see LoopDriver::Step)
         itsMixer->Mix(*fresh, *itsCD);                   // fold ρ_out into ρ_in (itsCD drove this Fock)
+        SeatDMSource(*itsMixer, fresh);                  // the exact rho_out, for XC (see LoopDriver)
         return fresh;
     };
     // Seed / bail: no geodesic this step (normally pre-empted by CanLineSearch() -> FixedPointDriver, but
