@@ -1,11 +1,11 @@
-// File: BasisSet/Gaussian/Point/PG_Cart/Imp/Symmetry.C
+// File: BasisSet/Gaussian/PG_Cart/Imp/Symmetry.C
 module;
 #include <vector>
 #include <string>
 #include <map>
 #include <memory>
 #include <utility>
-module qchem.BasisSet.Gaussian.Point.PG_Cart.Symmetry;
+module qchem.BasisSet.Gaussian.PG_Cart.Symmetry;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Symmetry.Molecule.CartesianRep;   // CartesianShellRep (the concrete ShellRep this basis produces)

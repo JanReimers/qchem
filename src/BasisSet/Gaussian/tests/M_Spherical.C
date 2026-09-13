@@ -17,7 +17,7 @@ import qchem.Math.Angular;                                            // Spheric
 import qchem.BasisSet.Gaussian.Evaluators.PG_Spherical_MnD;            // NR_Evaluator (1E)
 import qchem.BasisSet;                                                // Real_BS / Real_OIBS iteration (view gates)
 import qchem.BasisSet.Orbital_1E_IBS;                                 // Real_OIBS faces
-import qchem.BasisSet.Gaussian.Point.PG_Cart;                               // the wrapped Cartesian family
+import qchem.BasisSet.Gaussian.PG_Cart;                               // the wrapped Cartesian family
 import qchem.BasisSet.Gaussian.Point.PG_Spherical;                          // the native spherical family (oracle)
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;              // MakeSphericalLatticeView (under test)
 import qchem.Structure;                                               // Molecule, Atom

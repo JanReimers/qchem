@@ -1,8 +1,8 @@
-// File: BasisSet/Gaussian/Point/PG_Cart/Imp/Orbital_IBS.C  Polarized Gaussian 2-centre fit integrals.
+// File: BasisSet/Gaussian/PG_Cart/Imp/Orbital_IBS.C  Polarized Gaussian 2-centre fit integrals.
 module;
 #include <cassert>
 
-module qchem.BasisSet.Gaussian.Point.PG_Cart;
+module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Blaze;
 

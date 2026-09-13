@@ -5,8 +5,8 @@
 #include <string>
 #include <map>
 #include <algorithm>
-import qchem.BasisSet.Gaussian.Point.PG_Cart.Symmetry;  // ExtractAoShells, StructureToSymPoints
-import qchem.BasisSet.Gaussian.Point.PG_Cart;           // Orbital_IBS
+import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;  // ExtractAoShells, StructureToSymPoints
+import qchem.BasisSet.Gaussian.PG_Cart;           // Orbital_IBS
 import qchem.BasisSet.Orbital_1E_IBS;                         // cached Overlap() accessor (interface)
 import qchem.BasisSet.Internal.SymmetryAdapted_IBS;                    // SymmetryAdapted_IBS (1-e decorator)
 import qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (per-irrep)

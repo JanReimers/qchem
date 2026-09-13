@@ -10,7 +10,7 @@ module;
 #include <vector>
 #include <functional>
 
-module qchem.BasisSet.Gaussian.Point.PG_Cart;
+module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet.Gaussian.Point.BasisFiles;   // the auto fit-basis files (path owned by BasisFiles)
@@ -18,7 +18,7 @@ import qchem.BasisSet;
 import qchem.Structure;
 import qchem.UnitCell;   // UnitCell (CollocateDensity grid<->cell map)
 import qchem.Symmetry.Unit;
-import qchem.BasisSet.Gaussian.Point.PG_Cart.Symmetry;   // ExtractAoShells(const PGData&) -- for GetAoShells()
+import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;   // ExtractAoShells(const PGData&) -- for GetAoShells()
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Math;

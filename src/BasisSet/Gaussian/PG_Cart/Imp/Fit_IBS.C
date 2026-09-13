@@ -1,4 +1,4 @@
-// File: BasisSet/Gaussian/Point/PG_Cart/Imp/Fit_IBS.C  Polarized Gaussian fit basis set, for MO calculations.
+// File: BasisSet/Gaussian/PG_Cart/Imp/Fit_IBS.C  Polarized Gaussian fit basis set, for MO calculations.
 module;
 #include <cassert>
 // #include <algorithm> //Need std::max
@@ -8,7 +8,7 @@ module;
 #include <memory>
 #include <vector>
 
-module qchem.BasisSet.Gaussian.Point.PG_Cart;
+module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet;

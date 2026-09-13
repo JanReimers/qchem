@@ -1,11 +1,11 @@
-// File: BasisSet/Gaussian/Point/PG_Cart/SymmetryAdapt.C
+// File: BasisSet/Gaussian/PG_Cart/SymmetryAdapt.C
 // PG's factory hook for building a (Molecule-general) SymmetryAdaptedBasisSet from a raw PG basis.
 // The SymmetryAdaptedBasisSet class itself is basis-agnostic (qchem.BasisSet.Gaussian.Point.*); only this
 // glue is PG-specific (it extracts AO shells from PG's PGData).  Lives in the PG namespace so it
 // does not collide with the old PG_Cart::SymmetryAdapt used by the legacy SALC test.
 module;
 #include <memory>
-export module qchem.BasisSet.Gaussian.Point.PG_Cart.SymmetryAdapt;
+export module qchem.BasisSet.Gaussian.PG_Cart.SymmetryAdapt;
 export import qchem.BasisSet;                              // tBasisSet<double>
 export import qchem.Structure;                               // Structure
 import qchem.BasisSet.Gaussian.Point.SymmetryAdaptedBasisSet;    // the general SALC basis (return type)

@@ -1,6 +1,8 @@
 # src/BasisSet/Gaussian — the GAUSSIAN engine library (doc/BasisSetTaxonomyPlan.md §3; was Molecule/ until
 # step 2, 2026-09-13).  FAMILY = Gaussian {primitive, contracted} x {Cartesian, spherical}; the G is the
 # MODULE tag, not the library:  Gaussian.Evaluators.*  the engine (no G -- serves both);
+#                               Gaussian.PG_Cart.*     the raw AO block -- the G=1 SEED (no tag: both
+#                                                      constructions act on it from outside, step 3);
 #                               Gaussian.Point.*       G = P, the molecular bases (Point/);
 #                               Gaussian.Lattice.*     G = T, the Bloch-sum half (Lattice/: LatticeSum1E,
 #                                                      LatticeScreener, the spherical lattice view, GPW).
@@ -31,6 +33,7 @@ if(NOT OpenMP_CXX_FOUND)
                     "and point cmake at it (see the top-level CMakeLists OpenMP block).")
 endif()
 add_subdirectory(Evaluators)
+add_subdirectory(PG_Cart)     # the raw Cartesian AO block: the G=1 SEED (untagged; step 3 ruling)
 add_subdirectory(Point)
 add_subdirectory(Lattice)
 add_subdirectory(tests)

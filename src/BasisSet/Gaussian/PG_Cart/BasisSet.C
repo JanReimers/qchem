@@ -3,7 +3,7 @@ module;
 #include <vector>
 #include <memory>
 #include <functional>
-export module qchem.BasisSet.Gaussian.Point.PG_Cart;
+export module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;

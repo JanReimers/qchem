@@ -15,7 +15,7 @@
 #include <cstdlib>
 #include <string>
 
-import qchem.BasisSet.Gaussian.Point.PG_Cart;          // M&D Orbital_IBS
+import qchem.BasisSet.Gaussian.PG_Cart;          // M&D Orbital_IBS
 import qchem.BasisSet.Gaussian.Point.PG_LibCint;       // libcint Orbital_IBS
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet.Gaussian.Point.BasisFiles;

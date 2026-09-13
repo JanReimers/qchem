@@ -13,7 +13,7 @@
 
 import qchem.BasisSet.Gaussian.Evaluators;                    // Evaluator + the is*_/isM_* concepts
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;        // NR_Evaluator (a scalar 1E+DFT+HF evaluator)
-import qchem.BasisSet.Gaussian.Point.PG_Cart;                       // Orbital_IBS
+import qchem.BasisSet.Gaussian.PG_Cart;                       // Orbital_IBS
 import qchem.BasisSet.Gaussian.Point.IBS;                           // Orbital_{1E,DFT,HF}_IBS<E> mixins (dispatch)
 import qchem.BasisSet.Orbital_1E_IBS;                         // public Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Orbital_DFT_IBS;                        // public Overlap3C()/Repulsion3C() + Fit_IBS

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# doc/BasisSetTaxonomyPlan.md §1.6 rule 2 / §4 step 3: a MODULE carries the G.  A module tagged for the
+# point group (qchem.BasisSet.Gaussian.Point.*) must not import a lattice; a module tagged for O(3)
+# (qchem.BasisSet.Radial.*) must not import a lattice nor the molecular point-group symmetry.  This is
+# V1.33's original evidence ("qchem.UnitCell imported inside Molecule/") turned into a test.  Both the
+# interface (`export module X`) and the implementation units (`module X;`) of a module are checked.
+# Run by ctest as `BasisSetGTagAudit` (2026-09-13).
+set -u
+root="${1:-src/BasisSet}"
+lattice='qchem\.(UnitCell|Lattice_3D|ReciprocalLattice|Symmetry\.Lattice_3D(\.[A-Za-z0-9_.]*)?|BasisSet\.(Lattice|PlaneWave|Gaussian\.Lattice)(\.[A-Za-z0-9_.]*)?)'
+point='qchem\.(Symmetry\.Molecule(\.[A-Za-z0-9_.]*)?|BasisSet\.Gaussian(\.[A-Za-z0-9_.]*)?)'
+bad=0
+while IFS= read -r f; do
+    m=$(grep -m1 -E '^(export )?module [A-Za-z0-9_.]+;' "$f" | sed -E 's/^(export )?module //; s/;.*//')
+    [ -z "$m" ] && continue
+    case "$m" in
+        qchem.BasisSet.Gaussian.Point.*) forbid="$lattice"; tag="Point (G=P)";;
+        qchem.BasisSet.Radial.*)         forbid="$lattice|$point"; tag="Radial (G=O(3))";;
+        *) continue;;
+    esac
+    while IFS= read -r line; do
+        echo "$f: $tag module $m imports a foreign-G module: $line"
+        bad=1
+    done < <(grep -E "^\s*(export )?import\s+($forbid)\s*;" "$f")
+done < <(grep -rlE '^(export )?module [A-Za-z0-9_.]+;' --include='*.C' "$root")
+exit $bad

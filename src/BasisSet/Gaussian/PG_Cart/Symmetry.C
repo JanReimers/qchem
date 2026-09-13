@@ -5,7 +5,7 @@
 //! \c BuildSALCs.
 module;
 #include <vector>
-export module qchem.BasisSet.Gaussian.Point.PG_Cart.Symmetry;
+export module qchem.BasisSet.Gaussian.PG_Cart.Symmetry;
 export import qchem.Symmetry.Molecule.SALC;        // AoShell, SymPoint, BuildSALCs (transitively)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;
 import qchem.Structure;

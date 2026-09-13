@@ -17,7 +17,7 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Gaussian.Point.Reader;
-import qchem.BasisSet.Gaussian.Point.PG_Cart.Symmetry;   // ExtractAoShells(const PGData&) -- libcint-Cartesian reuses it
+import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;   // ExtractAoShells(const PGData&) -- libcint-Cartesian reuses it
 import qchem.Structure;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;

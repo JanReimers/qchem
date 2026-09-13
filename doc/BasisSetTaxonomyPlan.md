@@ -1,6 +1,6 @@
 # BasisSet Taxonomy Plan — V1.33
 
-**Status: LIVE, agreed 2026-09-13; steps 1–2 done 2026-09-13, step 3 (the audit) next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
+**Status: LIVE, agreed 2026-09-13; steps 1–3 done 2026-09-13, step 4 (acceptance on paper) next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
 taxonomy is on the wrong axis").  Read §1 once; it is the ruling.  §4 is the running order.
 
 Two proposals preceded this plan and they were NOT in conflict — they were the two axes:
@@ -275,6 +275,22 @@ V1.33's original evidence turned into a test.  Any `.Point.` module that fails t
 REAL misplacement to be moved into `.Lattice.` — expected candidates: `PG_Cart/BasisSet.C`'s
 `CollocateDensity` grid↔cell map and `PG_Cart/Imp/IrrepBasisSet.C`'s "PERIODIC caller" path.  Decide each
 on its merits (move the capability to a `.Lattice.` face, or accept it as engine-level and untag it).
+  ✅ 2026-09-13.  `scripts/audit-basisset-gtags` (interface AND implementation units; `Point.*` may not
+  import `qchem.{UnitCell, Lattice_3D, ReciprocalLattice, Symmetry.Lattice_3D.*, BasisSet.{Lattice,
+  PlaneWave, Gaussian.Lattice}.*}`; `Radial.*` additionally not `qchem.Symmetry.Molecule.*` nor
+  `qchem.BasisSet.Gaussian.*`), ctest `BasisSetGTagAudit` (N 855→856), negative-tested on synthetic
+  modules.  It fired on exactly the two predicted sites, which are ONE thing: `PG_Cart::Orbital_IBS`
+  IS-A `Periodic_Gaussian_IBS` and forwards `LatticeSum1E` to its `PG_Cart_MnD` engine base.
+  **Ruling: untag it** — `Point/PG_Cart/` → `Gaussian/PG_Cart/`, `qchem.BasisSet.Gaussian.PG_Cart.*`.
+  Not a compromise: the PG_Cart block is the family's raw AO block, the **G=1 SEED** (§1.5: G=1 is a row)
+  that both constructions act on from OUTSIDE it — `GetAoShells` feeds the P induction in
+  `Point/SymmetryAdaptedBasisSet`, `LatticeSum1E` feeds the T induction in `Lattice/GPW`.  Both are
+  questions about the seed.  Option (a), a `.Lattice.` subclass, would need the Point factory to construct
+  it (a construction-path change, not mechanical) and is exactly what the §5 sequel's per-(G, engine) thin
+  classes do properly.  Open question for that sequel: `PG_Spherical` / `PG_LibCint` are seeds by the same
+  argument (they pass the audit only because their lattice ability rides `SphericalLatticeView`); untag
+  them when the sequel splits the tiers, not before.  `PG_Spherical`, `PG_LibCint`, the IBS mixins, the
+  SALC container, factory and readers stay `Point.*`; nothing in `Radial.*` fired.  ctest -j8 856/856.
 
 **Step 4 — acceptance, on paper.**  Append to §2 a one-line placement for each of: APW/LAPW (the composite
 forces `qcLattice_BS → qcRadial_BS`), a numerical-radial family (a fourth `Radial.*` sub-directory, then

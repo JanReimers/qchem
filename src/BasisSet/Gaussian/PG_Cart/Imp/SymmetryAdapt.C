@@ -1,11 +1,11 @@
-// File: BasisSet/Gaussian/Point/PG_Cart/Imp/SymmetryAdapt.C
+// File: BasisSet/Gaussian/PG_Cart/Imp/SymmetryAdapt.C
 // (Doc + the dataflow diagram live on the SymmetryAdapt declaration in the module interface.)
 module;
 #include <memory>
 #include <vector>
 #include <stdexcept>
-module qchem.BasisSet.Gaussian.Point.PG_Cart.SymmetryAdapt;
-import qchem.BasisSet.Gaussian.Point.PG_Cart.Symmetry;        // StructureToSymPoints, Centroid (+ the SALC pipeline)
+module qchem.BasisSet.Gaussian.PG_Cart.SymmetryAdapt;
+import qchem.BasisSet.Gaussian.PG_Cart.Symmetry;        // StructureToSymPoints, Centroid (+ the SALC pipeline)
 import qchem.BasisSet.Gaussian.Point.IBS;                     // Gaussian::Orbital_1E_IBS::GetAoShells
 
 namespace qchem::BasisSet::Gaussian::PG_Cart

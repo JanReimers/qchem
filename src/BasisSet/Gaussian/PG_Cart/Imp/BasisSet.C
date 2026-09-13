@@ -1,4 +1,4 @@
-// File: BasisSet/Gaussian/Point/PG_Cart/Imp/BasisSet.C  Polarized Gaussian (Cartesian) basis set.
+// File: BasisSet/Gaussian/PG_Cart/Imp/BasisSet.C  Polarized Gaussian (Cartesian) basis set.
 module;
 #include <memory>
 #include <cassert>
@@ -6,7 +6,7 @@ module;
 
 // namespace qchem::BasisSet::Gaussian::PG_Cart{class Reader;} /* g++-15.2 BUG? not handling forward class decs as well as clang++ 20,21*/
 
-module qchem.BasisSet.Gaussian.Point.PG_Cart;
+module qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Point.Reader;
 import qchem.Structure;
 import qchem.Math;

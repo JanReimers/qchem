@@ -45,7 +45,7 @@
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;            // NR_Evaluator (ForShellPairBox is public)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;     // radials / pols / ns
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF; // GetExponents / GetCoeffs / GetCenter
-import qchem.BasisSet.Gaussian.Point.PG_Cart;                           // Orbital_IBS
+import qchem.BasisSet.Gaussian.PG_Cart;                           // Orbital_IBS
 import qchem.Structure;
 import qchem.UnitCell;
 import qchem.Types;

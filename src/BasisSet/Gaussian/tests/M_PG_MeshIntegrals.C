@@ -8,7 +8,7 @@
 #endif
 
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
-import qchem.BasisSet.Gaussian.Point.PG_Cart;
+import qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet;
 import qchem.Structure;
 import qchem.Mesh.Quadrature;           // qcMesh::Overlap + BasisField

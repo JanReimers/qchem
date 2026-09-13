@@ -9,7 +9,7 @@ module;
 module qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Gaussian.Point.Readers.Gaussian94;
 import qchem.BasisSet.Gaussian.Point.BasisFiles;
-import qchem.BasisSet.Gaussian.Point.PG_Cart;
+import qchem.BasisSet.Gaussian.PG_Cart;
 import qchem.BasisSet.Gaussian.Point.PG_Spherical;
 import qchem.BasisSet.Gaussian.Point.PG_LibCint;
 

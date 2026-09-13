@@ -1,6 +1,8 @@
 # src/BasisSet/Gaussian/Point — the G = P (point-group) tier of the Gaussian engine: the molecular IBS
-# mixins, PG_Cart / PG_Spherical / PG_LibCint, the SALC container, the factory and the basis-file readers.
+# mixins, PG_Spherical / PG_LibCint, the SALC container, the factory and the basis-file readers.
 # Modules: qchem.BasisSet.Gaussian.Point.*  (must not import a lattice -- plan step 3 audit).
+# PG_Cart is NOT here: it is the family's raw AO block, the G=1 SEED both constructions act on from outside
+# (SALC induces it to P here; GPW Bloch-sums it to T in ../Lattice), so it carries no G tag -- ../PG_Cart.
 target_sources(qcGaussian_BS PRIVATE
     Imp/Factory.C
     Imp/SymmetryAdaptedBasisSet.C
@@ -15,6 +17,5 @@ target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Reader.C
     Readers/Gaussian94.C
 )
-add_subdirectory(PG_Cart)
 add_subdirectory(PG_Spherical)
 add_subdirectory(PG_LibCint)

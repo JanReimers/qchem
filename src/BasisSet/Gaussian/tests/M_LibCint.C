@@ -15,7 +15,7 @@
 import qchem.BasisSet.Gaussian.Evaluators;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;     // PGData (the IBS IS-A one)
 import qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;        // the evaluator under test
-import qchem.BasisSet.Gaussian.Point.PG_Cart;                           // Orbital_IBS (M&D reference)
+import qchem.BasisSet.Gaussian.PG_Cart;                           // Orbital_IBS (M&D reference)
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
