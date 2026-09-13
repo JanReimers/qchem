@@ -19,6 +19,7 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 | **V1.17** | ✅ `GetSpinDensity` off the base and onto `tSpinResolvedWF<T>`, a data-free cross-cast face on the `tSpinResolved_CD` model; the raw `new` went with it | `95640bca` |
 | **V1.32** | ✅ `IrrepCD<T>` → non-template `FiniteIrrepCD`; three one-live-branch conditionals collapsed, `IrrepHF_PairBase` deleted.  `PeriodicIrrepCD<T>` asked and DECLINED | `9a073f39` |
 | **V1.14** | ✅ both `Emit*()` faces deleted under the USER'S REPORTING RULING (each class reports at its OWN trigger; nobody tells another when); basis built INSIDE the run so shells self-announce.  ⛔ the row's "pulling reporter + toggles on SCFParams" fix was the wrong direction; the `bool&` toggles are the design | `fe78682a` `d5d42fb4` |
+| **V1.12** | ✅ `EnergyBreakdown` → keyed role-tagged contributions + unsummed diagnostics + `ChargeBreakdown` seed; band form reachable (throws where TrDV is not claimed).  User rulings: −TS is an energy; second map OK; roles not prefixes | `e1ac8527` |
 | **V1.2** | ✅ `Orbital_PP_IBS` + the `SpeciesField` vocabulary in qcBasisSet, `Math::Gaussian` in qcMath; the PP models implement the faces; `qcLattice_BS → qcPseudopotential` REMOVED, `qcPseudopotential → qcBasisSet` added.  Bit-identical | `fd7f8099` |
 | **V1.18** | ✅ WIDENED into the density-mixer reorganisation (user code review, 12 points) and executed in SEVEN increments: module split, pure faces, α_eff deleted, adaptive step → one cross-cast method (re-fetch dropped), DM source → provenance seated by the driver, `ΔG_Map` operators, three named factories with param structs, mixers own their field.  ⏳ (g) the PolarizedRunKeepsItsSpin unit test is TE work | `e60087bd`…`ead8bfcb` |
 
@@ -76,13 +77,15 @@ forwarding to its children).
 before choosing: its bounded lifetime reclaims ~6 MB on MnO against a ~500 MB run, so the memory argument is
 weak — the value is a home for the tenants.  **Now unblocked**: the library move is done.
 
-### V1.12 — `EnergyBreakdown`'s 13 public data members
+### V1.12 — ✅ DONE 2026-09-13 (`e1ac8527`) — `EnergyBreakdown`'s 13 public data members
 Two of them are not energies: `GridChargeLost` is a GPW health DIAGNOSTIC (its own comment says so) and
 `MinusTS` is WF-side entropy.  `E_alphaZ` is lattice-only, sitting in a structure-neutral struct.
 
-**Not obvious because** "keyed contributions + a small fixed set of roles for the totals" touches every
-term, every `operator+=`, and every Display — and it wants to happen ONCE, ideally carrying +U's new terms
-in rather than landing just before them.
+**Was not obvious because** "keyed contributions + a small fixed set of roles for the totals" touches every
+term, every `operator+=`, and every Display — it happened ONCE, the user's review supplied the roles and the
+two-number entry (E, Tr(D·V)) that makes the band form reachable, and +U now adds one entry.  ⚠ Two of
+my premises were corrected on the way: −TS IS an energy (dimensions), and a second non-summed map is a
+data-structure choice the reporting ruling does not forbid.
 
 ### V1.33 — the `BasisSet` taxonomy is on the wrong axis
 `src/BasisSet/{Atom, Molecule, Lattice_3D}` classifies by PHYSICAL SYSTEM; the contents are classified by

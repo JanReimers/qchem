@@ -19,6 +19,66 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-09-13 — V1.12 `e1ac8527`: `EnergyBreakdown` — keyed contributions with ROLES, diagnostics apart
+
+**Measured before designing:** of the 13 public doubles, EIGHT summed to the total (`Kinetic Enn E_alphaZ Een
+Eee Exc RestMass MinusTS`), FIVE were diagnostics that must NOT be summed (`EenNL` ⊂ `Een`; the Dunlap
+`*Fit*` pieces, whose combination `Eee` already carries) and ONE was not an energy (`GridChargeLost`).  So a
+bare `map<string,double>` with "Etotal = Σ entries" would have been WRONG on day one -- the design question
+was the roles.
+
+- **V1.12 (the row as agreed, executed the same day).  `EnergyBreakdown` — 13 public data members.**
+  Measured: of the 13, EIGHT are contributions that SUM to the total (`Kinetic Enn E_alphaZ Een Eee Exc
+  RestMass MinusTS`), FIVE are diagnostics that must NOT be summed (`EenNL` is a SUBSET of `Een`; the four
+  Dunlap `*Fit*` pieces -- `Eee` already carries the combination), and ONE is not an energy (`GridChargeLost`).
+  **THE USER'S RULINGS:** (1) −TS *is* an energy (dimensions) -- a contribution, my "WF-side" tag was
+  provenance not kind; (2) `GridChargeLost` belongs in a `ChargeBreakdown {N, ρ↑, ρ↓, lost, atoms{ρᵢ↑,ρᵢ↓,mᵢ}}`
+  -- and "Grid" names a MECHANISM, which a data structure must not carry; ★ that struct is the OBSERVABLE OWNER
+  R1.0h's `SiteMoments` tenant has been waiting for, so two rows close on it; (3) keyed contributions, each
+  term inserting under a unique name -- relativistic terms, Ecorr+Eex vs Exc, +U all just add entries;
+  (4) a SECOND map of diagnostics that are NOT summed is fine (the term still decides whether to put them in
+  the run report -- this is a data-structure choice, not a class telling another when to emit); (5) the
+  band form Σfᵢεᵢ + corrections must be reachable; (6) potential-energy sums by ROLE, not by name prefix.
+
+  **THE SHAPE:** `EnergyTerm {E, optional TrDV, EnergyRole}` with `EnergyRole {Kinetic, Potential, Constant,
+  RestMass, Entropy}`; `EnergyBreakdown::Add(name, E, role, TrDV)` merges by name (+=); `GetTotalEnergy()` = ΣE;
+  `GetPotentialEnergy()` = Σ{Potential,Constant} (the virial's denominator, as today); `GetElectronicEnergy()`
+  = Σ{Kinetic,Potential} (as today); `GetBandEnergy(Σfε)` = Σfε + Σ(E − TrDV), which THROWS naming the first
+  term whose TrDV is absent -- Kinetic's correction is identically 0 so the band form never evaluates ⟨T⟩.
+  `TrDV` is filled where it is FREE (linear terms: =E; J/K: 2E; constants/entropy: 0) and left absent for the
+  fitted Hartree and the XC terms, where Tr(D_out·V[ρ_in]) under density mixing is the Harris–Foulkes
+  subtlety and is not to be guessed.  `AddDiagnostic(name, v)` / `Diagnostic(name)` for the five.
+  `ChargeBreakdown charge {lost}` seeds ruling (2) on the existing transport (the PW XC term writes it,
+  the trace reads it); growing it into the site-moment owner is R1.0h's job.  Insertion-ordered so Display
+  reads in term order; `operator[]("Exc")` for the ~226 reads.  Physically bit-identical.
+
+### WHAT LANDED
+
+`EnergyRole {Kinetic, Potential, Constant, RestMass, Entropy}`; `EnergyTerm {E, optional TrDV, role}`;
+`EnergyBreakdown::Add` (merge by name, ONE role per name -- throws otherwise), `AddDiagnostic`,
+`operator[]`, `Diagnostic()`, `Has()`, the four role-sum totals (same values as before, by construction), and
+`GetBandEnergy(Σfε)`.  `ChargeBreakdown charge {lost}` replaces `GridChargeLost` on the existing transport.
+Insertion-ordered, so `Display` prints in term order and needs no per-member lines.  Three unit tests in
+`UTHamiltonian` (the FIRST tests this struct has ever had).
+
+**The writers (20 sites), each with its free `TrDV`:** Kinetic/DiracKinetic/Ven/PP_Local/PP_NonLocal/
+Ven_PP_Short/Long/NonLocal/RestMass: linear ⇒ `TrDV=E`; Vee/Vxc (HF J/K): `2E`; IonIon `Enn`, `E_alphaZ`
+(the dropped G=0 is in no eigenvalue) and `MinusTS`: `0`; FittedVee, FittedVxc, FittedVcorrPol, PW Hartree,
+the three PW XC sites: **absent** -- under density mixing their expectation in the Fock is
+\f$\mathrm{Tr}(D_{out}V[\rho_{in}])\f$, the Harris–Foulkes subtlety, and guessing \f$2E\f$ / \f$\int\rho v_{xc}\f$
+would make the band form silently evaluate a DIFFERENT functional.  ⇒ today `GetBandEnergy` throws on every
+DFT run and works on HF/1-e runs; wiring the mixed-density expectations is the follow-on that makes the
+band form live for DFT, and it is a per-term physics decision, not plumbing.
+
+**Two lessons for the next mechanical rewrite:** (1) a member-name regex hits MODULE NAMES
+(`qchem.Hamiltonian.Internal.Kinetic` → `…["Kinetic"]`) -- exclude `module`/`import` lines first; (2) it
+hits other structs with the same member (`XCProbe::Exc`, a test-local `R.Exc`) -- the compiler catches them,
+but list the struct-typed variables and revert them in one pass rather than one error at a time.
+
+Physically bit-identical.  854/854 under `scripts/memsafe ctest -j8`.
+
+---
+
 ## LANDED 2026-09-13 — V1.2 `fd7f8099`: `Orbital_PP_IBS`, the species-field integral service — the PP edge reversed
 
 *(The 2026-08-05 feasibility probe is the appendix at the end of this file; it HELD against the 2026-09-13

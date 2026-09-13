@@ -2188,12 +2188,13 @@ MnO campaign proceeds undisturbed in qchem6.
   prerequisites are DONE.**  *Residue (user catch, 2026-08-17): the landed policy is still a
   mode-flag-configured CONCRETE, not D1's abstract interface — the Policy/State split that finishes it is
   filed as **R2.21** (liked, deferred).*
-- **V1.12 `EnergyBreakdown` — 13 public data members (OCP+SRP).**  Every new term family edits the
-  struct + totals + `op+=` + Display; `GridChargeLost` is a GPW health DIAGNOSTIC ("not an energy",
-  its own comment) and `MinusTS` is WF-side entropy — both riding the energy value object; also
-  lattice-only `E_alphaZ` in the neutral struct.  Candidate: keyed contributions + a small fixed
-  set of roles for the totals; move GridChargeLost to the run report/IterationTrace (which already
-  carries it).
+- **V1.12 ✅ DONE 2026-09-13 `e1ac8527`. `EnergyBreakdown` — keyed, role-tagged contributions + a map of
+  unsummed diagnostics + a `ChargeBreakdown` seed.**  `Add(name, E, role, TrDV)` merges by name; totals are
+  ROLE sums; `GetBandEnergy(Σfε)` = Σfε + Σ(E − TrDV) with TrDV filled only where free (throws naming the
+  term otherwise).  User rulings: −TS is an energy; a second non-summed map is fine; roles not prefixes;
+  "Grid" names a mechanism.  +U adds `"E_U"` and touches nothing.  Bit-identical, 854/854 (+3 unit tests).
+  ⏳ growing `ChargeBreakdown` into the site-moment owner = R1.0h.  **→ doc/CleanupHistory.md**
+
 - **V1.13 ✅ DONE 2026-08-07 — executed as the compiler-verified DELETION R2.6 made possible.  **→ doc/CleanupHistory.md**
 - **V1.14 ✅ DONE 2026-09-11 `fe78682a` + `d5d42fb4` — report-emission creep on neutral faces.**  Both live
   `Emit*()` faces DELETED under the user's reporting ruling (each class reports at its OWN activity; a class
