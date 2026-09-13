@@ -24,11 +24,9 @@ struct MixSignals { double E=0.0, FD=0.0, FDold=0.0; };
 //! The density-face of SCF convergence.  The SCFIterator calls, per fixed-point iteration:
 //!   working = fresh diagonalised density (already made the lineage head by the iterator)
 //!   dρ = Mix(working, old);            // fold rho_out into the running density
-//!   ... iterator computes E, [F,D] ...
-//!   if (WantsReDamp(sig)) { iterator reseats working->fresh; dρ = ReDampMix(working, old); recompute E; }
-//!   UpdateRelax(sig);
-//! and drives the next Fock from FockDensity(working).  A non-adaptive mixer takes the no-op defaults for the
-//! three adaptive hooks.
+//! and drives the next Fock from FockDensity(working).  A mixer whose step size ADAPTS to the loop's
+//! signals additionally implements tAdaptiveMixer (below) -- a capability face, reached by cross-cast, so a
+//! fixed-step mixer carries nothing for it.
 template <class T> class tDensityMixer
 {
 public:
@@ -61,12 +59,26 @@ public:
     virtual double GetRelax() const = 0;
     //! A 3-char self-identifier for the per-iteration ρ_mix column (doc/GPWPlan1.md item 2).
     virtual const char* Tag() const = 0;
-    //! Adaptive [F,D]-keyed policy (the D-mixer's; no-op elsewhere).  Post-energy re-damp on divergence.
-    virtual bool   WantsReDamp(const MixSignals&) const { return false; }
-    //! Re-mix \a working (already reseated to the fresh density by the iterator) more aggressively; ‖Δρ‖.
-    virtual double ReDampMix(cd_t& /*working*/, const cd_t& /*old*/) { return 0.0; }
-    //! Grow/clamp the step for the next iteration.
-    virtual void   UpdateRelax(const MixSignals&) {}
+};
+
+//! \brief Capability face: a mixer whose STEP SIZE adapts to the loop's signals.  Only the linear D-mixer has
+//! it (its [F,D]-keyed α), so it lives here and not on tDensityMixer -- the iterator cross-casts ONCE when
+//! it builds the mixer, and a fixed-step mixer implements nothing.
+//!
+//! This replaced three defaulted hooks (WantsReDamp / ReDampMix / UpdateRelax, V1.18) whose choreography
+//! had the ITERATOR rebuilding ρ_out from the wave function so the mixer could re-mix it -- unnecessary,
+//! because the mix is LINEAR: the re-damped density is reachable from the already-mixed one (see
+//! LinearMixer::Adapt).  The energy recompute stays the iterator's: a mixer is not an energy service, it
+//! just says whether it changed the density under the caller's feet.
+template <class T> class tAdaptiveMixer
+{
+public:
+    typedef tMixableDensity<T> cd_t;
+    virtual ~tAdaptiveMixer() {}
+    //! POST-ENERGY hook, once this step's E and [F,D] are known.  May RE-MIX \a working with a smaller step;
+    //! returns true when it did, with \a dRho the new convergence gate -- the caller must then recompute
+    //! whatever it derived from \a working.  Either way, sets the step for the NEXT iteration.
+    virtual bool Adapt(const MixSignals&, cd_t& working, const cd_t& old, double& dRho) = 0;
 };
 
 //=========================================================================================================

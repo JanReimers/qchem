@@ -304,6 +304,7 @@ private:
     //! time \c Iterate runs -- we deep-copy it here (periodic path only) so the Kerker mixer has a live cell.
     std::shared_ptr<const Structure> itsKerkerCell;
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>> itsMixer;  //!< the density-face concrete for this run
+    qchem::ChargeDensity::tAdaptiveMixer<T>* itsAdaptive=nullptr;      //!< its step-adapting face, if it has one (cross-cast once)
     // The two loop-face concretes (stateless).  Iterate selects one per macro-iteration by the accelerator's
     // WantsLineSearch() and dispatches Step() -- virtual dispatch in place of the old mode `if`.
     FixedPointDriver<T> itsFixedDriver;

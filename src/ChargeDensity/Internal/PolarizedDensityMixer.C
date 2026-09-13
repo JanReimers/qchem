@@ -210,15 +210,7 @@ public:
     }
     double      GetRelax() const override { return itsUp->GetRelax(); }
     const char* Tag     () const override { return itsUp->Tag(); }   // the trace reports the LEAF recipe
-    bool   WantsReDamp(const MixSignals& s) const override
-    { return itsUp->WantsReDamp(s) || itsDn->WantsReDamp(s); }        // either channel asking is enough
-    double ReDampMix(cd_t& working, const cd_t& old) override
-    {
-        auto [wu,wd]=Channels(working);
-        auto [ou,od]=Channels(old);
-        return std::max(itsUp->ReDampMix(*wu,*ou), itsDn->ReDampMix(*wd,*od));
-    }
-    void UpdateRelax(const MixSignals& s) override { itsUp->UpdateRelax(s); itsDn->UpdateRelax(s); }
+    // (No adaptive hooks: the leaves are G-space mixers, none of which adapts its step -- V1.18.)
     //! Split the polarized deposit into its two channels for the leaves.  ALIASING shared_ptrs: each channel
     //! pointer keeps the PARENT density alive while pointing at the child, which is exactly the ownership the
     //! channel accessors (raw, non-owning) cannot express on their own.  Note this is the one place where

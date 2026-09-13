@@ -274,6 +274,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     // Kerker ρ̃-mixing when KerkerG0>0 AND the basis/cell/seed are periodic, else linear D-mixing.
     // α=StartingRelaxRo (1.0 default = passthrough -- there is no NullMixer).
     itsMixer = CreateMixer(ipar, itsBS, itsKerkerCell.get(), itsCD.get());
+    itsAdaptive = dynamic_cast<qchem::ChargeDensity::tAdaptiveMixer<T>*>(itsMixer.get());   // null = fixed step
 
     // The order parameter at the STARTING point (the seed's diagonalized density, "iteration 0") -- the
     // reference every later value is judged against.  A probe that already reads ~0 here means the SEED never
@@ -296,7 +297,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                            [this](double e,double tol){ return DirectMinStep(e,tol); } };
         // Direct-min (GDM/OT) OWNS the density update via its geodesic line search, so it must DISABLE the
         // density mixer entirely -- both the per-step Mix() (already: DirectMinDriver never calls it) AND the
-        // post-step adaptive re-damp/UpdateRelax below (a LinearMixer's WantsReDamp would otherwise re-mix
+        // post-step adaptive re-mix below (an adaptive mixer would otherwise re-mix
         // AFTER a geodesic step, corrupting it).  One query drives the driver choice, the mixer bypass, and
         // the honest ρ_mix="----" display.  CanLineSearch() gates the ACTUALITY: a minimizer that WantsLineSearch
         // but is not yet READY (still seeding, or [F,D] above its FDMax engage threshold) takes a MIXED
@@ -348,20 +349,20 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             prevConfig=std::move(config);
         }
         if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange, order, eb});
-        // Adaptive [F,D]-keyed density-mixing policy (LinearMixer only; Kerker takes the no-op defaults).  The
-        // re-damp re-fetches the fresh density + recomputes the energy -- the density LIFECYCLE stays here.
-        // SKIPPED under direct-min: GDM/OT own the density update, so no post-step re-mix (see lineSearch above).
-        if (!lineSearch && itsMixer->WantsReDamp({E,FD,FDold}))
+        // A mixer that ADAPTS its step (the linear D-mixer's [F,D]-keyed α) is told this step's signals and may
+        // re-mix the working density under us -- then the energy is recomputed HERE (the mixer is not an
+        // energy service).  No second density build any more: the re-mix is algebraic on the mixed density
+        // (LinearMixer::Adapt).  SKIPPED under direct-min: GDM/OT own the density update (see lineSearch).
+        if (!lineSearch && itsAdaptive)
         {
-            // A SECOND density build + a SECOND energy in the same iteration -- so this branch doubles the
-            // per-iteration cost whenever it fires, and how often it fires is a policy decision nobody has
-            // ever been able to price.  (TotalEnergy keeps its own bucket; this one is the rest.)
-            qchem::report::Timed timed("scf: adaptive re-damp (density rebuild + re-mix)");
-            SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
-            ChargeDensityChange = itsMixer->ReDampMix(*itsCD, *itsOldCD);
-            eb=TotalEnergy(itsCD.get());
+            double d=ChargeDensityChange;
+            if (itsAdaptive->Adapt({E,FD,FDold}, *itsCD, *itsOldCD, d))
+            {
+                qchem::report::Timed timed("scf: adaptive re-damp (re-mix + second energy)");
+                ChargeDensityChange=d;
+                eb=TotalEnergy(itsCD.get());
+            }
         }
-        if (!lineSearch) itsMixer->UpdateRelax({E,FD,FDold});
 
         // Eoldold=Eold;
         Eold=E;
