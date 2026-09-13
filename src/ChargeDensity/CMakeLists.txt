@@ -12,6 +12,7 @@ target_sources(qcChargeDensity PRIVATE
     Imp/SeedCD.C
     Imp/FourierMixCD.C
     Imp/DensityMixer.C                    # the mixer factories (the one unit that names the concretes)
+    Internal/Imp/FieldMixer.C             # KerkerStep (the field algebra's one non-inline body)
     Imp/DensitySampler.C                  # the factory (public module's own Imp unit)
     Internal/Imp/DensitySampler_Singles.C
     Internal/Imp/DensitySampler_Pair.C

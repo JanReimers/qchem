@@ -13,6 +13,7 @@ module;
 export module qchem.ChargeDensity.Internal.FieldMixer;
 export import qchem.ChargeDensity.FourierDensity;         // FourierDensity, ΔG_Map + its field algebra (Projector3)
 export import qchem.ChargeDensity.FourierMixCD;           // FourierMixCD (the field's PRESENTATION as a density)
+export import qchem.ReciprocalLattice;                    // KerkerStep's |G|
 import qchem.BasisSet.G_FieldEvaluator;            // G_SpectralFilter: the raster Kerker step (0.5(f2))
 import qchem.Math.DIIS;                             // the shared Pulay/DIIS bordered-solve engine
 import qchem.Blaze;                                 // rsmat_t/rvec_t/ivec3_t + blazem::zero
@@ -55,6 +56,38 @@ struct GField
     rvec_t raster;   //!< the raw-raster shadow (doc/GPWPlan 0.5(f2)); empty = the raw pipeline is off
 };
 
+//! The result of ONE Kerker step on a field: the mixed map, plus the two pieces of PROVENANCE the mixed
+//! density's presentation carries for XC (see \c cDM_Sourced_CD): the N4 correction map (empty unless asked
+//! for) and the realized mixing fraction \f$\alpha_{\rm eff}\f$.
+struct KerkerStepResult
+{
+    ΔG_Map mix;              //!< \f$\tilde\rho_{in}+\alpha f_K(\tilde\rho_{out}-\tilde\rho_{in})\f$ over the union of both index sets
+    ΔG_Map corr;             //!< N4: \f$\tilde\rho_{mix}-\tilde\rho_{out}\f$; empty when not formed
+    double alphaEff=0.0;     //!< \f$\lVert\tilde\rho_{mix}-\tilde\rho_{in}\rVert_2/\lVert\tilde\rho_{out}-\tilde\rho_{in}\rVert_2\f$; 0 when converged
+};
+
+//! THE KERKER STEP, a pure function of fields: \f$\tilde\rho_{mix}(G)=\tilde\rho_{in}(G)+\alpha\,\frac{G^2}{G^2+G_0^2}
+//! \,(\tilde\rho_{out}(G)-\tilde\rho_{in}(G))\f$.  \a G0 the Kerker screening wavevector (a.u.\f$^{-1}\f$;
+//! \f$G_0\to0\f$ recovers plain linear mixing).  G=0 is mixed at full α (our ρ̃ is a fit-basis PROJECTION whose
+//! (0,0,0) coefficient is shape-dependent, not the fixed \f$N/\Omega\f$; freezing it strands the XC's mean
+//! density at the seed -- CP2K does the same).  \a withCuspCorrection (N4) also forms \c corr; FALSE leaves the
+//! step bit-identical to its pre-N4 self.  Carries the GPW_KERKER_SPECTRUM residual-spectrum instrument.
+KerkerStepResult KerkerStep(const ΔG_Map& in, const ΔG_Map& out, double alpha, double G0,
+                            const ReciprocalLattice& recip, bool withCuspCorrection=false);
+
+//! Build the PRESENTATION of a mixed field: the FourierMixCD the Fock is driven from, constructed whole from
+//! the field the mixer owns and the step's provenance (never edited afterwards).  The N4 correction, when
+//! formed, is presented as a field of ~ZERO net charge -- it is a difference of two densities of the same N.
+inline std::shared_ptr<FourierMixCD> Present(const GField& f, const ReciprocalLattice& recip, double charge,
+                                             const ΔG_Map& corr=ΔG_Map{}, double alphaEff=0.0)
+{
+    FourierMixCD::Extras x;
+    x.raster=f.raster;
+    if (!corr.empty()) x.xcCorrection=std::make_shared<const FourierMixCD>(corr, recip, 0.0);
+    x.alphaEff=alphaEff;
+    return std::make_shared<FourierMixCD>(f.tilde, recip, charge, std::move(x));
+}
+
 class tFieldExtrapolator;   // the HISTORY face, below
 
 //! A mixer whose subject is a \c GField -- i.e. one that works purely in G space (Kerker, Pulay; NOT the
@@ -66,8 +99,9 @@ public:
     virtual ~tFieldMixer() {}
     //! Fold the freshly collocated \a out into the running mixed field; returns the residual ‖out−in‖_∞.
     virtual double MixField(const GField& out) = 0;
-    //! The running mixed density -- the PRESENTATION of the mixed field (what \c FockDensity returns, and
-    //! what a caller recombining spin channels reads ρ̃ back from).
+    //! The running mixed FIELD -- the mixer's own state (a caller recombining spin channels reads it here).
+    virtual const GField& Field() const = 0;
+    //! ...and its PRESENTATION as a density (what \c FockDensity returns).
     virtual const FourierMixCD& Mixed() const = 0;
     //! \brief DOES THIS MIXER CARRY HISTORY? -- the property that decides whether a multi-channel caller may
     //! run one of these PER CHANNEL.  Returns the staging face (below), or \c nullptr for a memoryless filter.

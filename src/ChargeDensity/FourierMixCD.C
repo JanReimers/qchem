@@ -32,8 +32,9 @@ export namespace qchem::ChargeDensity
 
 //! A periodic density holding a raw \f$\tilde\rho(G)\f$ (a \c ΔG_Map) + the reciprocal lattice (for \f$|G|\f$ and
 //! the Coulomb kernel).  It provides the \c FourierDensity face (metric-free: the map IS the density), so the
-//! plane-wave Hartree/XC terms drive a Fock build from it exactly as from the SAD seed.  The Kerker-preconditioned
-//! mix of an input (\a in) and a freshly collocated output (\a out) is \c KerkerMix.
+//! plane-wave Hartree/XC terms drive a Fock build from it exactly as from the SAD seed.  The mixing ALGEBRA is
+//! not here: a G-space mixer owns its running field and builds one of these as the PRESENTATION of it each
+//! step (Internal/FieldMixer.C: KerkerStep).
 class FourierMixCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual FourierDensity
@@ -41,21 +42,24 @@ class FourierMixCD
     , public virtual cDM_SourceSink   //!< ...and the write side the loop driver seats it through (V1.18)
 {
 public:
+    //! What a MIXED presentation carries beyond its \f$\tilde\rho(G)\f$: the raw-raster shadow (doc/GPWPlan
+    //! 0.5(f2); empty = the raw pipeline is off) and the two pieces of PROVENANCE XC reads through
+    //! \c cDM_Sourced_CD -- the N4 cusp-deficit correction field (null = none formed) and the realized mixing
+    //! fraction \f$\alpha_{\rm eff}\f$ (0 = unmixed).  All supplied at CONSTRUCTION: this class is a
+    //! presentation of a field the MIXER owns, and it is never edited after it is built (V1.18 -- the old
+    //! SetRawRho / RhoTilde / static KerkerMix trio was a get/compute/set straddle across the two).
+    struct Extras
+    {
+        rvec_t raster;
+        std::shared_ptr<const FourierMixCD> xcCorrection;
+        double alphaEff=0.0;
+    };
+
     //! Wrap a \f$\tilde\rho(G)\f$ map (\a rhoTilde) with its reciprocal lattice \a recip and the density's total
     //! \a charge (N -- passed explicitly since the fit-projection \f$\tilde\rho(0)\f$ is NOT \f$N/\Omega\f$; it is
-    //! shape-dependent).  Takes the map by value (moved in).
+    //! shape-dependent).  Takes the map by value (moved in).  The plain form is a seed / unmixed field.
     FourierMixCD(ΔG_Map rhoTilde, ReciprocalLattice recip, double charge);
-
-    //! Kerker mix: \f$\tilde\rho_{mix}(G)=\tilde\rho_{in}(G)+\alpha\,\frac{G^2}{G^2+G_0^2}\,(\tilde\rho_{out}(G)
-    //! -\tilde\rho_{in}(G))\f$.  \a in supplies \f$\tilde\rho_{in}\f$ + the lattice/volume; \a out is the freshly
-    //! collocated \f$\tilde\rho_{out}\f$ (from the diagonalized D).  \a alpha is the linear mixing fraction,
-    //! \a G0 the Kerker screening wavevector (a.u.\f$^{-1}\f$; \f$G_0\!\to\!0\f$ recovers plain linear mixing).
-    //! The caller owns the returned heap object.
-    //! \a withCuspCorrection (N4) additionally deposits \f$\tilde\rho_{mix}-\tilde\rho_{out}\f$ as
-    //! \c XCCorrection().  FALSE leaves this function bit-identical to its pre-N4 self and forms no
-    //! correction at all -- the CP2K-conforming path.
-    static FourierMixCD* KerkerMix(const FourierMixCD& in, const ΔG_Map& out, double alpha, double G0,
-                                   bool withCuspCorrection=false);
+    FourierMixCD(ΔG_Map rhoTilde, ReciprocalLattice recip, double charge, Extras extras);
 
     // --- FourierDensity: the map IS the density (metric-free), like SeedCD ---
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const override;  //!< the overlap projection = rho-tilde
@@ -70,7 +74,6 @@ public:
         if (itsScale!=1.0) for (size_t q=0;q<r.size();q++) r[q]*=itsScale;
         return r;
     }
-    void SetRawRho(rvec_t raw) {itsRhoRaw=std::move(raw);}   //!< mixer-side deposit (empty = raw pipeline off)
 
     // --- cDM_Sourced_CD / cDM_SourceSink: the DM-backed density this field was mixed FROM ---
     //! Seated by the loop driver after the mix that built this field (provenance -- see the face; the
@@ -103,8 +106,6 @@ public:
     virtual double  GetTotalCharge() const override {return itsScale*itsCharge;}
     virtual size_t  Version()        const override {return itsVersion;}
     virtual void    ReScale(double factor) override;
-
-    const ΔG_Map& RhoTilde() const {return itsRho;}   //!< the raw rho-tilde(G) (for the next mix / diagnostics)
 
 private:
     ΔG_Map            itsRho;      //!< rho-tilde(G) coefficients (keyed by the integer difference index dm)

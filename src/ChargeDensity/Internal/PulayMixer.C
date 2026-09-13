@@ -21,8 +21,8 @@ export namespace qchem::ChargeDensity
 //! PULAY (density-DIIS) ρ̃-mixing, Kerker-preconditioned (periodic / dcmplx).  Keeps a history of the fed
 //! densities ρ̃_in and the freshly collocated ρ̃_out; each step solves the DIIS bordered system (the shared
 //! qchem.Math.DIIS engine) over the residuals ρ̃_out−ρ̃_in for the optimal coefficients c (Σc=1), forms the
-//! extrapolated ρ̃_in*=Σcᵢρ̃_inᵢ and ρ̃_out*=Σcᵢρ̃_outᵢ, and applies the Kerker step to THOSE via FourierMixCD::
-//! KerkerMix (= ρ̃_in* + α·G²/(G²+G0²)·(ρ̃_out*−ρ̃_in*)).  First iteration (history<2) falls back to plain
+//! extrapolated ρ̃_in*=Σcᵢρ̃_inᵢ and ρ̃_out*=Σcᵢρ̃_outᵢ, and applies the Kerker step to THOSE (KerkerStep:
+//! ρ̃_in* + α·G²/(G²+G0²)·(ρ̃_out*−ρ̃_in*)).  First iteration (history<2) falls back to plain
 //! Kerker.  doc/SCFStrategyPlan.md §4 (the density-face use of the shared extrapolator).
 //!
 //! On a POLARIZED run one of these mixes each channel, but they SHARE one extrapolation: the step is split
@@ -33,21 +33,23 @@ export namespace qchem::ChargeDensity
 class PulayMixer : public tDensityMixer<dcmplx>, public virtual tFieldExtrapolator
 {
 public:
+    //! \a seed0 is the running field's starting value (read off the seed density by the factory); presented
+    //! at once so iteration 0's Fock has a density to be driven from.
     PulayMixer(double relax, double G0, int depth, int start, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
-               ReciprocalLattice recip, ΔG_Map rho0, double charge, rvec_t raw0)
+               ReciprocalLattice recip, GField seed0, double charge)
         : itsRelax(relax), itsKerkerG0(G0), itsDepth(depth), itsStart(start), itsKerkerFit(std::move(fit))
-        , itsRecip(recip), itsCharge(charge)
-        , itsMixedRho(std::make_shared<FourierMixCD>(std::move(rho0), recip, charge))
-        , itsRawIn(std::move(raw0))
-    { if (itsRawIn.size()) itsMixedRho->SetRawRho(itsRawIn); }
+        , itsRecip(recip), itsCharge(charge), itsIn(std::move(seed0))
+        , itsMixedRho(Present(itsIn, itsRecip, itsCharge))
+    {}
 
     //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
     double Mix(cd_t& working, const cd_t&) override
     {
         auto* fd = dynamic_cast<const FourierDensity*>(&working);
-        assert(fd && itsMixedRho);
+        assert(fd);
         return MixField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
     }
+    const GField&       Field() const override { return itsIn; }
     const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
 
     //! The single-channel step: stage, solve MY OWN B, apply.  Exactly \c MixJointly over one channel -- and
@@ -61,19 +63,18 @@ public:
     //! is committed here -- the pending (in,out) pair is held for \c ApplyJoint.
     StagedResidual StageResidual(const GField& field) override
     {
-        assert(itsMixedRho);
         assert(!itsStaged && "PulayMixer: StageResidual twice with no ApplyJoint between");
         const ΔG_Map& out    = field.tilde;
         const rvec_t& rawOut = field.raster;
-        ΔG_Map in  = itsMixedRho->RhoTilde();               // ρ̃_in : the density fed to this iteration's Fock
+        ΔG_Map in  = itsIn.tilde;                           // ρ̃_in : the field fed to this iteration's Fock
         ΔG_Map res = out-in;                                // residual = ρ̃_out − ρ̃_in
         StagedResidual sr;
         sr.resid = MaxAbs(res);
         // RAW-raster shadow inputs (0.5(f2)); late-activates like KerkerMixer, drops out if answers stop.
         const bool raw = rawOut.size() && RasterEvaluator();
-        if (raw && itsRawIn.size()!=rawOut.size()) itsRawIn=rawOut;                    // bootstrap/late-activate
-        if (!raw) { itsRawIn=rvec_t{}; itsRawIns.clear(); itsRawOuts.clear(); }
-        itsPending = Pending{in, out, itsRawIn, rawOut, raw};   // rawIn = the shadow of `in`, before the update
+        if (raw && itsIn.raster.size()!=rawOut.size()) itsIn.raster=rawOut;            // bootstrap/late-activate
+        if (!raw) { itsIn.raster=rvec_t{}; itsRawIns.clear(); itsRawOuts.clear(); }
+        itsPending = Pending{in, out, itsIn.raster, rawOut, raw};   // rawIn = the shadow of `in`, before the update
         itsStaged  = true;
 
         // PRIME with plain Kerker until we are near the fixed point (history-based mixing is unstable far
@@ -119,13 +120,12 @@ public:
                 rawOutStar=c[0]*itsRawOuts[0]; for (size_t i=1;i<c.size();++i) rawOutStar+=c[i]*itsRawOuts[i];
             }
         }
-        FourierMixCD inStarCD(inStar,itsRecip,itsCharge);  // Kerker step on the DIIS-extrapolated pair
-        itsMixedRho.reset(FourierMixCD::KerkerMix(inStarCD,outStar,itsRelax,itsKerkerG0));
-        if (p.raw)
-        {
-            itsRawIn=RasterKerker(*RasterEvaluator(), rawInStar, rawOutStar, itsRelax, itsKerkerG0);
-            itsMixedRho->SetRawRho(itsRawIn);
-        }
+        // THE MIXER OWNS ITS FIELD (V1.18): the Kerker step on the DIIS-extrapolated pair updates itsIn, and
+        // the density the Fock sees is a presentation of the result.
+        KerkerStepResult r = KerkerStep(inStar, outStar, itsRelax, itsKerkerG0, itsRecip);
+        itsIn.tilde = std::move(r.mix);
+        if (p.raw) itsIn.raster = RasterKerker(*RasterEvaluator(), rawInStar, rawOutStar, itsRelax, itsKerkerG0);
+        itsMixedRho = Present(itsIn, itsRecip, itsCharge, r.corr, r.alphaEff);
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
@@ -143,9 +143,9 @@ private:
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
     ReciprocalLattice itsRecip;
     double itsCharge;
-    std::shared_ptr<FourierMixCD> itsMixedRho;
+    GField itsIn;                                          //!< THE running mixed field (+ its raster shadow; empty = off)
+    std::shared_ptr<FourierMixCD> itsMixedRho;             //!< its presentation, rebuilt each step
     std::deque<ΔG_Map> itsIns, itsOuts, itsResiduals;      // the Pulay history (aligned index-wise)
-    rvec_t itsRawIn;                                       //!< the raster shadow of itsMixedRho (empty = off)
     std::deque<rvec_t> itsRawIns, itsRawOuts;              //!< its history (aligned with itsIns while active)
     Pending itsPending;                                    //!< staged, not yet committed
     bool    itsStaged=false;

@@ -1,4 +1,4 @@
-// File: src/ChargeDensity/tests/KerkerMix.C  The Kerker density-mixing preconditioner (FourierMixCD).
+// File: src/ChargeDensity/tests/KerkerMix.C  The Kerker density-mixing preconditioner (KerkerStep on a field).
 //
 // Kerker: rho_mix(G) = rho_in(G) + alpha * f_K(G) * (rho_out(G) - rho_in(G)),  f_K = G^2/(G^2+G0^2) for G!=0.
 // The factor throttles the low-G (charge-transfer) update and passes the high-G detail -- damping the ionic
@@ -10,7 +10,8 @@
 #include <complex>
 #include <stdexcept>
 
-import qchem.ChargeDensity.FourierMixCD;   // FourierMixCD, KerkerMix, ΔG_Map
+import qchem.ChargeDensity.FourierMixCD;         // FourierMixCD, ΔG_Map
+import qchem.ChargeDensity.Internal.FieldMixer;  // KerkerStep (tests may import Internal)
 import qchem.ChargeDensity.Imp.PolarizedCD; // tPolarized_CDImp (tests may import Internal)
 import qchem.ChargeDensity.Imp.IrrepCD;     // FiniteIrrepCD -- a mixable density that is NOT polarized
 import qchem.UnitCell;                      // UnitCell + MakeReciprocalCell
@@ -34,12 +35,12 @@ TEST(KerkerMix, GZeroMixesFullyChargeCarriedExplicitly)
     ΔG_Map in, out;
     in [ivec3_t(0,0,0)] = dcmplx(0.5, 0.0);   // a fit-projection G=0 (NOT N/Omega -- shape-dependent)
     out[ivec3_t(0,0,0)] = dcmplx(0.9, 0.0);   // a DIFFERENT G=0 from the fresh density
-    FourierMixCD seed(in, Recip(a), N);
-    EXPECT_NEAR(seed.GetTotalCharge(), N, 1e-12);
-    std::unique_ptr<FourierMixCD> mix(FourierMixCD::KerkerMix(seed, out, alpha, /*G0*/1.0));
+    const ΔG_Map mix = KerkerStep(in, out, alpha, /*G0*/1.0, Recip(a)).mix;
     // G=0 mixes fully: rho~_mix(0) = 0.5 + 0.7*(0.9-0.5) = 0.78 (would be frozen at 0.5 under PW Kerker).
-    EXPECT_NEAR(std::real(dcmplx(mix->RhoTilde().at(ivec3_t(0,0,0)))), 0.5 + alpha*(0.9-0.5), 1e-12);
-    EXPECT_NEAR(mix->GetTotalCharge(), N, 1e-12);   // charge unchanged by the mix (carried explicitly)
+    EXPECT_NEAR(std::real(dcmplx(mix.at(ivec3_t(0,0,0)))), 0.5 + alpha*(0.9-0.5), 1e-12);
+    // The charge is carried by the PRESENTATION, explicitly -- not by rho~(0), which evolved above.
+    FourierMixCD presented(mix, Recip(a), N);
+    EXPECT_NEAR(presented.GetTotalCharge(), N, 1e-12);
 }
 
 // The interior factor: mix = in + alpha*f_K*(out-in), f_K=|G|^2/(|G|^2+G0^2).  Low-G damped, high-G ~full.
@@ -57,13 +58,12 @@ TEST(KerkerMix, DampsLowGPassesHighG)
     in [ivec3_t(1,0,0)] = dcmplx(0.0,0.0);       out[ivec3_t(1,0,0)] = dcmplx(1.0,0.0);   // update = +1
     in [ivec3_t(8,0,0)] = dcmplx(0.0,0.0);       out[ivec3_t(8,0,0)] = dcmplx(1.0,0.0);   // update = +1
 
-    FourierMixCD seed(in, Recip(a), N);
-    std::unique_ptr<FourierMixCD> mix(FourierMixCD::KerkerMix(seed, out, alpha, G0));
+    const ΔG_Map mix = KerkerStep(in, out, alpha, G0, Recip(a)).mix;
     // mix = 0 + 1.0*f_K*(1-0) = f_K.  Low-G strongly damped, high-G nearly full.
-    EXPECT_NEAR(std::real(dcmplx(mix->RhoTilde().at(ivec3_t(1,0,0)))), fLow,  1e-9);
-    EXPECT_NEAR(std::real(dcmplx(mix->RhoTilde().at(ivec3_t(8,0,0)))), fHigh, 1e-9);
-    EXPECT_LT(std::real(dcmplx(mix->RhoTilde().at(ivec3_t(1,0,0)))),          // low-G update is throttled
-              std::real(dcmplx(mix->RhoTilde().at(ivec3_t(8,0,0)))));         // vs the high-G one
+    EXPECT_NEAR(std::real(dcmplx(mix.at(ivec3_t(1,0,0)))), fLow,  1e-9);
+    EXPECT_NEAR(std::real(dcmplx(mix.at(ivec3_t(8,0,0)))), fHigh, 1e-9);
+    EXPECT_LT(std::real(dcmplx(mix.at(ivec3_t(1,0,0)))),          // low-G update is throttled
+              std::real(dcmplx(mix.at(ivec3_t(8,0,0)))));         // vs the high-G one
 }
 
 // G0 -> 0 recovers plain linear mixing (f_K -> 1 for every G): mix = in + alpha*(out-in).
@@ -72,9 +72,8 @@ TEST(KerkerMix, G0ZeroIsLinearMixing)
     const double a=10.0, N=8.0, alpha=0.5;
     ΔG_Map in, out;
     in [ivec3_t(2,0,0)] = dcmplx(1.0,0.0);       out[ivec3_t(2,0,0)] = dcmplx(3.0,0.0);
-    FourierMixCD seed(in, Recip(a), N);
-    std::unique_ptr<FourierMixCD> mix(FourierMixCD::KerkerMix(seed, out, alpha, /*G0*/0.0));
-    EXPECT_NEAR(std::real(dcmplx(mix->RhoTilde().at(ivec3_t(2,0,0)))), 1.0 + alpha*(3.0-1.0), 1e-12); // 2.0
+    const ΔG_Map mix = KerkerStep(in, out, alpha, /*G0*/0.0, Recip(a)).mix;
+    EXPECT_NEAR(std::real(dcmplx(mix.at(ivec3_t(2,0,0)))), 1.0 + alpha*(3.0-1.0), 1e-12); // 2.0
 }
 
 //---------------------------------------------------------------------------------------

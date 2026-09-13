@@ -263,13 +263,10 @@ private:
     //! FourierMixCD is what carries the batch evaluator, the Poisson kernel and a fresh logical-clock serial.
     void RebuildChannels(double qUp, double qDn) const
     {
-        const ΔG_Map& r=itsAF->Mixed().RhoTilde();
-        const ΔG_Map& m=itsBF->Mixed().RhoTilde();
-        itsChUp=std::make_shared<FourierMixCD>(0.5*(r+m), itsRecip, qUp);
-        itsChDn=std::make_shared<FourierMixCD>(0.5*(r-m), itsRecip, qDn);
-        const rvec_t rr=itsAF->Mixed().GetRhoOnGrid(*itsFit), mm=itsBF->Mixed().GetRhoOnGrid(*itsFit);
-        if (rvec_t u=RawCombine(rr,mm,+1.0,0.5); u.size()) itsChUp->SetRawRho(std::move(u));
-        if (rvec_t d=RawCombine(rr,mm,-1.0,0.5); d.size()) itsChDn->SetRawRho(std::move(d));
+        const GField& r=itsAF->Field();   // the leaves' own fields -- read, never edited (V1.18)
+        const GField& m=itsBF->Field();
+        itsChUp=Present(GField{0.5*(r.tilde+m.tilde), RawCombine(r.raster,m.raster,+1.0,0.5)}, itsRecip, qUp);
+        itsChDn=Present(GField{0.5*(r.tilde-m.tilde), RawCombine(r.raster,m.raster,-1.0,0.5)}, itsRecip, qDn);
         itsFock.Seat(itsChUp.get(), itsChDn.get());
     }
     std::unique_ptr<tDensityMixer<dcmplx>> itsUp, itsDn;

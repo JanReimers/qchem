@@ -124,9 +124,8 @@ std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams& p,
                           std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip)
     {
         Banner("Kerker", label, G0, charge, seed0);
-        auto mixed = std::make_shared<FourierMixCD>(std::move(seed0.tilde), recip, charge);
         return std::unique_ptr<tDensityMixer<dcmplx>>(
-            std::make_unique<KerkerMixer>(p.relax, G0, std::move(fit), std::move(mixed), std::move(seed0.raster), p.cuspDeficit));
+            std::make_unique<KerkerMixer>(p.relax, G0, std::move(fit), recip, std::move(seed0), charge, p.cuspDeficit));
     };
     return ComposePeriodic(p, "Kerker", basis, cell, seed, leaf);
 }
@@ -146,7 +145,7 @@ std::unique_ptr<tDensityMixer<dcmplx>> PulayMixerFactory(const PulayParams& p, c
         Banner("Pulay", label, G0, charge, seed0);
         return std::unique_ptr<tDensityMixer<dcmplx>>(
             std::make_unique<PulayMixer>(p.relax, G0, p.depth, p.start, std::move(fit), recip,
-                                         std::move(seed0.tilde), charge, std::move(seed0.raster)));
+                                         std::move(seed0), charge));
     };
     return ComposePeriodic(p, "Pulay", basis, cell, seed, leaf);
 }

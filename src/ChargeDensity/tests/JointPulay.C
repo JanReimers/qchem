@@ -24,7 +24,7 @@
 
 import qchem.ChargeDensity.Internal.PulayMixer;    // PulayMixer (+ GField, MixJointly via FieldMixer) -- tests may import Internal
 import qchem.ChargeDensity.Internal.KerkerMixer;   // KerkerMixer
-import qchem.ChargeDensity.FourierMixCD;   // FourierMixCD::RhoTilde
+import qchem.ChargeDensity.FourierMixCD;   // FourierMixCD
 import qchem.UnitCell;                     // UnitCell + MakeReciprocalCell
 import qchem.ReciprocalLattice;            // ReciprocalLattice
 import qchem.Math.DIIS;                    // the bordered solve (the reference's own calls)
@@ -134,7 +134,7 @@ struct Reference
 
 std::unique_ptr<PulayMixer> MakePulay(const ReciprocalLattice& r, const ΔG_Map& seed, double charge)
 {   // alpha=1, G0=0 (filter == 1), depth 8, start 0 (no priming); no fit basis => no raw-raster shadow.
-    return std::make_unique<PulayMixer>(1.0, 0.0, 8, 0, nullptr, r, seed, charge, rvec_t{});
+    return std::make_unique<PulayMixer>(1.0, 0.0, 8, 0, nullptr, r, GField{seed, rvec_t{}}, charge);
 }
 
 } //namespace
@@ -152,15 +152,15 @@ TEST(JointPulay, OneHistoryOverBothChannels)
     for (size_t k=0;k<t.Steps();++k)
     {
         MixJointly({up.get(),dn.get()}, {GField{t.up[k],rvec_t{}}, GField{t.dn[k],rvec_t{}}});
-        EXPECT_LT(MaxDiff(up->Mixed().RhoTilde(), ref.mixedUp[k]), 1e-12) << "up channel, step " << k;
-        EXPECT_LT(MaxDiff(dn->Mixed().RhoTilde(), ref.mixedDn[k]), 1e-12) << "dn channel, step " << k;
+        EXPECT_LT(MaxDiff(up->Field().tilde, ref.mixedUp[k]), 1e-12) << "up channel, step " << k;
+        EXPECT_LT(MaxDiff(dn->Field().tilde, ref.mixedDn[k]), 1e-12) << "dn channel, step " << k;
     }
     // The moment of the extrapolated state is the SAME combination of history moments as the density.
     const rvec_t& c=ref.cUp.back();
     ASSERT_EQ(c.size(), t.Steps());
     std::vector<ΔG_Map> moments;
     for (size_t i=0;i<t.Steps();++i) moments.push_back(Sub(t.up[i],t.dn[i]));
-    EXPECT_LT(MaxDiff(Sub(up->Mixed().RhoTilde(), dn->Mixed().RhoTilde()), Combine(moments,c)), 1e-12);
+    EXPECT_LT(MaxDiff(Sub(up->Field().tilde, dn->Field().tilde), Combine(moments,c)), 1e-12);
 }
 
 // THE DEFECT, kept measurable: one PulayMixer per channel driven independently (MixField, the single-channel
@@ -177,8 +177,8 @@ TEST(JointPulay, SplitHistoryFitsDifferentCoefficientsAndMovesTheMoment)
     {
         up->MixField(GField{t.up[k],rvec_t{}});          // the single-channel path: stage, solve MY B, apply
         dn->MixField(GField{t.dn[k],rvec_t{}});
-        EXPECT_LT(MaxDiff(up->Mixed().RhoTilde(), split.mixedUp[k]), 1e-12) << "up channel, step " << k;
-        EXPECT_LT(MaxDiff(dn->Mixed().RhoTilde(), split.mixedDn[k]), 1e-12) << "dn channel, step " << k;
+        EXPECT_LT(MaxDiff(up->Field().tilde, split.mixedUp[k]), 1e-12) << "up channel, step " << k;
+        EXPECT_LT(MaxDiff(dn->Field().tilde, split.mixedDn[k]), 1e-12) << "dn channel, step " << k;
     }
     // The two fits genuinely disagree on this trajectory...
     const rvec_t &cu=split.cUp.back(), &cd=split.cDn.back();
@@ -186,7 +186,7 @@ TEST(JointPulay, SplitHistoryFitsDifferentCoefficientsAndMovesTheMoment)
     double dc=0.0; for (size_t i=0;i<cu.size();++i) dc=std::max(dc,std::fabs(cu[i]-cd[i]));
     EXPECT_GT(dc, 1e-3) << "the trajectory is not asymmetric enough to exercise the defect";
     // ...and the moment they synthesise is NOT the one a single fit gives -- the ejection, in miniature.
-    const ΔG_Map mSplit=Sub(up->Mixed().RhoTilde(), dn->Mixed().RhoTilde());
+    const ΔG_Map mSplit=Sub(up->Field().tilde, dn->Field().tilde);
     const ΔG_Map mJoint=Sub(joint.mixedUp.back(), joint.mixedDn.back());
     EXPECT_GT(MaxDiff(mSplit,mJoint), 1e-4);
 }
@@ -198,7 +198,7 @@ TEST(JointPulay, OnlyExtrapolatorsCarryHistory)
     const ReciprocalLattice recip=Recip(10.0);
     const ΔG_Map seed=Field(0.5,0.3,0.1,0.05);
     auto pulay=MakePulay(recip,seed,8.0);
-    KerkerMixer kerker(0.4, 1.0, nullptr, std::make_shared<FourierMixCD>(seed,recip,8.0), rvec_t{});
+    KerkerMixer kerker(0.4, 1.0, nullptr, recip, GField{seed, rvec_t{}}, 8.0);
     EXPECT_NE(pulay->History(),  nullptr);
     EXPECT_EQ(kerker.History(),  nullptr);
 }
