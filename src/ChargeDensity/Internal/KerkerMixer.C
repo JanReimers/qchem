@@ -19,7 +19,7 @@ export namespace qchem::ChargeDensity
 //! NB \b G0=0 makes this the PLAIN LINEAR G-space mixer (the filter is identically 1) -- which is exactly
 //! the "linear on m" leaf of the (ρ,m) channel basis, so that construction needs no new mixer type.
 //! Holds the running mixed ρ̃ as a FourierMixCD; the next Fock is driven from it.  Built by
-//! MakeGSpaceMixer -- on a polarized run, one of these PER SPIN CHANNEL (see PolarizedDensityMixer).
+//! KerkerMixerFactory -- on a polarized run, one of these PER SPIN CHANNEL (see PolarizedDensityMixer).
 //! NB G=0 IS mixed, at full α: our ρ̃ is a fit-basis PROJECTION whose (0,0,0) coefficient is shape-dependent
 //! rather than the fixed N/Ω, so freezing it would strand the XC's mean density at the seed (the reason is
 //! in FourierMixCD::KerkerMix, which owns the filter).  CP2K does the same -- its kerker_factor array is

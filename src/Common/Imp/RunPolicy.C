@@ -3,7 +3,7 @@
 // THE SITES THAT CONSULT THIS POLICY -- kept here so the list is checkable against a grep:
 //   DMLowRank   -> ChargeDensity/Imp/Factory.C          (which rho route the density factory builds)
 //   StreamFold  -> BasisSet/Lattice_3D/Imp/BasisSet.C   (whether the collocation streams are orbit-folded)
-//   MixRhoM     -> ChargeDensity/DensityMixer.C         (which channel basis MakePeriodicMixer mixes in)
+//   MixRhoM     -> ChargeDensity/Imp/DensityMixer.C     (which channel basis the G-space factories compose in)
 //   XCFromDM    -> Hamiltonian/Internal/Imp/PWTerms.C   (which rho the XC term is fed)
 //   SymmetryImposition -> Calculation/Imp/SolidCalculation.C (ANDed with SolidCalcOptions::imposeSymmetry)
 //   BeckeXC     -> Calculation/Imp/SolidCalculation.C          (passed to qcMesh::ResolveXCMesh as allowBecke)

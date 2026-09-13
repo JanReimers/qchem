@@ -340,7 +340,7 @@ protected:
     bool GapIsPermanent() const override {return true;}   //!< near-gapless flapping is a solid pathology
     //! The periodic Kerker/Pulay G-space mixer when SCFParams asks for it (KerkerG0>0 or PulayDepth>0),
     //! else the base linear D-mixer.  A solid run HAS the periodic basis/cell/density by construction, so
-    //! MakePeriodicMixer treats them as preconditions -- no capability probe, no silent fallback.
+    //! the G-space mixer factories treat them as preconditions -- no capability probe, no silent fallback.
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
         CreateMixer(const SCFParams&, const tbs_t<dcmplx>*, const Structure*,
                     const tDM_CD<dcmplx>*) const override;

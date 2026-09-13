@@ -81,29 +81,36 @@ public:
 //    * PolarizedDensityMixer   -- one G-space leaf per channel ((ρ↑,ρ↓) or (ρ,m)) with ONE joint history.
 //=========================================================================================================
 
-//! The structure-neutral density mixer: plain linear D-mixing.  \a relax0 = StartingRelaxRo
-//! (α=1 => passthrough).  Any run can use this one -- it asks nothing of the geometry.
-template <class T> std::unique_ptr<tDensityMixer<T>> MakeLinearMixer(double relax0);
+//! Linear D-mixing: any run, any scalar -- it asks nothing of the geometry.  \a relax0 = α (StartingRelaxRo;
+//! α=1, the molecular default, is passthrough).
+template <class T> std::unique_ptr<tDensityMixer<T>> LinearMixerFactory(double relax0);
 
-//! \brief The PERIODIC G-space mixer: Pulay when \a pulayDepth>0, else Kerker; one per SPIN CHANNEL on a
-//! polarized run (PolarizedDensityMixer).
-//!
-//! Only a solid run asks for this, and a solid run HAS the periodic pieces by construction -- so the
-//! Orbital_DFT_IBS<dcmplx> basis / UnitCell / FourierDensity faces are PRECONDITIONS here, not things to probe for.
-//! This used to be one \c MakeDensityMixer that ran a three-way capability probe and fell back to linear
-//! D-mixing with a warning: a periodic-vs-molecular decision sitting one layer too low.  The caller that
-//! KNOWS (\c SolidSCFIterator::CreateMixer) now makes it, and a violated precondition THROWS rather than
-//! silently mixing the wrong way for a whole run.  See doc/CleanupCandidates.md V1.10b.
-//!
-//! NB the SPIN branching below is a different question and keeps its graceful fallback: a spin-resolved
-//! density that cannot hand out mutable channels is a real configuration to degrade from, not a broken
-//! precondition -- so it warns and takes linear D-mixing, which at least keeps both channels.
-//! \a cuspDeficit (N4, default false) picks the mixer that ALSO deposits the cusp-deficit correction for
-//! \f$V_{xc}\f$.  It is a factory decision on purpose: CP2K parity is a property of WHICH MIXER WAS BUILT,
-//! so the plain Kerker mixer stays bit-identical and no consumer has to read a flag to get it.
-std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
-    double relax0, double kerkerG0, int pulayDepth, int pulayStart,
-    const BasisSet::tBasisSet<dcmplx>* basis, const Structure* structure, const tDM_CD<dcmplx>* seed,
-    bool cuspDeficit=false);
+//! The recipe of a Kerker-preconditioned ρ̃ mixer.
+struct KerkerParams
+{
+    double relax       = 0.25;    //!< α, the step
+    double G0          = 1.0;     //!< Kerker's \f$G_0\f$ in \f$G^2/(G^2+G_0^2)\f$; 0 makes the filter identically 1 (plain linear G-space mixing)
+    bool   cuspDeficit = false;   //!< N4: ALSO form + deposit the cusp-deficit correction for \f$V_{xc}\f$ (Kerker only)
+};
+//! ...plus the density HISTORY a Pulay (density-DIIS) extrapolation keeps in front of that filter.
+struct PulayParams : KerkerParams
+{
+    int depth = 8;    //!< history length (residual pairs kept)
+    int start = 3;    //!< prime with plain Kerker for this many steps before extrapolating
+};
+
+//! \brief The two PERIODIC G-space mixers.  \a basis and \a cell supply the fit basis the running ρ̃ lives on
+//! and the reciprocal lattice; \a seed is ANY density -- a G-space mixer reads its starting ρ̃ off the seed's
+//! Fourier face and THROWS if it has none (a solid run has the periodic pieces by construction, so they are
+//! preconditions, not things to probe for: doc/CleanupCandidates.md V1.10b).  A POLARIZED seed gets the
+//! polarized composition -- one leaf per channel, one joint history -- detected from the seed, not a second
+//! overload; a spin-resolved seed that cannot hand out mutable channels degrades to linear D-mixing with a
+//! warning (a real configuration, not a broken precondition).
+//! \note The caller picks the RECIPE.  There is no "Pulay if depth>0 else Kerker" switch here any more: a
+//! caller that wants Kerker calls the Kerker factory and supplies Kerker's knobs, nothing else.
+std::unique_ptr<tDensityMixer<dcmplx>> KerkerMixerFactory(const KerkerParams&, const BasisSet::tBasisSet<dcmplx>* basis,
+                                                          const Structure* cell, const tChargeDensity<dcmplx>* seed);
+std::unique_ptr<tDensityMixer<dcmplx>> PulayMixerFactory (const PulayParams&,  const BasisSet::tBasisSet<dcmplx>* basis,
+                                                          const Structure* cell, const tChargeDensity<dcmplx>* seed);
 
 } //namespace

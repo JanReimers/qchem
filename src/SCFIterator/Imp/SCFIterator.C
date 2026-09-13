@@ -810,7 +810,7 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
 template <class T> std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>>
 tSCFIterator<T>::CreateMixer(const SCFParams& ipar, const tbs_t<T>*, const Structure*, const tDM_CD<T>*) const
 {
-    return qchem::ChargeDensity::MakeLinearMixer<T>(ipar.StartingRelaxRo);
+    return qchem::ChargeDensity::LinearMixerFactory<T>(ipar.StartingRelaxRo);
 }
 
 template class tSCFIterator<double>;
@@ -831,17 +831,25 @@ void SolidSCFIterator::AccumulateColumns(std::vector<ColumnData>& cols, const SC
     cols.insert(cols.begin()+2, GridLossCol());                       // ...and carries the grid-charge leak
 }
 
-// The solid mixer.  The branch here is on the KNOB -- did the caller ASK for G-space mixing? -- not on the
-// geometry: being periodic is what this class IS, so MakePeriodicMixer takes the Orbital_DFT_IBS<dcmplx> basis, the
-// UnitCell and the FourierDensity seed as preconditions rather than probing for them.
+// The solid mixer.  The branch here is on the KNOBS -- which RECIPE did the caller ask for? -- not on the
+// geometry: being periodic is what this class IS, so the G-space factories take the Orbital_DFT_IBS<dcmplx>
+// basis, the UnitCell and the seed as preconditions rather than probing for them.  This caller KNOWS what it
+// wants, so it names the factory and supplies that recipe's knobs and nothing else (V1.18).
 std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
 SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, const Structure* cell,
                               const tDM_CD<dcmplx>* seed) const
 {
-    if (ipar.KerkerG0>0.0 || ipar.PulayDepth>0)
-        return qchem::ChargeDensity::MakePeriodicMixer(ipar.StartingRelaxRo, ipar.KerkerG0, ipar.PulayDepth,
-                                                       ipar.PulayStart, bs, cell, seed, ipar.XCCuspDeficit);
-    return qchem::ChargeDensity::MakeLinearMixer<dcmplx>(ipar.StartingRelaxRo);
+    namespace CD = qchem::ChargeDensity;
+    if (ipar.PulayDepth>0)
+    {
+        CD::PulayParams p;
+        p.relax=ipar.StartingRelaxRo; p.G0=ipar.KerkerG0; p.cuspDeficit=ipar.XCCuspDeficit;
+        p.depth=ipar.PulayDepth;      p.start=ipar.PulayStart;
+        return CD::PulayMixerFactory(p, bs, cell, seed);
+    }
+    if (ipar.KerkerG0>0.0)
+        return CD::KerkerMixerFactory({ipar.StartingRelaxRo, ipar.KerkerG0, ipar.XCCuspDeficit}, bs, cell, seed);
+    return CD::LinearMixerFactory<dcmplx>(ipar.StartingRelaxRo);
 }
 
 } //namespace

@@ -122,7 +122,7 @@ struct ExactSource
 // SHAPE, and measurement (2026-08-25) says destroying the selectivity costs the MnO magnetic basin
 // (-61.403 -> -45.529, Eee 13.5 -> 29.0 Ha).
 // NOT A FLAG HERE, BY DESIGN (user, 2026-08-25): whether the correction exists is decided when the MIXER is
-// BUILT (SCFParams::XCCuspDeficit -> MakePeriodicMixer), so CP2K parity is a property of the constructed
+// BUILT (SCFParams::XCCuspDeficit -> KerkerMixerFactory), so CP2K parity is a property of the constructed
 // object and the plain Kerker mixer stays bit-identical.  This code just uses what it was handed: a
 // non-null XCCorrection() means the run asked for the correction route.
 ExactSource ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd)
