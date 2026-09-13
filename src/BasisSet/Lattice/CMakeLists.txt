@@ -1,4 +1,4 @@
-# src/BasisSet/Lattice_3D — the G=T basis-set layer above the engines (doc/BasisSetTaxonomyPlan.md §3).
+# src/BasisSet/Lattice — the G=T basis-set layer above the engines (doc/BasisSetTaxonomyPlan.md §3).
 # Plan steps 1a/1b (2026-09-13) moved the two ENGINES out -- plane waves to ../PlaneWave (qcPlaneWave_BS),
 # GPW to ../Molecule/Lattice (qcGaussian_BS).  What is here is the T CONTAINER tier: the ⊕_k BasisSet +
 # its factories, BandStructure, and the APW/LAPW composites -- the one G whose container must see two

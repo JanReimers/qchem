@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/BandStructure.C  k-sampling + one-electron band solve for lattice IBSs.
+// File: BasisSet/Lattice/BandStructure.C  k-sampling + one-electron band solve for lattice IBSs.
 //
 // The shared "k layer" for plane-wave-based solids: solve the one-electron problem at a k-point, and
 // generate a high-symmetry k-path.  Lineage-agnostic -- SolveBands takes any Orbital_1E_IBS<dcmplx>
@@ -8,14 +8,14 @@ module;
 #include <cmath>
 #include <vector>
 
-export module qchem.BasisSet.Lattice_3D.BandStructure;
+export module qchem.BasisSet.Lattice.BandStructure;
 import qchem.BasisSet.Orbital_1E_IBS;   // Orbital_1E_IBS<dcmplx>
 import qchem.LASolver;                  // LASolver<dcmplx> (generalized eigensolver)
 import qchem.Structure;                 // Structure (the nuclear-potential source for MakeNuclear)
 import qchem.Blaze;                     // matrix operators (scalar*, +)
 import qchem.Types;                     // rvec_t, chmat_t, ivec3_t
 
-export namespace qchem::BasisSet::Lattice_3D
+export namespace qchem::BasisSet::Lattice
 {
 
 //! Solve the one-electron problem for one k-point with an explicit external-potential block: assemble

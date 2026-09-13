@@ -6,7 +6,7 @@
 # guarantees these stay true unit tests.  The self-consistent (SCF) integration tests that DO need the
 # upper stack live in UnitTests/PlaneWaveDFTUT.C instead.
 
-add_executable(UTLattice_3D_BS ../../Radial/tests/gtestmain.C
+add_executable(UTLattice_BS ../../Radial/tests/gtestmain.C
     PlaneWaveUT.C
     BandStructureUT.C
     APW_UT.C
@@ -17,15 +17,15 @@ add_executable(UTLattice_3D_BS ../../Radial/tests/gtestmain.C
     RealComplexUT.C
 )
 
-target_compile_definitions(UTLattice_3D_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})  # GTH data path now baked into qcPseudopotential
-set_property(TARGET UTLattice_3D_BS PROPERTY CXX_STANDARD 20)
+target_compile_definitions(UTLattice_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})  # GTH data path now baked into qcPseudopotential
+set_property(TARGET UTLattice_BS PROPERTY CXX_STANDARD 20)
 
-target_include_directories(UTLattice_3D_BS PRIVATE
+target_include_directories(UTLattice_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
 )
 
-target_link_libraries(UTLattice_3D_BS PRIVATE qcLattice_BS qcPseudopotential lapack gtest)   # the tests use the GTH models directly
+target_link_libraries(UTLattice_BS PRIVATE qcLattice_BS qcPseudopotential lapack gtest)   # the tests use the GTH models directly
 
-gtest_discover_tests(UTLattice_3D_BS)
+gtest_discover_tests(UTLattice_BS)

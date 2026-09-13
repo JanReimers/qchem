@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Imp/LAPW_IBS.C  LAPW Hamiltonian/overlap/nuclear assembly.
+// File: BasisSet/Lattice/Imp/LAPW_IBS.C  LAPW Hamiltonian/overlap/nuclear assembly.
 //
 // The constructor assembles the three Orbital_1E_IBS blocks (overlap, kinetic <p^2>, nuclear <V>) in
 // three physics acts:
@@ -20,7 +20,7 @@ module;
 #include <string>
 #include <vector>
 
-module qchem.BasisSet.Lattice_3D.LAPW_IBS;
+module qchem.BasisSet.Lattice.LAPW_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
@@ -126,7 +126,7 @@ RadialTable BuildRadial(int l,double E,double Znuc,const rvec_t& r)
 } // anon namespace
 } // namespace qchem
 
-namespace qchem::BasisSet::Lattice_3D
+namespace qchem::BasisSet::Lattice
 {
 
 LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,

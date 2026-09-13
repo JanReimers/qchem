@@ -255,7 +255,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     itsImp->accOpts = acc;
     itsImp->st      = lat.GetStructure();
 
-    namespace L3 = BasisSet::Lattice_3D;
+    namespace L3 = BasisSet::Lattice;
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
     // permission: CP2K parity forbids the capability outright, because CP2K does no symmetry work at all
     // (see RunPolicy::SymmetryImposition for the evidence), and every banked recipe asks for it -- so the

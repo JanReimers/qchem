@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/BasisSet.C  Factory + container for 3D-periodic (plane-wave) basis sets.
+// File: BasisSet/Lattice/BasisSet.C  Factory + container for 3D-periodic (plane-wave) basis sets.
 //
 // The public entry point for building a crystal basis set: hand it a Lattice_3D (the cell + its
 // Brillouin-zone grid) and a cutoff, get back an abstract tBasisSet<dcmplx>.  The concrete container
@@ -7,7 +7,7 @@
 module;
 #include <memory>
 #include <vector>
-export module qchem.BasisSet.Lattice_3D.BasisSet;
+export module qchem.BasisSet.Lattice.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
 export import qchem.BasisSet.PlaneWave.PlaneWave_IBS; // PlaneWave::PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
@@ -16,7 +16,7 @@ export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::RasterPolicy (a
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
 import qchem.Types;                                    // dcmplx
 
-export namespace qchem::BasisSet::Lattice_3D
+export namespace qchem::BasisSet::Lattice
 {
 
 //! \brief Which 3D-periodic basis to build.  PW = plane waves (lineage A); APW/LAPW (lineage B) follow.
@@ -124,7 +124,7 @@ size_t VetGpwConditioning(const Complex_BS& bs);
 // NOT exported: the concrete containers are an implementation detail (callers use Factory/GPWFactory's
 // abstract Complex_BS).  Named here rather than anonymous in Imp/ so they are first-class types -- the home
 // for the shared density-grid PeriodicGridEvaluator, GPW_BasisSet sitting beside PW_BasisSet.  Ctors in Imp/BasisSet.C.
-namespace qchem::BasisSet::Lattice_3D
+namespace qchem::BasisSet::Lattice
 {
 
 //! A tBasisSet<dcmplx> holding the plane-wave Bloch block(s); owns the IBS list (deleted with the basis).

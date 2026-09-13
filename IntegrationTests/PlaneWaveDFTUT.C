@@ -36,7 +36,7 @@ import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
 import qchem.BasisSet.PlaneWave.Evaluators;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
                                                   // evaluator directly to exercise the FFT/Poisson grid oracles
                                                   // (the orbital PlaneWave_IBS is grid-free; the grid lives here).
-import qchem.BasisSet.Lattice_3D.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
+import qchem.BasisSet.Lattice.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
 import qchem.Mesh;                           // qcMesh::MeshParams (Vee_Hartree's fit-basis factory arg; ignored)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
@@ -969,7 +969,7 @@ TEST_F(PlaneWaveDFT, VnnPeriodicUsesEwald)
     EXPECT_NEAR(eb["Enn"], -8.40046, 1e-4);              // == the Si ion-ion Madelung energy
 }
 
-// (The GTH database-reader unit test lives in src/BasisSet/Lattice_3D/tests/GTH_UT.C -- it needs only
+// (The GTH database-reader unit test lives in src/BasisSet/Lattice/tests/GTH_UT.C -- it needs only
 // the basis layer, not the SCF stack.)
 
 // Silicon again, but BZ-sampled over a 2x2x2 Monkhorst-Pack mesh (8 k-points) instead of Gamma-only.
@@ -1385,7 +1385,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     // Run the Si-Gamma SCF at plane-wave cutoff \a Ecut under a given SEED strategy, EVERYTHING ELSE
     // identical (config, Hamiltonian, complex-DIIS accelerator, convergence params) -- so the only difference
     // is the seed and the iteration counts are a fair head-to-head.  Returns iters/convergence/charge/energy.
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     struct Run { size_t iters; bool conv; double charge; qchem::EnergyBreakdown E; };
     auto run=[&](double Ecut, qchem::ChargeDensity::SeedStrategy seed)
     {
@@ -1466,7 +1466,7 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
                            const char* label,
                            qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform)
 {
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
     qchem::Hamiltonian::cHamiltonian* ham=mkHam(bs.get());   // build the Ham WITH the basis (fit-basis seam)
     std::unique_ptr<qchem::Hamiltonian::cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
@@ -1676,7 +1676,7 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(2,2,2));       // 2x2x2 = 8 k-points
 
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0));
     BasisSet::irrepv_t irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per k-block (8)
 

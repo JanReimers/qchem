@@ -41,7 +41,7 @@ import qchem.Lattice_3D;                      // Lattice_3D (crystal + BZ mesh)
 import qchem.Structure;                       // Structure
 import qchem.ScalarFunction;                  // ScalarFunction<double> (the rho(r) face)
 import qchem.BasisSet;                        // Real_BS (orbital source), Complex_BS (the Bloch basis)
-import qchem.BasisSet.Lattice_3D.BasisSet;    // GPWFactory, GPWParams, RasterPolicy, CellImages
+import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, RasterPolicy, CellImages
 import qchem.Hamiltonian.Factory;             // Pol, VxcFit, the cHamiltonian solid door
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
 import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, SCFProgress, EnergyBreakdown

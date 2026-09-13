@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
-import qchem.BasisSet.Lattice_3D.BandStructure;  // THE SolveBands (V1.21: this file no longer keeps its own)
+import qchem.BasisSet.Lattice.BandStructure;  // THE SolveBands (V1.21: this file no longer keeps its own)
 import qchem.BasisSet.G_FieldEvaluator;      // G_PoissonKernel / G_RasterTransform -- the fit basis's G-space seams
 import qchem.Mesh;                            // qcMesh::MeshParams (the fit-basis factory's argument)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (H, Si pseudopotentials from the database)
@@ -63,13 +63,13 @@ std::vector<double> FreeElectronReference(double a, ivec3_t N, ivec3_t kIndex, d
 // ★ V1.21 (2026-09-09): THE DUPLICATE IS GONE.  This file used to carry its own copy of the band solve —
 // and it was not even the same solve: it forced S=I and kept only the DIAGONAL of the kinetic, i.e. it
 // hard-coded two facts about plane waves into a routine that already exists, lineage-agnostic, one
-// directory up (`qchem.BasisSet.Lattice_3D.BandStructure`).  What survives here is the V=nullptr
+// directory up (`qchem.BasisSet.Lattice.BandStructure`).  What survives here is the V=nullptr
 // convenience and the ascending sort these tests compare against; the algebra is the library's.
 std::vector<double> SolveBands(const PlaneWave_IBS& pw, const chmat_t* V=nullptr)
 {
     const size_t n=pw.GetNumFunctions();
     const chmat_t zero(n);                      // V=0
-    const rvec_t e=BasisSet::Lattice_3D::SolveBands(pw, V ? *V : zero);
+    const rvec_t e=BasisSet::Lattice::SolveBands(pw, V ? *V : zero);
 
     std::vector<double> ev;                     // blaze iterators don't satisfy std iterator traits
     for (size_t i=0;i<e.size();i++) ev.push_back(e[i]);

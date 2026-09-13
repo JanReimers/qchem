@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/LAPW_IBS.C  Linearized Augmented Plane Wave (LAPW) basis for one k-point.
+// File: BasisSet/Lattice/LAPW_IBS.C  Linearized Augmented Plane Wave (LAPW) basis for one k-point.
 //
 // Lineage B, second IBS (see doc/OldPlans/PlaneWavePlan.md).  LAPW fixes APW's energy-dependent (nonlinear)
 // secular equation: inside the muffin-tin sphere the single energy-dependent radial function is replaced
@@ -22,14 +22,14 @@ module;
 #include <string>
 #include <vector>
 
-export module qchem.BasisSet.Lattice_3D.LAPW_IBS;
+export module qchem.BasisSet.Lattice.LAPW_IBS;
 import qchem.BasisSet.Orbital_1E_IBS;             // Orbital_1E_IBS<dcmplx>: Overlap/Kinetic/Nuclear
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 export import qchem.ReciprocalLattice;
 import qchem.Structure;
 import qchem.Types;
 
-export namespace qchem::BasisSet::Lattice_3D
+export namespace qchem::BasisSet::Lattice
 {
 
 //! \brief Linearized Augmented Plane Wave basis for one k-point (single origin muffin-tin sphere).

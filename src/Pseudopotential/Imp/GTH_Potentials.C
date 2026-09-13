@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Imp/GTH_Potentials.C  GTH database reader implementation (JSON -> potentials).
+// File: BasisSet/Lattice/Imp/GTH_Potentials.C  GTH database reader implementation (JSON -> potentials).
 module;
 #include <fstream>
 #include <filesystem>

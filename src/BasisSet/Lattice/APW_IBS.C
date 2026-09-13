@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/APW_IBS.C  Augmented Plane Wave (APW) basis for one k-point.
+// File: BasisSet/Lattice/APW_IBS.C  Augmented Plane Wave (APW) basis for one k-point.
 //
 // Lineage B, first IBS (see doc/OldPlans/PlaneWavePlan.md): plane waves in the interstitial region, matched
 // (value-continuous) to free-particle radial solutions inside a single muffin-tin sphere at the cell
@@ -24,13 +24,13 @@ module;
 #include <string>
 #include <vector>
 
-export module qchem.BasisSet.Lattice_3D.APW_IBS;
+export module qchem.BasisSet.Lattice.APW_IBS;
 import qchem.BasisSet.IrrepBasisSet;                 // IrrepBasisSet<dcmplx>
 import qchem.BasisSet.Internal.IrrepBasisSetImp;     // GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;
 import qchem.Types;
 
-export namespace qchem::BasisSet::Lattice_3D
+export namespace qchem::BasisSet::Lattice
 {
 
 //! \brief Augmented Plane Wave basis for one k-point (single muffin-tin sphere at the cell origin).

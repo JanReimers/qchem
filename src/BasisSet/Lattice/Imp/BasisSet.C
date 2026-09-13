@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Imp/BasisSet.C  Plane-wave basis-set container + factory implementation.
+// File: BasisSet/Lattice/Imp/BasisSet.C  Plane-wave basis-set container + factory implementation.
 module;
 #include <cassert>
 #include <cmath>     // lround (fractional k-point -> integer BZ-grid index); std::fabs (conditioning)
@@ -9,7 +9,7 @@ module;
 #include <algorithm> // std::min (min singular value)
 #include <cstdlib>   // std::getenv/std::atoi
 #include <vector>    // std::vector (the k-block list + the space-group atom basis)
-module qchem.BasisSet.Lattice_3D.BasisSet;
+module qchem.BasisSet.Lattice.BasisSet;
 import qchem.Symmetry.Lattice_3D.Fold;   // RequireClosedGroup -- the imposition gate
 import qchem.RunPolicy;   // theRunPolicy().StreamFold() -- the T3.2 fold, declared with the deviations (N5)
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
@@ -29,7 +29,7 @@ import qchem.Blaze;                            // blazem::eigen (grid-free overl
 import qchem.Matrix3D;                          // Matrix3D (space-group cell matrix)
 import qchem.Types;
 
-namespace qchem::BasisSet::Lattice_3D
+namespace qchem::BasisSet::Lattice
 {
 
 // ONE plane-wave block per Brillouin-zone k-point: the basis ctor is the single place that enumerates k, so

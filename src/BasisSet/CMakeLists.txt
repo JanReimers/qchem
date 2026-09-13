@@ -64,5 +64,5 @@ target_compile_definitions(qcBasisSet PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 add_subdirectory(Radial)      # the O(3) engine (was Atom/; TaxonomyPlan step 2)
 add_subdirectory(PlaneWave)   # the plane-wave engine: a leaf over the core (TaxonomyPlan 1a)
 add_subdirectory(Gaussian)    # the Gaussian engine: Point/ (G=P) + Lattice/ (G=T) tiers (TaxonomyPlan step 2)
-add_subdirectory(Lattice_3D)
+add_subdirectory(Lattice)     # the T CONTAINER tier over both engines (was Lattice_3D/; TaxonomyPlan step 2)
 

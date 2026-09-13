@@ -1,6 +1,6 @@
 # BasisSet Taxonomy Plan — V1.33
 
-**Status: LIVE, agreed 2026-09-13; step 1 (1a0–1c) done 2026-09-13, step 2 next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
+**Status: LIVE, agreed 2026-09-13; steps 1–2 done 2026-09-13, step 3 (the audit) next.**  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
 taxonomy is on the wrong axis").  Read §1 once; it is the ruling.  §4 is the running order.
 
 Two proposals preceded this plan and they were NOT in conflict — they were the two axes:
@@ -242,6 +242,30 @@ one commit per library so `git log --follow` survives:
 - `.vscode/settings.json` TestMate exe names and the root `allTests` DEPENDS list are re-checked (the
   `UTSCFAccelerator` lesson: ctest's N must not drop).
 - `pybind/`: report any breakage to the binding owner; do not edit.
+  ✅ 2026-09-13, four commits (one per library, all `git mv` so `--follow` survives):
+  - **Radial** f5461b8f: `Atom/`→`Radial/`, `qcRadial_BS`/`UTRadial_BS`, `qchem.BasisSet.Radial.*`,
+    `BasisSet::Radial`.  (`Symmetry::Atom` and the `qchem::Atom` class untouched.)
+  - **PlaneWave** 1f602b2f: modules `qchem.BasisSet.PlaneWave.{Evaluators, Evaluators.PeriodicGrid,
+    PlaneWave_IBS, PlaneWaveFit_IBS, Internal.*}`, namespace `BasisSet::PlaneWave`.  `GPW_Evaluator`
+    re-exports `RasterPolicy`/`RasterFields` (`using PlaneWave::…`) so a GPW client names the knobs where it
+    names the block.
+  - **Gaussian** b3a7b7c7: `Molecule/`→`Gaussian/` with `Evaluators/` (no G), `Point/` (IBS mixins, PG_*,
+    SALC container, factory, readers) and `Lattice/` (LatticeSum1E, LatticeScreener,
+    `SphericalLatticeView` ← `PG_Spherical.LatticeView`, GPW); `qcGaussian_BS`/`UTGaussian_BS`; namespace
+    `BasisSet::Gaussian` for the whole library (the G is the MODULE tag; a `Gaussian::Lattice` sub-namespace
+    would shadow the core `BasisSet::Lattice` spec).  CMake: the module file set is declared at the library
+    root with `BASE_DIRS` so the three sub-directories contribute.
+  - **Lattice** (this commit): `Lattice_3D/`→`Lattice/`, `qchem.BasisSet.Lattice.*`, `UTLattice_BS`;
+    namespace `BasisSet::Lattice_3D`→`BasisSet::Lattice`, which MERGES the container tier with the 1a0 spec
+    tier — the same arrangement as `BasisSet::Radial` (mixins + concrete IBS in one G namespace).  No
+    name-hiding surfaced (the container never names a core face unqualified).
+  - `pybind/qchem_bridge.cpp` imports `qchem.BasisSet.Molecule.Factory` / `BasisSet::Molecule::Factory` ⇒
+    WILL break under `-DQCHEM_PYBIND=ON` — **flagged for the binding owner**, not edited.
+  - Naming wart noted, not fixed (not mechanical): the radial engines' `class Radial` now reads
+    `BasisSet::Radial::Evaluators::{Gaussian,Slater,BSpline}::Radial`; and `BasisSet::Radial::Evaluators::Gaussian`
+    already coexisted with the math namespace `qchem::Gaussian` (the code writes `::qchem::Gaussian::`), now
+    joined by `BasisSet::Gaussian`.  Compiles cleanly; a reader's wart only.
+  - ctest N = 855 through all four (no exe dropped; 0 NOT_BUILT).
 
 **Step 3 — make the G tag a checked invariant.**  `scripts/audit-basisset-gtags` in the style of
 `scripts/audit-internal-reexports`, run by ctest: a module named `qchem.BasisSet.Gaussian.Point.*` must not

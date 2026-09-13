@@ -2,12 +2,12 @@
 //
 // THE SITES THAT CONSULT THIS POLICY -- kept here so the list is checkable against a grep:
 //   DMLowRank   -> ChargeDensity/Imp/Factory.C          (which rho route the density factory builds)
-//   StreamFold  -> BasisSet/Lattice_3D/Imp/BasisSet.C   (whether the collocation streams are orbit-folded)
+//   StreamFold  -> BasisSet/Lattice/Imp/BasisSet.C   (whether the collocation streams are orbit-folded)
 //   MixRhoM     -> ChargeDensity/Imp/DensityMixer.C     (which channel basis the G-space factories compose in)
 //   XCFromDM    -> Hamiltonian/Internal/Imp/PWTerms.C   (which rho the XC term is fed)
 //   SymmetryImposition -> Calculation/Imp/SolidCalculation.C (ANDed with SolidCalcOptions::imposeSymmetry)
 //   BeckeXC     -> Calculation/Imp/SolidCalculation.C          (passed to qcMesh::ResolveXCMesh as allowBecke)
-//   DAwareScreen-> BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C (WHICH LatticeScreener the evaluator builds)
+//   DAwareScreen-> BasisSet/Lattice/Evaluators/GPW/Imp/Evaluator.C (WHICH LatticeScreener the evaluator builds)
 // Two further CP2K deviations are TYPED OPTIONS rather than env flags and are therefore NOT here:
 // SolidCalcOptions::raster (BallOnly -- which IS CP2K's bet, vindicated by doc/OpenWork.md N2) and
 // SolidCalcOptions::cutoffFactor (C=2).  They are chosen by the caller and reported by the run banner

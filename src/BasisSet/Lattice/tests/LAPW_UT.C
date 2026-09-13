@@ -10,7 +10,7 @@
 #include <complex>
 #include "gtest/gtest.h"
 
-import qchem.BasisSet.Lattice_3D.LAPW_IBS;
+import qchem.BasisSet.Lattice.LAPW_IBS;
 import qchem.Lattice_3D;
 import qchem.LASolver;
 import qchem.Types;
@@ -18,7 +18,7 @@ import qchem.Blaze;
 import qchem.Math;           // Pi
 using namespace qchem;
 
-using BasisSet::Lattice_3D::LAPW_IBS;
+using BasisSet::Lattice::LAPW_IBS;
 
 namespace
 {

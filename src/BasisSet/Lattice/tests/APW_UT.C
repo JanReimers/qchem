@@ -10,14 +10,14 @@
 #include <complex>
 #include "gtest/gtest.h"
 
-import qchem.BasisSet.Lattice_3D.APW_IBS;
+import qchem.BasisSet.Lattice.APW_IBS;
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Types;
 import qchem.Blaze;
 import qchem.Math;           // Pi
 using namespace qchem;
 
-using BasisSet::Lattice_3D::APW_IBS;
+using BasisSet::Lattice::APW_IBS;
 
 namespace
 {

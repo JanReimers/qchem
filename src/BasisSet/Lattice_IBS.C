@@ -5,7 +5,7 @@
 // conforming engine into the role faces (the mixins).  It is tagged by the GROUP, not by a family: a
 // plane-wave engine and a Gaussian engine (GPW) both satisfy it, which is why it lives HERE, in the core,
 // BELOW every engine library -- it imports only the core faces.  (Before 1a0 it sat in qcLattice_BS as
-// qchem.BasisSet.Lattice_3D.IBS with the concepts inside the PW engine module; a spec that names a family
+// qchem.BasisSet.Lattice.IBS with the concepts inside the PW engine module; a spec that names a family
 // is a defect, plan §1.7.)
 //
 // The lattice analog of BasisSet/Radial/IrrepBasisSet.C (Radial::Orbital_1E_IBS<E> etc.): the interface

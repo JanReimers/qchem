@@ -41,7 +41,7 @@ import qchem.BasisSet;                           // Complex_BS, Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-spectrum diagnostic)
 import qchem.Blaze;                              // blazem::eigen, blaze::min/max (overlap spectrum)
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;   // PlaneWave_IBS (the seed's CD fit basis)
-import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
+import qchem.BasisSet.Lattice.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Gaussian.Point.Factory;          // Gaussian::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
@@ -204,13 +204,13 @@ struct GpwReport
     {
         qchem::report::Log("vetting basis conditioning");
         qchem::report::Section basis("basis");
-        return BasisSet::Lattice_3D::VetGpwConditioning(bs);
+        return BasisSet::Lattice::VetGpwConditioning(bs);
     }
     //! Emit the grids section (this is where the ladder is actually built) -- only after VetBasis passed.
     void EmitGrids(const Complex_BS& bs)
     {
         qchem::report::Log("building grid ladder");
-        BasisSet::Lattice_3D::EmitGpwGrids(bs);
+        BasisSet::Lattice::EmitGpwGrids(bs);
     }
 };
 
@@ -557,7 +557,7 @@ static bool SharedMu(const GpwOptions& o)
 static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
                         bool verbose=false, GpwHandles* keep=nullptr)
 {
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     const std::string sp = o.species.empty() ? std::string() : o.species.front().first;
     GpwReport report(sp+" "+o.label, verbose);
 
@@ -727,7 +727,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
 {
     assert(penaltySchedule.empty() || penaltySchedule.size()==kTSchedule.size());
     assert(accSchedule.empty() || accSchedule.size()==kTSchedule.size());
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     const std::string sp = o.species.empty() ? std::string() : o.species.front().first;
     GpwReport report(sp+" "+o.label+" (annealed)", verbose);
 
@@ -1536,7 +1536,7 @@ TEST(GPW_SCF, O2TripletInBoxMatchesFinite)
 // defective term identifies itself.  (Oracle: scratchpad na_q1_basis.py evaluates the same two Gaussians.)
 TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
 {
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     const double a=16.0;
     UnitCell cell(a);
     cell.AddAtom(11, {0.5,0.5,0.5});
@@ -2374,7 +2374,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
 TEST(GPW_SCF, DISABLED_NaFGridContinuation)
 {
     using namespace qchem::Hamiltonian;
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
 
     const double a=8.73;
@@ -2540,7 +2540,7 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisRankReduction)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
         BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/20.0));   // low: cheap grid, plumbing only
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
@@ -2576,7 +2576,7 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
         BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0));
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
@@ -3962,7 +3962,7 @@ TEST(GPW_SCF, MnOSeedVxcMirrorOnBeckeMesh)
 // flags) -> SinglesDensitySampler::RhoPol's (rho,m) split.
 TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
 {
-    namespace L3=BasisSet::Lattice_3D;
+    namespace L3=BasisSet::Lattice;
     using namespace qchem::ChargeDensity;
     const double a=8.40;
     Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);

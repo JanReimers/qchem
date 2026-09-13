@@ -14,8 +14,8 @@
 //
 //   client                                      methods it uses   of 17
 //   Calculation/Imp/SolidCalculation.C          MaxExponent           1     <- cast to 17 to ask ONE number
-//   BasisSet/Lattice_3D/Imp/BasisSet.C          SetStreamSymmetryOps  1     <- likewise
-//   BasisSet/Lattice_3D/.../GPW/Imp/Evaluator.C thirteen             13
+//   BasisSet/Lattice/Imp/BasisSet.C          SetStreamSymmetryOps  1     <- likewise
+//   BasisSet/Lattice/.../GPW/Imp/Evaluator.C thirteen             13
 //   Molecule/PG_Spherical/Imp/LatticeView.C     all (it FORWARDS)    17     <- a decorator, not a client
 //
 // Two clients were cross-casting to a seventeen-method interface to ask a single question.  That is the
@@ -348,7 +348,7 @@ public:
 //! \brief THE T3 ROUTE-(b) STREAM FOLD capability (doc/SymmetryUpgradePlan.md §6b) -- OPTIONAL.
 //!
 //! Segregated 2026-09-08: both methods already carried DEFAULTS, i.e. an optional capability bolted onto
-//! a face every implementor had to satisfy.  Its one client (`BasisSet/Lattice_3D/Imp/BasisSet.C`) arms
+//! a face every implementor had to satisfy.  Its one client (`BasisSet/Lattice/Imp/BasisSet.C`) arms
 //! the fold and never touches an integral, so it now names THIS and cross-casts to it.
 class StreamFoldable
 {

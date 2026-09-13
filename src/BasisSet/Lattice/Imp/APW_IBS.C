@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Imp/APW_IBS.C  Augmented Plane Wave secular-matrix assembly.
+// File: BasisSet/Lattice/Imp/APW_IBS.C  Augmented Plane Wave secular-matrix assembly.
 module;
 #include <cassert>
 #include <complex>
@@ -7,7 +7,7 @@ module;
 #include <string>
 #include <vector>
 
-module qchem.BasisSet.Lattice_3D.APW_IBS;
+module qchem.BasisSet.Lattice.APW_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
@@ -16,7 +16,7 @@ import qchem.BasisSet.PlaneWave.Internal.KPlusG;     // KPlusG (Cartesian k+G, |
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*), norm
 
-namespace qchem::BasisSet::Lattice_3D
+namespace qchem::BasisSet::Lattice
 {
 
 APW_IBS::APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,

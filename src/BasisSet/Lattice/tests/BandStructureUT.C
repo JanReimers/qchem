@@ -10,18 +10,18 @@
 #include <functional>
 #include "gtest/gtest.h"
 
-import qchem.BasisSet.Lattice_3D.BandStructure;   // SolveBands, KPath
+import qchem.BasisSet.Lattice.BandStructure;   // SolveBands, KPath
 import qchem.BasisSet.PlaneWave.PlaneWave_IBS;
-import qchem.BasisSet.Lattice_3D.LAPW_IBS;
+import qchem.BasisSet.Lattice.LAPW_IBS;
 import qchem.Lattice_3D;                          // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Types;
 import qchem.Math;                                // Pi
 using namespace qchem;
 
-using BasisSet::Lattice_3D::SolveBands;
-using BasisSet::Lattice_3D::KPath;
+using BasisSet::Lattice::SolveBands;
+using BasisSet::Lattice::KPath;
 using BasisSet::PlaneWave::PlaneWave_IBS;
-using BasisSet::Lattice_3D::LAPW_IBS;
+using BasisSet::Lattice::LAPW_IBS;
 
 namespace
 {

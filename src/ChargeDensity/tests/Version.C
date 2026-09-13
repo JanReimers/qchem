@@ -16,7 +16,7 @@ import qchem.ChargeDensity.Imp.IrrepCD;        // FiniteIrrepCD (tests may impor
 import qchem.ChargeDensity.NumericCD;  // NumericCD (molecular SAD seed)
 import qchem.ChargeDensity.SeedCD;      // SeedCD (plane-wave SAD seed)
 import qchem.Lattice_3D;                        // UnitCell, Lattice_3D
-import qchem.BasisSet.Lattice_3D.BasisSet;      // L3::Factory(PW,...), Complex_BS
+import qchem.BasisSet.Lattice.BasisSet;      // L3::Factory(PW,...), Complex_BS
 import qchem.BasisSet.Orbital_DFT_IBS;              // Orbital_DFT_IBS<dcmplx>
 import qchem.Types;                             // rvec3_t, ivec3_t
 using namespace qchem;
@@ -27,7 +27,7 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
 {
     // A minimal plane-wave block + a one-atom (Si, in atomic_valence_densities.json) structure for the
     // SeedCD.  Tiny Ecut: we only construct, never run the SCF or GetFourierDensity.
-    namespace L3 = ::qchem::BasisSet::Lattice_3D;
+    namespace L3 = ::qchem::BasisSet::Lattice;
     UnitCell   cell(10.0);
     cell.AddAtom(14, rvec3_t(0,0,0));            // Si (Z=14)
     Lattice_3D lat(cell, ivec3_t(1,1,1));

@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/GTH_Potentials.C  Reader for the CP2K GTH/HGH pseudopotential database.
+// File: BasisSet/Lattice/GTH_Potentials.C  Reader for the CP2K GTH/HGH pseudopotential database.
 //
 // The CP2K GTH_POTENTIALS database is transcoded once, offline, into hierarchical JSON
 // (doc/scripts/ParseGTH.py -> Data/gth_potentials.json); this module reads that JSON and builds the
