@@ -3085,6 +3085,63 @@ along with the taxonomy.  **`LatticeSum1E` therefore also wants an ISP review in
 carries collocation, integrate-back and grid machinery that are not one-electron integrals, so even its
 NAME is stale.
 
+**PLAN (2026-09-13): `doc/BasisSetTaxonomyPlan.md`.**  The two proposals above (2026-08-20 basis-kind, 2026-09-13
+symmetry) were the two AXES, not rivals: **libraries follow the FAMILY (the integral engine), module names carry
+the GROUP** — `qcRadial_BS` / `qcGaussian_BS` (`.Point.*` vs `.Lattice.*`) / `qcPlaneWave_BS` / thin `qcLattice_BS`
+container.  The GPW seam STAYS in the Gaussian engine (perf pin); `UnitCell` inside it is legitimate, and the
+V1.33 evidence becomes a ctest audit (no `.Point.` module imports a lattice).  Running order in the plan §4.
+
+### V1.37 — Pol/UnPol are IMPOSED SUBGROUPS, not types: ONE composite over full Irreps (user + Claude, 2026-09-13)
+
+**The "ah-hah" (user):** `doc/BasisSetTaxonomyPlan.md` §1.4 — spin is a FACTOR of G until it is not.  Pol vs
+UnPol is not a property of the wavefunction; it is *which subgroup of the spin factor is imposed*, the same
+KIND of decision as imposing a point group — a rung on the SSB descent ladder (impose → analyse → release):
+
+| imposed | spin group | irreps | the code today |
+|---|---|---|---|
+| full spin rotation | SU(2) | one doublet, degeneracy 2 | `Spin::None`, `GetDegeneracy()==2` — UnPol |
+| rotations about z only (collinear) | U(1)_z | two 1-D irreps \f$m_s=\pm\tfrac12\f$ | `Spin::Up / Down` — Pol |
+| nothing (non-collinear, SOC) | spin INSIDE G (double group) | spinor blocks | does not exist yet |
+
+UnPol's efficiency is the degeneracy fold — the "UnPol is the special case" bias (CLAUDE.md) in group language.
+
+**Where the tensor factor may be assumed — the rule:** *the basis carries whatever part of G acts on its
+functions; the composite carries all of G.*  Non-relativistic: the IBS carries \f$G_{spatial}\f$ and the composite
+tensors on the spin label — the ONE place the factor is assumed, and it genuinely holds there.  Dirac: the IBS
+already carries the double group (\f$\kappa,m_j\f$) and the composite adds nothing.
+
+**What the tree already does (measured 2026-09-13):**
+- `Symmetry::Irrep = (sym_t, Spin ms)` — the irrep ALREADY includes spin; `Spin::None` IS the folded doublet.
+- `tCompositeWF` is already a composite over full `Irrep`s (`itsQNWFs` keyed by Irrep; `itsSpinWFs` a by-spin
+  VIEW).  `tPolarizedWF` / `tUnPolarizedWF` are thin over it — they differ only in what the no-arg
+  `GetChargeDensity()` and `GetSpinDensity()` mean.
+- The CD side is where the type split bites: `tPolarized_CD` is a TWO-LEVEL tree
+  `Polarized{ Composite{spatial irreps} ×2 }`, UnPol a flat `Composite` — the collinear picture frozen into a
+  type.  `tSpinResolved_CD::GetChannel(Spin)` already exists as a CAPABILITY FACE, which is the right shape.
+
+**RULING:** ONE `Composite` over full `Irrep`s for both WF and CD; the spin structure becomes a VIEW
+(`GetChannel(Spin)` = filter the blocks by `ms`), never a container type.  `tPolarized_CD` / `tUnPolarized*`
+go as TYPES; `Polarized` / `UnPolarized` survive as NAMES OF THE IMPOSED SUBGROUP — a factory / policy argument,
+exactly as the point group is.  A spin-native consumer (XC, exchange) asks for channels through the face; a
+spin-agnostic one (Hartree, 1E) asks for the total.
+
+**Why (the decisive argument is not tidiness):** the double-group row §1.4 PREDICTS (P\*, T⋊P\*) needs a spinor
+density; a flat composite over double-group irreps produces one with NO new container, while `tPolarized_CD`
+hard-codes two collinear channels and would be replaced wholesale.  The type split is forward-INCOMPATIBLE
+with the taxonomy.
+
+**Scope — a campaign, not a cleanup:** 53 non-test files name `Polarized`; ~96 `Spin::` uses across
+CD / WF / Hamiltonian / SCFIterator.  The Hamiltonian terms dispatch on `IsPolarized()`; under the flat model
+each term asks the density for the structure it needs through the capability faces — that is the real work,
+and it is where R1.0h / the DensitySampler scope already live.
+
+**Order:** (1) WF side — the two thin classes collapse into `tCompositeWF` + a policy for the no-arg
+accessor (nearly free); (2) flatten the CD tree; (3) the term dispatch.  Bit-identical gates at each step;
+`PolarizedRunKeepsItsSpin` (27% of the suite; really a MIXER test, see TE) is the anchor for "the imposed
+subgroup is respected".  **Sequenced AFTER V1.33** — it leans on the same `Irrep` currency and the spec tier
+(`BasisSetTaxonomyPlan.md` §1.7).  Collinear-only assumptions that are FINE as long as the type says so:
+`GetTotalSpin = <up>-<down>`, `tSpinResolvedWF::GetSpinDensity` (scalar m(r)), the (ρ↑,ρ↓) XC signature.
+
 ## `Vxc_QuadraturePol` is dead code (2026-09-04)
 
 `MakeVxcTerms` used to return the exchange/correlation PAIR for a polarized run; since the

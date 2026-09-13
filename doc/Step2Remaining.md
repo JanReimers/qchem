@@ -96,6 +96,14 @@ BASIS KIND (`Radial` / `Polarized{Cartesian|Spherical}` / GPW / PW).
 
 **Not obvious because** it is a directory-and-target reorganisation of the largest library in the tree,
 and it interacts with V1.20's family ruling (`.Internal.` marks the FAMILY boundary).
+**PLAN AGREED 2026-09-13 → `doc/BasisSetTaxonomyPlan.md`**: libraries = engines (family), modules = group;
+5 steps, mechanical and bit-identical; the `UnitCell`-in-`Molecule/` evidence turns into a ctest audit.
+
+### V1.37 — Pol/UnPol are imposed subgroups, not types (filed 2026-09-13)
+Spin is a factor of G (SU(2) imposed = UnPol = `Spin::None` doublet; U(1)_z = Pol = Up/Down; nothing = spinors).
+ONE composite over full `Irrep`s for WF and CD, `GetChannel(Spin)` a VIEW; `tPolarized_CD`'s two-level tree goes.
+Forward-incompatible otherwise with the double-group rows.  A campaign (53 files); **after V1.33**.  Full row in
+`CleanupCandidates.md`.
 
 ---
 
