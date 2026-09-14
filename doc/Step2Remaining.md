@@ -1,17 +1,21 @@
 # Step 2 — the remaining CleanupCandidates rows, and why each is not obvious
 
-Cut 2026-09-09 after batches 1–3 of the sweep; **done-markers added 2026-09-10 (`851/851`)**.
+Cut 2026-09-09 after batches 1–3 of the sweep; done-markers added 2026-09-10 (`851/851`); **re-cut 2026-09-14
+(`857/857`): groups A and D are CLOSED, C is what is left.**
 This is a READING AID for `doc/CleanupCandidates.md`, not a second tracker — every row here is live in
 that file and the verdicts belong there.  It exists because "~24 open items" is not a plan, and because
 the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetical ordering hides.
 
-## ▶ STATE, 2026-09-10 — WHAT CLOSED SINCE THE CUT
+## ▶ STATE, 2026-09-14 — WHAT CLOSED SINCE THE CUT
 
 | row | verdict | commit |
 |---|---|---|
 | **R1.0j** | ✅ renamed `XC_Quadrature` → `DensitySampler`; forward AND adjoint migrated to `MatrixForward`/`MatrixAdjoint` on BOTH routes; `Symmetrize` forwarders deleted.  ⏳ the three leftover tenants go with R1.0h | `d180277b` `a7be9b35` `c7272a22` |
 | **R1.0e** | ✅ library home SETTLED and executed — `qcChargeDensity`, interface+factory public, concretes `.Internal.`, tests through the factory | `bd11b903` |
-| **R1.0h** | ⚗️ **HALF DONE** — slot pre-creation landed, the block loop performs no map insertion.  ⏳ the owning scope remains (now unblocked) | `56f3db12` `0b753d1e` |
+| **R1.0h** | ✅ CLOSED 2026-09-14 — slot pre-creation (`56f3db12` `0b753d1e`) + `ChargeBreakdown{lost, siteMoments}` as the site-moment OWNER; the owning SCOPE object DECLINED (no payload once the tenants resolved: `Matrix` stays, `Integrate` stays, `SiteMoments` left).  Found in passing: `charge.lost` was never set on polarized GPW runs | `018aa3e2` |
+| **V1.37** | ✅ CLOSED 2026-09-14, all three steps: `SpinGroup`, ONE `tCompositeWF` + ONE `tComposite_CD` with channel VIEWS (steps 1–2); ONE `Vxc`/`FittedVxc`/`Vxc_Quadrature` built FOR the group, spin-native `ExFunctional`, eleven `Ham_*_U/_P` → six, `SymMap` (step 3).  User rulings on the way: clean code over 1e-16 anchors; `Pol` gone, not aliased | `b0310692` `35d811ea` |
+| **V2.1** | ✅ CLOSED BY V1.37 step 3 — the "one PolarizedVxc" the user asked for on 2026-08-08 is the one term per operator; ⚠ the row's premise that the scalar ρ cache would DIE was wrong-way: on an SU(2) run the folded doublet's ONE raster is exactly the efficiency the fold buys, so `Rho` stays and the term halves it | `35d811ea` |
+| **(the point probe)** | ✅ `SetOrderParameter` / `orderProbe` DELETED; `m_site` = the integrated site moment is the intrinsic order column (user, on `DISABLED_MnO_AFM2_RhombohedralGamma`) | `0563217b` |
 | **V1.35a** | ✅ the second slot hook DISSOLVED via `HT_SlotOwner<TRun>` — a diamond done correctly | `1ac9ae50` |
 | **V1.36** | ✅ `FittedVcorrPol` memoizes its \f$v_c\f$ fits (two fitters, one per spin) | `3b88f260` |
 | **V1.20c** | ✅ `Projector3` promoted out of `Internal` (a written-rule violation, and my `GMap` fix had been half a fix) | `ee50a5a1` |
@@ -29,7 +33,8 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 star-averaged under a bigger group than the k-mesh has), **V1.35** (the axis fusion — needs a PLAN, not a
 session), ~~**V1.20d**~~ (closed 2026-09-13 — it had never actually been filed as a row).
 
-⇒ **Group C is untouched (and must stay whole — see its note).  GROUP D IS CLOSED (2026-09-13): V1.17
+⇒ **GROUP A IS CLOSED (2026-09-14): R1.0j, R1.0h and V1.37 all landed; V1.12 and V1.33 before them; V1.38 is a
+STASH, not a question.  Group C is untouched (and must stay whole — see its note).  GROUP D IS CLOSED (2026-09-13): V1.17
 and V1.32 closed 2026-09-10 exactly the way their rows said; V1.14 closed 2026-09-11 the OPPOSITE way — the
 user's reporting ruling reversed the row's proposed fix; V1.18 closed 2026-09-13 as something much BIGGER
 than its row — the user's code review of the file turned it into a seven-increment reorganisation.**  ★ That is the
@@ -41,43 +46,50 @@ NOT to go.  **Before treating a group-D row as open, check whether its verdict i
 ▶ **The rows that ARE obvious are deliberately not listed.**  If a row is a one-liner, do it; it does not
 need a page.
 
+## ▶ WHAT IS LEFT, AND WHAT TO DO NEXT (2026-09-14)
+
+Groups A and D are closed and E was never work, so this file's remaining content is **B (blocked) and C
+(anchor-moving)** — five rows, and none of them is a design question any more:
+
+| row | group | state | what unblocks it |
+|---|---|---|---|
+| **V2.3** | B | ⚠ probably closed by the 2026-08-28 pair `RhoPol` + V1.37 step 3; **UNVERIFIED** | ONE gate run: Si pol-singlet, `VxcFit::PlaneWave` on a Uniform mesh, expect −7.11506.  ~10 minutes |
+| **V2.2** | C | GPW seed default `Uniform` → `IonicSAD` (a stable WRONG basin was measured) | the anchor-moving sprint **S** |
+| **V2.5** | C | `PPMeshParams()` has no \f$\alpha_{pp}\f$ floor | sprint **S** (one consumer; bounded) |
+| **V1.34** | B | half-realised `FitContraction<U,TFit>`; `bad_cast` in Release on a real TRIM block via the ball route | **N4**'s verdict on whether the ball-fit route survives |
+| **R1.0b** | B | SP/"L" shells in the Gaussian94 reader | the `PG_Cart::IrrepBasisSet` same-exponent merge bug |
+
+**In order:**
+1. **V2.3 first** — it is a measurement, not a task, and it either deletes a row or names a real bug.
+2. **Then the sprint S = V2.2 + V2.5 together**: both re-seed/re-size what pinned energies depend on, so
+   they want ONE re-bank, not two.  With the user's 2026-09-14 ruling (R&D stage: clean code over anchors,
+   re-pin rather than argue) the sprint is cheaper than this file feared — the cost is one full `ctest`
+   pass with the moved anchors re-pinned and the reason for each move written down.
+3. **V1.34 and R1.0b stay blocked** on things outside this sweep (N4; the reader bug).  Neither is worth
+   forcing: V1.34's honest fix depends on a route decision, R1.0b's payoff is the S3b spherical lineage.
+
+⇒ **After 1–2 this file retires** (to `doc/OldPlans/`), and the programme's step 2 hands off to step 3
+(**TE**, the test-suite axes — `PolarizedRunKeepsItsSpin` early) and then DFT+U, per `doc/OpenWork.md`.
+
 ---
 
 ## A. Blocked on a design question nobody has answered yet
 
-### R1.0j — ✅ LARGELY DONE 2026-09-09/10 — "XC quadrature" is misnamed and does too much
-Measured: the engine touches a functional **zero times** — no `ExFunctional`, no `GetVxc` anywhere in the
-interface or either implementation unit; the functional lives in the TERMS (`Vxc_Quadrature` holds it and
-maps it over the points).  And of `XC_SinglesQuadrature`'s members only **two** are quadrature
-(`Integrate`, `NumPoints`).  ⇒ It is named for its CLIENT, not its responsibility.
+### R1.0j — ✅ DONE (2026-09-09/10, closed with R1.0h 2026-09-14) — "XC quadrature" is misnamed and does too much
+Renamed `DensitySampler` (`c7272a22`), relocated to `qcChargeDensity` (`bd11b903`), both assembly halves
+through `MatrixForward`/`MatrixAdjoint`.  The three tenants resolved WITHOUT a scope (see R1.0h): `SiteMoments`
+LEFT (the sampler keeps the quadrature op `SiteIntegrals(f)`; the term computes the observable; `ChargeBreakdown`
+carries it); `Matrix` STAYS (the adjoint pairing `LatchRoute` guards); `Integrate` STAYS — the singles strategy can
+hold NO mesh, so `qcMesh::Integrate` would add a branch.  ★ What R1.0j(4) called "the density↔operator seam" is
+what the class now is.
 
-✅ **RENAMED `DensitySampler` / `SinglesDensitySampler` / `PairDensitySampler` (`c7272a22`) and RELOCATED to
-`qcChargeDensity` (`bd11b903`).**  Renamed IN PLACE first, ahead of the relocation this row wanted to bundle
-it with, on the user's ruling — the misleading name cost reading time every day and a later `git mv` was
-cheap.  Both halves of the assembly now go through `MatrixForward`/`MatrixAdjoint`.
-⏳ **WHAT REMAINS:** three tenants (`Matrix`, `Integrate`/`NumPoints`, `SiteMoments`) that cannot leave
-separately — see R1.0h below, and the re-measured appendix at the end of this file.
-
-### R1.0h — ⚗️ HALF DONE 2026-09-09 — the \f$H_{ij}\f$ cache
-`tDynamic_HT_Imp::GetMatrix` memoizes per-`Irrep` INSIDE the block loop, and it is the **last remaining
-write** in that loop after the eager-refresh phase landed.  It exists because the ENERGY pass re-asks for
-the same block (`GetEMatrix` → `IrrepCD::DM_Contract`).
-
-⛔ **`DB_Cache` was ruled out on LIFETIME, not keying** — `DB_Cache` never evicts (its own header: "allow
-data sharing between separate runs"), while this memo turns over every SCF iteration, so twenty iterations
-would leave twenty generations of every block.  *Ask what a cache EVICTS before asking what it keys on.*
-
-✅ **PART 1 LANDED (`56f3db12`): the block loop performs no map INSERTION in the ordinary path.**
-`RefreshForDensity` now takes the basis as well as the density and has two duties — pre-create this
-iteration's per-irrep slots, then pre-warm the k-independent memos.  `operator[]` mutates the tree only when
-the key is ABSENT, so pre-creating the nodes is the whole fix; the bodies became FILL-IF-EMPTY with a 0×0
-matrix as the sentinel.  ⚠ There were **five** cache holders, not one.
-✅ **AND THE HOOKS ARE PURE (`0b753d1e`)** — which made the compiler name three terms that were silently
-skipping a phase they needed (`FittedVee`/`FittedVxc` refitting inside the loop; `FittedVxcPol` never
-forwarding to its children).
-⏳ **WHAT REMAINS: the OWNING SCOPE**, and it is where `DensitySampler`'s three tenants go.  ⚠ Measured
-before choosing: its bounded lifetime reclaims ~6 MB on MnO against a ~500 MB run, so the memory argument is
-weak — the value is a home for the tenants.  **Now unblocked**: the library move is done.
+### R1.0h — ✅ DONE 2026-09-14 (`018aa3e2`) — the \f$H_{ij}\f$ cache, and the scope that was not needed
+Part 1 (`56f3db12` `0b753d1e`): the block loop performs no map INSERTION; five cache holders, pure hooks.
+Part 2: the row's "OWNING SCOPE" was tested against the tree and had NO PAYLOAD — its memory case was ruled
+out on 2026-09-09, and its tenants resolved by themselves (above).  ⇒ Declined, with the record saying so;
+if it ever returns it returns for the k-parallel axis, merged with a term rewrite, never alone.  ⚠ Found in
+passing: `Vcorr_QuadraturePol::GetEnergy` never set `charge.lost`, so ρ_lost/N read 0 on every polarized
+GPW run since 2026-09-04 — fixed.
 
 ### V1.12 — ✅ DONE 2026-09-13 (`e1ac8527`) — `EnergyBreakdown`'s 13 public data members
 Two of them are not energies: `GridChargeLost` is a GPW health DIAGNOSTIC (its own comment says so) and
@@ -96,15 +108,14 @@ The `BasisSetTaxonomyPlan.md` §5 sequel, sized 2–4 sessions.  **Not obvious b
 ISP split of `LatticeSum1E` (the monster face it would otherwise mixin-forward), and nothing on the battery
 path needs it yet.  Triggers and full row in `CleanupCandidates.md`.
 
-### V1.37 — Pol/UnPol are imposed subgroups, not types (filed 2026-09-13; SPEC'D COLD 2026-09-14)
-Blast radius measured: 5 abstract→concrete casts to `tPolarized_CD` (all in `qcChargeDensity`) + 13
-`IsPolarized()` sites in 7 files.  Target shape drawn (degeneracy lives in the `Irrep`, `GetChannel` a view),
-anchors named.  **Order: steps 1–2 next (self-contained), then R1.0h's remainder, then step 3** — the
-Hamiltonian terms get touched once.  Full addendum in `CleanupCandidates.md`.
-Spin is a factor of G (SU(2) imposed = UnPol = `Spin::None` doublet; U(1)_z = Pol = Up/Down; nothing = spinors).
-ONE composite over full `Irrep`s for WF and CD, `GetChannel(Spin)` a VIEW; `tPolarized_CD`'s two-level tree goes.
-Forward-incompatible otherwise with the double-group rows.  A campaign (53 files); **V1.33 landed 2026-09-13, so this is unblocked**.  Full row in
-`CleanupCandidates.md`.
+### V1.37 — ✅ DONE 2026-09-14 (`b0310692` steps 1–2, `35d811ea` step 3) — Pol/UnPol are imposed subgroups, not types
+Executed in one day.  ★ **The addendum's "13 `IsPolarized()` sites" undercounted the wrong thing twice**: steps
+1–2 had eleven MORE casts to the abstract polarized FACE than the five concrete ones it listed; step 3's thirteen
+were nine DECLARATIONS and four bool→enum conversions, and the real job was the TYPE SPLIT behind them (five Pol
+term classes, five Pol Hamiltonian classes, a Spin-tagged exchange functional).  Two user rulings changed the
+landing: **clean code over 1e-16 anchors** (the spin-grouped sums that made the first landing bit-identical were
+removed; totals unchanged at printed precision) and **`Pol` gone, not aliased**.  Dirac Hamiltonians answer
+`Polarized` always (spin inside the double group — the taxonomy's last row).  Records in `CleanupHistory.md`.
 
 ---
 
@@ -125,11 +136,13 @@ conditioning is an experiment (`GPW_SCF.MnAtomInBoxDChannel` + the vet's λmin/c
 lattice sums (the parked S3b work) removes the contaminant entirely — spherical d has none — and makes the
 CP2K comparisons apples-to-apples (its log for our own shell list: 55 Cartesian vs 47 spherical functions).
 
-### V2.3 — polarized plane-wave Vxc throws
-`PW_XC`'s `itsRhoGrid` is keyed on `cd->Version()` alone, which a POLARIZED density ALIASES across
-channels (a polarized density's `Version()` forwards to its Up child).  Needs per-spin rho-grid caches —
-the same trap the engine's `RhoPol` pair-cache already fixes.
-Mechanically clear; downstream of the XC engine's ownership question (R1.0j / R1.0e).
+### V2.3 — polarized plane-wave Vxc throws — ⚠ PROBABLY ALREADY CLOSED, UNVERIFIED (2026-09-14)
+The row describes `PW_XC`'s `itsRhoGrid` keyed on `cd->Version()` alone.  **Neither name exists any more**: the
+raster route is `PairDensitySampler`, which grew `RhoPol`/`RefreshPol` (the per-spin pair cache) on 2026-08-28, and
+since V1.37 step 3 `Vxc_Quadrature(xc, sampler, SpinGroup::Polarized)` asks it for the pair whatever the fit
+basis.  What is NOT in the tree is a GATE: no test runs a polarized `VxcFit::PlaneWave` SCF (the polarized
+singlet gate runs Auto → Becke → Delta).  ⇒ **One run closes or reopens this row** — the Si pol-singlet with
+`o.vxcFit=PlaneWave` on a Uniform mesh, expected on the −7.11506 anchor.  Cheap; do it before believing either.
 
 ### V1.34 — the fitter's contraction face is templated but half-realised
 `Fitting::FitContraction<U,TFit>` exists for two scalars and is implemented for ONE, so a real TRIM block
@@ -159,10 +172,12 @@ to schedule; do not land these piecemeal.
   `mp.eCut = C\,\alpha_{max}\f$, but the integrand is \f$\langle\chi_i|V_{short}|\chi_j\rangle\f$ with
   exponent \f$2\alpha_{max}+\alpha_{pp}\f$.  The floor is simply missing.  One consumer today (the
   KB-projector grid fallback), so exposure is bounded.
-- **V2.1 — collapse `Delta_XC`×2 into the polarized pair at \f$\zeta=0\f$.**  User's restatement is the
-  target: *"there should be only one PolarizedVxc that simply stores two abstract Vxc pointers and does
-  the obvious function forwarding."*  Costs ~2× XC pointwise work for closed shells; decide with a perf
-  measure.  Falls out for free if it lands: the engine's second (scalar) rho cache dies.
+- ~~**V2.1 — collapse `Delta_XC`×2 into the polarized pair at \f$\zeta=0\f$.**~~  ✅ CLOSED BY V1.37 step 3
+  (2026-09-14), and better than the row asked: not "one PolarizedVxc forwarding to two", but ONE term per
+  operator that asks the density for its channels — no forwarding, no pair, and NO 2× cost on closed shells
+  (an SU(2) run keeps the folded doublet's single raster and hands the functional \f$\rho/2\f$ twice; the
+  spin face at exact \f$\zeta=0\f$ is the scalar path bit for bit).  Moved anchors: only the fit-of-a-sum
+  where `Ham_DFTcorr` had two `FittedVxc`s (roundoff).  Not an anchor-moving item after all.
 
 ---
 
@@ -250,23 +265,25 @@ two clients that each need one.
 boundary, and proposed two designs to bridge it.  Neither was needed: nothing ever needed to hold both, and
 the "boundary" was just the boundary between two CLIENTS — which is what handing out two halves is for.
 
-### ⏳ WHAT IS LEFT IN THE ENGINE, AND WHERE IT GOES
+### ✅ WHAT WAS LEFT IN THE ENGINE, AND WHERE IT WENT (closed 2026-09-14 with R1.0h)
 
-Of the nine responsibilities the 2026-09-09 census found, one was always legitimate (the integral rule) and
-six have left.  Three remain, and they leave **together, with R1.0h's owning scope** — not separately:
+Of the nine responsibilities the 2026-09-09 census found, one was always legitimate (the integral rule), six
+had left by 2026-09-10, and the last three resolved on 2026-09-14 — **without the owning scope the row said they
+were waiting for**:
 
-- **`Matrix` + `Integrate`** cannot leave on their own without splitting the forward/adjoint pairing that
-  `LatchRoute` guards.  ⚠ **`LatchRoute` is NOT redundant** — an earlier guess of mine that the per-block
-  `BlockAdjoint` had made it so was WRONG.  It guards the FORWARD's route (RAW collocated \f$\rho_{DM}\f$ vs
-  BALL round trip, which minimise different functionals) against changing mid-SCF: a per-DENSITY decision.
-- **`SiteMoments`** needs an observable owner AND the "fire exactly once per new density" coupling that only
-  the sampler knows (`EmitSiteMoments` fires inside `RhoPol`'s serial-advance branch).  `PartitionedMoments`
-  is already a null-guard plus `qcMesh::SiteIntegrals` — nothing to move there.
+- **`Matrix`** stays: the forward/adjoint pairing that `LatchRoute` guards (RAW collocated \f$\rho_{DM}\f$ vs
+  the BALL round trip minimise different functionals; a per-DENSITY decision) is the class's reason to exist.
+  ⚠ `LatchRoute` is NOT redundant — an earlier guess that `BlockAdjoint` had made it so was wrong.
+- **`Integrate`/`NumPoints`** stay: the singles strategy can hold NO mesh (`MakeDensitySampler(fb)` with a
+  default `FitQuadrature`, used by tests), so delegating to `qcMesh::Integrate` adds a branch, not removes one.
+- **`SiteMoments`** left.  The sampler keeps `SiteIntegrals(f)` — a quadrature question, the atom-partitioned
+  sibling of `Integrate`; the spin-native XC term computes \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$
+  in its ENERGY pass and writes it into `ChargeBreakdown::siteMoments`; the SCF trace emits it once per
+  iteration and the facade's detectors read it off `SCFProgress`.  The "fire exactly once per new density"
+  coupling turned out to be the ENERGY PASS, which already fires exactly there.
 
-★★★ **AND THE SHARING IS NOT NEGOTIABLE.**  The class exists so the exchange and correlation terms share ONE
-collocation — without it the pair re-evaluated the Bloch image sums pointwise four times per iteration, 4.8
-s/iteration on NaF, essentially the whole Becke premium (user, 2026-09-09: *"very important"*).  ⚠ Since the
-2026-09-04 one-gather change `MakeVxcTerms` builds ONE term, so the surviving sharing is between that term's
-FOCK pass and its ENERGY pass — **the same shape and cause as R1.0h's \f$H_{ij}\f$ cache**, which is why the
-two are one job.  ⛔ Never "eliminate" the sampler by pushing \f$\rho\f$ back into the terms.
-⚠ And do not drop `itsSrcVersion` on the way out: a deliberately LIVE staleness check, not an assert.
+★★★ **THE SHARING SURVIVED, and is now structural rather than a discipline.**  The XC term is ONE object per
+Hamiltonian (`MakeVxcTerm` over a composite functional) with ONE sampler, so the collocation is shared between
+its Fock pass and its energy pass by construction — there is no second term left to share it WITH.  ⛔ Never
+"eliminate" the sampler by pushing \f$\rho\f$ back into the terms: that is how the 4.8 s/iteration on NaF
+comes back.  `itsSrcVersion` (the LIVE staleness check on the DM-source route) is untouched.
