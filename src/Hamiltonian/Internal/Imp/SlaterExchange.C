@@ -10,24 +10,15 @@ namespace qchem::Hamiltonian
 
 SlaterExchange::SlaterExchange()
     : itsAlpha(0)
-    , itsSpin(Spin::None)
 {};
 
 SlaterExchange::SlaterExchange(double theAlpha)
     : itsAlpha(theAlpha)
-    , itsSpin(Spin::None)
 {};
-
-SlaterExchange::SlaterExchange(double theAlpha, const Spin& S)
-    : itsAlpha(theAlpha)
-    , itsSpin(S)
-{
-    assert(itsSpin!=Spin::None);
-};
 
 double SlaterExchange::GetVxc(double ro) const
 {
-    if (itsSpin==Spin::None) ro*=0.5;
+    ro*=0.5;                    // the closed-shell face: each channel carries half the total
     double ret=0;
     if (ro > 0.0)
     {

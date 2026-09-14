@@ -153,9 +153,9 @@ TEST_F(LDA_XC, VWN5PolarizedMatchesLibxc)
     {
         double rup=0.5*rho*(1.0+zeta), rdn=0.5*rho*(1.0-zeta);
         double exc,vup,vdn; LibxcPol(7, rup, rdn, exc, vup, vdn);
-        EXPECT_NEAR(vwn.GetEpsC(rup,rdn),            exc, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
-        EXPECT_NEAR(vwn.GetVc(rup,rdn,Spin::Up),     vup, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
-        EXPECT_NEAR(vwn.GetVc(rup,rdn,Spin::Down),   vdn, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
+        EXPECT_NEAR(vwn.GetEpsXc(rup,rdn,Spin::Up),            exc, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
+        EXPECT_NEAR(vwn.GetVxc(rup,rdn,Spin::Up),     vup, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
+        EXPECT_NEAR(vwn.GetVxc(rup,rdn,Spin::Down),   vdn, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
     }
 }
 
@@ -177,17 +177,17 @@ TEST_F(LDA_XC, NegativeChannelClampsToFullPolarization)
         const double rdn=-over*rho, rup=rho-rdn, tot=rup+rdn;   // the TOTAL the functional actually sees
         ASSERT_GT((rup-rdn)/tot, 1.0) << "the probe must actually leave the physical zeta range";
         for (Spin s : {Spin::Up, Spin::Down})
-            EXPECT_TRUE(std::isfinite(vwn.GetVc(rup,rdn,s)))
+            EXPECT_TRUE(std::isfinite(vwn.GetVxc(rup,rdn,s)))
                 << "v_c must stay finite at rho="<<rho<<" rho_dn="<<rdn<<" (NaN here throws in the Fock build)";
-        EXPECT_TRUE(std::isfinite(vwn.GetEpsC(rup,rdn))) << "rho="<<rho<<" rho_dn="<<rdn;
+        EXPECT_TRUE(std::isfinite(vwn.GetEpsXc(rup,rdn,Spin::Up))) << "rho="<<rho<<" rho_dn="<<rdn;
         // Clamped zeta==1 IS the fully-polarized state, so the answers must equal the (tot,0) ones exactly
         // (same total, zeta exactly 1 either way -- so both calls evaluate the identical (rs,zeta) point).
-        EXPECT_DOUBLE_EQ(vwn.GetEpsC(rup,rdn),          vwn.GetEpsC(tot,0.0));
-        EXPECT_DOUBLE_EQ(vwn.GetVc(rup,rdn,Spin::Up),   vwn.GetVc(tot,0.0,Spin::Up));
-        EXPECT_DOUBLE_EQ(vwn.GetVc(rup,rdn,Spin::Down), vwn.GetVc(tot,0.0,Spin::Down));
+        EXPECT_DOUBLE_EQ(vwn.GetEpsXc(rup,rdn,Spin::Up),          vwn.GetEpsXc(tot,0.0,Spin::Up));
+        EXPECT_DOUBLE_EQ(vwn.GetVxc(rup,rdn,Spin::Up),   vwn.GetVxc(tot,0.0,Spin::Up));
+        EXPECT_DOUBLE_EQ(vwn.GetVxc(rup,rdn,Spin::Down), vwn.GetVxc(tot,0.0,Spin::Down));
     }
     // ...and the mirror image (majority DOWN) is the same statement with the channels swapped.
-    EXPECT_DOUBLE_EQ(vwn.GetVc(-1e-3,1.0,Spin::Down), vwn.GetVc(0.0,1.0-1e-3,Spin::Down));
+    EXPECT_DOUBLE_EQ(vwn.GetVxc(-1e-3,1.0,Spin::Down), vwn.GetVxc(0.0,1.0-1e-3,Spin::Down));
 }
 
 // The zeta=0 collapse of the spin-native face must equal the scalar (paramagnetic) face byte-for-byte:
@@ -200,8 +200,8 @@ TEST_F(LDA_XC, SpinNativeCollapsesToScalarFace)
         double h=0.5*rho;
         // eps_c collapse is exact (the zeta-dependent terms vanish identically at zeta=0);
         // v_c collapse is exact up to a few ULP (rs vs x*x reassociation in the r_s-derivative term).
-        EXPECT_DOUBLE_EQ(vwn.GetEpsC(h,h),          vwn.GetEpsXc(rho)) << "rho="<<rho;
-        EXPECT_NEAR(vwn.GetVc(h,h,Spin::Up),   vwn.GetVxc(rho), 1e-12) << "rho="<<rho;
-        EXPECT_NEAR(vwn.GetVc(h,h,Spin::Down), vwn.GetVxc(rho), 1e-12) << "rho="<<rho;
+        EXPECT_DOUBLE_EQ(vwn.GetEpsXc(h,h,Spin::Up),          vwn.GetEpsXc(rho)) << "rho="<<rho;
+        EXPECT_NEAR(vwn.GetVxc(h,h,Spin::Up),   vwn.GetVxc(rho), 1e-12) << "rho="<<rho;
+        EXPECT_NEAR(vwn.GetVxc(h,h,Spin::Down), vwn.GetVxc(rho), 1e-12) << "rho="<<rho;
     }
 }

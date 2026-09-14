@@ -102,7 +102,7 @@ qchem::Hamiltonian::Vee_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
 qchem::Hamiltonian::Vxc_Quadrature* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::Vxc_Quadrature::xc_t& xc)
 {
     return new qchem::Hamiltonian::Vxc_Quadrature(xc, qchem::ChargeDensity::MakeDensitySampler(
-        qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}))));
+        qchem::ChargeDensity::fitbasis_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}))), SpinGroup::UnPolarized);
 }
 // rho-tilde from a density matrix D via the basis's D-free Overlap3C tensor (the production path now that
 // GetG_ERI3 is retired): Overlap3C keys on a Vxc fit basis (its grid is ignored -- the delta support is
@@ -1204,7 +1204,7 @@ TEST_F(PlaneWaveDFT, ItemK_RelCutoffDensifiesAndConvergesVxc)
         auto fb=qchem::ChargeDensity::fitbasis_t(F.pw.CreateVxcFitBasisSet(nullptr, mp));
         nGfit=fb->GetNumFunctions();
         std::unique_ptr<qchem::Hamiltonian::Vxc_Quadrature> xc(
-            new qchem::Hamiltonian::Vxc_Quadrature(dirac, qchem::ChargeDensity::MakeDensitySampler(fb)));
+            new qchem::Hamiltonian::Vxc_Quadrature(dirac, qchem::ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized));
         return chmat_t(static_cast<qchem::Hamiltonian::cDynamic_HT*>(xc.get())->GetMatrix(&F.pw, Spin::None, &cd));
     };
     auto froDiff=[&](const chmat_t& A, const chmat_t& B)
@@ -1304,7 +1304,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
 
     // Framework Hamiltonian: a cHamiltonianImp summing the PW Kohn-Sham terms.  The external term
     // owns the pseudopotential model (the pseudo-wall) and assembles it through the basis.
-    cHamiltonianImp ham;
+    cHamiltonianImp ham(SpinGroup::UnPolarized);
     ham.Add(new Kinetic<dcmplx>);
     ham.Add(new Ven_PP_Short(si, &loc));                                // electron-ion SHORT-range local
     ham.Add(new Ven_PP_NonLocal(si, &nl));                              // KB separable projectors

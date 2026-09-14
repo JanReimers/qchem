@@ -10,9 +10,6 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/HF_HT.C
     Internal/Imp/Vee.C
     Internal/Imp/Vxc.C
-    Internal/Imp/VxcPol.C
-    Internal/Imp/FittedVxcPol.C
-    Internal/Imp/FittedVcorrPol.C
     Internal/Imp/FittedVee.C
     Internal/Imp/FittedVxc.C
     # The periodic (plane-wave / GPW) term set -- ONE module interface, five implementation units, the

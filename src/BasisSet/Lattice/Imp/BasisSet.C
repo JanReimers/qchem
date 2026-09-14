@@ -275,7 +275,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
 }
 
 // Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
-static std::string GpwIrrepLabel(const Irrep& q) { std::ostringstream os; q.Write(os); return os.str(); }
+
 
 void EmitGpwGrids(const Complex_BS& bs)
 {
@@ -309,7 +309,7 @@ size_t VetGpwConditioning(const Complex_BS& bs)
         {
             const auto& S = b->Overlap();                 // ANALYTIC Bloch overlap -- no grids needed
             using U=typename std::decay_t<decltype(S)>::ElementType;
-            const std::string label = GpwIrrepLabel(b->GetIrrep(Spin::None));
+            const std::string label = b->GetSymmetry().GetLabel();   // the block's SPATIAL label (k-point)
             {
                 rpt::Row row("perIrrep");
                 rpt::Set("irrep",      label);

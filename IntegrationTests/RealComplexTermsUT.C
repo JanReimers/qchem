@@ -326,7 +326,7 @@ TEST(RealComplexTerms, HartreeAndBeckeXcServeTheRealBlockBitwise)
     // Through the FACTORY: a delta fit basis can only resolve to SINGLES, so naming the strategy bought
     // nothing but an Internal import (user, 2026-09-10).
     auto engine=ChargeDensity::MakeDensitySampler(dfb, q);   // ONE bundle to both collaborators
-    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), engine);
+    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), engine, SpinGroup::UnPolarized);
     {
         auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);
         ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
@@ -430,7 +430,7 @@ TEST(RealComplexTerms, RawRouteXcServesTheRealBlockBitwise)
     auto cd  = rig.MakeDensity();       // the complex arm's density
     auto cdr = rig.MakeRealDensity();   // the real arm's twin (screen-consistent pairing; file header)
     ChargeDensity::fitbasis_t fb(rig.cx->CreateVxcFitBasisSet(rig.st.get(), qcMesh::MeshParams{}));
-    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), ChargeDensity::MakeDensitySampler(fb));
+    Vxc_Quadrature vxc(std::make_shared<SlaterExchange>(2.0/3.0), ChargeDensity::MakeDensitySampler(fb), SpinGroup::UnPolarized);
     auto* rb=dynamic_cast<const Dynamic_HT_RealBlock*>(&vxc);
     ASSERT_NE(rb,nullptr) << "Vxc_Quadrature must carry the real-block capability (Step 3c)";
     const chmat_t Vc=static_cast<const cDynamic_HT&>(vxc).GetMatrix(rig.cx.get(), Spin::None, cd.get());
@@ -442,7 +442,7 @@ TEST(RealComplexTerms, RawRouteXcServesTheRealBlockBitwise)
 // native complex assembly's real part BITWISE -- each term's block already does (the 3c-1 gates), and the
 // fold accumulates them elementwise in the same order.  This is the exact matrix a tIrrepWF<double> child
 // receives from its CalculateH inside a complex run.
-namespace { struct MixedHam : Hamiltonian::tHamiltonianImp<dcmplx> {}; }
+namespace { struct MixedHam : Hamiltonian::tHamiltonianImp<dcmplx> { MixedHam() : tHamiltonianImp<dcmplx>(SpinGroup::UnPolarized) {} }; }
 
 TEST(RealComplexTerms, HamiltonianAssemblyServesTheRealBlockBitwise)
 {

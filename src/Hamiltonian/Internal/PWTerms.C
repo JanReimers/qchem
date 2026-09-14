@@ -268,14 +268,19 @@ private:
     mutable ΔG_Map itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
 };
 
-//! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian, carrying ONE LDA functional
-//! (a full LDA is a Dirac instance + a VWN instance, mirroring the molecular SlaterExchange+VWN split).
+//! \brief THE exchange-correlation term of a periodic Kohn-Sham Hamiltonian -- ONE term for either imposed
+//! spin subgroup (V1.37 step 3; it replaced Vxc_Quadrature + Vxc_QuadraturePol + Vcorr_QuadraturePol),
+//! carrying ONE functional (a full LDA is a \c CompositeExFunctional of Dirac exchange + VWN correlation,
+//! summed so the gather runs once -- 2026-09-04).
 //!
-//! It owns the PHYSICS and nothing else: map the functional over \f$\rho\f$ at the quadrature's points,
-//! hand the resulting field back for the adjoint assembly, and integrate \f$\int\epsilon_{xc}\rho\f$ on
-//! the same weights.  WHICH points, WHICH representation and WHICH assembly strategy are all inside the
-//! \c DensitySampler it was built with, so this one term serves every combination -- δ on Becke, δ on the
-//! uniform cell mesh, plane-wave on the raster.
+//! It owns the PHYSICS and nothing else: map the functional's SPIN-NATIVE face over the channel rasters at
+//! the quadrature's points, hand the resulting field back for the adjoint assembly, and integrate the
+//! energy density on the same weights.  The imposed subgroup, given at construction, decides which rasters
+//! those are: Up/Down from \c RhoPol on a polarized run; on an SU(2) run the folded doublet's ONE raster
+//! from \c Rho, handed to the functional as \f$\rho/2\f$ per channel -- the exact \f$\zeta=0\f$ collapse,
+//! bit-identical to the old scalar path.  WHICH points, WHICH representation and WHICH assembly strategy
+//! are all inside the \c DensitySampler it was built with, so this one term serves every combination --
+//! δ on Becke, δ on the uniform cell mesh, plane-wave on the raster.
 //!
 //! It was \c DeltaFittedVxc, the Becke-route term, while the raster route had a term of its own
 //! (\c PWFittedVxc) that duplicated this logic around its own ρ/H pair.  Two terms for one formula
@@ -296,142 +301,54 @@ public:
     { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
     typedef std::shared_ptr<ExFunctional> xc_t;
     typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
-    Vxc_Quadrature(const xc_t&, sampler_t);
-    //! Pre-warm \f$\rho\f$ on the quadrature's points for \a cd (the EAGER REFRESH PHASE).  Delegated to
-    //! the shared engine, so the XC PAIR warms once between them.
+    //! \a g is the imposed spin subgroup: which rasters the sampler is asked for (its Rho / RhoPol caches
+    //! are mutually exclusive on one engine, so the choice is fixed for the run).
+    Vxc_Quadrature(const xc_t&, sampler_t, SpinGroup g);
+    //! Pre-warm the channel raster(s) on the quadrature's points for \a cd (the EAGER REFRESH PHASE).
     virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual std::ostream& Write(std::ostream&) const;
-private:
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
-    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
-
-    xc_t     itsXc;
-    sampler_t   itsSampler;   //!< the shared mesh + Phi tables + per-serial rho (one per XC pair)
-};
-
-//! SPIN-NATIVE exchange on the Becke quadrature (SymmetryUpgradePlan §4 tier 4b) -- the periodic sibling
-//! of the molecular FittedVxcPol.  Exchange is CHANNEL-SEPARABLE, so one channel-native functional (a
-//! spin-tagged \c SlaterExchange -- it must NOT halve \f$\rho\f$; construct with \c SlaterExchange(alpha,
-//! \c Spin::Up)) serves both channels: the Fock build calls \c MakeMatrix per spin block and each fits
-//! \f$v_x^\sigma=v_x(\rho_\sigma)\f$; \f$E_x=\sum_\sigma\int\epsilon_x(\rho_\sigma)\rho_\sigma\f$.
-//! Shares the pair's ONE \c DensitySampler with the correlation term, exactly like the unpolarized pair.
-class Vxc_QuadraturePol
-    : public virtual cDynamic_HT
-    , private        cDynamic_HT_Imp
-    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
-{
-public:
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
-    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
-    //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
     //! \copydoc tDynamic_HT::SiteMoments
     //! The atom-centred partition lives on my quadrature and both channel rasters are my working data, so
     //! I am the term that computes the observable (doc/OpenWork.md N1/T2).  Empty when the quadrature has
-    //! no site blocks (a uniform raster).  My ENERGY pass writes the same number into
-    //! \c ChargeBreakdown::siteMoments, which is how it reaches the trace and the observer.
-    virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
-    typedef std::shared_ptr<ExFunctional>  xc_t;
-    typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
-    Vxc_QuadraturePol(const xc_t&, sampler_t);
-    //! Pre-warm the \f${\uparrow,\downarrow}\f$ pair on the quadrature's points (the EAGER REFRESH PHASE).
-    virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual bool          IsPolarized() const {return true;}
+    //! no site blocks (a uniform raster) or the run resolves no spin.  My ENERGY pass writes the same number
+    //! into \c ChargeBreakdown::siteMoments, which is how it reaches the trace and the observer.
+    virtual rvec_t        SiteMoments(const cChargeDensity* cd) const override;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
     virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
     template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
+    //! The two channel rasters of \a cd as the functional sees them: the sampler's Up/Down pair, or the
+    //! folded doublet's one raster halved (borrowed reference + scratch, hence the pair of references).
+    struct Rasters { const rvec_t& up; const rvec_t& dn; };
+    Rasters ChannelRasters(const cChargeDensity* cd, rvec_t& scratch) const;
 
-    xc_t     itsXc;       //!< channel-native (non-halving) exchange functional, shared across channels
-    sampler_t   itsSampler;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
+    xc_t      itsXc;
+    sampler_t itsSampler;   //!< the shared mesh + Phi tables + per-serial rho (one per Hamiltonian)
+    SpinGroup itsGroup;     //!< the imposed subgroup this term was built for
 };
 
-//! SPIN-NATIVE correlation on the Becke quadrature -- the periodic sibling of the molecular
-//! FittedVcorrPol.  Correlation does NOT separate by channel: \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$
-//! couples both densities (through \f$r_s\f$ and \f$\zeta\f$), so this term evaluates the \c SpinCorrelation
-//! face against BOTH channel rasters at each mesh point; \f$E_c=\int\epsilon_c(\rho_\uparrow,\rho_\downarrow)
-//! (\rho_\uparrow+\rho_\downarrow)\f$.  The spin-agnostic seed collapses inside \c DensitySampler::RhoPol
-//! (\f$\rho_\sigma=\rho/2\f$), so no term-side fallback is needed.
-//! ★ AND SINCE 2026-09-04 IT IS THE WHOLE SPIN-NATIVE XC TERM, not the correlation half of a pair.
-//! \c MakeVxcTerms hands it a \c CompositeExFunctional carrying exchange AND correlation, so its
-//! \c SpinCorrelation face returns \f$v_x^\sigma+v_c^\sigma\f$ and the term gathers ONCE per channel
-//! instead of twice.  See CompositeExFunctional for why that is the same operator for half the work.
-class Vcorr_QuadraturePol
-    : public virtual cDynamic_HT
-    , private        cDynamic_HT_Imp
-    , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
-{
-public:
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
-    //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
-    //! mixins, which is exactly what the shared \c HT_SlotOwner base is for: two caches is a fact about
-    //! this term, and the term is what states it.
-    virtual void PrepareSlots(const cbs_t* bs) const override
-    { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
-    typedef std::shared_ptr<SpinCorrelation> corr_t;
-    typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
-    Vcorr_QuadraturePol(const corr_t&, sampler_t);
-    //! \copydoc Vxc_QuadraturePol::SiteMoments
-    //! ⚠ Carried HERE since the pair collapsed into one term (2026-09-04): the Hamiltonian polls terms
-    //! first-non-empty-wins, so the surviving XC term is the one that answers -- and the one whose energy
-    //! pass fills \c ChargeBreakdown.
-    virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
-    //! Pre-warm the \f${\uparrow,\downarrow}\f$ pair on the quadrature's points (the EAGER REFRESH PHASE).
-    virtual void          RefreshForDensity(const cChargeDensity* cd) const override;
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual bool          IsPolarized() const {return true;}
-    virtual std::ostream& Write(std::ostream&) const;
-private:
-    virtual chmat_t MakeMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
-    virtual rsmat_t MakeMatrixR(const robs_t*, const Spin&, const cChargeDensity*) const;   // Step 3c
-    template <class U> hmat_t<U> MakeMatrixT(const tobs_t<U>*, const Spin&, const cChargeDensity*) const;
-
-    corr_t   itsCorr;     //!< the spin-native correlation functional (VWN5's two-channel face)
-    sampler_t   itsSampler;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
-};
-
-
-//! \brief The exchange+correlation TERM PAIR for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to
-//! \c Add (ownership passes with each release()).
+//! \brief THE XC term for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to \c Add (ownership
+//! passes with release()).
 //!
-//! A Hamiltonian builder asks for XC terms and gets XC terms.  WHICH quadrature they run on, which
-//! assembly strategy that quadrature uses, and the fact that the pair SHARES one of them (so \f$\rho\f$
-//! and the \f$\Phi\f$ tables are built once per ITERATION for both terms, not once per term) are decided
-//! here -- they are implementation, and a builder that has to name them is a builder that can pair them
-//! wrong.  \a polarized picks the spin-native pair (tier 4b); \a exch must then be channel-native.
-//! \tparam C the concrete correlation functional -- it must satisfy BOTH faces (the unpolarized term takes
-//! the plain \c ExFunctional, the polarized one the two-channel \c SpinCorrelation), which is exactly what
-//! lets one call serve both branches.
-template <class C> std::vector<std::unique_ptr<cDynamic_HT>>
-MakeVxcTerms(const std::shared_ptr<ExFunctional>& exch, const std::shared_ptr<C>& corr,
-             const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb, bool polarized,
-             BasisSet::FitQuadrature quad={})
+//! A Hamiltonian builder asks for the XC term and gets the XC term.  WHICH quadrature it runs on and which
+//! assembly strategy that quadrature uses are decided here -- they are implementation, and a builder that
+//! has to name them is a builder that can pair them wrong.  \a g is the imposed spin subgroup the term is
+//! built for.
+//!
+//! ★ ONE TERM, NOT A PAIR (2026-09-04).  Each term does its OWN real-space gather of its potential, and
+//! the gather is LINEAR: <i|v_x|j> + <i|v_c|j> == <i|(v_x+v_c)|j>.  Two terms therefore bought two
+//! gathers for one operator -- and the gather is 71% of the MnO parity run (doc/OpenWork.md bin 1).
+//! Summing the FUNCTIONALS instead of the MATRICES is the same physics for half the work.
+//! ⚠ NOT bit-identical (gather(a)+gather(b) vs gather(a+b) differ at roundoff); the operator is the same.
+inline std::unique_ptr<cDynamic_HT>
+MakeVxcTerm(std::vector<std::shared_ptr<ExFunctional>> parts,
+            const std::shared_ptr<const BasisSet::cFIT_SF_ABS>& fb, SpinGroup g,
+            BasisSet::FitQuadrature quad={})
 {
     std::shared_ptr<const ChargeDensity::DensitySampler> q=ChargeDensity::MakeDensitySampler(fb, std::move(quad));
-    std::vector<std::unique_ptr<cDynamic_HT>> terms;
-    // ★ ONE TERM, NOT A PAIR (2026-09-04).  Each term does its OWN real-space gather of its potential, and
-    // the gather is LINEAR: <i|v_x|j> + <i|v_c|j> == <i|(v_x+v_c)|j>.  Two terms therefore bought two
-    // gathers for one operator -- and the gather is 71% of the MnO parity run (doc/OpenWork.md bin 1).
-    // Summing the FUNCTIONALS instead of the MATRICES is the same physics for half the work, and it is the
-    // factory's business because the factory is already what decides the pair shares one quadrature.
-    // ⚠ NOT bit-identical (gather(a)+gather(b) vs gather(a+b) differ at roundoff); the operator is the same.
-    auto sum=std::make_shared<CompositeExFunctional>(
-        std::vector<std::shared_ptr<ExFunctional>>{exch, corr});
-    if (polarized)
-        // The composite answers the two-channel face: exchange rides it channel-separably (v_x(rho_sigma)),
-        // correlation couples both rasters.  So the spin-native term carries the WHOLE functional.
-        terms.push_back(std::make_unique<Vcorr_QuadraturePol>(sum, q));
-    else
-        terms.push_back(std::make_unique<Vxc_Quadrature>(sum, q));
-    return terms;
+    auto sum=std::make_shared<CompositeExFunctional>(std::move(parts));
+    return std::make_unique<Vxc_Quadrature>(sum, q, g);
 }
 
 } //namespace

@@ -1,6 +1,7 @@
 // File: Hamiltonian/Imp/Factory.C  Construct and return various Hamiltonian types.
 module;
 #include <cassert>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -8,6 +9,8 @@ module;
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Libxc_LDA;             // XC::LibXC selector (one libxc LDA functional)
+import qchem.Hamiltonian.Internal.SlaterExchange;        // the DiracVWN functional list
+import qchem.Hamiltonian.Internal.VWN_Correlation;
 
 namespace qchem::Hamiltonian
 {
@@ -24,56 +27,20 @@ namespace qchem::Hamiltonian
 
     rHamiltonian* Factory(Model m,SpinGroup p, const st_t& st)
     {
-        rHamiltonian* h=0;
-        switch (p)
+        switch (m)
         {
-            case SpinGroup::UnPolarized:
-            {
-                switch (m)
-                {
-                    case Model::E1:
-                        h=new Ham_1E(st);
-                        break;
-                    case Model::HF:
-                        h=new Ham_HF_U(st);
-                        break;
-                    case Model::DE1:
-                        h=new Ham_DHF_1E(st);
-                        break;
-                    case Model::DHF:
-                        h=new Ham_DHF_U(st);
-                        break;
-                    case Model::Xalpha:
-                    case Model::LDA:
-                        NeedsResolver();
-                }
-                break;
-            }
-            case SpinGroup::Polarized:
-            {
-                switch (m)
-                {
-                case Model::E1:
-                    h=new Ham_1E(st);
-                    break;
-                case Model::HF:
-                    h=new Ham_HF_P(st);
-                    break;
-                case Model::DE1:
-                    h=new Ham_DHF_1E(st);
-                    break;
-                case Model::DHF:
-                    h=new Ham_DHF_P(st);
-                    break;
-                case Model::Xalpha:
-                case Model::LDA:
-                    NeedsResolver();
-                }
-            break;
-            }
+            case Model::E1:  return new Ham_1E(st, p);
+            case Model::HF:  return new Ham_HF(st, p);
+            // Dirac: ALWAYS Polarized -- spin lives inside the double group's (κ,m_j) blocks and the tree
+            // has no folded form for them, so the requested subgroup cannot be honoured and is not
+            // pretended to be (see the namespace note in Internal/Hamiltonians.C).
+            case Model::DE1: return new Ham_DHF_1E(st);
+            case Model::DHF: return new Ham_DHF(st);
+            case Model::Xalpha:
+            case Model::LDA:
+                NeedsResolver();
         }
-        assert(h);
-        return h;
+        assert(false); return nullptr;
     }
     // Map a DFT Model token to its XCFunctional.  The friendly Model shorthand is just a default-parameter
     // XCFunctional; finer control (libxc ids, non-default correlation) goes through XCFunctional directly.
@@ -93,23 +60,24 @@ namespace qchem::Hamiltonian
     // The functional internals never leak past this switch; if/else returns keep the U/P pointer types clean.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
+        typedef std::vector<std::shared_ptr<ExFunctional>> parts_t;
         switch (xc.kind)
         {
-            case XC::SlaterXalpha:   // Slater-Dirac exchange, scaled by alpha (the Ham_DFT_U/P alpha ctor owns the spin)
-                if (p==SpinGroup::UnPolarized) return new Ham_DFT_U(st, xc.alpha, mp, bs);
-                return                          new Ham_DFT_P(st, xc.alpha, mp, bs);
+            case XC::SlaterXalpha:   // Slater-Dirac exchange, scaled by alpha
+                return new Ham_DFT(st, xc.alpha, mp, bs, p);
             case XC::DiracVWN:       // parameter-free LSDA: Dirac exchange + spin-native VWN5 correlation
-                if (p==SpinGroup::UnPolarized) return new Ham_DFTcorr_U(st, mp, bs);
-                return                          new Ham_DFTcorr_P(st, mp, bs);   // spin-native (OpenWork B)
+                return new Ham_DFT(st, parts_t{std::make_shared<SlaterExchange>(2.0/3.0),
+                                               std::make_shared<VWN_Correlation>()}, mp, bs, p);
             case XC::LibXC:
                 if (p!=SpinGroup::UnPolarized)
                     throw std::runtime_error("Factory(XCFunctional): LibXC is unpolarized-only -- the "
                         "Libxc_LDA wrapper is scalar (single-density) by construction.  Use XC::DiracVWN "
                         "for polarized (spin-native VWN5) LDA.");
-                // Dirac exchange (LDA_X, id 1) + the libxc correlation functional named by libxcId, as
-                // SEPARATE FittedVxc + FittedVcorr terms (so E_c is the correct integral eps_c rho, not the
-                // 3/4 exchange virial).  Ham_DFTcorr_U owns both functionals.
-                return new Ham_DFTcorr_U(st, new Libxc_LDA(1), new Libxc_LDA(xc.libxcId), mp, bs);
+                // Dirac exchange (LDA_X, id 1) + the libxc correlation functional named by libxcId, summed
+                // into the one XC term (each contributes its OWN eps, so E_c is the correct integral eps_c
+                // rho, not the 3/4 exchange virial).
+                return new Ham_DFT(st, parts_t{std::make_shared<Libxc_LDA>(1),
+                                               std::make_shared<Libxc_LDA>(xc.libxcId)}, mp, bs, p);
         }
         assert(false); return nullptr;
     }
@@ -133,14 +101,14 @@ namespace qchem::Hamiltonian
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
-        return new Ham_PP(st, element, valence, mp, bs, p==SpinGroup::Polarized);
+        return new Ham_PP(st, element, valence, mp, bs, p);
     }
 
     // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
     rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
                          const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
-        return new Ham_PP(st, species, mp, bs, p==SpinGroup::Polarized);
+        return new Ham_PP(st, species, mp, bs, p);
     }
 
     // The SOLID front door (Step 4): the cHamiltonian twin of the PP factory above.
@@ -148,7 +116,7 @@ namespace qchem::Hamiltonian
                           const std::vector<std::pair<std::string,int>>& species,
                           const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit)
     {
-        return new Ham_PW_DFT(st, bs, species, functional, xcMesh, fit, p==SpinGroup::Polarized);
+        return new Ham_PW_DFT(st, bs, species, functional, xcMesh, fit, p);
     }
 
 }

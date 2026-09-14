@@ -26,94 +26,50 @@ import qchem.Reporting;                           // grids.xcQuadrature route an
 namespace qchem::Hamiltonian
 {
 
-Ham_1E::Ham_1E(const st_t& st)
+Ham_1E::Ham_1E(const st_t& st, SpinGroup g)
+    : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
 }
 
-Ham_HF_U::Ham_HF_U(const st_t& st) 
+Ham_HF::Ham_HF(const st_t& st, SpinGroup g)
+    : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
     Add(new Vee);
-    Add(new Vxc(-0.5));
+    Add(new Vxc);                  // same-spin exchange: -1/2 K on a folded doublet, -K per channel
 }
 
-
-Ham_DFT_U::Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
-    : Ham_DFT_U(st,new SlaterExchange(alpha_ex),mp,bs)
+Ham_DFT::Ham_DFT(const st_t& st, double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g)
+    : Ham_DFT(st, {std::make_shared<SlaterExchange>(alpha_ex)}, mp, bs, g)
 {};
 
-Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
+Ham_DFT::Ham_DFT(const st_t& st, std::vector<std::shared_ptr<ExFunctional>> parts,
+                 const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g)
+    : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
     Add(new Ven(st));
-       
-    FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
+
+    FittedVee::fbs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
 
-    FittedVxc::ex_t XcFunct(ex);
+    // ONE XC term over the SUM of functionals (a fit is linear, so fit(a+b) is fit(a)+fit(b) for half the
+    // work); its energy is the functionals' own eps -- correlation's is NOT the exchange virial.
     FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
-    Add(new FittedVxc(XFitBasis, XcFunct));
+    FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::move(parts)));
+    Add(new FittedVxc(XFitBasis, xc, g));
 }
 
-// Dirac exchange + VWN5 correlation: the parameter-free in-house LSDA (delegates to the generic ctor).
-Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs)
-    : Ham_DFTcorr_U(st, new SlaterExchange(2.0/3.0), new VWN_Correlation(), mp, bs)
-{}
-
-// Generic separate-terms LSDA: exchange via FittedVxc (3/4 virial energy, exact for exchange) + correlation
-// via FittedVcorr (E_c = integral eps_c rho -- needs the functional's GetEpsXc), sharing ONE Vxc fit basis
-// so the 3-centre integrals are computed once.  Used by both the in-house (Slater+VWN) and libxc paths, so
-// the correct correlation energy is shared -- no path lumps X+C into a single 3/4-virial term.
-Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, ExFunctional* exchange, ExFunctional* correlation,
-                             const qcMesh::MeshParams& mp, const rbs_t* bs)
-{
-    Add(new Kinetic<double>);
-    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
-    Add(new Ven(st));
-
-    FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
-    Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
-
-    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp)); // ONE Vxc fit basis, shared X and C
-    FittedVxc::ex_t exch(exchange);
-    Add(new FittedVxc  (XFitBasis, exch));
-    FittedVxc::ex_t corr(correlation);
-    Add(new FittedVxc  (XFitBasis, corr));   // energy via eps_c fit (functional's own eps_xc), not the 3/4 virial
-}
-
-// Spin-native polarized LSDA: mirror Ham_DFTcorr_U but with the polarized exchange (FittedVxcPol, Dirac)
-// and the polarized correlation (FittedVcorrPol, spin-native VWN5) terms, sharing one Vxc fit basis.  The
-// unpolarized Ham_DFTcorr_U is the zeta=0 collapse of this.
-Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs)
-{
-    Add(new Kinetic<double>);
-    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
-    Add(new Ven(st));
-
-    FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
-    Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
-
-    FittedVxcPol::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp)); // ONE Vxc fit basis, shared X and C
-    FittedVxcPol::ex_t exch(new SlaterExchange(2.0/3.0, Spin(Spin::Up))); // Dirac exchange (alpha = 2/3), polarized
-    Add(new FittedVxcPol  (XFitBasis, exch));
-    FittedVcorrPol::corr_t corr(new VWN_Correlation());                  // spin-native VWN5 correlation
-    Add(new FittedVcorrPol(XFitBasis, corr));
-}
-
-// PSEUDOPOTENTIAL LSDA: like Ham_DFTcorr_U/_P but with the bare nuclear attraction (Ven) replaced by the
-// mesh-quadratured local pseudopotential V_loc(r) + the KB-separable non-local projectors, PLUS the ion-ion
-// repulsion of the Zion cores (a direct pair sum; ZERO for a lone atom, so the atom energy is unchanged).
-// Kinetic + PP_Local [+ PP_NonLocal] + Hartree + Dirac exchange + VWN5 + IonIon(Zion).  \a polarized selects the
-// spin-native XC (FittedVxcPol + FittedVcorrPol, open shell) vs the zeta=0 unpolarized collapse.
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const BasisSet::SpeciesProjectorSet_R> sep,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, bool polarized)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g)
+    : rHamiltonianImp(g)
 {
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st, vloc->ZionFn()));     // ion-ion of the Zion cores (0 for one atom; Zion, not itsZ)
@@ -123,37 +79,21 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
     FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis, st->GetNumElectrons()));
 
-    // ONE Vxc fit basis, shared X and C.  Spin-native (polarized) is the primary path; unpolarized is the
-    // zeta=0 collapse (identical numbers for a closed shell, at half the XC work).
-    if (polarized)
-    {
-        FittedVxcPol::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
-        FittedVxcPol::ex_t  exch(new SlaterExchange(2.0/3.0, Spin(Spin::Up)));   // Dirac exchange, polarized
-        Add(new FittedVxcPol  (XFitBasis, exch));
-        FittedVcorrPol::corr_t corr(new VWN_Correlation());                      // spin-native VWN5 correlation
-        Add(new FittedVcorrPol(XFitBasis, corr));
-    }
-    else
-    {
-        FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
-        FittedVxc::ex_t exch(new SlaterExchange(2.0/3.0));           // Dirac exchange (alpha = 2/3)
-        Add(new FittedVxc  (XFitBasis, exch));
-        FittedVxc::ex_t corr(new VWN_Correlation());                // VWN5 correlation
-        Add(new FittedVxc  (XFitBasis, corr));   // energy via eps_c fit (functional's own eps_xc), not the 3/4 virial
-    }
+    // LDA: Dirac exchange (alpha = 2/3) + VWN5 correlation, ONE XC term over their sum (see Ham_DFT).
+    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
+    FittedVxc::ex_t  xc(std::make_shared<CompositeExFunctional>(std::vector<std::shared_ptr<ExFunctional>>{
+                          std::make_shared<SlaterExchange>(2.0/3.0), std::make_shared<VWN_Correlation>()}));
+    Add(new FittedVxc(XFitBasis, xc, g));
 }
 
 Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
-               const rbs_t* bs, bool polarized)
+               const rbs_t* bs, SpinGroup g)
     : Ham_PP(st,
              std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
              std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
-             mp, bs, polarized)
+             mp, bs, g)
 {}
 
-// Build the per-Z router models for a multi-species pseudopotential from GTH lookups (mirrors the PW
-// Ham_PW_DFT::BuildFromGTH): one MultiSpecies_Local + one MultiSpecies_Separable keyed by atomic number, so
-// PP_Local/PP_NonLocal/IonIon -- which already index on the atoms' itsZ -- give each atom its own PP.
 namespace {
 std::shared_ptr<const Pseudopotential::LocalPotential>
 BuildMultiSpeciesLocal(const std::vector<std::pair<std::string,int>>& species)
@@ -176,18 +116,13 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species)
 } //anon
 
 Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
-               const qcMesh::MeshParams& mp, const rbs_t* bs, bool polarized)
-    : Ham_PP(st, BuildMultiSpeciesLocal(species), BuildMultiSpeciesSep(species), mp, bs, polarized)
+               const qcMesh::MeshParams& mp, const rbs_t* bs, SpinGroup g)
+    : Ham_PP(st, BuildMultiSpeciesLocal(species), BuildMultiSpeciesSep(species), mp, bs, g)
 {}
 
-// Plane-wave LDA Kohn-Sham: the five G-space framework terms.  Exchange and correlation are SEPARATE
-// Vxc_Quadrature terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
-// E_c = integral eps_c rho.  The Hartree term takes a density-fit basis from the basis's own factory
-// (like FittedVee); the XC route still integrates on the basis's grid (no fit basis).  The pseudopotential
-// is carried by the basis (the external term just supplies the structure factor).
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
-                            VxcFit fit, bool polarized)
+                            VxcFit fit)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
     // REL_CUTOFF seam).  Exchange and correlation share ONE Vxc fit basis, so it takes the DENSER of the two;
@@ -283,9 +218,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         // EXCLUSIVE of "setup: XC-mesh Phi tables" (built inside, own bucket) -- so this reads as the term
         // assembly around them.
         qchem::report::Timed timed("setup: XC term assembly (Phi tables are its child)");
-        for (auto& t : MakeVxcTerms(polarized ? std::make_shared<SlaterExchange>(2.0/3.0, Spin::Up) : exch,
-                                    corr, XFitBasis, polarized, std::move(quadrature)))
-            Add(t.release());
+        Add(MakeVxcTerm({exch, corr}, XFitBasis, GetSpinGroup(), std::move(quadrature)).release());
     }
 
     {
@@ -299,6 +232,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
 // Explicit-models ctor: the caller owns the models (itsOwnedLocal/Sep stay null).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                        const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh)
+    : cHamiltonianImp(SpinGroup::UnPolarized)
 {
     BuildTerms(st, bs, loc, nl, xcMesh);
 }
@@ -306,6 +240,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const Pseudopotential::L
 // Single-species convenience ctor: the 1-species case of the multi-species build.
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::string& element,
                        const std::string& functional, int valence, const qcMesh::MeshParams& xcMesh)
+    : cHamiltonianImp(SpinGroup::UnPolarized)
 {
     BuildFromGTH(st, bs, {{element, valence}}, functional, xcMesh);
 }
@@ -313,15 +248,17 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::string& eleme
 // Multi-species convenience ctor.
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<std::pair<std::string,int>> species,
                        const std::string& functional, const qcMesh::MeshParams& xcMesh)
+    : cHamiltonianImp(SpinGroup::UnPolarized)
 {
     BuildFromGTH(st, bs, std::vector<std::pair<std::string,int>>(species), functional, xcMesh);
 }
 
 // Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                       const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, bool polarized)
+                       const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, SpinGroup g)
+    : cHamiltonianImp(g)
 {
-    BuildFromGTH(st, bs, species, functional, xcMesh, fit, polarized);
+    BuildFromGTH(st, bs, species, functional, xcMesh, fit);
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
@@ -329,7 +266,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::p
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                              const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, bool polarized)
+                              const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit)
 {
     auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
@@ -348,63 +285,25 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit, polarized);
+    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit);
 }
-
-Ham_HF_P::Ham_HF_P(const st_t& st)
-{
-    Add(new Kinetic<double>);
-    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
-    Add(new Ven(st));
-    Add(new Vee);
-    Add(new VxcPol);
-}
-
-
-Ham_DFT_P::Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
-    : Ham_DFT_P(st,new SlaterExchange(alpha_ex,Spin(Spin::Up)),mp,bs)
-{};
-
-Ham_DFT_P::Ham_DFT_P(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
-{
-    Add(new Kinetic<double>);
-    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
-    Add(new Ven(st));
-    FittedVee::fbs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
-    Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
-
-    FittedVxcPol::ex_t XcFunct(ex);
-    FittedVxcPol::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
-    Add(new FittedVxcPol(XFitBasis, XcFunct));
-    
-}
-
 
 Ham_DHF_1E::Ham_DHF_1E(const st_t& st)
+    : rHamiltonianImp(SpinGroup::Polarized)   // Dirac: spin inside the double group; no folded form exists
 {
     Add(new DiracKinetic());
     Add(new RestMass());
     Add(new Ven(st));
-    //Add(new Vnn(st));
 }
 
-Ham_DHF_U::Ham_DHF_U(const st_t& st)
+Ham_DHF::Ham_DHF(const st_t& st)
+    : rHamiltonianImp(SpinGroup::Polarized)   // Dirac: spin inside the double group; no folded form exists
 {
     Add(new DiracKinetic());
     Add(new RestMass());
-    //Add(new Vnn(st));
     Add(new Ven(st));
     Add(new Vee());
-    Add(new Vxc(-0.5));
-}
-Ham_DHF_P::Ham_DHF_P(const st_t& st)
-{
-    Add(new DiracKinetic());
-    Add(new RestMass());
-    //Add(new Vnn(st));
-    Add(new Ven(st));
-    Add(new Vee());
-    Add(new VxcPol());
+    Add(new Vxc());
 }
 
 } //namespace

@@ -14,15 +14,14 @@ import qchem.Blaze;
 namespace qchem::Hamiltonian
 {
 
-template <class T> tHamiltonianImp<T>::tHamiltonianImp()
-    : itsIsPolarized(false)
+template <class T> tHamiltonianImp<T>::tHamiltonianImp(SpinGroup g)
+    : itsSpinGroup(g)
     , itsIsRelativistic(false)
 {};
 
 template <class T> void tHamiltonianImp<T>::Add(tStatic_HT<T>* p)
 {
     itsSHTs.push_back(std::unique_ptr<tStatic_HT<T>>(p));
-    itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
     // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
@@ -31,7 +30,6 @@ template <class T> void tHamiltonianImp<T>::Add(tStatic_HT<T>* p)
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 {
     itsDHTs.push_back(std::unique_ptr<tDynamic_HT<T>>(p));
-    itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
     // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
@@ -40,7 +38,6 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
 {
     itsHF_HTs.push_back(std::unique_ptr<tDynamic_HF_HT<T>>(p));
-    itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
     // AND, not OR: the virial holds only if EVERY term is Coulombic (V1.27).  One PP term kills it.
     itsIsVirialValid  = itsIsVirialValid  && p->IsVirialValid();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
@@ -122,7 +119,7 @@ template <class T> EnergyBreakdown tHamiltonianImp<T>::GetTotalEnergy( const tDM
 
 template <class T> std::ostream& tHamiltonianImp<T>::Write(std::ostream& os) const
 {
-    if (itsIsPolarized) os << "Polarized ";
+    if (itsSpinGroup==SpinGroup::Polarized) os << "Polarized ";
     if (itsIsRelativistic) os << "Relativistic ";
     os << "Hamiltonian with " << itsSHTs.size() << " static terms:" << std::endl;
     os << itsSHTs;

@@ -7,7 +7,7 @@ module;
 export module qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Streamable;
 import qchem.Math;            // max (the composite's grid-cutoff reduction)
-import qchem.Symmetry.Spin;   // Spin -- the requested channel of the spin-native correlation face
+export import qchem.Symmetry.Spin;   // Spin -- the channel argument of the spin-native face
 
 export namespace qchem::Hamiltonian
 {
@@ -24,20 +24,49 @@ export namespace qchem::Hamiltonian
 //!
 //! A field is now built where it is USED, by an adapter holding (functional, density) as CONSTRUCTOR
 //! arguments -- \c VxcDensity / \c EpsXcDensity in Imp/FittedVxc.C, \c PolVcDensity / \c PolEpsCDensity in
-//! Imp/FittedVcorrPol.C, \c PWVxcField in Imp/PWTerms.C.  So the density arrives as an argument, not as
+//! Imp/FittedVxc.C, the sampled fields in Imp/PWTerms_XC.C.  So the density arrives as an argument, not as
 //! latched state, and the "which density am I attached to?" question cannot be answered wrongly.
-//! (\c isPolarized went with it: it had NO setter caller, so it was permanently true, while \c GetVxc
-//! actually branched on a DIFFERENT flag -- \c SlaterExchange::itsSpin.  Polarization is expressed by the
-//! spin-native \c SpinCorrelation face below, and by that Spin, not by a bool on this face.)
+//! (\c isPolarized went with it, and so -- V1.37 step 3 -- did \c SlaterExchange's Spin tag: polarization
+//! is not a property of a functional at all; the TERM supplies per-channel densities to the spin-native
+//! face below, and the imposed subgroup decides what those densities are.)
 class ExFunctional
     : public virtual Streamable
 {
 public:
-    virtual double GetVxc(                double ChargeDensity) const=0;
-    //! \brief Energy density per particle \f$\varepsilon_{xc}(\rho)\f$, so \f$E_{xc}=\int\varepsilon_{xc}\rho\,d^3r\f$.
-    //! Default is the EXCHANGE virial \f$\varepsilon_x=\tfrac34 v_x\f$ (exact for Dirac/Slater exchange).
-    //! CORRELATION functionals MUST override: \f$\varepsilon_c\neq\tfrac34 v_c\f$ (differs ~15%).
-    virtual double GetEpsXc(              double ChargeDensity) const {return 0.75*GetVxc(ChargeDensity);}
+    //! \name The \f$\zeta=0\f$ scalar face: the TOTAL density of a closed shell.
+    //! The historical single-density formulation, and still the primitive a CHANNEL-SEPARABLE functional
+    //! (exchange) is written in.  \f$\varepsilon_{xc}\f$ defaults to the EXCHANGE virial \f$\tfrac34 v_x\f$
+    //! (exact for Dirac/Slater exchange); CORRELATION functionals MUST override (differs ~15%).
+    //!@{
+    virtual double GetVxc  (double rho) const=0;
+    virtual double GetEpsXc(double rho) const {return 0.75*GetVxc(rho);}
+    //!@}
+
+    //! \name THE SPIN-NATIVE FACE -- what every term consumes (V1.37 step 3, 2026-09-14).
+    //!
+    //! \f$v_{xc}^\sigma(\rho_\uparrow,\rho_\downarrow)\f$ and the per-channel energy per particle
+    //! \f$\varepsilon^\sigma(\rho_\uparrow,\rho_\downarrow)\f$, defined so that
+    //! \f$E_{xc}=\sum_\sigma\int\rho_\sigma\,\varepsilon^\sigma\f$ -- the form a per-spin density
+    //! CONTRACTS against (\f$\mathrm{Tr}(D_\sigma\langle i|\varepsilon^\sigma|j\rangle)\f$), and the form a
+    //! composite of functionals SUMS.  Spin-native is THE formulation; an unpolarized run is its
+    //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ collapse, which the TERM supplies (the folded doublet
+    //! block hands over \f$\rho/2\f$ per channel) -- no functional carries a polarization flag any more.
+    //!
+    //! The DEFAULTS are the CHANNEL-SEPARABLE (exchange) rule, \f$v^\sigma=v_x(\rho_\sigma)\f$ with
+    //! \f$v_x^\sigma(\rho_\sigma)=v_x^{\zeta=0}(2\rho_\sigma)\f$ (spin scaling: the closed-shell formula at
+    //! the density a channel would have if doubled).  At \f$\zeta=0\f$ they reproduce the scalar face
+    //! BIT FOR BIT (\f$2\cdot\tfrac12\rho=\rho\f$ exactly).  A correlation functional -- which COUPLES the
+    //! channels through \f$r_s\f$ and \f$\zeta\f$ -- overrides both; a scalar-only wrapper (libxc)
+    //! overrides them to refuse \f$\zeta\neq0\f$.
+    //!@{
+    virtual double GetVxc  (double up, double dn, const Spin& s) const {return GetVxc  (2.0*(s==Spin::Down ? dn : up));}
+    virtual double GetEpsXc(double up, double dn, const Spin& s) const {return GetEpsXc(2.0*(s==Spin::Down ? dn : up));}
+    //! The XC energy density PER UNIT VOLUME, \f$e=\sum_\sigma\rho_\sigma\varepsilon^\sigma\f$ -- what a
+    //! quadrature integrates.  Per volume, not per particle, because per-particle forms do not share a
+    //! denominator across a composite (\f$\rho_{tot}\f$ is zero in vacuum).  Derived, never overridden.
+    double GetExcDensity(double up, double dn) const
+    {return up*GetEpsXc(up,dn,Spin::Up) + dn*GetEpsXc(up,dn,Spin::Down);}
+    //!@}
 
     //! \brief How much denser the \f$v_{xc}\f$-fit grid must be than the wavefunction bandwidth, as a
     //! multiplier on the fit-basis energy cutoff (the CP2K \c REL_CUTOFF idea).
@@ -50,35 +79,9 @@ public:
     virtual double GridCutoffFactor() const {return 1.0;}
 };
 
-//! \brief Spin-native correlation face (no data; an abstract capability mixin).
-//!
-//! Correlation does NOT separate by spin channel the way Slater exchange does: \f$v_c^\sigma\f$ and
-//! \f$\varepsilon_c\f$ COUPLE both densities (through \f$r_s(\rho_\uparrow+\rho_\downarrow)\f$ and
-//! \f$\zeta\f$), so they cannot be expressed through the single-density \c ExFunctional::GetVxc face that
-//! channel-separable exchange uses.  A correlation functional that supports polarized DFT implements this
-//! two-channel face; \c FittedVcorrPol consumes it.  Unpolarized is the \f$\rho_\uparrow=\rho_\downarrow\f$
-//! collapse (so \c GetVc(h,h,s)==\c ExFunctional::GetVxc(2h)).
-class SpinCorrelation
-{
-public:
-    virtual ~SpinCorrelation() {}
-    //! Correlation energy density per particle \f$\varepsilon_c(\rho_\uparrow,\rho_\downarrow)\f$.
-    virtual double GetEpsC(double rhoUp, double rhoDown) const=0;
-    //! Channel correlation potential \f$v_c^\sigma=\varepsilon_c+\rho\,\partial\varepsilon_c/\partial\rho_\sigma\f$.
-    virtual double GetVc  (double rhoUp, double rhoDown, const Spin&) const=0;
-
-    //! \brief The XC energy DENSITY **PER UNIT VOLUME**, \f$e(\rho_\uparrow,\rho_\downarrow)\f$, so that
-    //! \f$E=\int e\,d^3r\f$.
-    //!
-    //! ⚠ PER VOLUME, NOT PER PARTICLE, and that is the whole reason it exists: a COMPOSITE of functionals
-    //! sums energy densities, and the per-particle forms do NOT share a denominator -- exchange carries
-    //! \f$\varepsilon_x(\rho_\sigma)\rho_\sigma\f$ summed over channels while correlation carries
-    //! \f$\varepsilon_c\rho_{tot}\f$.  Adding them per particle would need a division by \f$\rho_{tot}\f$,
-    //! which is ZERO in vacuum.  Per volume they just add.
-    //! Default: the single-correlation-functional form, so every existing functional is unchanged.
-    virtual double GetExcDensity(double rhoUp, double rhoDown) const
-    {return GetEpsC(rhoUp,rhoDown)*(rhoUp+rhoDown);}
-};
+// (The separate SpinCorrelation capability face is GONE -- V1.37 step 3.  It existed because only
+//  correlation had a two-channel formulation while exchange rode a Spin-TAGGED functional and a bool on the
+//  term; with spin-native as THE face on every functional, a term needs one face and no cross-cast.)
 
 //! \brief A SUM OF FUNCTIONALS behaving as ONE (user, 2026-09-04).
 //!
@@ -93,75 +96,38 @@ public:
 //! ⚠ NOT BIT-IDENTICAL: \c gather(a)+gather(b) and \c gather(a+b) differ in the last bits, so pinned
 //! energies move at roundoff scale.  The OPERATOR is unchanged.
 //!
-//! IT IMPLEMENTS BOTH FACES, because its parts may be either.  A part that is only an \c ExFunctional is
-//! CHANNEL-SEPARABLE (exchange): through the two-channel face it contributes \f$v_x(\rho_\sigma)\f$,
-//! reading its own channel and ignoring the other.  A part that is also a \c SpinCorrelation contributes
-//! its coupled \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$.  ⇒ Adding a third functional is a
+//! EVERY part answers the same spin-native face with its own rule (channel-separable exchange reads its
+//! own channel; correlation couples both), so the sum is a plain loop and adding a third functional is a
 //! \c push_back, not a new term and not a new branch.
 class CompositeExFunctional
     : public virtual ExFunctional
-    , public virtual SpinCorrelation
 {
 public:
     //! \a parts must be non-empty; each is kept alive by the composite.
-    //! \note THE CROSS-CAST IS RESOLVED ONCE, HERE.  \c GetVc / \c GetExcDensity run PER GRID POINT
-    //! (~64k points x 2 channels per matrix build), and a \c dynamic_cast on that path would be a
-    //! per-point RTTI lookup for a fact that is fixed at construction.  It is an abstract-to-abstract
-    //! cast between two capability faces, which is the legitimate kind (CLAUDE.md) -- it just has no
-    //! business in an inner loop.
-    explicit CompositeExFunctional(std::vector<std::shared_ptr<ExFunctional>> parts)
+    explicit CompositeExFunctional(std::vector<std::shared_ptr<ExFunctional>> parts) : itsParts(std::move(parts))
     {
-        assert(!parts.empty() && "CompositeExFunctional: a sum of no functionals is not a functional");
-        for (auto& f : parts)
-        {
-            const SpinCorrelation* c=dynamic_cast<const SpinCorrelation*>(f.get());
-            itsParts.push_back(Part{std::move(f), c});
-        }
+        assert(!itsParts.empty() && "CompositeExFunctional: a sum of no functionals is not a functional");
     }
 
-    // ---- ExFunctional (the unpolarized face): a plain sum -------------------------------------------
+    // ---- the scalar (zeta=0) face: a plain sum -------------------------------------------------------
     virtual double GetVxc(double rho) const
-    {double v=0.0; for (const Part& p : itsParts) v+=p.f->GetVxc(rho); return v;}
+    {double v=0.0; for (const auto& p : itsParts) v+=p->GetVxc(rho); return v;}
     virtual double GetEpsXc(double rho) const
-    {double e=0.0; for (const Part& p : itsParts) e+=p.f->GetEpsXc(rho); return e;}
+    {double e=0.0; for (const auto& p : itsParts) e+=p->GetEpsXc(rho); return e;}
+    // ---- the spin-native face: a plain sum, each part answering with its own rule ---------------------
+    virtual double GetVxc(double up, double dn, const Spin& s) const
+    {double v=0.0; for (const auto& p : itsParts) v+=p->GetVxc(up,dn,s); return v;}
+    virtual double GetEpsXc(double up, double dn, const Spin& s) const
+    {double e=0.0; for (const auto& p : itsParts) e+=p->GetEpsXc(up,dn,s); return e;}
     //! The DENSEST part wins: a GGA in the mix sets the fit grid for the whole sum.
     virtual double GridCutoffFactor() const
-    {double f=1.0; for (const Part& p : itsParts) f=max(f,p.f->GridCutoffFactor()); return f;}
-
-    // ---- SpinCorrelation (the spin-native face) ------------------------------------------------------
-    virtual double GetVc(double up, double dn, const Spin& s) const
-    {
-        double v=0.0;
-        for (const Part& p : itsParts)
-            if (p.spin) v+=p.spin->GetVc(up,dn,s);
-            else        v+=p.f->GetVxc(s==Spin::Down ? dn : up);   // channel-separable: its OWN channel
-        return v;
-    }
-    //! \note Present because the face demands it; the TERM integrates \c GetExcDensity instead, which is
-    //! the form that composes.  Dividing by \f$\rho_{tot}\f$ here would be undefined in vacuum, so this
-    //! reports the per-particle value only where that is meaningful and 0 where it is not.
-    virtual double GetEpsC(double up, double dn) const
-    {const double r=up+dn; return r>0.0 ? GetExcDensity(up,dn)/r : 0.0;}
-    virtual double GetExcDensity(double up, double dn) const
-    {
-        double e=0.0;
-        for (const Part& p : itsParts)
-            if (p.spin) e+=p.spin->GetExcDensity(up,dn);
-            else        e+=p.f->GetEpsXc(up)*up + p.f->GetEpsXc(dn)*dn;   // E_x = Σ_σ ∫ ε_x(ρ_σ)ρ_σ
-        return e;
-    }
+    {double f=1.0; for (const auto& p : itsParts) f=max(f,p->GridCutoffFactor()); return f;}
 
     std::ostream& Write(std::ostream& os) const
-    {for (const Part& p : itsParts) p.f->Write(os); return os;}
+    {for (const auto& p : itsParts) p->Write(os); return os;}
 
 private:
-    //! One summand, with its two-channel capability resolved at construction.
-    struct Part
-    {
-        std::shared_ptr<ExFunctional> f;            //!< owns the summand
-        const SpinCorrelation*        spin=nullptr; //!< non-null iff \c f also has the coupled face
-    };
-    std::vector<Part> itsParts;
+    std::vector<std::shared_ptr<ExFunctional>> itsParts;
 };
 
 } //namespace

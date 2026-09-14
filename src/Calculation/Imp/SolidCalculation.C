@@ -341,7 +341,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // the difference is the whole measurement: a Na2 seed staggered at +/-1 e reads +/-0.07 e by the
     // time Init hands its density back, which is below any honest floor and made the postcondition
     // silently skip.  Measured before it is consumed, the baseline is the seed's own.
-    const bool polarizedHam = itsImp->ham->IsPolarized();
+    const bool polarizedHam = itsImp->ham->GetSpinGroup()==SpinGroup::Polarized;
     std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed;
     {
         qchem::report::Timed timed("setup: seed density (SAD/IonicSAD atomic solves)");

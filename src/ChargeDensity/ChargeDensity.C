@@ -403,10 +403,21 @@ using cSpinResolved_CD = tSpinResolved_CD<dcmplx>;
 
 //! \brief The \a s channel of \a cd, or null when \a cd is not spin-resolved / does not resolve \a s.
 //! The one spelling of "ask a density for a channel" -- no consumer names a container type to reach one.
+//! \c Spin::None names the FOLDED DOUBLET -- the whole density -- so it answers \a cd itself: a consumer
+//! walking \c SpinIrrepsOf(cd) reaches every block of any density through this one call.
 template <class T> const tChargeDensity<T>* ChannelOf(const tChargeDensity<T>* cd, const Spin& s)
 {
+    if (s==Spin::None) return cd;
     const tSpinResolved_CD<T>* sr=dynamic_cast<const tSpinResolved_CD<T>*>(cd);
     return sr ? sr->GetChannel(s) : nullptr;
+}
+//! \brief The spin irreps \a cd RESOLVES: {Up, Down} when it answers channels, else {None} -- the folded
+//! doublet, i.e. a density built under imposed SU(2) or a spin-agnostic seed.  A term that must touch every
+//! block of a density exactly once (an energy) walks this list and asks \c ChannelOf for each.
+template <class T> std::vector<Spin> SpinIrrepsOf(const tChargeDensity<T>* cd)
+{
+    return (ChannelOf(cd,Spin::Up) && ChannelOf(cd,Spin::Down)) ? std::vector<Spin>{Spin::Up, Spin::Down}
+                                                                : std::vector<Spin>{Spin::None};
 }
 //! Same, for a consumer that needs the channel's MATRIX face (the molecular exchange/correlation terms'
 //! energy contraction, the mixer's DM-source split): null when there is no such channel, or it carries

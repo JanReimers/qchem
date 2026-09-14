@@ -1377,7 +1377,7 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
 
 // (tier 4b, invariant) THE ζ=0 COLLAPSE: the TWO-CHANNEL machinery on a CLOSED SHELL must reproduce the
 // unpolarized anchor.  Same gapped Si/Γamma cell + recipe as SmearingInertOnGap, but multiplicity=1 drives
-// the polarized pipeline (the dcmplx composite WF under SpinGroup::Polarized, Crystal_EC(4,4), Vxc_QuadraturePol + Vcorr_QuadraturePol) with
+// the polarized pipeline (the dcmplx composite WF under SpinGroup::Polarized, Crystal_EC(4,4), the spin-native XC term) with
 // nUp=nDn=4 -- v^σ(ρ/2,ρ/2)=v^P(ρ) pointwise, so the total must land on the SAME −7.11506 anchor.  The
 // periodic sibling of the molecular WaterPolarizedLDA-vs-LDA check; catches any polarized-path divergence
 // (channel bookkeeping, shared-engine caching, the collocation memo screen) on known ground.
@@ -1544,7 +1544,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
 
     qchem::Hamiltonian::cHamiltonian* ham=new qchem::Hamiltonian::Ham_PW_DFT(
         lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
-        Hamiltonian::VxcFit::Auto, /*polarized*/true);
+        Hamiltonian::VxcFit::Auto, SpinGroup::Polarized);
 
     const BasisSet::Complex_OIBS* obs=nullptr;
     for (auto b : bs->Iterate<BasisSet::Complex_OIBS>()) obs=b;   // the single Gamma block (n=10)
@@ -1583,7 +1583,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
     // isolates "polarized path" from "box electrostatics in general".
     qchem::Hamiltonian::cHamiltonian* hamU=new qchem::Hamiltonian::Ham_PW_DFT(
         lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
-        Hamiltonian::VxcFit::Auto, /*polarized*/false);
+        Hamiltonian::VxcFit::Auto, SpinGroup::UnPolarized);
     auto probeU=[&](size_t k)
     {
         hmat_t<dcmplx> D(n);
@@ -1611,13 +1611,14 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
     // Up≈0 / Down<0.
     {
         using namespace qchem::Hamiltonian;
-        auto exch=std::make_shared<SlaterExchange>(2.0/3.0, Spin(Spin::Up));
+        auto exch=std::make_shared<SlaterExchange>(2.0/3.0);
         auto corr=std::make_shared<VWN_Correlation>();
         BasisSet::FitQuadrature q = bs->CreateXCQuadrature(lat.GetStructure().get(),
                                                           qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}));
         auto engine=SinglesEngineOver(std::move(q));
-        Vxc_QuadraturePol   x(exch, engine);
-        Vcorr_QuadraturePol c(corr, engine);
+        // ONE term per functional (V1.37 step 3): both spin-native, both fed the channel rasters.
+        Vxc_Quadrature x(exch, engine, SpinGroup::Polarized);
+        Vxc_Quadrature c(corr, engine, SpinGroup::Polarized);
         const size_t k=2;
         hmat_t<dcmplx> Dup(n), Ddn(n);
         for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) { Dup(i,j)=dcmplx(0.0); Ddn(i,j)=dcmplx(0.0); }
@@ -1662,7 +1663,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         cDM_CD* cd=pol.get();
         qchem::Hamiltonian::cHamiltonian* hamP=new qchem::Hamiltonian::Ham_PW_DFT(
             lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
-            Hamiltonian::VxcFit::Auto, /*polarized*/true);
+            Hamiltonian::VxcFit::Auto, SpinGroup::Polarized);
         qchem::EnergyBreakdown te = hamP->GetTotalEnergy(cd);
         std::cout << "[oracle-D*] charge="<<cd->GetTotalCharge()
                   << " Ekin="<<te["Kinetic"]<<" Een="<<te["Een"]<<" Eee="<<te["Eee"]<<" Exc="<<te["Exc"]
@@ -1674,8 +1675,8 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
 
 // (tier 4b, gate a) THE POLARIZED SOLID PIPELINE: Na pseudo-atom in a box, DOUBLET (doc/SymmetryUpgradePlan.md
 // §4).  The minimal end-to-end TWO-CHANNEL GPW run: Na q1 GTH PP, S=1/2, moment 1 -- spin-resolved D through
-// Crystal_EC(nUp=1,nDown=0), the dcmplx composite WF under SpinGroup::Polarized (two Bloch channels), and the spin-native Becke XC pair
-// (Vxc_QuadraturePol + Vcorr_QuadraturePol).  Cross-anchored against the finite molecular facade doublet on the SAME
+// Crystal_EC(nUp=1,nDown=0), the dcmplx composite WF under SpinGroup::Polarized (two Bloch channels), and the spin-native Becke XC
+// term.  Cross-anchored against the finite molecular facade doublet on the SAME
 // valence basis + PP (the spin sibling of SiPseudoAtomInBoxMatchesFinite).
 //
 // SEED PIN (the 2026-08-04 root-cause campaign): this gate MUST seed from IonicSAD.  From the Uniform seed
@@ -2666,7 +2667,7 @@ XCProbe UniformXCProbe(const GpwHandles& h, const std::shared_ptr<const Structur
     qcMesh::MeshParams mp; mp.relCutoff=std::max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
     ChargeDensity::fitbasis_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
     auto pair=ChargeDensity::MakeDensitySampler(vfb);   // raster fit basis -> the pair/collocation strategy
-    Hamiltonian::Vxc_Quadrature x(exch,pair), c(corr,pair);
+    Hamiltonian::Vxc_Quadrature x(exch,pair,SpinGroup::UnPolarized), c(corr,pair,SpinGroup::UnPolarized);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     XCProbe p=ProbeXC("uniform", h, x, c, e);
     // Its own raster's size -- the same face the Hartree energy asks for its quadrature rule.
@@ -2682,7 +2683,7 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
     auto mesh=std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB));
     auto engine=SinglesEngineOver({mesh, {}});      // ONE quadrature, shared by the pair; free probe: no fold
-    Hamiltonian::Vxc_Quadrature x(exch,engine), c(corr,engine);
+    Hamiltonian::Vxc_Quadrature x(exch,engine,SpinGroup::UnPolarized), c(corr,engine,SpinGroup::UnPolarized);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     XCProbe p=ProbeXC(label, h, x, c, e);
     p.nPts=mesh->size();                            // the mesh's own count, not a (nR x degree) rule
@@ -3804,7 +3805,7 @@ TEST(GPW_SCF, MnOSeedSublatticesAreEqualAndOpposite)
 // By elimination (seed, Becke weights, Kinetic/Vloc/Vnl, Phi tables all exonerated) the first-Fock-build
 // mirror break must live in v_xc -- yet a pointwise LSDA functional "cannot" be site-dependent.  This probe
 // resolves the contradiction by testing what the Fock build ACTUALLY consumes: the channel rasters
-// SinglesDensitySampler::RhoPol hands the Vxc_Quadrature*SpinGroup pair, at the mesh's own points.  The mesh stores its
+// SinglesDensitySampler::RhoPol hands the spin-native XC term, at the mesh's own points.  The mesh stores its
 // points WRAPPED into the home cell (kpt = r - A*n0, MakePeriodicBeckeMesh) -- so a valid seed must satisfy
 // rho_up(p_g) = rho_dn(p_g + t) with t = A*(1/2,1/2,1/2) AT EVERY STORED POINT, and (v_xc being pointwise
 // in the channel pair) v_xc^up(p_g) = v_xc^dn(p_g + t).  The two Mn blocks' grids are exact t-translates of
@@ -3873,13 +3874,14 @@ TEST(GPW_SCF, MnOSeedVxcMirrorOnBeckeMesh)
         return -1;
     };
 
-    // v_xc per point from the channel pair -- the same functionals the Vxc_Quadrature*SpinGroup pair applies.
-    qchem::Hamiltonian::SlaterExchange ex(2.0/3.0, Spin(Spin::Up));   // channel-native (non-halving)
+    // v_xc per point from the channel pair -- the same functionals the spin-native XC term applies, through
+    // the same two-channel face.
+    qchem::Hamiltonian::SlaterExchange ex(2.0/3.0);
     qchem::Hamiltonian::VWN_Correlation vc;
     auto vxc=[&](double u, double d, const Spin& s)->double
     {
         if (u+d<=1e-12) return 0.0;                       // VWN's r_s/log guard; symmetric, mirror-safe
-        return ex.GetVxc(s==Spin::Up ? u : d) + vc.GetVc(u, d, s);
+        return ex.GetVxc(u, d, s) + vc.GetVxc(u, d, s);
     };
 
     // Sweep: rho and v_xc mirror defects across the whole raster; localize the worst offenders.

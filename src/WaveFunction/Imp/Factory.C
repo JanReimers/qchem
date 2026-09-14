@@ -17,11 +17,10 @@ namespace qchem::WaveFunction
         SCFAccelerators::SCFAccelerator* acc,
         qchem::Ortho basisOrtho, double basisOrthoTol)
     {
-        // ONE wave-function class (V1.37); the Hamiltonian's polarization names the IMPOSED SPIN SUBGROUP
-        // the composite is built under, for both lineages (SymmetryUpgradePlan §4 tier 4b: a polarized
-        // Ham_PW_DFT gets the two-channel Bloch composite just like the molecular path).
-        const SpinGroup g = h->IsPolarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
-        return new tCompositeWF<T>(bs,ec,g,acc,basisOrtho,basisOrthoTol);
+        // ONE wave-function class (V1.37), built under the SAME imposed spin subgroup as the Hamiltonian,
+        // for both lineages (SymmetryUpgradePlan §4 tier 4b: a polarized Ham_PW_DFT gets the two-channel
+        // Bloch composite just like the molecular path).
+        return new tCompositeWF<T>(bs,ec,h->GetSpinGroup(),acc,basisOrtho,basisOrthoTol);
     }
 
     template tSCFWaveFunction<double>* Factory(const qchem::Hamiltonian::tHamiltonian<double>*,

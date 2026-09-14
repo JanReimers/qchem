@@ -16,7 +16,7 @@ template <class T> class tHamiltonianImp
     : public virtual tHamiltonian<T>
 {
 public:
-    tHamiltonianImp();
+    explicit tHamiltonianImp(SpinGroup g);   //!< the imposed spin subgroup this Hamiltonian is built for
     virtual void Add(   tStatic_HT<T>* );
     virtual void Add(  tDynamic_HT<T>*);
     virtual void Add(tDynamic_HF_HT<T>*);
@@ -29,7 +29,7 @@ public:
     virtual hmat_t<double>  GetMatrix(const tobs_t<double>*,const Spin& S,const tChargeDensity<dcmplx>*,
                                       const tbs_t<dcmplx>* wholeBasis);
     virtual EnergyBreakdown GetTotalEnergy  (const tDM_CD<T>* ) const;
-    virtual bool            IsPolarized() const {return itsIsPolarized;}
+    virtual SpinGroup       GetSpinGroup() const {return itsSpinGroup;}
     virtual bool            IsRelativistic() const {return itsIsRelativistic;}
     //! CONJUNCTIVE over the terms -- see the base declaration.  One non-Coulombic term (a PP) invalidates
     //! the virial for the whole Hamiltonian, so this is AND-ed in Add() where the two flags above are OR-ed.
@@ -85,7 +85,7 @@ protected:
     dhtv_t   itsDHTs;
     hf_htv_t itsHF_HTs;   // HF capable terms require a widened interface for efficient J/K table handling.
 
-    bool   itsIsPolarized;
+    SpinGroup itsSpinGroup;
     bool   itsIsRelativistic;
     bool   itsIsVirialValid=true;   //!< AND of the terms' IsVirialValid() (see Add); true for an empty H
     bool   itsPreservesReal=true;   //!< AND of the terms' PreservesReal() (see Add); true for an empty H

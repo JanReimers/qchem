@@ -151,23 +151,23 @@ private:
     }
     //! ONE body for both \c Overlap3C overloads, each with its own typed cache.  R2.9(i) idiom: the
     //! accessor is const and the tensor is a lazily-built, geometry-fixed cache, so the maps are \c mutable.
-    template <class U> const Projector3<U>& Tensor(std::map<Irrep,Projector3<U>>& cache,
-                                                   std::map<Irrep,mat_t<U>>& phis,
+    template <class U> const Projector3<U>& Tensor(SymMap<Projector3<U>>& cache,
+                                                   SymMap<mat_t<U>>& phis,
                                                    const Orbital_1E_IBS<U>& orb) const;
     //! \f$\Phi_{gi}=\chi_i(r_g)\f$ -- HOW this class evaluates its own 3-centre integral, cached per block.
     //! Entirely private since 2026-08-23: a table of values is not an integral and has no business in an
     //! interface (user).  The three contractions below are what leaves.
-    template <class U> const mat_t<U>& Table(std::map<Irrep,mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
+    template <class U> const mat_t<U>& Table(SymMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const;
     //! \f$\langle\chi_i|\sum_g c_g\delta_g|\chi_j\rangle=\Phi^\dagger\mathrm{diag}(w\,c)\Phi\f$
     template <class U> hmat_t<U> AdjointT(const mat_t<U>& P, const rvec_t& c) const;
     //! \f$\langle\delta_g|\rho[D]\rangle/w_g=[\Phi D\Phi^\dagger]_{gg}\f$ -- the full quadratic form
     template <class U> rvec_t ForwardT(const mat_t<U>& P, const hmat_t<U>& D) const;
     //! ...and the same thing for a caller holding \f$D=LL^\dagger\f$: \f$\sum_m|[\Phi L]_{gm}|^2\f$
     template <class U> rvec_t ForwardFactoredT(const mat_t<U>& P, const mat_t<U>& L) const;
-    mutable std::map<Irrep,mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n)
-    mutable std::map<Irrep,mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (disjoint irreps -- 3c-3)
-    mutable std::map<Irrep,Projector3<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors
-    mutable std::map<Irrep,Projector3<double>> itsO3R;  //!< ...and the real TRIM blocks'
+    mutable SymMap<mat_t<dcmplx>> itsPhi;    //!< Bloch blocks' tables (npts x n), keyed by the block's SPATIAL symmetry
+    mutable SymMap<mat_t<double>> itsPhiR;   //!< real TRIM blocks' tables (disjoint symmetries -- 3c-3)
+    mutable SymMap<Projector3<dcmplx>> itsO3;   //!< the Bloch blocks' 3-centre tensors
+    mutable SymMap<Projector3<double>> itsO3R;  //!< ...and the real TRIM blocks'
     FitQuadrature itsQuad;   //!< the mesh + its orbit fold + the Shubnikov spin tags
 };
 

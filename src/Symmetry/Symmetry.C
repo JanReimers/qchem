@@ -2,6 +2,7 @@
 // is added on top by Irrep), but the relativistic double group (SphericalSpinor, Ωκ) is spin-orbit coupled --
 // see CarriesSpin().
 module;
+#include <map>
 #include <string>
 #include <memory>
 
@@ -60,3 +61,17 @@ public:
 } //namespace
 //! Polymorphic handle for any concrete \c Symmetry (shared, const) -- the spatial part of an \c Irrep.
 export using sym_t=std::shared_ptr<const qchem::Symmetry::Symmetry>;
+
+//! \brief Ordering of SPATIAL symmetries by \c SequenceIndex -- the comparator behind \c SymMap.
+//! Compares the SYMMETRY, never the pointer (CLAUDE.md: no keying off pointers), exactly as \c Irrep's
+//! \c operator< does one level up.
+export struct SymmetryOrder
+{
+    bool operator()(const sym_t& a, const sym_t& b) const {return a->SequenceIndex()<b->SequenceIndex();}
+};
+//! \brief A map keyed by the SPATIAL symmetry of a basis block (V1.37 step 3).  This is the key for
+//! anything that is a property of the BLOCK'S FUNCTIONS and shared by every spin channel over them -- a
+//! \f$\Phi\f$ table, a 3-centre tensor, an adjoint view.  Those caches used to be keyed by
+//! \c Irrep(Spin::None, sym), borrowing the folded doublet's LABEL as a spin-erased key; a block's spatial
+//! identity is \c Symmetry, and this says so.
+export template <class V> using SymMap=std::map<sym_t, V, SymmetryOrder>;

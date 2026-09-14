@@ -18,7 +18,7 @@ export namespace qchem::Hamiltonian
 //! UNPOLARIZED-ONLY by construction: the scalar single-density face (GetVxc/GetEpsXc, one rho) cannot
 //! supply the two channels an XC_POLARIZED libxc functional needs, so the functional always inits
 //! XC_UNPOLARIZED and the single-density calls are always the correct libxc contract.  Polarized LDA is the
-//! spin-native VWN5 path (Ham_DFTcorr_P / FittedVcorrPol), reached via XC::DiracVWN.
+//! spin-native VWN5 path, reached via XC::DiracVWN.
 class Libxc_LDA : public ExFunctional
 {
 public:
@@ -27,6 +27,11 @@ public:
 
     virtual double  GetVxc  (double rho) const;   //!< v_xc(rho)         via xc_lda_vxc
     virtual double  GetEpsXc(double rho) const;   //!< eps_xc(rho)/part  via xc_lda_exc (overrides the 3/4 default)
+    //! The spin-native face at \f$\zeta=0\f$ ONLY: this wrapper is scalar by construction, and the base
+    //! class's channel-separable default would silently be WRONG for a correlation id, so it is refused
+    //! rather than defaulted.  (Passing libxc's XC_POLARIZED contract through is the future step.)
+    virtual double  GetVxc  (double up, double dn, const Spin& s) const override;
+    virtual double  GetEpsXc(double up, double dn, const Spin& s) const override;
 
     virtual std::ostream& Write(std::ostream&) const;
 

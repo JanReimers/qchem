@@ -161,9 +161,9 @@ template <class U> static mat_t<U> MakePhiAt(const Orbital_1E_IBS<U>* bs, const 
 }
 
 // The two Collocation::Values overloads: same body, own cache per scalar.
-template <class U> const mat_t<U>& DeltaFit_IBS::Table(std::map<Irrep,mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const
+template <class U> const mat_t<U>& DeltaFit_IBS::Table(SymMap<mat_t<U>>& cache, const Orbital_1E_IBS<U>& orb) const
 {
-    const Irrep id=orb.GetIrrep(Spin::None);       // SPATIAL key: the two spin channels share one table
+    const sym_t& id=orb.GetSymt();                 // the block's SPATIAL symmetry: the two spin channels share one table
     auto it=cache.find(id);
     if (it!=cache.end()) return it->second;
     mat_t<U> P=MakePhiAt<U>(&orb, itsQuad.GetMesh()->Points(), "setup: XC-mesh Phi tables");
@@ -175,11 +175,11 @@ template <class U> const mat_t<U>& DeltaFit_IBS::Table(std::map<Irrep,mat_t<U>>&
 // object: rank-3 and never materialised, so what the caller gets is the two contractions of it (three, once
 // the density's factored form is counted -- one integral, two representations of D).  Phi and w stay in
 // here; the caller supplies only what it owns, its coefficients or its density matrix.
-template <class U> const Projector3<U>& DeltaFit_IBS::Tensor(std::map<Irrep,Projector3<U>>& cache,
-                                                             std::map<Irrep,mat_t<U>>& phis,
+template <class U> const Projector3<U>& DeltaFit_IBS::Tensor(SymMap<Projector3<U>>& cache,
+                                                             SymMap<mat_t<U>>& phis,
                                                              const Orbital_1E_IBS<U>& orb) const
 {
-    const Irrep id=orb.GetIrrep(Spin::None);       // SPATIAL key, as for the table itself
+    const sym_t& id=orb.GetSymt();                 // the block's SPATIAL symmetry, as for the table itself
     auto it=cache.find(id);
     if (it!=cache.end()) return it->second;
     // Bind the table ONCE here: std::map nodes are address-stable, so the closures may capture it by

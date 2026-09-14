@@ -90,7 +90,7 @@ private:
 //---------------------------------------------------------------------------------------------------
 TEST(EagerRefresh, TheHamiltonianFoldsTheRefreshOverEveryDynamicTermExactlyOnce)
 {
-    tHamiltonianImp<double> H;
+    tHamiltonianImp<double> H(SpinGroup::UnPolarized);
     auto* a=new SpyDynamic;  auto* b=new SpyDynamic;  auto* st=new SpyStatic;
     H.Add(a); H.Add(b); H.Add(new SilentDynamic); H.Add(st);
 
@@ -117,7 +117,7 @@ TEST(EagerRefresh, TheHamiltonianFoldsTheRefreshOverEveryDynamicTermExactlyOnce)
 // be forced to say so.  A term that does not override the hook must still be addable and callable.
 TEST(EagerRefresh, ATermThatDoesNotOverrideTheHookIsUndisturbed)
 {
-    tHamiltonianImp<double> H;
+    tHamiltonianImp<double> H(SpinGroup::UnPolarized);
     H.Add(new SilentDynamic);
     EXPECT_NO_THROW(H.RefreshForDensity(nullptr, reinterpret_cast<const rChargeDensity*>(0x1)));
 }
@@ -130,7 +130,7 @@ TEST(EagerRefresh, ATermThatDoesNotOverrideTheHookIsUndisturbed)
 // terms outside any prologue -- so an assert of the form "the phase must have run first" would be false.
 TEST(EagerRefresh, AssemblyWithoutAPriorRefreshIsLegal)
 {
-    tHamiltonianImp<double> H;
+    tHamiltonianImp<double> H(SpinGroup::UnPolarized);
     auto* a=new SpyDynamic;
     H.Add(a);
     EXPECT_NO_THROW(a->GetMatrix(nullptr, Spin::Up, nullptr));
@@ -146,7 +146,7 @@ TEST(EagerRefresh, AssemblyWithoutAPriorRefreshIsLegal)
 //  so).  What IS observable, and is what rots, is whether the fold reaches every term with the block list.
 TEST(EagerRefresh, ThePhasePreparesSlotsOnEveryTermIncludingStatics)
 {
-    tHamiltonianImp<double> H;
+    tHamiltonianImp<double> H(SpinGroup::UnPolarized);
     auto* d1=new SpyDynamic; auto* d2=new SpyDynamic; auto* st=new SpyStatic;
     H.Add(d1); H.Add(d2); H.Add(new SilentDynamic); H.Add(st);
 

@@ -148,7 +148,7 @@ template <class T> static std::string ConfigString(const qchem::WaveFunction::tW
 // CoreGuess -- then DELEGATES to the explicit-seed ctor below.  \a st (the structure) is consumed only by
 // the SAD seeds; bs/st are also forwarded (by the target ctor) for the HF/DHF bootstrap.
 template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol)
-    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec, H&&H->IsPolarized()), st, basisOrtho, basisOrthoTol)
+    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec, H&&H->GetSpinGroup()==SpinGroup::Polarized), st, basisOrtho, basisOrthoTol)
 {}
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
@@ -209,7 +209,7 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             // user error there (use CoreGuess).  This is exactly why Ham_DHF_* report RequiresDensityMatrix().
             assert(!itsHamiltonian->IsRelativistic() &&
                    "DHF cannot seed from a matrix-free (SAD) density: the LDA sibling is non-relativistic -- use CoreGuess");
-            const SpinGroup pol = itsHamiltonian->IsPolarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+            const SpinGroup pol = itsHamiltonian->GetSpinGroup();
             // Non-owning: the sibling lives only for this Init call, and st outlives it (it is the ctor arg).
             H::st_t stView(st, [](const Structure*){});
             std::unique_ptr<H::rHamiltonian> dftSibling(
@@ -719,7 +719,7 @@ template <class T> void tSCFIterator<T>::WriteGapColumn(std::ostream& os, const 
 // scientific notation hides behind a shrinking exponent.  Polarized run => column; no basins => "----".
 template <class T> void tSCFIterator<T>::WriteOrderColumn(std::ostream& os, const IterationTrace& tr) const
 {
-    if (!itsHamiltonian->IsPolarized()) return;
+    if (itsHamiltonian->GetSpinGroup()!=SpinGroup::Polarized) return;
     std::ostringstream v;
     if (tr.hasOrder) v << std::fixed << setprecision(6) << std::showpos << tr.order;
     else             v << "----";                     // polarized, but no basins to integrate over
@@ -727,7 +727,7 @@ template <class T> void tSCFIterator<T>::WriteOrderColumn(std::ostream& os, cons
 }
 template <class T> void tSCFIterator<T>::WriteHeadOrder(std::ostream& os) const
 {
-    if (!itsHamiltonian->IsPolarized()) return;
+    if (itsHamiltonian->GetSpinGroup()!=SpinGroup::Polarized) return;
     os << " " << PadR("m_site",W_ORD);
 }
 

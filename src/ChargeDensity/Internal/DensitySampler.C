@@ -30,7 +30,7 @@ import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this libr
 import qchem.ChargeDensity;
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
 import qchem.Symmetry.Lattice_3D.Fold;      // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
-import qchem.Symmetry.Irrep;                // Irrep: the Phi-table key (spatial block identity)
+import qchem.Symmetry;                      // sym_t / SymMap: the per-block adjoint views, by spatial symmetry
 import qchem.BasisSet.Projector3;  // ScreenedMatrixIntegrator -- the pair route's MatrixAdjoint view
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Blaze;                         // blazem::NarrowExact (the real-TRIM narrow, promoted to qcMath 2026-09-08)
@@ -298,7 +298,7 @@ private:
     //! instantiations are used in that same TU, so no explicit instantiation is needed.
     template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
     BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const;
-    mutable std::map<Irrep, ScreenedMatrixIntegrator<dcmplx>> itsAdj;
+    mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsAdj;   //!< per block, by its SPATIAL symmetry
 };
 
 } //namespace

@@ -133,10 +133,10 @@ private:
     //! at all.  Held rather than re-fetched so BOTH directions demonstrably come off one object.
     //! \warning the closures capture the producing basis: valid only while \c itsFitBasis lives, which it
     //! does, because this class co-owns it.
-    template <class U> const Projector3<U>& Handle(std::map<Irrep,Projector3<U>>& cache,
+    template <class U> const Projector3<U>& Handle(SymMap<Projector3<U>>& cache,
                                                    const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
     {
-        const Irrep id=orb.GetIrrep(Spin::None);   // SPATIAL key, as the basis's own table cache uses
+        const sym_t& id=orb.GetSymt();             // the block's SPATIAL symmetry, as the basis's own table cache uses
         auto it=cache.find(id);
         if (it!=cache.end()) return it->second;
         // The genuine 3c-3 "can you serve a REAL block?" question for U==double; for U==dcmplx it is a
@@ -145,13 +145,13 @@ private:
         return cache.emplace(id, face.Overlap3C(orb)).first->second;   // shallow: closures, not the table
     }
     //! Which typed cache \a U uses -- so \c Contract and \c Overlap3C name one place, not two.
-    template <class U> std::map<Irrep,Projector3<U>>& Cache() const
+    template <class U> SymMap<Projector3<U>>& Cache() const
     {
         if constexpr (std::is_same_v<U,double>) return itsO3R;
         else                                    return itsO3;
     }
     //! Which typed integrator cache \a U uses -- the sibling of \c Cache, so the two never drift apart.
-    template <class U> std::map<Irrep,ScreenedMatrixIntegrator<U>>& IntCache() const
+    template <class U> SymMap<ScreenedMatrixIntegrator<U>>& IntCache() const
     {
         if constexpr (std::is_same_v<U,double>) return itsIntR;
         else                                    return itsInt;
@@ -163,13 +163,13 @@ private:
     //!
     //! It must be CACHED, not returned by value: the faces hand back a reference, and a
     //! \c ScreenedMatrixIntegrator borrows its \c Projector3, so a temporary would dangle the moment the
-    //! caller used it.  Keyed on the same \c Irrep as the tensor, and created only after the tensor is,
+    //! caller used it.  Keyed on the same spatial \c Symmetry as the tensor, and created only after the tensor is,
     //! so the two maps never disagree about which blocks exist.
     template <class U> const ScreenedMatrixIntegrator<U>&
     Integrator(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
     {
         auto& fwd=IntCache<U>();
-        const Irrep id=orb.GetIrrep(Spin::None);
+        const sym_t& id=orb.GetSymt();
         auto it=fwd.find(id);
         if (it!=fwd.end()) return it->second;
         const Projector3<U>& g=Handle(Cache<U>(), orb);   // materialise (or find) the tensor first
@@ -183,11 +183,11 @@ private:
         return fwd.emplace(id, ScreenedMatrixIntegrator<U>(g, std::move(w))).first->second;
     }
 
-    mutable std::map<Irrep,Projector3<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3)
-    mutable std::map<Irrep,Projector3<dcmplx>> itsO3;    //!< Bloch blocks' handles
+    mutable SymMap<Projector3<double>> itsO3R;   //!< real TRIM blocks' handles (3c-3), by SPATIAL symmetry
+    mutable SymMap<Projector3<dcmplx>> itsO3;    //!< Bloch blocks' handles
     //! Their forward+adjoint views -- BOTH halves off one object per block (2026-09-09).
-    mutable std::map<Irrep,ScreenedMatrixIntegrator<double>> itsIntR;
-    mutable std::map<Irrep,ScreenedMatrixIntegrator<dcmplx>> itsInt;
+    mutable SymMap<ScreenedMatrixIntegrator<double>> itsIntR;
+    mutable SymMap<ScreenedMatrixIntegrator<dcmplx>> itsInt;
     fbs_t  itsFitBasis;   //!< the δ basis -- my functions, their metric, and their 3-centre overlap
     rvec_t itsC;          //!< MY fit coefficients over that basis (see DoFit)
 };

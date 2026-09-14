@@ -2957,109 +2957,13 @@ GROUP (`Gaussian.Point.*` / `Gaussian.Lattice.*`; `PG_Cart` untagged as the G=1 
 evidence is the ctest `BasisSetGTagAudit`.  Eleven commits c2cb79a3..d5ddb1a5, 856/856.  Full record →
 `doc/CleanupHistory.md` "LANDED 2026-09-13 — V1.33".  ⚠ `pybind/qchem_bridge.cpp` breaks (flagged, not edited).
 
-### V1.37 — Pol/UnPol are IMPOSED SUBGROUPS, not types: ONE composite over full Irreps (user + Claude, 2026-09-13)
-
-**▶ STEPS 1–2 ✅ LANDED 2026-09-14 (one session, bit-identical) — full record → `doc/CleanupHistory.md`
-"LANDED 2026-09-14 — V1.37 steps 1–2".**  `tPolarizedWF` / `tUnPolarizedWF` / `tPolarized_CD` /
-`tPolarized_CDImp` / `PolarizedCD_Factory` / `tSpinResolvedWF` / `Hamiltonian::Pol` are GONE;
-`qchem::SpinGroup {UnPolarized, Polarized}` (qchem.Symmetry.Spin) is the ONE name of the imposed subgroup
-(`CalcOptions::spin`); `tCompositeWF(bs, ec, SpinGroup, …)` is THE wave function; `tComposite_CD` is ONE
-composite over full Irreps whose `GetChannel(Spin)` answers a non-owning VIEW composite (the
-`tSpinResolved_CD` face) or null under SU(2); plain block sums everywhere (user: clean code over 1e-16
-anchors — totals unchanged at printed precision, 857/857).  The five abstract→concrete
-casts are gone and so are eleven more casts to the abstract polarized FACE the addendum did not count
-(three Hamiltonian Pol terms, both DensitySampler routes, ValenceBasisGen, PolarizedMixCD, five test
-sites) — all now `ChannelOf(cd, s)` / `DM_ChannelOf(cd, s)`.
-**REMAINDER = step 3 only**, the 13 `IsPolarized()` term-dispatch sites -- **UNBLOCKED 2026-09-14: R1.0h closed**
-(the owning scope was declined, so step 3 is the only rewrite the terms have coming).
-
-**The "ah-hah" (user):** `doc/BasisSetTaxonomyPlan.md` §1.4 — spin is a FACTOR of G until it is not.  Pol vs
-UnPol is not a property of the wavefunction; it is *which subgroup of the spin factor is imposed*, the same
-KIND of decision as imposing a point group — a rung on the SSB descent ladder (impose → analyse → release):
-
-| imposed | spin group | irreps | the code today |
-|---|---|---|---|
-| full spin rotation | SU(2) | one doublet, degeneracy 2 | `Spin::None`, `GetDegeneracy()==2` — UnPol |
-| rotations about z only (collinear) | U(1)_z | two 1-D irreps \f$m_s=\pm\tfrac12\f$ | `Spin::Up / Down` — Pol |
-| nothing (non-collinear, SOC) | spin INSIDE G (double group) | spinor blocks | does not exist yet |
-
-UnPol's efficiency is the degeneracy fold — the "UnPol is the special case" bias (CLAUDE.md) in group language.
-
-**Where the tensor factor may be assumed — the rule:** *the basis carries whatever part of G acts on its
-functions; the composite carries all of G.*  Non-relativistic: the IBS carries \f$G_{spatial}\f$ and the composite
-tensors on the spin label — the ONE place the factor is assumed, and it genuinely holds there.  Dirac: the IBS
-already carries the double group (\f$\kappa,m_j\f$) and the composite adds nothing.
-
-**What the tree already does (measured 2026-09-13):**
-- `Symmetry::Irrep = (sym_t, Spin ms)` — the irrep ALREADY includes spin; `Spin::None` IS the folded doublet.
-- `tCompositeWF` is already a composite over full `Irrep`s (`itsQNWFs` keyed by Irrep; `itsSpinWFs` a by-spin
-  VIEW).  `tPolarizedWF` / `tUnPolarizedWF` are thin over it — they differ only in what the no-arg
-  `GetChargeDensity()` and `GetSpinDensity()` mean.
-- The CD side is where the type split bites: `tPolarized_CD` is a TWO-LEVEL tree
-  `Polarized{ Composite{spatial irreps} ×2 }`, UnPol a flat `Composite` — the collinear picture frozen into a
-  type.  `tSpinResolved_CD::GetChannel(Spin)` already exists as a CAPABILITY FACE, which is the right shape.
-
-**RULING:** ONE `Composite` over full `Irrep`s for both WF and CD; the spin structure becomes a VIEW
-(`GetChannel(Spin)` = filter the blocks by `ms`), never a container type.  `tPolarized_CD` / `tUnPolarized*`
-go as TYPES; `Polarized` / `UnPolarized` survive as NAMES OF THE IMPOSED SUBGROUP — a factory / policy argument,
-exactly as the point group is.  A spin-native consumer (XC, exchange) asks for channels through the face; a
-spin-agnostic one (Hartree, 1E) asks for the total.
-
-**Why (the decisive argument is not tidiness):** the double-group row §1.4 PREDICTS (P\*, T⋊P\*) needs a spinor
-density; a flat composite over double-group irreps produces one with NO new container, while `tPolarized_CD`
-hard-codes two collinear channels and would be replaced wholesale.  The type split is forward-INCOMPATIBLE
-with the taxonomy.
-
-**Scope — a campaign, not a cleanup:** 53 non-test files name `Polarized`; ~96 `Spin::` uses across
-CD / WF / Hamiltonian / SCFIterator.  The Hamiltonian terms dispatch on `IsPolarized()`; under the flat model
-each term asks the density for the structure it needs through the capability faces — that is the real work,
-and it is where R1.0h / the DensitySampler scope already live.
-
-**Order:** (1) WF side — the two thin classes collapse into `tCompositeWF` + a policy for the no-arg
-accessor (nearly free); (2) flatten the CD tree; (3) the term dispatch.  Bit-identical gates at each step;
-`PolarizedRunKeepsItsSpin` (27% of the suite; really a MIXER test, see TE) is the anchor for "the imposed
-subgroup is respected".  **Sequenced AFTER V1.33** — it leans on the same `Irrep` currency and the spec tier
-(`BasisSetTaxonomyPlan.md` §1.7).  Collinear-only assumptions that are FINE as long as the type says so:
-`GetTotalSpin = <up>-<down>`, `tSpinResolvedWF::GetSpinDensity` (scalar m(r)), the (ρ↑,ρ↓) XC signature.
-**V1.33 landed 2026-09-13 ⇒ UNBLOCKED.**
-
-**SPEC ADDENDUM (2026-09-14) — what a cold session needs beyond the ruling above.**
-
-*(i) The real blast radius, measured — the "53 files" is a grep count, this is the checklist.*
-- **Five `dynamic_cast`s to the concrete `tPolarized_CD`**, all inside `qcChargeDensity`, every one an
-  abstract→concrete cast (the CLAUDE.md design-rule violation the flat model removes):
-  `Internal/PolarizedDensityMixer.C:244,251`, `Imp/DensityMixer.C:68`, `Imp/ChargeDensity.C:192,201`.
-- **13 `IsPolarized()` dispatch sites in 7 files**: `Hamiltonian/Internal/Terms.C` (3),
-  `Hamiltonian/Internal/Imp/HamiltonianImp.C` (3), `Hamiltonian/Internal/PWTerms.C` (2),
-  `Hamiltonian/Internal/HamiltonianImp.C` (1), `SCFIterator/Imp/SCFIterator.C` (2),
-  `WaveFunction/Imp/Factory.C` (1), `Calculation/Imp/SolidCalculation.C` (1).
-- `tUnPolarized_CD` is named by NOBODY outside tests; `tPolarizedWF` / `tUnPolarizedWF` by 5 / 4 files, no casts.
-- Already the right shape and REUSED, not rebuilt: `tSpinResolved_CD::GetChannel(const Spin&)`
-  (`ChargeDensity.C:473`, realised by `SeedCD.C:119`); `Symmetry::Irrep::GetDegeneracy()` = spatial × spin
-  (`Irrep.C:29`, `Spin.C:14`: 1 per polarized channel, 2 for `None`).
-
-*(ii) The target shape, drawn.*  `tComposite_CD<T>` = ONE map keyed by full `Irrep` (spatial ⊗ ms), exactly
-`tCompositeWF`'s `itsQNWFs`.  **The degeneracy fold lives in the `Irrep`** (`GetDegeneracy()`), never in the
-container: the `Spin::None` block counts for two because its irrep says so, so the composite has NO
-spin-special-case and UnPol's efficiency (the CLAUDE.md bias) is preserved by the label, not by a type.
-`GetChannel(Spin)` = filter the blocks by `ms` (a VIEW; `None` → the whole set); the total density = the
-degeneracy-weighted sum over all blocks.  The mixer (`PolarizedDensityMixer`) mixes per channel through
-`GetChannel`, never through a cast; the seed (`SeedCD`) already answers the face.  `Polarized` / `UnPolarized`
-survive ONLY as the factory/policy argument naming the imposed subgroup — the same slot the point group takes.
-
-*(iii) Bit-identical anchors, by name.*  `GPW_SCF.PolarizedRunKeepsItsSpin` (the MIXER anchor: the imposed
-subgroup is respected) · `M_DFT.OxygenTripletLDA` (spin-native LDA, real spin texture) · `A_HF_P.Energy`
-(the parameterised Hund's-rule atoms — the stretched `Atom_EC` determinants, where the spin AND the m-sets are
-imposed subgroups) · `GPW_SCF.ImposedShubnikovHoldsAFMThroughSCF_Mn2Box` + the MnO seed triplet
-(`MnOSeedSublatticesAreEqualAndOpposite`, `MnOSeedVxcMirrorOnBeckeMesh`, `MnOImposedShubnikovKeepsTheSeedStaggering`)
-for spin-SAD seeding and the magnetic ops.  Every step: full `ctest -j8`, these bit-identical.
-
-*(iv) ORDER, revised for the R1.0h collision (agreed 2026-09-14).*  Step (3), the term dispatch on
-`IsPolarized()`, rewrites the same Hamiltonian terms that R1.0h's remaining "owning per-iteration scope"
-rewrites.  Steps (1)–(2) live entirely in `qcWaveFunction` / `qcChargeDensity` and do not overlap.  So:
-**V1.37 steps 1–2 as one fresh session** (the five casts + the CD tree + the WF collapse), **then R1.0h's
-remainder, then V1.37 step 3** gated on it — the terms get touched once.  TE (the test-suite axes) is NOT a
-prerequisite: V1.37 only USES `PolarizedRunKeepsItsSpin` as an anchor; reorganising it can wait.
+### V1.37 ✅ DONE 2026-09-14 — Pol/UnPol are IMPOSED SUBGROUPS, not types (user + Claude, 2026-09-13)
+All three steps landed the same day (steps 1–2 `b0310692`, step 3 this commit): `qchem::SpinGroup` is the one
+name of the imposed subgroup; ONE `tCompositeWF`, ONE `tComposite_CD` over full Irreps with channel VIEWS;
+ONE `Vxc` / `FittedVxc` / `Vxc_Quadrature` built FOR the group and asking the density for its channels; the
+eleven `Ham_*_U/_P` classes → six; `SpinCorrelation` folded into a spin-native `ExFunctional`;
+`Hamiltonian::GetSpinGroup()` replaces the `IsPolarized()` OR-fold; `SymMap` retires `Irrep(Spin::None)`
+as a spatial cache key.  Full row + record → `doc/CleanupHistory.md` "LANDED 2026-09-14 — V1.37".
 
 ### V1.38 — The Point spec in the core + one thin IBS class per (G, engine) (filed 2026-09-14, STASHED by agreement)
 

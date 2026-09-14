@@ -94,7 +94,6 @@ public:
     // from the second iteration" is not read-only.
     //! Add this term's energy contribution (contracted against the density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
-    virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
     //! \brief Does the VIRIAL THEOREM still hold with this term in the Hamiltonian?  (default yes)
     //!
@@ -178,7 +177,6 @@ public:
     //! read it off the \c EnergyBreakdown they already hold.  This face is the in-process QUESTION for a
     //! density that has no energy pass -- the raw seed, measured before iteration 0 consumes it.
     virtual rvec_t           SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
-    virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
     //! \brief Does the VIRIAL THEOREM still hold with this term in the Hamiltonian?  (default yes)
     //!
@@ -219,7 +217,6 @@ public:
                                        const tbs_t<T>* wholeBasis) const=0;
     //! Add this term's energy (e.g. \f$E_{ee}=\tfrac12\,\mathrm{Tr}(D\,J)\f$) from \a cd into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
-    virtual bool             IsPolarized   () const {return false;}   //!< per-spin exchange? (default no; VxcPol yes)
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
     //! \brief Does the VIRIAL THEOREM still hold with this term in the Hamiltonian?  (default yes)
     //!
@@ -310,12 +307,17 @@ public:
     virtual hmat_t<T>       GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd)
     { return GetMatrix(bs,s,cd,nullptr); }
     virtual EnergyBreakdown GetTotalEnergy  (  const tDM_CD<T>*    ) const=0;
-    virtual bool            IsPolarized   () const=0;
+    //! \brief THE IMPOSED SPIN SUBGROUP this Hamiltonian was built for (V1.37 step 3).  A property of the
+    //! RUN, fixed at construction like the point group -- not a fold over term types (no term declares a
+    //! polarization any more; the XC terms are built FOR the group and ask the density for its channels).
+    //! A Dirac Hamiltonian answers \c Polarized always: its (κ,m_j) blocks carry spin inside the double
+    //! group, and the tree has no folded form for them yet (doc/BasisSetTaxonomyPlan.md §1.4, last row).
+    virtual SpinGroup       GetSpinGroup  () const=0;
     virtual bool            IsRelativistic() const=0;
     //! \brief Is the virial theorem meaningful for THIS Hamiltonian?  CONJUNCTIVE over the terms: one
     //! non-Coulombic term invalidates it for the whole Hamiltonian, so \c tHamiltonianImp ANDs the terms'
-    //! \c IsVirialValid() (unlike IsPolarized/IsRelativistic, which are OR-ed -- one term is enough to make
-    //! the Hamiltonian polarized/relativistic, but ALL terms must be Coulombic for the virial to hold).
+    //! \c IsVirialValid() (unlike IsRelativistic, which is OR-ed -- one term is enough to make the
+    //! Hamiltonian relativistic, but ALL terms must be Coulombic for the virial to hold).
     //! The SCF iterator consults it to drop both the virial convergence gate and the virial column.
     virtual bool            IsVirialValid () const=0;
     //! \brief Does EVERY term keep a real basis block real?  CONJUNCTIVE over the terms like

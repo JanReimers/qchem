@@ -308,7 +308,7 @@ template <class U> hmat_t<U> PairDensitySampler::MatrixT(const tobs_t<U>* bs, co
 template <class U> const qcMesh::MatrixAdjoint<dcmplx>*
 PairDensitySampler::BlockAdjoint(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb) const
 {
-    const Irrep id=orb.GetIrrep(Spin::None);          // SPATIAL key, as the basis's own table cache uses
+    const sym_t& id=orb.GetSymt();                    // the block's SPATIAL symmetry, as the basis's own table cache uses
     auto it=itsAdj.find(id);
     if (it!=itsAdj.end()) return &it->second;
     const Projector3<dcmplx>& g=orb.Overlap3C(*itsFitBasis);

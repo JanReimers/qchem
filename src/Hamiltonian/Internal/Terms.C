@@ -35,7 +35,6 @@ class DiracKinetic : public virtual rStatic_HT, private rStatic_HT_Imp
 public:
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
-    virtual bool          IsPolarized   () const {return true;}
     virtual bool          IsRelativistic() const {return true;}
 private:
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&) const;
@@ -151,26 +150,36 @@ private:
 class Dynamic_HF_HT_Imp : public virtual rDynamic_HF_HT
 {
 public:
-    //! Fock build: assemble the whole-system blocks ONCE per density from the composite \a wholeBasis using
-    //! ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
+    //! Fock build: assemble the whole-system blocks ONCE per (density, spin) from the composite \a wholeBasis
+    //! using ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
     //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
     virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity*,const rbs_t* wholeBasis) const;
 protected:
     //! The one operation that distinguishes Coulomb from exchange: scatter \a dm across canonical irrep pairs
     //! into the zeroed per-irrep blocks \a X (one per irrep, same order as the density's leaves).
     virtual void   AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const=0;
-    //! Fock coefficient applied to every block after the scatter (1 for Coulomb; the K coefficient for Vxc).
-    virtual double Scale() const {return 1.0;}
-    //! Contract the density into the whole-system blocks itsJKs (keyed by BasisSetID) if stale for this
-    //! density.  Uses itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-basis --
-    //! gets the same symmetry-banked contraction for its (post-diagonalization) density.
-    void ContractAll(const rChargeDensity* cd) const;
+    //! \name THE SPIN AXIS (V1.37 step 3) -- three questions, answered by the concrete term, that used to
+    //! be answered by WHICH TYPE it was (Vee / Vxc(-1/2) / two Vxc(-1) inside a VxcPol).
+    //!@{
+    //! Which spin keys my blocks: \c Spin::None when the operator ignores the channel (Coulomb sees the
+    //! total), \a s itself when it is per channel (exchange is same-spin).
+    virtual Spin           CacheSpin (const Spin& s) const=0;
+    //! The density my spin-\a s blocks are built FROM: the total, or the \a s channel of \a cd.
+    virtual const rDM_CD*  DensityFor(const rChargeDensity* cd, const Spin& s) const=0;
+    //! Fock coefficient applied to every block after the scatter (1 for Coulomb; the K coefficient for Vxc,
+    //! which depends on whether the block is a folded doublet or one channel).
+    virtual double         Scale(const Spin& s) const=0;
+    //!@}
+    //! Contract \a cd into the whole-system blocks for spin \a s (a CacheSpin) if stale for this density.
+    //! Uses itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-basis -- gets the
+    //! same symmetry-banked contraction for its (post-diagonalization) density.
+    const std::map<std::string,rsmat_t>& ContractAll(const rChargeDensity* cd, const Spin& s) const;
 
-    mutable size_t itsCD_Version=size_t(-1);      //!< ID number for the most recent charge density (CD)
     mutable const rbs_t* itsWholeBasis=nullptr;    //!< whole basis (stashed from the Fock build; stable across the run)
-    //! The J (Coulomb) or K (exchange) per-irrep blocks: accumulated (over irreps) and contracted (over Dcd)
-    //! for the current charge density ID'd by itsCD_Version.  Keyed by ab-basis BasisSetID, already scaled.
-    mutable std::map<std::string,rsmat_t> itsJKs;
+    //! The J (Coulomb) or K (exchange) per-irrep blocks of ONE spin: accumulated (over irreps) and contracted
+    //! (over that spin's D) for the density ID'd by \c version.  Keyed by ab-basis BasisSetID, already scaled.
+    struct Blocks { size_t version=size_t(-1); std::map<std::string,rsmat_t> jk; };
+    mutable std::map<Spin,Blocks> itsJKs;          //!< one Blocks per CacheSpin this run asks for
 };
 
 class Vee : public Dynamic_HF_HT_Imp
@@ -179,44 +188,34 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 protected:
-    virtual void AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const;
+    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const;
+    // Coulomb sees the TOTAL density and ignores the channel: one set of blocks serves every spin.
+    virtual Spin          CacheSpin (const Spin&) const {return Spin::None;}
+    virtual const rDM_CD* DensityFor(const rChargeDensity* cd, const Spin&) const;
+    virtual double        Scale(const Spin&) const {return 1.0;}
 };
 
 //###############################################################################
 //
-//  Hartree-Fock unpolarized and polarized exchange potentials.
+//  Hartree-Fock exchange -- ONE term for either imposed spin subgroup (V1.37 step 3).
+//
+//  Exchange is SAME-SPIN: \f$F^\sigma\mathrel{+}=-K[D_\sigma]\f$.  The block's spin says what \f$D_\sigma\f$ is:
+//    * Up/Down (imposed U(1)_z): that channel of the density, coefficient -1;
+//    * None (imposed SU(2), the folded doublet): the whole density IS \f$2D_\sigma\f$, so \f$-K[D_\sigma]=
+//      -\tfrac12K[D_{tot}]\f$ -- the RHF \f$-\tfrac12\f$, read off the label instead of a second type.
+//  (This replaced Vxc(-1/2) + a VxcPol forwarding to two Vxc(-1): the coefficient and the density were the
+//  only differences, and both are functions of the block's spin.)
 //
 class Vxc : public Dynamic_HF_HT_Imp
 {
 public:
-    //! \a exchangeScale is the K coefficient in the Fock: -1/2 for the (spin-summed) RHF term, -1 for each
-    //! spin channel of the polarized term (VxcPol owns two Vxc(-1)).  Explicit -- no hidden convention: the
-    //! block contracts whatever density it is handed (total for RHF; a single spin channel for VxcPol).
-    explicit Vxc(double exchangeScale) : itsScale(exchangeScale) {}
     virtual void           GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
 protected:
-    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const;
-    virtual double Scale() const {return itsScale;}   //!< the Fock K coefficient, applied to every block
-private:
-    const double itsScale;                          //!< K coefficient in the Fock (-1/2 RHF, -1 per-spin)
-};
-
-// Polarized HF exchange = two spin-channel Vxc(-1): dispatch per spin, feeding each its own spin density
-// (K^sigma from D^sigma).  Mirrors FittedVxcPol's owned-pair structure -- keeps the fitted and HF polarized
-// terms consistent.
-class VxcPol : public virtual rDynamic_HF_HT
-{
-public:
-    VxcPol();
-   ~VxcPol();
-    virtual void           GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
-    virtual bool           IsPolarized() const {return true;}
-    virtual std::ostream&  Write    (std::ostream&) const;
-    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity*,const rbs_t* wholeBasis) const;
-private:
-    Vxc* itsUpVxc  ;   //!< owned; spin-up exchange   (K coefficient -1)
-    Vxc* itsDownVxc;   //!< owned; spin-down exchange (K coefficient -1)
+    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const;
+    virtual Spin          CacheSpin (const Spin& s) const {return s;}          // same-spin: per channel
+    virtual const rDM_CD* DensityFor(const rChargeDensity* cd, const Spin& s) const;
+    virtual double        Scale(const Spin& s) const {return s==Spin::None ? -0.5 : -1.0;}
 };
 
 //###############################################################################
@@ -252,140 +251,69 @@ private:
 
 //###############################################################################
 //
-//  Linear least squares fit the unpolarized and polarized exchange-correlation potential.  The fit basis set
-//  is inserted by the constructor and is not owned by FittedVxc; the XC functional IS owned (shared) here.
+//  Linear least squares fit of the exchange-correlation potential -- ONE term for either imposed spin
+//  subgroup (V1.37 step 3; it replaced FittedVxc + FittedVxcPol + FittedVcorrPol).  The fit basis set is
+//  inserted by the constructor and is not owned; the XC functional IS owned (shared) here.
 //
-//  TWO fits, on the SAME fit basis (so the 3-centre integrals are computed once):
-//    V (GetMatrix / MakeMatrix) fits the POTENTIAL v_xc(rho(r))       -> the Fock/KS block.
-//    E (GetEMatrix)             fits the ENERGY DENSITY eps_xc(rho(r)) -> E_xc = integral eps_xc rho.
-//  They are genuinely different matrices (v_xc = eps_xc + rho d(eps_xc)/d(rho); a factor 4/3 for Slater
-//  exchange), which is the whole reason tDynamic_CC's energy face is named GetEMatrix rather than GetMatrix
-//  -- before that, delivering the second matrix needed a SEPARATE rDynamic_CC object (the retired
-//  FittedEpsXc adapter) hung off this term purely to carry it (V1.3).
-//  Uniform for exchange AND correlation: the E fit reads the functional's own eps_xc (eps_x = 3/4 v_x for
-//  Dirac exchange; eps_c != 3/4 v_c for correlation; eps_xc from libxc), so no functional needs the 3/4
-//  special case -- this retires the old 3/4-virial exchange shortcut (which broke for gradient functionals).
+//  SPIN-NATIVE THROUGHOUT.  The functional is consumed through its two-channel face,
+//  v^sigma(rho_up, rho_dn) and eps^sigma(rho_up, rho_dn), and the term supplies the channel densities:
+//    * a polarized density hands over its Up/Down channels;
+//    * a density that resolves no spin -- the folded doublet of an SU(2) run, or the spin-agnostic seed of a
+//      polarized one -- hands over rho/2 for both, which is the exact zeta=0 collapse.
+//  The imposed subgroup enters ONCE, at construction: it says which spin irreps this term will be asked for,
+//  so a fitter pair exists for each of them before the first block loop (no lazy insertion, R1.0h).
+//
+//  TWO fits per spin irrep, on the SAME fit basis (so the 3-centre integrals are computed once):
+//    V (GetMatrix / MakeMatrix) fits the POTENTIAL v^sigma        -> the Fock/KS block of that spin.
+//    E (GetEMatrix)             fits the ENERGY DENSITY eps^sigma -> E_xc = Sum_sigma Tr(D_sigma <i|eps^sigma|j>).
+//  They are genuinely different matrices (v = eps + rho d(eps)/d(rho); a factor 4/3 for Slater exchange),
+//  which is the whole reason tDynamic_CC's energy face is named GetEMatrix rather than GetMatrix (V1.3).
+//  eps^sigma is PER CHANNEL because exchange's energy density is (eps_x(rho_up) differs from eps_x(rho_dn));
+//  correlation's is the same for both, and a composite sums them (ExFunctional::GetEpsXc(up,dn,s)).
+//
+//  The v fit keys on the Fock pass's density (rho_in), the eps fit on the energy pass's (rho_out), so the
+//  two guards cannot be shared -- and neither can be a lazy insert: both slots exist per spin from
+//  construction and are only ever REFILLED.
 //
 class FittedVxc : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
-    typedef std::shared_ptr<ExFunctional>     ex_t;
+    typedef std::shared_ptr<      ExFunctional>  ex_t;
 
-    FittedVxc(fbs_t& VxcFitBasisSet, ex_t&);
+    //! \a g names the imposed spin subgroup: the spin irreps this term will be asked for (None; or Up+Down).
+    FittedVxc(fbs_t&, ex_t&, SpinGroup g);
     ~FittedVxc();
     //! \copydoc tDynamic_HT::RefreshForDensity
-    //! Warms the POTENTIAL fit \f$v_{xc}[\rho]\f$ (the V half).  ⚠ NOT the \f$\epsilon_{xc}\f$ fit beside
-    //! it: that one keys on a DIFFERENT density -- the Fock build's \f$\rho_{in}\f$ against the energy's
-    //! \f$\rho_{out}\f$ -- so warming it here would fit the wrong one and it would be refit anyway.
+    //! THE EAGER PHASE (R1.0h): the v^sigma fits are k-INDEPENDENT, so hoist them out of the block loop --
+    //! one per spin irrep, each from BOTH channel densities of \a cd.  ⚠ Only the V half: the eps fits key
+    //! on the ENERGY pass's density, not this pass's (see GetEMatrix), so warming them here would fit the
+    //! wrong one and they would be refit anyway.
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const override;
-    //! The ENERGY block: re-fits eps_xc for this density and returns Sum_a c_a <Oi|f_a|Oj> for contraction.
+    //! The ENERGY block of spin \a s: re-fits eps^s for this density and returns Sum_a c_a <Oi|f_a|Oj>.
     virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const override;
     virtual std::ostream& Write           (std::ostream&) const override;
 private:
     virtual rsmat_t MakeMatrix(const robs_t*,const Spin&,const rChargeDensity*) const override;
 
-    ex_t itsEx;   //!< the XC functional (owned, shared): supplies BOTH GetVxc (V) and GetEpsXc (E)
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsFitter;    //!< V: the v_xc fit
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsEpsFitter; //!< E: the eps_xc fit (same fit basis)
-    mutable rsmat_t     itsEpsMat;                   //!< GetEMatrix's returned block
-    mutable size_t      itsEpsVersion=size_t(-1);    //!< density serial the eps_xc fit was last computed for
+    //! The fitter PAIR of one spin irrep, each half guarded by the density serial it currently holds.
+    struct SpinFit
+    {
+        std::unique_ptr<Fitting::FunctionFitter_Scalar> v;     //!< V: the v^sigma fit (the Fock pass's density)
+        std::unique_ptr<Fitting::FunctionFitter_Scalar> eps;   //!< E: the eps^sigma fit (the energy pass's density)
+        size_t  vVersion  =size_t(-1);
+        size_t  epsVersion=size_t(-1);
+        rsmat_t epsMat;                                        //!< GetEMatrix's returned block (per spin: no aliasing)
+    };
+    //! This spin irrep's pair -- THROWS for a spin the term was not built for (a block of the other subgroup).
+    SpinFit& FitFor(const Spin& s) const;
+    //! Bring \a s's v fit up to \a cd (a no-op when it already holds this serial).
+    void EnsureVFit(SpinFit&, const Spin& s, const rChargeDensity* cd) const;
+
+    ex_t                                itsEx;     //!< the XC functional (owned, shared): both faces, both fits
+    SpinGroup                           itsGroup;  //!< the imposed subgroup this term was built for
+    mutable std::map<Spin,SpinFit>      itsFits;   //!< one pair per spin irrep of the subgroup, from construction
 };
-
-//! Polarized exchange as a pure FORWARDER to its two per-spin children -- the same shape as \c VxcPol,
-//! its Hartree-Fock twin (R2.19).  It owns no matrix of its own: each child is a full caching term, so
-//! this class hands back the CHILD'S cached reference rather than copying it into scratch.  That is why
-//! it does NOT derive from \c rDynamic_HT_Imp_NoCache: it has nothing to compute, so it has no
-//! \c MakeMatrix, and a scratch slot existed only to have something to return a reference to.
-class FittedVxcPol : public virtual rDynamic_HT
-{
-public:
-    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
-    typedef std::shared_ptr<      ExFunctional>  ex_t;
-
-    FittedVxcPol(fbs_t&, ex_t&);
-   ~FittedVxcPol();
-    //! Forward to this spin's child and return ITS cached block.  Reference lifetime is therefore the
-    //! child's: valid until the next call for the same Irrep on that child.
-    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
-    // Required by HamiltonianTerm
-    //! \copydoc tDynamic_HT::RefreshForDensity
-    //! ⛔ A FORWARDING TERM MUST FORWARD, and until the hooks became pure (2026-09-10) this one silently did
-    //! not: the Hamiltonian's fold reaches only TOP-LEVEL terms, so these two children -- each a full
-    //! caching, fitting \c FittedVxc -- were never warmed and never pre-slotted, and did both lazily from
-    //! inside the block loop.  Owning children means owning their share of every phase.
-    virtual void RefreshForDensity(const rChargeDensity* cd) const override;
-    //! \copydoc HT_SlotOwner::PrepareSlots
-    //! Forwarded for the same reason: this class owns no cache, its two children each own one.
-    virtual void PrepareSlots(const rbs_t* bs) const override;
-    virtual void GetEnergy       (EnergyBreakdown&,const rDM_CD* cd         ) const;
-    virtual bool IsPolarized() const {return true;}
-
-    virtual std::ostream&   Write(std::ostream&) const;
-private:
-    rDynamic_HT* itsUpVxc  ; //Spin up.
-    rDynamic_HT* itsDownVxc; //Spin down.
-
-};
-
-//###############################################################################
-//
-//  Polarized (spin-native) correlation term.  Unlike FittedVxcPol -- which delegates to two INDEPENDENT
-//  single-channel FittedVxc, valid only because Slater exchange is channel-separable -- correlation
-//  v_c^sigma(rho_up,rho_down) COUPLES both channels (through r_s and zeta), so this term fits the
-//  SpinCorrelation functional against BOTH spin channels of the density at each mesh point.  The Fock build calls
-//  MakeMatrix per spin (each fits v_c^sigma); the energy E_c = integral eps_c(rho_up,rho_down) rho uses a
-//  SECOND eps_c fit on the same fit basis (GetEMatrix -- the E face of the V/E pair) that the polarized
-//  density contracts over both channels.  (That fit used to live in a separate rDynamic_CC adapter,
-//  FittedEpsCPol -- a clone of FittedVxc's FittedEpsXc; both died with the GetEMatrix split, V1.3.)  The seed
-//  iteration (a spin-agnostic total density, no channels yet) collapses to v_c^P(rho) via
-//  rho_up=rho_down=rho/2 -- the same robustness FittedVxcPol needed (cd85d13c).
-//
-class FittedVcorrPol : public virtual rDynamic_HT, private rDynamic_HT_Imp_NoCache
-{
-public:
-    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
-    typedef std::shared_ptr<SpinCorrelation>            corr_t;  //!< the spin-native correlation functional
-
-    FittedVcorrPol(fbs_t&, corr_t&);
-   ~FittedVcorrPol();
-    //! \copydoc tDynamic_HT::RefreshForDensity
-    //! Warms BOTH spin channels' \f$v_c^\sigma\f$ fits (V1.36, 2026-09-10).  ⚠ NOT the \f$\epsilon_c\f$ fit:
-    //! like \c FittedVxc's, that one keys on the ENERGY pass's density, not this pass's.
-    virtual void RefreshForDensity(const rChargeDensity* cd) const override;
-    virtual void GetEnergy (EnergyBreakdown&, const rDM_CD* cd) const override;
-    //! The ENERGY block: fits eps_c(rho_up,rho_down) from the density's two channels and returns its overlap
-    //! matrix.  Spin-INDEPENDENT as a value, so contracting it over both channels gives
-    //! E_c = integral eps_c (rho_up+rho_down).
-    virtual const rsmat_t& GetEMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;
-    virtual bool IsPolarized() const override {return true;}
-    virtual std::ostream& Write(std::ostream&) const override;
-private:
-    virtual rsmat_t MakeMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;
-
-    //! \brief The guarded \f$v_c^\sigma\f$ fitter for spin \a s -- refits only when \a cd is new to it.
-    Fitting::FunctionFitter_Scalar& VcFitter(const Spin& s, const rChargeDensity* cd) const;
-
-    corr_t itsCorr;                                                      //!< the correlation functional (owned)
-    //! ★ **TWO \f$v_c\f$ FITTERS, ONE PER SPIN (V1.36, 2026-09-10) -- and the reason is NOT the coupling.**
-    //!
-    //! \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$ genuinely couples the channels (see this class's
-    //! header), so each fit must be EVALUATED jointly -- but that never forbade MEMOIZING it.  What did was
-    //! that ONE fitter holds ONE set of coefficients: the Fock build is BLOCK-MAJOR (per irrep block, then
-    //! each spin), so a single fitter had \f$v_c^\uparrow\f$ clobbered by \f$v_c^\downarrow\f$ and back again
-    //! on every block, and a density-serial guard alone could not have helped.  That is exactly why
-    //! \c FittedVxcPol holds two CHILDREN; this term needs the same multiplicity one level down, at the
-    //! fitter, because its functional does NOT factorize into two single-channel terms.
-    //! ⇒ Before: one fit per block per spin.  After: one fit per spin per density.
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsVcFitterUp;//!< v_c^up potential fit
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsVcFitterDn;//!< v_c^down potential fit
-    mutable size_t itsVcVersionUp=size_t(-1);   //!< density serial itsVcFitterUp currently holds
-    mutable size_t itsVcVersionDn=size_t(-1);   //!< ...and itsVcFitterDn
-    std::unique_ptr<Fitting::FunctionFitter_Scalar> itsEpsFitter;//!< E_c = integral eps_c rho (energy)
-    mutable size_t itsEpsVersion=size_t(-1);    //!< density serial the eps_c fit was built for
-    mutable rsmat_t                                         itsEpsMat;   //!< GetEMatrix's returned block
-};
-
 
 } //namespace

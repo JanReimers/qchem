@@ -13,9 +13,10 @@ export namespace qchem::Hamiltonian
 //! \brief VWN5 (Vosko-Wilk-Nusair, Can.J.Phys 58, 1200 (1980), functional V) LDA CORRELATION.
 //!
 //! SPIN-NATIVE: the primary formulation is the two-channel \f$\varepsilon_c(\rho_\uparrow,\rho_\downarrow)\f$
-//! with the per-channel potentials \f$v_c^\sigma\f$ (GetEpsC / GetVc).  The spin-unpolarized scalar face
+//! with the per-channel potentials \f$v_c^\sigma\f$ (the two-channel GetEpsXc / GetVxc).  The spin-unpolarized scalar face
 //! (GetVxc / GetEpsXc) is the \f$\zeta=0\f$ collapse and is kept BYTE-IDENTICAL to the historical
-//! paramagnetic implementation (it drives the unpolarized \c Ham_DFTcorr_U SCF anchors).
+//! paramagnetic implementation (it drives the unpolarized LDA SCF anchors; the two-channel face routes
+//! exact \f$\zeta=0\f$ through it).
 //!
 //! Validated pointwise against libxc LDA_C_VWN (see LDA_XC_UT), both XC_UNPOLARIZED and XC_POLARIZED.
 //! Provides BOTH the potential \f$v_c\f$ and the energy density \f$\varepsilon_c\f$ -- the latter is
@@ -27,7 +28,7 @@ export namespace qchem::Hamiltonian
 //!                              + [\varepsilon_c^F-\varepsilon_c^P]\,f(\zeta)\,\zeta^4 \f]
 //! with \f$f(\zeta)=\frac{(1+\zeta)^{4/3}+(1-\zeta)^{4/3}-2}{2^{4/3}-2}\f$ interpolating paramagnetic
 //! (\f$\zeta=0\f$) to ferromagnetic (\f$\zeta=1\f$), and \f$\alpha_c\f$ the spin stiffness.
-class VWN_Correlation : public ExFunctional, public virtual SpinCorrelation
+class VWN_Correlation : public ExFunctional
 {
 public:
     VWN_Correlation() {}
@@ -36,17 +37,21 @@ public:
     virtual double GetVxc  (double rho) const { return rho>0.0 ? Vc (rho) : 0.0; }
     virtual double GetEpsXc(double rho) const { return rho>0.0 ? Eps(rho) : 0.0; }
 
-    // --- spin-native two-channel face (the primary formulation; SpinCorrelation) ---
-    //! Correlation energy density \f$\varepsilon_c(\rho_\uparrow,\rho_\downarrow)\f$.
-    virtual double GetEpsC(double rup, double rdn) const
+    // --- spin-native two-channel face (the primary formulation) ---
+    //! Correlation energy density per particle \f$\varepsilon_c(\rho_\uparrow,\rho_\downarrow)\f$ -- the same
+    //! for both channels (the Spin argument is the face's, not this functional's).  At EXACT \f$\zeta=0\f$
+    //! it takes the scalar path, so an unpolarized run's numbers are bit-identical to the historical code.
+    virtual double GetEpsXc(double rup, double rdn, const Spin&) const
     {
+        if (rup==rdn) return GetEpsXc(rup+rdn);
         double rho=rup+rdn;
         return rho>0.0 ? EvalRZ(rho,Zeta(rup,rdn)).eps : 0.0;
     }
     //! Channel correlation potential \f$v_c^\sigma=\varepsilon_c+\rho\,\partial\varepsilon_c/\partial\rho_\sigma\f$.
     //! Note v_c^sigma COUPLES both channels (through r_s and zeta) -- it is NOT a function of rho_sigma alone.
-    virtual double GetVc(double rup, double rdn, const Spin& s) const
+    virtual double GetVxc(double rup, double rdn, const Spin& s) const
     {
+        if (rup==rdn) return GetVxc(rup+rdn);          // exact zeta=0: the byte-identical scalar path
         double rho=rup+rdn;
         if (rho<=0.0) return 0.0;
         double z=Zeta(rup,rdn);
@@ -84,7 +89,7 @@ private:
     //! \f$(1-\zeta)^{4/3}\f$ via \c std::pow, which is NaN for a negative base, and one NaN mesh point makes
     //! the whole \f$v_c\f$ matrix non-Hermitian ("Invalid assignment to diagonal matrix element" out of
     //! Blaze).  Guarding here mirrors the \c rho>0 guards on the scalar face -- the functional defends itself
-    //! against non-physical density values, at the ONE place both \c GetEpsC and \c GetVc read \f$\zeta\f$.
+    //! against non-physical density values, at the ONE place both two-channel faces read \f$\zeta\f$.
     //! Unreachable before 2026-08-07: every polarized periodic run was fed \f$\rho_\uparrow=\rho_\downarrow
     //! =\rho/2\f$ by the spin-blind \f$\tilde\rho\f$ mixers, so \f$\zeta\f$ was identically 0 (the MnO AFM
     //! collapse; doc/SymmetryUpgradePlan.md §7 step 7).

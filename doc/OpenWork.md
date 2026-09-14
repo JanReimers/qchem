@@ -100,6 +100,12 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > (no payload left).  Found in passing: `charge.lost` was never set on polarized GPW runs -- fixed.
 > **⇒ V1.37 step 3 (the 13 `IsPolarized()` sites) is next in this step.**  857/857.
 >
+> ▶ **V1.37 STEP 3 LANDED (2026-09-14) — V1.37 CLOSED.**  One term per operator built FOR the imposed
+> subgroup (`Vxc`, `FittedVxc`, `Vxc_Quadrature`), a spin-native `ExFunctional` face (`SpinCorrelation`
+> gone), eleven `Ham_*_U/_P` → six with `GetSpinGroup()`, `SymMap` for spatial caches (`Spin::None` keeps
+> only its doublet-label job).  857/857.  Record → `doc/CleanupHistory.md`.  **⇒ This step's queue is the
+> remaining CleanupCandidates rows; step 3 (TE) and DFT+U are next per the programme.**
+>
 > ### 3. THE TEST-SUITE ORGANISATION — item **TE**
 > The axis product `{basis} × {material} × {grid} × {k} × {symmetry} × {kT}`, the file breakdown, the naming
 > convention.  ▶ **Do `PolarizedRunKeepsItsSpin` EARLY in this step**: at 251 s it sets the `-j8` wall floor
