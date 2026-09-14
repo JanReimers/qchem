@@ -46,7 +46,13 @@ struct SCFProgress
     double dE;           //!< |E_n - E_{n-1}|
     double commutator;   //!< [F,D] (the accelerator/DIIS error)
     double drho;         //!< relative charge-density change
-    double order=0;      //!< the ORDER PARAMETER (tSCFIterator::SetOrderParameter); 0 when no probe is set
+    //! \brief The ORDER PARAMETER: the INTEGRATED site moment \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$ of
+    //! the site carrying the largest |μ|, SIGNED (so a sign flip is visible) -- read off \c eb.charge.siteMoments.
+    //! 0 when the run resolves no basins (a uniform XC mesh) or is unpolarized.  For a two-sublattice AFM this IS
+    //! the staggering \f$\tfrac12(\mu_1-\mu_2)\f$.  (The caller-supplied POINT probe that used to sit here is
+    //! gone, 2026-09-14: a point sample of \f$m(r)\f$ is a spin DENSITY along one direction of an anisotropic
+    //! d shell, not a moment -- doc/OpenWork.md Step 0a, [[feedback_integrated_observables]].)
+    double order=0;
     //! \brief THIS iteration's full energy breakdown, of which \c energy is \c GetTotalEnergy().
     //!
     //! Carried because a total energy alone cannot tell a healthy run from a collapsed one, but its TERMS
@@ -83,10 +89,10 @@ struct IterationTrace
     // Frontier spectrum -- the gap column (solids show it always; molecules only under ReportBandGap()):
     double eHomo=0, eLumo=0, gap=0;
     bool   haveHomo=false, haveLumo=false, metallic=false, hole=false;
-    // The caller's ORDER PARAMETER (tSCFIterator::SetOrderParameter), measured on THIS iteration's working
-    // density.  nullptr name == no probe set == no column.
-    const char* orderName=nullptr;   //!< the probe's short column label, e.g. "m_stag"
-    double      order=0;             //!< its value this iteration
+    // The ORDER PARAMETER column (see SCFProgress::order): shown on every polarized run; "----" when the
+    // run has no basins to integrate over.
+    bool   hasOrder=false;           //!< this iteration's breakdown carried site moments
+    double order=0;                  //!< the signed max-|μ| site moment
 };
 
 //! \brief ONE column of the SCF trace, carrying ALL THREE of its cells together.
@@ -151,18 +157,9 @@ public:
     using Observer = std::function<void(const SCFProgress&)>;
     void SetObserver(Observer obs) {itsObserver=std::move(obs);}
 
-    //! Watch an ORDER PARAMETER die (doc/SymmetryUpgradePlan.md §9 "diagnostic metric"): a caller-supplied
-    //! named scalar measured on the WORKING density every iteration, shown as a trace column and carried in
-    //! SCFProgress.  A symmetry-broken solution (an AFM staggered moment, a charge disproportionation) is a
-    //! basin the SCF can silently fall out of -- the seed is provably ordered, the answer provably isn't, and
-    //! the converged numbers say nothing about WHICH iteration lost it.  The probe is the instrument that
-    //! brackets it.  Deliberately a caller-supplied functor: the order parameter is system knowledge (which
-    //! sites, which sign pattern), not something the iterator can infer.  Read-only telemetry, like the
-    //! observer -- it must not touch the density.  \a name is a short column label ("m_stag"); an empty name
-    //! or a null probe disables the column (the default: zero cost).
-    using OrderProbe = std::function<double(const tDM_CD<T>&)>;
-    void SetOrderParameter(const std::string& name, OrderProbe probe)
-    {itsOrderName=name; itsOrderProbe=std::move(probe);}
+    // (No SetOrderParameter any more -- 2026-09-14.  The order parameter is the INTEGRATED site moment the
+    //  spin-native XC term writes into every iteration's EnergyBreakdown (R1.0h); the column and
+    //  SCFProgress::order read it from there.  A caller-supplied point probe cannot be a moment.)
 
     // SCFIterator drives the mutable SCFWaveFunction, but only ever hands clients the const
     // read view (they can query the converged state, never drive someone else's SCF loop).
@@ -212,9 +209,9 @@ protected:
     void WriteRowPrefix   (std::ostream&, const IterationTrace&) const; //!< row:    #, Etotal, [F,D]
     void WriteMixAccelCfg (std::ostream&, const IterationTrace&) const; //!< row:    ρ_mix, accel, cfg
     void WriteGapColumn   (std::ostream&, const IterationTrace&) const; //!< row:    the frontier gap (+flags)
-    void WriteOrderColumn (std::ostream&, const IterationTrace&) const; //!< row:    the order parameter (if probed)
-    //! Header cell for the order-parameter column -- the label the caller gave SetOrderParameter (nothing
-    //! when no probe is set), so both layouts announce the extra column the same way.
+    void WriteOrderColumn (std::ostream&, const IterationTrace&) const; //!< row:    the order parameter (polarized runs)
+    //! Header cell for the order-parameter column ("m_site" on a polarized run, nothing otherwise), so
+    //! both layouts announce the extra column the same way.
     void WriteHeadOrder   (std::ostream&) const;
     //! The Hamiltonian this run assembles, for the DISPLAY only: a layout has to ask it whether the virial
     //! theorem is meaningful (V1.27 IsVirialValid), and a subclass layout lives outside the base's privates.
@@ -293,8 +290,6 @@ private:
     size_t          itsIterationCount;
     bool            itsConverged;
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
-    OrderProbe      itsOrderProbe; //!< optional order-parameter probe (default empty == no column, no cost)
-    std::string     itsOrderName;  //!< its column label
 
     // Density-face state.  The mixer (Linear / Kerker; see qchem.ChargeDensity.DensityMixer) is built per-run
     // from SCFParams at the top of Iterate and owns the mixing policy + state (relax, the Kerker ρ̃, ...).

@@ -158,14 +158,9 @@ struct SolidCalcOptions
     //! recipe, is the stage whose trajectory the fingerprint most wants.  Put it here and the run is
     //! observed from its first iteration, with the rest of the recipe, in one place.
     qchem::SCFIterator::SolidSCFIterator::Observer onIteration = nullptr;
-    //! \name The run's ORDER PARAMETER -- named, and measured every iteration
-    //! A campaign watches a scalar the library cannot know about (a staggered moment, a charge disproportion,
-    //! a distortion amplitude).  It belongs beside \c onIteration for the same reason: the ctor CONVERGES,
-    //! so a probe attached afterwards has already missed stage 0.  Empty probe = no order column.
-    //!@{
-    std::string orderName;
-    std::function<double(const qchem::ChargeDensity::cDM_CD&)> orderProbe;
-    //!@}
+    // (No orderName/orderProbe any more -- 2026-09-14.  The order parameter is the INTEGRATED site moment
+    //  every polarized run carries on its EnergyBreakdown (SCFProgress::order, the m_site column); the
+    //  caller-supplied POINT probe it replaced was a spin density, not a moment.)
     //!@}
     //!@}
 };

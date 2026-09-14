@@ -628,32 +628,11 @@ void SolidCalculation::BuildStage(SCFAccelerators::Type accType,
 //---------------------------------------------------------------------------------------------------
 //! ONE HOOK PAIR, serving the caller's telemetry AND the outcome detectors.
 //!
-//! The iterator has exactly one order-probe slot and one observer slot, and the facade needs both for
-//! itself while still honouring whatever the caller asked for -- so it COMPOSES rather than competes.
-//! The probe is the only place this iteration's density is in hand (that is where the integrated site
-//! moment can be taken, for free, off a raster the XC term has already built for this density serial);
-//! the observer is the only thing that fires exactly once per iteration (the probe can also be called
-//! for the iteration-0 banner under Verbose).  So the probe MEASURES and the observer FILES.
-//!
-//! The caller's probe still owns the DISPLAY column: their order parameter is the campaign's question,
-//! and the library has no business overwriting it.  When they set none and the run is polarized, the
-//! integrated moment takes the column itself under the name "m_site" -- which is what a magnetic run
-//! wants to see anyway, and it is an INTEGRATED observable rather than a point sample of m(r).
+//! The observer FILES what the iteration MEASURED: the integrated site moment rides the EnergyBreakdown
+//! (R1.0h), so the detectors read it off the progress record -- no probe, no second sampling -- and the
+//! caller's observer is composed behind the facade's own, so attaching telemetry late cannot disarm them.
 void SolidCalculation::AttachProbes()
 {
-    const bool polarized = itsImp->opts.multiplicity>=1;
-    auto userProbe = itsImp->opts.orderProbe;
-    if (userProbe || polarized)
-        itsImp->scf->SetOrderParameter(
-            userProbe ? itsImp->opts.orderName : std::string("m_site"),
-            [this,userProbe](const qchem::ChargeDensity::cDM_CD& cd)->double
-            {
-                // The column: the caller's scalar, or the integrated moment.  The moment is ASKED for here
-                // only because the column is rendered before the energy pass that would deliver it on the
-                // breakdown (cheap: it rides the channel rasters the Fock build already made).
-                return userProbe ? userProbe(cd)
-                                 : MaxSiteMoment(itsImp->ham->SiteMoments(&cd), itsImp->diag.itsHasBasins);
-            });
     auto userObs = itsImp->opts.onIteration;
     itsImp->scf->SetObserver([this,userObs](const qchem::SCFIterator::SCFProgress& p)
     {

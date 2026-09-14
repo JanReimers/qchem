@@ -29,7 +29,7 @@
 #include <fstream>   // /proc/self/statm (the RSS breadcrumb bisect)
 #include <stdexcept>
 #include <algorithm>
-#include <functional>   // the per-iteration order-parameter probe (GpwOptions::orderProbe)
+#include <functional>
 #include <string>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
@@ -319,6 +319,8 @@ struct GpwOptions
     //! facade, multiplicity=1 here runs the EXPLICIT two-channel singlet (nUp=nDn): the ζ=0-collapse
     //! cross-check of the polarized machinery against the unpolarized anchors.
     int         multiplicity = 0;
+    //! Optional per-iteration telemetry (composed behind RunGpw's own fingerprint observer).
+    std::function<void(const qchem::SCFIterator::SCFProgress&)> onIteration;
     std::vector<std::pair<std::string,int>> species;   // multi-species PP, e.g. {{"Na",1},{"F",7}}
     // grids
     double densityEcut  = -1.0;                        // <0 AUTO = cutoffFactor*alpha_max
@@ -382,12 +384,6 @@ struct GpwOptions
     //! occupied CHARACTER to the seed and let only the DENSITY relax.  Implemented as self-adoption through
     //! the existing grid-continuation face (AdoptMOMReference), no new wavefunction API.
     bool         momFromSeed = false;
-    //! Optional ORDER PARAMETER (SCFIterator::SetOrderParameter): a named scalar measured on the WORKING
-    //! density every iteration -- an extra trace column PLUS a compact end-of-run trajectory line, so a
-    //! symmetry-broken basin (AFM staggering, charge disproportionation) can be watched living or dying
-    //! iteration by iteration.  Empty (default) = no probe, no column, no cost.
-    std::string  orderName;
-    std::function<double(const qchem::ChargeDensity::cDM_CD&)> orderProbe;
     //! Thread GPWParams::hamPreservesReal (doc/RealComplexPlan.md 3c-3): build each TRIM block REAL.
     //! DEFAULT TRUE since 2026-08-18 -- the harness-wide flip, which is what makes every Γ-only anchor
     //! in this file a standing real-block regression test instead of leaving the shipped path (where
@@ -645,9 +641,9 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     // only when imposeSymmetry), and the composite density ctor-injects them straight from the basis -- no setter,
     // no ops recomputed here (doc/GPWPlan1.md item 3).
     std::vector<FpRow> series;
-    scf.SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
-                    { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho, p.order}); });
-    if (o.orderProbe) scf.SetOrderParameter(o.orderName, o.orderProbe);
+    scf.SetObserver([&series,&o](const qchem::SCFIterator::SCFProgress& p)
+                    { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho, p.order});
+                      if (o.onIteration) o.onIteration(p); });
     SCFParams par = o.scf; par.Verbose = verbose;   // one `verbose` drives both the report console + the SCF table
     qchem::ChargeDensity::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     {
@@ -656,7 +652,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     }
     qchem::ChargeDensity::ReportGridCharge()=false;
     Fingerprint(series, o.label.c_str());
-    OrderTrajectory(series, o.orderProbe ? o.orderName : std::string(), o.label.c_str());
+    OrderTrajectory(series, o.multiplicity>0 ? std::string("m_site") : std::string(), o.label.c_str());
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity().release();   // V1.25: BUILT for us; keep/delete below
     double charge=cd->GetTotalCharge();
@@ -814,7 +810,6 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         std::vector<FpRow> series;
         scf->SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
                          { series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order}); });
-        if (o.orderProbe) scf->SetOrderParameter(o.orderName, o.orderProbe);   // per STAGE, like the fingerprint
         std::cout << "["<<o.label<<" anneal "<<s+1<<"/"<<kTSchedule.size()<<"] kT="<<kT
                   << " acc="<<(accSchedule.empty()?o.accelerator:accSchedule[s])
                   << " MOM-Lambda="<<par.MOMSmearPenalty
@@ -822,7 +817,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
                   << std::endl;
         scf->Iterate(par);
         Fingerprint(series, (o.label+" kT="+std::to_string(kT)).c_str());
-        OrderTrajectory(series, o.orderProbe ? o.orderName : std::string(),
+        OrderTrajectory(series, o.multiplicity>0 ? std::string("m_site") : std::string(),
                         (o.label+" kT="+std::to_string(kT)).c_str());
 
         seedCD = scf->GetWaveFunction()->GetChargeDensity().release();   // consumed by the next stage's ctor
@@ -3626,29 +3621,19 @@ TEST(GPW_SCF, PolarizedRunKeepsItsSpin)
     o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;   // ITERATE (Kerker on this
     o.scf.KerkerG0=1.0;                                // THE ASK: ρ̃ mixing on a polarized density
 
-    // The order parameter: the on-site moment m(r)=ρ↑(r)−ρ↓(r) sampled 0.7 bohr off the nucleus (the d-shell
-    // peak -- the d density vanishes AT the nucleus).  Recorded per iteration, so the SmokeTest of the
-    // instrument itself is here: the probe must fire once per iteration and report an electrons-scale moment.
+    // The order parameter: the INTEGRATED on-site moment mu_Mn = Integral w_Mn (rho_up - rho_dn), carried by
+    // every iteration's SCFProgress::order (R1.0h; the m_site column).  Recorded per iteration, so the
+    // SmokeTest of the instrument itself is here: it must be present every iteration at an electrons scale.
     std::vector<double> mtrace;
-    const rvec3_t rMn(a/2,a/2,a/2), off(0.7,0,0);
-    o.orderName="m_Mn";
-    o.orderProbe=[&mtrace,rMn,off](const qchem::ChargeDensity::cDM_CD& cd)->double
-    {
-        const auto* up=qchem::ChargeDensity::ChannelOf(&cd, Spin::Up  );
-        const auto* dn=qchem::ChargeDensity::ChannelOf(&cd, Spin::Down);
-        if (!up || !dn) { mtrace.push_back(0.0); return 0.0; }    // an unpolarized Fock density: the defect itself
-        const double m=(*up)(rMn+off)-(*dn)(rMn+off);
-        mtrace.push_back(m);
-        return m;
-    };
+    o.onIteration=[&mtrace](const qchem::SCFIterator::SCFProgress& p){ mtrace.push_back(p.order); };
     GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o,
                        /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"));
     EXPECT_NEAR(R.charge, 7.0, 1e-6);
-    ASSERT_FALSE(mtrace.empty()) << "the order-parameter probe never fired";
+    ASSERT_FALSE(mtrace.empty()) << "the observer never fired";
     const double mMin=*std::min_element(mtrace.begin(), mtrace.end());
-    std::cout << "[Mn sextet under Kerker] m(0.7 bohr) over "<<mtrace.size()<<" iterations: min="<<mMin
+    std::cout << "[Mn sextet under Kerker] integrated mu_Mn over "<<mtrace.size()<<" iterations: min="<<mMin
               << " final="<<mtrace.back()<<std::endl;
-    EXPECT_GT(mMin, 0.02) << "the instrument itself: the probe must see the S=5/2 moment every iteration";
+    EXPECT_GT(mMin, 4.0) << "the instrument itself: the S=5/2 moment (5 e) must be there every iteration";
     // THE ASSERT: the same polarized answer the linear-mixed d-channel gate pins (−14.6380).  A spin-blind
     // ρ̃ mixer loses the exchange splitting and lands at −14.57 -- 68x this tolerance away.
     EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3)
@@ -4403,24 +4388,9 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
         base.MinΔρ=1e-5; base.MinΔE=1e30; base.MinΔFD=1e30; base.MinVirial=1e30; base.MinFD=1e30;
         base.MergeTol=1e-4;
 
-        // THE ORDER PARAMETER.  m(r) in ONE call now (SolidCalculation hands back rho AND m): the old form
-        // cross-cast the polarized CD and subtracted two channel evaluations to build the same number.
-        {
-            const double ds=2.0*sh*a;                                        // A*(sh,sh,sh)
-            const rvec3_t off(0.7,0,0), rMn1(ds,ds,ds), rMn2(a+ds,a+ds,a+ds);
-            o.orderName="m_stag";
-            o.orderProbe=[off,rMn1,rMn2](const qchem::ChargeDensity::cDM_CD& cd)->double
-            {
-                const auto* up=qchem::ChargeDensity::ChannelOf(&cd, Spin::Up);
-                const auto* dn=qchem::ChargeDensity::ChannelOf(&cd, Spin::Down);
-                if (!up || !dn) return 0.0;
-                const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
-                const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
-                if (std::getenv("GPW_MNO_SITES"))
-                    std::cout << "[sites] m1=" << m1 << " m2=" << m2 << " m1+m2=" << m1+m2 << std::endl;
-                return 0.5*(m1-m2);
-            };
-        }
+        // THE ORDER PARAMETER is the INTEGRATED site moment on every SCFProgress (the m_site column), which
+        // for this two-sublattice AFM is the staggering 1/2(mu_1 - mu_2) itself.  (The point probe m(r) at
+        // 0.7 bohr that used to sit here was a spin DENSITY, not a moment -- gone 2026-09-14.)
         o.onIteration=[&arm](const qchem::SCFIterator::SCFProgress& p)
                       { arm.series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order,p.eb["Eee"]}); };
 

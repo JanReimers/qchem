@@ -58,6 +58,16 @@ term rewrite -- never on its own.
   probe (the detectors' yardstick -- "both ends of the run mislead", the seed must be measured before
   Init consumes it) and the default `m_site` trace column (rendered before the energy pass would deliver
   it).  Both documented as such on the faces.
+- **THE POINT PROBE IS GONE (user, same day, on `DISABLED_MnO_AFM2_RhombohedralGamma`: the `m_stag` column
+  still showed the old non-integrated \f$m(0.7\,\text{bohr})\f$ and the `scf ▸ siteMoments` block
+  interrupted the iteration rows).**  `tSCFIterator::SetOrderParameter` / `OrderProbe`, the facade's
+  `orderName`/`orderProbe` options and the two test lambdas are DELETED -- "the code for non-integrated
+  values should be completely removed so it never gets used again".  The order column is now INTRINSIC:
+  `m_site` on every polarized run = the signed max-|μ| integrated site moment read off the breakdown
+  (`SCFProgress::order`), "----" when the run has no basins; for a two-sublattice AFM it IS the staggering.
+  The `siteMoments` report block is Verbose-only on the console (the json always records).
+  `PolarizedRunKeepsItsSpin` now asserts the integrated μ_Mn ≥ 4 e every iteration (was m(r) > 0.02);
+  `GpwOptions` gained an `onIteration` observer hook to read it.
 - ⚠ **DEFECT FOUND IN PASSING: `Vcorr_QuadraturePol::GetEnergy` never set `charge.lost`.**  It is the term
   every polarized GPW run has built since 2026-09-04, so the trace's ρ_lost/N column read 0 on every
   polarized run while the unpolarized sibling reported it.  Fixed (same formula).

@@ -240,6 +240,14 @@ template <class T> tSCFIterator<T>::~tSCFIterator() = default;
 // (R1.0h); this loop is the one actor that fires exactly once per iteration with that breakdown in hand,
 // which is why the emission lives here and not inside a sampler's cache-advance branch.  Silent when the
 // run has no atom-centred partition (empty) or nothing to say (an unpolarized density).
+// The signed site moment of largest magnitude: the order-parameter scalar (see SCFProgress::order).
+static double SignedMaxSiteMoment(const rvec_t& mu)
+{
+    double m=0.0;
+    for (size_t a=0;a<mu.size();a++) if (std::fabs(mu[a])>std::fabs(m)) m=mu[a];
+    return m;
+}
+
 static void EmitSiteMoments(const EnergyBreakdown& eb)
 {
     const rvec_t& mu=eb.charge.siteMoments;
@@ -255,7 +263,9 @@ static void EmitSiteMoments(const EnergyBreakdown& eb)
     std::vector<double> v(mu.size());
     for (size_t a=0;a<mu.size();a++) v[a]=mu[a];
     j["mu"]=v;  j["net"]=net;
-    qchem::report::EmitAt("scf", "siteMoments", j);
+    // Verbose-only on the console: the row's m_site column already shows the number, and a rendered block
+    // between two iteration rows is exactly the interruption the column exists to avoid.  The json always records.
+    qchem::report::EmitAt("scf", "siteMoments", j, qchem::report::Detail::Verbose);
     if (std::getenv("QCHEM_SITE_MOMENTS"))
     {
         std::cout<<"[site moments] Becke-partitioned Integral w_A (rho_up-rho_dn) d3r [e]:";
@@ -309,8 +319,6 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     // The order parameter at the STARTING point (the seed's diagonalized density, "iteration 0") -- the
     // reference every later value is judged against.  A probe that already reads ~0 here means the SEED never
     // carried the order, which is a DIFFERENT bug from the loop losing it.
-    if (itsOrderProbe && ipar.Verbose)
-        cout << "[order] iteration 0 (seed): " << itsOrderName << " = " << itsOrderProbe(*itsCD) << endl;
 
     int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
     std::string prevConfig;         // previous occupied configuration (the cfg '*' change flag; item 2)
@@ -345,17 +353,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
         FD=itsAccelerator->GetError(); //i.e. [F,D]
         dFD=(FD-FDold);
-        // The caller's ORDER PARAMETER on THIS iteration's working density (§9 diagnostic metric).  Measured
-        // before the display so the trace and the observer see the same number, and unconditionally (not just
-        // under Verbose): a headless client watching the observer needs it too.  No probe => no cost.
-        // Bucketed even though it is meant to be cheap (it rides a raster the Fock build already made for
-        // this density serial): "meant to be cheap" is exactly the claim an instrument exists to check.
-        double order = 0.0;
-        if (itsOrderProbe)
-        {
-            qchem::report::Timed timed("scf: order probe (site moments, per iteration)");
-            order = itsOrderProbe(*itsCD);
-        }
+        // THE ORDER PARAMETER (§9 diagnostic metric): the signed max-|μ| INTEGRATED site moment, read off the
+        // breakdown the energy pass just filled (R1.0h) -- no probe, no second sampling.
+        const bool   hasOrder = eb.charge.siteMoments.size()>0;
+        const double order    = SignedMaxSiteMoment(eb.charge.siteMoments);
         if (ipar.Verbose)
         {
             // "all fields, all cheap" is a CLAIM -- HomoLumo and ConfigString both walk every irrep's
@@ -374,7 +375,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                                itsIterationCount>1 && config!=prevConfig, lineSearch,
                                (N!=0.0 ? eb.charge.lost/N : 0.0),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole,
-                               itsOrderProbe ? itsOrderName.c_str() : nullptr, order };
+                               hasOrder, order };
             DisplayColumns(cout, ipar, tr);
             prevConfig=std::move(config);
         }
@@ -713,19 +714,21 @@ template <class T> void tSCFIterator<T>::WriteGapColumn(std::ostream& os, const 
     os << ' ' << (tr.hole ? 'h' : tr.metallic ? 'm' : ' ');
 }
 
-// The ORDER-PARAMETER column (SetOrderParameter; §9): the caller's named scalar on this iteration's density,
-// signed and in FIXED notation -- the point of the column is to watch a value DECAY toward zero (or flip
-// sign), which scientific notation hides behind a shrinking exponent.  Absent probe => absent column.
+// The ORDER-PARAMETER column (§9): the signed max-|μ| integrated site moment of this iteration's density,
+// in FIXED notation -- the point of the column is to watch a value DECAY toward zero (or flip sign), which
+// scientific notation hides behind a shrinking exponent.  Polarized run => column; no basins => "----".
 template <class T> void tSCFIterator<T>::WriteOrderColumn(std::ostream& os, const IterationTrace& tr) const
 {
-    if (!tr.orderName) return;
-    std::ostringstream v; v << std::fixed << setprecision(6) << std::showpos << tr.order;
+    if (!itsHamiltonian->IsPolarized()) return;
+    std::ostringstream v;
+    if (tr.hasOrder) v << std::fixed << setprecision(6) << std::showpos << tr.order;
+    else             v << "----";                     // polarized, but no basins to integrate over
     os << " " << PadR(v.str(),W_ORD);
 }
 template <class T> void tSCFIterator<T>::WriteHeadOrder(std::ostream& os) const
 {
-    if (itsOrderName.empty() || !itsOrderProbe) return;
-    os << " " << PadR(itsOrderName,W_ORD);
+    if (!itsHamiltonian->IsPolarized()) return;
+    os << " " << PadR("m_site",W_ORD);
 }
 
 // --- THE COLUMN LIST (V1.27) -----------------------------------------------------------------------
