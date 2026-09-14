@@ -2154,6 +2154,41 @@ TEST(GPW_SCF, DeltaFitUniformGridMatchesPWFit_SiGamma)
            "band-limit/quadrature route-difference class (plan 6a fit/grid separation)";
 }
 
+// THE V2.3 GATE (doc/CleanupCandidates.md V2.3, run 2026-09-14): the POLARIZED PLANE-WAVE fit route.  The row
+// said a polarized Ham_PW_DFT THROWS under VxcFit::PlaneWave because the raster route had no per-spin rho
+// cache; the raster route grew RhoPol/RefreshPol on 2026-08-28 and since V1.37 step 3 the one XC term asks it
+// for the pair on any fit basis -- but nothing had ever RUN it.  Same cell and recipe as the (PlaneWave,
+// raster) arm above, as the EXPLICIT two-channel singlet (nUp=nDn=4): the zeta=0 collapse must land on the
+// unpolarized PW-fit answer, exactly as PolarizedSingletMatchesUnpolarizedSiGamma pins it on the Becke route.
+TEST(GPW_SCF, PolarizedSingletMatchesUnpolarized_PWFitRaster)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwOptions o;
+    o.imposeSymmetry=true;
+    o.Nelec=8; o.species={{"Si",4}};
+    o.densityEcut=20.0; o.accelerator="DIIS";
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // (PlaneWave, raster): Auto resolves the PW fit here
+
+    o.label="Si PW-fit unpol";
+    GpwResult U=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    ASSERT_TRUE(U.converged);
+
+    o.label="Si PW-fit pol-singlet"; o.multiplicity=1;   // the explicit two-channel singlet on the SAME route
+    GpwResult P=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    ASSERT_TRUE(P.converged);
+    EXPECT_NEAR(P.charge, 8.0, 1e-6);
+    EXPECT_NEAR(P.E.GetTotalEnergy(), U.E.GetTotalEnergy(), 1e-6)   // measured 6e-9 on 2026-09-14, same 17 iterations
+        << "zeta=0 collapse on the plane-wave fit route: v^sigma(rho/2,rho/2) == v(rho) pointwise, so the "
+           "two-channel singlet must reproduce the unpolarized PW-fit answer";
+}
+
 // THE W1 GATE (doc/SymmetryUpgradePlan.md §6a): Becke XC under IBZ.  BeckeFit_IBS group-averages its
 // mesh INVARIANT and star-averages rho every iteration (the SymmetrizeRaster hook, exact orbit-mean
 // projector); on the converged SYMMETRIC density the invariant mesh integrates identically to the

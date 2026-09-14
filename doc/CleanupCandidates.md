@@ -2614,10 +2614,11 @@ MnO campaign proceeds undisturbed in qchem6.
   needs a suite sweep since every pinned GPW anchor re-seeds.  **POST-MERGE + the bit-moving batch
   (checked 2026-08-17: both defaults live in TRIM-owned files — GPW_SCF_UT.C:314 and
   SolidCalculation.C:104 — and "every anchor re-seeds" is the V1.22/§K class).**
-- **V2.3 Polarized PLANE-WAVE Vxc fit route** — `Ham_PW_DFT` polarized currently THROWS for
-  `VxcFit::PlaneWave`: per-channel PW_XC needs per-spin rho-grid caches (PW_XC's `itsRhoGrid` is
-  keyed on `cd->Version()` alone, which a polarized density aliases across channels — the trap the
-  engine's RhoPol pair-cache fixes).  Design note in the throw message.
+- **V2.3 ✅ CLOSED 2026-09-14 — it had ALREADY been fixed and never run.**  The row named `PW_XC::itsRhoGrid`,
+  which no longer exists: the raster route grew per-spin `RhoPol`/`RefreshPol` on 2026-08-28, and V1.37 step 3's
+  one XC term asks it for the pair on any fit basis.  Gate ADDED (`GPW_SCF.PolarizedSingletMatchesUnpolarized_PWFitRaster`):
+  the explicit two-channel Si singlet under `VxcFit::PlaneWave` on the raster lands on the unpolarized answer to
+  6e-9 Ha in the same 17 iterations.  Another "check the tree before believing the row".  **→ doc/CleanupHistory.md**
 
 - **V2.4 ✅ DONE 2026-08-08 — margin validated, selector ARMED.**  Converged-run A/B on both systems the.  **→ doc/CleanupHistory.md**
 - **V2.5 `PPMeshParams()` sizes its uniform mesh with no \f$\alpha_{pp}\f$ term.**  `mp.eCut=densityEcut`

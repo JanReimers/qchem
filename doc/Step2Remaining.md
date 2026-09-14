@@ -53,22 +53,22 @@ Groups A and D are closed and E was never work, so this file's remaining content
 
 | row | group | state | what unblocks it |
 |---|---|---|---|
-| **V2.3** | B | ⚠ probably closed by the 2026-08-28 pair `RhoPol` + V1.37 step 3; **UNVERIFIED** | ONE gate run: Si pol-singlet, `VxcFit::PlaneWave` on a Uniform mesh, expect −7.11506.  ~10 minutes |
+| **V2.3** | B | ✅ CLOSED 2026-09-14 — the gate was run: no throw, 6e-9 Ha off the unpolarized answer in the same 17 iterations (`PolarizedSingletMatchesUnpolarized_PWFitRaster`) | — |
 | **V2.2** | C | GPW seed default `Uniform` → `IonicSAD` (a stable WRONG basin was measured) | the anchor-moving sprint **S** |
 | **V2.5** | C | `PPMeshParams()` has no \f$\alpha_{pp}\f$ floor | sprint **S** (one consumer; bounded) |
 | **V1.34** | B | half-realised `FitContraction<U,TFit>`; `bad_cast` in Release on a real TRIM block via the ball route | **N4**'s verdict on whether the ball-fit route survives |
 | **R1.0b** | B | SP/"L" shells in the Gaussian94 reader | the `PG_Cart::IrrepBasisSet` same-exponent merge bug |
 
 **In order:**
-1. **V2.3 first** — it is a measurement, not a task, and it either deletes a row or names a real bug.
-2. **Then the sprint S = V2.2 + V2.5 together**: both re-seed/re-size what pinned energies depend on, so
+1. ~~**V2.3 first**~~ ✅ done — it deleted the row (the fix had been in the tree since 2026-08-28).
+2. **The sprint S = V2.2 + V2.5 together**: both re-seed/re-size what pinned energies depend on, so
    they want ONE re-bank, not two.  With the user's 2026-09-14 ruling (R&D stage: clean code over anchors,
    re-pin rather than argue) the sprint is cheaper than this file feared — the cost is one full `ctest`
    pass with the moved anchors re-pinned and the reason for each move written down.
 3. **V1.34 and R1.0b stay blocked** on things outside this sweep (N4; the reader bug).  Neither is worth
    forcing: V1.34's honest fix depends on a route decision, R1.0b's payoff is the S3b spherical lineage.
 
-⇒ **After 1–2 this file retires** (to `doc/OldPlans/`), and the programme's step 2 hands off to step 3
+⇒ **After 2 this file retires** (to `doc/OldPlans/`), and the programme's step 2 hands off to step 3
 (**TE**, the test-suite axes — `PolarizedRunKeepsItsSpin` early) and then DFT+U, per `doc/OpenWork.md`.
 
 ---
@@ -136,13 +136,10 @@ conditioning is an experiment (`GPW_SCF.MnAtomInBoxDChannel` + the vet's λmin/c
 lattice sums (the parked S3b work) removes the contaminant entirely — spherical d has none — and makes the
 CP2K comparisons apples-to-apples (its log for our own shell list: 55 Cartesian vs 47 spherical functions).
 
-### V2.3 — polarized plane-wave Vxc throws — ⚠ PROBABLY ALREADY CLOSED, UNVERIFIED (2026-09-14)
-The row describes `PW_XC`'s `itsRhoGrid` keyed on `cd->Version()` alone.  **Neither name exists any more**: the
-raster route is `PairDensitySampler`, which grew `RhoPol`/`RefreshPol` (the per-spin pair cache) on 2026-08-28, and
-since V1.37 step 3 `Vxc_Quadrature(xc, sampler, SpinGroup::Polarized)` asks it for the pair whatever the fit
-basis.  What is NOT in the tree is a GATE: no test runs a polarized `VxcFit::PlaneWave` SCF (the polarized
-singlet gate runs Auto → Becke → Delta).  ⇒ **One run closes or reopens this row** — the Si pol-singlet with
-`o.vxcFit=PlaneWave` on a Uniform mesh, expected on the −7.11506 anchor.  Cheap; do it before believing either.
+### V2.3 — ✅ CLOSED 2026-09-14 — polarized plane-wave Vxc does not throw, and now a gate says so
+The row's mechanism (`PW_XC::itsRhoGrid` keyed on the aliased `Version()`) had been fixed since the raster
+route grew its per-spin pair cache on 2026-08-28; nothing had run it.  `PolarizedSingletMatchesUnpolarized_PWFitRaster`:
+6e-9 Ha off the unpolarized PW-fit answer, same iteration count.  Record in `CleanupHistory.md`.
 
 ### V1.34 — the fitter's contraction face is templated but half-realised
 `Fitting::FitContraction<U,TFit>` exists for two scalars and is implemented for ONE, so a real TRIM block

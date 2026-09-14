@@ -19,6 +19,26 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## CLOSED 2026-09-14 — V2.3: the polarized plane-wave Vxc route was already working; it had never been run
+
+The row (2026-08) said a polarized `Ham_PW_DFT` THROWS under `VxcFit::PlaneWave` because `PW_XC::itsRhoGrid`
+keyed on `cd->Version()` alone, which a polarized density aliases across channels.  Neither name survives:
+the raster route is `PairDensitySampler`, which grew the per-spin pair cache (`RhoPol`/`RefreshPol`) on
+2026-08-28, and since V1.37 step 3 `Vxc_Quadrature(xc, sampler, SpinGroup::Polarized)` asks it for the pair
+whatever the fit basis.  What was missing was a GATE.  One added and run:
+`GPW_SCF.PolarizedSingletMatchesUnpolarized_PWFitRaster` — the (PlaneWave, raster) Si Γ recipe as the
+explicit two-channel singlet: no throw, 17 iterations on both arms, −7.11506785 vs −7.115067844 (6e-9 Ha).
+Tolerance pinned at 1e-6.  ★ The lesson is `feedback_check_tree_before_believing_tracker` verbatim: the
+row's stated mechanism had been fixed for seventeen days by work that never cited it.
+
+### THE ORIGINAL ROW (moved in full from CleanupCandidates.md)
+
+- **V2.3 Polarized PLANE-WAVE Vxc fit route** — `Ham_PW_DFT` polarized currently THROWS for
+  `VxcFit::PlaneWave`: per-channel PW_XC needs per-spin rho-grid caches (PW_XC's `itsRhoGrid` is
+  keyed on `cd->Version()` alone, which a polarized density aliases across channels — the trap the
+  engine's RhoPol pair-cache fixes).  Design note in the throw message.
+
+
 ## LANDED 2026-09-14 — V1.37 step 3: the term dispatch — one term per operator, built FOR the imposed subgroup
 
 Steps 1–2 are the entry further down; R1.0h closed between them.  857/857 after each of the two commits
