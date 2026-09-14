@@ -98,10 +98,17 @@ template <class U> hmat_t<U> Vxc_QuadraturePol::MakeMatrixT(const tobs_t<U>* bs,
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
     return itsSampler->Matrix(bs, v);
 }
-// T2 (doc/OpenWork.md N1): forward to the quadrature, which owns the atom-centred partition.  Empty when
-// it has none -- the caller (SolidCalculation) treats empty as "this run cannot answer", never as "zero".
-rvec_t Vxc_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return itsSampler->SiteMoments(cd);}
-rvec_t Vcorr_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return itsSampler->SiteMoments(cd);}
+// THE OBSERVABLE (doc/OpenWork.md N1/T2; R1.0h): mu_A = Integral w_A (rho_up - rho_dn), in electrons, over the
+// sampler's atom-centred partition.  FREE -- both channel rasters are cached for this density serial -- and
+// the term's, not the sampler's, because the term is what knows the field is a spin difference; the
+// sampler only knows how to partition-integrate a field at its points.  Empty when the quadrature has no
+// site blocks -- the caller (SolidCalculation) treats empty as "this run cannot answer", never as "zero".
+static rvec_t SiteMomentsOf(const ChargeDensity::DensitySampler& q, const cChargeDensity* cd)
+{
+    return q.SiteIntegrals(rvec_t(q.RhoPol(cd,Spin::Up)-q.RhoPol(cd,Spin::Down)));
+}
+rvec_t Vxc_QuadraturePol  ::SiteMoments(const cChargeDensity* cd) const {return SiteMomentsOf(*itsSampler,cd);}
+rvec_t Vcorr_QuadraturePol::SiteMoments(const cChargeDensity* cd) const {return SiteMomentsOf(*itsSampler,cd);}
 
 chmat_t Vxc_QuadraturePol::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
 rsmat_t Vxc_QuadraturePol::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
@@ -116,6 +123,7 @@ void Vxc_QuadraturePol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     const double q=itsSampler->Integrate(rvec_t(up+dn));
     te.Add("Exc", itsSampler->Integrate(exc), EnergyRole::Potential);
     te.charge.lost = q - cd->GetTotalCharge();   // mesh-charge leak (same health metric as Vxc_Quadrature)
+    te.charge.siteMoments = SiteMoments(cd);     // the observable, where both rasters are in hand (R1.0h)
 }
 
 std::ostream& Vxc_QuadraturePol::Write(std::ostream& os) const
@@ -158,6 +166,11 @@ void Vcorr_QuadraturePol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // one it replaces; for the composite it is the only correct sum.
     for (size_t g=0; g<up.size(); g++) ec[g]=itsCorr->GetExcDensity(up[g], dn[g]);
     te.Add("Exc", itsSampler->Integrate(ec), EnergyRole::Potential);   // E_xc = ∫ e_xc(ρ↑,ρ↓)
+    // The charge accounting of the same density.  ⚠ `lost` was MISSING here until 2026-09-14: this is the
+    // term every polarized GPW run builds (MakeVxcTerms), so the trace's ρ_lost/N column read 0 on every
+    // polarized run while the unpolarized sibling reported it.  Same metric, same formula.
+    te.charge.lost        = itsSampler->Integrate(rvec_t(up+dn)) - cd->GetTotalCharge();
+    te.charge.siteMoments = SiteMoments(cd);     // the observable, where both rasters are in hand (R1.0h)
 }
 
 std::ostream& Vcorr_QuadraturePol::Write(std::ostream& os) const

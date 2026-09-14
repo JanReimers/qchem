@@ -15,6 +15,7 @@ module;
 #include <utility>
 #include <vector>
 export module qchem.Energy;
+import qchem.Types;   // rvec_t -- the per-site moments
 
 export namespace qchem
 {
@@ -46,15 +47,25 @@ struct EnergyTerm
     EnergyRole            role = EnergyRole::Potential;
 };
 
-//! \brief The CHARGE accounting of the same density -- the seed of the structure the user asked for
-//! (\f$\{N,\rho_\uparrow,\rho_\downarrow,\text{lost},\text{atoms}\{\rho_{i\uparrow},\rho_{i\downarrow},m_i\}\}\f$).
-//! Today it carries the one number that used to ride the energy struct as "GridChargeLost": the signed charge
-//! the collocation grid could not represent, \f$\int\tilde\rho\,d^3r-\mathrm{Tr}(DS)\f$ (== CP2K's "Electronic
-//! density on regular grids" error; 0 on a gridless path).  "Grid" is the MECHANISM, so it is not in the name.
-//! Growing this into the owner of the per-site moments is doc/CleanupCandidates.md R1.0h.
+//! \brief The CHARGE accounting of the same density -- the structure the user asked for
+//! (\f$\{N,\rho_\uparrow,\rho_\downarrow,\text{lost},\text{atoms}\{\rho_{i\uparrow},\rho_{i\downarrow},m_i\}\}\f$), grown as far
+//! as the terms can fill it.  \c lost is the signed charge the collocation grid could not represent,
+//! \f$\int\tilde\rho\,d^3r-\mathrm{Tr}(DS)\f$ (== CP2K's "Electronic density on regular grids" error; 0 on a
+//! gridless path).  "Grid" is the MECHANISM, so it is not in the name.
+//!
+//! \c siteMoments is THE OBSERVABLE OWNER for the integrated per-site spin moments (R1.0h, 2026-09-14):
+//! \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\,d^3r\f$ in electrons, one entry per site block of the
+//! XC quadrature's atom-centred partition, EMPTY when the run has none (a uniform raster, or an unpolarized
+//! run -- both "not measurable", never "zero").  Filled by the spin-native XC term in its ENERGY pass, where
+//! both channel rasters are already in hand -- so the number rides the same \c EnergyBreakdown the SCF
+//! trace and the observer already receive, contemporaneously with the iteration that produced it.  (It
+//! used to be PULLED through three faces -- Hamiltonian -> term -> sampler -- and reported from inside the
+//! sampler's cache-advance branch; a value channel replaced the pull, the trace replaced the reach-in.)
+//! Named partition (Becke), because until Bader's zero-flux basins land the number is partition-dependent.
 struct ChargeBreakdown
 {
     double lost = 0.0;
+    rvec_t siteMoments;
 };
 
 //! \brief The energy breakdown of one density: keyed, role-tagged, insertion-ORDERED contributions (Display

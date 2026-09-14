@@ -330,8 +330,11 @@ public:
     //! this term, and the term is what states it.
     virtual void PrepareSlots(const cbs_t* bs) const override
     { cDynamic_HT_Imp::PrepareSlots(bs); Dynamic_HT_RealBlock_Imp::PrepareSlots(bs); }
-    //! The atom-centred partition lives on my quadrature, so I am the term that can answer this
-    //! (doc/OpenWork.md N1/T2).  Empty when the quadrature has no site blocks (a uniform raster).
+    //! \copydoc tDynamic_HT::SiteMoments
+    //! The atom-centred partition lives on my quadrature and both channel rasters are my working data, so
+    //! I am the term that computes the observable (doc/OpenWork.md N1/T2).  Empty when the quadrature has
+    //! no site blocks (a uniform raster).  My ENERGY pass writes the same number into
+    //! \c ChargeBreakdown::siteMoments, which is how it reaches the trace and the observer.
     virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
     typedef std::shared_ptr<ExFunctional>  xc_t;
     typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
@@ -376,10 +379,10 @@ public:
     typedef std::shared_ptr<SpinCorrelation> corr_t;
     typedef std::shared_ptr<const ChargeDensity::DensitySampler> sampler_t;   //!< const: every accessor is const (R2.9(i))
     Vcorr_QuadraturePol(const corr_t&, sampler_t);
-    //! The atom-centred partition lives on my quadrature, so I am the term that can answer this
-    //! (doc/OpenWork.md N1/T2).  Empty when the quadrature has no site blocks (a uniform raster).
-    //! ⚠ MOVED HERE from Vxc_QuadraturePol when the pair collapsed into one term: the Hamiltonian polls
-    //! terms first-non-empty-wins, so the surviving XC term has to carry it.
+    //! \copydoc Vxc_QuadraturePol::SiteMoments
+    //! ⚠ Carried HERE since the pair collapsed into one term (2026-09-04): the Hamiltonian polls terms
+    //! first-non-empty-wins, so the surviving XC term is the one that answers -- and the one whose energy
+    //! pass fills \c ChargeBreakdown.
     virtual rvec_t SiteMoments(const cChargeDensity* cd) const override;
     //! Pre-warm the \f${\uparrow,\downarrow}\f$ pair on the quadrature's points (the EAGER REFRESH PHASE).
     virtual void          RefreshForDensity(const cChargeDensity* cd) const override;

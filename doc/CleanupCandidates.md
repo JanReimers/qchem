@@ -1553,7 +1553,11 @@ MnO campaign proceeds undisturbed in qchem6.
   ★★ **AND IT IS NAMED FOR WHAT IT WILL BE, NOT FOR WHAT IT STILL HOLDS — deliberately** (user: *"rename and
   narrow"*).  `Matrix`, `Integrate`/`NumPoints` and `SiteMoments` are still in there and now read as the
   misfits they are instead of being blessed by the name.  ⇒ **THEY ALL LEAVE WITH R1.0h, NOT SEPARATELY**,
-  and the reasons are structural, measured 2026-09-09:
+  and the reasons are structural, measured 2026-09-09.  ✅ **RESOLVED WITH R1.0h 2026-09-14: `SiteMoments`
+  LEFT (the sampler keeps only the quadrature op `SiteIntegrals(f)`; the term computes the observable, it
+  rides `ChargeBreakdown`); `Matrix` STAYS (the adjoint pairing, below); `Integrate` STAYS -- the singles
+  strategy can hold NO mesh (`MakeDensitySampler(fb)` with a default `FitQuadrature`, used by tests), so
+  delegating to `qcMesh::Integrate` would ADD a branch, not remove one.**
   - `Matrix` + `Integrate` cannot leave on their own without splitting the forward/adjoint pairing that
     `LatchRoute` guards.  ⚠ **`LatchRoute` is NOT redundant** — an earlier guess that the per-block
     `BlockAdjoint` had made it so was WRONG.  It guards the FORWARD's route (RAW collocated
@@ -1627,102 +1631,9 @@ MnO campaign proceeds undisturbed in qchem6.
      Name it for that.
   ⚠ Sequence AFTER the library-home decision (R1.0e), since (1)-(3) shrink what has to move.
 
-- **R1.0h ⚗️ HALF DONE 2026-09-09 — THE \f$H_{ij}\f$ CACHE IS THE SAME MISTAKE AS THE ONE JUST UNDONE — and `DB_Cache` is not the
-  answer (user, 2026-09-08).**
-
-  > *"Maybe trying to cache Hij matrices in the Hamiltonian library is also a similar mistake.  I think they
-  > need to [be] cached somewhere so E_xyz[rho] calls don't recalculate Hij.  Can we delegate this to
-  > DB_Cache?"*
-
-  **The diagnosis is right.**  `tDynamic_HT_Imp::GetMatrix` stores its result in `mutable CacheMap itsCache`
-  keyed by `Irrep`, guarded by a density serial, filled DURING the per-block loop — exactly the automatic,
-  implicit, shared-across-blocks shape that `doc/Pins.md` pin 11 is about.  It exists for one reason: the
-  ENERGY pass re-asks for the same block (`GetEMatrix` defaults to `GetMatrix`, and
-  `IrrepCD::DM_Contract` drives it), so without the memo every term recomputes its block twice per
-  iteration.  It is also **the one remaining write inside the block loop** after the eager-refresh phase
-  landed — the k-independent memos are warmed now, but this one is k-DEPENDENT and cannot be.
-
-  ⛔ **BUT NOT `DB_Cache` — and the reason is LIFETIME, not the key** (corrected by the user, 2026-09-08:
-  *"DB_Cache is actually keyed on enums and strings, but the other two points are valid"*).  ⚠ The earlier
-  framing here said `DB_Cache` was "geometry-keyed" and that this was what excluded a density serial.  That
-  was wrong and, worse, it was the WEAK argument: the key axes are an **operator ENUM** (`I1C`/`I2C`/`I2n`/
-  `I2x`/`I3C`/`I4C`) plus **identity STRINGS** (`IBS_ID_t`, `Structure_ID_t`, `Mesh_ID_t`,
-  `RadialTypeID_t`) — and a string will hold anything you put in it, a density serial included.  Keying is
-  not the obstacle.  **The obstacle is turnover against a store that never evicts:**
-
-  | | `DB_Cache` entries | the \f$H_{ij}\f$ memo |
-  |---|---|---|
-  | turnover | **never** — geometry-fixed for the process | **every SCF iteration** |
-  | reusable across runs | **yes — that is the whole point** (*"allow data sharing between separate runs"*) | **never**: a different density |
-  | lifetime | process | one iteration |
-
-  A 20-iteration SCF would leave 20 generations of every term's every block in a process-wide store that
-  has no reason to drop any of them — an unbounded leak with extra steps — and it would dilute the one
-  property `DB_Cache` exists for.  ⇒ *Ask what a cache EVICTS before asking what it keys on.*
-
-  ✅ **AND THE KEY IS ALREADY RIGHT — do not "fix" it** (user, 2026-09-08: *"you can just key off the irrep
-  object, `op<` is overloaded to use `SequenceIndex`.  We do this for irrep maps in many places."*).
-  `Irrep` orders through `Symmetry::SequenceIndex()`, so `std::map<Irrep,…>` is the tree's established
-  idiom and `itsCache` is using it correctly.  **Nothing about the KEY is the problem.**
-
-  ▶ **THE FIX IN THE SPIRIT OF PIN 11: an explicit per-iteration SCOPE.**  What is wrong is *when* and *by
-  whom* the entries appear: they are INSERTED lazily, from inside the per-block loop.  A `std::map`
-  insertion mutates the tree, so two blocks inserting concurrently race even though their keys differ —
-  whereas writing to two ALREADY-EXISTING nodes does not, since map nodes are address-stable.  So the cure
-  is the same shape as `RefreshForDensity`: an explicit phase that CREATES this iteration's slots (one per
-  irrep — the block list is known before the loop starts), after which the loop only fills nodes that are
-  already there.  Give that phase an owner — an object created by the SCF around the Fock+energy passes and
-  destroyed with them — and both halves fall out: the phase becomes visible instead of implicit in call
-  order (pin 11), and the last write-shaped obstacle in the block loop goes away
-  (`doc/OpenWork.md` item **KP**).
-  ⚠ Sequence it AFTER the `XCQuadrature` library move: both touch the term/engine boundary.
-
-
-  ---
-
-  ✅ **DONE 2026-09-09: THE SLOT PRE-CREATION.  The block loop performs no map INSERTION in the ordinary
-  path.**  `tHamiltonian::RefreshForDensity` now takes the BASIS as well as the density and has TWO duties —
-  pre-create this iteration's per-irrep slots, then pre-warm the k-independent memos — because they are one
-  thing: everything that must happen before the block loop so the loop can be read-only.  The driver already
-  held the block list (it passes the same object to `CalcH` on the very next line), so no plumbing.
-
-  ▶ **THE MECHANISM, and it is smaller than the row implied:** `std::map::operator[]` mutates the tree ONLY
-  when the key is absent.  So pre-creating the nodes is the whole fix — after it, `GetMatrix` finds its node
-  and assigns into an address-stable value, which two blocks with different keys can do concurrently.  The
-  find/insert bodies became **fill-if-empty**, with a 0×0 matrix as the "slot exists, not filled" sentinel:
-  a Fock block always has rows, so that cannot collide with a legitimate value, and it avoided rippling an
-  `optional` through five cache holders.
-
-  ⚠ **THERE WERE FIVE CACHE HOLDERS, NOT ONE** — the row's "the one remaining write inside the block loop"
-  undercounted.  `tHT_Common` (shared by `tStatic_HT_Imp`, `tDynamic_HT_Imp` and `tDynamic_HT_Imp_NoCache`)
-  plus `Static_HT_RealBlock_Imp` and `Dynamic_HT_RealBlock_Imp`, each with the identical lazy-insert shape.
-  ★ `tDynamic_HT_Imp_NoCache` is not a cache at all — it is a SCRATCH SLOT giving the returned reference a
-  per-`Irrep` lifetime (R2.9(ii)) — but it inserts on first touch like the rest, so the same fix covers it.
-  ★ STATIC terms are included too, and that does NOT breach *"the phase must never reach a static term"*:
-  that rule is about refreshing FOR A DENSITY.  Their caches never clear, so it is iteration ONE that would
-  otherwise insert from inside the loop — and "read-only from the second iteration" is not read-only.
-  ⇒ Two hooks, not one: `tDynamic_HT::PrepareSlots` / `tStatic_HT::PrepareSlots` for the scalar cache and
-  `{Static,Dynamic}_HT_RealBlock::PrepareRealSlots` for the real one.  A SEPARATE virtual is forced, not
-  chosen: the real-block capability faces do not derive from `tDynamic_HT`, so there is no shared slot to
-  override and one hook would need a diamond nobody wants.
-
-  ⛔ **AND THE MEASUREMENT THAT COST A ROUND: "WALK THE BLOCKS" IS NOT ONE LOOP ON A MIXED SET.**  The first
-  version walked `(*bs)[i]` and **32 integration tests failed** — every one a mixed real/complex run.
-  `operator[]` THROWS on a REAL TRIM block inside a complex-faced set (*"a basis block's scalar differs from
-  the set's face"*, doc/RealComplexPlan.md 3c-3).  Those blocks belong to the REAL cache and its own
-  `PrepareRealSlots`; the typed walk must `continue` past any index where `GetRealIBS(i)` answers non-null.
-  ▶ The throw did its job — this is the `feedback_compile_time_over_runtime` doctrine paying off at runtime.
-  Gate: `EagerRefresh.ThePhasePreparesSlotsOnEveryTermIncludingStatics` (call counts, not timings, per the
-  file's own rule).  **851/851.**
-
-  ⏸ **STILL OPEN — the other half: an OWNING SCOPE, and the `DensitySampler` tenants.**  The phase is a CALL,
-  not an object with a lifetime, so the caches still live between iterations.  ⚠ Measured before choosing:
-  that bounded lifetime would reclaim ~1 `hmat` per (dynamic term × irrep) — **~6 MB on MnO against a
-  ~500 MB run** — so the memory argument for the heavier version is weak and it was deliberately not built
-  (user ruling, 2026-09-09).  What a scope WOULD add is a home for `DensitySampler`'s three remaining
-  tenants (`Matrix`, `Integrate`/`NumPoints`, `SiteMoments` — see R1.0j), which is the part still worth
-  doing.  ⚠ Sequence THAT after the library move; the slot pre-creation did not need to wait, because it
-  touches the term base classes rather than the term/engine boundary.
+- **R1.0h ✅ DONE 2026-09-14 — the \f$H_{ij}\f$ slot pre-creation (2026-09-09) + `ChargeBreakdown` as the
+  site-moment OWNER; the owning per-iteration SCOPE object DECLINED (no payload left).**  Full row + record →
+  `doc/CleanupHistory.md` "LANDED 2026-09-14 — R1.0h".  ⇒ **V1.37 step 3 is UNBLOCKED.**
 
 - **R1.0e(ii) ✅ THE LIBRARY HOME IS SETTLED AND EXECUTED 2026-09-10 — `DensitySampler` LIVES IN
   `qcChargeDensity`.**  (The parked decision was `qcChargeDensity` vs a new leaf library; the user added the
@@ -2193,7 +2104,7 @@ MnO campaign proceeds undisturbed in qchem6.
   ROLE sums; `GetBandEnergy(Σfε)` = Σfε + Σ(E − TrDV) with TrDV filled only where free (throws naming the
   term otherwise).  User rulings: −TS is an energy; a second non-summed map is fine; roles not prefixes;
   "Grid" names a mechanism.  +U adds `"E_U"` and touches nothing.  Bit-identical, 854/854 (+3 unit tests).
-  ⏳ growing `ChargeBreakdown` into the site-moment owner = R1.0h.  **→ doc/CleanupHistory.md**
+  ✅ `ChargeBreakdown` became the site-moment owner with R1.0h (2026-09-14).  **→ doc/CleanupHistory.md**
 
 - **V1.13 ✅ DONE 2026-08-07 — executed as the compiler-verified DELETION R2.6 made possible.  **→ doc/CleanupHistory.md**
 - **V1.14 ✅ DONE 2026-09-11 `fe78682a` + `d5d42fb4` — report-emission creep on neutral faces.**  Both live
@@ -3059,7 +2970,8 @@ anchors — totals unchanged at printed precision, 857/857).  The five abstract�
 casts are gone and so are eleven more casts to the abstract polarized FACE the addendum did not count
 (three Hamiltonian Pol terms, both DensitySampler routes, ValenceBasisGen, PolarizedMixCD, five test
 sites) — all now `ChannelOf(cd, s)` / `DM_ChannelOf(cd, s)`.
-**REMAINDER = step 3 only**, the 13 `IsPolarized()` term-dispatch sites, gated on R1.0h as agreed below.
+**REMAINDER = step 3 only**, the 13 `IsPolarized()` term-dispatch sites -- **UNBLOCKED 2026-09-14: R1.0h closed**
+(the owning scope was declined, so step 3 is the only rewrite the terms have coming).
 
 **The "ah-hah" (user):** `doc/BasisSetTaxonomyPlan.md` §1.4 — spin is a FACTOR of G until it is not.  Pol vs
 UnPol is not a property of the wavefunction; it is *which subgroup of the spin factor is imposed*, the same

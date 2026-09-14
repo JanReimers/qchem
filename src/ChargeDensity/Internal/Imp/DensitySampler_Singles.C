@@ -357,23 +357,16 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
             itsRhoUp = 0.5*(rho + m);
             itsRhoDn = 0.5*(rho - m);
         }
-        // THE OBSERVABLE, reported where it is free (doc/OpenWork.md Step 0a).  This is the ONE place that
-        // knows a NEW density has just been sampled on an atom-partitioned mesh, so the per-site integrated
-        // moments cost a block sum over data already in hand -- and reporting them here means EVERY
-        // polarized atom-centred run gets them, not just the one test that used to fake it with a point
-        // probe.  Units: electrons (x mu_B for the magnetic moment).  Named partition, because until
-        // Bader's zero-flux basins land the number is partition-dependent.
-        EmitSiteMoments();
     }
     return s==Spin::Up ? itsRhoUp : itsRhoDn;
 }
 
-// One line + one report entry per NEW density, from inside the serial-advance branch above.  Silent when
-// the mesh carries no site partition (a uniform grid has no atomic basins to integrate over).
-void SinglesDensitySampler::EmitSiteMoments() const
+// The ONE place the injected partition is read: Integral w_A f over each site block.  Not a fit-basis
+// question and no longer asked of one -- the mesh arrives from the factory that built it for the basis,
+// so this and the basis index the SAME points in the SAME order (one object, two collaborators).
+rvec_t SinglesDensitySampler::SiteIntegrals(const rvec_t& f) const
 {
-    const rvec_t mu=PartitionedMoments(rvec_t(itsRhoUp-itsRhoDn));
-    if (mu.size()==0)
+    if (!itsQuad.GetMesh() || itsQuad.GetMesh()->NSites()==0)
     {   // No site partition on this mesh -- legitimate for a uniform grid, a DEFECT for an atom-centred
         // one, and the difference used to be invisible: the instrument just printed nothing (it did so on
         // EVERY imposed run for as long as the invariant-mesh filter dropped the blocks).  Say which it is,
@@ -387,47 +380,8 @@ void SinglesDensitySampler::EmitSiteMoments() const
                      <<" -- an integrated site moment needs an atom-centred (Becke) mesh, and an "
                        "atom-centred mesh that lost its blocks is a defect, not a configuration."<<std::endl;
         }
-        return;
+        return rvec_t();
     }
-    double net=0.0, absSum=0.0;
-    for (size_t a=0;a<mu.size();a++) { net+=mu[a]; absSum+=std::fabs(mu[a]); }
-    if (absSum < 1e-8) return;                    // an unpolarized density has nothing to say
-    qchem::report::json j;
-    j["partition"]="Becke";                        // NOT canonical -- see the header's Bader note
-    j["units"]="electrons";
-    // Index loop, not the iterator-pair ctor: std cannot see Blaze's exported iterator op==/op!=
-    // across the module boundary (CLAUDE.md "Includes & types").
-    std::vector<double> v(mu.size());
-    for (size_t a=0;a<mu.size();a++) v[a]=mu[a];
-    j["mu"]=v;  j["net"]=net;
-    qchem::report::EmitAt("scf", "siteMoments", j);
-    if (std::getenv("QCHEM_SITE_MOMENTS"))
-    {
-        std::cout<<"[site moments] Becke-partitioned Integral w_A (rho_up-rho_dn) d3r [e]:";
-        for (size_t a=0;a<mu.size();a++) std::cout<<"  "<<a<<":"<<mu[a];
-        std::cout<<"   net="<<net<<std::endl;
-    }
-}
-
-// The per-site INTEGRATED moment (see the header): mu_A = Integral w_A(r) [rho_up - rho_dn] d3r, in
-// electrons.  Free -- RhoPol has already sampled both channels for this density serial (and cached them),
-// and the mesh's weights already carry each site's Becke partition w_A, so this is a block sum over data
-// in hand.  An unpolarized density gives exactly zero (rho_up == rho_dn by the HalfDensity collapse),
-// which is the honest answer, not a special case.
-rvec_t SinglesDensitySampler::SiteMoments(const cChargeDensity* cd) const
-{
-    assert(cd);
-    const rvec_t& up=RhoPol(cd, Spin::Up);
-    const rvec_t& dn=RhoPol(cd, Spin::Down);
-    return PartitionedMoments(rvec_t(up-dn));      // empty when no partition was injected
-}
-
-// The ONE place the injected partition is read: Integral w_A f over each site block.  Not a fit-basis
-// question and no longer asked of one -- the mesh arrives from the factory that built it for the basis,
-// so this and the basis index the SAME points in the SAME order (one object, two collaborators).
-rvec_t SinglesDensitySampler::PartitionedMoments(const rvec_t& f) const
-{
-    if (!itsQuad.GetMesh() || itsQuad.GetMesh()->NSites()==0) return rvec_t();
     assert(f.size()==itsQuad.GetMesh()->size() && "SinglesDensitySampler: the injected quadrature and the fit "
            "basis must be the same object -- one field value per mesh point");
     return qcMesh::SiteIntegrals(*itsQuad.GetMesh(), f);

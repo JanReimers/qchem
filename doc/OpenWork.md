@@ -94,6 +94,12 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > `SpinGroup`); 857/857, totals unchanged at printed precision (user: clean code over 1e-16 anchors).  Record → `doc/CleanupHistory.md`.  **Remainder = step 3 (the 13 `IsPolarized()`
 > term-dispatch sites), sequenced AFTER R1.0h's per-iteration scope so the terms are touched once.**
 >
+> ▶ **R1.0h CLOSED (2026-09-14)** — `ChargeBreakdown{lost, siteMoments}` is the site-moment owner (filled in
+> the XC term's energy pass, emitted from the iteration trace, read by the facade's detectors off the
+> breakdown); the sampler keeps only `SiteIntegrals(f)`; the owning per-iteration scope object DECLINED
+> (no payload left).  Found in passing: `charge.lost` was never set on polarized GPW runs -- fixed.
+> **⇒ V1.37 step 3 (the 13 `IsPolarized()` sites) is next in this step.**  857/857.
+>
 > ### 3. THE TEST-SUITE ORGANISATION — item **TE**
 > The axis product `{basis} × {material} × {grid} × {k} × {symmetry} × {kT}`, the file breakdown, the naming
 > convention.  ▶ **Do `PolarizedRunKeepsItsSpin` EARLY in this step**: at 251 s it sets the `-j8` wall floor

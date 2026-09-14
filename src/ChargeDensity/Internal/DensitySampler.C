@@ -98,13 +98,13 @@ public:
     //! by the factory that created both (never taken from the basis -- it has no getter).  Two of its
     //! fields are consumed here and neither is a fitting question:
     //!  - \c mesh carries the ATOMIC site blocks -- a general-purpose observable, used here because this is
-    //!    where \f$\rho_\sigma\f$ is already cached (\c SiteMoments);
+    //!    where the field it partitions is already sampled (\c SiteIntegrals);
     //!  - \c fold + \c sigmas + \c flipFixed are the crystal orbit partition and Shubnikov spin tags, which
     //!    star-average \f$\rho\f$ (and the \f$(\rho,m)\f$ pair) on every iteration.  Those reached this
     //!    strategy as \c FIT_SF_ABS::Symmetrize / \c SymmetrizeSpin until 2026-08-24 -- two members on a fit
     //!    face whose only contribution was the geometry the basis happened to own (user).  Injecting the
     //!    sibling fields the same way as the mesh removed both.
-    //! Empty (default-constructed) => a free run with no partition: no star-average, and \c SiteMoments
+    //! Empty (default-constructed) => a free run with no partition: no star-average, and \c SiteIntegrals
     //! answers empty -- exactly as a raster quadrature does.
     SinglesDensitySampler(fit_t, BasisSet::FitQuadrature quad={});
     double Integrate(const rvec_t& f) const override;
@@ -129,28 +129,14 @@ public:
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
     //! GEMM runs in REAL arithmetic -- the first place the Step-3 quadrature win is actually realized.
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
-    //! \brief The per-site INTEGRATED spin moment \f$\mu_A=\int w_A(r)\,[\rho_\uparrow-\rho_\downarrow]\,d^3r\f$
-    //! (electrons; \f$\times\,\mu_B\f$ for the magnetic moment), one entry per mesh site block.
-    //!
-    //! THE observable an atomic moment actually is — and it is FREE here: this engine already samples
-    //! \f$\rho_\sigma\f$ at every mesh point once per density serial (\c RhoPol, cached), and the mesh's
-    //! weights already carry the per-site partition \f$w_A\f$, so the answer is one block sum over data in
-    //! hand.  It replaces the MnO campaign's point probe — \f$m(r)\f$ evaluated 0.7 bohr off the nucleus
-    //! along \f$+x\f$ — which was a spin DENSITY, was never derived, and (being one direction through an
-    //! anisotropic d shell) responded to the ORBITAL OCCUPATION as much as to the moment.  See
-    //! doc/OpenWork.md Step 0a.
-    //! \return empty when the mesh carries no site blocks (a uniform grid has no atomic partition to
-    //! integrate over) — ask, do not assume.
-    //! PARTITION CAVEAT: Becke fuzzy basins are a CHOICE; the partition-free definition is R. F. W. Bader's
-    //! QTAIM zero-flux basin, a wanted future feature.  Report which partition produced the number.
-    rvec_t SiteMoments(const cChargeDensity* cd) const override;
-private:
-    //! Report the current \f$\rho_\sigma\f$ pair's site moments -- called from \c RhoPol's serial-advance
-    //! branch, so exactly once per NEW density and never on a cache hit.  No-op without site blocks.
-    void EmitSiteMoments() const;
     //! \f$\int w_A f\f$ per site over the INJECTED quadrature's mesh; empty when none was injected (or it
-    //! has no site blocks -- a uniform grid has no atomic basins).  Ask, do not assume.
-    rvec_t PartitionedMoments(const rvec_t& f) const;
+    //! has no site blocks -- a uniform grid has no atomic basins).  Ask, do not assume.  The MnO campaign's
+    //! point probe (\f$m(r)\f$ 0.7 bohr off the nucleus, a spin DENSITY along one direction of an anisotropic
+    //! d shell) is what the integrated moment built on this replaced -- doc/OpenWork.md Step 0a.
+    //! PARTITION CAVEAT: Becke fuzzy basins are a CHOICE; the partition-free definition is R. F. W. Bader's
+    //! QTAIM zero-flux basin, a wanted future feature.  The consumer reports which partition produced it.
+    rvec_t SiteIntegrals(const rvec_t& f) const override;
+private:
     // ⛔ Symmetrize / SymmetrizeSpin ARE GONE FROM THIS CLASS (2026-09-09, user).  They were two members
     // on the FITTING interface until 2026-08-24, moved here, then became one-line forwards when
     // qcMesh::FoldedMesh grew them as members (R1.0k).  A forwarder that adds nothing is not a
@@ -171,7 +157,7 @@ private:
     fit_t itsFit;                                 //!< the δ basis: my functions, their metric, their 3-centre overlap
     //! The SAME quadrature bundle the \f$\delta\f$ basis was built over -- injected, immutable, possibly
     //! empty.  Its mesh's point order IS the fit basis's function order (one object, handed to both), which
-    //! is what makes \c SiteMoments' indexing and the fold's orbit indexing correct by construction; the
+    //! is what makes \c SiteIntegrals' indexing and the fold's orbit indexing correct by construction; the
     //! asserts pin it anyway.
     BasisSet::FitQuadrature itsQuad;
     //! The δ SCALAR FITTER over that basis, from the same \c Fitting::Factory the molecular XC term uses

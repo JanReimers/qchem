@@ -85,6 +85,9 @@ EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
     for (const auto& [n,t] : e1.itsTerms)       Add(n, t.E, t.role, t.TrDV);
     for (const auto& [n,d] : e1.itsDiagnostics) AddDiagnostic(n, d);
     charge.lost+=e1.charge.lost;
+    // The moments are ONE term's observable, not a sum: take them from whichever side has them (a run has
+    // exactly one atom-partitioned XC term).
+    if (charge.siteMoments.size()==0) charge.siteMoments=e1.charge.siteMoments;
     return *this;
 }
 

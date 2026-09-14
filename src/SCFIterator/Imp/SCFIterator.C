@@ -234,6 +234,36 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
 // it was the one of the three that was.)
 template <class T> tSCFIterator<T>::~tSCFIterator() = default;
 
+// The integrated site moments of this iteration's density, as REPORTED: one report entry (idempotent,
+// run-scoped -- the json ends holding the LAST iteration's) and, under QCHEM_SITE_MOMENTS, one console
+// line.  The number itself is the spin-native XC term's, written into ChargeBreakdown in its energy pass
+// (R1.0h); this loop is the one actor that fires exactly once per iteration with that breakdown in hand,
+// which is why the emission lives here and not inside a sampler's cache-advance branch.  Silent when the
+// run has no atom-centred partition (empty) or nothing to say (an unpolarized density).
+static void EmitSiteMoments(const EnergyBreakdown& eb)
+{
+    const rvec_t& mu=eb.charge.siteMoments;
+    if (mu.size()==0) return;
+    double net=0.0, absSum=0.0;
+    for (size_t a=0;a<mu.size();a++) { net+=mu[a]; absSum+=std::fabs(mu[a]); }
+    if (absSum < 1e-8) return;
+    qchem::report::json j;
+    j["partition"]="Becke";                        // NOT canonical -- Bader's zero-flux basins are the wanted future
+    j["units"]="electrons";
+    // Index loop, not the iterator-pair ctor: std cannot see Blaze's exported iterator op==/op!=
+    // across the module boundary (CLAUDE.md "Includes & types").
+    std::vector<double> v(mu.size());
+    for (size_t a=0;a<mu.size();a++) v[a]=mu[a];
+    j["mu"]=v;  j["net"]=net;
+    qchem::report::EmitAt("scf", "siteMoments", j);
+    if (std::getenv("QCHEM_SITE_MOMENTS"))
+    {
+        std::cout<<"[site moments] Becke-partitioned Integral w_A (rho_up-rho_dn) d3r [e]:";
+        for (size_t a=0;a<mu.size();a++) std::cout<<"  "<<a<<":"<<mu[a];
+        std::cout<<"   net="<<net<<std::endl;
+    }
+}
+
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
 {
     // ★ THE RESIDUE BUCKET (doc/ParallelAndOraclePlan.md 1.1(a)).  report::Timed is EXCLUSIVE, so an outer
@@ -348,6 +378,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             DisplayColumns(cout, ipar, tr);
             prevConfig=std::move(config);
         }
+        EmitSiteMoments(eb);   // the iteration's integrated site moments, reported with the iteration
         if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange, order, eb});
         // A mixer that ADAPTS its step (the linear D-mixer's [F,D]-keyed α) is told this step's signals and may
         // re-mix the working density under us -- then the energy is recomputed HERE (the mixer is not an

@@ -19,6 +19,150 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-09-14 — R1.0h: `ChargeBreakdown` owns the site moments; the owning scope object DECLINED
+
+The row's first half (the \f$H_{ij}\f$ slot pre-creation, 2026-09-09) is in the row below.  What closed it
+today was settling what the "other half" still was.
+
+### THE RULING THAT CLOSED IT (user, 2026-09-14, on a recommendation)
+The row's title said "an OWNING per-iteration SCOPE"; its payload said the scope's memory case (~6 MB on
+MnO) was ruled out on 2026-09-09 and "what a scope WOULD add is a home for `DensitySampler`'s three
+tenants".  Tested against the tree, the tenants resolved WITHOUT a scope: `Matrix` stays (the
+forward/adjoint pairing `LatchRoute` guards -- R1.0j(4)); `Integrate` stays (the singles strategy can hold
+NO mesh -- `MakeDensitySampler(fb)` with a default `FitQuadrature`, used by tests -- so delegating to
+`qcMesh::Integrate` adds a branch); `SiteMoments` was the real one, and V1.12 had already named its owner.
+With that done the scope object has NO payload: the phase is explicit (`RefreshForDensity` +
+`PrepareSlots`), the block loop is read-only, the memory case was declined.  ⇒ **Declined, and R1.0h
+closed.**  ▶ If it ever comes back it comes back for the k-parallel axis, merged with V1.37 step 3 as ONE
+term rewrite -- never on its own.
+
+### WHAT LANDED
+- **`ChargeBreakdown{lost, siteMoments}`** (`Energy.C`) -- THE observable owner.  Filled by the spin-native
+  XC term's ENERGY pass (`Vcorr_QuadraturePol::GetEnergy`, the term every polarized GPW run builds; also
+  `Vxc_QuadraturePol`), where both channel rasters are already in hand: one block sum, no extra sampling.
+  `operator+=` takes the moments from whichever side has them (one atom-partitioned term per run).
+- **The sampler is a quadrature again.**  `DensitySampler::SiteMoments(cd)` DELETED; `SiteIntegrals(f)`
+  ADDED -- \f$\int w_A f\f$ per site block, the atom-partitioned sibling of `Integrate`, default empty.
+  `SinglesDensitySampler`'s `EmitSiteMoments` (fired from inside `RhoPol`'s cache-advance branch) and
+  `PartitionedMoments` are gone; the once-only "UNAVAILABLE: no site blocks" diagnostic stays on the class
+  that knows the mesh.
+- **The term computes the observable**: `SiteMoments(cd) = SiteIntegrals(RhoPol(↑)−RhoPol(↓))` -- the term
+  knows the field is a spin difference, the sampler does not.
+- **Emission moved to the SCF iteration trace** (`EmitSiteMoments(eb)` in `tSCFIterator::Iterate`): the one
+  actor that fires exactly once per iteration with the breakdown in hand -- the reporting ruling
+  (contemporaneous, self-owned) instead of a reach-in from a cache branch.  Same json (`scf/siteMoments`),
+  same `QCHEM_SITE_MOMENTS` console line.
+- **The facade's per-iteration PULL is gone**: `SolidCalculation`'s observer reads
+  `p.eb.charge.siteMoments`; `lastOrder` deleted.  `tHamiltonian::SiteMoments` / `tDynamic_HT::SiteMoments`
+  SURVIVE as the in-process QUESTION with two callers that have no energy pass to read from: the RAW-SEED
+  probe (the detectors' yardstick -- "both ends of the run mislead", the seed must be measured before
+  Init consumes it) and the default `m_site` trace column (rendered before the energy pass would deliver
+  it).  Both documented as such on the faces.
+- ⚠ **DEFECT FOUND IN PASSING: `Vcorr_QuadraturePol::GetEnergy` never set `charge.lost`.**  It is the term
+  every polarized GPW run has built since 2026-09-04, so the trace's ρ_lost/N column read 0 on every
+  polarized run while the unpolarized sibling reported it.  Fixed (same formula).
+- 857/857.
+
+### THE ORIGINAL ROW (moved in full from CleanupCandidates.md)
+
+- **R1.0h ⚗️ HALF DONE 2026-09-09 — THE \f$H_{ij}\f$ CACHE IS THE SAME MISTAKE AS THE ONE JUST UNDONE — and `DB_Cache` is not the
+  answer (user, 2026-09-08).**
+
+  > *"Maybe trying to cache Hij matrices in the Hamiltonian library is also a similar mistake.  I think they
+  > need to [be] cached somewhere so E_xyz[rho] calls don't recalculate Hij.  Can we delegate this to
+  > DB_Cache?"*
+
+  **The diagnosis is right.**  `tDynamic_HT_Imp::GetMatrix` stores its result in `mutable CacheMap itsCache`
+  keyed by `Irrep`, guarded by a density serial, filled DURING the per-block loop — exactly the automatic,
+  implicit, shared-across-blocks shape that `doc/Pins.md` pin 11 is about.  It exists for one reason: the
+  ENERGY pass re-asks for the same block (`GetEMatrix` defaults to `GetMatrix`, and
+  `IrrepCD::DM_Contract` drives it), so without the memo every term recomputes its block twice per
+  iteration.  It is also **the one remaining write inside the block loop** after the eager-refresh phase
+  landed — the k-independent memos are warmed now, but this one is k-DEPENDENT and cannot be.
+
+  ⛔ **BUT NOT `DB_Cache` — and the reason is LIFETIME, not the key** (corrected by the user, 2026-09-08:
+  *"DB_Cache is actually keyed on enums and strings, but the other two points are valid"*).  ⚠ The earlier
+  framing here said `DB_Cache` was "geometry-keyed" and that this was what excluded a density serial.  That
+  was wrong and, worse, it was the WEAK argument: the key axes are an **operator ENUM** (`I1C`/`I2C`/`I2n`/
+  `I2x`/`I3C`/`I4C`) plus **identity STRINGS** (`IBS_ID_t`, `Structure_ID_t`, `Mesh_ID_t`,
+  `RadialTypeID_t`) — and a string will hold anything you put in it, a density serial included.  Keying is
+  not the obstacle.  **The obstacle is turnover against a store that never evicts:**
+
+  | | `DB_Cache` entries | the \f$H_{ij}\f$ memo |
+  |---|---|---|
+  | turnover | **never** — geometry-fixed for the process | **every SCF iteration** |
+  | reusable across runs | **yes — that is the whole point** (*"allow data sharing between separate runs"*) | **never**: a different density |
+  | lifetime | process | one iteration |
+
+  A 20-iteration SCF would leave 20 generations of every term's every block in a process-wide store that
+  has no reason to drop any of them — an unbounded leak with extra steps — and it would dilute the one
+  property `DB_Cache` exists for.  ⇒ *Ask what a cache EVICTS before asking what it keys on.*
+
+  ✅ **AND THE KEY IS ALREADY RIGHT — do not "fix" it** (user, 2026-09-08: *"you can just key off the irrep
+  object, `op<` is overloaded to use `SequenceIndex`.  We do this for irrep maps in many places."*).
+  `Irrep` orders through `Symmetry::SequenceIndex()`, so `std::map<Irrep,…>` is the tree's established
+  idiom and `itsCache` is using it correctly.  **Nothing about the KEY is the problem.**
+
+  ▶ **THE FIX IN THE SPIRIT OF PIN 11: an explicit per-iteration SCOPE.**  What is wrong is *when* and *by
+  whom* the entries appear: they are INSERTED lazily, from inside the per-block loop.  A `std::map`
+  insertion mutates the tree, so two blocks inserting concurrently race even though their keys differ —
+  whereas writing to two ALREADY-EXISTING nodes does not, since map nodes are address-stable.  So the cure
+  is the same shape as `RefreshForDensity`: an explicit phase that CREATES this iteration's slots (one per
+  irrep — the block list is known before the loop starts), after which the loop only fills nodes that are
+  already there.  Give that phase an owner — an object created by the SCF around the Fock+energy passes and
+  destroyed with them — and both halves fall out: the phase becomes visible instead of implicit in call
+  order (pin 11), and the last write-shaped obstacle in the block loop goes away
+  (`doc/OpenWork.md` item **KP**).
+  ⚠ Sequence it AFTER the `XCQuadrature` library move: both touch the term/engine boundary.
+
+
+  ---
+
+  ✅ **DONE 2026-09-09: THE SLOT PRE-CREATION.  The block loop performs no map INSERTION in the ordinary
+  path.**  `tHamiltonian::RefreshForDensity` now takes the BASIS as well as the density and has TWO duties —
+  pre-create this iteration's per-irrep slots, then pre-warm the k-independent memos — because they are one
+  thing: everything that must happen before the block loop so the loop can be read-only.  The driver already
+  held the block list (it passes the same object to `CalcH` on the very next line), so no plumbing.
+
+  ▶ **THE MECHANISM, and it is smaller than the row implied:** `std::map::operator[]` mutates the tree ONLY
+  when the key is absent.  So pre-creating the nodes is the whole fix — after it, `GetMatrix` finds its node
+  and assigns into an address-stable value, which two blocks with different keys can do concurrently.  The
+  find/insert bodies became **fill-if-empty**, with a 0×0 matrix as the "slot exists, not filled" sentinel:
+  a Fock block always has rows, so that cannot collide with a legitimate value, and it avoided rippling an
+  `optional` through five cache holders.
+
+  ⚠ **THERE WERE FIVE CACHE HOLDERS, NOT ONE** — the row's "the one remaining write inside the block loop"
+  undercounted.  `tHT_Common` (shared by `tStatic_HT_Imp`, `tDynamic_HT_Imp` and `tDynamic_HT_Imp_NoCache`)
+  plus `Static_HT_RealBlock_Imp` and `Dynamic_HT_RealBlock_Imp`, each with the identical lazy-insert shape.
+  ★ `tDynamic_HT_Imp_NoCache` is not a cache at all — it is a SCRATCH SLOT giving the returned reference a
+  per-`Irrep` lifetime (R2.9(ii)) — but it inserts on first touch like the rest, so the same fix covers it.
+  ★ STATIC terms are included too, and that does NOT breach *"the phase must never reach a static term"*:
+  that rule is about refreshing FOR A DENSITY.  Their caches never clear, so it is iteration ONE that would
+  otherwise insert from inside the loop — and "read-only from the second iteration" is not read-only.
+  ⇒ Two hooks, not one: `tDynamic_HT::PrepareSlots` / `tStatic_HT::PrepareSlots` for the scalar cache and
+  `{Static,Dynamic}_HT_RealBlock::PrepareRealSlots` for the real one.  A SEPARATE virtual is forced, not
+  chosen: the real-block capability faces do not derive from `tDynamic_HT`, so there is no shared slot to
+  override and one hook would need a diamond nobody wants.
+
+  ⛔ **AND THE MEASUREMENT THAT COST A ROUND: "WALK THE BLOCKS" IS NOT ONE LOOP ON A MIXED SET.**  The first
+  version walked `(*bs)[i]` and **32 integration tests failed** — every one a mixed real/complex run.
+  `operator[]` THROWS on a REAL TRIM block inside a complex-faced set (*"a basis block's scalar differs from
+  the set's face"*, doc/RealComplexPlan.md 3c-3).  Those blocks belong to the REAL cache and its own
+  `PrepareRealSlots`; the typed walk must `continue` past any index where `GetRealIBS(i)` answers non-null.
+  ▶ The throw did its job — this is the `feedback_compile_time_over_runtime` doctrine paying off at runtime.
+  Gate: `EagerRefresh.ThePhasePreparesSlotsOnEveryTermIncludingStatics` (call counts, not timings, per the
+  file's own rule).  **851/851.**
+
+  ⏸ **STILL OPEN — the other half: an OWNING SCOPE, and the `DensitySampler` tenants.**  The phase is a CALL,
+  not an object with a lifetime, so the caches still live between iterations.  ⚠ Measured before choosing:
+  that bounded lifetime would reclaim ~1 `hmat` per (dynamic term × irrep) — **~6 MB on MnO against a
+  ~500 MB run** — so the memory argument for the heavier version is weak and it was deliberately not built
+  (user ruling, 2026-09-09).  What a scope WOULD add is a home for `DensitySampler`'s three remaining
+  tenants (`Matrix`, `Integrate`/`NumPoints`, `SiteMoments` — see R1.0j), which is the part still worth
+  doing.  ⚠ Sequence THAT after the library move; the slot pre-creation did not need to wait, because it
+  touches the term base classes rather than the term/engine boundary.
+
+
 ## LANDED 2026-09-14 — V1.37 steps 1–2: Pol/UnPol are IMPOSED SUBGROUPS — ONE composite over full Irreps
 
 One session, bit-identical: the 50 named anchors (`GPW_SCF.PolarizedRunKeepsItsSpin`,

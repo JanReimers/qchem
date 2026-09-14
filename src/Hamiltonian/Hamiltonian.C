@@ -173,6 +173,10 @@ public:
     //! \brief The INTEGRATED per-site spin moments \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$ of
     //! \a cd, from a term that owns an ATOM-CENTRED partition.  EMPTY by default: most terms have no
     //! basins to integrate over, and a caller must ask rather than assume (doc/OpenWork.md N1/T2).
+    //! \note THE PER-ITERATION VALUE DOES NOT COME THROUGH HERE (R1.0h, 2026-09-14): the owning term
+    //! writes it into \c ChargeBreakdown::siteMoments in its ENERGY pass, so the trace and the observer
+    //! read it off the \c EnergyBreakdown they already hold.  This face is the in-process QUESTION for a
+    //! density that has no energy pass -- the raw seed, measured before iteration 0 consumes it.
     virtual rvec_t           SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
     virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
     virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
@@ -333,6 +337,8 @@ public:
     //! reachable from above the SCF without opening the term list, and it is what lets
     //! \c SolidCalculation enforce the POSTCONDITION ON AN IMPOSITION: a run that imposes a magnetic
     //! (Shubnikov) group and then converges to zero moment has contradicted its own constraint.
+    //! \note ONE caller since R1.0h: the facade's RAW-SEED probe.  Every SCF iterate's moments ride
+    //! \c EnergyBreakdown::charge instead (see \c tDynamic_HT::SiteMoments).
     virtual rvec_t          SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
     //! \brief Run the EAGER REFRESH PHASE over every term: fill the k-independent density-dependent memos
     //! ONCE, before any Bloch block is assembled.

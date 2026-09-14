@@ -2,7 +2,7 @@
 // the ABSTRACT face and its factory.  Nothing else.
 //
 // ★★ WHY IT LIVES IN qcChargeDensity (R1.0e, settled 2026-09-10).  Its whole interface takes a
-// `const cChargeDensity*` -- Rho, RhoPol, WarmForDensity, SiteMoments -- so the DAG decides the question
+// `const cChargeDensity*` -- Rho, RhoPol, WarmForDensity -- so the DAG decides the question
 // before taste gets a vote: qcChargeDensity sits ABOVE qcFitting, which means qcFitting could not host this
 // even if it wanted to (it cannot import qchem.ChargeDensity).  And it does not want to: every reference to
 // this engine in qcFitting is a COMMENT citing it as precedent.  qcChargeDensity, by contrast, already
@@ -103,10 +103,13 @@ public:
     virtual chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const=0;
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's quadrature runs in REAL arithmetic.
     virtual rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const=0;
-    //! \brief The per-site INTEGRATED spin moment \f$\mu_A=\int w_A(\rho_\uparrow-\rho_\downarrow)\f$, one
-    //! entry per site block of my quadrature.  Default EMPTY -- a quadrature with no atomic partition (a
+    //! \brief \f$\int w_A f\,d^3r\f$ per SITE BLOCK of my quadrature, for a field sampled at MY points -- the
+    //! atom-partitioned sibling of \c Integrate.  Default EMPTY: a quadrature with no atomic partition (a
     //! uniform raster) has no basins to integrate over, and the caller must ask rather than assume.
-    virtual rvec_t SiteMoments(const cChargeDensity*) const {return rvec_t();}
+    //! A QUADRATURE question and nothing more (R1.0h): the OBSERVABLE built on it -- the integrated site
+    //! moment \f$\mu_A\f$ of \f$\rho_\uparrow-\rho_\downarrow\f$ -- is the spin-native XC term's to
+    //! compute and \c ChargeBreakdown's to carry; this engine no longer knows what it is integrating.
+    virtual rvec_t SiteIntegrals(const rvec_t& f) const {return rvec_t();}
     //! \brief Pre-warm this engine's per-density caches for \a cd -- the EAGER REFRESH PHASE
     //! (doc/OpenWork.md item **KP**).  \a polarized picks which shape to warm, because the two are
     //! mutually exclusive on one engine (see the cross-invalidation warning on both implementations: an

@@ -97,20 +97,17 @@ struct SolidCalculation::Imp
     //! an annealed schedule and a re-Converge are CONTINUATIONS of one SCF, and an order that died in
     //! stage 1 must not become invisible because stage 2 started from the corpse.
     RunDiagnostics diag;
-    //! The integrated site moment of the CURRENT iterate, left here by the order probe for the observer
-    //! to file.  Two hooks, one row: the probe is the only place the density is in hand, the observer is
-    //! the only place that fires exactly once per iteration.
-    double lastOrder = 0.0;
 };
 
 //---------------------------------------------------------------------------------------------------
-//  The INTEGRATED order parameter, off the Hamiltonian's own atom-centred partition.  Empty basins (a
-//  uniform XC mesh, or an unpolarized run) give an empty vector, which the caller reads as "not
+//  The INTEGRATED order parameter: max_A |mu_A| over the XC quadrature's atom-centred partition.  Empty
+//  basins (a uniform XC mesh, or an unpolarized run) give an empty vector, which the caller reads as "not
 //  measurable" -- never as "zero", because those are different facts and only one of them is a failure.
-static double MaxSiteMoment(const qchem::Hamiltonian::cHamiltonian& ham,
-                            const qchem::ChargeDensity::cChargeDensity& cd, bool& hasBasins)
+//  Every SCF iterate's moments arrive on the EnergyBreakdown the observer already receives
+//  (ChargeBreakdown::siteMoments, R1.0h); only the RAW SEED -- which has no energy pass -- is ASKED for
+//  through the Hamiltonian's face, once, before Init consumes it.
+static double MaxSiteMoment(const rvec_t& m, bool& hasBasins)
 {
-    const rvec_t m = ham.SiteMoments(&cd);
     hasBasins = hasBasins || m.size()>0;
     double mx=0.0;
     for (size_t a=0;a<m.size();a++) mx=std::max(mx, std::fabs(m[a]));
@@ -360,7 +357,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     {
         // "paid in full" (see above) -- so it gets its own bucket rather than hiding inside the seed's.
         qchem::report::Timed timed("setup: seed order probe (site moments)");
-        itsImp->diag.itsSeedOrder = MaxSiteMoment(*itsImp->ham, *seed, itsImp->diag.itsHasBasins);
+        itsImp->diag.itsSeedOrder = MaxSiteMoment(itsImp->ham->SiteMoments(seed.get()), itsImp->diag.itsHasBasins);
     }
 
     {
@@ -651,13 +648,18 @@ void SolidCalculation::AttachProbes()
             userProbe ? itsImp->opts.orderName : std::string("m_site"),
             [this,userProbe](const qchem::ChargeDensity::cDM_CD& cd)->double
             {
-                itsImp->lastOrder = MaxSiteMoment(*itsImp->ham, cd, itsImp->diag.itsHasBasins);
-                return userProbe ? userProbe(cd) : itsImp->lastOrder;
+                // The column: the caller's scalar, or the integrated moment.  The moment is ASKED for here
+                // only because the column is rendered before the energy pass that would deliver it on the
+                // breakdown (cheap: it rides the channel rasters the Fock build already made).
+                return userProbe ? userProbe(cd)
+                                 : MaxSiteMoment(itsImp->ham->SiteMoments(&cd), itsImp->diag.itsHasBasins);
             });
     auto userObs = itsImp->opts.onIteration;
     itsImp->scf->SetObserver([this,userObs](const qchem::SCFIterator::SCFProgress& p)
     {
-        itsImp->diag.itsOrder.push_back(itsImp->lastOrder);
+        // The detectors read the observable off the breakdown the iteration produced (R1.0h) -- the same
+        // number the trace reported, not a second pull.
+        itsImp->diag.itsOrder.push_back(MaxSiteMoment(p.eb.charge.siteMoments, itsImp->diag.itsHasBasins));
         itsImp->diag.itsEee  .push_back(p.eb["Eee"]);
         if (userObs) userObs(p);
     });
