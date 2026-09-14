@@ -3098,6 +3098,44 @@ subgroup is respected".  **Sequenced AFTER V1.33** — it leans on the same `Irr
 `GetTotalSpin = <up>-<down>`, `tSpinResolvedWF::GetSpinDensity` (scalar m(r)), the (ρ↑,ρ↓) XC signature.
 **V1.33 landed 2026-09-13 ⇒ UNBLOCKED.**
 
+**SPEC ADDENDUM (2026-09-14) — what a cold session needs beyond the ruling above.**
+
+*(i) The real blast radius, measured — the "53 files" is a grep count, this is the checklist.*
+- **Five `dynamic_cast`s to the concrete `tPolarized_CD`**, all inside `qcChargeDensity`, every one an
+  abstract→concrete cast (the CLAUDE.md design-rule violation the flat model removes):
+  `Internal/PolarizedDensityMixer.C:244,251`, `Imp/DensityMixer.C:68`, `Imp/ChargeDensity.C:192,201`.
+- **13 `IsPolarized()` dispatch sites in 7 files**: `Hamiltonian/Internal/Terms.C` (3),
+  `Hamiltonian/Internal/Imp/HamiltonianImp.C` (3), `Hamiltonian/Internal/PWTerms.C` (2),
+  `Hamiltonian/Internal/HamiltonianImp.C` (1), `SCFIterator/Imp/SCFIterator.C` (2),
+  `WaveFunction/Imp/Factory.C` (1), `Calculation/Imp/SolidCalculation.C` (1).
+- `tUnPolarized_CD` is named by NOBODY outside tests; `tPolarizedWF` / `tUnPolarizedWF` by 5 / 4 files, no casts.
+- Already the right shape and REUSED, not rebuilt: `tSpinResolved_CD::GetChannel(const Spin&)`
+  (`ChargeDensity.C:473`, realised by `SeedCD.C:119`); `Symmetry::Irrep::GetDegeneracy()` = spatial × spin
+  (`Irrep.C:29`, `Spin.C:14`: 1 per polarized channel, 2 for `None`).
+
+*(ii) The target shape, drawn.*  `tComposite_CD<T>` = ONE map keyed by full `Irrep` (spatial ⊗ ms), exactly
+`tCompositeWF`'s `itsQNWFs`.  **The degeneracy fold lives in the `Irrep`** (`GetDegeneracy()`), never in the
+container: the `Spin::None` block counts for two because its irrep says so, so the composite has NO
+spin-special-case and UnPol's efficiency (the CLAUDE.md bias) is preserved by the label, not by a type.
+`GetChannel(Spin)` = filter the blocks by `ms` (a VIEW; `None` → the whole set); the total density = the
+degeneracy-weighted sum over all blocks.  The mixer (`PolarizedDensityMixer`) mixes per channel through
+`GetChannel`, never through a cast; the seed (`SeedCD`) already answers the face.  `Polarized` / `UnPolarized`
+survive ONLY as the factory/policy argument naming the imposed subgroup — the same slot the point group takes.
+
+*(iii) Bit-identical anchors, by name.*  `GPW_SCF.PolarizedRunKeepsItsSpin` (the MIXER anchor: the imposed
+subgroup is respected) · `M_DFT.OxygenTripletLDA` (spin-native LDA, real spin texture) · `A_HF_P.Energy`
+(the parameterised Hund's-rule atoms — the stretched `Atom_EC` determinants, where the spin AND the m-sets are
+imposed subgroups) · `GPW_SCF.ImposedShubnikovHoldsAFMThroughSCF_Mn2Box` + the MnO seed triplet
+(`MnOSeedSublatticesAreEqualAndOpposite`, `MnOSeedVxcMirrorOnBeckeMesh`, `MnOImposedShubnikovKeepsTheSeedStaggering`)
+for spin-SAD seeding and the magnetic ops.  Every step: full `ctest -j8`, these bit-identical.
+
+*(iv) ORDER, revised for the R1.0h collision (agreed 2026-09-14).*  Step (3), the term dispatch on
+`IsPolarized()`, rewrites the same Hamiltonian terms that R1.0h's remaining "owning per-iteration scope"
+rewrites.  Steps (1)–(2) live entirely in `qcWaveFunction` / `qcChargeDensity` and do not overlap.  So:
+**V1.37 steps 1–2 as one fresh session** (the five casts + the CD tree + the WF collapse), **then R1.0h's
+remainder, then V1.37 step 3** gated on it — the terms get touched once.  TE (the test-suite axes) is NOT a
+prerequisite: V1.37 only USES `PolarizedRunKeepsItsSpin` as an anchor; reorganising it can wait.
+
 ### V1.38 — The Point spec in the core + one thin IBS class per (G, engine) (filed 2026-09-14, STASHED by agreement)
 
 The §5 sequel of `doc/BasisSetTaxonomyPlan.md`: carry the evaluator-injection pattern the atom and lattice

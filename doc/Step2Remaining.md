@@ -96,7 +96,11 @@ The `BasisSetTaxonomyPlan.md` §5 sequel, sized 2–4 sessions.  **Not obvious b
 ISP split of `LatticeSum1E` (the monster face it would otherwise mixin-forward), and nothing on the battery
 path needs it yet.  Triggers and full row in `CleanupCandidates.md`.
 
-### V1.37 — Pol/UnPol are imposed subgroups, not types (filed 2026-09-13)
+### V1.37 — Pol/UnPol are imposed subgroups, not types (filed 2026-09-13; SPEC'D COLD 2026-09-14)
+Blast radius measured: 5 abstract→concrete casts to `tPolarized_CD` (all in `qcChargeDensity`) + 13
+`IsPolarized()` sites in 7 files.  Target shape drawn (degeneracy lives in the `Irrep`, `GetChannel` a view),
+anchors named.  **Order: steps 1–2 next (self-contained), then R1.0h's remainder, then step 3** — the
+Hamiltonian terms get touched once.  Full addendum in `CleanupCandidates.md`.
 Spin is a factor of G (SU(2) imposed = UnPol = `Spin::None` doublet; U(1)_z = Pol = Up/Down; nothing = spinors).
 ONE composite over full `Irrep`s for WF and CD, `GetChannel(Spin)` a VIEW; `tPolarized_CD`'s two-level tree goes.
 Forward-incompatible otherwise with the double-group rows.  A campaign (53 files); **V1.33 landed 2026-09-13, so this is unblocked**.  Full row in
