@@ -82,7 +82,16 @@ it is used for.  The axes are orthogonal: fixing one says nothing about the othe
 - \f$O(3)\f$ -- the **full rotation group of three-dimensional space** (all rotations about a point, proper
   and improper, i.e. including inversion): the symmetry of a free atom.  Its irreps are labelled by the
   angular momentum \f$l=0,1,2,\dots\f$ (and parity), have dimension \f$2l+1\f$, and their carrier space is
-  spanned by the spherical harmonics \f$Y_{lm}\f$, \f$m=-l\dots l\f$.  Every finite point group is a subgroup
+  spanned by the spherical harmonics \f$Y_{lm}\f$, \f$m=-l\dots l\f$.  Note that \f$m\f$ labels the ROW
+  within the irrep, not the irrep: for an \f$O(3)\f$-symmetric \f$\hat H\f$ Schur's lemma gives
+  \f$\langle nlm|\hat H|n'l'm'\rangle=\delta_{ll'}\delta_{mm'}\,h^{(l)}_{nn'}\f$ with \f$h^{(l)}\f$ independent of
+  \f$m\f$, so the \f$2l+1\f$ rows are identical blocks and the atom solves ONE radial problem per \f$l\f$
+  (the \f$Y_{lm}\f$ "is carried by the irrep, not the function" -- `ImplicitAngular_IBS`).  This is a
+  statement about \f$G\f$ being \f$O(3)\f$, not about atoms: an open-shell atom whose unpaired electrons are
+  placed in specific \f$m\f$'s (the maximally stretched determinant `Atom_EC` builds -- carbon \f$p^2\f$ as
+  \f$m\in\{-1,0\}\f$ unpaired, \f$\{+1\}\f$ paired) has a Fock operator that is only AXIALLY symmetric, so
+  \f$G\f$ is the smaller group, \f$m\f$ (there, the unpaired and paired \f$m\f$-sets, `YFactory(l, ms)`)
+  becomes an irrep label, and those blocks legitimately differ.  Every finite point group is a subgroup
   of \f$O(3)\f$, which is why crystal-field splitting is a *branching rule* (below).
 - \f$O(3)^*\f$, \f$P^*\f$, \f$(T\rtimes P)^*\f$ -- the **double groups**.  A spin-\f$\tfrac12\f$ particle picks up a
   sign under a \f$2\pi\f$ rotation, so a rotation by \f$2\pi\f$ is no longer the identity; the group is
