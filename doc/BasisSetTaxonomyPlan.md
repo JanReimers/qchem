@@ -59,8 +59,10 @@ is an engine property, not a family property.
   sums of deltas = plane waves restricted to the grid: **the uniform delta basis is the PW basis's adjoint**
   because both carry T, one induced, one subduced, and the DFT is the unitary between them.
 
-Molecular Gaussians are A∘B (subduce the shell to the site group, induce the site up to P).  GPW is
-B∘(A∘B): Bloch-sum the molecular basis; for the full space group, induce once more over the little group.
+Molecular Gaussians are B∘A (∘ is composition, read right to left: FIRST subduce the shell to the site group,
+THEN induce the site up to P).  GPW is B_T∘(B_P∘A): Bloch-sum the molecular basis; for the full space group,
+induce once more over the little group.  (Notation fixed to the standard right-to-left reading 2026-09-14,
+when the Doxygen page `\ref basisset_taxonomy` in `src/BasisSet/BasisSet.C` defined it.)
 
 ### 1.4 Spin is a factor of G, until it is not
 
@@ -133,8 +135,8 @@ Rules that follow:
 |---|---|---|---|---|
 | Slater / Gaussian / BSpline × \f$Y_l\f$, \f$Y_{lm}\f$ | O(3) | radial | A | Orbital, Fit |
 | RKB{Slater,Gaussian,BSpline} × \f$\Omega_{\kappa m_j}\f$ | O(3)\* | radial (RKB) | A | Orbital (DHF) |
-| PG_Cart / PG_Spherical / PG_LibCint | P (incl. \f$1\f$) | Gaussian | A∘B | Orbital, Fit |
-| GPW | T (T⋊P later) | Gaussian | B∘(A∘B) | Orbital |
+| PG_Cart / PG_Spherical / PG_LibCint | P (incl. \f$1\f$) | Gaussian | B∘A | Orbital, Fit |
+| GPW | T (T⋊P later) | Gaussian | B_T∘B_P∘A | Orbital |
 | PW | T | exponential | A | Orbital |
 | PlaneWaveFit | T | exponential | A | Fit |
 | uniform delta (Vxc fit) | T | delta | B (= PW's adjoint) | Fit |
@@ -145,7 +147,7 @@ Rules that follow:
 | APW / LAPW | T | **composite**: PW outside ⊗ radial×\f$Y_{lm}\f$ inside | A + sphere matching | Orbital |
 | molecule in a PW box (CP2K style) | T (large cell) | exponential | A | Orbital |
 | 2D slabs / 1D polymers | T², T¹ (+P) | any | unchanged | — |
-| 4c molecular / SOC crystals | P\*, T⋊P\* | RKB × \f$\Omega\f$ | A∘B | Orbital |
+| 4c molecular / SOC crystals | P\*, T⋊P\* | RKB × \f$\Omega\f$ | B∘A | Orbital |
 | Wannier functions | T (inverse: k→R) | derived | B⁻¹ | — |
 | multiwavelets / FEM | \f$1\f$ or T | delta-like | B | Fit, Orbital |
 | DFT+U / KB projectors | — | radial family, subduced | — | a ROLE (`Orbital_PP_IBS`), not a basis |
