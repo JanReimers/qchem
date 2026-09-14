@@ -3048,6 +3048,19 @@ evidence is the ctest `BasisSetGTagAudit`.  Eleven commits c2cb79a3..d5ddb1a5, 8
 
 ### V1.37 — Pol/UnPol are IMPOSED SUBGROUPS, not types: ONE composite over full Irreps (user + Claude, 2026-09-13)
 
+**▶ STEPS 1–2 ✅ LANDED 2026-09-14 (one session, bit-identical) — full record → `doc/CleanupHistory.md`
+"LANDED 2026-09-14 — V1.37 steps 1–2".**  `tPolarizedWF` / `tUnPolarizedWF` / `tPolarized_CD` /
+`tPolarized_CDImp` / `PolarizedCD_Factory` / `tSpinResolvedWF` / `Hamiltonian::Pol` are GONE;
+`qchem::SpinGroup {UnPolarized, Polarized}` (qchem.Symmetry.Spin) is the ONE name of the imposed subgroup
+(`CalcOptions::spin`); `tCompositeWF(bs, ec, SpinGroup, …)` is THE wave function; `tComposite_CD` is ONE
+composite over full Irreps whose `GetChannel(Spin)` answers a non-owning VIEW composite (the
+`tSpinResolved_CD` face) or null under SU(2); plain block sums everywhere (user: clean code over 1e-16
+anchors — totals unchanged at printed precision, 857/857).  The five abstract→concrete
+casts are gone and so are eleven more casts to the abstract polarized FACE the addendum did not count
+(three Hamiltonian Pol terms, both DensitySampler routes, ValenceBasisGen, PolarizedMixCD, five test
+sites) — all now `ChannelOf(cd, s)` / `DM_ChannelOf(cd, s)`.
+**REMAINDER = step 3 only**, the 13 `IsPolarized()` term-dispatch sites, gated on R1.0h as agreed below.
+
 **The "ah-hah" (user):** `doc/BasisSetTaxonomyPlan.md` §1.4 — spin is a FACTOR of G until it is not.  Pol vs
 UnPol is not a property of the wavefunction; it is *which subgroup of the spin factor is imposed*, the same
 KIND of decision as imposing a point group — a rung on the SSB descent ladder (impose → analyse → release):

@@ -23,12 +23,12 @@ import qchem.Structure;             // Structure, Atom
 import qchem.ScalarFunction;        // ScalarFunction<double>
 import qchem.BasisSet;              // BasisSet::Real_BS
 import qchem.BasisSet.Radial.Factory; // BasisSet::Radial::Type, BasisSetAccuracy (the atomic exponent-pool basis)
-import qchem.Hamiltonian.Factory;   // Hamiltonian::Model, Hamiltonian::Pol
+import qchem.Hamiltonian.Factory;   // Hamiltonian::Model, SpinGroup
 import qchem.Mesh;                  // qcMesh::MeshParams
 import qchem.ElectronConfiguration; // ElectronConfiguration
 import qchem.SCFIterator;           // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.Symmetry.Irrep;        // Irrep
-import qchem.Symmetry.Spin;         // Spin (per-spin irrep enumeration)
+export import qchem.Symmetry.Spin;  // Spin (per-spin irrep enumeration), SpinGroup (an AtomCalcOptions field)
 import qchem.Orbitals;              // Orbital, Orbitals
 import qchem.ChargeDensity;         // rDM_CD
 import qchem.ChargeDensity.Seed;    // SeedStrategy
@@ -38,7 +38,6 @@ export namespace qchem
 {
 
 using Hamiltonian::Model;                 // {E1, HF, DE1, DHF, Xalpha, LDA}
-using Hamiltonian::Pol;                   // {UnPolarized, Polarized}
 using AtomType = BasisSet::Radial::Type;    // {Slater, Gaussian, BSpline6, BSpliner6, Gaussian_RKB, Slater_RKB}
 using BasisSet::Radial::BasisSetAccuracy;   // {Low, Medium, High}
 
@@ -65,7 +64,7 @@ struct AtomCalcOptions
     std::vector<std::pair<int,std::vector<double>>> exponentsByL;
 
     Model  model  = Model::HF;          //!< HF (default) | E1 | DE1/DHF (Dirac) | Xalpha | LDA
-    Pol    pol    = Pol::UnPolarized;
+    SpinGroup    spin   = SpinGroup::UnPolarized;   //!< the imposed spin subgroup (V1.37)
     double xalpha = 0.7;                 //!< Slater-Xalpha exchange parameter (model==Xalpha only)
 
     //! DFT exchange-correlation override.  When set, the DFT Hamiltonian uses this functional (e.g. a

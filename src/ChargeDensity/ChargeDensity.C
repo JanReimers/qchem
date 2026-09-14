@@ -12,7 +12,7 @@ export module qchem.ChargeDensity;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
 export import qchem.Symmetry.Irrep;   // Irrep: the block identity (Phi-table cache key, basis-side)
-export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (tPolarized_CD's periodic face)
+export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (the periodic face)
 import qchem.ScalarFunction;
 export import qchem.Fitting.FunctionFitter;   // Fitting::ScalarProjector -- named on tDM_CD's own face,
                                               // so every consumer of that face needs it
@@ -71,7 +71,7 @@ struct NoProjectedDensity {};
 //  rather than throw.  Both faces mirror tMixableDensity<T>'s shape for that reason.
 //
 //! \brief The WHOLE-SYSTEM exact-exchange face: a density that spans EVERY irrep block, so it can drive the
-//! canonical-pair sweep.  A composite/polarized density has it; a lone leaf does not -- and now cannot be
+//! canonical-pair sweep.  A composite density has it; a lone leaf does not -- and now cannot be
 //! asked, where before it silently answered with a zeroed J.
 template <class T> class tHF_System_CD
 {
@@ -123,8 +123,8 @@ struct NoHF_System {};
 struct NoHF_Pair   {};
 //! The HF faces on the finite path (T=double), empty bases on the periodic path (T=dcmplx) -- the same
 //! idiom as ProjectedDensityBase / FourierDensityBase directly below.
-// (No HF_SystemBase alias: the two whole-system densities carry their sweep in a CRTP mixin of their own
-// -- Composite_HFSystem / Polarized_HFSystem -- so the face is inherited by those, real path only.)
+// (No HF_SystemBase alias: the whole-system density carries its sweep in a CRTP mixin of its own --
+// Composite_HFSystem -- so the face is inherited there, real path only.)
 template <class T> using HF_PairBase   = std::conditional_t<std::is_same_v<T,double>, tHF_Pair_CD<double>,   NoHF_Pair>;
 
 //! The COULOMB-metric projection face for the finite path (T=double), the empty base for the periodic path
@@ -234,7 +234,7 @@ public:
     //! Monotonic logical-clock serial: distinct (or mutated) densities have distinct serials, so a cache
     //! can ask "is this a *different* density than the one I hold?".  TRANSIENT runtime identity (like a
     //! pointer) -- not part of the persisted value, never serialize it.  (Concrete densities stamp this
-    //! from a per-T counter in IrrepCD's impl; composites/polarized forward to a child.)
+    //! from a per-T counter in IrrepCD's impl; a composite forwards to a child.)
     virtual size_t Version() const=0;
 
     //! Layer-2 SCF-lineage check: am I the live head of my lineage, or a superseded density?  (See Lineage.)
@@ -248,7 +248,7 @@ public:
 };
 
 //! Mixin that makes a versioned density track its SCF lineage head (see Lineage).  Mixed into the top-level
-//! densities the SCFIterator hands the Hamiltonian (tComposite_CD, Polarized_CD).  A tracked density starts
+//! density the SCFIterator hands the Hamiltonian (tComposite_CD).  A tracked density starts
 //! with NO lineage (isActive() still true); JoinLineage makes it the head; MixIn/ReScale call AdvanceHead so
 //! the mutated density stays the head (its Version() moved, so the head must move with it).
 template <class T> class tLineageTracked : public virtual tChargeDensity<T>
@@ -364,121 +364,57 @@ using rChargeDensity = tChargeDensity<double>;  using cChargeDensity = tChargeDe
 using rDM_CD = tDM_CD<double>;
 using cDM_CD = tDM_CD<dcmplx>;
 
-//---------------------------------------------------------------------------------------
-//
-//  Store spin up and spin down as a ChargeDensity
-//  Generic: Could be fitted or exact.
-//  Templated on the matrix element type T like tComposite_CD: the <double> alias preserves the
-//  molecular callers; the <dcmplx> instantiation is the polarized plane-wave (Bloch) density
-//  (SymmetryUpgradePlan §4 tier 4b).  The periodic face (FourierDensityBase) forwards each accessor
-//  as the ↑+↓ sum, so the total-density consumers (Hartree) see one density; the spin-native XC
-//  terms reach the channels through GetChargeDensity(Spin).
-//
-//! \brief The reciprocal-space trio for a POLARIZED density -- periodic path only (V1.7): the ↑+↓ sums of
-//! the two channels' G-space/raster views.  Each channel composite already star-averages, so the sums stay
-//! IBZ-symmetrized.  CRTP, like its leaf and composite siblings.
-template <class Pol> class Polarized_Fourier : public virtual FourierDensity
-{
-public:
-    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
-    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // empty if either channel lacks it
-    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
-    //! The raw/average pair (see FourierDensity).  A polarized density HAS no ops of its own -- both
-    //! channels carry the same ones -- so it merges raw and delegates the averaging to the up channel.
-    virtual ΔG_Map GetRepulsion3C_Raw(const BasisSet::cFIT_CD_ABS& c) const;
-    virtual void   StarAverage(ΔG_Map& rg) const;
-private:
-    const Pol& self() const {return static_cast<const Pol&>(*this);}
-};
-
-template <class T, class Pol> using PolarizedFourierBase =
-    std::conditional_t<std::is_same_v<T,dcmplx>, Polarized_Fourier<Pol>, NoFourierDensity>;
-
-//! \brief The whole-system exact-exchange sweep for a POLARIZED density -- real path only (V1.6,
-//! completing it): each channel spans every block, so both simply drive their own sweep into the shared
-//! Fock blocks.  CRTP like its composite and leaf siblings, and for the same reason: inheriting the
-//! \c tHF_System_CD face conditionally while DECLARING its methods unconditionally left the dcmplx
-//! instantiation carrying members that override nothing and can only throw.
-template <class Pol> class Polarized_HFSystem : public virtual tHF_System_CD<double>
-{
-public:
-    virtual void AccumulateDirectAll  (std::vector<hmat_t<double>>& Jall) const;
-    virtual void AccumulateExchangeAll(std::vector<hmat_t<double>>& Kall) const;
-private:
-    const Pol& self() const {return static_cast<const Pol&>(*this);}
-};
-
-template <class T, class Pol> using PolarizedHFBase =
-    std::conditional_t<std::is_same_v<T,double>, Polarized_HFSystem<Pol>, NoHF_System>;
-
-template <class T> class tPolarized_CD
-    : public virtual tDM_CD<T>
-    , public virtual tLineageTracked<T>        // Layer-2: this top-level density tracks its SCF lineage head
-    , public virtual ProjectedDensityBase<T>   // finite/molecular: an AO-projectable density
-    , public PolarizedFourierBase<T,tPolarized_CD<T>>   // reciprocal trio: periodic path only (V1.7)
-    , public PolarizedHFBase<T,tPolarized_CD<T>>   // whole-system exact exchange: real path only (V1.6)
-{
-public:
-    virtual       tDM_CD<T>* GetChargeDensity(const Spin&)      =0;
-    virtual const tDM_CD<T>* GetChargeDensity(const Spin&) const=0;
-
-    virtual double DM_Contract(const tStatic_CC<T>*) const;
-    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
-    virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;   // sum both spins
-    //! \copydoc tDM_CD::ProjectOnto
-    //! BOTH CHANNELS SUMMED -- \f$\rho=\rho_\uparrow+\rho_\downarrow\f$, the same shape as
-    //! \c DM_ContractBlocks above and as \c Polarized_Fourier::GetRhoOnGrid on the raster side.
-    //! Stated rather than inherited since 2026-08-25: the base default was measured dead and removed, and
-    //! a polarized density genuinely does have an answer here (a spin-agnostic consumer asking a polarized
-    //! density for \f$\rho\f$ wants the total).  Note the SPIN-RESOLVED consumer does not come here at
-    //! all -- \c SinglesDensitySampler::RhoPol asks each CHANNEL, because it needs them apart.
-    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector&) const;
-
-    virtual double GetTotalCharge() const;  // <ro>
-    virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
-
-    // The spin children are mutated together (MixIn/ReScale below touch both), so either child's serial
-    // tracks the polarized density's freshness; forward to Up.
-    virtual size_t Version() const {return GetChargeDensity(Spin::Up)->Version();}
-
-    virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
-    // The whole-system J/K sweep is NOT declared here (V1.6 ISP): it lives in Polarized_HFSystem, which
-    // only the REAL instantiation inherits -- the periodic path has no exact exchange to deny.
-
-    virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
-    virtual void   MixIn        (const tMixableDensity<T>&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Convergence check.
-
-    virtual double operator()(const rvec3_t&) const; // No UT coverage
-    virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
-
-    // The reciprocal trio is NOT declared here (V1.7 ISP) -- see Polarized_Fourier, inherited on the
-    // periodic path only.  It used to be declared for both T with the double bodies NA-asserting.
-};
-
-using Polarized_CD  = tPolarized_CD<double>;   // the molecular alias (source-compatible)
-using cPolarized_CD = tPolarized_CD<dcmplx>;   // the polarized plane-wave (Bloch) density
 
 //---------------------------------------------------------------------------------------
 //
-//  Capability face: a COLLINEAR two-channel spin-resolved density WITHOUT the tDM_CD (matrix)
-//  contract -- the matrix-free polarized sibling of tPolarized_CD's channel accessor.  A spin-SAD
-//  seed (doc/SCFSeedingPlan.md §10) has per-channel densities but no density matrix, so it cannot
-//  be a tPolarized_CD (whose channels are tDM_CD, with the DM-only pure virtuals); it exposes its
-//  channels through THIS face instead, and a spin-native consumer (DensitySampler::RhoPol) cross-casts
-//  abstract->abstract and reads each channel through the plain tChargeDensity face (the batched op()) --
-//  capabilities live only on the types that have them (no asserting DM stubs).
+//  Capability face: a COLLINEAR SPIN-RESOLVED density -- one that can hand out its \f$m_s=\pm\tfrac12\f$
+//  channels.  THE ONE WAY TO REACH A CHANNEL (V1.37): there is no polarized CONTAINER type any more.
+//  Pol/UnPol is the IMPOSED SPIN SUBGROUP (qchem::SpinGroup), not a property of a density; every SCF
+//  density is ONE composite over full Irreps (spatial ⊗ Spin), and a channel is a VIEW of it -- the
+//  blocks whose irrep carries that ms.  The matrix-free densities that resolve spin (the spin-SAD seed,
+//  the ρ̃-mixed pair) answer the same face with their own channel objects.
+//
+//  Consumers ask for what they need of the channel through ITS faces: a spin-native XC engine reads it
+//  as a plain tChargeDensity (the batched op()), the molecular exchange/correlation terms cross-cast it
+//  to tDM_CD for the energy contraction, the periodic mixer to FourierDensity -- abstract->abstract,
+//  the sanctioned kind, and capabilities live only on the objects that have them (a seed channel has
+//  no D, and cannot be asked for one).
 //
 template <class T> class tSpinResolved_CD
 {
 public:
     virtual ~tSpinResolved_CD() {}
-    virtual const tChargeDensity<T>* GetChannel(const Spin&) const=0;   //!< Up/Down only (no None)
+    //! \brief The \a s channel (Up/Down only, never None).  A capability PROBE in the R2.4 sense: NULL
+    //! when this density does not resolve that spin -- a composite built under imposed SU(2) (every block
+    //! Spin::None) -- so a spin-native consumer can take its spin-agnostic branch (ρ↑=ρ↓=ρ/2, the exact
+    //! collapse) without a container-type test.  Non-owning: the channel lives as long as this density.
+    virtual const tChargeDensity<T>* GetChannel(const Spin&) const=0;
+    //! \f$\langle\uparrow\rangle-\langle\downarrow\rangle\f$, the collinear net moment; 0 when spin is not resolved.
+    virtual double GetTotalSpin() const
+    {
+        const tChargeDensity<T>* u=GetChannel(Spin::Up);
+        const tChargeDensity<T>* d=GetChannel(Spin::Down);
+        return (u && d) ? u->GetTotalCharge()-d->GetTotalCharge() : 0.0;
+    }
 };
 
 using rSpinResolved_CD = tSpinResolved_CD<double>;
 using cSpinResolved_CD = tSpinResolved_CD<dcmplx>;
+
+//! \brief The \a s channel of \a cd, or null when \a cd is not spin-resolved / does not resolve \a s.
+//! The one spelling of "ask a density for a channel" -- no consumer names a container type to reach one.
+template <class T> const tChargeDensity<T>* ChannelOf(const tChargeDensity<T>* cd, const Spin& s)
+{
+    const tSpinResolved_CD<T>* sr=dynamic_cast<const tSpinResolved_CD<T>*>(cd);
+    return sr ? sr->GetChannel(s) : nullptr;
+}
+//! Same, for a consumer that needs the channel's MATRIX face (the molecular exchange/correlation terms'
+//! energy contraction, the mixer's DM-source split): null when there is no such channel, or it carries
+//! no D (a matrix-free seed channel).
+template <class T> const tDM_CD<T>* DM_ChannelOf(const tChargeDensity<T>* cd, const Spin& s)
+{
+    return dynamic_cast<const tDM_CD<T>*>(ChannelOf(cd,s));
+}
 
 //---------------------------------------------------------------------------------------
 //

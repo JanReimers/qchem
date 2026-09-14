@@ -209,7 +209,7 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             // user error there (use CoreGuess).  This is exactly why Ham_DHF_* report RequiresDensityMatrix().
             assert(!itsHamiltonian->IsRelativistic() &&
                    "DHF cannot seed from a matrix-free (SAD) density: the LDA sibling is non-relativistic -- use CoreGuess");
-            const H::Pol pol = itsHamiltonian->IsPolarized() ? H::Pol::Polarized : H::Pol::UnPolarized;
+            const SpinGroup pol = itsHamiltonian->IsPolarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
             // Non-owning: the sibling lives only for this Init call, and st outlives it (it is the ctor arg).
             H::st_t stView(st, [](const Structure*){});
             std::unique_ptr<H::rHamiltonian> dftSibling(

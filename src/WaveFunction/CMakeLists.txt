@@ -1,14 +1,12 @@
 add_library(qcWaveFunction) 
-target_sources(qcWaveFunction PRIVATE Imp/Factory.C   Internal/Imp/PolarizedWF.C Internal/Imp/CompositeWF.C  Internal/Imp/IrrepWF.C  Internal/Imp/UnPolarizedWF.C )
+target_sources(qcWaveFunction PRIVATE Imp/Factory.C   Internal/Imp/CompositeWF.C  Internal/Imp/IrrepWF.C )
 target_sources(qcWaveFunction PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     WaveFunction.C
     SCFWaveFunction.C
     Factory.C
     Types.C
-    Internal/PolarizedWF.C 
     Internal/CompositeWF.C  
     Internal/IrrepWF.C   
-    Internal/UnPolarizedWF.C
 )
 target_include_directories(qcWaveFunction PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include

@@ -22,7 +22,8 @@ import qchem.BasisSet.ImplicitAngular_IBS;      // the radial/implicit-Y_lm capa
 export namespace qchem::Hamiltonian
 {
 
-using ChargeDensity::Polarized_CD;
+using ChargeDensity::ChannelOf;      // the spin channels of a density, through the face (V1.37)
+using ChargeDensity::DM_ChannelOf;
 
 // The non-relativistic kinetic ENERGY term is now the T-templated Kinetic<T>
 // (qchem.Hamiltonian.Internal.Kinetic); the molecular Hamiltonians build Kinetic<double>.
@@ -333,12 +334,12 @@ private:
 //  Polarized (spin-native) correlation term.  Unlike FittedVxcPol -- which delegates to two INDEPENDENT
 //  single-channel FittedVxc, valid only because Slater exchange is channel-separable -- correlation
 //  v_c^sigma(rho_up,rho_down) COUPLES both channels (through r_s and zeta), so this term fits the
-//  SpinCorrelation functional against the FULL Polarized_CD at each mesh point.  The Fock build calls
+//  SpinCorrelation functional against BOTH spin channels of the density at each mesh point.  The Fock build calls
 //  MakeMatrix per spin (each fits v_c^sigma); the energy E_c = integral eps_c(rho_up,rho_down) rho uses a
 //  SECOND eps_c fit on the same fit basis (GetEMatrix -- the E face of the V/E pair) that the polarized
 //  density contracts over both channels.  (That fit used to live in a separate rDynamic_CC adapter,
 //  FittedEpsCPol -- a clone of FittedVxc's FittedEpsXc; both died with the GetEMatrix split, V1.3.)  The seed
-//  iteration (a spin-agnostic total density, not yet a Polarized_CD) collapses to v_c^P(rho) via
+//  iteration (a spin-agnostic total density, no channels yet) collapses to v_c^P(rho) via
 //  rho_up=rho_down=rho/2 -- the same robustness FittedVxcPol needed (cd85d13c).
 //
 class FittedVcorrPol : public virtual rDynamic_HT, private rDynamic_HT_Imp_NoCache
@@ -354,7 +355,7 @@ public:
     //! like \c FittedVxc's, that one keys on the ENERGY pass's density, not this pass's.
     virtual void RefreshForDensity(const rChargeDensity* cd) const override;
     virtual void GetEnergy (EnergyBreakdown&, const rDM_CD* cd) const override;
-    //! The ENERGY block: fits eps_c(rho_up,rho_down) from the full Polarized_CD and returns its overlap
+    //! The ENERGY block: fits eps_c(rho_up,rho_down) from the density's two channels and returns its overlap
     //! matrix.  Spin-INDEPENDENT as a value, so contracting it over both channels gives
     //! E_c = integral eps_c (rho_up+rho_down).
     virtual const rsmat_t& GetEMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;

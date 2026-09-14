@@ -8,6 +8,7 @@ module;
 #include <algorithm>
 #include <cassert>
 #include <vector>
+#include <stdexcept>
 export module qchem.ChargeDensity.Internal.PolarizedDensityMixer;
 export import qchem.ChargeDensity.DensityMixer;
 export import qchem.ChargeDensity.Internal.FieldMixer;
@@ -71,10 +72,11 @@ public:
     //! rebuilt ones, closing a hole the mixer-side deposit had: it reached the leaves, never the rebuilt pair.
     virtual void SetDMSource(std::shared_ptr<const cDM_CD> dm) const override
     {
-        auto* pol = dynamic_cast<const cPolarized_CD*>(dm.get());
-        if (!pol) return;
-        Sink(itsUp).SetDMSource(std::shared_ptr<const cDM_CD>(dm, pol->GetChargeDensity(Spin::Up  )));
-        Sink(itsDn).SetDMSource(std::shared_ptr<const cDM_CD>(dm, pol->GetChargeDensity(Spin::Down)));
+        const cDM_CD* up=DM_ChannelOf(dm.get(), Spin::Up);     // the composite's channel VIEWS (V1.37)
+        const cDM_CD* dn=DM_ChannelOf(dm.get(), Spin::Down);
+        if (!up || !dn) return;
+        Sink(itsUp).SetDMSource(std::shared_ptr<const cDM_CD>(dm, up));
+        Sink(itsDn).SetDMSource(std::shared_ptr<const cDM_CD>(dm, dn));
     }
 
     //! cSpinResolved_CD -- the spin-native XC engine's channel access (the whole point of this class).
@@ -235,22 +237,19 @@ public:
     // (No adaptive hooks: the leaves are G-space mixers, none of which adapts its step -- V1.18.)
 
 private:
-    //! The two spin channels.  Plain pointers now that the mixer's subject is a reference: the parent
-    //! density is owned by the caller and outlives every call, so the aliasing shared_ptrs this used to
-    //! build (purely to keep the parent alive under a leaf) are gone with the shared_ptr itself.
-    //! A leaf that mutates its working density edits the channel in place, which is exactly right.
-    static std::pair<cd_t*,cd_t*> Channels(cd_t& cd)
+    //! The two spin channels, THROUGH THE FACE (V1.37): the working composite's Up/Down views.  Plain
+    //! pointers: the parent density is owned by the caller and outlives every call.  Read only -- the
+    //! leaves mix their own G-space fields; nothing here edits the working density's channels.  A working
+    //! density that does not resolve spin is the mixer's LINEAGE contract broken (one mixer, one density
+    //! family), so it throws -- an assert is compiled out exactly where it would fire.
+    static std::pair<const cChargeDensity*,const cChargeDensity*> Channels(const cd_t& cd)
     {
-        auto* pol=dynamic_cast<tPolarized_CD<dcmplx>*>(&cd);
-        assert(pol && "PolarizedDensityMixer: the working density must be polarized");
-        return { pol->GetChargeDensity(Spin::Up), pol->GetChargeDensity(Spin::Down) };
-    }
-    //! const overload -- the \a old density is only ever READ (constness carried through, no const_cast).
-    static std::pair<const cd_t*,const cd_t*> Channels(const cd_t& cd)
-    {
-        auto* pol=dynamic_cast<const tPolarized_CD<dcmplx>*>(&cd);
-        assert(pol && "PolarizedDensityMixer: the working density must be polarized");
-        return { pol->GetChargeDensity(Spin::Up), pol->GetChargeDensity(Spin::Down) };
+        const cChargeDensity* up=ChannelOf(&cd, Spin::Up);
+        const cChargeDensity* dn=ChannelOf(&cd, Spin::Down);
+        if (!up || !dn)
+            throw std::runtime_error("PolarizedDensityMixer: the working density does not resolve spin -- a "
+                                     "per-channel mixer can only be driven with a polarized (Up/Down) density.");
+        return {up, dn};
     }
     static const FourierDensity& FourierOf(const tChargeDensity<dcmplx>* cd)
     {

@@ -1369,7 +1369,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
 }
 
 // The SAME Si-Gamma Kohn-Sham problem as FrameworkSiliconGammaMatchesPrototype, but now driven by the
-// REAL framework cSCFIterator (no hand-rolled SCF loop): cSCFIterator -> cWaveFunction (UnPolarizedWF
+// REAL framework cSCFIterator (no hand-rolled SCF loop): cSCFIterator -> cWaveFunction (the composite WF
 // -> IrrepWF) -> SCFAcceleratorNull's <dcmplx> diagonalize -> TOrbitals<dcmplx> fill -> PeriodicIrrepCD<dcmplx>,
 // with the cHamiltonianImp summing the PW terms.  This is the milestone that retires the "k-loop
 // in the IBS": single-k plane-wave DFT IS now Hamiltonian = Sum terms + SCFIterator, like atoms/molecules.

@@ -120,7 +120,7 @@ public:
     //! \brief Spin channel \f$\rho_\sigma(r_g)\f$ for \a cd's current serial -- the SPIN-NATIVE sibling of
     //! \c Rho (SymmetryUpgradePlan §4 tier 4b), cached as the {↑,↓} PAIR under ONE serial (a polarized
     //! density's \c Version() forwards to its Up child, so a single scalar cache would alias the channels).
-    //! A \c cPolarized_CD answers per channel; a spin-agnostic density (the seed) collapses to
+    //! A polarized composite answers per channel (its views); a spin-agnostic density (the seed) collapses to
     //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;

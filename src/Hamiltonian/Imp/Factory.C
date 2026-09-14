@@ -15,19 +15,19 @@ namespace qchem::Hamiltonian
     bool IsDFT(Model m) {return m==Model::Xalpha || m==Model::LDA;}
 
     // DFT models can't be built without a mesh + orbital basis; reached only if a caller wrongly routes
-    // them through the non-DFT overload.  Shared by both Pol switches below.
+    // them through the non-DFT overload.  Shared by both SpinGroup switches below.
     [[noreturn]] static void NeedsResolver()
     {
-        throw std::runtime_error("Factory(Model,Pol,st): DFT models (Xalpha/LDA) need the resolver overload "
-                                 "Factory(Model,Pol,st,MeshParams,orbitalBasis,xalpha).");
+        throw std::runtime_error("Factory(Model,SpinGroup,st): DFT models (Xalpha/LDA) need the resolver overload "
+                                 "Factory(Model,SpinGroup,st,MeshParams,orbitalBasis,xalpha).");
     }
 
-    rHamiltonian* Factory(Model m,Pol p, const st_t& st)
+    rHamiltonian* Factory(Model m,SpinGroup p, const st_t& st)
     {
         rHamiltonian* h=0;
         switch (p)
         {
-            case Pol::UnPolarized:
+            case SpinGroup::UnPolarized:
             {
                 switch (m)
                 {
@@ -49,7 +49,7 @@ namespace qchem::Hamiltonian
                 }
                 break;
             }
-            case Pol::Polarized:
+            case SpinGroup::Polarized:
             {
                 switch (m)
                 {
@@ -91,18 +91,18 @@ namespace qchem::Hamiltonian
     // the Internal ExFunctional where one is needed.  Every other DFT entry point (the Model resolver, the
     // alpha convenience) funnels through here, so the functional->Hamiltonian mapping lives in ONE place.
     // The functional internals never leak past this switch; if/else returns keep the U/P pointer types clean.
-    rHamiltonian* Factory(Pol p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const rbs_t* bs)
+    rHamiltonian* Factory(SpinGroup p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
         switch (xc.kind)
         {
             case XC::SlaterXalpha:   // Slater-Dirac exchange, scaled by alpha (the Ham_DFT_U/P alpha ctor owns the spin)
-                if (p==Pol::UnPolarized) return new Ham_DFT_U(st, xc.alpha, mp, bs);
+                if (p==SpinGroup::UnPolarized) return new Ham_DFT_U(st, xc.alpha, mp, bs);
                 return                          new Ham_DFT_P(st, xc.alpha, mp, bs);
             case XC::DiracVWN:       // parameter-free LSDA: Dirac exchange + spin-native VWN5 correlation
-                if (p==Pol::UnPolarized) return new Ham_DFTcorr_U(st, mp, bs);
+                if (p==SpinGroup::UnPolarized) return new Ham_DFTcorr_U(st, mp, bs);
                 return                          new Ham_DFTcorr_P(st, mp, bs);   // spin-native (OpenWork B)
             case XC::LibXC:
-                if (p!=Pol::UnPolarized)
+                if (p!=SpinGroup::UnPolarized)
                     throw std::runtime_error("Factory(XCFunctional): LibXC is unpolarized-only -- the "
                         "Libxc_LDA wrapper is scalar (single-density) by construction.  Use XC::DiracVWN "
                         "for polarized (spin-native VWN5) LDA.");
@@ -117,38 +117,38 @@ namespace qchem::Hamiltonian
     // The unified one-call resolver: HF/1-e/Dirac build directly; DFT Models map to an XCFunctional and
     // delegate to the single build site above -- so the Model token never leaks past here, and the DFT
     // build logic is NOT duplicated between this and the XCFunctional resolver.
-    rHamiltonian* Factory(Model m,Pol p,const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs, double xalpha)
+    rHamiltonian* Factory(Model m,SpinGroup p,const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs, double xalpha)
     {
         if (!IsDFT(m)) return Factory(m,p,st);                       // non-DFT: mp/bs/xalpha unused
         return Factory(p, st, ModelToXC(m,xalpha), mp, bs);         // DFT: Model -> XCFunctional -> Hamiltonian
     }
 
     // Convenience: the Slater-Xalpha functional by alpha alone.
-    rHamiltonian* Factory(Pol p,const st_t& st,double alpha, const qcMesh::MeshParams& mp, const rbs_t* bs)
+    rHamiltonian* Factory(SpinGroup p,const st_t& st,double alpha, const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
         return Factory(p, st, XCFunctional{XC::SlaterXalpha, alpha}, mp, bs);
     }
 
     // Pseudopotential front door: the all-electron nuclear attraction -> GTH local + KB nonlocal PP, LDA XC.
-    rHamiltonian* Factory(Pol p, const st_t& st, const std::string& element, int valence,
+    rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
-        return new Ham_PP(st, element, valence, mp, bs, p==Pol::Polarized);
+        return new Ham_PP(st, element, valence, mp, bs, p==SpinGroup::Polarized);
     }
 
     // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
-    rHamiltonian* Factory(Pol p, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+    rHamiltonian* Factory(SpinGroup p, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
                          const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
-        return new Ham_PP(st, species, mp, bs, p==Pol::Polarized);
+        return new Ham_PP(st, species, mp, bs, p==SpinGroup::Polarized);
     }
 
     // The SOLID front door (Step 4): the cHamiltonian twin of the PP factory above.
-    cHamiltonian* Factory(Pol p, const st_t& st, const cbs_t* bs,
+    cHamiltonian* Factory(SpinGroup p, const st_t& st, const cbs_t* bs,
                           const std::vector<std::pair<std::string,int>>& species,
                           const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit)
     {
-        return new Ham_PW_DFT(st, bs, species, functional, xcMesh, fit, p==Pol::Polarized);
+        return new Ham_PW_DFT(st, bs, species, functional, xcMesh, fit, p==SpinGroup::Polarized);
     }
 
 }

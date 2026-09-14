@@ -6,7 +6,7 @@
 // calls.  A wave function that is not produced by an SCF loop (e.g. deserialized from disk,
 // or a future post-HF result) implements WaveFunction but NOT SCFWaveFunction.
 //
-// Virtual inheritance: CompositeWF and Un/PolarizedWF form a diamond on WaveFunction, so
+// Virtual inheritance: CompositeWF reaches WaveFunction along more than one path, so
 // SCFWaveFunction inherits it virtually to keep a single shared WaveFunction subobject.
 module;
 #include <memory>   // unique_ptr: Init BUILDS the first density (V1.25)

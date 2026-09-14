@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
-import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, Pol
+import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, SpinGroup
 import qchem.SCFIterator;            // SCFParams
 import qchem.PeriodicTable;          // RelativeHFError (Saito oracle)
 using namespace qchem;
@@ -48,7 +48,7 @@ class A_HF_dfPin : public ::testing::TestWithParam<PinCase> {};
 TEST_P(A_HF_dfPin, SelfPin)
 {
     const PinCase c = GetParam();
-    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = c.acc, .model = Model::HF, .pol = Pol::Polarized},
+    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = c.acc, .model = Model::HF, .spin = SpinGroup::Polarized},
                          HFParams(c));
     const double E = calc.Energy();
 
@@ -86,7 +86,7 @@ class A_HF_dfPin_HighValidation : public ::testing::TestWithParam<PinCase> {};
 TEST_P(A_HF_dfPin_HighValidation, VsSaito)
 {
     const PinCase c = GetParam();
-    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::HF, .pol = Pol::Polarized},
+    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::HF, .spin = SpinGroup::Polarized},
                          HFParams(c));
     EXPECT_TRUE(calc.IsConverged());
     EXPECT_LT(RelativeHFError(calc.Energy(), c.Z), c.atol);   // atol here is the Saito relative-error bound

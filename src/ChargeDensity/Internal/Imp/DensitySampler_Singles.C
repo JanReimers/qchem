@@ -257,7 +257,7 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
 
 // The spin-resolved sibling of Rho: the {up,down} PAIR is cached under ONE density serial (a polarized
 // density's Version() forwards to its Up child -- a single scalar cache would hand the Up raster to the
-// Down channel).  A cPolarized_CD answers per channel (each channel composite GEMMs its own D against the
+// Down channel).  A polarized composite answers per channel VIEW (each channel GEMMs its own D against the
 // SHARED Phi tables); a spin-agnostic density (the seed) collapses to rho/2 per channel, so the first
 // iterations run the exact unpolarized collapse (v^sigma(rho/2,rho/2)=v^P(rho)).
 const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin& s) const
@@ -270,14 +270,21 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
     {
         itsPolVersion=cd->Version();
         qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
-        if (auto pol=dynamic_cast<const ChargeDensity::cPolarized_CD*>(cd))
+        // THE CHANNELS THROUGH THE FACE (V1.37): a polarized composite answers its Up/Down VIEWS, each a
+        // cDM_CD that GEMMs its own D against the SHARED Phi tables; the matrix-free pair below answers its
+        // channel objects; a spin-agnostic density answers null and collapses to rho/2 per channel.
+        const cChargeDensity* up=ChannelOf(cd, Spin::Up  );
+        const cChargeDensity* dn=ChannelOf(cd, Spin::Down);
+        if (auto* dmUp=dynamic_cast<const cDM_CD*>(up))
         {
-            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->ProjectOnto(Projector());
-            itsRhoDn=pol->GetChargeDensity(Spin::Down)->ProjectOnto(Projector());
+            auto* dmDn=dynamic_cast<const cDM_CD*>(dn);
+            assert(dmDn && "a D-backed Up channel beside a matrix-free Down channel");
+            itsRhoUp=dmUp->ProjectOnto(Projector());
+            itsRhoDn=dmDn->ProjectOnto(Projector());
             ReportNegativeRho(*this, itsRhoUp, "DM(up)");
             ReportNegativeRho(*this, itsRhoDn, "DM(dn)");
         }
-        else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
+        else if (up && dn)
         {   // MATRIX-FREE spin-resolved density: the seed (PolarizedSeedCD, SCFSeedingPlan §10) at
             // iteration 0, and -- the expensive case -- the ρ̃-MIXED density (PolarizedMixCD over
             // FourierMixCD) on EVERY Kerker/Pulay iteration.  Neither carries a D, so both batch through
@@ -289,8 +296,8 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
             // mixed from, so ask for the exact one FIRST and fall back per CHANNEL -- the seed has no source
             // on either while a mixed density has one on both, so a pair-level test would be right today and
             // wrong the first time they differ.
-            const ExactSource exUp=ExactSourceOf(sr->GetChannel(Spin::Up  ));
-            const ExactSource exDn=ExactSourceOf(sr->GetChannel(Spin::Down));
+            const ExactSource exUp=ExactSourceOf(up);
+            const ExactSource exDn=ExactSourceOf(dn);
             if (exUp && exDn)
             {
                 // STALENESS GUARD (see itsSrcVersion): the field's serial just advanced, so the SOURCE's
@@ -324,8 +331,8 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
             else
             {
             qchem::report::Timed seed("scf: XC-mesh rho sampling (matrix-free density)");
-            itsRhoUp=Projector().Project(*sr->GetChannel(Spin::Up  ));
-            itsRhoDn=Projector().Project(*sr->GetChannel(Spin::Down));
+            itsRhoUp=Projector().Project(*up);
+            itsRhoDn=Projector().Project(*dn);
             ReportNegativeRho(*this, itsRhoUp, "matrix-free(up)");
             ReportNegativeRho(*this, itsRhoDn, "matrix-free(dn)");
             }

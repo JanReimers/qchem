@@ -9,7 +9,7 @@
 #include <iomanip>
 #include <tuple>
 #include <cmath>
-import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, Pol
+import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, SpinGroup
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
 import qchem.PeriodicTable;          // RelativeError, RelativeDHFError (Z-keyed oracle)
 import qchem.Orbitals;              // Orbital, TOrbital
@@ -48,7 +48,7 @@ TEST_P(A_SL_HF_ion,A)
     if (Z>12) N=35;
     if (Z>50) N=40;
     AtomCalculation calc(Z, Z-1, {.type=AtomType::Slater, .N=N, .emin=Z/20., .emax=Z*Z*5.,
-                                  .model=Model::HF, .pol=Pol::Polarized, .ortho=qchem::Cholesky},  // keep the wide even-tempered basis whole (no truncation)
+                                  .model=Model::HF, .spin=SpinGroup::Polarized, .ortho=qchem::Cholesky},  // keep the wide even-tempered basis whole (no truncation)
         {.NMaxIter = 2, .MinΔρ = Z*1e-4, .MinΔFD = 1e-7, .MinFD = Z*1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = true});
     EXPECT_LT(RelativeError(calc.Energy(), -0.5*Z*Z), 4e-12);
 }
@@ -71,7 +71,7 @@ TEST_P(A_SL_DE1,A)
     // DHF wave functions have a weak singularity at the origin -- very large exponents (emax) mock it.
     double alpha=.05,beta=1.55;
     AtomCalculation calc(Z, Z-1, {.type=AtomType::Slater_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                  .model=Model::DE1, .pol=Pol::Polarized},
+                                  .model=Model::DE1, .spin=SpinGroup::Polarized},
         {.NMaxIter = 5, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = false});
 
     auto qns=calc.GetIrreps(Spin::Up);
@@ -102,7 +102,7 @@ TEST_P(A_SG_DE1,A)
     if (Z>=20) { N=38; beta=2; }
     if (Z>=60) { N=48; beta=2; }
     AtomCalculation calc(Z, Z-1, {.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                  .model=Model::DE1, .pol=Pol::Polarized, .ortho=Ortho::Cholesky},
+                                  .model=Model::DE1, .spin=SpinGroup::Polarized, .ortho=Ortho::Cholesky},
         {.NMaxIter = 5, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
 
     auto qns=calc.GetIrreps(Spin::Up);
@@ -170,7 +170,7 @@ TEST(A_SG_E1,Phir)
     int N=40;
     double alpha=0.010,beta=1.6;
     AtomCalculation calc(1, 0, {.type=AtomType::Gaussian, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                .model=Model::E1, .pol=Pol::UnPolarized},
+                                .model=Model::E1, .spin=SpinGroup::UnPolarized},
         {.NMaxIter = 5, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
 
     auto qns=calc.GetIrreps(Spin::None);
@@ -189,7 +189,7 @@ TEST(DE1_P1,Gaussian_Phir)
     int N=32;
     double alpha=0.010,beta=1.6;
     AtomCalculation calc(1, 0, {.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                .model=Model::DE1, .pol=Pol::Polarized},
+                                .model=Model::DE1, .spin=SpinGroup::Polarized},
         {.NMaxIter = 5, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
 
     auto qns=calc.GetIrreps(Spin::Up);
@@ -207,7 +207,7 @@ TEST(DE1_P1,Slater_Phir)
     size_t N=37;
     double alpha=.04,beta=1.32;
     AtomCalculation calc(1, 0, {.type=AtomType::Slater_RKB, .N=int(N), .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                .model=Model::DE1, .pol=Pol::Polarized},
+                                .model=Model::DE1, .spin=SpinGroup::Polarized},
         {.NMaxIter = 5, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = false});
 
     auto qns=calc.GetIrreps(Spin::Up);
@@ -227,7 +227,7 @@ class A_SL_DHF : public ::testing::TestWithParam<size_t> {};
 TEST_P(A_SL_DHF,Energy)
 {
     int Z=GetParam();
-    AtomCalculation calc(Z, 0, {.type=AtomType::Slater_RKB, .accuracy=Medium, .model=Model::DHF, .pol=Pol::UnPolarized},
+    AtomCalculation calc(Z, 0, {.type=AtomType::Slater_RKB, .accuracy=Medium, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
         {.NMaxIter = 50, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
     EXPECT_LT(fabs(RelativeDHFError(calc.Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
 }
@@ -237,7 +237,7 @@ class A_SG_DHF : public ::testing::TestWithParam<size_t> {};
 TEST_P(A_SG_DHF,Energy)
 {
     int Z=GetParam();
-    AtomCalculation calc(Z, 0, {.type=AtomType::Gaussian_RKB, .accuracy=Low, .model=Model::DHF, .pol=Pol::UnPolarized},
+    AtomCalculation calc(Z, 0, {.type=AtomType::Gaussian_RKB, .accuracy=Low, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
         {.NMaxIter = 10, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
     EXPECT_LT(fabs(RelativeDHFError(calc.Energy(), Z)), 5e-3); // Low-accuracy basis; Ne (Z=10) known gap
 }
@@ -249,7 +249,7 @@ INSTANTIATE_TEST_SUITE_P(A,A_SG_DHF,::testing::Values(2,4,10));
 //
 TEST(DHF_B_Pol,P2p)
 {
-    AtomCalculation calc(5, 0, {.type=AtomType::Slater_RKB, .accuracy=Medium, .model=Model::DHF, .pol=Pol::Polarized},
+    AtomCalculation calc(5, 0, {.type=AtomType::Slater_RKB, .accuracy=Medium, .model=Model::DHF, .spin=SpinGroup::Polarized},
         {.NMaxIter = 50, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
 
     const qchem::Orbitals::Orbital* o2p=nullptr;
@@ -272,7 +272,7 @@ TEST(DHF_Xe,P5pSplit)
 #ifdef DEBUG
     GTEST_SKIP() << "Xe DHF (54 electrons) is too slow for Debug; runs in Release only.";
 #endif
-    AtomCalculation calc(54, 0, {.type=AtomType::Slater_RKB, .accuracy=Medium, .model=Model::DHF, .pol=Pol::UnPolarized},
+    AtomCalculation calc(54, 0, {.type=AtomType::Slater_RKB, .accuracy=Medium, .model=Model::DHF, .spin=SpinGroup::UnPolarized},
         {.NMaxIter = 50, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.3, .MergeTol = 1e-7, .Verbose = true});
 
     // Valence 5p is the 4th occupied level (2p,3p,4p,5p) -> index 3 in each p irrep.

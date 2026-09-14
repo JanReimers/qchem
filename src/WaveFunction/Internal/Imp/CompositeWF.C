@@ -10,6 +10,7 @@ module;
 #include <algorithm>
 #include <sstream>
 #include <iostream>
+#include <iomanip>
 #include <cstdlib>
 #include <variant>
 #include <stdexcept>
@@ -22,6 +23,9 @@ import qchem.ElectronConfiguration;
 import qchem.LASolver;
 import qchem.Orbitals;          // Orbital (eigen-energy, degeneracy) for the aufbau
 import qchem.Reporting;         // the run report -- this loop owns the basis.perIrrep / basis.removed rows
+import qchem.Math;              // std::round/abs for the fractional-occupation formatting (the level tables)
+import qchem.Streamable;
+import qchem.Strings;           // l_colors -- the per-l row colouring of the level tables
 
 namespace qchem::WaveFunction
 {
@@ -39,10 +43,11 @@ using SCFAccelerators::tSCFIrrepAccelerator;
 // WITHIN-irrep MOM in tIrrepWF::FillOrbitals; this file's cross-irrep aufbau MOM is the parked molecular one.
 
 
-template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,SCFAccelerator* acc,
-                                                 qchem::Ortho basisOrtho, double basisOrthoTol )
+template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,SpinGroup g,
+                                                 SCFAccelerator* acc, qchem::Ortho basisOrtho, double basisOrthoTol )
     : itsBS(bs)
     , itsEC(ec)
+    , itsSpinGroup(g)
     , itsBasisOrtho(basisOrtho)
     , itsBasisOrthoTol(basisOrthoTol)
     , itsPartition(ec->GetPartition())
@@ -58,6 +63,8 @@ template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const Electr
            && "a ranked integer fill IS a cross-block aufbau -- it needs a spatial-spanning reservoir");
     assert(!(itsPartition.ranksIntegerFill && itsPartition.spansSpin)
            && "the ranked (aufbau) fill fills each spin channel to its own count -- it cannot pool the channels");
+    // The imposed subgroup decides WHICH spin irreps get children -- and that is all it decides.
+    for (Spin s:SpinIrreps(itsSpinGroup)) MakeIrrepWFs(s);
 };
 
 // Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
@@ -304,18 +311,43 @@ template <class T> void tCompositeWF<T>::MoveOrbitals(OccupationPolicy<T>& pol, 
     FillOrbitals(pol,mergeTol);
 }
 
+// THE density (V1.37): ONE composite over every child, spin irrep by spin irrep.  IBZ point group
+// ctor-injected straight from the basis (empty {} for molecules / unfolded crystals = a trivial no-op).  The
+// basis owns the crystal symmetry, so no setter is threaded through the SCF.  Each block BUILDS its own
+// density, typed by ITS scalar; the composite's typed Insert overloads (Step 2a) take either alternative --
+// this seam is already mixed-ready -- and the block's full Irrep is the label its channel views filter on.
+template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity() const
+{
+    using qchem::ChargeDensity::tComposite_CD;
+    auto cd = std::make_unique<tComposite_CD<T>>(itsBS->GetReciprocalPointOps());
+    for (Spin s:SpinIrreps(itsSpinGroup))
+    {
+        auto i = itsSpinWFs.find(s);
+        assert(i!=itsSpinWFs.end());
+        for (auto& w:i->second) std::visit([&](auto p){cd->Insert(p->GetChargeDensity(), p->GetIrrep());}, w);
+    }
+    return cd;
+}
+
+// One spin irrep's density on its own -- the same shape as one CHANNEL of the whole-system composite.
 template <class T> std::unique_ptr<tDM_CD<T>> tCompositeWF<T>::GetChargeDensity(Spin s) const
 {
     using qchem::ChargeDensity::tComposite_CD;
     auto i = itsSpinWFs.find(s);
-    assert(i!=itsSpinWFs.end());
-    // IBZ point group ctor-injected straight from the basis (empty {} for molecules / unfolded crystals = a
-    // trivial no-op).  The basis owns the crystal symmetry, so no setter is threaded through the SCF.
+    if (i==itsSpinWFs.end())
+        throw std::logic_error("tCompositeWF::GetChargeDensity(Spin): this wave function was built under the "
+                               "other imposed spin subgroup and has no such spin irrep");
     auto cd = std::make_unique<tComposite_CD<T>>(itsBS->GetReciprocalPointOps());
-    // Each block BUILDS its own density, typed by ITS scalar; the composite CD's typed Insert
-    // overloads (Step 2a) take either alternative -- this seam is already mixed-ready.
-    for (auto& w:i->second) std::visit([&](auto p){cd->Insert(p->GetChargeDensity());}, w);
+    for (auto& w:i->second) std::visit([&](auto p){cd->Insert(p->GetChargeDensity(), p->GetIrrep());}, w);
     return cd;
+}
+
+template <class T> std::unique_ptr<typename tCompositeWF<T>::sf_t> tCompositeWF<T>::GetSpinDensity() const
+{
+    if (itsSpinGroup!=SpinGroup::Polarized)
+        throw std::logic_error("tCompositeWF::GetSpinDensity: m(r) is identically zero under imposed SU(2) "
+                               "(an unpolarized run) -- ask GetSpinGroup() before asking for it");
+    return std::make_unique<qchem::ChargeDensity::tSpinDensity<T>>(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
 template <class T> EnergyLevels tCompositeWF<T>::GetEnergyLevels (Spin s) const
@@ -571,6 +603,162 @@ template <class T> void tCompositeWF<T>::FillReservoirAtSharedMu(OccupationPolic
         itsSpin_ELevels[IrrepOf(w).ms].merge(els,mergeTol);
     }
     if (trace) std::cout<<"[metal] Σ w·n = "<<wsum<<"\n";
+}
+
+//---------------------------------------------------------------------------------------
+//
+//  The level tables -- the ONE place the imposed spin subgroup changes what a reader sees.
+//
+using namespace tabulate;
+
+template <class T> void tCompositeWF<T>::DisplayEigen() const
+{
+    if (itsSpinGroup==SpinGroup::Polarized) DisplayEigenPolarized();
+    else                                    DisplayEigenUnPolarized();
+}
+
+template <class T> void tCompositeWF<T>::DisplayEigenPolarized() const
+{
+    Table eigen_table;
+    eigen_table.format().multi_byte_characters(true);
+    eigen_table.add_row({"Occ/Degen ↑","ϵ↑ (au)","n,Symmetry","Occ/Degen ↓","ϵ↓ (au)","ϵ↑-ϵ↓ (au)"});
+
+
+    EnergyLevels els_up=this->GetEnergyLevels(Spin::Up), els_dn=this->GetEnergyLevels(Spin::Down);
+    // The HIGHEST occupied energy over BOTH channels (see the unpolarized table): a doubly-empty level is
+    // dropped only when it sits ABOVE the frontier, where it is one virtual among many.  BELOW the frontier it
+    // is a HOLE -- the whole point of looking -- and dropping it made the non-aufbau structure of a MOM-pinned
+    // run invisible.  NB the old rule was silently INCONSISTENT between cold and smeared runs: under Fermi
+    // smearing no occupation is exactly 0.0, so nothing was ever dropped; at kT=0 the deep empty levels
+    // vanished.  Same table, same run, different visibility depending on kT.
+    double eHomo=-1e300;
+    for (auto elp:this->GetEnergyLevels()) if (elp.second.occ > 0.0) eHomo=std::max(eHomo,elp.second.e);
+    std::set<Orbital_QNs> alreadyGotIt;
+    for (auto elp:this->GetEnergyLevels())
+    {
+        const qchem::Orbitals::EnergyLevel& el=elp.second;
+        Orbital_QNs upqns(el.qns.n,Spin::Up  ,el.qns.sym);
+        Orbital_QNs dnqns(el.qns.n,Spin::Down,el.qns.sym);
+        if (alreadyGotIt.find(upqns)!=alreadyGotIt.end()) continue;
+        alreadyGotIt.insert(upqns);
+        alreadyGotIt.insert(dnqns);
+        // A combined level need NOT exist in both spin channels (open shell -- e.g. an O2 triplet level that
+        // is occupied/present in ↑ but not ↓).  Guard both (find()==UB on a miss in Release) and take the
+        // label + l from el.qns, whose sym is always valid (this fixes the O2-HF-triplet SEGV).
+        const qchem::Orbitals::EnergyLevel* up=els_up.FindOrNull(upqns);
+        const qchem::Orbitals::EnergyLevel* dn=els_dn.FindOrNull(dnqns);
+        const double upOcc=up?up->occ:0.0, dnOcc=dn?dn->occ:0.0;
+        // ABSENT IS NOT EMPTY (2026-08-10, MnO run 29).  These used to fall back to `el.e` -- the COMBINED
+        // level's energy, i.e. the OTHER channel's number -- and to a fabricated occupancy of 0.  The row then
+        // read as a level that is occupied in one channel and EMPTY AT THE SAME ENERGY in the other, with
+        // ϵ↑−ϵ↓ printing exactly 0.00000000; on MnO that manufactured a spin-up "hole" at −0.0372 below
+        // occupied spin-up levels at +0.214, and the campaign's non-aufbau readings came off rows like it.
+        // Two different spin Fock matrices do not share an eigenvalue to 8 digits wherever m≠0, so an exact
+        // zero in that column was always the tell.  Now an absent level prints "--" and contributes no
+        // difference.  (ROOT CAUSE, deeper and still open: `n` indexes a DEGENERATE GROUP, and the grouping
+        // differs between channels once ϵ↑≠ϵ↓ -- so pairing rows by (n,sym) is not a sound identity in a
+        // polarized run.  It is also why the table skips indices and runs them out of order.  The real fix is
+        // to pair by energy/character; this one only stops the display from inventing what it lacks.)
+        const int    upDeg=up?up->degen:(dn?dn->degen:1), dnDeg=dn?dn->degen:upDeg;
+        if (upOcc==0.0 && dnOcc==0.0 && el.e>eHomo) continue;
+        std::ostringstream sym_string,up_occ_string,dn_occ_string;
+        sym_string << el.qns.n << *el.qns.sym;
+        // Integer occ (gapped insulator) unchanged; FRACTIONAL (Fermi-smeared) shown with decimals, mirroring
+        // the unpolarized table.  setprecision(0) alone rounded a smeared 0.996 to "1/1" and 0.004 to "0/1",
+        // i.e. it printed a clean integer configuration for a run whose own trace column was flagging partial
+        // occupancy every iteration -- the table has to agree with the `m` flag beside it.
+        auto occStr=[](std::ostringstream& os, double occ, int deg)
+        {
+            if (fabs(occ-round(occ)) < 1e-6) os << std::fixed << std::setprecision(0) << occ;
+            else                             os << std::fixed << std::setprecision(2) << occ;
+            os << "/" << deg;
+        };
+        if (up) occStr(up_occ_string, upOcc, upDeg); else up_occ_string << "--";
+        if (dn) occStr(dn_occ_string, dnOcc, dnDeg); else dn_occ_string << "--";
+        size_t l=el.qns.sym->GetPrincipleOffset();
+        //! This channel has no such level -> "--", never a number borrowed from the other channel.
+        auto eStr=[](const qchem::Orbitals::EnergyLevel* lv)
+        {
+            if (!lv) return std::string("--");
+            std::ostringstream os; os << std::fixed << std::setprecision(8) << lv->e; return os.str();
+        };
+        std::string dEStr="--";
+        if (up && dn) { std::ostringstream os; os << std::fixed << std::setprecision(8) << up->e-dn->e; dEStr=os.str(); }
+
+        RowStream rs;
+        rs << up_occ_string.str() << eStr(up);
+        rs << sym_string.str();
+        rs << dn_occ_string.str() << eStr(dn);
+        rs << dEStr;
+        eigen_table.add_row(rs);
+        // Row formating.
+        size_t n=eigen_table.size()-1;
+        eigen_table[n].format().font_color(l_colors[l]);
+        if (dnOcc==0.0)
+            for (size_t i:{3,4,5})
+            {
+                eigen_table[n][i].format().font_style({FontStyle::dark});//.hide_border_top();
+                if (n>1) eigen_table[n][i].format().hide_border_top();
+            }
+        
+
+    }
+    // Final table formating.
+    size_t N=eigen_table.size();
+    for (size_t i=1;i<N-1;i++) eigen_table[i].format().hide_border_bottom();
+    for (size_t i=2;i<N;i++) eigen_table[i].format().hide_border_top();
+    for (size_t i:{1,4,5}) eigen_table.column(i).format().font_align(FontAlign::right);
+    for (size_t i:{0,2,3}) eigen_table.column(i).format().font_align(FontAlign::center);
+    std::cout << eigen_table << std::endl;
+}
+
+template <class T> void tCompositeWF<T>::DisplayEigenUnPolarized() const
+{
+    Table eigen_table;
+    eigen_table.format().multi_byte_characters(true);
+    eigen_table.add_row({"Occ/Degen","ϵ (au)","Symmetry"});
+       
+    // The HIGHEST occupied energy -- the honest end of the table.  Occupations are monotonic in energy under
+    // one μ, so for AUFBAU this is just "the level before the first empty one" and the loop below is unchanged.
+    // It is NOT monotonic under MOM: a character-pinned run can leave a level EMPTY well BELOW an occupied one
+    // (the hole the 0h guard watches for), and a plain `break` at the first empty level then truncates the
+    // table exactly AT the anomaly -- hiding the one row a reader needs.  So: run to the highest OCCUPIED
+    // level, never stopping short of it (measured on MnO: a −1.29 Ha EMPTY level, invisible in a table that
+    // happily printed a +0.75 Ha virtual).
+    double eHomo=-1e300;
+    for (auto [e,el]:this->GetEnergyLevels()) if (el.occ >= 1e-6) eHomo=e;
+    for (auto [e,el]:this->GetEnergyLevels())
+    {
+        // Stop past the frontier by OCCUPATION, not energy sign.  The old `e>0.0` cutoff is a MOLECULAR idiom
+        // (bound states sit below the vacuum level at 0); in a SOLID the energy zero is arbitrary (the PP
+        // G=0/alignment convention), so the Fermi level -- and every occupied level -- can be POSITIVE (a
+        // metal: this hid all but the one negative-energy Γ level).
+        if (el.occ < 1e-6 && e > eHomo) break;
+        std::ostringstream sym_string,occ_string;
+        sym_string << el.qns.n << *el.qns.sym;
+        // Integer occ (atoms / gapped insulators) unchanged; fractional (Fermi-smeared metal) shown with
+        // decimals so a partially-filled band is honest instead of rounding to an integer.
+        if (std::abs(el.occ - std::round(el.occ)) < 1e-6)
+            occ_string << std::fixed << std::setprecision(0) << el.occ << "/" << el.degen;
+        else
+            occ_string << std::fixed << std::setprecision(2) << el.occ << "/" << el.degen;
+        size_t l=el.qns.sym->GetPrincipleOffset();
+
+        RowStream rs;
+        rs << occ_string.str() << std::fixed << std::setprecision(8) << e; 
+        rs << sym_string.str();
+        eigen_table.add_row(rs);
+        // Row formatting
+        size_t n=eigen_table.size()-1;
+        eigen_table[n].format().font_color(l_colors[l]);
+    }
+    // Final table formatting.
+    size_t N=eigen_table.size();
+    for (size_t i=1;i<N-1;i++) eigen_table[i].format().hide_border_bottom();
+    for (size_t i=2;i<N;i++) eigen_table[i].format().hide_border_top();
+    for (size_t i:{1}) eigen_table.column(i).format().font_align(FontAlign::right);
+    for (size_t i:{0,2}) eigen_table.column(i).format().font_align(FontAlign::center);
+    std::cout << eigen_table << std::endl;
 }
 
 template class tCompositeWF<double>;

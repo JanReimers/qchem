@@ -7,7 +7,6 @@ module qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.BasisSet.Orbital_DFT_IBS;   // the periodic-lineage probe (Orbital_DFT_IBS<T,dcmplx>)
 import qchem.ChargeDensity.Imp.FittedCD;
-import qchem.ChargeDensity.Imp.PolarizedCD;
 import qchem.RunPolicy;   // the resolved deviation set (doc/OpenWork.md N5) -- NOT a getenv here
 
 namespace qchem::ChargeDensity
@@ -62,13 +61,6 @@ template tDM_CD<double>* IrrepCD_Factory<double>(const hmat_t<double>&,const tob
 template tDM_CD<dcmplx>* IrrepCD_Factory<dcmplx>(const hmat_t<dcmplx>&,const tobs_t<dcmplx>*, Irrep, RhoRoute);
 template tDM_CD<double>* IrrepCD_Factory<double>(const hmat_t<double>&,const tobs_t<double>*, Irrep);
 template tDM_CD<dcmplx>* IrrepCD_Factory<dcmplx>(const hmat_t<dcmplx>&,const tobs_t<dcmplx>*, Irrep);
-template <class T> std::unique_ptr<tDM_CD<T>>
-PolarizedCD_Factory(std::unique_ptr<tDM_CD<T>> up, std::unique_ptr<tDM_CD<T>> dn)
-{
-    return std::make_unique<tPolarized_CDImp<T>>(std::move(up),std::move(dn));
-}
-template std::unique_ptr<tDM_CD<double>> PolarizedCD_Factory<double>(std::unique_ptr<tDM_CD<double>>,std::unique_ptr<tDM_CD<double>>);
-template std::unique_ptr<tDM_CD<dcmplx>> PolarizedCD_Factory<dcmplx>(std::unique_ptr<tDM_CD<dcmplx>>,std::unique_ptr<tDM_CD<dcmplx>>);
 
 std::unique_ptr<FittedCD> FittedCD_Factory(fbs_t& fbs, double totalCharge)
 {

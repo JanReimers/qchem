@@ -88,6 +88,12 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > the reason is recorded below: `Reporting.DISABLED_VisualDump` is the console renderer's own layout
 > preview, not a campaign leftover.
 >
+> ▶ **V1.37 STEPS 1–2 LANDED (2026-09-14)** — Pol/UnPol are the IMPOSED SPIN SUBGROUP (`qchem::SpinGroup`),
+> not types: `tPolarizedWF`/`tUnPolarizedWF`/`tPolarized_CD` GONE, ONE `tCompositeWF` + ONE `tComposite_CD`
+> over full Irreps with channel VIEWS through `tSpinResolved_CD::GetChannel`; `Hamiltonian::Pol` gone (it IS
+> `SpinGroup`); 857/857, totals unchanged at printed precision (user: clean code over 1e-16 anchors).  Record → `doc/CleanupHistory.md`.  **Remainder = step 3 (the 13 `IsPolarized()`
+> term-dispatch sites), sequenced AFTER R1.0h's per-iteration scope so the terms are touched once.**
+>
 > ### 3. THE TEST-SUITE ORGANISATION — item **TE**
 > The axis product `{basis} × {material} × {grid} × {k} × {symmetry} × {kT}`, the file breakdown, the naming
 > convention.  ▶ **Do `PolarizedRunKeepsItsSpin` EARLY in this step**: at 251 s it sets the `-j8` wall floor

@@ -56,8 +56,8 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
 TEST(DensityLineage, SupersededHeadIsInactive)
 {
     auto lineage = std::make_shared<Lineage>();
-    tComposite_CD<double> A; A.Insert(std::make_unique<FiniteIrrepCD>());   // A.Version() = its front leaf's serial
-    tComposite_CD<double> B; B.Insert(std::make_unique<FiniteIrrepCD>());   // B constructed later -> higher serial
+    tComposite_CD<double> A; A.Insert(std::make_unique<FiniteIrrepCD>(), Irrep());   // A.Version() = its front leaf's serial
+    tComposite_CD<double> B; B.Insert(std::make_unique<FiniteIrrepCD>(), Irrep());   // B constructed later -> higher serial
 
     EXPECT_TRUE(A.isActive()) << "an un-tracked density (no lineage) is trivially active";
     EXPECT_TRUE(B.isActive());

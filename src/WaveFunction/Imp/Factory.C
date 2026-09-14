@@ -4,8 +4,7 @@ module;
 import qchem.SCFAccelerator;
 
 module qchem.WaveFunction.Factory;
-import qchem.WaveFunction.Internal.UnPolarizedWF;
-import qchem.WaveFunction.Internal.PolarizedWF;
+import qchem.WaveFunction.Internal.CompositeWF;
 import qchem.LASolver;   // qchem::Ortho
 
 namespace qchem::WaveFunction
@@ -18,10 +17,11 @@ namespace qchem::WaveFunction
         SCFAccelerators::SCFAccelerator* acc,
         qchem::Ortho basisOrtho, double basisOrthoTol)
     {
-        // Both lineages dispatch on the Hamiltonian's polarization (SymmetryUpgradePlan §4 tier 4b):
-        // a polarized Ham_PW_DFT builds the two-channel Bloch wavefunction just like the molecular path.
-        return h->IsPolarized() ? (tSCFWaveFunction<T>*)new tPolarizedWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol)
-                                : (tSCFWaveFunction<T>*)new tUnPolarizedWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol);
+        // ONE wave-function class (V1.37); the Hamiltonian's polarization names the IMPOSED SPIN SUBGROUP
+        // the composite is built under, for both lineages (SymmetryUpgradePlan §4 tier 4b: a polarized
+        // Ham_PW_DFT gets the two-channel Bloch composite just like the molecular path).
+        const SpinGroup g = h->IsPolarized() ? SpinGroup::Polarized : SpinGroup::UnPolarized;
+        return new tCompositeWF<T>(bs,ec,g,acc,basisOrtho,basisOrthoTol);
     }
 
     template tSCFWaveFunction<double>* Factory(const qchem::Hamiltonian::tHamiltonian<double>*,

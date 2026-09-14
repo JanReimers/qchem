@@ -82,7 +82,7 @@ TEST(M_DFT, WaterSpherical)
 // the SAME energy as the unpolarized anchor -- and it does, to ~1e-11 (confirming a correct seed Fock).
 TEST(M_DFT, WaterPolarizedSAD)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::Xalpha, .pol = Pol::Polarized, .xalpha = 0.74000});
+    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::Xalpha, .spin = SpinGroup::Polarized, .xalpha = 0.74000});
     // Polarized water Xalpha is the oscillatory case (commutator ~2-4; see M_Sym RunDFT) -- it needs more
     // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
     // drives from the start for DFT).
@@ -98,14 +98,14 @@ TEST(M_DFT, WaterPolarizedSAD)
 // the SAD-seed fallback (rho_up=rho_down=rho/2), the per-spin v_c^sigma fit, and the two-channel E_c.
 TEST(M_DFT, WaterPolarizedLDA)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::LDA, .pol = Pol::Polarized});
+    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::LDA, .spin = SpinGroup::Polarized});
     calc.Converge({.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
     EXPECT_NEAR(calc.Energy(), -75.9324615507, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
 }
 
 // OPEN-SHELL through the facade multiplicity knob (OpenWork B4): triplet O2 (16 e-, multiplicity 3 =>
-// nUp=9, nDown=7).  multiplicity>1 auto-promotes the calc to Pol::Polarized, builds Molecule_EC(9,7), and
+// nUp=9, nDown=7).  multiplicity>1 auto-promotes the calc to SpinGroup::Polarized, builds Molecule_EC(9,7), and
 // runs spin-native LDA.  The spin texture is real here (the half-filled pi* gives the triplet), so this
 // genuinely exercises zeta!=0 -- not the closed-shell collapse the WaterPolarized tests hit.  "Did E move"
 // regression sentinel (converged spin-native LDA total energy).
@@ -117,7 +117,7 @@ TEST(M_DFT, OxygenTripletLDA)
     EXPECT_NEAR(calc.Energy(), -149.2562876393, 1e-4);   // converged spin-native LDA triplet (regression anchor)
 }
 
-// REGRESSION for the O2-HF-triplet SEGV: the polarized level display (tPolarizedWF::DisplayEigen) crashed on
+// REGRESSION for the O2-HF-triplet SEGV: the polarized level display (tCompositeWF::DisplayEigenPolarized) crashed on
 // an open-shell level present in only ONE spin channel (find() is UB-in-Release on a miss).  Fixed via
 // EnergyLevels::FindOrNull + labelling from the always-valid combined el.qns.  This runs it with Verbose ON
 // (the crash path) and pins the converged HF triplet energy.  "Did E move" + no-crash.
@@ -140,7 +140,7 @@ TEST(M_DFT, OxygenTripletBelowSinglet)
                     .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
         return c.Energy();
     };
-    const double triplet = run(3);   // nUp=9, nDown=7  (Pol::Polarized, auto)
+    const double triplet = run(3);   // nUp=9, nDown=7  (SpinGroup::Polarized, auto)
     const double singlet = run(1);   // nUp=8, nDown=8  (closed shell)
     EXPECT_LT(triplet, singlet - 0.01);   // triplet is the ground state, by a clear margin
 }

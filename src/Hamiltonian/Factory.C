@@ -7,6 +7,7 @@ module;
 export module qchem.Hamiltonian.Factory;
 export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Types;
+export import qchem.Symmetry.Spin;   // SpinGroup -- the imposed spin subgroup every Factory takes
 import qchem.Mesh;
 import qchem.Structure;
 
@@ -25,7 +26,8 @@ export namespace qchem::Hamiltonian
     //! This is the FRIENDLY front token.  Its DFT members are a shorthand that resolves to an XCFunctional
     //! (below); for finer control -- a specific libxc id, a non-default alpha -- pass an XCFunctional directly.
     enum class Model {E1,HF,DE1,DHF, Xalpha,LDA};
-    enum class Pol   {UnPolarized,Polarized};
+    // (The Hamiltonian's polarization is qchem::SpinGroup -- the imposed spin subgroup, one currency for the
+    //  Hamiltonian, the wave function and the density, V1.37.  The old Pol enum is gone.)
 
     //! True for the DFT members (need a mesh + fit basis + SAD seed); false for HF/1-e/Dirac.
     bool IsDFT(Model);
@@ -53,34 +55,34 @@ export namespace qchem::Hamiltonian
 
     //=== The resolvers ===============================================================================
     //! Non-DFT Hamiltonians (HF / 1-electron / Dirac).  DFT Models route through the DFT resolver below.
-    rHamiltonian* Factory(Model,Pol,const st_t& st);
+    rHamiltonian* Factory(Model,SpinGroup,const st_t& st);
 
     //! THE functional resolver -- the SINGLE place that builds a DFT Hamiltonian from a functional choice.
     //! Owns its functional(s); the Internal ExFunctional construction never leaks out.  Polarized is
     //! supported for SlaterXalpha and DiracVWN (spin-native VWN5, OpenWork B); LibXC is unpolarized-only
-    //! (its libxc wrapper does not yet pass the two spin channels) and throws for Pol::Polarized.
-    rHamiltonian* Factory(Pol, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*);
+    //! (its libxc wrapper does not yet pass the two spin channels) and throws for SpinGroup::Polarized.
+    rHamiltonian* Factory(SpinGroup, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*);
 
     //! Unified one-call resolver: turn a Model token into the concrete polymorphic Hamiltonian.  HF/1-e/
     //! Dirac ignore mesh/basis/xalpha; the DFT members map to an XCFunctional and delegate to the resolver
     //! above.  The compact "default Hamiltonian" entry the unit tests want -- no manual functional assembly.
-    rHamiltonian* Factory(Model,Pol,const st_t& st, const qcMesh::MeshParams&, const rbs_t*, double xalpha);
+    rHamiltonian* Factory(Model,SpinGroup,const st_t& st, const qcMesh::MeshParams&, const rbs_t*, double xalpha);
 
     //! Convenience for the most common DFT functional: Slater-Dirac exchange scaled by \a alpha (alpha=2/3
     //! is pure Dirac).  Equivalent to the XCFunctional resolver with XC::SlaterXalpha.
-    rHamiltonian* Factory(Pol,const st_t& st,double alpha, const qcMesh::MeshParams&, const rbs_t*);
+    rHamiltonian* Factory(SpinGroup,const st_t& st,double alpha, const qcMesh::MeshParams&, const rbs_t*);
 
     //=== Pseudopotential ============================================================================
     //! Build a pseudopotential Hamiltonian for `element` (e.g. "Si") with `valence` (zion) valence
     //! electrons: the all-electron nuclear attraction is replaced by the GTH local + KB-separable nonlocal
     //! pseudopotential, with LSDA exchange-correlation.  \a pol selects spin-native (open-shell) vs the
     //! unpolarized collapse.  The public front door to Ham_PP.
-    rHamiltonian* Factory(Pol, const st_t& st, const std::string& element, int valence,
+    rHamiltonian* Factory(SpinGroup, const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams&, const rbs_t*);
 
     //! Multi-species pseudopotential Hamiltonian: name each `(element, valence)` and a per-Z router PP is
     //! built so each atom gets its own GTH pseudopotential (single species = a 1-element list).
-    rHamiltonian* Factory(Pol, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+    rHamiltonian* Factory(SpinGroup, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
                          const qcMesh::MeshParams&, const rbs_t*);
 
     //=== The SOLID (periodic, dcmplx) front door ======================================================
@@ -97,7 +99,7 @@ export namespace qchem::Hamiltonian
     //! \a xcMesh chooses the real-space XC quadrature and \a fit chooses which basis represents
     //! \f$v_{xc}\f$; the two are ORTHOGONAL (see \c VxcFit).  Resolve \c UnitCellKind::Auto BEFORE
     //! calling -- \c qcMesh::ResolveXCMesh is the policy, and an unresolved \c Auto reads as \c Uniform here.
-    cHamiltonian* Factory(Pol, const st_t& st, const cbs_t* bs,
+    cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs,
                           const std::vector<std::pair<std::string,int>>& species,
                           const std::string& functional, const qcMesh::MeshParams& xcMesh,
                           VxcFit fit = VxcFit::Auto);

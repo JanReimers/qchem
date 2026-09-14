@@ -10,7 +10,7 @@
 #include "gtest/gtest.h"
 #include <string>
 #include <vector>
-import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, Pol
+import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, SpinGroup
 import qchem.SCFIterator;            // SCFParams
 import qchem.PeriodicTable;          // RelativeHFError
 using namespace qchem;
@@ -73,7 +73,7 @@ class A_HF_U : public ::testing::TestWithParam<HFCase> {};
 TEST_P(A_HF_U, Energy)
 {
     const HFCase c = GetParam();
-    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = c.acc, .model = Model::HF, .pol = Pol::UnPolarized},
+    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = c.acc, .model = Model::HF, .spin = SpinGroup::UnPolarized},
                          HFParams(c));
     const double e = RelativeHFError(calc.Energy(), c.Z);
     EXPECT_LT(e, c.tol);

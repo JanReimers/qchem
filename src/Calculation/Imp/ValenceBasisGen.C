@@ -13,7 +13,7 @@ module qchem.ValenceBasisGen;
 import qchem.PeriodicTable;                    // thePeriodicTable (symbol <-> Z)
 import qchem.SCFIterator;                       // SCFParams (Verbose -> the per-iteration trace)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (default Zion)
-import qchem.ChargeDensity;                    // Polarized_CD + Spin (the spin-resolved channel sampling)
+import qchem.ChargeDensity;                    // ChannelOf + Spin (the spin-resolved channel sampling)
 import qchem.Types;                            // rvec3_t (radial sampling point)
 import qchem.Math;                             // Pi (the 4 pi in the charge integral)
 
@@ -103,22 +103,23 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
 
     // The SAME pseudo-atom SCF the basis generator runs (identical shells/PP/functional) -- one validated SCF.
     // spinResolved runs it POLARIZED: the atomic EC assigns the Hund unpaired electrons (e.g. Mn q7 -> S=5/2),
-    // and the converged density is a Polarized_CD whose channels we sample alongside the total.
+    // and the converged density resolves its channels, which we sample alongside the total.
     AtomCalcOptions o;
     o.type            = AtomType::Gaussian;
     o.pseudopotential = true;
     o.valence         = Zion;
     o.exponentsByL    = r.shells;
-    if (r.spinResolved) o.pol = Pol::Polarized;
+    if (r.spinResolved) o.spin = SpinGroup::Polarized;
     SCFParams p; p.MinVirial = 1e30;          // no virial gate under a PP (see GenerateValenceBasis)
     AtomCalculation atom(Z, charge, o, p);
 
-    // The per-channel faces (spinResolved only): the polarized run's Density() IS-A Polarized_CD -- an
-    // honest capability cross-cast (abstract face to abstract face, per the project cast rule).
-    const ChargeDensity::Polarized_CD* pol = r.spinResolved
-        ? dynamic_cast<const ChargeDensity::Polarized_CD*>(&atom.Density()) : nullptr;
-    if (r.spinResolved && !pol)
-        throw std::runtime_error("GenerateSeedDensity: polarized run did not yield a Polarized_CD for "+r.element);
+    // The per-channel faces (spinResolved only): the polarized run's Density() answers its Up/Down channels
+    // through the spin-resolved face (V1.37) -- an honest capability ask, no container type named.
+    const auto* sr = r.spinResolved ? dynamic_cast<const ChargeDensity::rSpinResolved_CD*>(&atom.Density()) : nullptr;
+    const ChargeDensity::rChargeDensity* chUp = sr ? sr->GetChannel(Spin::Up  ) : nullptr;
+    const ChargeDensity::rChargeDensity* chDn = sr ? sr->GetChannel(Spin::Down) : nullptr;
+    if (r.spinResolved && !(chUp && chDn))
+        throw std::runtime_error("GenerateSeedDensity: polarized run did not yield a spin-resolved density for "+r.element);
 
     // Sample the spherical valence rho(r) (and the spin channels) on a LOG mesh (schema of
     // atomic_valence_densities.json), and integrate 4*pi*int r^2 rho dr (trapezoid) as the validation charge.
@@ -129,10 +130,10 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     {
         rs[i]  = rr;
         rho[i] = atom.Density()(rvec3_t(rr,0,0));
-        if (pol)
+        if (chUp)
         {
-            up[i] = (*pol->GetChargeDensity(Spin::Up  ))(rvec3_t(rr,0,0));
-            dn[i] = (*pol->GetChargeDensity(Spin::Down))(rvec3_t(rr,0,0));
+            up[i] = (*chUp)(rvec3_t(rr,0,0));
+            dn[i] = (*chDn)(rvec3_t(rr,0,0));
         }
         rr *= beta;
     }
@@ -152,7 +153,7 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     // UP-MAJORITY storage convention (doc/SCFSeedingPlan.md sec 10): rho_up is the MAJORITY channel; which
     // physical channel the SCF polarized is an arbitrary label, so swap if it landed the other way.
     double moment = 0.0;
-    if (pol)
+    if (chUp)
     {
         moment = radInt(up, 0) - radInt(dn, 0);                                           // ~ 2S
         if (moment < 0.0) { std::swap(up, dn); moment = -moment; }
@@ -169,7 +170,7 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
        << "\"rho\": [";
     for (int i = 0; i < Ngrid; i++) { if (i) os << ", "; os << rho[i]; }
     os << "]";
-    if (pol)
+    if (chUp)
     {
         os << ", \"moment\": " << moment;
         os << ", \"rho_up\": [";  for (int i = 0; i < Ngrid; i++) { if (i) os << ", "; os << up[i]; }  os << "]";

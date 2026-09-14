@@ -6,7 +6,7 @@
 #include "gtest/gtest.h"
 #include <string>
 #include <vector>
-import qchem.AtomCalculation;        // AtomCalculation, AtomType, Model, Pol
+import qchem.AtomCalculation;        // AtomCalculation, AtomType, Model, SpinGroup
 import qchem.Hamiltonian.Factory;    // XCFunctional, XC (the exchange-functional selector)
 import qchem.SCFIterator;            // SCFParams
 import qchem.PeriodicTable;          // RelativeDFTError
@@ -38,7 +38,7 @@ class A_DFT_U : public ::testing::TestWithParam<DFTCase> {};
 TEST_P(A_DFT_U, Libxc)
 {
     const DFTCase c = GetParam();
-    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::Xalpha, .pol = Pol::UnPolarized,
+    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::Xalpha, .spin = SpinGroup::UnPolarized,
                                   .xc = XCFunctional{.kind = XC::LibXC, .libxcId = 7}}, MakeParams(c));
     EXPECT_LT(RelativeDFTError(calc.Energy(), c.Z), c.tol);
     EXPECT_TRUE(calc.IsConverged());

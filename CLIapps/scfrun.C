@@ -14,7 +14,7 @@
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
-import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, Pol
+import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, SpinGroup
 import qchem.Calculation;                 // Calculation, CalcOptions, AcceleratorOptions (the MOLECULAR facade)
 import qchem.Structure;                    // Molecule, Atom (build a molecular geometry)
 import qchem.Hamiltonian.Factory;         // XCFunctional (the exchange-functional selector)
@@ -34,7 +34,7 @@ using namespace qchem;
 using std::cout;
 using std::endl;
 using std::string;
-using namespace qchem::Hamiltonian;       // Model, Pol, XCFunctional, XC
+using namespace qchem::Hamiltonian;       // Model, SpinGroup, XCFunctional, XC
 
 // A valence density rho_val(r) = sum over the outermost orbitals of occ*|phi(r)|^2.  Built from a converged
 // spherical all-electron atom (the round-hole solver) by keeping only the top-Nval-electron orbitals -- the
@@ -274,7 +274,7 @@ int main(int argc, char** argv)
 
     // ---- string -> enum maps ----
     std::map<string,Model> models={{"HF",Model::HF},{"DHF",Model::DHF},{"E1",Model::E1},{"DE1",Model::DE1}};
-    Pol pp = (pol=="P"||pol=="Polarized") ? Pol::Polarized : Pol::UnPolarized;
+    SpinGroup pp = (pol=="P"||pol=="Polarized") ? SpinGroup::Polarized : SpinGroup::UnPolarized;
     using BT=AtomType;
     std::map<string,BT> bases={{"Slater",BT::Slater},{"Gaussian",BT::Gaussian},{"BSpline6",BT::BSpline6},
                                {"BSpliner6",BT::BSpliner6},{"Slater_RKB",BT::Slater_RKB},{"Gaussian_RKB",BT::Gaussian_RKB}};
@@ -333,11 +333,11 @@ int main(int argc, char** argv)
     }
     else if (dft)
     {
-        opts.pol = Pol::UnPolarized;
+        opts.spin = SpinGroup::UnPolarized;
         if (model=="Xalpha") { opts.model=Model::Xalpha; opts.xalpha = alpha>0 ? alpha : thePeriodicTable().GetSlaterAlpha(Z); }
         else                   opts.model=Model::LDA;    // real LSDA: Dirac exchange + VWN5
     }
-    else { opts.model = models[model]; opts.pol = pp; }   // HF / Dirac (AtomCalculation picks the EC from the model)
+    else { opts.model = models[model]; opts.spin = pp; }   // HF / Dirac (AtomCalculation picks the EC from the model)
 
     if (minro<0) minro=Z*1e-4;
     if (minfd<0) minfd=Z*2e-5;

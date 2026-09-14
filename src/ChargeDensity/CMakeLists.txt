@@ -5,7 +5,6 @@ target_sources(qcChargeDensity PRIVATE
     Imp/Factory.C
     Internal/Imp/IrrepCD.C
     Internal/Imp/FittedCDImp.C
-    Internal/Imp/PolarizedCDImp.C
     Imp/Seed.C
     Imp/AtomicDensity.C
     Imp/NumericCD.C
@@ -39,7 +38,6 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     Internal/DensitySampler.C             # the two concrete strategies
     Internal/IrrepCD.C
     Internal/FittedCDImp.C
-    Internal/PolarizedCDImp.C
 )
 
 add_subdirectory(tests)

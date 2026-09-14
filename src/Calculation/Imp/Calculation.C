@@ -146,7 +146,7 @@ Calculation::Calculation(const Structure& st, const CalcOptions& opts, const Acc
     , itsAcc(acc)
 {
     // An open shell (2S>0) is unrestricted: it needs distinct up/down densities, so promote to polarized.
-    if (itsOpts.multiplicity > 1) itsOpts.pol = Pol::Polarized;
+    if (itsOpts.multiplicity > 1) itsOpts.spin = SpinGroup::Polarized;
 
     // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence
     // count -- built before the basis/EC, which both read it off the structure.
@@ -217,9 +217,9 @@ bool Calculation::Converge(const SCFParams& params)
         // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
         // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
         auto* ham = itsOpts.pseudopotential
-            ? qchem::Hamiltonian::Factory(itsOpts.pol, itsStructure, PPSpecies(*itsStructure, itsOpts.ppValence),
+            ? qchem::Hamiltonian::Factory(itsOpts.spin, itsStructure, PPSpecies(*itsStructure, itsOpts.ppValence),
                                           itsOpts.mesh, itsBasis)
-            : qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
+            : qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.spin, itsStructure,
                                           itsOpts.mesh, itsBasis, itsOpts.xalpha);
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
         // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed

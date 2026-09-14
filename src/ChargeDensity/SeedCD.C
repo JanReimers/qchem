@@ -101,7 +101,7 @@ private:
 
 //! The SPIN-POLARIZED plane-wave SAD seed (doc/SCFSeedingPlan.md §10): two channel SeedCDs (majority
 //! tables + per-atom flip bits = the collinear magnetic configuration, e.g. the MnO AFM-II staggering).
-//! The matrix-free polarized sibling of cPolarized_CD: the spin-native XC engine reads the channels
+//! The matrix-free polarized sibling of the polarized composite: the spin-native XC engine reads the channels
 //! through the cSpinResolved_CD face; the total-density consumers (PW_Hartree) see the ↑+↓ sum through
 //! the same FourierDensity face every seed has.  The polarized twin of NumericCD/SeedCD -- no density
 //! matrix, so none of the tDM_CD contract appears anywhere.

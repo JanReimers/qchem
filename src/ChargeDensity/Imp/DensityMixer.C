@@ -65,9 +65,13 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
     // valve that re-measures the collapse, the negative control behind GPW_SCF.PolarizedRunKeepsItsSpin.
     // Never a production setting.)
     const bool spinBlind = std::getenv("QCHEM_SPINBLIND_KERKER");
-    if (auto* pol = spinBlind ? nullptr : dynamic_cast<const tPolarized_CD<dcmplx>*>(seed))
+    // THE CHANNELS THROUGH THE FACE (V1.37): a polarized composite answers its Up/Down views, the spin-SAD
+    // seed its channel seeds -- either way a FourierDensity per channel, which is all the leaves read.  A
+    // spin-agnostic density answers null and takes the single-map path below.
+    const tChargeDensity<dcmplx>* up = spinBlind ? nullptr : ChannelOf(seed, Spin::Up  );
+    const tChargeDensity<dcmplx>* dn = spinBlind ? nullptr : ChannelOf(seed, Spin::Down);
+    if (up && dn)
     {
-        const auto* up=pol->GetChargeDensity(Spin::Up), *dn=pol->GetChargeDensity(Spin::Down);
         const auto& fu=dynamic_cast<const FourierDensity&>(*up);
         const auto& fdn=dynamic_cast<const FourierDensity&>(*dn);
         // CHANNEL BASIS.  Default (ρ↑,ρ↓) reproduces CP2K's Kerker exactly -- which is why the choice is one of
@@ -95,15 +99,6 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
         auto md=leaf(FieldOf(fdn,*fit), dn->GetTotalCharge(), p.G0, "↓", fit, recip);
         return std::make_unique<PolarizedDensityMixer>(std::move(mu), std::move(md), fit, recip,
                                                        ChannelBasis::SpinChannels);
-    }
-    // A spin-resolved density that is NOT a tPolarized_CD cannot hand out mutable channel densities for the
-    // leaves to mix -- never silently unpolarized, so say so and take the physical path.
-    if (!spinBlind && dynamic_cast<const tSpinResolved_CD<dcmplx>*>(seed))
-    {
-        std::cerr << "[Mixer] " << tag << " DISABLED: this spin-resolved density exposes no mutable "
-                  << "channels to mix per spin -- falling back to linear D-mixing (which keeps both "
-                  << "channels) rather than collapsing v_xc to the unpolarized branch." << std::endl;
-        return std::make_unique<LinearMixer<dcmplx>>(p.relax);
     }
     return leaf(FieldOf(*fd,*fit), seed->GetTotalCharge(), p.G0, "", fit, recip);
 }

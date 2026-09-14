@@ -92,7 +92,7 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
                 hmat_t<double> D0=blazem::zeroH<double>(n);
                 for (size_t i=0;i<n;i++) D0(i,i)=double(N)/double(n);
                 auto* comp=new tComposite_CD<dcmplx>();
-                comp->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(D0, rb, irr)));
+                comp->Insert(std::unique_ptr<tDM_CD<double>>(IrrepCD_Factory<double>(D0, rb, irr)), irr);
                 return comp;
             }
         const tobs_t<T>* block = (*bs)[0];

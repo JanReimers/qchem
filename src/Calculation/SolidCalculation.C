@@ -42,7 +42,7 @@ import qchem.Structure;                       // Structure
 import qchem.ScalarFunction;                  // ScalarFunction<double> (the rho(r) face)
 import qchem.BasisSet;                        // Real_BS (orbital source), Complex_BS (the Bloch basis)
 import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, RasterPolicy, CellImages
-import qchem.Hamiltonian.Factory;             // Pol, VxcFit, the cHamiltonian solid door
+import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamiltonian solid door
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
 import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.ChargeDensity;                   // cDM_CD
@@ -372,7 +372,7 @@ public:
         //! \f$m(r)\f$ near a site, in one call rather than a cross-cast and a subtraction.
         const ScalarFunction<double>* SpinDensity() const;
         //! \brief The converged density OBJECT, for a caller that must CROSS-CAST it for a capability --
-        //! \c FourierDensity to take a G-space component, \c cPolarized_CD to reach the channels.
+        //! \c FourierDensity to take a G-space component, \c cSpinResolved_CD to reach the channels.
         //!
         //! \c Density()/\c SpinDensity() are the convenient views and cover most consumers; this is the
         //! escape hatch for a campaign diagnostic that needs to ASK THE DENSITY WHAT IT CAN DO, which is

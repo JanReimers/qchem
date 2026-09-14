@@ -77,7 +77,7 @@ struct Rig
         D(0,0)=2.0;
         auto cd=std::make_unique<tComposite_CD<dcmplx>>();
         cd->Insert(std::unique_ptr<tDM_CD<dcmplx>>(
-            new PeriodicIrrepCD<dcmplx>(D, cx.get(), cx->GetIrrep(Spin::None))));
+        new PeriodicIrrepCD<dcmplx>(D, cx.get(), cx->GetIrrep(Spin::None))), cx->GetIrrep(Spin::None));
         return cd;
     }
     //! The REAL twin of \c MakeDensity: the same D(0,0)=2 as a REAL child on the REAL block inside the
@@ -91,7 +91,7 @@ struct Rig
         D(0,0)=2.0;
         auto cd=std::make_unique<tComposite_CD<dcmplx>>();
         cd->Insert(std::unique_ptr<tDM_CD<double>>(
-            new PeriodicIrrepCD<double>(D, re.get(), re->GetIrrep(Spin::None))));
+        new PeriodicIrrepCD<double>(D, re.get(), re->GetIrrep(Spin::None))), re->GetIrrep(Spin::None));
         return cd;
     }
 };
@@ -410,9 +410,9 @@ TEST(RealComplexTerms, SeedDensityTrioMatches_FccDiamond)
     // ...and the SAME through the run-shaped COMPOSITES (the exact seed objects the two arms feed the
     // raw XC route): a mixed composite's rho visit must reach the real child identically.
     tComposite_CD<dcmplx> mixed;  mixed.Insert(std::unique_ptr<tDM_CD<double>>(
-        new PeriodicIrrepCD<double>(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None))));
+        new PeriodicIrrepCD<double>(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None))), rig.re->GetIrrep(Spin::None));
     tComposite_CD<dcmplx> cplx;   cplx.Insert(std::unique_ptr<tDM_CD<dcmplx>>(
-        new PeriodicIrrepCD<dcmplx>(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None))));
+        new PeriodicIrrepCD<dcmplx>(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None))), rig.cx->GetIrrep(Spin::None));
     const auto& fm=dynamic_cast<const FourierDensity&>(mixed);
     const auto& fx=dynamic_cast<const FourierDensity&>(cplx);
     const rvec_t cgr=fm.GetRhoOnGrid(*sf), cgc=fx.GetRhoOnGrid(*sf);
@@ -512,10 +512,10 @@ TEST(RealComplexTerms, MixedCompositeEnergyAndRhoMatchComplex)
 
     tComposite_CD<dcmplx> mixed;   // complex face, REAL child (the 3c-3 shape)
     mixed.Insert(std::unique_ptr<tDM_CD<double>>(
-        new PeriodicIrrepCD<double>(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None))));
+        new PeriodicIrrepCD<double>(Dr, rig.re.get(), rig.re->GetIrrep(Spin::None))), rig.re->GetIrrep(Spin::None));
     tComposite_CD<dcmplx> cplx;    // the all-complex twin
     cplx.Insert(std::unique_ptr<tDM_CD<dcmplx>>(
-        new PeriodicIrrepCD<dcmplx>(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None))));
+        new PeriodicIrrepCD<dcmplx>(Dc, rig.cx.get(), rig.cx->GetIrrep(Spin::None))), rig.cx->GetIrrep(Spin::None));
 
     // STATIC arm: the term's real-block face IS a tStatic_CC<double>, so the real child contracts natively.
     Kinetic<dcmplx> kin;

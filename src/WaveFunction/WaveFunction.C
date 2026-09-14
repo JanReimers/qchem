@@ -6,7 +6,7 @@ export module qchem.WaveFunction;
 export import qchem.EnergyLevel;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
-export import qchem.Symmetry.Irrep;
+export import qchem.Symmetry.Irrep;   // Irrep + Spin + SpinGroup (the imposed spin subgroup)
 export import qchem.ElectronConfiguration;
 import qchem.ScalarFunction;
 export import qchem.Orbitals;
@@ -41,6 +41,17 @@ public:
     virtual EnergyLevels    GetEnergyLevels () const=0;
     virtual iqns_t          GetQNs          () const=0;
     virtual void            DisplayEigen    () const=0;
+    //! \brief THE IMPOSED SPIN SUBGROUP this state was built under (V1.37) -- a property of the run, like
+    //! the point group, not of a type: \c UnPolarized = one folded doublet per spatial irrep (Spin::None),
+    //! \c Polarized = the collinear Up/Down pair.
+    virtual SpinGroup       GetSpinGroup    () const=0;
+    //! \brief BUILDS the collinear magnetization \f$m(r)=\rho_\uparrow-\rho_\downarrow\f$ -- ALLOCATES,
+    //! hence the owning return (V1.25).  Under imposed SU(2) (\c UnPolarized) \f$m\equiv0\f$ by symmetry
+    //! and this THROWS rather than raster a field of zeros: the caller has \c GetSpinGroup() to ask first,
+    //! which is exactly what the facade does.  (This used to be a separate \c tSpinResolvedWF capability
+    //! face carried by the polarized TYPE; with one wave-function class the subgroup is the only thing
+    //! left to ask, so it is asked.)
+    virtual std::unique_ptr<sf_t> GetSpinDensity() const=0;
     // (No Emit*() here.  V1.14: a class does not tell another class WHEN to report -- the composite WF
     // announces its basis usage itself, from FillOrbitals, the moment the occupations exist.)
 
@@ -51,29 +62,5 @@ private:
 export using WaveFunction  = tWaveFunction<double>;
 export using cWaveFunction = tWaveFunction<dcmplx>;
 
-//---------------------------------------------------------------------------------------
-//
-//  Capability face: a COLLINEAR SPIN-POLARIZED wave function -- the one that HAS a magnetization
-//  \f$m(r)=\rho_\uparrow-\rho_\downarrow\f$.  This used to be a pure virtual on tWaveFunction
-//  returning a null pointer for the unpolarized half of the hierarchy (V1.17), which declared a
-//  capability that half the implementors do not have and made every client null-check a raw pointer.
-//  The polarized wave function is the PRIMARY type here, not a special case bolted onto the base --
-//  an unpolarized one simply does not answer this question, and now cannot be asked it.
-//
-//  The idiom is the one qcChargeDensity already uses for exactly this shape (tSpinResolved_CD): a
-//  data-free face that is NOT a tWaveFunction, reached by the sanctioned abstract->abstract
-//  dynamic_cast, so capabilities live only on the types that have them.
-//
-export template <class T> class tSpinResolvedWF
-{
-public:
-    typedef ScalarFunction<double> sf_t;
-    virtual ~tSpinResolvedWF() {}
-    //! \brief BUILDS \f$m(r)\f$ over BOTH channels -- ALLOCATES, hence the owning return (V1.25).
-    virtual std::unique_ptr<sf_t> GetSpinDensity() const=0;
-};
-
-export using SpinResolvedWF  = tSpinResolvedWF<double>;
-export using cSpinResolvedWF = tSpinResolvedWF<dcmplx>;
 
 } //namespace

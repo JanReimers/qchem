@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 #include <cmath>
 
-import qchem.Calculation;            // Calculation, CalcOptions, Model, Pol
+import qchem.Calculation;            // Calculation, CalcOptions, Model, SpinGroup
 import qchem.Structure;              // Molecule, Atom
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
 import qchem.Types;                  // Vector3D
@@ -37,13 +37,13 @@ static Molecule MakeWater()
 
 // One converged run through the facade.  symmetry=true SALC-blocks the (Cartesian PG) basis; everything
 // else is identical between the two, so any energy difference is a SALC-transform error.
-static EnergyBreakdown Run(const Molecule& mol, Model model, Pol pol, bool symmetry,
+static EnergyBreakdown Run(const Molecule& mol, Model model, SpinGroup pol, bool symmetry,
                            Angular angular = Angular::Cartesian)
 {
     // The facade's default seed (auto SAD for DFT, CoreGuess for HF) -- the SAD polarized-DFT path is now
     // robust (FittedVxcPol handles the spin-agnostic seed; see M_DFT.WaterPolarizedSAD).  This is an
     // invariance test anyway, so the converged energy is seed-independent.
-    Calculation calc(mol, {.basis = "dzvp", .model = model, .pol = pol, .angular = angular, .symmetry = symmetry});
+    Calculation calc(mol, {.basis = "dzvp", .model = model, .spin = pol, .angular = angular, .symmetry = symmetry});
     calc.Converge(tight);                 // re-converge tight for the invariance tolerance
     return calc.EnergyTerms();
 }
@@ -52,7 +52,7 @@ static EnergyBreakdown Run(const Molecule& mol, Model model, Pol pol, bool symme
 // the decorator transforms the 3-centre integrals by O, like J/K, building each from the raw basis's
 // *cached* 3C (re-entrant integral cache) -- so the raw 3C is shared across irreps.  (xalpha defaults to
 // 0.7, == the scaffold's RunDFT alpha; the facade auto-runs DFT with DIIS-from-start.)
-static void CheckWaterDFT(Pol pol, double tol)
+static void CheckWaterDFT(SpinGroup pol, double tol)
 {
     const Molecule water = MakeWater();
     EnergyBreakdown ebRef = Run(water, Model::Xalpha, pol, false);
@@ -60,16 +60,16 @@ static void CheckWaterDFT(Pol pol, double tol)
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), tol) << "DFT symmetric == non-symmetric";
 }
 
-TEST(M_Sym, water_DFT_unpolarized) { CheckWaterDFT(Pol::UnPolarized, 1e-5); }
+TEST(M_Sym, water_DFT_unpolarized) { CheckWaterDFT(SpinGroup::UnPolarized, 1e-5); }
 // Polarized (unrestricted) Xalpha: with DIIS driving from the start the non-symmetric and SALC runs
 // converge to the SAME stationary point to ~12 digits -- the SALC transform is exact.  (See
 // memory project_msym_layout_ub: the old loose 1e-3 was masking a non-convergent run.)
-TEST(M_Sym, water_DFT_polarized)   { CheckWaterDFT(Pol::Polarized, 1e-6); }
+TEST(M_Sym, water_DFT_polarized)   { CheckWaterDFT(SpinGroup::Polarized, 1e-6); }
 
 // Symmetry-adapted water HF (real DZVP basis) must equal the non-symmetric run, both for the closed-shell
 // unpolarized and (since water is closed shell) the polarized Hamiltonian -- and the absolute energy /
 // virial must be physical.
-static void CheckWaterHF(Pol pol)
+static void CheckWaterHF(SpinGroup pol)
 {
     const Molecule water = MakeWater();
     EnergyBreakdown ebRef = Run(water, Model::HF, pol, false);
@@ -81,8 +81,8 @@ static void CheckWaterHF(Pol pol)
     EXPECT_NEAR(ebRef.GetVirial(), -2.0, 0.02) << "virial 2+V/K should be ~0 at the HF minimum";
 }
 
-TEST(M_Sym, water_HF_unpolarized) { CheckWaterHF(Pol::UnPolarized); }
-TEST(M_Sym, water_HF_polarized)   { CheckWaterHF(Pol::Polarized); }
+TEST(M_Sym, water_HF_unpolarized) { CheckWaterHF(SpinGroup::UnPolarized); }
+TEST(M_Sym, water_HF_polarized)   { CheckWaterHF(SpinGroup::Polarized); }
 
 // SPHERICAL SALC end-to-end (OpenWork A, S3a-S5): the in-house MnD-spherical basis (real solid harmonics;
 // water/dzvp carries the O d-shell, so the harmonic path is genuinely exercised) symmetry-adapted must
@@ -90,7 +90,7 @@ TEST(M_Sym, water_HF_polarized)   { CheckWaterHF(Pol::Polarized); }
 // SALC pipeline and the SymmetryAdapt SphData dispatch.  We assert only adapted == un-adapted (the SALC
 // invariant); the spherical absolute energy differs from Cartesian by the dropped d s-contaminant (see
 // M_DFT.WaterSpherical), so we bound it loosely for physical sanity.
-static void CheckWaterHFSpherical(Pol pol)
+static void CheckWaterHFSpherical(SpinGroup pol)
 {
     const Molecule water = MakeWater();
     EnergyBreakdown ebRef = Run(water, Model::HF, pol, false, Angular::Spherical);
@@ -98,8 +98,8 @@ static void CheckWaterHFSpherical(Pol pol)
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "spherical: symmetric == non-symmetric";
     EXPECT_NEAR(ebRef.GetTotalEnergy(), -76.0, 0.5) << "physical sanity (water HF ~ -76 Ha)";
 }
-TEST(M_Sym, water_HF_spherical_unpolarized) { CheckWaterHFSpherical(Pol::UnPolarized); }
-TEST(M_Sym, water_HF_spherical_polarized)   { CheckWaterHFSpherical(Pol::Polarized); }
+TEST(M_Sym, water_HF_spherical_unpolarized) { CheckWaterHFSpherical(SpinGroup::UnPolarized); }
+TEST(M_Sym, water_HF_spherical_polarized)   { CheckWaterHFSpherical(SpinGroup::Polarized); }
 
 // Rotate v by Euler (Rz(a) Ry(b) Rx(c)) -- a generic, non-axis-aligned orientation.
 static Vector3D<double> Rotate(const Vector3D<double>& v, double a, double b, double c)
@@ -129,8 +129,8 @@ static Molecule MakeWaterMoved(double a=0.7, double b=1.1, double c=0.3,
 // geometry-aware; the canonical run is in the same process.)
 static void CheckMovedWaterHF(const Molecule& mol)
 {
-    EnergyBreakdown ebRef = Run(mol, Model::HF, Pol::UnPolarized, false);
-    EnergyBreakdown ebSym = Run(mol, Model::HF, Pol::UnPolarized, true);
+    EnergyBreakdown ebRef = Run(mol, Model::HF, SpinGroup::UnPolarized, false);
+    EnergyBreakdown ebSym = Run(mol, Model::HF, SpinGroup::UnPolarized, true);
 
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "symmetric == non-symmetric";
     EXPECT_NEAR(ebSym.GetTotalEnergy(), -76.022903, 1e-4) << "invariant under rigid rotation/translation";

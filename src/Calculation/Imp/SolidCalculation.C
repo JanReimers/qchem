@@ -85,7 +85,7 @@ struct SolidCalculation::Imp
     qcMesh::MeshParams                          xcMesh;          // AFTER Auto resolution
     std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf;
     std::unique_ptr<qchem::ChargeDensity::cDM_CD>         cd;    // the converged density (outlives the WF)
-    //! m(r) of the converged state.  OWNED: SpinResolvedWF::GetSpinDensity() BUILDS it and hands over the
+    //! m(r) of the converged state.  OWNED: WaveFunction::GetSpinDensity() BUILDS it and hands over the
     //! unique_ptr (V1.25).  EMPTY on an unpolarized run -- that WF does not implement the face at all (V1.17).
     std::unique_ptr<SolidCalculation::sf_t>               spin;
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
@@ -322,7 +322,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     {
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
-            polarized ? qchem::Hamiltonian::Pol::Polarized : qchem::Hamiltonian::Pol::UnPolarized,
+            polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
             itsImp->st, itsImp->bs.get(), opts.species, "LDA", itsImp->xcMesh, opts.vxcFit));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
@@ -697,13 +697,13 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     auto cd = itsImp->scf->GetWaveFunction()->GetChargeDensity();   // BUILT for us; we take it
     itsImp->charge = cd->GetTotalCharge();
     itsImp->cd = std::move(cd);
-    // m(r): only a SPIN-POLARIZED wave function has one, so we ASK FOR THE CAPABILITY rather than call a
-    // base-class getter that answers null for half the hierarchy (V1.17).  Abstract->abstract cross-cast,
-    // the sanctioned kind.  RESET on the unpolarized branch: Converge runs once per anneal STAGE, so a
+    // m(r): only a run under the POLARIZED spin subgroup has one -- under imposed SU(2) it is identically
+    // zero and is not built (V1.37: the subgroup is a property of the run, asked of the wave function, not a
+    // type to cross-cast for).  RESET on the unpolarized branch: Converge runs once per anneal STAGE, so a
     // stale m(r) from an earlier stage must not survive into a run that no longer has one.
     const auto* wf = itsImp->scf->GetWaveFunction();
-    if (const auto* swf = dynamic_cast<const qchem::WaveFunction::cSpinResolvedWF*>(wf))
-        itsImp->spin = swf->GetSpinDensity();   // BUILT for us; we take it
+    if (wf->GetSpinGroup()==SpinGroup::Polarized)
+        itsImp->spin = wf->GetSpinDensity();   // BUILT for us; we take it
     else
         itsImp->spin.reset();
     return Outcome_();

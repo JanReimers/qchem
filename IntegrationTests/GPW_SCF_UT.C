@@ -84,6 +84,7 @@ import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;         // GPW_IBS (build a conc
 import qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
 import qchem.BasisSet.GMap;              // Projector3<dcmplx> (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
 import qchem.ChargeDensity.FourierDensity;        // FourierDensity (ρ̃ for the §3 order-parameter diagnostic)
+import qchem.CompositeCD;                         // tComposite_CD (the polarized density = one composite over Up+Down blocks, V1.37)
 import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity.SeedCD;              // PolarizedSeedCD (the raw spin-SAD seed, for the sublattice gate)               // IrrepCD_Factory/PolarizedCD_Factory (fixed-density probe)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
@@ -515,10 +516,8 @@ static void ReportSymmetryFound(const Complex_BS& bs, const qchem::ChargeDensity
     // PAIR keep the Shubnikov group?  (The grey line above sees only the total; a dead sublattice moment
     // is invisible to it.)  σ=Flip ops compare across the channels, so their row IS the m1=-m2 mirror.
     if (magOps.empty()) return;
-    const auto* pol = dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&cd);
-    if (!pol) return;
-    const auto* fdu = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChargeDensity(Spin::Up));
-    const auto* fdd = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChargeDensity(Spin::Down));
+    const auto* fdu = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(qchem::ChargeDensity::ChannelOf(&cd, Spin::Up));
+    const auto* fdd = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(qchem::ChargeDensity::ChannelOf(&cd, Spin::Down));
     if (!fdu || !fdd) return;
     std::vector<Symmetry::Lattice_3D::SymOp> rmag;
     for (const auto& op : magOps) rmag.push_back(Symmetry::Lattice_3D::ReciprocalOf(op));
@@ -613,8 +612,8 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
         // qchem.Hamiltonian.Factory rather than the Internal ctor -- which is what a real facade in
         // src/Calculation/ will call.  (The bespoke term-level probes further down still use the Internal
         // ctors directly; they are testing the terms, not driving a run.)
-        ham=qchem::Hamiltonian::Factory(polarized ? qchem::Hamiltonian::Pol::Polarized
-                                                  : qchem::Hamiltonian::Pol::UnPolarized,
+        ham=qchem::Hamiltonian::Factory(polarized ? qchem::SpinGroup::Polarized
+                                                  : qchem::SpinGroup::UnPolarized,
                                         lat.GetStructure(), bs.get(), o.species, "LDA",
                                         qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit);
     }
@@ -772,8 +771,8 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
     std::unique_ptr<qchem::Hamiltonian::cHamiltonian> ham;
     {
         qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
-        ham.reset(qchem::Hamiltonian::Factory(polarizedA ? qchem::Hamiltonian::Pol::Polarized
-                                                         : qchem::Hamiltonian::Pol::UnPolarized,
+        ham.reset(qchem::Hamiltonian::Factory(polarizedA ? qchem::SpinGroup::Polarized
+                                                         : qchem::SpinGroup::UnPolarized,
                                     st, bs.get(), o.species, "LDA",
                                     qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit));
     }
@@ -1383,7 +1382,7 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
 
 // (tier 4b, invariant) THE ζ=0 COLLAPSE: the TWO-CHANNEL machinery on a CLOSED SHELL must reproduce the
 // unpolarized anchor.  Same gapped Si/Γamma cell + recipe as SmearingInertOnGap, but multiplicity=1 drives
-// the polarized pipeline (dcmplx tPolarizedWF, Crystal_EC(4,4), Vxc_QuadraturePol + Vcorr_QuadraturePol) with
+// the polarized pipeline (the dcmplx composite WF under SpinGroup::Polarized, Crystal_EC(4,4), Vxc_QuadraturePol + Vcorr_QuadraturePol) with
 // nUp=nDn=4 -- v^σ(ρ/2,ρ/2)=v^P(ρ) pointwise, so the total must land on the SAME −7.11506 anchor.  The
 // periodic sibling of the molecular WaterPolarizedLDA-vs-LDA check; catches any polarized-path divergence
 // (channel bookkeeping, shared-engine caching, the collocation memo screen) on known ground.
@@ -1565,16 +1564,16 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) { Dup(i,j)=dcmplx(0.0); Ddn(i,j)=dcmplx(0.0); }
         Dup(k,k)=dcmplx(1.0/std::real(dcmplx(S(k,k))));            // Tr(D S) = 1
         using namespace qchem::ChargeDensity;
-        std::unique_ptr<cDM_CD> up(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up)));
-        std::unique_ptr<cDM_CD> dn(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down)));
-        auto pol=PolarizedCD_Factory<dcmplx>(std::move(up),std::move(dn));   // V1.25: takes ownership
-        auto* cd=dynamic_cast<cDM_CD*>(pol.get());
+        // The polarized density is ONE composite over the Up and Down irrep blocks (V1.37).
+        auto pol=std::make_unique<tComposite_CD<dcmplx>>();
+        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up  ))), obs->GetIrrep(Spin::Up  ));
+        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down))), obs->GetIrrep(Spin::Down));
+        cDM_CD* cd=pol.get();
         qchem::EnergyBreakdown te = ham->GetTotalEnergy(cd);
         std::cout << "[fixed-D k="<<k<<"] charge="<<cd->GetTotalCharge()
                   << " Ekin="<<te["Kinetic"]<<" Een="<<te["Een"]<<" Eee="<<te["Eee"]<<" Exc="<<te["Exc"]
                   << " Enn="<<te["Enn"]<<" E_alphaZ="<<te["E_alphaZ"]
                   << " Etot="<<te.GetTotalEnergy()<<std::endl;
-        delete cd;
         return te;
     };
     auto t2=probe(2);   // alpha=0.6999271 s-Gaussian
@@ -1629,10 +1628,11 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) { Dup(i,j)=dcmplx(0.0); Ddn(i,j)=dcmplx(0.0); }
         Dup(k,k)=dcmplx(1.0/std::real(dcmplx(S(k,k))));
         using namespace qchem::ChargeDensity;
-        std::unique_ptr<cDM_CD> up(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up)));
-        std::unique_ptr<cDM_CD> dn(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down)));
-        auto pol=PolarizedCD_Factory<dcmplx>(std::move(up),std::move(dn));   // V1.25: takes ownership
-        auto* cd=dynamic_cast<cDM_CD*>(pol.get());
+        // The polarized density is ONE composite over the Up and Down irrep blocks (V1.37).
+        auto pol=std::make_unique<tComposite_CD<dcmplx>>();
+        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up  ))), obs->GetIrrep(Spin::Up  ));
+        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down))), obs->GetIrrep(Spin::Down));
+        cDM_CD* cd=pol.get();
         auto diag=[&](const hmat_t<dcmplx>& M){ double s2=0; for (size_t i=0;i<M.rows();i++) s2+=std::real(dcmplx(M(i,i))); return s2; };
         cDynamic_HT& xi=x; cDynamic_HT& ci=c;      // the public term face (Imp::GetMatrix is private)
         auto Mxu=xi.GetMatrix(obs, Spin::Up,   cd);
@@ -1660,10 +1660,11 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) q+=c[i]*c[j]*std::real(dcmplx(S(i,j)));
         for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) Dup(i,j)=dcmplx(std::real(dcmplx(Dup(i,j)))/q);
         using namespace qchem::ChargeDensity;
-        std::unique_ptr<cDM_CD> up(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up)));
-        std::unique_ptr<cDM_CD> dn(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down)));
-        auto pol=PolarizedCD_Factory<dcmplx>(std::move(up),std::move(dn));   // V1.25: takes ownership
-        auto* cd=dynamic_cast<cDM_CD*>(pol.get());
+        // The polarized density is ONE composite over the Up and Down irrep blocks (V1.37).
+        auto pol=std::make_unique<tComposite_CD<dcmplx>>();
+        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up  ))), obs->GetIrrep(Spin::Up  ));
+        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down))), obs->GetIrrep(Spin::Down));
+        cDM_CD* cd=pol.get();
         qchem::Hamiltonian::cHamiltonian* hamP=new qchem::Hamiltonian::Ham_PW_DFT(
             lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
             Hamiltonian::VxcFit::Auto, /*polarized*/true);
@@ -1678,7 +1679,7 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
 
 // (tier 4b, gate a) THE POLARIZED SOLID PIPELINE: Na pseudo-atom in a box, DOUBLET (doc/SymmetryUpgradePlan.md
 // §4).  The minimal end-to-end TWO-CHANNEL GPW run: Na q1 GTH PP, S=1/2, moment 1 -- spin-resolved D through
-// Crystal_EC(nUp=1,nDown=0), the dcmplx tPolarizedWF (two Bloch channels), and the spin-native Becke XC pair
+// Crystal_EC(nUp=1,nDown=0), the dcmplx composite WF under SpinGroup::Polarized (two Bloch channels), and the spin-native Becke XC pair
 // (Vxc_QuadraturePol + Vcorr_QuadraturePol).  Cross-anchored against the finite molecular facade doublet on the SAME
 // valence basis + PP (the spin sibling of SiPseudoAtomInBoxMatchesFinite).
 //
@@ -3633,10 +3634,10 @@ TEST(GPW_SCF, PolarizedRunKeepsItsSpin)
     o.orderName="m_Mn";
     o.orderProbe=[&mtrace,rMn,off](const qchem::ChargeDensity::cDM_CD& cd)->double
     {
-        const auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&cd);
-        if (!pol) { mtrace.push_back(0.0); return 0.0; }    // an unpolarized Fock density: the defect itself
-        const double m=(*pol->GetChargeDensity(Spin::Up  ))(rMn+off)
-                      -(*pol->GetChargeDensity(Spin::Down))(rMn+off);
+        const auto* up=qchem::ChargeDensity::ChannelOf(&cd, Spin::Up  );
+        const auto* dn=qchem::ChargeDensity::ChannelOf(&cd, Spin::Down);
+        if (!up || !dn) { mtrace.push_back(0.0); return 0.0; }    // an unpolarized Fock density: the defect itself
+        const double m=(*up)(rMn+off)-(*dn)(rMn+off);
         mtrace.push_back(m);
         return m;
     };
@@ -3818,7 +3819,7 @@ TEST(GPW_SCF, MnOSeedSublatticesAreEqualAndOpposite)
 // By elimination (seed, Becke weights, Kinetic/Vloc/Vnl, Phi tables all exonerated) the first-Fock-build
 // mirror break must live in v_xc -- yet a pointwise LSDA functional "cannot" be site-dependent.  This probe
 // resolves the contradiction by testing what the Fock build ACTUALLY consumes: the channel rasters
-// SinglesDensitySampler::RhoPol hands the Vxc_Quadrature*Pol pair, at the mesh's own points.  The mesh stores its
+// SinglesDensitySampler::RhoPol hands the Vxc_Quadrature*SpinGroup pair, at the mesh's own points.  The mesh stores its
 // points WRAPPED into the home cell (kpt = r - A*n0, MakePeriodicBeckeMesh) -- so a valid seed must satisfy
 // rho_up(p_g) = rho_dn(p_g + t) with t = A*(1/2,1/2,1/2) AT EVERY STORED POINT, and (v_xc being pointwise
 // in the channel pair) v_xc^up(p_g) = v_xc^dn(p_g + t).  The two Mn blocks' grids are exact t-translates of
@@ -3887,7 +3888,7 @@ TEST(GPW_SCF, MnOSeedVxcMirrorOnBeckeMesh)
         return -1;
     };
 
-    // v_xc per point from the channel pair -- the same functionals the Vxc_Quadrature*Pol pair applies.
+    // v_xc per point from the channel pair -- the same functionals the Vxc_Quadrature*SpinGroup pair applies.
     qchem::Hamiltonian::SlaterExchange ex(2.0/3.0, Spin(Spin::Up));   // channel-native (non-halving)
     qchem::Hamiltonian::VWN_Correlation vc;
     auto vxc=[&](double u, double d, const Spin& s)->double
@@ -4069,10 +4070,11 @@ TEST(GPW_SCF, ImposedShubnikovHoldsAFMThroughSCF_Mn2Box)
     ASSERT_TRUE(h.cd) << "the run must produce a final density";
 
     // The final density through the spin-resolved face: the order must be ALIVE and EXACTLY mirrored.
-    const auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(h.cd.get());
+    const auto* pol=dynamic_cast<const qchem::ChargeDensity::cSpinResolved_CD*>(h.cd.get());
     ASSERT_NE(pol, nullptr);
-    const auto* up=pol->GetChargeDensity(Spin::Up);
-    const auto* dn=pol->GetChargeDensity(Spin::Down);
+    const auto* up=pol->GetChannel(Spin::Up);
+    const auto* dn=pol->GetChannel(Spin::Down);
+    ASSERT_TRUE(up && dn);
     const rvec3_t off(0.7,0,0), r1(0,0,0), r2(a/2,a/2,a/2);
     const double m1=(*up)(r1+off)-(*dn)(r1+off);
     const double m2=(*up)(r2+off)-(*dn)(r2+off);
@@ -4409,10 +4411,9 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
             o.orderName="m_stag";
             o.orderProbe=[off,rMn1,rMn2](const qchem::ChargeDensity::cDM_CD& cd)->double
             {
-                const auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&cd);
-                if (!pol) return 0.0;
-                const auto* up=pol->GetChargeDensity(Spin::Up);
-                const auto* dn=pol->GetChargeDensity(Spin::Down);
+                const auto* up=qchem::ChargeDensity::ChannelOf(&cd, Spin::Up);
+                const auto* dn=qchem::ChargeDensity::ChannelOf(&cd, Spin::Down);
+                if (!up || !dn) return 0.0;
                 const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
                 const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
                 if (std::getenv("GPW_MNO_SITES"))
@@ -4527,10 +4528,10 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
         ChargeDensity::fitbasis_t fit(A.calc->Basis().CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
         // The G-space arm needs the CHANNELS' Fourier faces, which m(r) cannot provide -- so ask the
         // density object what it can do (the tree's normal way to reach a capability).
-        auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(&A.result->DensityMatrix());
-        ASSERT_TRUE(pol) << "a multiplicity>=1 run must produce a polarized density";
-        auto* fu =dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChargeDensity(Spin::Up));
-        auto* fdn=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChargeDensity(Spin::Down));
+        auto* pol=dynamic_cast<const qchem::ChargeDensity::cSpinResolved_CD*>(&A.result->DensityMatrix());
+        ASSERT_TRUE(pol) << "a multiplicity>=1 run must produce a spin-resolved density";
+        auto* fu =dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChannel(Spin::Up));
+        auto* fdn=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(pol->GetChannel(Spin::Down));
         ASSERT_TRUE(fu && fdn);
         ΔG_Map mu=fu->GetFourierDensity(*fit), md=fdn->GetFourierDensity(*fit);
         const ivec3_t q(1,0,0);

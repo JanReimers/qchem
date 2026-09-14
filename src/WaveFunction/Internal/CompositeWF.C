@@ -31,21 +31,31 @@ using iwf_child_t = std::variant<std::unique_ptr<tIrrepWF<double>>, std::unique_
 //! Non-owning mirror of the child slot (the Irrep/Spin lookup maps + the reservoir grouping).
 using iwf_ref_t   = std::variant<tIrrepWF<double>*, tIrrepWF<dcmplx>*>;
 
-// Wave function as a list of per-irrep wave functions.  Templated on the matrix element type T
-// (rX/cX); CompositeWF is the <double> alias (atoms/molecules), cCompositeWF the <dcmplx>
-// (plane-wave / single-k Bloch-irrep) instantiation.
+// THE wave function: ONE composite of per-irrep wave functions over the FULL Irrep (spatial ⊗ Spin) --
+// doc/CleanupCandidates.md V1.37.  Templated on the matrix element type T (rX/cX); CompositeWF is the
+// <double> alias (atoms/molecules), cCompositeWF the <dcmplx> (plane-wave / single-k Bloch-irrep)
+// instantiation.
+//
+// Pol/UnPol is the IMPOSED SPIN SUBGROUP (qchem::SpinGroup), a ctor argument like the point group is a
+// property of the basis -- NOT a pair of thin subclasses (tPolarizedWF / tUnPolarizedWF are gone).  It
+// decides only which spin irreps the per-irrep children are built for: Spin::None (one folded doublet
+// per spatial irrep, degeneracy 2 -- the CLAUDE.md "UnPol is the efficient special case", carried by the
+// LABEL) or Spin::Up + Spin::Down.  Everything else -- the fills, the density, the levels -- is one code
+// path over the children.  The subgroup shows in exactly two places: the level DISPLAY (a side-by-side
+// ↑/↓ table vs. one column) and GetSpinDensity (m ≡ 0 under SU(2), so it is not built).
 template <class T> class tCompositeWF
     : public virtual tSCFWaveFunction<T>
 {
 public:
     typedef typename tWaveFunction<T>::iqns_t iqns_t;
-    using tWaveFunction<T>::GetChargeDensity;   // keep the no-arg (whole-density) overload visible past GetChargeDensity(Spin)
+    typedef typename tWaveFunction<T>::sf_t   sf_t;
 
-    //! \a basisOrtho selects how the (per-irrep) orbital-overlap S is orthogonalised for the generalised
-    //! eigenproblem: \c Cholesky (default; requires S positive-definite) or \c Eigen / \c SVD with a
-    //! \a basisOrthoTol cutoff that DROPS near-null eigen/singular values -- canonical orthogonalisation for a
-    //! linearly-dependent basis (e.g. diffuse Gaussians on a dense lattice).  \a basisOrthoTol\f$\le0\f$ = keep all.
-    tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,SCFAccelerator*,
+    //! \a g is the imposed spin subgroup (see the class note).  \a basisOrtho selects how the (per-irrep)
+    //! orbital-overlap S is orthogonalised for the generalised eigenproblem: \c Cholesky (default; requires S
+    //! positive-definite) or \c Eigen / \c SVD with a \a basisOrthoTol cutoff that DROPS near-null
+    //! eigen/singular values -- canonical orthogonalisation for a linearly-dependent basis (e.g. diffuse
+    //! Gaussians on a dense lattice).  \a basisOrthoTol\f$\le0\f$ = keep all.
+    tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,SpinGroup g,SCFAccelerator*,
                  qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0);
     ~tCompositeWF();
 
@@ -57,13 +67,23 @@ public:
     virtual void            MoveOrbitals    (OccupationPolicy<T>&, double t, bool commit, double mergeTol);
     virtual const Orbitals* GetOrbitals     (const Irrep&) const;
     virtual       Orbitals* GetOrbitals     (const Irrep&)      ;
-    virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;}
+    virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;}   //!< all spin irreps merged
     virtual void            FillOrbitals    (OccupationPolicy<T>&, double mergeTol);
     // (SetMOM/SetSmearing/GetEntropyTerm/AdoptMOMReference/ReleaseMOMReference are GONE -- the
     //  SCFIterator's OccupationPolicy slot owns that configuration and state, V1.11 inc 3.)
     virtual iqns_t          GetQNs          () const;
+    virtual void            DisplayEigen    () const;
+    virtual SpinGroup       GetSpinGroup    () const {return itsSpinGroup;}
 
-    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity(Spin) const;   //!< BUILDS it (V1.25)
+    //! BUILDS the whole-system density (V1.25): ONE tComposite_CD over EVERY child block, in the order
+    //! they were built (spin irrep by spin irrep) -- a polarized run's Up blocks then its Down blocks, and
+    //! the composite's channel views are what a spin-native consumer reads.
+    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity() const;
+    //! BUILDS one spin irrep's density alone (V1.25) -- the channel as a composite of its own, for the
+    //! spin density and for tests; the SCF consumes the whole-system one above.
+    virtual std::unique_ptr<tDM_CD<T>> GetChargeDensity(Spin) const;
+    //! \copydoc tWaveFunction::GetSpinDensity
+    virtual std::unique_ptr<sf_t> GetSpinDensity() const;
     virtual EnergyLevels    GetEnergyLevels (Spin) const;
 
 
@@ -87,9 +107,13 @@ private:
     //! Smeared fill of one reservoir: solve ONE μ over the reservoir's blocks -- across the Bloch mesh when
     //! the partition spans spatial (doc/GPWPlan1.md item 3), across SPIN when it spans spin (free moment).
     void FillReservoirAtSharedMu(OccupationPolicy<T>&, const std::vector<iwf_ref_t>&, double mergeTol);
+    //! The two level tables: the subgroup picks one (see the class note).
+    void DisplayEigenPolarized  () const;
+    void DisplayEigenUnPolarized() const;
 
     const tbs_t<T>*              itsBS;
     const ElectronConfiguration* itsEC;
+    SpinGroup                    itsSpinGroup;     //the imposed spin subgroup (V1.37)
     qchem::Ortho                 itsBasisOrtho;    //S-orthogonalisation mode for the generalised eigenproblem
     double                       itsBasisOrthoTol; //near-null eigen/singular-value cutoff (Eigen/SVD; 0 = keep all)
     ReservoirPartition           itsPartition;     //how the EC pools its electrons (V1.11 increment 2)

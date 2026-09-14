@@ -19,7 +19,7 @@
 #include <iostream>
 #include <string>
 #include <functional>
-import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Pol
+import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, SpinGroup
 import qchem.SolidCalculation;       // SolidCalculation -- the NAMED periodic front door (Step 4)
 import qchem.Structure;              // FCCUnitCell
 import qchem.Lattice_3D;             // Lattice_3D

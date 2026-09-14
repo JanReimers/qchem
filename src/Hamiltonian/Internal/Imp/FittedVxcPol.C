@@ -58,22 +58,18 @@ const rsmat_t& FittedVxcPol::GetMatrix(const robs_t* bs,const Spin& s,const rCha
         throw std::runtime_error("FittedVxcPol::GetMatrix: asked for the Spin::None (unpolarized) block of "
                                  "a polarized Vxc term -- a polarized term has an Up and a Down block, no "
                                  "total.");
-    const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
-    if (!pol_cd)
+    const rChargeDensity* chan = ChannelOf(cd,s);   // this spin's channel, through the face (V1.37)
+    if (!chan)
     {
         // Spin-unpolarized SEED density (e.g. the SAD total rho, implicitly rho_up = rho_down = rho/2).
         // For Slater exchange Vx^sigma(rho/2) == Vx_unpolarized(rho_total), so each spin channel's
         // iteration-0 Vxc is just the unpolarized Vxc of the total seed density.  (Only the seed is
-        // spin-agnostic; once the SCF builds orbitals the density is a Polarized_CD and the per-spin
+        // spin-agnostic; once the SCF builds orbitals the density resolves its channels and the per-spin
         // branch below runs.)  Previously the dynamic_cast yielded null and -- with the assert compiled
         // out in Release -- segfaulted on the SAD-seeded polarized DFT path.
         return (s==Spin::Up ? itsUpVxc : itsDownVxc)->GetMatrix(bs, s, cd);
     }
-
-    const rDM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
-    const rDM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
-
-    return s==Spin::Up ? itsUpVxc->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
+    return (s==Spin::Up ? itsUpVxc : itsDownVxc)->GetMatrix(bs,s,chan);
 }
 
 
@@ -81,11 +77,9 @@ void FittedVxcPol::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
-    const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
-    assert(pol_cd);
-
-    const rDM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
-    const rDM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
+    const rDM_CD* ucd = DM_ChannelOf(cd,Spin::Up  );
+    const rDM_CD* dcd = DM_ChannelOf(cd,Spin::Down);
+    assert(ucd && dcd && "FittedVxcPol energy: density must be polarized (D-backed channels)");
     itsUpVxc  ->GetEnergy(te,ucd);
     itsDownVxc->GetEnergy(te,dcd);
 }
@@ -98,13 +92,14 @@ void FittedVxcPol::RefreshForDensity(const rChargeDensity* cd) const
 {
     if (!cd) return;
     // ⛔ EACH CHILD GETS **ITS OWN SPIN CHANNEL**, exactly as GetMatrix hands it one -- forwarding the TOTAL
-    // here is silently WRONG, and the mechanism is the standing polarized-Version trap: a Polarized_CD's
-    // Version() FORWARDS TO ITS UP CHILD, so warming the Up child with the total would stamp itsFitVersion
+    // here is silently WRONG, and the mechanism is the standing polarized-Version trap: a polarized composite's
+    // Version() FORWARDS TO ITS FIRST (Up) BLOCK, so warming the Up child with the total would stamp itsFitVersion
     // with a serial that the real Up channel then MATCHES -- newCD returns false, the refit never happens,
     // and the run proceeds with v_xc fitted to rho_TOTAL instead of rho_UP.  (Measured 2026-09-10: three
     // polarized molecular DFT gates failed on exactly that.)
-    const Polarized_CD* pol=dynamic_cast<const Polarized_CD*>(cd);
-    if (!pol)
+    const rChargeDensity* up=ChannelOf(cd,Spin::Up  );
+    const rChargeDensity* dn=ChannelOf(cd,Spin::Down);
+    if (!up || !dn)
     {
         // The spin-agnostic SEED, same case GetMatrix documents: Vx^sigma(rho/2) == Vx_unpol(rho_total),
         // so both children legitimately warm on the total.
@@ -112,8 +107,8 @@ void FittedVxcPol::RefreshForDensity(const rChargeDensity* cd) const
         itsDownVxc->RefreshForDensity(cd);
         return;
     }
-    itsUpVxc  ->RefreshForDensity(pol->GetChargeDensity(Spin::Up  ));
-    itsDownVxc->RefreshForDensity(pol->GetChargeDensity(Spin::Down));
+    itsUpVxc  ->RefreshForDensity(up);
+    itsDownVxc->RefreshForDensity(dn);
 }
 void FittedVxcPol::PrepareSlots(const rbs_t* bs) const
 {

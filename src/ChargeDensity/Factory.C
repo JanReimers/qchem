@@ -34,9 +34,6 @@ export namespace qchem::ChargeDensity
                                                   RhoRoute route);
     //! Same, taking the default route -- so every existing call site is untouched.
     template <class T> tDM_CD<T>* IrrepCD_Factory(const hmat_t<T>& DM,const tobs_t<T>* bs, Irrep); // DM Hermitian
-    //! Build a polarized density from its two channels, TAKING OWNERSHIP of both (V1.25).
-    template <class T> std::unique_ptr<tDM_CD<T>>
-        PolarizedCD_Factory(std::unique_ptr<tDM_CD<T>> up, std::unique_ptr<tDM_CD<T>> down);
     std::unique_ptr<FittedCD> FittedCD_Factory(fbs_t&, double totalCharge); //!< caller owns the result
 
 } //namespace

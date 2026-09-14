@@ -93,8 +93,9 @@ void PairDensitySampler::LatchRoute(const cChargeDensity* cd, bool isRaw) const
 }
 
 // THE SPIN-NATIVE SIBLING (2026-08-28).  Structurally the mirror of Refresh, once per channel -- and it
-// walks the SAME two density shapes the singles route walks: a D-backed cPolarized_CD, and a matrix-free
-// cSpinResolved_CD (the polarized seed, and the rho-tilde-mixed density on every Kerker/Pulay iteration).
+// walks the SAME two density shapes the singles route walks: a D-backed polarized composite (its channel
+// VIEWS), and a matrix-free cSpinResolved_CD (the polarized seed, and the rho-tilde-mixed density on every
+// Kerker/Pulay iteration) -- both through the one face (V1.37).
 void PairDensitySampler::RefreshPol(const cChargeDensity* cd) const
 {
     assert(cd);
@@ -104,10 +105,8 @@ void PairDensitySampler::RefreshPol(const cChargeDensity* cd) const
     itsPolVersion=cd->Version();
     const cChargeDensity* up=nullptr;
     const cChargeDensity* dn=nullptr;
-    if (auto pol=dynamic_cast<const ChargeDensity::cPolarized_CD*>(cd))
-    {   up=pol->GetChargeDensity(Spin::Up); dn=pol->GetChargeDensity(Spin::Down); }
-    else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
-    {   up=sr->GetChannel(Spin::Up);        dn=sr->GetChannel(Spin::Down); }
+    up=ChannelOf(cd, Spin::Up);   // through the face (V1.37): composite views or the seed's channel objects
+    dn=ChannelOf(cd, Spin::Down);
 
     qchem::report::Timed timed("scf: XC raw rho sampling (per channel)");
     if (!up || !dn)

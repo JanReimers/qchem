@@ -19,6 +19,93 @@ gets lost first when a doc is trimmed for length.
 
 ---
 
+## LANDED 2026-09-14 — V1.37 steps 1–2: Pol/UnPol are IMPOSED SUBGROUPS — ONE composite over full Irreps
+
+One session, bit-identical: the 50 named anchors (`GPW_SCF.PolarizedRunKeepsItsSpin`,
+`M_DFT.OxygenTripletLDA`, every `A_HF_P.Energy`, `ImposedShubnikovHoldsAFMThroughSCF_Mn2Box` + the MnO seed
+triplet, the polarized `A_DFT_atom` / `A_PG_DFT` energies) were run on the pre-change binary and on the new
+one and their logs DIFFED with timing stripped — **zero differing lines**: every energy, trace column, level
+table and site moment identical.  Full `ctest -j8` green.  The live row (`doc/CleanupCandidates.md` V1.37)
+keeps the ruling and the step-3 remainder.
+
+### WHAT LANDED
+- **The currency.** `qchem::SpinGroup {UnPolarized, Polarized}` in `qchem.Symmetry.Spin` (with
+  `SpinIrreps(g)` = `{None}` / `{Up, Down}`), documented as the imposed subgroup of the spin factor of G —
+  SU(2) vs U(1)_z — with the taxonomy table.  `Hamiltonian::Pol` became `using Pol = qchem::SpinGroup;`
+  so its 102 spellings are untouched and there is ONE name for the thing.
+- **Step 1, the WF.** `tPolarizedWF` / `tUnPolarizedWF` deleted (4 files).  `tCompositeWF(bs, ec,
+  SpinGroup, acc, …)` builds children for `SpinIrreps(g)` and is the whole wave function; the no-arg
+  `GetChargeDensity()` builds ONE `tComposite_CD` over every child (Up blocks then Down blocks);
+  `GetChargeDensity(Spin)` builds one spin irrep's composite (the spin density, tests); the two level
+  tables moved in verbatim as `DisplayEigenPolarized/UnPolarized` behind one `DisplayEigen`.
+  `tSpinResolvedWF` deleted: with one class there is no half-hierarchy to hang a capability face on, so
+  `tWaveFunction` gained `GetSpinGroup()` and `GetSpinDensity()` (THROWS under `UnPolarized` — m≡0 by
+  symmetry and no raster of zeros gets paid for); `SolidCalculation::Converge` branches on the group.
+- **Step 2, the CD.** `tPolarized_CD` + `tPolarized_CDImp` + `PolarizedCD_Factory` + the
+  `Polarized_Fourier` / `Polarized_HFSystem` CRTP mixins deleted.  `tComposite_CD<T>` now: `Insert(cd,
+  Irrep)` — the block carries its FULL label; inherits `tSpinResolved_CD<T>`; `GetChannel(s)` = a
+  non-owning VIEW composite over the blocks whose irrep carries `s` (private view ctor, cached, rebuilt
+  eagerly on Insert so const readers never race a lazy build; a single-spin set answers `this`; null when
+  no block carries `s`).  **Every aggregation walks the blocks GROUPED BY SPIN** — `SumByGroup`, and the
+  same two-level loop in `ProjectOnto`, `GetRepulsion3C`, `GetChangeFrom`, `Gradient`, the Fourier trio
+  and the HF sweep (`SweepGroup` runs the canonical-pair loop per group with `Fall[k-begin]`) — which is
+  exactly the ↑-sum + ↓-sum tree of the old two-level container and the identity `0+x` for one group.
+  `GetRepulsion3C` merges all groups raw then star-averages ONCE (the 2026-09-07 optimisation survives);
+  `GetFourierDensity` star-averages per group then adds (what the old container did).  The MixIn /
+  GetChangeFrom partner guard is a THROW (the composite's old `assert(ecd)` was compiled out in Release —
+  the R2.5 lesson generalised) and now also refuses a partner with a different block count.
+- **The face.** `tSpinResolved_CD::GetChannel` is THE way to reach a channel; it gained a default
+  `GetTotalSpin()`; two free helpers `ChannelOf(cd, s)` / `DM_ChannelOf(cd, s)` are the one spelling of
+  "ask a density for a channel" (null = spin-agnostic, the R2.4 probe idiom).
+- **Consumers moved onto the face** (none of them touches the `IsPolarized()` dispatch — step 3):
+  `VxcPol`, `FittedVxcPol`, `FittedVcorrPol` (their seed fallbacks are now the null-channel branch),
+  `DensitySampler_Singles::RhoPol` (a D-backed channel takes the GEMM `ProjectOnto` route, label
+  `DM(up)` unchanged; matrix-free channels the sampling route; null the ρ/2 collapse),
+  `DensitySampler_Pair::RefreshPol`, `PolarizedMixCD::SetDMSource` (aliasing shared_ptrs onto the views),
+  `PolarizedDensityMixer::Channels` (const only — it never mutated a channel; throws on the lineage
+  break), `ComposePeriodic` (the mixer factory), `ValenceBasisGen`, `Seed.C`'s uniform composite.
+- **Tests.** `MixerLineage.CompositeRefusesALeafPartner` (was `PolarizedDensityRefusesAnUnpolarizedPartner`)
+  + NEW `CompositeChannels.ViewsFilterByIrrepSpin` in `UTChargeDensity` (views share the parent's serials,
+  the Up view's == the total's, a single-spin composite is its own channel, SU(2) answers null).  Five
+  `GPW_SCF_UT` sites and six `RealComplexTermsUT` `Insert`s updated; three `PolarizedCD_Factory` probe
+  sites rebuilt as composites — which removed a `delete cd` on a `unique_ptr`-owned object (a latent
+  double free in `DISABLED_NaFixedDensityTermProbe`).
+
+### FINDINGS WORTH KEEPING
+- **The addendum's blast radius was the abstract→CONCRETE casts; the abstract→abstract casts to the
+  polarized FACE were eleven more sites** and every one had to move, because the face IS the container
+  the ruling dissolves.  A grep for `dynamic_cast<.*Polarized_CD` (no `tPolarized_CDImp`) is the count
+  that mattered.
+- **"Bit-identical" is a SUMMATION-ORDER property, not a wiring property.**  A naive flat loop over
+  `[u1,u2,d1,d2]` gives `((u1+u2)+d1)+d2`, the old tree gave `(u1+u2)+(d1+d2)` — different bits, and the
+  SCF gate reads `GetChangeFrom`.  The first landing grouped every sum by spin and the anchor diff was
+  EMPTY.  **USER RULING (same day): R&D stage — clean code over anchors, "especially at the 1e-16
+  level".**  The grouping was removed (plain block sums everywhere; spin groups survive ONLY in the HF
+  sweep, where they are physics).  Measured drift on the 50 anchors: every `Total` identical at printed
+  precision; the Kinetic/Potential split on the heaviest atoms (Z=53, 88) moves at ~1e-10 relative through
+  the SCF path.  857/857 with no re-pin.  The two-level grouping is worth remembering only as the tool
+  for proving a refactor is a pure reordering — use it to MEASURE, not to ship.
+- **`Hamiltonian::Pol` is GONE, not aliased** (user, same day: `SpinGroup` is the more readable name; clean
+  code trumps blast radius).  113 spellings across 25 files became `SpinGroup`; the `CalcOptions` /
+  `AtomCalcOptions` field `pol` became `spin`.  ⚠ `pybind/qchem_bridge.cpp` names `Hamiltonian::Pol`
+  (flagged, not edited).  `qchem.Calculation` / `qchem.AtomCalculation` now `export import
+  qchem.Symmetry.Spin` since their options carry the enum.
+- **The Version() trap survives by construction, unchanged**: the Up view shares the total's first block,
+  hence its serial (`FittedVxcPol::RefreshForDensity`'s note still applies verbatim).  Recorded on
+  `tComposite_CD::Version`.
+- **The mixer's "spin-resolved but not polarized → linear D-mixing" fallback was DEAD**: `CreateMixer` is
+  only ever handed the iterator's `tDM_CD` working density.  Deleted; a `PolarizedSeedCD` handed to the
+  factory directly would now compose per channel correctly (its channels ARE `FourierDensity`s).
+- **`PolarizedDensityMixer` never needed mutable channels** — its non-const `Channels()` overload only
+  read `FourierOf` / `GetTotalCharge`.  The const face suffices.
+- The `Irrep` is a LABEL on the block, not a sort key: the composite keeps INSERTION order (the basis's
+  `Iterate` order per spin irrep) because the HF sweep pairs block k with `Jall[k]` positionally; a
+  `std::map<Irrep,…>` would have reordered the walk by `SequenceIndex` and broken both bit-identity and
+  the Fock correspondence.
+- The unpolarized `tUnPolarizedWF::GetEnergyLevels()` = `GetEnergyLevels(None)` policy was REDUNDANT:
+  `itsELevels` and `itsSpin_ELevels[None]` merge the same levels in the same order.  One accessor now.
+- `pybind/` names none of the retired types (checked); still broken from V1.33, unchanged here.
+
 ## LANDED 2026-09-13 — V1.33 `c2cb79a3`..`d5ddb1a5`: the BasisSet taxonomy re-cut onto the two axes
 
 Executed `doc/BasisSetTaxonomyPlan.md` §4 in one session, eleven commits, each green on the full

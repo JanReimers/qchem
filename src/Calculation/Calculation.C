@@ -19,7 +19,8 @@ export module qchem.Calculation;
 import qchem.Structure;            // Structure, Molecule, Atom
 import qchem.ScalarFunction;       // ::ScalarFunction<double>
 import qchem.BasisSet;             // BasisSet::Real_BS
-import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, Hamiltonian::Pol, IsDFT, the unified resolver
+import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, IsDFT, the unified resolver
+export import qchem.Symmetry.Spin;  // SpinGroup -- the imposed spin subgroup, a CalcOptions field
 import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ElectronConfiguration;// ElectronConfiguration
 import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
@@ -31,7 +32,6 @@ export namespace qchem
 {
 
 using Hamiltonian::Model;          // {E1, HF, DE1, DHF}
-using Hamiltonian::Pol;            // {UnPolarized, Polarized}
 
 //! Orbital-integral engine: the in-house MnD recursion (default) or the libcint foreign engine.
 enum class Engine  { MnD, LibCint };
@@ -45,11 +45,11 @@ struct CalcOptions
 {
     std::string basis = "sto-3g";
     Model       model = Model::HF;   //!< HF (default) | Xalpha | LDA | E1/DE1/DHF (test-only)
-    Pol         pol   = Pol::UnPolarized;
+    SpinGroup         spin  = SpinGroup::UnPolarized;   //!< the imposed spin subgroup (V1.37)
     //! Spin multiplicity 2S+1.  0 (default) = minimal spin: closed-shell singlet for even Ne, doublet for
     //! odd -- the historical behaviour.  Set explicitly for an open shell: 3 = triplet, 2 = doublet, ...
     //! The facade converts it to (nUp,nDown) [nUp-nDown = 2S = multiplicity-1, nUp+nDown = Ne] and PROMOTES
-    //! the calculation to Pol::Polarized when 2S>0 (unrestricted open shell needs distinct up/down densities).
+    //! the calculation to SpinGroup::Polarized when 2S>0 (unrestricted open shell needs distinct up/down densities).
     //! A multiplicity whose parity disagrees with Ne (e.g. a singlet for odd Ne) is rejected.
     int         multiplicity = 0;
     //! Basis construction variants (threaded into BasisSet::Gaussian::Factory).  Defaults reproduce

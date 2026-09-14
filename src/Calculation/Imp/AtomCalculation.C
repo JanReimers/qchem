@@ -60,7 +60,7 @@ static void EmitScfSection(const AtomCalcOptions& o, int ne, const std::string& 
     namespace rpt = qchem::report;
     rpt::json standard;
     standard["model"]       = o.pseudopotential ? std::string("PP") : ModelName(o.model);
-    standard["pol"]         = (o.pol == Pol::Polarized) ? "P" : "U";
+    standard["pol"]         = (o.spin == SpinGroup::Polarized) ? "P" : "U";
     standard["nElectrons"]  = ne;
     standard["nMaxIter"]    = long(p.NMaxIter);
     standard["minDrho"]     = p.MinΔρ;
@@ -184,10 +184,10 @@ bool AtomCalculation::Converge(const SCFParams& params)
         // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC
         // functional override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
         auto* ham = itsOpts.pseudopotential
-            ? H::Factory(itsOpts.pol, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis)
+            ? H::Factory(itsOpts.spin, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis)
             : itsOpts.xc.has_value()
-                ? H::Factory(itsOpts.pol, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis)
-                : H::Factory(itsOpts.model, itsOpts.pol, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha);
+                ? H::Factory(itsOpts.spin, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis)
+                : H::Factory(itsOpts.model, itsOpts.spin, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha);
         // R2.22: the iterator no longer deletes what it is handed, so this facade adopts the pair.  Order is
         // deliberate -- the PREVIOUS iterator dies first, then the previous Hamiltonian/accelerator it pointed
         // at are freed by these resets, which is exactly when `delete itsScf` used to free them.
