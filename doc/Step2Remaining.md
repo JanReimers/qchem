@@ -91,6 +91,11 @@ data-structure choice the reporting ruling does not forbid.
 
 ### V1.33 ✅ DONE 2026-09-13 — see the STATE table; record in `CleanupHistory.md`, plan `doc/BasisSetTaxonomyPlan.md` (RECORD)
 
+### V1.38 — Point spec in the core + one thin IBS class per (G, engine) (filed 2026-09-14, STASHED)
+The `BasisSetTaxonomyPlan.md` §5 sequel, sized 2–4 sessions.  **Not obvious because** it should come AFTER an
+ISP split of `LatticeSum1E` (the monster face it would otherwise mixin-forward), and nothing on the battery
+path needs it yet.  Triggers and full row in `CleanupCandidates.md`.
+
 ### V1.37 — Pol/UnPol are imposed subgroups, not types (filed 2026-09-13)
 Spin is a factor of G (SU(2) imposed = UnPol = `Spin::None` doublet; U(1)_z = Pol = Up/Down; nothing = spinors).
 ONE composite over full `Irrep`s for WF and CD, `GetChannel(Spin)` a VIEW; `tPolarized_CD`'s two-level tree goes.

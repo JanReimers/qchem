@@ -3096,6 +3096,39 @@ accessor (nearly free); (2) flatten the CD tree; (3) the term dispatch.  Bit-ide
 subgroup is respected".  **Sequenced AFTER V1.33** — it leans on the same `Irrep` currency and the spec tier
 (`BasisSetTaxonomyPlan.md` §1.7).  Collinear-only assumptions that are FINE as long as the type says so:
 `GetTotalSpin = <up>-<down>`, `tSpinResolvedWF::GetSpinDensity` (scalar m(r)), the (ρ↑,ρ↓) XC signature.
+**V1.33 landed 2026-09-13 ⇒ UNBLOCKED.**
+
+### V1.38 — The Point spec in the core + one thin IBS class per (G, engine) (filed 2026-09-14, STASHED by agreement)
+
+The §5 sequel of `doc/BasisSetTaxonomyPlan.md`: carry the evaluator-injection pattern the atom and lattice
+tiers already have to the molecular tier.  **Measured 2026-09-14** — the molecular side is closer than the
+plan implied: `Gaussian/Point/IrrepBasisSet.C` already has the evaluator-injected mixins
+(`EOrbital_1E_IBS<E>`, `Orbital_DFT_IBS<E>`, `Orbital_ERI4_IBS<E>`) with concepts.  Three things are missing:
+
+1. **The spec is engine-bound and lives in the engine.**  `is1E_Evaluator = std::derived_from<E, Evaluator>
+   && …` sits in `qchem.BasisSet.Gaussian.Evaluators`.  Make the concepts structural and move them to the
+   core as `qchem.BasisSet.Point_IBS` (`isPoint_{1E,DFT,HF}_Evaluator` + `Point::Orbital*_IBS<E>`) — the
+   exact move 1a0 made for the lattice; the radial concepts (`Radial/Evaluators/Evaluator.C`, also
+   `derived_from`) get the same treatment for symmetry.  ~1 session.
+2. **The three concrete `Orbital_IBS` classes still hand-write 37 / 19 / 12 virtuals** (PG_Cart /
+   PG_Spherical / PG_LibCint): identity, `GetAoShells`, the fit-basis factories, and PG_Cart's ~20
+   `LatticeSum1E` forwards to its engine.  Collapse them to `Point::Orbital_IBS<E>` instantiations by turning
+   those into concept terms the evaluator answers.  Medium.
+3. **A `Lattice::Periodic_Gaussian_IBS<E>` mixin** forwarding the lattice face to any engine that has the
+   kernels — what dissolves `PG_Cart`'s untagged-seed status (step 3 ruling) PROPERLY: `PG_Spherical` gets
+   the lattice role for free, `PG_LibCint` (no lattice kernels) simply fails the concept at compile time.
+
+**Size:** ~1,700 lines in the rewrite zone, 4 external files, 8 unit-test files naming `PG_Cart::` types;
+2–4 sessions, every step bit-identical by construction (forwarding moves only).  Low–medium risk.
+
+**Why STASHED (user agreed 2026-09-14):** (a) no number changes and no capability until a TRIGGER fires;
+(b) item 3 would mixin-forward the 20-method `LatticeSum1E` — the "bit of a monster class" whose ISP split
+V1.33 deferred — so the honest order is **ISP-split `LatticeSum1E` FIRST** (a design session), then this;
+(c) TE and DFT+U have better claims on the next sessions; (d) V1.37 above is unblocked and has physics
+payoff.  **Triggers that un-stash it:** a second Gaussian engine needing the lattice role
+(`PG_Spherical`/`PG_LibCint` periodic); the NAO family (`qcNumeric_BS`, would want the same spec); a
+fourth hand-written `PG_*::Orbital_IBS`; or the `LatticeSum1E` ISP split landing.
+Related: the PW-only unit tests still ride `UTLattice_BS` (TE).
 
 ## `Vxc_QuadraturePol` is dead code (2026-09-04)
 

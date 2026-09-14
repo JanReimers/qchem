@@ -325,7 +325,8 @@ wrong and comes back here before step 5.
   "everything is a fit — pairings are POLICY, never hard-coded" says this should eventually be assembled
   at the factory (the container layer, where pairing belongs).  Not this plan; it is the R1.0h per-iteration
   scope's neighbour.
-- **Carrying the evaluator-injection pattern to molecules** (`Point_IBS` spec: `isPoint_{1E,DFT,HF}_Evaluator`
+- **Carrying the evaluator-injection pattern to molecules** — **filed as `CleanupCandidates.md` V1.38
+  (2026-09-14), sized at 2–4 sessions, STASHED until a trigger fires (ISP-split `LatticeSum1E` first).** (`Point_IBS` spec: `isPoint_{1E,DFT,HF}_Evaluator`
   + `Point::Orbital*_IBS<E>` in the core, with `PG_Cart / PG_Spherical / PG_LibCint` collapsing to one thin
   class per engine) is the user's stated goal and the natural sequel; it also loosens the atom concepts'
   `derived_from<E, Evaluator>` so the radial spec can move to the core too.  Own plan, after this one.
