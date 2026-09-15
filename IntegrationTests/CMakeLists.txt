@@ -17,8 +17,22 @@ target_include_directories(qcGPW_Harness PRIVATE
 )
 target_link_libraries(qcGPW_Harness PUBLIC qcUmbrella qchem qcMath qcCommon)
 
+# THE PLANE-WAVE SCF HARNESS (qchem.Tests.PW_Harness): the prototype loop + the framework driver PW runs on
+# until the facade grows a basis-family axis.  Over qcPW_TestFields (src/BasisSet/Lattice/tests).
+add_library(qcPW_Harness)
+target_sources(qcPW_Harness PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES PW/Harness.C)
+target_compile_definitions(qcPW_Harness PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
+set_property(TARGET qcPW_Harness PROPERTY CXX_STANDARD 20)
+target_include_directories(qcPW_Harness PRIVATE
+    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${PROJECT_BINARY_DIR}/submodules/libxc
+)
+target_link_libraries(qcPW_Harness PUBLIC qcPW_TestFields qcUmbrella qchem qcMath qcCommon)
+
 add_executable(ITMain gtestmain.C
-    PW/PlaneWaveDFT.C
+    # THE PW SCF GRID (its unit-level tests left for src/ in phase 5)
+    PW/Model.C PW/Si.C PW/NaF.C PW/CsI.C PW/Boxes.C
     A_HF_U.C A_HF_P.C A_HF_dfPin.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C L_PP.C M_HF_U.C M_DFT.C M_Sym.C
     # THE GPW SCF GRID (doc/TestSuitePlan.md §4): directory per basis family, file per material, ONE exe.
     GPW/Si.C GPW/Al.C GPW/Na.C GPW/NaF.C GPW/MnO.C GPW/Boxes.C
@@ -45,7 +59,7 @@ target_include_directories(ITMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
     ${PROJECT_BINARY_DIR}/submodules/libxc
 )
-target_link_libraries(ITMain PRIVATE qcGPW_Harness qcUmbrella qchem qcMath qcCommon xc blas gtest)
+target_link_libraries(ITMain PRIVATE qcGPW_Harness qcPW_Harness qcUmbrella qchem qcMath qcCommon xc blas gtest)
 
 
 

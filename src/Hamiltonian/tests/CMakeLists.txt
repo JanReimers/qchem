@@ -8,6 +8,7 @@ add_executable(UTHamiltonian ../../Common/tests/gtestmain.C
    RealComplexTerms.C   # the real/complex term twins on the GPW basis (from IntegrationTests 2026-09-15, TE phase 5)
    GPW_XC_FD.C          # the E_xc/H_xc FD-consistency probes (idem)
    Orthogonalize.C      # LASolver orthogonalization through a real atomic Hamiltonian (idem)
+   PW_Terms.C           # the plane-wave term tests against the basis's direct-grid oracles (idem)
 )
 
 target_compile_definitions(UTHamiltonian PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
@@ -25,6 +26,6 @@ target_include_directories(UTHamiltonian PRIVATE
 # qcHamiltonian supplies the production VWN_Correlation under test.
 # qcLattice_BS + qcChargeDensity + qcFactory: the moved tests build GPW / periodic densities / a hydrogen atom
 # basis as FIXTURES for the terms under test.  Siblings and leaves of qcHamiltonian, never anything above it.
-target_link_libraries(UTHamiltonian PRIVATE qcHamiltonian qcLattice_BS qcChargeDensity qcFactory xc lapack blas gtest)
+target_link_libraries(UTHamiltonian PRIVATE qcPW_TestFields qcHamiltonian qcLattice_BS qcChargeDensity qcFactory xc lapack blas gtest)
 
 gtest_discover_tests(UTHamiltonian)
