@@ -8,6 +8,7 @@
 //   GPW_MnO.Γ_Pol_SeedMirror
 //   GPW_MnO.Γ_Becke_Pol_SeedVxcMirror
 //   GPW_MnO.Γ_Shub_Pol_SeedDecoration
+//   GPW_MnO.DISABLED_Γ_Shub_Pol_Smear_Anchor   (LONG: ~5 min; run explicitly -- the converged AFM-II gate)
 
 #include "gtest/gtest.h"
 #include <memory>
@@ -400,4 +401,48 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
     // (d) The TOTAL density is identical through both engines (the even channel is sigma-blind).
     double dTot=0; for (size_t g=0; g<up.size(); g++) dTot=std::max(dTot, std::abs((up[g]+dn[g])-(gup[g]+gdn[g])));
     EXPECT_LT(dTot, 1e-10) << "sigma must not touch the total density";
+}
+
+// ============================ THE CONVERGED AFM-II GATE (back as a cell, 2026-09-15) ============================
+// The old DISABLED_MnO_AFM2_RhombohedralGamma carried two things: the CAMPAIGN INSTRUMENT (a cell with three
+// geometry discriminators, a knob-driven recipe, the FM arm, the ordering comparison -- now `gpwprobe mno`) and
+// the GATE hidden inside it: does the converged AFM-II state reproduce?  This is the gate, and nothing else.
+// THE RECIPE is the campaign's production one, stated in one block (the probe's defaults with MNO_IMPOSE=1):
+// IonicSAD seed (Mn2+ d^5 + O2-), pivoted Cholesky at 1e-4 (cond(S)~7e8), the Fock DIIS->GDM Ladder, Kerker
+// G0=1 against the low-G charge-transfer slosh, delayed MOM (start 10, hole persistence 3), kT=5e-3 riding the
+// open d manifold, alpha=0.45 -- and the SHUBNIKOV group of the seed's decoration imposed (S3), which is what
+// holds the staggering exactly mirrored through the loop.  The machinery tokens are elided from the name as
+// NaF's are: they are this material's production recipe, not what the test is about.
+// MEASURED 2026-09-15 (gpwprobe mno, MNO_IMPOSE=1): converged in 42 iterations, 5m20s wall, Etot=-61.41454697,
+// integrated site moment 4.45 e (the m_site column), |m-tilde(q_AFM)| Omega/2 = 3.13 e.  CP2K's AFM-II oracle is
+// -61.470570 (deck IntegrationTests/CP2K/mno_afm2_gpw_sr.inp): the 56 mHa gap is the banked ordering/d-selective
+// offset (doc/SymmetryUpgradePlan.md §7, doc/SphericalLatticePlan.md), so this pins OUR number as a did-E-move
+// anchor and states the oracle beside it.  LONG (ruling 5: over the 60 s budget), hence DISABLED_: it stays in
+// the TestMate tree and runs with --gtest_also_run_disabled_tests; ctest lists it as Not Run.
+TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Anchor)
+{
+    const Material mno=qchem::Materials::Get("MnO_AFM2");   // Mn +m at 0, Mn -m at 1/2 (the decoration), O at 1/4, 3/4
+    const Lattice_3D lat=LatticeOf(mno);
+    SolidCalcOptions o=OptionsFor(mno, "MnO AFM-II Gamma (imposed)");
+    o.multiplicity=1;                                       // the explicit two-channel singlet: nUp=nDn=13
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    o.accelerator=qchem::SCFAccelerators::Type::Ladder;
+    o.imposeSymmetry=true;                                  // S3: the Shubnikov group of the declared ordering
+    SCFParams par=Gates(80, 1e-5, 1e30);
+    par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
+    par.UseMOM=true; par.MOMStartIter=10; par.Guard.HolePersistence=3;
+    par.SmearingkT=5e-3;
+    par.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
+    Trace trace; o.onIteration=trace.Observer();
+    GpwReport report("MnO "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    trace.Print(o.label, /*polarized*/true);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), -61.41455, 2e-3) << "did-E-move anchor (CP2K AFM-II oracle -61.470570: the banked 56 mHa ordering offset)";
+    ASSERT_FALSE(trace.rows.empty());
+    EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the INTEGRATED Mn site moment must be d^5-scale at convergence (measured 4.45)";
+    EXPECT_NE(R->SpinDensity(), nullptr) << "a polarized run must hand back m(r)";
 }
