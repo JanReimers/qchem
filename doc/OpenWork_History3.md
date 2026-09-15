@@ -1420,3 +1420,47 @@ mesh \f$\rho\f$ is projected under 48 ops while the BZ sample is invariant under
 star-average is norm preserving), which is why it is a judgement and not a second KP-0; VASP/QE
 symmetrize under the intersection group for exactly this reason.
 
+
+---
+
+## ✅ TE — THE TEST SUITE AS A PRODUCT SPACE — CLOSED 2026-09-15 (was the programme's step 3)
+
+*(the full texts; the tracker keeps a one-paragraph stub.  The plan and its as-built tables are `doc/TestSuitePlan.md`.)*
+
+**The programme step, as it read when closed:**
+
+> ### 3. THE TEST-SUITE ORGANISATION — item **TE**
+> ▶ **PLAN DRAFTED 2026-09-15 → `doc/TestSuitePlan.md`** — axes + tokens, three claim kinds (oracle / did-E-move
+> / one-axis TWIN / property), the grammar `TEST(<Basis>_<Material>, <axis tokens in order, defaults elided>_<Claim>)`,
+> every enabled solid test re-cut, a verdict per `DISABLED_` test, and the running order (mixer unit test FIRST,
+> harness collapse SECOND, re-file THIRD).  **Rulings 1–6 GIVEN 2026-09-15** (amendments: `Γ` spelled `Γ`, lower-case
+> `k222`, k always named; `RunMnO` is a fifth driver; ruling 7 = materials are DATA at the `SolidCalculation` level (row **MD**),
+> lattice TYPES in `qcStructure` (row **BL**) — all seven rulings in.  ✅ **PHASE 1 DONE 2026-09-15**: three `KerkerMix.*`
+> unit tests (41 ms) replace `PolarizedRunKeepsItsSpin` (217 s); **`ctest -j8` 207 s → 71 s wall**, 862 enabled.  ✅ **PHASE 2 DONE
+> 2026-09-15** (BL: 14 Bravais lattices; MD: `materials.json`/`molecules.json` + `qchem.Materials`; every GPW test on
+> `SolidCalculation`; drivers DELETED; `IntegrationTests/GPW/Harness.C` + `CLIapps/gpwprobe`; 4 re-enabled incl. the first
+> `GPW×NaF` anchors, 8 promoted, 6 deleted; 875/875).  ✅ **PHASE 3 DONE 2026-09-15**: `IntegrationTests/GPW/<Material>.C` +
+> `PW/PlaneWaveDFT.C`, every SCF test named `<Basis>_<Material>.<k>_<tokens>_<Claim>`, **`scripts/testgrid`** renders and
+> CHECKS the grid (52 tests, 0 violations; its first run caught 10 of my names + the missing RESERVOIR axis).
+> ✅ **PHASE 5 DONE 2026-09-15**: GPW_UT → `src/BasisSet/Lattice/tests` (+2 XC-FD probes → `src/Hamiltonian/tests`), RealComplexTerms +
+> Orthogonalize → `src/Hamiltonian/tests`, ValenceBasisGen → `src/Calculation/tests`, the PW file split three ways (fixtures module +
+> basis tests + term tests) with the grid in `PW/{Model,Si,NaF,CsI,Boxes}.C`; 4 parked GPW oracles re-enabled; 882 total conserved, 879/879.
+> ⇒ **PHASE 6 (the first holes: `GPW_Si.Γ_Kerker_eqDIIS` on the singles route ⇒ DM-source XC coverage; S3b) IS NEXT.**
+> ⚠ Found: PW has NO facade (`SolidCalculation` is built over a Gaussian basis) — the PW tests keep their own drivers.  Two holes it already
+> exposes: `GPW×NaF` and `GPW×MnO` have ZERO enabled SCF tests, and no enabled solid test uses anything but DIIS.
+> The axis product `{basis} × {material} × {grid} × {k} × {symmetry} × {kT}`, the file breakdown, the naming
+> convention.  ▶ **Do `PolarizedRunKeepsItsSpin` EARLY in this step**: at 251 s it sets the `-j8` wall floor
+> by itself, its claim is a MIXER property that belongs in `src/ChargeDensity/tests` with no SCF at all, and
+> fixing it roughly halves the dev loop for everything after.  ▶ Then decide the 27 disabled `GPW_SCF`
+> instruments as a CLASS — much easier once the axes exist to file them against.
+> ⚠ **COVERAGE GAP found 2026-09-13 (V1.18 inc. e): NO enabled test reaches the DM-source XC route at all** —
+> the `cDM_Sourced_CD` reach-around (`DensitySampler_Singles::ExactSourceOf`, both the N4 cusp-deficit route
+> and the opt-in `GPW_XC_DM_SOURCE` wholesale route) needs a SINGLES-route GPW run under Kerker, and no
+> enabled test is one.  Confirmed by arming `GPW_XC_DM_SOURCE` on `SiliconGammaConverges` before AND after
+> the change: never entered.  The relocation was equivalent by construction, but a route with zero coverage
+> is a row on the `{grid} × {mixer}` axis this step has to fill.
+>
+
+**The tracker row, as it read when closed:**
+
+| **TE** | ★★ **THE TEST SUITE — ORGANIZATION FIRST, THEN COST (user, 2026-09-08).**  Two complaints, and the ORGANIZATION one is primary: *"for the test review I am also concerned about organization."*  ▶ **THE SHAPE THE USER ASKED FOR — an SCF test is a POINT IN A PRODUCT SPACE, so name and file it as one:** `{basis: PW, GPW, LAPW, …} × {material: Si, NaF, MnO, Na, Al, …} × {real-space grid: Uniform, Becke} × {k: Γ, multi-k} × {symmetry imposed: yes, no} × {kT: 0, anneal}` (etc. — the axis list is the user's, and it is open-ended by design).  Then: pick the FILE BREAKDOWN (by basis set?), lay the chosen permutations out in a CONSISTENT ORDER, and give them a CONSISTENT NAMING CONVENTION so a reader can see which cells of the product are covered and which are holes.  ⚠ Today the naming is ad-hoc (`SR_2x2x2ShiftedMP_vs_CP2K`, `RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh`, `BeckeXC_IBZ_SiDiamond`) — each name is individually reasonable and the SET is unreadable, which is exactly why nobody can answer "do we need them all?".  ★ The coverage question is a CONSEQUENCE of the layout, not a prerequisite for it: once the permutations are in a grid, the duplicates and the holes are both visible. **AND THE COST, MEASURED 2026-09-08** (`ctest -j8`, 870 tests, 937 CPU-s, 207 s wall): **`GPW_SCF` is 611 s = 65% of all test CPU from 35 enabled tests**, and **`GPW_SCF.PolarizedRunKeepsItsSpin` alone is 251 s = 27% of the suite — it sets the -j8 wall floor by itself** (Mn atom, 16-bohr box, 12 SCF iterations on a Becke mesh).  Also: **27 of `GPW_SCF`'s 62 tests are DISABLED** — hand-run ladders, sweeps and probes, i.e. INSTRUMENTS, not tests, and 4800 lines of `GPW_SCF_UT.C` that ctest never touches. | ▶ **THREE ACTIONS, in order.**  (a) **Define the axes and the naming convention on paper first**, then re-file — the layout is the deliverable, not the deletions.  (b) **`PolarizedRunKeepsItsSpin`: its claim is a MIXER property** — ρ̃ (Kerker) mixing on a polarized density must not collapse the spin — *not* an SCF property. It belongs in `src/ChargeDensity/tests` driven by a hand-built polarized density, with no SCF at all; that is the user rule (unit for the dev loop, integration for acceptance) and it roughly halves the suite wall time. ⚠ While there: its order probe samples m(r) at 0.7 bohr off the nucleus, which is a spin DENSITY, not a moment — the Becke site blocks now provably support a real INTEGRATED site moment (`BeckeMesh.*`, 2026-09-08), so the probe should become an integrated one and gets cheaper doing it.  (c) **TEST libcint-SPHERICAL (S3b)** — the one remainder of the retired `doc/OldPlans/SphericalSALCPlan.md`, guarded out today; the in-house spherical SALC is shippable and this is the last arm (user, 2026-09-08: *"SphericalSALCPlan.md can [be] retired, just add 'test libCint' into stage C"*).  (d) ⏳ **PARTLY DONE 2026-09-09 — the ZERO-ASSERT ones are deleted** (18 tree-wide, 9 of them `GPW_SCF`), on the user's ruling that a printf sweep is a spent campaign artifact.  **What is LEFT of this sub-item is the harder half: the 15 disabled tests that DO assert** — those are the ones needing a promote-vs-delete-vs-fix verdict, and the ANCHOR-vs-PHYSICS triage rule (KP-0) is how to tell them apart.  Original text: **decide the disabled tests as a CLASS**: promote to a `CLIapps/` probe binary, or delete the ones whose verdict is already banked in `doc/`. | this row + `doc/ParallelAndOraclePlan.md` PHASE 2.5 |
