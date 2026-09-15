@@ -238,7 +238,7 @@ family-agnostic and becomes its own library only when it must see two or more en
 
 | library | module prefix | contents | links |
 |---|---|---|---|
-| `qcBasisSet` | `qchem.BasisSet.*` | the role faces, the integral caches, `DeltaFit_IBS`, `Projector3`, `SpeciesField`, `GMap`, and the \f$T\f$ spec `Lattice_IBS` | `qcElConfig qcStructure qcMesh` |
+| `qcBasisSet` | `qchem.BasisSet.*` | the role faces, the integral caches, `DeltaFit_IBS`, `Projector3`, `Orbital_PP_IBS` (+ its species-field arguments), `GMap`, and the \f$T\f$ spec `Lattice_IBS` | `qcElConfig qcStructure qcMesh` |
 | `qcRadial_BS` | `qchem.BasisSet.Radial.*` | the \f$O(3)\f$ engine -- Slater / Gaussian / B-spline radials, the angular integrals, the container + factory.  The one place where the group IS the engine (every integral is radial) | `qcBasisSet` |
 | `qcPlaneWave_BS` | `qchem.BasisSet.PlaneWave.*` | the exponential engine: `PW_Evaluator`, the FFT/Poisson grid, `PlaneWave_IBS`, `PlaneWaveFit_IBS`.  A leaf over the core | `qcBasisSet qcSymmetry` |
 | `qcGaussian_BS` | `qchem.BasisSet.Gaussian.*` | `Gaussian.Evaluators.*` the engine (no G); `Gaussian.PG_Cart.*` the raw AO block (the seed, see below); `Gaussian.Point.*` \f$G=P\f$: PG_Spherical, PG_LibCint, the SALC container, factory, readers; `Gaussian.Lattice.*` \f$G=T\f$: `LatticeSum1E`, `LatticeScreener`, the spherical lattice view, GPW | `qcBasisSet qcPlaneWave_BS qcSymmetry cint` |

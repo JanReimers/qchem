@@ -14,7 +14,7 @@ import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (compos
 import qchem.ChargeDensity;
 import qchem.FittedCD;
 import qchem.Hamiltonian.Types;
-import qchem.BasisSet.SpeciesField;            // SpeciesRadialField / SpeciesProjectorSet_R (the real-space views the molecular PP terms quadrature)
+import qchem.BasisSet.Orbital_PP_IBS;          // SpeciesRadialField / SpeciesProjectorSet_R (the real-space views the molecular PP terms quadrature)
 import qchem.Mesh;                             // qcMesh::MeshParams (the quadrature mesh spec)
 import qchem.BasisSet.ImplicitAngular_IBS;      // the radial/implicit-Y_lm capability (atomic KB route)
 

@@ -24,7 +24,7 @@ module;
 #include <vector>
 
 export module qchem.Pseudopotential.SeparablePotential;
-export import qchem.BasisSet.SpeciesField;   // SpeciesProjectorSet(+_R,+_Gaussian), Math::Gaussian
+export import qchem.BasisSet.Orbital_PP_IBS;   // SpeciesProjectorSet(+_R,+_Gaussian), Math::Gaussian
 import qchem.Math;   // Pi, FourPi
 
 export namespace qchem::Pseudopotential

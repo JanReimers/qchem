@@ -29,7 +29,7 @@ export module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluator + RasterPolicy
                                                        // (re-exported since 0.5(a): RasterPolicy is a public knob)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;       // Gaussian::LatticeSum1E (the periodic-1E capability we call)
-import qchem.BasisSet.SpeciesField;                // SpeciesRadialField / SpeciesProjectorSet(_R): the species-field arguments (V1.2)
+import qchem.BasisSet.Orbital_PP_IBS;              // SpeciesRadialField / SpeciesProjectorSet(_R): the species-field arguments (V1.2)
 import qchem.Mesh;                                 // qcMesh::MeshParams (the PP-quadrature integration mesh)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)

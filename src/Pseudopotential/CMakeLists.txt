@@ -13,6 +13,6 @@ target_include_directories(qcPseudopotential PRIVATE
 )
 set_property(TARGET qcPseudopotential PROPERTY CXX_STANDARD 20)
 target_compile_definitions(qcPseudopotential PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS} ${PseudoDataPath})
-target_link_libraries(qcPseudopotential PUBLIC qcBasisSet qcMath qcCommon qcStructure)   # qcBasisSet: the SpeciesField faces this library IMPLEMENTS (V1.2)
+target_link_libraries(qcPseudopotential PUBLIC qcBasisSet qcMath qcCommon qcStructure)   # qcBasisSet: the Orbital_PP_IBS argument faces this library IMPLEMENTS (V1.2)
 
 add_subdirectory(tests)

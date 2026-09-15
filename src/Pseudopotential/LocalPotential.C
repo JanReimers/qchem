@@ -1,6 +1,6 @@
 // File: Pseudopotential/LocalPotential.C  One-body LOCAL external potentials (plane-wave / pseudopotential).
 //
-// A local external potential is a SPECIES RADIAL FIELD (qchem.BasisSet.SpeciesField): per nuclear species Z
+// A local external potential is a SPECIES RADIAL FIELD (qchem.BasisSet.Orbital_PP_IBS): per nuclear species Z
 // a radial function v_Z(r) with both spectral views, v_Z(r) and its form factor v~_Z(q^2).  The basis folds in
 // the cell volume 1/Omega, the structure factor Sum_a e^{-iG.tau_a} and the G=0 handling
 // (Orbital_PP_IBS::MakeSpeciesFieldMatrix); a LocalPotential supplies ONLY the one-species radial shape.
@@ -25,7 +25,7 @@ module;
 #include <cassert>
 
 export module qchem.Pseudopotential.LocalPotential;
-export import qchem.BasisSet.SpeciesField;   // SpeciesRadialField(+_Gaussian), FieldRange, Math::Gaussian
+export import qchem.BasisSet.Orbital_PP_IBS;   // SpeciesRadialField(+_Gaussian), FieldRange, Math::Gaussian
 import qchem.Math; // FourPi, Pi
 
 export namespace qchem::Pseudopotential

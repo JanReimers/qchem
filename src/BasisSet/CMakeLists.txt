@@ -25,8 +25,7 @@ target_sources(qcBasisSet PRIVATE
 target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     DBCacheClient.C                       # the integral cache's KEY CONTRACT (V1.20d; the mechanism stays Internal)
     IntegralsCacheReport.C                # the one orchestrator-side ask of the cache (V1.20d)
-    SpeciesField.C                        # the species-field ARGUMENT vocabulary (V1.2)
-    Orbital_PP_IBS.C                      # the species-field INTEGRAL SERVICE (V1.2; was Pseudopotential::Integrals_Pseudo)
+    Orbital_PP_IBS.C                      # the species-field INTEGRAL SERVICE + its ARGUMENT vocabulary (V1.2; absorbed SpeciesField.C 2026-09-15)
   BasisSet.C
   IrrepBasisSet.C
   Orbital_1E_IBS.C

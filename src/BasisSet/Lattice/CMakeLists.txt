@@ -26,7 +26,7 @@ target_compile_definitions(qcLattice_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS}
 # qcPlaneWave_BS (PlaneWave_IBS, the PW fit basis, the FFT/Poisson grid; step 1a) and qcGaussian_BS
 # (GPW_IBS + GPW_Evaluator since step 1b).  No cycle: neither engine references this container tier.
 # V1.2 (2026-09-13): qcPseudopotential is NO LONGER a dependency -- the species-field faces the PP models implement
-# live in qcBasisSet (Orbital_PP_IBS / SpeciesField), and the edge now runs the other way.
+# live in qcBasisSet (Orbital_PP_IBS, faces + service), and the edge now runs the other way.
 target_link_libraries(qcLattice_BS PUBLIC qcBasisSet qcStructure qcSymmetry qcLASolver qcPlaneWave_BS qcGaussian_BS)
 
 add_subdirectory(tests)
