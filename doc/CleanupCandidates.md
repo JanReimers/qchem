@@ -2607,13 +2607,12 @@ MnO campaign proceeds undisturbed in qchem6.
       to V1.28's σ-on-`ReciprocalOp` work: size the field for {rotation + antiunitary flag}, not just a flip.
   - Still to decide with a measurement, unchanged: the ~2x XC pointwise cost for closed shells (the Ham_PP
     trade).  And the free consequence still stands — `XC_GridEngine`'s second (scalar) rho cache dies.
-- **V2.2 GPW default seed policy.**  `GpwOptions.seed` defaults to `Uniform`, which the Na-doublet
-  campaign showed has a STABLE wrong basin for electron-sparse systems (lone-electron doublet
-  converged 72 mHa high with every health metric green).  The molecular facade already defaults
-  DFT to SAD.  Candidate: default GPW to `IonicSAD` (SAD-family), Uniform = explicit opt-in —
-  needs a suite sweep since every pinned GPW anchor re-seeds.  **POST-MERGE + the bit-moving batch
-  (checked 2026-08-17: both defaults live in TRIM-owned files — GPW_SCF_UT.C:314 and
-  SolidCalculation.C:104 — and "every anchor re-seeds" is the V1.22/§K class).**
+- **V2.2 ✅ CLOSED 2026-09-14 (sprint S) — GPW seeds `IonicSAD` by default; `Uniform` is the explicit opt-in.**
+  Both defaults flipped (`SolidCalcOptions`, `GpwOptions` + the positional `RunGPW`); Al states `Uniform`
+  (no library entry); a missing species THROWS with the two ways out named.  ⚠ "Every pinned GPW anchor
+  re-seeds" was true and MOVED NOTHING: 860/860 with zero re-pins — converged energies agree to printed
+  precision, the loosely-converged Si Γ row differs 4e-6 inside its 2e-3 tolerance, and it runs 17 → 8
+  iterations.  **→ doc/CleanupHistory.md**
 - **V2.3 ✅ CLOSED 2026-09-14 — it had ALREADY been fixed and never run.**  The row named `PW_XC::itsRhoGrid`,
   which no longer exists: the raster route grew per-spin `RhoPol`/`RefreshPol` on 2026-08-28, and V1.37 step 3's
   one XC term asks it for the pair on any fit basis.  Gate ADDED (`GPW_SCF.PolarizedSingletMatchesUnpolarized_PWFitRaster`):
@@ -2621,14 +2620,13 @@ MnO campaign proceeds undisturbed in qchem6.
   6e-9 Ha in the same 17 iterations.  Another "check the tree before believing the row".  **→ doc/CleanupHistory.md**
 
 - **V2.4 ✅ DONE 2026-08-08 — margin validated, selector ARMED.**  Converged-run A/B on both systems the.  **→ doc/CleanupHistory.md**
-- **V2.5 `PPMeshParams()` sizes its uniform mesh with no \f$\alpha_{pp}\f$ term.**  `mp.eCut=densityEcut`
-  \f$=C\alpha_{\max}\f$, but its integrand is \f$\langle\chi_i|V_{short}|\chi_j\rangle\f$ with exponent
-  \f$2\alpha_{\max}+\alpha_{pp}\f$.  Independent of V1.26's selector (which already accounts for
-  \f$\alpha_{pp}\f$ in its CHOICE); this is the mesh sizing itself.  One consumer today — the KB-projector
-  grid fallback (GPW Evaluator.C:1119) — so the exposure is bounded, but the floor is simply missing.
-  Raising it moves grids, hence anchors: measure first (D8), same instrument as V2.4.  **POST-MERGE +
-  the bit-moving batch (checked 2026-08-17: lives in the GPW evaluator = TRIM working set, and it is
-  anchor-moving by its own last sentence).**
+- **V2.5 ✅ CLOSED 2026-09-14 (sprint S) — the KB mesh fallback floors its own cutoff.**  The row's integrand
+  had already left (local PP is G-space, KB analytic for every model with the Gaussian face); the one consumer
+  is the mesh ORACLE of the analytic-vs-mesh gates, and it inherited an explicit under-resolved `densityEcut`.
+  Fix: `SpeciesProjectorSet_R::SharpnessR` + `PPMeshParams` = max(density Ecut, `RequiredUniformCutoff(C α_max
+  + α_β)`).  ★ The measurement EXONERATED the analytic l=2 KB (the d-channel gate's 3e-2 was the mesh arm at
+  20 Ha on an α_max=36 basis; rel → 1e-8 by 100 Ha) and RE-ENABLED `AnalyticSeparablePPMatchesMesh_DChannel`.
+  Moved no anchor (the floor never binds on a production run).  **→ doc/CleanupHistory.md**
 
 - **V2.6 ✅ CLOSED (reconciled 2026-08-17)** — the Becke recipe ladder is fully banked (nRadial=40 right; the angular flip to 17 REFUTED by Al FCC).  Records FOUR refuted guesses; read it before changing either default.  **→ doc/CleanupHistory.md**
 - **V2.6a ⛔ ATTEMPTED AND REJECTED 2026-08-07 — flip `angularDegree` 29 → 17.**  Made the one-line change,.  **→ doc/CleanupHistory.md**

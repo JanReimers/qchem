@@ -373,7 +373,9 @@ private:
     //! Both share \c CollocMemo with the ball closures (one collocation per (D, ladder) per iteration).
     std::function<rvec_t(const chmat_t&)> MakeRawCollocator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
     std::function<chmat_t(const rvec_t&)> MakeRawIntegrator(std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> grid) const;
-    qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
+    //! The KB-quadrature integration mesh params (uniform): the density grid's cutoff FLOORED at what the
+    //! \f$\langle\chi|\beta\rangle\f$ integrand itself needs, \f$C\alpha_{\max}+\alpha_\beta\f$ (V2.5).
+    qcMesh::MeshParams PPMeshParams(const Structure* cl, const SpeciesProjectorSet_R& sep) const;
 
     // The REL_CUTOFF multi-grid level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)
     // down to the level resolving the most-diffuse pair product (~Ecut*alpha_min/alpha_max), PLUS the TOP

@@ -44,10 +44,15 @@ std::map<size_t,int> IonicSADTargets(const Structure* st, const std::string& fun
 //!   - \c Uniform    : \f$\rho(r)=N/V\f$, i.e. \f$D=(N/n)\,I\f$ on the first block.  The plane-wave
 //!                     default (Hartree+XC active from iteration 0); centralizes the old per-test
 //!                     boilerplate.
-//!   - \c SAD        : superposition of neutral atomic densities (Phases 1-2, not yet implemented).
-//!   - \c IonicSAD   : superposition of ionic atomic densities (Phase 3, not yet implemented).
+//!   - \c SAD        : superposition of NEUTRAL atomic densities (molecular: the all-electron library into
+//!                     a NumericCD; periodic: the valence library's form factors, spin-resolved when the
+//!                     run is polarized).
+//!   - \c IonicSAD   : superposition of IONIC valence densities at the structure's formal charges
+//!                     (\c IonicSADTargets).  Periodic only; the facade default there (V2.2), because
+//!                     \c Uniform has a stable wrong basin for electron-sparse cells.
 //!   - \c Default    : resolved per matrix-element type -- molecular (\c double) -> \c CoreGuess,
-//!                     plane-wave (\c dcmplx) -> \c Uniform (the behaviour each path has today).
+//!                     plane-wave (\c dcmplx) -> \c Uniform.  This is the RAW iterator's fallback (a
+//!                     plane-wave run whose species may have no library entry); the facades choose above it.
 enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 
 //! Build the initial SCF density for basis \a bs / configuration \a ec under strategy \a s.  Returns a

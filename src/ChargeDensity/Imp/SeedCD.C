@@ -6,6 +6,7 @@ module;
 #include <map>
 #include <memory>
 #include <string>
+#include <stdexcept>   // the missing-species throw (V2.2)
 #include <vector>
 #include <cstddef>
 #include <utility>
@@ -43,7 +44,14 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
         if (itsRadByZ.find(Z)==itsRadByZ.end())
         {
             // The NEUTRAL density fixes this species' neutral valence count; the IonicSAD target (Nval-q) is
-            // ionicNvalByZ (default: neutral, i.e. no charge transfer).
+            // ionicNvalByZ (default: neutral, i.e. no charge transfer).  A species the library does not
+            // have is a THROW with the way out named: since V2.2 this seed is the periodic DEFAULT, so the
+            // first thing a new element hits is this line.
+            if (!HasAtomicDensity((int)Z, functional, db))
+                throw std::runtime_error("SeedCD: no valence density for Z=" + std::to_string(Z) + " (" + functional
+                                         + ") in " + db + " -- the SAD/IonicSAD seed cannot be built for this "
+                                         "species.  Either state SeedStrategy::Uniform (the explicit opt-in) or "
+                                         "generate the entry with CLIapps/valgen.");
             RadialDensity neutral = GetAtomicDensity((int)Z, functional, db);       // Nval<0 => neutral
             const int neutralNval = (int)std::lround(neutral.Charge());
             auto ti = ionicNvalByZ.find(Z);

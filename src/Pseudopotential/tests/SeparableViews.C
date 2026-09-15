@@ -12,6 +12,8 @@
 #include <cmath>
 #include <vector>
 #include <initializer_list>
+#include <memory>            // the multi-species router (SharpnessR forwarding)
+#include <algorithm>         // std::max
 
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH, GTH_PP (real HGH parameters)
 import qchem.Mesh.Quadrature;                     // qcMesh::RadialMesh, MakeRadial
@@ -113,4 +115,26 @@ TEST(SeparablePotentialViews, AllChannelsBesselTransformMatchesReciprocal)
                 << "synthetic projector p=" << p << " (l=" << l << ") at q=" << q;
         }
     }
+}
+
+// The real view's SCALE (V2.5, 2026-09-14): a consumer that quadratures <chi|beta_p> on a uniform grid sizes
+// it from SharpnessR, so the answer must be the exponent the closed Gaussian form actually carries -- every
+// term of channel p shares 1/2r_l^2 -- and a multi-species router must hand back the sub-model's, not its own.
+TEST(SeparablePotentialViews, SharpnessRIsTheGaussianExponent)
+{
+    GTH_PP mn = GetGTH("Mn", "LDA", 7);
+    const HGH_SeparablePotential& sep = mn.nonlocal;
+    double sharpest=0.0;
+    for (size_t p=0;p<sep.Count(25);++p)
+    {
+        const auto terms = sep.AsGaussians(25,p);
+        ASSERT_FALSE(terms.empty());
+        for (const auto& t : terms) EXPECT_DOUBLE_EQ(sep.SharpnessR(25,p), t.alpha) << "projector p=" << p;
+        sharpest=std::max(sharpest, sep.SharpnessR(25,p));
+    }
+    EXPECT_NEAR(sharpest, 0.5/(0.328*0.328), 0.1);   // the d channel, r_l=0.328 -> 4.65 (the sharpest of the three)
+
+    MultiSpecies_SeparablePotential multi;
+    multi.Add(25, std::make_shared<const HGH_SeparablePotential>(sep));
+    for (size_t p=0;p<sep.Count(25);++p) EXPECT_DOUBLE_EQ(multi.SharpnessR(25,p), sep.SharpnessR(25,p));
 }

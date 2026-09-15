@@ -17,6 +17,7 @@ module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)
 import qchem.Mesh.Quadrature; // qcMesh::MatrixOverlap / Overlap (the real-space PP quadrature primitives)
+import qchem.Mesh.XCPolicy;   // qcMesh::RequiredUniformCutoff (the KB mesh fallback's floor, V2.5)
 import qchem.ScalarFunction;  // ScalarFunction<double> (the V_loc / beta*Ylm fields handed to the quadrature)
 import qchem.Math;            // norm, Pi, sqrt (the real spherical harmonics for the KB projectors)
 import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic KB Cartesian expansion)
@@ -1010,14 +1011,34 @@ chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const
 {   qchem::report::Timed t("setup: analytic 1E lattice sums (S,T,V)");
     return itsHomeOnly ? Widen(itsOrb->Nuclear(cl))  : itsLat->MakeNuclear(CellPhase(),itsCell,cl); }
 
-// The PP-quadrature integration mesh: a uniform lattice mesh whose Nyquist resolution follows the density
-// cutoff (CreateIntegrationMesh's "GPW / Nyquist path").  The DFT tier (density grid) must be on: PP assembly
-// only ever runs inside an SCF, which needs the density collocation grid anyway.
-qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
+// The KB-quadrature integration mesh (the mesh FALLBACK of MakeSeparablePPByL -- a projector model with no
+// closed-Gaussian face): a uniform lattice mesh whose Nyquist resolution follows a cutoff (CreateIntegrationMesh's
+// "GPW / Nyquist path").  The DFT tier (density grid) must be on: PP assembly only ever runs inside an SCF,
+// which needs the density collocation grid anyway.
+//
+// V2.5 (doc/CleanupCandidates.md, closed 2026-09-14): the cutoff is NOT simply the density grid's.  That grid
+// is sized for rho (exponent 2 alpha_max at the calibrated C), and an EXPLICIT densityEcut below the floor is
+// honoured with a warning -- but this mesh quadratures <chi_i|beta_p>, exponent alpha_max + alpha_beta, and an
+// oracle that inherits an under-resolved density grid is no oracle.  MEASURED on the Mn q7 d-channel gate
+// (GPW_UT.C, alpha_max=36, alpha_beta(d)=4.65): the mesh arm at the test's densityEcut=20 disagreed with the
+// analytic KB by 3.5e-2 -- which sat DISABLED for five weeks blaming the analytic l=2 expansion -- and by
+// 3.8e-4 / 7.2e-8 / 1.1e-8 at 40 / 72 / >=100 Ha (a plateau: the two routes' common screening floor).  So:
+// the density cutoff, floored at qcMesh::RequiredUniformCutoff's C alpha_max + alpha_pp form with the
+// projector's sharpness in the alpha_pp slot.  On the Si gate (SIPP_SR, explicit 20 Ha) the floor is ~7 and
+// nothing moves; on the Mn gate it lifts 20 -> 76.7 and the gate passes at 2.3e-8.
+qcMesh::MeshParams GPW_Evaluator::PPMeshParams(const Structure* cl, const SpeciesProjectorSet_R& sep) const
 {
     assert(itsFFT_R_G_Grids && "GPW_Evaluator: the external PP requires the DFT density grid (densityEcut!=0: <0 auto, >0 explicit)");
+    double alphaBeta=0.0;                                    // the sharpest projector in the cell
+    for (size_t a=0; a<cl->GetNumAtoms(); a++)
+    {
+        const int Z=(*cl)[a]->itsZ;
+        for (size_t p=0; p<sep.Count(Z); p++) alphaBeta=std::max(alphaBeta, sep.SharpnessR(Z,p));
+    }
+    const double floor=qcMesh::RequiredUniformCutoff({.alphaMax=itsLat->MaxExponent(), .alphaPP=alphaBeta},
+                                                     itsCutoffFactor);
     qcMesh::MeshParams mp;
-    mp.eCut=itsFFT_R_G_Grids->Ecut();
+    mp.eCut=std::max(itsFFT_R_G_Grids->Ecut(), floor);
     return mp;
 }
 
@@ -1350,7 +1371,7 @@ std::map<int,chmat_t> GPW_Evaluator::MakeSeparablePPByL(const Structure* cl, con
         return pack(Vl);
     }
 
-    qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams());
+    qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams(cl, sep));
     const rvec3vec_t& R=mesh.Points();
     const rvec_t&     W=mesh.Weights();
     size_t npts=mesh.size();

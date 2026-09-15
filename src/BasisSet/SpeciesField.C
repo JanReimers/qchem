@@ -84,6 +84,12 @@ class SpeciesProjectorSet_R : public virtual SpeciesProjectorSet
 public:
     virtual ~SpeciesProjectorSet_R() {}
     virtual double RadialR(int Z, size_t p, double r) const=0;
+    //! \brief The projector's SHARPNESS: the Gaussian exponent \f$\alpha\f$ whose \f$e^{-\alpha r^2}\f$ matches
+    //! \f$\beta_p\f$'s sharpest radial feature (an HGH projector of radius \f$r_l\f$ answers \f$1/2r_l^2\f$).
+    //! A real-space view is incomplete without its scale: a consumer that QUADRATURES \f$\langle\chi|\beta_p\rangle\f$
+    //! on a uniform grid sizes that grid from \f$\alpha_{\max}+\alpha_\beta\f$, the integrand's exponent -- the
+    //! same role \c qcMesh::XCMeshSharpness::alphaPP plays for the local field (doc/CleanupCandidates.md V2.5).
+    virtual double SharpnessR(int Z, size_t p) const=0;
 };
 
 //! \brief CAPABILITY: \f$\beta_p(r)\f$ as a closed sum of Gaussians, \f$\beta_p(r)=\sum_t c_t r^{\,l+2n_t}

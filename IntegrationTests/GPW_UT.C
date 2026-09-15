@@ -1378,6 +1378,7 @@ public:
     virtual int    L(int Z, size_t p) const override {return h.L(Z,p);}
     virtual double RadialQ(int Z, size_t p, double q) const override {return h.RadialQ(Z,p,q);}
     virtual double RadialR(int Z, size_t p, double r) const override {return h.RadialR(Z,p,r);}
+    virtual double SharpnessR(int Z, size_t p) const override {return h.SharpnessR(Z,p);}
 };
 } //anon
 TEST(GPW, AnalyticSeparablePPMatchesMesh)
@@ -1420,21 +1421,18 @@ TEST(GPW, AnalyticSeparablePPMatchesMesh)
     EXPECT_LT(rel,  1e-8) << "analytic KB must match the mesh quadrature to the mesh's own error (pinned 4.6e-11)";
 }
 
-// THE d-CHANNEL SIBLING (2026-08-06).  The gate above uses Si (q4: l=0,1 only), so the ANALYTIC KB's
-// l=2 Cartesian expansion has never been compared against anything -- and MnO (the first crystal with
-// OCCUPIED d projectors) over-binds by ~356 Ha, with BOTH real-space routes (atomic radial, molecular
-// Cartesian-mesh) now oracle-matched to CP2K on the same Mn q7 PP.  That leaves the GPW analytic path as
-// the remaining suspect, and this is the test that can see it: same analytic-vs-mesh comparison, on a
-// species whose h-matrix carries an l=2 channel (Mn q7: l=0 3x3, l=1 2x2, l=2 1x1 h=-7.995).
-// MEASURED 2026-08-06: rel = 3.09e-2 (vs 2.4e-9 for the Si l=0,1 gate) -- a REAL l=2 disagreement between
-// the two crystal-side KB routes.  NOT yet attributed: max|Va| == max|Vm| == 7.64978 exactly, so it is
-// structural (some elements), not a global scale factor, and it could still be the MESH arm being coarse
-// on Mn's compact d projector (r_l=0.328) rather than the analytic arm being wrong -- the next step is a
-// densityEcut sweep (if rel -> 0 the analytic is exonerated; if it plateaus at 3e-2 the analytic l=2
-// Cartesian expansion is the bug).  DISABLED until attributed so the suite stays green.
-// NB 3% cannot by itself explain MnO's ~356 Ha over-binding -- see the basis-conditioning finding in
-// GPW_SCF.DISABLED_MnAtomInBoxDChannelProbe.
-TEST(GPW, DISABLED_AnalyticSeparablePPMatchesMesh_DChannel)
+// THE d-CHANNEL SIBLING (2026-08-06).  The gate above uses Si (q4: l=0,1 only), so this is the only place
+// the ANALYTIC KB's l=2 Cartesian expansion is compared against anything: same analytic-vs-mesh comparison,
+// on a species whose h-matrix carries an l=2 channel (Mn q7: l=0 3x3, l=1 2x2, l=2 1x1 h=-7.995).
+// MEASURED 2026-08-06: rel = 3.09e-2 (vs 2.4e-9 for the Si gate), and it sat DISABLED for five weeks as "a
+// REAL l=2 disagreement ... could still be the MESH arm being coarse -- the next step is a densityEcut sweep".
+// THE SWEEP WAS RUN 2026-09-14 (V2.5): rel = 3.5e-2 / 3.8e-4 / 7.2e-8 / 1.1e-8 / 1.1e-8 at densityEcut =
+// 20 / 40 / 72 / 100 / 320.  rel -> a 1e-8 plateau, so the ANALYTIC l=2 IS EXONERATED: the 3e-2 was the MESH
+// arm, handed a 20 Ha grid for a basis with alpha_max=36 (the evaluator had been warning "densityEcut=20 <
+// 2*alpha_max=72" on every run).  The KB mesh fallback now floors its own cutoff at C*alpha_max + alpha_beta
+// (GPW_Evaluator::PPMeshParams), which is what re-enables this gate at the ORIGINAL under-resolved
+// densityEcut=20 -- that under-resolution is now the point: the oracle must not inherit it.  ~17 s.
+TEST(GPW, AnalyticSeparablePPMatchesMesh_DChannel)
 {
     const double a=8.40;                          // the MnO-scale cell (keeps the image sums modest)
     FCCUnitCell cell(a);
@@ -1443,6 +1441,8 @@ TEST(GPW, DISABLED_AnalyticSeparablePPMatchesMesh_DChannel)
     std::shared_ptr<const Real_BS> mol(
         BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    // densityEcut=20 is DELIBERATELY below this basis's density floor (2*alpha_max=72; the evaluator warns) --
+    // the mesh arm must NOT inherit it.  V2.5's floor lifts the KB mesh to C*alpha_max + alpha_beta = 76.7.
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
 
     const auto gth = Pseudopotential::GetGTH("Mn","LDA",7);

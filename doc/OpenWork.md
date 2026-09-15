@@ -103,8 +103,14 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > ▶ **V1.37 STEP 3 LANDED (2026-09-14) — V1.37 CLOSED.**  One term per operator built FOR the imposed
 > subgroup (`Vxc`, `FittedVxc`, `Vxc_Quadrature`), a spin-native `ExFunctional` face (`SpinCorrelation`
 > gone), eleven `Ham_*_U/_P` → six with `GetSpinGroup()`, `SymMap` for spatial caches (`Spin::None` keeps
-> only its doublet-label job).  857/857.  Record → `doc/CleanupHistory.md`.  **⇒ This step's queue is the
-> remaining CleanupCandidates rows; step 3 (TE) and DFT+U are next per the programme.**
+> only its doublet-label job).  857/857.  Record → `doc/CleanupHistory.md`.
+>
+> ▶ **SPRINT S LANDED (2026-09-14) — V2.2 + V2.5, and `doc/Step2Remaining.md` RETIRES to `doc/OldPlans/`.**  GPW seeds
+> `IonicSAD` by default (`Uniform` opt-in; the roster's **A5**); the KB mesh fallback floors its own cutoff
+> (`SpeciesProjectorSet_R::SharpnessR`).  ★ The "anchor-moving" pair moved NO anchor — 860/860, zero re-pins
+> — and V2.5's sweep exonerated the analytic d-channel KB and re-enabled its gate.  Records →
+> `doc/CleanupHistory.md`.  **⇒ STEP 2 IS DONE except two rows blocked outside it (V1.34 on N4, R1.0b on the
+> reader bug).  A FRESH SESSION STARTS AT STEP 3 (TE).**
 >
 > ### 3. THE TEST-SUITE ORGANISATION — item **TE**
 > The axis product `{basis} × {material} × {grid} × {k} × {symmetry} × {kT}`, the file breakdown, the naming
@@ -319,7 +325,7 @@ stop competing for the reader's attention here:
 | # | open item | the next concrete action | point a session at |
 |---|---|---|---|
 | **SCR** | ✅ **THE SEAM IS BUILT (2026-09-04).**  `LatticeScreener` + `GeometryOnlyScreener`/`DAwareScreener` in `src/BasisSet/Molecule/LatticeScreener.C`; both collocation faces take a `const LatticeScreener&`; the `GPW_DAWARE_SCREEN` bool is gone from the box walk and survives only as `RunPolicy::DAwareScreen`, a declared CP2K deviation.  D-aware stays the default; suite unchanged.  ⚠ The `DensityHandle` proxy this row anticipated was NOT built and should not be: the screener is **stateless** — the walk already computes each term's weight and hands it in, so no density, no reseat, no staleness (`ScreeningPlan.md` §4). | ⛔ **§5 IS CLOSED — REFUTED ON MEASUREMENT (2026-09-04), do not build it.**  `M_PG_BoxWalk.WhatTheGeometryHoistWouldBuy` prices the hoist CEILING at **13.2% of the kernel** (chord share 10–17% across box sizes, not the ~40% claimed) against a **+14.5% wall** price for the geometry-only screener that makes it legal, plus **132 MB** on a run whose peak RSS is 110 MB.  Best case is a wash.  The ~40% was the per-LINE work, most of which is the \f$e_2\f$ fold — which reads the density-weighted coefficients and is not hoistable under any screener.  ▶ **The next lever is NOT in the kernel**: see the per-step field count below. | `doc/OldPlans/ScreeningPlan.md` |
-| **S** | ★★ **THE ANCHOR-MOVING SPRINT — A1 and A7 ARE DONE (2026-08-27), A2–A6 remain.** Five items that each move banked numbers, to be done in ONE re-bank so they do not mask each other (user, 2026-08-27). | Pick the sprint window. A5 (the `IonicSAD` seed default) re-seeds every GPW anchor, so it goes first or last. A4 (the Δρ/N gate) is now doubly motivated — see the Na2 note in the sprint section. | *"THE ANCHOR-MOVING SPRINT"* |
+| **S** | ★★ **THE ANCHOR-MOVING SPRINT — A1, A5 and A7 ARE DONE (A5 2026-09-14: the `IonicSAD` default moved NOTHING, 860/860), A2/A3/A4/A6 remain.** Five items that each move banked numbers, to be done in ONE re-bank so they do not mask each other (user, 2026-08-27). | Pick the sprint window. A5 (the `IonicSAD` seed default) re-seeds every GPW anchor, so it goes first or last. A4 (the Δρ/N gate) is now doubly motivated — see the Na2 note in the sprint section. | *"THE ANCHOR-MOVING SPRINT"* |
 | **N4** | ★★★ **THE RIGHT TREE: MAKE EVERYTHING ELSE ROBUST WITH \f$V_{xc}[\rho\ge0]\f$** (user, 2026-08-25).  ⚡ **AND IT NOW CARRIES A BIN-1 PRIZE**: `doc/Benchmark.md` §5f lever B (one gather per spin, CP2K's `sum_up_and_integrate`, worth ~1 of our 3 gathers per iteration) is blocked ONLY by XC needing the raw \f$\rho_{DM}\ge0\f$ feed — \f$V_H\f$ is a ball field, \f$v_{xc}\f$ a raw raster field, and routing \f$V_H\f$ through the raw adjoint moves the Hartree block by 6e-5 relative (measured).  If N4 makes the ball XC route safe, B becomes exact and free. *"ρ̃_mix is not exactly garbage … but it is still pretty junky for Vxc"*, and improving the junk (N2) is barking up the wrong tree. ⇒ **"the flag does not earn the default" was the wrong headline for the right measurement**: what failed is the MIXER, not feeding \f$V_{xc}\f$ the exact ρ. | Build the **CUSP-DEFICIT** form \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — XC keeps Hartree's OWN mixed array, so there is **no \f$\alpha_{eff}\f$ to choose** and the measured failure cannot occur. Plus **N3** (charge/spin channels) and **N1/T1-T3** (so a future collapse cannot masquerade as an answer). | *"★★★ N4 — THE RIGHT TREE"* |
 | **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING — ⚠ HALF-BUILT ALREADY (corrected 2026-08-25): `QCHEM_MIX_RHO_M=1` in `MakePeriodicMixer` ALREADY selects the (ρ,m) basis with "Kerker on ρ, PLAIN LINEAR on m", carrying the same *"m has none"* argument. So this needs a MEASUREMENT and a promotion, not a build.** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
 | **2** | **BENCHMARK PROTOCOL — no timing table is comparable until this holds** (user, 2026-08-25). Two defects today: no table states its THREAD state per row, and qchem runs accelerations CP2K does not — the factored/low-rank ρ is **ON BY DEFAULT** (`QCHEM_DM_LOWRANK`), so every row since `07d13bf6` has it | (a) build the self-describing BANNER `doc/Benchmark.md` already asks for — thread counts + the qchem-only feature flags — so rows describe themselves instead of relying on discipline; (b) re-take the rows under the two-phase rule: **single-thread parity FIRST**, then N=8/16 for OMP-shaped gaps. | `doc/Benchmark.md` → *"BENCHMARK PROTOCOL"*, and Step 0 (instruments) |
@@ -758,7 +764,7 @@ sprint cost more than it should.
 | A2 | **V1.22** — Becke per-representative partition | this file, *Continuous — CLEANUP* | not built | unmeasured; imposed runs only |
 | A3 | **§K** | `doc/CleanupCandidates.md` (deferred, user) | not built | unmeasured |
 | A4 | **the Δρ/N convergence gate** | `doc/SCFStrategyPlan.md` | not built | unmeasured |
-| A5 | **GPW default seed → `IonicSAD`** | `doc/CleanupCandidates.md` ("every pinned GPW anchor re-seeds") | not built | unmeasured; re-seeds EVERY GPW anchor |
+| A5 | **GPW default seed → `IonicSAD`** | `doc/CleanupCandidates.md` V2.2 → `CleanupHistory.md` | ✅ **LANDED 2026-09-14** (sprint S) | ZERO: every GPW anchor re-seeded and none moved (converged energies equal at printed precision; Si Γ 17 → 8 iterations) |
 | A6 | **`SCFParams::XCCuspDeficit`** — the N4 XC feed | N4 above | flag exists, off | a TRAJECTORY change by its own description |
 | A7 | **dropping the pair-stream cache** | `doc/CollocationRewritePlan.md` step 7 | ✅ **LANDED 2026-08-27**, with A1 | re-banked, below |
 
@@ -778,8 +784,10 @@ failure.  **A convergence criterion that disagrees with the run's own diagnosis 
 The gate now sweeps its mixing step instead of betting on one draw (four measured-good values, first that
 converges wins), which is a stopgap, not the fix.
 
-⚠ **A5 is the one to sequence FIRST or LAST, not in the middle**: it re-seeds every GPW anchor, so anything
-measured against a pre-A5 reference has to be re-measured after it.
+~~⚠ **A5 is the one to sequence FIRST or LAST, not in the middle**: it re-seeds every GPW anchor, so anything
+measured against a pre-A5 reference has to be re-measured after it.~~  ✅ A5 went FIRST (2026-09-14) and the
+worry was empty: a converged run lands on the same number from either seed, so no pre-A5 reference needs
+re-measuring.  A2–A4, A6 are what is left, and none of them is a seed question.
 
 ### A1 — the contraction kernel: its deltas, measured BEFORE it landed
 Kept as the record of what the re-bank was told to expect (the re-taken rows are in `doc/Benchmark.md`):

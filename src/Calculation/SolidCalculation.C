@@ -106,7 +106,15 @@ struct SolidCalcOptions
     //! so star-averaging each channel under it averages the magnetic sublattices together and silently
     //! demagnetises the run (doc/CleanupCandidates.md V1.28).
     bool imposeSymmetry = false;
-    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Uniform;
+    //! The SCF seed.  Default \c IonicSAD (V2.2, 2026-09-14): a superposition of the library's per-species
+    //! valence densities at their formal charges (Na+ F-, Mn2+ O2-; an elemental solid is the neutral SAD).
+    //! \c Uniform (\f$\rho=N/V\f$, the old default) is an explicit OPT-IN, because it has a STABLE WRONG
+    //! BASIN for electron-sparse systems: the Na-doublet campaign converged a lone-electron doublet 72 mHa
+    //! high from it with every health metric green (doc/CleanupCandidates.md V2.2).  The molecular facade
+    //! already defaults DFT to SAD for the same reason.
+    //! \note IonicSAD needs every species in \c atomic_valence_densities.json (today: O, F, Na q1, Si, Mn);
+    //! a missing species THROWS at seed time -- state \c Uniform, or generate the entry (CLIapps/valgen).
+    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::IonicSAD;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
     //! ANSATZ POLICY (doc/RealComplexPlan.md §6): force every Bloch block COMPLEX even where the run

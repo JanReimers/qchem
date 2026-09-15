@@ -62,6 +62,7 @@ public:
     {
         return 2.0*std::sqrt(2.0)/(itsSigma*itsSigma*itsSigma) * std::exp(-0.5*r*r/(itsSigma*itsSigma));
     }
+    virtual double SharpnessR(int, size_t) const {return 0.5/(itsSigma*itsSigma);}   // the one exponent
     //! The same radial in closed Gaussian form (one term, n=0; BetaR == c e^{-alpha r^2} by construction).
     virtual std::vector<Math::Gaussian> AsGaussians(int, size_t) const
     {
@@ -113,6 +114,8 @@ public:
         for (size_t i=0;i<pr.v.size();i++) s += pr.v[i]*ProjR(r, pr.l, static_cast<int>(i), pr.rl);
         return s;
     }
+    //! Every term of channel \a p shares the exponent \f$1/2r_l^2\f$ (AsGaussians below), so that IS the sharpness.
+    virtual double SharpnessR(int, size_t p) const {return 0.5/(itsProj[p].rl*itsProj[p].rl);}
     //! The same radial in CLOSED Gaussian form: ProjR is \f$\sqrt2\,r^{l+2i}e^{-r^2/2r_l^2}/(r_l^a\sqrt{\Gamma(a)})\f$,
     //! so \f$\beta_p(r)=\sum_i c_i\,r^{\,l+2i}\,e^{-\alpha r^2}\f$ with \f$c_i=v_i\sqrt2/(r_l^{a_i}\sqrt{\Gamma(a_i)})\f$,
     //! \f$\alpha=1/2r_l^2\f$ -- term-by-term identical to BetaR (exact, not a fit).
@@ -242,6 +245,12 @@ public:
         const auto* rface=dynamic_cast<const SeparablePotential_R*>(&Get(Z));
         assert(rface && "MultiSpecies_SeparablePotential::RadialR: sub-model has no real-space view");
         return rface->RadialR(Z,p,r);
+    }
+    virtual double SharpnessR(int Z, size_t p) const override
+    {
+        const auto* rface=dynamic_cast<const SeparablePotential_R*>(&Get(Z));
+        assert(rface && "MultiSpecies_SeparablePotential::SharpnessR: sub-model has no real-space view");
+        return rface->SharpnessR(Z,p);
     }
     //! The closed-Gaussian view: forwarded the same way (every species model must supply it for the router
     //! to; today HGH and the Gaussian demonstrator both do).

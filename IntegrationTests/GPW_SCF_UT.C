@@ -370,7 +370,10 @@ struct GpwOptions
                                                          //   staggered cell (decoration suppressed) -- the
                                                          //   star-average then maps +m onto -m and must KILL
                                                          //   m_stag.  Never a production setting.
-    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Uniform;
+    //! IonicSAD by default (V2.2, 2026-09-14, matching SolidCalcOptions): Uniform has a stable WRONG basin
+    //! for electron-sparse cells (the Na doublet, 72 mHa high, all metrics green) and is opt-in.  Species
+    //! outside the valence-density library (Al) must say Uniform -- see AlOptions().
+    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::IonicSAD;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
     SCFParams    scf;                                  // NMaxIter / MinΔρ / MinΔE / SmearingkT / ... (the gates)
@@ -864,7 +867,7 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120,
                  qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0,
                  rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30,
-                 qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
+                 qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::IonicSAD,   // V2.2
                  BasisSet::Gaussian::CellImages images=BasisSet::Gaussian::CellImages::Periodic,
                  double smearkT=0.0,
                  qcMesh::UnitCellKind xcKind=qcMesh::UnitCellKind::Auto,
@@ -1807,6 +1810,8 @@ static GpwOptions AlOptions()
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
     o.label="Al FCC Gamma"; o.Nelec=3; o.species={{"Al",3}};
     o.densityEcut=-1.0; o.accelerator="DIIS";
+    // Uniform STATED (V2.2): Al has no entry in atomic_valence_densities.json yet, so the IonicSAD default
+    // would throw at seed time.  valgen can generate one; until then this is the explicit opt-in.
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;

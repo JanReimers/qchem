@@ -1,7 +1,13 @@
 # Step 2 — the remaining CleanupCandidates rows, and why each is not obvious
 
-Cut 2026-09-09 after batches 1–3 of the sweep; done-markers added 2026-09-10 (`851/851`); **re-cut 2026-09-14
-(`857/857`): groups A and D are CLOSED, C is what is left.**
+> ⛔ **RETIRED 2026-09-14 — sprint S (V2.2 + V2.5) landed, 860/860, zero re-pins.**  Groups A, C and D are
+> closed; E was never work; the two group-B rows that remain (**V1.34**, **R1.0b**) are blocked on things
+> outside the sweep and live as rows in `doc/CleanupCandidates.md`.  The programme's step 2 hands off to
+> step 3 (**TE**) per `doc/OpenWork.md`.  Kept as a RECORD of how the rows were grouped and what each
+> grouping turned out to be worth (group D's finding; group C's "anchor-moving" rows moved nothing).
+
+Cut 2026-09-09 after batches 1–3 of the sweep; done-markers added 2026-09-10 (`851/851`); re-cut 2026-09-14
+(`857/857`): groups A and D are CLOSED, C is what is left; **sprint S closed C the same day (`860/860`).**
 This is a READING AID for `doc/CleanupCandidates.md`, not a second tracker — every row here is live in
 that file and the verdicts belong there.  It exists because "~24 open items" is not a plan, and because
 the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetical ordering hides.
@@ -27,6 +33,7 @@ the rows differ less in size than in WHAT IS BLOCKING THEM, which the alphabetic
 | **V1.14** | ✅ both `Emit*()` faces deleted under the USER'S REPORTING RULING (each class reports at its OWN trigger; nobody tells another when); basis built INSIDE the run so shells self-announce.  ⛔ the row's "pulling reporter + toggles on SCFParams" fix was the wrong direction; the `bool&` toggles are the design | `fe78682a` `d5d42fb4` |
 | **V1.12** | ✅ `EnergyBreakdown` → keyed role-tagged contributions + unsummed diagnostics + `ChargeBreakdown` seed; band form reachable (throws where TrDV is not claimed).  User rulings: −TS is an energy; second map OK; roles not prefixes | `e1ac8527` |
 | **V1.2** | ✅ `Orbital_PP_IBS` + the `SpeciesField` vocabulary in qcBasisSet, `Math::Gaussian` in qcMath; the PP models implement the faces; `qcLattice_BS → qcPseudopotential` REMOVED, `qcPseudopotential → qcBasisSet` added.  Bit-identical | `fd7f8099` |
+| **V2.2 / V2.5** | ✅ **SPRINT S, 2026-09-14** — GPW seeds `IonicSAD` by default (`Uniform` opt-in; Al states it; a missing species throws with the way out named) and the KB mesh fallback floors its cutoff at `C α_max + α_β` via a new `SpeciesProjectorSet_R::SharpnessR`.  ★ The two "anchor-moving" rows moved NO anchor: 860/860 with zero re-pins (converged energies agree at printed precision; Si Γ runs 17 → 8 iterations).  ★ V2.5's sweep EXONERATED the analytic l=2 KB and re-enabled the five-week-disabled d-channel gate | (this session) |
 | **V1.18** | ✅ WIDENED into the density-mixer reorganisation (user code review, 12 points) and executed in SEVEN increments: module split, pure faces, α_eff deleted, adaptive step → one cross-cast method (re-fetch dropped), DM source → provenance seated by the driver, `ΔG_Map` operators, three named factories with param structs, mixers own their field.  ⏳ (g) the PolarizedRunKeepsItsSpin unit test is TE work | `e60087bd`…`ead8bfcb` |
 
 ★ **AND THREE ROWS WERE CREATED BY THIS WORK**, all live in `CleanupCandidates.md`: **R1.0r** (ρ is
@@ -54,21 +61,21 @@ Groups A and D are closed and E was never work, so this file's remaining content
 | row | group | state | what unblocks it |
 |---|---|---|---|
 | **V2.3** | B | ✅ CLOSED 2026-09-14 — the gate was run: no throw, 6e-9 Ha off the unpolarized answer in the same 17 iterations (`PolarizedSingletMatchesUnpolarized_PWFitRaster`) | — |
-| **V2.2** | C | GPW seed default `Uniform` → `IonicSAD` (a stable WRONG basin was measured) | the anchor-moving sprint **S** |
-| **V2.5** | C | `PPMeshParams()` has no \f$\alpha_{pp}\f$ floor | sprint **S** (one consumer; bounded) |
+| **V2.2** | C | ✅ CLOSED 2026-09-14 (sprint S) — default flipped; nothing to re-pin | — |
+| **V2.5** | C | ✅ CLOSED 2026-09-14 (sprint S) — the floor was missing altogether, not just its \f$\alpha_{pp}\f$ term; the d-channel gate is back | — |
 | **V1.34** | B | half-realised `FitContraction<U,TFit>`; `bad_cast` in Release on a real TRIM block via the ball route | **N4**'s verdict on whether the ball-fit route survives |
 | **R1.0b** | B | SP/"L" shells in the Gaussian94 reader | the `PG_Cart::IrrepBasisSet` same-exponent merge bug |
 
 **In order:**
 1. ~~**V2.3 first**~~ ✅ done — it deleted the row (the fix had been in the tree since 2026-08-28).
-2. **The sprint S = V2.2 + V2.5 together**: both re-seed/re-size what pinned energies depend on, so
-   they want ONE re-bank, not two.  With the user's 2026-09-14 ruling (R&D stage: clean code over anchors,
-   re-pin rather than argue) the sprint is cheaper than this file feared — the cost is one full `ctest`
-   pass with the moved anchors re-pinned and the reason for each move written down.
+2. ~~**The sprint S = V2.2 + V2.5 together**~~ ✅ done 2026-09-14 — and cheaper than even the re-cut
+   feared: the one full `ctest` pass re-pinned NOTHING.  A converged run lands on the same number from
+   either seed, and the KB floor binds on no production run.  What "anchor-moving" had really been
+   describing was the COST OF FINDING OUT, which is one sweep.  Records in `doc/CleanupHistory.md`.
 3. **V1.34 and R1.0b stay blocked** on things outside this sweep (N4; the reader bug).  Neither is worth
    forcing: V1.34's honest fix depends on a route decision, R1.0b's payoff is the S3b spherical lineage.
 
-⇒ **After 2 this file retires** (to `doc/OldPlans/`), and the programme's step 2 hands off to step 3
+⇒ **2 is done, so this file is retired** (`doc/OldPlans/`), and the programme's step 2 hands off to step 3
 (**TE**, the test-suite axes — `PolarizedRunKeepsItsSpin` early) and then DFT+U, per `doc/OpenWork.md`.
 
 ---
@@ -161,14 +168,12 @@ Each is a few lines, but every one re-seeds or re-sizes something pinned energie
 ONE measured re-bank, not three separate ones.  That is what item **S** (the anchor-moving sprint) exists
 to schedule; do not land these piecemeal.
 
-- **V2.2 — GPW's seed defaults to `Uniform`.**  The Na-doublet campaign showed a STABLE WRONG BASIN for
-  electron-sparse systems: a lone-electron doublet converged 72 mHa high with every health metric green.
-  The molecular facade already defaults DFT to SAD.  Candidate: default GPW to `IonicSAD`, `Uniform`
-  becomes explicit opt-in.
-- **V2.5 — `PPMeshParams()` sizes its uniform mesh with no \f$\alpha_{pp}\f$ term.**
-  `mp.eCut = C\,\alpha_{max}\f$, but the integrand is \f$\langle\chi_i|V_{short}|\chi_j\rangle\f$ with
-  exponent \f$2\alpha_{max}+\alpha_{pp}\f$.  The floor is simply missing.  One consumer today (the
-  KB-projector grid fallback), so exposure is bounded.
+- ~~**V2.2 — GPW's seed defaults to `Uniform`.**~~  ✅ CLOSED 2026-09-14: defaults to `IonicSAD`, `Uniform`
+  is the explicit opt-in (Al says so — no library entry), and the re-bank moved nothing.
+- ~~**V2.5 — `PPMeshParams()` sizes its uniform mesh with no \f$\alpha_{pp}\f$ term.**~~  ✅ CLOSED 2026-09-14.
+  The integrand named here had already left (local PP in G-space; KB analytic); the one consumer is the
+  mesh ORACLE of the KB gates, and what it lacked was ANY floor — it inherited an explicit 20 Ha density
+  cutoff on an α_max=36 basis, which is the whole of the "l=2 disagreement" that had a gate disabled.
 - ~~**V2.1 — collapse `Delta_XC`×2 into the polarized pair at \f$\zeta=0\f$.**~~  ✅ CLOSED BY V1.37 step 3
   (2026-09-14), and better than the row asked: not "one PolarizedVxc forwarding to two", but ONE term per
   operator that asks the density for its channels — no forwarding, no pair, and NO 2× cost on closed shells

@@ -24,7 +24,6 @@ on what is actually next.
 | file | what it is | state |
 |---|---|---|
 | **`OpenWork.md`** | ★ **THE tracker.  READ IT AT SESSION START.**  It opens with **THE QUEUED PROGRAMME** — a numbered running order agreed 2026-09-09; start at the first UNFINISHED step (step 1, KP-0, closed 2026-09-09).  The table under it is the index; everything below that is the evidence that produced it | live |
-| **`Step2Remaining.md`** | A READING AID for the queue's step 2: the open `CleanupCandidates.md` rows grouped by **what is blocking them** (a design question / something else landing first / anchor-moving / plain judgement / not-a-task) rather than by id.  ⚠ NOT a second tracker — every verdict belongs in `CleanupCandidates.md`.  **Done-markers added 2026-09-10**: it opens with a STATE table of what closed (R1.0j, R1.0e, V1.35a, V1.36, V1.20c; R1.0h half), so groups C and D are what is actually left.  Its appendix traces the whole `MatrixIntegrator` arc, including the two things it refuted | live |
 | **`Pins.md`** | ★ **the durable invariants** — no cut in r space, everything is a fit, integrated observables, spin-native, fit quality = grid-convergence of ρ.  **Rulings, not preferences**: each one is there because violating it produced a wrong number at least once | live — read once, then obey |
 | **`ParallelAndOraclePlan.md`** | the sequenced phases: Phase 1 (our OMP gap) ✅ closed at 4.44× → Phase 2 (size) → **Phase 2.5 (the SOLID cleanup campaign)** → Phase 3 (DFT+U) → Phase 4 (a second code) | live — this is the road to +U |
 | **`CleanupCandidates.md`** | the SOLID/OOD debt worklist, and the home of the durable design rulings (R1.0) | live — 34 open items after the 2026-09-08 harvest |
@@ -71,6 +70,12 @@ length.*  Three open items in `OpenWork.md` exist only because a measurement ref
 ## RETIRED — `doc/OldPlans/`
 
 Fully executed and superseded.
+
+**Retired 2026-09-14:** `Step2Remaining.md` — the reading aid for the queue's step 2 (rows grouped by what
+BLOCKED them).  Every group closed (A/C/D) or was never work (E); the two group-B rows left (**V1.34**,
+**R1.0b**) live in `CleanupCandidates.md`.  Worth re-reading for two findings: group D's *"the verdict was
+already written in the row"*, and group C's "anchor-moving" rows (V2.2/V2.5) moving nothing when finally
+swept.  Its appendix traces the whole `MatrixIntegrator` arc.
 
 **Retired 2026-09-08, first pass:** `PlaneWavePlan.md` + `PlaneWavePlan-2.md` (PW-DFT shipped),
 `AO_FT_ProjectionCleanup.md` (self-declared DONE, all three moves), `ScreeningPlan.md` (self-declared

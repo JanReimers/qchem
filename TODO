@@ -203,7 +203,5 @@ that are near singular, decompose, truncate and look at residuals.  V*S*V_dagger
 
 ## Cleanup
 
-V1.18 — FourierMixCD tell-don't-ask + MakeDensityMixer ISP. RhoTilde() hands out the raw ΔG_Map and PulayMixer runs the whole DIIS algebra OUTSIDE the density; SetRawRho + an external RasterKerker is a get/compute/set straddle. Separately, MakeDensityMixer takes const tDM_CD* but uses only GetTotalCharge + a Fourier cast — excluding the matrix-free seeds BY TYPE, not by intent.
-
-- qcChargeDensity library:  Please make a list or table of all the classes that represent a charge density.  I think they break down into 3x2x2 categories {DM based,SEED,Fitted}x{Polarized,unpolarized}x{Realspace,Gspace}.  There is also a COmposite and Irrep axis for some of them.  WHich axes need to be public and which ones can be hidden as implementation details (Gspace?).
+- qcChargeDensity library:  Please make a list or table of all the classes that represent a charge density.  I think they break down into 3x2 categories {DM based,SEED,Fitted}x{Realspace,Gspace}.  There is also a COmposite and Irrep axis for some of them.  WHich axes need to be public and which ones can be hidden as implementation details (Gspace?).
 

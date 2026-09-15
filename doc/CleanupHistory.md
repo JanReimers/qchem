@@ -3387,3 +3387,84 @@ than deleted silently, so the ruling can be extended to it if that reading is wr
 need a per-test verdict, and the triage rule KP-0 established is how to reach it — **judge a failing
 ENERGY anchor before believing it, but a failing CHARGE or count is physics and cannot go stale.**
 
+
+## V2.2 + V2.5 — CLOSED 2026-09-14 as **sprint S** (the two anchor-moving rows, one re-bank: 860/860, zero re-pins)
+
+*(`doc/OldPlans/Step2Remaining.md` group C: "each is a few lines, but every one re-seeds or re-sizes something pinned
+energies depend on ⇒ they want ONE measured re-bank, not three".  V2.1 had already left the group via V1.37.)*
+
+### V2.2 — GPW seeds `IonicSAD` by default; `Uniform` is the explicit opt-in
+
+*(original row:)*  `GpwOptions.seed` defaults to `Uniform`, which the Na-doublet campaign showed has a STABLE
+wrong basin for electron-sparse systems (lone-electron doublet converged 72 mHa high with every health metric
+green).  The molecular facade already defaults DFT to SAD.  Candidate: default GPW to `IonicSAD`, Uniform =
+explicit opt-in — needs a suite sweep since every pinned GPW anchor re-seeds.
+
+**What landed.**
+- `SolidCalcOptions::seed` and the harness `GpwOptions::seed` (plus the positional `RunGPW` default) →
+  `IonicSAD`, each with the wrong-basin finding written beside it.  `SeedStrategy::Default` on the RAW
+  iterator stays `Uniform` (a pure plane-wave run may use a species with no library entry — the PW tests do),
+  and `Seed.C`'s doc block no longer says SAD/IonicSAD are "not yet implemented".
+- `AlOptions()` STATES `Uniform`: Al has no entry in `atomic_valence_densities.json` (today: O, F, Na q1, Si,
+  Mn).  `SeedCD` now THROWS on a missing species with both ways out named (state `Uniform`, or generate the
+  entry with `CLIapps/valgen`) — since this seed is the periodic default, that line is the first thing a
+  new element hits.
+
+**The re-bank — nothing to re-pin.**  Full `ctest -j8`: 860/860.  The A/B on the same binary (`GPW_SEED=`):
+
+| row | Uniform | IonicSAD | ΔE | note |
+|---|---|---|---|---|
+| `SiliconGammaConverges` (minΔρ 1e-3) | 17 it, −7.115067844 | 8 it, −7.115063428 | 4.4e-6 | loosely converged; tol 2e-3 |
+| `SiliconMultiKPlumbing` | 12 it, −7.452943318 | 11 it, −7.452943318 | 0 | |
+| `SiDiamondIBZ_NonSymmorphic` | 11 it, −7.778472475 | 11 it, −7.778472475 | 0 | |
+| `SiPseudoAtomInBoxMatchesFinite` | 40 it, −3.744195376 | 40 it, −3.744195376 | 0 | |
+
+⇒ the row's "every pinned GPW anchor re-seeds" was TRUE and cost NOTHING: a converged run lands on the same
+number from either seed at printed precision, so the GPW anchors (pinned at CP2K-comparison tolerances) did
+not move.  What the seed changes is the PATH — fewer iterations on the closed-shell rows — and the BASIN on
+the electron-sparse ones, which is the row's reason and was already pinned per-test where it bit
+(`NaPseudoAtomInBoxDoublet`, NaF, MnO all said `IonicSAD` at their call sites already — they keep saying it,
+since a SEED PIN with its reason beside it is worth more than a default).
+The `OpenWork.md` sprint-S roster's **A5 is this item — done**.
+
+### V2.5 — the KB mesh fallback floors its own cutoff; the analytic d-channel KB is exonerated
+
+*(original row:)*  `PPMeshParams()` sizes its uniform mesh with no \f$\alpha_{pp}\f$ term: `mp.eCut =
+densityEcut` \f$=C\alpha_{\max}\f$, but its integrand is \f$\langle\chi_i|V_{short}|\chi_j\rangle\f$ with exponent
+\f$2\alpha_{\max}+\alpha_{pp}\f$.  One consumer today — the KB-projector grid fallback — so the exposure is
+bounded, but the floor is simply missing.  Raising it moves grids, hence anchors: measure first (D8).
+
+**Check the tree first: the row's integrand had already left.**  The local PP is assembled in G-space (the
+PW form-factor convention, band-limited to the density grid BY DESIGN), and the KB projection is ANALYTIC for
+every projector model in the tree (all carry `SpeciesProjectorSet_Gaussian`).  `PPMeshParams`'s one consumer
+is the MESH FALLBACK of `MakeSeparablePPByL`, reached only by the test's `MeshOnlyKB` — i.e. it is the
+ORACLE arm of the analytic-vs-mesh gates.  And an oracle that inherits an under-resolved density cutoff is
+no oracle: the d-channel gate `DISABLED_AnalyticSeparablePPMatchesMesh_DChannel` had been parked since
+2026-08-06 at rel = 3e-2, its own comment saying *"could still be the MESH arm being coarse … the next step
+is a densityEcut sweep"*, while the evaluator warned `densityEcut=20 < 2*alpha_max=72` on every run of it.
+
+**The sweep (Mn q7, VALENCE_LOWQ_SR, α_max = 36, α_β(d) = 1/2r_l² = 4.65):**
+
+| densityEcut | 20 | 40 | 72 | 100 | 150 | 220 | 320 |
+|---|---|---|---|---|---|---|---|
+| ‖Va−Vm‖/‖Vm‖ | 3.5e-2 | 3.8e-4 | 7.2e-8 | 1.07e-8 | 1.07e-8 | 1.07e-8 | 1.07e-8 |
+
+rel → a 1e-8 plateau (the two routes' common screening floor), so **the analytic l=2 Cartesian KB is
+EXONERATED** — the 3e-2 was the mesh arm on a 20 Ha grid.  ⚠ Note what the calibrated density rule buys
+here: at the density floor itself (72 = C·α_max) the quadrature is already at 7e-8, so the α_β term is a
+small correction on top of a floor that was MISSING ALTOGETHER — the row had the right diagnosis
+("the floor is simply missing") and the wrong term.
+
+**What landed.**
+- `SpeciesProjectorSet_R::SharpnessR(Z,p)` — the real-space view's SCALE (HGH: \f$1/2r_l^2\f$, the exponent
+  every term of the channel shares; `GaussianProjector` \f$1/2\sigma^2\f$; the multi-species router forwards;
+  the test's `MeshOnlyKB` forwards).  Same role as `XCMeshSharpness::alphaPP` for the local field.  Unit test
+  `SeparablePotentialViews.SharpnessRIsTheGaussianExponent` (UTPseudopotential) pins it against `AsGaussians`.
+- `GPW_Evaluator::PPMeshParams(cl, sep)` = max(density Ecut, `qcMesh::RequiredUniformCutoff({α_max, α_β}, C)`).
+- `GPW.AnalyticSeparablePPMatchesMesh_DChannel` **RE-ENABLED** at its ORIGINAL under-resolved `densityEcut=20`
+  — that under-resolution is now the point (the oracle must not inherit it): the floor lifts the mesh to
+  76.7 Ha and the gate passes at 2.3e-8 (17 s).  The Si gate is unchanged (floor ≈ 7 < its explicit 20; 2.3e-9).
+
+**Anchors moved: none** — the floor binds only where a projector set lacks the Gaussian face, which no
+production run does.  ⇒ V2.5 was filed as anchor-moving and was not; its payoff was a five-week-old
+mis-attribution and a gate.
