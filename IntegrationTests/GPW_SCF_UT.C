@@ -159,8 +159,8 @@ TEST(GPW_SCF, SR_2x2x2GammaCentred_vs_CP2K)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
-    SolidCalcOptions o=OptionsFor(si, "Si 2x2x2 Gamma-centred");
-    o.densityEcut=20.0; o.imposeSymmetry=true;
+    SolidCalcOptions o=OptionsFor(si, "Si 2x2x2 Gamma-centred (free)");
+    o.densityEcut=20.0; o.imposeSymmetry=false;      // FREE (2026-09-15): the full 8-k mesh; SiDiamondIBZ_NonSymmorphic is the IMPOSED arm at the same anchor
     SCFParams par=TightGates(60);
     EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
@@ -1278,18 +1278,11 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
 //================================================================================================
 TEST(GPW_SCF, SolidCalculationMatchesTheSiAnchor)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    SCFParams par;
-    par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
-    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
-
-    qchem::SolidCalculation calc(lat, MakeBasisSR(cell),
-                                 {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free, the facade's own recipe)");
+    o.densityEcut=20.0;                              // FREE: the facade's default -- the imposed sibling is SiliconGammaConverges
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
 
     // N1/T1: the answers are reachable only through the PROOF, so a non-converged run cannot serve them.
     auto r = calc.Result();
@@ -1320,21 +1313,15 @@ TEST(GPW_SCF, SolidCalculationMatchesTheSiAnchor)
 //================================================================================================
 TEST(GPW_SCF, CrossRunFirstRunAnomalyProbe)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    SCFParams par;
-    par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
-    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    const SCFParams par=ProductionGates();
 
     double E[3];
     for (int r=0;r<3;++r)
     {
         std::cout<<"[xrun] ================= RUN "<<r<<" ================="<<std::endl;
-        qchem::SolidCalculation calc(lat, MakeBasisSR(cell),
+        qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell),
                                      {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
         auto res=calc.Result();
         ASSERT_TRUE(res) << "run "<<r<<" did not converge: "<<res.Error().details;
@@ -1373,7 +1360,7 @@ TEST(GPW_SCF, CrossRunFirstRunAnomalyProbe)
 //  -- a throwaway run so both arms sat in "steady-state slots" -- was the cross-run D-screen leak,
 //  fixed by instance-scoping the GPW 3C tensors.  Every run now replays fresh-process behaviour
 //  bit-for-bit, gated by GPW_SCF.CrossRunFirstRunAnomalyProbe above, so the arms run cold.)
-static void ExpectRealComplexTwins(const Lattice_3D& lat, const UnitCell& cell, const char* what)
+static void ExpectRealComplexTwins(const Lattice_3D& lat, const Material& si, const char* what)
 {
     const qchem::SolidCalcOptions optOn {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0};
     const qchem::SolidCalcOptions optOff{.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true};
@@ -1383,7 +1370,7 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const UnitCell& cell, 
     one.MinΔFD=1e30; one.MinVirial=1e30; one.MinFD=1e30; one.StartingRelaxRo=0.3; one.MergeTol=1e-4;
 
     {   // (1) the arithmetic arm: exactly one iteration each
-        qchem::SolidCalculation on(lat, MakeBasisSR(cell), optOn, one), off(lat, MakeBasisSR(cell), optOff, one);
+        qchem::SolidCalculation on(lat, MakeBasisSR(*si.cell), optOn, one), off(lat, MakeBasisSR(*si.cell), optOff, one);
         // ONE iteration by construction, so these are LAST-ITERATE diagnostics, not answers (N1/T1).
         const qchem::EnergyBreakdown En=on.LastIterateTerms(), Ec=off.LastIterateTerms();
         // 1e-8: real-vs-complex roundoff headroom -- Een's large-cancellation assembly (vs Enn~8 Ha)
@@ -1399,14 +1386,14 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const UnitCell& cell, 
         SCFParams par;
         par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
         par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
-        qchem::SolidCalculation on(lat, MakeBasisSR(cell), optOn, par), off(lat, MakeBasisSR(cell), optOff, par);
+        qchem::SolidCalculation on(lat, MakeBasisSR(*si.cell), optOn, par), off(lat, MakeBasisSR(*si.cell), optOff, par);
         auto ron=on.Result(), roff=off.Result();
         ASSERT_TRUE(ron)  << what << ": " << (ron  ? std::string() : ron .Error().details);
         ASSERT_TRUE(roff) << what << ": " << (roff ? std::string() : roff.Error().details);
         EXPECT_NEAR(ron->Energy(), roff->Energy(), 2e-5) << what;    // MinΔE=1e-6 resolution (measured 4.8e-6)
-        const rvec3_t pts[]={ cell.ToCartesian(rvec3_t(0.3,0.4,0.7)),
-                              cell.ToCartesian(rvec3_t(0.25,0.25,0.25)),
-                              cell.ToCartesian(rvec3_t(0.1,0.9,0.2)) };
+        const rvec3_t pts[]={ si.cell->ToCartesian(rvec3_t(0.3,0.4,0.7)),
+                              si.cell->ToCartesian(rvec3_t(0.25,0.25,0.25)),
+                              si.cell->ToCartesian(rvec3_t(0.1,0.9,0.2)) };
         for (const auto& r : pts)                                     // MinΔρ=1e-3 resolution (measured ≤9.1e-6)
             EXPECT_NEAR(ron->Density()(r), roff->Density()(r), 1e-4) << what;
     }
@@ -1414,12 +1401,9 @@ static void ExpectRealComplexTwins(const Lattice_3D& lat, const UnitCell& cell, 
 
 TEST(GPW_SCF, RealTRIMBlocksMatchComplex_SiGamma)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));   // Γ-only: EVERY block is TRIM, so the flip makes the whole run real
-    ExpectRealComplexTwins(lat, cell, "Si Gamma real-vs-complex");
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);      // Γ-only: EVERY block is TRIM, so the flip makes the whole run real
+    ExpectRealComplexTwins(lat, si, "Si Gamma real-vs-complex");
 }
 
 //  STEP 4's MIXED-MESH acceptance, at the smallest genuinely mixed mesh: N=(3,1,1) has ONE TRIM point
@@ -1428,12 +1412,9 @@ TEST(GPW_SCF, RealTRIMBlocksMatchComplex_SiGamma)
 //  the same code path 27 blocks wide; this keeps the gate's wall-time at ~3 Γ runs.)
 TEST(GPW_SCF, RealTRIMBlocksMatchComplex_SiMixedMesh)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(3,1,1));
-    ExpectRealComplexTwins(lat, cell, "Si (3,1,1) mixed-mesh real-vs-complex");
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si, ivec3_t(3,1,1));
+    ExpectRealComplexTwins(lat, si, "Si (3,1,1) mixed-mesh real-vs-complex");
 }
 
 //  MOM ON A MIXED MESH -- the END-TO-END gate for the R2.21 state split (flagged at that item's
@@ -1449,20 +1430,17 @@ TEST(GPW_SCF, RealTRIMBlocksMatchComplex_SiMixedMesh)
 //  reference was captured, scored and applied exactly as its complex twin's.
 TEST(GPW_SCF, RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(3,1,1));
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si, ivec3_t(3,1,1));
 
     SCFParams par;
     par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6;
     par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
     par.UseMOM=true; par.MOMStartIter=2;              // armed EARLY: the reference must be live in-run
 
-    qchem::SolidCalculation on (lat, MakeBasisSR(cell),
+    qchem::SolidCalculation on (lat, MakeBasisSR(*si.cell),
                                 {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0}, par);
-    qchem::SolidCalculation off(lat, MakeBasisSR(cell),
+    qchem::SolidCalculation off(lat, MakeBasisSR(*si.cell),
                                 {.Nelec=8, .species={{"Si",4}}, .densityEcut=20.0, .forceComplex=true}, par);
     auto ron=on.Result(), roff=off.Result();
     ASSERT_TRUE(ron)  << "MOM on a mixed real/complex mesh must converge (R2.21): "
@@ -1969,11 +1947,8 @@ TEST(GPW_SCF, ImposedOrderLostIsAPostconditionFailure_Na2Box)
     if (!qchem::theRunPolicy().BeckeXC())
         GTEST_SKIP() << "the OrderLost postcondition is measured on Becke site basins, which the run "
                         "policy has vetoed (QCHEM_BECKE_XC=0 / CP2K_COMPAT=1)";
-    const double a=16.0, d=5.8;                       // ~Na2 bond length (au) in the Si gate's box
-    UnitCell cell(a);
-    cell.AddAtom(11, {0.5-0.5*d/a,0.5,0.5}, false);   // Na +m
-    cell.AddAtom(11, {0.5+0.5*d/a,0.5,0.5}, true);    // Na -m -- the AFM flip the SAD seed plants
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const Material box=qchem::Materials::Get("Na2_box16");   // Na2 at d=5.8 in the Si gate's 16-bohr box, +m/-m: the AFM flip the SAD seed plants
+    const Lattice_3D lat=LatticeOf(box);
 
     SCFParams par;
     // alpha=0.5 and a generous cap are LOAD-BEARING, not decoration: this gate needs a run that
@@ -2067,7 +2042,7 @@ TEST(GPW_SCF, ImposedOrderLostIsAPostconditionFailure_Na2Box)
     for (double alpha : alphas)
     {
         par.StartingRelaxRo=alpha;
-        calcp=std::make_unique<qchem::SolidCalculation>(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR),
+        calcp=std::make_unique<qchem::SolidCalculation>(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR),
                                                        o, par);
         std::cout << "[Na2 T2] alpha="<<alpha<<" converged="<<calcp->DidConverge()
                   << " iters="<<calcp->IterationCount() << std::endl;
