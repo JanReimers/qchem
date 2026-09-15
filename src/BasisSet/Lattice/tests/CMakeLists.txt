@@ -4,7 +4,8 @@
 # qcLASolver, qcMesh, qcCommon).  It is deliberately NOT allowed to link anything higher in the DAG
 # (Hamiltonian / ChargeDensity / Orbitals / WaveFunction / SCFIterator) -- so the linker structurally
 # guarantees these stay true unit tests.  The self-consistent (SCF) integration tests that DO need the
-# upper stack live in UnitTests/PlaneWaveDFTUT.C instead.
+# upper stack live in IntegrationTests/{GPW,PW}/ instead; the two GPW XC finite-difference probes that need
+# the XC functional objects live in src/Hamiltonian/tests/GPW_XC_FD.C for the same reason.
 
 add_executable(UTLattice_BS ../../Radial/tests/gtestmain.C
     PlaneWaveUT.C
@@ -15,6 +16,7 @@ add_executable(UTLattice_BS ../../Radial/tests/gtestmain.C
     GMapUT.C
     ScreenedIntegratorUT.C
     RealComplexUT.C
+    GPW_UT.C            # the GPW basis/evaluator unit tests (moved from IntegrationTests 2026-09-15, TE phase 5)
 )
 
 target_compile_definitions(UTLattice_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})  # GTH data path now baked into qcPseudopotential
@@ -26,6 +28,6 @@ target_include_directories(UTLattice_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
 )
 
-target_link_libraries(UTLattice_BS PRIVATE qcLattice_BS qcPseudopotential lapack gtest)   # the tests use the GTH models directly
+target_link_libraries(UTLattice_BS PRIVATE qcLattice_BS qcPseudopotential qcFitting lapack gtest)   # the tests use the GTH models directly; qcFitting = OrthogonalFit (GPW_UT's per-representation fit gates), a leaf
 
 gtest_discover_tests(UTLattice_BS)

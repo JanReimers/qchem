@@ -17,12 +17,10 @@ import qchem.Structure;
 import qchem.Hamiltonian.Factory;
 import qchem.Symmetry.Spin;
 
-import qchem.WaveFunction.Types;
 import qchem.Math;
 import qchem.Blaze;
 using namespace qchem;
 
-using qchem::WaveFunction::rbs_t;
 
 using std::cout;
 using std::endl;
