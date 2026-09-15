@@ -2142,8 +2142,8 @@ MnO campaign proceeds undisturbed in qchem6.
   provenance seated by the loop driver; `ΔG_Map` has its field algebra beside its definition;
   `Linear/Kerker/PulayMixerFactory` with param structs and a GENERIC seed; the mixers own their field and
   `FourierMixCD` is a presentation built whole (`RhoTilde`/`SetRawRho`/`KerkerMix` deleted).  851/851 after
-  every increment.  ⏳ **LEFT OPEN** (in the history entry): (g) `PolarizedRunKeepsItsSpin` → a mixer unit test
-  (TE); the direct observable that replaces α_eff; NO test reaches the DM-source XC route; the opt-in
+  every increment.  ⏳ **LEFT OPEN** (in the history entry): (g) ✅ 2026-09-15 `PolarizedRunKeepsItsSpin` → three `KerkerMix.*`
+  unit tests, 41 ms, integration test deleted (TE phase 1); the direct observable that replaces α_eff; NO test reaches the DM-source XC route; the opt-in
   `GPW_XC_DM_SOURCE` wholesale route still consumes `cDM_Sourced_CD::EffectiveAlpha`.  **→ doc/CleanupHistory.md**
 - **V1.19 ✅ VISITOR + THROWS DONE 2026-08-17; bit-identical, 734/734.**  ⚠ **ONE DELIBERATE REMAINDER**: the seed's flip-group sub-cell duplication — removing it needs a per-SITE form-factor overload on the basis face, which the item itself weighs against the pseudo-wall pin.  That block is the seed's ONE remaining concrete-`Atom` consumer.  **→ doc/CleanupHistory.md**
 - **V1.20 ✅ CLOSED 2026-09-09 — USER RULING: the `qcBasisSet*` family counts as ONE library for

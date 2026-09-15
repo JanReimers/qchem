@@ -3623,63 +3623,13 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
         EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3);   // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
 }
 
-// A POLARIZED RUN MUST STAY POLARIZED (SymmetryUpgradePlan §7 step 7, 2026-08-07).  The regression gate for
-// the AFM collapse: the ρ̃ density mixers (Kerker/Pulay) carry ONE FourierMixCD -- the ↑+↓ TOTAL, with no spin
-// channels -- and drive every Fock from it, so SinglesDensitySampler::RhoPol falls into its ρ↑=ρ↓=ρ/2 branch and the
-// run is silently UNPOLARIZED from iteration 1 (measured on MnO: a seed staggered at m_stag=+0.366 reads
-// EXACTLY +0.000000 at iteration 1 and never recovers).  MakeDensityMixer now refuses the ρ̃ mixers on a
-// polarized density and falls back, loudly, to linear D-mixing.  This gate asks a POLARIZED run for Kerker
-// on the cheap Mn q7 sextet box (same system as the d-channel gate above) and checks it got the POLARIZED
-// answer.  QCHEM_SPINBLIND_KERKER=1 forces the broken mixer back on; the gate then fails.
-//
-// WHICH observable has teeth is itself a finding (measured, 2026-08-06/07).  The on-site MOMENT does NOT:
-// with nUp=6/nDown=1 the moment is pinned by the CHANNEL OCCUPATIONS, so it survives a spin-blind Fock
-// intact (0.64 vs 0.72) -- an atom cannot expose this bug.  Only an order that must be SELF-CONSISTENTLY
-// SUSTAINED does, which is exactly MnO's staggering at nUp=nDn (nothing but v_xc^↑≠v_xc^↓ holds it up).
-// What an atom DOES expose is the ENERGY: a spin-blind Fock loses the exchange splitting entirely and lands
-// 68 mHa HIGH (−14.57 vs the physical −14.638, itself 12 mHa from the molecular facade).  So the moment is
-// reported (it is the instrument under test) and the ENERGY is the assert.
-TEST(GPW_SCF, PolarizedRunKeepsItsSpin)
-{
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(25, {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwOptions o;
-    o.label="Mn sextet under Kerker";
-    o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
-    o.species={{"Mn",7}};
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
-    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
-    o.imposeSymmetry=false;
-    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-    auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
-    // GPW_MNSEXTET_NMAX raises the cap for the shared-μ A/B only: freeing the moment adds a soft degree of
-    // freedom, so the same descent needs more iterations before the pinned energy means anything.
-    o.scf.NMaxIter=(size_t)envd("GPW_MNSEXTET_NMAX",12); o.scf.MinΔρ=1e-8; o.scf.MinΔE=1e30;   // TIGHT on purpose: the assert is on the whole
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;   // trajectory, so the gate must actually
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;   // ITERATE (Kerker on this
-    o.scf.KerkerG0=1.0;                                // THE ASK: ρ̃ mixing on a polarized density
-
-    // The order parameter: the INTEGRATED on-site moment mu_Mn = Integral w_Mn (rho_up - rho_dn), carried by
-    // every iteration's SCFProgress::order (R1.0h; the m_site column).  Recorded per iteration, so the
-    // SmokeTest of the instrument itself is here: it must be present every iteration at an electrons scale.
-    std::vector<double> mtrace;
-    o.onIteration=[&mtrace](const qchem::SCFIterator::SCFProgress& p){ mtrace.push_back(p.order); };
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o,
-                       /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"));
-    EXPECT_NEAR(R.charge, 7.0, 1e-6);
-    ASSERT_FALSE(mtrace.empty()) << "the observer never fired";
-    const double mMin=*std::min_element(mtrace.begin(), mtrace.end());
-    std::cout << "[Mn sextet under Kerker] integrated mu_Mn over "<<mtrace.size()<<" iterations: min="<<mMin
-              << " final="<<mtrace.back()<<std::endl;
-    EXPECT_GT(mMin, 4.0) << "the instrument itself: the S=5/2 moment (5 e) must be there every iteration";
-    // THE ASSERT: the same polarized answer the linear-mixed d-channel gate pins (−14.6380).  A spin-blind
-    // ρ̃ mixer loses the exchange splitting and lands at −14.57 -- 68x this tolerance away.
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3)
-        << "asking for Kerker must not change the physics: this is the spin-blind-mixer detector";
-}
+// (PolarizedRunKeepsItsSpin -- the Mn sextet asking for Kerker, 217 s, 27% of the suite -- was DELETED
+//  2026-09-15 (doc/TestSuitePlan.md phase 1).  Its claim is a MIXER property: a polarized seed must get a
+//  per-channel ρ̃ mixer, never a single-map one.  It is now pinned with no SCF at all by
+//  src/ChargeDensity/tests/KerkerMix.C -- PolarizedSeedComposesPerChannel, PolarizedStepMovesEachChannelAtAlpha
+//  and the QCHEM_SPINBLIND_KERKER negative control -- in 41 ms.  What else it asserted is covered by
+//  MnAtomInBoxDChannel above (same cell, the polarized energy) and ImposedShubnikovHoldsAFMThroughSCF_Mn2Box
+//  below (order SUSTAINED through an SCF).)
 
 // ============================ MnO rocksalt AFM-II (SymmetryUpgradePlan §7 step 7) ============================
 // The FIRST magnetic transition-metal material: rocksalt MnO with the type-II AFM ordering (ferromagnetic

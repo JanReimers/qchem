@@ -62,8 +62,8 @@ std::unique_ptr<tDensityMixer<dcmplx>> ComposePeriodic(
     // POLARIZED: one ρ̃ mixer PER CHANNEL, composed (PolarizedDensityMixer).  A single-map mixer would hand the
     // Fock a spin-blind total and collapse v_xc to the ζ=0 branch from iteration 1 -- the MnO AFM-II collapse,
     // 2026-08-07.  (QCHEM_SPINBLIND_KERKER=1 takes the single-map path on a polarized density anyway: the A/B
-    // valve that re-measures the collapse, the negative control behind GPW_SCF.PolarizedRunKeepsItsSpin.
-    // Never a production setting.)
+    // valve that re-creates the collapse, pinned by KerkerMix.SpinBlindValveCollapsesTheChannels.  Never a
+    // production setting.)
     const bool spinBlind = std::getenv("QCHEM_SPINBLIND_KERKER");
     // THE CHANNELS THROUGH THE FACE (V1.37): a polarized composite answers its Up/Down views, the spin-SAD
     // seed its channel seeds -- either way a FourierDensity per channel, which is all the leaves read.  A
