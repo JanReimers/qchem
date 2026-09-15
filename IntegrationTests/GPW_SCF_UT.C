@@ -1167,24 +1167,28 @@ TEST(GPW_SCF, DISABLED_SiSupercellLadder)
     if (n.x==2 && n.y==2 && n.z==2) EXPECT_NEAR(ePerPrim, -7.77846, 1e-2);
 }
 
-// DISPERSIVE MULTI-K BULK (disabled: 8 k-blocks, ~4 min) -- the first REAL bulk GPW, unblocked by the KB
+// DISPERSIVE MULTI-K BULK -- RE-ENABLED 2026-09-15 (5.8 s after the 2026-08 box-walk work; it was parked at
+// "~4 min" in July) -- the first REAL bulk GPW, unblocked by the KB
 // Bloch-orbital fix (Rcut>0 now correct).  Gamma-centred 2x2x2 MP, SIPP_SR, Rcut=2a: charge stays 8 and the
 // total drops with k-sampling (Gamma -7.11467 -> 2x1x1 -7.451 -> 2x2x2 -7.778 -- real dispersion).
 // CROSS-CHECK vs CP2K AT THE SAME GAMMA-CENTRED MESH: -7.7778 vs CP2K -7.77846 (~0.7 mHa, the N=32 grid gap;
 // deck UnitTests/CP2K/si_fcc_gpw_222_gamma.inp).  The 90 mHa vs CP2K's DEFAULT -7.86744 is the k-CONVENTION:
 // Gamma-centred here (kShift=0) vs CP2K's classic SHIFTED MONKHORST-PACK (k at +/-1/4).  The shifted grid is
 // the sibling test below (kShift=1/2).  The general-k PHYSICS is validated at both.
-TEST(GPW_SCF, DISABLED_SR_2x2x2GammaCentred_vs_CP2K)
+TEST(GPW_SCF, SR_2x2x2GammaCentred_vs_CP2K)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
-                       "Si 2x2x2 Gamma-centred", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0);
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.77846, 3e-3) << "GPW 2x2x2 Gamma-centred vs CP2K same-mesh -7.77846";
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
+    SolidCalcOptions o=OptionsFor(si, "Si 2x2x2 Gamma-centred");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    SCFParams par=TightGates(60);
+    EnvOverrides(o, par);
+    GpwReport report("Si "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), -7.77846, 3e-3) << "GPW 2x2x2 Gamma-centred vs CP2K same-mesh -7.77846";
 }
 
 // SHIFTED Monkhorst-Pack (kShift=½ → k at ±¼ = CP2K's DEFAULT MONKHORST-PACK 2 2 2) -- the apples-to-apples
@@ -1601,157 +1605,6 @@ TEST(GPW_SCF, O2TripletInBoxMatchesFinite)
     // last iterate, which is what this gate has always read.
     EXPECT_NEAR(calc.LastIterateCharge(), 12.0, 1e-6);
     EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), Eref, 5e-2) << "GPW-in-box triplet vs finite molecular LSDA triplet";
-}
-
-// PROBE (kept disabled): FIXED-DENSITY term fingerprinter for the Na-doublet deficit.  Feed the polarized
-// GPW Hamiltonian two hand-built ONE-HOT densities (the alpha=0.6999 and alpha=2.0 s-Gaussians, charge 1
-// each) and print every energy term.  Because BOTH densities carry the same charge in the same cell, ALL
-// the box-convention constants (Enn, E_alphaZ, dropped-G=0 shifts) cancel EXACTLY in the DIFFERENCE of
-// each term -- so Δ(term) can be compared directly against the independent radial oracle's Δ, and the
-// defective term identifies itself.  (Oracle: scratchpad na_q1_basis.py evaluates the same two Gaussians.)
-TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
-{
-    namespace L3=BasisSet::Lattice;
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(11, {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    // densityEcut EXPLICIT and high: the one-hot probes include the SHARP alpha=2 pair (p=4), which the
-    // auto rule (cutoffFactor*alpha_max = 4 Ha) badly under-resolves -- the probe must measure the terms,
-    // not the grid (the O2 auto-cutoff lesson).  Env knob for the probe's own convergence sweep.
-    const double ecut=std::getenv("NAFD_ECUT")?atof(std::getenv("NAFD_ECUT")):40.0;
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR),
-        L3::GPWParams{.densityEcut=ecut, .images=BasisSet::Gaussian::CellImages::HomeCellOnly}));
-
-    qchem::Hamiltonian::cHamiltonian* ham=new qchem::Hamiltonian::Ham_PW_DFT(
-        lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
-        Hamiltonian::VxcFit::Auto, SpinGroup::Polarized);
-
-    const BasisSet::Complex_OIBS* obs=nullptr;
-    for (auto b : bs->Iterate<BasisSet::Complex_OIBS>()) obs=b;   // the single Gamma block (n=10)
-    ASSERT_NE(obs, nullptr);
-    auto S=obs->Overlap();
-    const size_t n=obs->GetNumFunctions();
-
-    // One-hot density on basis function k for the UP channel; the DOWN channel is the zero matrix.
-    auto probe=[&](size_t k)
-    {
-        hmat_t<dcmplx> Dup(n), Ddn(n);
-        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) { Dup(i,j)=dcmplx(0.0); Ddn(i,j)=dcmplx(0.0); }
-        Dup(k,k)=dcmplx(1.0/std::real(dcmplx(S(k,k))));            // Tr(D S) = 1
-        using namespace qchem::ChargeDensity;
-        // The polarized density is ONE composite over the Up and Down irrep blocks (V1.37).
-        auto pol=std::make_unique<tComposite_CD<dcmplx>>();
-        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up  ))), obs->GetIrrep(Spin::Up  ));
-        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down))), obs->GetIrrep(Spin::Down));
-        cDM_CD* cd=pol.get();
-        qchem::EnergyBreakdown te = ham->GetTotalEnergy(cd);
-        std::cout << "[fixed-D k="<<k<<"] charge="<<cd->GetTotalCharge()
-                  << " Ekin="<<te["Kinetic"]<<" Een="<<te["Een"]<<" Eee="<<te["Eee"]<<" Exc="<<te["Exc"]
-                  << " Enn="<<te["Enn"]<<" E_alphaZ="<<te["E_alphaZ"]
-                  << " Etot="<<te.GetTotalEnergy()<<std::endl;
-        return te;
-    };
-    auto t2=probe(2);   // alpha=0.6999271 s-Gaussian
-    auto t3=probe(3);   // alpha=2.0       s-Gaussian
-    std::cout << "[fixed-D delta k2-k3] dEkin="<<t2["Kinetic"]-t3["Kinetic"]
-              << " dEen="<<t2["Een"]-t3["Een"] << " dEee="<<t2["Eee"]-t3["Eee"]
-              << " dExc="<<t2["Exc"]-t3["Exc"]
-              << " dEtot="<<t2.GetTotalEnergy()-t3.GetTotalEnergy()<<std::endl;
-    delete ham;
-
-    // CONTROL: the SAME one-hot densities through the UNPOLARIZED Hamiltonian on a bare Spin::None leaf --
-    // isolates "polarized path" from "box electrostatics in general".
-    qchem::Hamiltonian::cHamiltonian* hamU=new qchem::Hamiltonian::Ham_PW_DFT(
-        lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
-        Hamiltonian::VxcFit::Auto, SpinGroup::UnPolarized);
-    auto probeU=[&](size_t k)
-    {
-        hmat_t<dcmplx> D(n);
-        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=dcmplx(0.0);
-        D(k,k)=dcmplx(1.0/std::real(dcmplx(S(k,k))));
-        using namespace qchem::ChargeDensity;
-        auto* cd=IrrepCD_Factory<dcmplx>(D, obs, obs->GetIrrep(Spin::None));
-        qchem::EnergyBreakdown te = hamU->GetTotalEnergy(cd);
-        std::cout << "[fixed-D UNPOL k="<<k<<"] charge="<<cd->GetTotalCharge()
-                  << " Ekin="<<te["Kinetic"]<<" Een="<<te["Een"]<<" Eee="<<te["Eee"]<<" Exc="<<te["Exc"]<<std::endl;
-        delete cd;
-        return te;
-    };
-    auto u2=probeU(2);
-    auto u3=probeU(3);
-    std::cout << "[fixed-D UNPOL delta k2-k3] dEkin="<<u2["Kinetic"]-u3["Kinetic"]
-              << " dEen="<<u2["Een"]-u3["Een"] << " dEee="<<u2["Eee"]-u3["Eee"]
-              << " dExc="<<u2["Exc"]-u3["Exc"]<<std::endl;
-    delete hamU;
-
-    // SPIN-SWAP TEST: the polarized XC pair's FOCK matrices per channel on the one-hot ↑ density
-    // (ρ↑ = the alpha=0.6999 Gaussian, ρ↓ = 0).  Expected: v_x(Up) strongly negative diagonal
-    // (v_x(ρ↑)), v_x(Down) ZERO (v_x(0)); v_c(Up) the ζ=1 correlation, v_c(Down) its ∂/∂ρ↓ partner.
-    // A channel swap/share -- the E/H-inconsistency candidate that vanishes at ρ↑=ρ↓ -- shows as
-    // Up≈0 / Down<0.
-    {
-        using namespace qchem::Hamiltonian;
-        auto exch=std::make_shared<SlaterExchange>(2.0/3.0);
-        auto corr=std::make_shared<VWN_Correlation>();
-        BasisSet::FitQuadrature q = bs->CreateXCQuadrature(lat.GetStructure().get(),
-                                                          qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}));
-        auto engine=SinglesEngineOver(std::move(q));
-        // ONE term per functional (V1.37 step 3): both spin-native, both fed the channel rasters.
-        Vxc_Quadrature x(exch, engine, SpinGroup::Polarized);
-        Vxc_Quadrature c(corr, engine, SpinGroup::Polarized);
-        const size_t k=2;
-        hmat_t<dcmplx> Dup(n), Ddn(n);
-        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) { Dup(i,j)=dcmplx(0.0); Ddn(i,j)=dcmplx(0.0); }
-        Dup(k,k)=dcmplx(1.0/std::real(dcmplx(S(k,k))));
-        using namespace qchem::ChargeDensity;
-        // The polarized density is ONE composite over the Up and Down irrep blocks (V1.37).
-        auto pol=std::make_unique<tComposite_CD<dcmplx>>();
-        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up  ))), obs->GetIrrep(Spin::Up  ));
-        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down))), obs->GetIrrep(Spin::Down));
-        cDM_CD* cd=pol.get();
-        auto diag=[&](const hmat_t<dcmplx>& M){ double s2=0; for (size_t i=0;i<M.rows();i++) s2+=std::real(dcmplx(M(i,i))); return s2; };
-        cDynamic_HT& xi=x; cDynamic_HT& ci=c;      // the public term face (Imp::GetMatrix is private)
-        auto Mxu=xi.GetMatrix(obs, Spin::Up,   cd);
-        auto Mxd=xi.GetMatrix(obs, Spin::Down, cd);
-        auto Mcu=ci.GetMatrix(obs, Spin::Up,   cd);
-        auto Mcd=ci.GetMatrix(obs, Spin::Down, cd);
-        std::cout << "[swap test] tr v_x(Up)="<<diag(Mxu)<<" tr v_x(Down)="<<diag(Mxd)
-                  << "  tr v_c(Up)="<<diag(Mcu)<<" tr v_c(Down)="<<diag(Mcd)
-                  << "  (expect v_x(Down)=0, v_x(Up)<0)"<<std::endl;
-        delete cd;
-    }
-
-    // THE KILL SHOT: evaluate the GPW functional AT THE ORACLE'S OPTIMAL DENSITY (the radial same-basis
-    // solver's s-block minimizer, c = the contracted combination -- OFF-DIAGONAL D, which the one-hot
-    // probes above never exercised).  If E_GPW[D*] < the SCF's converged −0.0699, the GPW SCF failed to
-    // find its own functional's minimum (solver-side bug); if E_GPW[D*] ≈ −0.07, the functional itself
-    // errs on off-diagonal D.
-    {
-        const double c[4]={2.54610981, -1.79605159, 0.08532953, -0.03806822};   // oracle minimizer (s block)
-        hmat_t<dcmplx> Dup(n), Ddn(n);
-        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) { Dup(i,j)=dcmplx(0.0); Ddn(i,j)=dcmplx(0.0); }
-        for (size_t i=0;i<4;i++) for (size_t j=i;j<4;j++) Dup(i,j)=dcmplx(c[i]*c[j]);
-        // renormalize to Tr(D S) = 1 in THIS stack's S (guards small normalization-convention differences)
-        double q=0;
-        for (size_t i=0;i<4;i++) for (size_t j=0;j<4;j++) q+=c[i]*c[j]*std::real(dcmplx(S(i,j)));
-        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) Dup(i,j)=dcmplx(std::real(dcmplx(Dup(i,j)))/q);
-        using namespace qchem::ChargeDensity;
-        // The polarized density is ONE composite over the Up and Down irrep blocks (V1.37).
-        auto pol=std::make_unique<tComposite_CD<dcmplx>>();
-        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Dup, obs, obs->GetIrrep(Spin::Up  ))), obs->GetIrrep(Spin::Up  ));
-        pol->Insert(std::unique_ptr<cDM_CD>(IrrepCD_Factory<dcmplx>(Ddn, obs, obs->GetIrrep(Spin::Down))), obs->GetIrrep(Spin::Down));
-        cDM_CD* cd=pol.get();
-        qchem::Hamiltonian::cHamiltonian* hamP=new qchem::Hamiltonian::Ham_PW_DFT(
-            lat.GetStructure(), bs.get(), {{"Na",1}}, "LDA", qcMesh::ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}),
-            Hamiltonian::VxcFit::Auto, SpinGroup::Polarized);
-        qchem::EnergyBreakdown te = hamP->GetTotalEnergy(cd);
-        std::cout << "[oracle-D*] charge="<<cd->GetTotalCharge()
-                  << " Ekin="<<te["Kinetic"]<<" Een="<<te["Een"]<<" Eee="<<te["Eee"]<<" Exc="<<te["Exc"]
-                  << " Etot="<<te.GetTotalEnergy()
-                  << "  (SCF found -0.0699; oracle E[D*]=-0.1416)"<<std::endl;
-        delete cd; delete hamP;
-    }
 }
 
 // (tier 4b, gate a) THE POLARIZED SOLID PIPELINE: Na pseudo-atom in a box, DOUBLET (doc/SymmetryUpgradePlan.md
@@ -2238,29 +2091,26 @@ TEST(GPW_SCF, DISABLED_NaFImposedGDMSmearProbe)
 // raster-vs-midpoint-mesh quadrature), the same class the Becke-vs-uniform gate measures (~1e-4 Exc).
 TEST(GPW_SCF, DeltaFitUniformGridMatchesPWFit_SiGamma)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o;
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si PW-fit");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.Nelec=8; o.species={{"Si",4}};
-    o.densityEcut=20.0; o.accelerator="DIIS";
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+    o.densityEcut=20.0;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
+    auto energy=[&]{ GpwReport report("Si "+o.label, false);
+                     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+                     auto r=calc.Result(); EXPECT_TRUE(r) << Why(r);
+                     return r ? r->Energy() : 0.0; };
 
-    o.label="Si PW-fit"; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // (PlaneWave, raster)
-    GpwResult P=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
-    ASSERT_TRUE(P.converged);
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;                        // (PlaneWave, raster)
+    const double P=energy();
 
     o.label="Si Delta-fit uniform"; o.vxcFit=Hamiltonian::VxcFit::Delta;    // (Delta, uniform mesh)
     o.xcMesh.eCut=o.densityEcut;                                            // resolve rho on the midpoint mesh
-    GpwResult D=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
-    ASSERT_TRUE(D.converged);
+    const double D=energy();
 
-    EXPECT_NEAR(D.E.GetTotalEnergy(), P.E.GetTotalEnergy(), 5e-3)
+    EXPECT_NEAR(D, P, 5e-3)
         << "the delta fit on the uniform cell mesh must reproduce the PW fit on the raster to the "
            "band-limit/quadrature route-difference class (plan 6a fit/grid separation)";
 }
@@ -2273,29 +2123,25 @@ TEST(GPW_SCF, DeltaFitUniformGridMatchesPWFit_SiGamma)
 // unpolarized PW-fit answer, exactly as PolarizedSingletMatchesUnpolarizedSiGamma pins it on the Becke route.
 TEST(GPW_SCF, PolarizedSingletMatchesUnpolarized_PWFitRaster)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o;
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si PW-fit unpol");
     o.imposeSymmetry=true;
-    o.Nelec=8; o.species={{"Si",4}};
-    o.densityEcut=20.0; o.accelerator="DIIS";
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+    o.densityEcut=20.0;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // (PlaneWave, raster): Auto resolves the PW fit here
-
-    o.label="Si PW-fit unpol";
-    GpwResult U=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
-    ASSERT_TRUE(U.converged);
+    SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
+    struct Arm { double charge, E; };
+    auto arm=[&]() -> Arm { GpwReport report("Si "+o.label, false);
+                            qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+                            auto r=calc.Result(); EXPECT_TRUE(r) << Why(r);
+                            return r ? Arm{r->TotalCharge(), r->Energy()} : Arm{0,0}; };
+    const Arm U=arm();
 
     o.label="Si PW-fit pol-singlet"; o.multiplicity=1;   // the explicit two-channel singlet on the SAME route
-    GpwResult P=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
-    ASSERT_TRUE(P.converged);
+    const Arm P=arm();
     EXPECT_NEAR(P.charge, 8.0, 1e-6);
-    EXPECT_NEAR(P.E.GetTotalEnergy(), U.E.GetTotalEnergy(), 1e-6)   // measured 6e-9 on 2026-09-14, same 17 iterations
+    EXPECT_NEAR(P.E, U.E, 1e-6)                            // measured 6e-9 on 2026-09-14, same 17 iterations
         << "zeta=0 collapse on the plane-wave fit route: v^sigma(rho/2,rho/2) == v(rho) pointwise, so the "
            "two-channel singlet must reproduce the unpolarized PW-fit answer";
 }
@@ -2310,34 +2156,28 @@ TEST(GPW_SCF, PolarizedSingletMatchesUnpolarized_PWFitRaster)
 // imposed arm's group-average mesh growth stays affordable).
 TEST(GPW_SCF, BeckeXC_IBZ_SiDiamond)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwOptions o;
-    o.Nelec=8; o.species={{"Si",4}};
-    o.densityEcut=20.0; o.accelerator="DIIS";
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
+    SolidCalcOptions o=OptionsFor(si, "Si diamond Becke FULL");
+    o.densityEcut=20.0;
     o.xcMesh=qcMesh::BeckeXCParams(15, 2.0, 9);          // explicit coarse Becke (nR=15, GL-9), same on both arms
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    auto energy=[&]{ GpwReport report("Si "+o.label, false);
+                     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
+                     auto r=calc.Result(); EXPECT_TRUE(r) << Why(r);
+                     return r ? r->Energy() : 0.0; };
 
-    o.label="Si diamond Becke FULL"; o.imposeSymmetry=false;
-    GpwResult F=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
-    ASSERT_TRUE(F.converged);
-
+    o.imposeSymmetry=false;
+    const double F=energy();
     o.label="Si diamond Becke IBZ"; o.imposeSymmetry=true;
-    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
-    ASSERT_TRUE(R.converged);
+    const double R=energy();
 
-    std::cout<<"[Becke IBZ gate] full="<<F.E.GetTotalEnergy()<<" reduced="<<R.E.GetTotalEnergy()
-             <<" dE="<<R.E.GetTotalEnergy()-F.E.GetTotalEnergy()<<std::endl;
+    std::cout<<"[Becke IBZ gate] full="<<F<<" reduced="<<R<<" dE="<<R-F<<std::endl;
     // Tolerance = the RULE-DIFFERENCE class at this deliberately coarse L: the free arm runs GL-9
     // (50 dirs), the imposed arm the MIXED-rule site-adapted minimal grid (degree-9-exact, ~76
     // dirs/atom) -- measured 2.0e-3 at L=9, collapsing with L (passes 2e-3 already at L=17; both
     // rules sit on the comparison floor at the production L=29).
-    EXPECT_NEAR(R.E.GetTotalEnergy(), F.E.GetTotalEnergy(), 3e-3)
+    EXPECT_NEAR(R, F, 3e-3)
         << "Becke+IBZ must reproduce Becke+full-mesh (the W1 star-average makes the reduced density exact "
            "on the invariant Becke mesh; doc/SymmetryUpgradePlan.md 6a)";
 }
@@ -2355,24 +2195,21 @@ TEST(GPW_SCF, BeckeXC_IBZ_SiDiamond)
 // convergence is the accuracy follow-up; this gate validates the machinery + Fermi surface, not a cohesive E.
 TEST(GPW_SCF, NaFCCMetalGlobalMu)
 {
-    FCCUnitCell cell(10.0);                     // FCC Na at Na's atomic density (density-matched to real BCC Na)
-    cell.AddAtom(11, {0,0,0});                  // Na (Zion=1): 3s^1 -- one electron => half-filled band
-    Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwOptions o;
+    const Material na=qchem::Materials::Get("Na_fcc");        // FCC Na at Na's atomic density; 3s^1 => half-filled band
+    const Lattice_3D lat=LatticeOf(na, ivec3_t(2,2,2));
+    SolidCalcOptions o=OptionsFor(na, "Na FCC metal");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="Na FCC metal"; o.Nelec=1; o.species={{"Na",1}};
-    o.densityEcut=-1.0; o.accelerator="DIIS"; o.globalFermi=true;   // ONE μ across the BZ
+    o.globalFermi=true;                        // ONE μ across the BZ
     o.kShift=rvec3_t(0.5,0.5,0.5);             // shifted Monkhorst-Pack (k at ±¼)
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=0.01;
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR2), o, /*verbose*/false);
-
-    EXPECT_TRUE(R.converged) << "global μ + smearing converges the half-filled-band metal";
-    EXPECT_NEAR(R.charge, 1.0, 1e-6);          // one valence electron, BZ-weighted Σ_k w_k n_k = 1
-    EXPECT_LT(R.E["MinusTS"], -1e-4);             // −TS<0 AND non-trivial: the Fermi surface IS fractionally filled
-    EXPECT_NEAR(R.E.GetTotalEnergy(), 0.045543, 3e-3);    // did-E-move anchor (free energy A at kT=0.01)
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    SCFParams par=Gates(60, 1e-5, 1e30); par.SmearingkT=0.01;
+    GpwReport report("Na "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*na.cell, BasisSetData::VALENCE_LOWQ_SR2), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << "global μ + smearing converges the half-filled-band metal: " << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 1.0, 1e-6);  // one valence electron, BZ-weighted Σ_k w_k n_k = 1
+    EXPECT_LT(R->EnergyTerms()["MinusTS"], -1e-4);   // −TS<0 AND non-trivial: the Fermi surface IS fractionally filled
+    EXPECT_NEAR(R->Energy(), 0.045543, 3e-3);  // did-E-move anchor (free energy A at kT=0.01)
 }
 
 // (4) MULTI-SPECIES GPW: ionic NaF (rocksalt = FCC + 2-atom basis) at Gamma, driven by the multi-species
@@ -2389,90 +2226,27 @@ TEST(GPW_SCF, NaFCCMetalGlobalMu)
 // for rapid integration of diffuse basis function will make this run even more efficient. 
 // The ideal minimum densityEcut=2*40Ha=80Ha based on the F max exponent.  40 converges to a lower E_total but otherwise converged nicely.
 // Explicit densityEcut= 40 = SUB-FLOOR: warns, and BallOnly aliases there (-43 mHa)
-TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
+TEST(GPW_SCF, NaFRocksaltGamma)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 iterations -- the GPW x NaF row's first standing anchor
 {
-    using namespace qchem::Hamiltonian;
-    const double a=8.73;
-    FCCUnitCell cell(a);
-    cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
-    cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
-    // NAF_KMESH=n: an n^3 Γ-centred mesh.  The default 2 is what this test has run for some time -- and it
-    // is NOT what the name, the header, or the -24.4304 anchor say: 2x2x2 (8 k -> 3 irreducible) lands
-    // -24.5469, i.e. ~116 mHa of BAND DISPERSION below the Γ number the anchor was taken at.  The CP2K
-    // oracle decks (naf_gpw_sr2_diag.inp / naf_gpw_sr_tight.inp) carry no &KPOINTS section, so they are Γ:
-    // doc/Benchmark.md's NaF row is measured at NAF_KMESH=1, and comparing the default run to those decks
-    // compares different Brillouin-zone samplings.  The anchor below follows the knob.
-    const int nk=std::getenv("NAF_KMESH") ? std::atoi(std::getenv("NAF_KMESH")) : 2;
-    Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
-
-    // SR2 (2026-07-16): the complete-enumeration-conditioned basis (lambda_min=1.57e-3; SR's three
-    // degenerate 1.03e-6 near-null modes were exactly the Na p 0.05 triplet -- the cation's superfluous
-    // diffuse shells; F kept intact for the anion).  See DISABLED_NaFOverlapConditioningSweep.
-    // NAF_SPAN=sr runs the FULL SR span instead -- the one CP2K's naf_gpw_sr_tight.inp oracle holds
-    // (-24.4322935, re-measured 2026-08-19), so doc/Benchmark.md's third NaF row is a comparison rather
-    // than a lone column.  The pivoted-Cholesky rank filter is what makes the full span runnable at all.
-    BasisSetData span=BasisSetData::VALENCE_LOWQ_SR2;
-    if (const char* s=std::getenv("NAF_SPAN"))
-    {
-        const std::string v(s);
-        if      (v=="sr" ) span=BasisSetData::VALENCE_LOWQ_SR;
-        else if (v=="sr2") span=BasisSetData::VALENCE_LOWQ_SR2;
-        else throw std::runtime_error("NAF_SPAN: expected sr|sr2, got '"+v+"'");
-    }
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
-        span, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-
-    // The production recipe as ONE GpwOptions literal (the full 2-week rationale is in the header above +
-    // doc/GPWPlan §0b″).  The NAF_* env knobs stay as sweep INSTRUMENTS; the defaults ARE the committed recipe.
-    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
-    GpwOptions o;
+    // THE NaF ORACLE ANCHOR (doc/GPWPlan.md: 0.10-0.19 mHa vs CP2K on this basis, tight-eps + converged density).
+    // The committed production recipe (NaFOptions/NaFGates), SR2 basis, Γ -- the arm doc/Benchmark.md times and
+    // the CP2K decks (naf_gpw_sr2_diag.inp / naf_gpw_sr_tight.inp, no &KPOINTS) compute.  The k-mesh, span,
+    // ecut, ladder, alpha, smearing and penalty knobs this test used to read from NAF_* env vars are the
+    // campaign INSTRUMENT's and go with it to the probe binary (doc/TestSuitePlan.md §8).
+    const Material naf=qchem::Materials::Get("NaF_rocksalt");
+    const Lattice_3D lat=LatticeOf(naf);
+    SolidCalcOptions o=NaFOptions(naf, "NaF GPW Gamma");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label        = "NaF GPW Gamma";
-    o.Nelec        = 8;                                   // 1 (Na) + 7 (F) valence electrons
-    o.species      = {{"Na",1},{"F",7}};
-    o.densityEcut  = envd("NAF_ECUT", -1.0);              // AUTO = C·αmax=80 (the anchor config); NAF_ECUT=40 = sub-floor sweep
-    o.ladderFactor = envd("NAF_LADDERF", 4.0);
-    o.accelerator  = std::getenv("NAF_NULL") ? "Null" : "Ladder";   // Fock DIIS→GDM on |ΔE/E| (ionic); NAF_NULL=damped Kerker
-    o.seed         = qchem::ChargeDensity::SeedStrategy::IonicSAD;   // diffuse F⁻/Na⁺ ionic seed (halves iters)
-    const double pivotTol = envd("NAF_PIVOT", 1e-4);                // rank-revealing pivoted Cholesky (doc/GPWPlan1.md §4a)
-    o.ortho        = pivotTol>0.0 ? qchem::CholeskyPivoted : qchem::Auto;
-    o.orthoTol     = pivotTol;
-    o.scf.NMaxIter = (size_t)envd("NAF_NMAX", 200);
-    o.scf.MinΔE=1e-8; o.scf.MinΔρ=1e-4;                   // E-flat exit AND a Δρ gate (non-variational settled-E map)
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.MergeTol=1e-4;
-    o.scf.StartingRelaxRo=envd("NAF_ALPHA",0.25); o.scf.KerkerG0=1.0;   // Kerker damps the low-G charge-transfer slosh
-    o.scf.XCCuspDeficit=envd("NAF_XC_CUSP",0.0)!=0.0;   // N4: the cusp-deficit mixer (doc/OpenWork.md)
-    o.scf.UseMOM=true; o.scf.MOMStartIter=10;             // delayed-IMOM: descend, then pin the occupied subspace through the crossing
-    o.scf.SmearingkT=envd("NAF_SMEAR",0.0); o.scf.MOMSmearPenalty=envd("NAF_PENALTY",0.0);   // MOM-masked Fermi (experiment)
-    // XC quadrature: flip cellKind to try the atom-centred Becke XC route (doc/GPWPlan1.md; the recipe is
-    // gate-calibrated, resolution sweepable via GPW_BECKE_L/NR/ALPHA).  The run prints [XC quadrature]
-    // either way.  NOTE: Becke-in-SCF is unoptimised today (~min/iteration; the shared-rho + cached-Phi
-    // GEMM route is the open perf item) -- start with GPW_BECKE_L=11.
-    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);//int nRadial=-1, double mhlAlpha=-1.0, int angularDegree=-1
-    o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;    // <-- qcMesh::UnitCellKind::Becke turns Becke ON
-
-    qchem::SCFIterator::ReportBandGap()=true;             // per-iteration gap column: watch the diffuse virtual dive (header)
-    GpwResult R = RunGpw(lat, mol, o, /*verbose*/true);
-    qchem::SCFIterator::ReportBandGap()=false;
-
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);   // 1 (Na) + 7 (F) valence electrons, conserved
-    // MECHANISM (the 2-week investigation, condensed; full trace in the header + doc/GPWPlan §0b′/§0b″).  The
-    // energy spikes are NOT conditioning / mixing-gain / DIIS: a single diffuse (Na-3s-like) conduction state
-    // has a GIANT response to the low-G charge-transfer slosh, dives across the Fermi edge (measured live by
-    // ReportBandGap) and aufbau swaps 2e out of the F 2p manifold -- a periodic level-crossing (period ~27) ->
-    // E=+5e3.  FIX = delayed-IMOM (pin the occupied subspace through the crossing; the 0h guard releases a bad
-    // capture) + Kerker damping; the fixed-point gap is large (~0.35 Ha) so NOT Fermi smearing.
-    // ANCHOR: -24.4304 at Γ (auto Ecut=80, BallOnly, raw XC, guards) -- 0.8 mHa from CP2K SR2 truth
-    // -24.4312 (re-measured 2026-08-19 through scripts/bench: -24.4312134, exactly the banked value); the
-    // historical -27.93 "oracle" was RETRACTED as a screening artifact (doc/GPWPlan TRAPS #2).
-    // The 2x2x2 default samples the zone and lands 116 mHa lower -- BAND DISPERSION, not a defect, but it
-    // has no oracle, so it is anchored as a did-E-move pin in its own right.
-    // The full-SR span is a DIFFERENT (larger) span, so it has its own anchor: qchem -24.4324 against
-    // CP2K's -24.4322935.  Only the SR2 pair is asserted here; the SR arm is left to doc/Benchmark.md,
-    // because the whole point of the wider span is that its conditioning is the thing under study.
-    if (span==BasisSetData::VALENCE_LOWQ_SR2)
-        EXPECT_NEAR(R.E.GetTotalEnergy(), nk==1 ? -24.4304 : -24.5469, 0.01);   // did-E-move anchor per k-mesh
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);
+    o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
+    SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4;
+    par.Verbose=(bool)std::getenv("GPW_VERBOSE");
+    GpwReport report("NaF "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);           // 1 (Na) + 7 (F) valence electrons, conserved
+    EXPECT_NEAR(R->Energy(), -24.4304, 0.01);           // did-E-move anchor at Γ (CP2K agrees to 0.2 mHa, doc/GPWPlan.md)
 }
 
 // (4b) NaF GRID-CONTINUATION SEEDING (doc/GPWPlan §0e, step 1) -- the PRODUCTION-GRID fix.
@@ -2657,89 +2431,6 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     EXPECT_NEAR(Efine.GetTotalEnergy(), -24.4304, 0.01);   // the raw-XC aufbau ground state at the production
                                                             //   default (auto Ecut=80, BallOnly); AliasFree@320
                                                             //   reference: -24.4325
-}
-
-// GATE (GPWPlan1 §4a increment 1): rectangular V is now plumbed through the PERIODIC SCF stack.  The FULL
-// valence_lowq NaF basis (n=37) has one intrinsic near-null overlap mode (min eig=8.4e-8, a clean ~1000x gap
-// below the physical ~1e-3 directions); canonical Eigen(1e-6) drops it -> a rank-36 rectangular ortho V.
-// Previously this threw "Matrix sizes do not match" before iter 1 because the orthonormal density D' was
-// allocated full n=37; now D' is sized to m=n-k=36 (IrrepWF/TOrbitals) while the AO density D stays 37x37.
-//
-// It asserts (a) the truncation actually happened (never-silent line captured) and (b) charge = Tr(DS) = 8
-// is conserved through the rectangular-V density build + DIIS + collocation (charge is grid-INDEPENDENT).
-// DISABLED for now: correct but SLOW -- the cost is the analytic LatticeSum1E (kinetic + local-PP) over the
-// FULL 37-function basis, whose DIFFUSE modes are long-range and reach many periodic images (measured: the
-// SolidSCFIterator ctor's initial H build dominates, minutes; the collocation is cheap).  Not a regression
-// (the suite is unaffected); it is the intrinsic periodic-diffuse lattice-sum cost.  The FAST committed
-// rank-reduction gate is a MINIMAL near-degenerate periodic system (few images); this stays as the
-// full-basis marker + the converged-energy check (with DISABLED_NaFFullBasisEigenTol below), run on demand.
-TEST(GPW_SCF, DISABLED_NaFFullBasisRankReduction)
-{
-    using namespace qchem::Hamiltonian;
-    const double a=8.73;
-    FCCUnitCell cell(a);
-    cell.AddAtom(11, {0,0,0});
-    cell.AddAtom(9,  {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
-        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    namespace L3=BasisSet::Lattice;
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/20.0));   // low: cheap grid, plumbing only
-    auto       irreps=bs->GetIrreps(Spin::None);
-    Crystal_EC ec(irreps, 8);
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
-    std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
-    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
-    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
-    testing::internal::CaptureStdout();
-    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
-                                         qchem::Eigen, 1e-6);   // canonical ortho drops the ~8e-8 null mode -> rank 36
-    SCFParams par; par.NMaxIter=3; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
-    par.MinFD=1e30; par.StartingRelaxRo=0.3; par.Verbose=false;
-    scf.Iterate(par);
-    std::string log=testing::internal::GetCapturedStdout();
-    auto cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge();
-    // (a) the truncation must actually have fired (rank reduction really exercised, not a trivially-square pass).
-    EXPECT_NE(log.find("LASolverEigen truncating"), std::string::npos) << "expected the near-null mode to be dropped";
-    // (b) charge conserved through the rectangular-V density build (Tr(DS)=8, grid-independent).
-    EXPECT_NEAR(charge, 8.0, 1e-6);
-}
-
-// The HEAVY converged-energy run on the full valence_lowq basis + Eigen(1e-6): kept DISABLED (slow -- full
-// auto Ecut=80, 60 iters).  Since increment 1 the periodic stack handles the rank-36 rectangular V, so this
-// no longer throws; it is the manual full-basis-vs-SR/SR2 energy check (GPWPlan1 §4a gate 5), run on demand.
-TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
-{
-    using namespace qchem::Hamiltonian;
-    const double a=8.73;
-    FCCUnitCell cell(a);
-    cell.AddAtom(11, {0,0,0});
-    cell.AddAtom(9,  {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
-        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    namespace L3=BasisSet::Lattice;
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0));
-    auto       irreps=bs->GetIrreps(Spin::None);
-    Crystal_EC ec(irreps, 8);
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
-    std::unique_ptr<cHamiltonian> hamOwner(ham);   // R2.22: the iterator borrows; this scope owns
-    auto* acc=new qchem::SCFAccelerators::SCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
-    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accOwner(acc);   // R2.22: the iterator borrows; this scope owns
-    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
-                                         qchem::Eigen, 1e-6);   // (2): canonical ortho, drop the ~0 null cluster
-    SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
-    par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true; par.KerkerG0=1.0;
-    qchem::ChargeDensity::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
-    scf.Iterate(par);
-    qchem::ChargeDensity::ReportGridCharge()=false;
-    auto cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge();
-    auto E=scf.GetEnergy();
-    std::cout << "[NaF GPW full/Eigen(1e-6)] iters="<<scf.GetIterationCount()<<" charge="<<charge
-              << " Etot="<<E.GetTotalEnergy() << std::endl;
-    EXPECT_NEAR(charge, 8.0, 1e-6);
 }
 
 //================================================================================================
@@ -3457,22 +3148,11 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
               <<(spherical?"SPHERICAL":"CARTESIAN")
               <<")="<<Eref<<"   (CP2K ATOM UKS sextet oracle -14.674425)"<<std::endl;
 
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(25, {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwOptions o;
-    o.label="Mn atom-in-box sextet";
-    o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
-    o.species={{"Mn",7}};
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
-    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
-    o.imposeSymmetry=false;
-    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-    o.scf.NMaxIter=40; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;
+    const Material box=qchem::Materials::Get("Mn_box16");
+    const Lattice_3D lat=LatticeOf(box);
+    SolidCalcOptions o=MnBoxOptions(box, "Mn atom-in-box sextet");   // S=5/2 Hund: nUp=6, nDown=1
+    SCFParams par=Gates(40, 1e-5, 1e30); par.SmearingkT=5e-3;
+    par.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
     // CARTESIAN d carries the s CONTAMINANT (x^2+y^2+z^2), so 8 d shells duplicate the 7-function s space
     // -- measured lambdaMin 1.15e-07 / cond 8.2e7 on this one-atom box, i.e. the basis is rank-deficient
     // BEFORE any physics runs.  SPHERICAL d (5 pure components) removes the contaminant; GPW_MN_SPHERICAL=1
@@ -3481,17 +3161,18 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
     // it here died on the GPW cross-cast), so the view over the Cartesian engine is the working door.
     std::shared_ptr<const Real_BS> mnbasis(
         BasisSet::Gaussian::Factory(sphBasis?BasisSetData::VALENCE_LOWQ_SPH:BasisSetData::VALENCE_LOWQ_SR,
-                                    &cell, BasisSet::Gaussian::Engine::MnD,
+                                    box.cell.get(), BasisSet::Gaussian::Engine::MnD,
                                     BasisSet::Gaussian::Angular::Cartesian));
     if (spherical) mnbasis=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(mnbasis);
     std::cout << "[Mn in-box] angular=" << (spherical?"SPHERICAL":"CARTESIAN") << std::endl;
-    GpwResult R=RunGpw(lat, mnbasis, o, /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"));
-    std::cout << "[Mn in-box] GPW="<<R.E.GetTotalEnergy()<<"  facade="<<Eref
-              << "  diff="<<(R.E.GetTotalEnergy()-Eref)<<std::endl;
-    EXPECT_NEAR(R.charge, 7.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 3e-2) << "GPW d-channel vs the molecular facade (measured 12 mHa)";
+    GpwReport report("Mn "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, mnbasis, o, par);
+    const double E=calc.LastIterateTerms().GetTotalEnergy();   // as before: the energy is pinned, convergence is not asserted
+    std::cout << "[Mn in-box] GPW="<<E<<"  facade="<<Eref<<"  diff="<<(E-Eref)<<std::endl;
+    EXPECT_NEAR(calc.LastIterateCharge(), 7.0, 1e-6);
+    EXPECT_NEAR(E, Eref, 3e-2) << "GPW d-channel vs the molecular facade (measured 12 mHa)";
     if (!spherical)
-        EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3);   // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
+        EXPECT_NEAR(E, -14.6380, 1e-3);                      // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
 }
 
 // (PolarizedRunKeepsItsSpin -- the Mn sextet asking for Kerker, 217 s, 27% of the suite -- was DELETED
