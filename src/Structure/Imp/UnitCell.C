@@ -688,10 +688,104 @@ void UnitCell::AddAtom(int Z, const rvec3_t& f, bool spinFlip)
 
 // FCC primitive cell: columns are the half-face-diagonal lattice vectors (h = a/2); |det A| = a^3/4.
 FCCUnitCell::FCCUnitCell(double a)
-    : UnitCell(Matrix3D<double>(0.0, a/2, a/2,
-                                a/2, 0.0, a/2,
-                                a/2, a/2, 0.0))
+    : UnitCell(BravaisCellMatrix(Bravais::CubicF, {.a=a}))
 {}
+
+//---------------------------------------------------------------------------------------------------------
+//  THE 14 BRAVAIS LATTICES -- primitive vectors as the COLUMNS of A, one fixed orientation per type.
+//  Centred types are given by their standard primitive cells (Setyawan & Curtarolo 2010 conventions,
+//  cubic ones identical to the classic a/2 forms); the lattice-parameter check makes a stray parameter
+//  a thrown error instead of a silently different lattice.
+//---------------------------------------------------------------------------------------------------------
+namespace
+{
+//! Which parameters \a type reads; any OTHER parameter left off its default is a caller error.
+void RequireOnly(Bravais type, const LatticeParams& p, bool b, bool c, bool α, bool β, bool γ)
+{
+    auto bad=[&](const char* name){ throw std::invalid_argument(std::string("BravaisCellMatrix: lattice type ")
+                                        + std::to_string(int(type)) + " does not take a '" + name + "' parameter"); };
+    if (p.a<=0.0)          throw std::invalid_argument("BravaisCellMatrix: 'a' must be positive");
+    if (b && p.b<=0.0)     throw std::invalid_argument("BravaisCellMatrix: 'b' must be positive for this type");
+    if (c && p.c<=0.0)     throw std::invalid_argument("BravaisCellMatrix: 'c' must be positive for this type");
+    if (!b && p.b!=0.0)    bad("b");
+    if (!c && p.c!=0.0)    bad("c");
+    if (!α && p.α!=90.0)   bad("α");
+    if (!β && p.β!=90.0)   bad("β");
+    if (!γ && p.γ!=90.0)   bad("γ");
+}
+Matrix3D<double> Columns(const rvec3_t& a1, const rvec3_t& a2, const rvec3_t& a3)
+{
+    return Matrix3D<double>(a1.x, a2.x, a3.x,
+                            a1.y, a2.y, a3.y,
+                            a1.z, a2.z, a3.z);
+}
+} // anonymous
+
+Matrix3D<double> BravaisCellMatrix(Bravais type, const LatticeParams& p)
+{
+    const double a=p.a, b=p.b, c=p.c;
+    switch (type)
+    {
+    case Bravais::CubicP:
+        RequireOnly(type,p, false,false, false,false,false);
+        return Columns({a,0,0},{0,a,0},{0,0,a});
+    case Bravais::CubicI:
+        RequireOnly(type,p, false,false, false,false,false);
+        return Columns({-a/2,a/2,a/2},{a/2,-a/2,a/2},{a/2,a/2,-a/2});
+    case Bravais::CubicF:
+        RequireOnly(type,p, false,false, false,false,false);
+        return Columns({0,a/2,a/2},{a/2,0,a/2},{a/2,a/2,0});
+    case Bravais::TetragonalP:
+        RequireOnly(type,p, false,true, false,false,false);
+        return Columns({a,0,0},{0,a,0},{0,0,c});
+    case Bravais::TetragonalI:
+        RequireOnly(type,p, false,true, false,false,false);
+        return Columns({-a/2,a/2,c/2},{a/2,-a/2,c/2},{a/2,a/2,-c/2});
+    case Bravais::OrthorhombicP:
+        RequireOnly(type,p, true,true, false,false,false);
+        return Columns({a,0,0},{0,b,0},{0,0,c});
+    case Bravais::OrthorhombicC:
+        RequireOnly(type,p, true,true, false,false,false);
+        return Columns({a/2,-b/2,0},{a/2,b/2,0},{0,0,c});
+    case Bravais::OrthorhombicI:
+        RequireOnly(type,p, true,true, false,false,false);
+        return Columns({-a/2,b/2,c/2},{a/2,-b/2,c/2},{a/2,b/2,-c/2});
+    case Bravais::OrthorhombicF:
+        RequireOnly(type,p, true,true, false,false,false);
+        return Columns({0,b/2,c/2},{a/2,0,c/2},{a/2,b/2,0});
+    case Bravais::HexagonalP:
+        RequireOnly(type,p, false,true, false,false,false);
+        return Columns({a,0,0},{-a/2,a*sqrt(3.0)/2,0},{0,0,c});
+    case Bravais::RhombohedralR:
+        RequireOnly(type,p, false,false, true,false,false);
+        return CellMatrix(a,a,a, Rad(p.α),Rad(p.α),Rad(p.α));
+    case Bravais::MonoclinicP:
+        RequireOnly(type,p, true,true, false,true,false);
+        return Columns({a,0,0},{0,b,0},{c*cos(Rad(p.β)),0,c*sin(Rad(p.β))});
+    case Bravais::MonoclinicC:
+        RequireOnly(type,p, true,true, false,true,false);
+        return Columns({a/2,b/2,0},{-a/2,b/2,0},{c*cos(Rad(p.β)),0,c*sin(Rad(p.β))});
+    case Bravais::TriclinicP:
+        RequireOnly(type,p, true,true, true,true,true);
+        return CellMatrix(a,b,c, Rad(p.α),Rad(p.β),Rad(p.γ));
+    }
+    throw std::invalid_argument("BravaisCellMatrix: unknown lattice type");
+}
+
+UnitCell BravaisCell(Bravais type, const LatticeParams& p, const Matrix3D<int>& T)
+{
+    Matrix3D<double> A=BravaisCellMatrix(type,p);
+    const bool identity = T==Matrix3D<int>();
+    if (!identity)
+    {
+        Matrix3D<double> Td;
+        for (int i=1;i<=3;i++) for (int j=1;j<=3;j++) Td(i,j)=double(T(i,j));
+        if (fabs(Determinant(Td))<0.5)
+            throw std::invalid_argument("BravaisCell: the superlattice transform T must have |det T| >= 1");
+        A=A*Td;
+    }
+    return UnitCell(A);
+}
 
 double UnitCell::GetCellVolume() const
 {

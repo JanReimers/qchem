@@ -157,6 +157,47 @@ public:
     explicit FCCUnitCell(double a);
 };
 
+//! \brief The 14 Bravais lattices (doc/OpenWork.md row BL, 2026-09-15).  A lattice TYPE is structure and
+//! lives here; a MATERIAL (a type + parameters + an atom basis + a pseudopotential vocabulary) is a USE of
+//! one and lives at the Calculation level as data (row MD).  Pearson-style names: system + centring
+//! (P primitive, I body, F face, C base, R rhombohedral).
+export enum class Bravais
+{
+    CubicP, CubicI, CubicF,                                //!< a
+    TetragonalP, TetragonalI,                              //!< a, c
+    OrthorhombicP, OrthorhombicC, OrthorhombicI, OrthorhombicF,   //!< a, b, c
+    HexagonalP,                                            //!< a, c
+    RhombohedralR,                                         //!< a, α
+    MonoclinicP, MonoclinicC,                              //!< a, b, c, β (unique axis b)
+    TriclinicP                                             //!< a, b, c, α, β, γ
+};
+
+//! The conventional lattice parameters (a.u., degrees).  Each type reads only its own (the comments on
+//! \c Bravais); a parameter a type does not use must stay at its default -- a value there is a caller
+//! error and THROWS, so "FCC with c=5" cannot silently mean "cubic".  Angles default to 90 so the
+//! orthogonal types need none.
+export struct LatticeParams
+{
+    double a=0.0, b=0.0, c=0.0;
+    double α=90.0, β=90.0, γ=90.0;
+};
+
+//! \brief The PRIMITIVE cell matrix of a Bravais lattice (columns = the three primitive vectors, a.u.),
+//! in a fixed orientation per type.  Centred types (I, F, C) return the primitive cell, not the
+//! conventional one -- so \c CubicF at \a a is exactly what \c FCCUnitCell(a) builds.  A single atom at
+//! the origin of this cell detects the type's holohedry (\c Symmetry::Lattice_3D::SpaceGroup::Detect):
+//! 48 cubic, 24 hexagonal, 16 tetragonal, 12 rhombohedral, 8 orthorhombic, 4 monoclinic, 2 triclinic.
+export Matrix3D<double> BravaisCellMatrix(Bravais type, const LatticeParams& p);
+
+//! \brief The same as an empty \c UnitCell, ready for \c AddAtom in fractional coordinates of the
+//! PRIMITIVE cell.  \a T (optional, integer, |det| ≥ 1) re-bases the lattice vectors to a SUPERLATTICE
+//! \f$A' = A\,T\f$ -- the way a magnetic cell is named from its chemical one: MnO's AFM-II cell is
+//! \c CubicF re-based by \f$T=\begin{pmatrix}0&1&1\\1&0&1\\1&1&0\end{pmatrix}\f$ (the FCC cell doubled
+//! along [111]).  Only the VECTORS are re-based; the caller states the atom basis of the larger cell
+//! itself (a material entry lists every atom), so nothing is replicated here -- \c Supercell is the
+//! replicating sibling for the diagonal case.
+export UnitCell BravaisCell(Bravais type, const LatticeParams& p, const Matrix3D<int>& T = Matrix3D<int>());
+
 
 
 } // namespace qchem
