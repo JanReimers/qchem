@@ -5,9 +5,9 @@
 // Anchor (did-E-move), eq<Token> (a ONE-axis twin: this point equals the same point with that axis moved) or a
 // property verb.  Tests are laid out in axis order.  `scripts/testgrid` renders the coverage table from these names.
 //
-//   GPW_SiBox.Γ_Imp_Uni_eqFinite
+//   GPW_SiBox.Γ_Uni_Imp_eqFinite
 //   GPW_SiBox.Γ_Imp_Smear_eqFinite
-//   GPW_SiBox.Γ_Imp_Uni_eqUnfolded
+//   GPW_SiBox.Γ_Uni_Imp_eqUnfolded
 //   GPW_NaBox.Γ_Imp_M2_eqFinite
 //   GPW_O2Box.Γ_Imp_M3_eqFinite
 //   GPW_MnBox.Γ_M6_Smear_eqFinite
@@ -105,7 +105,7 @@ using namespace qchem::tests::gpw;   // the harness: Materials cells, gates, rec
 // reaches the tolerance (not a bug: integer occupation of a degenerate open shell).  A dcmplx GDM/Ladder
 // energy-minimiser would converge it (today GDM/Ladder are <double>-only); the crystal above sidesteps it with
 // a gap.  So this pins the CONVERGED ENERGY + charge as a did-E-move anchor, without a Converged() guard.
-TEST(GPW_SiBox, Γ_Imp_Uni_eqFinite)
+TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
 {
     // Basis-MATCHED reference: the SAME SIPP Gaussian basis + GTH-LDA PP as a finite molecule (density-fit
     // Hartree, Becke XC).  This is the tight cross-check: GPW-in-box == finite molecular DFT (doc/GPWPlan sec 3.4).
@@ -151,7 +151,7 @@ TEST(GPW_SiBox, Γ_Imp_Uni_eqFinite)
 // Si pseudo-atom in a box has 4 valence electrons in a 3s²3p² configuration; at Gamma the atom has NO point
 // group, so its three 3p orbitals are EXACTLY degenerate and half-filled.  Integer aufbau must pick 2 of the
 // 6 p-states arbitrarily -> the density rotates freely within the degenerate shell and |Δρ| never converges
-// (the documented behaviour of GPW_SiBox.Γ_Imp_Uni_eqFinite, iters=40/Δρ=0.08/"DENSITY-DEGENERATE", which
+// (the documented behaviour of GPW_SiBox.Γ_Uni_Imp_eqFinite, iters=40/Δρ=0.08/"DENSITY-DEGENERATE", which
 // pins only the energy).  Fermi smearing is the cure: μ lands in the degenerate manifold, each 3p orbital
 // takes the SAME fractional occupation, the density is symmetric and STATIONARY, and the SCF converges Δρ
 // (iters=24, Δρ=9e-7, "CONVERGED").  The Mermin −TS<0, so the total GetTotalEnergy() reported IS the free
@@ -192,7 +192,7 @@ TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
 // retraction, re-run as a standing A/B.  The Si pseudo-atom in a box at Γ is a DEGENERATE OPEN SHELL --
 // 3s²3p² with three exactly-degenerate p orbitals holding two electrons, at integer aufbau (no smearing).
 // Its density therefore rotates freely inside the degenerate manifold and NEVER converges Δρ (the documented
-// GPW_SiBox.Γ_Imp_Uni_eqFinite behaviour; this gate pins ENERGY, like that one, and does not assert
+// GPW_SiBox.Γ_Uni_Imp_eqFinite behaviour; this gate pins ENERGY, like that one, and does not assert
 // convergence).  Under the OLD fold the reduced replay SAMPLED each pair orbit's representative D element,
 // which asserts a symmetric D that this run breaks permanently: the armed run flipped out of the benign
 // rotating-ρ mode into charge-transfer sloshing, ~0.26 Ha off, and default-on was withdrawn.  With the
@@ -200,7 +200,7 @@ TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
 // -- P ρ_red[D] = ρ[P D] = P ρ_full[D] for ANY iterate -- so the two arms must now agree to the band-limit
 // class ON EXACTLY THIS CELL.  That agreement is the whole licence for arming the fold by default; if this
 // gate ever reopens the 0.26 Ha gap, the default goes back to opt-in.
-TEST(GPW_SiBox, Γ_Imp_Uni_eqUnfolded)
+TEST(GPW_SiBox, Γ_Uni_Imp_eqUnfolded)
 {
     const Material box=qchem::Materials::Get("Si_box16");     // Pm-3m box, 48 ops; the atom sits on the cube centre
     const Lattice_3D lat=LatticeOf(box);                      // Γ-only: the T3.2 arming condition
@@ -233,7 +233,7 @@ TEST(GPW_SiBox, Γ_Imp_Uni_eqUnfolded)
 // §4).  The minimal end-to-end TWO-CHANNEL GPW run: Na q1 GTH PP, S=1/2, moment 1 -- spin-resolved D through
 // Crystal_EC(nUp=1,nDown=0), the dcmplx composite WF under SpinGroup::Polarized (two Bloch channels), and the spin-native Becke XC
 // term.  Cross-anchored against the finite molecular facade doublet on the SAME
-// valence basis + PP (the spin sibling of GPW_SiBox.Γ_Imp_Uni_eqFinite).
+// valence basis + PP (the spin sibling of GPW_SiBox.Γ_Uni_Imp_eqFinite).
 //
 // SEED PIN (the 2026-08-04 root-cause campaign): this gate MUST seed from IonicSAD.  From the Uniform seed
 // the lone ↑ electron converges to a GENUINE self-consistent excited basin 72 mHa above the minimum
@@ -282,7 +282,7 @@ TEST(GPW_NaBox, Γ_Imp_M2_eqFinite)
 
 
 // (tier 4b, gate b) O2 in a box, TRIPLET: the multi-electron polarized solid pipeline vs the finite
-// molecular facade on the SAME sipp O-q6 basis + GTH PP (the spin sibling of GPW_SiBox.Γ_Imp_Uni_eqFinite,
+// molecular facade on the SAME sipp O-q6 basis + GTH PP (the spin sibling of GPW_SiBox.Γ_Uni_Imp_eqFinite,
 // cross-anchored to the facade's spin-native triplet machinery -- doc/SymmetryUpgradePlan.md §4 tier 4b).
 TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
 {
@@ -315,7 +315,7 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
 
 
 // Mn PSEUDO-ATOM IN A BOX through the CRYSTAL (GPW) path vs the molecular facade -- the d-channel sibling
-// of GPW_SiBox.Γ_Imp_Uni_eqFinite, and the cheap localiser for MnO's ~356 Ha over-binding.  Both
+// of GPW_SiBox.Γ_Uni_Imp_eqFinite, and the cheap localiser for MnO's ~356 Ha over-binding.  Both
 // real-space KB routes are now oracle-matched on this very PP (atomic radial -14.230 unpolarised /
 // molecular Cartesian -14.668 polarised, vs CP2K ATOM -14.243986 restricted), so if the GPW path also
 // lands near the facade the crystal KB is exonerated and the MnO defect lives elsewhere (multi-species,

@@ -15,11 +15,11 @@
 //   GPW_Si.Γ_Imp_Smear_eqAufbau
 //   GPW_Si.Γ_Imp_Pol_eqUnpol
 //   GPW_Si.Γ_Imp_Pol_SpinSeed_eqUnpol
-//   GPW_Si.Γ_Imp_M3_ShFermi_Smear_MomentRelaxes
+//   GPW_Si.Γ_Imp_M3_Smear_ShFermi_MomentRelaxes
 //   GPW_Si.Γ_Imp_eqUnfolded
-//   GPW_Si.Γ_Imp_Becke_eqUni
-//   GPW_Si.Γ_Imp_Uni_DeltaFit_eqPWFit
-//   GPW_Si.Γ_Imp_Uni_PWFit_Pol_eqUnpol
+//   GPW_Si.Γ_Becke_Imp_eqUni
+//   GPW_Si.Γ_Uni_DeltaFit_Imp_eqPWFit
+//   GPW_Si.Γ_Uni_PWFit_Imp_Pol_eqUnpol
 //   GPW_Si.k211_Imp_Anchor
 //   GPW_Si.k222_CP2K
 //   GPW_Si.k222_Imp_CP2K
@@ -492,7 +492,7 @@ TEST(GPW_Si, Γ_Imp_Pol_SpinSeed_eqUnpol)
 // an occupation is monotone in epsilon only WITHIN a channel -- MnO run 29 ended with a down level 27 mHa
 // BELOW an up level and LESS occupied.  That gap is an unrelieved driving force to move charge between the
 // channels, so the converged state is not the free minimum.  CP2K's MnO deck constrains nothing.
-TEST(GPW_Si, Γ_Imp_M3_ShFermi_Smear_MomentRelaxes)
+TEST(GPW_Si, Γ_Imp_M3_Smear_ShFermi_MomentRelaxes)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
@@ -572,7 +572,7 @@ TEST(GPW_Si, Γ_Imp_eqUnfolded)
 //  Angular rule: GaussLegendre (machine-exact algebraic degree at any L -- the audited Lebedev
 //  tables stop at L=11; see the Mesh_AngularDegree tests).
 //================================================================================================
-TEST(GPW_Si, Γ_Imp_Becke_eqUni)
+TEST(GPW_Si, Γ_Becke_Imp_eqUni)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
@@ -605,7 +605,7 @@ TEST(GPW_Si, Γ_Imp_Becke_eqUni)
 // PLANE-WAVE fit (band-limited v_xc on the FFT raster) and through the DELTA fit on the uniform cell
 // mesh -- the two v_xc representations must agree to the route-difference class (band-limiting +
 // raster-vs-midpoint-mesh quadrature), the same class the Becke-vs-uniform gate measures (~1e-4 Exc).
-TEST(GPW_Si, Γ_Imp_Uni_DeltaFit_eqPWFit)
+TEST(GPW_Si, Γ_Uni_DeltaFit_Imp_eqPWFit)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);
@@ -638,7 +638,7 @@ TEST(GPW_Si, Γ_Imp_Uni_DeltaFit_eqPWFit)
 // for the pair on any fit basis -- but nothing had ever RUN it.  Same cell and recipe as the (PlaneWave,
 // raster) arm above, as the EXPLICIT two-channel singlet (nUp=nDn=4): the zeta=0 collapse must land on the
 // unpolarized PW-fit answer, exactly as GPW_Si.Γ_Imp_Pol_eqUnpol pins it on the Becke route.
-TEST(GPW_Si, Γ_Imp_Uni_PWFit_Pol_eqUnpol)
+TEST(GPW_Si, Γ_Uni_PWFit_Imp_Pol_eqUnpol)
 {
     const Material si=qchem::Materials::Get("Si_diamond");
     const Lattice_3D lat=LatticeOf(si);

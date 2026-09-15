@@ -6,7 +6,7 @@
 // property verb.  Tests are laid out in axis order.  `scripts/testgrid` renders the coverage table from these names.
 //
 //   GPW_NaF.Γ_Imp_Anchor
-//   GPW_NaF.Γ_Imp_Becke_eqUni
+//   GPW_NaF.Γ_Becke_Imp_eqUni
 //   GPW_NaF.DISABLED_Γ_GridContinuation
 
 #include "gtest/gtest.h"
@@ -136,7 +136,7 @@ TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 i
 // DISABLED like the parent NaF anchor -- it is a long run (the full NaF convergence recipe at a
 // matrix-grade densityEcut=160 reference, plus two Becke term evaluations); run it by hand with
 // --gtest_also_run_disabled_tests when touching the XC quadrature.
-TEST(GPW_NaF, Γ_Imp_Becke_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke internally converged on the sharp-F system
+TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke internally converged on the sharp-F system
 {
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);

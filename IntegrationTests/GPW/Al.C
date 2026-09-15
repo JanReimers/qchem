@@ -98,7 +98,7 @@ using namespace qchem::tests::gpw;   // the harness: Materials cells, gates, rec
 // The TOTAL ENERGY settles (|ΔE/E|~1e-13, the gap column ~0 => no frontier gap, the metallic signature) but
 // the DENSITY rotates freely within the degenerate manifold, so |Δρ| floors well above tolerance and never
 // converges.  This is the honest reason the smearing/annealing path below exists (mirrors the documented
-// GPW_SiBox.Γ_Imp_Uni_eqFinite degenerate-shell behaviour, now for a periodic lattice).
+// GPW_SiBox.Γ_Uni_Imp_eqFinite degenerate-shell behaviour, now for a periodic lattice).
 TEST(GPW_Al, Γ_Imp_Stalls)
 {
     const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
