@@ -1,3 +1,10 @@
+> **RETIRED 2026-09-15 (doc/TestSuitePlan.md phase 2).**  The molecular half was DONE in 2026-08
+> (`IntegrationTests/CMakeLists.txt`: "the QchemTester/TestAtom/TestDiracAtom/TestMolecule scaffold is RETIRED";
+> every molecular test drives `qchem::Calculation`).  The solid half -- the same collapse onto
+> `qchem::SolidCalculation` -- landed 2026-09-15 (commits 6f5b7bf2..9227c848): `RunGPW`/`RunGpw`/
+> `RunGpwAnnealed`/`RunMnO` are gone, the shared vocabulary is `IntegrationTests/GPW/Harness.C`, the
+> instruments are `CLIapps/gpwprobe`.  Kept for the reasoning; nothing below is a queue.
+
 # Test → Facade Migration — make `qchem::Calculation` the single molecular recipe, slim `QchemTester`
 
 The "4th topic". Goal: the molecular unit tests drive `qchem::Calculation` (the public front door)

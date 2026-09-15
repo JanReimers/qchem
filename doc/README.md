@@ -35,8 +35,7 @@ on what is actually next.
 | **`ModuleToolchainPlan.md`** | `import std;` + a modular Blaze fork — banish the preprocessor | live, not started |
 | **`LatticeGasPlan.md`** | Li/Na configuration enumeration for the battery work | SPECCED, NOT BUILT — deliberately deferred; the file exists so the design is not re-derived |
 | **`BatteryMaterialsRoadmap.md`** | the north star (Li/Na cathode voltage curves) above the individual plans | live orientation |
-| **`TestSuitePlan.md`** | ★ **item TE, the QUEUED PROGRAMME's step 3**: the SCF suite as a PRODUCT SPACE — the axis vocabulary (§1), the three claim kinds (§2), the naming grammar with every enabled solid test re-cut (§3a), directory-per-basis/file-per-material (§4), the holes the grid exposes TODAY (§5: `GPW×NaF` and `GPW×MnO` have ZERO enabled SCF tests; nothing beyond DIIS is covered), the harness collapse onto `SolidCalculation` (§6), the 27%-of-the-suite test → a mixer unit test (§7), a verdict for all 23 `DISABLED_` tests (§8), the running order (§10) and the six RULINGS it waits on (§11) | PLAN, drafted 2026-09-15 — all seven rulings given the same day (materials = JSON data at the Calculation level, row MD; Bravais lattices in qcStructure, row BL); **phase 1 DONE 2026-09-15, suite wall 207 s → 71 s**; phase 2 next |
-| **`TestFacadeMigrationPlan.md`** | migrate the molecular tests onto `qchem::Calculation` | live, blocked on the facade gap.  ⚠ See `OpenWork.md` item **TE** first — the test-suite ORGANIZATION question (the axis product, the file breakdown, the naming convention) is the bigger one |
+| **`TestSuitePlan.md`** | ★ **item TE, the QUEUED PROGRAMME's step 3**: the SCF suite as a PRODUCT SPACE — the axis vocabulary (§1), the three claim kinds (§2), the naming grammar with every enabled solid test re-cut (§3a), directory-per-basis/file-per-material (§4), the holes the grid exposes TODAY (§5: `GPW×NaF` and `GPW×MnO` have ZERO enabled SCF tests; nothing beyond DIIS is covered), the harness collapse onto `SolidCalculation` (§6), the 27%-of-the-suite test → a mixer unit test (§7), a verdict for all 23 `DISABLED_` tests (§8), the running order (§10) and the six RULINGS it waits on (§11) | **phases 1–2 DONE 2026-09-15**: suite wall 207 s → ~70 s; every GPW test on `SolidCalculation` + `qchem.Materials`; drivers deleted; `IntegrationTests/GPW/Harness.C` + `CLIapps/gpwprobe`; 4 re-enabled, 8 promoted, 6 deleted of the 23 disabled. NEXT = phase 3 (the re-file + `scripts/testgrid`) |
 | **`FacadeDFTPlan.md`** | `qchem::Calculation` runs DFT | D1+D2 done; PBE/GGA, LibXC-polarized and +U remain |
 | **`ERI4Rework.md`** | the bra-ket 2× banking | stages 1–3b committed; only the 3c cache key remains |
 | **`FittingCleanupPlan.md`** | the fitting-layer cleanups | all done except C (the `dynamic_cast` survey) — and that one is Phase 2.5 work |
@@ -92,6 +91,7 @@ the tree before moving:
 - **`SymmetryRefactorPlan.md`** — said *IN PROGRESS on branch `symmetry-refactor`*.  ⛔ **That branch does
   not exist**, locally or on the remote.  The `qcSymmetry` reorg landed; `src/Symmetry/{Lattice_3D,Molecule}`
   is its result.
+- **`TestFacadeMigrationPlan.md`** — retired 2026-09-15: both halves executed (molecular 2026-08, solid = TestSuitePlan phase 2)
 - **`SphericalSALCPlan.md`** — shippable, and its one remainder (**test libcint-spherical, S3b**) is now
   carried by `OpenWork.md` item **TE** as a Stage-C action, which is where it will actually be seen.
 - **`APIErgonomicsReview.md`** — it is **GUI-project feedback**, not lib-side work: a separate project built
