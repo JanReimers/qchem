@@ -2,6 +2,7 @@
 
 add_executable(UTCalculation ../../Common/tests/gtestmain.C
     RunDiagnostics.C
+    Materials.C
 )
 
 target_compile_definitions(UTCalculation PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

@@ -1,0 +1,24 @@
+{
+  "_doc": [
+    "PRE-DEFINED MOLECULES (doc/OpenWork.md row MD).  Cartesian positions in BOHR; 'el' is the element",
+    "symbol.  These are the finite systems the molecular tests and the GUI's pick-list start from."
+  ],
+  "H2O": {
+    "comment": "experimental geometry, C2 axis along z",
+    "atoms": [ { "el": "O", "xyz": [0.0,  0.0,   0.0] },
+               { "el": "H", "xyz": [0.0,  1.431, 1.107] },
+               { "el": "H", "xyz": [0.0, -1.431, 1.107] } ]
+  },
+  "N2": {
+    "comment": "d = 2.07 bohr along x, NOT centred (-1.03 / +1.04): the geometry the M_HF_U/M_DFT anchors were banked at -- keep it verbatim",
+    "atoms": [ { "el": "N", "xyz": [-1.03, 0.0, 0.0] }, { "el": "N", "xyz": [1.04, 0.0, 0.0] } ]
+  },
+  "O2": {
+    "comment": "experimental bond length 1.208 A = 2.282 bohr along z (M_DFT's orientation); the triplet ground state",
+    "atoms": [ { "el": "O", "xyz": [0.0, 0.0, 1.141] }, { "el": "O", "xyz": [0.0, 0.0, -1.141] } ]
+  },
+  "B": {
+    "comment": "a boron atom: the open-2p1 doublet that flips DIIS to GDM (the tough light-atom test)",
+    "atoms": [ { "el": "B", "xyz": [0.0, 0.0, 0.0] } ]
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "_doc": [
+    "PRE-DEFINED MATERIALS (doc/OpenWork.md row MD; doc/TestSuitePlan.md 6b).  One entry = a Bravais lattice",
+    "type + its parameters (a.u., degrees), an optional integer superlattice re-basing T (columns), the atom",
+    "basis in FRACTIONAL coordinates of that (primitive, re-based) cell with an optional per-site spin (+1/-1,",
+    "the collinear magnetic decoration), and the pseudopotential vocabulary: species -> valence electrons.",
+    "Nelec is DERIVED (sum of valence over atoms), never stored.  NOTHING about a run lives here -- k-mesh, XC",
+    "grid, kT, basis set are the calculation's axes.  Boxes (an atom or molecule in a periodic cell whose",
+    "oracle is the molecular facade) are materials too: their 'box' size and 'd' bond length are geometry.",
+    "Lattice constants are the ones the anchored tests were banked at; changing one moves anchors."
+  ],
+  "Si_diamond": {
+    "comment": "Si conventional cubic a = 5.43 A; FCC primitive cell, two-atom diamond basis",
+    "lattice": { "type": "CubicF", "a": 10.26 },
+    "atoms":   [ { "el": "Si", "frac": [0.0, 0.0, 0.0] }, { "el": "Si", "frac": [0.25, 0.25, 0.25] } ],
+    "species": { "Si": 4 }
+  },
+  "Al_fcc": {
+    "comment": "Al FCC a = 4.05 A; one atom, 3s2 3p1 -- the degenerate-shell metal",
+    "lattice": { "type": "CubicF", "a": 7.653 },
+    "atoms":   [ { "el": "Al", "frac": [0.0, 0.0, 0.0] } ],
+    "species": { "Al": 3 }
+  },
+  "Na_fcc": {
+    "comment": "FCC Na at Na's atomic density (density-matched to real BCC Na); 3s1 -> half-filled band",
+    "lattice": { "type": "CubicF", "a": 10.0 },
+    "atoms":   [ { "el": "Na", "frac": [0.0, 0.0, 0.0] } ],
+    "species": { "Na": 1 }
+  },
+  "NaF_rocksalt": {
+    "comment": "rocksalt = FCC + two-atom basis; the sharpest multi-species ionic cell the suite runs",
+    "lattice": { "type": "CubicF", "a": 8.73 },
+    "atoms":   [ { "el": "Na", "frac": [0.0, 0.0, 0.0] }, { "el": "F", "frac": [0.5, 0.5, 0.5] } ],
+    "species": { "Na": 1, "F": 7 }
+  },
+  "CsI_cscl": {
+    "comment": "CsCl structure = simple cubic + two-atom basis, a = 4.567 A; the d-projector test (Cs q1, I q7)",
+    "lattice": { "type": "CubicP", "a": 8.63 },
+    "atoms":   [ { "el": "Cs", "frac": [0.0, 0.0, 0.0] }, { "el": "I", "frac": [0.5, 0.5, 0.5] } ],
+    "species": { "Cs": 1, "I": 7 }
+  },
+  "MnO_AFM2": {
+    "comment": "rocksalt MnO a = 4.445 A with the type-II AFM order: the FCC cell doubled along [111] (T re-basing), Mn sublattices +m at 0 and -m at 1/2, O at 1/4 and 3/4",
+    "lattice": { "type": "CubicF", "a": 8.40, "T": [[0,1,1],[1,0,1],[1,1,0]] },
+    "atoms":   [ { "el": "Mn", "frac": [0.0, 0.0, 0.0],  "spin": 1 },
+                 { "el": "Mn", "frac": [0.5, 0.5, 0.5],  "spin": -1 },
+                 { "el": "O",  "frac": [0.25, 0.25, 0.25] },
+                 { "el": "O",  "frac": [0.75, 0.75, 0.75] } ],
+    "species": { "Mn": 7, "O": 6 }
+  },
+  "Si_box16": {
+    "comment": "one Si pseudo-atom at the centre of a 16-bohr cubic box; oracle = the molecular facade (SIPP)",
+    "lattice": { "type": "CubicP", "a": 16.0 },
+    "atoms":   [ { "el": "Si", "frac": [0.5, 0.5, 0.5] } ],
+    "species": { "Si": 4 }
+  },
+  "Na_box16": {
+    "comment": "one Na pseudo-atom (3s1 doublet) at the centre of a 16-bohr box",
+    "lattice": { "type": "CubicP", "a": 16.0 },
+    "atoms":   [ { "el": "Na", "frac": [0.5, 0.5, 0.5] } ],
+    "species": { "Na": 1 }
+  },
+  "Mn_box16": {
+    "comment": "one Mn q7 pseudo-atom (4s2 3d5 sextet) at the centre of a 16-bohr box; the d-channel gate",
+    "lattice": { "type": "CubicP", "a": 16.0 },
+    "atoms":   [ { "el": "Mn", "frac": [0.5, 0.5, 0.5] } ],
+    "species": { "Mn": 7 }
+  },
+  "O2_box16": {
+    "comment": "O2 at the experimental bond length 1.208 A = 2.282 bohr along x, centred in a 16-bohr box; the triplet gate",
+    "lattice": { "type": "CubicP", "a": 16.0 },
+    "atoms":   [ { "el": "O", "frac": [0.4286875, 0.5, 0.5] }, { "el": "O", "frac": [0.5713125, 0.5, 0.5] } ],
+    "species": { "O": 6 }
+  },
+  "Mn2_box7": {
+    "comment": "two neutral Mn in a 7-bohr cubic box, CsCl/B2 arrangement, AFM flip on the second: the cheapest genuinely staggered crystal",
+    "lattice": { "type": "CubicP", "a": 7.0 },
+    "atoms":   [ { "el": "Mn", "frac": [0.0, 0.0, 0.0], "spin": 1 }, { "el": "Mn", "frac": [0.5, 0.5, 0.5], "spin": -1 } ],
+    "species": { "Mn": 7 }
+  },
+  "Na2_box16": {
+    "comment": "Na2 at d = 5.8 bohr along x, centred in a 16-bohr box, AFM-seeded (+m/-m): the order-lost postcondition gate",
+    "lattice": { "type": "CubicP", "a": 16.0 },
+    "atoms":   [ { "el": "Na", "frac": [0.31875, 0.5, 0.5], "spin": 1 }, { "el": "Na", "frac": [0.68125, 0.5, 0.5], "spin": -1 } ],
+    "species": { "Na": 1 }
+  }
+}
