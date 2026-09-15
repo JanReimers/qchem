@@ -109,7 +109,7 @@ using namespace qchem::tests::gpw;   // the harness: Materials cells, gates, rec
 //
 // One magnetic species on one Wyckoff site means the two Mn are related by the (1/2,1/2,1/2) translation,
 // so ANY valid magnetic solution -- seed included -- must have m(Mn1) = -m(Mn2).  Nothing checked that.
-// PlaneWaveDFT.PolarizedSeedAFMStaggering covers a DIFFERENT cell (simple cubic, 2 Mn, no O, NEUTRAL
+// PW_Mn2Box.Γ_Pol_SeedStaggered covers a DIFFERENT cell (simple cubic, 2 Mn, no O, NEUTRAL
 // targets) and asserts G-space quantities plus GetTotalSpin()==0; m_stag = 1/2(m1-m2), the campaign's order
 // parameter, is BLIND to the imbalance -- it reads +0.366 for (+0.37,-0.37) and for (0,-0.73) alike.
 // Measured 2026-08-11: the density one Fock build downstream of this seed has m1 = -0.0001, m2 = -0.73.

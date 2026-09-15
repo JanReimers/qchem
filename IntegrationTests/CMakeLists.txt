@@ -19,7 +19,7 @@ target_link_libraries(qcGPW_Harness PUBLIC qcUmbrella qchem qcMath qcCommon)
 
 add_executable(ITMain gtestmain.C
     EigenSolverUT.C
-    PlaneWaveDFTUT.C
+    PW/PlaneWaveDFT.C
     A_HF_U.C A_HF_P.C A_HF_dfPin.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C L_PP.C GPW_UT.C M_HF_U.C M_DFT.C M_Sym.C
     # THE GPW SCF GRID (doc/TestSuitePlan.md §4): directory per basis family, file per material, ONE exe.
     GPW/Si.C GPW/Al.C GPW/Na.C GPW/NaF.C GPW/MnO.C GPW/Boxes.C

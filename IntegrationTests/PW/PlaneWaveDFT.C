@@ -1,3 +1,16 @@
+// File: IntegrationTests/PW/PlaneWaveDFT.C  The PLANE-WAVE basis family: its SCF grid plus (for now) the
+// PW basis/term unit tests that predate src/BasisSet/PlaneWave/tests -- those leave in doc/TestSuitePlan.md
+// phase 5, and THAT pass is when this file splits into PW/Si.C, PW/NaF.C, ... (one surgery, not two).
+//
+// THE PW SCF GRID (doc/TestSuitePlan.md §3).  `Prototype` marks the standalone SCF loop this file carries
+// (the pre-framework reference); everything else runs the SolidSCFIterator framework.  PW has NO facade
+// yet (SolidCalculation is built over a Gaussian orbital basis), so these keep their own drivers -- the
+// facade's basis-family axis is an open item (doc/OpenWork.md TE).
+//   PW_Jellium.Γ_Prototype_IsUniform          PW_Cosine.Γ_Prototype_Converges     PW_Cosine.Γ_Prototype_VxcFitConverges
+//   PW_Si.Γ_Prototype_Converges               PW_Si.k222_Prototype_Converges
+//   PW_Si.Γ_eqPrototype                       PW_Si.Γ_Anchor                      PW_Si.k222_Anchor
+//   PW_NaF.Γ_Anchor                           PW_CsI.Γ_Anchor                     PW_Mn2Box.Γ_Pol_SeedStaggered
+//
 // file: PlaneWaveDFTUT.C  Prototype self-consistent plane-wave DFT, validated outside the Hamiltonian
 // framework (see doc/OldPlans/PlaneWavePlan.md sequencing + memory project_dft_upgrade_plan).
 //
@@ -767,7 +780,7 @@ SCFResult RunSCF_kpoints(const ReciprocalLattice& recip, const UnitCell& B, doub
 // Jellium: no external potential, 2 electrons.  The self-consistent density stays uniform (only the
 // G=0 component), so E_H=0, the kinetic energy is zero (G=0 band), and E_tot = E_xc = Omega eps_xc rho0.
 // Also a sanity check that the two energy routes agree.
-TEST_F(PlaneWaveDFT, ScfJelliumUniform)
+TEST(PW_Jellium, Γ_Prototype_IsUniform)
 {
     PWFixture F;
     qchem::Hamiltonian::SlaterExchange  ex(2.0/3.0);
@@ -791,7 +804,7 @@ TEST_F(PlaneWaveDFT, ScfJelliumUniform)
 // A weak external cosine well + 2 electrons + Hartree + LDA(Dirac+VWN): a non-trivial self-consistent
 // loop (Hartree and XC respond to a genuinely modulated density).  No external reference, so we check
 // the strongest internal property: at the fixed point the band-sum and direct total energies agree.
-TEST_F(PlaneWaveDFT, ScfWeakCosineSelfConsistent)
+TEST(PW_Cosine, Γ_Prototype_Converges)
 {
     const double a=6.0, Ecut=4.0, Omega=a*a*a, V0=-0.3;
     UnitCell          cell(a);
@@ -816,7 +829,7 @@ TEST_F(PlaneWaveDFT, ScfWeakCosineSelfConsistent)
 // Item K EXPLORATION on a SELF-CONSISTENT density: converge the weak-cosine LDA density, then sweep the
 // Vxc FIT grid (relCutoff 1->4->16, i.e. 16^3->32^3->64^3) and print how the XC energy quadrature E_xc=∫ε ρ
 // and the SPATIAL fit residual ‖v_xc - v_xc,fit‖ behave.  Illustrative (prints a table); the density is real.
-TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
+TEST(PW_Cosine, Γ_Prototype_VxcFitConverges)
 {
     const double a=6.0, Ecut=4.0, Omega=a*a*a, V0=-0.3;
     UnitCell          cell(a);
@@ -892,7 +905,7 @@ TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
 // SELF-CONSISTENT loop instead: it converges, the charge sum rule gives exactly 8 valence electrons,
 // and the band-sum and direct total energies agree at the fixed point.  A modest Ecut keeps the direct
 // (non-FFT) transforms fast; the grid is auto-sized to resolve the basis difference set.
-TEST_F(PlaneWaveDFT, ScfSiliconDiamondConverges)
+TEST(PW_Si, Γ_Prototype_Converges)
 {
     const double a=10.26, h=0.5*a;                         // Si lattice constant ~5.43 A in bohr
     Matrix3D<double> A(0.0,h,h,  h,0.0,h,  h,h,0.0);       // FCC primitive: cols = a/2 (011),(101),(110)
@@ -976,7 +989,7 @@ TEST_F(PlaneWaveDFT, VnnPeriodicUsesEwald)
 // This exercises the irrep(k) loop, the k-dependent KB projectors, and a properly BZ-averaged density.
 // Validate the same robust internal properties (converges, exact 8-electron charge, band==direct
 // energy) and report the BZ-sampled band gap.
-TEST_F(PlaneWaveDFT, ScfSiliconBZSampled)
+TEST(PW_Si, k222_Prototype_Converges)
 {
     const double a=10.26, h=0.5*a;
     Matrix3D<double> A(0.0,h,h,  h,0.0,h,  h,h,0.0);
@@ -1285,7 +1298,7 @@ TEST_F(PlaneWaveDFT, OrthoFitterRealSpaceField)
 // an PeriodicIrrepCD<dcmplx> density built from the complex orbitals, and the framework energy bookkeeping --
 // reproducing the standalone prototype's Si-Gamma result (Etot=1.468, 8 valence electrons).  A thin SCF
 // driver stands in for the (not-yet-complexified) WaveFunction/SCFIterator orchestration.
-TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
+TEST(PW_Si, Γ_eqPrototype)
 {
     using namespace qchem::Hamiltonian;
     const double a=10.26, h=0.5*a;
@@ -1373,7 +1386,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
 // -> IrrepWF) -> SCFAcceleratorNull's <dcmplx> diagonalize -> TOrbitals<dcmplx> fill -> PeriodicIrrepCD<dcmplx>,
 // with the cHamiltonianImp summing the PW terms.  This is the milestone that retires the "k-loop
 // in the IBS": single-k plane-wave DFT IS now Hamiltonian = Sum terms + SCFIterator, like atoms/molecules.
-TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
+TEST(PW_Si, Γ_Anchor)
 {
     using namespace qchem::Hamiltonian;
     const double a=10.26;                       // Si conventional cubic lattice constant (a.u.)
@@ -1498,7 +1511,7 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
 // Multi-species ionic crystal NaF (rocksalt = FCC + 2-atom basis), through the full SCFIterator with the
 // multi-species Ham_PW_DFT facade.  Na (Zion=1) + F (Zion=7) = 8 valence electrons; the per-Z router model
 // dispatches Na's vs F's pseudopotential per atom.  F's tight 2p sets the (high) cutoff.
-TEST_F(PlaneWaveDFT, FrameworkNaFThroughSCFIterator)
+TEST(PW_NaF, Γ_Anchor)
 {
     using namespace qchem::Hamiltonian;
     const double a=8.73;                          // NaF lattice constant ~4.62 A (a.u.)
@@ -1538,7 +1551,7 @@ TEST_F(PlaneWaveDFT, FrameworkNaFThroughSCFIterator)
 // smallest staggered magnetic cell.  Everything below is exact seed algebra (no SCF): the per-channel
 // structure-factor sums against the stored (majority, minority) pair, with the flip swapping the pair on
 // the -m site.
-TEST_F(PlaneWaveDFT, PolarizedSeedAFMStaggering)
+TEST(PW_Mn2Box, Γ_Pol_SeedStaggered)
 {
     using qchem::ChargeDensity::SeedCD;
     using qchem::ChargeDensity::PolarizedSeedCD;
@@ -1611,7 +1624,7 @@ TEST_F(PlaneWaveDFT, PolarizedSeedAFMStaggering)
 // angular path (Si/NaF are l<=1).  Cs q1 (Zion=1) deliberately avoids the semicore q9, whose l=3 (f)
 // projector the analytic HGH Qli table doesn't tabulate.  And the PP promise: Cs/I are SOFTER than F
 // (bigger r_loc), so this heavy salt needs a LOWER cutoff than NaF.
-TEST_F(PlaneWaveDFT, FrameworkCsIThroughSCFIterator)
+TEST(PW_CsI, Γ_Anchor)
 {
     using namespace qchem::Hamiltonian;
     const double a=8.63;                          // CsI lattice constant ~4.567 A (a.u.)
@@ -1667,7 +1680,7 @@ TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)
 // (MakeIrrepWFs, one IrrepWF per block) IS the BZ sum Sum_k w_k, with each block's density BZ-weighted
 // (Symmetry::GetWeight = w_k = 1/8) so the total charge is 8 (not 8*8).  Reproduces the standalone
 // prototype ScfSiliconBZSampled (Etot=0.934, gap>0).
-TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
+TEST(PW_Si, k222_Anchor)
 {
     using namespace qchem::Hamiltonian;
     const double a=10.26;
