@@ -296,6 +296,27 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
             .imposeSymmetry = imposed, .siteSpins = siteSpins,
             .hamPreservesReal = hamPreservesReal}));
     }
+    // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits
+    // contemporaneously with its own activity).  These two sections used to be emitted by the integration
+    // test driver around this same construction; the facade is the orchestrator now.  Order matters and is
+    // the one the driver established: the conditioning pre-flight on the ANALYTIC overlap first (no grids
+    // needed), then the grid ladder (EmitGpwGrids is what forces EnsureLevels).  Only when a run report is
+    // open -- the emitters are inert otherwise -- and never an abort: a dependent basis is the caller's to
+    // handle through a pivoted ortho, and an unhandled one fails loudly in the iterator.
+    if (qchem::report::Depth()>0)
+    {
+        qchem::report::Timed timed("setup: vet basis (analytic S) + grids report");
+        size_t nRemoved=0;
+        {
+            qchem::report::Log("vetting basis conditioning");
+            qchem::report::Section basis("basis");
+            nRemoved=L3::VetGpwConditioning(*itsImp->bs);
+        }
+        if (nRemoved>0)
+            qchem::report::Log("basis is rank-deficient ("+std::to_string(nRemoved)+" redundant functions, see basis.removed)");
+        qchem::report::Log("building grid ladder");
+        L3::EmitGpwGrids(*itsImp->bs);
+    }
 
     // DECISION 1 -- the XC quadrature.  Resolve Auto HERE, once, from facts about the run.  Downstream
     // consumers compare ==Becke, so an unresolved Auto would silently read as Uniform; resolving it at the
@@ -687,6 +708,19 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
         itsImp->spin = wf->GetSpinDensity();   // BUILT for us; we take it
     else
         itsImp->spin.reset();
+    // THE RESULT LINE -- the run reports its own outcome, contemporaneously, at the stated precision
+    // (doc/Benchmark.md compares codes at the 1e-5 Ha level; the terms stay at default width, they are read
+    // for structure).  Was the integration-test driver's line until TE phase 2 (2026-09-15).
+    {
+        const qchem::EnergyBreakdown& E=itsImp->scf->GetEnergy();
+        const std::streamsize prec0=std::cout.precision();
+        std::cout << "["<<itsImp->opts.label<<"] "<<(itsImp->converged ? "CONVERGED" : "NOT converged")
+                  << " iters="<<itsImp->scf->GetIterationCount()<<" charge="<<itsImp->charge
+                  << " Eelec="<<E.GetElectronicEnergy()
+                  << " Etot="<<std::setprecision(10)<<E.GetTotalEnergy()<<std::setprecision(prec0)
+                  << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]<<" Eee="<<E["Eee"]<<" Exc="<<E["Exc"]
+                  << " Enn="<<E["Enn"]<<" E_alphaZ="<<E["E_alphaZ"]<<")" << std::endl;
+    }
     return Outcome_();
 }
 

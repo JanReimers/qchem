@@ -48,6 +48,7 @@ import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
 import qchem.RunPolicy;                         // ReresolveRunPolicy() -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
+import qchem.Materials;                           // Materials::Get -- the cells come from src/Calculation/Data/materials.json (row MD)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); Vxc_Quadrature + the two DensitySampler strategies
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
@@ -945,6 +946,100 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
 }
 } //anon
 
+//========================================================================================================
+//  THE FACADE HARNESS (doc/TestSuitePlan.md phase 2, 2026-09-15).  Every SCF in this file is a
+//  qchem::SolidCalculation; the cell is a qchem::Materials entry; what is left here is the RECIPE
+//  vocabulary the tests share -- gates, the env A/B valves, the per-iteration trace -- and nothing that
+//  assembles a run.  (RunGPW / RunGpw / RunGpwAnnealed above are being retired call site by call site.)
+//========================================================================================================
+namespace
+{
+using qchem::Materials::Material;
+using qchem::SolidCalcOptions;
+
+//! The lattice a material's cell is run on: the k-mesh is the TEST's axis, never the material's.
+Lattice_3D LatticeOf(const Material& m, const ivec3_t& k=ivec3_t(1,1,1)) { return Lattice_3D(*m.cell, k); }
+
+//! The run options a material dictates -- its electron count and its pseudopotential vocabulary -- and a
+//! label.  Everything else (grid, k, symmetry, spin, kT, machinery) is stated at the call site: those are
+//! the axes a test is a point in, and the facade's defaults are the elided ones.
+SolidCalcOptions OptionsFor(const Material& m, const std::string& label)
+{
+    SolidCalcOptions o;
+    o.label=label; o.Nelec=m.Nelec(); o.species=m.species;
+    return o;
+}
+
+//! The SCF gates.  Two named recipes cover nearly every test: PRODUCTION (the anchors' gates -- energy AND
+//! density, 60 iterations) and TIGHT (density-only to 1e-6, the old positional driver's default).  The
+//! virial/FD gates are off on every pseudopotential run (the textbook -V/K=2 does not hold).
+SCFParams Gates(size_t nmax, double minDrho, double minDE)
+{
+    SCFParams par;
+    par.NMaxIter=nmax; par.MinΔρ=minDrho; par.MinΔE=minDE;
+    par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
+    par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+    return par;
+}
+SCFParams ProductionGates() { return Gates(60, 1e-3, 1e-6); }
+SCFParams TightGates(size_t nmax=120) { return Gates(nmax, 1e-6, 1e30); }
+
+//! The A/B valves the old positional driver carried, applied to a stated recipe.  Diagnostics only: unset,
+//! nothing changes.  GPW_IMPOSE=0/1 (imposition is the one part of a multi-k run that reconstructs the full
+//! BZ from irreducible blocks, so it is the first thing to remove when TRIM and complex meshes disagree);
+//! GPW_SMEAR=kT (an integer aufbau fill is ambiguous at a degenerate frontier); GPW_VERBOSE=1; GPW_REAL=0
+//! (build every block complex: a defect that appears only with real-TRIM narrowing was a wrongly typed
+//! block); GPW_SEED=coreguess|uniform|sad|ionicsad (CoreGuess separates the operators from the seed);
+//! GPW_ORTHO=cholesky|eigen|svd (a defect under one ortho only is IN the ortho); GPW_KERKER_G0=g (the
+//! density preconditioner the supercell ladder cannot run without).
+void EnvOverrides(SolidCalcOptions& o, SCFParams& par)
+{
+    if (const char* im=std::getenv("GPW_IMPOSE")) o.imposeSymmetry=std::atoi(im)!=0;
+    if (const char* kt=std::getenv("GPW_SMEAR"))  par.SmearingkT=std::atof(kt);
+    if (std::getenv("GPW_VERBOSE"))               par.Verbose=true;
+    if (const char* rl=std::getenv("GPW_REAL"))   o.forceComplex=std::atoi(rl)==0;
+    if (const char* kg=std::getenv("GPW_KERKER_G0")) par.KerkerG0=std::atof(kg);
+    if (const char* sd=std::getenv("GPW_SEED"))
+    {
+        const std::string v(sd);
+        if      (v=="coreguess") o.seed=qchem::ChargeDensity::SeedStrategy::CoreGuess;
+        else if (v=="uniform")   o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+        else if (v=="sad")       o.seed=qchem::ChargeDensity::SeedStrategy::SAD;
+        else if (v=="ionicsad")  o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+        else throw std::runtime_error("GPW_SEED: expected coreguess|uniform|sad|ionicsad, got '"+v+"'");
+    }
+    if (const char* ot=std::getenv("GPW_ORTHO"))
+    {
+        const std::string v(ot);
+        if      (v=="cholesky") o.ortho=qchem::Cholesky;
+        else if (v=="eigen")    o.ortho=qchem::Eigen;
+        else if (v=="svd")      o.ortho=qchem::SVD;
+        else throw std::runtime_error("GPW_ORTHO: expected cholesky|eigen|svd, got '"+v+"'");
+    }
+}
+
+//! The per-iteration trace a test can attach through \c SolidCalcOptions::onIteration -- live from the
+//! constructor, so stage 0 is in it -- and read back as the fingerprint / order trajectory the campaign
+//! instruments print.  (The assertions stay on the facade's answers; this is the human-readable side.)
+struct Trace
+{
+    std::vector<FpRow> rows;
+    qchem::SCFIterator::SolidSCFIterator::Observer Observer()
+    {
+        return [this](const qchem::SCFIterator::SCFProgress& p)
+               { rows.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho, p.order}); };
+    }
+    void Print(const std::string& label, bool polarized=false) const
+    {
+        Fingerprint(rows, label.c_str());
+        OrderTrajectory(rows, polarized ? std::string("m_site") : std::string(), label.c_str());
+    }
+};
+
+//! The failure text of an outcome, for an ASSERT message ("" when it succeeded).
+template <class R> std::string Why(const R& r) { return r ? std::string() : r.Error().details; }
+} //anon
+
 // (1) THE REAL-MATERIAL SCF: crystalline silicon (diamond) primitive cell at Gamma, driven end-to-end by
 // the framework cSCFIterator through the plane-wave Kohn-Sham Hamiltonian on a GAUSSIAN (GPW) basis.  8
 // valence electrons (2 x Zion 4) fill a closed shell (sigma_g^2 sigma_u^2 pi_u^4), so it converges cleanly.
@@ -971,25 +1066,24 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
 // electrons is physics, not a banked number.  It runs in ~3 s.
 TEST(GPW_SCF, SiliconMultiKPlumbing)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(2,1,1));   // 2 k-points: Gamma + the zone-boundary k=1/2 (real +-1 phases)
-
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
-                       "Si SR 2x1x1", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
-                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
-
-    EXPECT_TRUE(R.converged);
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);                          // 8 valence e- (BZ-weighted Sum_k, not x Nk)
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si, ivec3_t(2,1,1));   // 2 k-points: Gamma + the zone-boundary k=1/2 (real +-1 phases)
+    SolidCalcOptions o=OptionsFor(si, "Si SR 2x1x1");
+    o.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED, as every RunGPW anchor was (its default; V1.30)
+    SCFParams par=ProductionGates();
+    EnvOverrides(o, par);
+    GpwReport report("Si "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);                  // 8 valence e- (BZ-weighted Sum_k, not x Nk)
     // Did-E-move anchor, RE-PINNED 2026-09-09 to the value measured with correct weights (was -7.45137,
     // banked 2026-07-15 before the IBZ fold path existed; the run drifted 1.6e-3 over the intervening GPW
     // work and stayed inside this 5e-3 fit-floor window throughout).  JUDGED, not just refreshed: the
     // Gamma-point 2x1x1 SUPERCELL -- band-folding-equivalent, a fully independent route -- gives
     // -7.451621 per primitive cell (DISABLED_SiSupercellLadder, SI_LADDER=2,1,1, itself still descending
     // at its iteration cap), so the two routes agree to 1.3e-3 and bracket the old anchor.
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.45294, 5e-3);
+    EXPECT_NEAR(R->Energy(), -7.45294, 5e-3);
 }
 
 // ★ THE SUPERCELL SCALING LADDER (doc/ParallelAndOraclePlan.md 2.1).  Every threading number we own was
@@ -1113,20 +1207,21 @@ TEST(GPW_SCF, DISABLED_SR_2x2x2GammaCentred_vs_CP2K)
 // it again.  A DISABLED regression test is a test that will be wrong when you next need it.
 TEST(GPW_SCF, SR_2x2x2ShiftedMP_vs_CP2K)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
-                       "Si 2x2x2 shifted MP (k=±¼)", /*verbose*/false, /*nmax*/60,
-                       qchem::Cholesky, 0.0, rvec3_t(0.5,0.5,0.5));
-    EXPECT_TRUE(R.converged) << "the shifted mesh must converge, not merely stop";
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
+    SolidCalcOptions o=OptionsFor(si, "Si 2x2x2 shifted MP (k=±¼)");
+    o.densityEcut=20.0; o.imposeSymmetry=true; o.kShift=rvec3_t(0.5,0.5,0.5);
+    SCFParams par=TightGates(60);
+    EnvOverrides(o, par);
+    GpwReport report("Si "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << "the shifted mesh must converge, not merely stop: " << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
     // vs CP2K's OWN shifted 2x2x2 deck, re-measured through scripts/bench 2026-08-19 at -7.867436530436260.
     // Measured here: -7.868473428 (16 iterations, drho 1.0e-9) -- 1.04 mHa below, and the tolerance is the
     // historical 3 mHa.  Anything near -3.7 means the quarter-integer screen defect is back.
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.86744, 3e-3) << "GPW 2x2x2 shifted MP (CP2K default) vs -7.86744";
+    EXPECT_NEAR(R->Energy(), -7.86744, 3e-3) << "GPW 2x2x2 shifted MP (CP2K default) vs -7.86744";
 }
 
 // SINGLE-K SWEEP: E(k) along the cell diagonal, ONE k-point per run, no weights, no symmetry, no IBZ.
@@ -1227,35 +1322,36 @@ TEST(GPW_SCF, DISABLED_TermTranslationInvariance)
 // overlap cleanly PD at 2a.  Energy-gated at the density-fit floor (minDE=1e-6, minDrho relaxed to 1e-3).
 TEST(GPW_SCF, SiliconGammaConverges)
 {
-    const double a=10.26;                          // Si conventional cubic lattice constant (a.u.)
-    FCCUnitCell cell(a);                           // FCC primitive cell (2-atom diamond basis)
-    cell.AddAtom(14, {0,0,0});                      // Si diamond: true Z=14; Zion=4 via the PP
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
-                       "Si SR Gamma", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
-                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
-
-    EXPECT_TRUE(R.converged);
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);              // 8 valence electrons
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);   // CP2K FCC-Si Gamma reference (grid-gap tolerance)
+    const Material si=qchem::Materials::Get("Si_diamond");    // FCC primitive cell, 2-atom diamond basis, a=10.26
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma");
+    o.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED (the RunGPW default every Si anchor carried; V1.30)
+    SCFParams par=ProductionGates();
+    EnvOverrides(o, par);
+    GpwReport report("Si "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);      // 8 valence electrons
+    EXPECT_NEAR(R->Energy(), -7.11506, 2e-3);      // CP2K FCC-Si Gamma reference (grid-gap tolerance)
 }
 
-// The GPW run-report SCHEMA CHECK (RunReportPlan step 3).  RunGPW brackets the run: GPWFactory emits the
-// `grids` section during basis construction, and MakeIrrepWFs fills basis.perIrrep (per-Bloch-block
-// conditioning) via the cursor.  Only the SETUP matters here, so a couple of iterations is plenty.
+// The GPW run-report SCHEMA CHECK (RunReportPlan step 3).  Under an open run report the facade emits the
+// `basis` (conditioning pre-flight) and `grids` (the ladder) sections itself during construction, and
+// MakeIrrepWFs fills basis.perIrrep (per-Bloch-block conditioning) via the cursor.  Only the SETUP matters
+// here, so a couple of iterations is plenty.
 TEST(GPW_SCF, GridsReportSchema)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si grids schema");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
 
     report::ClearGlobal();                          // isolate this test's run
-    RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si", "Si grids schema",
-           /*verbose*/false, /*nmax*/4, qchem::Cholesky, 0.0, rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
+    {
+        GpwReport report("Si "+o.label, false);
+        qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, Gates(4, 1e-3, 1e-6));
+    }
 
     const report::json& all = report::GlobalReport();
     const report::json* grids=nullptr; const report::json* basis=nullptr;
@@ -1294,24 +1390,20 @@ TEST(GPW_SCF, GridsReportSchema)
 // default) the same blocks stay complex, so the two fields separate exactly where they should.
 TEST(GPW_SCF, RealTRIMBlocksRunRealInReport)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
     auto perIrrep=[](){ const report::json& all=report::GlobalReport();
                         for (auto it=all.begin(); it!=all.end(); ++it)
                             if (it.value().contains("basis")) return it.value()["basis"]["perIrrep"];
                         return report::json{}; };
-    GpwOptions o;
-    o.label="Si real-block report"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=20.0;
-    o.scf.NMaxIter=3; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si real-block report");
+    o.densityEcut=20.0;
+    const SCFParams par=Gates(3, 1e-3, 1e-6);
+    auto run=[&]{ GpwReport report("Si "+o.label, false); qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par); };
 
     report::ClearGlobal();
-    o.realTRIMBlocks=true;
-    RunGpw(lat, MakeBasisSR(cell), o);
+    o.forceComplex=false;                            // real TRIM blocks (the shipped default)
+    run();
     report::json rows=perIrrep();
     ASSERT_GE(rows.size(), 1u);
     for (const auto& row : rows)
@@ -1321,8 +1413,8 @@ TEST(GPW_SCF, RealTRIMBlocksRunRealInReport)
     }
 
     report::ClearGlobal();
-    o.realTRIMBlocks=false;                          // the control: same irrep fact, complex build
-    RunGpw(lat, MakeBasisSR(cell), o);
+    o.forceComplex=true;                             // the control: same irrep fact, complex build
+    run();
     rows=perIrrep();
     ASSERT_GE(rows.size(), 1u);
     for (const auto& row : rows)
@@ -1354,10 +1446,8 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
     // Box a=16 (was 11): the analytic collocation always includes the screened cross-cell pair products, so
     // the box must be large enough that they are negligible for the finite-molecule comparison (SIPP's most
     // diffuse alpha=0.06 pair prefactor: e^{-0.03 a^2} = 2.7e-2 at a=11 -- visible; 4.6e-4 at a=16).
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(14, {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const Material box=qchem::Materials::Get("Si_box16");
+    const Lattice_3D lat=LatticeOf(box);
     // XC route pinned UNIFORM (the gate's calibrated arrangement): under the Becke default this
     // DEGENERATE half-filled 3p atom exposed a real open question — the freely-rotating degenerate
     // density has orientation-DEPENDENT quadrature error on the fixed-axis Becke angular grid (V_xc is
@@ -1366,16 +1456,21 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
     // under Becke — fractional occupation restores the symmetric density.  Recorded in doc/GPWPlan1.md
     // (Becke remaining increments); this gate's PURPOSE is the PP box-independence check, so it keeps
     // its historical route.
-    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/10.0, /*Nelec*/4, "Si", "Si atom-in-box",
-                       /*verbose*/false, /*nmax*/40, qchem::Cholesky, 0.0, rvec3_t(0,0,0), 1e-6, 1e30,
-                       qchem::ChargeDensity::SeedStrategy::Uniform,
-                       BasisSet::Gaussian::CellImages::HomeCellOnly,    // the finite-molecule mode
-                       /*smearkT*/0.0, qcMesh::UnitCellKind::Uniform);
+    SolidCalcOptions o=OptionsFor(box, "Si atom-in-box");
+    o.densityEcut=10.0; o.imposeSymmetry=true;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    SCFParams par=TightGates(40);
+    EnvOverrides(o, par);
+    GpwReport report("Si "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
 
-    EXPECT_NEAR(R.charge, 4.0, 1e-6);                        // 4 valence electrons (Zion=4), charge conserved
+    // Energy-converged; the density is degenerate at Gamma (see the note above), so these are the LAST
+    // ITERATE's numbers by design -- the facade names them so, and this gate asks for exactly that.
+    EXPECT_NEAR(calc.LastIterateCharge(), 4.0, 1e-6);         // 4 valence electrons (Zion=4), charge conserved
     // GPW-in-box (G-space local PP -> box-independent) reproduces the finite SIPP DFT energy to grid tolerance.
-    // (Energy-converged; density is degenerate at Gamma -- see the note above -- so no Converged() guard.)
-    EXPECT_NEAR(R.E.GetTotalEnergy(), Esipp, 5e-2) << "GPW-in-box total vs finite SIPP molecular DFT";
+    EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), Esipp, 5e-2) << "GPW-in-box total vs finite SIPP molecular DFT";
 }
 
 // (tier 4b, invariant) THE ζ=0 COLLAPSE: the TWO-CHANNEL machinery on a CLOSED SHELL must reproduce the
@@ -1386,26 +1481,18 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
 // (channel bookkeeping, shared-engine caching, the collocation memo screen) on known ground.
 TEST(GPW_SCF, PolarizedSingletMatchesUnpolarizedSiGamma)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwOptions o;
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma pol-singlet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="Si SR Gamma pol-singlet";
-    o.Nelec=8; o.multiplicity=1;                       // EXPLICIT two-channel singlet (nUp=nDn=4)
-    o.species={{"Si",4}};
+    o.multiplicity=1;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
     o.densityEcut=20.0;
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o);
-
-    EXPECT_TRUE(R.converged);
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);   // == the unpolarized Becke anchor (ζ=0 collapse exact)
+    GpwReport report("Si "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), -7.11506, 2e-3);          // == the unpolarized Becke anchor (ζ=0 collapse exact)
 }
 
 // The SPIN-SAD sibling of the ζ=0 collapse (SCFSeedingPlan §10 increment B): a polarized run with a SAD
@@ -1427,64 +1514,53 @@ TEST(GPW_SCF, PolarizedSingletMatchesUnpolarizedSiGamma)
 // channels, so the converged state is not the free minimum.  CP2K's MnO deck constrains nothing.
 TEST(GPW_SCF, SharedFermiLevelLetsTheMomentRelax)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    auto TripletSi=[&](bool shared)
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    struct Arm { double charge, E; };
+    auto TripletSi=[&](bool shared) -> Arm
     {
-        GpwOptions o;
+        SolidCalcOptions o=OptionsFor(si, shared ? "Si Gamma triplet, shared mu" : "Si Gamma triplet, per-channel mu");
         o.imposeSymmetry=true;
-        o.label = shared ? "Si Gamma triplet, shared mu" : "Si Gamma triplet, per-channel mu";
-        o.Nelec=8; o.multiplicity=3;                   // SEEDED as a triplet (nUp=5, nDn=3)
-        o.species={{"Si",4}};
+        o.multiplicity=3;                              // SEEDED as a triplet (nUp=5, nDn=3)
         o.densityEcut=20.0;
-        o.scf.SmearingkT=5e-3;                         // a shared mu needs smearing to relax the moment with
         o.spinsShareFermi=shared;
-        o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-        o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-        o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-        return RunGpw(lat, MakeBasisSR(cell), o);
+        SCFParams par=ProductionGates();
+        par.SmearingkT=5e-3;                           // a shared mu needs smearing to relax the moment with
+        GpwReport report("Si "+o.label, false);
+        qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+        // Both arms are read as LAST ITERATES on purpose: the held arm is a constrained state that need not
+        // meet the production gates, and the comparison below is between the two arms, not against a pin.
+        return {calc.LastIterateCharge(), calc.LastIterateTerms().GetTotalEnergy()};
     };
 
-    const GpwResult shared=TripletSi(true);
+    const Arm shared=TripletSi(true);
     EXPECT_NEAR(shared.charge, 8.0, 1e-6);             // the TOTAL is what a shared reservoir conserves
     // The moment relaxed away: this lands on the singlet anchor of PolarizedSingletMatchesUnpolarizedSiGamma.
-    EXPECT_NEAR(shared.E.GetTotalEnergy(), -7.11506, 3e-3)
+    EXPECT_NEAR(shared.E, -7.11506, 3e-3)
         << "a shared mu must let a triplet-seeded closed-shell system fall back to the singlet";
 
     // CONTROL: the same run with separate per-channel counts cannot relax -- nUp-nDn=2 is conserved.
-    const GpwResult held=TripletSi(false);
+    const Arm held=TripletSi(false);
     EXPECT_NEAR(held.charge, 8.0, 1e-6);
-    EXPECT_GT(held.E.GetTotalEnergy(), shared.E.GetTotalEnergy() + 1e-3)
+    EXPECT_GT(held.E, shared.E + 1e-3)
         << "with two reservoirs the seeded multiplicity is a CONSTRAINT and must sit above the free minimum";
 }
 
 TEST(GPW_SCF, PolarizedSeedSingletMatchesUnpolarizedSiGamma)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwOptions o;
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma pol-singlet spin-SAD");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="Si SR Gamma pol-singlet spin-SAD";
-    o.Nelec=8; o.multiplicity=1;                       // EXPLICIT two-channel singlet (nUp=nDn=4)
-    o.species={{"Si",4}};
+    o.multiplicity=1;                                  // EXPLICIT two-channel singlet (nUp=nDn=4)
     o.densityEcut=20.0;
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;    // -> PolarizedSeedCD (rho/2 channels for pairless Si)
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o);
-
-    EXPECT_TRUE(R.converged);
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);   // the SAME unpolarized Becke anchor
+    GpwReport report("Si "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), -7.11506, 2e-3);          // the SAME unpolarized Becke anchor
 }
 
 // (tier 4b, gate b) O2 in a box, TRIPLET: the multi-electron polarized solid pipeline vs the finite
@@ -1505,24 +1581,18 @@ TEST(GPW_SCF, O2TripletInBoxMatchesFinite)
                   << " Enn="<<E["Enn"]<<")"<<std::endl;
     }
 
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(8, {0.5-0.5*d/a,0.5,0.5});
-    cell.AddAtom(8, {0.5+0.5*d/a,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o;
+    const Material box=qchem::Materials::Get("O2_box16");   // the same d=2.282 dimer, centred in a 16-bohr box
+    const Lattice_3D lat=LatticeOf(box);
+    SolidCalcOptions o=OptionsFor(box, "O2 in-box triplet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="O2 in-box triplet";
-    o.Nelec=12; o.multiplicity=3;                      // S=1: nUp=7, nDown=5
-    o.species={{"O",6}};                               // densityEcut stays AUTO: O q6 is hard (alpha_max rules)
+    o.multiplicity=3;                                  // S=1: nUp=7, nDown=5; densityEcut stays AUTO: O q6 is hard (alpha_max rules)
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-    GpwResult R=RunGpw(lat, MakeBasis(cell), o);
-
-    EXPECT_NEAR(R.charge, 12.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 5e-2) << "GPW-in-box triplet vs finite molecular LSDA triplet";
+    GpwReport report("O "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, TightGates(60));
+    // No convergence guard (as before): the box's energy is what is compared, and it is compared as the
+    // last iterate, which is what this gate has always read.
+    EXPECT_NEAR(calc.LastIterateCharge(), 12.0, 1e-6);
+    EXPECT_NEAR(calc.LastIterateTerms().GetTotalEnergy(), Eref, 5e-2) << "GPW-in-box triplet vs finite molecular LSDA triplet";
 }
 
 // PROBE (kept disabled): FIXED-DENSITY term fingerprinter for the Na-doublet deficit.  Feed the polarized
@@ -1709,29 +1779,22 @@ TEST(GPW_SCF, NaPseudoAtomInBoxDoublet)
     std::cout << "[Na finite] valence_lowq_sr LSDA doublet (q1)="<<Eref<<std::endl;
 
     // Box a=16 (the Si gate's size: cross-cell products of the most diffuse pair negligible).
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(11, {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwOptions o;
+    const Material box=qchem::Materials::Get("Na_box16");
+    const Lattice_3D lat=LatticeOf(box);
+    SolidCalcOptions o=OptionsFor(box, "Na atom-in-box doublet");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="Na atom-in-box doublet";
-    o.Nelec=1; o.multiplicity=2;                               // S=1/2: nUp=1, nDown=0
-    o.species={{"Na",1}};
+    o.multiplicity=2;                                          // S=1/2: nUp=1, nDown=0
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;   // the finite-molecule mode
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;       // SEED PIN: Uniform has a stable wrong basin (header)
-    o.scf.NMaxIter=40; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o);
-
-    EXPECT_TRUE(R.converged);                                // 3s^1 is non-degenerate: Δρ converges
-    EXPECT_NEAR(R.charge, 1.0, 1e-6);                        // 1 valence electron (Zion=1), charge conserved
+    GpwReport report("Na "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, TightGates(40));
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << "3s^1 is non-degenerate: Δρ converges -- " << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 1.0, 1e-6);                // 1 valence electron (Zion=1), charge conserved
     // GPW-in-box (two-channel) reproduces the finite molecular LSDA doublet (measured 4.8 mHa; the gap is
     // the two stacks' fit/quadrature tech -- the facade Dunlap-fits J and fits v_xc, the GPW is fit-free).
-    EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 2e-2) << "GPW-in-box doublet vs finite molecular LSDA doublet";
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -0.141933, 1e-4);      // did-E-move anchor (== the same-basis oracle -0.1416)
+    EXPECT_NEAR(R->Energy(), Eref, 2e-2) << "GPW-in-box doublet vs finite molecular LSDA doublet";
+    EXPECT_NEAR(R->Energy(), -0.141933, 1e-4);               // did-E-move anchor (== the same-basis oracle -0.1416)
 }
 
 // (4b-i) FERMI SMEARING IS INERT ON A GAP (doc/GPWPlan1.md 4b, gate i).  The same gapped Si/Gamma anchor as
@@ -1741,22 +1804,21 @@ TEST(GPW_SCF, NaPseudoAtomInBoxDoublet)
 // is the regression that smearing must not perturb a system that does not need it (the T→0 / kT≪gap limit).
 TEST(GPW_SCF, SmearingInertOnGap)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
-                       "Si SR Gamma +smear", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
-                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6,
-                       qchem::ChargeDensity::SeedStrategy::Uniform,
-                       BasisSet::Gaussian::CellImages::Periodic, /*smearkT*/1e-3);
-
-    EXPECT_TRUE(R.converged);
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);       // == the no-smear anchor: smearing is inert on a gap
-    EXPECT_NEAR(R.E["MinusTS"], 0.0, 1e-4);                     // −TS negligible when kT ≪ gap (f_i ∈ {0,1})
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma +smear");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    SCFParams par=ProductionGates();
+    par.SmearingkT=1e-3;
+    EnvOverrides(o, par);
+    GpwReport report("Si "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), -7.11506, 2e-3);                // == the no-smear anchor: smearing is inert on a gap
+    EXPECT_NEAR(R->EnergyTerms()["MinusTS"], 0.0, 1e-4);     // −TS negligible when kT ≪ gap (f_i ∈ {0,1})
 }
 
 // (4b-iii) FERMI SMEARING CONVERGES A DEGENERATE OPEN SHELL (doc/GPWPlan1.md 4b, gate iii + the cure).  The
@@ -1776,24 +1838,27 @@ TEST(GPW_SCF, SmearingConvergesDegenerateShell)
     Calculation cSipp(si, {.basis = "sipp", .pseudopotential = true});
     const double Esipp=cSipp.Energy();   // finite SIPP molecular DFT (symmetric occupation): -3.759
 
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(14, {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/10.0, /*Nelec*/4, "Si", "Si atom-in-box +smear",
-                       /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, rvec3_t(0,0,0),
-                       /*minDrho*/1e-6, /*minDE*/1e30,
-                       qchem::ChargeDensity::SeedStrategy::Uniform,
-                       BasisSet::Gaussian::CellImages::HomeCellOnly, /*smearkT*/1e-2);
-
-    EXPECT_TRUE(R.converged) << "Fermi smearing should converge Δρ where integer aufbau cannot (degenerate 3p)";
-    EXPECT_NEAR(R.charge, 4.0, 1e-6);
+    const Material box=qchem::Materials::Get("Si_box16");
+    const Lattice_3D lat=LatticeOf(box);
+    SolidCalcOptions o=OptionsFor(box, "Si atom-in-box +smear");
+    o.densityEcut=10.0; o.imposeSymmetry=true;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
+    SCFParams par=TightGates(60);
+    par.SmearingkT=1e-2;
+    EnvOverrides(o, par);
+    GpwReport report("Si "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << "Fermi smearing should converge Δρ where integer aufbau cannot (degenerate 3p): " << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 4.0, 1e-6);
+    const qchem::EnergyBreakdown E=R->EnergyTerms();
     // did-E-move anchor: the converged free energy A=E−TS at kT=1e-2 (internal E≈-3.744; the ~38 mHa gap to A
     // is the 3p-shell entropy −TS at this kT, which lowers A below E and below Esipp).  (Re-pinned when the
     // field-sharpness density rule landed -- doc/GPWPlan1.md 4b: the sharper XC grid moved it -3.779 -> -3.783.)
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -3.78260, 3e-3);
-    EXPECT_LT(R.E["MinusTS"], 0.0);                             // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
-    EXPECT_NEAR(R.E.GetTotalEnergy()-R.E["MinusTS"], Esipp, 3e-2) << "internal E=A−(−TS) vs finite SIPP molecular DFT";
+    EXPECT_NEAR(E.GetTotalEnergy(), -3.78260, 3e-3);
+    EXPECT_LT(E["MinusTS"], 0.0);                               // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
+    EXPECT_NEAR(E.GetTotalEnergy()-E["MinusTS"], Esipp, 3e-2) << "internal E=A−(−TS) vs finite SIPP molecular DFT";
 }
 
 // ===== (item 2) DEGENERATE-SHELL METAL: FCC Al @ Gamma (3s^2 3p^1) =====
