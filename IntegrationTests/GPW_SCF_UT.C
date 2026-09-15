@@ -472,10 +472,10 @@ static qchem::SCFAccelerators::SCFAccelerator* MakeGpwAccelerator(const std::str
 
 // Optional keep-alive handles for post-SCF term-level probes (the Becke XC gate): the basis and the
 // converged density, which stays valid after the iterator tears down because its basis block is bs.
-struct GpwHandles
+struct GpwHandles   // (kept as a name: the probes below take it) -- a NON-OWNING VIEW over the facade's objects
 {
-    std::unique_ptr<Complex_BS> bs;
-    std::unique_ptr<qchem::ChargeDensity::cDM_CD> cd;
+    const Complex_BS* bs=nullptr;
+    const qchem::ChargeDensity::cDM_CD* cd=nullptr;
 };
 
 // [symmetry] The §3 order-parameter line (doc/SymmetryUpgradePlan.md): a run ALWAYS tells the user the
@@ -554,7 +554,7 @@ static bool SharedMu(const GpwOptions& o)
 // accelerator -> SCF, with automatic reporting (GpwReport) + heartbeat logging throughout.  Any material is a
 // GpwOptions literal; the positional RunGPW below and the bespoke NaFRocksaltGamma are thin callers.
 static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
-                        bool verbose=false, GpwHandles* keep=nullptr)
+                        bool verbose=false)
 {
     namespace L3=BasisSet::Lattice;
     const std::string sp = o.species.empty() ? std::string() : o.species.front().first;
@@ -668,7 +668,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
                             (!o.imposeSymmetry && staggered) ? lat.ShubnikovOps(spins)
                                                              : std::vector<Symmetry::Lattice_3D::SymOp>{});
     }
-    if (keep) keep->cd.reset(cd); else delete cd;
+    delete cd;
     qchem::EnergyBreakdown E=scf.GetEnergy();
     // Etot at 10 s.f.: doc/Benchmark.md compares codes at the 1e-5 Ha level, and the default 6 s.f. cannot
     // express a sub-mHa delta on a -61 Ha crystal.  The breakdown terms stay at default width (they are read
@@ -682,7 +682,6 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     // Iterations passed so the ledger can report SETUP TOTAL + s/ITERATION -- the two numbers a perf
     // comparison needs, because a wall time moves with the iteration count and those two do not.
     qchem::report::EmitTimings("timing", R.iters);
-    if (keep) keep->bs=std::move(bs);   // the density's basis block -- must outlive keep->cd
     return R;
 }
 
@@ -721,7 +720,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 // is exactly the test of whether MOM is still load-bearing.
 static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
                                 const std::vector<double>& kTSchedule, bool verbose=false,
-                                const std::vector<std::string>& accSchedule={}, GpwHandles* keep=nullptr,
+                                const std::vector<std::string>& accSchedule={},
                                 const std::vector<double>& penaltySchedule={})
 {
     assert(penaltySchedule.empty() || penaltySchedule.size()==kTSchedule.size());
@@ -858,8 +857,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
               << "  (Ekin="<<R.E["Kinetic"]<<" Een="<<R.E["Een"]<<" Eee="<<R.E["Eee"]<<" Exc="<<R.E["Exc"]
               << " Enn="<<R.E["Enn"]<<" E_alphaZ="<<R.E["E_alphaZ"]<<")" << std::endl;
     qchem::report::EmitTimings("timing", R.iters);   // + SETUP TOTAL / s/ITERATION, as in RunGpw
-    if (keep) { keep->cd.reset(seedCD); keep->bs=std::move(bs); }   // bs is the density's block -- it must outlive cd
-    else      delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
+    delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
     return R;
 }
 
@@ -1038,6 +1036,16 @@ struct Trace
 
 //! The failure text of an outcome, for an ASSERT message ("" when it succeeded).
 template <class R> std::string Why(const R& r) { return r ? std::string() : r.Error().details; }
+
+//! The basis + converged density a term-level probe needs, from a CONVERGED facade run.
+GpwHandles Handles(const qchem::SolidCalculation& calc)
+{
+    auto r=calc.Result();
+    if (!r) throw std::runtime_error("Handles: the run did not converge -- "+r.Error().details);
+    return {&calc.Basis(), &r->DensityMatrix()};
+}
+//! ...and from a BOUNDED run (a symmetry probe that stops at a fixed iteration): the last iterate's.
+GpwHandles LastIterateHandles(const qchem::SolidCalculation& calc) { return {&calc.Basis(), calc.LastIterateDensity()}; }
 } //anon
 
 // (1) THE REAL-MATERIAL SCF: crystalline silicon (diamond) primitive cell at Gamma, driven end-to-end by
@@ -1869,18 +1877,51 @@ TEST(GPW_SCF, SmearingConvergesDegenerateShell)
 // 0.05 makes the Bloch overlap rank-deficient AND explodes the collocation grid -- the SIPP->SIPP_SR / NaF SR
 // lesson; valgen can regenerate).  NOT yet a Fermi-surface metal (that needs a global mu across k-blocks,
 // GPWPlan1 items 3-4) -- this is the degenerate-open-shell + smearing/annealing gate.
-static GpwOptions AlOptions()
+static SolidCalcOptions AlOptions(const Material& al, const std::string& label="Al FCC Gamma")
 {
-    GpwOptions o;
+    SolidCalcOptions o=OptionsFor(al, label);
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="Al FCC Gamma"; o.Nelec=3; o.species={{"Al",3}};
-    o.densityEcut=-1.0; o.accelerator="DIIS";
     // Uniform STATED (V2.2): Al has no entry in atomic_valence_densities.json yet, so the IonicSAD default
     // would throw at seed time.  valgen can generate one; until then this is the explicit opt-in.
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    return o;
+}
+//! The Al block's gates: density-only to 1e-5 (a metal's energy settles long before its density does).
+static SCFParams AlGates(size_t nmax=60) { return Gates(nmax, 1e-5, 1e30); }
+
+//! THE COMMITTED NaF PRODUCTION RECIPE (from the NaF rocksalt gate): the diffuse-trimmed SR2 basis, the
+//! Fock DIIS->GDM Ladder on |ΔE/E|, IonicSAD, pivoted Cholesky, Kerker G0=1 against the low-G charge-transfer
+//! slosh, delayed MOM.  One place, so the ladder probes and the Becke gate cannot drift from it.
+static std::shared_ptr<const Real_BS> MakeBasisNaFSR2(const Structure& st)
+{
+    return std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
+        BasisSetData::VALENCE_LOWQ_SR2, &st, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+}
+static SolidCalcOptions NaFOptions(const Material& naf, const std::string& label)
+{
+    SolidCalcOptions o=OptionsFor(naf, label);
+    o.accelerator=qchem::SCFAccelerators::Type::Ladder;
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    return o;
+}
+static SCFParams NaFGates()
+{
+    SCFParams par=Gates(200, 1e-4, 1e-8);
+    par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
+    par.UseMOM=true; par.MOMStartIter=10;
+    par.MergeTol=SCFParams{}.MergeTol;   // (the recipe never set it)
+    return par;
+}
+//! The Mn sextet atom-in-box recipe (MnAtomInBoxDChannel): the finite-molecule mode, IonicSAD, pivoted ortho.
+static SolidCalcOptions MnBoxOptions(const Material& box, const std::string& label)
+{
+    SolidCalcOptions o=OptionsFor(box, label);
+    o.multiplicity=6;                                  // S=5/2 Hund: nUp=6, nDown=1
+    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.imposeSymmetry=false;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
     return o;
 }
 
@@ -1892,15 +1933,16 @@ static GpwOptions AlOptions()
 // SiPseudoAtomInBoxMatchesFinite degenerate-shell behaviour, now for a periodic lattice).
 TEST(GPW_SCF, AlFCCDegenerateShellAufbauStalls)
 {
-    FCCUnitCell cell(7.653);
-    cell.AddAtom(13, {0,0,0});           // Al (Zion=3): 3s^2 3p^1
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o=AlOptions(); o.scf.NMaxIter=40; o.scf.SmearingkT=0.0;   // aufbau (no smearing)
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/true);
+    const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
+    const Lattice_3D lat=LatticeOf(al);
+    SolidCalcOptions o=AlOptions(al);
+    SCFParams par=AlGates(40); par.SmearingkT=0.0; par.Verbose=true;   // aufbau (no smearing)
+    GpwReport report("Al "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
 
-    EXPECT_FALSE(R.converged) << "integer aufbau cannot converge Δρ of a partially-filled degenerate 3p shell";
-    EXPECT_NEAR(R.charge, 3.0, 1e-6);                       // charge is still conserved (3 valence e-)
-    EXPECT_NEAR(R.E["MinusTS"], 0.0, 1e-12);                   // no smearing => no entropy term
+    EXPECT_FALSE(calc.Result()) << "integer aufbau cannot converge Δρ of a partially-filled degenerate 3p shell";
+    EXPECT_NEAR(calc.LastIterateCharge(), 3.0, 1e-6);       // charge is still conserved (3 valence e-)
+    EXPECT_NEAR(calc.LastIterateTerms()["MinusTS"], 0.0, 1e-12);   // no smearing => no entropy term
 }
 
 // (item 2b) THE CURE + ANNEALING (doc/GPWPlan1.md item 2): a DESCENDING kT schedule (0.02 -> 0.01 -> 0.005 Ha),
@@ -1913,10 +1955,9 @@ TEST(GPW_SCF, AlFCCDegenerateShellAufbauStalls)
 // smearing thermodynamics (gate iii).
 TEST(GPW_SCF, AlFCCAnnealedMetal)
 {
-    FCCUnitCell cell(7.653);
-    cell.AddAtom(13, {0,0,0});           // Al (Zion=3): 3s^2 3p^1
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o=AlOptions();
+    const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
+    const Lattice_3D lat=LatticeOf(al);
+    SolidCalcOptions o=AlOptions(al);
     // Accelerator = plain DIIS (NOT the DIIS->GDM Ladder).  MEASURED 2026-07-28: the Ladder's GDM tail rung is
     // INCOMPATIBLE with Fermi smearing here.  GDM builds its geodesic DIRECTION from the fixed-occupation
     // electronic gradient [F,D], but line-searches the FREE energy A=E−TS with the occupations Fermi-refilled
@@ -1926,14 +1967,22 @@ TEST(GPW_SCF, AlFCCAnnealedMetal)
     // (cfg `*`), the run never recovers.  This is NOT a grid / non-variationality fault (DIIS converges the SAME
     // E[ρ] cleanly to −1.97521); GDM just needs the occupation-response term to tail-polish a smeared free
     // energy.  So DIIS here; GDM+smearing is a captured follow-up (doc/GPWPlan1.md item 2).
-    GpwResult R=RunGpwAnnealed(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, {0.02, 0.01, 0.005}, /*verbose*/false);
-
-    EXPECT_TRUE(R.converged) << "Fermi-smearing annealing converges Δρ where integer aufbau cannot (degenerate 3p)";
-    EXPECT_NEAR(R.charge, 3.0, 1e-6);
-    EXPECT_LT(R.E["MinusTS"], 0.0);                            // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
+    std::vector<qchem::SCFStage> schedule;
+    for (double kT : {0.02, 0.01, 0.005})
+    {
+        SCFParams par=AlGates(); par.SmearingkT=kT;
+        schedule.push_back({par, qchem::SCFAccelerators::Type::DIIS});
+    }
+    GpwReport report("Al "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << "Fermi-smearing annealing converges Δρ where integer aufbau cannot (degenerate 3p): " << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
+    const qchem::EnergyBreakdown E=R->EnergyTerms();
+    EXPECT_LT(E["MinusTS"], 0.0);                              // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
     // did-E-move anchors at the coldest stage (kT=0.005): the free energy A and the kT-independent internal E.
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -1.934665, 2e-3);                        // A = E − TS at kT=0.005
-    EXPECT_NEAR(R.E.GetTotalEnergy()-R.E["MinusTS"], -1.921148, 2e-3);            // internal E (T→0 physical value)
+    EXPECT_NEAR(E.GetTotalEnergy(), -1.934665, 2e-3);                          // A = E − TS at kT=0.005
+    EXPECT_NEAR(E.GetTotalEnergy()-E["MinusTS"], -1.921148, 2e-3);              // internal E (T→0 physical value)
 }
 
 // (item 3) GLOBAL μ ACROSS k-BLOCKS -- the true metal fill.  FCC Al on a 2×2×2 Γ-centred Bloch mesh (8
@@ -1949,20 +1998,22 @@ TEST(GPW_SCF, AlFCCAnnealedMetal)
 // dispersion).  Reduces EXACTLY to the per-block Fermi at a single k (verified: global≡per-block to 1e-12 at Γ).
 TEST(GPW_SCF, AlFCCMetalGlobalMu)
 {
-    FCCUnitCell cell(7.653);
-    cell.AddAtom(13, {0,0,0});                 // Al (Zion=3): 3s^2 3p^1
-    Lattice_3D lat(cell, ivec3_t(2,2,2));      // 8-point Γ-centred Bloch mesh (weights sum to 1)
-    GpwOptions o=AlOptions();
+    const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
+    const Lattice_3D lat=LatticeOf(al, ivec3_t(2,2,2));       // 8-point Γ-centred Bloch mesh (weights sum to 1)
+    SolidCalcOptions o=AlOptions(al, "Al FCC 2x2x2 global mu");
+    o.imposeSymmetry=false;                    // the FULL mesh: the IBZ-folded sibling below must reproduce it
     o.globalFermi=true;                        // ONE μ across the BZ (the metal)
-    o.scf.SmearingkT=0.01;
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false);
-
-    EXPECT_TRUE(R.converged) << "one μ across the BZ converges the dispersive metal (per-block filling cannot)";
-    EXPECT_NEAR(R.charge, 3.0, 1e-6);          // BZ-weighted Σ_k w_k n_k = 3 (weight-consistency guard)
-    EXPECT_LT(R.E["MinusTS"], 0.0);               // −TS<0 => A=GetTotalEnergy() is the free energy (gate iii)
-    std::cout<<"[Al global-μ full-mesh] A="<<R.E.GetTotalEnergy()<<std::endl;   // the IBZ pin's route-matched partner
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.11681, 3e-3);   // did-E-move anchor (2×2×2 global-μ free energy A)
-    EXPECT_LT(R.E.GetTotalEnergy(), -1.95);    // dispersion: well below the Γ-only -1.92 (k-sampling binds)
+    SCFParams par=AlGates(); par.SmearingkT=0.01;
+    GpwReport report("Al "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << "one μ across the BZ converges the dispersive metal (per-block filling cannot): " << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);  // BZ-weighted Σ_k w_k n_k = 3 (weight-consistency guard)
+    const qchem::EnergyBreakdown E=R->EnergyTerms();
+    EXPECT_LT(E["MinusTS"], 0.0);              // −TS<0 => A=GetTotalEnergy() is the free energy (gate iii)
+    std::cout<<"[Al global-μ full-mesh] A="<<E.GetTotalEnergy()<<std::endl;   // the IBZ pin's route-matched partner
+    EXPECT_NEAR(E.GetTotalEnergy(), -2.11681, 3e-3);   // did-E-move anchor (2×2×2 global-μ free energy A)
+    EXPECT_LT(E.GetTotalEnergy(), -1.95);      // dispersion: well below the Γ-only -1.92 (k-sampling binds)
 }
 
 // (item 3, IBZ/k-star) FOLDING IS EXACT.  The 8-point 2×2×2 Γ-mesh folds to 3 irreducible k-points under the
@@ -1973,16 +2024,16 @@ TEST(GPW_SCF, AlFCCMetalGlobalMu)
 // to grid/SCF tolerance (measured ~6e-8) with fewer k-points -- the IBZ payoff, done exactly (doc/GPWPlan1 item 3).
 TEST(GPW_SCF, AlFCCMetalIBZExact)
 {
-    FCCUnitCell cell(7.653);
-    cell.AddAtom(13, {0,0,0});
-    Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwOptions o=AlOptions();
+    const Material al=qchem::Materials::Get("Al_fcc");
+    const Lattice_3D lat=LatticeOf(al, ivec3_t(2,2,2));
+    SolidCalcOptions o=AlOptions(al, "Al FCC 2x2x2 IBZ");
     o.globalFermi=true; o.imposeSymmetry=true;       // fold to the irreducible wedge AND star-average the density
-    o.scf.SmearingkT=0.01;
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false);
-
-    EXPECT_TRUE(R.converged);
-    EXPECT_NEAR(R.charge, 3.0, 1e-6);
+    SCFParams par=AlGates(); par.SmearingkT=0.01;
+    GpwReport report("Al "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 3.0, 1e-6);
     // Re-anchored 2026-08-01: the 0i custom V_loc G-ball (harmonic routing + custom top level) moved the
     // long-PP block by 1.6e-4 on Al's coarse grids -- full mesh AND reduced shift TOGETHER (folding stays
     // exact).  Old kappa-sweep anchor: -2.116812.
@@ -1997,7 +2048,7 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
     //   is the angular error V2.6 measured on this system (Al is the worst case there).  And the uniform
     //   route is converged: refining its cutoff 4x moves ||drho||_1 by 1 part in 6000.
     // Previous anchor, on the Becke route: -2.1174805.
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.1169707, 1e-4)  // == the full 8-k-point mesh: IBZ symmetrization is EXACT
+    EXPECT_NEAR(R->Energy(), -2.1169707, 1e-4)           // == the full 8-k-point mesh: IBZ symmetrization is EXACT
         << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu prints the same value)";
 }
 
@@ -2010,22 +2061,19 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
 // reproduces the full-mesh Γ-centred 2×2×2 exactly (was −8.259, ~0.48 Ha off, under the old τ=0 W-only guard).
 TEST(GPW_SCF, SiDiamondIBZ_NonSymmorphic)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});          // diamond = FCC + the glide-related 2nd sublattice (non-symmorphic)
-    Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwOptions o;
-    o.label="Si diamond IBZ"; o.Nelec=8; o.species={{"Si",4}};
-    o.densityEcut=20.0; o.accelerator="DIIS"; o.imposeSymmetry=true;
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    const Material si=qchem::Materials::Get("Si_diamond");    // diamond = FCC + the glide-related 2nd sublattice (non-symmorphic)
+    const Lattice_3D lat=LatticeOf(si, ivec3_t(2,2,2));
+    SolidCalcOptions o=OptionsFor(si, "Si diamond IBZ");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    GpwReport report("Si "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
     // Target: the IBZ-reduced total reproduces the full-mesh Γ-centred 2×2×2 (DISABLED_SR_2x2x2GammaCentred,
     // -7.77846) to grid/SCF tolerance -- the non-symmorphic glide τ-phase makes the reduced density exact
     // (measured -7.77847, ~1e-5 vs the full mesh; the fold reaches 3 irreducible k-points under the full Oh).
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.77846, 2e-3)
+    EXPECT_NEAR(R->Energy(), -7.77846, 2e-3)
         << "diamond Si (non-symmorphic Fd-3m): IBZ density symmetrization with the glide τ-phase must match the "
            "full mesh -7.77846 (G-space e^{+2πi(Um)·τ} + real-space FFT τ-shift)";
 }
@@ -2039,29 +2087,26 @@ TEST(GPW_SCF, SiDiamondIBZ_NonSymmorphic)
 // folded run's [stream cache] line must show the reduced build (repPairs << pairs).
 TEST(GPW_SCF, StreamFoldImposedGamma_SiDiamond)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});          // Fd-3m: non-symmorphic, 48 ops, quarter glide
-    Lattice_3D lat(cell, ivec3_t(1,1,1));        // Γ-only: the T3.2 arming condition (k≠Γ is T3.4)
-    GpwOptions o;
-    o.label="Si diamond Γ stream-fold A/B"; o.Nelec=8; o.species={{"Si",4}};
-    o.densityEcut=20.0; o.accelerator="DIIS"; o.imposeSymmetry=true;
-    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-
-    setenv("GPW_STREAM_FOLD","0",1);  qchem::ReresolveRunPolicy();
-    GpwResult R0=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
-    setenv("GPW_STREAM_FOLD","1",1);  qchem::ReresolveRunPolicy();
-    GpwResult R1=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    const Material si=qchem::Materials::Get("Si_diamond");    // Fd-3m: non-symmorphic, 48 ops, quarter glide
+    const Lattice_3D lat=LatticeOf(si);                       // Γ-only: the T3.2 arming condition (k≠Γ is T3.4)
+    SolidCalcOptions o=OptionsFor(si, "Si diamond Γ stream-fold A/B");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
+    struct Arm { double charge, E; };
+    auto arm=[&](const char* fold) -> Arm
+    {
+        setenv("GPW_STREAM_FOLD",fold,1);  qchem::ReresolveRunPolicy();
+        GpwReport report("Si "+o.label, false);
+        qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
+        auto R=calc.Result();
+        EXPECT_TRUE(R) << Why(R);
+        return {calc.LastIterateCharge(), calc.LastIterateTerms().GetTotalEnergy()};
+    };
+    const Arm R0=arm("0"), R1=arm("1");
     unsetenv("GPW_STREAM_FOLD");  qchem::ReresolveRunPolicy();
 
-    EXPECT_TRUE(R0.converged); EXPECT_TRUE(R1.converged);
-    std::cout << "[stream fold A/B] E(full)=" << R0.E.GetTotalEnergy()
-              << "  E(folded)=" << R1.E.GetTotalEnergy()
-              << "  dE=" << R1.E.GetTotalEnergy()-R0.E.GetTotalEnergy() << std::endl;
-    EXPECT_NEAR(R1.E.GetTotalEnergy(), R0.E.GetTotalEnergy(), 1e-5)
+    std::cout << "[stream fold A/B] E(full)=" << R0.E << "  E(folded)=" << R1.E << "  dE=" << R1.E-R0.E << std::endl;
+    EXPECT_NEAR(R1.E, R0.E, 1e-5)
         << "route (b) reduced streams must reproduce the full-stream imposed Γ run (band-limit class)";
     EXPECT_NEAR(R1.charge, 8.0, 1e-6);
 }
@@ -2080,33 +2125,29 @@ TEST(GPW_SCF, StreamFoldImposedGamma_SiDiamond)
 // gate ever reopens the 0.26 Ha gap, the default goes back to opt-in.
 TEST(GPW_SCF, StreamFoldOpenShellMatchesUnfolded_SiAtomInBox)
 {
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(14, {0.5,0.5,0.5});             // Pm-3m box, 48 ops; the atom sits on the cube centre
-    Lattice_3D lat(cell, ivec3_t(1,1,1));        // Γ-only: the T3.2 arming condition
-    GpwOptions o;
-    o.label="Si atom-in-box Γ open-shell fold A/B"; o.Nelec=4; o.species={{"Si",4}};
-    o.densityEcut=10.0; o.accelerator="DIIS"; o.imposeSymmetry=true;
+    const Material box=qchem::Materials::Get("Si_box16");     // Pm-3m box, 48 ops; the atom sits on the cube centre
+    const Lattice_3D lat=LatticeOf(box);                      // Γ-only: the T3.2 arming condition
+    SolidCalcOptions o=OptionsFor(box, "Si atom-in-box Γ open-shell fold A/B");
+    o.densityEcut=10.0; o.imposeSymmetry=true;
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode of the parent gate
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;            // ditto: the rotating degenerate density and
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;         //   a fixed-axis Becke grid do not mix
-    o.ortho=qchem::Cholesky;
-    o.scf.SmearingkT=0.0;                                       // INTEGER AUFBAU -- the symmetry-broken D
-    o.scf.NMaxIter=40; o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
-
-    setenv("GPW_STREAM_FOLD","0",1);  qchem::ReresolveRunPolicy();
-    GpwResult R0=RunGpw(lat, MakeBasis(cell), o, /*verbose*/false);
-    setenv("GPW_STREAM_FOLD","1",1);  qchem::ReresolveRunPolicy();
-    GpwResult R1=RunGpw(lat, MakeBasis(cell), o, /*verbose*/false);
+    SCFParams par=TightGates(40); par.SmearingkT=0.0;           // INTEGER AUFBAU -- the symmetry-broken D
+    struct Arm { double charge, E; };
+    auto arm=[&](const char* fold) -> Arm                       // last iterates: this gate pins ENERGY, not convergence
+    {
+        setenv("GPW_STREAM_FOLD",fold,1);  qchem::ReresolveRunPolicy();
+        GpwReport report("Si "+o.label, false);
+        qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
+        return {calc.LastIterateCharge(), calc.LastIterateTerms().GetTotalEnergy()};
+    };
+    const Arm R0=arm("0"), R1=arm("1");
     unsetenv("GPW_STREAM_FOLD");  qchem::ReresolveRunPolicy();
 
-    std::cout << "[open-shell fold A/B] E(full)=" << R0.E.GetTotalEnergy()
-              << "  E(folded)=" << R1.E.GetTotalEnergy()
-              << "  dE=" << R1.E.GetTotalEnergy()-R0.E.GetTotalEnergy() << std::endl;
+    std::cout << "[open-shell fold A/B] E(full)=" << R0.E << "  E(folded)=" << R1.E << "  dE=" << R1.E-R0.E << std::endl;
     EXPECT_NEAR(R1.charge, 4.0, 1e-6);
     EXPECT_NEAR(R0.charge, 4.0, 1e-6);
-    EXPECT_NEAR(R1.E.GetTotalEnergy(), R0.E.GetTotalEnergy(), 1e-3)
+    EXPECT_NEAR(R1.E, R0.E, 1e-3)
         << "a DEGENERATE OPEN SHELL must not care whether the streams are folded (the retracted 0.26 Ha)";
 }
 
@@ -2758,8 +2799,8 @@ XCProbe ProbeXC(const std::string& label, const GpwHandles& h,
     XCProbe p; p.label=label; p.Exc=e["Exc"]; p.rhoLost=e.charge.lost;
     for (size_t i=0;i<h.bs->GetNumIBS();++i)
     {
-        hmat_t<dcmplx> M=ProbeBlockMatrix(x,*h.bs,i,h.cd.get());
-        M+=ProbeBlockMatrix(c,*h.bs,i,h.cd.get());
+        hmat_t<dcmplx> M=ProbeBlockMatrix(x,*h.bs,i,h.cd);
+        M+=ProbeBlockMatrix(c,*h.bs,i,h.cd);
         p.M.push_back(std::move(M));
     }
     return p;
@@ -2773,7 +2814,7 @@ XCProbe UniformXCProbe(const GpwHandles& h, const std::shared_ptr<const Structur
     ChargeDensity::fitbasis_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
     auto pair=ChargeDensity::MakeDensitySampler(vfb);   // raster fit basis -> the pair/collocation strategy
     Hamiltonian::Vxc_Quadrature x(exch,pair,SpinGroup::UnPolarized), c(corr,pair,SpinGroup::UnPolarized);
-    EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
+    EnergyBreakdown e; x.GetEnergy(e,h.cd); c.GetEnergy(e,h.cd);
     XCProbe p=ProbeXC("uniform", h, x, c, e);
     // Its own raster's size -- the same face the Hartree energy asks for its quadrature rule.
     auto* rt=dynamic_cast<const BasisSet::G_RasterTransform*>(vfb.get());
@@ -2789,7 +2830,7 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
     auto mesh=std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB));
     auto engine=SinglesEngineOver({mesh, {}});      // ONE quadrature, shared by the pair; free probe: no fold
     Hamiltonian::Vxc_Quadrature x(exch,engine,SpinGroup::UnPolarized), c(corr,engine,SpinGroup::UnPolarized);
-    EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
+    EnergyBreakdown e; x.GetEnergy(e,h.cd); c.GetEnergy(e,h.cd);
     XCProbe p=ProbeXC(label, h, x, c, e);
     p.nPts=mesh->size();                            // the mesh's own count, not a (nR x degree) rule
     return p;
@@ -2826,25 +2867,22 @@ double DiffXC(const XCProbe& A, const XCProbe& B)
 
 TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
 
     // Converge on the standard uniform route.  densityEcut=60 (not the SCF-sufficient 20): the gate
     // compares MATRIX ELEMENTS, and the uniform raw-adjoint H_xc carries raster error at N=15^3 that the
     // ~1e-4-converged Becke quadrature exposes (measured at Ecut=20: dExc=1.2e-4 but max|U-B|=1.2e-2 --
     // the raster's error, not Becke's; at Ecut=60 max|U-B|=3.5e-4).
-    GpwOptions o;
+    SolidCalcOptions o=OptionsFor(si, "Si Becke gate");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="Si Becke gate"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
+    o.densityEcut=60.0;
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // the gate's SCF arm is the uniform route BY DESIGN (Auto would flip it)
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
-    GpwHandles h;
-    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false, &h);
-    ASSERT_TRUE(R.converged);
+    SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;   // (this gate never set MergeTol)
+    GpwReport report("Si "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
+    const GpwHandles h=Handles(calc);
 
     XCProbe U=UniformXCProbe(h, lat.GetStructure());
     XCProbe B=BeckeXCProbe(h, lat.GetStructure(), "B40", qcMesh::BeckeXCParams());
@@ -3061,22 +3099,17 @@ void BeckeLadder(const GpwHandles& h, const std::shared_ptr<const Structure>& st
 // the two bonding characters for a low-degree angular rule (the prediction being tested).
 TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_SiGamma)
 {
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwOptions o;
-    o.label="Si V2.6 ladder"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si V2.6 ladder");
+    o.densityEcut=60.0;
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // converge on the uniform route: the probe density
     o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
-    GpwHandles h;
-    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false, &h);
-    ASSERT_TRUE(R.converged);
-    BeckeLadder(h, lat.GetStructure(), "Si-covalent");
+    SCFParams par=ProductionGates(); par.MergeTol=SCFParams{}.MergeTol;
+    GpwReport report("Si "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
+    BeckeLadder(Handles(calc), lat.GetStructure(), "Si-covalent");
 }
 
 // IONIC contrast: NaF rocksalt (the sharp-F system).  Closed-shell near-spherical ions, so the PREDICTION
@@ -3085,28 +3118,14 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_SiGamma)
 // Recipe lifted verbatim from DISABLED_BeckeXCMatchesUniformXC_NaFSR2 (the committed NaF production recipe).
 TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_NaF)
 {
-    const double a=8.73;
-    FCCUnitCell cell(a);
-    cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
-    cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
-        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-
-    GpwOptions o;
-    o.label="NaF V2.6 ladder"; o.Nelec=8; o.species={{"Na",1},{"F",7}};
-    o.accelerator="Ladder";
-    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
-    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    const Material naf=qchem::Materials::Get("NaF_rocksalt");
+    const Lattice_3D lat=LatticeOf(naf);
+    SolidCalcOptions o=NaFOptions(naf, "NaF V2.6 ladder");
     o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
-    o.scf.NMaxIter=200; o.scf.MinΔE=1e-8; o.scf.MinΔρ=1e-4;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.45; o.scf.KerkerG0=1.0;
-    o.scf.UseMOM=true; o.scf.MOMStartIter=10;
-    GpwHandles h;
-    GpwResult R=RunGpw(lat, mol, o, /*verbose*/false, &h);
-    ASSERT_TRUE(R.converged);
-    BeckeLadder(h, lat.GetStructure(), "NaF-ionic");
+    GpwReport report("NaF "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, NaFGates());
+    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
+    BeckeLadder(Handles(calc), lat.GetStructure(), "NaF-ionic");
 }
 
 // OPEN-SHELL d contrast: the Mn sextet atom-in-box.  A half-filled 3d shell is the most ASPHERICAL density
@@ -3117,29 +3136,17 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_NaF)
 // strongly aspherical density -- not this run's energy.  Do NOT compare its Exc to the run's.
 TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_MnSextet)
 {
-    const double a=16.0;
-    UnitCell cell(a);
-    cell.AddAtom(25, {0.5,0.5,0.5});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwOptions o;
-    o.label="Mn V2.6 ladder";
-    o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
-    o.species={{"Mn",7}};
-    o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
-    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
-    o.imposeSymmetry=false;
-    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-    o.scf.NMaxIter=40; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;
+    const Material box=qchem::Materials::Get("Mn_box16");
+    const Lattice_3D lat=LatticeOf(box);
+    SolidCalcOptions o=MnBoxOptions(box, "Mn V2.6 ladder");
+    SCFParams par=Gates(40, 1e-5, 1e30); par.SmearingkT=5e-3;
     std::shared_ptr<const Real_BS> mnbasis(
-        BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Gaussian::Engine::MnD,
+        BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_SR, box.cell.get(), BasisSet::Gaussian::Engine::MnD,
                                     BasisSet::Gaussian::Angular::Cartesian));
-    GpwHandles h;
-    GpwResult R=RunGpw(lat, mnbasis, o, /*verbose*/false, &h);
-    ASSERT_TRUE(R.converged);
-    BeckeLadder(h, lat.GetStructure(), "Mn-openshell-d");
+    GpwReport report("Mn "+o.label, false);
+    qchem::SolidCalculation calc(lat, mnbasis, o, par);
+    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
+    BeckeLadder(Handles(calc), lat.GetStructure(), "Mn-openshell-d");
 }
 
 // METALLIC contrast, added 2026-08-07 AFTER the first three refuted the flip to degree 17: Al FCC.  A
@@ -3149,17 +3156,15 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_MnSextet)
 // 17 both Al anchors moved 6.4e-4, which is what backed the flip out.
 TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_AlFCC)
 {
-    FCCUnitCell cell(7.653);
-    cell.AddAtom(13, {0,0,0});                         // Al (Zion=3): 3s^2 3p^1
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwOptions o=AlOptions();
-    o.label="Al V2.6 ladder";
-    o.scf.SmearingkT=0.02;                             // smeared: a converged, non-rotating density to freeze
+    const Material al=qchem::Materials::Get("Al_fcc");        // Al (Zion=3): 3s^2 3p^1
+    const Lattice_3D lat=LatticeOf(al);
+    SolidCalcOptions o=AlOptions(al, "Al V2.6 ladder");
     o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
-    GpwHandles h;
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false, &h);
-    ASSERT_TRUE(R.converged);
-    BeckeLadder(h, lat.GetStructure(), "Al-metal");
+    SCFParams par=AlGates(); par.SmearingkT=0.02;      // smeared: a converged, non-rotating density to freeze
+    GpwReport report("Al "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*al.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
+    BeckeLadder(Handles(calc), lat.GetStructure(), "Al-metal");
 }
 
 //================================================================================================
@@ -3372,193 +3377,6 @@ TEST(GPW_SCF, RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh)
     EXPECT_NEAR(ron->TotalCharge(), roff->TotalCharge(), 1e-10);
 }
 
-//================================================================================================
-//  V2.4 -- THE GRID-ROUTE CONVERGENCE A/B.  Calibrate kUniformMargin, then arm the V1.26 selector.
-//
-//  THE QUESTION.  The selector's cost model says uniform beats Becke ~8-15x on Si and Al, so an ARMED
-//  Auto would send both to the uniform route.  The 2026-08-01 measurement made Becke the default for
-//  exactly those systems.  Both cannot be right, and kUniformMargin (a guess at 2.0) is the only thing
-//  absorbing the discrepancy -- which is why the selector ships DISARMED until this lands.
-//
-//  WHY THIS IS NOT A LADDER.  V2.6a established that a FROZEN-density quadrature error understates the
-//  self-consistent shift across a Fermi surface (Al measured 3.9e-4 frozen and moved 6.4e-4 through the
-//  SCF).  Al is one of the two live uniform verdicts, so the frozen instrument is disqualified here by
-//  its own finding.  This runs the SCF to CONVERGENCE on each route instead.
-//
-//  WHAT IS SCORED.  The converged DENSITY, per the D8 pin -- never DeltaE_total, because the fits are
-//  non-variational so an energy difference does not bound the error.  Every route's converged rho is
-//  sampled on ONE COMMON mesh and scored against the finest route:
-//     ||drho||_1 = Integral |rho - rho_ref| dV   (electrons of misplaced charge -- the physical number)
-//     ||drho||_inf = max |rho - rho_ref|         (the worst point)
-//  Etot is printed for information only; it is not the verdict.
-//
-//  THE COMMON MESH IS DELIBERATELY UNIFORM AND DENSE, not Becke: scoring on an atom-centred mesh would
-//  weight the cores where the Becke route is strongest and grade its own homework.  The cost is that a
-//  uniform probe UNDER-weights the core, so ||drho||_1 flatters the uniform route slightly -- an error
-//  in the conservative direction for a test whose null hypothesis is "uniform is good enough".
-//
-//  THE VALIDATION THAT MAKES THE REFERENCE TRUSTWORTHY: refine BOTH routes and check they agree
-//  (U-4x vs B-fine).  Two independent quadratures converging to the same density is the only evidence
-//  that either is converged; without it "close to B-fine" would just mean "close to Becke".
-//
-//  ---------------------------------------------------------------------------------------------
-//  RESULTS 2026-08-08.  Both systems the selector routes to UNIFORM.  All routes CONVERGED (see the
-//  setup note on Si below -- the first attempt did not, and that mattered).
-//
-//                 ||drho||_1     ||drho||_inf   dEtot vs B-fine   mesh
-//    Si  U-sel     1.363e-4 e     8.0e-6         -4.2e-6            4,913
-//        U-4x      1.362e-4 e     8.0e-6         -4.2e-6           (refined)
-//        B-prod    1.106e-4 e     1.7e-6         +1.26e-4          72,000 (imposed)
-//    Al  U-sel     6.18e-4 e      5.0e-5         -1.34e-5           4,096
-//        U-4x      6.18e-4 e      5.0e-5         -1.34e-5          (refined)
-//        B-prod    8.95e-4 e      3.9e-5         +1.93e-4          18,000
-//
-//  VALIDATION PASSES: U-sel == U-4x to 4 digits on BOTH systems, so the uniform route is genuinely
-//  converged at the selector's cutoff -- refining it 4x changes nothing.  That is what licenses
-//  reading the rest of the table as grid error rather than as under-resolution.
-//
-//  VERDICT: the selector is RIGHT on both.  Uniform at its own cutoff matches the fine reference at
-//  least as well as the PRODUCTION Becke mesh does, for 4-15x fewer points -- and on TOTAL ENERGY it
-//  is dramatically better (Si 30x, Al 14x closer to B-fine), because B-prod's own residual is the
-//  angular error V2.6 measured.
-//
-//  NO CONTRADICTION WITH THE 2026-08-01 BECKE DEFAULT, which was justified for "diffuse bases" and
-//  sharp cores.  Si-SR and Al-LOWQ-SR are neither; the systems that motivated it (F alpha_max=40, MnO)
-//  are exactly the ones the selector ALREADY sends to Becke.  The selector reproduces that split
-//  automatically instead of applying one answer to both regimes.
-//
-//  THE ONE PLACE BECKE STILL WINS, and it is visible above: ||drho||_inf.  Becke is 4.7x better at the
-//  WORST point on Si and comparable on Al -- that point is the core, which is what an atom-centred
-//  radial mesh is for.  So a property that samples the core (hyperfine, EFG, core-level shifts) should
-//  prefer Becke even where the selector says uniform.  The integrated norm is not the whole story.
-//================================================================================================
-namespace
-{
-struct RouteProbe { std::string label; double Etot=0; rvec_t rho; bool ok=false; };
-
-// One converged SCF on a given XC mesh, with its density sampled on the shared probe mesh.
-RouteProbe RunRoute(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, GpwOptions o,
-                    const char* label, const qcMesh::MeshParams& xc, const qcMesh::Mesh& probe)
-{
-    o.label=std::string(o.label)+" ["+label+"]";
-    o.xcMesh=xc;
-    GpwHandles h;
-    RouteProbe p; p.label=label;
-    GpwResult R=RunGpw(lat, mol, o, /*verbose*/false, &h);
-    p.ok   = R.converged;
-    p.Etot = R.E.GetTotalEnergy();
-    p.rho  = (*h.cd)(probe.Points());     // the inherited ScalarFunction batch (R1.5's one spelling)
-    return p;
-}
-
-// Score every route against the LAST one (the finest), on the shared mesh's weights.
-void ScoreRoutes(const std::vector<RouteProbe>& r, const qcMesh::Mesh& probe, const char* system)
-{
-    const rvec_t& W=probe.Weights();
-    const RouteProbe& ref=r.back();
-    std::printf("\n[V2.4 %s] reference = %s (Etot=%.8f)   probe mesh %zu pts\n",
-                system, ref.label.c_str(), ref.Etot, probe.size());
-    for (const auto& p : r)
-    {
-        double l1=0, li=0;
-        for (size_t i=0;i<p.rho.size() && i<ref.rho.size();++i)
-        {
-            const double d=std::fabs(p.rho[i]-ref.rho[i]);
-            l1+=W[i]*d; li=std::max(li,d);
-        }
-        std::printf("[V2.4 %s] %-10s conv=%d  Etot=%+.8f  dEtot=%+.2e  ||drho||_1=%.3e e  ||drho||_inf=%.3e\n",
-                    system, p.label.c_str(), int(p.ok), p.Etot, p.Etot-ref.Etot, l1, li);
-    }
-}
-
-// Drive the four routes for one system.  U-sel is what an ARMED selector would choose; B-prod is what
-// ships today; the two refined routes are the convergence evidence.
-void GridRouteAB(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& base,
-                 const char* system)
-{
-    const qcMesh::XCMeshSharpness sh=GatherSharpness(lat, *mol, base);
-    const double eReq=qcMesh::RequiredUniformCutoff(sh);
-    // The shared probe mesh: uniform, and FOUR TIMES the resolution any route under test uses, so the
-    // sampling is not itself a variable in the comparison.
-    qcMesh::MeshParams pm; pm.cellKind=qcMesh::UnitCellKind::Uniform; pm.eCut=4.0*eReq;
-    const qcMesh::Mesh probe=lat.GetStructure()->CreateIntegrationMesh(pm);
-    std::printf("\n[V2.4 %s] alpha_max=%g alpha_pp=%g -> selector eCut=%g Ha; uniform %ld pts vs Becke %ld\n",
-                system, sh.alphaMax, sh.alphaPP, eReq,
-                qcMesh::UniformMeshCost(sh), qcMesh::BeckeMeshCost(qcMesh::BeckeXCParams(), sh));
-
-    qcMesh::MeshParams uSel; uSel.cellKind=qcMesh::UnitCellKind::Uniform; uSel.eCut=eReq;
-    qcMesh::MeshParams u4x =uSel;                                        u4x.eCut=4.0*eReq;
-    std::vector<RouteProbe> r;
-    r.push_back(RunRoute(lat, mol, base, "U-sel",  uSel, probe));
-    r.push_back(RunRoute(lat, mol, base, "U-4x",   u4x,  probe));
-    r.push_back(RunRoute(lat, mol, base, "B-prod", qcMesh::BeckeXCParams(),         probe));
-    r.push_back(RunRoute(lat, mol, base, "B-fine", qcMesh::BeckeXCParams(60,2.0,35),probe));
-    ScoreRoutes(r, probe, system);
-}
-} //anon
-
-// THE ROTATED-LEBEDEV EXPERIMENT (plan §6a rotation insight, increment (b)): quadrature exactness is
-// rotation-invariant, so rotating an efficient Lebedev grid OFF the bond axes should be a nearly-free
-// accuracy fix for FREE runs -- the measured 5-10x rho-weighted loss was pure ALIGNMENT (the <111>
-// orbit on diamond's bonds).  Hand-run (--gtest_also_run_disabled_tests): converge Si/Gamma once on
-// the uniform route, then probe FOUR Becke quadratures on the SAME density against the refined GL
-// reference (nR=80, GL-29): production GL-29, Lebedev-50 as-is (bond-aligned), Lebedev-50 rotated
-// (GPW_BECKE_ROT class, 0.4 rad about (1,2,3)/sqrt14), and a rotated GL-29 control.  Verdict numbers
-// land in the plan doc; the decision is whether the free-run default grid can shrink.
-TEST(GPW_SCF, DISABLED_RotatedLebedevXCProbe_SiGamma)
-{
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwOptions o;
-    o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="Si rotated-Lebedev probe"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
-    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // converge once on the uniform route (probe density)
-    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
-    GpwHandles h;
-    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false, &h);
-    ASSERT_TRUE(R.converged);
-    auto st=lat.GetStructure();
-
-    const double rot=0.4;                              // generic angle: moves <111> well off the bonds
-    auto leb=[&](int nDir, double angRot){ qcMesh::MeshParams mp=qcMesh::BeckeXCParams(40, 2.0, nDir);
-                                           mp.angular=qcMesh::AngularKind::Lebedev; mp.angRot=angRot; return mp; };
-    auto gl =[&](double angRot){ qcMesh::MeshParams mp=qcMesh::BeckeXCParams();  // production GL-29
-                                 mp.angRot=angRot; return mp; };
-
-    // How close does each Lebedev grid come to a bond axis?  (diamond bonds = the +<111> tetrahedron)
-    for (int nDir : {50, 302})
-        for (double angRot : {0.0, rot})
-        {
-            qcMesh::AngularMesh am=qcMesh::MakeAngular(leb(nDir, angRot));
-            double worst=90.0;
-            for (size_t i=0; i<am.size(); ++i)
-                for (auto b : {rvec3_t(1,1,1), rvec3_t(1,-1,-1), rvec3_t(-1,1,-1), rvec3_t(-1,-1,1)})
-                {
-                    double cosang=(am.Dirs()[i]*b)/norm(b);
-                    worst=std::min(worst, std::acos(std::min(1.0,std::abs(cosang)))*180.0/M_PI);
-                }
-            std::printf("[rotLeb] Lebedev-%d angRot=%.2f: closest direction-to-bond angle = %.3f deg\n",
-                        nDir, angRot, worst);
-        }
-
-    XCProbe REF  =BeckeXCProbe(h, st, "REF80",  qcMesh::BeckeXCParams(/*nRadial*/80, /*mhlAlpha*/1.0, /*L*/29));
-    XCProbe GL29 =BeckeXCProbe(h, st, "GL29",   gl(0.0));
-    XCProbe L50R =BeckeXCProbe(h, st, "Leb50rot", leb(50, rot));
-    XCProbe L302 =BeckeXCProbe(h, st, "Leb302",   leb(302, 0.0));
-    XCProbe L302R=BeckeXCProbe(h, st, "Leb302rot",leb(302, rot));
-
-    std::printf("[rotLeb] dExc vs REF80:  GL29=%+.3e  Leb50rot=%+.3e  Leb302=%+.3e  Leb302rot=%+.3e\n",
-                GL29.Exc-REF.Exc, L50R.Exc-REF.Exc, L302.Exc-REF.Exc, L302R.Exc-REF.Exc);
-    std::printf("[rotLeb] rho-lost:       GL29=%+.3e  Leb50rot=%+.3e  Leb302=%+.3e  Leb302rot=%+.3e\n",
-                GL29.rhoLost, L50R.rhoLost, L302.rhoLost, L302R.rhoLost);
-    std::printf("[rotLeb] max|Vxc-REF80|: GL29=%.3e  Leb50rot=%.3e  Leb302=%.3e  Leb302rot=%.3e\n",
-                DiffXC(REF,GL29), DiffXC(REF,L50R), DiffXC(REF,L302), DiffXC(REF,L302R));
-}
 
 // The SHARP-FIELD leg of the gate (the plan names DISABLED_NaFRocksaltGamma as the stress case: the F-
 // anion makes sharp peaks in rho and V_xc, and its diffuse basis is what the Becke grid exists for).
@@ -3567,13 +3385,8 @@ TEST(GPW_SCF, DISABLED_RotatedLebedevXCProbe_SiGamma)
 // --gtest_also_run_disabled_tests when touching the XC quadrature.
 TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
 {
-    const double a=8.73;
-    FCCUnitCell cell(a);
-    cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
-    cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
-        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    const Material naf=qchem::Materials::Get("NaF_rocksalt");
+    const Lattice_3D lat=LatticeOf(naf);
 
     // The committed NaF production recipe (DISABLED_NaFRocksaltGamma) at PRODUCTION grids (auto Ecut=80,
     // BallOnly): the SCF only supplies the density; the comparison itself carries the reference-grade work.
@@ -3584,20 +3397,13 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
     // sharp-F system the UNIFORM raster is not element-converged at practical Ecut, which is this grid's
     // reason to exist; the gate here is Becke INTERNAL convergence (B40 vs a 2x-refined B80) plus the
     // energy-level agreement with the uniform route.
-    GpwOptions o;
+    SolidCalcOptions o=NaFOptions(naf, "NaF Becke gate");
     o.imposeSymmetry=true;   // V1.30: was the DEFAULT; now stated, because an imposition you did not ask for is invisible in the result
-    o.label="NaF Becke gate"; o.Nelec=8; o.species={{"Na",1},{"F",7}};
-    o.accelerator="Ladder";
-    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
-    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-    o.scf.NMaxIter=200; o.scf.MinΔE=1e-8; o.scf.MinΔρ=1e-4;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.45; o.scf.KerkerG0=1.0;
-    o.scf.UseMOM=true; o.scf.MOMStartIter=10;
-    GpwHandles h;
-    GpwResult R=RunGpw(lat, mol, o, /*verbose*/false, &h);
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);
-    ASSERT_TRUE(R.converged);
+    GpwReport report("NaF "+o.label, false);
+    qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, NaFGates());
+    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
+    EXPECT_NEAR(calc.Result()->TotalCharge(), 8.0, 1e-6);
+    const GpwHandles h=Handles(calc);
 
     auto st=lat.GetStructure();
     XCProbe U  =UniformXCProbe(h, st);
@@ -4087,32 +3893,27 @@ TEST(GPW_SCF, MnOImposedShubnikovKeepsTheSeedStaggering)
 // all site-preserving (every cubic W admits tau=0), so grey imposition here would be a vacuous control.
 TEST(GPW_SCF, ImposedShubnikovHoldsAFMThroughSCF_Mn2Box)
 {
+    const Material box=qchem::Materials::Get("Mn2_box7");     // Mn +m at 0, Mn -m at 1/2 (the AFM flip), a=7
     const double a=7.0;
-    UnitCell cell(a);
-    cell.AddAtom(25, {0.0,0.0,0.0}, false);   // Mn +m
-    cell.AddAtom(25, {0.5,0.5,0.5}, true);    // Mn -m (the AFM flip)
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-
-    GpwOptions o;
-    o.label="Mn2 B2 AFM imposed"; o.Nelec=14; o.multiplicity=1; o.species={{"Mn",7}};
+    const Lattice_3D lat=LatticeOf(box);
+    SolidCalcOptions o=OptionsFor(box, "Mn2 B2 AFM imposed");
+    o.multiplicity=1;
     o.seed=qchem::ChargeDensity::SeedStrategy::SAD;      // neutral Mn: the library's d5s2 spin pair
     o.imposeSymmetry=true;                                // S3 resolves the SHUBNIKOV group from the flips
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-    o.accelerator="DIIS";
-    o.scf.SmearingkT=5e-3;                                // the open-d-manifold tie smoother
-    o.scf.NMaxIter=6; o.scf.MinΔρ=1e-9; o.scf.MinΔE=1e30;
-    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=0.45; o.scf.MergeTol=1e-4;
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);         // coarse quadrature: symmetry, not accuracy
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
-
-    GpwHandles h;
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o,
-                       /*verbose*/(bool)std::getenv("GPW_MN2_VERBOSE"), &h);
+    SCFParams par=Gates(6, 1e-9, 1e30);                   // BOUNDED: this gate tests symmetry through the loop, not convergence
+    par.SmearingkT=5e-3;                                  // the open-d-manifold tie smoother
+    par.StartingRelaxRo=0.45;
+    par.Verbose=(bool)std::getenv("GPW_MN2_VERBOSE");
+    GpwReport report("Mn "+o.label, par.Verbose);
+    qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    const GpwHandles h=LastIterateHandles(calc);
     ASSERT_TRUE(h.cd) << "the run must produce a final density";
 
     // The final density through the spin-resolved face: the order must be ALIVE and EXACTLY mirrored.
-    const auto* pol=dynamic_cast<const qchem::ChargeDensity::cSpinResolved_CD*>(h.cd.get());
+    const auto* pol=dynamic_cast<const qchem::ChargeDensity::cSpinResolved_CD*>(h.cd);
     ASSERT_NE(pol, nullptr);
     const auto* up=pol->GetChannel(Spin::Up);
     const auto* dn=pol->GetChannel(Spin::Down);
@@ -4120,8 +3921,8 @@ TEST(GPW_SCF, ImposedShubnikovHoldsAFMThroughSCF_Mn2Box)
     const rvec3_t off(0.7,0,0), r1(0,0,0), r2(a/2,a/2,a/2);
     const double m1=(*up)(r1+off)-(*dn)(r1+off);
     const double m2=(*up)(r2+off)-(*dn)(r2+off);
-    std::cout << "[Mn2 imposed] after "<<R.iters<<" iterations: m1="<<m1<<" m2="<<m2
-              << " m1+m2="<<m1+m2<<" Etot="<<R.E.GetTotalEnergy()<<std::endl;
+    std::cout << "[Mn2 imposed] after "<<calc.IterationCount()<<" iterations: m1="<<m1<<" m2="<<m2
+              << " m1+m2="<<m1+m2<<" Etot="<<calc.LastIterateTerms().GetTotalEnergy()<<std::endl;
     EXPECT_GT(std::abs(m1), 0.05) << "the AFM order must SURVIVE the imposed SCF loop";
     // What the projector holds EXACTLY mirrored is the rho the FOCK consumes (the engine's (rho,m)
     // star-average); the DENSITY MATRIX itself is deliberately NOT projected (the rho-projection

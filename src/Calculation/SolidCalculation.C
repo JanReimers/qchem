@@ -445,6 +445,10 @@ public:
     //!@{
     qchem::EnergyBreakdown LastIterateTerms()  const;
     double                 LastIterateCharge() const;
+    //! The last iterate's DENSITY OBJECT (null before the first Converge) -- for a symmetry or order probe
+    //! that deliberately runs a BOUNDED number of iterations and asks the density what it can do
+    //! (\c cSpinResolved_CD for the channels), exactly as \c Converged::DensityMatrix does for an answer.
+    const qchem::ChargeDensity::cDM_CD* LastIterateDensity() const;
     //!@}
 
     // ⛔ Energy() / EnergyTerms() / TotalCharge() / Density() DELIBERATELY DO NOT LIVE HERE any more

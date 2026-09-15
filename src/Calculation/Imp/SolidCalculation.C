@@ -728,6 +728,7 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Result() cons
 
 qchem::EnergyBreakdown SolidCalculation::LastIterateTerms()  const {return itsImp->scf->GetEnergy();}
 double                 SolidCalculation::LastIterateCharge() const {return itsImp->charge;}
+const qchem::ChargeDensity::cDM_CD* SolidCalculation::LastIterateDensity() const {return itsImp->cd.get();}
 
 // The caller's observer is SWAPPED IN behind the facade's own (AttachProbes composes the two), so
 // attaching telemetry late cannot silently disarm the outcome detectors.
