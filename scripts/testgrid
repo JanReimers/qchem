@@ -23,7 +23,7 @@ AXES = [
     ("spin",     {"Pol":"2-channel singlet", "M2":"doublet", "M3":"triplet", "M6":"sextet"},   "unpolarized"),
     ("occ",      {"Smear":"smeared", "Anneal":"annealed"},                                 "kT=0 aufbau"),
     ("reservoir",{"GlobalMu":"one μ over k", "ShFermi":"one μ over spin"},                   "per block/channel"),
-    ("machinery",{"GDM":"GDM", "Ladder":"Ladder", "Kerker":"Kerker", "Pulay":"Pulay", "MOM":"MOM", "SeedMOM":"seed MOM", "Prototype":"prototype loop"}, "DIIS"),
+    ("machinery",{"GDM":"GDM", "Ladder":"Ladder", "Kerker":"Kerker", "CuspDeficit":"N4 cusp-deficit", "Pulay":"Pulay", "MOM":"MOM", "SeedMOM":"seed MOM", "Prototype":"prototype loop"}, "DIIS"),
     ("ansatz",   {"Cplx":"complex"},                                                        "real TRIM"),
     ("seed",     {"UniSeed":"uniform seed", "SpinSeed":"spin-SAD seed"},                    "IonicSAD"),
 ]

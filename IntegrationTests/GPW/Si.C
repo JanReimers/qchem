@@ -18,6 +18,8 @@
 //   GPW_Si.Γ_Imp_M3_Smear_ShFermi_MomentRelaxes
 //   GPW_Si.Γ_Imp_eqUnfolded
 //   GPW_Si.Γ_Becke_Imp_eqUni
+//   GPW_Si.Γ_Becke_Imp_Kerker_CP2K
+//   GPW_Si.Γ_Becke_Imp_Kerker_CuspDeficit_CP2K
 //   GPW_Si.Γ_Uni_DeltaFit_Imp_eqPWFit
 //   GPW_Si.Γ_Uni_PWFit_Imp_Pol_eqUnpol
 //   GPW_Si.k211_Imp_Anchor
@@ -596,6 +598,75 @@ TEST(GPW_Si, Γ_Becke_Imp_eqUni)
     EXPECT_NEAR(B.Exc, U.Exc, 5e-4);                 // measured: dExc=1.1e-4
     EXPECT_NEAR(B.rhoLost, 0.0, 5e-3);               // the Becke mesh integrates rho to Tr(DS)
     EXPECT_LT(DiffXC(U,B), 1e-3);                    // measured: 3.5e-4
+}
+
+// THE KERKER CELL ON THE SINGLES ROUTE (doc/TestSuitePlan.md phase 6 -- the first hole the grid exposed).
+// Until 2026-09-15 no enabled test ran a ρ̃ (Kerker) mixer at all after PolarizedRunKeepsItsSpin became a
+// mixer unit test, and NO test had ever reached the DM-source XC route (doc/OpenWork.md V1.18e): the Becke
+// (singles) quadrature under a field-backed mixed density either projects the FIELD ("matrix-free") or, when
+// asked, reaches around to the density matrix the field was mixed from.  This pair pins both arms on the
+// Γ_Imp_CP2K recipe and, through the run report's `scf.xcRhoRoute`, PROVES which ρ source XC was served --
+// a claim that the energy alone cannot make, since both routes agree at the fixed point by construction.
+namespace
+{
+bool XcServedFrom(const std::string& route)   // did the singles sampler note this ρ source into the run's report?
+{
+    const report::json& all=report::GlobalReport();
+    for (auto it=all.begin(); it!=all.end(); ++it)
+        if (it.value().contains("scf") && it.value()["scf"].contains("xcRhoRoutes"))
+            for (const auto& r : it.value()["scf"]["xcRhoRoutes"]) if (r.get<std::string>()==route) return true;
+    return false;
+}
+}
+
+// Plain Kerker: ρ̃ mixing on the Becke grid.  The mixed density is a FIELD, so the singles sampler projects
+// it ("matrix-free") -- the pre-N4 behaviour, and the arm the cusp-deficit cell below is measured against.
+TEST(GPW_Si, Γ_Becke_Imp_Kerker_CP2K)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;   // the SINGLES route
+    SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // THE ASK: ρ̃ mixing
+    report::ClearGlobal();
+    {
+        GpwReport report("Si "+o.label, false);
+        qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+        auto R=calc.Result();
+        ASSERT_TRUE(R) << Why(R);
+        EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
+        EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "Kerker must not change the physics: the Γ_Imp_CP2K anchor";
+    }                                                 // the run is filed into the global report at End()
+    EXPECT_TRUE (XcServedFrom("matrix-free")) << "plain Kerker feeds XC the projected FIELD";
+    EXPECT_FALSE(XcServedFrom("cusp-deficit")) << "...and never the DM reach-around (the sequence is matrix-free, DM, matrix-free..., DM)";
+}
+
+// N4's cusp-deficit route: ρ_XC = ρ[D]_exact + IFT[ρ_mix − ρ[D]] -- exact cusps from the retained density
+// matrix, the band-limited difference from the field, no damping decision (doc/OpenWork.md N4).  The route
+// is decided when the MIXER is built (SCFParams::XCCuspDeficit -> KerkerMixerFactory), so this is the cell
+// where it exists; it changes the SCF TRAJECTORY, not the answer, which is what the anchor pins.
+TEST(GPW_Si, Γ_Becke_Imp_Kerker_CuspDeficit_CP2K)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Becke Kerker cusp-deficit");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.xcMesh=qcMesh::BeckeXCParams(); o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;
+    SCFParams par=ProductionGates(); par.KerkerG0=1.0; par.XCCuspDeficit=true;
+    report::ClearGlobal();
+    {
+        GpwReport report("Si "+o.label, false);
+        qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+        auto R=calc.Result();
+        ASSERT_TRUE(R) << Why(R);
+        EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
+        EXPECT_NEAR(R->Energy(), -7.11506, 2e-3) << "the cusp-deficit route changes the trajectory, not the answer";
+    }                                                 // the run is filed into the global report at End()
+    // The sequence is matrix-free (the SEED: a field with no density matrix behind it), DM (the first Fock's
+    // own D), then cusp-deficit for every mixed field after -- and "DM" once more at the end, when the facade
+    // samples the converged density.  What must NOT happen is a mixed field being projected wholesale.
+    EXPECT_TRUE(XcServedFrom("cusp-deficit")) << "the DM-source reach-around must actually be ENTERED (V1.18e: it never was)";
 }
 
 

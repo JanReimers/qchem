@@ -191,6 +191,15 @@ private:
     //! months precisely because its guard was an assert compiled out under NDEBUG, and every benchmark row
     //! is a Release run.
     mutable size_t itsSrcVersion=size_t(-1);      //!< the DM source's serial when the pair was last built
+    //! The SEQUENCE of ρ SOURCES this engine has served XC from (\c NoteRoute), one entry per change: "DM"
+    //! (a density matrix), "cusp-deficit" (N4: exact ρ[D] + the band-limited mixed difference), "DM-source"
+    //! (the wholesale GPW_XC_DM_SOURCE route), "matrix-free" (a projected field).  Emitted into the run
+    //! report as `scf.xcRhoRoutes` so a gate can PROVE which routes a recipe exercised -- a sequence, not the
+    //! last value, because every run ends on "DM" (the converged density is sampled once more) and the
+    //! route under test lives mid-trajectory.  The DM-source routes had zero coverage until 2026-09-15
+    //! precisely because nothing could see them (doc/OpenWork.md TE, V1.18e).
+    mutable std::vector<std::string> itsRoutes;
+    void NoteRoute(const char* route) const;
     //! \brief The DM-source RUNNING MIX (GPW_XC_DM_MIX), in its OWN storage.
     //! \warning It must NOT live in itsRho/itsRhoUp/itsRhoDn.  Those are written by BOTH sampling routes,
     //! and the interleaving is adversarial: per iteration the Fock build blends through the DM-SOURCE
