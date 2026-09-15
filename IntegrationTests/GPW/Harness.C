@@ -140,7 +140,7 @@ std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData w
 
 
 //---------------------------------- run reporting + the trajectory instruments ----------------------------------
-// Shared GPW run reporting.  ANY GPW driver -- RunGPW's fixed recipe OR a bespoke one (NaFRocksaltGamma's
+// Shared GPW run reporting.  ANY GPW driver -- RunGPW's fixed recipe OR a bespoke one (GPW_NaF.Γ_Imp_Anchor's
 // multi-species PP + Ladder accelerator) -- gets automatic reporting by holding one of these: RAII brackets the
 // run (Begin/End + optional console), and the driver calls VetBasis (the fail-fast conditioning pre-flight,
 // BEFORE it builds the Hamiltonian/grids) then EmitGrids.  Keeps each driver's own Hamiltonian/accelerator/
@@ -401,7 +401,7 @@ SCFParams NaFGates()
     par.MergeTol=SCFParams{}.MergeTol;   // (the recipe never set it)
     return par;
 }
-//! The Mn sextet atom-in-box recipe (MnAtomInBoxDChannel): the finite-molecule mode, IonicSAD, pivoted ortho.
+//! The Mn sextet atom-in-box recipe (GPW_MnBox.Γ_M6_Smear_eqFinite): the finite-molecule mode, IonicSAD, pivoted ortho.
 SolidCalcOptions MnBoxOptions(const Material& box, const std::string& label)
 {
     SolidCalcOptions o=OptionsFor(box, label);

@@ -68,8 +68,8 @@ int    Envi(const char* n, int    d) { const char* s=std::getenv(n); return s ? 
 // ★★ AND IT IS A CORRECTNESS GATE FOR FREE, WHICH IS WHY THE LADDER IS AT Γ.  A Γ-only calculation on an
 // N1xN2xN3 SUPERCELL is band-folding-equivalent to an N1xN2xN3 k-MESH on the primitive cell, so each rung
 // must reproduce the k-mesh total the suite banks PER PRIMITIVE CELL:
-//   1x1x1 -> -7.11506  (SiliconGammaConverges)   2x1x1 -> -7.45294  (SiliconMultiKPlumbing, KP-0 re-pin)
-//   2x2x2 -> -7.77846  (SR_2x2x2GammaCentred_vs_CP2K)     (2x2x1 has no banked counterpart: timing only)
+//   1x1x1 -> -7.11506  (GPW_Si.Γ_Imp_CP2K)   2x1x1 -> -7.45294  (GPW_Si.k211_Imp_Anchor, KP-0 re-pin)
+//   2x2x2 -> -7.77846  (GPW_Si.k222_CP2K)     (2x2x1 has no banked counterpart: timing only)
 // SI_XC=becke forces the atom-centred mesh -- the path that exercises SiteStabilizer in the supercell
 // setting (the §6a W2b site-adapted angular sets).  Setting cellKind ALONE is a trap: ask for the RECIPE
 // (BeckeXCParams), which also makes GPW_BECKE_L / GPW_BECKE_NR live.  The banked anchors are UNIFORM-mesh
