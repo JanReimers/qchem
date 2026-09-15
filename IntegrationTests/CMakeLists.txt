@@ -4,6 +4,19 @@ link_directories(
     $<$<CONFIG:Release>:  submodules/libxc/build>
 )
 
+# THE GPW HARNESS (doc/TestSuitePlan.md phase 2): the recipe vocabulary + instruments the GPW integration
+# tests and CLIapps/gpwprobe share.  Its own library so both compile one copy; no gtest in it.
+add_library(qcGPW_Harness)
+target_sources(qcGPW_Harness PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES GPW/Harness.C)
+target_compile_definitions(qcGPW_Harness PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
+set_property(TARGET qcGPW_Harness PROPERTY CXX_STANDARD 20)
+target_include_directories(qcGPW_Harness PRIVATE
+    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${PROJECT_BINARY_DIR}/submodules/libxc
+)
+target_link_libraries(qcGPW_Harness PUBLIC qcUmbrella qchem qcMath qcCommon)
+
 add_executable(ITMain gtestmain.C
     EigenSolverUT.C
     PlaneWaveDFTUT.C
@@ -33,7 +46,7 @@ target_include_directories(ITMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
     ${PROJECT_BINARY_DIR}/submodules/libxc
 )
-target_link_libraries(ITMain PRIVATE qcUmbrella qchem qcMath qcCommon xc blas gtest)
+target_link_libraries(ITMain PRIVATE qcGPW_Harness qcUmbrella qchem qcMath qcCommon xc blas gtest)
 
 
 
