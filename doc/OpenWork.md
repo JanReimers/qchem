@@ -122,7 +122,11 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > unit tests (41 ms) replace `PolarizedRunKeepsItsSpin` (217 s); **`ctest -j8` 207 s → 71 s wall**, 862 enabled.  ✅ **PHASE 2 DONE
 > 2026-09-15** (BL: 14 Bravais lattices; MD: `materials.json`/`molecules.json` + `qchem.Materials`; every GPW test on
 > `SolidCalculation`; drivers DELETED; `IntegrationTests/GPW/Harness.C` + `CLIapps/gpwprobe`; 4 re-enabled incl. the first
-> `GPW×NaF` anchors, 8 promoted, 6 deleted; 875/875).  ⇒ **PHASE 3 (the re-file + `scripts/testgrid`) IS NEXT.**  Two holes it already
+> `GPW×NaF` anchors, 8 promoted, 6 deleted; 875/875).  ✅ **PHASE 3 DONE 2026-09-15**: `IntegrationTests/GPW/<Material>.C` +
+> `PW/PlaneWaveDFT.C`, every SCF test named `<Basis>_<Material>.<k>_<tokens>_<Claim>`, **`scripts/testgrid`** renders and
+> CHECKS the grid (52 tests, 0 violations; its first run caught 10 of my names + the missing RESERVOIR axis).
+> ⇒ **PHASE 5 (re-home GPW_UT / PW-integral / RealComplexTerms / EigenSolver to `src/<lib>/tests`) IS NEXT**, then phase 6.
+> ⚠ Found: PW has NO facade (`SolidCalculation` is built over a Gaussian basis) — the PW tests keep their own drivers.  Two holes it already
 > exposes: `GPW×NaF` and `GPW×MnO` have ZERO enabled SCF tests, and no enabled solid test uses anything but DIIS.
 > The axis product `{basis} × {material} × {grid} × {k} × {symmetry} × {kT}`, the file breakdown, the naming
 > convention.  ▶ **Do `PolarizedRunKeepsItsSpin` EARLY in this step**: at 251 s it sets the `-j8` wall floor

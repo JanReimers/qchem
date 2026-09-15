@@ -2,7 +2,7 @@
 
 *Drafted 2026-09-15 as THE QUEUED PROGRAMME's step 3 (`doc/OpenWork.md`).  Status: PLAN — rulings 1–6 GIVEN
 2026-09-15 with amendments, ruling 7 (materials = data at the Calculation level, lattices in qcStructure) the same
-day (§11).  **Phases 1–2 DONE 2026-09-15 (suite wall 207 s → ~70 s; drivers gone; 875/875); phase 3 (the re-file) is next.***
+day (§11).  **Phases 1–3 DONE 2026-09-15 (suite wall 207 s → ~70 s; drivers gone; the grid is built and checked: `scripts/testgrid`); phase 5 (re-home the unit-level tests) is next, then phase 6 (the first holes).***
 
 ## 0. The ask, and what "done" looks like
 
@@ -49,8 +49,9 @@ left-to-right; `GPW_Si.Γ_CP2K`, never `GPW_Si.CP2K`.
 | 4 | **XC grid** | `Uni`, `Becke` | `Auto` (the facade's cost selector, V1.26) | the INTEGRATION grid |
 | 5 | **v_xc fit basis** | `PWFit`, `DeltaFit` | `Auto` | ORTHOGONAL to 4 — `doc/Pins.md` "everything is a fit" |
 | 6 | **Symmetry** | `Imp` (space group), `Shub` (Shubnikov, polarized), `Grey` (negative control) | free | `Imp` on an AFM density is the V1.28 hazard; `Shub` is the only imposition a magnetic run may ask for |
-| 7 | **Spin** | `Pol` (explicit two-channel singlet), `M2`/`M3`/`M6` (multiplicity), `ShFermi` (spins share μ) | unpolarized (ζ=0 collapse) | `Pol` ≠ unpolarized: it is the cross-check that the polarized machinery collapses to the unpolarized anchor |
-| 8 | **Occupation** | `Smear`, `Anneal` (staged kT), `GlobalMu` (one μ over the k-mesh) | kT=0 aufbau, per-block filling | `Anneal` is a SCHEDULE, not a temperature |
+| 7 | **Spin** | `Pol` (explicit two-channel singlet), `M2`/`M3`/`M6` (multiplicity) | unpolarized (ζ=0 collapse) | `Pol` ≠ unpolarized: it is the cross-check that the polarized machinery collapses to the unpolarized anchor |
+| 8 | **Occupation** | `Smear`, `Anneal` (staged kT) | kT=0 aufbau | `Anneal` is a SCHEDULE, not a temperature |
+| 8b | **Reservoir** (which μ is shared) | `GlobalMu` (one μ over the k-mesh), `ShFermi` (one μ over both spin channels) | per block, per channel | ADDED 2026-09-15 by `scripts/testgrid`'s first run: `Smear_GlobalMu` and `M3_ShFermi` both named one axis twice — sharing a reservoir is neither an occupation nor a spin state |
 | 9 | **Convergence machinery** | `GDM`, `Ladder`, `Kerker`, `Pulay`, `MOM`, `SeedMOM` | DIIS, linear D-mixing, no MOM | the `doc/SCFStrategyPlan.md` role seams |
 | 10 | **Ansatz** | `Cplx` | real TRIM blocks | `forceComplex` — the downgrade direction (`doc/RealComplexPlan.md` §1) |
 | 11 | **Seed** | `UniSeed`, `SpinSeed` | `IonicSAD` (V2.2) | `SpinSeed` = the spin-SAD channel seed |
@@ -98,7 +99,7 @@ anchor `Γ_CP2K`".
 ## 3. The naming grammar
 
 ```
-TEST(<Basis>_<Material>,  [<k>_][<Grid>_][<Fit>_][<Sym>_][<Spin>_][<Occ>_][<Machinery>_][<Ansatz>_][<Seed>_]<Claim>)
+TEST(<Basis>_<Material>,  <k>_[<Grid>_][<Fit>_][<Sym>_][<Spin>_][<Occ>_][<Reservoir>_][<Machinery>_][<Ansatz>_][<Seed>_]<Claim>)
       └── suite ──┘        └───────────── the POINT: axis tokens in AXIS ORDER, defaults elided ────────────┘ └ §2 ┘
 ```
 
@@ -118,64 +119,62 @@ Rules:
 7. Unit tests under `src/<lib>/tests` keep their class-named suites (`KerkerMix`, `BeckeMesh`) — the product
    grammar is for SCF tests, whose subject IS a point in the product.  (§9 moves the misfiled ones.)
 
-### 3a. Every enabled solid SCF test, today → proposed
+### 3a. The grid AS BUILT (2026-09-15) — `scripts/testgrid` renders it from the binary; this is the record
 
-`GPW_SCF` (35 enabled), in the file order they will be RE-FILED in (suite, then axis order):
+`GPW_SCF_UT.C` is gone.  The 41 GPW tests live in `IntegrationTests/GPW/{Si,Al,Na,NaF,MnO,Boxes}.C` (22/4/1/3/3/8),
+each file opening with its coverage block and laid out in axis order; the 11 PW SCF tests in
+`IntegrationTests/PW/PlaneWaveDFT.C`.  Old → new (the old names appear nowhere in the tree any more; `doc/`
+records keep them as history):
 
-| today | proposed | kind | note |
-|---|---|---|---|
-| `SiliconGammaConverges` + `SolidCalculationMatchesTheSiAnchor` | `GPW_Si.Γ_CP2K` | oracle | ★ **the same test twice** once the harness is the facade (§6) — merge; the `ResolvedXCMesh` asserts ride along |
-| `GridsReportSchema` | `GPW_Si.Γ_Schema` | property | |
-| `RealTRIMBlocksRunRealInReport` | `GPW_Si.Γ_RunsReal` | property | the `Cplx` control arm is inside the body |
-| `CrossRunFirstRunAnomalyProbe` | `GPW_Si.Γ_Deterministic` | property | three identical facade runs, bitwise |
-| `RealTRIMBlocksMatchComplex_SiGamma` | `GPW_Si.Γ_eqCplx` | twin | |
-| `SmearingInertOnGap` | `GPW_Si.Γ_Smear_eqAufbau` | twin | −TS = 0 on a gapped cell |
-| `PolarizedSingletMatchesUnpolarizedSiGamma` | `GPW_Si.Γ_Imp_Pol_eqUnpol` | twin | via the shared anchor (§2 ⚠) |
-| `PolarizedSeedSingletMatchesUnpolarizedSiGamma` | `GPW_Si.Γ_Imp_Pol_SpinSeed_eqUnpol` | twin | idem |
-| `SharedFermiLevelLetsTheMomentRelax` | `GPW_Si.Γ_Imp_M3_ShFermi_Smear_MomentRelaxes` | property | held-vs-shared μ arms inside |
-| `StreamFoldImposedGamma_SiDiamond` | `GPW_Si.Γ_Imp_eqUnfolded` | twin | route twin: reduced streams vs full |
-| `BeckeXCMatchesUniformXC_SiGamma` | `GPW_Si.Γ_Becke_eqUni` | twin | asserts E_xc, ρ_lost and the v_xc FIELD, not E |
-| `DeltaFitUniformGridMatchesPWFit_SiGamma` | `GPW_Si.Γ_Uni_DeltaFit_eqPWFit` | twin | the fit-basis axis alone |
-| `PolarizedSingletMatchesUnpolarized_PWFitRaster` | `GPW_Si.Γ_Uni_PWFit_Imp_Pol_eqUnpol` | twin | 1e-6 — the polarized PW v_xc route (V2.3) |
-| `SiliconMultiKPlumbing` | `GPW_Si.k211_Anchor` | did-E-move | KP-0's re-judged −7.45294 |
-| `SR_2x2x2ShiftedMP_vs_CP2K` | `GPW_Si.k222s_CP2K` | oracle | |
-| `SiDiamondIBZ_NonSymmorphic` | `GPW_Si.k222_Imp_CP2K` | oracle | −7.77846 is the Γ-centred CP2K deck |
-| `BeckeXC_IBZ_SiDiamond` | `GPW_Si.k222_Becke_Imp_eqFree` | twin | |
-| `RealTRIMBlocksMatchComplex_SiMixedMesh` | `GPW_Si.k311_eqCplx` | twin | the only non-TRIM k in the suite |
-| `RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh` | `GPW_Si.k311_Uni_MOM_eqCplx` | twin | R2.21 |
-| `SiPseudoAtomInBoxMatchesFinite` | `GPW_SiBox.Γ_Uni_eqFinite` | twin | vs the molecular facade |
-| `SmearingConvergesDegenerateShell` | `GPW_SiBox.Γ_Imp_Smear_eqFinite` | twin | the internal energy vs finite |
-| `StreamFoldOpenShellMatchesUnfolded_SiAtomInBox` | `GPW_SiBox.Γ_Uni_Imp_Anneal_eqUnfolded` | twin | |
-| `AlFCCDegenerateShellAufbauStalls` | `GPW_Al.Γ_Stalls` | property | `EXPECT_FALSE(converged)` — the negative control for `Anneal` |
-| `AlFCCAnnealedMetal` | `GPW_Al.Γ_Anneal_Anchor` | did-E-move | |
-| `AlFCCMetalGlobalMu` | `GPW_Al.k222_Smear_GlobalMu_Anchor` | did-E-move | |
-| `AlFCCMetalIBZExact` | `GPW_Al.k222_Imp_Smear_GlobalMu_eqFree` | twin | 1e-4: IBZ == full mesh |
-| `NaFCCMetalGlobalMu` | `GPW_Na.k222_Imp_Smear_GlobalMu_Anchor` | did-E-move | |
-| `NaPseudoAtomInBoxDoublet` | `GPW_NaBox.Γ_Imp_M2_eqFinite` | twin | secondary: did-E-move −0.141933 (V2.2's basin gate) |
-| `O2TripletInBoxMatchesFinite` | `GPW_O2Box.Γ_Imp_M3_eqFinite` | twin | |
-| `MnAtomInBoxDChannel` | `GPW_MnBox.Γ_M6_Smear_eqFinite` | twin | secondary: did-E-move −14.6380; `GPW_MN_SPHERICAL` arm stays an env A/B |
-| `PolarizedRunKeepsItsSpin` | **→ `KerkerMix.PolarizedDensityMixesPerChannel` (unit, §7); integration test DELETED** | | |
-| `ImposedShubnikovHoldsAFMThroughSCF_Mn2Box` | `GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_KeepsOrder` | property | THE integration-scale collapse detector |
-| `ImposedOrderLostIsAPostconditionFailure_Na2Box` | `GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows` | property | N1/T3 |
-| `MnOSeedSublatticesAreEqualAndOpposite` | `GPW_MnO.Γ_Pol_SeedMirror` | property | seed-level, no SCF |
-| `MnOSeedVxcMirrorOnBeckeMesh` | `GPW_MnO.Γ_Becke_Pol_SeedVxcMirror` | property | seed-level, no SCF |
-| `MnOImposedShubnikovKeepsTheSeedStaggering` | `GPW_MnO.Γ_Shub_Pol_SeedDecoration` | property | seed-level, no SCF |
-
-`PlaneWaveDFT` — the SCF-level ones (the integral-level ones move out, §9):
-
-| today | proposed | kind |
+| old `GPW_SCF.` | new | kind |
 |---|---|---|
-| `ScfJelliumUniform` | `PW_Jellium.Γ_Converges` | property |
-| `ScfWeakCosineSelfConsistent` | `PW_Cosine.Γ_Converges` | property |
-| `ScfSiliconDiamondConverges` | `PW_Si.Γ_Anchor` | did-E-move |
-| `ScfSiliconBZSampled` | `PW_Si.k222_Anchor` | did-E-move |
-| `FrameworkSiliconGammaMatchesPrototype` | `PW_Si.Γ_eqPrototype` | twin (route: the SCFIterator framework vs the standalone loop) |
-| `FrameworkSiliconGammaThroughSCFIterator` | `PW_Si.Γ_Converges` | property |
-| `FrameworkSilicon2x2x2ThroughSCFIterator` | `PW_Si.k222_Converges` | property |
-| `FrameworkNaFThroughSCFIterator` | `PW_NaF.Γ_Anchor` | did-E-move |
-| `FrameworkCsIThroughSCFIterator` | `PW_CsI.Γ_Anchor` | did-E-move |
-| `PolarizedSeedAFMStaggering` | `PW_MnO.Γ_Pol_SeedStaggered` (check the cell) | property |
-| `ItemK_Explore_ScfDensity`, `ItemK_RelCutoffDensifiesAndConvergesVxc` | campaign names — re-read and re-cut, or delete if the verdict is banked in `doc/OldPlans/PlaneWavePlan*.md` | |
+| `SiliconGammaConverges` | `GPW_Si.Γ_Imp_CP2K` | oracle — IMPOSED (every `RunGPW` anchor was; §6 finding) |
+| `SolidCalculationMatchesTheSiAnchor` | `GPW_Si.Γ_CP2K` | oracle — FREE, the facade's own recipe; NOT a duplicate of the above (the plan's merge was withdrawn) |
+| `GridsReportSchema` | `GPW_Si.Γ_Imp_Schema` | property |
+| `RealTRIMBlocksRunRealInReport` | `GPW_Si.Γ_RunsReal` | property |
+| `CrossRunFirstRunAnomalyProbe` | `GPW_Si.Γ_Deterministic` | property |
+| `RealTRIMBlocksMatchComplex_SiGamma` | `GPW_Si.Γ_eqCplx` | twin |
+| `TermTranslationInvariance` (re-enabled) | `GPW_Si.Γ_TranslationInvariant` | property (term-level; moves to `src/` in phase 5) |
+| `SmearingInertOnGap` | `GPW_Si.Γ_Imp_Smear_eqAufbau` | twin |
+| `PolarizedSingletMatchesUnpolarizedSiGamma` | `GPW_Si.Γ_Imp_Pol_eqUnpol` | twin (via the shared anchor) |
+| `PolarizedSeedSingletMatchesUnpolarizedSiGamma` | `GPW_Si.Γ_Imp_Pol_SpinSeed_eqUnpol` | twin |
+| `SharedFermiLevelLetsTheMomentRelax` | `GPW_Si.Γ_Imp_M3_Smear_ShFermi_MomentRelaxes` | property |
+| `StreamFoldImposedGamma_SiDiamond` | `GPW_Si.Γ_Imp_eqUnfolded` | twin (route) |
+| `BeckeXCMatchesUniformXC_SiGamma` | `GPW_Si.Γ_Becke_Imp_eqUni` | twin |
+| `DeltaFitUniformGridMatchesPWFit_SiGamma` | `GPW_Si.Γ_Uni_DeltaFit_Imp_eqPWFit` | twin |
+| `PolarizedSingletMatchesUnpolarized_PWFitRaster` | `GPW_Si.Γ_Uni_PWFit_Imp_Pol_eqUnpol` | twin |
+| `SiliconMultiKPlumbing` | `GPW_Si.k211_Imp_Anchor` | did-E-move |
+| `SR_2x2x2GammaCentred_vs_CP2K` (re-enabled, made FREE) | `GPW_Si.k222_CP2K` | oracle |
+| `SiDiamondIBZ_NonSymmorphic` | `GPW_Si.k222_Imp_CP2K` | oracle — the imposed arm; 2e-7 from the free one |
+| `BeckeXC_IBZ_SiDiamond` | `GPW_Si.k222_Becke_Imp_eqFree` | twin |
+| `SR_2x2x2ShiftedMP_vs_CP2K` | `GPW_Si.k222s_Imp_CP2K` | oracle |
+| `RealTRIMBlocksMatchComplex_SiMixedMesh` | `GPW_Si.k311_eqCplx` | twin |
+| `RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh` | `GPW_Si.k311_Uni_MOM_eqCplx` | twin |
+| `AlFCCDegenerateShellAufbauStalls` | `GPW_Al.Γ_Imp_Stalls` | property |
+| `AlFCCAnnealedMetal` | `GPW_Al.Γ_Imp_Anneal_Anchor` | did-E-move |
+| `AlFCCMetalGlobalMu` (made FREE) | `GPW_Al.k222_Smear_GlobalMu_Anchor` | did-E-move |
+| `AlFCCMetalIBZExact` | `GPW_Al.k222_Imp_Smear_GlobalMu_eqFree` | twin — real now (9e-8) |
+| `NaFCCMetalGlobalMu` | `GPW_Na.k222s_Imp_Smear_GlobalMu_Anchor` | did-E-move |
+| `NaFRocksaltGamma` (re-enabled) | `GPW_NaF.Γ_Imp_Anchor` | did-E-move (CP2K agrees to 0.2 mHa) |
+| `BeckeXCMatchesUniformXC_NaFSR2` (re-enabled) | `GPW_NaF.Γ_Becke_Imp_eqUni` | twin |
+| `DISABLED_NaFGridContinuation` | `GPW_NaF.DISABLED_Γ_GridContinuation` | property — still parked (P: needs a facade grid-continuation face) |
+| `MnOSeedSublatticesAreEqualAndOpposite` | `GPW_MnO.Γ_Pol_SeedMirror` | property (seed-level) |
+| `MnOSeedVxcMirrorOnBeckeMesh` | `GPW_MnO.Γ_Becke_Pol_SeedVxcMirror` | property (seed-level) |
+| `MnOImposedShubnikovKeepsTheSeedStaggering` | `GPW_MnO.Γ_Shub_Pol_SeedDecoration` | property (seed-level) |
+| `SiPseudoAtomInBoxMatchesFinite` | `GPW_SiBox.Γ_Uni_Imp_eqFinite` | twin |
+| `SmearingConvergesDegenerateShell` | `GPW_SiBox.Γ_Imp_Smear_eqFinite` | twin |
+| `StreamFoldOpenShellMatchesUnfolded_SiAtomInBox` | `GPW_SiBox.Γ_Uni_Imp_eqUnfolded` | twin |
+| `NaPseudoAtomInBoxDoublet` | `GPW_NaBox.Γ_Imp_M2_eqFinite` | twin |
+| `O2TripletInBoxMatchesFinite` | `GPW_O2Box.Γ_Imp_M3_eqFinite` | twin |
+| `MnAtomInBoxDChannel` | `GPW_MnBox.Γ_M6_Smear_eqFinite` | twin |
+| `ImposedShubnikovHoldsAFMThroughSCF_Mn2Box` | `GPW_Mn2Box.Γ_Becke_Shub_Pol_Smear_KeepsOrder` | property |
+| `ImposedOrderLostIsAPostconditionFailure_Na2Box` | `GPW_Na2Box.Γ_Becke_Shub_Pol_OrderLostThrows` | property |
+
+`PlaneWaveDFT.` → `PW_Jellium.Γ_Prototype_IsUniform`, `PW_Cosine.Γ_Prototype_Converges`, `PW_Cosine.Γ_Prototype_VxcFitConverges`,
+`PW_Si.Γ_Prototype_Converges`, `PW_Si.k222_Prototype_Converges`, `PW_Si.Γ_eqPrototype`, `PW_Si.Γ_Anchor`, `PW_Si.k222_Anchor`,
+`PW_NaF.Γ_Anchor`, `PW_CsI.Γ_Anchor`, `PW_Mn2Box.Γ_Pol_SeedStaggered` (`Prototype` = the standalone loop the file carries).
+⚠ **PW has NO facade**: `SolidCalculation` is built over a Gaussian orbital basis, so the PW tests keep their own two
+drivers.  The facade's basis-family axis is an open item (a tracker row, not this plan's).
 
 ## 4. The file breakdown
 
@@ -416,7 +415,7 @@ in ANY phase — this is a refactor of WHERE and WHAT-NAMED, not of physics.
 | **0 — paper** | this file; the rulings in §11 | user thumbs-up |
 | **1 — the cost win** ✅ 2026-09-15 | §7: THREE `KerkerMix` unit tests (`PolarizedSeedComposesPerChannel`, `PolarizedStepMovesEachChannelAtAlpha`, `SpinBlindValveCollapsesTheChannels` — 41 ms, teeth checked: the first two FAIL under the valve); `PolarizedRunKeepsItsSpin` deleted | **`ctest -j8`: 207 s → 71 s wall** (862 enabled tests, was 860); N: 885 total incl. 23 disabled.  One unrelated timing flake seen under load (`M_PG_BoxWalk.WhereTheContractionSpendsItsTime`, passes alone) |
 | **2 — the harness** ✅ 2026-09-15 (4 commits, 6f5b7bf2..9227c848) | §6 + §6b DONE: `qchem.Materials` (12 crystals + 4 molecules as JSON) and `BravaisCell` (all 14 types); every `GPW_SCF` body on `SolidCalculation`; `RunGPW`/`RunGpw`/`RunGpwAnnealed`/`RunMnO`/`GpwOptions` DELETED; the shared vocabulary is the `qchem.Tests.GPW_Harness` module (`IntegrationTests/GPW/Harness.C`, own library, no gtest); `TestFacadeMigrationPlan.md` → `OldPlans/`.  Facade gaps filled: emits `basis`/`grids` report sections + its result line; `LastIterateDensity()`.  **Findings**: every `RunGPW` anchor was IMPOSED (stated at each site; the `SiliconGammaConverges`≡`SolidCalculationMatchesTheSiAnchor` merge is WITHDRAWN — they are `Γ_Imp_CP2K` and `Γ_CP2K`); `AlFCCMetalGlobalMu` was imposed too, so the IBZ-exact gate compared imposed with imposed — now free, and the pair differ by 9e-8 | identical anchors (bitwise on Si Γ); `GPW_SCF_UT.C` 4570 → 2117 lines; 875/875 |
-| **3 — the re-file** | §3a renames + §4 directories + per-file coverage blocks + `scripts/testgrid` | `testgrid` parses 100% of `GPW_*`/`PW_*`; ctest N unchanged; the first `Γ_` name is confirmed in `ctest -N` and the TestMate tree before the rest are renamed |
+| **3 — the re-file** ✅ 2026-09-15 (ef4e7226..957aca95) | §3a + §4 DONE: `IntegrationTests/GPW/{Si,Al,Na,NaF,MnO,Boxes}.C` + `PW/PlaneWaveDFT.C`, every SCF test on the grammar, per-file coverage blocks, `scripts/testgrid` (parse + render + `--check`).  Its first run caught 10 of my own names and one vocabulary defect (the RESERVOIR axis, §1 8b) | `testgrid --check` clean: 52 grid tests (51 enabled), 0 violations; ctest 875/875, all 41 `Γ`/`k` names discovered |
 | **4 — the disabled class** ⏳ MOSTLY DONE with phase 2 (it interleaved naturally: a P/D test is not worth porting) | §8 executed: **P** → `CLIapps/gpwprobe` (`ladder`, `ksweep`, `naf-smear`, `becke-ladder si/naf/mn/al`, `mno` — env knobs verbatim, `doc/Benchmark.md`'s recipes still run); **R** re-enabled: `SR_2x2x2GammaCentred_vs_CP2K` 5.8 s, `NaFRocksaltGamma` 15 s, `TermTranslationInvariance` 0.3 s, `BeckeXCMatchesUniformXC_NaFSR2` 24 s; **D** deleted: `NaFFullBasisRankReduction`, `NaFFullBasisEigenTol`, `NaFixedDensityTermProbe`, `RotatedLebedevXCProbe`, + the callerless V2.4 route helpers.  **LEFT**: `GPW_SCF.DISABLED_NaFGridContinuation` (P, drives the iterator across two grids — needs a facade grid-continuation face first), `GPW.DISABLED_*` ×4 (D/R, not yet run), `SCFTrace.DISABLED_SolidNonPP…` (F → tracker row), `Reporting.DISABLED_VisualDump` (keep) | 8 disabled remain of 23 |
 | **5 — re-home the unit tests** | §9 | ctest N conserved across exes |
 | **6 — fill the first holes** | `GPW_Si.Γ_Kerker_eqDIIS` (Kerker + singles route ⇒ DM-source XC coverage); S3b: `M_Calculation.WaterSymmetryLibCintSpherical` (needs the extractor — real work, not a test) | the two zero-coverage rows in §5 turn green; the molecular grid has no empty cell |
