@@ -125,7 +125,10 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > `GPW×NaF` anchors, 8 promoted, 6 deleted; 875/875).  ✅ **PHASE 3 DONE 2026-09-15**: `IntegrationTests/GPW/<Material>.C` +
 > `PW/PlaneWaveDFT.C`, every SCF test named `<Basis>_<Material>.<k>_<tokens>_<Claim>`, **`scripts/testgrid`** renders and
 > CHECKS the grid (52 tests, 0 violations; its first run caught 10 of my names + the missing RESERVOIR axis).
-> ⇒ **PHASE 5 (re-home GPW_UT / PW-integral / RealComplexTerms / EigenSolver to `src/<lib>/tests`) IS NEXT**, then phase 6.
+> ✅ **PHASE 5 DONE 2026-09-15**: GPW_UT → `src/BasisSet/Lattice/tests` (+2 XC-FD probes → `src/Hamiltonian/tests`), RealComplexTerms +
+> Orthogonalize → `src/Hamiltonian/tests`, ValenceBasisGen → `src/Calculation/tests`, the PW file split three ways (fixtures module +
+> basis tests + term tests) with the grid in `PW/{Model,Si,NaF,CsI,Boxes}.C`; 4 parked GPW oracles re-enabled; 882 total conserved, 879/879.
+> ⇒ **PHASE 6 (the first holes: `GPW_Si.Γ_Kerker_eqDIIS` on the singles route ⇒ DM-source XC coverage; S3b) IS NEXT.**
 > ⚠ Found: PW has NO facade (`SolidCalculation` is built over a Gaussian basis) — the PW tests keep their own drivers.  Two holes it already
 > exposes: `GPW×NaF` and `GPW×MnO` have ZERO enabled SCF tests, and no enabled solid test uses anything but DIIS.
 > The axis product `{basis} × {material} × {grid} × {k} × {symmetry} × {kT}`, the file breakdown, the naming
