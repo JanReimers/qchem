@@ -27,25 +27,81 @@ PROGRAMME").  **A fresh session starts here:**
 
 ### ▶ 5. DFT+U — programme step 5, `doc/Records/ParallelAndOraclePlan.md` Phase 3
 
+**RULED 2026-09-16 (user, on the two papers in `~/Code`: Macke/Timrov/Marzari/Colombi Ciacchi, JCTC 2024,
+"Orbital-Resolved DFT+U" `ct3c01403.pdf`; Agapito/Curtarolo/Buongiorno Nardelli, ACBN0, `1406.3259v3.pdf`):
++U is built ORBITAL-RESOLVED as the formulation — U is a vector over (site, shell, site-group irrep) — and
+the shell-averaged Dudarev form is the special case where every U_i is equal.**  Pin 23.  The deciding
+observation (user: *"pretty much decides it for me … I have seen other examples where O played an unexpected
+role in TMOs"*): in Macke et al. the correction that opened β-MnO₂'s gap was on **O-p_z, not Mn-d at all**
+(their §4.3, Table 5), and correcting FeS₂'s hybridised e_g was what wrecked its lattice parameter.  ⇒ the
+Hubbard MANIFOLD is an input, never an assumption: the term takes a list of (site, shell, irrep, U) and Mn-d
+is one entry, not the design.
+
 ★ **Write it against `MatrixForward<T>` and `MatrixAdjoint<T>` from the start** (user, 2026-09-11;
-`MatrixIntegrator` itself was DELETED `7a41cca6` — nobody needs both halves, one object is built once and each
-client is handed its half): +U is a `Dynamic_HT`, its occupation-matrix forward and its potential adjoint are
-exactly that pair, and being born on the faces costs nothing where converting it later does.
+`MatrixIntegrator` itself was DELETED `7a41cca6`): +U is a `Dynamic_HT`, its occupation-matrix forward and its
+potential adjoint are exactly that pair, and orbital resolution changes only the scalar per eigenvalue in
+between — in the eigenbasis of the site occupation matrix \f$E_U=\sum_i \tfrac{U_i}{2}\lambda_i(1-\lambda_i)\f$
+(Macke eq 6), the potential is built diagonal and rotated back, so mixing and forces need no adaptation.
+**Our site groups do the resolution for free**: the (t2g, e_g) split IS the site-point-group irrep
+decomposition (the same machinery as the site-adapted meshes), so the labels are fixed by symmetry and the
+paper's eigenvalue-TRACKING algorithm is needed only when the site symmetry is lower than the split wanted.
+Projectors: **Löwdin OAO** = \f$S^{-1/2}\f$ on the site block (`LASolver` forms it; Macke shows OAO beats NAO
+consistently; truncation spheres are a plane-wave artefact we do not have).
 
 In order:
-1. **The ORACLE ROW FIRST.**  CP2K has `&DFT_PLUS_U` per `&KIND` with `U_MINUS_J` and `PLUS_U_METHOD MULLIKEN |
-   LOWDIN` (verified in the installed 2025.2 input reference).  MnO AFM-II, the deck we trust
-   (`IntegrationTests/CP2K/mno_afm2_gpw_va.inp`), one `U_MINUS_J` on the Mn kind; run it as `doc/Benchmark.md`
-   §5a says (`mpirun -np 1`, tight eps, converged density) — the anchor is nearly free.
-2. **MATCH THE PROJECTOR FLAVOUR DELIBERATELY.**  Mulliken and Löwdin give different occupation matrices for the
-   same density, so a cross-code +U number means nothing until the projector matches; pick one, implement that
-   one, and **declare it on the `RunPolicy` deviation line** beside the other seven.
-3. **N3 lands WITH +U, not after it** — charge and spin need separate preconditioning (§4 row N3): +U on an
+1. **The ORACLE ROW FIRST — shell-averaged, because that is all CP2K has.**  `&DFT_PLUS_U` per `&KIND` with
+   `U_MINUS_J` and `PLUS_U_METHOD MULLIKEN | LOWDIN` (verified in the installed 2025.2 input reference).
+   MnO AFM-II, the deck we trust (`IntegrationTests/CP2K/mno_afm2_gpw_va.inp`), one `U_MINUS_J` on the Mn
+   kind, run as `doc/Benchmark.md` §5a says.  Ours: the per-irrep vector with all U_i equal, LOWDIN, declared on
+   the `RunPolicy` deviation line.  This banks shell-averaged +U AND validates the orbital-resolved plumbing
+   in one anchor.  ⚠ Mulliken and Löwdin give different occupation matrices for the same density — match the
+   flavour before comparing a number.
+2. **N3 lands WITH +U, not after it** — charge and spin need separate preconditioning (§4 row N3): +U on an
    antiferromagnet is spin-channel-sensitive and today's mixer takes charge medicine in the magnetisation
-   channel; on top of that mixer a +U bug and a mixing bug are indistinguishable.  ⚠ And N3 will LOOK like a
-   regression on MnO (pin 18: the current basin is propped up by the behaviour N3 changes) — the N1 detectors
-   are what make that judgeable.
-4. A second +U oracle (QE) only if CP2K and we disagree inexplicably (§2 row "second oracle").
+   channel; on top of that mixer a +U bug and a mixing bug are indistinguishable.  ⚠ N3 will LOOK like a
+   regression on MnO (pin 18) — the N1 detectors are what make that judgeable.
+3. **THEN THE U VALUES — ACBN0-style self-consistent (U, J) from OUR OWN on-site ERIs**, the "no knob" route
+   (pin 12: a per-irrep vector of hand-set U's is a grad-student knob squared).  ACBN0 evaluates the full
+   Anisimov on-site HF energy (bare ERIs on the Hubbard centre, occupations renormalised by the site's
+   projected charge) so it is orbital-resolved BY CONSTRUCTION and delivers Hund's **J** as well.  ★ Where a
+   Gaussian-basis code has an unfair advantage: Agapito et al. had to project plane waves onto a fitted
+   "PAO-3G" minimal basis to get ERIs at all; **we already own the one-centre d-shell ERIs** (the atomic
+   `Cache4`/Rk machinery is exactly the four-index (mm′|m″m‴) on one centre).  ⚠ Their renormalisation is a
+   MULLIKEN charge, which is basis-sensitive with diffuse functions — our whole 136-span story — so take the
+   Löwdin renormalisation and MEASURE the sensitivity to the valence basis explicitly before trusting a U.
+4. **The U ORACLE IS QUANTUM ESPRESSO** (`~/Code/q-e`, built; `mpirun` always): `hp.x` implements the
+   LR-cDFT / DFPT determination of orbital-resolved U (Macke's method lives in `pw.x`/`hp.x`).  Compare
+   ACBN0's (U, J) against `hp.x` on the same cell; a disagreement is a FINDING to record, not a bug — the
+   literature already shows cRPA, LR-cDFT and ACBN0 do not agree with each other.  This is exactly the PAR
+   row's trigger: a question one oracle cannot answer.
+5. **Do NOT build LR-cDFT ourselves** unless 3 and 4 disagree inexplicably.  **Why it is expensive TODAY and
+   why that changes** (user asked for this to be explicit): the METHOD is cheap in principle — the
+   perturbation is \f$\alpha\,\hat P_{manifold}\f$, i.e. the SAME projector the +U term already owns, times a
+   scalar; and the responses \f$\chi_0\f$ (first non-self-consistent iteration) and \f$\chi\f$ (converged) are
+   ordinary SCF runs.  What makes it expensive is the RUN COUNT × RUN COST: (a) the perturbation must not see
+   its own periodic images, so the classic recipe is a **2×2×2 supercell** (96 atoms for FeS₂/β-MnO₂ in
+   Macke; 32 for MnO), (b) several α values per manifold, per site type, plus a self-consistency loop over U
+   (3–4 rounds), i.e. tens of converged supercell SCFs, and (c) inverting the response matrices with the
+   off-diagonal intrashell elements zeroed (Macke eq 18 — the step that keeps intrashell screening).  On our
+   tree TODAY a 4-atom MnO cell is ~7 min converged, the 32-atom supercell is UNTESTED (§4 row "Size the Becke
+   grid": setup is 47% of the run and scales with the mesh; PAR 2.2 / Phase 2.1 answered supercell
+   CONVERGENCE, not cost), and there is no k-point parallelism (§2 row KP) — so the honest estimate is
+   days of wall per material, on a code path nobody has profiled at that size.  TOMORROW: the projector comes
+   free with step 5.1, the supercell cost is what items "Size the Becke grid" and KP are already attacking
+   (2–3× and the k axis), and once a 32-atom cell runs in tens of minutes LR-cDFT is a SCRIPT over the +U
+   term, not a capability.  What stays expensive to BUILD is **DFPT** — the monochromatic-perturbation
+   linear-response solver that lets QE do it in the primitive cell without supercells; that is a genuine
+   solver increment (a Sternheimer/response machinery we have no seam for) and is what `hp.x` gives us for
+   free as an oracle.  ⇒ the order above: use QE for the values, keep the supercell-finite-difference route
+   as the fallback we could script once the run cost is down, never build DFPT for this.
+
+⚠ Two caveats standing: every number in Macke et al. is PBE/PBEsol, so a like-for-like comparison of
+orbital-resolved VALUES waits on GGA (§2) — LDA+U on MnO still tests the mechanism and the CP2K anchor; and
+MnO is charge-transfer-leaning, so an O-p entry in the manifold list is a live question for it too, not
+only for β-MnO₂.  Follow-ons that the same term seam takes: Hund's **+J** (unlike-spin term; what the
+fractional-SPIN error needs — Macke's outlook, and the magnetic-coupling question) and intersite **+V**
+(DFT+U+V for hybridised/charge-transfer cases; Macke §5 argues orbital-resolved U already does most of what
++V was added for).  Both are §2 rows.
 
 ⏸ **Parked decision that does not block it:** the basis-side nullable vendor that would retire `GetRhoOnGrid`'s
 empty-vector-means-no-route signalling (`CleanupCandidates.md` R1.0n/R1.0o).
@@ -60,6 +116,8 @@ CE/MC on NC PPs; Tier 2 = USPP/PAW + k-point throughput).  `state` is what exist
 | feature | why | state 2026-09-16 | next concrete action · record |
 |---|---|---|---|
 | **DFT+U** | essential for localised 3d — plain LDA/GGA gets voltages badly wrong | NOT STARTED; oracle validated (CP2K); the term faces (`MatrixForward/Adjoint`) exist | **§1 above** |
+| **DFT+U+J** (Hund's unlike-spin term) | the fractional-SPIN error — magnetic coupling in open-shell TMOs; +U alone leaves it (Macke outlook) | NOT STARTED; ACBN0 delivers J beside U from the same on-site ERIs (§1 step 3) | same term seam as +U, one more scalar per manifold; land after the +U anchor |
+| **DFT+U+V** (intersite Hubbard V) | hybridised / charge-transfer insulators where an on-site term cannot restore the bond | NOT STARTED; Macke §5: orbital-resolved U already does most of what +V was added for, so it is a follow-on not a prerequisite | two-centre occupation numbers on the same projector; decide after the O-p manifold question on MnO is answered |
 | **PBE / GGA** (then PBEsol, BLYP) | THE materials workhorse; #1 for the north-star | NOT STARTED; `Hamiltonian::Model` can list `PBE` with a "not wired" throw; collocation emits ρ only, not {ρ, ∇ρ} | build the ∇ρ collocation + the `∇·` term in the potential; prerequisite: retire the `GetEpsXc()=0.75*GetVxc()` base default (exact for Dirac exchange only — silent-wrong the day a GGA forgets to override; `CleanupCandidates.md` I.1 residual).  Spin-native from day one (pin 5) · `doc/OldPlans/FacadeDFTPlan.md` |
 | **Hybrid functionals** (PBE0, B3LYP, HSE06) | molecular gold standard / solid band gaps | NOT STARTED; HF exchange exists for atoms/molecules (`Vxc`/`VxcPol` on `tDynamic_HF_HT`), **no HF for solids** (`IrrepCD<dcmplx>::AccumulateDirect` asserts out) | needs periodic exact exchange first — a real track, not an enum; design the canonical-pair scatter so periodic HF inherits it (`doc/OldPlans/ERI4Rework.md` §9) |
 | **LibXC-polarized** | the functional zoo in two spin channels | `Libxc_LDA` is UNPOLARIZED-ONLY by construction (never passes two channels; `Factory` throws for `SpinGroup::Polarized` + `XC::LibXC`) | pass libxc's `XC_POLARIZED` contract through the spin-native `ExFunctional` face; gate against `VWN5PolarizedMatchesLibxc` |

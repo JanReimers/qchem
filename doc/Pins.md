@@ -266,13 +266,28 @@ FALLBACK when the vetted basis was still not good enough.  Report the decision a
 exponent), not bare indices.  Open work: the vet-stage trim itself (`doc/OpenWork.md`).  Record: History4
 "Continuous — CLEANUP".
 
+## 23. +U is ORBITAL-RESOLVED — U is a vector over (site, shell, site-group irrep); the manifold is an INPUT, never Mn-d by assumption
+
+Ruled 2026-09-16 (user, on Macke et al. JCTC 2024 and ACBN0).  In the eigenbasis of the site occupation
+matrix \f$E_U=\sum_i\tfrac{U_i}{2}\lambda_i(1-\lambda_i)\f$; the shell-averaged Dudarev form is the special case
+\f$U_i=U\f$ — the same shape as pin 5 (unpolarized is the ζ=0 collapse), applied to +U.  The (t2g, e_g)
+split is the site-point-group irrep decomposition, so the labels are fixed by symmetry; eigenvalue
+tracking is only for a site symmetry lower than the split.  **Why it is a ruling and not a preference:**
+shell-averaging suppresses intrashell screening (perturbing t2g and e_g together zeroes the channel that
+screens them: FeS₂ U 7.37 → 3.29/2.16 resolved), and the WRONG manifold is worse than the wrong U — the
+correction that opened β-MnO₂'s gap was on **O-p_z**, not Mn-d, and correcting FeS₂'s hybridised e_g at all
+broke its structure.  User: *"I have seen other examples where O played an unexpected role in TMOs."*  ⇒ the
+term takes a LIST of (site, shell, irrep, U); no code path may assume the Hubbard atom is the transition
+metal.  Projector = Löwdin OAO on the site block.  U values are never hand-tuned in production (pin 12):
+ACBN0-style from our own on-site ERIs, checked against QE `hp.x`.  Record: `doc/OpenWork.md` §1 step 5.
+
 ---
 
 **Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/OldPlans/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
 13 is the KP-0 multi-k defect (2026-09-09).  14–17 were harvested 2026-09-16 when their plan files went RECORD
 (`BasisSetTaxonomyPlan`, `GPWPlan1`, `SphericalLatticePlan`, `RunReportPlan`); pin 10's anchor rule came from
 `TestSuitePlan` the same day.  18–22 were harvested from the v2 `OpenWork.md` when it was rebuilt as v3
-(2026-09-16, `doc/Records/OpenWork_History4.md`) — the ⛔ findings that were durable rather than in the weeds.
+(2026-09-16, `doc/Records/OpenWork_History4.md`) — the ⛔ findings that were durable rather than in the weeds.  23 is the DFT+U ruling of the same day.
 2, 4, 6 are user rulings recorded in session memory (`feedback_everything_is_a_fit`,
 `feedback_integrated_observables`, `feedback_pw_fitting_uniform_interface`) and had no home in the repo
 until now.
