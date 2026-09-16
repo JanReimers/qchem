@@ -200,12 +200,79 @@ trace columns: a printed number is either physics or a gate the run CONSUMES —
 implied it was used, and it was deleted for that reason (user, 2026-09-13).  Record: `doc/Records/RunReportPlan.md`
 (the design), `doc/CleanupCandidates.md` V1.5.
 
+## 18. XC is fed the MIXER'S density; a separately-damped XC feed destroys Kerker's mode selectivity
+
+Four collapsed MnO states (−45.5, −46.3, −56.4, −38.5 against the converged −61.403) came from ONE cause,
+measured as a monotone dose-response in \f$E_{ee}\f$ (13.5 → 29.0 → 35.1): handing \f$V_{xc}\f$ a density
+damped by a FLAT \f$\alpha_{eff}\f$ un-damps the low-G CHARGE mode 2.4× while barely touching the AFM mode
+— **Kerker's low-G charge-slosh damping is what holds the AFM basin**, and the moment death is a
+consequence of the charge runaway, not a spin effect.  So the XC feed is never a second, independently
+damped copy of the density.  The ρ≥0 GOAL survives (the DM route gives 0 negative points against 15%
+for the band-limited ρ̃): the form that keeps it is the **cusp deficit**,
+\f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — Hartree's own mixed array plus the sharp
+content only the DM can supply, with no \f$\alpha_{eff}\f$ to choose (N4, still to be measured).
+Two facts that ride with it: **\f$\tilde\rho_{mix}\f$ and \f$\rho[D]\f$ have DIFFERENT fixed points**
+(ρ̃ is a band-limited fit projection; NaF 139 μHa, MnO terms ~100 mHa at 8 μHa total), so "at convergence
+they agree" is false; and **\f$E_{ee}\f$ is a validated charge-slosh detector** (T3).  Record:
+`doc/Records/OpenWork_History4.md` "ITEM 1 MEASURED" + "N4".
+
+## 19. Never density-screen the GATHER — \f$h_{ij}\f$ is diagonalised, not traced
+
+Dropping a term because \f$D_{ij}=0\f$ is sound for the ENERGY (\f$\mathrm{Tr}(Dh)\f$ is blind to it) and
+WRONG for the Fock matrix, which is diagonalised to make the next density: zeroing \f$h_{ij}\f$ wherever
+the density vanishes is a SELF-FULFILLING truncation — a pair with no density can never acquire any, and
+with a DIAGONAL SAD seed that is every off-diagonal element.  CP2K does not D-screen at all (checked in
+`task_list_methods.F`: one global `eps_rho_rspace`, geometry only).  The fix that "worked" (floor a
+vanishing weight) BROKE the stream fold's orbit invariance (0.14 against 2.4e-8) — so the gather's D-screen
+was REMOVED (2026-09-04) and the D-aware tolerance survives only on the COLLOCATION, where the weight
+really is the scatter weight.  ⚠ `cij==0` had meant BOTH "structurally absent" and "zero density"; only
+the first may be excluded.  Record: History4 "THE k-SCALING GAP" + "ATTEMPT 2".
+
+## 20. Ask what a matrix MEANS before symmetrizing it
+
+The first cut of the T3 stream fold orbit-averaged the integrate-back's `screenD` — a matrix of
+\f$|D_{ij}|\f$ MAGNITUDES, not a density matrix.  Signed averaging cancelled mixed-σ orbits to ~0, the
+D-aware screen dropped live terms, and the imposed O₂ triplet collapsed by 2.3 Ha.  A screen is reduced by
+the orbit **MAX** (`FoldScreenMax`), a density by the orbit PROJECTION (`FoldProjectedD` — reading the
+representative's own \f$D_{ij}\f$ SAMPLES the orbit, and sampling equals projecting only if D is already
+symmetric).  Gate: the dimer-in-a-box cell — single-atom Si cells miss this bug entirely.  Record:
+History4 "Step 2 — ARM THE SYMMETRY FOLDS".
+
+## 21. Pivoted Cholesky where D is PSD — and a Cholesky that FAILS is the canary, never a silent fallback
+
+Standing preference (user, 2026-08-20): factor a density matrix by pivoted Cholesky (greedy on the
+diagonal, truncation bounded by the trailing diagonal, no rotational noise), not a trimmed
+eigendecomposition.  Its LIMIT, narrowed the same day: the objection to trimmed eigen comes from ORBITAL
+work where the factor is INVERTED (\f$S^{-1/2}\f$, \f$1/\lambda\f$ amplification); where the factor is only
+MULTIPLIED (\f$\rho_g=\|L^\dagger\Phi_g\|^2\f$) the error is bounded and eigen is admissible.  **D is PSD in
+this tree only because no mixer EXTRAPOLATES D** (`LinearMixer` is convex, α∈[0,1]; Pulay/Broyden act on
+\f$\tilde\rho\f$) — a property of today's mixer set, not a theorem.  It dies with a density-space Pulay,
+α>1, or MP/cold smearing (negative occupations).  ⇒ a failing pivoted Cholesky is exactly the signal that D
+left the cone: make it LOUD and route to the eigen split.  ⚠ PSD tests need a RELATIVE floor — an
+eigensolver always returns O(ε·λmax) negatives.  (USPP/PAW augmentation charges can drive ρ<0 with a PSD
+D; not this tree, which is norm-conserving.)  Record: History4 "THE ρ GEMM — LOW-RANK D".
+
+## 22. Basis trimming is a VET-stage, SYMMETRY-EQUIVARIANT decision on S — never a per-function filter at ortho time
+
+Three user rulings (2026-08-14/15/26): **(a) not display-only** — the trim happens BEFORE anything
+downstream is built (grid ladder, collocation task lists, KB projections all fall out of the surviving
+function list; filtering at ortho time does the dropped functions' work for nothing); **(b) the rank
+decision is a property of S, i.e. of the BASIS, made ONCE** — not re-derived per spin channel;
+**(c) drop whole ORBITS under the (magnetic) space group, never individual AOs** — greedy per-function
+pivoting resolves symmetry-tied pivots by numerical noise (runs 58–60 dropped O₁'s p(0.18) but O₂'s
+s(0.15)), and a partial orbit is a symmetry-BROKEN basis that costs both site equivalence and the run's
+ability to converge at all (*"would sometimes remove only 3/4"*).  Ortho-time pivot filtering stays as the
+FALLBACK when the vetted basis was still not good enough.  Report the decision as a BASIS (species / shell /
+exponent), not bare indices.  Open work: the vet-stage trim itself (`doc/OpenWork.md`).  Record: History4
+"Continuous — CLEANUP".
+
 ---
 
 **Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/OldPlans/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
 13 is the KP-0 multi-k defect (2026-09-09).  14–17 were harvested 2026-09-16 when their plan files went RECORD
 (`BasisSetTaxonomyPlan`, `GPWPlan1`, `SphericalLatticePlan`, `RunReportPlan`); pin 10's anchor rule came from
-`TestSuitePlan` the same day.
+`TestSuitePlan` the same day.  18–22 were harvested from the v2 `OpenWork.md` when it was rebuilt as v3
+(2026-09-16, `doc/Records/OpenWork_History4.md`) — the ⛔ findings that were durable rather than in the weeds.
 2, 4, 6 are user rulings recorded in session memory (`feedback_everything_is_a_fit`,
 `feedback_integrated_observables`, `feedback_pw_fitting_uniform_interface`) and had no home in the repo
 until now.

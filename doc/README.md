@@ -24,9 +24,9 @@ one with `ls doc/*/<File>.md`.  Relative links INSIDE moved files (`../src/…`)
 
 | file | what it is |
 |---|---|
-| **`OpenWork.md`** | ★ **THE tracker.  READ IT AT SESSION START.**  Opens with **THE QUEUED PROGRAMME** (agreed 2026-09-09); start at the first UNFINISHED step — steps 1–4 closed by 2026-09-16, so **step 5, DFT+U**.  The table under it is the reference; "Parked threads" holds real work deliberately not queued |
+| **`OpenWork.md`** | ★ **THE tracker (v3, rebuilt 2026-09-16).  READ IT AT SESSION START.**  §1 NEXT (step 5, DFT+U) · §2 MAJOR FEATURES (DFT+U, GGA, hybrids, forces, USPP, OT, k-parallelism, space-group irreps, SSB descent, …) · §3 NON-OOD CLEANUP · §4 REMAINING TODO (accuracy, performance) · parked · descoped.  One row = next concrete action + the one record to read |
 | **`CleanupCandidates.md`** | the SOLID/OOD debt worklist and the home of the design rulings (R1.0); closed rows go to `Records/CleanupHistory.md` the day they close |
-| **`Pins.md`** | ★ **17 durable invariants** — no cut in r space (1), everything is a fit (2), integrated observables (4), spin-native (5), … the BasisSet taxonomy (14), smearing/GDM (15), span-matching (16), contemporaneous reporting (17).  Rulings, not preferences; cite as `doc/Pins.md pin N` |
+| **`Pins.md`** | ★ **22 durable invariants** — no cut in r space (1), everything is a fit (2), integrated observables (4), spin-native (5), … the BasisSet taxonomy (14), smearing/GDM (15), span-matching (16), contemporaneous reporting (17), the XC feed / mixer selectivity (18), never D-screen the gather (19), ask what a matrix means (20), pivoted Cholesky + canary (21), vet-stage equivariant trim (22).  Rulings, not preferences; cite as `doc/Pins.md pin N` |
 | **`Benchmark.md`** | ★ the standing head-to-head instrument vs CP2K.  **COPY the run command out of §5a; never reconstruct it** |
 | **`ModuleToolchainPlan.md`** | `import std;` + a modular Blaze fork — banish the preprocessor.  Deferred, not started |
 | **`LatticeGasPlan.md`** | Li/Na configuration enumeration for the battery work.  Specced, not built — kept so the design is not re-derived |
@@ -37,7 +37,7 @@ one with `ls doc/*/<File>.md`.  Relative links INSIDE moved files (`../src/…`)
 
 | file | why it is still here |
 |---|---|
-| **`OpenWork_History1/2/3.md`**, **`CleanupHistory.md`**, **`BenchmarkHistory.md`**, **`GPWHistory.md`**, **`SymmetryUpgradeHistory.md`** | the append-only closed record; the trackers WRITE to these.  ★ *A record of what was TRIED AND REJECTED is worth more than a record of what landed* — nothing here is ever trimmed |
+| **`OpenWork_History1/2/3/4.md`** (4 = the v2 tracker verbatim, 2026-09-16), **`CleanupHistory.md`**, **`BenchmarkHistory.md`**, **`GPWHistory.md`**, **`SymmetryUpgradeHistory.md`** | the append-only closed record; the trackers WRITE to these.  ★ *A record of what was TRIED AND REJECTED is worth more than a record of what landed* — nothing here is ever trimmed |
 | **`CP2KBuild.md`** / **`CP2Kresults.md`** | how the primary oracle is built, and what it says; the +U oracle row (step 5) starts here |
 | **`SCFStrategyPlan.md`** / **`OTNotes.md`** | the convergence-acceleration abstraction boundaries, and what the 2026-07 GDM investigation established — the design and the prior for row **OT** |
 | **`ParallelAndOraclePlan.md`** | the sequenced road to +U: Phase 1 ✅ 4.44×, 2.5 = programme step 2 ✅, Phase 3 = step 5 (folded in), residuals → row **PAR** |

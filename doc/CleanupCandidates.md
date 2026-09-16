@@ -2986,6 +2986,23 @@ eleven `Ham_*_U/_P` classes → six; `SpinCorrelation` folded into a spin-native
 `Hamiltonian::GetSpinGroup()` replaces the `IsPolarized()` OR-fold; `SymMap` retires `Irrep(Spin::None)`
 as a spatial cache key.  Full row + record → `doc/Records/CleanupHistory.md` "LANDED 2026-09-14 — V1.37".
 
+### V1.39 — THE SUM OF MATRICES could be THE MATRIX OF THE SUM: terms sharing a quadrature should contribute FIELDS, not finished matrices (filed 2026-09-16 from OpenWork v2 "BIN 1's REMAINING GAP IS IN THE HAMILTONIAN")
+
+Measured 2026-09-04: a 2-channel GPW iteration integrated ~8.6 KS fields where the physics needs 3, because
+(1) `Vee_Hartree::MakeMatrixT` takes an UNNAMED `const Spin&` (provably spin-independent) but the term cache
+keys on the spin-carrying `Irrep`, so the same \f$\langle i|V_H|j\rangle\f$ was gathered twice — fixed,
+bit-identical, worth ~0.3% (its duplicates were already memo hits: **read gather MISSES, not closure calls**);
+and (2) exchange and correlation were separate terms each paying its own gather — the gather is LINEAR in the
+field, so summing \f$v_x+v_c\f$ pointwise and gathering once is identical: fixed in `CompositeExFunctional`
+(−30.6% wall, \f$E_{tot}\f$ identical to 10 figures).  **The design question that remains is the durable
+part:** the term architecture is good (open/closed — add a term, change nothing else), and its cost is that
+every term hands back a FINISHED MATRIX.  Whenever terms share a quadrature and a grid, a term could instead
+contribute its FIELD to a shared quadrature that gathers once.  Expressing that WITHOUT destroying the term
+seam is the work; do not paper over it with another cache — the caches are correct and catch everything
+catchable.  Prerequisite reading: `doc/Pins.md` pin 17 (a term reports at its own activity — the same
+"who owns the shared step" question).  Not urgent; becomes live when a third grid-shared term (+U's
+occupation projector is NOT one — it is a matrix-space term) or GGA's gradient terms arrive.
+
 ### V1.38 — The Point spec in the core + one thin IBS class per (G, engine) (filed 2026-09-14, STASHED by agreement)
 
 The §5 sequel of `doc/Records/BasisSetTaxonomyPlan.md`: carry the evaluator-injection pattern the atom and lattice

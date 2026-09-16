@@ -187,6 +187,12 @@ than reconstructing it.
 - **Measure first, and expect the answer to be work that should not have been happening.**  Phase 1 of
     `doc/Records/ParallelAndOraclePlan.md` went 3.08× → 4.44× on 12 threads without a single threading change: a fold
     index that scanned clustered buckets, a Hamiltonian built twice, a star-average applied twice.
+    Three traps that each cost a wrong conclusion once: **the ledger measures WALL, `perf` measures CYCLES**
+    (a threaded 50%-of-cycles loop reads as a small wall bucket; a serial 15% one as half the run);
+    **CPU time counts OpenMP busy-wait spinning as work** (a 294 s serial build billed ~590 s threaded) —
+    where qchem threads and the oracle does not, SERIAL is the honest comparison; and **read gather
+    MISSES, not closure calls** — a cost estimate off call counts is wrong whenever a memo sits underneath.
+    Measure the suspect ALONE before believing a difference of two whole-run timings.
 
 ## Docs
 
@@ -206,9 +212,11 @@ than reconstructing it.
     and **it holds NO open work**: a residual backlog goes to `doc/OpenWork.md`, a durable ruling to
     `Pins.md`, a convention here.  **LIVE** is only the queues (`OpenWork.md`, `CleanupCandidates.md`), the
     instruments (`Benchmark.md`, CP2K) and a plan under active execution.
-- `doc/OpenWork.md` is THE tracker.  **`▶ WHAT IS OPEN` opens with THE QUEUED PROGRAMME — a numbered,
-    agreed running order.  Start at step 1 and work down; the table below it is the reference, not the
-    queue.**  (Queued 2026-09-09; steps 1–4 closed by 2026-09-16 ⇒ step 5, DFT+U, is next.)
+- `doc/OpenWork.md` is THE tracker (v3, 2026-09-16): **§1 NEXT** (the one queued action — step 5, DFT+U),
+    **§2 MAJOR FEATURES**, **§3 NON-OOD CLEANUP**, **§4 REMAINING TODO**, then parked/descoped.  Every row
+    names its next concrete action and the ONE record to read; the argument lives in the record
+    (`doc/Records/OpenWork_History4.md` holds the v2 tracker verbatim).  A ⛔ that is durable is a pin, one
+    in the weeds stays in the history — neither stays in the tracker.
 - **`doc/Pins.md` holds the durable physics/numerics invariants** — rulings, not preferences (each is there
     because violating it produced a wrong number at least once).  Pin 1: **"THERE IS NO CUT in r space,
     Gibbs ringing is like a wrecking ball"**.  Cite them as `doc/Pins.md pin N`.
