@@ -3,7 +3,7 @@
 **Self-contained design note.** It defines the abstraction boundaries for SCF convergence acceleration —
 Fock-space acceleration (DIIS/GDM), density mixing (linear/Kerker/Pulay/Broyden), occupation policy
 (aufbau/MOM/smearing) and the loop mode (fixed-point vs direct-min) — so they compose cleanly instead of
-being hardwired inside `tSCFIterator::Iterate`. It supersedes the `0c` sketch in `doc/GPWPlan.md` (the mixer
+being hardwired inside `tSCFIterator::Iterate`. It supersedes the `0c` sketch in `doc/OldPlans/GPWPlan.md` (the mixer
 is one piece of this).
 
 ![SCF role seams + shared extrapolator](diagrams/scf_strategy_roles.svg)
@@ -136,7 +136,7 @@ concrete + μ-solver + free-energy gate; do not special-case it into the fill.
 ## 5b. V1.11 occupation-seam design — RULED (user, 2026-08-17) — ✅ EXECUTED, all five increments
 **(2026-08-17: `43bbebad` FillResult; `0c818835` ReservoirPartition + one fill loop; `841eadf2`
 OccupationPolicy + iterator slot + the OrbitalView DIP inversion; `092d1da8` the one Fill primitive +
-DecideBlockFill; `2398dd07` HeldOccupationPolicy.  Full record: doc/CleanupHistory.md.  §8's increment 4
+DecideBlockFill; `2398dd07` HeldOccupationPolicy.  Full record: doc/Records/CleanupHistory.md.  §8's increment 4
 "occupation seam formalisation" is hereby DONE on the seam side; the Fermi-smearing μ-solver/free-energy
 machinery it anticipated already existed and now lives behind the policy.)**
 

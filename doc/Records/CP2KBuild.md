@@ -83,7 +83,7 @@ cd IntegrationTests/CP2K && OMP_NUM_THREADS=1 ../../scripts/bench "Si Gamma cp2k
 ```
 
 **Packaged 2025.2 re-validated against the banked 2026.1 numbers, 2026-08-19 — four decks, four exact
-reproductions** (the banked values are in `doc/CP2Kresults.md`):
+reproductions** (the banked values are in `doc/Records/CP2Kresults.md`):
 
 | deck | measured | banked | wall (1 thr) | peak RSS |
 |---|---|---|---|---|

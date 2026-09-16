@@ -435,6 +435,6 @@ Each step deletes scattered `cout`s and adds one tidy block; behaviour is otherw
 
 ## Pointers
 - Detector already committed: `qchem::PivotedCholeskyDrops` (`9b546bc1`) — feeds `basis.removed`.
-- Per-iteration display (the sibling report): `doc/GPWPlan1.md` §2 (DONE).
+- Per-iteration display (the sibling report): `doc/Records/GPWPlan1.md` §2 (DONE).
 - GUI/JSON consumer: `project_viz_gui_plan` (nanobind + PySide6 + pyqtgraph + HDF5).
-- Standard/Advanced knob grading: `doc/GPWPlan1.md` §1.
+- Standard/Advanced knob grading: `doc/Records/GPWPlan1.md` §1.

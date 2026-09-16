@@ -630,7 +630,7 @@ bucket ratio as "the cache was worth 3×" is the mistake this table exists to pr
    `StreamBudgetHeadroom`, `ReleaseStreams` (and its `LatticeSum1E` face + three forwarders), the two
    `GPW_STREAM_BUDGET_PTS*` knobs, the fp64/fp32 tiering and the run-length encoding.  ~370 lines.
    With them go the whole class of defects they carried: budget starvation across grid stages
-   (doc/GPWPlan.md 0.5(b)), the self-heal rebuild, the fp32 overflow tier's 6e-8 relative replay noise, and
+   (doc/OldPlans/GPWPlan.md 0.5(b)), the self-heal rebuild, the fp32 overflow tier's 6e-8 relative replay noise, and
    `GPW_Evaluator`'s dtor having to hand a global budget back.
 2. **The TASK LIST replaces it** (§3c): `BoxTask{n, Roff, pf}` per (shell pair, offset), derived ONCE per
    basis instance and never invalidated — the cell and the centres are that instance's own data, and the
@@ -748,7 +748,7 @@ than the exp recurrence did, and that bought 3%.
 
 ★ **WHERE IT WOULD PAY, and the second one is the interesting case:**
 1. **The molecular / 4-centre path**, where \f$\Omega\f$ IS the central object (`Repulsion4C` takes two by
-   reference) — see `doc/ERI4Rework.md`, which is already about banking pairs.
+   reference) — see `doc/OldPlans/ERI4Rework.md`, which is already about banking pairs.
 2. **The lattice path PRECISELY BECAUSE IT CANNOT CACHE.**  `GeometryCacheBudget(0)` deliberately evicts
    every \f$\Omega\f$ immediately on lattice paths (the 2026-07-22 OOM: ~2M Hermite3 tables, 11 GB), so it
    rebuilds per (pair, offset) BY DESIGN.  A symmetry fold gives **reuse WITHOUT storage** — the same

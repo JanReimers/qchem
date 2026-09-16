@@ -1,6 +1,6 @@
 # Molecular Pseudopotentials — Interface Divergence & Harmonization Findings
 
-Companion to `doc/MolecularPseudopotentialPlan.md` (user-owned; not edited). This is **goal 2** of the
+Companion to `doc/OldPlans/MolecularPseudopotentialPlan.md` (user-owned; not edited). This is **goal 2** of the
 Molecule_PP project: *having got it working (goal 1), record the interface divergences it exposed between
 the molecular (`src/BasisSet/Molecule`) and plane-wave (`src/BasisSet/Lattice_3D`) sides, and the concrete
 path to harmonizing them* — in service of the long-term goal of hoisting structure-neutral code up into

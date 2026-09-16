@@ -10,8 +10,8 @@
 > Nothing below is a queue — if a bullet here looks open, the tracker row is the authority.
 
 
-The forward queue, superseding `doc/GPWPlan.md`'s TODO section (that file remains the authoritative RECORD of
-the 2026-07 campaign, and `doc/GPWHistory.md` holds the deep archive).  **Read GPWPlan.md's "Durable pins /
+The forward queue, superseding `doc/OldPlans/GPWPlan.md`'s TODO section (that file remains the authoritative RECORD of
+the 2026-07 campaign, and `doc/Records/GPWHistory.md` holds the deep archive).  **Read GPWPlan.md's "Durable pins /
 invariants" before working here:** THERE IS NO CUT; no grad-student knobs (policy enums, not numeric dials);
 spin-native is the formulation; correct > efficient > end-user > dev > readable.
 
@@ -56,7 +56,7 @@ Layout: **DONE** (condensed highlights — full detail in the cited commit messa
   the molecular subset ctor.  Detector done; the ACTUATOR (prune/report) is open — see pending §4a.
 
 New set of numbers.
-**0. REPORTING FEATURE** — build `doc/RunReportPlan.md`.  `qchem.Reporting`: the report IS json, a generic
+**0. REPORTING FEATURE** — build `doc/Records/RunReportPlan.md`.  `qchem.Reporting`: the report IS json, a generic
 console renderer (layout INFERRED from json structure — table vs tree; NO per-section renderers), a global
 sink (`GlobalReport` keyed + key-free `CurrentRunReport`), incremental section-by-section rendering, detail
 level console-only.  Consolidates the scattered `[GPW grid]`/`[overlap S]`/cache-RAM/SCF-settings prints.
@@ -398,7 +398,7 @@ its atomic `gap_mHa` become the objective function (that's the oracle-matching t
 # Stream-cache RAM/CPU trade — promote the knob + the fast-recompute campaign (USER, 2026-08-13)
 
 > ⛔ **HISTORY ONLY — THE STREAM CACHE NO LONGER EXISTS (deleted 2026-08-27,
-> `doc/CollocationRewritePlan.md` step 7).**  Everything below about budgets, tiers, `GPW_STREAM_BUDGET_PTS`,
+> `doc/OldPlans/CollocationRewritePlan.md` step 7).**  Everything below about budgets, tiers, `GPW_STREAM_BUDGET_PTS`,
 > run-length geometry and replay bit-identity describes code that has been removed; the section is kept
 > because it is the record of the campaign that led here.  ★ AND NOTE WHERE IT LANDS: the paragraph below
 > already names CP2K's design point — *"no stored streams at all — every pair product recomputed per
@@ -406,7 +406,7 @@ its atomic `gap_mHa` become the objective function (that's the oracle-matching t
 > qchem now runs, off a ~0.2–0.4 MB (shell pair, offset) task list.  The item was resolved by adopting the
 > other side of the trade, not by promoting the knob.
 
-Born from the spherical MnO arm-2 runs (doc/SphericalLatticePlan.md): the CP2K-span basis (n=152
+Born from the spherical MnO arm-2 runs (doc/Records/SphericalLatticePlan.md): the CP2K-span basis (n=152
 Cartesian inner, diffuse-heavy) drives the stream cache to ~9 GB where the SR-trimmed runs took ~6 —
 the diffuse pairs' collocation boxes, not the function count, are the cost.  CP2K's design point is
 the OPPOSITE trade: no stored streams at all — every pair product recomputed per iteration by
@@ -538,7 +538,7 @@ every k with 2k ≡ 0 — so a Γ-centred 2×2×2 mesh is entirely real), and th
 
 ## Round 3 (2026-08-19): the collocation streams — and why "make them REAL" was the wrong diagnosis
 
-The real-TRIM flip (doc/RealComplexPlan.md) left one named increment behind it: *"the complex-internal
+The real-TRIM flip (doc/OldPlans/RealComplexPlan.md) left one named increment behind it: *"the complex-internal
 evaluator collocation streams, ~150 s of the MnO profile."*  The arithmetic checked out — 87.5 s
 (collocate) + 41.1 s (integrate-back) + 23.5 s (stream build) = 152 s of the 402 s free-run ledger.
 **The DIAGNOSIS did not.**

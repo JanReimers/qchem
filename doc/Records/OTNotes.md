@@ -1,7 +1,7 @@
 # OT (Orbital Transformation) notes — durable findings for the OT increment
 
 CP2K's OT = a preconditioned direct minimiser (same *role* as GDM in this codebase:
-`doc/SCFStrategyPlan.md` increment 5).  These notes consolidate what the 2026-07-23/24 GDM
+`doc/Records/SCFStrategyPlan.md` increment 5).  These notes consolidate what the 2026-07-23/24 GDM
 investigation established, so the OT work does not re-derive them.
 
 ## 1. E[ρ] IS variational on the GPW collocation path — OT should work
@@ -90,4 +90,4 @@ returns an un-normalised change too (a third variant) — fold it in.
 ## 9. Metals / smearing (from SCFStrategyPlan)
 OT + Fermi smearing is CP2K's metals answer; the occupation-face already carries fractional occ.  When
 smearing lands, the schedule signal becomes the free energy `A = E − TS` (Mermin), and OT minimises that.
-See `doc/SCFStrategyPlan.md` and `doc/GPWPlan1.md` item 4b.
+See `doc/Records/SCFStrategyPlan.md` and `doc/Records/GPWPlan1.md` item 4b.

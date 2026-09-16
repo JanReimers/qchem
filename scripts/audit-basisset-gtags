@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# doc/BasisSetTaxonomyPlan.md §1.6 rule 2 / §4 step 3: a MODULE carries the G.  A module tagged for the
+# doc/Records/BasisSetTaxonomyPlan.md §1.6 rule 2 / §4 step 3: a MODULE carries the G.  A module tagged for the
 # point group (qchem.BasisSet.Gaussian.Point.*) must not import a lattice; a module tagged for O(3)
 # (qchem.BasisSet.Radial.*) must not import a lattice nor the molecular point-group symmetry.  This is
 # V1.33's original evidence ("qchem.UnitCell imported inside Molecule/") turned into a test.  Both the

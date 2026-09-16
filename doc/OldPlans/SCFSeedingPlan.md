@@ -10,7 +10,7 @@
 > Nelec 7 and 5, rewritten).  It sat as an open row for six weeks — another instance of *check the tree
 > before believing a tracker row*.
 > Of §10's three follow-ons: the valgen `--spin` failures (V3.1/V3.2) DISSOLVED and are pinned by tests
-> (`doc/CleanupHistory.md`); the non-collinear SU(2) representation is a RULING in
+> (`doc/Records/CleanupHistory.md`); the non-collinear SU(2) representation is a RULING in
 > `doc/CleanupCandidates.md` (search "SU(2)/matrix"); the **molecular spin-resolved SAD seed** (only the
 > plane-wave `SeedCD` consumes `GetAtomicSpinPair`; the molecular `NumericCD` still seeds ρ/2) is a feature
 > wish, now listed under `doc/OpenWork.md` "Parked threads".  Nothing in this file is a queue.

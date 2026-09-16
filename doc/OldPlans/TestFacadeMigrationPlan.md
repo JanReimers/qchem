@@ -1,4 +1,4 @@
-> **RETIRED 2026-09-15 (doc/TestSuitePlan.md phase 2).**  The molecular half was DONE in 2026-08
+> **RETIRED 2026-09-15 (doc/Records/TestSuitePlan.md phase 2).**  The molecular half was DONE in 2026-08
 > (`IntegrationTests/CMakeLists.txt`: "the QchemTester/TestAtom/TestDiracAtom/TestMolecule scaffold is RETIRED";
 > every molecular test drives `qchem::Calculation`).  The solid half -- the same collapse onto
 > `qchem::SolidCalculation` -- landed 2026-09-15 (commits 6f5b7bf2..9227c848): `RunGPW`/`RunGpw`/

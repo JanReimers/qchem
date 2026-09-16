@@ -1,6 +1,6 @@
 # Durable pins — the invariants a session must not violate
 
-**Cut 2026-09-08 out of `doc/GPWPlan.md`'s "Durable pins / invariants" section**, because that file is a
+**Cut 2026-09-08 out of `doc/OldPlans/GPWPlan.md`'s "Durable pins / invariants" section**, because that file is a
 RECORD of the 2026-07 campaign and the pins are not: they govern work all over the tree, and burying
 project-wide invariants inside a finished campaign's plan is how they get missed.  Two user rulings that
 lived only in session memory are folded in and marked as such.
@@ -95,7 +95,7 @@ a real-space-on-lattice quantity must equal its finite counterpart, assert **bit
 rather than an absolute oracle.
 
 **A moved anchor is RE-JUDGED against an INDEPENDENT route, never merely refreshed** (added 2026-09-16 from
-`doc/TestSuitePlan.md` §2): KP-0 re-pinned \f$-7.45137\to-7.45294\f$ only after the band-folding-equivalent Γ
+`doc/Records/TestSuitePlan.md` §2): KP-0 re-pinned \f$-7.45137\to-7.45294\f$ only after the band-folding-equivalent Γ
 supercell agreed.  And the two kinds of failure are not alike: an ENERGY anchor can go stale and must be
 judged; a failing CHARGE, count or weight sum is physics and cannot (user, 2026-09-09).
 
@@ -149,7 +149,7 @@ a PERMUTATION) plus \f$(M-I)s\f$ integral for a shifted mesh — both properties
 not of the point.  An op failing either is not a symmetry of that mesh and must be dropped whole.
 
 **What it cost:** the IBZ stars overlapped on Si \f$2\times1\times1\f$, \f$\Sigma w=1.5\f$, and the SCF
-carried 12 electrons in an 8-electron cell (KP-0, 2026-09-09; record in `doc/OpenWork_History3.md`).
+carried 12 electrons in an 8-electron cell (KP-0, 2026-09-09; record in `doc/Records/OpenWork_History3.md`).
 ▶ Corollary, still open: the group that symmetrizes \f$\rho\f$ must then be intersected with the mesh
 symmetries, or the density is projected into a symmetry the sampling does not have
 (`doc/CleanupCandidates.md` R1.0r).
@@ -168,17 +168,17 @@ out); **a MODULE carries the G** (`…Gaussian.Point.*` vs `…Gaussian.Lattice.
 Spin is a factor of G (\f$G_{spatial}\times SU(2)\f$) until a double group dissolves it — which is why
 Pol/UnPol is an imposed SUBGROUP (V1.37), not a type.  **What it cost:** the tree had been cut on the wrong
 axis (`qchem.UnitCell` imported inside `Molecule/`); V1.33 re-cut it in eleven commits.  Record:
-`doc/BasisSetTaxonomyPlan.md` §1; Doxygen `\ref basisset_taxonomy`.
+`doc/Records/BasisSetTaxonomyPlan.md` §1; Doxygen `\ref basisset_taxonomy`.
 
 ## 15. Smearing needs kT ABOVE the frontier splitting, and GDM as built is fixed-occupation
 
-Two measured facts from the Fermi-smearing build (`doc/GPWPlan1.md`, 2026-07-26): **(a)** kT must EXCEED the
+Two measured facts from the Fermi-smearing build (`doc/Records/GPWPlan1.md`, 2026-07-26): **(a)** kT must EXCEED the
 frontier splitting or the occupations slosh-rotate instead of converging (NaF: 1e-2 converges, 1e-3 does
 not); **(b)** the GDM direct minimiser DIVERGES under smearing because its geodesic direction is the
 fixed-occupation \f$[F,D]\f$, not the free-energy gradient (which carries an occupation-response term).
 ⇒ smeared runs use the fixed-point stage (DIIS/Kerker/Pulay); GDM tail-polishes only at kT=0 until it has a
 smearing-aware direction.  ⚠ This is a limit of OUR parameterisation, not of the method — CP2K's OT has the
-same axis scaffolded; **never conflate hold-the-block with don't-smear** (`doc/SCFStrategyPlan.md`).
+same axis scaffolded; **never conflate hold-the-block with don't-smear** (`doc/Records/SCFStrategyPlan.md`).
 
 ## 16. A basis SPAN can reverse a magnetic ordering — match spans before comparing to an oracle
 
@@ -189,7 +189,7 @@ repulsion DODGE worth 37% of the weak basin's reward), a freedom the oracle's sp
 lacks.  And the earlier "8 mHa agreement" with CP2K was contaminants-vs-diffuse COMPENSATION.  ⇒ Before
 any energy is compared to an oracle, the two spans are matched exponent-for-exponent
 (`valence_lowq_sph` v2 = the CP2K transcription), and a Cartesian-d basis is never used for a d-metal
-ordering question.  Record: `doc/SphericalLatticePlan.md` I0–I2.
+ordering question.  Record: `doc/Records/SphericalLatticePlan.md` I0–I2.
 
 ## 17. A class reports CONTEMPORANEOUSLY with its own activity — console order == execution order
 
@@ -197,12 +197,12 @@ ordering question.  Record: `doc/SphericalLatticePlan.md` I0–I2.
 another class to emit.  An `Emit*()` method on an abstract face, or a "reporter" that PULLS state out of
 objects after the fact, is the defect (user, 2026-09-11; V1.5 deleted the `Emit*()` faces).  Corollary for
 trace columns: a printed number is either physics or a gate the run CONSUMES — printing \f$\alpha_{eff}\f$
-implied it was used, and it was deleted for that reason (user, 2026-09-13).  Record: `doc/RunReportPlan.md`
+implied it was used, and it was deleted for that reason (user, 2026-09-13).  Record: `doc/Records/RunReportPlan.md`
 (the design), `doc/CleanupCandidates.md` V1.5.
 
 ---
 
-**Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
+**Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/OldPlans/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
 13 is the KP-0 multi-k defect (2026-09-09).  14–17 were harvested 2026-09-16 when their plan files went RECORD
 (`BasisSetTaxonomyPlan`, `GPWPlan1`, `SphericalLatticePlan`, `RunReportPlan`); pin 10's anchor rule came from
 `TestSuitePlan` the same day.

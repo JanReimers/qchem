@@ -1,10 +1,10 @@
 # GPW grid inventory — every grid, what sizes it, knob vs algorithm
 
-Written 2026-07-21 in answer to the user story in `doc/GPWPlan.md` §0e ("table of all grid usages, how
+Written 2026-07-21 in answer to the user story in `doc/OldPlans/GPWPlan.md` §0e ("table of all grid usages, how
 grid range/spacing is decided, and if it is a user knob or decided by a sensible algo").  Verified
 against the code as of branch `gpw-0e-pp-local-split`; the run-start `[GPW grid]` diagnostic
 (`GPW_Evaluator::ReportGrids`) prints every row of this table live, so the doc and a log can always be
-cross-checked.  CP2K comparison numbers are the NaF deck (`doc/CP2Kresults.md`).
+cross-checked.  CP2K comparison numbers are the NaF deck (`doc/Records/CP2Kresults.md`).
 
 ## 0. "Ecut for *what*?" — the disambiguation
 

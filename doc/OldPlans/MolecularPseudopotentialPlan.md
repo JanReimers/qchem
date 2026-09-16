@@ -138,7 +138,7 @@ already in `MultiSpecies_LocalPotential`/`MultiSpecies_SeparablePotential`, lift
 
 ## 8. Cross-link: SAD valence-density seeding (PW) — interim fake now, PP-atom later
 
-The PW SAD seed (Phase 2 of [[project_scf_seeding_next]] / `doc/SCFSeedingPlan.md` §3.1) needs a
+The PW SAD seed (Phase 2 of [[project_scf_seeding_next]] / `doc/OldPlans/SCFSeedingPlan.md` §3.1) needs a
 **valence-only** atomic ρ(r) (Si = 4 e: 3s²3p²), but `runscf` currently emits the **all-electron** ρ
 (14 e). The "do it right" route is an **atomic pseudopotential solve** producing a true pseudo-valence
 density — which is precisely what **Path A** of this plan (GTH/HGH in a Gaussian/atom basis) unlocks. So

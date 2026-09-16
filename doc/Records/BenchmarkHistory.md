@@ -99,7 +99,7 @@ comparison.
 
 **⚠ AND `CP2K_COMPAT=1` IS STILL NOT PARITY** — the switch covers four deviations and at least two more
 matter (doc/OpenWork.md N5 carries the full list):
-- ~~**The pair-stream CACHE**~~ ✅ **DELETED 2026-08-27** (`doc/CollocationRewritePlan.md` step 7), so this
+- ~~**The pair-stream CACHE**~~ ✅ **DELETED 2026-08-27** (`doc/OldPlans/CollocationRewritePlan.md` step 7), so this
   deviation no longer exists: like CP2K, qchem now re-evaluates the orbital pairs every iteration and keeps
   only a ~0.2–0.4 MB (shell pair, offset) TASK LIST.  The history below is kept because it is what turned
   the campaign toward making the on-the-fly evaluation fast instead of caching harder — and because its
@@ -284,7 +284,7 @@ those buckets translated almost exactly into the 1.47× the row lost when it wen
 CPU on the one row that matters most**, and the case for deleting it rests on the RAM axis and on the two
 latent defects it was hiding, not on a free lunch.  ⚠ The 663 s "before" is the 2026-08-19 banked row on an
 older binary, so treat the MnO delta as indicative; the directly-measured, same-binary A/B is the
-2.91×-on-the-buckets figure in `doc/CollocationRewritePlan.md` step 7.
+2.91×-on-the-buckets figure in `doc/OldPlans/CollocationRewritePlan.md` step 7.
 ✅ **AND THE ROW HAS SINCE GONE PAST WHERE THE CACHE LEFT IT — 976 → 837 → 678 → 620 → 584 s, against
 the 663 s the 4 GB cache used to buy, on 2.7× less RAM.**  Four changes did it, none needing a re-bank —
 the box-walk buckets went 477 → 344 (the `template<int LP>` dispatch) → 192 (the **collocation memo depth
@@ -520,7 +520,7 @@ caps at −57.620, 3.8 Ha short"* since 2026-08-26.  Re-run on today's tree, sam
 collapsing: the energy is settled (ΔE amplitude 2.7e-8), the magnetic order holds without any imposition,
 and Δρ has FLOORED at 1.69e-5 against a 1e-5 target — the run's own detector calls it a *"FIT-FLOOR STALL
 (Δρ floored, ΔE tiny -- functional/grid)"*, not an oscillation.  That is **A4 territory** (the Δρ/N
-convergence gate, `doc/SCFStrategyPlan.md`), which is the third independent thing this session has pointed
+convergence gate, `doc/Records/SCFStrategyPlan.md`), which is the third independent thing this session has pointed
 at A4.
 
 ⚠ **THE HONEST PARITY STANDING, then**: 2736 s against 373 s CPU is **7.3×**, or **3.5× PER ITERATION**

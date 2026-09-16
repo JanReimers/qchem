@@ -8,7 +8,7 @@
 > "sequencing toward the north-star" section names PBE/GGA and +U; both are tracked in `doc/OpenWork.md`
 > (parked threads / programme step 5), not here.  Nothing in this file is a queue.
 
-OpenWork **item B**. Companion to `doc/FacadeDFTPlan.md` (this is its deferred "D2", reframed). Living
+OpenWork **item B**. Companion to `doc/OldPlans/FacadeDFTPlan.md` (this is its deferred "D2", reframed). Living
 document — *plan first, code second*.
 
 ## The reframe (the tenet, not "add the polarized case")
@@ -222,7 +222,7 @@ This plan delivers spin-native **LDA**; the rungs above it are separate library 
 in scope here:
 
 - **PBE / GGA** — density-gradient machinery on the mesh; the highest-value functional for batteries but a
-  real increment (`doc/FacadeDFTPlan.md` flags it). The spin-native correlation interface (face B) built
+  real increment (`doc/OldPlans/FacadeDFTPlan.md` flags it). The spin-native correlation interface (face B) built
   here is the right shape to extend to a spin-native GGA correlation later.
 - **+U** — orbital-dependent Hubbard term; downstream of forces and multi-species PP on the battery roadmap.
 

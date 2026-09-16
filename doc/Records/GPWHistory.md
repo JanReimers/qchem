@@ -1,6 +1,6 @@
 # GPW History — archived DONE narratives & resolved investigations
 
-Moved out of `doc/GPWPlan.md` (2026-07-14) to keep the plan lean: the PLAN carries the compact timeline,
+Moved out of `doc/OldPlans/GPWPlan.md` (2026-07-14) to keep the plan lean: the PLAN carries the compact timeline,
 the current state (the CP2K recipe + the analytic-rewrite record), the TODO, and the durable pins; THIS file
 preserves the full per-increment narratives, diagnostic transcripts, dead-end records, and resolved
 investigations for archaeology.  Nothing here should be needed to orient a new session.
@@ -408,7 +408,7 @@ un-DISABLED (fast once multigrid) → NaF vs CP2K same-basis (the real target). 
   Ecut=160 × Rcut=2a images could be large. Fix = magnitude-screen the images (above) + the multigrid (above).
 - **The W-tensor / integrate-back** — O(nGfit × nAO²) storage+FFTs. Fix = whole-density collocation (§4).
 **Deliverable:** a profile-backed ranking, then implement the top 1–2 fixes, re-time NaF vs CP2K. THEN return to
-the (now-cheap) mixing tuning (G0/α/DIIS/nmax) to get the converged NaF number for `doc/CP2Kresults.md`.
+the (now-cheap) mixing tuning (G0/α/DIIS/nmax) to get the converged NaF number for `doc/Records/CP2Kresults.md`.
 - **SPEED: the GPW NaF run is VERY slow (≫ CP2K) — magnitude-screening is now a SPEED item, not just correctness.**
   The `|R|≤Rcut` sphere drags EVERY function (incl. tight ones that overlap nothing at 2a) out to Rcut=2a, and the
   collocation re-sums that whole image set at every grid point every SCF iteration. Per-pair `|⟨χ_i|χ_j^R⟩|>ε`
@@ -771,7 +771,7 @@ per-iteration collocation volume is now the whole NaF story.**
 - **NaF re-time: 2h15m → 40m41s (3.3×).**  Setup (stream build + static-PP sweep) is now a large fixed
   share; the D-aware kills are WEAK while the density sloshes (large |D| everywhere) and strengthen as it
   settles — so the next multiplier is convergence itself.
-- **CP2K NaF ORACLE (doc/CP2Kresults.md): Etot = −27.93128 Ha** on OUR transcribed low-q SR basis
+- **CP2K NaF ORACLE (doc/Records/CP2Kresults.md): Etot = −27.93128 Ha** on OUR transcribed low-q SR basis
   (`naf_gpw_sr_diag.inp`: q-tag-free own basis fixes the q1-vs-q9 abort; damped Broyden α=0.2 +
   diagonalization).  CP2K's ENERGY settles to 1e-6 by ~130 iterations while its DENSITY limit-cycles forever
   (RMS 0.03–0.12) — the SAME charge-transfer cycle we see (its OT run never settled E at all, −25.7↔+253):
@@ -1016,8 +1016,8 @@ REFINED, not simply confirmed — the mechanism is now directly visualized (Ecut
    stays — now purely a precision/conditioning health meter.  Also probe: the ionic SEED's 1.09-e
    precision-floor loss (may already be gone with SR2's conditioning).
 
-## §0c PULAY/BROYDEN ρ̃-MIXING — the mixer face + shared DIIS engine landed (2026-07-18; design in doc/SCFStrategyPlan.md).  The full record:
-> **SUPERSEDED/EXPANDED by `doc/SCFStrategyPlan.md` (2026-07-18)** — the mixer is one seam of a four-role
+## §0c PULAY/BROYDEN ρ̃-MIXING — the mixer face + shared DIIS engine landed (2026-07-18; design in doc/Records/SCFStrategyPlan.md).  The full record:
+> **SUPERSEDED/EXPANDED by `doc/Records/SCFStrategyPlan.md` (2026-07-18)** — the mixer is one seam of a four-role
 > ISP model (orbital / occupation / density / loop) with a single shared extrapolator (DIIS≡Pulay, one
 > paper-faithful engine on either the F or ρ residual stream) and an occupation seam that extends to Fermi
 > smearing.  Read that doc for the design + increment plan; the sketch below is retained for context.
@@ -1219,7 +1219,7 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
   2× as a future efficiency lever.)
 
   **★ RUN 2026-07-21 — items 1–3 DONE; the energies DO NOT AGREE → the gap is the collocation METHOD,
-  not grid settings.**  (The user-story questions above are answered in the new **`doc/GPWGrids.md`** —
+  not grid settings.**  (The user-story questions above are answered in the new **`doc/Records/GPWGrids.md`** —
   the requested table of every grid, its sizing rule, and knob-vs-algorithm status.)
   - **Instruments LANDED (items 2–3):** `GPW_Evaluator::ReportGrids` — run-start cout of the basis
     exponents (α_min/α_max/cutoffFactor → the auto floor) + one line per STORED grid (FFT reference,
@@ -1236,7 +1236,7 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
     `~/Code/cp2k-runs/`.  Si Γ **−7.11505788** and NaF **−27.9312751** reproduce the recorded oracles
     exactly (NaF grid leak 1.95e-4 e, same class).  **CP2K's ACTUAL NaF grids (from the `PW_GRID|` log):
     160 Ha/36³, 53.3/24³, 17.8/12³, 5.926/8³; REL_CUTOFF 30 Ha; pair spread 3973/3149/3532/2342** —
-    table in `doc/CP2Kresults.md`.  CP2K's N=36 is MIXED-RADIX (2²·3², FFTW-class); our radix-2-only
+    table in `doc/Records/CP2Kresults.md`.  CP2K's N=36 is MIXED-RADIX (2²·3², FFTW-class); our radix-2-only
     FFT pads the SAME 160-Ha ball to **128³ = 45× the points** — a standing efficiency lever.
   - **THE MEASUREMENT** (grid-continuation test, `GC_FINE_ECUT=160 GPW_MGRID_ECUTS=53.33,17.78,5.93
     GPW_RELCUTOFF=30`, 4 threads; full log `~/Code/naf_gridmatched.log`): coarse seed (Ecut=40, stiff
@@ -1337,7 +1337,7 @@ source that CP2K (XC on the raw collocated raster, never ball-limited) does not 
   per-level BOX truncation (the exact adjoint of zero-pad upsampling) → iFFT per level → the EXISTING
   analytic `IntegratePotential` seam.  Adjoint-exact by construction ⇒ H_xc = ∂E_xc/∂D; re-gate with
   `GPW.XCPotentialConsistencyFD`.  Hartree/Poisson STAYS on the ball (diagonal kernel, variational — the
-  legitimate projection; `doc/GPWGrids.md` row 2).  Design decision en route: where the real-space-density
+  legitimate projection; `doc/Records/GPWGrids.md` row 2).  Design decision en route: where the real-space-density
   seam lives (the ΔG_Map-speaking `G_ERI3`/`Band_FT_IBS` faces are ball-shaped; the raw path wants
   rvec_t rasters — likely a new capability on the fit-basis/G_FieldEvaluator side, since "what ρ does XC
   see" is the fit basis's policy question).

@@ -7,14 +7,14 @@ Reorganized 2026-08-05 (Claude review pass): everything below the SOLID section 
 status — **READY / VERIFY / DECIDED-ELSEWHERE / DONE** — with per-item verdicts from a 4-sweep
 code verification.  User prose retained (typos fixed only); user replies of 2026-08-05 folded in.
 
-Split 2026-08-09: the closed record moved to **`doc/CleanupHistory.md`** (nothing trimmed — each closed
+Split 2026-08-09: the closed record moved to **`doc/Records/CleanupHistory.md`** (nothing trimmed — each closed
 item leaves a one-line stub here and its full text there, so `see R2.8`-style references still resolve).
 Read the history file's preamble before deciding to prune it; the rejected attempts have repeatedly been
 worth more than the landed ones.
 
 **Harvested again 2026-09-08** (user: *"done and todo items interleaved ... hard to read and assess"*).
 Fourteen items had been closed IN PLACE and never moved, holding **1165 lines of closed record among the
-open ones**.  They are in `doc/CleanupHistory.md` under *"HARVEST 2026-09-08"*, verbatim, with the usual
+open ones**.  They are in `doc/Records/CleanupHistory.md` under *"HARVEST 2026-09-08"*, verbatim, with the usual
 stubs here.  ★ **Where a closed item had a SURVIVING REMAINDER, the remainder stayed in this file** — it is
 open work — and only the closed record moved; the stub says so in its first line.  Verified line-for-line:
 zero non-blank lines exist in neither file.
@@ -28,7 +28,7 @@ it is written, not "eventually".  A ✅ that stays in the worklist is indistingu
 
 ## The state that matters: ALL SIX RealComplexPlan prerequisites are DONE
 
-`doc/RealComplexPlan.md` §7 lists what must land before the real/complex type refactor starts, because
+`doc/OldPlans/RealComplexPlan.md` §7 lists what must land before the real/complex type refactor starts, because
 those items sit on the very faces it restructures.  Status:
 
 | prereq | state |
@@ -62,7 +62,7 @@ Every §7 prerequisite has landed.  The type refactor's staging (RealComplexPlan
 (`IsReal()` queries), and the MnO session's real-TRIM work (which ruled 2026-08-16/17 that it WAITS on
 V1.1 + V1.11) has everything it needs: `Orbital_DFT_IBS<double,dcmplx>` is a live spelling and the WF/
 occupation seam carries no state the variant-child restructuring would entangle.
-- **V1.5 landed 2026-08-16** (see the item / doc/CleanupHistory.md).  The session's status audit of
+- **V1.5 landed 2026-08-16** (see the item / doc/Records/CleanupHistory.md).  The session's status audit of
   FittingCleanupPlan found it more finished than it knew: **H** essentially landed via V1.26/V2.4,
   **I.2** landed (`relCutoff` live), **§K's `cvec_t` sub-bullet is overtaken** (`ProjectedScalar_G` no
   longer exists) — so **K's core (the fit-{G} densification) is UNBLOCKED but DEFERRED (user ruling
@@ -176,7 +176,7 @@ reason, because the decision to tighten it again later can only be made from tho
   its incomplete key together.  **A cache that is hard to invalidate is often a cache that should not
   exist.**
 
-## ✅ V1.31 DONE `627a4ff9` — full record → doc/CleanupHistory.md.  (analysis kept below)
+## ✅ V1.31 DONE `627a4ff9` — full record → doc/Records/CleanupHistory.md.  (analysis kept below)
 
 ## The analysis that produced it — and the diagram that changed the answer (2026-08-10)
 
@@ -408,7 +408,7 @@ MnO campaign proceeds undisturbed in qchem6.
   when the integrand carries angular structure — this produced the occupied-d KB defect (l=0 projector
   leaking into EVERY l block; every l>=1 projector integrating to ~1e-33), invisible for the whole life
   of the PP code because MnO is the first system with OCCUPIED d projectors (fix c2d86ec9;
-  doc/SymmetryUpgradePlan.md §7 step 7).
+  doc/Records/SymmetryUpgradePlan.md §7 step 7).
   *Interim fix that landed:* `BasisSet::ImplicitAngular_IBS` (`ImplicitL()`/`RadialValues(r)`) makes the
   fakeness explicit in the type system and `PP_NonLocal` cross-casts to it for a per-l radial assembly —
   that CONTAINS the trap, it does not remove it.
@@ -921,7 +921,7 @@ MnO campaign proceeds undisturbed in qchem6.
   **8 (items 0 + 1) — the fitter's contraction face is keyed on BOTH scalars and takes the DFT block.**
   `FitContraction<U>::Overlap(const Orbital_1E_IBS<U>*)` became
   `FitContraction<U,TFit>::Overlap(const Orbital_DFT_IBS<U,TFit>&)`.  One change, two reasons:
-  - *Both axes*, because doc/RealComplexPlan.md 3c-3 makes them differ in production — a real TRIM block on
+  - *Both axes*, because doc/OldPlans/RealComplexPlan.md 3c-3 makes them differ in production — a real TRIM block on
     a periodic run contracts against the run's COMPLEX fit basis, and `<U>` alone means `<U,U>`, a face no
     fitter in the tree declares.  Exactly the correction `BasisSet::Integrals_Overlap3C` took in increment
     7, so the two mirror faces now say the same thing in the same words, with **no default for `TFit` on
@@ -1085,7 +1085,7 @@ MnO campaign proceeds undisturbed in qchem6.
 
 - **R1.0i ✅ THE `dynamic_cast` SURVEY — DONE 2026-09-08.**  (CLAUDE.md's standing TODO: *"a system-wide
   survey of these casts and throw custom exceptions full of relevant information in the event they fail"*;
-  also `doc/FittingCleanupPlan.md` item C, the last thing open in that file.)
+  also `doc/OldPlans/FittingCleanupPlan.md` item C, the last thing open in that file.)
 
   **THE CENSUS: 253 cast sites, 220 in production, over 75 distinct target types.**  Classified, the
   picture is not what the TODO's framing assumed — the tree is in better shape on the *design* axis and
@@ -1220,7 +1220,7 @@ MnO campaign proceeds undisturbed in qchem6.
   terms are moved onto it.
 
   ▶ **AND `+U` SHOULD BE BORN ON IT**, not retrofitted: it is the next `Dynamic_HT` to be written
-  (`doc/ParallelAndOraclePlan.md` PHASE 3), its occupation-matrix forward and its potential adjoint are
+  (`doc/Records/ParallelAndOraclePlan.md` PHASE 3), its occupation-matrix forward and its potential adjoint are
   the same pair, and writing it against the face is free where converting it later is not.
 
   ⚠ **WHAT IS EXPLICITLY NOT IN SCOPE — and the boundary is sharp.**  The `Static_HT` terms (overlap,
@@ -1633,7 +1633,7 @@ MnO campaign proceeds undisturbed in qchem6.
 
 - **R1.0h ✅ DONE 2026-09-14 — the \f$H_{ij}\f$ slot pre-creation (2026-09-09) + `ChargeBreakdown` as the
   site-moment OWNER; the owning per-iteration SCOPE object DECLINED (no payload left).**  Full row + record →
-  `doc/CleanupHistory.md` "LANDED 2026-09-14 — R1.0h".  ⇒ **V1.37 step 3 is UNBLOCKED.**
+  `doc/Records/CleanupHistory.md` "LANDED 2026-09-14 — R1.0h".  ⇒ **V1.37 step 3 is UNBLOCKED.**
 
 - **R1.0e(ii) ✅ THE LIBRARY HOME IS SETTLED AND EXECUTED 2026-09-10 — `DensitySampler` LIVES IN
   `qcChargeDensity`.**  (The parked decision was `qcChargeDensity` vs a new leaf library; the user added the
@@ -1786,38 +1786,38 @@ MnO campaign proceeds undisturbed in qchem6.
   factored-\f$\rho\f$ contraction is covered by
   `RealComplexTerms.FactoredRhoMatchesFullQuadraticFormBothScalars` (`IntegrationTests/RealComplexTermsUT.C`),
   the exact unit gate this item specified — \f$D=LL^\dagger\f$ from a thin random \f$L\f$, both scalars.
-  **→ doc/CleanupHistory.md** (HARVEST 2026-09-09)
+  **→ doc/Records/CleanupHistory.md** (HARVEST 2026-09-09)
 
 - **R1.0d ✅ CLOSED — fixed `79c2e659` (2026-08-25); the item simply never moved.**  The imposed Becke
   mesh keeps its site blocks: the orbit filter is now a per-point KEEP mask re-emitted in the ORIGINAL
   site-major order with `BeginSite` at each boundary, and `RequireSiteBlocks` THROWS on any Becke mesh
-  that comes out with `NSites()==0` (both arms).  **→ doc/CleanupHistory.md** (HARVEST 2026-09-09)
+  that comes out with `NSites()==0` (both arms).  **→ doc/Records/CleanupHistory.md** (HARVEST 2026-09-09)
 
-- **R1.1 ✅ DONE `06e23f5d`. `FittedVxcPol::GetEnergy` clobbers `te.Exc`** — `te.Exc = 0.0;` before delegating.  **→ doc/CleanupHistory.md**
-- **R1.2 ✅ DONE `06e23f5d` (with one CORRECTION, below). `=` vs `+=` on `EnergyBreakdown`.**  Assigners:.  **→ doc/CleanupHistory.md**
-- **R1.3 ✅ DONE `38a1ebd6` — fixed via `Clone()`, not stopgapped. `UnitCell` SLICING copy** — SCFIterator.C:163.  **→ doc/CleanupHistory.md**
-- **R1.4 ✅ DONE `72fecf8d` (THROW, not assert — deviation explained). Silent zero `Gradient()` overrides** — FourierMixCD.C:75 and IrrepCD<dcmplx>.  **→ doc/CleanupHistory.md**
-- **R1.5 ✅ DONE `72fecf8d`. `tChargeDensity::EvalBatch` duplicates `ScalarFunction::operator()(rvec3vec_t)`.**.  **→ doc/CleanupHistory.md**
-- **R1.6 ✅ DONE `06e23f5d`. `Write()` streams raw POINTERS (hex addresses)** — Imp/FittedVxc.C:111 (`os << itsLDAVxc`).  **→ doc/CleanupHistory.md**
+- **R1.1 ✅ DONE `06e23f5d`. `FittedVxcPol::GetEnergy` clobbers `te.Exc`** — `te.Exc = 0.0;` before delegating.  **→ doc/Records/CleanupHistory.md**
+- **R1.2 ✅ DONE `06e23f5d` (with one CORRECTION, below). `=` vs `+=` on `EnergyBreakdown`.**  Assigners:.  **→ doc/Records/CleanupHistory.md**
+- **R1.3 ✅ DONE `38a1ebd6` — fixed via `Clone()`, not stopgapped. `UnitCell` SLICING copy** — SCFIterator.C:163.  **→ doc/Records/CleanupHistory.md**
+- **R1.4 ✅ DONE `72fecf8d` (THROW, not assert — deviation explained). Silent zero `Gradient()` overrides** — FourierMixCD.C:75 and IrrepCD<dcmplx>.  **→ doc/Records/CleanupHistory.md**
+- **R1.5 ✅ DONE `72fecf8d`. `tChargeDensity::EvalBatch` duplicates `ScalarFunction::operator()(rvec3vec_t)`.**.  **→ doc/Records/CleanupHistory.md**
+- **R1.6 ✅ DONE `06e23f5d`. `Write()` streams raw POINTERS (hex addresses)** — Imp/FittedVxc.C:111 (`os << itsLDAVxc`).  **→ doc/Records/CleanupHistory.md**
 - **R1.7 ✅ DONE `26af31b6`. `SymmetryAdapted_IBS::MakeDirect/MakeExchange` return empty `ERI4{}` silently** —
   split into `Orbital_HF_IBS` (contraction) + `Internal.Orbital_ERI4_IBS` (substrate); the substrate is now
-  invisible outside qcBasisSet.  **→ doc/CleanupHistory.md**
-- **R1.8 ✅ DONE `06e23f5d`. `FittedVee` casts `bs` and dereferences with NO assert** (Imp/FittedVee.C:41-42) — the.  **→ doc/CleanupHistory.md**
-- **R1.9 ✅ DONE `3882938e`. Molecular `BasisSetID()` streamed its SEPARATORS as hex addresses.**  **→ doc/CleanupHistory.md**
+  invisible outside qcBasisSet.  **→ doc/Records/CleanupHistory.md**
+- **R1.8 ✅ DONE `06e23f5d`. `FittedVee` casts `bs` and dereferences with NO assert** (Imp/FittedVee.C:41-42) — the.  **→ doc/Records/CleanupHistory.md**
+- **R1.9 ✅ DONE `3882938e`. Molecular `BasisSetID()` streamed its SEPARATORS as hex addresses.**  **→ doc/Records/CleanupHistory.md**
 ### R2 — mechanical hygiene
 
-- **R2.21 ✅ FOUND AND FIXED `9da2e825` (2026-08-24). `blaze::conj` IS A NO-OP ON A COMPLEX SCALAR** — it silently broke the Cholesky factor; use `blazem::conjs`.  **→ doc/CleanupHistory.md**
-- **R2.1 ✅ DONE `06e23f5d`. `tDM_CD::DM_ContractBlocks` → pure virtual.**  The asserting default is DEAD — all three.  **→ doc/CleanupHistory.md**
-- **R2.2 ✅ DONE `48e25b74`. Collapse `Kinetic` + `PW_Kinetic` → `Kinetic<T>`.**  Both are 0.5×(kinetic matrix);.  **→ doc/CleanupHistory.md**
-- **R2.3 ⛔ WITHDRAWN — NOT a free dedup; re-filed as part of V1.1 (verified 2026-08-07).**.  **→ doc/CleanupHistory.md**
-- **R2.4 ✅ DONE `38a1ebd6`. Stale-comment/import batch**: Band_DFT_IBS.C header claims PlaneWave_IBS implements it.  **→ doc/CleanupHistory.md**
+- **R2.21 ✅ FOUND AND FIXED `9da2e825` (2026-08-24). `blaze::conj` IS A NO-OP ON A COMPLEX SCALAR** — it silently broke the Cholesky factor; use `blazem::conjs`.  **→ doc/Records/CleanupHistory.md**
+- **R2.1 ✅ DONE `06e23f5d`. `tDM_CD::DM_ContractBlocks` → pure virtual.**  The asserting default is DEAD — all three.  **→ doc/Records/CleanupHistory.md**
+- **R2.2 ✅ DONE `48e25b74`. Collapse `Kinetic` + `PW_Kinetic` → `Kinetic<T>`.**  Both are 0.5×(kinetic matrix);.  **→ doc/Records/CleanupHistory.md**
+- **R2.3 ⛔ WITHDRAWN — NOT a free dedup; re-filed as part of V1.1 (verified 2026-08-07).**.  **→ doc/Records/CleanupHistory.md**
+- **R2.4 ✅ DONE `38a1ebd6`. Stale-comment/import batch**: Band_DFT_IBS.C header claims PlaneWave_IBS implements it.  **→ doc/Records/CleanupHistory.md**
 - **R2.5 ✅ CLOSED 2026-09-09. `exit(-1)` in library code → throw.**  The two `tPolarized_CD` sites now
   throw through one `RequirePolarizedPartner` helper.  ▶ **The ruling that unblocked it:** the LSP
   narrowing the item held back for is NOT a defect to design away — `MixIn`/`GetChangeFrom` are BINARY
   operations on a hierarchy, so no single-dispatch signature can state the same-representation
   precondition and double dispatch would only relocate the check.  Only the FAILURE MECHANISM was wrong.
   Gate: `MixerLineage.PolarizedDensityRefusesAnUnpolarizedPartner` (`UTChargeDensity`).
-  **→ doc/CleanupHistory.md**
+  **→ doc/Records/CleanupHistory.md**
 
 - **R2.5b ✅ DONE 2026-09-09 — ALL NINE CONVERTED, AND THE PROJECT NOW HAS AN INTERIM ERROR POLICY.**
   ▶ **USER POLICY (2026-09-09), which is the durable part of this item:** *"we really don't have a proper
@@ -1837,19 +1837,19 @@ MnO campaign proceeds undisturbed in qchem6.
   throws) a reader belongs on the `Outcome` side.  The messages were written to be worth carrying either
   way: each names the subject and what was expected, not just where it stopped.
 
-- **R2.6 ✅ DONE 2026-08-07. The `LDAVxc` bundle** — a "Hamiltonian term" whose `CalcMatrix`/`GetEnergy` call.  **→ doc/CleanupHistory.md**
-- **R2.7 ✅ DONE 2026-08-07. `FittedCD::Clone()` — delete.**  Pure virtual (FittedCD.C:28) whose SOLE implementation.  **→ doc/CleanupHistory.md**
-- **R2.8 ✅ DONE 2026-08-07. `InsertStandardTerms<dcmplx>` = assert(false)** (Imp/HamiltonianImp.C:49-53) — a.  **→ doc/CleanupHistory.md**
+- **R2.6 ✅ DONE 2026-08-07. The `LDAVxc` bundle** — a "Hamiltonian term" whose `CalcMatrix`/`GetEnergy` call.  **→ doc/Records/CleanupHistory.md**
+- **R2.7 ✅ DONE 2026-08-07. `FittedCD::Clone()` — delete.**  Pure virtual (FittedCD.C:28) whose SOLE implementation.  **→ doc/Records/CleanupHistory.md**
+- **R2.8 ✅ DONE 2026-08-07. `InsertStandardTerms<dcmplx>` = assert(false)** (Imp/HamiltonianImp.C:49-53) — a.  **→ doc/Records/CleanupHistory.md**
 - **R2.9 ✅ DONE `268473b9` (all three sub-items). Small Hamiltonian hardening** — (iii) the whole-basis
   latch now THROWS on change (not the asked-for assert: `-DNDEBUG`); (ii) `tDynamic_HT_Imp_NoCache` keys its
   scratch by `Irrep`, so both siblings of one interface finally promise the SAME reference lifetime — the
   actual defect, and neither of the two fixes the item proposed; (i) `XC_GridEngine` is const + `mutable`
   with a `shared_ptr<const>` holder, and its two non-cross-invalidating rho caches are pinned by asserts.
-  **→ doc/CleanupHistory.md**
-- **R2.10 ✅ DONE 2026-08-07. `Fit_IBS::SetMesh` → ctor parameter.**  Two-phase construction; the construction-time.  **→ doc/CleanupHistory.md**
-- **R2.11 ✅ DONE 2026-08-07. `DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every.  **→ doc/CleanupHistory.md**
-- **R2.12 ✅ DONE 2026-08-07. `UnmatchedCounts`/fold `tol` defaults** — 1e-8 fractional as a literal in three places.  **→ doc/CleanupHistory.md**
-- **R2.13 ✅ DONE 2026-08-07. Becke strings/labels rename in `Delta_*`/`XC_GridEngine`.**  Verified: the classes are.  **→ doc/CleanupHistory.md**
+  **→ doc/Records/CleanupHistory.md**
+- **R2.10 ✅ DONE 2026-08-07. `Fit_IBS::SetMesh` → ctor parameter.**  Two-phase construction; the construction-time.  **→ doc/Records/CleanupHistory.md**
+- **R2.11 ✅ DONE 2026-08-07. `DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every.  **→ doc/Records/CleanupHistory.md**
+- **R2.12 ✅ DONE 2026-08-07. `UnmatchedCounts`/fold `tol` defaults** — 1e-8 fractional as a literal in three places.  **→ doc/Records/CleanupHistory.md**
+- **R2.13 ✅ DONE 2026-08-07. Becke strings/labels rename in `Delta_*`/`XC_GridEngine`.**  Verified: the classes are.  **→ doc/Records/CleanupHistory.md**
 - **R2.14 Hamiltonian term-naming sweep** (user conventions):
   - Enn/Vnn nuclear-nuclear repulsion; Een/Ven electron-nuclear attraction; Eee/Vee
     electron-electron repulsion; Eex/Vex exchange; Ecorr/Vcorr correlation; Exc/Vxc
@@ -1866,7 +1866,7 @@ MnO campaign proceeds undisturbed in qchem6.
     - **`PW_Pseudo` has NO long-range component.**  Its matrix is `MakeLocalPotentialShort` + (optional)
       `MakeSeparablePotential` (Imp/PWTerms.C:50-53) and its energy is `te.Een` + the SHORT G=0
       alignment.  The LONG-range local part was moved OUT to `PW_Hartree` — the CP2K local-PP split
-      (doc/GPWPlan.md 0e-PP): the deep-well erf potential folds into the ONE G-space Poisson solve
+      (doc/OldPlans/GPWPlan.md 0e-PP): the deep-well erf potential folds into the ONE G-space Poisson solve
       instead of a per-orbital-pair sharp-field sweep.  So there is no short/long pair to rename here;
       the term is entirely short+nonlocal.  `Ven_PP` alone would read as "the whole PP", so prefer
       `Ven_PP_Short` (or `Ven_PP` + a doc line saying the long part lives in the electrostatics term).
@@ -1935,20 +1935,20 @@ MnO campaign proceeds undisturbed in qchem6.
       `PWFittedVxc` (plane waves) — and "PW" modifies the noun it is actually true of.
     - **Sequence:** do it WITH the `Delta_XC` rename (V2.1), not before — renaming one of a matched pair
       leaves the family less consistent than it is now.
-- **R2.18 ✅ NAMES DONE `86c5b24d`.  The ENCAPSULATION half is DELIBERATELY LEFT OPEN — user ruling, kept here because it is the open part:**  **→ doc/CleanupHistory.md**
+- **R2.18 ✅ NAMES DONE `86c5b24d`.  The ENCAPSULATION half is DELIBERATELY LEFT OPEN — user ruling, kept here because it is the open part:**  **→ doc/Records/CleanupHistory.md**
     - **ENCAPSULATION (public vs protected `Make`): low priority, DELIBERATELY LEFT OPEN.**  *"All the
       MakeXXX() functions were originally protected.  For DFT the 3C versions (MakeOverlap3C,
       MakeRepulsion3C) still are.  It seemed like these were purely internal functions ... but that turned
       out to be incorrect in some cases.  Anyway I have no strong policy on this (encapsulation level)
       right now.  Maybe the right policy will emerge as we refactor.  My intuition says that it is a low
       priority decision."*
-- **R2.19 ✅ DONE `86c5b24d`. `FittedVxcPol` copied a matrix its child already owned.**  **→ doc/CleanupHistory.md**
+- **R2.19 ✅ DONE `86c5b24d`. `FittedVxcPol` copied a matrix its child already owned.**  **→ doc/Records/CleanupHistory.md**
 - **R2.20 ✅ DONE `7c80e71e` (2026-08-17).**  The four oracle helpers moved into an
   `export namespace qchem` block of `qchem.PeriodicTable` (the user's suggested home); TestUtils.C had
   nothing test-only left and is DELETED with both FILE_SET wirings — scfrun imports no test module.
-  721/721 green.  **→ doc/CleanupHistory.md**
+  721/721 green.  **→ doc/Records/CleanupHistory.md**
 
-- **R2.21 ✅ DONE 2026-08-17 (concurrent-cleanup session), BOTH halves** — the occupation state stores each block's reference under ITS OWN scalar; `RealBlockFillView` deleted.  ONE remainder, kept here because it is the open part:  **→ doc/CleanupHistory.md**
+- **R2.21 ✅ DONE 2026-08-17 (concurrent-cleanup session), BOTH halves** — the occupation state stores each block's reference under ITS OWN scalar; `RealBlockFillView` deleted.  ONE remainder, kept here because it is the open part:  **→ doc/Records/CleanupHistory.md**
     - **Still open (smaller now):** a `route` ctor argument would let a caller FORCE ball (an A/B instrument
       — today only the `GPW_XCROUTE` env var reports the route, it cannot select it).  That needs a
       capability question on the neutral `Band_FT_IBS` face so the factory can ask without a concrete cast.
@@ -1958,19 +1958,19 @@ MnO campaign proceeds undisturbed in qchem6.
   — the presence of \a ops is what distinguishes it), the basis stopped choosing the STRATEGY, and the
   user ruled (a)+(c) on 2026-08-07: the TYPE was promoted to the structure-neutral `qchem.Symmetry.SymOp`,
   the METHOD deliberately stays on `UnitCell` until a molecular implementation is actually wanted.
-  ▶ **The reasoning bank for that future hoist is preserved verbatim in `doc/CleanupHistory.md`** — there
+  ▶ **The reasoning bank for that future hoist is preserved verbatim in `doc/Records/CleanupHistory.md`** — there
   is no free generic default on `Structure` (`MakeInvariant` folds on the fractional TORUS, meaningless for
   a molecule), `Atom` must NOT get an ignore-ops-and-warn body, and `Atom` is the EASIEST genuine case
-  (~3 lines: `MakeInvariantAngularMesh(ops, L)`), not a degenerate one.  **→ doc/CleanupHistory.md**
+  (~3 lines: `MakeInvariantAngularMesh(ops, L)`), not a degenerate one.  **→ doc/Records/CleanupHistory.md**
 
-- **R2.15 ✅ COMPLETE — the Lebedev DEFAULT FLIP LANDED 2026-08-17, degree-gated** (`nAngular` → degree-typed angular interface; at degree 29 Lebedev delivers 302 directions against GaussLegendre's 450).  **→ doc/CleanupHistory.md**
+- **R2.15 ✅ COMPLETE — the Lebedev DEFAULT FLIP LANDED 2026-08-17, degree-gated** (`nAngular` → degree-typed angular interface; at degree 29 Lebedev delivers 302 directions against GaussLegendre's 450).  **→ doc/Records/CleanupHistory.md**
 - **R2.15 (original text) `nAngular` → degree-typed angular interface.**  `nAngular` is a COUNT for Lebedev but a
   DEGREE for GL/EM (and the imposed site-adapted builder consumes it as the degree) — the dual
   semantics BLOCKS flipping the free-run Becke default to the measured-equal Leb-302 (67% of
   GL-29's directions).  Fix: `angularDegree` + per-scheme count resolution; the default flip rides
   along.  (The warn/auto-resolve ergonomics half of this item stays in D5.)
 - **R2.23 — the atomic Rk cache sizes by INCREMENTAL `LMax` DISCOVERY + evict-on-register; size it by a
-  declared worst-case `Irrep` instead** (filed 2026-09-16 from `doc/ERI4Rework.md` §6 / §8 item 5 when that
+  declared worst-case `Irrep` instead** (filed 2026-09-16 from `doc/OldPlans/ERI4Rework.md` §6 / §8 item 5 when that
   plan went RECORD — it was the one piece of the plan never started and never tracked).  Today
   `Cache4::Register` (`src/BasisSet/Internal/Imp/Cache4.C`) erases every already-cached `Rk` whose stored
   `LMax` is too small for the registering client (`Rk::isSupported`), so `loop_4` recreates it larger — and
@@ -1984,7 +1984,7 @@ MnO campaign proceeds undisturbed in qchem6.
   (§6's whole point).  Bit-identical by construction (same integrals, bigger tables sooner); the only
   measurable is RAM on a heavy-atom pool.  No urgency: it is a fragility, not a defect.
 - **R2.24 — `qcSymmetry`'s directories are named for the SYSTEM (`Atom / Molecule / Lattice_3D`), not the
-  GROUP they mirror (`O3 / Point / Lattice`)** (filed 2026-09-16 from `doc/BasisSetTaxonomyPlan.md` §5 when it
+  GROUP they mirror (`O3 / Point / Lattice`)** (filed 2026-09-16 from `doc/Records/BasisSetTaxonomyPlan.md` §5 when it
   went RECORD; the plan called it "a separate, cheaper decision").  Pin 14 says `qcSymmetry` is laid out by G,
   and the module names in `qcBasisSet` already carry the group (`Gaussian.Point`, `Gaussian.Lattice`), so the
   symmetry library is now the odd one out — `Symmetry::Molecule::CartesianShellRep` is the O(3)↓P subduction,
@@ -2002,7 +2002,7 @@ MnO campaign proceeds undisturbed in qchem6.
   `Band_FT_IBS` deleted — the lattice lineage IS `Orbital_DFT_IBS<dcmplx,dcmplx>`, and
   `Orbital_DFT_IBS<double,dcmplx>` (real TRIM block, complex fit basis) is now a live spelling.
   The metric worry needed no new machinery — (i)'s two axes had already discharged it.
-  **→ doc/CleanupHistory.md** (full record + the three commit summaries).
+  **→ doc/Records/CleanupHistory.md** (full record + the three commit summaries).
 - **V1.1b 🔶 ANALYSIS DONE, awaiting the user's re-read of the paper. The `Eee = 2·EeeFit − EeeFitFit` expression is DUNLAP-SPECIFIC — it is part of V1.1's
   metric discussion, not a free-standing formula (user, 2026-08-05; user wants to re-read the
   paper).**  Verified conventions: `GetSelfRepulsion()`=½⟨ρ̃|ρ̃⟩ (Imp/FittedCDImp.C:55) and
@@ -2057,9 +2057,9 @@ MnO campaign proceeds undisturbed in qchem6.
   `Math::Gaussian` in qcMath (user's name: "in qcMath it is just a function with no context"), the PP
   models implement the faces directly, `Integrals_Pseudo` deleted.  Ruling taken: the faces live in
   qcBasisSet ("just an integral calculation service"), `qcPseudopotential → qcBasisSet` is fine,
-  qcStructure untouched.  Bit-identical, 851/851.  **→ doc/CleanupHistory.md**
-- **V1.3 ✅ MECHANISM DONE `72fecf8d`** (both ε-adapters deleted, via `GetEMatrix`).  ⚠ **STILL OPEN: the QUADRATURE-TERM face** — the second list in the original item (`FittedEpsXc`/`FittedVxc` simplification).  **→ doc/CleanupHistory.md**
-- **V1.4 ✅ DONE `80fc2ae8`. `DM_RhoAtPoints` Phi key → Irrep (USER RULING 2026-08-05).**.  **→ doc/CleanupHistory.md**
+  qcStructure untouched.  Bit-identical, 851/851.  **→ doc/Records/CleanupHistory.md**
+- **V1.3 ✅ MECHANISM DONE `72fecf8d`** (both ε-adapters deleted, via `GetEMatrix`).  ⚠ **STILL OPEN: the QUADRATURE-TERM face** — the second list in the original item (`FittedEpsXc`/`FittedVxc` simplification).  **→ doc/Records/CleanupHistory.md**
+- **V1.4 ✅ DONE `80fc2ae8`. `DM_RhoAtPoints` Phi key → Irrep (USER RULING 2026-08-05).**.  **→ doc/Records/CleanupHistory.md**
 - **V1.5 ✅ DONE `f18a6ee9`+`9ebaebdb` (2026-08-16) — FOUR faces, not three, and a reporting redesign fell
   out first.**  The §K blocker had dissolved piecemeal (grid one-owner landed with #7; V1.1 removed the last
   orbital-flavored method), so the split was executable.  `EmitGridReport` did NOT move onto a face — user
@@ -2067,13 +2067,13 @@ MnO campaign proceeds undisturbed in qchem6.
   (`report::EmitAt` made idempotent so dedup is run-scoped in the REPORT, killing the `static const void*`
   latch in PWTerms and the raw-`cout`-beside-the-report bug).  Then:
   `G_FieldEvaluator` (evaluate) / `G_Quadrature` (FFT engine, via `GriddedScalarFitter::Grid()`) /
-  `G_StructureFactor` (seed) / `G_SpectralFilter` (mixer).  **→ doc/CleanupHistory.md.**
+  `G_StructureFactor` (seed) / `G_SpectralFilter` (mixer).  **→ doc/Records/CleanupHistory.md.**
   Still open from the old bullet, now standalone: XC_GridEngine's `Lattice_3D::Fold` + dcmplx dependency
   bars molecular reuse of the quadrature engine.
 - **V1.6 ✅ DONE `2d0f6982`. `tDM_CD::Accumulate*` — face split, NOT pure-virtual.**  Now `tHF_System_CD` +
   `tHF_Pair_CD`, real path only via `conditional_t`; the complex leaf declares NOTHING (a CRTP mixin, after
   the user pressed that empty bodies are still the interface failing to segregate).  The NDEBUG hazard is
-  closed: `Vee`/`Vxc` THROW where they used to build a zeroed J in silence.  **→ doc/CleanupHistory.md**
+  closed: `Vee`/`Vxc` THROW where they used to build a zeroed J in silence.  **→ doc/Records/CleanupHistory.md**
   *(original)*  Verified override matrix: every
   concrete family relies on the default for exactly 2 of the 4 (IrrepCD lacks `*All`;
   Composite/Polarized lack `*Both`) — pure-virtual just forces 6 new asserting stubs.  The `*Both`
@@ -2084,7 +2084,7 @@ MnO campaign proceeds undisturbed in qchem6.
   `Vee::AccumulateAll` yields a zeroed J and a silently wrong Fock.
 - **V1.7 ✅ DONE `2d0f6982`. All NINE denials gone** — three periodic-only CRTP mixins; the mechanism
   (`FourierDensityBase<T>`) was already right there, the families just re-declared outside it.
-  **→ doc/CleanupHistory.md**  *(original)*  **The periodic trio (`GetFourierDensity`/`GetRhoOnGrid`/`GetRepulsion3C`) — 9 asserting
+  **→ doc/Records/CleanupHistory.md**  *(original)*  **The periodic trio (`GetFourierDensity`/`GetRhoOnGrid`/`GetRepulsion3C`) — 9 asserting
   stubs, the largest LSP block in qcChargeDensity.**  Re-declared + NA-asserted on
   Polarized/Composite/IrrepCD for BOTH T (Imp/ChargeDensity.C:97,120,138; Imp/CompositeCD.C:197,
   226,249; Imp/IrrepCD.C:267,286,303).  The correct mechanism ALREADY EXISTS in the same file —
@@ -2092,24 +2092,24 @@ MnO campaign proceeds undisturbed in qchem6.
   classes re-declare outside it and assert.  Fix: declarations live only on the dcmplx side
   (if-constexpr-guarded definitions or a `tPeriodic_CD` mixin).
 - **V1.8 ✅ DONE `2d0f6982`. The cast EVAPORATED with V1.6**, exactly as the user predicted — and because the
-  face is operation-named (`CompleteDirectPair`), not a block accessor.  **→ doc/CleanupHistory.md**
+  face is operation-named (`CompleteDirectPair`), not a block accessor.  **→ doc/Records/CleanupHistory.md**
   *(original)*  **`IrrepCD`↔`IrrepCD` concrete same-class casts in the hot path** (Imp/IrrepCD.C:84,98,
   218,227: `Accumulate*Both`/`MixIn`/`GetChangeFrom` take abstract `tDM_CD&` and narrow to the
   concrete leaf to touch `itsDensityMatrix`; the in-file comment names "the IrrepCD↔IrrepCD
   idiom").  Abstract→concrete, the pattern the project rule forbids; also makes MixIn
   unimplementable for any future leaf.  Wants a double-dispatch primitive or an abstract
   density-block face.  (Design with V1.6 — same seam.)
-- **V1.9 ✅ DONE `38a1ebd6`. `Structure`→concrete-`UnitCell` down-casts in 4 libraries**.  **→ doc/CleanupHistory.md**
+- **V1.9 ✅ DONE `38a1ebd6`. `Structure`→concrete-`UnitCell` down-casts in 4 libraries**.  **→ doc/Records/CleanupHistory.md**
 - **V1.10 ✅ DONE `2d0f6982`. Both casts gone.**  The SALC one dissolved into V1.31's `WholeSystemFock_IBS`
   face — its three primitives ARE the steps the cast open-coded; the DHF one became
-  `Orbital_RKB_Pair::MakeDirectAgainstL`.  **→ doc/CleanupHistory.md**  *(original)*  **Two abstract→CONCRETE basis casts in src/** — Imp/SymmetryAdapted_IBS.C:109,118
+  `Orbital_RKB_Pair::MakeDirectAgainstL`.  **→ doc/Records/CleanupHistory.md**  *(original)*  **Two abstract→CONCRETE basis casts in src/** — Imp/SymmetryAdapted_IBS.C:109,118
   (Orbital_HF_IBS* → concrete SymmetryAdapted_IBS, solely to reach `itsO`) and
   Internal/Imp/Orbital_DHF_IBS.C:89,109 (Orbital_ERI4_IBS& → Orbital_RKB_HF_IBS_Imp&).  Both are
   "give me your private state" reaches — promote the needed answer to an abstract question on the
   face.  (Unit-test exemption does not apply; these are src/.)
   *(NOT in this list, and deliberately so: `Orbital_ERI4_IBS::Substrate` added by R1.7 is an
   abstract→ABSTRACT cross-cast — the sanctioned direction — and it THROWS naming both bases.)*
-- **V1.10b ✅ DONE (see LANDED). Mixer.  **→ doc/CleanupHistory.md**
+- **V1.10b ✅ DONE (see LANDED). Mixer.  **→ doc/Records/CleanupHistory.md**
 - **V1.11 ✅ DONE `43bbebad`+`0c818835`+`841eadf2`+`092d1da8`+`2398dd07` (2026-08-17) — the occupation
   seam, five bit-identical increments.**  `OccupationPolicy<T>` in qcElConfig decides every fill
   (`DecideBlockFill` → the two-axis `BlockFill` spec; `HeldOccupationPolicy` is the direct minimiser's
@@ -2117,7 +2117,7 @@ MnO campaign proceeds undisturbed in qchem6.
   virtuals; the EC mode bools became the `ReservoirPartition`; the D11 seed-fill hazard closed
   structurally.  **DAG lesson**: qcElConfig→qcOrbitals is a linker cycle — the `OrbitalView<T>` DIP face
   (owned below, implemented above) is the CLAUDE.md inversion example verbatim.
-  **→ doc/CleanupHistory.md** (full record).  **With this, ALL SIX doc/RealComplexPlan.md §7
+  **→ doc/Records/CleanupHistory.md** (full record).  **With this, ALL SIX doc/OldPlans/RealComplexPlan.md §7
   prerequisites are DONE.**  *Residue (user catch, 2026-08-17): the landed policy is still a
   mode-flag-configured CONCRETE, not D1's abstract interface — the Policy/State split that finishes it is
   filed as **R2.21** (liked, deferred).*
@@ -2126,16 +2126,16 @@ MnO campaign proceeds undisturbed in qchem6.
   ROLE sums; `GetBandEnergy(Σfε)` = Σfε + Σ(E − TrDV) with TrDV filled only where free (throws naming the
   term otherwise).  User rulings: −TS is an energy; a second non-summed map is fine; roles not prefixes;
   "Grid" names a mechanism.  +U adds `"E_U"` and touches nothing.  Bit-identical, 854/854 (+3 unit tests).
-  ✅ `ChargeBreakdown` became the site-moment owner with R1.0h (2026-09-14).  **→ doc/CleanupHistory.md**
+  ✅ `ChargeBreakdown` became the site-moment owner with R1.0h (2026-09-14).  **→ doc/Records/CleanupHistory.md**
 
-- **V1.13 ✅ DONE 2026-08-07 — executed as the compiler-verified DELETION R2.6 made possible.  **→ doc/CleanupHistory.md**
+- **V1.13 ✅ DONE 2026-08-07 — executed as the compiler-verified DELETION R2.6 made possible.  **→ doc/Records/CleanupHistory.md**
 - **V1.14 ✅ DONE 2026-09-11 `fe78682a` + `d5d42fb4` — report-emission creep on neutral faces.**  Both live
   `Emit*()` faces DELETED under the user's reporting ruling (each class reports at its OWN activity; a class
   telling another WHEN to emit is the defect): basis usage is announced by `FillOrbitals` itself, and each
   exponent shell announces its exponents at CONSTRUCTION — which required both facades to build the basis
   INSIDE the run bracket.  ⛔ **The row's proposed fix (a PULLING reporter) was the WRONG direction, and the
   `bool&` toggles are the DESIGN, not a defect** — Reporting.C's own header names them beside the sink.
-  **→ doc/CleanupHistory.md**
+  **→ doc/Records/CleanupHistory.md**
 - **V1.15 ✅ CLOSED 2026-09-09 — and the predicted UB was REAL.**  `CreateCDFitBasisSet` /
   `CreateVxcFitBasisSet` did `*Iterate<Orbital_DFT_IBS<double>>().begin()` and called straight through it;
   `D_IndexIterator::operator*` casts then `assert`s, so under NDEBUG a 1E/HF-only basis dereferenced a
@@ -2144,18 +2144,18 @@ MnO campaign proceeds undisturbed in qchem6.
   dcmplx factory is specialized, so the template body IS the molecular path) — now stated at the site.
   ⏸ The "hoist the shared `CreateXCQuadrature` default" half is DECLINED: the only module below both
   declarers is the deliberate leaf `qchem.BasisSet.Fit_Types`, and the body needs `Structure`.
-  **→ doc/CleanupHistory.md**
+  **→ doc/Records/CleanupHistory.md**
 
 - **V1.16 ✅ DONE `de0292cb`. `ProjectedDensity_AO::GetRepulsion3C` asserting default** — the metric is now
   two refinement faces (`CoulombMetric_ProjectedDensity` / `OverlapMetric_ProjectedDensity`); the base keeps
   only what the FITTER needs.  **The compiler found more than the item predicted:** `tPolarized_CD` and
   `tComposite_CD` were cross-casting to the PLAIN AO face and then calling the Coulomb-only
   `GetRepulsion3C` — the implicit pairing in action, since any `ProjectedDensity_AO` satisfied that cast and
-  the poison fired later.  Both now ask for the capability they use.  **→ doc/CleanupHistory.md**
+  the poison fired later.  Both now ask for the capability they use.  **→ doc/Records/CleanupHistory.md**
 - **V1.17 ✅ DONE 2026-09-10 `95640bca`. `tWaveFunction::GetSpinDensity()` returned null as the
   unpolarized answer** — now `tSpinResolvedWF<T>`, a data-free cross-cast face on the model of
   `tSpinResolved_CD`, inherited by `tPolarizedWF` only.  The raw `new` went with it (owning return,
-  V1.25's last step), and the one client's else-branch became explicit.  **→ doc/CleanupHistory.md**
+  V1.25's last step), and the one client's else-branch became explicit.  **→ doc/Records/CleanupHistory.md**
 - **V1.18 ✅ DONE 2026-09-13 in seven increments (`e60087bd` `80a4dcfd` `2cd8ebf7` `da2a1475` `5eefc393`
   `f53cf192` `ead8bfcb`) — THE DENSITY-MIXER REORGANISATION**, spec'd by the user's code review of
   `DensityMixer.C` (12 points) with the original row as its algebra half.  Interface + factories public
@@ -2166,8 +2166,8 @@ MnO campaign proceeds undisturbed in qchem6.
   `FourierMixCD` is a presentation built whole (`RhoTilde`/`SetRawRho`/`KerkerMix` deleted).  851/851 after
   every increment.  ⏳ **LEFT OPEN** (in the history entry): (g) ✅ 2026-09-15 `PolarizedRunKeepsItsSpin` → three `KerkerMix.*`
   unit tests, 41 ms, integration test deleted (TE phase 1); the direct observable that replaces α_eff; NO test reaches the DM-source XC route; the opt-in
-  `GPW_XC_DM_SOURCE` wholesale route still consumes `cDM_Sourced_CD::EffectiveAlpha`.  **→ doc/CleanupHistory.md**
-- **V1.19 ✅ VISITOR + THROWS DONE 2026-08-17; bit-identical, 734/734.**  ⚠ **ONE DELIBERATE REMAINDER**: the seed's flip-group sub-cell duplication — removing it needs a per-SITE form-factor overload on the basis face, which the item itself weighs against the pseudo-wall pin.  That block is the seed's ONE remaining concrete-`Atom` consumer.  **→ doc/CleanupHistory.md**
+  `GPW_XC_DM_SOURCE` wholesale route still consumes `cDM_Sourced_CD::EffectiveAlpha`.  **→ doc/Records/CleanupHistory.md**
+- **V1.19 ✅ VISITOR + THROWS DONE 2026-08-17; bit-identical, 734/734.**  ⚠ **ONE DELIBERATE REMAINDER**: the seed's flip-group sub-cell duplication — removing it needs a per-SITE form-factor overload on the basis face, which the item itself weighs against the pseudo-wall pin.  That block is the seed's ONE remaining concrete-`Atom` consumer.  **→ doc/Records/CleanupHistory.md**
 - **V1.20 ✅ CLOSED 2026-09-09 — USER RULING: the `qcBasisSet*` family counts as ONE library for
   `.Internal.` purposes.**  `.Internal.` marks the FAMILY boundary, not the CMake-target boundary.  So
   `SymmetryAdapted_IBS` moved to `qchem.BasisSet.Internal.SymmetryAdapted_IBS`
@@ -2215,7 +2215,7 @@ MnO campaign proceeds undisturbed in qchem6.
   the cache does not observe — so the reporting ruling's "each class at its own activity" has no better
   trigger to offer here.)
   ▶ **`scripts/audit-internal-reexports`, run by ctest as `InternalReexportAudit`**: the written rule now has
-  a test.  Zero violations.  Bit-identical, 855/855.  **→ doc/CleanupHistory.md** (this row IS the record;
+  a test.  Zero violations.  Bit-identical, 855/855.  **→ doc/Records/CleanupHistory.md** (this row IS the record;
   nothing longer exists).
 
 - **V1.20b ✅ DONE 2026-09-09 — `GMap` IS PROMOTED OUT OF `Internal`** (user ruling).
@@ -2237,7 +2237,7 @@ MnO campaign proceeds undisturbed in qchem6.
   \f$S=I\f$ and kept only the kinetic DIAGONAL — two plane-wave facts hard-coded into a routine that is
   lineage-agnostic one directory up).  PROMOTE, not demote: the file is the shared k-layer for BOTH
   lattice lineages and the band plots on the viz roadmap will want it.  44/44 in `UTLattice_3D_BS`.
-  **→ doc/CleanupHistory.md**
+  **→ doc/Records/CleanupHistory.md**
 
 - **V1.22 `MakePeriodicBeckeMesh` ε-tail drops vs orbit consistency (W2c find).**  The builder's
   borderline drop decisions (`<eps` screens + `w>0` keep) are per-point and bit-sensitive, so the
@@ -2257,7 +2257,7 @@ MnO campaign proceeds undisturbed in qchem6.
   convention CAN drift against the accessors it mirrors, so
   `SpaceGroup.DirectOfIsTheInverseOfTheReciprocalConvention` runs all 48 ops of the NON-SYMMORPHIC diamond
   group through it (linear part **and** \f$\tau\f$ — the glide is where a dropped translation shows), plus
-  the round trip.  **→ doc/CleanupHistory.md**
+  the round trip.  **→ doc/Records/CleanupHistory.md**
 
 - **V1.24 `GDMParams::FDMax` naming + the fallback commit (2026-08-03 imposed×GDM investigation).**
   **(ii) ✅ DONE 2026-08-09 by the MnO dev — CLOSED.**  The fallback commit is fixed.  Diagnosed here
@@ -2287,7 +2287,7 @@ MnO campaign proceeds undisturbed in qchem6.
   `unique_ptr` along the whole chain, so `AtomCalculation::TotalCharge()` stops leaking a composite per call.
   **Three more owning-raw-pointer sites the item never mentioned** turned up on the way: `tPolarized_CDImp`
   had `tSpinDensity`'s exact double-delete shape, and `tComposite_CD::Insert` advertised a raw pointer while
-  wrapping it in a `unique_ptr`.  **→ doc/CleanupHistory.md**
+  wrapping it in a `unique_ptr`.  **→ doc/Records/CleanupHistory.md**
   *(original analysis follows)*
   - **`GetChargeDensity()` is a `Get*` that ALLOCATES.**  `tCompositeWF::GetChargeDensity(Spin)` does
     `new tComposite_CD<T>(...)` and inserts every irrep block, on EVERY call; `TOrbitalsImp`, `tIrrepWF`,
@@ -2310,7 +2310,7 @@ MnO campaign proceeds undisturbed in qchem6.
   - Original text: non-const `Polarized_CD::GetChargeDensity(Spin)` overload has no external consumer
     (removable); `tSpinDensity` holds two raw `tDM_CD*`.
 
-- **V1.26 ✅ COMPLETE (reconciled 2026-08-17)** — every deliverable landed across the Uniform-vs-Becke selector work.  Three things STILL OPEN after that landing, kept here because they are the open part:  **→ doc/CleanupHistory.md**
+- **V1.26 ✅ COMPLETE (reconciled 2026-08-17)** — every deliverable landed across the Uniform-vs-Becke selector work.  Three things STILL OPEN after that landing, kept here because they are the open part:  **→ doc/Records/CleanupHistory.md**
   **STILL OPEN after this landing:**
   - **Calibrate `kUniformMargin`, then arm.**  The D8-compliant measurement (grid-convergence of ρ vs a fine
     reference — never ΔE_total) on the Si case, which is where the model and the earlier measurement disagree.
@@ -2436,12 +2436,12 @@ MnO campaign proceeds undisturbed in qchem6.
     `TraceColumns` value the facade supplies — which is exactly the kind of above-SCFIterator decision
     `SolidCalculation` (Step 4) exists to own, so sequence it after Step 4.
 
-- **V1.28 ✅ RESOLVED BY THE SHUBNIKOV CAMPAIGN S1–S4** (reconciled 2026-08-17).  **→ doc/CleanupHistory.md**
-- **V1.29 ✅ RECONCILED 2026-08-17 — the question is ANSWERED and the dependency DISCHARGED.**  ⚠ What remains UNBUILT is the Hessian-based magnetic-order DISCOVERY loop (Davidson on the stability matrix, swept per non-symmetric irrep block) — deliberately not built for MnO, whose AFM-II order is known and imposed; it earns its keep on materials whose order is unknown.  Depends on V1.28.  **→ doc/CleanupHistory.md**
-- **V1.30 ✅ APPEARS ALREADY FIXED — item was STALE** (verified against the tree 2026-08-10).  **→ doc/CleanupHistory.md**
+- **V1.28 ✅ RESOLVED BY THE SHUBNIKOV CAMPAIGN S1–S4** (reconciled 2026-08-17).  **→ doc/Records/CleanupHistory.md**
+- **V1.29 ✅ RECONCILED 2026-08-17 — the question is ANSWERED and the dependency DISCHARGED.**  ⚠ What remains UNBUILT is the Hessian-based magnetic-order DISCOVERY loop (Davidson on the stability matrix, swept per non-symmetric irrep block) — deliberately not built for MnO, whose AFM-II order is known and imposed; it earns its keep on materials whose order is unknown.  Depends on V1.28.  **→ doc/Records/CleanupHistory.md**
+- **V1.30 ✅ APPEARS ALREADY FIXED — item was STALE** (verified against the tree 2026-08-10).  **→ doc/Records/CleanupHistory.md**
 - **V1.31 ✅ DONE `627a4ff9`. `SymFockCache` deleted; the SALC path builds ONE whole-AO Fock and slices it.**
   The memo was caching a partial AO Fock at the basis level inside a loop that should not have been
-  iterating; the fix removed the loop, not the staleness test.  **→ doc/CleanupHistory.md**
+  iterating; the fix removed the loop, not the staleness test.  **→ doc/Records/CleanupHistory.md**
   *(the full analysis, including the retracted first draft and the refuted ruling, follows -- it is the
   part worth reading)*
   **This item was FILED WRONG on 2026-08-10 and corrected the same day by the user — the correction is
@@ -2634,33 +2634,33 @@ MnO campaign proceeds undisturbed in qchem6.
   (no library entry); a missing species THROWS with the two ways out named.  ⚠ "Every pinned GPW anchor
   re-seeds" was true and MOVED NOTHING: 860/860 with zero re-pins — converged energies agree to printed
   precision, the loosely-converged Si Γ row differs 4e-6 inside its 2e-3 tolerance, and it runs 17 → 8
-  iterations.  **→ doc/CleanupHistory.md**
+  iterations.  **→ doc/Records/CleanupHistory.md**
 - **V2.3 ✅ CLOSED 2026-09-14 — it had ALREADY been fixed and never run.**  The row named `PW_XC::itsRhoGrid`,
   which no longer exists: the raster route grew per-spin `RhoPol`/`RefreshPol` on 2026-08-28, and V1.37 step 3's
   one XC term asks it for the pair on any fit basis.  Gate ADDED (`GPW_SCF.PolarizedSingletMatchesUnpolarized_PWFitRaster`):
   the explicit two-channel Si singlet under `VxcFit::PlaneWave` on the raster lands on the unpolarized answer to
-  6e-9 Ha in the same 17 iterations.  Another "check the tree before believing the row".  **→ doc/CleanupHistory.md**
+  6e-9 Ha in the same 17 iterations.  Another "check the tree before believing the row".  **→ doc/Records/CleanupHistory.md**
 
-- **V2.4 ✅ DONE 2026-08-08 — margin validated, selector ARMED.**  Converged-run A/B on both systems the.  **→ doc/CleanupHistory.md**
+- **V2.4 ✅ DONE 2026-08-08 — margin validated, selector ARMED.**  Converged-run A/B on both systems the.  **→ doc/Records/CleanupHistory.md**
 - **V2.5 ✅ CLOSED 2026-09-14 (sprint S) — the KB mesh fallback floors its own cutoff.**  The row's integrand
   had already left (local PP is G-space, KB analytic for every model with the Gaussian face); the one consumer
   is the mesh ORACLE of the analytic-vs-mesh gates, and it inherited an explicit under-resolved `densityEcut`.
   Fix: `SpeciesProjectorSet_R::SharpnessR` + `PPMeshParams` = max(density Ecut, `RequiredUniformCutoff(C α_max
   + α_β)`).  ★ The measurement EXONERATED the analytic l=2 KB (the d-channel gate's 3e-2 was the mesh arm at
   20 Ha on an α_max=36 basis; rel → 1e-8 by 100 Ha) and RE-ENABLED `AnalyticSeparablePPMatchesMesh_DChannel`.
-  Moved no anchor (the floor never binds on a production run).  **→ doc/CleanupHistory.md**
+  Moved no anchor (the floor never binds on a production run).  **→ doc/Records/CleanupHistory.md**
 
-- **V2.6 ✅ CLOSED (reconciled 2026-08-17)** — the Becke recipe ladder is fully banked (nRadial=40 right; the angular flip to 17 REFUTED by Al FCC).  Records FOUR refuted guesses; read it before changing either default.  **→ doc/CleanupHistory.md**
-- **V2.6a ⛔ ATTEMPTED AND REJECTED 2026-08-07 — flip `angularDegree` 29 → 17.**  Made the one-line change,.  **→ doc/CleanupHistory.md**
-- **V2.7 ✅ DONE 2026-08-17.**  `RadialResolutionRatio(mp, alphaMax)` + the `kRadialRatioFloor=3.0` warning from `ResolveXCMesh`.  ⚠ The floor stays INSULATOR-FITTED per its own doc note: re-calibrate on {Si, Mn-atom, Al, MnO} before promoting it beyond a diagnostic.  **→ doc/CleanupHistory.md**
+- **V2.6 ✅ CLOSED (reconciled 2026-08-17)** — the Becke recipe ladder is fully banked (nRadial=40 right; the angular flip to 17 REFUTED by Al FCC).  Records FOUR refuted guesses; read it before changing either default.  **→ doc/Records/CleanupHistory.md**
+- **V2.6a ⛔ ATTEMPTED AND REJECTED 2026-08-07 — flip `angularDegree` 29 → 17.**  Made the one-line change,.  **→ doc/Records/CleanupHistory.md**
+- **V2.7 ✅ DONE 2026-08-17.**  `RadialResolutionRatio(mp, alphaMax)` + the `kRadialRatioFloor=3.0` warning from `ResolveXCMesh`.  ⚠ The floor stays INSULATOR-FITTED per its own doc note: re-calibrate on {Si, Mn-atom, Al, MnO} before promoting it beyond a diagnostic.  **→ doc/Records/CleanupHistory.md**
 ### V3 — repro / campaign bugs (Spin-SAD, 2026-08-04)
 
 - **V3.1 ✅ CLOSED 2026-08-17 — NO LONGER REPRODUCES (dissolved in the interim; V1.11 the likely
   cure).**  Regression anchors added: `ValenceBasisGen.SodiumSeedDensitySpinResolved` +
-  `Slater_Low/A_HF_P.Energy/Z1` (UHF H, exact −0.5).  **→ doc/CleanupHistory.md**
+  `Slater_Low/A_HF_P.Energy/Z1` (UHF H, exact −0.5).  **→ doc/Records/CleanupHistory.md**
 - **V3.2 ✅ CLOSED 2026-08-17 — NO LONGER REPRODUCES (same verification pass).**  Anchors:
   `ValenceBasisGen.SodiumSeedDensity{UnpolarizedWithPolarizationShell,SpinResolvedWithPolarizationShell}`.
-  **→ doc/CleanupHistory.md**
+  **→ doc/Records/CleanupHistory.md**
 
 ### V4 — watch triggers (act when the trigger appears)
 
@@ -2718,7 +2718,7 @@ MnO campaign proceeds undisturbed in qchem6.
   scheme override; a real error (not a bare assert) when the requested L is unachievable for a
   low-symmetry site (C1/Cs seed-pool exhaustion).  Lands with the `SymmetryPolicy`/facade pass.
   (The degree-typed `angularDegree` interface half is executable now → R2.15.)
-- **D6 ✅ DONE 2026-08-07. `BeckeXCParams()` lives in the TEST file + `ResolveXCMesh` (test driver)** — the.  **→ doc/CleanupHistory.md**
+- **D6 ✅ DONE 2026-08-07. `BeckeXCParams()` lives in the TEST file + `ResolveXCMesh` (test driver)** — the.  **→ doc/Records/CleanupHistory.md**
 - **D7 The `dynamic_cast` survey = FittingCleanupPlan §C** (the one surviving item there; the
   "I want more" vs "what are you" criterion is written there).  Run §C as part of THIS session —
   the cast findings above (V1.8, V1.9, V1.10) are its seed list; give survivors the custom
@@ -2806,7 +2806,7 @@ MnO campaign proceeds undisturbed in qchem6.
   `FiniteIrrepCD`** (user, 2026-08-17, out of the RealComplexPlan 3c-2b split).  Two scalar-keyed
   conditional bases collapsed to the faces they always resolved to, the `IrrepHF_PairBase` alias was
   deleted outright, and `GetRepulsion3C`'s `if constexpr` went with them.  `PeriodicIrrepCD<T>` was
-  asked the same question and DECLINED — its T is load-bearing.  **→ doc/CleanupHistory.md**
+  asked the same question and DECLINED — its T is load-bearing.  **→ doc/Records/CleanupHistory.md**
 
 - **The `OverlapMatrix` static-field integrate-back screens with `CollocMemo::D` — safe only by build
   ORDERING (found 2026-08-18, out of the cross-run pollution hunt).**  `GPW_Evaluator::OverlapMatrix`
@@ -2972,11 +2972,11 @@ MnO campaign proceeds undisturbed in qchem6.
   the BLOCKER.  Making the hook pure did not fix a bug — it made an outlier state its oddity out loud, and
   then the oddity turned out to be one fitter where two were needed.
 
-### V1.33 ✅ DONE 2026-09-13 — the BasisSet taxonomy re-cut onto the two axes (`doc/BasisSetTaxonomyPlan.md`)
+### V1.33 ✅ DONE 2026-09-13 — the BasisSet taxonomy re-cut onto the two axes (`doc/Records/BasisSetTaxonomyPlan.md`)
 Libraries = FAMILY/engine (`qcRadial_BS` / `qcPlaneWave_BS` / `qcGaussian_BS` / thin `qcLattice_BS`), modules carry the
 GROUP (`Gaussian.Point.*` / `Gaussian.Lattice.*`; `PG_Cart` untagged as the G=1 seed); the `UnitCell`-in-`Molecule/`
 evidence is the ctest `BasisSetGTagAudit`.  Eleven commits c2cb79a3..d5ddb1a5, 856/856.  Full record →
-`doc/CleanupHistory.md` "LANDED 2026-09-13 — V1.33".  ⚠ `pybind/qchem_bridge.cpp` breaks (flagged, not edited).
+`doc/Records/CleanupHistory.md` "LANDED 2026-09-13 — V1.33".  ⚠ `pybind/qchem_bridge.cpp` breaks (flagged, not edited).
 
 ### V1.37 ✅ DONE 2026-09-14 — Pol/UnPol are IMPOSED SUBGROUPS, not types (user + Claude, 2026-09-13)
 All three steps landed the same day (steps 1–2 `b0310692`, step 3 this commit): `qchem::SpinGroup` is the one
@@ -2984,11 +2984,11 @@ name of the imposed subgroup; ONE `tCompositeWF`, ONE `tComposite_CD` over full 
 ONE `Vxc` / `FittedVxc` / `Vxc_Quadrature` built FOR the group and asking the density for its channels; the
 eleven `Ham_*_U/_P` classes → six; `SpinCorrelation` folded into a spin-native `ExFunctional`;
 `Hamiltonian::GetSpinGroup()` replaces the `IsPolarized()` OR-fold; `SymMap` retires `Irrep(Spin::None)`
-as a spatial cache key.  Full row + record → `doc/CleanupHistory.md` "LANDED 2026-09-14 — V1.37".
+as a spatial cache key.  Full row + record → `doc/Records/CleanupHistory.md` "LANDED 2026-09-14 — V1.37".
 
 ### V1.38 — The Point spec in the core + one thin IBS class per (G, engine) (filed 2026-09-14, STASHED by agreement)
 
-The §5 sequel of `doc/BasisSetTaxonomyPlan.md`: carry the evaluator-injection pattern the atom and lattice
+The §5 sequel of `doc/Records/BasisSetTaxonomyPlan.md`: carry the evaluator-injection pattern the atom and lattice
 tiers already have to the molecular tier.  **Measured 2026-09-14** — the molecular side is closer than the
 plan implied: `Gaussian/Point/IrrepBasisSet.C` already has the evaluator-injected mixins
 (`EOrbital_1E_IBS<E>`, `Orbital_DFT_IBS<E>`, `Orbital_ERI4_IBS<E>`) with concepts.  Three things are missing:
@@ -3059,7 +3059,7 @@ Hamiltonian is constructed by the composition root (`SolidCalculation`, or the G
 over as a bare pointer, and destroyed by an object that is one of its *users*.  `SolidCalculation::Imp`
 even documents the smell in a comment: `ham = nullptr;  // owned by the iterator once handed over`.
 
-**WHAT IT COSTS, MEASURED (`doc/ParallelAndOraclePlan.md` 1.1(b)).**  Because the previous stage's
+**WHAT IT COSTS, MEASURED (`doc/Records/ParallelAndOraclePlan.md` 1.1(b)).**  Because the previous stage's
 iterator deletes the Hamiltonian when it dies, `SolidCalculation::BuildStage` MUST build a fresh one for
 every anneal stage — so an N-stage schedule constructs N Hamiltonians.  The MnO recipe has two, and the
 build is **15.5 s** each: **19% of an 83 s threaded run, for an object that is a pure function of
@@ -3228,7 +3228,7 @@ So a caller that writes `mp.cellKind = UnitCellKind::Becke` — the obvious thin
 type invites — gets a **degree-5 angular mesh** and no warning.
 
 MEASURED COST OF THE TRAP: it produced a 40 mHa imposed-vs-free discrepancy that read exactly like a
-symmetry bug and consumed a diagnosis before the recipe was checked (`doc/SymmetryUpgradePlan.md`,
+symmetry bug and consumed a diagnosis before the recipe was checked (`doc/Records/SymmetryUpgradePlan.md`,
 "SETTLED 2026-09-07").  At the real recipe the same comparison gives 0.046 mHa.
 
 ⇒ Options, cheapest first: (a) make `MeshParams`' Becke-relevant defaults MATCH `BeckeXCParams`' so the

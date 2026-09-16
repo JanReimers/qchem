@@ -1,9 +1,9 @@
 # Symmetry upgrade history — the closed record
 
-Split out of `doc/SymmetryUpgradePlan.md` on 2026-08-11, when the working doc passed 1800 lines and the
+Split out of `doc/Records/SymmetryUpgradePlan.md` on 2026-08-11, when the working doc passed 1800 lines and the
 MnO campaign narrative alone was ~800 of them.
 
-NOTHING WAS TRIMMED, per the `doc/CleanupHistory.md` convention: material is moved here in FULL and the
+NOTHING WAS TRIMMED, per the `doc/Records/CleanupHistory.md` convention: material is moved here in FULL and the
 plan keeps a summary plus a pointer, so every cross-reference ("run 27", "the T2 groundwork", "the
 spin-blind mixer") still resolves and the reader can see what happened without the plan carrying it.
 
@@ -34,7 +34,7 @@ filter in `CreateSiteAdaptedBeckeMesh`, gated at production-L.  Step 6 (T3 strea
 done (T3.0–T3.2, T3.4 op-action; T3.4b open); **step 7's tier-4b prerequisite is now DONE
 (2026-08-04, 64a17443 — §4 STATUS block; all three gates green)**, so step 7 (MnO/MnO₂
 magnetic materials) is UNBLOCKED — remaining prerequisite for an AFM ordering is the
-spin-polarized SAD seed with per-site moments (doc/SCFSeedingPlan.md §10); 8 (SALCs) not
+spin-polarized SAD seed with per-site moments (doc/OldPlans/SCFSeedingPlan.md §10); 8 (SALCs) not
 started.  The XC route was redesigned along the way
 (fit/grid separation: `VxcFit` ⊥ `MeshParams`; `Delta_XC` + `XC_GridEngine(mesh, fold)` +
 the `CreateXCQuadrature` basis factory).
@@ -573,7 +573,7 @@ the per-run numbers.
          LINE SEARCH `ComputeStep` has SUCCEEDED, and `NextOrbitals` then returns `OrbitalsAt(1.0,true)` —
          **the full step, committed**, i.e. the very t=1 the search rejected first.  So declining a step needs
          an accelerator-level DECLINE/RESTART (drop the CG history, force the next call to diagonalize) or a
-         trust-radius shrink-and-retry.  That is a `doc/SCFStrategyPlan.md` seam decision (the accelerator
+         trust-radius shrink-and-retry.  That is a `doc/Records/SCFStrategyPlan.md` seam decision (the accelerator
          reports its mode; the iterator selects the driver), not a patch to `DirectMinStep` — left for the
          user rather than done unilaterally.  Log `run20_gdmtrace`.
        * **THE BAIL-OUT LANDED, AND IT IS NECESSARY BUT NOT SUFFICIENT (run 21, the A/B against run 20).**

@@ -3,8 +3,8 @@
 *Plan first, code second.* Scope: exploit lattice + point (and eventually magnetic)
 symmetry across **all** the redundant work in a PW/GPW SCF, not just the k-mesh.
 Companion to `doc/OldPlans/SpaceGroupPlan.md` (the detector + Tier A/B roadmap),
-`doc/GPWPlan1.md` (the "SPACE-GROUP STREAM/COLLOCATION REDUCTION" plan section this
-consolidates), `doc/SpinNativeDFTPlan.md` (spin-native XC), and
+`doc/Records/GPWPlan1.md` (the "SPACE-GROUP STREAM/COLLOCATION REDUCTION" plan section this
+consolidates), `doc/OldPlans/SpinNativeDFTPlan.md` (spin-native XC), and
 `doc/OldPlans/SymmetryRefactorPlan.md`.  SOLID/OOD debt encountered while executing this plan is
 tracked in **`doc/CleanupCandidates.md`** (keep it growing; batch-fix in dedicated
 refactor sessions).
@@ -28,14 +28,14 @@ and the SUPERCELL arc that opened 2026-09-07 closed 2026-09-08 (both sections at
 | **§9 non-collinear representation** (2×2 spinor vs (ρ, m)) | §9 | Deliberately deferred to when a non-collinear pipeline is scoped; the collinear two-channel tier we run is a strict subset of either choice |
 
 ⇒ **Treat this file as a REFERENCE, not a live queue.**  The live queues are `doc/OpenWork.md` (the tracker)
-and `doc/ParallelAndOraclePlan.md` (the sequenced phases).  §9 is a list of design questions to answer when
+and `doc/Records/ParallelAndOraclePlan.md` (the sequenced phases).  §9 is a list of design questions to answer when
 the corresponding capability is scoped — it is not a backlog anyone is meant to burn down.
 
 ---
 
 **WHERE WE LEFT OFF (2026-08-11, late).**  §7 steps 1–6 are DONE; step 7 (MnO AFM-II): **THE OPEN
 DEFECT IS FOUND AND FIXED.**  Point-in-time status blocks from earlier sessions, and the full MnO
-campaign narrative, are in **`doc/SymmetryUpgradeHistory.md`** — this section is the standing summary,
+campaign narrative, are in **`doc/Records/SymmetryUpgradeHistory.md`** — this section is the standing summary,
 kept short on purpose.
 
 **THE DEFECT (found by the planned v_xc probe, first try): the SEED's real-space ρ(r) had NO LATTICE
@@ -260,7 +260,7 @@ rung was VETOED all 41 iterations — kT=5e-3 leaves D' non-idempotent, Tr D'²�
 Log: `doc/logs/mno_afm2_run39_imposed_gdm.log`.
 
 **★ THE ORDERING CAMPAIGN (2026-08-12, runs 40-42 + the CP2K oracle batch) — the reversal is OURS,
-and it is a d-SELECTIVE operator bias.**  Full oracle table + decks: doc/CP2Kresults.md (MnO section).
+and it is a d-SELECTIVE operator bias.**  Full oracle table + decks: doc/Records/CP2Kresults.md (MnO section).
 - **CP2K FM oracles BANKED** (`mno_fm_gpw_sr{,_m10,_222g}.inp`, ~70-500 s each under OMP 8):
   Γ AFM −61.470570 / FM −61.461700 ⇒ **AFM below by 8.87 mHa**; 2×2×2 Γ-centred AFM −61.687257 /
   FM −61.681952 ⇒ **AFM below by 5.31 mHa**.  Same cell/basis/functional as run 38's reversed
@@ -1063,7 +1063,7 @@ against a special case it will outgrow:
    (§4 tier 4b — the polarized solid pipeline with gates (a) Na doublet / (b) O₂ triplet —
    **✓ DONE 2026-08-04 (64a17443), all three gates green — see the §4 STATUS block.**
    Step 7's remaining seed-side prerequisite is the spin-polarized SAD with per-site
-   moments, doc/SCFSeedingPlan.md §10.)
+   moments, doc/OldPlans/SCFSeedingPlan.md §10.)
 2. **✓ DONE — `Fold` primitive in qcSymmetry** (§2b) — generalize `ReduceToIBZ` → `FoldPoints`/
    `FoldGrid` with per-member op index; re-express the k-fold on it (bit-identical). Unit
    tests only.
@@ -1204,7 +1204,7 @@ against a special case it will outgrow:
      scale), which is exactly why it reached the SCF before anything failed.
 7. **MnO rocksalt AFM-II** (2 f.u., moments along [111]) — first *real* d-electron magnet:
    **CAMPAIGN 2026-08-04 → 2026-08-11 — the full narrative, every run and every refuted hypothesis, is in
-   `doc/SymmetryUpgradeHistory.md` §B.**  Current state, the open defect and the next action are in the
+   `doc/Records/SymmetryUpgradeHistory.md` §B.**  Current state, the open defect and the next action are in the
    WHERE WE LEFT OFF section at the top of this document.  The durable pins the campaign produced:
    - **the ρ̃ mixers must be spin-native** — a single-map mixer collapses v_xc to the ζ=0 branch from
      iteration 1 (fixed a228218d; negative control `GPW_SCF.PolarizedRunKeepsItsSpin`);
@@ -1225,7 +1225,7 @@ against a special case it will outgrow:
    ordering (the north-star), which follows.  (Tier 4b DONE unblocks the two-channel
    machinery; the AFM-specific prerequisite is the SPIN-POLARIZED SAD seed with per-site
    moments — a spin-agnostic seed cannot express a staggered pattern, so the seed chooses
-   the magnetic-ordering basin.  Design pinned in doc/SCFSeedingPlan.md §10: tables store
+   the magnetic-ordering basin.  Design pinned in doc/OldPlans/SCFSeedingPlan.md §10: tables store
    the Hund pair in the UP-MAJORITY convention; assembly applies per-site flips (collinear
    configs) or SU(2) rotations (non-collinear) — the config is assembly-time data, never
    duplicated tables.  Also budget for `+U` and Fermi smearing on the d manifold.)
@@ -1299,7 +1299,7 @@ tiers (review fix — one number would make correct code "fail"):
 # ★★★ SUPERCELLS — IMPOSED SYMMETRY IS WRONG ON A NON-PRIMITIVE CELL (found 2026-09-07)
 
 **Status: ✅ FIXED 2026-09-07 — see the FIXED section below; this header was stale until 2026-09-08.**  Raised by the Phase-2.1 scaling ladder
-(`doc/ParallelAndOraclePlan.md` 2.1) and on the critical path for the battery work, because every Li
+(`doc/Records/ParallelAndOraclePlan.md` 2.1) and on the critical path for the battery work, because every Li
 configuration in `doc/LatticeGasPlan.md` is a decorated supercell.
 
 ## What was seen

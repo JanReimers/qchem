@@ -53,7 +53,7 @@ left-to-right; `GPW_Si.Γ_CP2K`, never `GPW_Si.CP2K`.
 
 | # | axis | tokens | default (elided) | notes |
 |---|---|---|---|---|
-| 1 | **Basis family** | `GPW`, `PW`, `LAPW` | — always named (suite prefix) | the ENGINE, per `doc/BasisSetTaxonomyPlan.md` §1 |
+| 1 | **Basis family** | `GPW`, `PW`, `LAPW` | — always named (suite prefix) | the ENGINE, per `doc/Records/BasisSetTaxonomyPlan.md` §1 |
 | 2 | **Material** | `Si`, `Al`, `Na`, `NaF`, `MnO`, `CsI`, `Jellium`, `Cosine` | — always named (suite suffix) | a cell + a formula; the CELL is the only material-specific thing (`doc/OpenWork.md` "ONLY THE CELL") |
 | 2b | **…in a box** | `SiBox`, `NaBox`, `O2Box`, `MnBox`, `Mn2Box`, `Na2Box` | | `CellImages::HomeCellOnly` is not a knob, it is a different MATERIAL: an atom or molecule in a periodic box whose oracle is the MOLECULAR facade |
 | 3 | **k sampling** | `Γ`, `k211`, `k222`, `k222s` (shifted MP), `k311` | `Γ` — but ALWAYS named (see above) | lower-case `k` (user 2026-09-15); `s` = the CP2K shifted-MP convention; `k311` is the mixed real/complex mesh (has a non-TRIM k — `feedback_complex_type_vs_value`) |
@@ -63,8 +63,8 @@ left-to-right; `GPW_Si.Γ_CP2K`, never `GPW_Si.CP2K`.
 | 7 | **Spin** | `Pol` (explicit two-channel singlet), `M2`/`M3`/`M6` (multiplicity) | unpolarized (ζ=0 collapse) | `Pol` ≠ unpolarized: it is the cross-check that the polarized machinery collapses to the unpolarized anchor |
 | 8 | **Occupation** | `Smear`, `Anneal` (staged kT) | kT=0 aufbau | `Anneal` is a SCHEDULE, not a temperature |
 | 8b | **Reservoir** (which μ is shared) | `GlobalMu` (one μ over the k-mesh), `ShFermi` (one μ over both spin channels) | per block, per channel | ADDED 2026-09-15 by `scripts/testgrid`'s first run: `Smear_GlobalMu` and `M3_ShFermi` both named one axis twice — sharing a reservoir is neither an occupation nor a spin state |
-| 9 | **Convergence machinery** | `GDM`, `Ladder`, `Kerker`, `Pulay`, `MOM`, `SeedMOM` | DIIS, linear D-mixing, no MOM | the `doc/SCFStrategyPlan.md` role seams |
-| 10 | **Ansatz** | `Cplx` | real TRIM blocks | `forceComplex` — the downgrade direction (`doc/RealComplexPlan.md` §1) |
+| 9 | **Convergence machinery** | `GDM`, `Ladder`, `Kerker`, `Pulay`, `MOM`, `SeedMOM` | DIIS, linear D-mixing, no MOM | the `doc/Records/SCFStrategyPlan.md` role seams |
+| 10 | **Ansatz** | `Cplx` | real TRIM blocks | `forceComplex` — the downgrade direction (`doc/OldPlans/RealComplexPlan.md` §1) |
 | 11 | **Seed** | `UniSeed`, `SpinSeed` | `IonicSAD` (V2.2) | `SpinSeed` = the spin-SAD channel seed |
 | 12 | **Route** (implementation, not physics) | `Unfolded`, `Singles`/`Pairs`, `DMSource` | the shipped route | appears ONLY inside a twin claim (`eqUnfolded`): a route is never a test's point, only its control arm |
 
@@ -234,7 +234,7 @@ actions are the rulings in §11):
 
 | hole / duplicate | evidence | what it means |
 |---|---|---|
-| **`GPW × NaF` = ZERO enabled tests** | all 7 NaF tests are `DISABLED_` | the suite's best-validated CP2K comparison (0.10–0.19 mHa, `doc/GPWPlan.md`) has NO standing gate.  The cost was the reason (the full-SR OOM campaign); the SR2 Γ run is the candidate to re-enable under a cost budget |
+| **`GPW × NaF` = ZERO enabled tests** | all 7 NaF tests are `DISABLED_` | the suite's best-validated CP2K comparison (0.10–0.19 mHa, `doc/OldPlans/GPWPlan.md`) has NO standing gate.  The cost was the reason (the full-SR OOM campaign); the SR2 Γ run is the candidate to re-enable under a cost budget |
 | **`GPW × MnO` at SCF level = ZERO** | 3 seed-level tests only; the converged AFM-II (run 38) is a hand run | the north-star material has no converged gate.  Long-tagged candidate once cost is judged |
 | **machinery axis beyond DIIS = ZERO enabled** | `GDM`, `Ladder`, `Kerker`, `Pulay`, `SeedMOM` occur ONLY in disabled bodies (plus `Kerker` in the test §7 removes) | after §7, Kerker has no INTEGRATION coverage at all.  A cheap `GPW_Si.Γ_Kerker_eqDIIS` fills it — and if it runs the SINGLES route, it also fills the DM-source XC hole (`OpenWork.md` step 3 ⚠, V1.18e) |
 | **`Becke × k≠Γ`** = one cell (`k222_Becke_Imp`) | | fine for now; note it |
@@ -386,11 +386,11 @@ currently FAILING or unfinished** → an open tracker row, not a disabled test.
 | `DISABLED_SR_2x2x2GammaCentred_vs_CP2K` | **R** → `GPW_Si.k222_CP2K` | an oracle anchor (−7.77846, deck `si_fcc_gpw_222_gamma.inp`), parked at "~4 min" in 2026-07; `SiDiamondIBZ_NonSymmorphic` pins the same number IMPOSED in 31 s, so the free arm is the missing `eqFree` twin — time it post-box-walk before ruling |
 | `DISABLED_SingleKSweepProbe` | **P** | a k sweep |
 | `DISABLED_TermTranslationInvariance` | **R** → `GPW_Si.Γ_TranslationInvariant` (property) | a real invariance (the Rcut>0 KB fix's guard, 1e-3 vs a 1.7 Ha bug); one-electron terms only, so cheap — find out why it was parked |
-| `DISABLED_NaFixedDensityTermProbe` | **D** | a term-by-term probe of the Na doublet; V2.2 closed the doublet (`doc/CleanupHistory.md`) |
+| `DISABLED_NaFixedDensityTermProbe` | **D** | a term-by-term probe of the Na doublet; V2.2 closed the doublet (`doc/Records/CleanupHistory.md`) |
 | `DISABLED_NaFImposedGDMSmearProbe` | **P** or **D** | the NaF imposed+GDM+smear recipe probe; if `GPW_NaF.Γ_CP2K` re-enables (below), this is a variant of it |
 | `DISABLED_NaFRocksaltGamma` | **R** → `GPW_NaF.Γ_CP2K` (SR2 basis, `NAF_KMESH=1`) | THE NaF oracle (0.2 mHa vs CP2K).  Parked for cost during the full-SR OOM campaign; the SR2 Γ arm is what `doc/Benchmark.md` times.  Budget it (`memsafe`), and it becomes the NaF row's anchor |
 | `DISABLED_NaFGridContinuation` | **P** | the coarse→fine continuation recipe (`GC_*` env knobs) — an instrument |
-| `DISABLED_NaFFullBasisRankReduction`, `DISABLED_NaFFullBasisEigenTol` | **D** | `doc/GPWPlan.md` §1: rank reduction DEMOTED to automation, λ~1e-6 runs clean via seeded aufbau — banked |
+| `DISABLED_NaFFullBasisRankReduction`, `DISABLED_NaFFullBasisEigenTol` | **D** | `doc/OldPlans/GPWPlan.md` §1: rank reduction DEMOTED to automation, λ~1e-6 runs clean via seeded aufbau — banked |
 | `DISABLED_BeckeRecipeLadder_{SiGamma,NaF,MnSextet,AlFCC}` | **P** → `CLIapps/gpwprobe --becke-ladder` | the `BeckeLadder` harness `doc/Benchmark.md` names as the grid-sizing instrument (user 2026-09-06: size the Becke grid) — it is needed, and it is not a test |
 | `DISABLED_RotatedLebedevXCProbe_SiGamma` | **D** | R2.15 flipped Lebedev degree-gated ≥29 and landed (`project_concurrent_cleanup_branch`); the rotation probe's verdict is banked |
 | `DISABLED_BeckeXCMatchesUniformXC_NaFSR2` | **R** → `GPW_NaF.Γ_Becke_eqUni` | the NaF twin of the Si Becke gate; same cost budget as `GPW_NaF.Γ_CP2K` |

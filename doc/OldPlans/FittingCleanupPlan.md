@@ -9,7 +9,7 @@
 > ⇒ **This file is now a RECORD, not a live plan.**
 
 Follow-up cleanups surfaced while reviewing the plane-wave DFT-fit harmonization (see
-`doc/MolecularPP_HarmonizationFindings.md`). None block current use; this is a menu to sequence
+`doc/OldPlans/MolecularPP_HarmonizationFindings.md`). None block current use; this is a menu to sequence
 deliberately. Each item notes scope and whether it's bit-identical.
 
 ## Guiding principle — the `dynamic_cast` criterion

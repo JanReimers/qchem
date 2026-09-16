@@ -4,7 +4,7 @@
 > I0/I1/I2-arm-1 DONE; I3 overtaken by `valence_lowq_sph` v2 (`ace4ec8a`, exponent-for-exponent the CP2K
 > transcription incl. the Mn s window); I2 arm 2 became `OpenWork.md` Step 5 (the VA exact-span table, −99.7
 > mHa configuration-blind + −37 mHa configuration-selective) and is carried THERE; I4 (lattice SALC on the
-> seam) landed by another route as the Shubnikov/space-group imposition (`doc/SymmetryUpgradePlan.md`).  ⚠ Its
+> seam) landed by another route as the Shubnikov/space-group imposition (`doc/Records/SymmetryUpgradePlan.md`).  ⚠ Its
 > "weak-moment basin" conclusions are POINT-PROBE numbers — re-read against integrated site moments
 > (`doc/Pins.md` pin 4).  The finding that outlives it — **a basis SPAN can reverse a magnetic ordering; match
 > spans before comparing to an oracle** — is `doc/Pins.md` **pin 16**.  The design rulings (peer
@@ -61,7 +61,7 @@ was a tie-cycle above the true minimum — the hop was accidentally productive).
 with energy settled (relAmp 1.7e-7), Δρ tail 3.7e-4 > the 1e-5 gate ("raise NMaxIter, NOT a floor")
 ⇒ formal conv=0, physics done.  TWO instrument notes banked: the GDM fallback-diagonalize needs a
 breadcrumb line (it caused a +302 mHa excursion with zero console trace), and the Δρ gate should be
-INTENSIVE (Δρ/N — user; doc/SCFStrategyPlan.md).
+INTENSIVE (Δρ/N — user; doc/Records/SCFStrategyPlan.md).
 **HEADLINE: we sit ~94 mHa BELOW the CP2K Γ AFM oracle (−61.4706) on a 126-of-136 SUBSET span.**
 Before calling that an operator/grid residual: CP2K's printed total under SMEAR ON includes its
 electronic-entropy term — the E-vs-A split and kT of the oracle runs must be pinned down first;
@@ -142,7 +142,7 @@ Caveats to carry:
 - 55D (O diffuse, borderline −61.60@4 at the old tol) is plausibly the same near-null contamination
   in milder form — optional recheck at 1e-2 if the verdict runs leave doubt.
 
-2026-08-12.  Born from the MnO ordering campaign (doc/SymmetryUpgradePlan.md, runs 38–44): the
+2026-08-12.  Born from the MnO ordering campaign (doc/Records/SymmetryUpgradePlan.md, runs 38–44): the
 FM/AFM ordering reversal traced to the KB nonlocal term rewarding the weak-moment basin with 1.3 Ha
 of extra d-channel attraction that CP2K — same deck, same transcribed basis — does not see.  The
 LAST structural difference between the codes at that point: **qchem runs Cartesian d (6 components),

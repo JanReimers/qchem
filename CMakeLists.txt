@@ -49,7 +49,7 @@ endif()
 
 # Blaze -> BLAS for the dense products.  ⚠ DEFAULT **ON** -- see the "DEFAULT ON since 2026-08-15" note
 # below.  (This line used to read "OFF by default; -DQCHEM_BLAZE_BLAS=ON to try it", which stayed behind
-# when the option flipped and then misled doc/ParallelAndOraclePlan.md 1.2 into planning a session around
+# when the option flipped and then misled doc/Records/ParallelAndOraclePlan.md 1.2 into planning a session around
 # turning on something that had been on for three weeks.  Corrected 2026-09-06.)
 #
 # Blaze's own kernels are SIMD but build at the SSE2 baseline here (BUILD_MARCH_NATIVE is OFF), and the
@@ -87,7 +87,7 @@ enable_language (Fortran)
 enable_testing()
 # The written module rule as a test: no PUBLIC module unit may re-export an .Internal. module (V1.20c/d).
 add_test(NAME InternalReexportAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-internal-reexports ${PROJECT_SOURCE_DIR}/src)
-# The BasisSet G-tag rule as a test (doc/BasisSetTaxonomyPlan.md §1.6 rule 2, step 3): no qchem.BasisSet.Gaussian.Point.*
+# The BasisSet G-tag rule as a test (doc/Records/BasisSetTaxonomyPlan.md §1.6 rule 2, step 3): no qchem.BasisSet.Gaussian.Point.*
 # module imports a lattice; no qchem.BasisSet.Radial.* module imports a lattice or the molecular point-group symmetry.
 add_test(NAME BasisSetGTagAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-basisset-gtags ${PROJECT_SOURCE_DIR}/src/BasisSet)
 include(CTest)

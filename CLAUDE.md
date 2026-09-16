@@ -45,7 +45,7 @@ Brief notes about module/library conventions, naming, and includes.
     list, not just the pass percentage. (The `.vscode` TestMate glob is `UT*`, so a `UT`-prefixed name
     needs no settings change — the ctest side is the one that needs the edit.)
 
-## Tests — naming and the DISABLED_ rule (from `doc/TestSuitePlan.md`, ruled 2026-09-15)
+## Tests — naming and the DISABLED_ rule (from `doc/Records/TestSuitePlan.md`, ruled 2026-09-15)
 
 - An SCF test is a POINT in a product space and is named as one:
     `TEST(<Basis>_<Material>, <k>_[<Grid>_][<Fit>_][<Sym>_][<Spin>_][<Occ>_][<Reservoir>_][<Machinery>_][<Ansatz>_][<Seed>_]<Claim>)`
@@ -160,7 +160,7 @@ checked, not remembered — a path that names a tree rots silently, see the bran
 
 | code | binary | notes |
 |---|---|---|
-| **CP2K** | `/usr/bin/cp2k.psmp` (`/usr/bin/cp2k` symlinks to it) | the primary oracle; decks in `IntegrationTests/CP2K/`, results in `doc/CP2Kresults.md`, build + recipe in `doc/CP2KBuild.md` |
+| **CP2K** | `/usr/bin/cp2k.psmp` (`/usr/bin/cp2k` symlinks to it) | the primary oracle; decks in `IntegrationTests/CP2K/`, results in `doc/Records/CP2Kresults.md`, build + recipe in `doc/Records/CP2KBuild.md` |
 | **ABINIT** | `~/Code/abinit/build/src/98_main/abinit` | test suite in `~/Code/abinit/tests` |
 | **Quantum Espresso** | `~/Code/q-e/PW/src/pw.x` | test suite in `~/Code/q-e/test-suite` |
 | **VASP** | `~/Code/vasp.6.3.0/vasp.6.3.0/bin/vasp_std` | licensed — do not redistribute inputs/outputs |
@@ -175,7 +175,7 @@ mpirun -np 1 cp2k.psmp -i deck.inp        # -np 1 keeps it comparable to the ban
 two-minute timeout every time somebody forgets, so it is written here rather than only in session memory.)*
 
 ⚠ **AND AN ORACLE IS ONLY AS GOOD AS ITS SETTINGS.**  CP2K's own `EPS_PGF_ORB` default once produced a
-3.5 Ha "oracle" that was retracted (`doc/GPWPlan.md`); on ill-conditioned bases always re-run tight-eps and
+3.5 Ha "oracle" that was retracted (`doc/OldPlans/GPWPlan.md`); on ill-conditioned bases always re-run tight-eps and
 converge the real density before quoting a number.  Copy the run command from `doc/Benchmark.md` §5a rather
 than reconstructing it.
 
@@ -185,14 +185,20 @@ than reconstructing it.
     **flang-21 at `/opt/LLVM-21.1.6-Linux-X64/bin`**.  Build with `-g -fno-omit-frame-pointer` so `perf`
     can read it — that is half the point.
 - **Measure first, and expect the answer to be work that should not have been happening.**  Phase 1 of
-    `doc/ParallelAndOraclePlan.md` went 3.08× → 4.44× on 12 threads without a single threading change: a fold
+    `doc/Records/ParallelAndOraclePlan.md` went 3.08× → 4.44× on 12 threads without a single threading change: a fold
     index that scanned clustered buckets, a Hamiltonian built twice, a star-average applied twice.
 
 ## Docs
 
-- **`doc/README.md` is the index — read it before opening anything else in `doc/`.**  It classifies every
-    file as LIVE (has open work; read it), RECORD (executed; cite it, do not treat it as a queue) or
-    RETIRED (`doc/OldPlans/`).  Forty-plus plan files is workable only while that index is current.
+- **`doc/` has THREE levels, and the folder IS the tier (user, 2026-09-16):** the eight files at the top of
+    `doc/` are the whole live picture — `README.md` (the index), `OpenWork.md` + `CleanupCandidates.md` (the
+    queues), `Pins.md`, `Benchmark.md` (the instrument), and three deliberately-deferred plans
+    (`ModuleToolchainPlan.md`, `LatticeGasPlan.md`, `BatteryMaterialsRoadmap.md`).  **`doc/Records/`** holds
+    the RECORDS still cited by open work (the histories, the CP2K build/results, the OT/SCF-strategy
+    design, the GPW/MnO/symmetry campaign records).  **`doc/OldPlans/`** is RETIRED.  ⚠ Source comments
+    cite the old flat paths (`doc/GPWPlan.md`, `doc/SymmetryUpgradePlan.md`, …): resolve one with
+    `ls doc/*/<File>.md`; they were deliberately not rewritten (a comment-only sweep of module interface
+    units forces a rebuild).  A new plan is born at the top of `doc/` ONLY while it is being executed.
 - **Three files, three questions (ruled 2026-09-16):** `CLAUDE.md` = *how do I work here* (this file:
     conventions, build/test/box, tool paths, the doc system).  `doc/Pins.md` = *what must the code obey*
     (physics, numerics AND design invariants, one paragraph each, earned by a wrong number).  A **RECORD** in
@@ -209,8 +215,8 @@ than reconstructing it.
 - ⚠ **A plan file that names a WORKSPACE or a BRANCH rots silently.**  Three plans retired on 2026-09-08
     described a tree or branch that no longer existed.  Check `ls ~/Code` and `git branch -a` before
     believing one, and write "landed on main as X" in preference to "in progress on branch Y".
-- **A ✅ verdict goes to the matching history file the day it is written** (`OpenWork_History*.md`,
-    `CleanupHistory.md`).  A closed item left in a live tracker is indistinguishable from open work — that
+- **A ✅ verdict goes to the matching history file the day it is written** (`doc/Records/OpenWork_History*.md`,
+    `doc/Records/CleanupHistory.md`).  A closed item left in a live tracker is indistinguishable from open work — that
     is what made both trackers unreadable by 2026-09-08.  Move the full text, leave a one-line stub, and
     keep any surviving REMAINDER behind in the live file.
 

@@ -57,7 +57,7 @@ SALC is fully shippable without it.
 
 ---
 
-## B. Spin-native DFT (was "D2 polarized")  ·  ✅ DONE (B1–B4)  ·  plan: `doc/SpinNativeDFTPlan.md` + tenet `feedback_spin_polarized_primary`
+## B. Spin-native DFT (was "D2 polarized")  ·  ✅ DONE (B1–B4)  ·  plan: `doc/OldPlans/SpinNativeDFTPlan.md` + tenet `feedback_spin_polarized_primary`
 
 Reframed per the design tenet: **spin-polarized is the native formulation; unpolarized is the
 ζ=0 efficiency collapse** — not "add the polarized special case." Four pieces, all spin-first:
@@ -66,7 +66,7 @@ Reframed per the design tenet: **spin-polarized is the native formulation; unpol
 3. open-shell molecular occupation `(n↑,n↓)` — `Molecule_EC(Ne)` is closed-shell aufbau only.
 4. facade multiplicity on `CalcOptions`.
 
-**Plan doc DONE** (`doc/SpinNativeDFTPlan.md`): scopes the four pieces into staged B1–B4, grounded in the
+**Plan doc DONE** (`doc/OldPlans/SpinNativeDFTPlan.md`): scopes the four pieces into staged B1–B4, grounded in the
 real types. Key finding surfaced: **correlation does NOT separate by spin channel** (exchange does) — so
 `FittedVxcPol`'s two-independent-channel split can't carry correlation; v_c^σ(ρ↑,ρ↓) couples both channels
 through r_s and ζ, needing a two-channel functional face + a `FittedVcorrPol` that fits against the full
@@ -188,7 +188,7 @@ New **public Hamiltonian-library API** (the long-wanted exchange-functional sele
 
 - **PBE / GGA** — the highest-value functional for the battery north-star, but a real library
   increment (density-gradient machinery on the mesh), not an enum value. The unified `Model` enum is
-  ready to list it with a "not wired" throw. See `doc/FacadeDFTPlan.md`.
+  ready to list it with a "not wired" throw. See `doc/OldPlans/FacadeDFTPlan.md`.
 - **Automated BASIS-FUNCTION trimming for ill-conditioned spans (USER, 2026-08-14).**  The MnO
   campaign's verdict: every "clever" cure that discards DIRECTIONS in coefficient space failed the
   user's earlier trials, while removing WHOLE diffuse AO functions (manually, then via
@@ -251,7 +251,7 @@ whole-tree sweep (C) has nothing to collide with. Hold the line on not opening n
 
 ## Recommended order (USER re-prioritization, 2026-08-15 — supersedes the 2026-06-30 list above)
 
-Context: the MnO campaign's {AFM,FM}×{qchem,CP2K} matrix (doc/SphericalLatticePlan.md) exposed the
+Context: the MnO campaign's {AFM,FM}×{qchem,CP2K} matrix (doc/Records/SphericalLatticePlan.md) exposed the
 COST gap as the binding constraint — CP2K runs the same cell in minutes/<1 GB where qchem takes
 hours/12 GB — and the accuracy comparison itself is stalled behind code-health items.  The
 symmetric VA matrix (runs 61/62 + CP2K va/vb decks) completes overnight; after that, NO further
@@ -259,7 +259,7 @@ long MnO runs until 1–3 and 5 land.
 
 1. **Close the RUNTIME gap vs CP2K.**  ✅ **ROUND 1 DONE 2026-08-15 (MnO Γ benchmark 171 s → 101 s;
    per-iteration ≈30 s → ≈9 s, physics bit-for-bit unmoved) — record + next steps in
-   doc/GPWPlan1.md "THE RUNTIME GAP, MEASURED".**  The charter's fast-recompute campaign was aimed
+   doc/Records/GPWPlan1.md "THE RUNTIME GAP, MEASURED".**  The charter's fast-recompute campaign was aimed
    at the wrong bucket for the runs we actually pay for: **with the streams cached the pair loops
    are 4% of the run**; the cost was the atom-centred XC mesh (Φ tables 55.6 s, ρ sampling 23.8 s,
    H_xc quadrature inside the 21.8 s iterate residue) — all SERIAL, while the pair loops were the
@@ -276,10 +276,10 @@ long MnO runs until 1–3 and 5 land.
    silently falls back at 1.87 GFlop/s, so round 1's hand-blocked triangular quadrature was losing
    13× to save 2×; under BLAS mode it is one whole-matrix product with no OpenMP at all.  ρ sampling
    4.17 → 0.18 s, per-iteration ≈ 8.7 → ≈ 7.6 s, `ctest -j8` 716/716 (sweep 615 → 540 s).
-   **Round 2 leftovers, now resolved or re-scoped:** the real-Γ/TRIM path is DONE (doc/RealComplexPlan.md
+   **Round 2 leftovers, now resolved or re-scoped:** the real-Γ/TRIM path is DONE (doc/OldPlans/RealComplexPlan.md
    — `GpwOptions::realTRIMBlocks` defaults true since `46feb84a`).
    **Round 3 DONE 2026-08-19 (per-iteration SCF 1.42× on the MnO magnetic cell; record in
-   doc/GPWPlan1.md "Round 3").**  It closed the flip's last named increment and REFUTED its premise:
+   doc/Records/GPWPlan1.md "Round 3").**  It closed the flip's last named increment and REFUTED its premise:
    the ~150 s attributed to "the complex-internal collocation streams" is real (collocate 87.5 +
    integrate 41.1 + stream build 23.5) but is DRAM-BANDWIDTH bound, not complex-arithmetic bound — a
    `perf` annotation puts 49% of the scatter on the value + index loads, ~1% on arithmetic, and nothing
@@ -290,7 +290,7 @@ long MnO runs until 1–3 and 5 land.
    which is item 2's lever too), plus the genuinely complex-bound neighbour `FourierMixCD`'s batched
    inverse FT (half-space fold + hoisted (x,y) phase, 2.39× — it was the single largest per-iteration
    bucket at 87.6 s).  `ctest -j8` 747/747, 0 failed.
-   **Round 4 STAGE A DONE 2026-08-19 (doc/GPWPlan1.md "Round 4"): the SHELL-BLOCKED box walk, on the
+   **Round 4 STAGE A DONE 2026-08-19 (doc/Records/GPWPlan1.md "Round 4"): the SHELL-BLOCKED box walk, on the
    stream build.**  Reading the kernel showed the charter under-sold it: not only the `exp`s but the
    pair→level assignment, the offset list, the box centre/reach/half-widths, the ellipsoid pre-screen,
    the incremental r walk and the modulo wrap are ALL shell properties (they read `radials[i]` only) —
@@ -332,14 +332,14 @@ long MnO runs until 1–3 and 5 land.
    11/9/115/1 individually — see the vet-stage item above), and the possibility that the near-null
    directions need projecting out of F as well as S rather than merely being screened around.
    Re-run note: set `GPW_MNO_VERBOSE=1` (GPW_REPORT=1 gives the ledger but NOT the per-iteration table,
-   so run 64 cannot show whether it dove or stalled).  Analysis in doc/GPWPlan1.md "Run 64".
+   so run 64 cannot show whether it dove or stalled).  Analysis in doc/Records/GPWPlan1.md "Run 64".
    *(original hypothesis, kept for the record)* Hypothesis (banked,
    testable): screen discipline — CP2K's 1e-14 eps keeps the F/S inconsistency below what the
    λ~2e-5 near-null modes can amplify (CP2K itself collapsed 3.5 Ha at loose eps — the retracted
    SR oracle).  THE EXPERIMENT: v2 span, MNO_ORTHO_TOL=1e-3 (zero drops), GPW_SCREEN_EPS=
    GPW_DENSITY_EPS=1e-12, GPW_MNO_NMAX=4 — dive gone ⇒ confirmed, and qchem gains full-136
    capability priced in runtime (= item 1's business).
-3b. **REAL vs COMPLEX — the scalar-type plan (NEW 2026-08-16, doc/RealComplexPlan.md).**  Fell out of
+3b. **REAL vs COMPLEX — the scalar-type plan (NEW 2026-08-16, doc/OldPlans/RealComplexPlan.md).**  Fell out of
    item 1: a Bloch block at a TRIM k (2k ≡ 0 — Γ AND every zone-boundary point, so a Γ-centred
    2×2×2 mesh is TRIM throughout) is exactly real, and so are its H, C, D.  The plan derives the
    rule from the physics rather than declaring it — `block is real ⇔ irrep.IsReal() ∧ (every
@@ -352,10 +352,10 @@ long MnO runs until 1–3 and 5 land.
    (the SCF accelerator's per-block history) could negate the memory win if settled late.
 
 4. **Code cleanup batch.**  doc/CleanupCandidates.md D1–D13 + the vet-stage symmetric basis trim
-   (this file, above) + Δρ/N convergence gate (doc/SCFStrategyPlan.md) + GDM fallback-diagonalize
+   (this file, above) + Δρ/N convergence gate (doc/Records/SCFStrategyPlan.md) + GDM fallback-diagonalize
    breadcrumb (run 59's silent +302 mHa hop) + per-channel ortho duplication + the fingerprint's
    overconfident "raise NMaxIter" advice.
-5. **Finish the symmetry upgrade (doc/SymmetryUpgradePlan.md) — the FOLDS, armed and REPORTED.**
+5. **Finish the symmetry upgrade (doc/Records/SymmetryUpgradePlan.md) — the FOLDS, armed and REPORTED.**
    Inventory 2026-08-15: the {G}-star fold (SymmetrizeGMap/EvaluateSymmetricGMap, cubic-star +
    non-symmorphic unit gates) is wired at exactly TWO static sites (the local-PP sweeps, imposed
    runs only) and reports nothing; the per-iteration G-space consumers (ρ̃, Poisson multiply, V_xc
@@ -366,6 +366,6 @@ long MnO runs until 1–3 and 5 land.
    fold to the per-iteration sites, and print a fold-factor line in every grid/stream report
    (the user's standing complaint: the folding is invisible on cout).  Caveats: the FFT itself
    does not fold trivially; the dominant per-iteration cost is real-space, so T3 is the big win.
-6. **Then** return to the MnO ground-state accuracy campaign (doc/SphericalLatticePlan.md arm-2
+6. **Then** return to the MnO ground-state accuracy campaign (doc/Records/SphericalLatticePlan.md arm-2
    verdict + the deep-moment basin + MNO_KMESH=2 — k-convergence moves the ordering MORE than the
    physical 6J₁+12J₂ ≈ 4 mHa scale, so it needs items 1–3 first to be affordable).

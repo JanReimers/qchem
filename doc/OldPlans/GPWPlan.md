@@ -5,11 +5,11 @@ the electron density collocated on a real-space grid, FFT→G-space Poisson for 
 integrated back against the Gaussians to form the KS matrix (CP2K / Lippert–Hutter). It is the north-star
 that makes ab-initio solids → battery voltage curves possible.
 
-This doc supersedes the GPW sections of `doc/MolecularPP_HarmonizationRound2.md`.
+This doc supersedes the GPW sections of `doc/OldPlans/MolecularPP_HarmonizationRound2.md`.
 
 **The doc is split into two major sections: [DONE](#done) (compact timeline + the still-load-bearing
 records) and [TODO](#todo--next) (what's left, in priority order), then the durable invariants + pointers.
-Full archived narratives live in `doc/GPWHistory.md` — read THIS file to orient; open the history only for
+Full archived narratives live in `doc/Records/GPWHistory.md` — read THIS file to orient; open the history only for
 archaeology.**
 
 ---
@@ -18,11 +18,11 @@ archaeology.**
 
 Everything here is committed on `main`; the GPW suites (`GPW_UT`, `GPW_SCF_UT`) are green.  GPW is a **new
 evaluator, not a new IBS** — it satisfies the plane-wave concepts and the whole `Ham_PW_DFT` KS stack drives
-it verbatim.  **Full per-increment narratives: `doc/GPWHistory.md`** — below is the compact timeline, then the
+it verbatim.  **Full per-increment narratives: `doc/Records/GPWHistory.md`** — below is the compact timeline, then the
 still-load-bearing records in full (naming, the CP2K recipe, the C+D analytic-rewrite state, and the §0a
 runtime close-out incl. the CP2K NaF oracle + convergence findings).
 
-## Compact timeline (details in doc/GPWHistory.md)
+## Compact timeline (details in doc/Records/GPWHistory.md)
 - **1E at Γ** (`ab2c6a76`): Bloch lattice sums delegated to the molecular basis via the engine-neutral
   `Molecule::LatticeSum1E` seam (new edge qcLattice_BS→qcMolecule_BS); home cell == finite matrices <1e-12.
 - **DFT tier by collocation** (`cc123b3b`,`63fbf70c`): GPW fills the PW `Repulsion3C`/`Overlap3C` tensors →
@@ -87,7 +87,7 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
   iters, partial-occ 0, diving virtual banished to −45 Ha unoccupied); vs CP2K oracle −27.93 the 0.17 Ha is
   the grid.  One residual iter-19 MIXING spike remains → 0c Pulay.  198/198 green (`SCFParams::UseMOM` off by
   default).
-- **§0c SCF-STRATEGY REFACTOR + PULAY DONE** (2026-07-18, full design `doc/SCFStrategyPlan.md`): the SCF
+- **§0c SCF-STRATEGY REFACTOR + PULAY DONE** (2026-07-18, full design `doc/Records/SCFStrategyPlan.md`): the SCF
   convergence machinery is now a role-seam framework — density-mixer seam (`tDensityMixer`: Linear/Kerker;
   bit-identical extraction `f4f48431`), loop-driver virtual dispatch replacing the `WantsLineSearch` mode `if`
   (`388b33d3`), and ONE shared paper-faithful `qchem.Math.DIIS` engine serving BOTH Fock-DIIS and density-Pulay
@@ -136,7 +136,7 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
   grid diagnostic (`ReportGrids`) + match knobs (`GPW_MGRID_ECUTS`/`GPW_RELCUTOFF`); CP2K restored via
   conda-forge; the 4.26 Ha "gap" decomposed = 0.76 MOM-pinned excited state + 3.50 REAL SR↔SR2 basis
   physics (ball/Gibbs hypothesis falsified by the 480-Ha probe); **NaF SR2 == CP2K to 0.45→0.19 mHa**;
-  `doc/GPWGrids.md` = the grid inventory.  Full records: §0e★/§0f below.
+  `doc/Records/GPWGrids.md` = the grid inventory.  Full records: §0e★/§0f below.
 - **§0e-PP (a)+(b): absolute κ rule + ANALYTIC short V_loc in production** (`5d963b04`): req=κ·(αᵢ+αⱼ)
   (CP2K `gaussian_gridlevel`; e^{−κ/2} pair tails, κ=30) replaces `relCutoffScale`; analytic 3-centre
   short (the periodic G=0 double-count caught by the new gate); Si Γ grid-vs-analytic identical to 5
@@ -173,7 +173,7 @@ The recipe — every piece fixes a wall we hit:
    Rcut → no ringing) PLUS the wrap (an atom at the cell edge tiles automatically). k-points: the grid density
    is always real/cell-periodic; ALL k-dependence lives in `P(R)=Σ_k w_k e^{ikR}` — collocation is k-agnostic.
 
-## TRAPS — the distilled do-not-revisit list (full records: doc/GPWHistory.md)
+## TRAPS — the distilled do-not-revisit list (full records: doc/Records/GPWHistory.md)
 1. **Aliasing-flattered energies.**  Every pre-2026-07-20 NaF number in the −27.7..−28.0 band (Ecut=40
    era) was an under-resolved-grid COINCIDENCE, not physics.  Resolved-grid truth: SR2 −24.4314 /
    SR −24.4324.  Never trust an energy whose grid fails the negCharge/XC probes.
@@ -201,10 +201,10 @@ The recipe — every piece fixes a wall we hit:
 
 # TODO / NEXT
 
-**⇒ The FORWARD QUEUE now lives in `doc/GPWPlan1.md` (2026-07-23): param-struct graduation →
+**⇒ The FORWARD QUEUE now lives in `doc/Records/GPWPlan1.md` (2026-07-23): param-struct graduation →
 per-system display → Cache2/3 LRU → diffuse robustness + Fermi smearing → B_ij(R) with IBZ.  This
 file remains the RECORD of the 2026-07 campaign (0.5(b)/(c)/(f), 0h, C=2, raster A/B) + the durable
-pins; deep archive in `doc/GPWHistory.md`.**
+pins; deep archive in `doc/Records/GPWHistory.md`.**
 
 **Orientation (2026-07-23).**  GPW is VALIDATED against CP2K at sub-mHa on every honest comparison (Si,
 NaF-SR2 0.19 mHa, NaF-full-SR 0.10 mHa — after the CP2K SR "oracle" −27.93 was RETRACTED as its screening
@@ -222,7 +222,7 @@ test-side `ctest -j16` upgrade (separate session) lands before (b) so every step
 confirmation runs.
 - **(b) DONE 2026-07-23, then RETIRED WHOLESALE 2026-08-27 — free the coarse stage's stream caches after
   the seed handoff.**  ⛔ **The stream cache, `ReleaseStreams`, the global budget, the self-heal rebuild and
-  the `GPW.StreamCacheReleaseUnstarvesLaterGrid` gate are all DELETED** (`doc/CollocationRewritePlan.md`
+  the `GPW.StreamCacheReleaseUnstarvesLaterGrid` gate are all DELETED** (`doc/OldPlans/CollocationRewritePlan.md`
   step 7): with the separable-contraction kernel the 3.9 GB value cache bought ~1.1–1.5× on a run, so the
   whole starvation class it created went with it (the grid-continuation run's fine stage cannot be starved
   of a budget that no longer exists).  Kept below as the record of the class fix.  The class fix
@@ -432,7 +432,7 @@ Vision: collapse to ~one CP2K-like ε.  (Auto-Rcut half is DONE — enumeration 
 
 ## 2. Low-q multi-species bases → Si/NaF/CsI cross-validation (PW + GPW + CP2K)
 
-**Valence-basis GENERATOR — DONE** (`qchem.ValenceBasisGen`; full record: doc/GPWHistory.md): pseudo-atom
+**Valence-basis GENERATOR — DONE** (`qchem.ValenceBasisGen`; full record: doc/Records/GPWHistory.md): pseudo-atom
 SCF → even-tempered valence blocks → `BasisSetData/valence_lowq.bsd` (F 8s+6p E=−21.10, Na 5s+2p E=−0.144;
 enum `VALENCE_LOWQ`), tests `UnitTests/ValenceBasisGen_UT.C`.  Pinned lessons: validate against the physically
 relevant CHARGE STATE (F⁻ for NaF); oracle GS-energy matching is the WRONG objective (N≈8 windows, refine later
@@ -493,7 +493,7 @@ the energy and the integrate-back field; ∂ρ_core/∂D=0 so H_xc stays the exa
    exponent/coeff — the `UnitTests/CP2K/SIPP-SR-BASIS` pattern) + a CP2K deck (mirror `si_fcc_gpw*.inp`,
    `POTENTIAL GTH-PADE-q{1,7}`).
 4. **Compounds:** NaF (rocksalt FCC), CsI (CsCl simple-cubic). Run **PW, GPW, CP2K**. Record Etot + runtime in
-   `doc/CP2Kresults.md`; add did-E-move anchors: GPW → `GPW_SCF`, PW → `PlaneWaveDFTUT`.
+   `doc/Records/CP2Kresults.md`; add did-E-move anchors: GPW → `GPW_SCF`, PW → `PlaneWaveDFTUT`.
 
 **Multi-species GPW plumbing (small — the bases are the real work).** `Ham_PW_DFT` already has the multi-
 species ctor (`{{"Na",1},{"F",7}}`, PW path `606a54ff`) and it drives GPW verbatim, so GPW multi-species =
@@ -506,13 +506,13 @@ Rcut=0) so not yet comparable to PW −20.3293. Gate `GPW_SCF.DISABLED_NaFRocksa
 40-a.u. exponent forces a fine density grid). Rcut=2a + SR basis (PSD overlap) → Etot=−23.556 (removes ~1.5 Ha
 of the Rcut=0 over-binding).
 
-**NaF cross-validation PINS (2026-07-11; full record: doc/GPWHistory.md):** both codes agree the answer FOR
+**NaF cross-validation PINS (2026-07-11; full record: doc/Records/GPWHistory.md):** both codes agree the answer FOR
 THIS GAUSSIAN BASIS is ≈ −23.6 (CP2K transiently passes −23.64 vs our −23.556); the ~3.3 Ha gap to PW's
 complete-basis −20.3293 is Gaussian-basis INCOMPLETENESS (the "GPW vs PW = basis quality" leg).  The SCF
 instability root is the near-singular Bloch overlap METRIC (min eig 7.5e-4, cond≈8000 at SR), NOT occupation;
 magnitude screening fixes the TRUNCATION artifacts but not intrinsic over-completeness → SR stays until §1.
 
-**Gates / deliverables.** `doc/CP2Kresults.md` rows Si/NaF/CsI × {PW, GPW, CP2K} (Etot + runtime); `GPW_SCF`
+**Gates / deliverables.** `doc/Records/CP2Kresults.md` rows Si/NaF/CsI × {PW, GPW, CP2K} (Etot + runtime); `GPW_SCF`
 NaF/CsI converge (charge, Etot) == CP2K same-basis; the GPW−PW gap documented (basis quality). **Pitfalls:**
 iodine is the first GTH Gaussian basis for the element (validate its pseudo-atom carefully); F's tight 2p is
 the hardest (needs the highest cutoff, per the PW NaF vs CsI experience — F set the cutoff, not the heavy I).
@@ -529,7 +529,7 @@ I can run CP2K directly: `~/Code/cp2k/build/bin/cp2k.ssmp`, decks in `~/Code/cp2
   converged by `CUTOFF` 80 Ry (≈40 Ha). Breakdown: Core-H (kin+PP) +5.565, Hartree +10.380, XC −2.544;
   PP total −7.548 (local −8.489, nonlocal +0.941); core self-energy −20.516. (CP2K's GPW electrostatic split
   differs from ours — compare the TOTAL + the cleaner sub-terms kin/XC/nonlocal-PP.) **Γ gate — MET** (−7.11506).
-  Also Si **2×2×2 = −7.86744 Ha** (`si_fcc_gpw_222.inp`). Results table: **`doc/CP2Kresults.md`**; decks:
+  Also Si **2×2×2 = −7.86744 Ha** (`si_fcc_gpw_222.inp`). Results table: **`doc/Records/CP2Kresults.md`**; decks:
   **`UnitTests/CP2K/`**.
 - **PP already aligned:** our `src/Pseudopotential/Data/gth_potentials.json` IS the CP2K GTH-PADE database
   (Si GTH-PADE-q4 params match ours exactly — verified). **Basis: same exponents, transcribed to CP2K
@@ -655,7 +655,7 @@ Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane
 ---
 
 # Pointers
-- **doc/GPWHistory.md** — the full archived DONE narratives, resolved investigations (indefinite-S,
+- **doc/Records/GPWHistory.md** — the full archived DONE narratives, resolved investigations (indefinite-S,
   conditioning, NaF diagnostics), dead-end records, and complete commit archaeology.
 - Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants; analytic collocation/adjoint gates;
   `AnalyticSeparablePPMatchesMesh` == mesh KB to 4.6e-11; `XCPotentialConsistencyFD` — H_xc == ∂E_xc/∂D to
@@ -664,9 +664,9 @@ Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane
   `SiliconMultiKPlumbing` −7.45134, `SR_2x2x2ShiftedMP_vs_CP2K` == CP2K −7.86744 ± 3 mHa (the complex-k gate),
   `SiPseudoAtomInBoxMatchesFinite`; DISABLED: NaF, the Γ-centred 2×2×2 gate (redundant), conditioning sweeps),
   `UnitTests/L_PP.C` (finite==lattice PP), `UnitTests/PlaneWaveDFTUT.C` (PW anchors).
-- CP2K decks + results: `UnitTests/CP2K/`, `doc/CP2Kresults.md`; CP2K itself: `~/Code/cp2k/build/bin/cp2k.ssmp`.
+- CP2K decks + results: `UnitTests/CP2K/`, `doc/Records/CP2Kresults.md`; CP2K itself: `~/Code/cp2k/build/bin/cp2k.ssmp`.
 - Recent commits: **`8dba0625`** (C+D analytic rewrite, sampling deleted), **`9714f58d`** (auto-Rcut,
   budgeted stream cache, sharp-field PP ladder), **`9ff982ba`** (§0a Si leg: lockout fix + memos, complex-k
   gate enabled), **`b0f497c6`** (analytic KB + fp32 tier), **`4c71450c`** (D-aware radii + CP2K NaF oracle),
-  **`35789164`** (NaF convergence: recipe machinery + fine-grid attractor findings).  Older: doc/GPWHistory.md.
+  **`35789164`** (NaF convergence: recipe machinery + fine-grid attractor findings).  Older: doc/Records/GPWHistory.md.
 - Build/test: `cd build/Release && ninja UTMain && ./UnitTests/UTMain`.

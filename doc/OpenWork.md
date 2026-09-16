@@ -6,12 +6,12 @@ CLOSED items are not in that table (they keep their sections further down).**  E
 after it is a mix of open items and the evidence that produced them; the evidence is kept deliberately
 (three open items exist because a measurement refuted the obvious answer) but it interleaves, so the index
 is the map.  Closed threads are retired to two history files:
-`doc/OpenWork_History1.md` (threads A–E, the 2026-06-30 and 2026-08-15 orderings, runtime rounds 1–4) and
-`doc/OpenWork_History2.md` (cut 2026-08-25 — the Vxc repair thread and the three-part fit-basis interface
+`doc/Records/OpenWork_History1.md` (threads A–E, the 2026-06-30 and 2026-08-15 orderings, runtime rounds 1–4) and
+`doc/Records/OpenWork_History2.md` (cut 2026-08-25 — the Vxc repair thread and the three-part fit-basis interface
 refactor of 2026-08-21 → 08-24).  Durable design rulings live in `doc/CleanupCandidates.md` R1.0, not in
 either history.
 
-**Cut again 2026-09-08 → `doc/OpenWork_History3.md`** (user: *"done and todo items interleaved and lots of
+**Cut again 2026-09-08 → `doc/Records/OpenWork_History3.md`** (user: *"done and todo items interleaved and lots of
 history so it is hard for me to read and assess"*).  Eight sections — 1316 of 2859 lines, every one CLOSED,
 ACTED ON, or self-labelled *no action here* — moved out whole, each leaving a stub that says what it
 concluded.  Verified line-for-line: nothing lost.  ⚠ **What is STILL interleaved, deliberately**: `The plan,
@@ -41,13 +41,13 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > mesh-symmetry SUBGROUP.  `GPW_SCF.SiliconMultiKPlumbing` is **RE-ENABLED** (Σw=1, charge=8) and its
 > energy anchor re-pinned to \f$-7.45294\f$ after cross-checking against the band-folding-equivalent Γ
 > supercell.  ⚠ The guess in the old row — TRIM self-pairing — was NOT the cause.  Full record in
-> `doc/OpenWork_History3.md`; the follow-on judgement (the density is star-averaged under a bigger group
+> `doc/Records/OpenWork_History3.md`; the follow-on judgement (the density is star-averaged under a bigger group
 > than the mesh has) is `doc/CleanupCandidates.md` **R1.0r**.
 >
 > ### 2. ⏳ THE `doc/CleanupCandidates.md` SWEEP — IN PROGRESS, first batch landed 2026-09-09
 > ~28 genuinely open items (the 38 a grep finds include six PROCESS-lesson entries that are not tasks).
 > Several are one-liners now that the faces moved under them.
-> ▶ **BATCH 1 (2026-09-09) closed SIX — record in `doc/CleanupHistory.md` "HARVEST 2026-09-09".**  ★ **Two
+> ▶ **BATCH 1 (2026-09-09) closed SIX — record in `doc/Records/CleanupHistory.md` "HARVEST 2026-09-09".**  ★ **Two
 > of them (`R1.0c`, `R1.0d`) were ALREADY DONE IN THE TREE and had simply never been moved** — one of them
 > still reading ⛔ DEFECT for code fixed on 2026-08-25.  ⇒ **CHECK THE TREE BEFORE BELIEVING AN ITEM**;
 > that is the cheapest move available in this step and it is worth doing to every remaining row first.
@@ -58,7 +58,7 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > more `exit(-1)`, different owners) and **R1.0r** (from KP-0).  850/850.
 > ▶ **BATCH 2 (2026-09-09) closed THREE more, two of them on USER RULINGS.**  **R2.17** was another
 > already-closed row (all three sub-items ✅; the header still said "the third is a design call").
-> **D1 — `Band_DFT_IBS` is DELETED**, superseding `doc/FittingCleanupPlan.md` §D: the argument was not
+> **D1 — `Band_DFT_IBS` is DELETED**, superseding `doc/OldPlans/FittingCleanupPlan.md` §D: the argument was not
 > that it was dead but that the question it posed is ANSWERED by `qcMesh::MatrixIntegrator`, which +U is
 > being written against.  **V1.20 — `.Internal.` marks the FAMILY boundary, not the CMake target**, so
 > `SymmetryAdapted_IBS` moved in; the ruling turns the `Internal.GMap` imports from `qcChargeDensity` and
@@ -91,7 +91,7 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > ▶ **V1.37 STEPS 1–2 LANDED (2026-09-14)** — Pol/UnPol are the IMPOSED SPIN SUBGROUP (`qchem::SpinGroup`),
 > not types: `tPolarizedWF`/`tUnPolarizedWF`/`tPolarized_CD` GONE, ONE `tCompositeWF` + ONE `tComposite_CD`
 > over full Irreps with channel VIEWS through `tSpinResolved_CD::GetChannel`; `Hamiltonian::Pol` gone (it IS
-> `SpinGroup`); 857/857, totals unchanged at printed precision (user: clean code over 1e-16 anchors).  Record → `doc/CleanupHistory.md`.  **Remainder = step 3 (the 13 `IsPolarized()`
+> `SpinGroup`); 857/857, totals unchanged at printed precision (user: clean code over 1e-16 anchors).  Record → `doc/Records/CleanupHistory.md`.  **Remainder = step 3 (the 13 `IsPolarized()`
 > term-dispatch sites), sequenced AFTER R1.0h's per-iteration scope so the terms are touched once.**
 >
 > ▶ **R1.0h CLOSED (2026-09-14)** — `ChargeBreakdown{lost, siteMoments}` is the site-moment owner (filled in
@@ -103,21 +103,21 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > ▶ **V1.37 STEP 3 LANDED (2026-09-14) — V1.37 CLOSED.**  One term per operator built FOR the imposed
 > subgroup (`Vxc`, `FittedVxc`, `Vxc_Quadrature`), a spin-native `ExFunctional` face (`SpinCorrelation`
 > gone), eleven `Ham_*_U/_P` → six with `GetSpinGroup()`, `SymMap` for spatial caches (`Spin::None` keeps
-> only its doublet-label job).  857/857.  Record → `doc/CleanupHistory.md`.
+> only its doublet-label job).  857/857.  Record → `doc/Records/CleanupHistory.md`.
 >
 > ▶ **SPRINT S LANDED (2026-09-14) — V2.2 + V2.5, and `doc/Step2Remaining.md` RETIRES to `doc/OldPlans/`.**  GPW seeds
 > `IonicSAD` by default (`Uniform` opt-in; the roster's **A5**); the KB mesh fallback floors its own cutoff
 > (`SpeciesProjectorSet_R::SharpnessR`).  ★ The "anchor-moving" pair moved NO anchor — 860/860, zero re-pins
 > — and V2.5's sweep exonerated the analytic d-channel KB and re-enabled its gate.  Records →
-> `doc/CleanupHistory.md`.  **⇒ STEP 2 IS DONE except two rows blocked outside it (V1.34 on N4, R1.0b on the
+> `doc/Records/CleanupHistory.md`.  **⇒ STEP 2 IS DONE except two rows blocked outside it (V1.34 on N4, R1.0b on the
 > reader bug).  A FRESH SESSION STARTS AT STEP 3 (TE).**
 >
 > ### ✅ 3. THE TEST-SUITE ORGANISATION — item **TE** — DONE 2026-09-15 (plan + 6 phases in one day, ~25 commits)
-> `doc/TestSuitePlan.md` is the RECORD.  Suite wall 207 s → ~70 s; every solid SCF test drives `SolidCalculation`
+> `doc/Records/TestSuitePlan.md` is the RECORD.  Suite wall 207 s → ~70 s; every solid SCF test drives `SolidCalculation`
 > with its cell from `qchem.Materials` (rows BL + MD); the drivers are gone; the grid is `IntegrationTests/{GPW,PW}/`
 > under `<Basis>_<Material>.<k>_<tokens>_<Claim>`, rendered and CHECKED by `scripts/testgrid`; the instruments are
 > `CLIapps/gpwprobe`; the unit-level tests are in `src/<lib>/tests`; the DM-source XC route and the converged
-> MnO AFM-II state each have a cell.  Full text → `doc/OpenWork_History3.md`.  **REMAINDER (open, no longer a step):**
+> MnO AFM-II state each have a cell.  Full text → `doc/Records/OpenWork_History3.md`.  **REMAINDER (open, no longer a step):**
 > **S3b** libcint-spherical SALC (real work: match libcint's real-harmonic ORDER and NORMALISATION; the one empty cell
 > of the molecular grid; item (c) of the old TE row); the PW basis family has NO FACADE (`SolidCalculation` is built
 > over a Gaussian basis) — its 2 drivers live in `IntegrationTests/PW/Harness.C` until the facade grows a basis-family
@@ -129,21 +129,21 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > ### ✅ 4. POLISH THE NEAR-EMPTY LIVE PLANS → RECORD — DONE 2026-09-16 (one doc-only commit, zero code)
 > **FIVE files moved LIVE → RECORD in `doc/README.md`** — the three named (`ERI4Rework.md`, `SCFSeedingPlan.md`,
 > `FacadeDFTPlan.md`) plus two of the same shape (`SpinNativeDFTPlan.md`, `FittingCleanupPlan.md` — whose own
-> header had said RECORD since 2026-09-08).  ★ **Every "one item left" the index carried was checked against
+> header had said RECORD since 2026-09-08; all five RETIRED to `doc/OldPlans/` later the same day).  ★ **Every "one item left" the index carried was checked against
 > the tree first, and NONE of them was open**: ERI4's "3c cache key" shipped `9e2c7327` on 2026-07-02 (the file's
 > own §8 said DONE); the "Mn table regen after the d-PP fix" landed `e849b70d` on 2026-08-06, the same day as the
 > fix; FacadeDFT's trio are library increments already rowed here (parked threads + step 5).  Two things were
 > genuinely untracked and are now filed: **R2.23** (ERI4Rework §6, the atomic Rk `LMax`→`Irrep` sizing) and the
-> **molecular spin-resolved SAD seed** (parked thread below).  Full record → `doc/OpenWork_History3.md`.
+> **molecular spin-resolved SAD seed** (parked thread below).  Full record → `doc/Records/OpenWork_History3.md`.
 > **⇒ A FRESH SESSION STARTS AT STEP 5.**
 >
-> ### 5. THEN DFT+U — `doc/ParallelAndOraclePlan.md` PHASE 3
+> ### 5. THEN DFT+U — `doc/Records/ParallelAndOraclePlan.md` PHASE 3
 > Oracle already validated (CP2K has `&DFT_PLUS_U`).  ★ **Write it against `MatrixForward<T>` and
 > `MatrixAdjoint<T>` from the start** (user wording 2026-09-11; `MatrixIntegrator` itself was DELETED
 > `7a41cca6` — nobody needs both halves, one object is built once and each client is handed its half):
 > +U is a `Dynamic_HT`, its occupation-matrix forward and its potential adjoint are exactly that pair, and
 > being born on the faces costs nothing where converting it later does.
-> **Folded in from `doc/ParallelAndOraclePlan.md` Phase 3 (2026-09-16, that file is now a RECORD):**
+> **Folded in from `doc/Records/ParallelAndOraclePlan.md` Phase 3 (2026-09-16, that file is now a RECORD):**
 > (i) **produce the ORACLE ROW FIRST** — CP2K's `&DFT_PLUS_U` per `&KIND` with `U_MINUS_J` and
 > `PLUS_U_METHOD MULLIKEN | LOWDIN` (verified in the installed 2025.2 input reference); MnO AFM-II, the deck we
 > trust, one `U_MINUS_J` on the Mn kind — the anchor is nearly free.  (ii) **MATCH THE PROJECTOR FLAVOUR
@@ -281,7 +281,7 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > missing parallel opportunities CP2K exploits — on THIS class of system** (4-atom, high-symmetry: the
 > regime §2 says most favours us; a 100-water box would invert it, and none of this is a many-node claim).
 >
-> ▶ **SEQUENCED IN `doc/ParallelAndOraclePlan.md` (2026-09-06) — start at its 1.1.**  The opportunities we
+> ▶ **SEQUENCED IN `doc/Records/ParallelAndOraclePlan.md` (2026-09-06) — start at its 1.1.**  The opportunities we
 > ARE missing are our own (§7c), in priority order: (1) **~59 s of UNBUCKETED
 > work** in a 128 s threaded MnO run — diagonalise/ortho/mix/fit-solve, none of it timed, so the first move
 > is an INSTRUMENT not an optimisation; (2) the **XC-mesh quadrature GEMM at 1.21×** — ⚠ a
@@ -330,13 +330,13 @@ stop competing for the reader's attention here:
 
 | closed | what it settled | its section |
 |---|---|---|
-| **A — the on-the-fly box walk** | 2026-08-26/27: **14.5× on MnO** (570 → 39 s per iteration), CP2K standing 67× → ~5×.  Four bit-identical edits, then the separable-contraction kernel (`GPW_CONTRACT_CUBE`, built + gated OFF pending the anchor re-bank). | *"THE ON-THE-FLY BOX WALK"* + `doc/CollocationRewritePlan.md` |
+| **A — the on-the-fly box walk** | 2026-08-26/27: **14.5× on MnO** (570 → 39 s per iteration), CP2K standing 67× → ~5×.  Four bit-identical edits, then the separable-contraction kernel (`GPW_CONTRACT_CUBE`, built + gated OFF pending the anchor re-bank). | *"THE ON-THE-FLY BOX WALK"* + `doc/OldPlans/CollocationRewritePlan.md` |
 | **N5** | `CP2K_COMPAT` + the self-describing banner.  ⚠ Remainder: `raster`/`cutoffFactor` are TYPED options the policy does not reach. | *"✅ T5 / N5"* |
 | **N1** | T1–T5 all built.  ⚠ Remainder: the COVERAGE GAP (`RunGpw`/`RunGpwAnnealed` bypass the facade). ★ The detector RULES are now unit-tested (`src/Calculation/tests/RunDiagnostics.C`). | *"★★★ N1"* |
 | **N2** | The ρ<0 lobes are BAND-LIMITING, not aliasing — which eliminated every cheap alternative to N4. | *"★ N2"* |
 | **1** | `GPW_XC_DM_SOURCE` does not earn the default; the measurement convicts the MIXER, not the exact ρ. | *"✅ ITEM 1 MEASURED"* |
 | **3** | The imposed XC mesh keeps its site blocks. | (below) |
-| **C — the collocation rewrite** | 2026-08-27, steps 7–8: the 3.9 GB pair-stream VALUE cache is deleted and the (shell pair, offset) TASK LIST replaces it (~0.2 MB); `GPW_CONTRACT_CUBE` defaults ON. MnO peak RSS **3915 → 155 MB** with the box-walk buckets ~1.1× slower on the whole run — the trade the cache existed for had evaporated. 792/792 green on BOTH kernel settings. Two latent defects fell out: the integrate-back's `Re[D·conj(phase)]` screen (the shifted-MP defect, 4.1 Ha, previously reached only by over-budget pairs) and the walk's per-component `|v|` screen (broke the collocate/integrate adjoint at 1.2e-8 once the shared frozen stream was gone). | `doc/CollocationRewritePlan.md` step 7 |
+| **C — the collocation rewrite** | 2026-08-27, steps 7–8: the 3.9 GB pair-stream VALUE cache is deleted and the (shell pair, offset) TASK LIST replaces it (~0.2 MB); `GPW_CONTRACT_CUBE` defaults ON. MnO peak RSS **3915 → 155 MB** with the box-walk buckets ~1.1× slower on the whole run — the trade the cache existed for had evaporated. 792/792 green on BOTH kernel settings. Two latent defects fell out: the integrate-back's `Re[D·conj(phase)]` screen (the shifted-MP defect, 4.1 Ha, previously reached only by over-budget pairs) and the walk's per-component `|v|` screen (broke the collocate/integrate adjoint at 1.2e-8 once the shared frozen stream was gone). | `doc/OldPlans/CollocationRewritePlan.md` step 7 |
 
 | # | open item | the next concrete action | point a session at |
 |---|---|---|---|
@@ -346,19 +346,19 @@ stop competing for the reader's attention here:
 | **N3** | ★★ **CHARGE AND SPIN NEED SEPARATE PRECONDITIONING — ⚠ HALF-BUILT ALREADY (corrected 2026-08-25): `QCHEM_MIX_RHO_M=1` in `MakePeriodicMixer` ALREADY selects the (ρ,m) basis with "Kerker on ρ, PLAIN LINEAR on m", carrying the same *"m has none"* argument. So this needs a MEASUREMENT and a promotion, not a build.** — Kerker is applied per spin channel, so by linearity it damps the SPIN channel too, and the spin channel has **no 4π/G² divergence to justify it** (user). It is charge medicine taken by the magnetisation; cf. VASP's independent `AMIX_MAG`/`BMIX_MAG`. | Split the mixing policy into charge + spin channels. ⚠ Do this KNOWING that today's AFM basin is propped up by the current behaviour (see ITEM 1 MEASURED) — so it needs the N1 detectors landed first, or it will look like a regression. | *"★★ N3 — THE MIXING POLICY"* |
 | **2** | **BENCHMARK PROTOCOL — no timing table is comparable until this holds** (user, 2026-08-25). Two defects today: no table states its THREAD state per row, and qchem runs accelerations CP2K does not — the factored/low-rank ρ is **ON BY DEFAULT** (`QCHEM_DM_LOWRANK`), so every row since `07d13bf6` has it | (a) build the self-describing BANNER `doc/Benchmark.md` already asks for — thread counts + the qchem-only feature flags — so rows describe themselves instead of relying on discipline; (b) re-take the rows under the two-phase rule: **single-thread parity FIRST**, then N=8/16 for OMP-shaped gaps. | `doc/Benchmark.md` → *"BENCHMARK PROTOCOL"*, and Step 0 (instruments) |
 | **4** | **Step 5 — MnO accuracy, name the operator**: the sharpest coordinate on the list, with a banked oracle, and its first move is cheap | ⚠ **PIN `GPW_XC_DM_SOURCE` first** — individual terms move ~100 mHa with it, so the term-by-term CP2K breakdown means nothing until item 1 is settled. Then the cheap first move. | Step 5 |
-| **5** | ✅ **DONE 2026-09-06 — Step 0c, "the instruments report WHAT, not WHEN"**.  `report::RunElapsed()` (the run's own steady clock, zeroed at `Begin`) stamps EVERY emitted item: the console heading carries `[t=12.34 s]`, a scoped `Section` carries its whole SPAN `[t=3.21→12.34 s]` (the honest reading — it renders at scope CLOSE), `Log` and `[fold]` lines are stamped too, and the run record grows a chronological `timeline` array beside the nested document.  ⇒ **The design question — chronological stream vs nested render — is answered by keeping BOTH**, which costs one array.  5 unit tests in `UTCommon`. | ⚡ **It paid on its first run**: on the MnO ledger the gaps between stamps named a 35.8 s silent block (the stage-2 Hamiltonian rebuild) with no bucket added — see `doc/ParallelAndOraclePlan.md` 1.1(a). | Step 0 |
+| **5** | ✅ **DONE 2026-09-06 — Step 0c, "the instruments report WHAT, not WHEN"**.  `report::RunElapsed()` (the run's own steady clock, zeroed at `Begin`) stamps EVERY emitted item: the console heading carries `[t=12.34 s]`, a scoped `Section` carries its whole SPAN `[t=3.21→12.34 s]` (the honest reading — it renders at scope CLOSE), `Log` and `[fold]` lines are stamped too, and the run record grows a chronological `timeline` array beside the nested document.  ⇒ **The design question — chronological stream vs nested render — is answered by keeping BOTH**, which costs one array.  5 unit tests in `UTCommon`. | ⚡ **It paid on its first run**: on the MnO ledger the gaps between stamps named a 35.8 s silent block (the stage-2 Hamiltonian rebuild) with no bucket added — see `doc/Records/ParallelAndOraclePlan.md` 1.1(a). | Step 0 |
 | **6** | **`FIT_SF_Ortho` — separate the metric axis into faces**: specced 2026-08-23, not built. `OverlapDiagonal` sits on the metric-NEUTRAL face, so `Fit_IBS` invents an answer in the wrong normalisation | Move it to `FIT_SF_Ortho<T>` (both fit faces in one increment) and `Fit_IBS` simply loses it — delete the landmine, do not correct it. ⚠ Acceptance criterion: must NOT become a `dynamic_cast` type switch. | *"★ SPECCED, NOT BUILT"* (near the end) |
-| **OT** | ⏸ **ORBITAL TRANSFORMATION (OT) — the minimiser CP2K actually ships, and the ONLY way to time a minimiser against theirs** (user, 2026-09-06: *"CP2K uses the OT method instead of GDM so we can't do proper parity timings against CP2K anyway"*).  Two things hang off it: a like-for-like STAGE-2 comparison (today only our fixed-point stage has a counterpart — CP2K's benchmarked decks diagonalise and mix), and `doc/Benchmark.md` §5f **lever C**, the GDM line search's trial densities (42 of the parity probe's 82 collocations), which cannot be judged without one.  **Note moved here from `doc/ParallelAndOraclePlan.md` (2026-09-16):** OT was deliberately NOT folded into that plan's sequence — it is a separate build (`doc/SCFStrategyPlan.md` §7, the design; `doc/OTNotes.md`, what the 2026-07 GDM investigation established so OT does not re-derive it).  Two things hang off it and nothing else does: **lever C** (the GDM line-search's trial densities carry gathers a mixing run never issues — a real question only minimiser-to-minimiser) and the like-for-like STAGE-2 timing.  And pin 15 applies: OT at kT>0 is CP2K's "OT+smearing" special case (a coupled orbital+occupation minimisation), not forbidden by the method — the smearing-aware search direction is part of the build, never conflate hold-the-block with don't-smear. | Not scheduled.  When it is: build OT beside GDM under the existing accelerator/loop-driver seam (`doc/SCFStrategyPlan.md`'s role seams already anticipate another direct minimiser), then time OT-vs-OT and re-open lever C. | `doc/Benchmark.md` §5f + §5a footnote ᵇ |
-| **KP-0** | ✅ **CLOSED 2026-09-09 — the IBZ weights sum to 1.**  `FoldGrid` was applying the reciprocal op to the grid INDEX vector; the index action is \f$M=DUD^{-1}\f$, and on an ANISOTROPIC mesh an axis-permuting op is not a mesh symmetry at all, so the mod-\f$N\f$ wrap made the action a non-bijection and the stars overlapped (Σw=1.5 ⇒ 12 electrons in an 8-electron Si cell).  Non-symmetry ops are now skipped wholesale.  ⚠ **The TRIM self-pairing this row blamed was not the cause.** | ▶ **KP IS UNBLOCKED.**  `GPW_SCF.SiliconMultiKPlumbing` re-enabled (3.1 s, charge=8) with its anchor re-pinned to \f$-7.45294\f$, cross-checked against the band-folding-equivalent Γ 2×1×1 supercell (\f$-7.451621\f$/primitive).  Gates: `Fold.*` in `UTSymmetry`. | `doc/OpenWork_History3.md` "KP-0" + `doc/CleanupCandidates.md` R1.0r |
+| **OT** | ⏸ **ORBITAL TRANSFORMATION (OT) — the minimiser CP2K actually ships, and the ONLY way to time a minimiser against theirs** (user, 2026-09-06: *"CP2K uses the OT method instead of GDM so we can't do proper parity timings against CP2K anyway"*).  Two things hang off it: a like-for-like STAGE-2 comparison (today only our fixed-point stage has a counterpart — CP2K's benchmarked decks diagonalise and mix), and `doc/Benchmark.md` §5f **lever C**, the GDM line search's trial densities (42 of the parity probe's 82 collocations), which cannot be judged without one.  **Note moved here from `doc/Records/ParallelAndOraclePlan.md` (2026-09-16):** OT was deliberately NOT folded into that plan's sequence — it is a separate build (`doc/Records/SCFStrategyPlan.md` §7, the design; `doc/Records/OTNotes.md`, what the 2026-07 GDM investigation established so OT does not re-derive it).  Two things hang off it and nothing else does: **lever C** (the GDM line-search's trial densities carry gathers a mixing run never issues — a real question only minimiser-to-minimiser) and the like-for-like STAGE-2 timing.  And pin 15 applies: OT at kT>0 is CP2K's "OT+smearing" special case (a coupled orbital+occupation minimisation), not forbidden by the method — the smearing-aware search direction is part of the build, never conflate hold-the-block with don't-smear. | Not scheduled.  When it is: build OT beside GDM under the existing accelerator/loop-driver seam (`doc/Records/SCFStrategyPlan.md`'s role seams already anticipate another direct minimiser), then time OT-vs-OT and re-open lever C. | `doc/Benchmark.md` §5f + §5a footnote ᵇ |
+| **KP-0** | ✅ **CLOSED 2026-09-09 — the IBZ weights sum to 1.**  `FoldGrid` was applying the reciprocal op to the grid INDEX vector; the index action is \f$M=DUD^{-1}\f$, and on an ANISOTROPIC mesh an axis-permuting op is not a mesh symmetry at all, so the mod-\f$N\f$ wrap made the action a non-bijection and the stars overlapped (Σw=1.5 ⇒ 12 electrons in an 8-electron Si cell).  Non-symmetry ops are now skipped wholesale.  ⚠ **The TRIM self-pairing this row blamed was not the cause.** | ▶ **KP IS UNBLOCKED.**  `GPW_SCF.SiliconMultiKPlumbing` re-enabled (3.1 s, charge=8) with its anchor re-pinned to \f$-7.45294\f$, cross-checked against the band-folding-equivalent Γ 2×1×1 supercell (\f$-7.451621\f$/primitive).  Gates: `Fold.*` in `UTSymmetry`. | `doc/Records/OpenWork_History3.md` "KP-0" + `doc/CleanupCandidates.md` R1.0r |
 | **KP** | ★★ **K-POINT PARALLELISM — THE ONE PARALLEL AXIS EVERY OTHER CODE HAS AND WE DO NOT** (user, 2026-09-07: *"all these Γ runs are mostly for development, in the real world multi-k is the norm … if all the other codes do this and we don't because of internal caching, well then that is embarrassing"*).  ✅ **CONFIRMED IN CP2K'S OWN SOURCE**, not from memory: `PARALLEL_GROUP_SIZE` (*"Number of processors to be used for a single kpoint … the number of groups must divide the total number of kpoints"*), `kpoint%kp_range` assigning each group its k slice from `kp_dist`, and `para_env_inter_kp%sum(...)` reducing across groups (`src/input_cp2k_kpoints.F`, `src/kpoint_methods.F`).  ⚠ Believed true of QE (`-nk` pools), VASP (`KPAR`) and ABINIT (`npkpt`) as well — **NOT verified here**, no local sources; verify before quoting. | ⛔ **THE "WE CAN'T, BECAUSE OF OUR MEMOS" ANSWER DOES NOT SURVIVE CONTACT WITH THEIR DESIGN.**  Their groups are separate MPI ADDRESS SPACES, so each simply holds its own copy of the density-derived state — the duplication our objection treats as disqualifying, they accept, and it is cheap beside the per-k work.  ⇒ Our coupling is a CHOICE, not a constraint. ★ **AND THE FIX IS SMALLER THAN THE OBJECTION SUGGESTS**: every one of the 20 `mutable` memos on the term stack (V_H ΔG_Map, ρ rasters, XC-mix rasters, fitted v) is **k-INDEPENDENT** — in the pool model these are exactly the objects computed ONCE and read by every group.  The obstacle is not that they exist, it is that they are **lazily filled on FIRST BLOCK ACCESS**, which turns a read-only shared resource into a write-on-first-touch race.  ✅ **BUILT 2026-09-08 — `tHamiltonian::RefreshForDensity`.**  `tDynamic_HT` gains a `RefreshForDensity(cd)` hook (default no-op); `tHamiltonianImp` folds it over the DYNAMIC terms only (a static term is density-independent, so the phase must never reach it); `Vee_Hartree` warms \f$V_H[\rho]\f$ and the three periodic XC terms warm \f$\rho\f$ (or the \f${\uparrow,\downarrow}\f$ pair) through one `XC_Quadrature::WarmForDensity(cd, polarized)` entry point — expressed as ONE engine call rather than the term reaching in by name, so the warming AND the shape-exclusivity rule stay with the engine that owns the caches.  `tCompositeWF::DoSCFIteration` and `BuildFockAndComputeSteps` drive it in its own report bucket immediately before their block loops.  Gates: `EagerRefresh.*` in `UTHamiltonian` (3 unit tests, no SCF — the fold is pure plumbing over the term lists, so it is pinned by CALL COUNTS, not timings).  830/830.
 > ⚠ **IT IS A PRE-WARM, NOT A REPLACEMENT, AND THE DOCS SAY SO.**  Every memo keeps its density-serial guard and those guards remain the correctness mechanism — energy evaluation and the unit tests drive terms outside any prologue, so an assert of the form *"the phase must have run first"* would be false. A test pins that non-contract deliberately (`AssemblyWithoutAPriorRefreshIsLegal`).
-> ⛔ **AND THE BLOCK LOOP IS NOT YET READ-ONLY — one write remains, and it is a DIFFERENT problem.** `tDynamic_HT_Imp::GetMatrix` stores its result in `mutable CacheMap itsCache` keyed by `Irrep`, i.e. **one map entry written per block, inside the loop**.  That memo is k-DEPENDENT, so the eager phase cannot warm it by construction; it needs per-block storage (or no cache under a parallel loop), which is a separate increment.  ▶ Do not read this item as "the loop is now threadable" — it is one of two obstacles, and the one that was blocking the DESIGN.  ▶ The original argument stands: an explicit refresh phase — and is a better design regardless, since it makes the phase structure visible instead of implicit in call order.  Then: shared prologue → read-only parallel k loop → density reduction, i.e. CP2K's own decomposition.  ⚠ `itsByL`/`itsByLSeen` ("irrep blocks already decomposed") is the one genuinely per-block accumulator and needs separate handling. | ⏸ **NOT NOW, BY AGREEMENT, BUT IT STAYS ON THE LIST** (user: *"if it doesn't make sense to do it now that is fine … but it should stay on the list until we are suitably embarrassed that we have to do it"*).  Reasons to wait, not to drop: every row we own is Γ (width 2), so the payoff cannot even be MEASURED until the multi-k rows of **2.1/2.2** exist; and Phase 1's remaining lever (1.3b) is a bigger win on the cells we actually run.  ▶ **Re-open it at 2.1**, where the width is 16 and the question stops being hypothetical. | `doc/ParallelAndOraclePlan.md` (1.3 + Phase 2) |
-| **BM** | ★ **THE BECKE MESH — FOUR FINDINGS; THE "OPEN BUG" WAS NOT ONE (2026-09-07/08, (4) CLOSED 2026-09-08).**  Came out of the supercell work but is INDEPENDENT of it; the supercell symmetry fix stands on its own evidence.  ⚠ **THE CAVEAT THAT TURNED OUT TO BE THE ANSWER** (user, 2026-09-08): *"The polyhedra truncations might make these counts difficult to interpret."*  Right instinct, and the mechanism was even simpler than truncation — the points are WRAPPED (see (4)) — but the ruling stands as a rule: **a raw count of distinct radii is a LEAD, never proof of a defect.**  It is the reason the 199-vs-49 was never acted on as a bug. | **(1) ⛔ A LIVE TRAP, already filed in `doc/CleanupCandidates.md`**: setting `MeshParams::cellKind=Becke` ALONE leaves the rest at the struct's own defaults — nR=30, α=1, **L=5** — where `BeckeXCParams`' are nR=40, α=2, **L=29**.  A degree-5 XC mesh is not a Becke run.  It cost a bogus 40 mHa "imposed vs free" discrepancy that read exactly like a symmetry bug.  **Ask for the RECIPE (`BeckeXCParams(-1,-1,-1)`), never the kind alone.**  ⚠ Related: `GPW_BECKE_L/NR/ALPHA` are consulted ONLY for arguments passed `<0`, so they silently do nothing against a caller-supplied degree — a sweep over `GPW_BECKE_L` produced three identical runs before that was noticed. **(2) ✅ AT THE PRODUCTION RECIPE IMPOSED AND FREE AGREE**: Si 1×1×1 Becke L=29, imposed \f$-7.11493826\f$ vs free \f$-7.114983942\f$ = **46 µHa**, and both sit ~0.1 mHa from the uniform-mesh anchor \f$-7.115067844\f$ (itself matching the banked \f$-7.11506\f$).  So the two XC routes and the two symmetry arms all agree; there is no energy-level defect. **(3) ★ A 2.9× SITTING UNCLAIMED**: `InvariantAngularMesh.StockLebedevIsAlreadyInvariantUnderSiTdSiteGroup` shows **Lebedev-29 (302 dirs) is ALREADY exactly invariant under Si's \f$T_d\f$ site group — 0 unmatched of 7248** rotated directions, because Lebedev rules are built from OCTAHEDRAL orbits and any axis-aligned cubic site group is a subgroup of \f$O_h\f$.  W2b nonetheless builds a site-adapted rule at **886 dirs/atom** (48128 mesh points against 16392), buying an invariance it already had.  ▶ Test the stock rule for site invariance FIRST and reuse it when it passes; keep the adapted construction as the fallback.  ⚠ Cell-dependent (big on high-symmetry cubic cells, vanishing as site symmetry drops — measure on MnO), and the invariance test must stay EXACT or a false positive silently reintroduces the bug W2b exists to prevent. **(4) ✅ CLOSED 2026-09-08 — THERE IS NO CORNER-ATOM DEFECT, AND THE SUPERCELL GRID IS THE PRIMITIVE GRID REPLICATED.**  Root cause of the whole lead: `MakePeriodicBeckeMesh` emits every point **WRAPPED INTO THE HOME CELL** (`kpt = r - A*n0`, UnitCell.C), so the stored coordinate is NOT \f$R_a+v\f$ and \f$\|p-R_a\|\f$ IS NOT THE OFFSET.  That single fact produced every number in the lead: 199 distinct "radii" on the corner atom, 49 on the interior one, and the 17.75 that is not a radial node.  The corner atom read worse for the obvious reason once named — an atom at (0,0,0) has its whole grid straddling three cell faces, so nearly every point wraps, while (¼,¼,¼) keeps more of its inner shells intact.  ▶ Recover the offset MODULO THE LATTICE (\f$v=p-R_a+An\f$, one \f$n\f$ in a bounded box) and the structure is exact: **both** Si sites, corner and interior, put **480/480 points on a radial node, 7 distinct radii, rMax = 10.8889 (a node), zero off-direction, zero ambiguous** — free AND imposed (868/868 there).  **The atom LABELS are right too, in BOTH cells**: each primitive block decomposes about its own atom 480/480 and about the other atom **0/480**, and on the 2×2×2 all 16 blocks take 868/868 of their own atom's nodes with a best WRONG-atom match of **0 points**.  And the user's real question, answered point by point in both settings: folding the 2×2×2 mesh back into the primitive cell, every one of its 16 site blocks matches its primitive partner **bijectively, max \f$|\Delta r|=6\times10^{-15}\f$, zero unmatched**, max \f$|\Delta w|=1.0\times10^{-7}\f$ ABSOLUTE and each site's Sum(w) equal to \f$1.3\times10^{-8}\f$ relative.  ⚠ **THE WEIGHT METRIC MUST BE ABSOLUTE, NOT RELATIVE** — the partition is an eps-converged (1e-6) image series gathered in Chebyshev CELL shells, and a supercell shell is 8 primitive cells with twice the interplanar floor, so the two settings truncate the same convergent series at different places.  A per-point RELATIVE comparison is noise in the tail and says so loudly: the worst relative deviation is 9.6% — **on a point whose weight is 3.8e-82**.  ⛔ **RETRACTED with the rest**: "the corner atom is markedly worse (199 vs 49)".  There was never a cell-imaging bug; the measurement was reading a wrapped coordinate. | ▶ **BM(4) IS CLOSED; (1) AND (3) REMAIN.**  (1) is the live `cellKind=Becke` trap, filed in `doc/CleanupCandidates.md`.  (3) is the unclaimed 2.9×: test the STOCK Lebedev rule for site invariance first and reuse it when it passes, keeping W2b's adapted construction as the fallback — measure the size of the win on MnO before spending anything, since it vanishes as site symmetry drops.  ▶ The gates that closed (4) are `BeckeMesh.*` in **`src/Structure/tests/BeckeMeshUT.C`** (6 tests, ~14 s in UTStructure, no SCF): the wrapped-product decomposition, the atom-label discriminator in both cells, the imposed radial decomposition, and the free + imposed supercell replication.  Anything that touches the Becke build's coordinates, wrapping, site blocks or partition should run them first. | `doc/SymmetryUpgradePlan.md` "SUPERCELLS" + this row |
-| **PAR** | **`doc/ParallelAndOraclePlan.md` is a RECORD (2026-09-16).**  Phase 1 (our OMP gap) ✅ closed at 4.44× 2026-09-07 — with the lesson now in `CLAUDE.md`: not one of the 3.08→4.44× steps was a threading change, every one deleted serial work instrumentation found; 2.1 ✅ answered (the Si ladder); 2.5 ✅ = programme step 2; Phase 3 = programme step 5 (its content folded into that step's text).  **What stays open here:** **(2.2)** CP2K's own 32-atom MnO supercell, to settle whether their 1.09× OMP is a never-parallelised route or too few tasks — cheap, their regime, closes a `Benchmark.md` §7b caveat, not our plans; **(Phase 4)** the SECOND CODE, ⚠ TRIGGERED ONLY by a question one oracle cannot answer — today that is item 4 / Step 5 (MnO's −99.7 mHa against CP2K, operator not named): **QE first** (full space-group IBZ, mature +U, `~/Code/q-e` already built, `mpirun` always), Elk if an all-electron arbiter is needed, GPAW/SIESTA only as a GPW-like timing peer; the candidate table is in the record.  Deliberately NOT in it: the Becke mesh build (item 1), lever B (behind N4), lever C (behind OT). | cheap; then only on trigger | — |
-| **7** | **Continuous cleanup** — ⚠ **now scheduled as PHASE 2.5 of `doc/ParallelAndOraclePlan.md`**, not a rhythm: the user wants a campaign before DFT+U lands on these faces | `doc/CleanupCandidates.md` R1/R2 + **V1 (the interface-design questions)**, item 6's `FIT_SF_Ortho` metric split, the `IsPolarized()`/`IsRelativistic()` identity smell, the NEW grid×fit-basis audit, the `dynamic_cast` survey, plus **V1.32** (de-template the finite `IrrepCD` leaf). | `doc/ParallelAndOraclePlan.md` Phase 2.5 |
-| **TE** | ✅ **DONE 2026-09-15 → `doc/OpenWork_History3.md`** (the full row) and `doc/TestSuitePlan.md` (the record).  The test suite is a checked product-space grid; remainders (S3b, the PW facade axis, one grid-continuation probe, one timing flake) are listed in the programme's step-3 stub above. | — | `doc/TestSuitePlan.md` |
-| **BL** | ★ **THE 14 BRAVAIS LATTICES IN `qcStructure`** (user, 2026-09-15).  `FCCUnitCell` is the only lattice type the library knows; every other cell in the tree is a hand-written `Matrix3D` (the rhombohedral MnO AFM-II cell in `RunMnO` is nine literals).  The GENERIC belongs in `qcStructure` beside `UnitCell`: one constructor per lattice system's free parameters (`BravaisCell(Bravais::FCC, a)`, `(Hexagonal, a, c)`, `(Rhombohedral, a, α)`, …), returning a `UnitCell`; symmetry DETECTION stays in `src/Symmetry/Lattice_3D/`.  Ruled while placing the materials list (**MD**): concrete materials do NOT go in `qcStructure`, lattice TYPES do. | ✅ **DONE 2026-09-15 (b31473f2)**: ALL 14 types, `BravaisCell(type, {.a=…}, T)` with integer superlattice re-basing; each detects its holohedry (`Bravais.*`, 5 unit tests); `FCCUnitCell` routes through `CubicF` bitwise | `doc/TestSuitePlan.md` §6b(i) |
-| **MD** | ★ **PRE-DEFINED MATERIALS AND MOLECULES AS DATA, AT THE `SolidCalculation` LEVEL** (user, 2026-09-15).  The Si diamond cell is hand-built 32× in `GPW_SCF_UT.C` alone, MnO AFM-II in four spellings, each with its own lattice constant / atom order / species list — the drift path into a silently moved anchor.  The GUI will want the same list ("pre-defined materials (and molecules) for users to try out").  ⇒ `src/Calculation/Data/materials.json` + `molecules.json` on the `gth_potentials.json` / `atomic_valence_densities.json` pattern (a `Data/` dir + a `*_DATA_PATH` definition), read by a `qchem.Materials` module in `qcCalculation` — an entry = Bravais type + parameters, atoms with fractional positions and per-site spin decoration, PP species/valence; `Nelec` derived, and NOTHING about the run (k, grid, kT are the calculation's axes).  Not `qcStructure`: a material is a USE of a structure. | ✅ **DONE 2026-09-15 (b29f52c9)**: `src/Calculation/Data/materials.json` (12 crystals) + `molecules.json` (4), `qchem.Materials::Get/Names/GetMolecule` exported from the umbrella; every `GPW_SCF` test reads its cell from it.  ⚠ FOR THE BINDING OWNER: `Materials::Names()`/`MoleculeNames()` are the GUI's pick-lists.  Remaining: the molecular tests' `MakeWater()` etc. still inline (no `src/` consumer, not urgent) | `doc/TestSuitePlan.md` §6b(ii) |
+> ⛔ **AND THE BLOCK LOOP IS NOT YET READ-ONLY — one write remains, and it is a DIFFERENT problem.** `tDynamic_HT_Imp::GetMatrix` stores its result in `mutable CacheMap itsCache` keyed by `Irrep`, i.e. **one map entry written per block, inside the loop**.  That memo is k-DEPENDENT, so the eager phase cannot warm it by construction; it needs per-block storage (or no cache under a parallel loop), which is a separate increment.  ▶ Do not read this item as "the loop is now threadable" — it is one of two obstacles, and the one that was blocking the DESIGN.  ▶ The original argument stands: an explicit refresh phase — and is a better design regardless, since it makes the phase structure visible instead of implicit in call order.  Then: shared prologue → read-only parallel k loop → density reduction, i.e. CP2K's own decomposition.  ⚠ `itsByL`/`itsByLSeen` ("irrep blocks already decomposed") is the one genuinely per-block accumulator and needs separate handling. | ⏸ **NOT NOW, BY AGREEMENT, BUT IT STAYS ON THE LIST** (user: *"if it doesn't make sense to do it now that is fine … but it should stay on the list until we are suitably embarrassed that we have to do it"*).  Reasons to wait, not to drop: every row we own is Γ (width 2), so the payoff cannot even be MEASURED until the multi-k rows of **2.1/2.2** exist; and Phase 1's remaining lever (1.3b) is a bigger win on the cells we actually run.  ▶ **Re-open it at 2.1**, where the width is 16 and the question stops being hypothetical. | `doc/Records/ParallelAndOraclePlan.md` (1.3 + Phase 2) |
+| **BM** | ★ **THE BECKE MESH — FOUR FINDINGS; THE "OPEN BUG" WAS NOT ONE (2026-09-07/08, (4) CLOSED 2026-09-08).**  Came out of the supercell work but is INDEPENDENT of it; the supercell symmetry fix stands on its own evidence.  ⚠ **THE CAVEAT THAT TURNED OUT TO BE THE ANSWER** (user, 2026-09-08): *"The polyhedra truncations might make these counts difficult to interpret."*  Right instinct, and the mechanism was even simpler than truncation — the points are WRAPPED (see (4)) — but the ruling stands as a rule: **a raw count of distinct radii is a LEAD, never proof of a defect.**  It is the reason the 199-vs-49 was never acted on as a bug. | **(1) ⛔ A LIVE TRAP, already filed in `doc/CleanupCandidates.md`**: setting `MeshParams::cellKind=Becke` ALONE leaves the rest at the struct's own defaults — nR=30, α=1, **L=5** — where `BeckeXCParams`' are nR=40, α=2, **L=29**.  A degree-5 XC mesh is not a Becke run.  It cost a bogus 40 mHa "imposed vs free" discrepancy that read exactly like a symmetry bug.  **Ask for the RECIPE (`BeckeXCParams(-1,-1,-1)`), never the kind alone.**  ⚠ Related: `GPW_BECKE_L/NR/ALPHA` are consulted ONLY for arguments passed `<0`, so they silently do nothing against a caller-supplied degree — a sweep over `GPW_BECKE_L` produced three identical runs before that was noticed. **(2) ✅ AT THE PRODUCTION RECIPE IMPOSED AND FREE AGREE**: Si 1×1×1 Becke L=29, imposed \f$-7.11493826\f$ vs free \f$-7.114983942\f$ = **46 µHa**, and both sit ~0.1 mHa from the uniform-mesh anchor \f$-7.115067844\f$ (itself matching the banked \f$-7.11506\f$).  So the two XC routes and the two symmetry arms all agree; there is no energy-level defect. **(3) ★ A 2.9× SITTING UNCLAIMED**: `InvariantAngularMesh.StockLebedevIsAlreadyInvariantUnderSiTdSiteGroup` shows **Lebedev-29 (302 dirs) is ALREADY exactly invariant under Si's \f$T_d\f$ site group — 0 unmatched of 7248** rotated directions, because Lebedev rules are built from OCTAHEDRAL orbits and any axis-aligned cubic site group is a subgroup of \f$O_h\f$.  W2b nonetheless builds a site-adapted rule at **886 dirs/atom** (48128 mesh points against 16392), buying an invariance it already had.  ▶ Test the stock rule for site invariance FIRST and reuse it when it passes; keep the adapted construction as the fallback.  ⚠ Cell-dependent (big on high-symmetry cubic cells, vanishing as site symmetry drops — measure on MnO), and the invariance test must stay EXACT or a false positive silently reintroduces the bug W2b exists to prevent. **(4) ✅ CLOSED 2026-09-08 — THERE IS NO CORNER-ATOM DEFECT, AND THE SUPERCELL GRID IS THE PRIMITIVE GRID REPLICATED.**  Root cause of the whole lead: `MakePeriodicBeckeMesh` emits every point **WRAPPED INTO THE HOME CELL** (`kpt = r - A*n0`, UnitCell.C), so the stored coordinate is NOT \f$R_a+v\f$ and \f$\|p-R_a\|\f$ IS NOT THE OFFSET.  That single fact produced every number in the lead: 199 distinct "radii" on the corner atom, 49 on the interior one, and the 17.75 that is not a radial node.  The corner atom read worse for the obvious reason once named — an atom at (0,0,0) has its whole grid straddling three cell faces, so nearly every point wraps, while (¼,¼,¼) keeps more of its inner shells intact.  ▶ Recover the offset MODULO THE LATTICE (\f$v=p-R_a+An\f$, one \f$n\f$ in a bounded box) and the structure is exact: **both** Si sites, corner and interior, put **480/480 points on a radial node, 7 distinct radii, rMax = 10.8889 (a node), zero off-direction, zero ambiguous** — free AND imposed (868/868 there).  **The atom LABELS are right too, in BOTH cells**: each primitive block decomposes about its own atom 480/480 and about the other atom **0/480**, and on the 2×2×2 all 16 blocks take 868/868 of their own atom's nodes with a best WRONG-atom match of **0 points**.  And the user's real question, answered point by point in both settings: folding the 2×2×2 mesh back into the primitive cell, every one of its 16 site blocks matches its primitive partner **bijectively, max \f$|\Delta r|=6\times10^{-15}\f$, zero unmatched**, max \f$|\Delta w|=1.0\times10^{-7}\f$ ABSOLUTE and each site's Sum(w) equal to \f$1.3\times10^{-8}\f$ relative.  ⚠ **THE WEIGHT METRIC MUST BE ABSOLUTE, NOT RELATIVE** — the partition is an eps-converged (1e-6) image series gathered in Chebyshev CELL shells, and a supercell shell is 8 primitive cells with twice the interplanar floor, so the two settings truncate the same convergent series at different places.  A per-point RELATIVE comparison is noise in the tail and says so loudly: the worst relative deviation is 9.6% — **on a point whose weight is 3.8e-82**.  ⛔ **RETRACTED with the rest**: "the corner atom is markedly worse (199 vs 49)".  There was never a cell-imaging bug; the measurement was reading a wrapped coordinate. | ▶ **BM(4) IS CLOSED; (1) AND (3) REMAIN.**  (1) is the live `cellKind=Becke` trap, filed in `doc/CleanupCandidates.md`.  (3) is the unclaimed 2.9×: test the STOCK Lebedev rule for site invariance first and reuse it when it passes, keeping W2b's adapted construction as the fallback — measure the size of the win on MnO before spending anything, since it vanishes as site symmetry drops.  ▶ The gates that closed (4) are `BeckeMesh.*` in **`src/Structure/tests/BeckeMeshUT.C`** (6 tests, ~14 s in UTStructure, no SCF): the wrapped-product decomposition, the atom-label discriminator in both cells, the imposed radial decomposition, and the free + imposed supercell replication.  Anything that touches the Becke build's coordinates, wrapping, site blocks or partition should run them first. | `doc/Records/SymmetryUpgradePlan.md` "SUPERCELLS" + this row |
+| **PAR** | **`doc/Records/ParallelAndOraclePlan.md` is a RECORD (2026-09-16).**  Phase 1 (our OMP gap) ✅ closed at 4.44× 2026-09-07 — with the lesson now in `CLAUDE.md`: not one of the 3.08→4.44× steps was a threading change, every one deleted serial work instrumentation found; 2.1 ✅ answered (the Si ladder); 2.5 ✅ = programme step 2; Phase 3 = programme step 5 (its content folded into that step's text).  **What stays open here:** **(2.2)** CP2K's own 32-atom MnO supercell, to settle whether their 1.09× OMP is a never-parallelised route or too few tasks — cheap, their regime, closes a `Benchmark.md` §7b caveat, not our plans; **(Phase 4)** the SECOND CODE, ⚠ TRIGGERED ONLY by a question one oracle cannot answer — today that is item 4 / Step 5 (MnO's −99.7 mHa against CP2K, operator not named): **QE first** (full space-group IBZ, mature +U, `~/Code/q-e` already built, `mpirun` always), Elk if an all-electron arbiter is needed, GPAW/SIESTA only as a GPW-like timing peer; the candidate table is in the record.  Deliberately NOT in it: the Becke mesh build (item 1), lever B (behind N4), lever C (behind OT). | cheap; then only on trigger | — |
+| **7** | **Continuous cleanup** — ⚠ **now scheduled as PHASE 2.5 of `doc/Records/ParallelAndOraclePlan.md`**, not a rhythm: the user wants a campaign before DFT+U lands on these faces | `doc/CleanupCandidates.md` R1/R2 + **V1 (the interface-design questions)**, item 6's `FIT_SF_Ortho` metric split, the `IsPolarized()`/`IsRelativistic()` identity smell, the NEW grid×fit-basis audit, the `dynamic_cast` survey, plus **V1.32** (de-template the finite `IrrepCD` leaf). | `doc/Records/ParallelAndOraclePlan.md` Phase 2.5 |
+| **TE** | ✅ **DONE 2026-09-15 → `doc/Records/OpenWork_History3.md`** (the full row) and `doc/Records/TestSuitePlan.md` (the record).  The test suite is a checked product-space grid; remainders (S3b, the PW facade axis, one grid-continuation probe, one timing flake) are listed in the programme's step-3 stub above. | — | `doc/Records/TestSuitePlan.md` |
+| **BL** | ★ **THE 14 BRAVAIS LATTICES IN `qcStructure`** (user, 2026-09-15).  `FCCUnitCell` is the only lattice type the library knows; every other cell in the tree is a hand-written `Matrix3D` (the rhombohedral MnO AFM-II cell in `RunMnO` is nine literals).  The GENERIC belongs in `qcStructure` beside `UnitCell`: one constructor per lattice system's free parameters (`BravaisCell(Bravais::FCC, a)`, `(Hexagonal, a, c)`, `(Rhombohedral, a, α)`, …), returning a `UnitCell`; symmetry DETECTION stays in `src/Symmetry/Lattice_3D/`.  Ruled while placing the materials list (**MD**): concrete materials do NOT go in `qcStructure`, lattice TYPES do. | ✅ **DONE 2026-09-15 (b31473f2)**: ALL 14 types, `BravaisCell(type, {.a=…}, T)` with integer superlattice re-basing; each detects its holohedry (`Bravais.*`, 5 unit tests); `FCCUnitCell` routes through `CubicF` bitwise | `doc/Records/TestSuitePlan.md` §6b(i) |
+| **MD** | ★ **PRE-DEFINED MATERIALS AND MOLECULES AS DATA, AT THE `SolidCalculation` LEVEL** (user, 2026-09-15).  The Si diamond cell is hand-built 32× in `GPW_SCF_UT.C` alone, MnO AFM-II in four spellings, each with its own lattice constant / atom order / species list — the drift path into a silently moved anchor.  The GUI will want the same list ("pre-defined materials (and molecules) for users to try out").  ⇒ `src/Calculation/Data/materials.json` + `molecules.json` on the `gth_potentials.json` / `atomic_valence_densities.json` pattern (a `Data/` dir + a `*_DATA_PATH` definition), read by a `qchem.Materials` module in `qcCalculation` — an entry = Bravais type + parameters, atoms with fractional positions and per-site spin decoration, PP species/valence; `Nelec` derived, and NOTHING about the run (k, grid, kT are the calculation's axes).  Not `qcStructure`: a material is a USE of a structure. | ✅ **DONE 2026-09-15 (b29f52c9)**: `src/Calculation/Data/materials.json` (12 crystals) + `molecules.json` (4), `qchem.Materials::Get/Names/GetMolecule` exported from the umbrella; every `GPW_SCF` test reads its cell from it.  ⚠ FOR THE BINDING OWNER: `Materials::Names()`/`MoleculeNames()` are the GUI's pick-lists.  Remaining: the molecular tests' `MakeWater()` etc. still inline (no `src/` consumer, not urgent) | `doc/Records/TestSuitePlan.md` §6b(ii) |
 | **8** | **Step 6 — the 136-function span**: a capability gap, no longer a blocker | Time-boxed research only. Do not let it grow into a track. | Step 6 |
 
 ### ★★★ THE GAP-CLOSE PRIORITY ORDER (user, 2026-08-28) — and what goes in which bin
@@ -630,7 +630,7 @@ QUANTITIES.**  One threshold, three scales:
 | `KerkerMixer::MixField` | \f$\lVert\tilde\rho_{out}-\tilde\rho_{in}\rVert_\infty\f$ over **G-space coefficients** — a different norm of a different object |
 
 ⇒ A fixed `MinΔρ` therefore means something different per RECIPE and per SYSTEM SIZE, which is exactly
-what A4 (the Δρ/N gate, `doc/SCFStrategyPlan.md`) exists to fix — and it is now the **fourth** thing this
+what A4 (the Δρ/N gate, `doc/Records/SCFStrategyPlan.md`) exists to fix — and it is now the **fourth** thing this
 session has pointed at A4, after the Na2 gate's chaotic α-dependence, the density-degenerate Na2 state, and
 the parity run's FIT-FLOOR STALL.  ⚠ Note the MnO parity stall is on the GDM path, which IS normalised, so
 this finding does not explain that one; it is a separate defect found while looking.
@@ -740,14 +740,14 @@ for every future material and leave the schedule as the only thing a new cell mu
 ⇒ Do it when the SECOND magnetic material arrives, not before: one cell is not enough to see which of the
 tuned values are really material-specific and which were MnO's accidents.
 
-## ✅ CLOSED — the N1 tiers, T1 through T5  →  `doc/OpenWork_History3.md`
+## ✅ CLOSED — the N1 tiers, T1 through T5  →  `doc/Records/OpenWork_History3.md`
 
 T1 (a non-converged energy is unreturnable), T2 (the positive path is exercised), T3 (the Eee charge-slosh
 detector and its measured threshold), T4 (the detectors moved into the library) and T5/N5
 (self-description + `CP2K_COMPAT`) all landed 2026-08-26.  The evidence is kept in full in the history
 file; the standing summary is index item **N1**, whose ONE remaining piece is the coverage gap.
 
-## ✅ THE ON-THE-FLY BOX WALK — 2.21× ON MnO, DONE 2026-08-26  →  `doc/OpenWork_History3.md`
+## ✅ THE ON-THE-FLY BOX WALK — 2.21× ON MnO, DONE 2026-08-26  →  `doc/Records/OpenWork_History3.md`
 
 Power tables, incremental wrap, key/nn hoist, reach-sphere screen, then the chord/interval skip (1.40×)
 = 3.11× on MnO's box walk; uncached MnO 573 s/iter and RAM 166 MB, which BEATS CP2K.  The exp recurrence
@@ -755,10 +755,10 @@ was TRIED AND REJECTED (1.03×, anisotropic, flips a degenerate SCF basin; branc
 `exp-recurrence-experiment`).  Say "box walk", not "kernel".  Full record + the four edits in the
 history file.
 
-## ✅ WHY CP2K WAS ~22× FASTER — READ FROM ITS SOURCE  →  `doc/OpenWork_History3.md`
+## ✅ WHY CP2K WAS ~22× FASTER — READ FROM ITS SOURCE  →  `doc/Records/OpenWork_History3.md`
 
 Product-centre re-expansion ⇒ separable exp tables + a tensor contraction, zero transcendentals per point.
-**Acted on**: the live plan is `doc/CollocationRewritePlan.md` (COMPLETE — cache deleted, contract kernel,
+**Acted on**: the live plan is `doc/OldPlans/CollocationRewritePlan.md` (COMPLETE — cache deleted, contract kernel,
 `template<int LP>`, spin-native XC pair route).  Kept in history as the source reading, not as an action.
 
 ## ★★★ THE ANCHOR-MOVING SPRINT — the roster (assembled 2026-08-27)
@@ -778,20 +778,20 @@ sprint cost more than it should.
 
 | # | item | where it is described | state | delta |
 |---|---|---|---|---|
-| A1 | **the collocation contraction kernel** (`GPW_CONTRACT_CUBE`) | `doc/CollocationRewritePlan.md` steps 5–6 | ✅ **LANDED 2026-08-27 — DEFAULT ON**, with A7 | re-banked, below |
+| A1 | **the collocation contraction kernel** (`GPW_CONTRACT_CUBE`) | `doc/OldPlans/CollocationRewritePlan.md` steps 5–6 | ✅ **LANDED 2026-08-27 — DEFAULT ON**, with A7 | re-banked, below |
 | A2 | **V1.22** — Becke per-representative partition | this file, *Continuous — CLEANUP* | not built | unmeasured; imposed runs only |
 | A3 | **§K** | `doc/CleanupCandidates.md` (deferred, user) | not built | unmeasured |
-| A4 | **the Δρ/N convergence gate** | `doc/SCFStrategyPlan.md` | not built | unmeasured |
+| A4 | **the Δρ/N convergence gate** | `doc/Records/SCFStrategyPlan.md` | not built | unmeasured |
 | A5 | **GPW default seed → `IonicSAD`** | `doc/CleanupCandidates.md` V2.2 → `CleanupHistory.md` | ✅ **LANDED 2026-09-14** (sprint S) | ZERO: every GPW anchor re-seeded and none moved (converged energies equal at printed precision; Si Γ 17 → 8 iterations) |
 | A6 | **`SCFParams::XCCuspDeficit`** — the N4 XC feed | N4 above | flag exists, off | a TRAJECTORY change by its own description |
-| A7 | **dropping the pair-stream cache** | `doc/CollocationRewritePlan.md` step 7 | ✅ **LANDED 2026-08-27**, with A1 | re-banked, below |
+| A7 | **dropping the pair-stream cache** | `doc/OldPlans/CollocationRewritePlan.md` step 7 | ✅ **LANDED 2026-08-27**, with A1 | re-banked, below |
 
 ✅ **A1 + A7 LANDED TOGETHER, 2026-08-27, exactly as this section required.**  The re-measurement that
 opened step 7 said the 3.9 GB was buying ~1.1× on the whole MnO run (2.91× on the two box-walk buckets, and
 those are only ~58% of it), against 25× the RAM — so the cache went, the (shell pair, offset) task list took
 its place, and the contraction kernel became the default because the cache-less walk is ~18× slower and the
 two were therefore never separable.  ⇒ **A2–A6 are what is left of the sprint.**  Full record:
-`doc/CollocationRewritePlan.md` step 7; re-taken rows: `doc/Benchmark.md`.
+`doc/OldPlans/CollocationRewritePlan.md` step 7; re-taken rows: `doc/Benchmark.md`.
 
 ⚠ **AND A4 PICKED UP A SECOND MOTIVATION ON THE WAY.**  `ImposedOrderLostIsAPostconditionFailure_Na2Box`
 went red, and sweeping it found NO stable mixing step: α = 0.65 ✔, 0.7 ✔, 0.75 ✘, 0.8 ✔ on the contracted
@@ -980,7 +980,7 @@ why the ordering is what it is.
   source, thread state and accelerations.  ⚠ Measured today: with `MNO_KERKER_G0=0` the run prints **no
   mixer line at all** — the fallback to linear D-mixing is entirely silent.
 
-## ✅ N2 — THE DENSITY G BALL: RESOLVED (the lobes are BAND-LIMITING)  →  `doc/OpenWork_History3.md`
+## ✅ N2 — THE DENSITY G BALL: RESOLVED (the lobes are BAND-LIMITING)  →  `doc/Records/OpenWork_History3.md`
 
 The ball-vs-raw question was answered and lever B REFUTED on measurement (6e-5); filed under N4.
 
@@ -1019,34 +1019,34 @@ removes (ITEM 1 MEASURED, the dose-response table), so a correct fix will *look*
 
 ## Where we are, in one paragraph
 
-The **real-TRIM scalar-type track is COMPLETE** (`doc/RealComplexPlan.md`; TRIM blocks build real by
-default).  The **runtime campaign has had four rounds** (`doc/GPWPlan1.md`): threading + BLAS (round 1–2),
+The **real-TRIM scalar-type track is COMPLETE** (`doc/OldPlans/RealComplexPlan.md`; TRIM blocks build real by
+default).  The **runtime campaign has had four rounds** (`doc/Records/GPWPlan1.md`): threading + BLAS (round 1–2),
 the run-length collocation streams + the ρ̃ half-space fold (round 3), and the shell-blocked box walk
 (round 4).  MnO free-run per-iteration SCF is down ~1.4× and stream RAM 5.78 → 3.70 GB.  Two charter
 premises were **narrowed by measurement** in the process — "the collocation streams are complex-bound"
 (they are DRAM-bandwidth bound) and "a CP2K-class recompute kernel unblocks the CP2K-span cell" (the
 over-budget regime is per-term EMIT bound, so it needs fewer terms, not cheaper ones).  That is the
 standing lesson: **cost attribution before optimisation.**  On accuracy, the sharpest coordinate we have
-is the **VA (N=118) exact-span code-vs-code table** (`doc/SphericalLatticePlan.md`), which has been
+is the **VA (N=118) exact-span code-vs-code table** (`doc/Records/SphericalLatticePlan.md`), which has been
 waiting on a term-by-term breakdown to name its operator.
 
 ---
 
 ## The plan, in order
 
-### ✅ Step 0 — FIX THE INSTRUMENTS — DONE  →  `doc/OpenWork_History3.md`
+### ✅ Step 0 — FIX THE INSTRUMENTS — DONE  →  `doc/Records/OpenWork_History3.md`
 
 0a (the INTEGRATED site moment replacing the point probe), 0b, and 0c (`report::RunElapsed()` stamping
 every emitted item — index item 5, done 2026-09-06) all landed.  ★ The durable ruling that came out of
 0a is a standing rule, not history: **report an INTEGRATED measurable quantity, never a point sample of
 a field.**
 
-### ✅ Step 1 — THE HEAD-TO-HEAD TABLE — IT STANDS  →  `doc/Benchmark.md` (live) + `doc/OpenWork_History3.md`
+### ✅ Step 1 — THE HEAD-TO-HEAD TABLE — IT STANDS  →  `doc/Benchmark.md` (live) + `doc/Records/OpenWork_History3.md`
 
-The table is a standing instrument in its own file now; `doc/BenchmarkHistory.md` holds its record.
+The table is a standing instrument in its own file now; `doc/Records/BenchmarkHistory.md` holds its record.
 ⚠ Read `doc/Benchmark.md` §5a and COPY the run command — never reconstruct it.
 
-### Step 2 — ARM THE SYMMETRY FOLDS  ·  plan: `doc/SymmetryUpgradePlan.md`
+### Step 2 — ARM THE SYMMETRY FOLDS  ·  plan: `doc/Records/SymmetryUpgradePlan.md`
 
 **The biggest single runtime multiplier left, by an order of magnitude** — this is Step 3's work done
 properly, not a separate track.  Inventory (2026-08-15, re-verified 2026-08-19):
@@ -1097,7 +1097,7 @@ itself does not fold trivially.  For scale: rounds 3–4 bought 1.4× by hand-tu
 routes stay legitimate: a FREE run is the DEFAULT and first-class ("some user just wants to run with no
 symmetry and see what happens") — correct answer, honest report of the symmetry found, paying only time,
 now visible as `NONE` at all three `[fold]` sites and measured at 1.5× wall / 3.7× RAM on MnO.  The
-METHODICAL route is the **SSB DESCENT** (`doc/SymmetryUpgradePlan.md` §3b): converge imposed → save the CD
+METHODICAL route is the **SSB DESCENT** (`doc/Records/SymmetryUpgradePlan.md` §3b): converge imposed → save the CD
 → a symmetry-ANALYSIS run releases the imposition and ranks candidate SUBGROUPS with weights → re-impose
 each and let the energies decide.  It removes the guess from today's release-check, which needs the
 symmetry-broken seed (i.e. the answer) handed to it — MnO's AFM-II was assumed, never derived.  §3b carries
@@ -1106,11 +1106,11 @@ the design, the inventory of what exists (`SymmetryDefects`, the ops chokepoint)
 repair the design needs: step 3 cannot be a single free iteration, because the symmetric solution is a
 stationary point of the free map and SSB is second-order — it must measure GROWTH or CURVATURE.
 
-### Step 3 — RUNTIME, CONTINUED  ·  record: `doc/GPWPlan1.md` (RECORD since 2026-09-16)
+### Step 3 — RUNTIME, CONTINUED  ·  record: `doc/Records/GPWPlan1.md` (RECORD since 2026-09-16)
 
 Measure against Step 1, after Step 2 (folding changes what is hot).
 
-**▶ HARVESTED FROM `doc/GPWPlan1.md` (2026-09-16, when it went RECORD) — its pending list, each checked
+**▶ HARVESTED FROM `doc/Records/GPWPlan1.md` (2026-09-16, when it went RECORD) — its pending list, each checked
 against the tree first.  These are the GPW forward backlog; none is queued ahead of programme step 5.**
 
 | GPWPlan1 item | state 2026-09-16 | what remains |
@@ -1310,7 +1310,7 @@ against the tree first.  These are the GPW forward backlog; none is queued ahead
   top wall bucket, and it now needs a different idea.**
 - **★★★ Vxc MUST BE FED THE DM ρ(r) — AND THE PROJECT ALREADY DECIDED THAT.  The Becke XC path does not
   honour it, which is both an ACCURACY regression and the largest per-iteration cost (user, 2026-08-20).**
-  `doc/GPWPlan.md:286` records the original insight verbatim — *"feed XC the DM-ρ, pointwise NON-NEGATIVE by
+  `doc/OldPlans/GPWPlan.md:286` records the original insight verbatim — *"feed XC the DM-ρ, pointwise NON-NEGATIVE by
   construction (PSD D ⇒ φᵀDφ ≥ 0)"* — and §0.5(f2), *"the DM-ρ raw XC feed"*, was **BUILT + ACCEPTED
   2026-07-23** on measured evidence: the collapse basin removed, NaF 1.3 → **0.2 mHa** vs CP2K, and *"the raw
   feed removed the ball-Gibbs noise from the XC residual"* so the coarse stage converged in **45 iterations
@@ -1431,7 +1431,7 @@ against the tree first.  These are the GPW forward backlog; none is queued ahead
   simultaneously an accuracy repair, a documented-decision regression, and a ~20× on the top bucket.
 
   **⇒ STATE 2026-08-25: THE CURE IS BUILT AND SITTING BEHIND AN ENV FLAG.**  The 2026-08-21/22 session wired
-  it (record now in `doc/OpenWork_History2.md`): `ExactSourceOf` cross-casts the mixed density to the
+  it (record now in `doc/Records/OpenWork_History2.md`): `ExactSourceOf` cross-casts the mixed density to the
   `cDM_Sourced_CD` the mixer already retains, so the exact ρ[D] is one cast away, and `DampXCChannel`
   applies the SAME α the field mix used (the half-damped map was the first wiring's defect — NaF DIIS 34 →
   100+ iterations until α_eff was read off the mix instead of set).  It is **OPT-IN**: `GPW_XC_DM_SOURCE=1`,
@@ -1618,12 +1618,12 @@ against the tree first.  These are the GPW forward backlog; none is queued ahead
   it at 61% irreducible per-(pair,point) emit; it needs fewer TERMS (looser `GPW_DENSITY_EPS`, the T3
   fold, a smaller span), not a faster kernel.
 
-### ✅ Step 4 — RAM — LARGELY ANSWERED BY STEP 2  →  `doc/OpenWork_History3.md`
+### ✅ Step 4 — RAM — LARGELY ANSWERED BY STEP 2  →  `doc/Records/OpenWork_History3.md`
 
 Arming the T3 fold took MnO AFM peak RSS 4947 → 1349 MB (23× CP2K → 6.2×).  Do not open it as a track;
 re-read the number off `doc/Benchmark.md` and reopen only if it still binds.
 
-### Step 5 — MnO ACCURACY: NAME THE OPERATOR  ·  record: `doc/SphericalLatticePlan.md` (RECORD since 2026-09-16; the campaign that produced the table below)
+### Step 5 — MnO ACCURACY: NAME THE OPERATOR  ·  record: `doc/Records/SphericalLatticePlan.md` (RECORD since 2026-09-16; the campaign that produced the table below)
 
 **This has the sharpest coordinate on the list and a banked oracle — and its first move is CHEAP.**  The
 VA (N=118) exact-span table, both codes at full rank, zero span/symmetry/ensemble excuses:
@@ -1643,8 +1643,8 @@ same investigation on the same run.**
 
 **★ RE-READ THE CAMPAIGN'S MOMENT CONCLUSIONS FIRST (new, 2026-08-19).**  Step 0a measured the integrated
 Mn moment at ~3.6–4.8 e against the point probe's ~0.3, so every "weak-moment basin" / "the moment died"
-conclusion in `doc/SymmetryUpgradePlan.md`, `doc/SphericalLatticePlan.md` and
-`doc/SymmetryUpgradeHistory.md` needs re-reading against the honest observable before more physics is
+conclusion in `doc/Records/SymmetryUpgradePlan.md`, `doc/Records/SphericalLatticePlan.md` and
+`doc/Records/SymmetryUpgradeHistory.md` needs re-reading against the honest observable before more physics is
 built on it.  Collapse-to-zero findings survive (zero is zero); MAGNITUDE and site-ASYMMETRY findings do
 not automatically.  Run 61's `m_stag ±0.667` in particular is a point-probe number and is NOT evidence
 that VA sits in a weak-moment basin.  This is cheap — rerun the banked recipes with
@@ -1707,7 +1707,7 @@ run 64 cannot show whether it dove or stalled).
     is 122 hand-trimmed at full rank and `VALENCE_LOWQ_VA` under Cartesian d is 132 auto-dropped to 122,
     both at min kept pivot 0.0236681 -- the same kept set two ways, so THAT pair is a null control, not a
     test.  Runs 58-60 above are the real evidence: O1's p(0.18) dropped against O2's s(0.15).)
-- Δρ/N convergence gate (`doc/SCFStrategyPlan.md`); GDM fallback-diagonalize breadcrumb (run 59's silent
+- Δρ/N convergence gate (`doc/Records/SCFStrategyPlan.md`); GDM fallback-diagonalize breadcrumb (run 59's silent
   +302 mHa hop); the per-channel ortho duplication above; the fingerprint's overconfident
   "raise NMaxIter" advice.
 
@@ -1715,13 +1715,13 @@ run 64 cannot show whether it dove or stalled).
 
 ---
 
-## EVIDENCE DOSSIER (no action here) — fast ρ by FACTORING D  →  `doc/OpenWork_History3.md`
+## EVIDENCE DOSSIER (no action here) — fast ρ by FACTORING D  →  `doc/Records/OpenWork_History3.md`
 
 The worked evidence for INDEX ITEM 2 (Step 3's low-rank-D ρ GEMM): Q1/Q2/Q3, the tier-0 results, the
 spectrum finding, the LSP design ruling.  **There is nothing to start here.**  Read it in the history
 file when you build that item, or when you are about to re-propose something it already refuted.
 
-## ✅ CLOSED 2026-08-25 → `doc/OpenWork_History2.md`
+## ✅ CLOSED 2026-08-25 → `doc/Records/OpenWork_History2.md`
 
 The 2026-08-21 → 08-24 arc moved out whole: **the Vxc repair thread** (routes a/b/c, α_eff, the Kerker
 residual spectrum, the GDM canary), **the XC separation-of-concerns design item** (four steps + the
@@ -1760,27 +1760,27 @@ delete even that branch: `doc/CleanupCandidates.md` R1.0.
   remaining piece; S1–S5 are done and the in-house spherical SALC is fully shippable without it.  The
   bug-prone one: it must match **libcint's** real-harmonic ordering + normalization (a foreign convention),
   and libcint-spherical presents AS a `PGData` with spherical components (a trap).  Genuinely separable.
-- **PBE / GGA**  ·  context in `doc/FacadeDFTPlan.md` (RECORD).  The highest-value functional for the battery
+- **PBE / GGA**  ·  context in `doc/OldPlans/FacadeDFTPlan.md` (RECORD).  The highest-value functional for the battery
   north-star, but a real library increment (density-gradient machinery on the mesh), not an enum value.  The
   unified `Model` enum is ready to list it with a "not wired" throw.  Prerequisite already filed:
   `CleanupCandidates.md` FittingCleanupPlan I.1 residual (the `GetEpsXc()=0.75*GetVxc()` base default is exact
   for Dirac exchange only — silent-wrong the day a GGA forgets to override it).
 - **LibXC-polarized** (the `Libxc_LDA` wrapper is UNPOLARIZED-ONLY by construction — it never passes the two
   channels, `Factory` throws for `SpinGroup::Polarized` + `XC::LibXC`) and **+U** (= programme step 5).  The
-  LDA *interface* is spin-native end to end already (`doc/SpinNativeDFTPlan.md`, RECORD).
-- **Molecular spin-resolved SAD seed** (filed 2026-09-16 from `doc/SCFSeedingPlan.md` §10's follow-ons when it
+  LDA *interface* is spin-native end to end already (`doc/OldPlans/SpinNativeDFTPlan.md`, RECORD).
+- **Molecular spin-resolved SAD seed** (filed 2026-09-16 from `doc/OldPlans/SCFSeedingPlan.md` §10's follow-ons when it
   went RECORD).  The spin-resolved atomic tables (`GetAtomicSpinPair`, Hund majority/minority) are consumed by
   the plane-wave `SeedCD` only; the molecular `NumericCD` SAD seed still hands a polarized run ρ/2 per channel.
   The face is templated already; the work is a channel-aware `NumericCD` assembly + a molecular open-shell gate
   (O₂ triplet from a Hund-split seed vs from ρ/2: same basin, fewer iterations).  Feature wish, not a defect.
-- **The run report's GUI-facing wishlist** (from `doc/RunReportPlan.md` "Remaining / future work", RECORD since
+- **The run report's GUI-facing wishlist** (from `doc/Records/RunReportPlan.md` "Remaining / future work", RECORD since
   2026-09-16 — the design lives there): `meta` section (title, structure, nElectrons, spin — one `EmitSection` in
   `Converge`, cheap); field metadata registry (code key / terse label / hover description — render-side only);
   detail-level FILTER in `RenderConsole` (the `Detail` enum exists, the map is unbuilt); the `Renderer` DIP split +
   provider/orchestrator ISP facets; a `RollingFileSink`; `basis.removed` named by `L`/`alpha`/`atom`; a
   `schemaVersion` once the GUI binds; structure/symmetry/irreps/Hamiltonian sections; HDF5 sidecar.  None is
   blocked; all wait on a GUI consumer.
-- **The GPW (orbital family × fit family) pairing is FROZEN in the engine** (from `doc/BasisSetTaxonomyPlan.md`
+- **The GPW (orbital family × fit family) pairing is FROZEN in the engine** (from `doc/Records/BasisSetTaxonomyPlan.md`
   §5): `GPW_Evaluator` owns its PW density-fit grid, so `qcGaussian_BS → qcPlaneWave_BS` is a hard-coded pairing.
   `doc/Pins.md` pin 2 says pairings are POLICY assembled at the factory (the container layer).  Not urgent — it
   becomes a defect the day a second fit family (Becke-delta as the density fit, not just the XC grid) wants the

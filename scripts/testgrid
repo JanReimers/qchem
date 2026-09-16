@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """testgrid -- render the SCF test suite as the PRODUCT-SPACE GRID its names encode, and CHECK the names.
 
-doc/TestSuitePlan.md §3: every solid-state SCF test is named
+doc/Records/TestSuitePlan.md §3: every solid-state SCF test is named
     <Basis>_<Material>.<k>[_<Grid>][_<Fit>][_<Sym>][_<Spin>][_<Occ>][_<Reservoir>][_<Machinery>...][_<Ansatz>][_<Seed>]_<Claim>
 with the axis tokens in that FIXED ORDER, the facade's defaults elided (k always named), and the claim one of
 CP2K (oracle anchor) | Anchor (did-E-move) | eq<Token> (a one-axis twin) | a property verb.  This script
@@ -14,7 +14,7 @@ Usage:
 """
 import argparse, re, subprocess, sys, os
 
-# ---- the vocabulary (doc/TestSuitePlan.md §1), in axis order.  A token appears under exactly one axis. ----
+# ---- the vocabulary (doc/Records/TestSuitePlan.md §1), in axis order.  A token appears under exactly one axis. ----
 AXES = [
     ("k",        {"Γ":"Γ", "k211":"2x1x1", "k222":"2x2x2", "k222s":"2x2x2 shifted", "k311":"3x1x1"}, "Γ"),
     ("grid",     {"Uni":"uniform", "Becke":"Becke"},                                        "Auto"),

@@ -105,7 +105,7 @@ a polarized Hamiltonian class beside each unpolarized one (`Ham_HF_U/P`, `Ham_DF
 
 ### V1.37 — Pol/UnPol are IMPOSED SUBGROUPS, not types: ONE composite over full Irreps (user + Claude, 2026-09-13)
 
-**▶ STEPS 1–2 ✅ LANDED 2026-09-14 (one session, bit-identical) — full record → `doc/CleanupHistory.md`
+**▶ STEPS 1–2 ✅ LANDED 2026-09-14 (one session, bit-identical) — full record → `doc/Records/CleanupHistory.md`
 "LANDED 2026-09-14 — V1.37 steps 1–2".**  `tPolarizedWF` / `tUnPolarizedWF` / `tPolarized_CD` /
 `tPolarized_CDImp` / `PolarizedCD_Factory` / `tSpinResolvedWF` / `Hamiltonian::Pol` are GONE;
 `qchem::SpinGroup {UnPolarized, Polarized}` (qchem.Symmetry.Spin) is the ONE name of the imposed subgroup
@@ -119,7 +119,7 @@ sites) — all now `ChannelOf(cd, s)` / `DM_ChannelOf(cd, s)`.
 **REMAINDER = step 3 only**, the 13 `IsPolarized()` term-dispatch sites -- **UNBLOCKED 2026-09-14: R1.0h closed**
 (the owning scope was declined, so step 3 is the only rewrite the terms have coming).
 
-**The "ah-hah" (user):** `doc/BasisSetTaxonomyPlan.md` §1.4 — spin is a FACTOR of G until it is not.  Pol vs
+**The "ah-hah" (user):** `doc/Records/BasisSetTaxonomyPlan.md` §1.4 — spin is a FACTOR of G until it is not.  Pol vs
 UnPol is not a property of the wavefunction; it is *which subgroup of the spin factor is imposed*, the same
 KIND of decision as imposing a point group — a rung on the SSB descent ladder (impose → analyse → release):
 
@@ -346,7 +346,7 @@ term rewrite -- never on its own.
   ⛔ **AND THE MEASUREMENT THAT COST A ROUND: "WALK THE BLOCKS" IS NOT ONE LOOP ON A MIXED SET.**  The first
   version walked `(*bs)[i]` and **32 integration tests failed** — every one a mixed real/complex run.
   `operator[]` THROWS on a REAL TRIM block inside a complex-faced set (*"a basis block's scalar differs from
-  the set's face"*, doc/RealComplexPlan.md 3c-3).  Those blocks belong to the REAL cache and its own
+  the set's face"*, doc/OldPlans/RealComplexPlan.md 3c-3).  Those blocks belong to the REAL cache and its own
   `PrepareRealSlots`; the typed walk must `continue` past any index where `GetRealIBS(i)` answers non-null.
   ▶ The throw did its job — this is the `feedback_compile_time_over_runtime` doctrine paying off at runtime.
   Gate: `EagerRefresh.ThePhasePreparesSlotsOnEveryTermIncludingStatics` (call counts, not timings, per the
@@ -451,7 +451,7 @@ keeps the ruling and the step-3 remainder.
 
 ## LANDED 2026-09-13 — V1.33 `c2cb79a3`..`d5ddb1a5`: the BasisSet taxonomy re-cut onto the two axes
 
-Executed `doc/BasisSetTaxonomyPlan.md` §4 in one session, eleven commits, each green on the full
+Executed `doc/Records/BasisSetTaxonomyPlan.md` §4 in one session, eleven commits, each green on the full
 `ctest -j8` (855 → 856 with the new audit), no number touched — every step was a relocation, a rename, or
 a test.  The plan file (now RECORD) carries the per-step ✅ notes; the design rulings are its §1.
 
@@ -544,7 +544,7 @@ along with the taxonomy.  **`LatticeSum1E` therefore also wants an ISP review in
 carries collocation, integrate-back and grid machinery that are not one-electron integrals, so even its
 NAME is stale.
 
-**PLAN (2026-09-13): `doc/BasisSetTaxonomyPlan.md`.**  The two proposals above (2026-08-20 basis-kind, 2026-09-13
+**PLAN (2026-09-13): `doc/Records/BasisSetTaxonomyPlan.md`.**  The two proposals above (2026-08-20 basis-kind, 2026-09-13
 symmetry) were the two AXES, not rivals: **libraries follow the FAMILY (the integral engine), module names carry
 the GROUP** — `qcRadial_BS` / `qcGaussian_BS` (`.Point.*` vs `.Lattice.*`) / `qcPlaneWave_BS` / thin `qcLattice_BS`
 container.  The GPW seam STAYS in the Gaussian engine (perf pin); `UnitCell` inside it is legitimate, and the
@@ -1080,7 +1080,7 @@ inaccurate since the overlap-metric tensor has no repulsion integral in it).
     because `Band_FT_IBS` derives from `Orbital_1E_IBS<dcmplx>` NOT `Orbital_DFT_IBS`, and molecules
     already get the identical neutral default from `tBasisSet<double>`.
   - **⇒ ONE question remains: can `Band_FT_IBS` be `Orbital_DFT_IBS<dcmplx,dcmplx>`?**  Plan-level; owner
-    is doc/RealComplexPlan.md.
+    is doc/OldPlans/RealComplexPlan.md.
   *(original text follows)*
   **`Orbital_DFT_IBS` ⇄ `Band_FT_IBS` merge.**  User (2026-08-05): Orbital_DFT_IBS simply
   specifies what integrals an IBS must supply to support DFT; "Band" and "FT" have no place in that
@@ -1096,7 +1096,7 @@ inaccurate since the overlap-metric tensor has no repulsion integral in it).
   unification, not a divergence); leaving exactly ONE genuinely Fourier member,
   `MakeOverlap(f(G))` (Band_FT_IBS.C:77) — itself re-expressible through the fit abstraction
   (fitted-potential coefficients → contraction), removing "FT" from the face.  Engage the pinned
-  FACTOR-not-FUSE analysis (fitting-boundary pin + doc/FittingCleanupPlan.md) — the argument-type
+  FACTOR-not-FUSE analysis (fitting-boundary pin + doc/OldPlans/FittingCleanupPlan.md) — the argument-type
   question is settled there; what remains is execution sequencing with the fitter templating.
   **Absorbed from the withdrawn R2.3 (2026-08-07):** the 4-line `Overlap3C`/`Repulsion3C` cache-lookup
   bodies in Imp/Band_FT_IBS.C:15-25 and Imp/Orbital_DFT_IBS.C:10-20 are the SAME code modulo exactly the
@@ -1113,7 +1113,7 @@ inaccurate since the overlap-metric tensor has no repulsion integral in it).
 
 ## LANDED 2026-08-17 — V1.11 COMPLETE (the occupation seam), five increments, 717/717 green each
 
-The LAST doc/RealComplexPlan.md §7 prerequisite.  Design RULED by the user 2026-08-17 (recorded in
+The LAST doc/OldPlans/RealComplexPlan.md §7 prerequisite.  Design RULED by the user 2026-08-17 (recorded in
 SCFStrategyPlan §5b): **policy-owns-state**; **abstract `OccupationPolicy` homed in qcElectronConfiguration**
 (D6) with concretes ASSEMBLED from two axes (occupancy {Integer, Fermi, Held} × ranking {bare, MOM}) rather
 than multiplied; **the EC class network becomes DATA** (counts + the reservoir partition) while the LIBRARY
@@ -1405,7 +1405,7 @@ in the same session.
     the `J(a,b)=J(b,a)^T` check against the UNCACHED `MakeDirect`), `PGSymmetry.
     decorator_coulomb_matches_AO_slice` (the SALC path that owns this item), `M_MEvaluator`/
     `M_LibCint` `matrix_3C_4C_match_scalar`, and `M_Calculation.WaterSymmetryLibCint`.
-  - Doc references updated in `doc/ERI4Rework.md` (§2 substrate address, §5.4 SALC caveat).
+  - Doc references updated in `doc/OldPlans/ERI4Rework.md` (§2 substrate address, §5.4 SALC caveat).
 
 - **V1.31 ✅ DONE `627a4ff9` (2026-08-10).  `SymFockCache` deleted; the SALC path builds ONE whole-AO Fock
   and slices it.**  The item was filed twice wrong before it was right, and both wrong versions are kept in
@@ -3331,7 +3331,7 @@ prior decision pointing the other way and a wrong call would have been material 
 
 ### D1 — `Band_DFT_IBS` DELETED
 
-`doc/FittingCleanupPlan.md` §D had deliberately KEPT the abstract module when its `<dcmplx>` base was
+`doc/OldPlans/FittingCleanupPlan.md` §D had deliberately KEPT the abstract module when its `<dcmplx>` base was
 dropped off `PlaneWave_IBS`, on the grounds that a future GPW basis would implement it as `<double>`.
 
 ▶ **The argument that decided it is not "it is dead" — a lot of the tree is legitimately ahead of its

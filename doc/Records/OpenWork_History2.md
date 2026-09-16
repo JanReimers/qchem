@@ -721,7 +721,7 @@ user's D-GEMM ruling survives intact and no coordinate appears in any interface.
   ulp move and re-pin.  **Measure first**: `GPW_SCF.DeltaFitUniformGridMatchesPWFit_SiGamma` must still
   print −7.115067665 (pair) and −7.115059008 (singles) at 11/11 iterations.
 - **MIXED SCALARS.**  A real TRIM block wants `hmat_t<double>` while its complex siblings want
-  `hmat_t<dcmplx>` (doc/RealComplexPlan.md 3c-3).  That is what `Fitting::FitContraction<U>` exists for —
+  `hmat_t<dcmplx>` (doc/OldPlans/RealComplexPlan.md 3c-3).  That is what `Fitting::FitContraction<U>` exists for —
   do not collapse it back into a single-scalar face.
 - **NO GETTERS.**  Nothing may hand out points, weights, or a mesh.  The current tree has zero such
   escapes; keep it that way (the whole 2026-08-22 arc was closing them one at a time).

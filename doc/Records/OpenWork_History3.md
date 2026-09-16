@@ -9,7 +9,7 @@ interleaved and lots of history so it is hard for me to read and assess."*  The 
 lines of which these eight sections — every one of them CLOSED, ACTED ON, or explicitly marked *no action
 here* — were 1316.  Each leaves a stub in the tracker naming what it concluded and pointing here.
 
-NOTHING IS TRIMMED.  The same reasoning as `doc/CleanupHistory.md`'s preamble applies and has been earned
+NOTHING IS TRIMMED.  The same reasoning as `doc/Records/CleanupHistory.md`'s preamble applies and has been earned
 here too: the refutations are worth more than the landings.  Three of these sections exist ONLY because a
 measurement killed the obvious answer — the exp recurrence, lever B, and the diagonal-seed fix — and each
 would otherwise be re-proposed.
@@ -170,7 +170,7 @@ NOT parity.  Measured/checked 2026-08-26:
 
 | missing deviation | why it is not in the table | measured effect |
 |---|---|---|
-| ~~**the pair-stream CACHE**~~ (gap 2, user) | ✅ **DELETED 2026-08-27** (`doc/CollocationRewritePlan.md` step 7) — there is no deviation left to declare: qchem re-evaluates every iteration exactly as CP2K does, off a ~0.2–0.4 MB task list | it WAS the single biggest RAM term: MnO peak RSS 3915 → 155 MB on the free probe, 1323 → 463 MB on the imposed benchmark row |
+| ~~**the pair-stream CACHE**~~ (gap 2, user) | ✅ **DELETED 2026-08-27** (`doc/OldPlans/CollocationRewritePlan.md` step 7) — there is no deviation left to declare: qchem re-evaluates every iteration exactly as CP2K does, off a ~0.2–0.4 MB task list | it WAS the single biggest RAM term: MnO peak RSS 3915 → 155 MB on the free probe, 1323 → 463 MB on the imposed benchmark row |
 | ~~**`imposeSymmetry` ITSELF**~~ | ✅ **WIRED 2026-08-26** (user: *"CP2K_COMPAT should do (imply) imposeSymmetry=0"*) — the fifth declared deviation, knob `QCHEM_IMPOSE_SYMMETRY` | CP2K does **NO** symmetry work in these decks (see below); our imposed row folds the BZ, star-averages ρ, uses the site-adapted invariant XC mesh (~2×) and folds the streams (5.2× on MnO pairs) |
 | `raster` (`BallOnly`) | typed option | BallOnly IS CP2K's bet (N2) — a deviation in mechanism only |
 | `cutoffFactor` (C=2) | typed option | ~0.15 mHa of grid error at C=2 (N2) |
@@ -476,7 +476,7 @@ reason and the mapping must not be assumed.
 | qchem today | \f$2n^3\f$ | 2 exps + 6 power tables + \f$(n_I{+}n_J)\f$ products + a loop over live pairs |
 | CP2K (general cell) | \f$O(n^2)\f$ table entries, \f$O(n)\f$ exps | \f$l_p{+}1\f$ FMAs against a table |
 
-⇒ **THE PLAN IS `doc/CollocationRewritePlan.md`** (2026-08-27), steps 0–8 with the gate first.
+⇒ **THE PLAN IS `doc/OldPlans/CollocationRewritePlan.md`** (2026-08-27), steps 0–8 with the gate first.
 ⇒ **There is no remaining 2× inside our current loop shape** — the exp experiment demonstrated that
 directly (removing 20% of the profile bought 3%).  Closing the rest means adopting the SHAPE: the
 product-centre re-expansion first, then separable tables, then contraction.  That is a real piece of work,
@@ -650,10 +650,10 @@ off the nucleus, along +x** (`IntegrationTests/GPW_SCF_UT.C:3624`, `off(0.7,0,0)
 with it:
 
 1. **It is a spin DENSITY (e/bohr³), not a moment.**  CP2K's 4.654 is a *Mulliken site moment in μB*
-   (`doc/CP2Kresults.md:153`, `doc/SymmetryUpgradeHistory.md:252`) — integrated and basis-partitioned.  So
+   (`doc/Records/CP2Kresults.md:153`, `doc/Records/SymmetryUpgradeHistory.md:252`) — integrated and basis-partitioned.  So
    "qchem 0.67 vs CP2K 4.65" was never a like-for-like statement.  The same run already prints
    `|m̃(q_AFM)|·Ω/2 = 3.126 e⁻`, ~4.8× the point probe and much nearer CP2K's scale; earlier sessions did
-   compare *that* to 4.65 (`doc/SphericalLatticePlan.md:124`).
+   compare *that* to 4.65 (`doc/Records/SphericalLatticePlan.md:124`).
 2. **0.7 was never derived.**  The only justification in the tree is the parenthetical "(the d-shell peak —
    the d density VANISHES at the nucleus)".  The motivation is sound; the number is asserted.
 3. **★ It samples ONE DIRECTION, which for a d shell is the confounder itself.**  A cubic-split d spin
@@ -743,7 +743,7 @@ Measured, first time any of this was on the console:
 > it, and that costs one array.  5 unit tests in `UTCommon` (`src/Common/tests/Reporting.C`).
 >
 > ⚡ **AND IT EARNED ITS KEEP ON THE FIRST RUN IT WAS USED ON.**  The MnO ledger hunt
-> (`doc/ParallelAndOraclePlan.md` 1.1(a)) was looking for 25 s of unbucketed time.  The stamps found it
+> (`doc/Records/ParallelAndOraclePlan.md` 1.1(a)) was looking for 25 s of unbucketed time.  The stamps found it
 > before any bucket was read — 60.17 s at the end of anneal stage 1, 95.93 s at the first line of stage 2,
 > **35.8 seconds in which the run printed nothing at all**, which is exactly the stage-2 Hamiltonian
 > rebuild.  The item's own claim ("the GAPS BETWEEN SECTIONS are the unbucketed time") is now measured,
@@ -799,7 +799,7 @@ were prerequisites for Step 1.
 
 **Both columns are now MEASURED, on this box, through one wrapper** (`scripts/bench`, 2026-08-19, 1 thread
 each).  The CP2K half stopped being banked prose the moment the packaged CP2K 2025.2 was validated against
-five banked 2026.1 decks — all five reproduce to the printed digits (`doc/CP2KBuild.md`).  Seven rows carry
+five banked 2026.1 decks — all five reproduce to the printed digits (`doc/Records/CP2KBuild.md`).  Seven rows carry
 energy + wall + peak RAM on both sides; three cells remain (below).
 
 | | Δ(E) | CPU q/c (wall) | RAM q/c |
@@ -1425,12 +1425,12 @@ symmetrize under the intersection group for exactly this reason.
 
 ## ✅ TE — THE TEST SUITE AS A PRODUCT SPACE — CLOSED 2026-09-15 (was the programme's step 3)
 
-*(the full texts; the tracker keeps a one-paragraph stub.  The plan and its as-built tables are `doc/TestSuitePlan.md`.)*
+*(the full texts; the tracker keeps a one-paragraph stub.  The plan and its as-built tables are `doc/Records/TestSuitePlan.md`.)*
 
 **The programme step, as it read when closed:**
 
 > ### 3. THE TEST-SUITE ORGANISATION — item **TE**
-> ▶ **PLAN DRAFTED 2026-09-15 → `doc/TestSuitePlan.md`** — axes + tokens, three claim kinds (oracle / did-E-move
+> ▶ **PLAN DRAFTED 2026-09-15 → `doc/Records/TestSuitePlan.md`** — axes + tokens, three claim kinds (oracle / did-E-move
 > / one-axis TWIN / property), the grammar `TEST(<Basis>_<Material>, <axis tokens in order, defaults elided>_<Claim>)`,
 > every enabled solid test re-cut, a verdict per `DISABLED_` test, and the running order (mixer unit test FIRST,
 > harness collapse SECOND, re-file THIRD).  **Rulings 1–6 GIVEN 2026-09-15** (amendments: `Γ` spelled `Γ`, lower-case
@@ -1463,7 +1463,7 @@ symmetrize under the intersection group for exactly this reason.
 
 **The tracker row, as it read when closed:**
 
-| **TE** | ★★ **THE TEST SUITE — ORGANIZATION FIRST, THEN COST (user, 2026-09-08).**  Two complaints, and the ORGANIZATION one is primary: *"for the test review I am also concerned about organization."*  ▶ **THE SHAPE THE USER ASKED FOR — an SCF test is a POINT IN A PRODUCT SPACE, so name and file it as one:** `{basis: PW, GPW, LAPW, …} × {material: Si, NaF, MnO, Na, Al, …} × {real-space grid: Uniform, Becke} × {k: Γ, multi-k} × {symmetry imposed: yes, no} × {kT: 0, anneal}` (etc. — the axis list is the user's, and it is open-ended by design).  Then: pick the FILE BREAKDOWN (by basis set?), lay the chosen permutations out in a CONSISTENT ORDER, and give them a CONSISTENT NAMING CONVENTION so a reader can see which cells of the product are covered and which are holes.  ⚠ Today the naming is ad-hoc (`SR_2x2x2ShiftedMP_vs_CP2K`, `RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh`, `BeckeXC_IBZ_SiDiamond`) — each name is individually reasonable and the SET is unreadable, which is exactly why nobody can answer "do we need them all?".  ★ The coverage question is a CONSEQUENCE of the layout, not a prerequisite for it: once the permutations are in a grid, the duplicates and the holes are both visible. **AND THE COST, MEASURED 2026-09-08** (`ctest -j8`, 870 tests, 937 CPU-s, 207 s wall): **`GPW_SCF` is 611 s = 65% of all test CPU from 35 enabled tests**, and **`GPW_SCF.PolarizedRunKeepsItsSpin` alone is 251 s = 27% of the suite — it sets the -j8 wall floor by itself** (Mn atom, 16-bohr box, 12 SCF iterations on a Becke mesh).  Also: **27 of `GPW_SCF`'s 62 tests are DISABLED** — hand-run ladders, sweeps and probes, i.e. INSTRUMENTS, not tests, and 4800 lines of `GPW_SCF_UT.C` that ctest never touches. | ▶ **THREE ACTIONS, in order.**  (a) **Define the axes and the naming convention on paper first**, then re-file — the layout is the deliverable, not the deletions.  (b) **`PolarizedRunKeepsItsSpin`: its claim is a MIXER property** — ρ̃ (Kerker) mixing on a polarized density must not collapse the spin — *not* an SCF property. It belongs in `src/ChargeDensity/tests` driven by a hand-built polarized density, with no SCF at all; that is the user rule (unit for the dev loop, integration for acceptance) and it roughly halves the suite wall time. ⚠ While there: its order probe samples m(r) at 0.7 bohr off the nucleus, which is a spin DENSITY, not a moment — the Becke site blocks now provably support a real INTEGRATED site moment (`BeckeMesh.*`, 2026-09-08), so the probe should become an integrated one and gets cheaper doing it.  (c) **TEST libcint-SPHERICAL (S3b)** — the one remainder of the retired `doc/OldPlans/SphericalSALCPlan.md`, guarded out today; the in-house spherical SALC is shippable and this is the last arm (user, 2026-09-08: *"SphericalSALCPlan.md can [be] retired, just add 'test libCint' into stage C"*).  (d) ⏳ **PARTLY DONE 2026-09-09 — the ZERO-ASSERT ones are deleted** (18 tree-wide, 9 of them `GPW_SCF`), on the user's ruling that a printf sweep is a spent campaign artifact.  **What is LEFT of this sub-item is the harder half: the 15 disabled tests that DO assert** — those are the ones needing a promote-vs-delete-vs-fix verdict, and the ANCHOR-vs-PHYSICS triage rule (KP-0) is how to tell them apart.  Original text: **decide the disabled tests as a CLASS**: promote to a `CLIapps/` probe binary, or delete the ones whose verdict is already banked in `doc/`. | this row + `doc/ParallelAndOraclePlan.md` PHASE 2.5 |
+| **TE** | ★★ **THE TEST SUITE — ORGANIZATION FIRST, THEN COST (user, 2026-09-08).**  Two complaints, and the ORGANIZATION one is primary: *"for the test review I am also concerned about organization."*  ▶ **THE SHAPE THE USER ASKED FOR — an SCF test is a POINT IN A PRODUCT SPACE, so name and file it as one:** `{basis: PW, GPW, LAPW, …} × {material: Si, NaF, MnO, Na, Al, …} × {real-space grid: Uniform, Becke} × {k: Γ, multi-k} × {symmetry imposed: yes, no} × {kT: 0, anneal}` (etc. — the axis list is the user's, and it is open-ended by design).  Then: pick the FILE BREAKDOWN (by basis set?), lay the chosen permutations out in a CONSISTENT ORDER, and give them a CONSISTENT NAMING CONVENTION so a reader can see which cells of the product are covered and which are holes.  ⚠ Today the naming is ad-hoc (`SR_2x2x2ShiftedMP_vs_CP2K`, `RealTRIMBlocksWithMOMMatchComplex_SiMixedMesh`, `BeckeXC_IBZ_SiDiamond`) — each name is individually reasonable and the SET is unreadable, which is exactly why nobody can answer "do we need them all?".  ★ The coverage question is a CONSEQUENCE of the layout, not a prerequisite for it: once the permutations are in a grid, the duplicates and the holes are both visible. **AND THE COST, MEASURED 2026-09-08** (`ctest -j8`, 870 tests, 937 CPU-s, 207 s wall): **`GPW_SCF` is 611 s = 65% of all test CPU from 35 enabled tests**, and **`GPW_SCF.PolarizedRunKeepsItsSpin` alone is 251 s = 27% of the suite — it sets the -j8 wall floor by itself** (Mn atom, 16-bohr box, 12 SCF iterations on a Becke mesh).  Also: **27 of `GPW_SCF`'s 62 tests are DISABLED** — hand-run ladders, sweeps and probes, i.e. INSTRUMENTS, not tests, and 4800 lines of `GPW_SCF_UT.C` that ctest never touches. | ▶ **THREE ACTIONS, in order.**  (a) **Define the axes and the naming convention on paper first**, then re-file — the layout is the deliverable, not the deletions.  (b) **`PolarizedRunKeepsItsSpin`: its claim is a MIXER property** — ρ̃ (Kerker) mixing on a polarized density must not collapse the spin — *not* an SCF property. It belongs in `src/ChargeDensity/tests` driven by a hand-built polarized density, with no SCF at all; that is the user rule (unit for the dev loop, integration for acceptance) and it roughly halves the suite wall time. ⚠ While there: its order probe samples m(r) at 0.7 bohr off the nucleus, which is a spin DENSITY, not a moment — the Becke site blocks now provably support a real INTEGRATED site moment (`BeckeMesh.*`, 2026-09-08), so the probe should become an integrated one and gets cheaper doing it.  (c) **TEST libcint-SPHERICAL (S3b)** — the one remainder of the retired `doc/OldPlans/SphericalSALCPlan.md`, guarded out today; the in-house spherical SALC is shippable and this is the last arm (user, 2026-09-08: *"SphericalSALCPlan.md can [be] retired, just add 'test libCint' into stage C"*).  (d) ⏳ **PARTLY DONE 2026-09-09 — the ZERO-ASSERT ones are deleted** (18 tree-wide, 9 of them `GPW_SCF`), on the user's ruling that a printf sweep is a spent campaign artifact.  **What is LEFT of this sub-item is the harder half: the 15 disabled tests that DO assert** — those are the ones needing a promote-vs-delete-vs-fix verdict, and the ANCHOR-vs-PHYSICS triage rule (KP-0) is how to tell them apart.  Original text: **decide the disabled tests as a CLASS**: promote to a `CLIapps/` probe binary, or delete the ones whose verdict is already banked in `doc/`. | this row + `doc/Records/ParallelAndOraclePlan.md` PHASE 2.5 |
 
 ## ✅ STEP 4 — POLISH THE NEAR-EMPTY LIVE PLANS → RECORD — CLOSED 2026-09-16
 

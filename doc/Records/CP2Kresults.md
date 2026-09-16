@@ -2,7 +2,7 @@
 
 Independent GPW oracles from **CP2K 2026.1** (serial `ssmp`, built at `~/Code/cp2k`) for the qchem GPW/PW
 work. Input decks live in `UnitTests/CP2K/`; run recipe + the qchem↔CP2K parameter map are in that folder's
-README and in `doc/GPWPlan.md` TODO 2. All runs: `METHOD GPW`, `LDA_X + LDA_C_VWN` (Slater/Dirac exchange +
+README and in `doc/OldPlans/GPWPlan.md` TODO 2. All runs: `METHOD GPW`, `LDA_X + LDA_C_VWN` (Slater/Dirac exchange +
 VWN5), GTH-PADE PP (== our GTH-LDA), FCC/rocksalt/CsCl cells matching the `GPW_SCF`/`PlaneWaveDFT` tests.
 `CUTOFF` is CP2K's density-grid cutoff in **Ry** (= 2× our `densityEcut` in Ha); converged values (Si: flat by
 ~80 Ry). CP2K has no orbital `Ecut` (Gaussians) and no `Rcut` knob (neighbour lists / `EPS_PGF_ORB`).
@@ -37,7 +37,7 @@ N=24/12/8/4.)  Note CP2K's N=36 at 160 Ha vs our radix-2 FFT's N=128 at the same
 45× the raster points on our side (their N is mixed-radix 2²·3²).  CP2K grid-side match knobs in qchem:
 `GPW_MGRID_ECUTS` (explicit sub-level cutoffs) + `GPW_RELCUTOFF` (absolute Ha-per-exponent assignment rule).
 
-**GRID-MATCHED qchem runs (2026-07-21; full record `doc/GPWPlan.md` §0e★+§0f, logs `~/Code/naf_gridmatched.log`
+**GRID-MATCHED qchem runs (2026-07-21; full record `doc/OldPlans/GPWPlan.md` §0e★+§0f, logs `~/Code/naf_gridmatched.log`
 et al.): FINAL VERDICT = GPW VALIDATED — sub-mHa agreement on the same basis.**  The first matched run gave
 −23.6739 vs the −27.9313 oracle (Δ=4.26 Ha), initially mis-attributed to the collocation method; two probes
 decomposed it exactly: **0.76 Ha = a MOM-pinned EXCITED state** (the `AdoptMOMReference` coarse→fine transfer;
@@ -90,7 +90,7 @@ from ours (it uses a compensating-core-charge scheme) — compare the **total** 
 
 ## qchem comparison
 - **Si Γ, SIPP_SR — the tight BASIS-MATCHED gate:** our GPW **−7.11505** vs CP2K **−7.11506** (1e-5), Exc
-  −2.544 = −2.544, nonlocal-PP → +0.9406. This validated the bulk fix (see `doc/GPWPlan.md`, "Bulk
+  −2.544 = −2.544, nonlocal-PP → +0.9406. This validated the bulk fix (see `doc/OldPlans/GPWPlan.md`, "Bulk
   over-binding FIXED").
 - **Grid convergence, matched cutoff** (`CUTOFF` Ry = 2× our `densityEcut` Ha; our FFT `N` is `NextPow2`, so
   it jumps 32→64):

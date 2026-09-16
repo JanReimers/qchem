@@ -49,7 +49,7 @@ Sweep: 747 executed + 42 disabled = 789 registered, 0 failed.
 read *"the complex-internal evaluator collocation streams are the last — and now dominant — performance
 increment (~150 s of the MnO profile, untouched by the flip)."*  The 150 s was right (collocate 87.5 +
 integrate-back 41.1 + stream build 23.5 of the 402 s free-run ledger); **"complex-internal" was not.**
-A `perf` annotation of the pair-scatter lambda (doc/GPWPlan1.md "Round 3") puts 49% of its self time on
+A `perf` annotation of the pair-scatter lambda (doc/Records/GPWPlan1.md "Round 3") puts 49% of its self time on
 the two SEQUENTIAL loads — the fp32 value stream and the per-point raster index — ~1% on the arithmetic,
 and NOTHING measurable on either the Bloch-phase `std::function` or the complex \f$D_{ij}\f$ contraction:
 those are per (pair, offset), amortised over runs of ~20–40 grid points, while the streams themselves were
@@ -79,7 +79,7 @@ first mixed set, `87072a45`), 3c-1 (the term stack serves real blocks, `ea2309eb
 assembly + SCF wiring, `52190674`), and 3c-2b (lineage-as-class: the `PeriodicIrrepCD` split + live
 energy/ρ̃ cross arms, `752cd9a6`).  CD-hierarchy diagram: doc/diagrams/chargedensity_hierarchy.svg.
 
-(Original preamble, 2026-08-16: written out of doc/GPWPlan1.md "THE RUNTIME GAP, MEASURED"; the
+(Original preamble, 2026-08-16: written out of doc/Records/GPWPlan1.md "THE RUNTIME GAP, MEASURED"; the
 prerequisites that once gated this are all closed — see §7.)
 
 ---

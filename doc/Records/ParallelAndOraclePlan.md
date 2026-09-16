@@ -659,7 +659,7 @@ not open-ended — it is the already-recorded debt, plus the two smells this ses
 | **`FIT_SF_Ortho` — separate the METRIC axis into faces** (specced 2026-08-23, not built): `OverlapDiagonal` sits on the metric-NEUTRAL face, so `Fit_IBS` answers in the wrong normalisation.  ⚠ Acceptance: must NOT become a `dynamic_cast` type switch | `doc/OpenWork.md` item 6 |
 | **The identity-question smell**: `IsPolarized()` / `IsRelativistic()` on the Hamiltonian faces — the `IsSlaterBasisSet()` shape the user has already ruled against once (`IsGeometryOnly()`, 2026-09-04).  Test: does the answer SELECT WHICH CODE RUNS? | `CleanupCandidates.md` (the Hamiltonian-faces note) |
 | ★ **NEW — the GRID × FIT-BASIS audit** (user, 2026-09-06): the integration grid and the fit basis are ORTHOGONAL axes, and which pairings are worth running is high-level POLICY.  Audit the faces for anywhere a grid choice IMPLIES a basis choice (or vice versa) — "Becke" must not mean "delta" in any signature | this file; `IntegrationTests/GPW_SCF_UT.C` V2.8 |
-| **The `dynamic_cast` survey** — CLAUDE.md's standing TODO: casts must be abstract→abstract, never abstract→concrete, and a failing one should throw with context | `doc/FittingCleanupPlan.md` item C |
+| **The `dynamic_cast` survey** — CLAUDE.md's standing TODO: casts must be abstract→abstract, never abstract→concrete, and a failing one should throw with context | `doc/OldPlans/FittingCleanupPlan.md` item C |
 | **V1.32** — de-template the finite `IrrepCD` leaf | `doc/OpenWork.md` item 7 |
 
 ⚠ **Do the cleanup with the anchor sprint in mind**: anything that changes a summation order joins item S's

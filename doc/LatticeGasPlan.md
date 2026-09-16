@@ -2,7 +2,7 @@
 
 **Status: SPECCED, NOT BUILT — and deliberately deferred** (user, 2026-09-07: *"We don't need multiple
 configurations right now"*).  This file exists so the design is not re-derived.  The one piece that IS
-built is `Supercell` (`src/Structure/UnitCell.C`), because `doc/ParallelAndOraclePlan.md` 2.1 needed
+built is `Supercell` (`src/Structure/UnitCell.C`), because `doc/Records/ParallelAndOraclePlan.md` 2.1 needed
 replication for the size question; its declaration carries the forward-compatibility reasoning.
 
 **The north star this serves**: Li/Na cathode voltage curves — total energies for many Li configurations,

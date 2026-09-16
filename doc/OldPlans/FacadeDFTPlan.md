@@ -2,7 +2,7 @@
 
 > **▶ STATUS 2026-09-16 — RECORD.  D1 (the unified `Model` enum + the `Factory` resolver + mesh-from-
 > `MeshParams` + auto SAD seed, `8b8df1d0`) and D2 (polarized DFT through the facade — delivered as
-> `doc/SpinNativeDFTPlan.md` B1–B4, `51157449` … `50ac088f`) BOTH LANDED ON 2026-06-30.**  The public
+> `doc/OldPlans/SpinNativeDFTPlan.md` B1–B4, `51157449` … `50ac088f`) BOTH LANDED ON 2026-06-30.**  The public
 > functional selector is `Hamiltonian::XC` / `XCFunctional` (`45f88cf9`); `Pol` has since become
 > `qchem::SpinGroup` (V1.37, 2026-09-14) — read the file's `Pol` as that.  The three items the index kept
 > listing against this file are all LIBRARY increments, not facade work, and each already has its row

@@ -2,7 +2,7 @@
 
 **This is an INSTRUMENT, not a report.**  A row here is a claim that two codes did the same work on the
 same hardware; the sections below are what makes that claim checkable.
-📖 **The reasoning, the wrong turns and every superseded number are in `doc/BenchmarkHistory.md`** (split
+📖 **The reasoning, the wrong turns and every superseded number are in `doc/Records/BenchmarkHistory.md`** (split
 out 2026-09-04).  Come back here for what is TRUE NOW; go there for why.
 
 **Read in this order:** §1 the process → §2 what parity actually means → §3 the rules → §4 the commands →
@@ -236,8 +236,8 @@ OMP_NUM_THREADS=1 ../../scripts/bench "Si Gamma cp2k"    -- mpirun -np 1 cp2k.ps
 OMP_NUM_THREADS=1 ../../scripts/bench "MnO AFM2 VA cp2k" -- mpirun -np 1 cp2k.psmp -i mno_afm2_gpw_va.inp
 ```
 
-Verify each side reproduces its own history before reading a Δ: the CP2K decks against `doc/CP2Kresults.md`
-(all five re-validated 2026-08-19, `doc/CP2KBuild.md`), and the qchem runs against the tests' own anchors.
+Verify each side reproduces its own history before reading a Δ: the CP2K decks against `doc/Records/CP2Kresults.md`
+(all five re-validated 2026-08-19, `doc/Records/CP2KBuild.md`), and the qchem runs against the tests' own anchors.
 
 
 ---
@@ -258,7 +258,7 @@ a matrix): the parity row fell 2.05× → 1.72×, the Si 8-k rows 0.84×/0.68× 
 because the Becke mesh build THREADS** (`src/Structure/Imp/UnitCell.C:273` — the partition loop is
 `#pragma omp parallel for` over quadrature points, and `GPW_OMP_THREADS=1` pins it): 68.3 s serial per
 build against the 16.7 s that ledger read with threads free.  The serial figure is the one that belongs
-beside a serial CP2K row (`doc/BenchmarkHistory.md` §9).
+beside a serial CP2K row (`doc/Records/BenchmarkHistory.md` §9).
 
 **HOW TO READ IT.**  `CPU` is whole-run user+sys.  `setup` is that run's own pre-SCF work — qchem: the sum
 of the ledger's `setup:` buckets; CP2K: total CPU minus the sum of its printed per-step times.  So
@@ -378,7 +378,7 @@ For runtime go to §5a — same runs, decomposed.
 
 Energies in Ha.  **Both columns measured on this box (14 GB, 16 cores) through `scripts/bench`** — the CP2K
 side is no longer banked prose: `apt`'s CP2K 2025.2 reproduces every banked 2026.1 deck value to the printed
-digits (`doc/CP2KBuild.md`), so both codes are measured under one wrapper.  Provenance per row is in
+digits (`doc/Records/CP2KBuild.md`), so both codes are measured under one wrapper.  Provenance per row is in
 *How each row was produced*.
 
 > ✅ **BOTH SIDES ARE NOW SERIAL AND MEASURED SO** (2026-09-05): qchem `OMP_NUM_THREADS=1
@@ -419,7 +419,7 @@ parity ROUTE affordable — see footnote ⁷ (§5d).  CP2K column untouched thro
 
 ### 5d. Footnotes to the table
 
-Compact here; the full stories are in `doc/BenchmarkHistory.md` at the section named after each.
+Compact here; the full stories are in `doc/Records/BenchmarkHistory.md` at the section named after each.
 
 - **¹** Si 2×2×2 shifted MP (−1.04 mHa) — the residual after a **D-aware integrate-back SCREEN defect** was
   fixed 2026-08-19.  It is the suite's ONLY fractional-k SCF coverage (every other k is TRIM, where the
@@ -774,7 +774,7 @@ MnO ALL DEFAULTS, the same run in both columns (serial 395.6 s → 12 threads 12
 | scf/setup: the FFT closures, local-PP short | ~3 s | ~3.4 s | ~0.9× | ⛔ |
 | **everything not in a bucket** | ~52 s | **~59 s** | **~0.9×** | ⛔ |
 
-⚠ **THE LAST ROW IS SUPERSEDED — IT IS NOW 0.03 s** (2026-09-06, `doc/ParallelAndOraclePlan.md` 1.1 + 1.1(a)).
+⚠ **THE LAST ROW IS SUPERSEDED — IT IS NOW 0.03 s** (2026-09-06, `doc/Records/ParallelAndOraclePlan.md` 1.1 + 1.1(a)).
 Instrumenting it did not find "diagonalisation, orthogonalisation, mixing, the fit solves": the SCF's whole
 linear-algebra side is ~5 s of a serial run and the diagonalisation is **0.038 s**.  It found **the
 Hamiltonian being built once per ANNEAL STAGE** — `SolidCalculation::BuildStage` re-`Factory`s it and had no

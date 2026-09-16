@@ -1,14 +1,14 @@
 # Molecular ↔ Plane-Wave Pseudopotential Harmonization — Round 2 (the road to GPW)
 
-> **GPW has outgrown this doc — see `doc/GPWPlan.md` for the current GPW state, the mesh-quadrature seam, the
+> **GPW has outgrown this doc — see `doc/OldPlans/GPWPlan.md` for the current GPW state, the mesh-quadrature seam, the
 > next-increment (full periodic SCF) plan + first-system recommendation (Si → NaF → CsI), and the durable
 > pins.** This doc remains the record of the molecular↔PW *harmonization* (Round 1/2) and the deferred
 > *symmetry* track (§2.1–2.2). The GPW increments discussed in §2.4/§2.5 are DONE (1E + DFT-tier collocation);
 > `GPWPlan.md` is authoritative for GPW from here.
 
 **Status:** planning doc for the *next* session. Self-contained. Author-owned (like
-`doc/MolecularPP_HarmonizationFindings.md`, "Round 1"); **not** the user's
-`doc/MolecularPseudopotentialPlan.md`. Round 1 got molecular pseudopotentials working and harmonized the
+`doc/OldPlans/MolecularPP_HarmonizationFindings.md`, "Round 1"); **not** the user's
+`doc/OldPlans/MolecularPseudopotentialPlan.md`. Round 1 got molecular pseudopotentials working and harmonized the
 *fitting/assembly* seams; Round 2 closes the last structural divergences and lays the track to **GPW**
 (Gaussian orbitals on a periodic lattice), which is the north-star that makes solids/battery work possible.
 
@@ -520,11 +520,11 @@ off sooner; but for building the *capability* correctly, GPW-first is the lower-
 
 ## 5. Companion documents (history / detail — this doc does not depend on them)
 
-- `doc/MolecularPseudopotentialPlan.md` — the user's PP plan (owned by the user; not edited).
-- `doc/MolecularPP_HarmonizationFindings.md` — Round 1: what landed and why (the detailed record §6, the DONE
+- `doc/OldPlans/MolecularPseudopotentialPlan.md` — the user's PP plan (owned by the user; not edited).
+- `doc/OldPlans/MolecularPP_HarmonizationFindings.md` — Round 1: what landed and why (the detailed record §6, the DONE
   divergence work, the fit-basis factory seam, the grid-cutoff analysis).
 - `doc/diagrams/pp_molecular_vs_pw.svg` — the map embedded above.
-- `doc/FittingCleanupPlan.md` — the fitting-campaign record that delivered Round 1 Item 2 (PW fit-through-factory).
+- `doc/OldPlans/FittingCleanupPlan.md` — the fitting-campaign record that delivered Round 1 Item 2 (PW fit-through-factory).
 - `doc/GaussianPlaneWavePlan.md` — the earlier strategic-altitude GPW spec (2026-06-28). Its durable points are
   folded into §2.4 above (the PP-smoothness/GAPW enabler, the Coulomb-strategy-by-structure-type lens, collocation
   forward/adjoint + multi-grid deferral, the Γ validation gate). **Caveat:** its §4/§5 "GPW is all-`double`, FFT

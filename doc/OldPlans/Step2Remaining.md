@@ -71,7 +71,7 @@ Groups A and D are closed and E was never work, so this file's remaining content
 2. ~~**The sprint S = V2.2 + V2.5 together**~~ ✅ done 2026-09-14 — and cheaper than even the re-cut
    feared: the one full `ctest` pass re-pinned NOTHING.  A converged run lands on the same number from
    either seed, and the KB floor binds on no production run.  What "anchor-moving" had really been
-   describing was the COST OF FINDING OUT, which is one sweep.  Records in `doc/CleanupHistory.md`.
+   describing was the COST OF FINDING OUT, which is one sweep.  Records in `doc/Records/CleanupHistory.md`.
 3. **V1.34 and R1.0b stay blocked** on things outside this sweep (N4; the reader bug).  Neither is worth
    forcing: V1.34's honest fix depends on a route decision, R1.0b's payoff is the S3b spherical lineage.
 
@@ -108,7 +108,7 @@ two-number entry (E, Tr(D·V)) that makes the band form reachable, and +U now ad
 my premises were corrected on the way: −TS IS an energy (dimensions), and a second non-summed map is a
 data-structure choice the reporting ruling does not forbid.
 
-### V1.33 ✅ DONE 2026-09-13 — see the STATE table; record in `CleanupHistory.md`, plan `doc/BasisSetTaxonomyPlan.md` (RECORD)
+### V1.33 ✅ DONE 2026-09-13 — see the STATE table; record in `CleanupHistory.md`, plan `doc/Records/BasisSetTaxonomyPlan.md` (RECORD)
 
 ### V1.38 — Point spec in the core + one thin IBS class per (G, engine) (filed 2026-09-14, STASHED)
 The `BasisSetTaxonomyPlan.md` §5 sequel, sized 2–4 sessions.  **Not obvious because** it should come AFTER an
@@ -208,7 +208,7 @@ to schedule; do not land these piecemeal.
   is a presentation built whole; the ISP half is `Kerker/PulayMixerFactory` taking a GENERIC seed.  ⚠ Two
   review premises were wrong and were resolved with the user (α_eff WAS used → deleted anyway, not physics;
   ReDamp is NOT a line-search failure → one adaptive method on a cross-cast face).  Full record in
-  `doc/CleanupHistory.md`; (g) the `PolarizedRunKeepsItsSpin` mixer unit test is left for TE.
+  `doc/Records/CleanupHistory.md`; (g) the `PolarizedRunKeepsItsSpin` mixer unit test is left for TE.
 - **V1.32 — ✅ DONE 2026-09-10 (`9a073f39`).**  Small and self-contained exactly as advertised, and it
   compiled first try.  The parameter was holding up THREE conditionals with one live branch each; the
   `IrrepHF_PairBase` alias died with it.  ⚠ **One thing that looks like a fourth dead branch is not:**
