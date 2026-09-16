@@ -95,6 +95,22 @@ In order:
    free as an oracle.  ⇒ the order above: use QE for the values, keep the supercell-finite-difference route
    as the fallback we could script once the run cost is down, never build DFPT for this.
 
+★ **Does the OOD/SOLID structure get in the way of LR-cDFT?  Checked against the tree 2026-09-16 — NO, it is
+what makes "a script over the +U term" true** (user's concern, worth answering once): the perturbation
+\f$\alpha\hat P_{manifold}\f$ is DENSITY-INDEPENDENT ⇒ a `tStatic_HT`, `tHamiltonian::Add(tStatic_HT*)`, nothing
+else changes; \f$\chi_0\f$/\f$\chi\f$ are the +U term's own `MatrixForward` read at iteration 1 and at
+convergence through `SolidCalcOptions::onIteration` (live FROM CONSTRUCTION, so iteration 1 is seen); the
+zeroed-off-diagonal inversion is a `CLIapps/` probe.  **The one thing to build INTO the +U term from day one:**
+a FROZEN-OCCUPATION mode — Macke fixes the Hubbard potential at its unperturbed self-consistent value during
+the perturbation runs so the measured curvature is DFT-only; the potential is then built from a STORED n,
+not the current one.  It is the term's own state; put it in the interface now, not later.
+
+**Contingency (user, 2026-09-16):** if QE turns out much faster than us on 2×2×2 supercells, that is
+ANOTHER optimisation campaign to run-time parity with QE — while `doc/Benchmark.md` §5a keeps its CP2K rows
+as the regression anchor so one parity is never traded for the other.  ⚠ QE is PW/PAW with a per-k cost
+model, ours is per-pair: the like-for-like number is "wall to a converged U on the same 32-atom cell", not a
+per-routine comparison; `CP2K_COMPAT`'s deviation-list discipline gets a QE sibling.
+
 ⚠ Two caveats standing: every number in Macke et al. is PBE/PBEsol, so a like-for-like comparison of
 orbital-resolved VALUES waits on GGA (§2) — LDA+U on MnO still tests the mechanism and the CP2K anchor; and
 MnO is charge-transfer-leaning, so an O-p entry in the manifold list is a live question for it too, not
