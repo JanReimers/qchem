@@ -1,5 +1,17 @@
 # Spherical d on the lattice path — the fixed-transform decorator plan
 
+> **▶ STATUS 2026-09-16 — RECORD (moved out of LIVE by user ruling).**  The 2026-08 MnO accuracy campaign:
+> I0/I1/I2-arm-1 DONE; I3 overtaken by `valence_lowq_sph` v2 (`ace4ec8a`, exponent-for-exponent the CP2K
+> transcription incl. the Mn s window); I2 arm 2 became `OpenWork.md` Step 5 (the VA exact-span table, −99.7
+> mHa configuration-blind + −37 mHa configuration-selective) and is carried THERE; I4 (lattice SALC on the
+> seam) landed by another route as the Shubnikov/space-group imposition (`doc/SymmetryUpgradePlan.md`).  ⚠ Its
+> "weak-moment basin" conclusions are POINT-PROBE numbers — re-read against integrated site moments
+> (`doc/Pins.md` pin 4).  The finding that outlives it — **a basis SPAN can reverse a magnetic ordering; match
+> spans before comparing to an oracle** — is `doc/Pins.md` **pin 16**.  The design rulings (peer
+> implementations behind the abstract capability; the integral engine is its own dispatch layer) stand as
+> written below.  Nothing below is a queue.
+
+
 ## ★ SESSION START HERE (updated 2026-08-14) — the V_long "defect" DISSOLVED; collapse cause reopened
 
 **WHERE THE CAMPAIGN STANDS:** I1 (spherical lattice view) DONE + gated; I3 (valence_lowq_sph = the

@@ -1983,6 +1983,14 @@ MnO campaign proceeds undisturbed in qchem6.
   Rk reuse guard stays green.  Atomic-radial layer only — `LMax` must NOT climb into the generic ERI4 layer
   (§6's whole point).  Bit-identical by construction (same integrals, bigger tables sooner); the only
   measurable is RAM on a heavy-atom pool.  No urgency: it is a fragility, not a defect.
+- **R2.24 — `qcSymmetry`'s directories are named for the SYSTEM (`Atom / Molecule / Lattice_3D`), not the
+  GROUP they mirror (`O3 / Point / Lattice`)** (filed 2026-09-16 from `doc/BasisSetTaxonomyPlan.md` §5 when it
+  went RECORD; the plan called it "a separate, cheaper decision").  Pin 14 says `qcSymmetry` is laid out by G,
+  and the module names in `qcBasisSet` already carry the group (`Gaussian.Point`, `Gaussian.Lattice`), so the
+  symmetry library is now the odd one out — `Symmetry::Molecule::CartesianShellRep` is the O(3)↓P subduction,
+  which has nothing molecular about it.  Mechanical rename (directories, module names `qchem.Symmetry.*`, the
+  `scripts/audit-basisset-gtags` regexes, `Lattice_3D` → `Lattice` to match `BasisSet::Lattice` from V1.33
+  step 2).  Bit-identical; one commit; do it when nothing else is in flight in `src/Symmetry/`.
 
 ## VERIFY
 

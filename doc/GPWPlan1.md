@@ -1,5 +1,15 @@
 # GPWPlan1 — the post-raw-XC execution plan (2026-07-23; restructured 2026-07-26)
 
+> **▶ STATUS 2026-09-16 — RECORD (moved out of LIVE by user ruling).**  This was the GPW forward queue from
+> 2026-07-23; its DONE section and the four measurement rounds (2026-08-15 → 08-19) are the evidence trail for
+> the box-walk, collocation and BLAS decisions.  **Everything still open moved to `doc/OpenWork.md` Step 3
+> ("harvested from GPWPlan1", 2026-09-16)**: the pending items 1 / 3 / 4a / 4c / 5, the Fermi-smearing future
+> considerations, the Becke remaining increments and valgen `--auto`; several were found overtaken in the
+> harvest and are marked so there.  The durable pins it pointed at left for `doc/Pins.md` on 2026-09-08; the
+> smearing/GDM finding joins them as pin 15.  The stream-cache section is history (the cache is gone).
+> Nothing below is a queue — if a bullet here looks open, the tracker row is the authority.
+
+
 The forward queue, superseding `doc/GPWPlan.md`'s TODO section (that file remains the authoritative RECORD of
 the 2026-07 campaign, and `doc/GPWHistory.md` holds the deep archive).  **Read GPWPlan.md's "Durable pins /
 invariants" before working here:** THERE IS NO CUT; no grad-student knobs (policy enums, not numeric dials);

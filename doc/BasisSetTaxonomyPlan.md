@@ -1,5 +1,14 @@
 # BasisSet Taxonomy Plan — V1.33
 
+> **▶ STATUS 2026-09-16 — RECORD (index row moved 2026-09-16; the file said so on 2026-09-13).**  §1 is
+> the standing design and its distillate is now `doc/Pins.md` **pin 14** (an IBS carries ONE irrep of G;
+> libraries follow the FAMILY, modules carry the GROUP; construction = subduce or induce; the `.Point.`-never-
+> imports-`UnitCell` grep runs in ctest).  §5's un-tracked residuals now have rows: the GPW (orbital family ×
+> fit family) pairing frozen in `GPW_Evaluator` (a pin-2 violation, `OpenWork.md` parked threads) and the
+> `qcSymmetry` group-name rename (`CleanupCandidates.md` R2.24); V1.38 was already filed.  Nothing below is
+> a queue.
+
+
 **Status: RECORD — executed in full 2026-09-13 (eleven commits `c2cb79a3`..`d5ddb1a5`, 856/856).**  The rulings in §1 stand as
 the design; the per-step notes below are the execution log.  Closed row: `CleanupHistory.md` "LANDED 2026-09-13 — V1.33".  Executes `CleanupCandidates.md` V1.33 ("the BasisSet
 taxonomy is on the wrong axis").  Read §1 once; it is the ruling.  §4 is the running order.

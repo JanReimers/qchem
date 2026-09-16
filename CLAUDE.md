@@ -45,6 +45,22 @@ Brief notes about module/library conventions, naming, and includes.
     list, not just the pass percentage. (The `.vscode` TestMate glob is `UT*`, so a `UT`-prefixed name
     needs no settings change — the ctest side is the one that needs the edit.)
 
+## Tests — naming and the DISABLED_ rule (from `doc/TestSuitePlan.md`, ruled 2026-09-15)
+
+- An SCF test is a POINT in a product space and is named as one:
+    `TEST(<Basis>_<Material>, <k>_[<Grid>_][<Fit>_][<Sym>_][<Spin>_][<Occ>_][<Reservoir>_][<Machinery>_][<Ansatz>_][<Seed>_]<Claim>)`
+    — axis tokens in the fixed axis order, the facade's DEFAULTS elided (so "no tokens" = what a user gets),
+    k always named (`Γ` spelled `Γ`, `k222` lower-case), ONE claim per test (`CP2K` | `Anchor` | `eq<Token>`
+    for a twin | a verb).  `scripts/testgrid` renders the grid from the binaries and CHECKS the grammar; a
+    name that does not parse is a naming defect.  Files: `IntegrationTests/<Basis>/<Material>.C`.  Unit tests
+    under `src/<lib>/tests` keep class-named suites; the grammar is for SCF tests only.
+- **`DISABLED_` is not a token.**  A disabled test is one of: an INSTRUMENT (ladder/sweep a human reads) →
+    a `CLIapps/` probe binary (`gpwprobe`), not gtest; a gate parked for COST → re-enable, `_Long`-tagged if
+    needed; a campaign whose verdict is BANKED in `doc/` → delete; a real claim currently FAILING → an open
+    tracker row.  Zero-assert tests are campaign leftovers: delete them.
+- An energy anchor that moves is RE-JUDGED against an independent route, never refreshed (`doc/Pins.md`
+    pin 10); a failing charge / count / weight sum is physics and cannot go stale.
+
 ## pybind/ — do not modify (GUI/binding-owned)
 The `pybind/` directory is the Python binding (nanobind C++ glue that compiles
 `qchem_py.so`). It lives here only because it must compile against the C++20
@@ -163,15 +179,30 @@ two-minute timeout every time somebody forgets, so it is written here rather tha
 converge the real density before quoting a number.  Copy the run command from `doc/Benchmark.md` §5a rather
 than reconstructing it.
 
+- **Source builds are the DEFAULT for every comparison code** (user, 2026-09-06: *"we always want to look
+    into the source any way … with our own build we can possibly get better control and profiling"*) — apt
+    availability does not decide candidates.  Toolchain present: `gfortran`, `mpif90` (OpenMPI), and
+    **flang-21 at `/opt/LLVM-21.1.6-Linux-X64/bin`**.  Build with `-g -fno-omit-frame-pointer` so `perf`
+    can read it — that is half the point.
+- **Measure first, and expect the answer to be work that should not have been happening.**  Phase 1 of
+    `doc/ParallelAndOraclePlan.md` went 3.08× → 4.44× on 12 threads without a single threading change: a fold
+    index that scanned clustered buckets, a Hamiltonian built twice, a star-average applied twice.
+
 ## Docs
 
 - **`doc/README.md` is the index — read it before opening anything else in `doc/`.**  It classifies every
     file as LIVE (has open work; read it), RECORD (executed; cite it, do not treat it as a queue) or
     RETIRED (`doc/OldPlans/`).  Forty-plus plan files is workable only while that index is current.
+- **Three files, three questions (ruled 2026-09-16):** `CLAUDE.md` = *how do I work here* (this file:
+    conventions, build/test/box, tool paths, the doc system).  `doc/Pins.md` = *what must the code obey*
+    (physics, numerics AND design invariants, one paragraph each, earned by a wrong number).  A **RECORD** in
+    `doc/` = *why is it this way* (evidence, rejected alternatives, execution logs) — cited, never a queue,
+    and **it holds NO open work**: a residual backlog goes to `doc/OpenWork.md`, a durable ruling to
+    `Pins.md`, a convention here.  **LIVE** is only the queues (`OpenWork.md`, `CleanupCandidates.md`), the
+    instruments (`Benchmark.md`, CP2K) and a plan under active execution.
 - `doc/OpenWork.md` is THE tracker.  **`▶ WHAT IS OPEN` opens with THE QUEUED PROGRAMME — a numbered,
     agreed running order.  Start at step 1 and work down; the table below it is the reference, not the
-    queue.**  (Queued 2026-09-09: fix KP-0, then the CleanupCandidates sweep with test re-enablement
-    riding along, then the test-suite organisation, then the near-empty plan polish, then DFT+U.)
+    queue.**  (Queued 2026-09-09; steps 1–4 closed by 2026-09-16 ⇒ step 5, DFT+U, is next.)
 - **`doc/Pins.md` holds the durable physics/numerics invariants** — rulings, not preferences (each is there
     because violating it produced a wrong number at least once).  Pin 1: **"THERE IS NO CUT in r space,
     Gibbs ringing is like a wrecking ball"**.  Cite them as `doc/Pins.md pin N`.

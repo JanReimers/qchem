@@ -1,5 +1,17 @@
 # Parallel work, and the second oracle — a sequenced plan (cut 2026-09-06)
 
+> **▶ STATUS 2026-09-16 — RECORD (moved out of LIVE by user ruling).**  Phase 1 CLOSED at 4.44× (2026-09-07);
+> 2.1 ANSWERED (the Si ladder); **2.5 IS programme step 2** (done 2026-09-15); **3 IS programme step 5** — its
+> §3.2 content (match the projector flavour deliberately, declare it on the `RunPolicy` line, land N3's
+> charge/spin mixer split WITH +U) now lives in that step's text in `doc/OpenWork.md`.  The residuals moved out:
+> 2.2 (CP2K's 32-atom MnO supercell, a doc caveat) and Phase 4 (the second code — QE first, TRIGGERED by the MnO
+> gap, not by curiosity) are folded into `OpenWork.md` row **PAR**; the OT / lever-C note into row **OT**.
+> The standing constraints at the top are `CLAUDE.md` material and the two not already there (source builds
+> are the default for comparison codes; the flang-21 path) were moved on the same day.  Phase 1's lesson —
+> *measure first; expect the answer to be work that should not have been happening* — is in `CLAUDE.md`
+> too.  Nothing below is a queue.
+
+
 **Why this file exists.**  Three threads converged in one session and they have a natural order that is not
 obvious from any of them alone: (1) the threaded tables are filled and they say the remaining OMP gap is
 OURS, not a CP2K feature we lack; (2) `DFT+U` is wanted soon and needs an oracle; (3) the abstract

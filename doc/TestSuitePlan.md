@@ -1,5 +1,14 @@
 # The Test Suite as a PRODUCT SPACE — axes, naming, file breakdown, and what falls out (item **TE**)
 
+> **▶ STATUS 2026-09-16 — RECORD (index row moved 2026-09-16; the file said so on 2026-09-15).**  What
+> outlives the plan moved out on the same day: the naming grammar (§3), the `DISABLED_` verdict rule (§8) and
+> `scripts/testgrid` are now a **Tests** section in `CLAUDE.md` (they are how-to-work conventions); the anchor
+> rule from §2 — *a moved anchor is re-judged against an INDEPENDENT route, never refreshed; a failing CHARGE
+> or count is physics and cannot go stale* — is folded into `doc/Pins.md` pin 10.  Remainders (S3b, the PW
+> facade axis, the grid-continuation probe, the timing flake) are `OpenWork.md` rows.  Ruling 5's `_Long`
+> budget (proposal: 60 s CPU) was never formally set — listed with the remainders.  Nothing below is a queue.
+
+
 *Drafted 2026-09-15 as THE QUEUED PROGRAMME's step 3 (`doc/OpenWork.md`).  Status: PLAN — rulings 1–6 GIVEN
 2026-09-15 with amendments, ruling 7 (materials = data at the Calculation level, lattices in qcStructure) the same
 day (§11).  **ALL PHASES DONE 2026-09-15 — this file is a RECORD.**  Suite wall 207 s → ~70 s; drivers gone; the

@@ -7,8 +7,12 @@ lived only in session memory are folded in and marked as such.
 
 These are **rulings, not preferences.**  Each is here because violating it produced a wrong number, a wrong
 interface, or a retracted verdict at least once.  If you think one is wrong, say so and get it changed —
-do not work around it quietly.  Coding conventions (naming, includes, ownership, style) live in
-`CLAUDE.md`; this file is physics and numerics.
+do not work around it quietly.  **Three files, three questions** (ruled 2026-09-16): `CLAUDE.md` answers
+*how do I work here* (conventions, build/test/box discipline, tool paths, the doc system); this file answers
+*what must the code obey* (physics, numerics AND design invariants — one paragraph each, earned by a wrong
+number, a wrong interface or a retracted verdict, pointing at the RECORD that earned it); a RECORD in
+`doc/` answers *why is it this way* (the evidence and the rejected alternatives).  A pin is the distillate;
+the argument stays in the record.
 
 ---
 
@@ -90,6 +94,11 @@ Periodic/GPW energies are **"did-E-move" anchors** — pin the converged value, 
 a real-space-on-lattice quantity must equal its finite counterpart, assert **bit-consistency** (`L_PP`-style)
 rather than an absolute oracle.
 
+**A moved anchor is RE-JUDGED against an INDEPENDENT route, never merely refreshed** (added 2026-09-16 from
+`doc/TestSuitePlan.md` §2): KP-0 re-pinned \f$-7.45137\to-7.45294\f$ only after the band-folding-equivalent Γ
+supercell agreed.  And the two kinds of failure are not alike: an ENERGY anchor can go stale and must be
+judged; a failing CHARGE, count or weight sum is physics and cannot (user, 2026-09-09).
+
 ## 11. An explicit phase beats an automatic one — the `UseChargeDensity` lesson
 
 > **USER, 2026-09-08:** *"this code used to have exactly `tDynamic_HT::UseChargeDensity(cd)`, and I was too
@@ -145,10 +154,58 @@ carried 12 electrons in an 8-electron cell (KP-0, 2026-09-09; record in `doc/Ope
 symmetries, or the density is projected into a symmetry the sampling does not have
 (`doc/CleanupCandidates.md` R1.0r).
 
+## 14. An IrrepBasisSet carries ONE irrep of G; libraries follow the FAMILY, modules carry the GROUP
+
+`BasisSet = ⊕_irreps IrrepBasisSet`, the irrep a label of G, the symmetry group of the Hamiltonian.
+Carriers are not invariants (\f$Y_{lm}\f$, \f$e^{i\mathbf{k}\cdot\mathbf{r}}\f$, a SALC each *transform as*
+an irrep); k is an irrep label of the translation group exactly as \f$l\f$ labels O(3).  Three orthogonal
+axes: **G** (block labels, `qcSymmetry`), **family** (the analytic seed — Gaussian, Slater, BSpline, PW,
+delta; = the integral ENGINE), **construction** (subduce \f$G_{big}\downarrow G\f$ or induce site \f$\uparrow G\f$;
+derived, never free).  Placement: **a LIBRARY is an engine** (its mass is its integrals, which factorise
+over the family, so `UnitCell` inside the Gaussian engine is legitimate and a cut on the G axis is ruled
+out); **a MODULE carries the G** (`…Gaussian.Point.*` vs `…Gaussian.Lattice.*`), enforced by the ctest grep
+*no `.Point.` module imports `qchem.UnitCell` or `qchem.Symmetry.Lattice_3D.*`* (`scripts/audit-basisset-gtags`).
+Spin is a factor of G (\f$G_{spatial}\times SU(2)\f$) until a double group dissolves it — which is why
+Pol/UnPol is an imposed SUBGROUP (V1.37), not a type.  **What it cost:** the tree had been cut on the wrong
+axis (`qchem.UnitCell` imported inside `Molecule/`); V1.33 re-cut it in eleven commits.  Record:
+`doc/BasisSetTaxonomyPlan.md` §1; Doxygen `\ref basisset_taxonomy`.
+
+## 15. Smearing needs kT ABOVE the frontier splitting, and GDM as built is fixed-occupation
+
+Two measured facts from the Fermi-smearing build (`doc/GPWPlan1.md`, 2026-07-26): **(a)** kT must EXCEED the
+frontier splitting or the occupations slosh-rotate instead of converging (NaF: 1e-2 converges, 1e-3 does
+not); **(b)** the GDM direct minimiser DIVERGES under smearing because its geodesic direction is the
+fixed-occupation \f$[F,D]\f$, not the free-energy gradient (which carries an occupation-response term).
+⇒ smeared runs use the fixed-point stage (DIIS/Kerker/Pulay); GDM tail-polishes only at kT=0 until it has a
+smearing-aware direction.  ⚠ This is a limit of OUR parameterisation, not of the method — CP2K's OT has the
+same axis scaffolded; **never conflate hold-the-block with don't-smear** (`doc/SCFStrategyPlan.md`).
+
+## 16. A basis SPAN can reverse a magnetic ordering — match spans before comparing to an oracle
+
+MnO with Cartesian d (its \f$r^2e^{-\alpha r^2}\f$ s-contaminants): FM below AFM by 40 mHa.  The same
+cell through the spherical-d view: AFM below FM by 45.5 mHa — **no code bug, the span**.  Mechanism: the
+extra s-like functions let the density rearrange s-character away from the l=0 KB projectors (an l=0
+repulsion DODGE worth 37% of the weak basin's reward), a freedom the oracle's spherical basis structurally
+lacks.  And the earlier "8 mHa agreement" with CP2K was contaminants-vs-diffuse COMPENSATION.  ⇒ Before
+any energy is compared to an oracle, the two spans are matched exponent-for-exponent
+(`valence_lowq_sph` v2 = the CP2K transcription), and a Cartesian-d basis is never used for a d-metal
+ordering question.  Record: `doc/SphericalLatticePlan.md` I0–I2.
+
+## 17. A class reports CONTEMPORANEOUSLY with its own activity — console order == execution order
+
+`CurrentReport` is a global sink; each class emits at the moment it does the thing, and never tells
+another class to emit.  An `Emit*()` method on an abstract face, or a "reporter" that PULLS state out of
+objects after the fact, is the defect (user, 2026-09-11; V1.5 deleted the `Emit*()` faces).  Corollary for
+trace columns: a printed number is either physics or a gate the run CONSUMES — printing \f$\alpha_{eff}\f$
+implied it was used, and it was deleted for that reason (user, 2026-09-13).  Record: `doc/RunReportPlan.md`
+(the design), `doc/CleanupCandidates.md` V1.5.
+
 ---
 
 **Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
-13 is the KP-0 multi-k defect (2026-09-09).
+13 is the KP-0 multi-k defect (2026-09-09).  14–17 were harvested 2026-09-16 when their plan files went RECORD
+(`BasisSetTaxonomyPlan`, `GPWPlan1`, `SphericalLatticePlan`, `RunReportPlan`); pin 10's anchor rule came from
+`TestSuitePlan` the same day.
 2, 4, 6 are user rulings recorded in session memory (`feedback_everything_is_a_fit`,
 `feedback_integrated_observables`, `feedback_pw_fitting_uniform_interface`) and had no home in the repo
 until now.

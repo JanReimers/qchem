@@ -1,5 +1,16 @@
 # RunReportPlan — a professional, JSON-ready reporting layer
 
+> **▶ STATUS 2026-09-16 — RECORD (moved out of LIVE by user ruling).**  The migration completed 2026-07-26;
+> the design below (the report IS json; ONE renderer with layout inferred from shape; a GLOBAL sink; the
+> section cursor so a five-layers-down provider writes context-free) is the standing design.  The user's
+> 2026-09-11 reporting ruling — each class emits CONTEMPORANEOUSLY with its own activity, console order ==
+> execution order, `Emit*()` faces and pulling reporters are the defect — is now `doc/Pins.md` (it produced a
+> real defect, V1.5's `Emit*()` faces).  The "Remaining / future work" list below is a GUI-facing feature
+> wishlist (meta section, field metadata, detail-level filter, `Renderer` DIP split, rolling-log sink,
+> `basis.removed` naming, `schemaVersion`, HDF5); it is carried as ONE row in `doc/OpenWork.md` "Parked
+> threads" so it is not lost, and this file is where its design lives.  Nothing below is a queue.
+
+
 Status: **MIGRATION COMPLETE** (2026-07-26); `ctest -j16` green (606/606).  Consolidate the scattered setup
 diagnostics into one organized, machine-readable report — tidy terminal output today, JSON for the GUI tomorrow,
 from a single data model.  (The design rationale below is the reference/archive; the DONE + REMAINING sections
