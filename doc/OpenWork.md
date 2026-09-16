@@ -30,7 +30,7 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > Stages A and B are DONE (`doc/CleanupCandidates.md` R1.0e–R1.0q, and the git log for 2026-09-08/09).
 > What follows is the agreed run-up to DFT+U, in the order recommended and accepted.  **A fresh session
 > starts at the first UNFINISHED step and does not shop around the table below** — the table is the
-> reference, this is the queue.  (Step 1 closed 2026-09-09, so that is step 2.)
+> reference, this is the queue.  (Steps 1–4 closed 2026-09-09 → 2026-09-16, so that is **step 5, DFT+U**.)
 >
 > ### 1. ✅ `KP-0` IS FIXED (2026-09-09) — ▶ **A FRESH SESSION STARTS AT STEP 2**
 > The IBZ weights summed to 1.5 on a 2×1×1 mesh (12 electrons where Si has 8) because `FoldGrid` applied
@@ -123,13 +123,18 @@ file the day it is written.  A closed section left in the tracker is indistingui
 > over a Gaussian basis) — its 2 drivers live in `IntegrationTests/PW/Harness.C` until the facade grows a basis-family
 > axis; `GPW_NaF.DISABLED_Γ_GridContinuation` needs a facade grid-continuation face; `M_PG_BoxWalk.WhereTheContraction
 > SpendsItsTime` asserts on wall-clock and flakes under `-j8` (chip pending); `SCFTrace.DISABLED_SolidNonPP…` is a
-> feature wish parked as a test.  ⇒ **A FRESH SESSION STARTS AT STEP 4.**
+> feature wish parked as a test.  ⇒ step 4 followed and closed 2026-09-16 (next block).
 >
-> ### 4. POLISH THE NEAR-EMPTY LIVE PLANS → RECORD
-> `doc/README.md` lists what is LIVE.  Several have one or two items left and should collapse to RECORD:
-> `ERI4Rework.md` (only the 3c cache key), `SCFSeedingPlan.md` (the Mn table regen after the d-PP fix),
-> `FacadeDFTPlan.md` (PBE/GGA + LibXC-polarized + U — much of which +U itself closes).  Move each row in
-> `README.md` the same day its file changes tier.
+> ### ✅ 4. POLISH THE NEAR-EMPTY LIVE PLANS → RECORD — DONE 2026-09-16 (one doc-only commit, zero code)
+> **FIVE files moved LIVE → RECORD in `doc/README.md`** — the three named (`ERI4Rework.md`, `SCFSeedingPlan.md`,
+> `FacadeDFTPlan.md`) plus two of the same shape (`SpinNativeDFTPlan.md`, `FittingCleanupPlan.md` — whose own
+> header had said RECORD since 2026-09-08).  ★ **Every "one item left" the index carried was checked against
+> the tree first, and NONE of them was open**: ERI4's "3c cache key" shipped `9e2c7327` on 2026-07-02 (the file's
+> own §8 said DONE); the "Mn table regen after the d-PP fix" landed `e849b70d` on 2026-08-06, the same day as the
+> fix; FacadeDFT's trio are library increments already rowed here (parked threads + step 5).  Two things were
+> genuinely untracked and are now filed: **R2.23** (ERI4Rework §6, the atomic Rk `LMax`→`Irrep` sizing) and the
+> **molecular spin-resolved SAD seed** (parked thread below).  Full record → `doc/OpenWork_History3.md`.
+> **⇒ A FRESH SESSION STARTS AT STEP 5.**
 >
 > ### 5. THEN DFT+U — `doc/ParallelAndOraclePlan.md` PHASE 3
 > Oracle already validated (CP2K has `&DFT_PLUS_U`).  ★ **Write it against `MatrixForward<T>` and
@@ -1724,11 +1729,19 @@ delete even that branch: `doc/CleanupCandidates.md` R1.0.
   remaining piece; S1–S5 are done and the in-house spherical SALC is fully shippable without it.  The
   bug-prone one: it must match **libcint's** real-harmonic ordering + normalization (a foreign convention),
   and libcint-spherical presents AS a `PGData` with spherical components (a trap).  Genuinely separable.
-- **PBE / GGA**  ·  `doc/FacadeDFTPlan.md`.  The highest-value functional for the battery north-star, but a
-  real library increment (density-gradient machinery on the mesh), not an enum value.  The unified `Model`
-  enum is ready to list it with a "not wired" throw.
-- **LibXC-polarized** (the wrapper needs two-channel `xc_lda_vxc`) and **+U**.  The LDA *interface* is
-  spin-native end to end already (`doc/SpinNativeDFTPlan.md`, closed).
+- **PBE / GGA**  ·  context in `doc/FacadeDFTPlan.md` (RECORD).  The highest-value functional for the battery
+  north-star, but a real library increment (density-gradient machinery on the mesh), not an enum value.  The
+  unified `Model` enum is ready to list it with a "not wired" throw.  Prerequisite already filed:
+  `CleanupCandidates.md` FittingCleanupPlan I.1 residual (the `GetEpsXc()=0.75*GetVxc()` base default is exact
+  for Dirac exchange only — silent-wrong the day a GGA forgets to override it).
+- **LibXC-polarized** (the `Libxc_LDA` wrapper is UNPOLARIZED-ONLY by construction — it never passes the two
+  channels, `Factory` throws for `SpinGroup::Polarized` + `XC::LibXC`) and **+U** (= programme step 5).  The
+  LDA *interface* is spin-native end to end already (`doc/SpinNativeDFTPlan.md`, RECORD).
+- **Molecular spin-resolved SAD seed** (filed 2026-09-16 from `doc/SCFSeedingPlan.md` §10's follow-ons when it
+  went RECORD).  The spin-resolved atomic tables (`GetAtomicSpinPair`, Hund majority/minority) are consumed by
+  the plane-wave `SeedCD` only; the molecular `NumericCD` SAD seed still hands a polarized run ρ/2 per channel.
+  The face is templated already; the work is a channel-aware `NumericCD` assembly + a molecular open-shell gate
+  (O₂ triplet from a Hund-split seed vs from ρ/2: same basin, fewer iterations).  Feature wish, not a defect.
 
 ## Deferred & descoped — recorded so they are not re-litigated
 

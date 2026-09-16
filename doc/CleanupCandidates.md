@@ -1969,6 +1969,20 @@ MnO campaign proceeds undisturbed in qchem6.
   semantics BLOCKS flipping the free-run Becke default to the measured-equal Leb-302 (67% of
   GL-29's directions).  Fix: `angularDegree` + per-scheme count resolution; the default flip rides
   along.  (The warn/auto-resolve ergonomics half of this item stays in D5.)
+- **R2.23 — the atomic Rk cache sizes by INCREMENTAL `LMax` DISCOVERY + evict-on-register; size it by a
+  declared worst-case `Irrep` instead** (filed 2026-09-16 from `doc/ERI4Rework.md` §6 / §8 item 5 when that
+  plan went RECORD — it was the one piece of the plan never started and never tracked).  Today
+  `Cache4::Register` (`src/BasisSet/Internal/Imp/Cache4.C`) erases every already-cached `Rk` whose stored
+  `LMax` is too small for the registering client (`Rk::isSupported`), so `loop_4` recreates it larger — and
+  the file's own comment records that erasing on the WRONG side once silently wiped the whole cache on every
+  new basis.  The fix ERI4Rework §6 spells out: the basis DECLARES its worst-case spatial `sym_t` at
+  registration (atom/molecule/solid all speak it; `Cache4` projects `LMax = Getl(sym)`, the other engines
+  ignore it), and each `Rk` either sizes to that ceiling up front (declare-ceiling) or grows `Rabcd_k`
+  monotonically and never evicts (demand-grow, the preferred one — `Register()` collapses to grouper-index
+  assignment).  Deletes the eviction, `isSupported`, and the per-shell `maxls` discovery; the cross-element
+  Rk reuse guard stays green.  Atomic-radial layer only — `LMax` must NOT climb into the generic ERI4 layer
+  (§6's whole point).  Bit-identical by construction (same integrals, bigger tables sooner); the only
+  measurable is RAM on a heavy-atom pool.  No urgency: it is a fragility, not a defect.
 
 ## VERIFY
 

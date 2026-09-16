@@ -1,5 +1,20 @@
 # SCF Seeding — Design Spec
 
+> **▶ STATUS 2026-09-16 — RECORD.  Every phase (0–3: `SeedStrategy`/`MakeSeedDensity`, molecular SAD,
+> the plane-wave `SeedCD`, IonicSAD) and §10 spin-SAD (increments A `c08e81f8` + B `6a694c2a`,
+> 2026-08-04) are BUILT; the §10 IMPLEMENTATION RECORD at the end of the file is the authority.**
+> ★ The one remainder the index carried for this file — *"regenerate the Mn q7 / Mn²⁺ table entries after
+> the d-channel PP fix"* — was **ALREADY DONE on 2026-08-06** in `e849b70d` (*"Seed tables (Mn/Mn2+/O/O2-)
+> also regenerated on the FIXED atomic functional"*), the same day as the KB fix `c2d86ec9`; verified
+> 2026-09-16 by the diff of `src/ChargeDensity/Data/atomic_valence_densities.json` (both Mn entries,
+> Nelec 7 and 5, rewritten).  It sat as an open row for six weeks — another instance of *check the tree
+> before believing a tracker row*.
+> Of §10's three follow-ons: the valgen `--spin` failures (V3.1/V3.2) DISSOLVED and are pinned by tests
+> (`doc/CleanupHistory.md`); the non-collinear SU(2) representation is a RULING in
+> `doc/CleanupCandidates.md` (search "SU(2)/matrix"); the **molecular spin-resolved SAD seed** (only the
+> plane-wave `SeedCD` consumes `GetAtomicSpinPair`; the molecular `NumericCD` still seeds ρ/2) is a feature
+> wish, now listed under `doc/OpenWork.md` "Parked threads".  Nothing in this file is a queue.
+
 Improve how the SCF loop is seeded with an initial charge density. Two pain points, one
 architecture. Written for a fresh session; everything below is grounded in the current code.
 

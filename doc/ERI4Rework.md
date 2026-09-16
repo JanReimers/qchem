@@ -1,12 +1,25 @@
 # ERI4 Rework: a custom ERI container that owns its contraction and bra–ket symmetry
 
+> **▶ STATUS 2026-09-16 — RECORD.  §5 (the bra–ket track) is EXECUTED IN FULL: stages 1, 2, 3a, 3b, 3b-K
+> and 3c all landed on 2026-07-02 (`ffcd7f18` … `9e2c7327`), and the post-3c `tDynamic_HF_HT` term type on
+> 2026-07-03 (`a953821f`).**  The old header below still read *"only the 3c cache key remains"* two months
+> after `9e2c7327` had shipped it — §8 item 3c in this same file already said DONE.  Verified in the tree
+> 2026-09-16 (programme step 4): the canonical-only guard throws at `DB_Cache_RAM.C:332`, and
+> `Orbital_ERI4_IBS::AccumulateDirect/ExchangeBoth` canonicalise the fetch at the source.
+> **What is NOT done, and is now tracked where it will be seen:** §8 item 5 = **§6, the atomic Rk
+> `LMax`→`Irrep` track** (declare-ceiling / demand-grow; delete `Cache4::Register`'s evict-on-register +
+> `Rk::isSupported`) — never started, `Cache4.C` still evicts; filed as `doc/CleanupCandidates.md`
+> **R2.23**.  §8 item 4 (Option B flat packed storage) is profiling-gated and stays a non-item until a
+> profile asks for it.  Nothing else in this file is a queue.
+
+*(original header, kept verbatim)*
 Status: Stages 1+2 DONE (committed ffcd7f18 — `ERI4::MatMul` member + `ERI4::ScatterBoth` + unit test).
 Stage 3 RESCOPED 2026-07-02 after a survey (see §5.4): the two-target driver is NOT in `ChargeDensity`, it
 needs the cross-irrep view (the whole composite `BasisSet`) threaded from `CompositeWF` through the
 Hamiltonian terms.
 **Stage 3a DONE** (inert plumbing — threads `const tbs_t<T>*`, bit-identical — see §8.3a). **Stage 3b DONE (Coulomb/J + Exchange/K)**
 (`Vee`/`Vxc`/`VxcPol` consume the context; whole-system `ScatterBoth`; `Jac` AND `Kab` RAM 521→369 MB —
-see §8.3b/3b-K). Only the belt-and-suspenders canonical cache key (3c) remains. Author: design session
+see §8.3b/3b-K). ~~Only the belt-and-suspenders canonical cache key (3c) remains.~~ **3c DONE too (`9e2c7327`) — see §8.** Author: design session
 2026-07-02b; rescope + 3a + 3b(J+K) 2026-07-02.
 
 ## 1. Problem

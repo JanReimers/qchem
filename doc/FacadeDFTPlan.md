@@ -1,5 +1,14 @@
 # Facade DFT Plan — adding DFT to `qchem::Calculation`
 
+> **▶ STATUS 2026-09-16 — RECORD.  D1 (the unified `Model` enum + the `Factory` resolver + mesh-from-
+> `MeshParams` + auto SAD seed, `8b8df1d0`) and D2 (polarized DFT through the facade — delivered as
+> `doc/SpinNativeDFTPlan.md` B1–B4, `51157449` … `50ac088f`) BOTH LANDED ON 2026-06-30.**  The public
+> functional selector is `Hamiltonian::XC` / `XCFunctional` (`45f88cf9`); `Pol` has since become
+> `qchem::SpinGroup` (V1.37, 2026-09-14) — read the file's `Pol` as that.  The three items the index kept
+> listing against this file are all LIBRARY increments, not facade work, and each already has its row
+> elsewhere: **PBE/GGA** and **LibXC-polarized** are `doc/OpenWork.md` "Parked threads" (the staging
+> table below says GGA is out of scope here); **+U** is programme step 5.  Nothing in this file is a queue.
+
 Plan for the one remaining lib-side facade follow-up: make `qchem::Calculation` run **DFT**, not
 just HF. Companion to the API-ergonomics work (`doc/OldPlans/APIErgonomicsReview.md`). Living document.
 

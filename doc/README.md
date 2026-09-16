@@ -23,7 +23,7 @@ on what is actually next.
 
 | file | what it is | state |
 |---|---|---|
-| **`OpenWork.md`** | ★ **THE tracker.  READ IT AT SESSION START.**  It opens with **THE QUEUED PROGRAMME** — a numbered running order agreed 2026-09-09; start at the first UNFINISHED step (step 1, KP-0, closed 2026-09-09).  The table under it is the index; everything below that is the evidence that produced it | live |
+| **`OpenWork.md`** | ★ **THE tracker.  READ IT AT SESSION START.**  It opens with **THE QUEUED PROGRAMME** — a numbered running order agreed 2026-09-09; start at the first UNFINISHED step (steps 1–4 closed 2026-09-09 → 2026-09-16; **step 5 = DFT+U is next**).  The table under it is the index; everything below that is the evidence that produced it | live |
 | **`Pins.md`** | ★ **the durable invariants** — no cut in r space, everything is a fit, integrated observables, spin-native, fit quality = grid-convergence of ρ.  **Rulings, not preferences**: each one is there because violating it produced a wrong number at least once | live — read once, then obey |
 | **`ParallelAndOraclePlan.md`** | the sequenced phases: Phase 1 (our OMP gap) ✅ closed at 4.44× → Phase 2 (size) → **Phase 2.5 (the SOLID cleanup campaign)** → Phase 3 (DFT+U) → Phase 4 (a second code) | live — this is the road to +U |
 | **`CleanupCandidates.md`** | the SOLID/OOD debt worklist, and the home of the durable design rulings (R1.0) | live — 34 open items after the 2026-09-08 harvest |
@@ -36,11 +36,6 @@ on what is actually next.
 | **`LatticeGasPlan.md`** | Li/Na configuration enumeration for the battery work | SPECCED, NOT BUILT — deliberately deferred; the file exists so the design is not re-derived |
 | **`BatteryMaterialsRoadmap.md`** | the north star (Li/Na cathode voltage curves) above the individual plans | live orientation |
 | **`TestSuitePlan.md`** | item **TE** executed in full: the SCF suite as a checked PRODUCT-SPACE grid — the axis vocabulary (§1), claim kinds (§2), grammar + the as-built name table (§3a), `IntegrationTests/{GPW,PW}/<Material>.C` (§4), the holes the grid found and filled (§5), the harness collapse onto `SolidCalculation` + `qchem.Materials` (§6), the mixer unit test (§7), the `DISABLED_` verdicts (§8), the re-homing (§9); `scripts/testgrid` renders and checks it | RECORD — all six phases DONE 2026-09-15; remainders (S3b, PW facade axis) are tracker rows, not a queue |
-| **`FacadeDFTPlan.md`** | `qchem::Calculation` runs DFT | D1+D2 done; PBE/GGA, LibXC-polarized and +U remain |
-| **`ERI4Rework.md`** | the bra-ket 2× banking | stages 1–3b committed; only the 3c cache key remains |
-| **`FittingCleanupPlan.md`** | the fitting-layer cleanups | all done except C (the `dynamic_cast` survey) — and that one is Phase 2.5 work |
-| **`SCFSeedingPlan.md`** | SAD / IonicSAD / spin-SAD | done through §10; the Mn table entries still need regenerating after the d-PP fix |
-| **`SpinNativeDFTPlan.md`** | spin-native XC as the primary formulation | the tenet is live and governs new code (GGA, +U) |
 | **`RunReportPlan.md`** | the run report | MIGRATION COMPLETE — but it keeps a real "Remaining / future work" backlog (meta section, detail levels, the `Renderer` DIP split, rolling log) |
 | **`CP2KBuild.md`** / **`CP2Kresults.md`** | how the oracle is built, and what it says | live reference |
 
@@ -48,6 +43,11 @@ on what is actually next.
 
 | file | what it records |
 |---|---|
+| **`FacadeDFTPlan.md`** | `qchem::Calculation` runs DFT — D1 (unified `Model` enum + `Factory` resolver) and D2 (polarized, via SpinNativeDFTPlan B1–B4) both landed 2026-06-30.  Its "remaining" trio (PBE/GGA, LibXC-polarized, +U) are library increments with rows in `OpenWork.md` (parked threads / programme step 5) | RECORD — moved 2026-09-16 (programme step 4) |
+| **`SpinNativeDFTPlan.md`** | spin-native LDA (VWN5, `Ham_DFTcorr_P`, `Molecule_EC(nUp,nDown)`, facade multiplicity) — B1–B4 landed 2026-06-30; the TENET is `Pins.md`, and V1.37 finished the thought (Pol/UnPol = `SpinGroup`) | RECORD — moved 2026-09-16 |
+| **`ERI4Rework.md`** | the bra-ket 2× banking — §5 stages 1–3c ALL landed 2026-07-02 (the index's "only 3c remains" was stale for two months; §8 of the file already said DONE).  Its untouched §6 (atomic Rk `LMax`→`Irrep`) is now `CleanupCandidates.md` **R2.23** | RECORD — moved 2026-09-16 |
+| **`SCFSeedingPlan.md`** | SAD / IonicSAD / spin-SAD, all built; the "Mn table regen after the d-PP fix" the index carried was DONE 2026-08-06 (`e849b70d`, same day as the fix) — verified against the JSON diff | RECORD — moved 2026-09-16 |
+| **`FittingCleanupPlan.md`** | the fitting-layer cleanups; its own header has said *"This file is now a RECORD"* since 2026-09-08 (item C closed as R1.0i) — the index row lagged.  Residuals K (fit-{G} densification, deferred by ruling) and I.1 (the ¾-virial `GetEpsXc` default) live in `CleanupCandidates.md` | RECORD — row moved 2026-09-16 |
 | **`GPWPlan.md`** | the 2026-07 GPW campaign record.  ⚠ **Its durable-pins section MOVED to `doc/Pins.md` on 2026-09-08** — nothing in this file is a pin any more.  Its TODO section is superseded by `GPWPlan1.md`.  ▶ Now retirable once its narrative is judged spent |
 | **`SymmetryUpgradePlan.md`** | §§0–8 executed; T1/T2/T3 landed and armed; the supercell arc closed 2026-09-08.  Its §9 is a list of DESIGN QUESTIONS to answer when the matching capability is scoped — **not a backlog**.  See its own `▶ STATUS, 2026-09-08` header |
 | **`RealComplexPlan.md`** | the real/complex type refactor — the flip is live |

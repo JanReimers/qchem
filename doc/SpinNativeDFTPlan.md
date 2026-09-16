@@ -1,5 +1,13 @@
 # Spin-Native DFT Plan — making LDA correlation + occupation spin-first
 
+> **▶ STATUS 2026-09-16 — RECORD.  B1–B4 ALL LANDED ON 2026-06-30** (`51157449` spin-native VWN5,
+> `4189af69` `Ham_DFTcorr_P` + `FittedVcorrPol`, `02b68b24` `Molecule_EC(nUp,nDown)`, `50ac088f`
+> `CalcOptions.multiplicity`); the staging table below carries the anchors.  The TENET outlived the plan:
+> it is `doc/Pins.md` (*"unpolarized is the ζ=0 collapse, not the base case"*), and V1.37 (2026-09-14) took
+> it to its conclusion — Pol/UnPol are an imposed subgroup (`qchem::SpinGroup`), not types.  The
+> "sequencing toward the north-star" section names PBE/GGA and +U; both are tracked in `doc/OpenWork.md`
+> (parked threads / programme step 5), not here.  Nothing in this file is a queue.
+
 OpenWork **item B**. Companion to `doc/FacadeDFTPlan.md` (this is its deferred "D2", reframed). Living
 document — *plan first, code second*.
 
