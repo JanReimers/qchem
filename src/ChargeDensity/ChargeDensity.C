@@ -281,7 +281,14 @@ template <class T> class tMixableDensity
 {
 public:
     virtual void   MixIn        (const tMixableDensity<T>&,double)      =0;  //!< this = (1-c)*this + c*that
+    //! \brief \f$\lVert D-D'\rVert_F\f$ per block, SUMMED over blocks by a composite (the historic Δρ; the
+    //! loop divides it by the electron count).  ⚠ Not a max-abs, whatever older comments said.
     virtual double GetChangeFrom(const tMixableDensity<T>&       ) const=0;  //!< convergence check
+    //! \brief \f$\max_{ij}|D_{ij}-D'_{ij}|\f$ over every block and spin, un-normalised: CP2K's \c EPS_SCF
+    //! measure (\c qs_scf_loop_utils.F, \c self_consistency_check on successive AO density matrices).  The
+    //! criterion a run selects with \c SCFParams::Δρmeasure when its iteration count is to be compared with a
+    //! CP2K deck's (2026-09-20).
+    virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const=0;
 };
 
 //  A charge density represented BY A DENSITY MATRIX: adds the matrix-only capabilities -- operator

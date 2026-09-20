@@ -254,7 +254,9 @@ int BeckeRecipeLadder(const std::string& system)
 // The RECIPE knobs: MNO_ORTHO_TOL, MNO_CUTOFF_FACTOR, MNO_ECUT, MNO_SHARED_MU, MNO_MOM_SEED, MNO_REAL,
 // MNO_IMPOSE=0/1/2 (free / Shubnikov / grey control), MNO_XC_UNIFORM, MNO_NR, MNO_L, MNO_ALPHA, MNO_KERKER_G0,
 // MNO_XC_CUSP, MNO_PULAY, MNO_PULAY_START, MNO_MOM, MNO_MOM_START, MNO_MOM_PENALTY, MNO_MOM_HOLD, MNO_KT,
-// GPW_MNO_NMAX, GPW_MNO_VERBOSE; the SCHEDULE: MNO_ANNEAL=kT,kT,... MNO_ACC=... MNO_ANNEAL_PENALTY=...;
+// GPW_MNO_NMAX, GPW_MNO_VERBOSE, MNO_U=eV (DFT+U on both Mn d, programme step 5), MNO_EPS=tol +
+// MNO_MEASURE=maxdd|mixer (CP2K's EPS_SCF measure max|dD_ij| between successive D_out, or the mixer's own
+// residual -- doc/Benchmark.md rule 3f: an iteration count is comparable only on the same measure); the SCHEDULE: MNO_ANNEAL=kT,kT,... MNO_ACC=... MNO_ANNEAL_PENALTY=...;
 // the ARMS: MNO_SKIP_AFM (FM only), MNO_SKIP_FM (AFM only).  Oracle: CP2K MnO AFM-II E=-61.470570 Ha
 // (deck IntegrationTests/CP2K/mno_afm2_gpw_sr.inp), Mulliken site moments Mn +/-4.654.
 //========================================================================================================
@@ -306,6 +308,7 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     if (std::getenv("MNO_XC_UNIFORM")) o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
     if (const char* nr=std::getenv("MNO_NR")) o.xcMesh.nRadial=std::atoi(nr);
     if (const char* ll=std::getenv("MNO_L"))  o.xcMesh.angularDegree=std::atoi(ll);
+    if (const double U=Envd("MNO_U",0.0); U>0.0) o.hubbard={HubbardU(0,2,U), HubbardU(1,2,U)};   // sites 0,1 = Mn
 
     SCFParams base;
     base.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
@@ -317,7 +320,14 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     base.Guard.HolePersistence=Envi("MNO_MOM_HOLD",3);
     base.SmearingkT=Envd("MNO_KT",5e-3);
     base.NMaxIter=Envi("GPW_MNO_NMAX",80);
-    base.MinΔρ=1e-5; base.MinΔE=1e30; base.MinΔFD=1e30; base.MinVirial=1e30; base.MinFD=1e30;
+    base.MinΔρ=Envd("MNO_EPS",1e-5); base.MinΔE=1e30; base.MinΔFD=1e30; base.MinVirial=1e30; base.MinFD=1e30;
+    if (const char* m=std::getenv("MNO_MEASURE"))
+    {
+        const std::string ms(m);
+        if      (ms=="maxdd") base.Δρmeasure=SCFParams::Measure::MaxΔD;
+        else if (ms=="mixer") base.Δρmeasure=SCFParams::Measure::MixerResidual;
+        else throw std::runtime_error("MNO_MEASURE: expected maxdd|mixer, got '"+ms+"'");
+    }
     base.MergeTol=1e-4;
 
     o.onIteration=[&arm](const SCFIterator::SCFProgress& p)

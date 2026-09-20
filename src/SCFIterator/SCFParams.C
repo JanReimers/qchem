@@ -12,7 +12,15 @@ namespace qchem {
 export struct SCFParams
 {
     size_t NMaxIter        = 20;     //Max allowed number of iterations
-    double MinΔρ           = 1e-4;   //Minimum delta in charge density for convergence.
+    double MinΔρ           = 1e-4;   //Minimum delta in charge density for convergence (measured per Δρmeasure).
+    //! WHAT Δρ MEASURES.  MixerResidual (default) = whatever the run's density mixer reports: on the periodic
+    //  Kerker/Pulay path max|ρ̃_out(G)−ρ̃_in(G)| in G-space, on the linear-D path Σ_blocks‖ΔD‖_F/N_e -- two
+    //  different quantities behind one number.  MaxΔD = CP2K's EPS_SCF measure: max_ij|D_ij−D'_ij| between
+    //  successive OUTPUT density matrices over every block and spin, un-normalised (qs_scf_loop_utils.F,
+    //  self_consistency_check).  Select MaxΔD with MinΔρ=EPS_SCF when an iteration count is to be compared
+    //  with a CP2K deck's -- on MnO the mixer residual at 1e-5 is ~100x LOOSER than EPS_SCF 1e-6 (2026-09-20).
+    enum class Measure { MixerResidual, MaxΔD };
+    Measure Δρmeasure      = Measure::MixerResidual;
     double MinΔFD          = 1e-7;   //Minimum delta in [F,D] (|[F,D]-[F,D]_old|) for convergence.
     double MinΔE           = 1e30;   //Minimum RELATIVE total-energy change |ΔE/E| for convergence (default
                                      //  off).  The physical gate for a NON-variational SCF (density-fit /

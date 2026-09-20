@@ -345,6 +345,9 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                                      ? static_cast<const tLoopDriver<T>&>(itsDirectDriver)
                                      : static_cast<const tLoopDriver<T>&>(itsFixedDriver);
         ChargeDensityChange = driver.Step(lc);
+        // CP2K's criterion on request (SCFParams::Measure): the largest element change between successive
+        // OUTPUT density matrices, whatever the mixer reported -- cur/old are the D_out lineage in both drivers.
+        if (ipar.Δρmeasure==SCFParams::Measure::MaxΔD) ChargeDensityChange = itsCD->GetMaxChangeFrom(*itsOldCD);
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
         eb=TotalEnergy(itsCD.get());        // includes the Mermin −TS => E is the free energy A when smearing on

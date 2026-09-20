@@ -497,6 +497,17 @@ template <class T> double IrrepCD_Core<T>::GetChangeFrom(const tMixableDensity<T
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
     return std::real(blazem::norm(itsDensityMatrix - eicd->itsDensityMatrix));
 }
+template <class T> double IrrepCD_Core<T>::GetMaxChangeFrom(const tMixableDensity<T>& cd) const
+{
+    const IrrepCD_Core<T>* eicd = dynamic_cast<const IrrepCD_Core<T>*>(&cd);
+    assert(eicd);
+    assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
+    double mx=0.0;
+    const size_t n=itsDensityMatrix.rows();
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+        mx=std::max(mx, std::abs(T(itsDensityMatrix(i,j))-T(eicd->itsDensityMatrix(i,j))));
+    return mx;
+}
 
 //-------------------------------------------------------------------------
 //

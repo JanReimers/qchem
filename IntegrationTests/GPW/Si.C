@@ -1030,3 +1030,25 @@ TEST(GPW_Si, Γ_U_Imp_Pol_Kerker_eqUnpol)
     EXPECT_NEAR(b->EnergyTerms()["E_U"], a->EnergyTerms()["E_U"], 1e-6) << "both channels of the singlet carry the unpolarized occupations";
     EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6) << "the zeta=0 collapse: the polarized Kerker run must see the same V_U as the unpolarized one";
 }
+
+// CP2K's CONVERGENCE MEASURE (2026-09-20).  A CP2K deck converges EPS_SCF on max|P_out - P_in| over the AO density
+// matrix elements; our Kerker/Pulay recipes converge MinΔρ on the mixer's own residual max|ρ̃_out(G) - ρ̃_in(G)|,
+// which on MnO is ~100x looser at 1e-5 than EPS_SCF 1e-6 -- so "CP2K takes 104 iterations, we take 55" compared
+// two different questions.  SCFParams::Measure::MaxΔD is CP2K's measure on our loop (successive D_out, max
+// over blocks and spins).  This gate: on the Kerker + Pulay(8) recipe it CONVERGES to 1e-6 in a sane count and
+// lands on the same energy as the mixer-residual run -- a stricter criterion may not move the physics.
+TEST(GPW_Si, Γ_Imp_Kerker_Pulay_ConvergesOnMaxDeltaD)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Kerker Pulay(8) max|dD|<1e-6");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    SCFParams par=Gates(60, 1e-6, 1e30); par.KerkerG0=1.0; par.PulayDepth=8; par.PulayStart=3;
+    par.Δρmeasure=SCFParams::Measure::MaxΔD;
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    auto R=calc.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), -7.115067, 1e-5) << "the Γ_Imp anchor to the digits a 1e-6 max|dD| criterion buys";
+    EXPECT_LT(R->IterationCount(), 40u) << "CP2K's criterion at 1e-6 must not need a runaway count on a gapped cell";
+}

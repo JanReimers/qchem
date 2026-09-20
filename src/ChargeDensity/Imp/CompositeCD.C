@@ -346,6 +346,25 @@ template <class T> double tComposite_CD<T>::GetChangeFrom(const tMixableDensity<
     return ret;
 }
 
+// CP2K's measure: the LARGEST element change anywhere, so blocks (and spins) combine by max, not sum.
+template <class T> double tComposite_CD<T>::GetMaxChangeFrom(const tMixableDensity<T>& cd) const
+{
+    const tComposite_CD& ecd=RequireCompositePartner<T>(cd, "tComposite_CD::GetMaxChangeFrom");
+    if (itsBlocks.size()!=ecd.itsBlocks.size())
+        throw std::runtime_error("tComposite_CD::GetMaxChangeFrom: the two composites hold different block counts "
+                                 "-- not the same irrep set (or the same imposed spin subgroup)");
+    double ret=0;
+    for (size_t i=0;i<itsBlocks.size();++i)
+        ret = std::max(ret, std::visit([&](const auto* mine, const auto* theirs) -> double
+        {
+            if constexpr (std::is_same_v<std::decay_t<decltype(mine)>,std::decay_t<decltype(theirs)>>)
+                return mine->GetMaxChangeFrom(*theirs);
+            else
+                throw std::logic_error("tComposite_CD::GetMaxChangeFrom: the two composites' child scalars differ per block");
+        }, itsBlocks[i].cd, ecd.itsBlocks[i].cd));
+    return ret;
+}
+
 //-------------------------------------------------------------------------
 //
 //  Real space function stuff.

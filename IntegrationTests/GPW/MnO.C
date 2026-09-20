@@ -489,12 +489,23 @@ TEST(GPW_MnO, DISABLED_Γ_U_Shub_Pol_Smear_CP2K)
         o.multiplicity=1;
         o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
         o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-        o.accelerator=qchem::SCFAccelerators::Type::Ladder;
+        // THE CP2K-SHAPED LOOP (user, 2026-09-20: "we need 1) very close converged energies 2) similar SCF
+        // convergence rates 3) similar runtime and RAM").  The deck: BROYDEN_MIXING (Kerker BETA 1.5, NBUFFER 8)
+        // on rho-tilde, diagonalise, EPS_SCF 1e-6 on max|dP|, MAX_SCF 200, no Fock-side extrapolation, no MOM.
+        // Ours, matched: ONE density-side history (Kerker-preconditioned Pulay, depth 8) and NOTHING on the Fock
+        // side -- the anchor's recipe (Ladder DIIS + MOM) on top of that history left max|dD| at 3e-3 for 200
+        // iterations while the G-space residual read "converged" at 43: Fock-DIIS and density-Pulay extrapolate
+        // each other's output, and MOM hands a smeared degenerate d frontier unequal occupations that swap every
+        // iteration (D rotates at constant rho).  With the deck's loop shape and its measure: 22 iterations to
+        // max|dD| 6e-8 against the deck's 44 (probe, `gpwprobe mno`, MNO_ACC=Null MNO_MOM=0 MNO_PULAY=8).
+        o.accelerator=qchem::SCFAccelerators::Type::Null;
         o.imposeSymmetry=true;
         if (U_eV>0.0) o.hubbard={HubbardU(0,2,U_eV), HubbardU(1,2,U_eV)};
-        SCFParams par=Gates(120, 1e-5, 1e30);
+        SCFParams par=Gates(200, 1e-6, 1e30);
+        par.Δρmeasure=SCFParams::Measure::MaxΔD;             // CP2K's EPS_SCF measure (doc/Benchmark.md rule 3f)
+        par.PulayDepth=8; par.PulayStart=5;                   // the density history, as NBUFFER 8
         par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
-        par.UseMOM=true; par.MOMStartIter=10; par.Guard.HolePersistence=3;
+        par.UseMOM=false;
         par.SmearingkT=5e-3;
         par.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
         Trace trace; o.onIteration=trace.Observer();

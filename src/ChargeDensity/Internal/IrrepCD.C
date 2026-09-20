@@ -101,7 +101,8 @@ public:
 
     virtual void   ReScale      (double factor              )      ; // No UT coverage
     virtual void   MixIn        (const tMixableDensity<T>&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //MaxAbs(delta density matrix)
+    virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Frobenius(delta density matrix)
+    virtual double GetMaxChangeFrom(const tMixableDensity<T>&    ) const;  //MaxAbs(delta density matrix) -- CP2K's EPS_SCF measure
 
     virtual double operator()(const rvec3_t&) const;
 

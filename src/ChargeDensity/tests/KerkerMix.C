@@ -226,6 +226,7 @@ public:
     void    ReScale(double) override { throw std::logic_error("TwoChannelWorking: not a mixable target"); }
     void    MixIn(const tMixableDensity<dcmplx>&, double) override { throw std::logic_error("TwoChannelWorking: the G-space mixers never MixIn"); }
     double  GetChangeFrom(const tMixableDensity<dcmplx>&) const override { throw std::logic_error("TwoChannelWorking: the G-space mixers never GetChangeFrom"); }
+    double  GetMaxChangeFrom(const tMixableDensity<dcmplx>&) const override { throw std::logic_error("TwoChannelWorking: the G-space mixers never GetMaxChangeFrom"); }
 private:
     FourierMixCD itsUp, itsDn;
     size_t itsVersion;
