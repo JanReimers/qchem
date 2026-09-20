@@ -8,7 +8,7 @@
 //   GPW_MnO.Γ_Pol_SeedMirror
 //   GPW_MnO.Γ_Becke_Pol_SeedVxcMirror
 //   GPW_MnO.Γ_Shub_Pol_SeedDecoration
-//   GPW_MnO.DISABLED_Γ_Shub_Pol_Smear_Anchor   (LONG: ~5 min; run explicitly -- the converged AFM-II gate)
+//   GPW_MnO.DISABLED_Γ_Shub_Pol_Smear_Anchor   (LONG: ~2.5 min; run explicitly -- the converged AFM-II gate)
 //   GPW_MnO.DISABLED_Γ_U_Shub_Pol_Smear_CP2K   (LONG: two ~6 min arms; the shell-averaged DFT+U oracle gate, VA span)
 
 #include "gtest/gtest.h"
@@ -408,14 +408,20 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 // The old DISABLED_MnO_AFM2_RhombohedralGamma carried two things: the CAMPAIGN INSTRUMENT (a cell with three
 // geometry discriminators, a knob-driven recipe, the FM arm, the ordering comparison -- now `gpwprobe mno`) and
 // the GATE hidden inside it: does the converged AFM-II state reproduce?  This is the gate, and nothing else.
-// THE RECIPE is the campaign's production one, stated in one block (the probe's defaults with MNO_IMPOSE=1):
-// IonicSAD seed (Mn2+ d^5 + O2-), pivoted Cholesky at 1e-4 (cond(S)~7e8), the Fock DIIS->GDM Ladder, Kerker
-// G0=1 against the low-G charge-transfer slosh, delayed MOM (start 10, hole persistence 3), kT=5e-3 riding the
-// open d manifold, alpha=0.45 -- and the SHUBNIKOV group of the seed's decoration imposed (S3), which is what
-// holds the staggering exactly mirrored through the loop.  The machinery tokens are elided from the name as
-// NaF's are: they are this material's production recipe, not what the test is about.
-// MEASURED 2026-09-15 (gpwprobe mno, MNO_IMPOSE=1): converged in 42 iterations, 5m20s wall, Etot=-61.41454697,
-// integrated site moment 4.45 e (the m_site column), |m-tilde(q_AFM)| Omega/2 = 3.13 e.  CP2K's AFM-II oracle is
+// THE RECIPE (re-judged 2026-09-20 under doc/Benchmark.md rule 3f -- the DECK-SHAPED loop): IonicSAD seed
+// (Mn2+ d^5 + O2-), pivoted Cholesky at 1e-4 (cond(S)~7e8), Kerker G0=1 against the low-G charge-transfer
+// slosh with ONE density-side history (Pulay depth 8 after 5 priming steps) and NOTHING on the Fock side, no
+// MOM, kT=5e-3 riding the open d manifold, alpha=0.45, CP2K's convergence measure max|dD| < 1e-6 -- and the
+// SHUBNIKOV group of the seed's decoration imposed (S3), which is what holds the staggering exactly mirrored
+// through the loop.  The 2026-09-15 recipe (Fock DIIS->GDM Ladder + delayed MOM at 1e-5 on the Kerker
+// residual) "converged" in 42 iterations while its density matrix was still moving at 3e-3 per iteration:
+// two histories extrapolating each other's output, and MOM rotating a smeared degenerate d frontier (the
+// +U gate below found it; OpenWork step 5).  The machinery tokens are elided from the name as NaF's are: they
+// are this material's production recipe, not what the test is about.
+// MEASURED 2026-09-20 (this recipe): 17 iterations to max|dD| 6e-7, 2m33s wall, Etot=-61.41454675, integrated
+// site moment 4.451 e -- the same energy to 2e-7 Ha as the old recipe's 42 iterations / 5m20s / -61.41454697
+// (pin 10: an anchor is re-judged against an INDEPENDENT ROUTE, and a different loop reaching the same number is
+// one).  |m-tilde(q_AFM)| Omega/2 = 3.13 e.  CP2K's AFM-II oracle is
 // -61.470570 (deck IntegrationTests/CP2K/mno_afm2_gpw_sr.inp): the 56 mHa gap is the banked ordering/d-selective
 // offset (doc/SymmetryUpgradePlan.md §7, doc/SphericalLatticePlan.md), so this pins OUR number as a did-E-move
 // anchor and states the oracle beside it.  LONG (ruling 5: over the 60 s budget), hence DISABLED_: it stays in
@@ -428,11 +434,13 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Anchor)
     o.multiplicity=1;                                       // the explicit two-channel singlet: nUp=nDn=13
     o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
     o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
-    o.accelerator=qchem::SCFAccelerators::Type::Ladder;
+    o.accelerator=qchem::SCFAccelerators::Type::Null;      // the deck-shaped loop: the history is on the density side
     o.imposeSymmetry=true;                                  // S3: the Shubnikov group of the declared ordering
-    SCFParams par=Gates(80, 1e-5, 1e30);
+    SCFParams par=Gates(200, 1e-6, 1e30);
+    par.Δρmeasure=SCFParams::Measure::MaxΔD;               // CP2K's EPS_SCF measure (rule 3f)
+    par.PulayDepth=8; par.PulayStart=5;
     par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
-    par.UseMOM=true; par.MOMStartIter=10; par.Guard.HolePersistence=3;
+    par.UseMOM=false;
     par.SmearingkT=5e-3;
     par.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
     Trace trace; o.onIteration=trace.Observer();
