@@ -37,7 +37,7 @@ role in TMOs"*): in Macke et al. the correction that opened β-MnO₂'s gap was 
 Hubbard MANIFOLD is an input, never an assumption: the term takes a list of (site, shell, irrep, U) and Mn-d
 is one entry, not the design.
 
-★ **Write it against `MatrixForward<T>` and `MatrixAdjoint<T>` from the start** (user, 2026-09-11;
+★ **Write it SCALAR-GENERIC** — MnO at Γ is a real-TRIM run, so +U must serve the mixed corner (real block, complex density) like every periodic term; make it ONE `template<class TBlock>` body (as `Kinetic<T>`) with the real-block mixin as one line, so `CleanupCandidates.md` V1.35 collapses it for free rather than converting it (ruled 2026-09-19).  ★ **Write it against `MatrixForward<T>` and `MatrixAdjoint<T>` from the start** (user, 2026-09-11;
 `MatrixIntegrator` itself was DELETED `7a41cca6`): +U is a `Dynamic_HT`, its occupation-matrix forward and its
 potential adjoint are exactly that pair, and orbital resolution changes only the scalar per eigenvalue in
 between — in the eigenbasis of the site occupation matrix \f$E_U=\sum_i \tfrac{U_i}{2}\lambda_i(1-\lambda_i)\f$
