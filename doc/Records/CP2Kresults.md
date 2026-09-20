@@ -183,3 +183,26 @@ our `ivec3_t(2,2,2)`).  CP2K 2026.1, OMP 8, 70–500 s each.
 See `UnitTests/CP2K/README.md`. In short: `source ~/Code/cp2k/tools/toolchain/install/setup`,
 `export LD_LIBRARY_PATH=~/Code/cp2k/install/lib:$LD_LIBRARY_PATH`, then
 `cp2k.ssmp -i UnitTests/CP2K/si_fcc_gpw.inp -o si.out` from a dir where `./SIPP-SR-BASIS` is visible.
+
+## MnO AFM-II, shell-averaged DFT+U oracle (2026-09-19) — programme step 5.1
+
+Deck `IntegrationTests/CP2K/mno_afm2_gpw_va_plusU.inp` = the banked `mno_afm2_gpw_va.inp` (−61.30332518)
+with ONE change: `&DFT_PLUS_U L 2, U_MINUS_J [eV] 4.0` on both Mn kinds, `PLUS_U_METHOD LOWDIN`.  Run
+`OMP_NUM_THREADS=1 mpirun -np 1 cp2k.psmp -i mno_afm2_gpw_va_plusU.inp` (log `bench_MnO_AFM2_VA_plusU_cp2k.log`).
+
+| quantity | value |
+|---|---|
+| Total energy | **−60.68597087953861 Ha** |
+| DFT+U energy | **0.60950923227552 Ha** |
+| SCF steps | 104 (converged; 44 without U) |
+| Mulliken spin moments | Mn ±4.765 (was ±4.65 without U); order AFM-II kept |
+| Hartree / XC / core H | 35.44889540 / −14.50555084 / 42.98537883 |
+
+★ **WHAT THE MANIFOLD IS, read off `src/dft_plus_u.F` (not the manual):** for LOWDIN, CP2K builds
+\f$q = S^{1/2} P S^{1/2}\f$ and takes the atom's block over **EVERY shell of angular momentum l** — all
+`nsb` contractions, an \f$n_{sb}(2l+1)\times n_{sb}(2l+1)\f$ matrix (here 8 d shells ⇒ 40×40 per Mn per
+spin); \f$E_U=\tfrac{U}{2}(\mathrm{Tr}\,q-\mathrm{Tr}\,q^2)\f$ and \f$V=U(\tfrac12-q)\f$ back-transformed.
+⇒ \f$\sum_i\lambda_i(1-\lambda_i)\approx 8.3\f$ across two sites and two spins: on a diffuse 8-zeta d span the
+Löwdin occupations are far from 0/1, and 0.61 Ha for U=4 eV is a MECHANISM number, not physics.  qchem's
+term reproduces this definition (all l-shells on the site) for parity; a physically meaningful +U needs a
+projector that names ONE d manifold — which is pin 23's orbital-resolved / ACBN0 direction, not a knob.
