@@ -62,7 +62,8 @@ public:
     //! The T3 pair-stream orbit fold in the GPW collocation streams.  DEFAULT ON (armed 2026-08-19).
     bool StreamFold() const {return itsStreamFold.value;}
     //! Mix in the \f$(\rho,m)\f$ channel basis (Kerker on \f$\rho\f$, plain linear on \f$m\f$) instead
-    //! of \f$(\rho_\uparrow,\rho_\downarrow)\f$.  DEFAULT OFF -- (up,dn) is what reproduces CP2K's Kerker.
+    //! of \f$(\rho_\uparrow,\rho_\downarrow)\f$.  DEFAULT ON since 2026-09-20 (N3 promoted: 18/21 vs 22/24
+    //! iterations on MnO, same energies); (up,dn) is what reproduces CP2K's Kerker, so the umbrella turns it off.
     bool MixRhoM()    const {return itsMixRhoM.value;}
     //! Feed \f$V_{xc}\f$ the WHOLESALE \f$\rho[D]\f$ instead of Hartree's own mixed array.  DEFAULT OFF
     //! (doc/OpenWork.md item 1: measured, and the route -- not the goal -- is what fails).

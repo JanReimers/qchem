@@ -36,8 +36,11 @@ RunPolicy::RunPolicy()
                             /*cp2k*/false, /*qchem default*/true);
     itsStreamFold = Resolve("GPW_STREAM_FOLD",  "orbit fold on the GPW collocation pair streams",
                             /*cp2k*/false, /*qchem default*/true);
+    // N3 PROMOTED 2026-09-20 (OpenWork section 4): measured on MnO AFM-II with the deck's loop shape, (rho,m)
+    // takes 18 / 21 iterations where (up,dn) takes 22 / 24 (U=0 / U=4 eV), energies identical to 1e-10 Ha --
+    // Kerker's 4pi/G^2 has no business damping the magnetisation channel.  Still off under CP2K_COMPAT.
     itsMixRhoM    = Resolve("QCHEM_MIX_RHO_M",  "(rho,m) mixing channels instead of (up,dn)",
-                            /*cp2k*/false, /*qchem default*/false);
+                            /*cp2k*/false, /*qchem default*/true);
     itsXCFromDM   = Resolve("GPW_XC_DM_SOURCE", "Vxc fed rho[D] wholesale instead of rho_mix",
                             /*cp2k*/false, /*qchem default*/false);
     // NB the qchem default here is TRUE meaning "obey the caller", not "impose": the option itself

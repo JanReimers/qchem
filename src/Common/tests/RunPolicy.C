@@ -52,7 +52,7 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
                                   "passes, either a route was retired or one stopped being declared";
     EXPECT_TRUE (p.DMLowRank());
     EXPECT_TRUE (p.StreamFold());
-    EXPECT_FALSE(p.MixRhoM());
+    EXPECT_TRUE (p.MixRhoM()) << "N3 promoted 2026-09-20: (rho,m) is the default; (up,dn) is CP2K's";
     EXPECT_FALSE(p.XCFromDM());
     EXPECT_TRUE (p.SymmetryImposition()) << "by default the caller's imposeSymmetry is obeyed";
     // The collocation box tolerance: eps/|c_ij| by default, flat eps (CP2K's rule) under the umbrella.

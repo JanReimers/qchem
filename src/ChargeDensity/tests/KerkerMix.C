@@ -15,6 +15,7 @@ import qchem.ChargeDensity.FourierMixCD;         // FourierMixCD, ΔG_Map
 import qchem.ChargeDensity.Internal.FieldMixer;  // KerkerStep (tests may import Internal)
 import qchem.ChargeDensity.Internal.PolarizedDensityMixer;   // the composed per-channel mixer (the factory's polarized product)
 import qchem.ChargeDensity.DensityMixer;         // KerkerMixerFactory, KerkerParams
+import qchem.RunPolicy;                          // ReresolveRunPolicy -- the tests pin the channel basis they contract
 import qchem.ChargeDensity.SeedCD;               // PolarizedSeedCD (the spin-SAD seed, no SCF)
 import qchem.CompositeCD;                   // tComposite_CD -- the SCF density (one composite over full Irreps, V1.37)
 import qchem.ChargeDensity.Imp.IrrepCD;     // FiniteIrrepCD -- a mixable density that is NOT a composite
@@ -186,6 +187,14 @@ struct ScopedEnv
     ScopedEnv(const char* n, const char* v) : name(n) { setenv(n, v, 1); }
     ~ScopedEnv() { unsetenv(name); }
 };
+//! The CHANNEL BASIS a test contracts, pinned for its scope: (up,dn) or (rho,m) -- since N3's promotion
+//! (2026-09-20) the default is (rho,m), and the per-channel-leaf contracts below are (up,dn) statements.
+struct ScopedChannelBasis
+{
+    ScopedEnv env;
+    explicit ScopedChannelBasis(bool rhoM) : env("QCHEM_MIX_RHO_M", rhoM ? "1" : "0") { qchem::ReresolveRunPolicy(); }
+    ~ScopedChannelBasis() { unsetenv("QCHEM_MIX_RHO_M"); qchem::ReresolveRunPolicy(); }
+};
 
 const FourierDensity& FourierOf(const cChargeDensity* cd)
 {
@@ -238,6 +247,7 @@ private:
 // seed's channels -- same ρ̃ per channel, same charges, so the S=5/2 moment reaches v_xc intact.
 TEST(KerkerMix, PolarizedSeedComposesPerChannel)
 {
+    ScopedChannelBasis upDn(false);              // the (up,dn) leaf composition is what this contracts
     MnBox box;
     PolarizedSeedCD seed(box.fitCD, box.st.get());
     ASSERT_GT(seed.GetTotalSpin(), 4.0) << "the instrument itself: the Mn Hund pair must carry its 2S=5";
@@ -267,6 +277,7 @@ TEST(KerkerMix, PolarizedSeedComposesPerChannel)
 // spin-blind step would move the total's G=0 by nothing and the channels not at all.
 TEST(KerkerMix, PolarizedStepMovesEachChannelAtAlpha)
 {
+    ScopedChannelBasis upDn(false);              // (up,dn): each channel against its own output
     MnBox box;
     PolarizedSeedCD seed(box.fitCD, box.st.get());
     const double alpha=0.5, delta=0.4;
@@ -294,6 +305,44 @@ TEST(KerkerMix, PolarizedStepMovesEachChannelAtAlpha)
     EXPECT_NEAR(std::real(dcmplx(upMix.at(G0))+dcmplx(dnMix.at(G0))),
                 std::real(dcmplx(up0.at(G0))+dcmplx(dn0.at(G0))), 1e-12) << "the total's G=0 is untouched";
     // The other G's saw no update, so they stay exactly where the seed put them.
+    for (const auto& [g,v] : up0) if (g!=G0) EXPECT_NEAR(std::abs(dcmplx(upMix.at(g))-dcmplx(v)), 0.0, 1e-12);
+    for (const auto& [g,v] : dn0) if (g!=G0) EXPECT_NEAR(std::abs(dcmplx(dnMix.at(g))-dcmplx(v)), 0.0, 1e-12);
+}
+
+// THE PROMOTED DEFAULT (N3, 2026-09-20): in the (rho,m) basis the same +-Delta step is a pure MOMENT move --
+// rho's G=0 is untouched, m's G=0 moved by 2*Delta -- so the residual is the m channel's 2*Delta (not the worse
+// spin channel's Delta), m follows LINEARLY at alpha (no Kerker on m: there is no 4pi/G^2 to justify damping
+// the magnetisation), and each spin channel, rebuilt from (rho,m), lands at the same +-alpha*Delta as (up,dn)
+// would put it: at G=0 the Kerker filter is 1, so the two bases agree there and differ only where the filter
+// bites -- which is the whole point of the basis.
+TEST(KerkerMix, PolarizedStepInRhoMBasisMovesTheMomentLinearly)
+{
+    ScopedChannelBasis rhoM(true);
+    MnBox box;
+    PolarizedSeedCD seed(box.fitCD, box.st.get());
+    const double alpha=0.5, delta=0.4;
+    auto mixer=KerkerMixerFactory(KerkerParams{.relax=alpha, .G0=1.0}, box.bs.get(), box.st.get(), &seed);
+    ASSERT_NE(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr);
+
+    const ΔG_Map up0=FourierOf(ChannelOf(&seed, Spin::Up  )).GetFourierDensity(*box.fitSF);
+    const ΔG_Map dn0=FourierOf(ChannelOf(&seed, Spin::Down)).GetFourierDensity(*box.fitSF);
+    const ivec3_t G0(0,0,0);
+    ΔG_Map upOut=up0, dnOut=dn0;
+    upOut[G0]=dcmplx(upOut[G0])+delta;
+    dnOut[G0]=dcmplx(dnOut[G0])-delta;
+    const double qUp=ChannelOf(&seed, Spin::Up)->GetTotalCharge(), qDn=ChannelOf(&seed, Spin::Down)->GetTotalCharge();
+    TwoChannelWorking out(upOut, dnOut, GetReciprocalLattice(box.st.get()), qUp, qDn);
+
+    const double resid=mixer->Mix(out, out);
+    EXPECT_NEAR(resid, 2*delta, 1e-12) << "the residual is the m channel's: the whole step was a moment move";
+
+    const cChargeDensity* fock=mixer->FockDensity(out);
+    const ΔG_Map upMix=FourierOf(ChannelOf(fock, Spin::Up  )).GetFourierDensity(*box.fitSF);
+    const ΔG_Map dnMix=FourierOf(ChannelOf(fock, Spin::Down)).GetFourierDensity(*box.fitSF);
+    EXPECT_NEAR(std::real(dcmplx(upMix.at(G0))), std::real(dcmplx(up0.at(G0)))+alpha*delta, 1e-12) << "m at alpha, rebuilt into up";
+    EXPECT_NEAR(std::real(dcmplx(dnMix.at(G0))), std::real(dcmplx(dn0.at(G0)))-alpha*delta, 1e-12) << "m at alpha, rebuilt into down";
+    EXPECT_NEAR(std::real(dcmplx(upMix.at(G0))+dcmplx(dnMix.at(G0))),
+                std::real(dcmplx(up0.at(G0))+dcmplx(dn0.at(G0))), 1e-12) << "rho's G=0 is untouched";
     for (const auto& [g,v] : up0) if (g!=G0) EXPECT_NEAR(std::abs(dcmplx(upMix.at(g))-dcmplx(v)), 0.0, 1e-12);
     for (const auto& [g,v] : dn0) if (g!=G0) EXPECT_NEAR(std::abs(dcmplx(dnMix.at(g))-dcmplx(v)), 0.0, 1e-12);
 }
