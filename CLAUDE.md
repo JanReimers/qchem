@@ -44,6 +44,16 @@ Brief notes about module/library conventions, naming, and includes.
     test exe, check that ctest's total N went UP by the number of tests you wrote; and read the failure
     list, not just the pass percentage. (The `.vscode` TestMate glob is `UT*`, so a `UT`-prefixed name
     needs no settings change — the ctest side is the one that needs the edit.)
+- **A ctest "Passed" in 0.0x s for an SCF test is a test that DID NOT RUN.**  CMake ≥ 3.30 discovers gtest
+    cases through `--gtest_output=json`, and googletest escapes every non-ASCII BYTE of a name as `\u00XX`, so
+    the `Γ` in a test name came back double-encoded (`Î` + U+0093) and its `--gtest_filter` matched nothing:
+    gtest ran zero tests, exited 0, ctest printed `Passed 0.02 sec`.  **All 48 Γ-named SCF tests were skipped
+    by every sweep from 2026-09-15 to 2026-09-20** while the summary read 100%.  Fixed in
+    `IntegrationTests/CMakeLists.txt` (`DISCOVERY_EXTRA_ARGS --gtest_output=` forces the text-listing
+    parser).  Two habits: `ctest -N | grep Γ` must show the Gamma itself, never `Î`; and any SCF test that
+    "passes" faster than its SCF could possibly run is a filter that matched nothing — `ctest -V` shows the
+    exact command, run it by hand.  (The defect only ever caught tests through ctest: `ITMain` run directly,
+    and the TestMate tree, always ran them.)
 
 ## Tests — naming and the DISABLED_ rule (from `doc/Records/TestSuitePlan.md`, ruled 2026-09-15)
 
