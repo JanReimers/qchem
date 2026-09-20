@@ -164,6 +164,12 @@ written before this rule compares a looser qchem criterion with a tighter CP2K o
 
 ## 4. HOW TO PRODUCE A ROW — the same wrapper for both codes
 
+⚠ **THE `GPW_SCF.*` FILTERS IN THIS SECTION NAME RETIRED TESTS** (the 2026-09-15 test-suite renaming, rule 3a's
+own failure mode).  The live rows and their current filters are in **`scripts/retake5a`** — `GPW_Si.Γ_CP2K`,
+`GPW_Si.k222_CP2K`, `GPW_Si.k222s_Imp_CP2K`, `GPW_NaF.Γ_Imp_Anchor`, and `gpwprobe mno` for MnO — which also
+sets the rule-3f knobs (`GPW_MEASURE=maxdd GPW_EPS GPW_NMAX GPW_ACC=null GPW_MOM=0 GPW_KERKER_G0=1 GPW_PULAY=8`,
+all read by the harness's `EnvOverrides`).  Run `scripts/retake5a` to reproduce the rule-3f table in §5a.
+
 ```bash
 scripts/bench "Si Gamma qchem" -- build/Release/IntegrationTests/ITMain --gtest_filter=GPW_SCF.SiliconGammaConverges
 scripts/bench "Si Gamma cp2k"  -- cp2k -i IntegrationTests/CP2K/si_fcc_gpw.inp
@@ -307,6 +313,31 @@ the same anchor).  A full re-take of this table on `Measure::MaxΔD` is queued i
 | ★ **…the same row's FIXED-POINT stage alone — THE LIKE-FOR-LIKE NUMBER** ᵇ✓ | VA, 1 k | marginal | 37.4 s / 4 it | cancels | **9.35** | 44 | 372.9 s | 8.1 s | 8.291 | **1.13×** | 9.35 | 1.13× |
 | MnO **FM** — ALL DEFAULTS ᵇ⚠ | VA, 1 k | 18+15 = **33** | 398.0 s | **184.8 s** | **6.460** | 22 | 192.4 s | 8.7 s | 8.350 | **0.77×** ✅ | 12.06 | 1.38× |
 
+**★ THE RULE-3f RE-TAKE (2026-09-20, `scripts/retake5a` + the two `gpwprobe mno` rows of footnote ⁸) — the SAME
+convergence measure (max|ΔD| / max|ΔP|) at the DECK'S threshold, the deck's loop shape (one density-side history:
+Kerker G0=1 + Pulay 8; nothing on the Fock side; no MOM), `CP2K_COMPAT=1` (no Becke mesh, no imposition), both
+codes serial.**  Whole-run wall and RSS here are like-for-like BECAUSE the loops now stop at the same place;
+CP2K's numbers are the banked ones (its counts were already at `EPS_SCF`).  The one stated difference: the Si
+decks mix P directly (α 0.4) where our stable no-Fock-side route is Kerker + Pulay (§4b row "Linear D-mixing
+DIVERGES").
+
+| row | EPS / MAX_SCF | **q iters** | q wall | q RSS | **c steps** | c wall | c RSS | iters q/c | qchem E | CP2K E |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Si Γ (free) | 1e-7 / 60 | **16** | 2.7 s | 39 MB | 12 | 5.0 s | 148 MB | 1.33× | −7.115067447 | −7.115057882 |
+| Si 2×2×2 Γ-centred (free) | 1e-7 / 60 | **15** | 8.6 s | 54 MB | 13 | 5.6 s | 153 MB | 1.15× | −7.778472674 | −7.778457865 |
+| Si 2×2×2 shifted MP | 1e-7 / 60 | **14** | 10.6 s | 55 MB | 14 | 5.9 s | 153 MB | 1.00× | −7.867452508 | −7.867436530 |
+| NaF SR2 Γ | 1e-6 / 200 | **16** | 7.8 s | 84 MB | 16 | 7.2 s | 173 MB | 1.00× | −24.43039482 | −24.431213375 |
+| MnO AFM-II (free) | 1e-6 / 200 | **33** | 5m42s | 262 MB | 44 | 6m14s | 217 MB | 0.75× | −61.41154311 | −61.303325178 |
+| MnO AFM-II +U 4 eV (free) | 1e-6 / 200 | **37** | 6m23s | 263 MB | 104 | 15m46s | 217 MB | 0.36× | −60.81349836 | −60.68597088 |
+
+⇒ **Iteration counts are AT PARITY on Si/NaF (1.0–1.3×) and in our favour on MnO (0.75× / 0.36×)**; the Si Γ
+1.33× is 16 vs 12 on a 3-second run.  ⚠ **The Si 2×2×2 shifted-MP energy is −7.867452508 here, 16 µHa from
+CP2K's −7.867436530, where the table above has −7.868473429 (−1.04 mHa).  Checked the same day: it is the
+IMPOSITION, not the criterion or the grid** — with `QCHEM_IMPOSE_SYMMETRY=1` every criterion and both XC grids
+give −7.868473; free, −7.867452.  The symmetry fold of the shifted (k=±¼, non-TRIM) mesh lowers the energy by
+1.02 mHa: an OPEN DEFECT, `doc/OpenWork.md` §4a (footnote ¹ is now history).  The other energies moved by
+< 1 µHa; on MnO the 108 mHa absolute offset (§4a) is unchanged.
+
 ᵇ **✓ = BOTH CODES RUN THE SAME KIND OF SCF STEP ON THIS ROW; ⚠ = THEY DO NOT.**  A per-iteration ratio is
 only a comparison when the iteration is the same thing on both sides, so this was CHECKED per row, in each
 run's own trace, rather than assumed:
@@ -448,7 +479,10 @@ parity ROUTE affordable — see footnote ⁷ (§5d).  CP2K column untouched thro
 
 Compact here; the full stories are in `doc/Records/BenchmarkHistory.md` at the section named after each.
 
-- **¹** Si 2×2×2 shifted MP (−1.04 mHa) — the residual after a **D-aware integrate-back SCREEN defect** was
+- **¹** Si 2×2×2 shifted MP (−1.04 mHa) — ⚠ **LOCALISED 2026-09-20 by the rule-3f re-take: it is the IMPOSITION.**
+  The FREE run is −7.867452508, 16 µHa from CP2K; imposing the point group on the shifted (k=±¼) mesh gives
+  −7.868473429 under every criterion and both XC grids.  Open defect, `doc/OpenWork.md` §4a.  What follows is
+  the history.  The residual after a **D-aware integrate-back SCREEN defect** was
   fixed 2026-08-19.  It is the suite's ONLY fractional-k SCF coverage (every other k is TRIM, where the
   defect is structurally invisible), which is why it had rotted to −3.7351 while DISABLED.  *(history: the
   screen was reading \f$\mathrm{Re}[D\overline{e^{ikR}}]\f$ where it needed \f$|D|\f$.)*
