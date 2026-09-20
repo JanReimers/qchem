@@ -224,8 +224,11 @@ runs CP2K's form, and the numbers it banks are below.
 
 | quantity (CP2K's form, `QCHEM_U_EIGEN=0`) | qchem | CP2K |
 |---|---|---|
-| ΔE = E(U=4 eV) − E(0) | **+0.60307 Ha** (E(0)=−61.41124112, E(U)=−60.80817441) | +0.61735 Ha |
-| E_U | **0.57976 Ha** (max population 0.31 on the majority site: all 40 fractional, as the form implies) | 0.60951 Ha |
-| SCF steps with U / without | 57 / 43 (Shub anchor recipe: imposed, Becke, Ladder, kT=5e-3) | 104 / 44 |
+| ΔE = E(U=4 eV) − E(0) | **+0.60020 Ha** (E(0)=−61.41124112, E(U)=−60.81104344) | +0.61735 Ha |
+| E_U | **0.58730 Ha** (max population 0.31 on the majority site: all 40 fractional, as the form implies) | 0.60951 Ha |
+| ΔE − E_U (the density's relaxation to V_U) | 0.0129 Ha | 0.0078 Ha |
+| SCF steps with U / without | 55 / 43 (Shub anchor recipe: imposed, Becke, Ladder, kT=5e-3; 1e-5 on Δρ) | 104 / 44 (1e-6 on ΔP; at 1e-5 it reads ~50–65) |
 
-ΔE agrees to 14 mHa and E_U to 30 mHa on a 0.6 Ha effect, with the two codes' absolute energies 100 mHa apart (§5c of `doc/Benchmark.md`) — gate tolerance 50 mHa on both, PASSED 2026-09-20 (792 s, two arms).  The 30 mHa E_U residual is the same population functional of two densities that differ at the 0.1 Ha level; it is not a defect to chase before the absolute offset is named (OpenWork §4a).
+ΔE agrees to 17 mHa and E_U to 22 mHa on a 0.6 Ha effect, with the two codes' absolute energies 100 mHa apart (§5c of `doc/Benchmark.md`) — gate tolerance 50 mHa on both, PASSED 2026-09-20 (773 s, two arms).  The E_U residual is the same population functional of two densities that differ at the 0.1 Ha level; it is not a defect to chase before the absolute offset is named (OpenWork §4a).
+
+⚠ **The FIRST pass of this gate (same day, 792 s) read ΔE +0.6031 / E_U 0.5798 and PASSED WITH A DEFECT IN THE TERM**: on a polarized Kerker recipe the Fock build sees `PolarizedMixCD`, which carries no D and answers no source face (its channel views do), so the term zeroed the occupations on every Fock build and applied V = U/2·P — a rigid +2 eV shift of the whole d manifold — while the energy pass used the real D_out.  The `[+U]` trace showed it (n=0 on alternate refreshes); the pass was because a rigid shift barely moves the density, so E_U(D_out) ≈ E_U(LDA density) landed within tolerance anyway.  Fix: resolve the DM PER CHANNEL (channel view → `cDM_CD` → else `cDM_Sourced_CD::DMSource()`), and a source-less channel KEEPS its occupations.  The relaxation part ΔE−E_U went 0.0233 → 0.0129 Ha (CP2K 0.0078).  Pinned by `GPW_Si.Γ_U_Imp_Pol_Kerker_eqUnpol` (1 s; fails on the old term at 1e-6, passes on the fixed one).  Lesson: an oracle agreement is not a mechanism check — read the term's own trace.

@@ -416,6 +416,7 @@ parity ROUTE affordable — see footnote ⁷ (§5d).  CP2K column untouched thro
 | **MnO AFM-II, `QCHEM_BECKE_XC=0`** ⁶ | Γ | **VA (N=118)** | −61.40358753 | −61.303325178 | −100.26 mHa | **2m28s** / 6m14s | **147** / 373 s | **0.39×** | **113** / 217 MB |
 | **MnO FM — ALL DEFAULTS** ⁵ | Γ | **VA (N=118)** | −61.44158219 ⁵ | −61.304782531 | **−136.80 mHa** | **6m40s** / 3m13s | **398** / 192 s | **2.07×** | **481** / 217 MB |
 | **MnO AFM-II, `CP2K_COMPAT=1`** ⁷ | Γ | **VA (N=118)** | −61.39789688 ⁷ | −61.303325178 | −94.57 mHa | 45m40s / 6m14s | **2736** / 373 s | **7.3×** | **112** / 217 MB |
+| **MnO AFM-II +U (4 eV, Mn d), `CP2K_COMPAT=1`** ⁸ | Γ | **VA (N=118)** | NOT converged (120 cap, free-run 2-cycle) | −60.68597088 | — | 19.4 min (120 it) / 15.8 min (104 it) | **9.62 s/it** / 9.05 s/it | **1.06×** | 207 / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
 
 
@@ -439,6 +440,7 @@ Compact here; the full stories are in `doc/Records/BenchmarkHistory.md` at the s
   and leaves everything else ours.  It is the first MnO row on which qchem beat CP2K on both axes and is
   still the standout: **0.53× per SCF iteration**, 107 MB against 217 MB, and a setup of 1.76 s against
   CP2K's 8.1 s.
+- **⁸** The +U parity row (2026-09-20, `GPW_MnO.DISABLED_Γ_U_Shub_Pol_Smear_CP2K` under `CP2K_COMPAT=1 GPW_REPORT=1`, log `mno_u_compat.log`): setup ~10 s (last fold 6.3 s, first refresh 10.3 s) vs CP2K ~5 s; per iteration 9.62 s (refresh-to-refresh over 119 iterations) vs CP2K 9.05 s (941.2 s / 104 in `scf_env_do_scf`); the +U refresh costs us ~15 ms/iter, CP2K's full-matrix S½PS½ ~0.75 s/iter (8.29 → 9.05).  ⚠ Marginal per-iteration costs, NOT converged walls: both free arms sat in a period-2 "ρ rotates" cycle to the cap, where CP2K's `BROYDEN_MIXING ALPHA 0.2 BETA 1.5 NBUFFER 8` (Kerker-preconditioned Broyden on ρ̃) converges the same free cell.  The imposed Becke recipe (the energy oracle) converges in 55 iterations at ~7.0 s/it after ~45 s setup — faster per iteration, and it converges only because the Shubnikov imposition holds the AFM state.  Next probe: the parity arms with `PulayDepth=8`.
 - **⁷** The parity row: an earlier *"at true parity our recipe does not converge"* verdict was **RETRACTED**
   (08-28).  It still hits the iteration cap, but for a far more benign reason — 5.1 mHa short, not 3.8 Ha,
   with the AFM order surviving both stages.
