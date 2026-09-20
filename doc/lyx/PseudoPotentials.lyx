@@ -1,0 +1,687 @@
+#LyX 2.5 created this file. For more info see https://www.lyx.org/
+\lyxformat 643
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children no
+\language canadian
+\language_package default
+\inputencoding utf8
+\fontencoding auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_roman_osf false
+\font_sans_osf false
+\font_typewriter_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\float_placement class
+\float_alignment class
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification default
+\crossref_package refstyle
+\use_formatted_ref 0
+\use_minted 0
+\use_lineno 0
+\backgroundcolor none
+\fontcolor none
+\notefontcolor lightgray
+\boxbgcolor red
+\table_border_color default
+\table_odd_row_color default
+\table_even_row_color default
+\table_alt_row_colors_start 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tablestyle default
+\tracking_changes false
+\output_changes false
+\change_bars false
+\postpone_fragile_content true
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\docbook_table_output 0
+\docbook_mathml_prefix 1
+\docbook_mathml_version 0
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Pseudo Potentials
+\end_layout
+
+\begin_layout Author
+Jan Reimers
+\end_layout
+
+\begin_layout Date
+Sept.
+ 2026
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+Chemistry and bonding in molecules and materials is mostly determined by the valance electrons.
+ For a suitable definition of what constitutes valance electrons (or orbitals),
+ the remaining core electrons play essentially no role in the bonding.
+ On the contrary,
+ conventional electron structure calculation methods automatically include the core electrons.
+ In fact for heavy elements,
+ a calculation spends more time on the core electrons,
+ than it does on the valance electrons.
+ What if there was a way to take the known core orbitals and charge density from an atom calculation,
+ and somehow transfer that info into a molecular or solid material calculation,
+ so that the computational resources are more efficiently apportioned to (almost) only the valance electrons?
+ Analogous to the complimentary Heisenberg and Schrödinger pictures for time dependence,
+ there are complimentary ways or carrying over the core orbitals and charge density from an atom calculation:
+\end_layout
+
+\begin_layout Enumerate
+Modify the trial wave function so this is always orthogonal to the atomic core orbitals.
+ OPW and PAW methods.
+ In addition we also want to remove the nodes (oscillations) of the valance orbitals.
+\end_layout
+
+\begin_layout Enumerate
+Modify the electron-nuclear attraction and e-e repulsion potentials to include screening from the core charge density,
+ and also force orthogonality to the atomic core orbitals.
+ These have the name pseudo potentials (PPs)
+\end_layout
+
+\begin_layout Standard
+It turns out the the form for the PPs is most easily derived from the OPW wave function.
+ This text tries to follow the Richard Martin Book (Electronic Structure,
+ Basic Theory and Practical Methods),
+ chapter 11.
+\end_layout
+
+\begin_layout Section
+Orthogonalized Plane Waves (OPW)
+\end_layout
+
+\begin_layout Standard
+In it's original form the OPW basis function looks like:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\psi^{OPW}_{\boldsymbol{q}}\left(\boldsymbol{r}\right)=\left|\boldsymbol{q}^{O}\right\rangle =\left|\boldsymbol{q}\right\rangle -\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}|\boldsymbol{q}\right\rangle \label{eq:OPW}
+\end{equation}
+
+\end_inset
+
+where
+\begin_inset Formula $\left|\boldsymbol{q}\right\rangle =\frac{1}{\sqrt{V}}e^{i\boldsymbol{q}\cdot\boldsymbol{r}}$
+\end_inset
+
+ is a plane wave,
+ and 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\left\langle u_{j}|\boldsymbol{q}\right\rangle =\frac{1}{\sqrt{V}}\intop d^{3}r\:u_{j}\left(\boldsymbol{r}\right)e^{i\boldsymbol{q}\cdot\boldsymbol{r}}\label{eq:Uq}
+\end{equation}
+
+\end_inset
+
+ is like a form factor.
+ The functions 
+\begin_inset Formula $u_{j}\left(\boldsymbol{r}\right)$
+\end_inset
+
+ are centred around each nucleus and are assumed to orthonormal 
+\begin_inset Formula $\left\langle u_{i}|u_{j}\right\rangle =\delta_{ij}$
+\end_inset
+
+ and anticipate that they will represent atomic core orbitals.
+ If we define core projector 
+\begin_inset Formula 
+\[
+\hat{P}^{core}=\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}\right|
+\]
+
+\end_inset
+
+then we can rewrite 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:OPW"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+tuple "list"
+
+\end_inset
+
+ in compact form
+\begin_inset Formula 
+\[
+\left|\boldsymbol{q}^{O}\right\rangle =\left(1-\hat{P}^{core}\right)\left|\boldsymbol{q}\right\rangle .
+\]
+
+\end_inset
+
+As usual 
+\begin_inset Formula $\hat{P}^{2}_{c}$
+\end_inset
+
+ is idempotent
+\begin_inset Formula 
+\[
+\left(\hat{P}^{core}\right)^{2}=\sum_{ij}\left|u_{j}\right\rangle \left\langle u_{j}|u_{j}\right\rangle \left\langle u_{j}\right|=\sum_{ij}\left|u_{j}\right\rangle \delta_{ij}\left\langle u_{j}\right|=\hat{P}^{core}
+\]
+
+\end_inset
+
+This construction ensures 
+\begin_inset Formula $\psi^{OPW}$
+\end_inset
+
+ is orthogonal to all 
+\begin_inset Formula $u_{j}\left(\boldsymbol{r}\right)$
+\end_inset
+
+,
+ but it is not necessarily normalized.
+ Let us check:
+\begin_inset Formula 
+\[
+\left\langle u_{i}|\boldsymbol{q}^{O}\right\rangle =\left\langle u_{i}|\boldsymbol{q}\right\rangle -\sum_{j}\left\langle u_{i}|u_{j}\right\rangle \left\langle u_{j}|\boldsymbol{q}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left\langle u_{i}|\boldsymbol{q}\right\rangle -\sum_{j}\left\langle u_{j}|\boldsymbol{q}\right\rangle \delta_{ij}=0
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left\langle \boldsymbol{q}^{O}|\boldsymbol{q}^{O}\right\rangle =\left\langle \boldsymbol{q}\right|\left(1-\hat{P}_{c}\right)\left(1-\hat{P}_{c}\right)\left|\boldsymbol{q}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left\langle \boldsymbol{q}\right|\left[1-2\hat{P}^{core}+\left(\hat{P}^{core}\right)^{2}\right]\left|\boldsymbol{q}\right\rangle =\left\langle \boldsymbol{q}\right|\left(1-\hat{P}^{core}\right)\left|\boldsymbol{q}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(1-\left\langle \boldsymbol{q}\right|\hat{P}^{core}\left|\boldsymbol{q}\right\rangle \right)=1-\sum_{j}\left\langle \boldsymbol{q}|u_{j}\right\rangle \left\langle u_{j}|\boldsymbol{q}\right\rangle 
+\]
+
+\end_inset
+
+This is the same as Martin (eq.
+ 11.10)
+\begin_inset Formula 
+\[
+\left\langle \psi^{OPW}_{\boldsymbol{q}}|\psi^{OPW}_{\boldsymbol{q}}\right\rangle =1-\sum_{j}\left|\left\langle u_{j}|\boldsymbol{q}\right\rangle \right|^{2}.
+\]
+
+\end_inset
+
+The sum index 
+\begin_inset Formula $j$
+\end_inset
+
+ is doing a lot of heavy lifting here and warrants some clarification.
+ We can expand the label 
+\begin_inset Formula $j$
+\end_inset
+
+ to include the atom index 
+\begin_inset Formula $a$
+\end_inset
+
+,
+ and additionally the 
+\begin_inset Formula $n,l,m$
+\end_inset
+
+ quantum numbers of the core orbitals on atom 
+\begin_inset Formula $a.$
+\end_inset
+
+ Or 
+\begin_inset Formula $j=\left\{ a,n,l,m\right\} $
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+And this immediately raises the question:
+ How can we have 
+\begin_inset Formula $\left\langle u_{i}|u_{j}\right\rangle =\delta_{ij}$
+\end_inset
+
+ when 
+\begin_inset Formula $i$
+\end_inset
+
+ and 
+\begin_inset Formula $j$
+\end_inset
+
+ correspond to two different atoms?
+ Also if the 
+\begin_inset Formula $\left|u_{j}\right\rangle $
+\end_inset
+
+ are identified with atomic orbitals then they should satisfy
+\begin_inset Formula 
+\begin{equation}
+\hat{H}\left|u_{j}\right\rangle =\varepsilon_{j}\left|u_{j}\right\rangle \label{eq:ApproxAtomEigen}
+\end{equation}
+
+\end_inset
+
+but only approximately.
+ 
+\begin_inset Formula $\hat{H}=-\frac{1}{2}\nabla^{2}+\sum_{a}\hat{V}_{a}$
+\end_inset
+
+ where the potential portion is a sum over atoms.
+ If we expand 
+\begin_inset Formula $j=\left\{ a,n,l,m\right\} $
+\end_inset
+
+ then
+\begin_inset Formula 
+\begin{equation}
+\left[-\frac{1}{2}\nabla^{2}+\hat{V}_{a}\right]\left|u_{a,nlm}\right\rangle =\varepsilon_{a,nlm}\left|u_{a,nlm}\right\rangle \label{eq:TrueAtomEigen}
+\end{equation}
+
+\end_inset
+
+but
+\begin_inset Formula 
+\[
+\hat{V}_{b}\left|u_{a,nlm}\right\rangle \neq0,\;b\neq a.
+\]
+
+\end_inset
+
+But by the the definition of a core orbital,
+ 
+\begin_inset Formula $\left|u_{a,nlm}\right\rangle $
+\end_inset
+
+ is exponentially small at the other atom centres.
+ This just a modified version of our original hypothesis:
+ 
+\emph on
+core electrons play essentially no role in the bonding
+\emph default
+.
+ No role in bonding means negligible overlap with neighbour atom orbitals.
+ But that also means negligible coulomb attraction with neighbour nuclei
+\begin_inset Formula 
+\[
+\left\langle u_{a,nlm}\right|\frac{1}{\left|\boldsymbol{R}_{b}-\boldsymbol{r}\right|}\left|u_{a,nlm}\right\rangle \approx0,\;a\neq b
+\]
+
+\end_inset
+
+In addition these error from the environment will slightly shift the eigen values,
+ but barely changes the shape of core orbitals.
+ If you ever find that the environment error is too large then your selection of valance electrons is unsuitable.
+ You will need to add the next deeper shell into the valance category.
+\end_layout
+
+\begin_layout Standard
+We can still use projectors when 
+\begin_inset Formula $\left\langle u_{i}|u_{j}\right\rangle =S_{ij}\neq\delta_{ij}$
+\end_inset
+
+.
+ We simply generalize the definition:
+\begin_inset Formula 
+\[
+\hat{P}^{core}=\sum_{j}\left|u_{j}\right\rangle \left(S^{-1}_{ij}\right)\left\langle u_{j}\right|.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Projector on a Lattice
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\hat{P}^{core}$
+\end_inset
+
+ commutes with lattice translations,
+ 
+\begin_inset Formula $\ensuremath{\hat{T}_{\mathbf{R}}\hat{P}^{core}\hat{T}{}^{\dagger}_{\mathbf{R}}=\hat{P}^{core}}$
+\end_inset
+
+,
+ because translating relabels the sum over sites.
+ Also 
+\begin_inset Formula $\ensuremath{\hat{T}_{\mathbf{R}}|\mathbf{q}\rangle=e^{-i\mathbf{q}\cdot\mathbf{R}}|\mathbf{q}\rangle}$
+\end_inset
+
+,
+ so 
+\begin_inset Formula $\ensuremath{\hat{T}_{\mathbf{R}}|\mathbf{q}^{O}\rangle=e^{-i\mathbf{q}\cdot\mathbf{R}}|\mathbf{q}^{O}\rangle}$
+\end_inset
+
+:
+ the OPW is a Bloch function of wave-vector 
+\begin_inset Formula $\boldsymbol{q}$
+\end_inset
+
+ so irrep blocking of 
+\begin_inset Formula $\hat{H}$
+\end_inset
+
+still works.
+\end_layout
+
+\begin_layout Section
+The valance orbital function
+\end_layout
+
+\begin_layout Standard
+Any orbital eigen function build up from OPW basis functions should automatically avoid variational collapse into core states.
+ In addition we are going to postulate a smooth,
+ node-less function for the valance orbitals:
+\begin_inset Formula 
+\begin{equation}
+\left|\tilde{\psi}^{v}_{i}\right\rangle =\sum_{\boldsymbol{q}}c_{i\boldsymbol{q}}\left|\boldsymbol{q}\right\rangle .\label{eq:psi-smooth}
+\end{equation}
+
+\end_inset
+
+The valance orbital function is then
+\begin_inset Formula 
+\[
+\left|\psi^{v}_{i}\right\rangle =\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle =\left|\tilde{\psi}^{v}_{i}\right\rangle -\sum_{\boldsymbol{q}}c_{i\boldsymbol{q}}\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}|\boldsymbol{q}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+=\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{j}B_{ij}\left|u_{j}\right\rangle \label{eq:psi-valance}
+\end{equation}
+
+\end_inset
+
+where
+\begin_inset Formula 
+\[
+B_{ij}=-\sum_{\boldsymbol{q}}c_{i\boldsymbol{q}}\left\langle u_{j}|\boldsymbol{q}\right\rangle =-\left\langle u_{j}|\tilde{\psi}^{v}_{i}\right\rangle 
+\]
+
+\end_inset
+
+We don't yet know what the eigen equation is for this node-less function,
+ but we do know that eigen equation for the real,
+ node-full eigen function:
+\begin_inset Formula 
+\begin{equation}
+\hat{H}\left|\psi^{v}_{i}\right\rangle =\left[-\frac{1}{2}\nabla^{2}+V\left(\boldsymbol{r}\right)\right]\left|\psi^{v}_{i}\right\rangle =\varepsilon_{i}\left|\psi^{v}_{i}\right\rangle .\label{eq:psiv-eigen}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Pseudo Potentials
+\end_layout
+
+\begin_layout Standard
+The PKA (Phillips Kleinman Antoncik) approach is to substitute 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:psi-valance"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+tuple "list"
+
+\end_inset
+
+ into the valance orbital eigen equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:psiv-eigen"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+tuple "list"
+
+\end_inset
+
+ and isolate and corresponding orbital eigen equation for the smooth part 
+\begin_inset Formula $\tilde{\psi}^{v}_{i}\left(\boldsymbol{r}\right)$
+\end_inset
+
+.
+\begin_inset Formula 
+\[
+\hat{H}\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle =\varepsilon_{i}\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\hat{H}\left|\tilde{\psi}^{v}_{i}\right\rangle -\sum_{j}\hat{H}\left|u_{j}\right\rangle \left\langle u_{j}|\tilde{\psi}^{v}_{i}\right\rangle +\varepsilon_{i}\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}|\tilde{\psi}^{v}_{i}\right\rangle =\varepsilon_{i}\left|\tilde{\psi}^{v}_{i}\right\rangle 
+\]
+
+\end_inset
+
+If we assume 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:ApproxAtomEigen"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+tuple "list"
+
+\end_inset
+
+ then we can reduce the second term
+\begin_inset Formula 
+\[
+\hat{H}\left|\tilde{\psi}^{v}_{i}\right\rangle -\sum_{j}\varepsilon_{j}\left|u_{j}\right\rangle \left\langle u_{j}|\tilde{\psi}^{v}_{i}\right\rangle +\varepsilon_{i}\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}|\tilde{\psi}^{v}_{i}\right\rangle =\varepsilon_{i}\left|\tilde{\psi}^{v}_{i}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\hat{H}\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{j}\left(\varepsilon_{i}-\varepsilon_{j}\right)\left|u_{j}\right\rangle \left\langle u_{j}|\tilde{\psi}^{v}_{i}\right\rangle =\varepsilon_{i}\left|\tilde{\psi}^{v}_{i}\right\rangle 
+\]
+
+\end_inset
+
+or
+\begin_inset Formula 
+\[
+\left[-\frac{1}{2}\nabla^{2}+V\left(\boldsymbol{r}\right)+\hat{V}^{R}\right]\left|\tilde{\psi}^{v}_{i}\right\rangle =\varepsilon_{i}\left|\tilde{\psi}^{v}_{i}\right\rangle 
+\]
+
+\end_inset
+
+The two potential terms is our desired PKA version of a PP
+\begin_inset Formula 
+\[
+\hat{V}^{PP}=V\left(\boldsymbol{r}\right)+\hat{V}^{R}=V\left(\boldsymbol{r}\right)+\sum_{j}\left(\varepsilon_{i}-\varepsilon_{j}\right)\left|u_{j}\right\rangle \left\langle u_{j}\right|.
+\]
+
+\end_inset
+
+
+\begin_inset Formula $\hat{V}^{R}$
+\end_inset
+
+ is essentially what Martin shows in eq.
+ 11.14.
+ At this point it is not clear that 
+\begin_inset Formula $\left|\tilde{\psi}^{v}_{i}\right\rangle $
+\end_inset
+
+ is actually node-less.
+ But the new (repulsive because 
+\begin_inset Formula $\varepsilon_{i}>\varepsilon_{j}$
+\end_inset
+
+) 
+\begin_inset Formula $\hat{V}^{R}$
+\end_inset
+
+ prevents variation collapse of 
+\begin_inset Formula $\left|\tilde{\psi}^{v}_{i}\right\rangle $
+\end_inset
+
+ into atomic core states,
+ and also shields most of strong core attraction in 
+\begin_inset Formula $V\left(\boldsymbol{r}\right)$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Non-uniqueness
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula $\left|\tilde{\psi}^{v}_{i}\right\rangle $
+\end_inset
+
+ is not unique.
+ We can see this by adding a certain term to 
+\begin_inset Formula $\left|\tilde{\psi}^{v}_{i}\right\rangle $
+\end_inset
+
+ as follows
+\begin_inset Formula 
+\[
+\left|\psi^{v}_{i}\right\rangle =\left(1-\hat{P}_{c}\right)\left(\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{k}a_{k}\left|u_{k}\right\rangle \right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{k}a_{k}\left|u_{k}\right\rangle -\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}\right|\sum_{k}a_{k}\left|u_{k}\right\rangle 
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{k}a_{k}\left|u_{k}\right\rangle -\sum_{j}\left|u_{j}\right\rangle \sum_{k}a_{k}\delta_{kj}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle 
+\]
+
+\end_inset
+
+So we have a huge amount of gauge freedom in 
+\begin_inset Formula $\left|\tilde{\psi}^{v}_{i}\right\rangle $
+\end_inset
+
+ which can be used (by carefully choosing the 
+\begin_inset Formula $a_{k}$
+\end_inset
+
+ numbers) to get ride of those pesky oscillating nodes and make it smooth.
+\end_layout
+
+\end_body
+\end_document
