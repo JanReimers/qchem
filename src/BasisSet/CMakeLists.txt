@@ -27,6 +27,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     IntegralsCacheReport.C                # the one orchestrator-side ask of the cache (V1.20d)
     Orbital_PP_IBS.C                      # the species-field INTEGRAL SERVICE + its ARGUMENT vocabulary (V1.2; absorbed SpeciesField.C 2026-09-15)
   BasisSet.C
+  AoShellSource.C                       # 'I am built from atom-centred shells' (+U manifolds, SALC induction; 2026-09-19)
   IrrepBasisSet.C
   Orbital_1E_IBS.C
   ImplicitAngular_IBS.C

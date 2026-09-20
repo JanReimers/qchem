@@ -962,3 +962,43 @@ TEST(GPW_Si, k311_Uni_MOM_eqCplx)
         << "a real TRIM block's MOM reference must behave exactly like its complex twin's";
     EXPECT_NEAR(ron->TotalCharge(), roff->TotalCharge(), 1e-10);
 }
+
+//====================================================================================================
+//  DFT+U (programme step 5, 2026-09-19) -- the PLUMBING gates on the cheap cell.  Physics parity is the
+//  MnO gate (GPW_MnO.*_U_CP2K); here the claims are structural: a zero U is exactly absent, and a finite U
+//  on the Si p manifold is a positive, self-consistent Hubbard functional.  Si p is Cartesian (3
+//  components = the 3 real harmonics), so no spherical view is needed for l=1.
+//====================================================================================================
+
+TEST(GPW_Si, Γ_U_ZeroUIsExactlyAbsent)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free)");
+    o.densityEcut=20.0;
+    qchem::SolidCalculation plain(lat, MakeBasisSR(*si.cell), o, ProductionGates());
+    o.hubbard={HubbardU(0,1,0.0), HubbardU(1,1,0.0)};   // the term is BUILT, with U=0 on both Si p shells
+    o.label="Si SR Gamma (free, U=0)";
+    qchem::SolidCalculation withU(lat, MakeBasisSR(*si.cell), o, ProductionGates());
+    auto a=plain.Result(), b=withU.Result();
+    ASSERT_TRUE(a) << (a ? std::string() : a.Error().details);
+    ASSERT_TRUE(b) << (b ? std::string() : b.Error().details);
+    EXPECT_NEAR(a->Energy(), b->Energy(), 1e-10) << "a U=0 Hubbard term must contribute exactly nothing";
+    EXPECT_NEAR(b->EnergyTerms()["E_U"], 0.0, 1e-14);
+}
+
+TEST(GPW_Si, Γ_U_IsAPositiveSelfConsistentFunctional)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free, U=2 eV on p)");
+    o.densityEcut=20.0;
+    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
+    auto r=calc.Result();
+    ASSERT_TRUE(r) << (r ? std::string() : r.Error().details);
+    EXPECT_NEAR(r->TotalCharge(), 8.0, 1e-6);
+    const double EU=r->EnergyTerms()["E_U"];
+    EXPECT_GT(EU, 0.0) << "Sum U/2 lambda(1-lambda) is non-negative and the Si p occupations are fractional";
+    EXPECT_LT(EU, 0.5) << "and it is a small correction on a covalent p manifold at U=2 eV";
+}

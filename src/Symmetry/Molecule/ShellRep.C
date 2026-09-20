@@ -24,6 +24,11 @@ public:
     virtual ~ShellRep() {}
     virtual size_t nComponents() const = 0;
     virtual rmat_t Rep(const rmat3d_t& R) const = 0;
+    //! \brief The shell's angular momentum \f$l\f$ -- the DEGREE of its components.  Both concretes know it
+    //! (a Cartesian shell from its monomials, a spherical one from its harmonics' expansions); a consumer
+    //! selecting a Hubbard MANIFOLD by (site, \f$l\f$) needs it said, not inferred from a component count
+    //! (which would read a Cartesian d shell, 6 components, as something it is not).  (+U, 2026-09-19.)
+    virtual int    L() const = 0;
     //! \brief The component list AS Cartesian monomials, for shells whose components ARE Cartesian
     //! monomials (\c CartesianShellRep answers; any other kind answers empty = "not my language").
     //! A SOFT capability for consumers needing the Cartesian composition -- the spherical lattice

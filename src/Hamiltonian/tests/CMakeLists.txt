@@ -9,6 +9,7 @@ add_executable(UTHamiltonian ../../Common/tests/gtestmain.C
    GPW_XC_FD.C          # the E_xc/H_xc FD-consistency probes (idem)
    Orthogonalize.C      # LASolver orthogonalization through a real atomic Hamiltonian (idem)
    PW_Terms.C           # the plane-wave term tests against the basis's direct-grid oracles (idem)
+   Hubbard.C            # DFT+U: the LowdinProjector forward/adjoint pair (2026-09-19)
 )
 
 target_compile_definitions(UTHamiltonian PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

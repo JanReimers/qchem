@@ -9,6 +9,7 @@ export module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the DFT ctor's functional list)
 import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Types;
+import qchem.Hamiltonian.Factory;                  // HubbardManifold (the +U input vocabulary)
 import qchem.Mesh;
 import qchem.Pseudopotential.LocalPotential;      // the PW pseudopotential model the term owns (Ham_PW_DFT ctor)
 import qchem.Pseudopotential.SeparablePotential;
@@ -118,18 +119,20 @@ public:
     //! flag.  Everything else (kinetic/PP/Hartree/ion-ion) is spin-agnostic.  Polarized currently requires
     //! the Delta (singles quadrature) XC route; a polarized PLANE-WAVE fit (a per-channel pair route) is asserted out
     //! until designed.
+    //! \a hubbard: the DFT+U manifolds (empty = no +U term; programme step 5, pin 23).
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={},
-               VxcFit fit=VxcFit::Auto, SpinGroup g=SpinGroup::UnPolarized);
+               VxcFit fit=VxcFit::Auto, SpinGroup g=SpinGroup::UnPolarized,
+               std::vector<HubbardManifold> hubbard={});
 private:
     void BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
-                    VxcFit fit=VxcFit::Auto);
+                    VxcFit fit=VxcFit::Auto, std::vector<HubbardManifold> hubbard={});
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
     void BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
                       const std::string& functional, const qcMesh::MeshParams& xcMesh,
-                      VxcFit fit=VxcFit::Auto);
+                      VxcFit fit=VxcFit::Auto, std::vector<HubbardManifold> hubbard={});
     std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
     std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;
 };

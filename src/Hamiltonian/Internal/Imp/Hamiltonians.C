@@ -12,6 +12,7 @@ import qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, Vxc_Quadrature + MakeDensitySampler (the periodic KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
+import qchem.Hamiltonian.Internal.Hubbard;        // Hubbard_U: DFT+U (programme step 5)
 import qchem.Types;                               // dcmplx (for IonIon<dcmplx>)
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
@@ -122,7 +123,7 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
-                            VxcFit fit)
+                            VxcFit fit, std::vector<HubbardManifold> hubbard)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
     // REL_CUTOFF seam).  Exchange and correlation share ONE Vxc fit basis, so it takes the DENSER of the two;
@@ -220,6 +221,8 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         qchem::report::Timed timed("setup: XC term assembly (Phi tables are its child)");
         Add(MakeVxcTerm({exch, corr}, XFitBasis, GetSpinGroup(), std::move(quadrature)).release());
     }
+    // DFT+U (programme step 5): one term carrying the whole manifold list, born on the forward/adjoint pair.
+    if (!hubbard.empty()) Add(new Hubbard_U(st, std::move(hubbard), GetSpinGroup()));
 
     {
         // The Ewald sum is a real lattice computation, not a term ctor -- priced on its own so the
@@ -255,10 +258,11 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<st
 
 // Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                       const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, SpinGroup g)
+                       const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, SpinGroup g,
+                       std::vector<HubbardManifold> hubbard)
     : cHamiltonianImp(g)
 {
-    BuildFromGTH(st, bs, species, functional, xcMesh, fit);
+    BuildFromGTH(st, bs, species, functional, xcMesh, fit, std::move(hubbard));
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
@@ -266,7 +270,8 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::p
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                              const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit)
+                              const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit,
+                              std::vector<HubbardManifold> hubbard)
 {
     auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
@@ -285,7 +290,7 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit);
+    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit, std::move(hubbard));
 }
 
 Ham_DHF_1E::Ham_DHF_1E(const st_t& st)

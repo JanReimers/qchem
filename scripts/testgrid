@@ -19,6 +19,7 @@ AXES = [
     ("k",        {"Γ":"Γ", "k211":"2x1x1", "k222":"2x2x2", "k222s":"2x2x2 shifted", "k311":"3x1x1"}, "Γ"),
     ("grid",     {"Uni":"uniform", "Becke":"Becke"},                                        "Auto"),
     ("fit",      {"PWFit":"PW fit", "DeltaFit":"delta fit"},                                "Auto"),
+    ("model",    {"U":"DFT+U"},                                                              "LDA"),
     ("sym",      {"Imp":"imposed", "Shub":"Shubnikov", "Grey":"grey (control)"},            "free"),
     ("spin",     {"Pol":"2-channel singlet", "M2":"doublet", "M3":"triplet", "M6":"sextet"},   "unpolarized"),
     ("occ",      {"Smear":"smeared", "Anneal":"annealed"},                                 "kT=0 aufbau"),

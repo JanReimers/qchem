@@ -224,6 +224,9 @@ public:
     //! The direct cell (geometry accessor -- the XC-quadrature factory needs the cell matrix the
     //! crystal ops act in).
     const UnitCell& Cell() const {return itsCell;}
+    //! The molecular block these Bloch sums are built over -- for a consumer that needs its SHELL layout
+    //! (the AoShellSource face on the Bloch block forwards here; +U manifolds, 2026-09-19).
+    const BasisSet::Real_OIBS& MolecularBlock() const {return *itsOrb;}
 
 private:
     //! The reciprocal \f$\{U|\tau\}\f$ face of \c itsSymOps (\f$U=W^\top\f$, the G-index scatter map) --

@@ -56,6 +56,12 @@ export namespace qchem
 
 //! \brief How to set up a periodic calculation.  Designated-initializer friendly:
 //!     SolidCalculation calc(lattice, basis, {.Nelec=8, .species={{"Si",4}}});
+//! A Hubbard manifold spelled the way the literature quotes it: \a U in eV.  (0.147 Ha = 4.0 eV.)
+inline Hamiltonian::HubbardManifold HubbardU(size_t site, int l, double U_eV)
+{
+    return Hamiltonian::HubbardManifold{site, l, U_eV/27.211386245988};
+}
+
 struct SolidCalcOptions
 {
     //! \name The system
@@ -87,6 +93,12 @@ struct SolidCalcOptions
     //! WHICH fit basis represents v_xc -- ORTHOGONAL to the grid above.  \c Auto picks Delta whenever the
     //! plane-wave fit cannot serve (Becke grid, or a polarized run).
     Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;
+    //! \brief DFT+U manifolds (programme step 5; doc/Pins.md pin 23): one entry per (site, l, U) -- the
+    //! manifold is an INPUT, never the transition metal's d shell by assumption.  \c U in HARTREE here as
+    //! everywhere inside the library; \c HubbardU(site, l, eV) below converts from the eV the literature
+    //! quotes.  Empty (default) = no Hubbard term.  Increment 1: shell-averaged U, Löwdin projectors,
+    //! occupations from \f$D_{out}\f$ (a declared CP2K deviation: they mix P).
+    std::vector<Hamiltonian::HubbardManifold> hubbard;
     //!@}
 
     //! \name Convergence machinery

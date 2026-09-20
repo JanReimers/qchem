@@ -53,6 +53,19 @@ export namespace qchem::Hamiltonian
         int    libxcId = 1;         //!< libxc functional id, XC::LibXC only (1 = LDA_X / Slater)
     };
 
+    //=== Hubbard +U manifolds (programme step 5; doc/Pins.md pin 23) ===============================
+    //! \brief ONE Hubbard manifold: the \f$2l+1\f$ functions of shell \a l on atom \a site of the cell, and
+    //! the on-site \f$U\f$ (Hartree) applied to them.  A run carries a LIST of these -- the manifold is an
+    //! INPUT, never an assumption: Mn-d is one entry, O-p can be another (pin 23: the decisive correction in
+    //! β-MnO₂ was O-p_z).  Increment 1 carries the SHELL-AVERAGED \f$U\f$ (Dudarev); the per-site-irrep
+    //! vector (Macke et al. 2024, the orbital-resolved form) grows out of the same field.
+    struct HubbardManifold
+    {
+        size_t site = 0;     //!< atom index in the cell (the order Structure::ForEachSite walks)
+        int    l    = 2;     //!< the shell's angular momentum -- said, never inferred
+        double U    = 0.0;   //!< \f$U_{eff}=U-J\f$ in HARTREE (the facade converts from eV)
+    };
+
     //=== The resolvers ===============================================================================
     //! Non-DFT Hamiltonians (HF / 1-electron / Dirac).  DFT Models route through the DFT resolver below.
     rHamiltonian* Factory(Model,SpinGroup,const st_t& st);
@@ -99,9 +112,10 @@ export namespace qchem::Hamiltonian
     //! \a xcMesh chooses the real-space XC quadrature and \a fit chooses which basis represents
     //! \f$v_{xc}\f$; the two are ORTHOGONAL (see \c VxcFit).  Resolve \c UnitCellKind::Auto BEFORE
     //! calling -- \c qcMesh::ResolveXCMesh is the policy, and an unresolved \c Auto reads as \c Uniform here.
+    //! \a hubbard: the DFT+U manifold list (empty = no Hubbard term).
     cHamiltonian* Factory(SpinGroup, const st_t& st, const cbs_t* bs,
                           const std::vector<std::pair<std::string,int>>& species,
                           const std::string& functional, const qcMesh::MeshParams& xcMesh,
-                          VxcFit fit = VxcFit::Auto);
+                          VxcFit fit = VxcFit::Auto, std::vector<HubbardManifold> hubbard = {});
 
 } // namespace

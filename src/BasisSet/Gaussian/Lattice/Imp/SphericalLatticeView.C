@@ -20,6 +20,8 @@ import qchem.BasisSet.Gaussian.Point.IBS;           // Gaussian::Orbital_1E_IBS 
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;  // the periodic capability the view answers
 import qchem.BasisSet.Internal.BasisSetImp;   // the one-block Real_BS container
 import qchem.Symmetry.Molecule.OperationRep;  // AoShell (+ ShellRep::Monomials soft capability)
+import qchem.Symmetry.Molecule.SphericalRep;  // SphericalShellRep -- the view's own shell reps (GetAoShells)
+import qchem.BasisSet.AoShellSource;          // the face the inner block answers and this view forwards
 import qchem.Math.Angular;                    // Math::SphericalShell / Monomial (the C_l source of truth)
 import qchem.Structure;
 import qchem.UnitCell;
@@ -144,8 +146,32 @@ public:
         return itsObs->Write(os);
     }
     //! SALC over the view is doc/SphericalLatticePlan.md I4 (needs spherical AoShells); loud until then.
+    //! The view's OWN shell table (2026-09-19 -- it used to throw "plan I4"): one shell per inner shell, same
+    //! centre and shellType, offset in the VIEW's column order (the order BuildCartToSphere assigns), and the
+    //! rep that describes what the view's functions ARE -- the inner Cartesian rep for \f$l\le1\f$ (those
+    //! columns are the inner functions unchanged) and the \f$2l+1\f$ real solid harmonics above it.  Every
+    //! view function is unit-normalised (T's columns are S-normalised), so norm is all ones.  What a +U
+    //! manifold selection reads; what a lattice-SALC induction (I4) would read too.
     virtual std::vector<AoShell> GetAoShells() const override
-    { throw std::runtime_error("SphericalLatticeView: GetAoShells (SALC adaptation) not yet supported (plan I4)"); }
+    {
+        const auto& src=dynamic_cast<const BasisSet::AoShellSource&>(*itsObs);
+        const std::vector<AoShell> inner=src.GetAoShells();
+        std::vector<AoShell> out; out.reserve(inner.size());
+        size_t col=0;
+        for (const AoShell& sh : inner)
+        {
+            const int L=sh.rep->L();
+            AoShell v;
+            v.shellType=sh.shellType; v.center=sh.center; v.offset=col;
+            if (L<=1) { v.rep=sh.rep; }
+            else       { v.rep=std::make_shared<Symmetry::Molecule::SphericalShellRep>(Math::SphericalShell(L)); }
+            v.norm=rvec_t(v.rep->nComponents(), 1.0);
+            col+=v.rep->nComponents();
+            out.push_back(std::move(v));
+        }
+        assert(col==GetNumFunctions());
+        return out;
+    }
 
     // ---- point values (the GPW mesh path): v_sph = T^T v_cart ----
     virtual rvec_t operator()(const rvec3_t& r) const override

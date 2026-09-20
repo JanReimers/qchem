@@ -17,6 +17,7 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/PWTerms_PP.C
     Internal/Imp/PWTerms_Hartree.C
     Internal/Imp/PWTerms_XC.C
+    Internal/Imp/Hubbard.C                # DFT+U (programme step 5, 2026-09-19)
     # ⚠ THE SAMPLING ENGINE -- its OWN module since 2026-09-08 (qchem.Hamiltonian.Internal.DensitySampler).
     # It is not "H_ij and E from a density" and does not belong in this library; the module boundary is the
     # step that makes the library move a CMake change instead of surgery.  The HOME is an open decision:
@@ -38,6 +39,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/ExchangeFunctional.C  
     Internal/SlaterExchange.C
     Internal/VWN_Correlation.C
+    Internal/Hubbard.C                    # DFT+U: Hubbard_U + LowdinProjector (born on MatrixForward/Adjoint)
     Internal/Libxc_LDA.C
     Internal/IonIon.C
     Internal/Kinetic.C

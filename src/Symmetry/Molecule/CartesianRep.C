@@ -29,6 +29,8 @@ public:
     explicit CartesianShellRep(std::vector<IVec3> exps) : itsExps(std::move(exps)) {}
     virtual size_t nComponents() const {return itsExps.size();}
     virtual rmat_t Rep(const rmat3d_t& R) const;
+    //! Every component of a Cartesian shell has the same degree; the first says it.
+    virtual int    L() const override {return itsExps.empty() ? 0 : itsExps[0].n+itsExps[0].l+itsExps[0].m;}
     virtual std::vector<IVec3> Monomials() const override {return itsExps;}   // the ShellRep soft capability
 private:
     std::vector<IVec3> itsExps;

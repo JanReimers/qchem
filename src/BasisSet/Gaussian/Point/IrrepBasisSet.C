@@ -22,7 +22,7 @@ import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Gaussian.Evaluators;      // concepts + generic 1E matrix builders
-export import qchem.Symmetry.Molecule.OperationRep;      // Symmetry::Molecule::AoShell (the molecule-specific 1E addition)
+export import qchem.BasisSet.AoShellSource;              // the GetAoShells face (+ Symmetry::Molecule::AoShell)
 import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
@@ -39,12 +39,9 @@ export namespace qchem::BasisSet::Gaussian
 // is absent from the dcmplx plane-wave path.
 class Orbital_1E_IBS
     : public virtual ::qchem::BasisSet::Orbital_1E_IBS<double>
+    , public virtual ::qchem::BasisSet::AoShellSource   // GetAoShells -- the face moved UP (2026-09-19) so a
+                                                        // Bloch block over this one can answer it too
 {
-public:
-    //! \brief This basis's AO shells for point-group SALC adaptation (Cartesian monomials or real solid
-    //! harmonics, in the basis's own convention).  Deliveries that cannot honour a correct layout THROW
-    //! (e.g. libcint-spherical, whose convention is unmatched -- S3b).
-    virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const = 0;
 };
 
 // --- 1E: Overlap / Kinetic(<p^2>) / Nuclear -------------------------------------------------------
