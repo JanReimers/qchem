@@ -1053,3 +1053,24 @@ TEST(GPW_Si, Γ_Imp_Kerker_Pulay_ConvergesOnMaxDeltaD)
     EXPECT_NEAR(R->Energy(), -7.115067, 1e-5) << "the Γ_Imp anchor to the digits a 1e-6 max|dD| criterion buys";
     EXPECT_LT(R->IterationCount(), 40u) << "CP2K's criterion at 1e-6 must not need a runaway count on a gapped cell";
 }
+
+// THE (rho,m) SINGLET GATE (2026-09-20, the day N3 made (rho,m) the default).  An explicit two-channel singlet has
+// m == 0 exactly, so the m channel of the (rho,m) Kerker mixer is a ZERO FIELD ("rho-tilde mixing on 0
+// electrons") -- the one polarized case the promotion had not met: the no-U polarized twin above mixes D
+// linearly, and the +U gate below was the first Kerker singlet -- it produced a NaN Fock matrix.  Contract: the
+// polarized Kerker singlet reproduces the unpolarized Kerker run (zeta=0 collapse) under the DEFAULT channel basis.
+TEST(GPW_Si, Γ_Imp_Pol_Kerker_eqUnpol)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Kerker");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    SCFParams par=ProductionGates(); par.KerkerG0=1.0;
+    qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
+    o.multiplicity=1; o.label="Si SR Gamma Kerker pol-singlet";
+    qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
+    auto a=unpol.Result(), b=pol.Result();
+    ASSERT_TRUE(a) << Why(a);
+    ASSERT_TRUE(b) << Why(b);
+    EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6) << "the zeta=0 collapse on the Kerker mixer, whatever the channel basis";
+}

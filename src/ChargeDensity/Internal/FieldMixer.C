@@ -32,7 +32,10 @@ inline rvec_t RasterKerker(const BasisSet::G_SpectralFilter& ge, const rvec_t& i
     const double G0sq=G0*G0;
     rvec_t delta=out; delta-=in;
     rvec_t mix=in;
-    mix+=alpha*ge.ApplySpectralFilter(delta, [G0sq](double g2){return g2/(g2+G0sq);});
+    // G=0 -> full mixing, exactly as KerkerStep's fK: with G0=0 (the LINEAR leaf -- the m channel of the
+    // (rho,m) basis) the unguarded ratio is 0/0 at G=0, a NaN that rode the raster shadow into the rebuilt
+    // channels and v_xc on every polarized Kerker singlet (found 2026-09-20 by GPW_Si.Γ_Imp_Pol_Kerker_eqUnpol).
+    mix+=alpha*ge.ApplySpectralFilter(delta, [G0sq](double g2){return (g2>0.0) ? g2/(g2+G0sq) : 1.0;});
     return mix;
 }
 
