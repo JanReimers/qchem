@@ -144,7 +144,8 @@ TEST(GPW_Si, Γ_CP2K)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free, the facade's own recipe)");
     o.densityEcut=20.0;                              // FREE: the facade's default -- the imposed sibling is GPW_Si.Γ_Imp_CP2K
-    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
+    SCFParams par=ProductionGates(); EnvOverrides(o, par);   // the Benchmark row (scripts/retake5a) drives it
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
 
     // N1/T1: the answers are reachable only through the PROOF, so a non-converged run cannot serve them.
     auto r = calc.Result();

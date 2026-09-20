@@ -307,8 +307,35 @@ SCFParams TightGates(size_t nmax=120) { return Gates(nmax, 1e-6, 1e30); }
 //! block); GPW_SEED=coreguess|uniform|sad|ionicsad (CoreGuess separates the operators from the seed);
 //! GPW_ORTHO=cholesky|eigen|svd (a defect under one ortho only is IN the ortho); GPW_KERKER_G0=g (the
 //! density preconditioner the supercell ladder cannot run without).
+//! THE DECK-SHAPED LOOP (doc/Benchmark.md rule 3f, 2026-09-20 -- what a CP2K-comparable count needs):
+//! GPW_MEASURE=maxdd|mixer (CP2K's EPS_SCF measure max|dD_ij| between successive D_out, or the mixer's own
+//! residual), GPW_EPS=tol (MinΔρ on that measure), GPW_NMAX=n, GPW_PULAY=depth + GPW_PULAY_START=n (the
+//! density-side history, as the deck's NBUFFER), GPW_ACC=diis|gdm|ladder|null (null = nothing on the Fock
+//! side, as a diagonalise-and-mix deck), GPW_MOM=0/1.  `scripts/retake5a` sets all of them.
 void EnvOverrides(SolidCalcOptions& o, SCFParams& par)
 {
+    if (const char* m=std::getenv("GPW_MEASURE"))
+    {
+        const std::string v(m);
+        if      (v=="maxdd") par.Δρmeasure=SCFParams::Measure::MaxΔD;
+        else if (v=="mixer") par.Δρmeasure=SCFParams::Measure::MixerResidual;
+        else throw std::runtime_error("GPW_MEASURE: expected maxdd|mixer, got '"+v+"'");
+    }
+    if (const char* e=std::getenv("GPW_EPS"))         par.MinΔρ=std::atof(e);
+    if (const char* n=std::getenv("GPW_NMAX"))        par.NMaxIter=std::atoi(n);
+    if (const char* d=std::getenv("GPW_PULAY"))       par.PulayDepth=std::atoi(d);
+    if (const char* d=std::getenv("GPW_PULAY_START")) par.PulayStart=std::atoi(d);
+    if (const char* mm=std::getenv("GPW_MOM"))        par.UseMOM=std::atoi(mm)!=0;
+    if (const char* a=std::getenv("GPW_ACC"))
+    {
+        const std::string v(a);
+        using T=qchem::SCFAccelerators::Type;
+        if      (v=="diis")   o.accelerator=T::DIIS;
+        else if (v=="gdm")    o.accelerator=T::GDM;
+        else if (v=="ladder") o.accelerator=T::Ladder;
+        else if (v=="null")   o.accelerator=T::Null;
+        else throw std::runtime_error("GPW_ACC: expected diis|gdm|ladder|null, got '"+v+"'");
+    }
     if (const char* im=std::getenv("GPW_IMPOSE")) o.imposeSymmetry=std::atoi(im)!=0;
     if (const char* kt=std::getenv("GPW_SMEAR"))  par.SmearingkT=std::atof(kt);
     if (std::getenv("GPW_VERBOSE"))               par.Verbose=true;

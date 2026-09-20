@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# scripts/retake5a -- re-take doc/Benchmark.md section 5a on CP2K's CONVERGENCE MEASURE (rule 3f, 2026-09-20).
+#
+# Every `q iters` / `c steps` / `total x` cell in section 5a compared a 1e-3..1e-5 mixer residual with CP2K's
+# EPS_SCF on max|dP| -- two different questions.  This script runs each qchem row with the DECK'S loop shape
+# and measure: GPW_MEASURE=maxdd (max|dD_ij| between successive D_out), GPW_EPS / GPW_NMAX off the deck,
+# GPW_ACC=null (nothing on the Fock side: a diagonalise-and-mix deck), GPW_MOM=0, Kerker G0=1 + GPW_PULAY=8 on
+# every row.  STATED DIFFERENCE: the Si decks carry no &MIXING block (CP2K's default DIRECT_P_MIXING, alpha 0.4,
+# which converges Si to 1e-7 in 12 steps); our plain linear D-mixing with no Fock accelerator DIVERGES on free
+# Si after ~20 iterations (the adaptive relax raises alpha 0.30 -> 0.45 and never re-damps -- DIIS had been
+# masking it; OpenWork section 4), so the stable no-Fock-side route on our side is Kerker + Pulay(8): 13
+# iterations to 1e-7 on the same anchor.  The NaF decks mix BROYDEN NBUFFER 8, matched by Pulay 8.
+# All rows under CP2K_COMPAT=1 (no Becke mesh, no imposition, no stream fold / low-rank rho) and serial.
+# The MnO rows are NOT here: they were taken 2026-09-20 with `gpwprobe mno` (section 5 footnote 8).
+#
+#   scripts/retake5a                # from the repo root; ~15 min serial; logs in build/Release/bench5a/
+#   scripts/memsafe -p scripts/retake5a   # unattended (OOM-shielded)
+#
+# Output: one markdown row per run on stdout (scripts/bench's row) + the iteration count and energy grepped
+# from the log, so the section 5a columns can be filled from ONE listing.  The CP2K side is not re-run: its
+# counts were already at EPS_SCF (doc/Records/CP2Kresults.md).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+BIN=build/Release/IntegrationTests/ITMain
+OUT=build/Release/bench5a; mkdir -p "$OUT"
+[ -x "$BIN" ] || { echo "build ITMain first (cd build/Release && ninja ITMain)" >&2; exit 1; }
+
+export CP2K_COMPAT=1 GPW_REPORT=1 GPW_OMP_THREADS=1 OMP_NUM_THREADS=1
+export GPW_MEASURE=maxdd GPW_ACC=null GPW_MOM=0 GPW_KERKER_G0=1
+
+row() {  # row <label> <gtest filter> <EPS> <NMAX> <PULAY> [extra env...]
+    local label=$1 filt=$2 eps=$3 nmax=$4 pulay=$5; shift 5
+    local slug; slug=$(echo "$label" | tr -c 'A-Za-z0-9' '_' | sed 's/__*/_/g; s/^_//; s/_$//')   # = scripts/bench's slug
+    local log="bench_${slug}.log"
+    echo "### $label  (filter $filt; EPS $eps, NMAX $nmax, PULAY $pulay; $*)"
+    env GPW_EPS="$eps" GPW_NMAX="$nmax" GPW_PULAY="$pulay" GPW_PULAY_START=5 "$@" \
+        scripts/bench "$label" -- "$BIN" --gtest_filter="$filt" --gtest_also_run_disabled_tests \
+        || echo "    ** run FAILED -- see $log"
+    grep -E "CONVERGED|NOT conv" "$log" | sed 's/^/    /' | cut -c1-160 || true
+    grep -E "SETUP TOTAL|SCF TOTAL" "$log" | sed 's/^/    /' || true
+    mv "$log" "$OUT/" 2>/dev/null || true
+}
+
+# Si decks: EPS_SCF 1e-7, MAX_SCF 60, no &MIXING (direct P mixing; see the stated difference above).
+row "Si Gamma qchem 3f"     "GPW_Si.Γ_CP2K"          1e-7 60 8
+row "Si 222g qchem 3f"      "GPW_Si.k222_CP2K"       1e-7 60 8
+row "Si 222shift qchem 3f"  "GPW_Si.k222s_Imp_CP2K"  1e-7 60 8
+# NaF decks: EPS_SCF 1e-6, MAX_SCF 200, BROYDEN_MIXING NBUFFER 8 -> Pulay 8.
+row "NaF SR2 Gamma qchem 3f" "GPW_NaF.Γ_Imp_Anchor"  1e-6 200 8
+echo "### done -- fill doc/Benchmark.md section 5a from the rows above; CP2K counts stand (already at EPS_SCF)."

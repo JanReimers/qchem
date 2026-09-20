@@ -121,6 +121,7 @@ TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 i
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
     SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4;
     par.Verbose=(bool)std::getenv("GPW_VERBOSE");
+    EnvOverrides(o, par);                            // the Benchmark row (scripts/retake5a) drives it
     GpwReport report("NaF "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, par);
     auto R=calc.Result();
