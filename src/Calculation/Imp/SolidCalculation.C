@@ -195,6 +195,19 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
              <<";  OMP wait="<<[]{const char* b=std::getenv("KMP_BLOCKTIME"); return b?b:"?";}()
              <<" ms spin"<<std::endl;
     std::cout<<"["<<o.label<<" run] "<<theRunPolicy().Banner()<<std::endl;
+    // +U's manifolds are a RUN OPTION, so they are stated here beside the knob banner (the FORM --
+    // eigenvalues vs CP2K's diagonal populations -- is the knob QCHEM_U_EIGEN on that banner).  What is
+    // declared here beyond the manifolds is the one deviation that is neither: occupations from D_out, the
+    // DM-backed source of the mixed density, where CP2K mixes P (same fixed point, different trajectory).
+    if (!o.hubbard.empty())
+    {
+        std::cout<<"["<<o.label<<" run] +U: LOWDIN (CP2K's all-l-shells manifold), shell-averaged, "
+                 <<(theRunPolicy().HubbardEigen() ? "eigenvalue form (Dudarev)" : "DIAGONAL populations (CP2K's form)")
+                 <<", occupations from D_out*;  manifolds:";
+        for (const auto& M : o.hubbard)
+            std::cout<<" (site "<<M.site<<", l="<<M.l<<", U="<<M.U*27.211386245988<<" eV)";
+        std::cout<<"   [* = differs from CP2K]"<<std::endl;
+    }
 }
 // WHAT THE SCF IS DOING: the mixer, the accelerator, the occupation machinery.  Emitted per Converge,
 // because that is where these take effect -- and an anneal changes them stage by stage.

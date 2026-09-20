@@ -9,6 +9,7 @@
 //   GPW_MnO.Γ_Becke_Pol_SeedVxcMirror
 //   GPW_MnO.Γ_Shub_Pol_SeedDecoration
 //   GPW_MnO.DISABLED_Γ_Shub_Pol_Smear_Anchor   (LONG: ~5 min; run explicitly -- the converged AFM-II gate)
+//   GPW_MnO.DISABLED_Γ_U_Shub_Pol_Smear_CP2K   (LONG: two ~6 min arms; the shell-averaged DFT+U oracle gate, VA span)
 
 #include "gtest/gtest.h"
 #include <memory>
@@ -445,4 +446,77 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Anchor)
     ASSERT_FALSE(trace.rows.empty());
     EXPECT_GT(std::abs(trace.rows.back().order), 4.0) << "the INTEGRATED Mn site moment must be d^5-scale at convergence (measured 4.45)";
     EXPECT_NE(R->SpinDensity(), nullptr) << "a polarized run must hand back m(r)";
+}
+
+// ============================ THE SHELL-AVERAGED DFT+U ORACLE GATE (programme step 5.1) ============================
+// CP2K's +U oracle (doc/Records/CP2Kresults.md, 2026-09-19): the banked VA deck + `&DFT_PLUS_U L 2,
+// U_MINUS_J [eV] 4.0` on both Mn kinds, PLUS_U_METHOD LOWDIN -> Etot -60.68597088 Ha (was -61.30332518 without
+// U: a +0.61735 Ha shift), DFT+U energy 0.60950923 Ha, Mulliken moments +-4.765.  What is compared is the
+// U-INDUCED SHIFT and E_U itself, not the absolute energy: the two codes already sit 100 mHa apart on this span
+// (doc/Benchmark.md section 5c, the XC-grid/fit deviations), and that offset is U-independent to first order.
+// The manifold is CP2K's definition, read off src/dft_plus_u.F: EVERY d shell on the Mn -- all 8 contractions,
+// a 40x40 Loewdin block per Mn per spin -- which qchem's Hubbard_U reproduces (Columns).  AND THE FORM IS CP2K's
+// (found 2026-09-20 when the Dudarev form gave E_U=0.080 against the oracle's 0.610): dft_plus_u.F keeps ONLY
+// THE DIAGONAL of the block (`IF (isgf == jsgf)`), i.e. the 40 Loewdin POPULATIONS, no eigen-decomposition --
+// QCHEM_U_EIGEN=0 here, the CP2K_COMPAT member the user ruled it into (2026-09-20) -- so the two E_U's are the
+// same functional of two densities.  The Dudarev form on
+// the same recipe, MEASURED 2026-09-20 (self-consistent, U=4 eV): E_U=0.0801 Ha, dE=+0.1034 Ha, occupation
+// eigenvalues near-integer (N_maj=4.80, max lambda=0.997, N_min=0.25) -- the physical number, 7.6x below the
+// population form's; it is banked in doc/Records/CP2Kresults.md, not asserted here.
+// That is why this needs the VA span (the 8-zeta d file CP2K holds
+// function-for-function) AND the spherical view: a Cartesian d has six components with the s-contaminant among
+// them, and Hubbard_U refuses it (the Loewdin block would be 48x48 with a contaminant in the manifold).
+// The RECIPE is the Shub anchor's (above), which is the production one for this cell.  Two arms, ~6 min each
+// (the VA span is the 6m38s benchmark row), hence DISABLED_ like the anchor: --gtest_also_run_disabled_tests.
+// QCHEM_U_TRACE=1 prints the per-refresh occupation line (N per manifold, max lambda, E_U) to compare against
+// CP2K's own &PRINT &PLUS_U table in bench_MnO_AFM2_VA_plusU_cp2k.log.
+TEST(GPW_MnO, DISABLED_Γ_U_Shub_Pol_Smear_CP2K)
+{
+    const Material mno=qchem::Materials::Get("MnO_AFM2");   // sites 0,1 = Mn (+m, -m); 2,3 = O
+    const Lattice_3D lat=LatticeOf(mno);
+    {   // the manifold indices are a claim about the material row: check it, do not assume it
+        int i=0; mno.cell->ForEachSite([&](int Z, const rvec3_t&, bool){ if (i<2) EXPECT_EQ(Z,25) << "site "<<i<<" must be Mn"; i++; });
+    }
+    auto basis=[&]{ return BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(
+        std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(BasisSetData::VALENCE_LOWQ_VA, mno.cell.get(),
+                                       BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian))); };
+    // Each arm's SolidCalculation must OUTLIVE its Result (the result points into the calculation), so the
+    // arms are held here and the lambda only builds them.
+    std::vector<std::unique_ptr<qchem::SolidCalculation>> arms;
+    auto run=[&](double U_eV, const std::string& label)
+    {
+        SolidCalcOptions o=OptionsFor(mno, label);
+        o.multiplicity=1;
+        o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+        o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+        o.accelerator=qchem::SCFAccelerators::Type::Ladder;
+        o.imposeSymmetry=true;
+        if (U_eV>0.0) o.hubbard={HubbardU(0,2,U_eV), HubbardU(1,2,U_eV)};
+        SCFParams par=Gates(120, 1e-5, 1e30);
+        par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
+        par.UseMOM=true; par.MOMStartIter=10; par.Guard.HolePersistence=3;
+        par.SmearingkT=5e-3;
+        par.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
+        Trace trace; o.onIteration=trace.Observer();
+        GpwReport report("MnO "+o.label, par.Verbose);
+        arms.push_back(std::make_unique<qchem::SolidCalculation>(lat, basis(), o, par));
+        trace.Print(o.label, /*polarized*/true);
+        return arms.back()->Result();
+    };
+    // THE FORM is a declared deviation, so it is set the way the N5 hatch sets one: for this test only.
+    setenv("QCHEM_U_EIGEN","0",1);  qchem::ReresolveRunPolicy();
+    auto r0=run(0.0, "MnO AFM-II VA sph Gamma (imposed)");
+    auto rU=run(4.0, "MnO AFM-II VA sph Gamma (imposed, U=4 eV on Mn d)");
+    unsetenv("QCHEM_U_EIGEN");      qchem::ReresolveRunPolicy();
+    ASSERT_TRUE(r0) << Why(r0);
+    ASSERT_TRUE(rU) << Why(rU);
+    EXPECT_NEAR(r0->TotalCharge(), 26.0, 1e-6);
+    EXPECT_NEAR(rU->TotalCharge(), 26.0, 1e-6);
+    const double E0=r0->Energy(), EU=rU->Energy(), dE=EU-E0, E_U=rU->EnergyTerms()["E_U"];
+    const double cp2k_dE=-60.68597087953861-(-61.30332518), cp2k_EU=0.60950923227552;
+    std::cout<<std::setprecision(10)<<"[MnO +U] E(0)="<<E0<<"  E(U)="<<EU<<"  dE="<<dE<<" (CP2K "<<cp2k_dE
+             <<")  E_U="<<E_U<<" (CP2K "<<cp2k_EU<<")  dE-E_U="<<dE-E_U<<" (CP2K "<<cp2k_dE-cp2k_EU<<")"<<std::endl;
+    EXPECT_GT(E_U, 0.0);
+    EXPECT_NEAR(E_U, cp2k_EU, 0.05) << "the same population functional (all 8 d shells, diagonal) of two densities that agree to 0.1 Ha";
+    EXPECT_NEAR(dE,  cp2k_dE, 0.05) << "the U-induced shift; the absolute offset between the codes is U-independent";
 }

@@ -103,13 +103,25 @@ public:
     //! ⚠ It is also the most defect-dense idea in the collocation path (ScreeningPlan.md §2), which is
     //! why the value now selects a \c LatticeScreener OBJECT rather than a branch in the box walk.
     bool DAwareScreen() const {return itsDAware.value;}
+    //! \brief DFT+U on the Löwdin block's EIGENVALUES (Dudarev, rotationally invariant -- Macke 2024 eq 6)
+    //! rather than on its DIAGONAL POPULATIONS.  DEFAULT ON; false is CP2K's form.
+    //!
+    //! WHY IT IS ON THIS TABLE (2026-09-20, user: *"include diagonal Löwdin populations (no
+    //! eigen-decomposition) as part of the CP2K_COMPAT flag"*).  CP2K's LOWDIN/MULLIKEN +U
+    //! (`src/dft_plus_u.F`, the `IF (isgf == jsgf)` copy) keeps ONLY the diagonal of the atom's
+    //! \f$S^{1/2}PS^{1/2}\f$ block -- \f$E_U=\tfrac U2\sum_i q_{ii}(1-q_{ii})\f$, \f$V_{ii}=U(\tfrac12-q_{ii})\f$
+    //! over every l-shell function on the atom, no eigen-decomposition (it CPASSERTs the off-diagonals
+    //! away).  On MnO's 8-zeta d span that is 0.61 Ha at U=4 eV where the eigenvalue form gives 0.08 --
+    //! the populations are all fractional, the eigenvalues near-integer -- so a +U row compared against
+    //! CP2K must run its form, and a physical run must not.  Consulted ONCE, by \c Hubbard_U's constructor.
+    bool HubbardEigen() const {return itsUEigen.value;}
     //!@}
 
     bool CP2KCompat() const {return itsCP2KCompat;}   //!< the umbrella was asked for
     //! Every deviation, in one list, whatever its value -- the banner prints the WHOLE table, because a
     //! row that lists only what is ON cannot be read as evidence that the rest is OFF.
     std::vector<Deviation> Deviations() const
-    {return {itsDMLowRank, itsStreamFold, itsMixRhoM, itsXCFromDM, itsImpose, itsBeckeXC, itsDAware};}
+    {return {itsDMLowRank, itsStreamFold, itsMixRhoM, itsXCFromDM, itsImpose, itsBeckeXC, itsDAware, itsUEigen};}
     //! Are we actually at parity?  (CP2K_COMPAT=1 plus an explicit knob that contradicts it is NOT.)
     bool AtParity() const;
     //! One line naming every deviation and its state, with `*` on the ones that differ from CP2K.
@@ -119,7 +131,7 @@ private:
     Deviation Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault);
     bool      itsCP2KCompat = false;
     Deviation itsDMLowRank{}, itsStreamFold{}, itsMixRhoM{}, itsXCFromDM{}, itsImpose{}, itsBeckeXC{},
-              itsDAware{};
+              itsDAware{}, itsUEigen{};
 };
 
 //! The process's policy.  A function rather than a global so it is constructed on first use, after

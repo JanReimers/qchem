@@ -28,6 +28,10 @@
 // mix P); same fixed point, different trajectory.  SpinGroup::None: n = n_tot/2 in both channels -- the
 // zeta=0 collapse (pin 5).
 //
+// THE FORM (RunPolicy::HubbardEigen, knob QCHEM_U_EIGEN, off under CP2K_COMPAT): Dudarev on the block's
+// EIGENVALUES (above) or CP2K's DIAGONAL POPULATIONS -- dft_plus_u.F keeps only q_ii, so E_U = U/2 Sum q_ii(1-q_ii)
+// and V_ii = U(1/2 - q_ii), no eigen-decomposition.  Read once at construction, like every deviation.
+//
 // FROZEN-OCCUPATION MODE (day one): FreezeOccupations(true) keeps the stored n^sigma through every refresh
 // -- Macke fixes V_U at its unperturbed value during LR-cDFT perturbation runs, and a polaron study puts the
 // carrier on a chosen site the same way.
@@ -136,6 +140,7 @@ private:
     std::vector<HubbardManifold>     itsManifolds;
     std::vector<rvec3_t>             itsSites;          //!< the cell's site positions, ForEachSite order
     SpinGroup                        itsGroup;
+    bool                             itsEigenForm;      //!< RunPolicy::HubbardEigen at construction (false = CP2K's populations)
     mutable size_t                   itsNCoeff = 0;     //!< \f$\sum_M m_M^2\f$, fixed by the first block seen
     bool                             itsFrozen = false;
 

@@ -44,7 +44,7 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
     Restore r;
     Env a("CP2K_COMPAT",nullptr), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
         d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
-        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr);
+        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr), i2("QCHEM_U_EIGEN",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
     EXPECT_FALSE(p.CP2KCompat());
@@ -58,7 +58,9 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
     // The collocation box tolerance: eps/|c_ij| by default, flat eps (CP2K's rule) under the umbrella.
     // It selects a LatticeScreener object, not a branch in the box walk -- doc/OldPlans/ScreeningPlan.md §7.
     EXPECT_TRUE (p.DAwareScreen());
-    EXPECT_EQ(p.Deviations().size(), 7u) << "a new accelerator is not finished until it is in this list";
+    // DFT+U on the Löwdin block's eigenvalues (Dudarev) by default; CP2K's form is its diagonal populations.
+    EXPECT_TRUE (p.HubbardEigen());
+    EXPECT_EQ(p.Deviations().size(), 8u) << "a new accelerator is not finished until it is in this list";
     EXPECT_NE(p.Banner().find("DEVIATING"), std::string::npos);
 }
 
@@ -68,7 +70,7 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
     Restore r;
     Env a("CP2K_COMPAT","1"), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
         d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
-        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr);
+        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr), i2("QCHEM_U_EIGEN",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
     EXPECT_TRUE (p.CP2KCompat());
@@ -82,6 +84,8 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
     // argument), so parity means the geometry-only screener.  This tree had been taking the deviation
     // SILENTLY until 2026-09-04, which is the reason it is on the table at all.
     EXPECT_FALSE(p.DAwareScreen());
+    // CP2K's +U keeps only the diagonal of the Löwdin block (dft_plus_u.F) -- no eigen-decomposition.
+    EXPECT_FALSE(p.HubbardEigen());
     for (const Deviation& dev : p.Deviations()) EXPECT_FALSE(dev.Deviates()) << dev.knob;
     EXPECT_NE(p.Banner().find("AT PARITY"), std::string::npos);
 }
@@ -94,7 +98,7 @@ TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
     Restore r;
     Env a("CP2K_COMPAT","1"), b("GPW_STREAM_FOLD","1"), c("QCHEM_DM_LOWRANK",nullptr),
         d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
-        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr);
+        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr), i2("QCHEM_U_EIGEN",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
     EXPECT_TRUE (p.CP2KCompat());

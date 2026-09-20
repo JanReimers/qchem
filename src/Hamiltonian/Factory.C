@@ -59,6 +59,8 @@ export namespace qchem::Hamiltonian
     //! INPUT, never an assumption: Mn-d is one entry, O-p can be another (pin 23: the decisive correction in
     //! β-MnO₂ was O-p_z).  Increment 1 carries the SHELL-AVERAGED \f$U\f$ (Dudarev); the per-site-irrep
     //! vector (Macke et al. 2024, the orbital-resolved form) grows out of the same field.
+    //! The FORM of the functional (Dudarev on the block's eigenvalues, or CP2K's diagonal populations) is not
+    //! here: it is a process-wide CP2K-parity deviation, \c RunPolicy::HubbardEigen (knob \c QCHEM_U_EIGEN).
     struct HubbardManifold
     {
         size_t site = 0;     //!< atom index in the cell (the order Structure::ForEachSite walks)

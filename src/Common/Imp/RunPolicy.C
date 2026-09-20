@@ -51,6 +51,8 @@ RunPolicy::RunPolicy()
     // GPW_DAWARE_SCREEN=0 still reproduces -- but it now selects a screener OBJECT, not a branch.
     itsDAware     = Resolve("GPW_DAWARE_SCREEN", "D-aware collocation box tolerance eps/|c_ij| instead of flat eps",
                             /*cp2k*/false, /*qchem default*/true);
+    itsUEigen     = Resolve("QCHEM_U_EIGEN", "DFT+U on the Lowdin block's eigenvalues (Dudarev) instead of its diagonal populations",
+                            /*cp2k*/false, /*qchem default*/true);
 }
 
 // EXPLICIT BEATS THE UMBRELLA (see the interface): if the knob was named at all, that is the answer,

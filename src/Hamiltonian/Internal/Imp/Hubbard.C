@@ -16,6 +16,7 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.Hubbard;
 import qchem.Energy;
+import qchem.RunPolicy;                         // theRunPolicy().HubbardEigen() -- the form, read once here
 import qchem.ChargeDensity;                     // cDM_CD, ChannelOf, tDM_Sourced_CD (the DM-backed source)
 import qchem.BasisSet.AoShellSource;            // the shell layout a manifold is selected from
 import qchem.Symmetry.Molecule.OperationRep;    // AoShell (+ ShellRep::L / Monomials)
@@ -126,7 +127,7 @@ template class LowdinProjector<dcmplx>;
 //================================================================================================= Hubbard_U
 
 Hubbard_U::Hubbard_U(const std::shared_ptr<const Structure>& st, std::vector<HubbardManifold> manifolds, SpinGroup g)
-    : itsSt(st), itsManifolds(std::move(manifolds)), itsGroup(g)
+    : itsSt(st), itsManifolds(std::move(manifolds)), itsGroup(g), itsEigenForm(theRunPolicy().HubbardEigen())
 {
     if (itsManifolds.empty()) throw std::invalid_argument("Hubbard_U: no manifold -- a +U term with nothing to correct");
     itsSt->ForEachSite([this](int, const rvec3_t& R, bool){itsSites.push_back(R);});
@@ -223,7 +224,12 @@ double Hubbard_U::Analyse(const rvec_t& n, std::vector<rvec_t>& occ, rvec_t& W) 
         rsmat_t nM(m);
         for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++) nM(a,b)=0.5*(n[at+a*m+b]+n[at+b*m+a]);
         rvec_t lam; rmat_t v;
-        blazem::eigen(nM, lam, v);                                // n = Sum_i lam_i v_i v_i^T
+        if (!itsEigenForm)
+        {   // CP2K parity (RunPolicy::HubbardEigen): the POPULATIONS are the "eigenvalues", the basis is the identity.
+            lam=rvec_t(m); v=rmat_t(m,m,0.0);
+            for (size_t a=0;a<m;a++) {lam[a]=nM(a,a); v(a,a)=1.0;}
+        }
+        else blazem::eigen(nM, lam, v);                           // n = Sum_i lam_i v_i v_i^T
         occ[M]=lam;
         const double U=itsManifolds[M].U;
         // Dudarev in the eigenbasis (Macke eq 6 with U_i == U): E = Sum U/2 lam(1-lam),
@@ -341,7 +347,9 @@ std::ostream& Hubbard_U::Write(std::ostream& os) const
 {
     os<<"Hubbard +U (Lowdin, shell-averaged):";
     for (const HubbardManifold& M : itsManifolds)
-        os<<" site "<<M.site<<" l="<<M.l<<" U="<<M.U*27.211386245988<<" eV;";
+        os<<" site "<<M.site<<" l="<<M.l<<" U="<<M.U*27.211386245988<<" eV"
+          <<";";
+    os<<(itsEigenForm ? "  [eigenvalue form]" : "  [DIAGONAL populations, CP2K's form]");
     return os<<std::endl;
 }
 
