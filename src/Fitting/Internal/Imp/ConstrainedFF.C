@@ -7,6 +7,7 @@ module qchem.Fitting.Internal.FunctionFitterImp;
 import qchem.Fitting.Types;
 import qchem.Streamable;
 import qchem.Blaze;
+import qchem.BasisSet.Projector3;   // DenseProjector3Integrator + Projector3 (the borrowed tensor)
 
 namespace qchem::Fitting
 {
@@ -42,7 +43,37 @@ ConstrainedFF(fbs_t& fbs, const vec_t<T>& theg)
 //
 template <class T> void ConstrainedFF<T>::DoFitUnconstrained(const ProjectedDensity_AO& ffc)
 {
-    this->itsFitCoeff = ffc.GetUnconstrainedFit(this->itsBasisSet.get());
+    // Which metric face the projection HAS decides the route (V1.16: a face you have or do not, never a
+    // default that guesses).  Both are "what can it do" cross-casts between abstract faces.
+    if (auto* cm=dynamic_cast<const CoulombMetric_ProjectedDensity*>(&ffc))
+    {
+        // A matrix-carrying density: it contracts its own D into the forward THIS fitter vends, per block,
+        // and the metric solve is ours -- c0 = J^-1 <rho|c>.  (R1.0q, 2026-09-19: the solve moved here
+        // from the projection, which had no business owning the fit basis's metric.)
+        this->itsFitCoeff = this->itsBasisSet->InvRepulsion() * cm->GetRepulsion3C(*this);
+        return;
+    }
+    auto* om=dynamic_cast<const OverlapMetric_ProjectedDensity*>(&ffc);
+    assert(om && "ConstrainedFF: a ProjectedDensity_AO carries either the Coulomb or the overlap metric face");
+    this->itsFitCoeff = om->GetUnconstrainedFit(this->itsBasisSet.get());   // a seed's own S^-1 <f|rho>
+}
+
+template <class T> const DenseProjector3Integrator<T>&
+ConstrainedFF<T>::Integrator(const BasisSet::Orbital_DFT_IBS<T,T>& orb) const
+{
+    const sym_t& id=orb.GetSymt();
+    auto it=itsInt.find(id);
+    if (it!=itsInt.end()) return it->second;
+    // The basis's cached, D-free Coulomb tensor <ab|c> (built once, keyed by BasisSetID) -- borrowed by the
+    // integrator, which is a VIEW of it; the fit functions' own <f_a|1> size its energy quadrature.
+    const Projector3<T>& R3=orb.Repulsion3C(*this->itsBasisSet);
+    return itsInt.emplace(id, DenseProjector3Integrator<T>(R3, this->itsBasisSet->Charge())).first->second;
+}
+
+template <class T> const qcMesh::MatrixForward<double>&
+ConstrainedFF<T>::Forward(const BasisSet::Orbital_DFT_IBS<double,double>& orb) const
+{
+    return Integrator(orb);
 }
 
 template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity<T>& pd)
@@ -72,12 +103,10 @@ template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity<T>& pd)
 //
 template <class T> hmat_t<T> ConstrainedFF<T>::Repulsion(const robs_t<T>* bs) const
 {
-    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // robs_t is the 1E base; need the 3-centre one
-    assert(dftbs && "ConstrainedFF::Repulsion: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
-    const Projector3<T>& R3=dftbs->Repulsion3C(*this->itsBasisSet);
-    hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
-    size_t i=0;
-    for (auto c:this->itsFitCoeff) J+=c*R3.dense[i++];
+    // robs_t is the 1E base; the 3-centre tier is the DFT one -- the cross-cast the periodic fitters also make.
+    const auto& dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T,T>&>(*bs);
+    // THE ADJOINT HALF, off the same object whose forward the density contracted D into (R1.0q).
+    hmat_t<T> J=Integrator(dftbs).Adjoint(this->itsFitCoeff);
     assert(!blazem::isnan(J));
     return J;
 }

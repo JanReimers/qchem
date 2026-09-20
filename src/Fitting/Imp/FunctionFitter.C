@@ -1,4 +1,4 @@
-// File: Fitting/Imp/FunctionFitter.C  Factory for the fitter faces + the ProjectedDensity_AO metric defaults.
+// File: Fitting/Imp/FunctionFitter.C  Factory for the fitter faces.
 module;
 #include <memory>
 #include <cassert>
@@ -9,24 +9,14 @@ import qchem.Fitting.Internal.OrthoNormalFunctionFitter; // OrthoNormalScalarFit
 import qchem.Fitting.Internal.DeltaFunctionFitter;       // DeltaScalarFitter (the delta/identity potential fit)
 import qchem.BasisSet.Orbital_DFT_IBS;                     // FIT_CD_NonOrtho (the Coulomb metric-solve face)
 import qchem.BasisSet.G_FieldEvaluator;            // G_FieldEvaluator / G_RasterTransform (the raster half of the contract)
-import qchem.Blaze;                                // rsmat_t * rvec_t (the J^-1 solve)
 
 namespace qchem::Fitting
 {
 
-//---------------------------------------------------------- the Coulomb metric solve (V1.16)
-//
-//  The ONLY shared body left.  There is no longer a metric DEFAULT on the base and no poisoned sibling:
-//  a projection has the Coulomb face or the overlap face, and each face's own method is pure virtual.
-//
-rvec_t CoulombMetric_ProjectedDensity::GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const
-{
-    // "I want more": broaden the neutral CD-fit face to its Coulomb metric-solve capability (the sanctioned
-    // request pattern -- a real density matrix genuinely needs J^-1).
-    auto* no = dynamic_cast<const BasisSet::FIT_CD_NonOrtho*>(fbs);
-    assert(no && "CoulombMetric_ProjectedDensity: the Coulomb-metric solve needs a FIT_CD_NonOrtho fit basis");
-    return no->InvRepulsion() * GetRepulsion3C(fbs);   // c0 = J^-1 <rho|c>
-}
+//  (2026-09-19) The Coulomb metric solve c0 = J^-1 <rho|c> no longer lives on the projection: it is the
+//  FITTER's -- ConstrainedFF::DoFitUnconstrained applies its own metric to the RHS the density hands it
+//  through the DensityProjector face (R1.0q: the fitter owns the metric, the density owns D, one integrator
+//  object owns the tensor).  This TU keeps only the factories.
 
 std::unique_ptr<FunctionFitter_Scalar>
 Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs)

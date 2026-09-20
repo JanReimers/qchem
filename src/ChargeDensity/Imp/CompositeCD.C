@@ -262,17 +262,17 @@ template <class T> double tComposite_CD<T>::GetTotalCharge() const
 // AO density-fit projection: sum the blocks' <rho|c>.  Each block is cross-cast to its AO face (finite
 // path only -- a periodic composite is not a ProjectedDensity_AO, so the dcmplx body is inert), mirroring
 // the FourierDensity cross-cast in GetFourierDensity below.
-template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const BasisSet::rFIT_CD_ABS* fbs) const
+template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const Fitting::DensityProjector& p) const
 {
     if constexpr (std::is_same_v<T,double>)
     {
-        rvec_t ret(fbs->GetNumFunctions(),0);
+        rvec_t ret(p.NumCoefficients(),0);
         for (const Block& b:itsBlocks)
             std::visit([&](const auto* c)
             {
                 auto* ao=dynamic_cast<const Fitting::CoulombMetric_ProjectedDensity*>(c);
                 assert(ao && "composite block has no Coulomb-metric projection face (finite path)");
-                ret+=ao->GetRepulsion3C(fbs);
+                ret+=ao->GetRepulsion3C(p);
             }, b.cd);
         return ret;
     }

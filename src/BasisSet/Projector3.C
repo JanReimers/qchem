@@ -279,4 +279,70 @@ private:
     std::function<double(const rvec_t&)> itsRule;
 };
 
+//! \brief The DENSE, ANALYTIC realization of the forward/adjoint pair -- a \c Projector3 whose
+//! \ref Projector3::dense holds one full \f$\langle ab|c\rangle\f$ matrix per fit function (the
+//! molecular Gaussian auxiliary basis; Coulomb or overlap metric, the tensor says which).
+//!
+//! ★ THIS IS R1.0q's FIRST ANALYTIC INSTANCE (2026-09-19), AND R1.0p's PROOF BY CONSTRUCTION: nothing here
+//! is a grid.  The coefficient axis is the fit basis's FUNCTIONS, the forward is
+//! \f$\rho_a=\sum_{ab}D_{ab}\langle ab|a\rangle\f$ and the adjoint \f$\sum_a v_a\langle ij|a\rangle\f$ --
+//! the same tensor contracted the other way, so \f$H=\partial E/\partial D\f$ holds exactly, with no
+//! screening to keep consistent because there is none.  The two loops are the ones \c FiniteIrrepCD::
+//! GetRepulsion3C and \c ConstrainedFF::Repulsion used to run on the SAME borrowed tensor from opposite
+//! sides of a library boundary, agreeing by convention; they now come off ONE object, and the summation
+//! order is kept so the move is bit-identical.
+//!
+//! \warning A VIEW: it borrows \a g, which the producing basis's integral cache owns for the run.
+template <class T> class DenseProjector3Integrator
+    : public virtual qcMesh::MatrixForward<T>
+    , public virtual qcMesh::MatrixAdjoint<T>
+{
+public:
+    //! \a integrals are the fit functions' own \f$\langle f_a|1\rangle\f$ (\c Charge()), which is what
+    //! \c Integrate contracts a coefficient vector against -- function integrals, never point weights.
+    DenseProjector3Integrator(const Projector3<T>& g, rvec_t integrals)
+        : itsG(g), itsInt(std::move(integrals))
+    {
+        if (itsG.dense.empty())
+            throw std::runtime_error("DenseProjector3Integrator: this Projector3 has no dense realization -- "
+                "it is the analytic (molecular/atomic) integrator and needs one <ab|c> matrix per fit function.");
+        if (itsInt.size()!=itsG.dense.size())
+            throw std::runtime_error("DenseProjector3Integrator: one function integral per fit function");
+    }
+
+    using qcMesh::MatrixForward<T>::Forward;   // un-hide the factored overload (see qchem.Mesh.Integrator)
+    //! \f$\rho_a=\sum_{ab}D_{ab}\langle ab|a\rangle\f$ -- the loop \c FiniteIrrepCD::GetRepulsion3C ran.
+    virtual rvec_t Forward(const hmat_t<T>& D) const override
+    {
+        rvec_t ret(itsG.dense.size());
+        for (size_t a=0; a<itsG.dense.size(); ++a)
+            ret[a]=IReal(blazem::sum(D % itsG.dense[a]));
+        return ret;
+    }
+    //! \f$\langle i|v|j\rangle=\sum_a v_a\langle ij|a\rangle\f$ -- the loop \c ConstrainedFF::Repulsion ran.
+    virtual hmat_t<T> Adjoint(const rvec_t& v) const override
+    {
+        assert(v.size()==itsG.dense.size() && "DenseProjector3Integrator::Adjoint: one coefficient per fit function");
+        hmat_t<T> J=blazem::zeroH<T>(itsG.dense.empty() ? 0 : itsG.dense[0].rows());
+        for (size_t a=0; a<v.size(); ++a) J+=v[a]*itsG.dense[a];
+        return J;
+    }
+    virtual double Integrate(const rvec_t& f) const override
+    {
+        assert(f.size()==itsInt.size() && "DenseProjector3Integrator::Integrate: one value per fit function");
+        double s=0.0;
+        for (size_t a=0; a<f.size(); ++a) s+=itsInt[a]*f[a];
+        return s;
+    }
+    virtual size_t NumCoefficients() const override {return itsG.dense.size();}
+
+private:
+    template <class U> static double IReal(const U& x)
+    {
+        if constexpr (std::is_floating_point_v<U>) return x; else return std::real(x);
+    }
+    const Projector3<T>& itsG;     //!< borrowed: owned by the basis's integral cache
+    rvec_t               itsInt;   //!< \f$\langle f_a|1\rangle\f$ per fit function
+};
+
 } // namespace qchem

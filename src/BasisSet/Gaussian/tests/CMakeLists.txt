@@ -10,6 +10,7 @@ add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_MEvaluator.C
    M_Spherical.C
    M_LibCint.C
+   DenseIntegratorUT.C
 )
 
 target_compile_definitions(UTGaussian_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

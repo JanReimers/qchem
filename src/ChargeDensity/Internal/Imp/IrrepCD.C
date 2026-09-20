@@ -147,21 +147,17 @@ template <class Leaf> void IrrepCD_HFPair<Leaf>::CompleteExchangePair(rsmat_t& K
 // AO density-fit projection <rho|c> = Sum_ab D_ab <ab|c>, the finite path's ProjectedDensity_AO face.
 // The periodic density is NOT a ProjectedDensity_AO and does not inherit this leaf at all, so there is
 // nothing to guard: V1.32 removed the if-constexpr along with the template parameter it tested.
-rvec_t FiniteIrrepCD::GetRepulsion3C(const BasisSet::rFIT_CD_ABS* fbs) const
+rvec_t FiniteIrrepCD::GetRepulsion3C(const Fitting::DensityProjector& p) const
 {
-    if (this->IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
-    auto dftbs=dynamic_cast<const todftbs_t<double>*>(this->itsBasisSet);
-    assert(dftbs);
-    // Contract the density matrix against the basis's CACHED, D-free 3-centre projection tensor <ab|c>
-    // HERE -- the DENSITY owns D, so the D-contraction is a density operation, not a basis one.  The
-    // basis exposes only the tensor (Repulsion3C(c) -> Projector3, built once, keyed by BasisSetID);
-    // D never crosses into qcBasisSet.  This is the real-space model for fixing MakeFourierDensity(D): the
-    // {G} 3-centre integral is the delta <ij|Dm>, and rho-tilde = Sum_ij D_ij <ij|Dm> is the SAME contraction.
-    const auto& R=dftbs->Repulsion3C(*fbs).dense;     // <ab|c> (dense realization: one smat per fit function c)
-    rvec_t ret(fbs->GetNumFunctions());
-    for (size_t i=0;i<R.size();++i)
-        ret[i]=blazem::sum(this->itsDensityMatrix % R[i]);  // <rho|c_i> = Sum_ab D_ab <ab|c_i>
-    return ret;
+    if (this->IsZero()) return rvec_t(p.NumCoefficients(),0.0);
+    // R1.0q (2026-09-19), the analytic instance of the pattern IrrepCD_Core::ProjectOnto already runs on the
+    // periodic route: ask the projector for the FORWARD of this block, then contract MY D into it.  What
+    // crosses is D -- which this class owns -- and what stays inside the integrator is the basis's own
+    // <ab|c> tensor.  This method used to fetch that tensor itself (Repulsion3C(fbs).dense) and loop over
+    // it here, while the fitter looped over the same borrowed array for the adjoint -- two callers on one
+    // tensor, agreeing by convention; both now come off the one object the fitter built.
+    const auto& orb=dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,double>&>(*this->itsBasisSet);
+    return p.Forward(orb).Forward(this->itsDensityMatrix);   // <rho|c> = Sum_ab D_ab <ab|c>, per block
 }
 
 

@@ -135,7 +135,8 @@ public:
     virtual void AddAODensity(rsmat_t& Dao) const;
     //! AO (auxiliary-basis) projection <rho|c> -- the finite path's ProjectedDensity_AO face.
     virtual double FitGetConstraint() const {return this->GetTotalCharge();}   // AO fit RHS: the charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
+    //! \copydoc Fitting::CoulombMetric_ProjectedDensity::GetRepulsion3C
+    virtual rvec_t GetRepulsion3C(const Fitting::DensityProjector&) const;
     //! \f$\nabla\rho\f$ from the density matrix (the molecular contraction).
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 

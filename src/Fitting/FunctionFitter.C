@@ -57,12 +57,32 @@ class ProjectedDensity_AO : public virtual ProjectedDensity<double>
 {
 public:
     virtual double FitGetConstraint() const=0;                                  //!< "what charge?" (= N)
+    //! (2026-09-19) \c GetUnconstrainedFit is no longer declared here.  The two metric faces below each say
+    //! what they CAN supply: a matrix-free seed its own overlap-metric fit, a matrix-carrying density the
+    //! Coulomb RHS through a \c DensityProjector -- and the fitter, which owns the metric solve, asks the
+    //! face it finds.  A neutral method both had to answer was the "which metric" guess this base does
+    //! not make (V1.16), still sitting on it under another name.
+};
 
-    //! \brief The UNCONSTRAINED fit coefficients \f$c_0\f$ on fit basis \a fbs, BEFORE the Dunlap charge
-    //! constraint the fitter applies -- computed in the projection's OWN metric.  This is what the fitter
-    //! calls, and it is ALL the fitter needs to know.  WHICH metric is the business of the two refinement
-    //! faces below; this base does not guess one.
-    virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const=0;
+//! \brief WHAT A MATRIX-CARRYING DENSITY PROJECTS ITSELF ONTO IN THE COULOMB METRIC -- the analytic
+//! (Gaussian auxiliary basis) mirror of \c ScalarProjector, and R1.0q's first molecular instance
+//! (2026-09-19).  It vends the FORWARD half of a \c DenseProjector3Integrator built once per orbital
+//! block over the basis's \f$\langle ab|c\rangle\f$ Coulomb tensor; the density contracts its own \f$D\f$
+//! into it and never names the tensor.  The fitter that realises this face holds the ADJOINT half of the
+//! same object for \f$\sum_a c_a\langle i|f_a/r_{12}|j\rangle\f$ -- so the density's forward and the
+//! term's adjoint come off ONE object, as on the periodic route, instead of two libraries contracting
+//! one borrowed tensor from opposite sides.
+//!
+//! \note Real-only and \c TFit==double, deliberately: this is the FINITE lineage (real Gaussians on a real
+//! auxiliary basis); the periodic \c ScalarProjector spells its axes \c dcmplx for the same reason in the
+//! other direction.  The two faces are the SAME shape on the two fit metrics, which is the point.
+class DensityProjector
+{
+public:
+    virtual ~DensityProjector() = default;
+    //! The forward integrator for THIS orbital block -- by reference, a finite fit basis always has one.
+    virtual const qcMesh::MatrixForward<double>& Forward(const BasisSet::Orbital_DFT_IBS<double,double>&) const=0;
+    virtual size_t NumCoefficients() const=0;   //!< the fit basis's function count (the forward's length)
 };
 
 //! \brief COULOMB-metric projection: a density that carries a MATRIX, so it can supply the Coulomb RHS
@@ -77,12 +97,11 @@ public:
 class CoulombMetric_ProjectedDensity : public virtual ProjectedDensity_AO
 {
 public:
-    //! The Coulomb-metric RHS of a real density MATRIX.  Composite/polarized densities SUM this across
-    //! their blocks, so the single \f$J^{-1}\f$ below is applied once to the total.
-    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const=0;
-    //! \f$c_0=J^{-1}\langle\rho|c\rangle\f$.  Broadens the neutral CD-fit face to its Coulomb metric-solve
-    //! capability -- the sanctioned "I want more" request, since a real density matrix genuinely needs J^-1.
-    virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const;
+    //! The Coulomb-metric RHS of a real density MATRIX, \f$\langle\rho|c\rangle\f$ -- each block contracting
+    //! its own \f$D\f$ into the forward the projector vends for it (R1.0q, 2026-09-19; it used to take the
+    //! fit BASIS and reach into its tensor's \c dense array).  Composite/polarized densities SUM this
+    //! across their blocks, so the fitter's single \f$J^{-1}\f$ is applied once to the total.
+    virtual rvec_t GetRepulsion3C(const DensityProjector&) const=0;
 };
 
 //! \brief OVERLAP-metric projection: a MATRIX-FREE density (a seed) that fits its own \f$\rho(r)\f$ directly,

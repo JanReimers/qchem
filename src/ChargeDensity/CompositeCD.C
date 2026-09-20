@@ -145,7 +145,7 @@ public:
     {return itsBlocks.empty() ? 0 : std::visit([](const auto* c){return c->Version();}, itsBlocks.front().cd);}
 
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
+    virtual rvec_t GetRepulsion3C(const Fitting::DensityProjector&) const;
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const tMixableDensity<T>&,double)      ;  //this = (1-c)*this + c*that.
