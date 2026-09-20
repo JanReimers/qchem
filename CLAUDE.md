@@ -125,6 +125,17 @@ do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
     you work. I have a TODO item to do a system-wide survey of these casts and throw custom exceptions full of
     relevant information in the event they fail. Again, unit tests are allowed to cheat.
 - a call that can legitimately fail returns an Outcome; a broken invariant no caller can act on throws. RequireSiteBlocks is the second kind; Converge is the first.
+- **`GetXxx()` is the CACHED accessor and returns a REFERENCE; `MakeXxx()` is the uncached compute and
+    returns BY VALUE** (user, 2026-08-10).  A caller needing an owned copy asks `Make`; it never asks `Get`
+    to change its return type.  If your `MakeXxx` does not COMPUTE anything you are a forwarder, not an
+    implementer — override `Get`.  Visibility (public vs protected `Make`) is deliberately UNSETTLED; **when
+    you loosen encapsulation, say WHY at the declaration** (which client, why the cached `Get` would not do)
+    — the eventual policy can only be decided from those reasons.
+- **Name a capability query for what the CLIENT consumes, not for the CAUSE**: `IsVirialValid()`, not
+    `IsPseudopotential()`.  Write down what the caller will DO with the answer; if the name does not match
+    that sentence it is naming the implementation.  (Bit three times: "Becke", "SiteAdaptedBecke", the ERI4
+    face.)  Corollary: when an item offers two fixes, first check it named the right DEFECT; and when a
+    cache needs an awkward key, suspect the LOOP, not the key.
 
 ## Style
 

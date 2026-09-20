@@ -2,7 +2,7 @@
 
 **READ THIS AT SESSION START.**  Four sections, in the order a session should read them: **§1 NEXT** (the one
 queued action), **§2 MAJOR FEATURES** (capabilities the code does not have yet, against the battery north-star),
-**§3 NON-OOD CLEANUP** (tooling, build, hygiene — the SOLID/OOD debt is `doc/CleanupCandidates.md`, not here),
+**§3 NON-OOD CLEANUP** (tooling, build, hygiene — the SOLID/OOD debt is `doc/CleanupCandidates.md` v2, not here),
 **§4 REMAINING TODO** (measurements, performance and accuracy items that are neither).  Then the parked and
 descoped lists.  **If it is not in this file or `CleanupCandidates.md`, it does not need doing.**
 
