@@ -224,10 +224,11 @@ runs CP2K's form, and the numbers it banks are below.
 
 | quantity (CP2K's form, `QCHEM_U_EIGEN=0`) | qchem | CP2K |
 |---|---|---|
-| ΔE = E(U=4 eV) − E(0) | **+0.60020 Ha** (E(0)=−61.41124112, E(U)=−60.81104344) | +0.61735 Ha |
+| ΔE = E(U=4 eV) − E(0) | **+0.60019 Ha** (E(0)=−61.4112412, E(U)=−60.81104789; the deck's loop and measure, 22/24 iterations) | +0.61735 Ha |
 | E_U | **0.58730 Ha** (max population 0.31 on the majority site: all 40 fractional, as the form implies) | 0.60951 Ha |
 | ΔE − E_U (the density's relaxation to V_U) | 0.0129 Ha | 0.0078 Ha |
-| SCF steps with U / without | 55 / 43 (Shub anchor recipe: imposed, Becke, Ladder, kT=5e-3; 1e-5 on Δρ) | 104 / 44 (1e-6 on ΔP; at 1e-5 it reads ~50–65) |
+| SCF steps with U / without | 55 / 43 (Shub anchor recipe, 1e-5 on the G-space residual — NOT the deck's measure, rule 3f) → **24 / 22 on the deck's measure and loop** (max\|ΔD\|<1e-6, Pulay 8, no Fock DIIS, no MOM; same energies to 4e-7 Ha) | 104 / 44 (1e-6 on max\|ΔP\|) |
+| the same at `CP2K_COMPAT=1` (free run) | 37 / 33 iterations, E(0) −61.41154311, E(U) −60.81349836, ΔE +0.5980, E_U 0.5849; wall 6m23s / 5m42s, 263 MB | 104 / 44; wall 15m46s / 6m14s, 217 MB |
 
 ΔE agrees to 17 mHa and E_U to 22 mHa on a 0.6 Ha effect, with the two codes' absolute energies 100 mHa apart (§5c of `doc/Benchmark.md`) — gate tolerance 50 mHa on both, PASSED 2026-09-20 (773 s, two arms).  The E_U residual is the same population functional of two densities that differ at the 0.1 Ha level; it is not a defect to chase before the absolute offset is named (OpenWork §4a).
 

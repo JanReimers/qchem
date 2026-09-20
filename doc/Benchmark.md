@@ -145,6 +145,21 @@ GDM line-search); the cap-independent measure is **per CALL**, straight off the 
 The ledger prints both and **only misses are work**.  A cost estimate taken off call counts is wrong
 whenever a memo sits underneath — that is how a 2026-09-04 fix was over-estimated **70×** (history §1b).
 
+### 3f. An ITERATION COUNT is comparable only on the SAME CONVERGENCE MEASURE at the SAME THRESHOLD (user, 2026-09-20)
+
+*"Anytime I look at top and CP2K finishes many minutes before ITMain, my antenna goes up."*  It should: the two
+codes were converging DIFFERENT QUANTITIES.  CP2K's `EPS_SCF` is **max|P_out − P_in| over the AO density-matrix
+elements**, per spin, un-normalised (`qs_scf_loop_utils.F`, `self_consistency_check`), typically 1e-6 (MnO deck)
+or 1e-7.  Our `MinΔρ` on a Kerker/Pulay recipe is the MIXER's residual **max|ρ̃_out(G) − ρ̃_in(G)|** in G-space
+(the largest coefficient is N/Ω ≈ 0.08 on MnO, so 1e-5 there is ~1e-4 relative — **~100× looser** than the deck),
+and on a linear-D recipe it is a third thing (Σ_blocks‖ΔD‖_F/N_e).  Measured on Si Γ (2026-09-20): the Kerker gate
+"converges" in **5** iterations at 1e-3 on the residual (E = −7.114894); CP2K's measure at 1e-6 needs **27**
+with Pulay(8) and lands on −7.115068 — 0.17 mHa lower, the true anchor.  On MnO +U the honest count was not
+"55 vs 104".  ⇒ `SCFParams::Measure::MaxΔD` puts CP2K's measure on our loop (successive D_out, max over blocks
+and spins); **a row that quotes an iteration count, a wall, or a "converges in" sets `Δρmeasure=MaxΔD`,
+`MinΔρ=EPS_SCF` and `NMaxIter=MAX_SCF` off the deck** — and states it.  ⚠ Every iteration-count column in §5
+written before this rule compares a looser qchem criterion with a tighter CP2K one; re-take before quoting.
+
 ---
 
 ## 4. HOW TO PRODUCE A ROW — the same wrapper for both codes
@@ -416,7 +431,8 @@ parity ROUTE affordable — see footnote ⁷ (§5d).  CP2K column untouched thro
 | **MnO AFM-II, `QCHEM_BECKE_XC=0`** ⁶ | Γ | **VA (N=118)** | −61.40358753 | −61.303325178 | −100.26 mHa | **2m28s** / 6m14s | **147** / 373 s | **0.39×** | **113** / 217 MB |
 | **MnO FM — ALL DEFAULTS** ⁵ | Γ | **VA (N=118)** | −61.44158219 ⁵ | −61.304782531 | **−136.80 mHa** | **6m40s** / 3m13s | **398** / 192 s | **2.07×** | **481** / 217 MB |
 | **MnO AFM-II, `CP2K_COMPAT=1`** ⁷ | Γ | **VA (N=118)** | −61.39789688 ⁷ | −61.303325178 | −94.57 mHa | 45m40s / 6m14s | **2736** / 373 s | **7.3×** | **112** / 217 MB |
-| **MnO AFM-II +U (4 eV, Mn d), `CP2K_COMPAT=1`** ⁸ | Γ | **VA (N=118)** | NOT converged (120 cap, free-run 2-cycle) | −60.68597088 | — | 19.4 min (120 it) / 15.8 min (104 it) | **9.62 s/it** / 9.05 s/it | **1.06×** | 207 / 217 MB |
+| **MnO AFM-II, `CP2K_COMPAT=1`, CP2K's LOOP + MEASURE** ⁸ | Γ | **VA (N=118)** | −61.41154311 (free, 33 it to max\|ΔD\|<1e-6) | −61.303325178 (44 it) | −108.2 mHa | **5m42s** / 6m14s | **10.3 s/it** / 8.29 s/it | **1.24×** | 262 / 217 MB |
+| **MnO AFM-II +U (4 eV, Mn d), `CP2K_COMPAT=1`, CP2K's LOOP + MEASURE** ⁸ | Γ | **VA (N=118)** | −60.81349836 (free, 37 it) | −60.68597088 (104 it) | −127.5 mHa (ΔE(U) +0.5980 vs +0.6174) | **6m23s** / 15m46s | **10.3 s/it** / 9.05 s/it | **1.14×** | 263 / 217 MB |
 | MnO AFM-II | 2×2×2 (`MNO_KMESH=2`) | VA | ❓ | ❓ | | ❓ | ❓ | | ❓ |
 
 
@@ -440,7 +456,7 @@ Compact here; the full stories are in `doc/Records/BenchmarkHistory.md` at the s
   and leaves everything else ours.  It is the first MnO row on which qchem beat CP2K on both axes and is
   still the standout: **0.53× per SCF iteration**, 107 MB against 217 MB, and a setup of 1.76 s against
   CP2K's 8.1 s.
-- **⁸** The +U parity row (2026-09-20, `GPW_MnO.DISABLED_Γ_U_Shub_Pol_Smear_CP2K` under `CP2K_COMPAT=1 GPW_REPORT=1`, log `mno_u_compat.log`): setup ~10 s (last fold 6.3 s, first refresh 10.3 s) vs CP2K ~5 s; per iteration 9.62 s (refresh-to-refresh over 119 iterations) vs CP2K 9.05 s (941.2 s / 104 in `scf_env_do_scf`); the +U refresh costs us ~15 ms/iter, CP2K's full-matrix S½PS½ ~0.75 s/iter (8.29 → 9.05).  ⚠ Marginal per-iteration costs, NOT converged walls: both free arms sat in a period-2 "ρ rotates" cycle to the cap, where CP2K's `BROYDEN_MIXING ALPHA 0.2 BETA 1.5 NBUFFER 8` (Kerker-preconditioned Broyden on ρ̃) converges the same free cell.  The imposed Becke recipe (the energy oracle) converges in 55 iterations at ~7.0 s/it after ~45 s setup — faster per iteration, and it converges only because the Shubnikov imposition holds the AFM state.  Next probe: the parity arms with `PulayDepth=8`.
+- **⁸** The two CP2K-LOOP rows (2026-09-20, rule 3f's first rows): `gpwprobe mno` under `CP2K_COMPAT=1 GPW_REPORT=1 GPW_SPHERICAL=1 GPW_BASIS_SPAN=va MNO_MOM=0 MNO_ACC=Null MNO_PULAY=8 MNO_PULAY_START=5 MNO_MEASURE=maxdd MNO_EPS=1e-6 MNO_SKIP_FM=1` (+ `MNO_U=4 QCHEM_U_EIGEN=0` for the +U row; logs `probe_u0_compat.log`, `probe_u4_compat.log`) — the deck's loop shape (ONE density-side history, diagonalise, no Fock extrapolation, no MOM) on the deck's measure at the deck's threshold, both codes serial.  Both FREE runs CONVERGE and hold AFM-II (m̃(q)Ω/2 = 3.13 / 3.18 e).  The per-iteration residual is the banked one: **3 gathers + 2 collocations against CP2K's 2 + 2** (102 gathers / 33 it at 1.89 s, 68 collocations at 1.93 s = 9.7 of the 10.3 s), i.e. §5f lever B, V_H gathered separately from v_xc.  Setup 1.9 s vs 8.1 s.  The +U refresh costs ~15 ms/iter (`scf: eager refresh`), CP2K's full-matrix S½PS½ ~0.75 s/iter (8.29 → 9.05).  ⚠ The earlier attempt on the anchor's recipe (Ladder DIIS + MOM + `PulayDepth=8`, log `mno_u5.log`) sat at max|ΔD| 3e-3 (U=0) / a period-2 cycle (U=4) for 200 iterations — two histories extrapolating each other and MOM rotating a smeared degenerate frontier; it is what rule 3f's "5 vs 27 on Si" looked like on MnO.  The energies: the free run is 0.3 mHa below the imposed anchor (−61.41154 vs −61.41124: the star-averaged density is a constrained problem), and the 108 mHa absolute offset to CP2K is the open §4a row, unchanged by any of this.
 - **⁷** The parity row: an earlier *"at true parity our recipe does not converge"* verdict was **RETRACTED**
   (08-28).  It still hits the iteration cap, but for a far more benign reason — 5.1 mHa short, not 3.8 Ha,
   with the AFM order surviving both stages.
