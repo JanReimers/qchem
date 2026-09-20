@@ -13,6 +13,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <typeinfo>
 #include <vector>
 module qchem.Hamiltonian.Internal.Hubbard;
 import qchem.Energy;
@@ -245,31 +246,58 @@ double Hubbard_U::Analyse(const rvec_t& n, std::vector<rvec_t>& occ, rvec_t& W) 
     return EU;
 }
 
+namespace
+{
+// THE DM BEHIND A DENSITY: the density itself when it carries a D, else the DM-backed SOURCE a mixed field
+// retains (cDM_Sourced_CD, one cast away -- the XC cusp-deficit route's idiom); the returned shared_ptr keeps
+// a retained source alive across the call.  Null = matrix-free with no source (the seed).
+const cDM_CD* DMBehind(const cChargeDensity* cd, std::vector<std::shared_ptr<const cDM_CD>>& keep)
+{
+    if (!cd) return nullptr;
+    if (const auto* dm=dynamic_cast<const cDM_CD*>(cd)) return dm;
+    if (const auto* src=dynamic_cast<const ChargeDensity::cDM_Sourced_CD*>(cd))
+        if (auto held=src->DMSource()) { keep.push_back(held); return held.get(); }
+    return nullptr;
+}
+}
+
 void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
 {
     if (!cd || itsFrozen) return;
     if (cd->Version()==itsOccVersion) return;
-    // The DM-backed density: cd itself, or the source a mixed density retains; a matrix-free seed has none.
-    const cDM_CD* dm=dynamic_cast<const cDM_CD*>(cd);
-    std::shared_ptr<const cDM_CD> held;
-    if (!dm)
-        if (auto* src=dynamic_cast<const ChargeDensity::cDM_Sourced_CD*>(cd)) { held=src->DMSource(); dm=held.get(); }
+    // PER CHANNEL, because that is where the D lives on a polarized run: the polarized MIXED density
+    // (PolarizedMixCD) carries no D of its own and answers no source face -- each of its channel views does
+    // (the mixer seats the split D on them).  The first MnO run zeroed the occupations on every Fock build
+    // because it asked the total (2026-09-20); the trace read n=0 on alternate refreshes.
+    // A channel with NO source (the matrix-free seed) KEEPS whatever occupations it has: a density that
+    // cannot say its D says nothing about n -- only before any occupations exist is n=0 the answer.
+    std::vector<std::shared_ptr<const cDM_CD>> keep;        // retained sources stay alive across the call
+    std::map<Spin,const cDM_CD*> dms;
+    bool any=false;
+    for (const auto& [s,ch] : itsChannels)
+    {
+        const cChargeDensity* chan = (s==Spin::None) ? cd : ChannelOf<dcmplx>(cd, s);
+        const cDM_CD* dm=DMBehind(chan, keep);
+        if (!dm && s!=Spin::None) dm=DMBehind(cd, keep);    // a spin-agnostic total under a polarized term
+        if (dm) any=true;
+        dms[s]=dm;
+    }
+    if (!any)
+    {
+        if (itsProj.empty() && itsProjR.empty()) return;    // before any block: nothing to size n by (seed)
+        for (const auto& [s,ch] : itsChannels) if (ch.W.size()==NumCoefficients()) return;   // keep the last n
+        // nothing yet: n = 0 in every channel (V = U/2 P, E_U = 0); the version is NOT stamped so the first
+        // DM-backed density does the real work.
+        for (auto& [s,ch] : itsChannels) { ch.n=rvec_t(NumCoefficients(),0.0); Analyse(ch.n, ch.occ, ch.W); }
+        return;
+    }
     itsEU=0.0;
-    // A matrix-free density (the SAD seed) before any block was seen: there is no projector to size the
-    // occupations by, and nothing to occupy -- E_U = 0, the potential stays zero (MakeMatrixT), and the
-    // version is NOT stamped so the first DM-backed density does the real work.
-    if (!dm && itsProj.empty() && itsProjR.empty()) return;
     for (auto& [s,ch] : itsChannels)
     {
-        rvec_t n(NumCoefficients(), 0.0);
-        if (dm)
-        {
-            const cChargeDensity* chan=ChannelOf<dcmplx>(dm, s);
-            const cDM_CD* cdm=chan ? dynamic_cast<const cDM_CD*>(chan) : nullptr;
-            if (cdm) n=cdm->ProjectOnto(*this);
-            else if (s==Spin::None || !chan) n=dm->ProjectOnto(*this);
-            if (s==Spin::None) n*=0.5;                   // the zeta=0 collapse: n_sigma = n_tot/2, both channels
-        }
+        const cDM_CD* dm=dms[s];
+        rvec_t n = dm ? dm->ProjectOnto(*this) : ch.n;         // a source-less channel keeps its n
+        if (n.size()!=NumCoefficients()) n=rvec_t(NumCoefficients(),0.0);
+        if (dm && s==Spin::None) n*=0.5;                       // the zeta=0 collapse: n_sigma = n_tot/2
         ch.n=n;
         itsEU+=Analyse(ch.n, ch.occ, ch.W);
     }

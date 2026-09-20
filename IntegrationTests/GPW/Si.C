@@ -1002,3 +1002,31 @@ TEST(GPW_Si, Γ_U_IsAPositiveSelfConsistentFunctional)
     EXPECT_GT(EU, 0.0) << "Sum U/2 lambda(1-lambda) is non-negative and the Si p occupations are fractional";
     EXPECT_LT(EU, 0.5) << "and it is a small correction on a covalent p manifold at U=2 eV";
 }
+
+// THE POLARIZED MIXED DENSITY GATE (2026-09-20).  On a Kerker recipe the Fock build sees the rho-tilde-MIXED
+// density, which carries no D: the unpolarized FourierMixCD retains its DM-backed source itself, but the
+// polarized PolarizedMixCD answers NO source face -- its channel views do.  The first MnO +U run asked the total,
+// got nothing, zeroed the occupations on every Fock build and applied V = U/2 P while the energy pass used the
+// real D_out (the trace read n=0 on alternate refreshes; E_U was off by 8 mHa and the relaxation part by 2x).
+// Twin: the explicit two-channel singlet on Kerker must reproduce the unpolarized U run exactly (zeta=0
+// collapse) -- with the defect it cannot, because the two runs see different V_U.  Fast (two ~2 s runs).
+TEST(GPW_Si, Γ_U_Imp_Pol_Kerker_eqUnpol)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma Kerker U=2 eV");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.hubbard={HubbardU(0,1,2.0), HubbardU(1,1,2.0)};
+    SCFParams par=ProductionGates(); par.KerkerG0=1.0;                                 // the rho-tilde mixer
+    qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
+    o.multiplicity=1; o.label="Si SR Gamma Kerker U=2 eV pol-singlet";                // PolarizedMixCD in the loop
+    qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
+    auto a=unpol.Result(), b=pol.Result();
+    ASSERT_TRUE(a) << Why(a);
+    ASSERT_TRUE(b) << Why(b);
+    EXPECT_NEAR(a->TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(b->TotalCharge(), 8.0, 1e-6);
+    EXPECT_GT(a->EnergyTerms()["E_U"], 0.05) << "the U=2 eV Si p correction is 1.5U = 0.110 Ha";
+    EXPECT_NEAR(b->EnergyTerms()["E_U"], a->EnergyTerms()["E_U"], 1e-6) << "both channels of the singlet carry the unpolarized occupations";
+    EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6) << "the zeta=0 collapse: the polarized Kerker run must see the same V_U as the unpolarized one";
+}
