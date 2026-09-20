@@ -42,7 +42,7 @@ CPU column overstates qchem wherever it threads — and another reason the singl
 | **1** | **per-iteration CPU** | ★ **PER SCF ITERATION WE ARE AHEAD ON 7 OF 9 ROWS** (§5a, 2026-09-05, both codes pinned serial): MnO ALL DEFAULTS **0.82×**, MnO FM **0.77×**, `QCHEM_BECKE_XC=0` **0.45×**, Si **0.14× / 0.66× / 0.56×**, NaF full-SR **0.18×**.  The two losses are NaF SR2 **1.45×** (a Becke cost) and — the one that counts — `CP2K_COMPAT=1` **1.72×** (was 2.05× before §5f's lever A).  ⇒ **NOT closed** — but on the SAME ALGORITHM (our fixed-point stage against CP2K's diagonalise-and-mix decks) it is **1.13×**, three gathers against their two, and the third gather is §5f lever B, behind N4.  The 1.72× two-stage figure adds a GDM line search CP2K's runs have no counterpart for |
 | **2** | **init / pre-iteration** | ⛔ **PROMOTED, and now measured serially: MnO's setup is 184 s = 47% of the default run against CP2K's 8.1 s (23×)**, of which **136.6 s is two Becke mesh builds** (§5a).  The earlier "~57 s of 328 s" was a THREADED ledger bucket — the build's partition loop is `omp parallel for`.  ✅ With `QCHEM_BECKE_XC=0` our setup is **1.76 s and beats CP2K's 8.1 s** — so bin 2 is a Becke-mesh question, exclusively |
 | **3** | **peak RAM** | ✅ **solved, and we win**: ~476 MB defaults, **113–132 MB on the parity routes against CP2K's 217 MB** |
-| **4** | **iteration count** | 31 (defaults) / capped (parity) against CP2K's 44 — ⇒ DOCUMENT, do not chase.  The two codes do not run the same ρ-mixing algorithm (doc/OpenWork.md) |
+| **4** | **iteration count** | ⚠ **RE-JUDGED 2026-09-20 under rule 3f** — the old "31 (defaults) / capped (parity) against CP2K's 44" compared a 1e-5 G-space residual with CP2K's 1e-6 max\|ΔP\|, i.e. two different questions.  On the SAME measure, threshold and loop shape (one density-side history, no Fock DIIS, no MOM): **imposed 22 / 24, free (`CP2K_COMPAT=1`) 33 / 37 against CP2K's 44 / 104** (U=0 / U=4 eV, §5 rows ⁸).  ⇒ CLOSED in our favour; what remains is bin 1's third gather |
 
 The live tracker for these is `doc/OpenWork.md`; this file holds the measurements behind them.
 
@@ -286,7 +286,15 @@ of the ledger's `setup:` buckets; CP2K: total CPU minus the sum of its printed p
 ⇒ **Compare the SCF columns.**  The total column is kept only because it is what the whole-run table (§5)
 divides — and the two disagree by 1.8× on MnO precisely because 44% of that run is setup.
 
-| row | span / k | q iters | q CPU | q setup | **q s/it (SCF)** | c steps | c CPU | c setup | **c s/it (SCF)** | **BIN 1 ×** | q s/it (total) | total × |
+⚠ **THE `q iters` / `c steps` COLUMNS BELOW ARE RULE-3f-STALE (2026-09-20)**: every qchem count was taken at
+1e-3–1e-5 on the MIXER RESIDUAL (a G-space quantity), every CP2K count at `EPS_SCF` on max|ΔP| — not the same
+measure, and on MnO ~100× looser on our side.  The **s/it** columns survive (a per-call cost does not care when
+the loop stops); the counts and the `total ×` column do not — read them as "how many steps that recipe took to
+ITS OWN criterion", never as a convergence-rate comparison.  The re-taken, like-for-like counts are the two
+rule-3f MnO rows in §5 (footnote ⁸: 33 / 37 vs 44 / 104) and the Si example in rule 3f itself (5 vs 27 to reach
+the same anchor).  A full re-take of this table on `Measure::MaxΔD` is queued in `doc/OpenWork.md` §4b.
+
+| row | span / k | q iters ⚠3f | q CPU | q setup | **q s/it (SCF)** | c steps ⚠3f | c CPU | c setup | **c s/it (SCF)** | **BIN 1 ×** | q s/it (total) | total × ⚠3f |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Si Γ ᵇ✓ | SIPP_SR, 1 k | 17 | 1.10 s | 0.16 s | **0.055** | 12 | 5.03 s | 0.4 s | 0.383 | **0.14×** ✅ | 0.065 | 0.15× |
 | Si 2×2×2 Γ-centred ᵇ✓ | SIPP_SR, 8 k | 16 | 4.46 s | 0.35 s | **0.253** | 13 | 5.60 s | 0.6 s | 0.385 | **0.66×** ✅ | 0.275 | 0.64× |
