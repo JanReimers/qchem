@@ -59,6 +59,7 @@ left-to-right; `GPW_Si.Γ_CP2K`, never `GPW_Si.CP2K`.
 | 3 | **k sampling** | `Γ`, `k211`, `k222`, `k222s` (shifted MP), `k311` | `Γ` — but ALWAYS named (see above) | lower-case `k` (user 2026-09-15); `s` = the CP2K shifted-MP convention; `k311` is the mixed real/complex mesh (has a non-TRIM k — `feedback_complex_type_vs_value`) |
 | 4 | **XC grid** | `Uni`, `Becke` | `Auto` (the facade's cost selector, V1.26) | the INTEGRATION grid |
 | 5 | **v_xc fit basis** | `PWFit`, `DeltaFit` | `Auto` | ORTHOGONAL to 4 — `doc/Pins.md` "everything is a fit" |
+| 5b | **Model** (the functional beyond LDA) | `U` (DFT+U) | LDA | ADDED 2026-09-20 with programme step 5: a Hubbard term is neither a grid nor a fit nor a symmetry; `GGA`/`PBE`, `HF`/hybrid tokens join here when §2 lands them |
 | 6 | **Symmetry** | `Imp` (space group), `Shub` (Shubnikov, polarized), `Grey` (negative control) | free | `Imp` on an AFM density is the V1.28 hazard; `Shub` is the only imposition a magnetic run may ask for |
 | 7 | **Spin** | `Pol` (explicit two-channel singlet), `M2`/`M3`/`M6` (multiplicity) | unpolarized (ζ=0 collapse) | `Pol` ≠ unpolarized: it is the cross-check that the polarized machinery collapses to the unpolarized anchor |
 | 8 | **Occupation** | `Smear`, `Anneal` (staged kT) | kT=0 aufbau | `Anneal` is a SCHEDULE, not a temperature |
@@ -110,7 +111,7 @@ anchor `Γ_CP2K`".
 ## 3. The naming grammar
 
 ```
-TEST(<Basis>_<Material>,  <k>_[<Grid>_][<Fit>_][<Sym>_][<Spin>_][<Occ>_][<Reservoir>_][<Machinery>_][<Ansatz>_][<Seed>_]<Claim>)
+TEST(<Basis>_<Material>,  <k>_[<Grid>_][<Fit>_][<Model>_][<Sym>_][<Spin>_][<Occ>_][<Reservoir>_][<Machinery>_][<Ansatz>_][<Seed>_]<Claim>)
       └── suite ──┘        └───────────── the POINT: axis tokens in AXIS ORDER, defaults elided ────────────┘ └ §2 ┘
 ```
 

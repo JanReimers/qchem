@@ -54,8 +54,9 @@ The live tracker for these is `doc/OpenWork.md`; this file holds the measurement
 by **3e-8 Ha** (agreeing to 10 s.f.).  That is the property the switch most needed to demonstrate about
 itself, and it is measured rather than asserted (history §2).
 
-⚠ **THIS LIST HAS GROWN EVERY TIME SOMEONE LOOKED.**  It started at four items; it is seven.  Assume it is
-still incomplete — a parity row is only as honest as the last thing we noticed we were doing differently.
+⚠ **THIS LIST HAS GROWN EVERY TIME SOMEONE LOOKED.**  It started at four items; it is eight (the eighth, +U's
+form, is the first that is physics rather than an acceleration — inert unless a Hubbard manifold is on the run,
+so every banked row below is untouched by it).  Assume it is still incomplete — a parity row is only as honest as the last thing we noticed we were doing differently.
 
 | # | knob | what qchem does that CP2K does not | found |
 |---|---|---|---|
@@ -66,6 +67,7 @@ still incomplete — a parity row is only as honest as the last thing we noticed
 | 5 | `QCHEM_IMPOSE_SYMMETRY` | space-group imposition: BZ fold + ρ star-average + site-adapted XC mesh.  ⚠ **OVERRULES the caller** | 08-26 |
 | 6 | `QCHEM_BECKE_XC` | atom-centred (Becke) XC quadrature instead of the uniform grid.  ⚠ **OVERRULES the caller**; it was **43% of the MnO row** | 08-28 |
 | 7 | `GPW_DAWARE_SCREEN` | D-aware collocation box tolerance \f$\varepsilon/|c_{ij}|\f$ instead of flat \f$\varepsilon\f$ | 09-04 |
+| 8 | `QCHEM_U_EIGEN` | **the first PHYSICS deviation, not an acceleration** (user ruled it onto this list 2026-09-20): DFT+U evaluated on the Löwdin block's EIGENVALUES (Dudarev, rotationally invariant) where CP2K keeps only its DIAGONAL POPULATIONS (`dft_plus_u.F`, `IF (isgf == jsgf)`).  Inert on a run without a Hubbard manifold; on MnO VA at U=4 eV it is 0.08 vs 0.61 Ha of E_U | 09-20 |
 
 **Verified locally** that CP2K does none of the symmetry work: the 1129-line `bench_MnO_AFM2_VA_cp2k.log`
 contains **zero** occurrences of "irrep", "symmetry" or "point group"; QuickStep keeps K and P as DBCSR

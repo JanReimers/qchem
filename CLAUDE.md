@@ -48,9 +48,9 @@ Brief notes about module/library conventions, naming, and includes.
 ## Tests — naming and the DISABLED_ rule (from `doc/Records/TestSuitePlan.md`, ruled 2026-09-15)
 
 - An SCF test is a POINT in a product space and is named as one:
-    `TEST(<Basis>_<Material>, <k>_[<Grid>_][<Fit>_][<Sym>_][<Spin>_][<Occ>_][<Reservoir>_][<Machinery>_][<Ansatz>_][<Seed>_]<Claim>)`
+    `TEST(<Basis>_<Material>, <k>_[<Grid>_][<Fit>_][<Model>_][<Sym>_][<Spin>_][<Occ>_][<Reservoir>_][<Machinery>_][<Ansatz>_][<Seed>_]<Claim>)`
     — axis tokens in the fixed axis order, the facade's DEFAULTS elided (so "no tokens" = what a user gets),
-    k always named (`Γ` spelled `Γ`, `k222` lower-case), ONE claim per test (`CP2K` | `Anchor` | `eq<Token>`
+    k always named (`Γ` spelled `Γ`, `k222` lower-case; `<Model>` = `U` for DFT+U, default LDA, added 2026-09-20), ONE claim per test (`CP2K` | `Anchor` | `eq<Token>`
     for a twin | a verb).  `scripts/testgrid` renders the grid from the binaries and CHECKS the grammar; a
     name that does not parse is a naming defect.  Files: `IntegrationTests/<Basis>/<Material>.C`.  Unit tests
     under `src/<lib>/tests` keep class-named suites; the grammar is for SCF tests only.

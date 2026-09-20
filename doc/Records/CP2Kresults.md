@@ -202,7 +202,30 @@ with ONE change: `&DFT_PLUS_U L 2, U_MINUS_J [eV] 4.0` on both Mn kinds, `PLUS_U
 \f$q = S^{1/2} P S^{1/2}\f$ and takes the atom's block over **EVERY shell of angular momentum l** — all
 `nsb` contractions, an \f$n_{sb}(2l+1)\times n_{sb}(2l+1)\f$ matrix (here 8 d shells ⇒ 40×40 per Mn per
 spin); \f$E_U=\tfrac{U}{2}(\mathrm{Tr}\,q-\mathrm{Tr}\,q^2)\f$ and \f$V=U(\tfrac12-q)\f$ back-transformed.
-⇒ \f$\sum_i\lambda_i(1-\lambda_i)\approx 8.3\f$ across two sites and two spins: on a diffuse 8-zeta d span the
-Löwdin occupations are far from 0/1, and 0.61 Ha for U=4 eV is a MECHANISM number, not physics.  qchem's
+⇒ \f$\sum_i q_{ii}(1-q_{ii})\approx 8.3\f$ across two sites and two spins: on a diffuse 8-zeta d span the
+Löwdin POPULATIONS are far from 0/1 (the eigenvalues are not — see the form paragraph below, written a day
+later), and 0.61 Ha for U=4 eV is a MECHANISM number, not physics.  qchem's
 term reproduces this definition (all l-shells on the site) for parity; a physically meaningful +U needs a
 projector that names ONE d manifold — which is pin 23's orbital-resolved / ACBN0 direction, not a knob.
+
+★★ **AND THE FORM (found 2026-09-20, when qchem's first run gave E_U = 0.080 Ha against the 0.610 above):
+CP2K keeps ONLY THE DIAGONAL of the Löwdin block.**  `dft_plus_u.F` line ~566: `IF (isgf == jsgf) q_matrix(i, j)
+= q_block(isgf, jsgf)` — the 40×40 block is copied as its 40 populations \f$q_{ii}\f$, \f$E_U=\tfrac U2\sum_i
+q_{ii}(1-q_{ii})\f$, \f$V_{ii}=U(\tfrac12-q_{ii})\f$, and the off-diagonals are `CPASSERT`ed to be zero.  No
+eigen-decomposition, so it is NOT the rotationally-invariant Dudarev functional: it depends on the choice of the
+2l+1 real harmonics and on how the 8 contractions share the 5 electrons.  **qchem's Dudarev form on the same
+recipe** (VA span, spherical view, imposed Shubnikov, kT=5e-3, U=4 eV on both Mn d, self-consistent, 57 iter):
+\f$E(0)=-61.41124112\f$, \f$E(U)=-61.30787782\f$, \f$\Delta E=+0.10336\f$ Ha, \f$E_U=0.08006\f$ Ha; occupation
+eigenvalues near-integer (majority site: N=4.80, max λ=0.997; minority: N=0.25, max λ=0.12).  ⇒ the two forms
+differ by 7.6× in E_U on this span, and the eigenvalue form is the one with a physical reading.  USER RULING
+2026-09-20: the diagonal-population form is a member of `CP2K_COMPAT` (`QCHEM_U_EIGEN=0`, `doc/Benchmark.md`
+§2 row 8 — the first physics deviation on that list); the oracle gate `GPW_MnO.DISABLED_Γ_U_Shub_Pol_Smear_CP2K`
+runs CP2K's form, and the numbers it banks are below.
+
+| quantity (CP2K's form, `QCHEM_U_EIGEN=0`) | qchem | CP2K |
+|---|---|---|
+| ΔE = E(U=4 eV) − E(0) | **+0.60307 Ha** (E(0)=−61.41124112, E(U)=−60.80817441) | +0.61735 Ha |
+| E_U | **0.57976 Ha** (max population 0.31 on the majority site: all 40 fractional, as the form implies) | 0.60951 Ha |
+| SCF steps with U / without | 57 / 43 (Shub anchor recipe: imposed, Becke, Ladder, kT=5e-3) | 104 / 44 |
+
+ΔE agrees to 14 mHa and E_U to 30 mHa on a 0.6 Ha effect, with the two codes' absolute energies 100 mHa apart (§5c of `doc/Benchmark.md`) — gate tolerance 50 mHa on both, PASSED 2026-09-20 (792 s, two arms).  The 30 mHa E_U residual is the same population functional of two densities that differ at the 0.1 Ha level; it is not a defect to chase before the absolute offset is named (OpenWork §4a).

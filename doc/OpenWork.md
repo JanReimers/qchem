@@ -48,8 +48,61 @@ paper's eigenvalue-TRACKING algorithm is needed only when the site symmetry is l
 Projectors: **Löwdin OAO** = \f$S^{-1/2}\f$ on the site block (`LASolver` forms it; Macke shows OAO beats NAO
 consistently; truncation spheres are a plane-wave artefact we do not have).
 
+> **▶ EXECUTED — increment 1 LANDED 2026-09-20 (`6aa8170d`; spec written 2026-09-19 after the tree
+> reconnaissance, built as specified).  What is in the tree:**
+> - **`Hubbard_U`** (`src/Hamiltonian/Internal/Hubbard.C`, module `qchem.Hamiltonian.Internal.Hubbard`): a
+>   `cDynamic_HT` with the real-TRIM corner, spin-native, ONE `template<class TBlock> MakeMatrixT` body
+>   (`MakeMatrix`/`MakeMatrixR` are the two one-line instantiations, as `Vee_Hartree`) — the scalar-generic shape,
+>   so V1.35 collapses it for free.  `IsVirialValid()=false`.
+> - **Input = a manifold list** (pin 23): `Hamiltonian::HubbardManifold{site,l,U}` on `Hamiltonian::Factory` /
+>   `Ham_PW_DFT`; at the facade `SolidCalcOptions::hubbard` + `HubbardU(site,l,U_eV)` (eV outside, Hartree in).
+>   `l` is never assumed 2, `site` never assumed the TM.  Increment 1 = ONE U per manifold (Macke eq 6 with all
+>   \f$U_i\f$ equal); the per-site-irrep vector is the same code with a vector.
+> - **The manifold's functions**: the block answers the new abstract face **`BasisSet::AoShellSource`** ("I am
+>   built from atom-centred shells": `Gaussian::Point::Orbital_1E_IBS`, `tGPW_IBS` through `MolecularBlock()`, and
+>   the spherical view with ITS OWN column layout) and `ShellRep::L()` names the shell's l.  ★ **CP2K's LOWDIN
+>   manifold, read off `src/dft_plus_u.F`, is EVERY shell of angular momentum l on the atom** (all `nsb`
+>   contractions: 8 d shells ⇒ a 40×40 Löwdin block per Mn per spin on the VA span), and `Columns` reproduces
+>   that for parity — so CP2K's E_U=0.61 Ha at U=4 eV is a MECHANISM number (\f$\sum_i q_{ii}(1-q_{ii})\approx8.3\f$
+>   over the 40 POPULATIONS of a diffuse 8-zeta span — see the form finding below), not physics; a physically meaningful +U names ONE d manifold, which is exactly the
+>   orbital-resolved/ACBN0 direction.  ⚠ A Cartesian d (6 components, the s-contaminant among them) is REFUSED
+>   with the fix in the message: run the spherical view (`GPW_SPHERICAL=1`).
+> - **Projector = Löwdin, born on the pair**: per block `LowdinProjector<TBlock> : MatrixForward<TBlock>,
+>   MatrixAdjoint<TBlock>`, \f$T=S^{1/2}[:,M]\f$ (`blazem::eigen` on the block overlap, geometry-fixed);
+>   FORWARD \f$n=T^\dagger DT\f$ (D carries \f$w_kf_\nu\f$, the k-sum is the composite's block sum), ADJOINT
+>   \f$V=TWT^\dagger\f$; `NumCoefficients` = \f$\sum_M m_M^2\f$.  The density gets the forward through its own
+>   `ProjectOnto` (the term realises `Fitting::ScalarProjector`, as `DeltaScalarFitter` does), the term keeps the
+>   adjoint.  **`PrepareSlots` is the geometry phase**: every block's pair is built there, because the composite
+>   sizes its sum by `NumCoefficients()` BEFORE any block runs (the first bug the Si gate found).
+> - **Occupations from \f$D_{out}\f$**: `EnsureOccupations` takes the `cDM_CD` itself or the DM-backed source a
+>   mixed density retains (`cDM_Sourced_CD::DMSource`), per channel through `ChannelOf`; `SpinGroup::None` =
+>   \f$n_{tot}/2\f$ in both channels (pin 5).  A matrix-free SEED before any block: \f$E_U=0\f$, \f$V=0\f$, version
+>   NOT stamped (second bug the gate found: an empty W reached the adjoint).  DECLARED on the facade's run banner
+>   (`+U: LOWDIN, shell-averaged, occupations from D_out*`) — CP2K mixes P; same fixed point, different trajectory.
+> - Energy/potential in the occupation eigenbasis (`Analyse`): \f$E_U=\sum\tfrac U2\lambda(1-\lambda)\f$,
+>   \f$W=\sum U(\tfrac12-\lambda)vv^T\f$, ONCE per density in `RefreshForDensity` (the eager phase), served per
+>   block from the cache.  **`FreezeOccupations(bool)`** from day one (LR-cDFT perturbation runs; polaron
+>   occupation control).  `Occupations(M,σ)` / `HubbardEnergy()` for the probes.  `QCHEM_U_TRACE=1` prints the
+>   per-refresh `[+U]` line (N per manifold, max λ, E_U) to stdout (pin 17; gtest attaches no console).
+> - **Gates**: `UTHamiltonian` `LowdinProjector.*` ×4 (adjointness, idempotent D ⇒ λ∈{0,1}, trace = charge,
+>   NumCoefficients); `GPW_Si.Γ_U_ZeroUIsExactlyAbsent` (U=0 ≡ no term to 1e-10) and
+>   `Γ_U_IsAPositiveSelfConsistentFunctional` (E_U = 1.5U exactly: three half-filled p eigenstates per site per
+>   spin — the functional is honest on a case with a closed-form answer).  `scripts/testgrid` grew the **`model`**
+>   axis (`U` = DFT+U, default LDA) after `fit`.  ctest 891/891.
+> - **The oracle gate `GPW_MnO.DISABLED_Γ_U_Shub_Pol_Smear_CP2K`** (VA span + spherical view, the Shub anchor's
+>   recipe, two arms U=0 / U=4 eV on both Mn d, ~6 min each): compares the U-INDUCED SHIFT ΔE and E_U against
+>   CP2K's +0.61735 / 0.60951 Ha (the 100 mHa absolute offset between the codes is U-independent to first order).
+>   ★★ **FIRST RUN (Dudarev form): E_U = 0.080 Ha against CP2K's 0.610 — and the cause is CP2K's FORM, not
+>   ours**: `dft_plus_u.F` keeps ONLY THE DIAGONAL of the Löwdin block (`IF (isgf == jsgf)`), i.e. the 40
+>   populations, no eigen-decomposition — not the rotationally-invariant Dudarev functional.  On this span the
+>   populations are all fractional (Σq(1−q)≈8.3) and the eigenvalues near-integer (N_maj=4.80, max λ=0.997).
+>   **USER RULING 2026-09-20: the diagonal-population form is a `CP2K_COMPAT` member** — `RunPolicy::HubbardEigen`,
+>   knob `QCHEM_U_EIGEN` (default on = Dudarev; off under the umbrella), `doc/Benchmark.md` §2 row 8, the first
+>   PHYSICS deviation on that list; read once by `Hubbard_U`'s constructor; the gate sets it through the N5
+>   hatch.  Both numbers are banked in `doc/Records/CP2Kresults.md`.  **VERDICT on CP2K's form (2026-09-20): PASSED** — ΔE = +0.6031 Ha (CP2K +0.6174), E_U = 0.5798 (CP2K 0.6095), 57/43 iterations with/without U (CP2K 104/44); tolerance 50 mHa on a 0.6 Ha effect with the codes 100 mHa apart absolutely.  Step 5.1 is BANKED.
+
 In order:
-1. **The ORACLE ROW FIRST — shell-averaged, because that is all CP2K has.**  `&DFT_PLUS_U` per `&KIND` with
+1. ✅ **DONE 2026-09-20 (the block above). The ORACLE ROW FIRST — shell-averaged, because that is all CP2K has.**  `&DFT_PLUS_U` per `&KIND` with
    `U_MINUS_J` and `PLUS_U_METHOD MULLIKEN | LOWDIN` (verified in the installed 2025.2 input reference).
    MnO AFM-II, the deck we trust (`IntegrationTests/CP2K/mno_afm2_gpw_va.inp`), one `U_MINUS_J` on the Mn
    kind, run as `doc/Benchmark.md` §5a says.  Ours: the per-irrep vector with all U_i equal, LOWDIN, declared on
