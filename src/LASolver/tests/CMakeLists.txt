@@ -13,4 +13,4 @@ target_include_directories(UTLASolver PRIVATE
 
 target_link_libraries(UTLASolver PRIVATE qcLASolver lapack gtest)
 
-gtest_discover_tests(UTLASolver)
+qchem_discover_tests(UTLASolver)

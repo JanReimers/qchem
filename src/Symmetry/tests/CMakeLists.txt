@@ -23,4 +23,4 @@ target_include_directories(UTSymmetry PRIVATE
 
 target_link_libraries(UTSymmetry PRIVATE qcSymmetry gtest)
 
-gtest_discover_tests(UTSymmetry)
+qchem_discover_tests(UTSymmetry)

@@ -21,4 +21,4 @@ target_include_directories(UTCommon PRIVATE
 
 target_link_libraries(UTCommon PRIVATE qcMath qcCommon gtest)
 
-gtest_discover_tests(UTCommon)
+qchem_discover_tests(UTCommon)

@@ -18,4 +18,4 @@ target_include_directories(UTElConfig PRIVATE
 
 target_link_libraries(UTElConfig PRIVATE qcElConfig gtest)
 
-gtest_discover_tests(UTElConfig)
+qchem_discover_tests(UTElConfig)

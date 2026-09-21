@@ -18,4 +18,4 @@ target_include_directories(UTCalculation PRIVATE
 
 target_link_libraries(UTCalculation PRIVATE qchem gtest)
 
-gtest_discover_tests(UTCalculation)
+qchem_discover_tests(UTCalculation)

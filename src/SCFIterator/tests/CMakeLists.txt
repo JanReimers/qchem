@@ -18,4 +18,4 @@ target_include_directories(UTSCFIterator PRIVATE
 
 target_link_libraries(UTSCFIterator PRIVATE qchem lapack gtest)
 
-gtest_discover_tests(UTSCFIterator)
+qchem_discover_tests(UTSCFIterator)

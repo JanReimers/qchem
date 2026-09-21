@@ -70,12 +70,6 @@ target_link_libraries(ITMain PRIVATE qcGPW_Harness qcPW_Harness qcUmbrella qchem
 
 # setup testing
 include(GoogleTest)
-# DISCOVERY_EXTRA_ARGS --gtest_output= : force CMake's TEXT-listing discovery.  CMake >= 3.30 lists the tests
-# through --gtest_output=json, and googletest escapes every non-ASCII BYTE of a name as \u00XX, so a test named
-# with a Greek Gamma came back double-encoded ("Î" + U+0093) and its ctest filter matched NOTHING -- gtest ran
-# zero tests, exited 0, and ctest printed "Passed 0.02 sec".  Every Γ-named SCF test (48 of them) was silently
-# skipped by every sweep from the 2026-09-15 renaming until 2026-09-20.  A trailing empty --gtest_output=
-# overrides the JSON request (gtest takes the last one), no file is written, and the module falls back to
-# parsing the plain listing, which carries the bytes through intact.  Check: `ctest -N | grep Γ` must list them
-# with the Gamma itself, never "Î".
-gtest_discover_tests(ITMain DISCOVERY_EXTRA_ARGS --gtest_output=)
+# qchem_discover_tests (root CMakeLists.txt): text-listing discovery + FAIL on "no tests were run" -- the
+# 2026-09-20 Γ lesson.
+qchem_discover_tests(ITMain)

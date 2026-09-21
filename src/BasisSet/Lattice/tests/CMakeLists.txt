@@ -40,4 +40,4 @@ target_include_directories(UTLattice_BS PRIVATE
 
 target_link_libraries(UTLattice_BS PRIVATE qcPW_TestFields qcLattice_BS qcPseudopotential qcFitting lapack gtest)   # the tests use the GTH models directly; qcFitting = OrthogonalFit (GPW_UT's per-representation fit gates), a leaf
 
-gtest_discover_tests(UTLattice_BS)
+qchem_discover_tests(UTLattice_BS)

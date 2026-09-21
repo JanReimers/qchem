@@ -14,4 +14,4 @@ target_include_directories(UTSCFAccelerator PRIVATE
 
 target_link_libraries(UTSCFAccelerator PRIVATE qcSCFAccelerator lapack gtest)
 
-gtest_discover_tests(UTSCFAccelerator)
+qchem_discover_tests(UTSCFAccelerator)

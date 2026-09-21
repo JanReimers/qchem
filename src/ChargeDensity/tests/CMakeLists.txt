@@ -20,4 +20,4 @@ target_include_directories(UTChargeDensity PRIVATE
 # lapack/blas resolve the linear-algebra symbols qcBasisSet/qcLASolver pull in transitively.
 target_link_libraries(UTChargeDensity PRIVATE qcChargeDensity qcLattice_BS lapack blas gtest)
 
-gtest_discover_tests(UTChargeDensity)
+qchem_discover_tests(UTChargeDensity)

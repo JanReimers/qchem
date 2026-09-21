@@ -57,6 +57,32 @@ green before the next.
   fork. Do it LAST: on top of C++23 (so modular Blaze can `import std;` itself) and after json has de-risked the
   modular-3rd-party path. Expect expression-template/ADL visibility quirks — Clang 22 handles these best.
 
+- **Step 5 — REPLACE googletest (action item, user, 2026-09-21).**  Two reasons, one of them disqualifying:
+  **(a) gtest silently passes an empty selection.**  On 2026-09-20 we found that every ctest sweep since the
+  2026-09-15 renaming had run NONE of the 48 `Γ`-named SCF tests: CMake's JSON discovery double-encoded the
+  name, the filter matched nothing, gtest printed a WARNING and **exited 0**, ctest said "Passed".  Verified
+  on gtest 1.16: `--gtest_filter=Nope` → rc 0; the new `--gtest_fail_if_no_test_linked` does not cover it.  A
+  runner that can report success while running nothing defeats the purpose of a runner (user).  The interim
+  guard is `qchem_discover_tests` in the root CMakeLists (text-listing discovery + `FAIL_REGULAR_EXPRESSION
+  "no tests were run"`), which makes the NEXT such accident red — it does not make gtest honest.  **(b) gtest
+  is the preprocessor island** of this plan: `TEST`, `EXPECT_*`, `ASSERT_*` are macros, `gtest.h` pulls the
+  stdlib in textually, and it is the reason test TUs cannot take `import std;` (the caveat above).
+  **Candidate: Boost.UT (μt, boost-ext/ut)** — C++20, single header, **macro-free** (`"name"_test = []{
+  expect(x == 1_i); };`, `expect(approx(a, b, tol))`), ships as a module (`import boost.ut;`), no
+  dependency on Boost proper.  Catch2 v3, doctest and snitch are all macro-based (`TEST_CASE`, `REQUIRE`) and
+  fail criterion (b), whatever their runners do.  **Evaluation gates, in order:** (1) does μt's runner FAIL
+  (non-zero exit) on an empty filter / zero registered tests — test it first, it is the reason for the item;
+  (2) a UTF-8 test name survives its listing and filtering; (3) the ctest bridge — there is no upstream
+  `ut_discover_tests`; we write our own listing→`add_test` script, which we effectively own already
+  (`qchem_discover_tests`), with the name carried as bytes; (4) the IDE cost, stated honestly: the user drives
+  tests through the VSCode C++ TestMate tree, which speaks gtest/Catch2/doctest, not μt — a TestMate-compatible
+  listing/reporting mode or a different explorer is part of the price; (5) the migration: ~900 cases,
+  `TEST(Suite, Name)` → `suite`/`"Name"_test`, `EXPECT_NEAR` → `expect(approx(...))`, `ASSERT_TRUE(o) << Why(o)`
+  → μt's `expect(...) << msg` with `fatal` — mechanical, scriptable, and the test-name grammar
+  (`scripts/testgrid`) must keep parsing.  Do it as a per-exe migration (one `UT*` exe at a time, both runners
+  in the tree meanwhile), ITMain last.  Sequence: after Step 2 (so the test TUs are the only `#include`
+  islands left and the win is measurable), before Step 4.
+
 ## Acceptance per step
 
 Standard: clean `UTMain` (Release) + `allTests` build, `-A_*` fast suite + PW/DFT anchors green. For Step 4,

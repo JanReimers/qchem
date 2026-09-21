@@ -20,4 +20,4 @@ target_include_directories(UTStructure PRIVATE
 
 target_link_libraries(UTStructure PRIVATE qcStructure qcMesh gtest)
 
-gtest_discover_tests(UTStructure)
+qchem_discover_tests(UTStructure)

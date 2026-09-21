@@ -32,4 +32,4 @@ target_include_directories(UTRadial_BS PRIVATE
 
 target_link_libraries(UTRadial_BS PRIVATE qcRadial_BS qcLASolver gtest)
 
-gtest_discover_tests(UTRadial_BS)
+qchem_discover_tests(UTRadial_BS)

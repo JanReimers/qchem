@@ -29,4 +29,4 @@ target_include_directories(UTHamiltonian PRIVATE
 # basis as FIXTURES for the terms under test.  Siblings and leaves of qcHamiltonian, never anything above it.
 target_link_libraries(UTHamiltonian PRIVATE qcPW_TestFields qcHamiltonian qcLattice_BS qcChargeDensity qcFactory xc lapack blas gtest)
 
-gtest_discover_tests(UTHamiltonian)
+qchem_discover_tests(UTHamiltonian)

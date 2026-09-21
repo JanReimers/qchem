@@ -15,4 +15,4 @@ target_include_directories(UTPseudopotential PRIVATE
 # qcMesh supplies the radial mesh for the Bessel-transform quadrature.
 target_link_libraries(UTPseudopotential PRIVATE qcPseudopotential qcMesh gtest)
 
-gtest_discover_tests(UTPseudopotential)
+qchem_discover_tests(UTPseudopotential)

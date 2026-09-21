@@ -92,6 +92,21 @@ add_test(NAME InternalReexportAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-
 add_test(NAME BasisSetGTagAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-basisset-gtags ${PROJECT_SOURCE_DIR}/src/BasisSet)
 include(CTest)
 include(GoogleTest)
+# qchem_discover_tests(<exe>): gtest_discover_tests with the two guards every test exe in this tree needs
+# (2026-09-21, after ctest silently skipped 48 Γ-named SCF tests for five days):
+#   1. DISCOVERY_EXTRA_ARGS --gtest_output=  -- TEXT-listing discovery.  CMake >= 3.30 lists through
+#      --gtest_output=json and googletest escapes every non-ASCII BYTE of a name as \u00XX, so a non-ASCII
+#      name comes back double-encoded and its filter matches nothing.  The trailing empty flag suppresses the
+#      JSON file and the module parses the plain listing, bytes intact.
+#   2. FAIL_REGULAR_EXPRESSION "no tests were run" -- googletest exits 0 when a filter matches NOTHING (it
+#      only WARNS: "filter ... did not match any test; no tests were run"), which defeats the point of a test
+#      runner; ctest turns that line into a FAILURE, so the next encoding or renaming accident is red, not green.
+# The real fix -- a runner that cannot pass an empty selection -- is doc/ModuleToolchainPlan.md's gtest item.
+function(qchem_discover_tests target)
+    gtest_discover_tests(${target}
+        DISCOVERY_EXTRA_ARGS --gtest_output=
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run")
+endfunction()
 set(BUILD_GMOCK OFF CACHE BOOL "Disable GoogleMock for this project" FORCE)
 add_subdirectory(./submodules/googletest)
 link_directories(${PROJECT_BINARY_DIR}/lib)

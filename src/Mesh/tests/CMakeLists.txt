@@ -17,4 +17,4 @@ target_include_directories(UTMesh PRIVATE
 
 target_link_libraries(UTMesh PRIVATE qcMesh gtest)
 
-gtest_discover_tests(UTMesh)
+qchem_discover_tests(UTMesh)

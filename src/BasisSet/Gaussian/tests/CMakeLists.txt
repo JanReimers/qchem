@@ -28,4 +28,4 @@ target_include_directories(UTGaussian_BS PRIVATE
 
 target_link_libraries(UTGaussian_BS PRIVATE qcGaussian_BS lapack gtest)
 
-gtest_discover_tests(UTGaussian_BS)
+qchem_discover_tests(UTGaussian_BS)
