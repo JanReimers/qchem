@@ -157,6 +157,50 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   increment 2 spec".  **NEXT = increment 3: ACBN0 (U, J) from our own on-site ERIs** (item 3 below).
 
 
+> **▶ INCREMENT 3 — ACBN0 (Ū, J̄) FROM OUR OWN ON-SITE ERIs — SPEC 2026-09-21 (written after reading
+> `~/Code/1406.3259v3.pdf` eqs 1–13 and the tree; user: LAPACK is fair game for any library).**
+> - **The formula (paper eqs 8–13, spin-unrestricted, ONE manifold M of functions {m}; write \f$m_1..m_4\f$):**
+>   \f$\bar U=\dfrac{\sum_{m_1m_2m_3m_4}\sum_{\sigma\sigma'}\bar P^\sigma_{m_1m_2}\bar P^{\sigma'}_{m_3m_4}(m_1m_2|m_3m_4)}{\sum_{m\ne m'}N^\alpha_mN^\alpha_{m'}+\sum_{mm'}N^\alpha_mN^\beta_{m'}+\sum_{mm'}N^\beta_mN^\alpha_{m'}+\sum_{m\ne m'}N^\beta_mN^\beta_{m'}}\f$,
+>   \f$\bar J=\dfrac{\sum_{m_1m_2m_3m_4}\sum_\sigma\bar P^\sigma_{m_1m_2}\bar P^\sigma_{m_3m_4}(m_1m_4|m_3m_2)}{\sum_{m\ne m'}N^\alpha_mN^\alpha_{m'}+\sum_{m\ne m'}N^\beta_mN^\beta_{m'}}\f$,
+>   \f$U_{\rm eff}=\bar U-\bar J\f$ (Dudarev), with \f$(m_1m_2|m_3m_4)=\int\phi_{m_1}\phi_{m_2}\,r_{12}^{-1}\,\phi_{m_3}\phi_{m_4}\f$ the
+>   BARE integrals over the manifold's functions in the CENTRAL CELL ONLY (paper: \f$g=l=m=0\f$ — no lattice sum,
+>   no screening; the renormalisation IS the screening), \f$N^\sigma_m=\bar P^\sigma_{mm}\f$.
+> - **The renormalised density matrix, LÖWDIN not Mulliken (user, item 3 above):** per k and spin, each occupied
+>   orbital \f$i\f$ has Löwdin coefficients \f$\ell_i=T^\dagger c_i\f$ in the manifold (\f$T=S^{1/2}[:,M]\f$, the
+>   projector `Hubbard_U` already owns), and its RENORMALISED occupation \f$\bar N_i=\sum_{M'\sim M}\|T_{M'}^\dagger c_i\|^2\f$
+>   — its Löwdin charge in EVERY manifold of the same (species, l) in the cell (the paper's \f$\{\bar m\}\f$: both Mn
+>   on AFM-II MnO); then \f$\bar P^\sigma_M=\sum_kw_k\sum_if_{ki}\bar N_{ki}\,\ell_{ki}\ell_{ki}^\dagger\f$.  \f$\bar N_i=1\f$
+>   for every orbital gives back \f$n\f$, the +U occupation matrix — the first gate.  This needs the ORBITALS,
+>   not D: `TOrbital<T>::GetCoeff()` (the AO-basis coefficients beside the existing `GetCoeffPrime`).
+> - **The integrals — a NEW INTEGRAL TYPE, so a new basis face (the pseudo-wall pin allows exactly this):**
+>   `BasisSet::BareCoulombSource::BareCoulomb(cols)` → `ERI4Block` (the \f$m^4\f$ tensor over a chosen function
+>   subset).  Realised ONCE in the `Gaussian::Orbital_ERI4_IBS<E>` mixin over the evaluator's `FourC` (PG_Cart and
+>   PG_Spherical get it together; libcint's matrix-delivery engine throws "not this increment"); FORWARDED by
+>   `tGPW_IBS` to its molecular block (a Bloch sum of an AO is the AO in the central cell); TRANSFORMED by the
+>   spherical view through its own \f$T\f$ (cart→sphere on all four indices).  MnO VA: 42 Cartesian d functions
+>   on one Mn → \f$42^4/8\f$ M&D integrals, seconds, geometry-fixed.
+> - **Where ACBN0 lives:** qcWaveFunction sits ABOVE qcHamiltonian, so the estimator cannot take a `WaveFunction`.
+>   `Hamiltonian::ACBN0` takes plain orbital data — per (block, spin): weight \f$w_k\f$, coefficient columns,
+>   occupations — and asks `Hubbard_U` for `LowdinCoefficients(block, C)` (what the client CONSUMES: the Löwdin
+>   coefficients of given orbitals in each manifold).  The FACADE extracts that from `GetOrbitals(irrep)` after
+>   Converge and runs the OUTER LOOP the paper uses: SCF at \f$U^{(n)}\f$ → \f$(\bar U,\bar J)^{(n+1)}\f$ → repeat
+>   until \f$|\Delta U|<10^{-4}\f$ eV, from \f$U^{(0)}=0\f$ ("the true variational solution" is their future work
+>   too).  Per-slot \f$\bar U_k\f$ (the same sums restricted to a slot's functions) is REPORTED as a diagnostic;
+>   wiring it into `Uirrep` is one flag once the shell-averaged value is trusted.
+> - **Gates:** (1) `UTGaussian_BS`/`UTHamiltonian`: ONE normalised d Gaussian shell — \f$\bar U_{\rm bare}=F^0\f$ and
+>   \f$\bar J_{\rm bare}=(F^2+F^4)/14\f$ against Slater integrals from an independent 2-D radial quadrature
+>   (the textbook shell averages: the whole chain FourC → c2s → normalisation in one number), rotational
+>   invariance, \f$(ii|jj)\ge0\f$, the 8-fold ERI symmetry; (2) \f$\bar N_i\equiv1\f$ reproduces `Hubbard_U`'s
+>   \f$n\f$ bit-for-bit; (3) MnO AFM-II: \f$U^{(n)}\f$ converges, printed per outer iteration with
+>   \f$(\bar U,\bar J,N_m)\f$; the paper's PBE/Mulliken/PAO-3G value is 4.67 eV (Mn) — ours is LDA/Löwdin/7-shell,
+>   so agreement is NOT the claim; (4) **basis sensitivity measured explicitly** (user): \f$U\f$ on the VA span vs a
+>   contracted single-3d manifold, before any U is trusted.  Oracle for the VALUE = item 4, `hp.x`.
+> - ⚠ **A physically meaningful manifold is ONE radial d function** (increment 1's finding: CP2K's all-shells
+>   manifold is a mechanism number).  ACBN0 over 35 functions gives an average over diffuse shells too; the
+>   contracted-3d manifold (the atom's own 3d, `AtomCalculation`) is the comparison arm of gate (4), and the
+>   likely production manifold.  Decide from the measurement, not now.
+
+
 In order:
 1. ✅ **DONE 2026-09-20 (the block above). The ORACLE ROW FIRST — shell-averaged, because that is all CP2K has.**  `&DFT_PLUS_U` per `&KIND` with
    `U_MINUS_J` and `PLUS_U_METHOD MULLIKEN | LOWDIN` (verified in the installed 2025.2 input reference).
