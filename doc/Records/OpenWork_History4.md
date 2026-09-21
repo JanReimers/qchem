@@ -1833,3 +1833,52 @@ delete even that branch: `doc/CleanupCandidates.md` R1.0.
    cleanup item.
 
 
+
+
+---
+
+## THE QUEUED PROGRAMME · increment 2 spec (moved here 2026-09-21 on landing; verbatim from `doc/OpenWork.md` §1 step 5)
+
+The spec as written 2026-09-20 and executed 2026-09-21.  What the build changed against it: n is NOT
+symmetrised (the site group NAMES the eigenvectors of the actual n through isotypic projectors, `purity` says
+how symmetric n was); the slot table comes from group theory (\f$\mathrm{Tr}\,P_{site}P_{grey}\f$), not from
+clustering a symmetrised matrix; the PARENT group is the coordination environment's point group
+(`Lattice_3D::SiteEnvironmentRotations`), because the supercell's grey stabiliser is D_3d, not O_h.
+
+> **THE SPEC (2026-09-20, written after reading the tree; the per-site-irrep U vector = the orbital
+> resolution pin 23 is about).**  ⚠ One paragraph below is superseded by the build: n is NOT symmetrised
+> (a free run's symmetry-broken n must keep its own occupations); the site group names the eigenvectors of
+> the actual n through its isotypic projectors, and a `purity` diagnostic says how symmetric n was.
+> - **What changes in the functional**: nothing but the scalar per eigenvalue — `Analyse` already evaluates
+>   \f$E_U=\sum_i \tfrac{U_i}{2}\lambda_i(1-\lambda_i)\f$, \f$W=\sum_i U_i(\tfrac12-\lambda_i)v_iv_i^T\f$; increment 1 set
+>   every \f$U_i\f$ equal.  Increment 2 makes \f$U_i = U_{\mathrm{irrep}(i)}\f$.
+> - **The labels come from the SITE GROUP, not a character table** (the molecular tables are abelian-only, and
+>   t2g/e_g are 3-D/2-D): the occupation block is SYMMETRISED, \f$\bar n=\tfrac1{|G|}\sum_g D(g)\,n\,D(g)^T\f$, with
+>   \f$D(g)=\bigoplus_{\rm shells}\,\mathrm{Rep}^{(l)}(R_g)\f$ from `ShellRep::Rep` (the \f$(2l+1)^2\f$ matrix of the
+>   Cartesian rotation \f$R_g=AW_gA^{-1}\f$, block-diagonal over the manifold's shells in `Columns` order); its
+>   eigenvectors then fall into degenerate CLUSTERS, and a cluster's irrep is its CHARACTER VECTOR
+>   \f$\chi(g)=\mathrm{Tr}(P_{\rm cluster}D(g))\f$ — two clusters with equal characters are the same irrep (the 8
+>   d-shells' e_g pairs all carry one label).  Labels are `(dimension, index by first appearance in character
+>   order)` and the characters are PRINTED beside them, so a reader names them (a1g, eg, …) without the code
+>   holding a table.  No eigenvalue TRACKING (Macke's algorithm for sites below the wanted split): out of
+>   scope, stated.
+> - **WHICH site group — the decision to veto**: the stabiliser of the site in the **Shubnikov group of the
+>   declared decoration, σ=None ops only** (`Lattice_3D::ShubnikovOps(spins)`, filtered to those fixing the
+>   site), NOT the grey crystal group's.  Why: on the AFM-II cell the grey group still relates the two Mn (both
+>   species 7), so its stabiliser is the full rock-salt O_h and would symmetrise n under ops the ORDER has
+>   broken — t2g would be forced degenerate where the rhombohedral AFM-II order splits it a1g + eg.  The σ=Flip
+>   ops that fix a site are time-reversal partners linking \f$n^\uparrow\leftrightarrow n^\downarrow\f$: a constraint
+>   between channels, not a symmetry of one, so they are left out.  Unpolarized / grey: the grey stabiliser.  A
+>   FREE run is labelled by the declared decoration's group all the same (the site symmetry of the ordered
+>   state is the physical question, whether or not it was imposed).
+> - **Plumbing**: the Shubnikov ops reach the term through `Hamiltonian::Factory` → `Ham_PW_DFT` → `Hubbard_U`
+>   (one more argument on the same three signatures `hubbard` took; qcSymmetry is below qcHamiltonian), read
+>   in `PrepareSlots` beside the projectors (geometry-fixed).  `HubbardManifold` gains
+>   `std::vector<double> Uirrep` (empty = shell-averaged, the increment-1 behaviour; else indexed by the
+>   printed irrep index — a knob ONLY until ACBN0 fills it, pin 12).  The `[+U]` line prints per manifold the
+>   clusters: dimension, characters, \f$\sum\lambda\f$, \f$U\f$.
+> - **Gates**: `UTHamiltonian` — a synthetic O_h block: a random symmetric n symmetrised under the 48 ops of
+>   Rep(l=2) splits into exactly {3, 2} with the t2g/e_g characters, and a U vector (U_t2g, U_eg) reproduces
+>   \f$E_U\f$ by hand; the Si p manifold (l=1, T_d site) is one 3-D cluster (so Uirrep of length 1 == the scalar,
+>   bit-identical to increment 1); MnO AFM-II: the d manifold reports {1, 2, 2} (a1g + eg + eg) under D_3d and
+>   the shell-averaged run is bit-identical with `Uirrep` all equal.

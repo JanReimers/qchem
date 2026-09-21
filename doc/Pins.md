@@ -280,6 +280,18 @@ broke its structure.  User: *"I have seen other examples where O played an unexp
 term takes a LIST of (site, shell, irrep, U); no code path may assume the Hubbard atom is the transition
 metal.  Projector = Löwdin OAO on the site block.  U values are never hand-tuned in production (pin 12):
 ACBN0-style from our own on-site ERIs, checked against QE `hp.x`.  Record: `doc/OpenWork.md` §1 step 5.
+**Addendum 2026-09-21 (increment 2, earned by a wrong table):** the labels have TWO groups and neither is
+the cell's.  The SITE group is the declared decoration's Shubnikov stabiliser (σ=None) — the order splits
+t2g → a1g + e_g and the labels must see it.  The PARENT group that names a site level "e_g < t2g" is the
+point group of the site's **coordination environment** (`Lattice_3D::SiteEnvironmentRotations`), NOT the
+(super)cell's grey stabiliser: on the rhombohedral AFM-II MnO cell the latter is D_3d (12 ops) with or
+without decoration and names nothing — measured, after the tree had asserted O_h for a week.  And the
+occupation matrix is NEVER symmetrised: symmetry NAMES the eigenvectors of the density's own n (isotypic
+projectors, `purity` printed), it does not edit them — a free run's broken symmetry must keep its own
+occupations, and the functional must stay dE/dD.  Inside a degenerate cluster the eigenbasis is rotated
+to the projectors (n is unchanged); inside a NEARLY degenerate one (four λ≈0.999 on a full majority
+shell) the names are ill-conditioned by nature — that is Macke's tracking problem, and the printed
+`parentage` says so rather than hiding it.
 
 ---
 

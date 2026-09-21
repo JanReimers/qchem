@@ -104,57 +104,58 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   **Run-time at parity (`CP2K_COMPAT=1`, user's ask, 2026-09-20)**: setup ~10 s vs CP2K ~5 s; **9.6 s/iteration vs CP2K 9.05** (1.06×; the +U refresh itself costs us ~15 ms, CP2K's full-matrix S½PS½ ~0.75 s/iter); neither of our free arms CONVERGED (120-iteration cap, a period-2 "ρ rotates" cycle) where CP2K's deck converges the same free cell in 44/104 with `BROYDEN_MIXING ALPHA 0.2 BETA 1.5 NBUFFER 8` = Kerker-preconditioned Broyden on ρ̃.  Our recipe keeps its history on the Fock side (DIIS) and `PulayDepth=0`.  ⇒ the like-for-like CONVERGENCE gap is on the free run, and Kerker+density-history is the suspect (user); next probe = the parity arms with `PulayDepth=8` (our `PulayMixer` IS Kerker-preconditioned density Pulay), U=0 arm first — this is step 5's item 2 (N3) territory.
 >   ★★ **RESOLVED the same day — three things were fighting, and none of them was the physics** (user: *"we usually end up iterating toward 'convergence' in parameter settings … anytime CP2K finishes many minutes before ITMain my antenna goes up"*; targets (1) very close energies (2) similar convergence rates (3) similar runtime/RAM).  **(a) The MEASURE**: CP2K's `EPS_SCF` is max|ΔP_ij| on the AO density matrix (1e-6); our `MinΔρ` on Kerker was the G-space residual (1e-5 ≈ 1e-4 relative, ~100× looser) — on the anchor recipe max|ΔD| sat at **3e-3** for 200 iterations while the residual read "converged" at 43.  `SCFParams::Measure::MaxΔD` puts CP2K's measure on the loop (`GetMaxChangeFrom` on the mixable face); Benchmark rule 3f.  **(b) TWO HISTORIES**: Fock-side DIIS (the Ladder) and density-side Pulay extrapolate each other's output — with both on, max|ΔD| never left 1e-2.  **(c) MOM** hands a smeared degenerate d frontier unequal occupations that swap every iteration: D rotates at constant ρ.  The deck has ONE history (Broyden on ρ̃, `BETA 1.5 NBUFFER 8`) and no MOM.  **With the deck's loop shape and measure** (`MNO_ACC=Null MNO_MOM=0 MNO_PULAY=8 MNO_MEASURE=maxdd MNO_EPS=1e-6`, probe knobs added): imposed Becke recipe **22 / 24 iterations** (U=0 / U=4 eV) to max|ΔD| < 1e-6, energies unchanged to 4e-7 Ha, vs CP2K **44 / 104**; at `CP2K_COMPAT=1` the FREE run now CONVERGES (33 iterations, AFM-II held, m̃(q) 3.13 e): setup 1.9 s vs 8.1, **10.3 s/iter vs 8.29** (3 gathers + 2 collocations against 2 + 2 — §5f lever B, the whole residual), **wall 5:42 vs 6:14**, RSS 262 vs 217 MB.  The oracle gate now carries this recipe.  ⇒ N3 (item 2) was then MEASURED the same day and PROMOTED (§4 row): (ρ,m) 18 / 21 vs (up,dn) 22 / 24 iterations, energies identical.
 
-> **▶ INCREMENT 2 — CODE LANDED 2026-09-21 (`37c6501c`), GATES
-> PENDING — THE NEXT SESSION STARTS HERE, not at increment 3.**  What is in the tree: `Lattice_3D::SiteRotations`,
-> `HubbardManifold::{Uirrep, siteOps, greyOps}` (the facade fills the groups from the declared decoration),
-> `Hubbard_U::BuildSymmetry` (irreps clustered by character from a generic matrix, isotypic projectors, the
-> label slots = (site irrep, grey parent) printed once) and `LabelEigenvectors` (the density's OWN n, never
-> symmetrised — symmetry NAMES the eigenvectors; each takes the irrep whose projector carries most of it,
-> `purity` = the minimum weight).  Si p under T_d: one slot, dim 3, gates unchanged.  **TO DO, in order:**
-> (1) `UTHamiltonian` gate — a synthetic O_h block (48 ops of Rep(l=2)) splits {3, 2} with the t2g/e_g
-> characters and a (U_t2g, U_eg) `Uirrep` reproduces \f$E_U\f$ by hand; (2) the MnO d manifold reports
-> {1, 2, 2} under D_3d (a1g ⊂ t2g, eg ⊂ t2g, eg ⊂ e_g with parentage ≈ 100 %) and the shell-averaged run is
-> bit-identical with `Uirrep` all equal — run `gpwprobe mno` with `QCHEM_U_TRACE=1 MNO_U=4` and read the
-> `[+U] site 0 l=2: … U slots` line; (3) the facade banner prints the slots; (4) a `MNO_U_IRREP=a,b,c` probe
-> knob.  Then increment 3 = ACBN0.
->
-> **THE SPEC (2026-09-20, written after reading the tree; the per-site-irrep U vector = the orbital
-> resolution pin 23 is about).**  ⚠ One paragraph below is superseded by the build: n is NOT symmetrised
-> (a free run's symmetry-broken n must keep its own occupations); the site group names the eigenvectors of
-> the actual n through its isotypic projectors, and a `purity` diagnostic says how symmetric n was.
-> - **What changes in the functional**: nothing but the scalar per eigenvalue — `Analyse` already evaluates
->   \f$E_U=\sum_i \tfrac{U_i}{2}\lambda_i(1-\lambda_i)\f$, \f$W=\sum_i U_i(\tfrac12-\lambda_i)v_iv_i^T\f$; increment 1 set
->   every \f$U_i\f$ equal.  Increment 2 makes \f$U_i = U_{\mathrm{irrep}(i)}\f$.
-> - **The labels come from the SITE GROUP, not a character table** (the molecular tables are abelian-only, and
->   t2g/e_g are 3-D/2-D): the occupation block is SYMMETRISED, \f$\bar n=\tfrac1{|G|}\sum_g D(g)\,n\,D(g)^T\f$, with
->   \f$D(g)=\bigoplus_{\rm shells}\,\mathrm{Rep}^{(l)}(R_g)\f$ from `ShellRep::Rep` (the \f$(2l+1)^2\f$ matrix of the
->   Cartesian rotation \f$R_g=AW_gA^{-1}\f$, block-diagonal over the manifold's shells in `Columns` order); its
->   eigenvectors then fall into degenerate CLUSTERS, and a cluster's irrep is its CHARACTER VECTOR
->   \f$\chi(g)=\mathrm{Tr}(P_{\rm cluster}D(g))\f$ — two clusters with equal characters are the same irrep (the 8
->   d-shells' e_g pairs all carry one label).  Labels are `(dimension, index by first appearance in character
->   order)` and the characters are PRINTED beside them, so a reader names them (a1g, eg, …) without the code
->   holding a table.  No eigenvalue TRACKING (Macke's algorithm for sites below the wanted split): out of
->   scope, stated.
-> - **WHICH site group — the decision to veto**: the stabiliser of the site in the **Shubnikov group of the
->   declared decoration, σ=None ops only** (`Lattice_3D::ShubnikovOps(spins)`, filtered to those fixing the
->   site), NOT the grey crystal group's.  Why: on the AFM-II cell the grey group still relates the two Mn (both
->   species 7), so its stabiliser is the full rock-salt O_h and would symmetrise n under ops the ORDER has
->   broken — t2g would be forced degenerate where the rhombohedral AFM-II order splits it a1g + eg.  The σ=Flip
->   ops that fix a site are time-reversal partners linking \f$n^\uparrow\leftrightarrow n^\downarrow\f$: a constraint
->   between channels, not a symmetry of one, so they are left out.  Unpolarized / grey: the grey stabiliser.  A
->   FREE run is labelled by the declared decoration's group all the same (the site symmetry of the ordered
->   state is the physical question, whether or not it was imposed).
-> - **Plumbing**: the Shubnikov ops reach the term through `Hamiltonian::Factory` → `Ham_PW_DFT` → `Hubbard_U`
->   (one more argument on the same three signatures `hubbard` took; qcSymmetry is below qcHamiltonian), read
->   in `PrepareSlots` beside the projectors (geometry-fixed).  `HubbardManifold` gains
->   `std::vector<double> Uirrep` (empty = shell-averaged, the increment-1 behaviour; else indexed by the
->   printed irrep index — a knob ONLY until ACBN0 fills it, pin 12).  The `[+U]` line prints per manifold the
->   clusters: dimension, characters, \f$\sum\lambda\f$, \f$U\f$.
-> - **Gates**: `UTHamiltonian` — a synthetic O_h block: a random symmetric n symmetrised under the 48 ops of
->   Rep(l=2) splits into exactly {3, 2} with the t2g/e_g characters, and a U vector (U_t2g, U_eg) reproduces
->   \f$E_U\f$ by hand; the Si p manifold (l=1, T_d site) is one 3-D cluster (so Uirrep of length 1 == the scalar,
->   bit-identical to increment 1); MnO AFM-II: the d manifold reports {1, 2, 2} (a1g + eg + eg) under D_3d and
->   the shell-averaged run is bit-identical with `Uirrep` all equal.
+> **✅ INCREMENT 2 LANDED 2026-09-21 (code `37c6501c` + the gates/fixes commit of this date) — the
+> per-site-irrep U vector, the orbital resolution pin 23 is about.**  What is in the tree:
+> - **`Hamiltonian::ManifoldSymmetry`** (exported from `qchem.Hamiltonian.Internal.Hubbard`, unit-testable
+>   without an SCF): the site group on one manifold as \f$D(g)=\bigoplus_{\rm shells}(N_a/N_b)\mathrm{Rep}(b,a)\f$,
+>   its irreps CLUSTERED off a generic symmetrised matrix and named by character vector, isotypic projectors
+>   \f$P_k\propto\sum_g\chi_k(g)D(g)\f$ (scale read off \f$\mathrm{Tr}A^2/\mathrm{Tr}A\f$, so a complex-type pair is
+>   safe), and **the U SLOTS from group theory alone**: (site irrep k, parent irrep p) with
+>   \f$\dim=\mathrm{Tr}(P^{site}_kP^{grey}_p)\f$, sorted (dim, parent, irrep).  `Label(n)` eigen-decomposes the
+>   density's OWN n (never symmetrised), rotates the eigenbasis INSIDE each degenerate cluster to the
+>   projectors (the seed n = 0 is one cluster; n is unchanged), names each eigenvector by the slot carrying
+>   most of it, and reports `purity` (min site weight) and per-slot `parentage` (min parent weight).
+>   `DudarevInEigenbasis(λ, v, slot, Uirrep, U, W)` is the one-U-per-slot functional `Analyse` now calls.
+> - **`Lattice_3D::SiteEnvironmentRotations(atom, shells=3)`** — the point group of the site's coordination
+>   (all images within the first three neighbour distances; ops enumerated as \f$R=BA^{-1}\f$ over
+>   same-species first-shell triples, kept when orthogonal and a symmetry of the whole environment).  The
+>   facade fills `HubbardManifold::greyOps` from it; `siteOps` stays `SiteRotations(site, decoration)`.
+> - The facade banner declares `shell-averaged` | `ORBITAL-RESOLVED*` with each manifold's `Uirrep` and
+>   the two group orders; the TERM prints the slot table once at `PrepareSlots` (stdout + console, pin 17)
+>   and `by slot: … purity … parentage …` on every `[+U]` refresh line.  `gpwprobe mno` knob
+>   `MNO_U_IRREP=a,b,c` (eV per slot; a wrong count throws with the table in the message).
+> - **Gates**: `UTHamiltonian ManifoldSymmetry.*` ×4 — a d shell under O_h (48 signed permutations) splits
+>   {2, 3} with the textbook characters (C_4: 0/−1, C_3: −1/0, i: 2/3, C_2: 2/−1), projectors idempotent /
+>   orthogonal / complete; an O_h-symmetric n with (U_eg, U_t2g) reproduces \f$E_U\f$ and \f$W\f$ by hand and
+>   equal `Uirrep` is bit-identical to the scalar U; a d shell on a D_3d site inside O_h has slots {1, 2, 2}
+>   = a1g<t2g, e_g<e_g, e_g<t2g (8 shells ⇒ {8,16,16}); the seed n = 0 is named with purity 1.
+>   `UTStructure SiteGroups.*` ×2 — MnO AFM-II: `SiteRotations` 12 with AND without decoration,
+>   `SiteEnvironmentRotations` 48 (Mn and O), site ⊂ environment; diamond Si: 24 both ways.  `GPW_Si.Γ_U_*`
+>   unchanged (T_d p: one slot, dim 9 = 3 shells × 3).  ctest 901/901.
+> - **MnO AFM-II (`gpwprobe mno`, VA span, spherical, U = 4 eV)**: `site group of 12 ops (grey 48); U slots:
+>   [0] dim 7 (a1g) < t2g  [1] dim 14 (e_g) < e_g  [2] dim 14 (e_g) < t2g` — 7 d shells × {1, 2, 2};
+>   `purity 1.000` on every refresh; a1g parentage 100 %; the two e_g slots 84–85 % on the MINORITY channel
+>   (the trigonal field really mixes the two e_g copies) and 50–60 % on the MAJORITY, where four λ ≈ 0.999 are
+>   degenerate to 1e-3 and the eigenvectors are ill-conditioned by nature.  Minority occupation sits in
+>   e_g<e_g (0.22–0.30 e) not e_g<t2g (0.01–0.04 e): the σ-covalent back-donation from O-p, as it should.
+>   **`MNO_U_IRREP=4,4,4` is bit-identical with the shell-averaged run** (Etot −61.07915339 both, E_U per
+>   refresh identical to 8 digits); `4,5,3` moves E_U (0.1407 → 0.1458 on the first refresh).
+> - ★★ **Three defects found and fixed on the way** — (a) the slot table was being built by labelling a
+>   RANDOM matrix's eigenvectors, so a rank-1 a1g slot could be missed and a runtime eigenvector would
+>   append a slot past `Uirrep`'s end: now group theory; (b) **the spherical lattice view's `AoShell::norm`
+>   said "all ones", which is FALSE for the raw real harmonics (angular norms² 4π/15 : 4π/5 : 16π/15, a
+>   1 : 3 : 4 ratio) — the site-group rep was non-orthogonal and a d shell under O_h came out as THREE
+>   irreps**; `BuildCartToSphere` now returns each view column's normalisation and the table reports it, so
+>   `BuildOperationRep`'s \f$N_a/N_b\f$ convention holds on the view too (the I4 lattice-SALC consumer would
+>   have hit the same); (c) **the AFM-II SUPERCELL's grey stabiliser is D_3d (12), not O_h** — the tree's
+>   `SiteRotations` comment asserted O_h for a week; parentage is a property of the coordination polyhedron
+>   (pin 23 addendum).  The spec's "{3, 2}" is {2, 3} in the code (sorted by dimension); the printed table
+>   is the order `Uirrep` follows.
+> - **Not built, stated**: eigenvalue TRACKING across near-degenerate clusters (Macke's algorithm) — with
+>   equal U per slot inside a degenerate shell nothing depends on it; with unequal U it is the physics that is
+>   ill-posed, not the code.  The spec is in `doc/Records/OpenWork_History4.md` §"THE QUEUED PROGRAMME ·
+>   increment 2 spec".  **NEXT = increment 3: ACBN0 (U, J) from our own on-site ERIs** (item 3 below).
+
 
 In order:
 1. ✅ **DONE 2026-09-20 (the block above). The ORACLE ROW FIRST — shell-averaged, because that is all CP2K has.**  `&DFT_PLUS_U` per `&KIND` with
