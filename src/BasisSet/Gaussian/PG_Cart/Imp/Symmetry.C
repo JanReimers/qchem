@@ -55,6 +55,7 @@ std::vector<AoShell> ExtractAoShells(const PGData& pg)
         }
         sh.rep  = std::make_shared<CartesianShellRep>(std::move(monomials));  // this shell's Cartesian rep
         sh.norm = norm.take();
+        sh.exponents=r->GetExponents(); sh.coefficients=r->GetCoeffs();        // the radial, for recognition
         shells.push_back(std::move(sh));
         i = j;
     }

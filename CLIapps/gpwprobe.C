@@ -256,7 +256,8 @@ int BeckeRecipeLadder(const std::string& system)
 // MNO_XC_CUSP, MNO_PULAY, MNO_PULAY_START, MNO_MOM, MNO_MOM_START, MNO_MOM_PENALTY, MNO_MOM_HOLD, MNO_KT,
 // GPW_MNO_NMAX, GPW_MNO_VERBOSE, MNO_U=eV (DFT+U on both Mn d, programme step 5) + MNO_U_IRREP=a,b,c (eV per
 // site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + MNO_ACBN0=1 (print the ACBN0 (U,J)
-// estimate from the converged orbitals; increment 3), MNO_EPS=tol +
+// estimate from the converged orbitals; increment 3) + MNO_U_RADIAL=atomic (ONE contracted pseudo-atom 3d
+// as the manifold instead of every d shell), MNO_EPS=tol +
 // MNO_MEASURE=maxdd|mixer (CP2K's EPS_SCF measure max|dD_ij| between successive D_out, or the mixer's own
 // residual -- doc/Benchmark.md rule 3f: an iteration count is comparable only on the same measure); the SCHEDULE: MNO_ANNEAL=kT,kT,... MNO_ACC=... MNO_ANNEAL_PENALTY=...;
 // the ARMS: MNO_SKIP_AFM (FM only), MNO_SKIP_FM (AFM only).  Oracle: CP2K MnO AFM-II E=-61.470570 Ha
@@ -316,7 +317,11 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     const bool acbn0 = Envi("MNO_ACBN0",0)!=0;
     if (const double U=Envd("MNO_U",0.0); U>0.0 || acbn0)
     {
-        o.hubbard={HubbardU(0,2,U), HubbardU(1,2,U)};   // sites 0,1 = Mn
+        // MNO_U_RADIAL=atomic: ONE contracted 3d (the pseudo-atom's, hp.x's projector) instead of CP2K's every-shell
+        // manifold -- the manifold ACBN0 can screen (increment 3 slice C).
+        const bool atomic = std::getenv("MNO_U_RADIAL") && std::string(std::getenv("MNO_U_RADIAL"))=="atomic";
+        o.hubbard = atomic ? decltype(o.hubbard){HubbardU_Atomic(0,2,U), HubbardU_Atomic(1,2,U)}
+                           : decltype(o.hubbard){HubbardU(0,2,U), HubbardU(1,2,U)};   // sites 0,1 = Mn
         // MNO_U_IRREP=a,b,c (eV): one U per site-irrep slot, in the order of the term's "[+U] site .. U slots"
         // table -- for the AFM-II Mn under D_3d < O_h that is [0] a1g<t2g, [1] e_g<e_g, [2] e_g<t2g (increment 2).
         // The count must match the slot count or the term throws with the table in the message.

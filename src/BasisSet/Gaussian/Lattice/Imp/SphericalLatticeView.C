@@ -192,6 +192,7 @@ public:
             const int L=sh.rep->L();
             AoShell v;
             v.shellType=sh.shellType; v.center=sh.center; v.offset=col;
+            v.exponents=sh.exponents; v.coefficients=sh.coefficients;          // the same radial
             if (L<=1) { v.rep=sh.rep; }
             else       { v.rep=std::make_shared<Symmetry::Molecule::SphericalShellRep>(Math::SphericalShell(L)); }
             v.norm=rvec_t(v.rep->nComponents());

@@ -59,6 +59,7 @@ std::vector<AoShell> ExtractAoShells(const Sph::SphData& sph)
         }
         sh.rep  = std::make_shared<SphericalShellRep>(std::move(c2s));   // this shell's spherical rep
         sh.norm = norm.take();
+        sh.exponents=r->GetExponents(); sh.coefficients=r->GetCoeffs();   // the radial, for recognition
         shells.push_back(std::move(sh));
         i = j;
     }

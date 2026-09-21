@@ -51,7 +51,8 @@ import qchem.Hamiltonian.Internal.Term;        // cDynamic_HT + the _Imp cache m
 export import qchem.Hamiltonian.Factory;        // HubbardManifold (the public input vocabulary)
 import qchem.Hamiltonian.Types;                 // cobs_t / robs_t / tobs_t<U>
 import qchem.Fitting.FunctionFitter;            // Fitting::ScalarProjector (the forward vendor face)
-import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<U,dcmplx> (what ProjectOnto hands the vendor)
+import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.BareCoulombSource;         // ERI4Block (ManifoldIntegrals)          // Orbital_DFT_IBS<U,dcmplx> (what ProjectOnto hands the vendor)
 import qchem.Mesh.Integrator;                   // qcMesh::MatrixForward / MatrixAdjoint
 import qchem.Symmetry;                          // sym_t, SymMap
 import qchem.Symmetry.Molecule.OperationRep;    // AoShell (rep + per-component norm) -- the site group on a shell
@@ -71,8 +72,15 @@ template <class U> class LowdinProjector
     , public virtual qcMesh::MatrixAdjoint<U>
 {
 public:
-    //! \a S is the block's overlap; \a columns[M] the block's function indices of manifold M.
-    LowdinProjector(const hmat_t<U>& S, const std::vector<std::vector<size_t>>& columns);
+    //! \a S is the block's overlap; \a columns[M] the block's function indices of manifold M; \a contraction[M]
+    //! is EMPTY (the manifold's functions ARE those columns: \f$T=S^{1/2}[:,M]\f$, CP2K's convention) or a
+    //! \f$|{\rm cols}_M|\times m_M\f$ matrix \f$V\f$ whose columns are the manifold's functions as combinations
+    //! of those columns (a CONTRACTED radial, increment 3) -- the pair then S-orthonormalises them within the
+    //! manifold, \f$\tilde V=V\,(V^\dagger S_{cc}V)^{-1/2}\f$, and projects onto THOSE functions: the ATOMIC
+    //! projector \f$T=S[:,{\rm cols}]\tilde V\f$ (\f$T^\dagger c=\langle\chi|\psi\rangle\f$, QE's `atomic`), where a
+    //! column manifold is LÖWDIN (\f$S^{1/2}\f$) -- see the ctor for why the two are not one formula.
+    LowdinProjector(const hmat_t<U>& S, const std::vector<std::vector<size_t>>& columns,
+                    const std::vector<mat_t<U>>& contraction = {});
 
     using qcMesh::MatrixForward<U>::Forward;   // un-hide the factored overload (qchem.Mesh.Integrator)
     virtual rvec_t    Forward(const hmat_t<U>& D) const override;
@@ -82,9 +90,21 @@ public:
     virtual size_t    NumCoefficients() const override {return itsN;}
     size_t NumManifolds() const {return itsT.size();}
     size_t Size(size_t M) const {return itsT[M].columns();}   //!< \f$m_M=2l+1\f$
-    const mat_t<U>& T(size_t M) const {return itsT[M];}       //!< the manifold's \f$S^{1/2}[:,M]\f$ (the ACBN0 estimator's Löwdin coefficients \f$\ell=T^\dagger c\f$)
+    const mat_t<U>& T(size_t M) const {return itsT[M];}       //!< the manifold's \f$S^{1/2}\tilde V\f$ (the ACBN0 estimator's Löwdin coefficients \f$\ell=T^\dagger c\f$)
+    //! THE COEFFICIENT MAP \f$Q_M\f$ (\f$m\times n\f$): an orbital's AO coefficients \f$c\f$ → its coefficients on the
+    //! manifold's functions, \f$Q_Mc\f$.  Column manifold: the selector (the raw coefficients on those columns --
+    //! the ACBN0 paper's eq 9); contracted manifold: \f$\tilde V^\dagger S[{\rm cols},:]\f$, the S-metric
+    //! projection onto the S-orthonormal \f$\chi_m\f$ (exact for a function in their span).
+    const mat_t<U>& Coefficients(size_t M) const {return itsQ[M];}
+    //! The manifold's functions over its columns (\f$\tilde V\f$; the identity selector for a column manifold) --
+    //! what carries the columns' bare integrals to the manifold's (ERI4Block::Transform).
+    const rmat_t& Contraction(size_t M) const {return itsV[M];}
+    const std::vector<size_t>& Columns(size_t M) const {return itsCols[M];}
 private:
-    std::vector<mat_t<U>> itsT;   //!< per manifold: \f$S^{1/2}[:,M]\f$, \f$n\times m\f$
+    std::vector<mat_t<U>> itsT;   //!< per manifold: \f$S^{1/2}\tilde V\f$, \f$n\times m\f$
+    std::vector<mat_t<U>> itsQ;   //!< per manifold: the coefficient map, \f$m\times n\f$
+    std::vector<rmat_t>   itsV;   //!< per manifold: \f$\tilde V\f$ over the columns (real: a radial contraction)
+    std::vector<std::vector<size_t>> itsCols;
     size_t                itsN;   //!< \f$\sum_M m_M^2\f$
 };
 
@@ -183,10 +203,15 @@ public:
     virtual SpinGroup Group() const = 0;
     //! The manifolds of the same (species, l) as \a M, \a M itself included.
     virtual std::vector<size_t> EquivalentManifolds(size_t M) const = 0;
-    //! Per manifold: the block's function indices the manifold selects (\c BareCoulombSource::BareCoulomb's argument).
-    virtual std::vector<std::vector<size_t>> ManifoldFunctions(const BasisSet::Orbital_1E_IBS<double>&) const = 0;
-    virtual std::vector<std::vector<size_t>> ManifoldFunctions(const BasisSet::Orbital_1E_IBS<dcmplx>&) const = 0;
-    //! Per manifold: \f$\ell=T_M^\dagger C\f$ (\f$m_M\times n_{\rm orb}\f$) for the coefficient columns \a C on \a block.
+    //! Per manifold: the BARE two-electron integrals over the manifold's functions on \a block (a column
+    //! manifold: the block's own; a contracted one: carried through the contraction on all four indices).
+    virtual std::vector<BasisSet::ERI4Block> ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block) const = 0;
+    virtual std::vector<BasisSet::ERI4Block> ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block) const = 0;
+    //! Per manifold: the orbitals' COEFFICIENTS on the manifold's functions, \f$Q_MC\f$ (\f$m_M\times n_{\rm orb}\f$;
+    //! \c LowdinProjector::Coefficients) -- what pairs with \c ManifoldIntegrals in an on-site HF energy.
+    virtual std::vector<mat_t<double>> ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block, const mat_t<double>& C) const = 0;
+    virtual std::vector<mat_t<dcmplx>> ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block, const mat_t<dcmplx>& C) const = 0;
+    //! Per manifold: \f$\ell=T_M^\dagger C\f$ (\f$m_M\times n_{\rm orb}\f$), the LÖWDIN coefficients -- what a charge is made of.
     virtual std::vector<mat_t<double>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block, const mat_t<double>& C) const = 0;
     virtual std::vector<mat_t<dcmplx>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block, const mat_t<dcmplx>& C) const = 0;
 };
@@ -200,13 +225,27 @@ class Hubbard_U
     , public virtual HubbardProjection             //!< what the ACBN0 estimator consumes (increment 3)
 {
 public:
+    //! What a manifold is on a block: its column indices (from the AoShellSource face; throws on a Cartesian
+    //! d), the raw contraction over them (empty = the columns themselves), and the shells that carry its
+    //! angular rep (ALL the selected shells for a column manifold; ONE for a contracted one -- they share it).
+    struct Selection
+    {
+        std::vector<std::vector<size_t>>                      cols;
+        std::vector<rmat_t>                                   contraction;
+        std::vector<std::vector<Symmetry::Molecule::AoShell>> shells;
+    };
+    Selection Select(const BasisSet::Orbital_1E_IBS<double>&) const;
+    Selection Select(const BasisSet::Orbital_1E_IBS<dcmplx>&) const;
+
     //! \name HubbardProjection
     //!@{
     virtual const std::vector<HubbardManifold>& Manifolds() const override {return itsManifolds;}
     virtual SpinGroup Group() const override {return itsGroup;}
     virtual std::vector<size_t> EquivalentManifolds(size_t M) const override;
-    virtual std::vector<std::vector<size_t>> ManifoldFunctions(const BasisSet::Orbital_1E_IBS<double>& orb) const override {return Columns(orb);}
-    virtual std::vector<std::vector<size_t>> ManifoldFunctions(const BasisSet::Orbital_1E_IBS<dcmplx>& orb) const override {return Columns(orb);}
+    virtual std::vector<BasisSet::ERI4Block> ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&) const override;
+    virtual std::vector<BasisSet::ERI4Block> ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const override;
+    virtual std::vector<mat_t<double>> ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const mat_t<double>&) const override;
+    virtual std::vector<mat_t<dcmplx>> ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
     virtual std::vector<mat_t<double>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const mat_t<double>&) const override;
     virtual std::vector<mat_t<dcmplx>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
     //!@}
@@ -259,12 +298,6 @@ private:
     //! The block's pair, built on first use (the overlap is geometry-fixed) and keyed like the XC route's.
     template <class U> const LowdinProjector<U>& Projector(const BasisSet::Orbital_DFT_IBS<U,dcmplx>&) const;
     template <class U> SymMap<LowdinProjector<U>>& Cache() const;
-    //! The manifold's function indices in \a orb (from its AoShellSource face); throws on a Cartesian d.
-    std::vector<std::vector<size_t>> Columns(const BasisSet::Orbital_1E_IBS<double>&) const;
-    std::vector<std::vector<size_t>> Columns(const BasisSet::Orbital_1E_IBS<dcmplx>&) const;
-    //! The selected shells, one per manifold in \c Columns order (the symmetry table's input).
-    std::vector<std::vector<Symmetry::Molecule::AoShell>> Shells(const BasisSet::Orbital_1E_IBS<double>&) const;
-    std::vector<std::vector<Symmetry::Molecule::AoShell>> Shells(const BasisSet::Orbital_1E_IBS<dcmplx>&) const;
     //! Bring the occupations up to \a cd (a no-op when frozen or already at this serial).
     void EnsureOccupations(const cChargeDensity* cd) const;
     //! Per channel: eigen-decompose \a n (flattened, all manifolds), fill the channel's occupations, slot

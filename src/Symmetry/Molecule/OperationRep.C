@@ -28,6 +28,12 @@ struct AoShell
     rvec_t                          norm;    //!< per-component normalization N_a (size = #components)
     size_t                          offset;
     std::shared_ptr<const ShellRep> rep;     //!< the shell's angular operation rep (Cartesian or spherical)
+    //! The shell's RADIAL function as a Gaussian contraction \f$\sum_k c_k\,r^l e^{-\alpha_k r^2}\f$ (raw
+    //! coefficients; empty when the source is not Gaussian).  Informational -- what a consumer needs to
+    //! RECOGNISE a shell (match it to an atomic calculation in the same primitives: the DFT+U contracted
+    //! manifold, 2026-09-21), never to evaluate it.
+    rvec_t                          exponents;
+    rvec_t                          coefficients;
 
     size_t nComponents() const { return rep->nComponents(); }
 };

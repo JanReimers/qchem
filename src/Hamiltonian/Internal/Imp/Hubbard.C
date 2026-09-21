@@ -19,7 +19,8 @@ module qchem.Hamiltonian.Internal.Hubbard;
 import qchem.Energy;
 import qchem.RunPolicy;                         // theRunPolicy().HubbardEigen() -- the form, read once here
 import qchem.ChargeDensity;                     // cDM_CD, ChannelOf, tDM_Sourced_CD (the DM-backed source)
-import qchem.BasisSet.AoShellSource;            // the shell layout a manifold is selected from
+import qchem.BasisSet.AoShellSource;
+import qchem.BasisSet.BareCoulombSource;        // the bare integrals a manifold is built over (ACBN0)            // the shell layout a manifold is selected from
 import qchem.Symmetry.Molecule.OperationRep;    // AoShell (+ ShellRep::L / Monomials)
 import qchem.Reporting;                         // the term's own [+U] line (pin 17: contemporaneous)
 import qchem.Blaze;
@@ -40,7 +41,8 @@ template <class U> double RealPart(const U& x)
 
 //============================================================================================= LowdinProjector
 
-template <class U> LowdinProjector<U>::LowdinProjector(const hmat_t<U>& S, const std::vector<std::vector<size_t>>& columns)
+template <class U> LowdinProjector<U>::LowdinProjector(const hmat_t<U>& S, const std::vector<std::vector<size_t>>& columns,
+                                                       const std::vector<mat_t<U>>& contraction)
     : itsN(0)
 {
     // S^{1/2} = V diag(sqrt w) V^dagger from the block's overlap.  A near-null direction of S (a
@@ -57,16 +59,73 @@ template <class U> LowdinProjector<U>::LowdinProjector(const hmat_t<U>& S, const
             for (size_t k=0;k<n;k++) s+=V(i,k)*std::sqrt(std::max(w[k],0.0))*blazem::conjs(V(j,k));
             half(i,j)=s;
         }
-    for (const auto& cols : columns)
+    if (!contraction.empty() && contraction.size()!=columns.size())
+        throw std::invalid_argument("LowdinProjector: one contraction per manifold (or none)");
+    for (size_t M=0;M<columns.size();M++)
     {
-        mat_t<U> T(n, cols.size());
-        for (size_t c=0;c<cols.size();c++)
+        const std::vector<size_t>& cols=columns[M];
+        for (size_t c : cols) if (c>=n) throw std::out_of_range("LowdinProjector: manifold column outside the block");
+        const size_t nc=cols.size();
+        // The manifold's functions over its columns: the identity (a column manifold) or the contraction,
+        // S-ORTHONORMALISED within the manifold: Vt = V (V^dagger S_cc V)^{-1/2}.  Real: a radial contraction
+        // is real, and a complex V would make the ERI transform complex (not this increment).
+        rmat_t Vt;
+        if (contraction.empty() || contraction[M].rows()==0)
         {
-            if (cols[c]>=n) throw std::out_of_range("LowdinProjector: manifold column outside the block");
-            for (size_t i=0;i<n;i++) T(i,c)=half(i,cols[c]);
+            Vt=rmat_t(nc,nc,0.0); for (size_t c=0;c<nc;c++) Vt(c,c)=1.0;
         }
-        itsN+=cols.size()*cols.size();
+        else
+        {
+            const mat_t<U>& Vin=contraction[M];
+            if (Vin.rows()!=nc) throw std::invalid_argument("LowdinProjector: a contraction has one row per manifold column");
+            const size_t m=Vin.columns();
+            hmat_t<U> G(m);                                             // V^dagger S_cc V
+            for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++)
+            {
+                U g=U(0);
+                for (size_t i=0;i<nc;i++) for (size_t j=0;j<nc;j++) g+=blazem::conjs(Vin(i,a))*S(cols[i],cols[j])*Vin(j,b);
+                G(a,b)=g;
+            }
+            rvec_t gw; mat_t<U> gV; blazem::eigen(G, gw, gV);
+            if (gw[0]<=1e-10*gw[m-1]) throw std::runtime_error("LowdinProjector: the contracted manifold functions are linearly dependent in the block's metric");
+            mat_t<U> Ginvhalf(m,m);
+            for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++)
+            { U t=U(0); for (size_t k=0;k<m;k++) t+=gV(a,k)*(1.0/std::sqrt(gw[k]))*blazem::conjs(gV(b,k)); Ginvhalf(a,b)=t; }
+            mat_t<U> Vc=Vin*Ginvhalf;
+            Vt=rmat_t(nc,m);
+            for (size_t i=0;i<nc;i++) for (size_t a=0;a<m;a++) Vt(i,a)=RealPart(Vc(i,a));
+        }
+        const size_t m=Vt.columns();
+        const bool columnManifold = contraction.empty() || contraction[M].rows()==0;
+        // TWO PROJECTORS, ONE PAIR.  A COLUMN manifold is LÖWDIN: T = S^{1/2}[:,M] (the whole block symmetrically
+        // orthogonalised, then the manifold's columns read off).  A CONTRACTED manifold is ATOMIC (QE's
+        // U_projection_type='atomic'): the manifold functions chi_m = phi[:,cols] Vt are S-orthonormal
+        // on-site functions -- the pseudo-atom 3d ITSELF -- and the projection is the frame-independent
+        // <chi_m|psi> = Vt^dagger S[cols,:] c, so T = S[:,cols] Vt.  (Contracting the LÖWDIN-orthogonalised
+        // AOs with the raw-frame radial coefficients, S^{1/2}[:,cols] Vt, is a different function on a
+        // strongly overlapping span: it gave a 3d charge of 0.45 on MnO, 2026-09-21.)  T^dagger T = I for the
+        // Löwdin case; for the atomic one the chi's orthonormality among themselves is what bounds the
+        // occupations by 1.  The ortho-atomic variant (Löwdin among the atomic functions of all sites) is not
+        // this increment.
+        mat_t<U> T(n, m, U(0));
+        for (size_t a=0;a<m;a++)
+            for (size_t i=0;i<n;i++)
+            {
+                U s=U(0);
+                if (columnManifold) { for (size_t c=0;c<nc;c++) if (Vt(c,a)!=0.0) s+=half(i,cols[c])*U(Vt(c,a)); }   // exactly S^{1/2}[:,M]
+                else                { for (size_t c=0;c<nc;c++) s+=S(i,cols[c])*U(Vt(c,a)); }
+                T(i,a)=s;
+            }
+        // The coefficient map Q: the selector for a column manifold (the raw coefficients on those columns);
+        // <chi|psi> = T^dagger for the atomic one -- there the two notions coincide.
+        mat_t<U> Q(m, n, U(0));
+        if (columnManifold) for (size_t c=0;c<nc;c++) Q(c,cols[c])=U(1);
+        else                for (size_t a=0;a<m;a++) for (size_t j=0;j<n;j++) Q(a,j)=blazem::conjs(T(j,a));
+        itsN+=m*m;
         itsT.push_back(std::move(T));
+        itsQ.push_back(std::move(Q));
+        itsV.push_back(std::move(Vt));
+        itsCols.push_back(cols);
     }
 }
 
@@ -148,21 +207,16 @@ Hubbard_U::~Hubbard_U() = default;
 //------------------------------------------------------------------------------ the manifold's functions
 namespace
 {
-struct Selection
-{
-    std::vector<std::vector<size_t>> cols;
-    std::vector<std::vector<Symmetry::Molecule::AoShell>> shells;
-};
-template <class U> Selection
-ColumnsOf(const BasisSet::Orbital_1E_IBS<U>& orb, const std::vector<HubbardManifold>& manifolds,
-          const std::vector<rvec3_t>& sites)
+template <class U> Hubbard_U::Selection
+SelectOn(const BasisSet::Orbital_1E_IBS<U>& orb, const std::vector<HubbardManifold>& manifolds,
+         const std::vector<rvec3_t>& sites)
 {
     // "I am built from atom-centred shells" -- an abstract face, so this is abstract->abstract.
     const auto* src=dynamic_cast<const BasisSet::AoShellSource*>(&orb);
     if (!src) throw std::runtime_error("Hubbard_U: the orbital block is not built from atom-centred shells "
                                        "(no AoShellSource face) -- a Hubbard manifold cannot be selected on it");
     const std::vector<Symmetry::Molecule::AoShell> shells=src->GetAoShells();
-    Selection sel;
+    Hubbard_U::Selection sel;
     for (const HubbardManifold& M : manifolds)
     {
         std::vector<size_t> c;
@@ -182,7 +236,21 @@ ColumnsOf(const BasisSet::Orbital_1E_IBS<U>& orb, const std::vector<HubbardManif
         }
         if (c.empty())
             throw std::runtime_error("Hubbard_U: no l="+std::to_string(M.l)+" shell on site "+std::to_string(M.site));
+        rmat_t V;                                              // empty = the columns themselves
+        if (!M.radial.empty())
+        {
+            // ONE contracted radial: chi_m = Sum_s r_s phi_{s,m}, the shells sharing the m order (spherical view).
+            if (M.radial.size()!=picked.size())
+                throw std::invalid_argument("Hubbard_U: manifold (site "+std::to_string(M.site)+", l="+std::to_string(M.l)
+                    +") has "+std::to_string(picked.size())+" shells but its radial carries "+std::to_string(M.radial.size())+" coefficients");
+            const size_t m=picked[0].nComponents();
+            for (const auto& sh : picked) if (sh.nComponents()!=m) throw std::logic_error("Hubbard_U: shells of one l with different component counts");
+            V=rmat_t(c.size(), m, 0.0);
+            for (size_t s=0;s<picked.size();s++) for (size_t k=0;k<m;k++) V(s*m+k, k)=M.radial[s];
+            picked.resize(1);                                  // the one shell's rep IS the manifold's
+        }
         sel.cols.push_back(std::move(c));
+        sel.contraction.push_back(std::move(V));
         sel.shells.push_back(std::move(picked));
     }
     return sel;
@@ -430,14 +498,8 @@ double DudarevInEigenbasis(const rvec_t& lam, const rmat_t& v, const std::vector
 }
 
 //------------------------------------------------------------------------------ the manifold's functions (cont.)
-std::vector<std::vector<size_t>> Hubbard_U::Columns(const BasisSet::Orbital_1E_IBS<double>& orb) const
-{return ColumnsOf<double>(orb, itsManifolds, itsSites).cols;}
-std::vector<std::vector<size_t>> Hubbard_U::Columns(const BasisSet::Orbital_1E_IBS<dcmplx>& orb) const
-{return ColumnsOf<dcmplx>(orb, itsManifolds, itsSites).cols;}
-std::vector<std::vector<Symmetry::Molecule::AoShell>> Hubbard_U::Shells(const BasisSet::Orbital_1E_IBS<double>& orb) const
-{return ColumnsOf<double>(orb, itsManifolds, itsSites).shells;}
-std::vector<std::vector<Symmetry::Molecule::AoShell>> Hubbard_U::Shells(const BasisSet::Orbital_1E_IBS<dcmplx>& orb) const
-{return ColumnsOf<dcmplx>(orb, itsManifolds, itsSites).shells;}
+Hubbard_U::Selection Hubbard_U::Select(const BasisSet::Orbital_1E_IBS<double>& orb) const {return SelectOn<double>(orb, itsManifolds, itsSites);}
+Hubbard_U::Selection Hubbard_U::Select(const BasisSet::Orbital_1E_IBS<dcmplx>& orb) const {return SelectOn<dcmplx>(orb, itsManifolds, itsSites);}
 
 void Hubbard_U::BuildSymmetry(size_t M, const std::vector<Symmetry::Molecule::AoShell>& shells) const
 {
@@ -492,7 +554,10 @@ template <class U> const LowdinProjector<U>& Hubbard_U::Projector(const BasisSet
     const sym_t& id=orb.GetSymt();
     auto it=cache.find(id);
     if (it!=cache.end()) return it->second;
-    LowdinProjector<U> p(orb.Overlap(), Columns(orb));
+    const Selection sel=Select(orb);
+    std::vector<mat_t<U>> V;
+    for (const rmat_t& v : sel.contraction) { mat_t<U> vu(v.rows(), v.columns()); for (size_t i=0;i<v.rows();i++) for (size_t j=0;j<v.columns();j++) vu(i,j)=U(v(i,j)); V.push_back(std::move(vu)); }
+    LowdinProjector<U> p(orb.Overlap(), sel.cols, V);
     if (itsNCoeff==0) itsNCoeff=p.NumCoefficients();
     else if (itsNCoeff!=p.NumCoefficients())
         throw std::logic_error("Hubbard_U: blocks disagree on the manifold size -- the shell layout is not uniform across k");
@@ -653,8 +718,8 @@ void Hubbard_U::PrepareSlots(const cbs_t* bs) const
     // block's shells give every manifold's representation.
     if (bs->GetNumIBS()>0 && itsEigenForm)
     {
-        auto shells = bs->GetRealIBS(0) ? Shells(*bs->GetRealIBS(0)) : Shells(*(*bs)[0]);
-        for (size_t M=0;M<itsManifolds.size();M++) BuildSymmetry(M, shells[M]);
+        const Selection sel = bs->GetRealIBS(0) ? Select(*bs->GetRealIBS(0)) : Select(*(*bs)[0]);
+        for (size_t M=0;M<itsManifolds.size();M++) BuildSymmetry(M, sel.shells[M]);
     }
 }
 
@@ -671,6 +736,36 @@ std::vector<size_t> Hubbard_U::EquivalentManifolds(size_t M) const
         if (itsManifolds[K].l==itsManifolds[M].l && itsSiteZ[itsManifolds[K].site]==itsSiteZ[itsManifolds[M].site]) eq.push_back(K);
     return eq;
 }
+template <class U> static std::vector<BasisSet::ERI4Block> IntegralsOf(const LowdinProjector<U>& P, const BasisSet::Orbital_DFT_IBS<U,dcmplx>& orb)
+{
+    const auto* src=dynamic_cast<const BasisSet::BareCoulombSource*>(&orb);
+    if (!src) throw std::runtime_error("Hubbard_U::ManifoldIntegrals: the orbital block cannot deliver bare two-electron "
+                                       "integrals over a function subset (no BareCoulombSource face)");
+    std::vector<BasisSet::ERI4Block> out;
+    for (size_t M=0;M<P.NumManifolds();M++)
+    {
+        const BasisSet::ERI4Block cols=src->BareCoulomb(P.Columns(M));
+        const rmat_t& V=P.Contraction(M);
+        bool identity = V.rows()==V.columns();
+        if (identity) for (size_t i=0;i<V.rows() && identity;i++) for (size_t j=0;j<V.columns();j++) if (V(i,j)!=(i==j?1.0:0.0)) { identity=false; break; }
+        out.push_back(identity ? cols : cols.Transform(V));
+    }
+    return out;
+}
+std::vector<BasisSet::ERI4Block> Hubbard_U::ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb) const
+{return IntegralsOf<double>(Projector<double>(orb), orb);}
+std::vector<BasisSet::ERI4Block> Hubbard_U::ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const
+{return IntegralsOf<dcmplx>(Projector<dcmplx>(orb), orb);}
+template <class U> static std::vector<mat_t<U>> CoefficientsOf(const LowdinProjector<U>& P, const mat_t<U>& C)
+{
+    std::vector<mat_t<U>> out;
+    for (size_t M=0;M<P.NumManifolds();M++) out.push_back(mat_t<U>(P.Coefficients(M)*C));   // Q_M C
+    return out;
+}
+std::vector<mat_t<double>> Hubbard_U::ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb, const mat_t<double>& C) const
+{return CoefficientsOf<double>(Projector<double>(orb), C);}
+std::vector<mat_t<dcmplx>> Hubbard_U::ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const mat_t<dcmplx>& C) const
+{return CoefficientsOf<dcmplx>(Projector<dcmplx>(orb), C);}
 template <class U> static std::vector<mat_t<U>> LowdinOf(const LowdinProjector<U>& P, const mat_t<U>& C)
 {
     std::vector<mat_t<U>> out;

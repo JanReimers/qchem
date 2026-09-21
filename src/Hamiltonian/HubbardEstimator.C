@@ -29,6 +29,7 @@ struct HubbardEstimate
     double Ueff() const {return Ubar-Jbar;}   //!< Dudarev's \f$U_{\rm eff}=\bar U-\bar J\f$, what the +U term takes
     rvec_t Nup, Ndn;        //!< \f$N^\sigma_m=\bar P^\sigma_{mm}\f$, the renormalised populations per function
     double chargeUp=0, chargeDn=0;   //!< their traces (the renormalised manifold charge per channel)
+    double chargeUpBare=0, chargeDnBare=0;   //!< the unrenormalised manifold charge per channel (the pair-count populations)
     double UbarBare=0, JbarBare=0;   //!< the same averages with EVERY orbital weight 1 (the unrenormalised
                                      //!< shell averages of the manifold's actual occupation matrix) -- the
                                      //!< screening the renormalisation supplied is the ratio

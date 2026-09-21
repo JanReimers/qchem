@@ -290,3 +290,58 @@ TEST(ManifoldSymmetry, TheSeedNIsOneDegenerateClusterAndIsStillNamedWithPurityOn
     std::vector<int> count2(3,0); for (size_t s : L2.slot) count2[s]++;
     EXPECT_EQ(count2[0], 1); EXPECT_EQ(count2[1]+count2[2], 4);
 }
+
+//=============================================================================================== increment 3
+// THE CONTRACTED MANIFOLD (slice C): a manifold that is a fixed combination chi = phi[:,cols] V of the block's
+// columns, projected ATOMICALLY (T = S[:,cols] Vt with Vt S-orthonormal: T^dagger c = <chi|psi>), beside the
+// column manifold's Löwdin S^{1/2}.  Claims: the chi's are S-orthonormal; T^dagger c == <chi|psi> == the
+// coefficient map; a density made of ONE normalised chi has occupation exactly 1 on it and 0 on an
+// S-orthogonal partner; the pair is adjoint; an explicit identity contraction is Löwdin-within-the-manifold.
+TEST(LowdinProjector, AContractedManifoldProjectsAtomically)
+{
+    // A 6-function block: two "shells" of 3 components each (columns 0-2 and 3-5), overlapping strongly.
+    hmat_t<double> S(6);
+    for (size_t i=0;i<6;i++) S(i,i)=1.0;
+    for (size_t k=0;k<3;k++) { S(k,k+3)=0.7; }                       // shell 0 <-> shell 1, same component
+    S(0,1)=0.1; S(3,4)=0.1; S(1,5)=0.05;                              // some cross terms
+    const std::vector<std::vector<size_t>> cols{{0,1,2,3,4,5}};
+    // The contraction: chi_m = r0 phi_{0,m} + r1 phi_{1,m}, m = 0..2.
+    mat_t<double> V(6,3,0.0);
+    for (size_t m=0;m<3;m++) { V(m,m)=0.6; V(3+m,m)=0.5; }
+    const LowdinProjector<double> P(S, cols, {V});
+    ASSERT_EQ(P.NumManifolds(), 1u);
+    ASSERT_EQ(P.Size(0), 3u);
+    EXPECT_EQ(P.NumCoefficients(), 9u);
+    // Vt is S-orthonormal on the columns.
+    const rmat_t& Vt=P.Contraction(0);
+    rmat_t Sc(6,6); for (size_t i=0;i<6;i++) for (size_t j=0;j<6;j++) Sc(i,j)=S(i,j);
+    const rmat_t G=blazem::trans(Vt)*Sc*Vt;
+    for (size_t a=0;a<3;a++) for (size_t b=0;b<3;b++) EXPECT_NEAR(G(a,b), a==b?1.0:0.0, 1e-12);
+    // T^dagger c is <chi|psi> = Vt^T S c, and Coefficients() is the same map.
+    vec_t<double> c(6); for (size_t i=0;i<6;i++) c[i]=0.1*(i+1);
+    const vec_t<double> l1=blazem::trans(P.T(0))*c, l2=blazem::trans(Vt)*(Sc*c), l3=P.Coefficients(0)*c;
+    for (size_t a=0;a<3;a++) { EXPECT_NEAR(l1[a], l2[a], 1e-13); EXPECT_NEAR(l3[a], l2[a], 1e-13); }
+    // A density that IS one normalised chi: occupation 1 on that chi, 0 on the others.
+    const vec_t<double> chi0=blazem::column(Vt,0);                   // AO coefficients of chi_0 (already S-normalised)
+    hmat_t<double> D(6); for (size_t i=0;i<6;i++) for (size_t j=i;j<6;j++) D(i,j)=chi0[i]*chi0[j];
+    const rvec_t n=P.Forward(D);
+    EXPECT_NEAR(n[0*3+0], 1.0, 1e-12); EXPECT_NEAR(n[1*3+1], 0.0, 1e-12); EXPECT_NEAR(n[2*3+2], 0.0, 1e-12);
+    EXPECT_NEAR(P.Integrate(n), 1.0, 1e-12);
+    // An EXPLICIT identity contraction is NOT the column manifold: it is Löwdin WITHIN the manifold (chi = phi
+    // S_cc^{-1/2}, projected atomically), where the column manifold is Löwdin over the WHOLE block (S^{1/2}[:,M]).
+    // Both are orthonormal sets, so the charge of a density inside the span is the same -- the occupation
+    // MATRICES differ (different functions), and a caller who wants CP2K's convention passes NO contraction.
+    mat_t<double> I6(6,6,0.0); for (size_t i=0;i<6;i++) I6(i,i)=1.0;
+    const LowdinProjector<double> Pc(S, cols), Pi(S, cols, {I6});
+    const rvec_t nc=Pc.Forward(D), ni=Pi.Forward(D);
+    EXPECT_NEAR(Pc.Integrate(nc), 1.0, 1e-12);
+    EXPECT_NEAR(Pi.Integrate(ni), 1.0, 1e-12);
+    const rmat_t Gi=blazem::trans(Pi.Contraction(0))*Sc*Pi.Contraction(0);
+    for (size_t a=0;a<6;a++) for (size_t b=0;b<6;b++) EXPECT_NEAR(Gi(a,b), a==b?1.0:0.0, 1e-12);
+    // Adjointness holds for the atomic pair as for the Löwdin one: <W, Forward(D)> == <Adjoint(W), D>.
+    rvec_t W(9); for (size_t k=0;k<9;k++) W[k]=0.3-0.05*k;
+    const hmat_t<double> Vw=P.Adjoint(W);
+    double lhs=0; for (size_t k=0;k<9;k++) lhs+=W[k]*n[k];
+    double rhs=0; for (size_t i=0;i<6;i++) for (size_t j=0;j<6;j++) rhs+=Vw(i,j)*D(j,i);
+    EXPECT_NEAR(lhs, rhs, 1e-12);
+}

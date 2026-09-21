@@ -9,8 +9,10 @@
 // form (eq 2) defines
 //     U-bar = Sum_{1234} (Pa+Pb)_{12}(Pa+Pb)_{34} (12|34)  /  [ (Na+Nb)^2 - Sum_m (Na_m^2 + Nb_m^2) ]     (eq 12)
 //     J-bar = Sum_{1234} [Pa_{12}Pa_{34} + Pb_{12}Pb_{34}] (14|32)  /  [ Na^2 - Sum_m Na_m^2 + (b) ]      (eq 13)
-// with P^sigma the renormalised density matrix of the manifold, N^sigma_m = P^sigma_mm, N^sigma = Tr P^sigma,
-// and U_eff = U-bar - J-bar what the +U term takes.
+// with P^sigma the RENORMALISED density matrix of the manifold (eq 10a, each orbital weighted by N-bar_i) but
+// N^sigma_m the UNRENORMALISED populations (eq 10c carries no N-bar) -- the asymmetry that screens: U-bar
+// scales as N-bar^2 for a manifold the KS states only partly live in.  U_eff = U-bar - J-bar is what the
+// +U term takes.
 //
 // TWO BASES, AND THEY MUST NOT BE MIXED (found 2026-09-21: pairing Löwdin-basis coefficients with AO-basis
 // integrals gave U-bar = 182 eV on MnO).  The integrals are over the RAW AOs phi_m of the manifold, so the

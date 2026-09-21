@@ -82,6 +82,15 @@ export namespace qchem::Hamiltonian
         int                 l    = 2;     //!< the shell's angular momentum -- said, never inferred
         double              U    = 0.0;   //!< \f$U_{eff}=U-J\f$ in HARTREE (the facade converts from eV)
         std::vector<double> Uirrep;       //!< per U SLOT (Hartree), in the term's printed slot order; empty = \c U everywhere
+        //! THE RADIAL (increment 3, 2026-09-21).  EMPTY = every \f$l\f$-shell on the site is a manifold function
+        //! (CP2K's LOWDIN convention: 7 d shells ⇒ 35 functions -- a MECHANISM manifold, whose ACBN0 U is
+        //! near-bare because the KS d states live entirely inside it).  Non-empty = ONE contracted radial
+        //! \f$\chi_m=\sum_s r_s\,\phi_{s,m}\f$ over the site's \f$l\f$-shells in the block's shell order (one
+        //! coefficient per shell; the term S-orthonormalises the \f$2l+1\f$ \f$\chi_m\f$), the physically
+        //! meaningful manifold: the atom's own \f$3d\f$, the projector hp.x uses.  \c atomicRadial asks the
+        //! FACADE to fill it from the pseudo-atom run in the block's own primitives.
+        std::vector<double> radial;
+        bool                atomicRadial = false;
         std::vector<rmat3d_t> siteOps;    //!< the site group's Cartesian rotations; empty = C_1
         std::vector<rmat3d_t> greyOps;    //!< the PARENT group (the coordination's point group), for PARENTAGE
                                           //!< labels only (which parent irrep a site level descends from); empty = siteOps

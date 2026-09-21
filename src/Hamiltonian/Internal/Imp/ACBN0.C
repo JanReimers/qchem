@@ -26,18 +26,15 @@ ACBN0::ACBN0(const HubbardProjection& term) : itsTerm(term)
 template <class U> void ACBN0::EnsureIntegrals(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& block)
 {
     if (!itsERI.empty()) return;
-    const auto* src=dynamic_cast<const BasisSet::BareCoulombSource*>(&block);
-    if (!src) throw std::runtime_error("ACBN0: the orbital block cannot deliver bare two-electron integrals over a "
-                                       "function subset (no BareCoulombSource face) -- no on-site U from it");
-    const auto cols=itsTerm.ManifoldFunctions(block);
-    for (const auto& c : cols) itsERI.push_back(src->BareCoulomb(c));
+    itsERI=itsTerm.ManifoldIntegrals(block);                    // the term knows what its manifolds are built over
     for (auto& [s,ch] : itsChannels)
     {
         ch.P.clear(); ch.Pbare.clear(); ch.L.clear(); ch.Lbare.clear();
-        for (const auto& c : cols)
+        for (const auto& e : itsERI)
         {
-            ch.P.emplace_back(c.size(), c.size(), 0.0); ch.Pbare.emplace_back(c.size(), c.size(), 0.0);
-            ch.L.emplace_back(c.size(), c.size(), 0.0); ch.Lbare.emplace_back(c.size(), c.size(), 0.0);
+            const size_t m=e.Size();
+            ch.P.emplace_back(m, m, 0.0); ch.Pbare.emplace_back(m, m, 0.0);
+            ch.L.emplace_back(m, m, 0.0); ch.Lbare.emplace_back(m, m, 0.0);
         }
     }
 }
@@ -49,7 +46,7 @@ template <class U> void ACBN0::AccumulateT(const BasisSet::Orbital_DFT_IBS<U,dcm
     EnsureIntegrals(block);
     if (f.size()==0) return;
     const std::vector<mat_t<U>> ell=itsTerm.LowdinCoefficients(block, C);     // per manifold: m x nOrb (Löwdin basis)
-    const std::vector<std::vector<size_t>> cols=itsTerm.ManifoldFunctions(block);   // the raw AO columns per manifold
+    const std::vector<mat_t<U>> coef=itsTerm.ManifoldCoefficients(block, C);  // per manifold: m x nOrb (on the manifold's functions)
     const size_t nM=itsERI.size(), nOrb=f.size();
     // The renormalised occupation of each orbital on each manifold's EQUIVALENCE set (same species and l).
     std::vector<std::vector<size_t>> eq(nM);
@@ -70,7 +67,7 @@ template <class U> void ACBN0::AccumulateT(const BasisSet::Orbital_DFT_IBS<U,dcm
                 const double wf=w*f[i]*share;
                 for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++)
                 {
-                    const double x=std::real(C(cols[M][a],i)*blazem::conjs(C(cols[M][b],i)));   // AO basis; Hermitian after the k-sum
+                    const double x=std::real(coef[M](a,i)*blazem::conjs(coef[M](b,i)));   // on the manifold's functions; Hermitian after the k-sum
                     const double y=std::real(ell[M](a,i)*blazem::conjs(ell[M](b,i)));             // Löwdin basis
                     ch.P    [M](a,b)+=wf*Nbar*x;  ch.Pbare[M](a,b)+=wf*x;
                     ch.L    [M](a,b)+=wf*Nbar*y;  ch.Lbare[M](a,b)+=wf*y;
@@ -128,8 +125,14 @@ std::vector<HubbardEstimate> ACBN0::Evaluate() const
             e.Nup[a]=up.L[M](a,a); e.Ndn[a]=dn.L[M](a,a); e.chargeUp+=e.Nup[a]; e.chargeDn+=e.Ndn[a];
             NupBare[a]=up.Lbare[M](a,a); NdnBare[a]=dn.Lbare[M](a,a);
         }
-        Averages(up.P[M],     dn.P[M],     e.Nup,   e.Ndn,   itsERI[M], e.Ubar,     e.Jbar);
+        // THE SCREENING LIVES IN THIS ASYMMETRY (paper eqs 10a-10c, re-read 2026-09-21 after a symmetric first
+        // version cancelled it): the NUMERATOR carries the renormalised P-bar twice (∝ N-bar^2), the pair-count
+        // DENOMINATOR the UNRENORMALISED populations (eq 10c has no N-bar) -- so a manifold the KS states only
+        // partly live in (N-bar < 1) is screened by ~N-bar^2, and a d^0 site's U goes to zero with its d weight.
+        Averages(up.P[M],     dn.P[M],     NupBare, NdnBare, itsERI[M], e.Ubar,     e.Jbar);
         Averages(up.Pbare[M], dn.Pbare[M], NupBare, NdnBare, itsERI[M], e.UbarBare, e.JbarBare);
+        e.chargeUpBare=0; e.chargeDnBare=0;
+        for (size_t a=0;a<m;a++) { e.chargeUpBare+=NupBare[a]; e.chargeDnBare+=NdnBare[a]; }
         out.push_back(std::move(e));
     }
     return out;
@@ -141,7 +144,7 @@ std::ostream& ACBN0::Write(std::ostream& os) const
     for (const HubbardEstimate& e : Evaluate())
         os<<"[ACBN0] site "<<e.site<<" l="<<e.l<<": U="<<std::fixed<<std::setprecision(4)<<e.Ubar*eV<<" J="<<e.Jbar*eV
           <<" U_eff="<<e.Ueff()*eV<<" eV  (bare, unrenormalised: U="<<e.UbarBare*eV<<" J="<<e.JbarBare*eV<<")"
-          <<"  N_ren up/dn="<<e.chargeUp<<"/"<<e.chargeDn<<std::endl;
+          <<"  N up/dn="<<e.chargeUpBare<<"/"<<e.chargeDnBare<<" (renormalised "<<e.chargeUp<<"/"<<e.chargeDn<<")"<<std::endl;
     return os;
 }
 

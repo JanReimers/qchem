@@ -62,6 +62,14 @@ inline Hamiltonian::HubbardManifold HubbardU(size_t site, int l, double U_eV)
 {
     return Hamiltonian::HubbardManifold{site, l, U_eV/27.211386245988};
 }
+//! The same manifold on ONE contracted radial -- the pseudo-atom's own \f$l\f$ orbital in the block's
+//! primitives (the facade fills it): the physically meaningful +U manifold and the one ACBN0 can screen.
+inline Hamiltonian::HubbardManifold HubbardU_Atomic(size_t site, int l, double U_eV)
+{
+    Hamiltonian::HubbardManifold M{site, l, U_eV/27.211386245988};
+    M.atomicRadial=true;
+    return M;
+}
 
 struct SolidCalcOptions
 {

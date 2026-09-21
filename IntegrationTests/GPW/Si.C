@@ -1079,6 +1079,48 @@ TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
               << "; bare " << a[0].UbarBare*eV << "/" << a[0].JbarBare*eV << ")" << std::endl;
 }
 
+// THE CONTRACTED MANIFOLD (increment 3 slice C, 2026-09-21): ONE pseudo-atom 3p radial per Si instead of every
+// p shell (CP2K's convention).  The atomic projector <chi|psi> onto an S-orthonormal 3p triple: at Γ the
+// Γ25' band is p-only but spread over the three radial shells, so the single-radial manifold captures LESS
+// than the whole span -- 0 < E_U < 1.5U (the column manifold's exact value), the manifold reports 3
+// functions and one T_d slot, and ACBN0 on it is finite with 0 < J < U.  The unpolarized/polarized twins agree.
+TEST(GPW_Si, Γ_U_Atomic3p_Imp_Pol_eqUnpol)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma U=2 eV on the pseudo-atom 3p");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.hubbard={HubbardU_Atomic(0,1,2.0), HubbardU_Atomic(1,1,2.0)};
+    SCFParams par=ProductionGates();
+    qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
+    o.multiplicity=1; o.label="Si SR Gamma U=2 eV on the pseudo-atom 3p, pol-singlet";
+    qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
+    auto a=unpol.Result(), b=pol.Result();
+    ASSERT_TRUE(a) << Why(a);
+    ASSERT_TRUE(b) << Why(b);
+    const double U=2.0/27.211386245988;
+    EXPECT_GT(a->EnergyTerms()["E_U"], 0.0);
+    EXPECT_LT(a->EnergyTerms()["E_U"], 1.5*U) << "one radial captures less of the Γ25' band than the three-shell span (which gives exactly 1.5U)";
+    EXPECT_NEAR(b->EnergyTerms()["E_U"], a->EnergyTerms()["E_U"], 1e-6);
+    EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6);
+    const auto ea=unpol.EstimateHubbardU(), eb=pol.EstimateHubbardU();
+    ASSERT_EQ(ea.size(), 2u);
+    for (size_t M=0;M<2;M++)
+    {
+        EXPECT_GT(ea[M].Jbar, 0.0); EXPECT_GT(ea[M].Ubar, ea[M].Jbar);
+        EXPECT_LT(ea[M].chargeUpBare, 3.0) << "at most the 3 p electrons per site per channel";
+        // ⚠ The RENORMALISED charge EXCEEDS the bare one here (2.24 vs 1.83): the pseudo-atom 3p is nearly unbound
+        // (eps = -0.019 Ha, 95% on alpha = 0.16) and the two sites' atomic chi's overlap strongly, so an orbital's
+        // Sum over sites of |<chi|psi>|^2 exceeds 1 -- the known weakness of NON-orthogonalised atomic projectors
+        // and why hp.x prefers ortho-atomic (the remainder filed in OpenWork).  Mn 3d is compact and unaffected
+        // (3.62 < 4.83).  Pinned here as the fact it is, not as a target.
+        EXPECT_GT(ea[M].chargeUp, ea[M].chargeUpBare) << "diffuse overlapping atomic projectors over-count";
+        EXPECT_NEAR(eb[M].Ubar, ea[M].Ubar, 1e-5); EXPECT_NEAR(eb[M].Jbar, ea[M].Jbar, 1e-5);
+    }
+    std::cout << "[ACBN0 Si atomic 3p] U_eff = " << ea[0].Ueff()*27.211386245988 << " eV (bare " << ea[0].UbarBare*27.211386245988
+              << "/" << ea[0].JbarBare*27.211386245988 << "), N_p up = " << ea[0].chargeUpBare << " (renormalised " << ea[0].chargeUp << ")" << std::endl;
+}
+
 // CP2K's CONVERGENCE MEASURE (2026-09-20).  A CP2K deck converges EPS_SCF on max|P_out - P_in| over the AO density
 // matrix elements; our Kerker/Pulay recipes converge MinΔρ on the mixer's own residual max|ρ̃_out(G) - ρ̃_in(G)|,
 // which on MnO is ~100x looser at 1e-5 than EPS_SCF 1e-6 -- so "CP2K takes 104 iterations, we take 55" compared
