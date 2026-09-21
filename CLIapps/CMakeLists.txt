@@ -39,3 +39,11 @@ target_include_directories(gpwprobe PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
 )
 target_link_libraries(gpwprobe PUBLIC qcGPW_Harness qchem qcMath qcCommon blas)
+
+# gth2upf: write a QE UPF for one of our GTH pseudopotentials with PP_CHI = our pseudo-atom's orbitals, so
+# pw.x/hp.x (the U oracle, DFT+U increment 3) run the same PP and the same `atomic` Hubbard projector.
+add_executable(gth2upf gth2upf.C)
+target_compile_definitions(gth2upf PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
+set_property(TARGET gth2upf PROPERTY CXX_STANDARD 20)
+target_include_directories(gth2upf PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze ${PROJECT_SOURCE_DIR}/submodules/json/single_include)
+target_link_libraries(gth2upf PUBLIC qchem qcMath qcCommon blas)

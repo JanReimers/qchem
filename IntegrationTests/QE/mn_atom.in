@@ -1,0 +1,19 @@
+&control
+  calculation='scf', prefix='mnatom', pseudo_dir='./', outdir='./tmp', verbosity='high'
+/
+&system
+  ibrav=1, celldm(1)=22.0, nat=1, ntyp=1,
+  ecutwfc=120.0, ecutrho=480.0,
+  occupations='from_input',
+  nspin=1, nbnd=8, input_dft='sla+vwn'
+/
+&electrons
+  conv_thr=1.d-7, mixing_beta=0.3, electron_maxstep=150
+/
+ATOMIC_SPECIES
+ Mn 54.938 Mn.pz-gth-q7.UPF
+ATOMIC_POSITIONS {bohr}
+ Mn 0.0 0.0 0.0
+K_POINTS {gamma}
+OCCUPATIONS
+ 1.0 1.0 1.0 1.0 1.0 2.0 0.0 0.0
