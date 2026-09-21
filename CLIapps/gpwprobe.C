@@ -408,6 +408,16 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
         }
 
     for (const auto& st : schedule) arm.stageKT.push_back(st.params.SmearingkT);
+    // ⚠ A SPHERICAL-d arm needs the VA/SPH span (user, 2026-09-21): the SR Mn block carries only TWO s exponents
+    // because its s span comes from the CARTESIAN d shells' x^2+y^2+z^2 contaminants -- under GPW_SPHERICAL=1
+    // those are gone.  A +U manifold needs the spherical view, so an unset GPW_BASIS_SPAN defaults to VA here
+    // (the oracle gate's span); an explicit GPW_BASIS_SPAN=sr with GPW_SPHERICAL is refused.
+    if (std::getenv("GPW_SPHERICAL"))
+    {
+        const char* span=std::getenv("GPW_BASIS_SPAN");
+        if (!span) { setenv("GPW_BASIS_SPAN", "va", 1); std::cout << "[MnO] spherical d => GPW_BASIS_SPAN defaulted to va (the SR Mn block has no s span without the Cartesian d contaminants)" << std::endl; }
+        else if (std::string(span)=="sr") throw std::runtime_error("gpwprobe mno: GPW_BASIS_SPAN=sr with GPW_SPHERICAL -- the SR Mn block's s span lives in the Cartesian d contaminants; use va or sph");
+    }
     arm.calc=std::make_unique<SolidCalculation>(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
     arm.result=arm.calc->Result();
     if (acbn0)

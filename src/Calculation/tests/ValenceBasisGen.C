@@ -6,6 +6,9 @@
 // PRINT the emitted .bsd so it can be captured into BasisSetData/.  The energies are "did-it-move" anchors
 // (near the radial oracle, but oracle-matching is explicitly NOT the objective -- see doc/GPWPlan.md).
 #include "gtest/gtest.h"
+#include <map>
+#include <cmath>
+#include <iostream>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -14,6 +17,10 @@
 #include "nlohmann/json.hpp"      // read report::GlobalReport() values (get<double>) across the module boundary
 
 import qchem.ValenceBasisGen;
+import qchem.AtomCalculation;            // the pseudo-atom vs CP2K ATOM gate
+import qchem.SCFParams;
+import qchem.Symmetry.Atom.Spherical;     // AtomicSymmetry::Getl
+import qchem.Symmetry.Irrep;
 import qchem.Structure;                  // Molecule, Atom
 import qchem.BasisSet;                   // Real_BS
 import qchem.BasisSet.Gaussian.Point.Factory;  // Gaussian::Factory, BasisSetData
@@ -199,4 +206,65 @@ TEST(ValenceBasisGen, ValenceLowqFileLoads)
     std::cout << "[valence_lowq N] NaF total = " << bs->GetNumFunctions() << std::endl;
     EXPECT_EQ(bs->GetNumFunctions(), 26u + 11u);   // F(8s+6p=26) + Na(5s+2p=11), Cartesian (disjoint exponents)
 
+}
+
+// THE PSEUDO-ATOM AGAINST CP2K's ATOM CODE (DFT+U increment 3, 2026-09-21).  The atomic +U radial (and the
+// UPF for the hp.x oracle) is our GTH pseudo-atom's own l orbital, so its spectrum must be the pseudo-atom's.
+// Oracle: `cp2k.psmp` PROGRAM_NAME ATOM, Mn GTH-PADE-q7, CORE [Ar] 4s2 3d5, PADE LDA, 30 geometrical GTOs
+// per l (scratch input `cp2katom/mn.inp`, 2026-09-21): E = -14.241357 Ha, eps(4s) = -0.194010 Ha,
+// eps(3d) = -0.257385 Ha.  In a LARGE pool ours reproduces that to 3 / 0.3 / 0.1 mHa (the next test: the
+// pseudopotential is right).  THIS test pins what the VA basis's OWN 7 s + 7 d exponents do to the FREE atom:
+// the span was trimmed of the diffuse 0.18 d shell for the SOLID, so it cannot hold the free 3d -- E 46 mHa
+// high, eps(4s) 34 mHa and eps(3d) 77 mHa too shallow (a too-compact 3d).  That is why the atomic +U radial
+// is the complete-pool 3d PROJECTED onto the site's shells, never the pseudo-atom run in the shells themselves.
+TEST(ValenceBasisGen, MnQ7PseudoAtomInTheVAExponentsShowsTheDiffuseTrim)
+{
+    AtomCalcOptions o;
+    o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=7;
+    o.exponentsByL={{0,{0.1,0.24928829,0.62144650,1.54919334,3.86195754,9.62740780,24.0}},
+                    {2,{0.38369936,0.81791778,1.74352515,3.71660826,7.92255676,16.88822203,36.0}}};
+    SCFParams p; p.MinVirial=1e30;
+    AtomCalculation atom(25, 18, o, p);
+    ASSERT_TRUE(atom.IsConverged());
+    EXPECT_NEAR(atom.Energy(), -14.1949, 0.005) << "46 mHa above CP2K ATOM: the VA span's incompleteness for the free atom";
+    std::map<int,double> eps;                                   // lowest occupied eigenvalue per l
+    for (const Irrep& ir : atom.GetIrreps(Spin::None))
+    {
+        const auto* as=dynamic_cast<const Symmetry::Atom::AtomicSymmetry*>(ir.sym.get());
+        ASSERT_TRUE(as);
+        const auto* os=atom.Orbitals(ir);
+        for (const auto* orb : os->Iterate())
+            if (orb->IsOccupied()) { const int l=int(as->Getl()); if (!eps.count(l) || orb->GetEigenEnergy()<eps[l]) eps[l]=orb->GetEigenEnergy(); }
+    }
+    ASSERT_TRUE(eps.count(0) && eps.count(2));
+    std::cout << "[Mn q7 pseudo-atom] E=" << atom.Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
+              << "   (CP2K ATOM: -14.241357, -0.194010, -0.257385)" << std::endl;
+    EXPECT_NEAR(eps[0], -0.1596, 0.005) << "4s: 34 mHa shallower than CP2K's -0.194";
+    EXPECT_NEAR(eps[2], -0.1802, 0.005) << "3d: 77 mHa shallower than CP2K's -0.257 -- the trimmed 0.18 d shell";
+}
+
+// The same pseudo-atom in a LARGE even-tempered pool (16 s + 16 d, 0.05..200): separates basis
+// incompleteness from the pseudopotential itself.  If eps(3d) stays 77 mHa above CP2K's here, the GTH d
+// channel differs between the codes -- and that is a candidate for the 100 mHa MnO offset.
+TEST(ValenceBasisGen, MnQ7PseudoAtomInALargePool)
+{
+    auto pool=[](int n, double emin, double emax){ std::vector<double> e; for (int i=0;i<n;i++) e.push_back(emin*std::pow(emax/emin, double(i)/(n-1))); return e; };
+    AtomCalcOptions o;
+    o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=7;
+    o.exponentsByL={{0,pool(16,0.05,200.0)},{2,pool(16,0.08,200.0)}};
+    SCFParams p; p.MinVirial=1e30;
+    AtomCalculation atom(25, 18, o, p);
+    ASSERT_TRUE(atom.IsConverged());
+    std::map<int,double> eps;
+    for (const Irrep& ir : atom.GetIrreps(Spin::None))
+    {
+        const auto* as=dynamic_cast<const Symmetry::Atom::AtomicSymmetry*>(ir.sym.get());
+        for (const auto* orb : atom.Orbitals(ir)->Iterate())
+            if (orb->IsOccupied()) { const int l=int(as->Getl()); if (!eps.count(l) || orb->GetEigenEnergy()<eps[l]) eps[l]=orb->GetEigenEnergy(); }
+    }
+    std::cout << "[Mn q7 pseudo-atom, 16+16 pool] E=" << atom.Energy() << " eps(4s)=" << eps[0] << " eps(3d)=" << eps[2]
+              << "   (CP2K ATOM: -14.241357, -0.194010, -0.257385)" << std::endl;
+    EXPECT_NEAR(atom.Energy(), -14.241357, 0.02);
+    EXPECT_NEAR(eps[0], -0.194010, 0.01) << "4s";
+    EXPECT_NEAR(eps[2], -0.257385, 0.01) << "3d";
 }
