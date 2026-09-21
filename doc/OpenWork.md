@@ -157,6 +157,43 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   increment 2 spec".  **NEXT = increment 3: ACBN0 (U, J) from our own on-site ERIs** (item 3 below).
 
 
+> **▶ INCREMENT 3 — SLICE C LANDED 2026-09-21 (`10a4c83b`): THE CONTRACTED MANIFOLD, and the first
+> screened U.**  `HubbardManifold::radial` (one coefficient per \f$l\f$-shell on the site; empty = CP2K's
+> every-shell convention) + `atomicRadial`: the facade runs the GTH pseudo-atom (LDA, unpolarized) in EXACTLY
+> the site's shells (valgen's recipe) and takes its lowest occupied \f$l\f$ orbital as the contraction, with a
+> normalisation check across the two codes' radial conventions (`[+U radial]` line; `AoShell` now carries its
+> radial so a shell can be recognised).  `LowdinProjector`: a contracted manifold's \f$\chi_m=\phi[:,c]\tilde V\f$
+> are S-orthonormalised within the manifold and projected ATOMICALLY, \f$T=S[:,c]\tilde V\f$
+> (\f$T^\dagger c=\langle\chi|\psi\rangle\f$, QE's `atomic`); a column manifold stays Löwdin, bit-identical.
+> `HubbardU_Atomic(site,l,U)`; `gpwprobe mno MNO_U_RADIAL=atomic`; gates `LowdinProjector.AContractedManifold
+> ProjectsAtomically`, `GPW_Si.Γ_U_Atomic3p_Imp_Pol_eqUnpol`.  ctest 906/906.
+> - ★ **Two more things the paper had to teach on the way.**  (a) Contracting the LÖWDIN-orthogonalised d AOs
+>   with the raw-frame radial (\f$S^{1/2}[:,c]\tilde V\f$) is a different function on a strongly overlapping
+>   7-exponent span — a 3d charge of 0.45 on MnO; the frame-independent object is \f$\langle\chi|\psi\rangle\f$.
+>   (b) **eq 10c carries no \f$\bar N\f$**: the pair-count denominators use the UNRENORMALISED populations while
+>   the numerator carries \f$\bar P\f$ twice — that asymmetry IS the screening (\f$\bar U\propto\bar N^2\f$); my
+>   first version weighted both and cancelled it, which is why slices A+B read "near-bare".
+> - ★★ **THE MEASUREMENT (MnO AFM-II, LDA, Γ, U=0, deck-shaped recipe, imposed):**
+>
+>   | manifold (projector) | \f$\bar U\f$ | \f$\bar J\f$ | \f$U_{\rm eff}\f$ | bare \f$\bar U/\bar J\f$ | \f$N_{d\uparrow}\f$ (renorm.) |
+>   |---|---|---|---|---|---|
+>   | pseudo-atom 3d (atomic) | 15.3 | 4.4 | **10.9 eV** | 28.8 / 7.5 | 4.83 (3.62) |
+>   | every d shell, 35 fn (Löwdin) | 11.5 | 3.3 | 8.1 eV | 19.5 / 5.3 | 5.02 (3.93) |
+>
+>   Screening ≈ \f$\bar N^2\approx0.55\f$ on both.  The paper's Mn value is 4.67 eV (PBE, Mulliken, PAO-3G, dense
+>   k, self-consistent) — a factor ~2 below ours, which is what `hp.x` (item 4) is for.  ⚠ \f$\bar J\approx7.5\f$ eV
+>   bare is NOT Hund's J (~1 eV): eq 13's numerator includes the \f$m_1=m_2=m_3=m_4\f$ self-terms, which is why
+>   the paper quotes only \f$U_{\rm eff}=\bar U-\bar J\f$ where they largely cancel.  On Si the nearly unbound
+>   pseudo-atom 3p (ε = −0.019 Ha, 95 % on α = 0.16) OVER-COUNTS — renormalised charge 2.24 > bare 1.83, the
+>   two sites' atomic χ overlap — the known weakness of non-orthogonalised atomic projectors and why hp.x
+>   prefers **ortho-atomic**; Mn 3d is compact and unaffected.
+> - **REMAINDERS / NEXT:** (1) the **k-mesh sensitivity** of \f$\bar N\f$ (a 2×2×2 run is in the log
+>   `mno_k2_acbn0.log`; Γ-only hybridisation is one sample of the zone); (2) the **outer loop**
+>   (\f$U^{(n)}\to U^{(n+1)}\f$, from 0, to \f$10^{-4}\f$ eV) as a facade driver rather than by hand; (3) the
+>   **ortho-atomic** projector (Löwdin among the atomic functions of all sites) — a third projector kind; (4)
+>   **hp.x on MnO** with a matched projector (item 4): the value oracle.  Until (4), no ACBN0 U is quoted as
+>   physics; the +U anchors keep U = 4 eV on the every-shell manifold (CP2K parity).
+
 > **▶ INCREMENT 3 — SLICES A + B LANDED 2026-09-21 (`b580203b`, `090ba17d`, + the AO-basis fix); THE FIRST
 > MnO NUMBER IS IN, AND IT DECIDES THE NEXT SLICE.**  What is in the tree: `BasisSet::BareCoulombSource`
 > (+`ERI4Block::Transform`) realised in the Gaussian ERI4 mixin over `FourC`, forwarded by `tGPW_IBS`,
