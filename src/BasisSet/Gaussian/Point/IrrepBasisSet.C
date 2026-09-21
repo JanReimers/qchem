@@ -14,6 +14,7 @@
 //  - 1E Kinetic here is the full Cartesian <p^2>=<-nabla^2> (no centrifugal split; that is atom-only).
 //  - HF Direct/Exchange use the multi-centre M&D FourC kernel, NOT the atom Cache4/Grouper/Ak design.
 module;
+#include <stdexcept>
 #include <cassert>
 #include <vector>
 export module qchem.BasisSet.Gaussian.Point.IBS;
@@ -23,6 +24,7 @@ import qchem.BasisSet.Internal.Orbital_ERI4_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Gaussian.Evaluators;      // concepts + generic 1E matrix builders
 export import qchem.BasisSet.AoShellSource;              // the GetAoShells face (+ Symmetry::Molecule::AoShell)
+export import qchem.BasisSet.BareCoulombSource;          // the BareCoulomb face (+ ERI4Block) -- ACBN0 (+U increment 3)
 import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
@@ -128,7 +130,32 @@ private:
 template <class E> requires (Evaluators::isHF_Evaluator<E> || Evaluators::isM_HF_Evaluator<E>)
 class Orbital_ERI4_IBS
     : public virtual ::qchem::BasisSet::Orbital_ERI4_IBS<double>
+    , public virtual ::qchem::BasisSet::BareCoulombSource   // the raw (m1m2|m3m4) over a subset (ACBN0, 2026-09-21)
 {
+public:
+    //! \copydoc BasisSet::BareCoulombSource::BareCoulomb
+    //! The per-element FourC kernel (all four norms folded in), the 8-fold symmetry used once per orbit.  A
+    //! matrix-delivery engine (libcint) has no per-element kernel: not this increment, it throws.
+    virtual ERI4Block BareCoulomb(const std::vector<size_t>& cols) const override
+    {
+        if constexpr (Evaluators::isM_HF_Evaluator<E>)
+            throw std::runtime_error("BareCoulomb: a matrix-delivery (libcint) evaluator has no per-element (ab|cd) kernel -- not this increment");
+        else
+        {
+            const E& e=dynamic_cast<const E&>(*this);
+            const size_t m=cols.size();
+            ERI4Block eri(m);
+            for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++)
+                for (size_t c=0;c<m;c++) for (size_t d=c;d<m;d++)
+                {
+                    if (a*m+b > c*m+d) continue;                     // (ab|cd) = (cd|ab)
+                    const double v=e.FourC(cols[a], e, cols[b], e, cols[c], e, cols[d]);
+                    eri(a,b,c,d)=eri(b,a,c,d)=eri(a,b,d,c)=eri(b,a,d,c)=v;
+                    eri(c,d,a,b)=eri(d,c,a,b)=eri(c,d,b,a)=eri(d,c,b,a)=v;
+                }
+            return eri;
+        }
+    }
 protected:
     // 4-centre HF Coulomb (ab|cd): a,b on this orbital basis, c,d on the partner.
     virtual ERI4 MakeDirect(const ::qchem::BasisSet::Orbital_ERI4_IBS<double>& _c) const

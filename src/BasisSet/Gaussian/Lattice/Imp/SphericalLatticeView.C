@@ -4,6 +4,7 @@
 // holds its inner basis through the ABSTRACT faces alone (Gaussian::Orbital_1E_IBS + LatticeSum1E),
 // so it is engine-blind (MnD today, libCint tomorrow) and family-loose by construction.
 module;
+#include <algorithm>   // std::find (BareCoulomb's component gather)
 #include <cassert>
 #include <cmath>       // std::sqrt (the column normalisation)
 #include <complex>     // std::real/std::conj (the Hermitian packs)
@@ -22,6 +23,7 @@ import qchem.BasisSet.Internal.BasisSetImp;   // the one-block Real_BS container
 import qchem.Symmetry.Molecule.OperationRep;  // AoShell (+ ShellRep::Monomials soft capability)
 import qchem.Symmetry.Molecule.SphericalRep;  // SphericalShellRep -- the view's own shell reps (GetAoShells)
 import qchem.BasisSet.AoShellSource;          // the face the inner block answers and this view forwards
+import qchem.BasisSet.BareCoulombSource;      // idem, TRANSFORMED through T (ACBN0, +U increment 3)
 import qchem.Math.Angular;                    // Math::SphericalShell / Monomial (the C_l source of truth)
 import qchem.Structure;
 import qchem.UnitCell;
@@ -120,6 +122,7 @@ static rmat_t BuildCartToSphere(const std::vector<AoShell>& shells, const hmat_t
 class SphericalView_IBS
     : public virtual Gaussian::Orbital_1E_IBS
     , public virtual Gaussian::Periodic_Gaussian_IBS   // all four faces (ISP split 2026-09-08): this view FORWARDS every one
+    , public virtual BasisSet::BareCoulombSource       // the inner block's bare (ab|cd) through T (ACBN0, 2026-09-21)
 {
 public:
     SphericalView_IBS(std::shared_ptr<const Real_BS> holder, const Gaussian::Orbital_1E_IBS* obs,
@@ -163,6 +166,21 @@ public:
     //! raw harmonics' angular norms differ across m, so "all ones" would hand a NON-orthogonal rep to
     //! BuildOperationRep and to +U's site-group table.  What a +U manifold selection reads; what a
     //! lattice-SALC induction (I4) would read too.
+    //! \copydoc BasisSet::BareCoulombSource::BareCoulomb
+    //! The view function \f$\phi'_n=\sum_cT(c,n)\phi_c\f$ is a fixed linear combination of the inner Cartesian
+    //! functions, so its bare integrals are the inner block's over EVERY Cartesian component the chosen view
+    //! columns touch, carried through \f$T\f$ on all four indices (exact -- no fit, no lattice sum).
+    virtual BasisSet::ERI4Block BareCoulomb(const std::vector<size_t>& cols) const override
+    {
+        const auto& src=dynamic_cast<const BasisSet::BareCoulombSource&>(*itsObs);
+        std::vector<size_t> cart;                                   // the inner components these columns touch
+        for (size_t s : cols) for (const auto& [c,t] : itsTnz[s]) if (std::find(cart.begin(),cart.end(),c)==cart.end()) cart.push_back(c);
+        rmat_t Tsub(cart.size(), cols.size(), 0.0);
+        for (size_t n=0;n<cols.size();n++)
+            for (const auto& [c,t] : itsTnz[cols[n]])
+                for (size_t i=0;i<cart.size();i++) if (cart[i]==c) Tsub(i,n)=t;
+        return src.BareCoulomb(cart).Transform(Tsub);
+    }
     virtual std::vector<AoShell> GetAoShells() const override
     {
         const auto& src=dynamic_cast<const BasisSet::AoShellSource&>(*itsObs);

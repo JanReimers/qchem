@@ -9,6 +9,7 @@ add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_Evaluator.C
    M_MEvaluator.C
    M_Spherical.C
+   M_BareCoulomb.C      # the BareCoulombSource face vs the d-shell Slater averages (ACBN0, +U increment 3; 2026-09-21)
    M_LibCint.C
    DenseIntegratorUT.C
 )

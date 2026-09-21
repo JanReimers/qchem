@@ -27,7 +27,8 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;  // IrrepBasisSetImp<T>: GetSym
 export import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<T,dcmplx> (the DFT capability; Create*FitBasisSet)
 export import qchem.BasisSet.Orbital_PP_IBS;          // the species-field integral service (V1.2)
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
-export import qchem.BasisSet.AoShellSource;        // the shell-layout face this block forwards to its molecular block
+export import qchem.BasisSet.AoShellSource;          // the shell-layout face this block forwards to its molecular block
+export import qchem.BasisSet.BareCoulombSource;      // the ACBN0 face it forwards too (+U increment 3, 2026-09-21)
 export import qchem.UnitCell;                      // UnitCell (the direct lattice handed to the ctor)
 import qchem.Symmetry;                            // sym_t (the Bloch irrep)
 import qchem.Structure;                           // Structure (Create*FitBasisSet arg)
@@ -66,6 +67,7 @@ template <class T> class tGPW_IBS
     , public Orbital_PP_IBS<T>                     // species-field assembly (real-space); PW_Pseudo casts ACROSS to this
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
     , public virtual BasisSet::AoShellSource        // built from the molecular block's shells, same order (+U, 2026-09-19)
+    , public virtual BasisSet::BareCoulombSource    // the molecular block's bare (m1m2|m3m4): central cell only (ACBN0, 2026-09-21)
 {
 public:
     //! \copydoc BasisSet::AoShellSource::GetAoShells
@@ -74,6 +76,14 @@ public:
     {
         const auto& src=dynamic_cast<const BasisSet::AoShellSource&>(GPW_Evaluator::MolecularBlock());
         return src.GetAoShells();
+    }
+    //! \copydoc BasisSet::BareCoulombSource::BareCoulomb
+    //! ACBN0 wants the AO in the CENTRAL CELL, unscreened and un-summed (Agapito et al. eq 4, g=l=m=0): that
+    //! is the molecular block's integral, so forward -- the Bloch phase and the image sum are deliberately absent.
+    virtual BasisSet::ERI4Block BareCoulomb(const std::vector<size_t>& cols) const override
+    {
+        const auto& src=dynamic_cast<const BasisSet::BareCoulombSource&>(GPW_Evaluator::MolecularBlock());
+        return src.BareCoulomb(cols);
     }
     // (The old MakeOverlap overload-set merge is gone with the field bridge -- V1.1(iii): only the no-arg
     //  <i|j> build exists now, and the 1E mixin's override dominates the shared virtual base's.)
