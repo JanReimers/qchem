@@ -104,8 +104,24 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   **Run-time at parity (`CP2K_COMPAT=1`, user's ask, 2026-09-20)**: setup ~10 s vs CP2K ~5 s; **9.6 s/iteration vs CP2K 9.05** (1.06×; the +U refresh itself costs us ~15 ms, CP2K's full-matrix S½PS½ ~0.75 s/iter); neither of our free arms CONVERGED (120-iteration cap, a period-2 "ρ rotates" cycle) where CP2K's deck converges the same free cell in 44/104 with `BROYDEN_MIXING ALPHA 0.2 BETA 1.5 NBUFFER 8` = Kerker-preconditioned Broyden on ρ̃.  Our recipe keeps its history on the Fock side (DIIS) and `PulayDepth=0`.  ⇒ the like-for-like CONVERGENCE gap is on the free run, and Kerker+density-history is the suspect (user); next probe = the parity arms with `PulayDepth=8` (our `PulayMixer` IS Kerker-preconditioned density Pulay), U=0 arm first — this is step 5's item 2 (N3) territory.
 >   ★★ **RESOLVED the same day — three things were fighting, and none of them was the physics** (user: *"we usually end up iterating toward 'convergence' in parameter settings … anytime CP2K finishes many minutes before ITMain my antenna goes up"*; targets (1) very close energies (2) similar convergence rates (3) similar runtime/RAM).  **(a) The MEASURE**: CP2K's `EPS_SCF` is max|ΔP_ij| on the AO density matrix (1e-6); our `MinΔρ` on Kerker was the G-space residual (1e-5 ≈ 1e-4 relative, ~100× looser) — on the anchor recipe max|ΔD| sat at **3e-3** for 200 iterations while the residual read "converged" at 43.  `SCFParams::Measure::MaxΔD` puts CP2K's measure on the loop (`GetMaxChangeFrom` on the mixable face); Benchmark rule 3f.  **(b) TWO HISTORIES**: Fock-side DIIS (the Ladder) and density-side Pulay extrapolate each other's output — with both on, max|ΔD| never left 1e-2.  **(c) MOM** hands a smeared degenerate d frontier unequal occupations that swap every iteration: D rotates at constant ρ.  The deck has ONE history (Broyden on ρ̃, `BETA 1.5 NBUFFER 8`) and no MOM.  **With the deck's loop shape and measure** (`MNO_ACC=Null MNO_MOM=0 MNO_PULAY=8 MNO_MEASURE=maxdd MNO_EPS=1e-6`, probe knobs added): imposed Becke recipe **22 / 24 iterations** (U=0 / U=4 eV) to max|ΔD| < 1e-6, energies unchanged to 4e-7 Ha, vs CP2K **44 / 104**; at `CP2K_COMPAT=1` the FREE run now CONVERGES (33 iterations, AFM-II held, m̃(q) 3.13 e): setup 1.9 s vs 8.1, **10.3 s/iter vs 8.29** (3 gathers + 2 collocations against 2 + 2 — §5f lever B, the whole residual), **wall 5:42 vs 6:14**, RSS 262 vs 217 MB.  The oracle gate now carries this recipe.  ⇒ N3 (item 2) was then MEASURED the same day and PROMOTED (§4 row): (ρ,m) 18 / 21 vs (up,dn) 22 / 24 iterations, energies identical.
 
-> **▶ INCREMENT 2 — SPEC (2026-09-20, written after reading the tree; the per-site-irrep U vector = the orbital
-> resolution pin 23 is about).**
+> **▶ INCREMENT 2 — CODE LANDED 2026-09-21 (`37c6501c`), GATES
+> PENDING — THE NEXT SESSION STARTS HERE, not at increment 3.**  What is in the tree: `Lattice_3D::SiteRotations`,
+> `HubbardManifold::{Uirrep, siteOps, greyOps}` (the facade fills the groups from the declared decoration),
+> `Hubbard_U::BuildSymmetry` (irreps clustered by character from a generic matrix, isotypic projectors, the
+> label slots = (site irrep, grey parent) printed once) and `LabelEigenvectors` (the density's OWN n, never
+> symmetrised — symmetry NAMES the eigenvectors; each takes the irrep whose projector carries most of it,
+> `purity` = the minimum weight).  Si p under T_d: one slot, dim 3, gates unchanged.  **TO DO, in order:**
+> (1) `UTHamiltonian` gate — a synthetic O_h block (48 ops of Rep(l=2)) splits {3, 2} with the t2g/e_g
+> characters and a (U_t2g, U_eg) `Uirrep` reproduces \f$E_U\f$ by hand; (2) the MnO d manifold reports
+> {1, 2, 2} under D_3d (a1g ⊂ t2g, eg ⊂ t2g, eg ⊂ e_g with parentage ≈ 100 %) and the shell-averaged run is
+> bit-identical with `Uirrep` all equal — run `gpwprobe mno` with `QCHEM_U_TRACE=1 MNO_U=4` and read the
+> `[+U] site 0 l=2: … U slots` line; (3) the facade banner prints the slots; (4) a `MNO_U_IRREP=a,b,c` probe
+> knob.  Then increment 3 = ACBN0.
+>
+> **THE SPEC (2026-09-20, written after reading the tree; the per-site-irrep U vector = the orbital
+> resolution pin 23 is about).**  ⚠ One paragraph below is superseded by the build: n is NOT symmetrised
+> (a free run's symmetry-broken n must keep its own occupations); the site group names the eigenvectors of
+> the actual n through its isotypic projectors, and a `purity` diagnostic says how symmetric n was.
 > - **What changes in the functional**: nothing but the scalar per eigenvalue — `Analyse` already evaluates
 >   \f$E_U=\sum_i \tfrac{U_i}{2}\lambda_i(1-\lambda_i)\f$, \f$W=\sum_i U_i(\tfrac12-\lambda_i)v_iv_i^T\f$; increment 1 set
 >   every \f$U_i\f$ equal.  Increment 2 makes \f$U_i = U_{\mathrm{irrep}(i)}\f$.
