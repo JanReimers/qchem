@@ -157,6 +157,41 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   increment 2 spec".  **NEXT = increment 3: ACBN0 (U, J) from our own on-site ERIs** (item 3 below).
 
 
+> **▶ INCREMENT 3 — SLICES A + B LANDED 2026-09-21 (`b580203b`, `090ba17d`, + the AO-basis fix); THE FIRST
+> MnO NUMBER IS IN, AND IT DECIDES THE NEXT SLICE.**  What is in the tree: `BasisSet::BareCoulombSource`
+> (+`ERI4Block::Transform`) realised in the Gaussian ERI4 mixin over `FourC`, forwarded by `tGPW_IBS`,
+> transformed by the spherical view — gate `UTGaussian_BS BareCoulomb.*` (one d shell reproduces
+> \f$F^0\f$, \f$F^0+4F^2/49+36F^4/441\f$ and the REAL-basis pair exchange \f$(5/98)(F^2+F^4)\f$ against an
+> independent radial quadrature — ⚠ the quoted \f$(F^2+F^4)/14\f$ is Anisimov's complex-basis average, 7/5 of
+> it); `Hamiltonian::ACBN0` on the public `HubbardUEstimator` face via `tHamiltonian::MakeHubbardUEstimator`
+> (the `SiteMoments` pattern: the term and integrals stay `.Internal.`; the composite finds the term through the
+> abstract `HubbardProjection` face); `TOrbital::GetCoeff` + `TOrbitals::GetBasisSet`;
+> `SolidCalculation::EstimateHubbardU()`; `gpwprobe mno MNO_ACBN0=1`; gate `GPW_Si.Γ_U_ACBN0_Imp_Pol_eqUnpol`.
+> ctest 904/904.
+> - ★ **A defect the Si gate could not see and MnO showed at once:** Löwdin-basis coefficients paired with
+>   AO-basis integrals gave \f$\bar U=182\f$ eV.  The paper's \f$\bar P\f$ (eq 9) is the AO-basis density
+>   matrix on the manifold's functions; Löwdin enters ONLY in the charges (per-orbital \f$\bar N_i\f$ over the
+>   same-(species,l) set; per-function populations in the pair-count denominators).  And Si at Γ is NO test of
+>   the renormalisation: Γ₁ is s-only and Γ₂₅′ p-only by symmetry, so every occupied orbital's p charge is 0 or 1.
+> - ★★ **THE MEASUREMENT (MnO AFM-II, VA span, 7-shell d manifold, deck-shaped recipe, imposed):**
+>   at U=0: \f$\bar U=20.0\f$, \f$\bar J=5.5\f$, \f$U_{\rm eff}=14.5\f$ eV — bare (unrenormalised) 19.5 / 5.3;
+>   at U=4 eV: 20.4 / 5.3 / **15.1** (the outer loop drifts UP as +U localises d).  Renormalised d charge
+>   3.93↑/0.28↓ per Mn.  **The renormalisation barely bites, and that is structural**: on a COMPLETE 7-shell
+>   span every d-like KS state is ~93 % inside the manifold (\f$\bar N_i\approx1\f$), and for a localised
+>   \f$d^5\f$ shell eq 12 collapses to \f$\approx\tfrac{25}{20}F^0\f$ — the bare shell average.  ACBN0's
+>   screening IS \f$\bar N_i<1\f$: a manifold the KS states do not fully live in (the paper's minimal PAO-3G,
+>   4.67 eV for Mn; PBE, Mulliken).  So gate (4) of the spec — the CONTRACTED single-3d manifold — is not a
+>   sensitivity check but the decisive measurement, and it is the same object increment 1 named as the
+>   physically meaningful +U manifold.
+> - **NEXT SLICE (C): a CONTRACTED manifold.**  `HubbardManifold` gains an optional radial contraction (one
+>   coefficient per shell of the site's \f$l\f$ shells — the atom's own 3d from `AtomCalculation`/the SAD
+>   machinery, or a caller's vector); the projector generalises from a column selector to
+>   \f$T=S^{1/2}V\f$ with \f$V^\dagger SV=I\f$ (the χ's S-orthonormal), `ManifoldSymmetry` sees 5 functions,
+>   `BareCoulomb` transforms the shell integrals through \f$V\f$ on all four indices (`ERI4Block::Transform`
+>   already exists).  Then: ACBN0 on the contracted manifold vs the 7-shell one (the sensitivity the user
+>   asked for, measured), the outer loop, and `hp.x` as the value oracle (item 4).  A U from the 7-shell
+>   manifold is NOT to be quoted as physics.
+
 > **▶ INCREMENT 3 — ACBN0 (Ū, J̄) FROM OUR OWN ON-SITE ERIs — SPEC 2026-09-21 (written after reading
 > `~/Code/1406.3259v3.pdf` eqs 1–13 and the tree; user: LAPACK is fair game for any library).**
 > - **The formula (paper eqs 8–13, spin-unrestricted, ONE manifold M of functions {m}; write \f$m_1..m_4\f$):**
