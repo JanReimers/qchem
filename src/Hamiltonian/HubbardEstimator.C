@@ -51,6 +51,11 @@ public:
     virtual std::vector<HubbardEstimate> Evaluate() const = 0;
     //! The estimates as a one-line report per manifold (eV): what the run banner and the probe print.
     virtual std::ostream& Write(std::ostream&) const = 0;
+    //! WRITE the estimates into the term this estimator was built for: manifold \a M takes \f$U_{\rm eff}\f$ of
+    //! \a e[M] for the next Fock build.  The paper's outer loop is Evaluate → Apply → re-converge → repeat;
+    //! the facade's \c ConvergeHubbardU drives it.  Also resets the accumulated orbitals, so the next feed
+    //! starts clean.
+    virtual void Apply(const std::vector<HubbardEstimate>& e) = 0;
 };
 
 } // namespace

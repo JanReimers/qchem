@@ -220,7 +220,7 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
             std::cout<<" (site "<<M.site<<", l="<<M.l;
             if (M.Uirrep.empty()) std::cout<<", U="<<M.U*27.211386245988<<" eV";
             else { std::cout<<", Uirrep="; for (size_t k=0;k<M.Uirrep.size();k++) std::cout<<(k?",":"")<<M.Uirrep[k]*27.211386245988; std::cout<<" eV"; }
-            std::cout<<(M.radial.empty() ? ", radial: every shell (CP2K)" : ", radial: ONE contracted ("+std::to_string(M.radial.size())+" shells"+(M.atomicRadial ? ", pseudo-atom" : "")+")")
+            std::cout<<(M.radial.empty() ? ", radial: every shell (CP2K)" : ", radial: ONE contracted ("+std::to_string(M.radial.size())+" shells"+(M.atomicRadial ? ", pseudo-atom" : "")+(M.orthoAtomic ? ", ORTHO-atomic" : ", atomic")+")")
                      <<", site group "<<(M.siteOps.empty() ? 1 : M.siteOps.size())<<" ops / grey "
                      <<(M.greyOps.empty() ? (M.siteOps.empty() ? 1 : M.siteOps.size()) : M.greyOps.size())<<")";
         }
@@ -900,6 +900,48 @@ std::vector<qchem::Hamiltonian::HubbardEstimate> SolidCalculation::EstimateHubba
     std::vector<qchem::Hamiltonian::HubbardEstimate> out=est->Evaluate();
     est->Write(std::cout);                                   // the estimator reports at its own activity (pin 17)
     return out;
+}
+
+SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCFParams& params, const HubbardLoop& loop)
+{
+    const double eV=27.211386245988;
+    HubbardLoopResult R;
+    std::unique_ptr<qchem::Hamiltonian::HubbardUEstimator> est=itsImp->ham->MakeHubbardUEstimator();
+    if (!est) throw std::logic_error("SolidCalculation::ConvergeHubbardU: this run carries no Hubbard manifold");
+    std::vector<double> Ucur;                                 // the U each manifold currently runs with (eV)
+    for (const auto& M : itsImp->opts.hubbard) Ucur.push_back(M.U*eV);
+    R.scfConverged=itsImp->converged;
+    for (size_t n=0; n<loop.maxOuter; n++)
+    {
+        R.last=EstimateHubbardU();                            // feeds the estimator from the current orbitals, prints [ACBN0]
+        R.outer=n+1;
+        std::vector<double> Unext; double dmax=0.0;
+        for (size_t M=0;M<R.last.size();M++) { Unext.push_back(R.last[M].Ueff()*eV); dmax=std::max(dmax, std::abs(Unext[M]-Ucur[M])); }
+        R.U_eV.push_back(Unext);
+        {
+            std::ostringstream os;
+            os<<"[ACBN0 loop "<<n<<"] U_eff(eV):"; for (double u : Unext) os<<" "<<std::fixed<<std::setprecision(4)<<u;
+            os<<"  max|dU|="<<std::setprecision(5)<<dmax<<(itsImp->converged ? "" : "  (SCF NOT converged)");
+            std::cout<<os.str()<<std::endl;
+        }
+        if (dmax<loop.tolU_eV) { R.converged=true; break; }
+        if (n+1==loop.maxOuter) break;
+        // Apply on the same Hamiltonian and re-converge from the current density: the estimator writes the
+        // term's U; the facade re-runs the SCF with the caller's parameters.  (est was fed from these orbitals;
+        // Apply resets it, and the next EstimateHubbardU builds a fresh one.)
+        est->Apply(R.last);
+        est=itsImp->ham->MakeHubbardUEstimator();
+        Ucur=Unext;
+        // A NEW STAGE, not a continued Iterate: the converged mixer history (eight near-zero Pulay residuals)
+        // would extrapolate the first post-U step straight back onto the old density and report "converged"
+        // in one iteration (measured 2026-09-21: E moved by exactly E_U, the orbitals not at all).  Re-seeding
+        // through BuildStage gives a fresh iterator, mixer and accelerator over the current density -- exactly
+        // what an annealed schedule does between its stages.
+        BuildStage(itsImp->stageAccel, std::move(itsImp->cd));
+        auto out=Converge(params);
+        R.scfConverged=bool(out);
+    }
+    return R;
 }
 
 const qchem::ChargeDensity::cDM_CD* SolidCalculation::LastIterateDensity() const {return itsImp->cd.get();}

@@ -42,7 +42,7 @@ template <class U> double RealPart(const U& x)
 //============================================================================================= LowdinProjector
 
 template <class U> LowdinProjector<U>::LowdinProjector(const hmat_t<U>& S, const std::vector<std::vector<size_t>>& columns,
-                                                       const std::vector<mat_t<U>>& contraction)
+                                                       const std::vector<mat_t<U>>& contraction, const std::vector<bool>& ortho)
     : itsN(0)
 {
     // S^{1/2} = V diag(sqrt w) V^dagger from the block's overlap.  A near-null direction of S (a
@@ -126,6 +126,45 @@ template <class U> LowdinProjector<U>::LowdinProjector(const hmat_t<U>& S, const
         itsQ.push_back(std::move(Q));
         itsV.push_back(std::move(Vt));
         itsCols.push_back(cols);
+    }
+    // THE ORTHO-ATOMIC PASS: Löwdin among the flagged manifolds' functions (each already S-orthonormal within
+    // its manifold), then T_M = S W~_M and Q_M = T_M^dagger.  A column manifold never joins (its Löwdin is the
+    // whole block's).  Two Mn 3d sets 5 Å apart barely move; O 2p spectators listed at U=0 are what makes the
+    // d functions orthogonal to the ligands they hybridise with -- QE's ortho-atomic set.
+    std::vector<size_t> members;
+    for (size_t M=0;M<columns.size();M++)
+        if (M<ortho.size() && ortho[M] && !(contraction.empty() || contraction[M].rows()==0)) members.push_back(M);
+    if (members.size()>=1)
+    {
+        size_t mtot=0; for (size_t M : members) mtot+=itsV[M].columns();
+        mat_t<U> W(n, mtot, U(0));                            // the on-site functions, AO coefficients
+        size_t at=0;
+        for (size_t M : members)
+        {
+            const rmat_t& Vt=itsV[M]; const auto& cols=columns[M];
+            for (size_t a=0;a<Vt.columns();a++) for (size_t c=0;c<cols.size();c++) W(cols[c], at+a)=U(Vt(c,a));
+            at+=Vt.columns();
+        }
+        mat_t<U> SW=mat_t<U>(S)*W;                            // n x mtot
+        hmat_t<U> O(mtot);                                     // W^dagger S W
+        for (size_t a=0;a<mtot;a++) for (size_t b=a;b<mtot;b++)
+        { U t=U(0); for (size_t i=0;i<n;i++) t+=blazem::conjs(W(i,a))*SW(i,b); O(a,b)=t; }
+        rvec_t ow; mat_t<U> oV; blazem::eigen(O, ow, oV);
+        if (ow[0]<=1e-8*ow[mtot-1]) throw std::runtime_error("LowdinProjector: the ortho-atomic set is linearly dependent (two manifolds span the same functions?)");
+        mat_t<U> Oih(mtot,mtot);
+        for (size_t a=0;a<mtot;a++) for (size_t b=0;b<mtot;b++)
+        { U t=U(0); for (size_t k=0;k<mtot;k++) t+=oV(a,k)*(1.0/std::sqrt(ow[k]))*blazem::conjs(oV(b,k)); Oih(a,b)=t; }
+        mat_t<U> Wt=W*Oih;                                    // Löwdin among the set: S-orthonormal as a whole
+        mat_t<U> SWt=mat_t<U>(S)*Wt;                          // T columns = S W~
+        at=0;
+        for (size_t M : members)
+        {
+            const size_t m=itsV[M].columns();
+            mat_t<U> T(n, m), Q(m, n);
+            for (size_t a=0;a<m;a++) for (size_t i=0;i<n;i++) { T(i,a)=SWt(i,at+a); Q(a,i)=blazem::conjs(SWt(i,at+a)); }
+            itsT[M]=std::move(T); itsQ[M]=std::move(Q);
+            at+=m;
+        }
     }
 }
 
@@ -557,7 +596,8 @@ template <class U> const LowdinProjector<U>& Hubbard_U::Projector(const BasisSet
     const Selection sel=Select(orb);
     std::vector<mat_t<U>> V;
     for (const rmat_t& v : sel.contraction) { mat_t<U> vu(v.rows(), v.columns()); for (size_t i=0;i<v.rows();i++) for (size_t j=0;j<v.columns();j++) vu(i,j)=U(v(i,j)); V.push_back(std::move(vu)); }
-    LowdinProjector<U> p(orb.Overlap(), sel.cols, V);
+    std::vector<bool> ortho; for (const HubbardManifold& M : itsManifolds) ortho.push_back(M.orthoAtomic);
+    LowdinProjector<U> p(orb.Overlap(), sel.cols, V, ortho);
     if (itsNCoeff==0) itsNCoeff=p.NumCoefficients();
     else if (itsNCoeff!=p.NumCoefficients())
         throw std::logic_error("Hubbard_U: blocks disagree on the manifold size -- the shell layout is not uniform across k");
@@ -766,6 +806,15 @@ std::vector<mat_t<double>> Hubbard_U::ManifoldCoefficients(const BasisSet::Orbit
 {return CoefficientsOf<double>(Projector<double>(orb), C);}
 std::vector<mat_t<dcmplx>> Hubbard_U::ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const mat_t<dcmplx>& C) const
 {return CoefficientsOf<dcmplx>(Projector<dcmplx>(orb), C);}
+void Hubbard_U::SetU(size_t M, double U)
+{
+    if (M>=itsManifolds.size()) throw std::out_of_range("Hubbard_U::SetU: no such manifold");
+    itsManifolds[M].U=U;
+    for (double& u : itsManifolds[M].Uirrep) u=U;          // shell-averaged: every slot takes the new U
+    itsOccVersion=size_t(-1);                               // W depends on U: the next refresh rebuilds it from n
+    cDynamic_HT_Imp::InvalidateCache();                     // and the cached V_k blocks are the OLD U's (same density serial!)
+    Dynamic_HT_RealBlock_Imp::InvalidateRealCache();
+}
 template <class U> static std::vector<mat_t<U>> LowdinOf(const LowdinProjector<U>& P, const mat_t<U>& C)
 {
     std::vector<mat_t<U>> out;

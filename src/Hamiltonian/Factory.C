@@ -91,6 +91,13 @@ export namespace qchem::Hamiltonian
         //! FACADE to fill it from the pseudo-atom run in the block's own primitives.
         std::vector<double> radial;
         bool                atomicRadial = false;
+        //! ORTHO-ATOMIC (QE's `ortho-atomic`, hp.x's preferred projector): this contracted manifold's functions
+        //! are Löwdin-orthogonalised AMONG every ortho-atomic manifold in the run before projecting -- the
+        //! two Mn 3d sets against each other, and against any SPECTATOR listed at U=0 (O 2p, O 2s, Mn 4s:
+        //! QE's set is every atom's pseudo-wavefunction).  A spectator is just a manifold with U=0 -- and gets
+        //! its own ACBN0 estimate for free.  The bare integrals stay those of the on-site \f$\chi\f$ (the
+        //! orthogonalisation tails are not carried into them).
+        bool                orthoAtomic  = false;
         std::vector<rmat3d_t> siteOps;    //!< the site group's Cartesian rotations; empty = C_1
         std::vector<rmat3d_t> greyOps;    //!< the PARENT group (the coordination's point group), for PARENTAGE
                                           //!< labels only (which parent irrep a site level descends from); empty = siteOps

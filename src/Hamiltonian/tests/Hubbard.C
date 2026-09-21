@@ -345,3 +345,43 @@ TEST(LowdinProjector, AContractedManifoldProjectsAtomically)
     double rhs=0; for (size_t i=0;i<6;i++) for (size_t j=0;j<6;j++) rhs+=Vw(i,j)*D(j,i);
     EXPECT_NEAR(lhs, rhs, 1e-12);
 }
+
+// ORTHO-ATOMIC (slice D): two contracted manifolds on overlapping column sets are Löwdin-orthogonalised AMONG
+// themselves before projecting -- the union of their functions is S-orthonormal, where the plain atomic
+// projector leaves a cross-manifold overlap.  A column manifold in the same run is untouched.
+TEST(LowdinProjector, OrthoAtomicManifoldsAreOrthonormalAsASet)
+{
+    hmat_t<double> S(6);
+    for (size_t i=0;i<6;i++) S(i,i)=1.0;
+    for (size_t k=0;k<3;k++) S(k,k+3)=0.4;                          // "site A" columns 0-2 overlap "site B" columns 3-5
+    S(0,1)=0.1; S(3,4)=0.1;
+    const std::vector<std::vector<size_t>> cols{{0,1,2},{3,4,5}};
+    mat_t<double> I3(3,3,0.0); for (size_t i=0;i<3;i++) I3(i,i)=1.0;
+    rmat_t Sd(6,6,0.0); for (size_t i=0;i<6;i++) for (size_t j=0;j<6;j++) Sd(i,j)=S(i,j);
+    const rmat_t Sinv=blazem::inv(Sd);
+    auto Wof=[&](const LowdinProjector<double>& P)                  // the union's overlap: W~ = S^{-1} T per manifold, G = W~^T S W~
+    {
+        rmat_t W(6,6,0.0);
+        for (size_t M=0;M<2;M++) { const rmat_t w=Sinv*P.T(M); for (size_t i=0;i<6;i++) for (size_t a=0;a<3;a++) W(i,3*M+a)=w(i,a); }
+        rmat_t G(6,6,0.0);
+        for (size_t a=0;a<6;a++) for (size_t b=0;b<6;b++) { double t=0; for (size_t i=0;i<6;i++) for (size_t j=0;j<6;j++) t+=W(i,a)*Sd(i,j)*W(j,b); G(a,b)=t; }
+        return G;
+    };
+    const LowdinProjector<double> atomic(S, cols, {I3,I3}, {false,false});
+    const LowdinProjector<double> ortho (S, cols, {I3,I3}, {true, true});
+    const rmat_t Ga=Wof(atomic), Go=Wof(ortho);
+    double cross=0; for (size_t a=0;a<3;a++) for (size_t b=3;b<6;b++) cross=std::max(cross, std::abs(Ga(a,b)));
+    EXPECT_GT(cross, 0.1) << "plain atomic projectors on overlapping sites are not mutually orthogonal";
+    for (size_t a=0;a<6;a++) for (size_t b=0;b<6;b++) EXPECT_NEAR(Go(a,b), a==b?1.0:0.0, 1e-12);
+    // The pair is still adjoint, and the coefficient map is still T^dagger.
+    vec_t<double> c(6); for (size_t i=0;i<6;i++) c[i]=0.2-0.05*i;
+    const vec_t<double> l1=blazem::trans(ortho.T(1))*c, l2=ortho.Coefficients(1)*c;
+    for (size_t a=0;a<3;a++) EXPECT_NEAR(l1[a], l2[a], 1e-13);
+    // A density that is one ortho-atomic function of manifold 1 has occupation 1 there and 0 on manifold 0.
+    const vec_t<double> w=Sinv*blazem::column(ortho.T(1),0);
+    hmat_t<double> D(6); for (size_t i=0;i<6;i++) for (size_t j=i;j<6;j++) D(i,j)=w[i]*w[j];
+    const rvec_t nn=ortho.Forward(D);
+    EXPECT_NEAR(nn[9+0], 1.0, 1e-10);                              // manifold 1 (offset 9), function 0
+    double n0=0; for (size_t k=0;k<9;k++) n0+=std::abs(nn[k]);
+    EXPECT_NEAR(n0, 0.0, 1e-10) << "orthogonal to every function of manifold 0";
+}

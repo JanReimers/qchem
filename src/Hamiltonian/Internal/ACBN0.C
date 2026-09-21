@@ -51,13 +51,14 @@ class ACBN0 : public virtual HubbardUEstimator
 {
 public:
     //! \a term outlives the estimator (the Hamiltonian owns it; the facade owns the Hamiltonian).
-    explicit ACBN0(const HubbardProjection& term);
+    explicit ACBN0(HubbardProjection& term);
     virtual void Accumulate(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block, const Spin& s, double w,
                             const mat_t<double>& C, const rvec_t& f) override;
     virtual void Accumulate(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block, const Spin& s, double w,
                             const mat_t<dcmplx>& C, const rvec_t& f) override;
     virtual std::vector<HubbardEstimate> Evaluate() const override;
     virtual std::ostream& Write(std::ostream&) const override;
+    virtual void Apply(const std::vector<HubbardEstimate>& e) override;
 
 private:
     template <class U> void AccumulateT(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& block, const Spin& s, double w,
@@ -69,7 +70,7 @@ private:
     static void Averages(const rmat_t& Pa, const rmat_t& Pb, const rvec_t& Na, const rvec_t& Nb,
                          const BasisSet::ERI4Block& eri, double& Ubar, double& Jbar);
 
-    const HubbardProjection&               itsTerm;
+    HubbardProjection&                     itsTerm;
     std::vector<BasisSet::ERI4Block>       itsERI;       //!< per manifold (empty until the first block)
     //! Per manifold: the AO-basis density matrix on the manifold's functions (the numerator) and the Löwdin
     //! occupation matrix (its diagonal = the populations of the denominators), each renormalised and unweighted.

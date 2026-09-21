@@ -70,6 +70,14 @@ inline Hamiltonian::HubbardManifold HubbardU_Atomic(size_t site, int l, double U
     M.atomicRadial=true;
     return M;
 }
+//! The atomic manifold, Löwdin-orthogonalised among every ortho-atomic manifold of the run (QE's
+//! `ortho-atomic`); list the spectators (O 2p, O 2s, Mn 4s) at U=0 to reproduce QE's full set.
+inline Hamiltonian::HubbardManifold HubbardU_OrthoAtomic(size_t site, int l, double U_eV)
+{
+    Hamiltonian::HubbardManifold M=HubbardU_Atomic(site, l, U_eV);
+    M.orthoAtomic=true;
+    return M;
+}
 
 struct SolidCalcOptions
 {
@@ -479,6 +487,24 @@ public:
     //! Hamiltonian's.  Throws when the run carries no +U manifold.  A DIAGNOSTIC of the last iterate like its
     //! neighbours above: run it on a \c Converged run, and say which iterate it came from when you quote it.
     std::vector<qchem::Hamiltonian::HubbardEstimate> EstimateHubbardU() const;
+
+    //! \brief THE ACBN0 OUTER LOOP (Agapito et al.'s practice; the true variational functional is their future
+    //! work too): estimate \f$(\bar U,\bar J)\f$ from the current orbitals, set every manifold's \f$U\f$ to
+    //! \f$U_{\rm eff}=\bar U-\bar J\f$ on the SAME Hamiltonian, re-converge from the current density with
+    //! \a params, repeat until every manifold moves less than \c tolU_eV or \c maxOuter is spent.  The result
+    //! carries the whole trajectory, so a slow drift and an oscillation are visible, not hidden in a final
+    //! number.  The run's +U banner value is the STARTING U; the final one is in the trajectory.
+    struct HubbardLoop  { size_t maxOuter=20; double tolU_eV=1e-4; };
+    struct HubbardLoopResult
+    {
+        std::vector<std::vector<double>> U_eV;     //!< per outer step, per manifold: the U_eff estimated FROM that step's SCF
+        std::vector<qchem::Hamiltonian::HubbardEstimate> last;   //!< the final step's full estimate
+        size_t outer=0;                            //!< outer steps run (SCF re-convergences = outer-1)
+        bool   converged=false;                    //!< |ΔU| < tolU_eV on every manifold
+        bool   scfConverged=false;                 //!< the LAST SCF converged (an unconverged SCF poisons the estimate)
+    };
+    HubbardLoopResult ConvergeHubbardU(const SCFParams& params, const HubbardLoop& loop);
+    HubbardLoopResult ConvergeHubbardU(const SCFParams& params) {return ConvergeHubbardU(params, HubbardLoop{});}
 
     // ⛔ Energy() / EnergyTerms() / TotalCharge() / Density() DELIBERATELY DO NOT LIVE HERE any more
     // (doc/OpenWork.md N1/T1).  They are on Converged, reachable only through Converge()/Result(), because

@@ -256,8 +256,10 @@ int BeckeRecipeLadder(const std::string& system)
 // MNO_XC_CUSP, MNO_PULAY, MNO_PULAY_START, MNO_MOM, MNO_MOM_START, MNO_MOM_PENALTY, MNO_MOM_HOLD, MNO_KT,
 // GPW_MNO_NMAX, GPW_MNO_VERBOSE, MNO_U=eV (DFT+U on both Mn d, programme step 5) + MNO_U_IRREP=a,b,c (eV per
 // site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + MNO_ACBN0=1 (print the ACBN0 (U,J)
-// estimate from the converged orbitals; increment 3) + MNO_U_RADIAL=atomic (ONE contracted pseudo-atom 3d
-// as the manifold instead of every d shell), MNO_EPS=tol +
+// estimate from the converged orbitals; MNO_ACBN0=n>1 runs the paper's OUTER LOOP for up to n steps, re-converging
+// on the same Hamiltonian, MNO_ACBN0_TOL=eV; increment 3) + MNO_U_RADIAL=every|atomic|ortho|orthofull (the
+// manifold's radial and projector: CP2K's every shell, the pseudo-atom 3d, ortho-atomic among the Mn, or QE's
+// full ortho-atomic set with O 2s/2p + Mn 4s spectators at U=0), MNO_EPS=tol +
 // MNO_MEASURE=maxdd|mixer (CP2K's EPS_SCF measure max|dD_ij| between successive D_out, or the mixer's own
 // residual -- doc/Benchmark.md rule 3f: an iteration count is comparable only on the same measure); the SCHEDULE: MNO_ANNEAL=kT,kT,... MNO_ACC=... MNO_ANNEAL_PENALTY=...;
 // the ARMS: MNO_SKIP_AFM (FM only), MNO_SKIP_FM (AFM only).  Oracle: CP2K MnO AFM-II E=-61.470570 Ha
@@ -317,11 +319,18 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     const bool acbn0 = Envi("MNO_ACBN0",0)!=0;
     if (const double U=Envd("MNO_U",0.0); U>0.0 || acbn0)
     {
-        // MNO_U_RADIAL=atomic: ONE contracted 3d (the pseudo-atom's, hp.x's projector) instead of CP2K's every-shell
-        // manifold -- the manifold ACBN0 can screen (increment 3 slice C).
-        const bool atomic = std::getenv("MNO_U_RADIAL") && std::string(std::getenv("MNO_U_RADIAL"))=="atomic";
-        o.hubbard = atomic ? decltype(o.hubbard){HubbardU_Atomic(0,2,U), HubbardU_Atomic(1,2,U)}
-                           : decltype(o.hubbard){HubbardU(0,2,U), HubbardU(1,2,U)};   // sites 0,1 = Mn
+        // MNO_U_RADIAL: every (CP2K's every-shell manifold, default) | atomic (ONE contracted pseudo-atom 3d, QE's
+        // `atomic`) | ortho (the two Mn 3d sets Löwdin-orthogonalised against each other) | orthofull (QE's
+        // ortho-atomic SET: + O 2s, O 2p and Mn 4s as U=0 spectators, sites 2,3 = O) -- increment 3 slices C/D.
+        const std::string rad = std::getenv("MNO_U_RADIAL") ? std::getenv("MNO_U_RADIAL") : "every";
+        if      (rad=="every")  o.hubbard={HubbardU(0,2,U), HubbardU(1,2,U)};                      // sites 0,1 = Mn
+        else if (rad=="atomic") o.hubbard={HubbardU_Atomic(0,2,U), HubbardU_Atomic(1,2,U)};
+        else if (rad=="ortho")  o.hubbard={HubbardU_OrthoAtomic(0,2,U), HubbardU_OrthoAtomic(1,2,U)};
+        else if (rad=="orthofull") o.hubbard={HubbardU_OrthoAtomic(0,2,U), HubbardU_OrthoAtomic(1,2,U),
+                                              HubbardU_OrthoAtomic(0,0,0.0), HubbardU_OrthoAtomic(1,0,0.0),      // Mn 4s
+                                              HubbardU_OrthoAtomic(2,0,0.0), HubbardU_OrthoAtomic(3,0,0.0),      // O 2s
+                                              HubbardU_OrthoAtomic(2,1,0.0), HubbardU_OrthoAtomic(3,1,0.0)};     // O 2p
+        else throw std::runtime_error("MNO_U_RADIAL: expected every|atomic|ortho|orthofull, got '"+rad+"'");
         // MNO_U_IRREP=a,b,c (eV): one U per site-irrep slot, in the order of the term's "[+U] site .. U slots"
         // table -- for the AFM-II Mn under D_3d < O_h that is [0] a1g<t2g, [1] e_g<e_g, [2] e_g<t2g (increment 2).
         // The count must match the slot count or the term throws with the table in the message.
@@ -401,9 +410,24 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     for (const auto& st : schedule) arm.stageKT.push_back(st.params.SmearingkT);
     arm.calc=std::make_unique<SolidCalculation>(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
     arm.result=arm.calc->Result();
-    if (acbn0) { std::cout << "[MnO " << o.label << "] ACBN0 from the last iterate"
-                           << (arm.result ? " (CONVERGED):" : " (NOT converged -- a diagnostic, not a U):") << std::endl;
-                 arm.calc->EstimateHubbardU(); }
+    if (acbn0)
+    {
+        std::cout << "[MnO " << o.label << "] ACBN0 from the last iterate"
+                  << (arm.result ? " (CONVERGED):" : " (NOT converged -- a diagnostic, not a U):") << std::endl;
+        const int nOuter=Envi("MNO_ACBN0",0);
+        if (nOuter<=1) arm.calc->EstimateHubbardU();                  // one-shot
+        else
+        {   // the paper's outer loop, on the same Hamiltonian, re-converging with the schedule's FINAL stage
+            SolidCalculation::HubbardLoop lp; lp.maxOuter=size_t(nOuter); lp.tolU_eV=Envd("MNO_ACBN0_TOL",1e-3);
+            auto R=arm.calc->ConvergeHubbardU(schedule.back().params, lp);
+            std::cout << "[MnO " << o.label << "] ACBN0 loop: " << R.outer << " outer steps, "
+                      << (R.converged ? "U CONVERGED" : "U NOT converged") << " (tol " << lp.tolU_eV << " eV), last SCF "
+                      << (R.scfConverged ? "converged" : "NOT converged") << ";  U_eff trajectory (site 0, eV):";
+            for (const auto& u : R.U_eV) std::cout << " " << u[0];
+            std::cout << std::endl;
+            arm.result=arm.calc->Result();                             // the final-U SCF is now the arm's answer
+        }
+    }
     report::EmitTimings();   // sorted by cost + PEAK RSS, inside the bracket
     return arm;
 }

@@ -16,7 +16,7 @@ import qchem.Math;
 namespace qchem::Hamiltonian
 {
 
-ACBN0::ACBN0(const HubbardProjection& term) : itsTerm(term)
+ACBN0::ACBN0(HubbardProjection& term) : itsTerm(term)
 {
     // Both channels always exist here: an unpolarized run's folded doublet is split into them, and the
     // paper's eqs 12/13 are written per channel.
@@ -136,6 +136,15 @@ std::vector<HubbardEstimate> ACBN0::Evaluate() const
         out.push_back(std::move(e));
     }
     return out;
+}
+
+void ACBN0::Apply(const std::vector<HubbardEstimate>& e)
+{
+    if (e.size()!=itsTerm.Manifolds().size()) throw std::invalid_argument("ACBN0::Apply: one estimate per manifold");
+    for (size_t M=0;M<e.size();M++) itsTerm.SetU(M, e[M].Ueff());
+    // Start the next feed clean: the orbitals of the run just estimated belong to the previous U.
+    for (auto& [s,ch] : itsChannels) for (auto* v : {&ch.P,&ch.Pbare,&ch.L,&ch.Lbare}) for (rmat_t& m : *v) m=rmat_t(m.rows(), m.columns(), 0.0);
+    itsFed=false;
 }
 
 std::ostream& ACBN0::Write(std::ostream& os) const

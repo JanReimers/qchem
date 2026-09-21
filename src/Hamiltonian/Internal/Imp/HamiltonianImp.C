@@ -31,7 +31,7 @@ template <class T> void tHamiltonianImp<T>::Add(tStatic_HT<T>* p)
 template <class T> std::unique_ptr<HubbardUEstimator> tHamiltonianImp<T>::MakeHubbardUEstimator() const
 {
     for (const auto& t : itsDHTs)
-        if (const auto* h=dynamic_cast<const HubbardProjection*>(t.get())) return std::make_unique<ACBN0>(*h);
+        if (auto* h=dynamic_cast<HubbardProjection*>(t.get())) return std::make_unique<ACBN0>(*h);
     return nullptr;
 }
 

@@ -1121,6 +1121,36 @@ TEST(GPW_Si, Γ_U_Atomic3p_Imp_Pol_eqUnpol)
               << "/" << ea[0].JbarBare*27.211386245988 << "), N_p up = " << ea[0].chargeUpBare << " (renormalised " << ea[0].chargeUp << ")" << std::endl;
 }
 
+// THE ACBN0 OUTER LOOP (increment 3, 2026-09-21): estimate, write U_eff into the term ON THE SAME HAMILTONIAN,
+// re-converge from the current density, repeat.  What this gate claims on Si p: the second SCF actually FEELS
+// the new U (E_U > 0 where the U=0 start had none -- this is the cache-invalidation contract: SetU must drop
+// the +U blocks cached for the unchanged density serial), the re-converged run is converged, the trajectory
+// is recorded per step, and the loop terminates (converged or at maxOuter) without throwing.
+TEST(GPW_Si, Γ_U_ACBN0_OuterLoopFeelsTheNewU)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma ACBN0 outer loop from U=0");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.hubbard={HubbardU(0,1,0.0), HubbardU(1,1,0.0)};
+    SCFParams par=ProductionGates();
+    qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
+    ASSERT_TRUE(calc.Result()) << Why(calc.Result());
+    EXPECT_NEAR(calc.Result()->EnergyTerms()["E_U"], 0.0, 1e-12) << "U=0 start";
+    qchem::SolidCalculation::HubbardLoop lp; lp.maxOuter=3; lp.tolU_eV=1e-6;   // too tight to converge in 3: the loop must stop at maxOuter
+    const auto R=calc.ConvergeHubbardU(par, lp);
+    EXPECT_EQ(R.outer, 3u);
+    ASSERT_EQ(R.U_eV.size(), 3u);
+    EXPECT_TRUE(R.scfConverged);
+    EXPECT_GT(R.U_eV[0][0], 1.0) << "the U=0 run's estimate (7.2 eV on this p manifold)";
+    auto res=calc.Result();
+    ASSERT_TRUE(res) << Why(res);
+    EXPECT_GT(res->EnergyTerms()["E_U"], 1e-3) << "the re-converged SCF ran with the applied U_eff: the +U blocks were rebuilt";
+    // The applied U is the previous step's estimate; the energy carries it (1.5 U on the exact half-filled p at Γ).
+    const double Uapplied=R.U_eV[1][0]/27.211386245988;
+    EXPECT_NEAR(res->EnergyTerms()["E_U"], 1.5*Uapplied, 0.02*1.5*Uapplied) << "E_U = 1.5 U_applied on Si p at Γ (to the sub-percent the SCF moves the occupations)";
+}
+
 // CP2K's CONVERGENCE MEASURE (2026-09-20).  A CP2K deck converges EPS_SCF on max|P_out - P_in| over the AO density
 // matrix elements; our Kerker/Pulay recipes converge MinΔρ on the mixer's own residual max|ρ̃_out(G) - ρ̃_in(G)|,
 // which on MnO is ~100x looser at 1e-5 than EPS_SCF 1e-6 -- so "CP2K takes 104 iterations, we take 55" compared

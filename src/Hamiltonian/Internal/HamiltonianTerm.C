@@ -162,6 +162,10 @@ protected:
         return true;
     }
 
+    //! A term whose PARAMETERS changed under the SAME density (DFT+U's U rewritten by the ACBN0 outer
+    //! loop) must say so: the density serial cannot know, so the next GetMatrix would serve the old matrix.
+    void InvalidateCache() const {itsCacheVersion=size_t(-1); itsFitVersion=size_t(-1);}
+
     mutable size_t itsCacheVersion;   //!< density serial the Irrep cache was built for
     mutable size_t itsFitVersion;     //!< density serial the concrete term last refit for
 };
@@ -286,6 +290,8 @@ public:
 protected:
     virtual hmat_t<double> MakeMatrixR(const tobs_t<double>*,const Spin&,const tChargeDensity<dcmplx>*) const=0;
     mutable std::map<Irrep,hmat_t<double>> itsRealCache;
+    //! \copydoc tDynamic_HT_Imp::InvalidateCache
+    void InvalidateRealCache() const {itsRealCacheVersion=size_t(-1);}
     mutable size_t itsRealCacheVersion=size_t(-1);
 };
 

@@ -79,8 +79,12 @@ public:
     //! manifold, \f$\tilde V=V\,(V^\dagger S_{cc}V)^{-1/2}\f$, and projects onto THOSE functions: the ATOMIC
     //! projector \f$T=S[:,{\rm cols}]\tilde V\f$ (\f$T^\dagger c=\langle\chi|\psi\rangle\f$, QE's `atomic`), where a
     //! column manifold is LÖWDIN (\f$S^{1/2}\f$) -- see the ctor for why the two are not one formula.
+    //! \a ortho[M] (contracted manifolds only): join the ORTHO-ATOMIC set -- after each manifold's own
+    //! S-orthonormalisation, the functions of every flagged manifold are Löwdin-orthogonalised among
+    //! themselves, \f$\tilde W=W\,(W^\dagger SW)^{-1/2}\f$, and projected: \f$T_M=S\tilde W_M\f$.  The
+    //! bare-integral map \c Contraction(M) keeps the on-site \f$\tilde V_M\f$.
     LowdinProjector(const hmat_t<U>& S, const std::vector<std::vector<size_t>>& columns,
-                    const std::vector<mat_t<U>>& contraction = {});
+                    const std::vector<mat_t<U>>& contraction = {}, const std::vector<bool>& ortho = {});
 
     using qcMesh::MatrixForward<U>::Forward;   // un-hide the factored overload (qchem.Mesh.Integrator)
     virtual rvec_t    Forward(const hmat_t<U>& D) const override;
@@ -214,6 +218,10 @@ public:
     //! Per manifold: \f$\ell=T_M^\dagger C\f$ (\f$m_M\times n_{\rm orb}\f$), the LÖWDIN coefficients -- what a charge is made of.
     virtual std::vector<mat_t<double>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block, const mat_t<double>& C) const = 0;
     virtual std::vector<mat_t<dcmplx>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block, const mat_t<dcmplx>& C) const = 0;
+    //! THE OTHER DIRECTION -- what the estimator does to the term: set manifold \a M's \f$U\f$ (Hartree; a
+    //! filled \c Uirrep is set to it throughout, shell-averaged) for the NEXT Fock build.  The outer loop of
+    //! the paper (SCF at \f$U^{(n)}\f$, estimate, run again) lives on this.
+    virtual void SetU(size_t M, double U) = 0;
 };
 
 //! \brief The DFT+U term.  Periodic (Bloch, dcmplx run) with the real-TRIM corner, spin-native.
@@ -248,6 +256,7 @@ public:
     virtual std::vector<mat_t<dcmplx>> ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
     virtual std::vector<mat_t<double>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const mat_t<double>&) const override;
     virtual std::vector<mat_t<dcmplx>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
+    virtual void SetU(size_t M, double U) override;
     //!@}
 
     //! \a st names the sites the manifolds index; \a g the imposed spin subgroup (which channels exist).
