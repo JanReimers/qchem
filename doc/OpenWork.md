@@ -157,6 +157,38 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   increment 2 spec".  **NEXT = increment 3: ACBN0 (U, J) from our own on-site ERIs** (item 3 below).
 
 
+> **▶ INCREMENT 3 — SLICE D LANDED 2026-09-21 (`4a00d797`): THE OUTER LOOP AND THE ORTHO-ATOMIC PROJECTOR —
+> and the verdict on ACBN0 as a screening model.**  `SolidCalculation::ConvergeHubbardU(params, {maxOuter,
+> tolU_eV})`: estimate → `HubbardUEstimator::Apply` (the term's `SetU`: U, occupation version AND the matrix
+> caches reset — the \f$V_k\f$ blocks are cached by density serial and the density has not changed) → a NEW
+> STAGE through `BuildStage` (a continued `Iterate` let the converged Pulay history extrapolate the first
+> post-U step back onto the old density and report "converged" in one iteration) → re-converge → repeat; the
+> trajectory is the result.  `HubbardManifold::orthoAtomic` / `HubbardU_OrthoAtomic`: the flagged
+> contracted manifolds Löwdin-orthogonalised among themselves; a SPECTATOR is a manifold with U=0, so O 2s/2p
+> + Mn 4s at U=0 reproduce QE's ortho-atomic set (and get their own estimates).  `gpwprobe mno MNO_ACBN0=n`,
+> `MNO_U_RADIAL=every|atomic|ortho|orthofull`.  Gates `LowdinProjector.OrthoAtomicManifoldsAreOrthonormal
+> AsASet`, `GPW_Si.Γ_U_ACBN0_OuterLoopFeelsTheNewU`.  ctest 908/908.
+> - ★★ **THE NUMBERS (MnO AFM-II, LDA, Γ, deck-shaped recipe, imposed).**  One-shot at U=0, \f$U_{\rm eff}\f$(Mn 3d):
+>   10.87 (atomic) / 10.87 (ortho, Mn–Mn) / 10.75 eV (full ortho set); spectators: Mn 4s 0.27 eV (nearly
+>   empty → the \f$d^0\f$ limit), O 2s 32 eV (full shell → bare-like), **O 2p 7.36 eV (paper 2.68)**.
+>   **Self-consistent, atomic 3d, from U=0: 10.9 → 17.2 → 18.9 → 19.2 → 19.26 eV in 8 monotone outer steps**
+>   (SCFs of 13/12/10/10 iterations after the first).  +U localises d → \f$\bar N\f$ rises → U rises.
+> - ★★ **VERDICT: ACBN0's renormalisation is a projector-completeness effect, not a screening model.**  With
+>   a compact atomic projector on a complete Gaussian basis, \f$\bar N\f$ is 0.75–0.85 per d state and eq 12
+>   cannot bring a 29 eV bare average below ~11 eV; the paper's Mn d (4.67) and O 2p (2.68) sit a COMMON
+>   factor ~2.5 below ours, i.e. their PAO-3G-projected plane-wave states carry ~60 % of their norm — the
+>   "screening" is what the minimal projection basis drops.  The literature's screened U for MnO (cRPA,
+>   LR-cDFT: 4–7 eV) is a response quantity; **hp.x (linear response) is the value oracle, as ruled** — the
+>   ACBN0 machinery stays as the on-site-ERI instrument (bare \f$F^0\f$, \f$J\f$, the projected occupations)
+>   and as the loop scaffold for whatever U-functional replaces the renormalisation.  No ACBN0 number is
+>   quoted as physics.
+> - **NEXT = (3) hp.x on MnO with a MATCHED pseudopotential and projector**: write the UPF ourselves
+>   (`gth2upf`: the GTH q7/q6 local + separable parts we already carry, PP_CHI = OUR pseudo-atom 4s/3d and
+>   2s/2p, PP_RHOATOM from the same atom) so QE's `atomic`/`ortho-atomic` projector IS our χ; validate the
+>   UPF on the isolated pseudo-atom's eigenvalues vs `AtomCalculation`; then `pw.x` AFM-II LDA + `hp.x`
+>   (nq 2×2×2) → U(Mn 3d), U(O 2p).  `hp.x` is BUILT (`~/Code/q-e/bin/hp.x`, 2026-09-21); QE's own
+>   `test-suite/hp_insulator_us_magn/NiO.*` is the deck template (the same AFM-II cell).
+
 > **▶ INCREMENT 3 — SLICE C LANDED 2026-09-21 (`10a4c83b`): THE CONTRACTED MANIFOLD, and the first
 > screened U.**  `HubbardManifold::radial` (one coefficient per \f$l\f$-shell on the site; empty = CP2K's
 > every-shell convention) + `atomicRadial`: the facade runs the GTH pseudo-atom (LDA, unpolarized) in EXACTLY
