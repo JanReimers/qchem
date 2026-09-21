@@ -95,6 +95,19 @@ public:
     std::vector<Symmetry::Lattice_3D::SymOp> ShubnikovOps(const std::vector<int>& spins,
                                                           double tol=1e-4) const;
 
+    //! \brief THE SITE ROTATIONS of atom \a atom (cell atom order): the CARTESIAN rotation parts
+    //! \f$R=AWA^{-1}\f$ of the ops of the decoration's Shubnikov group that fix the atom
+    //! (\f$Wf+\tau\equiv f \pmod 1\f$) WITHOUT a spin flip.  Why σ=None only: an op that fixes a
+    //! magnetic site with a flip is a time-reversal partner linking \f$n^\uparrow\leftrightarrow n^\downarrow\f$
+    //! -- a constraint between channels, not a symmetry of one channel's occupation matrix.  Why the
+    //! Shubnikov group and not the grey one: on the AFM-II cell the grey group still relates the two Mn
+    //! and its stabiliser is the full rock-salt \f$O_h\f$, which would force t2g degenerate where the
+    //! order splits it a1g + eg.  An all-zero \a spins gives the grey stabiliser.  The client is the
+    //! DFT+U term's orbital resolution (doc/OpenWork.md step 5 increment 2): it symmetrises the site's
+    //! occupation block under these and labels its eigen-clusters by character.  Always contains the
+    //! identity.
+    std::vector<rmat3d_t> SiteRotations(size_t atom, const std::vector<int>& spins, double tol=1e-4) const;
+
     size_t    GetNumSites     () const;
     size_t    GetNumBasisSites() const;
     size_t    GetNumUnitCells () const;

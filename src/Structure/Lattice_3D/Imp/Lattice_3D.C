@@ -3,6 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <algorithm> //sort
+#include <cmath>     //round, abs (SiteRotations)
 #include <vector>
 #include <memory>    //make_shared (GetStructure)
 
@@ -74,6 +75,29 @@ std::vector<Symmetry::Lattice_3D::SymOp> Lattice_3D::ShubnikovOps(const std::vec
     for (Atom* a : st)
         decorated.push_back({a->itsZ, itsUnitCell.ToFractional(a->itsR), spins[i++]});
     return GetSpaceGroup(tol).ShubnikovOps(decorated, tol);
+}
+
+std::vector<rmat3d_t> Lattice_3D::SiteRotations(size_t atom, const std::vector<int>& spins, double tol) const
+{
+    namespace SL = Symmetry::Lattice_3D;
+    const Structure& st = itsUnitCell;
+    assert(atom<st.GetNumAtoms() && "SiteRotations: atom index outside the cell");
+    std::vector<int> sp = spins.empty() ? std::vector<int>(st.GetNumAtoms(),0) : spins;
+    // The site's fractional position, in cell atom order.
+    rvec3_t f; { size_t i=0; for (Atom* a : st) { if (i==atom) f=itsUnitCell.ToFractional(a->itsR); i++; } }
+    const Matrix3D<double>& A=itsUnitCell.GetCellMatrix();
+    const Matrix3D<double>  Ainv=Invert(A);
+    std::vector<rmat3d_t> R;
+    for (const SL::SymOp& op : ShubnikovOps(sp, tol))
+    {
+        if (op.sigma!=Symmetry::SpinAction::None) continue;
+        const rvec3_t d = op.W*f + op.tau - f;
+        auto integral=[tol](double x){ return std::abs(x-std::round(x))<=tol; };
+        if (!(integral(d.x) && integral(d.y) && integral(d.z))) continue;
+        R.push_back(A*op.W*Ainv);
+    }
+    assert(!R.empty() && "SiteRotations: the identity fixes every site");
+    return R;
 }
 
 

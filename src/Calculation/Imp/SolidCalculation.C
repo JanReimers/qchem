@@ -350,11 +350,37 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     itsImp->ec = std::make_unique<Crystal_EC>(irreps, (opts.Nelec+twoS)/2, (opts.Nelec-twoS)/2,
                                               opts.globalFermi, opts.spinsShareFermi);
 
+    // THE HUBBARD MANIFOLDS' SITE GROUPS (step 5 increment 2): each manifold is labelled by the stabiliser of
+    // its site in the DECLARED DECORATION's Shubnikov group (sigma=None ops), grey parentage beside it.  The
+    // decoration is the same one the imposition would use, derived here whether or not the run imposes: the
+    // site symmetry of the ordered state is the physical question either way.  A caller who filled siteOps
+    // by hand keeps them.
+    std::vector<qchem::Hamiltonian::HubbardManifold> hubbard=opts.hubbard;
+    if (!hubbard.empty())
+    {
+        std::vector<int> decoration=siteSpins;
+        if (decoration.empty() && polarized && !opts.greyImposition)
+        {
+            if (!opts.siteSpins.empty()) decoration=opts.siteSpins;
+            else
+            {
+                const std::map<size_t,int> targets = (opts.seed==qchem::ChargeDensity::SeedStrategy::IonicSAD)
+                                                   ? qchem::ChargeDensity::IonicSADTargets(itsImp->st.get(), "LDA")
+                                                   : std::map<size_t,int>{};
+                decoration=qchem::ChargeDensity::MagneticDecoration(itsImp->st.get(), "LDA", targets);
+            }
+        }
+        for (auto& M : hubbard)
+        {
+            if (M.siteOps.empty()) M.siteOps=lat.SiteRotations(M.site, decoration);
+            if (M.greyOps.empty()) M.greyOps=lat.SiteRotations(M.site, {});
+        }
+    }
     {
         qchem::report::Timed timed("setup: hamiltonian ctor (fit bases + becke mesh)");
         itsImp->ham.reset(qchem::Hamiltonian::Factory(
             polarized ? qchem::SpinGroup::Polarized : qchem::SpinGroup::UnPolarized,
-            itsImp->st, itsImp->bs.get(), opts.species, "LDA", itsImp->xcMesh, opts.vxcFit, opts.hubbard));
+            itsImp->st, itsImp->bs.get(), opts.species, "LDA", itsImp->xcMesh, opts.vxcFit, hubbard));
     }
     // The forecast crosscheck: the basis was built on the promise that every term preserves realness
     // (the AND's term half, above); the constructed Hamiltonian must agree, or real blocks were built

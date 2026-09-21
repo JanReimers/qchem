@@ -148,7 +148,12 @@ Hubbard_U::~Hubbard_U() = default;
 //------------------------------------------------------------------------------ the manifold's functions
 namespace
 {
-template <class U> std::vector<std::vector<size_t>>
+struct Selection
+{
+    std::vector<std::vector<size_t>> cols;
+    std::vector<std::vector<std::shared_ptr<const Symmetry::Molecule::ShellRep>>> reps;
+};
+template <class U> Selection
 ColumnsOf(const BasisSet::Orbital_1E_IBS<U>& orb, const std::vector<HubbardManifold>& manifolds,
           const std::vector<rvec3_t>& sites)
 {
@@ -157,10 +162,11 @@ ColumnsOf(const BasisSet::Orbital_1E_IBS<U>& orb, const std::vector<HubbardManif
     if (!src) throw std::runtime_error("Hubbard_U: the orbital block is not built from atom-centred shells "
                                        "(no AoShellSource face) -- a Hubbard manifold cannot be selected on it");
     const std::vector<Symmetry::Molecule::AoShell> shells=src->GetAoShells();
-    std::vector<std::vector<size_t>> cols;
+    Selection sel;
     for (const HubbardManifold& M : manifolds)
     {
         std::vector<size_t> c;
+        std::vector<std::shared_ptr<const Symmetry::Molecule::ShellRep>> reps;
         for (const auto& sh : shells)
         {
             if (norm(sh.center-sites[M.site])>1e-8 || sh.rep->L()!=M.l) continue;
@@ -172,19 +178,221 @@ ColumnsOf(const BasisSet::Orbital_1E_IBS<U>& orb, const std::vector<HubbardManif
                     +" components, the s-contaminant among them) -- a Hubbard manifold needs the 2l+1 "
                      "real harmonics; run the spherical view (GPW_SPHERICAL=1)");
             for (size_t k=0;k<sh.nComponents();k++) c.push_back(sh.offset+k);
+            reps.push_back(sh.rep);
         }
         if (c.empty())
             throw std::runtime_error("Hubbard_U: no l="+std::to_string(M.l)+" shell on site "+std::to_string(M.site));
-        cols.push_back(std::move(c));
+        sel.cols.push_back(std::move(c));
+        sel.reps.push_back(std::move(reps));
     }
-    return cols;
+    return sel;
+}
+
+//------------------------------------------------------------------ the irrep machinery (increment 2)
+// A representation is CLUSTERED, not looked up: the molecular character tables are abelian-only, and a
+// d shell on a cubic or trigonal site carries 3-D / 2-D irreps.  Symmetrise a matrix under the group,
+// eigen-decompose, and a degenerate cluster IS an irrep copy; its character vector chi(g) = Tr(P D(g))
+// names it -- two clusters with equal characters are the same irrep.
+using Sig = Hubbard_U::IrrepSig;
+
+rsmat_t Symmetrise(const rsmat_t& n, const std::vector<rmat_t>& D)
+{
+    if (D.size()<=1) return n;
+    const size_t m=n.rows();
+    rmat_t acc(m,m,0.0);
+    for (const rmat_t& d : D) acc += d*rmat_t(n)*blazem::trans(d);
+    acc /= double(D.size());
+    rsmat_t out(m);
+    for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++) out(a,b)=0.5*(acc(a,b)+acc(b,a));
+    return out;
+}
+//! Cluster the (ascending) eigenvalues by degeneracy; each cluster's members are eigen indices.
+std::vector<std::vector<size_t>> ClusterDegenerate(const rvec_t& lam, double tol=1e-8)
+{
+    std::vector<std::vector<size_t>> cl;
+    for (size_t i=0;i<lam.size();i++)
+    {
+        if (!cl.empty() && std::abs(lam[i]-lam[cl.back().front()])<=tol*std::max(1.0,std::abs(lam[i]))) cl.back().push_back(i);
+        else cl.push_back({i});
+    }
+    return cl;
+}
+rvec_t Characters(const std::vector<size_t>& members, const rmat_t& v, const std::vector<rmat_t>& D)
+{
+    rvec_t chi(D.size(), 0.0);
+    for (size_t g=0; g<D.size(); g++)
+    {
+        double t=0.0;
+        for (size_t i : members)
+        {
+            const auto vi=blazem::column(v,i);
+            t += blazem::dot(vi, D[g]*vi);
+        }
+        chi[g]=t;
+    }
+    return chi;
+}
+bool SameSig(const rvec_t& a, const rvec_t& b, double tol=1e-6)
+{
+    if (a.size()!=b.size()) return false;
+    for (size_t i=0;i<a.size();i++) if (std::abs(a[i]-b[i])>tol) return false;
+    return true;
+}
+//! The irreps a representation contains, in a FIXED order (dimension, then characters lexicographically),
+//! read off a generic symmetric matrix symmetrised under it -- so the table does not depend on any density.
+std::vector<Sig> IrrepsOf(const std::vector<rmat_t>& D, size_t m)
+{
+    rsmat_t n(m);
+    unsigned long long x=88172645463325252ULL;                       // a fixed-seed xorshift: reproducible
+    auto rnd=[&]{ x^=x<<13; x^=x>>7; x^=x<<17; return double(x%1000003)/1000003.0-0.5; };
+    for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++) n(a,b)=rnd();
+    rsmat_t nb=Symmetrise(n, D);
+    rvec_t lam; rmat_t v; blazem::eigen(nb, lam, v);
+    std::vector<Sig> out;
+    for (const auto& c : ClusterDegenerate(lam))
+    {
+        Sig sg{Characters(c, v, D), c.size()};
+        bool seen=false; for (const Sig& o : out) if (SameSig(o.chi, sg.chi)) seen=true;
+        if (!seen) out.push_back(std::move(sg));
+    }
+    std::sort(out.begin(), out.end(), [](const Sig& a, const Sig& b)
+    {
+        if (a.dim!=b.dim) return a.dim<b.dim;
+        for (size_t i=0;i<a.chi.size();i++) if (std::abs(a.chi[i]-b.chi[i])>1e-6) return a.chi[i]>b.chi[i];
+        return false;
+    });
+    return out;
+}
+size_t IrrepIndex(const std::vector<Sig>& table, const rvec_t& chi)
+{
+    for (size_t k=0;k<table.size();k++) if (SameSig(table[k].chi, chi)) return k;
+    return size_t(-1);
 }
 }
 
 std::vector<std::vector<size_t>> Hubbard_U::Columns(const BasisSet::Orbital_1E_IBS<double>& orb) const
-{return ColumnsOf<double>(orb, itsManifolds, itsSites);}
+{return ColumnsOf<double>(orb, itsManifolds, itsSites).cols;}
 std::vector<std::vector<size_t>> Hubbard_U::Columns(const BasisSet::Orbital_1E_IBS<dcmplx>& orb) const
-{return ColumnsOf<dcmplx>(orb, itsManifolds, itsSites);}
+{return ColumnsOf<dcmplx>(orb, itsManifolds, itsSites).cols;}
+std::vector<std::vector<std::shared_ptr<const Symmetry::Molecule::ShellRep>>> Hubbard_U::ShellReps(const BasisSet::Orbital_1E_IBS<double>& orb) const
+{return ColumnsOf<double>(orb, itsManifolds, itsSites).reps;}
+std::vector<std::vector<std::shared_ptr<const Symmetry::Molecule::ShellRep>>> Hubbard_U::ShellReps(const BasisSet::Orbital_1E_IBS<dcmplx>& orb) const
+{return ColumnsOf<dcmplx>(orb, itsManifolds, itsSites).reps;}
+
+void Hubbard_U::BuildSymmetry(size_t M, const std::vector<std::shared_ptr<const Symmetry::Molecule::ShellRep>>& reps) const
+{
+    if (itsSym.size()<itsManifolds.size()) itsSym.resize(itsManifolds.size());
+    ManifoldSym& sym=itsSym[M];
+    if (!sym.labels.empty()) return;                                  // built once
+    const HubbardManifold& man=itsManifolds[M];
+    size_t m=0; for (const auto& r : reps) m+=r->nComponents();
+    // The group on the manifold: block-diagonal over its shells (Columns order), one block per shell =
+    // that shell's angular rep of the Cartesian rotation.  An empty op list is C_1 (the identity only).
+    auto build=[&](const std::vector<rmat3d_t>& ops)
+    {
+        std::vector<rmat3d_t> R=ops; if (R.empty()) R.push_back(rmat3d_t(1.0,0,0, 0,1.0,0, 0,0,1.0));
+        std::vector<rmat_t> D;
+        for (const rmat3d_t& r : R)
+        {
+            rmat_t d(m,m,0.0); size_t at=0;
+            for (const auto& rep : reps)
+            {
+                const rmat_t b=rep->Rep(r); const size_t k=rep->nComponents();
+                for (size_t i=0;i<k;i++) for (size_t j=0;j<k;j++) d(at+i,at+j)=b(i,j);
+                at+=k;
+            }
+            D.push_back(std::move(d));
+        }
+        return D;
+    };
+    sym.D    =build(man.siteOps);
+    sym.Dgrey=build(man.greyOps.empty() ? man.siteOps : man.greyOps);
+    sym.irreps=IrrepsOf(sym.D, m);
+    sym.grey  =IrrepsOf(sym.Dgrey, m);
+    // The isotypic projectors P_k = (d_k/|G|) sum_g chi_k(g) D(g), site and grey: an eigenvector of n is
+    // NAMED by the site irrep it mostly lies in, and its parentage by the grey one.
+    auto projectors=[m](const std::vector<Sig>& sigs, const std::vector<rmat_t>& D)
+    {
+        std::vector<rmat_t> P;
+        for (const Sig& g : sigs)
+        {
+            rmat_t Pk(m,m,0.0);
+            for (size_t o=0;o<D.size();o++) Pk += g.chi[o]*D[o];
+            Pk *= double(g.dim)/double(D.size());
+            P.push_back(std::move(Pk));
+        }
+        return P;
+    };
+    sym.Psite=projectors(sym.irreps, sym.D);
+    sym.Pgrey=projectors(sym.grey,   sym.Dgrey);
+    // THE LABELS: every (site irrep, dominant grey parent) pair the manifold realises, read off the same
+    // generic matrix -- fixed before any density, so Uirrep's slots never move.
+    {
+        rsmat_t n(m);
+        unsigned long long x=88172645463325252ULL;
+        auto rnd=[&]{ x^=x<<13; x^=x>>7; x^=x<<17; return double(x%1000003)/1000003.0-0.5; };
+        for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++) n(a,b)=rnd();
+        rvec_t lam; rmat_t v;
+        std::vector<size_t> lab=LabelEigenvectors(M, n, lam, v);    // fills sym.labels as it goes
+        (void)lab;
+    }
+    std::sort(sym.labels.begin(), sym.labels.end(), [](const Label& a, const Label& b)
+    { return a.parent!=b.parent ? a.parent<b.parent : a.irrep<b.irrep; });
+    if (!man.Uirrep.empty() && man.Uirrep.size()<sym.labels.size())
+        throw std::invalid_argument("Hubbard_U: manifold (site "+std::to_string(man.site)+", l="+std::to_string(man.l)
+            +") has "+std::to_string(sym.labels.size())+" U slots (site irreps x grey parents) but Uirrep carries "
+            +std::to_string(man.Uirrep.size())+" -- see the [+U] label table");
+    // Say it once (pin 17): the table a user reads Uirrep against.
+    std::ostringstream os;
+    os<<"[+U] site "<<man.site<<" l="<<man.l<<": "<<m<<" functions, site group of "<<sym.D.size()<<" ops (grey "
+      <<sym.Dgrey.size()<<");  U slots:";
+    for (size_t k=0;k<sym.labels.size();k++)
+    {
+        const Label& L=sym.labels[k];
+        os<<"  ["<<k<<"] dim "<<L.dim<<" (site irrep "<<L.irrep<<")";
+        if (sym.Dgrey.size()!=sym.D.size()) os<<" < grey irrep "<<L.parent<<" dim "<<sym.grey[L.parent].dim
+                                              <<" ("<<std::fixed<<std::setprecision(0)<<100*L.parentWeight<<"%)";
+        os<<" U="<<std::setprecision(3)<<(man.Uirrep.empty() ? man.U : man.Uirrep[k])*27.211386245988<<" eV";
+    }
+    static const bool trace = std::getenv("QCHEM_U_TRACE")!=nullptr;
+    if (trace) std::cout<<os.str()<<std::endl; else report::Log(os.str());
+}
+
+std::vector<size_t> Hubbard_U::LabelEigenvectors(size_t M, const rsmat_t& n, rvec_t& lam, rmat_t& v) const
+{
+    ManifoldSym& sym=itsSym[M];
+    blazem::eigen(n, lam, v);                                         // the density's OWN occupations
+    std::vector<size_t> label(lam.size(), size_t(-1));
+    double purity=1.0;
+    auto dominant=[&](const std::vector<rmat_t>& P, size_t i, double& weight)
+    {
+        const auto vi=blazem::column(v,i);
+        size_t best=0; weight=-1.0;
+        for (size_t k=0;k<P.size();k++) { const double w=blazem::dot(vi, P[k]*vi); if (w>weight) { weight=w; best=k; } }
+        return best;
+    };
+    for (size_t i=0;i<lam.size();i++)
+    {
+        double wSite=0.0, wGrey=0.0;
+        const size_t irr   =dominant(sym.Psite, i, wSite);
+        const size_t parent=dominant(sym.Pgrey, i, wGrey);
+        purity=std::min(purity, wSite);
+        size_t slot=size_t(-1);
+        for (size_t k=0;k<sym.labels.size();k++) if (sym.labels[k].irrep==irr && sym.labels[k].parent==parent) slot=k;
+        if (slot==size_t(-1)) { sym.labels.push_back({irr, parent, wGrey, sym.irreps[irr].dim}); slot=sym.labels.size()-1; }
+        label[i]=slot;
+    }
+    sym.purity=purity;
+    return label;
+}
+
+const rvec_t& Hubbard_U::OccupationByLabel(size_t M, const Spin& s) const
+{
+    auto it=itsChannels.find(s);
+    if (it==itsChannels.end()) throw std::logic_error("Hubbard_U::OccupationByLabel: no such spin channel on this term");
+    if (it->second.byLabel.size()<=M) throw std::out_of_range("Hubbard_U::OccupationByLabel: no such manifold, or no refresh yet");
+    return it->second.byLabel[M];
+}
 
 template <> SymMap<LowdinProjector<double>>& Hubbard_U::Cache<double>() const {return itsProjR;}
 template <> SymMap<LowdinProjector<dcmplx>>& Hubbard_U::Cache<dcmplx>() const {return itsProj;}
@@ -208,9 +416,10 @@ const qcMesh::MatrixForward<dcmplx>& Hubbard_U::Forward(const BasisSet::Orbital_
 {return Projector<dcmplx>(orb);}
 
 //------------------------------------------------------------------------------------ the occupations
-double Hubbard_U::Analyse(const rvec_t& n, std::vector<rvec_t>& occ, rvec_t& W) const
+double Hubbard_U::Analyse(const rvec_t& n, std::vector<rvec_t>& occ, rvec_t& W, std::vector<rvec_t>* byLabel) const
 {
     occ.clear(); occ.resize(itsManifolds.size());
+    if (byLabel) { byLabel->clear(); byLabel->resize(itsManifolds.size()); }
     W=rvec_t(n.size(), 0.0);
     double EU=0.0;
     size_t at=0;
@@ -225,18 +434,28 @@ double Hubbard_U::Analyse(const rvec_t& n, std::vector<rvec_t>& occ, rvec_t& W) 
         rsmat_t nM(m);
         for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++) nM(a,b)=0.5*(n[at+a*m+b]+n[at+b*m+a]);
         rvec_t lam; rmat_t v;
+        std::vector<size_t> label;                                 // per eigenvalue: its U slot (increment 2)
         if (!itsEigenForm)
         {   // CP2K parity (RunPolicy::HubbardEigen): the POPULATIONS are the "eigenvalues", the basis is the identity.
             lam=rvec_t(m); v=rmat_t(m,m,0.0);
             for (size_t a=0;a<m;a++) {lam[a]=nM(a,a); v(a,a)=1.0;}
         }
+        else if (M<itsSym.size() && !itsSym[M].labels.empty())
+            label=LabelEigenvectors(M, nM, lam, v);                // symmetrised under the site group, clustered, labelled
         else blazem::eigen(nM, lam, v);                           // n = Sum_i lam_i v_i v_i^T
         occ[M]=lam;
-        const double U=itsManifolds[M].U;
-        // Dudarev in the eigenbasis (Macke eq 6 with U_i == U): E = Sum U/2 lam(1-lam),
-        // W = Sum U (1/2 - lam) v v^T -- rotated back to the manifold's own basis here.
+        const HubbardManifold& man=itsManifolds[M];
+        if (byLabel && !label.empty())
+        {
+            rvec_t sums(itsSym[M].labels.size(), 0.0);
+            for (size_t i=0;i<m;i++) if (label[i]!=size_t(-1)) sums[label[i]]+=lam[i];
+            (*byLabel)[M]=sums;
+        }
+        // Dudarev in the eigenbasis (Macke eq 6): E = Sum U_i/2 lam(1-lam), W = Sum U_i (1/2 - lam) v v^T --
+        // rotated back to the manifold's own basis here.  U_i is the slot's U (Uirrep) or the manifold's U.
         for (size_t i=0;i<m;i++)
         {
+            const double U = (!man.Uirrep.empty() && !label.empty() && label[i]!=size_t(-1)) ? man.Uirrep[label[i]] : man.U;
             EU+=0.5*U*lam[i]*(1.0-lam[i]);
             const double w=U*(0.5-lam[i]);
             for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++) W[at+a*m+b]+=w*v(a,i)*v(b,i);
@@ -288,7 +507,7 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
         for (const auto& [s,ch] : itsChannels) if (ch.W.size()==NumCoefficients()) return;   // keep the last n
         // nothing yet: n = 0 in every channel (V = U/2 P, E_U = 0); the version is NOT stamped so the first
         // DM-backed density does the real work.
-        for (auto& [s,ch] : itsChannels) { ch.n=rvec_t(NumCoefficients(),0.0); Analyse(ch.n, ch.occ, ch.W); }
+        for (auto& [s,ch] : itsChannels) { ch.n=rvec_t(NumCoefficients(),0.0); Analyse(ch.n, ch.occ, ch.W, &ch.byLabel); }
         return;
     }
     itsEU=0.0;
@@ -299,7 +518,7 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
         if (n.size()!=NumCoefficients()) n=rvec_t(NumCoefficients(),0.0);
         if (dm && s==Spin::None) n*=0.5;                       // the zeta=0 collapse: n_sigma = n_tot/2
         ch.n=n;
-        itsEU+=Analyse(ch.n, ch.occ, ch.W);
+        itsEU+=Analyse(ch.n, ch.occ, ch.W, &ch.byLabel);
     }
     if (itsGroup==SpinGroup::UnPolarized) itsEU*=2.0;    // both (identical) channels
     itsOccVersion=cd->Version();
@@ -315,6 +534,12 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
                 os<<"  site "<<itsManifolds[M].site<<" l="<<itsManifolds[M].l
                   <<(s==Spin::Up ? " up" : s==Spin::Down ? " dn" : "")<<": N="<<std::fixed<<std::setprecision(4)<<tr
                   <<" max(lam)="<<mx;
+                if (ch.byLabel.size()>M && ch.byLabel[M].size()>0)
+                {   // the orbital resolution: Sum lambda per U slot, in the [+U] label table's order
+                    os<<" by slot:";
+                    for (size_t k=0;k<ch.byLabel[M].size();k++) os<<" ["<<k<<"]"<<std::setprecision(3)<<ch.byLabel[M][k];
+                    os<<" purity "<<std::setprecision(3)<<itsSym[M].purity;
+                }
             }
         os<<"  E_U="<<std::setprecision(8)<<itsEU;
         // A heartbeat on the attached console; QCHEM_U_TRACE=1 puts the same line on stdout (gtest runs
@@ -333,6 +558,13 @@ void Hubbard_U::PrepareSlots(const cbs_t* bs) const
     for (size_t i=0;i<bs->GetNumIBS();i++)
         if (const auto* r=bs->GetRealIBS(i)) Projector<double>(dynamic_cast<const BasisSet::Orbital_DFT_IBS<double,dcmplx>&>(*r));
         else                                 Projector<dcmplx>(dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*(*bs)[i]));
+    // The site groups on the manifolds (increment 2): the shell layout is uniform across blocks, so the first
+    // block's shells give every manifold's representation.
+    if (bs->GetNumIBS()>0 && itsEigenForm)
+    {
+        auto reps = bs->GetRealIBS(0) ? ShellReps(*bs->GetRealIBS(0)) : ShellReps(*(*bs)[0]);
+        for (size_t M=0;M<itsManifolds.size();M++) BuildSymmetry(M, reps[M]);
+    }
 }
 
 void Hubbard_U::RefreshForDensity(const cChargeDensity* cd) const

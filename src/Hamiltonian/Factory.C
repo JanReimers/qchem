@@ -10,6 +10,7 @@ import qchem.Hamiltonian.Types;
 export import qchem.Symmetry.Spin;   // SpinGroup -- the imposed spin subgroup every Factory takes
 import qchem.Mesh;
 import qchem.Structure;
+import qchem.Types;                  // rmat3d_t (the site rotations)
 
 
 export namespace qchem::Hamiltonian
@@ -61,11 +62,24 @@ export namespace qchem::Hamiltonian
     //! vector (Macke et al. 2024, the orbital-resolved form) grows out of the same field.
     //! The FORM of the functional (Dudarev on the block's eigenvalues, or CP2K's diagonal populations) is not
     //! here: it is a process-wide CP2K-parity deviation, \c RunPolicy::HubbardEigen (knob \c QCHEM_U_EIGEN).
+    //!
+    //! ORBITAL RESOLUTION (increment 2, 2026-09-20): \c siteOps are the Cartesian rotations of the site's
+    //! own point group (the decoration's Shubnikov stabiliser, σ=None -- \c Lattice_3D::SiteRotations; the
+    //! facade fills it, a caller building manifolds by hand may leave it empty = no symmetry, every
+    //! eigenvalue its own 1-D cluster).  The term symmetrises the occupation block under them and labels
+    //! its eigen-clusters by CHARACTER; \c Uirrep is then one \f$U\f$ per cluster, in the cluster order
+    //! the term prints (irrep 0, 1, ... by first appearance in character order) -- EMPTY = every cluster
+    //! takes \c U (shell-averaged, increment 1).  Three levels are three levels: a1g + eg + eg on a D_3d
+    //! Mn are LISTED separately even when their U's come out equal (user, 2026-09-20).
     struct HubbardManifold
     {
-        size_t site = 0;     //!< atom index in the cell (the order Structure::ForEachSite walks)
-        int    l    = 2;     //!< the shell's angular momentum -- said, never inferred
-        double U    = 0.0;   //!< \f$U_{eff}=U-J\f$ in HARTREE (the facade converts from eV)
+        size_t              site = 0;     //!< atom index in the cell (the order Structure::ForEachSite walks)
+        int                 l    = 2;     //!< the shell's angular momentum -- said, never inferred
+        double              U    = 0.0;   //!< \f$U_{eff}=U-J\f$ in HARTREE (the facade converts from eV)
+        std::vector<double> Uirrep;       //!< per irrep cluster (Hartree); empty = \c U everywhere
+        std::vector<rmat3d_t> siteOps;    //!< the site group's Cartesian rotations; empty = C_1
+        std::vector<rmat3d_t> greyOps;    //!< the GREY (spin-blind) stabiliser, for PARENTAGE labels only
+                                          //!< (which grey irrep a site cluster descends from); empty = siteOps
     };
 
     //=== The resolvers ===============================================================================
