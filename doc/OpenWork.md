@@ -187,8 +187,11 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   pseudo-atom 3p (ε = −0.019 Ha, 95 % on α = 0.16) OVER-COUNTS — renormalised charge 2.24 > bare 1.83, the
 >   two sites' atomic χ overlap — the known weakness of non-orthogonalised atomic projectors and why hp.x
 >   prefers **ortho-atomic**; Mn 3d is compact and unaffected.
-> - **REMAINDERS / NEXT:** (1) the **k-mesh sensitivity** of \f$\bar N\f$ (a 2×2×2 run is in the log
->   `mno_k2_acbn0.log`; Γ-only hybridisation is one sample of the zone); (2) the **outer loop**
+> - **k-mesh sensitivity MEASURED (same day):** 2×2×2 (8 k, no symmetry reduction, `|ops|=0`): atomic 3d
+>   \f$U_{\rm eff}\f$ = 10.06 / 9.77 eV on the two Mn (\f$\bar U\f$ 13.9/13.5, \f$\bar J\f$ 3.85/3.75; bare 28.9/7.45
+>   unchanged, as it must be; \f$N_{d\uparrow}\f$ 4.86 → 3.50 renormalised) against 10.9 at Γ — ~10 %, not the
+>   factor 2 to the paper; the residual is functional/projector/self-consistency, i.e. the hp.x question.
+> - **REMAINDERS / NEXT:** (1) ✅ the k-mesh sensitivity (above); (2) the **outer loop**
 >   (\f$U^{(n)}\to U^{(n+1)}\f$, from 0, to \f$10^{-4}\f$ eV) as a facade driver rather than by hand; (3) the
 >   **ortho-atomic** projector (Löwdin among the atomic functions of all sites) — a third projector kind; (4)
 >   **hp.x on MnO** with a matched projector (item 4): the value oracle.  Until (4), no ACBN0 U is quoted as
