@@ -39,7 +39,13 @@ using Symmetry::Molecule::AoShell;
 // 2L+1 real solid harmonics: column coefficients c_t/N_c from Math::SphericalShell's RAW expansion
 // (the code's single source of truth for the m-convention), then each column is normalised against
 // the INNER shell's own overlap block -- so the normalisation convention is measured, not re-derived.
-static rmat_t BuildCartToSphere(const std::vector<AoShell>& shells, const hmat_t<double>& S, size_t nCart)
+// \a colNorm receives each view column's normalisation N in the AoShell convention (AO = N x raw):
+// the inner N_c for a pass-through s/p component, 1/nrm for a harmonic -- what the view's OWN AoShell
+// table reports, so BuildOperationRep's N_a/N_b ratio turns the RAW harmonic rep into the rep on the
+// view's unit-normalised functions.  (2026-09-21: the table used to say "all ones", which is false for the
+// raw harmonics -- their angular norms differ 1 : 3 : 4 across m -- and made the +U site-group rep
+// non-orthogonal: a d shell under O_h came out as THREE irreps.)
+static rmat_t BuildCartToSphere(const std::vector<AoShell>& shells, const hmat_t<double>& S, size_t nCart, rvec_t& colNorm)
 {
     // Pass 1: the spherical column count.
     size_t nSph=0;
@@ -68,6 +74,7 @@ static rmat_t BuildCartToSphere(const std::vector<AoShell>& shells, const hmat_t
 
     // Pass 2: fill the blocks.
     rmat_t T(nCart,nSph,0.0);
+    colNorm=rvec_t(nSph,0.0);
     size_t col=0;
     for (size_t s=0;s<shells.size();s++)
     {
@@ -77,7 +84,7 @@ static rmat_t BuildCartToSphere(const std::vector<AoShell>& shells, const hmat_t
         const int L=shellL[s];
         if (L<=1)
         {
-            for (size_t c=0;c<nc;c++) T(off+c,col+c)=1.0;
+            for (size_t c=0;c<nc;c++) { T(off+c,col+c)=1.0; colNorm[col+c]=sh.norm[c]; }
             col+=nc;
             continue;
         }
@@ -98,6 +105,7 @@ static rmat_t BuildCartToSphere(const std::vector<AoShell>& shells, const hmat_t
             assert(nrm2>0.0);
             const double inv=1.0/std::sqrt(nrm2);
             for (size_t c=0;c<nc;c++) T(off+c,col)=v[c]*inv;
+            colNorm[col]=inv;                                      // view function = inv x (raw harmonic radial)
             ++col;
         }
     }
@@ -115,8 +123,8 @@ class SphericalView_IBS
 {
 public:
     SphericalView_IBS(std::shared_ptr<const Real_BS> holder, const Gaussian::Orbital_1E_IBS* obs,
-                      const Gaussian::Periodic_Gaussian_IBS* lat, rmat_t T)
-        : itsHolder(std::move(holder)), itsObs(obs), itsLat(lat), itsT(std::move(T))
+                      const Gaussian::Periodic_Gaussian_IBS* lat, rmat_t T, rvec_t colNorm)
+        : itsHolder(std::move(holder)), itsObs(obs), itsLat(lat), itsT(std::move(T)), itsColNorm(std::move(colNorm))
         , itsTc(itsT.rows(),itsT.columns())
     {
         for (size_t i=0;i<itsT.rows();i++)
@@ -150,8 +158,11 @@ public:
     //! centre and shellType, offset in the VIEW's column order (the order BuildCartToSphere assigns), and the
     //! rep that describes what the view's functions ARE -- the inner Cartesian rep for \f$l\le1\f$ (those
     //! columns are the inner functions unchanged) and the \f$2l+1\f$ real solid harmonics above it.  Every
-    //! view function is unit-normalised (T's columns are S-normalised), so norm is all ones.  What a +U
-    //! manifold selection reads; what a lattice-SALC induction (I4) would read too.
+    //! view function is unit-normalised (T's columns are S-normalised), and \c norm says so IN THE AoShell
+    //! CONVENTION (AO = N x raw component): the inner N for a pass-through s/p, 1/nrm for a harmonic -- the
+    //! raw harmonics' angular norms differ across m, so "all ones" would hand a NON-orthogonal rep to
+    //! BuildOperationRep and to +U's site-group table.  What a +U manifold selection reads; what a
+    //! lattice-SALC induction (I4) would read too.
     virtual std::vector<AoShell> GetAoShells() const override
     {
         const auto& src=dynamic_cast<const BasisSet::AoShellSource&>(*itsObs);
@@ -165,7 +176,8 @@ public:
             v.shellType=sh.shellType; v.center=sh.center; v.offset=col;
             if (L<=1) { v.rep=sh.rep; }
             else       { v.rep=std::make_shared<Symmetry::Molecule::SphericalShellRep>(Math::SphericalShell(L)); }
-            v.norm=rvec_t(v.rep->nComponents(), 1.0);
+            v.norm=rvec_t(v.rep->nComponents());
+            for (size_t c=0;c<v.norm.size();c++) v.norm[c]=itsColNorm[col+c];
             col+=v.rep->nComponents();
             out.push_back(std::move(v));
         }
@@ -314,6 +326,7 @@ private:
     const Gaussian::Orbital_1E_IBS* itsObs;     //!< the inner orbital faces (abstract)
     const Gaussian::Periodic_Gaussian_IBS* itsLat;   //!< the inner periodic capability (abstract, all four faces)
     rmat_t        itsT;                         //!< cart->sphere, nCart x nSph
+    rvec_t        itsColNorm;                   //!< per view column: its normalisation N (AoShell convention)
     mat_t<dcmplx> itsTc;                        //!< the same T, complex, for the chmat congruences
     //! T's nonzeros per spherical function: (cartesian index, coefficient), ascending index.  The
     //! POINTWISE path only -- the matrix congruences keep the dense form, where blaze's blocked kernels
@@ -339,9 +352,10 @@ std::shared_ptr<const Real_BS> MakeSphericalLatticeView(std::shared_ptr<const Re
     if (!obs) throw std::runtime_error("MakeSphericalLatticeView: no Gaussian::Orbital_1E_IBS block in the wrapped basis");
     const auto* lat=dynamic_cast<const Gaussian::Periodic_Gaussian_IBS*>(obs);
     if (!lat) throw std::runtime_error("MakeSphericalLatticeView: the wrapped orbital block has no Periodic_Gaussian_IBS capability");
-    const rmat_t T=BuildCartToSphere(obs->GetAoShells(), obs->Overlap(), obs->GetNumFunctions());
+    rvec_t colNorm;
+    const rmat_t T=BuildCartToSphere(obs->GetAoShells(), obs->Overlap(), obs->GetNumFunctions(), colNorm);
     auto* bs=new ViewBS;
-    bs->Insert(new SphericalView_IBS(cart, obs, lat, T));
+    bs->Insert(new SphericalView_IBS(cart, obs, lat, T, colNorm));
     return std::shared_ptr<const Real_BS>(bs);
 }
 

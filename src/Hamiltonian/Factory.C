@@ -63,23 +63,28 @@ export namespace qchem::Hamiltonian
     //! The FORM of the functional (Dudarev on the block's eigenvalues, or CP2K's diagonal populations) is not
     //! here: it is a process-wide CP2K-parity deviation, \c RunPolicy::HubbardEigen (knob \c QCHEM_U_EIGEN).
     //!
-    //! ORBITAL RESOLUTION (increment 2, 2026-09-20): \c siteOps are the Cartesian rotations of the site's
+    //! ORBITAL RESOLUTION (increment 2, 2026-09-20/21): \c siteOps are the Cartesian rotations of the site's
     //! own point group (the decoration's Shubnikov stabiliser, σ=None -- \c Lattice_3D::SiteRotations; the
-    //! facade fills it, a caller building manifolds by hand may leave it empty = no symmetry, every
-    //! eigenvalue its own 1-D cluster).  The term symmetrises the occupation block under them and labels
-    //! its eigen-clusters by CHARACTER; \c Uirrep is then one \f$U\f$ per cluster, in the cluster order
-    //! the term prints (irrep 0, 1, ... by first appearance in character order) -- EMPTY = every cluster
-    //! takes \c U (shell-averaged, increment 1).  Three levels are three levels: a1g + eg + eg on a D_3d
-    //! Mn are LISTED separately even when their U's come out equal (user, 2026-09-20).
+    //! facade fills it, a caller building manifolds by hand may leave it empty = no symmetry, one irrep of
+    //! dimension 1).  \c greyOps is the PARENT group the site group is a subgroup of -- the point group of the
+    //! site's chemical coordination (\c Lattice_3D::SiteEnvironmentRotations: \f$O_h\f$ for a rock-salt Mn,
+    //! whatever the magnetic cell's own symmetry), so a site-group level is NAMED by descent: a1g < t2g,
+    //! e_g < e_g, e_g < t2g on an AFM-II Mn.  The term never symmetrises n: it eigen-decomposes the density's
+    //! own occupation block and LABELS each eigenvector by the (site irrep, grey parent) SLOT whose isotypic
+    //! projectors carry most of it; the slot table is fixed by group theory (\f$\dim=\mathrm{Tr}\,P_{site}P_{grey}\f$)
+    //! and printed once ("[+U] site s l=..: U slots").  \c Uirrep is one \f$U\f$ per slot in that printed
+    //! order -- EMPTY = every slot takes \c U (shell-averaged, increment 1); a wrong count throws.  Three
+    //! levels are three levels: a1g + eg + eg on a D_3d Mn are LISTED separately even when their U's come
+    //! out equal (user, 2026-09-20).
     struct HubbardManifold
     {
         size_t              site = 0;     //!< atom index in the cell (the order Structure::ForEachSite walks)
         int                 l    = 2;     //!< the shell's angular momentum -- said, never inferred
         double              U    = 0.0;   //!< \f$U_{eff}=U-J\f$ in HARTREE (the facade converts from eV)
-        std::vector<double> Uirrep;       //!< per irrep cluster (Hartree); empty = \c U everywhere
+        std::vector<double> Uirrep;       //!< per U SLOT (Hartree), in the term's printed slot order; empty = \c U everywhere
         std::vector<rmat3d_t> siteOps;    //!< the site group's Cartesian rotations; empty = C_1
-        std::vector<rmat3d_t> greyOps;    //!< the GREY (spin-blind) stabiliser, for PARENTAGE labels only
-                                          //!< (which grey irrep a site cluster descends from); empty = siteOps
+        std::vector<rmat3d_t> greyOps;    //!< the PARENT group (the coordination's point group), for PARENTAGE
+                                          //!< labels only (which parent irrep a site level descends from); empty = siteOps
     };
 
     //=== The resolvers ===============================================================================

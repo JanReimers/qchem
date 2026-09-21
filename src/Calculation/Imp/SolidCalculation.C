@@ -163,7 +163,7 @@ static const char* AccelName(SCFAccelerators::Type t)
 }
 // WHAT THE RUN IS MADE OF: system, grids, symmetry, threads, deviations.  Emitted once, from the ctor.
 static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& xc, size_t nAtoms,
-                          bool imposed)
+                          bool imposed, const std::vector<qchem::Hamiltonian::HubbardManifold>& hubbard)
 {
     const char* omp=std::getenv("OMP_NUM_THREADS");
     std::cout<<"["<<o.label<<" run] system: "<<nAtoms<<" atoms, "<<o.Nelec<<" valence e, multiplicity "
@@ -201,11 +201,23 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
     // DM-backed source of the mixed density, where CP2K mixes P (same fixed point, different trajectory).
     if (!o.hubbard.empty())
     {
-        std::cout<<"["<<o.label<<" run] +U: LOWDIN (CP2K's all-l-shells manifold), shell-averaged, "
+        // ORBITAL RESOLUTION (increment 2): a manifold with Uirrep carries one U per (site irrep, grey
+        // parent) slot; the slot table itself -- which irrep is which, its dimension -- is the TERM's to say
+        // (it prints the "[+U] site s l=..: U slots" line when it builds the table, pin 17), so the banner
+        // states what the RUN asked for: the U vector and the two groups it is resolved under.
+        bool resolved=false; for (const auto& M : hubbard) resolved|=!M.Uirrep.empty();
+        std::cout<<"["<<o.label<<" run] +U: LOWDIN (CP2K's all-l-shells manifold), "
+                 <<(resolved ? "ORBITAL-RESOLVED* (one U per site-irrep slot, see the [+U] slot table)" : "shell-averaged")<<", "
                  <<(theRunPolicy().HubbardEigen() ? "eigenvalue form (Dudarev)" : "DIAGONAL populations (CP2K's form)")
                  <<", occupations from D_out*;  manifolds:";
-        for (const auto& M : o.hubbard)
-            std::cout<<" (site "<<M.site<<", l="<<M.l<<", U="<<M.U*27.211386245988<<" eV)";
+        for (const auto& M : hubbard)             // the list AS HANDED to the Hamiltonian (site groups filled)
+        {
+            std::cout<<" (site "<<M.site<<", l="<<M.l;
+            if (M.Uirrep.empty()) std::cout<<", U="<<M.U*27.211386245988<<" eV";
+            else { std::cout<<", Uirrep="; for (size_t k=0;k<M.Uirrep.size();k++) std::cout<<(k?",":"")<<M.Uirrep[k]*27.211386245988; std::cout<<" eV"; }
+            std::cout<<", site group "<<(M.siteOps.empty() ? 1 : M.siteOps.size())<<" ops / grey "
+                     <<(M.greyOps.empty() ? (M.siteOps.empty() ? 1 : M.siteOps.size()) : M.greyOps.size())<<")";
+        }
         std::cout<<"   [* = differs from CP2K]"<<std::endl;
     }
 }
@@ -373,7 +385,11 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
         for (auto& M : hubbard)
         {
             if (M.siteOps.empty()) M.siteOps=lat.SiteRotations(M.site, decoration);
-            if (M.greyOps.empty()) M.greyOps=lat.SiteRotations(M.site, {});
+            // PARENTAGE is chemistry: the point group of the site's coordination polyhedron, not the
+            // cell's grey stabiliser (which on the rhombohedral AFM-II supercell is D_3d too, and would
+            // name nothing -- measured 2026-09-21).  Every site op is among these, so the slots are a
+            // clean refinement.
+            if (M.greyOps.empty()) M.greyOps=lat.SiteEnvironmentRotations(M.site);
         }
     }
     {
@@ -443,7 +459,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // has found m=0, and must never be second-guessed for it).
     itsImp->imposed = imposed;
 
-    EmitRunBanner(opts, itsImp->xcMesh, itsImp->st->GetNumAtoms(), imposed);
+    EmitRunBanner(opts, itsImp->xcMesh, itsImp->st->GetNumAtoms(), imposed, hubbard);
     (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
 }
 

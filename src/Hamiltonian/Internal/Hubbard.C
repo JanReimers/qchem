@@ -9,8 +9,12 @@
 // is eigen-decomposed, n = Sum_i lambda_i v_i v_i^T, and the Dudarev functional in that eigenbasis is
 //     E_U = Sum_{sigma,M} Sum_i (U_i/2) lambda_i (1 - lambda_i)                (Macke et al. 2024, eq 6)
 //     W^sigma_M = Sum_i U_i (1/2 - lambda_i) v_i v_i^T,   V^sigma_k = T_k W^sigma_M T_k^dagger.
-// Increment 1 carries ONE U per manifold (U_i == U: the shell-averaged special case, exactly what CP2K's
-// &DFT_PLUS_U computes); the per-eigenstate / per-site-irrep U_i is the same code with a vector.
+// Increment 1 carried ONE U per manifold (U_i == U: the shell-averaged special case, exactly what CP2K's
+// &DFT_PLUS_U computes).  Increment 2 (2026-09-21) is the per-site-irrep U_i: ManifoldSymmetry (below) names
+// every eigenvector of the density's OWN n by a (site irrep, chemical parent irrep) SLOT -- a1g<t2g,
+// e_g<e_g, e_g<t2g on an AFM-II Mn -- and HubbardManifold::Uirrep is one U per slot.  n is never
+// symmetrised; equal Uirrep is bit-identical with the shell-averaged run (gates: UTHamiltonian
+// ManifoldSymmetry.*, UTStructure SiteGroups.*, gpwprobe mno MNO_U_IRREP).
 //
 // ★ BORN ON THE PAIR (user, 2026-09-11).  The occupation-matrix FORWARD (D -> n) and the potential ADJOINT
 // (W -> V) are the two faces of ONE object per orbital block, LowdinProjector<TBlock>: the same T_k
@@ -50,7 +54,7 @@ import qchem.Fitting.FunctionFitter;            // Fitting::ScalarProjector (the
 import qchem.BasisSet.Orbital_DFT_IBS;          // Orbital_DFT_IBS<U,dcmplx> (what ProjectOnto hands the vendor)
 import qchem.Mesh.Integrator;                   // qcMesh::MatrixForward / MatrixAdjoint
 import qchem.Symmetry;                          // sym_t, SymMap
-import qchem.Symmetry.Molecule.ShellRep;        // ShellRep::Rep -- the site group on a shell
+import qchem.Symmetry.Molecule.OperationRep;    // AoShell (rep + per-component norm) -- the site group on a shell
 import qchem.Symmetry.Irrep;                    // Spin, SpinGroup, SpinIrreps
 import qchem.Structure;
 import qchem.Blaze;
@@ -83,6 +87,88 @@ private:
     size_t                itsN;   //!< \f$\sum_M m_M^2\f$
 };
 
+//! \brief THE SITE GROUP ON ONE HUBBARD MANIFOLD, and the names it gives the occupation eigenvectors
+//! (increment 2, the orbital resolution of pin 23).
+//!
+//! The manifold's \f$m\f$ functions carry a representation \f$D(g)\f$ of the site group (block-diagonal
+//! over its shells, one \c ShellRep::Rep block each).  Its irreps are CLUSTERED, not looked up -- the
+//! molecular character tables are abelian-only and a d shell on a cubic or trigonal site carries 3-D and
+//! 2-D irreps: a generic symmetric matrix symmetrised under \f$D\f$ has degenerate clusters that ARE irrep
+//! copies, and a cluster's character vector \f$\chi(g)=\mathrm{Tr}(P\,D(g))\f$ names it.  The isotypic
+//! projectors \f$P_k\propto\sum_g\chi_k(g)D(g)\f$ then say, for ANY vector, how much of it lies in irrep k.
+//!
+//! TWO GROUPS.  The SITE group is the declared magnetic decoration's stabiliser (AFM-II MnO: \f$D_{3d}\f$,
+//! which splits \f$t_{2g}\to a_{1g}+e_g\f$); the GREY group is the spin-blind stabiliser (\f$O_h\f$), kept
+//! for PARENTAGE only -- so a level is named "\f$e_g\f$ (site) < \f$t_{2g}\f$ (grey)".  A U SLOT is the
+//! INTERSECTION of a site isotypic component with a grey one, \f$\dim=\mathrm{Tr}(P^{site}_kP^{grey}_p)\f$
+//! (the two commute: the site group is a subgroup), fixed by group theory before any density -- so
+//! \c HubbardManifold::Uirrep addresses slots that never move.  MnO's d under \f$D_{3d}<O_h\f$: {1, 2, 2}.
+//!
+//! \f$n\f$ IS NEVER SYMMETRISED (user, 2026-09-21): the functional is evaluated on the density's OWN
+//! occupations; symmetry only NAMES their eigenvectors -- each takes the slot whose projectors carry most
+//! of it, and the labelling reports its \c purity (min site weight) and per-slot \c parentage (min grey
+//! weight) so an impure n is visible, never hidden.  Inside a DEGENERATE cluster the eigenbasis is
+//! LAPACK's arbitrary choice, so the cluster is rotated to diagonalise the projectors first (the seed
+//! n = 0 is one big cluster; an exact symmetric n has them by construction) -- the spectral decomposition
+//! of n is unchanged, the names become well-defined.
+class ManifoldSymmetry
+{
+public:
+    //! ONE irrep of the manifold's representation: its characters over the ops and its dimension.  Two
+    //! clusters with the same characters are the same irrep.
+    struct IrrepSig { rvec_t chi; size_t dim=0; };
+    //! ONE U SLOT: (site irrep, grey parent) with \f$\dim=\mathrm{Tr}(P^{site}_kP^{grey}_p)\f$ -- more than
+    //! the irrep's dimension when the irrep occurs several times inside one parent.
+    struct Slot { size_t irrep; size_t parent; size_t dim; };
+    //! What one eigen-decomposition was told about itself.
+    struct Labelling
+    {
+        std::vector<size_t> slot;        //!< per eigenvalue: its slot index
+        double              purity=1.0;  //!< min over eigenvectors of the chosen site irrep's weight (1 = symmetric n)
+        rvec_t              parentage;   //!< per slot: min over its eigenvectors of the grey parent's weight (1 if unused)
+    };
+
+    //! \a D the site group on the manifold, \a Dgrey the grey stabiliser on it (the same list when the run
+    //! has no magnetic decoration).  Both lists must contain the identity and be closed under products.
+    ManifoldSymmetry(std::vector<rmat_t> D, std::vector<rmat_t> Dgrey);
+    //! The manifold representation of the Cartesian ops \a ops on the shells \a shells: block-diagonal, one
+    //! block per shell in \a shells order, each \f$(N_a/N_b)\,\mathrm{Rep}(b,a)\f$ -- the shell's angular
+    //! rep carried from its RAW components to its NORMALISED ones by \c AoShell::norm, exactly as
+    //! \c BuildOperationRep does (the occupation matrix lives in the normalised functions; the raw real
+    //! harmonics' norms differ across m, so the raw rep is not orthogonal).  An empty op list is
+    //! \f$C_1\f$ (the identity only).
+    static std::vector<rmat_t> Rep(const std::vector<Symmetry::Molecule::AoShell>& shells, const std::vector<rmat3d_t>& ops);
+
+    //! Eigen-decompose \a n (\a lam ascending, \a v its eigenvectors in columns) and name each eigenvector.
+    Labelling Label(const rsmat_t& n, rvec_t& lam, rmat_t& v) const;
+
+    size_t Size()       const {return itsM;}              //!< \f$m\f$, the manifold's function count
+    size_t NumOps()     const {return itsD.size();}
+    size_t NumGreyOps() const {return itsDgrey.size();}
+    bool   Graded()     const {return itsDgrey.size()!=itsD.size();}   //!< is there a parentage to report?
+    const std::vector<IrrepSig>& Irreps() const {return itsIrreps;}
+    const std::vector<IrrepSig>& Grey()   const {return itsGrey;}
+    const std::vector<Slot>&     Slots()  const {return itsSlots;}
+    const rmat_t& SiteProjector(size_t k) const {return itsPsite[k];}
+    const rmat_t& GreyProjector(size_t p) const {return itsPgrey[p];}
+    //! The slot table as the term prints it: "[k] dim d (site irrep i) < grey irrep p dim dp  U=... eV".
+    std::ostream& WriteSlots(std::ostream&, double U, const std::vector<double>& Uirrep) const;
+
+private:
+    size_t                itsM;
+    std::vector<rmat_t>   itsD, itsDgrey;
+    std::vector<IrrepSig> itsIrreps, itsGrey;
+    std::vector<rmat_t>   itsPsite, itsPgrey;
+    std::vector<Slot>     itsSlots;
+};
+
+//! \brief Dudarev in the occupation eigenbasis with ONE U PER SLOT (Macke et al. 2024 eq 6):
+//! \f$E_U=\sum_i\tfrac{U_i}2\lambda_i(1-\lambda_i)\f$, \f$W=\sum_iU_i(\tfrac12-\lambda_i)v_iv_i^T\f$
+//! rotated back to the manifold's own basis.  \f$U_i\f$ is \a Uirrep[slot[i]] when \a Uirrep is filled
+//! (and \a slot names the eigenvector), else \a U -- the shell-averaged special case.  Returns \f$E_U\f$.
+double DudarevInEigenbasis(const rvec_t& lam, const rmat_t& v, const std::vector<size_t>& slot,
+                           const std::vector<double>& Uirrep, double U, rmat_t& W);
+
 //! \brief The DFT+U term.  Periodic (Bloch, dcmplx run) with the real-TRIM corner, spin-native.
 class Hubbard_U
     : public virtual cDynamic_HT
@@ -111,28 +197,16 @@ public:
     //! The current occupation eigenvalues of manifold \a M, channel \a s (empty before the first refresh).
     const rvec_t& Occupations(size_t M, const Spin& s) const;
     double HubbardEnergy() const {return itsEU;}   //!< \f$E_U\f$ of the last refresh
-    //! \name Orbital resolution (increment 2): the site group's action on the manifold and its irrep labels
+    //! \name Orbital resolution (increment 2): the U slots and what each level holds
     //!@{
-    //! ONE irrep of the manifold's representation, as the term names it: its characters over the site
-    //! ops and its dimension.  Two clusters with the same characters are the same irrep.
-    struct IrrepSig { rvec_t chi; size_t dim=0; };
-    //! ONE LABEL a U can be attached to: (site irrep, dominant grey parent).  Three levels are three labels.
-    struct Label { size_t irrep; size_t parent; double parentWeight; size_t dim; };
-    struct ManifoldSym
-    {
-        std::vector<rmat_t>   D;        //!< the site group on the manifold (block-diagonal over its shells)
-        std::vector<rmat_t>   Dgrey;    //!< the grey (parent) stabiliser, for parentage only
-        std::vector<IrrepSig> irreps;   //!< the site irreps the manifold contains, in a fixed order
-        std::vector<IrrepSig> grey;     //!< the grey irreps (t2g, e_g on a cubic site)
-        std::vector<rmat_t>   Psite;    //!< the site isotypic projectors (d_k/|G|) sum chi_k(g) D(g)
-        std::vector<rmat_t>   Pgrey;    //!< the grey isotypic projectors, for parentage
-        std::vector<Label>    labels;   //!< the U slots, printed once at PrepareSlots
-        double                purity=1; //!< min over eigenvectors of the chosen irrep's weight (1 = symmetric n)
-    };
-    //! The manifold's U slots (increment 2): one per (site irrep, grey parent) pair, in \c Uirrep order.
-    const std::vector<Label>& Labels(size_t M) const {return itsSym.at(M).labels;}
-    //! \f$\sum\lambda\f$ per label of manifold \a M in channel \a s (the occupation of each level).
+    //! The manifold's U slots: one per (site irrep, grey parent) intersection, in \c Uirrep order; empty
+    //! before \c PrepareSlots (or under CP2K's population form, which has no eigenvectors to name).
+    const std::vector<ManifoldSymmetry::Slot>& Slots(size_t M) const;
+    //! \f$\sum\lambda\f$ per slot of manifold \a M in channel \a s (the occupation of each level).
     const rvec_t& OccupationByLabel(size_t M, const Spin& s) const;
+    //! How well the last density's eigenvectors sat in the slots (1 = a site-symmetric \f$n\f$).
+    const ManifoldSymmetry::Labelling& LastLabelling(size_t M, const Spin& s) const;
+    //!@}
 
     //! \name Fitting::ScalarProjector -- the forward vendor (what tDM_CD::ProjectOnto asks)
     //!@{
@@ -154,24 +228,19 @@ private:
     //! The manifold's function indices in \a orb (from its AoShellSource face); throws on a Cartesian d.
     std::vector<std::vector<size_t>> Columns(const BasisSet::Orbital_1E_IBS<double>&) const;
     std::vector<std::vector<size_t>> Columns(const BasisSet::Orbital_1E_IBS<dcmplx>&) const;
-    //! The shells' angular reps, one per selected shell in \c Columns order (the symmetry table's input).
-    std::vector<std::vector<std::shared_ptr<const Symmetry::Molecule::ShellRep>>> ShellReps(const BasisSet::Orbital_1E_IBS<double>&) const;
-    std::vector<std::vector<std::shared_ptr<const Symmetry::Molecule::ShellRep>>> ShellReps(const BasisSet::Orbital_1E_IBS<dcmplx>&) const;
+    //! The selected shells, one per manifold in \c Columns order (the symmetry table's input).
+    std::vector<std::vector<Symmetry::Molecule::AoShell>> Shells(const BasisSet::Orbital_1E_IBS<double>&) const;
+    std::vector<std::vector<Symmetry::Molecule::AoShell>> Shells(const BasisSet::Orbital_1E_IBS<dcmplx>&) const;
     //! Bring the occupations up to \a cd (a no-op when frozen or already at this serial).
     void EnsureOccupations(const cChargeDensity* cd) const;
-    //! Per channel: eigen-decompose \a n (flattened, all manifolds), fill \a occ / \a W, return its \f$E_U\f$.
-    double Analyse(const rvec_t& n, std::vector<rvec_t>& occ, rvec_t& W, std::vector<rvec_t>* byLabel=nullptr) const;
+    //! Per channel: eigen-decompose \a n (flattened, all manifolds), fill the channel's occupations, slot
+    //! sums, labelling and \f$W\f$, return its \f$E_U\f$.
+    struct Channel;
+    double Analyse(Channel& ch) const;
 
-    //! \name Orbital resolution -- the private half
-    //!@{
-    //! Build \c itsSym[M] from the manifold's shells and its \c siteOps (called once, in PrepareSlots).
-    void BuildSymmetry(size_t M, const std::vector<std::shared_ptr<const Symmetry::Molecule::ShellRep>>& reps) const;
-    //! Eigen-decompose \a n (NEVER symmetrised: the functional is evaluated on the density's own
-    //! occupations, symmetry only NAMES them) and label each eigenvector by the site irrep whose isotypic
-    //! projector carries most of it, with its grey parent likewise; returns per eigenvalue its label index.
-    std::vector<size_t> LabelEigenvectors(size_t M, const rsmat_t& n, rvec_t& lam, rmat_t& v) const;
-    const Label& LabelOf(size_t M, size_t label) const {return itsSym[M].labels[label];}
-    //!@}
+    //! Build \c itsSym[M] from the manifold's shells and its \c siteOps / \c greyOps (once, in PrepareSlots),
+    //! and say the slot table once (pin 17).
+    void BuildSymmetry(size_t M, const std::vector<Symmetry::Molecule::AoShell>& shells) const;
 
     std::shared_ptr<const Structure> itsSt;
     std::vector<HubbardManifold>     itsManifolds;
@@ -186,9 +255,10 @@ private:
         rvec_t              n;     //!< the flattened occupation blocks (the forward's output, k-summed)
         rvec_t              W;     //!< the flattened potential blocks (the adjoint's input)
         std::vector<rvec_t> occ;   //!< per manifold: the eigenvalues \f$\lambda_i\f$
-        std::vector<rvec_t> byLabel;   //!< per manifold: \f$\sum\lambda\f$ per label (the printed resolution)
+        std::vector<rvec_t> byLabel;   //!< per manifold: \f$\sum\lambda\f$ per slot (the printed resolution)
+        std::vector<ManifoldSymmetry::Labelling> lab;   //!< per manifold: the last labelling's diagnostics
     };
-    mutable std::vector<ManifoldSym> itsSym;      //!< per manifold, built in PrepareSlots
+    mutable std::vector<std::shared_ptr<const ManifoldSymmetry>> itsSym;   //!< per manifold, built in PrepareSlots (null = C_1 or the population form)
     mutable std::map<Spin,Channel> itsChannels;   //!< one per spin irrep of the subgroup
     mutable size_t itsOccVersion = size_t(-1);
     mutable double itsEU = 0.0;

@@ -100,13 +100,29 @@ public:
     //! (\f$Wf+\tau\equiv f \pmod 1\f$) WITHOUT a spin flip.  Why σ=None only: an op that fixes a
     //! magnetic site with a flip is a time-reversal partner linking \f$n^\uparrow\leftrightarrow n^\downarrow\f$
     //! -- a constraint between channels, not a symmetry of one channel's occupation matrix.  Why the
-    //! Shubnikov group and not the grey one: on the AFM-II cell the grey group still relates the two Mn
-    //! and its stabiliser is the full rock-salt \f$O_h\f$, which would force t2g degenerate where the
-    //! order splits it a1g + eg.  An all-zero \a spins gives the grey stabiliser.  The client is the
-    //! DFT+U term's orbital resolution (doc/OpenWork.md step 5 increment 2): it symmetrises the site's
-    //! occupation block under these and labels its eigen-clusters by character.  Always contains the
-    //! identity.
+    //! Shubnikov group and not the grey one: a grey group would be blind to the order that splits t2g into
+    //! a1g + eg.  An all-zero \a spins gives the grey stabiliser OF THE CELL -- ⚠ which is a SPACE-GROUP
+    //! property: on the rhombohedral AFM-II MnO supercell it is \f$D_{3d}\f$ (12), not the rock-salt
+    //! \f$O_h\f$ (measured 2026-09-21; the earlier claim here that it was \f$O_h\f$ was wrong) -- the
+    //! chemical parent group is \c SiteEnvironmentRotations.  The client is the DFT+U term's orbital
+    //! resolution (doc/OpenWork.md step 5 increment 2): it names the eigenvectors of the site's occupation
+    //! block by the irreps of these ops.  Always contains the identity.
     std::vector<rmat3d_t> SiteRotations(size_t atom, const std::vector<int>& spins, double tol=1e-4) const;
+
+    //! \brief THE SITE'S ENVIRONMENT ROTATIONS: the Cartesian orthogonal ops fixing atom \a atom that map
+    //! its LOCAL COORDINATION -- every periodic image of every atom within the first \a shells distinct
+    //! neighbour distances, species-matched -- onto itself.  This is the point group of the coordination
+    //! polyhedron, NOT of the cell: on the AFM-II MnO supercell (rhombohedral, R-3m) the space-group
+    //! stabiliser at Mn is \f$D_{3d}\f$ with or without decoration, while the MnO\f$_6\f$ octahedron and
+    //! the fcc Mn\f$_{12}\f$ shell around it are exactly cubic -- the \f$O_h\f$ that names a d level
+    //! \f$t_{2g}\f$ or \f$e_g\f$ is a property of the CHEMISTRY, and a supercell cannot see it (measured
+    //! 2026-09-21: \c SiteRotations(atom, {}) gave 12 ops on that cell).  The client is the DFT+U term's
+    //! PARENTAGE labels (\c HubbardManifold::greyOps): which chemical irrep a site-group level descends
+    //! from.  Enumeration: every op maps a fixed non-coplanar triple of first-shell neighbours onto some
+    //! same-species triple, so the candidates are \f$R=BA^{-1}\f$ over those triples, kept when
+    //! orthogonal and a symmetry of the whole environment.  Always contains the identity; every
+    //! \c SiteRotations op is among them (a crystal symmetry fixing the site maps its environment onto itself).
+    std::vector<rmat3d_t> SiteEnvironmentRotations(size_t atom, size_t shells=3, double tol=1e-4) const;
 
     size_t    GetNumSites     () const;
     size_t    GetNumBasisSites() const;

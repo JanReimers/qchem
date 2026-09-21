@@ -3,7 +3,8 @@ module;
 #include <iostream>
 #include <cassert>
 #include <algorithm> //sort
-#include <cmath>     //round, abs (SiteRotations)
+#include <cmath>     //round, abs (SiteRotations), pow (SiteEnvironmentRotations)
+#include <stdexcept>
 #include <vector>
 #include <memory>    //make_shared (GetStructure)
 
@@ -97,6 +98,90 @@ std::vector<rmat3d_t> Lattice_3D::SiteRotations(size_t atom, const std::vector<i
         R.push_back(A*op.W*Ainv);
     }
     assert(!R.empty() && "SiteRotations: the identity fixes every site");
+    return R;
+}
+
+std::vector<rmat3d_t> Lattice_3D::SiteEnvironmentRotations(size_t atom, size_t shells, double tol) const
+{
+    const Structure& st = itsUnitCell;
+    assert(atom<st.GetNumAtoms() && "SiteEnvironmentRotations: atom index outside the cell");
+    assert(shells>=1);
+    // The site and the cell's atoms, Cartesian.
+    struct Pt { int Z; rvec3_t r; };
+    std::vector<Pt> cell; rvec3_t site;
+    { size_t i=0; for (Atom* a : st) { cell.push_back({a->itsZ, a->itsR}); if (i==atom) site=a->itsR; i++; } }
+    const Matrix3D<double>& A=itsUnitCell.GetCellMatrix();
+    // Every image within a generous radius -- the images of the (shells) nearest distances are certainly
+    // inside 3 cells in each direction for any sane cell; the shell cut below is what actually selects.
+    std::vector<Pt> env;
+    for (int i=-3;i<=3;i++) for (int j=-3;j<=3;j++) for (int k=-3;k<=3;k++)
+    {
+        const rvec3_t t=A*rvec3_t(i,j,k);
+        for (const Pt& p : cell)
+        {
+            const rvec3_t d=p.r+t-site;
+            if (norm(d)>tol) env.push_back({p.Z, d});
+        }
+    }
+    // The first (shells) distinct distances.
+    std::vector<double> dist; for (const Pt& p : env) dist.push_back(norm(p.r));
+    std::sort(dist.begin(), dist.end());
+    std::vector<double> distinct;
+    for (double d : dist) if (distinct.empty() || d-distinct.back()>tol*std::max(1.0,d)) distinct.push_back(d);
+    const double rcut = (shells<=distinct.size() ? distinct[shells-1] : distinct.back()) * (1.0+tol);
+    std::vector<Pt> cl; for (const Pt& p : env) if (norm(p.r)<=rcut) cl.push_back(p);
+    std::vector<Pt> shell1; for (const Pt& p : cl) if (norm(p.r)<=distinct[0]*(1.0+tol)) shell1.push_back(p);
+    // A non-coplanar reference triple from the first shell (fall back to the whole cluster if the first
+    // shell is planar or too small -- a linear/planar coordination).
+    auto triple=[&](const std::vector<Pt>& pts, size_t& a, size_t& b, size_t& c)
+    {
+        for (a=0;a<pts.size();a++) for (b=a+1;b<pts.size();b++) for (c=b+1;c<pts.size();c++)
+        {
+            Matrix3D<double> M(pts[a].r.x,pts[b].r.x,pts[c].r.x, pts[a].r.y,pts[b].r.y,pts[c].r.y, pts[a].r.z,pts[b].r.z,pts[c].r.z);
+            if (std::abs(Determinant(M))>1e-6*std::pow(norm(pts[a].r),3)) return true;
+        }
+        return false;
+    };
+    size_t ia,ib,ic;
+    const std::vector<Pt>& ref = triple(shell1, ia, ib, ic) ? shell1 : cl;
+    if (&ref==&cl && !triple(cl, ia, ib, ic))
+        throw std::runtime_error("SiteEnvironmentRotations: the site's environment is coplanar -- no finite point group from it");
+    const Matrix3D<double> Am(ref[ia].r.x,ref[ib].r.x,ref[ic].r.x, ref[ia].r.y,ref[ib].r.y,ref[ic].r.y, ref[ia].r.z,ref[ib].r.z,ref[ic].r.z);
+    const Matrix3D<double> Ainv=Invert(Am);
+    auto isSymmetry=[&](const rmat3d_t& R)
+    {
+        for (const Pt& p : cl)
+        {
+            const rvec3_t q=R*p.r; bool hit=false;
+            for (const Pt& o : cl) if (o.Z==p.Z && norm(o.r-q)<=tol*std::max(1.0,norm(q))) { hit=true; break; }
+            if (!hit) return false;
+        }
+        return true;
+    };
+    std::vector<rmat3d_t> R;
+    auto seen=[&](const rmat3d_t& X)
+    {
+        for (const rmat3d_t& Y : R)
+        {
+            bool same=true;
+            for (int i=1;i<=3 && same;i++) for (int j=1;j<=3;j++) if (std::abs(X(i,j)-Y(i,j))>1e-8) { same=false; break; }
+            if (same) return true;
+        }
+        return false;
+    };
+    for (size_t a=0;a<ref.size();a++) if (ref[a].Z==ref[ia].Z)
+    for (size_t b=0;b<ref.size();b++) if (b!=a && ref[b].Z==ref[ib].Z)
+    for (size_t c=0;c<ref.size();c++) if (c!=a && c!=b && ref[c].Z==ref[ic].Z)
+    {
+        const Matrix3D<double> Bm(ref[a].r.x,ref[b].r.x,ref[c].r.x, ref[a].r.y,ref[b].r.y,ref[c].r.y, ref[a].r.z,ref[b].r.z,ref[c].r.z);
+        const rmat3d_t X=Bm*Ainv;
+        // orthogonal?
+        const rmat3d_t G=Transpose(X)*X; bool orth=true;
+        for (int i=1;i<=3 && orth;i++) for (int j=1;j<=3;j++) if (std::abs(G(i,j)-(i==j ? 1.0 : 0.0))>1e-6) { orth=false; break; }
+        if (!orth || seen(X) || !isSymmetry(X)) continue;
+        R.push_back(X);
+    }
+    assert(!R.empty() && "SiteEnvironmentRotations: the identity fixes every environment");
     return R;
 }
 
