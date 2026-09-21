@@ -131,7 +131,7 @@ Hubbard_U::Hubbard_U(const std::shared_ptr<const Structure>& st, std::vector<Hub
     : itsSt(st), itsManifolds(std::move(manifolds)), itsGroup(g), itsEigenForm(theRunPolicy().HubbardEigen())
 {
     if (itsManifolds.empty()) throw std::invalid_argument("Hubbard_U: no manifold -- a +U term with nothing to correct");
-    itsSt->ForEachSite([this](int, const rvec3_t& R, bool){itsSites.push_back(R);});
+    itsSt->ForEachSite([this](int Z, const rvec3_t& R, bool){itsSites.push_back(R); itsSiteZ.push_back(Z);});
     for (const HubbardManifold& M : itsManifolds)
     {
         if (M.site>=itsSites.size())
@@ -662,6 +662,25 @@ void Hubbard_U::RefreshForDensity(const cChargeDensity* cd) const
 {
     EnsureOccupations(cd);
 }
+
+//------------------------------------------------------------------------------ HubbardProjection (ACBN0)
+std::vector<size_t> Hubbard_U::EquivalentManifolds(size_t M) const
+{
+    std::vector<size_t> eq;
+    for (size_t K=0;K<itsManifolds.size();K++)
+        if (itsManifolds[K].l==itsManifolds[M].l && itsSiteZ[itsManifolds[K].site]==itsSiteZ[itsManifolds[M].site]) eq.push_back(K);
+    return eq;
+}
+template <class U> static std::vector<mat_t<U>> LowdinOf(const LowdinProjector<U>& P, const mat_t<U>& C)
+{
+    std::vector<mat_t<U>> out;
+    for (size_t M=0;M<P.NumManifolds();M++) out.push_back(mat_t<U>(blazem::ctrans(P.T(M))*C));   // T^dagger C
+    return out;
+}
+std::vector<mat_t<double>> Hubbard_U::LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb, const mat_t<double>& C) const
+{return LowdinOf<double>(Projector<double>(orb), C);}
+std::vector<mat_t<dcmplx>> Hubbard_U::LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const mat_t<dcmplx>& C) const
+{return LowdinOf<dcmplx>(Projector<dcmplx>(orb), C);}
 
 const rvec_t& Hubbard_U::Occupations(size_t M, const Spin& s) const
 {

@@ -7,6 +7,7 @@ export import qchem.ChargeDensity;
 export import qchem.Symmetry.Orbital;
 export import qchem.ElectronConfiguration.OrbitalView;  // the OccupationPolicy's DIP view (V1.11 inc 3)
 
+import qchem.ChargeDensity.Types;   // tobs_t (GetBasisSet, the ACBN0 feed)
 import qchem.ScalarFunction;
 import qchem.VectorFunction;
 import qchem.Streamable;
@@ -58,6 +59,10 @@ public:
     //! Coefficients in the *orthonormal* basis (C'); the metric there is the identity, so MOM
     //! orbital overlaps are plain dot products of these vectors.
     virtual const vec_t<T>& GetCoeffPrime() const=0;
+    //! Coefficients in the block's OWN (non-orthogonal AO) basis, \f$\psi_i=\sum_\mu c_{\mu i}\phi_\mu\f$ --
+    //! what a projection onto a subset of the basis functions needs (the ACBN0 Löwdin charges of DFT+U
+    //! increment 3, 2026-09-21: \f$\ell_i=T^\dagger c_i\f$ per orbital, which no density matrix can give back).
+    virtual const vec_t<T>& GetCoeff() const=0;
 };
 
 
@@ -171,7 +176,9 @@ public:
     //! (peak at a window boundary => extend it; ~0 there => shrink it).  Keeps \f$D\f$ hidden: the caller hands
     //! in only its own \a S.  Real part taken (exact for a real basis; the physical gross population otherwise).
     virtual rvec_t GetBasisPopulations(const hmat_t<T>& S) const=0;
-
+    //! The block these orbitals' coefficients are expressed in (a per-orbital consumer needs the basis
+    //! beside \c TOrbital::GetCoeff: the ACBN0 estimator projects each orbital onto a Hubbard manifold of it).
+    virtual const ChargeDensity::tobs_t<T>* GetBasisSet() const=0;
 };
 
 } //namespace

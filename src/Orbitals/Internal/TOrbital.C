@@ -44,6 +44,7 @@ public:
 
     virtual void   AddDensityMatrix(hmat_t<T>& D, hmat_t<T>& DPrime) const;
     virtual const vec_t<T>& GetCoeffPrime() const {return itsCoeffPrime;}
+    virtual const vec_t<T>& GetCoeff     () const {return itsCoeff;}
 
     virtual T         operator()(const rvec3_t&) const;
     virtual vec3_t<T> Gradient  (const rvec3_t&) const;

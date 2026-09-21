@@ -82,6 +82,7 @@ public:
     virtual size_t    NumCoefficients() const override {return itsN;}
     size_t NumManifolds() const {return itsT.size();}
     size_t Size(size_t M) const {return itsT[M].columns();}   //!< \f$m_M=2l+1\f$
+    const mat_t<U>& T(size_t M) const {return itsT[M];}       //!< the manifold's \f$S^{1/2}[:,M]\f$ (the ACBN0 estimator's Löwdin coefficients \f$\ell=T^\dagger c\f$)
 private:
     std::vector<mat_t<U>> itsT;   //!< per manifold: \f$S^{1/2}[:,M]\f$, \f$n\times m\f$
     size_t                itsN;   //!< \f$\sum_M m_M^2\f$
@@ -169,14 +170,47 @@ private:
 double DudarevInEigenbasis(const rvec_t& lam, const rmat_t& v, const std::vector<size_t>& slot,
                            const std::vector<double>& Uirrep, double U, rmat_t& W);
 
+//! \brief WHAT A U-ESTIMATOR CONSUMES FROM THE +U TERM (increment 3, ACBN0): the manifolds, their
+//! equivalence (same species and l -- the paper's \f$\{\bar m\}\f$ set the renormalised occupation is
+//! summed over), each block's manifold functions (for the bare integrals) and the Löwdin coefficients of
+//! given orbitals in every manifold.  An abstract face so the composite Hamiltonian finds the term by an
+//! abstract->abstract cast and the estimator never names \c Hubbard_U.
+class HubbardProjection
+{
+public:
+    virtual ~HubbardProjection() = default;
+    virtual const std::vector<HubbardManifold>& Manifolds() const = 0;
+    virtual SpinGroup Group() const = 0;
+    //! The manifolds of the same (species, l) as \a M, \a M itself included.
+    virtual std::vector<size_t> EquivalentManifolds(size_t M) const = 0;
+    //! Per manifold: the block's function indices the manifold selects (\c BareCoulombSource::BareCoulomb's argument).
+    virtual std::vector<std::vector<size_t>> ManifoldFunctions(const BasisSet::Orbital_1E_IBS<double>&) const = 0;
+    virtual std::vector<std::vector<size_t>> ManifoldFunctions(const BasisSet::Orbital_1E_IBS<dcmplx>&) const = 0;
+    //! Per manifold: \f$\ell=T_M^\dagger C\f$ (\f$m_M\times n_{\rm orb}\f$) for the coefficient columns \a C on \a block.
+    virtual std::vector<mat_t<double>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block, const mat_t<double>& C) const = 0;
+    virtual std::vector<mat_t<dcmplx>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block, const mat_t<dcmplx>& C) const = 0;
+};
+
 //! \brief The DFT+U term.  Periodic (Bloch, dcmplx run) with the real-TRIM corner, spin-native.
 class Hubbard_U
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
     , public         Dynamic_HT_RealBlock_Imp
     , public virtual Fitting::ScalarProjector      //!< the FORWARD vendor the density projects onto
+    , public virtual HubbardProjection             //!< what the ACBN0 estimator consumes (increment 3)
 {
 public:
+    //! \name HubbardProjection
+    //!@{
+    virtual const std::vector<HubbardManifold>& Manifolds() const override {return itsManifolds;}
+    virtual SpinGroup Group() const override {return itsGroup;}
+    virtual std::vector<size_t> EquivalentManifolds(size_t M) const override;
+    virtual std::vector<std::vector<size_t>> ManifoldFunctions(const BasisSet::Orbital_1E_IBS<double>& orb) const override {return Columns(orb);}
+    virtual std::vector<std::vector<size_t>> ManifoldFunctions(const BasisSet::Orbital_1E_IBS<dcmplx>& orb) const override {return Columns(orb);}
+    virtual std::vector<mat_t<double>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const mat_t<double>&) const override;
+    virtual std::vector<mat_t<dcmplx>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
+    //!@}
+
     //! \a st names the sites the manifolds index; \a g the imposed spin subgroup (which channels exist).
     Hubbard_U(const std::shared_ptr<const Structure>& st, std::vector<HubbardManifold> manifolds, SpinGroup g);
     ~Hubbard_U();
@@ -245,6 +279,7 @@ private:
     std::shared_ptr<const Structure> itsSt;
     std::vector<HubbardManifold>     itsManifolds;
     std::vector<rvec3_t>             itsSites;          //!< the cell's site positions, ForEachSite order
+    std::vector<int>                 itsSiteZ;          //!< their species (EquivalentManifolds)
     SpinGroup                        itsGroup;
     bool                             itsEigenForm;      //!< RunPolicy::HubbardEigen at construction (false = CP2K's populations)
     mutable size_t                   itsNCoeff = 0;     //!< \f$\sum_M m_M^2\f$, fixed by the first block seen

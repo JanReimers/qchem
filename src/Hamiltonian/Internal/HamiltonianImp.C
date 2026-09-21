@@ -49,6 +49,9 @@ public:
             if (rvec_t m=t->SiteMoments(cd); m.size()>0) return m;
         return rvec_t();
     }
+    //! \copydoc tHamiltonian::MakeHubbardUEstimator
+    //! The FIRST dynamic term answering the \c HubbardProjection face (abstract->abstract); null when none does.
+    virtual std::unique_ptr<HubbardUEstimator> MakeHubbardUEstimator() const override;
     //! THE EAGER REFRESH PHASE (doc/OpenWork.md item **KP**): pre-warm every term's k-independent,
     //! density-dependent memo, once, before the caller's per-block Fock loop.  Folded over the DYNAMIC
     //! terms only -- a static term is density-independent by definition, so it has nothing to warm.

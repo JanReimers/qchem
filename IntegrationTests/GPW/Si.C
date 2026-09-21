@@ -1032,6 +1032,53 @@ TEST(GPW_Si, Γ_U_Imp_Pol_Kerker_eqUnpol)
     EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6) << "the zeta=0 collapse: the polarized Kerker run must see the same V_U as the unpolarized one";
 }
 
+// ACBN0 (DFT+U increment 3, 2026-09-21): (U-bar, J-bar) per manifold from the converged orbitals -- Löwdin
+// renormalised density matrix times OUR bare on-site (m1m2|m3m4).  What this gate claims on Si p at U=0:
+// the estimate EXISTS and is sane (0 < J-bar < U-bar, the renormalised charge is below the bare one, the bare
+// per-channel charge is the term's own manifold occupation -- 3 p electrons per site per channel on the
+// half-filled p, up to the Löwdin leakage into s and the partner site), and the polarized singlet twin gives
+// the SAME numbers as the unpolarized run (both channels carry the folded doublet's half; pin 5).
+TEST(GPW_Si, Γ_U_ACBN0_Imp_Pol_eqUnpol)
+{
+    const Material si=qchem::Materials::Get("Si_diamond");
+    const Lattice_3D lat=LatticeOf(si);
+    SolidCalcOptions o=OptionsFor(si, "Si SR Gamma ACBN0 on p");
+    o.densityEcut=20.0; o.imposeSymmetry=true;
+    o.hubbard={HubbardU(0,1,0.0), HubbardU(1,1,0.0)};                                  // U=0: a plain LDA run that carries the manifolds
+    SCFParams par=ProductionGates();
+    qchem::SolidCalculation unpol(lat, MakeBasisSR(*si.cell), o, par);
+    o.multiplicity=1; o.label="Si SR Gamma ACBN0 on p, pol-singlet";
+    qchem::SolidCalculation pol(lat, MakeBasisSR(*si.cell), o, par);
+    ASSERT_TRUE(unpol.Result()) << Why(unpol.Result());
+    ASSERT_TRUE(pol.Result())   << Why(pol.Result());
+    const auto a=unpol.EstimateHubbardU(), b=pol.EstimateHubbardU();
+    ASSERT_EQ(a.size(), 2u); ASSERT_EQ(b.size(), 2u);
+    const double eV=27.211386245988;
+    for (size_t M=0;M<2;M++)
+    {
+        EXPECT_EQ(a[M].site, M); EXPECT_EQ(a[M].l, 1);
+        EXPECT_GT(a[M].Jbar, 0.0);
+        EXPECT_GT(a[M].Ubar, a[M].Jbar) << "U-bar > J-bar: the on-site Coulomb dominates the exchange";
+        // At Γ in diamond the occupied Γ1 band is s-ONLY and Γ25' is p-ONLY by symmetry (Löwdin keeps it so), so every
+        // occupied orbital's p-charge over the two sites is exactly 0 or 1 and the renormalisation is the IDENTITY:
+        // bare == renormalised here, to roundoff.  Si at Γ is therefore no test of the screening -- MnO is; this
+        // gate only pins that the renormalisation can never RAISE the average (N-bar <= 1 per orbital).
+        EXPECT_GE(a[M].UbarBare+1e-9, a[M].Ubar) << "the renormalisation cannot raise the average";
+        EXPECT_NEAR(a[M].UbarBare, a[M].Ubar, 1e-6) << "at Γ the Si p charge per occupied orbital is 0 or 1 by symmetry";
+        EXPECT_LT(a[M].chargeUp+a[M].chargeDn, 6.0) << "renormalised p charge below the 6 the shell could hold";
+        EXPECT_GT(a[M].chargeUp, 1.0) << "a half-filled p carries real charge in each channel";
+        EXPECT_NEAR(a[M].chargeUp, a[M].chargeDn, 1e-9) << "an unpolarized run splits evenly";
+        // The polarized singlet twin: same orbitals, same numbers.
+        EXPECT_NEAR(b[M].Ubar, a[M].Ubar, 1e-5) << "manifold " << M;
+        EXPECT_NEAR(b[M].Jbar, a[M].Jbar, 1e-5) << "manifold " << M;
+        EXPECT_NEAR(b[M].chargeUp, a[M].chargeUp, 1e-6);
+        EXPECT_NEAR(b[M].chargeDn, a[M].chargeDn, 1e-6);
+    }
+    EXPECT_NEAR(a[0].Ubar, a[1].Ubar, 1e-8) << "the two Si sites are equivalent";
+    std::cout << "[ACBN0 Si p] U_eff = " << a[0].Ueff()*eV << " eV (U-bar " << a[0].Ubar*eV << ", J-bar " << a[0].Jbar*eV
+              << "; bare " << a[0].UbarBare*eV << "/" << a[0].JbarBare*eV << ")" << std::endl;
+}
+
 // CP2K's CONVERGENCE MEASURE (2026-09-20).  A CP2K deck converges EPS_SCF on max|P_out - P_in| over the AO density
 // matrix elements; our Kerker/Pulay recipes converge MinΔρ on the mixer's own residual max|ρ̃_out(G) - ρ̃_in(G)|,
 // which on MnO is ~100x looser at 1e-5 than EPS_SCF 1e-6 -- so "CP2K takes 104 iterations, we take 55" compared

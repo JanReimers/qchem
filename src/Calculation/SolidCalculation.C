@@ -43,6 +43,7 @@ import qchem.ScalarFunction;                  // ScalarFunction<double> (the rho
 import qchem.BasisSet;                        // Real_BS (orbital source), Complex_BS (the Bloch basis)
 import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, RasterPolicy, CellImages
 import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamiltonian solid door
+export import qchem.Hamiltonian.HubbardEstimator;   // HubbardEstimate (EstimateHubbardU)
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
 import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.ChargeDensity;                   // cDM_CD
@@ -462,6 +463,14 @@ public:
     //! (\c cSpinResolved_CD for the channels), exactly as \c Converged::DensityMatrix does for an answer.
     const qchem::ChargeDensity::cDM_CD* LastIterateDensity() const;
     //!@}
+
+    //! \brief ACBN0 (DFT+U increment 3): \f$(\bar U,\bar J)\f$ per Hubbard manifold FROM THE LAST ITERATE's
+    //! orbitals -- the paper's outer-loop estimate (SCF at \f$U^{(n)}\f$, estimate, run again at
+    //! \f$U^{(n+1)}=\bar U-\bar J\f$ until \f$|\Delta U|<10^{-4}\f$ eV).  Fed block by block from the wave
+    //! function's occupied orbitals; the mechanism (Löwdin renormalisation, bare on-site integrals) is the
+    //! Hamiltonian's.  Throws when the run carries no +U manifold.  A DIAGNOSTIC of the last iterate like its
+    //! neighbours above: run it on a \c Converged run, and say which iterate it came from when you quote it.
+    std::vector<qchem::Hamiltonian::HubbardEstimate> EstimateHubbardU() const;
 
     // ⛔ Energy() / EnergyTerms() / TotalCharge() / Density() DELIBERATELY DO NOT LIVE HERE any more
     // (doc/OpenWork.md N1/T1).  They are on Converged, reachable only through Converge()/Result(), because

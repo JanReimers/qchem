@@ -24,6 +24,8 @@ import qchem.PeriodicTable;                    // thePeriodicTable().GetZ (eleme
 import qchem.Mesh.XCPolicy;                    // XCMeshSharpness / ResolveXCMesh (the grid decision)
 import qchem.ElectronConfiguration.Crystal;    // Crystal_EC
 import qchem.Symmetry.Irrep;                   // Irrep, Spin
+import qchem.Orbitals;                         // TOrbitals/TOrbital -- the ACBN0 feed (EstimateHubbardU)
+import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives on (EstimateHubbardU)
 import qchem.RunPolicy;                        // the declared CP2K deviations (doc/OpenWork.md N5/T5)
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
@@ -783,6 +785,42 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Result() cons
 
 qchem::EnergyBreakdown SolidCalculation::LastIterateTerms()  const {return itsImp->scf->GetEnergy();}
 double                 SolidCalculation::LastIterateCharge() const {return itsImp->charge;}
+std::vector<qchem::Hamiltonian::HubbardEstimate> SolidCalculation::EstimateHubbardU() const
+{
+    std::unique_ptr<qchem::Hamiltonian::HubbardUEstimator> est=itsImp->ham->MakeHubbardUEstimator();
+    if (!est) throw std::logic_error("SolidCalculation::EstimateHubbardU: this run carries no Hubbard manifold (SolidCalcOptions::hubbard)");
+    const auto* wf=itsImp->scf->GetWaveFunction();
+    if (!wf) throw std::logic_error("SolidCalculation::EstimateHubbardU: no wave function yet");
+    // Block by block: the occupied orbitals' AO coefficients and physical occupations, the block's BZ
+    // weight, and its spin (Spin::None = the folded doublet; the estimator halves it into both channels).
+    auto feed=[&]<class U>(const qchem::Orbitals::TOrbitals<U>& os, const qchem::Irrep& ir)
+    {
+        const auto* blk=dynamic_cast<const qchem::BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
+        if (!blk) throw std::logic_error("SolidCalculation::EstimateHubbardU: an orbital block that is not an Orbital_DFT_IBS");
+        std::vector<const qchem::Orbitals::TOrbital<U>*> occ;
+        for (const auto* o : os.template Iterate<qchem::Orbitals::TOrbital<U>>()) if (o->IsOccupied()) occ.push_back(o);
+        mat_t<U> C(blk->GetNumFunctions(), occ.size());
+        rvec_t f(occ.size());
+        for (size_t i=0;i<occ.size();i++)
+        {
+            const vec_t<U>& c=occ[i]->GetCoeff();
+            for (size_t a=0;a<c.size();a++) C(a,i)=c[a];
+            f[i]=occ[i]->GetOccupation();
+        }
+        est->Accumulate(*blk, ir.ms, ir.sym->GetWeight(), C, f);
+    };
+    for (const qchem::Irrep& ir : wf->GetQNs())
+    {
+        const qchem::Orbitals::Orbitals* os=wf->GetOrbitals(ir);
+        if (const auto* c=dynamic_cast<const qchem::Orbitals::TOrbitals<dcmplx>*>(os)) feed(*c, ir);
+        else if (const auto* r=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(os)) feed(*r, ir);
+        else throw std::logic_error("SolidCalculation::EstimateHubbardU: an orbital set of unknown scalar");
+    }
+    std::vector<qchem::Hamiltonian::HubbardEstimate> out=est->Evaluate();
+    est->Write(std::cout);                                   // the estimator reports at its own activity (pin 17)
+    return out;
+}
+
 const qchem::ChargeDensity::cDM_CD* SolidCalculation::LastIterateDensity() const {return itsImp->cd.get();}
 
 // The caller's observer is SWAPPED IN behind the facade's own (AttachProbes composes the two), so

@@ -29,6 +29,7 @@ public:
 
     virtual ds_t      Fill(const qchem::BlockFill&) override;   // the ONE fill primitive (V1.11 inc 4)
     virtual double    GetChemicalPotential   () const {return itsMu;}
+    virtual const tobs_t<T>* GetBasisSet     () const override {return itsBasisSet;}
     virtual size_t    GetNumOrbitals     (               ) const;
     virtual size_t    GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;

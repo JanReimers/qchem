@@ -5,6 +5,7 @@ module;
 #include <memory>
 #include <stdexcept>
 module qchem.Hamiltonian.Internal.Hamiltonian;
+import qchem.Hamiltonian.Internal.ACBN0;    // ACBN0 + HubbardProjection (MakeHubbardUEstimator)
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.stl_io;
@@ -27,6 +28,13 @@ template <class T> void tHamiltonianImp<T>::Add(tStatic_HT<T>* p)
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
     itsPreservesReal  = itsPreservesReal  && p->PreservesReal();   // AND: one SOC/A-field term flips all blocks complex
 }
+template <class T> std::unique_ptr<HubbardUEstimator> tHamiltonianImp<T>::MakeHubbardUEstimator() const
+{
+    for (const auto& t : itsDHTs)
+        if (const auto* h=dynamic_cast<const HubbardProjection*>(t.get())) return std::make_unique<ACBN0>(*h);
+    return nullptr;
+}
+
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 {
     itsDHTs.push_back(std::unique_ptr<tDynamic_HT<T>>(p));

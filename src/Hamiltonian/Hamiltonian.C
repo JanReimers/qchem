@@ -1,11 +1,13 @@
 // File: Hamiltonian.C  Interface a Hamiltonianian operator.
 module;
+#include <memory>
 #include <type_traits>   // std::conditional_t/is_same_v (HamRealBlockBase -- Step 3c-2)
 export module qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 import qchem.Streamable;
 export import qchem.Energy;
 export import qchem.Hamiltonian.Types;
+export import qchem.Hamiltonian.HubbardEstimator;   // HubbardUEstimator / HubbardEstimate (DFT+U increment 3)
 
 
 export namespace qchem::Hamiltonian
@@ -342,6 +344,11 @@ public:
     //! \note ONE caller since R1.0h: the facade's RAW-SEED probe.  Every SCF iterate's moments ride
     //! \c EnergyBreakdown::charge instead (see \c tDynamic_HT::SiteMoments).
     virtual rvec_t          SiteMoments(const tChargeDensity<T>*) const {return rvec_t();}
+    //! \brief The ACBN0 estimator of this Hamiltonian's +U term (DFT+U increment 3): NULL when it carries no
+    //! +U term.  Same reasoning as \c SiteMoments -- the term and the integrals live behind \c .Internal.
+    //! modules, so the Hamiltonian hands out the capability rather than the term.  The estimator refers to
+    //! this Hamiltonian's term: keep the Hamiltonian alive while it is used.
+    virtual std::unique_ptr<HubbardUEstimator> MakeHubbardUEstimator() const {return nullptr;}
     //! \brief Run the EAGER REFRESH PHASE over every term: fill the k-independent density-dependent memos
     //! ONCE, before any Bloch block is assembled.
     //!
