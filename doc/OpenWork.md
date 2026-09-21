@@ -168,7 +168,20 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 > + Mn 4s at U=0 reproduce QE's ortho-atomic set (and get their own estimates).  `gpwprobe mno MNO_ACBN0=n`,
 > `MNO_U_RADIAL=every|atomic|ortho|orthofull`.  Gates `LowdinProjector.OrthoAtomicManifoldsAreOrthonormal
 > AsASet`, `GPW_Si.Γ_U_ACBN0_OuterLoopFeelsTheNewU`.  ctest 908/908.
-> - ★★ **THE NUMBERS (MnO AFM-II, LDA, Γ, deck-shaped recipe, imposed).**  One-shot at U=0, \f$U_{\rm eff}\f$(Mn 3d):
+> - ⚠ **BASIS CORRECTION (`6284e8ff`, same day, user):** every MnO number in the slice C/D blocks BEFORE this
+>   line was taken on the **SR span under `GPW_SPHERICAL`** — the SR Mn block has only two s exponents because
+>   its s span lives in the CARTESIAN d contaminants, gone under the spherical view: the wrong basis for a
+>   spherical arm (the probe now defaults a spherical MnO arm to VA and refuses sr).  And the "atomic 3d" had
+>   been the pseudo-atom RUN IN THE SITE'S OWN SHELLS, which (VA trimmed of the 0.18 d shell; SR with no 4s)
+>   is a too-compact 3d — eps(3d) −0.18 (VA) / −1.04 Ha (SR) against CP2K's ATOM code −0.257.  In a 16+16
+>   pool our pseudo-atom reproduces CP2K ATOM to 3/0.3/0.1 mHa (E/eps 4s/eps 3d; gate
+>   `ValenceBasisGen.MnQ7PseudoAtomInALargePool`), so the radial is now the POOL orbital PROJECTED onto the
+>   site's shells (captured norm printed: MnO VA 3d 0.991).  **Corrected numbers (VA, LDA, Γ, U=0):** atomic
+>   3d \f$\bar U\f$ 15.0 / \f$\bar J\f$ 4.3 / \f$U_{\rm eff}\f$ **10.77 eV** (bare 24.3/6.2; \f$N_{d\uparrow}\f$ 4.93 →
+>   4.02 renormalised), every-shell 8.95 eV; **self-consistent atomic 3d 10.77 → 15.37 → 16.57 → 16.75 →
+>   16.785 eV in 7 outer steps** (the two Mn differ by ~1 %, an asymmetry to watch).  The verdict below is
+>   unchanged in substance; the SR-span figures are superseded.
+> - ★★ **THE NUMBERS (MnO AFM-II, LDA, Γ, deck-shaped recipe, imposed) — SR SPAN, SUPERSEDED, kept for the record.**  One-shot at U=0, \f$U_{\rm eff}\f$(Mn 3d):
 >   10.87 (atomic) / 10.87 (ortho, Mn–Mn) / 10.75 eV (full ortho set); spectators: Mn 4s 0.27 eV (nearly
 >   empty → the \f$d^0\f$ limit), O 2s 32 eV (full shell → bare-like), **O 2p 7.36 eV (paper 2.68)**.
 >   **Self-consistent, atomic 3d, from U=0: 10.9 → 17.2 → 18.9 → 19.2 → 19.26 eV in 8 monotone outer steps**
