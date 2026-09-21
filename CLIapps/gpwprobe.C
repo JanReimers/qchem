@@ -255,7 +255,8 @@ int BeckeRecipeLadder(const std::string& system)
 // MNO_IMPOSE=0/1/2 (free / Shubnikov / grey control), MNO_XC_UNIFORM, MNO_NR, MNO_L, MNO_ALPHA, MNO_KERKER_G0,
 // MNO_XC_CUSP, MNO_PULAY, MNO_PULAY_START, MNO_MOM, MNO_MOM_START, MNO_MOM_PENALTY, MNO_MOM_HOLD, MNO_KT,
 // GPW_MNO_NMAX, GPW_MNO_VERBOSE, MNO_U=eV (DFT+U on both Mn d, programme step 5) + MNO_U_IRREP=a,b,c (eV per
-// site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d), MNO_EPS=tol +
+// site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + MNO_ACBN0=1 (print the ACBN0 (U,J)
+// estimate from the converged orbitals; increment 3), MNO_EPS=tol +
 // MNO_MEASURE=maxdd|mixer (CP2K's EPS_SCF measure max|dD_ij| between successive D_out, or the mixer's own
 // residual -- doc/Benchmark.md rule 3f: an iteration count is comparable only on the same measure); the SCHEDULE: MNO_ANNEAL=kT,kT,... MNO_ACC=... MNO_ANNEAL_PENALTY=...;
 // the ARMS: MNO_SKIP_AFM (FM only), MNO_SKIP_FM (AFM only).  Oracle: CP2K MnO AFM-II E=-61.470570 Ha
@@ -309,7 +310,11 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     if (std::getenv("MNO_XC_UNIFORM")) o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
     if (const char* nr=std::getenv("MNO_NR")) o.xcMesh.nRadial=std::atoi(nr);
     if (const char* ll=std::getenv("MNO_L"))  o.xcMesh.angularDegree=std::atoi(ll);
-    if (const double U=Envd("MNO_U",0.0); U>0.0)
+    // MNO_ACBN0=1 carries the Mn d manifolds even at U=0 and, after the arm converges, prints the ACBN0
+    // estimate (U-bar, J-bar, U_eff) from its orbitals -- one step of the paper's outer loop; iterate by
+    // hand with MNO_U=<U_eff of the previous run> (increment 3).
+    const bool acbn0 = Envi("MNO_ACBN0",0)!=0;
+    if (const double U=Envd("MNO_U",0.0); U>0.0 || acbn0)
     {
         o.hubbard={HubbardU(0,2,U), HubbardU(1,2,U)};   // sites 0,1 = Mn
         // MNO_U_IRREP=a,b,c (eV): one U per site-irrep slot, in the order of the term's "[+U] site .. U slots"
@@ -391,6 +396,9 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     for (const auto& st : schedule) arm.stageKT.push_back(st.params.SmearingkT);
     arm.calc=std::make_unique<SolidCalculation>(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
     arm.result=arm.calc->Result();
+    if (acbn0) { std::cout << "[MnO " << o.label << "] ACBN0 from the last iterate"
+                           << (arm.result ? " (CONVERGED):" : " (NOT converged -- a diagnostic, not a U):") << std::endl;
+                 arm.calc->EstimateHubbardU(); }
     report::EmitTimings();   // sorted by cost + PEAK RSS, inside the bracket
     return arm;
 }

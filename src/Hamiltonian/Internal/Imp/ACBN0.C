@@ -33,8 +33,12 @@ template <class U> void ACBN0::EnsureIntegrals(const BasisSet::Orbital_DFT_IBS<U
     for (const auto& c : cols) itsERI.push_back(src->BareCoulomb(c));
     for (auto& [s,ch] : itsChannels)
     {
-        ch.P.clear(); ch.Pbare.clear();
-        for (const auto& c : cols) { ch.P.emplace_back(c.size(), c.size(), 0.0); ch.Pbare.emplace_back(c.size(), c.size(), 0.0); }
+        ch.P.clear(); ch.Pbare.clear(); ch.L.clear(); ch.Lbare.clear();
+        for (const auto& c : cols)
+        {
+            ch.P.emplace_back(c.size(), c.size(), 0.0); ch.Pbare.emplace_back(c.size(), c.size(), 0.0);
+            ch.L.emplace_back(c.size(), c.size(), 0.0); ch.Lbare.emplace_back(c.size(), c.size(), 0.0);
+        }
     }
 }
 
@@ -44,7 +48,8 @@ template <class U> void ACBN0::AccumulateT(const BasisSet::Orbital_DFT_IBS<U,dcm
     if (C.columns()!=f.size()) throw std::invalid_argument("ACBN0::Accumulate: one occupation per coefficient column");
     EnsureIntegrals(block);
     if (f.size()==0) return;
-    const std::vector<mat_t<U>> ell=itsTerm.LowdinCoefficients(block, C);     // per manifold: m x nOrb
+    const std::vector<mat_t<U>> ell=itsTerm.LowdinCoefficients(block, C);     // per manifold: m x nOrb (Löwdin basis)
+    const std::vector<std::vector<size_t>> cols=itsTerm.ManifoldFunctions(block);   // the raw AO columns per manifold
     const size_t nM=itsERI.size(), nOrb=f.size();
     // The renormalised occupation of each orbital on each manifold's EQUIVALENCE set (same species and l).
     std::vector<std::vector<size_t>> eq(nM);
@@ -65,9 +70,10 @@ template <class U> void ACBN0::AccumulateT(const BasisSet::Orbital_DFT_IBS<U,dcm
                 const double wf=w*f[i]*share;
                 for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++)
                 {
-                    const double x=std::real(ell[M](a,i)*blazem::conjs(ell[M](b,i)));   // Hermitian after the k-sum
-                    ch.P    [M](a,b)+=wf*Nbar*x;
-                    ch.Pbare[M](a,b)+=wf*x;
+                    const double x=std::real(C(cols[M][a],i)*blazem::conjs(C(cols[M][b],i)));   // AO basis; Hermitian after the k-sum
+                    const double y=std::real(ell[M](a,i)*blazem::conjs(ell[M](b,i)));             // Löwdin basis
+                    ch.P    [M](a,b)+=wf*Nbar*x;  ch.Pbare[M](a,b)+=wf*x;
+                    ch.L    [M](a,b)+=wf*Nbar*y;  ch.Lbare[M](a,b)+=wf*y;
                 }
             }
         }
@@ -80,10 +86,11 @@ void ACBN0::Accumulate(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block, co
 void ACBN0::Accumulate(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block, const Spin& s, double w, const mat_t<dcmplx>& C, const rvec_t& f)
 {AccumulateT<dcmplx>(block,s,w,C,f);}
 
-void ACBN0::Averages(const rmat_t& Pa, const rmat_t& Pb, const BasisSet::ERI4Block& eri, double& Ubar, double& Jbar)
+void ACBN0::Averages(const rmat_t& Pa, const rmat_t& Pb, const rvec_t& Nav, const rvec_t& Nbv,
+                     const BasisSet::ERI4Block& eri, double& Ubar, double& Jbar)
 {
     const size_t m=eri.Size();
-    assert(Pa.rows()==m && Pb.rows()==m);
+    assert(Pa.rows()==m && Pb.rows()==m && Nav.size()==m && Nbv.size()==m);
     const rmat_t Pt=Pa+Pb;
     double numU=0.0, numJ=0.0;
     for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++)
@@ -96,7 +103,7 @@ void ACBN0::Averages(const rmat_t& Pa, const rmat_t& Pb, const BasisSet::ERI4Blo
         }
     }
     double Na=0, Nb=0, Na2=0, Nb2=0;
-    for (size_t a=0;a<m;a++) { Na+=Pa(a,a); Nb+=Pb(a,a); Na2+=Pa(a,a)*Pa(a,a); Nb2+=Pb(a,a)*Pb(a,a); }
+    for (size_t a=0;a<m;a++) { Na+=Nav[a]; Nb+=Nbv[a]; Na2+=Nav[a]*Nav[a]; Nb2+=Nbv[a]*Nbv[a]; }
     const double denU=(Na+Nb)*(Na+Nb)-Na2-Nb2;      // Sum_{m!=m'} NaNa' + Sum NaNb' + Sum NbNa' + Sum_{m!=m'} NbNb'
     const double denJ=Na*Na-Na2+Nb*Nb-Nb2;          // Sum_{m!=m'} (NaNa' + NbNb')
     Ubar = denU>1e-12 ? numU/denU : 0.0;
@@ -113,11 +120,16 @@ std::vector<HubbardEstimate> ACBN0::Evaluate() const
     {
         HubbardEstimate e;
         e.site=itsTerm.Manifolds()[M].site; e.l=itsTerm.Manifolds()[M].l;
-        Averages(up.P[M],     dn.P[M],     itsERI[M], e.Ubar,     e.Jbar);
-        Averages(up.Pbare[M], dn.Pbare[M], itsERI[M], e.UbarBare, e.JbarBare);
         const size_t m=itsERI[M].Size();
+        rvec_t NupBare(m), NdnBare(m);
         e.Nup=rvec_t(m); e.Ndn=rvec_t(m);
-        for (size_t a=0;a<m;a++) { e.Nup[a]=up.P[M](a,a); e.Ndn[a]=dn.P[M](a,a); e.chargeUp+=e.Nup[a]; e.chargeDn+=e.Ndn[a]; }
+        for (size_t a=0;a<m;a++)
+        {
+            e.Nup[a]=up.L[M](a,a); e.Ndn[a]=dn.L[M](a,a); e.chargeUp+=e.Nup[a]; e.chargeDn+=e.Ndn[a];
+            NupBare[a]=up.Lbare[M](a,a); NdnBare[a]=dn.Lbare[M](a,a);
+        }
+        Averages(up.P[M],     dn.P[M],     e.Nup,   e.Ndn,   itsERI[M], e.Ubar,     e.Jbar);
+        Averages(up.Pbare[M], dn.Pbare[M], NupBare, NdnBare, itsERI[M], e.UbarBare, e.JbarBare);
         out.push_back(std::move(e));
     }
     return out;

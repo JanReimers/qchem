@@ -12,13 +12,19 @@
 // with P^sigma the renormalised density matrix of the manifold, N^sigma_m = P^sigma_mm, N^sigma = Tr P^sigma,
 // and U_eff = U-bar - J-bar what the +U term takes.
 //
-// LÖWDIN, NOT MULLIKEN (user, 2026-09-16: Mulliken charges are basis-sensitive on a diffuse span -- the
-// whole 136-span story).  Per orbital i on block k: the Löwdin coefficients ell_i = T^dagger c_i in every
-// manifold (T = S^{1/2}[:,M], the +U projector's own), the RENORMALISED occupation N-bar_i = Sum over the
-// manifolds of the SAME (species, l) of |ell_i|^2 (the paper's {m-bar}: both Mn on AFM-II MnO), and
-//     P-bar^sigma_M = Sum_k w_k Sum_i f_ki N-bar_ki ell_ki ell_ki^dagger .
-// With N-bar_i == 1 this is exactly the +U occupation matrix n -- the estimator also accumulates that
-// unweighted sum and reports the bare averages, so the screening the renormalisation supplied is visible.
+// TWO BASES, AND THEY MUST NOT BE MIXED (found 2026-09-21: pairing Löwdin-basis coefficients with AO-basis
+// integrals gave U-bar = 182 eV on MnO).  The integrals are over the RAW AOs phi_m of the manifold, so the
+// density matrix in the numerator is the AO-basis one restricted to the manifold's functions -- the paper's
+// eq 9, P-bar^sigma_{mm'} = Sum_k w_k Sum_i f_ki N-bar_ki c_mi c^*_m'i with the RAW coefficients c_mi of the
+// manifold columns: its energy is the self-Coulomb of the d-AO component of the density.  LÖWDIN, NOT
+// MULLIKEN, enters in the two CHARGES (user, 2026-09-16: Mulliken charges are basis-sensitive on a diffuse
+// span -- the whole 136-span story): the RENORMALISED occupation of orbital i, N-bar_i = Sum over the
+// manifolds of the SAME (species, l) of |T^dagger c_i|^2 (T = S^{1/2}[:,M], the +U projector's own; the
+// paper's {m-bar}: both Mn on AFM-II MnO), and the per-function populations N^sigma_m in the pair-count
+// denominators, the diagonal of the Löwdin matrix n-bar = Sum w f N-bar ell ell^dagger (the paper uses the
+// Mulliken (PS)_mm there, eq 10c).  With N-bar_i == 1 the Löwdin matrix is exactly the +U occupation matrix
+// n -- the estimator also accumulates the unweighted sums and reports the bare averages, so the screening
+// the renormalisation supplied is visible.
 //
 // WHAT IT IS NOT (yet): the true variational ACBN0 functional (U depending on the density inside the SCF);
 // the paper's practice is the OUTER LOOP -- SCF at U^(n), estimate U^(n+1), repeat to 1e-4 eV -- and that
@@ -56,12 +62,16 @@ private:
                                         const mat_t<U>& C, const rvec_t& f);
     //! The bare integrals of manifold \a M, from the first block that carries the face (geometry-fixed).
     template <class U> void EnsureIntegrals(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& block);
-    //! The two averages (eqs 12, 13) of a pair of channel matrices.
-    static void Averages(const rmat_t& Pa, const rmat_t& Pb, const BasisSet::ERI4Block& eri, double& Ubar, double& Jbar);
+    //! The two averages (eqs 12, 13): AO-basis matrices \a Pa/\a Pb in the numerators, the populations
+    //! \a Na/\a Nb in the pair-count denominators.
+    static void Averages(const rmat_t& Pa, const rmat_t& Pb, const rvec_t& Na, const rvec_t& Nb,
+                         const BasisSet::ERI4Block& eri, double& Ubar, double& Jbar);
 
     const HubbardProjection&               itsTerm;
     std::vector<BasisSet::ERI4Block>       itsERI;       //!< per manifold (empty until the first block)
-    struct Channel { std::vector<rmat_t> P, Pbare; };   //!< per manifold: renormalised and unweighted
+    //! Per manifold: the AO-basis density matrix on the manifold's functions (the numerator) and the Löwdin
+    //! occupation matrix (its diagonal = the populations of the denominators), each renormalised and unweighted.
+    struct Channel { std::vector<rmat_t> P, Pbare, L, Lbare; };
     std::map<Spin,Channel>                 itsChannels;  //!< Up/Down (a Spin::None block feeds both, halved)
     bool                                   itsFed=false;
 };
