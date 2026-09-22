@@ -13,6 +13,7 @@
 //   gpwprobe naf-smear             NAFGDM_*                             NaF IBZ, DIIS-smear then cold GDM
 //   gpwprobe becke-ladder SYSTEM   SYSTEM = si | naf | mn | al          the V2.6 Becke (nR, degree) ladder
 //   gpwprobe mno                   MNO_* / GPW_MNO_*                    the MnO AFM-II campaign run (+ FM arm)
+//   gpwprobe nio                   NIO_* / GPW_NIO_*                    the SAME arm on NiO (the ACBN0-vs-hp.x cell)
 //
 // Each sub-command prints its findings and the CHECKS the retired test asserted (PASS/FAIL lines); the exit
 // code is the number of failed checks.
@@ -244,49 +245,93 @@ int BeckeRecipeLadder(const std::string& system)
 }
 
 //========================================================================================================
-// THE MnO AFM-II CAMPAIGN RUN (doc/SymmetryUpgradePlan.md §7; doc/Benchmark.md's MnO rows).  Rocksalt MnO
-// with the type-II AFM order in the rhombohedral 2-f.u. cell (the FCC cell doubled along [111]).  The CELL
-// is the materials entry's named construction; the DISCRIMINATORS are geometry knobs on top of it:
-//   MNO_SWAP_SUBLATTICE  put the -m flip on the FIRST Mn (site-exchange equivariance)
-//   MNO_SWAP_ORDER       add the (1/2,1/2,1/2) Mn FIRST (position vs atom-index)
-//   MNO_SHIFT=f          rigid translation by (f,f,f) fractional (an exact symmetry: everything invariant)
-//   MNO_KMESH=n          an n^3 Γ-centred mesh on the magnetic cell (the ordering question needs k)
-// The RECIPE knobs: MNO_ORTHO_TOL, MNO_CUTOFF_FACTOR, MNO_ECUT, MNO_SHARED_MU, MNO_MOM_SEED, MNO_REAL,
-// MNO_IMPOSE=0/1/2 (free / Shubnikov / grey control), MNO_XC_UNIFORM, MNO_NR, MNO_L, MNO_ALPHA, MNO_KERKER_G0,
-// MNO_XC_CUSP, MNO_PULAY, MNO_PULAY_START, MNO_MOM, MNO_MOM_START, MNO_MOM_PENALTY, MNO_MOM_HOLD, MNO_KT,
-// GPW_MNO_NMAX, GPW_MNO_VERBOSE, MNO_U=eV (DFT+U on both Mn d, programme step 5) + MNO_U_IRREP=a,b,c (eV per
-// site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + MNO_ACBN0=1 (print the ACBN0 (U,J)
-// estimate from the converged orbitals; MNO_ACBN0=n>1 runs the paper's OUTER LOOP for up to n steps, re-converging
-// on the same Hamiltonian, MNO_ACBN0_TOL=eV; increment 3) + MNO_U_RADIAL=every|atomic|ortho|orthofull (the
-// manifold's radial and projector: CP2K's every shell, the pseudo-atom 3d, ortho-atomic among the Mn, or QE's
-// full ortho-atomic set with O 2s/2p + Mn 4s spectators at U=0), MNO_EPS=tol +
-// MNO_MEASURE=maxdd|mixer (CP2K's EPS_SCF measure max|dD_ij| between successive D_out, or the mixer's own
-// residual -- doc/Benchmark.md rule 3f: an iteration count is comparable only on the same measure); the SCHEDULE: MNO_ANNEAL=kT,kT,... MNO_ACC=... MNO_ANNEAL_PENALTY=...;
-// the ARMS: MNO_SKIP_AFM (FM only), MNO_SKIP_FM (AFM only).  Oracle: CP2K MnO AFM-II E=-61.470570 Ha
-// (deck IntegrationTests/CP2K/mno_afm2_gpw_sr.inp), Mulliken site moments Mn +/-4.654.
+// THE ROCKSALT AFM-II ARM'S MATERIAL SPEC.  MnO and NiO are the SAME run -- the same cell construction, the
+// same ionic-SAD basin choice, the same knobs -- one lattice constant and one transition metal apart, so
+// they are one arm with two specs rather than two copies.  Each spec owns its ENV PREFIX: MnO's knobs stay
+// MNO_* (every banked recipe in doc/Benchmark.md is written that way and must keep working verbatim) and
+// NiO's are NIO_*, with no fallback between them -- a run says in its own knob names which material it drove.
 //========================================================================================================
-MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
+struct TmoSpec
 {
-    const double a=8.40;                                       // rocksalt a ~ 4.445 A (a.u.)
-    const bool swapSub = std::getenv("MNO_SWAP_SUBLATTICE")!=nullptr;
-    const bool swapOrder = std::getenv("MNO_SWAP_ORDER")!=nullptr;
-    const double sh = Envd("MNO_SHIFT", 0.0);
-    // The named construction (materials.json MnO_AFM2): CubicF re-based by T = FCC doubled along [111].
+    std::string prefix;      //!< env-var prefix: "MNO" | "NIO"
+    std::string name;        //!< "MnO" | "NiO"; the cell mirrors materials.json's <name>_AFM2 entry
+    std::string tm;          //!< the transition metal's symbol, "Mn" | "Ni"
+    int    Z=0;              //!< the transition metal's atomic number
+    int    qTM=0, qO=6;      //!< GTH valence electrons (Mn q7 / Ni q10; O q6)
+    double a=0.0;            //!< the re-based cell's cubic lattice constant (a.u.)
+    int    Nelec=0;          //!< 2*(qTM+qO)
+    int    multFM=0;         //!< the FM arm's multiplicity (d^5 -> 11, d^8 -> 5)
+    ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::IonicSAD;  //!< see the two specs below
+    //! Env lookup under this spec's prefix: Env("KMESH") reads MNO_KMESH or NIO_KMESH.
+    const char* Env(const char* knob) const { return std::getenv((prefix+"_"+knob).c_str()); }
+    double Envd(const char* knob, double d) const { const char* s=Env(knob); return s ? std::atof(s) : d; }
+    int    Envi(const char* knob, int    d) const { const char* s=Env(knob); return s ? std::atoi(s) : d; }
+};
+const TmoSpec MnOSpec{"MNO","MnO","Mn",25, 7,6, 8.40, 26, 11, ChargeDensity::SeedStrategy::IonicSAD};
+// NiO's a = 7.88 is QE's hp.x benchmark cell, which is where U(Ni 3d) = 5.27 eV was banked: the estimator
+// must be compared with the oracle on the oracle's geometry (doc/OpenWork.md step 5, increment 3).
+// ⚠ AND ITS SEED IS **SAD**, NOT IonicSAD, WHICH IS A DECLARED DEVIATION FROM THE MnO ARM.  IonicSAD would
+// need a Ni2+ entry in atomic_valence_densities.json, and the free Ni2+ ion CANNOT BE GENERATED by today's
+// pseudo-atom: d^8 high-spin is minority-d^3 in a FIVE-fold shell, and the atom occupies whole irreps
+// ({-2,-1} and {0,1,2}) rather than fractions of a degenerate shell, so it lands on a symmetry-broken
+// excited state -- the run ends NON-AUFBAU (an empty d at -1.09 Ha below an occupied one at -0.09) and the
+// density runs away into the diffuse d: <r> = 2.91 bohr for a CATION, against 1.16 for Mn2+ and 1.40 for
+// neutral Ni.  (It converges to a sane <r> = 1.01 only if the diffuse d is trimmed out of the window, i.e.
+// only by removing the escape route -- a fudge, not a fix.  The fix is fractional occupation of a
+// degenerate shell, the occupation seam in doc/Records/SCFStrategyPlan.md.)  Mn2+ is immune because d^5
+// high-spin fills whole channels.  Neutral Ni q10 polarized converges cleanly (moment 2, <r> = 1.40) and
+// so does neutral O, so the NEUTRAL superposition is a seed we can actually stand behind; whether it finds
+// the AFM-II basin is then an empirical question the run answers, not an assumption.
+const TmoSpec NiOSpec{"NIO","NiO","Ni",28,10,6, 7.88, 32,  5, ChargeDensity::SeedStrategy::SAD};
+
+//========================================================================================================
+// THE ROCKSALT AFM-II CAMPAIGN RUN (doc/SymmetryUpgradePlan.md §7; doc/Benchmark.md's MnO rows).  A rocksalt
+// transition-metal monoxide with the type-II AFM order in the rhombohedral 2-f.u. cell (the FCC cell doubled
+// along [111]).  TWO MATERIALS, ONE BODY: `gpwprobe mno` is the MnO campaign, `gpwprobe nio` the same run on
+// NiO -- the cell the hp.x oracle used for U(Ni 3d) = 5.27 eV (doc/OpenWork.md step 5, increment 3).  Knobs
+// below are written <P>_ for the spec's prefix: MNO_ for mno, NIO_ for nio, no fallback between them.  The
+// CELL is the materials entry's named construction; the DISCRIMINATORS are geometry knobs on top of it:
+//   <P>_SWAP_SUBLATTICE  put the -m flip on the FIRST TM site (site-exchange equivariance)
+//   <P>_SWAP_ORDER       add the (1/2,1/2,1/2) TM site FIRST (position vs atom-index)
+//   <P>_SHIFT=f          rigid translation by (f,f,f) fractional (an exact symmetry: everything invariant)
+//   <P>_KMESH=n          an n^3 Γ-centred mesh on the magnetic cell (the ordering question needs k)
+// The RECIPE knobs: <P>_ORTHO_TOL, <P>_CUTOFF_FACTOR, <P>_ECUT, <P>_SHARED_MU, <P>_MOM_SEED, <P>_REAL,
+// <P>_IMPOSE=0/1/2 (free / Shubnikov / grey control), <P>_XC_UNIFORM, <P>_NR, <P>_L, <P>_ALPHA, <P>_KERKER_G0,
+// <P>_XC_CUSP, <P>_PULAY, <P>_PULAY_START, <P>_MOM, <P>_MOM_START, <P>_MOM_PENALTY, <P>_MOM_HOLD, <P>_KT,
+// GPW_<P>_NMAX, GPW_<P>_VERBOSE, <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
+// site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + <P>_ACBN0=1 (print the ACBN0 (U,J)
+// estimate from the converged orbitals; <P>_ACBN0=n>1 runs the paper's OUTER LOOP for up to n steps, re-converging
+// on the same Hamiltonian, <P>_ACBN0_TOL=eV; increment 3) + <P>_U_RADIAL=every|atomic|ortho|orthofull (the
+// manifold's radial and projector: CP2K's every shell, the pseudo-atom 3d, ortho-atomic among the TM, or QE's
+// full ortho-atomic set with O 2s/2p + TM 4s spectators at U=0), <P>_EPS=tol +
+// <P>_MEASURE=maxdd|mixer (CP2K's EPS_SCF measure max|dD_ij| between successive D_out, or the mixer's own
+// residual -- doc/Benchmark.md rule 3f: an iteration count is comparable only on the same measure); the SCHEDULE: <P>_ANNEAL=kT,kT,... <P>_ACC=... <P>_ANNEAL_PENALTY=...;
+// the ARMS: <P>_SKIP_AFM (FM only), <P>_SKIP_FM (AFM only).  Oracle: CP2K MnO AFM-II E=-61.470570 Ha
+// (deck IntegrationTests/CP2K/mno_afm2_gpw_sr.inp), Mulliken site moments Mn +/-4.654.  NiO's oracle is hp.x,
+// not CP2K: there is no CP2K deck for it and no banked total.
+//========================================================================================================
+MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& label)
+{
+    const double a=S.a;
+    const bool swapSub = S.Env("SWAP_SUBLATTICE")!=nullptr;
+    const bool swapOrder = S.Env("SWAP_ORDER")!=nullptr;
+    const double sh = S.Envd("SHIFT", 0.0);
+    // The named construction (materials.json <name>_AFM2): CubicF re-based by T = FCC doubled along [111].
     auto cellp=std::make_shared<UnitCell>(BravaisCell(Bravais::CubicF, {.a=a}, Matrix3D<int>(0,1,1, 1,0,1, 1,1,0)));
     UnitCell& cell=*cellp;
     if (swapOrder)
     {
-        cell.AddAtom(25, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // -m sublattice, added FIRST
-        cell.AddAtom(25, {sh,    sh,    sh    }, afm && swapSub);
+        cell.AddAtom(S.Z, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // -m sublattice, added FIRST
+        cell.AddAtom(S.Z, {sh,    sh,    sh    }, afm && swapSub);
     }
     else
     {
-        cell.AddAtom(25, {sh,    sh,    sh    }, afm && swapSub);  // Mn sublattice +m (-m when swapped)
-        cell.AddAtom(25, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // Mn sublattice -m (flipped for the AFM arm)
+        cell.AddAtom(S.Z, {sh,    sh,    sh    }, afm && swapSub);  // TM sublattice +m (-m when swapped)
+        cell.AddAtom(S.Z, {0.5+sh,0.5+sh,0.5+sh}, afm && !swapSub); // TM sublattice -m (flipped for the AFM arm)
     }
     cell.AddAtom(8,  {0.25+sh,0.25+sh,0.25+sh});
     cell.AddAtom(8,  {0.75+sh,0.75+sh,0.75+sh});
-    const int nk=Envi("MNO_KMESH",1);
+    const int nk=S.Envi("KMESH",1);
     Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
 
     MnOArm arm;
@@ -295,46 +340,46 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
 
     SolidCalcOptions o;
     o.label=label;
-    o.Nelec=26; o.multiplicity=multiplicity;      // 2 x (Mn q7 + O q6); AFM = the two-channel singlet
-    o.species={{"Mn",7},{"O",6}};
-    o.seed=ChargeDensity::SeedStrategy::IonicSAD;   // Mn2+ d^5 + diffuse O2- -- the basin chooser
+    o.Nelec=S.Nelec; o.multiplicity=multiplicity;   // 2 x (TM + O q6); AFM = the two-channel singlet
+    o.species={{S.tm,S.qTM},{"O",S.qO}};
+    o.seed=S.seed;                                  // IonicSAD (TM2+ d^n + diffuse O2-) for MnO; see NiOSpec
     o.ortho=qchem::CholeskyPivoted;                 // cond(S)~7e8: plain Cholesky explodes
-    o.orthoTol=Envd("MNO_ORTHO_TOL",1e-4);
-    o.cutoffFactor=Envd("MNO_CUTOFF_FACTOR",2.0);
-    o.densityEcut =Envd("MNO_ECUT",-1.0);           // <0 = AUTO (cutoffFactor*alpha_max)
-    o.spinsShareFermi=Envi("MNO_SHARED_MU",0)!=0;
-    o.momFromSeed    =Envi("MNO_MOM_SEED",0)!=0;
-    o.forceComplex   =Envi("MNO_REAL",1)==0;        // MNO_REAL=0 -> the all-complex twin
-    {   // MNO_IMPOSE: 0 FREE, 1 the SHUBNIKOV group of the declared ordering, 2 the grey erasure control
-        const int iv=Envi("MNO_IMPOSE",0);
+    o.orthoTol=S.Envd("ORTHO_TOL",1e-4);
+    o.cutoffFactor=S.Envd("CUTOFF_FACTOR",2.0);
+    o.densityEcut =S.Envd("ECUT",-1.0);           // <0 = AUTO (cutoffFactor*alpha_max)
+    o.spinsShareFermi=S.Envi("SHARED_MU",0)!=0;
+    o.momFromSeed    =S.Envi("MOM_SEED",0)!=0;
+    o.forceComplex   =S.Envi("REAL",1)==0;        // <P>_REAL=0 -> the all-complex twin
+    {   // <P>_IMPOSE: 0 FREE, 1 the SHUBNIKOV group of the declared ordering, 2 the grey erasure control
+        const int iv=S.Envi("IMPOSE",0);
         o.imposeSymmetry = iv!=0;
         o.greyImposition = iv==2;
     }
-    if (std::getenv("MNO_XC_UNIFORM")) o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
-    if (const char* nr=std::getenv("MNO_NR")) o.xcMesh.nRadial=std::atoi(nr);
-    if (const char* ll=std::getenv("MNO_L"))  o.xcMesh.angularDegree=std::atoi(ll);
-    // MNO_ACBN0=1 carries the Mn d manifolds even at U=0 and, after the arm converges, prints the ACBN0
+    if (S.Env("XC_UNIFORM")) o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
+    if (const char* nr=S.Env("NR")) o.xcMesh.nRadial=std::atoi(nr);
+    if (const char* ll=S.Env("L"))  o.xcMesh.angularDegree=std::atoi(ll);
+    // <P>_ACBN0=1 carries the TM d manifolds even at U=0 and, after the arm converges, prints the ACBN0
     // estimate (U-bar, J-bar, U_eff) from its orbitals -- one step of the paper's outer loop; iterate by
-    // hand with MNO_U=<U_eff of the previous run> (increment 3).
-    const bool acbn0 = Envi("MNO_ACBN0",0)!=0;
-    if (const double U=Envd("MNO_U",0.0); U>0.0 || acbn0)
+    // hand with <P>_U=<U_eff of the previous run> (increment 3).
+    const bool acbn0 = S.Envi("ACBN0",0)!=0;
+    if (const double U=S.Envd("U",0.0); U>0.0 || acbn0)
     {
-        // MNO_U_RADIAL: every (CP2K's every-shell manifold, default) | atomic (ONE contracted pseudo-atom 3d, QE's
-        // `atomic`) | ortho (the two Mn 3d sets Löwdin-orthogonalised against each other) | orthofull (QE's
-        // ortho-atomic SET: + O 2s, O 2p and Mn 4s as U=0 spectators, sites 2,3 = O) -- increment 3 slices C/D.
-        const std::string rad = std::getenv("MNO_U_RADIAL") ? std::getenv("MNO_U_RADIAL") : "every";
-        if      (rad=="every")  o.hubbard={HubbardU(0,2,U), HubbardU(1,2,U)};                      // sites 0,1 = Mn
+        // <P>_U_RADIAL: every (CP2K's every-shell manifold, default) | atomic (ONE contracted pseudo-atom 3d, QE's
+        // `atomic`) | ortho (the two TM 3d sets Löwdin-orthogonalised against each other) | orthofull (QE's
+        // ortho-atomic SET: + O 2s, O 2p and TM 4s as U=0 spectators, sites 2,3 = O) -- increment 3 slices C/D.
+        const std::string rad = S.Env("U_RADIAL") ? S.Env("U_RADIAL") : "every";
+        if      (rad=="every")  o.hubbard={HubbardU(0,2,U), HubbardU(1,2,U)};                      // sites 0,1 = the TM
         else if (rad=="atomic") o.hubbard={HubbardU_Atomic(0,2,U), HubbardU_Atomic(1,2,U)};
         else if (rad=="ortho")  o.hubbard={HubbardU_OrthoAtomic(0,2,U), HubbardU_OrthoAtomic(1,2,U)};
         else if (rad=="orthofull") o.hubbard={HubbardU_OrthoAtomic(0,2,U), HubbardU_OrthoAtomic(1,2,U),
-                                              HubbardU_OrthoAtomic(0,0,0.0), HubbardU_OrthoAtomic(1,0,0.0),      // Mn 4s
+                                              HubbardU_OrthoAtomic(0,0,0.0), HubbardU_OrthoAtomic(1,0,0.0),      // TM 4s
                                               HubbardU_OrthoAtomic(2,0,0.0), HubbardU_OrthoAtomic(3,0,0.0),      // O 2s
                                               HubbardU_OrthoAtomic(2,1,0.0), HubbardU_OrthoAtomic(3,1,0.0)};     // O 2p
-        else throw std::runtime_error("MNO_U_RADIAL: expected every|atomic|ortho|orthofull, got '"+rad+"'");
-        // MNO_U_IRREP=a,b,c (eV): one U per site-irrep slot, in the order of the term's "[+U] site .. U slots"
+        else throw std::runtime_error(S.prefix+"_U_RADIAL: expected every|atomic|ortho|orthofull, got '"+rad+"'");
+        // <P>_U_IRREP=a,b,c (eV): one U per site-irrep slot, in the order of the term's "[+U] site .. U slots"
         // table -- for the AFM-II Mn under D_3d < O_h that is [0] a1g<t2g, [1] e_g<e_g, [2] e_g<t2g (increment 2).
         // The count must match the slot count or the term throws with the table in the message.
-        if (const char* v=std::getenv("MNO_U_IRREP"))
+        if (const char* v=S.Env("U_IRREP"))
             for (std::string t(v), tok; !t.empty(); )
             {
                 size_t c=t.find(','); tok=t.substr(0,c);
@@ -345,32 +390,32 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     }
 
     SCFParams base;
-    base.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
-    base.StartingRelaxRo=Envd("MNO_ALPHA",0.45);  base.KerkerG0=Envd("MNO_KERKER_G0",1.0);
-    base.XCCuspDeficit  =Envd("MNO_XC_CUSP",0.0)!=0.0;
-    base.PulayDepth=(int)Envd("MNO_PULAY",0.0);  base.PulayStart=(int)Envd("MNO_PULAY_START",5.0);
-    base.UseMOM=Envi("MNO_MOM",1)!=0;  base.MOMStartIter=Envi("MNO_MOM_START",10);
-    base.MOMSmearPenalty=Envd("MNO_MOM_PENALTY",0.0);
-    base.Guard.HolePersistence=Envi("MNO_MOM_HOLD",3);
-    base.SmearingkT=Envd("MNO_KT",5e-3);
-    base.NMaxIter=Envi("GPW_MNO_NMAX",80);
-    base.MinΔρ=Envd("MNO_EPS",1e-5); base.MinΔE=1e30; base.MinΔFD=1e30; base.MinVirial=1e30; base.MinFD=1e30;
-    if (const char* m=std::getenv("MNO_MEASURE"))
+    base.Verbose=std::getenv(("GPW_"+S.prefix+"_VERBOSE").c_str())!=nullptr;
+    base.StartingRelaxRo=S.Envd("ALPHA",0.45);  base.KerkerG0=S.Envd("KERKER_G0",1.0);
+    base.XCCuspDeficit  =S.Envd("XC_CUSP",0.0)!=0.0;
+    base.PulayDepth=(int)S.Envd("PULAY",0.0);  base.PulayStart=(int)S.Envd("PULAY_START",5.0);
+    base.UseMOM=S.Envi("MOM",1)!=0;  base.MOMStartIter=S.Envi("MOM_START",10);
+    base.MOMSmearPenalty=S.Envd("MOM_PENALTY",0.0);
+    base.Guard.HolePersistence=S.Envi("MOM_HOLD",3);
+    base.SmearingkT=S.Envd("KT",5e-3);
+    base.NMaxIter=[&]{ const char* v=std::getenv(("GPW_"+S.prefix+"_NMAX").c_str()); return v?std::atoi(v):80; }();
+    base.MinΔρ=S.Envd("EPS",1e-5); base.MinΔE=1e30; base.MinΔFD=1e30; base.MinVirial=1e30; base.MinFD=1e30;
+    if (const char* m=S.Env("MEASURE"))
     {
         const std::string ms(m);
         if      (ms=="maxdd") base.Δρmeasure=SCFParams::Measure::MaxΔD;
         else if (ms=="mixer") base.Δρmeasure=SCFParams::Measure::MixerResidual;
-        else throw std::runtime_error("MNO_MEASURE: expected maxdd|mixer, got '"+ms+"'");
+        else throw std::runtime_error(S.prefix+"_MEASURE: expected maxdd|mixer, got '"+ms+"'");
     }
     base.MergeTol=1e-4;
 
     o.onIteration=[&arm](const SCFIterator::SCFProgress& p)
                   { arm.series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho,p.order,p.eb["Eee"]}); };
 
-    auto split=[](const char* env)
+    auto split=[&S](const char* knob)
     {
         std::vector<std::string> out;
-        if (const char* v=std::getenv(env))
+        if (const char* v=S.Env(knob))
             for (std::string t(v), tok; !t.empty(); )
             {
                 size_t c=t.find(','); tok=t.substr(0,c);
@@ -380,18 +425,18 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
             }
         return out;
     };
-    auto accType=[](const std::string& n)
+    auto accType=[&S](const std::string& n)
     {
         using T=SCFAccelerators::Type;
         if (n=="DIIS")   return T::DIIS;
         if (n=="GDM")    return T::GDM;
         if (n=="Ladder") return T::Ladder;
         if (n=="Null")   return T::Null;
-        throw std::runtime_error("MNO_ACC: unknown accelerator \"" + n + "\" (DIIS|GDM|Ladder|Null)");
+        throw std::runtime_error(S.prefix+"_ACC: unknown accelerator \"" + n + "\" (DIIS|GDM|Ladder|Null)");
     };
-    const std::vector<std::string> kTs=split("MNO_ANNEAL"), accs=split("MNO_ACC"), lams=split("MNO_ANNEAL_PENALTY");
-    if (!(lams.empty() || lams.size()==kTs.size())) throw std::runtime_error("MNO_ANNEAL_PENALTY must parallel MNO_ANNEAL");
-    if (!(accs.size()<=1 || kTs.empty() || accs.size()==kTs.size())) throw std::runtime_error("MNO_ACC must parallel MNO_ANNEAL");
+    const std::vector<std::string> kTs=split("ANNEAL"), accs=split("ACC"), lams=split("ANNEAL_PENALTY");
+    if (!(lams.empty() || lams.size()==kTs.size())) throw std::runtime_error(S.prefix+"_ANNEAL_PENALTY must parallel "+S.prefix+"_ANNEAL");
+    if (!(accs.size()<=1 || kTs.empty() || accs.size()==kTs.size())) throw std::runtime_error(S.prefix+"_ACC must parallel "+S.prefix+"_ANNEAL");
 
     std::vector<SCFStage> schedule;
     if (kTs.empty())
@@ -411,26 +456,28 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     // ⚠ A SPHERICAL-d arm needs the VA/SPH span (user, 2026-09-21): the SR Mn block carries only TWO s exponents
     // because its s span comes from the CARTESIAN d shells' x^2+y^2+z^2 contaminants -- under GPW_SPHERICAL=1
     // those are gone.  A +U manifold needs the spherical view, so an unset GPW_BASIS_SPAN defaults to VA here
-    // (the oracle gate's span); an explicit GPW_BASIS_SPAN=sr with GPW_SPHERICAL is refused.
+    // (the oracle gate's span); an explicit GPW_BASIS_SPAN=sr with GPW_SPHERICAL is refused.  Ni is in sr for
+    // no arm -- its block exists only in va/sph (BasisSetData/valence_lowq_va.bsd's Ni note) -- so the same
+    // default and the same refusal are what NiO needs too.
     if (std::getenv("GPW_SPHERICAL"))
     {
         const char* span=std::getenv("GPW_BASIS_SPAN");
-        if (!span) { setenv("GPW_BASIS_SPAN", "va", 1); std::cout << "[MnO] spherical d => GPW_BASIS_SPAN defaulted to va (the SR Mn block has no s span without the Cartesian d contaminants)" << std::endl; }
-        else if (std::string(span)=="sr") throw std::runtime_error("gpwprobe mno: GPW_BASIS_SPAN=sr with GPW_SPHERICAL -- the SR Mn block's s span lives in the Cartesian d contaminants; use va or sph");
+        if (!span) { setenv("GPW_BASIS_SPAN", "va", 1); std::cout << "[" << S.name << "] spherical d => GPW_BASIS_SPAN defaulted to va (the SR " << S.tm << " block has no s span without the Cartesian d contaminants)" << std::endl; }
+        else if (std::string(span)=="sr") throw std::runtime_error("gpwprobe: GPW_BASIS_SPAN=sr with GPW_SPHERICAL -- the SR "+S.tm+" block's s span lives in the Cartesian d contaminants; use va or sph");
     }
     arm.calc=std::make_unique<SolidCalculation>(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
     arm.result=arm.calc->Result();
     if (acbn0)
     {
-        std::cout << "[MnO " << o.label << "] ACBN0 from the last iterate"
+        std::cout << "[" << S.name << " " << o.label << "] ACBN0 from the last iterate"
                   << (arm.result ? " (CONVERGED):" : " (NOT converged -- a diagnostic, not a U):") << std::endl;
-        const int nOuter=Envi("MNO_ACBN0",0);
+        const int nOuter=S.Envi("ACBN0",0);
         if (nOuter<=1) arm.calc->EstimateHubbardU();                  // one-shot
         else
         {   // the paper's outer loop, on the same Hamiltonian, re-converging with the schedule's FINAL stage
-            SolidCalculation::HubbardLoop lp; lp.maxOuter=size_t(nOuter); lp.tolU_eV=Envd("MNO_ACBN0_TOL",1e-3);
+            SolidCalculation::HubbardLoop lp; lp.maxOuter=size_t(nOuter); lp.tolU_eV=S.Envd("ACBN0_TOL",1e-3);
             auto R=arm.calc->ConvergeHubbardU(schedule.back().params, lp);
-            std::cout << "[MnO " << o.label << "] ACBN0 loop: " << R.outer << " outer steps, "
+            std::cout << "[" << S.name << " " << o.label << "] ACBN0 loop: " << R.outer << " outer steps, "
                       << (R.converged ? "U CONVERGED" : "U NOT converged") << " (tol " << lp.tolU_eV << " eV), last SCF "
                       << (R.scfConverged ? "converged" : "NOT converged") << ";  U_eff trajectory (site 0, eV):";
             for (const auto& u : R.U_eV) std::cout << " " << u[0];
@@ -442,36 +489,40 @@ MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
     return arm;
 }
 
-int MnO()
+//! The arm's DRIVER: the AFM-II run with its magnetic diagnostics, then (unless skipped) the FM run and the
+//! ordering comparison.  One body for both materials -- the checks are statements about a rocksalt AFM-II
+//! antiferromagnet, not about Mn.
+int TMO(const TmoSpec& S)
 {
-    if (std::getenv("MNO_SKIP_AFM"))
+    const std::string afmLabel=S.name+" AFM-II Gamma", fmLabel=S.name+" FM Gamma";
+    if (S.Env("SKIP_AFM"))
     {
-        MnOArm F=RunMnO(/*multiplicity*/11, /*afm*/false, "MnO FM Gamma");
-        Instrumentation(F, "MnO FM Gamma");
+        MnOArm F=RunTMO(S, S.multFM, /*afm*/false, fmLabel);
+        Instrumentation(F, fmLabel);
         Check(bool(F.result), "FM converged" + (F.result ? std::string() : ": "+F.result.Error().details));
-        if (F.result) CheckNear(F.result->TotalCharge(), 26.0, 1e-6, "FM charge");
+        if (F.result) CheckNear(F.result->TotalCharge(), double(S.Nelec), 1e-6, "FM charge");
         return nFailed;
     }
-    MnOArm A=RunMnO(/*multiplicity*/1, /*afm*/true, "MnO AFM-II Gamma");
-    Instrumentation(A, "MnO AFM-II Gamma");
+    MnOArm A=RunTMO(S, /*multiplicity*/1, /*afm*/true, afmLabel);
+    Instrumentation(A, afmLabel);
     Check(bool(A.result), "AFM-II converged" + (A.result ? std::string() : ": "+A.result.Error().details));
     if (!A.result) return nFailed;
     const ScalarFunction<double>* m=A.result->SpinDensity();
     Check(m!=nullptr, "a multiplicity>=1 run must produce a spin density");
     if (!m) return nFailed;
 
-    // The point probe m(r) at 0.7 bohr off each Mn is a spin DENSITY, not a moment (feedback: integrated
+    // The point probe m(r) at 0.7 bohr off each TM site is a spin DENSITY, not a moment (feedback: integrated
     // observables) -- valid as a COLLAPSE DETECTOR only; the integrated site moment is the m_site column.
-    const double a=8.40;
-    const rvec3_t off(0.7,0,0), rMn1(0,0,0), rMn2(a,a,a);   // cartesian: A*(1/2,1/2,1/2) = a(1,1,1)
-    const double m1=(*m)(rMn1+off), m2=(*m)(rMn2+off);
-    std::cout << "[MnO AFM-II] site spin density m(r): Mn1(+seed)="<<m1<<"  Mn2(-seed)="<<m2
+    const double a=S.a;
+    const rvec3_t off(0.7,0,0), r1(0,0,0), r2(a,a,a);       // cartesian: A*(1/2,1/2,1/2) = a(1,1,1)
+    const double m1=(*m)(r1+off), m2=(*m)(r2+off);
+    std::cout << "["<<S.name<<" AFM-II] site spin density m(r): "<<S.tm<<"1(+seed)="<<m1<<"  "<<S.tm<<"2(-seed)="<<m2
               << "  m_stag=½(m1−m2)="<<0.5*(m1-m2)<<"  m_net=m1+m2="<<(m1+m2)
               << (std::abs(m1+m2) > 0.2*std::abs(m1-m2) ? "  ** NOT STAGGERED: the moment sits on ONE sublattice" : "")
               << std::endl;
-    CheckNear(A.result->TotalCharge(), 26.0, 1e-6, "AFM-II charge");
-    Check(m1 >  0.01, "Mn1 stays in the +m basin the seed chose");
-    Check(m2 < -0.01, "Mn2 stays in the -m basin the seed chose");
+    CheckNear(A.result->TotalCharge(), double(S.Nelec), 1e-6, "AFM-II charge");
+    Check(m1 >  0.01, S.tm+"1 stays in the +m basin the seed chose");
+    Check(m2 < -0.01, S.tm+"2 stays in the -m basin the seed chose");
     Check(std::fabs(m1+m2) <= 0.2*std::fabs(m1), "the two sublattices stagger symmetrically");
     {
         ChargeDensity::fitbasis_t fit(A.calc->Basis().CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
@@ -488,27 +539,29 @@ int MnO()
                 if (mu.count(q) && md.count(q))
                 {
                     const double Mstag=std::abs(dcmplx(mu.at(q))-dcmplx(md.at(q)))*A.cell->GetCellVolume()/2;
-                    std::cout << "[MnO AFM-II] |m-tilde(q_AFM)|*Omega/2 = "<<Mstag<<" e- (staggered moment scale)"<<std::endl;
-                    Check(Mstag > 1.0, "the converged staggered moment is electrons-scale (d^5 ~ 4-5)");
+                    std::cout << "["<<S.name<<" AFM-II] |m-tilde(q_AFM)|*Omega/2 = "<<Mstag<<" e- (staggered moment scale)"<<std::endl;
+                    // The scale is the TM's unpaired-electron count: MnO d^5 ~ 4-5, NiO d^8 ~ 2.  One electron
+                    // is the floor BOTH clear when the order survives, and neither clears when it collapses.
+                    Check(Mstag > 1.0, "the converged staggered moment is electrons-scale");
                 }
             }
         }
     }
-    if (std::getenv("MNO_SKIP_FM")) return nFailed;
-    MnOArm F=RunMnO(/*multiplicity*/11, /*afm*/false, "MnO FM Gamma");
-    Instrumentation(F, "MnO FM Gamma");
+    if (S.Env("SKIP_FM")) return nFailed;
+    MnOArm F=RunTMO(S, S.multFM, /*afm*/false, fmLabel);
+    Instrumentation(F, fmLabel);
     Check(bool(F.result), "FM converged" + (F.result ? std::string() : ": "+F.result.Error().details));
     if (!F.result) return nFailed;
-    CheckNear(F.result->TotalCharge(), 26.0, 1e-6, "FM charge");
+    CheckNear(F.result->TotalCharge(), double(S.Nelec), 1e-6, "FM charge");
     const double Eafm=A.result->Energy(), Efm=F.result->Energy();
-    std::cout << "[MnO ordering] E_AFM="<<std::setprecision(10)<<Eafm<<"  E_FM="<<Efm<<"  dE="<<(Efm-Eafm)*1000<<" mHa"<<std::endl;
+    std::cout << "["<<S.name<<" ordering] E_AFM="<<std::setprecision(10)<<Eafm<<"  E_FM="<<Efm<<"  dE="<<(Efm-Eafm)*1000<<" mHa"<<std::endl;
     Check(Eafm < Efm, "AFM-II is the LSDA ground-state ordering");
     return nFailed;
 }
 
 void Usage()
 {
-    std::cout << "gpwprobe ladder | ksweep | naf-smear | becke-ladder {si|naf|mn|al} | mno\n"
+    std::cout << "gpwprobe ladder | ksweep | naf-smear | becke-ladder {si|naf|mn|al} | mno | nio\n"
                  "  (the env-var knobs are documented at the top of CLIapps/gpwprobe.C and in doc/Benchmark.md)\n";
 }
 } // anonymous
@@ -523,7 +576,8 @@ int main(int argc, char** argv)
         if (cmd=="ksweep")       return KSweep();
         if (cmd=="naf-smear")    return NaFSmear();
         if (cmd=="becke-ladder") { if (argc<3) { Usage(); return 2; } return BeckeRecipeLadder(argv[2]); }
-        if (cmd=="mno")          return MnO();
+        if (cmd=="mno")          return TMO(MnOSpec);
+        if (cmd=="nio")          return TMO(NiOSpec);
     }
     catch (const std::exception& e) { std::cerr << "gpwprobe " << cmd << ": " << e.what() << std::endl; return 1; }
     Usage(); return 2;
