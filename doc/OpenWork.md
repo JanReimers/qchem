@@ -157,6 +157,19 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   increment 2 spec".  **NEXT = increment 3: ACBN0 (U, J) from our own on-site ERIs** (item 3 below).
 
 
+> **▶ INCREMENT 3 — (3) THE hp.x ORACLE, IN PROGRESS 2026-09-21 (`8f5aefea`, `0b1476d9`).**
+> `CLIapps/gth2upf` writes a QE UPF for one of OUR GTH pseudopotentials with PP_CHI = OUR pseudo-atom's
+> orbitals, so pw.x/hp.x run the same PP and the same `atomic` projector as `HubbardU_Atomic`.  VALIDATED:
+> the isolated Mn q7 atom in pw.x (spherical 3d⁵4s² fixed) gives E −14.2433 Ha vs CP2K ATOM −14.2414 / ours
+> −14.2442, eigenvalues shifted by one common +0.17 eV (the box's G=0 alignment), 3d–4s splitting to 4 meV.
+> **MnO AFM-II in pw.x (LDA sla+vwn, 100 Ry, k 2×2×2):** E −61.518 Ha, moments ±4.51 μB, gap 1.32 eV, atomic
+> 3d occupations **4.988↑/0.481↓ vs our atomic projector 4.93↑/0.45↓** — the two codes agree on what the
+> manifold holds.  hp.x needs the 2-step magnetic-insulator recipe (smearing → fixed occupations,
+> tot_magnetization 0) and a q-MESH: **nq=1 returned U(Mn 3d) −0.41 eV / U(O 2p) 24.4 eV — a non-result**
+> (the perturbation repeats with the 4-atom cell); the 2×2×2 q-mesh run is the oracle number (decks and
+> recipe in `IntegrationTests/QE/`).
+> - ⚠ Our own MnO one-shot ACBN0 and the loop are still Γ-only; the k222 sensitivity was ~10 % (slice C).
+
 > **▶ INCREMENT 3 — SLICE D LANDED 2026-09-21 (`4a00d797`): THE OUTER LOOP AND THE ORTHO-ATOMIC PROJECTOR —
 > and the verdict on ACBN0 as a screening model.**  `SolidCalculation::ConvergeHubbardU(params, {maxOuter,
 > tolU_eV})`: estimate → `HubbardUEstimator::Apply` (the term's `SetU`: U, occupation version AND the matrix
