@@ -40,3 +40,11 @@ minority shell responds weakly; the "closed-shell problem" of linear-response U)
 (χ₀ −0.050 → χ −0.022 → 26 eV).  Non-orthogonalised `atomic` projectors are also the fragile choice in hp.x
 (its documentation recommends ortho-atomic for insulators).  The controlled variant `mnoO.*` = **ortho-atomic,
 Mn 3d only** (ortho-atomic 3d occupations 4.980↑ / 0.253↓).
+
+**hp.x, ortho-atomic, Mn 3d only, nq 2×2×2, 100 Ry (2026-09-21, 24 min):** U(Mn 3d) = **1.008 eV** (χ₀ −0.0453 →
+χ −0.0432: again ~95 % of the bare response survives the screening).  Projector-independent, so not the projector.
+⚠ **The cutoff is NOT converged**: E(100 Ry) −123.037, E(140) −123.326, E(200) −123.409 Ry — GTH Mn q7 is hard
+(projector radii ~0.2–0.3 bohr) and hp.x had warned "numerical instabilities due to too low cutoff for hard
+pseudopotentials".  The occupations are stable (5.231 → 5.231) but a linear RESPONSE need not be; the hp.x
+numbers above are therefore not yet the oracle value.  Next: the ground state at a converged cutoff (scan to
+360 Ry), then hp.x there.
