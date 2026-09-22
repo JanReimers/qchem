@@ -48,6 +48,15 @@
                  { "el": "O",  "frac": [0.75, 0.75, 0.75] } ],
     "species": { "Mn": 7, "O": 6 }
   },
+  "NiO_AFM2": {
+    "comment": "rocksalt NiO a = 4.17 A with the type-II AFM order -- the same construction as MnO_AFM2, one lattice constant apart.  a = 7.88 bohr is QE's own hp.x NiO benchmark cell (test-suite/hp_insulator_us_magn), which is the cell our matched-UPF hp.x run used for U(Ni 3d) = 5.27 eV (doc/OpenWork.md step 5, increment 3): the ACBN0-vs-oracle comparison must be on the oracle's geometry.  Ni q10 = the GTH LDA 3d8 4s2 pseudopotential, the one gth2upf wrote as Ni.pz-gth-q10.UPF",
+    "lattice": { "type": "CubicF", "a": 7.88, "T": [[0,1,1],[1,0,1],[1,1,0]] },
+    "atoms":   [ { "el": "Ni", "frac": [0.0, 0.0, 0.0],  "spin": 1 },
+                 { "el": "Ni", "frac": [0.5, 0.5, 0.5],  "spin": -1 },
+                 { "el": "O",  "frac": [0.25, 0.25, 0.25] },
+                 { "el": "O",  "frac": [0.75, 0.75, 0.75] } ],
+    "species": { "Ni": 10, "O": 6 }
+  },
   "Si_box16": {
     "comment": "one Si pseudo-atom at the centre of a 16-bohr cubic box; oracle = the molecular facade (SIPP)",
     "lattice": { "type": "CubicP", "a": 16.0 },

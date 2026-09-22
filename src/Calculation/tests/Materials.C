@@ -20,7 +20,7 @@ TEST(Materials, EveryEntryLoadsAndDerivesItsElectronCount)
 {
     struct Expect { const char* name; size_t atoms; int Nelec; };
     for (Expect e : { Expect{"Si_diamond",2,8}, {"Al_fcc",1,3}, {"Na_fcc",1,1}, {"NaF_rocksalt",2,8},
-                      {"CsI_cscl",2,8}, {"MnO_AFM2",4,26}, {"Si_box16",1,4}, {"Na_box16",1,1},
+                      {"CsI_cscl",2,8}, {"MnO_AFM2",4,26}, {"NiO_AFM2",4,32}, {"Si_box16",1,4}, {"Na_box16",1,1},
                       {"Mn_box16",1,7}, {"O2_box16",2,12}, {"Mn2_box7",2,14}, {"Na2_box16",2,2} })
     {
         M::Material m=M::Get(e.name);
@@ -30,7 +30,7 @@ TEST(Materials, EveryEntryLoadsAndDerivesItsElectronCount)
         EXPECT_FALSE(m.species.empty()) << e.name;
     }
     const std::vector<std::string> names=M::Names();
-    EXPECT_EQ(names.size(), 12u) << "the file has exactly the entries this test knows; add a row here when you add one";
+    EXPECT_EQ(names.size(), 13u) << "the file has exactly the entries this test knows; add a row here when you add one";
     EXPECT_EQ(names.front(), "Si_diamond") << "file order is the pick-list order";
 }
 
@@ -48,6 +48,26 @@ TEST(Materials, MnO_AFM2_IsTheHandWrittenCellWithItsDecoration)
     EXPECT_EQ(Z,    (std::vector<int>{25,25,8,8}));
     EXPECT_EQ(flip, (std::vector<bool>{false,true,false,false})) << "-m on the second Mn, O undecorated";
     EXPECT_EQ(m.species, (std::vector<std::pair<std::string,int>>{{"Mn",7},{"O",6}}));
+}
+
+// NiO AFM-II is the SAME construction as MnO one lattice constant apart, and its geometry is not ours to
+// choose: a = 7.88 bohr is the cell QE's hp.x NiO benchmark uses, and the matched-UPF hp.x run that banked
+// U(Ni 3d) = 5.27 eV (doc/OpenWork.md step 5) ran it -- an estimator compared against an oracle must stand
+// on the oracle's cell.  The QE deck (IntegrationTests/QE/NiOg.scf.1.in) writes the same cell as
+// CELL_PARAMETERS (1,1/2,1/2; 1/2,1,1/2; 1/2,1/2,1) x alat with ATOMIC_POSITIONS {alat} Ni1 (0,0,0),
+// Ni2 (1/2,1/2,0), O (1/2,0,0), O (1,1/2,0); in fractional coordinates of that cell those are Ni 0 and 1/2,
+// O 3/4 and 1/4 -- the same four sites this entry lists, with the two O in the other order.
+TEST(Materials, NiO_AFM2_IsTheQEBenchmarkCell)
+{
+    M::Material m=M::Get("NiO_AFM2");
+    const double a=7.88;                                    // QE celldm(1), the hp.x NiO benchmark cell
+    const Matrix3D<double> hand(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    for (int i=1;i<=3;i++) for (int j=1;j<=3;j++) EXPECT_NEAR(m.cell->GetCellMatrix()(i,j), hand(i,j), 1e-14);
+    std::vector<int> Z; std::vector<bool> flip;
+    m.cell->ForEachSite([&](int z, const rvec3_t&, bool f){ Z.push_back(z); flip.push_back(f); });
+    EXPECT_EQ(Z,    (std::vector<int>{28,28,8,8}));
+    EXPECT_EQ(flip, (std::vector<bool>{false,true,false,false})) << "-m on the second Ni, O undecorated";
+    EXPECT_EQ(m.species, (std::vector<std::pair<std::string,int>>{{"Ni",10},{"O",6}}));
 }
 
 // Si diamond IS the cell every Si anchor was banked on: FCC a=10.26, atoms at 0 and 1/4 -- in Cartesian.
