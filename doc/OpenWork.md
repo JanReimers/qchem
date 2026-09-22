@@ -157,6 +157,74 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   increment 2 spec".  **NEXT = increment 3: ACBN0 (U, J) from our own on-site ERIs** (item 3 below).
 
 
+> **▶ INCREMENT 3 — REMAINDER (a) DONE, (b) DECIDED: OUR ACBN0 ON NiO AGAINST THE hp.x ORACLE, 2026-09-22.**
+> NiO is the clean test because hp.x is healthy there (5.27 eV) where MnO's d⁵ made it unreliable.  Built
+> first: a valgen-validated **Ni q10 valence basis** (s 7 × {0.06..28}, d 8 × {0.18..44}; pseudo-atom
+> converged, 0.56 mHa above the pool floor — the SAME block in `va` and `sph`, because the VA/VB trims are
+> MnO-vs-CP2K rank statements and NiO's oracle is not CP2K), **`materials.json` `NiO_AFM2`** at a = 7.88 bohr
+> (QE's benchmark cell — an estimator is compared with an oracle on the ORACLE's geometry), and
+> **`gpwprobe nio`**: `RunMnO`/`MnO()` became `RunTMO`/`TMO` over a `TmoSpec`, so MnO and NiO are one arm with
+> two specs and MnO's `MNO_*` knobs are untouched.  **MnO re-run as the refactor's regression check:
+> U_eff 10.774 / 10.692 eV against the banked 10.77, E = −61.4112412 against the banked imposed anchor.**
+> - ★★ **THE MEASUREMENT (NiO AFM-II, LDA, Γ, imposed, deck-shaped recipe, \f$U_{\rm in}=3\f$ eV):**
+>
+>   | route | U(Ni 3d) | U(O 2p) | \f$N_{3d}\f$ ↑/↓ |
+>   |---|---|---|---|
+>   | ours, ACBN0, ortho-atomic (Ni only) | **14.60 / 14.67 eV** | — | 4.921 / 3.440 |
+>   | ours, ACBN0, full ortho-atomic set | **13.89 / 13.91 eV** | 7.27 eV | 4.895 / 3.199 |
+>   | ACBN0 paper (PBE, Mulliken, PAO-3G, self-consistent) | 7.63 | 3.0 | — |
+>   | **hp.x linear response** (our GTH UPF, ortho-atomic, k/q 2×2×2) | **5.27** | — | 4.980 / 3.368 |
+>
+>   Spectators (full set): Ni 4s 0.09 eV (nearly empty → the \f$d^0\f$ limit), O 2s 23–28 eV (full shell →
+>   bare-like) — the same pattern MnO showed.
+> - ★★ **THE MANIFOLD AGREES WITH THE ORACLE; ONLY THE FUNCTIONAL DISAGREES.**  Our ortho-atomic 3d
+>   occupations are within **1.2 % / 2.1 %** of hp.x's on the same cell with the same UPF and the same
+>   projector (4.921/3.440 vs 4.980/3.368) — as MnO's were (4.93/0.45 vs 4.988/0.481).  So the factor 2.6 to
+>   hp.x is not the projector, not the manifold, not the pseudopotential: it is the U functional.
+> - ★★ **SLICE D's VERDICT NOW HOLDS ON A SECOND MATERIAL AND A SECOND MANIFOLD.**  ours ÷ published ACBN0:
+>   MnO d **2.31**, MnO O-2p **2.75**, NiO d **1.82**, NiO O-2p **2.42** — all in 1.8–2.8, none near 1.  ⚠ That
+>   spread is too loose to call "a common factor 2.5", so it is quoted as a range; what it does show is a
+>   PROJECTOR-COMPLETENESS effect (which is manifold-independent in sign and rough size) rather than a physics
+>   disagreement (which would vary by manifold).  On NiO, where hp.x is healthy, ours is 2.6× linear response
+>   and the paper's own ACBN0 is 1.45× it.
+> - ⛔ **THE ORACLE ROW WAS CONDITIONED AND THE CONDITION WAS NOT WRITTEN DOWN.**  hp.x's 5.267 eV is the
+>   response around a ground state **already at \f$U_{\rm in}=3\f$ eV**: `IntegrationTests/QE/NiOg.scf.*.in`
+>   carry `HUBBARD {ortho-atomic} / U Ni-3d 3.0`, inherited from QE's `hp_insulator_us_magn` benchmark.  It is
+>   neither a U=0 response nor a self-consistent U.  The MnO decks carry no `HUBBARD` U, so those rows ARE
+>   \f$U_{\rm in}=0\f$ — the two hp.x rows were never on the same footing.  `IntegrationTests/QE/README.md`
+>   now carries the qualifier and a `U_in` column.  **A response is a function of the state it linearises
+>   about; quote the state with the number.**
+> - ⛔ **LDA NiO AT U=0 LOSES THE AFM-II ORDER, AND THE OUTER LOOP CANNOT BE RUN ON NiO.**  At U=0 the SCF
+>   CONVERGES (79 iterations, Δρ → 0) to a NON-MAGNETIC state: the integrated site moment goes 2.107 e →
+>   1.6e-6 e, dead from iteration 45, with the collapse written on its face as \f$N\uparrow/N\downarrow\f$ =
+>   4.2811/4.2811.  Its U_eff = 15.9 eV is paramagnetic NiO and is NOT banked; the order guard refused it.
+>   **MOM does not rescue it** — MOM on gives a BIT-IDENTICAL energy (−109.2693031), i.e. it faithfully holds
+>   the non-magnetic pattern it is given.  This is the textbook LDA-NiO failure and is exactly why the QE
+>   benchmark starts at U = 3.  And the ACBN0 OUTER LOOP on NiO is a NON-RESULT: after the first U update
+>   every SCF failed, the two sites decoupled (site 1 reached U_eff = **−1.05 eV**), the order died and the
+>   Hartree term ran away (Eee 19.6 → 39.9 Ha, 2.04× its own floor).  Trajectory 14.6 → 17.7 → 4.6 → 16.6 →
+>   17.4 → 19.1 — thrashing, not converging.  ⇒ **MnO's monotone 8-step loop was a property of d⁵, not of the
+>   loop**: a fragile antiferromagnet does not survive a changing U on today's recipe.  One-shot is all NiO
+>   has, and that is a prerequisite for any U-functional work on it.
+> - ★★ **(b) THE U-FUNCTIONAL DECISION: SCREENED ACBN0, WITH ORACLE-U AS AN INTERIM BRIDGE.**
+>   **(a) ACBN0 as is — REFUTED.**  It overshoots on both materials and both manifolds, and its outer loop
+>   drives U the WRONG WAY (MnO 10.8 → 16.8 monotonically, away from the literature).  No ACBN0 U is banked.
+>   **(c) oracle-computed U per material as INPUT — legitimate but not the destination.**  Pin 12 permits it
+>   (a computed input is not a hand-set knob) and it is what a production +U run should use TODAY, declared on
+>   the run banner.  It does not scale to the north-star: a cathode voltage curve needs a U per COMPOSITION,
+>   i.e. an hp.x supercell run at every Li concentration.  **(b) ACBN0 with a screened interaction — the
+>   direction.**  The diagnosis is specific: the bare \f$F^0\approx27\f$ eV for Ni 3d is RIGHT (it is a bare
+>   integral on the atomic Slater scale), and \f$\bar N^2\approx0.64\f$ is measuring BASIS COMPLETENESS, not
+>   dielectric screening — so the missing physics is \f$\varepsilon^{-1}\f$, which for a TMO is ~1/4 and is
+>   the right size to close a factor 2.6.  We already own the machinery (`BasisSet::BareCoulombSource` +
+>   `ERI4Block`), and a screened kernel is a NEW INTEGRAL TYPE, which the pseudo-wall pin explicitly allows.
+>   ⚠ **The screening length must come from the density** (Thomas-Fermi on the valence ρ, or an RPA
+>   \f$\varepsilon\f$), never be set by hand — a hand-set λ is pin 12 all over again, one layer down.
+> - **NEXT:** (1) the screened-kernel slice (the testable claim: ONE dielectric factor moves all four
+>   measured manifolds, and if it does not, the effect is not screening); (2) the NiO magnetic state has to
+>   survive a U change before any loop or trajectory on NiO means anything — today it does not; (3) GGA before
+>   any value comparison with the PBE literature (both the ACBN0 paper's 7.63/3.0 and the 4–7 eV range are PBE).
+
 > **▶ INCREMENT 3 — (3) THE hp.x ORACLE: NUMBERS IN, 2026-09-21 (`4f992092`; recipe, decks, outputs in
 > `IntegrationTests/QE/`).**  The hp.x build reproduces QE's own NiO benchmark (7.0521 vs 7.0514 eV).  The
 > matched route works: NiO with OUR GTH UPFs (gth2upf: our PP, PP_CHI = our pseudo-atom 3d) gives
@@ -173,11 +241,8 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   banked as MnO's U; the +U anchors keep U = 4 eV (CP2K parity).**  What IS banked: the projector, the
 >   occupations, the bare on-site integrals, and the machinery (estimator, outer loop, UPF writer) — the
 >   instruments a better U-functional will be judged with.
-> - **NEXT (increment 3 remainder):** (a) run OUR ACBN0 on NiO AFM-II (Ni basis via valgen; `materials.json`
->   entry) — the clean estimator-vs-oracle comparison on a system where hp.x is healthy (5.27 eV); (b) decide
->   the U-functional from that: ACBN0 as is, ACBN0 with a screened interaction, or hp.x values as INPUT
->   (pin 12 forbids hand-set U; an oracle-computed U per material is not a knob); (c) GGA before any value
->   comparison with the PBE literature.
+> - **NEXT (increment 3 remainder):** ✅ (a) and (b) are DONE — the block above (2026-09-22).  (c) GGA before
+>   any value comparison with the PBE literature: still open.
 > - Cost record: pw.x MnO 280 Ry ≈ 4 min serial; hp.x Mn-only 2×2×2 at 280 Ry 49 min on 4 ranks; the every-
 >   thing-in-one 100 Ry atomic run was a 42-min non-result.  ⛔ mpirun always; nq = 1 never.
 
