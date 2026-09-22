@@ -32,3 +32,11 @@ E = −28.48652 Ry = −14.2433 Ha against CP2K's ATOM code −14.2414 and our a
 alignment of the local potential; the 3d−4s splitting agrees to 4 meV.  With smearing instead of fixed
 occupations the isolated atom breaks spherical symmetry (E 64 mHa lower) — compare like with like.
 Geometry = `src/Calculation/Data/materials.json` `MnO_AFM2` and `IntegrationTests/CP2K/mno_afm2_gpw_va.inp`.
+
+**hp.x, atomic projector, Mn 3d + O 2p, nq 2×2×2 (2026-09-21, 42 min serial):** U(Mn 3d) = **0.198 eV**, U(O 2p) = 26.56 eV.
+The response matrices (`tmp/HP/mno.chi.dat`) say why: χ₀(Mn,Mn) = −0.0726 and χ(Mn,Mn) = −0.0712 — the SCF-screened
+response of the Mn d occupation is almost the bare one, so χ₀⁻¹ − χ⁻¹ nearly cancels (a filled majority / empty
+minority shell responds weakly; the "closed-shell problem" of linear-response U), while O behaves normally
+(χ₀ −0.050 → χ −0.022 → 26 eV).  Non-orthogonalised `atomic` projectors are also the fragile choice in hp.x
+(its documentation recommends ortho-atomic for insulators).  The controlled variant `mnoO.*` = **ortho-atomic,
+Mn 3d only** (ortho-atomic 3d occupations 4.980↑ / 0.253↓).
