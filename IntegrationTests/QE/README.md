@@ -59,3 +59,17 @@ numbers above are therefore not yet the oracle value.  Next: the ground state at
 **7.0521 vs 7.0514 eV** (PBEsol, US-PP, 25 Ry, χ₀ −0.223 → χ −0.086: a strongly screened response, 5× larger
 bare response than our MnO's).  `NiOg.*` = the same NiO cell with OUR GTH Ni q10 / O q6 UPFs (LDA sla+vwn,
 280 Ry, ortho-atomic): the discriminator between "our UPF route" and "LDA-GTH MnO".
+
+**NiO with OUR GTH UPFs (`NiOg.*`: Ni q10 + O q6, LDA sla+vwn, 280 Ry, ortho-atomic, k/q 2×2×2, 42 min on 4 ranks):**
+U(Ni 3d) = **5.267 eV** (χ₀ −0.113 → χ −0.0706; ortho-atomic 3d occupations 4.980↑ / 3.368↓, gap 2.86 eV) beside
+QE's benchmark 7.05 (PBEsol, US-PP, atomic).  ⇒ **the gth2upf route is sound**: our pseudopotential and our
+pseudo-atom projector give a normal linear-response U on NiO.  MnO's 0.96 eV is therefore what hp.x's linear
+response gives for LDA-GTH MnO: a d⁵ high-spin shell, filled majority / empty minority, whose bare response is
+2.5× weaker than NiO's (χ₀ −0.045 vs −0.113) and almost unscreened (χ/χ₀ 0.96 vs 0.62).
+
+| system (this build, LDA, our GTH, 280 Ry, 2×2×2) | projector | χ₀ | χ | U(3d) |
+|---|---|---|---|---|
+| MnO AFM-II | atomic (+O 2p) | −0.0726 | −0.0712 | 0.20 eV (100 Ry) |
+| MnO AFM-II | ortho-atomic | −0.0447 | −0.0428 | **0.96 eV** |
+| NiO AFM-II | ortho-atomic | −0.1130 | −0.0706 | **5.27 eV** |
+| NiO, QE benchmark (PBEsol, US, 25 Ry) | atomic | −0.223 | −0.086 | 7.05 eV (reproduced 7.052) |
