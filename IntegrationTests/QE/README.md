@@ -48,3 +48,14 @@ Mn 3d only** (ortho-atomic 3d occupations 4.980↑ / 0.253↓).
 pseudopotentials".  The occupations are stable (5.231 → 5.231) but a linear RESPONSE need not be; the hp.x
 numbers above are therefore not yet the oracle value.  Next: the ground state at a converged cutoff (scan to
 360 Ry), then hp.x there.
+
+**Cutoff (2026-09-21):** E(Ry) at 100/140/200/280/360 Ry = −123.037 / −123.326 / −123.409 / −123.422 / −123.424:
+**280 Ry** is converged to 1.3 mRy (`mnoO280.*`; the 100 Ry decks stay as the record of the mistake).
+
+**hp.x, ortho-atomic, Mn 3d only, nq 2×2×2, 280 Ry (4 ranks, 49 min):** U(Mn 3d) = **0.958 eV** (χ₀ −0.0447 →
+χ −0.0428).  Stable against the cutoff (1.008 at 100 Ry), so the small value belongs to this setup, not to numerics.
+
+**The hp.x BUILD is sane:** QE's own `test-suite/hp_insulator_us_magn` NiO benchmark reproduces on this build,
+**7.0521 vs 7.0514 eV** (PBEsol, US-PP, 25 Ry, χ₀ −0.223 → χ −0.086: a strongly screened response, 5× larger
+bare response than our MnO's).  `NiOg.*` = the same NiO cell with OUR GTH Ni q10 / O q6 UPFs (LDA sla+vwn,
+280 Ry, ortho-atomic): the discriminator between "our UPF route" and "LDA-GTH MnO".
