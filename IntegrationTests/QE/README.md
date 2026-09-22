@@ -9,11 +9,22 @@ Hubbard projector**: the UPF files are written by `CLIapps/gth2upf` from the GTH
 build/Release/CLIapps/gth2upf --element Mn --q 7     # -> Mn.pz-gth-q7.UPF   (4s, 3d; E_atom -14.2442 Ha)
 build/Release/CLIapps/gth2upf --element O  --q 6     # -> O.pz-gth-q6.UPF    (2s, 2p; E_atom -15.7484 Ha)
 mpirun -np 1 ~/Code/q-e/bin/pw.x -in mn_atom.in      # UPF validation: spherical 3d5 4s2 in a 22-bohr box
-mpirun -np 1 ~/Code/q-e/bin/pw.x -in mno.scf.in      # MnO AFM-II LDA (sla+vwn), k 2x2x2, U=1e-8 declares the manifolds
-mpirun -np 1 ~/Code/q-e/bin/hp.x -in mno.hp.in       # U(Mn 3d), U(O 2p)
+mpirun -np 1 ~/Code/q-e/bin/pw.x -in mno.scf.in      # step 1: MnO AFM-II LDA (sla+vwn), k 2x2x2, smearing finds the AFM state
+mpirun -np 1 ~/Code/q-e/bin/pw.x -in mno.scf2.in     # step 2: fixed occupations, tot_magnetization=0, from step 1 (hp.x's
+                                                     #         2-step recipe for magnetic INSULATORS -- it refuses a gapped
+                                                     #         system run as a metal; nbnd must equal step 1's)
+mpirun -np 1 ~/Code/q-e/bin/hp.x -in mno.hp.in       # U(Mn 3d), U(O 2p) -> mno.Hubbard_parameters.dat
 ```
+⚠ **nq = 1 is NOT a result**: with q = Γ only the perturbation repeats with the 4-atom cell and hp.x returned
+U(Mn 3d) = −0.41 eV, U(O 2p) = 24.4 eV (2026-09-21).  The q-mesh is the supercell size of the linear-response
+method; 2×2×2 is the first meaningful mesh (~1 h serial at 100 Ry).
 ⛔ Every QE binary here is an MPI build: ALWAYS `mpirun -np 1`, never the bare executable (it hangs).  The UPF
 files are regenerated, not committed (they are a function of the database + the atom code).
+
+**MnO ground state (pw.x, 2026-09-21):** E = −123.03661 Ry = −61.5183 Ha at k 2×2×2 (CP2K / qchem at Γ on
+the VA span: −61.4706 / −61.4112), moments ±4.51 μB, LDA gap 1.32 eV, **atomic-projector 3d occupations
+4.988↑ / 0.481↓** against qchem's atomic projector 4.93↑ / 0.45↓ at Γ — the two codes agree on what the
+manifold holds.
 
 **UPF validation (2026-09-21):** `mn_atom.in` with the spherical 3d5 4s2 occupations fixed gives
 E = −28.48652 Ry = −14.2433 Ha against CP2K's ATOM code −14.2414 and our atom −14.2442 (2 mHa), eigenvalues
