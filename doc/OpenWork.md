@@ -157,6 +157,30 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   increment 2 spec".  **NEXT = increment 3: ACBN0 (U, J) from our own on-site ERIs** (item 3 below).
 
 
+> **▶ INCREMENT 3 — (3) THE hp.x ORACLE: NUMBERS IN, 2026-09-21 (`4f992092`; recipe, decks, outputs in
+> `IntegrationTests/QE/`).**  The hp.x build reproduces QE's own NiO benchmark (7.0521 vs 7.0514 eV).  The
+> matched route works: NiO with OUR GTH UPFs (gth2upf: our PP, PP_CHI = our pseudo-atom 3d) gives
+> **U(Ni 3d) = 5.27 eV** (LDA, ortho-atomic, 280 Ry — the cutoff GTH 3d needs; 100 Ry was 0.19 Ha off) beside
+> QE's 7.05 (PBEsol, US-PP).  **MnO AFM-II, same route: U(Mn 3d) = 0.96 eV** (0.20 with the plain atomic
+> projector + O 2p in the inversion), stable against cutoff and projector: χ₀ = −0.045 → χ = −0.043 — the
+> d⁵ high-spin shell's bare response is 2.5× weaker than NiO's and essentially unscreened (χ/χ₀ 0.96 vs 0.62),
+> the closed-shell-per-spin weakness of linear-response U.  pw.x agrees with us on the manifold itself
+> (atomic 3d 4.988↑/0.481↓ vs our 4.93↑/0.45↓; ortho-atomic 4.980↑/0.253↓).
+> - ★★ **THE ORACLE VERDICT ON ACBN0 (MnO, LDA):** ACBN0 one-shot 10.8 eV, self-consistent 16.8 eV; linear
+>   response 0.96 eV; literature screened U 4–7 eV.  The two routes bracket the physical range from opposite
+>   sides by a factor ~5 each: ACBN0's \f$\bar N^2\f$ renormalisation is not a screening model (slice D), and
+>   hp.x's linear response is unreliable for a filled-majority/empty-minority d⁵ shell in LDA.  **Neither is
+>   banked as MnO's U; the +U anchors keep U = 4 eV (CP2K parity).**  What IS banked: the projector, the
+>   occupations, the bare on-site integrals, and the machinery (estimator, outer loop, UPF writer) — the
+>   instruments a better U-functional will be judged with.
+> - **NEXT (increment 3 remainder):** (a) run OUR ACBN0 on NiO AFM-II (Ni basis via valgen; `materials.json`
+>   entry) — the clean estimator-vs-oracle comparison on a system where hp.x is healthy (5.27 eV); (b) decide
+>   the U-functional from that: ACBN0 as is, ACBN0 with a screened interaction, or hp.x values as INPUT
+>   (pin 12 forbids hand-set U; an oracle-computed U per material is not a knob); (c) GGA before any value
+>   comparison with the PBE literature.
+> - Cost record: pw.x MnO 280 Ry ≈ 4 min serial; hp.x Mn-only 2×2×2 at 280 Ry 49 min on 4 ranks; the every-
+>   thing-in-one 100 Ry atomic run was a 42-min non-result.  ⛔ mpirun always; nq = 1 never.
+
 > **▶ INCREMENT 3 — (3) THE hp.x ORACLE, IN PROGRESS 2026-09-21 (`8f5aefea`, `0b1476d9`).**
 > `CLIapps/gth2upf` writes a QE UPF for one of OUR GTH pseudopotentials with PP_CHI = OUR pseudo-atom's
 > orbitals, so pw.x/hp.x run the same PP and the same `atomic` projector as `HubbardU_Atomic`.  VALIDATED:
