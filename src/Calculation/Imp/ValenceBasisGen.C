@@ -56,6 +56,7 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterat
     o.valence         = Zion;
     o.exponentsByL    = r.shells;           // per-l independent lists: validate exactly what is emitted
     SCFParams p; p.Verbose = showIterations; // print the per-iteration convergence trace when asked
+    if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);   // the recipe's cap (see ValenceBasisRecipe::nMaxIter)
     p.MinVirial = 1e30;                       // the virial theorem does NOT hold under a pseudopotential (the PP
                                               //  replaces -Z/r), so |2+V/K| never -> 0: don't gate convergence on
                                               //  it here (this is the valence-gen backend only, NOT the system
@@ -90,6 +91,7 @@ double GenerateFloorEnergy(const ValenceBasisRecipe& r)
     o.valence         = Zion;
     o.accuracy        = BasisSetAccuracy::High;
     SCFParams p; p.MinVirial = 1e30;          // no virial gate under a PP (see GenerateValenceBasis)
+    if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
     try   { AtomCalculation atom(Z, charge, o, p); return atom.Energy(); }
     catch (...) { return NAN; }               // pool conditioning can fail for some elements -> "floor unavailable"
 }
@@ -111,6 +113,7 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     o.exponentsByL    = r.shells;
     if (r.spinResolved) o.spin = SpinGroup::Polarized;
     SCFParams p; p.MinVirial = 1e30;          // no virial gate under a PP (see GenerateValenceBasis)
+    if (r.nMaxIter>0) p.NMaxIter=size_t(r.nMaxIter);
     AtomCalculation atom(Z, charge, o, p);
 
     // The per-channel faces (spinResolved only): the polarized run's Density() answers its Up/Down channels

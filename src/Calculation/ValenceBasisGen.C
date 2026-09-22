@@ -48,6 +48,12 @@ export namespace qchem
         //! UP-MAJORITY convention.  Default off: spin-agnostic recipes stay bit-identical (closed shells and
         //! the pre-existing library entries).
         bool         spinResolved = false;
+        //! Max SCF iterations for the validating pseudo-atom (0 => the SCFParams default, 20).  A heavier
+        //! atom is a longer descent and the cap is not a basis verdict: neutral Ni q10 in the 16-exponent
+        //! accuracy pool was still at Δρ = 2e-4 on iteration 20, DESCENDING smoothly, and reported
+        //! \c converged=false -- which reads exactly like a bad window (2026-09-22).  Raise it before
+        //! believing a "converged false" on anything past the first transition row.
+        int          nMaxIter    = 0;
     };
 
     //! The outcome: the atomic pseudo-atom energy in the generated basis (the validation number) and the

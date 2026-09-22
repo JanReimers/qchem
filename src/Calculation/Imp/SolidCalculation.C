@@ -840,6 +840,10 @@ static std::vector<double> AtomicRadial(const BasisSet::Real_BS& mol, const Stru
     int lmax=0; for (const auto& [ll,es] : byL) lmax=std::max(lmax,ll);
     for (int ll=0; ll<=lmax; ll++) o.exponentsByL.push_back({ll, pool(16, 0.05, 200.0)});
     SCFParams p; p.MinVirial=1e30;                              // no virial under a PP (the valence generator's rule)
+    // 60, not the default 20: the 16-exponent pool is a big basis and a late-3d atom is a long descent.  Ni q10
+    // (10 valence electrons against Mn's 7) was still at Δρ = 2e-4 on iteration 20 -- descending smoothly, one
+    // gate away -- and the throw below turned that into "no atomic +U radial" for the whole NiO run (2026-09-22).
+    p.NMaxIter=60;
     AtomCalculation atom(Z, Z-Zion, o, p);
     if (!atom.IsConverged()) throw std::runtime_error("SolidCalculation: the "+element+" pseudo-atom did not converge -- no atomic +U radial");
     // Its lowest occupied l orbital, as coefficients over the pool.

@@ -176,6 +176,7 @@ int main(int argc, char** argv)
     bool   spin = false;                                 // spin-resolved seed: polarized (Hund) run, emit rho_up/rho_dn
     bool   semicore = false;                             // pick the first semicore variant instead of valence
     bool   iterations = false;                           // print the SCF per-iteration convergence trace
+    int    nmax       = 0;                              // --nmax: pseudo-atom SCF iteration cap (0 = the default 20)
     bool   floor = false;                                // also compute the complete-basis (pool) energy floor
     int    ngrid = 400; double rmin = 1e-4, rmax = 20.0; // seed-density radial log grid
     std::vector<std::pair<int,std::vector<double>>> shells;
@@ -221,6 +222,11 @@ int main(int argc, char** argv)
         "  --detail <lvl>     console verbosity: terse | normal | verbose (default normal;\n"
         "                       verbose also dumps the raw basis.usage/basis.exponents blocks)\n"
         "  --iterations       print the pseudo-atom SCF's per-iteration convergence trace\n"
+        "  --nmax <int>       max pseudo-atom SCF iterations               (default 20)\n"
+        "                       A HEAVIER ATOM IS A LONGER DESCENT and the cap is not a basis verdict:\n"
+        "                       neutral Ni q10 in the accuracy pool was still descending at iteration 20\n"
+        "                       and reported converged=false, which reads just like a bad window.  Raise\n"
+        "                       this (--nmax 60) before believing a converged=false past the 3d row.\n"
         "  --floor            also run the complete-basis (accuracy-pool) reference and report the\n"
         "                       energy floor + this window's gap above it (gap_mHa; ~how incomplete)\n"
         "\n"
@@ -243,6 +249,7 @@ int main(int argc, char** argv)
         else if (a=="--q")          q          = std::stoi(need(i));
         else if (a=="--semicore")   semicore   = true;
         else if (a=="--iterations") iterations = true;
+        else if (a=="--nmax")       nmax       = std::stoi(need(i));
         else if (a=="--floor")      floor      = true;
         else if (a=="--electrons")  electrons  = std::stoi(need(i));
         else if (a=="--functional") functional = need(i);
@@ -296,6 +303,7 @@ int main(int argc, char** argv)
     r.functional = functional;
     r.shells     = shells;
     r.spinResolved = spin;
+    r.nMaxIter   = nmax;
 
     // Dogfood the reporting framework.  valgen runs at Normal: the raw basis.usage/basis.exponents blocks are
     // Verbose-only in the generic renderer, so at Normal they stay in the json but off the console -- valgen
