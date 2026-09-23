@@ -65,10 +65,24 @@ Four routes to a U, not three — the fourth is `doc/OpenWork.md` step 5 item 5'
 | (c) | hp.x values as input | **yes** (q-mesh ≡ supercell) | a bridge: legitimate under pin 12 (computed input ≠ hand-set knob), but one QE run per material *and per composition* |
 | (d) | our own finite-difference linear response | **yes** | parked on cost; scriptable over the projector we already own |
 
-★★ **The supercell column is the whole argument.**  (c) and (d) measure a *response*: the perturbed site
-must not see its periodic images, so they need a supercell (or equivalently a q-mesh) **per composition**.
-(a) and (b) evaluate *on-site integrals on the converged density* in whatever cell you already ran — NiO's
-U came out of a 4-atom cell in ~10 minutes.  A voltage curve needs U at many compositions; only the ACBN0
+★★ **The supercell column is the whole argument, and it is a TRANSLATIONAL-SYMMETRY statement** (user
+asked, 2026-09-23).  (c) and (d) measure a *response* to \f$\alpha\hat P_I\f$ — a potential shift on ONE
+site's manifold — and want the matrix \f$\chi_{IJ}=dn_I/d\alpha_J\f$ including \f$J\neq I\f$, because U
+comes from a difference of INVERSES.  Under PBC the perturbation replicates coherently onto every equivalent
+site, so a primitive cell returns \f$\sum_J\chi_{IJ}\f$ (the q=0 component) — one number where a matrix was
+needed.  An isolated perturbation is genuinely not translationally symmetric, and there are exactly two
+cures.  **Supercell**: break it explicitly, to a period long enough that the response to the nearest image
+has decayed (the classic 2×2×2).  **DFPT**: never break it — perturb monochromatically with
+\f$\alpha\hat Pe^{i\mathbf q\cdot\mathbf R}\f$, which IS Bloch-periodic and lives in the primitive cell,
+then Fourier-sum \f$\chi_{IJ}(\mathbf R)=N_q^{-1}\sum_{\mathbf q}\chi_{IJ}(\mathbf q)e^{-i\mathbf q\cdot\mathbf R}\f$.
+An \f$N_q\f$ mesh is MATHEMATICALLY EQUIVALENT to an \f$N_q\f$ supercell — the same dichotomy as frozen-phonon
+vs DFPT phonons, which is what DFPT was invented for.  ⇒ our own `nq=1` non-result was q=Γ only, i.e. all
+sites perturbed IN PHASE (`IntegrationTests/QE/README.md`: *"the q-mesh is the supercell size of the
+linear-response method"*).  **Either cure costs a supercell-equivalent per composition.**
+
+★ **(a) and (b) PERTURB NOTHING.**  They evaluate on-site integrals on the ground-state density in whatever
+cell you already ran — no perturbation, no images, nothing to break, so the question never arises.  NiO's U
+came out of a 4-atom cell in ~10 minutes.  A voltage curve needs U at many compositions; only the ACBN0
 family delivers that without a supercell each time.  (a) is refuted ⇒ **the application selects (b)**, and
 it selects it independently of the physics argument.
 
@@ -116,14 +130,30 @@ list, so this needs no new capability:
   Mn⁴⁺, the per-site U's it produces must reproduce the two end members' values.  That is a falsifiable
   prediction, which an interpolation on \f$x\f$ is not.
 
+★★ **AND U(O 2p) AT ALL THREE COMPOSITIONS, AS A FIRST-CLASS TARGET — not a spectator** (user, 2026-09-23).
+Three reasons it is on the critical path for the VOLTAGE specifically, not just for the band structure:
+(1) pin 23 exists because β-MnO₂'s decisive correction was on **O-p_z, not Mn-d**; (2) we measured
+U(O 2p) = **7.27 eV** on NiO — against the paper's 3.0, and nowhere near negligible; (3) delithiation is
+formally Mn³⁺→Mn⁴⁺ but a real fraction of the hole lands on **O 2p (ligand hole / oxygen redox)**, so
+U(O 2p) moves the computed voltage directly.  The O sublattice also stops being equivalent once Li is
+partially removed.  ★ **This costs nothing extra**: the `orthofull` arm already gives every listed manifold
+its own estimate from ONE SCF — the NiO run returned Ni 3d, Ni 4s, O 2s and O 2p together.  List O 2p (and
+O 2s) at U=0 and read all of them off each of the three runs.
+
 Then each Mn in a CE training supercell takes its U from its own local environment, and **the CE training
 runs need no new U calculations at all**.
 
 **Risks, in the order they are likely to bite:**
-1. ⛔ **Magnetic robustness.**  The spinel Mn sublattice is the **pyrochlore lattice — geometrically
-   frustrated**.  NiO's collapse (trap 3) was on an *unfrustrated* rocksalt AFM; this is strictly harder,
-   and "impose a collinear AFM order" is a modelling choice that must be stated, not assumed.  **Gate 1
-   below exists for this and nothing else.**
+1. ⛔ **Magnetic robustness — and it is NOT an argument for non-collinear.**  Ruled 2026-09-23 (user):
+   **collinear is enough for a room-temperature voltage curve**; non-collinear order is not on this path.
+   The risk that remains is narrower and real: the spinel Mn sublattice is the **pyrochlore lattice —
+   geometrically frustrated**, so there are many near-degenerate COLLINEAR states, and an SCF can slide
+   between them.  Two ways that bites: (a) the imposed order collapses under a U change, as it did on NiO
+   (trap 3) — and NiO was an *unfrustrated* rocksalt AFM, so this is strictly harder; (b) worse for our
+   purpose, different Li configurations land in DIFFERENT magnetic states, which pollutes exactly the
+   energy DIFFERENCES the cluster expansion is fitted to.  ⇒ what matters is that the magnetic state be
+   **consistent and reproducible across runs**, not that it be the true ground state.  **Gate 1 below
+   exists for this and nothing else.**
 2. **Mn³⁺ d⁴ high-spin is Jahn–Teller active** (e_g¹) — it is the whole story of LiMn₂O₄'s structural
    transition, and Li₂Mn₂O₄ is tetragonally distorted because of it.  Orbital-resolved U on e_g is both the
    best test of orbital resolution and the most dangerous place to apply it: Macke's FeS₂ warning is that
@@ -142,10 +172,16 @@ Gates 1–3 are cheap enough for now-to-Oct-5; the long unattended runs are size
 (user away).  ⛔ Unattended runs go through **`scripts/memsafe -p`** (cgroup + OOM shield), never bare.
 
 **Prerequisites (no physics, do them first).**
-- **A Li valence basis.**  There is no `LI` block in any `valence_lowq_*.bsd`.  GTH LDA offers Li **q1 and
-  q3**; mint both with `valgen --nmax 60 --floor` and take the one that validates (q3 carries the 1s
-  semicore — safer for an ionised Li, and Li is ionised in a cathode).  Seed density too (Li⁺ is a stripped
-  cation, so `HasAtomicSpinPair` will correctly call it non-magnetic — no d⁸ problem here).
+- **A Li valence basis, and q1 vs q3 is a REAL TEST, not a formality** (user, 2026-09-23).  There is no
+  `LI` block in any `valence_lowq_*.bsd`.  GTH LDA offers Li **q1** (2s¹ only; 1s frozen into the core) and
+  **q3** (1s²2s¹ explicit).  The tension is specific to a cathode: Li is nearly fully ionised, so q1's frozen
+  core is being asked to describe an ion whose valence electron has LEFT — exactly the regime where a frozen
+  core is least justified, because the 1s sees a different potential once 2s is gone.  q3 cannot have that
+  problem but costs functions on every Li site in a 14-atom cell.  ⇒ mint BOTH with
+  `valgen --nmax 60 --floor`, and settle it on a number the voltage cares about: **the Li intercalation
+  energy** (E[LiMn₂O₄] − E[λ-MnO₂] − E[Li]) computed both ways.  If q1 and q3 agree there, q1 is free
+  throughput for the CE training set; if they do not, q3 is mandatory and we have learned why.  Seed density
+  too (Li⁺ is a stripped cation, so `HasAtomicSpinPair` correctly calls it non-magnetic — no d⁸ problem).
 - **The three spinel structures in `materials.json`.**  Primitive cells: λ-MnO₂ 12 atoms (4 Mn, 8 O),
   LiMn₂O₄ 14 (2 Li, 4 Mn, 8 O), Li₂Mn₂O₄ 16 — plus whatever magnetic decoration gate 1 settles on.
   ⚠ Lattice constants are anchors: take them from a named source and say which.
