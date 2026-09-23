@@ -21,13 +21,14 @@ The plan below is the ARGUMENT; this is the QUEUE.  **Two tracks, and they do no
 decides whether the U functional is real, B decides whether the material runs at all.  Every action in the
 plan appears here exactly once; if it is not in this list it is a finding, not a task.
 
-**★ If you do only one thing: A1, then A2.**  A2 is decisive — it is the difference between the screening
-hypothesis standing and falling — and A1 is cheap and gates every number A2 would be compared against.
+**★ If you do only one thing: A2.**  A2 is decisive — it is the difference between the screening
+hypothesis standing and falling.  (A1 is done: it was a units mismatch, not a defect, and did not move any
+of gate 3's numbers — see §6.1.)
 
 ### Track A — is the SCREENED route real?  (needs no spinels)
 | | action | state |
 |---|---|---|
-| **A1** | **Resolve the 11 % bare-\f$F^0\f$ discrepancy** (§6.1): PySCF says 24.29 eV, our banner says 27.3.  Probably eq-10's density-matrix weighting vs the plain shell average — verify it, do not assume it | ⛔ **DO FIRST.** Cheap.  Gate 3's ω values inherit it |
+| A1 | ~~Resolve the 11 % bare-\f$F^0\f$ discrepancy~~ | ✅ **RESOLVED 2026-09-23** (§6.1): NOT a bug — the two numbers are different quantities by definition, and comparing them was the error, not either computation |
 | **A2** | **ABINIT `ucrpa` on NiO (O 2p first), then MnO** — turn the cRPA *bound* into a *value* | ⛔ **DECISIVE**, not yet started.  §4 gate 3.  First run is a recipe hunt (bands/windows), not a number |
 | **A3** | Re-run `scripts/gate3_screening_test.py` + `gate3_omega_sensitivity.py` against A2's real targets | ready; the scripts are banked and take seconds |
 | **A4** | **Only if A3 holds**: the screened kernel on `BareCoulombSource`, with \f$\varepsilon\f$ COMPUTED | blocked on A3.  ⛔ Do not start before it |
@@ -376,11 +377,21 @@ localization physics comes out RIGHT, not backwards: the same \f$\omega\f$ scree
 ⚠ **Three things keep this from being a verdict.**  (1) \f$1/\omega\approx1\f$ bohr is a SHORT length —
 inside the 3d orbital itself and well inside the 3.94 bohr Ni–O bond — so whatever this is, calling it
 "screening by the medium" needs an argument; an `erfc` cut-off at 1 bohr reshapes the on-site
-self-interaction rather than dressing it.  (2) TWO points, one of which is a BOUND, is not a fit.  (3) PySCF's
-bare \f$F^0\f$ = 24.29 eV against our own run's reported bare \f$\bar U\f$ = 27.3 eV — **11 % apart, and
-unexplained**; ours is a density-matrix-weighted eq-10 average rather than the plain
-\f$(2l+1)^{-2}\sum_{mm'}(mm|m'm')\f$, which probably accounts for it, but two codes 11 % apart on "the same"
-number is exactly what a cross-check exists to catch.  **Resolve (3) before quoting any of this.**
+self-interaction rather than dressing it.  (2) TWO points, one of which is a BOUND, is not a fit.  (3) ✅ **RESOLVED 2026-09-23 (A1) — NOT a
+cross-check failure.**  PySCF's plain \f$(2l+1)^{-2}\sum_{mm'}(mm|m'm')\f$ = 24.29 eV and our banner's
+eq-10 \f$\bar U_{\rm bare}\f$ = 27.3 eV are two DIFFERENT quantities by construction — eq 10's numerator is
+an unrestricted double sum over the density matrix while its pair-count denominator (eq 10c) excludes
+same-orbital/same-spin self-pairs, so \f$\bar U_{\rm bare}\f$ is inflated above the plain average by a
+factor set by the spin-resolved occupation, not by any integral disagreement.  Derived analytically
+(diagonal \f$P\f$, uniform-within-spin \f$N_m\f$) and checked on a live `gpwprobe nio` run (`NIO_ACBN0=1
+GPW_SPHERICAL=1 NIO_U_RADIAL=ortho`, U=0): predicted \f$\bar U_{\rm bare}=26.99\f$ eV from the run's own
+bare \f$N_\uparrow/N_\downarrow\f$ (4.9669/4.9667 and 2.9597/2.8819 on the two sites) against the actual
+banner 27.018 / 27.131 eV — **0.1–0.5 % apart**, the residual being the real (non-uniform,
+crystal-field-split) per-orbital occupation the approximation ignores.  `scripts/a1_bare_f0_check.py`.
+⇒ our ERI4Block integrals and PySCF's agree; gate 3's ω values (built on PySCF's plain F0,
+the correct object for a kernel that screens the bare integral TENSOR) are unaffected.  ⚠ This same
+`gpwprobe nio` run independently reproduced **trap 3** (U=0 LDA NiO's AFM-II order decaying to 1.7% of its
+peak, "DENSITY-DEGENERATE... benign") — a diagnostic run only, no U quoted from it.
 ⛔ **AND THE 6 % IS FRAGILE — IT LIVES OR DIES ON THE O 2p TARGET, WHICH IS A LOWER BOUND** (measured
 2026-09-23, same script).  The needed \f$\omega\f$ for O 2p against a range of assumed targets, compared with
 Ni 3d's 1.039:
@@ -489,13 +500,16 @@ never bare: these are unattended.
 ⚠ **These will rot silently if nobody looks.**  Each says what exists, what is missing, and where the
 evidence is.  A fresh session should clear or re-park them before starting new work.
 
-1. **The 11 % bare-\f$F^0\f$ discrepancy — resolve FIRST, it gates every screening number.**  PySCF reports
-   24.29 eV for the Ni 3d shell-averaged bare \f$F^0\f$ on our own contraction; our own run's banner reports
-   bare \f$\bar U\f$ = 27.3 eV.  The likely cause is that ours is the density-matrix-weighted eq-10 average
-   and PySCF's is the plain \f$(2l+1)^{-2}\sum_{mm'}(mm|m'm')\f$ — **likely is not verified**, and two codes
-   11 % apart on nominally the same quantity is what a cross-check exists to catch.  Gate 3's ω values are
-   computed from the PySCF number, so they inherit it.  Evidence: gate 3's first-result block above;
-   `scripts/gate3_screening_test.py`.
+1. ✅ **RESOLVED 2026-09-23 — the 11 % bare-\f$F^0\f$ "discrepancy" was a units mismatch, not a defect.**
+   PySCF's plain \f$(2l+1)^{-2}\sum_{mm'}(mm|m'm')\f$ (24.29 eV) and our banner's eq-10 \f$\bar U_{\rm bare}\f$
+   (27.3 eV) are different quantities BY DEFINITION: eq 10's pair-count denominator (10c) excludes
+   same-orbital/same-spin self-pairs while its numerator does not, so \f$\bar U_{\rm bare}\f$ is inflated
+   above the plain average by a factor set by the spin-resolved occupation alone.  Verified two ways: (a)
+   analytically, for a diagonal density matrix with uniform-within-spin \f$N_m\f$; (b) against a live
+   `gpwprobe nio` run's own bare \f$N_\uparrow/N_\downarrow\f$, predicting \f$\bar U_{\rm bare}\f$ to
+   0.1–0.5 %.  Full detail in gate 3's caveat (3) above.  **No fix needed anywhere** — our ERI4Block
+   integrals and PySCF's agree; gate 3's ω values were already built on the correct (plain-F0) object and
+   are unaffected.
 2. ⛔ **NOTHING CHECKS THE BASIS AGAINST THE PSEUDOPOTENTIAL** (added 2026-09-23 — this one had been said
    aloud and never written down, which is how it nearly got lost).  A run declares its PP variant through
    `SolidCalcOptions::species` (`{"Li",3}`) while the basis comes from a `.bsd` file whose blocks are keyed
