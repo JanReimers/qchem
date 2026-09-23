@@ -181,7 +181,20 @@ Gates 1–3 are cheap enough for now-to-Oct-5; the long unattended runs are size
   `valgen --nmax 60 --floor`, and settle it on a number the voltage cares about: **the Li intercalation
   energy** (E[LiMn₂O₄] − E[λ-MnO₂] − E[Li]) computed both ways.  If q1 and q3 agree there, q1 is free
   throughput for the CE training set; if they do not, q3 is mandatory and we have learned why.  Seed density
-  too (Li⁺ is a stripped cation, so `HasAtomicSpinPair` correctly calls it non-magnetic — no d⁸ problem).
+  too (Li⁺ is a stripped cation, so `HasAtomicSpinPair` correctly calls it non-magnetic).
+- **The Mn seed ions are already checked and they are fine** (2026-09-23): Mn³⁺ (d⁴) and Mn⁴⁺ (d³) both
+  generate cleanly at `--nmax 60` — converged, moments 4.000 / 3.000, ⟨r⟩ 1.078 / 1.021 bohr, shrinking with
+  charge as a cation should.  ⇒ **IonicSAD is available for all three spinel compositions**, which matters
+  for gate 1: the ionic seed is the basin chooser, and a neutral-superposition seed would be a much worse
+  guess for Mn⁴⁺ (four electrons away in a 7-electron PP) than it was for Ni²⁺ (two).
+  ⚠ **A retraction that belongs here** (it produced a work item that no longer exists): "Ni²⁺ cannot be
+  seeded, high-spin d⁸ is minority-d³ in a five-fold shell and the atom occupies whole irreps" was WRONG.
+  The evidence — a non-aufbau run with ⟨r⟩ = 2.91 bohr for a cation — predated the iteration-cap fix made in
+  the same session; at `--nmax 120` Ni²⁺ converges cleanly (charge 8.001, moment 2.000, ⟨r⟩ 1.008, between
+  Mn³⁺'s 1.078 and Ni³⁺'s 0.938).  NiO now uses IonicSAD like MnO.  What is TRUE is milder: a partially
+  filled MINORITY shell under a filled majority is a long descent (two orbitals 2e-6 Ha apart straddle the
+  boundary), while a partially filled MAJORITY over an empty minority is not — Mn³⁺, Mn⁴⁺, Ni³⁺ (d⁷) and
+  Co³⁺ (d⁶) all converge by 60.  **Both halves of that were the cap, twice.**
 - **The three spinel structures in `materials.json`.**  Primitive cells: λ-MnO₂ 12 atoms (4 Mn, 8 O),
   LiMn₂O₄ 14 (2 Li, 4 Mn, 8 O), Li₂Mn₂O₄ 16 — plus whatever magnetic decoration gate 1 settles on.
   ⚠ Lattice constants are anchors: take them from a named source and say which.
@@ -287,5 +300,10 @@ never bare: these are unattended.
   choice between them a hedge rather than a bet.  `doc/OpenWork.md` step 5 item 5's "never build DFPT for
   this" was costed against QE's plane-wave implementation and assumed DFPT would be built ONLY for U; if (b)
   forces it anyway, reopen that ruling rather than inherit it.
+- The spherical atom resolves a partially-filled degenerate shell by picking orbitals, not by occupying the
+  shell uniformly — energetically converged but symmetry-broken.  Harmless for a seed (spherically averaged
+  anyway); worth a thought for the **+U atomic radial**, which takes "the lowest occupied l orbital" and on a
+  broken shell that need not be the spherical average.  Measure before caring: the captured-norm line already
+  prints (NiO 0.9999, MnO VA 0.991).
 - GGA before any value comparison with the PBE literature (the paper's 7.63/3.0 and the 4–7 eV range are
   both PBE).  Still open, still gating the *value* comparisons, not the *method* work.

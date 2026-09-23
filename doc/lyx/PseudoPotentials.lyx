@@ -113,25 +113,25 @@ Introduction
 \end_layout
 
 \begin_layout Standard
-Chemistry and bonding in molecules and materials is mostly determined by the valance electrons.
- For a suitable definition of what constitutes valance electrons (or orbitals),
+Chemistry and bonding in molecules and materials is mostly determined by the valence electrons.
+ For a suitable definition of what constitutes valence electrons (or orbitals),
  the remaining core electrons play essentially no role in the bonding.
  On the contrary,
  conventional electron structure calculation methods automatically include the core electrons.
  In fact for heavy elements,
  a calculation spends more time on the core electrons,
- than it does on the valance electrons.
+ than it does on the valence electrons.
  What if there was a way to take the known core orbitals and charge density from an atom calculation,
  and somehow transfer that info into a molecular or solid material calculation,
- so that the computational resources are more efficiently apportioned to (almost) only the valance electrons?
- Analogous to the complimentary Heisenberg and Schrödinger pictures for time dependence,
- there are complimentary ways or carrying over the core orbitals and charge density from an atom calculation:
+ so that the computational resources are more efficiently apportioned to (almost) only the valence electrons?
+ Analogous to the complementary Heisenberg and Schrödinger pictures for time dependence,
+ there are complementary ways or carrying over the core orbitals and charge density from an atom calculation:
 \end_layout
 
 \begin_layout Enumerate
 Modify the trial wave function so this is always orthogonal to the atomic core orbitals.
  OPW and PAW methods.
- In addition we also want to remove the nodes (oscillations) of the valance orbitals.
+ In addition we also want to remove the nodes (oscillations) of the valence orbitals.
 \end_layout
 
 \begin_layout Enumerate
@@ -174,7 +174,7 @@ where
 \begin_layout Standard
 \begin_inset Formula 
 \begin{equation}
-\left\langle u_{j}|\boldsymbol{q}\right\rangle =\frac{1}{\sqrt{V}}\intop d^{3}r\:u_{j}\left(\boldsymbol{r}\right)e^{i\boldsymbol{q}\cdot\boldsymbol{r}}\label{eq:Uq}
+\left\langle u_{j}|\boldsymbol{q}\right\rangle =\frac{1}{\sqrt{V}}\intop d^{3}r\:u^{*}_{j}\left(\boldsymbol{r}\right)e^{i\boldsymbol{q}\cdot\boldsymbol{r}}\label{eq:Uq}
 \end{equation}
 
 \end_inset
@@ -218,13 +218,21 @@ tuple "list"
 \end_inset
 
 As usual 
-\begin_inset Formula $\hat{P}^{2}_{c}$
+\begin_inset Formula $\left(\hat{P}^{core}\right)^{2}$
 \end_inset
 
- is idempotent
+ is idempotent 
 \begin_inset Formula 
 \[
-\left(\hat{P}^{core}\right)^{2}=\sum_{ij}\left|u_{j}\right\rangle \left\langle u_{j}|u_{j}\right\rangle \left\langle u_{j}\right|=\sum_{ij}\left|u_{j}\right\rangle \delta_{ij}\left\langle u_{j}\right|=\hat{P}^{core}
+\left(\hat{P}^{core}\right)^{2}=\sum_{ij}\left|u_{i}\right\rangle \left\langle u_{i}|u_{j}\right\rangle \left\langle u_{j}\right|=\sum_{ij}\left|u_{j}\right\rangle \delta_{ij}\left\langle u_{j}\right|=\hat{P}^{core}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\ensuremath{\hat{P}^{2}=\sum|u_{i}\rangle S^{-1}{ij},S{jk},S^{-1}_{kl}\langle u_{l}|=\hat{P}}.
 \]
 
 \end_inset
@@ -376,8 +384,8 @@ But by the the definition of a core orbital,
 \begin_inset Formula $\left|u_{a,nlm}\right\rangle $
 \end_inset
 
- is exponentially small at the other atom centres.
- This just a modified version of our original hypothesis:
+ is exponentially small and smooth at the other atom centres.
+ This is just a modified version of our original hypothesis:
  
 \emph on
 core electrons play essentially no role in the bonding
@@ -392,10 +400,45 @@ core electrons play essentially no role in the bonding
 
 \end_inset
 
-In addition these error from the environment will slightly shift the eigen values,
- but barely changes the shape of core orbitals.
- If you ever find that the environment error is too large then your selection of valance electrons is unsuitable.
- You will need to add the next deeper shell into the valance category.
+In addition because 
+\begin_inset Formula $\left|u_{a,nlm}\right\rangle $
+\end_inset
+
+ is nearly constant near 
+\begin_inset Formula $\boldsymbol{R}_{b}$
+\end_inset
+
+(
+\begin_inset Formula $a\neq b$
+\end_inset
+
+),
+ as a result these errors from the environment will slightly shift the eigen values,
+ but barely change the shape of core orbitals.
+ It also means that eigen relation
+\begin_inset Formula 
+\[
+\hat{V}_{b}\left|u_{a,nlm}\right\rangle =\Delta_{ab}\hat{V}_{b},\;b\neq a.
+\]
+
+\end_inset
+
+is very close to being satisfied,
+ and therefore 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:ApproxAtomEigen"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+tuple "list"
+
+\end_inset
+
+ is also very close.
+ If you ever find that the environment error is too large then your selection of valence electrons is unsuitable.
+ You will need to add the next deeper shell into the valence category.
 \end_layout
 
 \begin_layout Standard
@@ -406,8 +449,28 @@ We can still use projectors when
 .
  We simply generalize the definition:
 \begin_inset Formula 
+\begin{equation}
+\hat{P}^{core}=\sum_{j}\left|u_{j}\right\rangle \left(S^{-1}_{ij}\right)\left\langle u_{j}\right|.\label{eq:Pcore-nonortho}
+\end{equation}
+
+\end_inset
+
+It is straightforward to demonstrate that 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:Pcore-nonortho"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+tuple "list"
+
+\end_inset
+
+ is still idempotent
+\begin_inset Formula 
 \[
-\hat{P}^{core}=\sum_{j}\left|u_{j}\right\rangle \left(S^{-1}_{ij}\right)\left\langle u_{j}\right|.
+\ensuremath{\hat{P}^{2}=\sum|u_{i}\rangle S^{-1}_{ij}S_{jk}S^{-1}_{kl}\langle u_{l}|=\hat{P}}.
 \]
 
 \end_inset
@@ -425,7 +488,11 @@ Projector on a Lattice
 
  commutes with lattice translations,
  
-\begin_inset Formula $\ensuremath{\hat{T}_{\mathbf{R}}\hat{P}^{core}\hat{T}{}^{\dagger}_{\mathbf{R}}=\hat{P}^{core}}$
+\begin_inset Formula 
+\[
+\ensuremath{\hat{T}_{\mathbf{R}}\hat{P}^{core}\hat{T}{}^{\dagger}_{\mathbf{R}}=\hat{P}^{core}}
+\]
+
 \end_inset
 
 ,
@@ -452,13 +519,13 @@ still works.
 \end_layout
 
 \begin_layout Section
-The valance orbital function
+The valence orbital function
 \end_layout
 
 \begin_layout Standard
 Any orbital eigen function build up from OPW basis functions should automatically avoid variational collapse into core states.
  In addition we are going to postulate a smooth,
- node-less function for the valance orbitals:
+ node-less function for the valence orbitals:
 \begin_inset Formula 
 \begin{equation}
 \left|\tilde{\psi}^{v}_{i}\right\rangle =\sum_{\boldsymbol{q}}c_{i\boldsymbol{q}}\left|\boldsymbol{q}\right\rangle .\label{eq:psi-smooth}
@@ -466,10 +533,10 @@ Any orbital eigen function build up from OPW basis functions should automaticall
 
 \end_inset
 
-The valance orbital function is then
+The valence orbital function is then
 \begin_inset Formula 
 \[
-\left|\psi^{v}_{i}\right\rangle =\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle =\left|\tilde{\psi}^{v}_{i}\right\rangle -\sum_{\boldsymbol{q}}c_{i\boldsymbol{q}}\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}|\boldsymbol{q}\right\rangle 
+\left|\psi^{v}_{i}\right\rangle =\left(1-\hat{P}^{core}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle =\left|\tilde{\psi}^{v}_{i}\right\rangle -\sum_{\boldsymbol{q}}c_{i\boldsymbol{q}}\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}|\boldsymbol{q}\right\rangle 
 \]
 
 \end_inset
@@ -482,7 +549,7 @@ The valance orbital function is then
 
 \end_inset
 
-where
+where 
 \begin_inset Formula 
 \[
 B_{ij}=-\sum_{\boldsymbol{q}}c_{i\boldsymbol{q}}\left\langle u_{j}|\boldsymbol{q}\right\rangle =-\left\langle u_{j}|\tilde{\psi}^{v}_{i}\right\rangle 
@@ -520,7 +587,7 @@ tuple "list"
 
 \end_inset
 
- into the valance orbital eigen equation 
+ into the valence orbital eigen equation 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:psiv-eigen"
@@ -539,7 +606,7 @@ tuple "list"
 .
 \begin_inset Formula 
 \[
-\hat{H}\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle =\varepsilon_{i}\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle 
+\hat{H}\left(1-\hat{P}^{core}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle =\varepsilon_{i}\left(1-\hat{P}^{core}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle 
 \]
 
 \end_inset
@@ -591,7 +658,7 @@ or
 The two potential terms is our desired PKA version of a PP
 \begin_inset Formula 
 \[
-\hat{V}^{PP}=V\left(\boldsymbol{r}\right)+\hat{V}^{R}=V\left(\boldsymbol{r}\right)+\sum_{j}\left(\varepsilon_{i}-\varepsilon_{j}\right)\left|u_{j}\right\rangle \left\langle u_{j}\right|.
+\hat{V}^{PP}_{i}=V\left(\boldsymbol{r}\right)+\hat{V_{i}}^{R}=V\left(\boldsymbol{r}\right)+\sum_{j}\left(\varepsilon_{i}-\varepsilon_{j}\right)\left|u_{j}\right\rangle \left\langle u_{j}\right|.
 \]
 
 \end_inset
@@ -621,10 +688,172 @@ The two potential terms is our desired PKA version of a PP
 
  into atomic core states,
  and also shields most of strong core attraction in 
-\begin_inset Formula $V\left(\boldsymbol{r}\right)$
+\begin_inset Formula $V\left(r\right)$
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Standard
+Now let us expand the index 
+\begin_inset Formula $j$
+\end_inset
+
+ in 
+\begin_inset Formula $\hat{V}^{R}$
+\end_inset
+
+ and look at the contribution from one atom 
+\begin_inset Formula $a$
+\end_inset
+
+
+\begin_inset Formula 
+\[
+\hat{V_{ia}}^{R}=\sum_{nlm}\left(\varepsilon_{i}-\varepsilon_{a,nlm}\right)\left|u_{a,nlm}\right\rangle \left\langle u_{a,nlm}\right|.
+\]
+
+\end_inset
+
+Now we can split the atom orbital into radial and angular parts
+\begin_inset Formula 
+\[
+\left|u_{nlm}\right\rangle =R_{nl}\left(r\right)Y_{lm}\left(\theta,\phi\right)
+\]
+
+\end_inset
+
+and also recognize that the bra and ket must have different spatial variables
+\begin_inset Formula 
+\[
+\hat{V_{ia}}^{R}=\sum_{nlm}\left(\varepsilon_{i}-\varepsilon_{a,nlm}\right)R_{nl}\left(r_{1}\right)Y^{*}_{lm}\left(\theta_{1},\phi_{1}\right)R_{nl}\left(r_{2}\right)Y_{lm}\left(\theta_{2},\phi_{2}\right).
+\]
+
+\end_inset
+
+The next thing to recognize is that 
+\begin_inset Formula $\varepsilon_{a,nlm}$
+\end_inset
+
+ is actually independent of 
+\begin_inset Formula $m$
+\end_inset
+
+ (these are core states) so that part of the sum can be carried through as follows
+\begin_inset Formula 
+\[
+\hat{V_{ia}}^{R}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\sum_{nl}\left(\varepsilon_{i}-\varepsilon_{a,nl}\right)R_{nl}\left(r_{1}\right)R_{nl}\left(r_{2}\right)\sum_{m}Y^{*}_{lm}\left(\hat{\boldsymbol{r}}_{1}\right)Y_{lm}\left(\hat{\boldsymbol{r}}_{2}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\sum_{nl}\left(\varepsilon_{i}-\varepsilon_{a,nl}\right)R_{nl}\left(r_{1}\right)R_{nl}\left(r_{2}\right)\frac{2l+1}{4\pi}P^{l}\left(\hat{\boldsymbol{r}}_{1}\cdot\hat{\boldsymbol{r}}_{2}\right)
+\]
+
+\end_inset
+
+At this point we can also factor out the sum over 
+\begin_inset Formula $n$
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+\hat{V_{ia}}^{R}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\frac{1}{4\pi}\sum_{l}\left(2l+1\right)P^{l}\left(\hat{\boldsymbol{r}}_{1}\cdot\hat{\boldsymbol{r}}_{2}\right)\left[\sum_{n}\left(\varepsilon_{i}-\varepsilon_{a,nl}\right)R_{nl}\left(r_{1}\right)R_{nl}\left(r_{2}\right)\right]\label{eq:VRnonlocal}
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+=\frac{1}{4\pi}\sum_{l}\left(2l+1\right)P^{l}\left(\hat{\boldsymbol{r}}_{1}\cdot\hat{\boldsymbol{r}}_{2}\right)V_{al}\left(r_{1},r_{2}\right)
+\]
+
+\end_inset
+
+At this stage the atom PP is (fully) non-local,
+ which just means that it depends on two 
+\begin_inset Formula $\boldsymbol{r}$
+\end_inset
+
+ coordinates.
+ Often semi local PP are used,
+ which has the form
+\begin_inset Formula 
+\[
+\hat{V_{ia}}^{R}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\frac{1}{4\pi}\sum_{l}\left(2l+1\right)P^{l}\left(\hat{\boldsymbol{r}}_{1}\cdot\hat{\boldsymbol{r}}_{2}\right)\frac{\delta\left(r_{1}-r_{2}\right)}{r^{2}_{1}}V_{al}\left(r_{1}\right)
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\begin{equation}
+=\sum_{lm}\left|Y_{lm}\right\rangle V_{al}\left(r_{1}\right)\left\langle Y_{lm}\right|\label{eq:VRsemilocal}
+\end{equation}
+
+\end_inset
+
+The semi-local form is not derived from PKA,
+ it's a different ansatz licensed by the non-uniqueness theorem.
+ Austin–Heine–Sham says any operator that gives the valence states the right eigenvalues (right scattering phase shifts near 
+\begin_inset Formula $\varepsilon_{v}$
+\end_inset
+
+,
+ in the atom) is an equally valid pseudo-potential.
+ In a spherical atom the radial equations for different 
+\begin_inset Formula $l$
+\end_inset
+
+ decouple,
+ so you are free to pick a separate local radial potential per channel,
+ and Hamann–Schlüter–Chiang / Troullier–Martins simply do:
+ choose a node-less 
+\begin_inset Formula $\tilde{R}_{l}\left(r\right)$
+\end_inset
+
+ that equals the all-electron 
+\begin_inset Formula $R_{l}\left(r\right)$
+\end_inset
+
+ outside 
+\begin_inset Formula $r_{c}$
+\end_inset
+
+ and has the same norm inside,
+ then invert the radial equation,
+\begin_inset Formula 
+\[
+V_{l}\left(r\right)=\varepsilon_{l}-\frac{2l+2}{2r^{2}}+\frac{1}{2}\frac{\left(r\tilde{R}_{l}\right)^{\prime\prime}}{r\tilde{R}_{l}},
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+safe precisely because 
+\begin_inset Formula $\tilde{R}_{l}\left(r\right)$
+\end_inset
+
+ has no nodes.
+ So the angular non-locality is forced (different 
+\begin_inset Formula $l$
+\end_inset
+
+ need different potentials),
+ the radial non-locality was never necessary —
+ PKA produced it only because PKA happens to build 
+\begin_inset Formula $\hat{V}^{R}$
+\end_inset
+
+out of projectors.
 \end_layout
 
 \begin_layout Subsection
@@ -643,7 +872,7 @@ Non-uniqueness
  as follows
 \begin_inset Formula 
 \[
-\left|\psi^{v}_{i}\right\rangle =\left(1-\hat{P}_{c}\right)\left(\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{k}a_{k}\left|u_{k}\right\rangle \right)
+\left|\psi^{v}_{i}\right\rangle =\left(1-\hat{P}^{core}\right)\left(\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{k}a_{k}\left|u_{k}\right\rangle \right)
 \]
 
 \end_inset
@@ -651,7 +880,7 @@ Non-uniqueness
 
 \begin_inset Formula 
 \[
-\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{k}a_{k}\left|u_{k}\right\rangle -\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}\right|\sum_{k}a_{k}\left|u_{k}\right\rangle 
+=\left(1-\hat{P}^{core}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{k}a_{k}\left|u_{k}\right\rangle -\sum_{j}\left|u_{j}\right\rangle \left\langle u_{j}\right|\sum_{k}a_{k}\left|u_{k}\right\rangle 
 \]
 
 \end_inset
@@ -659,7 +888,7 @@ Non-uniqueness
 
 \begin_inset Formula 
 \[
-\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{k}a_{k}\left|u_{k}\right\rangle -\sum_{j}\left|u_{j}\right\rangle \sum_{k}a_{k}\delta_{kj}
+=\left(1-\hat{P}^{core}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle +\sum_{k}a_{k}\left|u_{k}\right\rangle -\sum_{j}\left|u_{j}\right\rangle \sum_{k}a_{k}\delta_{kj}
 \]
 
 \end_inset
@@ -667,7 +896,7 @@ Non-uniqueness
 
 \begin_inset Formula 
 \[
-=\left(1-\hat{P}_{c}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle 
+=\left(1-\hat{P}^{core}\right)\left|\tilde{\psi}^{v}_{i}\right\rangle 
 \]
 
 \end_inset
@@ -680,7 +909,90 @@ So we have a huge amount of gauge freedom in
 \begin_inset Formula $a_{k}$
 \end_inset
 
- numbers) to get ride of those pesky oscillating nodes and make it smooth.
+ numbers) to get rid of those pesky oscillating nodes and make it smooth.
+\end_layout
+
+\begin_layout Standard
+When you get to the norm section,
+ the one-liner you'll want is 
+\begin_inset Formula 
+\[
+\langle\tilde{\psi}|\tilde{\psi}\rangle=1+\sum_{j}|\langle u_{j}|\tilde{\psi}\rangle|^{2}
+\]
+
+\end_inset
+
+ —
+ it's the OPW norm identity from §2 read backwards.
+\end_layout
+
+\begin_layout Subsection
+HGH PPs
+\end_layout
+
+\begin_layout Standard
+These have the form
+\begin_inset Formula 
+\[
+\hat{V_{ia}}^{R}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\sum_{l}\sum^{3}_{ij=1}\left|p^{l}_{i}\right\rangle h^{l}_{ij}\left\langle p^{l}_{j}\right|
+\]
+
+\end_inset
+
+where
+\begin_inset Formula 
+\[
+p^{l}_{i}\propto r^{l-2\left(i-1\right)}e^{-\nicefrac{r^{2}}{2r^{2}_{l}}}
+\]
+
+\end_inset
+
+and 
+\begin_inset Formula $h^{l}_{ij}$
+\end_inset
+
+ is a non diagonal replacement for 
+\begin_inset Formula $\sum_{n}(\varepsilon_{i}-\varepsilon_{nl})|R_{nl}\rangle\langle R_{nl}|$
+\end_inset
+
+.
+ So 
+\begin_inset Formula $i,j$
+\end_inset
+
+ play the same role as 
+\begin_inset Formula $n$
+\end_inset
+
+ but for some reason they max out at 3,
+ where as 
+\begin_inset Formula $n$
+\end_inset
+
+ has no such maximum.
+ This looks very different than 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:VRnonlocal"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+tuple "list"
+
+\end_inset
+
+,
+ in particular there seems to be no angular projectors:
+ 
+\begin_inset Formula $\left|Y_{lm}\right\rangle \left\langle Y_{lm}\right|$
+\end_inset
+
+ or 
+\begin_inset Formula $\left|P_{l}\right\rangle \left\langle P_{l}\right|.$
+\end_inset
+
+
 \end_layout
 
 \end_body
