@@ -34,9 +34,16 @@ the on-site bare integrals; the `ACBN0` estimator; and `SolidCalculation::Conver
 
 ★★ **The finding that matters: the manifold is right and the functional is wrong.**  Our projected
 occupations agree with hp.x to 1–2 % on the same cell, same pseudopotential, same projector — so the
-factor 2.6 in the *value* is the U functional alone, not the projector, manifold or PP.  And ours ÷
-published ACBN0 is 1.8–2.8 across four independent manifolds (MnO-d, MnO-O2p, NiO-d, NiO-O2p): a
-projector-completeness effect (roughly manifold-independent), not a physics disagreement (which would vary).
+factor 2.6 in the *value* is the U functional alone, not the projector, manifold or PP.
+
+⛔ **TWO DIFFERENT COMPARISONS LIVE IN THIS TABLE AND THEY ANSWER DIFFERENT QUESTIONS.  Never merge them.**
+- **ours ÷ published ACBN0** (1.8–2.8 across MnO-d, MnO-O2p, NiO-d, NiO-O2p) measures **PROJECTOR
+  COMPLETENESS** — the paper's PAO-3G-projected plane-wave states carry ~60 % of their norm and ours carry
+  ~100 %.  It is *not* evidence about screening, and a kernel fitted to close it would be fitting out a
+  basis artefact.
+- **ours ÷ an INDEPENDENT oracle** (hp.x, cRPA — never ACBN0) is the only thing that can test the
+  **SCREENING** hypothesis.  Gate 3 holds that comparison, and an earlier version of gate 3 mixed the two,
+  which is the circularity that had to be retracted on 2026-09-23.
 **ACBN0's \f$\bar N^2\f$ renormalisation is not a screening model** — it vanishes as the basis approaches
 completeness, which is exactly the regime a Gaussian code lives in.
 
@@ -251,6 +258,47 @@ broader \f$\rho_\phi(q)\f$, samples larger q, where \f$\varepsilon^{-1}(q)\to1\f
 a dielectric picture, and it is not explained by orbital differences — our occupations match the oracle's to
 1–2 %.  ⇒ **this is the specific observation that could refute (b)**, and it is available for the price of
 assembling the oracle set.
+
+★★ **AND THE POINTS ARE ALREADY BUILT: ABINIT DOES cRPA *AND* LINEAR-RESPONSE J** (user asked 2026-09-23;
+verified in `~/Code/abinit/src`).  Two capabilities QE does not give us, each hitting one of gate 3's two
+weaknesses:
+- **`ucrpa`** (+ `ucrpa_bands`, `ucrpa_window`) — **constrained RPA**, which is *methodologically
+  independent of linear response*.  This is the one that matters: the O-2p "oracle" above is a literature
+  **bound** (cRPA \f$\gtrsim4\f$ eV) and cRPA is exactly the method that produced it, so `ucrpa` turns a bound
+  into a VALUE on our own materials — and gives an independent Mn-3d number on MnO, where hp.x is broken by
+  the d⁵ shell (trap 1).  Two of the four soft rows become solid.
+- **`lruj`** (`src/98_main/lruj.F90`, "Linear Response U **and J**", citing Cococcioni & de Gironcoli PRB 71
+  035105) driven by `macro_uj` / `pawuj_det` ("Determine U (or J) parameter", with/without a compensating
+  charge bath).  **hp.x gives U only**, which is precisely why §5's first open question — *does J transfer
+  the way U does?* — has had no oracle.  ABINIT answers it.
+- ⚠ **BUT IT IS A DIFFERENT-PP ORACLE, AND THE TABLE MUST SAY SO.**  ABINIT's Hubbard is **PAW-only** (every
+  Hubbard file lives under `src/65_paw`; the keyword is literally `usepawu`), and our GTH is
+  norm-conserving.  The discipline that made the QE comparison worth anything was `gth2upf` — the oracle ran
+  OUR pseudopotential and OUR projector, which is why the occupations matched to 1–2 % and the disagreement
+  could be pinned on the functional.  We cannot do that here without a PAW dataset.  ⇒ ABINIT numbers are a
+  SECOND OPINION, not a matched comparison; cRPA's methodological independence is worth more here than PP
+  matching, but **label every oracle row `matched` or `different-PP`** or the next reader will average them.
+- Cost note: ABINIT is an MPI build like the rest — `mpirun` always, and it additionally needs
+  `--force-mpirun` (`CLAUDE.md`).  cRPA needs bands/windows chosen, which is a real input-convergence
+  question of its own; treat the first run as a recipe hunt, not a number.
+
+★ **PySCF is the OTHER install, and it is for the KERNEL, not for the values** (so: second, not first).
+Free, `pyscf.pbc` gives periodic Gaussians with k-points and density fitting, and — the part we would
+actually use — a four-index ERI engine with **range-separated (`omega`) integrals**, i.e. the exact object
+route (b)'s screened kernel needs checking against.  It buys nothing for gate 3.
+⚠ **Not `pip install` on this box as it stands** (checked 2026-09-23): Python is **3.14.4** and
+`/usr/lib/python3.14/EXTERNALLY-MANAGED` is present, so PEP 668 makes apt-managed Python refuse installs
+into system site-packages.  `python3-pip` provides BOTH `pip3` and `pip` (they are the same thing here —
+there is no python2), but the name is not the issue; the venv is:
+```
+sudo apt install python3-venv python3-pip
+python3 -m venv ~/Code/pyscf-env && ~/Code/pyscf-env/bin/pip install pyscf
+```
+Inside a venv `pip` and `pip3` are identical, so the question stops mattering.  ⚠ **Python 3.14 is new
+enough that a PySCF manylinux wheel may not exist yet** — if pip falls back to building from source it will
+want cmake + libcint, which is where the project's standing "source builds are the DEFAULT" policy takes
+over anyway (and is arguably what we want, since the point of PySCF here is to read its integral engine).
+`python3-numpy` / `python3-scipy` are in apt if a source build needs them outside the venv.
 
 **So the gate is: get more independent points BEFORE building a kernel.**  ★ The reframing that makes this
 affordable: **(c)/(d) are unaffordable PER COMPOSITION but perfectly affordable ONCE.**  Use them for what
