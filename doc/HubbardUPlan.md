@@ -195,20 +195,80 @@ magnetisation channel, §4 row N3; or a different ordering) comes first.  **Chea
 beat: ~316 basis functions for LiMn₂O₄ against MnO's 118, so expect 3–8× MnO's ~6 min ⇒ 20–50 min per SCF,
 ⇒ an 8-step outer loop is an overnight run per composition.  **Measure it; do not plan on the estimate.**
 
-**Gate 3 — the screening decision, before building it.**  The claim (b) rests on is that **ONE dielectric
-factor moves all four measured manifolds** (MnO-d 2.31, MnO-O2p 2.75, NiO-d 1.82, NiO-O2p 2.42) onto their
-oracle/literature values.  Test it on the numbers we already have, on paper, before writing a kernel: fit
-the single \f$\varepsilon^{-1}\f$ that best moves all four and look at the residual.  ⛔ **If one factor does
-not do it, the effect is not screening and (b) is refuted too** — at which point (d) is the route and this
-plan changes shape.  **Costs nothing; do it first.**
+**Gate 3 — BUILD THE ORACLE SET, then test the screening hypothesis.**  ⚠ **This gate replaces an earlier
+version that was CIRCULAR** (caught 2026-09-23): it proposed fitting one \f$\varepsilon^{-1}\f$ to move all
+four measured manifolds onto "their targets", but two of those targets were the ACBN0 paper's OWN values
+(MnO O-2p 2.68, NiO O-2p 3.0).  Fitting to those fits out PAO-3G incompleteness — precisely the thing we
+established is NOT screening.  **A target must be independent of ACBN0.**  Against independent oracles:
+
+| manifold | ours | independent oracle | ratio |
+|---|---|---|---|
+| NiO Ni-3d | 13.89 | `hp.x` **5.27** (linear response) | **2.64** ← the only SOLID point |
+| MnO Mn-3d | 10.77 | literature 4–7 eV (cRPA / LR-cDFT) | 1.5–2.7 (a range) |
+| NiO O-2p | 7.27 | cRPA \f$\bar U_{2p}\gtrsim4\f$ eV, "independent of the TM" (ACBN0 paper's own citation [97]) | ≲1.8 (a bound) |
+| MnO O-2p | 7.36 | same | ≲1.8 (a bound) |
+
+⛔ **Two things fall out, both unwelcome.**  (1) We have **ONE solid oracle point**, not four — a range and
+two bounds otherwise — so "does a single factor fit?" is UNDERDETERMINED and cannot refute anything yet.
+(2) What structure there is looks like **TWO CLUSTERS, not one factor**: d ≈ 2.6, p ≈ 1.8.
+
+⛔ **And a physics argument runs the WRONG WAY.**  A bulk \f$\varepsilon\f$ screens everything equally.  Make
+it q-resolved — \f$U\sim\sum_q|\rho_\phi(q)|^2\varepsilon^{-1}(q)v(q)\f$ — and a MORE localized orbital has
+broader \f$\rho_\phi(q)\f$, samples larger q, where \f$\varepsilon^{-1}(q)\to1\f$: so TM 3d should need
+**less** screening correction than O 2p.  We observe it needing **more** (2.6 vs 1.8).  That is backwards for
+a dielectric picture, and it is not explained by orbital differences — our occupations match the oracle's to
+1–2 %.  ⇒ **this is the specific observation that could refute (b)**, and it is available for the price of
+assembling the oracle set.
+
+**So the gate is: get more independent points BEFORE building a kernel.**  ★ The reframing that makes this
+affordable: **(c)/(d) are unaffordable PER COMPOSITION but perfectly affordable ONCE.**  Use them for what
+they are good at — a calibration set on a handful of materials where linear response is healthy (`hp.x`
+run properly, i.e. with its \f$U_{\rm in}\f$ declared) — then test the screened kernel against it, then run
+(b) in production across the composition sweep.  No amount of cleverness about (b) fixes a one-point oracle
+set.  **Refutation criterion:** if d and p need systematically different factors AND the localization sign
+stays wrong, the residual is not bulk screening and (b) is refuted; (d) becomes the route and this plan
+changes shape.
+
+**Gate 4 — SUPERCELL vs q-MESH IN OUR CODE, and the k/irrep parallel axis** (user, 2026-09-23:
+*"they may not be equivalent on our code"*).  §2's equivalence is MATHEMATICAL.  Computationally the two
+diverge, and on this box they diverge in the same direction for three independent reasons:
+- **Asymptotics favour the q-mesh by \f$N_q^2\f$.**  A supercell is one \f$N_qN\f$ problem — \f$O((N_qN)^3)\f$ in
+  the dense-algebra part.  A q-mesh is \f$N_q\f$ problems of size \f$N\f$ — \f$O(N_qN^3)\f$.  At \f$N_q=8\f$ that
+  is 64× in the cubic term.
+- ⛔ **RAM is our binding constraint, and the supercell route is RAM-hostile.**  Grids scale with cell
+  volume, matrices as \f$(N_qN)^2\f$; the tracker's own estimate says **the 32-atom MnO supercell is
+  UNTESTED**.  A q-mesh runs one small cell at a time and fits trivially.  On 14 GB this may be the
+  difference between slow and *impossible* — which is a fact to MEASURE, not to reason about.
+- ⛔ **A supercell perturbation breaks the symmetry we lean on.**  Our imposed runs fold the Becke mesh
+  11.55× on MnO AFM-II (12 ops); an isolated \f$\alpha\hat P_I\f$ destroys that by construction.  The q-mesh
+  route keeps each primitive-cell run's symmetry.
+- ★ **And the q-mesh is embarrassingly parallel over q** — which is the k/irrep parallel axis we already
+  own a row for.
+
+★★ **k-PARALLELISM IS ON THE CRITICAL PATH FOR EVERY ROUTE, (b) INCLUDED.**  Not just for (c)/(d): the
+ACBN0 estimator consumes converged orbitals, we measured **~10 % k-sensitivity** in MnO's U between Γ and
+2×2×2, and a trustworthy production U therefore needs a k-mesh SCF per composition.  §2 row **KP** is parked
+"*BY AGREEMENT not now … it should stay on the list until we are suitably embarrassed*" — the parking
+condition was "no multi-k rows exist to measure the payoff on".  **This plan is the embarrassment.**  What
+KP needs is already scoped there: the pre-warm exists, and one k-dependent write remains inside the loop
+(`tDynamic_HT_Imp::GetMatrix`'s `mutable CacheMap itsCache` keyed by `Irrep`, plus `itsByL/itsByLSeen`).
+⚠ **And there is a PREREQUISITE DEFECT**: the shifted-MP fold lowers Si by 1.02 mHa (§4, found 2026-09-20)
+— "a 1 mHa fold error on the fractional-k mesh is a sampling defect that every future k-mesh run inherits;
+fix before KP-1".  Multi-k U values inherit it too.
+
+**The measurement this gate asks for** (cheap, and it settles an assumption the tracker has carried
+untested): run **one 32-atom MnO 2×2×2 supercell SCF at Γ**, logging wall and peak RSS.  That single number
+says whether route (d)-by-supercell is available to us at all, or only in principle.
 
 **Then, and only then: the screened kernel.**  A new integral type on `BareCoulombSource` (the pseudo-wall
 pin allows exactly this), with \f$\varepsilon\f$ computed — Thomas–Fermi first as the cheap bound, reading
 `qs_linres_polar_utils.F` before committing to anything more.
 
 **The Oct 6–20 long runs** (only what the gates have justified): the three compositions × the outer loop,
-plus a NiO re-run as the control once the magnetic-robustness fix exists, plus λ-MnO₂ at a k-mesh (Γ-only
-was ~10 % on MnO and these cells are bigger).
+plus a NiO re-run as the control once the magnetic-robustness fix exists, plus the k-mesh arms gate 4 says
+we need (Γ-only was ~10 % on MnO's U) — and, if gate 4's 32-atom measurement says the supercell route fits,
+the calibration LR run that turns gate 3's one solid oracle point into several.  ⛔ `scripts/memsafe -p`,
+never bare: these are unattended.
 
 ---
 
@@ -221,5 +281,11 @@ was ~10 % on MnO and these cells are bigger).
 - Is the per-site-oxidation-state assignment stable when two Mn sites are crystallographically equivalent
   but electronically inequivalent (charge ordering)?  That is a symmetry-breaking question and the
   imposed-symmetry machinery has an opinion — check it does not average the two.
+- If a computed \f$\varepsilon\f$ needs DFPT, we will have BUILT the machinery that makes a DFPT-based (d)
+  nearly free — hp.x's own method with \f$\alpha\hat P\f$ in place of the electric field, CP2K's
+  `qs_linres_*` as the Gaussian reference.  ⇒ **(b) and (d) share most of their cost**, which makes the
+  choice between them a hedge rather than a bet.  `doc/OpenWork.md` step 5 item 5's "never build DFPT for
+  this" was costed against QE's plane-wave implementation and assumed DFPT would be built ONLY for U; if (b)
+  forces it anyway, reopen that ruling rather than inherit it.
 - GGA before any value comparison with the PBE literature (the paper's 7.63/3.0 and the 4–7 eV range are
   both PBE).  Still open, still gating the *value* comparisons, not the *method* work.
