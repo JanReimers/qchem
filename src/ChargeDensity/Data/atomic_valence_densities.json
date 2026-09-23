@@ -1,6 +1,7 @@
 [
 	{
 		"Nelec": 7,
+		"q": 7,
 		"Z": 9,
 		"charge": 7.0024565054243215,
 		"functional": "LDA",
@@ -417,6 +418,7 @@
 	},
 	{
 		"Nelec": 1,
+		"q": 1,
 		"Z": 11,
 		"charge": 1.0003461222745569,
 		"functional": "LDA",
@@ -1638,6 +1640,7 @@
 	},
 	{
 		"Nelec": 4,
+		"q": 4,
 		"Z": 14,
 		"charge": 4.0014030717458,
 		"functional": "LDA",
@@ -2054,6 +2057,7 @@
 	},
 	{
 		"Nelec": 8,
+		"q": 7,
 		"Z": 9,
 		"charge": 8.001247858,
 		"functional": "LDA",
@@ -2470,6 +2474,7 @@
 	},
 	{
 		"Nelec": 7,
+		"q": 7,
 		"Z": 25,
 		"charge": 7.00109187575,
 		"functional": "LDA",
@@ -3691,6 +3696,7 @@
 	},
 	{
 		"Nelec": 5,
+		"q": 7,
 		"Z": 25,
 		"charge": 5.00077991125,
 		"functional": "LDA",
@@ -4912,6 +4918,7 @@
 	},
 	{
 		"Nelec": 6,
+		"q": 6,
 		"Z": 8,
 		"charge": 6.0009358935,
 		"functional": "LDA",
@@ -6133,6 +6140,7 @@
 	},
 	{
 		"Nelec": 8,
+		"q": 6,
 		"Z": 8,
 		"charge": 8.001247858,
 		"functional": "LDA",
@@ -6549,6 +6557,7 @@
 	},
 	{
 		"Nelec": 10,
+		"q": 10,
 		"Z": 28,
 		"charge": 10.0015598225,
 		"functional": "LDA",
@@ -7770,6 +7779,7 @@
 	},
 	{
 		"Nelec": 8,
+		"q": 10,
 		"Z": 28,
 		"charge": 8.001247858,
 		"functional": "LDA",
@@ -8991,6 +9001,7 @@
 	},
 	{
 		"Nelec": 1,
+		"q": 1,
 		"Z": 3,
 		"charge": 1.00015598216,
 		"functional": "LDA",

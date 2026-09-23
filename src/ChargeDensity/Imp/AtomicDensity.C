@@ -72,15 +72,40 @@ double RadialDensity::FormFactor(double G) const
     return 4.0*Pi*sum;
 }
 
-// Match (Z, functional) and -- if Nval>=0 -- the charge state Nelec==Nval; return the entry (or end()).
+// Match (Z, functional) and -- if Nval>=0 -- the charge state Nelec==Nval; return the entry (or nullptr).
+//
+// ⛔ Nval<0 MEANS NEUTRAL, AND NEUTRAL IS "Nelec == q", NOT "the first one in the file" (2026-09-23).
+// Every entry carries `q`, the GTH valence charge of the PP it was generated under; an ION entry carries
+// its NEUTRAL's q (Mn2+ is Nelec 5, q 7).  So the neutral of a family is exactly the entry whose electron
+// count equals its own q, which is the DEFINITION of neutral rather than a convention about ordering.
+// The old rule was "first (Z, functional) match wins", and it was right only by the accident that every
+// ion happened to be appended after its neutral -- with nothing saying so.  Li makes that ambiguous for
+// real: q1's neutral holds 1 electron and q3's holds 3, and both are "neutral Li".
+// ⇒ an ambiguous neutral THROWS, naming the candidates (`throw` is a marker): a silent pick between two
+// physically different seed densities is how a wrong number gets banked.  A caller that MEANS a particular
+// variant says so with Nval.
 static const nlohmann::json* FindAtomicEntry(int Z, const std::string& functional,
                                              const std::string& dbfile, int Nval)
 {
+    const nlohmann::json* hit = nullptr;
+    std::string ambiguous;
     for (const nlohmann::json& e : database(dbfile))
-        if (e.value("Z",-1)==Z && e.value("functional",std::string())==functional
-            && (Nval<0 || e.value("Nelec",-1)==Nval))
-            return &e;
-    return nullptr;
+    {
+        if (e.value("Z",-1)!=Z || e.value("functional",std::string())!=functional) continue;
+        const int nelec = e.value("Nelec",-1);
+        if (Nval>=0) { if (nelec==Nval) return &e; continue; }
+        // neutral: Nelec == q.  An entry with no `q` is pre-schema data -- treat its own Nelec as q so a
+        // stale file still resolves, rather than silently matching nothing.
+        if (nelec != e.value("q", nelec)) continue;
+        if (hit) ambiguous += " q=" + std::to_string(e.value("q", nelec));
+        else     { hit = &e; ambiguous = "q=" + std::to_string(e.value("q", nelec)); }
+    }
+    if (!ambiguous.empty() && ambiguous.find(' ')!=std::string::npos)
+        throw std::runtime_error("AtomicDensity: Z=" + std::to_string(Z) + " functional='" + functional
+            + "' has MORE THAN ONE neutral entry in " + dbfile + " (" + ambiguous + ") -- the pseudopotential"
+            " variant is part of the identity of a seed density, so ask for one explicitly with Nval"
+            " (the neutral of variant q holds q electrons)");
+    return hit;
 }
 
 RadialDensity GetAtomicDensity(int Z, const std::string& functional, const std::string& dbfile, int Nval)

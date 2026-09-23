@@ -252,7 +252,7 @@ left the cone: make it LOUD and route to the eigen split.  ⚠ PSD tests need a 
 eigensolver always returns O(ε·λmax) negatives.  (USPP/PAW augmentation charges can drive ρ<0 with a PSD
 D; not this tree, which is norm-conserving.)  Record: History4 "THE ρ GEMM — LOW-RANK D".
 
-## 22. Basis trimming is a VET-stage, SYMMETRY-EQUIVARIANT decision on S — never a per-function filter at ortho time
+## 22. Basis AUTO-trimming is a VET-stage, SYMMETRY-EQUIVARIANT, WHOLE-ORBIT decision on S — never a per-function filter at ortho time
 
 Three user rulings (2026-08-14/15/26): **(a) not display-only** — the trim happens BEFORE anything
 downstream is built (grid ladder, collocation task lists, KB projections all fall out of the surviving
@@ -261,10 +261,27 @@ decision is a property of S, i.e. of the BASIS, made ONCE** — not re-derived p
 **(c) drop whole ORBITS under the (magnetic) space group, never individual AOs** — greedy per-function
 pivoting resolves symmetry-tied pivots by numerical noise (runs 58–60 dropped O₁'s p(0.18) but O₂'s
 s(0.15)), and a partial orbit is a symmetry-BROKEN basis that costs both site equivalence and the run's
-ability to converge at all (*"would sometimes remove only 3/4"*).  Ortho-time pivot filtering stays as the
-FALLBACK when the vetted basis was still not good enough.  Report the decision as a BASIS (species / shell /
+ability to converge at all (*"would sometimes remove only 3/4"*).  Report the decision as a BASIS (species / shell /
 exponent), not bare indices.  Open work: the vet-stage trim itself (`doc/OpenWork.md`).  Record: History4
 "Continuous — CLEANUP".
+
+**Addendum 2026-09-23 (user, on the word AUTO).**  The vet-stage trim is an **automatic** trim and stays
+one — what is refuted is auto-trimming in the other two places it was ever tried: the SCRIPT that rewrote
+the committed `.bsd` (retired; VA/VB exist because a run could not say which span it used) and the
+ORTHO-TIME per-function drop.  ⇒ the ortho-time path gets exactly TWO behaviours: **(1) shut up and work,
+or (2) make noise with enough information to fix the BASIS** — never a silent third option that quietly
+edits the span.  ⚠ Today it does the third: `LASolverCholeskyPivoted` drops and prints `dropped AO index 47`,
+a bare index, from a linear-algebra layer that does not know what a shell or an exponent is.
+★ **The cure is an EXCEPTION, not a decorated return type** (user: *"this may be one situation where
+exceptions are a good design.  Probably cleaner than decorating the LASolver return types with fallible
+flags and other index info"*) — `throw` is already this tree's marker (CLAUDE.md), the throw carries the
+indices and pivots, and the layer that OWNS the basis catches it and names species/shell/exponent.
+**Two things make the vet-stage trim harder than it looks, and the unit tests must cover both** (user):
+(a) under CARTESIAN d/f a shell is not a pure \f$l\f$ — the \f$l-2\f$ contaminants (s inside d, p inside f)
+mean "drop a whole orbit" has to reckon with functions that carry two characters at once, which is the same
+defect that produced the SR span's two-exponent s window; (b) the rank decision depends critically on
+LATTICE SPACING, so a trim validated on one cell says nothing about a denser one — the tests need a
+spacing axis, not a single geometry.
 
 ## 23. +U is ORBITAL-RESOLVED — U is a vector over (site, shell, site-group irrep); the manifold is an INPUT, never Mn-d by assumption
 
