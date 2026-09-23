@@ -399,7 +399,11 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
     base.MOMSmearPenalty=S.Envd("MOM_PENALTY",0.0);
     base.Guard.HolePersistence=S.Envi("MOM_HOLD",3);
     base.SmearingkT=S.Envd("KT",5e-3);
-    base.NMaxIter=[&]{ const char* v=std::getenv(("GPW_"+S.prefix+"_NMAX").c_str()); return v?std::atoi(v):80; }();
+    // 200, not 80: the old default was tuned on MnO, which converges in ~18 iterations, and NiO at U=3 needs
+    // 114 -- so 80 reported "NOT converged" on a run that was descending perfectly well (2026-09-23, the THIRD
+    // time an iteration cap produced a wrong conclusion this week).  A cap only costs anything when it is HIT,
+    // so buy margin: it changes no run that was already converging inside 80.
+    base.NMaxIter=[&]{ const char* v=std::getenv(("GPW_"+S.prefix+"_NMAX").c_str()); return v?std::atoi(v):200; }();
     base.MinΔρ=S.Envd("EPS",1e-5); base.MinΔE=1e30; base.MinΔFD=1e30; base.MinVirial=1e30; base.MinFD=1e30;
     if (const char* m=S.Env("MEASURE"))
     {

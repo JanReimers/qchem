@@ -26,11 +26,22 @@ the on-site bare integrals; the `ACBN0` estimator; and `SolidCalculation::Conver
 
 **Measured.**  On MnO and NiO, with the same UPF and projector as the oracle:
 
-| | our ACBN0 | ACBN0 paper | hp.x (linear response) | our occupations vs hp.x |
-|---|---|---|---|---|
-| MnO (d⁵) U(Mn 3d) | 10.77 eV | 4.67 | 0.96 ⚠ | 4.93/0.45 vs 4.988/0.481 |
-| NiO (d⁸) U(Ni 3d) | 13.89–14.60 | 7.63 | **5.27** | 4.921/3.440 vs 4.980/3.368 |
-| NiO U(O 2p) | 7.27 | 3.0 | — | |
+| | our ACBN0 | seed | ACBN0 paper | hp.x (linear response) | our occupations vs hp.x |
+|---|---|---|---|---|---|
+| MnO (d⁵) U(Mn 3d) | 10.77 eV | IonicSAD | 4.67 | 0.96 ⚠ | 4.93/0.45 vs 4.988/0.481 |
+| NiO (d⁸) U(Ni 3d), ortho | **14.51–14.76** | IonicSAD | 7.63 | **5.27** | 4.920/3.445 vs 4.980/3.368 |
+| NiO (d⁸) U(Ni 3d), full ortho set | **13.80–13.99** | IonicSAD | 7.63 | **5.27** | 4.894/3.204 |
+| NiO U(O 2p) | 7.27 | IonicSAD | 3.0 | — | |
+
+★ **The seed column exists because the seed CHANGED under these numbers** (`NiOSpec` went SAD → IonicSAD on
+2026-09-23 when the "Ni²⁺ cannot be seeded" claim was retracted), and a table that cannot say which
+configuration produced it is the failure mode the VA/VB span files exist to prevent.  **Re-measured on both
+seeds, the answer does not move**: ortho 14.60/14.67 (SAD, 63 iterations, E = −109.2322219) vs 14.51/14.76
+(IonicSAD, 114 iterations, E = −109.2322528) — 31 µHa apart, U_eff within 0.7 %, occupations to four
+decimals; the full ortho set agrees to 0.7 % on Ni 3d and to **0.02 %** on O 2p.  ⇒ the banked numbers are a
+property of the converged state, not of the guess that found it.  ⚠ The IonicSAD ortho run needed **114**
+iterations where SAD needed 63, and reported "NOT converged" at the old 80-iteration default — **the third
+time an iteration cap produced a wrong conclusion this week**; the probe default is now 200.
 
 ★★ **The finding that matters: the manifold is right and the functional is wrong.**  Our projected
 occupations agree with hp.x to 1–2 % on the same cell, same pseudopotential, same projector — so the

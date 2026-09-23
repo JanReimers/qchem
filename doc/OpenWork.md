@@ -170,13 +170,18 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >
 >   | route | U(Ni 3d) | U(O 2p) | \f$N_{3d}\f$ ↑/↓ |
 >   |---|---|---|---|
->   | ours, ACBN0, ortho-atomic (Ni only) | **14.60 / 14.67 eV** | — | 4.921 / 3.440 |
->   | ours, ACBN0, full ortho-atomic set | **13.89 / 13.91 eV** | 7.27 eV | 4.895 / 3.199 |
+>   | ours, ACBN0, ortho-atomic (Ni only) | **14.51 / 14.76 eV** | — | 4.920 / 3.445 |
+>   | ours, ACBN0, full ortho-atomic set | **13.80 / 13.99 eV** | 7.27 eV | 4.894 / 3.204 |
 >   | ACBN0 paper (PBE, Mulliken, PAO-3G, self-consistent) | 7.63 | 3.0 | — |
 >   | **hp.x linear response** (our GTH UPF, ortho-atomic, k/q 2×2×2) | **5.27** | — | 4.980 / 3.368 |
 >
 >   Spectators (full set): Ni 4s 0.09 eV (nearly empty → the \f$d^0\f$ limit), O 2s 23–28 eV (full shell →
 >   bare-like) — the same pattern MnO showed.
+> - **SEED, and it does not matter** (re-measured 2026-09-23): the rows above are `IonicSAD`, the probe's
+>   current default after the Ni²⁺ retraction; the same runs on `SAD` gave 14.60/14.67 and 13.89/13.91, i.e.
+>   within 0.7 % (O 2p within 0.02 %), with total energies 31 µHa apart.  The number is a property of the
+>   converged state, not of the guess.  ⚠ IonicSAD needed 114 iterations where SAD needed 63 and so read
+>   "NOT converged" at the old 80 default — the probe default is now 200.
 > - ★★ **THE MANIFOLD AGREES WITH THE ORACLE; ONLY THE FUNCTIONAL DISAGREES.**  Our ortho-atomic 3d
 >   occupations are within **1.2 % / 2.1 %** of hp.x's on the same cell with the same UPF and the same
 >   projector (4.921/3.440 vs 4.980/3.368) — as MnO's were (4.93/0.45 vs 4.988/0.481).  So the factor 2.6 to
