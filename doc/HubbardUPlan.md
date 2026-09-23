@@ -391,6 +391,36 @@ never bare: these are unattended.
 
 ---
 
+## 5a. UNFINISHED — started and not completed (distinct from §5, which is things we do not KNOW)
+
+⚠ **These will rot silently if nobody looks.**  Each says what exists, what is missing, and where the
+evidence is.  A fresh session should clear or re-park them before starting new work.
+
+1. **The 11 % bare-\f$F^0\f$ discrepancy — resolve FIRST, it gates every screening number.**  PySCF reports
+   24.29 eV for the Ni 3d shell-averaged bare \f$F^0\f$ on our own contraction; our own run's banner reports
+   bare \f$\bar U\f$ = 27.3 eV.  The likely cause is that ours is the density-matrix-weighted eq-10 average
+   and PySCF's is the plain \f$(2l+1)^{-2}\sum_{mm'}(mm|m'm')\f$ — **likely is not verified**, and two codes
+   11 % apart on nominally the same quantity is what a cross-check exists to catch.  Gate 3's ω values are
+   computed from the PySCF number, so they inherit it.  Evidence: gate 3's first-result block above;
+   `scripts/gate3_screening_test.py`.
+2. ⛔ **NOTHING CHECKS THE BASIS AGAINST THE PSEUDOPOTENTIAL** (added 2026-09-23 — this one had been said
+   aloud and never written down, which is how it nearly got lost).  A run declares its PP variant through
+   `SolidCalcOptions::species` (`{"Li",3}`) while the basis comes from a `.bsd` file whose blocks are keyed
+   by ELEMENT only.  So a q3 run can be handed the q1 `LI` block — a basis built and validated for a
+   one-electron valence, describing three — **silently**, with no diagnostic anywhere.  It is latent today
+   only because every element in `valence_lowq_*` happens to be the variant its runs use.  The shape of the
+   fix: the `.bsd` files already carry rich headers, so a machine-readable per-element provenance line
+   (invisible to a Gaussian94 reader) lets the factory assert each block's q against the run's declared
+   valence, and THROW on a mismatch.  Same family as `CleanupCandidates.md` **D-SEED1** (the seed library
+   keyed on (Z, functional)), and it becomes live the moment `valence_semicore.bsd` exists.
+3. **Li q3 is validated but uncommitted.**  `--q 3 --shell 0:8:0.05:60`, converged, E = −4.23584 Ha, gap
+   0.107 mHa.  It cannot share a file with q1, so it needs `valence_semicore.bsd` + a `BasisSetData` enum
+   value and its two map entries.  Left unwired deliberately (no consumer yet, and a dead file is worse than
+   a recorded command) — the command is in the `.bsd` header and in §4's prerequisites.  ⇒ item 2 above
+   should land WITH it, not after.
+
+---
+
 ## 5. Open questions (write the answer here when it is earned)
 
 - Does **J** transfer the way U does?  ACBN0 gives J for free; hp.x does not give us a J to check it
