@@ -26,6 +26,18 @@ statements against CP2K's transcribed span (VA = the 118 functions both codes ho
 the MnO magnetic cell), and NiO's oracle is hp.x, not CP2K -- there is no CP2K span to match.  Two
 trims were TRIED and REFUSED by valgen: dropping the diffuse d 0.18 costs 26 mHa (the free atom's
 3d needs it), and dropping the diffuse s 0.06 makes the pseudo-atom SCF fail outright.
+LI ADDED 2026-09-23 (doc/HubbardUPlan.md prerequisites -- the Li_xMn2O4 voltage curve).  q1, the
+VALENCE variant, matching this file's own convention (Mn is q7 not the q15 semicore, Na is q1 not q9):
+  CLIapps/valgen --element Li --q 1 --shell 0:5:0.03:2 --floor --nmax 120
+converged, E = -0.189367 Ha, 0.11 mHa BELOW the 16-exponent pool floor.  The GTH q3 (1s^2 2s^1
+explicit) variant is ALSO validated -- `--q 3 --shell 0:8:0.05:60`, E = -4.23584 Ha, gap 0.107 mHa --
+but it CANNOT live in this file beside q1: a .bsd block is keyed by ELEMENT, not by (element, q).
+Resolving that is part of the q1-vs-q3 discriminator (doc/HubbardUPlan.md), not of this commit.
+~ Li 2s is diffuse (emin 0.03, atomic <r> = 3.9 bohr) against a Li-O distance of ~3.7 bohr in the
+spinel, so expect the pivoted-Cholesky vet stage to have an opinion; it is the designed judge and it
+reports what it drops.  Li is ionised there, so the diffuse tail is the function least likely to be
+missed -- but TRIM ON THE MEASUREMENT, the way VA itself came to exist, not on this note.
+
 !
 BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  F   0
@@ -87,6 +99,18 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
             0.94015077        1.00000000
  P   1  1.00
             2.50000000        1.00000000
+ ****
+ LI   0
+ S   1  1.00
+            0.03000000        1.00000000
+ S   1  1.00
+            0.08572321        1.00000000
+ S   1  1.00
+            0.24494897        1.00000000
+ S   1  1.00
+            0.69992710        1.00000000
+ S   1  1.00
+            2.00000000        1.00000000
  ****
  MN   0
  S   1  1.00

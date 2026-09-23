@@ -179,7 +179,17 @@ Gates 1–3 are cheap enough for now-to-Oct-5; the long unattended runs are size
   core is least justified, because the 1s sees a different potential once 2s is gone.  q3 cannot have that
   problem but costs functions on every Li site in a 14-atom cell.  ⇒ mint BOTH with
   `valgen --nmax 60 --floor`, and settle it on a number the voltage cares about: **the Li intercalation
-  energy** (E[LiMn₂O₄] − E[λ-MnO₂] − E[Li]) computed both ways.  If q1 and q3 agree there, q1 is free
+  energy** (E[LiMn₂O₄] − E[λ-MnO₂] − E[Li]) computed both ways.
+  ✅ **BOTH MINTED AND VALIDATED 2026-09-23.**  q1: `--q 1 --shell 0:5:0.03:2`, converged, E = −0.189367 Ha,
+  0.11 mHa below the pool floor — committed to `valence_lowq_{va,sph}.bsd` as the VALENCE variant, matching
+  those files' own convention (Mn is q7 not q15, Na is q1 not q9).  q3: `--q 3 --shell 0:8:0.05:60`,
+  converged, E = −4.23584 Ha, gap 0.107 mHa — validated but NOT committed, because a `.bsd` block is keyed
+  by ELEMENT and the two cannot coexist in one file.  ⛔ **Two pieces of plumbing the discriminator needs
+  before it can run**, both found while minting: (i) a basis-file variant that can carry q3's `LI` block
+  (a `BasisSetData` enum value + its two map entries — cheap, but wire it with a real consumer, not
+  speculatively); (ii) `CleanupCandidates.md` row **D-SEED1** — the atomic seed library is keyed by
+  (Z, functional) and returns the FIRST match, so "neutral Li" is ambiguous between q1's 1 electron and
+  q3's 3, decided silently by file order.  The A/B is not trustworthy until that throws or is keyed on q.  If q1 and q3 agree there, q1 is free
   throughput for the CE training set; if they do not, q3 is mandatory and we have learned why.  Seed density
   too (Li⁺ is a stripped cation, so `HasAtomicSpinPair` correctly calls it non-magnetic).
 - **The Mn seed ions are already checked and they are fine** (2026-09-23): Mn³⁺ (d⁴) and Mn⁴⁺ (d³) both
