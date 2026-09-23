@@ -1,0 +1,189 @@
+# Self-consistent orbital-resolved (U, J) from our own on-site ERIs — the plan
+
+**Born 2026-09-23**, at the top of `doc/` because it is being executed (`doc/OpenWork.md` §1 step 5,
+increment 3 remainders).  Retires to `doc/Records/` the day the U-functional lands.  The north star above
+it is `doc/BatteryMaterialsRoadmap.md`; the ruling under it is `doc/Pins.md` pin 23.
+
+★ **What is new here, and worth saying once.**  Orbital-resolved DFT+U, determined self-consistently from
+the code's *own* on-site ERIs, in a **Gaussian** basis, on transition-metal oxides, on a 14 GB desktop.
+Each piece exists somewhere; the combination does not.  ACBN0 was built on plane waves and had to invent a
+PAO-3G projection to get four-index on-site integrals at all — we own them natively (`Cache4`/Rk).  CP2K
+has the Gaussians and hand-sets U.  QE has the U determination and is plane-wave.  Nobody has the
+orbital-resolved, self-contained, Gaussian combination, and the reason to care is not novelty: it is that
+a supercell-free U is the only kind that scales to a **composition sweep**, which is what a voltage curve
+is.
+
+---
+
+## 1. Background — where we stand (2026-09-22)
+
+**Built and banked** (increments 1–3, `doc/OpenWork.md` §1 step 5): the `Hubbard_U` term (scalar-generic,
+spin-native, real-TRIM corner); the manifold as an **input** list of (site, shell, irrep, U) with no code
+path assuming the Hubbard atom is the transition metal (pin 23); `ManifoldSymmetry` slots from the site's
+coordination point group; three projector flavours (Löwdin column, contracted **atomic**, **ortho-atomic**
+with U=0 spectators) matching CP2K's and QE's conventions; `BasisSet::BareCoulombSource` + `ERI4Block` for
+the on-site bare integrals; the `ACBN0` estimator; and `SolidCalculation::ConvergeHubbardU`, the outer loop.
+
+**Measured.**  On MnO and NiO, with the same UPF and projector as the oracle:
+
+| | our ACBN0 | ACBN0 paper | hp.x (linear response) | our occupations vs hp.x |
+|---|---|---|---|---|
+| MnO (d⁵) U(Mn 3d) | 10.77 eV | 4.67 | 0.96 ⚠ | 4.93/0.45 vs 4.988/0.481 |
+| NiO (d⁸) U(Ni 3d) | 13.89–14.60 | 7.63 | **5.27** | 4.921/3.440 vs 4.980/3.368 |
+| NiO U(O 2p) | 7.27 | 3.0 | — | |
+
+★★ **The finding that matters: the manifold is right and the functional is wrong.**  Our projected
+occupations agree with hp.x to 1–2 % on the same cell, same pseudopotential, same projector — so the
+factor 2.6 in the *value* is the U functional alone, not the projector, manifold or PP.  And ours ÷
+published ACBN0 is 1.8–2.8 across four independent manifolds (MnO-d, MnO-O2p, NiO-d, NiO-O2p): a
+projector-completeness effect (roughly manifold-independent), not a physics disagreement (which would vary).
+**ACBN0's \f$\bar N^2\f$ renormalisation is not a screening model** — it vanishes as the basis approaches
+completeness, which is exactly the regime a Gaussian code lives in.
+
+**⚠ Three traps already paid for** (do not re-pay them):
+1. **hp.x's MnO number is not usable** — d⁵ high-spin is filled-majority/empty-minority, \f$\chi_0=-0.045\to\chi=-0.043\f$
+   (96 % of the bare response survives), so \f$\chi_0^{-1}-\chi^{-1}\f$ nearly cancels.  NiO (d⁸) is the healthy
+   oracle: \f$\chi_0=-0.113\to\chi=-0.071\f$.
+2. **An hp.x number is conditioned on its starting U.**  The NiO 5.267 eV is \f$U_{\rm LR}(U_{\rm in}=3\,{\rm eV})\f$
+   (the decks inherit `U Ni-3d 3.0` from QE's benchmark); the MnO decks carry none.  Read the `HUBBARD` block
+   before comparing.  A response is a function of the state it linearises about.
+3. **LDA NiO at U=0 loses AFM-II** (moment 2.107 e → 1.6e-6; MOM gives a *bit-identical* energy, so it holds
+   the collapse rather than preventing it), and the **ACBN0 outer loop is a non-result on NiO** — sites
+   decouple to \f$U_{\rm eff}=-1.05\f$ eV, Hartree runs to 2.04× its floor.  MnO's clean monotone 8-step loop
+   was a property of d⁵, not of the loop.  ⇒ **magnetic robustness under a changing U is a gate, not a detail.**
+
+---
+
+## 2. The decision, and why the APPLICATION decides it
+
+Four routes to a U, not three — the fourth is `doc/OpenWork.md` step 5 item 5's parked fallback:
+
+| | route | needs a supercell? | status |
+|---|---|---|---|
+| (a) | ACBN0 as is | **no** | ⛔ REFUTED — overshoots on both materials and both manifolds; its loop drives U *away* from the literature (MnO 10.8 → 16.8) |
+| (b) | **ACBN0 with a screened interaction** | **no** | ★ THE ROUTE |
+| (c) | hp.x values as input | **yes** (q-mesh ≡ supercell) | a bridge: legitimate under pin 12 (computed input ≠ hand-set knob), but one QE run per material *and per composition* |
+| (d) | our own finite-difference linear response | **yes** | parked on cost; scriptable over the projector we already own |
+
+★★ **The supercell column is the whole argument.**  (c) and (d) measure a *response*: the perturbed site
+must not see its periodic images, so they need a supercell (or equivalently a q-mesh) **per composition**.
+(a) and (b) evaluate *on-site integrals on the converged density* in whatever cell you already ran — NiO's
+U came out of a 4-atom cell in ~10 minutes.  A voltage curve needs U at many compositions; only the ACBN0
+family delivers that without a supercell each time.  (a) is refuted ⇒ **the application selects (b)**, and
+it selects it independently of the physics argument.
+
+**What (b) actually requires, honestly.**  The bare \f$F^0\approx27\f$ eV is right (it is a bare integral on
+the atomic Slater scale) and \f$\bar N^2\approx0.64\f$ measures basis completeness, so the missing physics is
+the dielectric screening \f$\varepsilon^{-1}\f$.  ⛔ **\f$\varepsilon\f$ must be COMPUTED, never entered** — a
+hand-set \f$\lambda\f$ or \f$\varepsilon\f$ is pin 12 one layer down, and the "~1/4 for a TMO" that motivated
+this route was a *sizing* argument (does the gap have the right magnitude to be screening?), not a proposed
+value.  Three ways to get it, in increasing order of cost and correctness:
+- **Thomas–Fermi** from the valence density: no empirical input, but it is a *metallic* screening model and
+  these are insulators — it will over-screen.  Cheap; expect it to be wrong, and measure *how* wrong.
+- **\f$\varepsilon_\infty\f$ from our own response** to a field.
+- **cRPA**: the principled route, the one the literature uses for screened U, and a solver increment.
+
+★ **CP2K is the reference implementation for the machinery, not for the value.**  `dft_plus_u.F` only
+*applies* U (`u_ramping` ramps toward a hand-set `u_minus_j_target` as an SCF aid — not a determination),
+so there is nothing to learn there about values.  But `qs_linres_*.F`, `response_solver.F` and especially
+`qs_linres_polar_utils.F` ("Polarizability calculation by dfpt … Berry phase operator … periodic Raman")
+are **periodic DFPT response in a Gaussian basis**.  That is exactly the "solver increment we have no seam
+for", implemented in our own basis type rather than QE's plane waves — worth reading before we conclude
+anything about what a computed \f$\varepsilon\f$ costs us.
+
+⚠ **The honest size of (b).**  ACBN0's renormalisation *is* the paper's screening model; replacing it with
+a real screened kernel is not tuning ACBN0, it is substituting a different mechanism and keeping the
+bookkeeping.  If the screened kernel ends up needing cRPA, ask explicitly whether we are building cRPA with
+extra steps — and if so, whether (d) is cheaper after all.  **Step 3 below is designed to answer that
+before we commit.**
+
+---
+
+## 3. The target: a Li\f$_x\f$Mn\f$_2\f$O\f$_4\f$ voltage curve without a U per configuration
+
+The user's scheme: compute (U, J) at the three ordered compositions — **λ-MnO₂** (Mn⁴⁺, d³),
+**LiMn₂O₄** (nominally Mn³·⁵⁺), **Li₂Mn₂O₄** (Mn³⁺, d⁴) — with no supercells, and use those for every
+Li\f$_x\f$Mn\f$_2\f$O\f$_4\f$ configuration the cluster expansion needs.  Feasible exactly because (b) is
+supercell-free (§2).
+
+★ **One refinement, and it falls out of what is already built.**  Do not interpolate U on the global
+composition \f$x\f$ — **assign U per Mn SITE by its local oxidation state**.  U is a property of the local
+electronic configuration, not of a composition average, and pin 23 already makes the term take a per-site
+list, so this needs no new capability:
+- λ-MnO₂ → \f$U({\rm Mn}^{4+}), J({\rm Mn}^{4+})\f$
+- Li₂Mn₂O₄ → \f$U({\rm Mn}^{3+}), J({\rm Mn}^{3+})\f$
+- LiMn₂O₄ → **a transferability CHECK, not a third interpolation node**: if it charge-orders into Mn³⁺ +
+  Mn⁴⁺, the per-site U's it produces must reproduce the two end members' values.  That is a falsifiable
+  prediction, which an interpolation on \f$x\f$ is not.
+
+Then each Mn in a CE training supercell takes its U from its own local environment, and **the CE training
+runs need no new U calculations at all**.
+
+**Risks, in the order they are likely to bite:**
+1. ⛔ **Magnetic robustness.**  The spinel Mn sublattice is the **pyrochlore lattice — geometrically
+   frustrated**.  NiO's collapse (trap 3) was on an *unfrustrated* rocksalt AFM; this is strictly harder,
+   and "impose a collinear AFM order" is a modelling choice that must be stated, not assumed.  **Gate 1
+   below exists for this and nothing else.**
+2. **Mn³⁺ d⁴ high-spin is Jahn–Teller active** (e_g¹) — it is the whole story of LiMn₂O₄'s structural
+   transition, and Li₂Mn₂O₄ is tetragonally distorted because of it.  Orbital-resolved U on e_g is both the
+   best test of orbital resolution and the most dangerous place to apply it: Macke's FeS₂ warning is that
+   correcting a hybridised e_g wrecked the lattice parameter.  Do U at **fixed geometry** first; U ↔ JT
+   distortion is a coupled problem and must not be entered accidentally.
+3. **LiMn₂O₄ charge ordering is delicate at the DFT level.**  If it does not charge-order, the
+   transferability check is weaker — say so rather than reading the average as a third node.
+4. **O 2p is not a spectator by assumption.**  We measured 7.27 eV on NiO (paper 3.0), and pin 23 exists
+   because β-MnO₂'s decisive correction was on O-p_z.  Carry O 2p in the manifold list at U=0 and *measure* it.
+
+---
+
+## 4. The work, in order
+
+Gates 1–3 are cheap enough for now-to-Oct-5; the long unattended runs are sized for the **Oct 6–20** window
+(user away).  ⛔ Unattended runs go through **`scripts/memsafe -p`** (cgroup + OOM shield), never bare.
+
+**Prerequisites (no physics, do them first).**
+- **A Li valence basis.**  There is no `LI` block in any `valence_lowq_*.bsd`.  GTH LDA offers Li **q1 and
+  q3**; mint both with `valgen --nmax 60 --floor` and take the one that validates (q3 carries the 1s
+  semicore — safer for an ionised Li, and Li is ionised in a cathode).  Seed density too (Li⁺ is a stripped
+  cation, so `HasAtomicSpinPair` will correctly call it non-magnetic — no d⁸ problem here).
+- **The three spinel structures in `materials.json`.**  Primitive cells: λ-MnO₂ 12 atoms (4 Mn, 8 O),
+  LiMn₂O₄ 14 (2 Li, 4 Mn, 8 O), Li₂Mn₂O₄ 16 — plus whatever magnetic decoration gate 1 settles on.
+  ⚠ Lattice constants are anchors: take them from a named source and say which.
+
+**Gate 1 — does the magnetic state survive a U change?**  (the NiO lesson; blocks everything downstream)
+Run λ-MnO₂ and LiMn₂O₄ at fixed U = 0, 2, 4 eV and watch the integrated site moment.  If the order dies as
+it did on NiO, no loop on this material means anything and the fix (mixer preconditioning in the
+magnetisation channel, §4 row N3; or a different ordering) comes first.  **Cheap: three short SCFs each.**
+
+**Gate 2 — size the runs.**  One converged SCF per composition at Γ, timed and RSS-logged.  Estimate to
+beat: ~316 basis functions for LiMn₂O₄ against MnO's 118, so expect 3–8× MnO's ~6 min ⇒ 20–50 min per SCF,
+⇒ an 8-step outer loop is an overnight run per composition.  **Measure it; do not plan on the estimate.**
+
+**Gate 3 — the screening decision, before building it.**  The claim (b) rests on is that **ONE dielectric
+factor moves all four measured manifolds** (MnO-d 2.31, MnO-O2p 2.75, NiO-d 1.82, NiO-O2p 2.42) onto their
+oracle/literature values.  Test it on the numbers we already have, on paper, before writing a kernel: fit
+the single \f$\varepsilon^{-1}\f$ that best moves all four and look at the residual.  ⛔ **If one factor does
+not do it, the effect is not screening and (b) is refuted too** — at which point (d) is the route and this
+plan changes shape.  **Costs nothing; do it first.**
+
+**Then, and only then: the screened kernel.**  A new integral type on `BareCoulombSource` (the pseudo-wall
+pin allows exactly this), with \f$\varepsilon\f$ computed — Thomas–Fermi first as the cheap bound, reading
+`qs_linres_polar_utils.F` before committing to anything more.
+
+**The Oct 6–20 long runs** (only what the gates have justified): the three compositions × the outer loop,
+plus a NiO re-run as the control once the magnetic-robustness fix exists, plus λ-MnO₂ at a k-mesh (Γ-only
+was ~10 % on MnO and these cells are bigger).
+
+---
+
+## 5. Open questions (write the answer here when it is earned)
+
+- Does **J** transfer the way U does?  ACBN0 gives J for free; hp.x does not give us a J to check it
+  against.  The atomic limit (\f$J\approx1\f$ eV for 3d) is the only oracle we have — and our bare
+  \f$\bar J\approx7.5\f$ eV is NOT Hund's J (it carries eq 13's self-terms), which is why only
+  \f$U_{\rm eff}=\bar U-\bar J\f$ is quotable.
+- Is the per-site-oxidation-state assignment stable when two Mn sites are crystallographically equivalent
+  but electronically inequivalent (charge ordering)?  That is a symmetry-breaking question and the
+  imposed-symmetry machinery has an opinion — check it does not average the two.
+- GGA before any value comparison with the PBE literature (the paper's 7.63/3.0 and the 4–7 eV range are
+  both PBE).  Still open, still gating the *value* comparisons, not the *method* work.

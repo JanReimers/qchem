@@ -243,6 +243,10 @@ consistently; truncation spheres are a plane-wave artefact we do not have).
 >   instruments a better U-functional will be judged with.
 > - **NEXT (increment 3 remainder):** ✅ (a) and (b) are DONE — the block above (2026-09-22).  (c) GGA before
 >   any value comparison with the PBE literature: still open.
+> - ▶ **THE EXECUTION PLAN IS NOW `doc/HubbardUPlan.md`** (born 2026-09-23): the background above in brief,
+>   the four routes with the SUPERCELL column that decides between them, the Li_xMn2O4 target (U per Mn SITE,
+>   not interpolated on x), and the gate order — magnetic robustness, run sizing, and the one-dielectric-factor
+>   test that can REFUTE the screened route before a line of kernel is written.
 > - Cost record: pw.x MnO 280 Ry ≈ 4 min serial; hp.x Mn-only 2×2×2 at 280 Ry 49 min on 4 ranks; the every-
 >   thing-in-one 100 Ry atomic run was a 42-min non-result.  ⛔ mpirun always; nq = 1 never.
 

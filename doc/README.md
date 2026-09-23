@@ -20,7 +20,7 @@ one with `ls doc/*/<File>.md`.  Relative links INSIDE moved files (`../src/…`)
 
 ---
 
-## `doc/` — LIVE (eight files; read what applies at session start)
+## `doc/` — LIVE (nine files; read what applies at session start)
 
 | file | what it is |
 |---|---|
@@ -28,6 +28,7 @@ one with `ls doc/*/<File>.md`.  Relative links INSIDE moved files (`../src/…`)
 | **`CleanupCandidates.md`** | the SOLID/OOD debt worklist (v2, rebuilt 2026-09-19): the user's charter + ~30 open rows in R/V/D tables, each citing `Records/CleanupHistory2.md` by id; the ~70 closed rows and every ruling's full argument live there |
 | **`Pins.md`** | ★ **23 durable invariants** — no cut in r space (1), everything is a fit (2), integrated observables (4), spin-native (5), … the BasisSet taxonomy (14), smearing/GDM (15), span-matching (16), contemporaneous reporting (17), the XC feed / mixer selectivity (18), never D-screen the gather (19), ask what a matrix means (20), pivoted Cholesky + canary (21), vet-stage equivariant trim (22), +U is orbital-resolved and the manifold is an input (23).  Rulings, not preferences; cite as `doc/Pins.md pin N` |
 | **`Benchmark.md`** | ★ the standing head-to-head instrument vs CP2K.  **COPY the run command out of §5a; never reconstruct it** |
+| **`HubbardUPlan.md`** | ★ **BORN 2026-09-23, UNDER EXECUTION** — self-consistent orbital-resolved (U, J) from our own on-site ERIs: where increments 1-3 got to, why the screened-ACBN0 route is the one (the application decides it: only the ACBN0 family is SUPERCELL-FREE, and a voltage curve needs a U per composition), and the Li_xMn2O4 target with U assigned per Mn SITE rather than interpolated on x.  Retires to `Records/` when the U-functional lands |
 | **`ModuleToolchainPlan.md`** | `import std;` + a modular Blaze fork — banish the preprocessor.  Deferred, not started |
 | **`LatticeGasPlan.md`** | Li/Na configuration enumeration for the battery work.  Specced, not built — kept so the design is not re-derived |
 | **`BatteryMaterialsRoadmap.md`** | the north star (Li/Na cathode voltage curves) above every plan |
