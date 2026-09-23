@@ -15,6 +15,45 @@ is.
 
 ---
 
+## 0. START HERE — what to do next
+
+The plan below is the ARGUMENT; this is the QUEUE.  **Two tracks, and they do not block each other** — A
+decides whether the U functional is real, B decides whether the material runs at all.  Every action in the
+plan appears here exactly once; if it is not in this list it is a finding, not a task.
+
+**★ If you do only one thing: A1, then A2.**  A2 is decisive — it is the difference between the screening
+hypothesis standing and falling — and A1 is cheap and gates every number A2 would be compared against.
+
+### Track A — is the SCREENED route real?  (needs no spinels)
+| | action | state |
+|---|---|---|
+| **A1** | **Resolve the 11 % bare-\f$F^0\f$ discrepancy** (§6.1): PySCF says 24.29 eV, our banner says 27.3.  Probably eq-10's density-matrix weighting vs the plain shell average — verify it, do not assume it | ⛔ **DO FIRST.** Cheap.  Gate 3's ω values inherit it |
+| **A2** | **ABINIT `ucrpa` on NiO (O 2p first), then MnO** — turn the cRPA *bound* into a *value* | ⛔ **DECISIVE**, not yet started.  §4 gate 3.  First run is a recipe hunt (bands/windows), not a number |
+| **A3** | Re-run `scripts/gate3_screening_test.py` + `gate3_omega_sensitivity.py` against A2's real targets | ready; the scripts are banked and take seconds |
+| **A4** | **Only if A3 holds**: the screened kernel on `BareCoulombSource`, with \f$\varepsilon\f$ COMPUTED | blocked on A3.  ⛔ Do not start before it |
+| A5 | ABINIT `lruj` for **J** (hp.x gives none) — answers §5's first open question | optional, any time |
+
+### Track B — can we RUN the material?  (needs no oracle)
+| | action | state |
+|---|---|---|
+| **B1** | **Three spinel structures into `materials.json`**: λ-MnO₂ (12 atoms), LiMn₂O₄ (14), Li₂Mn₂O₄ (16) | ⛔ **DO FIRST in this track.** Nothing in B runs without it |
+| **B2** | **Gate 1 — magnetic robustness**: λ-MnO₂ and LiMn₂O₄ at U = 0, 2, 4 eV, watching the integrated site moment | blocks everything downstream in B.  ⚠ seeding is NOT the lever (§1 trap 3) |
+| **B3** | **Gate 2 — run sizing**: one converged SCF per composition at Γ, wall + peak RSS logged | after B2 |
+| B4 | `valence_semicore.bsd` + a `BasisSetData` enum value (§6.3) **landing together with the basis-vs-PP check** (§6.2), then the q1-vs-q3 discriminator on the Li intercalation energy | ⚠ Li **q1 is already committed and working** — B1–B3 do NOT wait on this |
+
+### Track C — infrastructure both tracks eventually need
+| | action | state |
+|---|---|---|
+| C1 | **Gate 4's measurement**: one 32-atom MnO 2×2×2 supercell SCF at Γ, wall + peak RSS — says whether the supercell route exists for us at all | not started; cheap; settles an assumption the tracker has carried untested |
+| C2 | The **1.02 mHa shifted-MP fold defect** (`doc/OpenWork.md` §4) — *"fix before KP-1"*; any multi-k U inherits it | prerequisite for C3 |
+| C3 | **k-parallelism** (`doc/OpenWork.md` §2 row KP) — parked "until we are suitably embarrassed"; this plan is the embarrassment | after C2 |
+
+**Oct 6–20 (user away) = the long unattended runs**, and only what B2/B3/C1 have justified: the three
+compositions × the outer loop, the k-mesh arms, and the calibration LR run if C1 says the supercell fits.
+⛔ `scripts/memsafe -p`, never bare.
+
+---
+
 ## 1. Background — where we stand (2026-09-22)
 
 **Built and banked** (increments 1–3, `doc/OpenWork.md` §1 step 5): the `Hubbard_U` term (scalar-generic,
@@ -195,8 +234,13 @@ runs need no new U calculations at all**.
 Gates 1–3 are cheap enough for now-to-Oct-5; the long unattended runs are sized for the **Oct 6–20** window
 (user away).  ⛔ Unattended runs go through **`scripts/memsafe -p`** (cgroup + OOM shield), never bare.
 
-**Prerequisites (no physics, do them first).**
-- **A Li valence basis, and q1 vs q3 is a REAL TEST, not a formality** (user, 2026-09-23).  There is no
+**Prerequisites (no physics).**  ⚠ **Read the STATUS, not the prose** — the Li entry below documents a
+test that is DESIGNED but NOT RUN, and it was mistaken for finished work once (2026-09-23).  The queue in
+§0 is authoritative: Li q1 is **done and committed**, the q1-vs-q3 discriminator is **B4 and not blocking**,
+the spinel structures are **B1 and are the real prerequisite**.
+- **A Li valence basis** — ✅ **q1 DONE AND COMMITTED**; ⛔ **the q1-vs-q3 DISCRIMINATOR IS NOT RUN**
+  (queue item B4, and it blocks nothing else).  q1 vs q3 is a REAL TEST, not a formality (user, 2026-09-23).
+  There is no
   `LI` block in any `valence_lowq_*.bsd`.  GTH LDA offers Li **q1** (2s¹ only; 1s frozen into the core) and
   **q3** (1s²2s¹ explicit).  The tension is specific to a cathode: Li is nearly fully ionised, so q1's frozen
   core is being asked to describe an ion whose valence electron has LEFT — exactly the regime where a frozen
@@ -229,7 +273,8 @@ Gates 1–3 are cheap enough for now-to-Oct-5; the long unattended runs are size
   filled MINORITY shell under a filled majority is a long descent (two orbitals 2e-6 Ha apart straddle the
   boundary), while a partially filled MAJORITY over an empty minority is not — Mn³⁺, Mn⁴⁺, Ni³⁺ (d⁷) and
   Co³⁺ (d⁶) all converge by 60.  **Both halves of that were the cap, twice.**
-- **The three spinel structures in `materials.json`.**  Primitive cells: λ-MnO₂ 12 atoms (4 Mn, 8 O),
+- ⛔ **The three spinel structures in `materials.json` — NOT STARTED, and this is queue item B1: the real
+  blocker for every run in track B.**  Primitive cells: λ-MnO₂ 12 atoms (4 Mn, 8 O),
   LiMn₂O₄ 14 (2 Li, 4 Mn, 8 O), Li₂Mn₂O₄ 16 — plus whatever magnetic decoration gate 1 settles on.
   ⚠ Lattice constants are anchors: take them from a named source and say which.
 
@@ -414,7 +459,32 @@ never bare: these are unattended.
 
 ---
 
-## 5a. UNFINISHED — started and not completed (distinct from §5, which is things we do not KNOW)
+## 5. Open questions (write the answer here when it is earned)
+
+- Does **J** transfer the way U does?  ACBN0 gives J for free; hp.x does not give us a J to check it
+  against.  The atomic limit (\f$J\approx1\f$ eV for 3d) is the only oracle we have — and our bare
+  \f$\bar J\approx7.5\f$ eV is NOT Hund's J (it carries eq 13's self-terms), which is why only
+  \f$U_{\rm eff}=\bar U-\bar J\f$ is quotable.
+- Is the per-site-oxidation-state assignment stable when two Mn sites are crystallographically equivalent
+  but electronically inequivalent (charge ordering)?  That is a symmetry-breaking question and the
+  imposed-symmetry machinery has an opinion — check it does not average the two.
+- If a computed \f$\varepsilon\f$ needs DFPT, we will have BUILT the machinery that makes a DFPT-based (d)
+  nearly free — hp.x's own method with \f$\alpha\hat P\f$ in place of the electric field, CP2K's
+  `qs_linres_*` as the Gaussian reference.  ⇒ **(b) and (d) share most of their cost**, which makes the
+  choice between them a hedge rather than a bet.  `doc/OpenWork.md` step 5 item 5's "never build DFPT for
+  this" was costed against QE's plane-wave implementation and assumed DFPT would be built ONLY for U; if (b)
+  forces it anyway, reopen that ruling rather than inherit it.
+- The spherical atom resolves a partially-filled degenerate shell by picking orbitals, not by occupying the
+  shell uniformly — energetically converged but symmetry-broken.  Harmless for a seed (spherically averaged
+  anyway); worth a thought for the **+U atomic radial**, which takes "the lowest occupied l orbital" and on a
+  broken shell that need not be the spherical average.  Measure before caring: the captured-norm line already
+  prints (NiO 0.9999, MnO VA 0.991).
+- GGA before any value comparison with the PBE literature (the paper's 7.63/3.0 and the 4–7 eV range are
+  both PBE).  Still open, still gating the *value* comparisons, not the *method* work.
+
+---
+
+## 6. UNFINISHED — started and not completed (distinct from §5, which is things we do not KNOW)
 
 ⚠ **These will rot silently if nobody looks.**  Each says what exists, what is missing, and where the
 evidence is.  A fresh session should clear or re-park them before starting new work.
@@ -443,26 +513,3 @@ evidence is.  A fresh session should clear or re-park them before starting new w
    should land WITH it, not after.
 
 ---
-
-## 5. Open questions (write the answer here when it is earned)
-
-- Does **J** transfer the way U does?  ACBN0 gives J for free; hp.x does not give us a J to check it
-  against.  The atomic limit (\f$J\approx1\f$ eV for 3d) is the only oracle we have — and our bare
-  \f$\bar J\approx7.5\f$ eV is NOT Hund's J (it carries eq 13's self-terms), which is why only
-  \f$U_{\rm eff}=\bar U-\bar J\f$ is quotable.
-- Is the per-site-oxidation-state assignment stable when two Mn sites are crystallographically equivalent
-  but electronically inequivalent (charge ordering)?  That is a symmetry-breaking question and the
-  imposed-symmetry machinery has an opinion — check it does not average the two.
-- If a computed \f$\varepsilon\f$ needs DFPT, we will have BUILT the machinery that makes a DFPT-based (d)
-  nearly free — hp.x's own method with \f$\alpha\hat P\f$ in place of the electric field, CP2K's
-  `qs_linres_*` as the Gaussian reference.  ⇒ **(b) and (d) share most of their cost**, which makes the
-  choice between them a hedge rather than a bet.  `doc/OpenWork.md` step 5 item 5's "never build DFPT for
-  this" was costed against QE's plane-wave implementation and assumed DFPT would be built ONLY for U; if (b)
-  forces it anyway, reopen that ruling rather than inherit it.
-- The spherical atom resolves a partially-filled degenerate shell by picking orbitals, not by occupying the
-  shell uniformly — energetically converged but symmetry-broken.  Harmless for a seed (spherically averaged
-  anyway); worth a thought for the **+U atomic radial**, which takes "the lowest occupied l orbital" and on a
-  broken shell that need not be the spherical average.  Measure before caring: the captured-norm line already
-  prints (NiO 0.9999, MnO VA 0.991).
-- GGA before any value comparison with the PBE literature (the paper's 7.63/3.0 and the 4–7 eV range are
-  both PBE).  Still open, still gating the *value* comparisons, not the *method* work.
