@@ -300,6 +300,34 @@ want cmake + libcint, which is where the project's standing "source builds are t
 over anyway (and is arguably what we want, since the point of PySCF here is to read its integral engine).
 `python3-numpy` / `python3-scipy` are in apt if a source build needs them outside the venv.
 
+★★ **FIRST RESULT, 2026-09-23 — THE ONE-FACTOR TEST PASSES ITS FIRST REAL TRIAL, AND IT CORRECTS THE
+ARGUMENT ABOVE.**  Run on paper with the newly installed PySCF (2.14.0, `~/Code/pyscf-env`), using its
+range-separated (`omega`) four-index integrals on OUR OWN contractions read off the `[+U radial]` banner —
+`scripts/gate3_screening_test.py`:
+
+| manifold | bare \f$F^0\f$ | independent target | needed ratio | needed \f$\omega\f$ |
+|---|---|---|---|---|
+| Ni 3d | 24.29 eV | 5.27 (hp.x, **matched PP**) | 0.217 | **1.039 a.u.** |
+| O 2p | 20.97 eV | ≳4 (cRPA **bound**) | 0.191 | **0.975 a.u.** |
+
+**The two manifolds want the same screening length to 6 %.**  ⇒ ⛔ **MY "TWO CLUSTERS, AND THE LOCALIZATION
+ARGUMENT RUNS THE WRONG WAY" OBJECTION WAS APPLIED TO THE WRONG QUANTITY** and is withdrawn.  It compared
+ratios of our **\f$U_{\rm eff}\f$**, which already carries ACBN0's \f$\bar N^2\f$ renormalisation — i.e. the
+projector-completeness effect — so it was measuring completeness and screening mixed together.  Against the
+**BARE \f$F^0\f$**, which is what a screened kernel actually modifies, the picture is one factor.  And the
+localization physics comes out RIGHT, not backwards: the same \f$\omega\f$ screens the compact Ni 3d less
+(ratio 0.217) than the diffuse O 2p (0.191), which is the required direction.
+⚠ **Three things keep this from being a verdict.**  (1) \f$1/\omega\approx1\f$ bohr is a SHORT length —
+inside the 3d orbital itself and well inside the 3.94 bohr Ni–O bond — so whatever this is, calling it
+"screening by the medium" needs an argument; an `erfc` cut-off at 1 bohr reshapes the on-site
+self-interaction rather than dressing it.  (2) TWO points, one of which is a BOUND, is not a fit.  (3) PySCF's
+bare \f$F^0\f$ = 24.29 eV against our own run's reported bare \f$\bar U\f$ = 27.3 eV — **11 % apart, and
+unexplained**; ours is a density-matrix-weighted eq-10 average rather than the plain
+\f$(2l+1)^{-2}\sum_{mm'}(mm|m'm')\f$, which probably accounts for it, but two codes 11 % apart on "the same"
+number is exactly what a cross-check exists to catch.  **Resolve (3) before quoting any of this.**
+⇒ this RAISES the value of the ABINIT runs below: turning the O 2p bound into a cRPA VALUE, and adding
+Mn 3d / Mn O-2p rows, is what turns a suggestive two-point coincidence into a test.
+
 **So the gate is: get more independent points BEFORE building a kernel.**  ★ The reframing that makes this
 affordable: **(c)/(d) are unaffordable PER COMPOSITION but perfectly affordable ONCE.**  Use them for what
 they are good at — a calibration set on a handful of materials where linear response is healthy (`hp.x`
