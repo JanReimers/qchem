@@ -336,6 +336,29 @@ bare \f$F^0\f$ = 24.29 eV against our own run's reported bare \f$\bar U\f$ = 27.
 unexplained**; ours is a density-matrix-weighted eq-10 average rather than the plain
 \f$(2l+1)^{-2}\sum_{mm'}(mm|m'm')\f$, which probably accounts for it, but two codes 11 % apart on "the same"
 number is exactly what a cross-check exists to catch.  **Resolve (3) before quoting any of this.**
+⛔ **AND THE 6 % IS FRAGILE — IT LIVES OR DIES ON THE O 2p TARGET, WHICH IS A LOWER BOUND** (measured
+2026-09-23, same script).  The needed \f$\omega\f$ for O 2p against a range of assumed targets, compared with
+Ni 3d's 1.039:
+
+| O 2p target | needed \f$\omega\f$ | disagreement with Ni 3d |
+|---|---|---|
+| 3.0 eV | 1.185 | 14 % |
+| **4.0 eV** (the cRPA bound) | **0.975** | **6 %** |
+| 5.0 eV | 0.828 | 20 % |
+| 6.0 eV | 0.715 | 31 % |
+| 7.0 eV | 0.624 | 40 % |
+
+The literature figure is \f$\gtrsim4\f$ eV — a **lower bound** — so the true value may well be 5 or 6, and the
+one-factor agreement degrades fast above 4.  ⇒ **the ABINIT `ucrpa` run is DECISIVE, not decorative**: it is
+the difference between this hypothesis standing and falling, and it is the single highest-value action in
+the whole plan.  Do not build a kernel before it.
+
+★ **A cross-check that is independent of the kernel FORM.**  A flat \f$1/\varepsilon\f$ (no length scale at
+all) would need \f$\varepsilon = 4.61\f$ for Ni 3d, against NiO's experimental \f$\varepsilon_\infty\approx5.7\f$.
+The needed value sitting slightly BELOW \f$\varepsilon_\infty\f$ is the physically right ordering — an on-site
+U samples large q where \f$\varepsilon^{-1}(q)\to1\f$, so it must be screened LESS than the macroscopic limit.
+That is mildly supportive of a dielectric picture *whatever* kernel shape turns out to be right.
+
 ⇒ this RAISES the value of the ABINIT runs below: turning the O 2p bound into a cRPA VALUE, and adding
 Mn 3d / Mn O-2p rows, is what turns a suggestive two-point coincidence into a test.
 
