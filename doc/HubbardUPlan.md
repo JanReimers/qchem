@@ -47,8 +47,14 @@ completeness, which is exactly the regime a Gaussian code lives in.
 2. **An hp.x number is conditioned on its starting U.**  The NiO 5.267 eV is \f$U_{\rm LR}(U_{\rm in}=3\,{\rm eV})\f$
    (the decks inherit `U Ni-3d 3.0` from QE's benchmark); the MnO decks carry none.  Read the `HUBBARD` block
    before comparing.  A response is a function of the state it linearises about.
-3. **LDA NiO at U=0 loses AFM-II** (moment 2.107 e → 1.6e-6; MOM gives a *bit-identical* energy, so it holds
-   the collapse rather than preventing it), and the **ACBN0 outer loop is a non-result on NiO** — sites
+3. **LDA NiO at U=0 loses AFM-II — and it is PHYSICS, not seeding** (strengthened 2026-09-23).  Three runs
+   now reach the same non-magnetic fixed point by different paths: SAD seed 79 iterations to
+   E = −109.2693031, SAD+MOM *bit-identical* (so MOM holds the collapse rather than preventing it), and
+   **IonicSAD 48 iterations to −109.2693702** — 67 µHa apart, same state, collapse signature
+   \f$N\uparrow/N\downarrow\f$ = 4.2889/4.2889 in both.  ⇒ **two different seeds, different trajectories, one
+   fixed point**: LDA NiO at Γ on this cell genuinely has the non-magnetic solution as its SCF fixed point,
+   so gate 1 is asking a physics question and no amount of seeding will answer it.  The
+   **ACBN0 outer loop is a non-result on NiO** — sites
    decouple to \f$U_{\rm eff}=-1.05\f$ eV, Hartree runs to 2.04× its floor.  MnO's clean monotone 8-step loop
    was a property of d⁵, not of the loop.  ⇒ **magnetic robustness under a changing U is a gate, not a detail.**
 
@@ -209,7 +215,10 @@ Gates 1–3 are cheap enough for now-to-Oct-5; the long unattended runs are size
   LiMn₂O₄ 14 (2 Li, 4 Mn, 8 O), Li₂Mn₂O₄ 16 — plus whatever magnetic decoration gate 1 settles on.
   ⚠ Lattice constants are anchors: take them from a named source and say which.
 
-**Gate 1 — does the magnetic state survive a U change?**  (the NiO lesson; blocks everything downstream)
+**Gate 1 — does the magnetic state survive a U change?**  (the NiO lesson; blocks everything downstream.
+⚠ **Seeding is NOT the lever** — trap 3 now has three runs and two different seeds converging to the same
+non-magnetic fixed point, so a better seed will not buy the order.  The levers are the mixer's
+magnetisation channel (§4 row N3), kT, and U itself.)
 Run λ-MnO₂ and LiMn₂O₄ at fixed U = 0, 2, 4 eV and watch the integrated site moment.  If the order dies as
 it did on NiO, no loop on this material means anything and the fix (mixer preconditioning in the
 magnetisation channel, §4 row N3; or a different ordering) comes first.  **Cheap: three short SCFs each.**
