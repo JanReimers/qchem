@@ -29,7 +29,7 @@ of gate 3's numbers — see §6.1.)
 | | action | state |
 |---|---|---|
 | A1 | ~~Resolve the 11 % bare-\f$F^0\f$ discrepancy~~ | ✅ **RESOLVED 2026-09-23** (§6.1): NOT a bug — the two numbers are different quantities by definition, and comparing them was the error, not either computation |
-| **A2** | **ABINIT `ucrpa` on NiO (O 2p first), then MnO** — turn the cRPA *bound* into a *value* | ⛔ **DECISIVE**, not yet started.  §4 gate 3.  First run is a recipe hunt (bands/windows), not a number |
+| **A2** | **ABINIT `ucrpa` on NiO (O 2p first), then MnO** — turn the cRPA *bound* into a *value* | ⛔ **DECISIVE**, IN PROGRESS 2026-09-24: O-2p first number in hand (≈1.2 eV, dp-dp model) but not yet comparable to the literature bound (model convention unmatched — §4 gate 3); Ni-3d crashes (§6.3); MnO not started |
 | **A3** | Re-run `scripts/gate3_screening_test.py` + `gate3_omega_sensitivity.py` against A2's real targets | ready; the scripts are banked and take seconds |
 | **A4** | **Only if A3 holds**: the screened kernel on `BareCoulombSource`, with \f$\varepsilon\f$ COMPUTED | blocked on A3.  ⛔ Do not start before it |
 | A5 | ABINIT `lruj` for **J** (hp.x gives none) — answers §5's first open question | optional, any time |
@@ -409,6 +409,68 @@ one-factor agreement degrades fast above 4.  ⇒ **the ABINIT `ucrpa` run is DEC
 the difference between this hypothesis standing and falling, and it is the single highest-value action in
 the whole plan.  Do not build a kernel before it.
 
+★★ **FIRST ABINIT `ucrpa` RESULT, 2026-09-24 (NiO O-2p, "dp-dp" model) — a real number, with a real bug
+isolated along the way.**  Decks in `~/Code/abinit-runs/` (a scratch working directory outside the repo,
+mirroring `~/Code/cp2k-runs/` — the `.abi` recipes themselves are worth banking, the multi-GB WFK/DEN
+restart files are not).  Cell + PAW: ABINIT's own validated `tests/tutorial/Input/tlruj_1.abi` (AFM-II,
+\f$a=7.88\f$ bohr, matching `NiOSpec`) with `Psdj_paw_pbe_std/{Ni,O}.xml` (**PBE, not LDA** — no LDA Ni
+PAW is bundled locally, so this run is a different-PP **and** different-XC second opinion, labelled as
+such).  Fatbands (`pawfatbnd`) on a first GS+NSCF pass showed NiO's Ni-3d/O-2p valence complex (bands
+11–26) is **thoroughly hybridised** — unlike SrVO3's cleaner d/p separation, there is no clean "pure O-2p"
+band range, so the "dp-dp" model (Amadon2014: Wannier + screening exclusion both spanning the whole
+hybridised complex) is close to forced, not chosen.
+- ⛔ **Three real bugs hit and fixed on the way, worth recording so a future session does not re-pay
+  them.**  (1) `abinit`/`--dry-run` run bare instead of under `mpirun` hangs (CLAUDE.md's warning,
+  re-confirmed the hard way).  (2) The `plowan_bandi/bandf/natom/iatom/nbl/lcalc/projcalc` variables are
+  **COMMON across datasets, unsuffixed** — constructed in the Wannier dataset, read back in the screening
+  and effective-interaction datasets; suffixing them `2` (dataset-2-only, the natural-looking choice)
+  makes dataset 3 read zeros ("Lower and upper values of the selected bands 0 0") with no other complaint.
+  Caught by diffing against ABINIT's own validated `tests/tutoparal/Input/tucalc_crpa_2.abi`, not by
+  guessing. (3) `getwfk3 -2` (relative) is an off-by-one for a 4-dataset recipe — dataset 2 (the
+  well-diagonalised NSCF + Wannier construction) is `-1` away from dataset 3, not `-2`.
+- ⛔ **The optdriver=4 (effective-interaction) step CRASHES under MPI parallelism** (`-np 4`: segfault in
+  `m_prep_calc_ucrpa.F90` after k-point 1/64, no diagnostic) but runs to completion under `-np 1`
+  (serial) — matching, independently, `tucalc_crpa_2.abi`'s own `TEST_INFO` comment: *"results with 24
+  procs are non-reproducible at present! ... There must be a bug."*  **Always run this dataset serial.**
+  OpenMP threading (`OMP_NUM_THREADS>1`, `-np 1`) was tried as a speed lever and made things SLOWER for
+  this cell size (iteration 9 in 13.5 min vs. plain serial's iteration 21 in 5.75 min) — overhead
+  dominates at this problem size; plain serial is the fastest working recipe found. A serial NiO run
+  (4 datasets) costs **~100 minutes wall**, dataset 4 alone taking the majority of it.
+- ⛔⛔ **A SECOND, genuine ABINIT bug, isolated (not just worked around): the "Average U and J" summary
+  table is WRONG under `nsppol=2`.**  Every per-block calculation ("Hubbard cRPA interaction for w=1,
+  U=...") printed a sensible, ecuteps-responsive number (bare 4.1456 eV, cRPA 1.2359 eV at
+  `ecuteps=4`; cRPA 1.2141 eV at `ecuteps=7` — a small, correctly-signed convergence trend, screening
+  reducing from bare as physics demands).  But the "Average U and J as a function of frequency" table
+  printed immediately after — which in ABINIT's own SrVO3 tutorial output is documented to just ECHO that
+  same per-block number — instead printed a DIFFERENT, LARGER value (4.9437 eV at `ecuteps=4`, 4.8565 eV
+  at `ecuteps=7`), **identical across every atom and every one of the four Up-Up/Up-Down/Down-Up/Down-Down
+  spin combinations**, in the SAME run.  Removing the `usepawu`/`dmatpuopt` "for printing" block (copied
+  from the tutorial) changed nothing — that hypothesis is REFUTED.  **Decisive isolation**: reran ABINIT's
+  own `tucalc_crpa_2.abi` (SrVO3, non-magnetic, `nsppol=1`) UNMODIFIED and reproduced its published
+  reference numbers **bit-for-bit** (bare 15.3789 eV, cRPA 2.7546 eV, J 0.5997 eV, "Average U and J" table
+  MATCHING the per-block number exactly, as documented) — confirming our build and methodology are sound.
+  SrVO3's tutorial never exercises the 4-way spin-combination average at all (`nsppol=1` prints only ONE
+  "Up-Up" block, nothing to combine) — exactly the code path NiO's AFM-II cell forces open.  ⇒ **the
+  `nsppol=2` cross-spin averaging in ABINIT's ucrpa "Average U and J" print is broken**; this is the same
+  code region the tutorial's own test-suite comment already flags as unreliable, now shown broken in a new
+  (magnetic) way.  **Trust the per-block "Hubbard cRPA interaction" number, never the "Average U and J"
+  summary, on any `nsppol=2` ucrpa run.**
+- ⛔ **A THIRD bug: Ni-3d (l=2) crashes with a Fortran integer overflow** at the same point (start of the
+  optdriver=4 k-point loop) that the O-2p (l=1) run gets past cleanly — same deck otherwise (bands 11-26,
+  same cell).  Not yet root-caused; flagged in §6.3, not on the critical path (Ni-3d already has hp.x's
+  matched-PP oracle at 5.27 eV; ABINIT's Ni-3d row was always going to be a second opinion, not decisive).
+- ★ **Best current number: \f$U_{\rm cRPA}({\rm O\ 2p},\,\omega=0,\,dp\text{-}dp\text{ model})\approx1.21\f$–\f$1.24\f$
+  eV** (ecuteps 7→4 Ha; \f$J\approx0.33\f$ eV), from the per-block print, trusted per the isolation above.
+  ⚠ **This is well BELOW the \f$\gtrsim4\f$ eV literature bound gate 3's 6 % agreement leans on** — but the
+  SrVO3 tutorial's OWN convergence table (§5 there) shows the SAME material/orbital's U swinging from 1.6
+  to 12.0 eV **purely from the choice of screening-exclusion model** (\f$t_{2g}\f$-\f$t_{2g}\f$ vs \f$dp\f$-\f$dp\f$ vs
+  \f$d\f$-\f$dp\f$(a) vs \f$d\f$-\f$dp\f$(b)), so a 1.2 eV "dp-dp" number is not necessarily in tension with a
+  literature bound quoted under a DIFFERENT, unstated model convention — **the two are not yet
+  comparable**, and making them comparable (matching whatever model convention the literature's
+  \f$\gtrsim4\f$ eV figure actually used) is the next real step, not a parameter sweep on this one.
+  ⛔ **Not yet quotable against gate 3** until that model-matching is done — recorded here as progress, not
+  as gate 3's answer.
+
 ★ **A cross-check that is independent of the kernel FORM.**  A flat \f$1/\varepsilon\f$ (no length scale at
 all) would need \f$\varepsilon = 4.61\f$ for Ni 3d, against NiO's experimental \f$\varepsilon_\infty\approx5.7\f$.
 The needed value sitting slightly BELOW \f$\varepsilon_\infty\f$ is the physically right ordering — an on-site
@@ -525,5 +587,13 @@ evidence is.  A fresh session should clear or re-park them before starting new w
    value and its two map entries.  Left unwired deliberately (no consumer yet, and a dead file is worse than
    a recorded command) — the command is in the `.bsd` header and in §4's prerequisites.  ⇒ item 2 above
    should land WITH it, not after.
+4. **ABINIT Ni-3d `ucrpa` crashes with a Fortran integer overflow.**  Same deck as the working O-2p run
+   (`~/Code/abinit-runs/ni3d_noU/`), same cell, same bands (11-26) for the Wannier construction and
+   screening exclusion — only the correlated orbital swapped (l=2/projector=5 on the Ni sites instead of
+   l=1/projector=3 on the O sites).  Crashes at the same point O-2p gets past cleanly: the start of
+   optdriver=4's k-point loop ("begin of Ucrpa calc for a nb of kpoints of: 64").  Not root-caused.  Not on
+   the critical path — Ni-3d already has hp.x's matched-PP oracle (5.27 eV, §4 gate 3 table); this run was
+   only ever going to be a second opinion, unlike O-2p where it turns a bound into the only value we have.
+   Evidence: `~/Code/abinit-runs/ni3d_noU/run.log`.
 
 ---
