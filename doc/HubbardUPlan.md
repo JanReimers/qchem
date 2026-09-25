@@ -37,8 +37,8 @@ of gate 3's numbers — see §6.1.)
 ### Track B — can we RUN the material?  (needs no oracle)
 | | action | state |
 |---|---|---|
-| **B1** | **Three spinel structures into `materials.json`**: λ-MnO₂ (12 atoms), LiMn₂O₄ (14), Li₂Mn₂O₄ (16) | ⛔ **DO FIRST in this track.** Nothing in B runs without it |
-| **B2** | **Gate 1 — magnetic robustness**: λ-MnO₂ and LiMn₂O₄ at U = 0, 2, 4 eV, watching the integrated site moment | blocks everything downstream in B.  ⚠ seeding is NOT the lever (§1 trap 3) |
+| B1 | ~~Three spinel structures into `materials.json`~~ | ✅ **2/3 DONE 2026-09-25**: λ-MnO₂ (12 atoms) and LiMn₂O₄ (14) landed, ase-generated + bond-length-verified (§4 prerequisites).  Li₂Mn₂O₄ (16, JT-tetragonal) deliberately deferred — gate 1 doesn't need it |
+| B2 | ~~Gate 1 — magnetic robustness~~ | ✅ **PRELIMINARY VERDICT 2026-09-25: order SURVIVED in all 6 arms** (λ-MnO₂ and LiMn₂O₄ × U=0,2,4 eV) — see §4 |
 | **B3** | **Gate 2 — run sizing**: one converged SCF per composition at Γ, wall + peak RSS logged | after B2 |
 | B4 | `valence_semicore.bsd` + a `BasisSetData` enum value (§6.3) **landing together with the basis-vs-PP check** (§6.2), then the q1-vs-q3 discriminator on the Li intercalation energy | ⚠ Li **q1 is already committed and working** — B1–B3 do NOT wait on this |
 
@@ -286,6 +286,33 @@ magnetisation channel (§4 row N3), kT, and U itself.)
 Run λ-MnO₂ and LiMn₂O₄ at fixed U = 0, 2, 4 eV and watch the integrated site moment.  If the order dies as
 it did on NiO, no loop on this material means anything and the fix (mixer preconditioning in the
 magnetisation channel, §4 row N3; or a different ordering) comes first.  **Cheap: three short SCFs each.**
+
+★ **RUN 2026-09-25 — PRELIMINARY VERDICT: ORDER SURVIVED IN ALL SIX ARMS.**  `gpwprobe gate1 <material>
+[U_eV]` (new command, generic over any `materials.json` entry: finds the Mn sites, puts the same U on
+every one, reports `SolidCalculation`'s own `RunDiagnostics` — already material-agnostic, nothing new to
+build).  Ferromagnetic seed (materials.json's decoration), `GPW_SPHERICAL=1` (the Cartesian-d Hubbard_U
+guard fires otherwise, same as MnO/NiO), `NMAX=80`, Γ-only:
+
+| material | U (eV) | seed→peak→final (e) | verdict | Eee end/floor |
+|---|---|---|---|---|
+| λ-MnO₂ | 0 | 4.9 → 5.005 → 4.31 | SURVIVED | 1.30 |
+| λ-MnO₂ | 2 | 4.9 → 4.9 → 4.262 | SURVIVED | 1.64 |
+| λ-MnO₂ | 4 | 4.9 → 4.9 → 4.459 | SURVIVED | 1.71 |
+| LiMn₂O₄ | 0 | 4.832 → 5.159 → 3.374 | SURVIVED | 2.58 |
+| LiMn₂O₄ | 2 | 4.832 → 5.126 → 3.646 | SURVIVED | 2.64 |
+| LiMn₂O₄ | 4 | 4.832 → 5.426 → 4.739 | SURVIVED | 2.64 |
+
+Every final value sits within ~30 % of its own seed/peak — nothing resembling NiO's collapse to <2 % of
+peak.  ⇒ **no magnetic-order redesign is needed before gate 2/3.**  ⚠ **Caveat, and it is real: NONE of
+the six converged at NMAX=80** — this is a trajectory reading (the instrument `SolidCalculation` runs
+regardless of convergence), not a converged-energy verdict.  λ-MnO₂'s Hartree sloshing (1.3–1.7×) is
+mild; LiMn₂O₄'s (2.58–2.64×) is not, consistent with §3 risk 1's own flag that the mixed-valence,
+geometrically frustrated (pyrochlore) Mn sublattice would be the harder of the two to settle — LiMn₂O₄'s
+run here also uses a single Mn3+-everywhere approximation for the formally 3.5+ average, not the true
+charge-ordered state, which is a plausible contributor to the extra sloshing.  **Not yet production
+numbers for gate 2/3** — needs either more iterations or a mixer/schedule tuned the way MnO/NiO's own
+recipe was (doc/OpenWork.md N3 row), before an energy or a U from these cells is quoted.  Evidence:
+`~/Code/qchem6-runs/gate1/*.log`.
 
 **Gate 2 — size the runs.**  One converged SCF per composition at Γ, timed and RSS-logged.  Estimate to
 beat: ~316 basis functions for LiMn₂O₄ against MnO's 118, so expect 3–8× MnO's ~6 min ⇒ 20–50 min per SCF,
