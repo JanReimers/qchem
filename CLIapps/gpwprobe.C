@@ -564,9 +564,61 @@ int TMO(const TmoSpec& S)
     return nFailed;
 }
 
+//========================================================================================================
+// GATE 1 (doc/HubbardUPlan.md track B, B2): does a CHOSEN collinear order on the spinel Mn sublattice --
+// the 16d Wyckoff site, i.e. the PYROCHLORE lattice, geometrically frustrated (S3 risk 1) -- survive a
+// change in U, consistently and reproducibly?  This is NOT a ground-state search: the NiO lesson (trap 3,
+// doc/HubbardUPlan.md S1) is that seeding cannot buy an order the SCF fixed point does not have, so what
+// matters is whether the order SURVIVES, not whether it is the true minimum.  Materials come from
+// materials.json (LiMn2O4_spinel, MnO2_lambda_spinel), ferromagnetically seeded there already; every Mn
+// site gets the SAME Hubbard U (site, l=2).
+//   gpwprobe gate1 <material> [U_eV]     GATE1_KT=kT  GATE1_NMAX=n  GATE1_MULT=2S+1 (override the
+//                                        d-count-derived default)  GATE1_ECUT
+//========================================================================================================
+int Gate1(const std::string& materialName, double U_eV)
+{
+    const Material mat=Materials::Get(materialName);
+    std::vector<size_t> mnSites;
+    { size_t idx=0; mat.cell->ForEachSite([&](int z, const rvec3_t&, bool){ if (z==25) mnSites.push_back(idx); idx++; }); }
+    if (mnSites.empty()) throw std::runtime_error("gate1: no Mn sites in '"+materialName+"'");
+
+    // The formal Mn oxidation state fixes the unambiguous cases (lambda-MnO2: Mn4+, d3, S=3/2) and forces
+    // an EXPLICIT approximation on the mixed-valence one (LiMn2O4: formally Mn3.5+ on four CRYSTALLOGRAPHICALLY
+    // EQUIVALENT sites -- charge disproportionation is not modelled here).  Ferromagnetic alignment (every
+    // Mn spin the same sign, matching materials.json's decoration) is gate 1's own SIMPLE CHOICE, not a
+    // ground-state claim.
+    const bool isLambda = materialName.find("lambda")!=std::string::npos;
+    const int unpairedPerMn = isLambda ? 3 : 4;                     // Mn4+ d3 (S=3/2) : Mn3+ d4 (S=2)
+    const int defaultMult = int(mnSites.size())*unpairedPerMn + 1;  // FM: total S = mnSites*unpaired/2
+    const int mult = Envi("GATE1_MULT", defaultMult);
+
+    std::ostringstream label; label<<materialName<<" gate1 U="<<U_eV<<"eV mult="<<mult;
+    SolidCalcOptions o=OptionsFor(mat, label.str());
+    o.multiplicity=mult;
+    o.seed=ChargeDensity::SeedStrategy::IonicSAD;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    o.cutoffFactor=Envd("GATE1_CUTOFF_FACTOR",2.0);
+    o.densityEcut =Envd("GATE1_ECUT",-1.0);
+    for (size_t s : mnSites) o.hubbard.push_back(HubbardU(s, 2, U_eV));
+
+    SCFParams par=ProductionGates();
+    par.NMaxIter=size_t(Envd("GATE1_NMAX",80.0));
+    par.SmearingkT=Envd("GATE1_KT",0.005);
+    par.UseMOM=true; par.MOMStartIter=10;
+    EnvOverrides(o, par);
+
+    GpwReport report(label.str(), true);
+    SolidCalculation calc(LatticeOf(mat), MakeBasisLowQ(*mat.cell, BasisSetData::VALENCE_LOWQ_VA), o, par);
+    auto R=calc.Result();
+    std::cout << "[" << label.str() << "] " << (R ? "CONVERGED" : "NOT converged")
+              << "  Etot=" << std::setprecision(10) << calc.LastIterateTerms().GetTotalEnergy()
+              << std::setprecision(6) << "  " << calc.Diagnostics().Summary() << std::endl;
+    return nFailed;
+}
+
 void Usage()
 {
-    std::cout << "gpwprobe ladder | ksweep | naf-smear | becke-ladder {si|naf|mn|al} | mno | nio\n"
+    std::cout << "gpwprobe ladder | ksweep | naf-smear | becke-ladder {si|naf|mn|al} | mno | nio | gate1 <material> [U_eV]\n"
                  "  (the env-var knobs are documented at the top of CLIapps/gpwprobe.C and in doc/Benchmark.md)\n";
 }
 } // anonymous
@@ -583,6 +635,8 @@ int main(int argc, char** argv)
         if (cmd=="becke-ladder") { if (argc<3) { Usage(); return 2; } return BeckeRecipeLadder(argv[2]); }
         if (cmd=="mno")          return TMO(MnOSpec);
         if (cmd=="nio")          return TMO(NiOSpec);
+        if (cmd=="gate1")        { if (argc<3) { Usage(); return 2; }
+                                    return Gate1(argv[2], argc>3 ? std::atof(argv[3]) : 0.0); }
     }
     catch (const std::exception& e) { std::cerr << "gpwprobe " << cmd << ": " << e.what() << std::endl; return 1; }
     Usage(); return 2;
