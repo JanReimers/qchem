@@ -23,11 +23,12 @@ plan appears here exactly once; if it is not in this list it is a finding, not a
 
 **★ Track A's screening question is ANSWERED, and it answered NO.**  A1–A3 are done: route (b) [ACBN0 with
 a screened bulk kernel] is refuted on real, matched-PP oracle data for both Ni-3d and O-2p (§4).  A4 does
-not start.  **The one open decision is which surviving route — (c) hp.x/QE values as a per-composition
-input, or (d) our own finite-difference/DFPT linear response — the plan takes next, and that is the
-user's call, not a queued action** (§2's routing table; the two share cost if a computed \f$\varepsilon\f$
-needs DFPT anyway).  (A2's ABINIT cRPA route stays paused, superseded by A2b's matched-PP hp.x route,
-which is what A3 was actually run against.)
+not start.  **The routing decision is MADE (user, 2026-09-25): (d), our own finite-difference/DFPT linear
+response — queued as A7, in-house and material-agnostic once built.**  It is queued BEHIND A6: broadening
+the matched-PP hp.x oracle set across oxides/sulfides/fluorides first, both because it needs no new
+capability (cheap, real progress now) and because it is real convergence-recipe practice this plan will
+need repeatedly regardless of which route wins.  (A2's ABINIT cRPA route stays paused, superseded by A2b's
+matched-PP hp.x route, which is what A3 was actually run against.)
 
 ### Track A — is the SCREENED route real?  (needs no spinels)
 | | action | state |
@@ -38,6 +39,8 @@ which is what A3 was actually run against.)
 | A3 | ~~Re-run gate3 scripts against A2b's real target~~ | ✅ **DONE 2026-09-25 — ROUTE (b) REFUTED.**  ω's 50.6 % apart (was 6 % on a wrong number), localization sign backwards again |
 | A4 | ~~the screened kernel on `BareCoulombSource`, with \f$\varepsilon\f$ COMPUTED~~ | ⛔ **DO NOT START — A3 refuted, not held.**  §2's routing table now points at (c) or (d); which one is a plan-shape decision, not this row's to make |
 | A5 | ABINIT `lruj` for **J** (hp.x gives none) — answers §5's first open question | optional, any time |
+| **A6** | **Broaden the matched-PP hp.x oracle set** — get GOOD at converging oxides/sulfides/fluorides across the papers' own benchmark materials (SrVO₃, KCuF₃, Sr₂FeO₄, the LiMO₂ series M=V–Ni, TiO₂, ZnO, FeS₂ — §7; MnO's own O-2p redone with `ortho-atomic` instead of the fragile `atomic` projector already used once) | ⛔ **QUEUED, FIRST** (user, 2026-09-25).  No new capability needed — `gth2upf`/`pw.x`/`hp.x` already work.  User: happy to spend real time here; **a digression to fix something the recipe hunt exposes in our own code is IN SCOPE, not a distraction** |
+| **A7** | **Build route (d): our own finite-difference/DFPT linear response**, material-agnostic (§5's open question; CP2K `qs_linres_*` as the Gaussian-basis reference) | ⛔ **QUEUED, AFTER A6** (user, 2026-09-25).  Does NOT reopen route (b) — a single uniform screening length is refuted regardless of how ε is computed; DFPT gives the general, manifold-resolved case (b) was a crude shortcut for, and SUPERSEDES it (once built, U comes from the response directly, no bare-tensor-times-kernel construction).  DIP-based estimator strategy, `doc/OpenWork.md` §2 row |
 
 ### Track B — can we RUN the material?  (needs no oracle)
 | | action | state |
