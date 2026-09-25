@@ -13,9 +13,10 @@
 # evaluated WITHOUT building anything in our tree first.  The contractions below are OUR OWN -- read off the
 # `[+U radial]` banner of a gpwprobe run, so this asks about our manifold, not a model one.
 #
-# ⚠ Targets are heterogeneous on purpose and must stay labelled: hp.x is a MATCHED-PP oracle (gth2upf ran our
-# own PP and projector); the O 2p figure is a literature cRPA BOUND, not a value.  Turning that bound into a
-# value is what ABINIT `ucrpa` is for -- and it is the single biggest improvement available to this test.
+# UPDATE 2026-09-25 (A2b): both targets are now matched-PP hp.x LRT values, not a bound -- ABINIT's ucrpa
+# was tried on O 2p first (dp-dp model, ~1.2 eV) but Carta et al. (arXiv:2505.03698) show cRPA is unreliable
+# on exactly this kind of entangled Ni-3d/O-2p band structure, so the oracle route switched to extending the
+# already-trusted hp.x/gth2upf recipe (NiOgO.*) instead of chasing ucrpa_bands conventions.
 # GATE 3's REFUTATION TEST, on paper: does ONE screening length move BOTH manifolds onto their
 # independent oracles?  Contractions are OUR OWN, read off the gpwprobe [+U radial] banner.
 import numpy as np
@@ -25,7 +26,7 @@ MAN = {
  'Ni 3d (l=2)': (2, [0.180,0.39485815,0.86618308,1.90010803,4.16818406,9.14356349,20.05783621,44.0],
                     [-0.114,-0.154,-0.292,-0.308,-0.387,-0.047,0.009,-0.002], 5.27, 'hp.x (matched PP)'),
  'O  2p (l=1)': (1, [0.465,1.200,3.098,8.000],
-                    [0.705,0.092,0.335,0.045],                                  4.0,  'cRPA bound >~4'),
+                    [0.705,0.092,0.335,0.045],                                  8.5139,  'hp.x (matched PP, NiOgO)'),
 }
 def F0(l, exps, cs, omega, elem):
     mol = gto.M(atom=f'{elem} 0 0 0', verbose=0, spin=None,

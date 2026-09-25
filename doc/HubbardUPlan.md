@@ -500,6 +500,36 @@ hybridised complex) is close to forced, not chosen.
   ⛔ **Not yet quotable against gate 3** until that model-matching is done — recorded here as progress, not
   as gate 3's answer.
 
+★★ **A3 RUN 2026-09-25 — WITH A REAL O-2p ORACLE, THE ONE-FACTOR TEST FAILS, AND ROUTE (b) IS REFUTED.**
+A2b (`IntegrationTests/QE/README.md`) gave a matched-PP hp.x value, U(O 2p) = 8.5139 eV, replacing the old
+4 eV **bound** the 6 % agreement above was built on.  Re-ran `scripts/gate3_screening_test.py` +
+`gate3_omega_sensitivity.py` against it:
+
+| manifold | bare \f$F^0\f$ | independent target | needed ratio | needed \f$\omega\f$ |
+|---|---|---|---|---|
+| Ni 3d | 24.29 eV | 5.27 eV (hp.x, matched PP) | 0.217 | **1.039 a.u.** |
+| O 2p | 20.97 eV | **8.51 eV** (hp.x, matched PP — no longer a bound) | 0.406 | **0.513 a.u.** |
+
+**The two needed screening lengths are now 50.6 % apart** (the sensitivity scan's own worst case at the old
+bound's upper end, 7.27 eV, already read 42 %; the real value is past even that).  ⛔ **AND THE
+LOCALIZATION SIGN HAS FLIPPED BACK TO WRONG.**  With the real target, O 2p's needed ratio (0.406) is now
+LARGER than Ni 3d's (0.217) — the diffuse orbital needs LESS reduction from bare than the compact one.
+That is backwards for a dielectric picture (a compact orbital samples large \f$q\f$, where
+\f$\varepsilon^{-1}(q)\to1\f$, so it should need LESS correction, not more) — the exact objection raised
+2026-09-23 and WITHDRAWN that same day when the 4 eV bound made the two manifolds agree to 6 %.  **The
+withdrawal was itself conditioned on a wrong number.**  Both halves of the plan's own stated refutation
+criterion (§2: *"if d and p need systematically different factors AND the localization sign stays wrong,
+the residual is not bulk screening and (b) is refuted"*) are now met, on real oracle data for BOTH
+manifolds, not a bound on one of them.  **⇒ ROUTE (b) [ACBN0 with a screened bulk kernel] IS REFUTED.**
+⚠ **What is NOT refuted**: the underlying instrument (bare on-site ERIs, the manifold/outer-loop machinery,
+§7's pin 23 addendum on LRT/cRPA as pluggable strategies) — only the SPECIFIC hypothesis that a single
+basis-independent bulk screening length, applied uniformly to the bare integral tensor, reproduces both
+oracles.  Per §2's own routing table, refuting (a) [ACBN0 as-is] and now (b) leaves **(c)** [hp.x/QE values
+as input, per-composition — legitimate under pin 12, but a supercell-equivalent per composition] and **(d)**
+[our own finite-difference/DFPT linear response] as the surviving routes, with §2's own observation that
+(b) and (d) share much of their cost if a computed \f$\varepsilon\f$ needs DFPT anyway — **this is a plan
+shape question for the user, not a call to make alone.**
+
 ★ **A cross-check that is independent of the kernel FORM.**  A flat \f$1/\varepsilon\f$ (no length scale at
 all) would need \f$\varepsilon = 4.61\f$ for Ni 3d, against NiO's experimental \f$\varepsilon_\infty\approx5.7\f$.
 The needed value sitting slightly BELOW \f$\varepsilon_\infty\f$ is the physically right ordering — an on-site
@@ -673,7 +703,10 @@ Band method, 2.Disentanglement method, 3. Weighted method.  As such one would ho
 
 **On ACBN0's basis dependence specifically (this session's finding, independently):**
 - [Orbital-Resolved DFT+U for Molecules and Solids](https://pubs.acs.org/doi/10.1021/acs.jctc.3c01403) (JCTC, 2023/2024, arXiv:2312.13580) — explicitly compares Mulliken vs Löwdin-orthogonalised projectors for the renormalised occupation, reports Löwdin improves self-consistency stability (we already made the same Löwdin-not-Mulliken choice, `Hamiltonian.C`'s design note item 3 — worth checking whether they also diagnose the basis-completeness failure mode).
+- User comments: We processed this paper before in a different session durind DFT+U planning.  That is where the idea of diagonalizing the orbital occupation matrix comes from.
+
 - [Pseudo-hybrid density functional ACBN0 for Hubbard U correction in a numeric atom-centered orbital basis](https://arxiv.org/abs/2609.12198) (2026, very recent) — NAO basis, i.e. the same "how much does the projection basis distort U" question in a different localised-basis code.
+- User comments: I think paper uses ACBN0 as is, without acknowledging or addressing the shortcomings we have identified for that method.  
 
 **DFT+U+V (intersite) follow-ons from the ACBN0 lineage:**
 - [Efficient First-Principles Approach with a Pseudohybrid Density Functional for Extended Hubbard Interactions](https://arxiv.org/abs/1911.05967) (2019) — the ACBN0→ACBN0+V extension (intersite Hubbard V), likely by overlapping authors.
