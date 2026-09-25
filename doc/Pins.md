@@ -310,13 +310,38 @@ to the projectors (n is unchanged); inside a NEARLY degenerate one (four λ≈0.
 shell) the names are ill-conditioned by nature — that is Macke's tracking problem, and the printed
 `parentage` says so rather than hiding it.
 
+**Addendum 2026-09-25 (user, reading Carta, Timrov, Beck & Ederer, arXiv:2505.03698 — the manifold
+question is not a defect to engineer away):** the same "manifold is an INPUT" ruling extends from WHICH
+site/shell/irrep to WHICH ENERGY WINDOW, and for the identical reason.  Carta et al. formally bridge cRPA
+and linear-response U for an ISOLATED set of bands (their Eq. 5: the two agree once the xc-response and
+the coarse-graining's dropped intra-subspace channels are both accounted for) — but for an ENTANGLED
+interacting/screening split, cRPA becomes ambiguous and can collapse to an unphysically small U while LRT
+"remains largely unaffected" (their Sr₂FeO₄ Fe-3d: 0.42 eV cRPA vs. 6.94–7.29 eV LRT, SAME orbital, SAME
+material, a 16× gap from the WINDOW CHOICE alone).  NiO's Ni-3d/O-2p complex (bands 11–26, no clean
+separation — `doc/HubbardUPlan.md` A2) is exactly their "entangled" case, so our own O-2p cRPA number is
+suspected of being this same pathology, not new screening physics — a finding earned by the paper, not by
+our own retraction discipline this time, but the same shape as A1's Mulliken lesson: **there is no
+basis-independent "the d-band" any more than there is a window-independent "the correlated subspace."**
+A grad student forced to draw an energy-window cut on a DOS plot is not doing something wrong — it is the
+only thing that CAN be done — and Carta et al.'s own fix was not to dissolve the choice but to make it
+ONE EXPLICIT, SHARED PROJECTOR (Wannier) so two methods could even be compared.  ⇒ two consequences, not
+one: (i) the manifold/window stays an input, never a recommended default masquerading as a derivation;
+(ii) **the code should RECOMMEND a window when a natural one exists** (a DOS minimum, a projected-character
+gap) rather than only accept one — surfacing the choice is not the same as making it, and a tool that can
+show *why* a cut is natural is strictly better than one that is silent.  Architecturally: LRT and cRPA
+belong in the tree as ADDITIONAL CONCRETE STRATEGIES behind the same abstract estimator face `ACBN0`
+already sits behind (`HubbardProjection`/`HubbardUEstimator`, increment 3) — DIP, not a special case for
+each — tracked as a `doc/OpenWork.md` §2 feature row, not decided here.
+
 ---
 
 **Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/OldPlans/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
 13 is the KP-0 multi-k defect (2026-09-09).  14–17 were harvested 2026-09-16 when their plan files went RECORD
 (`BasisSetTaxonomyPlan`, `GPWPlan1`, `SphericalLatticePlan`, `RunReportPlan`); pin 10's anchor rule came from
 `TestSuitePlan` the same day.  18–22 were harvested from the v2 `OpenWork.md` when it was rebuilt as v3
-(2026-09-16, `doc/Records/OpenWork_History4.md`) — the ⛔ findings that were durable rather than in the weeds.  23 is the DFT+U ruling of the same day.
+(2026-09-16, `doc/Records/OpenWork_History4.md`) — the ⛔ findings that were durable rather than in the weeds.  23 is the DFT+U ruling of the same day; its 2026-09-25 addendum (the manifold/window choice as an
+irreducible input, not a derivation) came from the user reading Carta et al. arXiv:2505.03698 against our
+own NiO O-2p cRPA puzzle (`doc/HubbardUPlan.md` §7).
 2, 4, 6 are user rulings recorded in session memory (`feedback_everything_is_a_fit`,
 `feedback_integrated_observables`, `feedback_pw_fitting_uniform_interface`) and had no home in the repo
 until now.

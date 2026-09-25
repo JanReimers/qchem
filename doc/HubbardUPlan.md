@@ -21,16 +21,18 @@ The plan below is the ARGUMENT; this is the QUEUE.  **Two tracks, and they do no
 decides whether the U functional is real, B decides whether the material runs at all.  Every action in the
 plan appears here exactly once; if it is not in this list it is a finding, not a task.
 
-**★ If you do only one thing: A2.**  A2 is decisive — it is the difference between the screening
-hypothesis standing and falling.  (A1 is done: it was a units mismatch, not a defect, and did not move any
-of gate 3's numbers — see §6.1.)
+**★ If you do only one thing: A2b.**  A2b is decisive — it is the difference between the screening
+hypothesis standing and falling.  (A1 is done, a units mismatch not a defect — §6.1.  A2's ABINIT cRPA
+route is paused, not abandoned: §7's literature read says cRPA is the wrong instrument for NiO's
+entangled Ni-3d/O-2p bands specifically, redirecting to A2b rather than resolving A2.)
 
 ### Track A — is the SCREENED route real?  (needs no spinels)
 | | action | state |
 |---|---|---|
 | A1 | ~~Resolve the 11 % bare-\f$F^0\f$ discrepancy~~ | ✅ **RESOLVED 2026-09-23** (§6.1): NOT a bug — the two numbers are different quantities by definition, and comparing them was the error, not either computation |
-| **A2** | **ABINIT `ucrpa` on NiO (O 2p first), then MnO** — turn the cRPA *bound* into a *value* | ⛔ **DECISIVE**, IN PROGRESS 2026-09-24: O-2p first number in hand (≈1.2 eV, dp-dp model) but not yet comparable to the literature bound (model convention unmatched — §4 gate 3); Ni-3d crashes (§6.3); MnO not started |
-| **A3** | Re-run `scripts/gate3_screening_test.py` + `gate3_omega_sensitivity.py` against A2's real targets | ready; the scripts are banked and take seconds |
+| A2 | ~~ABINIT `ucrpa` on NiO (O 2p first), then MnO~~ | ⚠ **PAUSED 2026-09-25, redirected to A2b** — §7's Carta et al. read shows cRPA is unreliable in exactly NiO's hybridised-band regime (16× errors documented on their own materials), so the ≈1.2 eV dp-dp number is suspected of being that pathology, not a value to chase further via model-convention sweeps.  Ni-3d crash (§6.3) and MnO run both deprioritised with it |
+| **A2b** | **Extend hp.x (matched-PP LRT) to O-2p** — the paper's own conclusion is to trust LRT, not cRPA, when bands are entangled | ⛔ **NEW, DECISIVE** per §7's read.  Same matched-PP/`gth2upf` machinery as the Ni-3d run; not yet started |
+| **A3** | Re-run `scripts/gate3_screening_test.py` + `gate3_omega_sensitivity.py` against A2b's real target (not A2's) | ready; the scripts are banked and take seconds |
 | **A4** | **Only if A3 holds**: the screened kernel on `BareCoulombSource`, with \f$\varepsilon\f$ COMPUTED | blocked on A3.  ⛔ Do not start before it |
 | A5 | ABINIT `lruj` for **J** (hp.x gives none) — answers §5's first open question | optional, any time |
 
@@ -636,7 +638,38 @@ inline; this list is the starting set, not the final one.
 
 **Most promising — direct hits on our exact problem:**
 - [Comparative analysis of methods for calculating Hubbard parameters using cRPA](https://arxiv.org/abs/2503.11142) (Phys. Rev. B, May 2025) — systematically compares cRPA projection/Wannierisation schemes specifically for **entangled bands**, exactly NiO's Ni-3d/O-2p hybridisation problem (§4 gate 3's model-convention gap); benchmarks on LiMO₂ (M=V–Ni) and SrMO₃ (M=Mn,Fe,Co) — SAME element family as our own MnO/NiO.
+- User comments: This paper defines and compares three methods of defining the polarizability function: 1.
+Band method, 2.Disentanglement method, 3. Weighted method.  As such one would hope that in the conclusions section they would recommend one of these as being superior ... no such luck!  There are no conclusions of any sort on the "Conclusions" section, just a summary of what they did, and suggestiosn for future work.
+  However the paper contains a substantial amount of calculated results for U/J accross SrMO3 and LiMO2 series, for us to compare with.  Methods 2&3 are based on Wannier functions.  They use https://github.com/wannier-developers/wannier90.  We can download an install if useful.
+  Ultimately everything boils down choosing the bands (energy window) from which to compute the Wannier functions.  d only, d + Ox-p, d-frontier only etc.  As with Mulliken pop analysis we are over interpreting a single determinent approximate wave function and its defining basis set. Strictly speaking there is no such thing as "d-band", but there is a "mostly-d-band" but only within the context of our product WF and its associated basis set.
+
 - [Bridging constrained random-phase approximation and linear response theory for computing Hubbard parameters](https://arxiv.org/abs/2505.03698) (2025) — connects cRPA (our ABINIT route) and linear-response (our hp.x route) methodologically; could directly bear on why our two oracle types disagree in scale.
+- User comments: Yes this paper does exactly what the title says.  They are able to get agreement between cRPA and LRT "using well-defined Wannier projectors not only allows for a systematic comparison between LRT and cRPA (and potentially other methods to calculate U ), but also offers greater transferability across  different implementations."
+- ★★ **READ IN FULL 2026-09-25 — and it redirects A2, not just explains it.**  Carta, Timrov, Beck & Ederer
+  formally bridge LRT and cRPA (their Eq. 5) for an ISOLATED set of bands: once you account for (1) cRPA
+  typically dropping the xc-kernel response that LRT naturally includes, and (2) cRPA's coarse-graining to
+  a purely monopolar response discarding excitation channels INSIDE the interacting subspace that LRT
+  keeps, the two agree to a few percent (KCuF₃ Cu-3d: 10.01 vs 9.97 eV).  **But for an ENTANGLED
+  interacting/screening split — their "d-only" case — cRPA becomes ambiguous and collapses to an
+  unphysically small U while LRT "remains largely unaffected": Sr₂FeO₄ Fe-3d gives U_cRPA = 0.42 eV vs.
+  U_LRT = 6.94–7.29 eV, a 16× gap, SAME orbital, SAME material, from the window/method choice alone.**
+  ⇒ **NiO's Ni-3d/O-2p complex (bands 11–26, no clean separation, per this doc's own fatbands finding) is
+  exactly their "entangled" case.**  Our ABINIT O-2p cRPA number (≈1.2 eV, dp-dp model) is therefore
+  SUSPECTED of being this SAME cRPA-in-a-hybridised-subspace pathology, not new physics about O-2p
+  screening — and no `ucrpa_bands` convention search fixes an intrinsically ill-posed calculation.  Their
+  own conclusion points the other way: trust LRT in the entangled regime.  **⇒ REDIRECT: the next O-2p
+  action is extending hp.x (matched-PP LRT, our existing trusted oracle) to O-2p, not further ABINIT model
+  sweeps** — added to §0 as A2b.  Mechanism, briefly: when D and R overlap in energy, screening channels
+  that physically belong inside the correlated subspace get misattributed to the screening subspace,
+  driving cRPA's U artificially low — the SAME shape of error as A1's Mulliken lesson (a quantity that
+  looks like it measures physics but is actually measuring how the method's own bookkeeping handles a
+  subspace split/basis choice).  Their fix for comparing methods at all was not dissolving the window
+  choice but forcing BOTH methods onto ONE EXPLICIT, SHARED projector (Wannier) — pin 23's 2026-09-25
+  addendum (doc/Pins.md) generalises this: the manifold/window is an INPUT, never a derivation, the same
+  ruling pin 23 already makes for site/shell/irrep, one level up.  User: happy to run every material these
+  papers use and to support BOTH LRT and cRPA natively (DIP, behind the existing `HubbardUEstimator` face)
+  — filed as a `doc/OpenWork.md` §2 feature row, not a near-term build (each needs real new capability:
+  LRT a perturb-and-respond mechanism, cRPA a χ0 in a product basis).
 
 **On ACBN0's basis dependence specifically (this session's finding, independently):**
 - [Orbital-Resolved DFT+U for Molecules and Solids](https://pubs.acs.org/doi/10.1021/acs.jctc.3c01403) (JCTC, 2023/2024, arXiv:2312.13580) — explicitly compares Mulliken vs Löwdin-orthogonalised projectors for the renormalised occupation, reports Löwdin improves self-consistency stability (we already made the same Löwdin-not-Mulliken choice, `Hamiltonian.C`'s design note item 3 — worth checking whether they also diagnose the basis-completeness failure mode).
