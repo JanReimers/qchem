@@ -21,19 +21,22 @@ The plan below is the ARGUMENT; this is the QUEUE.  **Two tracks, and they do no
 decides whether the U functional is real, B decides whether the material runs at all.  Every action in the
 plan appears here exactly once; if it is not in this list it is a finding, not a task.
 
-**★ If you do only one thing: A2b.**  A2b is decisive — it is the difference between the screening
-hypothesis standing and falling.  (A1 is done, a units mismatch not a defect — §6.1.  A2's ABINIT cRPA
-route is paused, not abandoned: §7's literature read says cRPA is the wrong instrument for NiO's
-entangled Ni-3d/O-2p bands specifically, redirecting to A2b rather than resolving A2.)
+**★ Track A's screening question is ANSWERED, and it answered NO.**  A1–A3 are done: route (b) [ACBN0 with
+a screened bulk kernel] is refuted on real, matched-PP oracle data for both Ni-3d and O-2p (§4).  A4 does
+not start.  **The one open decision is which surviving route — (c) hp.x/QE values as a per-composition
+input, or (d) our own finite-difference/DFPT linear response — the plan takes next, and that is the
+user's call, not a queued action** (§2's routing table; the two share cost if a computed \f$\varepsilon\f$
+needs DFPT anyway).  (A2's ABINIT cRPA route stays paused, superseded by A2b's matched-PP hp.x route,
+which is what A3 was actually run against.)
 
 ### Track A — is the SCREENED route real?  (needs no spinels)
 | | action | state |
 |---|---|---|
 | A1 | ~~Resolve the 11 % bare-\f$F^0\f$ discrepancy~~ | ✅ **RESOLVED 2026-09-23** (§6.1): NOT a bug — the two numbers are different quantities by definition, and comparing them was the error, not either computation |
 | A2 | ~~ABINIT `ucrpa` on NiO (O 2p first), then MnO~~ | ⚠ **PAUSED 2026-09-25, redirected to A2b** — §7's Carta et al. read shows cRPA is unreliable in exactly NiO's hybridised-band regime (16× errors documented on their own materials), so the ≈1.2 eV dp-dp number is suspected of being that pathology, not a value to chase further via model-convention sweeps.  Ni-3d crash (§6.3) and MnO run both deprioritised with it |
-| **A2b** | **Extend hp.x (matched-PP LRT) to O-2p** — the paper's own conclusion is to trust LRT, not cRPA, when bands are entangled | ⛔ **NEW, DECISIVE** per §7's read.  Same matched-PP/`gth2upf` machinery as the Ni-3d run; not yet started |
-| **A3** | Re-run `scripts/gate3_screening_test.py` + `gate3_omega_sensitivity.py` against A2b's real target (not A2's) | ready; the scripts are banked and take seconds |
-| **A4** | **Only if A3 holds**: the screened kernel on `BareCoulombSource`, with \f$\varepsilon\f$ COMPUTED | blocked on A3.  ⛔ Do not start before it |
+| A2b | ~~Extend hp.x (matched-PP LRT) to O-2p~~ | ✅ **DONE 2026-09-25**: U(Ni 3d)=5.4343, U(O 2p)=8.5139 eV, both matched-PP (`IntegrationTests/QE/README.md`, `NiOgO.*`) |
+| A3 | ~~Re-run gate3 scripts against A2b's real target~~ | ✅ **DONE 2026-09-25 — ROUTE (b) REFUTED.**  ω's 50.6 % apart (was 6 % on a wrong number), localization sign backwards again |
+| A4 | ~~the screened kernel on `BareCoulombSource`, with \f$\varepsilon\f$ COMPUTED~~ | ⛔ **DO NOT START — A3 refuted, not held.**  §2's routing table now points at (c) or (d); which one is a plan-shape decision, not this row's to make |
 | A5 | ABINIT `lruj` for **J** (hp.x gives none) — answers §5's first open question | optional, any time |
 
 ### Track B — can we RUN the material?  (needs no oracle)
@@ -706,7 +709,7 @@ Band method, 2.Disentanglement method, 3. Weighted method.  As such one would ho
 - User comments: We processed this paper before in a different session durind DFT+U planning.  That is where the idea of diagonalizing the orbital occupation matrix comes from.
 
 - [Pseudo-hybrid density functional ACBN0 for Hubbard U correction in a numeric atom-centered orbital basis](https://arxiv.org/abs/2609.12198) (2026, very recent) — NAO basis, i.e. the same "how much does the projection basis distort U" question in a different localised-basis code.
-- User comments: I think paper uses ACBN0 as is, without acknowledging or addressing the shortcomings we have identified for that method.  
+- User comments: I think paper uses ACBN0 as is, without acknowledging or addressing the shortcomings we have identified for that method.  They PBE and SCAN xc functions which we don't have working yet.  But if we ever want band gaps, magnetic moments and U values to compare with
 
 **DFT+U+V (intersite) follow-ons from the ACBN0 lineage:**
 - [Efficient First-Principles Approach with a Pseudohybrid Density Functional for Extended Hubbard Interactions](https://arxiv.org/abs/1911.05967) (2019) — the ACBN0→ACBN0+V extension (intersite Hubbard V), likely by overlapping authors.
