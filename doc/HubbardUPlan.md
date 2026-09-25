@@ -597,3 +597,37 @@ evidence is.  A fresh session should clear or re-park them before starting new w
    Evidence: `~/Code/abinit-runs/ni3d_noU/run.log`.
 
 ---
+
+## 7. Literature hunt — candidates for a physics-based screening replacement (UNVETTED, 2026-09-25)
+
+★ **Not findings — a queue for the user to sift** (web search only, no paper read in full).  The ACBN0
+paper itself is arXiv Oct 2014 / PRX Jan 2015 — eleven years of follow-on work exists and none of it has
+been checked against what we need: a REPLACEMENT for eq 12/13's Mulliken-type \f$\bar N\f$ renormalisation
+(§ this session's finding: it is a basis-completeness artefact, not a screening model) with something
+whose screening is a real, basis-independent dielectric quantity.  User is downloading and annotating
+inline; this list is the starting set, not the final one.
+
+**Most promising — direct hits on our exact problem:**
+- [Comparative analysis of methods for calculating Hubbard parameters using cRPA](https://arxiv.org/abs/2503.11142) (Phys. Rev. B, May 2025) — systematically compares cRPA projection/Wannierisation schemes specifically for **entangled bands**, exactly NiO's Ni-3d/O-2p hybridisation problem (§4 gate 3's model-convention gap); benchmarks on LiMO₂ (M=V–Ni) and SrMO₃ (M=Mn,Fe,Co) — SAME element family as our own MnO/NiO.
+- [Bridging constrained random-phase approximation and linear response theory for computing Hubbard parameters](https://arxiv.org/abs/2505.03698) (2025) — connects cRPA (our ABINIT route) and linear-response (our hp.x route) methodologically; could directly bear on why our two oracle types disagree in scale.
+
+**On ACBN0's basis dependence specifically (this session's finding, independently):**
+- [Orbital-Resolved DFT+U for Molecules and Solids](https://pubs.acs.org/doi/10.1021/acs.jctc.3c01403) (JCTC, 2023/2024, arXiv:2312.13580) — explicitly compares Mulliken vs Löwdin-orthogonalised projectors for the renormalised occupation, reports Löwdin improves self-consistency stability (we already made the same Löwdin-not-Mulliken choice, `Hamiltonian.C`'s design note item 3 — worth checking whether they also diagnose the basis-completeness failure mode).
+- [Pseudo-hybrid density functional ACBN0 for Hubbard U correction in a numeric atom-centered orbital basis](https://arxiv.org/abs/2609.12198) (2026, very recent) — NAO basis, i.e. the same "how much does the projection basis distort U" question in a different localised-basis code.
+
+**DFT+U+V (intersite) follow-ons from the ACBN0 lineage:**
+- [Efficient First-Principles Approach with a Pseudohybrid Density Functional for Extended Hubbard Interactions](https://arxiv.org/abs/1911.05967) (2019) — the ACBN0→ACBN0+V extension (intersite Hubbard V), likely by overlapping authors.
+- [DFT+U+V is equivalent to DFT+U with density-dependent hybridized projectors](https://arxiv.org/abs/2607.18071) (2026) — theoretical reformulation, very recent.
+
+**Screened-kernel FORM (relevant to route (b)'s actual kernel construction, not just the U value):**
+- Analytical treatment of the Yukawa screened Coulomb interaction in a plane-wave basis (2025; ScienceDirect/ADS) — closed-form matrix elements for a Yukawa/Thomas-Fermi-screened kernel in a PW basis; the Gaussian-basis analogue is what `BareCoulombSource` would need for route (b)'s A4.
+- Calculation of Effective Coulomb Interaction for Pr³⁺, U⁴⁺, UPt₃ (cond-mat/9501111, classic) — early Yukawa/Thomas-Fermi-screened Slater-integral fit; background, not current.
+
+**Background / reviews:**
+- Hubbard-corrected DFT energy functionals: the LDA+U description of correlated systems (Himmetoglu, Marzari, Cococcioni; Int. J. Quantum Chem. 2014, arXiv:1309.3355) — the standard broad review, pre-dates ACBN0-specific critique but frames the double-counting/screening landscape it sits in.
+- DFT+U within the framework of linear combination of numerical atomic orbitals (arXiv:2202.05409) — same LCAO-basis-dependence territory as our finding, different code family.
+
+**A different philosophy, for contrast (probably not what we want, but worth knowing it exists):**
+- Machine learning the Hubbard U parameter in DFT+U using Bayesian optimization (npj Comput. Mater., 2020) — fits U empirically against a target property rather than deriving it from screening physics; the opposite direction from route (b).
+
+---
