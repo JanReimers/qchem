@@ -61,6 +61,47 @@ matched-PP hp.x route, which is what A3 was actually run against.)
 compositions × the outer loop, the k-mesh arms, and the calibration LR run if C1 says the supercell fits.
 ⛔ `scripts/memsafe -p`, never bare.
 
+### A6's material queue (session handoff, 2026-09-25)
+
+★ **This is A6, not A2b** — A2b was NiO O-2p specifically and is done/closed.  A6 is the broader
+"get good at converging matched-PP hp.x oracles across chemistries" item, and this is its ordered
+material list for a fresh session to pick up.  Element coverage for every element below is already
+checked (`gth2upf`, this session) — Ti/V/Fe/Co/Sr/K/F/Zn convert cleanly; Cu needed and got a kT-anneal
+fallback fix (aufbau limit cycle, 3d10-4s1 vs 3d9-4s2 near-degeneracy — see A6's row above and the
+`gth2upf.C` commit).  **No element in this list is blocked.**
+
+1. **SrVO₃ FIRST** (recommended start).  Simplest structure in the set — cubic perovskite, no
+   Jahn-Teller distortion to source geometry for (unlike KCuF₃) — a single-d-electron METAL rather than
+   a mixed-valence/magnetic TMO (no AFM ordering, no smearing-then-fixed-occupation 2-step recipe needed
+   the way MnO/NiO required), and BOTH `doc/HubbardUPlan.md` §7 papers report their own published U
+   values for it — a free external cross-check the same way the ABINIT SrVO3 tutorial run validated the
+   cRPA setup earlier this session.  Elements: Sr, V, O (all checked).
+2. **KCuF₃** — needed Cu specifically (now fixed).  ⚠ Jahn-Teller distorted (Carta et al. study it partly
+   *because* of this) — sourcing the distorted geometry from a named reference is real work, same
+   discipline as the spinel structures (B1): bond-length-verify, cite the source, do not guess a
+   Wyckoff table from memory.  Elements: K, Cu, F (all checked).
+3. **Sr₂FeO₄** — the other Carta et al. benchmark, and their own "d-only" entangled-band cautionary case
+   (Fe-3d U_cRPA=0.42 vs U_LRT=6.94–7.29 eV) — directly relevant to re-testing our own NiO finding on a
+   second material.  Elements: Sr, Fe, O (all checked).  ⚠ Layered structure (Sr₂FeO₄, not perovskite) —
+   source it separately from SrVO₃/KCuF₃.
+4. **The `LiMO₂` series (M=V–Ni)** from the cRPA-comparison paper (§7) — same rocksalt-derived
+   framework across the row, so once one is running the rest are cheap geometry swaps.  Elements: Li, V,
+   Cr, Mn, Fe, Co, Ni, O (Cr untested — likely needs the SAME Cu-style anneal fix, d5-4s1 near-degenerate
+   with d4-4s2, same mechanism, not yet confirmed).
+5. **TiO₂, ZnO, FeS₂** — the remaining ACBN0-paper benchmark set (rutile TiO₂ and wurtzite ZnO already
+   in ACBN0's own four-material study alongside MnO/NiO; FeS₂ is Macke's e_g-hybridisation warning case,
+   §3 risk 2).  Elements: Ti, Zn, S (S untested — not yet checked in `gth_potentials.json`), Fe (checked).
+6. **MnO's own O-2p, redone** with `ortho-atomic` instead of the fragile, non-orthogonalised `atomic`
+   projector already used once (`IntegrationTests/QE/README.md`'s `mno.hp.in`, U(O 2p)=26.56 eV, flagged
+   fragile at the time) — cheapest item on this list, no new geometry or elements, just a deck edit
+   mirroring what A2b already did for NiO.
+
+Each material needs the FULL recipe A2b/NiO went through: `gth2upf` per element, a sourced geometry, a
+`pw.x` ground-state recipe hunt (ecut/k-mesh/smearing — MnO and NiO each took real iteration to get
+right, expect the same here), then `hp.x`.  **A digression to fix something the recipe hunt exposes in
+our own code is explicitly in scope, not a distraction** (user, 2026-09-25) — the Cu fix above is the
+first example.
+
 ---
 
 ## 1. Background — where we stand (2026-09-22)
