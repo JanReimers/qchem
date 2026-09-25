@@ -1,0 +1,46 @@
+ &control
+    calculation  = 'scf'
+    restart_mode = 'from_scratch',
+    prefix       = 'NiOgO'
+    pseudo_dir = './'
+    outdir       = './'
+    tprnfor      = .true.
+    tstress      = .true.
+ /
+ &system
+    ibrav        = 0,
+    celldm(1)    = 7.88,
+    nat          = 4,
+    ntyp         = 3,
+    ecutwfc      = 280.0, input_dft='sla+vwn',
+    ecutrho      = 1120.0,
+    occupations  = 'smearing',
+    smearing     = 'gauss',
+    degauss      = 0.001,
+    nspin        = 2,
+    starting_magnetization(1) =  0.5,
+    starting_magnetization(2) = -0.5,
+ /
+ &electrons
+    conv_thr    = 1.d-10
+    mixing_beta = 0.7
+ /
+ATOMIC_SPECIES
+ Ni1  58.693  Ni.pz-gth-q10.UPF
+ Ni2  58.693  Ni.pz-gth-q10.UPF
+ O    16.000  O.pz-gth-q6.UPF
+ATOMIC_POSITIONS {alat}
+ Ni1  0.0000000   0.0000000   0.0000000
+ Ni2  0.5000000   0.5000000   0.0000000
+ O    0.5000000   0.0000000   0.0000000
+ O    1.0000000   0.5000000   0.0000000
+CELL_PARAMETERS
+ 1.00000000  0.50000000  0.50000000
+ 0.50000000  1.00000000  0.50000000
+ 0.50000000  0.50000000  1.00000000
+K_POINTS {automatic}
+ 2 2 2 0 0 0
+HUBBARD {ortho-atomic}
+U Ni1-3d 3.0
+U Ni2-3d 3.0
+U O-2p 1.d-8

@@ -82,3 +82,28 @@ response gives for LDA-GTH MnO: a d⁵ high-spin shell, filled majority / empty 
 | MnO AFM-II | ortho-atomic | 0 | −0.0447 | −0.0428 | **0.96 eV** |
 | NiO AFM-II | ortho-atomic | **3 eV** | −0.1130 | −0.0706 | **5.27 eV** |
 | NiO, QE benchmark (PBEsol, US, 25 Ry) | atomic | **3 eV** | −0.223 | −0.086 | 7.05 eV (reproduced 7.052) |
+
+## A2b (`doc/HubbardUPlan.md`): NiO O-2p, matched-PP LRT — 2026-09-25
+
+The plan's ACBN0-vs-oracle Track A needed a value for U(O 2p) on NiO and Carta et al. (arXiv:2505.03698,
+`doc/HubbardUPlan.md` §7) argue LRT stays well-behaved on entangled bands where cRPA does not — so the
+right move was extending the ALREADY-TRUSTED matched-PP `NiOg.*` recipe to put O-2p in the Hubbard block
+too, not another ABINIT cRPA sweep.  `NiOgO.*` = `NiOg.*` (same cell, same UPFs, same `U_in=3` on Ni)
++ `U O-2p 1.d-8` added to the `HUBBARD {ortho-atomic}` block, prefix changed so the original `NiOg` result
+stays intact for comparison.  Same 3-step recipe (`scf.1` finds the AFM state with smearing, `scf.2` fixes
+occupations from it, `hp.x` runs the 2×2×2 linear response) — 4 ranks, 280 Ry, ~1h28m wall (`hp.x` alone;
+roughly double the Ni-only run's 42 min, sensible with twice the perturbed sites).
+
+**Result:** U(Ni 3d) = **5.4343 eV**, U(O 2p) = **8.5139 eV** (gap 2.86 eV, unchanged from the Ni-only run
+— HOMO 10.4685 / LUMO 13.3285 eV).  Ni's value moved only +0.17 eV (+3.2%) from the Ni-only 5.267 eV once
+O joined the interacting subspace — a SMALL, sane shift, not the order-of-magnitude swing Carta et al.
+report for cRPA under redefinition of the interacting/screening split.  That is itself evidence for their
+central claim: **LRT is comparatively insensitive to where the D/R boundary is drawn; cRPA is not.**
+
+⇒ **this is now the oracle for A3's gate-3 refutation test on BOTH orbitals**, replacing the literature's
+unstated-convention "≳4 eV" O-2p bound with a real, matched-PP number.  It is also strikingly close to our
+own raw ACBN0 estimate for NiO O-2p (7.27 eV, `doc/HubbardUPlan.md` §1 table) — a ratio of ~1.17, far
+tighter than Ni-3d's ACBN0-vs-hp.x ratio of ~2.6× — suggesting ACBN0's basis-completeness overshoot
+(§6.1's finding) is itself orbital-dependent: a diffuse O-2p likely already reaches near-complete
+projector coverage in a way a compact Ni-3d does not.  Decks: `NiOgO.scf.1.in`, `NiOgO.scf.2.in`,
+`NiOgO.hp.in`.  As with `NiOg.*`, the UPFs, wavefunctions and `HP/` scratch are regenerated, not committed.
