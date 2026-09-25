@@ -21,7 +21,8 @@ TEST(Materials, EveryEntryLoadsAndDerivesItsElectronCount)
     struct Expect { const char* name; size_t atoms; int Nelec; };
     for (Expect e : { Expect{"Si_diamond",2,8}, {"Al_fcc",1,3}, {"Na_fcc",1,1}, {"NaF_rocksalt",2,8},
                       {"CsI_cscl",2,8}, {"MnO_AFM2",4,26}, {"NiO_AFM2",4,32}, {"Si_box16",1,4}, {"Na_box16",1,1},
-                      {"Mn_box16",1,7}, {"O2_box16",2,12}, {"Mn2_box7",2,14}, {"Na2_box16",2,2} })
+                      {"Mn_box16",1,7}, {"O2_box16",2,12}, {"Mn2_box7",2,14}, {"Na2_box16",2,2},
+                      {"LiMn2O4_spinel",14,78}, {"MnO2_lambda_spinel",12,76} })
     {
         M::Material m=M::Get(e.name);
         EXPECT_EQ(m.name, e.name);
@@ -30,7 +31,7 @@ TEST(Materials, EveryEntryLoadsAndDerivesItsElectronCount)
         EXPECT_FALSE(m.species.empty()) << e.name;
     }
     const std::vector<std::string> names=M::Names();
-    EXPECT_EQ(names.size(), 13u) << "the file has exactly the entries this test knows; add a row here when you add one";
+    EXPECT_EQ(names.size(), 15u) << "the file has exactly the entries this test knows; add a row here when you add one";
     EXPECT_EQ(names.front(), "Si_diamond") << "file order is the pick-list order";
 }
 

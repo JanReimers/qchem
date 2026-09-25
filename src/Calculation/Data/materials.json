@@ -92,5 +92,41 @@
     "lattice": { "type": "CubicP", "a": 16.0 },
     "atoms":   [ { "el": "Na", "frac": [0.31875, 0.5, 0.5], "spin": 1 }, { "el": "Na", "frac": [0.68125, 0.5, 0.5], "spin": -1 } ],
     "species": { "Na": 1 }
+  },
+  "LiMn2O4_spinel": {
+    "comment": "doc/HubbardUPlan.md B1/gate 1: normal spinel Fd-3m (#227), a = 8.24 A (neutron diffraction, converges with mp-22584 and multiple independent refinements 8.22-8.25 A); primitive rhombohedral cell (14 atoms: 2 Li 8a-tetrahedral, 4 Mn 16d-octahedral, 8 O 32e, u = 0.362 in this coordinate labelling) generated with ase's Fd-3m(#227) Wyckoff machinery and VERIFIED by bond length (Mn-O 1.959 A, Li-O 1.970 A -- both textbook-sensible, not from a primary-source Wyckoff table match).  Mn sublattice (16d) is the pyrochlore lattice -- geometrically frustrated (doc/HubbardUPlan.md S3 risk 1) -- so the ferromagnetic seed here is a DELIBERATE SIMPLE CHOICE for gate 1's robustness test (does a chosen order survive a U change, consistently and reproducibly), not a claim about the true magnetic ground state.  Li q1 (2s1, frozen core) matching the currently-committed valence_lowq_*.bsd variant (doc/HubbardUPlan.md S4: q1-vs-q3 discriminator B4 not yet run).",
+    "lattice": { "type": "CubicF", "a": 15.571282102043506 },
+    "atoms":   [ { "el": "Li", "frac": [0.250000, 0.750000, 0.250000] },
+                 { "el": "Li", "frac": [0.500000, 0.500000, 0.500000] },
+                 { "el": "Mn", "frac": [0.125000, 0.125000, 0.125000], "spin": 1 },
+                 { "el": "Mn", "frac": [0.375000, 0.625000, 0.875000], "spin": 1 },
+                 { "el": "Mn", "frac": [0.625000, 0.875000, 0.375000], "spin": 1 },
+                 { "el": "Mn", "frac": [0.875000, 0.375000, 0.625000], "spin": 1 },
+                 { "el": "O",  "frac": [0.112000, 0.612000, 0.388000] },
+                 { "el": "O",  "frac": [0.138000, 0.862000, 0.638000] },
+                 { "el": "O",  "frac": [0.362000, 0.362000, 0.362000] },
+                 { "el": "O",  "frac": [0.388000, 0.112000, 0.612000] },
+                 { "el": "O",  "frac": [0.612000, 0.388000, 0.112000] },
+                 { "el": "O",  "frac": [0.638000, 0.138000, 0.862000] },
+                 { "el": "O",  "frac": [0.862000, 0.638000, 0.138000] },
+                 { "el": "O",  "frac": [0.888000, 0.888000, 0.888000] } ],
+    "species": { "Li": 1, "Mn": 7, "O": 6 }
+  },
+  "MnO2_lambda_spinel": {
+    "comment": "doc/HubbardUPlan.md B1/gate 1: delithiated spinel (lambda-MnO2), the SAME Fd-3m(#227) framework as LiMn2O4_spinel with the 8a Li sites emptied -- a = 8.03 A (single-crystal XRD, multiple sources converge 8.035-8.048 A on delithiation-contracted spinel).  Primitive cell 12 atoms (4 Mn 16d, 8 O 32e), same u = 0.362 and same generation/verification method as LiMn2O4_spinel -- Mn-O = 1.909 A, shorter than LiMn2O4's 1.959 A, the expected contraction from Mn(3.5+) to Mn(4+).  Same ferromagnetic-seed caveat: a gate 1 robustness choice, not a ground-state claim.",
+    "lattice": { "type": "CubicF", "a": 15.174474734844897 },
+    "atoms":   [ { "el": "Mn", "frac": [0.125000, 0.125000, 0.125000], "spin": 1 },
+                 { "el": "Mn", "frac": [0.375000, 0.625000, 0.875000], "spin": 1 },
+                 { "el": "Mn", "frac": [0.625000, 0.875000, 0.375000], "spin": 1 },
+                 { "el": "Mn", "frac": [0.875000, 0.375000, 0.625000], "spin": 1 },
+                 { "el": "O",  "frac": [0.112000, 0.612000, 0.388000] },
+                 { "el": "O",  "frac": [0.138000, 0.862000, 0.638000] },
+                 { "el": "O",  "frac": [0.362000, 0.362000, 0.362000] },
+                 { "el": "O",  "frac": [0.388000, 0.112000, 0.612000] },
+                 { "el": "O",  "frac": [0.612000, 0.388000, 0.112000] },
+                 { "el": "O",  "frac": [0.638000, 0.138000, 0.862000] },
+                 { "el": "O",  "frac": [0.862000, 0.638000, 0.138000] },
+                 { "el": "O",  "frac": [0.888000, 0.888000, 0.888000] } ],
+    "species": { "Mn": 7, "O": 6 }
   }
 }
