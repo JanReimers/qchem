@@ -253,3 +253,4 @@ than reconstructing it.
 
 - FYI: I am constantly editing TODO, CLAUDE.md, and NOTES as you work. Just so you're not surprised when you
     do a `git status`.
+- I really don't like those "Suggested task" boxes. I don't understand what 2/3 of the options means (We don't want to make another huge code tree).  Just add a line item to  doc/OpenWork.md.  Then we can priotize and sequence with a collection of other pending tasks.

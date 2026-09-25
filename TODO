@@ -204,4 +204,3 @@ that are near singular, decompose, truncate and look at residuals.  V*S*V_dagger
 ## Cleanup
 
 - qcChargeDensity library:  Please make a list or table of all the classes that represent a charge density.  I think they break down into 3x2 categories {DM based,SEED,Fitted}x{Realspace,Gspace}.  There is also a COmposite and Irrep axis for some of them.  WHich axes need to be public and which ones can be hidden as implementation details (Gspace?).
-
