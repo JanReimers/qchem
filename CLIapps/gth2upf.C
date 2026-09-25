@@ -89,7 +89,22 @@ int main(int argc, char** argv)
     for (int l=0;l<=lmaxPool;l++) o.exponentsByL.push_back({l, pool});
     SCFParams p; p.MinVirial=1e30; p.NMaxIter=200; p.Verbose=std::getenv("GTH2UPF_VERBOSE")!=nullptr;
     AtomCalculation atom(Z, Z-Zion, o, p);
-    if (!atom.IsConverged()) { std::cerr<<"gth2upf: the pseudo-atom did not converge\n"; return 2; }
+    if (!atom.IsConverged())
+    {
+        // A hard-aufbau lock, not a slow descent: some d-block neutrals (Cu 3d10-4s1, Cr 3d5-4s1) have two
+        // near-degenerate configurations (here 3d10-4s1 vs 3d9-4s2, split by ~5 mHa) and integer aufbau
+        // oscillates between them every iteration instead of settling (measured on Cu q11: E flips between
+        // -46.997 and -15.757 Ha for 200 iterations, ending on an INVERTED level order -- an empty level
+        // below an occupied one).  The fix is the same anneal the solid-state recipes already use: smear
+        // across the near-degeneracy (kT lets both configurations mix fractionally, breaking the limit
+        // cycle), then re-converge cold with MOM holding whichever reference the smeared state landed on.
+        std::cerr<<"gth2upf: plain aufbau did not converge -- retrying with a kT anneal (hot smear -> cold MOM)\n";
+        SCFParams hot=p; hot.SmearingkT=0.02; hot.StartingRelaxRo=0.2;
+        atom.Converge(hot);
+        SCFParams cold=p; cold.SmearingkT=0.0; cold.UseMOM=true; cold.MOMStartIter=5; cold.StartingRelaxRo=0.2;
+        atom.Converge(cold);
+        if (!atom.IsConverged()) { std::cerr<<"gth2upf: the pseudo-atom did not converge (even annealed)\n"; return 2; }
+    }
     std::vector<Wfc> wfcs;
     for (const Irrep& ir : atom.GetIrreps(Spin::None))
     {
