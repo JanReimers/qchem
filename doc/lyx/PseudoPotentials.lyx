@@ -125,7 +125,7 @@ Chemistry and bonding in molecules and materials is mostly determined by the val
  and somehow transfer that info into a molecular or solid material calculation,
  so that the computational resources are more efficiently apportioned to (almost) only the valence electrons?
  Analogous to the complementary Heisenberg and Schrödinger pictures for time dependence,
- there are complementary ways or carrying over the core orbitals and charge density from an atom calculation:
+ there are complementary ways for carrying over the core orbitals and charge density from an atom calculation:
 \end_layout
 
 \begin_layout Enumerate
@@ -141,7 +141,7 @@ Modify the electron-nuclear attraction and e-e repulsion potentials to include s
 \end_layout
 
 \begin_layout Standard
-It turns out the the form for the PPs is most easily derived from the OPW wave function.
+It turns out the form for the PPs is most easily derived from the OPW wave function.
  This text tries to follow the Richard Martin Book (Electronic Structure,
  Basic Theory and Practical Methods),
  chapter 11.
@@ -152,7 +152,7 @@ Orthogonalized Plane Waves (OPW)
 \end_layout
 
 \begin_layout Standard
-In it's original form the OPW basis function looks like:
+In its original form the OPW basis function looks like:
 \end_layout
 
 \begin_layout Standard
@@ -225,14 +225,6 @@ As usual
 \begin_inset Formula 
 \[
 \left(\hat{P}^{core}\right)^{2}=\sum_{ij}\left|u_{i}\right\rangle \left\langle u_{i}|u_{j}\right\rangle \left\langle u_{j}\right|=\sum_{ij}\left|u_{j}\right\rangle \delta_{ij}\left\langle u_{j}\right|=\hat{P}^{core}
-\]
-
-\end_inset
-
-
-\begin_inset Formula 
-\[
-\ensuremath{\hat{P}^{2}=\sum|u_{i}\rangle S^{-1}{ij},S{jk},S^{-1}_{kl}\langle u_{l}|=\hat{P}}.
 \]
 
 \end_inset
@@ -326,6 +318,10 @@ The sum index
  
 \end_layout
 
+\begin_layout Subsection
+Controlling the Approximations
+\end_layout
+
 \begin_layout Standard
 And this immediately raises the question:
  How can we have 
@@ -385,7 +381,7 @@ But by the the definition of a core orbital,
 \end_inset
 
  is exponentially small and smooth at the other atom centres.
- This is just a modified version of our original hypothesis:
+ This is a modified version of our original hypothesis:
  
 \emph on
 core electrons play essentially no role in the bonding
@@ -478,7 +474,7 @@ tuple "list"
 
 \end_layout
 
-\begin_layout Subsubsection
+\begin_layout Subsection
 Projector on a Lattice
 \end_layout
 
@@ -682,7 +678,7 @@ The two potential terms is our desired PKA version of a PP
 \begin_inset Formula $\hat{V}^{R}$
 \end_inset
 
- prevents variation collapse of 
+ prevents variational collapse of 
 \begin_inset Formula $\left|\tilde{\psi}^{v}_{i}\right\rangle $
 \end_inset
 
@@ -710,12 +706,12 @@ Now let us expand the index
 
 \begin_inset Formula 
 \[
-\hat{V_{ia}}^{R}=\sum_{nlm}\left(\varepsilon_{i}-\varepsilon_{a,nlm}\right)\left|u_{a,nlm}\right\rangle \left\langle u_{a,nlm}\right|.
+\hat{V}^{R}_{ia}=\sum_{nlm}\left(\varepsilon_{i}-\varepsilon_{a,nlm}\right)\left|u_{a,nlm}\right\rangle \left\langle u_{a,nlm}\right|.
 \]
 
 \end_inset
 
-Now we can split the atom orbital into radial and angular parts
+We can split the atom orbital into radial and angular parts
 \begin_inset Formula 
 \[
 \left|u_{nlm}\right\rangle =R_{nl}\left(r\right)Y_{lm}\left(\theta,\phi\right)
@@ -726,7 +722,7 @@ Now we can split the atom orbital into radial and angular parts
 and also recognize that the bra and ket must have different spatial variables
 \begin_inset Formula 
 \[
-\hat{V_{ia}}^{R}=\sum_{nlm}\left(\varepsilon_{i}-\varepsilon_{a,nlm}\right)R_{nl}\left(r_{1}\right)Y^{*}_{lm}\left(\theta_{1},\phi_{1}\right)R_{nl}\left(r_{2}\right)Y_{lm}\left(\theta_{2},\phi_{2}\right).
+\hat{V}^{R}_{ia}=\sum_{nlm}\left(\varepsilon_{i}-\varepsilon_{a,nlm}\right)R_{nl}\left(r_{1}\right)Y^{*}_{lm}\left(\theta_{1},\phi_{1}\right)R_{nl}\left(r_{2}\right)Y_{lm}\left(\theta_{2},\phi_{2}\right).
 \]
 
 \end_inset
@@ -742,7 +738,7 @@ The next thing to recognize is that
  (these are core states) so that part of the sum can be carried through as follows
 \begin_inset Formula 
 \[
-\hat{V_{ia}}^{R}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\sum_{nl}\left(\varepsilon_{i}-\varepsilon_{a,nl}\right)R_{nl}\left(r_{1}\right)R_{nl}\left(r_{2}\right)\sum_{m}Y^{*}_{lm}\left(\hat{\boldsymbol{r}}_{1}\right)Y_{lm}\left(\hat{\boldsymbol{r}}_{2}\right)
+\hat{V}^{R}_{ia}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\sum_{nl}\left(\varepsilon_{i}-\varepsilon_{a,nl}\right)R_{nl}\left(r_{1}\right)R_{nl}\left(r_{2}\right)\sum_{m}Y^{*}_{lm}\left(\hat{\boldsymbol{r}}_{1}\right)Y_{lm}\left(\hat{\boldsymbol{r}}_{2}\right)
 \]
 
 \end_inset
@@ -762,7 +758,7 @@ At this point we can also factor out the sum over
 
 \begin_inset Formula 
 \begin{equation}
-\hat{V_{ia}}^{R}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\frac{1}{4\pi}\sum_{l}\left(2l+1\right)P^{l}\left(\hat{\boldsymbol{r}}_{1}\cdot\hat{\boldsymbol{r}}_{2}\right)\left[\sum_{n}\left(\varepsilon_{i}-\varepsilon_{a,nl}\right)R_{nl}\left(r_{1}\right)R_{nl}\left(r_{2}\right)\right]\label{eq:VRnonlocal}
+\hat{V}^{R}_{ia}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\frac{1}{4\pi}\sum_{l}\left(2l+1\right)P^{l}\left(\hat{\boldsymbol{r}}_{1}\cdot\hat{\boldsymbol{r}}_{2}\right)\left[\sum_{n}\left(\varepsilon_{i}-\varepsilon_{a,nl}\right)R_{nl}\left(r_{1}\right)R_{nl}\left(r_{2}\right)\right]\label{eq:VRnonlocal}
 \end{equation}
 
 \end_inset
@@ -785,7 +781,7 @@ At this stage the atom PP is (fully) non-local,
  which has the form
 \begin_inset Formula 
 \[
-\hat{V_{ia}}^{R}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\frac{1}{4\pi}\sum_{l}\left(2l+1\right)P^{l}\left(\hat{\boldsymbol{r}}_{1}\cdot\hat{\boldsymbol{r}}_{2}\right)\frac{\delta\left(r_{1}-r_{2}\right)}{r^{2}_{1}}V_{al}\left(r_{1}\right)
+\hat{V}^{R}_{ia}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\frac{1}{4\pi}\sum_{l}\left(2l+1\right)P^{l}\left(\hat{\boldsymbol{r}}_{1}\cdot\hat{\boldsymbol{r}}_{2}\right)\frac{\delta\left(r_{1}-r_{2}\right)}{r^{2}_{1}}V_{al}\left(r_{1}\right)
 \]
 
 \end_inset
@@ -934,15 +930,23 @@ HGH PPs
 These have the form
 \begin_inset Formula 
 \[
-\hat{V_{ia}}^{R}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\sum_{l}\sum^{3}_{ij=1}\left|p^{l}_{i}\right\rangle h^{l}_{ij}\left\langle p^{l}_{j}\right|
+\hat{V}^{HGH}_{a}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=V^{L}_{a}\left(r_{1}\right)\frac{\delta\left(r_{1}-r_{2}\right)}{r^{2}_{1}}+\hat{V_{a}}^{NL}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)
 \]
 
 \end_inset
 
 where
 \begin_inset Formula 
+\begin{equation}
+\hat{V_{a}}^{NL}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\sum_{l}\sum^{3}_{ij=1}\left|p^{l}_{i}\right\rangle h^{l}_{ij}\left\langle p^{l}_{j}\right|,\label{eq:HGH-NL-condensed}
+\end{equation}
+
+\end_inset
+
+
+\begin_inset Formula 
 \[
-p^{l}_{i}\propto r^{l-2\left(i-1\right)}e^{-\nicefrac{r^{2}}{2r^{2}_{l}}}
+p^{l}_{i}\propto r^{l+2\left(i-1\right)}e^{-\nicefrac{r^{2}}{2r^{2}_{l}}}
 \]
 
 \end_inset
@@ -956,21 +960,41 @@ and
 \end_inset
 
 .
- So 
-\begin_inset Formula $i,j$
+ In eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:HGH-NL-condensed"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+tuple "list"
+
 \end_inset
 
- play the same role as 
-\begin_inset Formula $n$
+ 
+\begin_inset Formula $\left|p^{l}_{i}\right\rangle \left\langle p^{l}_{j}\right|$
 \end_inset
 
- but for some reason they max out at 3,
- where as 
-\begin_inset Formula $n$
+ is shorthand for 
+\begin_inset Formula 
+\[
+\sum_{m}\left|Y_{lm}p^{l}_{i}\right\rangle \left\langle Y_{lm}p^{l}_{j}\right|
+\]
+
 \end_inset
 
- has no such maximum.
- This looks very different than 
+With this clarification we have
+\begin_inset Formula 
+\[
+\hat{V_{a}}^{NL}\left(\boldsymbol{r}_{1},\boldsymbol{r}_{2}\right)=\sum_{l}\frac{\left(2l+1\right)}{4\pi}P^{l}\left(\hat{\boldsymbol{r}}_{1}\cdot\hat{\boldsymbol{r}}_{2}\right)\left[\sum^{3}_{ij=1}p^{l}_{i}h^{l}_{ij}p^{l}_{j}\right]
+\]
+
+\end_inset
+
+where the last factor in square brackets can in principle be diagonalized to look like the last factor in eq.
+ 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:VRnonlocal"
@@ -982,20 +1006,190 @@ tuple "list"
 
 \end_inset
 
-,
- in particular there seems to be no angular projectors:
- 
-\begin_inset Formula $\left|Y_{lm}\right\rangle \left\langle Y_{lm}\right|$
+ with one exception.
+ There is no longer the dependence on 
+\begin_inset Formula $\varepsilon_{i}$
 \end_inset
 
- or 
-\begin_inset Formula $\left|P_{l}\right\rangle \left\langle P_{l}\right|.$
+ that eq.
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:VRnonlocal"
+plural "false"
+caps "false"
+noprefix "false"
+nolink "false"
+tuple "list"
+
+\end_inset
+
+ has.
+ a single energy-dependent projector is traded for a few energy-independent ones with a non-diagonal 
+\begin_inset Formula $h$
+\end_inset
+
+.
+ Energy dependence exchanged for rank.
+ It turns that for many atoms only two terms are required in the 
+\begin_inset Formula $\left\{ ij\right\} $
+\end_inset
+
+ summation:
+ 
+\begin_inset Formula $h_{11},h_{22}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Now let's pick apart the GTH entry for 
+\begin_inset Formula $Mn$
+\end_inset
+
+:
+\end_layout
+
+\begin_layout LyX-Code
+Mn GTH-BLYP-q15 GTH-BLYP
+\end_layout
+
+\begin_layout LyX-Code
+4 6 5
+\end_layout
+
+\begin_layout LyX-Code
+0.36500000 2 6.17870291 -0.44450988
+\end_layout
+
+\begin_layout LyX-Code
+3
+\end_layout
+
+\begin_layout LyX-Code
+0.29784355 2 1.69433567 6.39053422 -8.25014420
+\end_layout
+
+\begin_layout LyX-Code
+0.24582549 2 -6.53742440 7.84591162 -9.28340782
+\end_layout
+
+\begin_layout LyX-Code
+0.22244655 1 -11.66961579
+\end_layout
+
+\begin_layout Standard
+Reading in order:
+ 
+\begin_inset Formula $4$
+\end_inset
+
+ 
+\begin_inset Formula $s$
+\end_inset
+
+ electrons,
+ 
+\begin_inset Formula $6$
+\end_inset
+
+ 
+\begin_inset Formula $p$
+\end_inset
+
+ electrons,
+ 
+\begin_inset Formula $5$
+\end_inset
+
+ 
+\begin_inset Formula $d$
+\end_inset
+
+ electrons,
+ 
+\begin_inset Formula $R_{c}=0.365(a.u.)$
+\end_inset
+
+,
+ 
+\begin_inset Formula $2$
+\end_inset
+
+ exponents 
+\begin_inset Formula $6.17870291,-0.44450988$
+\end_inset
+
+ in the shielding for 
+\begin_inset Formula $V^{L}$
+\end_inset
+
+.
+ Next there are 
+\begin_inset Formula $3$
+\end_inset
+
+ sets of non-local projectors.
+ This is the 
+\begin_inset Formula $l$
+\end_inset
+
+ sum above.
+ For 
+\begin_inset Formula $l=0$
+\end_inset
+
+ we have 
+\begin_inset Formula $R_{c}=0.29784355(a.u.)$
+\end_inset
+
+ and 
+\begin_inset Formula $1<=\{i,j\}<=2,$
+\end_inset
+
+so 
+\begin_inset Formula 
+\[
+h^{0}=\begin{bmatrix}1.69433567 & 6.39053422\\
+6.39053422 & -8.25014420
+\end{bmatrix}
+\]
+
+\end_inset
+
+
+\begin_inset Formula 
+\[
+h^{1}=\begin{bmatrix}-6.53742440 & 7.84591162\\
+7.84591162 & -9.28340782
+\end{bmatrix}
+\]
+
+\end_inset
+
+ 
+\begin_inset Formula 
+\[
+h^{2}=\begin{bmatrix}-11.66961579\end{bmatrix}
+\]
+
 \end_inset
 
 
 \end_layout
 
 \begin_layout Standard
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\]
+
+\end_inset
+
 
 \end_layout
 
