@@ -39,7 +39,7 @@ matched-PP hp.x route, which is what A3 was actually run against.)
 | A3 | ~~Re-run gate3 scripts against A2b's real target~~ | ✅ **DONE 2026-09-25 — ROUTE (b) REFUTED.**  ω's 50.6 % apart (was 6 % on a wrong number), localization sign backwards again |
 | A4 | ~~the screened kernel on `BareCoulombSource`, with \f$\varepsilon\f$ COMPUTED~~ | ⛔ **DO NOT START — A3 refuted, not held.**  §2's routing table now points at (c) or (d); which one is a plan-shape decision, not this row's to make |
 | A5 | ABINIT `lruj` for **J** (hp.x gives none) — answers §5's first open question | optional, any time |
-| **A6** | **Broaden the matched-PP hp.x oracle set** — get GOOD at converging oxides/sulfides/fluorides across the papers' own benchmark materials (SrVO₃, KCuF₃, Sr₂FeO₄, the LiMO₂ series M=V–Ni, TiO₂, ZnO, FeS₂ — §7; MnO's own O-2p redone with `ortho-atomic` instead of the fragile `atomic` projector already used once) | ⛔ **IN PROGRESS 2026-09-25.**  Element coverage checked: Ti/V/Fe/Co/Sr/K/F/Zn all convert cleanly on the first attempt (`gth2upf`); **Cu (3d10-4s1, needed for KCuF₃) hit a genuine aufbau limit cycle, fixed** with a kT-anneal-then-cold-MOM fallback (hot smear + damped mixing, then MOM-held re-converge) — lands on the correct 4s¹3d¹⁰ ground state, E=−47.926315 Ha.  Pure fallback, zero effect on elements that already converge (Mn/Ni/O/Li regression-checked identical).  **SrVO₃ (material queue item 1) DONE 2026-09-25: U(V 3d) = 6.2502 eV, matched-PP LRT** (`IntegrationTests/QE/README.md` §A6) — found and routed around a real `gth2upf` limitation on the way: Sr q10 (semicore 4s4p5s) silently integrates to 2 electrons not 10 (the pseudo-atom EC caps one shell per `l`, can't hold two s-shells at once); used Sr q2 instead, the same light-valence convention already used for Mn/Ni.  Next: KCuF₃ (material queue item 2) |
+| **A6** | **Broaden the matched-PP hp.x oracle set** — get GOOD at converging oxides/sulfides/fluorides across the papers' own benchmark materials (SrVO₃, KCuF₃, Sr₂FeO₄, the LiMO₂ series M=V–Ni, TiO₂, ZnO, FeS₂ — §7; MnO's own O-2p redone with `ortho-atomic` instead of the fragile `atomic` projector already used once) | ⛔ **IN PROGRESS 2026-09-25.**  Element coverage checked: Ti/V/Fe/Co/Sr/K/F/Zn all convert cleanly on the first attempt (`gth2upf`); **Cu (3d10-4s1, needed for KCuF₃) hit a genuine aufbau limit cycle, fixed** with a kT-anneal-then-cold-MOM fallback (hot smear + damped mixing, then MOM-held re-converge) — lands on the correct 4s¹3d¹⁰ ground state, E=−47.926315 Ha.  Pure fallback, zero effect on elements that already converge (Mn/Ni/O/Li regression-checked identical).  **SrVO₃ (material queue item 1) DONE 2026-09-25: U(V 3d) = 6.2502 eV, matched-PP LRT** (`IntegrationTests/QE/README.md` §A6) — found and routed around a real `gth2upf` limitation on the way: Sr q10 (semicore 4s4p5s) silently integrates to 2 electrons not 10 (the pseudo-atom EC caps one shell per `l`, can't hold two s-shells at once); used Sr q2 instead, the same light-valence convention already used for Mn/Ni.  **KCuF₃/Sr₂FeO₄ (queue items 2–3) PARKED 2026-09-26**: pending Dr. Carta's reply on the paper's relaxed cell constants (email sent; not guessing a JT-forced-cubic KCuF₃ cell or a Sr₂FeO₄ internal z from memory).  **LiCoO₂ (from queue item 4, the LiMO₂ series) DONE 2026-09-26: U(Co 3d) = 7.3070 eV**, matched-PP LRT — picked ahead of V/Cr to shake out the recipe on a well-characterized member first.  Structure sourced and bond-length-verified from Pinsard-Gaudart et al. 2011 (a real citation, not memory).  Found a genuine `hp.x` requirement along the way: Hubbard atom(s) must be listed FIRST in `ATOMIC_POSITIONS` or it refuses to run.  Also found LiCoO₂ needs the SAME 2-step (smeared → fixed-occupation) recipe as MnO/NiO despite being NONmagnetic — the 2-step is about the GAP, not about magnetism, correcting this plan's earlier "magnetic insulator" framing.  Full detail: `IntegrationTests/QE/README.md` §A6.  Next: the rest of the LiMO₂ row (V, Cr — untested aufbau, Fe, Ni), or TiO₂/ZnO/FeS₂ |
 | **A7** | **Build route (d): our own finite-difference/DFPT linear response**, material-agnostic (§5's open question; CP2K `qs_linres_*` as the Gaussian-basis reference) | ⛔ **QUEUED, AFTER A6** (user, 2026-09-25).  Does NOT reopen route (b) — a single uniform screening length is refuted regardless of how ε is computed; DFPT gives the general, manifold-resolved case (b) was a crude shortcut for, and SUPERSEDES it (once built, U comes from the response directly, no bare-tensor-times-kernel construction).  DIP-based estimator strategy, `doc/OpenWork.md` §2 row |
 
 ### Track B — can we RUN the material?  (needs no oracle)
@@ -78,18 +78,35 @@ fallback fix (aufbau limit cycle, 3d10-4s1 vs 3d9-4s2 near-degeneracy — see A6
    around, not fixed) a real `gth2upf` gap: Sr q10 semicore silently integrates to 2 e⁻ not 10 (the
    pseudo-atom EC allows only one shell per `l`); used Sr q2 instead.  Full detail + literature comparison
    still open: `IntegrationTests/QE/README.md` §A6.
-2. **KCuF₃** — needed Cu specifically (now fixed).  ⚠ Jahn-Teller distorted (Carta et al. study it partly
-   *because* of this) — sourcing the distorted geometry from a named reference is real work, same
-   discipline as the spinel structures (B1): bond-length-verify, cite the source, do not guess a
-   Wyckoff table from memory.  Elements: K, Cu, F (all checked).
-3. **Sr₂FeO₄** — the other Carta et al. benchmark, and their own "d-only" entangled-band cautionary case
-   (Fe-3d U_cRPA=0.42 vs U_LRT=6.94–7.29 eV) — directly relevant to re-testing our own NiO finding on a
-   second material.  Elements: Sr, Fe, O (all checked).  ⚠ Layered structure (Sr₂FeO₄, not perovskite) —
-   source it separately from SrVO₃/KCuF₃.
-4. **The `LiMO₂` series (M=V–Ni)** from the cRPA-comparison paper (§7) — same rocksalt-derived
+2. ⛔ **KCuF₃ PARKED 2026-09-26** — needed Cu specifically (now fixed).  **Corrected 2026-09-26 (user)**:
+   Carta et al. actually use the HIGH-SYMMETRY CUBIC perovskite for KCuF₃, not the Jahn-Teller-distorted
+   one ("for the purpose of this work, we consider KCuF₃ in the high symmetry cubic perovskite structure...
+   for ease of computation" — main text) — so this is the SAME Pm-3m template as SrVO₃, no Wyckoff-table
+   sourcing problem at all.  The one real gap: the paper says the cell (including cell parameters) is
+   FULLY RELAXED but never states the numerical lattice constant, in the main text or the SI. Email sent to
+   the corresponding author (Dr. Carta) asking for it, plus their functional/pseudopotential/k-mesh — most
+   of which turned out to already be in the SI (PBE, PseudoDojo norm-conserving, 84 Ry, cold smearing
+   0.01 Ry, spin-unpolarized; only the cell constant is genuinely missing), so the email was trimmed to ask
+   only for that.  ⚠ **Their Hubbard projector is a Wannier function (MLWF via Wannier90), not an atomic
+   projector** — even with their exact cell, our `hp.x` ortho-atomic number won't be on the same convention
+   as theirs (same caveat as MnO/NiO's "quote the condition with the value").  Elements: K, Cu, F (all
+   checked).  Parked, not blocking A6 — see item 4 for what ran instead while this waits.
+3. ⛔ **Sr₂FeO₄ PARKED 2026-09-26** — the other Carta et al. benchmark, and their own "d-only" entangled-band
+   cautionary case (Fe-3d U_cRPA=0.42 vs U_LRT=6.94–7.29 eV) — directly relevant to re-testing our own NiO
+   finding on a second material.  Tetragonal K₂NiF₄-type layered perovskite (I4/mmm), which — unlike cubic
+   KCuF₃'s single lattice constant — has a free INTERNAL atomic coordinate (apical-anion Wyckoff 4e
+   z-parameter) that symmetry alone doesn't fix.  Same email as KCuF₃ now also asks for *a*, *c*, **and**
+   that z.  Elements: Sr, Fe, O (all checked).  Parked pending reply, same as item 2.
+4. ✅ **The `LiMO₂` series (M=V–Ni)** from the cRPA-comparison paper (§7) — same rocksalt-derived
    framework across the row, so once one is running the rest are cheap geometry swaps.  Elements: Li, V,
    Cr, Mn, Fe, Co, Ni, O (Cr untested — likely needs the SAME Cu-style anneal fix, d5-4s1 near-degenerate
-   with d4-4s2, same mechanism, not yet confirmed).
+   with d4-4s2, same mechanism, not yet confirmed).  **LiCoO₂ DONE 2026-09-26: U(Co 3d) = 7.3070 eV**
+   (`IntegrationTests/QE/README.md` §A6) — R-3m structure from Pinsard-Gaudart et al. 2011 (real
+   single-crystal XRD, Co–O/Li–O bond lengths verified to <0.001 Å against literature after the
+   hexagonal→rhombohedral-primitive conversion).  Needed the 2-step (smeared→fixed-occupation) recipe
+   despite being nonmagnetic — LiCoO₂'s low-spin Co³⁺ d⁶ is a real band gap (LDA 1.56 eV), and the 2-step
+   recipe turns out to be about the GAP, not about magnetism specifically.  Also surfaced a real `hp.x`
+   rule: the Hubbard atom must be listed FIRST in `ATOMIC_POSITIONS`.  Remaining row: V, Cr, Fe, Ni.
 5. **TiO₂, ZnO, FeS₂** — the remaining ACBN0-paper benchmark set (rutile TiO₂ and wurtzite ZnO already
    in ACBN0's own four-material study alongside MnO/NiO; FeS₂ is Macke's e_g-hybridisation warning case,
    §3 risk 2).  Elements: Ti, Zn, S (S untested — not yet checked in `gth_potentials.json`), Fe (checked).

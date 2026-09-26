@@ -148,3 +148,49 @@ screened response than MnO (χ/χ₀ ≈ 0.96) or NiO (χ/χ₀ ≈ 0.62), exact
 with itinerant carriers available to screen, where MnO/NiO are gapped insulators.  Decks: `srvo3.scf.in`,
 `srvo3.hp.in`.  UPFs, wavefunctions and `HP/` scratch regenerated (`gth2upf --element V --q 5`,
 `--element Sr --q 2`, `--element O --q 6`), not committed, per this file's convention.
+
+## A6 (`doc/HubbardUPlan.md`): LiCoO₂, matched-PP LRT — 2026-09-26
+
+Second member of A6's LiMO₂ series (started with Co rather than V/Cr — the queue's own item 4 note flags
+Cr as untested and likely needing the Cu-style anneal fix, so a well-characterized member was picked first
+to shake out the RECIPE, not the element coverage).  Structure: R-3m (#166) layered rock-salt, from a real
+single-crystal XRD refinement (Pinsard-Gaudart et al., *J. Crystal Growth* 334 (2011) 165–169, Table 2,
+x=1 stoichiometric LiCoO₂) — hexagonal-setting `a = 2.81280(10) Å`, `c = 14.0272(9) Å`, O at Wyckoff 6c
+`(0,0,z)` with `z = 1 − 0.7604(3) = 0.2396`.  Converted to the 4-atom rhombohedral PRIMITIVE cell
+(QE `ibrav=5`) by hand (R-centering reduction, verified numerically with a small `numpy` script — not
+guessed): `celldm(1) = 9.353622` bohr, `celldm(4) = cos α = 0.838532`, Co (½,½,½), Li (0,0,0), O
+(0.2396,0.2396,0.2396) and (0.7604,0.7604,0.7604).  **Bond-length check against the reduction**: Co–O
+1.9194 Å, Li–O 2.0895 Å — both match the literature CoO₆/LiO₆ octahedral distances (~1.92 Å / ~2.09 Å) to
+better than 0.001 Å, confirming the hex→rhombohedral conversion is correct.
+
+⚠ **A real `hp.x` requirement found the hard way**: it refuses to run unless the Hubbard-active atom(s)
+are listed FIRST in `ATOMIC_POSITIONS` ("All Hubbard atoms must be listed first...").  The first attempt's
+deck listed `Li, Co, O, O`, and `hp.x` stopped immediately with that error.  Reordering to put Co first
+(species and positions both) fixed it.  In hindsight this was always
+true of the working `NiOg`/`mnoO` decks (`Ni1,Ni2,O` / `Mn1,Mn2,O`) and of `srvo3.scf.in` (`V,Sr,O`) — none
+of them happened to need Li/Sr first — but it was never stated as a rule until this deck violated it.
+**Rule for every future deck in this series: Hubbard atom(s) first, always.**
+
+**Cutoff scan (LDA, k 4×4×4, nonmagnetic, GTH Co-q9/Li-q1/O-q6):** E(Ry) at 80/120/160/200/250/300/350 =
+−119.7478 / −121.0616 / −121.2397 / −121.2783 / −121.2900 / −121.2926 / −121.2933 — converged to 0.62 mRy
+at 300 Ry, same working cutoff as SrVO₃.
+
+⚠ **LiCoO₂ is a real band insulator, not a metal** (low-spin Co³⁺, d⁶, t₂g⁶eg⁰ — the paper's own
+"spin-unpolarized" choice degenerates to a genuinely gapped nonmagnetic ground state here, unlike SrVO₃'s
+metal).  The first `hp.x` attempt on the plain smeared `scf` ground state failed outright: "DOS(E_Fermi) is
+too small... most likely the system has a gap, and hence it should NOT be treated as a metal."  Needed the
+SAME 2-step recipe as MnO/NiO's magnetic insulators (`scf.1` smeared to find the ground state, `scf.2`
+`occupations='fixed'` with `nbnd` pinned to `scf.1`'s count, from file) even though there is no magnetism
+here at all — the 2-step recipe is about the GAP, not about AFM order specifically, a distinction this
+project's own earlier MnO/NiO write-ups had conflated with "magnetic insulator."  LDA gap (fixed-occupation
+run): 1.56 eV.
+
+**hp.x, ortho-atomic, Co-3d only, nq 2×2×2, U_in≈0 (2026-09-26, 1h48m serial):**
+**U(Co 3d) = 7.3070 eV.**  χ₀(Co,Co) = −0.3393 → χ(Co,Co) = −0.0971 (χ/χ₀ ≈ 0.286) — screened more than
+MnO/NiO (0.96/0.62) but far less than the metallic SrVO₃ (0.081): a real gap, but a smaller one (1.56 eV
+vs MnO/NiO's larger LDA gaps) with more covalent/polarizable Co–O bonding to screen with.  Projected
+(ortho-atomic) Co-3d occupation 7.41 electrons (out of 10) — the same basis-completeness/covalency
+inflation over the ionic d⁶ picture already seen on Mn/Ni/V, now confirmed on a FOURTH material and a
+low-spin, fully-paired d-shell, ruling out "unpaired/open-shell character" as the cause.  Decks:
+`licoo2.scf.1.in`, `licoo2.scf.2.in`, `licoo2.hp.in`.  UPFs, wavefunctions and `HP/` scratch regenerated
+(`gth2upf --element Co --q 9`, `--element Li --q 1`, `--element O --q 6`), not committed.
