@@ -769,14 +769,18 @@ Band method, 2.Disentanglement method, 3. Weighted method.  As such one would ho
 
 **On ACBN0's basis dependence specifically (this session's finding, independently):**
 - [Orbital-Resolved DFT+U for Molecules and Solids](https://pubs.acs.org/doi/10.1021/acs.jctc.3c01403) (JCTC, 2023/2024, arXiv:2312.13580) — explicitly compares Mulliken vs Löwdin-orthogonalised projectors for the renormalised occupation, reports Löwdin improves self-consistency stability (we already made the same Löwdin-not-Mulliken choice, `Hamiltonian.C`'s design note item 3 — worth checking whether they also diagnose the basis-completeness failure mode).
-- User comments: We processed this paper before in a different session durind DFT+U planning.  That is where the idea of diagonalizing the orbital occupation matrix comes from.
+- User comments: We processed this paper before in a different session durind DFT+U planning.  That is where the idea of diagonalizing the orbital occupation matrix comes from. They reference ~/Code/timrov2018-DFPT.pdf for the DFPT method.  Some important quotes: 1) "Recalling that the main motivation of Hubbard U corrections lies in the mitigation of local SIE (self interaction errors) through recovery of PWL (piecewise linearity) of the total energy, the Hubbard manifold should contain those and only those states
+that substantially contribute to the former. Oftentimes, self-interaction occurs in partially occupied d and f shells due to their high electron count and localization; hence, these are the
+traditional targets of Hubbard U corrections. Nevertheless, self-interaction can also manifest itself in s and p shells, ..." 2) "After all, the correction of all magnetic quantum orbitals within a given shell using the same scalar U parameter is inherently a simplistic approximation."
 
 - [Pseudo-hybrid density functional ACBN0 for Hubbard U correction in a numeric atom-centered orbital basis](https://arxiv.org/abs/2609.12198) (2026, very recent) — NAO basis, i.e. the same "how much does the projection basis distort U" question in a different localised-basis code.
-- User comments: I think paper uses ACBN0 as is, without acknowledging or addressing the shortcomings we have identified for that method.  They PBE and SCAN xc functions which we don't have working yet.  But if we ever want band gaps, magnetic moments and U values to compare with they do present some good tables of numbers for Cr2 O3 , Cu2 O, CuO, MnO, NiO, and CoO.  
+- User comments: I think paper uses ACBN0 as is, without acknowledging or addressing the shortcomings we have identified for that method.  They use PBE and SCAN xc functions which we don't have working yet.  But if we ever want band gaps, magnetic moments and U values to compare with they do present some good tables of numbers for Cr2 O3 , Cu2 O, CuO, MnO, NiO, and CoO.  
 
 **DFT+U+V (intersite) follow-ons from the ACBN0 lineage:**
 - [Efficient First-Principles Approach with a Pseudohybrid Density Functional for Extended Hubbard Interactions](https://arxiv.org/abs/1911.05967) (2019) — the ACBN0→ACBN0+V extension (intersite Hubbard V), likely by overlapping authors.
 - [DFT+U+V is equivalent to DFT+U with density-dependent hybridized projectors](https://arxiv.org/abs/2607.18071) (2026) — theoretical reformulation, very recent.
+
+- User comment:  We need to consider 1) DFT+U+V, 2) DFT+U+J, 3) 1&2 with Resolved U (and J?, and V?) but all from the standpoint of LR-cDFT calculated throught DFPT (~/Code/timrov2018-DFPT.pdf).
 
 **Screened-kernel FORM (relevant to route (b)'s actual kernel construction, not just the U value):**
 - Analytical treatment of the Yukawa screened Coulomb interaction in a plane-wave basis (2025; ScienceDirect/ADS) — closed-form matrix elements for a Yukawa/Thomas-Fermi-screened kernel in a PW basis; the Gaussian-basis analogue is what `BareCoulombSource` would need for route (b)'s A4.
@@ -788,5 +792,6 @@ Band method, 2.Disentanglement method, 3. Weighted method.  As such one would ho
 
 **A different philosophy, for contrast (probably not what we want, but worth knowing it exists):**
 - Machine learning the Hubbard U parameter in DFT+U using Bayesian optimization (npj Comput. Mater., 2020) — fits U empirically against a target property rather than deriving it from screening physics; the opposite direction from route (b).
+- user comment: If we do decide to support emprical methods (tune parameters {a,b,c...} in order optimize agreement measured properties {A,B,C,...}) I would to plan it in a much wider context than just tuning U.
 
 ---
