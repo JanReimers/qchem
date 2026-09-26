@@ -107,3 +107,44 @@ tighter than Ni-3d's ACBN0-vs-hp.x ratio of ~2.6× — suggesting ACBN0's basis-
 (§6.1's finding) is itself orbital-dependent: a diffuse O-2p likely already reaches near-complete
 projector coverage in a way a compact Ni-3d does not.  Decks: `NiOgO.scf.1.in`, `NiOgO.scf.2.in`,
 `NiOgO.hp.in`.  As with `NiOg.*`, the UPFs, wavefunctions and `HP/` scratch are regenerated, not committed.
+
+## A6 (`doc/HubbardUPlan.md`): SrVO₃, matched-PP LRT — 2026-09-25
+
+First material off A6's queue (broadening the matched-PP hp.x oracle set beyond MnO/NiO).  SrVO₃ was
+picked first because it is the simplest structure in the set — cubic perovskite (no Jahn-Teller distortion
+to source), a single-d-electron correlated METAL (no AFM ordering, so none of MnO/NiO's smearing-then-
+fixed-occupation 2-step recipe is needed — one plain `scf` step with `occupations='smearing'` is enough,
+matching QE's own `test-suite/hp_metal_us_magn` metal recipe, not the insulator one).  Geometry: ABINIT's
+own validated `tests/tutoparal/Input/tucalc_crpa_1.abi` (SrVO3 cRPA tutorial) cell, `acell 3*7.2605` bohr,
+cubic, V at (0,0,0), Sr at (½,½,½), O at (½,0,0)/(0,½,0)/(0,0,½) — an externally-sourced geometry, not a
+guess.
+
+⚠ **A real gth2upf limitation found and routed around, not fixed**: `gth2upf --element Sr --q 10` (the
+semicore 4s²4p⁶5s² valence) builds and reports SUCCESS but silently integrates to only 2 electrons, not
+10 — `PseudoAtom_EC`'s occupation model fills at most ONE shell per angular momentum `l` (`nv[l]` capped at
+`2(2l+1)`), so it cannot represent Sr q10's TWO occupied s-shells (4s and 5s) at once; it silently drops
+the second one.  This differs from Mn/Ni q7/q10, where "3d+4s" is two DIFFERENT l channels and the model
+has no trouble.  Routed around by using **Sr q2** (5s² only, single s-shell, the light-valence choice —
+consistent with this project's existing convention of using the light, non-`default` GTH variant for Mn/Ni
+too).  Not fixed because it would need representing multiple radial shells per `l` in the pseudo-atom EC, a
+real structural change, not a quick patch — worth a `doc/OpenWork.md` row if a future material needs a
+genuine alkaline-earth/alkali semicore potential. V (q5, light valence, `3d³4s²`) and O (q6) built and
+integrated correctly on the first attempt.
+
+**Cutoff scan (LDA, `sla+vwn`, k 4×4×4, nonmagnetic, 2026-09-25):** E(Ry) at 80/120/160/200/250/300/350 Ry
+= −109.5400 / −110.2918 / −110.4913 / −110.5463 / −110.5638 / −110.5678 / −110.5687 — converged to
+**0.94 mRy at 300 Ry** (ecutrho 1200 Ry, dual 4); GTH V-q5 is a hard pseudopotential, same story as Mn q7.
+
+**pw.x ground state (300 Ry, k 4×4×4, `HUBBARD {ortho-atomic}` `U V-3d 1.d-8`, 2m50s serial):**
+E = −110.56776433 Ry, Fermi energy 7.6385 eV, converged in 19 iterations.  Projected (ortho-atomic) V-3d
+occupation 3.51 electrons (out of 10) — well above the ionic d¹ picture, i.e. the same basis-completeness/
+covalency inflation of the atomic-projector occupation already seen on MnO/NiO (§6.1), now on a THIRD
+material and a genuinely different (metallic, non-magnetic) electronic structure — evidence the effect is
+about the projector, not about magnetism or the insulating gap.
+
+**hp.x, ortho-atomic, V-3d only, nq 2×2×2, U_in≈0 (2026-09-25, 55m21s serial):**
+**U(V 3d) = 6.2502 eV.**  χ₀(V,V) = −1.7822 → χ(V,V) = −0.1436 (χ/χ₀ ≈ 0.081) — a MUCH more strongly
+screened response than MnO (χ/χ₀ ≈ 0.96) or NiO (χ/χ₀ ≈ 0.62), exactly as expected: SrVO₃ is a real metal
+with itinerant carriers available to screen, where MnO/NiO are gapped insulators.  Decks: `srvo3.scf.in`,
+`srvo3.hp.in`.  UPFs, wavefunctions and `HP/` scratch regenerated (`gth2upf --element V --q 5`,
+`--element Sr --q 2`, `--element O --q 6`), not committed, per this file's convention.
