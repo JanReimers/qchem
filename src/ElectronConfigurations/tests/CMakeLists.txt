@@ -4,6 +4,7 @@ add_executable(UTElConfig ../../Common/tests/gtestmain.C
    ElectronConfigurations.C
    ElectronConfigurations_Dirac.C
    OccupationState.C
+   ResponseWeight.C    # the occupancy rules' response weights (LinearResponsePlan E1)
 )
 
 target_compile_definitions(UTElConfig PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

@@ -16,6 +16,7 @@ module;
 module qchem.ElectronConfiguration.OccupationPolicy;
 import qchem.Blaze;   // blazem::ctrans / norm / column (the projection algebra)
 import qchem.Types;   // vec_t<T>
+import qchem.Math;    // fabs (the Fermi response weight's degenerate branch)
 
 namespace qchem {
 
@@ -119,7 +120,34 @@ template <class T> void MOMRanking<T>::Apply(BlockFill& f, const Irrep& q, const
 template class MOMRanking<double>;
 template class MOMRanking<dcmplx>;
 
+// ------------------------------------------------------------------ the response weights (LinearResponsePlan E1)
+
+double IntegerOccupancy::ResponseWeight(double en, double fn, double em, double fm) const
+{
+    if (fn==fm) return 0.0;   // exact: integer fills are exact counts, and equal partial levels share one fraction
+    if (en==em) throw std::logic_error("IntegerOccupancy::ResponseWeight: a degenerate pair with different "
+        "occupations -- the caller must gate on the response gap first (RequiresResolvedGap)");
+    return (fn-fm)/(en-em);
+}
+
+double FermiOccupancy::ResponseWeight(double en, double fn, double em, double fm) const
+{
+    const double d=en-em;
+    if (fabs(d)<1e-6*itsKT)
+    {
+        const double f=0.5*(fn+fm);
+        return -f*(1.0-f)/itsKT;
+    }
+    return (fn-fm)/d;
+}
+
 // ------------------------------------------------------------------ the FACTORY (the one assembly point)
+
+std::unique_ptr<OccupancyRule> MakeOccupancyRule(const OccupationConfig& cfg)
+{
+    return cfg.kT>0.0 ? std::unique_ptr<OccupancyRule>(new FermiOccupancy(cfg.kT))
+                      : std::unique_ptr<OccupancyRule>(new IntegerOccupancy());
+}
 
 // The two axes are chosen HERE, once per Iterate.  Note what is NOT here: no flag survives into the
 // policy's fill path, so `kT>0` and `useMOM` are answered by which objects exist rather than re-asked on
@@ -127,9 +155,7 @@ template class MOMRanking<dcmplx>;
 template <class T> std::unique_ptr<OccupationPolicy<T>> MakeOccupationPolicy(const OccupationConfig& cfg,
                                                                              OccupationState& state)
 {
-    std::unique_ptr<OccupancyRule> occ = cfg.kT>0.0
-        ? std::unique_ptr<OccupancyRule>(new FermiOccupancy(cfg.kT))
-        : std::unique_ptr<OccupancyRule>(new IntegerOccupancy());
+    std::unique_ptr<OccupancyRule> occ = MakeOccupancyRule(cfg);
     std::unique_ptr<RankingRule<T>> rank = cfg.useMOM
         ? std::unique_ptr<RankingRule<T>>(new MOMRanking<T>(cfg.momStartIter, cfg.momPenalty))
         : std::unique_ptr<RankingRule<T>>(new BareRanking<T>());

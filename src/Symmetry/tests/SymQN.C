@@ -8,6 +8,7 @@ import qchem.Streamable;
 import qchem.Symmetry.Factory;
 import qchem.Symmetry.Atom.Spherical;
 import qchem.Blaze;
+import qchem.Symmetry.Lattice_3D.BlochQN;   // MeshShift / IsShiftOf / CommensurateShifts (LinearResponsePlan S1)
 using namespace qchem;
 
 using std::cout; 
@@ -243,4 +244,75 @@ TEST_F(SymQNTests, BlochQNs)
             EXPECT_NE(bq1->SequenceIndex(),bq2->SequenceIndex());
         }
     }
+}
+// ------------------------------------------------------------------ MeshShift (doc/LinearResponsePlan.md S1)
+// The k -> k+q pairing a monochromatic linear response needs.  Pinned: every k on the mesh has EXACTLY ONE
+// partner for every commensurate q (so the pairing is a permutation), q=0 pairs a point with itself, an
+// incommensurate q-mesh is a FAILED Outcome (never a throw), and a shifted Monkhorst-Pack mesh pairs within
+// itself -- q is a difference of mesh points, so k+q stays on the SHIFTED mesh.
+namespace {
+std::vector<sym_t> Mesh(ivec3_t N, rvec3_t shift={0,0,0})
+{
+    std::vector<sym_t> out;
+    for (int x=0;x<N.x;x++) for (int y=0;y<N.y;y++) for (int z=0;z<N.z;z++)
+        out.push_back(BlochFactory(N,ivec3_t(x,y,z),1.0/(N.x*N.y*N.z),shift));
+    return out;
+}
+}
+
+TEST_F(SymQNTests, MeshShift_PartnerIsAPermutation)
+{
+    using Lattice_3D::IsShiftOf;
+    for (rvec3_t shift : {rvec3_t(0,0,0), rvec3_t(0.5,0.5,0.5)})
+    {
+        const ivec3_t N(4,2,6);
+        auto mesh=Mesh(N,shift);
+        auto qs=Lattice_3D::CommensurateShifts(*mesh[0], ivec3_t(2,2,3));
+        ASSERT_TRUE(qs.IsOk());
+        EXPECT_EQ(qs->size(), 12u);
+        for (const auto& q : *qs)
+        {
+            std::set<size_t> hit;
+            for (size_t b=0;b<mesh.size();b++)
+            {
+                size_t n=0, p=0;
+                for (size_t c=0;c<mesh.size();c++) if (IsShiftOf(*mesh[c],*mesh[b],q)) {n++; p=c;}
+                EXPECT_EQ(n,1u) << "q=" << q;
+                hit.insert(p);
+            }
+            EXPECT_EQ(hit.size(), mesh.size()) << "q=" << q << ": the pairing is not a permutation";
+        }
+    }
+}
+
+TEST_F(SymQNTests, MeshShift_ZeroPairsWithItselfAndNegativeIndicesWork)
+{
+    const ivec3_t N(3,3,3);
+    auto qs=Lattice_3D::CommensurateShifts(*BlochFactory(N,ivec3_t(0,0,0)), N);
+    ASSERT_TRUE(qs.IsOk());
+    EXPECT_TRUE((*qs)[0].IsZero());
+    auto k=BlochFactory(N,ivec3_t(-1,2,0)), kk=BlochFactory(N,ivec3_t(2,-1,0));   // -1 == 2 (mod 3)
+    EXPECT_TRUE (Lattice_3D::IsShiftOf(*k,*kk,(*qs)[0]));
+    EXPECT_TRUE (Lattice_3D::IsShiftOf(*k,*k,(*qs)[0]));
+    // q = (1,0,0) steps: (-1,2,0)+(1,0,0) = (0,2,0)
+    auto q=(*qs)[9];                          // ix=1, iy=0, iz=0
+    EXPECT_EQ(q.Steps(), ivec3_t(1,0,0));
+    EXPECT_TRUE (Lattice_3D::IsShiftOf(*BlochFactory(N,ivec3_t(0,2,0)),*k,q));
+    EXPECT_FALSE(Lattice_3D::IsShiftOf(*BlochFactory(N,ivec3_t(1,2,0)),*k,q));
+}
+
+TEST_F(SymQNTests, MeshShift_IncommensurateQMeshFails)
+{
+    auto qs=Lattice_3D::CommensurateShifts(*BlochFactory(ivec3_t(4,4,4),ivec3_t(0,0,0)), ivec3_t(3,2,2));
+    EXPECT_FALSE(qs.IsOk());
+    EXPECT_NE(qs.Error().find("not commensurate"), std::string::npos);
+}
+
+TEST_F(SymQNTests, MeshShift_DifferentMeshesNeverPair)
+{
+    auto a=BlochFactory(ivec3_t(4,4,4),ivec3_t(1,0,0));
+    auto b=BlochFactory(ivec3_t(4,4,4),ivec3_t(1,0,0),1.0/64,rvec3_t(0.5,0.5,0.5));   // shifted MP twin
+    auto qs=Lattice_3D::CommensurateShifts(*a, ivec3_t(1,1,1));
+    ASSERT_TRUE(qs.IsOk());
+    EXPECT_FALSE(Lattice_3D::IsShiftOf(*a,*b,(*qs)[0]));
 }

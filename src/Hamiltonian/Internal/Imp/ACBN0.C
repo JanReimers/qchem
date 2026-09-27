@@ -45,7 +45,7 @@ template <class U> void ACBN0::AccumulateT(const BasisSet::Orbital_DFT_IBS<U,dcm
     if (C.columns()!=f.size()) throw std::invalid_argument("ACBN0::Accumulate: one occupation per coefficient column");
     EnsureIntegrals(block);
     if (f.size()==0) return;
-    const std::vector<mat_t<U>> ell=itsTerm.LowdinCoefficients(block, C);     // per manifold: m x nOrb (Löwdin basis)
+    const std::vector<mat_t<U>> ell=itsTerm.ProjectorAmplitudes(block, C);     // per manifold: m x nOrb (Löwdin basis)
     const std::vector<mat_t<U>> coef=itsTerm.ManifoldCoefficients(block, C);  // per manifold: m x nOrb (on the manifold's functions)
     const size_t nM=itsERI.size(), nOrb=f.size();
     // The renormalised occupation of each orbital on each manifold's EQUIVALENCE set (same species and l).

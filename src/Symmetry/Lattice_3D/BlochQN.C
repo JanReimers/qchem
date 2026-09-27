@@ -1,15 +1,49 @@
 // File: Symmetry/Lattice_3D/BlochQN.C  A Quantum Number translational symmetry, i.e. a wave vector.
 module;
 #include <iosfwd>
+#include <string>
+#include <vector>
 export module qchem.Symmetry.Lattice_3D.BlochQN;
 export import qchem.Types;
 export import qchem.Symmetry;
+export import qchem.Outcome;   // CommensurateShifts: an incommensurate q-mesh is a configuration error, not a throw
 //---------------------------------------------------------------------------------
 //
 //  Translational symmetry, Bloch function wave vector.
 //
 
 namespace qchem::Symmetry::Lattice_3D {
+
+export class BlochQN;
+
+//! \brief A wave-vector SHIFT q ON A k-MESH'S OWN GRID: an integer number of grid steps \f$\Delta ik\f$ on a
+//! mesh of \f$N\f$ divisions, \f$q=\Delta ik/N\f$ (fractional reciprocal coordinates).
+//! (doc/LinearResponsePlan.md §3 row S1, stage R0.)
+//!
+//! ★ WHY IT IS A TYPE AND NOT A \c rvec3_t.  A linear response couples block k to block k+q, and the k+q
+//! block must EXIST -- which it does exactly when q is a difference of mesh points.  A float q can be off the
+//! mesh; this type cannot, because only a mesh point (\c BlochQN::CommensurateShifts) can construct one.  An
+//! off-mesh q is therefore UNREPRESENTABLE rather than checked (build failure over runtime failure, user
+//! 2026-08).  For every MeshShift, k+q IS a mesh point, shifted Monkhorst-Pack meshes included, because q is
+//! a difference of two of them.
+//! \note In our Bloch gauge (phase \f$e^{i\mathbf k\cdot\mathbf R_n}\f$ over integer lattice offsets,
+//! GPW_Evaluator / LatticeSum1E) \f$\phi_{k+G}\equiv\phi_k\f$, so "k+q modulo a reciprocal lattice vector"
+//! is a pure index map with no G-phase to carry -- unlike QE's \f$e^{i(\mathbf k+\mathbf G)\cdot\mathbf r}\f$
+//! basis, which needs its \c ikqs table.
+export class MeshShift
+{
+public:
+    ivec3_t Grid () const {return N;}    //!< the k-mesh divisions this shift lives on
+    ivec3_t Steps() const {return d;}    //!< \f$\Delta ik\f$, reduced into [0, N)
+    rvec3_t q    () const;               //!< \f$\Delta ik/N\f$, fractional reciprocal coordinates
+    bool    IsZero() const {return d.x==0 && d.y==0 && d.z==0;}
+private:
+    friend class BlochQN;
+    MeshShift(ivec3_t _N, ivec3_t _d);
+    ivec3_t N, d;
+};
+export std::ostream& operator<<(std::ostream&, const MeshShift&);
+
 export class BlochQN : public virtual qchem::Symmetry::Symmetry
 {
 public:
@@ -44,11 +78,21 @@ public:
     virtual std::ostream&  Write(std::ostream&) const;
 
     rvec3_t   Getk() const {return k;}
+    //! \brief The q-mesh of \a Nq divisions ON THIS k-mesh: every \f$q=iq/N_q\f$, as MeshShifts.  Its
+    //! \f$\prod N_q\f$ points are the supercell images a monochromatic response sums over.
+    //! FAILS (a value, not a throw -- the caller chose the q-mesh and can choose another) unless \f$N_q\f$
+    //! divides \f$N\f$ per axis: that is the commensurability every DFPT code requires (QE's hp.x: "limited to
+    //! q point grids that are commensurate with the k point grid").
+    Outcome<std::vector<MeshShift>,std::string> CommensurateShifts(ivec3_t Nq) const;
+    //! Is THIS point \f$k+q\f$ for \a k (same mesh, same Monkhorst-Pack shift), modulo a reciprocal lattice
+    //! vector?  Exact integer arithmetic; a \a q or \a k from a different mesh answers false.
+    bool IsShiftOf(const BlochQN& k, const MeshShift& q) const;
 
 private:
     ivec3_t N;      //This is the Brillouin zone grid size which gives context for the k vector. Used for calculating the sequence index.
     ivec3_t ik;     //Integer rep. of k.
     rvec3_t k;      //Real values.
+    rvec3_t shift;  //The Monkhorst-Pack offset in grid steps (0 = Γ-centred) -- two points share a mesh only if equal.
     size_t  star;   //k-star multiplicity w_k·N_mesh (the block's spatial degeneracy; 1 on an unfolded mesh).
     bool    isReal; //TRIM fact N_i | 2(ik_i+shift_i), computed EXACTLY in the ctor (see IsReal).
 };
@@ -59,5 +103,9 @@ private:
 //! piece of concrete information it needs (here, the crystal momentum).
 export rvec3_t Getk(const sym_t&);
 export rvec3_t Getk(const qchem::Symmetry::Symmetry&);
+//! Pry the same way (throws std::bad_cast on a non-Bloch handle): is \a kq the point \f$k+q\f$ for \a k?
+export bool IsShiftOf(const qchem::Symmetry::Symmetry& kq, const qchem::Symmetry::Symmetry& k, const MeshShift& q);
+//! The q-mesh of \a Nq divisions on \a anyK's k-mesh (see \c BlochQN::CommensurateShifts).
+export Outcome<std::vector<MeshShift>,std::string> CommensurateShifts(const qchem::Symmetry::Symmetry& anyK, ivec3_t Nq);
 } // namespace qchem::Symmetry::Lattice_3D
 

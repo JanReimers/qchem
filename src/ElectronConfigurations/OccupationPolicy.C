@@ -143,6 +143,20 @@ public:
     virtual ~OccupancyRule() = default;
     virtual void   Apply(BlockFill&) const = 0;   //!< stamp the rule (and its parameters) onto the spec
     virtual double kT() const {return 0.0;}       //!< 0 for every integer rule
+    //! \brief THE RESPONSE WEIGHT of a level pair: \f$(f_n-f_m)/(\varepsilon_n-\varepsilon_m)\f$, with its
+    //! degenerate limit where the rule has one (doc/LinearResponsePlan.md §3 row E1).
+    //!
+    //! WHY THE OCCUPANCY RULE ANSWERS IT.  The rule that decided \f$f(\varepsilon)\f$ is the only thing
+    //! that knows \f$f'(\varepsilon)\f$.  A linear response built on the same composed rule as the ground
+    //! state it linearises can never disagree with it about metal vs insulator -- there is no second
+    //! metal-detection path (pin 15, insight 2 of doc/HubbardUPlan.md).  \a fn, \a fm are FRACTIONAL
+    //! (occupation / level capacity, in [0,1]); the caller multiplies by the capacity.
+    virtual double ResponseWeight(double en, double fn, double em, double fm) const = 0;
+    //! \brief Must every coupled pair with \f$f_n\ne f_m\f$ have its energy gap RESOLVED before
+    //! \c ResponseWeight is asked?  True for integer occupations, whose weight diverges as the gap closes;
+    //! false for a smeared rule, whose weight is bounded (\f$|f'|\le1/4kT\f$).  The client (the response's
+    //! reference state) gates on the answer: it measures the response gap and returns an Outcome.
+    virtual bool   RequiresResolvedGap() const = 0;
 };
 
 //! Prescribed integer count-down -- the aufbau/seed occupancy, and \c BlockFill's own default, so this is
@@ -151,6 +165,12 @@ class IntegerOccupancy final : public OccupancyRule
 {
 public:
     virtual void Apply(BlockFill&) const override {}   // BlockFill::Rule::Integer is the default
+    //! Zero between equally-occupied levels (the same full/empty/partial level, or two of them);
+    //! otherwise the plain quotient.  ⛔ THROWS on \f$\varepsilon_n=\varepsilon_m\f$ with \f$f_n\ne f_m\f$:
+    //! the caller must have gated on the response gap first (\c RequiresResolvedGap), so reaching it is a
+    //! broken invariant, never a value.
+    virtual double ResponseWeight(double en, double fn, double em, double fm) const override;
+    virtual bool   RequiresResolvedGap() const override {return true;}
 };
 
 //! FERMI SMEARING (doc/GPWPlan1.md 4b): solve μ per block by bisection on Σg_i f_i=ne and fill
@@ -163,6 +183,11 @@ public:
     explicit FermiOccupancy(double kT) : itsKT(kT) {}
     virtual void   Apply(BlockFill& f) const override {f.rule=BlockFill::Rule::Fermi; f.kT=itsKT;}
     virtual double kT() const override {return itsKT;}
+    //! The quotient, and within \f$10^{-6}kT\f$ of degeneracy its limit
+    //! \f$f'(\varepsilon)=-\bar f(1-\bar f)/kT\f$ at the pair's mean occupation (the n = m intraband term
+    //! of a q = 0 response is this limit exactly).  Bounded by \f$1/4kT\f$ everywhere.
+    virtual double ResponseWeight(double en, double fn, double em, double fm) const override;
+    virtual bool   RequiresResolvedGap() const override {return false;}
 private:
     double itsKT;
 };
@@ -340,6 +365,11 @@ public:
     //! The clock still ticks; the capture never fires (never from a trial state).
     virtual void   OnBlockFilled(const Irrep& q, const OrbitalView<T>&) override {this->itsState.CountFill(q);}
 };
+
+//! \brief The OCCUPANCY axis alone, from the run's configuration value: the one place `kT>0` becomes an
+//! object.  \c MakeOccupationPolicy assembles its policy from this, and a linear response rebuilds the SAME
+//! rule from the SAME value (doc/LinearResponsePlan.md E1), so the two can never disagree.
+std::unique_ptr<OccupancyRule> MakeOccupancyRule(const OccupationConfig&);
 
 //! \brief Assemble the run's policy from what it asked for.  THE one place the two axes are chosen, and it
 //! runs once per Iterate -- so `kT>0` is a question about which object exists, never a per-fill branch.

@@ -299,7 +299,7 @@ const TmoSpec NiOSpec{"NIO","NiO","Ni",28,10,6, 7.88, 32,  5, ChargeDensity::See
 // The RECIPE knobs: <P>_ORTHO_TOL, <P>_CUTOFF_FACTOR, <P>_ECUT, <P>_SHARED_MU, <P>_MOM_SEED, <P>_REAL,
 // <P>_IMPOSE=0/1/2 (free / Shubnikov / grey control), <P>_XC_UNIFORM, <P>_NR, <P>_L, <P>_ALPHA, <P>_KERKER_G0,
 // <P>_XC_CUSP, <P>_PULAY, <P>_PULAY_START, <P>_MOM, <P>_MOM_START, <P>_MOM_PENALTY, <P>_MOM_HOLD, <P>_KT,
-// GPW_<P>_NMAX, GPW_<P>_VERBOSE, <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
+// GPW_<P>_NMAX, GPW_<P>_VERBOSE, <P>_CHI0=nq (chi0 on an nq^3 q-mesh, LinearResponsePlan R0), <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
 // site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + <P>_ACBN0=1 (print the ACBN0 (U,J)
 // estimate from the converged orbitals; <P>_ACBN0=n>1 runs the paper's OUTER LOOP for up to n steps, re-converging
 // on the same Hamiltonian, <P>_ACBN0_TOL=eV; increment 3) + <P>_U_RADIAL=every|atomic|ortho|orthofull (the
@@ -363,7 +363,7 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
     // estimate (U-bar, J-bar, U_eff) from its orbitals -- one step of the paper's outer loop; iterate by
     // hand with <P>_U=<U_eff of the previous run> (increment 3).
     const bool acbn0 = S.Envi("ACBN0",0)!=0;
-    if (const double U=S.Envd("U",0.0); U>0.0 || acbn0)
+    if (const double U=S.Envd("U",0.0); U>0.0 || acbn0 || S.Envi("CHI0",0)>0)   // CHI0: the channels ARE the manifolds
     {
         // <P>_U_RADIAL: every (CP2K's every-shell manifold, default) | atomic (ONE contracted pseudo-atom 3d, QE's
         // `atomic`) | ortho (the two TM 3d sets Löwdin-orthogonalised against each other) | orthofull (QE's
@@ -489,6 +489,16 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
             std::cout << std::endl;
             arm.result=arm.calc->Result();                             // the final-U SCF is now the arm's answer
         }
+    }
+    // <P>_CHI0=n: chi0 over the Hubbard manifolds on an n^3 q-mesh (doc/LinearResponsePlan.md stage R0) -- the
+    // independent-particle response hp.x prints at its first iteration.  Needs a FULL k-mesh (no <P>_IMPOSE)
+    // commensurate with the q-mesh, and the channels listed as +U manifolds (at U=0 to probe without +U).
+    if (const int nq=S.Envi("CHI0",0); nq>0)
+    {
+        std::cout << "[" << S.name << " " << o.label << "] chi0 from the last iterate"
+                  << (arm.result ? " (CONVERGED):" : " (NOT converged -- a diagnostic only):") << std::endl;
+        auto chi=arm.calc->IndependentResponse(ivec3_t(nq,nq,nq));   // reports itself
+        (void)chi;
     }
     report::EmitTimings();   // sorted by cost + PEAK RSS, inside the bracket
     return arm;

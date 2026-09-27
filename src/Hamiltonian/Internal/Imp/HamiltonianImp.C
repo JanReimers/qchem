@@ -35,6 +35,14 @@ template <class T> std::unique_ptr<HubbardUEstimator> tHamiltonianImp<T>::MakeHu
     return nullptr;
 }
 
+// Abstract -> abstract cross-cast: the +U term realises HubbardChannels; nothing here names Hubbard_U.
+template <class T> const HubbardChannels* tHamiltonianImp<T>::GetHubbardChannels() const
+{
+    for (const auto& t : itsDHTs)
+        if (auto* h=dynamic_cast<const HubbardChannels*>(t.get())) return h;
+    return nullptr;
+}
+
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 {
     itsDHTs.push_back(std::unique_ptr<tDynamic_HT<T>>(p));

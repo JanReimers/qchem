@@ -33,6 +33,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Energy.C  
     Hamiltonian.C 
     HubbardEstimator.C
+    HubbardChannels.C                     # the +U projectors, public (LinearResponsePlan R0)
     Factory.C
     Types.C
     Internal/HamiltonianImp.C 

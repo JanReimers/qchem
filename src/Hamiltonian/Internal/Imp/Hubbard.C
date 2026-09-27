@@ -821,10 +821,16 @@ template <class U> static std::vector<mat_t<U>> LowdinOf(const LowdinProjector<U
     for (size_t M=0;M<P.NumManifolds();M++) out.push_back(mat_t<U>(blazem::ctrans(P.T(M))*C));   // T^dagger C
     return out;
 }
-std::vector<mat_t<double>> Hubbard_U::LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb, const mat_t<double>& C) const
+std::vector<mat_t<double>> Hubbard_U::ProjectorAmplitudes(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& orb, const mat_t<double>& C) const
 {return LowdinOf<double>(Projector<double>(orb), C);}
-std::vector<mat_t<dcmplx>> Hubbard_U::LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const mat_t<dcmplx>& C) const
+std::vector<mat_t<dcmplx>> Hubbard_U::ProjectorAmplitudes(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& orb, const mat_t<dcmplx>& C) const
 {return LowdinOf<dcmplx>(Projector<dcmplx>(orb), C);}
+std::vector<HubbardChannel> Hubbard_U::Channels() const
+{
+    std::vector<HubbardChannel> out;
+    for (const auto& M : itsManifolds) out.push_back({M.site, M.l});
+    return out;
+}
 
 const rvec_t& Hubbard_U::Occupations(size_t M, const Spin& s) const
 {

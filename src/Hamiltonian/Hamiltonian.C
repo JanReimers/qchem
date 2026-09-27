@@ -8,6 +8,7 @@ import qchem.Streamable;
 export import qchem.Energy;
 export import qchem.Hamiltonian.Types;
 export import qchem.Hamiltonian.HubbardEstimator;   // HubbardUEstimator / HubbardEstimate (DFT+U increment 3)
+export import qchem.Hamiltonian.HubbardChannels;    // the +U projectors a linear response perturbs/measures (LinearResponsePlan R0)
 
 
 export namespace qchem::Hamiltonian
@@ -349,6 +350,12 @@ public:
     //! modules, so the Hamiltonian hands out the capability rather than the term.  The estimator refers to
     //! this Hamiltonian's term: keep the Hamiltonian alive while it is used.
     virtual std::unique_ptr<HubbardUEstimator> MakeHubbardUEstimator() const {return nullptr;}
+    //! \brief The PROJECTORS of this Hamiltonian's +U term -- what a linear response perturbs and measures
+    //! (doc/LinearResponsePlan.md §2, stage R0): NULL when it carries no +U term.  Same reasoning as
+    //! \c MakeHubbardUEstimator (the term lives behind \c .Internal.), but a cached accessor rather than a
+    //! Make: the face is the term's own, so nothing is computed or owned.  Keep the Hamiltonian alive while
+    //! the pointer is used.
+    virtual const HubbardChannels* GetHubbardChannels() const {return nullptr;}
     //! \brief Run the EAGER REFRESH PHASE over every term: fill the k-independent density-dependent memos
     //! ONCE, before any Bloch block is assembled.
     //!

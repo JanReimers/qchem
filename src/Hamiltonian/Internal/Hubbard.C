@@ -50,6 +50,7 @@ export module qchem.Hamiltonian.Internal.Hubbard;
 import qchem.Hamiltonian.Internal.Term;        // cDynamic_HT + the _Imp cache mixins (Bloch + real TRIM)
 export import qchem.Hamiltonian.Factory;        // HubbardManifold (the public input vocabulary)
 import qchem.Hamiltonian.Types;                 // cobs_t / robs_t / tobs_t<U>
+export import qchem.Hamiltonian.HubbardChannels; // the public projector face HubbardProjection extends (LinearResponsePlan R0)
 import qchem.Fitting.FunctionFitter;            // Fitting::ScalarProjector (the forward vendor face)
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.BareCoulombSource;         // ERI4Block (ManifoldIntegrals)          // Orbital_DFT_IBS<U,dcmplx> (what ProjectOnto hands the vendor)
@@ -200,6 +201,7 @@ double DudarevInEigenbasis(const rvec_t& lam, const rmat_t& v, const std::vector
 //! given orbitals in every manifold.  An abstract face so the composite Hamiltonian finds the term by an
 //! abstract->abstract cast and the estimator never names \c Hubbard_U.
 class HubbardProjection
+    : public virtual HubbardChannels   //!< the projectors, public: what a linear response perturbs and measures
 {
 public:
     virtual ~HubbardProjection() = default;
@@ -215,9 +217,9 @@ public:
     //! \c LowdinProjector::Coefficients) -- what pairs with \c ManifoldIntegrals in an on-site HF energy.
     virtual std::vector<mat_t<double>> ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block, const mat_t<double>& C) const = 0;
     virtual std::vector<mat_t<dcmplx>> ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block, const mat_t<dcmplx>& C) const = 0;
-    //! Per manifold: \f$\ell=T_M^\dagger C\f$ (\f$m_M\times n_{\rm orb}\f$), the LÖWDIN coefficients -- what a charge is made of.
-    virtual std::vector<mat_t<double>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>& block, const mat_t<double>& C) const = 0;
-    virtual std::vector<mat_t<dcmplx>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block, const mat_t<dcmplx>& C) const = 0;
+    // Per manifold \f$\ell=T_M^\dagger C\f$, the LÖWDIN coefficients -- what a charge is made of -- is
+    // HubbardChannels::ProjectorAmplitudes since 2026-09-27 (hoisted to the public face so a linear response
+    // perturbs and measures through the SAME projector; it was LowdinCoefficients here).
     //! THE OTHER DIRECTION -- what the estimator does to the term: set manifold \a M's \f$U\f$ (Hartree; a
     //! filled \c Uirrep is set to it throughout, shell-averaged) for the NEXT Fock build.  The outer loop of
     //! the paper (SCF at \f$U^{(n)}\f$, estimate, run again) lives on this.
@@ -254,8 +256,9 @@ public:
     virtual std::vector<BasisSet::ERI4Block> ManifoldIntegrals(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&) const override;
     virtual std::vector<mat_t<double>> ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const mat_t<double>&) const override;
     virtual std::vector<mat_t<dcmplx>> ManifoldCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
-    virtual std::vector<mat_t<double>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const mat_t<double>&) const override;
-    virtual std::vector<mat_t<dcmplx>> LowdinCoefficients(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
+    virtual std::vector<mat_t<double>> ProjectorAmplitudes(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const mat_t<double>&) const override;
+    virtual std::vector<mat_t<dcmplx>> ProjectorAmplitudes(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
+    virtual std::vector<HubbardChannel> Channels() const override;
     virtual void SetU(size_t M, double U) override;
     //!@}
 

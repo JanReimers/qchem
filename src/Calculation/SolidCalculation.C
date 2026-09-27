@@ -44,6 +44,7 @@ import qchem.BasisSet;                        // Real_BS (orbital source), Compl
 import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, RasterPolicy, CellImages
 import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamiltonian solid door
 export import qchem.Hamiltonian.HubbardEstimator;   // HubbardEstimate (EstimateHubbardU)
+export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
 import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.ChargeDensity;                   // cDM_CD
@@ -505,6 +506,17 @@ public:
     };
     HubbardLoopResult ConvergeHubbardU(const SCFParams& params, const HubbardLoop& loop);
     HubbardLoopResult ConvergeHubbardU(const SCFParams& params) {return ConvergeHubbardU(params, HubbardLoop{});}
+
+    //! \brief \f$\chi_0\f$ -- the INDEPENDENT-PARTICLE channel response of the last iterate over its Hubbard
+    //! manifolds, on the \a Nq q-mesh (doc/LinearResponsePlan.md stage R0; Timrov et al. PRB 98, 085127's
+    //! \f$\chi_0\f$).  Sum over states on the stored orbitals (every virtual included), the run's OWN occupancy
+    //! rule (the final stage's configuration) and the +U term's OWN projectors; gated on the response gap
+    //! against the final iteration's [F,D] commutator as the eigenvalue noise.  Reports as it computes
+    //! (per q, then the real-space home-cell block, in eV\f$^{-1}\f$ -- hp.x's unit).
+    //! FAILS on an incommensurate q-mesh or an inverted/unresolved coupled pair.  THROWS when the run carries
+    //! no +U manifold (list the channels at U=0 to probe a run without +U) or reduced its k-mesh (D5: run
+    //! without \c imposeSymmetry).  A diagnostic of the last iterate, like \c EstimateHubbardU.
+    Outcome<Response::ChannelResponse,Response::ResponseFailure> IndependentResponse(ivec3_t Nq) const;
 
     // ⛔ Energy() / EnergyTerms() / TotalCharge() / Density() DELIBERATELY DO NOT LIVE HERE any more
     // (doc/OpenWork.md N1/T1).  They are on Converged, reachable only through Converge()/Result(), because

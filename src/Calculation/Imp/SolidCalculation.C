@@ -5,6 +5,7 @@
 module;
 #include <algorithm>   // std::max (the T2 site-moment scan)
 #include <cmath>       // std::fabs
+#include <limits>      // quiet_NaN (lastCommutator before any iteration)
 #include <map>         // the magnetic decoration's IonicSAD targets
 #include <iomanip>     // the stage summary's stated precision
 #include <iostream>    // the per-stage anneal banner
@@ -97,6 +98,11 @@ struct SolidCalculation::Imp
     SCFAccelerators::SolidAcceleratorOptions    accOpts;
     SCFAccelerators::Type                       stageAccel = SCFAccelerators::Type::DIIS;  //!< the CURRENT stage's, for the banner
     bool   converged = false;
+    //! What the LAST converge stage filled with and how well it converged its eigenvalues -- the linear
+    //! response's reference is built over the SAME occupancy rule, gated against the SAME measured noise
+    //! (doc/LinearResponsePlan.md E1).  The commutator is the final iteration's [F,D].
+    qchem::OccupationConfig lastOccupation;
+    double lastCommutator = std::numeric_limits<double>::quiet_NaN();
     bool   imposed   = false;   //!< the run imposed a symmetry, so its solution must still carry it (T2)
     double charge    = 0.0;
     //! The OUTCOME DETECTORS' record (N1/T3-T4).  Accumulates across every attempt this object makes --
@@ -727,6 +733,7 @@ void SolidCalculation::AttachProbes()
         // number the trace reported, not a second pull.
         itsImp->diag.itsOrder.push_back(MaxSiteMoment(p.eb.charge.siteMoments, itsImp->diag.itsHasBasins));
         itsImp->diag.itsEee  .push_back(p.eb["Eee"]);
+        itsImp->lastCommutator = p.commutator;
         if (userObs) userObs(p);
     });
 }
@@ -757,6 +764,8 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     // spin channels, once per stage -- and an annealed run has a stage per schedule entry.
     qchem::report::Timed residue("scf: converge (residue -- final density + m(r) extraction)");
     EmitSCFBanner(itsImp->opts.label, params, itsImp->stageAccel);
+    itsImp->lastOccupation = {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter,
+                              .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty};   // the iterator's own conversion
     itsImp->scf->Iterate(params);
     itsImp->converged = itsImp->scf->Converged();
     itsImp->diag.itsConverged = itsImp->converged;
@@ -984,6 +993,24 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
 }
 
 const qchem::ChargeDensity::cDM_CD* SolidCalculation::LastIterateDensity() const {return itsImp->cd.get();}
+
+Outcome<qchem::Response::ChannelResponse,qchem::Response::ResponseFailure>
+SolidCalculation::IndependentResponse(ivec3_t Nq) const
+{
+    const auto* hub=itsImp->ham->GetHubbardChannels();
+    if (!hub) throw std::logic_error("SolidCalculation::IndependentResponse: this run carries no Hubbard manifold -- the "
+                                     "response channels ARE the +U manifolds (list them at U=0 to probe without +U)");
+    const auto* wf=itsImp->scf->GetWaveFunction();
+    if (!wf) throw std::logic_error("SolidCalculation::IndependentResponse: no wave function yet");
+    const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator) : 0.0;
+    qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
+        {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
+    qchem::Response::AmplitudeProbe probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
+    auto r=qchem::Response::IndependentResponse(ref, probe, Nq);
+    if (r) r->Write(std::cout, 27.211386245988, "1/eV");     // reported at its own activity (pin 17)
+    else   std::cout << "[chi0] FAILED: " << r.Error().detail << std::endl;
+    return r;
+}
 
 // The caller's observer is SWAPPED IN behind the facade's own (AttachProbes composes the two), so
 // attaching telemetry late cannot silently disarm the outcome detectors.

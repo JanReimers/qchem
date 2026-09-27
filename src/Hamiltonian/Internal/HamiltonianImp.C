@@ -52,6 +52,8 @@ public:
     //! \copydoc tHamiltonian::MakeHubbardUEstimator
     //! The FIRST dynamic term answering the \c HubbardProjection face (abstract->abstract); null when none does.
     virtual std::unique_ptr<HubbardUEstimator> MakeHubbardUEstimator() const override;
+    //! \copydoc tHamiltonian::GetHubbardChannels
+    virtual const HubbardChannels* GetHubbardChannels() const override;
     //! THE EAGER REFRESH PHASE (doc/OpenWork.md item **KP**): pre-warm every term's k-independent,
     //! density-dependent memo, once, before the caller's per-block Fock loop.  Folded over the DYNAMIC
     //! terms only -- a static term is density-independent by definition, so it has nothing to warm.
