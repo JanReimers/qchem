@@ -194,3 +194,33 @@ inflation over the ionic d⁶ picture already seen on Mn/Ni/V, now confirmed on 
 low-spin, fully-paired d-shell, ruling out "unpaired/open-shell character" as the cause.  Decks:
 `licoo2.scf.1.in`, `licoo2.scf.2.in`, `licoo2.hp.in`.  UPFs, wavefunctions and `HP/` scratch regenerated
 (`gth2upf --element Co --q 9`, `--element Li --q 1`, `--element O --q 6`), not committed.
+
+## A6 (`doc/HubbardUPlan.md`): LiVO₂, matched-PP LRT — 2026-09-26
+
+Second member of the LiMO₂ row.  R-3m structure from a real citation (user-supplied): **Mat. Res. Bull.
+27, 555–562 (1992)**, `a = 2.8388(18) Å`, `c = 14.828(13) Å`, V at Wyckoff 3a `(0,0,0)`, Li at 3b
+`(0,0,½)`, O at 6c `(0,0,z)` with `z = 0.25749(22)`.  ⚠ **A self-relaxed geometry was tried FIRST and then
+discarded** — before this citation surfaced, `pw.x vc-relax` (our GTH-LDA pseudopotentials, QE's own BFGS
+optimizer — QE relaxes, not `qchem`; this project's own code has no geometry-relaxation capability at all)
+gave `a=2.753 Å, c=14.485 Å` (a sane ~3% LDA-contraction from experiment, bond lengths V–O 1.966 Å /
+Li–O 2.026 Å checked sane), but the real citation superseded it the moment it existed — never guess when a
+citable number is available, even a defensible self-consistent stand-in.  Converted hexagonal→rhombohedral
+primitive by hand as in LiCoO₂; **bond-length check against the citation**: V–O = 1.988 Å, Li–O = 2.121 Å
+(both sane for these ionic radii, both correctly larger than LiCoO₂'s 1.919/2.090 Å — V³⁺/Li⁺ vs the
+smaller Co³⁺ environment).  `celldm(1) = 9.840415` bohr, `celldm(4) = 0.851403`; V listed first
+(Hubbard-atom-first rule, learned the hard way on LiCoO₂).
+
+⚠ **LiVO₂ in this idealized untrimerized cell is a METAL under nonmagnetic LDA** (V³⁺ d², partially-filled
+t₂g, no Jahn-Teller/trimer distortion imposed) — confirmed by running `hp.x` directly on the plain smeared
+`scf` ground state with no complaint, the SrVO₃ pattern, not the LiCoO₂/MnO/NiO 2-step.  This is the
+*idealized* structure the cRPA-comparison paper's "isolated d-manifold LiMO₂" benchmark uses — the REAL
+room-temperature LiVO₂ has V-trimer short-range order (Kojima et al., arXiv:1910.01337 and arXiv:2301.03833)
+that would gap it; that physics is deliberately out of scope here, matching the reference paper's own
+convention, not a mistake.
+
+**hp.x, ortho-atomic, V-3d only, nq 2×2×2, U_in≈0 (2026-09-26, 2h39m serial):**
+**U(V 3d) = 5.9526 eV.**  χ₀(V,V) = −2.6592 → χ(V,V) = −0.1530 (χ/χ₀ ≈ 0.0575) — even more strongly
+screened than SrVO₃ (0.081), consistent with both being real metals.  Projected (ortho-atomic) V-3d
+occupation 3.65 electrons (out of 10) — same covalency-inflation pattern over the formal d² picture seen
+on every material so far.  Decks: `livo2.scf.in`, `livo2.hp.in`.  UPFs/wavefunctions/`HP/` regenerated,
+not committed.

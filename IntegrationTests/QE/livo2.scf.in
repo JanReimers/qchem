@@ -1,0 +1,39 @@
+ &control
+    calculation  = 'scf'
+    restart_mode = 'from_scratch',
+    prefix       = 'livo2'
+    pseudo_dir   = './'
+    outdir       = './'
+    tprnfor      = .true.
+    tstress      = .true.
+ /
+ &system
+    ibrav        = 5,
+    celldm(1)    = 9.840415,
+    celldm(4)    = 0.851403,
+    nat          = 4,
+    ntyp         = 3,
+    ecutwfc      = 300.0, input_dft='sla+vwn',
+    ecutrho      = 1200.0,
+    occupations  = 'smearing',
+    smearing     = 'cold',
+    degauss      = 0.01,
+    nspin        = 1,
+ /
+ &electrons
+    conv_thr    = 1.d-12
+    mixing_beta = 0.7
+ /
+ATOMIC_SPECIES
+ V   50.942  V.pz-gth-q5.UPF
+ Li  6.941   Li.pz-gth-q1.UPF
+ O   16.000  O.pz-gth-q6.UPF
+ATOMIC_POSITIONS {crystal}
+ V   0.0000000   0.0000000   0.0000000
+ Li  0.5000000   0.5000000   0.5000000
+ O   0.2574900   0.2574900   0.2574900
+ O   0.7425100   0.7425100   0.7425100
+K_POINTS {automatic}
+ 4 4 4 0 0 0
+HUBBARD {ortho-atomic}
+U V-3d 1.d-8

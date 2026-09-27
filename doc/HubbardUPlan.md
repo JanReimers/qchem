@@ -39,8 +39,8 @@ matched-PP hp.x route, which is what A3 was actually run against.)
 | A3 | ~~Re-run gate3 scripts against A2b's real target~~ | ✅ **DONE 2026-09-25 — ROUTE (b) REFUTED.**  ω's 50.6 % apart (was 6 % on a wrong number), localization sign backwards again |
 | A4 | ~~the screened kernel on `BareCoulombSource`, with \f$\varepsilon\f$ COMPUTED~~ | ⛔ **DO NOT START — A3 refuted, not held.**  §2's routing table now points at (c) or (d); which one is a plan-shape decision, not this row's to make |
 | A5 | ABINIT `lruj` for **J** (hp.x gives none) — answers §5's first open question | optional, any time |
-| **A6** | **Broaden the matched-PP hp.x oracle set** — get GOOD at converging oxides/sulfides/fluorides across the papers' own benchmark materials (SrVO₃, KCuF₃, Sr₂FeO₄, the LiMO₂ series M=V–Ni, TiO₂, ZnO, FeS₂ — §7; MnO's own O-2p redone with `ortho-atomic` instead of the fragile `atomic` projector already used once) | ⛔ **IN PROGRESS 2026-09-25.**  Element coverage checked: Ti/V/Fe/Co/Sr/K/F/Zn all convert cleanly on the first attempt (`gth2upf`); **Cu (3d10-4s1, needed for KCuF₃) hit a genuine aufbau limit cycle, fixed** with a kT-anneal-then-cold-MOM fallback (hot smear + damped mixing, then MOM-held re-converge) — lands on the correct 4s¹3d¹⁰ ground state, E=−47.926315 Ha.  Pure fallback, zero effect on elements that already converge (Mn/Ni/O/Li regression-checked identical).  **SrVO₃ (material queue item 1) DONE 2026-09-25: U(V 3d) = 6.2502 eV, matched-PP LRT** (`IntegrationTests/QE/README.md` §A6) — found and routed around a real `gth2upf` limitation on the way: Sr q10 (semicore 4s4p5s) silently integrates to 2 electrons not 10 (the pseudo-atom EC caps one shell per `l`, can't hold two s-shells at once); used Sr q2 instead, the same light-valence convention already used for Mn/Ni.  **KCuF₃/Sr₂FeO₄ (queue items 2–3) PARKED 2026-09-26**: pending Dr. Carta's reply on the paper's relaxed cell constants (email sent; not guessing a JT-forced-cubic KCuF₃ cell or a Sr₂FeO₄ internal z from memory).  **LiCoO₂ (from queue item 4, the LiMO₂ series) DONE 2026-09-26: U(Co 3d) = 7.3070 eV**, matched-PP LRT — picked ahead of V/Cr to shake out the recipe on a well-characterized member first.  Structure sourced and bond-length-verified from Pinsard-Gaudart et al. 2011 (a real citation, not memory).  Found a genuine `hp.x` requirement along the way: Hubbard atom(s) must be listed FIRST in `ATOMIC_POSITIONS` or it refuses to run.  Also found LiCoO₂ needs the SAME 2-step (smeared → fixed-occupation) recipe as MnO/NiO despite being NONmagnetic — the 2-step is about the GAP, not about magnetism, correcting this plan's earlier "magnetic insulator" framing.  Full detail: `IntegrationTests/QE/README.md` §A6.  Next: the rest of the LiMO₂ row (V, Cr — untested aufbau, Fe, Ni), or TiO₂/ZnO/FeS₂ |
-| **A7** | **Build route (d): our own finite-difference/DFPT linear response**, material-agnostic (§5's open question; CP2K `qs_linres_*` as the Gaussian-basis reference) | ⛔ **QUEUED, AFTER A6** (user, 2026-09-25).  Does NOT reopen route (b) — a single uniform screening length is refuted regardless of how ε is computed; DFPT gives the general, manifold-resolved case (b) was a crude shortcut for, and SUPERSEDES it (once built, U comes from the response directly, no bare-tensor-times-kernel construction).  DIP-based estimator strategy, `doc/OpenWork.md` §2 row |
+| **A6** | **Broaden the matched-PP hp.x oracle set** — get GOOD at converging oxides/sulfides/fluorides across the papers' own benchmark materials (SrVO₃, KCuF₃, Sr₂FeO₄, the LiMO₂ series M=V–Ni, TiO₂, ZnO, FeS₂ — §7; MnO's own O-2p redone with `ortho-atomic` instead of the fragile `atomic` projector already used once) | ⛔ **IN PROGRESS 2026-09-25.**  Element coverage checked: Ti/V/Fe/Co/Sr/K/F/Zn all convert cleanly on the first attempt (`gth2upf`); **Cu (3d10-4s1, needed for KCuF₃) hit a genuine aufbau limit cycle, fixed** with a kT-anneal-then-cold-MOM fallback (hot smear + damped mixing, then MOM-held re-converge) — lands on the correct 4s¹3d¹⁰ ground state, E=−47.926315 Ha.  Pure fallback, zero effect on elements that already converge (Mn/Ni/O/Li regression-checked identical).  **SrVO₃ (material queue item 1) DONE 2026-09-25: U(V 3d) = 6.2502 eV, matched-PP LRT** (`IntegrationTests/QE/README.md` §A6) — found and routed around a real `gth2upf` limitation on the way: Sr q10 (semicore 4s4p5s) silently integrates to 2 electrons not 10 (the pseudo-atom EC caps one shell per `l`, can't hold two s-shells at once); used Sr q2 instead, the same light-valence convention already used for Mn/Ni.  **KCuF₃/Sr₂FeO₄ (queue items 2–3) PARKED 2026-09-26**: pending Dr. Carta's reply on the paper's relaxed cell constants (email sent; not guessing a JT-forced-cubic KCuF₃ cell or a Sr₂FeO₄ internal z from memory).  **LiCoO₂ (from queue item 4, the LiMO₂ series) DONE 2026-09-26: U(Co 3d) = 7.3070 eV**, matched-PP LRT — picked ahead of V/Cr to shake out the recipe on a well-characterized member first.  Structure sourced and bond-length-verified from Pinsard-Gaudart et al. 2011 (a real citation, not memory).  Found a genuine `hp.x` requirement along the way: Hubbard atom(s) must be listed FIRST in `ATOMIC_POSITIONS` or it refuses to run.  Also found LiCoO₂ needs the SAME 2-step (smeared → fixed-occupation) recipe as MnO/NiO despite being NONmagnetic — the 2-step is about the GAP, not about magnetism, correcting this plan's earlier "magnetic insulator" framing.  **LiVO₂ DONE 2026-09-26: U(V 3d) = 5.9526 eV** — geometry from a real citation (user-supplied, Mat. Res. Bull. 27, 555 (1992)) after a self-relaxed (QE `vc-relax`, our own PPs) stand-in was tried and then DISCARDED the moment the citation existed.  Idealized (untrimerized) LiVO₂ comes out METALLIC under nonmagnetic LDA — SrVO₃'s recipe (no 2-step), not LiCoO₂'s.  Full detail: `IntegrationTests/QE/README.md` §A6.  Next: the rest of the LiMO₂ row (Cr — untested aufbau, Fe, Ni), or TiO₂/ZnO/FeS₂ |
+| **A7** | **Build route (d): our own finite-difference/DFPT linear response**, material-agnostic (§5's open question; CP2K `qs_linres_*` as the Gaussian-basis reference) | ⛔ **QUEUED, AFTER A6** (user, 2026-09-25).  Does NOT reopen route (b) — a single uniform screening length is refuted regardless of how ε is computed; DFPT gives the general, manifold-resolved case (b) was a crude shortcut for, and SUPERSEDES it (once built, U comes from the response directly, no bare-tensor-times-kernel construction).  DIP-based estimator strategy, `doc/OpenWork.md` §2 row.  **User intends to plan/scope/SOLID-design A7 in a DEDICATED session** (2026-09-26) — read "A7 scoping insights" just below the material queue FIRST: six concrete things this session's `hp.x` runs surfaced (architecture decomposition, occupation-policy reuse, k/q commensurability, projector consistency, a same-site-vs-intersite scoping fork, real cost data) |
 
 ### Track B — can we RUN the material?  (needs no oracle)
 | | action | state |
@@ -106,10 +106,71 @@ fallback fix (aufbau limit cycle, 3d10-4s1 vs 3d9-4s2 near-degeneracy — see A6
    hexagonal→rhombohedral-primitive conversion).  Needed the 2-step (smeared→fixed-occupation) recipe
    despite being nonmagnetic — LiCoO₂'s low-spin Co³⁺ d⁶ is a real band gap (LDA 1.56 eV), and the 2-step
    recipe turns out to be about the GAP, not about magnetism specifically.  Also surfaced a real `hp.x`
-   rule: the Hubbard atom must be listed FIRST in `ATOMIC_POSITIONS`.  Remaining row: V, Cr, Fe, Ni.
+   rule: the Hubbard atom must be listed FIRST in `ATOMIC_POSITIONS`.  **LiVO₂ DONE 2026-09-26:
+   U(V 3d) = 5.9526 eV** — R-3m structure from a real citation (Mat. Res. Bull. 27, 555 (1992),
+   a=2.8388 Å, c=14.828 Å, z(O)=0.25749), bond-length-verified (V–O 1.988 Å, Li–O 2.121 Å).  A
+   self-consistently `vc-relax`ed stand-in geometry (our own GTH-LDA via QE's own relaxer — `qchem` itself
+   has no relax capability) was built and then discarded the moment the citation came in — never keep a
+   defensible guess once a real number exists.  Comes out METALLIC under nonmagnetic LDA in this idealized
+   (untrimerized) cell — no 2-step recipe needed, unlike Co.  Remaining row: Cr, Fe, Ni.
 5. **TiO₂, ZnO, FeS₂** — the remaining ACBN0-paper benchmark set (rutile TiO₂ and wurtzite ZnO already
    in ACBN0's own four-material study alongside MnO/NiO; FeS₂ is Macke's e_g-hybridisation warning case,
    §3 risk 2).  Elements: Ti, Zn, S (S untested — not yet checked in `gth_potentials.json`), Fe (checked).
+
+### A7 scoping insights (session handoff, 2026-09-26)
+
+★ **Not a plan for A7 — six things this session's `hp.x` runs (SrVO₃, LiCoO₂, plus MnO/NiO earlier)
+learned about what building our own DFPT engine actually involves, for whoever scopes/designs it next.**
+None of this is guesswork: it comes from reading `hp.x`'s own behaviour and output, and Carta et al.'s
+supplemental derivation (`~/Code/supplementary.pdf` §I, and §III "Computational details").
+
+1. **The architecture decomposes cleanly, and `hp.x` shows the seam.**  Every run this session printed
+   the SAME four-stage structure: an outer loop over (Hubbard atom, q-point-in-star); an inner
+   Sternheimer/CG solve per perturbation (the `chi: iter# ... residue` lines); a response-occupation-matrix
+   accumulation (`hp_dnsq`); and a final χ₀/χ assembly + inversion (`U = χ₀⁻¹ − χ⁻¹`, supplementary Eq. 36).
+   That is four separably-testable objects, not one monolith: a perturbation driver, a Sternheimer/CG
+   numerical kernel, a response-density accumulator, and a χ-matrix assembler.  Design each as its own seam
+   before writing the outer loop.
+2. **The metal/insulator numerics are NOT a QE quirk to route around — they are the real content of the
+   response weight, and this project already has the seam that handles it.**  Three materials across this
+   plan (LiCoO₂ this session, MnO/NiO earlier) needed a smeared-then-fixed-occupation 2-step before `hp.x`
+   would run at all, failing outright otherwise ("DOS at Fermi level too small... should NOT be treated as
+   a metal"); SrVO₃, an actual metal, needed no such step.  The reason is the `(f_n−f_m)/(ε_n−ε_m)`
+   response-weight sum: near-degenerate `ε_n≈ε_m` terms are only well-behaved under a Fermi(kT) occupancy
+   (which broadens the denominator) or under an exact integer gap — never under smearing applied to a
+   system that doesn't actually have a smearable Fermi surface.  `src/ElectronConfigurations/OccupationPolicy.C`
+   ALREADY has exactly this axis — `occupancy {Integer, Fermi(kT)}`, composed once at assembly, not
+   re-asked per fill (R2.21).  A7's response-weight construction should be built as a NEW reader of that
+   SAME existing `OccupationState`/`OccupationPolicy` pair, not a second, parallel metal-detection path —
+   the ground-state SCF already decided Integer vs Fermi(kT) once; the DFPT response should just ask it,
+   the same way the ground state's own energy sum does.
+3. **The k/q-mesh commensurability constraint is real and will need a k+q→k′+G lookup.**  Carta et al.'s
+   own SI says it plainly: "our implementation is limited to q point grids that are commensurate with the
+   k point grid... the k+q point is mapped onto another k′ point within the original grid, modulo a
+   reciprocal lattice vector."  Whatever holds our Bloch/k-mesh state needs that map as a first-class
+   query, not an afterthought discovered mid-implementation — C2's shifted-MP fold defect (`doc/OpenWork.md`
+   §4) is adjacent territory and worth reading before designing this.
+4. **Projector consistency is non-negotiable, and this is the one lesson the whole A1–A6 arc has hammered
+   on repeatedly** (matched-PP oracle work, `IntegrationTests/QE/README.md` throughout): the response
+   density MUST be projected through the SAME projector-flavour object (Löwdin / atomic / ortho-atomic)
+   already used for the ground-state occupation matrix — never a second, parallel projection implementation
+   for the response side.  If A7 ever disagrees with A6's own `hp.x` numbers on a shared material, the
+   FIRST suspect must be "did the response side use a different projector," not "is DFPT wrong."
+5. **A real scoping-ambition decision, not an implementation detail — decide it up front.**  `hp.x`'s
+   "coarse-grained" LRT (supplementary §I.E) only ever produces a SAME-SITE U per Hubbard atom (it
+   averages away everything else, Eq. 35).  The GENERALIZED LRT it's coarse-grained FROM (supplementary
+   §I.B, restricted to a target subspace via Eq. 18) is naturally inter-site and multi-orbital from the
+   start — and our own on-site `BareCoulombSource`/`ERI4Block` machinery is already RICHER than `hp.x`'s
+   (native 4-index integrals, not a Wannier-projected proxy standing in for them).  Pin 23's "the manifold
+   is an input, never a derivation" already generalizes one level for site/shell/irrep; A7 is the natural
+   place to ask whether it should generalize ONE MORE level, to an inter-site V from day one, rather than
+   building "hp.x-equivalent" first and bolting V on later.
+6. **Real cost data to scope against, not a guess.**  This session's `hp.x` wall times (serial, 300 Ry,
+   4–5-atom primitive cells, 2×2×2 q-mesh): SrVO₃ (metal) 55 min; LiCoO₂ (insulator, 2-step) 1h48m; MnO/NiO
+   (insulator, 2-step, from earlier sessions) similar.  A native DFPT engine's FIRST validation target
+   should be the cheapest one with an already-trusted external number to check against — SrVO₃ or NiO, not
+   a from-scratch material — so a wrong answer is a bug in the new code, not a confound from an unfamiliar
+   material.
 6. **MnO's own O-2p, redone** with `ortho-atomic` instead of the fragile, non-orthogonalised `atomic`
    projector already used once (`IntegrationTests/QE/README.md`'s `mno.hp.in`, U(O 2p)=26.56 eV, flagged
    fragile at the time) — cheapest item on this list, no new geometry or elements, just a deck edit
@@ -120,6 +181,8 @@ Each material needs the FULL recipe A2b/NiO went through: `gth2upf` per element,
 right, expect the same here), then `hp.x`.  **A digression to fix something the recipe hunt exposes in
 our own code is explicitly in scope, not a distraction** (user, 2026-09-25) — the Cu fix above is the
 first example.
+
+User comment: I have two papers on general Sternhaimer DFPT: ~/Code/{DFPT1-gonze1989.pdf,DFPT2-baroni2001.pdf}. If you already know how to do this no need to read them.  There is also a modern paper on precicely our application: ~/Code/DFPT3-timrov2018.pdf which is probably worth reading.  In order to keep our code framework clean I am mostly concered about changes to abstract interfaces.  So we should look at that before coding.  If we are adding behaviour to the Hamiltonian interfaces they should be general perturbation theory (PT) interfaces, not DFT specific.  SO if possible the same PT interfaces would work for MP2 corrections of an HF Hamiltonian.
 
 ---
 
