@@ -318,7 +318,11 @@ instead of printing a χ₀ for a metal: the review round's comment 2, caught on
 `1e-3` the dropped AOs are index 0/47 = each Ni's FIRST function, the α = 0.06 diffuse s; the state becomes a
 2.18 eV insulator **0.36 Ha HIGHER** in energy (−106.3729 vs −106.7348).  A function "reproducible by the kept
 set" lowering a converged energy by 0.36 Ha smells like the GPW near-dependence dive (the MnO 136-span saga);
-GPW collocation is not strictly variational, so that is a measurement to make, not a verdict.
+GPW collocation is not strictly variational, so that is a measurement to make, not a verdict.  **Follow-up the same day:** the uniform
+(QE-like) and a fine Becke quadrature reproduce the gapless state (±24 µHa), and QE's own band list puts the
+CBM at Γ with a 3.5 eV direct gap where ours is ~0.13 eV — a state BELOW the PW reference, which the Ritz bound
+forbids for an incomplete basis: ill-conditioning × integral error, so the 1e-3 insulator is likely the
+physical state (full reasoning and the running eps=1e-14 test: `OpenWork.md` §4a row).
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** — code landed (`d7c95c92`); the NiO gate is running.  Lesson already banked: **`GPW_OMP_THREADS` is
