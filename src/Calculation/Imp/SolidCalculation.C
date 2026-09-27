@@ -733,7 +733,10 @@ void SolidCalculation::AttachProbes()
         // number the trace reported, not a second pull.
         itsImp->diag.itsOrder.push_back(MaxSiteMoment(p.eb.charge.siteMoments, itsImp->diag.itsHasBasins));
         itsImp->diag.itsEee  .push_back(p.eb["Eee"]);
-        itsImp->lastCommutator = p.commutator;
+        // A Null accelerator computes NO [F,D]: SCFProgress then carries 0 (the trace hides it by tag), which
+        // must not read as a MEASURED zero eigenvalue noise (found 2026-09-27, the NiO R0 gate) -- NaN instead.
+        itsImp->lastCommutator = itsImp->stageAccel==SCFAccelerators::Type::Null
+                               ? std::numeric_limits<double>::quiet_NaN() : p.commutator;
         if (userObs) userObs(p);
     });
 }
