@@ -250,3 +250,34 @@ LARGEST bare response of any material so far (three d-electrons available to res
 strongly screened, netting a U comparable to V's.  Projected (ortho-atomic) Cr-3d occupation 4.72 electrons
 (out of 10) — the covalency-inflation pattern over the formal-ionic count, now confirmed on a FIFTH
 material.  Decks: `licro2.scf.in`, `licro2.hp.in`.  UPFs/wavefunctions/`HP/` regenerated, not committed.
+
+## A6 (`doc/HubbardUPlan.md`): LiFeO₂, matched-PP LRT — 2026-09-26/27
+
+Fourth LiMO₂ member.  **Real LiFeO₂ is NOT the layered R-3m phase** — its stable forms are cubic
+disordered-rock-salt (α) or orthorhombic (β), since high-spin Fe³⁺ d⁵ has zero crystal-field stabilisation
+energy pushing it toward the same cation-ordered layered structure Co³⁺/Ni³⁺/Cr³⁺/V³⁺ favour (user flagged
+this from memory before sourcing began — correctly).  **Decision (user, 2026-09-26): idealize it into the
+SAME untrimerized R-3m template as the rest of the row anyway**, matching the reference cRPA-comparison
+paper's own apparent convention — checked from that paper's own computational-details table, which groups
+LiFeO₂ with LiCrO₂/LiCoO₂ under the SAME isotropic `13×13×13` k-mesh (consistent with all three sharing the
+same compact rhombohedral-primitive cell shape), unlike LiMnO₂'s oddly-shaped `6×13×6` mesh (consistent with
+LiMnO₂ needing its own real, distorted cell in their work).  This is valid for **validating our own U
+calculation methodology**, which is A6's actual goal — not a claim about LiFeO₂'s real ground state.
+
+Geometry: Materials Project mp-19419 (GGA+U=5.3 eV relaxed, ICSD-backed: 78712/51759/51207), already given
+in the PRIMITIVE rhombohedral form directly (no hex→rh conversion needed): `a = b = c = 5.052 Å`,
+`α = β = γ = 33.159°`, Li (0,0,0), Fe (½,½,½), O (0.2404,0.2404,0.2404) and (0.7596,0.7596,0.7596).
+Bond-length check: Fe–O = 1.971 Å, Li–O = 2.131 Å — both physically sane for high-spin Fe³⁺/Li⁺ octahedra
+(a touch shorter than experiment would likely give, expected for a GGA+U-relaxed source geometry, the same
+direction our own `vc-relax` shrank LiVO₂).  `celldm(1) = 9.546896` bohr, `celldm(4) = 0.837156`; Fe listed
+first.  Cutoff carried over at 300 Ry.
+
+**hp.x, ortho-atomic, Fe-3d only, nq 2×2×2, U_in≈0 (2026-09-27, 2h54m serial):** ran directly on the smeared
+ground state with no complaint — **also METALLIC under nonmagnetic LDA** (high-spin Fe³⁺ d⁵ forced
+spin-restricted has no majority/minority split to fill, so it is simply another partially-filled-manifold
+metal like V/Cr, not a repeat of MnO's d⁵ "the inverse difference cancels" trap — that trap was specific to
+MnO's AFM/spin-polarized response channel, which does not exist in a spin-restricted nspin=1 calculation).
+**U(Fe 3d) = 7.5915 eV.**  χ₀(Fe,Fe) = −4.3821 → χ(Fe,Fe) = −0.1242 (χ/χ₀ ≈ 0.028) — as strongly screened as
+Cr's.  Projected (ortho-atomic) Fe-3d occupation 6.46 electrons (out of 10) — covalency inflation over the
+formal d⁵ picture, now confirmed on a SIXTH material.  Decks: `lifeo2.scf.in`, `lifeo2.hp.in`.
+UPFs/wavefunctions/`HP/` regenerated, not committed.
