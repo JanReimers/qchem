@@ -281,6 +281,18 @@ on the image pair.  Read the collocation pair loop and size R3 before committing
 
 ---
 
+### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
+1. **R0** — code landed (`d7c95c92`); the NiO gate is running.  Lesson already banked: **`GPW_OMP_THREADS` is
+   part of every multi-k recipe** (serial default ⇒ ~1.2 of 16 cores; `OpenWork.md` row KP, measured).
+2. **CK-1 checkpoint/restart** (`OpenWork.md` §2 row "SCF checkpoint/restart") — before R1 and before the
+   Oct 6–20 window: every A6/A7 material's converged state saved once and reused; CK-2 then lets χ₀ run on a
+   stored state with no SCF.
+3. **R1** (molecular CPHF, cheap, needs neither of the above).
+4. **The cross-k gather memo, then KP** (row KP's measured order) — when R2/R3's kernel applications, which
+   are gather-shaped per block PAIR, become the wall.  R3's q-points are also embarrassingly parallel at the
+   PROCESS level (as hp.x's `start_q/last_q`), which needs no code.
+5. **R2 → R3 → R4** on the stored materials.
+
 ## 6. Rulings (all six ruled 2026-09-27)
 
 | | fork | recommendation |
