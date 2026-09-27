@@ -1002,7 +1002,9 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
                                      "response channels ARE the +U manifolds (list them at U=0 to probe without +U)");
     const auto* wf=itsImp->scf->GetWaveFunction();
     if (!wf) throw std::logic_error("SolidCalculation::IndependentResponse: no wave function yet");
-    const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator) : 0.0;
+    // NaN (a recipe with no [F,D], e.g. the Null accelerator) is passed on as UNMEASURED, never as 0.
+    const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
+                                                             : std::numeric_limits<double>::quiet_NaN();
     qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
         {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
     qchem::Response::AmplitudeProbe probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);

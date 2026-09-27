@@ -70,7 +70,7 @@ struct ResponseFailure
 struct ResponseGap
 {
     double gap  =std::numeric_limits<double>::infinity();   //!< min Δ over the gated coupled pairs (Hartree); inf when none is gated
-    double noise=0.0;                                         //!< the reference's eigenvalue noise δε (Hartree)
+    double noise=0.0;                                         //!< the reference's eigenvalue noise δε (Hartree); NaN = unmeasured
     //! The relative bound on χ0 it implies, \f$\delta\chi_0/\chi_0\lesssim\delta\varepsilon/\Delta_{\min}\f$.
     double Bound() const {return noise/gap;}
 };
@@ -81,7 +81,9 @@ public:
     //! \a rule: the run's own occupancy rule (\c MakeOccupancyRule of the run's configuration).
     //! \a eigenNoise: how well the reference's eigenvalues are converged (Hartree) -- MEASURED by the
     //! caller (the SCF's final [F,D] commutator), never a tunable: it is the threshold below which a gap
-    //! is not resolved.  THROWS if a block is not a star-1 Bloch block (D5).
+    //! is not resolved.  NaN = UNMEASURED (a recipe that computes no commutator): the gate then checks the
+    //! gap's SIGN only, and every report says "unmeasured" rather than printing a false 0.
+    //! THROWS if a block is not a star-1 Bloch block (D5).
     Reference(std::vector<ReferenceBlock> blocks, std::unique_ptr<OccupancyRule> rule, double eigenNoise);
 
     size_t       NumBlocks  ()         const {return itsBlocks.size();}

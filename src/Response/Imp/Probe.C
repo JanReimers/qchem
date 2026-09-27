@@ -121,8 +121,9 @@ std::ostream& ChannelResponse::Write(std::ostream& os, double perUnit, const std
     const size_t nch=labels.size();
     os << "[chi0] independent-particle channel response, q-mesh " << Nq.x << "x" << Nq.y << "x" << Nq.z
        << ", " << nch << " channels, unit " << unitName << "; response gap "
-       << std::setprecision(6) << gap << " Ha (eigenvalue noise " << noise << " Ha";
-    if (isfinite(gap) && gap>0) os << ", chi0 relative bound " << std::setprecision(2) << noise/gap;
+       << std::setprecision(6) << gap << " Ha (eigenvalue noise ";
+    if (isfinite(noise)) os << noise << " Ha"; else os << "UNMEASURED";
+    if (isfinite(gap) && gap>0 && isfinite(noise)) os << ", chi0 relative bound " << std::setprecision(2) << noise/gap;
     os << ")\n";
     for (size_t iq=0;iq<q.size();iq++)
     {

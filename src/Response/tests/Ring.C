@@ -15,6 +15,7 @@
 #include "gtest/gtest.h"
 #include <cmath>
 #include <complex>
+#include <limits>
 #include <memory>
 #include <vector>
 import qchem.Response.Probe;
@@ -226,4 +227,20 @@ TEST(ResponseRing, UnresolvedGapIsAFailedOutcomeButASmallResolvedGapIsPhysics)
     auto c2=IndependentResponse(*ok, OneChannel(*ok), ivec3_t(2,1,1));
     ASSERT_TRUE(c2.IsOk());
     EXPECT_NEAR(c2->gap, 5e-4, 1e-12);
+}
+
+// A recipe that computes no [F,D] hands the reference an UNMEASURED noise (NaN).  The gate must still catch
+// an inverted pair (the sign needs no noise), must NOT invent an "unresolved" verdict, and must say
+// "UNMEASURED" rather than print a false 0.
+TEST(ResponseRing, UnmeasuredNoiseGatesTheSignOnlyAndSaysSo)
+{
+    const double nan=std::numeric_limits<double>::quiet_NaN();
+    auto inv=TwoBlock(0.5, 0.2, nan);
+    auto c1=IndependentResponse(*inv, OneChannel(*inv), ivec3_t(2,1,1));
+    ASSERT_FALSE(c1.IsOk());
+    EXPECT_EQ(c1.Error().why, ResponseFailure::Why::Inverted);
+    EXPECT_NE(c1.Error().detail.find("UNMEASURED"), std::string::npos);
+    auto tiny=TwoBlock(0.1995, 0.2, nan);                  // a 5e-4 gap: resolved or not is unknowable
+    auto c2=IndependentResponse(*tiny, OneChannel(*tiny), ivec3_t(2,1,1));
+    EXPECT_TRUE(c2.IsOk());
 }

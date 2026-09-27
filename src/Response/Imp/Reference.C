@@ -81,7 +81,7 @@ Outcome<ResponseGap,ResponseFailure> Reference::Gap(const MeshShift& q) const
                 if (d<r.gap) {r.gap=d; bw=b; nw=n; mw=m;}
             }
     }
-    if (r.gap<=0.0 || r.gap<=itsNoise)
+    if (r.gap<=0.0 || r.gap<=itsNoise)   // a NaN noise compares false: only the sign gates
     {
         const ReferenceBlock& k=itsBlocks[bw];
         const ReferenceBlock& kq=itsBlocks[p[bw]];
@@ -90,7 +90,10 @@ Outcome<ResponseGap,ResponseFailure> Reference::Gap(const MeshShift& q) const
            << (r.gap<=0.0 ? "INVERTED coupled pair" : "UNRESOLVED coupled pair") << " at q=" << q
            << ": k-block " << k.irrep << " orbital " << nw << " (e=" << k.e[nw] << ", f=" << k.f[nw] << ")"
            << " -> k+q block " << kq.irrep << " orbital " << mw << " (e=" << kq.e[mw] << ", f=" << kq.f[mw] << ")"
-           << ", gap " << r.gap << " Ha against eigenvalue noise " << itsNoise << " Ha."
+           << ", gap " << r.gap << " Ha against eigenvalue noise ";
+        if (isfinite(itsNoise)) os << itsNoise << " Ha.";
+        else                    os << "UNMEASURED (this recipe computes no [F,D]; only the gap's sign was gated).";
+        os
            << (r.gap<=0.0 ? "  The per-block integer fill is not an aufbau state ACROSS this pair: the state is"
                             " not a gapped insulator on this mesh -- treat it as a metal (Fermi occupancy)."
                           : "  The gap is not resolved above the reference's own eigenvalue noise.");
