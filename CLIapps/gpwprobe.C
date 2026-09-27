@@ -492,6 +492,22 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
         auto make=[&cell](const BasisSet::Gaussian::ShellTrim& t){ return MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR, t); };
         mol=BasisSet::Lattice::VetStageTrim(lat, make, {.images=o.images, .kShift=o.kShift}, o.orthoTol).mol;
     }
+    else if (const char* tr=S.Env("TRIM"))
+    {   // <P>_TRIM=Z:l:alpha[,Z:l:alpha...] -- a STATED trim, built ONCE with no vet loop in the process (the A/B
+        // for anything the vet's trial builds could leave behind)
+        BasisSet::Gaussian::ShellTrim t;
+        for (std::string rest(tr), tok; !rest.empty(); )
+        {
+            size_t c=rest.find(','); tok=rest.substr(0,c);
+            int Z=0, l=0; double a=0;
+            if (std::sscanf(tok.c_str(), "%d:%d:%lf", &Z, &l, &a)!=3) throw std::runtime_error(S.prefix+"_TRIM: expected Z:l:alpha, got '"+tok+"'");
+            t.shells.push_back({Z,l,rvec_t(1,a)});
+            if (c==std::string::npos) break;
+            rest=rest.substr(c+1);
+        }
+        std::cout << "[basis trim] STATED (no vet loop): "; t.Write(std::cout); std::cout << std::endl;
+        mol=MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR, t);
+    }
     else mol=MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR);
     arm.calc=std::make_unique<SolidCalculation>(lat, mol, o, schedule);
     arm.result=arm.calc->Result();
