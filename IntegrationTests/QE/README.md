@@ -281,3 +281,50 @@ MnO's AFM/spin-polarized response channel, which does not exist in a spin-restri
 Cr's.  Projected (ortho-atomic) Fe-3d occupation 6.46 electrons (out of 10) — covalency inflation over the
 formal d⁵ picture, now confirmed on a SIXTH material.  Decks: `lifeo2.scf.in`, `lifeo2.hp.in`.
 UPFs/wavefunctions/`HP/` regenerated, not committed.
+
+## A6 (`doc/HubbardUPlan.md`): LiNiO₂, matched-PP LRT — 2026-09-27 — **LiMO₂ ROW COMPLETE**
+
+Fifth and last LiMO₂ member.  Real LiNiO₂ is also Jahn-Teller-active (low-spin Ni³⁺ d⁷, singly-occupied
+eg — confirmed directly: Materials Project's own DFT+U-relaxed entry (mp-25411) comes back with UNEQUAL
+rhombohedral angles and two different oxygen z-components, i.e. genuinely monoclinic-distorted, not the
+idealized R-3m this row uses).  Same decision as Fe: idealize into the row's untrimerized R-3m template.
+
+Geometry from a real Rietveld refinement, Seo et al., *J. Electrochem. Soc.* 165 (2018) A2554
+("Updating the Structure and Electrochemistry of Li$_x$NiO₂"): `a = 2.8751(1) Å`, `c = 14.2000(3) Å`,
+Li 3a (0,0,0), Ni 3b (0,0,½), O 6c (0,0,z) with `z = 0.2424(1)`.  Bond-length check: Ni–O = 1.978 Å
+(paper's own cation-mixing-corrected refinement reports ~1.95 Å average — same ballpark, the small gap is
+the 1.81% Li/Ni antisite mixing this idealized 0%-mixing cell doesn't carry), Li–O = 2.103 Å (matches ~2.10
+Å almost exactly).  `celldm(1) = 9.478789` bohr, `celldm(4) = 0.835726`; Ni listed first (reuses the same
+Ni q10 pseudopotential already validated for rocksalt NiO — note LiNiO₂'s Ni is 3+/d⁷, a different ion
+entirely from NiO's 2+/d⁸, so their U values are not expected to relate simply).
+
+**hp.x, ortho-atomic, Ni-3d only, nq 2×2×2, U_in≈0 (2026-09-27, 2h48m serial):** ran directly on the smeared
+ground state, no complaint — **METALLIC under nonmagnetic LDA** (the undistorted cell leaves eg¹ split
+across two degenerate orbitals, a partially-filled manifold like every other member of this row bar Co).
+**U(Ni 3d) = 9.1730 eV** — the largest of the whole LiMO₂ row.  χ₀(Ni,Ni) = −2.0136 → χ(Ni,Ni) = −0.1006
+(χ/χ₀ ≈ 0.050), in the same strongly-screened-metal range as V/Cr/Fe.  Projected (ortho-atomic) Ni-3d
+occupation 8.32 electrons (out of 10) — covalency inflation over the formal d⁷ picture, now confirmed on
+EVERY material run this session (seven for seven).  Decks: `linio2.scf.in`, `linio2.hp.in`.
+
+★ **First use of the new checkpoint practice** (`doc/OpenWork.md`'s SCF-restart feature row, 2026-09-27):
+the converged U_in≈0 ground state's `.save` (72 MB — wavefunctions, ρ(G), `occup.txt`'s Hubbard occupation
+matrix, full input/output metadata) was archived to `IntegrationTests/QE/checkpoints/linio2_U0.save/`
+BEFORE `hp.x` touched it, rather than deleted after the run like every earlier material this session.  A
+future self-consistent-U rerun on LiNiO₂ can `startingpot/startingwfc='file'` from this instead of
+reconverging from an atomic guess.  (The five materials done earlier this session — SrVO₃, LiCoO₂, LiVO₂,
+LiCrO₂, LiFeO₂ — do NOT have this checkpoint; their U=0 states were deleted before this practice started,
+so their self-consistent-U reruns will need a fresh SCF, a modest one-time cost of a few minutes each.)
+
+**LiMO₂ row summary (M = V, Cr, Fe, Co, Ni; all matched-PP `hp.x`, U_in ≈ 0, nspin=1):**
+
+| M | U(M 3d) eV | χ/χ₀ | electronic character |
+|---|---|---|---|
+| V | 6.2502 (SrVO₃, perovskite) / 5.9526 (LiVO₂) | 0.081 / 0.058 | metal (both hosts) |
+| Cr | 5.8111 | 0.029 | metal |
+| Fe | 7.5915 | 0.028 | metal |
+| Co | 7.3070 | 0.286 | insulator (LDA gap 1.56 eV) |
+| Ni | 9.1730 | 0.050 | metal |
+
+Co is the odd one out electronically (real gapped low-spin d⁶) as well as structurally (the only member
+whose real ground state IS this same R-3m cell — V, Cr and Ni's real ground states are metallic/JT-active
+in ways this idealized treatment does not capture, and Fe's real ground state isn't this phase at all).
