@@ -269,7 +269,7 @@ pair is (k, k).
 
 | stage | delivers | interface rows | oracle (a wrong number is a bug in NEW code) |
 |---|---|---|---|
-| **R0** | \f$\chi_0(\mathbf q)\f$ by sum over states over the DECLARED Hubbard channels only (D2 scope), primitive cell, full mesh, **no kernel**, reported WITH its response gap \f$\Delta_{\min}\f$ and bound (E1) | E1, S1, C2 (as the probe RHS), qcResponse skeleton (`Reference`, `HubbardChannelProbe`) | hp.x's printed χ₀ on the A6 matched-PP decks: SrVO₃ χ₀(V,V) = −1.7822 (metal: exercises Fermi ResponseWeight + δμ); NiO χ₀ = −0.113 at U_in = 3 eV (insulator: Integer).  Same PP, projector, k-mesh and q-mesh (`IntegrationTests/QE/README.md`).  **No Hamiltonian change at all.** |
+| **R0** ✅ machinery (§5b) | \f$\chi_0(\mathbf q)\f$ by sum over states over the DECLARED Hubbard channels only (D2 scope), primitive cell, full mesh, **no kernel**, reported WITH its response gap \f$\Delta_{\min}\f$ and bound (E1) | E1, S1, C2 (as the probe RHS), qcResponse skeleton (`Reference`, `HubbardChannelProbe`) | hp.x's printed χ₀ on the A6 matched-PP decks: SrVO₃ χ₀(V,V) = −1.7822 (metal: exercises Fermi ResponseWeight + δμ); NiO χ₀ = −0.113 at U_in = 3 eV (insulator: Integer).  Same PP, projector, k-mesh and q-mesh (`IntegrationTests/QE/README.md`).  **No Hamiltonian change at all.** |
 | **R1** | CPHF/CPKS, molecular, finite field replaced by response | H1, H2 (Hartree/J, K), C1 at q=0, M1, `DipoleProbe`; **H1 first backed by a finite-difference kernel** \f$[F(D_0+h\delta D)-F(D_0-h\delta D)]/2h\f$ built from the PUBLIC `GetMatrix`, which needs no term code | PySCF (`~/Code/pyscf-env`) static polarisability of H₂O at HF and LDA, and our own finite-field SCF.  **The FD kernel then stays permanently as the unit-test oracle for every analytic `tResponse_HT`**, the same pattern as `Hamiltonian/tests/GPW_XC_FD.C`. |
 | **R2** | periodic q=0 self-consistent χ: analytic Hartree + LDA \f$f_{xc}\f$ through GPW | H2 (periodic Hartree/XC), H3, H4 | (a) FD kernel vs analytic on a solid; (b) in a **supercell**, R2 *is* LR-cDFT, checked against a finite-difference cDFT run (perturb with a static \f$\alpha\hat P_J\f$, re-converge; Timrov §III).  **C1's 32-atom MnO measurement says whether (b) is affordable.** |
 | **R3** | q ≠ 0 kernel: δρ collocated from (k+q, k) pairs, Hartree at \f$\mathbf G+\mathbf q\f$ | C1 at q≠0 (the collocation pair loop takes a per-image complex weight) | hp.x U: SrVO₃ 6.2502 eV (q 2×2×2), NiO 5.267 eV **at U_in = 3 eV** (frozen +U, H4) |
@@ -280,6 +280,45 @@ already applies a per-image Bloch phase.  A transition density needs \f$e^{-i(\m
 on the image pair.  Read the collocation pair loop and size R3 before committing to it (ruling D1).
 
 ---
+
+### 5b. R0 execution record (2026-09-27) — the machinery VALIDATED; the ground state is the open item
+**Code:** `d7c95c92` (+ `bd4bba7a`: an unmeasured eigenvalue noise is NaN and says so).  Unit gates: the
+brute-force ring (insulator + Fermi metal, every real-space element), the response weights, MeshShift; ctest
+927/927.  Logs: `~/Code/qchem6-runs/a7_r0_nio/`.
+
+**The NiO gate** (`gpwprobe nio`, AFM-II, U_in = 3 eV on Ni 3d, `orthofull`, k 2×2×2 full mesh, q 2×2×2):
+```
+GPW_OMP_THREADS=12 GPW_SPHERICAL=1 NIO_KMESH=2 NIO_IMPOSE=1 NIO_ORTHO_TOL=1e-3 NIO_U=3 NIO_U_RADIAL=orthofull
+NIO_SKIP_FM=1 NIO_ANNEAL=5e-3,0 NIO_ACC=Null NIO_MOM=0 NIO_PULAY=8 NIO_PULAY_START=5 NIO_MEASURE=maxdd
+NIO_EPS=1e-6 NIO_CHI0=2   gpwprobe nio
+```
+(`NIO_IMPOSE=1` keeps the FULL mesh for a MAGNETIC imposition — `DetectPointOps`: the Shubnikov k-fold is
+Γ-only for now — so it satisfies D5.  Converges in 19 + 10 iterations.)
+
+★ **THE SHAPE MATCHES hp.x TO 1–2 %** — χ₀(q)/χ₀(R=0) on Ni1 3d, independent of the overall magnitude:
+
+| q-star (weight) | ours | hp.x `NiOgO` |
+|---|---|---|
+| Γ (1) | 0.918 | 0.935 |
+| 3-star (3) | 1.048 | 1.041 |
+| 3-star (3) | 0.982 | 0.982 |
+| (½,½,½)-type (1) | 0.989 | 0.996 |
+
+Star members agree to 1e-5 (the symmetry is respected), χ is Hermitian and the real-space block is real.  This
+validates exactly what R0 adds: the k+q pairing, the phase convention and the Fourier sum.
+
+**The magnitude is the GROUND STATE's, not the response's:** on-site χ₀(Ni1) −0.1476 eV⁻¹ vs hp.x −0.1130,
+ratio **1.31**; our gap 2.18 eV vs hp.x 2.86 eV, ratio **1.31**.  An independent-particle response scales as
+1/gap, so the residual is the gap, not R0.
+
+⛔ **THE GAP IS A BASIS-CONDITIONING QUESTION, filed as `OpenWork.md` §4a "NiO VA: the diffuse Ni s".**  At the
+default `orthoTol=1e-4` every run (free Ladder+MOM, free deck-shaped, imposed deck-shaped) converged GAPLESS —
+one empty level at Γ below occupied levels at other k — and **E1's gate refused it** (`INVERTED coupled pair`)
+instead of printing a χ₀ for a metal: the review round's comment 2, caught on its first real material.  At
+`1e-3` the dropped AOs are index 0/47 = each Ni's FIRST function, the α = 0.06 diffuse s; the state becomes a
+2.18 eV insulator **0.36 Ha HIGHER** in energy (−106.3729 vs −106.7348).  A function "reproducible by the kept
+set" lowering a converged energy by 0.36 Ha smells like the GPW near-dependence dive (the MnO 136-span saga);
+GPW collocation is not strictly variational, so that is a measurement to make, not a verdict.
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** — code landed (`d7c95c92`); the NiO gate is running.  Lesson already banked: **`GPW_OMP_THREADS` is
