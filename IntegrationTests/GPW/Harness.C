@@ -39,7 +39,7 @@ export import qchem.Types;
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.BasisSet.DeltaFit_IBS;              // DeltaFit_IBS -- the delta basis the singles strategy runs on
 import qchem.BasisSet.G_FieldEvaluator;           // G_RasterTransform -- the uniform probe's own point count
-import qchem.BasisSet.Lattice.BasisSet;           // VetGpwConditioning / EmitGpwGrids (GpwReport's pre-flight faces)
+export import qchem.BasisSet.Lattice.BasisSet;    // VetGpwConditioning / EmitGpwGrids + VetStageTrim (pin 22)
 import qchem.Hamiltonian.Internal.PWTerms;        // Vxc_Quadrature (the XC probes)
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
@@ -118,7 +118,10 @@ std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
 // used to be produced by doc/scripts/bisect_valence_sph.py OVERWRITING the committed valence_lowq_sph.bsd in
 // the working tree: the run could not say which span it ran, and the row could not be reproduced afterwards.
 // GPW_BASIS_SPH=1 == GPW_BASIS_SPAN=sph, kept because the banked run recipes are written with it.
-std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData which=BasisSetData::VALENCE_LOWQ_SR)
+//! \a trim: the vet-stage shell trim (doc/Pins.md pin 22, BasisSet::Lattice::VetStageTrim) the file is read
+//! without -- empty = the span as written.
+std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData which=BasisSetData::VALENCE_LOWQ_SR,
+                                             const BasisSet::Gaussian::ShellTrim& trim={})
 {
     if (which==BasisSetData::VALENCE_LOWQ_SR)
     {
@@ -135,7 +138,7 @@ std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData w
     }
     return MaybeSpherical(std::shared_ptr<const Real_BS>(
         BasisSet::Gaussian::Factory(which, &st,
-                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian)));
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, trim)));
 }
 
 

@@ -297,7 +297,7 @@ const TmoSpec NiOSpec{"NIO","NiO","Ni",28,10,6, 7.88, 32,  5, ChargeDensity::See
 //   <P>_SHIFT=f          rigid translation by (f,f,f) fractional (an exact symmetry: everything invariant)
 //   <P>_KMESH=n          an n^3 Γ-centred mesh on the magnetic cell (the ordering question needs k)
 // The RECIPE knobs: <P>_ORTHO_TOL, <P>_CUTOFF_FACTOR, <P>_ECUT, <P>_SHARED_MU, <P>_MOM_SEED, <P>_REAL,
-// <P>_IMPOSE=0/1/2 (free / Shubnikov / grey control), <P>_XC_UNIFORM, <P>_XC_ECUT=Ha, <P>_NR, <P>_L, <P>_ALPHA, <P>_KERKER_G0,
+// <P>_IMPOSE=0/1/2 (free / Shubnikov / grey control), <P>_XC_UNIFORM, <P>_XC_ECUT=Ha, <P>_VET=1 (the pin-22 vet-stage basis trim), <P>_NR, <P>_L, <P>_ALPHA, <P>_KERKER_G0,
 // <P>_XC_CUSP, <P>_PULAY, <P>_PULAY_START, <P>_MOM, <P>_MOM_START, <P>_MOM_PENALTY, <P>_MOM_HOLD, <P>_KT,
 // GPW_<P>_NMAX, GPW_<P>_VERBOSE, <P>_CHI0=nq (chi0 on an nq^3 q-mesh, LinearResponsePlan R0), <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
 // site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + <P>_ACBN0=1 (print the ACBN0 (U,J)
@@ -482,7 +482,18 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
         if (!span) { setenv("GPW_BASIS_SPAN", "va", 1); std::cout << "[" << S.name << "] spherical d => GPW_BASIS_SPAN defaulted to va (the SR " << S.tm << " block has no s span without the Cartesian d contaminants)" << std::endl; }
         else if (std::string(span)=="sr") throw std::runtime_error("gpwprobe: GPW_BASIS_SPAN=sr with GPW_SPHERICAL -- the SR "+S.tm+" block's s span lives in the Cartesian d contaminants; use va or sph");
     }
-    arm.calc=std::make_unique<SolidCalculation>(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, schedule);
+    // <P>_VET=1: the VET-STAGE trim (doc/Pins.md pin 22) -- near-dependent diffuse shells removed ONCE, per
+    // element, on the full k-mesh, BEFORE the run is built, at the run's own orthoTol -- so the ortho step has
+    // nothing left to drop in any k-block.  The ortho-time per-k drop it replaces made the basis differ from k
+    // to k and between equivalent sites (NiO AFM-II, 2026-09-27).
+    std::shared_ptr<const BasisSet::Real_BS> mol;
+    if (S.Envi("VET",0)!=0)
+    {
+        auto make=[&cell](const BasisSet::Gaussian::ShellTrim& t){ return MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR, t); };
+        mol=BasisSet::Lattice::VetStageTrim(lat, make, {.images=o.images, .kShift=o.kShift}, o.orthoTol).mol;
+    }
+    else mol=MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR);
+    arm.calc=std::make_unique<SolidCalculation>(lat, mol, o, schedule);
     arm.result=arm.calc->Result();
     if (acbn0)
     {

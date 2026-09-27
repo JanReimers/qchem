@@ -8,6 +8,7 @@ target_sources(qcGaussian_BS PRIVATE
     Imp/SymmetryAdaptedBasisSet.C
     Imp/BasisFiles.C
     Readers/Imp/Gaussian94.C
+    Imp/ShellTrim.C
 )
 target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Factory.C
@@ -16,6 +17,7 @@ target_sources(qcGaussian_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     BasisFiles.C
     Reader.C
     Readers/Gaussian94.C
+    ShellTrim.C          # the vet-stage basis trim (pin 22): a value + a Reader decorator
 )
 add_subdirectory(PG_Spherical)
 add_subdirectory(PG_LibCint)

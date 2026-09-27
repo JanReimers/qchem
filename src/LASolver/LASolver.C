@@ -35,6 +35,11 @@ export namespace qchem
     //! (ascending original indices).  Empty when S is well-conditioned (no gap).  Pure LA -- no basis-type
     //! knowledge; the vetting driver feeds these indices to IrrepBasisSet::Prune (doc/GPWPlan1.md §4a).
     template <class T> std::vector<size_t> PivotedCholeskyDrops(const hmat_t<T>& S);
+    //! \brief The SAME detector at an EXPLICIT pivot floor \a tol: exactly the AOs \c Ortho::CholeskyPivoted
+    //! would drop at that \c orthoTol (the residual self-overlap falls below \a tol), ascending.  What the
+    //! VET-STAGE trim (doc/Pins.md pin 22) iterates on, so that after it the ortho step has nothing left to
+    //! drop -- the ortho path's "shut up and work" half.
+    template <class T> std::vector<size_t> PivotedCholeskyDrops(const hmat_t<T>& S, double tol);
 }
 
 //#################################################################################

@@ -50,6 +50,20 @@ template <class T> std::vector<size_t> qchem::PivotedCholeskyDrops(const hmat_t<
     return drops;
 }
 template std::vector<size_t> qchem::PivotedCholeskyDrops<double>(const hmat_t<double>&);
+template <class T> std::vector<size_t> qchem::PivotedCholeskyDrops(const hmat_t<T>& S, double tol)
+{
+    const size_t n = S.rows();
+    if (n==0) return {};
+    mat_t<T> Sm(S);
+    std::vector<blazem::blas_int_t> piv(n);
+    const size_t m = (size_t)blazem::pstrf(Sm, 'U', piv.data(), tol);   // the SAME call the ortho path makes
+    std::vector<size_t> drops;
+    for (size_t j=m;j<n;++j) drops.push_back((size_t)piv[j]);
+    std::sort(drops.begin(), drops.end());
+    return drops;
+}
+template std::vector<size_t> qchem::PivotedCholeskyDrops<double>(const hmat_t<double>&, double);
+template std::vector<size_t> qchem::PivotedCholeskyDrops<dcmplx>(const hmat_t<dcmplx>&, double);
 template std::vector<size_t> qchem::PivotedCholeskyDrops<dcmplx>(const hmat_t<dcmplx>&);
 
 template <class T> LASolver<T>* LASolver<T>::

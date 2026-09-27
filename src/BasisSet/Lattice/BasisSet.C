@@ -5,6 +5,7 @@
 // (PW_BasisSet) and the per-k PlaneWave::PlaneWave_IBS list it owns are an implementation detail (Imp/BasisSet.C);
 // callers are forced through the polymorphic BasisSet interface, exactly as for molecular bases.
 module;
+#include <functional>
 #include <memory>
 #include <vector>
 export module qchem.BasisSet.Lattice.BasisSet;
@@ -13,6 +14,7 @@ export import qchem.Lattice_3D;                        // Lattice_3D (the crysta
 export import qchem.BasisSet.PlaneWave.PlaneWave_IBS; // PlaneWave::PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
 export import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // Gaussian::GPW_IBS + Gaussian::CellImages (the GPWFactory mode argument)
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::RasterPolicy (a PUBLIC factory knob since 0.5(a))
+export import qchem.BasisSet.Gaussian.Point.ShellTrim;   // ShellTrim (VetStageTrim's decision, pin 22)
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
 import qchem.Types;                                    // dcmplx
 
@@ -118,6 +120,31 @@ void EmitGpwGrids(const Complex_BS& bs);
 //! Section("basis") BEFORE building the Hamiltonian/grids; a positive return is the cue to abort before any
 //! grid work -- instead of building the whole ladder and only then discovering the basis is singular.
 size_t VetGpwConditioning(const Complex_BS& bs);
+
+//! \brief THE VET-STAGE TRIM (doc/Pins.md pin 22): the cell basis with its near-dependent diffuse shells
+//! removed ONCE, per element, BEFORE anything downstream is built -- so that the ortho step at \a orthoTol has
+//! nothing left to drop in ANY k-block.
+//!
+//! THE LOOP.  Build the Bloch blocks of \a make(trim) on \a lat's FULL k-mesh (analytic overlaps only -- no
+//! grids); ask every block which AOs a pivoted Cholesky at \a orthoTol would drop; map each to its shell
+//! (\c AoShellSource: centre -> element, rep -> l); trim the MOST DIFFUSE shell of the implicated (element, l)
+//! -- the conventional choice, and deterministic, unlike which member of a near-dependent pair a greedy pivot
+//! happens to discard -- and repeat until no block drops anything.  One shell per pass, because removing
+//! the most diffuse shell usually cures the rest of the near-dependence it was part of.
+//! \param make   builds the cell basis read WITHOUT the given shells (\c Gaussian::Factory's \c trim).
+//! \param p      the GPW knobs of the run (images, kShift); imposition is ignored -- the vet always sees
+//!               the full mesh, because the rank decision is a property of the BASIS, not of a fold.
+//! THROWS on a CARTESIAN shell with l >= 2 in the implicated set: its l-2 contaminants (s inside d) make
+//! "the most diffuse shell of that l" the wrong cut (pin 22 (a)); spherical bases only, for now.
+//! Reports its decision as a BASIS (element, l, exponents), never as AO indices (pin 17 / pin 22).
+struct VetTrimResult
+{
+    std::shared_ptr<const BasisSet::Real_BS> mol;    //!< the trimmed cell basis (== make(trim))
+    Gaussian::ShellTrim                      trim;   //!< what was removed; empty when nothing was
+};
+VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
+                           const std::function<std::shared_ptr<const BasisSet::Real_BS>(const Gaussian::ShellTrim&)>& make,
+                           const GPWParams& p, double orthoTol);
 
 } //namespace
 

@@ -22,6 +22,7 @@ module;
 export module qchem.BasisSet.Gaussian.Point.Factory;
 export import qchem.BasisSet;
 export import qchem.Structure;
+export import qchem.BasisSet.Gaussian.Point.ShellTrim;   // the vet-stage trim the data file is read through
 
 export namespace qchem::BasisSet::Gaussian
 {
@@ -49,8 +50,11 @@ export namespace qchem::BasisSet::Gaussian
     enum class Angular { Cartesian, Spherical };
 
     // C++ entry point (compile-time typo-proof).  The three axes are independent; all combinations are valid.
+    //! \a trim: shells to read the file WITHOUT (doc/Pins.md pin 22's vet-stage trim) -- empty = the file as
+    //! written.  Applied by a Reader decorator, so every engine/angular combination honours it alike.
     Real_BS* Factory(BasisSetData data, const Structure* cl,
-                     Engine engine = Engine::MnD, Angular angular = Angular::Cartesian);
+                     Engine engine = Engine::MnD, Angular angular = Angular::Cartesian,
+                     const ShellTrim& trim = {});
 
     // Config-driven entry point (see the key table above).  An unknown "basis"/"engine"/"angular" value, or
     // a missing "basis", throws with the list of valid values.

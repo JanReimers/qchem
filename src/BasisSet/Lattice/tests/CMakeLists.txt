@@ -26,6 +26,7 @@ add_executable(UTLattice_BS ../../Radial/tests/gtestmain.C
     ScreenedIntegratorUT.C
     RealComplexUT.C
     GPW_UT.C            # the GPW basis/evaluator unit tests (moved from IntegrationTests 2026-09-15, TE phase 5)
+    VetStageTrimUT.C    # the pin-22 vet-stage basis trim (2026-09-27)
     PlaneWave_FieldsUT.C  # the PW basis / FFT / Poisson unit tests (idem)
 )
 

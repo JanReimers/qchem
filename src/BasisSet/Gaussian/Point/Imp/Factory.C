@@ -69,9 +69,11 @@ namespace qchem::BasisSet::Gaussian
         return it->second;
     }
 
-    tBasisSet<double>* Factory(BasisSetData data, const Structure* cl, Engine engine, Angular angular)
+    tBasisSet<double>* Factory(BasisSetData data, const Structure* cl, Engine engine, Angular angular,
+                               const ShellTrim& trim)
     {
-        Gaussian94Reader reader(BasisFile(theFiles.at(data)));
+        Gaussian94Reader file(BasisFile(theFiles.at(data)));
+        TrimmingReader reader(file, trim);   // pin 22: the vet-stage trim applied AS the file is read
         const bool spherical = (angular==Angular::Spherical);
         switch (engine)
         {

@@ -258,6 +258,20 @@ TEST(LASolverAuto, PivotedCholeskyDropsDetector)
     auto none = qchem::PivotedCholeskyDrops<double>(make_S3());
     EXPECT_TRUE(none.empty());                // well-conditioned -> nothing to drop
 }
+// The EXPLICIT-tol detector (pin 22's vet-stage trim iterates on it) drops exactly what the ortho path drops
+// at the same orthoTol: the near-null pair loses one member at a floor above its residual, nothing at a floor
+// below it, and a well-conditioned S keeps everything.
+TEST(LASolverAuto, PivotedCholeskyDropsAtTolMatchesTheOrthoPath)
+{
+    auto one = qchem::PivotedCholeskyDrops<double>(make_nearnull3(), 1e-4);
+    EXPECT_EQ(one.size(), 1u);
+    auto none = qchem::PivotedCholeskyDrops<double>(make_nearnull3(), 1e-14);
+    EXPECT_TRUE(none.empty());
+    EXPECT_TRUE(qchem::PivotedCholeskyDrops<double>(make_S3(), 1e-4).empty());
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::CholeskyPivoted, 1e-4));
+    s->SetBasisOverlap(make_nearnull3());
+    EXPECT_EQ(s->GetOrthoDim(), 3u-one.size());      // the ortho path keeps n - (the detector's drops)
+}
 // AUTO pivot tol (Factory tol<0): the gap-middle rule finds the ~1e-8/1 gap and drops the near-null mode,
 // and leaves a well-conditioned basis untouched -- no user tol.
 TEST(LASolverAuto, CholeskyPivotedAutoGapMiddle)

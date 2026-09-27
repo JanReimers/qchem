@@ -1,6 +1,8 @@
 // File: BasisSet/Lattice/Imp/BasisSet.C  Plane-wave basis-set container + factory implementation.
 module;
 #include <cassert>
+#include <functional> // VetStageTrim's basis maker
+#include <stdexcept>  // VetStageTrim's refusals
 #include <cmath>     // lround (fractional k-point -> integer BZ-grid index); std::fabs (conditioning)
 #include <iostream>  // std::cout (the run-start GPW grid diagnostic)
 #include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
@@ -25,6 +27,7 @@ import qchem.Symmetry.Lattice_3D.BZReduction;  // ReduceToIBZ / IBZMesh (fold th
 import qchem.UnitCell;                          // UnitCell::GetCellMatrix / ToFractional (the space-group input)
 import qchem.Structure;                         // Atom (itsZ / itsR -- the fractional basis for SpaceGroup)
 import qchem.LASolver;                         // PivotedCholeskyDrops (the conditioning detector)
+import qchem.BasisSet.AoShellSource;           // the shells a Bloch block is built from (VetStageTrim)
 import qchem.Blaze;                            // blazem::eigen (grid-free overlap conditioning)
 import qchem.Matrix3D;                          // Matrix3D (space-group cell matrix)
 import qchem.Types;
@@ -332,6 +335,94 @@ size_t VetGpwConditioning(const Complex_BS& bs)
             }
         }, imp->GetChild(i));
     return total;
+}
+
+// ------------------------------------------------------------------ the VET-STAGE TRIM (pin 22)
+
+VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
+                           const std::function<std::shared_ptr<const BasisSet::Real_BS>(const Gaussian::ShellTrim&)>& make,
+                           const GPWParams& p, double orthoTol)
+{
+    // The cell's sites, to name a shell's element from its centre.
+    std::vector<std::pair<int,rvec3_t>> sites;
+    lat.GetUnitCell().ForEachSite([&](int Z, const rvec3_t& R, bool){ sites.push_back({Z,R}); });
+    auto elementAt=[&](const rvec3_t& c)
+    {
+        for (const auto& [Z,R] : sites)
+        {
+            const rvec3_t d=c-R;
+            if (d.x*d.x+d.y*d.y+d.z*d.z < 1e-12) return Z;
+        }
+        throw std::logic_error("VetStageTrim: a basis shell whose centre is no site of the cell");
+    };
+    GPWParams full=p;
+    full.imposeSymmetry=false;                 // the rank decision is the BASIS's: every k of the mesh, no fold
+    full.siteSpins.clear();
+    full.densityEcut=0.0;                      // the vet needs ANALYTIC overlaps only: no DFT tier, no grid ladder
+    VetTrimResult r;
+    for (int pass=0; pass<64; ++pass)
+    {
+        r.mol=make(r.trim);
+        GPW_BasisSet bs(lat, r.mol, full);
+        const Complex_BS& cbs=bs;                  // the public face (GetNumIBS is protected on the Imp)
+        // Per pass: every implicated (element, l), and the most diffuse shell of each (its exponents).
+        struct Candidate { int Z; int l; rvec_t exponents; double alphaMin; };
+        std::vector<Candidate> hits;
+        size_t nDrops=0;
+        for (size_t i=0;i<cbs.GetNumIBS();++i)
+            std::visit([&](const auto& b)
+            {
+                const auto& S=b->Overlap();                                  // ANALYTIC, grid-free
+                using U=typename std::decay_t<decltype(S)>::ElementType;
+                const std::vector<size_t> drops=qchem::PivotedCholeskyDrops<U>(S, orthoTol);
+                if (drops.empty()) return;
+                nDrops+=drops.size();
+                const auto* src=dynamic_cast<const BasisSet::AoShellSource*>(b.get());   // abstract -> abstract
+                if (!src) throw std::logic_error("VetStageTrim: a Bloch block that cannot name its shells (no AoShellSource)");
+                const auto shells=src->GetAoShells();
+                for (size_t idx : drops)
+                    for (const auto& sh : shells)
+                    {
+                        if (idx<sh.offset || idx>=sh.offset+sh.nComponents()) continue;
+                        const int l=sh.rep->L();
+                        if (l>=2 && sh.nComponents()!=size_t(2*l+1))
+                            throw std::runtime_error("VetStageTrim: a CARTESIAN l>=2 shell is implicated -- its l-2 "
+                                "contaminants make 'the most diffuse shell of that l' the wrong cut (doc/Pins.md pin 22 (a)); "
+                                "run the spherical view (GPW_SPHERICAL) for a vet-stage trim");
+                        const int Z=elementAt(sh.center);
+                        // The most diffuse shell of this (element, l) among ALL the block's shells.
+                        Candidate best{Z,l,{},1e300};
+                        for (const auto& t : shells)
+                        {
+                            if (t.rep->L()!=l || elementAt(t.center)!=Z || t.exponents.size()==0) continue;
+                            double amin=t.exponents[0]; for (double a : t.exponents) amin=std::min(amin,a);
+                            if (amin<best.alphaMin) best={Z,l,t.exponents,amin};
+                        }
+                        if (best.exponents.size()) hits.push_back(best);
+                        break;
+                    }
+            }, bs.GetChild(i));
+        if (nDrops==0)
+        {
+            std::cout << "[basis trim] vet stage: ";
+            if (r.trim.empty()) std::cout << "nothing to trim";
+            else { std::cout << "trimmed "; r.trim.Write(std::cout); }
+            std::cout << " -- no k-block of the full mesh drops an AO at orthoTol=" << orthoTol << std::endl;
+            return r;
+        }
+        if (hits.empty()) throw std::logic_error("VetStageTrim: drops that map to no nameable shell");
+        // THE cut of this pass: the globally most diffuse implicated shell.
+        const Candidate* cut=&hits[0];
+        for (const auto& h : hits) if (h.alphaMin<cut->alphaMin) cut=&h;
+        if (r.trim.Removes(cut->Z, cut->l, cut->exponents))
+            throw std::logic_error("VetStageTrim: the trimmed shell is still in the basis (the reader ignored the trim)");
+        r.trim.shells.push_back({cut->Z, cut->l, cut->exponents});
+        std::cout << "[basis trim] vet stage pass " << pass << ": " << nDrops << " AO drop(s) over the k-mesh at orthoTol="
+                  << orthoTol << " -> removing ";
+        Gaussian::ShellTrim one; one.shells.push_back(r.trim.shells.back()); one.Write(std::cout);
+        std::cout << " from EVERY site of that element, every k" << std::endl;
+    }
+    throw std::runtime_error("VetStageTrim: 64 passes without a clean basis -- something other than diffuse shells is near-dependent");
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
