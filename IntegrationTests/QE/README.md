@@ -224,3 +224,29 @@ screened than SrVO₃ (0.081), consistent with both being real metals.  Projecte
 occupation 3.65 electrons (out of 10) — same covalency-inflation pattern over the formal d² picture seen
 on every material so far.  Decks: `livo2.scf.in`, `livo2.hp.in`.  UPFs/wavefunctions/`HP/` regenerated,
 not committed.
+
+## A6 (`doc/HubbardUPlan.md`): LiCrO₂, matched-PP LRT — 2026-09-26
+
+Third LiMO₂ member.  **The flagged aufbau risk did NOT materialize**: `gth2upf --element Cr --q 6` converged
+on the FIRST attempt to the correct 3d⁵4s¹ ground state (`int rhoatom = 6 (expect 6)`), no kT-anneal
+fallback needed — unlike Cu, Cr's near-degenerate 3d⁵4s¹/3d⁴4s² configurations did not trigger a limit
+cycle here.  Structure: R-3m, `a = 2.8941(3) Å`, `c = 14.391(3) Å`, Cr at 3a `(0,0,0)`, Li at 3b `(0,0,½)`,
+O at 6c `(0,0,z)` with `z = 0.7433(5)` (Garg et al., *Crystals* 9(1), 2 (2019), a real single-crystal-XRD
+paper found via web search, browser-fetched since MDPI blocks plain `curl`/`WebFetch`).
+**Bond-length check against the paper's own reported averages**: Cr–O = 2.0020 Å (paper: 2.003 Å), Li–O =
+2.1144 Å (paper: 2.113 Å) — both agree to <0.1%.  (A units-double-conversion bug in the verification
+script itself briefly produced a spurious ~1.06 Å "bond length" during this check — the geometry was right
+all along; worth remembering that a bond-length sanity check is only as good as the script computing it,
+so re-derive independently when a number looks wrong rather than trusting the first red flag.)
+`celldm(1) = 9.599204` bohr, `celldm(4) = 0.837698`; Cr listed first.  Cutoff carried over at 300 Ry from
+the established Mn/Ni/V/Co precedent for this PP family, not independently re-scanned.
+
+**hp.x, ortho-atomic, Cr-3d only, nq 2×2×2, U_in≈0 (2026-09-26, 2h38m serial):** ran directly on the
+smeared ground state with no complaint — **LiCrO₂ is METALLIC under nonmagnetic LDA** (Cr³⁺ d³, a
+half-filled t₂g shell that is only a real Mott insulator once magnetic order or +U opens the gap; forcing
+it nonmagnetic here, matching the reference paper's own convention, leaves a partially-filled degenerate
+manifold).  **U(Cr 3d) = 5.8111 eV.**  χ₀(Cr,Cr) = −5.5041 → χ(Cr,Cr) = −0.1595 (χ/χ₀ ≈ 0.029) — the
+LARGEST bare response of any material so far (three d-electrons available to respond) but also the most
+strongly screened, netting a U comparable to V's.  Projected (ortho-atomic) Cr-3d occupation 4.72 electrons
+(out of 10) — the covalency-inflation pattern over the formal-ionic count, now confirmed on a FIFTH
+material.  Decks: `licro2.scf.in`, `licro2.hp.in`.  UPFs/wavefunctions/`HP/` regenerated, not committed.
