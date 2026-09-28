@@ -20,7 +20,7 @@ HF and LDA.  In order:
    purpose; R1 is where `TransitionDensity` (qcChargeDensity) and `TransitionFock` (qcHamiltonian Types) become
    abstract faces, because H1's signature must name them.  Decide their homes FIRST — that is the interface
    review the user asked for up front.  **→ Written as signatures in §3c (2026-09-28), with Q1–Q5 open.
-   AWAITING THE USER'S RULING; nothing is coded before it.**  Oracle banked: `scripts/r1_h2o_polarizability.py`.
+   Q1–Q5 RULED 2026-09-28: every recommendation accepted (user).**  Oracle banked: `scripts/r1_h2o_polarizability.py`.
 2. **H1 `ResponseKernel`** via `tHamiltonian::MakeResponseKernel()`, and H2 `tResponse_HT` on the HF J/K terms
    (they are already linear in D).  The **finite-difference kernel lives in `src/Response/tests/`** (D6, ruled:
    test tree only, friend hooks via `src/forward.H` if ever needed).
@@ -181,9 +181,8 @@ here does not change.**
 
 ### 3c. R1 interface proposal: the signatures, FOR REVIEW (written 2026-09-28, no code yet)
 The rows above are ruled in words.  This subsection is the same rows as C++ signatures, read against the tree
-as it is today.  **It is the review the START HERE block asks for: nothing below is coded until the user
-rules on it.**  Items marked **Q** need an answer; everything else is a recommendation that stands unless it
-is objected to.
+as it is today.  **It is the review the START HERE block asks for.  ✅ RULED 2026-09-28: the user accepted every
+recommendation, Q1–Q5 included.**
 
 **What reading the tree changed (four findings, each moves a signature):**
 1. **The HF terms are already linear in D, AND the HF sweep is already a face on the density**
