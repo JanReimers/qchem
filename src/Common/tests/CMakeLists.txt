@@ -7,6 +7,7 @@ add_executable(UTCommon gtestmain.C
     Reporting.C
     Outcome.C
     RunPolicy.C
+    HDF5.C   # the saved-SCF-state carrier (CK-1)
 )
 
 target_compile_definitions(UTCommon PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
