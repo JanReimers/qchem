@@ -15,6 +15,8 @@
 #include "gtest/gtest.h"
 
 import qchem.Hamiltonian.Internal.VWN_Correlation;   // the production functional under test
+import qchem.Hamiltonian.Internal.ExFunctional;      // the kernel face (GetFxc, H3)
+import qchem.Hamiltonian.Internal.SlaterExchange;    // its analytic kernel override
 import qchem.Symmetry.Spin;                          // Spin::Up / Spin::Down for the polarized face
 using namespace qchem;
 
@@ -204,4 +206,69 @@ TEST_F(LDA_XC, SpinNativeCollapsesToScalarFace)
         EXPECT_NEAR(vwn.GetVxc(h,h,Spin::Up),   vwn.GetVxc(rho), 1e-12) << "rho="<<rho;
         EXPECT_NEAR(vwn.GetVxc(h,h,Spin::Down), vwn.GetVxc(rho), 1e-12) << "rho="<<rho;
     }
+}
+
+//=====================================================================================================
+//  THE XC KERNEL f_xc = dv/drho (doc/LinearResponsePlan.md H3).  The default is a four-point difference of
+//  the functional's own spin-native v; these gates pin what that default must satisfy.
+//=====================================================================================================
+namespace {
+double Dv(const qchem::Hamiltonian::ExFunctional& f, double up, double dn, Spin s, Spin t, double h)
+{   // an independent, much finer six-point difference of the same v
+    auto v=[&](double k){return t==Spin::Down ? f.GetVxc(up,dn+k*h,s) : f.GetVxc(up+k*h,dn,s);};
+    return (45.0*(v(1)-v(-1)) - 9.0*(v(2)-v(-2)) + (v(3)-v(-3)))/(60.0*h);
+}
+}
+
+//! VWN5 at a spread of densities and polarisations: GetFxc is the derivative of GetVxc, and f^{ud} = f^{du}
+//! (v is the gradient of ONE energy -- Schwarz).
+TEST(XCKernel, VWN_FxcIsTheDerivativeAndSymmetric)
+{
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    for (double rho : {1e-3, 0.05, 1.0, 20.0})
+        for (double z : {0.0, 1e-3, 0.3, -0.7})
+        {
+            const double up=0.5*rho*(1+z), dn=0.5*rho*(1-z);
+            for (Spin s : {Spin::Up, Spin::Down})
+                for (Spin t : {Spin::Up, Spin::Down})
+                {
+                    const double f=vwn.GetFxc(up,dn,s,t), ref=Dv(vwn,up,dn,s,t,1e-4*(t==Spin::Down?dn:up));
+                    EXPECT_NEAR(f, ref, 1e-6*std::fabs(ref)+1e-12) << "rho=" << rho << " z=" << z << " s,t=" << int(s) << int(t);
+                }
+            const double fud=vwn.GetFxc(up,dn,Spin::Up,Spin::Down), fdu=vwn.GetFxc(up,dn,Spin::Down,Spin::Up);
+            EXPECT_NEAR(fud, fdu, 1e-6*std::fabs(fud)+1e-12) << "rho=" << rho << " z=" << z << ": f^ud != f^du";
+        }
+}
+
+//! The zeta = 0 COLLAPSE: an unpolarized run differentiates the SCALAR path v(rho); the spin-native kernel must
+//! reproduce it, (f^uu + f^ud)/2 = dv/drho.  This is what ties an unpolarized response to its ground state.
+TEST(XCKernel, VWN_ZetaZeroCollapse)
+{
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    for (double rho : {1e-3, 0.05, 1.0, 20.0})
+    {
+        const double h=1e-4*rho;
+        const double dvs=(45.0*(vwn.GetVxc(rho+h)-vwn.GetVxc(rho-h)) - 9.0*(vwn.GetVxc(rho+2*h)-vwn.GetVxc(rho-2*h))
+                         + (vwn.GetVxc(rho+3*h)-vwn.GetVxc(rho-3*h)))/(60.0*h);
+        const double collapse=0.5*(vwn.GetFxc(rho/2,rho/2,Spin::Up,Spin::Up)+vwn.GetFxc(rho/2,rho/2,Spin::Up,Spin::Down));
+        EXPECT_NEAR(collapse, dvs, 1e-6*std::fabs(dvs)) << "rho=" << rho;
+    }
+}
+
+//! Slater exchange carries an ANALYTIC override of the kernel: it must be the derivative of its own GetVxc,
+//! with no cross-spin term.
+TEST(XCKernel, Slater_AnalyticFxcIsTheDerivative)
+{
+    qchem::Hamiltonian::SlaterExchange x(2.0/3.0);
+    for (double rho : {1e-3, 0.05, 1.0, 20.0})
+        for (double z : {0.0, 0.3, -0.7})
+        {
+            const double up=0.5*rho*(1+z), dn=0.5*rho*(1-z);
+            for (Spin s : {Spin::Up, Spin::Down})
+                for (Spin t : {Spin::Up, Spin::Down})
+                {
+                    const double f=x.GetFxc(up,dn,s,t), ref=Dv(x,up,dn,s,t,1e-4*(t==Spin::Down?dn:up));
+                    EXPECT_NEAR(f, ref, 1e-7*std::fabs(ref)+1e-12) << "rho=" << rho << " z=" << z << " s,t=" << int(s) << int(t);
+                }
+        }
 }

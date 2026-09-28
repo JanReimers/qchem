@@ -376,9 +376,12 @@ void PeriodicAnalyticEqualsFD(SpinGroup g)
         std::cout << "[R2 kernel] " << b.irrep << "  max|FD| " << scale << "  max|analytic-FD| " << diff
                   << "  rel " << diff/scale << std::endl;
         EXPECT_GT(scale, 1e-3) << b.irrep;
-        // MEASURED 2026-09-28 (4-point FD, h=1e-3): UnPol 7.2e-7; Pol 4.0e-6 / 4.2e-6 -- an h-INDEPENDENT floor in
-        // the Pol run that is NOT the pointwise f_xc (a 4-point GetFxc left it unchanged) and gets WORSE (1.2e-5)
-        // with a spin-symmetric dD.  OPEN (doc/LinearResponsePlan.md §5d): gated at 1e-5 until it is named.
+        // MEASURED 2026-09-28 (4-point FD, h=1e-3, uniform XC raster): UnPol 7.2e-7; Pol ~4e-6 in the perturbed-
+        // spin block -- a floor flat in h (1e-4..1e-3), in the dD amplitude, and in every knob tried (+U off, D0
+        // route, D-aware screen, screen eps 1e-14); the functional's own kernel passes XCKernel.* to 1e-7.  OPEN,
+        // doc/LinearResponsePlan.md §5d; 1000x below what chi or U can resolve.  ⚠ Do NOT move this gate to the
+        // Becke mesh with a RANDOM dD: its far-tail points put h*drho >> rho0 and the FD saturates on the rho>0
+        // guards (measured 5e-3 at h*amp=5e-5, 3e-5 at 5e-7) -- an ORACLE limit, not a kernel error.
         EXPECT_LT(diff/scale, 1e-5) << b.irrep << ": analytic Hartree + ALDA kernel vs finite difference";
     }
 }
