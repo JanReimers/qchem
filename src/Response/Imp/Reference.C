@@ -171,6 +171,25 @@ dcmplx Reference::Contract(const BlockPairs& a, const BlockPairs& x) const
     return s;
 }
 
+BlockPairs Reference::HermitianPart(const BlockPairs& x, const SelectionRule& rule) const
+{
+    const std::vector<size_t> p=Partners(rule);
+    if (x.m.size()!=itsBlocks.size()) throw std::invalid_argument("Response::Reference::HermitianPart: one matrix per block");
+    BlockPairs h;
+    h.m.reserve(x.m.size());
+    for (size_t b=0;b<x.m.size();b++)
+    {
+        if (p[b]!=b) throw std::logic_error("Response::Reference::HermitianPart: a block paired with ANOTHER block -- "
+                                            "the (k+q, k) conjugate pairing is stage R3's");
+        const cmat_t& X=x.m[b];
+        cmat_t H(X.rows(), X.columns());
+        for (size_t i=0;i<X.rows();i++)
+            for (size_t j=0;j<X.columns();j++) H(i,j)=0.5*(X(i,j)+std::conj(X(j,i)));
+        h.m.push_back(std::move(H));
+    }
+    return h;
+}
+
 cvec_t Reference::Pack(const BlockPairs& x) const
 {
     if (x.m.size()!=itsBlocks.size()) throw std::invalid_argument("Response::Reference::Pack: one matrix per block");

@@ -129,6 +129,15 @@ template OrbitalFrame<dcmplx> MakeOrbitalFrame<dcmplx>(const Reference&, const W
 template <class T> OperatorProbe MakeDipoleProbe(const Reference& ref, const OrbitalFrame<T>& frame,
                                                  const WaveFunction::tWaveFunction<T>& wf, const qcMesh::Mesh& mesh)
 {
+    // ⚠ ONE SPATIAL BLOCK ONLY.  A dipole component that is not totally symmetric (x is B1 in C2v) couples
+    // DIFFERENT irreps; under the Invariant rule its within-block matrix elements vanish by symmetry, so a
+    // symmetry-adapted molecule would get a SILENTLY zero alpha_xx.  Refused until the point-group product
+    // SelectionRule (and bra != ket frame pairs) exist -- doc/LinearResponsePlan.md §5c.
+    for (size_t b=1;b<ref.NumBlocks();b++)
+        if (ref.BlockIrrep(b).sym->SequenceIndex()!=ref.BlockIrrep(0).sym->SequenceIndex())
+            throw std::logic_error("Response::MakeDipoleProbe: the reference has more than one spatial symmetry block "
+                                   "(a symmetry-adapted molecule, or a k-mesh).  A dipole couples DIFFERENT irreps, which "
+                                   "needs the point-group product selection rule -- run the molecule without symmetry");
     auto rule=std::make_shared<Symmetry::Invariant>();
     std::vector<Hamiltonian::AO_TransitionFock<T>> ao(3, Hamiltonian::AO_TransitionFock<T>(rule));
     ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)

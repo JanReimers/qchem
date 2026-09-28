@@ -14,6 +14,7 @@ module;
 #include <vector>
 #include <string>
 #include <utility>
+#include "forward.H"   // ResponseFacadeTests -- the FD-kernel response oracle's friend (LinearResponsePlan D6)
 export module qchem.Calculation;
 
 import qchem.Structure;            // Structure, Molecule, Atom
@@ -158,6 +159,10 @@ public:
     const Structure& GetStructure()   const {return *itsStructure;}
 
 private:
+    //! The finite-difference response ORACLE (src/Response/tests, ruling D6) drives the SAME Reference/frame/
+    //! probe/solver as StaticPolarizability with its own kernel, so it needs this run's Hamiltonian, wave
+    //! function and basis -- which the facade deliberately does not expose.
+    friend class ::ResponseFacadeTests;
     typedef std::pair<double, const sf_t*> occ_t;   //!< (eigen-energy, orbital) for HOMO/Orbital(i)
     void RebuildSampling();   //!< after a Converge: own a fresh density + sort the occupied MOs
 

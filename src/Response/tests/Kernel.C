@@ -11,6 +11,8 @@
 // HF sweep face -> the term's response slot -> the kernel fold -> the TransitionFock -- on real ERIs.
 #include "gtest/gtest.h"
 #include <cmath>
+#include <iostream>
+#include <limits>
 #include <memory>
 #include <random>
 #include <stdexcept>
@@ -23,6 +25,10 @@ import qchem.ChargeDensity.Factory;                   // IrrepCD_Factory, RhoRou
 import qchem.CompositeCD;
 import qchem.ChargeDensity.Internal.TransitionDensity; // the concrete the friend reads (tests may cheat)
 import qchem.Structure;
+import qchem.Calculation;                             // the converged H2O the FD-driven polarisability runs on
+import qchem.Response;                                // Reference / frame / probe / LinearResponse
+import qchem.Orbitals;                                // the ground-state density blocks the FD kernel displaces
+import qchem.SCFParams;
 import qchem.Mesh;                                    // qcMesh::MeshParams (the LDA Hamiltonian's XC mesh)
 import qchem.Types;
 import qchem.Blaze;
@@ -30,6 +36,16 @@ import qchem.Blaze;
 using namespace qchem;
 using ChargeDensity::TransitionBlock;
 using ChargeDensity::TransitionDensity;
+
+//! THE FRIEND of qchem::Calculation (src/forward.H): the converged run's Hamiltonian, wave function and basis.
+class ResponseFacadeTests
+{
+public:
+    static Hamiltonian::rHamiltonian&                   Ham  (Calculation& c)       {return *c.itsHam;}
+    static const WaveFunction::tWaveFunction<double>&   WF   (const Calculation& c) {return *c.itsScf->GetWaveFunction();}
+    static const BasisSet::Real_BS*                     Basis(const Calculation& c) {return c.itsBasis;}
+    static const Structure&                             St   (const Calculation& c) {return *c.itsStructure;}
+};
 
 //! THE FRIEND (src/forward.H): the one door to a transition density's AO blocks.
 class TransitionDensityTests
@@ -174,5 +190,96 @@ TEST(ResponseKernel, MissingCapabilityThrowsAtConstruction)
     catch (const std::logic_error& e)
     {
         EXPECT_NE(std::string(e.what()).find("cannot be linearised"), std::string::npos) << e.what();
+    }
+}
+
+//=====================================================================================================
+//  THE SOLVER WITH THE ORACLE KERNEL.  The same Reference / frame / dipole probe / GMRES as
+//  Calculation::StaticPolarizability, but the kernel is the finite difference of the Hamiltonian's own
+//  GetMatrix about the CONVERGED density.  Two uses:
+//   * HF: it must reproduce the analytic kernel's polarisability -- the FD kernel is trusted INSIDE the solver;
+//   * LDA: the one route to an LDA polarisability until R2 gives the fitted terms an analytic face.
+//=====================================================================================================
+namespace {
+
+const SCFParams tight = {.NMaxIter=80, .MinΔρ=1e-9, .MinΔFD=1e-10, .MinVirial=1e2};
+const qcMesh::MeshParams dipoleMesh={.radial=qcMesh::RadialKind::MHL, .nRadial=80, .mhl_m=3, .mhl_alpha=2.0,
+                                     .angular=qcMesh::AngularKind::Lebedev, .angularDegree=35, .beckeOrder=3};
+
+//! The converged density matrix of every block, \f$\sum_i n_i c_ic_i^\dagger\f$, in the wave function's order.
+std::vector<TransitionBlock<double>> GroundDensity(const WaveFunction::tWaveFunction<double>& wf)
+{
+    std::vector<TransitionBlock<double>> out;
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        const auto* os=dynamic_cast<const Orbitals::TOrbitals<double>*>(wf.GetOrbitals(ir));
+        const auto* bs=dynamic_cast<const Hamiltonian::robs_t*>(os->GetBasisSet());
+        const size_t n=bs->GetNumFunctions();
+        rsmat_t D(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=0.0;
+        for (const auto* o : os->Iterate<Orbitals::TOrbital<double>>())
+        {
+            const double occ=o->GetOccupation();
+            if (occ==0.0) continue;
+            const rvec_t& c=o->GetCoeff();
+            for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)+=occ*c[i]*c[j];
+        }
+        out.push_back({ir, bs, D});
+    }
+    return out;
+}
+
+//! alpha = -chi of the dipole channels, with the finite-difference kernel of step \a h.
+rmat_t FD_Polarizability(Calculation& calc, double h)
+{
+    const auto& wf=ResponseFacadeTests::WF(calc);
+    const Response::Reference ref=Response::MakeReference(wf, OccupationConfig{}, {.acrossK=true, .acrossSpin=false},
+                                                          std::numeric_limits<double>::quiet_NaN());
+    const auto frame=Response::MakeOrbitalFrame(ref, wf);
+    const auto probe=Response::MakeDipoleProbe(ref, frame, wf, ResponseFacadeTests::St(calc).CreateIntegrationMesh(dipoleMesh));
+    FD_ResponseKernel<double> fd(ResponseFacadeTests::Ham(calc), ResponseFacadeTests::Basis(calc), GroundDensity(wf), h);
+    auto r=Response::LinearResponse(ref, frame, fd, probe, std::make_shared<Symmetry::Invariant>(), {.tol=1e-9});
+    EXPECT_TRUE(r.IsOk()) << (r ? "" : r.Error().detail);
+    rmat_t a(3,3,0.0);
+    if (!r) return a;
+    r->Write(std::cout);
+    for (size_t i=0;i<3;i++) for (size_t j=0;j<3;j++) a(i,j)=-r->chi(i,j).real();
+    return a;
+}
+
+} // namespace
+
+//! The FD kernel INSIDE the solver reproduces the analytic HF polarisability (and so PySCF's).
+TEST(ResponsePolarizability, HF_FD_Kernel_eqAnalytic)
+{
+    Calculation calc(*Water(), {.basis="dzvp"});
+    ASSERT_TRUE(calc.Converge(tight));
+    auto analytic=calc.StaticPolarizability(dipoleMesh);
+    ASSERT_TRUE(analytic.IsOk()) << analytic.Error().detail;
+    const rmat_t fd=FD_Polarizability(calc, 1e-3);
+    for (size_t i=0;i<3;i++) EXPECT_NEAR(fd(i,i), analytic.Value()(i,i), 1e-7*analytic.Value()(i,i)) << "alpha_" << i << i;
+}
+
+//! LDA (Slater + VWN5) CPKS through the FD kernel -- the only LDA kernel until R2.  A LOOSE oracle, and the
+//! looseness is MEASURED to be the GROUND STATE's XC route, not the response (2026-09-28, H2O/dzvp):
+//!     XC mesh                    E (Ha)       alpha xx / yy / zz  vs PySCF lda,vwn5 CPKS
+//!     default (MHL 30 / Leb 5)   -75.93246    -0.2%  -1.2%  -2.0%
+//!     MHL 80 / Lebedev 35        -75.8726     +0.6%  +1.4%  +0.7%      (31 s -- too slow for the gate)
+//!     PySCF                      -75.87730    (3.44581  7.33076  5.91599)
+//! The residual ~1% at a fine mesh is our FITTED Coulomb/XC against PySCF's exact J.  The FD step is NOT a
+//! factor: h = 1e-3 and 1e-4 agree to 1e-6 (checked below).  Gated at 3% on the default mesh.
+TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
+{
+    const double pyscf[3]={3.44581010, 7.33075620, 5.91599197};   // PySCF RKS lda,vwn / dzvp(cart) CPKS
+    Calculation calc(*Water(), {.basis="dzvp", .model=Hamiltonian::Model::LDA});
+    ASSERT_TRUE(calc.Converge(tight));
+    const rmat_t a=FD_Polarizability(calc, 1e-4);
+    const rmat_t b=FD_Polarizability(calc, 1e-3);
+    for (size_t i=0;i<3;i++)
+    {
+        EXPECT_NEAR(a(i,i), b(i,i), 1e-5*a(i,i)) << "alpha_" << i << i << " depends on the FD step: the kernel is not linearised";
+        std::cout << "[LDA alpha] " << i << i << "  ours " << a(i,i) << "  PySCF " << pyscf[i]
+                  << "  rel " << (a(i,i)-pyscf[i])/pyscf[i] << std::endl;
+        EXPECT_NEAR(a(i,i), pyscf[i], 0.03*pyscf[i]) << "alpha_" << i << i;
     }
 }

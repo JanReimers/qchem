@@ -6,6 +6,7 @@
 // polarisability is a TIGHT gate -- analytic CPHF and finite field agree there.
 #include "gtest/gtest.h"
 #include <cmath>
+#include <stdexcept>
 
 import qchem.Calculation;
 import qchem.Structure;
@@ -79,4 +80,12 @@ TEST(M_Response, HF_Water_DipoleMeshConverged)
                                          .angular=qcMesh::AngularKind::GaussLegendre, .angularDegree=47, .beckeOrder=3});
     ASSERT_TRUE(fine.IsOk()) << fine.Error().detail;
     for (size_t i=0;i<3;i++) EXPECT_NEAR(a(i,i), fine.Value()(i,i), 1e-6*a(i,i)) << "alpha_" << i << i << " moved with the dipole mesh";
+}
+
+//! A SYMMETRY-ADAPTED molecule is REFUSED, loudly: x and y are not totally symmetric in C2v, so they couple
+//! different irreps, and without the point-group product selection rule their response would be silently zero.
+TEST(M_Response, HF_Water_SymmetryAdaptedIsRefused)
+{
+    Calculation calc(MakeWater(), {.basis="dzvp", .symmetry=true});
+    EXPECT_THROW((void)calc.StaticPolarizability(), std::logic_error);
 }

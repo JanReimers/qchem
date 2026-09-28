@@ -46,7 +46,9 @@ template <class T> OrbitalFrame<T> MakeOrbitalFrame(const Reference& ref, const 
 //! \brief The three DIPOLE channels x, y, z: \f$\hat O_i=r_i\f$ (origin at 0; a neutral system's polarisability
 //! does not depend on it), as a totally symmetric (\c Invariant) perturbation -- the CPHF/CPKS probe of stage R1.
 //! The AO matrices \f$\langle\chi_a|r_i|\chi_b\rangle\f$ are NUMERICAL, on \a mesh (ruling Q5: no basis-interface
-//! change; the caller measures the mesh error by comparing two meshes).
+//! change; the caller measures the mesh error by comparing two meshes).  THROWS on a reference with more than one
+//! spatial block (a symmetry-adapted molecule): a non-totally-symmetric dipole component couples DIFFERENT irreps,
+//! which needs the point-group product selection rule (not built) -- never a silently zero component.
 template <class T> OperatorProbe MakeDipoleProbe(const Reference& ref, const OrbitalFrame<T>& frame,
                                                  const WaveFunction::tWaveFunction<T>& wf, const qcMesh::Mesh& mesh);
 

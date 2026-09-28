@@ -117,6 +117,13 @@ public:
     //! \f$\sum_b w_b\sum_{mn}\bar a_{b,mn}\,x_{b,mn}\f$ -- the BZ-weighted pairing of an operator with a
     //! first-order density: an expectation value's first-order change, per unit cell.
     dcmplx Contract(const BlockPairs& a, const BlockPairs& x) const;
+    //! \brief The HERMITIAN part of \a x, \f$(X+X^\dagger)/2\f$ per block, under a \a rule that pairs every block
+    //! with ITSELF (q = 0 / Invariant) -- the only case where Hermiticity is a per-block property.  The response
+    //! to a Hermitian perturbation lives in this subspace; a Krylov solver needs the projection because its late
+    //! basis vectors come out of heavy Gram-Schmidt cancellation that AMPLIFIES rounding-level asymmetry
+    //! (measured 1.4e-8 relative on the H2O LDA FD kernel).  THROWS on a rule that pairs a block with another
+    //! (the (k+q, k) conjugate pairing is R3's).
+    BlockPairs HermitianPart(const BlockPairs& x, const SelectionRule& rule) const;
     //! \brief The FLAT vector a Krylov solver works on (ruling Q3): every block pair's matrix, in block order,
     //! column-major.  The orbital basis is orthonormal, so the solver's Euclidean inner product is the right one.
     cvec_t     Pack  (const BlockPairs& x) const;

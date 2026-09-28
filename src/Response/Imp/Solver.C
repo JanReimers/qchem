@@ -15,7 +15,11 @@ namespace qchem::Response
 
 namespace {
 
-//! \f$x\mapsto x-\mathcal R_0\mathcal K x\f$ on the packed orbital-basis δD (the Reference's packing, Q3).
+//! \f$x\mapsto x-\mathcal R_0\mathcal K\,{\rm Herm}(x)\f$ on the packed orbital-basis δD (the Reference's packing, Q3).
+//! The kernel sees only the HERMITIAN part of x (Reference::HermitianPart): the anti-Hermitian part is decoupled
+//! -- the operator is the identity on it and the right-hand side has none of it -- so the solution is exactly
+//! the one without the projection, while rounding amplified by Gram-Schmidt in late Krylov vectors can no
+//! longer reach the kernel as a spurious non-Hermitian δD.
 template <class T> class ResponseOperator : public LinearOperator<dcmplx>
 {
 public:
@@ -25,7 +29,7 @@ public:
     virtual size_t Dimension() const override {return itsN;}
     virtual cvec_t Apply(const cvec_t& x, double) const override   // exact: the tolerance is not needed
     {
-        const BlockPairs dD=itsRef.Unpack(x, *itsRule);
+        const BlockPairs dD=itsRef.HermitianPart(itsRef.Unpack(x, *itsRule), *itsRule);
         const auto delta=itsFrame.ToAO(dD, itsRule);
         const auto dF=itsK.InducedFock(*delta);
         const BlockPairs R0KdD=itsRef.ApplyR0(*itsRule, itsFrame.ToMO(*dF, *itsRule));
