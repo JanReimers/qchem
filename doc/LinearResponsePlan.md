@@ -604,7 +604,7 @@ composite sums per part) · `tProjectable_CD` hoisted off `tDM_CD` (ProjectOnto,
 forwards `tProjectable_CD` + `FourierDensity` · `DensitySampler::Sample(δ, σ)` (uncached, never symmetrized;
 singles + pair routes) · `tResponse_HT` on `Vee_Hartree` (δV_H via δ's G-space face), `Vxc_Quadrature` (ALDA
 f_xc(ρ₀)·δρ_σ, same adjoint gather), `Hubbard_U` (ZERO when frozen or U=0 — the U₀ case; unfrozen THROWS) ·
-`SolidCalculation::HubbardLinearResponse()` (q=0 χ₀, χ, U=diag(χ₀⁻¹−χ⁻¹) in eV; needs `forceComplex`) + a
+`SolidCalculation::HubbardLinearResponse()` (q=0 χ₀, χ returned in a.u.; U=diag(χ₀⁻¹−χ⁻¹) formed only in the display line, printed in eV; needs `forceComplex` — OpenWork §2 row "Linear response on REAL TRIM blocks") + a
 friend door for the FD oracle · the FD oracle is now a 4-point stencil.
 **Gate (a), GPW Si Γ LDA, analytic vs FD kernel:** UnPol **7.2e-7** relative; Pol **4e-6** — an h-INDEPENDENT
 floor, NOT the pointwise f_xc (4-point `GetFxc` changed nothing), and WORSE (1.2e-5) for a spin-symmetric δD.
