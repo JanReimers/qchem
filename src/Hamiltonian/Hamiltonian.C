@@ -9,6 +9,8 @@ export import qchem.Energy;
 export import qchem.Hamiltonian.Types;
 export import qchem.Hamiltonian.HubbardEstimator;   // HubbardUEstimator / HubbardEstimate (DFT+U increment 3)
 export import qchem.Hamiltonian.HubbardChannels;    // the +U projectors a linear response perturbs/measures (LinearResponsePlan R0)
+export import qchem.ChargeDensity.TransitionDensity; // δD: what the response kernel consumes (LinearResponsePlan C1)
+export import qchem.Hamiltonian.TransitionFock;      // δF: what it answers (C2)
 
 
 export namespace qchem::Hamiltonian
@@ -23,6 +25,7 @@ using ChargeDensity::tDM_CD;
 using ChargeDensity::rDM_CD;
 using ChargeDensity::cDM_CD;
 using ChargeDensity::rDM_CD;
+using ChargeDensity::TransitionDensity;
 
 //! \brief A Hamiltonian is a sum of additive terms (a "HamiltonianTerm", HT) in three families, split by
 //! what each needs to assemble its one-irrep matrix block:
@@ -236,6 +239,46 @@ public:
     virtual bool             PreservesReal () const {return true; }   //!< real basis block ⇒ real matrix?
 };
 
+//! \brief THE LINEARISED TERM: a dynamic term's first-order Fock change under a transition density
+//! (doc/LinearResponsePlan.md §3 row H2, §3c).  A cross-cast CAPABILITY on the dynamic terms of both families
+//! (the RealBlock idiom): the response kernel asks each dynamic term for it, and a dynamic term WITHOUT it
+//! makes \c tHamiltonian::MakeResponseKernel throw -- never a silent zero.  Static terms are never asked:
+//! they do not depend on D, so their first-order change is zero by definition.
+//!
+//! The verbs are the ground-state ones (user, 2026-09-28): the argument type already says "response".  ⚠ They
+//! OVERLOAD the ground-state \c RefreshForDensity / \c GetMatrix, so a class that overrides only one overload
+//! HIDES the other from calls through its own type; callers go through the faces, and a unit test calling a
+//! concrete directly adds a \c using.
+template <class T> class tResponse_HT
+{
+public:
+    virtual ~tResponse_HT() = default;
+    //! THE RESPONSE PHASE (pin 11, the twin of \c tDynamic_HT::RefreshForDensity): fill this term's
+    //! δ-derived, block-independent state ONCE per \a delta, before the kernel's block loop.  \a D0 is the
+    //! density the response linearises about -- a linear term (J, K) ignores it, the XC kernel
+    //! \f$f_{xc}[\rho_0]\f$ needs it (R2), so the face never changes.
+    virtual void     RefreshForDensity(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* D0,
+                                       const TransitionDensity<T>& delta) const=0;
+    //! This term's \f$\delta F=(\partial F_{\rm term}/\partial D)\,\delta D\f$ on ONE coupled block pair
+    //! (\a bra <- \a ket) for spin \a s, AO basis: bra rows x ket columns.
+    virtual mat_t<T> GetMatrix(const tobs_t<T>* bra, const tobs_t<T>* ket, const Spin& s,
+                               const TransitionDensity<T>& delta) const=0;
+};
+
+//! \brief THE HAMILTONIAN'S LINEARISATION at one density \f$D_0\f$: \f$\delta F=(\partial F/\partial D)\,\delta D\f$
+//! (doc/LinearResponsePlan.md §3 row H1).  The ONE thing a Hamiltonian learns for perturbation theory, and it
+//! is theory-neutral: CPHF (J - K), CPKS (J + f_xc), TDHF/TDDFT (Casida A±B), the MP2 Z-vector and DFPT all
+//! use it.  Named for what the client consumes -- "what Fock change does this density change induce" -- not
+//! after any one method.  Built by \c tHamiltonian::MakeResponseKernel; refers to that Hamiltonian's terms, so
+//! keep the Hamiltonian alive while it is used.
+template <class T> class ResponseKernel
+{
+public:
+    virtual ~ResponseKernel() = default;
+    //! δF on every block pair \a delta's selection rule couples, over the kernel's whole basis.
+    virtual std::unique_ptr<TransitionFock<T>> InducedFock(const TransitionDensity<T>& delta) const=0;
+};
+
 //====================================================================================================
 //  REAL-BLOCK TERM FACES (doc/RealComplexPlan.md Step 3c).  In a mixed-mesh run the terms are built
 //  ONCE, typed by the RUN's working scalar (dcmplx) -- their block-independent state (V_H(G), the XC
@@ -356,6 +399,12 @@ public:
     //! Make: the face is the term's own, so nothing is computed or owned.  Keep the Hamiltonian alive while
     //! the pointer is used.
     virtual const HubbardChannels* GetHubbardChannels() const {return nullptr;}
+    //! \brief The linearisation of this Hamiltonian about \a D0, over \a wholeBasis (the composite basis:
+    //! the blocks δF is built on) -- doc/LinearResponsePlan.md H1.  Folded over the dynamic terms' \c tResponse_HT
+    //! capabilities, so the caller never sees the term list.  THROWS, naming every dynamic term that lacks the
+    //! capability (ruling Q2, 2026-09-28): at construction, never mid-solve.  Built once per linearisation point.
+    virtual std::unique_ptr<ResponseKernel<T>> MakeResponseKernel(const tbs_t<T>* wholeBasis,
+                                                                  const tChargeDensity<T>* D0) const=0;
     //! \brief Run the EAGER REFRESH PHASE over every term: fill the k-independent density-dependent memos
     //! ONCE, before any Bloch block is assembled.
     //!

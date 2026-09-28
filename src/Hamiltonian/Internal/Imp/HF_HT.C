@@ -14,6 +14,7 @@ module;
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Types;
 import qchem.ChargeDensity;
+import qchem.ChargeDensity.TransitionDensity;   // δD: the response face (LinearResponsePlan C1/H2)
 import qchem.Blaze;
 
 namespace qchem::Hamiltonian
@@ -21,6 +22,12 @@ namespace qchem::Hamiltonian
 
 const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd,
                                             const rbs_t* wholeBasis) const
+{
+    LatchWholeBasis(wholeBasis);
+    return ContractAll(cd, CacheSpin(s)).at(bs->BasisSetID());
+}
+
+void Dynamic_HF_HT_Imp::LatchWholeBasis(const rbs_t* wholeBasis) const
 {
     if (!wholeBasis)
         throw std::runtime_error("HF term: the whole-system Fock build requires the composite basis "
@@ -32,7 +39,39 @@ const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bs,const Spin& s,const
                                  "blocks (itsJKs) are keyed by BasisSetID against THAT basis -- serving them "
                                  "for a different composite would silently mix cross-irrep views.  A term "
                                  "belongs to one wavefunction; do not share it across two.");
-    return ContractAll(cd, CacheSpin(s)).at(bs->BasisSetID());
+}
+
+// THE RESPONSE PHASE: warm the response blocks of every spin irrep δ resolves, so the kernel's block loop
+// below only reads.  {Up, Down} when δ resolves spin, else {None} -- CacheSpin then folds it (Coulomb: None).
+void Dynamic_HF_HT_Imp::RefreshForDensity(const rbs_t* wholeBasis, const rChargeDensity*,
+                                          const ChargeDensity::TransitionDensity<double>& delta) const
+{
+    LatchWholeBasis(wholeBasis);
+    const bool resolved=delta.Channel(Spin::Up) && delta.Channel(Spin::Down);
+    for (const Spin& s : resolved ? std::vector<Spin>{Spin::Up, Spin::Down} : std::vector<Spin>{Spin::None})
+        ContractResponse(delta, CacheSpin(s));
+}
+
+rmat_t Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bra, const robs_t* ket, const Spin& s,
+                                    const ChargeDensity::TransitionDensity<double>& delta) const
+{
+    if (bra->BasisSetID()!=ket->BasisSetID())
+        throw std::logic_error("HF term: a response on a (bra != ket) block pair -- q != 0 / symmetry-lowering "
+                               "HF response is not implemented (doc/LinearResponsePlan.md: R1 is q = 0)");
+    return rmat_t(ContractResponse(delta, CacheSpin(s)).at(bra->BasisSetID()));
+}
+
+const std::map<std::string,rsmat_t>& Dynamic_HF_HT_Imp::ContractResponse(const ChargeDensity::TransitionDensity<double>& delta,
+                                                                         const Spin& s) const
+{
+    assert(itsWholeBasis && "HF term: a response before RefreshForDensity latched the composite basis");
+    const auto* ch=delta.Channel(s);
+    if (!ch) throw std::runtime_error("HF term: a spin-polarized block asked for its channel of a transition "
+                                      "density that does not resolve spin.");
+    auto* sys=dynamic_cast<const ChargeDensity::tHF_System_CD<double>*>(ch);
+    if (!sys) throw std::runtime_error("HF term: this transition density cannot be scattered through the ERI "
+                                       "(it has no tHF_System_CD face -- not an AO, q = 0 transition density).");
+    return Contract(itsResponseJKs[s], *sys, delta.Version(), s);
 }
 
 // One (density, spin) contraction: the density's CacheSpin channel, presented through its HF sweep face.

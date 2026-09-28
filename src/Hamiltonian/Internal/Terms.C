@@ -12,6 +12,7 @@ import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Structure;
 import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (composed; clients never see the impl)
 import qchem.ChargeDensity;
+import qchem.ChargeDensity.TransitionDensity;   // δD: the response face (LinearResponsePlan C1/H2)
 import qchem.FittedCD;
 import qchem.Hamiltonian.Types;
 import qchem.BasisSet.Orbital_PP_IBS;          // SpeciesRadialField / SpeciesProjectorSet_R (the real-space views the molecular PP terms quadrature)
@@ -147,13 +148,24 @@ private:
 // to run (AccumulateAll: Direct vs Exchange) -- plus an optional Fock Scale (Vxc's K coefficient).  Mirrors
 // the tDynamic_HT / tDynamic_HT_Imp interface/impl split, so the tDynamic_HF_HT interface itself stays
 // data-free.
-class Dynamic_HF_HT_Imp : public virtual rDynamic_HF_HT
+class Dynamic_HF_HT_Imp
+    : public virtual rDynamic_HF_HT
+    , public virtual tResponse_HT<double>   //!< J and K are LINEAR in D: their response is their own sweep of δD
 {
 public:
     //! Fock build: assemble the whole-system blocks ONCE per (density, spin) from the composite \a wholeBasis
     //! using ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
     //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
     virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity*,const rbs_t* wholeBasis) const;
+    //! \name THE RESPONSE (doc/LinearResponsePlan.md H2): J[δD] / K[δD] through the SAME contraction body,
+    //! into a SEPARATE cache slot keyed on δ's serial -- a response build never overwrites the ground-state
+    //! blocks.  \a D0 is not needed: the operators are linear.  q = 0 only (bra == ket).
+    //!@{
+    virtual void   RefreshForDensity(const rbs_t* wholeBasis, const rChargeDensity* D0,
+                                     const ChargeDensity::TransitionDensity<double>& delta) const override;
+    virtual rmat_t GetMatrix(const robs_t* bra, const robs_t* ket, const Spin& s,
+                             const ChargeDensity::TransitionDensity<double>& delta) const override;
+    //!@}
 protected:
     //! The one operation that distinguishes Coulomb from exchange: scatter the \a sweep operand across the
     //! canonical irrep pairs into the zeroed per-irrep blocks \a X (one per irrep, in the operand's walk order).
@@ -185,6 +197,12 @@ protected:
     struct Blocks { size_t version=size_t(-1); std::map<std::string,rsmat_t> jk; };
     mutable std::map<Spin,Blocks> itsJKs;          //!< one Blocks per CacheSpin this run asks for
 private:
+    //! Latch the composite basis on first use; THROW on a null or a changed one (see GetMatrix).
+    void LatchWholeBasis(const rbs_t* wholeBasis) const;
+    //! The response blocks of CacheSpin \a s for \a delta (its \a s channel through the HF sweep face).
+    const std::map<std::string,rsmat_t>& ContractResponse(const ChargeDensity::TransitionDensity<double>& delta,
+                                                          const Spin& s) const;
+    mutable std::map<Spin,Blocks> itsResponseJKs;   //!< the response twin of itsJKs, keyed on δ's serial
     //! THE ONE CONTRACTION BODY: scatter \a sweep (identified by \a version) into \a slot for spin \a s, unless
     //! \a slot already holds that version.  Every entry -- the Fock build, the energy, a response -- comes here.
     const std::map<std::string,rsmat_t>& Contract(Blocks& slot, const ChargeDensity::tHF_System_CD<double>& sweep,

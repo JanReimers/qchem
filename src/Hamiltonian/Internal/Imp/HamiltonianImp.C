@@ -3,7 +3,10 @@ module;
 #include <cassert>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
+#include <string>
+#include <vector>
 module qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Internal.ACBN0;    // ACBN0 + HubbardProjection (MakeHubbardUEstimator)
 import qchem.Energy;
@@ -41,6 +44,72 @@ template <class T> const HubbardChannels* tHamiltonianImp<T>::GetHubbardChannels
     for (const auto& t : itsDHTs)
         if (auto* h=dynamic_cast<const HubbardChannels*>(t.get())) return h;
     return nullptr;
+}
+
+namespace {
+
+//! \brief The Hamiltonian's linearisation, folded over its dynamic terms' \c tResponse_HT capabilities
+//! (doc/LinearResponsePlan.md H1/H2).  Non-owning: the terms belong to the Hamiltonian.
+template <class T> class FoldedResponseKernel : public ResponseKernel<T>
+{
+public:
+    FoldedResponseKernel(std::vector<const tResponse_HT<T>*> terms, const tbs_t<T>* wholeBasis,
+                         const tChargeDensity<T>* D0)
+        : itsTerms(std::move(terms)), itsWholeBasis(wholeBasis), itsD0(D0)
+    {
+        if (!itsWholeBasis) throw std::invalid_argument("ResponseKernel: the whole (composite) basis is required");
+    }
+    virtual std::unique_ptr<TransitionFock<T>> InducedFock(const TransitionDensity<T>& delta) const override
+    {
+        for (const auto* t : itsTerms) t->RefreshForDensity(itsWholeBasis, itsD0, delta);   // the response phase
+        // The spin irreps δ resolves: {Up, Down}, or {None} -- the folded doublet (SpinIrrepsOf's rule).
+        const std::vector<Spin> spins = (delta.Channel(Spin::Up) && delta.Channel(Spin::Down))
+                                      ? std::vector<Spin>{Spin::Up, Spin::Down} : std::vector<Spin>{Spin::None};
+        auto rule=delta.Coupling();
+        auto dF=std::make_unique<AO_TransitionFock<T>>(rule);
+        const auto blocks=itsWholeBasis->template Iterate<tobs_t<T>>();
+        for (const Spin& s : spins)
+            for (const auto* ket : blocks)
+                for (const auto* bra : blocks)
+                {
+                    if (!rule->Couples(bra->GetSymmetry(), ket->GetSymmetry())) continue;
+                    mat_t<T> m(bra->GetNumFunctions(), ket->GetNumFunctions(), T(0));
+                    for (const auto* t : itsTerms) m+=t->GetMatrix(bra, ket, s, delta);
+                    dF->Add(bra->GetIrrep(s), ket->GetIrrep(s), m);
+                }
+        return dF;
+    }
+private:
+    std::vector<const tResponse_HT<T>*> itsTerms;
+    const tbs_t<T>*                     itsWholeBasis;
+    const tChargeDensity<T>*            itsD0;
+};
+
+//! Collect \a t's response capability, or its description into \a missing.
+template <class T, class Term> void CollectResponse(const Term& t, std::vector<const tResponse_HT<T>*>& out,
+                                                   std::ostringstream& missing)
+{
+    if (auto* r=dynamic_cast<const tResponse_HT<T>*>(&t)) {out.push_back(r); return;}
+    std::ostringstream name;
+    t.Write(name);
+    missing << "\n    " << name.str();
+}
+
+} // namespace
+
+// Static terms are never asked: they do not depend on D.  Every DYNAMIC term must answer (ruling Q2).
+template <class T> std::unique_ptr<ResponseKernel<T>> tHamiltonianImp<T>::MakeResponseKernel(const tbs_t<T>* wholeBasis,
+                                                                                            const tChargeDensity<T>* D0) const
+{
+    std::vector<const tResponse_HT<T>*> terms;
+    std::ostringstream missing;
+    for (const auto& t : itsDHTs)   CollectResponse<T>(*t, terms, missing);
+    for (const auto& t : itsHF_HTs) CollectResponse<T>(*t, terms, missing);
+    if (!missing.str().empty())
+        throw std::logic_error("Hamiltonian::MakeResponseKernel: these density-dependent terms cannot be linearised "
+                               "yet (no tResponse_HT capability), so this Hamiltonian has no response kernel:"
+                               + missing.str());
+    return std::make_unique<FoldedResponseKernel<T>>(std::move(terms), wholeBasis, D0);
 }
 
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)

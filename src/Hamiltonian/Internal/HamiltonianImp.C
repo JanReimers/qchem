@@ -54,6 +54,8 @@ public:
     virtual std::unique_ptr<HubbardUEstimator> MakeHubbardUEstimator() const override;
     //! \copydoc tHamiltonian::GetHubbardChannels
     virtual const HubbardChannels* GetHubbardChannels() const override;
+    virtual std::unique_ptr<ResponseKernel<T>> MakeResponseKernel(const tbs_t<T>* wholeBasis,
+                                                                  const tChargeDensity<T>* D0) const override;
     //! THE EAGER REFRESH PHASE (doc/OpenWork.md item **KP**): pre-warm every term's k-independent,
     //! density-dependent memo, once, before the caller's per-block Fock loop.  Folded over the DYNAMIC
     //! terms only -- a static term is density-independent by definition, so it has nothing to warm.
