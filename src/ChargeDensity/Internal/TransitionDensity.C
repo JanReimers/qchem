@@ -26,6 +26,8 @@ export import qchem.ChargeDensity.TransitionDensity;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Factory;   // IrrepCD_Factory, RhoRoute
 import qchem.CompositeCD;
+import qchem.ChargeDensity.FourierDensity;   // the periodic face δρ̃ forwards (Hartree, R2)
+import qchem.Fitting.FunctionFitter;          // Fitting::ScalarProjector (ProjectOnto)
 import qchem.Streamable;              // Irrep's operator<< (the failure message names the block)
 
 export namespace qchem::ChargeDensity
@@ -49,12 +51,34 @@ private:
     }
 };
 struct NoTransition_HF {};
+
+//! The G-space face, periodic path only (Hartree reads δρ̃ through it, R2): the same forwarding.
+template <class Self> class Transition_Fourier : public virtual FourierDensity
+{
+public:
+    virtual ΔG_Map GetFourierDensity (const BasisSet::cFIT_SF_ABS& c) const override {return F().GetFourierDensity(c);}
+    virtual ΔG_Map GetRepulsion3C    (const BasisSet::cFIT_CD_ABS& c) const override {return F().GetRepulsion3C(c);}
+    virtual ΔG_Map GetRepulsion3C_Raw(const BasisSet::cFIT_CD_ABS& c) const override {return F().GetRepulsion3C_Raw(c);}
+    virtual void   StarAverage(ΔG_Map& rg) const override {F().StarAverage(rg);}
+    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const override {return F().GetRhoOnGrid(c);}
+private:
+    const FourierDensity& F() const
+    {
+        auto* f=dynamic_cast<const FourierDensity*>(static_cast<const Self&>(*this).Operand());
+        if (!f) throw std::logic_error("AO_TransitionDensity: the wrapped composite has no FourierDensity face");
+        return *f;
+    }
+};
+template <class T, class Self> using TransitionFourierBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, Transition_Fourier<Self>, NoFourierDensity>;
 template <class T, class Self> using TransitionHFBase =
     std::conditional_t<std::is_same_v<T,double>, Transition_HFSystem<Self>, NoTransition_HF>;
 
 template <class T> class AO_TransitionDensity
     : public virtual TransitionDensity<T>
-    , public TransitionHFBase<T, AO_TransitionDensity<T>>
+    , public virtual tProjectable_CD<T>                        //!< δρ sampled like any density (XC mesh, +U forward), R2
+    , public TransitionHFBase<T, AO_TransitionDensity<T>>      //!< J/K: real path, R1
+    , public TransitionFourierBase<T, AO_TransitionDensity<T>> //!< δρ̃ for Hartree: periodic path, R2
 {
     using rule_t=std::shared_ptr<const Symmetry::SelectionRule>;
 public:
@@ -95,7 +119,15 @@ public:
         }
         return s==itsSpin ? this : nullptr;      // a view IS its own channel
     }
-    //! What the HF face forwards to (Transition_HFSystem).
+    //! \copydoc tProjectable_CD::ProjectOnto
+    //! δρ projected exactly as the ground-state density is -- the leaves' own tables, linear in δD.
+    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector& p) const override
+    {
+        auto* pr=dynamic_cast<const tProjectable_CD<T>*>(itsCD);
+        if (!pr) throw std::logic_error("AO_TransitionDensity: the wrapped composite cannot project");
+        return pr->ProjectOnto(p);
+    }
+    //! What the capability faces forward to (Transition_HFSystem, Transition_Fourier).
     const tChargeDensity<T>* Operand() const {return itsCD;}
 
 private:

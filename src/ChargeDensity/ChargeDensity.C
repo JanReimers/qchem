@@ -261,6 +261,58 @@ public:
     virtual void JoinLineage(const LineagePtr& l) override {itsLineage=l; l->MakeHead(this->Version());}
 };
 
+//! \brief A density that can PROJECT ITSELF onto a fit basis's sampling axis -- the ONE operation the XC
+//! quadrature (\c DensitySampler's singles route) and an occupation functional (+U's Loewdin forward) read a
+//! density through.
+//!
+//! ISP (doc/LinearResponsePlan.md §3c, stage R2, 2026-09-28).  It used to be declared on \c tDM_CD, which
+//! made "can be sampled" imply "is a mixable, contractible SCF density".  A TRANSITION density (δD, the first-
+//! order density of a linear response) must be sampled exactly the same way -- δρ_σ on the XC mesh, δn on a
+//! +U manifold -- and must NOT be any of the rest (LSP: see \c TransitionDensity).  Hoisting the one operation
+//! to a face of its own is what lets it offer that and nothing more.  \c tDM_CD inherits it unchanged, so
+//! every existing density and every existing caller is untouched.
+template <class T> class tProjectable_CD
+{
+public:
+    virtual ~tProjectable_CD() = default;
+    //! \brief PROJECT ME ONTO \a p's fit basis -- the FIELD dual of \c DM_ContractBlocks:
+    //! \f$c_a=\langle f_a|\rho\rangle/\langle f_a|f_a\rangle\f$, realized here as
+    //! \f$\sum_b\mathrm{Re}\,[\Phi_b D_b\Phi_b^\dagger]_{gg}\f$.
+    //!
+    //! THE DENSITY ASKS THE FITTER (2026-08-24).  \f$D\f$ is this class's private business and the
+    //! \f$\Phi\f$ TABLE is the fit basis's, so neither travels: the fitter hands over the CONTRACTIBLE
+    //! integral (\c Projector3, a shallow handle on its cached table) and each block contracts its own
+    //! \f$D\f$ or thin \f$L\f$ into it.  MIXED-aware for free -- a real TRIM block asks with \c double
+    //! while its complex siblings ask with \c dcmplx (doc/RealComplexPlan.md 3c-3).
+    //!
+    //! \note WHY NOT \c operator()(rvec3vec_t) (user, 2026-08-25).  That face receives COORDINATES, and
+    //! the table \f$\chi_i(r_g)\f$ is not reachable from them -- so an override there could only
+    //! RECOMPUTE it, which costs what the pointwise sweep costs (measured: 80 ms vs 77 ms at 4000×16; the
+    //! ~500× is the CACHE, not the contraction).  Nor could it cache: a density is a fresh object every
+    //! SCF iteration (\c TOrbitalsImp::GetChargeDensity news one), and it is asked for \f$\rho\f$ once per
+    //! iteration, so a density-side table would have a zero hit rate.  \a p is exactly that face PLUS the
+    //! identity needed to reach the run-lifetime cache.  Renamed from \c DM_RhoAtPoints for the same
+    //! reason: it does not return values at points, and "points" was the last of the vocabulary the
+    //! 2026-08-23 pass took off everything else.
+    //!
+    //! \return MY EXPANSION COEFFICIENTS over \a p's fit basis -- one per fit FUNCTION, not one per point.  For a
+    //! \f$\delta\f$ basis the two coincide numerically (\f$c_g=\rho(r_g)\f$), which is exactly why the
+    //! pointwise-nonlinear XC functional may be applied to them directly; the name of the array is the
+    //! coefficient vector, and the equality is a property of the representation.
+    //!
+    //! PURE, with no default (2026-08-25).  There WAS one -- hand \a p this density's own
+    //! \c ScalarFunction face and let the fitter sample it -- and it was DEAD: measured 0 calls across
+    //! all 760 tests, with a control probe on the \c IrrepCD override firing to prove the instrument
+    //! worked.  It could not be otherwise: this face is \c tDM_CD, so reaching it means HAVING a matrix,
+    //! and a density that has one always has a better answer than being sampled pointwise.  A density with
+    //! NO matrix never arrives here at all -- it is not a \c tDM_CD, and its caller asks
+    //! \c ScalarProjector::Project directly.  So the field route was a default on the wrong face.
+    //!
+    //! Same shape as V1.16 on the Coulomb side: each capability is a face you either HAVE or do not, and
+    //! there is no fallback left to hit by accident.
+    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector& p) const=0;
+};
+
 //! \brief A charge density that can be MIXED IN PLACE -- the whole of what an SCF density mixer needs of
 //! its subject, and nothing else.
 //!
@@ -298,6 +350,7 @@ public:
 //
 template <class T> class tDM_CD
 : public virtual tMixableDensity<T>
+, public virtual tProjectable_CD<T>   //!< the sampling operation, hoisted to its own face (R2)
 {
 public:
     virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);
@@ -309,42 +362,8 @@ public:
     //! implements it, including the periodic path (PW_Hartree contracts its long-range blocks here).
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const=0;
 
-    //! \brief PROJECT ME ONTO \a p's fit basis -- the FIELD dual of \c DM_ContractBlocks:
-    //! \f$c_a=\langle f_a|\rho\rangle/\langle f_a|f_a\rangle\f$, realized here as
-    //! \f$\sum_b\mathrm{Re}\,[\Phi_b D_b\Phi_b^\dagger]_{gg}\f$.
-    //!
-    //! THE DENSITY ASKS THE FITTER (2026-08-24).  \f$D\f$ is this class's private business and the
-    //! \f$\Phi\f$ TABLE is the fit basis's, so neither travels: the fitter hands over the CONTRACTIBLE
-    //! integral (\c Projector3, a shallow handle on its cached table) and each block contracts its own
-    //! \f$D\f$ or thin \f$L\f$ into it.  MIXED-aware for free -- a real TRIM block asks with \c double
-    //! while its complex siblings ask with \c dcmplx (doc/RealComplexPlan.md 3c-3).
-    //!
-    //! \note WHY NOT \c operator()(rvec3vec_t) (user, 2026-08-25).  That face receives COORDINATES, and
-    //! the table \f$\chi_i(r_g)\f$ is not reachable from them -- so an override there could only
-    //! RECOMPUTE it, which costs what the pointwise sweep costs (measured: 80 ms vs 77 ms at 4000×16; the
-    //! ~500× is the CACHE, not the contraction).  Nor could it cache: a density is a fresh object every
-    //! SCF iteration (\c TOrbitalsImp::GetChargeDensity news one), and it is asked for \f$\rho\f$ once per
-    //! iteration, so a density-side table would have a zero hit rate.  \a p is exactly that face PLUS the
-    //! identity needed to reach the run-lifetime cache.  Renamed from \c DM_RhoAtPoints for the same
-    //! reason: it does not return values at points, and "points" was the last of the vocabulary the
-    //! 2026-08-23 pass took off everything else.
-    //!
-    //! \return MY EXPANSION COEFFICIENTS over \a p's fit basis -- one per fit FUNCTION, not one per point.  For a
-    //! \f$\delta\f$ basis the two coincide numerically (\f$c_g=\rho(r_g)\f$), which is exactly why the
-    //! pointwise-nonlinear XC functional may be applied to them directly; the name of the array is the
-    //! coefficient vector, and the equality is a property of the representation.
-    //!
-    //! PURE, with no default (2026-08-25).  There WAS one -- hand \a p this density's own
-    //! \c ScalarFunction face and let the fitter sample it -- and it was DEAD: measured 0 calls across
-    //! all 760 tests, with a control probe on the \c IrrepCD override firing to prove the instrument
-    //! worked.  It could not be otherwise: this face is \c tDM_CD, so reaching it means HAVING a matrix,
-    //! and a density that has one always has a better answer than being sampled pointwise.  A density with
-    //! NO matrix never arrives here at all -- it is not a \c tDM_CD, and its caller asks
-    //! \c ScalarProjector::Project directly.  So the field route was a default on the wrong face.
-    //!
-    //! Same shape as V1.16 on the Coulomb side: each capability is a face you either HAVE or do not, and
-    //! there is no fallback left to hit by accident.
-    virtual rvec_t ProjectOnto(const Fitting::ScalarProjector& p) const=0;
+    // ProjectOnto comes from tProjectable_CD<T> (hoisted 2026-09-28, doc/LinearResponsePlan.md R2): a
+    // TRANSITION density must offer the same operation without being a tDM_CD.  Its full rationale is there.
 
     // The exact-exchange (HF) accumulators are NOT here any more -- see tHF_System_CD / tHF_Pair_CD
     // below (V1.6).  They were four asserting defaults on this general face, which every concrete family

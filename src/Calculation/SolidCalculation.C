@@ -27,7 +27,7 @@
 // (qchem.Hamiltonian.Factory's cHamiltonian overload; qchem.SCFAccelerator.Factory's typed-options
 // overload), so this file imports ZERO internals, exactly as the molecular facades already manage.
 module;
-#include "forward.H"   // RunDiagnosticsTests -- the unit-test friend (CLAUDE.md: tests may cheat)
+#include "forward.H"   // RunDiagnosticsTests, ResponseFacadeTests -- the unit-test friends (CLAUDE.md: tests may cheat)
 #include <functional>  // the order-parameter probe
 #include <memory>
 #include <vector>     // the anneal schedule
@@ -517,6 +517,17 @@ public:
     //! no +U manifold (list the channels at U=0 to probe a run without +U) or reduced its k-mesh (D5: run
     //! without \c imposeSymmetry).  A diagnostic of the last iterate, like \c EstimateHubbardU.
     Outcome<Response::ChannelResponse,Response::ResponseFailure> IndependentResponse(ivec3_t Nq) const;
+    //! \brief The SELF-CONSISTENT channel response at q = 0 over the run's Hubbard manifolds
+    //! (doc/LinearResponsePlan.md stage R2): \f$(1-\mathcal R_0\mathcal K)\,\delta D=\mathcal R_0V_J\f$ with the
+    //! Hamiltonian's ANALYTIC kernel (Hartree + ALDA f_xc; +U frozen or at U = 0 answers zero, H4), linearised
+    //! about the converged orbitals' own density.  Reports \f$\chi_0\f$, \f$\chi\f$ and
+    //! \f$U_I=(\chi_0^{-1}-\chi^{-1})_{II}\f$ (eV) as it computes.  In a cell of \f$N\f$ primitive cells that
+    //! U is the LR-cDFT U of that supercell (Timrov §III) -- the finite-size limit is R3's q-mesh.
+    //! FAILS on an inverted/unresolved pair (E1) or a Krylov solve short of \a krylov.tol.  THROWS when the run
+    //! carries no +U manifold, reduced its k-mesh (D5), has a REAL TRIM block (run with \c forceComplex: the
+    //! real-block response face is not built), or carries an unfrozen U != 0.
+    Outcome<Response::SelfConsistentResponse,Response::ResponseFailure> HubbardLinearResponse(
+        const KrylovParams& krylov={.tol=1e-8}) const;
 
     // ⛔ Energy() / EnergyTerms() / TotalCharge() / Density() DELIBERATELY DO NOT LIVE HERE any more
     // (doc/OpenWork.md N1/T1).  They are on Converged, reachable only through Converge()/Result(), because
@@ -537,6 +548,13 @@ public:
     const BasisSet::Complex_BS& Basis() const;
 
 private:
+    //! \name THE FD RESPONSE ORACLE'S DOOR (src/Response/tests, ruling D6) -- the converged run's Hamiltonian,
+    //! wave function and composite basis, which the facade deliberately does not expose.  Friend only.
+    //!@{
+    friend class ::ResponseFacadeTests;
+    qchem::Hamiltonian::cHamiltonian&       ResponseHamiltonian () const;
+    const WaveFunction::cWaveFunction&      ResponseWaveFunction() const;
+    //!@}
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.
     void BuildStage(SCFAccelerators::Type, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried);
     //! The one place a Converged/SCFFailure is minted, so \c Converge() and \c Result() cannot drift

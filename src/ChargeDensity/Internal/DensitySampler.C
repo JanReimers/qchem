@@ -124,6 +124,8 @@ public:
     //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
+    //! δρ_σ through the density's own ProjectOnto -- the same tables as Rho, no cache, no orbit mean.
+    rvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
@@ -261,6 +263,8 @@ public:
     //! takes a bare field, which is exactly what \f$v_{xc,\sigma}\to H_{xc,\sigma}\f$ wants.  What was
     //! missing was the per-channel CACHE and the channel walk, both of which the singles route already had.
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
+    //! δρ_σ on the raster through the transition density's G-space face (RAW collocation, else the BALL).
+    rvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
 private:

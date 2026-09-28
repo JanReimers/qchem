@@ -112,8 +112,9 @@ template <class T> OrbitalFrame<T> MakeOrbitalFrame(const Reference& ref, const 
     ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
     {
         if constexpr (!std::is_same_v<U,T>)
-            throw std::logic_error("Response::MakeOrbitalFrame: a block whose scalar is not the run's (a real TRIM block "
-                                   "inside a complex run) -- the mixed-scalar frame is R2's");
+            throw std::logic_error("Response::MakeOrbitalFrame: a REAL TRIM block inside a complex run -- the response "
+                                   "faces serve complex blocks only (the real-block sibling is not built): run the ground "
+                                   "state with forceComplex");
         else
         {
             const auto* bs=dynamic_cast<const ChargeDensity::tobs_t<T>*>(os.GetBasisSet());

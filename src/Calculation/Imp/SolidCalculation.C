@@ -5,6 +5,7 @@
 module;
 #include <algorithm>   // std::max (the T2 site-moment scan)
 #include <cmath>       // std::fabs
+#include <complex>     // the response U table (chi0^-1 - chi^-1)
 #include <limits>      // quiet_NaN (lastCommutator before any iteration)
 #include <map>         // the magnetic decoration's IonicSAD targets
 #include <iomanip>     // the stage summary's stated precision
@@ -1015,6 +1016,54 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
     if (r) r->Write(std::cout, 27.211386245988, "1/eV");     // reported at its own activity (pin 17)
     else   std::cout << "[chi0] FAILED: " << r.Error().detail << std::endl;
     return r;
+}
+
+// THE SELF-CONSISTENT RESPONSE AT q = 0 (R2): the same Reference and probe as IndependentResponse, plus the
+// AO <-> MO frame and the Hamiltonian's analytic kernel, linearised about the converged ORBITALS' density (the
+// state the Reference describes -- not the mixed iterate, which on a Kerker/Pulay recipe has no D).
+Outcome<qchem::Response::SelfConsistentResponse,qchem::Response::ResponseFailure>
+SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov) const
+{
+    using O=Outcome<qchem::Response::SelfConsistentResponse,qchem::Response::ResponseFailure>;
+    const auto* hub=itsImp->ham->GetHubbardChannels();
+    if (!hub) throw std::logic_error("SolidCalculation::HubbardLinearResponse: this run carries no Hubbard manifold -- the "
+                                     "response channels ARE the +U manifolds (list them at U=0 to probe without +U)");
+    const auto* wf=itsImp->scf->GetWaveFunction();
+    if (!wf) throw std::logic_error("SolidCalculation::HubbardLinearResponse: no wave function yet");
+    const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
+                                                             : std::numeric_limits<double>::quiet_NaN();
+    const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
+        {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
+    const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);
+    const qchem::Response::AmplitudeProbe probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
+    const auto D0=wf->GetChargeDensity();
+    const auto kernel=itsImp->ham->MakeResponseKernel(itsImp->bs.get(), D0.get());
+    auto qs=ref.QMesh(ivec3_t(1,1,1));
+    if (!qs) return O::Fail(qs.Error());
+    auto r=qchem::Response::LinearResponse(ref, frame, *kernel, probe,
+                                           std::make_shared<qchem::Response::MeshShift>((*qs)[0]), krylov);
+    if (!r)
+    {
+        std::cout << "[response] FAILED: " << r.Error().detail << std::endl;
+        return r;
+    }
+    r->Write(std::cout);
+    // U_I = (chi0^-1 - chi^-1)_II, in eV (hp.x's unit).  Printed, never consumed here (R4 owns consumption).
+    const mat_t<dcmplx> X0i=blazem::inv(r->chi0), Xi=blazem::inv(r->chi);
+    std::cout << "[response] U = (chi0^-1 - chi^-1)_II at q = 0 (this cell):";
+    for (size_t I=0;I<r->labels.size();I++)
+        std::cout << "  " << r->labels[I] << " " << std::setprecision(6) << (X0i(I,I)-Xi(I,I)).real()*27.211386245988 << " eV";
+    std::cout << std::endl;
+    return r;
+}
+
+// THE FD ORACLE'S DOOR (friend only, forward.H).
+qchem::Hamiltonian::cHamiltonian& SolidCalculation::ResponseHamiltonian() const {return *itsImp->ham;}
+const WaveFunction::cWaveFunction& SolidCalculation::ResponseWaveFunction() const
+{
+    const auto* wf=itsImp->scf->GetWaveFunction();
+    if (!wf) throw std::logic_error("SolidCalculation: no wave function yet");
+    return *wf;
 }
 
 // The caller's observer is SWAPPED IN behind the facade's own (AttachProbes composes the two), so

@@ -879,4 +879,24 @@ std::ostream& Hubbard_U::Write(std::ostream& os) const
     return os<<std::endl;
 }
 
+// THE RESPONSE (R2 / H4): zero when frozen or U = 0 -- the only two cases a linear response asks for today.
+void Hubbard_U::RefreshForDensity(const cbs_t*, const cChargeDensity*, const TransitionDensity<dcmplx>&) const
+{
+    if (itsFrozen) return;
+    for (const auto& M : itsManifolds)
+    {
+        bool zero = (M.U==0.0);
+        for (double u : M.Uirrep) zero = zero && (u==0.0);
+        if (!zero)
+            throw std::logic_error("Hubbard_U: the UNFROZEN +U response kernel is not built -- freeze the occupations "
+                                   "(Timrov eq 20: V_Hub held at its ground-state value) or run at U = 0 (the U_0 case)");
+    }
+}
+
+mat_t<dcmplx> Hubbard_U::GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin&, const TransitionDensity<dcmplx>& delta) const
+{
+    RefreshForDensity(nullptr, nullptr, delta);   // the same gate, so a direct caller cannot skip it
+    return mat_t<dcmplx>(bra->GetNumFunctions(), ket->GetNumFunctions(), dcmplx(0.0));
+}
+
 } // namespace

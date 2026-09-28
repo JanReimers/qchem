@@ -233,8 +233,21 @@ class Hubbard_U
     , public         Dynamic_HT_RealBlock_Imp
     , public virtual Fitting::ScalarProjector      //!< the FORWARD vendor the density projects onto
     , public virtual HubbardProjection             //!< what the ACBN0 estimator consumes (increment 3)
+    , public virtual tResponse_HT<dcmplx>          //!< its linearisation: ZERO when frozen or U = 0 (R2, H4)
 {
 public:
+    //! \name THE RESPONSE (doc/LinearResponsePlan.md R2 / H4).  With the occupations FROZEN (Timrov eq 20:
+    //! V_Hub held at its ground-state value) or every U zero -- the U_0 case -- the term's first-order Fock
+    //! change is exactly ZERO, by its own state: the kernel needs no "exclude +U" flag.  The UNFROZEN kernel
+    //! \f$\delta V=-U\,T\,\delta n\,T^\dagger\f$ (eigen form: plus the eigenvector rotation) is not built, and
+    //! asking for it THROWS rather than returning a silently wrong zero.
+    //!@{
+    using cDynamic_HT::RefreshForDensity;
+    virtual void   RefreshForDensity(const cbs_t* wholeBasis, const cChargeDensity* D0,
+                                     const TransitionDensity<dcmplx>& delta) const override;
+    virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
+                             const TransitionDensity<dcmplx>& delta) const override;
+    //!@}
     //! What a manifold is on a block: its column indices (from the AoShellSource face; throws on a Cartesian
     //! d), the raw contraction over them (empty = the columns themselves), and the shells that carry its
     //! angular rep (ALL the selected shells for a column manifold; ONE for a contracted one -- they share it).

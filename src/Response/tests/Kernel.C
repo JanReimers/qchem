@@ -11,6 +11,8 @@
 // HF sweep face -> the term's response slot -> the kernel fold -> the TransitionFock -- on real ERIs.
 #include "gtest/gtest.h"
 #include <cmath>
+#include <cstdlib>
+#include <complex>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -25,7 +27,10 @@ import qchem.ChargeDensity.Factory;                   // IrrepCD_Factory, RhoRou
 import qchem.CompositeCD;
 import qchem.ChargeDensity.Internal.TransitionDensity; // the concrete the friend reads (tests may cheat)
 import qchem.Structure;
-import qchem.Calculation;                             // the converged H2O the FD-driven polarisability runs on
+import qchem.Calculation;
+import qchem.SolidCalculation;                        // the converged GPW solid the periodic gates run on (R2)
+import qchem.Lattice_3D;
+import qchem.BasisSet.Lattice.BasisSet;                             // the converged H2O the FD-driven polarisability runs on
 import qchem.Response;                                // Reference / frame / probe / LinearResponse
 import qchem.Orbitals;                                // the ground-state density blocks the FD kernel displaces
 import qchem.SCFParams;
@@ -45,6 +50,9 @@ public:
     static const WaveFunction::tWaveFunction<double>&   WF   (const Calculation& c) {return *c.itsScf->GetWaveFunction();}
     static const BasisSet::Real_BS*                     Basis(const Calculation& c) {return c.itsBasis;}
     static const Structure&                             St   (const Calculation& c) {return *c.itsStructure;}
+    // The periodic facade (R2): its Hamiltonian and wave function, through its private door.
+    static Hamiltonian::cHamiltonian&                   Ham  (const SolidCalculation& c) {return c.ResponseHamiltonian();}
+    static const WaveFunction::cWaveFunction&           WF   (const SolidCalculation& c) {return c.ResponseWaveFunction();}
 };
 
 //! THE FRIEND (src/forward.H): the one door to a transition density's AO blocks.
@@ -75,13 +83,16 @@ public:
     {
         const auto& dD=TransitionDensityTests::Blocks(delta);
         if (dD.size()!=itsD0.size()) throw std::logic_error("FD_ResponseKernel: δD and D0 have different block lists");
-        auto Dp=Displaced(dD, +itsH_), Dm=Displaced(dD, -itsH_);
+        // The FOUR-POINT stencil, O(h^4): [8(F(h)-F(-h)) - (F(2h)-F(-2h))] / 12h.  Measured on GPW Si (R2): the
+        // two-point form bottoms out at ~2e-6 relative (h^2 truncation meets rounding near h = 1e-4), which is an
+        // ORACLE floor, not a kernel error; four points move the floor below 1e-7.  (Exact for HF either way.)
         auto dF=std::make_unique<Hamiltonian::AO_TransitionFock<T>>(delta.Coupling());
+        auto D1p=Displaced(dD, +itsH_), D1m=Displaced(dD, -itsH_), D2p=Displaced(dD, +2*itsH_), D2m=Displaced(dD, -2*itsH_);
         for (const auto& b : itsD0)
         {
-            const hmat_t<T> Fp=itsH->GetMatrix(b.bs, b.irrep.ms, Dp.get(), itsWB);
-            const hmat_t<T> Fm=itsH->GetMatrix(b.bs, b.irrep.ms, Dm.get(), itsWB);
-            dF->Add(b.irrep, b.irrep, mat_t<T>((Fp-Fm)/T(2.0*itsH_)));
+            auto F=[&](const auto& D){return mat_t<T>(itsH->GetMatrix(b.bs, b.irrep.ms, D.get(), itsWB));};
+            const mat_t<T> d1=F(D1p)-F(D1m), d2=F(D2p)-F(D2m);
+            dF->Add(b.irrep, b.irrep, mat_t<T>((T(8.0)*d1-d2)/T(12.0*itsH_)));
         }
         return dF;
     }
@@ -283,3 +294,96 @@ TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
         EXPECT_NEAR(a(i,i), pyscf[i], 0.03*pyscf[i]) << "alpha_" << i << i;
     }
 }
+
+//=====================================================================================================
+//  R2: THE PERIODIC KERNEL (GPW Hartree + ALDA f_xc, +U at U = 0) against the same FD oracle, on a CONVERGED
+//  solid -- XC is nonlinear, so D0 must be a real, positive density (random D0 would sample f_xc at rho < 0).
+//  Si diamond at Gamma (SCFTrace's cell), complex ansatz (the response faces serve complex blocks), and a
+//  Si-p manifold at U = 0 so the run carries Hubbard channels for the facade's probe.
+//=====================================================================================================
+namespace {
+
+std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    auto mol=std::shared_ptr<const BasisSet::Real_BS>(
+        BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    SCFParams par;
+    par.NMaxIter=80; par.MinΔρ=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
+    SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
+                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=0.0}}, .forceComplex=true};
+    auto calc=std::make_unique<SolidCalculation>(lat, mol, o, par);
+    EXPECT_TRUE(calc->DidConverge());
+    return calc;
+}
+
+//! The converged density matrix of every (complex) block, in the wave function's order.
+std::vector<TransitionBlock<dcmplx>> GroundDensity(const WaveFunction::cWaveFunction& wf)
+{
+    std::vector<TransitionBlock<dcmplx>> out;
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir));
+        if (!os) throw std::logic_error("GroundDensity: a real block -- run the ground state with forceComplex");
+        const auto* bs=dynamic_cast<const Hamiltonian::cobs_t*>(os->GetBasisSet());
+        const size_t n=bs->GetNumFunctions();
+        chmat_t D(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=0.0;
+        for (const auto* o : os->Iterate<Orbitals::TOrbital<dcmplx>>())
+        {
+            const double occ=o->GetOccupation();
+            if (occ==0.0) continue;
+            const cvec_t& c=o->GetCoeff();
+            for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)+=occ*c[i]*std::conj(c[j]);
+        }
+        out.push_back({ir, bs, D});
+    }
+    return out;
+}
+
+void PeriodicAnalyticEqualsFD(SpinGroup g)
+{
+    auto calc=ConvergedSi(g);
+    const auto& wf=ResponseFacadeTests::WF(*calc);
+    auto& H=ResponseFacadeTests::Ham(*calc);
+    const auto D0=GroundDensity(wf);
+    std::mt19937 rng(20260928);
+    std::uniform_real_distribution<double> u(-0.05, 0.05);
+    std::vector<TransitionBlock<dcmplx>> dD;
+    for (const auto& b : D0)
+    {
+        const size_t n=b.bs->GetNumFunctions();
+        chmat_t X(n);
+        for (size_t i=0;i<n;i++) {X(i,i)=u(rng); for (size_t j=i+1;j<n;j++) X(i,j)=dcmplx(u(rng),u(rng));}
+        dD.push_back({b.irrep, b.bs, X});
+    }
+    const auto D0cd=wf.GetChargeDensity();
+    auto analytic=H.MakeResponseKernel(&calc->Basis(), D0cd.get());
+    FD_ResponseKernel<dcmplx> fd(H, &calc->Basis(), D0, 1e-3);   // 4-point stencil: h=1e-3 is its sweet spot (measured)
+    auto delta=ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(dD, std::make_shared<Symmetry::Invariant>());
+    auto A=analytic->InducedFock(*delta);
+    auto F=fd.InducedFock(*delta);
+    for (const auto& b : dD)
+    {
+        const mat_t<dcmplx> a=A->Matrix(b.irrep, b.irrep), f=F->Matrix(b.irrep, b.irrep);
+        double diff=0, scale=0;
+        for (size_t i=0;i<f.rows();i++)
+            for (size_t j=0;j<f.columns();j++) {diff=std::max(diff, std::abs(a(i,j)-f(i,j))); scale=std::max(scale, std::abs(f(i,j)));}
+        std::cout << "[R2 kernel] " << b.irrep << "  max|FD| " << scale << "  max|analytic-FD| " << diff
+                  << "  rel " << diff/scale << std::endl;
+        EXPECT_GT(scale, 1e-3) << b.irrep;
+        // MEASURED 2026-09-28 (4-point FD, h=1e-3): UnPol 7.2e-7; Pol 4.0e-6 / 4.2e-6 -- an h-INDEPENDENT floor in
+        // the Pol run that is NOT the pointwise f_xc (a 4-point GetFxc left it unchanged) and gets WORSE (1.2e-5)
+        // with a spin-symmetric dD.  OPEN (doc/LinearResponsePlan.md §5d): gated at 1e-5 until it is named.
+        EXPECT_LT(diff/scale, 1e-5) << b.irrep << ": analytic Hartree + ALDA kernel vs finite difference";
+    }
+}
+
+} // namespace
+
+TEST(ResponseKernel, GPW_Si_AnalyticEqualsFiniteDifference_UnPol) {PeriodicAnalyticEqualsFD(SpinGroup::UnPolarized);}
+TEST(ResponseKernel, GPW_Si_AnalyticEqualsFiniteDifference_Pol)   {PeriodicAnalyticEqualsFD(SpinGroup::Polarized);}

@@ -27,6 +27,14 @@ double SlaterExchange::GetVxc(double ro) const
     return ret;
 }
 
+double SlaterExchange::GetFxc(double up, double dn, const Spin& s, const Spin& t) const
+{
+    if (s!=t) return 0.0;                              // channel-separable: no cross-spin kernel
+    const double rs=(s==Spin::Down ? dn : up);
+    if (!(rs>0.0)) return 0.0;
+    return GetVxc(2.0*rs)/(3.0*rs);                    // d/drho_s [ v_x(2 rho_s) ],  v_x ~ rho^{1/3}
+}
+
 std::ostream& SlaterExchange::Write(std::ostream& os) const
 {
     os << itsAlpha << " ";

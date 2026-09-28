@@ -215,8 +215,20 @@ class Vee_Hartree
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
+    , public virtual tResponse_HT<dcmplx>       // V_H is LINEAR in rho: its response is its own Poisson of δρ̃ (R2)
 {
 public:
+    //! \name THE RESPONSE (doc/LinearResponsePlan.md R2): \f$\delta V_H=4\pi\,\delta\tilde\rho/|G|^2\f$ from the
+    //! transition density's G-space face -- the same Poisson and the same adjoint gather as the ground state,
+    //! memoised on δ's serial in a slot of its own.  \a D0 is not needed (linear).  q = 0 only, complex blocks
+    //! only (a real TRIM block needs the real-block sibling of the face: not built).
+    //!@{
+    using cDynamic_HT::RefreshForDensity;
+    virtual void   RefreshForDensity(const cbs_t* wholeBasis, const cChargeDensity* D0,
+                                     const TransitionDensity<dcmplx>& delta) const override;
+    virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
+                             const TransitionDensity<dcmplx>& delta) const override;
+    //!@}
     //! \copydoc HT_SlotOwner::PrepareSlots
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
@@ -263,6 +275,8 @@ private:
     double Volume() const;
 
     fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
+    mutable size_t itsDeltaVersion=size_t(-1);  //!< the transition density's serial \c itsDeltaField holds
+    mutable ΔG_Map itsDeltaField;               //!< \f$\delta V_H\f$ of that transition density (R2)
     mutable double itsVolume=0.0;   //!< \c Volume()'s memo (0 = not asked yet)
     mutable size_t itsFieldVersion=size_t(-1);  //!< density serial \c itsField holds (-1 = empty)
     mutable ΔG_Map itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
@@ -290,8 +304,22 @@ class Vxc_Quadrature
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
     , public         Dynamic_HT_RealBlock_Imp   // real TRIM block capability (Step 3c)
+    , public virtual tResponse_HT<dcmplx>       // the ALDA kernel f_xc(rho0) on the same quadrature (R2)
 {
 public:
+    //! \name THE RESPONSE (doc/LinearResponsePlan.md R2/H3): \f$\delta v^\sigma(r_g)=\sum_{\sigma'}
+    //! f_{xc}^{\sigma\sigma'}(\rho_{0\uparrow},\rho_{0\downarrow})\,\delta\rho_{\sigma'}(r_g)\f$, gathered by the SAME
+    //! adjoint as \f$v_{xc}\f$ -- so the response is the derivative of exactly the operator the SCF used.  The
+    //! kernel arrays are built once per \a D0 serial; δρ is sampled per δ, uncached in the sampler
+    //! (\c DensitySampler::Sample).  SU(2): \f$\delta\rho_\uparrow=\delta\rho_\downarrow=\delta\rho/2\f$, the
+    //! ζ = 0 collapse.  q = 0 only, complex blocks only.
+    //!@{
+    using cDynamic_HT::RefreshForDensity;
+    virtual void   RefreshForDensity(const cbs_t* wholeBasis, const cChargeDensity* D0,
+                                     const TransitionDensity<dcmplx>& delta) const override;
+    virtual mat_t<dcmplx> GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s,
+                             const TransitionDensity<dcmplx>& delta) const override;
+    //!@}
     //! \copydoc HT_SlotOwner::PrepareSlots
     //! I OWN TWO IRREP-KEYED CACHES -- the Bloch one and the real TRIM one -- so I prepare both.  The
     //! compiler DEMANDS this override (ambiguous final overrider) rather than silently picking one of my
@@ -326,6 +354,12 @@ private:
     xc_t      itsXc;
     sampler_t itsSampler;   //!< the shared mesh + Phi tables + per-serial rho (one per Hamiltonian)
     SpinGroup itsGroup;     //!< the imposed subgroup this term was built for
+    //! The response state (R2): \f$f_{xc}^{\sigma\sigma'}\f$ at the linearisation density, per point, and the
+    //! last δ's \f$\delta v^\sigma\f$.
+    mutable size_t itsKernelVersion=size_t(-1);
+    mutable rvec_t itsFuu, itsFud, itsFdu, itsFdd;
+    mutable size_t itsDeltaVersion=size_t(-1);
+    mutable rvec_t itsDvUp, itsDvDn;
 };
 
 //! \brief THE XC term for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to \c Add (ownership

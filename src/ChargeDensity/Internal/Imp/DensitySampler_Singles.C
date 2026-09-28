@@ -265,6 +265,18 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
     return itsRho;
 }
 
+// δρ of a transition density (R2): the density's own ProjectOnto against my projector, exactly as Rho does for
+// a DM density -- and deliberately WITHOUT itsQuad.Symmetrize (see the face) and without touching the caches.
+rvec_t SinglesDensitySampler::Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const
+{
+    const auto* ch=delta.Channel(s);
+    if (!ch) throw std::logic_error("SinglesDensitySampler::Sample: the transition density does not resolve this spin channel");
+    auto* p=dynamic_cast<const tProjectable_CD<dcmplx>*>(ch);
+    if (!p) throw std::logic_error("SinglesDensitySampler::Sample: this transition density cannot be projected onto a fit basis");
+    qchem::report::Timed timed("response: XC-mesh delta-rho sampling");
+    return p->ProjectOnto(Projector());
+}
+
 // The real-block ensure siblings (3c-3): build the real block's OWN typed table first (PhiR), then the
 // shared sampling path -- the exact mirror of the complex ensureBlock argument.
 

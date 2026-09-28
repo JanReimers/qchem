@@ -107,6 +107,52 @@ rvec_t Vxc_Quadrature::SiteMoments(const cChargeDensity* cd) const
     return itsSampler->SiteIntegrals(rvec_t(itsSampler->RhoPol(cd,Spin::Up)-itsSampler->RhoPol(cd,Spin::Down)));
 }
 
+// THE RESPONSE (R2): the ALDA kernel at the linearisation density, times δρ_σ, gathered by the same adjoint.
+void Vxc_Quadrature::RefreshForDensity(const cbs_t*, const cChargeDensity* D0, const TransitionDensity<dcmplx>& delta) const
+{
+    if (!D0) throw std::logic_error("Vxc_Quadrature: the XC response needs the density it linearises about (D0)");
+    if (D0->Version()!=itsKernelVersion)
+    {
+        qchem::report::Timed timed("response: f_xc at rho0");
+        rvec_t half;
+        const Rasters r=ChannelRasters(D0, half);
+        const size_t n=r.up.size();
+        itsFuu.resize(n); itsFud.resize(n); itsFdu.resize(n); itsFdd.resize(n);
+        for (size_t g=0; g<n; g++)
+        {
+            itsFuu[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up,   Spin::Up  );
+            itsFud[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Up,   Spin::Down);
+            itsFdu[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Down, Spin::Up  );
+            itsFdd[g]=itsXc->GetFxc(r.up[g], r.dn[g], Spin::Down, Spin::Down);
+        }
+        itsKernelVersion=D0->Version();
+        itsDeltaVersion=size_t(-1);   // the kernel moved: every δv is stale
+    }
+    if (delta.Version()==itsDeltaVersion) return;
+    rvec_t du, dd;
+    if (itsGroup==SpinGroup::Polarized) {du=itsSampler->Sample(delta, Spin::Up); dd=itsSampler->Sample(delta, Spin::Down);}
+    else                                {du=0.5*itsSampler->Sample(delta, Spin::None); dd=du;}
+    const size_t n=du.size();
+    if (n!=itsFuu.size()) throw std::logic_error("Vxc_Quadrature: δρ and the kernel live on different quadratures");
+    itsDvUp.resize(n); itsDvDn.resize(n);
+    for (size_t g=0; g<n; g++)
+    {
+        itsDvUp[g]=itsFuu[g]*du[g]+itsFud[g]*dd[g];
+        itsDvDn[g]=itsFdu[g]*du[g]+itsFdd[g]*dd[g];
+    }
+    itsDeltaVersion=delta.Version();
+}
+
+mat_t<dcmplx> Vxc_Quadrature::GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s, const TransitionDensity<dcmplx>& delta) const
+{
+    if (bra->BasisSetID()!=ket->BasisSetID())
+        throw std::logic_error("Vxc_Quadrature: a response on a (bra != ket) block pair -- q != 0 is stage R3's");
+    if (delta.Version()!=itsDeltaVersion)
+        throw std::logic_error("Vxc_Quadrature: GetMatrix for a transition density the response phase did not refresh");
+    // A folded-doublet block (Spin::None) sees the same δv either channel would: Up by convention, as MakeMatrixT.
+    return mat_t<dcmplx>(itsSampler->Matrix(bra, s==Spin::Down ? itsDvDn : itsDvUp));
+}
+
 std::ostream& Vxc_Quadrature::Write(std::ostream& os) const
 {
     return os << "    XC-mesh " << (itsGroup==SpinGroup::Polarized ? "SPIN-NATIVE v_xc^sigma(rho_up,rho_down)"

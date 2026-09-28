@@ -78,6 +78,24 @@ rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) cons
     return rho;
 }
 
+// δρ of a transition density (R2): the SampleOne recipe (RAW collocation, else the BALL round trip) through
+// the transition density's G-space face -- no cache, no route latch (the latch guards the SCF iterate).
+rvec_t PairDensitySampler::Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const
+{
+    const auto* ch=delta.Channel(s);
+    if (!ch) throw std::logic_error("PairDensitySampler::Sample: the transition density does not resolve this spin channel");
+    auto* fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(ch);
+    if (!fd) throw std::logic_error("PairDensitySampler::Sample: this transition density has no G-space (FourierDensity) face");
+    rvec_t rho=fd->GetRhoOnGrid(*itsFitBasis);
+    if (rho.size()==0)
+    {
+        auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
+        if (!ge) throw std::logic_error("PairDensitySampler::Sample: the BALL route needs the fit basis's raster transforms");
+        rho=ge->RhoOnGrid(fd->GetFourierDensity(*itsFitBasis));
+    }
+    return rho;
+}
+
 // ROUTE STABILITY (R2.16), in one place for both shapes -- see the declaration.
 void PairDensitySampler::LatchRoute(const cChargeDensity* cd, bool isRaw) const
 {

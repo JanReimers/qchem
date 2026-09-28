@@ -37,6 +37,7 @@ import qchem.ChargeDensity.Types;           // tobs_t/cobs_t/robs_t -- this libr
                                             // qcHamiltonian typedefs the engine used to borrow (R1.0e, 2026-09-10)
                                             // with no Hamiltonian dependency of its own; it moves with the engine
 import qchem.ChargeDensity;
+export import qchem.ChargeDensity.TransitionDensity;   // Sample: δρ of a linear response (R2)
 import qchem.Mesh;                          // qcMesh::Mesh/MeshParams (the quadrature the engine integrates on)
 export import qchem.Mesh.Integrator;        // qcMesh::MatrixAdjoint -- the ONE face this engine names
 import qchem.Blaze;                         // blazem::NarrowExact (the real-TRIM narrow, promoted to qcMath 2026-09-08)
@@ -98,6 +99,13 @@ public:
     //! quadrature can answer it (the pair route has no per-spin collocation): those THROW, and the
     //! Hamiltonian's Auto rule keeps a polarized run off them.
     virtual const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const=0;
+    //! \brief \f$\delta\rho_\sigma(r_g)\f$ of a TRANSITION density at my points (doc/LinearResponsePlan.md R2) --
+    //! through the SAME route and projector as \c Rho, so a response samples on exactly the quadrature its
+    //! ground state did.  \a s = \c Spin::None asks for the total (the folded doublet).
+    //! UNCACHED, because it must not evict the SCF iterate's \f$\rho\f$ (the ground-state caches stay warm);
+    //! and NEVER SYMMETRIZED, because a perturbation may break the imposed symmetry and its response must be
+    //! free to (the fold's orbit mean is a property of the ground state, not of δρ).
+    virtual rvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const=0;
     //! \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}v_g\chi_j(r_g)\f$ -- the EXACT ADJOINT of
     //! whatever route \c Rho took, weights included (a caller passes the bare field \f$v\f$).
     virtual chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const=0;

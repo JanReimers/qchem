@@ -68,6 +68,25 @@ public:
     {return up*GetEpsXc(up,dn,Spin::Up) + dn*GetEpsXc(up,dn,Spin::Down);}
     //!@}
 
+    //! \brief THE XC KERNEL \f$f_{xc}^{\sigma\sigma'}=\partial v^\sigma/\partial\rho_{\sigma'}\f$ at
+    //! \f$(\rho_\uparrow,\rho_\downarrow)\f$ -- the second derivative of \f$E_{xc}\f$ a LINEAR RESPONSE needs
+    //! (doc/LinearResponsePlan.md row H3).  Spin-native from the first line, like the face above (pin 5).
+    //!
+    //! THE DEFAULT IS A CENTRAL DIFFERENCE OF THIS FUNCTIONAL'S OWN spin-native \c GetVxc, pointwise, with a
+    //! step relative to the local density -- so every functional answers, correlation included, with no
+    //! second hand-derived formula to disagree with the first (VWN5's spin-polarised second derivatives are
+    //! pages of algebra).  Its error is \f$O(h^2)\f$ in a smooth local function, ~1e-8 relative at the step
+    //! used; an ANALYTIC override is the upgrade where one is short (Slater exchange has one).  Vanishing
+    //! density (\f$\rho\le\f$ 1e-12) answers 0, the same guard every functional's \c GetVxc applies.
+    virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const
+    {
+        const double rho=up+dn;
+        if (!(rho>1e-12)) return 0.0;
+        const double h=1e-3*(t==Spin::Down ? dn : up)+1e-10*rho;   // relative to the channel being varied
+        auto v=[&](double k){return t==Spin::Down ? GetVxc(up,dn+k*h,s) : GetVxc(up+k*h,dn,s);};
+        return (8.0*(v(1)-v(-1))-(v(2)-v(-2)))/(12.0*h);           // four-point, O(h^4)
+    }
+
     //! \brief How much denser the \f$v_{xc}\f$-fit grid must be than the wavefunction bandwidth, as a
     //! multiplier on the fit-basis energy cutoff (the CP2K \c REL_CUTOFF idea).
     //!
@@ -119,6 +138,9 @@ public:
     {double v=0.0; for (const auto& p : itsParts) v+=p->GetVxc(up,dn,s); return v;}
     virtual double GetEpsXc(double up, double dn, const Spin& s) const
     {double e=0.0; for (const auto& p : itsParts) e+=p->GetEpsXc(up,dn,s); return e;}
+    //! Each part answers with its OWN kernel (an analytic override where it has one) -- never a difference of the sum.
+    virtual double GetFxc(double up, double dn, const Spin& s, const Spin& t) const
+    {double f=0.0; for (const auto& p : itsParts) f+=p->GetFxc(up,dn,s,t); return f;}
     //! The DENSEST part wins: a GGA in the mix sets the fit grid for the whole sum.
     virtual double GridCutoffFactor() const
     {double f=1.0; for (const auto& p : itsParts) f=max(f,p->GridCutoffFactor()); return f;}

@@ -15,7 +15,7 @@ same closed shell imposed Polarized == UnPolarized to 1e-8, and LDA via the FD k
 gap is our fitted/coarse-mesh LDA GROUND STATE, measured — §5c).  Every abstract face of §3c landed as ruled
 (Q1–Q5).  Execution record, numbers and the four things R1 taught: §5c.
 
-**NEXT (user's call, §5a order):** CK-1 checkpoint/restart is owed before the Oct 6–20 unattended window
+**R2 IS IN PROGRESS — read §5d first.**  **NEXT (user's call, §5a order):** CK-1 checkpoint/restart is owed before the Oct 6–20 unattended window
 (`OpenWork.md` §2); then **R2** — the periodic q = 0 self-consistent χ: analytic Hartree + LDA f_xc through GPW
 (H3 f_xc, H4 frozen +U), and the MOLECULAR fitted terms' `tResponse_HT` on the way (`FittedVee` is linear —
 its fit constraint is the density's own charge, 0 for δD — and `FittedVxc` needs H3).  R1's open ends are
@@ -596,6 +596,25 @@ the FD oracle · `be07ecbe` OrbitalFrame + LinearResponse + DipoleProbe + the fa
 - Numeric dipole floor ~1e-7 relative.  If a gate ever needs more, implement ANALYTIC ⟨a|r|b⟩ (user's
   trip-wire, Q5: MnD Hermite set-up, libcint `int1e_r` as the oracle) — not a bigger mesh.
 - Our own finite-field SCF (an external-field static term) would be the TIGHT LDA oracle; not built.
+
+### 5d. R2 IN PROGRESS (2026-09-28) — where it stopped
+**Landed (uncommitted work committed as one WIP, UTResponse 14/14, UTHamiltonian 48/48; full sweep NOT yet run):**
+H3 `ExFunctional::GetFxc` (default = 4-point FD of the functional's own spin-native `GetVxc`; Slater analytic;
+composite sums per part) · `tProjectable_CD` hoisted off `tDM_CD` (ProjectOnto, ISP) · the AO transition density
+forwards `tProjectable_CD` + `FourierDensity` · `DensitySampler::Sample(δ, σ)` (uncached, never symmetrized;
+singles + pair routes) · `tResponse_HT` on `Vee_Hartree` (δV_H via δ's G-space face), `Vxc_Quadrature` (ALDA
+f_xc(ρ₀)·δρ_σ, same adjoint gather), `Hubbard_U` (ZERO when frozen or U=0 — the U₀ case; unfrozen THROWS) ·
+`SolidCalculation::HubbardLinearResponse()` (q=0 χ₀, χ, U=diag(χ₀⁻¹−χ⁻¹) in eV; needs `forceComplex`) + a
+friend door for the FD oracle · the FD oracle is now a 4-point stencil.
+**Gate (a), GPW Si Γ LDA, analytic vs FD kernel:** UnPol **7.2e-7** relative; Pol **4e-6** — an h-INDEPENDENT
+floor, NOT the pointwise f_xc (4-point `GetFxc` changed nothing), and WORSE (1.2e-5) for a spin-symmetric δD.
+VWN5 was read and is continuous at ζ=0; `RhoPol`'s tail is linear.  Gated at 1e-5 until named.
+**NEXT:** (1) name the Pol floor — the experiment in flight was δD on the ↑ channel only (isolates f↓↑ + Hartree
+in the ↓ block); suspects left: the ζ≈0 cancellation in VWN `fz` at the unconverged SCF's ζ₀~1e-7, and the Pol
+SCF not converging (`DidConverge` false at MinΔρ 1e-7 — check); (2) run `HubbardLinearResponse` on Si and a TM
+oxide at U=0 (the U₀ target) and write its integration gate; (3) gate (b): finite-difference cDFT — add QE's
+`Hubbard_alpha` (a static α·TT† shift on a manifold, `HubbardManifold::alpha`) and compare χ = dn/dα; (4) full
+`scripts/memsafe ctest -j8`.  Real TRIM blocks still refused (the real-block response face is not built).
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`GPW_OMP_THREADS` is
