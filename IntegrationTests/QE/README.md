@@ -328,3 +328,58 @@ so their self-consistent-U reruns will need a fresh SCF, a modest one-time cost 
 Co is the odd one out electronically (real gapped low-spin d⁶) as well as structurally (the only member
 whose real ground state IS this same R-3m cell — V, Cr and Ni's real ground states are metallic/JT-active
 in ways this idealized treatment does not capture, and Fe's real ground state isn't this phase at all).
+
+## A6 (`doc/HubbardUPlan.md`): TiO₂ (rutile), matched-PP LRT — 2026-09-27
+
+First of the ACBN0-paper's remaining benchmark set (TiO₂/ZnO/FeS₂).  A genuinely different chemistry from
+the whole LiMO₂ row: Ti here is formally **Ti⁴⁺, d⁰** — no partially-occupied shell at all — so this tests
+whether the +U machinery gives a sane number for a NOMINALLY empty correlated orbital (the effect DFT+U has
+on a d⁰ semiconductor's conduction band, a real and common benchmark case, not a mistake).
+
+Geometry: rutile, tetragonal `P4₂/mnm` (#136), from **QE's own `PP/examples/example08`** — a real,
+already-built deck authored by Iurii Timrov himself (one of the `hp.x` method's own authors) —
+`a = b = 4.5941 Å`, `c = 2.9589 Å`, Ti (0,0,0)/(½,½,½), O (0.3057,0.3057,0) and symmetric partners.
+Independently cross-checked against CP2K's own `tests/QS/regtest-sym-2/c_17_rutile.inp` (a symmetry-only
+regtest, but its cell is cited to Wyckoff's *Crystal Structures* Vol. I pp. 250–2): `a=b=4.59373 Å`,
+`c=2.95812 Å` — agrees with the QE source to <0.01%.  QE `ibrav=6` (tetragonal P) used directly:
+`celldm(1) = 8.681591` bohr, `celldm(3) = 0.644065`.  Ti listed first.  GTH Ti q4 (light valence, 3d²4s²,
+matching the row's convention) converts cleanly.
+
+**pw.x ground state (300 Ry, k 4×4×4, `occupations='fixed'`, 41 iterations):** E = −143.26265558 Ry.
+No 2-step recipe needed — unlike every partially-filled-shell material this session, a genuine d⁰ gapped
+semiconductor has no occupation ambiguity for `occupations='fixed'` to resolve.
+
+**hp.x, ortho-atomic, Ti-3d only, nq 2×2×2, U_in≈0 (2026-09-27, 2h32m serial):**
+**U(Ti 3d) = 4.6368 eV** (both symmetry-equivalent Ti sites agree exactly, as expected).  χ₀(Ti,Ti) =
+−0.4313 → χ(Ti,Ti) = −0.1438 (χ/χ₀ ≈ 0.333).  Projected (ortho-atomic) Ti-3d occupation 4.665 electrons
+(out of 10) — even a FORMALLY EMPTY d-shell picks up substantial weight from O-2p→Ti-3d covalent mixing
+under the atomic projector, the same basis-completeness/covalency inflation seen on every other material
+this session, now shown to have NOTHING to do with how many d-electrons are formally present.  Checkpoint
+archived: `checkpoints/tio2_U0.save/`.  Decks: `tio2.scf.in`, `tio2.hp.in`.
+
+## A6 (`doc/HubbardUPlan.md`): ZnO (wurtzite), matched-PP LRT — 2026-09-27 — **NOT A USABLE ORACLE**
+
+Second of the remaining ACBN0-paper set.  Zn here is **Zn²⁺, d¹⁰ — a genuinely CLOSED shell**, not merely
+spin-cancelled the way MnO's high-spin d⁵ is.  Geometry: wurtzite, hexagonal `P6₃mc` (#186), the standard
+literature cell (multiple independent sources converge tightly): `a = 3.2495 Å`, `c = 5.2069 Å`, Zn at
+(⅓,⅔,0)/(⅔,⅓,½), O at (⅓,⅔,u)/(⅔,⅓,u+½) with `u = 0.3825`.  Bond-length check: Zn–O = 1.973 Å (literature
+~1.973–1.99 Å).  QE `ibrav=4` (hexagonal): `celldm(1) = 6.140665` bohr, `celldm(3) = 1.602370`.  Zn listed
+first.  GTH Zn q12 (full 3d¹⁰4s² in the valence, needed since the whole point is putting +U ON the d-shell)
+converts cleanly.  `pw.x` ground state (300 Ry, `occupations='fixed'`, no ambiguity for a real closed-shell
+gapped insulator): E = −306.18412719 Ry, 18 iterations.
+
+**hp.x, ortho-atomic, Zn-3d only, nq 2×2×2, U_in≈0 (2026-09-27, 50m44s serial):** ran without complaint and
+returned **U(Zn 3d) = 35.3358 eV — an order of magnitude larger than every other material this session**,
+and it is **NOT a trustworthy number**.  χ₀(Zn,Zn) = −0.00347 → χ(Zn,Zn) = −0.00309 (χ/χ₀ ≈ 0.89): both are
+TINY compared to every partially-filled-shell material (χ₀ ranged −0.34 to −5.50 for Co/V/Cr/Fe/Ni) and
+nearly equal to each other.  This is **exactly the "closed-shell problem of linear-response U" already named
+in this file for MnO's d⁵ AFM case** (§ MnO entry above: "a filled majority/empty minority shell responds
+weakly... χ₀ and χ nearly equal, so χ₀⁻¹−χ⁻¹ nearly cancels") — but reached by a DIFFERENT mechanism this
+time: MnO's version comes from spin-cancellation (majority filled, minority empty, in a spin-polarized AFM
+calculation); ZnO's comes from genuine electron-shell closure (d¹⁰, no available states for the Hubbard
+perturbation to shift into AT ALL, so the bare response χ₀ itself is tiny, not merely screened away).  Same
+mathematics — inverting the difference of two nearly-equal small numbers — two different physical routes to
+it.  **Do not use 35.34 eV as an oracle value**; flag ZnO/Zn-3d alongside MnO/Mn-3d as a material where
+same-site LRT U is close to ill-posed, not merely "large".  Checkpoint archived anyway (`checkpoints/
+zno_U0.save/`, 104 MB) since the ground state itself is perfectly good — only the U extraction is the
+problem.  Decks: `zno.scf.in`, `zno.hp.in`.

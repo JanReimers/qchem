@@ -1,0 +1,38 @@
+ &control
+    calculation  = 'scf'
+    restart_mode = 'from_scratch',
+    prefix       = 'tio2'
+    pseudo_dir   = './'
+    outdir       = './'
+    tprnfor      = .true.
+    tstress      = .true.
+ /
+ &system
+    ibrav        = 6,
+    celldm(1)    = 8.681591,
+    celldm(3)    = 0.644065,
+    nat          = 6,
+    ntyp         = 2,
+    ecutwfc      = 300.0, input_dft='sla+vwn',
+    ecutrho      = 1200.0,
+    occupations  = 'fixed',
+    nspin        = 1,
+ /
+ &electrons
+    conv_thr    = 1.d-12
+    mixing_beta = 0.7
+ /
+ATOMIC_SPECIES
+ Ti  47.867  Ti.pz-gth-q4.UPF
+ O   15.999  O.pz-gth-q6.UPF
+ATOMIC_POSITIONS {crystal}
+ Ti  0.0000000   0.0000000   0.0000000
+ Ti  0.5000000   0.5000000   0.5000000
+ O   0.3057000   0.3057000   0.0000000
+ O   0.8057000   0.1943000   0.5000000
+ O   0.1943000   0.8057000   0.5000000
+ O   0.6943000   0.6943000   0.0000000
+K_POINTS {automatic}
+ 4 4 4 0 0 0
+HUBBARD {ortho-atomic}
+U Ti-3d 1.d-8

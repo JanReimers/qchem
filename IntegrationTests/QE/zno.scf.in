@@ -1,0 +1,36 @@
+ &control
+    calculation  = 'scf'
+    restart_mode = 'from_scratch',
+    prefix       = 'zno'
+    pseudo_dir   = './'
+    outdir       = './'
+    tprnfor      = .true.
+    tstress      = .true.
+ /
+ &system
+    ibrav        = 4,
+    celldm(1)    = 6.140665,
+    celldm(3)    = 1.602370,
+    nat          = 4,
+    ntyp         = 2,
+    ecutwfc      = 300.0, input_dft='sla+vwn',
+    ecutrho      = 1200.0,
+    occupations  = 'fixed',
+    nspin        = 1,
+ /
+ &electrons
+    conv_thr    = 1.d-12
+    mixing_beta = 0.7
+ /
+ATOMIC_SPECIES
+ Zn  65.380  Zn.pz-gth-q12.UPF
+ O   15.999  O.pz-gth-q6.UPF
+ATOMIC_POSITIONS {crystal}
+ Zn  0.3333333   0.6666667   0.0000000
+ Zn  0.6666667   0.3333333   0.5000000
+ O   0.3333333   0.6666667   0.3825000
+ O   0.6666667   0.3333333   0.8825000
+K_POINTS {automatic}
+ 4 4 4 0 0 0
+HUBBARD {ortho-atomic}
+U Zn-3d 1.d-8
