@@ -15,7 +15,7 @@ same closed shell imposed Polarized == UnPolarized to 1e-8, and LDA via the FD k
 gap is our fitted/coarse-mesh LDA GROUND STATE, measured — §5c).  Every abstract face of §3c landed as ruled
 (Q1–Q5).  Execution record, numbers and the four things R1 taught: §5c.
 
-**R2 DONE 2026-09-28 (§5d: χ_LR = dn/dα to 2.7e-6; two named open items).**  ▶ **User 2026-09-28: CK-1 NEXT, in a fresh session** (`OpenWork.md` §2 row "SCF checkpoint/restart"; QE dump samples in `IntegrationTests/QE/checkpoints/`), then R3.  **NEXT (user's call, §5a order):** CK-1 checkpoint/restart is owed before the Oct 6–20 unattended window
+**R2 DONE 2026-09-28 (§5d: χ_LR = dn/dα to 2.7e-6; two named open items).**  ▶ **CK-1 ✅ DONE 2026-09-28** (`OpenWork.md` §2 row "SCF checkpoint/restart": `SolidCalculation::SaveState` / `saveStateTo` / `Restart`; record in `doc/Records/OpenWork_History4.md` §"CK-1") — so **R3 is NEXT**, and every U₀-vs-hp.x material should now be converged ONCE with `saveStateTo` and restarted from its state.  **NEXT (user's call, §5a order):** CK-1 checkpoint/restart is owed before the Oct 6–20 unattended window
 (`OpenWork.md` §2); then **R2** — the periodic q = 0 self-consistent χ: analytic Hartree + LDA f_xc through GPW
 (H3 f_xc, H4 frozen +U), and the MOLECULAR fitted terms' `tResponse_HT` on the way (`FittedVee` is linear —
 its fit constraint is the density's own charge, 0 for δD — and `FittedVxc` needs H3).  R1's open ends are
@@ -639,7 +639,7 @@ VWN5 was read and is continuous at ζ=0; `RhoPol`'s tail is linear.  Gated at 1e
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`GPW_OMP_THREADS` is
    part of every multi-k recipe** (serial default ⇒ ~1.2 of 16 cores; `OpenWork.md` row KP, measured).
-2. **CK-1 checkpoint/restart** (`OpenWork.md` §2 row "SCF checkpoint/restart") — ⚠ REORDERED 2026-09-28: AFTER R1
+2. ✅ **CK-1 checkpoint/restart — DONE 2026-09-28** (`OpenWork.md` §2 row "SCF checkpoint/restart") — ⚠ REORDERED 2026-09-28: AFTER R1
    (user: DFPT first), but still before the Oct 6–20 window: every A6/A7 material's converged state saved once and reused; CK-2 then lets χ₀ run on a
    stored state with no SCF.
 3. **R1** ✅ 2026-09-28 (molecular CPHF, cheap, needs neither of the above) — §5c.

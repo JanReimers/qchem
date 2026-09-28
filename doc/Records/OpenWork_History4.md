@@ -1882,3 +1882,54 @@ clustering a symmetrised matrix; the PARENT group is the coordination environmen
 >   \f$E_U\f$ by hand; the Si p manifold (l=1, T_d site) is one 3-D cluster (so Uirrep of length 1 == the scalar,
 >   bit-identical to increment 1); MnO AFM-II: the d manifold reports {1, 2, 2} (a1g + eg + eg) under D_3d and
 >   the shell-averaged run is bit-identical with `Uirrep` all equal.
+
+---
+
+## CK-1 ✅ SCF checkpoint/restart — landed 2026-09-28 (moved here the day it closed; the live row keeps CK-2/CK-3 + residuals)
+
+**The row as it stood before execution (verbatim from `doc/OpenWork.md` §2):**
+
+| **SCF checkpoint/restart (wavefunction + ρ to disk)** | the self-consistent-U outer loop (`doc/LinearResponsePlan.md` §4c: converge at U_in, LR to U_out, repeat) needs each iteration's converged state to warm-start the NEXT one — ⚠ **corrected 2026-09-27: IN-PROCESS our `SolidCalculation::ConvergeHubbardU` already warm-starts every outer step from the current density (a fresh stage over `itsImp->cd`); what is missing is ACROSS processes** — crash-resume, the Oct 6–20 unattended window, and a LIBRARY of converged states per material (user 2026-09-27: *"start saving converged state for all these materials … restart any material from a good state"*).  Same need surfaces for AIMD's warm-started `tLASolver` (§2 row "Molecular dynamics") and for restarting any long run after a crash | NOT STARTED.  User (2026-09-27, prompted by the A6 matched-PP oracle runs): *"a way to save the state (wavefunction, rho etc.) so that a SC U calc can quickly pick up **where** the U=0 run finished off"*.  QE's own `.save`/`startingpot='file'`/`startingwfc='file'` do exactly this externally — we have no analogous mechanism for OUR OWN SCF.  **Inspected 2026-09-27 what QE's `.save` actually holds** (a real 4-atom LiCrO₂ run, 300 Ry, 66 MB total): per-k `wfc<N>.dat` (PW coefficients + Miller map + k-vector + spin, `io_base::write_wfc`), `charge-density.dat` (ρ(G) + its G-map, `write_rhog`), **`occup.txt`** — the Hubbard occupation matrix n^I_mm′, saved as ITS OWN small plain-ASCII artifact, separate from ρ, because the +U potential-builder consumes it directly rather than re-deriving it every restart — and `data-file-schema.xml` (full input echo: cell, species, pseudopotentials, k-mesh, XC, U_in, thresholds + summary results), plus copies of the UPFs so the restart is self-contained | design: OUR analogues are the converged D per (k,σ) block (our `charge-density.dat`, but a small AO×AO matrix, not a G-vector list), C/ε/f per (k,σ) (our `wfc`, similarly far smaller since the basis is Gaussian not thousands of PWs), **the Hubbard occupation matrix as its own saved artifact** (the piece a plain-SCF restart would NOT give the self-consistent-U loop for free), and enough of the input echoed alongside to REFUSE a restart into an inconsistent setup rather than silently producing garbage.  A serialisation format (the Viz/GUI plan's HDF5 sidecar, `doc/Records/RunReportPlan.md`, is a candidate carrier, not yet built for this purpose).  Immediate stopgap while unbuilt: for the QE-side A6/A7 oracle work, stop deleting each material's post-SCF `.save` after `hp.x` runs — archive it so a later self-consistent-U rerun on that material can `startingpot/startingwfc='file'` instead of reconverging from an atomic guess  ★ **SCOPED 2026-09-27 — most of the machinery EXISTS, so CK-1 is serialisation + a fingerprint:** restore = `IrrepCD_Factory(D, block, Irrep)` per block + the composite insert; seed = `tSCFIterator`'s pre-built-density (grid-continuation) ctor; subspace = `AdoptMOMReference`.  **CK-1** (before A7 R1, before Oct 6): per (k,σ) save D (AO), C/ε/f (ALL orbitals), and a fingerprint (structure, species/PP, basis id + hash, k-mesh, spin group, functional, +U manifolds, the pivoted-Cholesky kept sets); load = EXACT RESUME or WARM START (U, kT, recipe may differ — the SCU loop and anneals) and a REFUSED Outcome on any structure/basis/k-mesh mismatch.  Carrier: serial HDF5 (installed, `/usr/include/hdf5/serial`; the Viz plan's choice, so `h5py` reads our states).  Our +U n is a function of D (occupations from D_out): stored only as an ECHO recomputed and checked on load, never a second source of truth — EXCEPT frozen-occupation mode (LR/polarons), where n is independent state and must be saved.  No mixer/accelerator history (a restart is a fresh stage — the 2026-09-21 stale-Pulay lesson).  **CK-2**: a WaveFunction read from disk (`tWaveFunction` without `tSCFWaveFunction` — anticipated verbatim by `SCFWaveFunction.C`'s ISP comment), so χ₀/ACBN0/gaps run on a stored state with NO SCF.  **CK-3**: warm start onto a DIFFERENT k-mesh via the real-space \f$D(\mathbf R)=\sum_kw_kD_ke^{i\mathbf k\cdot\mathbf R}\f$.  States live outside git (`~/Code/qchem6-runs/states/<material>/`).  ▶ **2026-09-28 (user): CK-1 is NEXT, in a fresh session**, before the U₀-vs-hp.x series (U₀ = `SolidCalculation::HubbardLinearResponse` at U=0, A7 R2 done).  QE dump samples for comparison of layout/contents: `IntegrationTests/QE/checkpoints/` |
+
+**What was built.**
+- `qchem.HDF5` (src/Common, qcCommon stays Blaze-free): RAII over the SERIAL HDF5 C library, linked by name
+  (`libhdf5_serial`) because the box also carries `libhdf5_openmpi`, which FindHDF5 can pick instead.  Flat C-order
+  buffers + shape; complex as the `{r,i}` compound (h5py → complex128); every failure throws with HDF5's stderr stack
+  silenced; `File::Open` FAILS as a value (the ordinary "no state saved yet").  Group listing (`Children`, `AttrNames`)
+  so the fingerprint reader is generic.
+- `qchem.SolidState` (src/Calculation): `StateFingerprint` (named numeric/string entries in two classes),
+  `MakeStateFingerprint`, `CompareFingerprints` → REFUSED or the list of warm differences (empty = exact resume),
+  `WriteSolidState` (per (k,σ) block: D physical, C/ε/f ALL orbitals; summary; written to `path.tmp`, flushed,
+  renamed), `ReadSolidState`, `RestoreDensity` (one `IrrepCD_Factory` leaf per block, BZ weight re-applied, composed
+  into `tComposite_CD<dcmplx>(bs.GetReciprocalPointOps())` exactly as `tCompositeWF::GetChargeDensity` does).
+- `SolidCalculation`: the constructor split into `BuildBasis` (options, GPW basis, vetting, XC-mesh decision, spin
+  bookkeeping) and `BuildRun` (+U groups/radials, Hamiltonian, accelerator, seed, iterator, banner) — public
+  constructors unchanged.  `Restart` = `BuildBasis` → fingerprint judged against the BUILT blocks (k, weight, size,
+  spin) → `RestoreDensity` → `BuildRun(restored seed)` → `Converge`.  `SaveState`, `saveStateTo` (auto-save after every
+  `Converge`; a failed write WARNS, never kills the run it protects).  The facade now tracks the +U list the
+  Hamiltonian CARRIES (`Imp::hubbard`, updated on every ACBN0 `Apply`), so a save records the U its density belongs to.
+
+**Decisions taken on the way (each argued at its declaration).**
+- Restart is a STATIC FACTORY returning `Outcome<unique_ptr<SolidCalculation>, RestartRefusal>`, not an option on the
+  constructor: a mismatch is a caller-actionable failure (fall back to a fresh seed) and constructors cannot return
+  one; the basis-first split means a refusal costs the GPW basis build only — no Hamiltonian, no seed, no SCF.
+- The fingerprint is judged against the BUILT basis rather than a re-derivation of the k-mesh/IBZ fold — exact by
+  construction, and `RestoreDensity` asserts (logic_error) that it agreed, so a missing fingerprint entry shows up as
+  a defect, not a wrong start.
+- REFUSE: cell, sites (Z, positions), species:valence (sorted), orbital shells (L, components, primitives, centres,
+  exponents, coefficients), blocks (ms, k, weight, n), Nelec, spin group, functional.  WARM: +U (site, l, U, α, flags,
+  Uirrep), multiplicity, densityEcut, cutoffFactor, resolved XC mesh, ortho kind/tol, kT, a block's real/complex type
+  (a complex-saved TRIM block restarts REAL only if |Im D| ≤ 1e-8, else REFUSED `Realness`).
+- The cell matrix is captured from the lattice in `BuildBasis` rather than cast out of the abstract `Structure`
+  (`Structure→UnitCell` would be the abstract→concrete cast CLAUDE.md flags).
+- Restores from D alone (C/ε/f saved for CK-2); no mixer/accelerator history (a restart is a fresh stage — the
+  2026-09-21 stale-Pulay lesson); the +U occupation matrix not saved (a function of D; see the live row's residual b).
+
+**Measured (UTCalculation `SolidState.*`, Si diamond SIPP_SR, densityEcut 20, 2×2×2 = 8 TRIM blocks; 7 gates, ~35 s).**
+Reference runs converge in 8 iterations.  EXACT RESUME Unpol-real: dE = 1.8e-15 in 3 iterations; Pol-complex (16
+blocks): dE = 0 in 3.  File side: Σf = 8 per block (physical occupations), D = C f Cᵀ to 1e-12, Σw = 1.  WARM START
+onto densityEcut 30: first iterate −7.778482297146 vs converged −7.778482297323 (2e-10 Ha; a fresh IonicSAD start is
+6.5e-4 away) — but 9 iterations to the fresh run's 8: ρ_mix halves to 0.5/0.4 and DIIS resets on 1e-12 energy noise,
+so a near-converged start crawls (an accelerator heuristic, recorded as the live row's residual a).  Complex-saved →
+real run and real-saved → forced-complex run: both land on the saved energy in ≤ 3 iterations.  Refusals (k-mesh
+2×2×2 → 1×1×1, spin group, missing file) cost milliseconds.  Full sweep on landing: 967/967 passed (5 disabled, 972 total).
