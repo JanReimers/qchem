@@ -322,7 +322,14 @@ GPW collocation is not strictly variational, so that is a measurement to make, n
 (QE-like) and a fine Becke quadrature reproduce the gapless state (±24 µHa), and QE's own band list puts the
 CBM at Γ with a 3.5 eV direct gap where ours is ~0.13 eV — a state BELOW the PW reference, which the Ritz bound
 forbids for an incomplete basis: ill-conditioning × integral error, so the 1e-3 insulator is likely the
-physical state (full reasoning and the running eps=1e-14 test: `OpenWork.md` §4a row).
+physical state (full reasoning and the running eps=1e-14 test: `OpenWork.md` §4a row).  ★★ **RESOLVED 2026-09-28 — R0 VALIDATED ON A CLEAN
+STATE.**  The pathology was a KB ghost in a near-null direction; the pin-22 VET-STAGE trim at orthoTol=1e-3
+(`NIO_VET=1 NIO_ORTHO_TOL=1e-3`: raw shells Ni s {0.06} + Ni d {0.18} from both sites; min eig S 9.8e-7 → 4.7e-3;
+116/116 in every block) gives a clean insulating NiO: E −106.2021, gap 1.30 eV, 15+6 iterations.  χ₀(q)/χ₀(R=0)
+on Ni1 3d vs hp.x: Γ **0.936/0.935**, 1.038/1.041, 0.989/0.982, 0.986/0.996; on-site −0.1617 vs −0.1130 eV⁻¹ — the
+residual is the ground-state gap (1.30 vs 2.86 eV), a basis/physics comparison.  Log:
+`~/Code/qchem6-runs/a7_r0_nio/nio_k222_imposed_VET1e-3_chi0.log`.  **The NiO gate recipe is §5b's line plus
+`NIO_VET=1 NIO_ORTHO_TOL=1e-3`.**
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** — code landed (`d7c95c92`); the NiO gate is running.  Lesson already banked: **`GPW_OMP_THREADS` is
