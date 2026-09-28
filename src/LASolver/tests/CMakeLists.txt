@@ -2,6 +2,7 @@
 
 add_executable(UTLASolver ../../Common/tests/gtestmain.C
     LASolver.C
+    Krylov.C
 )
 
 target_compile_definitions(UTLASolver PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
