@@ -155,21 +155,25 @@ public:
     //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
     virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity*,const rbs_t* wholeBasis) const;
 protected:
-    //! The one operation that distinguishes Coulomb from exchange: scatter \a dm across canonical irrep pairs
-    //! into the zeroed per-irrep blocks \a X (one per irrep, same order as the density's leaves).
-    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const=0;
-    //! \name THE SPIN AXIS (V1.37 step 3) -- three questions, answered by the concrete term, that used to
+    //! The one operation that distinguishes Coulomb from exchange: scatter the \a sweep operand across the
+    //! canonical irrep pairs into the zeroed per-irrep blocks \a X (one per irrep, in the operand's walk order).
+    //! It takes the narrow HF face -- the ONLY thing the scatter consumes -- so the SAME call serves a ground-
+    //! state density and a transition density (doc/LinearResponsePlan.md §3c: the J/K chain is not duplicated).
+    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const ChargeDensity::tHF_System_CD<double>& sweep) const=0;
+    //! \name THE SPIN AXIS (V1.37 step 3) -- two questions, answered by the concrete term, that used to
     //! be answered by WHICH TYPE it was (Vee / Vxc(-1/2) / two Vxc(-1) inside a VxcPol).
     //!@{
-    //! Which spin keys my blocks: \c Spin::None when the operator ignores the channel (Coulomb sees the
-    //! total), \a s itself when it is per channel (exchange is same-spin).
+    //! Which spin keys my blocks, and so which channel of the density they are built FROM: \c Spin::None when
+    //! the operator ignores the channel (Coulomb sees the total), \a s itself when it is per channel (exchange
+    //! is same-spin).
     virtual Spin           CacheSpin (const Spin& s) const=0;
-    //! The density my spin-\a s blocks are built FROM: the total, or the \a s channel of \a cd.
-    virtual const rDM_CD*  DensityFor(const rChargeDensity* cd, const Spin& s) const=0;
     //! Fock coefficient applied to every block after the scatter (1 for Coulomb; the K coefficient for Vxc,
     //! which depends on whether the block is a folded doublet or one channel).
     virtual double         Scale(const Spin& s) const=0;
     //!@}
+    //! The density my spin-\a s blocks are built from: the \c CacheSpin(s) channel of \a cd (the whole of \a cd
+    //! for \c Spin::None).  THROWS if \a cd does not resolve that channel or carries no density matrix.
+    const rDM_CD*  DensityFor(const rChargeDensity* cd, const Spin& s) const;
     //! Contract \a cd into the whole-system blocks for spin \a s (a CacheSpin) if stale for this density.
     //! Uses itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-basis -- gets the
     //! same symmetry-banked contraction for its (post-diagonalization) density.
@@ -180,6 +184,11 @@ protected:
     //! (over that spin's D) for the density ID'd by \c version.  Keyed by ab-basis BasisSetID, already scaled.
     struct Blocks { size_t version=size_t(-1); std::map<std::string,rsmat_t> jk; };
     mutable std::map<Spin,Blocks> itsJKs;          //!< one Blocks per CacheSpin this run asks for
+private:
+    //! THE ONE CONTRACTION BODY: scatter \a sweep (identified by \a version) into \a slot for spin \a s, unless
+    //! \a slot already holds that version.  Every entry -- the Fock build, the energy, a response -- comes here.
+    const std::map<std::string,rsmat_t>& Contract(Blocks& slot, const ChargeDensity::tHF_System_CD<double>& sweep,
+                                                  size_t version, const Spin& s) const;
 };
 
 class Vee : public Dynamic_HF_HT_Imp
@@ -188,10 +197,9 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 protected:
-    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const;
+    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const ChargeDensity::tHF_System_CD<double>& sweep) const;
     // Coulomb sees the TOTAL density and ignores the channel: one set of blocks serves every spin.
     virtual Spin          CacheSpin (const Spin&) const {return Spin::None;}
-    virtual const rDM_CD* DensityFor(const rChargeDensity* cd, const Spin&) const;
     virtual double        Scale(const Spin&) const {return 1.0;}
 };
 
@@ -212,9 +220,8 @@ public:
     virtual void           GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
 protected:
-    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const;
+    virtual void          AccumulateAll(std::vector<rsmat_t>& X,const ChargeDensity::tHF_System_CD<double>& sweep) const;
     virtual Spin          CacheSpin (const Spin& s) const {return s;}          // same-spin: per channel
-    virtual const rDM_CD* DensityFor(const rChargeDensity* cd, const Spin& s) const;
     virtual double        Scale(const Spin& s) const {return s==Spin::None ? -0.5 : -1.0;}
 };
 
