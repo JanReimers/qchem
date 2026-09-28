@@ -4,10 +4,13 @@ module;
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 module qchem.Response;
 import qchem.Orbitals;                   // TOrbitals / TOrbital (the per-block orbital sets)
 import qchem.BasisSet.Orbital_DFT_IBS;   // the block basis the projector amplitudes are asked on
+import qchem.Mesh.Quadrature;            // MatrixOverlap: <chi_a| r_i |chi_b> on a mesh (the dipole probe)
+import qchem.ScalarFunction;
 import qchem.Blaze;
 
 namespace qchem::Response
@@ -18,7 +21,7 @@ namespace {
 // Every block is visited in the wave function's own QN order, by both adapters -- so block b of the
 // Reference and block b of the probe are the same (k, σ).  A block's orbitals are either scalar (a real
 // TRIM block inside a complex run is TOrbitals<double>); the visitor hands each branch its native type.
-template <class Visit> void ForEachBlock(const WaveFunction::cWaveFunction& wf, Visit&& visit)
+template <class T, class Visit> void ForEachBlock(const WaveFunction::tWaveFunction<T>& wf, Visit&& visit)
 {
     for (const Irrep& ir : wf.GetQNs())
     {
@@ -46,10 +49,21 @@ template <class U> mat_t<U> Coefficients(const Orbitals::TOrbitals<U>& os, size_
 cmat_t ToComplex(const mat_t<double>& m) {cmat_t c(m.rows(),m.columns()); for (size_t i=0;i<m.rows();i++) for (size_t j=0;j<m.columns();j++) c(i,j)=m(i,j); return c;}
 cmat_t ToComplex(const mat_t<dcmplx>& m) {return m;}
 
+//! One Cartesian coordinate \f$r_i\f$ as a scalar field: the dipole operator's multiplicative kernel.
+class Coordinate : public ScalarFunction<double>
+{
+public:
+    explicit Coordinate(int i) : itsI(i) {}
+    virtual double  operator()(const rvec3_t& r) const override {return itsI==0 ? r.x : itsI==1 ? r.y : r.z;}
+    virtual rvec3_t Gradient  (const rvec3_t&  ) const override {return rvec3_t(itsI==0, itsI==1, itsI==2);}
+private:
+    int itsI;
+};
+
 } // namespace
 
-Reference MakeReference(const WaveFunction::cWaveFunction& wf, const OccupationConfig& occ, Reservoirs res,
-                        double eigenNoise)
+template <class T> Reference MakeReference(const WaveFunction::tWaveFunction<T>& wf, const OccupationConfig& occ,
+                                           Reservoirs res, double eigenNoise)
 {
     std::vector<ReferenceBlock> blocks;
     ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
@@ -89,6 +103,50 @@ Reference MakeReference(const WaveFunction::cWaveFunction& wf, const OccupationC
     }
     return Reference(std::move(blocks), MakeOccupancyRule(occ), eigenNoise);
 }
+template Reference MakeReference<double>(const WaveFunction::tWaveFunction<double>&, const OccupationConfig&, Reservoirs, double);
+template Reference MakeReference<dcmplx>(const WaveFunction::tWaveFunction<dcmplx>&, const OccupationConfig&, Reservoirs, double);
+
+template <class T> OrbitalFrame<T> MakeOrbitalFrame(const Reference& ref, const WaveFunction::tWaveFunction<T>& wf)
+{
+    std::vector<FrameBlock<T>> blocks;
+    ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
+    {
+        if constexpr (!std::is_same_v<U,T>)
+            throw std::logic_error("Response::MakeOrbitalFrame: a block whose scalar is not the run's (a real TRIM block "
+                                   "inside a complex run) -- the mixed-scalar frame is R2's");
+        else
+        {
+            const auto* bs=dynamic_cast<const ChargeDensity::tobs_t<T>*>(os.GetBasisSet());
+            if (!bs) throw std::logic_error("Response::MakeOrbitalFrame: an orbital block that is not an Orbital_1E_IBS");
+            blocks.push_back({ir, bs, Coefficients(os, bs->GetNumFunctions())});
+        }
+    });
+    return OrbitalFrame<T>(ref, std::move(blocks));
+}
+template OrbitalFrame<double> MakeOrbitalFrame<double>(const Reference&, const WaveFunction::tWaveFunction<double>&);
+template OrbitalFrame<dcmplx> MakeOrbitalFrame<dcmplx>(const Reference&, const WaveFunction::tWaveFunction<dcmplx>&);
+
+template <class T> OperatorProbe MakeDipoleProbe(const Reference& ref, const OrbitalFrame<T>& frame,
+                                                 const WaveFunction::tWaveFunction<T>& wf, const qcMesh::Mesh& mesh)
+{
+    auto rule=std::make_shared<Symmetry::Invariant>();
+    std::vector<Hamiltonian::AO_TransitionFock<T>> ao(3, Hamiltonian::AO_TransitionFock<T>(rule));
+    ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
+    {
+        if constexpr (std::is_same_v<U,T>)
+        {
+            const auto* bs=dynamic_cast<const ChargeDensity::tobs_t<T>*>(os.GetBasisSet());
+            if (!bs) throw std::logic_error("Response::MakeDipoleProbe: an orbital block that is not an Orbital_1E_IBS");
+            for (int i=0;i<3;i++) ao[i].Add(ir, ir, mat_t<T>(qcMesh::MatrixOverlap<T>(mesh, *bs, Coordinate(i))));
+        }
+        else throw std::logic_error("Response::MakeDipoleProbe: a block whose scalar is not the run's");
+    });
+    std::vector<BlockPairs> ops;
+    for (int i=0;i<3;i++) ops.push_back(frame.ToMO(ao[i], *rule));
+    return OperatorProbe(ref, std::move(ops), {"x","y","z"}, rule);
+}
+template OperatorProbe MakeDipoleProbe<double>(const Reference&, const OrbitalFrame<double>&, const WaveFunction::tWaveFunction<double>&, const qcMesh::Mesh&);
+template OperatorProbe MakeDipoleProbe<dcmplx>(const Reference&, const OrbitalFrame<dcmplx>&, const WaveFunction::tWaveFunction<dcmplx>&, const qcMesh::Mesh&);
 
 AmplitudeProbe MakeHubbardProbe(const Reference& ref, const WaveFunction::cWaveFunction& wf,
                                 const Hamiltonian::HubbardChannels& hub)

@@ -27,6 +27,7 @@ import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, Energ
 import qchem.Symmetry.Irrep;       // Irrep
 import qchem.ChargeDensity;        // rDM_CD
 import qchem.ChargeDensity.Seed;   // SeedStrategy
+export import qchem.Response;      // the linear response (StaticPolarizability's Outcome and its failure)
 
 export namespace qchem
 {
@@ -142,6 +143,18 @@ public:
 
     size_t           IterationCount() const;
     bool             IsConverged()    const;
+    //! \brief The static dipole POLARIZABILITY tensor \f$\alpha_{ij}=-\partial^2E/\partial F_i\partial F_j\f$
+    //! (bohr³) of the converged state, by a SELF-CONSISTENT linear response on the Hamiltonian's analytic kernel
+    //! -- CPHF for HF (doc/LinearResponsePlan.md stage R1).  The dipole matrices are numerical, on
+    //! \a dipoleMesh (ruling Q5).  MEASURED on H2O/dzvp: the numerical dipole oscillates about the analytic
+    //! answer at ~1e-7 relative whatever the mesh (a Becke-quadrature floor; IntegrationTests/M_Response.C).
+    //! FAILS on an ungapped reference (E1) or a Krylov solve that does not reach \a krylov.tol.  THROWS for a
+    //! model whose Hamiltonian cannot be linearised yet (LDA until R2 gives its fitted terms the face).
+    //! Reports the per-channel χ0 / χ and residuals on stdout, at its own activity.
+    Outcome<rmat_t,Response::ResponseFailure> StaticPolarizability(
+        const qcMesh::MeshParams& dipoleMesh = {.radial=qcMesh::RadialKind::MHL, .nRadial=80, .mhl_m=3, .mhl_alpha=2.0,
+                                                .angular=qcMesh::AngularKind::Lebedev, .angularDegree=35, .beckeOrder=3},
+        const KrylovParams& krylov = {.tol=1e-10}) const;
     const Structure& GetStructure()   const {return *itsStructure;}
 
 private:

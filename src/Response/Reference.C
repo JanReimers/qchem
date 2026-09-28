@@ -64,7 +64,7 @@ struct BlockPairs
 //! the state and the mesh and can choose again.
 struct ResponseFailure
 {
-    enum class Why {Inverted, Unresolved, Incommensurate};
+    enum class Why {Inverted, Unresolved, Incommensurate, NotConverged};
     Why         why=Why::Unresolved;
     std::string detail;
 };
@@ -117,6 +117,11 @@ public:
     //! \f$\sum_b w_b\sum_{mn}\bar a_{b,mn}\,x_{b,mn}\f$ -- the BZ-weighted pairing of an operator with a
     //! first-order density: an expectation value's first-order change, per unit cell.
     dcmplx Contract(const BlockPairs& a, const BlockPairs& x) const;
+    //! \brief The FLAT vector a Krylov solver works on (ruling Q3): every block pair's matrix, in block order,
+    //! column-major.  The orbital basis is orthonormal, so the solver's Euclidean inner product is the right one.
+    cvec_t     Pack  (const BlockPairs& x) const;
+    //! The inverse of Pack, on \a rule's pairs (it fixes each matrix's shape: bra orbitals x ket orbitals).
+    BlockPairs Unpack(const cvec_t& v, const SelectionRule& rule) const;
 
 private:
     std::vector<ReferenceBlock>    itsBlocks;

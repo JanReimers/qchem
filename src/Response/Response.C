@@ -12,7 +12,10 @@ module;
 export module qchem.Response;
 export import qchem.Response.Reference;
 export import qchem.Response.Probe;
-export import qchem.WaveFunction;                       // cWaveFunction
+export import qchem.Response.OrbitalFrame;
+export import qchem.Response.Solver;
+export import qchem.WaveFunction;                       // tWaveFunction
+export import qchem.Mesh;                               // qcMesh::Mesh (the dipole probe's quadrature)
 export import qchem.Hamiltonian.HubbardChannels;        // the +U projectors
 
 export namespace qchem::Response
@@ -31,8 +34,21 @@ struct Reservoirs
 //! occupations (virtuals included), its BZ weight, over the run's own occupancy rule.
 //! \a occ is the configuration the FINAL SCF stage filled with (the rule is rebuilt from the same value,
 //! E1); \a eigenNoise is that stage's measured eigenvalue noise (Hartree).  THROWS on an IBZ-reduced run (D5).
-Reference MakeReference(const WaveFunction::cWaveFunction& wf, const OccupationConfig& occ, Reservoirs res,
-                        double eigenNoise);
+//! Molecule (T = double) or crystal (T = dcmplx) alike: a molecular block is one point-group irrep.
+template <class T> Reference MakeReference(const WaveFunction::tWaveFunction<T>& wf, const OccupationConfig& occ,
+                                           Reservoirs res, double eigenNoise);
+
+//! \brief The AO <-> MO bridge of \a wf, block-aligned with \a ref (which must be \a wf's reference, and outlive
+//! the frame).  THROWS on a block whose scalar or basis is not the run's T (a real TRIM block inside a complex run
+//! is R2's business).
+template <class T> OrbitalFrame<T> MakeOrbitalFrame(const Reference& ref, const WaveFunction::tWaveFunction<T>& wf);
+
+//! \brief The three DIPOLE channels x, y, z: \f$\hat O_i=r_i\f$ (origin at 0; a neutral system's polarisability
+//! does not depend on it), as a totally symmetric (\c Invariant) perturbation -- the CPHF/CPKS probe of stage R1.
+//! The AO matrices \f$\langle\chi_a|r_i|\chi_b\rangle\f$ are NUMERICAL, on \a mesh (ruling Q5: no basis-interface
+//! change; the caller measures the mesh error by comparing two meshes).
+template <class T> OperatorProbe MakeDipoleProbe(const Reference& ref, const OrbitalFrame<T>& frame,
+                                                 const WaveFunction::tWaveFunction<T>& wf, const qcMesh::Mesh& mesh);
 
 //! \brief The run's Hubbard manifolds as probe channels: each block's orbitals' amplitudes on each channel's
 //! projector functions, from the +U term's OWN projectors (\a hub, \c tHamiltonian::GetHubbardChannels) --

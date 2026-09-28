@@ -1,5 +1,7 @@
 // File: Calculation/Imp/Calculation.C  Implementation of the qchem::Calculation facade.
 module;
+#include <iostream>
+#include <limits>
 #include <memory>
 #include <vector>
 #include <string>
@@ -240,6 +242,36 @@ bool Calculation::Converge(const SCFParams& params)
 
     RebuildSampling();
     return ok;
+}
+
+// The linear response of the converged state: Reference (R0, orbital basis) + frame (AO <-> MO) + the
+// Hamiltonian's kernel + the dipole probe, solved together by GMRES (qcResponse).  The facade is the one place
+// that owns all four ingredients, which is why the entry point is here.
+Outcome<rmat_t,Response::ResponseFailure> Calculation::StaticPolarizability(const qcMesh::MeshParams& dipoleMesh,
+                                                                            const KrylovParams& krylov) const
+{
+    const auto* wf=itsScf ? itsScf->GetWaveFunction() : nullptr;
+    if (!wf) throw std::logic_error("Calculation::StaticPolarizability: no converged wave function");
+    // Integer occupations (the molecular aufbau fills across irreps, per spin channel).  The eigenvalue noise is
+    // not measured by this facade yet: NaN says so, and E1 then gates on the gap's sign only.
+    const Response::Reference ref=Response::MakeReference(*wf, OccupationConfig{}, {.acrossK=true, .acrossSpin=false},
+                                                          std::numeric_limits<double>::quiet_NaN());
+    const Response::OrbitalFrame<double> frame=Response::MakeOrbitalFrame(ref, *wf);
+    const auto kernel=itsHam->MakeResponseKernel(itsBasis, itsDensity.get());
+    const Response::OperatorProbe probe=Response::MakeDipoleProbe(ref, frame, *wf,
+                                                                  itsStructure->CreateIntegrationMesh(dipoleMesh));
+    auto r=Response::LinearResponse(ref, frame, *kernel, probe, std::make_shared<Symmetry::Invariant>(), krylov);
+    using O=Outcome<rmat_t,Response::ResponseFailure>;
+    if (!r)
+    {
+        std::cout << "[response] FAILED: " << r.Error().detail << std::endl;
+        return O::Fail(r.Error());
+    }
+    r->Write(std::cout);
+    // H = H0 + F.r for an electron (charge -1), so mu = -<r> and alpha = d mu / dF = -chi.
+    rmat_t alpha(3,3);
+    for (size_t i=0;i<3;i++) for (size_t j=0;j<3;j++) alpha(i,j)=-r->chi(i,j).real();
+    return O::Ok(std::move(alpha));
 }
 
 void Calculation::RebuildSampling()

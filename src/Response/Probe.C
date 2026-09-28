@@ -16,6 +16,7 @@
 // what an oracle comparison uses.
 module;
 #include <iosfwd>
+#include <memory>
 #include <string>
 #include <vector>
 export module qchem.Response.Probe;
@@ -54,6 +55,28 @@ private:
     const Reference&                 itsRef;
     std::vector<std::vector<cmat_t>> itsAmp;
     std::vector<std::string>         itsLabels;
+};
+
+//! \brief Channels given by one-body OPERATORS \f$\hat O_J\f$ (a dipole component, later an SOC or field
+//! operator): channel J perturbs with \f$\hat O_J\f$ and every channel I reads \f$\langle\hat O_I\rangle\f$ --
+//! the Adjoint/Forward pair again, with the SAME matrices both ways.  \c ops[J] is \f$\hat O_J\f$ in the
+//! orbital basis on \a rule's block pairs (the \c OrbitalFrame's ToMO of its AO matrices).
+class OperatorProbe : public ChannelProbe
+{
+public:
+    OperatorProbe(const Reference& ref, std::vector<BlockPairs> ops, std::vector<std::string> labels,
+                  std::shared_ptr<const SelectionRule> rule);
+    virtual size_t      NumChannels() const override {return itsLabels.size();}
+    virtual std::string Label(size_t I) const override {return itsLabels[I];}
+    //! THROWS if \a rule pairs the blocks differently from the rule the operators were built on.
+    virtual BlockPairs  Perturbation(size_t J, const SelectionRule& rule) const override;
+    virtual cvec_t      Measure(const SelectionRule& rule, const BlockPairs& dD) const override;
+private:
+    void CheckRule(const SelectionRule& rule) const;
+    const Reference&                     itsRef;
+    std::vector<BlockPairs>              itsOps;
+    std::vector<std::string>             itsLabels;
+    std::shared_ptr<const SelectionRule> itsRule;
 };
 
 //! \brief The channel response matrix over a q-mesh: \f$\chi_{IJ}(\mathbf q)=\delta n_I/\delta\alpha_J\f$

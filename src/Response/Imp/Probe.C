@@ -4,6 +4,7 @@ module;
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -46,6 +47,37 @@ cvec_t AmplitudeProbe::Measure(const SelectionRule& rule, const BlockPairs& dD) 
 {
     cvec_t n(NumChannels());
     for (size_t I=0;I<NumChannels();I++) n[I]=itsRef.Contract(Perturbation(I,rule), dD);
+    return n;
+}
+
+OperatorProbe::OperatorProbe(const Reference& ref, std::vector<BlockPairs> ops, std::vector<std::string> labels,
+                             std::shared_ptr<const SelectionRule> rule)
+    : itsRef(ref), itsOps(std::move(ops)), itsLabels(std::move(labels)), itsRule(std::move(rule))
+{
+    if (!itsRule) throw std::invalid_argument("OperatorProbe: no selection rule");
+    if (itsOps.size()!=itsLabels.size()) throw std::invalid_argument("OperatorProbe: one label per operator");
+    for (const auto& o : itsOps)
+        if (o.m.size()!=itsRef.NumBlocks()) throw std::invalid_argument("OperatorProbe: an operator without one matrix per block");
+}
+
+void OperatorProbe::CheckRule(const SelectionRule& rule) const
+{
+    if (itsRef.Partners(rule)!=itsRef.Partners(*itsRule))
+        throw std::logic_error("OperatorProbe: asked under a selection rule that pairs the blocks differently from "
+                               "the one its operators were built on");
+}
+
+BlockPairs OperatorProbe::Perturbation(size_t J, const SelectionRule& rule) const
+{
+    CheckRule(rule);
+    return itsOps[J];
+}
+
+cvec_t OperatorProbe::Measure(const SelectionRule& rule, const BlockPairs& dD) const
+{
+    CheckRule(rule);
+    cvec_t n(NumChannels());
+    for (size_t I=0;I<NumChannels();I++) n[I]=itsRef.Contract(itsOps[I], dD);
     return n;
 }
 

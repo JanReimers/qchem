@@ -171,4 +171,35 @@ dcmplx Reference::Contract(const BlockPairs& a, const BlockPairs& x) const
     return s;
 }
 
+cvec_t Reference::Pack(const BlockPairs& x) const
+{
+    if (x.m.size()!=itsBlocks.size()) throw std::invalid_argument("Response::Reference::Pack: one matrix per block");
+    size_t n=0;
+    for (const auto& m : x.m) n+=m.rows()*m.columns();
+    cvec_t v(n);
+    size_t i=0;
+    for (const auto& m : x.m)
+        for (size_t c=0;c<m.columns();c++)
+            for (size_t r=0;r<m.rows();r++) v[i++]=m(r,c);
+    return v;
+}
+
+BlockPairs Reference::Unpack(const cvec_t& v, const SelectionRule& rule) const
+{
+    const std::vector<size_t> p=Partners(rule);
+    BlockPairs x;
+    x.m.resize(itsBlocks.size());
+    size_t i=0;
+    for (size_t b=0;b<itsBlocks.size();b++)
+    {
+        cmat_t& m=x.m[b];
+        m.resize(NumOrbitals(p[b]), NumOrbitals(b));
+        if (i+m.rows()*m.columns()>v.size()) throw std::invalid_argument("Response::Reference::Unpack: the vector is too short");
+        for (size_t c=0;c<m.columns();c++)
+            for (size_t r=0;r<m.rows();r++) m(r,c)=v[i++];
+    }
+    if (i!=v.size()) throw std::invalid_argument("Response::Reference::Unpack: the vector is too long");
+    return x;
+}
+
 } // namespace

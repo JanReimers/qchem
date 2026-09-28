@@ -37,6 +37,7 @@ add_executable(ITMain gtestmain.C
     # THE GPW SCF GRID (doc/TestSuitePlan.md §4): directory per basis family, file per material, ONE exe.
     GPW/Si.C GPW/Al.C GPW/Na.C GPW/NaF.C GPW/MnO.C GPW/Boxes.C
     M_Calculation.C
+    M_Response.C
     M_Umbrella.C
     )
 # The QchemTester/TestAtom/TestDiracAtom/TestMolecule scaffold is RETIRED: every molecular test drives
