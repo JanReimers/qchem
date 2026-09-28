@@ -33,19 +33,19 @@ AmplitudeProbe::AmplitudeProbe(const Reference& ref, std::vector<std::vector<cma
 }
 
 // A^J on the pair (k, k+q): <psi_{m,k+q}| P_J e^{iq.R} |psi_{n,k}> = sum_mu conj(l_{mu m}(k+q)) l_{mu n}(k).
-BlockPairs AmplitudeProbe::Perturbation(size_t J, const MeshShift& q) const
+BlockPairs AmplitudeProbe::Perturbation(size_t J, const SelectionRule& rule) const
 {
-    const std::vector<size_t> p=itsRef.Partners(q);
+    const std::vector<size_t> p=itsRef.Partners(rule);
     BlockPairs A;
     A.m.reserve(p.size());
     for (size_t b=0;b<p.size();b++) A.m.push_back(cmat_t(blazem::ctrans(itsAmp[p[b]][J])*itsAmp[b][J]));
     return A;
 }
 
-cvec_t AmplitudeProbe::Measure(const MeshShift& q, const BlockPairs& dD) const
+cvec_t AmplitudeProbe::Measure(const SelectionRule& rule, const BlockPairs& dD) const
 {
     cvec_t n(NumChannels());
-    for (size_t I=0;I<NumChannels();I++) n[I]=itsRef.Contract(Perturbation(I,q), dD);
+    for (size_t I=0;I<NumChannels();I++) n[I]=itsRef.Contract(Perturbation(I,rule), dD);
     return n;
 }
 

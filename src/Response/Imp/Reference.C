@@ -40,7 +40,7 @@ Outcome<std::vector<MeshShift>,ResponseFailure> Reference::QMesh(ivec3_t Nq) con
     return O::Ok(qs.TakeValue());
 }
 
-std::vector<size_t> Reference::Partners(const MeshShift& q) const
+std::vector<size_t> Reference::Partners(const SelectionRule& rule) const
 {
     std::vector<size_t> out(itsBlocks.size());
     for (size_t b=0;b<itsBlocks.size();b++)
@@ -48,25 +48,26 @@ std::vector<size_t> Reference::Partners(const MeshShift& q) const
         size_t n=0;
         for (size_t c=0;c<itsBlocks.size();c++)
             if (itsBlocks[c].irrep.ms==itsBlocks[b].irrep.ms &&
-                Symmetry::Lattice_3D::IsShiftOf(*itsBlocks[c].irrep.sym, *itsBlocks[b].irrep.sym, q)) {out[b]=c; n++;}
+                rule.Couples(*itsBlocks[c].irrep.sym, *itsBlocks[b].irrep.sym)) {out[b]=c; n++;}
         if (n!=1)
         {
             std::ostringstream os;
             os << "Response::Reference::Partners: block " << itsBlocks[b].irrep << " has " << n
-               << " stored partners at q=" << q << " (exactly 1 needed: a full, unreduced k-mesh, D5)";
+               << " stored partners under this selection rule (exactly 1 needed; for a lattice, a full, unreduced"
+                  " k-mesh, D5)";
             throw std::logic_error(os.str());
         }
     }
     return out;
 }
 
-Outcome<ResponseGap,ResponseFailure> Reference::Gap(const MeshShift& q) const
+Outcome<ResponseGap,ResponseFailure> Reference::Gap(const SelectionRule& rule) const
 {
     using O=Outcome<ResponseGap,ResponseFailure>;
     ResponseGap r;
     r.noise=itsNoise;
     if (!itsRule->RequiresResolvedGap()) return O::Ok(r);   // a smeared weight is bounded: nothing to gate
-    const std::vector<size_t> p=Partners(q);
+    const std::vector<size_t> p=Partners(rule);
     size_t bw=0, nw=0, mw=0;
     for (size_t b=0;b<itsBlocks.size();b++)
     {
@@ -87,9 +88,9 @@ Outcome<ResponseGap,ResponseFailure> Reference::Gap(const MeshShift& q) const
         const ReferenceBlock& kq=itsBlocks[p[bw]];
         std::ostringstream os;
         os << std::setprecision(6)
-           << (r.gap<=0.0 ? "INVERTED coupled pair" : "UNRESOLVED coupled pair") << " at q=" << q
-           << ": k-block " << k.irrep << " orbital " << nw << " (e=" << k.e[nw] << ", f=" << k.f[nw] << ")"
-           << " -> k+q block " << kq.irrep << " orbital " << mw << " (e=" << kq.e[mw] << ", f=" << kq.f[mw] << ")"
+           << (r.gap<=0.0 ? "INVERTED coupled pair" : "UNRESOLVED coupled pair")
+           << ": ket block " << k.irrep << " orbital " << nw << " (e=" << k.e[nw] << ", f=" << k.f[nw] << ")"
+           << " -> bra block " << kq.irrep << " orbital " << mw << " (e=" << kq.e[mw] << ", f=" << kq.f[mw] << ")"
            << ", gap " << r.gap << " Ha against eigenvalue noise ";
         if (isfinite(itsNoise)) os << itsNoise << " Ha.";
         else                    os << "UNMEASURED (this recipe computes no [F,D]; only the gap's sign was gated).";
@@ -102,10 +103,15 @@ Outcome<ResponseGap,ResponseFailure> Reference::Gap(const MeshShift& q) const
     return O::Ok(r);
 }
 
-BlockPairs Reference::ApplyR0(const MeshShift& q, const BlockPairs& dF) const
+BlockPairs Reference::ApplyR0(const SelectionRule& rule, const BlockPairs& dF) const
 {
     if (dF.m.size()!=itsBlocks.size()) throw std::invalid_argument("Response::Reference::ApplyR0: one matrix per block");
-    const std::vector<size_t> p=Partners(q);
+    const std::vector<size_t> p=Partners(rule);
+    // The Fermi shift exists only when the perturbation has a DIAGONAL (δF_nn on one block): every block is
+    // its own partner -- q = 0, or a totally symmetric molecular perturbation.  A k -> k+q or A1 -> B1
+    // perturbation moves no level at first order, so it cannot move μ.
+    bool selfPaired=true;
+    for (size_t b=0;b<p.size();b++) selfPaired = selfPaired && p[b]==b;
     BlockPairs dD;
     dD.m.resize(itsBlocks.size());
     // The q = 0 Fermi shift, per reservoir: the numerator and denominator of δμ_r.
@@ -125,7 +131,7 @@ BlockPairs Reference::ApplyR0(const MeshShift& q, const BlockPairs& dF) const
         for (size_t m=0;m<kq.e.size();m++)
             for (size_t n=0;n<k.e.size();n++)
                 X(m,n) = k.g*itsRule->ResponseWeight(k.e[n],k.f[n],kq.e[m],kq.f[m]) * F(m,n);
-        if (q.IsZero())
+        if (selfPaired)
         {
             grow(k.reservoir);
             for (size_t n=0;n<k.e.size();n++)
@@ -136,7 +142,7 @@ BlockPairs Reference::ApplyR0(const MeshShift& q, const BlockPairs& dF) const
             }
         }
     }
-    if (q.IsZero())
+    if (selfPaired)
         for (size_t b=0;b<itsBlocks.size();b++)
         {
             const ReferenceBlock& k=itsBlocks[b];

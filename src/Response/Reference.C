@@ -28,7 +28,8 @@ module;
 #include <vector>
 export module qchem.Response.Reference;
 export import qchem.Symmetry.Irrep;
-export import qchem.Symmetry.Lattice_3D.BlochQN;               // MeshShift
+export import qchem.Symmetry.Lattice_3D.BlochQN;               // MeshShift (the lattice selection rule, and the q-mesh)
+export import qchem.Symmetry.SelectionRule;                     // which block a perturbation couples to which (S1)
 export import qchem.ElectronConfiguration.OccupationPolicy;    // OccupancyRule
 export import qchem.Outcome;
 export import qchem.Types;
@@ -36,6 +37,7 @@ export import qchem.Types;
 export namespace qchem::Response
 {
 using Symmetry::Lattice_3D::MeshShift;
+using Symmetry::SelectionRule;
 using cmat_t=mat_t<dcmplx>;
 
 //! \brief One stored block of the unperturbed state: a (k, σ) Bloch block of a FULL mesh.  A construction
@@ -50,8 +52,9 @@ struct ReferenceBlock
     int    reservoir=0;    //!< blocks sharing one chemical potential share an id -- the q=0 Fermi shift δμ
 };
 
-//! Matrices on the block pairs of ONE shift q, in the orbital basis: \c m[b] is
-//! \f$n_{\rm orb}(k+q)\times n_{\rm orb}(k)\f$ for block \a b = k and its partner k+q.
+//! Matrices on the block pairs ONE selection rule couples, in the orbital basis: \c m[b] is
+//! \f$n_{\rm orb}({\rm bra})\times n_{\rm orb}(b)\f$ for ket block \a b and its partner bra block (k+q for a
+//! lattice shift, \a b itself for an \c Invariant perturbation).
 struct BlockPairs
 {
     std::vector<cmat_t> m;
@@ -94,19 +97,23 @@ public:
 
     //! The q-mesh of \a Nq divisions on this reference's k-mesh -- FAILS if incommensurate.
     Outcome<std::vector<MeshShift>,ResponseFailure> QMesh(ivec3_t Nq) const;
-    //! For every block k, the index of its partner k+q (same spin).  THROWS if a partner is not stored:
-    //! the full-mesh precondition (D5) was broken, which no caller can repair here.
-    std::vector<size_t> Partners(const MeshShift& q) const;
-    //! The RESPONSE GAP over the pairs \a q couples (see the file header): FAILS on an inverted or
+    //! For every ket block, the index of the ONE bra block \a rule couples it to (same spin): k+q for a
+    //! \c MeshShift, itself for an \c Invariant perturbation.  THROWS unless exactly one partner is stored:
+    //! for a lattice, the full-mesh precondition (D5) was broken, which no caller can repair here.
+    //! (Exactly one: a point-group product rule that couples one ket to SEVERAL bra irreps generalises the
+    //! BlockPairs layout, when it is built.)
+    std::vector<size_t> Partners(const SelectionRule& rule) const;
+    //! The RESPONSE GAP over the pairs \a rule couples (see the file header): FAILS on an inverted or
     //! unresolved pair when the rule needs a resolved gap; otherwise the measured gap (inf for a smeared rule).
-    Outcome<ResponseGap,ResponseFailure> Gap(const MeshShift& q) const;
-    //! \brief R0: a first-order Fock change \a dF on \a q's block pairs (orbital basis) -> the independent-
-    //! particle first-order density matrix.  At q = 0 it adds the Fermi-level shift of each RESERVOIR,
+    Outcome<ResponseGap,ResponseFailure> Gap(const SelectionRule& rule) const;
+    //! \brief R0: a first-order Fock change \a dF on \a rule's block pairs (orbital basis) -> the independent-
+    //! particle first-order density matrix.  When every block is its OWN partner (q = 0, or a totally
+    //! symmetric perturbation) it adds the Fermi-level shift of each RESERVOIR,
     //! \f$\delta\mu_r=\sum_{b\in r}w_b\sum_n D_n\delta F_{nn}/\sum_{b\in r}w_b\sum_n D_n\f$ with \f$D_n=g f'_n\f$,
     //! so every reservoir keeps its electron count (\f$\delta f_n=f'_n(\delta\varepsilon_n-\delta\mu)\f$).
     //! An integer rule has \f$f'\equiv0\f$, so it shifts nothing.
-    //! \warning Call Gap(q) first: an ungated integer pair throws inside the weight (a broken invariant).
-    BlockPairs ApplyR0(const MeshShift& q, const BlockPairs& dF) const;
+    //! \warning Call Gap(rule) first: an ungated integer pair throws inside the weight (a broken invariant).
+    BlockPairs ApplyR0(const SelectionRule& rule, const BlockPairs& dF) const;
     //! \f$\sum_b w_b\sum_{mn}\bar a_{b,mn}\,x_{b,mn}\f$ -- the BZ-weighted pairing of an operator with a
     //! first-order density: an expectation value's first-order change, per unit cell.
     dcmplx Contract(const BlockPairs& a, const BlockPairs& x) const;

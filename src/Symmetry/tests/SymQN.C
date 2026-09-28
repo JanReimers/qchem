@@ -8,6 +8,7 @@ import qchem.Streamable;
 import qchem.Symmetry.Factory;
 import qchem.Symmetry.Atom.Spherical;
 import qchem.Blaze;
+import qchem.Symmetry.Unit;                 // UnitQN (a C1 block, for the Invariant selection rule)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // MeshShift / IsShiftOf / CommensurateShifts (LinearResponsePlan S1)
 using namespace qchem;
 
@@ -315,4 +316,28 @@ TEST_F(SymQNTests, MeshShift_DifferentMeshesNeverPair)
     auto qs=Lattice_3D::CommensurateShifts(*a, ivec3_t(1,1,1));
     ASSERT_TRUE(qs.IsOk());
     EXPECT_FALSE(Lattice_3D::IsShiftOf(*a,*b,(*qs)[0]));
+}
+
+//! S1 (doc/LinearResponsePlan.md §3c): a MeshShift seen through the SelectionRule face IS IsShiftOf, and the
+//! Invariant rule (q = 0 / a totally symmetric perturbation) pairs every block with itself -- the same
+//! pairing as the zero MeshShift, but for any symmetry (a molecule has no Bloch points).
+TEST_F(SymQNTests, SelectionRule_MeshShiftAndInvariant)
+{
+    const ivec3_t N(2,3,2);
+    auto mesh=Mesh(N,rvec3_t(0,0,0));
+    auto qs=Lattice_3D::CommensurateShifts(*mesh[0], N);
+    ASSERT_TRUE(qs.IsOk());
+    const Invariant inv;
+    for (const auto& q : *qs)
+    {
+        const SelectionRule& rule=q;
+        for (size_t b=0;b<mesh.size();b++)
+            for (size_t c=0;c<mesh.size();c++)
+            {
+                EXPECT_EQ(rule.Couples(*mesh[c],*mesh[b]), Lattice_3D::IsShiftOf(*mesh[c],*mesh[b],q));
+                if (q.IsZero()) EXPECT_EQ(rule.Couples(*mesh[c],*mesh[b]), inv.Couples(*mesh[c],*mesh[b]));
+            }
+    }
+    const UnitQN c1;                          // a C1 molecule's one block
+    EXPECT_TRUE(inv.Couples(c1,c1));
 }

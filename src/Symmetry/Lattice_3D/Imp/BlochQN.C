@@ -94,6 +94,11 @@ bool BlochQN::IsShiftOf(const BlochQN& kk, const MeshShift& q) const
     return Mod(s.x,N.x)==0 && Mod(s.y,N.y)==0 && Mod(s.z,N.z)==0;
 }
 
+bool MeshShift::Couples(const qchem::Symmetry::Symmetry& bra, const qchem::Symmetry::Symmetry& ket) const
+{
+    return IsShiftOf(bra, ket, *this);
+}
+
 bool IsShiftOf(const qchem::Symmetry::Symmetry& kq, const qchem::Symmetry::Symmetry& k, const MeshShift& q)
 {
     return dynamic_cast<const BlochQN&>(kq).IsShiftOf(dynamic_cast<const BlochQN&>(k), q);

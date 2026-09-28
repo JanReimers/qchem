@@ -32,10 +32,11 @@ public:
     virtual ~ChannelProbe() = default;
     virtual size_t      NumChannels() const = 0;
     virtual std::string Label(size_t I) const = 0;
-    //! Channel \a J's perturbation at \a q as a first-order Fock change on q's block pairs (orbital basis).
-    virtual BlockPairs Perturbation(size_t J, const MeshShift& q) const = 0;
-    //! Every channel's first-order occupation \f$\delta n_I\f$ (per cell, at \a q) from a first-order density.
-    virtual cvec_t     Measure(const MeshShift& q, const BlockPairs& dD) const = 0;
+    //! Channel \a J's perturbation, modulated by \a rule (a lattice \f$e^{i\mathbf q\cdot\mathbf R}\f$, or
+    //! \c Invariant), as a first-order Fock change on \a rule's block pairs (orbital basis).
+    virtual BlockPairs Perturbation(size_t J, const SelectionRule& rule) const = 0;
+    //! Every channel's first-order response \f$\delta n_I\f$ (per cell) from a first-order density on \a rule's pairs.
+    virtual cvec_t     Measure(const SelectionRule& rule, const BlockPairs& dD) const = 0;
 };
 
 //! \brief Channels given by the orbitals' AMPLITUDES on each channel's projector functions,
@@ -47,8 +48,8 @@ public:
     AmplitudeProbe(const Reference& ref, std::vector<std::vector<cmat_t>> amp, std::vector<std::string> labels);
     virtual size_t      NumChannels() const override {return itsLabels.size();}
     virtual std::string Label(size_t I) const override {return itsLabels[I];}
-    virtual BlockPairs  Perturbation(size_t J, const MeshShift& q) const override;
-    virtual cvec_t      Measure(const MeshShift& q, const BlockPairs& dD) const override;
+    virtual BlockPairs  Perturbation(size_t J, const SelectionRule& rule) const override;
+    virtual cvec_t      Measure(const SelectionRule& rule, const BlockPairs& dD) const override;
 private:
     const Reference&                 itsRef;
     std::vector<std::vector<cmat_t>> itsAmp;

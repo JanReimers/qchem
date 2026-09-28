@@ -29,6 +29,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Spin.C
     SymOp.C
     Symmetry.C
+    SelectionRule.C
     Irrep.C
     Orbital_QNs.C
     Factory.C
