@@ -8,29 +8,18 @@ validated (§5b).**  It stays at the top of `doc/` while A7 is executed, and mov
 
 ## ▶ START HERE (next session, written 2026-09-28)
 
-**Where A7 stands.**  R0 — χ₀(q) by sum over states — is built (new library `src/Response/`, qcResponse),
-unit-gated (`UTResponse`: a brute-force ring, insulator + Fermi metal), and validated on NiO against hp.x:
-χ₀(q)/χ₀(R=0) on Ni1 3d agrees to 0.1–1 % (§5b).  ctest 932/932 at `2306f636`.
+**Where A7 stands.**  R0 — χ₀(q) by sum over states — is built and validated on NiO against hp.x (§5b).
+**R1 ✅ DONE 2026-09-28** — the first stage with a KERNEL: CPHF/CPKS static polarisability of H₂O through
+`Calculation::StaticPolarizability()`.  HF α == PySCF CPHF to 1e-6 (3.19770 / 7.11975 / 5.54545 bohr³), the
+same closed shell imposed Polarized == UnPolarized to 1e-8, and LDA via the FD kernel within ~2 % of PySCF (the
+gap is our fitted/coarse-mesh LDA GROUND STATE, measured — §5c).  Every abstract face of §3c landed as ruled
+(Q1–Q5).  Execution record, numbers and the four things R1 taught: §5c.
 
-**NEXT = stage R1** (user, 2026-09-28: *"continue with the DFPT implementation"* — so R1 goes BEFORE CK-1; CK-1
-checkpoint/restart is still owed before the Oct 6–20 unattended window, `OpenWork.md` §2).  R1 = molecular
-CPHF/CPKS static polarisability, the first stage with a KERNEL; its oracle is PySCF (`~/Code/pyscf-env`) on H₂O at
-HF and LDA.  In order:
-1. **The abstract faces C1/C2** (§3): R0 used a concrete MO-basis value type (`Response::BlockPairs`) on
-   purpose; R1 is where `TransitionDensity` (qcChargeDensity) and `TransitionFock` (qcHamiltonian Types) become
-   abstract faces, because H1's signature must name them.  Decide their homes FIRST — that is the interface
-   review the user asked for up front.  **→ Written as signatures in §3c (2026-09-28), with Q1–Q5 open.
-   Q1–Q5 RULED 2026-09-28: every recommendation accepted (user).**  Oracle banked: `scripts/r1_h2o_polarizability.py`.
-2. **H1 `ResponseKernel`** via `tHamiltonian::MakeResponseKernel()`, and H2 `tResponse_HT` on the HF J/K terms
-   (they are already linear in D).  The **finite-difference kernel lives in `src/Response/tests/`** (D6, ruled:
-   test tree only, friend hooks via `src/forward.H` if ever needed).
-3. **M1**: `LinearOperator<T>` + a matrix-free Krylov solver in qcMath/qcLASolver (`Apply` takes a tolerance).
-4. **A `DipoleProbe`** (P1's first non-Hubbard concrete) and the solver loop `(1 − R₀K)δD = R₀V`.
-5. ⚠ **Generalise the block PAIRING before any molecular run**: R0's `Reference` is Bloch-only — its partner
-   map casts to `BlochQN` (`IsShiftOf`) and its D5 check reads the k-star.  A molecule's blocks are point-group
-   irreps, and a dipole couples DIFFERENT irreps (A₁→B₁ in C₂v): that is S1's selection rule
-   ("Partners(ket irrep, perturbation irrep)"), of which the k-mesh `MeshShift` is one instance.  Start R1 on
-   a C₁ (no symmetry) H₂O if the product table is not ready.
+**NEXT (user's call, §5a order):** CK-1 checkpoint/restart is owed before the Oct 6–20 unattended window
+(`OpenWork.md` §2); then **R2** — the periodic q = 0 self-consistent χ: analytic Hartree + LDA f_xc through GPW
+(H3 f_xc, H4 frozen +U), and the MOLECULAR fitted terms' `tResponse_HT` on the way (`FittedVee` is linear —
+its fit constraint is the density's own charge, 0 for δD — and `FittedVxc` needs H3).  R1's open ends are
+listed at the end of §5c.
 
 **Recipes and traps banked this round** (details §5b, §7): every multi-k run needs `GPW_OMP_THREADS` (the serial
 default idled 15 of 16 cores); a MAGNETIC imposition keeps the full k-mesh, so `<P>_IMPOSE=1` satisfies D5; NiO
@@ -508,7 +497,7 @@ pair is (k, k).
 | stage | delivers | interface rows | oracle (a wrong number is a bug in NEW code) |
 |---|---|---|---|
 | **R0** ✅ machinery (§5b) | \f$\chi_0(\mathbf q)\f$ by sum over states over the DECLARED Hubbard channels only (D2 scope), primitive cell, full mesh, **no kernel**, reported WITH its response gap \f$\Delta_{\min}\f$ and bound (E1) | E1, S1, C2 (as the probe RHS), qcResponse skeleton (`Reference`, `HubbardChannelProbe`) | hp.x's printed χ₀ on the A6 matched-PP decks: SrVO₃ χ₀(V,V) = −1.7822 (metal: exercises Fermi ResponseWeight + δμ); NiO χ₀ = −0.113 at U_in = 3 eV (insulator: Integer).  Same PP, projector, k-mesh and q-mesh (`IntegrationTests/QE/README.md`).  **No Hamiltonian change at all.** |
-| **R1** | CPHF/CPKS, molecular, finite field replaced by response | H1, H2 (Hartree/J, K), C1 at q=0, M1, `DipoleProbe`; **H1 first backed by a finite-difference kernel** \f$[F(D_0+h\delta D)-F(D_0-h\delta D)]/2h\f$ built from the PUBLIC `GetMatrix`, which needs no term code | PySCF (`~/Code/pyscf-env`) static polarisability of H₂O at HF and LDA, and our own finite-field SCF.  **The FD kernel then stays permanently as the unit-test oracle for every analytic `tResponse_HT`**, the same pattern as `Hamiltonian/tests/GPW_XC_FD.C`. |
+| **R1** ✅ (§5c) | CPHF/CPKS, molecular, finite field replaced by response | H1, H2 (Hartree/J, K), C1 at q=0, M1, `DipoleProbe`; **H1 first backed by a finite-difference kernel** \f$[F(D_0+h\delta D)-F(D_0-h\delta D)]/2h\f$ built from the PUBLIC `GetMatrix`, which needs no term code | PySCF (`~/Code/pyscf-env`) static polarisability of H₂O at HF and LDA, and our own finite-field SCF.  **The FD kernel then stays permanently as the unit-test oracle for every analytic `tResponse_HT`**, the same pattern as `Hamiltonian/tests/GPW_XC_FD.C`. |
 | **R2** | periodic q=0 self-consistent χ: analytic Hartree + LDA \f$f_{xc}\f$ through GPW | H2 (periodic Hartree/XC), H3, H4 | (a) FD kernel vs analytic on a solid; (b) in a **supercell**, R2 *is* LR-cDFT, checked against a finite-difference cDFT run (perturb with a static \f$\alpha\hat P_J\f$, re-converge; Timrov §III).  **C1's 32-atom MnO measurement says whether (b) is affordable.** |
 | **R3** | q ≠ 0 kernel: δρ collocated from (k+q, k) pairs, Hartree at \f$\mathbf G+\mathbf q\f$ | C1 at q≠0 (the collocation pair loop takes a per-image complex weight) | hp.x U: SrVO₃ 6.2502 eV (q 2×2×2), NiO 5.267 eV **at U_in = 3 eV** (frozen +U, H4) |
 | **R4** | `LR_HubbardU` behind the split estimator face; `ConvergeHubbardU` drives it; inter-site V_IJ and orbital-resolved channels **reported** | H5 | self-consistent U vs Timrov 2021; the ACBN0 loop still runs unchanged.  ★ **The U_0 / U_SC table (user, 2026-09-27: *"the chemist in me wants a feel for how these behave"*) comes from ONE run**: start the loop at U_in = 0 — outer step 1 IS U_0, the last is U_SC.  The loop prints one greppable `[U table]` line per manifold: U_0, U_SC, outer steps, and the GAP and SITE MOMENT at both ends — because U_0 linearises the U=0 state, and a large U_0→U_SC change usually means U changed the state's character (NiO loses AFM-II at U=0, trap 3) |
@@ -569,13 +558,52 @@ residual is the ground-state gap (1.30 vs 2.86 eV), a basis/physics comparison. 
 `~/Code/qchem6-runs/a7_r0_nio/nio_k222_imposed_VET1e-3_chi0.log`.  **The NiO gate recipe is §5b's line plus
 `NIO_VET=1 NIO_ORTHO_TOL=1e-3`.**
 
+### 5c. R1 execution record (2026-09-28) — CPHF matches PySCF; every §3c face landed as ruled
+**Code** (in order, each green): `cde11dc7` M1 GMRES · `866c0925` S1 SelectionRule · `ccdbcdbe` the HF-term
+refactor (ONE contraction body over the `tHF_System_CD` sweep face, behaviour-neutral) · `34344d5c` C1/C2/H1/H2 +
+the FD oracle · `be07ecbe` OrbitalFrame + LinearResponse + DipoleProbe + the facade entry · then the LDA/FD gates.
+**Gates** (ctest N +22 over R0): UTLASolver +8 (Krylov), UTSymmetry +1, UTResponse +5, ITMain `M_Response` +3.
+
+| gate | result |
+|---|---|
+| analytic J/K kernel vs FD kernel, H₂O dzvp, random D₀/δD (no SCF: J/K are linear) | 1e-9, UnPol and Pol |
+| HF α vs PySCF CPHF | 3.1977039 / 7.1197506 / 5.5454507 vs 3.1977028 / 7.1197505 / 5.5454518: < 1e-6 relative |
+| Pol == UnPol (per-channel K vs the folded −½K) | 1e-8 |
+| FD kernel INSIDE the solver == analytic (HF) | 1e-7 |
+| numeric dipole, three meshes (to MHL 250 / GL 71) | oscillates about the analytic value at ~1e-7 relative: a Becke-quadrature FLOOR |
+| LDA α via the FD kernel vs PySCF CPKS | default XC mesh −0.2/−1.2/−2.0 %; a fine XC mesh (E −75.8726 vs PySCF −75.8773) +0.6/+1.4/+0.7 % ⇒ the gap is the ground state's fitted XC/Coulomb route, NOT the response; FD step h=1e-3 vs 1e-4 agree to 1e-6 |
+
+**What R1 taught (each is now in the code's comments):**
+1. **The HF J/K chain needed NO duplication** (user's question): the whole ERI chain sits below the narrow
+   `tHF_System_CD` face, so the transition density IS-A `tHF_System_CD` (at q = 0) and OWNS an ordinary composite
+   of δD leaves.  It is NOT a `tDM_CD` (LSP: `GetMatrix(…,δD)` would compile and be silently wrong for XC).
+2. **The FD oracle needs δD's matrices, which the face hides** — so the AO concrete lives in an `.Internal.`
+   module, and the oracle reads it through a friend in `src/forward.H` (`TransitionDensityTests`; the facade's
+   Hamiltonian/WF through `ResponseFacadeTests`).  That is D6 exactly: production never names the concrete.
+3. **Krylov vectors lose Hermiticity to rounding amplified by Gram-Schmidt** (1.4e-8 relative on the LDA FD
+   run) — the operator applies the kernel to the HERMITIAN PART (`Reference::HermitianPart`), which is exact:
+   the anti-Hermitian part is decoupled (identity on it, none in the RHS).  `OrbitalFrame::ToAO` keeps its strict
+   check as a defect detector.
+4. **δD is INDEFINITE**, so its leaves take `RhoRoute::Direct` (the default pivoted-Cholesky factor assumes PSD).
+
+**R1's open ends** (none blocks R2):
+- ⚠ **A symmetry-adapted molecule (`.symmetry=true`) is REFUSED** by `MakeDipoleProbe`: a dipole component that
+  is not totally symmetric (x is B₁ in C₂v) couples DIFFERENT irreps, and `Invariant` would silently drop it.
+  The cure is the point-group product `SelectionRule` (S1's A₁→B₁ concrete) plus bra≠ket block pairs in the
+  frame — the same pair form R3 needs.
+- The molecular facade passes the eigenvalue noise as NaN (UNMEASURED): E1 gates the gap's sign only.  The SCF's
+  final [F,D] would measure it (as `SolidCalculation` does).
+- Numeric dipole floor ~1e-7 relative.  If a gate ever needs more, implement ANALYTIC ⟨a|r|b⟩ (user's
+  trip-wire, Q5: MnD Hermite set-up, libcint `int1e_r` as the oracle) — not a bigger mesh.
+- Our own finite-field SCF (an external-field static term) would be the TIGHT LDA oracle; not built.
+
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`GPW_OMP_THREADS` is
    part of every multi-k recipe** (serial default ⇒ ~1.2 of 16 cores; `OpenWork.md` row KP, measured).
 2. **CK-1 checkpoint/restart** (`OpenWork.md` §2 row "SCF checkpoint/restart") — ⚠ REORDERED 2026-09-28: AFTER R1
    (user: DFPT first), but still before the Oct 6–20 window: every A6/A7 material's converged state saved once and reused; CK-2 then lets χ₀ run on a
    stored state with no SCF.
-3. **R1** (molecular CPHF, cheap, needs neither of the above).
+3. **R1** ✅ 2026-09-28 (molecular CPHF, cheap, needs neither of the above) — §5c.
 4. **The cross-k gather memo, then KP** (row KP's measured order) — when R2/R3's kernel applications, which
    are gather-shaped per block PAIR, become the wall.  R3's q-points are also embarrassingly parallel at the
    PROCESS level (as hp.x's `start_q/last_q`), which needs no code.
