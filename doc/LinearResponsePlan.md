@@ -3,8 +3,39 @@
 **Born 2026-09-27**, the dedicated A7 design session asked for in `doc/HubbardUPlan.md` §0 (row A7 and "A7
 scoping insights").  **Status: DESIGN RULED 2026-09-27** (user: *"This looks very good"*; D1–D6 agreed, §6),
 and **REVISED the same day** for the user's second round of requirements (§4b: PW/Sternheimer extensibility, SO
-coupling, forces; §4c: self-consistent U; §6: the Li-supercell question, U/V/J).  No code has been written
-against it.  It stays at the top of `doc/` while A7 is executed, and moves to `doc/Records/` when A7 lands.
+coupling, forces; §4c: self-consistent U; §6: the Li-supercell question, U/V/J).  **Stage R0 is DONE and
+validated (§5b).**  It stays at the top of `doc/` while A7 is executed, and moves to `doc/Records/` when A7 lands.
+
+## ▶ START HERE (next session, written 2026-09-28)
+
+**Where A7 stands.**  R0 — χ₀(q) by sum over states — is built (new library `src/Response/`, qcResponse),
+unit-gated (`UTResponse`: a brute-force ring, insulator + Fermi metal), and validated on NiO against hp.x:
+χ₀(q)/χ₀(R=0) on Ni1 3d agrees to 0.1–1 % (§5b).  ctest 932/932 at `2306f636`.
+
+**NEXT = stage R1** (user, 2026-09-28: *"continue with the DFPT implementation"* — so R1 goes BEFORE CK-1; CK-1
+checkpoint/restart is still owed before the Oct 6–20 unattended window, `OpenWork.md` §2).  R1 = molecular
+CPHF/CPKS static polarisability, the first stage with a KERNEL; its oracle is PySCF (`~/Code/pyscf-env`) on H₂O at
+HF and LDA.  In order:
+1. **The abstract faces C1/C2** (§3): R0 used a concrete MO-basis value type (`Response::BlockPairs`) on
+   purpose; R1 is where `TransitionDensity` (qcChargeDensity) and `TransitionFock` (qcHamiltonian Types) become
+   abstract faces, because H1's signature must name them.  Decide their homes FIRST — that is the interface
+   review the user asked for up front.
+2. **H1 `ResponseKernel`** via `tHamiltonian::MakeResponseKernel()`, and H2 `tResponse_HT` on the HF J/K terms
+   (they are already linear in D).  The **finite-difference kernel lives in `src/Response/tests/`** (D6, ruled:
+   test tree only, friend hooks via `src/forward.H` if ever needed).
+3. **M1**: `LinearOperator<T>` + a matrix-free Krylov solver in qcMath/qcLASolver (`Apply` takes a tolerance).
+4. **A `DipoleProbe`** (P1's first non-Hubbard concrete) and the solver loop `(1 − R₀K)δD = R₀V`.
+5. ⚠ **Generalise the block PAIRING before any molecular run**: R0's `Reference` is Bloch-only — its partner
+   map casts to `BlochQN` (`IsShiftOf`) and its D5 check reads the k-star.  A molecule's blocks are point-group
+   irreps, and a dipole couples DIFFERENT irreps (A₁→B₁ in C₂v): that is S1's selection rule
+   ("Partners(ket irrep, perturbation irrep)"), of which the k-mesh `MeshShift` is one instance.  Start R1 on
+   a C₁ (no symmetry) H₂O if the product table is not ready.
+
+**Recipes and traps banked this round** (details §5b, §7): every multi-k run needs `GPW_OMP_THREADS` (the serial
+default idled 15 of 16 cores); a MAGNETIC imposition keeps the full k-mesh, so `<P>_IMPOSE=1` satisfies D5; NiO
+needs the pin-22 vet trim `NIO_VET=1 NIO_ORTHO_TOL=1e-3` (raw shells Ni s 0.06 + d 0.18) — without it a KB GHOST
+state (−36.5 Ha at one k) or a gapless state appears.  The open question "why does a near-null direction host an
+attractive KB ghost at all" is parked in `OpenWork.md` §4a (user, 2026-09-28: DFPT first).
 
 ★ **The constraints that set the design** (user, 2026-09-26, `doc/HubbardUPlan.md` after the A7 insights):
 *"I am mostly concerned about changes to abstract interfaces … If we are adding behaviour to the Hamiltonian
@@ -332,10 +363,10 @@ residual is the ground-state gap (1.30 vs 2.86 eV), a basis/physics comparison. 
 `NIO_VET=1 NIO_ORTHO_TOL=1e-3`.**
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
-1. **R0** — code landed (`d7c95c92`); the NiO gate is running.  Lesson already banked: **`GPW_OMP_THREADS` is
+1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`GPW_OMP_THREADS` is
    part of every multi-k recipe** (serial default ⇒ ~1.2 of 16 cores; `OpenWork.md` row KP, measured).
-2. **CK-1 checkpoint/restart** (`OpenWork.md` §2 row "SCF checkpoint/restart") — before R1 and before the
-   Oct 6–20 window: every A6/A7 material's converged state saved once and reused; CK-2 then lets χ₀ run on a
+2. **CK-1 checkpoint/restart** (`OpenWork.md` §2 row "SCF checkpoint/restart") — ⚠ REORDERED 2026-09-28: AFTER R1
+   (user: DFPT first), but still before the Oct 6–20 window: every A6/A7 material's converged state saved once and reused; CK-2 then lets χ₀ run on a
    stored state with no SCF.
 3. **R1** (molecular CPHF, cheap, needs neither of the above).
 4. **The cross-k gather memo, then KP** (row KP's measured order) — when R2/R3's kernel applications, which
