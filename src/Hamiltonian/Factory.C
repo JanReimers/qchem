@@ -82,6 +82,12 @@ export namespace qchem::Hamiltonian
         int                 l    = 2;     //!< the shell's angular momentum -- said, never inferred
         double              U    = 0.0;   //!< \f$U_{eff}=U-J\f$ in HARTREE (the facade converts from eV)
         std::vector<double> Uirrep;       //!< per U SLOT (Hartree), in the term's printed slot order; empty = \c U everywhere
+        //! \brief A STATIC potential shift \f$\alpha\hat P\f$ on this manifold's projector (HARTREE), in every spin
+        //! channel: QE's \c Hubbard_alpha -- the PERTURBATION of linear-response cDFT (Cococcioni & de Gironcoli
+        //! 2005; Timrov et al. §III).  \f$V\mathrel{+}=\alpha\,TT^\dagger\f$, \f$E\mathrel{+}=\alpha\,{\rm Tr}\,n\f$.  Its
+        //! use is the finite-difference oracle of the linear response: \f$\chi_{IJ}=dn_I/d\alpha_J\f$ from SCFs at
+        //! \f$\pm\alpha\f$ (doc/LinearResponsePlan.md R2 gate b).  0 = no shift (the default).
+        double              alpha = 0.0;
         //! THE RADIAL (increment 3, 2026-09-21).  EMPTY = every \f$l\f$-shell on the site is a manifold function
         //! (CP2K's LOWDIN convention: 7 d shells ⇒ 35 functions -- a MECHANISM manifold, whose ACBN0 U is
         //! near-bare because the KS d states live entirely inside it).  Non-empty = ONE contracted radial

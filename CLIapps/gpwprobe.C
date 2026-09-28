@@ -299,7 +299,8 @@ const TmoSpec NiOSpec{"NIO","NiO","Ni",28,10,6, 7.88, 32,  5, ChargeDensity::See
 // The RECIPE knobs: <P>_ORTHO_TOL, <P>_CUTOFF_FACTOR, <P>_ECUT, <P>_SHARED_MU, <P>_MOM_SEED, <P>_REAL,
 // <P>_IMPOSE=0/1/2 (free / Shubnikov / grey control), <P>_XC_UNIFORM, <P>_XC_ECUT=Ha, <P>_VET=1 (the pin-22 vet-stage basis trim), <P>_NR, <P>_L, <P>_ALPHA, <P>_KERKER_G0,
 // <P>_XC_CUSP, <P>_PULAY, <P>_PULAY_START, <P>_MOM, <P>_MOM_START, <P>_MOM_PENALTY, <P>_MOM_HOLD, <P>_KT,
-// GPW_<P>_NMAX, GPW_<P>_VERBOSE, <P>_CHI0=nq (chi0 on an nq^3 q-mesh, LinearResponsePlan R0), <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
+// GPW_<P>_NMAX, GPW_<P>_VERBOSE, <P>_CHI0=nq (chi0 on an nq^3 q-mesh, LinearResponsePlan R0), <P>_CHI=1 (the
+// self-consistent chi, chi0 and U at q=0, R2 -- needs <P>_REAL=0), <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
 // site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + <P>_ACBN0=1 (print the ACBN0 (U,J)
 // estimate from the converged orbitals; <P>_ACBN0=n>1 runs the paper's OUTER LOOP for up to n steps, re-converging
 // on the same Hamiltonian, <P>_ACBN0_TOL=eV; increment 3) + <P>_U_RADIAL=every|atomic|ortho|orthofull (the
@@ -375,7 +376,7 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
     // estimate (U-bar, J-bar, U_eff) from its orbitals -- one step of the paper's outer loop; iterate by
     // hand with <P>_U=<U_eff of the previous run> (increment 3).
     const bool acbn0 = S.Envi("ACBN0",0)!=0;
-    if (const double U=S.Envd("U",0.0); U>0.0 || acbn0 || S.Envi("CHI0",0)>0)   // CHI0: the channels ARE the manifolds
+    if (const double U=S.Envd("U",0.0); U>0.0 || acbn0 || S.Envi("CHI0",0)>0 || S.Envi("CHI",0)>0)   // CHI0/CHI: the channels ARE the manifolds
     {
         // <P>_U_RADIAL: every (CP2K's every-shell manifold, default) | atomic (ONE contracted pseudo-atom 3d, QE's
         // `atomic`) | ortho (the two TM 3d sets Löwdin-orthogonalised against each other) | orthofull (QE's
@@ -537,6 +538,17 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
         std::cout << "[" << S.name << " " << o.label << "] chi0 from the last iterate"
                   << (arm.result ? " (CONVERGED):" : " (NOT converged -- a diagnostic only):") << std::endl;
         auto chi=arm.calc->IndependentResponse(ivec3_t(nq,nq,nq));   // reports itself
+        (void)chi;
+    }
+    // <P>_CHI=1: the SELF-CONSISTENT response at q = 0 over the Hubbard manifolds (doc/LinearResponsePlan.md
+    // stage R2): chi0, chi and U = (chi0^-1 - chi^-1)_II of THIS cell (the LR-cDFT U of a supercell of this
+    // size).  Needs the complex ansatz (<P>_REAL=0) and a full k-mesh; at <P>_U=0 this is the U_0 of the U=0
+    // ground state (+U answers zero); an unfrozen U != 0 is refused.
+    if (S.Envi("CHI",0)>0)
+    {
+        std::cout << "[" << S.name << " " << o.label << "] self-consistent chi (q=0) from the last iterate"
+                  << (arm.result ? " (CONVERGED):" : " (NOT converged -- a diagnostic only):") << std::endl;
+        auto chi=arm.calc->HubbardLinearResponse();   // reports itself
         (void)chi;
     }
     report::EmitTimings();   // sorted by cost + PEAK RSS, inside the bracket

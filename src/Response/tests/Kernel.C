@@ -303,7 +303,7 @@ TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
 //=====================================================================================================
 namespace {
 
-std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g)
+std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0)
 {
     FCCUnitCell cell(10.26);
     cell.AddAtom(14, {0,0,0});
@@ -315,7 +315,7 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g)
     SCFParams par;
     par.NMaxIter=80; par.MinΔρ=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
     SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
-                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=0.0}}, .forceComplex=true};
+                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=0.0, .alpha=alpha}}, .forceComplex=true};
     auto calc=std::make_unique<SolidCalculation>(lat, mol, o, par);
     EXPECT_TRUE(calc->DidConverge());
     return calc;
@@ -390,3 +390,70 @@ void PeriodicAnalyticEqualsFD(SpinGroup g)
 
 TEST(ResponseKernel, GPW_Si_AnalyticEqualsFiniteDifference_UnPol) {PeriodicAnalyticEqualsFD(SpinGroup::UnPolarized);}
 TEST(ResponseKernel, GPW_Si_AnalyticEqualsFiniteDifference_Pol)   {PeriodicAnalyticEqualsFD(SpinGroup::Polarized);}
+
+//! R2 end to end through the facade: the q = 0 SELF-CONSISTENT response of GPW Si over a Si-p manifold at U = 0
+//! (the U_0 case: +U answers zero).  Physics gates that need no oracle: chi is Hermitian, SCREENED
+//! (|chi| < |chi0| on the diagonal, same sign -- Hartree + ALDA reduce an insulator's response), and the Krylov
+//! solve converged.  UnPol and Pol must agree (the closed shell imposed polarized).
+TEST(ResponsePolarizability, GPW_Si_HubbardLinearResponse_Screened)
+{
+    std::vector<mat_t<dcmplx>> chis;
+    for (SpinGroup g : {SpinGroup::UnPolarized, SpinGroup::Polarized})
+    {
+        auto calc=ConvergedSi(g);
+        auto r=calc->HubbardLinearResponse();
+        ASSERT_TRUE(r.IsOk()) << r.Error().detail;
+        const size_t n=r->labels.size();
+        ASSERT_GT(n, 0u);
+        for (size_t I=0;I<n;I++)
+        {
+            EXPECT_LT(r->chi0(I,I).real(), 0.0) << r->labels[I];
+            EXPECT_LT(r->chi (I,I).real(), 0.0) << r->labels[I];
+            EXPECT_LT(std::abs(r->chi(I,I)), std::abs(r->chi0(I,I))) << r->labels[I] << ": the kernel must SCREEN";
+            for (size_t J=0;J<n;J++) EXPECT_NEAR(std::abs(r->chi(I,J)-std::conj(r->chi(J,I))), 0.0, 1e-8) << "chi not Hermitian";
+            EXPECT_LE(r->residual[I], 1e-8);
+        }
+        chis.push_back(r->chi);
+    }
+    for (size_t I=0;I<chis[0].rows();I++) EXPECT_NEAR(std::abs(chis[0](I,I)-chis[1](I,I)), 0.0, 1e-6*std::abs(chis[0](I,I))) << "Pol != UnPol";
+}
+
+//! GATE (b), R2: the self-consistent chi is dn/dalpha -- LR-cDFT's own definition (Cococcioni & de Gironcoli 2005,
+//! Timrov §III): converge at alpha = +-a on the Si-p projector (HubbardManifold::alpha, QE's Hubbard_alpha) and
+//! difference the manifold occupation.  An INDEPENDENT route: no kernel, no solver, just two SCFs.  The
+//! occupation is read through the same projector amplitudes the probe perturbs with (Adjoint/Forward).
+namespace {
+double ManifoldOccupation(const SolidCalculation& calc)
+{
+    const auto& wf=ResponseFacadeTests::WF(calc);
+    const auto* hub=ResponseFacadeTests::Ham(calc).GetHubbardChannels();
+    const Response::Reference ref=Response::MakeReference(wf, OccupationConfig{}, {}, std::numeric_limits<double>::quiet_NaN());
+    const auto probe=Response::MakeHubbardProbe(ref, wf, *hub);
+    Response::BlockPairs D;                                    // the ground state in its own MO basis: diag(occupation)
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir));
+        const size_t n=os->GetNumOrbitals();
+        Response::cmat_t X(n, n, dcmplx(0.0));
+        size_t i=0;
+        for (const auto* o : os->Iterate<Orbitals::TOrbital<dcmplx>>()) {X(i,i)=o->GetOccupation(); i++;}
+        D.m.push_back(X);
+    }
+    return probe.Measure(Symmetry::Invariant(), D)[0].real();
+}
+} // namespace
+
+TEST(ResponsePolarizability, GPW_Si_Chi_eqFiniteDifferenceCDFT)
+{
+    const double a=1e-3;                                       // Ha
+    auto c0=ConvergedSi(SpinGroup::UnPolarized);
+    auto r=c0->HubbardLinearResponse();
+    ASSERT_TRUE(r.IsOk()) << r.Error().detail;
+    const double chiLR=r->chi(0,0).real();
+    auto cp=ConvergedSi(SpinGroup::UnPolarized, +a), cm=ConvergedSi(SpinGroup::UnPolarized, -a);
+    const double np=ManifoldOccupation(*cp), nm=ManifoldOccupation(*cm), n0=ManifoldOccupation(*c0);
+    const double chiFD=(np-nm)/(2*a);
+    std::cout << "[R2 cDFT] n(-a) " << nm << "  n(0) " << n0 << "  n(+a) " << np << "  chi FD " << chiFD
+              << "  chi LR " << chiLR << "  rel " << (chiLR-chiFD)/chiFD << std::endl;
+    EXPECT_NEAR(chiLR, chiFD, 1e-4*std::fabs(chiFD));
+}

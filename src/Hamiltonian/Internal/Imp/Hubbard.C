@@ -650,6 +650,10 @@ double Hubbard_U::Analyse(Channel& ch) const
         // Dudarev in the eigenbasis (Macke eq 6), one U per slot (Uirrep) or the manifold's U.
         rmat_t W;
         EU+=DudarevInEigenbasis(lam, v, slot, man.Uirrep, man.U, W);
+        if (man.alpha!=0.0)
+        {   // the STATIC shift alpha*P (QE's Hubbard_alpha): W += alpha*1, E += alpha*Tr n -- the LR-cDFT perturbation
+            for (size_t a=0;a<m;a++) {W(a,a)+=man.alpha; EU+=man.alpha*nM(a,a);}
+        }
         for (size_t a=0;a<m;a++) for (size_t b=0;b<m;b++) ch.W[at+a*m+b]=W(a,b);
         at+=m*m;
     }
@@ -872,6 +876,7 @@ std::ostream& Hubbard_U::Write(std::ostream& os) const
         os<<" site "<<man.site<<" l="<<man.l;
         if (man.Uirrep.empty()) os<<" U="<<man.U*27.211386245988<<" eV (shell-averaged)";
         else { os<<" Uirrep="; for (size_t k=0;k<man.Uirrep.size();k++) os<<(k?",":"")<<man.Uirrep[k]*27.211386245988; os<<" eV"; }
+        if (man.alpha!=0.0) os<<" alpha="<<man.alpha<<" Ha (static shift)";
         if (M<itsSym.size() && itsSym[M]) { os<<" slots:"; itsSym[M]->WriteSlots(os, man.U, man.Uirrep); }
         os<<";";
     }
