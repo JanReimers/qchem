@@ -139,7 +139,7 @@ here does not change.**
 | # | change | why this shape |
 |---|---|---|
 | **H1** | **NEW capability `ResponseKernel<T>`**, handed out by `tHamiltonian::MakeResponseKernel()` (same idiom as `MakeHubbardUEstimator`: capability out, term list hidden).  ONE question: `TransitionFock InducedFock(const TransitionDensity&) const`, i.e. \f$\delta F=(\partial F/\partial D)\,\delta D\f$. | **General PT, not DFT.**  It is the Hamiltonian's linearisation, the object that CPHF, CPKS, TDHF/TDDFT (Casida A±B), MP2's Z-vector and DFPT all use.  It is named for what the client consumes, "what Fock change does this density change induce", not after DFPT or U (CLAUDE.md naming rule). |
-| **H2** | **NEW term capability `tResponse_HT<T>`**, a cross-cast face on dynamic terms like the RealBlock faces: `RefreshForResponse(const TransitionDensity&)` + `ResponseMatrix(bra, ket)` over one ALLOWED BLOCK PAIR (S1: (k+q,σ′) ← (k,σ) in general, same-spin k+q for U).  The kernel folds it over the terms.  **A term reads δρ only through the TransitionDensity's SAMPLING faces** (δρ_σσ′ on a mesh, δρ(G+q)) and never through its matrices; that is what lets a PW TransitionDensity arrive without any term changing (§4b).  **Static terms are never asked** (they are D-independent by definition).  A dynamic term without the face **fails loudly** (the RealBlock idiom), and is never silently zero. | This mirrors the existing `RefreshForDensity`/`GetMatrix` pair (pin 11, explicit phase).  The δρ-derived state (δV_H, \f$f_{xc}\delta\rho\f$ on the mesh) is k-independent, exactly like its ground-state twin. |
+| **H2** | **NEW term capability `tResponse_HT<T>`**, a cross-cast face on dynamic terms like the RealBlock faces: `RefreshForDensity(…, const TransitionDensity&)` + `GetMatrix(bra, ket, …, δ)` (names ruled 2026-09-28, §3c) over one ALLOWED BLOCK PAIR (S1: (k+q,σ′) ← (k,σ) in general, same-spin k+q for U).  The kernel folds it over the terms.  **A term reads δρ only through the TransitionDensity's SAMPLING faces** (δρ_σσ′ on a mesh, δρ(G+q)) and never through its matrices; that is what lets a PW TransitionDensity arrive without any term changing (§4b).  **Static terms are never asked** (they are D-independent by definition).  A dynamic term without the face **fails loudly** (the RealBlock idiom), and is never silently zero. | This mirrors the existing `RefreshForDensity`/`GetMatrix` pair (pin 11, explicit phase).  The δρ-derived state (δV_H, \f$f_{xc}\delta\rho\f$ on the mesh) is k-independent, exactly like its ground-state twin. |
 | H3 | `ExFunctional` gains the **second derivative** \f$f_{xc}^{\sigma\sigma'}(\rho_\uparrow,\rho_\downarrow)\f$ (libxc provides `fxc`; VWN/Slater get it analytically) | Needed only by the analytic XC kernel.  Spin-native from the first line (pin 5). |
 | H4 | **Hubbard's frozen mode goes onto `HubbardProjection`** (today `FreezeOccupations` exists only on the concrete `Hubbard_U`) | Freezing is how Timrov eq 20 is expressed, and **the kernel of a frozen term is zero by its own state**.  So H1 needs no "exclude +U" flag, and no DFT-specific parameter reaches the generic face. |
 | H5 | **`HubbardUEstimator` ISP split**: the strategy face keeps `Evaluate`/`Write`.  `Apply` (writing U into the term) moves to a separate `HubbardUTarget` face, which is really `HubbardProjection::SetU`.  `HubbardEstimate` keeps (site, l, U_eff) plus an optional inter-site row, and the ACBN0-only fields (`UbarBare`, `Nup`, …) go into that estimator's own `Write` (pin 17). | Today's face is ACBN0-shaped.  Its input is a feed of orbitals, and ACBN0 is a functional of orbitals, while LR needs the Hamiltonian.  Each strategy's INPUT becomes its own construction business; the facade chooses the strategy (DIP).  Estimating a U and applying a U are two responsibilities. |
@@ -285,16 +285,40 @@ template <class T> class tResponse_HT
 public:
     virtual ~tResponse_HT() = default;
     //! THE RESPONSE PHASE (pin 11): fill this term's δ-derived, block-independent state, once per δ.
-    virtual void RefreshForResponse(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* D0,
-                                    const TransitionDensity<T>& δ) const = 0;
+    virtual void RefreshForDensity(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* D0,
+                                   const TransitionDensity<T>& δ) const = 0;
     //! This term's δF on ONE coupled block pair (bra <- ket) for spin s, AO basis.
-    virtual mat_t<T> ResponseMatrix(const tobs_t<T>* bra, const tobs_t<T>* ket, const Spin& s,
-                                    const TransitionDensity<T>& δ) const = 0;
+    virtual mat_t<T> GetMatrix(const tobs_t<T>* bra, const tobs_t<T>* ket, const Spin& s,
+                               const TransitionDensity<T>& δ) const = 0;
 };
 ```
-R1 implements it in ONE place, `Dynamic_HF_HT_Imp` (so Vee and Vxc get it at once): `ContractAll` runs on
-δ's HF face, with its own `DensityFor`/`Scale` spin rules, into a **second** cache slot keyed on δ's version.
-The ground-state J/K blocks are never overwritten by a response build.  Static terms are never asked.
+**Names ruled 2026-09-28 (user): `RefreshForDensity` and `GetMatrix`**, the same verbs as every other HT face
+-- the argument type already says "response", so the name does not repeat it.  ⚠ The one C++ consequence:
+these OVERLOAD the ground-state `RefreshForDensity`/`GetMatrix`, and a class that overrides only one overload
+HIDES the other from calls made through that class's own type.  Every caller goes through a face pointer, so
+this is harmless; a concrete that is called directly (a unit test) adds a `using` for the other overload.
+R1 implements it in ONE place, `Dynamic_HF_HT_Imp` (so Vee and Vxc get it at once), by the refactor below.
+★ **No duplication of the J/K call chain, and why `TransitionDensity` is NOT a `tDM_CD`** (user question,
+2026-09-28).  The whole ERI chain lives BELOW the narrow face `tHF_System_CD`
+(`AccumulateDirectAll` → `SweepGroup` → `tHF_Pair_CD::Accumulate*Both` → `Complete*Pair` → `Orbital_HF_IBS`),
+and nothing in it knows whether D is a ground-state density or a transition density.  The term uses only that
+face (`Vee::AccumulateAll` casts `rDM_CD*` to it and nothing else).  So:
+- `AO_TransitionDensity` OWNS an ordinary `tComposite_CD` of δD leaves and forwards the HF face to it: the δD
+  sweep IS the ground-state sweep code.
+- In the term, `AccumulateAll` takes `const tHF_System_CD<double>&` (the operand it really consumes), and
+  `ContractAll` becomes one private body over (sweep operand, version, spin, cache slot).  The ground-state and
+  the response entries differ only in how they select the spin channel (`DM_ChannelOf(cd,s)` vs
+  `δ.Channel(s)`), and they write to SEPARATE cache slots, so a response build never overwrites the
+  ground-state J/K blocks.  This refactor is behaviour-neutral and lands first, as its own green commit.
+
+Is-a `tDM_CD` was considered and REJECTED.  At q = 0 most of its operations are even correct for δD, but
+(1) `tHamiltonian::GetMatrix(bs,s,δD)` would compile, and for XC it is SILENTLY wrong (the functionals skip
+ρ ≤ 0, dropping the negative half of δρ): the LSP defect; (2) it drags in `tMixableDensity` (mixing, lineage);
+(3) at q ≠ 0 δD lives on a block PAIR, is not Hermitian and is no single irrep block, and PW-Sternheimer has no
+matrix at all, so the inheritance would force a second type at R3 and bring the duplication back, bigger.
+**The right is-a is one level narrower: at q = 0 the transition density IS-A `tHF_System_CD`** — "a matrix
+I can scatter through the ERI", the V1.6 ISP face, which is exactly what a LINEAR operator consumes.
+Static terms are never asked.
 
 **M1 — `LinearOperator<T>` + GMRES** (qcLASolver, new module `qchem.LASolver.Krylov`; qcMath is a leaf with no
 `Outcome`)
@@ -339,7 +363,9 @@ A non-converged solve is an Outcome that carries its residual, never a number (t
   `qcMesh::MatrixOverlap` on a fine atom-centred mesh needs no basis change, and the integrand is a polynomial
   times Gaussians, which converges fast.  The gate reports the mesh-to-mesh change so the error is measured,
   not assumed.  Analytic ⟨a|r|b⟩ is a new INTEGRAL TYPE, which is the one sanctioned reason to change the basis
-  interface; it becomes a row if the mesh ever limits the gate.
+  interface; it becomes a row if the mesh ever limits the gate.  **Ruled with a trip-wire (user, 2026-09-28):
+  if the mesh route turns into fiddling, switch tactics and implement ANALYTIC dipole integrals** -- the MnD
+  Hermite set-up makes ⟨a|r|b⟩ easy, and libcint (`int1e_r`) is the oracle for them.
 
 **Where it surfaces:** `Calculation::StaticPolarizability() -> Outcome<rmat_t(3x3), ResponseFailure>`.  The
 facade owns the Hamiltonian and the wave function, so it is the one place that can build Reference + kernel +
