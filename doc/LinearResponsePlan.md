@@ -19,7 +19,8 @@ HF and LDA.  In order:
 1. **The abstract faces C1/C2** (§3): R0 used a concrete MO-basis value type (`Response::BlockPairs`) on
    purpose; R1 is where `TransitionDensity` (qcChargeDensity) and `TransitionFock` (qcHamiltonian Types) become
    abstract faces, because H1's signature must name them.  Decide their homes FIRST — that is the interface
-   review the user asked for up front.
+   review the user asked for up front.  **→ Written as signatures in §3c (2026-09-28), with Q1–Q5 open.
+   AWAITING THE USER'S RULING; nothing is coded before it.**  Oracle banked: `scripts/r1_h2o_polarizability.py`.
 2. **H1 `ResponseKernel`** via `tHamiltonian::MakeResponseKernel()`, and H2 `tResponse_HT` on the HF J/K terms
    (they are already linear in D).  The **finite-difference kernel lives in `src/Response/tests/`** (D6, ruled:
    test tree only, friend hooks via `src/forward.H` if ever needed).
@@ -177,6 +178,187 @@ here does not change.**
 (`ApplyR0`, `ToMO`) and exposes no `GetC()`/`GetEigenvalues()`**.  `ApplyR0` delegates to an
 `IndependentResponse` strategy: `SumOverStates` now, and `Sternheimer` when a large-cutoff PW code arrives
 (§4b).  The FD kernel is NOT in this library: it lives in `src/Response/tests/` (D6).
+
+### 3c. R1 interface proposal: the signatures, FOR REVIEW (written 2026-09-28, no code yet)
+The rows above are ruled in words.  This subsection is the same rows as C++ signatures, read against the tree
+as it is today.  **It is the review the START HERE block asks for: nothing below is coded until the user
+rules on it.**  Items marked **Q** need an answer; everything else is a recommendation that stands unless it
+is objected to.
+
+**What reading the tree changed (four findings, each moves a signature):**
+1. **The HF terms are already linear in D, AND the HF sweep is already a face on the density**
+   (`tHF_System_CD<double>::AccumulateDirectAll/ExchangeAll`, `ChargeDensity.C`).  `Vee::AccumulateAll`
+   cross-casts to that face and nothing else.  So a transition density that IMPLEMENTS `tHF_System_CD`
+   gets J[δD] and K[δD] from the existing sweep, with no new ERI code, and without handing out a `tDM_CD`.
+   This is the IrrepCD preference (an operation, not a `GetDensityMatrix()`).
+2. **`IrrepCD_Factory`'s default ρ route is `PivotedCholesky`, which needs D positive semi-definite.**  δD is
+   INDEFINITE (traceless).  An AO transition density built on `IrrepCD` leaves must ask for
+   `RhoRoute::Direct`, or it inherits a factorisation that is invalid for it.  (Harmless for J/K, which never
+   evaluate ρ(r), but it would bite R2's mesh sampling; the concrete fixes it at construction.)
+3. **The basis has NO dipole integrals** (no ⟨χ|r|χ⟩ anywhere in `src/BasisSet`).  But
+   `qcMesh::MatrixOverlap(mesh, basis, ScalarFunction V)` exists and computes ⟨χ_a|V|χ_b⟩ for any local V.
+   R1 can therefore build the dipole matrix NUMERICALLY with no basis-interface change (see Q5).
+4. **The molecular LDA Hamiltonian is `FittedVee` + `FittedVxc`**, and our H₂O LDA energy is −75.93246 against
+   PySCF's −75.87730 (55 mHa: fitted Coulomb and a coarse default mesh).  So PySCF is a TIGHT oracle for HF only
+   (same basis, E equal to 1e-9) and a LOOSE one for LDA.  The tight LDA gate is the FD kernel through the same
+   solver.  Oracle numbers banked in `scripts/r1_h2o_polarizability.py` (CPHF and finite field agree):
+   HF α = diag(3.19770, 7.11975, 5.54545), LDA α = diag(3.44581, 7.33076, 5.91599) bohr³.
+
+**S1 — `Symmetry::SelectionRule`** (qcSymmetry, new module `qchem.Symmetry.SelectionRule`)
+```cpp
+class SelectionRule                    // "does the perturbation couple ket block to bra block?"
+{
+public:
+    virtual ~SelectionRule() = default;
+    virtual bool Couples(const Symmetry& bra, const Symmetry& ket) const = 0;
+};
+class Invariant : public virtual SelectionRule { ... };    // bra ≡ ket: q = 0, or a totally symmetric perturbation
+// MeshShift gains `: public virtual SelectionRule` (Couples = IsShiftOf) -- R0's code is unchanged.
+```
+`Reference::Partners`/`Gap` take a `const SelectionRule&`.  Spin stays same-ms inside the Reference (ΔM_s = ±1
+is the SOC increment).  A point-group product rule (A₁→B₁ in C₂v) is a later concrete; **R1 runs H₂O with no
+point-group symmetry** (C₁: one block per spin irrep), so `Invariant` is all it needs.
+
+**C1 — `TransitionDensity<T>`** (qcChargeDensity, new module `qchem.ChargeDensity.TransitionDensity`)
+```cpp
+template <class T> class TransitionDensity         // NOT a tChargeDensity (LSP, §3 C1)
+{
+public:
+    virtual ~TransitionDensity() = default;
+    virtual const Symmetry::SelectionRule& Coupling() const = 0;  //!< which bra block each ket block couples to
+    virtual size_t Version() const = 0;               //!< drawn from the SAME clock (NextDensityVersion)
+    //! The σ channel as a VIEW (Spin::None answers this); null when not resolved -- the tSpinResolved_CD idiom.
+    virtual const TransitionDensity* Channel(const Spin&) const = 0;
+};
+```
+Its CAPABILITIES are cross-cast faces, and each arrives with the stage that first consumes it:
+- **R1: `tHF_System_CD<double>`, reused unchanged** (finding 1).  "Scatter yourself through the ERI" is the
+  same question for δD as for D.  q = 0 same-block only; a (k+q, k) pair scatter is R3's.
+- R2: δρ_σ on the XC mesh (the `ProjectOnto(ScalarProjector)` operation, on a face of its own).
+- R3: δρ(G+q) for Hartree.
+Concrete **`AO_TransitionDensity<T>`**, built by a factory from `{Irrep, const tobs_t<T>* bs, hmat_t<T> δD}`
+per block plus the rule.  At q = 0 it OWNS a `tComposite_CD<T>` of `IrrepCD(δD, bs, irrep, RhoRoute::Direct)`
+leaves and forwards the HF face to it: composition, as §3 C1 said, never inheritance.
+
+**C2 — `TransitionFock<T>`** (qcHamiltonian, new module `qchem.Hamiltonian.TransitionFock`)
+```cpp
+template <class T> class TransitionFock
+{
+public:
+    virtual ~TransitionFock() = default;
+    virtual const Symmetry::SelectionRule& Coupling() const = 0;
+    //! δF on the coupled block pair (bra <- ket), AO basis, bra rows x ket columns.  THROWS on an uncoupled pair.
+    virtual mat_t<T> Matrix(const Irrep& bra, const Irrep& ket) const = 0;
+};
+```
+Concrete **`AO_TransitionFock<T>`**: a value holding one matrix per coupled pair, with `+=` (so
+\f$V_{\rm pert}+\mathcal K[\delta D]\f$ is one expression, and δD + δF is still a build error).
+- **Q1. Leave `Apply(bra, ket, ψ)` OFF the face until the Sternheimer concrete exists?**  Recommended: yes.
+  §3 C2 listed it, but nothing in R1–R4 would implement it, and a face clause with no honest implementor is
+  what R2.7 deleted from `FittedCD` (*"declaring it early only made every implementor promise something none
+  could deliver"*).  It returns as a cross-cast capability, as the RealBlock faces did.
+
+**H1 — `ResponseKernel<T>`** (qcHamiltonian)
+```cpp
+template <class T> class ResponseKernel
+{
+public:
+    virtual ~ResponseKernel() = default;
+    virtual std::unique_ptr<TransitionFock<T>> InducedFock(const TransitionDensity<T>&) const = 0;
+};
+// on tHamiltonian<T>:
+virtual std::unique_ptr<ResponseKernel<T>> MakeResponseKernel(const tbs_t<T>* wholeBasis,
+                                                              const tChargeDensity<T>* D0) const;
+```
+\f$D_0\f$ is in the signature from day one: HF ignores it, but f_xc needs it (R2), so the face never changes.
+The kernel is built ONCE per linearisation point.  `tHamiltonianImp` folds the dynamic terms, and **a dynamic
+term without `tResponse_HT` makes `MakeResponseKernel` THROW, naming every such term**: at construction,
+never mid-solve (the RealBlock "fail loudly" idiom).  Consequence for R1: an LDA Hamiltonian cannot make an
+analytic kernel until R2 (its `FittedVee`/`FittedVxc` have no face yet), so R1's LDA gate runs on the FD kernel.
+- **Q2. Throw, or an Outcome?**  Recommended: throw.  The caller cannot repair a missing term capability, and
+  the facade can check the model before asking.  (The counter-argument: "LR is not available for this model
+  yet" is a legitimate user-facing answer, which by CLAUDE.md is an Outcome.)
+
+**H2 — `tResponse_HT<T>`** (qcHamiltonian, a cross-cast capability on the DYNAMIC terms, both families)
+```cpp
+template <class T> class tResponse_HT
+{
+public:
+    virtual ~tResponse_HT() = default;
+    //! THE RESPONSE PHASE (pin 11): fill this term's δ-derived, block-independent state, once per δ.
+    virtual void RefreshForResponse(const tbs_t<T>* wholeBasis, const tChargeDensity<T>* D0,
+                                    const TransitionDensity<T>& δ) const = 0;
+    //! This term's δF on ONE coupled block pair (bra <- ket) for spin s, AO basis.
+    virtual mat_t<T> ResponseMatrix(const tobs_t<T>* bra, const tobs_t<T>* ket, const Spin& s,
+                                    const TransitionDensity<T>& δ) const = 0;
+};
+```
+R1 implements it in ONE place, `Dynamic_HF_HT_Imp` (so Vee and Vxc get it at once): `ContractAll` runs on
+δ's HF face, with its own `DensityFor`/`Scale` spin rules, into a **second** cache slot keyed on δ's version.
+The ground-state J/K blocks are never overwritten by a response build.  Static terms are never asked.
+
+**M1 — `LinearOperator<T>` + GMRES** (qcLASolver, new module `qchem.LASolver.Krylov`; qcMath is a leaf with no
+`Outcome`)
+```cpp
+template <class T> class LinearOperator
+{
+public:
+    virtual ~LinearOperator() = default;
+    virtual size_t   Dimension() const = 0;
+    //! y = A x to relative accuracy tol: an exact operator ignores tol, an inexact one (Sternheimer) honours it.
+    virtual vec_t<T> Apply(const vec_t<T>& x, double tol) const = 0;
+};
+struct KrylovParams { double tol=1e-10; size_t maxIter=200, restart=40; };
+template <class T> struct KrylovSolution { vec_t<T> x; double residual; size_t iterations; };
+template <class T> Outcome<KrylovSolution<T>,KrylovFailure>
+    SolveGMRES(const LinearOperator<T>&, const vec_t<T>& b, const vec_t<T>* x0, const KrylovParams&);
+```
+A non-converged solve is an Outcome that carries its residual, never a number (trap 3, the iteration cap).
+- **Q3. A FLAT vector, with the Reference owning Pack/Unpack, or an abstract vector-space face?**
+  Recommended: flat.  D3 asks that the Reference choose the representation, and packing IS that choice.  A PW
+  code packs δψ or δV the same way; BLAS works on it; there is no second hierarchy.  The one thing a flat
+  vector loses is a non-Euclidean metric, and the Gaussian Reference avoids needing one by packing in the
+  orthonormal MO basis.
+
+**The Reference, R0 → R1** (qcResponse, concrete; not an abstract-interface change, listed so it is seen)
+- `ReferenceBlock` gains the block's coefficients **C** and its basis, so the Reference can answer
+  `ToMO(const TransitionFock&) -> BlockPairs` and `ToAO(BlockPairs) -> unique_ptr<TransitionDensity>` (the
+  §3 "answers operations" rule: still no `GetC()`), plus `Pack`/`Unpack` for M1.  `D0` (for the kernel) is
+  the wave function's own `GetChargeDensity()`.
+- The unknown is δD in the MO basis, restricted to the pairs with a nonzero weight (for an insulator, ov+vo).
+  One Krylov step is: unpack → `ToAO` → `InducedFock` → `ToMO` → `ApplyR0` → x − that.  R0's arithmetic stays
+  complex (validated in R0; q ≠ 0 needs it).  The AO boundary narrows a real block to `double` with an assert
+  on the imaginary part (the real-TRIM rule), because the molecular HF faces are real-only.
+- `MakeReference` is templated on the wave function's T, so the molecular `WaveFunction` feeds it too.
+
+**P1 and the dipole**
+- **Q4. Defer the `Perturbation` face (P1) and its `MovesBasis()` to the first perturbation that moves the basis?**
+  Recommended: yes.  In R1 `DipoleProbe` is a `ChannelProbe` (three channels, x y z; `Perturbation` and
+  `Measure` are the SAME dipole matrix, the Adjoint/Forward pair again), and `MovesBasis()` would have no
+  caller until forces or phonons.  The R2.7 argument again.
+- **Q5. Dipole integrals: numerical now, analytic later?**  Recommended: numerical.  ⟨χ_a|x_i|χ_b⟩ via
+  `qcMesh::MatrixOverlap` on a fine atom-centred mesh needs no basis change, and the integrand is a polynomial
+  times Gaussians, which converges fast.  The gate reports the mesh-to-mesh change so the error is measured,
+  not assumed.  Analytic ⟨a|r|b⟩ is a new INTEGRAL TYPE, which is the one sanctioned reason to change the basis
+  interface; it becomes a row if the mesh ever limits the gate.
+
+**Where it surfaces:** `Calculation::StaticPolarizability() -> Outcome<rmat_t(3x3), ResponseFailure>`.  The
+facade owns the Hamiltonian and the wave function, so it is the one place that can build Reference + kernel +
+probe.  No new abstract face is involved.
+
+**The R1 gates** (ctest N goes up by exactly these; `UTResponse` holds the unit ones):
+| gate | where | tolerance |
+|---|---|---|
+| analytic J/K kernel == FD kernel, on H₂O HF, random traceless symmetric δD | UTResponse | 1e-7 relative |
+| GMRES on a random non-symmetric well-conditioned system; a non-converged cap returns Fail | UTResponse (or UTLASolver) | residual ≤ tol |
+| numeric dipole: fine-mesh vs finer-mesh α | UTResponse | 1e-8 |
+| **HF α(H₂O, dzvp) vs PySCF CPHF** | IntegrationTests | 1e-6 relative |
+| **Pol == UnPol**: the same closed-shell H₂O imposed Polarized gives the same α | IntegrationTests | 1e-8 |
+| LDA α via the FD kernel vs PySCF CPKS | IntegrationTests | ~2 % (loose: finding 4) |
+
+The Pol == UnPol gate is there because Pol is the primary formulation (CLAUDE.md).  It is also the first test
+of the Reference and kernel on spin-resolved blocks, cheaply: exchange becomes per channel (scale −1 per σ
+instead of −½ on the folded doublet), and nothing else changes.
 
 ---
 
