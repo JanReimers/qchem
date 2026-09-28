@@ -15,7 +15,7 @@ same closed shell imposed Polarized == UnPolarized to 1e-8, and LDA via the FD k
 gap is our fitted/coarse-mesh LDA GROUND STATE, measured — §5c).  Every abstract face of §3c landed as ruled
 (Q1–Q5).  Execution record, numbers and the four things R1 taught: §5c.
 
-**R2 IS IN PROGRESS — read §5d first.**  **NEXT (user's call, §5a order):** CK-1 checkpoint/restart is owed before the Oct 6–20 unattended window
+**R2 DONE 2026-09-28 (§5d: χ_LR = dn/dα to 2.7e-6; two named open items).**  **NEXT (user's call, §5a order):** CK-1 checkpoint/restart is owed before the Oct 6–20 unattended window
 (`OpenWork.md` §2); then **R2** — the periodic q = 0 self-consistent χ: analytic Hartree + LDA f_xc through GPW
 (H3 f_xc, H4 frozen +U), and the MOLECULAR fitted terms' `tResponse_HT` on the way (`FittedVee` is linear —
 its fit constraint is the density's own charge, 0 for δD — and `FittedVxc` needs H3).  R1's open ends are
@@ -609,12 +609,32 @@ friend door for the FD oracle · the FD oracle is now a 4-point stencil.
 **Gate (a), GPW Si Γ LDA, analytic vs FD kernel:** UnPol **7.2e-7** relative; Pol **4e-6** — an h-INDEPENDENT
 floor, NOT the pointwise f_xc (4-point `GetFxc` changed nothing), and WORSE (1.2e-5) for a spin-symmetric δD.
 VWN5 was read and is continuous at ζ=0; `RhoPol`'s tail is linear.  Gated at 1e-5 until named.
-**NEXT:** (1) name the Pol floor — the experiment in flight was δD on the ↑ channel only (isolates f↓↑ + Hartree
-in the ↓ block); suspects left: the ζ≈0 cancellation in VWN `fz` at the unconverged SCF's ζ₀~1e-7, and the Pol
-SCF not converging (`DidConverge` false at MinΔρ 1e-7 — check); (2) run `HubbardLinearResponse` on Si and a TM
-oxide at U=0 (the U₀ target) and write its integration gate; (3) gate (b): finite-difference cDFT — add QE's
-`Hubbard_alpha` (a static α·TT† shift on a manifold, `HubbardManifold::alpha`) and compare χ = dn/dα; (4) full
-`scripts/memsafe ctest -j8`.  Real TRIM blocks still refused (the real-block response face is not built).
+**Continued 2026-09-28 (user: "proceed with 1,2,3,4"):**
+- **(1) the Pol floor — bounded, not named.**  UTHamiltonian `XCKernel.*` (+3) pins the functional: VWN5's
+  `GetFxc` is the derivative of its `GetVxc` with f↑↓ = f↓↑, the ζ=0 collapse ½(f↑↑+f↑↓) = dv_scalar/dρ, Slater's
+  analytic kernel = its derivative (1e-7).  The ~4e-6 floor (uniform XC raster, perturbed-spin block) is flat in
+  the FD step (1e-4..1e-3), the δD amplitude, +U on/off, the D₀ route (factored vs Direct), the D-aware screen,
+  screen ε 1e-14; the polarized singlet's D↑ = D↓ bitwise.  OPEN, 1000× below what χ or U resolves; gated 1e-5.
+  ⚠ **On the Becke mesh a RANDOM δD defeats the FD ORACLE** (far-tail points with h·δρ ≫ ρ₀ saturate on the
+  ρ>0 guards): 5e-3 at h·amp = 5e-5 → 3e-5 at 5e-7.  An oracle limit, not a kernel error (a physical, occ-virt δD
+  would not reach the tails).
+- **(3) GATE (b) PASSED — χ_LR = dn/dα from two SCFs to 2.7e-6** (GPW Si, Si-p at U=0: χ −14.5117 both ways;
+  χ₀ −42.41 Ha⁻¹; U(q=0, 2-atom cell) 1.23 eV).  The perturbation is `HubbardManifold::alpha` (QE's
+  `Hubbard_alpha`: a static α·TT† shift, E += α Tr n).  No kernel, no solver in the oracle: this is LR-cDFT's own
+  definition, and it validates the kernel, the Fermi/δμ-free insulator path and the solver together.
+- **(2) the facade end to end**: `HubbardLinearResponse` runs (UTResponse: Hermitian, screened, Pol == UnPol);
+  `gpwprobe <P>_CHI=1` drives it on a converged arm (needs `<P>_REAL=0`).  MnO AFM-II Γ at U=0: the machinery
+  runs (2 d channels, smeared/δμ path, 18–19 kernel applications per channel); on the probe's DEFAULT recipe the
+  SCF did not converge (E −60.49) and the numbers are void.  On the DECK recipe (`doc/Benchmark.md` footnote ⁸)
+  + `MNO_REAL=0 MNO_CHI=1` it converges (33 it, A = −61.41154, AFM-II held) and the response runs cleanly: χ₀
+  −4.64 / −6.41, χ −3.21 / −3.39 Ha⁻¹, U(q=0) 3.67 / 4.88 eV on the two Mn.  ⚠ The two sites DIFFER because the
+  GROUND STATE does: this smeared Γ-only free run (TS = 0.016 Ha, fractional frontier) is not sublattice-symmetric
+  (d count 5.353 vs 5.425, |m| 4.60 vs 4.44), and a smeared response amplifies that.  A machinery smoke only —
+  MnO is not an oracle (§7), and U₀ comparisons with hp.x need R3's q-mesh on a gapped, symmetric state.
+  Log `~/Code/qchem6-runs/a7_r2/mno_gamma_U0_chi_deck.log`.
+- **(4) full sweep 2026-09-28: 956/957 pass** (962 listed, 5 DISABLED); the one failure, `M_PG_BoxWalk.WhereTheContractionSpendsItsTime`, is a TIMING-profile test untouched by R2 that passes alone (2.7 s) and failed under `-j8` load (9.8 s) — load-sensitive, not a regression.
+
+**R2 status: DONE except the named open items** — the ~4e-6 Pol-channel oracle floor (bounded, above), and real TRIM blocks (`OpenWork.md` §2 row).  NEXT per §5a: CK-1 (owed before the U₀-vs-hp.x series and the Oct 6–20 window), then R3 (q ≠ 0: the q-mesh that makes U comparable with hp.x).
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`GPW_OMP_THREADS` is
