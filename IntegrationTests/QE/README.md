@@ -383,3 +383,35 @@ it.  **Do not use 35.34 eV as an oracle value**; flag ZnO/Zn-3d alongside MnO/Mn
 same-site LRT U is close to ill-posed, not merely "large".  Checkpoint archived anyway (`checkpoints/
 zno_U0.save/`, 104 MB) since the ground state itself is perfectly good — only the U extraction is the
 problem.  Decks: `zno.scf.in`, `zno.hp.in`.
+
+## A6 (`doc/HubbardUPlan.md`): KCuF₃, matched-PP LRT — 2026-09-28
+
+**Dr. Carta replied with his actual input files** (`~/Code/reprints/materials_cloud_submission/`, KCuF₃/
+Sr₂FeO₄/CrO₂/NiO all included) — real deck, no more guessing.  `KCuF3/LRT/dp/kcuf.1.scf.in`: cubic
+`Pm-3̄m`, `a = 4.066704097 Å` (exact, from their relaxation), K (0,0,0), Cu (½,½,½), F (0,½,½)/(½,0,½)/
+(½,½,0) — the SAME simple-cubic-perovskite template as SrVO₃, just K/Cu/F in place of Sr/V/O.  ⚠ **Their
+own deck reveals real values that correct the SI's stated convention**: `ecutrho/ecutwfc = 672/84 = 8`, not
+the SI's stated "four times" (Sr₂FeO₄'s own deck similarly runs a 10× dual, see below) — always read the
+actual input file, a methods-section summary rounds off exactly the kind of detail that matters here.
+Their `U_projection_type='ortho-atomic'` is the GROUND-STATE +U potential's projector (matches ours); their
+actual Hubbard-PARAMETER determination is MLWF-based (Wannier90) per the paper's own stated method, a
+different projector convention from our `hp.x` route — so their number and ours are not directly
+comparable even now that the geometry is exact (same caveat flagged before the reply arrived).  We use
+OUR OWN established recipe (GTH via `gth2upf`, `hp.x` ortho-atomic, U_in≈0) on their exact cell.
+
+⚠ **GTH Cu-q11 needed the full cutoff-scan treatment, unlike the rest of this session's PPs.**  300 Ry (this
+session's default carry-over) was NOT converged: E(Ry) at 300/350/400/450 = −242.14275/−242.15196/
+−242.15491/−242.15588 — 9.2 mRy between 300→350, only settling to ~1 mRy at 450→400.  **Production cutoff:
+450 Ry** (`ecutrho` 1800).  Cu q11's aufbau fallback fired exactly as recorded in `doc/HubbardUPlan.md`
+(`gth2upf`'s kT-anneal-then-cold-MOM path, E_atom = −47.926315 Ha, bit-for-bit the same number logged when
+the fallback was first built) — reproducible, not a fluke.  K used q1 (light valence, matching the
+established Li/Na alkali-metal convention: not the semicore q9).
+
+**pw.x ground state (450 Ry, k 4×4×4, `occupations='smearing'`, 12 iterations):** E = −242.15587589 Ry.
+**hp.x, ortho-atomic, Cu-3d only, nq 2×2×2, U_in≈0 (2026-09-28, 2h20m serial):** ran directly on the smeared
+state, no complaint — **METALLIC under nonmagnetic LDA** (Cu²⁺ d⁹ in the undistorted cubic cell has no
+Jahn-Teller gap, a partially-filled eg shell like every other undistorted-cell member of this session).
+**U(Cu 3d) = 8.1629 eV.**  χ₀(Cu,Cu) = −0.7349 → χ(Cu,Cu) = −0.0970 (χ/χ₀ ≈ 0.132).  Projected occupation
+9.326 electrons (out of 10) — the MILDEST covalency inflation of any material this session (d⁹ has only
+one hole's worth of headroom to inflate into, unlike d⁵–d⁸ elsewhere).  Checkpoint archived:
+`checkpoints/kcuf3_U0.save/`.  Decks: `kcuf3.scf.in`, `kcuf3.hp.in`.

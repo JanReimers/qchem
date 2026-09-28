@@ -1,0 +1,39 @@
+ &control
+    calculation  = 'scf'
+    restart_mode = 'from_scratch',
+    prefix       = 'kcuf3'
+    pseudo_dir   = './'
+    outdir       = './'
+    tprnfor      = .true.
+    tstress      = .true.
+ /
+ &system
+    ibrav        = 1,
+    celldm(1)    = 7.684957,
+    nat          = 5,
+    ntyp         = 3,
+    ecutwfc      = 450.0, input_dft='sla+vwn',
+    ecutrho      = 1800.0,
+    occupations  = 'smearing',
+    smearing     = 'cold',
+    degauss      = 0.01,
+    nspin        = 1,
+ /
+ &electrons
+    conv_thr    = 1.d-12
+    mixing_beta = 0.7
+ /
+ATOMIC_SPECIES
+ Cu  63.546   Cu.pz-gth-q11.UPF
+ K   39.098   K.pz-gth-q1.UPF
+ F   18.998   F.pz-gth-q7.UPF
+ATOMIC_POSITIONS {crystal}
+ Cu  0.5000000   0.5000000   0.5000000
+ K   0.0000000   0.0000000   0.0000000
+ F   0.0000000   0.5000000   0.5000000
+ F   0.5000000   0.0000000   0.5000000
+ F   0.5000000   0.5000000   0.0000000
+K_POINTS {automatic}
+ 4 4 4 0 0 0
+HUBBARD {ortho-atomic}
+U Cu-3d 1.d-8
