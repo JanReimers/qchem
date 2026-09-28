@@ -62,3 +62,8 @@ IntegrationTests/CP2K/*-RESTART.kp
 
 # Test artifact: src/Common/tests/PeriodicTable.C writes this into the CWD of whatever runs UTCommon.
 PeriodicTable.csv
+
+# QE ground-state .save checkpoints archived for a future self-consistent-U warm start
+# (doc/OpenWork.md "SCF checkpoint/restart" row) -- large binaries, cheap to regenerate from the
+# committed *.scf.in decks, deliberately not version-controlled.
+IntegrationTests/QE/checkpoints/
