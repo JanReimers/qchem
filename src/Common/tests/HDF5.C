@@ -43,8 +43,13 @@ TEST(HDF5, DatasetsAttributesAndGroupsRoundTrip)
     EXPECT_TRUE (f.HasAttr("count"));
     EXPECT_FALSE(f.HasAttr("nope"));
     ASSERT_TRUE(f.Has("blocks"));
+    EXPECT_EQ(f.Children(), (std::vector<std::string>{"blocks"}));
+    EXPECT_EQ(f.AttrNames(), (std::vector<std::string>{"count","energy","format"}));   // NAME order
+    EXPECT_TRUE (f.AttrIsString("format"));
+    EXPECT_FALSE(f.AttrIsString("energy"));
     H5::Group b0=f.OpenGroup("blocks").OpenGroup("0");
     EXPECT_EQ(b0.Shape("D"), (std::vector<size_t>{2,3}));
+    EXPECT_EQ(b0.Children(), (std::vector<std::string>{"C","D","idx"}));
     EXPECT_FALSE(b0.IsComplex("D"));
     EXPECT_TRUE (b0.IsComplex("C"));
     EXPECT_EQ(b0.ReadReal("D"), r);

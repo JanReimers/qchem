@@ -159,6 +159,18 @@ Group Group::OpenGroup(const std::string& name) const
 }
 bool Group::Has(const std::string& name) const {return H5Lexists(itsId, name.c_str(), H5P_DEFAULT)>0;}
 
+static herr_t CollectLink(hid_t, const char* name, const H5L_info2_t*, void* out)
+{
+    static_cast<std::vector<std::string>*>(out)->push_back(name);
+    return 0;
+}
+std::vector<std::string> Group::Children() const
+{
+    std::vector<std::string> out;
+    Check(H5Literate2(itsId, H5_INDEX_NAME, H5_ITER_INC, nullptr, CollectLink, &out), itsPath, "listing the group", 0);
+    return out;
+}
+
 void Group::Write(const std::string& name, const std::vector<double>& data, std::vector<size_t> shape)
 {
     WriteDataset(itsId, itsPath, name, data, std::move(shape), H5T_NATIVE_DOUBLE);
@@ -213,6 +225,23 @@ void Group::SetAttr(const std::string& name, const std::string& v)
     WriteAttr(itsId, itsPath, name, t, &s);
 }
 bool Group::HasAttr(const std::string& name) const {return H5Aexists(itsId, name.c_str())>0;}
+bool Group::AttrIsString(const std::string& name) const
+{
+    Handle a(Check(H5Aopen(itsId, name.c_str(), H5P_DEFAULT), itsPath, "no attribute '"+name+"'"), H5Aclose);
+    Handle t(Check(H5Aget_type(a), itsPath, "type of attribute '"+name+"'"), H5Tclose);
+    return H5Tget_class(t)==H5T_STRING;
+}
+static herr_t CollectAttr(hid_t, const char* name, const H5A_info_t*, void* out)
+{
+    static_cast<std::vector<std::string>*>(out)->push_back(name);
+    return 0;
+}
+std::vector<std::string> Group::AttrNames() const
+{
+    std::vector<std::string> out;
+    Check(H5Aiterate2(itsId, H5_INDEX_NAME, H5_ITER_INC, nullptr, CollectAttr, &out), itsPath, "listing the attributes", 0);
+    return out;
+}
 double Group::AttrReal(const std::string& name) const
 {
     double v=0.0;

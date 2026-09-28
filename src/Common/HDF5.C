@@ -40,6 +40,8 @@ public:
     Group CreateGroup(const std::string& name);      //!< THROWS if \a name already exists
     Group OpenGroup  (const std::string& name) const;//!< THROWS if \a name is absent
     bool  Has        (const std::string& name) const;//!< a dataset or a group of that name exists here
+    //! Every dataset and sub-group name directly here, in NAME order (a generic reader walks them).
+    std::vector<std::string> Children() const;
     //!@}
 
     //! \name Datasets: \a data in C order, \f$\prod\f$ \a shape elements (an empty shape = a 1-D array)
@@ -66,6 +68,9 @@ public:
     double       AttrReal  (const std::string& name) const;
     std::int64_t AttrInt   (const std::string& name) const;
     std::string  AttrString(const std::string& name) const;
+    //! Is the attribute a string (else a number)?  A generic reader needs to know which to ask for.
+    bool         AttrIsString(const std::string& name) const;
+    std::vector<std::string> AttrNames() const;   //!< in NAME order
     //!@}
 
 protected:

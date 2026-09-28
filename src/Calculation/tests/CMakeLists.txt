@@ -4,6 +4,7 @@ add_executable(UTCalculation ../../Common/tests/gtestmain.C
     RunDiagnostics.C
     Materials.C
     ValenceBasisGen.C   # the valence-basis generator (from IntegrationTests 2026-09-15, TE phase 5)
+    SolidState.C        # saved periodic SCF states: save / exact resume / warm start / refusal (CK-1)
 )
 
 target_compile_definitions(UTCalculation PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

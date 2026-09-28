@@ -52,6 +52,7 @@ import qchem.ChargeDensity.Seed;              // SeedStrategy
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
 import qchem.LASolver;                        // qchem::Ortho
 import qchem.Outcome;                         // Outcome<T,E> -- the fallible-call vocabulary (N1/T1)
+export import qchem.SolidState;               // RestartRefusal (Restart's failure), the saved-state layer (CK-1)
 
 export namespace qchem
 {
@@ -189,6 +190,12 @@ struct SolidCalcOptions
     // polarity (both feed GPWParams::hamPreservesReal).  One decision, one field.
     //! Names this run in its own console output -- the fingerprint, the stage banners, the order trace.
     std::string label = "gpw";
+    //! \brief SAVE THE STATE HERE after every \c Converge -- each anneal stage, each ACBN0 outer step -- converged
+    //! or not (the file records which).  EMPTY (default) = never.  The unattended-run safety net (CK-1): a crash
+    //! costs at most the stage in flight, and \c SolidCalculation::Restart picks up from the last one.  A write
+    //! failure here WARNS and the run continues -- a checkpoint must never cost the computation it protects
+    //! (\c SaveState called directly throws as usual).
+    std::string saveStateTo;
     //! \brief Per-iteration telemetry, live FROM CONSTRUCTION.
     //!
     //! It belongs in the options block rather than only on \c OnIteration because the constructor
@@ -436,6 +443,29 @@ public:
                      const SCFAccelerators::SolidAcceleratorOptions& acc = {});
     ~SolidCalculation();
 
+    //! \brief START FROM A SAVED STATE (CK-1; doc/OpenWork.md §2 "SCF checkpoint/restart"): build the graph for
+    //! \a opts exactly as the constructor does, check the file's fingerprint against the BUILT basis, seed the
+    //! SCF with the saved density matrices instead of \c opts.seed, and converge with \a params.
+    //!
+    //! EXACT RESUME when nothing in the fingerprint differs; WARM START when only the warm class does (+U, the
+    //! grids, the multiplicity, kT, the recipe -- the SCU loop and grid continuation); both say so on the
+    //! console, with every difference named.  FAILS -- REFUSED, the graph discarded -- on an absent/foreign
+    //! file or any difference that makes the saved D meaningless here (structure, species, basis, k-mesh,
+    //! electron count, spin group, functional).  A refusal is a value because the caller's fallback (a fresh
+    //! seed) is a decision only the caller can make.
+    //!
+    //! No mixer or accelerator history is carried: a restart is a fresh stage.  With \c opts.momFromSeed the
+    //! MOM reference is the restored density's own first fill, as for any seed.
+    static Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+        Restart(const std::string& path, const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                const SolidCalcOptions& opts, const SCFParams& params = {},
+                const SCFAccelerators::SolidAcceleratorOptions& acc = {});
+
+    //! \brief Write the LAST ITERATE's state -- every (k,σ) block's D, C, ε, f, the fingerprint and the run
+    //! summary -- to \a path (HDF5, layout in qchem.SolidState; atomic: written aside, renamed into place).
+    //! Converged or not: the file records which, and a restart reports it.  THROWS on an I/O failure.
+    void SaveState(const std::string& path) const;
+
     SolidCalculation(const SolidCalculation&)            = delete;   // owns raw resources
     SolidCalculation& operator=(const SolidCalculation&) = delete;
 
@@ -554,6 +584,22 @@ private:
     friend class ::ResponseFacadeTests;
     qchem::Hamiltonian::cHamiltonian&       ResponseHamiltonian () const;
     const WaveFunction::cWaveFunction&      ResponseWaveFunction() const;
+    //!@}
+    //! \name THE BUILD, in the two halves Restart needs a gap between (the fingerprint is judged against
+    //! the BUILT basis, before anything expensive that depends on the seed)
+    //!@{
+    struct BuildOnly {};
+    explicit SolidCalculation(BuildOnly);
+    //! Options, the GPW basis, its vetting report, the XC-mesh decision and the spin bookkeeping.  Returns
+    //! the magnetic decoration (the imposition's, empty when FREE) for \c BuildRun.
+    std::vector<int> BuildBasis(const Lattice_3D&, std::shared_ptr<const BasisSet::Real_BS> mol, const SolidCalcOptions&,
+                                const SCFAccelerators::SolidAcceleratorOptions&);
+    //! The +U manifolds' groups and radials, the Hamiltonian, the accelerator, the seed (\a seed, or
+    //! \c opts.seed when null), the iterator and the run banner.
+    void BuildRun(const Lattice_3D&, const BasisSet::Real_BS& mol, const std::vector<int>& siteSpins,
+                  std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed);
+    //! This run's saved-state fingerprint, with \a kT the recipe's temperature.
+    StateFingerprint Fingerprint(double kT) const;
     //!@}
     //! Stand up one stage's Hamiltonian + accelerator + iterator, seeded from \a carried when given.
     void BuildStage(SCFAccelerators::Type, std::unique_ptr<qchem::ChargeDensity::cDM_CD> carried);

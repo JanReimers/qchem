@@ -14,6 +14,7 @@ module;
 #include <cstdlib>   // std::getenv -- the banner's thread state
 #include <memory>
 #include <stdexcept>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -110,6 +111,14 @@ struct SolidCalculation::Imp
     //! an annealed schedule and a re-Converge are CONTINUATIONS of one SCF, and an order that died in
     //! stage 1 must not become invisible because stage 2 started from the corpse.
     RunDiagnostics diag;
+    //! The +U manifolds AS THE HAMILTONIAN CARRIES THEM: resolved by BuildRun, and kept in step with every
+    //! ACBN0 outer step's Apply -- so a saved state records the U its density was converged at, not the
+    //! options' starting U.
+    std::vector<qchem::Hamiltonian::HubbardManifold> hubbard;
+    //! The last Converge's recipe (kT, and the banner facts, for the saved state's summary).
+    double      lastkT = 0.0;
+    std::string lastRecipe;
+    rmat3d_t    cellMatrix;   //!< the lattice's A, for the fingerprint (Structure alone does not carry it)
 };
 
 //---------------------------------------------------------------------------------------------------
@@ -279,6 +288,8 @@ void EmitStageSummary(const std::string& label, size_t s, size_t n, double kT,
 static std::vector<double> AtomicRadial(const BasisSet::Real_BS& mol, const Structure& st, size_t site, int l,
                                         const std::vector<std::pair<std::string,int>>& species);
 
+SolidCalculation::SolidCalculation(BuildOnly) : itsImp(std::make_unique<Imp>()) {}
+
 SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                                    const SolidCalcOptions& opts, const SCFParams& params,
                                    const SCFAccelerators::SolidAcceleratorOptions& acc)
@@ -290,9 +301,21 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // banner).  With the same bracket on Converge and on Iterate, the ledger PARTITIONS the run and
     // "everything not in a bucket" stops being a place time can hide.
     qchem::report::Timed residue("setup: facade ctor (residue -- decisions between the named buckets)");
+    const std::vector<int> siteSpins=BuildBasis(lat, mol, opts, acc);
+    BuildRun(lat, *mol, siteSpins, nullptr);
+    (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
+}
+
+// THE FIRST HALF OF THE BUILD: everything the saved-state fingerprint is judged against (the Bloch blocks), and
+// nothing that depends on the seed.  Restart stops here to compare before paying for the Hamiltonian.
+std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                                              const SolidCalcOptions& opts,
+                                              const SCFAccelerators::SolidAcceleratorOptions& acc)
+{
     itsImp->opts    = opts;
     itsImp->accOpts = acc;
     itsImp->st      = lat.GetStructure();
+    itsImp->cellMatrix = lat.GetUnitCell().GetCellMatrix();
 
     namespace L3 = BasisSet::Lattice;
     // THE RESOLVED IMPOSITION (doc/OpenWork.md N5, user 2026-08-26).  The caller's flag AND the policy's
@@ -378,6 +401,21 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     auto irreps = itsImp->bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry Sum_k)
     itsImp->ec = std::make_unique<Crystal_EC>(irreps, (opts.Nelec+twoS)/2, (opts.Nelec-twoS)/2,
                                               opts.globalFermi, opts.spinsShareFermi);
+    // T2 is gated on the run having IMPOSED something (see Outcome_); the resolved value, stored once.
+    itsImp->imposed = imposed;
+    itsImp->hubbard = opts.hubbard;   // the U the run will carry (BuildRun fills the groups and radials)
+    (void)polarized;
+    return siteSpins;
+}
+
+// THE SECOND HALF: the Hamiltonian, the seed (the caller's when given -- a restored state), the iterator.
+void SolidCalculation::BuildRun(const Lattice_3D& lat, const BasisSet::Real_BS& mol, const std::vector<int>& siteSpins,
+                                std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed)
+{
+    const SolidCalcOptions& opts=itsImp->opts;
+    const bool polarized        = opts.multiplicity>=1;
+    const bool hamPreservesReal = !opts.forceComplex;   // the BuildBasis forecast, restated for the assert below
+    const bool imposed          = itsImp->imposed;
 
     // THE HUBBARD MANIFOLDS' SITE GROUPS (step 5 increment 2): each manifold is labelled by the stabiliser of
     // its site in the DECLARED DECORATION's Shubnikov group (sigma=None ops), grey parentage beside it.  The
@@ -401,7 +439,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
         }
         for (auto& M : hubbard)
         {
-            if (M.atomicRadial && M.radial.empty()) M.radial=AtomicRadial(*mol, *itsImp->st, M.site, M.l, opts.species);
+            if (M.atomicRadial && M.radial.empty()) M.radial=AtomicRadial(mol, *itsImp->st, M.site, M.l, opts.species);
             if (M.siteOps.empty()) M.siteOps=lat.SiteRotations(M.site, decoration);
             // PARENTAGE is chemistry: the point group of the site's coordination polyhedron, not the
             // cell's grey stabiliser (which on the rhombohedral AFM-II supercell is D_3d too, and would
@@ -424,7 +462,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
 
     // DECISION 3 -- the accelerator, by policy, through the public typed door.
     itsImp->stageAccel = opts.accelerator;
-    itsImp->accel.reset(SCFAccelerators::Factory(opts.accelerator, acc));
+    itsImp->accel.reset(SCFAccelerators::Factory(opts.accelerator, itsImp->accOpts));
 
     // THE SEED IS BUILT HERE, not inside the iterator -- the same factory call the SeedStrategy ctor
     // would have made (ChargeDensity::MakeSeedDensity with the Hamiltonian's own polarization), handed
@@ -436,7 +474,7 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // time Init hands its density back, which is below any honest floor and made the postcondition
     // silently skip.  Measured before it is consumed, the baseline is the seed's own.
     const bool polarizedHam = itsImp->ham->GetSpinGroup()==SpinGroup::Polarized;
-    std::unique_ptr<qchem::ChargeDensity::cChargeDensity> seed;
+    if (!seed)   // a RESTORED state arrives pre-built (Restart); otherwise the strategy the options name
     {
         qchem::report::Timed timed("setup: seed density (SAD/IonicSAD atomic solves)");
         seed.reset(qchem::ChargeDensity::MakeSeedDensity<dcmplx>(opts.seed, itsImp->bs.get(), itsImp->st.get(),
@@ -472,13 +510,11 @@ SolidCalculation::SolidCalculation(const Lattice_3D& lat, std::shared_ptr<const 
     // No-op unless SCFParams::UseMOM is also set.
     if (opts.momFromSeed) itsImp->scf->AdoptMOMReference(*itsImp->scf->GetWaveFunction());
 
-    // T2 is gated on the run having IMPOSED something: an imposition is an ASSERTION about the answer,
-    // and only then is losing the order a contradiction rather than physics (a FREE run that finds m=0
-    // has found m=0, and must never be second-guessed for it).
-    itsImp->imposed = imposed;
+    // (T2's gate -- itsImp->imposed -- was stored by BuildBasis: an imposition is an ASSERTION about the answer,
+    // and only then is losing the order a contradiction rather than physics.)
 
     EmitRunBanner(opts, itsImp->xcMesh, itsImp->st->GetNumAtoms(), imposed, hubbard);
-    (void)Converge(params);   // the ctor ATTEMPTS; the caller faces the result via Result()
+    itsImp->hubbard = hubbard;        // RESOLVED (groups, radials): what the Hamiltonian carries and a save records
 }
 
 // THE ANNEALED CTOR.  Delegates to the single-stage one with the FIRST stage's parameters/accelerator --
@@ -770,6 +806,10 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
     EmitSCFBanner(itsImp->opts.label, params, itsImp->stageAccel);
     itsImp->lastOccupation = {.useMOM=params.UseMOM, .momStartIter=(int)params.MOMStartIter,
                               .kT=params.SmearingkT, .momPenalty=params.MOMSmearPenalty};   // the iterator's own conversion
+    itsImp->lastkT     = params.SmearingkT;
+    itsImp->lastRecipe = std::string("accel=")+AccelName(itsImp->stageAccel)+" kT="+std::to_string(params.SmearingkT)
+                       + " MOM="+(params.UseMOM?"on":"off")+" KerkerG0="+std::to_string(params.KerkerG0)
+                       + " PulayDepth="+std::to_string(params.PulayDepth)+" NMaxIter="+std::to_string(params.NMaxIter);
     itsImp->scf->Iterate(params);
     itsImp->converged = itsImp->scf->Converged();
     itsImp->diag.itsConverged = itsImp->converged;
@@ -800,7 +840,94 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
                   << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]<<" Eee="<<E["Eee"]<<" Exc="<<E["Exc"]
                   << " Enn="<<E["Enn"]<<" E_alphaZ="<<E["E_alphaZ"]<<")" << std::endl;
     }
+    // THE CHECKPOINT (CK-1), converged or not: the unattended run's safety net.  A failed WRITE warns and the run
+    // goes on -- losing a finished SCF to a full disk would make the net the hazard (SaveState itself throws).
+    if (!itsImp->opts.saveStateTo.empty())
+    {
+        try { SaveState(itsImp->opts.saveStateTo); }
+        catch (const std::exception& e)
+        {
+            std::cout << "["<<itsImp->opts.label<<"] WARNING: state NOT saved to "<<itsImp->opts.saveStateTo
+                      << ": "<<e.what()<<std::endl;
+        }
+    }
     return Outcome_();
+}
+
+//====================================================================================================
+//  SAVED STATES (CK-1; the layout, the fingerprint classes and the reasons are in qchem.SolidState)
+//====================================================================================================
+StateFingerprint SolidCalculation::Fingerprint(double kT) const
+{
+    const auto& o=itsImp->opts;
+    std::ostringstream xc;
+    xc<<MeshName(itsImp->xcMesh.cellKind);
+    if (itsImp->xcMesh.cellKind==qcMesh::UnitCellKind::Becke) xc<<" nR="<<itsImp->xcMesh.nRadial<<" L="<<itsImp->xcMesh.angularDegree;
+    else                                                      xc<<" eCut="<<itsImp->xcMesh.eCut;
+    const RunIdentity id{.species=o.species, .Nelec=o.Nelec, .multiplicity=o.multiplicity, .functional="LDA",
+                         .hubbard=itsImp->hubbard, .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor,
+                         .xcMesh=xc.str(), .ortho=int(o.ortho), .orthoTol=o.orthoTol, .kT=kT};
+    return MakeStateFingerprint(itsImp->cellMatrix, *itsImp->st, *itsImp->bs,
+                                o.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized, id);
+}
+
+void SolidCalculation::SaveState(const std::string& path) const
+{
+    const auto* wf=itsImp->scf ? itsImp->scf->GetWaveFunction() : nullptr;
+    if (!wf) throw std::logic_error("SolidCalculation::SaveState: no wave function yet");
+    const StateSummary sum{.label=itsImp->opts.label, .converged=itsImp->converged,
+                           .iterations=itsImp->scf->GetIterationCount(),
+                           .energy=itsImp->scf->GetEnergy().GetTotalEnergy(), .charge=itsImp->charge,
+                           .commutator=itsImp->lastCommutator, .recipe=itsImp->lastRecipe};
+    {
+        qchem::report::Timed timed("state: save (HDF5)");
+        WriteSolidState(path, Fingerprint(itsImp->lastkT), sum, *itsImp->bs, *wf);
+    }
+    std::cout << "["<<itsImp->opts.label<<"] state saved to "<<path
+              << (itsImp->converged ? "" : "  (NOT converged -- a restart will say so)") << std::endl;
+}
+
+Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>
+SolidCalculation::Restart(const std::string& path, const Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                          const SolidCalcOptions& opts, const SCFParams& params,
+                          const SCFAccelerators::SolidAcceleratorOptions& acc)
+{
+    using O=Outcome<std::unique_ptr<SolidCalculation>, RestartRefusal>;
+    const std::string tag="["+opts.label+" restart] ";
+    auto refuse=[&](RestartRefusal r)
+    {
+        std::cout << tag << "REFUSED ("<<path<<"): "<<r.details<<std::endl;
+        return O::Fail(std::move(r));
+    };
+    auto saved=ReadSolidState(path);
+    if (!saved) return refuse(saved.Error());
+
+    std::unique_ptr<SolidCalculation> c(new SolidCalculation(BuildOnly{}));
+    const std::vector<int> siteSpins=c->BuildBasis(lat, mol, opts, acc);
+    // Judged against the BUILT blocks (k, weight, size), not against a re-derivation of what they would be.
+    auto warm=CompareFingerprints(saved->fingerprint, c->Fingerprint(params.SmearingkT));
+    if (!warm) return refuse(warm.Error());
+    auto cd=RestoreDensity(*saved, *c->itsImp->bs,
+                           opts.multiplicity>=1 ? SpinGroup::Polarized : SpinGroup::UnPolarized);
+    if (!cd) return refuse(cd.Error());
+
+    const bool exact=warm->empty();
+    {
+        std::ostringstream os;
+        os<<tag<<(exact ? "EXACT RESUME" : "WARM START")<<" from "<<path<<" (saved by '"<<saved->summary.label<<"', "
+          <<(saved->summary.converged ? "converged" : "NOT converged")<<" after "<<saved->summary.iterations
+          <<" iterations, E="<<std::setprecision(10)<<saved->summary.energy<<"; "<<saved->summary.recipe<<")";
+        for (const std::string& d : *warm) os<<"\n"<<tag<<"  differs: "<<d;
+        std::cout<<os.str()<<std::endl;
+    }
+    c->BuildRun(lat, *mol, siteSpins, cd.TakeValue());
+    (void)c->Converge(params);
+    if (exact)
+        std::cout << tag << "resumed E="<<std::setprecision(10)<<c->itsImp->scf->GetEnergy().GetTotalEnergy()
+                  << " vs saved "<<saved->summary.energy<<"  dE="<<std::setprecision(3)
+                  << c->itsImp->scf->GetEnergy().GetTotalEnergy()-saved->summary.energy
+                  << " after "<<c->itsImp->scf->GetIterationCount()<<" iterations"<<std::endl;
+    return O::Ok(std::move(c));
 }
 
 Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Result() const {return Outcome_();}
@@ -982,6 +1109,11 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
         // term's U; the facade re-runs the SCF with the caller's parameters.  (est was fed from these orbitals;
         // Apply resets it, and the next EstimateHubbardU builds a fresh one.)
         est->Apply(R.last);
+        for (size_t M=0;M<R.last.size() && M<itsImp->hubbard.size();M++)   // the record a save reads (SetU = one U)
+        {
+            itsImp->hubbard[M].U=R.last[M].Ueff();
+            itsImp->hubbard[M].Uirrep.clear();
+        }
         est=itsImp->ham->MakeHubbardUEstimator();
         Ucur=Unext;
         // A NEW STAGE, not a continued Iterate: the converged mixer history (eight near-zero Pulay residuals)
