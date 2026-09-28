@@ -360,6 +360,11 @@ VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
     full.siteSpins.clear();
     full.densityEcut=0.0;                      // the vet needs ANALYTIC overlaps only: no DFT tier, no grid ladder
     VetTrimResult r;
+    // The smallest overlap eigenvalue over the k-mesh, and where -- the conditioning number a reader judges a
+    // basis by (user 2026-09-28: the trim must show it BEFORE and AFTER).  One per pass; [0] = the untrimmed basis.
+    struct LambdaMin { double value=1e300; std::string k; };
+    std::vector<LambdaMin> lambdas;
+    auto fmtLambda=[](const LambdaMin& l){ std::ostringstream os; os << l.value << " at k=" << l.k; return os.str(); };
     for (int pass=0; pass<64; ++pass)
     {
         r.mol=make(r.trim);
@@ -369,11 +374,16 @@ VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
         struct Candidate { int Z; int l; rvec_t exponents; double alphaMin; };
         std::vector<Candidate> hits;
         size_t nDrops=0;
+        LambdaMin lmin;
         for (size_t i=0;i<cbs.GetNumIBS();++i)
             std::visit([&](const auto& b)
             {
                 const auto& S=b->Overlap();                                  // ANALYTIC, grid-free
                 using U=typename std::decay_t<decltype(S)>::ElementType;
+                {
+                    rvec_t w; mat_t<U> Uw; blazem::eigen(S, w, Uw);          // ascending
+                    if (w[0]<lmin.value) {lmin.value=w[0]; std::ostringstream os; os << b->GetSymmetry(); lmin.k=os.str();}
+                }
                 const std::vector<size_t> drops=qchem::PivotedCholeskyDrops<U>(S, orthoTol);
                 if (drops.empty()) return;
                 nDrops+=drops.size();
@@ -402,12 +412,17 @@ VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
                         break;
                     }
             }, bs.GetChild(i));
+        lambdas.push_back(lmin);
         if (nDrops==0)
         {
             std::cout << "[basis trim] vet stage: ";
             if (r.trim.empty()) std::cout << "nothing to trim";
             else { std::cout << "trimmed "; r.trim.Write(std::cout); }
-            std::cout << " -- no k-block of the full mesh drops an AO at orthoTol=" << orthoTol << std::endl;
+            std::cout << " -- no k-block of the full mesh drops an AO at orthoTol=" << orthoTol
+                      << ";  min eig S over the k-mesh: ";
+            if (lambdas.size()==1) std::cout << fmtLambda(lambdas[0]);
+            else std::cout << "BEFORE " << fmtLambda(lambdas.front()) << "  ->  AFTER " << fmtLambda(lambdas.back());
+            std::cout << std::endl;
             return r;
         }
         if (hits.empty()) throw std::logic_error("VetStageTrim: drops that map to no nameable shell");
@@ -417,8 +432,8 @@ VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,
         if (r.trim.Removes(cut->Z, cut->l, cut->exponents))
             throw std::logic_error("VetStageTrim: the trimmed shell is still in the basis (the reader ignored the trim)");
         r.trim.shells.push_back({cut->Z, cut->l, cut->exponents});
-        std::cout << "[basis trim] vet stage pass " << pass << ": " << nDrops << " AO drop(s) over the k-mesh at orthoTol="
-                  << orthoTol << " -> removing ";
+        std::cout << "[basis trim] vet stage pass " << pass << ": min eig S " << fmtLambda(lmin) << "; " << nDrops
+                  << " AO drop(s) over the k-mesh at orthoTol=" << orthoTol << " -> removing ";
         Gaussian::ShellTrim one; one.shells.push_back(r.trim.shells.back()); one.Write(std::cout);
         std::cout << " from EVERY site of that element, every k" << std::endl;
     }
