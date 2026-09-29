@@ -22,8 +22,12 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 **▶ 2026-09-29 (late): R3 STEPS 1 AND 2 ARE DONE — next is STEP 3 (B2 + C1 + the term bodies, gated q = 0 == the
 R2 route; §3d increment order).**  Step 2's record is at the end of §3e.  §3d was reviewed
 the same day: Q7–Q9 ruled as recommended; Q6 and Q10 were explained in plain terms and implemented.  Step 1's record,
-which includes a MULTI-k bug in R2's transition density that it found and fixed, is §3e.  Before step 2, read §3e's
-three open items.  The NiO states are saved (`~/Code/qchem6-runs/states/nio/`, imposed and FREE).
+which includes a MULTI-k bug in R2's transition density that it found and fixed, is §3e.  Before step 3, read §3e
+(its closed linearity item and the step-2 record) and §3d's B2/C1 signatures, with Q7's ruling that δρ(G+q) gets its
+own type (`ΔGq_Map`).  Step 3's first gate: the new route at q = 0 reproduces the R2 route on free Si; then retire R2's
+periodic forwarding (§3d finding 5).  The NiO states are saved (`~/Code/qchem6-runs/states/nio/`, imposed and FREE; use
+the FREE one for any finite-difference cross-check); NiO free frozen χ at q = 0 is −2.0700 Ha⁻¹ (U 6.45 eV for this
+cell).
 
 **Superseded (kept for the record): the R3 sizing + design note, §3d.**  Items 1–3 below are answered there.
 
