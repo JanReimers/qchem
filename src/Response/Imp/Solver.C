@@ -127,9 +127,13 @@ std::ostream& SelfConsistentResponse::Write(std::ostream& os) const
     for (size_t c=0;c<perturbed.size();c++)
     {
         const size_t J=perturbed[c];
+        // 8 significant figures: enough to hold a chi against the finite-difference cross-check (the stream's own
+        // precision may have been left at 3 by an earlier writer -- it printed "-2.07" against FD -2.0672).
+        const std::streamsize prec=os.precision(8);
         os << "[response]   " << std::setw(8) << labels[J] << "  chi0 " << std::setw(14) << chi0(J,c).real()
-           << "  chi " << std::setw(14) << chi(J,c).real() << "  residual " << residual[c]
+           << "  chi " << std::setw(14) << chi(J,c).real() << "  residual " << std::setprecision(3) << residual[c]
            << " (" << iterations[c] << " kernel applications)" << std::endl;
+        os.precision(prec);
     }
     return os;
 }
