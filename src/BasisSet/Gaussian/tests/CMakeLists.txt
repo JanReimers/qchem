@@ -3,6 +3,7 @@
 add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_PGSymmetry.C
    M_PG_BoxWalk.C
+   M_TransitionCollocation.C   # the (k+q, k) transition collocation + adjoint (LinearResponsePlan B1, R3 step 2)
    M_LatticeScreener.C
    M_PG_MeshIntegrals.C
    M_PG_Oracle.C

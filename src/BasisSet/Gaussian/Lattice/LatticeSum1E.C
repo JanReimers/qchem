@@ -345,6 +345,40 @@ public:
 };
 
 
+//! \brief THE TRANSITION COLLOCATION (doc/LinearResponsePlan.md §3d B1) -- a capability of its own, cross-cast to.
+//!
+//! The Bloch-q transition density \f$\delta\rho(r)=\sum_{ij}\delta D_{ij}\chi_i^{k+q}(r)\overline{\chi_j^k(r)}\f$ of
+//! one (k+q, k) block pair of the SAME lattice basis, and its exact adjoint.  Its own face (not new clauses on
+//! \c LatticeCollocation) because it has its own client -- the linear response -- and every implementor of the
+//! ground-state seam need not have it.
+//!
+//! THREE CONTRACTS, each forced by the response and each different from the ground-state seam:
+//!  - the output is the PERIODIC PART \f$u=e^{-iq\cdot r}\delta\rho\f$ per ladder level, so FFT(u) is
+//!    \f$\delta\rho(G+q)\f$ keyed by G;
+//!  - the screen is GEOMETRY-ONLY -- no screener argument, no δD weight: the operator must be LINEAR, and the
+//!    D-aware screen's absolute tolerance made the kernel scale-dependent (§3e);
+//!  - NOTHING is folded or star-averaged, whatever symmetry the run imposed: a perturbation breaks the group.
+//! \a q is fractional (reciprocal coordinates); the caller takes it from a \c MeshShift, which only the k-mesh
+//! can build, so an off-mesh q is not expressible upstream.
+class TransitionCollocation
+{
+public:
+    virtual ~TransitionCollocation() = default;
+    using cellphase_t = LatticeSum1E::cellphase_t;
+    //! \f$u_L(r)\f$ on each ladder level.  \a dD is bra (k+q) rows x ket (k) columns, NOT Hermitian; \a ketPhase is
+    //! the ket block's \f$e^{ik\cdot R_n}\f$.  At q = 0 with a Hermitian dD it is \c CollocateDensity's ρ (under
+    //! a geometry-only screen).
+    virtual std::vector<cvec_t> CollocateTransition(const mat_t<dcmplx>& dD, const cellphase_t& ketPhase, const rvec3_t& q,
+                                                    const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                    const std::vector<double>& ecut_L, double relFieldSharp=-1.0) const = 0;
+    //! The EXACT adjoint: \f$h_{ij}=\langle\chi_i^{k+q}|e^{iq\cdot r}v(r)|\chi_j^k\rangle\f$ for a periodic \a v_L on
+    //! each level (bra x ket).  \f$\sum_{ij}\overline{\delta D_{ij}}h_{ij}=\sum_L w_L\sum_g\overline{u_L}v_L\f$ to rounding.
+    virtual mat_t<dcmplx> IntegrateTransition(const std::vector<cvec_t>& v_L, const cellphase_t& ketPhase, const rvec3_t& q,
+                                              const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                              const std::vector<double>& ecut_L, double relFieldSharp=-1.0) const = 0;
+};
+
+
 //! \brief THE T3 ROUTE-(b) STREAM FOLD capability (doc/SymmetryUpgradePlan.md §6b) -- OPTIONAL.
 //!
 //! Segregated 2026-09-08: both methods already carried DEFAULTS, i.e. an optional capability bolted onto

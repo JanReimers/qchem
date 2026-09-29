@@ -122,6 +122,7 @@ static rmat_t BuildCartToSphere(const std::vector<AoShell>& shells, const hmat_t
 class SphericalView_IBS
     : public virtual Gaussian::Orbital_1E_IBS
     , public virtual Gaussian::Periodic_Gaussian_IBS   // all four faces (ISP split 2026-09-08): this view FORWARDS every one
+    , public virtual Gaussian::TransitionCollocation   // forwarded through T like the ground-state pair (LinearResponsePlan B1)
     , public virtual BasisSet::BareCoulombSource       // the inner block's bare (ab|cd) through T (ACBN0, 2026-09-21)
 {
 public:
@@ -305,8 +306,24 @@ public:
                                         const UnitCell& A, const rvec3_t& kFrac=rvec3_t(0,0,0)) const override
     { return itsLat->SetStreamSymmetryOps(ops,A,kFrac); }   // the fold acts on the INNER Cartesian streams
     virtual size_t StreamFoldOrder() const override {return itsLat->StreamFoldOrder();}
+    //! The transition pair through T: δD_cart = T δD T^T in, h_sph = T^T h_cart T out (T real, so the same
+    //! congruence both ways; δD is NOT Hermitian, so no packing).  THROWS if the inner block has no such face.
+    virtual std::vector<cvec_t> CollocateTransition(const mat_t<dcmplx>& dD, const cellphase_t& ketPhase, const rvec3_t& q,
+                                                    const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                    const std::vector<double>& ecut_L, double relFieldSharp=-1.0) const override
+    { return InnerTransition().CollocateTransition(mat_t<dcmplx>(itsTc*dD*blazem::trans(itsTc)),ketPhase,q,A,N_L,ecut_L,relFieldSharp); }
+    virtual mat_t<dcmplx> IntegrateTransition(const std::vector<cvec_t>& v_L, const cellphase_t& ketPhase, const rvec3_t& q,
+                                              const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                              const std::vector<double>& ecut_L, double relFieldSharp=-1.0) const override
+    { return mat_t<dcmplx>(blazem::trans(itsTc)*InnerTransition().IntegrateTransition(v_L,ketPhase,q,A,N_L,ecut_L,relFieldSharp)*itsTc); }
 
 private:
+    const Gaussian::TransitionCollocation& InnerTransition() const
+    {
+        auto* t=dynamic_cast<const Gaussian::TransitionCollocation*>(itsLat);   // abstract -> abstract
+        if (!t) throw std::logic_error("SphericalLatticeView: the inner Cartesian block has no TransitionCollocation face");
+        return *t;
+    }
     // T^T M T, packed (upper triangle, real diagonal for the complex case).
     hmat_t<double> CongruenceR(const hmat_t<double>& M) const
     {

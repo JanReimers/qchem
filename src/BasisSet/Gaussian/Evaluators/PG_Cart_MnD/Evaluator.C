@@ -14,6 +14,7 @@
 // the same shared PGData -- which is why PGData is kept separate, not absorbed here.
 module;
 #include <cassert>
+#include <stdexcept> // the transition collocation's refusals
 #include <complex>   // std::real (Hermitian-diagonal projection of the Bloch lattice sum)
 #include <string>
 #include <ostream>
@@ -582,12 +583,20 @@ public:
     BoxGeom MakeBoxGeom(size_t i0, size_t j0, const rvec3_t& Roff,
                         const UnitCell& A, const ivec3_t& N, double epsEff) const
     {
-        BoxGeom g;
         const rvec_t ei=radials[i0]->GetExponents();
         const rvec_t ej=radials[j0]->GetExponents();
-        const rvec3_t Ri=radials[i0]->GetCenter(), Rj=radials[j0]->GetCenter()+Roff;
         double aMinI=ei[0]; for (double e:ei) aMinI=std::min(aMinI,e);
         double aMinJ=ej[0]; for (double e:ej) aMinJ=std::min(aMinJ,e);
+        return MakeBoxGeomFor(aMinI, radials[i0]->GetCenter(), aMinJ, radials[j0]->GetCenter()+Roff, A, N, epsEff);
+    }
+    //! The box of ONE Gaussian pair (exponents \a aMinI at \a Ri, \a aMinJ at \a Rj): what \c MakeBoxGeom
+    //! builds from a shell pair's most diffuse primitives, and what the transition collocation builds per
+    //! PRIMITIVE pair (a contracted shell pair is a sum of them, each with its own product centre -- the cube
+    //! kernel's origin, so one shared box cannot serve them all).  Pure move of \c MakeBoxGeom's body.
+    BoxGeom MakeBoxGeomFor(double aMinI, const rvec3_t& Ri, double aMinJ, const rvec3_t& Rj,
+                           const UnitCell& A, const ivec3_t& N, double epsEff) const
+    {
+        BoxGeom g;
         g.pMin=aMinI+aMinJ;
         g.P=(aMinI*Ri+aMinJ*Rj)/g.pMin;
         const double lnE=-std::log(epsEff);
@@ -670,10 +679,18 @@ public:
     PairPoly MakePairPoly(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
                           const double* w) const
     {
+        if (radials[i0]->GetExponents().size()!=1 || radials[j0]->GetExponents().size()!=1) return PairPoly{};   // contracted: not this kernel
+        return MakePrimPairPoly(i0,nI,j0,nJ,Roff,w,0,0);
+    }
+    //! \c MakePairPoly for ONE PRIMITIVE pair (\a ip of shell \a i0's radial, \a jp of \a j0's) -- the
+    //! contraction coefficients \f$g_{ip}g_{jp}\f$ ride in \c Eij.  The transition collocation sums a
+    //! contracted shell pair over these; \c MakePairPoly is the (0,0) case of an uncontracted pair.
+    PairPoly MakePrimPairPoly(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
+                              const double* w, size_t ip, size_t jp) const
+    {
         PairPoly q;
         const rvec_t ei=radials[i0]->GetExponents(), gi=radials[i0]->GetCoeffs();
         const rvec_t ej=radials[j0]->GetExponents(), gj=radials[j0]->GetCoeffs();
-        if (ei.size()!=1 || ej.size()!=1) return q;           // contracted: not this kernel
         int lp=0;
         for (size_t a=0;a<nI;a++) lp=std::max(lp, pols[i0+a].GetTotalL());
         int lpj=0;
@@ -686,10 +703,10 @@ public:
         // THE GAUSSIAN PRODUCT THEOREM comes from the SHARED GaussProduct, not from a second copy of the
         // same algebra here (user, 2026-08-27).  The contraction coefficients are folded in on top: Omega
         // is a PRIMITIVE-pair object and its Eij carries no g_i g_j.
-        const GaussProduct gp(ei[0], radials[i0]->GetCenter(), ej[0], radials[j0]->GetCenter()+Roff);
+        const GaussProduct gp(ei[ip], radials[i0]->GetCenter(), ej[jp], radials[j0]->GetCenter()+Roff);
         q.p=gp.p;
         q.P=gp.P;
-        q.Eij=gi[0]*gj[0]*gp.Eij;
+        q.Eij=gi[ip]*gj[jp]*gp.Eij;
         q.PA=gp.PA; q.PB=gp.PB;
         const rvec3_t PA=q.PA, PB=q.PB;
         if (!w) { q.live=true; return q; }                    // Gaussian part only (the gather)
@@ -2306,6 +2323,362 @@ public:
 #endif
         for (size_t sp=0;sp<sprs.size();sp++) integrateShell(sp);           // serial (byte-identical default)
         fillImages();
+        return h;
+    }
+
+    // =========================== THE TRANSITION COLLOCATION (LinearResponsePlan §3d B1) ===========================
+    // The Bloch-q transition density  δρ(r) = Σ_ij δD_ij χ_i^{k+q}(r) conj(χ_j^k(r))  and its adjoint, on the same
+    // multigrid ladder, task list and separable cube as the ground state.  THREE differences, each forced:
+    //  1. the PERIODIC PART u = e^{-iq.r} δρ is collocated: per (pair i j, offset n) the ground-state box times the
+    //     plane wave e^{-iq.s} at the UNWRAPPED box point s, which is SEPARABLE on the grid indices
+    //     (q.s = 2π Σ_a q_a (c0_a-hw_a+t_a)/N_a) -- three 1-D phase tables per task.  The modulo wrap then carries
+    //     the Bloch-q tiling, because the phase is read before the wrap.
+    //  2. δD is NOT Hermitian, so the (j,i,-n) term folds into the (i,j,n) box with its own weight:
+    //     c = δD_ij e^{-ik.R_n} + δD_ji e^{+i(k+q).R_n}  (the partner box is the same product translated by R_n,
+    //     times e^{iq.R_n}).  At q = 0, Hermitian δD: 2 Re[δD_ij e^{-ik.R_n}], the ground state's weight.
+    //  3. the screen is GEOMETRY-ONLY by construction (the collocation floor, no δD weight): the response operator
+    //     must be LINEAR, and the D-aware screen's absolute tolerance made it scale-dependent (§3e).
+    // Contracted shells are expanded into PRIMITIVE pairs, each exact on the separable cube -- no walk fallback,
+    // which could not carry the unwrapped phase.  NEVER folded or star-averaged: a perturbation breaks the group.
+    static constexpr double kTwoPi=6.283185307179586476925286766559;
+    struct QPhase { std::vector<dcmplx> x, y, z; };
+    //! e^{-iq.s} per axis over the box's unwrapped grid indices (\a sign = -1 scatter, +1 gather).
+    static QPhase MakeQPhase(const BoxGeom& g, const rvec3_t& q, const ivec3_t& N, double sign)
+    {
+        QPhase P;
+        const int n[3]={2*g.hw[0]+1, 2*g.hw[1]+1, 2*g.hw[2]+1};
+        const double qa[3]={q.x,q.y,q.z}; const long Na[3]={N.x,N.y,N.z};
+        std::vector<dcmplx>* out[3]={&P.x,&P.y,&P.z};
+        for (int a=0;a<3;a++)
+        {
+            out[a]->resize(size_t(n[a]));
+            for (int t=0;t<n[a];t++)
+            {
+                const double ang=sign*kTwoPi*qa[a]*double(g.c0[a]-g.hw[a]+t)/double(Na[a]);
+                (*out[a])[size_t(t)]=dcmplx(std::cos(ang), std::sin(ang));
+            }
+        }
+        return P;
+    }
+    //! The SCATTER: the ground state's ContractCubeN with a complex polynomial (\a qr + i \a qi, same Gaussian)
+    //! and the plane wave.  Mirrors ContractCubeN line for line -- the adjoint gate holds the two directions.
+    template <int LP>
+    void ContractCubeTransitionN(const BoxGeom& g, const PairPoly& qr, const PairPoly& qi, const QPhase& P,
+                                 const ivec3_t& N, cvec_t& dst) const
+    {
+        const int n[3]={2*g.hw[0]+1, 2*g.hw[1]+1, 2*g.hw[2]+1};
+        const GridPoly Qr=ToGridPoly(qr,g), Qi=ToGridPoly(qi,g);
+        const rvec3_t sv[3]={g.sx,g.sy,g.sz};
+        double h[3][3];
+        for (int a=0;a<3;a++) for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
+        auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
+        static thread_local rvec_t T12,T23,T31,E1;
+        BuildCubeTables(g,qr.p,LP,n,h,T12,T23,T31,E1);
+        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;
+        auto wrapAxis=[&](int a, long N_a, std::vector<size_t>& w)
+        { w.resize(size_t(n[a])); for (int t=0;t<n[a];t++) w[size_t(t)]=size_t((((g.c0[a]-g.hw[a]+t)%N_a)+N_a)%N_a); };
+        wrapAxis(0,N.x,wrapX); wrapAxis(1,N.y,wrapY); wrapAxis(2,N.z,wrapZ);
+        double cr[LP+1][LP+1], cim[LP+1][LP+1], ir[LP+1], ii_[LP+1];
+        const double inv=0.5/h[0][0];
+        for (int k=0;k<n[2];k++)
+        {
+            const double e3=eOf(2,k);
+            const double b3=h[2][0]*e3, c3=h[2][2]*e3*e3;
+            for (int a=0;a<=LP;a++)
+                for (int b=0;a+b<=LP;b++)
+                {
+                    double vr=0.0, vi=0.0, e=1.0;
+                    for (int c=0;a+b+c<=LP;c++) { vr+=Qr.q[a][b][c]*e; vi+=Qi.q[a][b][c]*e; e*=e3; }
+                    cr[a][b]=vr; cim[a][b]=vi;
+                }
+            const size_t mk=wrapZ[size_t(k)];
+            for (int j=0;j<n[1];j++)
+            {
+                const double e2=eOf(1,j);
+                const double B2=2.0*(h[0][1]*e2+b3);
+                const double C2=h[1][1]*e2*e2+c3+2.0*h[1][2]*e2*e3-g.Rq;
+                const double D2=B2*B2-4.0*h[0][0]*C2;
+                if (D2<0.0) continue;
+                const double sq=std::sqrt(D2);
+                constexpr double kChordFuzz=1e-9;          // the EXACT chord -- see ContractCubeN
+                long ia=long(std::ceil ((-B2-sq)*inv+g.fc[0]-kChordFuzz))-(g.c0[0]-g.hw[0]);
+                long ib=long(std::floor((-B2+sq)*inv+g.fc[0]+kChordFuzz))-(g.c0[0]-g.hw[0]);
+                if (ia<0) ia=0;
+                if (ib>n[0]-1) ib=n[0]-1;
+                if (ia>ib) continue;
+                for (int a=0;a<=LP;a++)
+                {
+                    double vr=0.0, vi=0.0, e=1.0;
+                    for (int b=0;a+b<=LP;b++) { vr+=cr[a][b]*e; vi+=cim[a][b]*e; e*=e2; }
+                    ir[a]=vr; ii_[a]=vi;
+                }
+                const dcmplx line=qr.Eij*T23[size_t(j)*n[2]+k]*P.y[size_t(j)]*P.z[size_t(k)];
+                const size_t my=wrapY[size_t(j)];
+                size_t mi=wrapX[size_t(ia)];
+                for (long t=ia; t<=ib; t++, mi=(mi+1==size_t(N.x)?0:mi+1))
+                {
+                    double vr=0.0, vi=0.0;
+                    for (int a=0;a<=LP;a++) { const double e1=E1[size_t(a)*n[0]+t]; vr+=ir[a]*e1; vi+=ii_[a]*e1; }
+                    dst[(mi*size_t(N.y)+my)*size_t(N.z)+mk]
+                        += dcmplx(vr,vi)*(T12[size_t(t)*n[1]+j]*T31[size_t(k)*n[0]+t])*line*P.x[size_t(t)];
+                }
+            }
+        }
+    }
+    //! The GATHER: the transpose -- complex grid-index moments W = Σ_g V(g) e^{+iq.s} e1^a e2^b e3^c e^{-p|u|^2},
+    //! returned as their real and imaginary GridPolys (MomentsToPairs is linear, so it reads each).
+    template <int LP>
+    void GatherCubeTransitionN(const BoxGeom& g, const PairPoly& q, const QPhase& P, const ivec3_t& N,
+                               const cvec_t& V, GridPoly& Wr, GridPoly& Wi) const
+    {
+        const int n[3]={2*g.hw[0]+1, 2*g.hw[1]+1, 2*g.hw[2]+1};
+        const rvec3_t sv[3]={g.sx,g.sy,g.sz};
+        double h[3][3];
+        for (int a=0;a<3;a++) for (int b=0;b<3;b++) h[a][b]=sv[a].x*sv[b].x+sv[a].y*sv[b].y+sv[a].z*sv[b].z;
+        auto eOf=[&](int a, int t){ return double(g.c0[a]-g.hw[a]+t)-g.fc[a]; };
+        static thread_local rvec_t T12,T23,T31,E1;
+        BuildCubeTables(g,q.p,LP,n,h,T12,T23,T31,E1);
+        Wr.Zero(LP); Wi.Zero(LP);
+        const double inv=0.5/h[0][0];
+        static thread_local std::vector<size_t> wrapX, wrapY, wrapZ;
+        auto wrapAxis=[&](int a, long N_a, std::vector<size_t>& w)
+        { w.resize(size_t(n[a])); for (int t=0;t<n[a];t++) w[size_t(t)]=size_t((((g.c0[a]-g.hw[a]+t)%N_a)+N_a)%N_a); };
+        wrapAxis(0,N.x,wrapX); wrapAxis(1,N.y,wrapY); wrapAxis(2,N.z,wrapZ);
+        dcmplx cij[LP+1][LP+1], ci[LP+1];
+        for (int k=0;k<n[2];k++)
+        {
+            const double e3=eOf(2,k);
+            for (int a=0;a<=LP;a++) for (int b=0;a+b<=LP;b++) cij[a][b]=0.0;
+            const size_t mk=wrapZ[size_t(k)];
+            const double b3=h[2][0]*e3, c3=h[2][2]*e3*e3;
+            for (int j=0;j<n[1];j++)
+            {
+                const double e2=eOf(1,j);
+                const double B2=2.0*(h[0][1]*e2+b3);
+                const double C2=h[1][1]*e2*e2+c3+2.0*h[1][2]*e2*e3-g.Rq;
+                const double D2=B2*B2-4.0*h[0][0]*C2;
+                if (D2<0.0) continue;
+                const double sq=std::sqrt(D2);
+                constexpr double kChordFuzz=1e-9;
+                long ia=long(std::ceil ((-B2-sq)*inv+g.fc[0]-kChordFuzz))-(g.c0[0]-g.hw[0]);
+                long ib=long(std::floor((-B2+sq)*inv+g.fc[0]+kChordFuzz))-(g.c0[0]-g.hw[0]);
+                if (ia<0) ia=0;
+                if (ib>n[0]-1) ib=n[0]-1;
+                if (ia>ib) continue;
+                for (int a=0;a<=LP;a++) ci[a]=0.0;
+                const dcmplx line=T23[size_t(j)*n[2]+k]*P.y[size_t(j)]*P.z[size_t(k)];
+                const size_t my=wrapY[size_t(j)];
+                size_t mi=wrapX[size_t(ia)];
+                for (long t=ia; t<=ib; t++, mi=(mi+1==size_t(N.x)?0:mi+1))
+                {
+                    const dcmplx gv=V[(mi*size_t(N.y)+my)*size_t(N.z)+mk]
+                                    *(T12[size_t(t)*n[1]+j]*T31[size_t(k)*n[0]+t])*line*P.x[size_t(t)];
+                    for (int a=0;a<=LP;a++) ci[a]+=gv*E1[size_t(a)*n[0]+t];
+                }
+                for (int a=0;a<=LP;a++) { double e=1.0; for (int b=0;a+b<=LP;b++) { cij[a][b]+=ci[a]*e; e*=e2; } }
+            }
+            for (int a=0;a<=LP;a++)
+                for (int b=0;a+b<=LP;b++)
+                {
+                    double e=1.0;
+                    for (int c=0;a+b+c<=LP;c++) { const dcmplx v=cij[a][b]*e; Wr.q[a][b][c]+=v.real(); Wi.q[a][b][c]+=v.imag(); e*=e3; }
+                }
+        }
+    }
+    void ContractCubeTransition(const BoxGeom& g, const PairPoly& qr, const PairPoly& qi, const QPhase& P,
+                                const ivec3_t& N, cvec_t& dst) const
+    {
+        switch (qr.lp)
+        {
+            case 0: ContractCubeTransitionN<0>(g,qr,qi,P,N,dst); return;
+            case 1: ContractCubeTransitionN<1>(g,qr,qi,P,N,dst); return;
+            case 2: ContractCubeTransitionN<2>(g,qr,qi,P,N,dst); return;
+            case 3: ContractCubeTransitionN<3>(g,qr,qi,P,N,dst); return;
+            case 4: ContractCubeTransitionN<4>(g,qr,qi,P,N,dst); return;
+            case 5: ContractCubeTransitionN<5>(g,qr,qi,P,N,dst); return;
+            case 6: ContractCubeTransitionN<6>(g,qr,qi,P,N,dst); return;
+            case 7: ContractCubeTransitionN<7>(g,qr,qi,P,N,dst); return;
+            case 8: ContractCubeTransitionN<8>(g,qr,qi,P,N,dst); return;
+        }
+        throw std::logic_error("ContractCubeTransition: lp outside [0,kMaxPoly)");
+    }
+    void GatherCubeTransition(const BoxGeom& g, const PairPoly& q, const QPhase& P, const ivec3_t& N,
+                              const cvec_t& V, GridPoly& Wr, GridPoly& Wi) const
+    {
+        switch (q.lp)
+        {
+            case 0: GatherCubeTransitionN<0>(g,q,P,N,V,Wr,Wi); return;
+            case 1: GatherCubeTransitionN<1>(g,q,P,N,V,Wr,Wi); return;
+            case 2: GatherCubeTransitionN<2>(g,q,P,N,V,Wr,Wi); return;
+            case 3: GatherCubeTransitionN<3>(g,q,P,N,V,Wr,Wi); return;
+            case 4: GatherCubeTransitionN<4>(g,q,P,N,V,Wr,Wi); return;
+            case 5: GatherCubeTransitionN<5>(g,q,P,N,V,Wr,Wi); return;
+            case 6: GatherCubeTransitionN<6>(g,q,P,N,V,Wr,Wi); return;
+            case 7: GatherCubeTransitionN<7>(g,q,P,N,V,Wr,Wi); return;
+            case 8: GatherCubeTransitionN<8>(g,q,P,N,V,Wr,Wi); return;
+        }
+        throw std::logic_error("GatherCubeTransition: lp outside [0,kMaxPoly)");
+    }
+    //! One shell pair's (tasks x primitive pairs), the ONE loop both directions share: \a body(task, box, poly
+    //! of the Gaussian only, ip, jp) for every live primitive-pair box.  A shell beyond the tensor extent THROWS
+    //! (a silently skipped pair is a wrong number).
+    template <class Body>
+    void ForTransitionBoxes(size_t sp, const std::vector<std::pair<size_t,size_t>>& sprs, const UnitCell& A,
+                            const std::vector<ivec3_t>& N_L, size_t L, Body&& body) const
+    {
+        const std::vector<Shell>& shells=Shells();
+        const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+        const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
+        const rvec_t ei=radials[si.begin]->GetExponents(), ej=radials[sj.begin]->GetExponents();
+        const std::vector<ShellPairTasks>& tl=BoxTasks(A);
+        for (const BoxTask& task : tl[sp].tasks)
+            for (size_t ip=0;ip<ei.size();ip++)
+                for (size_t jp=0;jp<ej.size();jp++)
+                {
+                    const BoxGeom bg=MakeBoxGeomFor(ei[ip], radials[si.begin]->GetCenter(), ej[jp],
+                                                    radials[sj.begin]->GetCenter()+task.Roff, A, N_L[L], kDensityEps());
+                    if (!bg.live) continue;
+                    const PairPoly pq=MakePrimPairPoly(si.begin,nIs,sj.begin,nJs,task.Roff,nullptr,ip,jp);
+                    if (pq.lp>=kMaxPoly)
+                        throw std::logic_error("TransitionCollocation: a shell pair beyond the separable kernel's extent (lp >= kMaxPoly)");
+                    body(task, bg, pq, ip, jp);
+                }
+    }
+    //! \copydoc TransitionCollocation::CollocateTransition
+    std::vector<cvec_t> CollocateTransition(const mat_t<dcmplx>& dD, const cellphase_t& ketPhase, const rvec3_t& q,
+                                            const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                            const std::vector<double>& ecut_L, double relFieldSharp=-1.0) const
+    {
+        const size_t K=N_L.size(), nn=size();
+        if (K==0 || ecut_L.size()!=K) throw std::invalid_argument("CollocateTransition: the ladder shapes disagree");
+        if (dD.rows()!=nn || dD.columns()!=nn) throw std::invalid_argument("CollocateTransition: dD is not n x n in this basis");
+        qchem::report::Timed timer("response: collocate transition density (pair scatter)");
+        std::vector<cvec_t> u(K);
+        for (size_t l=0;l<K;l++) u[l]=cvec_t(size_t(N_L[l].x)*N_L[l].y*N_L[l].z, dcmplx(0.0));
+        const std::vector<Shell>& shells=Shells();
+        std::vector<std::pair<size_t,size_t>> sprs;
+        for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
+        auto scatterShell=[&](size_t sp, std::vector<cvec_t>& dst)
+        {
+            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+            const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
+            const size_t L=PairLevel(si.begin,sj.begin,ecut_L,0.0,0.0,relFieldSharp);
+            double wr[kMaxShell*kMaxShell], wi[kMaxShell*kMaxShell];
+            ivec3_t lastN(1<<30,0,0);
+            ForTransitionBoxes(sp, sprs, A, N_L, L, [&](const BoxTask& task, const BoxGeom& bg, const PairPoly&, size_t ip, size_t jp)
+            {
+                if (!(task.n==lastN))
+                {
+                    const dcmplx ph=ketPhase(task.n);
+                    const double qn=kTwoPi*(q.x*task.n.x+q.y*task.n.y+q.z*task.n.z);
+                    const dcmplx qph(std::cos(qn), std::sin(qn));
+                    bool any=false;
+                    for (size_t a=0;a<nIs;a++)
+                        for (size_t b=0;b<nJs;b++)
+                        {
+                            const size_t i=si.begin+a, j=sj.begin+b;
+                            dcmplx c(0.0);
+                            if (j>i)       c=dD(i,j)*std::conj(ph)+dD(j,i)*ph*qph;   // the (j,i,-n) partner folded in
+                            else if (j==i) c=dD(i,j)*std::conj(ph);                  // its partner is its own task
+                            wr[a*nJs+b]=c.real(); wi[a*nJs+b]=c.imag();
+                            any = any || c!=dcmplx(0.0);
+                        }
+                    lastN = any ? task.n : ivec3_t(1<<30,0,0);
+                    if (!any) return;
+                }
+                const PairPoly qr=MakePrimPairPoly(si.begin,nIs,sj.begin,nJs,task.Roff,wr,ip,jp);
+                const PairPoly qi=MakePrimPairPoly(si.begin,nIs,sj.begin,nJs,task.Roff,wi,ip,jp);
+                ContractCubeTransition(bg, qr, qi, MakeQPhase(bg, q, N_L[L], -1.0), N_L[L], dst[L]);
+            });
+        };
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=PairThreads(); nthreads>1)
+        {
+            const std::vector<size_t>& order=BoxTaskOrder(A);
+            std::exception_ptr firstEx;
+            #pragma omp parallel num_threads(nthreads)
+            {
+                std::vector<cvec_t> mine(K);
+                for (size_t l=0;l<K;l++) mine[l]=cvec_t(u[l].size(), dcmplx(0.0));
+                #pragma omp for schedule(dynamic) nowait
+                for (size_t t=0;t<order.size();t++)
+                {
+                    try { scatterShell(order[t], mine); }
+                    catch (...)
+                    {
+                        #pragma omp critical (gpw_transition_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
+                #pragma omp critical (gpw_transition_reduce)
+                for (size_t l=0;l<K;l++) for (size_t g=0, m=u[l].size(); g<m; g++) u[l][g]+=mine[l][g];
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
+            return u;
+        }
+#endif
+        for (size_t sp=0;sp<sprs.size();sp++) scatterShell(sp,u);
+        return u;
+    }
+    //! \copydoc TransitionCollocation::IntegrateTransition
+    mat_t<dcmplx> IntegrateTransition(const std::vector<cvec_t>& v_L, const cellphase_t& ketPhase, const rvec3_t& q,
+                               const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                               const std::vector<double>& ecut_L, double relFieldSharp=-1.0) const
+    {
+        const size_t K=N_L.size(), nn=size();
+        if (K==0 || ecut_L.size()!=K || v_L.size()!=K) throw std::invalid_argument("IntegrateTransition: the ladder shapes disagree");
+        qchem::report::Timed timer("response: integrate transition potential (pair gather)");
+        mat_t<dcmplx> h(nn, nn, dcmplx(0.0));
+        const std::vector<Shell>& shells=Shells();
+        std::vector<std::pair<size_t,size_t>> sprs;
+        for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) sprs.push_back({a,b});
+        auto integrateShell=[&](size_t sp)
+        {
+            const Shell& si=shells[sprs[sp].first]; const Shell& sj=shells[sprs[sp].second];
+            const size_t nIs=si.end-si.begin, nJs=sj.end-sj.begin;
+            const size_t L=PairLevel(si.begin,sj.begin,ecut_L,0.0,0.0,relFieldSharp);
+            const double w=A.GetCellVolume()/double(v_L[L].size());
+            double br[kMaxShell*kMaxShell], bi[kMaxShell*kMaxShell];
+            ForTransitionBoxes(sp, sprs, A, N_L, L, [&](const BoxTask& task, const BoxGeom& bg, const PairPoly& pq, size_t, size_t)
+            {
+                GridPoly Wr, Wi;
+                GatherCubeTransition(bg, pq, MakeQPhase(bg, q, N_L[L], +1.0), N_L[L], v_L[L], Wr, Wi);
+                MomentsToPairs(bg,pq,Wr,si.begin,nIs,sj.begin,nJs,br);
+                MomentsToPairs(bg,pq,Wi,si.begin,nIs,sj.begin,nJs,bi);
+                const dcmplx ph=ketPhase(task.n);
+                const double qn=kTwoPi*(q.x*task.n.x+q.y*task.n.y+q.z*task.n.z);
+                const dcmplx qph(std::cos(qn), std::sin(qn));
+                for (size_t a=0;a<nIs;a++)
+                    for (size_t b=0;b<nJs;b++)
+                    {
+                        const size_t i=si.begin+a, j=sj.begin+b;
+                        if (j<i) continue;                       // the scatter's j >= i set
+                        const dcmplx bv=w*dcmplx(br[a*nJs+b], bi[a*nJs+b]);
+                        h(i,j)+=ph*bv;                                        // h_ij = Σ_n e^{ik.R_n} W^(ij,n)
+                        if (j>i) h(j,i)+=std::conj(ph)*std::conj(qph)*bv;     // h_ji = Σ_n e^{-i(k+q).R_n} W^(ij,n)
+                    }
+            });
+        };
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=PairThreads(); nthreads>1)
+        {
+            // Each shell pair writes its OWN elements (i,j) and (j,i) -- disjoint across pairs, so no reduction.
+            std::exception_ptr firstEx;
+            #pragma omp parallel for num_threads(nthreads) schedule(dynamic)
+            for (size_t sp=0;sp<sprs.size();sp++)
+            {
+                try { integrateShell(sp); }
+                catch (...)
+                {
+                    #pragma omp critical (gpw_transition_gthrow)
+                    if (!firstEx) firstEx=std::current_exception();
+                }
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
+            return h;
+        }
+#endif
+        for (size_t sp=0;sp<sprs.size();sp++) integrateShell(sp);
         return h;
     }
 

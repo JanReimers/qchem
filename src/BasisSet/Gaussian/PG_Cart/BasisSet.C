@@ -69,6 +69,7 @@ class Orbital_IBS
     , public Gaussian::Orbital_ERI4_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Gaussian::Orbital_DFT_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public virtual Gaussian::Periodic_Gaussian_IBS   // the GPW periodic seam: all four faces (ISP split 2026-09-08)
+    , public virtual Gaussian::TransitionCollocation   // the (k+q, k) transition density + adjoint (LinearResponsePlan B1)
     , public IrrepBasisSet
 {
 public:
@@ -122,6 +123,12 @@ public:
                                         const UnitCell& A,
                                         const rvec3_t& kFrac=rvec3_t(0,0,0)) const override;  // T3 stream fold (§6b)
     virtual size_t StreamFoldOrder() const override;                                  // fold-state cache-key input
+    virtual std::vector<cvec_t> CollocateTransition(const mat_t<dcmplx>& dD, const cellphase_t& ketPhase, const rvec3_t& q,
+                                                    const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                    const std::vector<double>& ecut_L, double relFieldSharp=-1.0) const override;
+    virtual mat_t<dcmplx> IntegrateTransition(const std::vector<cvec_t>& v_L, const cellphase_t& ketPhase, const rvec3_t& q,
+                                              const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                              const std::vector<double>& ecut_L, double relFieldSharp=-1.0) const override;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

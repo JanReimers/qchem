@@ -349,6 +349,14 @@ chmat_t Orbital_IBS::IntegratePotential(const std::vector<rvec_t>& V_L, const ce
                                         const chmat_t* screenD, double fieldSharpness, double relFieldSharp,
                                         const std::vector<size_t>* pairLevels) const
 {   return NR_Evaluator::IntegratePotential(V_L,phase,A,N_L,ecut_L,screener,relCutoffScale,screenD,fieldSharpness,relFieldSharp,pairLevels); }
+std::vector<cvec_t> Orbital_IBS::CollocateTransition(const mat_t<dcmplx>& dD, const cellphase_t& ketPhase, const rvec3_t& q,
+                                                     const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                                     const std::vector<double>& ecut_L, double relFieldSharp) const
+{   return NR_Evaluator::CollocateTransition(dD,ketPhase,q,A,N_L,ecut_L,relFieldSharp); }
+mat_t<dcmplx> Orbital_IBS::IntegrateTransition(const std::vector<cvec_t>& v_L, const cellphase_t& ketPhase, const rvec3_t& q,
+                                               const UnitCell& A, const std::vector<ivec3_t>& N_L,
+                                               const std::vector<double>& ecut_L, double relFieldSharp) const
+{   return NR_Evaluator::IntegrateTransition(v_L,ketPhase,q,A,N_L,ecut_L,relFieldSharp); }
 std::vector<size_t> Orbital_IBS::StaticFieldPairLevels(const std::vector<double>& ecut_L,
                                                        double beta, double lnEps) const
 {   return NR_Evaluator::StaticFieldPairLevels(ecut_L,beta,lnEps); }
