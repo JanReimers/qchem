@@ -1,6 +1,8 @@
 // File: Response/Imp/Solver.C  The self-consistent linear response by GMRES.
 module;
+#include <algorithm>
 #include <cmath>
+#include <complex>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -31,9 +33,7 @@ public:
     virtual cvec_t Apply(const cvec_t& x, double) const override   // exact: the tolerance is not needed
     {
         const BlockPairs dD=itsRef.HermitianPart(itsRef.Unpack(x, *itsRule), *itsRule);
-        const auto delta=itsFrame.ToAO(dD, itsRule);
-        const auto dF=itsK.InducedFock(*delta);
-        const BlockPairs R0KdD=itsRef.ApplyR0(*itsRule, itsFrame.ToMO(*dF, *itsRule));
+        const BlockPairs R0KdD=itsRef.ApplyR0(*itsRule, InducedFockMO(itsFrame, itsK, dD, itsRule));
         return x-itsRef.Pack(R0KdD);
     }
 private:
@@ -45,6 +45,31 @@ private:
 };
 
 } // namespace
+
+template <class T> BlockPairs InducedFockMO(const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& K, const BlockPairs& dD,
+                                            std::shared_ptr<const Symmetry::SelectionRule> rule)
+{
+    double s=0.0;
+    for (const auto& m : dD.m)
+        for (size_t i=0;i<m.rows();i++) for (size_t j=0;j<m.columns();j++) s=std::max(s, std::abs(m(i,j)));
+    BlockPairs X;
+    if (s==0.0)                                   // K[0] = 0: the zero vector, shaped as ToMO would give it
+    {
+        for (const auto& m : dD.m) X.m.push_back(cmat_t(m.rows(), m.columns(), dcmplx(0.0)));
+        return X;
+    }
+    BlockPairs unit=dD;
+    for (auto& m : unit.m) m/=s;
+    const auto delta=frame.ToAO(unit, rule);
+    const auto dF=K.InducedFock(*delta);
+    X=frame.ToMO(*dF, *rule);
+    for (auto& m : X.m) m*=s;
+    return X;
+}
+template BlockPairs InducedFockMO<double>(const OrbitalFrame<double>&, const Hamiltonian::ResponseKernel<double>&,
+                                          const BlockPairs&, std::shared_ptr<const Symmetry::SelectionRule>);
+template BlockPairs InducedFockMO<dcmplx>(const OrbitalFrame<dcmplx>&, const Hamiltonian::ResponseKernel<dcmplx>&,
+                                          const BlockPairs&, std::shared_ptr<const Symmetry::SelectionRule>);
 
 template <class T> Outcome<SelfConsistentResponse,ResponseFailure>
 LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& kernel,

@@ -308,7 +308,8 @@ namespace {
 SCFParams SiParams()
 {
     SCFParams par;
-    par.NMaxIter=80; par.MinΔρ=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
+    // 200, not 80: the POLARIZED k211 ground state needs more than 80 (2026-09-29); a cap costs nothing unless hit (trap 3).
+    par.NMaxIter=200; par.MinΔρ=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
     return par;
 }
 std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false,
@@ -399,6 +400,104 @@ void PeriodicAnalyticEqualsFD(SpinGroup g)
 
 TEST(ResponseKernel, GPW_Si_AnalyticEqualsFiniteDifference_UnPol) {PeriodicAnalyticEqualsFD(SpinGroup::UnPolarized);}
 TEST(ResponseKernel, GPW_Si_AnalyticEqualsFiniteDifference_Pol)   {PeriodicAnalyticEqualsFD(SpinGroup::Polarized);}
+
+//=====================================================================================================
+//  THE KERNEL IS LINEAR -- at every SCALE of δD (LinearResponsePlan §3e open item).  GMRES assumes a fixed linear
+//  map, and on NiO its recurrence estimate ran 100x below the TRUE residual.  Suspect: a screen with an ABSOLUTE
+//  tolerance (the D-aware collocation screen), which a Krylov solve probes with unit-norm vectors of tiny
+//  components.  The R2 FD gate varied the knobs but never the SCALE.  So: K[s δ]/s must equal K[δ] down to
+//  s = 1e-8, and K[δ1+δ2] = K[δ1]+K[δ2].  Multi-k (w_k = 1/2), NiO's shape.
+//=====================================================================================================
+TEST(ResponseKernel, GPW_Si_k211_KernelIsLinear_AtEveryScale)
+{
+    // The U = 2 eV state, +U FROZEN: on SiParams the k211 Si ground state converges at U = 2 eV (59 iterations) but
+    // not at U = 0 nor polarized (200 iterations, 2026-09-29 -- an SCF-recipe matter).  The frozen +U kernel is zero,
+    // and the screen under test is spin-agnostic, so the claim is unchanged.
+    auto calc=ConvergedSi(SpinGroup::UnPolarized, 0.0, 2.0/27.211386245988, false, ivec3_t(2,1,1));
+    const auto& wf=ResponseFacadeTests::WF(*calc);
+    auto& H=ResponseFacadeTests::Ham(*calc);
+    H.GetHubbardUTarget()->FreezeOccupations(true);
+    const auto D0=GroundDensity(wf);
+    const auto D0cd=wf.GetChargeDensity();
+    auto K=H.MakeResponseKernel(&calc->Basis(), D0cd.get());
+    std::mt19937 rng(20260929);
+    std::uniform_real_distribution<double> u(-0.05, 0.05);
+    auto random=[&]()
+    {
+        std::vector<TransitionBlock<dcmplx>> dD;
+        for (const auto& b : D0)
+        {
+            const size_t n=b.bs->GetNumFunctions();
+            chmat_t X(n);
+            for (size_t i=0;i<n;i++) {X(i,i)=u(rng); for (size_t j=i+1;j<n;j++) X(i,j)=dcmplx(u(rng),u(rng));}
+            dD.push_back({b.irrep, b.bs, X});
+        }
+        return dD;
+    };
+    auto apply=[&](std::vector<TransitionBlock<dcmplx>> dD, double scale)
+    {
+        for (auto& b : dD) b.dD*=scale;
+        auto delta=ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(dD, std::make_shared<Symmetry::Invariant>());
+        auto F=K->InducedFock(*delta);
+        std::vector<mat_t<dcmplx>> out;
+        for (const auto& b : dD) out.push_back(mat_t<dcmplx>(F->Matrix(b.irrep, b.irrep)/scale));
+        return out;
+    };
+    auto relDiff=[](const std::vector<mat_t<dcmplx>>& a, const std::vector<mat_t<dcmplx>>& b)
+    {
+        double d=0, sc=0;
+        for (size_t k=0;k<a.size();k++)
+            for (size_t i=0;i<a[k].rows();i++)
+                for (size_t j=0;j<a[k].columns();j++) {d=std::max(d, std::abs(a[k](i,j)-b[k](i,j))); sc=std::max(sc, std::abs(b[k](i,j)));}
+        return d/sc;
+    };
+    const auto d1=random(), d2=random();
+    const auto K1=apply(d1, 1.0);
+    // (a) THE RAW KERNEL -- a MEASUREMENT, printed not asserted: the D-aware screen's ABSOLUTE tolerance makes it
+    // scale-dependent (2026-09-29: 2.6e-7 at s = 1e-2, 6.9e-5 at 1e-5, 3.9% at 1e-8; with GPW_DAWARE_SCREEN=0 all
+    // 1e-16).  Additivity at UNIT scale is what the screen does allow, and that is asserted.
+    for (double sc : {1e-2, 1e-5, 1e-8})
+        std::cout << "[linearity] RAW K[s dD]/s vs K[dD]  s=" << sc << "  rel " << relDiff(apply(d1, sc), K1) << std::endl;
+    auto d12=d1;
+    for (size_t k=0;k<d12.size();k++) d12[k].dD+=d2[k].dD;
+    const auto K12=apply(d12, 1.0), K2=apply(d2, 1.0);
+    std::vector<mat_t<dcmplx>> sum;
+    for (size_t k=0;k<K1.size();k++) sum.push_back(mat_t<dcmplx>(K1[k]+K2[k]));
+    const double add=relDiff(K12, sum);
+    std::cout << "[linearity] RAW K[d1+d2] vs K[d1]+K[d2]  rel " << add << std::endl;
+    EXPECT_LT(add, 1e-7) << "the kernel is not additive at unit scale";
+
+    // (b) THE OPERATOR GMRES USES (InducedFockMO: rescaled to unit max-norm in, scaled back out) -- exactly
+    // homogeneous by construction, at every scale a Krylov vector can have.
+    const Response::Reference ref=Response::MakeReference(wf, OccupationConfig{}, {.acrossK=true, .acrossSpin=false},
+                                                          std::numeric_limits<double>::quiet_NaN());
+    const auto frame=Response::MakeOrbitalFrame(ref, wf);
+    const auto rule=std::make_shared<Symmetry::Invariant>();
+    Response::BlockPairs x;
+    for (size_t b=0;b<ref.NumBlocks();b++)
+    {
+        const size_t n=ref.NumOrbitals(b);
+        Response::cmat_t X(n, n);
+        for (size_t i=0;i<n;i++) {X(i,i)=u(rng); for (size_t j=i+1;j<n;j++) {X(i,j)=dcmplx(u(rng),u(rng)); X(j,i)=std::conj(X(i,j));}}
+        x.m.push_back(X);
+    }
+    auto opApply=[&](double sc)
+    {
+        Response::BlockPairs y=x;
+        for (auto& m : y.m) m*=sc;
+        Response::BlockPairs F=Response::InducedFockMO(frame, *K, y, rule);
+        std::vector<mat_t<dcmplx>> out;
+        for (auto& m : F.m) out.push_back(mat_t<dcmplx>(m/sc));
+        return out;
+    };
+    const auto O1=opApply(1.0);
+    for (double sc : {1e-2, 1e-5, 1e-8})
+    {
+        const double r=relDiff(opApply(sc), O1);
+        std::cout << "[linearity] OPERATOR (rescaled) s=" << sc << "  rel " << r << std::endl;
+        EXPECT_LT(r, 1e-13) << "the response operator is not homogeneous at scale " << sc;
+    }
+}
 
 //! R2 end to end through the facade: the q = 0 SELF-CONSISTENT response of GPW Si over a Si-p manifold at U = 0
 //! (the U_0 case: +U answers zero).  Physics gates that need no oracle: chi is Hermitian, SCREENED
