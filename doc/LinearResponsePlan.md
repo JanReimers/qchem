@@ -413,6 +413,12 @@ of the Reference and kernel on spin-resolved blocks, cheaply: exchange becomes p
 instead of −½ on the folded doublet), and nothing else changes.
 
 ### 3d. R3 sizing and interface proposal, FOR REVIEW (written 2026-09-29, no code yet)
+**REVIEWED 2026-09-29** (user: *"Nice plan, looks great"*).  ✅ **Q7** (*"make the type system work for us,
+consistent with the TransitionDensity type"*), ✅ **Q8** and ✅ **Q9** are ruled as recommended.  **Q6 and Q10
+were not ruled** (the user did not have enough context to judge them); plain-language explanations are with each
+question below.  **The user's standing ORDER:** (1) get the right numbers, (2) then efficiency, (3) then
+clean-ups.  Deferring (2) and (3) is fine as long as nothing deferred is lost, which is what the
+"Deferred ledger" at the end of this section is for.
 Ruling D1 asks for R3 to be sized before it is committed to, and the START HERE block asks for that as a note to
 review.  Everything below comes from reading the tree, plus one measured run (the NiO ground state that R3's
 oracle needs, `~/Code/qchem6-runs/a7_r3/nio_complex_save.log`).  The only code written is the `gpwprobe` state
@@ -487,7 +493,7 @@ is TRIM (2q ≡ 0), and then k+q is TRIM exactly when k is, since 2(k+q) ≡ 2k.
 never mixed:** TRIM pairs with TRIM, and complex with complex.  Both oracles (NiO and SrVO₃, q 2×2×2) fall in
 that case.  Mixed pairs first appear at N_q ≥ 3.  A TRIM pair also stays REAL through the whole response: the
 probe is real, R₀ is real and δD is real, and δρ is a real function (only its periodic part u is complex).
-- **Q8. Recommended: R3 keeps riding `forceComplex`.**  The response library is dcmplx throughout.  The forced
+- ✅ **Q8 RULED 2026-09-29: R3 keeps riding `forceComplex`.**  The response library is dcmplx throughout.  The forced
   complex ground state is paid once per material and then saved (CK-1).  A real-pair route is an optimisation,
   and mixed pairs matter only for a q-mesh finer than 2, which no oracle asks for.  The `OpenWork.md` §2 row
   stays open, with this paragraph as its argument.
@@ -511,6 +517,13 @@ virtual HubbardUTarget* GetHubbardUTarget() {return nullptr;}
 `Hubbard_U` implements the face; it already has all three methods.  The facade holds an RAII guard across the
 WHOLE `LinearResponse` call and restores the previous state on every exit path.  Freezing only while the kernel
 is built would not be enough, because the kernel is applied lazily during the solve.
+- *In plain terms:* hp.x's U answers "how much does the d occupation respond to a poke, when everything EXCEPT
+  the +U potential is allowed to relax?"  So while we compute it, the +U term must act as a constant.  The term
+  already has a "freeze" switch, but it sits behind an `.Internal.` module, so the facade cannot reach it.  Q6
+  asks HOW the facade gets to flip that switch.  The recommendation is a small public face ("things a
+  U-estimator does to the +U term": set U, freeze and unfreeze), handed out by the Hamiltonian the same way
+  `GetHubbardChannels()` already is.  The facade flips the switch for the length of the solve and flips it back
+  afterwards.
 - **Q6. Recommended: the target face plus the guard.**  Rejected alternatives:
   - A kernel argument (`MakeResponseKernel(bs, D0, holdHubbard)`) puts DFT+U vocabulary on the generic PT face
     (the H4 argument).
@@ -560,8 +573,8 @@ public:
 cvec_t TransitionForward(const Orbital_IBS& bra, const Orbital_IBS& ket, const cmat_t& dD) const;  //!< δρ(r_a)
 cmat_t TransitionAdjoint(const Orbital_IBS& bra, const Orbital_IBS& ket, const cvec_t& v) const;   //!< Σ_a w_a conj(Φ^bra_a) v_a Φ^ket_a
 ```
-- **Q7. Recommended: a distinct `ΔGq_Map {rvec3_t q; ΔG_Map c;}`, not a bare `ΔG_Map` keyed by G that means
-  G+q.**  Pin 20 says to ask what the object MEANS.  A q ≠ 0 map added to a ground-state ρ̃ would compile and be
+- ✅ **Q7 RULED 2026-09-29: a distinct type**, the same way `TransitionDensity` is distinct from `tChargeDensity`.
+  Recommended form: `ΔGq_Map {rvec3_t q; ΔG_Map c;}`, not a bare `ΔG_Map` keyed by G that means G+q.  Pin 20 says to ask what the object MEANS.  A q ≠ 0 map added to a ground-state ρ̃ would compile and be
   wrong; with its own type, that mistake is a build error.  The cost is one struct.
 
 **C1 at q ≠ 0.**
@@ -615,8 +628,18 @@ MnO (R2) and should be similar on a gapped NiO.  Over the full 8-point q-mesh:
   in hp.x's ortho-atomic block), not perturbed.
 - **Q10. Recommended: the perturbed set becomes an input of the probe, separate from the measured set.**  The
   default is the manifolds with U ≠ 0, or all of them when none has U ≠ 0 (R2's Si-p at U = 0 keeps working).
-  This is D2's "the channel list is the probe's input", one level finer: χ becomes (all I) × (perturbed J), and
-  U_I is read only for I ∈ J.
+  This is D2's "the channel list is the probe's input", one level finer.
+  ★ **This is a RIGHT-NUMBERS question, not only an efficiency one** (found while explaining it, 2026-09-29).
+  U = (χ₀⁻¹ − χ⁻¹)_II inverts a MATRIX, so its value depends on which channels the matrix spans.  hp.x shows the
+  size of the effect on this very cell: perturbing Ni 3d only gives U(Ni) = **5.267 eV** (`NiOg`), and adding
+  O 2p to the perturbed set gives **5.434 eV** (`NiOgO`, +3.2 %; `IntegrationTests/QE/README.md` A2b).  Today
+  `HubbardLinearResponse` inverts over EVERY declared manifold, including the six orthofull spectators (Ni 4s,
+  O 2s/2p), and that set matches NEITHER oracle.  So the comparison needs the perturbed set J to equal hp.x's
+  Hubbard block, with U read from the J×J inverse.  The 4× cost saving comes along with that.
+  *In plain terms:* the orthofull deck lists eight projector manifolds, but only two of them (the Ni 3d) are
+  "Hubbard sites" in hp.x's sense.  The other six are there only so the projectors are orthogonalised against
+  them.  hp.x pokes only the Hubbard sites and inverts χ over those.  We currently poke all eight and invert over
+  all eight, which is a different (and 4× more expensive) quantity.
 
 **R3 on NiO is therefore an hour, not a campaign, and the size question D1 raised is answered: commit.**  Two
 residuals:
@@ -649,9 +672,22 @@ turns D1's "both routes give the same χ(R)" into a test.
 4. The facade's q loop + the Si supercell-equivalence gate.
 5. NiO against hp.x (the instrument run), then SrVO₃ as its own setup item (a metal: Fermi weights at q ≠ 0; δμ
    only at q = 0).
-- **Q9. Recommended: compute all 8 q first; defer the q-STAR reduction.**  Computing one q per star is valid only
+- ✅ **Q9 RULED 2026-09-29: compute all 8 q first; defer the q-STAR reduction.**  Computing one q per star is valid only
   for a symmetric ground state, and it needs the op that maps site I to I′ for the full χ_IJ(q) (§5b found the star
   members agree to 1e-5, so the reduction is safe once it is built).  hp.x reduces; we can match that later.
+
+**Deferred ledger: what R3 defers under the numbers → efficiency → clean-up order.**  Every item has a home in
+`doc/OpenWork.md`, so none of them lives only in this record:
+
+| deferred item | kind | why it can wait | home |
+|---|---|---|---|
+| real-pair route (real arithmetic on TRIM pairs, Q8) | efficiency | forceComplex gives identical numbers (measured) | `OpenWork.md` §2 "Linear response on REAL TRIM blocks" |
+| q-STAR reduction (Q9) | efficiency | all 8 q are correct, just ≤2× the work on NiO | `OpenWork.md` §2 "A7 R3 deferred" |
+| CK-2: a response on a stored state with NO SCF | efficiency | `Restart` re-runs ~6 iterations (~1.5 min on NiO) per process | `OpenWork.md` §2 "SCF checkpoint/restart" (CK-2) |
+| the Becke XC gather (the largest bucket per application) | efficiency | about an hour per material is affordable | `OpenWork.md` §2 "A7 R3 deferred" (and the KP row) |
+| block-GMRES / warm start across channels and q | efficiency | a plain per-channel GMRES is correct | `OpenWork.md` §2 "A7 R3 deferred" |
+| retire R2's periodic forwarding (`FourierDensity`/`tProjectable_CD` through `IrrepCD` leaves) once q = 0 runs through B1/B2 | clean-up (and it closes finding 5) | the guard covers correctness until then | `OpenWork.md` §4a "Linear response on an IMPOSED run symmetrizes δρ" |
+| H5's full split (ACBN0's `Apply` moves onto `HubbardUTarget`) | clean-up | Q6 pulls forward only the part R3 needs | R4 (§5), `OpenWork.md` §2 "A7 R3 deferred" |
 
 ---
 
