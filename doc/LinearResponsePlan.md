@@ -19,6 +19,11 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 - **CK-1** — `SolidCalculation::SaveState` / `SolidCalcOptions::saveStateTo` / `SolidCalculation::Restart`
   (`OpenWork.md` §2 row "SCF checkpoint/restart"; record `doc/Records/OpenWork_History4.md` §"CK-1").
 
+**▶ 2026-09-29: the R3 SIZING + DESIGN NOTE IS WRITTEN — §3d, AWAITING REVIEW (Q6–Q10).**  Items 1 and 2 below
+are answered there, and so is item 3's frozen-+U prerequisite.  The rest of item 3's oracle prep is done:
+`gpwprobe` has `<P>_SAVE` / `<P>_RESTART`, and the NiO state is saved (§3d "Sizing" gives the path and the
+timings).  The next session starts from the review: §3d's increment order, step 1.
+
 **▶ R3 = the q ≠ 0 kernel** (§5 stage table): δρ collocated from (k+q, k) block PAIRS, Hartree at
 \f$\mathbf G+\mathbf q\f$, f_xc on the periodic part.  Oracle: hp.x U — NiO **5.267 eV at U_in = 3 eV** (frozen
 +U; decks `IntegrationTests/QE/NiOg.*`, table in `IntegrationTests/QE/README.md`), SrVO₃ 6.2502 eV (q 2×2×2;
@@ -406,6 +411,247 @@ probe.  No new abstract face is involved.
 The Pol == UnPol gate is there because Pol is the primary formulation (CLAUDE.md).  It is also the first test
 of the Reference and kernel on spin-resolved blocks, cheaply: exchange becomes per channel (scale −1 per σ
 instead of −½ on the folded doublet), and nothing else changes.
+
+### 3d. R3 sizing and interface proposal, FOR REVIEW (written 2026-09-29, no code yet)
+Ruling D1 asks for R3 to be sized before it is committed to, and the START HERE block asks for that as a note to
+review.  Everything below comes from reading the tree, plus one measured run (the NiO ground state that R3's
+oracle needs, `~/Code/qchem6-runs/a7_r3/nio_complex_save.log`).  The only code written is the `gpwprobe` state
+knobs (oracle prep, START HERE item 3).
+
+**What reading the tree found.  There are six findings, and each one moves a signature or a gate:**
+1. **The q-phase SEPARATES on the grid, so the kernel change stays local.**  Take the ground state's
+   convention, \f$\delta\rho=\sum_{ij}\delta D_{ij}\chi^{k+q}_i\overline{\chi^k_j}\f$.  For each (pair i j, offset n),
+   its periodic part \f$u=e^{-i\mathbf q\cdot\mathbf r}\delta\rho\f$ is the SAME compact box that the ground state
+   collocates, multiplied by two factors:
+   - the weight \f$\delta D_{ij}e^{-i\mathbf k\cdot\mathbf R_n}\f$.  This is the KET block's phase: the bra's phase
+     has been absorbed into the lattice sum.
+   - the plane wave \f$e^{-i\mathbf q\cdot\mathbf s}\f$, evaluated at the box point \f$\mathbf s\f$ BEFORE the wrap.
+
+   \f$\mathbf q\cdot\mathbf s=2\pi\sum_a q_a(c_{0a}-h_a+t_a)/N_a\f$ is linear in the box's three grid indices.  So
+   the plane wave factors into three 1-D tables, the same way the Mathieu exponential tables already do, and
+   `ContractCubeN<LP>`/`GatherCubeN<LP>` keep their shape.  What changes: the polynomial coefficients become
+   complex, three O(n) phase tables are built per task, and the destination is complex.  The modulo wrap then
+   applies the Bloch-q tiling automatically, because the phase is read at the unwrapped index.  The ground state
+   stays bit-identical as the no-phase instantiation of one templated kernel.  This is the "per-image complex
+   weight" the §5 table predicted, and it lives in one file.
+2. **The Hermitian fold survives, so there are exactly as many tasks as in the ground state.**  The (j,i,−n)
+   term is the (i,j,n) box translated by \f$\mathbf R_n\f$ and multiplied by \f$e^{i\mathbf q\cdot\mathbf R_n}\f$, so
+   its weight folds into the (i,j,n) box:
+   \f$c_{ij,n}=\delta D_{ij}e^{-i\mathbf k\cdot\mathbf R_n}+\delta D_{ji}e^{+i(\mathbf k+\mathbf q)\cdot\mathbf R_n}\f$.  At
+   q = 0 with a Hermitian δD this is \f$2\,{\rm Re}[\delta D_{ij}e^{-i\mathbf k\cdot\mathbf R_n}]\f$, today's weight.  So
+   R3 walks the SAME j ≥ i task list, with a complex weight in place of a real one.  The gather works the same
+   way: each box's moment feeds \f$h_{ij}\f$ with \f$e^{+i\mathbf k\cdot\mathbf R_n}\f$ and \f$h_{ji}\f$ with
+   \f$e^{-i(\mathbf k+\mathbf q)\cdot\mathbf R_n}\f$.
+3. **Hartree at G+q only changes the kernel in the G-combine.**  On each ladder level, FFT(u) IS
+   \f$\delta\rho(\mathbf G+\mathbf q)\f$ indexed by G.  Then \f$V_H=4\pi/|\mathbf G+\mathbf q|^2\f$, with G = 0 kept
+   whenever q ≠ 0.  The nested per-level combine and the per-level restriction do not change.  The adjoint
+   gathers the periodic part of δV_H with the conjugate \f$e^{+i\mathbf q\cdot\mathbf s}\f$ tables.
+4. **The Becke XC route needs no phase at all.**  At a mesh point,
+   \f$\delta\rho(r_a)=[\Phi^{k+q}\delta D\,\Phi^{k\dagger}]_{aa}\f$ is the Bloch-q function itself, not its periodic
+   part.  Then \f$\delta v=f_{xc}\delta\rho\f$, and \f$h=\Phi^{k+q\dagger}{\rm diag}(w\,\delta v)\Phi^k\f$ integrates a
+   lattice-periodic integrand over the cell.  The Φ tables already exist per block.  What is new is a TWO-block
+   forward/adjoint and complex point values.  **NiO's recipe runs Becke XC, so the first oracle needs only this
+   route and the Hartree route.**  The raw-raster XC route (the pair sampler) reuses finding 1's collocation, fed
+   point by point through \f$f_{xc}\f$ (f_xc is periodic, so the periodic part of δv is \f$f_{xc}u\f$).
+5. ⛔ **THREE SYMMETRIZERS SIT ON THE DENSITY PATHS, AND THE PERTURBATION BREAKS THE IMPOSED GROUP.**  A one-site
+   Hubbard probe is not invariant under the imposed ops, and neither is a q ≠ 0 wave.  I found these by reading;
+   none has been run:
+   - Becke `FoldedMesh::Symmetrize`: `Sample(δ, σ)` correctly SKIPS it (R2 wrote it that way).
+   - The raster star-average in `Composite_Fourier::GetRhoOnGrid`: the fit basis's own
+     `G_RasterTransform::Symmetrize`, whose ops are injected on an imposed run.  The pair sampler's
+     `Sample(δ, σ)` goes through it, so **on an imposed run with the uniform XC route, δρ is star-averaged.**
+   - The T3 stream fold, armed on imposed Γ-only runs (`Lattice/Imp/BasisSet.C`, on the SHARED molecular block,
+     so every collocation through that basis sees it).  It acts in BOTH directions.  `CollocateDensity`'s
+     `FoldProjectedD` projects whatever D it is handed onto the group, so **δD is symmetrized before it is
+     collocated.**  `IntegratePotential` gathers representative pairs only and fills their partners by the
+     representation transform, which is exact only for a group-symmetric field, **so a non-symmetric δV is
+     gathered wrong.**  (The new B1 entry points live on that same object, so they must skip `itsStreamFold`
+     explicitly.)
+
+   R2's gates were all FREE runs, so the last two paths have never run.  NiO's R3 recipe misses both: at k 2×2×2
+   the fold is off (the log says "free/multi-k run"), and it uses Becke XC.  So this does not block R3.  It is a
+   silently wrong number waiting for the first imposed-Γ or uniform-XC response.  **Proposal: the new transition
+   entry points never symmetrize or fold, by construction (they are new code with no fold in them), and q = 0 goes
+   through them as well** ("q = 0 is the special case", §5).  The R2 route (forwarding `FourierDensity` and
+   `tProjectable_CD` through a composite of `IrrepCD` leaves) then retires on the periodic path, and the hazard
+   goes with it.  Until that lands, a guard: `HubbardLinearResponse` refuses, as an Outcome, an imposed run whose
+   XC route is the raster or whose collocation is Γ-folded.  Filed as `OpenWork.md` §4a "Linear response on an IMPOSED run symmetrizes δρ".
+6. **The AO basis must be the SAME in every block, and the vet trim is what guarantees that.**  δD_{k+q,k} has
+   the bra's AOs on one index and the ket's on the other, and the kernel collocates both through ONE molecular
+   basis.  A per-k ortho drop (the behaviour before pin 22) would make those index sets differ without any error.
+   The NiO recipe's `NIO_VET=1` gives 116/116 in every block.  The pair collocation asserts the same molecular
+   block and the same kept set on bra and ket, and THROWS otherwise.
+
+**The real-TRIM question (START HERE item 2) is answered by the group, not the code.**  Every q on a 2×2×2 q-mesh
+is TRIM (2q ≡ 0), and then k+q is TRIM exactly when k is, since 2(k+q) ≡ 2k.  **So on a 2×2×2 q-mesh a pair is
+never mixed:** TRIM pairs with TRIM, and complex with complex.  Both oracles (NiO and SrVO₃, q 2×2×2) fall in
+that case.  Mixed pairs first appear at N_q ≥ 3.  A TRIM pair also stays REAL through the whole response: the
+probe is real, R₀ is real and δD is real, and δρ is a real function (only its periodic part u is complex).
+- **Q8. Recommended: R3 keeps riding `forceComplex`.**  The response library is dcmplx throughout.  The forced
+  complex ground state is paid once per material and then saved (CK-1).  A real-pair route is an optimisation,
+  and mixed pairs matter only for a q-mesh finer than 2, which no oracle asks for.  The `OpenWork.md` §2 row
+  stays open, with this paragraph as its argument.
+
+**The frozen-+U prerequisite (START HERE item 3): the ONE abstract-interface change R3 needs.**  hp.x's U is χ
+taken with V_Hub frozen (Timrov eq 20).  The term already has that mode, but no public path reaches it.
+```cpp
+// qcHamiltonian (public): H5's HubbardUTarget, pulled forward -- what a U-ESTIMATOR does TO the +U term.
+class HubbardUTarget
+{
+public:
+    virtual ~HubbardUTarget() = default;
+    virtual void SetU(size_t manifold, double U) = 0;      //!< the outer loop's write (ACBN0 today, LR at R4)
+    virtual void FreezeOccupations(bool frozen) = 0;       //!< hold V_Hub at its current n (Timrov eq 20)
+    virtual bool OccupationsFrozen() const = 0;
+};
+// on tHamiltonian<T>.  NON-const, because what it hands out mutates a term.  WHY public: the facade sits above
+// .Internal. and must freeze +U for the whole of a response solve.  ACBN0 keeps its internal HubbardProjection path.
+virtual HubbardUTarget* GetHubbardUTarget() {return nullptr;}
+```
+`Hubbard_U` implements the face; it already has all three methods.  The facade holds an RAII guard across the
+WHOLE `LinearResponse` call and restores the previous state on every exit path.  Freezing only while the kernel
+is built would not be enough, because the kernel is applied lazily during the solve.
+- **Q6. Recommended: the target face plus the guard.**  Rejected alternatives:
+  - A kernel argument (`MakeResponseKernel(bs, D0, holdHubbard)`) puts DFT+U vocabulary on the generic PT face
+    (the H4 argument).
+  - Making the +U kernel always zero would silently drop a real term for every other client: a polarisability or
+    a phonon of a DFT+U state needs the +U kernel INCLUDED.  Today that case throws (a missing capability, never a
+    zero), and it should stay that way.
+
+  Freezing is part of the DEFINITION of the U-by-LR quantity, so the quantity's owner sets it: the facade entry
+  now, `LR_HubbardU` at R4.
+
+**Signatures, in the §3c format (only the rows that change).**
+
+**B1: the transition collocation pair** (qcBasisSet `LatticeCollocation`; realised by the MnD evaluator and the
+spherical view):
+```cpp
+//! u_L(r) = e^{-iq.r} δρ(r) on each ladder level, δρ = Σ_ij δD_ij χ_i^{k+q} conj(χ_j^k): the PERIODIC PART of a
+//! Bloch-q transition density.  δD is bra (k+q) rows x ket (k) columns and NOT Hermitian.  Never folded, never averaged.
+virtual std::vector<cvec_t> CollocateTransition(const cmat_t& dD, const cellphase_t& ketPhase, const rvec3_t& q,
+                                                const UnitCell&, const std::vector<ivec3_t>& N_L,
+                                                const std::vector<double>& ecut_L, const LatticeScreener&,
+                                                double relFieldSharp=-1.0) const = 0;
+//! Its EXACT adjoint: h_ij = <χ_i^{k+q}| e^{iq.r} v(r) |χ_j^k> for a periodic v on each level (bra x ket).
+virtual cmat_t IntegrateTransition(const std::vector<cvec_t>& v_L, const cellphase_t& ketPhase, const rvec3_t& q,
+                                   const UnitCell&, const std::vector<ivec3_t>& N_L,
+                                   const std::vector<double>& ecut_L, const LatticeScreener&,
+                                   const cmat_t* screenD=nullptr, double relFieldSharp=-1.0) const = 0;
+```
+- q is an `rvec3_t` here because this is the basis side's number, taken from `MeshShift::q()` one layer up.  The
+  commensurability contract (S1) stays in `MeshShift`, which only the k-mesh can build.
+- The D-aware screen rules on \f$|c_{ij,n}|\f$, because a complex weight has no sign to screen on.  This matches
+  the gather's existing magnitude rule.
+
+**B2: the pair's G-space and point faces** (qcBasisSet).  These are cross-cast capabilities on the KET block, like
+the RealBlock faces:
+```cpp
+template <class TFit> class Transition_DFT_IBS
+{
+public:
+    virtual ~Transition_DFT_IBS() = default;
+    //! δρ(G+q), and V_H(G+q) = 4π δρ/|G+q|^2 (G = 0 kept iff q != 0).  THROWS unless bra shares my molecular block (finding 6).
+    virtual ΔGq_Map TransitionFourier  (const FIT_SF_ABS<TFit>&, const Orbital_IBS& bra, const cmat_t& dD, const rvec3_t& q) const = 0;
+    virtual ΔGq_Map TransitionRepulsion(const FIT_CD_ABS<TFit>&, const Orbital_IBS& bra, const cmat_t& dD, const rvec3_t& q) const = 0;
+    //! The adjoint: <χ^{k+q}| Σ_G V(G+q) e^{i(G+q).r} |χ^k>, bra x ket.
+    virtual cmat_t TransitionPotential(const FIT_CD_ABS<TFit>&, const Orbital_IBS& bra, const ΔGq_Map& V) const = 0;
+};
+// and on the δ-fit basis (it owns the Φ tables) -- the Becke route:
+cvec_t TransitionForward(const Orbital_IBS& bra, const Orbital_IBS& ket, const cmat_t& dD) const;  //!< δρ(r_a)
+cmat_t TransitionAdjoint(const Orbital_IBS& bra, const Orbital_IBS& ket, const cvec_t& v) const;   //!< Σ_a w_a conj(Φ^bra_a) v_a Φ^ket_a
+```
+- **Q7. Recommended: a distinct `ΔGq_Map {rvec3_t q; ΔG_Map c;}`, not a bare `ΔG_Map` keyed by G that means
+  G+q.**  Pin 20 says to ask what the object MEANS.  A q ≠ 0 map added to a ground-state ρ̃ would compile and be
+  wrong; with its own type, that mistake is a build error.  The cost is one struct.
+
+**C1 at q ≠ 0.**
+- `TransitionBlock` gains the bra: `{Irrep bra, ket; const tobs_t<T>* braBs, *ketBs; mat_t<T> dD;}`.  At q = 0,
+  bra = ket and dD is Hermitian, as today.
+- The concrete forwards a NEW face, `TransitionFourierDensity` (δρ(G+q), V_H(G+q)), together with the samplers'
+  pair forward, through the ket blocks' B2 capabilities.
+- It no longer forwards `FourierDensity` or `tProjectable_CD` on the periodic path (finding 5).  The HF sweep face
+  (molecular, q = 0) stays.
+
+**Terms** (H2 bodies only; no face change):
+- `Vee_Hartree` and `Vxc_Quadrature` drop their `bra != ket` throws and call B2.
+- `DensitySampler::Sample(δ, σ)` returns `cvec_t` (complex point values, real at q = 0), and
+  `Matrix(bra, ket, const cvec_t&)` becomes the pair adjoint.
+- `Hubbard_U` is unchanged: its kernel is zero while frozen.
+
+**Response side** (qcResponse; concrete):
+- `OrbitalFrame::ToAO` accepts bra ≠ ket.
+- `Reference::HermitianPart` generalises.  For a TRIM q (q ≡ −q) the pair set holds both (k+q, k) and (k, k+q),
+  and the projection is \f$\delta D_{k,k+q}=\delta D_{k+q,k}^\dagger\f$.  For a non-TRIM q it is the IDENTITY,
+  because the partner lives in the −q problem.
+- The facade gains `HubbardLinearResponse(qmesh)`.  It loops over q on the full mesh and prints χ₀(q) and χ(q),
+  each with its Krylov residual.  It then Fourier-transforms to χ(R) and forms U = (χ₀⁻¹ − χ⁻¹)_II over the
+  q-mesh's supercell (hp.x's definition).
+
+**Sizing** (NiO AFM-II, k 2×2×2, U_in = 3 eV on Ni 3d, complex blocks, 12 threads; measured 2026-09-29 with the
+§5b recipe + `NIO_VET=1 NIO_ORTHO_TOL=1e-3 NIO_REAL=0 GPW_REPORT=1`).  **The forced-complex ground state
+reproduces the real one EXACTLY**: E −106.2020525 in both, and on-site χ₀(Ni1) −0.1616646 eV⁻¹ in both.  So Q8
+costs no accuracy.  It converged in 15 + 6 iterations, **SCF 315.6 s (15 s/iteration), setup 221 s, peak RSS
+2.4 GB.**  State: `~/Code/qchem6-runs/states/nio/nio_afm2_k222_U3_vet1e-3_complex.h5` (7 MB).
+
+One kernel application does the ground state's Fock work on 16 (k, σ) block PAIRS instead of 16 blocks.
+Priced from the ledger's per-call numbers:
+
+| piece, per application | ground-state per-call | ×16 | at q ≠ 0 |
+|---|---|---|---|
+| collocate δD (Hartree) | 0.22 s | 3.5 s | × f (the complex plane-wave kernel; f ≈ 2–3, to be MEASURED in step 2) |
+| Hartree gather | 0.04 s | 0.6 s (none of it memoised: every δ is new) | × f |
+| Becke δρ at the points (two-block forward) | ~0.6 s per whole density | ~1.2 s | same (the blocks are already complex) |
+| **Becke H_xc gather** | **0.334 s** | **5.3 s** | same |
+| FFT closures (ball, raw) | — | ~0.8 s | same |
+| **total** | | **≈ 11 s** | **≈ 15–20 s** |
+
+⇒ **The biggest bucket is the Becke XC gather, not the new kernel.**  Even at f = 3, the collocation is less than
+half of an application.  Applications per q = (perturbed channels) × (Krylov iterations).  Krylov took 18 on
+MnO (R2) and should be similar on a gapped NiO.  Over the full 8-point q-mesh:
+- **2 perturbed channels (the two Ni 3d): 8 × 2 × 18 ≈ 290 applications ≈ 55–95 min** serial in q.  About 25–35
+  min with three q-processes under `memsafe`'s 9G (2.4 GB each).
+- **All 8 declared channels, which is what `LinearResponse` solves TODAY (one Krylov per probe channel): ×4 ≈
+  4–6 h.**  The six orthofull spectators (Ni 4s, O 2s/2p at U = 0) are there to be MEASURED (the projector set, as
+  in hp.x's ortho-atomic block), not perturbed.
+- **Q10. Recommended: the perturbed set becomes an input of the probe, separate from the measured set.**  The
+  default is the manifolds with U ≠ 0, or all of them when none has U ≠ 0 (R2's Si-p at U = 0 keeps working).
+  This is D2's "the channel list is the probe's input", one level finer: χ becomes (all I) × (perturbed J), and
+  U_I is read only for I ∈ J.
+
+**R3 on NiO is therefore an hour, not a campaign, and the size question D1 raised is answered: commit.**  Two
+residuals:
+- Every q-process pays the 221 s setup, and CK-1's `Restart` re-runs a few SCF iterations.  CK-2 (a response on a
+  stored state with NO SCF) is what makes q-process parallelism clean.  It is not a blocker.
+- The Becke gather is the lever if R3 ever becomes the wall.  It is also a ground-state lever (the KP row).
+
+**The R3 gates.**  The independent oracle is our own SUPERCELL, not hp.x:
+| gate | where | tolerance |
+|---|---|---|
+| `CollocateTransition` at q = 0 with a Hermitian D == `CollocateDensity` (both kernel routes: cube and walk) | M_PG_BoxWalk | 1e-13 |
+| exact adjoint at q ≠ 0: \f$\sum w\,\bar u\,v={\rm Tr}(\delta D^\dagger h)\f$, random δD, random v | M_PG_BoxWalk | 1e-12 relative |
+| brute-force oracle: u at scattered points from explicit Bloch sums (`GPW_Evaluator::Eval` at k+q and at k) | GPW_UT | 1e-10 |
+| the R3 kernel at q = 0 == the R2 route (free Si through the facade: χ₀ and χ) | UTResponse | 1e-10 |
+| **SUPERCELL EQUIVALENCE**: χ_IJ(R) from primitive Si with k and q 2×1×1 == χ_IJ at q = 0 in the 2×1×1 supercell at Γ (the R2 route, already validated by gate (b)); χ₀ and χ both | UTResponse | MEASURED first: the two rasters differ, and the ladder's energies agree only to ~mHa per cell |
+| NiO U vs hp.x 5.267 eV (frozen, U_in = 3 eV) | `gpwprobe` (an instrument) | a PHYSICS comparison, not a gate: χ₀'s magnitude is off 1.43× because of the ground-state gap (1.30 vs 2.86 eV, §5b), so U is not expected to agree to a few %.  The SHAPE of χ(q) is expected to agree (1–2 %, §5b) |
+
+The supercell gate is what makes R3's correctness independent of the ground-state disagreement with hp.x.  It
+turns D1's "both routes give the same χ(R)" into a test.
+
+**Proposed increment order.  Each step is its own green commit:**
+1. `HubbardUTarget` + the freeze guard (Q6), and the probe's perturbed-vs-measured split (Q10).  Small, and it
+   unblocks something at once: R2's existing q = 0 route
+   on the saved NiO state gives U of the 4-atom cell at U_in = 3 eV.  That is a first frozen-+U number, and it is
+   also the q = Γ term of R3.
+2. The B1 kernel (the phase-policy template) and its three unit gates.  Also MEASURE the complex/plane-wave cost
+   factor on the box-walk bench before step 3 is committed to.
+3. B2 + C1 + the term bodies, gated q = 0 == the R2 route.  Then retire the R2 periodic forwarding, which closes
+   finding 5.
+4. The facade's q loop + the Si supercell-equivalence gate.
+5. NiO against hp.x (the instrument run), then SrVO₃ as its own setup item (a metal: Fermi weights at q ≠ 0; δμ
+   only at q = 0).
+- **Q9. Recommended: compute all 8 q first; defer the q-STAR reduction.**  Computing one q per star is valid only
+  for a symmetric ground state, and it needs the op that maps site I to I′ for the full χ_IJ(q) (§5b found the star
+  members agree to 1e-5, so the reduction is safe once it is built).  hp.x reduces; we can match that later.
 
 ---
 
