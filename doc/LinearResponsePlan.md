@@ -660,6 +660,14 @@ residuals:
 The supercell gate is what makes R3's correctness independent of the ground-state disagreement with hp.x.  It
 turns D1's "both routes give the same χ(R)" into a test.
 
+★ **The standing cross-check for a suspicious DFPT number is finite-difference LRT** (user, 2026-09-29: *"any time
+we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R2's gate (b): perturb with
+`HubbardManifold::alpha`, re-converge, and take χ = dn/dα.  Two rules make it a fair check:
+- **At U_in ≠ 0, both perturbed SCFs run with +U FROZEN** (Q6's switch).  The DFPT χ holds V_Hub fixed, and an
+  unfrozen finite-difference run measures a different quantity.
+- **It sees only q = 0 of the cell it runs in**, so an R3 (q-mesh) number is checked in the matching supercell,
+  which is the supercell gate's own equivalence.
+
 **Proposed increment order.  Each step is its own green commit:**
 1. `HubbardUTarget` + the freeze guard (Q6), and the probe's perturbed-vs-measured split (Q10).  Small, and it
    unblocks something at once: R2's existing q = 0 route
