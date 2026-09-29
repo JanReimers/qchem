@@ -751,11 +751,13 @@ supercell); R3 gives the comparable number.  The free ground state lies 0.3 mHa 
 vs −106.2020525).
 
 **Open before step 2:**
-- **The estimate vs TRUE residual gap.**  After NiO's first GMRES cycle the estimate was below 1e-8 but the TRUE
-  residual 8.8e-7 (before the fix: 8.2e-9 vs 8.4e-5).  Suspect: the D-aware screen makes the kernel slightly
-  NONLINEAR (an absolute ε on unit-norm Krylov vectors).  Next: a linearity unit gate, K[aδD] = aK[δD] and
-  K[δD₁+δD₂] = K[δD₁]+K[δD₂] on multi-k blocks; if it fails, the response uses the geometry-only screener by
-  construction.  B1 is new code and should take the geometry-only rule from the start.
+- ✅ **The estimate vs TRUE residual gap: the D-aware screen, PROVEN** (`adc63f51`).  Gate
+  `ResponseKernel.GPW_Si_k211_KernelIsLinear_AtEveryScale`: the raw kernel's K[sδD]/s drifts 2e-7 / 1.3e-4 / 18 % at
+  s = 1e-2 / 1e-5 / 1e-8, and with `GPW_DAWARE_SCREEN=0` it is 1e-16 everywhere.  Fix: `InducedFockMO` applies K at
+  unit max-norm and scales back, so the operator GMRES uses is homogeneous to 1e-14.  NiO then needs 16 kernel
+  applications (was 18), χ −2.0700234 vs FD −2.0672065.  The remaining additivity error, 4e-9 at unit scale, is what
+  is left of the TRUE-vs-estimate gap (3.4e-7 after the first cycle).  **B1 (step 2) takes the GEOMETRY-ONLY screener
+  by construction**, which is linear outright.
 - The Γ gate's finite-difference SCFs run at relax 0.2 and the k211 gate's on Kerker/Pulay; both are stated at the
   call site.
 - The finite-difference cross-check on NiO took 3 SCFs × 10–100 iterations; it runs FREE only.
