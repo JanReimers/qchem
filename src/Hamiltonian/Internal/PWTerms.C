@@ -218,10 +218,10 @@ class Vee_Hartree
     , public virtual tResponse_HT<dcmplx>       // V_H is LINEAR in rho: its response is its own Poisson of δρ̃ (R2)
 {
 public:
-    //! \name THE RESPONSE (doc/LinearResponsePlan.md R2): \f$\delta V_H=4\pi\,\delta\tilde\rho/|G|^2\f$ from the
-    //! transition density's G-space face -- the same Poisson and the same adjoint gather as the ground state,
-    //! memoised on δ's serial in a slot of its own.  \a D0 is not needed (linear).  q = 0 only, complex blocks
-    //! only (a real TRIM block needs the real-block sibling of the face: not built).
+    //! \name THE RESPONSE (doc/LinearResponsePlan.md R2, R3): \f$\delta V_H(G+q)=4\pi\,\delta\tilde\rho(G+q)/|G+q|^2\f$
+    //! from the transition density's Hartree face (\c TransitionFourierDensity), then each (k+q, k) pair's exact
+    //! adjoint through the KET block's B2 capability -- memoised on δ's serial in a slot of its own.  \a D0 is not
+    //! needed (linear).  Any q; complex blocks only (a real TRIM pair rides \c forceComplex, ruling Q8).
     //!@{
     using cDynamic_HT::RefreshForDensity;
     virtual void   RefreshForDensity(const cbs_t* wholeBasis, const cChargeDensity* D0,
@@ -276,7 +276,7 @@ private:
 
     fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
     mutable size_t itsDeltaVersion=size_t(-1);  //!< the transition density's serial \c itsDeltaField holds
-    mutable ΔG_Map itsDeltaField;               //!< \f$\delta V_H\f$ of that transition density (R2)
+    mutable ΔGq_Map itsDeltaField;              //!< \f$\delta V_H(G+q)\f$ of that transition density (R2, R3)
     mutable double itsVolume=0.0;   //!< \c Volume()'s memo (0 = not asked yet)
     mutable size_t itsFieldVersion=size_t(-1);  //!< density serial \c itsField holds (-1 = empty)
     mutable ΔG_Map itsField;                    //!< \c CoulombField()'s memo: \f$V_H\f$ at that serial
@@ -312,7 +312,9 @@ public:
     //! adjoint as \f$v_{xc}\f$ -- so the response is the derivative of exactly the operator the SCF used.  The
     //! kernel arrays are built once per \a D0 serial; δρ is sampled per δ, uncached in the sampler
     //! (\c DensitySampler::Sample).  SU(2): \f$\delta\rho_\uparrow=\delta\rho_\downarrow=\delta\rho/2\f$, the
-    //! ζ = 0 collapse.  q = 0 only, complex blocks only.
+    //! ζ = 0 collapse.  Any q (R3): δρ and δv are complex, in the sampler's own representation of a Bloch-q
+    //! function (\c DensitySampler::Sample), and f_xc is periodic, so the pointwise product is too; the pair
+    //! adjoint \c DensitySampler::Matrix(bra, ket, ·, q) gathers it.  Complex blocks only.
     //!@{
     using cDynamic_HT::RefreshForDensity;
     virtual void   RefreshForDensity(const cbs_t* wholeBasis, const cChargeDensity* D0,
@@ -358,8 +360,9 @@ private:
     //! last δ's \f$\delta v^\sigma\f$.
     mutable size_t itsKernelVersion=size_t(-1);
     mutable rvec_t itsFuu, itsFud, itsFdu, itsFdd;
-    mutable size_t itsDeltaVersion=size_t(-1);
-    mutable rvec_t itsDvUp, itsDvDn;
+    mutable size_t  itsDeltaVersion=size_t(-1);
+    mutable cvec_t  itsDvUp, itsDvDn;
+    mutable rvec3_t itsDeltaQ{0,0,0};   //!< the wave vector δv was sampled at (the raster adjoint needs it)
 };
 
 //! \brief THE XC term for a run whose \f$v_{xc}\f$ fit basis is \a fb -- ready to \c Add (ownership

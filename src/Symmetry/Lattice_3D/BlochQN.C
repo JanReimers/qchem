@@ -31,14 +31,14 @@ export class BlochQN;
 //! GPW_Evaluator / LatticeSum1E) \f$\phi_{k+G}\equiv\phi_k\f$, so "k+q modulo a reciprocal lattice vector"
 //! is a pure index map with no G-phase to carry -- unlike QE's \f$e^{i(\mathbf k+\mathbf G)\cdot\mathbf r}\f$
 //! basis, which needs its \c ikqs table.
-export class MeshShift : public virtual qchem::Symmetry::SelectionRule
+export class MeshShift : public virtual qchem::Symmetry::SelectionRule, public virtual qchem::Symmetry::WaveVectorShift
 {
 public:
     //! The lattice selection rule: \a bra is \f$k+q\f$ for \a ket (both Bloch points of THIS mesh).
     virtual bool Couples(const qchem::Symmetry::Symmetry& bra, const qchem::Symmetry::Symmetry& ket) const override;
     ivec3_t Grid () const {return N;}    //!< the k-mesh divisions this shift lives on
     ivec3_t Steps() const {return d;}    //!< \f$\Delta ik\f$, reduced into [0, N)
-    rvec3_t q    () const;               //!< \f$\Delta ik/N\f$, fractional reciprocal coordinates
+    virtual rvec3_t q() const override;  //!< \f$\Delta ik/N\f$, fractional reciprocal coordinates, in [0, 1)
     bool    IsZero() const {return d.x==0 && d.y==0 && d.z==0;}
 private:
     friend class BlochQN;

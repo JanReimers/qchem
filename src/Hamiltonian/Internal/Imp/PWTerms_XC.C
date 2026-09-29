@@ -129,9 +129,10 @@ void Vxc_Quadrature::RefreshForDensity(const cbs_t*, const cChargeDensity* D0, c
         itsDeltaVersion=size_t(-1);   // the kernel moved: every δv is stale
     }
     if (delta.Version()==itsDeltaVersion) return;
-    rvec_t du, dd;
+    cvec_t du, dd;
     if (itsGroup==SpinGroup::Polarized) {du=itsSampler->Sample(delta, Spin::Up); dd=itsSampler->Sample(delta, Spin::Down);}
     else                                {du=0.5*itsSampler->Sample(delta, Spin::None); dd=du;}
+    itsDeltaQ=qchem::ChargeDensity::WaveVectorOf(*delta.Coupling());
     const size_t n=du.size();
     if (n!=itsFuu.size()) throw std::logic_error("Vxc_Quadrature: δρ and the kernel live on different quadratures");
     itsDvUp.resize(n); itsDvDn.resize(n);
@@ -145,12 +146,10 @@ void Vxc_Quadrature::RefreshForDensity(const cbs_t*, const cChargeDensity* D0, c
 
 mat_t<dcmplx> Vxc_Quadrature::GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin& s, const TransitionDensity<dcmplx>& delta) const
 {
-    if (bra->BasisSetID()!=ket->BasisSetID())
-        throw std::logic_error("Vxc_Quadrature: a response on a (bra != ket) block pair -- q != 0 is stage R3's");
     if (delta.Version()!=itsDeltaVersion)
         throw std::logic_error("Vxc_Quadrature: GetMatrix for a transition density the response phase did not refresh");
     // A folded-doublet block (Spin::None) sees the same δv either channel would: Up by convention, as MakeMatrixT.
-    return mat_t<dcmplx>(itsSampler->Matrix(bra, s==Spin::Down ? itsDvDn : itsDvUp));
+    return itsSampler->Matrix(bra, ket, s==Spin::Down ? itsDvDn : itsDvUp, itsDeltaQ);
 }
 
 std::ostream& Vxc_Quadrature::Write(std::ostream& os) const

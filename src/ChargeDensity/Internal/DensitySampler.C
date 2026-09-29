@@ -124,8 +124,11 @@ public:
     //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
     //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
-    //! δρ_σ through the density's own ProjectOnto -- the same tables as Rho, no cache, no orbit mean.
-    rvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
+    //! δρ_σ at my points, pair by pair through the δ basis's Φ tables (\c Transition_Overlap3C) -- the same
+    //! tables as Rho, no cache, no orbit mean.
+    cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
+    //! Its adjoint on the same tables (\a q unused: the point route samples the Bloch-q function itself).
+    mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     //! The REAL-BLOCK sibling (Step 3c): a real TRIM block's \f$\Phi\f$ table is real, so its quadrature
@@ -264,7 +267,12 @@ public:
     //! missing was the per-channel CACHE and the channel walk, both of which the singles route already had.
     const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s) const override;
     //! δρ_σ on the raster through the transition density's G-space face (RAW collocation, else the BALL).
-    rvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
+    //! The periodic part \f$e^{-iq\cdot r}\delta\rho_\sigma\f$ on my raster, pair by pair through each KET block's RAW
+    //! transition collocation (\c Transition_DFT_IBS::TransitionOnGrid) -- the RAW route the ground state latched;
+    //! a lineage without it (a plane-wave basis) THROWS rather than falling back to the ball.
+    cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const override;
+    //! Its exact transpose (\c TransitionGridAdjoint), at the wave vector \a q the field was sampled at.
+    mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const override;
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const override;
     rsmat_t Matrix(const robs_t* bs, const rvec_t& v) const override;
 private:

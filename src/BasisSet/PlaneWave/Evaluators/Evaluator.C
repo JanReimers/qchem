@@ -189,6 +189,9 @@ public:
     //! Dense inverse of \c ForwardFFT (physical coefficients -> real field, no normalisation); the raw-XC
     //! spectral transfers use the pair (doc/GPWPlan 0.5(f2)).  Non-virtual, like the complex \c ForwardFFT.
     rvec_t   BackwardFFT(const cvec_t& c) const                 {return itsGrid->BackwardFFT(c);}
+    //! The complex siblings (no real part taken) -- a Bloch-q transition field's periodic part is complex.
+    cvec_t   ComplexBackwardFFT(const cvec_t& c) const          {return itsGrid->ComplexBackwardFFT(c);}
+    cvec_t   ComplexFieldOnGrid(const ΔG_Map& c) const          {return itsGrid->ComplexFieldOnGrid(c);}
     rvec_t   ApplySpectralFilter(const rvec_t& f, const std::function<double(double g2)>& k) const override
                                                                 {return itsGrid->ApplySpectralFilter(f,k);}
     dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override {return itsGrid->GridCoeff(Vt,dm);}

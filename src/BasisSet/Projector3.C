@@ -63,6 +63,20 @@ struct IVec3Less
 //! difference \f$\Delta m\f$ (\f$\Delta G = B\,\Delta m\f$).
 using ΔG_Map = std::map<ivec3_t, dcmplx, IVec3Less>;
 
+//! \brief A Bloch-\f$q\f$ G-space field -- \f$\delta\tilde\rho(G+q)\f$ or \f$\delta\tilde V(G+q)\f$ of a transition
+//! density -- keyed by the INTEGER G index \f$\Delta m\f$, with the one \f$q\f$ (fractional reciprocal coordinates)
+//! every key is shifted by (doc/LinearResponsePlan.md §3d, ruling Q7).
+//!
+//! ★ A DISTINCT TYPE, NOT A BARE \c ΔG_Map THAT "MEANS" G+q (pin 20: ask what the object MEANS).  A q != 0 map
+//! added to a ground-state \f$\tilde\rho\f$, or gathered as if it were lattice-periodic, would compile and be
+//! wrong; with its own type that mistake is a build error.  No field algebra is offered: nothing adds two of
+//! them yet, and two maps at different q must never be added.
+struct ΔGq_Map
+{
+    rvec3_t q{0,0,0};   //!< the wave vector every key is shifted by (fractional reciprocal coordinates)
+    ΔG_Map  c;          //!< the coefficient of \f$e^{i(G+q)\cdot r}\f$, keyed by G's integer index
+};
+
 //---------------------------------------------------------------------------------------------------------
 //  THE FIELD ALGEBRA of a ΔG_Map -- a sparse G-space field with the usual linear-space operations.  Found by
 //  ADL through IVec3Less (namespace qchem), so a caller need only import this module.  A key absent from one

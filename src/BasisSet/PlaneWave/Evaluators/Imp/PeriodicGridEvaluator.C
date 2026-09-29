@@ -136,6 +136,30 @@ rvec_t PeriodicGridEvaluator::BackwardFFT(const cvec_t& c) const
     return out;
 }
 
+// The complex siblings (the transition collocation's periodic part is complex): the same inverse transforms as
+// BackwardFFT / RhoOnGrid, with the real part NOT taken.
+cvec_t PeriodicGridEvaluator::ComplexBackwardFFT(const cvec_t& c) const
+{
+    ivec3_t N=itsN;
+    assert(c.size()==size_t(N.x)*N.y*N.z);
+    return qchem::FFT::FFT3D(c, N, +1);
+}
+cvec_t PeriodicGridEvaluator::ComplexFieldOnGrid(const ΔG_Map& rho) const
+{
+    ivec3_t N=itsN;
+    size_t Npts=size_t(N.x)*N.y*N.z;
+    cvec_t g(Npts, dcmplx(0.0));
+    for (const auto& kv : rho)
+    {
+        const ivec3_t& m=kv.first;
+        const int ax=m.x<0?-m.x:m.x, ay=m.y<0?-m.y:m.y, az=m.z<0?-m.z:m.z;
+        if (2*ax>N.x || 2*ay>N.y || 2*az>N.z) continue;   // TRUNCATE, don't ALIAS (see RhoOnGrid)
+        int i0=((m.x%N.x)+N.x)%N.x, i1=((m.y%N.y)+N.y)%N.y, i2=((m.z%N.z)+N.z)%N.z;
+        g[(size_t(i0)*N.y+i1)*N.z+i2]=kv.second;
+    }
+    return qchem::FFT::FFT3D(g, N, +1);
+}
+
 // f -> iFFT[ k(|G|^2) FFT(f) ] over the FULL box (every mode the raster represents; the strict alias-free
 // band convention is irrelevant here because nothing is transferred between rasters -- a mode and its k are
 // evaluated at the SIGNED frequency the FFT layout assigns it).

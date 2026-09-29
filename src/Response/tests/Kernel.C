@@ -70,13 +70,28 @@ public:
 
 namespace {
 
+//! One block of a GROUND-STATE-shaped density (Hermitian D on one block): the FD oracle's linearisation point and
+//! the q = 0 δD's these gates draw.  \c AsTransition makes the q = 0 transition density of such a list.
+template <class T> struct GroundBlock
+{
+    Irrep                           irrep;
+    const ChargeDensity::tobs_t<T>* bs=nullptr;
+    hmat_t<T>                       D;
+};
+template <class T> std::vector<TransitionBlock<T>> AsTransition(const std::vector<GroundBlock<T>>& g)
+{
+    std::vector<TransitionBlock<T>> out;
+    for (const auto& b : g) out.push_back({b.irrep, b.irrep, b.bs, b.bs, mat_t<T>(b.D)});
+    return out;
+}
+
 //! The finite-difference response kernel (D6): the oracle for every analytic tResponse_HT.
 template <class T> class FD_ResponseKernel : public Hamiltonian::ResponseKernel<T>
 {
 public:
     //! \a D0 = the linearisation point, as AO blocks in the SAME order a transition density will list them.
     FD_ResponseKernel(Hamiltonian::tHamiltonian<T>& H, const Hamiltonian::tbs_t<T>* wholeBasis,
-                      std::vector<TransitionBlock<T>> D0, double h)
+                      std::vector<GroundBlock<T>> D0, double h)
         : itsH(&H), itsWB(wholeBasis), itsD0(std::move(D0)), itsH_(h) {}
 
     virtual std::unique_ptr<Hamiltonian::TransitionFock<T>> InducedFock(const TransitionDensity<T>& delta) const override
@@ -102,9 +117,12 @@ private:
         auto cd=std::make_unique<ChargeDensity::tComposite_CD<T>>();
         for (size_t b=0;b<itsD0.size();b++)
         {
-            if (dD[b].irrep<itsD0[b].irrep || itsD0[b].irrep<dD[b].irrep)
+            if (dD[b].ket<itsD0[b].irrep || itsD0[b].irrep<dD[b].ket)
                 throw std::logic_error("FD_ResponseKernel: δD and D0 list their blocks in a different order");
-            const hmat_t<T> D=itsD0[b].dD+T(h)*dD[b].dD;
+            if (dD[b].bra.SequenceIndex()!=dD[b].ket.SequenceIndex())
+                throw std::logic_error("FD_ResponseKernel: a (bra != ket) pair -- the FD oracle is q = 0 only");
+            hmat_t<T> D=itsD0[b].D;
+            for (size_t i=0;i<D.rows();i++) for (size_t j=i;j<D.columns();j++) D(i,j)+=T(h)*dD[b].dD(i,j);
             cd->Insert(std::unique_ptr<ChargeDensity::tDM_CD<T>>(
                 ChargeDensity::IrrepCD_Factory<T>(D, itsD0[b].bs, itsD0[b].irrep, ChargeDensity::RhoRoute::Direct)), itsD0[b].irrep);
         }
@@ -112,7 +130,7 @@ private:
     }
     Hamiltonian::tHamiltonian<T>*       itsH;   // GetMatrix is non-const on the face
     const Hamiltonian::tbs_t<T>*        itsWB;
-    std::vector<TransitionBlock<T>>     itsD0;
+    std::vector<GroundBlock<T>>         itsD0;
     double                              itsH_;
 };
 
@@ -134,9 +152,9 @@ rsmat_t RandomSymmetric(size_t n, std::mt19937& g, double scale)
 }
 
 //! Build one block list over the whole basis for the spin irreps of \a g, filled by \a fill.
-template <class Fill> std::vector<TransitionBlock<double>> Blocks(const BasisSet::Real_BS& bs, SpinGroup g, Fill&& fill)
+template <class Fill> std::vector<GroundBlock<double>> Blocks(const BasisSet::Real_BS& bs, SpinGroup g, Fill&& fill)
 {
-    std::vector<TransitionBlock<double>> out;
+    std::vector<GroundBlock<double>> out;
     const std::vector<Spin> spins = g==SpinGroup::Polarized ? std::vector<Spin>{Spin::Up, Spin::Down}
                                                             : std::vector<Spin>{Spin::None};
     for (const Spin& s : spins)
@@ -158,10 +176,10 @@ void AnalyticHF_EqualsFD(SpinGroup g)
     auto D0cd=std::make_unique<ChargeDensity::rComposite_CD>();
     for (const auto& b : D0)
         D0cd->Insert(std::unique_ptr<ChargeDensity::rDM_CD>(
-            ChargeDensity::IrrepCD_Factory<double>(b.dD, b.bs, b.irrep, ChargeDensity::RhoRoute::Direct)), b.irrep);
+            ChargeDensity::IrrepCD_Factory<double>(b.D, b.bs, b.irrep, ChargeDensity::RhoRoute::Direct)), b.irrep);
 
     auto rule=std::make_shared<Symmetry::Invariant>();
-    auto delta=ChargeDensity::AO_TransitionDensity_Factory<double>(dD, rule);
+    auto delta=ChargeDensity::AO_TransitionDensity_Factory<double>(AsTransition(dD), rule);
     auto analytic=H->MakeResponseKernel(bs.get(), D0cd.get());
     FD_ResponseKernel<double> fd(*H, bs.get(), D0, 1e-3);
     auto A=analytic->InducedFock(*delta);
@@ -218,9 +236,9 @@ const qcMesh::MeshParams dipoleMesh={.radial=qcMesh::RadialKind::MHL, .nRadial=8
                                      .angular=qcMesh::AngularKind::Lebedev, .angularDegree=35, .beckeOrder=3};
 
 //! The converged density matrix of every block, \f$\sum_i n_i c_ic_i^\dagger\f$, in the wave function's order.
-std::vector<TransitionBlock<double>> GroundDensity(const WaveFunction::tWaveFunction<double>& wf)
+std::vector<GroundBlock<double>> GroundDensity(const WaveFunction::tWaveFunction<double>& wf)
 {
-    std::vector<TransitionBlock<double>> out;
+    std::vector<GroundBlock<double>> out;
     for (const Irrep& ir : wf.GetQNs())
     {
         const auto* os=dynamic_cast<const Orbitals::TOrbitals<double>*>(wf.GetOrbitals(ir));
@@ -313,7 +331,7 @@ SCFParams SiParams()
     return par;
 }
 std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false,
-                                              ivec3_t kmesh=ivec3_t(1,1,1))
+                                              ivec3_t kmesh=ivec3_t(1,1,1), bool impose=false)
 {
     FCCUnitCell cell(10.26);
     cell.AddAtom(14, {0,0,0});
@@ -326,15 +344,16 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, dou
     SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
                        .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha}}, .forceComplex=true};
     if (spectator) o.hubbard.push_back({.site=1, .l=1, .U=0.0});
+    o.imposeSymmetry=impose;
     auto calc=std::make_unique<SolidCalculation>(lat, mol, o, par);
     EXPECT_TRUE(calc->DidConverge());
     return calc;
 }
 
 //! The converged density matrix of every (complex) block, in the wave function's order.
-std::vector<TransitionBlock<dcmplx>> GroundDensity(const WaveFunction::cWaveFunction& wf)
+std::vector<GroundBlock<dcmplx>> GroundDensity(const WaveFunction::cWaveFunction& wf)
 {
-    std::vector<TransitionBlock<dcmplx>> out;
+    std::vector<GroundBlock<dcmplx>> out;
     for (const Irrep& ir : wf.GetQNs())
     {
         const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir));
@@ -363,7 +382,7 @@ void PeriodicAnalyticEqualsFD(SpinGroup g)
     const auto D0=GroundDensity(wf);
     std::mt19937 rng(20260928);
     std::uniform_real_distribution<double> u(-0.05, 0.05);
-    std::vector<TransitionBlock<dcmplx>> dD;
+    std::vector<GroundBlock<dcmplx>> dD;
     for (const auto& b : D0)
     {
         const size_t n=b.bs->GetNumFunctions();
@@ -374,7 +393,7 @@ void PeriodicAnalyticEqualsFD(SpinGroup g)
     const auto D0cd=wf.GetChargeDensity();
     auto analytic=H.MakeResponseKernel(&calc->Basis(), D0cd.get());
     FD_ResponseKernel<dcmplx> fd(H, &calc->Basis(), D0, 1e-3);   // 4-point stencil: h=1e-3 is its sweet spot (measured)
-    auto delta=ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(dD, std::make_shared<Symmetry::Invariant>());
+    auto delta=ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(AsTransition(dD), std::make_shared<Symmetry::Invariant>());
     auto A=analytic->InducedFock(*delta);
     auto F=fd.InducedFock(*delta);
     for (const auto& b : dD)
@@ -424,7 +443,7 @@ TEST(ResponseKernel, GPW_Si_k211_KernelIsLinear_AtEveryScale)
     std::uniform_real_distribution<double> u(-0.05, 0.05);
     auto random=[&]()
     {
-        std::vector<TransitionBlock<dcmplx>> dD;
+        std::vector<GroundBlock<dcmplx>> dD;
         for (const auto& b : D0)
         {
             const size_t n=b.bs->GetNumFunctions();
@@ -434,10 +453,10 @@ TEST(ResponseKernel, GPW_Si_k211_KernelIsLinear_AtEveryScale)
         }
         return dD;
     };
-    auto apply=[&](std::vector<TransitionBlock<dcmplx>> dD, double scale)
+    auto apply=[&](std::vector<GroundBlock<dcmplx>> dD, double scale)
     {
-        for (auto& b : dD) b.dD*=scale;
-        auto delta=ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(dD, std::make_shared<Symmetry::Invariant>());
+        for (auto& b : dD) b.D*=scale;
+        auto delta=ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(AsTransition(dD), std::make_shared<Symmetry::Invariant>());
         auto F=K->InducedFock(*delta);
         std::vector<mat_t<dcmplx>> out;
         for (const auto& b : dD) out.push_back(mat_t<dcmplx>(F->Matrix(b.irrep, b.irrep)/scale));
@@ -453,13 +472,18 @@ TEST(ResponseKernel, GPW_Si_k211_KernelIsLinear_AtEveryScale)
     };
     const auto d1=random(), d2=random();
     const auto K1=apply(d1, 1.0);
-    // (a) THE RAW KERNEL -- a MEASUREMENT, printed not asserted: the D-aware screen's ABSOLUTE tolerance makes it
-    // scale-dependent (2026-09-29: 2.6e-7 at s = 1e-2, 6.9e-5 at 1e-5, 3.9% at 1e-8; with GPW_DAWARE_SCREEN=0 all
-    // 1e-16).  Additivity at UNIT scale is what the screen does allow, and that is asserted.
+    // (a) THE RAW KERNEL.  Through R2 it rode the ground-state collocation, whose D-aware screen has an ABSOLUTE
+    // tolerance, so it was scale-dependent (2026-09-29: 2.6e-7 at s = 1e-2, 6.9e-5 at 1e-5, 3.9% at 1e-8) and only
+    // printed here.  Since R3 step 3 the transition collocations (B1/B2) take the GEOMETRY-ONLY screen by
+    // construction, and the kernel is homogeneous outright (measured 2.5e-15 at every scale): now asserted.
     for (double sc : {1e-2, 1e-5, 1e-8})
-        std::cout << "[linearity] RAW K[s dD]/s vs K[dD]  s=" << sc << "  rel " << relDiff(apply(d1, sc), K1) << std::endl;
+    {
+        const double r=relDiff(apply(d1, sc), K1);
+        std::cout << "[linearity] RAW K[s dD]/s vs K[dD]  s=" << sc << "  rel " << r << std::endl;
+        EXPECT_LT(r, 1e-12) << "the raw kernel is not homogeneous at scale " << sc;
+    }
     auto d12=d1;
-    for (size_t k=0;k<d12.size();k++) d12[k].dD+=d2[k].dD;
+    for (size_t k=0;k<d12.size();k++) d12[k].D+=d2[k].D;
     const auto K12=apply(d12, 1.0), K2=apply(d2, 1.0);
     std::vector<mat_t<dcmplx>> sum;
     for (size_t k=0;k<K1.size();k++) sum.push_back(mat_t<dcmplx>(K1[k]+K2[k]));
@@ -625,3 +649,118 @@ TEST(ResponsePolarizability, GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT) {FrozenC
 //! this mesh from either start (restart at relax 0.2, or the seed).
 TEST(ResponsePolarizability, GPW_Si_k211_U2_FrozenChi_eqFiniteDifferenceLRT) {FrozenChiEqFiniteDifference(ivec3_t(2,1,1), true, 3e-5, false);}
 
+
+//=====================================================================================================
+//  R3 STEP 3: THE KERNEL AT q != 0 (doc/LinearResponsePlan.md §3d).  No finite-difference oracle exists for a
+//  (k+q, k) transition density -- it is not a density -- so the claim is structural: the whole kernel (Hartree at
+//  G+q + ALDA f_xc) is a HERMITIAN operator on the pairs, <X, K Y> = conj <Y, K X>, because each term is A^† M A
+//  with M real (4π/|G+q|^2, w f_xc).  That holds ONLY if every B2 forward/adjoint pair is exact AND the terms
+//  route bra and ket the right way round, so a swapped phase, a missing conjugate or a mis-keyed pair breaks it.
+//  At a NON-TRIM q (1/3 on a 3x1x1 mesh: complex phases, feedback_complex_type_vs_value), on BOTH XC samplers
+//  (the uniform raster's raw pair route, and the Becke point route), polarized as well.  The ground state need not
+//  be converged: Hermiticity is an operator identity at any positive ρ0.  (The supercell equivalence, step 4, is
+//  what then checks the VALUES.)
+//=====================================================================================================
+namespace {
+std::unique_ptr<SolidCalculation> SiState(ivec3_t kmesh, qcMesh::UnitCellKind xc, SpinGroup g)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, kmesh);
+    auto mol=std::shared_ptr<const BasisSet::Real_BS>(
+        BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
+    SCFParams par=SiParams();
+    par.NMaxIter=12;                                         // not converged, and need not be (see above)
+    SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
+                       .densityEcut=20.0, .forceComplex=true};
+    o.xcMesh.cellKind=xc;
+    return std::make_unique<SolidCalculation>(lat, mol, o, par);
+}
+
+void KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind xc, SpinGroup g)
+{
+    auto calc=SiState(ivec3_t(3,1,1), xc, g);
+    const auto& wf=ResponseFacadeTests::WF(*calc);
+    auto& H=ResponseFacadeTests::Ham(*calc);
+    const auto D0cd=wf.GetChargeDensity();
+    auto K=H.MakeResponseKernel(&calc->Basis(), D0cd.get());
+    const Response::Reference ref=Response::MakeReference(wf, OccupationConfig{}, {.acrossK=true, .acrossSpin=false},
+                                                          std::numeric_limits<double>::quiet_NaN());
+    auto qs=ref.QMesh(ivec3_t(3,1,1));
+    ASSERT_TRUE(qs.IsOk()) << qs.Error().detail;
+    std::shared_ptr<const Symmetry::Lattice_3D::MeshShift> rule;
+    for (const auto& q : qs.Value()) if (q.Steps().x==1) rule=std::make_shared<const Symmetry::Lattice_3D::MeshShift>(q);
+    ASSERT_TRUE(rule);
+    // The (k+q, k) pairs over the wave function's blocks, and two random δD sets on them.
+    struct Blk {Irrep ir; const Hamiltonian::cobs_t* bs;};
+    std::vector<Blk> blocks;
+    for (const Irrep& ir : wf.GetQNs())
+    {
+        const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf.GetOrbitals(ir));
+        blocks.push_back({ir, dynamic_cast<const Hamiltonian::cobs_t*>(os->GetBasisSet())});
+    }
+    std::mt19937 rng(20260929);
+    std::uniform_real_distribution<double> u(-0.05, 0.05);
+    auto random=[&]()
+    {
+        std::vector<TransitionBlock<dcmplx>> out;
+        for (const auto& ket : blocks)
+            for (const auto& bra : blocks)
+            {
+                if (bra.ir.ms!=ket.ir.ms || !rule->Couples(*bra.ir.sym, *ket.ir.sym)) continue;
+                mat_t<dcmplx> X(bra.bs->GetNumFunctions(), ket.bs->GetNumFunctions());
+                for (size_t i=0;i<X.rows();i++) for (size_t j=0;j<X.columns();j++) X(i,j)=dcmplx(u(rng),u(rng));
+                out.push_back({bra.ir, ket.ir, bra.bs, ket.bs, X});
+            }
+        return out;
+    };
+    const auto X=random(), Y=random();
+    ASSERT_EQ(X.size(), blocks.size()) << "every ket block needs exactly one (k+q) partner";
+    auto FX=K->InducedFock(*ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(X, rule));
+    auto FY=K->InducedFock(*ChargeDensity::AO_TransitionDensity_Factory<dcmplx>(Y, rule));
+    auto pair=[](const std::vector<TransitionBlock<dcmplx>>& A, const Hamiltonian::TransitionFock<dcmplx>& F)
+    {
+        dcmplx s=0.0;
+        for (const auto& p : A)
+        {
+            const mat_t<dcmplx> f=F.Matrix(p.bra, p.ket);
+            for (size_t i=0;i<f.rows();i++) for (size_t j=0;j<f.columns();j++) s+=std::conj(p.dD(i,j))*f(i,j);
+        }
+        return s;
+    };
+    const dcmplx xy=pair(X, *FY), yx=pair(Y, *FX), xx=pair(X, *FX);
+    std::cout << "[R3 kernel q=1/3] <X,KY> " << xy << "  conj<Y,KX> " << std::conj(yx) << "  rel "
+              << std::abs(xy-std::conj(yx))/std::abs(xy) << "   <X,KX> " << xx << std::endl;
+    EXPECT_GT(std::abs(xy), 1e-6) << "a vacuous comparison";
+    EXPECT_LT(std::abs(xy-std::conj(yx)), 1e-11*std::abs(xy)) << "the q != 0 kernel is not Hermitian";
+    EXPECT_LT(std::fabs(xx.imag()), 1e-11*std::abs(xx)) << "<X,KX> must be real";
+}
+} // namespace
+
+TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Raster_UnPol) {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Uniform, SpinGroup::UnPolarized);}
+TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Raster_Pol)   {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Uniform, SpinGroup::Polarized);}
+TEST(ResponseKernel, GPW_Si_k311_q13_KernelIsHermitian_Becke_UnPol)  {KernelIsHermitianAtNonTrimQ(qcMesh::UnitCellKind::Becke,   SpinGroup::UnPolarized);}
+
+//! §3d FINDING 5, CLOSED (R3 step 3): an IMPOSED Γ run on the uniform raster -- the T3 stream fold and the raster
+//! star-average both armed -- gives the FREE run's chi.  Before step 3 the transition density rode the ground-state
+//! composite, whose leaves folded δD and star-averaged δρ under a group the one-site perturbation breaks, so
+//! HubbardLinearResponse REFUSED this configuration.  The pair route has no fold in it, so the refusal is gone.
+TEST(ResponsePolarizability, GPW_Si_ImposedGamma_Raster_eqFreeChi)
+{
+    auto f=ConvergedSi(SpinGroup::UnPolarized);
+    auto i=ConvergedSi(SpinGroup::UnPolarized, 0.0, 0.0, false, ivec3_t(1,1,1), /*impose*/true);
+    auto rf=f->HubbardLinearResponse(), ri=i->HubbardLinearResponse();
+    ASSERT_TRUE(rf.IsOk()) << rf.Error().detail;
+    ASSERT_TRUE(ri.IsOk()) << ri.Error().detail;
+    const double cf=rf->chi(0,0).real(), ci=ri->chi(0,0).real(), c0f=rf->chi0(0,0).real(), c0i=ri->chi0(0,0).real();
+    std::cout << "[finding 5] chi0 free " << c0f << " imposed " << c0i << "   chi free " << cf << " imposed " << ci
+              << "  rel " << (ci-cf)/cf << std::endl;
+    // MEASURED 2026-09-29: chi0 5e-6, chi 9.5e-6 relative.  That is the two GROUND STATES' agreement (E differs by
+    // 4e-7 Ha; chi0 has no kernel in it and already differs by 5e-6), not the kernel.  A symmetrized δρ -- the
+    // one-site probe averaged with its image on the other Si -- changes the kernel's INPUT at O(1), so 5e-5 keeps
+    // the gate far below the defect it guards against while clear of the ground-state floor.
+    EXPECT_NEAR(c0i, c0f, 5e-5*std::fabs(c0f));
+    EXPECT_NEAR(ci,  cf,  5e-5*std::fabs(cf)) << "an imposed run's response differs from the free run's";
+}

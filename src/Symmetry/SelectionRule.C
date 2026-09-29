@@ -36,4 +36,19 @@ public:
     {return bra.SequenceIndex()==ket.SequenceIndex();}
 };
 
+//! \brief A selection rule that IS a lattice wave-vector shift \f$k\to k+q\f$ -- a cross-cast CAPABILITY on the
+//! rule (the RealBlock idiom), asked by the one client that needs the number: a periodic transition density,
+//! which Fourier-transforms at \f$G+q\f$ and collocates its periodic part \f$e^{-iq\cdot r}\delta\rho\f$
+//! (doc/LinearResponsePlan.md §3d B1/C1).  A rule WITHOUT it (\c Invariant, a point-group product) is a q = 0
+//! perturbation as far as a lattice is concerned.  Its own face so \c SelectionRule stays theory- and
+//! structure-neutral (a molecular rule has no wave vector).
+class WaveVectorShift
+{
+public:
+    virtual ~WaveVectorShift() = default;
+    //! \f$q\f$ in FRACTIONAL reciprocal coordinates, reduced into [0, 1) per axis -- ONE representative for
+    //! every block pair the rule couples, so every pair's \f$\delta\rho(G+q)\f$ is keyed on the same G.
+    virtual rvec3_t q() const = 0;
+};
+
 } // namespace

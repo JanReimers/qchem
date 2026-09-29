@@ -27,6 +27,7 @@ import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-spa
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
+import qchem.BasisSet.Transition_DFT_IBS;    // the (k+q, k) pair faces the transition Sample/Matrix go through (R3)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
@@ -265,16 +266,47 @@ const rvec_t& SinglesDensitySampler::Rho(const cChargeDensity* cd) const
     return itsRho;
 }
 
-// δρ of a transition density (R2): the density's own ProjectOnto against my projector, exactly as Rho does for
-// a DM density -- and deliberately WITHOUT itsQuad.Symmetrize (see the face) and without touching the caches.
-rvec_t SinglesDensitySampler::Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const
+// δρ of a transition density at my points (R2; pair-shaped since R3 step 3): each block pair through the δ basis's
+// Φ tables (Transition_Overlap3C) -- the same tables as Rho, deliberately WITHOUT itsQuad.Symmetrize (see the face)
+// and without touching the caches.
+namespace {
+//! The δ basis's transition pair as the density's projector (q unused: the point route samples δρ itself).
+class DeltaTransitionProjector : public TransitionProjector
+{
+public:
+    DeltaTransitionProjector(const BasisSet::Transition_Overlap3C& f, size_t n) : itsF(f), itsN(n) {}
+    virtual cvec_t Forward(const cobs_t& bra, const cobs_t& ket, const mat_t<dcmplx>& dD, const rvec3_t&) const override
+    {
+        return itsF.TransitionForward(dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(bra),
+                                      dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(ket), dD);
+    }
+    virtual size_t NumCoefficients() const override {return itsN;}
+private:
+    const BasisSet::Transition_Overlap3C& itsF;
+    size_t                                itsN;
+};
+const BasisSet::Transition_Overlap3C& TransitionFace(const BasisSet::cFIT_SF_ABS& fit)
+{
+    auto* f=dynamic_cast<const BasisSet::Transition_Overlap3C*>(&fit);   // abstract -> abstract
+    if (!f) throw std::logic_error("SinglesDensitySampler: this point fit basis has no Transition_Overlap3C face");
+    return *f;
+}
+} // namespace
+
+cvec_t SinglesDensitySampler::Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const
 {
     const auto* ch=delta.Channel(s);
     if (!ch) throw std::logic_error("SinglesDensitySampler::Sample: the transition density does not resolve this spin channel");
-    auto* p=dynamic_cast<const tProjectable_CD<dcmplx>*>(ch);
-    if (!p) throw std::logic_error("SinglesDensitySampler::Sample: this transition density cannot be projected onto a fit basis");
+    auto* p=dynamic_cast<const ProjectableTransition*>(ch);
+    if (!p) throw std::logic_error("SinglesDensitySampler::Sample: this transition density cannot be projected pair by pair");
     qchem::report::Timed timed("response: XC-mesh delta-rho sampling");
-    return p->ProjectOnto(Projector());
+    return p->ProjectOnto(DeltaTransitionProjector(TransitionFace(*itsFit), NumPoints()));
+}
+
+mat_t<dcmplx> SinglesDensitySampler::Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t&) const
+{
+    return TransitionFace(*itsFit).TransitionAdjoint(dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*bra),
+                                                     dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&>(*ket), v);
 }
 
 // The real-block ensure siblings (3c-3): build the real block's OWN typed table first (PhiR), then the

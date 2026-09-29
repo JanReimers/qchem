@@ -45,6 +45,16 @@ public:
         rvec3_t G=itsCell.ToCartesian(rvec3_t(m));   // G = B m
         return FourPi/(G*G);
     }
+    //! \brief The same kernel at a SHIFTED wave vector, \f$4\pi/|G+q|^2\f$ with \f$G+q=B(m+q)\f$ and \a q fractional
+    //! -- the Hartree kernel of a Bloch-q density (doc/LinearResponsePlan.md §3d finding 3).  Only \f$G+q=0\f$ is
+    //! dropped, so G = 0 is KEPT whenever q != 0; at q = 0 it is \c CoulombKernel(m) exactly (same arithmetic).
+    double CoulombKernel(const ivec3_t& m, const rvec3_t& q) const
+    {
+        const rvec3_t mq=rvec3_t(m)+q;
+        if (mq.x==0.0 && mq.y==0.0 && mq.z==0.0) return 0.0;
+        rvec3_t G=itsCell.ToCartesian(mq);
+        return FourPi/(G*G);
+    }
 
     std::ostream& Write(std::ostream& os) const {return itsCell.Write(os);}
 

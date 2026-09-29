@@ -29,6 +29,7 @@ export import qchem.BasisSet.Orbital_PP_IBS;          // the species-field integ
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
 export import qchem.BasisSet.AoShellSource;          // the shell-layout face this block forwards to its molecular block
 export import qchem.BasisSet.BareCoulombSource;      // the ACBN0 face it forwards too (+U increment 3, 2026-09-21)
+export import qchem.BasisSet.Transition_DFT_IBS;     // the (k+q, k) transition pair (LinearResponsePlan B2)
 export import qchem.UnitCell;                      // UnitCell (the direct lattice handed to the ctor)
 import qchem.Symmetry;                            // sym_t (the Bloch irrep)
 import qchem.Structure;                           // Structure (Create*FitBasisSet arg)
@@ -68,8 +69,23 @@ template <class T> class tGPW_IBS
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
     , public virtual BasisSet::AoShellSource        // built from the molecular block's shells, same order (+U, 2026-09-19)
     , public virtual BasisSet::BareCoulombSource    // the molecular block's bare (m1m2|m3m4): central cell only (ACBN0, 2026-09-21)
+    , public virtual BasisSet::Transition_DFT_IBS   // the (k+q, k) transition density, this block the ket (LinearResponsePlan B2)
 {
 public:
+    //! \name THE TRANSITION PAIR (doc/LinearResponsePlan.md §3d B2): this block is the KET, \a bra any block over the
+    //! same molecular AOs (checked: THROWS otherwise, finding 6).  The fit basis's own grid sets the ladder, as for
+    //! the ground-state tensors; the evaluator is complex internally, so both block scalars answer.
+    //!@{
+    virtual std::string TransitionBasisID() const override {return GPW_Evaluator::TransitionID();}
+    virtual ΔGq_Map TransitionRepulsion(const cFIT_CD_ABS& c, const BasisSet::Transition_DFT_IBS& bra,
+                                        const mat_t<dcmplx>& dD, const rvec3_t& q) const override;
+    virtual mat_t<dcmplx> TransitionPotential(const cFIT_CD_ABS& c, const BasisSet::Transition_DFT_IBS& bra,
+                                              const ΔGq_Map& V) const override;
+    virtual cvec_t TransitionOnGrid(const cFIT_SF_ABS& c, const BasisSet::Transition_DFT_IBS& bra,
+                                    const mat_t<dcmplx>& dD, const rvec3_t& q) const override;
+    virtual mat_t<dcmplx> TransitionGridAdjoint(const cFIT_SF_ABS& c, const BasisSet::Transition_DFT_IBS& bra,
+                                                const cvec_t& v, const rvec3_t& q) const override;
+    //!@}
     //! \copydoc BasisSet::AoShellSource::GetAoShells
     //! A Bloch sum per AO keeps the AO's shell layout, so the molecular block's answer IS this block's.
     virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const override
@@ -168,6 +184,8 @@ protected:
     // (The ctor-injected crystal ops live on GPW_Evaluator -- SetSymmetryOps/SymmetryOps: ONE storage for
     //  the T1 {G}-star fold and the Vxc-raster star-average.)
 private:
+    //! THROWS unless \a bra is built over my molecular AOs and \a rows x \a cols is bra x ket (finding 6).
+    void CheckTransitionPair(const BasisSet::Transition_DFT_IBS& bra, size_t rows, size_t cols) const;
     //! The Shubnikov {W|τ,σ} set on a magnetically imposed run ({} otherwise).  The σ-BLIND consumers
     //! (T1, raster) take the evaluator's spatial DirectOps as always; only CreateXCQuadrature reads
     //! this, to hand the engine the per-op spin actions + the odd-field zero flags.

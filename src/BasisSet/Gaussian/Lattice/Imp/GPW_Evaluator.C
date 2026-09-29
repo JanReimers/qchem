@@ -686,6 +686,111 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
     };
 }
 
+// ---- THE TRANSITION PAIR (doc/LinearResponsePlan.md §3d B2) --------------------------------------------------
+// The four ground-state closures above, re-spoken for a (k+q, k) transition density: the SAME ladder, the SAME
+// nested G-combine / spectral transfers, the SAME analytic gather -- with the B1 kernel's complex periodic part
+// u = e^{-iq.r} δρ in place of ρ, complex FFTs where the ground state took a real part, and 4π/|G+q|^2 for the
+// Poisson kernel.  At q = 0 with a Hermitian δD every one reduces to its ground-state closure under the geometry-
+// only screen (B1's gate), so "q = 0 is the special case" (§5) holds by construction.  No memo: every transition
+// density is new, and the D-aware screen is deliberately absent (the operator must be LINEAR, §3e).
+
+std::string GPW_Evaluator::TransitionID() const
+{
+    return "mol="+itsOrb->BasisSetID()
+         +"|cell="+std::to_string(itsCell.GetCellVolume())+","+std::to_string(itsCell.GetMaximumCellEdge())
+         +(itsHomeOnly?"|home":"");
+}
+
+const Gaussian::TransitionCollocation& GPW_Evaluator::Transition() const
+{
+    auto* t=dynamic_cast<const Gaussian::TransitionCollocation*>(itsLat);   // abstract -> abstract
+    if (!t) throw std::logic_error("GPW_Evaluator: the molecular block has no TransitionCollocation face (LinearResponsePlan B1)");
+    return *t;
+}
+
+const GPW_Evaluator::TransitionLadder& GPW_Evaluator::Ladder(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid) const
+{
+    auto it=itsTransitionLadders.find(key);
+    if (it!=itsTransitionLadders.end()) return it->second;
+    TransitionLadder L;
+    size_t nBase=0;
+    BuildLevels(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid), L.levels, L.N, L.ecut, nBase);
+    return itsTransitionLadders.emplace(key, std::move(L)).first->second;
+}
+
+ΔGq_Map GPW_Evaluator::TransitionRepulsionField(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid,
+                                                const mat_t<dcmplx>& dD, const rvec3_t& q) const
+{
+    qchem::report::Timed timer("response: transition V_H (collocate + FFT + G-combine)");
+    const TransitionLadder& L=Ladder(key, grid);
+    const std::vector<cvec_t> u=Transition().CollocateTransition(dD, CellPhase(), q, itsCell, L.N, L.ecut, itsRelFieldSharp);
+    ΔGq_Map out;
+    out.q=q;
+    for (size_t l=0; l<L.levels.size(); l++)
+    {
+        const cvec_t ut=L.levels[l]->ForwardFFT(u[l]);           // this level's δρ(G+q), keyed by G
+        for (const ivec3_t& dm : L.levels[l]->Gs())               // nested combine over the level's own {G}
+            out.c[dm] += L.levels[l]->GridCoeff(ut, dm);
+    }
+    const ReciprocalLattice& recip=grid.Recip();
+    for (auto& [dm,c] : out.c) c *= recip.CoulombKernel(dm, q);  // 4π/|G+q|^2; G+q = 0 dropped (q = 0 only)
+    return out;
+}
+
+mat_t<dcmplx> GPW_Evaluator::TransitionPotentialField(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid,
+                                                      const ΔGq_Map& V) const
+{
+    qchem::report::Timed timer("response: transition V_H gather (restrict + inverse FFT + gather)");
+    const TransitionLadder& L=Ladder(key, grid);
+    std::vector<cvec_t> V_L(L.levels.size());
+    for (size_t l=0; l<L.levels.size(); l++)
+    {
+        ΔG_Map vmap;
+        for (const ivec3_t& dm : L.levels[l]->Gs())               // restrict to level l's {G}
+        {
+            auto it=V.c.find(dm);
+            if (it!=V.c.end()) vmap[dm]=it->second;
+        }
+        V_L[l]=L.levels[l]->ComplexFieldOnGrid(vmap);            // the PERIODIC part of V: complex at q != 0
+    }
+    return Transition().IntegrateTransition(V_L, CellPhase(), V.q, itsCell, L.N, L.ecut, itsRelFieldSharp);
+}
+
+cvec_t GPW_Evaluator::TransitionRawField(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid,
+                                         const mat_t<dcmplx>& dD, const rvec3_t& q) const
+{
+    qchem::report::Timed timer("response: transition raw raster (collocate + spectral transfer)");
+    const TransitionLadder& L=Ladder(key, grid);
+    const std::vector<cvec_t> u=Transition().CollocateTransition(dD, CellPhase(), q, itsCell, L.N, L.ecut, itsRelFieldSharp);
+    const ivec3_t NT=L.N[0];                                       // the integration raster (level 0 == grid)
+    cvec_t acc(size_t(NT.x)*NT.y*NT.z, dcmplx(0.0));
+    for (size_t l=1; l<L.levels.size(); l++)
+        TransferBand(L.levels[l]->ForwardFFT(u[l]), L.N[l], acc, NT);
+    cvec_t out=L.levels[0]->ComplexBackwardFFT(acc);
+    out+=u[0];                                                     // the finest level RAW
+    return out;
+}
+
+mat_t<dcmplx> GPW_Evaluator::TransitionRawAdjoint(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid,
+                                                  const cvec_t& v, const rvec3_t& q) const
+{
+    qchem::report::Timed timer("response: transition raw raster gather (spectral transfer + gather)");
+    const TransitionLadder& L=Ladder(key, grid);
+    const size_t K=L.levels.size();
+    const ivec3_t NT=L.N[0];
+    if (v.size()!=size_t(NT.x)*NT.y*NT.z) throw std::invalid_argument("GPW_Evaluator::TransitionRawAdjoint: the field is not on the raster");
+    const cvec_t vt=L.levels[0]->ForwardFFT(v);
+    std::vector<cvec_t> V_L(K);
+    V_L[0]=v;
+    for (size_t l=1; l<K; l++)
+    {
+        cvec_t ctL(size_t(L.N[l].x)*L.N[l].y*L.N[l].z, dcmplx(0.0));
+        TransferBand(vt, NT, ctL, L.N[l]);
+        V_L[l]=L.levels[l]->ComplexBackwardFFT(ctL);
+    }
+    return Transition().IntegrateTransition(V_L, CellPhase(), q, itsCell, L.N, L.ecut, itsRelFieldSharp);
+}
+
 Projector3<dcmplx> GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsFFT_R_G_Grids);}
 Projector3<dcmplx> GPW_Evaluator::Overlap3CTensor  () const {return Overlap3CTensor  (itsFFT_R_G_Grids);}
 

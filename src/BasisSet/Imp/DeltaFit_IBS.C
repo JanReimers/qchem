@@ -24,6 +24,7 @@ module;
 #include <complex>     // std::abs on a complex table entry
 #include <map>         // the per-block table caches
 #include <exception>
+#include <stdexcept>   // std::invalid_argument (the transition pair's shape checks)
 #include <iostream>
 #include <type_traits> // std::is_same_v (the real/complex contraction bodies)
 #include <vector>
@@ -194,6 +195,47 @@ template <class U> const Projector3<U>& DeltaFit_IBS::Tensor(SymMap<Projector3<U
 
 const Projector3<double>& DeltaFit_IBS::Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const {return Tensor(itsO3R, itsPhiR, orb);}
 const Projector3<dcmplx>& DeltaFit_IBS::Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const {return Tensor(itsO3 , itsPhi , orb);}
+
+// THE TRANSITION PAIR (doc/LinearResponsePlan.md §3d B2, finding 4): the ground-state forward and adjoint with the
+// bra's table on one side and the ket's on the other.  δρ_a = Σ_j [Φ^bra δD]_aj conj(Φ^ket_aj), and its adjoint
+// Φ^bra† diag(w v) Φ^ket -- so Σ_ij conj(δD_ij) h_ij = Σ_a w_a conj(δρ_a) v_a exactly.  Complex point values (a
+// Bloch-q function), not Hermitian, never folded.  Serial and unscreened: a response applies this a few hundred
+// times per material, and the tables are the ground state's (efficiency is the deferred ledger's, §3d).
+cvec_t DeltaFit_IBS::TransitionForward(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+                                       const mat_t<dcmplx>& dD) const
+{
+    qchem::report::Timed timed("response: XC-mesh transition forward");
+    const mat_t<dcmplx>& Pb=Table(itsPhi, bra);
+    const mat_t<dcmplx>& Pk=Table(itsPhi, ket);
+    if (dD.rows()!=Pb.columns() || dD.columns()!=Pk.columns())
+        throw std::invalid_argument("DeltaFit_IBS::TransitionForward: δD is not bra x ket");
+    const mat_t<dcmplx> PD=Pb*dD;                           // (npts x n_ket)
+    const size_t npts=Pk.rows();
+    cvec_t ro(npts);
+    for (size_t g=0; g<npts; g++)
+    {
+        dcmplx acc=0.0;
+        for (size_t j=0; j<PD.columns(); j++) acc+=PD(g,j)*std::conj(Pk(g,j));
+        ro[g]=acc;
+    }
+    return ro;
+}
+mat_t<dcmplx> DeltaFit_IBS::TransitionAdjoint(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+                                              const cvec_t& v) const
+{
+    qchem::report::Timed timed("response: XC-mesh transition adjoint");
+    const mat_t<dcmplx>& Pb=Table(itsPhi, bra);
+    const mat_t<dcmplx>& Pk=Table(itsPhi, ket);
+    const rvec_t& w=itsQuad.GetMesh()->Weights();
+    if (v.size()!=Pk.rows()) throw std::invalid_argument("DeltaFit_IBS::TransitionAdjoint: the field is not on my points");
+    mat_t<dcmplx> WP(Pk.rows(), Pk.columns());
+    for (size_t g=0; g<Pk.rows(); g++)
+    {
+        const dcmplx wv=w[g]*v[g];
+        for (size_t j=0; j<Pk.columns(); j++) WP(g,j)=wv*Pk(g,j);
+    }
+    return mat_t<dcmplx>(blazem::trans(blazem::conj(Pb))*WP);
+}
 
 // THE ADJOINT: <i|Sum_g c_g delta_g|j> = Phi^dag diag(w c) Phi -- scale the rows, one zgemm, hermitize.
 // (The GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)

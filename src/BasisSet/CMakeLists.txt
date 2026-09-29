@@ -36,6 +36,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   G_FieldEvaluator.C
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C
+  Transition_DFT_IBS.C                  # the (k+q, k) transition-density faces (LinearResponsePlan B2)
   Orbital_DHF_IBS.C
     Lattice_IBS.C                         # the G=T SPEC tier: isLattice_{1E,DFT}_Evaluator + the Lattice::*_IBS<E,T> mixins (TaxonomyPlan 1a0)
   Fit_Types.C

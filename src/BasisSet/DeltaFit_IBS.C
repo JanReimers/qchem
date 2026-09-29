@@ -33,6 +33,7 @@ module;
 export module qchem.BasisSet.DeltaFit_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_Types;   // FitQuadrature / VxcFit -- the fit-factory vocabulary                    // cFIT_SF_ABS + Integrals_Overlap3C + FitQuadrature
+export import qchem.BasisSet.Transition_DFT_IBS;   // Transition_Overlap3C: the (k+q, k) pair on my Φ tables (LinearResponsePlan B2)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep)
 import qchem.Types;                                      // dcmplx, rvec3_t, vec_t
@@ -53,6 +54,7 @@ export namespace qchem::BasisSet
 class DeltaFit_IBS
     : public virtual cFIT_SF_ABS                     // the neutral scalar-fit face (+ Integrals_Overlap3C<dcmplx>)
     , public virtual Integrals_Overlap3C<double,dcmplx>  // ...and a REAL TRIM block (3c-3), in real arithmetic
+    , public virtual Transition_Overlap3C            // a (k+q, k) transition density on my points (the Becke/δ XC route)
     , public         IrrepBasisSetImp<dcmplx>        // GetSymmetry/GetSymt/GetIrrep
 {
 public:
@@ -90,6 +92,13 @@ public:
     //! ONE templated body serves both.)
     const Projector3<double>& Overlap3C(const Orbital_DFT_IBS<double,dcmplx>& orb) const override;
     const Projector3<dcmplx>& Overlap3C(const Orbital_DFT_IBS<dcmplx,dcmplx>& orb) const override;
+    //! \copydoc BasisSet::Transition_Overlap3C::TransitionForward
+    //! Two Φ tables from the same per-block cache the ground state fills, so a response adds no table build.
+    cvec_t TransitionForward(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+                             const mat_t<dcmplx>& dD) const override;
+    //! \copydoc BasisSet::Transition_Overlap3C::TransitionAdjoint
+    mat_t<dcmplx> TransitionAdjoint(const Orbital_DFT_IBS<dcmplx,dcmplx>& bra, const Orbital_DFT_IBS<dcmplx,dcmplx>& ket,
+                                    const cvec_t& v) const override;
 
     // ---- the integrals over my own functions, one entry per FUNCTION (FIT_SF_ABS) ---------------------
     //! \copydoc BasisSet::FIT_SF_ABS::OverlapDiagonal

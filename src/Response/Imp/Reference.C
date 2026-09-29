@@ -179,12 +179,17 @@ BlockPairs Reference::HermitianPart(const BlockPairs& x, const SelectionRule& ru
     h.m.reserve(x.m.size());
     for (size_t b=0;b<x.m.size();b++)
     {
-        if (p[b]!=b) throw std::logic_error("Response::Reference::HermitianPart: a block paired with ANOTHER block -- "
-                                            "the (k+q, k) conjugate pairing is stage R3's");
         const cmat_t& X=x.m[b];
+        const size_t c=p[b];
+        if (p[c]!=b) {h.m.push_back(X); continue;}   // a non-TRIM q: the conjugate partner lives in the -q problem
+        // The (k+q, k) pair's conjugate partner is the (k, k+q) pair -- block c as ket, whose bra is b again
+        // (q ≡ -q).  A Hermitian perturbation's response has X_c = X_b^†; project onto that.  c == b is q = 0.
+        const cmat_t& Y=x.m[c];
+        if (Y.rows()!=X.columns() || Y.columns()!=X.rows())
+            throw std::logic_error("Response::Reference::HermitianPart: a pair and its conjugate partner have mismatched shapes");
         cmat_t H(X.rows(), X.columns());
         for (size_t i=0;i<X.rows();i++)
-            for (size_t j=0;j<X.columns();j++) H(i,j)=0.5*(X(i,j)+std::conj(X(j,i)));
+            for (size_t j=0;j<X.columns();j++) H(i,j)=0.5*(X(i,j)+std::conj(Y(j,i)));
         h.m.push_back(std::move(H));
     }
     return h;

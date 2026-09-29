@@ -69,6 +69,12 @@ public:
     //! \c ForwardFFT these are exact inverses; the raw-collocation XC feed (doc/GPWPlan 0.5(f2)) uses the pair
     //! for its spectral zero-pad/truncation transfers between rasters.
     rvec_t   BackwardFFT(const cvec_t& c) const;
+    //! \brief The COMPLEX siblings of \c BackwardFFT / \c RhoOnGrid: the same inverse transform with NO real part
+    //! taken.  A Bloch-q field's periodic part \f$e^{-iq\cdot r}\delta\rho(r)\f$ is complex (its coefficients are
+    //! not Hermitian in G), so taking \f$\mathrm{Re}\f$ there would silently drop half of it
+    //! (doc/LinearResponsePlan.md §3d, the transition collocation).  Same layout and truncation rules.
+    cvec_t   ComplexBackwardFFT(const cvec_t& c) const;
+    cvec_t   ComplexFieldOnGrid(const ΔG_Map& c) const;
     //! Isotropic spectral multiplier over the FULL box: \f$f\mapsto\mathcal F^{-1}[k(|G|^2)\mathcal F f]\f$
     //! (a smooth \a k truncates nothing -- the raster Kerker preconditioner, doc/GPWPlan 0.5(f2)).
     rvec_t   ApplySpectralFilter(const rvec_t& f, const std::function<double(double g2)>& k) const;

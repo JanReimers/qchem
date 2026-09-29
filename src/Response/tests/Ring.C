@@ -13,10 +13,12 @@
 // included: this pins the q-pairing, the phase convention, the Fourier sum and (for the metal) the q=0
 // Fermi shift δμ that keeps the electron count fixed.  No SCF, no basis, no Hamiltonian library in the loop.
 #include "gtest/gtest.h"
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <limits>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 import qchem.Response.Probe;
 import qchem.Symmetry.Factory;   // BlochFactory
@@ -243,4 +245,81 @@ TEST(ResponseRing, UnmeasuredNoiseGatesTheSignOnlyAndSaysSo)
     auto tiny=TwoBlock(0.1995, 0.2, nan);                  // a 5e-4 gap: resolved or not is unknowable
     auto c2=IndependentResponse(*tiny, OneChannel(*tiny), ivec3_t(2,1,1));
     EXPECT_TRUE(c2.IsOk());
+}
+
+// R3 step 3: HermitianPart on a LATTICE SHIFT (doc/LinearResponsePlan.md §3d, response side).  A TRIM q (N = 2,
+// q = 1/2) puts both the (k+q, k) pair and its conjugate partner (k, k+q) in ONE set: the projection must make
+// X_{k,k+q} == X_{k+q,k}^† and be idempotent.  The q = 0 rule is its self-paired case.  A non-TRIM q (N = 3,
+// q = 1/3): the partner lives in the -q problem, so the projection is the IDENTITY.
+namespace {
+std::unique_ptr<Reference> MeshRef(int N)
+{
+    std::vector<ReferenceBlock> blocks(N);
+    for (int ik=0;ik<N;ik++)
+    {
+        blocks[ik].irrep=Irrep(Spin::Up, Symmetry::BlochFactory(ivec3_t(N,1,1),ivec3_t(ik,0,0),1.0/N));
+        blocks[ik].w=1.0/N; blocks[ik].g=1.0; blocks[ik].f={1.0,0.0,0.0}; blocks[ik].e={-0.4, 0.7, 0.9};
+    }
+    return std::make_unique<Reference>(std::move(blocks), MakeOccupancyRule(OccupationConfig{}), 1e-12);
+}
+BlockPairs RandomPairs(const Reference& ref, const Symmetry::SelectionRule& rule, unsigned seed)
+{
+    const auto p=ref.Partners(rule);
+    unsigned s=seed;
+    auto u=[&s]{ s=s*1664525u+1013904223u; return double(s)/4294967296.0-0.5; };
+    BlockPairs X;
+    for (size_t b=0;b<ref.NumBlocks();b++)
+    {
+        cmat_t m(ref.NumOrbitals(p[b]), ref.NumOrbitals(b));
+        for (size_t i=0;i<m.rows();i++) for (size_t j=0;j<m.columns();j++) m(i,j)=dcmplx(u(),u());
+        X.m.push_back(m);
+    }
+    return X;
+}
+MeshShift ShiftBy(const Reference& ref, ivec3_t Nq, ivec3_t steps)
+{
+    auto qs=ref.QMesh(Nq);
+    EXPECT_TRUE(qs.IsOk());
+    for (const auto& q : qs.Value()) if (q.Steps().x==steps.x && q.Steps().y==steps.y && q.Steps().z==steps.z) return q;
+    throw std::logic_error("ShiftBy: no such q on this mesh");
+}
+double MaxDiff(const cmat_t& a, const cmat_t& b)
+{
+    double d=0; for (size_t i=0;i<a.rows();i++) for (size_t j=0;j<a.columns();j++) d=std::max(d, std::abs(a(i,j)-b(i,j)));
+    return d;
+}
+} // namespace
+
+TEST(ResponseRing, HermitianPartPairsConjugatePartnersAtTRIM_q_IdentityOtherwise)
+{
+    {   // TRIM q = 1/2
+        auto ref=MeshRef(2);
+        const MeshShift q=ShiftBy(*ref, ivec3_t(2,1,1), ivec3_t(1,0,0));
+        const auto p=ref->Partners(q);
+        ASSERT_EQ(p[0], 1u); ASSERT_EQ(p[1], 0u);
+        const BlockPairs X=RandomPairs(*ref, q, 3);
+        const BlockPairs H=ref->HermitianPart(X, q);
+        for (size_t b=0;b<2;b++)
+        {
+            const size_t c=p[b];
+            EXPECT_LT(MaxDiff(H.m[c], cmat_t(blazem::ctrans(H.m[b]))), 1e-15) << "X_{k,k+q} != X_{k+q,k}^dagger";
+            EXPECT_LT(MaxDiff(H.m[b], cmat_t(0.5*(X.m[b]+blazem::ctrans(X.m[c])))), 1e-15);
+        }
+        const BlockPairs HH=ref->HermitianPart(H, q);
+        for (size_t b=0;b<2;b++) EXPECT_LT(MaxDiff(HH.m[b], H.m[b]), 1e-15) << "not idempotent";
+    }
+    {   // q = 0: the per-block rule
+        auto ref=MeshRef(2);
+        const Symmetry::Invariant q0;
+        const BlockPairs X=RandomPairs(*ref, q0, 5);
+        const BlockPairs H=ref->HermitianPart(X, q0);
+        for (size_t b=0;b<2;b++) EXPECT_LT(MaxDiff(H.m[b], cmat_t(0.5*(X.m[b]+blazem::ctrans(X.m[b])))), 1e-15);
+    }
+    {   // non-TRIM q = 1/3: the identity
+        auto ref=MeshRef(3);
+        const MeshShift q=ShiftBy(*ref, ivec3_t(3,1,1), ivec3_t(1,0,0));
+        const BlockPairs X=RandomPairs(*ref, q, 7);
+        const BlockPairs H=ref->HermitianPart(X, q);
+        for (size_t b=0;b<3;b++) EXPECT_EQ(MaxDiff(H.m[b], X.m[b]), 0.0) << "a non-TRIM q must not be projected";
+    }
 }

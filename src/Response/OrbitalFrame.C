@@ -9,9 +9,10 @@
 //   ToMO: a TransitionFock    ->  δF in the MO basis R0 consumes,             δF_MO = C^† δF_AO C
 // It is built block-aligned with its Reference (same order, same orbital counts -- checked).
 //
-// q = 0 ONLY in R1: every block is its own partner, so δD_AO is square, and Hermitian for a Hermitian
-// perturbation.  On a REAL block (T = double) the MO δD must be real: its imaginary part is checked, not
-// dropped silently (the real-TRIM rule, doc/RealComplexPlan.md).
+// At q = 0 every block is its own partner, so δD_AO is square, and Hermitian for a Hermitian perturbation.  On a
+// REAL block (T = double) the MO δD must be real: its imaginary part is checked, not dropped silently (the
+// real-TRIM rule, doc/RealComplexPlan.md).  At q != 0 (R3) a ket block k pairs with its bra k+q, and
+// δD_AO = w C_{k+q} δD_MO C_k^† is bra x ket and NOT Hermitian -- complex blocks only (ruling Q8).
 module;
 #include <memory>
 #include <vector>
@@ -36,8 +37,9 @@ template <class T> class OrbitalFrame
 public:
     //! THROWS unless \a blocks line up with \a ref's (irrep order and orbital count per block).
     OrbitalFrame(const Reference& ref, std::vector<FrameBlock<T>> blocks);
-    //! δD (MO basis, on \a rule's pairs) -> the AO transition density.  THROWS if a block is not its own
-    //! partner (q != 0 is R3's), or a real block receives a complex δD.
+    //! δD (MO basis, on \a rule's pairs) -> the AO transition density, \f$w_k C_{\rm bra}\delta D C_{\rm ket}^\dagger\f$.
+    //! THROWS if a self-paired block's δD is not Hermitian, a real block receives a complex δD, or a real block is
+    //! paired with another (q != 0 rides forceComplex).
     std::unique_ptr<ChargeDensity::TransitionDensity<T>> ToAO(const BlockPairs& dD,
                                                               std::shared_ptr<const Symmetry::SelectionRule> rule) const;
     //! δF (AO basis) -> MO block pairs on \a rule's pairs: \f$C_{\rm bra}^\dagger\,\delta F\,C_{\rm ket}\f$.

@@ -47,19 +47,64 @@ public:
     virtual const TransitionDensity* Channel(const Spin& s) const = 0;
 };
 
-//! One block of an AO transition density: the ket block's irrep and basis, and δD on it.  q = 0 only (a
-//! block couples to ITSELF, so δD is square and, for a Hermitian perturbation, Hermitian); the (k+q, k) pair
-//! form is R3's.  A construction VALUE.
+//! One block PAIR of an AO transition density: the (k+q, σ) bra block, the (k, σ) ket block, and δD on the pair
+//! (bra rows x ket columns).  At q = 0 (or a totally symmetric perturbation) bra == ket, and δD is square --
+//! Hermitian for a Hermitian perturbation.  At q != 0 it is neither square in meaning nor Hermitian: its conjugate
+//! partner lives on the (k, k+q) pair (doc/LinearResponsePlan.md §3d, C1).  A construction VALUE.
 template <class T> struct TransitionBlock
 {
-    Irrep            irrep;
-    const tobs_t<T>* bs=nullptr;
-    hmat_t<T>        dD;
+    Irrep            bra, ket;
+    const tobs_t<T>* braBs=nullptr;
+    const tobs_t<T>* ketBs=nullptr;
+    mat_t<T>         dD;
 };
 
-//! \brief The AO-matrix transition density over \a blocks, coupled by \a rule.  THROWS unless \a rule couples
-//! every block to itself (the q = 0 / totally-symmetric case; a q != 0 transition density is stage R3's).
-//! On the real path (T = double) the result carries the HF sweep face \c tHF_System_CD<double>.
+//! \brief THE HARTREE FACE of a PERIODIC transition density (doc/LinearResponsePlan.md §3d, C1): \f$\delta V_H(G+q)\f$
+//! summed over its block pairs, on the CD fit basis's ball.  A cross-cast capability, like \c FourierDensity is on a
+//! ground-state density -- and a DIFFERENT type from it on purpose: its answer is a \c ΔGq_Map (ruling Q7), and it
+//! is never star-averaged (a perturbation breaks the imposed group, §3d finding 5).
+class TransitionFourierDensity
+{
+public:
+    virtual ~TransitionFourierDensity() = default;
+    virtual ΔGq_Map GetTransitionRepulsion(const BasisSet::cFIT_CD_ABS&) const=0;
+};
+
+//! \brief What an XC sampler projects a periodic transition density THROUGH -- the pair sibling of
+//! \c Fitting::ScalarProjector.  The sampler implements it over its own quadrature (Φ tables on the δ/Becke mesh, or
+//! the raw collocation on a raster); the transition density contracts each of its own pairs into it
+//! (\c ProjectableTransition), so δD never leaves the density.  \a q is the density's one wave vector.
+class TransitionProjector
+{
+public:
+    virtual ~TransitionProjector() = default;
+    //! This quadrature's values of ONE pair's transition density (bra x ket δD), one per coefficient.
+    virtual cvec_t Forward(const tobs_t<dcmplx>& bra, const tobs_t<dcmplx>& ket, const mat_t<dcmplx>& dD,
+                           const rvec3_t& q) const=0;
+    virtual size_t NumCoefficients() const=0;   //!< the length of every vector \c Forward returns
+};
+
+//! \brief "I can be projected pair by pair" -- the periodic transition density's face onto a \c TransitionProjector:
+//! \f$\sum_{\rm pairs}\f$ \c Forward(bra, ket, δD, q).  NEVER symmetrized (§3d finding 5).
+class ProjectableTransition
+{
+public:
+    virtual ~ProjectableTransition() = default;
+    virtual cvec_t ProjectOnto(const TransitionProjector&) const=0;
+};
+
+//! The wave vector a selection rule shifts by (fractional; its \c Symmetry::WaveVectorShift face), or 0 for a rule
+//! without one -- the ONE place that question is answered, for the transition density and the terms alike.
+inline rvec3_t WaveVectorOf(const Symmetry::SelectionRule& rule)
+{
+    auto* w=dynamic_cast<const Symmetry::WaveVectorShift*>(&rule);   // abstract -> abstract
+    return w ? w->q() : rvec3_t(0,0,0);
+}
+
+//! \brief The AO-matrix transition density over \a blocks, coupled by \a rule.  THROWS unless \a rule couples every
+//! block's ket to its bra.  The wave vector comes from the rule (\c Symmetry::WaveVectorShift; none = q = 0).
+//! On the real path (T = double, q = 0 only) the result carries the HF sweep face \c tHF_System_CD<double>; on the
+//! periodic path (T = dcmplx) it carries \c TransitionFourierDensity and \c ProjectableTransition.
 template <class T> std::unique_ptr<TransitionDensity<T>>
 AO_TransitionDensity_Factory(std::vector<TransitionBlock<T>> blocks, std::shared_ptr<const Symmetry::SelectionRule> rule);
 

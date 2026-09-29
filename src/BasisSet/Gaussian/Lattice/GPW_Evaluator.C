@@ -228,6 +228,27 @@ public:
     //! (the AoShellSource face on the Bloch block forwards here; +U manifolds, 2026-09-19).
     const BasisSet::Real_OIBS& MolecularBlock() const {return *itsOrb;}
 
+    // --- THE TRANSITION PAIR (doc/LinearResponsePlan.md §3d B2): the (k+q, k) siblings of the four ground-state
+    //     closures, over the fit grid \a grid (its ladder cached under \a key, the fit basis's content ID).  This
+    //     block is the KET; the bra is any block over the same molecular AOs (the caller checks \c TransitionID).
+    //     Built on the B1 kernel (\c Gaussian::TransitionCollocation): geometry-only screen, never folded, never
+    //     memoised (every transition density is new).  \a dD is bra x ket; \a q fractional. ---
+    //! The identity of the AO set these Bloch functions are built over (the molecular block + the cell).
+    std::string TransitionID() const;
+    //! \f$\delta V_H(G+q)\f$ on \a grid's ball: collocate the periodic part per level, FFT, nested combine,
+    //! \f$4\pi/|G+q|^2\f$ (G = 0 kept iff q != 0).
+    ΔGq_Map       TransitionRepulsionField(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid,
+                                           const mat_t<dcmplx>& dD, const rvec3_t& q) const;
+    //! Its exact adjoint: restrict \a V to each level's \f$\{G\}\f$, complex inverse FFT, analytic gather.
+    mat_t<dcmplx> TransitionPotentialField(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid,
+                                           const ΔGq_Map& V) const;
+    //! The periodic part \f$e^{-iq\cdot r}\delta\rho\f$ on \a grid's raster: level 0 raw, the rest spectrally transferred.
+    cvec_t        TransitionRawField      (const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid,
+                                           const mat_t<dcmplx>& dD, const rvec3_t& q) const;
+    //! Its exact transpose for a periodic \a v on the raster.
+    mat_t<dcmplx> TransitionRawAdjoint    (const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid,
+                                           const cvec_t& v, const rvec3_t& q) const;
+
 private:
     //! The reciprocal \f$\{U|\tau\}\f$ face of \c itsSymOps (\f$U=W^\top\f$, the G-index scatter map) --
     //! what \c EvaluateSymmetricGMap folds under (empty = the plain sweep).
@@ -351,6 +372,18 @@ private:
         void Store (const std::vector<rvec_t>& V_L, const chmat_t* screen, const chmat_t& h);
     };
     mutable std::shared_ptr<GatherMemo> itsGatherMemo;    //!< shared by the ball and raw integrator closures
+    //! The REL_CUTOFF ladder of a fit grid, as the transition pair needs it -- geometry-fixed, so built once per
+    //! fit basis (keyed by its content ID, never a pointer) instead of once per kernel application.
+    struct TransitionLadder
+    {
+        std::vector<std::shared_ptr<const PlaneWave::PW_Grid_Evaluator>> levels;
+        std::vector<ivec3_t> N;
+        std::vector<double>  ecut;
+    };
+    const TransitionLadder& Ladder(const std::string& key, const PlaneWave::PW_Grid_Evaluator& grid) const;
+    mutable std::map<std::string,TransitionLadder> itsTransitionLadders;
+    //! The B1 kernel on the molecular block (abstract -> abstract cross-cast; THROWS if the block has none).
+    const Gaussian::TransitionCollocation& Transition() const;
     //! The Bloch phase of an integer cell offset \f$n\f$: \f$e^{2\pi i\,k_{frac}\cdot n}\f$ -- the closure the
     //! analytic kernels call back for each screened cross-cell pair offset (the k-CONVENTION stays here,
     //! lattice-side; the molecular basis never sees \f$k\f$).

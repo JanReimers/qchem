@@ -24,6 +24,8 @@ import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
+import qchem.BasisSet.Transition_DFT_IBS;      // the (k+q, k) pair's adjoint gather (the response, R3)
+import qchem.ChargeDensity.TransitionDensity;  // TransitionFourierDensity (the response's Hartree face)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
 import qchem.BasisSet.Orbital_PP_IBS;             // cast bs ACROSS to the species-field integral service (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
@@ -150,27 +152,24 @@ void Vee_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     te.Add("Eee", e, EnergyRole::Potential);   // Tr(D V_H[rho_mix]) under mixing is NOT 2e: not claimed (see FittedVee)
 }
 
-// THE RESPONSE: the transition density's own G-space Poisson -- linear, so no D0 -- then the same adjoint.
+// THE RESPONSE: the transition density's own G+q Poisson -- linear, so no D0 -- then each pair's exact adjoint.
 void Vee_Hartree::RefreshForDensity(const cbs_t*, const cChargeDensity*, const TransitionDensity<dcmplx>& delta) const
 {
     if (delta.Version()==itsDeltaVersion) return;
-    auto* fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(&delta);
-    if (!fd) throw std::logic_error("Vee_Hartree: this transition density has no G-space (FourierDensity) face");
+    auto* fd=dynamic_cast<const qchem::ChargeDensity::TransitionFourierDensity*>(&delta);   // abstract -> abstract
+    if (!fd) throw std::logic_error("Vee_Hartree: this transition density has no G+q (TransitionFourierDensity) face");
     qchem::report::Timed miss("response: delta V_H field");
-    itsDeltaField  =fd->GetRepulsion3C(*itsFitBasis);
+    itsDeltaField  =fd->GetTransitionRepulsion(*itsFitBasis);
     itsDeltaVersion=delta.Version();
 }
 
 mat_t<dcmplx> Vee_Hartree::GetMatrix(const cobs_t* bra, const cobs_t* ket, const Spin&, const TransitionDensity<dcmplx>& delta) const
 {
-    if (bra->BasisSetID()!=ket->BasisSetID())
-        throw std::logic_error("Vee_Hartree: a response on a (bra != ket) block pair -- q != 0 is stage R3's");
     if (delta.Version()!=itsDeltaVersion) RefreshForDensity(nullptr, nullptr, delta);
-    auto bft=dynamic_cast<const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>*>(bra);
-    if (!bft) throw std::logic_error("Vee_Hartree: the response needs a Orbital_DFT_IBS (reciprocal-space DFT) block");
-    const ΔG_Map& dV=itsDeltaField;
-    return mat_t<dcmplx>(blazem::NarrowExact<dcmplx>(ContractAdjoint(bft->Repulsion3C(*itsFitBasis),
-        [&dV](const ivec3_t& dm)->dcmplx { auto it=dV.find(dm); return it==dV.end()?dcmplx(0.0):it->second; })));
+    auto* k=dynamic_cast<const BasisSet::Transition_DFT_IBS*>(ket);   // abstract -> abstract
+    auto* b=dynamic_cast<const BasisSet::Transition_DFT_IBS*>(bra);
+    if (!k || !b) throw std::logic_error("Vee_Hartree: the response needs Transition_DFT_IBS (collocating) blocks");
+    return k->TransitionPotential(*itsFitBasis, *b, itsDeltaField);
 }
 
 std::ostream& Vee_Hartree::Write(std::ostream& os) const

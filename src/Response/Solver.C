@@ -53,8 +53,10 @@ struct SelfConsistentResponse
 //! from K[δ] by 7e-5 at s = 1e-5 and 4% at s = 1e-8 (with the screen off: 1e-16).  A Krylov solve probes K with
 //! unit-norm vectors of small components, and on NiO k222 its recurrence estimate ran 100x below the TRUE
 //! residual.  K is linear, so the rescale changes nothing mathematically and makes the operator exactly
-//! homogeneous; the screen then acts at the scale it was built for.  Additivity stays screen-limited (~6e-9 at
-//! unit scale); the q != 0 kernel (B1) takes the geometry-only screener, which is linear outright.
+//! homogeneous; the screen then acts at the scale it was built for.
+//! ▶ SINCE R3 STEP 3 THE PERIODIC KERNEL IS LINEAR OUTRIGHT at every q (the B1/B2 transition collocations take the
+//! geometry-only screen; the same gate now asserts K[sδ]/s == K[δ] to 1e-12), so the rescale is a GUARD, not a fix:
+//! it costs two scalings and keeps the operator homogeneous against any future term with an absolute tolerance.
 template <class T> BlockPairs InducedFockMO(const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& K, const BlockPairs& dD,
                                             std::shared_ptr<const Symmetry::SelectionRule> rule);
 //! \brief Solve the self-consistent response to each \a perturbed channel of \a probe under \a rule, measuring

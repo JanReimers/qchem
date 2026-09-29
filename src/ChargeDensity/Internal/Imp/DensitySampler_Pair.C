@@ -27,6 +27,7 @@ import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-spa
 import qchem.BasisSet.Orbital_DFT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // G_RasterTransform: the fit basis's FFT pair (RhoOnGrid, the BALL route)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
+import qchem.BasisSet.Transition_DFT_IBS;    // the (k+q, k) pair faces the transition Sample/Matrix go through (R3)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Vxc_Quadrature engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
@@ -78,22 +79,47 @@ rvec_t PairDensitySampler::SampleOne(const cChargeDensity* cd, bool& isRaw) cons
     return rho;
 }
 
-// δρ of a transition density (R2): the SampleOne recipe (RAW collocation, else the BALL round trip) through
-// the transition density's G-space face -- no cache, no route latch (the latch guards the SCF iterate).
-rvec_t PairDensitySampler::Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const
+// The periodic part of a transition density on my raster (R2; pair-shaped since R3 step 3): each block pair through
+// its KET block's RAW transition collocation -- the RAW route the ground state latches for every GPW lineage.  No
+// cache, no route latch (the latch guards the SCF iterate), no BALL fallback: a lineage that cannot collocate a
+// pair (a plane-wave basis) throws, since its ball fit would be a different functional's derivative.
+namespace {
+const BasisSet::Transition_DFT_IBS& PairFace(const cobs_t& bs, const char* which)
+{
+    auto* t=dynamic_cast<const BasisSet::Transition_DFT_IBS*>(&bs);   // abstract -> abstract
+    if (!t) throw std::logic_error(std::string("PairDensitySampler: the ")+which+" block has no Transition_DFT_IBS face "
+                                   "-- this lineage cannot collocate a transition density on the raster");
+    return *t;
+}
+//! The ket block's raw transition collocation on my fit raster, as the density's projector.
+class RasterTransitionProjector : public TransitionProjector
+{
+public:
+    RasterTransitionProjector(const BasisSet::cFIT_SF_ABS& fit, size_t n) : itsFit(fit), itsN(n) {}
+    virtual cvec_t Forward(const cobs_t& bra, const cobs_t& ket, const mat_t<dcmplx>& dD, const rvec3_t& q) const override
+    {
+        return PairFace(ket, "ket").TransitionOnGrid(itsFit, PairFace(bra, "bra"), dD, q);
+    }
+    virtual size_t NumCoefficients() const override {return itsN;}
+private:
+    const BasisSet::cFIT_SF_ABS& itsFit;
+    size_t                       itsN;
+};
+} // namespace
+
+cvec_t PairDensitySampler::Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const
 {
     const auto* ch=delta.Channel(s);
     if (!ch) throw std::logic_error("PairDensitySampler::Sample: the transition density does not resolve this spin channel");
-    auto* fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(ch);
-    if (!fd) throw std::logic_error("PairDensitySampler::Sample: this transition density has no G-space (FourierDensity) face");
-    rvec_t rho=fd->GetRhoOnGrid(*itsFitBasis);
-    if (rho.size()==0)
-    {
-        auto* ge=dynamic_cast<const BasisSet::G_RasterTransform*>(itsFitBasis.get());
-        if (!ge) throw std::logic_error("PairDensitySampler::Sample: the BALL route needs the fit basis's raster transforms");
-        rho=ge->RhoOnGrid(fd->GetFourierDensity(*itsFitBasis));
-    }
-    return rho;
+    auto* p=dynamic_cast<const ProjectableTransition*>(ch);
+    if (!p) throw std::logic_error("PairDensitySampler::Sample: this transition density cannot be projected pair by pair");
+    qchem::report::Timed timed("response: raster delta-rho sampling");
+    return p->ProjectOnto(RasterTransitionProjector(*itsFitBasis, NumPoints()));
+}
+
+mat_t<dcmplx> PairDensitySampler::Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const
+{
+    return PairFace(*ket, "ket").TransitionGridAdjoint(*itsFitBasis, PairFace(*bra, "bra"), v, q);
 }
 
 // ROUTE STABILITY (R2.16), in one place for both shapes -- see the declaration.

@@ -105,7 +105,15 @@ public:
     //! UNCACHED, because it must not evict the SCF iterate's \f$\rho\f$ (the ground-state caches stay warm);
     //! and NEVER SYMMETRIZED, because a perturbation may break the imposed symmetry and its response must be
     //! free to (the fold's orbit mean is a property of the ground state, not of δρ).
-    virtual rvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const=0;
+    //! ★ COMPLEX, and in THIS QUADRATURE'S OWN REPRESENTATION of a Bloch-q function (R3 step 3): the point route
+    //! returns δρ at its points, the raster route the periodic part \f$e^{-iq\cdot r}\delta\rho\f$ at its raster
+    //! points.  Either way a PERIODIC pointwise kernel (\f$f_{xc}[\rho_0]\f$) may multiply it, and the pair
+    //! \c Matrix below is its exact adjoint -- which is all a term needs to know.  Real at q = 0 for a Hermitian δD.
+    virtual cvec_t Sample(const TransitionDensity<dcmplx>& delta, const Spin& s) const=0;
+    //! \brief The transition ADJOINT of \c Sample: \f$h_{ij}=\langle\chi_i^{k+q}|\,\tilde v\,|\chi_j^k\rangle\f$ for a
+    //! field \a v in \c Sample's representation, bra (k+q) x ket (k).  \a q is the wave vector the field was sampled
+    //! at (the raster route gathers a periodic part and needs it; the point route does not).
+    virtual mat_t<dcmplx> Matrix(const cobs_t* bra, const cobs_t* ket, const cvec_t& v, const rvec3_t& q) const=0;
     //! \f$\langle i|v|j\rangle=\sum_g w_g\,\overline{\chi_i(r_g)}v_g\chi_j(r_g)\f$ -- the EXACT ADJOINT of
     //! whatever route \c Rho took, weights included (a caller passes the bare field \f$v\f$).
     virtual chmat_t Matrix(const cobs_t* bs, const rvec_t& v) const=0;

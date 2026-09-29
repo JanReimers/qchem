@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <map>       // MakeProjectorMatrixByL (the per-l KB diagnostic)
 #include <memory>
+#include <stdexcept>   // std::invalid_argument (the transition pair's bra check)
 #include <string>
 #include <vector>
 
@@ -224,6 +225,47 @@ template <class T> const Projector3<dcmplx>& tGPW_IBS<T>::Repulsion3C(const cFIT
     auto [it,fresh]=its3Cs.try_emplace("R|"+c.BasisSetID());
     if (fresh) it->second=MakeRepulsion3C(c);
     return it->second;
+}
+
+// THE TRANSITION PAIR (B2): the fit basis IS-A grid evaluator (the MakeRepulsion3C cast), and its content ID keys
+// the evaluator's cached ladder.  Every method checks the bra first -- a pair over two AO sets would collocate
+// silently wrong (finding 6).
+template <class T> void tGPW_IBS<T>::CheckTransitionPair(const BasisSet::Transition_DFT_IBS& bra, size_t rows, size_t cols) const
+{
+    if (bra.TransitionBasisID()!=TransitionBasisID())
+        throw std::invalid_argument("GPW_IBS: a transition pair over two DIFFERENT AO sets (bra "+bra.TransitionBasisID()
+                                    +", ket "+TransitionBasisID()+") -- both must be Bloch sums of ONE molecular block "
+                                    "(doc/LinearResponsePlan.md §3d finding 6; a per-k ortho drop does this, pin 22)");
+    const size_t n=this->GetNumFunctions();
+    if (rows!=n || cols!=n) throw std::invalid_argument("GPW_IBS: the transition δD is not bra x ket");
+}
+template <class T> ΔGq_Map tGPW_IBS<T>::TransitionRepulsion(const cFIT_CD_ABS& c, const BasisSet::Transition_DFT_IBS& bra,
+                                                            const mat_t<dcmplx>& dD, const rvec3_t& q) const
+{
+    CheckTransitionPair(bra, dD.rows(), dD.columns());
+    const auto& grid=dynamic_cast<const PlaneWave::PW_Grid_Evaluator&>(c);   // as MakeRepulsion3C (throws: loud)
+    return GPW_Evaluator::TransitionRepulsionField("R|"+c.BasisSetID(), grid, dD, q);
+}
+template <class T> mat_t<dcmplx> tGPW_IBS<T>::TransitionPotential(const cFIT_CD_ABS& c, const BasisSet::Transition_DFT_IBS& bra,
+                                                                  const ΔGq_Map& V) const
+{
+    CheckTransitionPair(bra, this->GetNumFunctions(), this->GetNumFunctions());
+    const auto& grid=dynamic_cast<const PlaneWave::PW_Grid_Evaluator&>(c);
+    return GPW_Evaluator::TransitionPotentialField("R|"+c.BasisSetID(), grid, V);
+}
+template <class T> cvec_t tGPW_IBS<T>::TransitionOnGrid(const cFIT_SF_ABS& c, const BasisSet::Transition_DFT_IBS& bra,
+                                                        const mat_t<dcmplx>& dD, const rvec3_t& q) const
+{
+    CheckTransitionPair(bra, dD.rows(), dD.columns());
+    const auto& grid=dynamic_cast<const PlaneWave::PW_Grid_Evaluator&>(c);
+    return GPW_Evaluator::TransitionRawField("O|"+c.BasisSetID(), grid, dD, q);
+}
+template <class T> mat_t<dcmplx> tGPW_IBS<T>::TransitionGridAdjoint(const cFIT_SF_ABS& c, const BasisSet::Transition_DFT_IBS& bra,
+                                                                    const cvec_t& v, const rvec3_t& q) const
+{
+    CheckTransitionPair(bra, this->GetNumFunctions(), this->GetNumFunctions());
+    const auto& grid=dynamic_cast<const PlaneWave::PW_Grid_Evaluator&>(c);
+    return GPW_Evaluator::TransitionRawAdjoint("O|"+c.BasisSetID(), grid, v, q);
 }
 
 template <class T> std::string tGPW_IBS<T>::BasisSetID() const

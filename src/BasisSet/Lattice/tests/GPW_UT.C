@@ -21,6 +21,7 @@
 #include <chrono>
 #include <cstdlib>   // getenv/atof (the ill-conditioned charge probe's Ecut knob)
 #include <iostream>
+#include <stdexcept>   // std::invalid_argument (the B2 foreign-bra refusal)
 
 import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell
@@ -1903,4 +1904,163 @@ TEST(GPW, DiffuseDKBOracle)   // RE-ENABLED 2026-09-15 (TE phase 5): seconds, no
                   << "  median prod/oracle="<<med<<"  (1=convention match; constant!=1=scale drift)"<<std::endl;
         EXPECT_LT(worst, 1e-2) << "KB channel l="<<l<<": production disagrees with the from-scratch oracle";
     }
+}
+
+//=====================================================================================================
+//  THE TRANSITION PAIR, B2 (doc/LinearResponsePlan.md §3d; R3 step 3).  The (k+q, k) siblings of the four
+//  ground-state collocation closures on a GPW block, plus the δ basis's point pair.  Three claims:
+//   (1) EXACT ADJOINTS at a NON-TRIM q (k = 1/3 -> k+q = 2/3 on a 3x1x1 mesh: the Bloch phases and the q plane
+//       wave are genuinely complex -- a TRIM pair would have real Φ, feedback_complex_type_vs_value):
+//         Hartree:  Σ conj(δD) h[V]      == Ω Σ_G conj(δρ(G+q)) V(G+q)     (δρ = V_H / 4π|G+q|^-2)
+//         raw:      Σ conj(δD) h_raw[v]  == (Ω/N) Σ_r conj(u(r)) v(r)
+//         δ basis:  Σ conj(δD) h_δ[v]    == Σ_a w_a conj(δρ_a) v_a
+//   (2) q = 0 with a Hermitian D on ONE block REDUCES to the ground-state tensors (the R2 route's integrals):
+//       the gathers to rounding (both unscreened); the collocations to the ground state's D-AWARE screen,
+//       which B2 deliberately does not use (§3e: the response operator must be linear).
+//   (3) a bra built over a DIFFERENT AO set is refused (finding 6).
+//=====================================================================================================
+namespace
+{
+mat_t<dcmplx> RandomComplex(size_t r, size_t c, unsigned seed)
+{
+    mat_t<dcmplx> M(r, c);
+    unsigned s=seed;
+    auto u=[&s]{ s=s*1664525u+1013904223u; return double(s)/4294967296.0-0.5; };
+    for (size_t i=0;i<r;i++) for (size_t j=0;j<c;j++) M(i,j)=dcmplx(u(), u());
+    return M;
+}
+dcmplx Pair(const mat_t<dcmplx>& A, const mat_t<dcmplx>& B)     // Σ conj(A_ij) B_ij
+{
+    dcmplx s=0.0;
+    for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.columns();j++) s+=std::conj(A(i,j))*B(i,j);
+    return s;
+}
+} // namespace
+
+TEST(GPW, TransitionPair_B2_ExactAdjointsAndQ0Reduction)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14,{0,0,0});
+    cell.AddAtom(14,{0.25,0.25,0.25});
+    std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
+    const ivec3_t N(3,1,1);
+    GPW_IBS ket(cell, N, ivec3_t(1,0,0), mol, /*densityEcut*/6.0);
+    GPW_IBS bra(cell, N, ivec3_t(2,0,0), mol, /*densityEcut*/6.0);
+    const rvec3_t q(1.0/3.0, 0.0, 0.0);
+    qcMesh::MeshParams mp;
+    std::unique_ptr<const BasisSet::cFIT_CD_ABS> cd(ket.CreateCDFitBasisSet(&cell, mp));
+    std::unique_ptr<const BasisSet::cFIT_SF_ABS> sf(ket.CreateVxcFitBasisSet(&cell, mp));
+    const auto& grid=dynamic_cast<const BasisSet::PlaneWave::PW_Grid_Evaluator&>(*cd);   // tests may cheat
+    const double Omega=grid.Volume();
+    const size_t n=ket.GetNumFunctions();
+    const mat_t<dcmplx> dD=RandomComplex(n, n, 7);
+
+    // (1a) Hartree at G+q
+    const ΔGq_Map VH=ket.TransitionRepulsion(*cd, bra, dD, q);
+    ΔGq_Map V; V.q=q;
+    {
+        const mat_t<dcmplx> r=RandomComplex(grid.Gs().size(), 1, 11);
+        size_t a=0;
+        for (const ivec3_t& dm : grid.Gs()) V.c[dm]=r(a++,0);
+    }
+    const dcmplx lhsH=Pair(dD, ket.TransitionPotential(*cd, bra, V));
+    dcmplx rhsH=0.0;
+    for (const auto& [dm,v] : VH.c)
+    {
+        auto it=V.c.find(dm);
+        if (it!=V.c.end()) rhsH+=std::conj(v/grid.Recip().CoulombKernel(dm, q))*it->second;
+    }
+    rhsH*=Omega;
+    std::cout << "[B2] Hartree adjoint  lhs " << lhsH << "  rhs " << rhsH << "  rel " << std::abs(lhsH-rhsH)/std::abs(rhsH) << std::endl;
+    EXPECT_LT(std::abs(lhsH-rhsH), 1e-11*std::abs(rhsH)) << "Hartree pair: forward/adjoint not exact at q != 0";
+    EXPECT_GT(std::abs(VH.c.at(ivec3_t(0,0,0))), 0.0) << "G = 0 must be KEPT at q != 0";
+
+    // (1b) the raw raster feed
+    const cvec_t u=ket.TransitionOnGrid(*sf, bra, dD, q);
+    const mat_t<dcmplx> vr=RandomComplex(u.size(), 1, 13);
+    cvec_t v(u.size());
+    for (size_t r=0;r<u.size();r++) v[r]=vr(r,0);
+    const dcmplx lhsR=Pair(dD, ket.TransitionGridAdjoint(*sf, bra, v, q));
+    dcmplx rhsR=0.0;
+    for (size_t r=0;r<u.size();r++) rhsR+=std::conj(u[r])*v[r];
+    rhsR*=Omega/double(u.size());
+    std::cout << "[B2] raw adjoint      lhs " << lhsR << "  rhs " << rhsR << "  rel " << std::abs(lhsR-rhsR)/std::abs(rhsR) << std::endl;
+    EXPECT_LT(std::abs(lhsR-rhsR), 1e-11*std::abs(rhsR)) << "raw pair: forward/adjoint not exact at q != 0";
+
+    // (1c) the δ basis's point pair (on this cell's own XC quadrature)
+    BasisSet::FitQuadrature fq=ket.CreateXCQuadrature(&cell, mp);
+    BasisSet::DeltaFit_IBS dfit(fq, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    const cvec_t d=dfit.TransitionForward(bra, ket, dD);
+    const mat_t<dcmplx> vd=RandomComplex(d.size(), 1, 17);
+    cvec_t vp(d.size());
+    for (size_t a=0;a<d.size();a++) vp[a]=vd(a,0);
+    const dcmplx lhsD=Pair(dD, dfit.TransitionAdjoint(bra, ket, vp));
+    dcmplx rhsD=0.0;
+    for (size_t a=0;a<d.size();a++) rhsD+=fq.GetMesh()->Weights()[a]*std::conj(d[a])*vp[a];
+    std::cout << "[B2] delta adjoint    lhs " << lhsD << "  rhs " << rhsD << "  rel " << std::abs(lhsD-rhsD)/std::abs(rhsD) << std::endl;
+    EXPECT_LT(std::abs(lhsD-rhsD), 1e-11*std::abs(rhsD)) << "δ pair: forward/adjoint not exact";
+
+    // (2) q = 0, Hermitian D on ONE block: the ground-state tensors.
+    chmat_t Dh(n);
+    {
+        const mat_t<dcmplx> r=RandomComplex(n, n, 19);
+        for (size_t i=0;i<n;i++) {Dh(i,i)=r(i,i).real(); for (size_t j=i+1;j<n;j++) Dh(i,j)=r(i,j);}
+    }
+    const mat_t<dcmplx> Dm(Dh);
+    const rvec3_t q0(0,0,0);
+    auto maxRel=[](double d, double s){ return s>0 ? d/s : d; };
+    {   // the Hartree collocation vs Repulsion3C.apply (D-aware screen on the ground-state side)
+        const ΔGq_Map t=ket.TransitionRepulsion(*cd, ket, Dm, q0);
+        const ΔG_Map  g=ket.Repulsion3C(*cd).apply(Dh);
+        double diff=0, sc=0;
+        for (const auto& [dm,c] : g)
+        {
+            auto it=t.c.find(dm);
+            diff=std::max(diff, std::abs((it==t.c.end()?dcmplx(0.0):it->second)-c)); sc=std::max(sc, std::abs(c));
+        }
+        std::cout << "[B2] q=0 Hartree collocation vs Repulsion3C  rel " << maxRel(diff,sc) << std::endl;
+        EXPECT_LT(maxRel(diff,sc), 1e-8) << "q = 0 Hartree field != the ground-state collocation";
+    }
+    {   // the raw feed vs Overlap3C.applyRaw
+        const cvec_t t=ket.TransitionOnGrid(*sf, ket, Dm, q0);
+        const rvec_t g=ket.Overlap3C(*sf).applyRaw(Dh);
+        double diff=0, sc=0, im=0;
+        for (size_t r=0;r<g.size();r++) {diff=std::max(diff, std::fabs(t[r].real()-g[r])); sc=std::max(sc, std::fabs(g[r])); im=std::max(im, std::fabs(t[r].imag()));}
+        std::cout << "[B2] q=0 raw collocation vs applyRaw  rel " << maxRel(diff,sc) << "  max|Im| " << im << std::endl;
+        EXPECT_LT(maxRel(diff,sc), 1e-8) << "q = 0 raw feed != the ground-state raw collocation";
+        EXPECT_LT(im, 1e-12*sc) << "q = 0, Hermitian D: the raw feed must be real";
+    }
+    {   // the Hartree gather vs Repulsion3C.applyAdjoint (both unscreened), for a REAL field (V(-G) = conj V(G)).
+        // The SAME support on both sides: the ladder's top completion rung reaches G beyond the fine ball, and a
+        // production field (the collocator's own map) carries those keys -- so take the forward's key set.
+        auto smooth=[](const ivec3_t& dm)->dcmplx { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
+        ΔGq_Map Vq; Vq.q=q0;
+        for (const auto& [dm,c] : ket.TransitionRepulsion(*cd, ket, Dm, q0).c) Vq.c[dm]=smooth(dm);
+        auto field=[&Vq](const ivec3_t& dm)->dcmplx { auto it=Vq.c.find(dm); return it==Vq.c.end()?dcmplx(0.0):it->second; };
+        const mat_t<dcmplx> t=ket.TransitionPotential(*cd, ket, Vq);
+        const chmat_t g=ket.Repulsion3C(*cd).applyAdjoint(field);
+        double diff=0, sc=0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) {diff=std::max(diff, std::abs(t(i,j)-dcmplx(g(i,j)))); sc=std::max(sc, std::abs(dcmplx(g(i,j))));}
+        std::cout << "[B2] q=0 Hartree gather vs applyAdjoint  rel " << maxRel(diff,sc) << std::endl;
+        EXPECT_LT(maxRel(diff,sc), 1e-12) << "q = 0 Hartree gather != the ground-state gather";
+    }
+    {   // the raw gather vs Overlap3C.applyRawAdjoint, for a real field
+        rvec_t vre(u.size());
+        for (size_t r=0;r<u.size();r++) vre[r]=vr(r,0).real();
+        cvec_t vc(u.size());
+        for (size_t r=0;r<u.size();r++) vc[r]=vre[r];
+        const mat_t<dcmplx> t=ket.TransitionGridAdjoint(*sf, ket, vc, q0);
+        const chmat_t g=ket.Overlap3C(*sf).applyRawAdjoint(vre);
+        double diff=0, sc=0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) {diff=std::max(diff, std::abs(t(i,j)-dcmplx(g(i,j)))); sc=std::max(sc, std::abs(dcmplx(g(i,j))));}
+        std::cout << "[B2] q=0 raw gather vs applyRawAdjoint  rel " << maxRel(diff,sc) << std::endl;
+        EXPECT_LT(maxRel(diff,sc), 1e-12) << "q = 0 raw gather != the ground-state raw gather";
+    }
+
+    // (3) a bra over a DIFFERENT AO set is refused (finding 6).
+    FCCUnitCell cell2(10.5);
+    cell2.AddAtom(14,{0,0,0});
+    cell2.AddAtom(14,{0.25,0.25,0.25});
+    GPW_IBS foreign(cell2, N, ivec3_t(2,0,0), MakeBasis(cell2), 6.0);
+    EXPECT_THROW(ket.TransitionRepulsion(*cd, foreign, dD, q), std::invalid_argument);
 }

@@ -1191,14 +1191,10 @@ SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov, std::vector<
                                      "response channels ARE the +U manifolds (list them at U=0 to probe without +U)");
     const auto* wf=itsImp->scf->GetWaveFunction();
     if (!wf) throw std::logic_error("SolidCalculation::HubbardLinearResponse: no wave function yet");
-    // ⛔ THE IMPOSED-RUN GUARD (doc/OpenWork.md §4a "Linear response on an IMPOSED run symmetrizes δρ"): the
-    // perturbation BREAKS the imposed group, and two density paths would still symmetrize it -- the raster
-    // star-average (uniform XC) and the T3 stream fold (armed on an imposed Γ-only run, both directions).  An
-    // imposed MULTI-k run on the Becke mesh (NiO's recipe) touches neither: Sample(δ) skips the mesh average.
-    if (itsImp->imposed && (itsImp->xcMesh.cellKind!=qcMesh::UnitCellKind::Becke || itsImp->bs->GetNumIBS()==1))
-        return O::Fail({qchem::Response::ResponseFailure::Why::Configuration,
-            "an IMPOSED run on the uniform XC raster or at Γ only would SYMMETRIZE the transition density (the "
-            "perturbation breaks the group) -- run free, or imposed on the Becke mesh with a k-mesh"});
+    // (An imposed run is fine: the perturbation BREAKS the imposed group, and since R3 step 3 no density path of the
+    //  response symmetrizes -- the transition density is (k+q, k) pairs contracted through the B2 faces, which have
+    //  no fold or star-average in them.  The step-1 refusal of an imposed raster / Γ-only run is retired with the
+    //  R2 composite route it guarded; gate GPW_Si_ImposedGamma_Raster_eqFreeChi.  §3d finding 5.)
     if (perturbed.empty()) perturbed=DefaultPerturbed(*hub);
     const FrozenHubbard frozen(itsImp->ham->GetHubbardUTarget());
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
