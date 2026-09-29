@@ -660,6 +660,18 @@ residuals:
 The supercell gate is what makes R3's correctness independent of the ground-state disagreement with hp.x.  It
 turns D1's "both routes give the same χ(R)" into a test.
 
+★ **A GPW oracle is planned: CP2K finite-difference LRT U** (user, 2026-09-29: another session plans to tweak CP2K
+to run the ±α static shift, i.e. QE's `Hubbard_alpha`).  Same method class as ours (GPW, Gaussian basis, GTH), so
+the ground-state disagreement that muddies hp.x (NiO gap 1.30 vs 2.86 eV) largely drops out.  For the numbers to
+be comparable:
+- **Freeze V_Hub in the ±α runs when U_in ≠ 0.**  CP2K's +U re-occupies every SCF step, and an untweaked run gives
+  the UNFROZEN χ (Si at 2 eV: −17.65 unfrozen vs −14.42 frozen).
+- **Match the projector:** CP2K's every-shell manifold is our `<P>_U_RADIAL=every`, not `orthofull`.
+- **Match the cell:** a ±α difference is q = 0 of the cell it runs in.  Our facade's q = 0 number compares with
+  CP2K in the same cell; R3's q-mesh number compares with CP2K in the matching supercell.
+- **Match the channel set U is inverted over** (the Q10 effect: hp.x NiO 5.267 vs 5.434 eV).
+- **Run free on our side.**  CP2K has no symmetry, and our cross-check refuses an imposed run anyway.
+
 ★ **The standing cross-check for a suspicious DFPT number is finite-difference LRT** (user, 2026-09-29: *"any time
 we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R2's gate (b): perturb with
 `HubbardManifold::alpha`, re-converge, and take χ = dn/dα.  Two rules make it a fair check:
