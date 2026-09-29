@@ -553,11 +553,44 @@ public:
     //! about the converged orbitals' own density.  Reports \f$\chi_0\f$, \f$\chi\f$ and
     //! \f$U_I=(\chi_0^{-1}-\chi^{-1})_{II}\f$ (eV) as it computes.  In a cell of \f$N\f$ primitive cells that
     //! U is the LR-cDFT U of that supercell (Timrov §III) -- the finite-size limit is R3's q-mesh.
+    //! ★ +U IS FROZEN FOR THE WHOLE SOLVE, and restored after (doc/LinearResponsePlan.md §3d Q6): linear-response
+    //! U is DEFINED with V_Hub held at its ground-state value (Timrov eq 20), so the +U term contributes no kernel.
+    //! \a perturbed: the channels J to perturb (indices into the term's manifolds); EMPTY = the manifolds that
+    //! carry a +U (hp.x's "Hubbard sites"), or every manifold when none does.  Every channel is MEASURED; U is read
+    //! from the J x J inverse, because an inverse-response U depends on the set it spans (§3d Q10).
     //! FAILS on an inverted/unresolved pair (E1) or a Krylov solve short of \a krylov.tol.  THROWS when the run
-    //! carries no +U manifold, reduced its k-mesh (D5), has a REAL TRIM block (run with \c forceComplex: the
-    //! real-block response face is not built), or carries an unfrozen U != 0.
+    //! carries no +U manifold, reduced its k-mesh (D5), or has a REAL TRIM block (run with \c forceComplex: the
+    //! real-block response face is not built).
+    //! \note const, although it freezes and unfreezes the +U term: the Hamiltonian comes back exactly as it was.
     Outcome<Response::SelfConsistentResponse,Response::ResponseFailure> HubbardLinearResponse(
-        const KrylovParams& krylov={.tol=1e-8}) const;
+        const KrylovParams& krylov={.tol=1e-8}, std::vector<size_t> perturbed={}) const;
+
+    //! \brief The FINITE-DIFFERENCE cross-check of \c HubbardLinearResponse -- LR-cDFT's own definition
+    //! (Cococcioni & de Gironcoli 2005; Timrov §III): perturb manifold \a J with the static \f$\pm\alpha\hat P_J\f$
+    //! (QE's \c Hubbard_alpha), re-converge each with +U FROZEN (as the linear response holds it), and difference
+    //! every channel's occupation: \f$\chi_{IJ}=[n_I(+\alpha)-n_I(-\alpha)]/2\alpha\f$.  No kernel, no solver: the
+    //! independent route to suspect a DFPT number with (user, 2026-09-29).  At q = 0 of THIS cell only -- a
+    //! q-mesh number is checked in the matching supercell.
+    struct FiniteDifferenceChi
+    {
+        std::vector<std::string> labels;   //!< every channel (the measured set)
+        size_t perturbed=0;                //!< J
+        double alpha=0;                    //!< the step (Hartree)
+        rvec_t nPlus, nMinus;              //!< the channel occupations at +alpha and -alpha
+        rvec_t chi;                        //!< \f$\chi_{IJ}\f$ per I, 1/Hartree
+        bool   restored=false;             //!< the closing unperturbed, unfrozen SCF converged
+    };
+    //! Three SCFs (+alpha, -alpha, then the unperturbed state RESTORED, unfrozen), each a fresh stage with
+    //! \a params.  FAILS with the first perturbed SCF that does not converge (the state is still restored).
+    //! THROWS when the run carries no +U manifold or \a J is out of range.
+    //! \a reseed: false (default) starts each SCF from the CURRENT state -- right for a recipe that restarts well
+    //! (the TMO Kerker/Pulay recipes, as \c ConvergeHubbardU); true starts each from the run's SEED STRATEGY, which
+    //! is R2 gate (b)'s route.  ⚠ Measured 2026-09-29: Si Γ on linear D-mixing + DIIS does NOT restart from its
+    //! converged state under a 1e-3 Ha perturbation (the residual grows ~1.3x per two iterations, frozen or not,
+    //! at U = 0 and 1 eV alike), yet converges from the seed in ~25.  ⚠ The re-seed is the iterator's PLAIN seed
+    //! path (\c opts.seed only -- no IonicSAD site targets), so a MAGNETIC run keeps reseed=false.
+    Outcome<FiniteDifferenceChi,SCFFailure> HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFParams& params,
+                                                                        bool reseed=false);
 
     // ⛔ Energy() / EnergyTerms() / TotalCharge() / Density() DELIBERATELY DO NOT LIVE HERE any more
     // (doc/OpenWork.md N1/T1).  They are on Converged, reachable only through Converge()/Result(), because

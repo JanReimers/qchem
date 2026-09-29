@@ -25,6 +25,10 @@ struct HubbardChannel
 {
     size_t site=0;   //!< the manifold's cell site (Structure order)
     int    l=2;      //!< its shell
+    //! Does the manifold carry a +U potential (U != 0 in some slot)?  The rest are PROJECTOR SPECTATORS -- in
+    //! the set only so the ortho-atomic projectors are orthogonalised against them (QE's ortho-atomic block).
+    //! A linear-response U perturbs the carrying set by default: hp.x's "Hubbard sites" (LinearResponsePlan Q10).
+    bool   carriesU=false;
 };
 
 //! \brief The projector set of the run's +U term, one CHANNEL per Hubbard manifold, in the term's manifold

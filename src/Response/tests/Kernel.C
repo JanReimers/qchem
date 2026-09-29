@@ -303,7 +303,15 @@ TEST(ResponsePolarizability, LDA_FD_Kernel_vsPySCF)
 //=====================================================================================================
 namespace {
 
-std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0)
+//! \a U (Hartree) and \a alpha on site 0's p manifold; \a spectator adds site 1's p at U = 0 (a projector-set
+//! member that carries no +U -- the §3d Q10 case: measured, not perturbed by default).
+SCFParams SiParams()
+{
+    SCFParams par;
+    par.NMaxIter=80; par.MinΔρ=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
+    return par;
+}
+std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false)
 {
     FCCUnitCell cell(10.26);
     cell.AddAtom(14, {0,0,0});
@@ -312,10 +320,10 @@ std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0)
     auto mol=std::shared_ptr<const BasisSet::Real_BS>(
         BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    SCFParams par;
-    par.NMaxIter=80; par.MinΔρ=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
+    const SCFParams par=SiParams();
     SolidCalcOptions o{.Nelec=8, .multiplicity = g==SpinGroup::Polarized ? 1 : 0, .species={{"Si",4}},
-                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=0.0, .alpha=alpha}}, .forceComplex=true};
+                       .densityEcut=20.0, .hubbard={{.site=0, .l=1, .U=U, .alpha=alpha}}, .forceComplex=true};
+    if (spectator) o.hubbard.push_back({.site=1, .l=1, .U=0.0});
     auto calc=std::make_unique<SolidCalculation>(lat, mol, o, par);
     EXPECT_TRUE(calc->DidConverge());
     return calc;
@@ -457,3 +465,47 @@ TEST(ResponsePolarizability, GPW_Si_Chi_eqFiniteDifferenceCDFT)
               << "  chi LR " << chiLR << "  rel " << (chiLR-chiFD)/chiFD << std::endl;
     EXPECT_NEAR(chiLR, chiFD, 1e-4*std::fabs(chiFD));
 }
+
+//=====================================================================================================
+//  §3d STEP 1: +U FROZEN (Q6) and the PERTURBED set (Q10), at U != 0.  Linear-response U is DEFINED with V_Hub
+//  held at its ground-state value (Timrov eq 20); the finite-difference LRT cross-check must then hold it too.
+//  Si-p at U = 2 eV on site 0 (perturbed by default: it carries U) + site 1's p at U = 0 (a spectator: measured,
+//  not perturbed).  Three claims: (1) frozen LR chi == frozen FD chi, every measured row; (2) the freeze MATTERS
+//  here -- an UNFROZEN FD chi (fresh +-alpha runs, as R2's gate) differs by far more than the tolerance, so (1)
+//  is not vacuous; (3) the run's +U term comes back unfrozen.
+//=====================================================================================================
+TEST(ResponsePolarizability, GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT)
+{
+    const double U=2.0/27.211386245988, a=1e-3;
+    auto c=ConvergedSi(SpinGroup::UnPolarized, 0.0, U, /*spectator*/true);
+    auto r=c->HubbardLinearResponse();
+    ASSERT_TRUE(r.IsOk()) << r.Error().detail;
+    ASSERT_EQ(r->labels.size(), 2u);
+    EXPECT_EQ(r->perturbed, std::vector<size_t>{0}) << "Q10: only the manifold that carries U is perturbed by default";
+    EXPECT_EQ(r->chi.columns(), 1u);
+    EXPECT_FALSE(ResponseFacadeTests::Ham(*c).GetHubbardUTarget()->OccupationsFrozen()) << "the freeze was not restored";
+
+    // RESEED: this recipe does not restart from its converged state under a perturbation (see the facade's note),
+    // so each +-alpha SCF starts from the seed -- R2 gate (b)'s route -- with +U frozen at the ground state's n.
+    // WHY U = 2 eV, not 4 (measured 2026-09-29): Dudarev's +U ANTI-screens (unfrozen chi -22.5 vs frozen -14.3 at
+    // 4 eV), and at 4 eV the UNFROZEN Si SCF sits near that instability -- its convergence depended on the start
+    // (the closing restore wandered for 200 iterations).  2 eV keeps the freeze's effect far above the tolerance.
+    SCFParams fdp=SiParams(); fdp.NMaxIter=200;
+    auto fd=c->HubbardFiniteDifferenceChi(0, a, fdp, /*reseed*/true);
+    ASSERT_TRUE(fd.IsOk()) << fd.Error().details;
+    EXPECT_TRUE(fd->restored);
+    EXPECT_FALSE(ResponseFacadeTests::Ham(*c).GetHubbardUTarget()->OccupationsFrozen()) << "the FD run left +U frozen";
+    for (size_t I=0;I<2;I++)
+    {
+        const double lr=r->chi(I,0).real();
+        std::cout << "[step1 LRT] " << r->labels[I] << "  chi LR (frozen) " << lr << "  chi FD (frozen) " << fd->chi[I]
+                  << "  rel " << (lr-fd->chi[I])/fd->chi[0] << std::endl;
+        EXPECT_NEAR(lr, fd->chi[I], 1e-4*std::fabs(fd->chi[0])) << r->labels[I];
+    }
+    // (2) the unfrozen FD: +U follows the density, so its kernel screens the response differently.
+    auto cp=ConvergedSi(SpinGroup::UnPolarized, +a, U, true), cm=ConvergedSi(SpinGroup::UnPolarized, -a, U, true);
+    const double chiUnfrozen=(ManifoldOccupation(*cp)-ManifoldOccupation(*cm))/(2*a);
+    std::cout << "[step1 LRT] unfrozen FD chi " << chiUnfrozen << " vs frozen " << fd->chi[0] << std::endl;
+    EXPECT_GT(std::fabs(chiUnfrozen-fd->chi[0]), 100*1e-4*std::fabs(fd->chi[0])) << "the freeze made no difference: the gate is vacuous";
+}
+

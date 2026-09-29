@@ -300,7 +300,8 @@ const TmoSpec NiOSpec{"NIO","NiO","Ni",28,10,6, 7.88, 32,  5, ChargeDensity::See
 // <P>_IMPOSE=0/1/2 (free / Shubnikov / grey control), <P>_XC_UNIFORM, <P>_XC_ECUT=Ha, <P>_VET=1 (the pin-22 vet-stage basis trim), <P>_NR, <P>_L, <P>_ALPHA, <P>_KERKER_G0,
 // <P>_XC_CUSP, <P>_PULAY, <P>_PULAY_START, <P>_MOM, <P>_MOM_START, <P>_MOM_PENALTY, <P>_MOM_HOLD, <P>_KT,
 // GPW_<P>_NMAX, GPW_<P>_VERBOSE, <P>_CHI0=nq (chi0 on an nq^3 q-mesh, LinearResponsePlan R0), <P>_CHI=1 (the
-// self-consistent chi, chi0 and U at q=0, R2 -- needs <P>_REAL=0), <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
+// self-consistent chi, chi0 and U at q=0, R2 -- needs <P>_REAL=0; +U frozen, U over <P>_CHI_PERTURB=i,j or the
+// manifolds carrying U) + <P>_CHI_FD=alpha (the finite-difference LRT cross-check, +U frozen), <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
 // site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + <P>_ACBN0=1 (print the ACBN0 (U,J)
 // estimate from the converged orbitals; <P>_ACBN0=n>1 runs the paper's OUTER LOOP for up to n steps, re-converging
 // on the same Hamiltonian, <P>_ACBN0_TOL=eV; increment 3) + <P>_U_RADIAL=every|atomic|ortho|orthofull (the
@@ -562,13 +563,26 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
     // <P>_CHI=1: the SELF-CONSISTENT response at q = 0 over the Hubbard manifolds (doc/LinearResponsePlan.md
     // stage R2): chi0, chi and U = (chi0^-1 - chi^-1)_II of THIS cell (the LR-cDFT U of a supercell of this
     // size).  Needs the complex ansatz (<P>_REAL=0) and a full k-mesh; at <P>_U=0 this is the U_0 of the U=0
-    // ground state (+U answers zero); an unfrozen U != 0 is refused.
+    // ground state; at U != 0 the +U term is FROZEN for the solve (Timrov eq 20: hp.x's U_LR(U_in)).  U is read over
+    // the perturbed set -- match hp.x's Hubbard block (NiOg: the two Ni 3d = manifolds 0,1; LinearResponsePlan §3d Q10).
     if (S.Envi("CHI",0)>0)
     {
         std::cout << "[" << S.name << " " << o.label << "] self-consistent chi (q=0) from the last iterate"
                   << (arm.result ? " (CONVERGED):" : " (NOT converged -- a diagnostic only):") << std::endl;
-        auto chi=arm.calc->HubbardLinearResponse();   // reports itself
+        std::vector<size_t> J;                      // <P>_CHI_PERTURB=i,j: the perturbed manifolds (default: those carrying U)
+        for (const std::string& t : split("CHI_PERTURB")) J.push_back(size_t(std::stoul(t)));
+        auto chi=arm.calc->HubbardLinearResponse({.tol=1e-8}, J);   // reports itself
         (void)chi;
+    }
+    // <P>_CHI_FD=alpha (Ha): the FINITE-DIFFERENCE LRT cross-check of <P>_CHI -- +-alpha on each perturbed manifold
+    // (<P>_CHI_PERTURB, else manifold 0), +U frozen, re-converged from the current state with the schedule's final
+    // stage, then the ground state restored.  Three SCFs per manifold.
+    if (const double a=S.Envd("CHI_FD",0.0); a!=0.0)
+    {
+        std::vector<size_t> J;
+        for (const std::string& t : split("CHI_PERTURB")) J.push_back(size_t(std::stoul(t)));
+        if (J.empty()) J.push_back(0);
+        for (size_t j : J) { auto fd=arm.calc->HubbardFiniteDifferenceChi(j, a, schedule.back().params); (void)fd; }
     }
     report::EmitTimings();   // sorted by cost + PEAK RSS, inside the bracket
     return arm;

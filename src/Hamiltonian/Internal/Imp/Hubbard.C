@@ -675,27 +675,42 @@ const cDM_CD* DMBehind(const cChargeDensity* cd, std::vector<std::shared_ptr<con
 }
 }
 
-void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
+// PER CHANNEL, because that is where the D lives on a polarized run: the polarized MIXED density
+// (PolarizedMixCD) carries no D of its own and answers no source face -- each of its channel views does
+// (the mixer seats the split D on them).  The first MnO run zeroed the occupations on every Fock build
+// because it asked the total (2026-09-20); the trace read n=0 on alternate refreshes.
+// An entry is EMPTY for a channel with NO source (the matrix-free seed): a density that cannot say its D says
+// nothing about n.
+std::map<Spin,rvec_t> Hubbard_U::DensityOccupations(const cChargeDensity* cd) const
 {
-    if (!cd || itsFrozen) return;
-    if (cd->Version()==itsOccVersion) return;
-    // PER CHANNEL, because that is where the D lives on a polarized run: the polarized MIXED density
-    // (PolarizedMixCD) carries no D of its own and answers no source face -- each of its channel views does
-    // (the mixer seats the split D on them).  The first MnO run zeroed the occupations on every Fock build
-    // because it asked the total (2026-09-20); the trace read n=0 on alternate refreshes.
-    // A channel with NO source (the matrix-free seed) KEEPS whatever occupations it has: a density that
-    // cannot say its D says nothing about n -- only before any occupations exist is n=0 the answer.
     std::vector<std::shared_ptr<const cDM_CD>> keep;        // retained sources stay alive across the call
-    std::map<Spin,const cDM_CD*> dms;
-    bool any=false;
+    std::map<Spin,rvec_t> out;
     for (const auto& [s,ch] : itsChannels)
     {
         const cChargeDensity* chan = (s==Spin::None) ? cd : ChannelOf<dcmplx>(cd, s);
         const cDM_CD* dm=DMBehind(chan, keep);
         if (!dm && s!=Spin::None) dm=DMBehind(cd, keep);    // a spin-agnostic total under a polarized term
-        if (dm) any=true;
-        dms[s]=dm;
+        rvec_t n;
+        if (dm)
+        {
+            n=dm->ProjectOnto(*this);
+            if (n.size()!=NumCoefficients()) n=rvec_t(NumCoefficients(),0.0);
+            if (s==Spin::None) n*=0.5;                         // the zeta=0 collapse: n_sigma = n_tot/2
+        }
+        out[s]=std::move(n);
     }
+    return out;
+}
+
+void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
+{
+    if (!cd || itsFrozen) return;
+    if (cd->Version()==itsOccVersion) return;
+    // A channel with NO source (the matrix-free seed) KEEPS whatever occupations it has -- only before any
+    // occupations exist is n=0 the answer.
+    const std::map<Spin,rvec_t> dn=DensityOccupations(cd);
+    bool any=false;
+    for (const auto& [s,n] : dn) any = any || n.size()>0;
     if (!any)
     {
         if (itsProj.empty() && itsProjR.empty()) return;    // before any block: nothing to size n by (seed)
@@ -708,11 +723,9 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
     itsEU=0.0;
     for (auto& [s,ch] : itsChannels)
     {
-        const cDM_CD* dm=dms[s];
-        rvec_t n = dm ? dm->ProjectOnto(*this) : ch.n;         // a source-less channel keeps its n
-        if (n.size()!=NumCoefficients()) n=rvec_t(NumCoefficients(),0.0);
-        if (dm && s==Spin::None) n*=0.5;                       // the zeta=0 collapse: n_sigma = n_tot/2
-        ch.n=n;
+        const rvec_t& n=dn.at(s);
+        if (n.size()>0) ch.n=n;                                // a source-less channel keeps its n
+        if (ch.n.size()!=NumCoefficients()) ch.n=rvec_t(NumCoefficients(),0.0);
         itsEU+=Analyse(ch);
     }
     if (itsGroup==SpinGroup::UnPolarized) itsEU*=2.0;    // both (identical) channels
@@ -815,8 +828,45 @@ void Hubbard_U::SetU(size_t M, double U)
     if (M>=itsManifolds.size()) throw std::out_of_range("Hubbard_U::SetU: no such manifold");
     itsManifolds[M].U=U;
     for (double& u : itsManifolds[M].Uirrep) u=U;          // shell-averaged: every slot takes the new U
-    itsOccVersion=size_t(-1);                               // W depends on U: the next refresh rebuilds it from n
-    cDynamic_HT_Imp::InvalidateCache();                     // and the cached V_k blocks are the OLD U's (same density serial!)
+    ApplyWrite();
+}
+void Hubbard_U::SetPerturbation(size_t M, double alpha)
+{
+    if (M>=itsManifolds.size()) throw std::out_of_range("Hubbard_U::SetPerturbation: no such manifold");
+    itsManifolds[M].alpha=alpha;
+    ApplyWrite();
+}
+// UNFREEZING re-arms the refresh: the version stamp is the FREEZE-time density's, and a later density must not be
+// mistaken for it (nor the cached V_k blocks, built from the held n, for the density's own).
+void Hubbard_U::FreezeOccupations(bool frozen)
+{
+    const bool was=itsFrozen;
+    itsFrozen=frozen;
+    if (was && !frozen)
+    {
+        itsOccVersion=size_t(-1);
+        cDynamic_HT_Imp::InvalidateCache();
+        Dynamic_HT_RealBlock_Imp::InvalidateRealCache();
+    }
+}
+// ⚠ FROZEN WAS A TRAP BEFORE 2026-09-29: EnsureOccupations returns at once when frozen, so a SetU on a frozen
+// term invalidated the version stamp and the caches -- and the next refresh rebuilt the SAME old W.  The write
+// reached nothing.  Frozen means "hold n", never "hold U and alpha", so the held n is re-analysed here.
+void Hubbard_U::ApplyWrite()
+{
+    itsOccVersion=size_t(-1);                               // W depends on U/alpha: the next refresh rebuilds it from n
+    if (itsFrozen)
+    {
+        bool held=!itsChannels.empty();
+        for (const auto& [s,ch] : itsChannels) held = held && ch.n.size()==NumCoefficients() && NumCoefficients()>0;
+        if (held)
+        {
+            itsEU=0.0;
+            for (auto& [s,ch] : itsChannels) itsEU+=Analyse(ch);
+            if (itsGroup==SpinGroup::UnPolarized) itsEU*=2.0;
+        }
+    }
+    cDynamic_HT_Imp::InvalidateCache();                     // the cached V_k blocks are the OLD W's (same density serial!)
     Dynamic_HT_RealBlock_Imp::InvalidateRealCache();
 }
 template <class U> static std::vector<mat_t<U>> LowdinOf(const LowdinProjector<U>& P, const mat_t<U>& C)
@@ -832,7 +882,12 @@ std::vector<mat_t<dcmplx>> Hubbard_U::ProjectorAmplitudes(const BasisSet::Orbita
 std::vector<HubbardChannel> Hubbard_U::Channels() const
 {
     std::vector<HubbardChannel> out;
-    for (const auto& M : itsManifolds) out.push_back({M.site, M.l});
+    for (const auto& M : itsManifolds)
+    {
+        bool carries = (M.U!=0.0);
+        for (double u : M.Uirrep) carries = carries || (u!=0.0);
+        out.push_back({M.site, M.l, carries});
+    }
     return out;
 }
 
@@ -861,10 +916,30 @@ template <class U> hmat_t<U> Hubbard_U::MakeMatrixT(const tobs_t<U>* bs, const S
 chmat_t Hubbard_U::MakeMatrix (const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<dcmplx>(bs,s,cd);}
 rsmat_t Hubbard_U::MakeMatrixR(const robs_t* bs, const Spin& s, const cChargeDensity* cd) const {return MakeMatrixT<double>(bs,s,cd);}
 
+// FROZEN, the energy is the +U functional LINEARISED about the held occupations n0:
+//     E = E_U(n0) + Tr[W0 (n - n0)]      (W0 includes the alpha*1 shift)
+// -- whose derivative in D is exactly the frozen Fock term W0, so the SCF's energy and its Fock matrix are the
+// SAME functional again.  Reporting E_U(n0) alone (a constant) left the energy blind to the alpha*P and V_Hub
+// terms the Fock carries: the energy-guarded re-damp then fought the Fock and a frozen +-alpha SCF on Si
+// oscillated for 80 iterations (2026-09-29).  Unfrozen, n0 = n and the correction is identically zero.
 void Hubbard_U::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     EnsureOccupations(cd);                                        // the energy pass's density (rho_out)
-    te.Add("E_U", itsEU, EnergyRole::Potential);
+    double E=itsEU;
+    if (itsFrozen && cd)
+    {
+        const std::map<Spin,rvec_t> dn=DensityOccupations(cd);
+        double lin=0.0;
+        for (const auto& [s,ch] : itsChannels)
+        {
+            const rvec_t& n=dn.at(s);
+            if (n.size()!=ch.W.size() || ch.n.size()!=ch.W.size()) continue;   // no D: nothing moved
+            for (size_t i=0;i<n.size();i++) lin+=ch.W[i]*(n[i]-ch.n[i]);
+        }
+        if (itsGroup==SpinGroup::UnPolarized) lin*=2.0;           // both (identical) channels, as itsEU
+        E+=lin;
+    }
+    te.Add("E_U", E, EnergyRole::Potential);
 }
 
 std::ostream& Hubbard_U::Write(std::ostream& os) const

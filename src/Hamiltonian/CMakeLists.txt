@@ -34,6 +34,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Hamiltonian.C 
     HubbardEstimator.C
     HubbardChannels.C                     # the +U projectors, public (LinearResponsePlan R0)
+    HubbardUTarget.C                      # the writes a U estimator makes to the +U term (LinearResponsePlan §3d Q6)
     TransitionFock.C                      # δF, the response kernel's answer (LinearResponsePlan C2)
     Factory.C
     Types.C

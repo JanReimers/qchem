@@ -51,6 +51,7 @@ import qchem.Hamiltonian.Internal.Term;        // cDynamic_HT + the _Imp cache m
 export import qchem.Hamiltonian.Factory;        // HubbardManifold (the public input vocabulary)
 import qchem.Hamiltonian.Types;                 // cobs_t / robs_t / tobs_t<U>
 export import qchem.Hamiltonian.HubbardChannels; // the public projector face HubbardProjection extends (LinearResponsePlan R0)
+export import qchem.Hamiltonian.HubbardUTarget;  // the public write face HubbardProjection extends (LinearResponsePlan §3d Q6)
 import qchem.Fitting.FunctionFitter;            // Fitting::ScalarProjector (the forward vendor face)
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.BareCoulombSource;         // ERI4Block (ManifoldIntegrals)          // Orbital_DFT_IBS<U,dcmplx> (what ProjectOnto hands the vendor)
@@ -202,6 +203,7 @@ double DudarevInEigenbasis(const rvec_t& lam, const rmat_t& v, const std::vector
 //! abstract->abstract cast and the estimator never names \c Hubbard_U.
 class HubbardProjection
     : public virtual HubbardChannels   //!< the projectors, public: what a linear response perturbs and measures
+    , public virtual HubbardUTarget    //!< the writes, public: SetU (the outer loop), the alpha*P perturbation, freeze
 {
 public:
     virtual ~HubbardProjection() = default;
@@ -220,10 +222,8 @@ public:
     // Per manifold \f$\ell=T_M^\dagger C\f$, the LÖWDIN coefficients -- what a charge is made of -- is
     // HubbardChannels::ProjectorAmplitudes since 2026-09-27 (hoisted to the public face so a linear response
     // perturbs and measures through the SAME projector; it was LowdinCoefficients here).
-    //! THE OTHER DIRECTION -- what the estimator does to the term: set manifold \a M's \f$U\f$ (Hartree; a
-    //! filled \c Uirrep is set to it throughout, shell-averaged) for the NEXT Fock build.  The outer loop of
-    //! the paper (SCF at \f$U^{(n)}\f$, estimate, run again) lives on this.
-    virtual void SetU(size_t M, double U) = 0;
+    // THE OTHER DIRECTION -- what the estimator does to the term (SetU: the paper's outer loop, SCF at U^(n),
+    // estimate, run again) -- is HubbardUTarget's since 2026-09-29, public so the facade can also freeze.
 };
 
 //! \brief The DFT+U term.  Periodic (Bloch, dcmplx run) with the real-TRIM corner, spin-native.
@@ -272,7 +272,14 @@ public:
     virtual std::vector<mat_t<double>> ProjectorAmplitudes(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const mat_t<double>&) const override;
     virtual std::vector<mat_t<dcmplx>> ProjectorAmplitudes(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
     virtual std::vector<HubbardChannel> Channels() const override;
+    //!@}
+    //! \name HubbardUTarget
+    //!@{
     virtual void SetU(size_t M, double U) override;
+    virtual void SetPerturbation(size_t M, double alpha) override;
+    //! Hold the current occupations through every refresh (LR-cDFT perturbation runs; occupation control).
+    virtual void FreezeOccupations(bool frozen) override;
+    virtual bool OccupationsFrozen() const override {return itsFrozen;}
     //!@}
 
     //! \a st names the sites the manifolds index; \a g the imposed spin subgroup (which channels exist).
@@ -289,9 +296,6 @@ public:
     virtual std::ostream& Write(std::ostream&) const override;
     virtual bool          IsVirialValid() const override {return false;}   //!< an occupation functional is not Coulombic
 
-    //! Hold the current occupations through every refresh (LR-cDFT perturbation runs; occupation control).
-    void FreezeOccupations(bool frozen) {itsFrozen=frozen;}
-    bool OccupationsFrozen() const {return itsFrozen;}
     //! The current occupation eigenvalues of manifold \a M, channel \a s (empty before the first refresh).
     const rvec_t& Occupations(size_t M, const Spin& s) const;
     double HubbardEnergy() const {return itsEU;}   //!< \f$E_U\f$ of the last refresh
@@ -341,6 +345,12 @@ private:
     SpinGroup                        itsGroup;
     bool                             itsEigenForm;      //!< RunPolicy::HubbardEigen at construction (false = CP2K's populations)
     mutable size_t                   itsNCoeff = 0;     //!< \f$\sum_M m_M^2\f$, fixed by the first block seen
+    //! A write (U, alpha) to a FROZEN term: rebuild W and E_U from the HELD occupations now -- the frozen
+    //! refresh never runs Analyse, so without this the write would never reach the Fock matrix.  No-op before
+    //! the first refresh (there is no n to hold yet).  Unfrozen, the next refresh rebuilds W from the density.
+    void ApplyWrite();
+    //! Per spin channel, the manifold occupations of \a cd's D (EMPTY where the channel has no D behind it).
+    std::map<Spin,rvec_t> DensityOccupations(const cChargeDensity* cd) const;
     bool                             itsFrozen = false;
 
     struct Channel

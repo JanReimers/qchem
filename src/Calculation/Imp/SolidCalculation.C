@@ -13,6 +13,7 @@ module;
 #include <cassert>
 #include <cstdlib>   // std::getenv -- the banner's thread state
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <sstream>
 #include <string>
@@ -1150,11 +1151,39 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
     return r;
 }
 
+namespace {
+//! \brief +U FROZEN for a scope (doc/LinearResponsePlan.md §3d Q6), and the previous state restored on EVERY exit
+//! path -- the response kernel is applied lazily during the solve, so freezing only while it is BUILT would not do.
+class FrozenHubbard
+{
+public:
+    explicit FrozenHubbard(qchem::Hamiltonian::HubbardUTarget* t) : itsT(t), itsWas(t && t->OccupationsFrozen())
+    {if (itsT) itsT->FreezeOccupations(true);}
+    ~FrozenHubbard() {if (itsT) itsT->FreezeOccupations(itsWas);}
+    FrozenHubbard(const FrozenHubbard&)=delete;
+    FrozenHubbard& operator=(const FrozenHubbard&)=delete;
+private:
+    qchem::Hamiltonian::HubbardUTarget* itsT;
+    bool                                itsWas;
+};
+
+//! The default perturbed set: the manifolds that CARRY a +U (hp.x's Hubbard sites), else all of them (§3d Q10).
+std::vector<size_t> DefaultPerturbed(const qchem::Hamiltonian::HubbardChannels& hub)
+{
+    const auto ch=hub.Channels();
+    std::vector<size_t> J;
+    for (size_t i=0;i<ch.size();i++) if (ch[i].carriesU) J.push_back(i);
+    if (J.empty()) for (size_t i=0;i<ch.size();i++) J.push_back(i);
+    return J;
+}
+} // namespace
+
 // THE SELF-CONSISTENT RESPONSE AT q = 0 (R2): the same Reference and probe as IndependentResponse, plus the
 // AO <-> MO frame and the Hamiltonian's analytic kernel, linearised about the converged ORBITALS' density (the
-// state the Reference describes -- not the mixed iterate, which on a Kerker/Pulay recipe has no D).
+// state the Reference describes -- not the mixed iterate, which on a Kerker/Pulay recipe has no D).  +U is FROZEN
+// for the whole solve (Timrov eq 20) and U is read from the PERTURBED set's own J x J inverse (§3d Q6, Q10).
 Outcome<qchem::Response::SelfConsistentResponse,qchem::Response::ResponseFailure>
-SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov) const
+SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov, std::vector<size_t> perturbed) const
 {
     using O=Outcome<qchem::Response::SelfConsistentResponse,qchem::Response::ResponseFailure>;
     const auto* hub=itsImp->ham->GetHubbardChannels();
@@ -1162,6 +1191,8 @@ SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov) const
                                      "response channels ARE the +U manifolds (list them at U=0 to probe without +U)");
     const auto* wf=itsImp->scf->GetWaveFunction();
     if (!wf) throw std::logic_error("SolidCalculation::HubbardLinearResponse: no wave function yet");
+    if (perturbed.empty()) perturbed=DefaultPerturbed(*hub);
+    const FrozenHubbard frozen(itsImp->ham->GetHubbardUTarget());
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
                                                              : std::numeric_limits<double>::quiet_NaN();
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
@@ -1173,20 +1204,97 @@ SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov) const
     auto qs=ref.QMesh(ivec3_t(1,1,1));
     if (!qs) return O::Fail(qs.Error());
     auto r=qchem::Response::LinearResponse(ref, frame, *kernel, probe,
-                                           std::make_shared<qchem::Response::MeshShift>((*qs)[0]), krylov);
+                                           std::make_shared<qchem::Response::MeshShift>((*qs)[0]), krylov, perturbed);
     if (!r)
     {
         std::cout << "[response] FAILED: " << r.Error().detail << std::endl;
         return r;
     }
     r->Write(std::cout);
-    // U_I = (chi0^-1 - chi^-1)_II, in eV (hp.x's unit).  Printed, never consumed here (R4 owns consumption).
-    const mat_t<dcmplx> X0i=blazem::inv(r->chi0), Xi=blazem::inv(r->chi);
-    std::cout << "[response] U = (chi0^-1 - chi^-1)_II at q = 0 (this cell):";
-    for (size_t I=0;I<r->labels.size();I++)
-        std::cout << "  " << r->labels[I] << " " << std::setprecision(6) << (X0i(I,I)-Xi(I,I)).real()*27.211386245988 << " eV";
+    // U_J = (chi0_JJ^-1 - chi_JJ^-1)_JJ over the PERTURBED set, in eV (hp.x's unit).  Printed, never consumed
+    // here (R4 owns consumption).
+    const mat_t<dcmplx> X0i=blazem::inv(r->Chi0JJ()), Xi=blazem::inv(r->ChiJJ());
+    std::cout << "[response] U = (chi0^-1 - chi^-1)_JJ at q = 0 (this cell; +U frozen; over the " << r->perturbed.size()
+              << " perturbed channels):";
+    for (size_t c=0;c<r->perturbed.size();c++)
+        std::cout << "  " << r->labels[r->perturbed[c]] << " " << std::setprecision(6) << (X0i(c,c)-Xi(c,c)).real()*27.211386245988 << " eV";
     std::cout << std::endl;
     return r;
+}
+
+// THE FINITE-DIFFERENCE CROSS-CHECK (LR-cDFT): +-alpha on manifold J, +U frozen, three fresh stages.
+Outcome<SolidCalculation::FiniteDifferenceChi,SCFFailure>
+SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFParams& params, bool reseed)
+{
+    using O=Outcome<FiniteDifferenceChi,SCFFailure>;
+    const auto* hub=itsImp->ham->GetHubbardChannels();
+    auto* target=itsImp->ham->GetHubbardUTarget();
+    if (!hub || !target) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: this run carries no Hubbard manifold");
+    const auto channels=hub->Channels();
+    if (J>=channels.size()) throw std::out_of_range("SolidCalculation::HubbardFiniteDifferenceChi: no such manifold");
+    const double alpha0 = J<itsImp->hubbard.size() ? itsImp->hubbard[J].alpha : 0.0;   // restored at the end
+    // The channel occupations of the CURRENT orbitals, through the same projector amplitudes the probe uses.
+    auto occupations=[&]()
+    {
+        const auto* wf=itsImp->scf->GetWaveFunction();
+        if (!wf) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: no wave function");
+        const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
+            {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, std::numeric_limits<double>::quiet_NaN());
+        const auto probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
+        qchem::Response::BlockPairs D;                      // the state in its own MO basis: diag(occupation)
+        for (const Irrep& ir : wf->GetQNs())
+        {
+            const auto* os=dynamic_cast<const Orbitals::TOrbitals<dcmplx>*>(wf->GetOrbitals(ir));
+            if (!os) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: a real TRIM block (run with forceComplex)");
+            qchem::Response::cmat_t X(os->GetNumOrbitals(), os->GetNumOrbitals(), dcmplx(0.0));
+            size_t i=0;
+            for (const auto* o : os->Iterate<Orbitals::TOrbital<dcmplx>>()) {X(i,i)=o->GetOccupation(); i++;}
+            D.m.push_back(X);
+        }
+        const cvec_t n=probe.Measure(Symmetry::Invariant(), D);
+        rvec_t out(n.size());
+        for (size_t I=0;I<n.size();I++) out[I]=n[I].real();
+        return out;
+    };
+    FiniteDifferenceChi R;
+    for (const auto& c : channels) R.labels.push_back("site"+std::to_string(c.site)+" l="+std::to_string(c.l));
+    R.perturbed=J; R.alpha=alpha;
+    std::optional<SCFFailure> failed;
+    // RESEED keeps the converged ground-state density ASIDE (the +-alpha runs start from the seed, so they never
+    // read it) and restores from it: the restore then starts AT the fixed point.  Re-converging it from the seed
+    // instead was erratic on Si at U = 2 eV (29 / 72 / 200+ iterations for three runs of the same state).
+    std::unique_ptr<qchem::ChargeDensity::cDM_CD> ground;
+    if (reseed) ground=std::move(itsImp->cd);
+    {
+        const FrozenHubbard frozen(target);
+        for (double a : {+alpha, -alpha})
+        {
+            target->SetPerturbation(J, alpha0+a);
+            std::cout << "[LRT] manifold " << R.labels[J] << ": alpha = " << alpha0+a << " Ha, +U frozen -- re-converging" << std::endl;
+            // A FRESH stage (see ConvergeHubbardU): from the SEED, or from the current state.  The +U term stays
+            // frozen at the GROUND STATE's n either way -- the freeze lives in the term, not in the density.
+            if (reseed) BuildStage(itsImp->stageAccel, nullptr);
+            else        BuildStage(itsImp->stageAccel, std::move(itsImp->cd));
+            auto out=Converge(params);
+            if (!out) {failed=out.Error(); break;}
+            (a>0 ? R.nPlus : R.nMinus)=occupations();
+        }
+        target->SetPerturbation(J, alpha0);
+    }
+    // RESTORE the unperturbed, unfrozen state -- the run is left as it was found, whatever happened above.
+    BuildStage(itsImp->stageAccel, reseed ? std::move(ground) : std::move(itsImp->cd));
+    R.restored=bool(Converge(params));
+    std::cout << "[LRT] unperturbed state restored: " << (R.restored ? "converged" : "NOT converged") << std::endl;
+    if (failed) return O::Fail(*failed);
+    R.chi=rvec_t(R.nPlus.size());
+    std::cout << "[LRT] chi_IJ = dn_I/dalpha_J, J = " << R.labels[J] << ", alpha = " << alpha << " Ha (1/Ha):";
+    for (size_t I=0;I<R.chi.size();I++)
+    {
+        R.chi[I]=(R.nPlus[I]-R.nMinus[I])/(2*alpha);
+        std::cout << "  " << R.labels[I] << " " << std::setprecision(8) << R.chi[I];
+    }
+    std::cout << std::endl;
+    return O::Ok(std::move(R));
 }
 
 // THE FD ORACLE'S DOOR (friend only, forward.H).

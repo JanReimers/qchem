@@ -27,22 +27,32 @@ export namespace qchem::Response
 
 //! \brief The channel response at ONE selection rule (q = 0 / Invariant in R1): the bare \f$\chi_0\f$ and the
 //! self-consistent \f$\chi\f$, with what each was gated and converged to.
+//! ROWS are every MEASURED channel I (all of the probe's), COLUMNS the PERTURBED channels J -- which are an input
+//! (doc/LinearResponsePlan.md §3d Q10): an inverse-response U depends on which channels the inverted matrix
+//! spans (hp.x NiO: 5.267 eV perturbing Ni 3d, 5.434 eV adding O 2p), so the set is a statement of WHICH U.
 struct SelfConsistentResponse
 {
-    std::vector<std::string> labels;
-    cmat_t              chi0;           //!< \f$\langle A^I,\mathcal R_0A^J\rangle\f$ -- no kernel
-    cmat_t              chi;            //!< \f$\langle A^I,\delta D^J\rangle\f$, \f$(1-\mathcal R_0\mathcal K)\delta D^J=\mathcal R_0A^J\f$
+    std::vector<std::string> labels;    //!< every measured channel (the rows)
+    std::vector<size_t> perturbed;      //!< the perturbed channels J, indices into \c labels (the columns)
+    cmat_t              chi0;           //!< \f$\langle A^I,\mathcal R_0A^J\rangle\f$ -- no kernel.  I x J
+    cmat_t              chi;            //!< \f$\langle A^I,\delta D^J\rangle\f$, \f$(1-\mathcal R_0\mathcal K)\delta D^J=\mathcal R_0A^J\f$.  I x J
     double              gap=0;          //!< the response gap the reference was gated on (E1)
     double              noise=0;        //!< the eigenvalue noise it was gated against (NaN = unmeasured)
-    std::vector<double> residual;       //!< per channel: the Krylov relative residual reached
-    std::vector<size_t> iterations;     //!< per channel: kernel applications
+    std::vector<double> residual;       //!< per PERTURBED channel: the Krylov relative residual reached
+    std::vector<size_t> iterations;     //!< per PERTURBED channel: kernel applications
+    //! The square J x J blocks (rows restricted to the perturbed set): what an inverse-response U inverts.
+    cmat_t Chi0JJ() const;
+    cmat_t ChiJJ () const;
     std::ostream& Write(std::ostream&) const;
 };
 
-//! \brief Solve the self-consistent response of every \a probe channel under \a rule.  FAILS on an inverted or
-//! unresolved coupled pair (E1) or a Krylov solve that does not reach \a kp.tol (the residual is in the reason).
+//! \brief Solve the self-consistent response to each \a perturbed channel of \a probe under \a rule, measuring
+//! every channel.  \a perturbed EMPTY = all of them (the molecular dipole, R2's single-manifold runs).  THROWS on
+//! an index out of range.  FAILS on an inverted or unresolved coupled pair (E1) or a Krylov solve that does not
+//! reach \a kp.tol (the residual is in the reason).
 template <class T> Outcome<SelfConsistentResponse,ResponseFailure>
 LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& kernel,
-               const ChannelProbe& probe, std::shared_ptr<const Symmetry::SelectionRule> rule, const KrylovParams& kp);
+               const ChannelProbe& probe, std::shared_ptr<const Symmetry::SelectionRule> rule, const KrylovParams& kp,
+               std::vector<size_t> perturbed = {});
 
 } // namespace

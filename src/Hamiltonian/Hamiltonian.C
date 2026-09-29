@@ -8,6 +8,7 @@ import qchem.Streamable;
 export import qchem.Energy;
 export import qchem.Hamiltonian.Types;
 export import qchem.Hamiltonian.HubbardEstimator;   // HubbardUEstimator / HubbardEstimate (DFT+U increment 3)
+export import qchem.Hamiltonian.HubbardUTarget;      // what a U estimator does TO the +U term (LinearResponsePlan §3d Q6)
 export import qchem.Hamiltonian.HubbardChannels;    // the +U projectors a linear response perturbs/measures (LinearResponsePlan R0)
 export import qchem.ChargeDensity.TransitionDensity; // δD: what the response kernel consumes (LinearResponsePlan C1)
 export import qchem.Hamiltonian.TransitionFock;      // δF: what it answers (C2)
@@ -399,6 +400,13 @@ public:
     //! Make: the face is the term's own, so nothing is computed or owned.  Keep the Hamiltonian alive while
     //! the pointer is used.
     virtual const HubbardChannels* GetHubbardChannels() const {return nullptr;}
+    //! \brief The WRITES a U estimator makes to this Hamiltonian's +U term (set U, the static alpha*P
+    //! perturbation, freeze): NULL when it carries no +U term.  A cached accessor like \c GetHubbardChannels.
+    //! ⚠ NON-const and PUBLIC, and why (CLAUDE.md: say why at the declaration): what it hands out MUTATES a
+    //! term, and its client -- the facade's linear response, which must freeze +U for the whole solve (Timrov
+    //! eq 20), and the finite-difference LRT cross-check -- sits above the \c .Internal. term module.  The ACBN0
+    //! estimator keeps its internal \c HubbardProjection path.
+    virtual HubbardUTarget* GetHubbardUTarget() {return nullptr;}
     //! \brief The linearisation of this Hamiltonian about \a D0, over \a wholeBasis (the composite basis:
     //! the blocks δF is built on) -- doc/LinearResponsePlan.md H1.  Folded over the dynamic terms' \c tResponse_HT
     //! capabilities, so the caller never sees the term list.  THROWS, naming every dynamic term that lacks the

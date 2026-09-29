@@ -45,6 +45,13 @@ template <class T> const HubbardChannels* tHamiltonianImp<T>::GetHubbardChannels
         if (auto* h=dynamic_cast<const HubbardChannels*>(t.get())) return h;
     return nullptr;
 }
+// The same cross-cast for the WRITE face (LinearResponsePlan §3d Q6).
+template <class T> HubbardUTarget* tHamiltonianImp<T>::GetHubbardUTarget()
+{
+    for (const auto& t : itsDHTs)
+        if (auto* h=dynamic_cast<HubbardUTarget*>(t.get())) return h;
+    return nullptr;
+}
 
 namespace {
 
