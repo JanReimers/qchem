@@ -308,7 +308,9 @@ const TmoSpec NiOSpec{"NIO","NiO","Ni",28,10,6, 7.88, 32,  5, ChargeDensity::See
 // full ortho-atomic set with O 2s/2p + TM 4s spectators at U=0), <P>_EPS=tol +
 // <P>_MEASURE=maxdd|mixer (CP2K's EPS_SCF measure max|dD_ij| between successive D_out, or the mixer's own
 // residual -- doc/Benchmark.md rule 3f: an iteration count is comparable only on the same measure); the SCHEDULE: <P>_ANNEAL=kT,kT,... <P>_ACC=... <P>_ANNEAL_PENALTY=...;
-// the ARMS: <P>_SKIP_AFM (FM only), <P>_SKIP_FM (AFM only).  Oracle: CP2K MnO AFM-II E=-61.470570 Ha
+// the ARMS: <P>_SKIP_AFM (FM only), <P>_SKIP_FM (AFM only); the STATE (CK-1): <P>_SAVE=path (write the state
+// after every stage), <P>_RESTART=path (start from one, converging with the schedule's final stage); the FM arm
+// reads/writes path.fm.  Oracle: CP2K MnO AFM-II E=-61.470570 Ha
 // (deck IntegrationTests/CP2K/mno_afm2_gpw_sr.inp), Mulliken site moments Mn +/-4.654.  NiO's oracle is hp.x,
 // not CP2K: there is no CP2K deck for it and no banked total.
 //========================================================================================================
@@ -510,7 +512,24 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
         mol=MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR, t);
     }
     else mol=MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR);
-    arm.calc=std::make_unique<SolidCalculation>(lat, mol, o, schedule);
+    // <P>_SAVE=path: write the state after every stage (CK-1 saveStateTo -- the last write is the final stage).
+    // <P>_RESTART=path: start from a saved state instead of the seed.  Restart runs ONE stage, so it takes the
+    // schedule's FINAL stage (params + accelerator): the earlier stages of an annealed recipe exist only to deliver
+    // a good starting density, which is what the file already holds (CK-1 residual c: no schedule overload yet).
+    // A refusal (foreign file, a REFUSE-class fingerprint difference) THROWS: a probe never silently re-seeds.
+    // The FM arm's file is the path + ".fm", so a run of both arms cannot overwrite the AFM state with the FM one.
+    const std::string armTag = afm ? "" : ".fm";
+    if (const char* sv=S.Env("SAVE")) o.saveStateTo=std::string(sv)+armTag;
+    if (const char* rs0=S.Env("RESTART"))
+    {
+        const std::string rs=std::string(rs0)+armTag;
+        SolidCalcOptions ro=o;
+        ro.accelerator=schedule.back().accelerator;
+        auto R=SolidCalculation::Restart(rs, lat, mol, ro, schedule.back().params);
+        if (!R) throw std::runtime_error(S.prefix+"_RESTART="+rs+" refused: "+R.Error().details);
+        arm.calc=R.TakeValue();
+    }
+    else arm.calc=std::make_unique<SolidCalculation>(lat, mol, o, schedule);
     arm.result=arm.calc->Result();
     if (acbn0)
     {
