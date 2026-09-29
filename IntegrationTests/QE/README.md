@@ -415,3 +415,43 @@ Jahn-Teller gap, a partially-filled eg shell like every other undistorted-cell m
 9.326 electrons (out of 10) — the MILDEST covalency inflation of any material this session (d⁹ has only
 one hole's worth of headroom to inflate into, unlike d⁵–d⁸ elsewhere).  Checkpoint archived:
 `checkpoints/kcuf3_U0.save/`.  Decks: `kcuf3.scf.in`, `kcuf3.hp.in`.
+
+## A6 (`doc/HubbardUPlan.md`): Sr₂FeO₄, matched-PP LRT — 2026-09-28/29
+
+Second of Dr. Carta's real decks.  `Sr2FeO4/LRT/dp/sfo.1.scf.in`: body-centered tetragonal `I4/mmm`
+(K₂NiF₄-type), 7-atom primitive cell (Fe₁Sr₂O₄, one formula unit), given as EXACT Cartesian
+`CELL_PARAMETERS {angstrom}`.  Fe (0,0,0); O at (0.842024,0.842024,0)/(0.157976,0.157976,0) (equatorial)
+and (0.5,0,0.5)/(0,0.5,0.5) (apical); Sr at (0.642827,0.642827,0)/(0.357173,0.357173,0).  Bond-length
+sanity check: Fe–O equatorial ×4 = 1.9547 Å, apical ×2 = 1.9835 Å (both sane for an FeO₆ octahedron, close
+to regular); Sr–O 9-fold coordination, 2.50–2.77 Å (sane for Sr²⁺).  Fe is formally Fe⁴⁺ (d⁴) here — a
+different oxidation state entirely from LiFeO₂'s Fe³⁺ (d⁵), a genuine second data point on the SAME
+element.  Same caveat as KCuF₃: their own Hubbard-parameter route is MLWF-based, ours is `hp.x`
+ortho-atomic — matched geometry, still not matched projector.
+
+⚠ **`hp.x` crashed outright on Carta's raw relaxed cell**: `Error in routine d_matrix (9): D_S (l=2) for
+this symmetry operation is not orthogonal`.  Diagnosis: their three cell vectors are equal in magnitude to
+only ~8 significant figures (a real DFT relaxation's numerical tolerance, not a transcription error), and
+QE's symmetry-finder detects a symmetry operation consistent with the IDEALIZED tetragonal lattice that
+the actual (very slightly asymmetric) vectors don't EXACTLY satisfy — building the l=2 (d-orbital) Wigner
+rotation matrix for that operation then fails an exact-orthogonality check.  **Fix: symmetrize the cell**
+— average the three vectors' common |x|,|y| component and z component (agreement to 8 figures either way,
+so this changes nothing physical) and rebuild `CELL_PARAMETERS` from the exactly-symmetric values, same
+atomic fractional coordinates unchanged.  Re-ran: identical total energy to the last printed digit,
+confirming the fix only removed noise.  **General lesson for any future real-DFT-relaxed cell fed to
+`hp.x`**: expect this, and fix it by symmetrizing the geometry before debugging anything else — QE's own
+symmetry-detection is more exacting about EXACT invariance than a relaxation's convergence threshold
+guarantees.
+
+**pw.x ground state (300 Ry, k 4×4×4, `occupations='smearing'`, 23 iterations):** E = −172.96422568 Ry.
+**hp.x, ortho-atomic, Fe-3d only, nq 2×2×2, U_in≈0 (2026-09-28/29, 11h4m serial — the longest run this
+session by a wide margin, the larger 7-atom lower-symmetry cell costing far more per q-point):** ran
+without further complaint once the cell was symmetrized — METALLIC under nonmagnetic LDA.
+**U(Fe 3d) = 8.0116 eV** — close to LiFeO₂'s 7.5915 eV despite the different oxidation state and host,
+a sane cross-check.  χ₀(Fe,Fe) = −4.1515 → χ(Fe,Fe) = −0.1194 (χ/χ₀ ≈ 0.029), the same strongly-screened
+range as Cr/Fe/Ni.  Projected occupation 6.32 electrons (out of 10) against the formal d⁴ picture — the
+largest covalency inflation of any material this session, consistent with Sr₂FeO₄'s known negative-charge-
+transfer character (Fe⁴⁺ is a strong enough oxidant that real electronic structure carries substantial
+O-2p hole/ligand character — exactly the "entangled d-p" case Carta et al.'s own paper flags this material
+as).  Checkpoint archived: `checkpoints/sr2feo4_U0.save/`.  Decks: `sr2feo4.scf.in`, `sr2feo4.hp.in`.
+
+**Both of Dr. Carta's materials are now done — KCuF₃/Sr₂FeO₄ queue items closed.**

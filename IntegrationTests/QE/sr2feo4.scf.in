@@ -1,0 +1,44 @@
+ &control
+    calculation  = 'scf'
+    restart_mode = 'from_scratch',
+    prefix       = 'sr2feo4'
+    pseudo_dir   = './'
+    outdir       = './'
+    tprnfor      = .true.
+    tstress      = .true.
+ /
+ &system
+    ibrav        = 0,
+    nat          = 7,
+    ntyp         = 3,
+    ecutwfc      = 300.0, input_dft='sla+vwn',
+    ecutrho      = 1200.0,
+    occupations  = 'smearing',
+    smearing     = 'cold',
+    degauss      = 0.01,
+    nspin        = 1,
+ /
+ &electrons
+    conv_thr    = 1.d-12
+    mixing_beta = 0.7
+ /
+ATOMIC_SPECIES
+ Fe  55.845  Fe.pz-gth-q8.UPF
+ Sr  87.620  Sr.pz-gth-q2.UPF
+ O   16.000  O.pz-gth-q6.UPF
+CELL_PARAMETERS {angstrom}
+   -1.9547449185   1.9547449185   6.2777152853
+    1.9547449185  -1.9547449185   6.2777152853
+    1.9547449185   1.9547449185  -6.2777152853
+ATOMIC_POSITIONS {crystal}
+ Fe  0.00000000   0.00000000   0.00000000
+ Sr  0.64282700   0.64282700   0.00000000
+ Sr  0.35717300   0.35717300   0.00000000
+ O   0.84202400   0.84202400   0.00000000
+ O   0.15797600   0.15797600   0.00000000
+ O   0.50000000   0.00000000   0.50000000
+ O   0.00000000   0.50000000   0.50000000
+K_POINTS {automatic}
+ 4 4 4 0 0 0
+HUBBARD {ortho-atomic}
+U Fe-3d 1.d-8
