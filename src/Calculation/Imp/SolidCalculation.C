@@ -1191,6 +1191,14 @@ SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov, std::vector<
                                      "response channels ARE the +U manifolds (list them at U=0 to probe without +U)");
     const auto* wf=itsImp->scf->GetWaveFunction();
     if (!wf) throw std::logic_error("SolidCalculation::HubbardLinearResponse: no wave function yet");
+    // ⛔ THE IMPOSED-RUN GUARD (doc/OpenWork.md §4a "Linear response on an IMPOSED run symmetrizes δρ"): the
+    // perturbation BREAKS the imposed group, and two density paths would still symmetrize it -- the raster
+    // star-average (uniform XC) and the T3 stream fold (armed on an imposed Γ-only run, both directions).  An
+    // imposed MULTI-k run on the Becke mesh (NiO's recipe) touches neither: Sample(δ) skips the mesh average.
+    if (itsImp->imposed && (itsImp->xcMesh.cellKind!=qcMesh::UnitCellKind::Becke || itsImp->bs->GetNumIBS()==1))
+        return O::Fail({qchem::Response::ResponseFailure::Why::Configuration,
+            "an IMPOSED run on the uniform XC raster or at Γ only would SYMMETRIZE the transition density (the "
+            "perturbation breaks the group) -- run free, or imposed on the Becke mesh with a k-mesh"});
     if (perturbed.empty()) perturbed=DefaultPerturbed(*hub);
     const FrozenHubbard frozen(itsImp->ham->GetHubbardUTarget());
     const double noise=std::isfinite(itsImp->lastCommutator) ? std::fabs(itsImp->lastCommutator)
@@ -1232,6 +1240,12 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
     if (!hub || !target) throw std::logic_error("SolidCalculation::HubbardFiniteDifferenceChi: this run carries no Hubbard manifold");
     const auto channels=hub->Channels();
     if (J>=channels.size()) throw std::out_of_range("SolidCalculation::HubbardFiniteDifferenceChi: no such manifold");
+    // ⛔ An IMPOSED run's SCF star-averages the XC density every iteration (the Becke (ρ, m) projector, the raster
+    // average) -- so a +-alpha run on one site would respond with a SYMMETRIZED XC potential and an unsymmetrized
+    // Hartree one: neither the physical response nor the linear response's.  Found 2026-09-29 on NiO AFM-II.
+    if (itsImp->imposed)
+        throw std::invalid_argument("SolidCalculation::HubbardFiniteDifferenceChi: an IMPOSED run symmetrizes the XC density "
+                                    "every SCF iteration, and the alpha*P perturbation breaks the group -- run the cross-check FREE");
     const double alpha0 = J<itsImp->hubbard.size() ? itsImp->hubbard[J].alpha : 0.0;   // restored at the end
     // The channel occupations of the CURRENT orbitals, through the same projector amplitudes the probe uses.
     auto occupations=[&]()
@@ -1261,8 +1275,8 @@ SolidCalculation::HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFPa
     R.perturbed=J; R.alpha=alpha;
     std::optional<SCFFailure> failed;
     // RESEED keeps the converged ground-state density ASIDE (the +-alpha runs start from the seed, so they never
-    // read it) and restores from it: the restore then starts AT the fixed point.  Re-converging it from the seed
-    // instead was erratic on Si at U = 2 eV (29 / 72 / 200+ iterations for three runs of the same state).
+    // read it) and restores from it: the restore then starts AT the fixed point, rather than re-converging it from
+    // the seed.
     std::unique_ptr<qchem::ChargeDensity::cDM_CD> ground;
     if (reseed) ground=std::move(itsImp->cd);
     {

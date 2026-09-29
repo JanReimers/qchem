@@ -18,6 +18,7 @@ module;
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <functional>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -43,11 +44,23 @@ public:
     virtual vec_t<T> Apply(const vec_t<T>& x, double tol) const = 0;
 };
 
+//! One step of a Krylov solve, as an observer sees it: after every operator application (\c trueResidual false:
+//! the recurrence's ESTIMATE) and at every restart (\c trueResidual true: \f$\lVert b-Ax\rVert/\lVert b\rVert\f$
+//! re-measured -- where rounding drift shows).
+struct KrylovStep
+{
+    size_t iteration=0;      //!< operator applications so far
+    double residual=0.0;     //!< relative residual
+    bool   trueResidual=false;
+};
 struct KrylovParams
 {
     double tol    =1e-10;   //!< stop when \f$\lVert b-Ax\rVert/\lVert b\rVert\le\f$ tol (the TRUE residual, re-measured at each restart)
     size_t maxIter=200;     //!< operator applications allowed, over all restarts
     size_t restart=40;      //!< Krylov subspace dimension before a restart
+    //! Optional: called at every step (the SCF's onIteration idiom -- the caller owns the printing, so the solver
+    //! carries no reporting vocabulary).  A stalled solve is then readable as it happens, like an SCF table.
+    std::function<void(const KrylovStep&)> observer = nullptr;
 };
 
 template <class T> struct KrylovSolution
@@ -109,6 +122,7 @@ SolveGMRES(const LinearOperator<T>& A, const vec_t<T>& b, const vec_t<T>* x0, co
         if (Norm(s.x)>0.0) r-=A.Apply(s.x, p.tol);
         const double beta=Norm(r);
         s.residual=beta/bnorm;
+        if (p.observer) p.observer({s.iterations, s.residual, true});
         if (!std::isfinite(s.residual))
             return O::Fail({s.residual, s.iterations, "the residual is not finite"});
         if (s.residual<=p.tol) return O::Ok(std::move(s));
@@ -155,6 +169,7 @@ SolveGMRES(const LinearOperator<T>& A, const vec_t<T>& b, const vec_t<T>* x0, co
             g[j]  =  c[j]    *g[j];
             k=j+1;
             const double est=std::abs(g[j+1])/bnorm;
+            if (p.observer) p.observer({s.iterations, est, false});
             // A zero hnext is the "lucky" breakdown: the Krylov space is invariant, so x is exact in it.
             if (hnext==0.0 || est<=p.tol || s.iterations>=p.maxIter) break;
             V.push_back(w/T(hnext));

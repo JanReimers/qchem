@@ -64,7 +64,9 @@ struct BlockPairs
 //! the state and the mesh and can choose again.
 struct ResponseFailure
 {
-    enum class Why {Inverted, Unresolved, Incommensurate, NotConverged};
+    //! Configuration: the run is set up so the response would be silently wrong (e.g. an imposed symmetry the
+    //! perturbation breaks); the caller can run it differently.
+    enum class Why {Inverted, Unresolved, Incommensurate, NotConverged, Configuration};
     Why         why=Why::Unresolved;
     std::string detail;
 };

@@ -301,7 +301,7 @@ const TmoSpec NiOSpec{"NIO","NiO","Ni",28,10,6, 7.88, 32,  5, ChargeDensity::See
 // <P>_XC_CUSP, <P>_PULAY, <P>_PULAY_START, <P>_MOM, <P>_MOM_START, <P>_MOM_PENALTY, <P>_MOM_HOLD, <P>_KT,
 // GPW_<P>_NMAX, GPW_<P>_VERBOSE, <P>_CHI0=nq (chi0 on an nq^3 q-mesh, LinearResponsePlan R0), <P>_CHI=1 (the
 // self-consistent chi, chi0 and U at q=0, R2 -- needs <P>_REAL=0; +U frozen, U over <P>_CHI_PERTURB=i,j or the
-// manifolds carrying U) + <P>_CHI_FD=alpha (the finite-difference LRT cross-check, +U frozen), <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
+// manifolds carrying U; <P>_CHI_MAXIT / <P>_CHI_RESTART = the GMRES budget) + <P>_CHI_FD=alpha (the finite-difference LRT cross-check, +U frozen), <P>_U=eV (DFT+U on both TM d, programme step 5) + <P>_U_IRREP=a,b,c (eV per
 // site-irrep slot, increment 2: a1g<t2g, e_g<e_g, e_g<t2g under D_3d) + <P>_ACBN0=1 (print the ACBN0 (U,J)
 // estimate from the converged orbitals; <P>_ACBN0=n>1 runs the paper's OUTER LOOP for up to n steps, re-converging
 // on the same Hamiltonian, <P>_ACBN0_TOL=eV; increment 3) + <P>_U_RADIAL=every|atomic|ortho|orthofull (the
@@ -571,7 +571,10 @@ MnOArm RunTMO(const TmoSpec& S, int multiplicity, bool afm, const std::string& l
                   << (arm.result ? " (CONVERGED):" : " (NOT converged -- a diagnostic only):") << std::endl;
         std::vector<size_t> J;                      // <P>_CHI_PERTURB=i,j: the perturbed manifolds (default: those carrying U)
         for (const std::string& t : split("CHI_PERTURB")) J.push_back(size_t(std::stoul(t)));
-        auto chi=arm.calc->HubbardLinearResponse({.tol=1e-8}, J);   // reports itself
+        KrylovParams kp{.tol=1e-8};                 // <P>_CHI_MAXIT / <P>_CHI_RESTART: the GMRES budget and restart length
+        kp.maxIter=size_t(S.Envi("CHI_MAXIT", int(kp.maxIter)));
+        kp.restart=size_t(S.Envi("CHI_RESTART", int(kp.restart)));
+        auto chi=arm.calc->HubbardLinearResponse(kp, J);   // reports itself
         (void)chi;
     }
     // <P>_CHI_FD=alpha (Ha): the FINITE-DIFFERENCE LRT cross-check of <P>_CHI -- +-alpha on each perturbed manifold

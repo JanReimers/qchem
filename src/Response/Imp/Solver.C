@@ -75,7 +75,21 @@ LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamilto
     for (size_t c=0;c<nJ;c++)
     {
         const cvec_t b=ref.Pack(R0V[c]);
-        auto s=SolveGMRES<dcmplx>(A, b, nullptr, kp);
+        // THE KRYLOV TABLE (user, 2026-09-29: a 47-minute stall that printed nothing is unreadable): one row per
+        // operator application -- the recurrence's residual estimate -- and the TRUE residual at every restart.
+        KrylovParams kpc=kp;
+        if (!kpc.observer)
+        {
+            std::cout << "[krylov] channel " << probe.Label(perturbed[c]) << ": GMRES(" << kp.restart << "), tol "
+                      << kp.tol << ", budget " << kp.maxIter << " kernel applications" << std::endl
+                      << "[krylov]      #   residual" << std::endl;
+            kpc.observer=[](const KrylovStep& st)
+            {
+                std::cout << "[krylov] " << std::setw(6) << st.iteration << "   " << std::scientific << std::setprecision(3)
+                          << st.residual << std::defaultfloat << (st.trueResidual ? "   (TRUE, restart)" : "") << std::endl;
+            };
+        }
+        auto s=SolveGMRES<dcmplx>(A, b, nullptr, kpc);
         if (!s)
         {
             std::ostringstream os;

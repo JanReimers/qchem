@@ -485,13 +485,15 @@ TEST(ResponsePolarizability, GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT)
     EXPECT_EQ(r->chi.columns(), 1u);
     EXPECT_FALSE(ResponseFacadeTests::Ham(*c).GetHubbardUTarget()->OccupationsFrozen()) << "the freeze was not restored";
 
-    // RESEED: this recipe does not restart from its converged state under a perturbation (see the facade's note),
-    // so each +-alpha SCF starts from the seed -- R2 gate (b)'s route -- with +U frozen at the ground state's n.
+    // RELAX 0.2 for the +-alpha SCFs (user's diagnosis, 2026-09-29): SiParams mixes at relax 1.0, which DIIS hides
+    // from the seed but not on a restart, where the error vectors are ONE mode and DIIS keeps 2 of them -- the
+    // restarted iteration then grew ~1.3x per two steps.  At 0.2 every restart converges (16/22/14) and FD == LR
+    // to 1e-6; at 0.4 the unfrozen restore still failed.
     // WHY U = 2 eV, not 4 (measured 2026-09-29): Dudarev's +U ANTI-screens (unfrozen chi -22.5 vs frozen -14.3 at
     // 4 eV), and at 4 eV the UNFROZEN Si SCF sits near that instability -- its convergence depended on the start
     // (the closing restore wandered for 200 iterations).  2 eV keeps the freeze's effect far above the tolerance.
-    SCFParams fdp=SiParams(); fdp.NMaxIter=200;
-    auto fd=c->HubbardFiniteDifferenceChi(0, a, fdp, /*reseed*/true);
+    SCFParams fdp=SiParams(); fdp.NMaxIter=200; fdp.StartingRelaxRo=0.2;
+    auto fd=c->HubbardFiniteDifferenceChi(0, a, fdp);
     ASSERT_TRUE(fd.IsOk()) << fd.Error().details;
     EXPECT_TRUE(fd->restored);
     EXPECT_FALSE(ResponseFacadeTests::Ham(*c).GetHubbardUTarget()->OccupationsFrozen()) << "the FD run left +U frozen";
@@ -500,7 +502,7 @@ TEST(ResponsePolarizability, GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT)
         const double lr=r->chi(I,0).real();
         std::cout << "[step1 LRT] " << r->labels[I] << "  chi LR (frozen) " << lr << "  chi FD (frozen) " << fd->chi[I]
                   << "  rel " << (lr-fd->chi[I])/fd->chi[0] << std::endl;
-        EXPECT_NEAR(lr, fd->chi[I], 1e-4*std::fabs(fd->chi[0])) << r->labels[I];
+        EXPECT_NEAR(lr, fd->chi[I], 1e-5*std::fabs(fd->chi[0])) << r->labels[I];
     }
     // (2) the unfrozen FD: +U follows the density, so its kernel screens the response differently.
     auto cp=ConvergedSi(SpinGroup::UnPolarized, +a, U, true), cm=ConvergedSi(SpinGroup::UnPolarized, -a, U, true);

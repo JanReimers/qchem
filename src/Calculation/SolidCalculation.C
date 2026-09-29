@@ -583,12 +583,12 @@ public:
     //! Three SCFs (+alpha, -alpha, then the unperturbed state RESTORED, unfrozen), each a fresh stage with
     //! \a params.  FAILS with the first perturbed SCF that does not converge (the state is still restored).
     //! THROWS when the run carries no +U manifold or \a J is out of range.
-    //! \a reseed: false (default) starts each SCF from the CURRENT state -- right for a recipe that restarts well
-    //! (the TMO Kerker/Pulay recipes, as \c ConvergeHubbardU); true starts each from the run's SEED STRATEGY, which
-    //! is R2 gate (b)'s route.  ⚠ Measured 2026-09-29: Si Γ on linear D-mixing + DIIS does NOT restart from its
-    //! converged state under a 1e-3 Ha perturbation (the residual grows ~1.3x per two iterations, frozen or not,
-    //! at U = 0 and 1 eV alike), yet converges from the seed in ~25.  ⚠ The re-seed is the iterator's PLAIN seed
-    //! path (\c opts.seed only -- no IonicSAD site targets), so a MAGNETIC run keeps reseed=false.
+    //! \a reseed: false (default) starts each SCF from the CURRENT state; true starts each from the run's SEED
+    //! STRATEGY (R2 gate (b)'s route) and restores from the ground-state density kept aside.  ⚠ A restart sees the
+    //! MIXING undressed (measured 2026-09-29, Si Γ): its error vectors are one mode, DIIS keeps 2 of them, so a
+    //! relax of 1.0 diverged where it converges from the seed; relax 0.2 restarts cleanly.  Tune \a params, not
+    //! this flag.  ⚠ The re-seed is the iterator's PLAIN seed path (\c opts.seed only -- no IonicSAD site
+    //! targets), so a MAGNETIC run keeps reseed=false.
     Outcome<FiniteDifferenceChi,SCFFailure> HubbardFiniteDifferenceChi(size_t J, double alpha, const SCFParams& params,
                                                                         bool reseed=false);
 
