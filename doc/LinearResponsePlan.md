@@ -19,10 +19,12 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 - **CK-1** — `SolidCalculation::SaveState` / `SolidCalcOptions::saveStateTo` / `SolidCalculation::Restart`
   (`OpenWork.md` §2 row "SCF checkpoint/restart"; record `doc/Records/OpenWork_History4.md` §"CK-1").
 
-**▶ 2026-09-29: the R3 SIZING + DESIGN NOTE IS WRITTEN — §3d, AWAITING REVIEW (Q6–Q10).**  Items 1 and 2 below
-are answered there, and so is item 3's frozen-+U prerequisite.  The rest of item 3's oracle prep is done:
-`gpwprobe` has `<P>_SAVE` / `<P>_RESTART`, and the NiO state is saved (§3d "Sizing" gives the path and the
-timings).  The next session starts from the review: §3d's increment order, step 1.
+**▶ 2026-09-29 (late): R3 STEP 1 IS DONE — next is STEP 2, the B1 kernel (§3d increment order).**  §3d was reviewed
+the same day: Q7–Q9 ruled as recommended; Q6 and Q10 were explained in plain terms and implemented.  Step 1's record,
+which includes a MULTI-k bug in R2's transition density that it found and fixed, is §3e.  Before step 2, read §3e's
+three open items.  The NiO states are saved (`~/Code/qchem6-runs/states/nio/`, imposed and FREE).
+
+**Superseded (kept for the record): the R3 sizing + design note, §3d.**  Items 1–3 below are answered there.
 
 **▶ R3 = the q ≠ 0 kernel** (§5 stage table): δρ collocated from (k+q, k) block PAIRS, Hartree at
 \f$\mathbf G+\mathbf q\f$, f_xc on the periodic part.  Oracle: hp.x U — NiO **5.267 eV at U_in = 3 eV** (frozen
@@ -681,7 +683,7 @@ we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R
   which is the supercell gate's own equivalence.
 
 **Proposed increment order.  Each step is its own green commit:**
-1. `HubbardUTarget` + the freeze guard (Q6), and the probe's perturbed-vs-measured split (Q10).  Small, and it
+1. ✅ (§3e) `HubbardUTarget` + the freeze guard (Q6), and the probe's perturbed-vs-measured split (Q10).  Small, and it
    unblocks something at once: R2's existing q = 0 route
    on the saved NiO state gives U of the 4-atom cell at U_in = 3 eV.  That is a first frozen-+U number, and it is
    also the q = Γ term of R3.
@@ -708,6 +710,55 @@ we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R
 | block-GMRES / warm start across channels and q | efficiency | a plain per-channel GMRES is correct | `OpenWork.md` §2 "A7 R3 deferred" |
 | retire R2's periodic forwarding (`FourierDensity`/`tProjectable_CD` through `IrrepCD` leaves) once q = 0 runs through B1/B2 | clean-up (and it closes finding 5) | the guard covers correctness until then | `OpenWork.md` §4a "Linear response on an IMPOSED run symmetrizes δρ" |
 | H5's full split (ACBN0's `Apply` moves onto `HubbardUTarget`) | clean-up | Q6 pulls forward only the part R3 needs | R4 (§5), `OpenWork.md` §2 "A7 R3 deferred" |
+
+---
+
+### 3e. R3 step 1 execution record (2026-09-29): +U frozen, perturbed vs measured, and a multi-k weight bug
+**Code** (each commit green): `a3741a46` the `HubbardUTarget` face (SetU, `SetPerturbation` = QE's `Hubbard_alpha`,
+FreezeOccupations) + `HubbardChannel::carriesU` + the perturbed set in `LinearResponse` + the freeze guard in
+`HubbardLinearResponse` + `SolidCalculation::HubbardFiniteDifferenceChi` (the LRT cross-check: ±α with +U frozen, then
+the ground state restored) · `4b099f3d` the Krylov table (`KrylovParams::observer`) + the imposed-run guards · `3250c106`
+**the BZ-weight fix** · then printing χ to 8 figures.  Gates: `GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT` (Γ) and
+`GPW_Si_k211_…` (w = ½).  ctest 969/969.
+
+**What it found.  The first three are defects fixed; the rest are SCF-recipe facts:**
+1. ⛔ **THE TRANSITION DENSITY LACKED w_k** (`OrbitalFrame::ToAO`).  R₀ returns each block's δD unweighted (only
+   `Reference::Contract` weights), while a block's AO density carries w_k, so δρ was N_k too large on ANY multi-k
+   run.  Every kernel gate before step 1 was Γ-only (w = 1), so none could see it.  On free NiO k222 it gave
+   χ −28.4 against the finite-difference −2.067 Ha⁻¹, ANTI-screened 6.9× instead of screened 0.5, and GMRES
+   "stalled" (166 applications) because (1 − R₀K) was near singular.  Fixed: χ −2.07, 18 applications.  The new
+   k211 gate would have caught it.
+2. **A write to a FROZEN +U term never reached W** (`EnsureOccupations` returns early when frozen).  Now the held n
+   is re-analysed on every SetU/SetPerturbation, and unfreezing re-arms the refresh.
+3. **The frozen energy was blind to α and V_Hub** (E_U(n₀) is a constant).  It is now the +U functional LINEARISED
+   about the held n, E_U(n₀) + Tr[W₀(n − n₀)], consistent with the frozen Fock term.
+4. ⛔ **An IMPOSED SCF star-averages the XC density every iteration** (`DensitySampler_Singles`, the (ρ, m)
+   projector), so a finite-difference cross-check on an imposed run is contaminated: imposed NiO gave χ_FD −1.845
+   against the free −2.067.  `HubbardFiniteDifferenceChi` now THROWS on an imposed run.  The linear response itself
+   skips the fold (`Sample(δ)`), so imposed + Becke + multi-k stays allowed; finding 5 (§3d) is guarded.
+5. **A restart sees the mixing undressed** (user's diagnosis).  From a converged state the error vectors are one
+   mode and DIIS keeps 2 of them, so SiParams' relax 1.0 diverged where it converges from the seed.  Relax 0.2
+   restarts cleanly on Si Γ.  On Si k211 even that failed, and the Kerker/Pulay recipe (the TMO one) was needed.
+   NiO's recipe restarts fine.
+6. **Dudarev +U ANTI-screens** (unfrozen χ −17.6 against frozen −14.4 on Si at 2 eV; −22.5 against −14.3 at
+   4 eV), and at 4 eV the unfrozen Si SCF sat near that instability.  The gate runs at 2 eV.
+
+**The first frozen-+U numbers** (NiO AFM-II, k 2×2×2, U_in = 3 eV on Ni 3d, orthofull, vet 1e-3, FREE; state
+`nio_afm2_k222_U3_vet1e-3_complex_FREE.h5`; log `~/Code/qchem6-runs/a7_r3/nio_free_frozen_chi_wfix.log`):
+χ₀ −4.12 / −4.06, χ −2.07 / −2.05 Ha⁻¹ (Ni1 / Ni2; χ/χ₀ = 0.50, hp.x 0.62), and **U = 6.45 / 6.48 eV at q = 0 of
+the 4-atom cell**.  That is not yet hp.x's 5.267 eV, which is over a 2×2×2 q-mesh (a 32-atom effective
+supercell); R3 gives the comparable number.  The free ground state lies 0.3 mHa below the imposed one (−106.2023652
+vs −106.2020525).
+
+**Open before step 2:**
+- **The estimate vs TRUE residual gap.**  After NiO's first GMRES cycle the estimate was below 1e-8 but the TRUE
+  residual 8.8e-7 (before the fix: 8.2e-9 vs 8.4e-5).  Suspect: the D-aware screen makes the kernel slightly
+  NONLINEAR (an absolute ε on unit-norm Krylov vectors).  Next: a linearity unit gate, K[aδD] = aK[δD] and
+  K[δD₁+δD₂] = K[δD₁]+K[δD₂] on multi-k blocks; if it fails, the response uses the geometry-only screener by
+  construction.  B1 is new code and should take the geometry-only rule from the start.
+- The Γ gate's finite-difference SCFs run at relax 0.2 and the k211 gate's on Kerker/Pulay; both are stated at the
+  call site.
+- The finite-difference cross-check on NiO took 3 SCFs × 10–100 iterations; it runs FREE only.
 
 ---
 
