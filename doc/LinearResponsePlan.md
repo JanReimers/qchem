@@ -4,25 +4,58 @@
 scoping insights").  **Status: DESIGN RULED 2026-09-27** (user: *"This looks very good"*; D1–D6 agreed, §6),
 and **REVISED the same day** for the user's second round of requirements (§4b: PW/Sternheimer extensibility, SO
 coupling, forces; §4c: self-consistent U; §6: the Li-supercell question, U/V/J).  **Stage R0 is DONE and
-validated (§5b).**  It stays at the top of `doc/` while A7 is executed, and moves to `doc/Records/` when A7 lands.
+validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top of `doc/` while A7 is executed, and moves to `doc/Records/` when A7 lands.
 
-## ▶ START HERE (next session, written 2026-09-28)
+## ▶ START HERE (next session, written 2026-09-29)
 
-**Where A7 stands.**  R0 — χ₀(q) by sum over states — is built and validated on NiO against hp.x (§5b).
-**R1 ✅ DONE 2026-09-28** — the first stage with a KERNEL: CPHF/CPKS static polarisability of H₂O through
-`Calculation::StaticPolarizability()`.  HF α == PySCF CPHF to 1e-6 (3.19770 / 7.11975 / 5.54545 bohr³), the
-same closed shell imposed Polarized == UnPolarized to 1e-8, and LDA via the FD kernel within ~2 % of PySCF (the
-gap is our fitted/coarse-mesh LDA GROUND STATE, measured — §5c).  Every abstract face of §3c landed as ruled
-(Q1–Q5).  Execution record, numbers and the four things R1 taught: §5c.
+**Where A7 stands: R0, R1, R2 and CK-1 are DONE; R3 is NEXT.**
+- **R0** — χ₀(q) by sum over states, validated on NiO against hp.x (shape to 0.1–1 %; §5b).
+- **R1** — CPHF/CPKS H₂O through `Calculation::StaticPolarizability()`: HF α == PySCF to 1e-6; every §3c face landed
+  as ruled (§5c).
+- **R2** — the periodic q = 0 self-consistent χ through `SolidCalculation::HubbardLinearResponse()`: analytic
+  Hartree + ALDA f_xc, +U frozen/zero; χ_LR == dn/dα from two SCFs to 2.7e-6 (§5d).  Open: the ~4e-6 Pol-channel
+  FD-oracle floor (bounded, gated at 1e-5), and REAL TRIM blocks (runs need `forceComplex`; `OpenWork.md` §2 row
+  "Linear response on REAL TRIM blocks").
+- **CK-1** — `SolidCalculation::SaveState` / `SolidCalcOptions::saveStateTo` / `SolidCalculation::Restart`
+  (`OpenWork.md` §2 row "SCF checkpoint/restart"; record `doc/Records/OpenWork_History4.md` §"CK-1").
 
-**R2 DONE 2026-09-28 (§5d: χ_LR = dn/dα to 2.7e-6; two named open items).**  ▶ **CK-1 ✅ DONE 2026-09-28** (`OpenWork.md` §2 row "SCF checkpoint/restart": `SolidCalculation::SaveState` / `saveStateTo` / `Restart`; record in `doc/Records/OpenWork_History4.md` §"CK-1") — so **R3 is NEXT**, and every U₀-vs-hp.x material should now be converged ONCE with `saveStateTo` and restarted from its state.  **NEXT (user's call, §5a order):** CK-1 checkpoint/restart is owed before the Oct 6–20 unattended window
-(`OpenWork.md` §2); then **R2** — the periodic q = 0 self-consistent χ: analytic Hartree + LDA f_xc through GPW
-(H3 f_xc, H4 frozen +U), and the MOLECULAR fitted terms' `tResponse_HT` on the way (`FittedVee` is linear —
-its fit constraint is the density's own charge, 0 for δD — and `FittedVxc` needs H3).  R1's open ends are
-listed at the end of §5c.
+**▶ R3 = the q ≠ 0 kernel** (§5 stage table): δρ collocated from (k+q, k) block PAIRS, Hartree at
+\f$\mathbf G+\mathbf q\f$, f_xc on the periodic part.  Oracle: hp.x U — NiO **5.267 eV at U_in = 3 eV** (frozen
++U; decks `IntegrationTests/QE/NiOg.*`, table in `IntegrationTests/QE/README.md`), SrVO₃ 6.2502 eV (q 2×2×2;
+`IntegrationTests/QE/srvo3.*`).  **R3 is the cost centre and its size is unknown, so ruling D1 says SIZE IT
+BEFORE COMMITTING.**  The session's order:
+1. **Sizing + a design note FOR REVIEW — no code.**  Read the ground-state collocation pair loop
+   (`src/BasisSet/Gaussian/Lattice/Imp/GPW_Evaluator.C`, the `template<int LP>` contract kernel; screening in
+   `LatticeScreener.C`) and R2's transition route (`DensitySampler::Sample(δ, σ)`; `Transition_Fourier` in
+   `src/ChargeDensity/Internal/TransitionDensity.C`; `Vee_Hartree`'s δV_H through δ's G-space face).  Answer:
+   what the image-pair phase \f$e^{-i(\mathbf k+\mathbf q)\cdot\mathbf R'}e^{i\mathbf k\cdot\mathbf R}\f$ changes in
+   that loop (δρ is Bloch-q, not lattice-periodic: collocate its periodic part \f$e^{-i\mathbf q\cdot\mathbf r}\delta\rho\f$
+   on the same grid); what the transition density's (k+q, k) blocks look like (the `MeshShift` SelectionRule
+   already pairs them, R0); Hartree at G+q (G = 0 excluded only at q = 0); the cost per q on NiO 2×2×2
+   (kernel applications × pair-loop cost).  Then the signatures, in the §3c review format.
+2. **Decide the real-TRIM question inside that note**: at q ≠ 0 a TRIM (real) block pairs with non-TRIM
+   (complex) ones, so either the mixed pair gets built or R3 keeps riding `forceComplex`.
+3. **Oracle prep (small, can go first if the review waits)**: `gpwprobe` has NO save/restart knob — add
+   `<P>_SAVE=path` (→ `saveStateTo`) and `<P>_RESTART=path`.  Its TMO arm runs an ANNEALED schedule, which
+   `Restart` does not take yet (CK-1 residual c), so either add the schedule overload or restart onto the final
+   stage's params.  Then converge NiO once (`NIO_VET=1 NIO_ORTHO_TOL=1e-3 NIO_U=3 NIO_REAL=0`, full mesh) into
+   `~/Code/qchem6-runs/states/nio/`.
+   ⛔ **PREREQUISITE FOUND 2026-09-29: the NiO oracle cannot run yet.**  hp.x's 5.267 eV is at U_in = 3 eV with
+   V_Hub FROZEN (Timrov eq 20), and `HubbardLinearResponse` THROWS on an unfrozen U ≠ 0 (§5d).  The term HAS the
+   mode — `Hubbard_U::FreezeOccupations(bool)` (`src/Hamiltonian/Internal/Hubbard.C`) — but NOTHING outside that
+   file calls it: no Hamiltonian face, no facade path.  Freezing during the response is the DEFINITION of the
+   quantity, not a user option, so the natural home is the facade freezing +U for the duration of the response
+   (and restoring it), through a capability face on the Hamiltonian — an abstract-interface change, so it goes in
+   the design note for review.  (Frozen occupations as INDEPENDENT state — polarons — would also make CK-1 save n;
+   the response case does not, since n is the ground state's.)  ⚠ **SrVO₃ is not set up on our side at all** (no `gpwprobe` spec,
+   no `materials.json` entry, Sr/V valence densities and basis unchecked) — NiO is the first R3 oracle; SrVO₃ is
+   its own setup item (and the metal case: Fermi weights + δμ at q ≠ 0).
+4. Parallelism: q-points are process-parallel like hp.x's `start_q/last_q` (no code); the cross-k gather memo /
+   KP (§5a step 4) only when the pair-shaped kernel applications become the wall.
 
-**Recipes and traps banked this round** (details §5b, §7): every multi-k run needs `GPW_OMP_THREADS` (the serial
-default idled 15 of 16 cores); a MAGNETIC imposition keeps the full k-mesh, so `<P>_IMPOSE=1` satisfies D5; NiO
+**Recipes and traps banked so far** (details §5b, §7): every multi-k run needs `GPW_OMP_THREADS` (the serial
+default idled 15 of 16 cores); `HubbardLinearResponse` needs `forceComplex` (`<P>_REAL=0`); a restart from a
+near-converged state still takes several iterations (the accelerator's tail, CK-1 residual a — not a defect); a MAGNETIC imposition keeps the full k-mesh, so `<P>_IMPOSE=1` satisfies D5; NiO
 needs the pin-22 vet trim `NIO_VET=1 NIO_ORTHO_TOL=1e-3` (raw shells Ni s 0.06 + d 0.18) — without it a KB GHOST
 state (−36.5 Ha at one k) or a gapless state appears.  The open question "why does a near-null direction host an
 attractive KB ghost at all" is parked in `OpenWork.md` §4a (user, 2026-09-28: DFPT first).
@@ -597,7 +630,7 @@ the FD oracle · `be07ecbe` OrbitalFrame + LinearResponse + DipoleProbe + the fa
   trip-wire, Q5: MnD Hermite set-up, libcint `int1e_r` as the oracle) — not a bigger mesh.
 - Our own finite-field SCF (an external-field static term) would be the TIGHT LDA oracle; not built.
 
-### 5d. R2 IN PROGRESS (2026-09-28) — where it stopped
+### 5d. R2 execution record (2026-09-28) — DONE except two named open items
 **Landed (uncommitted work committed as one WIP, UTResponse 14/14, UTHamiltonian 48/48; full sweep NOT yet run):**
 H3 `ExFunctional::GetFxc` (default = 4-point FD of the functional's own spin-native `GetVxc`; Slater analytic;
 composite sums per part) · `tProjectable_CD` hoisted off `tDM_CD` (ProjectOnto, ISP) · the AO transition density
@@ -634,7 +667,7 @@ VWN5 was read and is continuous at ζ=0; `RhoPol`'s tail is linear.  Gated at 1e
   Log `~/Code/qchem6-runs/a7_r2/mno_gamma_U0_chi_deck.log`.
 - **(4) full sweep 2026-09-28: 956/957 pass** (962 listed, 5 DISABLED); the one failure, `M_PG_BoxWalk.WhereTheContractionSpendsItsTime`, is a TIMING-profile test untouched by R2 that passes alone (2.7 s) and failed under `-j8` load (9.8 s) — load-sensitive, not a regression.
 
-**R2 status: DONE except the named open items** — the ~4e-6 Pol-channel oracle floor (bounded, above), and real TRIM blocks (`OpenWork.md` §2 row).  NEXT per §5a: CK-1 (owed before the U₀-vs-hp.x series and the Oct 6–20 window), then R3 (q ≠ 0: the q-mesh that makes U comparable with hp.x).
+**R2 status: DONE except the named open items** — the ~4e-6 Pol-channel oracle floor (bounded, above), and real TRIM blocks (`OpenWork.md` §2 row).  CK-1 followed (✅ 2026-09-28); NEXT = R3 (q ≠ 0: the q-mesh that makes U comparable with hp.x) — see START HERE.
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`GPW_OMP_THREADS` is
