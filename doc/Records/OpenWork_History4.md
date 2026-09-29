@@ -1933,3 +1933,20 @@ onto densityEcut 30: first iterate −7.778482297146 vs converged −7.778482297
 so a near-converged start crawls (an accelerator heuristic, recorded as the live row's residual a).  Complex-saved →
 real run and real-saved → forced-complex run: both land on the saved energy in ≤ 3 iterations.  Refusals (k-mesh
 2×2×2 → 1×1×1, spin group, missing file) cost milliseconds.  Full sweep on landing: 967/967 passed (5 disabled, 972 total).
+
+## ✅ Linear response on an IMPOSED run symmetrizes δρ — CLOSED 2026-09-29 by A7 R3 step 3 (moved here the day it closed)
+
+**The live row, verbatim:**
+
+| **Linear response on an IMPOSED run symmetrizes δρ** (found 2026-09-29 by reading, A7 R3 design note; NOT run) | A Hubbard probe (one site) or a q ≠ 0 wave BREAKS the imposed group, but two density paths still symmetrize what they are handed: (1) the T3 stream fold, armed on imposed Γ-only runs on the SHARED molecular block — `CollocateDensity`'s `FoldProjectedD` projects δD onto the group, and `IntegratePotential` fills partner elements assuming a symmetric δV; (2) the raster star-average in `Composite_Fourier::GetRhoOnGrid` (the fit basis's `G_RasterTransform::Symmetrize`), which the pair sampler's `Sample(δ, σ)` goes through on the uniform-XC route.  The Becke `FoldedMesh` path is correctly skipped.  Every R2 gate ran FREE, so neither path has been exercised; NiO's R3 recipe (k 2×2×2, Becke) misses both. | R3 step 3 retires the R2 periodic forwarding and routes q = 0 through the new never-folding transition entry points; until then, `HubbardLinearResponse` refuses (Outcome) an imposed run on a raster XC route or with a Γ-folded collocation.  A gate to prove it first: the free-vs-imposed χ on Si Γ (they must agree) · `doc/LinearResponsePlan.md` §3d finding 5 |
+
+**How it closed.**  R3 step 3 (`doc/LinearResponsePlan.md` §3e, step-3 record) retired the R2 route the row describes: the
+periodic transition density no longer wraps a composite of IrrepCD leaves (whose collocation folded δD through the T3
+stream fold and whose raster sample star-averaged δρ).  It holds (k+q, k) block pairs and contracts them through the
+B2 faces (`Transition_DFT_IBS` on the ket block, `Transition_Overlap3C` on a δ fit basis), which have no fold or
+star-average in them, and q = 0 runs through them too.  The step-1 `HubbardLinearResponse` refusal of an imposed
+raster / Γ-only run is removed.  **Gate** `ResponsePolarizability.GPW_Si_ImposedGamma_Raster_eqFreeChi`: imposed Γ Si
+on the uniform raster (T3 fold armed, 48/48 ops; raster star-average armed) gives χ₀ −42.4097 / χ −14.5115 against
+the free run's −42.4095 / −14.5117 (5e-6 / 9.5e-6 relative = the two ground states' agreement, E differs 4e-7 Ha).
+The finite-difference cross-check (`HubbardFiniteDifferenceChi`) still refuses an imposed run: that is the SCF's own
+star-average of the ±α ground states, a different thing, and stays.

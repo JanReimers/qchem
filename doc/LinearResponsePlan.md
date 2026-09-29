@@ -19,13 +19,16 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 - **CK-1** — `SolidCalculation::SaveState` / `SolidCalcOptions::saveStateTo` / `SolidCalculation::Restart`
   (`OpenWork.md` §2 row "SCF checkpoint/restart"; record `doc/Records/OpenWork_History4.md` §"CK-1").
 
-**▶ 2026-09-29 (late): R3 STEPS 1 AND 2 ARE DONE — next is STEP 3 (B2 + C1 + the term bodies, gated q = 0 == the
-R2 route; §3d increment order).**  Step 2's record is at the end of §3e.  §3d was reviewed
-the same day: Q7–Q9 ruled as recommended; Q6 and Q10 were explained in plain terms and implemented.  Step 1's record,
-which includes a MULTI-k bug in R2's transition density that it found and fixed, is §3e.  Before step 3, read §3e
-(its closed linearity item and the step-2 record) and §3d's B2/C1 signatures, with Q7's ruling that δρ(G+q) gets its
-own type (`ΔGq_Map`).  Step 3's first gate: the new route at q = 0 reproduces the R2 route on free Si; then retire R2's
-periodic forwarding (§3d finding 5).  The NiO states are saved (`~/Code/qchem6-runs/states/nio/`, imposed and FREE; use
+**▶ 2026-09-29 (night): R3 STEPS 1–3 ARE DONE — next is STEP 4 (the facade's q loop + the Si supercell-equivalence
+gate; §3d increment order).**  Step 3's record is at the end of §3e.  The kernel now runs at ANY q, on both XC samplers,
+and q = 0 goes through the same code (NiO χ == R2 to 3e-7, in 13 applications instead of 16).  Finding 5 is CLOSED.
+Step 4 needs:
+- a `HubbardLinearResponse(qmesh)` that loops `Reference::QMesh`, builds each `MeshShift` rule, and runs `LinearResponse`
+  per q.  The Hubbard probe already takes a `MeshShift` (R0's `IndependentResponse` loops q).
+- χ₀(q) and χ(q) printed per q with their Krylov residuals, then χ(R) and U = (χ₀⁻¹ − χ⁻¹)_II over the q-mesh's
+  supercell (hp.x's definition).
+- the gate: primitive Si with k and q 2×1×1 == the 2×1×1 supercell at Γ.  MEASURE its tolerance first (§3d gate table).
+Before step 4, read §3d's gate table and the "SUPERCELL EQUIVALENCE" row.  The NiO states are saved (`~/Code/qchem6-runs/states/nio/`, imposed and FREE; use
 the FREE one for any finite-difference cross-check); NiO free frozen χ at q = 0 is −2.0700 Ha⁻¹ (U 6.45 eV for this
 cell).
 
@@ -481,6 +484,7 @@ knobs (oracle prep, START HERE item 3).
      gathered wrong.**  (The new B1 entry points live on that same object, so they must skip `itsStreamFold`
      explicitly.)
 
+   ✅ **CLOSED by step 3 (§3e)**: the pair route has no fold; imposed Γ raster χ == free χ.
    R2's gates were all FREE runs, so the last two paths have never run.  NiO's R3 recipe misses both: at k 2×2×2
    the fold is off (the log says "free/multi-k run"), and it uses Becke XC.  So this does not block R3.  It is a
    silently wrong number waiting for the first imposed-Γ or uniform-XC response.  **Proposal: the new transition
@@ -694,7 +698,7 @@ we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R
    also the q = Γ term of R3.
 2. ✅ (§3e) The B1 kernel (the phase-policy template) and its three unit gates.  Also MEASURE the complex/plane-wave cost
    factor on the box-walk bench before step 3 is committed to.
-3. B2 + C1 + the term bodies, gated q = 0 == the R2 route.  Then retire the R2 periodic forwarding, which closes
+3. ✅ (§3e) B2 + C1 + the term bodies, gated q = 0 == the R2 route.  Then retire the R2 periodic forwarding, which closes
    finding 5.
 4. The facade's q loop + the Si supercell-equivalence gate.
 5. NiO against hp.x (the instrument run), then SrVO₃ as its own setup item (a metal: Fermi weights at q ≠ 0; δμ
@@ -714,7 +718,9 @@ we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R
 | the Becke XC gather (the largest bucket per application) | efficiency | about an hour per material is affordable | `OpenWork.md` §2 "A7 R3 deferred" (and the KP row) |
 | block-GMRES / warm start across channels and q | efficiency | a plain per-channel GMRES is correct | `OpenWork.md` §2 "A7 R3 deferred" |
 | the transition GATHER at 3.2× the ground state (two `MomentsToPairs` passes; the scatter is 2.2×) | efficiency | measured affordable (§3e step 2) | `OpenWork.md` §2 "A7 R3 deferred" |
-| retire R2's periodic forwarding (`FourierDensity`/`tProjectable_CD` through `IrrepCD` leaves) once q = 0 runs through B1/B2 | clean-up (and it closes finding 5) | the guard covers correctness until then | `OpenWork.md` §4a "Linear response on an IMPOSED run symmetrizes δρ" |
+| ~~retire R2's periodic forwarding (`FourierDensity`/`tProjectable_CD` through `IrrepCD` leaves) once q = 0 runs through B1/B2~~ | ✅ DONE, step 3 (§3e) — it closed finding 5 | — | history: `doc/Records/OpenWork_History4.md` |
+| the raster (uniform-XC) route collocates each pair TWICE per application: the Hartree ball and the raw XC feed (the ground state's CollocMemo replays the second) | efficiency | NiO runs Becke; Si is tiny | `OpenWork.md` §2 "A7 R3 deferred" (e) |
+| the Becke transition forward/adjoint are two SERIAL, unscreened GEMMs per pair (the ground-state ones are threaded) | efficiency | measure on NiO k222 first (§3e step 3) | `OpenWork.md` §2 "A7 R3 deferred" (f) |
 | H5's full split (ACBN0's `Apply` moves onto `HubbardUTarget`) | clean-up | Q6 pulls forward only the part R3 needs | R4 (§5), `OpenWork.md` §2 "A7 R3 deferred" |
 
 ---
@@ -785,6 +791,61 @@ Gates (`UTGaussian_BS`, `M_TransitionCollocation`, +5):
 defeated): **scatter 2.2×, gather 3.2×**.  That is inside the sizing's f ≈ 2–3, so the NiO estimate stands.  The
 gather's extra cost comes from its two `MomentsToPairs` passes (real and imaginary moments); it is on the deferred
 ledger.
+
+**Step 3 (B2 + C1 + the term bodies), 2026-09-29: the kernel runs at any q, and q = 0 goes through it.**  One code
+commit.  What landed, against the §3d signatures:
+- **S** — `Symmetry::WaveVectorShift` (`q()`), a cross-cast face on the selection rule that `MeshShift` implements;
+  `ChargeDensity::WaveVectorOf(rule)` is the one place "which q?" is answered (0 for a rule without it).
+- **B2** — `BasisSet::Transition_DFT_IBS` on the KET block (`tGPW_IBS`): `TransitionRepulsion` (δV_H(G+q) on the CD fit
+  ball, `ReciprocalLattice::CoulombKernel(m, q)`, G = 0 kept iff q ≠ 0), its adjoint `TransitionPotential`, the RAW
+  raster pair `TransitionOnGrid` / `TransitionGridAdjoint`, and `TransitionBasisID` (finding 6: a foreign bra THROWS).
+  `BasisSet::Transition_Overlap3C` on `DeltaFit_IBS`: the Becke/δ point pair (`TransitionForward` / `TransitionAdjoint`)
+  over the ground state's own Φ tables.  `ΔGq_Map {q, c}` (Q7) in `qchem.BasisSet.Projector3`.  Complex siblings of the
+  grid engine's inverse FFTs (`ComplexBackwardFFT`, `ComplexFieldOnGrid`).  Each GPW evaluator caches the fit grid's
+  ladder per fit basis (content-ID keyed).
+- **C1** — `TransitionBlock {bra, ket, braBs, ketBs, mat_t dD}`; the periodic transition density holds the pairs and
+  NOTHING else, answering `TransitionFourierDensity` (Hartree) and `ProjectableTransition` (the samplers contract each
+  pair into a `TransitionProjector`, the ProjectOnto idiom).  ★ **R2's periodic forwarding is RETIRED** (no
+  `FourierDensity` / `tProjectable_CD` through IrrepCD leaves): that closes finding 5.  The real (HF sweep) path keeps
+  its composite, q = 0 only.
+- **Terms / samplers** — `DensitySampler::Sample(δ, σ)` returns `cvec_t` in the quadrature's own representation (Becke:
+  δρ at the points; raster: the periodic part), with the pair adjoint `Matrix(bra, ket, v, q)`; `Vee_Hartree` holds a
+  `ΔGq_Map` and gathers through the ket's B2; `Vxc_Quadrature` forms complex δv = f_xc δρ.  The `bra != ket` throws are gone.
+- **Response side** — `OrbitalFrame::ToAO` builds (k+q, k) pairs (w_k C_{k+q} δD C_k^†; self-paired blocks keep the
+  Hermitian check; real-block pairs throw, Q8); `Reference::HermitianPart` pairs a TRIM q's conjugate partners
+  (X_{k,k+q} ← X_{k+q,k}^†) and is the identity for a non-TRIM q.  `HubbardLinearResponse`'s imposed-run refusal is removed.
+
+Deviations from §3d, each for a reason:
+- B2 is NOT templated on TFit (the face is periodic by construction, like `ScalarProjector`).
+- There is no `TransitionFourier` (δρ(G+q) without the kernel): nothing consumes it.  The raster XC route needs the RAW
+  feed instead, which §3d did not list.
+- The bra is passed as the `Transition_DFT_IBS` face, so the finding-6 check needs no concrete cast.
+- `Matrix` takes q, because the raster adjoint gathers a periodic part.
+
+**Gates** (all green):
+| gate | where | measured |
+|---|---|---|
+| B2 exact adjoints at a NON-TRIM q = 1/3 (k 1/3 → 2/3): Hartree, raw raster, δ basis | `GPW.TransitionPair_B2_ExactAdjointsAndQ0Reduction` (UTLattice_BS) | 3.3e-15 / 5.0e-15 / 3.2e-15 |
+| B2 at q = 0, Hermitian D, one block == the ground-state tensors: gathers (both unscreened) / collocations (ground state D-aware) | same | 1.7e-16, 4.2e-16 / 4.2e-9, 1.9e-9 (the D-aware screen, which B2 deliberately drops) |
+| foreign bra refused (finding 6) | same | throws |
+| the whole kernel is HERMITIAN on the (k+q, k) pairs at q = 1/3: raster UnPol, raster Pol, Becke UnPol | `ResponseKernel.GPW_Si_k311_q13_KernelIsHermitian_*` | 7e-16, 1.1e-15, 1.2e-15 |
+| `HermitianPart`: TRIM pairing, idempotent; q = 0 per block; non-TRIM identity | `ResponseRing.HermitianPart…` | exact |
+| **q = 0 == the R2 route**, Si (FD gates' residual vs FD) | `ResponseKernel.GPW_Si_AnalyticEqualsFiniteDifference_*` | UnPol 7.22215e-7 (R2 7.22192e-7); Pol 4.009e-6 / 4.204e-6 (R2 4.00892e-6 / 4.20859e-6) |
+| **q = 0 == the R2 route**, through the solver | the five `ResponsePolarizability.GPW_Si_*` | χ −14.5117 == FD to 2.7e-6; frozen Γ 9.8e-7; k211 9.1e-6 (R2 9e-6) |
+| **q = 0 == the R2 route**, NiO free, Becke, k222, U_in 3 eV frozen (`gpwprobe nio` on the saved FREE state) | `~/Code/qchem6-runs/a7_r3/nio_q0_step3_newroute.log` | χ −2.070024 / −2.0516578 vs R2 −2.0700234 / −2.0516572 (3e-7); U 6.45021 / 6.47928 eV (R2 6.45021 / 6.47929); **13 kernel applications per channel (R2: 16)** |
+| finding 5 closed: imposed Γ Si on the raster (T3 fold 48 ops) == free | `ResponsePolarizability.GPW_Si_ImposedGamma_Raster_eqFreeChi` | χ₀ 5e-6, χ 9.5e-6 (the two ground states; gated 5e-5) |
+| the RAW kernel is homogeneous at every scale (was printed only: 2.6e-7 / 6.9e-5 / 3.9 % at s = 1e-2 / 1e-5 / 1e-8) | `ResponseKernel.GPW_Si_k211_KernelIsLinear_AtEveryScale` | 2.5e-15 / 2.3e-15 / 2.7e-15 -- now ASSERTED (1e-12) |
+
+**What it found:**
+1. **The response kernel is now linear outright.** B1/B2 take the geometry-only screen by construction, so the D-aware
+   screen's absolute tolerance, which made R2's kernel scale-dependent, is gone from the response path.  The Krylov
+   estimate now equals the TRUE residual at the restart (NiO channel 0: 8.744e-9 both), and NiO needs 13 applications
+   where it needed 16.  `InducedFockMO`'s unit-scale rescale stays, but only as a guard.
+2. **A test-support trap, not a defect:** the ladder's TOP COMPLETION RUNG carries G vectors beyond the fine ball.  So a
+   test field defined on `grid.Gs()` alone is not the same operator input as a production field, which is keyed on the
+   forward's own map.  The q = 0 gather gate first read 25 % until it took the forward's key set.
+3. The NiO run is not a timing measurement (it shared the CPU with a build), so it prices nothing.  The two efficiency
+   items it exposes (the raster route's double collocation, the serial Becke pair GEMMs) are on the ledger.
 
 ---
 
