@@ -311,12 +311,13 @@ SCFParams SiParams()
     par.NMaxIter=80; par.MinΔρ=1e-7; par.MinΔE=1e-10; par.MinΔFD=1e-7; par.MinVirial=1e30; par.MinFD=1e30;
     return par;
 }
-std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false)
+std::unique_ptr<SolidCalculation> ConvergedSi(SpinGroup g, double alpha=0.0, double U=0.0, bool spectator=false,
+                                              ivec3_t kmesh=ivec3_t(1,1,1))
 {
     FCCUnitCell cell(10.26);
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    Lattice_3D lat(cell, kmesh);
     auto mol=std::shared_ptr<const BasisSet::Real_BS>(
         BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
@@ -474,10 +475,15 @@ TEST(ResponsePolarizability, GPW_Si_Chi_eqFiniteDifferenceCDFT)
 //  here -- an UNFROZEN FD chi (fresh +-alpha runs, as R2's gate) differs by far more than the tolerance, so (1)
 //  is not vacuous; (3) the run's +U term comes back unfrozen.
 //=====================================================================================================
-TEST(ResponsePolarizability, GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT)
+namespace {
+//! \a densityMixing: the +-alpha SCFs run on the Kerker/Pulay recipe (the TMO one) instead of SiParams' linear
+//! D-mixing, which is not robust on a restart (see below).  \a tol: the FD oracle's own limit (its SCFs converge to
+//! Δρ ~ 1e-7).  \a requireRestore: assert the closing unfrozen SCF converged -- on the k211 recipe it sits at the ground
+//! state's energy to 10 digits yet never meets ΔE/E < 1e-10 (a criterion floor, not the gate's claim).
+void FrozenChiEqFiniteDifference(ivec3_t kmesh, bool densityMixing, double tol, bool requireRestore)
 {
     const double U=2.0/27.211386245988, a=1e-3;
-    auto c=ConvergedSi(SpinGroup::UnPolarized, 0.0, U, /*spectator*/true);
+    auto c=ConvergedSi(SpinGroup::UnPolarized, 0.0, U, /*spectator*/true, kmesh);
     auto r=c->HubbardLinearResponse();
     ASSERT_TRUE(r.IsOk()) << r.Error().detail;
     ASSERT_EQ(r->labels.size(), 2u);
@@ -493,21 +499,30 @@ TEST(ResponsePolarizability, GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT)
     // 4 eV), and at 4 eV the UNFROZEN Si SCF sits near that instability -- its convergence depended on the start
     // (the closing restore wandered for 200 iterations).  2 eV keeps the freeze's effect far above the tolerance.
     SCFParams fdp=SiParams(); fdp.NMaxIter=200; fdp.StartingRelaxRo=0.2;
+    if (densityMixing) {fdp.PulayDepth=8; fdp.PulayStart=5; fdp.KerkerG0=1.0; fdp.StartingRelaxRo=0.45;}
     auto fd=c->HubbardFiniteDifferenceChi(0, a, fdp);
     ASSERT_TRUE(fd.IsOk()) << fd.Error().details;
-    EXPECT_TRUE(fd->restored);
+    if (requireRestore) EXPECT_TRUE(fd->restored);
+    else std::cout << "[step1 LRT] restore " << (fd->restored ? "converged" : "NOT converged (criterion floor; not asserted)") << std::endl;
     EXPECT_FALSE(ResponseFacadeTests::Ham(*c).GetHubbardUTarget()->OccupationsFrozen()) << "the FD run left +U frozen";
     for (size_t I=0;I<2;I++)
     {
         const double lr=r->chi(I,0).real();
         std::cout << "[step1 LRT] " << r->labels[I] << "  chi LR (frozen) " << lr << "  chi FD (frozen) " << fd->chi[I]
                   << "  rel " << (lr-fd->chi[I])/fd->chi[0] << std::endl;
-        EXPECT_NEAR(lr, fd->chi[I], 1e-5*std::fabs(fd->chi[0])) << r->labels[I];
+        EXPECT_NEAR(lr, fd->chi[I], tol*std::fabs(fd->chi[0])) << r->labels[I];
     }
     // (2) the unfrozen FD: +U follows the density, so its kernel screens the response differently.
-    auto cp=ConvergedSi(SpinGroup::UnPolarized, +a, U, true), cm=ConvergedSi(SpinGroup::UnPolarized, -a, U, true);
+    auto cp=ConvergedSi(SpinGroup::UnPolarized, +a, U, true, kmesh), cm=ConvergedSi(SpinGroup::UnPolarized, -a, U, true, kmesh);
     const double chiUnfrozen=(ManifoldOccupation(*cp)-ManifoldOccupation(*cm))/(2*a);
     std::cout << "[step1 LRT] unfrozen FD chi " << chiUnfrozen << " vs frozen " << fd->chi[0] << std::endl;
     EXPECT_GT(std::fabs(chiUnfrozen-fd->chi[0]), 100*1e-4*std::fabs(fd->chi[0])) << "the freeze made no difference: the gate is vacuous";
 }
+} // namespace
+TEST(ResponsePolarizability, GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT) {FrozenChiEqFiniteDifference(ivec3_t(1,1,1), false, 1e-5, true);}
+//! The same claim on a MULTI-k mesh (w_k = 1/2): the gate that would have caught the missing BZ weight in the
+//! transition density (NiO k222, 2026-09-29) -- every other kernel gate is Γ-only, where w = 1.  Measured: LR == FD
+//! to 9e-6.  The FD SCFs take the Kerker/Pulay recipe: SiParams' linear D-mixing did not converge the +-alpha runs on
+//! this mesh from either start (restart at relax 0.2, or the seed).
+TEST(ResponsePolarizability, GPW_Si_k211_U2_FrozenChi_eqFiniteDifferenceLRT) {FrozenChiEqFiniteDifference(ivec3_t(2,1,1), true, 3e-5, false);}
 
