@@ -19,7 +19,8 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 - **CK-1** — `SolidCalculation::SaveState` / `SolidCalcOptions::saveStateTo` / `SolidCalculation::Restart`
   (`OpenWork.md` §2 row "SCF checkpoint/restart"; record `doc/Records/OpenWork_History4.md` §"CK-1").
 
-**▶ 2026-09-29 (late): R3 STEP 1 IS DONE — next is STEP 2, the B1 kernel (§3d increment order).**  §3d was reviewed
+**▶ 2026-09-29 (late): R3 STEPS 1 AND 2 ARE DONE — next is STEP 3 (B2 + C1 + the term bodies, gated q = 0 == the
+R2 route; §3d increment order).**  Step 2's record is at the end of §3e.  §3d was reviewed
 the same day: Q7–Q9 ruled as recommended; Q6 and Q10 were explained in plain terms and implemented.  Step 1's record,
 which includes a MULTI-k bug in R2's transition density that it found and fixed, is §3e.  Before step 2, read §3e's
 three open items.  The NiO states are saved (`~/Code/qchem6-runs/states/nio/`, imposed and FREE).
@@ -687,7 +688,7 @@ we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R
    unblocks something at once: R2's existing q = 0 route
    on the saved NiO state gives U of the 4-atom cell at U_in = 3 eV.  That is a first frozen-+U number, and it is
    also the q = Γ term of R3.
-2. The B1 kernel (the phase-policy template) and its three unit gates.  Also MEASURE the complex/plane-wave cost
+2. ✅ (§3e) The B1 kernel (the phase-policy template) and its three unit gates.  Also MEASURE the complex/plane-wave cost
    factor on the box-walk bench before step 3 is committed to.
 3. B2 + C1 + the term bodies, gated q = 0 == the R2 route.  Then retire the R2 periodic forwarding, which closes
    finding 5.
@@ -708,6 +709,7 @@ we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R
 | CK-2: a response on a stored state with NO SCF | efficiency | `Restart` re-runs ~6 iterations (~1.5 min on NiO) per process | `OpenWork.md` §2 "SCF checkpoint/restart" (CK-2) |
 | the Becke XC gather (the largest bucket per application) | efficiency | about an hour per material is affordable | `OpenWork.md` §2 "A7 R3 deferred" (and the KP row) |
 | block-GMRES / warm start across channels and q | efficiency | a plain per-channel GMRES is correct | `OpenWork.md` §2 "A7 R3 deferred" |
+| the transition GATHER at 3.2× the ground state (two `MomentsToPairs` passes; the scatter is 2.2×) | efficiency | measured affordable (§3e step 2) | `OpenWork.md` §2 "A7 R3 deferred" |
 | retire R2's periodic forwarding (`FourierDensity`/`tProjectable_CD` through `IrrepCD` leaves) once q = 0 runs through B1/B2 | clean-up (and it closes finding 5) | the guard covers correctness until then | `OpenWork.md` §4a "Linear response on an IMPOSED run symmetrizes δρ" |
 | H5's full split (ACBN0's `Apply` moves onto `HubbardUTarget`) | clean-up | Q6 pulls forward only the part R3 needs | R4 (§5), `OpenWork.md` §2 "A7 R3 deferred" |
 
@@ -761,6 +763,24 @@ vs −106.2020525).
 - The Γ gate's finite-difference SCFs run at relax 0.2 and the k211 gate's on Kerker/Pulay; both are stated at the
   call site.
 - The finite-difference cross-check on NiO took 3 SCFs × 10–100 iterations; it runs FREE only.
+
+**Step 2 (B1), `c27a6875`: the transition collocation.**  A capability of its own, `TransitionCollocation`
+(`CollocateTransition` / `IntegrateTransition`), on `PG_Cart::Orbital_IBS` and the spherical lattice view.  As
+designed in §3d findings 1–3, with two changes found while building it:
+- It is a SEPARATE face, not new clauses on `LatticeCollocation`: its client is the response, and adding pure
+  virtuals to the shared seam would have forced every implementor and test double to change.
+- CONTRACTED shells are expanded into primitive pairs (`MakePrimPairPoly`, `MakeBoxGeomFor`; the ground-state
+  functions are now their (0,0) / min-exponent cases, bit-identical).  The walk fallback could not carry the
+  unwrapped phase.  Every GPW basis today is uncontracted; `dzvp` is the gate.
+Gates (`UTGaussian_BS`, `M_TransitionCollocation`, +5):
+- q = 0 with a Hermitian δD equals `CollocateDensity` under the geometry-only screen: 3e-17 (Si), 9e-16 (MnO VA through
+  the spherical view, d shells, so T really drops contaminants), 1.4e-12 (contracted dzvp).
+- The scatter and the gather are exact adjoints at q ≠ 0 to 1e-14.
+- The periodic part equals explicit Bloch sums (`BlochPointValues` at k and k+q) to 3e-11.
+**Measured cost** against the ground-state kernel on the same boxes (MnO VA, 3-level ladder, serial, the memo
+defeated): **scatter 2.2×, gather 3.2×**.  That is inside the sizing's f ≈ 2–3, so the NiO estimate stands.  The
+gather's extra cost comes from its two `MomentsToPairs` passes (real and imaginary moments); it is on the deferred
+ledger.
 
 ---
 
