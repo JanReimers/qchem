@@ -86,28 +86,67 @@ only — no U_SC (self-consistent) column yet, since that needs A7 stage R4's ou
 alongside U_0 the day a material has both, per NOTES' own suggested shape (state at both ends: gap + moment
 at U=0 and at U_SC too, not just the two U numbers).
 
-| material | manifold | U_LRT (eV) | U_in | ground state | citation (geometry) | status |
-|---|---|---|---|---|---|---|
-| NiO | Ni 3d | **5.2670** | 3 eV | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | the one SOLID gate-3 oracle point (§4) |
-| NiO | Ni 3d | 5.4343 | 0 | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | different Hubbard-channel-set convention than the row above (Q10 effect) — NOT the same number, do not average |
-| NiO | O 2p | 8.5139 | 0 | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | matched-PP, replaces an earlier literature *bound* (cRPA ≳4 eV) |
-| MnO | Mn 3d | — | — | AFM-II insulator | — | **hp.x NOT USABLE**: d⁵ high-spin, χ₀≈−0.045→χ≈−0.043 (near-total cancellation), same pathology class as ZnO below |
-| MnO | O 2p | 26.56 (flagged) | 0 | AFM-II insulator, 2-step | `mno.hp.in` | **fragile `atomic` projector**, not `ortho-atomic` — A6 scope item to redo, not yet done; do not quote as trustworthy |
-| SrVO₃ | V 3d | **6.2502** | 0 | metal, no 2-step | ABINIT `tucalc_crpa_1.abi` cell | χ/χ₀≈0.081 (far more screened than NiO/MnO — a real metal) |
-| KCuF₃ | Cu 3d | **8.1629** | 0 | metal, no 2-step | Carta et al. (author's own input files) | our ortho-atomic projector vs their MLWF — not the same convention even with matched geometry |
-| Sr₂FeO₄ | Fe 3d | **8.0116** | 0 | metal, no 2-step | Carta et al. (author's own input files) | close to LiFeO₂'s 7.59 despite Fe⁴⁺ d⁴ vs Fe³⁺ d⁵ — a sane cross-check, not identical chemistry |
-| LiCoO₂ | Co 3d | **7.3070** | 0 | insulator (1.56 eV gap), 2-step | Pinsard-Gaudart et al. 2011 | 2-step needed despite being NONmagnetic — it's about the gap, not magnetism |
-| LiVO₂ | V 3d | **5.9526** | 0 | metal (idealized, untrimerized), no 2-step | Mat. Res. Bull. 27, 555 (1992) | |
-| LiCrO₂ | Cr 3d | **5.8111** | 0 | metal, no 2-step | Garg et al., *Crystals* 9(1), 2 (2019) | |
-| LiFeO₂ | Fe 3d | **7.5915** | 0 | metal, no 2-step | Materials Project mp-19419 | real LiFeO₂ isn't R-3m; idealized into the row's template (user decision) |
-| LiNiO₂ | Ni 3d | **9.1730** | 0 | metal, no 2-step | Seo et al., *JES* 165 (2018) A2554 | largest U of the LiMO₂ row; U_in≈0 checkpoint archived (`checkpoints/linio2_U0.save/`) for a future U_SC warm start |
-| TiO₂ (rutile) | Ti 3d | **4.6368** | 0 | insulator (d⁰ gap), no 2-step | QE `PP/examples/example08` (Timrov) | cross-checked vs CP2K's independently-sourced cell to <0.01% |
-| ZnO | Zn 3d | 35.3358 (outlier) | 0 | insulator, no 2-step | — | **NOT A USABLE ORACLE**: Zn²⁺ d¹⁰ closed shell, χ₀≈χ≈0 by a different mechanism than MnO's (shell closure, not spin-cancellation) — do not quote 35 eV as a value |
-| Si (CK-alpha, not hp.x) | Si 3p | *n/a — a χ cross-check, not a U* | 0 | insulator | `si_ckalpha_a{0,p,m}.inp` (this session) | χ_CP2K −14.5164 Ha⁻¹ vs our χ_FD/χ_LR −14.5117 Ha⁻¹ (0.033%) — validates the METHOD (our DFPT/FD), not a material U; `doc/OpenWork.md` "CK-alpha" |
+**Checked directly against the decks (2026-09-30), not assumed:**
+- **Symmetry is uniform, not a mix**: no deck sets `nosym`/`noinv`, and every checkpoint XML sampled
+  (`kcuf3`, `linio2`, `sr2feo4`, `tio2`, `zno`) confirms `<nosym>false</nosym> <noinv>false</noinv>` — QE's
+  default full space-group detection/reduction is ON in every run in this table (a different axis from our
+  own code's FREE-vs-Shubnikov-imposed choice, but constant across the whole table either way).
+- **The 2-step recipe is smeared → fixed, not literally kT>0 → kT=0**: step 1 sets `occupations='smearing'`
+  with `degauss` > 0 (Ry) — Gaussian for MnO/NiO/SrVO₃, Marzari-Vanderbilt `'cold'` for the LiMO₂ row +
+  KCuF₃ + Sr₂FeO₄ — a NUMERICAL broadening, not a physical electronic temperature, though it plays the same
+  role (fractional occupations so SCF can find the right band ordering before a gap opens).  Step 2 reruns
+  with `occupations='fixed'` and no `degauss` at all (true integer occupations, `nbnd` carried over from
+  step 1).  Materials marked "no 2-step" below have only ONE smeared deck (real metals, nothing to land
+  on); TiO₂/ZnO go straight to `occupations='fixed'` with no smearing step (clean d⁰/closed-shell gap,
+  nothing to help).
+- **`k`-grid (the SCF's own BZ sampling) is NOT uniform, but the `q`-grid (hp.x's linear-response
+  perturbation mesh — the thing the README's own warning calls "the supercell size of the method") IS**:
+  every `*.hp.in` sets `nq1=nq2=nq3=2` with no exception.  The underlying `pw.x` `K_POINTS` differs: MnO/NiO
+  (A2b, earlier) ran 2×2×2; every A6 material from SrVO₃ onward ran 4×4×4 (finer, and arguably the more
+  consequential choice for the actual metals in the LiMO₂/KCuF₃/Sr₂FeO₄ row, where k-sampling matters more
+  than for an insulator).
+- **Hubbard projector: `ortho-atomic` everywhere except MnO, which is `atomic`** — this is the input-deck
+  confirmation of the MnO O-2p row's existing "fragile projector" flag below, not a new finding.
+
+| material | manifold | U_LRT (eV) | U_in | k-grid / q-grid | projector | ground state | citation (geometry) | status |
+|---|---|---|---|---|---|---|---|---|
+| NiO | Ni 3d | **5.2670** | 3 eV | 2³/2³ | ortho-atomic | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | the one SOLID gate-3 oracle point (§4) |
+| NiO | Ni 3d | 5.4343 | 0 | 2³/2³ | ortho-atomic | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | different Hubbard-channel-set convention than the row above (Q10 effect) — NOT the same number, do not average |
+| NiO | O 2p | 8.5139 | 0 | 2³/2³ | ortho-atomic | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | matched-PP, replaces an earlier literature *bound* (cRPA ≳4 eV) |
+| MnO | Mn 3d | — | — | 2³/2³ | atomic | AFM-II insulator | — | **hp.x NOT USABLE**: d⁵ high-spin, χ₀≈−0.045→χ≈−0.043 (near-total cancellation), same pathology class as ZnO below |
+| MnO | O 2p | 26.56 (flagged) | 0 | 2³/2³ | **atomic** | AFM-II insulator, 2-step | `mno.hp.in` | **fragile, non-orthogonalized projector**, not `ortho-atomic` — A6 scope item to redo, not yet done; do not quote as trustworthy |
+| SrVO₃ | V 3d | **6.2502** | 0 | 4³/2³ | ortho-atomic | metal, no 2-step | ABINIT `tucalc_crpa_1.abi` cell | χ/χ₀≈0.081 (far more screened than NiO/MnO — a real metal) |
+| KCuF₃ | Cu 3d | **8.1629** | 0 | 4³/2³ | ortho-atomic | metal, no 2-step | Carta et al. (author's own input files) | our ortho-atomic projector vs their MLWF — not the same convention even with matched geometry |
+| Sr₂FeO₄ | Fe 3d | **8.0116** | 0 | 4³/2³ | ortho-atomic | metal, no 2-step | Carta et al. (author's own input files) | close to LiFeO₂'s 7.59 despite Fe⁴⁺ d⁴ vs Fe³⁺ d⁵ — a sane cross-check, not identical chemistry |
+| LiCoO₂ | Co 3d | **7.3070** | 0 | 4³/2³ | ortho-atomic | insulator (1.56 eV gap), 2-step | Pinsard-Gaudart et al. 2011 | 2-step needed despite being NONmagnetic — it's about the gap, not magnetism |
+| LiVO₂ | V 3d | **5.9526** | 0 | 4³/2³ | ortho-atomic | metal (idealized, untrimerized), no 2-step | Mat. Res. Bull. 27, 555 (1992) | |
+| LiCrO₂ | Cr 3d | **5.8111** | 0 | 4³/2³ | ortho-atomic | metal, no 2-step | Garg et al., *Crystals* 9(1), 2 (2019) | |
+| LiFeO₂ | Fe 3d | **7.5915** | 0 | 4³/2³ | ortho-atomic | metal, no 2-step | Materials Project mp-19419 | real LiFeO₂ isn't R-3m; idealized into the row's template (user decision) |
+| LiNiO₂ | Ni 3d | **9.1730** | 0 | 4³/2³ | ortho-atomic | metal, no 2-step | Seo et al., *JES* 165 (2018) A2554 | largest U of the LiMO₂ row; U_in≈0 checkpoint archived (`checkpoints/linio2_U0.save/`) for a future U_SC warm start |
+| TiO₂ (rutile) | Ti 3d | **4.6368** | 0 | 4³/2³ | ortho-atomic | insulator (d⁰ gap), no 2-step | QE `PP/examples/example08` (Timrov) | cross-checked vs CP2K's independently-sourced cell to <0.01% |
+| ZnO | Zn 3d | 35.3358 (outlier) | 0 | 4³/2³ | ortho-atomic | insulator, no 2-step | — | **NOT A USABLE ORACLE**: Zn²⁺ d¹⁰ closed shell, χ₀≈χ≈0 by a different mechanism than MnO's (shell closure, not spin-cancellation) — do not quote 35 eV as a value |
+| Si (CK-alpha, not hp.x) | Si 3p | *n/a — a χ cross-check, not a U* | 0 | Γ/Γ (CP2K, not QE) | n/a (LOWDIN) | insulator | `si_ckalpha_a{0,p,m}.inp` (this session) | χ_CP2K −14.5164 Ha⁻¹ vs our χ_FD/χ_LR −14.5117 Ha⁻¹ (0.033%) — validates the METHOD (our DFPT/FD), not a material U; `doc/OpenWork.md` "CK-alpha" |
 
 Not yet run: FeS₂ (citation in hand, `ct3c01403.pdf`).  The independent-oracle *ratio* table (ours vs hp.x/cRPA,
 the thing gate 3's screening test actually consumes) is separate and already exists at §4's "manifold / ours /
 independent oracle / ratio" table below — this table is the raw hp.x values feeding it, not a replacement.
+
+★ **How `Hubbard_projectors` maps onto "pick atoms" vs "pick bands in an energy window" (user question,
+2026-09-30).**  QE's `Hubbard_projectors` (`~/Code/q-e/PW/src/ldaU.f90:134`) takes exactly three values:
+`'atomic'`, `'ortho-atomic'`, `'file'`.  **Both `atomic` and `ortho-atomic` are the SAME choice — pick
+atoms** — they differ only in whether the chosen pseudo-atomic orbitals (the PP's `PP_CHI` radial functions,
+the same object our own `gth2upf` writes from the GTH database) are used as-is (`atomic`: non-orthogonal,
+can overlap between neighbouring atoms or between shells on one atom — the "fragile" choice, MnO's O-2p
+row) or Löwdin-symmetrically-orthogonalized within the manifold first (`ortho-atomic`: \f$O^{-1/2}\f$
+applied per `force_hub.f90`/`stres_hub.f90` — an honest orthonormal projector, everyone else's default,
+and the convention our own code's LOWDIN manifold already matches, per the `[+U]` console banner).
+**"Pick bands within an energy window" is the OTHER option, `Hubbard_projectors='file'`**: QE does not build
+that projector itself — `'file'` loads externally-constructed ones, and the standard source is a
+disentangled, energy-window-selected, maximally-localized Wannier function from Wannier90.  That is exactly
+what KCuF₃'s row above already flags: **Carta et al.'s Hubbard projector is an MLWF, not an atomic
+orbital** — the row you're asking about is a live example of option (2), sitting right next to our own
+option-(1) `ortho-atomic` number for the same material, which is why the two U(Cu 3d) values are not
+expected to agree even with the geometry matched exactly.
 
 1. ~~**SrVO₃ FIRST**~~ ✅ **DONE 2026-09-25**: U(V 3d) = **6.2502 eV**, matched-PP LRT, 300 Ry (GTH V-q5
    is hard, converged to 0.94 mRy at 300), k 4×4×4 / q 2×2×2, χ₀(V,V)=−1.7822 → χ(V,V)=−0.1436
