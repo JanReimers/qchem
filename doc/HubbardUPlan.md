@@ -198,10 +198,31 @@ and the ortho-atomic rerun above is direct evidence either way (§ below).
   or the even more minimal `atomic` one.  A broader manifold spanning multiple radial shells may simply have
   more room to redistribute charge among ITSELF under the α shift than one tightly-defined atomic orbital
   does — which would make this a manifold-DEFINITION effect, not evidence against the Pauli-
-  saturation/exchange-gap argument above.  **Next: rerun with `MNO_U_RADIAL=ortho`** (our closest analogue to
-  hp.x's `ortho-atomic` — the two TM 3d sets Löwdin-orthogonalised against each other, no O/4s spectators) —
-  only THAT is the fair, matched-manifold cross-check the "third independent confirmation" claim needs.  Log:
-  `/home/janr/Code/qchem6-runs/MnO/` (command line + run log; see below for the checkpoint/warm-start note).
+  saturation/exchange-gap argument above.  Log: `/home/janr/Code/qchem6-runs/MnO/mno_afm2_free_U0_radEvery_chi_20260930.{log,cmd}`.
+  ✅ **MATCHED-MANIFOLD RERUN, same session: `MNO_U_RADIAL=ortho` (the two TM 3d sets Löwdin-orthogonalised
+  against each other — our closest analogue to hp.x's `ortho-atomic`).**  Converged the same way (18–29
+  iters).  χ₀ = −4.3056558, χ = −3.603541 (**χ/χ₀ = 0.837, 16.3% screening**), U = 1.23137 eV.  FD
+  cross-check: χ_FD = −3.631901 — 0.78% from LR (tighter than the `every` run).  **This is a real,
+  reproducible, MONOTONIC trend across four points, not noise:**
+
+  | manifold definition | χ/χ₀ | screening | U (eV) |
+  |---|---|---|---|
+  | ours, `every` (broad, multi-shell) | 0.693 | 31% | 2.62 |
+  | ours, `ortho` (single Löwdin orbital, matched to hp.x) | 0.837 | 16% | 1.23 |
+  | hp.x `ortho-atomic` | 0.955 | 4.5% | 0.99 |
+  | hp.x `atomic` (non-orthogonalized) | 0.981 | 1.9% | 0.20 |
+
+  **Narrowing the manifold toward a single atomic-like orbital moves the ratio monotonically toward hp.x's
+  near-total cancellation.**  This REFINES, rather than refutes, the Pauli-saturation/exchange-gap argument
+  above: it isn't that the d⁵ configuration has literally zero accessible response at any resolution — it's
+  that a manifold built from ONE tightly-localized orbital per site has the least internal freedom to
+  redistribute charge among itself under the α shift, so it saturates hardest; a manifold spanning more
+  radial freedom (still l=2, still on the same site) has more room and screens more like a normal shell.  Both
+  measurements are "real" — they are honest dn/dα of two DIFFERENTLY-DEFINED manifolds, not one right answer
+  and one wrong one.  **The remaining gap (0.837 vs 0.955–0.981) is still open** — plausibly basis/projector
+  detail (our `ortho` still isn't bit-identical to QE's `ortho-atomic`: different pseudopotential radial
+  functions, different contraction), not yet chased further.  State checkpoints (CK-1 HDF5, warm-startable via
+  `SolidCalculation::Restart`) + exact command lines + logs for both runs: `/home/janr/Code/qchem6-runs/MnO/`.
 
 ★ **Is cRPA the same idea as ACBN0's renormalized occupancies? (user question, 2026-09-30.)**  No — three
 genuinely different objects, all called "U":
