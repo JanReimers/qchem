@@ -673,8 +673,17 @@ turns D1's "both routes give the same χ(R)" into a test.
 
 ★ **A GPW oracle is planned: CP2K finite-difference LRT U** (user, 2026-09-29: another session plans to tweak CP2K
 to run the ±α static shift, i.e. QE's `Hubbard_alpha`).  Same method class as ours (GPW, Gaussian basis, GTH), so
-the ground-state disagreement that muddies hp.x (NiO gap 1.30 vs 2.86 eV) largely drops out.  For the numbers to
-be comparable:
+the ground-state disagreement that muddies hp.x (NiO gap 1.30 vs 2.86 eV) largely drops out.  ✅ **LANDED AND
+VALIDATED 2026-09-29/30 (`doc/OpenWork.md` "CK-alpha"):** CP2K branch `ck-alpha` (`~/Code/cp2k`, commit `b5430fa`,
+built as `cp2k_ckalpha.ssmp`) un-gated the native-Quickstep `&DFT_PLUS_U ALPHA` keyword.  On the matched Si system
+(U_in = 0, Si-p, α = ±1e-3 Ha, Γ) it gives **χ_CP2K = −14.5164 Ha⁻¹ vs our χ_FD = χ_LR = −14.5117 Ha⁻¹ — 0.033%**,
+after correcting a UNIT TRAP: CP2K's reported `trq` (and so its `E_DFT+U = alpha*trq`) is scaled by `fspin` = 0.5
+for a restricted/RKS run (`src/dft_plus_u.F:317-319`), i.e. HALF the true manifold occupation for OUR closed-shell
+case — read naively, χ comes out 2× too small.  `n_true = 2·E_DFT+U/α` (exact at U_in = 0) then matches our own
+gtest's `n(±a)` to 5 significant figures.  This is the third, genuinely independent confirmation the row exists
+for.  Decks: `IntegrationTests/CP2K/ckalpha/si_ckalpha_a{0,p,m}.inp`.  Open: repeat at U_in ≠ 0 (needs the freeze
+rule below, which CP2K itself does not implement — see NEXT in OpenWork.md), and land a committed probe instead of
+the three manual runs + hand arithmetic done this session.  For the numbers to be comparable in general:
 - **Freeze V_Hub in the ±α runs when U_in ≠ 0.**  CP2K's +U re-occupies every SCF step, and an untweaked run gives
   the UNFROZEN χ (Si at 2 eV: −17.65 unfrozen vs −14.42 frozen).
 - **Match the projector:** CP2K's every-shell manifold is our `<P>_U_RADIAL=every`, not `orthofull`.

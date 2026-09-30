@@ -1,0 +1,80 @@
+# CK-alpha (qchem6, doc/OpenWork.md "A THIRD independent U oracle"): the ORIGINAL Cococcioni-de
+# Gironcoli finite-shift LRT recipe, run natively in CP2K's Quickstep GPW DFT+U path (branch
+# ck-alpha, commit b5430fa: previously alpha was SIRIUS-only, dead for GPW).  Matches
+# src/Response/tests/Kernel.C ResponsePolarizability.GPW_Si_Chi_eqFiniteDifferenceCDFT byte-for-byte:
+# FCC Si a=10.26 bohr, GTH-PADE-q4 (SIPP-SR), Gamma only, U_MINUS_J=0 on the Si1 p-shell (L=1),
+# alpha=+/-1e-3 Ha -- chi = dn/dalpha, no +U freeze needed since U_in=0 has nothing to freeze.
+# cp2k_ckalpha.ssmp has NO libxc (build_ckalpha: -DCP2K_USE_LIBXC=OFF) -- native PADE, not
+# LDA_X+LDA_C_VWN (those crash this build's XC_FUNCTIONAL section builder), so the total energy
+# will NOT match the banked si_fcc_gpw.inp LDA_X/VWN number; only the OCCUPATION response is compared.
+# ALPHA_VALUE is substituted by the driving script ($$ALPHA$$, units Hartree, "au_e").
+&GLOBAL
+  PROJECT si_ckalpha_ap
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./SIPP-SR-BASIS
+    POTENTIAL_FILE_NAME /home/janr/Code/cp2k/data/GTH_POTENTIALS
+    PLUS_U_METHOD LOWDIN
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &MGRID
+      CUTOFF 80
+      REL_CUTOFF 60
+      NGRIDS 4
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL
+        &PADE
+        &END PADE
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      PERIODIC XYZ
+    &END POISSON
+    &PRINT
+      &PLUS_U ON
+      &END PLUS_U
+    &END PRINT
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-7
+      MAX_SCF 100
+      &SMEAR OFF
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      A [bohr] 0.0  5.13 5.13
+      B [bohr] 5.13 0.0  5.13
+      C [bohr] 5.13 5.13 0.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      SCALED
+      Si1 0.00 0.00 0.00
+      Si2 0.25 0.25 0.25
+    &END COORD
+    &KIND Si1
+      ELEMENT Si
+      BASIS_SET SIPP-SR
+      POTENTIAL GTH-PADE-q4
+      &DFT_PLUS_U
+        L 1
+        U_MINUS_J [eV] 0.0
+        ALPHA [hartree] 1.0E-3
+      &END DFT_PLUS_U
+    &END KIND
+    &KIND Si2
+      ELEMENT Si
+      BASIS_SET SIPP-SR
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
