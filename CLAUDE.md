@@ -54,6 +54,15 @@ Brief notes about module/library conventions, naming, and includes.
     "passes" faster than its SCF could possibly run is a filter that matched nothing — `ctest -V` shows the
     exact command, run it by hand.  (The defect only ever caught tests through ctest: `ITMain` run directly,
     and the TestMate tree, always ran them.)
+- All restarts should either use GDM accelerator, or a DIIS->GDM ladder that switches to GDM when ΔE/E<1e-6.  Caveats: kT=0, i.e. not partial occupations.  If GDM is declined and it falls back the linear, just make sure the relax 0.2-0.3 (not 1.0!).  Warning GDM declines un-polarized (occ=2) runs ... open work item.
+- Always check [basis trim] on the console output, for diffuse-basis conditioning.  (gpwprobe <P>_VET=1).  We have lost a lot of time on this over this project.
+- For MnO and most of these TMOs (rocksalt AFM-II transition-metal monoxides), Kerker+Pulay density mixing
+    converges a FREE (unimposed) run well; the Ladder/GDM/MOM accelerator stack tends to fight a smeared,
+    degenerate d-shell frontier instead.  A known-working FREE MnO recipe is already banked:
+    `gpwprobe mno` with `MNO_MOM=0 MNO_ACC=Null MNO_PULAY=8 MNO_PULAY_START=5 MNO_EPS=1e-6 MNO_SKIP_FM=1`
+    (doc/Benchmark.md, the CP2K-LOOP rows) — CONVERGES and holds AFM-II.  MnO AFM-II is hard to converge free
+    but we have done it many times; reach for this recipe (or its close relatives already in doc/Benchmark.md)
+    before re-deriving one from scratch.
 
 ## Tests — naming and the DISABLED_ rule (from `doc/Records/TestSuitePlan.md`, ruled 2026-09-15)
 
