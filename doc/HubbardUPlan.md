@@ -245,8 +245,20 @@ and the ortho-atomic rerun above is direct evidence either way (§ below).
   the RKS Si case — `src/dft_plus_u.F:317-319`).
   ⚠ **This is χ ONLY, not a χ/χ₀ ratio** — the two-point ±α finite-difference recipe gives the SCREENED
   (self-consistent) response directly; unlike `hp.x`'s DFPT, it has no companion χ₀ (bare/frozen-potential)
-  output built in.  A χ₀ companion would need a frozen-potential variant (e.g. `MAX_SCF 1` from the converged
-  α=0 state) that CK-alpha does not yet do — open, not yet built.
+  output built in.
+  ⛔ **TRIED 2026-09-30, DEAD END: `SCF_GUESS RESTART` + `MAX_SCF 1` from the converged α=0 state does NOT
+  give χ₀.**  Both ±α runs returned IDENTICAL `trq` to all printed digits (5.5181333169) regardless of sign
+  — the telltale sign of an artifact, not a response.  Diagnosis: CP2K's step-1 "Total energy" summary block
+  reports the DFT+U energy using the occupation matrix of the INPUT (restarted, unperturbed) density, not
+  the density that comes OUT of that step's diagonalization — so `E_DFT+U = α·n(α=0)`, trivially linear in α
+  with a FIXED n, giving χ₀ = 0 by construction.  It measures nothing; it echoes the old occupation back.
+  (This also explains why the first, crashed attempt's number looked suspiciously close to the converged χ
+  value — `α·n(α=0)` is numerically close to `α·n(α, relaxed)` because n≈5.5 dominates over the small
+  response Δn, not because χ₀≈χ.)  A genuine χ₀ would need the OUTPUT occupation of step 1 specifically
+  (e.g. `&PRINT &PLUS_U`'s per-iteration occupation table, if CP2K populates it before the step-1 summary —
+  unverified) rather than the final energy block — a real investigation, not a quick fix.  Not chased
+  further; open.  Decks: `/home/janr/Code/qchem6-runs/batch/lane2/queue/03_mno_ckalpha_chi0.sh` (kept for the
+  record, not for its number).
   **Still informative without the ratio**: CP2K's `PLUS_U_METHOD LOWDIN` on `VALENCE-LOWQ-VA` spans ALL of
   Mn's d-type shells (the basis note: "Mn keeps 7s+8d"), i.e. the SAME broad, multi-shell manifold philosophy
   as our own `every` convention, not hp.x's single contracted orbital.  χ = −1.894 sits in the SAME ORDER OF
