@@ -128,8 +128,9 @@ at U=0 and at U_SC too, not just the two U numbers).
 | TiO₂ (rutile) | Ti 3d | **4.6368** | 0 | 4³/2³ | ortho-atomic | insulator (d⁰ gap), no 2-step | QE `PP/examples/example08` (Timrov) | cross-checked vs CP2K's independently-sourced cell to <0.01% |
 | ZnO | Zn 3d | 35.3358 (outlier) | 0 | 4³/2³ | ortho-atomic | insulator, no 2-step | — | **NOT A USABLE ORACLE**: Zn²⁺ d¹⁰ closed shell, χ₀≈χ≈0 by a different mechanism than MnO's (shell closure, not spin-cancellation) — do not quote 35 eV as a value |
 | Si (CK-alpha, not hp.x) | Si 3p | *n/a — a χ cross-check, not a U* | 0 | Γ/Γ (CP2K, not QE) | n/a (LOWDIN) | insulator | `si_ckalpha_a{0,p,m}.inp` (this session) | χ_CP2K −14.5164 Ha⁻¹ vs our χ_FD/χ_LR −14.5117 Ha⁻¹ (0.033%) — validates the METHOD (our DFPT/FD), not a material U; `doc/OpenWork.md` "CK-alpha" |
+| FeS₂ (pyrite) | Fe 3d | **7.5351** | 0 | 4³/2³ | ortho-atomic | nonmagnetic (LS Fe²⁺ d⁶), no 2-step | Macke et al., `ct3c01403.pdf` (their own cited experimental structure) | identical to 4 s.f. across all 4 symmetry-equivalent Fe sites; ~5h run, the longest `hp.x` this session — see A6 queue note for a driver-bug recovery caveat (number is solid, original console log is not preserved) |
 
-⛔ **FeS₂ IN PROGRESS (2026-09-30, batch queue, `queue/02_fes2_hpx.sh`)**: structure pulled directly from
+✅ **FeS₂ DONE (2026-09-30, batch queue, `queue/02_fes2_hpx.sh`)**: structure pulled directly from
 `ct3c01403.pdf` (Macke et al., the orbital-resolved-U paper itself — cubic Pa-3̄, a=5.418 Å, the paper's own
 cited EXPERIMENTAL structure, not their PBE-relaxed one, since qchem6 has no GGA/relaxation yet to reproduce
 that); S 8c coordinates hand-derived from Pa-3̄ symmetry at x=0.386, cross-checked against CP2K's own
@@ -137,7 +138,19 @@ that); S 8c coordinates hand-derived from Pa-3̄ symmetry at x=0.386, cross-chec
 symmetry-finder test).  **S converts cleanly via `gth2upf`** (E_atom −10.069183 Ha) — the "S untested"
 open item from A6's scope is resolved.  SCF (nonmagnetic, `occupations='fixed'`, no 2-step) **converged in
 39 iterations**, E = −330.04024036 Ry — confirms the diamagnetic low-spin Fe²⁺ d⁶ (t₂g⁶eₘg⁰) prediction, no
-smearing needed.  `hp.x` (shell-averaged Fe-3d, `ortho-atomic`, q 2×2×2) running now; U value to follow.
+smearing needed.  `hp.x` (shell-averaged Fe-3d, `ortho-atomic`, q 2×2×2) took ~5 hours (the longest `hp.x`
+run this session — lower symmetry, 12-atom cell, harder GMRES convergence than MnO's 4-atom cell) and gave
+**U(Fe 3d) = 7.5351 eV**, IDENTICAL to 4 significant figures across all 4 symmetry-equivalent Fe sites — a
+strong internal consistency check (Pa-3̄ really does treat them all the same, and the response converged
+cleanly, not to 4 different noise floors).
+⚠ **Recovery note**: a bug in the batch driver's halt/resume logic (fixed same session,
+`batch/run_queue.sh`) raced this job into an unnecessary ~full rerun right as the original finished — the
+ORIGINAL run's own `fes2.Hubbard_parameters.dat` survived (backed up before anything could touch it,
+`batch/recovered/`) and is the number quoted above, but its `.scf.out`/`.hp.out` console logs were
+overwritten by the aborted duplicate before recovery, so the full iteration-by-iteration log for THIS
+specific run is not preserved (the deck + the Hubbard_parameters.dat table are; that is enough to reproduce
+it, just not to re-read the original convergence trace).  The redundant rerun was killed once recognized, no
+data lost beyond that log.
 
 Remaining A6 queue after FeS₂: none named (the paper's own material set — pyrite + β-MnO₂ — is now both
 started; β-MnO₂ was never in our A6 queue, it's Macke et al.'s SECOND material, not previously scoped here).
