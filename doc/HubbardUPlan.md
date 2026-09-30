@@ -77,6 +77,38 @@ checked (`gth2upf`, this session) — Ti/V/Fe/Co/Sr/K/F/Zn convert cleanly; Cu n
 fallback fix (aufbau limit cycle, 3d10-4s1 vs 3d9-4s2 near-degeneracy — see A6's row above and the
 `gth2upf.C` commit).  **No element in this list is blocked.**
 
+★ **Reference table (started 2026-09-30, user: "there should be lots of reference numbers... we should
+probably start a table").**  Every `hp.x` matched-PP LRT value found so far, pulled out of the prose below
+into one place.  All are U (or U(eff)=U−J) in eV, matched pseudopotential/projector (our GTH, converted with
+`gth2upf`) unless flagged otherwise; **U_in is the ground state the response is linearised about** — 0 eV
+unless noted (`doc/Pins.md`: "a response is a function of the state it linearises about").  This is U_0
+only — no U_SC (self-consistent) column yet, since that needs A7 stage R4's outer loop (not built); add it
+alongside U_0 the day a material has both, per NOTES' own suggested shape (state at both ends: gap + moment
+at U=0 and at U_SC too, not just the two U numbers).
+
+| material | manifold | U_LRT (eV) | U_in | ground state | citation (geometry) | status |
+|---|---|---|---|---|---|---|
+| NiO | Ni 3d | **5.2670** | 3 eV | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | the one SOLID gate-3 oracle point (§4) |
+| NiO | Ni 3d | 5.4343 | 0 | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | different Hubbard-channel-set convention than the row above (Q10 effect) — NOT the same number, do not average |
+| NiO | O 2p | 8.5139 | 0 | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | matched-PP, replaces an earlier literature *bound* (cRPA ≳4 eV) |
+| MnO | Mn 3d | — | — | AFM-II insulator | — | **hp.x NOT USABLE**: d⁵ high-spin, χ₀≈−0.045→χ≈−0.043 (near-total cancellation), same pathology class as ZnO below |
+| MnO | O 2p | 26.56 (flagged) | 0 | AFM-II insulator, 2-step | `mno.hp.in` | **fragile `atomic` projector**, not `ortho-atomic` — A6 scope item to redo, not yet done; do not quote as trustworthy |
+| SrVO₃ | V 3d | **6.2502** | 0 | metal, no 2-step | ABINIT `tucalc_crpa_1.abi` cell | χ/χ₀≈0.081 (far more screened than NiO/MnO — a real metal) |
+| KCuF₃ | Cu 3d | **8.1629** | 0 | metal, no 2-step | Carta et al. (author's own input files) | our ortho-atomic projector vs their MLWF — not the same convention even with matched geometry |
+| Sr₂FeO₄ | Fe 3d | **8.0116** | 0 | metal, no 2-step | Carta et al. (author's own input files) | close to LiFeO₂'s 7.59 despite Fe⁴⁺ d⁴ vs Fe³⁺ d⁵ — a sane cross-check, not identical chemistry |
+| LiCoO₂ | Co 3d | **7.3070** | 0 | insulator (1.56 eV gap), 2-step | Pinsard-Gaudart et al. 2011 | 2-step needed despite being NONmagnetic — it's about the gap, not magnetism |
+| LiVO₂ | V 3d | **5.9526** | 0 | metal (idealized, untrimerized), no 2-step | Mat. Res. Bull. 27, 555 (1992) | |
+| LiCrO₂ | Cr 3d | **5.8111** | 0 | metal, no 2-step | Garg et al., *Crystals* 9(1), 2 (2019) | |
+| LiFeO₂ | Fe 3d | **7.5915** | 0 | metal, no 2-step | Materials Project mp-19419 | real LiFeO₂ isn't R-3m; idealized into the row's template (user decision) |
+| LiNiO₂ | Ni 3d | **9.1730** | 0 | metal, no 2-step | Seo et al., *JES* 165 (2018) A2554 | largest U of the LiMO₂ row; U_in≈0 checkpoint archived (`checkpoints/linio2_U0.save/`) for a future U_SC warm start |
+| TiO₂ (rutile) | Ti 3d | **4.6368** | 0 | insulator (d⁰ gap), no 2-step | QE `PP/examples/example08` (Timrov) | cross-checked vs CP2K's independently-sourced cell to <0.01% |
+| ZnO | Zn 3d | 35.3358 (outlier) | 0 | insulator, no 2-step | — | **NOT A USABLE ORACLE**: Zn²⁺ d¹⁰ closed shell, χ₀≈χ≈0 by a different mechanism than MnO's (shell closure, not spin-cancellation) — do not quote 35 eV as a value |
+| Si (CK-alpha, not hp.x) | Si 3p | *n/a — a χ cross-check, not a U* | 0 | insulator | `si_ckalpha_a{0,p,m}.inp` (this session) | χ_CP2K −14.5164 Ha⁻¹ vs our χ_FD/χ_LR −14.5117 Ha⁻¹ (0.033%) — validates the METHOD (our DFPT/FD), not a material U; `doc/OpenWork.md` "CK-alpha" |
+
+Not yet run: FeS₂ (citation in hand, `ct3c01403.pdf`).  The independent-oracle *ratio* table (ours vs hp.x/cRPA,
+the thing gate 3's screening test actually consumes) is separate and already exists at §4's "manifold / ours /
+independent oracle / ratio" table below — this table is the raw hp.x values feeding it, not a replacement.
+
 1. ~~**SrVO₃ FIRST**~~ ✅ **DONE 2026-09-25**: U(V 3d) = **6.2502 eV**, matched-PP LRT, 300 Ry (GTH V-q5
    is hard, converged to 0.94 mRy at 300), k 4×4×4 / q 2×2×2, χ₀(V,V)=−1.7822 → χ(V,V)=−0.1436
    (χ/χ₀≈0.081 — far more strongly screened than MnO's 0.96 or NiO's 0.62, as expected: SrVO₃ is a real
