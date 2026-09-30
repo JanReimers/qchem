@@ -183,11 +183,25 @@ and the ortho-atomic rerun above is direct evidence either way (§ below).
   else is 0.08–0.6) — while O-2p's number changed by more than 2×.  **A projector swap that leaves one
   manifold's pathology essentially intact while correcting another's is exactly what "real physics in one
   case, projector artifact in the other" looks like.**
-- **NEXT, queued (user, 2026-09-30): run our own A7 (FD + DFPT, same machinery just validated on Si) on MnO
-  Mn-3d.**  If our independent code/basis/projector shows the same order-of-magnitude χ₀≈χ cancellation,
-  that is a THIRD independent confirmation (different code, different projector convention, different basis)
-  that this is a real feature of the d⁵ configuration, not an hp.x or projector quirk.  If it does NOT
-  cancel the same way, that is a genuinely interesting discrepancy worth chasing.  Not yet run.
+- ✅ **RUN 2026-09-30 — RESULT DOES NOT CANCEL, and this is a genuinely open question, not a closed one.**
+  Free AFM-II MnO, Γ, complex, U_in=0, site0 Mn-3d perturbed (`gpwprobe mno`, the banked Kerker+Pulay+Null
+  recipe, `GPW_OMP_THREADS=14`) — first attempt (default Ladder/GDM/MOM accelerator) did NOT converge in 200
+  iterations; this recipe converged cleanly in 18–29 iterations for all four SCFs (ground state + two ±α +
+  the restore).  Self-consistent LR: χ₀ = −4.6021304, χ = −3.1905158 (**χ/χ₀ = 0.693, 31% screening**), U =
+  2.61606 eV.  Finite-difference cross-check on the SAME manifold: χ_FD = −3.2259878 — **1.1% from the LR
+  value** (a real internal cross-check, looser than Si's 2.7e-6 but on a much harder, magnetic, multi-SCF
+  case).  **This is NOT the near-total cancellation hp.x shows** (0.955–0.981 under either projector) — it
+  sits in the same "healthy screening" range as every other manifold in the table (0.08–0.6).
+  ⚠ **NOT YET AN APPLES-TO-APPLES COMPARISON**: this run used `MNO_U_RADIAL`'s DEFAULT, `"every"` — CP2K's
+  every-shell manifold (every d-type primitive shell on the site, un-orthogonalized against each other),
+  which is a BROADER object than hp.x's single contracted, Löwdin-orthogonalized 3d orbital (`ortho-atomic`)
+  or the even more minimal `atomic` one.  A broader manifold spanning multiple radial shells may simply have
+  more room to redistribute charge among ITSELF under the α shift than one tightly-defined atomic orbital
+  does — which would make this a manifold-DEFINITION effect, not evidence against the Pauli-
+  saturation/exchange-gap argument above.  **Next: rerun with `MNO_U_RADIAL=ortho`** (our closest analogue to
+  hp.x's `ortho-atomic` — the two TM 3d sets Löwdin-orthogonalised against each other, no O/4s spectators) —
+  only THAT is the fair, matched-manifold cross-check the "third independent confirmation" claim needs.  Log:
+  `/home/janr/Code/qchem6-runs/MnO/` (command line + run log; see below for the checkpoint/warm-start note).
 
 ★ **Is cRPA the same idea as ACBN0's renormalized occupancies? (user question, 2026-09-30.)**  No — three
 genuinely different objects, all called "U":
