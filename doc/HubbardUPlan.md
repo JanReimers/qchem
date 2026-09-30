@@ -105,16 +105,18 @@ at U=0 and at U_SC too, not just the two U numbers).
   (A2b, earlier) ran 2×2×2; every A6 material from SrVO₃ onward ran 4×4×4 (finer, and arguably the more
   consequential choice for the actual metals in the LiMO₂/KCuF₃/Sr₂FeO₄ row, where k-sampling matters more
   than for an insulator).
-- **Hubbard projector: `ortho-atomic` everywhere except MnO, which is `atomic`** — this is the input-deck
-  confirmation of the MnO O-2p row's existing "fragile projector" flag below, not a new finding.
+- **Hubbard projector: `ortho-atomic` everywhere except MnO, which was `atomic`** — this is the input-deck
+  confirmation of the MnO O-2p row's "fragile projector" flag, and ✅ **REDONE 2026-09-30** (user: "does it
+  make sense to re-run MnO with ortho-atomic... at least then table is consistent") — see the row and the
+  physics discussion right after the table.
 
 | material | manifold | U_LRT (eV) | U_in | k-grid / q-grid | projector | ground state | citation (geometry) | status |
 |---|---|---|---|---|---|---|---|---|
 | NiO | Ni 3d | **5.2670** | 3 eV | 2³/2³ | ortho-atomic | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | the one SOLID gate-3 oracle point (§4) |
 | NiO | Ni 3d | 5.4343 | 0 | 2³/2³ | ortho-atomic | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | different Hubbard-channel-set convention than the row above (Q10 effect) — NOT the same number, do not average |
 | NiO | O 2p | 8.5139 | 0 | 2³/2³ | ortho-atomic | AFM-II insulator, 2-step | `NiOgO.*` (A2b) | matched-PP, replaces an earlier literature *bound* (cRPA ≳4 eV) |
-| MnO | Mn 3d | — | — | 2³/2³ | atomic | AFM-II insulator | — | **hp.x NOT USABLE**: d⁵ high-spin, χ₀≈−0.045→χ≈−0.043 (near-total cancellation), same pathology class as ZnO below |
-| MnO | O 2p | 26.56 (flagged) | 0 | 2³/2³ | **atomic** | AFM-II insulator, 2-step | `mno.hp.in` | **fragile, non-orthogonalized projector**, not `ortho-atomic` — A6 scope item to redo, not yet done; do not quote as trustworthy |
+| MnO | Mn 3d | 0.198 (atomic) / **0.9856** (ortho-atomic) | 0 | 2³/2³ | atomic → ortho-atomic | AFM-II insulator, 2-step | `mno.hp.in` / `mno_oa.hp.in` | **STILL EFFECTIVELY NOT USABLE, and now PROVEN not a projector artifact**: χ/χ₀ = 0.955 under ortho-atomic (only 4.5% screening) vs 0.981 under atomic (1.9%) — the number moved 5× but the pathology (weakest screening of any manifold in this table by a wide margin) did not go away under a completely different projector.  See physics discussion below the table |
+| MnO | O 2p | ~~26.56~~ → **11.1503** | 0 | 2³/2³ | atomic → **ortho-atomic** | AFM-II insulator, 2-step | `mno_oa.hp.in` (this session) | ✅ **REDONE 2026-09-30, fragile-projector flag CONFIRMED REAL**: the number changed by more than 2× and landed in-family with the rest of the table (cf. NiO O-2p 8.51 eV) — unlike Mn-3d, O-2p's earlier number really was mostly a projector artifact, not physics.  Logs: `mno_oa.{scf,scf2,hp}.out` (not committed, regenerate from the decks) |
 | SrVO₃ | V 3d | **6.2502** | 0 | 4³/2³ | ortho-atomic | metal, no 2-step | ABINIT `tucalc_crpa_1.abi` cell | χ/χ₀≈0.081 (far more screened than NiO/MnO — a real metal) |
 | KCuF₃ | Cu 3d | **8.1629** | 0 | 4³/2³ | ortho-atomic | metal, no 2-step | Carta et al. (author's own input files) | our ortho-atomic projector vs their MLWF — not the same convention even with matched geometry |
 | Sr₂FeO₄ | Fe 3d | **8.0116** | 0 | 4³/2³ | ortho-atomic | metal, no 2-step | Carta et al. (author's own input files) | close to LiFeO₂'s 7.59 despite Fe⁴⁺ d⁴ vs Fe³⁺ d⁵ — a sane cross-check, not identical chemistry |
@@ -147,6 +149,70 @@ what KCuF₃'s row above already flags: **Carta et al.'s Hubbard projector is an
 orbital** — the row you're asking about is a live example of option (2), sitting right next to our own
 option-(1) `ortho-atomic` number for the same material, which is why the two U(Cu 3d) values are not
 expected to agree even with the geometry matched exactly.
+
+★ **Is the χ₀≈χ "closed-shell problem" a finite-difference/LRT artifact DFPT would fix, or real physics?
+(user question, 2026-09-30, prompted by the MnO/ZnO rows above.)**  REAL PHYSICS, not a solver artifact —
+and the ortho-atomic rerun above is direct evidence either way (§ below).
+- **Not an artifact**: finite-difference LRT and DFPT (Sternheimer) compute the IDENTICAL quantity, χ =
+  dn/dα of the SCF ground state — DFPT is just an analytic α→0 solve of the same derivative a finite step
+  estimates.  This is not asserted, it is MEASURED: this session's CK-alpha result (above, Si) has our own
+  DFPT (`chi_LR`) and an independent finite-difference (`chi_FD`, and now CP2K's own separate finite-
+  difference implementation) agreeing to 3e-4 relative.  A different solver cannot return a different answer
+  for a well-defined derivative it is computing exactly.
+- **Why the response is genuinely small for a high-spin d⁵ (or closed d¹⁰) shell**: Dudarev's α shifts the
+  on-site potential UNIFORMLY across the whole manifold, both spins.  For Mn-3d in MnO, the MAJORITY channel
+  is already at occupation 1 in every orbital — Pauli-saturated, nowhere to put more charge, dn/dα≈0 by
+  construction.  The MINORITY channel sits deep in the exchange gap (Δ_ex ~ several eV) — a 1e-3 Ha (27 meV)
+  shift is nowhere near enough to pull a state across it, so its KS-polarizability energy denominator
+  (~1/Δ_ex) suppresses its contribution too.  With BOTH channels inert, there is very little to redistribute
+  at any level, bare or screened — χ₀ and χ are each small AND close together not because screening happens
+  to cancel them, but because there is barely a response for screening to act on.  U = χ₀⁻¹−χ⁻¹ then divides
+  by the difference of two near-equal small numbers: ill-conditioned by construction.  ZnO's d¹⁰ closed
+  shell reaches the same place by a different route (no partial occupation anywhere in the manifold at all).
+- **The reassuring part**: this is roughly where DFT+U's own physical motivation is weakest — U corrects
+  delocalization/self-interaction error in fractionally- or near-degenerately-occupied states, and a rigidly
+  filled-majority/empty-minority shell has comparatively little of THAT error to correct via THIS specific
+  same-site reoccupation channel.  It does not mean MnO needs no U (LDA famously gets its gap wrong without
+  one) — it means the error U fixes shows up more through Mn–O hybridization/charge-transfer than through
+  "how far does Mn-d's own occupation move when you poke Mn-d directly," which is exactly why cRPA (a
+  differently-probed, methodologically independent quantity — see below) is the queued fix for this row, not
+  a reason to distrust DFT+U itself.
+- ✅ **DIRECT EVIDENCE, same session**: the ortho-atomic rerun above is effectively a same-code,
+  different-projector test of this claim.  χ/χ₀ went from 0.981 (atomic) to 0.955 (ortho-atomic) for Mn-3d —
+  moved, but stayed the weakest screening of any manifold in the whole table by a wide margin (everywhere
+  else is 0.08–0.6) — while O-2p's number changed by more than 2×.  **A projector swap that leaves one
+  manifold's pathology essentially intact while correcting another's is exactly what "real physics in one
+  case, projector artifact in the other" looks like.**
+- **NEXT, queued (user, 2026-09-30): run our own A7 (FD + DFPT, same machinery just validated on Si) on MnO
+  Mn-3d.**  If our independent code/basis/projector shows the same order-of-magnitude χ₀≈χ cancellation,
+  that is a THIRD independent confirmation (different code, different projector convention, different basis)
+  that this is a real feature of the d⁵ configuration, not an hp.x or projector quirk.  If it does NOT
+  cancel the same way, that is a genuinely interesting discrepancy worth chasing.  Not yet run.
+
+★ **Is cRPA the same idea as ACBN0's renormalized occupancies? (user question, 2026-09-30.)**  No — three
+genuinely different objects, all called "U":
+- **ACBN0**: a single-SCF, mean-field ANSATZ.  Computes the BARE on-site four-index Coulomb integrals (real
+  ERIs over the localized projector basis — the same kind of object our own `BareCoulombSource`/`ERI4Block`
+  builds), then rescales them by an occupation-matrix-derived factor \f$\bar N^2\f$ meant to stand in for
+  screening.  No polarizability, no response calculation, no frequency dependence is ever computed — it is
+  read off ONE converged ground state's own density matrix.  This is exactly why the plan already states
+  "ACBN0's \f$\bar N^2\f$ renormalisation is not a screening model" (§4) and why it overshoots hp.x by 2–3×
+  on every manifold that HAS a usable hp.x number.
+- **cRPA**: a genuine ab initio linear-response calculation.  Computes the full RPA polarizability of the
+  crystal, then CONSTRAINS it — removes polarization channels that are transitions WITHIN the target
+  correlated subspace (e.g. Mn-3d→Mn-3d), since those are what the Hubbard model itself is meant to handle,
+  not something DFT should already be screening away.  Everything else (O-2p, other bands, interstitial
+  states) still screens the bare Coulomb matrix element into \f$W=v/(1-P_rv)\f$.  **This is why cRPA
+  sidesteps MnO's cancellation problem**: it never asks "how much does the Mn-3d shell's OWN occupation move
+  when you poke Mn-3d" (the question that goes ill-conditioned when that shell is nearly inert) — it asks
+  "how much does everything ELSE in the crystal screen the bare Mn-3d matrix element," which stays
+  well-posed regardless of how inert Mn-3d itself is.
+- **hp.x's LRT/DFPT (our A7)** is a third distinct thing again: an effective-model U backed out of an actual
+  observable, dn/dα, of the interacting KS system — not a rescaled bare integral, not a screened matrix
+  element.
+All three get called "U," but they answer different physical questions, so none is obligated to agree
+numerically with the others — consistent with ACBN0's already-logged 2–3× overshoot, and the reason every
+oracle row in this doc is labelled by method/PP-match rather than averaged.
 
 1. ~~**SrVO₃ FIRST**~~ ✅ **DONE 2026-09-25**: U(V 3d) = **6.2502 eV**, matched-PP LRT, 300 Ry (GTH V-q5
    is hard, converged to 0.94 mRy at 300), k 4×4×4 / q 2×2×2, χ₀(V,V)=−1.7822 → χ(V,V)=−0.1436
