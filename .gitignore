@@ -67,3 +67,8 @@ PeriodicTable.csv
 # (doc/OpenWork.md "SCF checkpoint/restart" row) -- large binaries, cheap to regenerate from the
 # committed *.scf.in decks, deliberately not version-controlled.
 IntegrationTests/QE/checkpoints/
+
+# QE scratch (outdir) and regenerated UPF pseudopotentials (a function of the GTH database +
+# gth2upf, not source) -- never committed, same principle as CP2K's *-RESTART.wfn above.
+IntegrationTests/QE/tmp/
+IntegrationTests/QE/*.UPF
