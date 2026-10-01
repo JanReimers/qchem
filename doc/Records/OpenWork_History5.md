@@ -177,3 +177,6 @@ on 4-atom cells; a 100-water box would invert it.
 - The geometry hoist of the box walk (§5 of ScreeningPlan) — REFUTED on measurement (13.2% ceiling vs a 14.5%
   price); the exp recurrence — REJECTED (anisotropic, flips a degenerate basin); column-major Φ fill — a
   net loss; chasing CP2K's OMP — settled by `Benchmark.md` §7.  All in History4; do not re-propose.
+
+## ✅ GDM declined every UNPOLARIZED run (closed 2026-10-01)
+Cause: `UseFD`'s idempotency test (Tr D′ = Tr D′²) and block-occupancy test (Tr D′P = nocc) assumed g=1, and `Create`'s `occ` is the reservoir ELECTRON count (`GetN`), used as an orbital count. Fix: g = round(Tr D′²/Tr D′) read off D′ itself (no interface change); idempotent iff g·Tr D′ = Tr D′²; nocc = N/g refreshed each UseFD; block check against g·nocc. The gradient and the diagonal quadratic model both omit the common factor g, so step length is unchanged. Gate: `SCFAcceleratorGDM.AFoldedDoubletEngagesAndStepsLikeItsPolarizedTwin` (orbitals identical to 1e-10) and `M_Calculation.WaterPureGDM` (11 geodesic steps, DIIS anchor). Full ctest 983/983.
