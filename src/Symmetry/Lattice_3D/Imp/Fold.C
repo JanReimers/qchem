@@ -132,6 +132,11 @@ static GridOp MakeGridOp(const Matrix3D<double>& U, const ivec3_t& N, const rvec
     return g;
 }
 
+bool MapsMeshOntoItself(const Matrix3D<double>& U, const ivec3_t& N, const rvec3_t& shift)
+{
+    return MakeGridOp(U,N,shift).valid;
+}
+
 Fold FoldGrid(const ivec3_t& N, const rvec3_t& shift, const std::vector<SymOp>& ops)
 {
     const int Ntot = N.x * N.y * N.z;

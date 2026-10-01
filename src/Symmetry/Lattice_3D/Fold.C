@@ -177,6 +177,12 @@ std::vector<char> FlipFixedPointsPeriodic(const std::vector<rvec3_t>& pts,
 Fold FoldGrid  (const ivec3_t& N, const rvec3_t& shift,
                 const std::vector<SymOp>& ops);
 
+//! \brief Is \a U (a reciprocal-frame op, the same matrix \c FoldGrid takes) a symmetry of THIS (N,shift)
+//! mesh?  The predicate \c FoldGrid uses to skip ops; exported so the density star-average can impose
+//! only the mesh-symmetry SUBGROUP too -- averaging rho over ops the k-sum does not respect samples a
+//! different, larger k-set than the one whose bands are summed.
+bool MapsMeshOntoItself(const Matrix3D<double>& U, const ivec3_t& N, const rvec3_t& shift);
+
 //! \brief Fold an explicit G-index list under \f$m \to W m\f$ (exact integer arithmetic;
 //! \a W here is the reciprocal G-index map).  \f$|Wm|=|m|\f$, so the Coulomb kernel is
 //! constant on each star and a totally symmetric G-sum evaluates at representatives with

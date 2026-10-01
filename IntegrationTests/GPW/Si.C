@@ -911,10 +911,11 @@ TEST(GPW_Si, k222s_Imp_CP2K)
     auto R=calc.Result();
     ASSERT_TRUE(R) << "the shifted mesh must converge, not merely stop: " << Why(R);
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
-    // vs CP2K's OWN shifted 2x2x2 deck, re-measured through scripts/bench 2026-08-19 at -7.867436530436260.
-    // Measured here: -7.868473428 (16 iterations, drho 1.0e-9) -- 1.04 mHa below, and the tolerance is the
-    // historical 3 mHa.  Anything near -3.7 means the quarter-integer screen defect is back.
-    EXPECT_NEAR(R->Energy(), -7.86744, 3e-3) << "GPW 2x2x2 shifted MP (CP2K default) vs -7.86744";
+    // vs CP2K's OWN shifted 2x2x2 deck (scripts/bench 2026-08-19: -7.867436530).  Measured -7.867453736 =
+    // the FREE run to the µHa, 17 µHa from CP2K.  Until 2026-10-01 this read -7.868473 (1.02 mHa low): the
+    // shifted fcc mesh is NOT Oh-invariant, the k-fold used only the mesh subgroup, but rho was star-averaged
+    // over all 48 ops -- an Oh-orbit k-set larger than the one the bands were summed over.
+    EXPECT_NEAR(R->Energy(), -7.86744, 1e-4) << "GPW 2x2x2 shifted MP (CP2K default) vs -7.86744";
 }
 
 

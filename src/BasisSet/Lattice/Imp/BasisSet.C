@@ -155,6 +155,15 @@ static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWP
     ops.recipFold     = sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);  // fold: linear + TR
     ops.recipDensity  = sg.ReciprocalOps();                                    // density G-space: {U|τ}
     ops.directDensity = sg.DirectOps();                                        // density raster: {W|τ}
+    // The k-sum only respects the mesh-symmetry SUBGROUP (a shifted fcc MP mesh is not Oh-invariant), and the
+    // fold above already uses just that subgroup.  Star-averaging rho over ops the mesh does not respect would
+    // sample a LARGER k-set than the one whose bands are summed -- so impose the same subgroup on rho.
+    {
+        const ivec3_t N=lat.GetLimits();
+        auto bad=[&](const Matrix3D<double>& U){ return !SL::MapsMeshOntoItself(U,N,p.kShift); };
+        std::erase_if(ops.recipDensity,  [&](const auto& o){ return bad(o.U); });
+        std::erase_if(ops.directDensity, [&](const auto& o){ return bad(Transpose(o.W)); });
+    }
     // ★ THE IMPOSITION GATE -- see the note in the magnetic branch above.  The reciprocal set is the
     // transpose of this one, so closure of {W|τ} settles both.
     // DirectOp carries no σ (a spatial group), so it lifts to SymOp with σ=None -- the closure test is
