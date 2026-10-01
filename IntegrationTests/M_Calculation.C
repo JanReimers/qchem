@@ -220,3 +220,14 @@ TEST(M_Calculation, BoronUHFPureGDM)
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / std::fabs(E_ref)), 1e-5);
     EXPECT_GT(calc.IterationCount(), 0u);
 }
+
+// Unpolarized (folded-doublet D'=2P) GDM: closed-shell water under standalone GDM must reach the DIIS
+// anchor.  GDM used to decline every unpolarized run and silently diagonalize (same energy, no GDM) -- so
+// the energy alone cannot tell; the console must carry no "DECLINING" line (checked by hand via ITMain -v).
+TEST(M_Calculation, WaterPureGDM)
+{
+    Calculation calc(MakeWater(), {.basis = "dzvp"}, {.type = "GDM"});
+
+    const double E_ref = -76.022903;                       // same anchor as WaterSymmetry
+    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
+}

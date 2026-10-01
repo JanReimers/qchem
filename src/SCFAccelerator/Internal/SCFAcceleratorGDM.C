@@ -88,7 +88,9 @@ private:
     GDMParams               itsParams;
     const LASolver<T>*      itsLASolver;
     Irrep                   itsIrrep;
-    size_t                  itsNocc;
+    size_t                  itsNel;     //electron count of this irrep's reservoir (the Create 'occ')
+    size_t                  itsCap=1;   //level capacity g read off D' (2 unpolarized folded doublet, else 1)
+    size_t                  itsNocc;    //occupied ORBITALS = itsNel/itsCap (refreshed each UseFD)
     bool                    itsHaveC;   //Have we cached a set of orbitals yet?
     mat_t<T>                itsCp;      //Orthonormal-basis orbitals (n x n), columns = MOs.
     hmat_t<T>               itsFp;      //Orthonormal-basis Fock matrix.

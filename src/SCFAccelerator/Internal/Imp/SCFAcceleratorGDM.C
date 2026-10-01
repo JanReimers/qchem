@@ -64,7 +64,7 @@ template <class T> static mat_t<T> TransportOp(const mat_t<T>& Y, const mat_t<T>
 }
 
 template <class T> tSCFIrrepAcceleratorGDM<T>::tSCFIrrepAcceleratorGDM(const GDMParams& p,const LASolver<T>* las,const Irrep& ir,int occ)
-: itsParams(p), itsLASolver(las), itsIrrep(ir), itsNocc(occ), itsHaveC(false), itsEn(0.0), itsActive(false)
+: itsParams(p), itsLASolver(las), itsIrrep(ir), itsNel(occ), itsNocc(occ), itsHaveC(false), itsEn(0.0), itsActive(false)
 , itsTrust(p.Trust)
 {
     assert(itsLASolver);
@@ -90,10 +90,14 @@ template <class T> void tSCFIrrepAcceleratorGDM<T>::UseFD(const hmat_t<T>& F, co
             trD += std::real(T(DPrime(i,i)));
             for (size_t j=0;j<n;j++) { const T d=DPrime(i,j); trD2 += std::real(d*Conj(d)); }
         }
-        const bool idem = std::fabs(trD-trD2) < 1e-6*std::max(1.0,trD);
+        // Level capacity g (2 for an unpolarized folded doublet D'=2P, 1 per spin channel), read off D' itself:
+        // for D'=gP with P a projector, Tr(D'^2)=g Tr(D').  D' is "integer-occupied" iff Tr D'(g-D')=0.
+        const int g = (trD>0) ? std::max(1,(int)std::lround(trD2/trD)) : 1;
+        const bool idem = std::fabs(g*trD-trD2) < 1e-6*std::max(1.0,g*trD);
+        if (idem) { itsCap=g; itsNocc=(size_t)std::lround((double)itsNel/g); }
         if (itsIdempotent && !idem)
             std::cerr << "[GDM] DECLINING to engage: D' is not idempotent (Tr(D')=" << trD
-                      << " vs Tr(D'^2)=" << trD2 << ") -- fractional (Fermi-smeared) occupations are outside "
+                      << " vs Tr(D'^2)=" << trD2 << ", capacity " << g << ") -- fractional (Fermi-smeared) occupations are outside "
                          "the integer-occupation determinant manifold GDM rotates." << std::endl;
         itsIdempotent = idem;
     }
@@ -117,7 +121,7 @@ template <class T> void tSCFIrrepAcceleratorGDM<T>::UseFD(const hmat_t<T>& F, co
                     acc += Conj(itsCp(i,k))*DPrime(i,j)*itsCp(j,k);
             inBlock += std::real(acc);
         }
-        const bool ok = std::fabs(inBlock-(double)itsNocc) < 1e-6*(double)itsNocc;
+        const bool ok = std::fabs(inBlock-(double)(itsCap*itsNocc)) < 1e-6*(double)(itsCap*itsNocc);
         if (itsBlockOccupied && !ok)
             std::cerr << "[GDM] DECLINING to engage: the occupied density is NOT this minimizer's leading "
                       << itsNocc << " orbitals (Tr(D'P_block)=" << inBlock << ").  GDM rotates a leading-index"

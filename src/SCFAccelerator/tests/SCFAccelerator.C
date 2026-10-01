@@ -130,6 +130,30 @@ TEST(SCFAcceleratorGDM, RigHoldsALiveGeodesicStep)
         << "the rig is at a stationary point -- every other test here would be vacuous";
 }
 
+// THE FOLDED DOUBLET (unpolarized, g=2): D'=2P and the Create 'occ' is the ELECTRON count 2*NOCC.  GDM must
+// engage and take exactly the step its polarized singlet twin (g=1, NOCC orbitals) takes -- the gate
+// "unpolarized GDM == polarized twin".  Before the g-aware checks it declined silently (Tr D'=2 Tr D'^2/2...).
+TEST(SCFAcceleratorGDM, AFoldedDoubletEngagesAndStepsLikeItsPolarizedTwin)
+{
+    Rig twin;
+    ASSERT_TRUE(twin.irrep->ComputeStep());
+
+    GDMParams params{ .FDMax=1e30, .Trust=0.1, .TrustBackoff=0.25, .TrustMin=1e-4 };
+    std::unique_ptr<LASolver<double>> las(LASolver<double>::Factory(qchem::Cholesky));
+    las->SetBasisOverlap(Identity(N));
+    SCFAcceleratorGDM acc{params};
+    auto* irrep = acc.Create(las.get(), Irrep(), (int)(2*NOCC));
+    auto Fold=[](rsmat_t D){ rsmat_t R(N); for (size_t i=0;i<N;i++) for (size_t j=0;j<=i;j++) R(i,j)=2.0*D(i,j); return R; };
+    irrep->UseFD(MakeFock(), Fold(MakeDPrime(rmat_t(Identity(N)))));
+    auto [U,Up,e] = irrep->NextOrbitals();
+    irrep->UseFD(MakeFock2(), Fold(MakeDPrime(Up)));
+    ASSERT_TRUE(irrep->ComputeStep()) << "a folded doublet must not be declined";
+
+    auto [U1,Cp1,e1] = irrep->OrbitalsAt(1.0,false);
+    auto [Ut,Cpt,et] = twin.irrep->OrbitalsAt(1.0,false);
+    for (size_t i=0;i<N;i++) for (size_t j=0;j<N;j++) EXPECT_NEAR(Cp1(i,j),Cpt(i,j),1e-10);
+}
+
 // THE SAFETY CLAUSE.  Reject until exhausted, then check the guarantee the caller relies on.
 TEST(SCFAcceleratorGDM, ExhaustedRejectionForcesADiagonalizeSoTheCallerCanFallBackSafely)
 {
