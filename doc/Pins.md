@@ -1,379 +1,279 @@
-# Durable pins — the invariants a session must not violate
+# Durable pins — invariants worth knowing before you touch the code
 
-**Cut 2026-09-08 out of `doc/OldPlans/GPWPlan.md`'s "Durable pins / invariants" section**, because that file is a
-RECORD of the 2026-07 campaign and the pins are not: they govern work all over the tree, and burying
-project-wide invariants inside a finished campaign's plan is how they get missed.  Two user rulings that
-lived only in session memory are folded in and marked as such.
+Each pin is here because ignoring it produced a wrong number, a wrong interface, or a retracted verdict at
+least once.  They are the project's current best understanding, not scripture: everything is open to debate,
+and if one looks wrong, say so and change it rather than working around it.  Pin numbers are cited from
+code, docs and memory, so they are stable; a pin that was folded into another stays as a one-line pointer.
 
-These are **rulings, not preferences.**  Each is here because violating it produced a wrong number, a wrong
-interface, or a retracted verdict at least once.  If you think one is wrong, say so and get it changed —
-do not work around it quietly.  **Three files, three questions** (ruled 2026-09-16): `CLAUDE.md` answers
-*how do I work here* (conventions, build/test/box discipline, tool paths, the doc system); this file answers
-*what must the code obey* (physics, numerics AND design invariants — one paragraph each, earned by a wrong
-number, a wrong interface or a retracted verdict, pointing at the RECORD that earned it); a RECORD in
-`doc/` answers *why is it this way* (the evidence and the rejected alternatives).  A pin is the distillate;
-the argument stays in the record.
+**Three files, three questions.**  `CLAUDE.md`: how do I work here (conventions, build/test, tool paths, the
+doc system).  This file: what must the code obey (physics, numerics, design invariants; one short section
+each, pointing at the record that earned it).  A RECORD in `doc/`: why is it this way (evidence, rejected
+alternatives).
 
 ---
 
-## 1. THERE IS NO CUT IN r SPACE — Gibbs ringing is like a wrecking ball
+## 1. No cut in r space
 
-> **"THERE IS NO CUT in r space, Gibbs ringing is like a wrecking ball."** (user, 2026-07-16; wording
-> sharpened 2026-09-08 — the *reason* is now part of the pin, because "no cut" alone reads as fastidiousness
-> and it is not.)
+> "THERE IS NO CUT in r space, Gibbs ringing is like a wrecking ball." (user, 2026-07-16)
 
-A real-space lattice sum is an **ε-CONVERGED SERIES for a FIXED operator**.  Magnitude screening is the ONLY
-truncation mechanism.  **A radius must never appear as a parameter, member, or concept in any interface** —
-not user-facing, not internal.
+A real-space lattice sum is an ε-converged series for a FIXED operator.  Magnitude screening is the only
+truncation, and a radius must not appear as a parameter, member or concept in any interface.
 
-- A truncation radius yields a **DIFFERENT operator**, not "the operator to ε".  Sharp truncation in r is
-  multiplication by a step function, whose transform rings — and that ringing lands on everything downstream.
-  Measured: the Rcut=2a NaF metric lost **2.25 e** per mid-slosh loading.
-- A radius must **never be a conditioning crutch**.  That job belongs to the basis, or to rank reduction.
-- ⚠ **The G direction is different IN KIND.**  The Ecut ball is a PROJECTION onto a finite auxiliary
-  subspace: variational (adjoint-exact), exponentially controlled, systematically improvable.  That is a
-  legitimate resolution dial, not a cut.
-- **End state: ONE knob per direction** — ε in r (convergence tolerance), Ecut in G (projection resolution).
+- A truncation radius gives a DIFFERENT operator, not "the operator to ε": a sharp cut is a step function
+  in r, its transform rings, and the ringing lands on everything downstream.  Measured: an Rcut=2a NaF
+  metric lost 2.25 e per mid-slosh loading.
+- A radius is never a conditioning crutch; that job belongs to the basis or to rank reduction.
+- The G direction does have a cut (Ecut), but a different kind: a projection onto a finite auxiliary
+  subspace, which is variational, exponentially controlled and systematically improvable.  What is banned
+  is the real-space cut and its Gibbs ringing.
+- End state: one knob per direction — ε in r, Ecut in G.
 
-## 2. Everything is a fit — and a fit is (integration GRID) × (FIT BASIS)
+## 2. Densities, Hartree and Vxc are always fits (grid × fit basis)
 
-> (user, 2026-09-06.)  **A quadrature IS a fit.**  Never say a route has "no fit".
+For software consistency, every DFT route to the charge density, the Hartree term and Vxc goes through the
+fitting framework, even when the fit is trivially exact.  Examples: plane-wave orbitals with a plane-wave ρ
+(Parseval makes the fit exact), a fit basis with unit metric, or a trivial projection ⟨ab|fit⟩ — all are
+still "a fit".  A quadrature grid is a fit whose basis is (finite-element) delta functions, so a Becke mesh
+is {Becke mesh} × {delta basis} and the uniform route is {uniform raster} × {plane waves}.  Both fit the
+same \f$v_{xc}\f$, which is what makes one scoreboard legitimate.
 
-The grid and the basis are **ORTHOGONAL AXES**.  A grid does not imply a basis.  Which pairings are worth
-using is high-level **POLICY** and must never be hard-coded — "Becke = delta basis" is itself a conflation.
-The uniform route is {uniform raster} × {plane-wave \f$\{G\}\f$}; the Becke route is {Becke mesh} × {delta
-basis}.  Both are fits of the same \f$v_{xc}\f$, which is what makes one scoreboard legitimate.
+Interface consequences (formerly pin 6): PW fitting must look identical to molecular fitting at interface
+level.  No "Fourier" in an abstract face.  Any fit/aux basis comes from the orbital basis via
+`Create{CD,Vxc}FitBasisSet(...)`; the factory is the seam even when it is trivial, so inlining the trivial
+G-space fit was rejected.  Do not assume `orbital == fit`.
 
-## 3. Fit quality is grid-convergence of ρ, NEVER \f$\Delta E_{total}\f$
+## 3. Fit quality is grid-convergence of ρ, never \f$\Delta E_{total}\f$
 
 The fit is non-variational, so a total-energy difference does not bound its error and can flatter it.
-Score a fit by the convergence of ρ (or of the operator that is actually diagonalised —
-\f$\max|\Delta V_{xc}(i,j)|\f$), against a fine reference in the same family.
+Score a fit by the convergence of ρ (or of the operator actually diagonalised,
+\f$\max|\Delta V_{xc}(i,j)|\f$) against a fine reference in the same family.
 
-## 4. Report an INTEGRATED observable, never a point sample of a field
+## 4. Report an integrated observable, not a point sample of a field
 
-> (user, 2026-08-19.)
-
-MnO's \f$m_{stag}\f$ sampled at one point 0.7 bohr along +x is a spin **DENSITY**, not a moment; it was never
-derived, and its direction-dependence IS the d-occupation confounder.  Valid as a **collapse detector only**.
-⚠ A frozen-density point probe also understates the self-consistent shift on a metal — grid error feeds back
-through the density, the Fermi level and the occupations.
+(user, 2026-08-19.)  MnO's \f$m_{stag}\f$ sampled at one point 0.7 bohr along +x is a spin density, not a
+moment; it was never derived, and its direction-dependence is the d-occupation confounder.  Use it only as a
+collapse detector.  A frozen-density point probe also understates the self-consistent shift on a metal,
+because grid error feeds back through the density, the Fermi level and the occupations.
 
 ## 5. Spin-polarized is the native formulation
 
 Unpolarized is the \f$\zeta=0\f$ collapse, not the base case.  New terms are written spin-native
-(`FittedVxcPol` / `FittedVcorrPol`), and this governs everything still to come — GGA, +U, non-collinear.
+(`FittedVxcPol` / `FittedVcorrPol`); this governs GGA, +U and non-collinear work to come.
 
-## 6. PW fitting must look IDENTICAL to molecular fitting at interface level
+## 6. (folded into 2)
 
-> (user.)  No "Fourier" in an abstract face.  Any fit/aux basis comes from the orbital basis via
-> `Create{CD,Vxc}FitBasisSet(...)` — **the factory is the seam even when it is trivial**, and inlining the
-> trivial G-space fit was REJECTED for exactly this reason.  **Never assume `orbital == fit`.**
+## 7. Ill-conditioning is a basis problem — read `[basis trim]`
 
-## 7. Ill-conditioning is a BASIS problem
+Ill-conditioning is not a solver bug.  "LASolver" symptoms have been basis conditioning every time.
+`valgen` readily produces valence bases with diffuse functions; put those in a unit cell at ordinary bond
+lengths and S(k) becomes ill-conditioned.  **Always read the `[basis trim]` output and take it seriously.**
+Use well-conditioned bases for SCF (accuracy levels Low/Medium/High; the old N3/N5 pools were test-only and
+are gone).  This is where the project has lost the most time.  Two related rules:
 
-Not a solver bug and not a code bug.  "LASolver" symptoms are basis conditioning (SIPP diffuse → SIPP_SR).
-Use well-conditioned bases for SCF; the accuracy levels are Low/Medium/High, and the old N3/N5 pools were
-test-only and no longer exist.
+- **Auto-trimming is a vet-stage, symmetry-equivariant, whole-orbit decision on S** (user, 2026-08-14/15/26,
+  formerly pin 22).  (a) It happens before anything downstream is built (grid ladder, collocation task
+  lists, KB projections follow the surviving functions).  (b) The rank decision is a property of S, made
+  once, not per spin channel.  (c) Drop whole orbits under the (magnetic) space group, never single AOs:
+  per-function pivoting breaks symmetry-tied pivots by numerical noise (runs 58–60 dropped O₁'s p(0.18) but
+  O₂'s s(0.15)), and a partial orbit is a symmetry-broken basis.  Report the decision as species / shell /
+  exponent, not bare indices.  Two things make it harder than it looks, and unit tests should cover both:
+  under Cartesian d/f a shell is not pure l (s inside d, p inside f), and the rank depends on lattice
+  spacing, so a trim validated on one cell says nothing about a denser one.
+- **The ortho-time path has two behaviours: work, or fail with enough information to fix the BASIS** — never
+  a silent third that edits the span.  Today `LASolverCholeskyPivoted` drops and prints a bare index
+  ("dropped AO index 47") from a layer that knows nothing about shells.  The proposed cure is an exception
+  carrying indices and pivots, caught by the layer that owns the basis (`throw` is this tree's marker).
+  Open work: the vet-stage trim itself (`doc/OpenWork.md`).  Record: `OpenWork_History4.md` "Continuous — CLEANUP".
+- **Pivoted Cholesky where D is PSD; a failing Cholesky is the canary** (user, 2026-08-20, formerly pin 21).
+  Factor density matrices by pivoted Cholesky rather than a trimmed eigendecomposition, but only where the
+  factor is not inverted (where it is only multiplied, eigen is fine).  D is PSD here only because no mixer
+  extrapolates D (`LinearMixer` is convex, Pulay/Broyden act on \f$\tilde\rho\f$) — a property of today's
+  mixers, not a theorem; density-space Pulay, α>1 or MP/cold smearing would break it.  So a failing
+  Cholesky means D left the cone: make it loud and route to the eigen split.  PSD tests need a relative
+  floor, since an eigensolver always returns O(ε·λmax) negatives.
 
-## 8. Two self-consistent lattice schemes — do NOT mix them
+## 8. One scheme for periodic lattice matrices
 
-**(A)** complete-Bloch analytic single-sum matrices (what GPW has; correct as \f$R_{cut}\to\infty\f$).
-**(B)** truncated-Bloch collocation Gram matrices (always PSD).
-Scheme-B overlap with scheme-A analytic kinetic gave \f$E_{kin}=-300\f$.  Stay in scheme A.
+GPW builds its lattice matrices from complete-Bloch analytic single sums (scheme A, correct as
+\f$R_{cut}\to\infty\f$).  The alternative, truncated-Bloch collocation Gram matrices (scheme B, always PSD),
+is a different operator.  Mixing them (scheme-B overlap with scheme-A kinetic) gave \f$E_{kin}=-300\f$.  Take
+all matrices of one calculation from one scheme.  (Kept as a one-line historical guard; drop it if scheme B
+is gone from the tree.)
 
-## 9. Pseudopotential smoothness is what makes GPW work
+## 9. Change a basis interface only for a new integral type
 
-All-electron cores are too sharp; validate with a well-conditioned GTH valence basis, never all-electron.
-GAPW is out of scope.  Relatedly, the **pseudo-wall is an asymptote**: change a basis interface only for a
-NEW INTEGRAL TYPE.
+Correctness first, then efficiency, then end-user convenience, then developer convenience, then readability.
+(Pseudopotential-smoothness and GAPW remarks that lived here were history; GAPW is out of scope.)
 
-## 10. Regression style for periodic energies
+## 10. Two kinds of energy pin — say which, and cite the reference
 
-Periodic/GPW energies are **"did-E-move" anchors** — pin the converged value, no `Converged()` guard.  Where
-a real-space-on-lattice quantity must equal its finite counterpart, assert **bit-consistency** (`L_PP`-style)
-rather than an absolute oracle.
+An energy pin in a test is one of two things, and the comment should say which:
+1. **Absolute**: compared to an independent oracle.  Give the reference (literature, or an in-house
+   CP2K/QE/ABINIT run with its deck).
+2. **Relative ("did E move")**: compared to the previous commit's converged value, with no `Converged()` guard.
 
-**A moved anchor is RE-JUDGED against an INDEPENDENT route, never merely refreshed** (added 2026-09-16 from
-`doc/Records/TestSuitePlan.md` §2): KP-0 re-pinned \f$-7.45137\to-7.45294\f$ only after the band-folding-equivalent Γ
-supercell agreed.  And the two kinds of failure are not alike: an ENERGY anchor can go stale and must be
-judged; a failing CHARGE, count or weight sum is physics and cannot (user, 2026-09-09).
+A relative pin that moves is re-judged against an independent route and never merely refreshed (KP-0 was
+re-pinned −7.45137 → −7.45294 only after the band-folding-equivalent Γ supercell agreed;
+`doc/Records/TestSuitePlan.md` §2).  Energy anchors can go stale; a failing charge, count or weight sum is
+physics and cannot (user, 2026-09-09).
 
-## 11. An explicit phase beats an automatic one — the `UseChargeDensity` lesson
+## 11. Caching: static things in the DB cache, per-iteration things in an explicit phase
 
-> **USER, 2026-09-08:** *"this code used to have exactly `tDynamic_HT::UseChargeDensity(cd)`, and I was too
-> clever by half trying to make it all 'automatic' which ended being a source of bugs and finally blocking
-> irrep omp … lesson learned!"*
+Caching trades RAM for runtime.  Cache only quantities that are static across SCF iterations (integrals
+keyed by geometry and basis), and use the existing framework: `src/BasisSet/Internal/{DB_Cache,Cache2,Cache3,Cache4}.C`.
 
-The term stack once had an EXPLICIT *"here is the density, prepare yourself"* call.  It was replaced by
-automatic, self-correcting, per-object density-serial guards — each one locally correct, and collectively:
+The one known exception is the \f$H_{ij}\f$ matrices, which the Fock pass builds and the energy pass reuses
+(`tDynamic_HT_Imp::itsCache`).  `DB_Cache` is not the home for them: it never evicts and is built for
+sharing across runs, while \f$H_{ij}\f$ turns over every iteration, so twenty iterations would leave twenty
+generations in it.  Ask what a cache evicts before asking what it keys on.  The intended fix is a
+per-iteration scope that owns those matrices and dies with the iteration (`CleanupHistory3.md` R1.0h).
+I know of no other exception; if you add one, say why at the declaration.
 
-- a class of bugs (a memo believing it was fresh; the `itsRho`/`itsXCMix` aliasing that made
-  \f$\alpha=0.25\f$ and \f$\alpha=1.0\f$ produce **bit-identical** runs; the DM-source staleness guard
-  that had to be added back as a LIVE check because its `assert` was compiled out in Release), and
-- an architectural block: lazy-fill-on-first-touch turned every k-independent memo into a
-  write-on-first-touch, which is what stopped the per-block loop being threadable at all.
+Underlying lesson (user, 2026-09-08, the `UseChargeDensity` post-mortem): replacing an explicit "here is the
+density, prepare yourself" call with automatic per-object freshness guards produced bugs (a memo believing
+it was fresh; `itsRho`/`itsXCMix` aliasing that made α=0.25 and α=1.0 bit-identical) and blocked threading
+the per-block loop (write-on-first-touch).  When work must happen once per density, iteration or geometry,
+give it a named phase rather than hiding it in call order.
 
-`tHamiltonian::RefreshForDensity` (2026-09-08) is `UseChargeDensity` returning by another name.  ⇒ **When
-work must happen once per density / per iteration / per geometry, give it a PHASE and a name.**  An
-automatic guard hides the phase structure in call order, and call order is not a thing anyone can see.
+## 12. The code computes physics numbers; the user supplies scope (provisional)
 
-⚠ **The same suspicion now falls on the \f$H_{ij}\f$ cache** (user, same message): `tDynamic_HT_Imp` stores
-its result in `mutable CacheMap itsCache` keyed by `Irrep`, filled during the block loop, purely so the
-ENERGY pass (`GetEMatrix` → `IrrepCD::DM_Contract`) does not recompute what the Fock pass just built.  Same
-shape, same smell — and it is the one remaining write inside the loop.  ⛔ **`DB_Cache` is NOT the answer, and the
-reason is LIFETIME rather than the key**: it is a process-wide store that **never evicts**, built for
-cross-run sharing (its own header: *"allow data sharing between separate runs"*), while the
-\f$H_{ij}\f$ memo turns over **every SCF iteration** and is never reusable across runs.  Twenty iterations
-would leave twenty generations of every block in it.  *Ask what a cache EVICTS before asking what it keys
-on.*  ▶ The fix in the spirit of this pin is an explicit **per-iteration scope** that owns the matrices and
-dies with the iteration — which also retires the last write-shaped obstacle in the block loop, because the
-slots are CREATED in the phase and the loop only fills nodes that already exist.  Filed as `doc/Records/CleanupHistory3.md` R1.0h.
+A number the physics determines should never be a user dial.  The origin: an early DFT+U asked the user for
+U, which would stall a new student for weeks.  The answer is that the code learns to compute U (and J, V)
+self-consistently; this is hard, but the know-how accumulates in the code.  What the user still supplies is
+SCOPE: (1) which atoms/shells get a correction, (2) which energy window defines the correlated subspace.
+That is still a real decision, but a much smaller one.  See pin 23.
 
-## 12. No grad-student knobs
+Boundary between compiled code and the (planned) GUI agent, as a working proposal rather than a ruling:
+- Code owns anything deterministic and reproducible that a test can pin: computing U, mixing parameters,
+  convergence decisions.
+- The agent/user owns choices that depend on scientific intent.
+- For scope choices the code should still *surface the evidence* as structured output (candidate windows
+  from a DOS minimum or a projected-character gap, candidate sites by projected d/f weight, each with its
+  reason), so the agent and the GUI both consume one API and a recommendation is reproducible.  The code
+  recommends; the user confirms.
 
-Policy enums, not numeric dials.  A number a user has to tune is a design failure looking for somewhere to
-live.
+## 13. A symmetry op acts on grid indices as \f$DUD^{-1}\f$, not as \f$U\f$
 
-## 13. A symmetry op acts on GRID INDICES as \f$DUD^{-1}\f$, never as \f$U\f$
+A grid point is \f$k=(i+s)/N\f$ componentwise, so an op \f$U\f$ acts on the index lattice by
+\f$M=DUD^{-1}\f$ with \f$D=\mathrm{diag}(N)\f$ (\f$i' = M(i+s)-s\f$).  \f$M=U\f$ only on an isotropic mesh,
+which is why applying \f$U\f$ to indices works on every \f$n\times n\times n\f$ mesh and silently fails on
+\f$2\times1\times1\f$.  A mod-N wrap does not validate a map: reducing a stray image into \f$[0,N)\f$ always
+yields some grid point.  Test the OP once: \f$M\f$ must be integral (then it is unimodular, so a
+permutation), and \f$(M-I)s\f$ integral for a shifted mesh.  An op failing either is not a symmetry of
+that mesh and must be dropped whole.  Cost: IBZ stars overlapped on Si \f$2\times1\times1\f$,
+\f$\Sigma w=1.5\f$, 12 electrons in an 8-electron cell (KP-0; `OpenWork_History3.md`).  Still open: the
+group that symmetrizes ρ must be intersected with the mesh symmetries (`OOD-SOLID-Cleanup.md` R1.0r).
 
-A grid point is \f$k=(i+s)/N\f$ **componentwise**, so an op \f$U\f$ induces on the index lattice the
-CONJUGATED map \f$M = D U D^{-1}\f$ with \f$D=\mathrm{diag}(N)\f$, i.e. \f$M_{ab}=N_a U_{ab}/N_b\f$ and
-\f$i' = M(i+s)-s\f$.  \f$M=U\f$ **only when the mesh is isotropic**, which is why applying \f$U\f$ to the
-indices is right on every \f$n\times n\times n\f$ mesh and silently wrong on \f$2\times1\times1\f$.
+## 14. Libraries follow the basis FAMILY, modules carry the symmetry GROUP
 
-⛔ **AND A MOD-\f$N\f$ WRAP IS NOT A LICENCE TO PROCEED.**  Reducing a stray image back into \f$[0,N)\f$
-always yields *a* grid point, so a map that is not a mesh symmetry looks like one.  The test is
-\f$M\f$ INTEGRAL (then \f$\det M=\det U=\pm1\f$ makes it unimodular over \f$\mathbb{Z}\f$, so the action is
-a PERMUTATION) plus \f$(M-I)s\f$ integral for a shifted mesh — both properties of the OP, checked once,
-not of the point.  An op failing either is not a symmetry of that mesh and must be dropped whole.
+`BasisSet = ⊕_irreps IrrepBasisSet`, each carrying one irrep label of G, the Hamiltonian's symmetry group.
+Three orthogonal axes: **G** (block labels, `qcSymmetry`), **family** (Gaussian, Slater, BSpline, PW, delta;
+this is the integral engine), **construction** (subduce or induce; derived).  A library is an engine (its
+integrals factorise over the family, so `UnitCell` inside the Gaussian engine is legitimate); a module
+carries the G (`…Gaussian.Point.*` vs `…Gaussian.Lattice.*`), enforced by `scripts/audit-basisset-gtags`
+(no `.Point.` module imports `qchem.UnitCell` or `qchem.Symmetry.Lattice_3D.*`).  Spin is a factor of G until
+a double group dissolves it, so Pol/UnPol is an imposed subgroup (V1.37), not a type.  Cost: the tree was
+cut on the wrong axis and V1.33 re-cut it in eleven commits.  Record: `BasisSetTaxonomyPlan.md` §1.
 
-**What it cost:** the IBZ stars overlapped on Si \f$2\times1\times1\f$, \f$\Sigma w=1.5\f$, and the SCF
-carried 12 electrons in an 8-electron cell (KP-0, 2026-09-09; record in `doc/Records/OpenWork_History3.md`).
-▶ Corollary, still open: the group that symmetrizes \f$\rho\f$ must then be intersected with the mesh
-symmetries, or the density is projected into a symmetry the sampling does not have
-(`doc/OOD-SOLID-Cleanup.md` R1.0r).
+## 15. Smearing needs kT above the frontier splitting; GDM as built is fixed-occupation
 
-## 14. An IrrepBasisSet carries ONE irrep of G; libraries follow the FAMILY, modules carry the GROUP
+(a) kT must exceed the frontier splitting or the occupations slosh instead of converging (NaF: 1e-2
+converges, 1e-3 does not).  (b) The GDM minimiser diverges under smearing, because its direction is the
+fixed-occupation \f$[F,D]\f$ and not the free-energy gradient.  So smeared runs use the fixed-point stage
+(DIIS/Kerker/Pulay) and GDM polishes only at kT=0 until it has a smearing-aware direction.  This is a limit of
+our parameterisation, not of the method (CP2K's OT has the same axis scaffolded): do not conflate
+hold-the-block with don't-smear.  Records: `GPWPlan1.md` (2026-07-26), `SCFStrategyPlan.md`.
 
-`BasisSet = ⊕_irreps IrrepBasisSet`, the irrep a label of G, the symmetry group of the Hamiltonian.
-Carriers are not invariants (\f$Y_{lm}\f$, \f$e^{i\mathbf{k}\cdot\mathbf{r}}\f$, a SALC each *transform as*
-an irrep); k is an irrep label of the translation group exactly as \f$l\f$ labels O(3).  Three orthogonal
-axes: **G** (block labels, `qcSymmetry`), **family** (the analytic seed — Gaussian, Slater, BSpline, PW,
-delta; = the integral ENGINE), **construction** (subduce \f$G_{big}\downarrow G\f$ or induce site \f$\uparrow G\f$;
-derived, never free).  Placement: **a LIBRARY is an engine** (its mass is its integrals, which factorise
-over the family, so `UnitCell` inside the Gaussian engine is legitimate and a cut on the G axis is ruled
-out); **a MODULE carries the G** (`…Gaussian.Point.*` vs `…Gaussian.Lattice.*`), enforced by the ctest grep
-*no `.Point.` module imports `qchem.UnitCell` or `qchem.Symmetry.Lattice_3D.*`* (`scripts/audit-basisset-gtags`).
-Spin is a factor of G (\f$G_{spatial}\times SU(2)\f$) until a double group dissolves it — which is why
-Pol/UnPol is an imposed SUBGROUP (V1.37), not a type.  **What it cost:** the tree had been cut on the wrong
-axis (`qchem.UnitCell` imported inside `Molecule/`); V1.33 re-cut it in eleven commits.  Record:
-`doc/Records/BasisSetTaxonomyPlan.md` §1; Doxygen `\ref basisset_taxonomy`.
+## 16. Match basis spans before comparing to an oracle
 
-## 15. Smearing needs kT ABOVE the frontier splitting, and GDM as built is fixed-occupation
+MnO with Cartesian d (s-contaminants): FM 40 mHa below AFM.  Same cell with spherical d: AFM 45.5 mHa below
+FM.  No code bug, only the span.  The extra s-like functions let the density dodge the l=0 KB projectors,
+which the oracle's spherical basis cannot do, and an earlier "8 mHa agreement" with CP2K was compensation
+between contaminants and diffuse functions.  So: match both spans exponent-for-exponent before comparing
+energies (`valence_lowq_sph` v2 is the CP2K transcription), and don't use a Cartesian-d basis for a d-metal
+ordering question.  Record: `SphericalLatticePlan.md` I0–I2.
 
-Two measured facts from the Fermi-smearing build (`doc/Records/GPWPlan1.md`, 2026-07-26): **(a)** kT must EXCEED the
-frontier splitting or the occupations slosh-rotate instead of converging (NaF: 1e-2 converges, 1e-3 does
-not); **(b)** the GDM direct minimiser DIVERGES under smearing because its geodesic direction is the
-fixed-occupation \f$[F,D]\f$, not the free-energy gradient (which carries an occupation-response term).
-⇒ smeared runs use the fixed-point stage (DIIS/Kerker/Pulay); GDM tail-polishes only at kT=0 until it has a
-smearing-aware direction.  ⚠ This is a limit of OUR parameterisation, not of the method — CP2K's OT has the
-same axis scaffolded; **never conflate hold-the-block with don't-smear** (`doc/Records/SCFStrategyPlan.md`).
+## 17. A class reports contemporaneously with its own activity
 
-## 16. A basis SPAN can reverse a magnetic ordering — match spans before comparing to an oracle
+`CurrentReport` is a global sink; each class emits when it does the thing, so console order is execution
+order.  An `Emit*()` method on an abstract face, or a reporter that pulls state out of objects afterward,
+is the defect (user, 2026-09-11; V1.5 deleted the `Emit*()` faces).  Corollary: a printed trace number is
+either physics or a gate the run consumes; printing \f$\alpha_{eff}\f$ implied it was used, so it was
+deleted (user, 2026-09-13).  Records: `RunReportPlan.md`, `CleanupHistory3.md` V1.5.
 
-MnO with Cartesian d (its \f$r^2e^{-\alpha r^2}\f$ s-contaminants): FM below AFM by 40 mHa.  The same
-cell through the spherical-d view: AFM below FM by 45.5 mHa — **no code bug, the span**.  Mechanism: the
-extra s-like functions let the density rearrange s-character away from the l=0 KB projectors (an l=0
-repulsion DODGE worth 37% of the weak basin's reward), a freedom the oracle's spherical basis structurally
-lacks.  And the earlier "8 mHa agreement" with CP2K was contaminants-vs-diffuse COMPENSATION.  ⇒ Before
-any energy is compared to an oracle, the two spans are matched exponent-for-exponent
-(`valence_lowq_sph` v2 = the CP2K transcription), and a Cartesian-d basis is never used for a d-metal
-ordering question.  Record: `doc/Records/SphericalLatticePlan.md` I0–I2.
+## 18. XC is fed the mixer's density; a separately damped XC feed destroys Kerker's mode selectivity
 
-## 17. A class reports CONTEMPORANEOUSLY with its own activity — console order == execution order
+Four collapsed MnO states (−45.5, −46.3, −56.4, −38.5 vs the converged −61.403) had one cause, a monotone
+dose-response in \f$E_{ee}\f$ (13.5 → 29.0 → 35.1): giving \f$V_{xc}\f$ a density damped by a flat
+\f$\alpha_{eff}\f$ un-damps the low-G charge mode 2.4× and barely touches the AFM mode.  Kerker's low-G
+charge-slosh damping is what holds the AFM basin; the moment collapse follows from the charge runaway and
+is not a spin effect.  So the XC feed is never a second, independently damped copy of the density.  The
+ρ≥0 goal survives (the DM route gives 0 negative points against 15% for the band-limited ρ̃) via the cusp
+deficit \f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$, with no \f$\alpha_{eff}\f$ to choose (N4,
+still to be measured).  Also: \f$\tilde\rho_{mix}\f$ and \f$\rho[D]\f$ have different fixed points (ρ̃ is a
+band-limited fit projection; NaF 139 μHa), so "at convergence they agree" is false, and \f$E_{ee}\f$ is a
+validated charge-slosh detector (T3).  Record: `OpenWork_History4.md` "ITEM 1 MEASURED" + "N4".
 
-`CurrentReport` is a global sink; each class emits at the moment it does the thing, and never tells
-another class to emit.  An `Emit*()` method on an abstract face, or a "reporter" that PULLS state out of
-objects after the fact, is the defect (user, 2026-09-11; V1.5 deleted the `Emit*()` faces).  Corollary for
-trace columns: a printed number is either physics or a gate the run CONSUMES — printing \f$\alpha_{eff}\f$
-implied it was used, and it was deleted for that reason (user, 2026-09-13).  Record: `doc/Records/RunReportPlan.md`
-(the design), `doc/Records/CleanupHistory3.md` V1.5.
+## 19. Never density-screen the gather — \f$h_{ij}\f$ is diagonalised, not traced
 
-## 18. XC is fed the MIXER'S density; a separately-damped XC feed destroys Kerker's mode selectivity
+Dropping a term because \f$D_{ij}=0\f$ is sound for the energy (\f$\mathrm{Tr}(Dh)\f$ is blind to it) and
+wrong for the Fock matrix, which is diagonalised to make the next density.  Zeroing \f$h_{ij}\f$ where the
+density vanishes is self-fulfilling: a pair with no density can never acquire any, and with a diagonal SAD
+seed that is every off-diagonal element.  CP2K does not D-screen at all (`task_list_methods.F`: one global
+`eps_rho_rspace`, geometry only).  Flooring a vanishing weight broke the stream fold's orbit invariance
+(0.14 vs 2.4e-8), so the gather's D-screen was removed (2026-09-04); the D-aware tolerance survives only on
+the collocation, where the weight really is the scatter weight.  `cij==0` had meant both "structurally
+absent" and "zero density"; only the first may be excluded.  Record: History4 "THE k-SCALING GAP" + "ATTEMPT 2".
 
-Four collapsed MnO states (−45.5, −46.3, −56.4, −38.5 against the converged −61.403) came from ONE cause,
-measured as a monotone dose-response in \f$E_{ee}\f$ (13.5 → 29.0 → 35.1): handing \f$V_{xc}\f$ a density
-damped by a FLAT \f$\alpha_{eff}\f$ un-damps the low-G CHARGE mode 2.4× while barely touching the AFM mode
-— **Kerker's low-G charge-slosh damping is what holds the AFM basin**, and the moment death is a
-consequence of the charge runaway, not a spin effect.  So the XC feed is never a second, independently
-damped copy of the density.  The ρ≥0 GOAL survives (the DM route gives 0 negative points against 15%
-for the band-limited ρ̃): the form that keeps it is the **cusp deficit**,
-\f$\rho_{XC}=\rho_{mix}+(\rho[D]_{exact}-\rho[D]_{BL})\f$ — Hartree's own mixed array plus the sharp
-content only the DM can supply, with no \f$\alpha_{eff}\f$ to choose (N4, still to be measured).
-Two facts that ride with it: **\f$\tilde\rho_{mix}\f$ and \f$\rho[D]\f$ have DIFFERENT fixed points**
-(ρ̃ is a band-limited fit projection; NaF 139 μHa, MnO terms ~100 mHa at 8 μHa total), so "at convergence
-they agree" is false; and **\f$E_{ee}\f$ is a validated charge-slosh detector** (T3).  Record:
-`doc/Records/OpenWork_History4.md` "ITEM 1 MEASURED" + "N4".
+## 20. Ask what a matrix means before symmetrizing it
 
-## 19. Never density-screen the GATHER — \f$h_{ij}\f$ is diagonalised, not traced
+The first T3 stream fold orbit-averaged `screenD`, a matrix of \f$|D_{ij}|\f$ magnitudes, not a density
+matrix.  Signed averaging cancelled mixed-σ orbits to ~0, the D-aware screen dropped live terms, and the
+imposed O₂ triplet collapsed by 2.3 Ha.  A screen is reduced by the orbit MAX (`FoldScreenMax`), a density
+by the orbit projection (`FoldProjectedD`); reading the representative's own \f$D_{ij}\f$ samples the orbit,
+which equals projecting only if D is already symmetric.  Gate: the dimer-in-a-box cell (single-atom Si
+cells miss this bug).  Record: History4 "Step 2 — ARM THE SYMMETRY FOLDS".
 
-Dropping a term because \f$D_{ij}=0\f$ is sound for the ENERGY (\f$\mathrm{Tr}(Dh)\f$ is blind to it) and
-WRONG for the Fock matrix, which is diagonalised to make the next density: zeroing \f$h_{ij}\f$ wherever
-the density vanishes is a SELF-FULFILLING truncation — a pair with no density can never acquire any, and
-with a DIAGONAL SAD seed that is every off-diagonal element.  CP2K does not D-screen at all (checked in
-`task_list_methods.F`: one global `eps_rho_rspace`, geometry only).  The fix that "worked" (floor a
-vanishing weight) BROKE the stream fold's orbit invariance (0.14 against 2.4e-8) — so the gather's D-screen
-was REMOVED (2026-09-04) and the D-aware tolerance survives only on the COLLOCATION, where the weight
-really is the scatter weight.  ⚠ `cij==0` had meant BOTH "structurally absent" and "zero density"; only
-the first may be excluded.  Record: History4 "THE k-SCALING GAP" + "ATTEMPT 2".
+## 21, 22. (folded into 7)
 
-## 20. Ask what a matrix MEANS before symmetrizing it
+## 23. DFT+U lessons (summary; evidence in `doc/Records/HubbardUHistory.md`)
 
-The first cut of the T3 stream fold orbit-averaged the integrate-back's `screenD` — a matrix of
-\f$|D_{ij}|\f$ MAGNITUDES, not a density matrix.  Signed averaging cancelled mixed-σ orbits to ~0, the
-D-aware screen dropped live terms, and the imposed O₂ triplet collapsed by 2.3 Ha.  A screen is reduced by
-the orbit **MAX** (`FoldScreenMax`), a density by the orbit PROJECTION (`FoldProjectedD` — reading the
-representative's own \f$D_{ij}\f$ SAMPLES the orbit, and sampling equals projecting only if D is already
-symmetric).  Gate: the dimer-in-a-box cell — single-atom Si cells miss this bug entirely.  Record:
-History4 "Step 2 — ARM THE SYMMETRY FOLDS".
+Plan: `doc/HubbardUPlan.md`.  The earlier long texts of pins 23–25 are archived in the history record.
 
-## 21. Pivoted Cholesky where D is PSD — and a Cholesky that FAILS is the canary, never a silent fallback
+- **+U is orbital-resolved.**  U is a vector over (site, shell, site-group irrep); the term takes a list of
+  (site, shell, irrep, U) and no code path may assume the Hubbard atom is the transition metal.  Shell-averaging
+  suppresses intrashell screening (FeS₂ U 7.37 → 3.29/2.16 resolved), and the wrong manifold is worse than the
+  wrong U: β-MnO₂'s gap opened with a correction on O-p_z, not Mn-d.  Projector = Löwdin OAO on the site block.
+- **The manifold and the energy window are inputs, not derivations.**  With entangled bands (NiO Ni-3d/O-2p)
+  there is no window-independent "correlated subspace": cRPA and LRT disagree 16× on Sr₂FeO₄ from the window
+  alone (Carta et al., arXiv:2505.03698).  The code should recommend a window where a natural one exists
+  (pin 12), not hide the choice.  LRT and cRPA belong behind the same estimator face as ACBN0.
+- **Labels: two groups, neither the cell's.**  The site group is the declared decoration's Shubnikov
+  stabiliser; the parent group that names "e_g < t2g" is the point group of the site's coordination
+  environment (`Lattice_3D::SiteEnvironmentRotations`), not the cell's (D_3d on rhombohedral AFM-II MnO,
+  which names nothing).  The occupation matrix is never symmetrised: symmetry names its eigenvectors, it
+  does not edit them.  Nearly degenerate clusters have ill-conditioned names (Macke's tracking problem).
+- **A linear-response U is conditioned on the state it linearises about.**  NiO's hp.x 5.267 eV is
+  U_LR(U_in=3 eV) (5.434 at U_in=0); quote U_in beside every response value.  When χ₀ ≈ χ (MnO d⁵, ZnO d¹⁰)
+  same-site U is a difference of near-equal small numbers and not an oracle.
+- **Two comparisons, never merged.**  Ours ÷ published-ACBN0 (1.8–2.8×) measures projector completeness
+  (their minimal PAO keeps ~60% of the norm), not screening.  Only ours ÷ an independent matched-PP oracle
+  (hp.x) tests screening; label each oracle row matched-PP or different-PP.  Never build a gate on an
+  ACBN0-derived target (retracted 2026-09-23; screened-ACBN0 refuted 2026-09-25).
+- **An iteration cap is not a verdict.**  Three wrong conclusions here were a capped run read as "does not
+  converge".
 
-Standing preference (user, 2026-08-20): factor a density matrix by pivoted Cholesky (greedy on the
-diagonal, truncation bounded by the trailing diagonal, no rotational noise), not a trimmed
-eigendecomposition.  Its LIMIT, narrowed the same day: the objection to trimmed eigen comes from ORBITAL
-work where the factor is INVERTED (\f$S^{-1/2}\f$, \f$1/\lambda\f$ amplification); where the factor is only
-MULTIPLIED (\f$\rho_g=\|L^\dagger\Phi_g\|^2\f$) the error is bounded and eigen is admissible.  **D is PSD in
-this tree only because no mixer EXTRAPOLATES D** (`LinearMixer` is convex, α∈[0,1]; Pulay/Broyden act on
-\f$\tilde\rho\f$) — a property of today's mixer set, not a theorem.  It dies with a density-space Pulay,
-α>1, or MP/cold smearing (negative occupations).  ⇒ a failing pivoted Cholesky is exactly the signal that D
-left the cone: make it LOUD and route to the eigen split.  ⚠ PSD tests need a RELATIVE floor — an
-eigensolver always returns O(ε·λmax) negatives.  (USPP/PAW augmentation charges can drive ρ<0 with a PSD
-D; not this tree, which is norm-conserving.)  Record: History4 "THE ρ GEMM — LOW-RANK D".
+## 24, 25. (folded into 23)
 
-## 22. Basis AUTO-trimming is a VET-stage, SYMMETRY-EQUIVARIANT, WHOLE-ORBIT decision on S — never a per-function filter at ortho time
+## 26. CP2K DFT+U reports `trq` scaled by `fspin`
 
-Three user rulings (2026-08-14/15/26): **(a) not display-only** — the trim happens BEFORE anything
-downstream is built (grid ladder, collocation task lists, KB projections all fall out of the surviving
-function list; filtering at ortho time does the dropped functions' work for nothing); **(b) the rank
-decision is a property of S, i.e. of the BASIS, made ONCE** — not re-derived per spin channel;
-**(c) drop whole ORBITS under the (magnetic) space group, never individual AOs** — greedy per-function
-pivoting resolves symmetry-tied pivots by numerical noise (runs 58–60 dropped O₁'s p(0.18) but O₂'s
-s(0.15)), and a partial orbit is a symmetry-BROKEN basis that costs both site equivalence and the run's
-ability to converge at all (*"would sometimes remove only 3/4"*).  Report the decision as a BASIS (species / shell /
-exponent), not bare indices.  Open work: the vet-stage trim itself (`doc/OpenWork.md`).  Record: History4
-"Continuous — CLEANUP".
-
-**Addendum 2026-09-23 (user, on the word AUTO).**  The vet-stage trim is an **automatic** trim and stays
-one — what is refuted is auto-trimming in the other two places it was ever tried: the SCRIPT that rewrote
-the committed `.bsd` (retired; VA/VB exist because a run could not say which span it used) and the
-ORTHO-TIME per-function drop.  ⇒ the ortho-time path gets exactly TWO behaviours: **(1) shut up and work,
-or (2) make noise with enough information to fix the BASIS** — never a silent third option that quietly
-edits the span.  ⚠ Today it does the third: `LASolverCholeskyPivoted` drops and prints `dropped AO index 47`,
-a bare index, from a linear-algebra layer that does not know what a shell or an exponent is.
-★ **The cure is an EXCEPTION, not a decorated return type** (user: *"this may be one situation where
-exceptions are a good design.  Probably cleaner than decorating the LASolver return types with fallible
-flags and other index info"*) — `throw` is already this tree's marker (CLAUDE.md), the throw carries the
-indices and pivots, and the layer that OWNS the basis catches it and names species/shell/exponent.
-**Two things make the vet-stage trim harder than it looks, and the unit tests must cover both** (user):
-(a) under CARTESIAN d/f a shell is not a pure \f$l\f$ — the \f$l-2\f$ contaminants (s inside d, p inside f)
-mean "drop a whole orbit" has to reckon with functions that carry two characters at once, which is the same
-defect that produced the SR span's two-exponent s window; (b) the rank decision depends critically on
-LATTICE SPACING, so a trim validated on one cell says nothing about a denser one — the tests need a
-spacing axis, not a single geometry.
-
-## 23. +U is ORBITAL-RESOLVED — U is a vector over (site, shell, site-group irrep); the manifold is an INPUT, never Mn-d by assumption
-
-Ruled 2026-09-16 (user, on Macke et al. JCTC 2024 and ACBN0).  In the eigenbasis of the site occupation
-matrix \f$E_U=\sum_i\tfrac{U_i}{2}\lambda_i(1-\lambda_i)\f$; the shell-averaged Dudarev form is the special case
-\f$U_i=U\f$ — the same shape as pin 5 (unpolarized is the ζ=0 collapse), applied to +U.  The (t2g, e_g)
-split is the site-point-group irrep decomposition, so the labels are fixed by symmetry; eigenvalue
-tracking is only for a site symmetry lower than the split.  **Why it is a ruling and not a preference:**
-shell-averaging suppresses intrashell screening (perturbing t2g and e_g together zeroes the channel that
-screens them: FeS₂ U 7.37 → 3.29/2.16 resolved), and the WRONG manifold is worse than the wrong U — the
-correction that opened β-MnO₂'s gap was on **O-p_z**, not Mn-d, and correcting FeS₂'s hybridised e_g at all
-broke its structure.  User: *"I have seen other examples where O played an unexpected role in TMOs."*  ⇒ the
-term takes a LIST of (site, shell, irrep, U); no code path may assume the Hubbard atom is the transition
-metal.  Projector = Löwdin OAO on the site block.  U values are never hand-tuned in production (pin 12):
-ACBN0-style from our own on-site ERIs, checked against QE `hp.x`.  Record: `doc/OpenWork.md` §1 step 5.
-**Addendum 2026-09-21 (increment 2, earned by a wrong table):** the labels have TWO groups and neither is
-the cell's.  The SITE group is the declared decoration's Shubnikov stabiliser (σ=None) — the order splits
-t2g → a1g + e_g and the labels must see it.  The PARENT group that names a site level "e_g < t2g" is the
-point group of the site's **coordination environment** (`Lattice_3D::SiteEnvironmentRotations`), NOT the
-(super)cell's grey stabiliser: on the rhombohedral AFM-II MnO cell the latter is D_3d (12 ops) with or
-without decoration and names nothing — measured, after the tree had asserted O_h for a week.  And the
-occupation matrix is NEVER symmetrised: symmetry NAMES the eigenvectors of the density's own n (isotypic
-projectors, `purity` printed), it does not edit them — a free run's broken symmetry must keep its own
-occupations, and the functional must stay dE/dD.  Inside a degenerate cluster the eigenbasis is rotated
-to the projectors (n is unchanged); inside a NEARLY degenerate one (four λ≈0.999 on a full majority
-shell) the names are ill-conditioned by nature — that is Macke's tracking problem, and the printed
-`parentage` says so rather than hiding it.
-
-**Addendum 2026-09-25 (user, reading Carta, Timrov, Beck & Ederer, arXiv:2505.03698 — the manifold
-question is not a defect to engineer away):** the same "manifold is an INPUT" ruling extends from WHICH
-site/shell/irrep to WHICH ENERGY WINDOW, and for the identical reason.  Carta et al. formally bridge cRPA
-and linear-response U for an ISOLATED set of bands (their Eq. 5: the two agree once the xc-response and
-the coarse-graining's dropped intra-subspace channels are both accounted for) — but for an ENTANGLED
-interacting/screening split, cRPA becomes ambiguous and can collapse to an unphysically small U while LRT
-"remains largely unaffected" (their Sr₂FeO₄ Fe-3d: 0.42 eV cRPA vs. 6.94–7.29 eV LRT, SAME orbital, SAME
-material, a 16× gap from the WINDOW CHOICE alone).  NiO's Ni-3d/O-2p complex (bands 11–26, no clean
-separation — `doc/HubbardUPlan.md` A2) is exactly their "entangled" case, so our own O-2p cRPA number is
-suspected of being this same pathology, not new screening physics — a finding earned by the paper, not by
-our own retraction discipline this time, but the same shape as A1's Mulliken lesson: **there is no
-basis-independent "the d-band" any more than there is a window-independent "the correlated subspace."**
-A grad student forced to draw an energy-window cut on a DOS plot is not doing something wrong — it is the
-only thing that CAN be done — and Carta et al.'s own fix was not to dissolve the choice but to make it
-ONE EXPLICIT, SHARED PROJECTOR (Wannier) so two methods could even be compared.  ⇒ two consequences, not
-one: (i) the manifold/window stays an input, never a recommended default masquerading as a derivation;
-(ii) **the code should RECOMMEND a window when a natural one exists** (a DOS minimum, a projected-character
-gap) rather than only accept one — surfacing the choice is not the same as making it, and a tool that can
-show *why* a cut is natural is strictly better than one that is silent.  Architecturally: LRT and cRPA
-belong in the tree as ADDITIONAL CONCRETE STRATEGIES behind the same abstract estimator face `ACBN0`
-already sits behind (`HubbardProjection`/`HubbardUEstimator`, increment 3) — DIP, not a special case for
-each — tracked as a `doc/OpenWork.md` §2 feature row, not decided here.
-
-## 24. A linear-response number is conditioned on the state it linearises about — and same-site LRT is ill-posed for Pauli-saturated shells
-
-An hp.x (or our DFPT) U is dn/dα at a SPECIFIC reference state: NiO's 5.267 eV is U_LR(U_in = 3 eV), not a
-property of the material, and it differs at U_in = 0 (5.434).  Quote U_in beside every response value and read
-the `HUBBARD` block of a deck rather than assuming zero.  And when χ₀ ≈ χ (MnO d⁵ half-filled, ZnO d¹⁰ closed
-shell) the same-site U = (χ₀⁻¹ − χ⁻¹)_II is a difference of near-equal small numbers: it is not an oracle, and no
-projector choice rescues it (`doc/Records/HubbardUHistory.md`, A6 table).  Also: an iteration CAP is not a
-verdict — three wrong conclusions in this project were a capped run read as "does not converge".
-
-## 25. Two comparisons, never merged: projector completeness vs screening — and no target may be derived from the method under test
-
-Ours ÷ published-ACBN0 (factors 1.8–2.8) measures PROJECTOR COMPLETENESS (their minimal PAO keeps ~60 % of the
-norm), not screening.  Only ours ÷ an INDEPENDENT oracle (matched-pseudopotential hp.x, never ACBN0 or an
-ACBN0-derived target) tests the screening model; label every oracle row matched-PP or different-PP.  ACBN0's N̄²
-renormalisation vanishes as the basis completes, so it is not a screening model, and an oracle gate built on an
-ACBN0 target is circular (retracted 2026-09-23; screened-ACBN0 refuted 2026-09-25).
-
----
-
-**Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/OldPlans/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
-13 is the KP-0 multi-k defect (2026-09-09).  14–17 were harvested 2026-09-16 when their plan files went RECORD
-(`BasisSetTaxonomyPlan`, `GPWPlan1`, `SphericalLatticePlan`, `RunReportPlan`); pin 10's anchor rule came from
-`TestSuitePlan` the same day.  18–22 were harvested from the v2 `OpenWork.md` when it was rebuilt as v3
-(2026-09-16, `doc/Records/OpenWork_History4.md`) — the ⛔ findings that were durable rather than in the weeds.  23 is the DFT+U ruling of the same day; its 2026-09-25 addendum (the manifold/window choice as an
-irreducible input, not a derivation) came from the user reading Carta et al. arXiv:2505.03698 against our
-own NiO O-2p cRPA puzzle (`doc/HubbardUPlan.md` §7).
-2, 4, 6 are user rulings recorded in session memory (`feedback_everything_is_a_fit`,
-`feedback_integrated_observables`, `feedback_pw_fitting_uniform_interface`) and had no home in the repo
-until now.
-24 and 25 came from the DFT+U oracle campaign (2026-09-23..30); evidence in `doc/Records/HubbardUHistory.md`.
-26 and 27 came from the 2026-09-29/20 CP2K-alpha and (ρ,m)-Kerker work (`OpenWork_History5.md`).
-
-## 26. CP2K DFT+U reports `trq` scaled by `fspin` — a closed-shell (RKS) probe reads HALF the true occupation
-
-`dft_plus_u.F` multiplies the reported manifold trace by `fspin` (0.5 for RKS, 1.0 for UKS).  Taking
-`E_DFT+U = alpha*trq` at face value gives χ 2× too small on a closed-shell oracle run; double it (exact when
-U_MINUS_J=0).  Earned by the CK-alpha Si cross-check (χ −14.5164 vs ours −14.5117 only AFTER the fix).
-Record: `doc/HubbardUPlan.md`, `doc/Records/OpenWork_History5.md` §2.
+`dft_plus_u.F` multiplies the reported manifold trace by `fspin` (0.5 for RKS, 1.0 for UKS), so
+`E_DFT+U = alpha*trq` read at face value gives χ 2× too small on a closed-shell oracle run; double it (exact
+when U_MINUS_J=0).  Earned by the CK-alpha Si cross-check (χ −14.5164 vs ours −14.5117 only after the fix).
+Records: `HubbardUPlan.md`, `OpenWork_History5.md` §2.
 
 ## 27. A Kerker-type filter `g²/(g²+G0²)` must define its G=0 value
 
-With a leaf's `G0=0` (linear, undamped, e.g. the m channel of (ρ,m) mixing) it is 0/0 at G=0 and the NaN rides
-into the rebuilt channels and v_xc.  The guard is `g2>0 ? … : 1.0` (full mixing, not frozen); gate
-`GPW_Si.Γ_Imp_Pol_Kerker_eqUnpol`.  Record: `OpenWork_History5.md` (rows "(ρ,m) Kerker on an exact SINGLET").
+With a leaf's `G0=0` (the undamped m channel of (ρ,m) mixing) it is 0/0 at G=0 and the NaN rides into the
+rebuilt channels and v_xc.  Guard: `g2>0 ? … : 1.0` (full mixing, not frozen); gate
+`GPW_Si.Γ_Imp_Pol_Kerker_eqUnpol`.  Record: `OpenWork_History5.md` ("(ρ,m) Kerker on an exact SINGLET").

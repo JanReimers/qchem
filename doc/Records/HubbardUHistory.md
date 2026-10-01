@@ -1599,3 +1599,75 @@ empty-vector-means-no-route signalling (`CleanupCandidates.md` R1.0n/R1.0o).
 
 ---
 
+
+
+---
+
+## Pins.md pins 23-25 verbatim as of 2026-10-01 (archived when Pins.md was condensed)
+
+## 23. +U is ORBITAL-RESOLVED — U is a vector over (site, shell, site-group irrep); the manifold is an INPUT, never Mn-d by assumption
+
+Ruled 2026-09-16 (user, on Macke et al. JCTC 2024 and ACBN0).  In the eigenbasis of the site occupation
+matrix \f$E_U=\sum_i\tfrac{U_i}{2}\lambda_i(1-\lambda_i)\f$; the shell-averaged Dudarev form is the special case
+\f$U_i=U\f$ — the same shape as pin 5 (unpolarized is the ζ=0 collapse), applied to +U.  The (t2g, e_g)
+split is the site-point-group irrep decomposition, so the labels are fixed by symmetry; eigenvalue
+tracking is only for a site symmetry lower than the split.  **Why it is a ruling and not a preference:**
+shell-averaging suppresses intrashell screening (perturbing t2g and e_g together zeroes the channel that
+screens them: FeS₂ U 7.37 → 3.29/2.16 resolved), and the WRONG manifold is worse than the wrong U — the
+correction that opened β-MnO₂'s gap was on **O-p_z**, not Mn-d, and correcting FeS₂'s hybridised e_g at all
+broke its structure.  User: *"I have seen other examples where O played an unexpected role in TMOs."*  ⇒ the
+term takes a LIST of (site, shell, irrep, U); no code path may assume the Hubbard atom is the transition
+metal.  Projector = Löwdin OAO on the site block.  U values are never hand-tuned in production (pin 12):
+ACBN0-style from our own on-site ERIs, checked against QE `hp.x`.  Record: `doc/OpenWork.md` §1 step 5.
+**Addendum 2026-09-21 (increment 2, earned by a wrong table):** the labels have TWO groups and neither is
+the cell's.  The SITE group is the declared decoration's Shubnikov stabiliser (σ=None) — the order splits
+t2g → a1g + e_g and the labels must see it.  The PARENT group that names a site level "e_g < t2g" is the
+point group of the site's **coordination environment** (`Lattice_3D::SiteEnvironmentRotations`), NOT the
+(super)cell's grey stabiliser: on the rhombohedral AFM-II MnO cell the latter is D_3d (12 ops) with or
+without decoration and names nothing — measured, after the tree had asserted O_h for a week.  And the
+occupation matrix is NEVER symmetrised: symmetry NAMES the eigenvectors of the density's own n (isotypic
+projectors, `purity` printed), it does not edit them — a free run's broken symmetry must keep its own
+occupations, and the functional must stay dE/dD.  Inside a degenerate cluster the eigenbasis is rotated
+to the projectors (n is unchanged); inside a NEARLY degenerate one (four λ≈0.999 on a full majority
+shell) the names are ill-conditioned by nature — that is Macke's tracking problem, and the printed
+`parentage` says so rather than hiding it.
+
+**Addendum 2026-09-25 (user, reading Carta, Timrov, Beck & Ederer, arXiv:2505.03698 — the manifold
+question is not a defect to engineer away):** the same "manifold is an INPUT" ruling extends from WHICH
+site/shell/irrep to WHICH ENERGY WINDOW, and for the identical reason.  Carta et al. formally bridge cRPA
+and linear-response U for an ISOLATED set of bands (their Eq. 5: the two agree once the xc-response and
+the coarse-graining's dropped intra-subspace channels are both accounted for) — but for an ENTANGLED
+interacting/screening split, cRPA becomes ambiguous and can collapse to an unphysically small U while LRT
+"remains largely unaffected" (their Sr₂FeO₄ Fe-3d: 0.42 eV cRPA vs. 6.94–7.29 eV LRT, SAME orbital, SAME
+material, a 16× gap from the WINDOW CHOICE alone).  NiO's Ni-3d/O-2p complex (bands 11–26, no clean
+separation — `doc/HubbardUPlan.md` A2) is exactly their "entangled" case, so our own O-2p cRPA number is
+suspected of being this same pathology, not new screening physics — a finding earned by the paper, not by
+our own retraction discipline this time, but the same shape as A1's Mulliken lesson: **there is no
+basis-independent "the d-band" any more than there is a window-independent "the correlated subspace."**
+A grad student forced to draw an energy-window cut on a DOS plot is not doing something wrong — it is the
+only thing that CAN be done — and Carta et al.'s own fix was not to dissolve the choice but to make it
+ONE EXPLICIT, SHARED PROJECTOR (Wannier) so two methods could even be compared.  ⇒ two consequences, not
+one: (i) the manifold/window stays an input, never a recommended default masquerading as a derivation;
+(ii) **the code should RECOMMEND a window when a natural one exists** (a DOS minimum, a projected-character
+gap) rather than only accept one — surfacing the choice is not the same as making it, and a tool that can
+show *why* a cut is natural is strictly better than one that is silent.  Architecturally: LRT and cRPA
+belong in the tree as ADDITIONAL CONCRETE STRATEGIES behind the same abstract estimator face `ACBN0`
+already sits behind (`HubbardProjection`/`HubbardUEstimator`, increment 3) — DIP, not a special case for
+each — tracked as a `doc/OpenWork.md` §2 feature row, not decided here.
+
+## 24. A linear-response number is conditioned on the state it linearises about — and same-site LRT is ill-posed for Pauli-saturated shells
+
+An hp.x (or our DFPT) U is dn/dα at a SPECIFIC reference state: NiO's 5.267 eV is U_LR(U_in = 3 eV), not a
+property of the material, and it differs at U_in = 0 (5.434).  Quote U_in beside every response value and read
+the `HUBBARD` block of a deck rather than assuming zero.  And when χ₀ ≈ χ (MnO d⁵ half-filled, ZnO d¹⁰ closed
+shell) the same-site U = (χ₀⁻¹ − χ⁻¹)_II is a difference of near-equal small numbers: it is not an oracle, and no
+projector choice rescues it (`doc/Records/HubbardUHistory.md`, A6 table).  Also: an iteration CAP is not a
+verdict — three wrong conclusions in this project were a capped run read as "does not converge".
+
+## 25. Two comparisons, never merged: projector completeness vs screening — and no target may be derived from the method under test
+
+Ours ÷ published-ACBN0 (factors 1.8–2.8) measures PROJECTOR COMPLETENESS (their minimal PAO keeps ~60 % of the
+norm), not screening.  Only ours ÷ an INDEPENDENT oracle (matched-pseudopotential hp.x, never ACBN0 or an
+ACBN0-derived target) tests the screening model; label every oracle row matched-PP or different-PP.  ACBN0's N̄²
+renormalisation vanishes as the basis completes, so it is not a screening model, and an oracle gate built on an
+ACBN0 target is circular (retracted 2026-09-23; screened-ACBN0 refuted 2026-09-25).
