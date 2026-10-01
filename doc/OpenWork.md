@@ -65,7 +65,7 @@ PPs; Tier 2 = USPP/PAW + k-point throughput).  Full prose of every row: `OpenWor
 
 | row | what is open | next action · record |
 |---|---|---|
-| **Shifted-MP fold lowers Si by 1.02 mHa** | `GPW_Si.k222s_Imp_CP2K`: imposed −7.868473 vs FREE −7.867453 (= CP2K to 16 µHa); the only non-TRIM mesh; charge OK | pin which half: (a) ρ star-average armed/disarmed (`QCHEM_IMPOSE_SYMMETRY=1`, R1.0r); (b) printed folded k-set + weights vs unfolded 8; (c) same A/B on Γ-centred 2×2×2.  Fix before KP-1 · Benchmark §5a |
+| ✅ Shifted-MP fold (Si −1.02 mHa) | DONE 2026-10-01: ρ was star-averaged over all 48 ops while the k-fold used only the mesh subgroup; both now use `MapsMeshOntoItself`. Imposed = FREE = −7.867454 (CP2K −7.867437) | `Records/OpenWork_History5.md` |
 | **NiO VA: pseudopotential ghost in a near-null S direction** | RESOLVED in practice 2026-09-28: `NIO_VET=1 NIO_ORTHO_TOL=1e-3` trims Ni s{0.06}, Ni d{0.18}; min eig S 9.8e-7→4.7e-3; insulator 1.30 eV (QE 2.86), E −106.2021.  OPEN: why a trimmed basis hosts a −36 Ha KB ghost at all | unit gate: KB nonlocal lowest generalized eigenvalue vs λ_min(S) on the 1e-4-trimmed NiO; then the 1.30 vs 2.86 eV basis/physics comparison · `LinearResponsePlan.md` §5b, H5 row |
 | ✅ GDM on UNPOLARIZED runs | DONE 2026-10-01: capacity g read off D′ (Tr D′²/Tr D′), nocc=N/g; gradient/model step need no g (ratio invariant). Still open: DIIS→GDM ladder restart on unpolarized *solids* (GPW) not re-measured | see `Records/OpenWork_History5.md` |
 | **Linear D-mixing diverges on free Si, no Fock accelerator** | `CP2K_COMPAT=1 GPW_ACC=null`: adaptive relax raises α 0.30→0.45 and never re-damps | why V1.18 does not re-damp on rising E; is fixed-α 0.4 direct-P stable? · Benchmark §10 |
