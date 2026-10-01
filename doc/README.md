@@ -1,7 +1,7 @@
 # `doc/` — the folder IS the tier
 
 **Rewritten 2026-09-16** on the user's ruling: *"I would like to keep these in doc folder: OpenWork.md Pins.md
-CleanupCandidates.md Benchmark.md ModuleToolchainPlan.md LatticeGasPlan.md BatteryMaterialsRoadmap.md.  It
+CleanupCandidates.md [now split] Benchmark.md ModuleToolchainPlan.md LatticeGasPlan.md BatteryMaterialsRoadmap.md.  It
 would help me if most of the others are retired … or if you find any of them useful for the pending
 Open/Cleanup/Toolchain you can put those in a Records folder."*  So the top of `doc/` is now the whole live
 picture, and where a file sits says what it is.
@@ -10,7 +10,7 @@ picture, and where a file sits says what it is.
 discipline, tool paths, this doc system).  `Pins.md` answers *what must the code obey* (physics, numerics
 AND design invariants, one paragraph each, earned by a wrong number).  A RECORD answers *why is it this way*
 (the evidence and the rejected alternatives).  ⇒ **A RECORD holds NO open work**: when a plan is executed
-its residual backlog moves to `OpenWork.md` (or `CleanupCandidates.md` if it is debt), its durable rulings
+its residual backlog moves to `OpenWork.md` (or `OOD-SOLID-Cleanup.md` / `CleanCode.md` if it is debt), its durable rulings
 to `Pins.md`, its conventions to `CLAUDE.md` — the same day — and the file moves DOWN a level.  A
 "remaining/future" section found inside a record is a defect of this index: harvest it, do not act on it.
 
@@ -24,11 +24,11 @@ one with `ls doc/*/<File>.md`.  Relative links INSIDE moved files (`../src/…`)
 
 | file | what it is |
 |---|---|
-| **`OpenWork.md`** | ★ **THE tracker (v3, rebuilt 2026-09-16).  READ IT AT SESSION START.**  §1 NEXT (step 5, DFT+U) · §2 MAJOR FEATURES (DFT+U, GGA, hybrids, forces, USPP, OT, k-parallelism, space-group irreps, SSB descent, …) · §3 NON-OOD CLEANUP · §4 REMAINING TODO (accuracy, performance) · parked · descoped.  One row = next concrete action + the one record to read |
-| **`CleanupCandidates.md`** | the SOLID/OOD debt worklist (v2, rebuilt 2026-09-19): the user's charter + ~30 open rows in R/V/D tables, each citing `Records/CleanupHistory2.md` by id; the ~70 closed rows and every ruling's full argument live there |
-| **`Pins.md`** | ★ **23 durable invariants** — no cut in r space (1), everything is a fit (2), integrated observables (4), spin-native (5), … the BasisSet taxonomy (14), smearing/GDM (15), span-matching (16), contemporaneous reporting (17), the XC feed / mixer selectivity (18), never D-screen the gather (19), ask what a matrix means (20), pivoted Cholesky + canary (21), vet-stage equivariant trim (22), +U is orbital-resolved and the manifold is an input (23).  Rulings, not preferences; cite as `doc/Pins.md pin N` |
+| **`OpenWork.md`** | ★ **THE tracker (v4, slimmed 2026-10-01; ≤100 lines).  READ IT AT SESSION START.**  §1 NEXT (DFT+U pointer) · §2 MAJOR FEATURES (DFT+U, GGA, hybrids, forces, USPP, OT, k-parallelism, space-group irreps, SSB descent, …) · §3 ACCURACY / OPEN DEFECTS · §4 PERFORMANCE summary (levers in `Benchmark.md` §10).  One row = next concrete action + the one record to read |
+| **`OOD-SOLID-Cleanup.md`** + **`CleanCode.md`** | the cleanup worklist split 2026-10-01 (old `CleanupCandidates.md` is a 6-line stub): OOD/SOLID debt vs non-SOLID hygiene, open rows only, original R/V/D ids, each citing `Records/CleanupHistory3.md` / `CleanupHistory2.md` by id |
+| **`Pins.md`** | ★ **27 durable invariants** — no cut in r space (1), everything is a fit (2), integrated observables (4), spin-native (5), … the BasisSet taxonomy (14), smearing/GDM (15), span-matching (16), contemporaneous reporting (17), the XC feed / mixer selectivity (18), never D-screen the gather (19), ask what a matrix means (20), pivoted Cholesky + canary (21), vet-stage equivariant trim (22), +U is orbital-resolved and the manifold is an input (23), a linear-response U is conditioned on its reference state (24), projector-completeness vs screening (25), CP2K RKS `fspin` trap (26), Kerker G=0 guard (27).  Rulings, not preferences; cite as `doc/Pins.md pin N` |
 | **`Benchmark.md`** | ★ the standing head-to-head instrument vs CP2K.  **COPY the run command out of §5a; never reconstruct it** |
-| **`HubbardUPlan.md`** | ★ **BORN 2026-09-23, UNDER EXECUTION** — self-consistent orbital-resolved (U, J) from our own on-site ERIs: where increments 1-3 got to, why the screened-ACBN0 route is the one (the application decides it: only the ACBN0 family is SUPERCELL-FREE, and a voltage curve needs a U per composition), and the Li_xMn2O4 target with U assigned per Mn SITE rather than interpolated on x.  Retires to `Records/` when the U-functional lands |
+| **`HubbardUPlan.md`** | ★ **UNDER EXECUTION (condensed 2026-10-01)** — DFT+U: status, the oracle table, ▶ START HERE next actions (A7 R3 step 4, C1/B3 sizing, C2 fold defect), and the gotchas; full history in `Records/HubbardUHistory.md`.  Retires to `Records/` when the U-functional lands |
 | **`LinearResponsePlan.md`** | **BORN 2026-09-27, DESIGN RULED the same day (D1–D6)** — HubbardUPlan's A7: DFPT/CPHF linear response designed as GENERAL perturbation theory (one theory-neutral Hamiltonian capability, `ResponseKernel`, serving DFPT-U, CPHF and MP2's Z-vector); sum-over-states R0 because a Gaussian basis has every virtual; stages R0–R4, each with an oracle.  Retires to `Records/` when A7 lands |
 | **`ModuleToolchainPlan.md`** | `import std;` + a modular Blaze fork — banish the preprocessor.  Deferred, not started |
 | **`LatticeGasPlan.md`** | Li/Na configuration enumeration for the battery work.  Specced, not built — kept so the design is not re-derived |
@@ -39,12 +39,13 @@ one with `ls doc/*/<File>.md`.  Relative links INSIDE moved files (`../src/…`)
 
 | file | why it is still here |
 |---|---|
-| **`OpenWork_History1/2/3/4.md`** (4 = the v2 tracker verbatim, 2026-09-16), **`CleanupHistory.md`** + **`CleanupHistory2.md`** (2 = the v1 worklist verbatim, 2026-09-19), **`BenchmarkHistory.md`**, **`GPWHistory.md`**, **`SymmetryUpgradeHistory.md`** | the append-only closed record; the trackers WRITE to these.  ★ *A record of what was TRIED AND REJECTED is worth more than a record of what landed* — nothing here is ever trimmed |
+| **`OpenWork_History1/2/3/4/5.md`** (4 = the v2 tracker verbatim, 2026-09-16; 5 = the v3 tracker verbatim, 2026-10-01, incl. the full prose of every §2/§3/§4 row and the perf rows now in `Benchmark.md` §10), **`CleanupHistory.md`** + **`CleanupHistory2.md`** (2 = the v1 worklist verbatim, 2026-09-19) + **`CleanupHistory3.md`** (the v2 worklist verbatim, 2026-10-01), **`BenchmarkHistory.md`**, **`GPWHistory.md`**, **`SymmetryUpgradeHistory.md`** | the append-only closed record; the trackers WRITE to these.  ★ *A record of what was TRIED AND REJECTED is worth more than a record of what landed* — nothing here is ever trimmed |
+| **`HubbardUHistory.md`** | the verbatim pre-2026-10-01 HubbardUPlan + OpenWork §1 DFT+U block: every run, retraction and oracle decision behind HubbardUPlan's gotchas |
 | **`CP2KBuild.md`** / **`CP2Kresults.md`** | how the primary oracle is built, and what it says; the +U oracle row (step 5) starts here |
 | **`SCFStrategyPlan.md`** / **`OTNotes.md`** | the convergence-acceleration abstraction boundaries, and what the 2026-07 GDM investigation established — the design and the prior for row **OT** |
 | **`ParallelAndOraclePlan.md`** | the sequenced road to +U: Phase 1 ✅ 4.44×, 2.5 = programme step 2 ✅, Phase 3 = step 5 (folded in), residuals → row **PAR** |
-| **`GPWPlan1.md`** | the GPW forward queue's evidence trail (four runtime rounds); its pending list is harvested into `OpenWork.md` Step 3 |
-| **`SphericalLatticePlan.md`** | the 2026-08 MnO accuracy campaign; its absolute-comparison remainder IS `OpenWork.md` Step 5; pin 16.  ⚠ its moment conclusions are point-probe numbers (pin 4) |
+| **`GPWPlan1.md`** | the GPW forward queue's evidence trail (four runtime rounds); its pending list is archived in `Records/OpenWork_History5.md` / `Benchmark.md` §10 |
+| **`SphericalLatticePlan.md`** | the 2026-08 MnO accuracy campaign; its absolute-comparison remainder is `OpenWork.md` §3 "MnO accuracy"; pin 16.  ⚠ its moment conclusions are point-probe numbers (pin 4) |
 | **`SymmetryUpgradePlan.md`** | §§0–8 executed (T1–T3, the supercell arc, the MnO Shubnikov campaign); its §9 is DESIGN QUESTIONS for when the matching capability is scoped, not a backlog; rows **KP**, **BM**, R1.0r cite it |
 | **`BasisSetTaxonomyPlan.md`** | V1.33: libraries follow the FAMILY, modules carry the GROUP — the argument behind pin 14, and the parent of V1.38 / R2.24 |
 | **`GPWGrids.md`** | the table of every grid usage and how its range/spacing is decided — item 1 (size the Becke grid) reads it |
@@ -58,7 +59,7 @@ Thirty-two files.  **Retired 2026-09-16** on the ruling above: `GPWPlan.md` (the
 left for `Pins.md` on 2026-09-08), `RealComplexPlan.md` (track complete 2026-08-19), `CollocationRewritePlan.md`
 (complete 2026-08-28), `SpinNativeDFTPlan.md` (B1–B4 landed 2026-06-30; the tenet is pin 5), `FacadeDFTPlan.md`
 (D1+D2 2026-06-30), `SCFSeedingPlan.md` (all phases + spin-SAD; the Mn regen was done 2026-08-06),
-`FittingCleanupPlan.md` (residuals K + I.1 are `CleanupCandidates.md` rows), `ERI4Rework.md` (§5 landed
+`FittingCleanupPlan.md` (residuals K + I.1 are `CleanCode.md` / `OOD-SOLID-Cleanup.md` rows), `ERI4Rework.md` (§5 landed
 2026-07-02; §6 is R2.23), `MolecularPseudopotentialPlan.md`, `MolecularPP_HarmonizationFindings.md` +
 `…Round2.md` (the molecular↔PW harmonization, outgrown by GPW).
 

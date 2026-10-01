@@ -128,7 +128,7 @@ cross-run sharing (its own header: *"allow data sharing between separate runs"*)
 would leave twenty generations of every block in it.  *Ask what a cache EVICTS before asking what it keys
 on.*  ▶ The fix in the spirit of this pin is an explicit **per-iteration scope** that owns the matrices and
 dies with the iteration — which also retires the last write-shaped obstacle in the block loop, because the
-slots are CREATED in the phase and the loop only fills nodes that already exist.  Filed as `doc/CleanupCandidates.md` R1.0h.
+slots are CREATED in the phase and the loop only fills nodes that already exist.  Filed as `doc/Records/CleanupHistory3.md` R1.0h.
 
 ## 12. No grad-student knobs
 
@@ -152,7 +152,7 @@ not of the point.  An op failing either is not a symmetry of that mesh and must 
 carried 12 electrons in an 8-electron cell (KP-0, 2026-09-09; record in `doc/Records/OpenWork_History3.md`).
 ▶ Corollary, still open: the group that symmetrizes \f$\rho\f$ must then be intersected with the mesh
 symmetries, or the density is projected into a symmetry the sampling does not have
-(`doc/CleanupCandidates.md` R1.0r).
+(`doc/OOD-SOLID-Cleanup.md` R1.0r).
 
 ## 14. An IrrepBasisSet carries ONE irrep of G; libraries follow the FAMILY, modules carry the GROUP
 
@@ -198,7 +198,7 @@ another class to emit.  An `Emit*()` method on an abstract face, or a "reporter"
 objects after the fact, is the defect (user, 2026-09-11; V1.5 deleted the `Emit*()` faces).  Corollary for
 trace columns: a printed number is either physics or a gate the run CONSUMES — printing \f$\alpha_{eff}\f$
 implied it was used, and it was deleted for that reason (user, 2026-09-13).  Record: `doc/Records/RunReportPlan.md`
-(the design), `doc/CleanupCandidates.md` V1.5.
+(the design), `doc/Records/CleanupHistory3.md` V1.5.
 
 ## 18. XC is fed the MIXER'S density; a separately-damped XC feed destroys Kerker's mode selectivity
 
@@ -333,6 +333,23 @@ belong in the tree as ADDITIONAL CONCRETE STRATEGIES behind the same abstract es
 already sits behind (`HubbardProjection`/`HubbardUEstimator`, increment 3) — DIP, not a special case for
 each — tracked as a `doc/OpenWork.md` §2 feature row, not decided here.
 
+## 24. A linear-response number is conditioned on the state it linearises about — and same-site LRT is ill-posed for Pauli-saturated shells
+
+An hp.x (or our DFPT) U is dn/dα at a SPECIFIC reference state: NiO's 5.267 eV is U_LR(U_in = 3 eV), not a
+property of the material, and it differs at U_in = 0 (5.434).  Quote U_in beside every response value and read
+the `HUBBARD` block of a deck rather than assuming zero.  And when χ₀ ≈ χ (MnO d⁵ half-filled, ZnO d¹⁰ closed
+shell) the same-site U = (χ₀⁻¹ − χ⁻¹)_II is a difference of near-equal small numbers: it is not an oracle, and no
+projector choice rescues it (`doc/Records/HubbardUHistory.md`, A6 table).  Also: an iteration CAP is not a
+verdict — three wrong conclusions in this project were a capped run read as "does not converge".
+
+## 25. Two comparisons, never merged: projector completeness vs screening — and no target may be derived from the method under test
+
+Ours ÷ published-ACBN0 (factors 1.8–2.8) measures PROJECTOR COMPLETENESS (their minimal PAO keeps ~60 % of the
+norm), not screening.  Only ours ÷ an INDEPENDENT oracle (matched-pseudopotential hp.x, never ACBN0 or an
+ACBN0-derived target) tests the screening model; label every oracle row matched-PP or different-PP.  ACBN0's N̄²
+renormalisation vanishes as the basis completes, so it is not a screening model, and an oracle gate built on an
+ACBN0 target is circular (retracted 2026-09-23; screened-ACBN0 refuted 2026-09-25).
+
 ---
 
 **Where these came from.**  1, 3, 5, 7, 8, 9, 10, 12 were `doc/OldPlans/GPWPlan.md`'s pins section (2026-07).  11 is the user's `UseChargeDensity` post-mortem (2026-09-08).
@@ -345,3 +362,18 @@ own NiO O-2p cRPA puzzle (`doc/HubbardUPlan.md` §7).
 2, 4, 6 are user rulings recorded in session memory (`feedback_everything_is_a_fit`,
 `feedback_integrated_observables`, `feedback_pw_fitting_uniform_interface`) and had no home in the repo
 until now.
+24 and 25 came from the DFT+U oracle campaign (2026-09-23..30); evidence in `doc/Records/HubbardUHistory.md`.
+26 and 27 came from the 2026-09-29/20 CP2K-alpha and (ρ,m)-Kerker work (`OpenWork_History5.md`).
+
+## 26. CP2K DFT+U reports `trq` scaled by `fspin` — a closed-shell (RKS) probe reads HALF the true occupation
+
+`dft_plus_u.F` multiplies the reported manifold trace by `fspin` (0.5 for RKS, 1.0 for UKS).  Taking
+`E_DFT+U = alpha*trq` at face value gives χ 2× too small on a closed-shell oracle run; double it (exact when
+U_MINUS_J=0).  Earned by the CK-alpha Si cross-check (χ −14.5164 vs ours −14.5117 only AFTER the fix).
+Record: `doc/HubbardUPlan.md`, `doc/Records/OpenWork_History5.md` §2.
+
+## 27. A Kerker-type filter `g²/(g²+G0²)` must define its G=0 value
+
+With a leaf's `G0=0` (linear, undamped, e.g. the m channel of (ρ,m) mixing) it is 0/0 at G=0 and the NaN rides
+into the rebuilt channels and v_xc.  The guard is `g2>0 ? … : 1.0` (full mixing, not frozen); gate
+`GPW_Si.Γ_Imp_Pol_Kerker_eqUnpol`.  Record: `OpenWork_History5.md` (rows "(ρ,m) Kerker on an exact SINGLET").

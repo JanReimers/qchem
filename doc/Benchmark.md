@@ -44,7 +44,7 @@ CPU column overstates qchem wherever it threads — and another reason the singl
 | **3** | **peak RAM** | ✅ **solved, and we win**: ~476 MB defaults, **113–132 MB on the parity routes against CP2K's 217 MB** |
 | **4** | **iteration count** | ⚠ **RE-JUDGED 2026-09-20 under rule 3f** — the old "31 (defaults) / capped (parity) against CP2K's 44" compared a 1e-5 G-space residual with CP2K's 1e-6 max\|ΔP\|, i.e. two different questions.  On the SAME measure, threshold and loop shape (one density-side history, no Fock DIIS, no MOM): **imposed 22 / 24, free (`CP2K_COMPAT=1`) 33 / 37 against CP2K's 44 / 104** (U=0 / U=4 eV, §5 rows ⁸).  ⇒ CLOSED in our favour; what remains is bin 1's third gather |
 
-The live tracker for these is `doc/OpenWork.md`; this file holds the measurements behind them.
+The live tracker for these is `doc/OpenWork.md` (accuracy/features) and §10 below (perf levers); this file holds the measurements behind them.
 
 ---
 
@@ -298,7 +298,7 @@ measure, and on MnO ~100× looser on our side.  The **s/it** columns survive (a 
 the loop stops); the counts and the `total ×` column do not — read them as "how many steps that recipe took to
 ITS OWN criterion", never as a convergence-rate comparison.  The re-taken, like-for-like counts are the two
 rule-3f MnO rows in §5 (footnote ⁸: 33 / 37 vs 44 / 104) and the Si example in rule 3f itself (5 vs 27 to reach
-the same anchor).  A full re-take of this table on `Measure::MaxΔD` is queued in `doc/OpenWork.md` §4b.
+the same anchor).  A full re-take of this table on `Measure::MaxΔD` is queued in §10 below.
 
 | row | span / k | q iters ⚠3f | q CPU | q setup | **q s/it (SCF)** | c steps ⚠3f | c CPU | c setup | **c s/it (SCF)** | **BIN 1 ×** | q s/it (total) | total × ⚠3f |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -318,7 +318,7 @@ convergence measure (max|ΔD| / max|ΔP|) at the DECK'S threshold, the deck's lo
 Kerker G0=1 + Pulay 8; nothing on the Fock side; no MOM), `CP2K_COMPAT=1` (no Becke mesh, no imposition), both
 codes serial.**  Whole-run wall and RSS here are like-for-like BECAUSE the loops now stop at the same place;
 CP2K's numbers are the banked ones (its counts were already at `EPS_SCF`).  The one stated difference: the Si
-decks mix P directly (α 0.4) where our stable no-Fock-side route is Kerker + Pulay (§4b row "Linear D-mixing
+decks mix P directly (α 0.4) where our stable no-Fock-side route is Kerker + Pulay (§10 row "Linear D-mixing
 DIVERGES").
 
 | row | EPS / MAX_SCF | **q iters** | q wall | q RSS | **c steps** | c wall | c RSS | iters q/c | qchem E | CP2K E |
@@ -335,7 +335,7 @@ DIVERGES").
 CP2K's −7.867436530, where the table above has −7.868473429 (−1.04 mHa).  Checked the same day: it is the
 IMPOSITION, not the criterion or the grid** — with `QCHEM_IMPOSE_SYMMETRY=1` every criterion and both XC grids
 give −7.868473; free, −7.867452.  The symmetry fold of the shifted (k=±¼, non-TRIM) mesh lowers the energy by
-1.02 mHa: an OPEN DEFECT, `doc/OpenWork.md` §4a (footnote ¹ is now history).  The other energies moved by
+1.02 mHa: an OPEN DEFECT, `doc/OpenWork.md` §3 (footnote ¹ is now history).  The other energies moved by
 < 1 µHa; on MnO the 108 mHa absolute offset (§4a) is unchanged.
 
 ᵇ **✓ = BOTH CODES RUN THE SAME KIND OF SCF STEP ON THIS ROW; ⚠ = THEY DO NOT.**  A per-iteration ratio is
@@ -481,7 +481,7 @@ Compact here; the full stories are in `doc/Records/BenchmarkHistory.md` at the s
 
 - **¹** Si 2×2×2 shifted MP (−1.04 mHa) — ⚠ **LOCALISED 2026-09-20 by the rule-3f re-take: it is the IMPOSITION.**
   The FREE run is −7.867452508, 16 µHa from CP2K; imposing the point group on the shifted (k=±¼) mesh gives
-  −7.868473429 under every criterion and both XC grids.  Open defect, `doc/OpenWork.md` §4a.  What follows is
+  −7.868473429 under every criterion and both XC grids.  Open defect, `doc/OpenWork.md` §3.  What follows is
   the history.  The residual after a **D-aware integrate-back SCREEN defect** was
   fixed 2026-08-19.  It is the suite's ONLY fractional-k SCF coverage (every other k is TRIM, where the
   defect is structurally invisible), which is why it had rotted to −3.7351 while DISABLED.  *(history: the
@@ -554,7 +554,7 @@ lives here.  Nothing in this section is the bin-1 instrument; §5a is.
 ### What removing the gather density screen cost and bought (2026-09-04)
 
 ★★★ **THE UNSCREENED GATHER (2026-09-04) — A REAL SPLIT BY k-MESH, NOT A UNIFORM WIN.**  Removing the
-density screen from the integrate-back (see §6, and doc/OpenWork.md for why it is also a CORRECTNESS fix)
+density screen from the integrate-back (see §6, and §10/OpenWork_History4 for why it is also a CORRECTNESS fix)
 unlocks the k-independent memo, so one real-space sweep serves every k-block.  Where there are no k-blocks
 to share it across, it is pure added width:
 
@@ -576,7 +576,7 @@ fair comparison there:
 ⇒ **IT SAVES ~40% OF GATHER TIME ON AN 8-k RUN AND COSTS 2–8% AT Γ.**  Every MnO row is Γ, so the flagship
 numbers get slightly worse while the multi-k rows get materially better.  **KEPT**: it is first a
 CORRECTNESS fix — the diagonal-seed defect and the stream fold's orbit-invariance, both in
-doc/OpenWork.md — and the Γ cost is the price of not having a self-fulfilling truncation in the Fock.
+§10 below — and the Γ cost is the price of not having a self-fulfilling truncation in the Fock.
 ⚠ It is NOT a `CP2K_COMPAT` matter: the screen is gone on every route, not just the parity one.
 
 ### ⚠ THE BECKE MESH BUILD THREADS — which collides with §7a's reading (open, 2026-09-05)
@@ -585,7 +585,7 @@ doc/OpenWork.md — and the Γ cost is the price of not having a self-fulfilling
 `#pragma omp parallel for` over quadrature points (`src/Structure/Imp/UnitCell.C:273`), so it is NOT
 structurally serial — yet §7a's NaF threading run inferred a ~9 s serial residual and matched it to the
 setup buckets, of which 7.0 s IS the mesh build.  Both cannot be the whole story.
-⇒ **Resolve it while profiling bin 2** (doc/OpenWork.md's named next action): measure the mesh build's own
+⇒ **Resolve it while profiling bin 2** (§10 below, named next action): measure the mesh build's own
 speed-up curve on MnO and on NaF separately.  Candidate explanation — NaF is a 2-atom cell whose point
 count is too small to amortise the region, so it threads on MnO and does not on NaF.
 
@@ -605,7 +605,7 @@ Same system, same span, only the k-mesh changing (SCF-only seconds per iteration
 
 We start **7.5× ahead** of CP2K at Γ and keep only **1.2×** of it at 8 k — still a win, but the whole
 shape of the small-cell story is in that rise.  Cause and the two refuted fixes:
-doc/OpenWork.md's k-scaling entry (the gather memo is bypassed whenever a density screen is passed, and 32
+§10 k-scaling row (the gather memo is bypassed whenever a density screen is passed, and 32
 of 51 gathers on the 8-k run are the SAME FIELD).  ⚠ Part of their flatness is not an optimisation to copy
 but a fold we do not do: CP2K folds a shifted MP mesh 8→4 by time reversal (§6b item 1).
 
@@ -1044,3 +1044,29 @@ acceleration" is a COST statement and not a verdict — but it is not what bins 
   measuring an unfolded run, and must say so.  Arming T3 does not change this: it is a `MNO_IMPOSE`
   decision, i.e. physics, and the 1.5× wall / 3.7× RAM measured above is what a free run is paying for the
   freedom.
+---
+
+## 10. STANDING MEASUREMENTS / OPEN PERF LEVERS (moved from `OpenWork.md` §4b, 2026-10-01)
+
+Verbatim archive of the old tracker: `doc/Records/OpenWork_History5.md`.  Each row: what is open · next concrete action · record.
+
+**Where it stands (numbers from §5a and the rule-3f table):** per SCF iteration serial qchem is AHEAD of CP2K on seven of nine §5a rows; the like-for-like parity row (`CP2K_COMPAT=1`, fixed-point stage) is **1.13×**, 1.72× for the capped two-stage probe, and its whole residual is ONE gather (lever B, behind N4).  Rule-3f whole-run, same measure/threshold/loop: MnO AFM-II **5m42s vs 6m14s wall** (33 vs 44 iterations); Si 2×2×2 8.6 s vs 5.6 s.  Peak RAM on the parity routes 113–132 MB vs CP2K's 217 MB (whole-run MnO 262 vs 217 MB).  Threaded (12 cores) 4.14 s/step vs CP2K 5.90 (they run 0.82–1.09× their own serial).  History: the MnO per-iteration cost started at **67× CP2K's** (573 s vs 8.5 s, `BenchmarkHistory.md` §cache; the earlier "100×" was an instrument artefact).  No QE timing exists.
+
+**Parked levers:** B (one gather per spin) behind N4; C (GDM trial densities) behind OT (OpenWork §2).
+
+| row | what is open | next concrete action · record |
+|---|---|---|
+| **Linear D-mixing DIVERGES on free Si with no Fock accelerator** (found 2026-09-20 by `scripts/retake5a`) | `GPW_Si.Γ_CP2K` under `CP2K_COMPAT=1 GPW_ACC=null` (plain linear D-mixing, `ProductionGates` α=0.30): descends to −7.11505 by iteration 19, then diverges (E −7.0886 at 60, [F,D] 2e-3 → 0.2).  The adaptive relax raised α 0.30 → 0.45 at iteration 2 and never re-damped.  CP2K's `DIRECT_P_MIXING` at α=0.4 converges the same cell to 1e-7 in 12 steps; our Kerker G0=1 alone takes 54, Kerker + Pulay(8) 13 (E −7.115067447, the anchor).  DIIS on the Fock side had been masking it | two questions: (a) why does the adaptive controller (V1.18) not re-damp on a rising energy — a rising-E, rising-[F,D] trajectory is exactly its trigger; (b) is direct P mixing at fixed α=0.4 stable on our loop (a `GPW_ALPHA` knob + adaptive off)?  Cheap: seconds per run.  Not a physics question; until answered the no-Fock-side route on our side is Kerker + Pulay · `doc/Benchmark.md` rule 3f, `scripts/retake5a` |
+| **Re-take Benchmark §5a on CP2K's convergence measure** (rule 3f, 2026-09-20) | every `q iters` / `c steps` / `total ×` cell in §5a compares a 1e-3–1e-5 mixer residual with CP2K's `EPS_SCF` on max\|ΔP\| — two different questions; the s/it columns survive, the counts and totals do not | re-run each §5a row with `Δρmeasure=MaxΔD`, `MinΔρ=EPS_SCF`, `NMaxIter=MAX_SCF` off its deck, the deck-shaped loop (Null accelerator, Pulay 8, no MOM) where the deck mixes Broyden/Pulay, and `CP2K_COMPAT=1`; one sitting, ~1 h serial (Si rows seconds, NaF minutes, MnO ×2 the bulk).  The two MnO rows are DONE (§5 ⁸); the Si Γ example is in rule 3f · `doc/Benchmark.md` rule 3f |
+| **Size the Becke grid** (was item 1 / bin 2) | MnO's setup is 184 s = 47% of the default run (CP2K 8.1 s), 136.6 s of it TWO Becke mesh builds — but the RECIPE (nR=40, degree 29) is **over-generous on every system**: 3.5× on Si/Al, ~25× on NaF/Mn (`BeckeLadder`, scored by \f$\max|\Delta V_{xc}(i,j)|\f$ — score the MATRIX, the energy cancels error the operator does not) | ▶ **a POLICY CALL for the user**: at an absolute \f$\max|\Delta V_{xc}|\le\f$ 1e-4 the answer is nR=40, GL-17…21 (2–3× cheaper than production).  ⚠ no default flips on ladder evidence alone — Al is non-monotonic and a frozen ladder understates the self-consistent shift on a metal ⇒ a converged A/B on Al first.  Two items survive whatever the calibration says: (a) why TWO builds for one cell (each anneal stage builds one); (b) the build threads at 8.2× on MnO — NaF's serial fraction is still its setup (likeliest SIZE).  Then the per-element radial scaling, the coarse-end routing calibration, Becke+IBZ (the real-space star-average is untested on this route) · History4 "1. BIN 2" |
+| **BM(3) — the stock Lebedev rule is already site-invariant** | Lebedev-29 (302 dirs) is EXACTLY invariant under Si's \f$T_d\f$ site group (0 unmatched of 7248) because Lebedev rules are octahedral orbits; W2b nonetheless builds a site-adapted rule at 886 dirs/atom — a **2.9× sitting unclaimed** | test the STOCK rule for site invariance first and reuse it when it passes (the test must stay EXACT); keep W2b as the fallback; measure on MnO before spending anything — it vanishes as site symmetry drops · History4 row BM |
+| **The ρ̃-mixed sampling bucket** (the actual per-iteration XC lever) | `FourierMixCD.C:65` samples \f$\rho(r)=\sum_G\tilde\rho(G)e^{iGr}\f$ by DIRECT SUMMATION at every mesh point, every Kerker/Pulay iteration: 35.0 s / 6 iterations serial against the DM GEMM's 1.70 s.  ⚠ It is NOT the low-rank D bucket (that GEMM is nearly bypassed on ρ̃-mixed recipes — the 7–8× rank win is real but bites only on DM-backed routes) and NOT Φ-sparsity (Φ is 48% dense on MnO; per-atom batching = 1.05×) | attribute the cost INSIDE that bucket before optimising: an FFT to a coarse uniform grid + interpolation to the mesh (O(N log N + npts)) is legitimate only for the cusp-free CORRECTION, not the full ρ; an adaptive G-ball keyed to \f$|\tilde\delta|\f$ is cheap late and exact at convergence.  N4 decides what is sampled · History4 "Vxc MUST BE FED THE DM ρ(r)" |
+| **The k-scaling gap** (cross-k gather memo) | Si per-iteration cost rises 6.9× from Γ to 8 k-points; CP2K's rises 1.03× — we start 6.7× ahead and spend it on k.  Cause: the per-offset reductions \f$B_{ij}(n)\f$ are k-INDEPENDENT but `IntegrateMemo` is bypassed whenever a density screen is passed (32 of 51 gathers on Si 2×2×2 are the SAME FIELD).  ⛔ two attempts refuted (History4): withholding the screen perturbs the SEED trajectory; flooring vanishing weights breaks the fold's orbit invariance | the trajectory-exact route: memoize \f$B\f$ over the UNION of active sets and let each block contract only its own; raise `kMaxIntegrateMemos` (4) with it.  Pin 19 already removed the gather's D-screen, which is the other half.  CP2K also folds 8 → 4 by TIME REVERSAL on the shifted mesh — a separate 2× · History4 "THE k-SCALING GAP" |
+| **Step 2's remainder — the per-iteration G-space folds** | the {G}-star fold is wired at two STATIC sites; the per-iteration consumers (ρ̃, the Poisson multiply, the V_xc gathers, G_ERI3 columns, seed structure factors) are UNFOLDED: 12–24× on MnO's magnetic group, 48× cubic, unclaimed; **T3.4b** multi-k per-block arming of the pair-stream fold (Γ-only is armed by default) | extend the ball fold to the per-iteration sites (the FFT itself does not fold trivially); T3.4b = union-of-reps stream caches or the star-summed joint scatter.  Space-group collocation reduction route (b) IMPOSES the symmetry — say so · History4 "Step 2", `doc/Records/SymmetryUpgradePlan.md` |
+| **\f$B_{ij}(R)\f$ k-independent 1E memo** | "keep k out of the key"; payoff only on multi-k | time with row KP (OpenWork §2) · `GPWPlan1.md` item 5 |
+| **Becke partition, the loop itself** | `-march=native` alone measured 1.13× with the loop still SCALAR; `BeckeImage` is array-of-structs with a data-dependent `P>0` exit that saves only 2.3% of work | vectorise first (chunk the exit, SoA); the `norm()` table (~2 MB gather vs a 15-cycle hardware sqrt) is DOUBTFUL and points the opposite way — re-measure after vectorising, do not assume.  Both are small beside V1.22 · History4 "Becke partition, what is LEFT" |
+| **`Eval`/`EvalGradient` still run their own image loop** | the per-point callers (KB quadrature) were not migrated to the `LatticeSum1E` point-set seam because the seam re-derives its offset list per call; so the code's *"ONE remaining explicit image list"* is narrowed, not retired | cache the offsets on the seam side, then migrate; it retires the last place GPW enumerates images itself · History4 "THE Φ BLOCH POINT-SUM SEAM" |
+| **Φ-sparsity for LARGE cells** | ⛔ refuted on MnO (48% dense) — the item's own caveat "the win grows with cell size" was the whole story | re-measure with `GPW_PHI_SPARSITY=1` on a battery-scale supercell BEFORE building anything |
+| **The singles-vs-pairs census** | the factored density turns pairs into singles (8778 → 118 on MnO) but the comparable count is (i,R) singles vs (i,j,R) pairs at the same ε, weighted by box volume — pairs SCREEN far harder (Gaussian product theorem), which is why CP2K collocates pairs | build the singles-side census over the orbital reach before any singles-route work; the crossover is system-dependent and may favour BOTH routes · History4 "THE FACTORED FORM CHANGES THE OBJECT" |
+| **Parity deviation #8** | `CP2K_COMPAT=1` is our best KNOWN parity, not proven; the deviation list grew 4 → 7 every time anyone looked | finding the next one is part of any parity claim; the like-for-like row is a `GPW_MNO_NMAX`-capped probe — step one is an uncapped or equal-cap comparison · `doc/Benchmark.md` §2, §5a |
+| **Residual 1.33–1.45× CPU inflation at 12 threads** | load imbalance / memory bandwidth; ~4.1 s left in Phase 1, deliberately not taken | revisit on a 2×2×2 LiMn₂O₄ supercell where the buckets reshuffle — optimising the tail of a development cell is fitting to the wrong system |

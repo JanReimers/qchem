@@ -227,7 +227,7 @@ than reconstructing it.
 ## Docs
 
 - **`doc/` has THREE levels, and the folder IS the tier (user, 2026-09-16):** the eight files at the top of
-    `doc/` are the whole live picture — `README.md` (the index), `OpenWork.md` + `CleanupCandidates.md` (the
+    `doc/` are the whole live picture — `README.md` (the index), `OpenWork.md` + `OOD-SOLID-Cleanup.md` + `CleanCode.md` (the
     queues), `Pins.md`, `Benchmark.md` (the instrument), and three deliberately-deferred plans
     (`ModuleToolchainPlan.md`, `LatticeGasPlan.md`, `BatteryMaterialsRoadmap.md`).  **`doc/Records/`** holds
     the RECORDS still cited by open work (the histories, the CP2K build/results, the OT/SCF-strategy
@@ -240,12 +240,12 @@ than reconstructing it.
     (physics, numerics AND design invariants, one paragraph each, earned by a wrong number).  A **RECORD** in
     `doc/` = *why is it this way* (evidence, rejected alternatives, execution logs) — cited, never a queue,
     and **it holds NO open work**: a residual backlog goes to `doc/OpenWork.md`, a durable ruling to
-    `Pins.md`, a convention here.  **LIVE** is only the queues (`OpenWork.md`, `CleanupCandidates.md`), the
+    `Pins.md`, a convention here.  **LIVE** is only the queues (`OpenWork.md`, `OOD-SOLID-Cleanup.md`, `CleanCode.md`), the
     instruments (`Benchmark.md`, CP2K) and a plan under active execution.
-- `doc/OpenWork.md` is THE tracker (v3, 2026-09-16): **§1 NEXT** (the one queued action — step 5, DFT+U),
-    **§2 MAJOR FEATURES**, **§3 NON-OOD CLEANUP**, **§4 REMAINING TODO**, then parked/descoped.  Every row
+- `doc/OpenWork.md` is THE tracker (v4, 2026-10-01, ≤100 lines): **§1 NEXT** (DFT+U pointer),
+    **§2 MAJOR FEATURES**, **§3 ACCURACY/OPEN DEFECTS**, **§4 PERFORMANCE** summary (levers: `doc/Benchmark.md` §10).  Every row
     names its next concrete action and the ONE record to read; the argument lives in the record
-    (`doc/Records/OpenWork_History4.md` holds the v2 tracker verbatim).  A ⛔ that is durable is a pin, one
+    (`OpenWork_History4.md` = v2, `OpenWork_History5.md` = v3, verbatim).  A ⛔ that is durable is a pin, one
     in the weeds stays in the history — neither stays in the tracker.
 - **`doc/Pins.md` holds the durable physics/numerics invariants** — rulings, not preferences (each is there
     because violating it produced a wrong number at least once).  Pin 1: **"THERE IS NO CUT in r space,
