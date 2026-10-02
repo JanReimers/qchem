@@ -7,6 +7,7 @@ add_executable(UTStructure ../../Common/tests/gtestmain.C
     BeckeMeshUT.C
     BravaisUT.C
     SiteGroupsUT.C      # SiteRotations vs SiteEnvironmentRotations on MnO AFM-II and diamond (+U increment 2, 2026-09-21)
+    StructureDataUT.C   # qchem.StructureData (D-STRUCTDATA)
 )
 
 target_compile_definitions(UTStructure PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})

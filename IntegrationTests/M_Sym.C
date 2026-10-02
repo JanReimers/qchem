@@ -14,7 +14,7 @@
 #include <cmath>
 
 import qchem.Calculation;            // Calculation, CalcOptions, Model, SpinGroup
-import qchem.Materials;            // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
+import qchem.StructureData;        // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
 import qchem.Types;                  // Vector3D
@@ -46,7 +46,7 @@ static EnergyBreakdown Run(const Molecule& mol, Model model, SpinGroup pol, bool
 // 0.7, == the scaffold's RunDFT alpha; the facade auto-runs DFT with DIIS-from-start.)
 static void CheckWaterDFT(SpinGroup pol, double tol)
 {
-    const Molecule water = qchem::Materials::GetMolecule("H2O");
+    const Molecule water = qchem::StructureData::GetMolecule("H2O");
     EnergyBreakdown ebRef = Run(water, Model::Xalpha, pol, false);
     EnergyBreakdown ebSym = Run(water, Model::Xalpha, pol, true);
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), tol) << "DFT symmetric == non-symmetric";
@@ -63,7 +63,7 @@ TEST(M_Sym, water_DFT_polarized)   { CheckWaterDFT(SpinGroup::Polarized, 1e-6); 
 // virial must be physical.
 static void CheckWaterHF(SpinGroup pol)
 {
-    const Molecule water = qchem::Materials::GetMolecule("H2O");
+    const Molecule water = qchem::StructureData::GetMolecule("H2O");
     EnergyBreakdown ebRef = Run(water, Model::HF, pol, false);
     EnergyBreakdown ebSym = Run(water, Model::HF, pol, true);
 
@@ -84,7 +84,7 @@ TEST(M_Sym, water_HF_polarized)   { CheckWaterHF(SpinGroup::Polarized); }
 // M_DFT.WaterSpherical), so we bound it loosely for physical sanity.
 static void CheckWaterHFSpherical(SpinGroup pol)
 {
-    const Molecule water = qchem::Materials::GetMolecule("H2O");
+    const Molecule water = qchem::StructureData::GetMolecule("H2O");
     EnergyBreakdown ebRef = Run(water, Model::HF, pol, false, Angular::Spherical);
     EnergyBreakdown ebSym = Run(water, Model::HF, pol, true,  Angular::Spherical);
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "spherical: symmetric == non-symmetric";

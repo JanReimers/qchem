@@ -12,6 +12,7 @@
 #include "gtest/gtest.h"
 #include <vector>
 
+import qchem.StructureData;
 import qchem.BasisSet.Gaussian.Evaluators;
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;     // PGData (the IBS IS-A one)
 import qchem.BasisSet.Gaussian.Evaluators.PG_LibCint;        // the evaluator under test
@@ -30,14 +31,8 @@ using BasisSet::Gaussian::PG_Cart::Orbital_IBS;
 using LibCintEval = BasisSet::Gaussian::Evaluators::PG_LibCint::NR_Evaluator;
 using PGData      = BasisSet::Gaussian::Evaluators::PG_Cart_MnD::PGData;
 
-static Molecule* MakeWater()
-{
-    Molecule* w = new Molecule();
-    w->Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
-    w->Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
-    w->Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
-    return w;
-}
+// The shared water geometry (bohr) from the structure data -- D-STRUCTDATA; was a private Angstrom-valued copy.
+static Molecule* MakeWater() { return new Molecule(qchem::StructureData::GetMolecule("H2O")); }
 
 TEST(M_LibCint, matrix_1E_matches_scalar)
 {

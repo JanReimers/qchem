@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+import qchem.StructureData;
 import qchem.BasisSet.Gaussian.Evaluators;                    // Evaluator + the is*_/isM_* concepts
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;        // NR_Evaluator (a scalar 1E+DFT+HF evaluator)
 import qchem.BasisSet.Gaussian.PG_Cart;                       // Orbital_IBS
@@ -111,14 +112,8 @@ template class BasisSet::Gaussian::EOrbital_1E_IBS<Matrix_Adapter<NRE>>;
 template class BasisSet::Gaussian::Orbital_DFT_IBS<Matrix_Adapter<NRE>>;
 template class BasisSet::Gaussian::Orbital_ERI4_IBS <Matrix_Adapter<NRE>>;
 
-static Molecule* MakeWater()
-{
-    Molecule* w = new Molecule();
-    w->Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
-    w->Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
-    w->Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
-    return w;
-}
+// The shared water geometry (bohr) from the structure data -- D-STRUCTDATA; was a private Angstrom-valued copy.
+static Molecule* MakeWater() { return new Molecule(qchem::StructureData::GetMolecule("H2O")); }
 
 TEST(M_MEvaluator, matrix_1E_matches_scalar)
 {

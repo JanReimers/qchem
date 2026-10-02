@@ -1,13 +1,14 @@
 // File: Calculation/Materials.C  Pre-defined materials and molecules -- DATA, read from
-// src/Calculation/Data/{materials,molecules}.json (doc/OpenWork.md row MD, 2026-09-15).
+// src/Structure/Data/materials.json (structure: qchem.StructureData; valence counts: here, interim) (doc/OpenWork.md row MD, 2026-09-15).
 module;
 #include <memory>
 #include <string>
 #include <vector>
 #include <utility>
 export module qchem.Materials;
+export import qchem.StructureData;   // the STRUCTURE half (GetMolecule/GetCell/...) lives in qcStructure
 export import qchem.UnitCell;    // UnitCell, Bravais (the lattice TYPES live in qcStructure; the materials do not)
-export import qchem.Structure;   // Molecule
+export import qchem.Structure;
 import qchem.Types;
 
 export namespace qchem::Materials
@@ -40,9 +41,5 @@ std::vector<std::string> Names();
 Material AtomInBox(const std::string& element, int valence, double a);
 //! ...and a homonuclear dimer at bond length \a d along x, centred; \a afm plants the +m/-m flip.
 Material DimerInBox(const std::string& element, int valence, double a, double d, bool afm=false);
-
-//! The named entry of \c molecules.json (Cartesian a.u.); throws with the known names on a miss.
-Molecule GetMolecule(const std::string& name);
-std::vector<std::string> MoleculeNames();
 
 } // namespace qchem::Materials

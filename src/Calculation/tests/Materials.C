@@ -102,11 +102,7 @@ TEST(Materials, BoxesAndMoleculesAndMisses)
     na2 .cell->ForEachSite([&](int, const rvec3_t& r, bool){ Rd.push_back(r); });
     for (size_t i=0;i<2;i++) EXPECT_NEAR(Rf[i].x, Rd[i].x, 1e-12);
 
-    Molecule w=M::GetMolecule("H2O");
-    EXPECT_EQ(w.GetNumAtoms(), 3u);
-    EXPECT_EQ(M::MoleculeNames().size(), 4u);
-
     EXPECT_THROW(M::Get("Unobtainium"), std::runtime_error);
     EXPECT_THROW(M::Get("_doc"),        std::runtime_error) << "the documentation key is not an entry";
-    EXPECT_THROW(M::GetMolecule("C60"), std::runtime_error);
+    EXPECT_THROW(M::Get("H2O"),         std::runtime_error) << "a molecule is not a material";
 }

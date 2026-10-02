@@ -2,8 +2,9 @@
 # aggregate library (it leans on the basis/Hamiltonian/accelerator/iterator pieces already linked
 # there).  The Imp #includes nlohmann/json for the two json factories, so the json include lands here.
 target_sources(qchem PRIVATE Imp/Calculation.C Imp/AtomCalculation.C Imp/SolidCalculation.C Imp/ValenceBasisGen.C Imp/Materials.C Imp/SolidState.C)
-# qchem.Materials reads src/Calculation/Data/{materials,molecules}.json at run time (row MD).
-target_compile_definitions(qchem PRIVATE ${MaterialsDataPath})
+# qchem.Materials reads the `species` (valence-count) field of src/Structure/Data/materials.json at run time -- INTERIM,
+# D-STRUCTDATA step 2 moves it to its own pseudopotentials.json.  The structure fields are qcStructure's (qchem.StructureData).
+target_compile_definitions(qchem PRIVATE ${StructureDataPath})
 # all_my_modules' base dir was set by the first contributor (src/SCFIterator); register this
 # directory as an additional base so the file set will accept Calculation.C from here.
 target_sources(qchem PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES

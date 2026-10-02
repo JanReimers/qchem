@@ -4,12 +4,14 @@ target_sources(qcStructure PRIVATE
     Imp/Structure.C 
     Imp/Molecule.C 
     Imp/UnitCell.C
+    Imp/StructureData.C
     Lattice_3D/Imp/Lattice_3D.C
     )
 target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Structure.C
     UnitCell.C
     Ewald.C
+    StructureData.C   # qchem.StructureData: molecules/cells from Data/{molecules,materials}.json (D-STRUCTDATA)
     Lattice_3D/ReciprocalLattice.C
     Lattice_3D/KMesh.C
     Lattice_3D/Lattice_3D.C
@@ -21,6 +23,7 @@ target_include_directories(qcStructure PRIVATE
 )
 set_property(TARGET qcStructure PROPERTY CXX_STANDARD 20)
 target_compile_definitions(qcStructure PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
+target_compile_definitions(qcStructure PRIVATE ${StructureDataPath})
 # qcSymmetry (user decision 2026-08-01, doc/SymmetryUpgradePlan.md §6a): qcStructure is where Mesh
 # and Symmetry MEET without depending on each other -- the crystal owns its detected SpaceGroup
 # (Lattice_3D::GetSpaceGroup) and the mesh symmetry-fold helpers (SymmetrizeMesh.C) live here.

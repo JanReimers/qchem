@@ -19,4 +19,5 @@ export import qchem.Structure;       // Molecule, Atom, Structure
 export import qchem.ScalarFunction;  // qchem::ScalarFunction<double> (the density and every MO)
 export import qchem.Types;           // qchem::Vector3D / rvec3_t, dcmplx
 export import qchem.PeriodicTable;   // element symbol / Z lookups
-export import qchem.Materials;       // Materials::Get / Names / GetMolecule -- the pre-defined pick-lists (data, row MD)
+export import qchem.StructureData;   // GetMolecule / GetCell -- the pre-defined structures (D-STRUCTDATA)
+export import qchem.Materials;       // Materials::Get / Names -- structure + valence counts (data, row MD)

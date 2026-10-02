@@ -44,7 +44,7 @@ import qchem.Outcome;                           // Outcome<Converged,SCFFailure>
 import qchem.RunPolicy;                         // ReresolveRunPolicy() -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
-import qchem.Materials;                           // Materials::Get -- the cells come from src/Calculation/Data/materials.json (row MD)
+import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); Vxc_Quadrature + the two DensitySampler strategies
 import qchem.ChargeDensity.DensitySampler;  // the XC sampling engine (its own module
