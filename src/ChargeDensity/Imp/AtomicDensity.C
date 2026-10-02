@@ -93,7 +93,15 @@ static const nlohmann::json* FindAtomicEntry(int Z, const std::string& functiona
     {
         if (e.value("Z",-1)!=Z || e.value("functional",std::string())!=functional) continue;
         const int nelec = e.value("Nelec",-1);
-        if (Nval>=0) { if (nelec==Nval) return &e; continue; }
+        if (Nval>=0)
+        {
+            // An explicit charge state is ambiguous too when two PP variants share it (Li q3's ion holds 1 electron,
+            // exactly as q1's neutral does) -- a first-match-wins pick there is the same silent wrong-seed hazard.
+            if (nelec!=Nval) continue;
+            if (hit) ambiguous += " q=" + std::to_string(e.value("q", nelec));
+            else     { hit = &e; ambiguous = "q=" + std::to_string(e.value("q", nelec)); }
+            continue;
+        }
         // neutral: Nelec == q.  An entry with no `q` is pre-schema data -- treat its own Nelec as q so a
         // stale file still resolves, rather than silently matching nothing.
         if (nelec != e.value("q", nelec)) continue;
@@ -102,9 +110,10 @@ static const nlohmann::json* FindAtomicEntry(int Z, const std::string& functiona
     }
     if (!ambiguous.empty() && ambiguous.find(' ')!=std::string::npos)
         throw std::runtime_error("AtomicDensity: Z=" + std::to_string(Z) + " functional='" + functional
-            + "' has MORE THAN ONE neutral entry in " + dbfile + " (" + ambiguous + ") -- the pseudopotential"
-            " variant is part of the identity of a seed density, so ask for one explicitly with Nval"
-            " (the neutral of variant q holds q electrons)");
+            + "' has MORE THAN ONE " + (Nval>=0 ? "entry with Nelec=" + std::to_string(Nval) : std::string("neutral entry"))
+            + " in " + dbfile + " (" + ambiguous + ") -- the pseudopotential"
+            " variant is part of the identity of a seed density" + (Nval>=0 ? std::string(": disambiguate the library (it needs a q key in the request)")
+            : std::string(", so ask for one explicitly with Nval (the neutral of variant q holds q electrons)")));
     return hit;
 }
 

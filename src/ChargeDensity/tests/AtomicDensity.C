@@ -1,6 +1,10 @@
 // File: UnitTests/AtomicDensityUT.C  Tests for the SAD atomic-density database reader + interpolation.
 #include "gtest/gtest.h"
+#include <filesystem>
+#include <fstream>
 #include <memory>
+#include <stdexcept>
+#include <string>
 
 import qchem.ChargeDensity.AtomicDensity;   // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
 import qchem.Types;                          // rvec3_t
@@ -83,4 +87,26 @@ TEST(AtomicDensity, SpinPairAbsentForClosedShells)
     EXPECT_FALSE(HasAtomicSpinPair( 8, "LDA", vdb, 8));   // O2- (closed p^6, generated unpolarized)
     EXPECT_FALSE(HasAtomicSpinPair(14, "LDA", vdb, 4));   // Si (legacy spin-agnostic entry)
     EXPECT_THROW(GetAtomicSpinPair(14, "LDA", vdb, 4), std::runtime_error);
+}
+
+// D-SEED1: the seed library is keyed by (Z, functional) but a PSEUDOPOTENTIAL VARIANT (q) is part of a seed density's
+// identity (Li q1 and q3 are different densities).  A fixture library (an absolute path replaces the data dir) with
+// Li q1's neutral (Nelec 1), Li q3's neutral (Nelec 3) and Li q3's +2 ion (Nelec 1): "the neutral Li" is ambiguous
+// and so is "the Nelec=1 Li" -- both must THROW rather than pick the first in file order; "Nelec=3" is unique.
+TEST(AtomicDensity, AmbiguousPseudopotentialVariantThrowsInsteadOfPickingTheFirst)
+{
+    const std::string path=(std::filesystem::path(testing::TempDir())/"seed_ambiguity.json").string();
+    {
+        auto entry=[](int nelec, int q)
+        {
+            return "{\"Z\":3,\"functional\":\"LDA\",\"Nelec\":"+std::to_string(nelec)+",\"q\":"+std::to_string(q)
+                 + ",\"grid\":{\"rmin\":1e-3,\"rmax\":10.0},\"rho\":[0.1,0.05,0.01]}";
+        };
+        std::ofstream f(path);
+        f<<"["<<entry(1,1)<<","<<entry(3,3)<<","<<entry(1,3)<<"]";
+    }
+    EXPECT_THROW(GetAtomicDensity(3, "LDA", path),    std::runtime_error) << "two neutrals (q1, q3)";
+    EXPECT_THROW(GetAtomicDensity(3, "LDA", path, 1), std::runtime_error) << "q1's neutral vs q3's +2 ion, both Nelec=1";
+    EXPECT_NO_THROW(GetAtomicDensity(3, "LDA", path, 3)) << "Nelec=3 is unique";
+    EXPECT_FALSE(HasAtomicDensity(3, "LDA", path, 4)) << "no such state is absence, not an error";
 }
