@@ -158,7 +158,7 @@ SolidCalcOptions NaFAnchorOptions(const Material& naf, const std::string& label)
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
     return o;
 }
-SCFParams NaFAnchorParams() { SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4; return par; }
+SCFParams NaFAnchorParams() { SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4; par.Verbose=(bool)std::getenv("GPW_VERBOSE"); return par; }
 
 const NaFRestartFixture& NaFRestart()
 {
@@ -230,6 +230,7 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume)
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart exact");
+    o.accelerator=qchem::SCFAccelerators::Type::GDM;   // a converged state wants GDM, not the DIIS+Kerker rung (see below)
     std::vector<double> E;
     o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
     auto c=qchem::SolidCalculation::Restart(f.finePath, lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
@@ -237,13 +238,12 @@ TEST(GPW_NaF, Γ_Imp_eqExactResume)
     auto R=(*c)->Result();
     ASSERT_TRUE(R) << Why(R);
     ASSERT_FALSE(E.empty());
-    // THE CLAIM IS WHERE IT STARTS AND WHERE IT ENDS, not the iteration count: the recipe's near-convergence tail
-    // (Ladder/MOM/Kerker) keeps iterating a converged state ~9 times (measured 2026-10-02), the same accelerator
-    // property SolidState.WarmStart_OtherGrid records -- not a defect of the restart.
-    // MEASURED 2026-10-02: on NaF the first iterate is 1.3e-4 Ha from the saved energy (Si: 2e-10), then the SCF
-    // returns to it to 6e-9 -- OpenWork §3 row "NaF exact-resume first iterate".  Bounded here at 1e-3 so a jump to
-    // another BASIN (the failure this test exists for) still fails; tighten to 1e-7 when that row is closed.
-    EXPECT_NEAR(E.front(), f.coldEnergy, 1e-3) << "the first iterate of an exact resume must be near the saved state";
+    // GDM, NOT the Ladder (user: restarts want GDM, or the Ladder's GDM rung).  MEASURED 2026-10-02: from the same file
+    // the Ladder's DIIS rung + Kerker(alpha=.25) STEPS the density before the first energy is read -- first iterate
+    // 1.3e-4 Ha off the saved state, 4 DIIS iterations until |dE/E|<1e-6 hands off to GDM, 9 in all -- whereas GDM
+    // starts at the answer (4e-10) and converges in 2.  The saved state was never the problem.
+    EXPECT_NEAR(E.front(), f.coldEnergy, 1e-7) << "the first iterate of an exact resume is the saved state";
+    EXPECT_LE(R->IterationCount(), 3u) << "an exact resume under GDM starts converged";
     EXPECT_NEAR(R->Energy(), f.coldEnergy, 1e-7);
 }
 
