@@ -41,6 +41,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <ctime>
 
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;            // NR_Evaluator (ForShellPairBox is public)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;     // radials / pols / ns
@@ -1118,16 +1119,18 @@ TEST(M_PG_BoxWalk, WhereTheContractionSpendsItsTime)
     // several trials.  Without it the first configuration measured read 325 us against 146 for the same
     // work -- frequency ramp, cold thread_local tables, cold branch predictors -- and it dragged the
     // regression below to a NEGATIVE slope.  A mean over a run that includes a warm-up is not a measurement.
-    auto best=[](auto&& body, int reps, int trials)
+    // THREAD CPU TIME, not wall: a preemption under `ctest -j8` is wall time this thread never spent, and
+    // the claim under test is about work done.  (Cache/SMT contention still inflates it, hence MIN + RETRY.)
+    auto cpuUs=[]{ timespec ts; clock_gettime(CLOCK_THREAD_CPUTIME_ID,&ts); return 1e6*double(ts.tv_sec)+1e-3*double(ts.tv_nsec); };
+    auto best=[&](auto&& body, int reps, int trials)
     {
         body();                                                // warm-up, untimed
         double lo=1e300;
         for (int t=0;t<trials;t++)
         {
-            auto t0=std::chrono::steady_clock::now();
+            const double t0=cpuUs();
             for (int r=0;r<reps;r++) body();
-            auto t1=std::chrono::steady_clock::now();
-            lo=std::min(lo, std::chrono::duration<double,std::micro>(t1-t0).count()/reps);
+            lo=std::min(lo, (cpuUs()-t0)/reps);
         }
         return lo;
     };
@@ -1142,6 +1145,7 @@ TEST(M_PG_BoxWalk, WhereTheContractionSpendsItsTime)
     struct Row { int lp; double coef, poly, contract; };
     std::vector<Row> rows;
     double worstSetupShare=0.0;
+    int    worstLa=0, worstLb=0;
     long   boxPts=0;
     for (int La=0; La<=2; La++)
         for (int Lb=0; Lb<=2; Lb++)
@@ -1167,7 +1171,7 @@ TEST(M_PG_BoxWalk, WhereTheContractionSpendsItsTime)
             std::printf("  %-3d %-3d %-4d %-6zu %10.3f %10.3f %10.1f %8.2f\n",
                         La,Lb,q.lp,nI*nJ,coef,poly,contract,share);
             rows.push_back({q.lp,coef,poly,contract});
-            worstSetupShare=std::max(worstSetupShare, share/100.0);
+            if (share/100.0>worstSetupShare) { worstSetupShare=share/100.0; worstLa=La; worstLb=Lb; }
         }
 
     // contract(lp) ~ intercept + slope*(lp+1).  Box fixed => the intercept is the exp TABLES plus the
@@ -1292,6 +1296,29 @@ TEST(M_PG_BoxWalk, WhereTheContractionSpendsItsTime)
     // THE CLAIM UNDER TEST, and it is what decides how far to take 3c-bis: the COEFFICIENT half is not
     // where a task's time goes, so template<int LA,int LB> on MakePairPoly/MomentsToPairs is a FOOTPRINT
     // argument (the 16 KB kMaxShell scratch arrays), not a speed one.  If this fires, that has expired.
+    // A TIMING GATE THAT CANNOT CRY WOLF (the recipe, for any perf assertion in this suite):
+    //   (1) assert a RATIO of two back-to-back timings, never an absolute time;  (2) CPU time, not wall;
+    //   (3) the MIN of trials -- noise only ever ADDS time, so min is one-sided;  (4) a wide margin (quiet
+    //   box worst row ~16% vs the 25% bound);  (5) RETRY the failing configuration with more trials before failing --
+    //   a real regression fails every attempt, a preempted trial does not.  The first sweep above is
+    //   3 trials per row for cheapness, so it is only the SCREEN; the verdict is the re-measurement.
+    for (int attempt=0; attempt<3 && worstSetupShare>=0.25; attempt++)
+    {
+        size_t i0,nI,j0,nJ;
+        ASSERT_TRUE(FindShell(ev, A0, 1.2, worstLa, i0, nI));
+        ASSERT_TRUE(FindShell(ev, B0, 1.5, worstLb, j0, nJ));
+        std::vector<double> w(nI*nJ);
+        for (size_t t=0;t<w.size();t++) w[t]=0.25+0.5*double((t*7)%5);
+        const NR_Evaluator::BoxGeom bg=ev.MakeBoxGeom(i0,j0,rvec3_t(0,0,0),fx.cell,N,1e-10);
+        const NR_Evaluator::PairPoly q=ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data());
+        ASSERT_TRUE(bg.live && q.live);
+        volatile double sink=0.0;
+        const double coef=best([&]{ const auto p=ev.MakePairPoly(i0,nI,j0,nJ,rvec3_t(0,0,0),w.data()); sink=sink+p.Eij; }, 20000, 15);
+        const double poly=best([&]{ const auto gp=NR_Evaluator::ToGridPoly(q,bg); sink=sink+gp.q[0][0][0]; }, 20000, 15);
+        const double contract=best([&]{ ev.ContractCube(bg,q,N,dst); }, 300, 15);
+        worstSetupShare=(coef+poly)/(coef+contract);
+        std::printf("  [retry %d] La=%d Lb=%d setup share %.2f%%\n", attempt+1, worstLa, worstLb, 100.0*worstSetupShare);
+    }
     EXPECT_LT(worstSetupShare, 0.25)
         << "the coefficient collapse is now a quarter of a task -- revisit template<int LA,int LB>";
 }

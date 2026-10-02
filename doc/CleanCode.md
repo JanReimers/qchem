@@ -31,7 +31,6 @@ Tooling/build/test-infrastructure rows (moved from OpenWork §3, 2026-10-01) are
 | **D-SKCOND** | `[basis trim]` S(k) conditioning prints only from the vet stage (`gpwprobe <P>_VET=1`); unit tests/facade runs never show it (CLAUDE.md rule "always check [basis trim]" is not checkable) | facade prints one line per k-block at setup: min/max eig S, condition number, beside the `[ortho]` pivot line |
 | **D-LONG** | no `_Long` budget/label: TestSuitePlan ruling 5 proposed 60 s CPU (de-facto ceiling 74 s `GPW.XCPotentialConsistencyFD`); no `ctest -L long`; 5-min MnO AFM-II gate is `DISABLED_` for that | set budget, add label, promote `GPW_MnO.DISABLED_Γ_Shub_Pol_Smear_Anchor` |
 | **D-CUBE0** | `GPW_CONTRACT_CUBE=0` reference box walk is an opt-out nothing exercises by default | run `GPW_CONTRACT_CUBE=0 ctest -j8` beside the plain sweep at any collocation-touching breakpoint |
-| **D-FLAKE** | `M_PG_BoxWalk.WhereTheContractionSpendsItsTime` asserts on wall-clock, flakes under `-j8` | assert on a ratio of counts, or move to `gpwprobe` |
 | **D-NAFGRID** | `GPW_NaF.DISABLED_Γ_GridContinuation` needs a facade grid-continuation face | small facade addition, then re-enable |
 | **D-MAKEWATER** | `MakeWater()` etc. inline in molecular tests; `qchem.Materials` has the 4 molecules | mechanical, not urgent |
 | **D-TESTER** | fold `QchemTester` + the pybind bridge onto the facade (test-harness cleanup; pybind is binding-owned — flag, do not edit); `MolecularSym_EC` → `FixedIrrepOcc_EC` rename belongs with the symmetry-naming cleanup | when the facade gap is filled |
