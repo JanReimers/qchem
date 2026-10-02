@@ -1,0 +1,51 @@
+#!/bin/bash
+# rundir -- WHERE a run's data goes (D-RUNDATA).  One convention, one helper, so results are born in the right place:
+#
+#     ~/Code/<app>-runs/<Material>/<name>.<ext>      <app> = cp2k | qe | abinit | qchem6
+#     ~/Code/qchem6-runs/<Material>/states/          saved SCF states (SolidCalculation::SaveState, *.h5)
+#
+#   scripts/rundir <app> <Material> [subdir]   create + print the directory (use it as WORK in a job script)
+#   scripts/rundir --audit                     list what is NOT where the convention puts it; exit 1 if anything
+#
+# A queued job script says   WORK=$(/home/janr/Code/qchem6/scripts/rundir qe FeS2)   instead of a batch/work/<job> dir, so
+# the outputs never need graduating.  Give the files a self-describing prefix (mno_ckalpha_a0.out, not run1.out): several
+# jobs share one Material directory.  Large scratch (QE tmp/, wavefunction dumps) goes in a `tmp/` subdirectory, which the
+# audit reports by size so it can be deleted deliberately -- never silently.
+set -eu
+ROOT="${RUNDIR_ROOT:-$HOME/Code}"
+APPS="cp2k qe abinit qchem6"
+
+if [ "${1:-}" = "--audit" ]; then
+    bad=0
+    for app in $APPS; do
+        d="$ROOT/$app-runs"; [ -d "$d" ] || continue
+        # (a) loose files directly under <app>-runs (a Material directory is expected there)
+        for f in "$d"/*; do
+            [ -f "$f" ] || continue
+            case "$f" in *-BASIS|*.py|*.sh) continue;; esac          # shared inputs / helper scripts are allowed at the top
+            echo "STRAY  $f   (a file at the top of $app-runs; belongs in $app-runs/<Material>/)"; bad=1
+        done
+    done
+    # (b) batch outputs that never graduated out of qchem6-runs/batch/work/<job>
+    w="$ROOT/qchem6-runs/batch/work"
+    if [ -d "$w" ]; then
+        for j in "$w"/*/; do
+            [ -d "$j" ] || continue
+            echo "NOT GRADUATED  $(du -sh "$j" | cut -f1)  $j   (move results to <app>-runs/<Material>/)"; bad=1
+        done
+    fi
+    # (c) scratch dumps worth a conscious decision
+    for t in "$ROOT"/*-runs/*/tmp "$ROOT"/*-runs/*/*/tmp; do
+        [ -d "$t" ] || continue
+        s=$(du -sm "$t" | cut -f1); [ "$s" -ge 500 ] && echo "SCRATCH  ${s} MB  $t   (delete deliberately when the run is banked)"
+    done
+    exit $bad
+fi
+
+[ $# -ge 2 ] || { sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+app="$1"; mat="$2"; sub="${3:-}"
+case " $APPS " in *" $app "*) ;; *) echo "rundir: unknown app '$app' (one of: $APPS)" >&2; exit 2;; esac
+case "$mat" in */*|""|.*) echo "rundir: Material must be a plain name (MnO, NiO, FeS2 ...), got '$mat'" >&2; exit 2;; esac
+dir="$ROOT/$app-runs/$mat${sub:+/$sub}"
+mkdir -p "$dir"
+echo "$dir"

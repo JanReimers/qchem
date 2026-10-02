@@ -209,6 +209,7 @@ two-minute timeout every time somebody forgets, so it is written here rather tha
 converge the real density before quoting a number.  Copy the run command from `doc/Benchmark.md` §5a rather
 than reconstructing it.
 
+- **Run data has ONE home** (D-RUNDATA): `~/Code/<app>-runs/<Material>/<name>.<ext>` with `<app>` = cp2k | qe | abinit | qchem6, saved SCF states in `<Material>/states/`.  A batch job script gets its directory from `scripts/rundir <app> <Material>` (template: `scripts/queue_job_template.sh`) instead of a `batch/work/<job>` dir, so results never need graduating; give files a self-describing prefix (several jobs share a Material dir); QE `tmp/` and wavefunction dumps are scratch.  `scripts/rundir --audit` lists strays, un-graduated batch work and big scratch -- run it after a batch.
 - **Source builds are the DEFAULT for every comparison code** (user, 2026-09-06: *"we always want to look
     into the source any way … with our own build we can possibly get better control and profiling"*) — apt
     availability does not decide candidates.  Toolchain present: `gfortran`, `mpif90` (OpenMPI), and
