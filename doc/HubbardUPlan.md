@@ -122,6 +122,14 @@ moves the voltage; the `orthofull` arm gives it free from the same SCF).  Collin
   keyed by element only ⇒ a q3 run can silently get the q1 `LI` block.  Fix = machine-readable per-element q
   provenance in the `.bsd` header, factory throws on mismatch; same family as OOD-SOLID row D-SEED1 (seed
   library keyed (Z, functional), first match wins).  Lands WITH B4.
+- **TEST-NAME GRAMMAR vs the +U tests** (moved from the clean-code pass, 2026-10-02; for a Hubbard-focused session to
+  decide): `scripts/testgrid --check` (grammar: CLAUDE.md "Tests — naming", `doc/Records/TestSuitePlan.md`) rejects
+  three `GPW_Si` tests in `IntegrationTests/GPW/Si.C` -- `Γ_U_ACBN0_Imp_Pol_eqUnpol`, `Γ_U_Atomic3p_Imp_Pol_eqUnpol`,
+  `Γ_U_ACBN0_OuterLoopFeelsTheNewU` -- because `ACBN0` / `Atomic3p` (the U FUNCTIONAL and the manifold PROJECTOR
+  variant, named after the model token `U`) are in no axis vocabulary.  Either the grammar grows a "U flavour" axis
+  (after `<Model>`), or the names drop the flavour (and it moves into the claim or the body).  NOT decided: it is not
+  clear which is right, and it depends on how many U flavours the product space will really carry (ACBN0, screened
+  ACBN0, LRT-U, cRPA-U, +V, +J ...).  Decide that first; then fix `scripts/testgrid` AXES + CLAUDE.md, or rename.
 - GGA before any VALUE comparison with the PBE literature (ACBN0 7.63/3.0, Macke, Carta are PBE).
 - Spherical atom resolves a degenerate shell by picking orbitals; matters for the +U atomic radial on a broken
   shell (measure first; captured norm prints: NiO 0.9999, MnO VA 0.991).
