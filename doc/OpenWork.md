@@ -74,6 +74,7 @@ PPs; Tier 2 = USPP/PAW + k-point throughput).  Full prose of every row: `OpenWor
 | **The 136-function span** (time-boxed) | why CP2K holds the full diffuse span; screen hypothesis REFUTED | candidates: SVD-consistent F/S filtering; symmetry-inequivariant drop (vet trim is the prerequisite); project near-null out of F · H4 "Step 6" |
 | **Na₂ polarized singlet won't converge from AFM seed at α=0.3** | Δρ ~1e-2 oscillation, E flat; unpol converges in 30 | explain/fix before a magnetic campaign pays · H4 "TWO SMALLER LOOSE ENDS" |
 | **‖V_xc − V_xc_fit‖ study** ⏸ | Becke-vs-uniform costs are at unknown-equal accuracy | parked (user "defocusing") |
+| **NaF exact-resume first iterate is 1.3e-4 Ha off the saved state** | found 2026-10-02 by `GPW_NaF.Γ_Imp_eqExactResume`: `SolidCalculation::Restart` from a converged NaF state (same grid, Ladder/MOM/Kerker recipe) reproduces the energy at the END (6e-9) but its FIRST iterate sits 1.3e-4 Ha away (Si: 2e-10), then needs 9 iterations to return -- a hard-material restart should START converged | find what the first iterate evaluates that the saved state did not carry (mixer/MOM/occupation history, "no history is carried", or the first Kerker step); then tighten the test's 1e-3 bound to 1e-7 · `IntegrationTests/GPW/NaF.C`, `SolidState.C` WarmStart_OtherGrid note |
 | **Anchor-moving batch (re-bank once)** | left: V1.22 (OOD), §K (CleanCode), `MinΔρ` gate (CleanCode D-MINDRHO), N4 | do in ONE window so each delta is attributable · H4 "THE ANCHOR-MOVING SPRINT" |
 
 ---

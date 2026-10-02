@@ -7,7 +7,8 @@
 //
 //   GPW_NaF.Γ_Imp_Anchor
 //   GPW_NaF.Γ_Becke_Imp_eqUni
-//   GPW_NaF.DISABLED_Γ_GridContinuation
+//   GPW_NaF.Γ_Imp_eqColdStart       (coarse -> Restart onto the fine grid == a cold fine run)
+//   GPW_NaF.Γ_Imp_eqExactResume     (same-grid Restart reproduces the converged state)
 
 #include "gtest/gtest.h"
 #include <memory>
@@ -21,6 +22,7 @@
 #include <algorithm>
 #include <functional>
 #include <string>
+#include <filesystem>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
 
 import qchem.Structure;                          // Molecule, Atom
@@ -131,6 +133,120 @@ TEST(GPW_NaF, Γ_Imp_Anchor)   // RE-ENABLED 2026-09-15: 15 s, converged in 23 i
 }
 
 
+// INCREMENTAL CONVERGENCE ON A HARD MATERIAL (D-NAFGRID, user 2026-10-02: "very important ... well tested, and on a
+// hard material like NaF").  NaF is the stress case for a restart: the sharp F pseudopotential and the diffuse Na
+// valence basis make it easy to land in the wrong state after a perturbation -- the old raw-iterator version of this
+// test (GPW_NaF.DISABLED_Γ_GridContinuation) recorded a transferred seed PINNING AN EXCITED STATE (-23.68 against
+// -24.43 Ha).  So: converge a CHEAP coarse density grid, save, and Restart onto the production grid.  Same orbital
+// basis, same recipe as Γ_Imp_Anchor; only densityEcut (and, for the coarse stage, the alias-free raster the sub-floor
+// Ecut=40 needs) differs.  One fixture, built once: the coarse state, the cold fine reference, and the fine state.
+namespace
+{
+struct NaFRestartFixture
+{
+    std::string coarsePath, finePath;
+    double      coldEnergy=0.0, coarseEnergy=0.0;
+    size_t      coldIterations=0;
+    bool        ok=false;
+    std::string why;
+};
+SolidCalcOptions NaFAnchorOptions(const Material& naf, const std::string& label)
+{
+    SolidCalcOptions o=NaFOptions(naf, label);
+    o.imposeSymmetry=true;
+    o.xcMesh          = qcMesh::BeckeXCParams(20,2,24);
+    o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
+    return o;
+}
+SCFParams NaFAnchorParams() { SCFParams par=NaFGates(); par.StartingRelaxRo=0.25; par.MergeTol=1e-4; return par; }
+
+const NaFRestartFixture& NaFRestart()
+{
+    static const NaFRestartFixture f=[]
+    {
+        NaFRestartFixture r;
+        const Material naf=qchem::Materials::Get("NaF_rocksalt");
+        const Lattice_3D lat=LatticeOf(naf);
+        const auto dir=std::filesystem::path(testing::TempDir());
+        r.coarsePath=(dir/"naf_restart_coarse.h5").string();
+        r.finePath  =(dir/"naf_restart_fine.h5").string();
+        {   // the CHEAP coarse stage: Ecut=40 is SUB-FLOOR (below C*alpha_max=80), so it needs the alias-free raster
+            SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart coarse");
+            o.densityEcut=40.0;
+            o.raster=BasisSet::PlaneWave::RasterPolicy::AliasFree;
+            o.saveStateTo=r.coarsePath;
+            qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
+            auto R=calc.Result();
+            if (!R) { r.why="coarse: "+Why(R); return r; }
+            r.coarseEnergy=R->Energy();
+        }
+        {   // the COLD fine reference (what Γ_Imp_Anchor runs), also saved for the exact-resume claim
+            SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart cold fine");
+            o.saveStateTo=r.finePath;
+            qchem::SolidCalculation calc(lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
+            auto R=calc.Result();
+            if (!R) { r.why="cold fine: "+Why(R); return r; }
+            r.coldEnergy=R->Energy(); r.coldIterations=R->IterationCount();
+        }
+        r.ok=true;
+        return r;
+    }();
+    return f;
+}
+} // namespace
+
+// CLAIM: converge coarse, Restart onto the fine grid, and land on the SAME ground state a cold fine run reaches --
+// not an excited-state pin, not the -40 Ha basin.  The first iterate is judged too: the whole point of the seed is
+// that the fine SCF STARTS near the answer (a count of iterations is the accelerator's business, SolidState.C).
+TEST(GPW_NaF, Γ_Imp_eqColdStart)
+{
+    const NaFRestartFixture& f=NaFRestart();
+    ASSERT_TRUE(f.ok) << f.why;
+    EXPECT_NEAR(f.coarseEnergy, -24.4357, 0.01) << "the coarse seed stage must itself be the physical fixed point";
+    const Material naf=qchem::Materials::Get("NaF_rocksalt");
+    const Lattice_3D lat=LatticeOf(naf);
+    SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart fine");          // auto densityEcut = the production grid
+    std::vector<double> E;
+    o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
+    auto c=qchem::SolidCalculation::Restart(f.coarsePath, lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
+    ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
+    auto R=(*c)->Result();
+    ASSERT_TRUE(R) << Why(R);
+    ASSERT_FALSE(E.empty());
+    EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
+    EXPECT_NEAR(R->Energy(), f.coldEnergy, 1e-4) << "the restarted run reached a different state than the cold fine run";
+    EXPECT_NEAR(R->Energy(), -24.4304, 0.01) << "and it is the banked NaF anchor";
+    EXPECT_LT(std::abs(E.front()-f.coldEnergy), 0.05) << "the first fine iterate should already be near the answer (coarse seed)";
+    EXPECT_LT(R->IterationCount(), f.coldIterations) << "the coarse seed must SAVE iterations on the fine grid (measured 12 vs 21)";
+}
+
+// CLAIM: the SAME grid resumes EXACTLY -- Restart from the converged fine state reproduces its energy and needs
+// (almost) no iterations.  The control for the claim above: if this fails the file round-trip is lossy on a hard
+// material, and the grid-continuation result means nothing.
+TEST(GPW_NaF, Γ_Imp_eqExactResume)
+{
+    const NaFRestartFixture& f=NaFRestart();
+    ASSERT_TRUE(f.ok) << f.why;
+    const Material naf=qchem::Materials::Get("NaF_rocksalt");
+    const Lattice_3D lat=LatticeOf(naf);
+    SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart exact");
+    std::vector<double> E;
+    o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
+    auto c=qchem::SolidCalculation::Restart(f.finePath, lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
+    ASSERT_TRUE(c) << (c ? std::string() : c.Error().details);
+    auto R=(*c)->Result();
+    ASSERT_TRUE(R) << Why(R);
+    ASSERT_FALSE(E.empty());
+    // THE CLAIM IS WHERE IT STARTS AND WHERE IT ENDS, not the iteration count: the recipe's near-convergence tail
+    // (Ladder/MOM/Kerker) keeps iterating a converged state ~9 times (measured 2026-10-02), the same accelerator
+    // property SolidState.WarmStart_OtherGrid records -- not a defect of the restart.
+    // MEASURED 2026-10-02: on NaF the first iterate is 1.3e-4 Ha from the saved energy (Si: 2e-10), then the SCF
+    // returns to it to 6e-9 -- OpenWork §3 row "NaF exact-resume first iterate".  Bounded here at 1e-3 so a jump to
+    // another BASIN (the failure this test exists for) still fails; tighten to 1e-7 when that row is closed.
+    EXPECT_NEAR(E.front(), f.coldEnergy, 1e-3) << "the first iterate of an exact resume must be near the saved state";
+    EXPECT_NEAR(R->Energy(), f.coldEnergy, 1e-7);
+}
+
 
 // The SHARP-FIELD leg of the gate (the plan names DISABLED_NaFRocksaltGamma as the stress case: the F-
 // anion makes sharp peaks in rho and V_xc, and its diffuse basis is what the Becke grid exists for).
@@ -170,186 +286,7 @@ TEST(GPW_NaF, Γ_Becke_Imp_eqUni)   // RE-ENABLED 2026-09-15: 24 s, Becke intern
 }
 
 
-// (4b) NaF GRID-CONTINUATION SEEDING (doc/GPWPlan §0e, step 1) -- the PRODUCTION-GRID fix.
-// (Pins + story re-derived 2026-07-23 on the post-analytic-short/kappa/5-smooth landscape; the original
-// -27.76/-27.93 anchors were the RETRACTED aliasing-era values -- doc/GPWPlan.md TRAPS #2.  The clean NaF
-// SR2 truth is CP2K -24.4312 at tight eps, Ecut=160-class grids.)
-//
-// THE PROBLEM.  The direct production-grid NaF run FALLS INTO the unphysical XC-collapse basin: from the
-// ionic seed, the Kerker priming descent goes straight into E~-40 (mid-slosh D loads the sharpest F pairs
-// beyond the grid calibration -> the collocated rho aliases spiky/locally-negative -> E_xc is legitimately
-// huge-negative WITHIN the discretization, a self-consistent garbage fixed point), and Pulay engaging on
-// that garbage state thrashes to +54.  MOM+Pulay are NECESSARY but NOT SUFFICIENT: the basin is a property
-// of the map, reachable by the descent -- not an occupation swap (MOM) nor a mixing wobble (Pulay).
-// HISTORY: on the BALL-XC map the basin was real at every sub-C=8 grid (the 0.5(f1) sweep hit it from a
-// SEEDED start at Ecut=160: negCharge -91, Exc -109).  The 0.5(f2) raw-XC feed REMOVED it (rho_DM >= 0 by
-// construction -- negCharge == 0 at C=8/4/3 in the acceptance sweep); this test retains the ionic-seed A/B
-// as the historical repro knob.
-//
-// THE FIX (this test).  Never ENTER the basin: converge the CHEAP coarse grid (Ecut=40), then SEED the fine
-// grid with that converged density so the fine SCF STARTS in the physical basin.  The orbital (SR2 Gaussian)
-// basis is IDENTICAL at both cutoffs -- only the density COLLOCATION grid differs -- so the converged coarse
-// density matrix transfers directly (no re-projection) via the explicit-seed cSCFIterator ctor, which
-// collocates the seed's iteration-0 Hartree/XC on the REQUESTED fine fit grid (the fit-grid seam is honest
-// since 2026-07-20 -- GPW_IBS builds the tensor over the requested fit basis's grid).  Init immediately
-// re-diagonalizes on the fine basis and every subsequent iteration runs the fine grid, starting in (and
-// staying in) the physical basin.
-//
-// MOM ACROSS THE GRID CHANGE (doc/GPWPlan 0h): transferring the coarse WF's occupied subspace as a fixed
-// MOM reference (AdoptMOMReference) pinned AN EXCITED STATE across the discretization change (measured
-// 2026-07-23: -23.680, +0.75 Ha).  The 0h GUARD (persistent-hole detection -> release + re-capture) now
-// makes BOTH recipes land the ground state: pure aufbau (the default: GC_SEED_MOM=0, GC_FINE_MOM_START=
-// 9999; 22 iters) and the transfer path (GC_SEED_MOM=1 GC_FINE_MOM_START=1: VERIFIED 2026-07-23, guard
-// fires once on the coarse stage's own capture-at-10 reference, fine converges 16 iters to -24.43252 --
-// identical to the aufbau pin to 8 decimals).  The guard also exposed that the COARSE stage's endpoint had
-// itself been MOM-pinned +0.75 high in every earlier measurement (see the coarse-pin note below).
-//
-// GATE: the fine grid must reach the raw-XC aufbau ground state -24.4325 (1.3 mHa from CP2K's -24.4312,
-// itself an Ecut=160-class number), NOT the -40 basin.  DISABLED (two full NaF SCFs, ~5 min).  Env knobs
-// (GC_*) tune each stage without recompiling.  Verify basin-avoidance is REAL by A/B: with GC_SEED=0 the
-// fine stage falls back to the ionic seed and must dive into the basin (the direct-run failure this test
-// fixes; the energy gates then fail by design).
-TEST(GPW_NaF, DISABLED_Γ_GridContinuation)
-{
-    using namespace qchem::Hamiltonian;
-    namespace L3=BasisSet::Lattice;
-    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
-
-    const double a=8.73;
-    FCCUnitCell cell(a);
-    cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
-    cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    auto st = lat.GetStructure();       // held for both stages (the ctors' non-owning structure view)
-    // GC_BASIS selects the orbital basis (default SR2 = the well-conditioned regression config; "SR" = the
-    // FULL short-range basis, lambda_min~1e-6 at complete enumeration -- the sec-1 rank-reduction campaign's
-    // probe target, oracle CP2K -27.93128 on VALENCE-LOWQ-SR).
-    const char* gcb=std::getenv("GC_BASIS");
-    const BasisSetData basis = (gcb && std::string(gcb)=="SR") ? BasisSetData::VALENCE_LOWQ_SR
-                                                               : BasisSetData::VALENCE_LOWQ_SR2;
-    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Gaussian::Factory(
-        basis, &cell, BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-
-    // The converged Ecut=40 recipe (DISABLED_NaFRocksaltGamma): pure damped Kerker (NO DIIS), exit on E-flat,
-    // delayed-IMOM MOM + Kerker-preconditioned Pulay.  Tunable per stage (near the fixed point the fine stage
-    // can capture MOM + engage Pulay earlier, since it does not need the ~10/35-iter descent the coarse one does).
-    auto makePar=[&](size_t nmax, int momStart, int pulayStart)
-    {
-        SCFParams par; par.NMaxIter=nmax; par.MinΔρ=1e30; par.MinΔE=1e-8; par.MinΔFD=1e30; par.MinVirial=1e30;
-        par.MinFD=1e30; par.StartingRelaxRo=envd("GC_ALPHA",0.025); par.MergeTol=1e-4; par.Verbose=true;
-        par.KerkerG0=envd("GC_KERKER_G0",1.0);
-        par.UseMOM=true; par.MOMStartIter=momStart; par.PulayDepth=(int)envd("GC_PULAY",6); par.PulayStart=pulayStart;
-        return par;
-    };
-
-    // RSS breadcrumb (the full-SR allocation-bomb bisect, 2026-07-22): prints resident MB per ctor phase.
-    auto rss=[](const char* tag)
-    {
-        std::ifstream f("/proc/self/statm"); size_t vmpg=0, rspg=0; f>>vmpg>>rspg;
-        std::cerr<<"[rss] "<<tag<<": "<<(rspg*4096/1048576)<<" MB"<<std::endl;
-    };
-    // ---- STAGE 1: converge on the CHEAP coarse density grid (Ecut=40 -> the physical fixed point). ----
-    // Every coarse-stage object is a unique_ptr so the WHOLE stage can be torn down mid-test (below) the
-    // moment the fine stage has consumed it -- doc/GPWPlan.md 0.5(b).
-    rss("pre-basis");
-    // The coarse SEED stage runs Ecut=40 -- SUB-FLOOR (below C*alpha_max=80), where BallOnly aliases
-    // (-43 mHa); pin it to the exact-quadrature raster so the seed is the honest -24.4357 fixed point.
-    std::unique_ptr<Complex_BS> bsC(L3::GPWFactory(lat, mol,
-        L3::GPWParams{.densityEcut=envd("GC_COARSE_ECUT",40.0), .raster=BasisSet::Gaussian::RasterPolicy::AliasFree}));
-    rss("basis");
-    auto ecC=std::make_unique<Crystal_EC>(bsC->GetIrreps(Spin::None), 8);
-    rss("EC");
-    cHamiltonian* hamC=new Ham_PW_DFT(st, bsC.get(), {{"Na",1},{"F",7}}, "LDA");
-    std::unique_ptr<cHamiltonian> hamCOwner(hamC);   // R2.22: the iterator borrows; this scope owns
-    rss("Ham");
-    auto* accC=new qchem::SCFAccelerators::SCFAcceleratorNull();   // no DIIS (the CP2K recipe)
-    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accCOwner(accC);   // R2.22: the iterator borrows; this scope owns
-    auto scfC=std::make_unique<qchem::SCFIterator::SolidSCFIterator>(bsC.get(), ecC.get(), hamC, accC,
-                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
-                                          qchem::Cholesky, 0.0);
-    rss("SCFctor");
-    qchem::ChargeDensity::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // step-2 probe: coarse-grid rho stats to compare vs fine
-    scfC->Iterate(makePar((size_t)envd("GC_COARSE_NMAX",200), 10, 35));
-    qchem::ChargeDensity::ReportGridCharge()=false;
-    auto Ecoarse=scfC->GetEnergy();
-    std::cout << "[NaF grid-cont COARSE] Ecut=40 iters="<<scfC->GetIterationCount()
-              << " Etot="<<Ecoarse.GetTotalEnergy() << std::endl;
-    // The Ecut=40 fixed point on the RAW-XC landscape WITH the 0h MOM guard: -24.4357, E-flat converged in
-    // ~43 iters -- only 3.2 mHa from the fine (Ecut=320) -24.4325: under raw XC the Ecut=40 grid is nearly
-    // converged.  PIN HISTORY (each anchor exposed by the next fix): -27.76 = the RETRACTED aliasing era;
-    // -23.69 (ball, 515 iters) and -23.68 (raw, 45 iters) = a MOM-PINNED EXCITED STATE the 0h guard caught
-    // (the capture-at-fill-10 reference grabbed a non-aufbau configuration; persistent ~3 mHa hole ->
-    // release -> aufbau recovery).  The "coarse underbinds by 0.74 Ha" story was that excited state's
-    // artifact, not grid error.
-    EXPECT_NEAR(Ecoarse.GetTotalEnergy(), -24.4357, 0.01);   // seed-quality anchor (did-E-move)
-
-    // Grab the converged coarse density (OWNED; consumed by the fine ctor's Init).  bsC stays alive until
-    // after the fine ctor, so the density's coarse-block pointer stays valid for the one iteration-0 read.
-    auto* seedCD = scfC->GetWaveFunction()->GetChargeDensity().release();   // consumed by the fine ctor
-
-    // ---- STAGE 2: seed the PRODUCTION fine grid (auto Ecut=8*alpha_max=320) with the converged coarse density. ----
-    std::unique_ptr<Complex_BS> bsF(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_FINE_ECUT",-1.0)));  // <0 AUTO=320
-    Crystal_EC ecF(bsF->GetIrreps(Spin::None), 8);
-    // R2.22: the iterator borrows these; this scope owns them, and they outlive scfF below.
-    std::unique_ptr<cHamiltonian> hamF(new Ham_PW_DFT(st, bsF.get(), {{"Na",1},{"F",7}}, "LDA"));
-    std::unique_ptr<qchem::SCFAccelerators::SCFAccelerator> accF(new qchem::SCFAccelerators::SCFAcceleratorNull());
-    qchem::ChargeDensity::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
-    qchem::SCFIterator::ReportBandGap()=true;
-    // GC_SEED=0 A/Bs the fix OFF (ionic seed) -> the fine stage must dive into the -39 basin (the failure this
-    // test fixes); default ON = the converged-coarse-density explicit seed.
-    const bool useSeed = envd("GC_SEED",1.0)!=0.0;
-    std::unique_ptr<qchem::SCFIterator::cSCFIterator> scfF;
-    if (useSeed)
-    {
-        scfF.reset(new qchem::SCFIterator::SolidSCFIterator(bsF.get(), &ecF, hamF.get(), accF.get(), seedCD, st.get(),
-                                                        qchem::Cholesky, 0.0));   // explicit-seed ctor (consumes seedCD)
-        // MOM transfer across the grid change is OFF by default: AdoptMOMReference across a discretization
-        // change PINS AN EXCITED STATE (doc/GPWPlan 0h; measured 2026-07-23: -23.680 vs the -24.434 aufbau
-        // ground state, +0.754 Ha).  With the density seed holding the run in the physical basin, the pure
-        // aufbau fill converges cleanly to the ground state.  GC_SEED_MOM=1 (with GC_FINE_MOM_START=1)
-        // re-enables the transfer path for the 0h MOM-guard work.
-        if (envd("GC_SEED_MOM",0.0)!=0.0)
-            scfF->AdoptMOMReference(*scfC->GetWaveFunction());
-    }
-    else
-    {
-        delete seedCD;   // A/B control: discard the coarse density, fall back to the ionic seed (dives to -39)
-        scfF.reset(new qchem::SCFIterator::SolidSCFIterator(bsF.get(), &ecF, hamF.get(), accF.get(),
-                                                        qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
-                                                        qchem::Cholesky, 0.0));
-    }
-    // The coarse stage is DONE (seed consumed by the fine ctor's Init, MOM reference copied out) -- tear it
-    // down IN ORDER (iterator -> EC -> basis) BEFORE the fine iterations (doc/GPWPlan.md 0.5(b)).  The
-    // coarse ~GPW_Evaluator hands its ladder's stream caches back to the global budget, and the fine shape
-    // (built STARVED during the handoff, while the coarse caches were still resident) rebuilds into the
-    // refunded budget at its next EnsureStreams (the self-heal).  Without this the fine stage runs at ~0%
-    // stream coverage, re-evaluating billions of points per iteration (the 8.45-h full-SR run).
-    scfC.reset(); ecC.reset(); bsC.reset();
-    rss("coarse stage freed");
-    scfF->Iterate(makePar((size_t)envd("GC_FINE_NMAX",100),
-                          (int)envd("GC_FINE_MOM_START",9999), (int)envd("GC_FINE_PULAY_START",12)));
-    qchem::ChargeDensity::ReportGridCharge()=false;
-    qchem::SCFIterator::ReportBandGap()=false;
-
-    auto Efine=scfF->GetEnergy();
-    auto cd=scfF->GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge();
-    std::cout << "[NaF grid-cont FINE] auto-Ecut iters="<<scfF->GetIterationCount()<<" charge="<<charge
-              << " Etot="<<Efine.GetTotalEnergy()
-              << " (Ekin="<<Efine["Kinetic"]<<" Een="<<Efine["Een"]<<" Eee="<<Efine["Eee"]<<" Exc="<<Efine["Exc"]
-              << " Enn="<<Efine["Enn"]<<" E_alphaZ="<<Efine["E_alphaZ"]<<")" << std::endl;
-    EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
-    // WHAT THIS GATES (re-derived 2026-07-23, post analytic-short/kappa/5-smooth + the 0.5(f2) raw-XC
-    // feed): grid-continuation seeding makes the PRODUCTION fine grid converge CLEANLY to the aufbau
-    // GROUND STATE.  Under raw-XC dynamics the XC-COLLAPSE basin is REMOVED (negCharge == 0 at every C in
-    // the f2 acceptance sweep -- rho_DM >= 0 by construction), so this gate now carries basin history plus
-    // the did-E-move pin.  The fine SCF converges in ~22 iters, charge conserved to 1e-8 throughout, at
-    // -24.4325 -- 1.3 mHa from the CP2K SR2 truth -24.4312 (an Ecut=160-class number).  The historical
-    // "-27.93 oracle / -3.5 Ha Exc step-2 gap" story recorded here previously was the RETRACTED
-    // aliasing-era landscape (doc/GPWPlan.md TRAPS #2).
-    EXPECT_TRUE(useSeed==false || scfF->Converged()) << "seeded fine SCF converges (no basin/spike thrash)";
-    EXPECT_GT(Efine.GetTotalEnergy(), -29.0);   // basin avoidance: NOT the ~-40 unphysical attractor
-    EXPECT_LT(Efine.GetTotalEnergy(), -20.0);   //                  NOT the +54 Pulay-thrash garbage
-    EXPECT_NEAR(Efine.GetTotalEnergy(), -24.4304, 0.01);   // the raw-XC aufbau ground state at the production
-                                                            //   default (auto Ecut=80, BallOnly); AliasFree@320
-                                                            //   reference: -24.4325
-}
+// (The pre-facade grid-continuation test, DISABLED_Γ_GridContinuation -- raw SolidSCFIterator ctors, ~15 GC_* env
+// knobs -- was DELETED 2026-10-02 (D-NAFGRID): its basin-avoidance premise (the direct fine run diving to -40 Ha) no
+// longer reproduces, and its incremental-convergence claim lives in Γ_Imp_eqColdStart / Γ_Imp_eqExactResume above.
+// History: doc/Records/OpenWork_History*.md, doc/OldPlans/GPWPlan.md §0e.)
