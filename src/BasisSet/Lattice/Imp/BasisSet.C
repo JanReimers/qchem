@@ -346,6 +346,30 @@ size_t VetGpwConditioning(const Complex_BS& bs)
     return total;
 }
 
+void PrintGpwConditioning(const Complex_BS& bs)
+{
+    auto* imp=dynamic_cast<const BasisSet::BasisSetImp<dcmplx>*>(&bs);
+    assert(imp && "PrintGpwConditioning: the periodic basis set must be a BasisSetImp");
+    double lminWorst=1e300, condWorst=0.0, lmaxBest=0.0;
+    std::string lminAt, condAt;
+    for (size_t i=0;i<bs.GetNumIBS();++i)
+        std::visit([&](const auto& b)
+        {
+            const auto& S = b->Overlap();
+            using U=typename std::decay_t<decltype(S)>::ElementType;
+            rvec_t d; mat_t<U> Uv; blazem::eigen(S, d, Uv);
+            const double mn=d[0], mx=d[d.size()-1];
+            double msv=std::fabs(d[0]); for (double v : d) msv=std::min(msv, std::fabs(v));
+            const double cond=msv>0 ? mx/msv : 1e300;
+            const std::string label=b->GetSymmetry().GetLabel();
+            if (mn<lminWorst)    { lminWorst=mn;    lminAt=label; }
+            if (cond>condWorst)  { condWorst=cond;  condAt=label; }
+            lmaxBest=std::max(lmaxBest, mx);
+        }, imp->GetChild(i));
+    std::cout<<"[basis cond] "<<bs.GetNumIBS()<<" k-block(s): min eig S = "<<lminWorst<<" ("<<lminAt
+             <<"), max cond(S) = "<<condWorst<<" ("<<condAt<<"), max eig S = "<<lmaxBest<<std::endl;
+}
+
 // ------------------------------------------------------------------ the VET-STAGE TRIM (pin 22)
 
 VetTrimResult VetStageTrim(const ::qchem::Lattice_3D& lat,

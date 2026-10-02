@@ -383,6 +383,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
         qchem::report::Log("building grid ladder");
         L3::EmitGpwGrids(*itsImp->bs);
     }
+    else L3::PrintGpwConditioning(*itsImp->bs);   // no report open: still say how conditioned S(k) is
 
     // DECISION 1 -- the XC quadrature.  Resolve Auto HERE, once, from facts about the run.  Downstream
     // consumers compare ==Becke, so an unresolved Auto would silently read as Uniform; resolving it at the

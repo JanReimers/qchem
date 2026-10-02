@@ -121,6 +121,12 @@ void EmitGpwGrids(const Complex_BS& bs);
 //! grid work -- instead of building the whole ladder and only then discovering the basis is singular.
 size_t VetGpwConditioning(const Complex_BS& bs);
 
+//! The same conditioning analysis as \ref VetGpwConditioning, for a run with NO report open: ONE console line
+//! \c [basis cond] -- the worst min-eig S and worst condition number over the k-blocks, and which block owns
+//! each -- so a facade/unit-test run can always be checked for diffuse-basis conditioning (CLAUDE.md "always
+//! check the basis").  The facade calls exactly one of the two.
+void PrintGpwConditioning(const Complex_BS& bs);
+
 //! \brief THE VET-STAGE TRIM (doc/Pins.md pin 22): the cell basis with its near-dependent diffuse shells
 //! removed ONCE, per element, BEFORE anything downstream is built -- so that the ortho step at \a orthoTol has
 //! nothing left to drop in ANY k-block.

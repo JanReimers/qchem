@@ -114,8 +114,8 @@ public:
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={});
     //! Multi-species, RUNTIME species list (the vector form the initializer_list can't provide) -- e.g. a
     //! LiCoO2 / f-oxide run assembled from the cell's distinct elements at run time.
-    //! \a polarized selects the SPIN-NATIVE (open-shell) exchange-correlation pair (Vxc_QuadraturePol +
-    //! Vcorr_QuadraturePol, SymmetryUpgradePlan §4 tier 4b) vs the ζ=0 unpolarized collapse -- exactly Ham_PP's
+    //! \a polarized selects the SPIN-NATIVE (open-shell) exchange-correlation term (Vxc_Quadrature on an
+    //! imposed spin subgroup, V1.37; SymmetryUpgradePlan §4 tier 4b) vs the ζ=0 unpolarized collapse -- exactly Ham_PP's
     //! flag.  Everything else (kinetic/PP/Hartree/ion-ion) is spin-agnostic.  Polarized currently requires
     //! the Delta (singles quadrature) XC route; a polarized PLANE-WAVE fit (a per-channel pair route) is asserted out
     //! until designed.
