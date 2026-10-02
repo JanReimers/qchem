@@ -647,7 +647,7 @@ TEST(ResponsePolarizability, GPW_Si_U2_FrozenChi_eqFiniteDifferenceLRT) {FrozenC
 //! transition density (NiO k222, 2026-09-29) -- every other kernel gate is Γ-only, where w = 1.  Measured: LR == FD
 //! to 9e-6.  The FD SCFs take the Kerker/Pulay recipe: SiParams' linear D-mixing did not converge the +-alpha runs on
 //! this mesh from either start (restart at relax 0.2, or the seed).
-TEST(ResponsePolarizability, GPW_Si_k211_U2_FrozenChi_eqFiniteDifferenceLRT) {FrozenChiEqFiniteDifference(ivec3_t(2,1,1), true, 3e-5, false);}
+TEST(ResponsePolarizability, GPW_Si_k211_U2_FrozenChi_eqFiniteDifferenceLRT_Long) {FrozenChiEqFiniteDifference(ivec3_t(2,1,1), true, 3e-5, false);}
 
 
 //=====================================================================================================

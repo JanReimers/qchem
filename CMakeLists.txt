@@ -102,10 +102,19 @@ include(GoogleTest)
 #      only WARNS: "filter ... did not match any test; no tests were run"), which defeats the point of a test
 #      runner; ctest turns that line into a FAILURE, so the next encoding or renaming accident is red, not green.
 # The real fix -- a runner that cannot pass an empty selection -- is doc/ModuleToolchainPlan.md's gtest item.
+#   3. THE `_Long` TIER (D-LONG, ruled 2026-10-02): a test whose name ENDS in `_Long` is over the 60 s CPU budget.
+#      It is discovered by a second pass and labelled `long`, so the regression sweep is `ctest -j8 -LE long` and
+#      the long gates run as `ctest -j8 -L long`.  (A plain `ctest` still runs both tiers; ctest has no
+#      per-test default-off.)  The two filters are disjoint, so the ctest count is the same as one pass.
 function(qchem_discover_tests target)
     gtest_discover_tests(${target}
+        TEST_FILTER -*_Long
         DISCOVERY_EXTRA_ARGS --gtest_output=
         PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run")
+    gtest_discover_tests(${target}
+        TEST_FILTER *_Long
+        DISCOVERY_EXTRA_ARGS --gtest_output=
+        PROPERTIES FAIL_REGULAR_EXPRESSION "no tests were run" LABELS long)
 endfunction()
 set(BUILD_GMOCK OFF CACHE BOOL "Disable GoogleMock for this project" FORCE)
 add_subdirectory(./submodules/googletest)

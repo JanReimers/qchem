@@ -8,8 +8,8 @@
 //   GPW_MnO.Γ_Pol_SeedMirror
 //   GPW_MnO.Γ_Becke_Pol_SeedVxcMirror
 //   GPW_MnO.Γ_Shub_Pol_SeedDecoration
-//   GPW_MnO.DISABLED_Γ_Shub_Pol_Smear_Anchor   (LONG: ~2.5 min; run explicitly -- the converged AFM-II gate)
-//   GPW_MnO.DISABLED_Γ_U_Shub_Pol_Smear_CP2K   (LONG: two ~6 min arms; the shell-averaged DFT+U oracle gate, VA span)
+//   GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long      (LONG: ~2.5 min; `ctest -L long` -- the converged AFM-II gate)
+//   GPW_MnO.Γ_U_Shub_Pol_Smear_CP2K_Long      (LONG: two ~6 min arms; the shell-averaged DFT+U oracle gate, VA span)
 
 #include "gtest/gtest.h"
 #include <memory>
@@ -424,9 +424,9 @@ TEST(GPW_MnO, Γ_Shub_Pol_SeedDecoration)
 // one).  |m-tilde(q_AFM)| Omega/2 = 3.13 e.  CP2K's AFM-II oracle is
 // -61.470570 (deck IntegrationTests/CP2K/mno_afm2_gpw_sr.inp): the 56 mHa gap is the banked ordering/d-selective
 // offset (doc/SymmetryUpgradePlan.md §7, doc/SphericalLatticePlan.md), so this pins OUR number as a did-E-move
-// anchor and states the oracle beside it.  LONG (ruling 5: over the 60 s budget), hence DISABLED_: it stays in
-// the TestMate tree and runs with --gtest_also_run_disabled_tests; ctest lists it as Not Run.
-TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Anchor)
+// anchor and states the oracle beside it.  LONG (ruling 5: over the 60 s budget), hence the `_Long` suffix: it runs in the
+// `ctest -L long` tier (excluded by `ctest -LE long`), and in the TestMate tree like any other test.
+TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
 {
     const Material mno=qchem::Materials::Get("MnO_AFM2");   // Mn +m at 0, Mn -m at 1/2 (the decoration), O at 1/4, 3/4
     const Lattice_3D lat=LatticeOf(mno);
@@ -475,10 +475,10 @@ TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Anchor)
 // function-for-function) AND the spherical view: a Cartesian d has six components with the s-contaminant among
 // them, and Hubbard_U refuses it (the Loewdin block would be 48x48 with a contaminant in the manifold).
 // The RECIPE is the Shub anchor's (above), which is the production one for this cell.  Two arms, ~6 min each
-// (the VA span is the 6m38s benchmark row), hence DISABLED_ like the anchor: --gtest_also_run_disabled_tests.
+// (the VA span is the 6m38s benchmark row), hence `_Long` like the anchor (`ctest -L long`).
 // QCHEM_U_TRACE=1 prints the per-refresh occupation line (N per manifold, max lambda, E_U) to compare against
 // CP2K's own &PRINT &PLUS_U table in bench_MnO_AFM2_VA_plusU_cp2k.log.
-TEST(GPW_MnO, DISABLED_Γ_U_Shub_Pol_Smear_CP2K)
+TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
 {
     const Material mno=qchem::Materials::Get("MnO_AFM2");   // sites 0,1 = Mn (+m, -m); 2,3 = O
     const Lattice_3D lat=LatticeOf(mno);

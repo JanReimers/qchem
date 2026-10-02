@@ -8,7 +8,7 @@ Brief notes about module/library conventions, naming, and includes.
 
 ## Build & test
 
-- Build & test: `cd build/Release && ninja ITMain`, then `ctest -j8` from `build/Release` — every
+- Build & test: `cd build/Release && ninja ITMain`, then `ctest -j8 -LE long` from `build/Release` (the 60 s-CPU `_Long` tier is `ctest -j3 -L long`, ~6 min; a test whose name ENDS in `_Long` is in it, ruled 2026-10-02; plain `ctest` runs both) — every
     gtest case (integration + library unit tests) runs as its own ctest test, load-balanced across
     cores with longest-first scheduling after the first run.  **Use -j8, not -j16, on this 14 GB
     box**: several GPW integration tests peak at 1-2 GB each, and a 16-way fan-out beside the

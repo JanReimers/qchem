@@ -36,6 +36,8 @@ def parse(suite, name):
     """-> (row dict, error or None)."""
     disabled = name.startswith("DISABLED_")
     if disabled: name = name[len("DISABLED_"):]
+    long_ = name.endswith("_Long")                # the cost tier (D-LONG): a SUFFIX, not an axis token
+    if long_: name = name[:-len("_Long")]
     m = re.match(r"^(GPW|PW|LAPW)_(\w+)$", suite)
     if not m: return None, f"suite '{suite}' is not <Basis>_<Material>"
     basis, material = m.groups()
@@ -45,7 +47,7 @@ def parse(suite, name):
     claim = toks[-1]
     if not CLAIM_RE.match(claim) or claim in K_TOKENS:
         return None, f"'{suite}.{name}': the last token '{claim}' is not a claim (CP2K | Anchor | eq<Token> | Verb)"
-    row = {"basis": basis, "material": material, "disabled": disabled, "claim": claim}
+    row = {"basis": basis, "material": material, "disabled": disabled, "long": long_, "claim": claim}
     for ax, vocab, default in AXES: row[ax] = [] if ax in MULTI else None
     pos = 0                                       # the axis the previous token belonged to (order check)
     for t in toks[:-1]:
@@ -110,7 +112,7 @@ def main():
         print("  ".join(h.ljust(w) for h,w in zip(head,widths)) + "  wall s")
         for r in sorted(rows, key=lambda r:(r["basis"], r["material"], r["test"])):
             cells = [str(r[c]) for c in cols]
-            cells[0] = ("(off) " if r["disabled"] else "") + cells[0]
+            cells[0] = ("(off) " if r["disabled"] else "") + ("(long) " if r.get("long") else "") + cells[0]
             cells[-1] = kind(r["claim"])
             print("  ".join(c.ljust(w) for c,w in zip(cells,widths)) + ("  %.1f" % r["s"] if r["s"] is not None else ""))
         n_on = sum(1 for r in rows if not r["disabled"])
