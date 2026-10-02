@@ -13,6 +13,8 @@ struct EnergyLevel
 {
     EnergyLevel(const Orbital* o);
     EnergyLevel(const EnergyLevel&);
+    //! A level built from its VALUES (no \c Orbital behind it) -- for the level-table row tests (D10).
+    EnergyLevel(double _e, double _occ, int _degen, const Orbital_QNs& _qns) : e(_e), occ(_occ), degen(_degen), qns(_qns) {}
 
     void merge(const EnergyLevel&);
     void Report(std::ostream&) const;
