@@ -28,7 +28,7 @@ target_link_libraries(qcGaussian_BS PUBLIC qcBasisSet qcElConfig qcStructure qcP
 # CMakeLists OpenMP block for the full story (incl. the 2026-07-31 finding that clang's
 # -fopenmp=libgomp fallback generated NO parallel code and ran silently serial).
 if(NOT OpenMP_CXX_FOUND)
-    message(WARNING "OpenMP (libomp) not found: GPW_OMP_THREADS will be SILENTLY SERIAL.  clang cannot "
+    message(WARNING "OpenMP (libomp) not found: QCHEM_OPENMP_THREADS will be SILENTLY SERIAL.  clang cannot "
                     "generate OpenMP code against libgomp.  Install libomp (sudo apt install libomp-dev) "
                     "and point cmake at it (see the top-level CMakeLists OpenMP block).")
 endif()

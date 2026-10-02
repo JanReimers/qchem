@@ -23,7 +23,7 @@
 # so a wall-time column is meaningless without them.
 #
 # The row reports CPU TIME and CPU% beside the wall clock, because a thread-count KNOB is not a measurement:
-# an unset GPW_OMP_THREADS reads "serial" while blaze still runs the BLAS on several cores -- measured
+# an unset QCHEM_OPENMP_THREADS reads "serial" while blaze still runs the BLAS on several cores -- measured
 # 2026-08-19 at 115-239% CPU across the qchem rows, against CP2K's honest 97-99%.  Reading the wall column
 # alone understated the qchem/CP2K compute ratio by about 2x (MnO FM: 6.8x wall, 12.1x CPU).  CPU time is the
 # comparison that does not depend on how many cores each side happened to take.
@@ -62,11 +62,11 @@ energy="${e_cp2k:-${e_qchem:-?}}"
 internal=$(grep -oP 'PEAK RSS \(MB, process high-water\)\s+\K[0-9.]+' "$log" 2>/dev/null | tail -1)
 
 # The thread KNOB, labelled as a knob.  CP2K states its actual count in the banner; on the qchem side there
-# is no such statement -- GPW_OMP_THREADS governs the pair loops only, so it is reported as "GPW_OMP=n" and
+# is no such statement -- QCHEM_OPENMP_THREADS governs the pair loops only, so it is reported as "GPW_OMP=n" and
 # the CPU% beside it is what says whether the run was really serial.
 t_cp2k=$(grep -oP 'GLOBAL\| Number of threads for this process\s+\K[0-9]+' "$log" 2>/dev/null | tail -1)
 if [ -n "$t_cp2k" ]; then threads="${t_cp2k} thr (stated)"
-else                     threads="GPW_OMP=${GPW_OMP_THREADS:-unset}"; fi
+else                     threads="GPW_OMP=${QCHEM_OPENMP_THREADS:-unset}"; fi
 
 printf '| %s | %s | %s wall | %s s cpu | %s MB | %s | %s | rc=%s |\n' \
        "$label" "$energy" "${wall:-?}" "${cpusec:-?}" "${peakmb:-?}" "cpu ${cpu:-?}" "$threads" "$rc"

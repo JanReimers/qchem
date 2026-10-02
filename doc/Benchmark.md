@@ -15,7 +15,7 @@ wrong turn and superseded number — is archived verbatim in `doc/Records/Benchm
 ### 1a. Single-thread parity FIRST, then threads — in that order (user)
 
 A threaded comparison against a serial code measures algorithm AND parallel efficiency at once.  (1) Get the
-SINGLE-THREAD time in line first: `OMP_NUM_THREADS=1 GPW_OMP_THREADS=1` (pins our OpenMP regions and the BLAS).
+SINGLE-THREAD time in line first: `OMP_NUM_THREADS=1 QCHEM_OPENMP_THREADS=1` (pins our OpenMP regions and the BLAS).
 (2) THEN look for OMP-shaped gaps.  ⚠ Our OpenMP threads BUSY-WAIT at the barrier, so a threaded run bills far
 more CPU than it uses (294 s serial billed ~590 s at 16 threads) — the CPU column overstates us wherever we thread.
 
@@ -97,7 +97,7 @@ UNCONDITIONALLY — no verbose flag, no opt-in — four lines at construction pl
 ```
 [<label> run] system: 4 atoms, 26 valence e, multiplicity 1 (POLARIZED), seed=IonicSAD
 [<label> run] grids: densityEcut=auto C=2 raster=BallOnly xcMesh=Becke (nR=40 L=29)
-[<label> run] symmetry: IMPOSED (Shubnikov from the decoration);  threads: OMP_NUM_THREADS=1 GPW_OMP_THREADS=1 (BLAS pinned to 1)
+[<label> run] symmetry: IMPOSED (Shubnikov from the decoration);  threads: OMP_NUM_THREADS=1 QCHEM_OPENMP_THREADS=1 (BLAS pinned to 1)
 [<label> run] CP2K_COMPAT=0 -> DEVIATING;  QCHEM_DM_LOWRANK=on*  GPW_STREAM_FOLD=on*  QCHEM_MIX_RHO_M=off  GPW_XC_DM_SOURCE=off   [* = differs from CP2K]
 [<label> scf] mixer: Kerker(G0=1.000000) alpha=0.45;  XC rho source: rho_mix;  accel: Ladder;  kT=0.005 MOM=on NMaxIter=80
 ```
@@ -162,7 +162,7 @@ scripts/bench "Si Gamma cp2k"  -- cp2k -i IntegrationTests/CP2K/si_fcc_gpw.inp
 ```
 **Peak RAM is measured from OUTSIDE, identically for both codes** (`scripts/bench` → `/usr/bin/time -v` "Maximum
 resident set size" = `VmHWM`); on a qchem row it also prints qchem's own `VmHWM` as a cross-check.  `PEAK RSS` is
-a PROCESS watermark: one config per process (`MNO_SKIP_FM` / `MNO_SKIP_AFM` for MnO).  `GPW_OMP_THREADS` governs
+a PROCESS watermark: one config per process (`MNO_SKIP_FM` / `MNO_SKIP_AFM` for MnO).  `QCHEM_OPENMP_THREADS` governs
 the GPW pair loops only; BLAS routing is `QCHEM_BLAZE_BLAS`.  qchem has no `GLOBAL| Number of threads` banner, so
 `scripts/bench` reports measured CPU% and CPU seconds instead of trusting a knob.  Every GPW run prints Etot at
 10 s.f., wall + per-bucket ledger (`GPW_REPORT=1`), PEAK RSS, `[fold]` lines, and `[t=…s]` run-clock stamps.
@@ -212,7 +212,7 @@ its own.
 
 **Read the provenance, not just the number.**  `PEAK RSS` is the process high-water mark, so it is only a
 clean per-config figure when the process runs ONE config — a `--gtest_filter` naming several tests reports
-the watermark of the whole process.  `GPW_OMP_THREADS` governs the GPW **pair loops only** and says nothing
+the watermark of the whole process.  `QCHEM_OPENMP_THREADS` governs the GPW **pair loops only** and says nothing
 about the BLAS: with it unset, blaze still ran these rows at 115–239% CPU.  BLAS routing is
 `QCHEM_BLAZE_BLAS` (default ON).  **qchem has no equivalent of CP2K's `GLOBAL| Number of threads` banner
 line — a run cannot state how parallel it actually was**, which is why `scripts/bench` reports measured CPU%
@@ -262,13 +262,13 @@ delta, ledger split and open question that used to sit here is in **§5e**.  Thi
 and the only table to quote for bin 1.
 
 **THREAD STATE — SERIAL ON BOTH SIDES, AND MEASURED SO** (rule 3b): qchem `OMP_NUM_THREADS=1
-GPW_OMP_THREADS=1`, measured **99% CPU** on every row; CP2K `OMP_NUM_THREADS=1`, measured 97–99%.
+QCHEM_OPENMP_THREADS=1`, measured **99% CPU** on every row; CP2K `OMP_NUM_THREADS=1`, measured 97–99%.
 **Taken 2026-09-05**, one box (14 GB, 16 cores), qchem at `9f4f4ae2` built `-O3 -march=native`, CP2K 2025.2,
 commands copied from §4.  ★ **Every row RE-TAKEN after §5f's lever A** (the Hartree energy stopped building
 a matrix): the parity row fell 2.05× → 1.72×, the Si 8-k rows 0.84×/0.68× → 0.66×/0.56×, MnO defaults
 0.90× → 0.82×, `BECKE_XC=0` 0.53× → 0.45×.  ⚠ **The qchem `setup` column is much larger than the 09-04 entry's ~57 s for MnO
 because the Becke mesh build THREADS** (`src/Structure/Imp/UnitCell.C:273` — the partition loop is
-`#pragma omp parallel for` over quadrature points, and `GPW_OMP_THREADS=1` pins it): 68.3 s serial per
+`#pragma omp parallel for` over quadrature points, and `QCHEM_OPENMP_THREADS=1` pins it): 68.3 s serial per
 build against the 16.7 s that ledger read with threads free.  The serial figure is the one that belongs
 beside a serial CP2K row (`doc/Records/BenchmarkHistory.md` §9).
 

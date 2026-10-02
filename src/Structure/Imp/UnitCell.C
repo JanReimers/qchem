@@ -2,7 +2,7 @@
 module;
 #include <iomanip>
 #include <cassert>
-#include <cstdlib>   // std::getenv (the GPW_OMP_THREADS cap on the Becke mesh build)
+#include <cstdlib>
 #include <stdexcept> // RequireSiteBlocks -- a Becke-mesh invariant that must survive NDEBUG
 #include <iostream>
 #include <string>
@@ -11,7 +11,7 @@ module;
 
 module qchem.UnitCell;
 import qchem.Math;
-import qchem.Parallel;       // MeshBuildThreads (the GPW_OMP_THREADS cap on the Becke mesh build)
+import qchem.Parallel;       // WorkerThreads (QCHEM_OPENMP_THREADS: the Becke mesh build)
 import qchem.Structure;      // Atom (AddAtom inserts atoms given in fractional coordinates)
 import qchem.Vector3D;       // norm(rvec3_t)
 import qchem.Mesh.Product;   // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
@@ -162,9 +162,8 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         // image series is the whole build cost, measured linear at any angular count), and each result
         // lands in its own indexed slot consumed in index order below -- so the threaded build is
         // BIT-IDENTICAL to the serial one at any thread count (no cross-point reductions, unlike the
-        // GPW pair loops).  Hence parallel by DEFAULT under QCHEM_OPENMP; GPW_OMP_THREADS, when set,
-        // is honoured as the thread CAP (user request: ONE knob governs all the heavy loops) --
-        // purely resource control, never a numerics knob.
+        // GPW pair loops).  Hence threading it costs no anchor; QCHEM_OPENMP_THREADS (one knob
+        // for every region, serial by default) sets the count -- purely resource control, never a numerics knob.
         const size_t nq=am.size();
         std::vector<char> keep(nq, 0);
         rvec3vec_t        kpt(nq);
@@ -269,17 +268,14 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
             record();
         };
 #ifdef QCHEM_OPENMP
-        const int cap=qchem::MeshBuildThreads();     // THE one reader of GPW_OMP_THREADS (qchem.Parallel; D-THREADS)
-        if (cap>0)
+        const int nthreads=qchem::WorkerThreads();    // THE one thread count (qchem.Parallel; D-THREADS)
+        if (nthreads>1)
         {
-            #pragma omp parallel for schedule(dynamic, 8) num_threads(cap)
+            #pragma omp parallel for schedule(dynamic, 8) num_threads(nthreads)
             for (size_t q=0; q<nq; q++) partition(q);
         }
         else
-        {
-            #pragma omp parallel for schedule(dynamic, 8)
             for (size_t q=0; q<nq; q++) partition(q);
-        }
 #else
         for (size_t q=0; q<nq; q++) partition(q);
 #endif

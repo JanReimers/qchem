@@ -25,7 +25,7 @@ BIN=build/Release/IntegrationTests/ITMain
 OUT=build/Release/bench5a; mkdir -p "$OUT"
 [ -x "$BIN" ] || { echo "build ITMain first (cd build/Release && ninja ITMain)" >&2; exit 1; }
 
-export CP2K_COMPAT=1 GPW_REPORT=1 GPW_OMP_THREADS=1 OMP_NUM_THREADS=1
+export CP2K_COMPAT=1 GPW_REPORT=1 QCHEM_OPENMP_THREADS=1 OMP_NUM_THREADS=1
 export GPW_MEASURE=maxdd GPW_ACC=null GPW_MOM=0 GPW_KERKER_G0=1
 
 row() {  # row <label> <gtest filter> <EPS> <NMAX> <PULAY> [extra env...]

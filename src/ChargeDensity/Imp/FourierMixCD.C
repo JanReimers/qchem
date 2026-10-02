@@ -14,7 +14,7 @@ module;
 module qchem.ChargeDensity.FourierMixCD;
 import qchem.Types;        // rvec3_t, dcmplx
 import qchem.Math;         // (trig for the inverse FT)
-import qchem.Parallel;     // WorkerThreads (GPW_OMP_THREADS -- the batched inverse FT over mesh points)
+import qchem.Parallel;     // WorkerThreads (QCHEM_OPENMP_THREADS -- the batched inverse FT over mesh points)
 
 namespace qchem::ChargeDensity
 {
@@ -128,7 +128,7 @@ rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
     // thread count.  It NEEDS to be: under ρ̃-mixing (Kerker/Pulay) the Fock build sees this density, not
     // a D, so the atom-centred XC route samples it at every mesh point EVERY iteration -- measured 6.7 s
     // per iteration on the MnO magnetic cell (48k points x 24k G x 2 channels), the loop's whole reason
-    // for existing in batched form.  Opt-in threading (GPW_OMP_THREADS; see qchem.Parallel).
+    // for existing in batched form.  Opt-in threading (QCHEM_OPENMP_THREADS; see qchem.Parallel).
     auto at=[&](size_t g, std::vector<dcmplx>& tx, std::vector<dcmplx>& ty, std::vector<dcmplx>& tz)
     {
         const double t1=b1*r[g], t2=b2*r[g], t3=b3*r[g];

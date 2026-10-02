@@ -1,7 +1,9 @@
 // File: Common/Parallel.C  The ONE opt-in worker-thread count, shared by every parallel region.
 //
 // The GPW pair loops (PG_Cart_MnD::NR_Evaluator::PairThreads) established the project's threading
-// policy: SERIAL BY DEFAULT, opted into per run with GPW_OMP_THREADS>1.  Serial-by-default is not
+// policy: SERIAL BY DEFAULT, opted into per run with QCHEM_OPENMP_THREADS (renamed 2026-10-02 from
+// GPW_OMP_THREADS, which had nothing to do with basis sets; the old name is a deprecated alias).
+// Serial-by-default is not
 // timidity -- a threaded reduction sums in a load-dependent order, so the bit-anchors (and the
 // OpenBLAS pin) only mean what they say on the serial path, and the suite runs many test binaries
 // at once (ctest -j8) where a 16-thread fan-out per process would just thrash.
@@ -9,7 +11,7 @@
 // This module is that knob, lifted out of the one evaluator that owned it, so the OTHER hot sites --
 // the XC-mesh basis tables, the mesh-quadrature GEMMs, ... (doc/GPWPlan1.md item 1: "OMP coverage
 // beyond the pair loops") -- read the SAME number instead of each growing its own getenv.  The name
-// stays GPW_OMP_THREADS: it is what every production run script and plan doc already sets.
+// is QCHEM_OPENMP_THREADS.
 //
 // A caller that partitions by OUTPUT ELEMENT (each element still accumulated in one thread, in the
 // serial order) is bit-identical at any thread count; one that partitions a REDUCTION is not, and
@@ -21,35 +23,42 @@ export module qchem.Parallel;
 
 export namespace qchem {
 
-//! The pure parse behind every thread-count knob: a null or empty \a s gives \a dflt, anything else is atoi'd and
-//! clamped to >=1 (so "0", "-3" and "abc" mean 1 -- serial -- rather than "all" or an error; the ruling on what 0
-//! should mean is the open part of doc/CleanCode.md D-THREADS).  A function of its argument so it is unit-testable;
-//! the env reads below happen once per process.
-inline int ParseThreadCount(const char* s, int dflt)
+//! The number of PHYSICAL cores (not hardware threads): the distinct (package, core) pairs in sysfs
+//! `thread_siblings_list`, else \c hardware_concurrency().  8 on an i7-10700 (16 hardware threads).  What
+//! \c QCHEM_OPENMP_THREADS=0 ("auto") resolves to: SMT adds little for these floating-point loops, so half the
+//! hardware threads is the right number only when SMT is on -- this reads the truth.
+int PhysicalCores();
+
+//! The pure parse behind the thread-count knob: null/empty \a s gives \a dflt; "0" means AUTO = \a autoCount;
+//! a positive integer is itself; anything else (negative, garbage) is 1.  A function of its arguments so it is
+//! unit-testable; the env read below happens once per process.
+inline int ParseThreadCount(const char* s, int dflt, int autoCount)
 {
     if (!s || !*s) return dflt;
-    const int v=std::atoi(s);
-    return v<1 ? 1 : v;
+    char* end=nullptr;
+    const long v=std::strtol(s, &end, 10);
+    if (end==s || *end!='\0' || v<0) return 1;
+    return v==0 ? autoCount : int(v);
 }
 
-//! Worker threads for a parallel region: \c GPW_OMP_THREADS (read ONCE per process), clamped to >=1.
-//! 1 (the default) means run serially -- callers keep a plain serial branch for it.
+//! \brief THE thread count for every OpenMP region we own (pair loops, XC-mesh tables and quadrature, the
+//! Becke-mesh build, the seed/FT sampling ...): \c QCHEM_OPENMP_THREADS, read ONCE per process.
+//!   - unset  => 1: SERIAL.  Serial-by-default is not timidity: a threaded reduction sums in a load-dependent
+//!     order, so the bit-anchors only mean what they say on the serial path, and the suite runs many test
+//!     binaries at once (ctest -j8).
+//!   - 0      => AUTO = \c PhysicalCores().  Opt-in only.
+//!   - N>=1   => N.
+//! ONE rule for every region (2026-10-02, user): the Becke-mesh build used to default to ALL cores while the others
+//! defaulted to 1, which made a "serial" run show 500% CPU.  The old name \c GPW_OMP_THREADS (it had nothing to do
+//! with basis sets) is still read as a DEPRECATED ALIAS when \c QCHEM_OPENMP_THREADS is absent.
 inline int WorkerThreads()
 {
-    static const int n=ParseThreadCount(std::getenv("GPW_OMP_THREADS"), 1);
-    return n;
-}
-
-//! Thread CAP for the Becke-mesh build (\c UnitCell): \c GPW_OMP_THREADS when set, else 0 = "all the cores".
-//! ⚠ This is the ONE region whose DEFAULT differs from \c WorkerThreads() (serial): its per-point partitions are
-//! independent and slot-indexed, so the threaded build is bit-identical at any count and parallel-by-default costs
-//! no anchor.  It is also why a run with \c GPW_OMP_THREADS unset can show ~500% CPU while \c WorkerThreads()==1
-//! (found 2026-09-30) -- \c ThreadSummary() now states both on the run banner.
-inline int MeshBuildThreads()
-{
-    // PRESERVES the historical reading: a value <1 ("0") here means ALL cores, whereas WorkerThreads() clamps it to 1.
-    // That inconsistency is deliberate-until-ruled (doc/CleanCode.md D-THREADS: what should 0 mean?), not a design.
-    static const int n=[]{ const char* s=std::getenv("GPW_OMP_THREADS"); const int v=s?std::atoi(s):0; return v<1 ? 0 : v; }();
+    static const int n=[]
+    {
+        const char* s=std::getenv("QCHEM_OPENMP_THREADS");
+        if (!s) s=std::getenv("GPW_OMP_THREADS");            // deprecated alias
+        return ParseThreadCount(s, 1, PhysicalCores());
+    }();
     return n;
 }
 
@@ -64,9 +73,8 @@ inline int MeshBuildThreads()
 //! last ULP ONCE, as a re-bank, rather than run to run.
 int BlasThreads();
 
-//! The EFFECTIVE thread state of a run, one line, for the run banner: the pair/XC-loop workers, the Becke-mesh build,
-//! and the BLAS count -- each with the knob that set it.  (A banner that printed only \c GPW_OMP_THREADS and a
-//! hard-coded "BLAS pinned to 1" misdescribed a run whose mesh build used every core.)
+//! The EFFECTIVE thread state of a run, one line, for the run banner: the OpenMP worker count and the BLAS count,
+//! each with the knob that set it.
 std::string ThreadSummary();
 
 //! \brief Fix the BLAS to exactly \c BlasThreads() threads.  Call ONCE at the top of \c main() --

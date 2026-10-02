@@ -12,7 +12,7 @@ module;
 #include <map>
 #include <algorithm>
 #include <chrono>    // std::chrono (timing the MakeLocalPP integrate-back at different kappa)
-#include <cstdlib>   // std::getenv/std::atof (GPW_LOCALPP_RELCUTOFF / GPW_OMP_THREADS knobs)
+#include <cstdlib>   // std::getenv/std::atof (GPW_LOCALPP_RELCUTOFF / QCHEM_OPENMP_THREADS knobs)
 module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)

@@ -68,7 +68,7 @@ BEFORE COMMITTING.**  The session's order:
 4. Parallelism: q-points are process-parallel like hp.x's `start_q/last_q` (no code); the cross-k gather memo /
    KP (§5a step 4) only when the pair-shaped kernel applications become the wall.
 
-**Recipes and traps banked so far** (details §5b, §7): every multi-k run needs `GPW_OMP_THREADS` (the serial
+**Recipes and traps banked so far** (details §5b, §7): every multi-k run needs `QCHEM_OPENMP_THREADS` (the serial
 default idled 15 of 16 cores); `HubbardLinearResponse` needs `forceComplex` (`<P>_REAL=0`); a restart from a
 near-converged state still takes several iterations (the accelerator's tail, CK-1 residual a — not a defect); a MAGNETIC imposition keeps the full k-mesh, so `<P>_IMPOSE=1` satisfies D5; NiO
 needs the pin-22 vet trim `NIO_VET=1 NIO_ORTHO_TOL=1e-3` (raw shells Ni s 0.06 + d 0.18) — without it a KB GHOST
@@ -997,7 +997,7 @@ brute-force ring (insulator + Fermi metal, every real-space element), the respon
 
 **The NiO gate** (`gpwprobe nio`, AFM-II, U_in = 3 eV on Ni 3d, `orthofull`, k 2×2×2 full mesh, q 2×2×2):
 ```
-GPW_OMP_THREADS=12 GPW_SPHERICAL=1 NIO_KMESH=2 NIO_IMPOSE=1 NIO_ORTHO_TOL=1e-3 NIO_U=3 NIO_U_RADIAL=orthofull
+QCHEM_OPENMP_THREADS=12 GPW_SPHERICAL=1 NIO_KMESH=2 NIO_IMPOSE=1 NIO_ORTHO_TOL=1e-3 NIO_U=3 NIO_U_RADIAL=orthofull
 NIO_SKIP_FM=1 NIO_ANNEAL=5e-3,0 NIO_ACC=Null NIO_MOM=0 NIO_PULAY=8 NIO_PULAY_START=5 NIO_MEASURE=maxdd
 NIO_EPS=1e-6 NIO_CHI0=2   gpwprobe nio
 ```
@@ -1119,7 +1119,7 @@ VWN5 was read and is continuous at ζ=0; `RhoPol`'s tail is linear.  Gated at 1e
 **R2 status: DONE except the named open items** — the ~4e-6 Pol-channel oracle floor (bounded, above), and real TRIM blocks (`OpenWork.md` §2 row).  CK-1 followed (✅ 2026-09-28); NEXT = R3 (q ≠ 0: the q-mesh that makes U comparable with hp.x) — see START HERE.
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
-1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`GPW_OMP_THREADS` is
+1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`QCHEM_OPENMP_THREADS` is
    part of every multi-k recipe** (serial default ⇒ ~1.2 of 16 cores; `OpenWork.md` row KP, measured).
 2. ✅ **CK-1 checkpoint/restart — DONE 2026-09-28** (`OpenWork.md` §2 row "SCF checkpoint/restart") — ⚠ REORDERED 2026-09-28: AFTER R1
    (user: DFPT first), but still before the Oct 6–20 window: every A6/A7 material's converged state saved once and reused; CK-2 then lets χ₀ run on a

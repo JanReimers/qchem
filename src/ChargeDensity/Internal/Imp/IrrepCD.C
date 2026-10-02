@@ -17,7 +17,7 @@ module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Symmetry;
 import qchem.BasisSet.Orbital_DFT_IBS;  // Integrals_Overlap3C<T,TFit> -- this block's scalar arm of the fit basis's 3C
 import qchem.Blaze;
-import qchem.Parallel;                  // WorkerThreads (GPW_OMP_THREADS -- the rho-sampling GEMM)
+import qchem.Parallel;                  // WorkerThreads (QCHEM_OPENMP_THREADS -- the rho-sampling GEMM)
 import qchem.BasisSet.Orbital_DFT_IBS;   // cast the basis UP to the G-space capability (dcmplx path)
 
 namespace qchem::ChargeDensity

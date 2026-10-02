@@ -39,7 +39,7 @@ struct PGData
     //! Unscreened, the sweep pays a contracted exp() per shell for every one of them.
     //! Lazily built and cached (geometry-fixed, like the radials themselves).
     //! Built EAGERLY by \c Init (never lazily): the pointwise sweep runs inside \c MakePhi 's OpenMP
-    //! region when \c GPW_OMP_THREADS is set, so a lazy first call would arrive on several threads at
+    //! region when \c QCHEM_OPENMP_THREADS is set, so a lazy first call would arrive on several threads at
     //! once and race on the resize.  Construction is single-threaded, which settles it with no flag --
     //! and a \c std::once_flag would also make \c PGData non-assignable (PG_LibCint assigns one).
     const rvec_t& Reaches() const {return itsReach;}

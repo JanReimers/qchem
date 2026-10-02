@@ -1,6 +1,9 @@
 // File: Common/Imp/Parallel.C  The BLAS thread pin (rationale on the declaration).
 module;
+#include <fstream>
+#include <set>
 #include <string>
+#include <thread>
 #include <cstdlib>   // setenv (the OpenMP wait policy -- see StopOmpThreadsBusyWaiting)
 #include <cblas.h>   // openblas_set_num_threads -- an OpenBLAS extension, declared here by the
                      // openblas alternative of cblas.h (netlib's has no such call, which is the
@@ -16,13 +19,33 @@ int BlasThreads()
     return n;
 }
 
+int PhysicalCores()
+{
+    static const int n=[]
+    {
+        std::set<std::string> cores;
+        for (int c=0; c<4096; ++c)
+        {
+            std::ifstream f("/sys/devices/system/cpu/cpu"+std::to_string(c)+"/topology/thread_siblings_list");
+            if (!f) break;
+            std::string sib; f>>sib;
+            cores.insert(sib);                              // the SMT siblings of one core list the same string
+        }
+        const int hw=int(std::thread::hardware_concurrency());
+        return cores.empty() ? (hw>0 ? hw : 1) : int(cores.size());
+    }();
+    return n;
+}
+
 std::string ThreadSummary()
 {
-    const int mesh=MeshBuildThreads();
-    return "pair/XC loops=" + std::to_string(WorkerThreads()) + " (GPW_OMP_THREADS "
-         + (std::getenv("GPW_OMP_THREADS") ? "set" : "unset => serial") + "), Becke-mesh build="
-         + (mesh>0 ? std::to_string(mesh) : std::string("all cores (GPW_OMP_THREADS unset)"))
-         + ", BLAS=" + std::to_string(BlasThreads()) + " (QCHEM_BLAS_THREADS)";
+    const char* q=std::getenv("QCHEM_OPENMP_THREADS");
+    const char* g=std::getenv("GPW_OMP_THREADS");
+    return "OpenMP regions=" + std::to_string(WorkerThreads()) + " ("
+         + (q ? "QCHEM_OPENMP_THREADS="+std::string(q)
+              : g ? "deprecated GPW_OMP_THREADS="+std::string(g)+" -- use QCHEM_OPENMP_THREADS"
+                  : std::string("QCHEM_OPENMP_THREADS unset => serial")) + "), BLAS="
+         + std::to_string(BlasThreads()) + " (QCHEM_BLAS_THREADS)";
 }
 
 void FixBlasThreads()

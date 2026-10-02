@@ -30,15 +30,15 @@ module;
 #include <optional>   // the conditionally-charged per-iteration timing bucket (integrate-back)
 #include <exception>  // std::exception_ptr (throw containment across the OpenMP pair loops)
 #include <memory>     // std::shared_ptr (the per-atom operator GaussianRF, shared across its polynomial terms)
-#include <cstdlib>    // std::getenv/std::atoi (the GPW_OMP_THREADS opt-in knob)
+#include <cstdlib>    // std::getenv/std::atoi (the QCHEM_OPENMP_THREADS opt-in knob)
 #include <cstring>    // std::memcpy (the integrate-census field hash)
-// GPW pair-loop parallelism (opt-in via GPW_OMP_THREADS).  Gated on QCHEM_OPENMP -- our OWN macro (defined
+// GPW pair-loop parallelism (opt-in via QCHEM_OPENMP_THREADS).  Gated on QCHEM_OPENMP -- our OWN macro (defined
 // by CMake when the OpenMP flags are applied) rather than _OPENMP, because this LLVM toolchain ships no
 // libomp and the libgomp fallback (-fopenmp=libgomp) honours the pragmas but does NOT define _OPENMP.  The
 // private-buffer + critical-reduce pattern below needs no <omp.h> (no omp_*() calls), only the pragmas.
 export module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;
 import qchem.BasisSet.Gaussian.Evaluators;                             // Evaluator + concepts
-import qchem.Parallel;                                                // WorkerThreads -- THE reader of GPW_OMP_THREADS (D-THREADS)
+import qchem.Parallel;                                                // WorkerThreads -- THE reader of QCHEM_OPENMP_THREADS (D-THREADS)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;// Polarization
@@ -338,13 +338,13 @@ public:
     // GPW collocate/integrate pair-loop threading.  SERIAL BY DEFAULT so the Si bit-anchors stay
     // byte-identical (the threaded path reduces cross-pair sums in a load-dependent order -> a few-ULP
     // drift, the same reason OpenBLAS is pinned to one thread in the harness).  Opt in for the slow NaF
-    // production-grid runs with the env knob GPW_OMP_THREADS>1 (read once).  A per-run env knob rather than
+    // production-grid runs with the env knob QCHEM_OPENMP_THREADS>1 (read once).  A per-run env knob rather than
     // OMP_NUM_THREADS because the Si anchors and a threaded NaF sweep share one UTMain binary and cannot be
     // separated by a global harness pin -- exactly the NAF_*/GPW_ILLCOND_ECUT env-knob idiom already in use.
     static int PairThreads()
     {
 #ifdef QCHEM_OPENMP
-        return qchem::WorkerThreads();     // THE one reader of GPW_OMP_THREADS (qchem.Parallel; D-THREADS)
+        return qchem::WorkerThreads();     // THE one reader of QCHEM_OPENMP_THREADS (qchem.Parallel; D-THREADS)
 #else
         return 1;
 #endif
@@ -1943,7 +1943,7 @@ public:
             // <omp.h> needed), scatters its share into it, then folds it into the shared rho under a
             // critical section (the "per-thread accumulators + reduce").  The reduction reorders the
             // cross-pair grid sums, so a threaded run drifts a few ULPs from serial -- accepted; the Si
-            // bit-anchors always run serial (GPW_OMP_THREADS unset -> nthreads==1 -> the branch below).
+            // bit-anchors always run serial (QCHEM_OPENMP_THREADS unset -> nthreads==1 -> the branch below).
             // LONGEST FIRST (plan 3c reason 2): the task list already knows each shell pair's size, so the
             // dynamic loop cannot end on its biggest chunk.  Serial keeps the natural order (see BoxTaskOrder).
             const std::vector<size_t>& order=BoxTaskOrder(A);

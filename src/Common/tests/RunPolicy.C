@@ -7,6 +7,8 @@
 // failure a one-switch design invites.
 #include <gtest/gtest.h>
 #include <cstdlib>
+#include <string>
+#include <thread>
 
 import qchem.RunPolicy;
 
@@ -123,23 +125,28 @@ TEST(RunPolicy, SetToZeroCountsAsStated)
     EXPECT_TRUE(found);
 }
 
-// ---- D-THREADS: the thread-count parse (qchem.Parallel) -- one pure function behind every GPW_OMP_THREADS reader ----
+// ---- D-THREADS: the ONE thread-count rule (qchem.Parallel) ----
 #include "gtest/gtest.h"
 import qchem.Parallel;
-TEST(Parallel, ParseThreadCountIsTheOneReading)
+TEST(Parallel, ParseThreadCountIsTheOneRule)
 {
-    EXPECT_EQ(qchem::ParseThreadCount(nullptr, 1), 1) << "unset => the default";
-    EXPECT_EQ(qchem::ParseThreadCount("", 4),      4) << "empty => the default";
-    EXPECT_EQ(qchem::ParseThreadCount("8", 1),     8);
-    EXPECT_EQ(qchem::ParseThreadCount("1", 6),     1) << "an explicit 1 means serial, whatever the default";
-    EXPECT_EQ(qchem::ParseThreadCount("0", 6),     1) << "0 is clamped to serial (what 0 SHOULD mean is the open D-THREADS ruling)";
-    EXPECT_EQ(qchem::ParseThreadCount("-3", 6),    1);
-    EXPECT_EQ(qchem::ParseThreadCount("abc", 6),   1);
+    EXPECT_EQ(qchem::ParseThreadCount(nullptr, 1, 8), 1) << "unset => the default (serial)";
+    EXPECT_EQ(qchem::ParseThreadCount("",      1, 8), 1) << "empty => the default";
+    EXPECT_EQ(qchem::ParseThreadCount("6",     1, 8), 6);
+    EXPECT_EQ(qchem::ParseThreadCount("1",     4, 8), 1) << "an explicit 1 means serial, whatever the default";
+    EXPECT_EQ(qchem::ParseThreadCount("0",     1, 8), 8) << "0 means AUTO (= physical cores), in every region";
+    EXPECT_EQ(qchem::ParseThreadCount("-3",    4, 8), 1);
+    EXPECT_EQ(qchem::ParseThreadCount("abc",   4, 8), 1);
+    EXPECT_EQ(qchem::ParseThreadCount("4x",    4, 8), 1) << "trailing garbage is not a number";
 }
-TEST(Parallel, ThreadSummaryNamesEveryRegionAndItsKnob)
+TEST(Parallel, PhysicalCoresIsPositiveAndNoMoreThanTheHardwareThreads)
+{
+    EXPECT_GE(qchem::PhysicalCores(), 1);
+    EXPECT_LE(unsigned(qchem::PhysicalCores()), std::thread::hardware_concurrency() ? std::thread::hardware_concurrency() : 1u);
+}
+TEST(Parallel, ThreadSummaryNamesTheKnobs)
 {
     const std::string s=qchem::ThreadSummary();
-    EXPECT_NE(s.find("pair/XC loops="),  std::string::npos);
-    EXPECT_NE(s.find("Becke-mesh build="), std::string::npos);
-    EXPECT_NE(s.find("BLAS="),            std::string::npos);
+    EXPECT_NE(s.find("OpenMP regions="), std::string::npos);
+    EXPECT_NE(s.find("BLAS="),           std::string::npos);
 }
