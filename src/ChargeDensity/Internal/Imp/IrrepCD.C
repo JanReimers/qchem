@@ -319,8 +319,9 @@ template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
 //! WHY THIS PAYS (doc/OpenWork.md Step 3).  \f$\rho_g=\Phi_g^\dagger D\,\Phi_g\f$ costs O(npts n^2); with
 //! \f$D=LL^\dagger\f$ it is \f$\lVert L^\dagger\Phi_g\rVert^2\f$, i.e. O(npts n r).  D is a density matrix,
 //! so its rank is the OCCUPIED count: MEASURED at 14-17 against n=118 on the MnO benchmark (GPW_DM_RANK=1)
-//! => 7-8.4x, and the rank is the same from tol 1e-6 to 1e-12, so the occupied block is cleanly separated
-//! from the null space and the cut is not a tuning decision.
+//! => 7-8.4x, and AT kT=0 the rank is the same from tol 1e-6 to 1e-12, so the occupied block is cleanly separated
+//! from the null space (at kT>0 the pivot spectrum has a thermal tail ~7e-6 at kT=5e-3 and the rank
+//! DOES depend on tol -- see doc/Pins.md pin 21) and the cut is not a tuning decision.
 //!
 //! PIVOTED CHOLESKY, NOT A TRIMMED EIGENDECOMPOSITION (user pin).  Both give an L; the eigen route trims
 //! clustered near-null eigenvectors, which are ill-conditioned (free to rotate within the cluster) and

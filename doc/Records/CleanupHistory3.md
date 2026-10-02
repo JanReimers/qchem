@@ -204,3 +204,7 @@ scope object DECLINED), `R1.0j` (the density↔operator seam is not "XC" and not
 not redundant; the exch/corr one-collocation sharing is worth 4.8 s/iteration on NaF — never push ρ back
 into the terms), `R2.5b` (`throw` is a marker), `V1.20` (`.Internal.` = the FAMILY boundary), `V1.37`
 (Pol/UnPol are imposed subgroups).  Read them in `doc/Records/CleanupHistory2.md` by id.
+
+## 2026-10-02 — D-BANNER, D-LOWRANK closed
+- **D-BANNER ✅**: the solid banner (`SolidCalculation.C` EmitSCFBanner) already named Kerker + Pulay; the remaining defect was the JSON report's `scf.standard.mixer` tag in `Calculation.C` (`Pul` hid Kerker).  Now `Lin`/`Ker`/`Lin+Pul`/`Ker+Pul`.  M_Calculation 12/12.
+- **D-LOWRANK ✅**: `IrrepCD.C` low-rank-D doc now qualifies the "rank same from tol 1e-6 to 1e-12" claim as kT=0 only.  (Making pivoted-Cholesky failure loud was already pin 21 territory; not re-opened.)

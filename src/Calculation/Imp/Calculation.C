@@ -121,7 +121,8 @@ static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
     standard["minDFD"]      = p.MinΔFD;
     standard["minDE"]       = p.MinΔE;
     standard["minFD"]       = p.MinFD;
-    standard["mixer"]       = p.PulayDepth > 0 ? "Pul" : (p.KerkerG0 > 0.0 ? "Ker" : "Lin");
+    // The preconditioner (Kerker/linear) and the history (Pulay) COMPOSE, so name both: "Ker+Pul", "Lin+Pul".
+    standard["mixer"]       = std::string(p.KerkerG0 > 0.0 ? "Ker" : "Lin") + (p.PulayDepth > 0 ? "+Pul" : "");
     standard["kerkerG0"]    = p.KerkerG0;
     standard["accelerator"] = accelerator;
     standard["smearingkT"]  = p.SmearingkT;   // ortho fills when the basis/LASolver section lands
