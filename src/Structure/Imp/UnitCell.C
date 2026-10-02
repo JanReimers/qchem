@@ -11,6 +11,7 @@ module;
 
 module qchem.UnitCell;
 import qchem.Math;
+import qchem.Parallel;       // MeshBuildThreads (the GPW_OMP_THREADS cap on the Becke mesh build)
 import qchem.Structure;      // Atom (AddAtom inserts atoms given in fractional coordinates)
 import qchem.Vector3D;       // norm(rvec3_t)
 import qchem.Mesh.Product;   // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
@@ -268,7 +269,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
             record();
         };
 #ifdef QCHEM_OPENMP
-        static const int cap=[]{ const char* s=std::getenv("GPW_OMP_THREADS"); return s?std::atoi(s):0; }();
+        const int cap=qchem::MeshBuildThreads();     // THE one reader of GPW_OMP_THREADS (qchem.Parallel; D-THREADS)
         if (cap>0)
         {
             #pragma omp parallel for schedule(dynamic, 8) num_threads(cap)

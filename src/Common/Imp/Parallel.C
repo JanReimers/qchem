@@ -1,5 +1,6 @@
 // File: Common/Imp/Parallel.C  The BLAS thread pin (rationale on the declaration).
 module;
+#include <string>
 #include <cstdlib>   // setenv (the OpenMP wait policy -- see StopOmpThreadsBusyWaiting)
 #include <cblas.h>   // openblas_set_num_threads -- an OpenBLAS extension, declared here by the
                      // openblas alternative of cblas.h (netlib's has no such call, which is the
@@ -13,6 +14,15 @@ int BlasThreads()
     static const int n=[]{ const char* s=std::getenv("QCHEM_BLAS_THREADS"); const int v=s?std::atoi(s):1;
                            return v<1 ? 1 : v; }();
     return n;
+}
+
+std::string ThreadSummary()
+{
+    const int mesh=MeshBuildThreads();
+    return "pair/XC loops=" + std::to_string(WorkerThreads()) + " (GPW_OMP_THREADS "
+         + (std::getenv("GPW_OMP_THREADS") ? "set" : "unset => serial") + "), Becke-mesh build="
+         + (mesh>0 ? std::to_string(mesh) : std::string("all cores (GPW_OMP_THREADS unset)"))
+         + ", BLAS=" + std::to_string(BlasThreads()) + " (QCHEM_BLAS_THREADS)";
 }
 
 void FixBlasThreads()

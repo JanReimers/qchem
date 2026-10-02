@@ -16,16 +16,40 @@
 // must say so where it does it.
 module;
 #include <cstdlib>   // std::getenv/std::atoi
+#include <string>    // ThreadSummary
 export module qchem.Parallel;
 
 export namespace qchem {
+
+//! The pure parse behind every thread-count knob: a null or empty \a s gives \a dflt, anything else is atoi'd and
+//! clamped to >=1 (so "0", "-3" and "abc" mean 1 -- serial -- rather than "all" or an error; the ruling on what 0
+//! should mean is the open part of doc/CleanCode.md D-THREADS).  A function of its argument so it is unit-testable;
+//! the env reads below happen once per process.
+inline int ParseThreadCount(const char* s, int dflt)
+{
+    if (!s || !*s) return dflt;
+    const int v=std::atoi(s);
+    return v<1 ? 1 : v;
+}
 
 //! Worker threads for a parallel region: \c GPW_OMP_THREADS (read ONCE per process), clamped to >=1.
 //! 1 (the default) means run serially -- callers keep a plain serial branch for it.
 inline int WorkerThreads()
 {
-    static const int n=[]{ const char* s=std::getenv("GPW_OMP_THREADS"); const int v=s?std::atoi(s):1;
-                           return v<1 ? 1 : v; }();
+    static const int n=ParseThreadCount(std::getenv("GPW_OMP_THREADS"), 1);
+    return n;
+}
+
+//! Thread CAP for the Becke-mesh build (\c UnitCell): \c GPW_OMP_THREADS when set, else 0 = "all the cores".
+//! ⚠ This is the ONE region whose DEFAULT differs from \c WorkerThreads() (serial): its per-point partitions are
+//! independent and slot-indexed, so the threaded build is bit-identical at any count and parallel-by-default costs
+//! no anchor.  It is also why a run with \c GPW_OMP_THREADS unset can show ~500% CPU while \c WorkerThreads()==1
+//! (found 2026-09-30) -- \c ThreadSummary() now states both on the run banner.
+inline int MeshBuildThreads()
+{
+    // PRESERVES the historical reading: a value <1 ("0") here means ALL cores, whereas WorkerThreads() clamps it to 1.
+    // That inconsistency is deliberate-until-ruled (doc/CleanCode.md D-THREADS: what should 0 mean?), not a design.
+    static const int n=[]{ const char* s=std::getenv("GPW_OMP_THREADS"); const int v=s?std::atoi(s):0; return v<1 ? 0 : v; }();
     return n;
 }
 
@@ -39,6 +63,11 @@ inline int WorkerThreads()
 //! N is as deterministic as a fixed count of 1 -- it just sums in a different order, so it moves the
 //! last ULP ONCE, as a re-bank, rather than run to run.
 int BlasThreads();
+
+//! The EFFECTIVE thread state of a run, one line, for the run banner: the pair/XC-loop workers, the Becke-mesh build,
+//! and the BLAS count -- each with the knob that set it.  (A banner that printed only \c GPW_OMP_THREADS and a
+//! hard-coded "BLAS pinned to 1" misdescribed a run whose mesh build used every core.)
+std::string ThreadSummary();
 
 //! \brief Fix the BLAS to exactly \c BlasThreads() threads.  Call ONCE at the top of \c main() --
 //! every test main and every CLI driver does.

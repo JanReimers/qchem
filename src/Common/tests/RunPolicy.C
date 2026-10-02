@@ -122,3 +122,24 @@ TEST(RunPolicy, SetToZeroCountsAsStated)
         if (std::string(d.knob)=="GPW_STREAM_FOLD") {found=true; EXPECT_TRUE(d.stated); EXPECT_FALSE(d.Deviates());}
     EXPECT_TRUE(found);
 }
+
+// ---- D-THREADS: the thread-count parse (qchem.Parallel) -- one pure function behind every GPW_OMP_THREADS reader ----
+#include "gtest/gtest.h"
+import qchem.Parallel;
+TEST(Parallel, ParseThreadCountIsTheOneReading)
+{
+    EXPECT_EQ(qchem::ParseThreadCount(nullptr, 1), 1) << "unset => the default";
+    EXPECT_EQ(qchem::ParseThreadCount("", 4),      4) << "empty => the default";
+    EXPECT_EQ(qchem::ParseThreadCount("8", 1),     8);
+    EXPECT_EQ(qchem::ParseThreadCount("1", 6),     1) << "an explicit 1 means serial, whatever the default";
+    EXPECT_EQ(qchem::ParseThreadCount("0", 6),     1) << "0 is clamped to serial (what 0 SHOULD mean is the open D-THREADS ruling)";
+    EXPECT_EQ(qchem::ParseThreadCount("-3", 6),    1);
+    EXPECT_EQ(qchem::ParseThreadCount("abc", 6),   1);
+}
+TEST(Parallel, ThreadSummaryNamesEveryRegionAndItsKnob)
+{
+    const std::string s=qchem::ThreadSummary();
+    EXPECT_NE(s.find("pair/XC loops="),  std::string::npos);
+    EXPECT_NE(s.find("Becke-mesh build="), std::string::npos);
+    EXPECT_NE(s.find("BLAS="),            std::string::npos);
+}

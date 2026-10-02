@@ -38,6 +38,7 @@ module;
 // private-buffer + critical-reduce pattern below needs no <omp.h> (no omp_*() calls), only the pragmas.
 export module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;
 import qchem.BasisSet.Gaussian.Evaluators;                             // Evaluator + concepts
+import qchem.Parallel;                                                // WorkerThreads -- THE reader of GPW_OMP_THREADS (D-THREADS)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;// Polarization
@@ -343,8 +344,7 @@ public:
     static int PairThreads()
     {
 #ifdef QCHEM_OPENMP
-        static const int n=[]{ const char* s=std::getenv("GPW_OMP_THREADS"); int v=s?std::atoi(s):1; return v<1?1:v; }();
-        return n;
+        return qchem::WorkerThreads();     // THE one reader of GPW_OMP_THREADS (qchem.Parallel; D-THREADS)
 #else
         return 1;
 #endif
