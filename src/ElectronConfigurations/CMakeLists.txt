@@ -4,7 +4,6 @@ target_sources(qcElConfig PRIVATE
     Imp/Atom_EC.C
     Imp/AtomDirac_EC.C
     Imp/Molecule_EC.C
-    Imp/MolecularSym_EC.C
     Imp/Crystal_EC.C
     Imp/OccupationPolicy.C
     )
@@ -16,7 +15,6 @@ target_sources(qcElConfig PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Atom_EC.C
     AtomDirac_EC.C
     Molecule_EC.C
-    MolecularSym_EC.C
     Crystal_EC.C
     )
 
