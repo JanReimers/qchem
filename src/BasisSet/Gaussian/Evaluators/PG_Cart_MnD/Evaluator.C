@@ -14,6 +14,7 @@
 // the same shared PGData -- which is why PGData is kept separate, not absorbed here.
 module;
 #include <cassert>
+#include <optional>   // ContractCubeOverride (the unit-test route switch)
 #include <stdexcept> // the transition collocation's refusals
 #include <complex>   // std::real (Hermitian-diagonal projection of the Bloch lattice sum)
 #include <string>
@@ -1165,7 +1166,15 @@ public:
     //! default.  \c GPW_CONTRACT_CUBE=0 is the opt-OUT, back onto \c ForShellPairBox -- kept because that
     //! walk is the REFERENCE implementation the unit oracle in \c M_PG_BoxWalk.C checks the kernel against.
     static bool UseContractCube()
-    { static const bool b=[]{const char* s=std::getenv("GPW_CONTRACT_CUBE"); return !s || std::atoi(s)!=0;}(); return b; }
+    {
+        if (const auto& o=ContractCubeOverride()) return *o;
+        static const bool b=[]{const char* s=std::getenv("GPW_CONTRACT_CUBE"); return !s || std::atoi(s)!=0;}();
+        return b;
+    }
+    //! UNIT-TEST HOOK (D-CUBE0): force the route without the environment, so one test process can run BOTH and
+    //! compare the numbers (M_TransitionCollocation.WalkAndContractionRoutesAgree).  Production never sets it;
+    //! set it only from a single thread BEFORE the collocation runs, and reset it (nullopt) afterwards.
+    static std::optional<bool>& ContractCubeOverride() { static std::optional<bool> o; return o; }
 
     //! \param f called \c f(rasterIndex, fI, fJ) at each point surviving the ellipsoid pre-screen.
     template <class F>

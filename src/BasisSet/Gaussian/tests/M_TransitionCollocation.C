@@ -19,6 +19,7 @@
 #include <vector>
 
 import qchem.BasisSet.Gaussian.Point.Factory;     // Factory(BasisSetData, cell, engine, angular)
+import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;   // NR_Evaluator::ContractCubeOverride (D-CUBE0)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;     // LatticeCollocation, TransitionCollocation
 import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;  // GeometryOnlyScreener, CollocationEps
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;   // MakeSphericalLatticeView (the GPW_SPHERICAL block)
@@ -221,3 +222,47 @@ TEST(M_TransitionCollocation, PeriodicPart_EqualsExplicitBlochSums)
     EXPECT_LT(d, 1e-9*sc) << "the transition collocation disagrees with explicit Bloch sums";
 }
 
+
+//! D-CUBE0: the production collocate (CollocateDensity) and gather (IntegratePotential) must give the SAME numbers
+//! on the default separable-contraction route and on the reference box walk (GPW_CONTRACT_CUBE=0).  Until this test
+//! the walk was only ever checked kernel-by-kernel in M_PG_BoxWalk; nothing exercised the production routing, so a
+//! regression in the walk arm (the oracle a future change is judged against) could sit unseen.  Both routes are eps-
+//! converged answers to one sum, so they agree at the screening tier, not bitwise (no per-component screen on the cube).
+TEST(M_TransitionCollocation, WalkAndContractionRoutesAgree)
+{
+    using Evaluators::PG_Cart_MnD::NR_Evaluator;
+    const UnitCell cell=SiCell();
+    const Ladder L=Two();
+    const rvec3_t k(0.25,0.0,0.125);
+    const GeometryOnlyScreener screen(CollocationEps());
+
+    std::vector<rvec_t> rho[2]; chmat_t h[2]; size_t n=0;
+    for (int route=0; route<2; route++)                       // 0 = contraction (default), 1 = reference walk
+    {
+        NR_Evaluator::ContractCubeOverride()=(route==0);
+        const Periodic p=Make(BasisSetData::SIPP_SR, cell, false);   // a FRESH evaluator per route: no memo can leak across
+        ASSERT_TRUE(p.lc);
+        n=p.n;
+        const mat_t<dcmplx> Dm=RandomMatrix(n, 88172645463325252ULL, true);
+        chmat_t D(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=Dm(i,j);
+        rho[route]=p.lc->CollocateDensity(D, PhaseOf(k), cell, L.N, L.ecut, screen);
+        std::vector<rvec_t> V(rho[route].size());             // an arbitrary smooth-ish field: the density itself
+        for (size_t l=0;l<V.size();l++) V[l]=rho[route][l];
+        h[route]=p.lc->IntegratePotential(V, PhaseOf(k), cell, L.N, L.ecut, screen);
+    }
+    NR_Evaluator::ContractCubeOverride()=std::nullopt;
+
+    double dRho=0, sRho=0;
+    for (size_t l=0;l<rho[0].size();l++)
+        for (size_t g=0;g<rho[0][l].size();g++)
+        { dRho=std::max(dRho, std::abs(rho[0][l][g]-rho[1][l][g])); sRho=std::max(sRho, std::abs(rho[0][l][g])); }
+    double dH=0, sH=0;
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+    { dH=std::max(dH, std::abs(dcmplx(h[0](i,j))-dcmplx(h[1](i,j)))); sH=std::max(sH, std::abs(dcmplx(h[0](i,j)))); }
+    std::printf("  [walk vs contraction] max|drho|/max|rho| = %.2e   max|dh|/max|h| = %.2e\n", dRho/sRho, dH/sH);
+    ASSERT_GT(sRho, 1e-6);
+    ASSERT_GT(sH, 1e-8);
+    EXPECT_LT(dRho, 1e-10*sRho) << "the two collocation routes disagree on the density";
+    EXPECT_LT(dH,   1e-10*sH)  << "the two gather routes disagree on the potential matrix";
+}

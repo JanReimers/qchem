@@ -12,6 +12,7 @@
 #include <cmath>
 
 import qchem.Calculation;            // Calculation, CalcOptions (+ Model/Pol/Engine/Angular)
+import qchem.Materials;            // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.ChargeDensity.Seed;     // SeedStrategy
@@ -25,15 +26,6 @@ static Molecule MakeN2()
     m.Insert(new Atom(7, 0, Vector3D<double>( 1.04, 0, 0)));
     return m;
 }
-static Molecule MakeWater()      // experimental geometry in BOHR, C2 axis along z
-{
-    Molecule w;
-    w.Insert(new Atom(8, 0, Vector3D<double>(0,  0.0,   0.0)));
-    w.Insert(new Atom(1, 0, Vector3D<double>(0,  1.431, 1.107)));
-    w.Insert(new Atom(1, 0, Vector3D<double>(0, -1.431, 1.107)));
-    return w;
-}
-
 #ifndef DEBUG
 // Anchors are the converged HF/DZVP total energies (pinned to catch movement -- "did E move",
 // not a physical-accuracy claim).
@@ -46,7 +38,7 @@ TEST(M_HF_U, N2)            // slow in Debug (~80s); Release-only
 
 TEST(M_HF_U, Water)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp"});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp"});
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.022903)), 1e-5);
 }
 
@@ -58,7 +50,7 @@ TEST(M_HF_U, Water)
 // the bootstrap produced a valid density.  See project_numericcd_refactor.
 TEST(M_HF_U, WaterSADseed)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .seed = ChargeDensity::SeedStrategy::SAD});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp", .seed = ChargeDensity::SeedStrategy::SAD});
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.022903)), 1e-5);  // identical converged E to CoreGuess
 }
 
@@ -69,7 +61,7 @@ TEST(M_HF_U, WaterSADseed)
 // external engine through a real SCF.
 TEST(M_HF_U, WaterLibCint)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .engine = Engine::LibCint});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp", .engine = Engine::LibCint});
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.022903)), 1e-5);  // same converged E as the M&D path
 }
 
@@ -79,7 +71,7 @@ TEST(M_HF_U, WaterLibCint)
 // value), validating the spherical basis end-to-end against a second engine.
 TEST(M_HF_U, WaterLibCintSpherical)
 {
-    Calculation calc(MakeWater(), {.basis   = "dzvp",
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis   = "dzvp",
                                    .engine  = Engine::LibCint,
                                    .angular = Angular::Spherical});
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.020277)), 1e-5);  // == PG_Spherical (M&D) spherical HF
@@ -93,7 +85,7 @@ TEST(M_HF_U, WaterLibCintSpherical)
 // usual "did E move" regression anchor.
 TEST(M_HF_U, WaterSpherical)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .angular = Angular::Spherical});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp", .angular = Angular::Spherical});
     const double E_cart = -76.022903;          // the Cartesian-DZVP anchor (water has one O d shell)
     const double E_sph  = calc.Energy();
     EXPECT_GT(E_sph, E_cart);                  // variational subset: dropping the d contaminant raises E

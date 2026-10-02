@@ -8,6 +8,7 @@
 #include <cmath>
 
 import qchem.Calculation;
+import qchem.Materials;            // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;
 import qchem.Types;        // Vector3D
 import qchem.Reporting;    // report:: -- the run report the facade emits (scf section)
@@ -15,19 +16,10 @@ using namespace qchem;
 
 using qchem::Calculation;
 
-static Molecule MakeWater()      // experimental geometry in BOHR, C2 axis along z (== M_HF_U)
-{
-    Molecule w;
-    w.Insert(new Atom(8, 0, Vector3D<double>(0,  0.0,   0.0)));
-    w.Insert(new Atom(1, 0, Vector3D<double>(0,  1.431, 1.107)));
-    w.Insert(new Atom(1, 0, Vector3D<double>(0, -1.431, 1.107)));
-    return w;
-}
-
 // Regression anchor: identical converged HF/dzvp total energy to M_HF_U_Water (-76.022903).
 TEST(M_Calculation, WaterEnergy)
 {
-    Molecule water = MakeWater();
+    Molecule water = qchem::Materials::GetMolecule("H2O");
     Calculation calc(water, {.basis = "dzvp"});            // build + converge in one line
 
     const double E_ref = -76.022903;
@@ -40,7 +32,7 @@ TEST(M_Calculation, WaterEnergy)
 // this is the typo-catcher that replaces the compile-time key-safety we traded for "the report IS json".
 TEST(M_Calculation, ScfReportSchema)
 {
-    Molecule water = MakeWater();
+    Molecule water = qchem::Materials::GetMolecule("H2O");
     Calculation calc(water, {.basis = "dzvp"});          // ctor's Converge emits scf into GlobalReport
 
     // Find this run's scf section (the run key carries a timestamp, so scan for it).
@@ -74,7 +66,7 @@ TEST(M_Calculation, ScfReportSchema)
 TEST(M_Calculation, BasisReportSchema)
 {
     report::ClearGlobal();                                // isolate: only this test's run(s) remain
-    Calculation calc(MakeWater(), { .basis = "dzvp", .symmetry = true });
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), { .basis = "dzvp", .symmetry = true });
 
     const report::json& all = report::GlobalReport();
     const report::json* basis = nullptr;
@@ -101,7 +93,7 @@ TEST(M_Calculation, BasisReportSchema)
 TEST(M_Calculation, CacheReportSchema)
 {
     report::ClearGlobal();                               // isolate the REPORT (the cache itself is never cleared)
-    Calculation calc(MakeWater(), { .basis = "dzvp" });  // HF over dzvp populates Jac/Kab + the Omega/Hermite caches
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), { .basis = "dzvp" });  // HF over dzvp populates Jac/Kab + the Omega/Hermite caches
 
     const report::json& all = report::GlobalReport();
     const report::json* cache = nullptr;
@@ -128,7 +120,7 @@ TEST(M_Calculation, CacheReportSchema)
 // "Did E move" regression sentinel, like the HF anchor (NOT a physical-accuracy claim).
 TEST(M_Calculation, WaterLDA)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .model = qchem::Model::LDA});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp", .model = qchem::Model::LDA});
     // Converged parameter-free LDA total energy (Dirac exchange + VWN5 correlation), with the facade's
     // auto DIIS-from-start + SAD seed.  Bit-stable at -75.9324615507 and now ORDER-INDEPENDENT: the
     // ~585 ppm HF-before-DFT drift was a fit-basis Normalization cached without a mesh key (the HF SAD
@@ -143,7 +135,7 @@ TEST(M_Calculation, WaterLDA)
 // converged total energy must match the un-blocked run -- the M_Sym invariant, now through the facade.
 TEST(M_Calculation, WaterSymmetry)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .symmetry = true});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp", .symmetry = true});
 
     const double E_ref = -76.022903;                       // identical to the un-blocked WaterEnergy anchor
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
@@ -157,7 +149,7 @@ TEST(M_Calculation, WaterSymmetry)
 // cast); this test locks it in.
 TEST(M_Calculation, WaterSymmetryLibCint)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .engine = Engine::LibCint, .symmetry = true});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp", .engine = Engine::LibCint, .symmetry = true});
 
     const double E_ref = -76.022903;                       // same anchor as WaterSymmetry (MnD)
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
@@ -167,7 +159,7 @@ TEST(M_Calculation, WaterSymmetryLibCint)
 // The caller's Molecule is deep-copied: it survives being passed in and may be used afterwards.
 TEST(M_Calculation, OwnsItsOwnStructure)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp"});      // temporary destroyed at the semicolon
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp"});      // temporary destroyed at the semicolon
     EXPECT_EQ(calc.GetStructure().GetNumAtoms(), 3u);
     EXPECT_NEAR(calc.GetStructure().GetNumElectrons(), 10.0, 1e-12);
 }
@@ -175,7 +167,7 @@ TEST(M_Calculation, OwnsItsOwnStructure)
 // Density and every occupied MO are sampleable ScalarFunction<double>s through one interface.
 TEST(M_Calculation, SamplingSurface)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp"});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp"});
 
     // Water has 10 electrons -> 5 doubly-occupied MOs in the unpolarized wave function.
     EXPECT_EQ(calc.NumOccupied(), 5u);
@@ -226,7 +218,7 @@ TEST(M_Calculation, BoronUHFPureGDM)
 // the energy alone cannot tell; the console must carry no "DECLINING" line (checked by hand via ITMain -v).
 TEST(M_Calculation, WaterPureGDM)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp"}, {.type = "GDM"});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp"}, {.type = "GDM"});
 
     const double E_ref = -76.022903;                       // same anchor as WaterSymmetry
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);

@@ -14,6 +14,7 @@
 #include <stdexcept>
 
 import qchem.Calculation;            // Calculation, CalcOptions, Model, Angular
+import qchem.Materials;            // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.PeriodicTable;          // RelativeError
@@ -25,14 +26,6 @@ static Molecule MakeN2()
     m.Insert(new Atom(7, 0, Vector3D<double>(-1.03, 0, 0)));
     m.Insert(new Atom(7, 0, Vector3D<double>( 1.04, 0, 0)));
     return m;
-}
-static Molecule MakeWater()      // experimental geometry in BOHR, C2 axis along z
-{
-    Molecule w;
-    w.Insert(new Atom(8, 0, Vector3D<double>(0,  0.0,   0.0)));
-    w.Insert(new Atom(1, 0, Vector3D<double>(0,  1.431, 1.107)));
-    w.Insert(new Atom(1, 0, Vector3D<double>(0, -1.431, 1.107)));
-    return w;
 }
 static Molecule MakeO2()         // O2 at the experimental bond length ~1.208 Ang = 2.282 bohr, along z
 {
@@ -52,7 +45,7 @@ TEST(M_DFT, N2)
 
 TEST(M_DFT, Water)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.74000});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.74000});
     // CONVERGED Xalpha total energy (the facade's auto DIIS-from-start): [F,D] and Δρ reach ~1e-13 by
     // ~iter 14, virial V/K = -2.006 (the correct ~-2, vs the buggy -2.11).  A true converged regression
     // sentinel.  (Was -76.123348 interim limit-cycle, and -79.414120 stale-cache.)
@@ -68,7 +61,7 @@ TEST(M_DFT, Water)
 // M_Spherical.fit_kernels.  So this is purely a "did E move" regression anchor, with a loose sanity bound.
 TEST(M_DFT, WaterSpherical)
 {
-    Calculation calc(MakeWater(), {.basis   = "dzvp", .model   = Model::Xalpha,
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis   = "dzvp", .model   = Model::Xalpha,
                                    .angular = Angular::Spherical, .xalpha  = 0.74000});
     EXPECT_NEAR(calc.Energy(), -76.1493013984, 0.05);                 // sanity: same ballpark as Cartesian
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1485556624)), 2e-3);  // CONVERGED anchor (DIIS from start)
@@ -82,7 +75,7 @@ TEST(M_DFT, WaterSpherical)
 // the SAME energy as the unpolarized anchor -- and it does, to ~1e-11 (confirming a correct seed Fock).
 TEST(M_DFT, WaterPolarizedSAD)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::Xalpha, .spin = SpinGroup::Polarized, .xalpha = 0.74000});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::Xalpha, .spin = SpinGroup::Polarized, .xalpha = 0.74000});
     // Polarized water Xalpha is the oscillatory case (commutator ~2-4; see M_Sym RunDFT) -- it needs more
     // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
     // drives from the start for DFT).
@@ -98,7 +91,7 @@ TEST(M_DFT, WaterPolarizedSAD)
 // the SAD-seed fallback (rho_up=rho_down=rho/2), the per-spin v_c^sigma fit, and the two-channel E_c.
 TEST(M_DFT, WaterPolarizedLDA)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::LDA, .spin = SpinGroup::Polarized});
+    Calculation calc(qchem::Materials::GetMolecule("H2O"), {.basis = "dzvp", .model = Model::LDA, .spin = SpinGroup::Polarized});
     calc.Converge({.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
     EXPECT_NEAR(calc.Energy(), -75.9324615507, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
@@ -149,6 +142,6 @@ TEST(M_DFT, OxygenTripletBelowSinglet)
 // electrons (even), so a doublet (multiplicity 2 => 2S=1, odd) is impossible.  Fail loud (B4 validation).
 TEST(M_DFT, BadMultiplicityThrows)
 {
-    EXPECT_THROW(Calculation(MakeWater(), {.basis = "sto-3g", .model = Model::LDA, .multiplicity = 2}),
+    EXPECT_THROW(Calculation(qchem::Materials::GetMolecule("H2O"), {.basis = "sto-3g", .model = Model::LDA, .multiplicity = 2}),
                  std::runtime_error);
 }

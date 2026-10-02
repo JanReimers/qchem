@@ -14,6 +14,7 @@
 #include <cmath>
 
 import qchem.Calculation;            // Calculation, CalcOptions, Model, SpinGroup
+import qchem.Materials;            // GetMolecule("H2O") -- the shared water geometry (D-MAKEWATER)
 import qchem.Structure;              // Molecule, Atom
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
 import qchem.Types;                  // Vector3D
@@ -25,15 +26,6 @@ using namespace qchem;
 static const SCFParams tight = {.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2,
                                 .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false};
 
-static Molecule MakeWater()
-{
-    // Experimental geometry in BOHR (O-H = 1.809 a0, angle 104.5 deg), C2 axis along z.
-    Molecule w;
-    w.Insert(new Atom(8, 0, Vector3D<double>(0, 0.0,    0.0)));
-    w.Insert(new Atom(1, 0, Vector3D<double>(0, 1.431,  1.107)));
-    w.Insert(new Atom(1, 0, Vector3D<double>(0,-1.431,  1.107)));
-    return w;
-}
 
 // One converged run through the facade.  symmetry=true SALC-blocks the (Cartesian PG) basis; everything
 // else is identical between the two, so any energy difference is a SALC-transform error.
@@ -54,7 +46,7 @@ static EnergyBreakdown Run(const Molecule& mol, Model model, SpinGroup pol, bool
 // 0.7, == the scaffold's RunDFT alpha; the facade auto-runs DFT with DIIS-from-start.)
 static void CheckWaterDFT(SpinGroup pol, double tol)
 {
-    const Molecule water = MakeWater();
+    const Molecule water = qchem::Materials::GetMolecule("H2O");
     EnergyBreakdown ebRef = Run(water, Model::Xalpha, pol, false);
     EnergyBreakdown ebSym = Run(water, Model::Xalpha, pol, true);
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), tol) << "DFT symmetric == non-symmetric";
@@ -71,7 +63,7 @@ TEST(M_Sym, water_DFT_polarized)   { CheckWaterDFT(SpinGroup::Polarized, 1e-6); 
 // virial must be physical.
 static void CheckWaterHF(SpinGroup pol)
 {
-    const Molecule water = MakeWater();
+    const Molecule water = qchem::Materials::GetMolecule("H2O");
     EnergyBreakdown ebRef = Run(water, Model::HF, pol, false);
     EnergyBreakdown ebSym = Run(water, Model::HF, pol, true);
 
@@ -92,7 +84,7 @@ TEST(M_Sym, water_HF_polarized)   { CheckWaterHF(SpinGroup::Polarized); }
 // M_DFT.WaterSpherical), so we bound it loosely for physical sanity.
 static void CheckWaterHFSpherical(SpinGroup pol)
 {
-    const Molecule water = MakeWater();
+    const Molecule water = qchem::Materials::GetMolecule("H2O");
     EnergyBreakdown ebRef = Run(water, Model::HF, pol, false, Angular::Spherical);
     EnergyBreakdown ebSym = Run(water, Model::HF, pol, true,  Angular::Spherical);
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "spherical: symmetric == non-symmetric";
