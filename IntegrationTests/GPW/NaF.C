@@ -206,6 +206,7 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart)
     const Material naf=qchem::Materials::Get("NaF_rocksalt");
     const Lattice_3D lat=LatticeOf(naf);
     SolidCalcOptions o=NaFAnchorOptions(naf, "NaF restart fine");          // auto densityEcut = the production grid
+    o.accelerator=qchem::SCFAccelerators::Type::GDM;   // MEASURED 2026-10-02: 2 iterations vs the Ladder's 12 (below)
     std::vector<double> E;
     o.onIteration=[&E](const qchem::SCFIterator::SCFProgress& p){ E.push_back(p.energy); };
     auto c=qchem::SolidCalculation::Restart(f.coarsePath, lat, MakeBasisNaFSR2(*naf.cell), o, NaFAnchorParams());
@@ -216,8 +217,11 @@ TEST(GPW_NaF, Γ_Imp_eqColdStart)
     EXPECT_NEAR(R->TotalCharge(), 8.0, 1e-6);
     EXPECT_NEAR(R->Energy(), f.coldEnergy, 1e-4) << "the restarted run reached a different state than the cold fine run";
     EXPECT_NEAR(R->Energy(), -24.4304, 0.01) << "and it is the banked NaF anchor";
-    EXPECT_LT(std::abs(E.front()-f.coldEnergy), 0.05) << "the first fine iterate should already be near the answer (coarse seed)";
-    EXPECT_LT(R->IterationCount(), f.coldIterations) << "the coarse seed must SAVE iterations on the fine grid (measured 12 vs 21)";
+    // GDM, not the Ladder: from the coarse density the fine run STARTS 4e-8 Ha from the answer and GDM converges in 2
+    // iterations; the Ladder's DIIS+Kerker rung steps away (1.5e-4) and takes 12 (cold fine run: 21).  A restart whose
+    // density moved MORE (geometry, U) may favour the Ladder -- OpenWork §3 "Ladder restart starts on the DIIS+Kerker rung".
+    EXPECT_LT(std::abs(E.front()-f.coldEnergy), 1e-6) << "the first fine iterate should already BE the answer";
+    EXPECT_LE(R->IterationCount(), 4u) << "the coarse seed must save iterations on the fine grid (measured 2; cold fine run 21)";
 }
 
 // CLAIM: the SAME grid resumes EXACTLY -- Restart from the converged fine state reproduces its energy and needs
