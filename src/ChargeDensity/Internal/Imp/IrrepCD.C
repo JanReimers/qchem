@@ -359,7 +359,18 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     // A negative eigenvalue leaves that unaccounted for.  Cheap (O(n m)) beside the O(npts n r) GEMM.
     double trD=0.0;  for (size_t i=0;i<n;++i) trD+=blazem::real(D(i,i));
     double trL=0.0;  for (size_t i=0;i<n;++i) for (size_t k=0;k<m;++k) trL+=std::norm(std::complex<double>(L(i,k)));
-    if (std::abs(trL-trD) > 1e-8*std::max(std::abs(trD),1.0)) return false;
+    if (std::abs(trL-trD) > 1e-8*std::max(std::abs(trD),1.0))
+    {
+        // LOUD, NOT SILENT (doc/Pins.md pin 21: a failing Cholesky is the canary).  The caller falls back to the
+        // exact full-rank route, so the NUMBER is right -- but D has left the PSD cone, which no mixer is supposed
+        // to allow, and the run should say so.  Capped so a persistent violation does not spam every iteration.
+        static std::atomic<int> nWarned{0};
+        if (nWarned++ < 5)
+            std::cout<<"[DM factor] WARNING: D is not positive semi-definite (n="<<n<<", pivoted rank "<<m
+                     <<", Tr(LL^H)="<<trL<<" vs Tr(D)="<<trD<<") -- low-rank rho route stands down, using the exact "
+                     <<"full-rank route.  A mixer or occupation scheme is producing a D outside the PSD cone."<<std::endl;
+        return false;
+    }
     rank=m;
 
     // GPW_DM_RANK=1: ARE THE CHOLESKY ORBITALS LOCALIZED?  THE decisive unmeasured quantity for the
