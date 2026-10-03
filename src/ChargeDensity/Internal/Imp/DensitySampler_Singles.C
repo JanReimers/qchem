@@ -21,6 +21,7 @@ module;
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
 module qchem.ChargeDensity.Internal.DensitySampler;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
@@ -158,7 +159,7 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
 {
     const double ov=DMSourceMixOverride();
     const double a =(ov>=0.0) ? ov : DMSourceMixBoost()*alphaEff;
-    static const bool trace=std::getenv("GPW_XC_ALPHA")!=nullptr;
+    static const bool trace=qchem::Diagnostics::Enabled("xc_alpha");
     if (trace) std::cout<<"[XC alpha] alpha_eff="<<alphaEff<<(ov>=0.0?"  (OVERRIDDEN by GPW_XC_DM_MIX)":"")
                         <<"  boost="<<DMSourceMixBoost()
                         <<"  applied="<<((a>0.0&&a<1.0)?a:1.0)<<std::endl;
@@ -192,7 +193,7 @@ void SinglesDensitySampler::NoteRoute(const char* route) const
 
 void ReportNegativeRho(const DensitySampler& q, const rvec_t& rho, const char* route)
 {
-    static const bool on=std::getenv("GPW_RHO_NEGATIVE")!=nullptr;
+    static const bool on=qchem::Diagnostics::Enabled("rho_negative");
     if (!on || rho.size()==0) return;
     rvec_t negOnly(rho.size(), 0.0), absRho(rho.size());
     size_t cnt=0; double minRho=0.0;
@@ -437,7 +438,7 @@ rvec_t SinglesDensitySampler::SiteIntegrals(const rvec_t& f) const
         // EVERY imposed run for as long as the invariant-mesh filter dropped the blocks).  Say which it is,
         // once, whenever the user asked for the moments.
         static bool said=false;
-        if (std::getenv("QCHEM_SITE_MOMENTS") && !said)
+        if (qchem::Diagnostics::Enabled("site_moments") && !said)
         {
             said=true;
             std::cout<<"[site moments] UNAVAILABLE: the XC quadrature mesh carries no site blocks"

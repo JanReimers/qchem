@@ -9,7 +9,7 @@
 #include <memory>
 #include <complex>
 #include <stdexcept>
-#include <cstdlib>   // setenv/unsetenv (the QCHEM_SPINBLIND_KERKER valve)
+#include <cstdlib>   // setenv/unsetenv (ScopedEnv)
 
 import qchem.ChargeDensity.FourierMixCD;         // FourierMixCD, ΔG_Map
 import qchem.ChargeDensity.Internal.FieldMixer;  // KerkerStep (tests may import Internal)
@@ -157,7 +157,7 @@ TEST(CompositeChannels, ViewsFilterByIrrepSpin)
 //  GPW_SCF.PolarizedRunKeepsItsSpin (12 Mn-sextet SCF iterations on a Becke mesh, 217 s, 27% of the whole
 //  suite) which asked the same question through an energy.
 //
-//  The negative control -- QCHEM_SPINBLIND_KERKER=1, the A/B valve that re-creates the collapse on
+//  The negative control -- KerkerParams::spinBlind, the test-only argument that re-creates the collapse on
 //  demand -- is pinned too, so the valve itself cannot rot silently.
 //---------------------------------------------------------------------------------------
 namespace
@@ -347,15 +347,14 @@ TEST(KerkerMix, PolarizedStepInRhoMBasisMovesTheMomentLinearly)
     for (const auto& [g,v] : dn0) if (g!=G0) EXPECT_NEAR(std::abs(dcmplx(dnMix.at(g))-dcmplx(v)), 0.0, 1e-12);
 }
 
-// THE NEGATIVE CONTROL.  The valve forces the single-map path on a polarized seed: the factory hands back
+// THE NEGATIVE CONTROL.  spinBlind forces the single-map path on a polarized seed: the factory hands back
 // a leaf, and the density it presents answers NO spin channels -- exactly the state the XC engine's ρ/2
 // branch was written for.  Pinned so the A/B instrument keeps re-creating the defect it was built to show.
 TEST(KerkerMix, SpinBlindValveCollapsesTheChannels)
 {
-    ScopedEnv valve("QCHEM_SPINBLIND_KERKER", "1");
     MnBox box;
     PolarizedSeedCD seed(box.fitCD, box.st.get());
-    auto mixer=KerkerMixerFactory(KerkerParams{.relax=0.5, .G0=1.0}, box.bs.get(), box.st.get(), &seed);
+    auto mixer=KerkerMixerFactory(KerkerParams{.relax=0.5, .G0=1.0, .spinBlind=true}, box.bs.get(), box.st.get(), &seed);
     EXPECT_EQ(dynamic_cast<PolarizedDensityMixer*>(mixer.get()), nullptr) << "the valve must select the single-map path";
 
     tComposite_CD<dcmplx> untouched;

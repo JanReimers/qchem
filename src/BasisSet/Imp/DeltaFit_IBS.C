@@ -29,6 +29,7 @@ module;
 #include <type_traits> // std::is_same_v (the real/complex contraction bodies)
 #include <vector>
 module qchem.BasisSet.DeltaFit_IBS;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Blaze;
 import qchem.Reporting;   // report::Timed -- the setup timing bucket
 import qchem.Parallel;    // WorkerThreads (QCHEM_OPENMP_THREADS): the table build is per-point-block parallel
@@ -49,7 +50,7 @@ namespace qchem::BasisSet
 // The reported ratio is the CEILING on the GEMM win: sum_b npts_b n_sig_b^2 against npts n^2.
 template <class U> static void ReportPhiSparsity(const mat_t<U>& P, const qcMesh::Mesh& mesh)
 {
-    static const bool on=std::getenv("GPW_PHI_SPARSITY")!=nullptr;
+    static const bool on=qchem::Diagnostics::Enabled("phi_sparsity");
     if (!on) return;
     const size_t npts=P.rows(), n=P.columns();
     if (npts==0 || n==0) return;

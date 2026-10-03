@@ -14,6 +14,7 @@ module;
 #include <chrono>    // std::chrono (timing the MakeLocalPP integrate-back at different kappa)
 #include <cstdlib>   // std::getenv/std::atof (GPW_LOCALPP_RELCUTOFF / QCHEM_OPENMP_THREADS knobs)
 module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)
 import qchem.Mesh.Quadrature; // qcMesh::MatrixOverlap / Overlap (the real-space PP quadrature primitives)
@@ -87,7 +88,7 @@ void BuildImages(const UnitCell& cell, double Rcut, const rvec3_t& kFrac, bool t
 double LocalPPRelCutoff()
 {
     double k=30.0;
-    if (const char* e=std::getenv("GPW_LOCALPP_RELCUTOFF")) k=std::atof(e);
+    if (const char* e=std::getenv("GPW_LOCALPP_RELCUTOFF")) k=std::atof(e);   // a NUMERIC tier-2 knob (kappa): typed in D-ENV step 5
     return k;
 }
 
@@ -259,12 +260,9 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     // reaches sqrt(-ln eps/alpha_min) and its centre sits within a cell span of any evaluation point, so
     // reach + span covers every image the screen keeps (screening then prunes it sparse per point).  The
     // home-only MODE (the finite-molecule configuration) keeps just the origin.
-    // VERIFICATION INSTRUMENT (doc/GPWPlan 0.5(a); the GPW_MGRID_ECUTS precedent): GPW_RASTER_POLICY=ball
-    // flips EVERY grid this block builds (density grid + ladder levels) to the BallOnly raster -- the A/B
-    // knob for the raster-policy calibration.  The shipped surface stays AliasFree until the A/B verdict
-    // promotes the enum onto the factory signatures (or closes the item as policy-justified).
-    if (const char* rp=std::getenv("GPW_RASTER_POLICY"))
-        itsRaster = std::string(rp)=="ball" ? RasterPolicy::BallOnly : RasterPolicy::AliasFree;
+    // (The env override GPW_RASTER_POLICY=ball that used to flip itsRaster here was a second, silent twin of the
+    // typed raster option (GPWParams::raster / SolidCalcOptions::raster) and could disagree with it on the banner;
+    // removed, D-ENV.  State the policy in the options.)
 
     // HartreeOnly routing beta (needs itsLat's alpha_max, so set here, not in the init list).  MEASURED
     // (NaF SR2 Becke, 2026-07-31): beta=0 (pure pair-bandwidth) DIVERGES (+904 Ha, low-G slosh) -- an
@@ -1235,7 +1233,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField
             const auto terms=gauss->AsGaussians(a->itsZ,FieldRange::Short);
             if (!terms.empty()) beta=std::max(beta, terms[0].alpha);   // alpha = 1/(2 rloc^2)
         }
-    const bool timeIt=(std::getenv("GPW_LOCALPP_RELCUTOFF")!=nullptr);
+    const bool timeIt=(qchem::Diagnostics::Enabled("localpp_timing"));
     auto t0=std::chrono::steady_clock::now();
     chmat_t h=itsLat->IntegratePotential(V_L, CellPhase(), itsCell, itsLevelN, itsLevelEcut, *itsScreener, kappa, nullptr, beta);
     if (timeIt)

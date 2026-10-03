@@ -12,6 +12,7 @@ module;
 #include <iomanip>
 #include <cstdlib>
 module qchem.WaveFunction.Internal.IrrepWF;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.SCFAccelerator;
 import qchem.Orbitals.Factory;
 import qchem.Blaze;
@@ -49,7 +50,7 @@ template <class T> tIrrepWF<T>::~tIrrepWF()
 template <class M> static void DumpH(const M& F)   // on the MATRIX type: hmat_t<T> is an alias template, so
                                                    // T is not deducible through it
 {
-    static const bool on=[]{ const char* s=std::getenv("QCHEM_DUMP_H"); return s && std::atoi(s)!=0; }();
+    static const bool on=qchem::Diagnostics::Enabled("dump_h");
     if (!on) return;
     double fro=0.0, maxIm=0.0; dcmplx tr(0.0);
     for (size_t i=0;i<F.rows();i++)
@@ -162,7 +163,7 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(OccupationPolic
     // but collapses under masked Fermi, the question is whether the scores separate at all -- printed here as
     // the sorted head of s with the cut at ne, once per fill, for the caller to read against Λ.  Off by
     // default, zero cost.
-    if (haveRef && std::getenv("QCHEM_MOM_SCORES"))
+    if (haveRef && qchem::Diagnostics::Enabled("mom_scores"))
     {
         rvec_t s=pol.Scores(itsIrrep,*itsOrbitals);
         // Copy by INDEX, not by iterator range: a std::vector range ctor needs std::distance, and the
@@ -190,7 +191,7 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(OccupationPolic
         // a collinear AFM at nUp=nDn it must VANISH, since the sublattice-exchanging spin flip makes the two
         // spectra unitarily equivalent.  NB only sharp under FRACTIONAL occupations; with integer fills μ is
         // pinned no better than the channel's HOMO-LUMO gap.
-        if (pol.SmearingkT()>0.0 && std::getenv("GPW_METALTRACE"))
+        if (pol.SmearingkT()>0.0 && qchem::Diagnostics::Enabled("metal_trace"))
             std::cout<<"[fill]   block="<<itsIrrep<<" ne="<<ne<<" kT="<<pol.SmearingkT()
                      <<" OWN μ="<<itsOrbitals->GetChemicalPotential()<<std::endl;
     }

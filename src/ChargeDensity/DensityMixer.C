@@ -91,6 +91,10 @@ struct KerkerParams
     double relax       = 0.25;    //!< α, the step
     double G0          = 1.0;     //!< Kerker's \f$G_0\f$ in \f$G^2/(G^2+G_0^2)\f$; 0 makes the filter identically 1 (plain linear G-space mixing)
     bool   cuspDeficit = false;   //!< N4: ALSO form + deposit the cusp-deficit correction for \f$V_{xc}\f$ (Kerker only)
+    //! TEST ONLY -- the negative control: take the SINGLE-MAP (spin-blind) path on a polarized density, which hands the
+    //! Fock a total with no channels and collapses v_xc to the zeta=0 branch (the MnO AFM-II collapse, 2026-08-07).
+    //! Was the env valve QCHEM_SPINBLIND_KERKER; a constructor argument now (D-ENV), so it cannot leak in from a shell.
+    bool   spinBlind   = false;
 };
 //! ...plus the density HISTORY a Pulay (density-DIIS) extrapolation keeps in front of that filter.
 struct PulayParams : KerkerParams

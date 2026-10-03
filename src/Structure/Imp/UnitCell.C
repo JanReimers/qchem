@@ -10,6 +10,7 @@ module;
 #include <memory>    // the scoped-but-early-stopped Timed on the site-adapted angular build (1.1(b))
 
 module qchem.UnitCell;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Math;
 import qchem.Parallel;       // WorkerThreads (QCHEM_OPENMP_THREADS: the Becke mesh build)
 import qchem.Structure;      // Atom (AddAtom inserts atoms given in fractional coordinates)
@@ -142,7 +143,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     qcMesh::RadialMesh  rad=qcMesh::MakeRadial(mp);   // one single-centre template reused (ShiftOrigin per atom)
     qcMesh::AngularMesh ang=qcMesh::MakeAngular(mp);
 
-    static const bool census=std::getenv("GPW_BECKE_COUNT")!=nullptr;
+    static const bool census=qchem::Diagnostics::Enabled("becke_count");
     qcMesh::MeshBuilder out;
     // GPW_BECKE_COUNT totals over the whole mesh; each atom's slot-indexed census folds in below.
     struct { size_t pts=0, live=0, im=0, pset=0, retest=0, final_=0, bound=0,
@@ -297,7 +298,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         // which is why a site-dependent mesh defect could hide behind it (MnO 2026-08-11: the moment dies
         // on the atom at the cell CORNER and survives on the one at the cell CENTRE, and a rigid
         // translation of the whole crystal -- an exact symmetry -- moves the answer by 56 Ha).
-        if (std::getenv("GPW_BECKE_ATOMS"))
+        if (qchem::Diagnostics::Enabled("becke_atoms"))
         {
             size_t nk=0; double wsum=0.0;
             for (size_t q=0; q<nq; q++) if (keep[q]) { ++nk; wsum+=kwt[q]; }
@@ -393,9 +394,9 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
 //! order.  Reported binned in \f$|\Delta G|\f$ so the onset is visible rather than averaged away.
 void ReportMeshPlaneWaveOrtho(const UnitCell& cell, const qcMesh::Mesh& mesh)
 {
-    const char* e=std::getenv("GPW_MESH_ORTHO");
+    const auto e=qchem::Diagnostics::Value("mesh_ortho");
     if (!e) return;
-    const int M=std::max(1, std::atoi(e));            // half-width of the integer Delta-G box (default 1 -> set 4)
+    const int M=std::max(1, std::atoi(e->c_str()));            // half-width of the integer Delta-G box (default 1 -> set 4)
     const rvec3vec_t& R=mesh.Points();
     const rvec_t&     W=mesh.Weights();
     if (R.size()==0) return;

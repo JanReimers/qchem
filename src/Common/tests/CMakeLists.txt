@@ -7,6 +7,7 @@ add_executable(UTCommon gtestmain.C
     Reporting.C
     Outcome.C
     RunPolicy.C
+    Diagnostics.C
     HDF5.C   # the saved-SCF-state carrier (CK-1)
 )
 

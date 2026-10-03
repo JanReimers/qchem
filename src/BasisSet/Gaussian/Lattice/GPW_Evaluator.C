@@ -290,7 +290,7 @@ private:
     //! (HartreeXC); 0 = pair-only routing (HartreeOnly -- the Becke-XC partner).
     double  itsRelFieldSharp=-1.0;
     RasterPolicy itsRaster=RasterPolicy::AliasFree;   //!< 0.5(a) FFT-raster policy for EVERY grid this block
-                                                      //!< builds; A/B via the GPW_RASTER_POLICY instrument
+                                                      //!< builds; set via the typed raster option
     std::shared_ptr<const PlaneWave::PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Orbital_DFT_IBS<dcmplx>::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).

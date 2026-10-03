@@ -12,6 +12,7 @@ module;
 #include <vector>
 
 module qchem.BasisSet.PlaneWave.Evaluators;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Math;               // Pi, sqrt, cos, sin, Cube
 import qchem.BasisSet.PlaneWave.Internal.GVectors;   // BuildGs
 import qchem.FFT;                // NextPow2 (the XC grid geometry)
@@ -91,7 +92,7 @@ ivec3_t PW_Evaluator::FFTGrid() const
 // density's -- this measures whether it does rather than assuming it.
 void ReportFieldSpectrum(const ΔG_Map& m, const ReciprocalLattice& recip)
 {
-    static const bool on=std::getenv("GPW_FIELD_SPECTRUM")!=nullptr;
+    static const bool on=qchem::Diagnostics::Enabled("field_spectrum");
     if (!on || m.empty()) return;
     double gmax=0.0, total=0.0;
     for (const auto& [dm,c] : m) { gmax=std::max(gmax, recip.GetGLength(dm)); total+=std::norm(dcmplx(c)); }

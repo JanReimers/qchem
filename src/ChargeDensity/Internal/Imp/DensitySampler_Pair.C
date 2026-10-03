@@ -21,6 +21,7 @@ module;
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
 module qchem.ChargeDensity.Internal.DensitySampler;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
@@ -217,7 +218,7 @@ void PairDensitySampler::Refresh(const cChargeDensity* cd) const
     // DIAGNOSTIC (env GPW_XCROUTE): which V_xc route fires this iteration -- RAW (applyRawAdjoint, FD-exact/
     // variational; gate GPW.RawXCConsistencyFD) vs BALL (DoFit/Overlap, non-variational under BallOnly;
     // gate GPW.XCPotentialConsistencyFD).  Answers whether GDM is fighting the ball non-variationality.
-    if (std::getenv("GPW_XCROUTE"))
+    if (qchem::Diagnostics::Enabled("xc_route"))
     {
         double rmin=1e300, rmax=-1e300;
         for (double r : itsRho) { rmin=std::min(rmin,r); rmax=std::max(rmax,r); }

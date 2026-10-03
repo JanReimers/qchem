@@ -16,6 +16,7 @@ module;
 #include <stdexcept>
 #include "tabulate/table.hpp"
 module qchem.WaveFunction.Internal.CompositeWF;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.WaveFunction.Types;
 import qchem.SCFAccelerator;
 import qchem.CompositeCD;
@@ -562,7 +563,7 @@ template <class T> void tCompositeWF<T>::FillReservoirAtSharedMu(OccupationPolic
     const double kT=pol.SmearingkT();
     assert(kT>0.0 && "a shared-μ fill needs SmearingkT>0: integer fills have nothing to relax with");
     assert(!wfs.empty());
-    const bool trace=(bool)std::getenv("GPW_METALTRACE");
+    const bool trace=qchem::Diagnostics::Enabled("metal_trace");
     // The reservoir's electron count: each spin CHANNEL present contributes its count once.  (With a
     // shared k-mesh GetN is already the whole-mesh total, so summing per block would over-count by n_k.)
     double Ntot=0.0;

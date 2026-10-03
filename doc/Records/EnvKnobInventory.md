@@ -141,3 +141,22 @@ it belongs here, not in §2.
 Order (cheap and no-anchor first): (1) delete the three env twins + the test-only valve (§5.2); (2) `qchem.Diagnostics` and
 migrate the 22 diagnostics; (3) site moments into the report; (4) the `GPW_` → `QCHEM_` rename with aliases; (5) the typed
 `Screening`/`Grids` fields, facade injection, registry override layer; (6) the deck (D-ENV step 3).
+
+## 7. Corrections found while doing steps 1-2 (2026-10-03)
+
+* **The first grep missed knobs read through a wrapper.**  `Mesh/XCPolicy.C` `BeckeXCParams` reads `GPW_BECKE_NR`,
+  `GPW_BECKE_ALPHA`, `GPW_BECKE_L` and `GPW_BECKE_ROT` through `envi`/`envd` lambdas (a `getenv(n)` on a variable).  They
+  are **tier 2** grid parameters whose typed twin is the `BeckeXCParams(nRadial, mhlAlpha, angularDegree)` arguments (the
+  `-1` sentinel means "read the env") and `MeshParams::angRot`: they belong with the `Grids` fields of step 5.  (RunPolicy's
+  `IsSet`/`AsBool` wrappers were already counted.)  Inventory total: **45 distinct names** in the library + the 9 RunPolicy.
+* **`GPW_LOCALPP_RELCUTOFF` is DUAL-USE**: `GPW_Evaluator.C:90` reads it as the NUMERIC local-PP pair→level κ (default 30 Ha;
+  the self-convergence check sets 60) — a **tier-2** knob, `Grids::localPPRelCutoff` in step 5 — while `:1238` used the same
+  variable as a timing switch.  Split: the numeric read stays an environment read until step 5; the timing switch is now the
+  diagnostic `localpp_timing` with NO legacy alias (so setting κ no longer prints timings — the one deliberate behaviour change
+  of step 2).
+* **Step 1 done**: `GPW_XCGRID_NOSELECT`, `GPW_RASTER_POLICY`, `GPW_BECKE_ANG` deleted (each shadowed a typed option and could
+  disagree with the banner); `QCHEM_SPINBLIND_KERKER` replaced by the test-only `KerkerParams::spinBlind` field.
+* **Step 2 done**: `qchem.Diagnostics` (qcCommon): `QCHEM_DIAGNOSTICS=id[=value],...`, `=list`, typo warning, the old names as
+  legacy aliases (ON unless `"0"`; the value is the argument, e.g. `GPW_MESH_ORTHO=4`), `Scoped` for tests; 22 diagnostics
+  migrated (21 + `localpp_timing`).  `GPW_DM_RANK=1` and `QCHEM_DIAGNOSTICS=dm_rank` both verified on NaF (34 report lines; none
+  without).  Caveat: sites that cache `static const bool on=Enabled(...)` read it once, so `Scoped` cannot toggle them mid-process.

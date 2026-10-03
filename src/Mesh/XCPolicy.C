@@ -130,10 +130,9 @@ export namespace qchem::qcMesh
 //!   - \c GPW_BECKE_NR     radial point count.                                        Default 40.
 //!   - \c GPW_BECKE_ALPHA  MHL radial scale (smaller = nodes pulled toward the core). Default 2.0.
 //!   - \c GPW_BECKE_L      angular POLYNOMIAL DEGREE, one meaning for both schemes (R2.15).  Default 29.
-//!   - \c GPW_BECKE_ANG    \c "gl" / \c "gausslegendre" selects GaussLegendre (the A/B valve for the
-//!                         2026-08-17 default flip); anything else = the Lebedev tables, which resolve the
-//!                         requested degree to the cheapest tabulated rule delivering at least it.  Both
-//!                         schemes read GPW_BECKE_L as a degree, so the A/B is like-for-like.
+//!   (The angular SCHEME is chosen by degree below -- Lebedev at >= 29, GaussLegendre under it; both read the
+//!   degree the same way, so an A/B is like-for-like.  To force a scheme, set \c MeshParams::angular on the result:
+//!   the env valve GPW_BECKE_ANG was a silent twin of that typed field and is removed, D-ENV.)
 //!   - \c GPW_BECKE_ROT    radians; rigid generic rotation of the angular grid, which steers special
 //!                         orbits off the bond axes (doc/SymmetryUpgradePlan.md §6a; free runs only --
 //!                         needed below degree ~15, not at the calibrated 29).
@@ -267,12 +266,8 @@ MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
     // caught it live -- the MnO seed-mirror gate's own degree-11 recipe put Leb-50's <111> orbit straight
     // into neighbour Mn cores (orphan w*rho 0.04 against an eps-tail contract of 1e-8).  Degrees 15-23
     // are UNMEASURED for this hazard, so they stay GL until someone measures them; >=29 is where the
-    // Si/NaF/Al equality was established.  GPW_BECKE_ANG forces either scheme at any degree (the A/B valve).
-    const char* ang=std::getenv("GPW_BECKE_ANG");
-    const std::string angs = ang ? ang : "";
-    mp.angular = (angs=="gl" || angs=="gausslegendre") ? AngularKind::GaussLegendre
-               : (angs=="lebedev")                     ? AngularKind::Lebedev
-               : (angularDegree>=29)                   ? AngularKind::Lebedev : AngularKind::GaussLegendre;
+    // Si/NaF/Al equality was established.  A caller wanting the other scheme sets MeshParams::angular afterwards.
+    mp.angular = (angularDegree>=29) ? AngularKind::Lebedev : AngularKind::GaussLegendre;
     mp.angularDegree=angularDegree;   // ONE meaning for both schemes: GL takes it directly, Lebedev resolves
                                       // it to the cheapest rule of at least that degree (R2.15).
     mp.angRot=envd("GPW_BECKE_ROT", 0.0);
@@ -375,11 +370,11 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
         // ARMED 2026-08-08 (V2.4).  Opt-OUT now, not opt-in: the two systems the selector routes to uniform
         // were measured by converged-run A/B (GPW_SCF.DISABLED_GridRouteAB_*) and uniform at its own cutoff
         // matched the fine reference at least as well as the PRODUCTION Becke mesh, for 4-15x fewer points.
-        // GPW_XCGRID_NOSELECT=1 restores the unconditional Auto->Becke, as the A/B valve.
-        static const bool disarmed=[]{ const char* e=std::getenv("GPW_XCGRID_NOSELECT"); return e && std::atoi(e)!=0; }();
-        if (disarmed || !uniformWins)
+        // To get the unconditional Becke, state it: xcMesh.cellKind=UnitCellKind::Becke (the old env valve
+        // GPW_XCGRID_NOSELECT was a second, silent way to say the same thing -- removed, D-ENV).
+        if (!uniformWins)
         {
-            if (!disarmed) std::cout<<"[XC grid choice] Auto -> BECKE"<<std::endl;
+            std::cout<<"[XC grid choice] Auto -> BECKE"<<std::endl;
             WarnRadialAdequacy(becke, s);   // V2.7: the chosen Becke mesh must also be radially adequate
             return becke;
         }

@@ -16,6 +16,7 @@ module;
 #include <type_traits>
 
 module qchem.SCFIterator;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.SCFParams;
 import qchem.SCFAccelerator;
 
@@ -266,7 +267,7 @@ static void EmitSiteMoments(const EnergyBreakdown& eb)
     // Verbose-only on the console: the row's m_site column already shows the number, and a rendered block
     // between two iteration rows is exactly the interruption the column exists to avoid.  The json always records.
     qchem::report::EmitAt("scf", "siteMoments", j, qchem::report::Detail::Verbose);
-    if (std::getenv("QCHEM_SITE_MOMENTS"))
+    if (qchem::Diagnostics::Enabled("site_moments"))
     {
         std::cout<<"[site moments] Becke-partitioned Integral w_A (rho_up-rho_dn) d3r [e]:";
         for (size_t a=0;a<mu.size();a++) std::cout<<"  "<<a<<":"<<mu[a];
@@ -541,7 +542,7 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
                            cd_t cd0(itsWaveFunction->GetChargeDensity());
                            return itsHamiltonian->GetTotalEnergy(cd0.get()).GetTotalEnergy()
                                 + itsOccPolicy->EntropyTerm(); }();
-    const bool trace=(bool)std::getenv("GPW_GDMTRACE");
+    const bool trace=qchem::Diagnostics::Enabled("gdm_trace");
     if (trace && std::fabs(E0-Ecur)>1e-6)
         std::cout << "[gdm] convention shift: E(t=0) held = " << E0 << " vs previous-iteration E = " << Ecur
                   << " (offset " << (E0-Ecur) << " Ha) -- descending against the HELD reference" << std::endl;

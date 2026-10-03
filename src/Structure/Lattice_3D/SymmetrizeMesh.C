@@ -35,6 +35,7 @@ export module qchem.SymmetrizeMesh;
 export import qchem.Mesh;                            // qcMesh::Mesh
 export import qchem.Symmetry.Lattice_3D.Fold;        // Fold, SymOp, FoldPointsPeriodic, SymmetrizeValues
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;  // SpaceGroup (the ops-encapsulated overloads)
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Math;                                   // floor, fabs
 
 export namespace qchem
@@ -519,7 +520,7 @@ qcMesh::Mesh MakeInvariantAngularMesh(const std::vector<Matrix3D<double>>& ops, 
             }
         }
         const bool ok = SolveNNLS(A, nY, nOrb, cost, w, 1e-9);
-        if (getenv("QCHEM_ANGMESH_DEBUG"))
+        if (qchem::Diagnostics::Enabled("angmesh_debug"))
         {
             int    sup = 0; size_t nd = 0;
             for (int k = 0; k < nOrb; ++k) if (w[k] > 0.0) {++sup; nd += orbits[k].size();}

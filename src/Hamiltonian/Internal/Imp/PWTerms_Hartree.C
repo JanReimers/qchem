@@ -19,6 +19,7 @@ module;
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
 module qchem.Hamiltonian.Internal.PWTerms;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.Energy;
 import qchem.ChargeDensity;
@@ -142,7 +143,7 @@ void Vee_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     for (const auto& [dm,v] : VH)
         if (const double k=pk->CoulombKernel(dm); k>0.0) e+=std::norm(v)/k;   // conj(rho-tilde) V_H = |V_H|^2/k
     e*=0.5*Volume();
-    if (std::getenv("GPW_EH_TRACE"))
+    if (qchem::Diagnostics::Enabled("eh_trace"))
     {
         const double eTrace=0.5*cd->DM_Contract(this,cd);
         std::cout << "[E_H A/B] G-space=" << std::setprecision(12) << e << " trace=" << eTrace

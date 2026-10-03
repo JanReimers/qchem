@@ -37,6 +37,7 @@ module;
 // libomp and the libgomp fallback (-fopenmp=libgomp) honours the pragmas but does NOT define _OPENMP.  The
 // private-buffer + critical-reduce pattern below needs no <omp.h> (no omp_*() calls), only the pragmas.
 export module qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.BasisSet.Gaussian.Evaluators;                             // Evaluator + concepts
 import qchem.Parallel;                                                // WorkerThreads -- THE reader of QCHEM_OPENMP_THREADS (D-THREADS)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;      // PGData
@@ -160,7 +161,7 @@ public:
     template <class Kernel> chmat_t LatticeSum(const cellphase_t& phase, const UnitCell& A, Kernel K) const
     {
         chmat_t S(size());
-        const bool trace=(std::getenv("GPW_RSS_TRACE")!=nullptr);
+        const bool trace=(qchem::Diagnostics::Enabled("rss_trace"));
         // GEOMETRY-CACHE BOUND (the full-SR OOM, doc/GPWPlan.md): the MnD Omega/RNLM/H3 caches key on
         // per-instance IDs, and AtCenter mints fresh clones per (pair, offset) -- a diffuse basis' ~2k
         // images/pair would grow them to GBs inside ONE matrix build.  The size-0 budget evicts each
@@ -2030,7 +2031,7 @@ public:
     //                              is, but it says the screen is what defeats the memo, which is a different
     //                              and more interesting problem than "the caller asks twice".
     static bool IntegrateCensus()
-    { static const bool b=[]{const char* s=std::getenv("GPW_INTEGRATE_CENSUS"); return s && std::atoi(s)!=0;}(); return b; }
+    { static const bool b=qchem::Diagnostics::Enabled("integrate_census"); return b; }
     //! FNV-1a over the raw bit patterns.  A diagnostic: a collision mislabels one line of a report and
     //! changes no result, which is why this is not the exact compare IntegrateMemo::SameField uses.
     static size_t BitHash(size_t h, double v)

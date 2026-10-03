@@ -9,6 +9,7 @@ module;
 #include <iostream>    // the residual-spectrum census goes to cout, like the other GPW_* instruments
 #include <map>
 module qchem.ChargeDensity.Internal.FieldMixer;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Types;
 
 namespace qchem::ChargeDensity
@@ -48,7 +49,7 @@ KerkerStepResult KerkerStep(const ΔG_Map& in, const ΔG_Map& out, double alpha,
     const double binHi[kNBin]={0.5,1.0,2.0,3.0,5.0,1e300};   // upper edges in x=G/G0
     double binPow[kNBin]={0,0,0,0,0,0}, binF[kNBin]={0,0,0,0,0,0};
     double gPow=0.0;                                        // power-weighted sum of |G| (for the centroid)
-    static const bool spectrum=std::getenv("GPW_KERKER_SPECTRUM")!=nullptr;
+    static const bool spectrum=qchem::Diagnostics::Enabled("kerker_spectrum");
     auto accum=[&](double fk, const dcmplx& d, double g)
     {
         const double d2=std::norm(d); num += alpha*alpha*fk*fk*d2; den += d2;

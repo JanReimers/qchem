@@ -19,6 +19,7 @@ module;
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
 module qchem.Hamiltonian.Internal.PWTerms;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.Energy;
 import qchem.ChargeDensity;
@@ -118,7 +119,7 @@ template <class U> hmat_t<U> Ven_PP_NonLocal::MakeMatrixT(const tobs_t<U>* bs, c
 }
 chmat_t Ven_PP_NonLocal::MakeMatrix(const cobs_t* bs, const Spin& s) const
 {
-    if (std::getenv("GPW_NL_PER_L"))
+    if (qchem::Diagnostics::Enabled("nl_per_l"))
     {   // I0 diagnostic (doc/SphericalLatticePlan.md): bank the per-l blocks once per irrep block.
         // Complex path only -- the itsByL bank is chmat_t; extend if the diagnostic ever needs real blocks.
         auto pw=dynamic_cast<const BasisSet::Orbital_PP_IBS<dcmplx>*>(bs);

@@ -14,6 +14,7 @@ module;
 #include <string>
 
 module qchem.ChargeDensity.Imp.IrrepCD;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Symmetry;
 import qchem.BasisSet.Orbital_DFT_IBS;  // Integrals_Overlap3C<T,TFit> -- this block's scalar arm of the fit basis's 3C
 import qchem.Blaze;
@@ -209,7 +210,7 @@ template <class T> double IrrepCD_Core<T>::DM_ContractBlocks(const std::map<std:
 //   * the rank at a ladder of tolerances is the achievable n/r.
 template <class T> void ReportDMRank(const hmat_t<T>& D, const Irrep& ir)
 {
-    static const bool on=std::getenv("GPW_DM_RANK")!=nullptr;
+    static const bool on=qchem::Diagnostics::Enabled("dm_rank");
     if (!on || D.rows()==0) return;
     const size_t n=D.rows();
     rvec_t w; mat_t<T> U;
@@ -382,7 +383,7 @@ template <class T> bool LowRankFactor(const hmat_t<T>& D, mat_t<T>& L, size_t& r
     // EFFECTIVE number of basis functions carrying orbital m (n = fully delocalised, few = localised),
     // plus the count above a relative floor.  Pivoted Cholesky is greedy on the diagonal, so the
     // literature expectation ("Cholesky orbitals") is that these come out LOCALISED -- this measures it.
-    static const bool on=std::getenv("GPW_DM_RANK")!=nullptr;
+    static const bool on=qchem::Diagnostics::Enabled("dm_rank");
     if (on)
     {
         double iprMin=1e300, iprMax=0.0, iprSum=0.0; size_t sigMax=0, sigSum=0;

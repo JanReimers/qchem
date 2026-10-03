@@ -16,6 +16,7 @@ module;
 #include <typeinfo>
 #include <vector>
 module qchem.Hamiltonian.Internal.Hubbard;
+import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.Energy;
 import qchem.RunPolicy;                         // theRunPolicy().HubbardEigen() -- the form, read once here
 import qchem.ChargeDensity;                     // cDM_CD, ChannelOf, tDM_Sourced_CD (the DM-backed source)
@@ -757,7 +758,7 @@ void Hubbard_U::EnsureOccupations(const cChargeDensity* cd) const
         os<<"  E_U="<<std::setprecision(8)<<itsEU;
         // A heartbeat on the attached console; QCHEM_U_TRACE=1 puts the same line on stdout (gtest runs
         // attach no console, and the MnO gate is read by eye against CP2K's per-step occupation print).
-        static const bool trace = std::getenv("QCHEM_U_TRACE")!=nullptr;
+        static const bool trace = qchem::Diagnostics::Enabled("u_trace");
         if (trace) std::cout<<os.str()<<std::endl; else report::Log(os.str());
     }
 }
