@@ -236,12 +236,12 @@ data-checksum mismatch.  ONE loader serves `gpwprobe --deck`, `scfrun`, the GUI 
 **Ad-hoc overrides without the environment, and WHAT IS THE RECORD (user, 2026-10-03).**  `--set key.path=value` on the CLI
 (`--set tol.screenEps=1e-8`) is the only override path.  The file the user wrote is NEVER the record of what ran (it may lean on
 defaults and omit the overrides).  Every run therefore writes TWO things: the **input deck** is left untouched; the
-**`<name>.resolved.json`** is the record: the input deck + every `--set` + every default filled in + the header (git hash and
+**`<name>.r<NNN>.json`** (`r001`, `r002`, ... -- a REVISION number, because one name is run many times) is the record: the input deck + every `--set` + every default filled in + the header (git hash and
 dirty flag, data-file checksums, schema version) + a **provenance block** (the original command line, the input deck's path and
-checksum, and per field whether it came from the deck, `--set` or a default).  *Reproduce* = `--deck X.resolved.json` with no
+checksum, and per field whether it came from the deck, `--set` or a default).  *Reproduce* = `--deck X.r003.json` with no
 `--set` (immune to later changes of the code's defaults, because they were filled in).  *Reproduce with one intentional change* =
-`--deck X.resolved.json --set tol.screenEps=1e-8`, which writes its own resolved deck, so the lineage is a chain of self-contained
-files.  Stray environment variables that are still set are listed in the output header as ignored.
+`--deck X.r003.json --set tol.screenEps=1e-8`, which writes `X.r004.json`, so the lineage is a chain of self-contained
+files.  The revision is the next free number in the run directory, claimed with an atomic exclusive create (parallel jobs cannot collide; a number is never reused or overwritten); the run's other outputs share the stem (`<name>.r003.log`), so deck and results pair by name; the provenance block records `parent: <name>.r002.json` when the run started from a resolved deck.  Stray environment variables that are still set are listed in the output header as ignored.
 
 **Removal, in this order (each step green on ctest before the next):**
 
