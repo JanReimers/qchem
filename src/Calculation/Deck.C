@@ -13,6 +13,7 @@
 // This unit is the DATA LAYER: the typed option structs <-> JSON, the dotted-path `--set`, the revision claim.
 module;
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -22,6 +23,9 @@ export module qchem.Deck;
 import qchem.SolidCalculation;     // SolidCalcOptions
 import qchem.SCFParams;            // SCFParams
 import qchem.Mesh;                 // MeshParams
+import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData (the deck names the basis file)
+import qchem.Types;                // ivec3_t
+import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
 
@@ -51,9 +55,21 @@ json ToJson(const SolidCalcOptions&);                    void FromJson(const jso
 //! (a charged cell, a different pseudopotential valence) -- and the resolved deck always records the values actually used.
 struct RunSpec
 {
+    //! The basis the GPW basis is built over: WHICH data file (an exact \c BasisSetData name, e.g. "VALENCE_LOWQ_VA"), and whether
+    //! it is wrapped in the spherical lattice view (contaminant-free d/f).  (Shell trims are not in the deck yet.)
+    struct Basis { BasisSet::Gaussian::BasisSetData data = BasisSet::Gaussian::BasisSetData::VALENCE_LOWQ_SR; bool spherical=false; };
+    //! One stage of an annealed recipe: its SCF parameters and its accelerator (\c SCFStage, by name).
+    struct Stage { SCFParams scf; SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS; };
+
     std::string      structure;       //!< REQUIRED: a name in materials.json or molecules.json
+    ivec3_t          kmesh{1,1,1};    //!< Monkhorst-Pack divisions of the Brillouin zone
+    Basis            basis;
     SolidCalcOptions solid;           //!< the periodic-run options (used when \c structure is a cell)
-    SCFParams        scf;
+    SCFParams        scf;             //!< the single-stage recipe (with \c solid.accelerator) ...
+    std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
+    //! The stages the run executes: \c schedule, or the one stage (\c scf, \c solid.accelerator).
+    std::vector<Stage> Stages() const
+    { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator}} : schedule; }
 };
 json ToJson(const RunSpec&);
 //! Strict like the other readers: \c structure is required; an unknown top-level key (or any nested one) throws.
@@ -62,6 +78,8 @@ void FromJson(const json&, RunSpec&);
 //! \c species when they were left to derive, so \c ToJson(spec) afterwards is the complete record.  THROWS (listing the known names)
 //! on an unknown structure, and for a molecule name (molecular decks are the next increment).
 Materials::Material Resolve(RunSpec& spec);
+
+
 
 //! \brief Apply `"a.b.c=value"` to \a deck: creates the intermediate objects; \c value is parsed as JSON (`1e-8`, `true`,
 //! `[1,2]`, `"x"`) and, failing that, taken as a bare string (`tol.mode=fast`).  An array index is a number (`species.0.1=4`).
@@ -80,7 +98,8 @@ struct Provenance
     std::string           commandLine;
     std::vector<std::string> overrides;
     std::string           codeVersion;               //!< git hash (+"-dirty"), supplied by the caller
-    std::vector<std::string> ignoredEnvironment;     //!< retired env variables found set (recorded, never honoured)
+    std::vector<std::string> ignoredEnvironment;     //!< retired env variables found set (recorded, never honoured; from step 6a on)
+    std::vector<std::string> activeEnvironment;      //!< INTERIM (until 6a retires the hooks): env overrides still HONOURED by the library, so the record is honest
 };
 //! Write \a resolved + header + provenance to \a path (a claimed revision).  Header: schema version, \c codeVersion, the input
 //! deck's checksum.  The file is the COMPLETE record: loading it reproduces the run with no \c --set.
@@ -88,5 +107,19 @@ void WriteRevision(const std::filesystem::path& path, const json& resolved, cons
 //! Load a deck file (hand-written or a revision): strips the header/provenance, WARNS on stderr when its \c codeVersion differs
 //! from \a currentCodeVersion, and returns the option payload.  THROWS if the schema version is newer than \c kSchemaVersion.
 json LoadDeck(const std::filesystem::path& path, const std::string& currentCodeVersion);
+
+//! \brief What a deck run produced.  \c energy is present ONLY for a converged run (a failed run's last iterate is deliberately not
+//! offered as "the energy" -- see \c SCFFailure::lastEnergy).
+struct RunOutcome
+{
+    bool                   converged = false;
+    std::optional<double>  energy;                //!< total energy (Ha) of the converged state
+    std::filesystem::path  revision;              //!< the resolved deck this run wrote: the record
+    std::string            summary;               //!< the one-line verdict (or the failure reason)
+};
+//! \brief RUN a deck: resolve it, CLAIM and WRITE its revision `<outDir>/<structure>.rNNN.json` (BEFORE the SCF, so even a crashed
+//! run leaves its record), build the lattice, basis and \c SolidCalculation, converge the schedule, and report to the console.
+//! The caller supplies the provenance (command line, \c --set strings, input deck); the code version is the caller's too.
+RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir);
 
 } // namespace qchem::deck

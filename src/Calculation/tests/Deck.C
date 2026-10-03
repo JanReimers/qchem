@@ -98,6 +98,14 @@ TEST(Deck, RevisionsAreNumberedNeverReusedAndTheFileIsTheCompleteRecord)
     EXPECT_EQ(raw.at("deck").at("schema"),deck::kSchemaVersion);
     EXPECT_EQ(raw.at("provenance").at("overrides")[0],"tolerances.screenEps=1e-8");
     EXPECT_EQ(raw.at("provenance").at("ignoredEnvironment")[0],"GPW_SCREEN_EPS");
+    EXPECT_TRUE(raw.at("provenance").contains("activeEnvironment"));
+    EXPECT_FALSE(raw.at("provenance").contains("parent")) << "no input deck, no parent";
+
+    // a run that starts FROM a revision names it as its parent
+    deck::Provenance child=pv; child.inputDeck=b;
+    const fs::path c2=deck::ClaimRevision(dir,"MnO");
+    deck::WriteRevision(c2, json{{"solid",deck::ToJson(o)}}, child);
+    EXPECT_EQ(json::parse(std::ifstream(c2)).at("provenance").at("parent"),"MnO.r002.json");
 
     const json run=deck::LoadDeck(b,"abc123");          // header stripped; same code version = silent
     SolidCalcOptions back; deck::FromJson(run.at("solid"),back);
@@ -139,4 +147,49 @@ TEST(Deck, AStatedValenceOverridesTheMaterialAndBadStructuresAreRefused)
     try { deck::Resolve(bad); FAIL(); } catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("Si_diamond"),std::string::npos) << "lists the known names"; }
     deck::RunSpec mol; mol.structure=StructureData::MoleculeNames().front();
     EXPECT_THROW(deck::Resolve(mol), std::runtime_error);
+}
+
+// ---- a deck RUNS, and runs exactly what the options say (the Si CP2K anchor, GPW_Si.Γ_Imp_CP2K's recipe) ----
+import qchem.Lattice_3D;
+import qchem.BasisSet;
+import qchem.BasisSet.Gaussian.Point.Factory;
+TEST(Deck, ARunFromADeckEqualsTheSameRunBuiltByHand_Si_Gamma)
+{
+    const json payload={
+        {"structure","Si_diamond"}, {"basis",{{"data","SIPP_SR"}}},
+        {"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRho",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+    deck::RunSpec spec; deck::FromJson(payload,spec);
+
+    const fs::path dir=TmpDir("run");
+    deck::Provenance pv; pv.commandLine="test"; pv.codeVersion="t";
+    const deck::RunOutcome out=deck::Run(spec,pv,dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    ASSERT_TRUE(out.energy.has_value());
+    EXPECT_NEAR(*out.energy, -7.11506, 2e-3) << "the CP2K FCC-Si Gamma anchor (grid-gap tolerance)";
+
+    // the record exists, is r001, and reloads to the SAME deck (defaults filled in, structure still a name)
+    EXPECT_EQ(out.revision.filename(),"Si_diamond.r001.json");
+    deck::RunSpec again; deck::FromJson(deck::LoadDeck(out.revision,"t"),again);
+    EXPECT_EQ(again.structure,"Si_diamond"); EXPECT_EQ(again.solid.Nelec,8) << "the resolved deck records the derived electron count";
+
+    // the SAME run assembled by hand: bit-identical energy, i.e. the deck path adds nothing
+    const auto mat=Materials::Get("Si_diamond");
+    Lattice_3D lat(*mat.cell, ivec3_t(1,1,1));
+    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(BasisSet::Gaussian::BasisSetData::SIPP_SR, mat.cell.get()));
+    SolidCalcOptions o; o.Nelec=8; o.species=mat.species; o.densityEcut=20.0; o.imposeSymmetry=true; o.label=out.revision.stem().string();
+    SolidCalculation calc(lat,mol,o,spec.scf);
+    auto R=calc.Result(); ASSERT_TRUE(R);
+    EXPECT_DOUBLE_EQ(R->Energy(), *out.energy);
+    fs::remove_all(dir);
+}
+
+TEST(Deck, ScfAndScheduleTogetherAreAmbiguousAndAScheduleRoundTrips)
+{
+    deck::RunSpec r;
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"scf",json::object()},{"schedule",json::array({json::object()})}},r),std::runtime_error);
+    deck::FromJson(json{{"structure","Si_diamond"},{"kmesh",{2,2,2}},{"schedule",{{{"accelerator","GDM"},{"scf",{{"smearingkT",0.01}}}},{{"accelerator","DIIS"}}}}},r);
+    ASSERT_EQ(r.schedule.size(),2u); EXPECT_EQ(r.schedule[0].scf.SmearingkT,0.01); EXPECT_EQ(r.kmesh.x,2);
+    const json j=deck::ToJson(r); EXPECT_TRUE(j.contains("schedule")); EXPECT_FALSE(j.contains("scf"));
+    deck::RunSpec back; deck::FromJson(j,back); EXPECT_EQ(deck::ToJson(back),j);
 }

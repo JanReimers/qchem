@@ -278,4 +278,13 @@ stray `lattice` key is refused).  `Resolve(spec)` returns the `Material` and fil
 honoured: a charged cell, a different PP valence), so the resolved deck records what was used.  Unknown name -> throws listing the known names.
 A MOLECULE name is refused for now (molecular decks: next).  Not offered: a lattice-constant override (`Materials::Get(name, a)` for EOS scans) --
 add an `a` key only if a scan needs it from a deck; today a scan is a new entry or a `--set`-able key added then.  ctest +2.
-**NEXT**: molecular decks (`CalcOptions`), then the loader in `gpwprobe --deck/--set` and `SolidCalculation` writing its revision, THEN the 6a-6e retirements.
+**Step 6.3 DONE 2026-10-03 -- a deck RUNS** (`rundeck <deck.json> [--set path=value]... [--out DIR]`, `deck::Run`).  `RunSpec` gained `kmesh`, `basis{data,spherical}`
+and `schedule[{accelerator,scf}]` (a deck gives `scf` OR `schedule`, never both).  `Run` resolves, CLAIMS+WRITES `<structure>.rNNN.json` BEFORE the SCF
+(a crash still leaves its record), builds lattice + basis + `SolidCalculation`, converges, returns `RunOutcome` (energy only when converged).  Verified:
+Si Γ deck energy == the hand-built run **bit-identically** (`EXPECT_DOUBLE_EQ`) and = -7.115063 (CP2K anchor); `--set` typo caught with the legal keys; a run
+started from `r001` records `parent: ...r001.json`.  **INTERIM HONESTY**: until 6a, the library still honours env overrides, so `rundeck` lists each
+set `GPW_*`/`QCHEM_*` (minus resources/diagnostics) in the record's `provenance.activeEnvironment` and prints a NOTE -- the record is never silently
+different from the deck.  Known gaps: shell TRIM and the basis `Reader` choices are not in the deck yet (`MakeBasisLowQ`'s `GPW_BASIS_*`/`_TRIM` env
+reads are harness-side, retire in 6d); no molecular deck; no restart (`saveStateTo` is serialized, `Restart` is not driven); `rundeck` output dir is `--out`
+(use `scripts/rundir`).  ctest 1019/1019.
+**NEXT**: 6a (retire the tolerance env hooks: `ApplyEnvOverrides`, `QCHEM_BECKE_*`), then 6b/6c, then 6d (harness/probe env decks -> decks), 6e (lint).  Earlier plan text: the loader in `gpwprobe --deck/--set` and `SolidCalculation` writing its revision, THEN the 6a-6e retirements.
