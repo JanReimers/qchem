@@ -266,3 +266,31 @@ TEST(M_TransitionCollocation, WalkAndContractionRoutesAgree)
     EXPECT_LT(dRho, 1e-10*sRho) << "the two collocation routes disagree on the density";
     EXPECT_LT(dH,   1e-10*sH)  << "the two gather routes disagree on the potential matrix";
 }
+
+// ---- D-ENV step 5: the typed GPW tolerances and the environment as the OVERRIDE LAYER ----
+#include <cstdlib>
+import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
+TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheEnvironmentOverridesAndSaysSo)
+{
+    using namespace qchem::BasisSet::Gaussian;
+    for (const char* n : {"GPW_VLOC_EPS","GPW_LOCALPP_RELCUTOFF","GPW_RELFIELDSHARP","GPW_MGRID_ECUTS"}) unsetenv(n);
+    GPWTolerances t;
+    EXPECT_EQ(t.vlocEps, 1e-5);
+    EXPECT_EQ(t.localPPRelCutoff, 30.0);
+    EXPECT_NEAR(t.relFieldSharp, 1.0/3.0, 1e-15);
+    EXPECT_TRUE(t.mgridEcuts.empty());
+    EXPECT_TRUE(t.Describe().empty()) << "defaults print nothing on the banner";
+    EXPECT_TRUE(ApplyEnvOverrides(t).empty()) << "no environment, no override";
+    EXPECT_TRUE(t == GPWTolerances{});
+
+    setenv("GPW_VLOC_EPS","1e-7",1); setenv("GPW_MGRID_ECUTS","53.33,17.78,5.926",1);
+    const std::string said=ApplyEnvOverrides(t);
+    EXPECT_EQ(t.vlocEps, 1e-7);
+    ASSERT_EQ(t.mgridEcuts.size(), 3u);
+    EXPECT_NEAR(t.mgridEcuts[1], 17.78, 1e-12);
+    EXPECT_NE(said.find("GPW_VLOC_EPS"), std::string::npos) << "an override is NAMED, so the banner can say it";
+    EXPECT_NE(said.find("GPW_MGRID_ECUTS"), std::string::npos);
+    EXPECT_NE(t.Describe().find("vlocEps"), std::string::npos);
+    EXPECT_FALSE(t == GPWTolerances{});
+    unsetenv("GPW_VLOC_EPS"); unsetenv("GPW_MGRID_ECUTS");
+}

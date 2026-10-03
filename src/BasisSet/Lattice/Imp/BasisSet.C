@@ -271,7 +271,8 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
                                     mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor,
                                     ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
                                     p.rasterFields,       // field-sharpness routing (HartreeOnly = the Becke-XC partner)
-                                    ops.magneticDirect);  // Shubnikov {W|τ,σ} on a magnetic imposition (S3; {} = grey)
+                                    ops.magneticDirect,   // Shubnikov {W|τ,σ} on a magnetic imposition (S3; {} = grey)
+                                    p.tol);               // the typed GPW tolerances (D-ENV step 5)
             if (!first) first=b;
             Insert(b);
         };

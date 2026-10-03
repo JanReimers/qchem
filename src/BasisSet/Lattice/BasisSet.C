@@ -12,6 +12,7 @@ export module qchem.BasisSet.Lattice.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
 export import qchem.BasisSet.PlaneWave.PlaneWave_IBS; // PlaneWave::PlaneWave_IBS (+ the Orbital_PP_IBS service it implements)
+export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // GPWParams::tol (D-ENV step 5)
 export import qchem.BasisSet.Gaussian.Lattice.GPW_IBS;       // Gaussian::GPW_IBS + Gaussian::CellImages (the GPWFactory mode argument)
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::RasterPolicy (a PUBLIC factory knob since 0.5(a))
 export import qchem.BasisSet.Gaussian.Point.ShellTrim;   // ShellTrim (VetStageTrim's decision, pin 22)
@@ -96,6 +97,10 @@ struct GPWParams
     //! maps \f$+m\f$ sites onto \f$-m\f$ sites and would erase the magnetic order it is supposed to
     //! protect.  Empty (the default) = the historical grey imposition.
     std::vector<int> siteSpins = {};
+    //! \brief The GPW evaluator's numerical tolerances (local-PP G-ball eps, the local-PP kappa, the HartreeOnly floor
+    //! fraction, an explicit multigrid cutoff list): typed, injected into every block's evaluator at construction
+    //! (D-ENV step 5).  Defaults = today's behaviour; the environment is only an override layer applied by the facade.
+    Gaussian::GPWTolerances tol = {};
     //! REALNESS, the term half (doc/RealComplexPlan.md Step 3c-3): the composition root's assertion
     //! that EVERY Hamiltonian term of the run preserves a real basis block (no SOC, no vector
     //! potential).  With it set, each TRIM block (\c irrep.IsReal(), exact integer arithmetic) is

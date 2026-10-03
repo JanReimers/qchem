@@ -356,10 +356,17 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     // match the GPW_SCF harness's so the two paths' ledgers read the same.
     {
         qchem::report::Timed timed("setup: GPW basis build");
+        // THE TOLERANCES: the typed value, with the environment applied as the OVERRIDE LAYER -- once, here, and named on the
+        // banner so a run that was overridden says so (D-ENV step 5).
+        auto tol=opts.tolerances;
+        const std::string tolEnv=qchem::BasisSet::Gaussian::ApplyEnvOverrides(tol);
+        if (!tol.Describe().empty())
+            std::cout<<"["<<opts.label<<" run] GPW tolerances (non-default):"<<tol.Describe()
+                     <<(tolEnv.empty() ? std::string() : "  [environment overrides:"+tolEnv+"]")<<std::endl;
         itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
-            .imposeSymmetry = imposed, .siteSpins = siteSpins,
+            .imposeSymmetry = imposed, .siteSpins = siteSpins, .tol = tol,
             .hamPreservesReal = hamPreservesReal}));
     }
     // THE RUN REPORTS ITS OWN BASIS AND GRIDS (TE phase 2, 2026-09-15; the reporting rule: each class emits

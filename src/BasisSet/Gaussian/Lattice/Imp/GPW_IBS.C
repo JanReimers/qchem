@@ -26,11 +26,11 @@ template <class T> tGPW_IBS<T>::tGPW_IBS(const UnitCell& cell, const sym_t& irre
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, RasterPolicy raster, double ladderFactor,
                  std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields,
-                 std::vector<Symmetry::Lattice_3D::SymOp> magneticOps)
+                 std::vector<Symmetry::Lattice_3D::SymOp> magneticOps, const GPWTolerances& tol)
     : BasisSet::IrrepBasisSetImp<T>(irrep)
     , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep), irrep->IsReal(),
                     images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor,
-                    rasterFields) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
+                    rasterFields, tol) // irrep IS k; IsReal() = the exact TRIM fact (doc/RealComplexPlan.md Step 1)
     , itsMagneticOps(std::move(magneticOps))
 {
     SetSymmetryOps(std::move(directOps));   // ONE storage (the evaluator): T1 {G} fold + Vxc-raster star ops

@@ -210,3 +210,11 @@ in `GPWParams` for the `GPW_Evaluator` knobs (`vlocEps`, `localPPRelCutoff`, `re
 constructor eps (`densityEps`); (ii) option B for `screenEps`, `fieldSharp`, `relCutoff` (the evaluator-face clone and the
 `PGData` cache-sharing audit); (iii) the facade carries the struct in `SolidCalcOptions`; (iv) the env stays only as the
 override layer applied where the options are built.
+
+**Step 5 (i) DONE 2026-10-03**: `GPWTolerances` (`qchem.BasisSet.Gaussian.Lattice.GPWTolerances`: `vlocEps`, `localPPRelCutoff`,
+`relFieldSharp`, `mgridEcuts`) on `SolidCalcOptions::tolerances` -> `GPWParams::tol` -> `GPW_IBS` -> `GPW_Evaluator::itsTol`; the
+four environment reads inside the evaluator are gone; `ApplyEnvOverrides` is the ONE place the environment is applied (the facade,
+at option resolution) and names what it changed on the run banner (`GPW tolerances (non-default): ...  [environment overrides: ...]`);
+a non-default tolerance enters `IDFragment()` (a different basis for caching).  Verified on Si: default silent; `GPW_VLOC_EPS=1e-6`
+moves Etot by 2e-8 Ha; ctest 1007/1007.  REMAINING for step 5: option B for `screenEps`/`fieldSharp`/`relCutoff` (the
+`PG_Cart_MnD` evaluator) and `densityEps` (the lattice screener's constructor argument).

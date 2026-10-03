@@ -26,6 +26,7 @@ module;
 #include <string>
 #include <vector>
 export module qchem.BasisSet.Gaussian.Lattice.GPW_Evaluator;
+export import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;   // the typed tolerances (D-ENV step 5)
 export import qchem.BasisSet.PlaneWave.Evaluators; // PlaneWave::PW_Grid_Evaluator + RasterPolicy
                                                        // (re-exported since 0.5(a): RasterPolicy is a public knob)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;       // Gaussian::LatticeSum1E (the periodic-1E capability we call)
@@ -93,7 +94,8 @@ public:
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0), bool kIsReal = true,
                   bool homeCellOnly = false, double cutoffFactor = 2.0,
                   RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
-                  RasterFields rasterFields = RasterFields::HartreeXC);
+                  RasterFields rasterFields = RasterFields::HartreeXC,
+                  const GPWTolerances& tol = {});     //!< the typed numerical tolerances (D-ENV step 5; was env reads inside)
     //! Polymorphic (reached by the Lattice::*_IBS mixins' Cast() cross-cast); out of line as the key function.
     virtual ~GPW_Evaluator();
 
@@ -283,6 +285,7 @@ private:
                                                           //!< silently shift every collocation box)
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
     double  itsCutoffFactor=2.0;   //!< the density-grid floor constant C (ctor param; the density-resolution dial)
+    GPWTolerances itsTol;          //!< vlocEps / localPPRelCutoff / relFieldSharp / mgridEcuts, injected at construction
     double  itsLadderFactor=4.0;   //!< REL_CUTOFF multigrid progression factor (ctor param; per-step Ecut ratio of
                                    //!< the coarse-level ladder -- BuildLevels; DEPTH stays automatic, this tunes gradation)
     //! The RELATIVE rule's field-sharpness floor handed to every density-path CollocateDensity /

@@ -109,6 +109,11 @@ struct SolidCalcOptions
     //! a margin (V1.26/V2.4).  Pin \c cellKind to \c Uniform or \c Becke to overrule it and be obeyed --
     //! the grid is a user decision, and the library's job is only to warn about a dominated one.
     qcMesh::MeshParams xcMesh{.cellKind=qcMesh::UnitCellKind::Auto};
+    //! The GPW basis's numerical TOLERANCES (local-PP G-ball eps, local-PP kappa, the HartreeOnly floor fraction, an explicit
+    //! multigrid cutoff list).  Tier-2 numerical policy, typed (D-ENV step 5): the defaults are today's behaviour, and the
+    //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every
+    //! override is named on the run banner.
+    qchem::BasisSet::Gaussian::GPWTolerances tolerances = {};
     //! WHICH fit basis represents v_xc -- ORTHOGONAL to the grid above.  \c Auto picks Delta whenever the
     //! plane-wave fit cannot serve (Becke grid, or a polarized run).
     Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;

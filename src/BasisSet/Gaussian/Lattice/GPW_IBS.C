@@ -120,8 +120,9 @@ public:
             RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
             std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {},   //!< crystal direct ops {W|τ} for the IBZ Vxc-raster star-average
             RasterFields rasterFields = RasterFields::HartreeXC,          //!< field-sharpness routing (HartreeOnly = Becke-XC partner)
-            std::vector<Symmetry::Lattice_3D::SymOp> magneticOps = {});   //!< Shubnikov {W|τ,σ} when imposing a MAGNETIC decoration (S3):
+            std::vector<Symmetry::Lattice_3D::SymOp> magneticOps = {},    //!< Shubnikov {W|τ,σ} when imposing a MAGNETIC decoration (S3):
                                                                           //!< the XC quadrature then folds under σ (the (ρ,m) channel pair)
+            const GPWTolerances& tol = {});                               //!< the typed numerical tolerances (D-ENV step 5)
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
     tGPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,

@@ -85,12 +85,7 @@ void BuildImages(const UnitCell& cell, double Rcut, const rvec3_t& kFrac, bool t
 // of the field's sharpness.  Default 30 Ha (e^{-15} -- CP2K's REL_CUTOFF 60 Ry); GPW_LOCALPP_RELCUTOFF
 // overrides it for the self-convergence verification (kappa=60 must match to tolerance).  Read per call
 // (not a static) so a test can A/B via setenv.
-double LocalPPRelCutoff()
-{
-    double k=30.0;
-    if (const char* e=std::getenv("GPW_LOCALPP_RELCUTOFF")) k=std::atof(e);   // a NUMERIC tier-2 knob (kappa): typed in D-ENV step 5
-    return k;
-}
+// (itsTol.localPPRelCutoff was a free function reading the env; it is GPWTolerances::localPPRelCutoff, a member now.)
 
 // --- Real-space pseudopotential fields, replicated from the molecular PP_Local/PP_NonLocal terms (which live
 //     Hamiltonian-side and so are out of reach from a basis library).  They are pure functions of the qcPseudo-
@@ -220,8 +215,9 @@ std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm>
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                              double densityEcut, const rvec3_t& kFrac, bool kIsReal, bool homeCellOnly,
                              double cutoffFactor, RasterPolicy raster, double ladderFactor,
-                             RasterFields rasterFields)
+                             RasterFields rasterFields, const GPWTolerances& tol)
     : itsMol(std::move(mol))
+    , itsTol(tol)
     , itsHomeOnly(homeCellOnly)
     , itsk(kFrac)
     , itsTRIM(kIsReal)
@@ -268,13 +264,11 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     // (NaF SR2 Becke, 2026-07-31): beta=0 (pure pair-bandwidth) DIVERGES (+904 Ha, low-G slosh) -- an
     // under-resolved diffuse pair's FFT folds high-G back into the kept ball, corrupting rho-tilde's low-G
     // (the charge-transfer mode), so the 2/3*alpha_max floor was protecting the DENSITY too, not only
-    // V_xc.  The HartreeOnly floor is therefore a FRACTION of alpha_max, sweepable via GPW_RELFIELDSHARP
+    // V_xc.  The HartreeOnly floor is therefore a FRACTION of alpha_max, sweepable via GPWTolerances::relFieldSharp (env override GPW_RELFIELDSHARP)
     // (the calibration instrument; pin by convergence + rho_lost/N, not wall-clock).
     if (rasterFields==RasterFields::HartreeOnly)
     {
-        const char* s=std::getenv("GPW_RELFIELDSHARP");
-        const double frac = s ? std::atof(s) : 1.0/3.0;
-        itsRelFieldSharp = frac*itsLat->MaxExponent();
+        itsRelFieldSharp = itsTol.relFieldSharp*itsLat->MaxExponent();   // the fraction is a typed tolerance (D-ENV step 5)
     }
     itsMaxReach=std::sqrt(-std::log(1e-10)/itsLat->MinExponent());
     itsCellCtr =cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
@@ -845,25 +839,22 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PlaneWave::PW_Grid_Evaluat
 {
     assert(grid && "GPW_Evaluator::BuildLevels requires a density grid (densityEcut!=0)");
     // GRID-MATCHING OVERRIDE (doc/GPWPlan §0e "grid-matched CP2K validation"; verification instrument, not an
-    // interface): GPW_MGRID_ECUTS="53.33,17.78,5.926" (Ha, comma-separated, descending) replaces the factor-4
+    // interface): GPWTolerances::mgridEcuts = {53.33,17.78,5.926} (Ha, descending; env override GPW_MGRID_ECUTS) replaces the factor-4
     // sub-level progression AND the top completion rung with the EXPLICIT list -- level 0 stays \a grid (the
     // reference), the listed cutoffs follow.  CP2K's ladder is CUTOFF/3^(i-1) (progression_factor default 3),
     // which the factor-4 default cannot reproduce.  Pair->level assignment matching is the separate
     // GPW_RELCUTOFF knob (molecular side).
-    if (const char* s=std::getenv("GPW_MGRID_ECUTS"))
+    if (!itsTol.mgridEcuts.empty())
     {
         levels.push_back(grid);
-        for (std::string list(s); !list.empty();)
+        for (const double e : itsTol.mgridEcuts)
         {
-            const size_t c=list.find(',');
-            const double e=std::atof(list.substr(0,c).c_str());
-            list = c==std::string::npos ? std::string() : list.substr(c+1);
-            assert(e>0.0 && "GPW_MGRID_ECUTS: sub-level cutoffs must be positive");
-            // A listed cutoff at/above the reference is SKIPPED (warn): the knob is process-wide, so a
-            // coarser block in the same run (e.g. the grid-continuation SEED stage) keeps a valid ladder.
+            assert(e>0.0 && "GPWTolerances::mgridEcuts: sub-level cutoffs must be positive");
+            // A listed cutoff at/above the reference is SKIPPED (warn): a coarser block in the same run (e.g. the
+            // grid-continuation SEED stage) keeps a valid ladder.
             if (e>=grid->Ecut())
             {
-                std::cerr<<"[GPW] GPW_MGRID_ECUTS: skipping sub-level "<<e<<" >= reference "<<grid->Ecut()<<std::endl;
+                std::cerr<<"[GPW] mgridEcuts: skipping sub-level "<<e<<" >= reference "<<grid->Ecut()<<std::endl;
                 continue;
             }
             levels.push_back(std::make_shared<const PlaneWave::PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster));
@@ -980,7 +971,7 @@ void GPW_Evaluator::ReportGrids(std::ostream& os) const
         ReportGrid(os, tag, *itsLevels[L]);
     }
     os<<"[GPW grid] local-PP integration: FULL ladder L=0.."<<itsLevels.size()-1
-      <<" absolute REL_CUTOFF kappa="<<LocalPPRelCutoff()<<" Ha (e^{-kappa/2} pair tails)"<<std::endl;
+      <<" absolute REL_CUTOFF kappa="<<itsTol.localPPRelCutoff<<" Ha (e^{-kappa/2} pair tails)"<<std::endl;
     if (!sops.empty())
         os<<"[GPW grid] T1 {G}-star fold: "<<sops.size()<<" imposed ops; ACTIVE on the static local-PP"
             " sweeps (form factor at star reps); per-iteration G fields UNFOLDED (OpenWork item 5)"<<std::endl;
@@ -1025,7 +1016,7 @@ void GPW_Evaluator::EmitGridsReport() const
         if (!sops.empty())
             g["GstarFold"] = { { "ops", (long)sops.size() },
                                { "activeOn", "static local-PP sweeps (T1); per-iteration G fields unfolded" } };
-        g["localPP"] = { { "kappa", LocalPPRelCutoff() } };
+        g["localPP"] = { { "kappa", itsTol.localPPRelCutoff } };
     }
     rpt::EmitSection("grids", g);
     // The lattice-sum economy readout (grids.latticeSums + the [lattice sums] console line): the numbers
@@ -1203,7 +1194,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField
     // sharpest pairs' requirement kappa*2*alpha_max wants it; pairs beyond the finest level fall back to
     // the finest present (CP2K's gridlevel=1 default).  GPW_LOCALPP_RELCUTOFF overrides kappa (the
     // self-convergence verification: kappa=60 -> e^{-30} must match kappa=30 to tolerance).
-    const double kappa=LocalPPRelCutoff();
+    const double kappa=itsTol.localPPRelCutoff;
     const size_t K = itsLevels.size();
     // T1 {G}-star fold (doc/SymmetryUpgradePlan.md §6): under the §3-imposed ops the static V_loc field is
     // exactly symmetric (the ops were detected from these very atoms), so the form-factor sum runs at star
@@ -1264,7 +1255,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField
 // TWO invariants: screenD stays NULL -- a STATIC (density-independent) block must not freeze one
 // iteration's D-aware active set -- and screenD==null makes the phase-independent B_ij memo apply, so
 // multi-k pays the assembly once.  eps defaults 1e-5 (the kappa-sweep-parity class: its rung-160 tails
-// were e^{-8.5}, measured sub-mHa vs CP2K); GPW_VLOC_EPS overrides for the self-convergence check.
+// were e^{-8.5}, measured sub-mHa vs CP2K); GPWTolerances::vlocEps (env override GPW_VLOC_EPS) for the self-convergence check.
 // GPW_LONG_SWEEP=1 = the kappa-sweep path (A/B verification instrument); non-Gaussian local models (no
 // closed beta) also fall back to it.
 chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialField& loc) const
@@ -1282,7 +1273,7 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
     qchem::report::Timed timed("setup: local-PP LONG (custom G-ball)");
     assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0)");
     EnsureLevels();
-    static const double eps=[]{const char* s=std::getenv("GPW_VLOC_EPS"); return s?std::atof(s):1e-5;}();
+    const double eps=itsTol.vlocEps;
     const double lnE=-std::log(eps);
     // The custom ladder: the block's levels + ONE top level at the sharpest pair's harmonic requirement
     // (2 alpha_max against beta) -- appended LAST so ecut_L[0] stays the resolution reference.  Skipped when
@@ -1551,7 +1542,8 @@ std::string GPW_Evaluator::IDFragment() const
          +"|cell="+std::to_string(itsCell.GetCellVolume())+","+std::to_string(itsCell.GetMaximumCellEdge())
          +(itsHomeOnly?"|home":"")
          +(sfold?"|sfold="+std::to_string(sfold):"")
-         +"|dEcut="+(itsFFT_R_G_Grids?std::to_string(itsFFT_R_G_Grids->Ecut()):std::string("0"));
+         +"|dEcut="+(itsFFT_R_G_Grids?std::to_string(itsFFT_R_G_Grids->Ecut()):std::string("0"))
+         +(itsTol==GPWTolerances{} ? std::string() : "|tol="+itsTol.Describe());   // a non-default tolerance is a different basis for caching
 }
 
 } //namespace
