@@ -8,6 +8,7 @@ import qchem.Deck;
 import qchem.SolidCalculation;
 import qchem.SCFParams;
 import qchem.Mesh;
+import qchem.Materials;
 import qchem.ChargeDensity.Seed;
 import qchem.LASolver;
 
@@ -112,4 +113,30 @@ TEST(Deck, ALaterSchemaIsRefusedAndAHandWrittenDeckIsThePayload)
     { std::ofstream(dir/"hand.json") << R"({"solid":{"Nelec":8}})"; }
     EXPECT_EQ(deck::LoadDeck(dir/"hand.json","x").at("solid").at("Nelec"),8);
     fs::remove_all(dir);
+}
+
+// ---- the structure section is a NAME ----
+TEST(Deck, TheStructureIsANameAndTheMaterialSuppliesSpeciesAndElectrons)
+{
+    deck::RunSpec r; deck::FromJson(json{{"structure","Si_diamond"},{"scf",{{"NMaxIter",50}}}}, r);
+    EXPECT_EQ(r.scf.NMaxIter,50u);
+    EXPECT_EQ(r.solid.Nelec,0); EXPECT_TRUE(r.solid.species.empty()) << "unstated = derive";
+    const auto m=deck::Resolve(r);
+    EXPECT_EQ(r.solid.Nelec,8); ASSERT_EQ(r.solid.species.size(),1u); EXPECT_EQ(r.solid.species[0].first,"Si");
+    EXPECT_EQ(m.cell->GetNumAtoms(),2u);
+    const json resolved=deck::ToJson(r);                       // the record: complete, and it reloads to the same thing
+    EXPECT_EQ(resolved.at("structure"),"Si_diamond"); EXPECT_EQ(resolved.at("solid").at("Nelec"),8);
+    deck::RunSpec again; deck::FromJson(resolved,again); EXPECT_EQ(deck::ToJson(again),resolved);
+}
+
+TEST(Deck, AStatedValenceOverridesTheMaterialAndBadStructuresAreRefused)
+{
+    deck::RunSpec r; deck::FromJson(json{{"structure","Si_diamond"},{"solid",{{"Nelec",6}}}}, r);
+    deck::Resolve(r); EXPECT_EQ(r.solid.Nelec,6) << "an explicit Nelec (a charged cell) is honoured";
+    EXPECT_THROW(deck::FromJson(json{{"solid",json::object()}}, r), std::runtime_error);                 // structure is required
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"lattice",{{"a",10.0}}}}, r), std::runtime_error);   // no restating the structure
+    deck::RunSpec bad; bad.structure="NoSuchMaterial";
+    try { deck::Resolve(bad); FAIL(); } catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("Si_diamond"),std::string::npos) << "lists the known names"; }
+    deck::RunSpec mol; mol.structure=StructureData::MoleculeNames().front();
+    EXPECT_THROW(deck::Resolve(mol), std::runtime_error);
 }

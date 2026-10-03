@@ -21,6 +21,7 @@ import qchem.SCFAccelerator.Factory;        // SCFAccelerators::Type
 import qchem.ChargeDensity.Seed;            // SeedStrategy
 import qchem.LASolver;                      // qchem::Ortho
 import qchem.Types;
+import qchem.Materials;
 
 namespace qchem::deck
 {
@@ -223,6 +224,29 @@ void FromJson(const json& j, SolidCalcOptions& o)
     f.Get("spinsShareFermi",o.spinsShareFermi); f.Get("greyImposition",o.greyImposition); f.Get("momFromSeed",o.momFromSeed);
     f.Get("siteSpins",o.siteSpins); f.Get("label",o.label); f.Get("saveStateTo",o.saveStateTo);
     f.Done();
+}
+
+//=== RunSpec ====================================================================================
+json ToJson(const RunSpec& r) { return {{"structure",r.structure},{"solid",ToJson(r.solid)},{"scf",ToJson(r.scf)}}; }
+void FromJson(const json& j, RunSpec& r)
+{
+    Fields f(j,"run");
+    if (!j.contains("structure") || !j.at("structure").is_string())
+        throw std::runtime_error("deck: 'structure' is required and must be a NAME from materials.json or molecules.json");
+    f.Get("structure",r.structure);
+    if (j.contains("solid")) FromJson(f.At("solid"),r.solid); else f.At("solid");
+    if (j.contains("scf"))   FromJson(f.At("scf"),r.scf);     else f.At("scf");
+    f.Done();
+}
+Materials::Material Resolve(RunSpec& spec)
+{
+    if (StructureData::KindOf(spec.structure)==StructureData::Kind::Molecule)      // KindOf THROWS, listing every known name, on a miss
+        throw std::runtime_error("deck: structure '"+spec.structure+"' is a molecule (molecules.json); the deck currently drives "
+                                 "periodic runs only (a cell from materials.json)");
+    Materials::Material m=Materials::Get(spec.structure);
+    if (spec.solid.species.empty()) spec.solid.species=m.species;
+    if (spec.solid.Nelec==0)        spec.solid.Nelec=m.Nelec();
+    return m;
 }
 
 //=== --set =======================================================================================

@@ -272,5 +272,10 @@ run the default); enums by exact name; units are the library's (`U_Ha`, no hidde
 string, array indices), `ClaimRevision` (atomic `O_EXCL`, `<name>.rNNN.json`), `WriteRevision` (deck + header + provenance:
 command line, overrides, input-deck checksum, code version, ignored env vars), `LoadDeck` (strips the header, warns on a code-version
 mismatch, refuses a newer schema).  NOT serialized: `onIteration` (callback), the Hubbard `siteOps`/`greyOps` (derived).
-**NEXT (6.2)**: the structure/lattice section of the deck (today `SolidCalculation` takes a `Lattice_3D` + a `Real_BS`, not options -- couples with
-V-CALCNET / D-STRUCTDATA step 2), then the loader in `gpwprobe --deck/--set` and `SolidCalculation` writing its revision, THEN the 6a-6e retirements.
+**Step 6.2 DONE 2026-10-03 -- the structure section is a NAME (user ruling)**: `RunSpec{structure, solid, scf}`; `structure` is the key into
+`materials.json` / `molecules.json` and nothing about it is restated (lattice, atoms, spin decoration, species all come from the name; a
+stray `lattice` key is refused).  `Resolve(spec)` returns the `Material` and fills `solid.Nelec`/`species` when left to derive (stated values are
+honoured: a charged cell, a different PP valence), so the resolved deck records what was used.  Unknown name -> throws listing the known names.
+A MOLECULE name is refused for now (molecular decks: next).  Not offered: a lattice-constant override (`Materials::Get(name, a)` for EOS scans) --
+add an `a` key only if a scan needs it from a deck; today a scan is a new entry or a `--set`-able key added then.  ctest +2.
+**NEXT**: molecular decks (`CalcOptions`), then the loader in `gpwprobe --deck/--set` and `SolidCalculation` writing its revision, THEN the 6a-6e retirements.

@@ -22,6 +22,7 @@ export module qchem.Deck;
 import qchem.SolidCalculation;     // SolidCalcOptions
 import qchem.SCFParams;            // SCFParams
 import qchem.Mesh;                 // MeshParams
+import qchem.Materials;            // Material (the structure section's name resolves to one)
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
 
 export namespace qchem::deck
@@ -41,6 +42,26 @@ json ToJson(const qcMesh::MeshParams&);                  void FromJson(const jso
 //! (derived by the facade from the structure).  A manifold's U is \c U_Ha: HARTREE, the library's unit -- no hidden eV conversion.
 json ToJson(const SolidCalcOptions&);                    void FromJson(const json&, SolidCalcOptions&);
 //!@}
+
+//! \brief One run, as the deck states it.  The STRUCTURE is just a NAME (user, 2026-10-03): the key into `materials.json` (a
+//! crystal or box -> a solid run) or `molecules.json` (a molecule -> a molecular run, not yet supported by the deck).  Everything
+//! the structure files own -- lattice, atoms, spin decoration, the pseudopotential vocabulary -- is resolved FROM the name, never
+//! restated in the deck.
+//! \c solid.Nelec / \c solid.species left at their defaults (0 / empty) are DERIVED from the material; stated, they are honoured
+//! (a charged cell, a different pseudopotential valence) -- and the resolved deck always records the values actually used.
+struct RunSpec
+{
+    std::string      structure;       //!< REQUIRED: a name in materials.json or molecules.json
+    SolidCalcOptions solid;           //!< the periodic-run options (used when \c structure is a cell)
+    SCFParams        scf;
+};
+json ToJson(const RunSpec&);
+//! Strict like the other readers: \c structure is required; an unknown top-level key (or any nested one) throws.
+void FromJson(const json&, RunSpec&);
+//! \brief Resolve \a spec against the structure files: returns the Material (cell + atoms + species) and FILLS \c spec.solid.Nelec /
+//! \c species when they were left to derive, so \c ToJson(spec) afterwards is the complete record.  THROWS (listing the known names)
+//! on an unknown structure, and for a molecule name (molecular decks are the next increment).
+Materials::Material Resolve(RunSpec& spec);
 
 //! \brief Apply `"a.b.c=value"` to \a deck: creates the intermediate objects; \c value is parsed as JSON (`1e-8`, `true`,
 //! `[1,2]`, `"x"`) and, failing that, taken as a bare string (`tol.mode=fast`).  An array index is a number (`species.0.1=4`).
