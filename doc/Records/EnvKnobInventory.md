@@ -233,9 +233,15 @@ the structure).  Defaults are filled in, so the RESOLVED deck is complete.  Ever
 data-checksum mismatch.  ONE loader serves `gpwprobe --deck`, `scfrun`, the GUI and pybind (flag the binding owner; do not edit
 `pybind/`).  Named presets (`parity-cp2k`) are decks too.
 
-**Ad-hoc overrides without the environment.**  `--set key.path=value` on the CLI (`--set tol.screenEps=1e-8`), applied on top of the
-loaded deck BEFORE it is resolved, so the override lands in the resolved deck and the run is reproducible from the file alone.
-This replaces the shell-state workflow; it is the only override path.
+**Ad-hoc overrides without the environment, and WHAT IS THE RECORD (user, 2026-10-03).**  `--set key.path=value` on the CLI
+(`--set tol.screenEps=1e-8`) is the only override path.  The file the user wrote is NEVER the record of what ran (it may lean on
+defaults and omit the overrides).  Every run therefore writes TWO things: the **input deck** is left untouched; the
+**`<name>.resolved.json`** is the record: the input deck + every `--set` + every default filled in + the header (git hash and
+dirty flag, data-file checksums, schema version) + a **provenance block** (the original command line, the input deck's path and
+checksum, and per field whether it came from the deck, `--set` or a default).  *Reproduce* = `--deck X.resolved.json` with no
+`--set` (immune to later changes of the code's defaults, because they were filled in).  *Reproduce with one intentional change* =
+`--deck X.resolved.json --set tol.screenEps=1e-8`, which writes its own resolved deck, so the lineage is a chain of self-contained
+files.  Stray environment variables that are still set are listed in the output header as ignored.
 
 **Removal, in this order (each step green on ctest before the next):**
 
