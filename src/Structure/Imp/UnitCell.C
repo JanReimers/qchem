@@ -125,9 +125,9 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     // 1e-8 RELATIVE, a partition property and far sharper than any integration test); it holds at 1e-6 and
     // breaks at 1e-5, so the default keeps a full decade of margin against the gate that actually bites.
     // Unlike the Phi-table 4.6x this is a TOLERANCE trade, not a bit-identical restructuring -- the weights
-    // do move, at ~1e-6 relative.  QCHEM_BECKE_EPS (old name QCHEM_BECKE_EPS, deprecated) overrides it for A/B work.
-    static const double epsEnv=[]{ const char* s=qchem::Env("QCHEM_BECKE_EPS","GPW_BECKE_EPS"); return s?std::atof(s):0.0; }();
-    const double eps=epsEnv>0.0 ? epsEnv : 1e-6;
+    // do move, at ~1e-6 relative.  The value is MeshParams::beckeEps (default 1e-6); the environment override QCHEM_BECKE_EPS
+    // (old name GPW_BECKE_EPS, deprecated) is applied where the facade builds the parameters (BeckeXCParams), not here.
+    const double eps=mp.beckeEps;
     assert(k>=0);
 
     std::vector<rvec3_t> R;

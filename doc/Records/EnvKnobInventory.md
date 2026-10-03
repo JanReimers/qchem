@@ -172,3 +172,34 @@ migrate the 22 diagnostics; (3) site moments into the report; (4) the `GPW_` →
   collocation pair streams; the collocation box tolerance), as are the tolerances (`GPW_DENSITY_EPS`, `GPW_SCREEN_EPS`,
   `GPW_VLOC_EPS`), the contraction/recurrence/sphere switches, `GPW_MGRID_ECUTS`, `GPW_RELCUTOFF`, `GPW_COLLOC_MEMO`, the field
   sharpness pair and `GPW_LOCALPP_RELCUTOFF` -- so they KEEP the `GPW_` prefix.  The diagnostics' old names stay as legacy aliases.
+
+## 8. Step 5 findings (2026-10-03): WHERE each tolerance can be injected
+
+**Done (5a):** `MeshParams::beckeEps` (default 1e-6, folded into `MeshParams::ID()` in scientific notation because
+`to_string(1e-7)=="0.000000"`); `BeckeXCParams` applies the env override (`QCHEM_BECKE_EPS`, alias `GPW_BECKE_EPS`) as the
+override layer; `MakePeriodicBeckeMesh` reads `mp.beckeEps`.  The default reproduces the NaF anchor exactly (−24.43040329);
+`QCHEM_BECKE_EPS=1e-5` still changes the mesh (16752 → 16416 points).  The four `QCHEM_BECKE_NR/ALPHA/L/ROT` already had typed
+twins (the `BeckeXCParams` arguments, `MeshParams::angRot`).
+
+**The remaining tolerances split by WHO OWNS THE CODE THAT USES THEM, not by tier:**
+
+| owner | knobs | how it is built today | injection point |
+|---|---|---|---|
+| `GPW_Evaluator` (`BasisSet/Gaussian/Lattice`) | `GPW_VLOC_EPS`, `GPW_LOCALPP_RELCUTOFF` (κ), `GPW_RELFIELDSHARP`, `GPW_MGRID_ECUTS` | one per k-block, built by `GPW_IBS` from `GPWParams` via `GPWFactory` (10 positional ctor args) | **straightforward**: a `GPWTolerances` value in `GPWParams`, forwarded through `GPWFactory` → `GPW_IBS` → `GPW_Evaluator` |
+| `NR_Evaluator` (`PG_Cart_MnD`, the molecular pair-loop engine) | `GPW_SCREEN_EPS` (`kScreenEps()`, 13 sites), `GPW_FIELDSHARP` (`kFieldSharp`), `GPW_RELCUTOFF` (`kEnvRelCutoff`) | constructed INSIDE the molecular `Real_BS` that the CALLER builds with `Gaussian::Factory(BasisSetData, cell, engine, angular)` and hands to `GPW_Evaluator` as `itsMol` | **needs a decision** (below): the tolerance is fixed before any GPW/solid option exists |
+| `LatticeScreener` (`CollocationEps()`) | `GPW_DENSITY_EPS` | the screener is built "at it"; 5 + 17 (`kDensityEps`) sites | the screener already has a seam (`GeometryOnlyScreener(eps)`, the `DAware` screener): the eps should be a CONSTRUCTOR argument there, supplied from `GPWTolerances` |
+
+**The decision for the NR_Evaluator knobs** (the user's rule: *the facade hands each object the slice it needs at construction*):
+
+* **A. Put the slice in `Gaussian::Factory`'s signature** (`Factory(data, &cell, engine, angular, tol)`), and have `SolidCalcOptions`
+  carry the same struct so the CALLER passes it twice.  Honest about where the object is built, but the options exist in two
+  places and can disagree.
+* **B. `GPW_Evaluator` re-derives its pair-loop evaluator with the tolerances** (a `WithTolerances(tol)` clone of the orbital block,
+  the molecular basis staying the caller's).  One source of truth (`SolidCalcOptions`), at the cost of a clone operation on the
+  evaluator face and care that `PGData`'s lazy caches are not shared across tolerance settings.
+* **C. Leave the three `PG_Cart_MnD` knobs as instruments** (A/B hatches, environment only) and type only what the GPW layer
+  and the screener own.  Cheapest; the screening epsilon that CP2K-parity runs most want to set (`GPW_SCREEN_EPS`) stays in
+  the environment, which is exactly what the deck (step 6) is meant to remove.
+
+My recommendation: **B**, because the deck needs ONE place to write `screenEps`, and a parity run must be reproducible from the
+deck alone.  It is the larger change (the evaluator face, the cache-sharing audit), so it should be decided before it is started.

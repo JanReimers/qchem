@@ -10,6 +10,7 @@
 module;
 #include <utility>
 #include <cassert>
+#include <cstdio>    // snprintf (MeshParams::SciString)
 #include <string>
 #include <vector>    // the site-block index table (Mesh::itsSiteStart)
 export module qchem.Mesh;
@@ -162,12 +163,18 @@ struct MeshParams
     double      eCut      = 0.0;  //!< Real-space integration-mesh energy cutoff (a.u.). If >0, the uniform lattice mesh DERIVES its \c nUniform from the Nyquist bound \f$n\gtrsim 2a\sqrt{2E_{cut}}/\pi\f$ (\f$a\f$=longest cell edge; the \f$\times2\f$ is the density bandwidth), and \c nUniform is ignored. 0=use the manual \c nUniform.
     double      relCutoff = 1.0;  //!< Fit-grid density multiplier (CP2K \c REL_CUTOFF): the fit basis scales its \f$E_{cut}\f$ by this. 1=wavefunction bandwidth (LDA); GGA wants >1. Set by the Hamiltonian from the functional's \c GridCutoffFactor().
     UnitCellKind cellKind = UnitCellKind::Uniform;  //!< Lattice mesh only: which quadrature a UnitCell builds (uniform midpoint grid vs periodic Becke).
+    //! \brief Becke competitor-series TOLERANCE (periodic Becke only): the magnitude screen that fixes how many cell images each
+    //! partition weight sums.  1e-6 holds the equivalent-site-share gate (site shares equal to 1e-8 relative) with a decade of
+    //! margin; 1e-5 breaks it.  A TOLERANCE trade, not a bit-identical restructuring -- the weights move at ~1e-6 relative.
+    //! Was the env override GPW_BECKE_EPS read inside the mesh build; typed here (D-ENV step 5) and folded into \c ID().
+    double      beckeEps  = 1.0e-6;
 
     //! \brief Compact, deterministic identity string for these parameters.  Two MeshParams give the
     //! same ID() iff they build the same quadrature, so it is the cache key for any mesh-quadrature
     //! quantity that must NOT be shared across different meshes (e.g. a fit basis's numerical Norm --
     //! same basis, different mesh => different normalisation).  All fields are folded in; over-keying
     //! on an inactive field (e.g. logStart when radial=MHL) is harmless.
+    static std::string SciString(double x) { char b[32]; std::snprintf(b, sizeof b, "%.3e", x); return b; }
     std::string ID() const
     {
         using std::to_string;
@@ -178,7 +185,8 @@ struct MeshParams
              + ",ar" + to_string(angRot)
              + ",bo" + to_string(beckeOrder)
              + ",nu"  + to_string(nUniform) + ",ec" + to_string(eCut)
-             + ",rc" + to_string(relCutoff) + ",ck" + to_string(static_cast<int>(cellKind)) + "}";
+             + ",rc" + to_string(relCutoff) + ",ck" + to_string(static_cast<int>(cellKind))
+             + ",be" + SciString(beckeEps) + "}";   // to_string(1e-7) == "0.000000": a tolerance needs scientific notation
     }
 };
 

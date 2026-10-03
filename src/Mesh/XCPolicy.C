@@ -273,6 +273,7 @@ MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
     mp.angularDegree=angularDegree;   // ONE meaning for both schemes: GL takes it directly, Lebedev resolves
                                       // it to the cheapest rule of at least that degree (R2.15).
     mp.angRot=envd("QCHEM_BECKE_ROT", "GPW_BECKE_ROT", 0.0);
+    mp.beckeEps=envd("QCHEM_BECKE_EPS", "GPW_BECKE_EPS", mp.beckeEps);   // the env is the OVERRIDE layer; the typed field is the setting
     return mp;
 }
 
