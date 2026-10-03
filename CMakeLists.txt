@@ -87,6 +87,8 @@ enable_language (Fortran)
 enable_testing()
 # The written module rule as a test: no PUBLIC module unit may re-export an .Internal. module (V1.20c/d).
 add_test(NAME InternalReexportAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-internal-reexports ${PROJECT_SOURCE_DIR}/src)
+# Every environment variable the library reads must be on the settings reference page (src/Common/Settings.dox) -- D-ENV.
+add_test(NAME SettingsDocAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-settings-doc ${PROJECT_SOURCE_DIR}/src)
 # The BasisSet G-tag rule as a test (doc/Records/BasisSetTaxonomyPlan.md §1.6 rule 2, step 3): no qchem.BasisSet.Gaussian.Point.*
 # module imports a lattice; no qchem.BasisSet.Radial.* module imports a lattice or the molecular point-group symmetry.
 add_test(NAME BasisSetGTagAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-basisset-gtags ${PROJECT_SOURCE_DIR}/src/BasisSet)

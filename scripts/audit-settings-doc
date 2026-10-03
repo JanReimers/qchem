@@ -1,0 +1,22 @@
+#!/bin/bash
+# audit-settings-doc -- every environment variable the library reads must appear in src/Common/Settings.dox (the settings
+# reference page).  A new knob without a line in the page fails the build: the page is the user-facing list, and a setting
+# nobody documented is how a run becomes unreproducible.  (D-ENV, 2026-10-03)
+set -eu
+SRC="${1:-$(dirname "$0")/../src}"
+PAGE="$SRC/Common/Settings.dox"
+python3 - "$SRC" "$PAGE" <<'PY'
+import re, sys, glob
+src, page = sys.argv[1], sys.argv[2]
+doc = open(page).read()
+names = {}
+for f in glob.glob(src + '/**/*.C', recursive=True):
+    if '/tests/' in f: continue
+    s = open(f).read()
+    for m in re.finditer(r'"((?:GPW|QCHEM)_[A-Z0-9_]+|CP2K_COMPAT|OMP_NUM_THREADS|KMP_BLOCKTIME)"', s):
+        names.setdefault(m.group(1), f)
+missing = [n for n in sorted(names) if '`' + n + '`' not in doc and n not in doc]
+for n in missing:
+    print(f"MISSING from Settings.dox: {n}   (read in {names[n].replace(src + '/', '')})")
+sys.exit(1 if missing else 0)
+PY
