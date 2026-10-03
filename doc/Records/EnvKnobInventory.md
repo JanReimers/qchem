@@ -127,3 +127,17 @@ it belongs here, not in §2.
 4. **Not inventoried here:** the C++ `#ifdef`/`-D` compile-time options (`QCHEM_OPENMP`, `QCHEM_RELCHECKED`,
    `QCHEM_ARCH_EXPERIMENT`, `-DCP2K_USE_LIBXC`, data-path macros); those are build configuration, not run options, and are
    correctly in CMake.
+
+## 6. DECISIONS (user, 2026-10-03) and the resulting work order
+
+| | decision | consequence |
+|---|---|---|
+| a | The six §3 tolerances become **typed fields NOW** | `Screening{densityEps, overlapEps, vlocEps}` + `Grids{beckeEps, fieldSharp, hartreeFieldSharp}`, constructor-injected from the facade (they move numbers, so they are NOT global); defaults = today's values ⇒ no anchor moves; env reads become a registry override layer |
+| b | CP2K/QE/VASP/ABINIT **parity runs stay routine for a long time**; the user does not know these options well | `GPW_MGRID_ECUTS` and `GPW_RELCUTOFF` are therefore **promoted to typed `Grids` fields** (`Grids::ladder`, `Grids::relCutoff`) with the CP2K meaning written in the doc string and a one-line "what this is for" in the registry; the parity recipe becomes a named deck/preset (`parity-cp2k`) rather than a bundle of env vars |
+| c | Take the **GPW prefix off every non-GPW-specific setting** | rename to `QCHEM_*`, old name kept as a deprecated alias (as `GPW_OMP_THREADS` was): at least `GPW_STREAM_FOLD`, `GPW_XC_DM_SOURCE`, `GPW_DAWARE_SCREEN`, and every §3/§2 tolerance or hatch that is not about the Gaussian-plane-wave basis itself (`GPW_DENSITY_EPS`, `GPW_SCREEN_EPS`, `GPW_BECKE_EPS`, `GPW_VLOC_EPS`, `GPW_CONTRACT_CUBE`, `GPW_EXP_RECURRENCE`, `GPW_SPHERE_SCREEN`, ...); the registry carries the alias |
+| d | **Promote `QCHEM_SITE_MOMENTS`** | integrated site moments become a standard section of the run report (an integrated observable, `doc/` rule), the env flag is retired |
+| e | **One diagnostics module** | `qchem.Diagnostics`: a process-wide, read-only-after-startup registry (a global, deliberately -- diagnostics gate OUTPUT only, never a computation; it writes through `CurrentReport`), each id registered with a one-line description, typo warning, `--list`, scoped RAII override for tests; excluded from the deck, recorded in the output header; the `*TRACE`/verbose ones fold into `SCFParams::Verbose` levels |
+
+Order (cheap and no-anchor first): (1) delete the three env twins + the test-only valve (§5.2); (2) `qchem.Diagnostics` and
+migrate the 22 diagnostics; (3) site moments into the report; (4) the `GPW_` → `QCHEM_` rename with aliases; (5) the typed
+`Screening`/`Grids` fields, facade injection, registry override layer; (6) the deck (D-ENV step 3).
