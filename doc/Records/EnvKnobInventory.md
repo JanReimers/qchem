@@ -203,3 +203,10 @@ twins (the `BeckeXCParams` arguments, `MeshParams::angRot`).
 
 My recommendation: **B**, because the deck needs ONE place to write `screenEps`, and a parity run must be reproducible from the
 deck alone.  It is the larger change (the evaluator face, the cache-sharing audit), so it should be decided before it is started.
+
+**DECIDED (user, 2026-10-03): option B** -- `GPW_Evaluator` re-derives its pair-loop evaluator with the tolerances applied
+(`SolidCalcOptions` is the one source of truth; the deck can write `screenEps` once).  Work order for step 5: (i) `GPWTolerances`
+in `GPWParams` for the `GPW_Evaluator` knobs (`vlocEps`, `localPPRelCutoff`, `relFieldSharp`, `mgridEcuts`) + the screener's
+constructor eps (`densityEps`); (ii) option B for `screenEps`, `fieldSharp`, `relCutoff` (the evaluator-face clone and the
+`PGData` cache-sharing audit); (iii) the facade carries the struct in `SolidCalcOptions`; (iv) the env stays only as the
+override layer applied where the options are built.
