@@ -115,7 +115,8 @@ public:
     //! \brief Re-derive this evaluator's pair-loop tolerances (D-ENV step 5 option B; called by \c GPW_Evaluator at
     //! construction, BEFORE any integral is asked for).  Every cache whose content depends on a tolerance -- the
     //! (shell pair, offset) task list, its threaded order, the integrate-back memo -- is dropped; the geometry-only
-    //! caches (shell partition, reaches) are not tolerance-dependent and stay.  Idempotent for an equal tolerance.
+    //! caches (shell partition, reaches) are not tolerance-dependent and stay.  Idempotent for an equal tolerance; THROWS if the
+    //! values change after collocation work has been built (see the guard).
     //! \note This mutates the CALLER-built molecular basis through a const face rather than cloning it (a clone of the
     //! virtual-diamond IBS stack was judged not worth it); safe because every GPW_Evaluator of one run receives the same
     //! options, and because nothing has been computed from a basis before its first GPW_Evaluator takes it.
@@ -123,6 +124,11 @@ public:
     {
         if (t.screenEps==itsPGTol.screenEps && t.fieldSharp==itsPGTol.fieldSharp
          && t.relCutoff==itsPGTol.relCutoff && t.densityEps==itsPGTol.densityEps) return;
+        // GUARD: two GPW_Evaluators sharing this basis with DIFFERENT tolerances would silently invalidate each other's caches.
+        // A built task list / memo means integrals were already computed at the old values: that is a broken invariant, not an input.
+        if (!itsBoxTasks.empty() || !itsIntegrateMemos.empty())
+            throw std::runtime_error("NR_Evaluator::ApplyTolerances: tolerances changed after this basis computed collocation work "
+                                     "(old: "+itsPGTol.Describe()+" ; new: "+t.Describe()+") -- one molecular basis cannot serve two tolerance settings");
         itsPGTol=t;
         itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear();
     }

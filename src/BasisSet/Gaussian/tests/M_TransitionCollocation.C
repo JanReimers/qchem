@@ -328,3 +328,23 @@ TEST(GPWTolerances, ApplyTolerancesReachesThePairLoopsAndIsReversible)
     pg->ApplyTolerances(GPWTolerances{});
     EXPECT_EQ(diff(S0,pg->MakeOverlap(phase,cell)), 0.0) << "restoring the default restores the bits";
 }
+
+// The guard: once a basis has built collocation work, a DIFFERENT tolerance is a broken invariant (two evaluators sharing one basis),
+// so it throws; the same tolerance is a no-op.
+TEST(GPWTolerances, ApplyTolerancesThrowsIfChangedAfterCollocationWork)
+{
+    const UnitCell cell=SiCell();
+    const Periodic p=Make(BasisSetData::SIPP_SR, cell, false);
+    const Periodic_Gaussian_IBS* pg=nullptr;
+    for (auto ibs : const_cast<BasisSet::Real_BS&>(*p.bs).Iterate<BasisSet::Real_OIBS>()) { pg=dynamic_cast<const Periodic_Gaussian_IBS*>(ibs); break; }
+    ASSERT_NE(pg, nullptr);
+    GPWTolerances loose; loose.screenEps=1e-6;
+    pg->ApplyTolerances(loose);                    // before any work: fine
+    const Ladder L=One();
+    chmat_t D(p.n);
+    for (size_t i=0;i<p.n;i++) for (size_t j=i;j<p.n;j++) D(i,j)=(i==j);
+    const GeometryOnlyScreener screen(loose.densityEps);
+    (void)p.lc->CollocateDensity(D, PhaseOf(rvec3_t(0,0,0)), cell, L.N, L.ecut, screen);   // builds the task list
+    EXPECT_NO_THROW(pg->ApplyTolerances(loose));   // equal: no-op
+    EXPECT_THROW(pg->ApplyTolerances(GPWTolerances{}), std::runtime_error);
+}
