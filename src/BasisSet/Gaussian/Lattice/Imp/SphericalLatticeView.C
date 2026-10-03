@@ -276,6 +276,7 @@ public:
     virtual double MaxExponent    () const override {return itsLat->MaxExponent();}
     virtual double MinExponent    () const override {return itsLat->MinExponent();}
     virtual double RelCutoffSafety() const override {return itsLat->RelCutoffSafety();}
+    virtual void   ApplyTolerances(const GPWTolerances& t) const override {itsLat->ApplyTolerances(t);}
     virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                  const std::vector<ivec3_t>& N_L,
                                                  const std::vector<double>& ecut_L,

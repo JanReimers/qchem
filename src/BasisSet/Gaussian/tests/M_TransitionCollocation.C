@@ -273,12 +273,15 @@ import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
 TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheEnvironmentOverridesAndSaysSo)
 {
     using namespace qchem::BasisSet::Gaussian;
-    for (const char* n : {"GPW_VLOC_EPS","GPW_LOCALPP_RELCUTOFF","GPW_RELFIELDSHARP","GPW_MGRID_ECUTS"}) unsetenv(n);
+    for (const char* n : {"GPW_VLOC_EPS","GPW_LOCALPP_RELCUTOFF","GPW_RELFIELDSHARP","GPW_MGRID_ECUTS",
+                          "GPW_SCREEN_EPS","GPW_FIELDSHARP","GPW_RELCUTOFF","GPW_DENSITY_EPS"}) unsetenv(n);
     GPWTolerances t;
     EXPECT_EQ(t.vlocEps, 1e-5);
     EXPECT_EQ(t.localPPRelCutoff, 30.0);
     EXPECT_NEAR(t.relFieldSharp, 1.0/3.0, 1e-15);
     EXPECT_TRUE(t.mgridEcuts.empty());
+    EXPECT_EQ(t.screenEps, 1e-10);  EXPECT_EQ(t.densityEps, 1e-10);  EXPECT_EQ(t.relCutoff, 0.0);
+    EXPECT_NEAR(t.fieldSharp, 2.0/3.0, 1e-15);
     EXPECT_TRUE(t.Describe().empty()) << "defaults print nothing on the banner";
     EXPECT_TRUE(ApplyEnvOverrides(t).empty()) << "no environment, no override";
     EXPECT_TRUE(t == GPWTolerances{});
@@ -293,4 +296,35 @@ TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheEnvironmentOverridesAndSaysS
     EXPECT_NE(t.Describe().find("vlocEps"), std::string::npos);
     EXPECT_FALSE(t == GPWTolerances{});
     unsetenv("GPW_VLOC_EPS"); unsetenv("GPW_MGRID_ECUTS");
+
+    // the four pair-loop tolerances (option B) are overridden and named the same way
+    GPWTolerances u;
+    setenv("GPW_SCREEN_EPS","1e-6",1); setenv("GPW_FIELDSHARP","0.5",1); setenv("GPW_RELCUTOFF","40",1); setenv("GPW_DENSITY_EPS","1e-8",1);
+    const std::string said2=ApplyEnvOverrides(u);
+    EXPECT_EQ(u.screenEps,1e-6); EXPECT_EQ(u.fieldSharp,0.5); EXPECT_EQ(u.relCutoff,40.0); EXPECT_EQ(u.densityEps,1e-8);
+    for (const char* n : {"GPW_SCREEN_EPS","GPW_FIELDSHARP","GPW_RELCUTOFF","GPW_DENSITY_EPS"})
+    { EXPECT_NE(said2.find(n), std::string::npos) << n; unsetenv(n); }
+}
+
+// Option B: a tolerance handed to the molecular evaluator through ApplyTolerances REACHES its pair loops (a looser analytic screen
+// moves the lattice-summed overlap, a little), and restoring the default restores the bits -- the tolerance-dependent caches are dropped
+// and rebuilt, none of it leaks across settings.
+TEST(GPWTolerances, ApplyTolerancesReachesThePairLoopsAndIsReversible)
+{
+    const UnitCell cell=SiCell();
+    const Periodic p=Make(BasisSetData::SIPP_SR, cell, false);
+    const Periodic_Gaussian_IBS* pg=nullptr;
+    for (auto ibs : const_cast<BasisSet::Real_BS&>(*p.bs).Iterate<BasisSet::Real_OIBS>()) { pg=dynamic_cast<const Periodic_Gaussian_IBS*>(ibs); break; }
+    ASSERT_NE(pg, nullptr);
+    const auto phase=PhaseOf(rvec3_t(0.25,0.0,0.125));
+    auto diff=[&](const chmat_t& a, const chmat_t& b)
+    { double d=0; for (size_t i=0;i<p.n;i++) for (size_t j=i;j<p.n;j++) d=std::max(d,std::abs(dcmplx(a(i,j))-dcmplx(b(i,j)))); return d; };
+    const chmat_t S0=pg->MakeOverlap(phase,cell);
+    GPWTolerances loose; loose.screenEps=1e-3;
+    pg->ApplyTolerances(loose);
+    const chmat_t S1=pg->MakeOverlap(phase,cell);
+    EXPECT_GT(diff(S0,S1), 1e-9) << "a 1e-3 screen must drop terms the 1e-10 screen kept";
+    EXPECT_LT(diff(S0,S1), 1e-1);
+    pg->ApplyTolerances(GPWTolerances{});
+    EXPECT_EQ(diff(S0,pg->MakeOverlap(phase,cell)), 0.0) << "restoring the default restores the bits";
 }

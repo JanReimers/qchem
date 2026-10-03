@@ -43,6 +43,7 @@
 #include <cstdio>
 #include <ctime>
 
+import qchem.BasisSet.Gaussian.Lattice.LatticeScreener;     // CollocationEps (the default collocation floor)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD;            // NR_Evaluator (ForShellPairBox is public)
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;     // radials / pols / ns
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF; // GetExponents / GetCoeffs / GetCenter
@@ -1043,7 +1044,7 @@ TEST(M_PG_BoxWalk, TaskListIsExactlyTheEnumerationItReplaces)
     for (size_t a=0;a<shells.size();a++) for (size_t b=a;b<shells.size();b++) nSP++;
     ASSERT_EQ(tl.size(), nSP);
 
-    const double lnE=-std::log(NR_Evaluator::kDensityEps());
+    const double lnE=-std::log(qchem::BasisSet::Gaussian::CollocationEps());
     size_t sp=0, nTasks=0, nScreened=0;
     for (size_t a=0;a<shells.size();a++)
         for (size_t b=a;b<shells.size();b++, sp++)
@@ -1080,7 +1081,7 @@ TEST(M_PG_BoxWalk, TaskListIsExactlyTheEnumerationItReplaces)
     // only kill tasks the list holds (plan 2a -- this is why D never enters the list).
     for (double c : {1.0, 0.1, 1e-4, 1e-8})
     {
-        const double e=std::max(NR_Evaluator::kDensityEps(), NR_Evaluator::kDensityEps()/c);
+        const double e=std::max(qchem::BasisSet::Gaussian::CollocationEps(), qchem::BasisSet::Gaussian::CollocationEps()/c);
         size_t live=0;
         for (const auto& t : tl) for (const auto& g : t.tasks) if (g.pf < -std::log(e)) live++;
         EXPECT_LE(live, nTasks) << "a per-iteration weight must never ADD a task";

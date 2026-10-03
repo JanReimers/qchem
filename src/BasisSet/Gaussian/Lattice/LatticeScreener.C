@@ -23,7 +23,6 @@
 // is UNREPRESENTABLE here rather than guarded against.
 module;
 #include <cassert>
-#include <cstdlib>   // std::getenv/std::atof (the GPW_DENSITY_EPS floor)
 #include <vector>
 export module qchem.BasisSet.Gaussian.Lattice.LatticeScreener;
 import qchem.Types;      // ivec3_t, rmat_t
@@ -39,10 +38,10 @@ export namespace qchem::BasisSet::Gaussian
 //! is enumerated at it -- which is what makes that list a strict SUPERSET of any iteration's live set.
 //! It lives here, with the screening policy, rather than in the walk: two copies of this number is exactly
 //! the drift the seam exists to prevent.  (The walk's \c kDensityEps() delegates to it.)
-//! \note DECOUPLED from the analytic 1E screen \c GPW_SCREEN_EPS -- a collocated density and an analytic
-//! lattice sum are not converged by the same tolerance.
-inline double CollocationEps()
-{ static const double e=[]{const char* s=std::getenv("GPW_DENSITY_EPS"); return s?std::atof(s):1e-10;}(); return e; }
+//! \note DECOUPLED from the analytic 1E screen (\c GPWTolerances::screenEps) -- a collocated density and an analytic
+//! lattice sum are not converged by the same tolerance.  The RUN's value is \c GPWTolerances::densityEps (typed, D-ENV
+//! step 5); this is only the DEFAULT, for callers (tests) that build a screener without a run.
+inline constexpr double CollocationEps() { return 1e-10; }
 
 //! \brief The screen's verdict for ONE (shell pair, offset) task: how big the shared box must be, and
 //! which of the shell pair's component terms ride it.

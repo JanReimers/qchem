@@ -44,6 +44,7 @@ import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Gaussian.Evaluators.PG_Cart_MnD.Polarization;// Polarization
 import qchem.IntPow;                                             // uintpow (the monomial power tables of the collocation box walk)
+import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;               // the pair-loop tolerances (D-ENV step 5)
 import qchem.BasisSet.Gaussian.Lattice.LatticeSum1E;                       // GaussianFunction (the <chi_i|g> seam type)
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;                // DirectOp {W|τ} (the T3 stream-fold ops)
 import qchem.Structure;
@@ -102,16 +103,29 @@ public:
     // pair threshold sqrt(-ln eps.(1/ai+1/aj))), so no significant term is ever dropped.  eps=1e-10 (numerically
     // exact for GPW tolerances).  NOTE: the enumerated Rs must still REACH far enough (screening only removes, it
     // cannot add a far term the caller never enumerated) -- so pass a generous Rcut and let the screen prune it.
-    // Magnitude screen (CP2K EPS_PGF_ORB analog).  Default 1e-10 (numerically exact for GPW).
-    // Env instrument GPW_SCREEN_EPS raises it to SHRINK the lattice-sum reach + collocation boxes
-    // for diffuse bases (demo/robustness runs -- drops only sub-eps terms; not for production digits).
-    static double kScreenEps() { static const double e=[]{const char* s=std::getenv("GPW_SCREEN_EPS"); return s?std::atof(s):1e-10;}(); return e; }
+    // Magnitude screen (CP2K EPS_PGF_ORB analog), the collocation floor, the field sharpness and the forced pair->level
+    // kappa are INSTANCE state (\c GPWTolerances, D-ENV step 5 option B): the facade's options are the one source of truth and
+    // reach this evaluator through \c ApplyTolerances, never through the environment.  Defaults = the historical values
+    // (screenEps 1e-10 numerically exact for GPW; densityEps 1e-10, DECOUPLED from it -- a collocated density and an
+    // analytic lattice sum are not converged by one tolerance; fieldSharp 2/3; relCutoff 0 = the evaluator's own rule).
+    double kScreenEps () const {return itsPGTol.screenEps;}
     //! \brief The collocation tolerance FLOOR: what sizes the (shell pair, offset) task list, and the
-    //! lower bound no screener may answer below (asserted at both walks).  ONE definition, in the screening
-    //! module beside the policies that are built at it -- see \c LatticeScreener.C's \c CollocationEps().
-    //! DECOUPLED from the analytic \c kScreenEps above: a collocated density and an analytic lattice sum
-    //! are not converged by the same tolerance.
-    static double kDensityEps() { return CollocationEps(); }
+    //! lower bound no screener may answer below (asserted at both walks).
+    double kDensityEps() const {return itsPGTol.densityEps;}
+    //! \brief Re-derive this evaluator's pair-loop tolerances (D-ENV step 5 option B; called by \c GPW_Evaluator at
+    //! construction, BEFORE any integral is asked for).  Every cache whose content depends on a tolerance -- the
+    //! (shell pair, offset) task list, its threaded order, the integrate-back memo -- is dropped; the geometry-only
+    //! caches (shell partition, reaches) are not tolerance-dependent and stay.  Idempotent for an equal tolerance.
+    //! \note This mutates the CALLER-built molecular basis through a const face rather than cloning it (a clone of the
+    //! virtual-diamond IBS stack was judged not worth it); safe because every GPW_Evaluator of one run receives the same
+    //! options, and because nothing has been computed from a basis before its first GPW_Evaluator takes it.
+    void ApplyTolerances(const GPWTolerances& t) const
+    {
+        if (t.screenEps==itsPGTol.screenEps && t.fieldSharp==itsPGTol.fieldSharp
+         && t.relCutoff==itsPGTol.relCutoff && t.densityEps==itsPGTol.densityEps) return;
+        itsPGTol=t;
+        itsBoxTasks.clear(); itsBoxTaskOrder.clear(); itsIntegrateMemos.clear(); itsFieldHistory.clear();
+    }
     //! \brief ⛔ THE TOLERANCE POLICY IS NOT DECIDED HERE ANY MORE (doc/OldPlans/ScreeningPlan.md, 2026-09-04).
     //!
     //! It arrives as a \c LatticeScreener on the two collocation faces below, and neither walk asks which
@@ -142,9 +156,9 @@ public:
         const long   cellsS =(long)A.CellsInSphere(reachS).size();
         const long   cellsD =(long)A.CellsInSphere(reachD).size();
         std::cout<<"[lattice sums] alpha_min="<<aMin<<" alpha_max="<<aMax
-                 <<"  analytic 1E/V_local: eps="<<kScreenEps()<<" (GPW_SCREEN_EPS) pair reach="<<reachS
+                 <<"  analytic 1E/V_local: eps="<<kScreenEps()<<" (screenEps) pair reach="<<reachS
                  <<" au = "<<cellsS<<" cells;  collocation offsets: eps="<<kDensityEps()
-                 <<" (GPW_DENSITY_EPS) pair reach="<<reachD<<" au = "<<cellsD
+                 <<" (densityEps) pair reach="<<reachD<<" au = "<<cellsD
                  <<" cells (kept counts on the [collocation] line)"<<std::endl;
         qchem::report::EmitAt("grids", "latticeSums", {
             {"alphaMin",aMin}, {"alphaMax",aMax},
@@ -453,8 +467,7 @@ public:
         // GRID-MATCHING OVERRIDE (doc/GPWPlan §0e; verification instrument): GPW_RELCUTOFF=<Ha> forces the
         // ABSOLUTE rule at the given kappa for EVERY assignment (density side included) -- the CP2K-matching
         // experiment knob.
-        static const double kEnvRelCutoff = [](){ const char* s=std::getenv("GPW_RELCUTOFF"); return s ? std::atof(s) : 0.0; }();
-        const double kappa = kEnvRelCutoff>0.0 ? kEnvRelCutoff : absRelCutoff;
+        const double kappa = itsPGTol.relCutoff>0.0 ? itsPGTol.relCutoff : absRelCutoff;
         // FIELD SHARPNESS in BOTH rules (doc/GPWPlan1.md 4b): the integrand chi_i * V * chi_j is a product of
         // Gaussians, so exponents ADD -- the grid must resolve alpha_i+alpha_j + beta, where beta is the FIELD's
         // own effective exponent, NOT the pair alone.  Without it a DIFFUSE pair (alpha_i+alpha_j tiny) against a
@@ -474,8 +487,7 @@ public:
         // relFieldSharp<0 (the default) = the historical beta = kFieldSharp*alpha_max; >=0 = the caller's
         // EXPLICIT beta -- 0 is pair-only routing (RasterFields::HartreeOnly: the raster serves only the
         // smoothing Poisson solve, so a diffuse pair's own bandwidth is the whole requirement).
-        static const double kFieldSharp = [](){ const char* s=std::getenv("GPW_FIELDSHARP"); return s?std::atof(s):(2.0/3.0); }();
-        const double beta = relFieldSharp>=0.0 ? relFieldSharp : kFieldSharp*MaxExponent();
+        const double beta = relFieldSharp>=0.0 ? relFieldSharp : itsPGTol.fieldSharp*MaxExponent();
         const double req = kappa>0.0
             ? kappa*std::max(MaxExponent(i)+MaxExponent(j), fieldSharpness)
             : kRelSafety*ecut_L[0]*std::max(MaxExponent(i)+MaxExponent(j), beta)/(2.0*MaxExponent());
@@ -1180,7 +1192,7 @@ public:
     //! \param f called \c f(rasterIndex, fI, fJ) at each point surviving the ellipsoid pre-screen.
     template <class F>
     void ForShellPairBox(size_t i0, size_t nI, size_t j0, size_t nJ, const rvec3_t& Roff,
-                         const UnitCell& A, const ivec3_t& N, F&& f, double epsEff=kDensityEps()) const
+                         const UnitCell& A, const ivec3_t& N, F&& f, double epsEff=-1.0) const   // epsEff<0: the floor kDensityEps()
     {
         const size_t i=i0, j=j0;                             // the shell's representative (radials are shared)
         const rvec_t ei=radials[i]->GetExponents(), gi=radials[i]->GetCoeffs();
@@ -1190,6 +1202,7 @@ public:
         double aMinJ=ej[0]; for (double e:ej) aMinJ=std::min(aMinJ,e);
         // The box geometry now lives in MakeBoxGeom, so the separable-contraction kernel shares it rather
         // than re-deriving it (see BoxGeom).  Identical expressions in identical order -> bit-identical.
+        if (epsEff<0.0) epsEff=kDensityEps();
         const BoxGeom bg=MakeBoxGeom(i0,j0,Roff,A,N,epsEff);
         if (!bg.live) return;                                // screen (1): the whole box is below eps
         const double pMin=bg.pMin;
@@ -1325,8 +1338,9 @@ public:
     //! Kept as the name every single-pair consumer speaks; the walk itself is not duplicated.
     template <class F>
     void ForPairBox(size_t i, size_t j, const rvec3_t& Roff, const UnitCell& A, const ivec3_t& N, F&& f,
-                    double epsEff=kDensityEps()) const
+                    double epsEff=-1.0) const   // epsEff<0: the floor kDensityEps()
     {
+        if (epsEff<0.0) epsEff=kDensityEps();
         ForShellPairBox(i,1,j,1,Roff,A,N,
                         [&](size_t idx, const double* fI, const double* fJ)
                         {
@@ -2765,6 +2779,7 @@ private:
         return ops;
     }
 
+    mutable GPWTolerances              itsPGTol;           //!< the pair-loop tolerances (ApplyTolerances); defaults = historical
     mutable std::vector<Shell>         itsShells;          //!< the shell partition (lazy; geometry-fixed)
     mutable std::vector<std::pair<size_t,size_t>> itsFieldHistory;  //!< GPW_INTEGRATE_CENSUS (field, screen) hashes
     mutable std::vector<ShellPairTasks> itsBoxTasks;      //!< the (shell pair, offset) geometry, derived once

@@ -239,15 +239,16 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     // the two agree, because a screener below the floor would want boxes the list never built.
     itsScreener = theRunPolicy().DAwareScreen()
                 ? std::shared_ptr<const Gaussian::LatticeScreener>(
-                      std::make_shared<Gaussian::DAwareScreener>(Gaussian::CollocationEps()))
+                      std::make_shared<Gaussian::DAwareScreener>(itsTol.densityEps))
                 : std::shared_ptr<const Gaussian::LatticeScreener>(
-                      std::make_shared<Gaussian::GeometryOnlyScreener>(Gaussian::CollocationEps()));
+                      std::make_shared<Gaussian::GeometryOnlyScreener>(itsTol.densityEps));
 
     // Its periodic-1E capability, reached by an abstract->abstract cross-cast (a molecular Gaussian basis
     // realises Gaussian::LatticeSum1E; anything else is a usage error).
     itsLat=dynamic_cast<const Gaussian::Periodic_Gaussian_IBS*>(itsOrb);
     if (!itsLat) throw std::runtime_error(
         "GPW_Evaluator: the orbital basis is not a molecular Gaussian basis (no Gaussian::LatticeSum1E)");
+    itsLat->ApplyTolerances(itsTol);   // option B (D-ENV step 5): the pair-loop evaluator takes the run's tolerances
 
     // THERE IS NO CUT IN r SPACE -- Gibbs ringing is like a wrecking ball (user pin; doc/Pins.md pin 1): every lattice sum is an eps-CONVERGED SERIES enumerated
     // INSIDE the molecular seam per shell pair (1E matrices, analytic KB, collocation) -- no radius
