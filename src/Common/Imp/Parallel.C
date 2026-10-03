@@ -45,7 +45,10 @@ std::string ThreadSummary()
          + (q ? "QCHEM_OPENMP_THREADS="+std::string(q)
               : g ? "deprecated GPW_OMP_THREADS="+std::string(g)+" -- use QCHEM_OPENMP_THREADS"
                   : std::string("QCHEM_OPENMP_THREADS unset => serial")) + "), BLAS="
-         + std::to_string(BlasThreads()) + " (QCHEM_BLAS_THREADS)";
+         + std::to_string(BlasThreads()) + " (QCHEM_BLAS_THREADS)"
+         // ⚠ N BLAS threads INSIDE each of N OpenMP threads is the nesting that measured as a net loss (oversubscription;
+         // the OpenBLAS workers spin against our regions).  Say so on the line a benchmark row copies.
+         + ((WorkerThreads()>1 && BlasThreads()>1) ? "  [WARNING: threaded BLAS under threaded OpenMP regions -- oversubscribes]" : "");
 }
 
 void FixBlasThreads()
