@@ -1,21 +1,22 @@
-// File: Common/Parallel.C  The ONE opt-in worker-thread count, shared by every parallel region.
-//
-// The GPW pair loops (PG_Cart_MnD::NR_Evaluator::PairThreads) established the project's threading
-// policy: SERIAL BY DEFAULT, opted into per run with QCHEM_OPENMP_THREADS (renamed 2026-10-02 from
-// GPW_OMP_THREADS, which had nothing to do with basis sets; the old name is a deprecated alias).
-// Serial-by-default is not
-// timidity -- a threaded reduction sums in a load-dependent order, so the bit-anchors (and the
-// OpenBLAS pin) only mean what they say on the serial path, and the suite runs many test binaries
-// at once (ctest -j8) where a 16-thread fan-out per process would just thrash.
-//
-// This module is that knob, lifted out of the one evaluator that owned it, so the OTHER hot sites --
-// the XC-mesh basis tables, the mesh-quadrature GEMMs, ... (doc/GPWPlan1.md item 1: "OMP coverage
-// beyond the pair loops") -- read the SAME number instead of each growing its own getenv.  The name
-// is QCHEM_OPENMP_THREADS.
-//
-// A caller that partitions by OUTPUT ELEMENT (each element still accumulated in one thread, in the
-// serial order) is bit-identical at any thread count; one that partitions a REDUCTION is not, and
-// must say so where it does it.
+//! \file Common/Parallel.C
+//! \brief The ONE opt-in worker-thread count, shared by every parallel region.
+//!
+//! The GPW pair loops (PG_Cart_MnD::NR_Evaluator::PairThreads) established the project's threading
+//! policy: SERIAL BY DEFAULT, opted into per run with QCHEM_OPENMP_THREADS (renamed 2026-10-02 from
+//! GPW_OMP_THREADS, which had nothing to do with basis sets; the old name is a deprecated alias).
+//! Serial-by-default is not
+//! timidity -- a threaded reduction sums in a load-dependent order, so the bit-anchors (and the
+//! OpenBLAS pin) only mean what they say on the serial path, and the suite runs many test binaries
+//! at once (ctest -j8) where a 16-thread fan-out per process would just thrash.
+//!
+//! This module is that knob, lifted out of the one evaluator that owned it, so the OTHER hot sites --
+//! the XC-mesh basis tables, the mesh-quadrature GEMMs, ... (doc/GPWPlan1.md item 1: "OMP coverage
+//! beyond the pair loops") -- read the SAME number instead of each growing its own getenv.  The name
+//! is QCHEM_OPENMP_THREADS.
+//!
+//! A caller that partitions by OUTPUT ELEMENT (each element still accumulated in one thread, in the
+//! serial order) is bit-identical at any thread count; one that partitions a REDUCTION is not, and
+//! must say so where it does it.
 module;
 #include <cstdlib>   // std::getenv/std::atoi
 #include <string>    // ThreadSummary
@@ -23,13 +24,13 @@ export module qchem.Parallel;
 
 export namespace qchem {
 
-//! The number of PHYSICAL cores (not hardware threads): the distinct (package, core) pairs in sysfs
+//! \brief The number of PHYSICAL cores (not hardware threads): the distinct (package, core) pairs in sysfs
 //! `thread_siblings_list`, else \c hardware_concurrency().  8 on an i7-10700 (16 hardware threads).  What
 //! \c QCHEM_OPENMP_THREADS=0 ("auto") resolves to: SMT adds little for these floating-point loops, so half the
 //! hardware threads is the right number only when SMT is on -- this reads the truth.
 int PhysicalCores();
 
-//! The pure parse behind the thread-count knob: null/empty \a s gives \a dflt; "0" means AUTO = \a autoCount;
+//! \brief The pure parse behind the thread-count knob: null/empty \a s gives \a dflt; "0" means AUTO = \a autoCount;
 //! a positive integer is itself; anything else (negative, garbage) is 1.  A function of its arguments so it is
 //! unit-testable; the env read below happens once per process.
 inline int ParseThreadCount(const char* s, int dflt, int autoCount)
@@ -73,7 +74,7 @@ inline int WorkerThreads()
 //! last ULP ONCE, as a re-bank, rather than run to run.
 int BlasThreads();
 
-//! The EFFECTIVE thread state of a run, one line, for the run banner: the OpenMP worker count and the BLAS count,
+//! \brief The EFFECTIVE thread state of a run, one line, for the run banner: the OpenMP worker count and the BLAS count,
 //! each with the knob that set it.
 std::string ThreadSummary();
 
