@@ -220,3 +220,41 @@ moves Etot by 2e-8 Ha; ctest 1007/1007.  REMAINING for step 5: option B for `scr
 `PG_Cart_MnD` evaluator) and `densityEps` (the lattice screener's constructor argument).
 
 **Step 5 (ii) DONE 2026-10-03**: `screenEps`, `fieldSharp`, `relCutoff`, `densityEps` joined `GPWTolerances` (env overrides `GPW_SCREEN_EPS`/`GPW_FIELDSHARP`/`GPW_RELCUTOFF`/`GPW_DENSITY_EPS`, applied only in `ApplyEnvOverrides`). Option B as built: `GaussianSharpness::ApplyTolerances(const GPWTolerances&) const`, called by `GPW_Evaluator` right after the cross-cast; `NR_Evaluator` holds the values as instance state and the `static` env reads (incl. `CollocationEps()`, now a constexpr default 1e-10 for tests) are gone. **Deviation from "clone":** it MUTATES the caller-built basis through the const face (a clone of the virtual-diamond IBS stack was not worth it); safe because all GPW_Evaluators of a run get the same options. **Cache audit:** tolerance-dependent = `itsBoxTasks`, `itsBoxTaskOrder`, `itsIntegrateMemos`, `itsFieldHistory` (all cleared on a change); geometry-only (shells, reaches) stay. Unit tests: `GPWTolerances.*` (override layer; `ApplyTolerancesReachesThePairLoopsAndIsReversible`). ctest 1008/1008. REMAINING in step 5: none in code; step 6 (the input deck).
+
+## 9. Step 6 -- the input deck, and the RETIREMENT of the env hooks (planned 2026-10-03, not started)
+
+**Principle (user, 2026-10-03): once the deck exists, the environment must not be a second way to set a T1/T2 value.**  No
+precedence rules, no "env overrides deck", no conflicts.  The deck is the single source; the env hooks are removed, not demoted.
+
+**The deck.**  One serialized `RunSpec` (JSON): header (git hash + dirty flag, checksums of the basis / materials / seed data
+files, deck schema version) + the T1 and T2 fields (`SolidCalcOptions`, `SCFParams`, `MeshParams`, `GPWTolerances`, the +U block,
+the structure).  Defaults are filled in, so the RESOLVED deck is complete.  Every run writes its resolved deck beside its output
+(`~/Code/<app>-runs/<Material>/<name>.json`, D-RUNDATA); a result re-runs from its embedded deck and WARNS on a version or
+data-checksum mismatch.  ONE loader serves `gpwprobe --deck`, `scfrun`, the GUI and pybind (flag the binding owner; do not edit
+`pybind/`).  Named presets (`parity-cp2k`) are decks too.
+
+**Ad-hoc overrides without the environment.**  `--set key.path=value` on the CLI (`--set tol.screenEps=1e-8`), applied on top of the
+loaded deck BEFORE it is resolved, so the override lands in the resolved deck and the run is reproducible from the file alone.
+This replaces the shell-state workflow; it is the only override path.
+
+**Removal, in this order (each step green on ctest before the next):**
+
+| step | what goes | replaced by |
+|---|---|---|
+| 6a | `ApplyEnvOverrides(GPWTolerances&)` and its call in `SolidCalculation.C:362`; the `QCHEM_BECKE_*` / `GPW_BECKE_*` reads in `BeckeXCParams`; `GPW_MGRID_ECUTS`, `GPW_SCREEN_EPS`, `GPW_FIELDSHARP`, `GPW_RELCUTOFF`, `GPW_DENSITY_EPS`, `GPW_VLOC_EPS`, `GPW_LOCALPP_RELCUTOFF`, `GPW_RELFIELDSHARP` | the typed fields (already there) written in the deck / `--set` |
+| 6b | the `RunPolicy` route switches (`QCHEM_DM_LOWRANK`, `GPW_STREAM_FOLD`, `QCHEM_MIX_RHO_M`, `QCHEM_XC_DM_*`, `QCHEM_IMPOSE_SYMMETRY`, `QCHEM_BECKE_XC`, `GPW_DAWARE_SCREEN`, `QCHEM_U_EIGEN`) and `CP2K_COMPAT` | a deck `policy` block; `CP2K_COMPAT` becomes the `parity-cp2k` preset; the banner's Deviation table is unchanged |
+| 6c | the A/B hatches that move numbers (`GPW_CONTRACT_CUBE`, `GPW_EXP_RECURRENCE`, `GPW_SPHERE_SCREEN`, `GPW_LONG_SWEEP`, `GPW_XC_DM_*`) | a deck `advanced` block, or DELETE the ones whose A/B is retired |
+| 6d | `IntegrationTests/GPW/Harness.C` `EnvOverrides` (14 vars) and `CLIapps/gpwprobe.C`'s ~57 `<P>_*` vars | `--deck` + `--set`; the probes' geometry discriminators move into the deck's structure section.  Retire the `.cmd` files |
+| 6e | the enforcement lint | extend `scripts/audit-settings-doc`: a `getenv("` under `src/`, `CLIapps/` or `IntegrationTests/` outside the resource reader (`QCHEM_OPENMP_THREADS`, `QCHEM_BLAS_THREADS`, `OMP_NUM_THREADS`, `KMP_BLOCKTIME`) and `qchem.Diagnostics` FAILS the ctest.  The settings reference page is then GENERATED from the registry |
+
+**What deliberately stays in the environment:** tier 3 resources (threads, BLAS threads) and tier 4 diagnostics
+(`QCHEM_DIAGNOSTICS=...`).  Neither changes a number, so neither can conflict with the deck; both are RECORDED in the output header
+(bit-identical reproduction needs the same binary and thread counts).
+
+**Transition (one release):** 6a-6d first make a still-set env var a loud WARNING (`<name> is retired; use --set <path>`) and
+IGNORE it; deleting the reads happens at the following commit.  Silently honouring it would reintroduce exactly the conflict this
+step exists to remove, so there is no "honour with notice" phase (the aliases of step 4 already had one).
+
+**Order and coupling:** needs the deck schema (and D-STRUCTDATA step 2 for the PP set, V-CALCNET for where the option structs
+live) before 6a can land; 6a-6c are small once the loader exists.  Anchors must not move: the defaults in the deck equal
+today's values, so a deck-less run is unchanged.
