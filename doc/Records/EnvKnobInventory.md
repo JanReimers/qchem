@@ -264,3 +264,13 @@ step exists to remove, so there is no "honour with notice" phase (the aliases of
 **Order and coupling:** needs the deck schema (and D-STRUCTDATA step 2 for the PP set, V-CALCNET for where the option structs
 live) before 6a can land; 6a-6c are small once the loader exists.  Anchors must not move: the defaults in the deck equal
 today's values, so a deck-less run is unchanged.
+
+**Step 6.1 DONE 2026-10-03 -- the deck's DATA LAYER** (`qchem.Deck`, `src/Calculation/Deck.C` + `Imp/Deck.C`; ctest +6, 1015/1015).
+`ToJson`/`FromJson` for `SolidCalcOptions`, `SCFParams`, `MeshParams`, `GPWTolerances` (and the Hubbard manifolds): a writer emits EVERY field,
+a reader keeps the default for a missing key and THROWS on an unknown key (naming the path and the legal keys -- a deck typo must not
+run the default); enums by exact name; units are the library's (`U_Ha`, no hidden eV conversion).  `ApplySet("a.b.c=value")` (JSON value or bare
+string, array indices), `ClaimRevision` (atomic `O_EXCL`, `<name>.rNNN.json`), `WriteRevision` (deck + header + provenance:
+command line, overrides, input-deck checksum, code version, ignored env vars), `LoadDeck` (strips the header, warns on a code-version
+mismatch, refuses a newer schema).  NOT serialized: `onIteration` (callback), the Hubbard `siteOps`/`greyOps` (derived).
+**NEXT (6.2)**: the structure/lattice section of the deck (today `SolidCalculation` takes a `Lattice_3D` + a `Real_BS`, not options -- couples with
+V-CALCNET / D-STRUCTDATA step 2), then the loader in `gpwprobe --deck/--set` and `SolidCalculation` writing its revision, THEN the 6a-6e retirements.
