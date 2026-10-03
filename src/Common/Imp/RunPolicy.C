@@ -20,14 +20,15 @@ module;
 #include <sstream>
 #include <vector>
 module qchem.RunPolicy;
+import qchem.Environment;       // Env(name, legacy): a renamed knob keeps its old name as a deprecated alias
 
 namespace qchem
 {
 
 // A knob is SET when the variable exists at all; its VALUE is the usual 0/non-0.  Distinguishing
 // "set to 0" from "not set" is the whole point -- it is what lets an explicit knob outrank CP2K_COMPAT.
-static bool IsSet (const char* n) {return std::getenv(n)!=nullptr;}
-static bool AsBool(const char* n) {const char* s=std::getenv(n); return s && std::atoi(s)!=0;}
+static bool IsSet (const char* n, const char* legacy=nullptr) {return qchem::Env(n,legacy)!=nullptr;}
+static bool AsBool(const char* n, const char* legacy=nullptr) {const char* s=qchem::Env(n,legacy); return s && std::atoi(s)!=0;}
 
 RunPolicy::RunPolicy()
     : itsCP2KCompat(AsBool("CP2K_COMPAT"))
@@ -41,8 +42,8 @@ RunPolicy::RunPolicy()
     // Kerker's 4pi/G^2 has no business damping the magnetisation channel.  Still off under CP2K_COMPAT.
     itsMixRhoM    = Resolve("QCHEM_MIX_RHO_M",  "(rho,m) mixing channels instead of (up,dn)",
                             /*cp2k*/false, /*qchem default*/true);
-    itsXCFromDM   = Resolve("GPW_XC_DM_SOURCE", "Vxc fed rho[D] wholesale instead of rho_mix",
-                            /*cp2k*/false, /*qchem default*/false);
+    itsXCFromDM   = Resolve("QCHEM_XC_DM_SOURCE", "Vxc fed rho[D] wholesale instead of rho_mix",   // V_xc feed: not GPW-specific
+                            /*cp2k*/false, /*qchem default*/false, /*legacy*/"GPW_XC_DM_SOURCE");
     // NB the qchem default here is TRUE meaning "obey the caller", not "impose": the option itself
     // defaults off in SolidCalcOptions.  What CP2K parity forbids is the CAPABILITY, so that is what is
     // tabled -- and the facade ANDs this with the caller's own flag.
@@ -60,10 +61,10 @@ RunPolicy::RunPolicy()
 
 // EXPLICIT BEATS THE UMBRELLA (see the interface): if the knob was named at all, that is the answer,
 // and `stated` records it so the banner can say the umbrella did not get its way.
-Deviation RunPolicy::Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault)
+Deviation RunPolicy::Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const char* legacy)
 {
-    const bool stated=IsSet(knob);
-    const bool value = stated       ? AsBool(knob)
+    const bool stated=IsSet(knob, legacy);
+    const bool value = stated       ? AsBool(knob, legacy)
                      : itsCP2KCompat ? cp2kValue
                      :                 qchemDefault;
     return Deviation{knob, what, cp2kValue, value, stated};

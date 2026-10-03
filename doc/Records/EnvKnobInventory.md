@@ -160,3 +160,15 @@ migrate the 22 diagnostics; (3) site moments into the report; (4) the `GPW_` →
   legacy aliases (ON unless `"0"`; the value is the argument, e.g. `GPW_MESH_ORTHO=4`), `Scoped` for tests; 22 diagnostics
   migrated (21 + `localpp_timing`).  `GPW_DM_RANK=1` and `QCHEM_DIAGNOSTICS=dm_rank` both verified on NaF (34 report lines; none
   without).  Caveat: sites that cache `static const bool on=Enabled(...)` read it once, so `Scoped` cannot toggle them mid-process.
+* **Step 3 done**: site moments are a standard end-of-run line on every polarized result (`SolidCalculation::Converge`;
+  `Becke-partitioned Integral w (rho_up-rho_dn) d3r [e]: 0:+1.0000 1:+1.0000 net=+2.0000` on the O2 triplet), with an explicit
+  DEFECT message for a polarized Becke run that has no site blocks and an `n/a` for a uniform mesh.  `QCHEM_SITE_MOMENTS`, its
+  per-iteration console line and the sampler's "unavailable" print are gone (the json `scf.siteMoments` and the `m_site` column
+  already carried it).  `site_moments` left the diagnostics registry (21 diagnostics + `localpp_timing` => 21).
+* **Step 4 done, and a correction to §6(c)**: `qchem.Environment::Env(name, legacy)` (new name wins; old name works with a
+  one-time stderr notice).  Applied by the user's criterion -- *not specific to the Gaussian-plane-wave basis*: the Becke XC mesh
+  `GPW_BECKE_NR/ALPHA/L/ROT/EPS` → `QCHEM_BECKE_*` and the V_xc feed `GPW_XC_DM_SOURCE/MIX/BOOST` → `QCHEM_XC_DM_*`.  §6(c)'s first
+  draft also listed `GPW_STREAM_FOLD` and `GPW_DAWARE_SCREEN`; they ARE collocation machinery of the GPW basis (orbit fold of the
+  collocation pair streams; the collocation box tolerance), as are the tolerances (`GPW_DENSITY_EPS`, `GPW_SCREEN_EPS`,
+  `GPW_VLOC_EPS`), the contraction/recurrence/sphere switches, `GPW_MGRID_ECUTS`, `GPW_RELCUTOFF`, `GPW_COLLOC_MEMO`, the field
+  sharpness pair and `GPW_LOCALPP_RELCUTOFF` -- so they KEEP the `GPW_` prefix.  The diagnostics' old names stay as legacy aliases.

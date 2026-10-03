@@ -129,7 +129,7 @@ public:
     std::string Banner() const;
 
 private:
-    Deviation Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault);
+    Deviation Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const char* legacy=nullptr);
     bool      itsCP2KCompat = false;
     Deviation itsDMLowRank{}, itsStreamFold{}, itsMixRhoM{}, itsXCFromDM{}, itsImpose{}, itsBeckeXC{},
               itsDAware{}, itsUEigen{};

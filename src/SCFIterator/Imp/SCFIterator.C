@@ -236,8 +236,8 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
 template <class T> tSCFIterator<T>::~tSCFIterator() = default;
 
 // The integrated site moments of this iteration's density, as REPORTED: one report entry (idempotent,
-// run-scoped -- the json ends holding the LAST iteration's) and, under QCHEM_SITE_MOMENTS, one console
-// line.  The number itself is the spin-native XC term's, written into ChargeBreakdown in its energy pass
+// run-scoped -- the json ends holding the LAST iteration's); the console shows them in the m_site column
+// each iteration and as a standard line at the end of a polarized result (SolidCalculation::Converge).  The number itself is the spin-native XC term's, written into ChargeBreakdown in its energy pass
 // (R1.0h); this loop is the one actor that fires exactly once per iteration with that breakdown in hand,
 // which is why the emission lives here and not inside a sampler's cache-advance branch.  Silent when the
 // run has no atom-centred partition (empty) or nothing to say (an unpolarized density).
@@ -267,12 +267,6 @@ static void EmitSiteMoments(const EnergyBreakdown& eb)
     // Verbose-only on the console: the row's m_site column already shows the number, and a rendered block
     // between two iteration rows is exactly the interruption the column exists to avoid.  The json always records.
     qchem::report::EmitAt("scf", "siteMoments", j, qchem::report::Detail::Verbose);
-    if (qchem::Diagnostics::Enabled("site_moments"))
-    {
-        std::cout<<"[site moments] Becke-partitioned Integral w_A (rho_up-rho_dn) d3r [e]:";
-        for (size_t a=0;a<mu.size();a++) std::cout<<"  "<<a<<":"<<mu[a];
-        std::cout<<"   net="<<net<<std::endl;
-    }
 }
 
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)

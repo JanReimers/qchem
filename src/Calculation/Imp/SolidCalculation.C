@@ -841,6 +841,27 @@ Outcome<SolidCalculation::Converged, SCFFailure> SolidCalculation::Converge(cons
                   << " Etot="<<std::setprecision(10)<<E.GetTotalEnergy()<<std::setprecision(prec0)
                   << "  (Ekin="<<E["Kinetic"]<<" Een="<<E["Een"]<<" Eee="<<E["Eee"]<<" Exc="<<E["Exc"]
                   << " Enn="<<E["Enn"]<<" E_alphaZ="<<E["E_alphaZ"]<<")" << std::endl;
+        // THE INTEGRATED SITE MOMENTS, a standard part of a polarized result (D-ENV step 3, user 2026-10-03: promoted from
+        // the QCHEM_SITE_MOMENTS diagnostic).  An INTEGRATED observable -- the Becke-partitioned integral of w(rho_up -
+        // rho_dn) per site -- never a point sample (doc/ feedback_integrated_observables).  A polarized run on an
+        // atom-centred mesh that has NO site blocks is a DEFECT and is said so; on a uniform mesh the partition does not
+        // exist, which is a configuration, said once.
+        if (itsImp->spin)
+        {
+            const rvec_t& mu=E.charge.siteMoments;
+            double absSum=0.0, net=0.0; for (size_t a=0;a<mu.size();a++) { absSum+=std::fabs(mu[a]); net+=mu[a]; }
+            if (mu.size()>0 && absSum>=1e-8)
+            {
+                std::cout<<"["<<itsImp->opts.label<<"] site moments (Becke-partitioned Integral w (rho_up-rho_dn) d3r) [e]:";
+                for (size_t a=0;a<mu.size();a++) std::cout<<"  "<<a<<":"<<std::showpos<<std::fixed<<std::setprecision(4)<<mu[a]<<std::noshowpos;
+                std::cout<<"   net="<<std::showpos<<net<<std::noshowpos<<std::defaultfloat<<std::setprecision(prec0)<<std::endl;
+            }
+            else if (mu.size()==0)
+                std::cout<<"["<<itsImp->opts.label<<"] site moments: "
+                         <<(itsImp->xcMesh.cellKind==qcMesh::UnitCellKind::Becke
+                            ? "UNAVAILABLE -- the atom-centred (Becke) XC mesh carries no site blocks: a DEFECT, not a configuration"
+                            : "n/a (the uniform XC mesh has no site partition)")<<std::endl;
+        }
     }
     // THE CHECKPOINT (CK-1), converged or not: the unattended run's safety net.  A failed WRITE warns and the run
     // goes on -- losing a finished SCF to a full disk would make the net the hazard (SaveState itself throws).

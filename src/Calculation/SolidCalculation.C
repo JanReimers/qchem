@@ -337,7 +337,7 @@ public:
     //! is why the ratio is taken at the END and not at the peak), Na2-in-a-box **1.71** (a genuine
     //! restructuring from diffuse atoms into a bond).  Against that, the two MnO collapse arms measure
     //! **2.48** (flat Kerker, `MNO_KERKER_G0=0.01`: Eee 14.17 -> 35.10 Ha) and **2.01** (the banked
-    //! aufbau/shared-mu recipe with `GPW_XC_DM_SOURCE=1`: 14.42 -> 29.00 Ha).  The flat-Kerker arm is
+    //! aufbau/shared-mu recipe with `QCHEM_XC_DM_SOURCE=1`: 14.42 -> 29.00 Ha).  The flat-Kerker arm is
     //! worth looking at: after iteration 9 its Eee is a clean PERIOD-2 LIMIT CYCLE (35.210, 35.098,
     //! 35.210, ...) for seventy iterations, which is charge sloshing in the most literal sense
     //! available.  1.5 sits above every healthy run measured and below both collapses -- and because the

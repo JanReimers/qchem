@@ -45,7 +45,7 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
 {
     Restore r;
     Env a("CP2K_COMPAT",nullptr), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
-        d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
+        d("QCHEM_MIX_RHO_M",nullptr), e("QCHEM_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
         g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr), i2("QCHEM_U_EIGEN",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
@@ -71,7 +71,7 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
 {
     Restore r;
     Env a("CP2K_COMPAT","1"), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
-        d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
+        d("QCHEM_MIX_RHO_M",nullptr), e("QCHEM_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
         g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr), i2("QCHEM_U_EIGEN",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();
@@ -99,7 +99,7 @@ TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
 {
     Restore r;
     Env a("CP2K_COMPAT","1"), b("GPW_STREAM_FOLD","1"), c("QCHEM_DM_LOWRANK",nullptr),
-        d("QCHEM_MIX_RHO_M",nullptr), e("GPW_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
+        d("QCHEM_MIX_RHO_M",nullptr), e("QCHEM_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
         g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr), i2("QCHEM_U_EIGEN",nullptr);
     ReresolveRunPolicy();
     const RunPolicy& p=theRunPolicy();

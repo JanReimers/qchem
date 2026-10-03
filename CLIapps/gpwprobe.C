@@ -73,7 +73,7 @@ int    Envi(const char* n, int    d) { const char* s=std::getenv(n); return s ? 
 //   2x2x2 -> -7.77846  (GPW_Si.k222_CP2K)     (2x2x1 has no banked counterpart: timing only)
 // SI_XC=becke forces the atom-centred mesh -- the path that exercises SiteStabilizer in the supercell
 // setting (the §6a W2b site-adapted angular sets).  Setting cellKind ALONE is a trap: ask for the RECIPE
-// (BeckeXCParams), which also makes GPW_BECKE_L / GPW_BECKE_NR live.  The banked anchors are UNIFORM-mesh
+// (BeckeXCParams), which also makes QCHEM_BECKE_L / QCHEM_BECKE_NR live.  The banked anchors are UNIFORM-mesh
 // numbers; a Becke rung is a different quadrature (~75 mHa away at the coarse default) and is not compared.
 //========================================================================================================
 int Ladder()

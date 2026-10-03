@@ -53,3 +53,19 @@ TEST(Diagnostics, ScopedSwitchesOneIdForATestAndRestores)
     EXPECT_FALSE(D::Enabled("rho_negative"));
     EXPECT_FALSE(D::Value("mesh_ortho").has_value());
 }
+
+// ---- D-ENV step 4: a renamed knob keeps its old name as a deprecated alias (qchem.Environment) ----
+#include <cstdlib>
+import qchem.Environment;
+TEST(Environment, TheNewNameWinsAndTheOldNameStillWorks)
+{
+    unsetenv("QCHEM_ENVTEST_NEW"); unsetenv("GPW_ENVTEST_OLD");
+    EXPECT_EQ(qchem::Env("QCHEM_ENVTEST_NEW","GPW_ENVTEST_OLD"), nullptr) << "neither set";
+    setenv("GPW_ENVTEST_OLD","7",1);
+    ASSERT_NE(qchem::Env("QCHEM_ENVTEST_NEW","GPW_ENVTEST_OLD"), nullptr);
+    EXPECT_STREQ(qchem::Env("QCHEM_ENVTEST_NEW","GPW_ENVTEST_OLD"), "7") << "the deprecated alias still works";
+    setenv("QCHEM_ENVTEST_NEW","9",1);
+    EXPECT_STREQ(qchem::Env("QCHEM_ENVTEST_NEW","GPW_ENVTEST_OLD"), "9") << "the new name wins over the alias";
+    EXPECT_EQ(qchem::Env("QCHEM_ENVTEST_X", nullptr), nullptr) << "no alias";
+    unsetenv("QCHEM_ENVTEST_NEW"); unsetenv("GPW_ENVTEST_OLD");
+}

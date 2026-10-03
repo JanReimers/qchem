@@ -21,6 +21,7 @@ module;
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
 module qchem.ChargeDensity.Internal.DensitySampler;
+import qchem.Environment;                     // Env(name, legacy)
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.ChargeDensity;
@@ -106,7 +107,7 @@ size_t SinglesDensitySampler::NumPoints() const {return itsFit->GetNumFunctions(
 // cross-cast away: 0.042 s and rho>=0 by construction.  Hartree keeps the preconditioned field -- Poisson
 // is LINEAR and diagonal in G -- while XC, a NONLINEAR POINTWISE functional, gets the cusp.  At the fixed
 // point they agree, so this changes the SCF TRAJECTORY, not the answer.
-// GPW_XC_DM_SOURCE=1 to arm it.  OPT-IN: a trajectory change must earn its place against banked recipes.
+// QCHEM_XC_DM_SOURCE=1 to arm it.  OPT-IN: a trajectory change must earn its place against banked recipes.
 bool UseDMSource() {return theRunPolicy().XCFromDM();}
 //! The exact density behind a field-backed one + THE DAMPING THAT FIELD APPLIED -- always together, because
 //! taking the first without the second is the half-damped map (see cDM_Sourced_CD::EffectiveAlpha).
@@ -118,7 +119,7 @@ struct ExactSource
 };
 // THE CUSP-DEFICIT ROUTE (doc/OpenWork.md N4):
 //     rho_XC = rho[D]_exact + IFT[rho_mix - rho[D]]
-// instead of the WHOLESALE replacement (damped rho[D]) GPW_XC_DM_SOURCE takes.  The difference is not
+// instead of the WHOLESALE replacement (damped rho[D]) QCHEM_XC_DM_SOURCE takes.  The difference is not
 // cosmetic: this form's BAND-LIMITED content is identically rho_mix -- the array Hartree uses -- so Kerker's
 // f(G) reaches XC unmodified and there is NO alpha_eff to choose.  A flat alpha_eff cannot reproduce that
 // SHAPE, and measurement (2026-08-25) says destroying the selectivity costs the MnO magnetic basin
@@ -136,20 +137,20 @@ ExactSource ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd
     if (!corr && !UseDMSource()) return {};      // neither route armed
     return {src->DMSource().get(), src->EffectiveAlpha(), std::move(corr)};
 }
-// GPW_XC_DM_MIX overrides alpha_eff for CONTROLS only (=1 reproduces the undamped route); unset = use the
-// mix's own.  GPW_XC_DM_BOOST scales it: alpha_eff came out ~0.20 on NaF and ~0.35 on MnO -- measured, but
+// QCHEM_XC_DM_MIX overrides alpha_eff for CONTROLS only (=1 reproduces the undamped route); unset = use the
+// mix's own.  QCHEM_XC_DM_BOOST scales it: alpha_eff came out ~0.20 on NaF and ~0.35 on MnO -- measured, but
 // low against fractions those cells tolerate, and MnO converged 53 -> 39 iterations at boost 2.  NB f_K<=1
 // forces alpha_eff<=alpha, so a boost >1/mean(f) puts XC ABOVE the mixer's own alpha -- defensible (XC's
 // response kernel is finite at G->0, unlike Hartree's 4pi/G^2) but outside the preconditioner's bracket,
 // hence a knob and not a default.
 double DMSourceMixOverride()
 {
-    static const double a=[]{ const char* e=std::getenv("GPW_XC_DM_MIX"); return e ? std::atof(e) : -1.0; }();
+    static const double a=[]{ const char* e=qchem::Env("QCHEM_XC_DM_MIX","GPW_XC_DM_MIX"); return e ? std::atof(e) : -1.0; }();
     return a;
 }
 double DMSourceMixBoost()
 {
-    static const double b=[]{ const char* e=std::getenv("GPW_XC_DM_BOOST"); return e ? std::atof(e) : 1.0; }();
+    static const double b=[]{ const char* e=qchem::Env("QCHEM_XC_DM_BOOST","GPW_XC_DM_BOOST"); return e ? std::atof(e) : 1.0; }();
     return b;
 }
 //! Blend \a fresh into \a running at the mix's own alpha (outside (0,1) => passthrough, which is the right
@@ -160,7 +161,7 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
     const double ov=DMSourceMixOverride();
     const double a =(ov>=0.0) ? ov : DMSourceMixBoost()*alphaEff;
     static const bool trace=qchem::Diagnostics::Enabled("xc_alpha");
-    if (trace) std::cout<<"[XC alpha] alpha_eff="<<alphaEff<<(ov>=0.0?"  (OVERRIDDEN by GPW_XC_DM_MIX)":"")
+    if (trace) std::cout<<"[XC alpha] alpha_eff="<<alphaEff<<(ov>=0.0?"  (OVERRIDDEN by QCHEM_XC_DM_MIX)":"")
                         <<"  boost="<<DMSourceMixBoost()
                         <<"  applied="<<((a>0.0&&a<1.0)?a:1.0)<<std::endl;
     if (a<=0.0 || a>=1.0 || running.size()!=fresh.size()) { running=fresh; return; }
@@ -178,7 +179,7 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
 // touches a weight -- which is what let the last Mesh() use out of this diagnostic.  It asks the STRATEGY
 // rather than the fit basis (2026-08-23): integrating an expansion is the quadrature's question, and the
 // basis now answers only the per-function pieces it is built from.
-//! Does \a cd carry a retained-D source (GPW_XC_DM_SOURCE / the N4 cusp deficit)?  A bool-returning
+//! Does \a cd carry a retained-D source (QCHEM_XC_DM_SOURCE / the N4 cusp deficit)?  A bool-returning
 //! wrapper so a caller declared ABOVE ExactSource's definition can still ask.
 bool HasExactSource(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd) {return bool(ExactSourceOf(cd));}
 
@@ -433,19 +434,8 @@ const rvec_t& SinglesDensitySampler::RhoPol(const cChargeDensity* cd, const Spin
 rvec_t SinglesDensitySampler::SiteIntegrals(const rvec_t& f) const
 {
     if (!itsQuad.GetMesh() || itsQuad.GetMesh()->NSites()==0)
-    {   // No site partition on this mesh -- legitimate for a uniform grid, a DEFECT for an atom-centred
-        // one, and the difference used to be invisible: the instrument just printed nothing (it did so on
-        // EVERY imposed run for as long as the invariant-mesh filter dropped the blocks).  Say which it is,
-        // once, whenever the user asked for the moments.
-        static bool said=false;
-        if (qchem::Diagnostics::Enabled("site_moments") && !said)
-        {
-            said=true;
-            std::cout<<"[site moments] UNAVAILABLE: the XC quadrature mesh carries no site blocks"
-                     <<(itsQuad.GetMesh() ? "" : " (no mesh injected at all)")
-                     <<" -- an integrated site moment needs an atom-centred (Becke) mesh, and an "
-                       "atom-centred mesh that lost its blocks is a defect, not a configuration."<<std::endl;
-        }
+    {   // No site partition on this mesh -- legitimate for a uniform grid, a DEFECT for an atom-centred one.  The facade's
+        // result line says which (SolidCalculation::Converge), so the sampler stays silent: it only answers "none".
         return rvec_t();
     }
     assert(f.size()==itsQuad.GetMesh()->size() && "SinglesDensitySampler: the injected quadrature and the fit "

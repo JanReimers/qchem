@@ -50,7 +50,7 @@ so every banked row below is untouched by it).  Assume it is still incomplete �
 | 1 | `QCHEM_DM_LOWRANK` | factored/low-rank ρ (\f$D=LL^\dagger\f$) — a SINGLES route; CP2K collocates PAIRS | 08-25 |
 | 2 | `GPW_STREAM_FOLD` | orbit fold on the collocation pair streams (5.2× on MnO's pair count) | 08-25 |
 | 3 | `QCHEM_MIX_RHO_M` | (ρ,m) mixing channels instead of (up,dn) | 08-25 |
-| 4 | `GPW_XC_DM_SOURCE` | \f$V_{xc}\f$ fed ρ[D] wholesale instead of ρ_mix | 08-25 |
+| 4 | `QCHEM_XC_DM_SOURCE` | \f$V_{xc}\f$ fed ρ[D] wholesale instead of ρ_mix | 08-25 |
 | 5 | `QCHEM_IMPOSE_SYMMETRY` | space-group imposition: BZ fold + ρ star-average + site-adapted XC mesh.  ⚠ **OVERRULES the caller** | 08-26 |
 | 6 | `QCHEM_BECKE_XC` | atom-centred (Becke) XC quadrature instead of the uniform grid.  ⚠ **OVERRULES the caller**; it was **43% of the MnO row** | 08-28 |
 | 7 | `GPW_DAWARE_SCREEN` | D-aware collocation box tolerance \f$\varepsilon/|c_{ij}|\f$ instead of flat \f$\varepsilon\f$ | 09-04 |
@@ -98,7 +98,7 @@ UNCONDITIONALLY — no verbose flag, no opt-in — four lines at construction pl
 [<label> run] system: 4 atoms, 26 valence e, multiplicity 1 (POLARIZED), seed=IonicSAD
 [<label> run] grids: densityEcut=auto C=2 raster=BallOnly xcMesh=Becke (nR=40 L=29)
 [<label> run] symmetry: IMPOSED (Shubnikov from the decoration);  threads: OMP_NUM_THREADS=1 QCHEM_OPENMP_THREADS=1 (BLAS pinned to 1)
-[<label> run] CP2K_COMPAT=0 -> DEVIATING;  QCHEM_DM_LOWRANK=on*  GPW_STREAM_FOLD=on*  QCHEM_MIX_RHO_M=off  GPW_XC_DM_SOURCE=off   [* = differs from CP2K]
+[<label> run] CP2K_COMPAT=0 -> DEVIATING;  QCHEM_DM_LOWRANK=on*  GPW_STREAM_FOLD=on*  QCHEM_MIX_RHO_M=off  QCHEM_XC_DM_SOURCE=off   [* = differs from CP2K]
 [<label> scf] mixer: Kerker(G0=1.000000) alpha=0.45;  XC rho source: rho_mix;  accel: Ladder;  kT=0.005 MOM=on NMaxIter=80
 ```
 
@@ -185,7 +185,7 @@ Every GPW run now prints, without extra flags:
 | **PEAK RSS (MB, process high-water)** | `timing`, from Linux `VmHWM` (added 2026-08-19) |
 | `[fold] <site>: … = F×` for every fold site | `EmitFold`, Step 0b |
 | `[collocation] kernel=… ;  task list: … tasks, … MB` | the kernel + task-list readout (unconditional) |
-| `[site moments] … [e]` (polarized) | `QCHEM_SITE_MOMENTS=1`, Step 0a |
+| `[<label>] site moments (Becke-partitioned …) [e]: 0:+… 1:-… net=…` (polarized, atom-centred XC mesh) | the end-of-run result line, always (was `QCHEM_SITE_MOMENTS=1`, retired 2026-10-03); the json `scf.siteMoments` holds the last iteration's |
 | **`[t=12.34 s]` on every section heading, fold and log line** | the run clock, `report::RunElapsed()` (added 2026-09-06, `doc/OpenWork.md` Step 0c) |
 
 ⚠ **A STAMP IS A MOMENT, NOT A DURATION — AND A GAP BELONGS TO WHAT RAN *BEFORE* IT, NOT TO THE LINE THAT
@@ -351,7 +351,7 @@ against 8.29.  ⇒ **On the same algorithm we are 1.13×, and the whole residual
 \f$V_H\f$ gathered separately from \f$v_{xc}^\sigma\f$ (§5f lever B).
 
 ᵃ **counted off each run's own banner**, not from memory (rule 3b).  Defaults:
-`QCHEM_DM_LOWRANK=on* GPW_STREAM_FOLD=on* QCHEM_MIX_RHO_M=off GPW_XC_DM_SOURCE=off
+`QCHEM_DM_LOWRANK=on* GPW_STREAM_FOLD=on* QCHEM_MIX_RHO_M=off QCHEM_XC_DM_SOURCE=off
 QCHEM_IMPOSE_SYMMETRY=on* QCHEM_BECKE_XC=on* GPW_DAWARE_SCREEN=on*` (`*` = differs from CP2K, five of
 them); the middle row is the same with `QCHEM_BECKE_XC=off(stated)`; the bottom row prints
 `CP2K_COMPAT=1 -> AT PARITY` with every flag off.

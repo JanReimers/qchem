@@ -50,6 +50,7 @@ module;
 #include <limits>    // infinity (RadialResolutionRatio's no-claim value off-MHL)
 #include <string>
 export module qchem.Mesh.XCPolicy;
+import qchem.Environment;   // Env(name, legacy): the renamed QCHEM_BECKE_* knobs keep their GPW_BECKE_* aliases
 export import qchem.Mesh;
 export import qchem.Mesh.Angular;   // LebedevMenu (the degree -> direction-count table)
 
@@ -126,14 +127,14 @@ export namespace qchem::qcMesh
 //! crossover toward Becke (Si/sipp re-routes Uniform->Becke -- safe, merely denser); imposed runs are
 //! untouched (the site-adapted builder consumes the DEGREE, never the tables).
 //!
-//! Environment instruments (sweep a whole run without rebuilding):
-//!   - \c GPW_BECKE_NR     radial point count.                                        Default 40.
-//!   - \c GPW_BECKE_ALPHA  MHL radial scale (smaller = nodes pulled toward the core). Default 2.0.
-//!   - \c GPW_BECKE_L      angular POLYNOMIAL DEGREE, one meaning for both schemes (R2.15).  Default 29.
+//! Environment instruments (sweep a whole run without rebuilding; the old GPW_BECKE_* names are DEPRECATED aliases):
+//!   - \c QCHEM_BECKE_NR    radial point count.                                        Default 40.
+//!   - \c QCHEM_BECKE_ALPHA  MHL radial scale (smaller = nodes pulled toward the core). Default 2.0.
+//!   - \c QCHEM_BECKE_L     angular POLYNOMIAL DEGREE, one meaning for both schemes (R2.15).  Default 29.
 //!   (The angular SCHEME is chosen by degree below -- Lebedev at >= 29, GaussLegendre under it; both read the
 //!   degree the same way, so an A/B is like-for-like.  To force a scheme, set \c MeshParams::angular on the result:
 //!   the env valve GPW_BECKE_ANG was a silent twin of that typed field and is removed, D-ENV.)
-//!   - \c GPW_BECKE_ROT    radians; rigid generic rotation of the angular grid, which steers special
+//!   - \c QCHEM_BECKE_ROT    radians; rigid generic rotation of the angular grid, which steers special
 //!                         orbits off the bond axes (doc/SymmetryUpgradePlan.md §6a; free runs only --
 //!                         needed below degree ~15, not at the calibrated 29).
 MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int angularDegree=-1);
@@ -252,11 +253,12 @@ namespace qchem::qcMesh
 
 MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
 {
-    auto envi=[](const char* n, int    d){ const char* s=std::getenv(n); return s ? std::atoi(s) : d; };
-    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
-    if (nRadial      <0)   nRadial      =envi("GPW_BECKE_NR",    40);
-    if (mhlAlpha     <0.0) mhlAlpha     =envd("GPW_BECKE_ALPHA", 2.0);
-    if (angularDegree<0)   angularDegree=envi("GPW_BECKE_L",     29);
+    // QCHEM_BECKE_*: the Becke mesh is a general XC quadrature, not GPW-specific (D-ENV step 4); GPW_BECKE_* are deprecated aliases.
+    auto envi=[](const char* n, const char* old, int    d){ const char* s=qchem::Env(n,old); return s ? std::atoi(s) : d; };
+    auto envd=[](const char* n, const char* old, double d){ const char* s=qchem::Env(n,old); return s ? std::atof(s) : d; };
+    if (nRadial      <0)   nRadial      =envi("QCHEM_BECKE_NR",    "GPW_BECKE_NR",    40);
+    if (mhlAlpha     <0.0) mhlAlpha     =envd("QCHEM_BECKE_ALPHA", "GPW_BECKE_ALPHA", 2.0);
+    if (angularDegree<0)   angularDegree=envi("QCHEM_BECKE_L",     "GPW_BECKE_L",     29);
     MeshParams mp;
     mp.cellKind=UnitCellKind::Becke;
     mp.radial =RadialKind::MHL;            mp.nRadial =nRadial; mp.mhl_m=2; mp.mhl_alpha=mhlAlpha;
@@ -270,7 +272,7 @@ MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
     mp.angular = (angularDegree>=29) ? AngularKind::Lebedev : AngularKind::GaussLegendre;
     mp.angularDegree=angularDegree;   // ONE meaning for both schemes: GL takes it directly, Lebedev resolves
                                       // it to the cheapest rule of at least that degree (R2.15).
-    mp.angRot=envd("GPW_BECKE_ROT", 0.0);
+    mp.angRot=envd("QCHEM_BECKE_ROT", "GPW_BECKE_ROT", 0.0);
     return mp;
 }
 

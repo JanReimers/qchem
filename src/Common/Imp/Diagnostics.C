@@ -39,7 +39,6 @@ const std::vector<Entry>& Registry()
         {"angmesh_debug",    "QCHEM_ANGMESH_DEBUG",   "NNLS site-adapted angular-mesh debug print"},
         {"dump_h",           "QCHEM_DUMP_H",          "||F||, trace and max imaginary part of each Hamiltonian"},
         {"mom_scores",       "QCHEM_MOM_SCORES",      "sorted head of the MOM scores at each fill"},
-        {"site_moments",     "QCHEM_SITE_MOMENTS",    "integrated site moments each iteration (to be promoted into the run report)"},
         {"u_trace",          "QCHEM_U_TRACE",         "per-refresh +U occupation line on stdout"},
     };
     return r;

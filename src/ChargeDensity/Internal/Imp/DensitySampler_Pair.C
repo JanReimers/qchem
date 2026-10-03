@@ -177,12 +177,12 @@ void PairDensitySampler::RefreshPol(const cChargeDensity* cd) const
         ReportNegativeRho(*this, itsRhoUp, "half-density seed");
         return;
     }
-    // ⚠ NOT WIRED HERE: the DM-source repair and the N4 cusp deficit (GPW_XC_DM_SOURCE, XCCuspDeficit),
+    // ⚠ NOT WIRED HERE: the DM-source repair and the N4 cusp deficit (QCHEM_XC_DM_SOURCE, XCCuspDeficit),
     // which the singles route applies per channel.  Both are default OFF.  Loud rather than silent,
     // because silently sampling the MIXED field where the caller asked for the retained D would be a
     // physics change wearing a performance change's clothes.
     if (HasExactSource(up) || HasExactSource(dn))
-        throw std::logic_error("PairDensitySampler: GPW_XC_DM_SOURCE / XCCuspDeficit are not wired on the "
+        throw std::logic_error("PairDensitySampler: QCHEM_XC_DM_SOURCE / XCCuspDeficit are not wired on the "
             "collocation (pair) route -- its rho comes from applyRaw, not from a projector, so the "
             "retained-D repair needs its own design.  Use the delta/singles quadrature for those flags.");
     bool rawUp=false, rawDn=false;
