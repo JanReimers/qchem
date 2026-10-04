@@ -92,53 +92,24 @@ std::shared_ptr<const Real_BS> MakeBasis(const Structure& st)
         BasisSet::Gaussian::Factory(BasisSetData::SIPP, &st,
                                     BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 }
-// GPW_SPHERICAL=1 (doc/SphericalLatticePlan.md I1/I2): wrap the molecular basis in its spherical
-// (contaminant-free) lattice view -- the span-matched A/B against CP2K's spherical-d convention.
-// s/p-only bases are unchanged in SPAN (T = identity blocks), so Si/NaF runs double as null tests.
-std::shared_ptr<const Real_BS> MaybeSpherical(std::shared_ptr<const Real_BS> bs)
-{
-    if (std::getenv("GPW_SPHERICAL"))
-        return BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(bs));
-    return bs;
-}
 // The SHORT-RANGE variant (most diffuse valence primitives dropped) -- well-conditioned Bloch overlap in a solid.
 std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
 {
-    return MaybeSpherical(std::shared_ptr<const Real_BS>(
+    return std::shared_ptr<const Real_BS>(
         BasisSet::Gaussian::Factory(BasisSetData::SIPP_SR, &st,
-                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian)));
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
 }
 // The low-q GTH valence basis (valgen-generated; carries Al/Na/F) -- the Al block drives the FCC-Al metal test.
-// GPW_BASIS_SPH=1 swaps in VALENCE_LOWQ_SPH (the Mn true-s window restored -- doc/SphericalLatticePlan.md I3);
-// meaningful ONLY together with GPW_SPHERICAL=1 (under Cartesian d that file is contaminant-rank-deficient).
-//
-// GPW_BASIS_SPAN=sph|va|vb NAMES THE SPAN, and is the form doc/Benchmark.md's MnO rows use.  va/vb are the
-// exact-span variants CP2K also holds function-for-function (VALENCE-LOWQ-V{A,B}; VA = 118 functions on the
-// MnO magnetic cell, held FULL RANK by both codes -- VB = 128).  They exist as BASIS FILES because the span
-// used to be produced by doc/scripts/bisect_valence_sph.py OVERWRITING the committed valence_lowq_sph.bsd in
-// the working tree: the run could not say which span it ran, and the row could not be reproduced afterwards.
-// GPW_BASIS_SPH=1 == GPW_BASIS_SPAN=sph, kept because the banked run recipes are written with it.
+// The SPAN is a stated argument (VALENCE_LOWQ_SR | _SPH | _VA | _VB: the spans CP2K also holds function-for-function -- VA = 118 functions on the MnO magnetic
+// cell, VB = 128).  The GPW_BASIS_SPAN / GPW_BASIS_SPH / GPW_SPHERICAL environment switches are DELETED (D-ENV 6d.4): a deck says `basis.data` and `basis.spherical`.
 //! \a trim: the vet-stage shell trim (doc/Pins.md pin 22, BasisSet::Lattice::VetStageTrim) the file is read
 //! without -- empty = the span as written.
 std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData which=BasisSetData::VALENCE_LOWQ_SR,
                                              const BasisSet::Gaussian::ShellTrim& trim={})
 {
-    if (which==BasisSetData::VALENCE_LOWQ_SR)
-    {
-        if (std::getenv("GPW_BASIS_SPH")) which=BasisSetData::VALENCE_LOWQ_SPH;
-        if (const char* s=std::getenv("GPW_BASIS_SPAN"))
-        {
-            const std::string span(s);
-            if      (span=="sph") which=BasisSetData::VALENCE_LOWQ_SPH;
-            else if (span=="va" ) which=BasisSetData::VALENCE_LOWQ_VA;
-            else if (span=="vb" ) which=BasisSetData::VALENCE_LOWQ_VB;
-            else if (span=="sr" ) which=BasisSetData::VALENCE_LOWQ_SR;
-            else throw std::runtime_error("GPW_BASIS_SPAN: expected one of sr|sph|va|vb, got '"+span+"'");
-        }
-    }
-    return MaybeSpherical(std::shared_ptr<const Real_BS>(
+    return std::shared_ptr<const Real_BS>(
         BasisSet::Gaussian::Factory(which, &st,
-                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, trim)));
+                                    BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, trim));
 }
 
 
@@ -153,11 +124,7 @@ struct GpwReport
     explicit GpwReport(const std::string& name, bool verbose)
     {
         qchem::report::Begin(name);
-        // GPW_REPORT=1 forces the console on for ANY driver, whatever its hard-coded `verbose`.  The
-        // report carries the timing ledger (the where-did-the-time-go table), and a cost measurement
-        // must not require editing the test that happens to reproduce the cost.
-        static const bool kEnvReport=[]{ const char* s=std::getenv("GPW_REPORT"); return s && std::atoi(s)!=0; }();
-        if (verbose || kEnvReport) qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
+        if (verbose) qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
     }
     ~GpwReport() { qchem::report::ClearConsole(); qchem::report::End(); }
     GpwReport(const GpwReport&) = delete;
@@ -302,69 +269,8 @@ SCFParams Gates(size_t nmax, double minDrho, double minDE)
 SCFParams ProductionGates() { return Gates(60, 1e-3, 1e-6); }
 SCFParams TightGates(size_t nmax=120) { return Gates(nmax, 1e-6, 1e30); }
 
-//! The A/B valves the old positional driver carried, applied to a stated recipe.  Diagnostics only: unset,
-//! nothing changes.  GPW_IMPOSE=0/1 (imposition is the one part of a multi-k run that reconstructs the full
-//! BZ from irreducible blocks, so it is the first thing to remove when TRIM and complex meshes disagree);
-//! GPW_SMEAR=kT (an integer aufbau fill is ambiguous at a degenerate frontier); GPW_VERBOSE=1; GPW_REAL=0
-//! (build every block complex: a defect that appears only with real-TRIM narrowing was a wrongly typed
-//! block); GPW_SEED=coreguess|uniform|sad|ionicsad (CoreGuess separates the operators from the seed);
-//! GPW_ORTHO=cholesky|eigen|svd (a defect under one ortho only is IN the ortho); GPW_KERKER_G0=g (the
-//! density preconditioner the supercell ladder cannot run without).
-//! THE DECK-SHAPED LOOP (doc/Benchmark.md rule 3f, 2026-09-20 -- what a CP2K-comparable count needs):
-//! GPW_MEASURE=maxdd|mixer (CP2K's EPS_SCF measure max|dD_ij| between successive D_out, or the mixer's own
-//! residual), GPW_EPS=tol (MinΔρ on that measure), GPW_NMAX=n, GPW_PULAY=depth + GPW_PULAY_START=n (the
-//! density-side history, as the deck's NBUFFER), GPW_ACC=diis|gdm|ladder|null (null = nothing on the Fock
-//! side, as a diagonalise-and-mix deck), GPW_MOM=0/1.  `scripts/retake5a` sets all of them.
-void EnvOverrides(SolidCalcOptions& o, SCFParams& par)
-{
-    if (const char* m=std::getenv("GPW_MEASURE"))
-    {
-        const std::string v(m);
-        if      (v=="maxdd") par.Δρmeasure=SCFParams::Measure::MaxΔD;
-        else if (v=="mixer") par.Δρmeasure=SCFParams::Measure::MixerResidual;
-        else throw std::runtime_error("GPW_MEASURE: expected maxdd|mixer, got '"+v+"'");
-    }
-    if (const char* e=std::getenv("GPW_EPS"))         par.MinΔρ=std::atof(e);
-    if (const char* n=std::getenv("GPW_NMAX"))        par.NMaxIter=std::atoi(n);
-    if (const char* d=std::getenv("GPW_PULAY"))       par.PulayDepth=std::atoi(d);
-    if (const char* d=std::getenv("GPW_PULAY_START")) par.PulayStart=std::atoi(d);
-    if (const char* mm=std::getenv("GPW_MOM"))        par.UseMOM=std::atoi(mm)!=0;
-    if (const char* a=std::getenv("GPW_ACC"))
-    {
-        const std::string v(a);
-        using T=qchem::SCFAccelerators::Type;
-        if      (v=="diis")   o.accelerator=T::DIIS;
-        else if (v=="gdm")    o.accelerator=T::GDM;
-        else if (v=="ladder") o.accelerator=T::Ladder;
-        else if (v=="null")   o.accelerator=T::Null;
-        else throw std::runtime_error("GPW_ACC: expected diis|gdm|ladder|null, got '"+v+"'");
-    }
-    // GPW_PARITY=1: the CP2K-parity umbrella, stated in the OPTIONS (D-ENV 6b: the library's CP2K_COMPAT variable is retired; this harness-only
-    // name is the interim until the harness env-deck itself is replaced by decks in step 6d).  A deck says  "policy":{"cp2kCompat":true}.
-    if (const char* pr=std::getenv("GPW_PARITY")) o.policy.cp2kCompat=std::atoi(pr)!=0;
-    if (const char* im=std::getenv("GPW_IMPOSE")) o.imposeSymmetry=std::atoi(im)!=0;
-    if (const char* kt=std::getenv("GPW_SMEAR"))  par.SmearingkT=std::atof(kt);
-    if (std::getenv("GPW_VERBOSE"))               par.Verbose=true;
-    if (const char* rl=std::getenv("GPW_REAL"))   o.forceComplex=std::atoi(rl)==0;
-    if (const char* kg=std::getenv("GPW_KERKER_G0")) par.KerkerG0=std::atof(kg);
-    if (const char* sd=std::getenv("GPW_SEED"))
-    {
-        const std::string v(sd);
-        if      (v=="coreguess") o.seed=qchem::ChargeDensity::SeedStrategy::CoreGuess;
-        else if (v=="uniform")   o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
-        else if (v=="sad")       o.seed=qchem::ChargeDensity::SeedStrategy::SAD;
-        else if (v=="ionicsad")  o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
-        else throw std::runtime_error("GPW_SEED: expected coreguess|uniform|sad|ionicsad, got '"+v+"'");
-    }
-    if (const char* ot=std::getenv("GPW_ORTHO"))
-    {
-        const std::string v(ot);
-        if      (v=="cholesky") o.ortho=qchem::Cholesky;
-        else if (v=="eigen")    o.ortho=qchem::Eigen;
-        else if (v=="svd")      o.ortho=qchem::SVD;
-        else throw std::runtime_error("GPW_ORTHO: expected cholesky|eigen|svd, got '"+v+"'");
-    }
-}
+// (EnvOverrides -- 14 GPW_* variables that re-shaped any test's recipe from the shell -- is DELETED, D-ENV step 6d.4.  A test states its recipe in code;
+//  a benchmark row or a variation is a DECK: decks/bench/*.json + `rundeck --set key=value`, doc/Records/EnvKnobInventory.md §10.)
 
 //! The per-iteration trace a test can attach through \c SolidCalcOptions::onIteration -- live from the
 //! constructor, so stage 0 is in it -- and read back as the fingerprint / order trajectory the campaign

@@ -1,0 +1,49 @@
+{
+  "_doc": [
+    "Benchmark section 5a row, CP2K-parity recipe (doc/Benchmark.md rule 3f: CP2K's EPS_SCF measure max|dD_ij|, density history Pulay 8, nothing on the Fock side, no MOM).",
+    "NaF SR2 Gamma, EPS_SCF 1e-6, MAX_SCF 200, BROYDEN NBUFFER 8 -> Pulay 8.  The gate GPW_NaF.\u0393_Imp_Anchor.",
+    "Was `scripts/retake5a` driving the ITMain gate with GPW_PARITY/GPW_MEASURE/GPW_ACC/GPW_MOM/GPW_KERKER_G0/GPW_EPS/GPW_NMAX/GPW_PULAY; those env vars are retired.",
+    "Run (serial, as the benchmark is):  QCHEM_OPENMP_THREADS=1 rundeck <this deck> --out $(scripts/rundir qchem6 <Material>)"
+  ],
+  "structure": "NaF_rocksalt",
+  "kmesh": [
+    1,
+    1,
+    1
+  ],
+  "basis": {
+    "data": "VALENCE_LOWQ_SR2"
+  },
+  "solid": {
+    "seed": "IonicSAD",
+    "ortho": "CholeskyPivoted",
+    "orthoTol": 0.0001,
+    "imposeSymmetry": true,
+    "accelerator": "Null",
+    "xcMesh": {
+      "cellKind": "Becke",
+      "nRadial": 20,
+      "mhlAlpha": 2.0,
+      "angularDegree": 24,
+      "angular": "GaussLegendre"
+    },
+    "policy": {
+      "cp2kCompat": true
+    }
+  },
+  "scf": {
+    "NMaxIter": 200,
+    "minDeltaRho": 1e-06,
+    "deltaRhoMeasure": "MaxDeltaD",
+    "minDeltaE": 1e-08,
+    "minDeltaFD": 1e+30,
+    "minVirial": 1e+30,
+    "minFD": 1e+30,
+    "startingRelaxRo": 0.25,
+    "mergeTol": 0.0001,
+    "pulayDepth": 8,
+    "pulayStart": 5,
+    "kerkerG0": 1.0,
+    "useMOM": false
+  }
+}

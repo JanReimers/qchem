@@ -135,7 +135,6 @@ TEST(GPW_SiBox, Γ_Uni_Imp_eqFinite)
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;    // the finite-molecule mode
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;
     SCFParams par=TightGates(40);
-    EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
 
@@ -172,7 +171,6 @@ TEST(GPW_SiBox, Γ_Imp_Smear_eqFinite)
     o.images=BasisSet::Gaussian::CellImages::HomeCellOnly;
     SCFParams par=TightGates(60);
     par.SmearingkT=1e-2;
-    EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasis(*box.cell), o, par);
     auto R=calc.Result();
@@ -342,10 +340,10 @@ TEST(GPW_O2Box, Γ_Imp_M3_eqFinite)
 // THIS IS NOW A GATE: the first OCCUPIED-d species validated end to end through the crystal path.
 TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
 {
-    // GPW_MN_SPHERICAL=1: the SPHERICAL arm (doc/SphericalLatticePlan.md I1) -- the facade reference then
-    // runs the NATIVE spherical family (same span as the view), so the box-vs-facade A/B stays span-matched.
-    const bool spherical=(bool)std::getenv("GPW_MN_SPHERICAL");
-    const bool sphBasis =(bool)std::getenv("GPW_BASIS_SPH");     // the restored-s file (I3); spherical arms only
+    // (The spherical arm -- GPW_MN_SPHERICAL / GPW_BASIS_SPH environment switches, doc/SphericalLatticePlan.md I1/I3 -- is a CAMPAIGN A/B, not a gate:
+    //  env switches are retired (D-ENV 6d.4), so this gate runs the Cartesian SR arm; the spherical arm is a deck with basis.spherical.)
+    const bool spherical=false;
+    const bool sphBasis =false;
     Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
     Calculation cRef(mnmol, {.basis=sphBasis?"valence_lowq_sph":"valence_lowq_sr",
                              .multiplicity=6, .pseudopotential=true, .ppValence=7,
@@ -359,7 +357,6 @@ TEST(GPW_MnBox, Γ_M6_Smear_eqFinite)
     const Lattice_3D lat=LatticeOf(box);
     SolidCalcOptions o=MnBoxOptions(box, "Mn atom-in-box sextet");   // S=5/2 Hund: nUp=6, nDown=1
     SCFParams par=Gates(40, 1e-5, 1e30); par.SmearingkT=5e-3;
-    par.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
     // CARTESIAN d carries the s CONTAMINANT (x^2+y^2+z^2), so 8 d shells duplicate the 7-function s space
     // -- measured lambdaMin 1.15e-07 / cond 8.2e7 on this one-atom box, i.e. the basis is rank-deficient
     // BEFORE any physics runs.  SPHERICAL d (5 pure components) removes the contaminant; GPW_MN_SPHERICAL=1
@@ -406,7 +403,6 @@ TEST(GPW_Mn2Box, Γ_Becke_Shub_Pol_Smear_KeepsOrder)
     SCFParams par=Gates(6, 1e-9, 1e30);                   // BOUNDED: this gate tests symmetry through the loop, not convergence
     par.SmearingkT=5e-3;                                  // the open-d-manifold tie smoother
     par.StartingRelaxRo=0.45;
-    par.Verbose=(bool)std::getenv("GPW_MN2_VERBOSE");
     GpwReport report("Mn "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(*box.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
     const GpwHandles h=LastIterateHandles(calc);
@@ -499,16 +495,14 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
     // tested.  Cost: ~3 s on the walk, ~13 s on the contracted kernel.  Unwinding an AFM seed that the
     // answer does not want is simply harder than starting unpolarized: the same cell unpolarized
     // converges in 30.
-    // NA2_ALPHA / NA2_NMAX / NA2_TRACE: the fixture's convergence recipe is INSTRUMENTAL (it exists so
-    // the run converges, so NotConverged does not pre-empt the OrderLost this gate is named for), which
-    // makes it exactly the thing an investigation needs to sweep.  Same idiom as MNO_ALPHA.
-    auto envd2=[](const char* n, double d){ const char* v=std::getenv(n); return v ? std::atof(v) : d; };
-    auto envi2=[](const char* n, int    d){ const char* v=std::getenv(n); return v ? std::atoi(v) : d; };
-    par.NMaxIter=envi2("NA2_NMAX",400); par.MinΔρ=envd2("NA2_DRHO",1e-6); par.MinΔE=1e30;
+    // The fixture's convergence recipe is INSTRUMENTAL (it exists so the run converges, so NotConverged does not pre-empt the OrderLost this gate
+    // is named for).  It used to be sweepable from the shell (NA2_NMAX / NA2_DRHO / NA2_PULAY / NA2_KERKER / NA2_ALPHA / NA2_TRACE); those
+    // environment knobs are retired (D-ENV 6d.4) -- the values below are the recipe the sweep settled on, and a new sweep is a deck.
+    par.NMaxIter=400; par.MinΔρ=1e-6; par.MinΔE=1e30;
     par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.MergeTol=1e-4;
-    par.PulayDepth=envi2("NA2_PULAY",0); par.PulayStart=envi2("NA2_PULAY_START",5);
-    par.KerkerG0=envd2("NA2_KERKER",0.0);
+    par.PulayDepth=0; par.PulayStart=5;
+    par.KerkerG0=0.0;
 
     qchem::SolidCalcOptions o;
     o.label="Na2 AFM-seeded singlet";
@@ -519,16 +513,6 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
     o.xcMesh=qcMesh::BeckeXCParams(20, -1.0, 11);             // coarse: this gate tests the POSTCONDITION
     o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke;            // PINNED -- see the header (Auto would pick Uniform)
 
-    if (std::getenv("NA2_TRACE"))
-        o.onIteration=[](const qchem::SCFIterator::SCFProgress& p)
-        {
-            std::cout << "[Na2 iter] " << std::setw(4) << p.iteration
-                      << "  E=" << std::setprecision(10) << std::setw(15) << p.energy
-                      << std::setprecision(4)
-                      << "  dE=" << std::setw(11) << p.dE
-                      << "  drho=" << std::setw(11) << p.drho
-                      << "  [F,D]=" << std::setw(11) << p.commutator << std::endl;
-        };
     // ★★★ THE MIXING STEP IS SWEPT, NOT PINNED (2026-08-27, plan step 7) -- and that is the fix for the
     // flakiness, not another lucky constant.  Deleting the pair-stream cache changed the D-aware ACTIVE SET
     // (an eps-level change, both sets eps-valid), and re-measuring alpha against it found NO PLATEAU at all:
@@ -555,7 +539,6 @@ TEST(GPW_Na2Box, Γ_Becke_Shub_Pol_OrderLostThrows)
     // not of the kernel (the moment still dies at step 9 and E still lands on -0.332045), and it is the
     // same thing A4 would fix.
     std::vector<double> alphas{0.7, 0.8, 0.65, 0.5};
-    if (const char* fixed=std::getenv("NA2_ALPHA")) alphas.assign(1, std::atof(fixed));
     std::unique_ptr<qchem::SolidCalculation> calcp;
     for (double alpha : alphas)
     {

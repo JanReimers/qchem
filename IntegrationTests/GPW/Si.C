@@ -127,7 +127,6 @@ TEST(GPW_Si, Γ_Imp_CP2K)
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma");
     o.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED (the RunGPW default every Si anchor carried; V1.30)
     SCFParams par=ProductionGates();
-    EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
     auto R=calc.Result();
@@ -144,7 +143,7 @@ TEST(GPW_Si, Γ_CP2K)
     const Lattice_3D lat=LatticeOf(si);
     SolidCalcOptions o=OptionsFor(si, "Si SR Gamma (free, the facade's own recipe)");
     o.densityEcut=20.0;                              // FREE: the facade's default -- the imposed sibling is GPW_Si.Γ_Imp_CP2K
-    SCFParams par=ProductionGates(); EnvOverrides(o, par);   // the Benchmark row (scripts/retake5a) drives it
+    SCFParams par=ProductionGates();
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
 
     // N1/T1: the answers are reachable only through the PROOF, so a non-converged run cannot serve them.
@@ -426,7 +425,6 @@ TEST(GPW_Si, Γ_Imp_Smear_eqAufbau)
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform;
     SCFParams par=ProductionGates();
     par.SmearingkT=1e-3;
-    EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
     auto R=calc.Result();
@@ -766,7 +764,6 @@ TEST(GPW_Si, k211_Imp_Anchor)
     SolidCalcOptions o=OptionsFor(si, "Si SR 2x1x1");
     o.densityEcut=20.0; o.imposeSymmetry=true;   // IMPOSED, as every RunGPW anchor was (its default; V1.30)
     SCFParams par=ProductionGates();
-    EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
     auto R=calc.Result();
@@ -797,7 +794,6 @@ TEST(GPW_Si, k222_CP2K)
     SolidCalcOptions o=OptionsFor(si, "Si 2x2x2 Gamma-centred (free)");
     o.densityEcut=20.0; o.imposeSymmetry=false;      // FREE (2026-09-15): the full 8-k mesh; GPW_Si.k222_Imp_CP2K is the IMPOSED arm at the same anchor
     SCFParams par=TightGates(60);
-    EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
     auto R=calc.Result();
@@ -904,7 +900,6 @@ TEST(GPW_Si, k222s_Imp_CP2K)
     SolidCalcOptions o=OptionsFor(si, "Si 2x2x2 shifted MP (k=±¼)");
     o.densityEcut=20.0; o.imposeSymmetry=true; o.kShift=rvec3_t(0.5,0.5,0.5);
     SCFParams par=TightGates(60);
-    EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
     auto R=calc.Result();

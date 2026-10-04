@@ -95,7 +95,6 @@ int Ladder()
     o.seed=ChargeDensity::SeedStrategy::Uniform;
     if (becke) { o.xcMesh=qcMesh::BeckeXCParams(-1,-1.0,-1); o.xcMesh.cellKind=qcMesh::UnitCellKind::Becke; }
     SCFParams par=ProductionGates();
-    EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
     SolidCalculation calc(lat, MakeBasisSR(cell), o, par);
     auto R=calc.Result();
@@ -128,7 +127,6 @@ int KSweep()
     SolidCalcOptions o=OptionsFor(si, "Si single-k s="+std::to_string(s));
     o.densityEcut=20.0; o.imposeSymmetry=true; o.kShift=rvec3_t(s,s,s);
     SCFParams par=TightGates(60);
-    EnvOverrides(o, par);
     GpwReport report("Si "+o.label, par.Verbose);
     SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, par);
     const EnergyBreakdown E=calc.LastIterateTerms();
@@ -293,7 +291,6 @@ int Gate1(const std::string& materialName, double U_eV)
     par.NMaxIter=size_t(Envd("GATE1_NMAX",80.0));
     par.SmearingkT=Envd("GATE1_KT",0.005);
     par.UseMOM=true; par.MOMStartIter=10;
-    EnvOverrides(o, par);
 
     GpwReport report(label.str(), true);
     SolidCalculation calc(LatticeOf(mat), MakeBasisLowQ(*mat.cell, BasisSetData::VALENCE_LOWQ_VA), o, par);

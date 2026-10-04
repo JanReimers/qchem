@@ -427,3 +427,11 @@ the self-consistent response all run from a deck.  NEXT: 6d.3 move each `gpwprob
   -61.452697 < E_AFM = -61.414547 (dE = -38.15 mHa).  USER (2026-10-04): a known problem; a denser k mesh and/or DFT+U are the expected fix.  Disabled (real claim currently failing -> an OpenWork §3 row, not a green test).
 * Dropped with the probe: the `m(r)` point sample and the |m~(q_AFM)| check (D-POINTPROBE; the integrated site moment is on every polarized result), the structure-edit discriminators (to become gtests), `_SKIP_AFM/_SKIP_FM`.
   `CLAUDE.md` points at the deck.  NEXT: 6d.4 the harness `EnvOverrides`; 6d.5 the remaining probes (ladder, ksweep, naf-smear, becke-ladder, gate1); then D-ENV-RERUN and 6e.
+
+**Step 6d.4 DONE 2026-10-04 -- the harness `EnvOverrides` is DELETED** (ctest 1029/1029; `grep getenv IntegrationTests` = 0).  Removed: `EnvOverrides` (14 `GPW_*` recipe variables) and its calls in the Si/NaF/Boxes tests and the
+remaining probes; the `GPW_SPHERICAL` / `GPW_BASIS_SPAN` / `GPW_BASIS_SPH` basis switches (`MaybeSpherical` deleted; the span is a stated argument); `GPW_REPORT`; the per-test verbosity switches
+(`GPW_VERBOSE`, `GPW_MNO_VERBOSE`, `GPW_MN2_VERBOSE`); `GPW_MN_SPHERICAL` (the Mn-box spherical A/B -- a campaign, now a deck with `basis.spherical`, not a gate); and the `NA2_*` sweep knobs (their settled values are
+constants).  **A test states its recipe in code; a benchmark row or a variation is a deck.**  `scripts/retake5a` now runs `decks/bench/{Si_Gamma,Si_k222,Si_k222s,NaF_SR2_Gamma}_parity.json` through
+`rundeck` (`policy.cp2kCompat` + the deck-shaped loop in each deck; `deck::Run` now emits the timing ledger `scripts/bench` greps).  Verified: the Si Γ parity deck runs AT PARITY, 16 iterations to EPS 1e-7,
+Etot -7.115067447 (the old script comment says 13 iterations -- NOT re-derived here; the re-take will say).  Ctest loads every deck under `decks/` recursively.  `gpwprobe`'s own env knobs
+(`SI_LADDER`, `SI_XC`, `GPW_KSHIFT`, `NAFGDM_*`, `GATE1_*`) remain until 6d.5.  NEXT: 6d.5 the remaining probes -> deck loops / ITMain tests; D-ENV-RERUN; 6e lint.

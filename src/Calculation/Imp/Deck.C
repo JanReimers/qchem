@@ -733,6 +733,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         rj["ok"]=pr.ok; rj["summary"]=pr.summary; results.push_back(rj);
         out.postSCF.push_back(pr);
     }
+    qchem::report::EmitTimings();   // sorted by cost + PEAK RSS, inside the report bracket (what scripts/bench greps)
     if (!results.empty())
     {   // fold the results into the record (the revision written before the run keeps the deck; `results` is what the run produced)
         std::ifstream in(out.revision); json rec=json::parse(in); in.close();

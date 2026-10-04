@@ -445,7 +445,6 @@ TEST(GPW_MnO, Γ_Shub_Pol_Smear_Anchor_Long)
     par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
     par.UseMOM=false;
     par.SmearingkT=5e-3;
-    par.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
     Trace trace; o.onIteration=trace.Observer();
     GpwReport report("MnO "+o.label, par.Verbose);
     qchem::SolidCalculation calc(lat, MakeBasisLowQ(*mno.cell, BasisSetData::VALENCE_LOWQ_SR), o, par);
@@ -519,7 +518,6 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
         par.StartingRelaxRo=0.45; par.KerkerG0=1.0;
         par.UseMOM=false;
         par.SmearingkT=5e-3;
-        par.Verbose=(bool)std::getenv("GPW_MNO_VERBOSE");
         Trace trace; o.onIteration=trace.Observer();
         GpwReport report("MnO "+o.label, par.Verbose);
         arms.push_back(std::make_unique<qchem::SolidCalculation>(lat, basis(), o, par));

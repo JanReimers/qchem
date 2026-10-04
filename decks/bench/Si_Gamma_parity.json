@@ -1,0 +1,40 @@
+{
+  "_doc": [
+    "Benchmark section 5a row, CP2K-parity recipe (doc/Benchmark.md rule 3f: CP2K's EPS_SCF measure max|dD_ij|, density history Pulay 8, nothing on the Fock side, no MOM).",
+    "Si Gamma, free (the facade's own recipe), EPS_SCF 1e-7, MAX_SCF 60.  The gate GPW_Si.\u0393_CP2K.",
+    "Was `scripts/retake5a` driving the ITMain gate with GPW_PARITY/GPW_MEASURE/GPW_ACC/GPW_MOM/GPW_KERKER_G0/GPW_EPS/GPW_NMAX/GPW_PULAY; those env vars are retired.",
+    "Run (serial, as the benchmark is):  QCHEM_OPENMP_THREADS=1 rundeck <this deck> --out $(scripts/rundir qchem6 <Material>)"
+  ],
+  "structure": "Si_diamond",
+  "kmesh": [
+    1,
+    1,
+    1
+  ],
+  "basis": {
+    "data": "SIPP_SR"
+  },
+  "solid": {
+    "densityEcut": 20.0,
+    "imposeSymmetry": false,
+    "accelerator": "Null",
+    "policy": {
+      "cp2kCompat": true
+    }
+  },
+  "scf": {
+    "NMaxIter": 60,
+    "minDeltaRho": 1e-07,
+    "deltaRhoMeasure": "MaxDeltaD",
+    "minDeltaE": 1e-06,
+    "minDeltaFD": 1e+30,
+    "minVirial": 1e+30,
+    "minFD": 1e+30,
+    "startingRelaxRo": 0.3,
+    "mergeTol": 0.0001,
+    "pulayDepth": 8,
+    "pulayStart": 5,
+    "kerkerG0": 1.0,
+    "useMOM": false
+  }
+}
