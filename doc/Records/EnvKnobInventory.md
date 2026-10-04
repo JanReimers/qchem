@@ -435,3 +435,13 @@ constants).  **A test states its recipe in code; a benchmark row or a variation 
 `rundeck` (`policy.cp2kCompat` + the deck-shaped loop in each deck; `deck::Run` now emits the timing ledger `scripts/bench` greps).  Verified: the Si Γ parity deck runs AT PARITY, 16 iterations to EPS 1e-7,
 Etot -7.115067447 (the old script comment says 13 iterations -- NOT re-derived here; the re-take will say).  Ctest loads every deck under `decks/` recursively.  `gpwprobe`'s own env knobs
 (`SI_LADDER`, `SI_XC`, `GPW_KSHIFT`, `NAFGDM_*`, `GATE1_*`) remain until 6d.5.  NEXT: 6d.5 the remaining probes -> deck loops / ITMain tests; D-ENV-RERUN; 6e lint.
+
+**Step 6d.5 DONE 2026-10-04 -- the remaining `gpwprobe` probes retired** (ctest +1; `gpwprobe.C` 740 -> ~190 lines, ONE instrument left).  Each probe became a deck or a hard-coded test and its env knobs died:
+* `ladder` (SI_LADDER, SI_XC) -> `decks/ladder/Si_{2x1x1,2x2x1,2x2x2}_gamma.json`.  **Supercells are `materials.json` entries** (`Si_diamond_2x1x1|2x2x1|2x2x2`, T = diag(n), atoms generated; structure stays a NAME).  The probe's
+  correctness half -- Γ on a supercell == the k-mesh total per primitive cell -- is the hard-coded gate **`GPW_Si.Γ_Imp_eqK211`** (run FROM A DECK; E/prim within 8 mHa of -7.45294; 5.7 s).  2x2x2 (-7.77846) stays the scaling instrument.
+* `ksweep` (GPW_KSHIFT) -> `decks/probes/Si_single_k.json` (`--set solid.kShift=[s,s,s]`).  Verified: s=0 reproduces the Γ anchor -7.115067844 to all printed digits; s=0.25 -7.565529, s=0.5 -7.776286 -- smooth through the complex region.
+* `naf-smear` (NAF_ECUT, NAFGDM_*) -> `decks/probes/NaF_gdm_smear.json` (a two-stage `schedule`: DIIS smeared hot, then cold GDM).  Verified: CONVERGED, Etot -24.57261267, 11 iterations in the final stage.
+* `gate1` (GATE1_*) -> `decks/probes/{LiMn2O4_spinel,MnO2_lambda_spinel}_gate1.json` (the Mn sites listed explicitly at `U_eV:0`; vary with `--set solid.hubbard.N.U_eV=`).  NOT yet run end-to-end (spinel VA is heavy): ctest loads and resolves them.
+* **Survivor**: `gpwprobe becke-ladder {si|naf|mn|al}` -- it scores quadrature rules on a FROZEN density (an instrument that reads; no knobs; nothing to reproduce from a deck).
+`gpwprobe` now prints a RETIRED pointer for the others.  Environment reads left under `IntegrationTests/` and `CLIapps/`: none (except `GTH2UPF_VERBOSE` in `gth2upf`, a print switch of an unrelated converter).
+NEXT: **D-ENV-RERUN** (re-run the `qchem6-runs` campaigns from decks; needs the response/ACBN0/restart/trim sections -- ALL now exist), then 6e (the lint).

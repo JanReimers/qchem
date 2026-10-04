@@ -43,6 +43,8 @@
 #include <functional>
 #include <string>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
+#include <filesystem>    // the deck run's scratch directory
+#include <nlohmann/json.hpp>  // the deck the supercell gate is run from
 
 import qchem.Structure;                          // Molecule, Atom
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
@@ -59,6 +61,7 @@ import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
 import qchem.RunPolicy;                         // SetRunPolicy / SolidCalcOptions::policy -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
+import qchem.Deck;                            // deck::Run -- the supercell gate below is run FROM A DECK (D-ENV step 6d.5)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
@@ -1187,4 +1190,28 @@ TEST(GPW_Si, Γ_Imp_Pol_Kerker_eqUnpol)
     ASSERT_TRUE(a) << Why(a);
     ASSERT_TRUE(b) << Why(b);
     EXPECT_NEAR(b->Energy(), a->Energy(), 1e-6) << "the zeta=0 collapse on the Kerker mixer, whatever the channel basis";
+}
+
+
+// ============================ THE BAND-FOLDING GATE (was `gpwprobe ladder`'s check; D-ENV step 6d.5) ============================
+// A Γ-only calculation on an N1xN2xN3 SUPERCELL is band-folding-equivalent to an N1xN2xN3 k-MESH on the primitive cell, so its total per primitive
+// cell must reproduce the k-mesh total the suite banks: 2x1x1 -> -7.45294 (GPW_Si.k211_Imp_Anchor).  It gates the supercell materials entries
+// (`Si_diamond_2x1x1`: structure is a NAME, the supercell is data), the Γ machinery on a 4-atom cell, and the deck system -- the run is made FROM A DECK
+// (deck::Run).  The 2x2x2 rung (-7.77846) is the scaling instrument `decks/ladder/Si_2x2x2_gamma.json`, too heavy for a gate.
+TEST(GPW_Si, Γ_Imp_eqK211)
+{
+    namespace fs=std::filesystem;
+    const nlohmann::json deck={
+        {"structure","Si_diamond_2x1x1"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
+        {"solid",{{"densityEcut",20.0},{"imposeSymmetry",true},{"seed","Uniform"}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRho",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3},{"mergeTol",1e-4}}}};
+    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_si_fold_"+std::to_string(::getpid()));
+    fs::remove_all(dir);
+    qchem::deck::Provenance pv; pv.codeVersion="it";
+    const auto out=qchem::deck::Run(spec, pv, dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    ASSERT_TRUE(out.energy.has_value());
+    EXPECT_NEAR(*out.energy/2.0, -7.45294, 8e-3) << "E per primitive cell of the 2x1x1 supercell at Γ vs the 2x1x1 k-mesh anchor";
+    fs::remove_all(dir);
 }

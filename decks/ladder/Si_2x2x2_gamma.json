@@ -1,0 +1,31 @@
+{
+  "_doc": [
+    "Si supercell scaling ladder rung 2x2x2 at Gamma (doc/ParallelAndOraclePlan.md 2.1; was `gpwprobe ladder` with SI_LADDER=2,2,2).",
+    "Band-folding gate: Etot / (number of primitive cells) must equal the banked k-mesh total per primitive: 2x1x1 -7.45294, 2x2x2 -7.77846 (2x2x1: timing only).  The 2x1x1 fold is a hard-coded test (GPW_Si.\u0393_Imp_eqK211).",
+    "ONE rung per invocation: peak RSS is a process watermark.  Run serial for the scaling measurement: QCHEM_OPENMP_THREADS=1 rundeck <deck> --out $(scripts/rundir qchem6 Si)"
+  ],
+  "structure": "Si_diamond_2x2x2",
+  "kmesh": [
+    1,
+    1,
+    1
+  ],
+  "basis": {
+    "data": "SIPP_SR"
+  },
+  "solid": {
+    "densityEcut": 20.0,
+    "imposeSymmetry": true,
+    "seed": "Uniform"
+  },
+  "scf": {
+    "NMaxIter": 60,
+    "minDeltaRho": 0.001,
+    "minDeltaE": 1e-06,
+    "minDeltaFD": 1e+30,
+    "minVirial": 1e+30,
+    "minFD": 1e+30,
+    "startingRelaxRo": 0.3,
+    "mergeTol": 0.0001
+  }
+}

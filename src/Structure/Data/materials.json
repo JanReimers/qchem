@@ -15,6 +15,317 @@
     "atoms":   [ { "el": "Si", "frac": [0.0, 0.0, 0.0] }, { "el": "Si", "frac": [0.25, 0.25, 0.25] } ],
     "species": { "Si": 4 }
   },
+  "Si_diamond_2x1x1": {
+    "comment": "Si diamond 2x1x1 SUPERCELL of the FCC primitive cell (T=diag(2, 1, 1)): the supercell scaling ladder (doc/ParallelAndOraclePlan.md 2.1) and the band-folding gate -- a Gamma-only run here must give the 2x1x1 k-mesh total of Si_diamond PER PRIMITIVE CELL",
+    "lattice": {
+      "type": "CubicF",
+      "a": 10.26,
+      "T": [
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "atoms": [
+      {
+        "el": "Si",
+        "frac": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.125,
+          0.25,
+          0.25
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.5,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.625,
+          0.25,
+          0.25
+        ]
+      }
+    ],
+    "species": {
+      "Si": 4
+    }
+  },
+  "Si_diamond_2x2x1": {
+    "comment": "Si diamond 2x2x1 SUPERCELL of the FCC primitive cell (T=diag(2, 2, 1)): the supercell scaling ladder (doc/ParallelAndOraclePlan.md 2.1) and the band-folding gate -- a Gamma-only run here must give the 2x2x1 k-mesh total of Si_diamond PER PRIMITIVE CELL",
+    "lattice": {
+      "type": "CubicF",
+      "a": 10.26,
+      "T": [
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          1
+        ]
+      ]
+    },
+    "atoms": [
+      {
+        "el": "Si",
+        "frac": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.125,
+          0.125,
+          0.25
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.0,
+          0.5,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.125,
+          0.625,
+          0.25
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.5,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.625,
+          0.125,
+          0.25
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.5,
+          0.5,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.625,
+          0.625,
+          0.25
+        ]
+      }
+    ],
+    "species": {
+      "Si": 4
+    }
+  },
+  "Si_diamond_2x2x2": {
+    "comment": "Si diamond 2x2x2 SUPERCELL of the FCC primitive cell (T=diag(2, 2, 2)): the supercell scaling ladder (doc/ParallelAndOraclePlan.md 2.1) and the band-folding gate -- a Gamma-only run here must give the 2x2x2 k-mesh total of Si_diamond PER PRIMITIVE CELL",
+    "lattice": {
+      "type": "CubicF",
+      "a": 10.26,
+      "T": [
+        [
+          2,
+          0,
+          0
+        ],
+        [
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          2
+        ]
+      ]
+    },
+    "atoms": [
+      {
+        "el": "Si",
+        "frac": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.125,
+          0.125,
+          0.125
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.0,
+          0.0,
+          0.5
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.125,
+          0.125,
+          0.625
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.0,
+          0.5,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.125,
+          0.625,
+          0.125
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.0,
+          0.5,
+          0.5
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.125,
+          0.625,
+          0.625
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.5,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.625,
+          0.125,
+          0.125
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.5,
+          0.0,
+          0.5
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.625,
+          0.125,
+          0.625
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.5,
+          0.5,
+          0.0
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.625,
+          0.625,
+          0.125
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.5,
+          0.5,
+          0.5
+        ]
+      },
+      {
+        "el": "Si",
+        "frac": [
+          0.625,
+          0.625,
+          0.625
+        ]
+      }
+    ],
+    "species": {
+      "Si": 4
+    }
+  },
   "Al_fcc": {
     "comment": "Al FCC a = 4.05 A; one atom, 3s2 3p1 -- the degenerate-shell metal",
     "lattice": { "type": "CubicF", "a": 7.653 },

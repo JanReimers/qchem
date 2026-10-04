@@ -1,0 +1,66 @@
+{
+  "_doc": [
+    "NaF IBZ, GDM x SMEARING probe (doc/SymmetryUpgradePlan.md 6b rounds 1-3; was `gpwprobe naf-smear`): a DIIS-smeared hot stage then a COLD GDM stage on the imposed 2x2x2 NaF --",
+    "is the imposed E[rho] variational (GDM strictly descends)?  Variations by --set: solid.imposeSymmetry (NAFGDM_IMPOSE), solid.ortho+orthoTol (NAFGDM_PIVOT=0 -> Cholesky,0), solid.xcMesh.angularDegree (NAFGDM_L),",
+    "schedule.0.scf.smearingkT (NAFGDM_KT), schedule.*.scf.useMOM (NAFGDM_MOM), schedule.*.scf.NMaxIter (NAFGDM_NMAX), solid.densityEcut (NAF_ECUT)."
+  ],
+  "structure": "NaF_rocksalt",
+  "kmesh": [
+    2,
+    2,
+    2
+  ],
+  "basis": {
+    "data": "VALENCE_LOWQ_SR"
+  },
+  "solid": {
+    "imposeSymmetry": true,
+    "seed": "IonicSAD",
+    "ortho": "CholeskyPivoted",
+    "orthoTol": 0.0001,
+    "xcMesh": {
+      "cellKind": "Becke",
+      "nRadial": 20,
+      "mhlAlpha": 2.0,
+      "angularDegree": 11,
+      "angular": "GaussLegendre"
+    }
+  },
+  "schedule": [
+    {
+      "accelerator": "DIIS",
+      "scf": {
+        "NMaxIter": 100,
+        "minDeltaRho": 1e-05,
+        "minDeltaE": 1e-09,
+        "minDeltaFD": 1e+30,
+        "minVirial": 1e+30,
+        "minFD": 1e+30,
+        "startingRelaxRo": 0.25,
+        "mergeTol": 0.0001,
+        "smearingkT": 0.01,
+        "stopOnAccelExhausted": true,
+        "kerkerG0": 1.0,
+        "useMOM": true,
+        "momStartIter": 10
+      }
+    },
+    {
+      "accelerator": "GDM",
+      "scf": {
+        "NMaxIter": 100,
+        "minDeltaRho": 1e-05,
+        "minDeltaE": 1e-09,
+        "minDeltaFD": 1e+30,
+        "minVirial": 1e+30,
+        "minFD": 1e+30,
+        "startingRelaxRo": 0.25,
+        "mergeTol": 0.0001,
+        "smearingkT": 0.0,
+        "kerkerG0": 1.0,
+        "useMOM": true,
+        "momStartIter": 10
+      }
+    }
+  ]
+}

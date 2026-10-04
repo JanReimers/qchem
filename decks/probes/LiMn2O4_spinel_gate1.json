@@ -1,0 +1,59 @@
+{
+  "_doc": [
+    "GATE 1 (doc/HubbardUPlan.md track B, B2) on LiMn2O4_spinel: does a CHOSEN ferromagnetic order on the spinel Mn (pyrochlore) sublattice survive a change in U?  Was `gpwprobe gate1 LiMn2O4_spinel <U_eV>`.",
+    "NOT a ground-state search (the NiO lesson, HubbardUPlan S1: seeding cannot buy an order the fixed point lacks) -- what matters is whether the order SURVIVES.  Every Mn site gets the SAME U (site, l=2); vary it:  --set solid.hubbard.0.U_eV=...  (one --set per site),",
+    "or regenerate the list.  Multiplicity = n_Mn*4+1 (FM, d-count derived; GATE1_MULT overrides).  U starts at 0."
+  ],
+  "structure": "LiMn2O4_spinel",
+  "kmesh": [
+    1,
+    1,
+    1
+  ],
+  "basis": {
+    "data": "VALENCE_LOWQ_VA",
+    "spherical": true
+  },
+  "solid": {
+    "multiplicity": 17,
+    "seed": "IonicSAD",
+    "ortho": "CholeskyPivoted",
+    "orthoTol": 0.0001,
+    "cutoffFactor": 2.0,
+    "hubbard": [
+      {
+        "site": 2,
+        "l": 2,
+        "U_eV": 0.0
+      },
+      {
+        "site": 3,
+        "l": 2,
+        "U_eV": 0.0
+      },
+      {
+        "site": 4,
+        "l": 2,
+        "U_eV": 0.0
+      },
+      {
+        "site": 5,
+        "l": 2,
+        "U_eV": 0.0
+      }
+    ]
+  },
+  "scf": {
+    "NMaxIter": 80,
+    "minDeltaRho": 0.001,
+    "minDeltaE": 1e-06,
+    "minDeltaFD": 1e+30,
+    "minVirial": 1e+30,
+    "minFD": 1e+30,
+    "startingRelaxRo": 0.3,
+    "mergeTol": 0.0001,
+    "smearingkT": 0.005,
+    "useMOM": true,
+    "momStartIter": 10
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "_doc": [
+    "Single-k sweep: E(k) at ONE k = s(1,1,1) (kmesh 1x1x1, so k = kShift exactly; was `gpwprobe ksweep`, GPW_KSHIFT=s).  s=0 (Gamma) and s=1/2 (L) are TRIM (real blocks);",
+    "strictly between is genuinely complex and exercised by nothing else.  E(k) is smooth in k: a KINK on entering the complex region localises a defect to one k-block's operators.",
+    "for s in 0 0.125 0.25 0.375 0.5; do rundeck decks/probes/Si_single_k.json --set solid.kShift=[$s,$s,$s] --out $(scripts/rundir qchem6 Si); done"
+  ],
+  "structure": "Si_diamond",
+  "kmesh": [
+    1,
+    1,
+    1
+  ],
+  "basis": {
+    "data": "SIPP_SR"
+  },
+  "solid": {
+    "densityEcut": 20.0,
+    "imposeSymmetry": true,
+    "kShift": [
+      0.25,
+      0.25,
+      0.25
+    ]
+  },
+  "scf": {
+    "NMaxIter": 60,
+    "minDeltaRho": 1e-06,
+    "minDeltaE": 1e+30,
+    "minDeltaFD": 1e+30,
+    "minVirial": 1e+30,
+    "minFD": 1e+30,
+    "startingRelaxRo": 0.3,
+    "mergeTol": 0.0001
+  }
+}
