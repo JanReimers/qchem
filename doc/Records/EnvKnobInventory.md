@@ -324,7 +324,7 @@ Sequential runs (every test and rundeck) are safe.  Remaining 6c: the A/B hatche
 * `GPW_COLLOC_MEMO`: stays an environment variable -- a RESOURCE (memory against time, never changes a number), documented with the thread knobs; 6e's lint must allow it.
 Remaining env reads under `src/` after 6c: resources (`QCHEM_OPENMP_THREADS`+alias, `QCHEM_BLAS_THREADS`, `OMP_NUM_THREADS`, `KMP_BLOCKTIME`, `GPW_COLLOC_MEMO`) and the diagnostics registry.  NEXT: 6d (the harness / `gpwprobe` env-decks -> decks), then 6e (lint).
 
-## 10. Step 6d DRAFT -- the deck sections the campaign runs need (drafted 2026-10-04; USER REVIEWS before any code)
+## 10. Step 6d -- the deck sections the campaign runs need (drafted 2026-10-04; JSON schema APPROVED by the user 2026-10-04 with the rulings in §10.4)
 
 **The unit.**  A deck is ONE run of ONE structure.  Everything in `gpwprobe`'s `RunTMO` (and the harness `EnvOverrides`) that is a *choice about the run* has a home below;
 everything else is NOT a run input and leaves the environment by moving to where it belongs (§10.3).
@@ -353,7 +353,7 @@ everything else is NOT a run input and leaves the environment by moving to where
     "save": "auto",                         // "auto" = <outDir>/states/<stem>.h5 after every stage; or a path.  (was <P>_SAVE)
     "restartFrom": "NiO_AFM2.r003"          // a REVISION STEM (-> <outDir>/states/<stem>.h5, so lineage is by name) or a path.  Runs the schedule's FINAL stage only.  (was <P>_RESTART)
   },
-  "then": [                                 // NEW: post-convergence actions on the converged calculation, run IN ORDER; each reports itself
+  "postSCF": [                                 // NEW: post-convergence actions on the converged calculation, run IN ORDER; each reports itself
     {"estimateHubbardU": {}},                                                      // was <P>_ACBN0=1
     {"hubbardLoop": {"maxOuter": 8, "tolU_eV": 1e-3}},                             // was <P>_ACBN0=n, _ACBN0_TOL; re-converges with the schedule's final stage
     {"independentResponse": {"nq": 2}},                                            // was <P>_CHI0=nq
@@ -362,8 +362,8 @@ everything else is NOT a run input and leaves the environment by moving to where
   ]
 }
 ```
-Rules: a `then` entry whose prerequisite is unmet THROWS before the SCF starts (`hubbardLinearResponse` needs `solid.forceComplex:true`, a full k-mesh and manifolds; `independentResponse`
-needs a k-mesh commensurate with `nq`) -- the old probes found out after the SCF.  Each `then` action's inputs and its result summary go in the revision record.  A run's `state.restartFrom`
+Rules: a `postSCF` entry whose prerequisite is unmet THROWS before the SCF starts (`hubbardLinearResponse` needs `solid.forceComplex:true`, a full k-mesh and manifolds; `independentResponse`
+needs a k-mesh commensurate with `nq`) -- the old probes found out after the SCF.  Each `postSCF` action's inputs and its result summary go in the revision record.  A run's `state.restartFrom`
 revision becomes `provenance.parent` automatically.
 
 ### 10.2 Mapping: every variable `RunTMO` / the harness reads, and its deck home
@@ -377,28 +377,28 @@ revision becomes `provenance.parent` automatically.
 | `<P>_ANNEAL`, `_ACC`, `_ANNEAL_PENALTY` | `schedule[]` | one stage per kT; `stopOnAccelExhausted` is `scf.stopOnAccelExhausted` on the non-final stages |
 | `<P>_VET`, `_TRIM`, `GPW_SPHERICAL`, `GPW_BASIS_SPAN` | `basis.{vet, trim, spherical, data}` | the "spherical d needs VA/SPH span" default+refusal becomes a deck validation error with the same message |
 | `<P>_SAVE`, `_RESTART` | `state.{save, restartFrom}` | the FM arm's ".fm" suffix is gone: an arm is its own deck, its own stem |
-| `<P>_ACBN0`, `_ACBN0_TOL`, `_CHI0`, `_CHI`, `_CHI_PERTURB`, `_CHI_MAXIT`, `_CHI_RESTART`, `_CHI_FD` | `then[]` | §10.1 |
+| `<P>_ACBN0`, `_ACBN0_TOL`, `_CHI0`, `_CHI`, `_CHI_PERTURB`, `_CHI_MAXIT`, `_CHI_RESTART`, `_CHI_FD` | `postSCF[]` | §10.1 |
 | harness `GPW_MEASURE/EPS/NMAX/PULAY/PULAY_START/MOM/ACC/IMPOSE/SMEAR/VERBOSE/REAL/KERKER_G0/SEED/ORTHO` | the same `scf` / `solid` keys | `--set` replaces each |
 | harness `GPW_PARITY` | `solid.policy.cp2kCompat` | |
 
 ### 10.3 What is NOT a run input, and where it goes (so the env can leave without a deck section)
 * **Structure edits** (`<P>_SWAP_SUBLATTICE`, `_SWAP_ORDER`, `_SHIFT`): these are DISCRIMINATORS -- tests that the code is equivariant under relabelling/translation.  They become gtest
   cases (the `GPW_MnO.*` suite) calling the library, no environment.  The deck's structure stays a name.
-* **Arms**: `_SKIP_AFM` / `_SKIP_FM` and the FM arm's `afm=false` decoration: an arm is a DECK.  Add `MnO_FM2` / `NiO_FM2` to `materials.json` (same cell, both Mn `spin:+1`) so the FM arm is
-  `structure:"MnO_FM2", solid.multiplicity:11`.  The AFM-vs-FM comparison + PASS/FAIL checks (staggered moment, charge, ordering) are a GATE, not a run: they stay in `gpwprobe mno`/`nio` (which then RUN two decks
-  and judge them) or move to ITMain.
+* **Arms (FM vs AFM)**: ruled by the user 2026-10-04 -- *VERY specific to some MnO integration tests; it does not belong anywhere in the XXXCalculation framework*.  There is NO `MnO_FM2` entry and no
+  arm concept in the deck or the library: the FM decoration is built inside the integration test that wants it (a `Material` with the spins edited in test code).  `_SKIP_AFM`/`_SKIP_FM` die with the probe.
 * **Sweeps and ladders** (`SI_LADDER`, `GPW_KSHIFT`, `NAFGDM_*`, `GATE1_*`, `becke-ladder`): a sweep is a LOOP over decks, not a deck: `for n in ...; do rundeck base.json --set kmesh=[$n,$n,$n]; done`.  The probes that only
   loop retire; ones with checks stay as thin drivers over `deck::Run`.  A supercell is a materials entry (`Si_diamond_2x1x1`) if a campaign needs it -- not a deck key.
 * **Instrumentation** (the `m(r)` point probe, `Instrumentation(arm, label)`): output only; stays in the drivers.
 
-### 10.4 Questions for the user (my defaults in bold; each is a one-line change)
-1. **Units of U in the deck**: **`U_eV`** (what the literature quotes and what `HubbardU(site,l,eV)` already takes) vs the current `U_Ha`.  Reader converts; the record writes `U_eV` back.  Changing the 6.1 key is a one-line rename + test.
-2. **Restart by revision stem** (`"restartFrom":"NiO_AFM2.r003"`) with states under `<outDir>/states/` -- **yes** -- vs bare paths only.
-3. **`then` as an ordered list of named actions** -- **yes** -- vs flags on the deck.
-4. **FM/AFM as separate materials entries** -- **yes (`MnO_FM2`, `NiO_FM2`)** -- vs a deck key flipping the decoration (which would be a structure edit, against your "just a name" ruling).
-5. **Gates stay as drivers** over `deck::Run` -- **yes**; the env-var knobs of the probes die with their sub-commands' migration, one probe at a time.
+### 10.4 Rulings (user, 2026-10-04)
+1. **U in eV in the JSON** (`U_eV`, `Uirrep_eV`), **a.u. in RAM**: the reader converts at the boundary, the record writes eV back.  (Renames the 6.1 `U_Ha` key.)
+2. **Restart by revision stem** (`"restartFrom":"NiO_AFM2.r003"`, states under `<outDir>/states/`): agreed.
+3. The post-convergence list is named **`postSCF`** (not `then`).
+4. **No FM/AFM anywhere in the framework** (see §10.3) -- and so no `*_FM2` materials.
+5. **"Gates" and "drivers"** (my words; defined): a *gate* is a PASS/FAIL check on a result ("charge == 26", "the AFM order survived", "AFM lies below FM"); a *driver* is the program that sets runs up and applies gates (today: the `gpwprobe`
+   sub-commands).  Ruling in effect: the framework knows nothing about gates.  Checks live in TESTS (ITMain, calling `deck::Run`); a probe that only runs-and-prints is just `rundeck` with `--set`s and is deleted.  `gpwprobe`
+   therefore RETIRES sub-command by sub-command as its checks move to tests, and its env knobs go with it.  (Revision of my earlier "gates stay as drivers".)
 
 ### 10.5 Build order (each step green, ctest count up)
-6d.1 `U_eV` spelling + `basis.trim|vet` + `state` (save/restartFrom/lineage) -> 6d.2 `then[]` actions (+ pre-flight validation) -> 6d.3 `MnO_FM2`/`NiO_FM2` + translate `gpwprobe mno/nio` onto `deck::Run` (env knobs deleted, a
-`.cmd`-style deck beside each banked log) -> 6d.4 harness `EnvOverrides` deleted (ITMain tests state their options in code; benchmark scripts use decks + `--set`) -> 6d.5 the remaining probes (ladder, ksweep, naf-smear,
-becke-ladder, gate1) as deck loops or drivers -> **D-ENV-RERUN** (the `qchem6-runs` campaigns from decks) -> 6e lint.
+6d.1 `U_eV` spelling + `basis.trim|vet` + `state` (save/restartFrom/lineage) -> 6d.2 `postSCF[]` actions (+ pre-flight validation) -> 6d.3 move each `gpwprobe` sub-command's CHECKS into ITMain tests that call `deck::Run` (FM arms built in the test), delete the sub-command and its env knobs, a deck beside each banked log -> 6d.4 harness `EnvOverrides` deleted (ITMain tests state their options in code; benchmark scripts use decks + `--set`) -> 6d.5 the remaining probes (ladder, ksweep, naf-smear,
+becke-ladder, gate1) as deck loops (`--set`) or ITMain tests -> **D-ENV-RERUN** (the `qchem6-runs` campaigns from decks) -> 6e lint.
