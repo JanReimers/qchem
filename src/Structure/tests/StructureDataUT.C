@@ -27,8 +27,8 @@ TEST(StructureData, CellsLoadWithTheirSpinDecoration)
     mno.ForEachSite([&](int z, const rvec3_t&, bool f){ Z.push_back(z); flip.push_back(f); });
     EXPECT_EQ(Z,    (std::vector<int>{25,25,8,8}));
     EXPECT_EQ(flip, (std::vector<bool>{false,true,false,false}));
-    EXPECT_EQ(SD::CellNames().size(), 15u);
-    EXPECT_EQ(SD::CellNames().front(), "Si_diamond") << "file order is the pick-list order";
+    for (const std::string& n : SD::CellNames()) EXPECT_EQ(SD::KindOf(n), SD::Kind::Cell) << n << " is in the cell pick-list, so it must be a cell";
+    EXPECT_FALSE(SD::CellNames().empty());
     // The lattice-constant override scales the cell: a=2x => 8x volume.
     EXPECT_NEAR(SD::GetCell("Si_diamond", 2*10.26).GetCellVolume(), 8*SD::GetCell("Si_diamond").GetCellVolume(), 1e-9);
 }

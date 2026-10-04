@@ -22,7 +22,8 @@ TEST(Materials, EveryEntryLoadsAndDerivesItsElectronCount)
     for (Expect e : { Expect{"Si_diamond",2,8}, {"Al_fcc",1,3}, {"Na_fcc",1,1}, {"NaF_rocksalt",2,8},
                       {"CsI_cscl",2,8}, {"MnO_AFM2",4,26}, {"NiO_AFM2",4,32}, {"Si_box16",1,4}, {"Na_box16",1,1},
                       {"Mn_box16",1,7}, {"O2_box16",2,12}, {"Mn2_box7",2,14}, {"Na2_box16",2,2},
-                      {"LiMn2O4_spinel",14,78}, {"MnO2_lambda_spinel",12,76} })
+                      {"LiMn2O4_spinel",14,78}, {"MnO2_lambda_spinel",12,76},
+                      {"Si_diamond_2x1x1",4,16}, {"Si_diamond_2x2x1",8,32}, {"Si_diamond_2x2x2",16,64} })
     {
         M::Material m=M::Get(e.name);
         EXPECT_EQ(m.name, e.name);
@@ -30,9 +31,20 @@ TEST(Materials, EveryEntryLoadsAndDerivesItsElectronCount)
         EXPECT_EQ(m.Nelec(), e.Nelec) << e.name;
         EXPECT_FALSE(m.species.empty()) << e.name;
     }
+    // EVERY entry in the file -- not only the ones with a row above -- loads, names itself, has atoms and a species vocabulary, and derives a positive electron
+    // count.  (No pinned entry COUNT: adding a material must not break a test; a broken entry must.)
     const std::vector<std::string> names=M::Names();
-    EXPECT_EQ(names.size(), 15u) << "the file has exactly the entries this test knows; add a row here when you add one";
-    EXPECT_EQ(names.front(), "Si_diamond") << "file order is the pick-list order";
+    EXPECT_FALSE(names.empty());
+    std::set<std::string> seen;
+    for (const std::string& n : names)
+    {
+        EXPECT_TRUE(seen.insert(n).second) << n << " appears twice in the pick-list";
+        M::Material m=M::Get(n);
+        EXPECT_EQ(m.name, n);
+        EXPECT_GT(m.cell->GetNumAtoms(), 0u) << n;
+        EXPECT_FALSE(m.species.empty()) << n;
+        EXPECT_GT(m.Nelec(), 0) << n;
+    }
 }
 
 // The re-based cell: CubicF at a=8.40 under T=[[0,1,1],[1,0,1],[1,1,0]] is the AFM-II rhombohedral cell
