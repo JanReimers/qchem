@@ -24,19 +24,14 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 - **CK-1** — `SolidCalculation::SaveState` / `SolidCalcOptions::saveStateTo` / `SolidCalculation::Restart`
   (`OpenWork.md` §2 row "SCF checkpoint/restart"; record `doc/Records/OpenWork_History4.md` §"CK-1").
 
-**▶ 2026-10-04: R3 STEPS 1–4 ARE DONE — next is STEP 5 (NiO against hp.x; §3d increment order).**  Step 4's record is at
-the end of §3e: `SolidCalculation::HubbardLinearResponse(Nq)` loops the q-mesh on ONE ground state and kernel and prints
-χ₀(q), χ(q) with their Krylov residuals per q, then the supercell's real-space blocks and U = (χ₀⁻¹ − χ⁻¹)_II (hp.x's
-definition); the deck action takes `"nq"` (n or [n1,n2,n3]); the supercell-equivalence gate is
-`GPW_Si.k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long` (χ(R) == the 2×1×1 supercell at Γ to 8e-5, χ₀(R) 1.6e-4, U 5e-4 eV).
-Step 5:
-- `rundeck decks/campaigns/NiO/nio_q0_step3_newroute.json --set postSCF.0.hubbardLinearResponse.nq=2` (the FREE saved state, k 2×2×2 ⇒
-  8 q, 2 perturbed Ni 3d channels; sizing §3d: ~1 h serial in q at ~13 applications per (q, channel); `--set` indexes
-  arrays by number).  q = 0 must reproduce the banked
-  −2.070024 / −2.0516578 Ha⁻¹ inside the q loop.
-- Compare against hp.x NiO 5.267 eV (frozen, U_in 3 eV) as a PHYSICS comparison, not a gate (χ₀'s magnitude is off 1.43× from
-  the ground-state gap, §5b; the SHAPE of χ(q) should agree to 1–2 %).
-- Then SrVO₃ as its own setup item (no material entry, a metal: Fermi weights at q ≠ 0, δμ only at q = 0).
+**▶ 2026-10-04 (evening): R3 IS DONE THROUGH STEP 5's NiO RUN — U(NiO, 2×2×2 q-mesh) = 6.09 / 6.12 eV vs hp.x 5.267 eV.**
+Records: step 4 and step 5 at the end of §3e.  The machinery is validated (supercell gate; χ₀ AND χ shape vs hp.x per
+q-star within 0.1–2 %); the remaining 16 % in U is the ground state (gap 1.30 vs 2.86 eV), not the response.  What is open:
+- **R4** (§5): LR U as a `HubbardUEstimator` strategy in the self-consistent outer loop (`hubbardLoop`), so the U table of
+  NOTES ("U_0, U_SC, outer steps, gap and moment at both ends", one greppable line per manifold) can be filled.
+- **SrVO₃** as its own setup item (no material entry; a metal: Fermi weights at q ≠ 0, δμ only at q = 0).
+- The NiO ground-state gap (1.30 vs 2.86 eV) (`OpenWork.md` §3 "NiO VA" row) — what would move U toward 5.27.
+- Efficiency (§3d ledger, now MEASURED, step 5): the transition PAIR scatter/gather are the wall, not the Becke gather.
 
 **Superseded (kept for the record): the R3 sizing + design note, §3d.**  Items 1–3 below are answered there.
 
@@ -720,7 +715,7 @@ we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R
 3. ✅ (§3e) B2 + C1 + the term bodies, gated q = 0 == the R2 route.  Then retire the R2 periodic forwarding, which closes
    finding 5.
 4. ✅ (§3e) The facade's q loop + the Si supercell-equivalence gate.
-5. NiO against hp.x (the instrument run), then SrVO₃ as its own setup item (a metal: Fermi weights at q ≠ 0; δμ
+5. ✅ (§3e, NiO) NiO against hp.x (the instrument run): U 6.09 vs 5.27 eV, shape to 1–2 %; then SrVO₃ as its own setup item (a metal: Fermi weights at q ≠ 0; δμ
    only at q = 0).
 - ✅ **Q9 RULED 2026-09-29: compute all 8 q first; defer the q-STAR reduction.**  Computing one q per star is valid only
   for a symmetric ground state, and it needs the op that maps site I to I′ for the full χ_IJ(q) (§5b found the star
@@ -893,6 +888,46 @@ apart.  Gated at 5e-4 relative (χ₀, χ) and 1e-3 eV (U); ~3.5 min CPU ⇒ the
 breaking is filed (`OpenWork.md` §3 "A Γ supercell breaks its OWN translation symmetry").
 Along the way (user, 2026-10-04): *"in general Kerker/Pulay should be the default mixer"* — filed as `OpenWork.md` §3
 "Kerker/Pulay as the DEFAULT mixer" (an anchor-moving change, not made here).
+
+**Step 5 (NiO against hp.x), 2026-10-04.**  `rundeck decks/campaigns/NiO/nio_q0_step3_newroute.json --set
+postSCF.0.hubbardLinearResponse.nq=2` (FREE saved state, k and q 2×2×2, U_in 3 eV on Ni 3d frozen, orthofull, 2 perturbed
+Ni 3d of 8 measured channels).  Log `~/Code/qchem6-runs/NiO/nio_qmesh222_step5.log`, record `NiO_AFM2.r003.json`.
+- **q = 0 inside the loop == the banked step-3 numbers exactly** (χ −2.070024 / −2.0516578); restart E −106.2023644, 9 iterations.
+- 8 q, 13–15 kernel applications per (q, channel), residuals ≤ 9e-9.  Star members agree to the printed digits.
+- **Supercell (real space, home cell):** χ₀ −4.40167 / −4.34198 Ha⁻¹ (Ni1 / Ni2; off-diagonal +0.2453), χ −2.21121 / −2.19074
+  (off-diagonal −0.01545).  **U = 6.09397 / 6.12376 eV** (q = 0 of the 4-atom cell: 6.45 / 6.48 — the finite-size shift is −0.36 eV).
+
+**Against hp.x `NiOg` (5.267 eV).**  hp.x prints, per perturbed atom and q, every Hubbard channel's response (iteration 1 =
+χ₀, converged = χ; `~/Code/qe-runs/NiO/NiOgO.hp.out` — the Ni1 COLUMN does not depend on the O 2p being in the perturbed
+set, only the inverse does; its star-weighted sums reproduce NiOg's −0.1130 / −0.0706 exactly):
+| q-star (weight) | χ₀(q)/χ₀(R=0) ours | hp.x | χ(q)/χ(R=0) ours | hp.x |
+|---|---|---|---|---|
+| Γ (1) | 0.936 | 0.935 | 0.936 | 0.949 |
+| 3-star (3) | 1.038 | 1.041 | 1.032 | 1.033 |
+| 3-star (3) | 0.988 | 0.982 | 1.002 | 0.989 |
+| single (1) | 0.986 | 0.996 | 0.963 | 0.985 |
+| **R = 0, eV⁻¹** | **−0.16176** | **−0.1130** (×1.43) | **−0.08126** | **−0.0706** (×1.15) |
+(Stars paired by size and χ₀ value, as §5b; the two codes' q coordinates were not transformed into each other.)
+- The SHAPE agrees to 0.1–1 % (χ₀) and 0.1–2.2 % (χ): the q ≠ 0 kernel is right on a real TMO, independently of the
+  supercell gate.  The magnitudes are the ground state's (gap 1.30 vs 2.86 eV): χ₀ is 1.43× larger, χ only 1.15×, so we
+  SCREEN more (χ/χ₀ 0.50 vs 0.62) — and U = 6.09 vs 5.27 eV (+16 %).  A physics comparison, as the gate table said, not a gate.
+- ⚠ The two Ni are equivalent in AFM-II (spin flip + translation), yet χ₀ differs 1.4 % between them (−4.4017 vs −4.3420),
+  as it did at q = 0 in step 1 (−4.12 / −4.06); the FREE ground state's d occupations are symmetric to 1e-3.  Unexplained;
+  U differs only 0.5 %.
+
+**What the run cost (the §3d sizing, now measured):** ~2.2 h wall on 10 threads (sizing said ~1 h), 266 kernel applications
+(~30 s each, sizing 15–20 s), peak RSS 1.3 GB.  The ledger: **pair gather 3537 s (0.83 s per block pair), pair scatter 3046 s
+(0.72 s)**, Becke adjoint 655 s, Becke forward 376 s, V_H ≈ 260 s.  ⇒ **the §3d prediction that the Becke XC gather is the
+biggest bucket was WRONG**: the transition collocation pair (B1, measured 2.2×/3.2× the ground state on MnO VA's 3-level
+ladder) is ~3.5× / ~20× the ground-state per-call numbers the sizing priced with on NiO.  The lever, if R3 becomes a wall, is
+B1's pair kernel (deferred ledger row "the transition GATHER", and the scatter with it), then q-star reduction (Q9: 8 → 4 q).
+
+**A trap, paid once:** the first run (log `nio_qmesh222_step5_realnessthrow.log`) finished all 8 q and then THREW in the
+real-space transform: the solved χ's time-reversal leak was 1.6e-6 relative (the off-diagonal Ni1–Ni2 χ(q) on star A carries
+1.4e-5 imaginary on a −0.0016 real part) against a tolerance of 100× the worst residual (8.7e-7).  The conditioning of
+(1 − R₀K) amplifies the residual ~190× on NiO (Si: < 100×).  Now χ₀ is checked at 1e-8 and χ at 1e4× the residual, the leak is
+PRINTED, and every q prints its full J×J χ₀/χ block so a log alone can rebuild U.  An hour of run lost to a diagnostic: a
+summary that can throw should not sit after an hour of results that it does not print first.
 
 ---
 
