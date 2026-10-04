@@ -462,3 +462,18 @@ NEXT: **D-ENV-RERUN** (re-run the `qchem6-runs` campaigns from decks; needs the 
 * **Not decks:** `batch/queue/*.sh` (`01_mno_ckalpha`, `02_fes2_hpx`) drive CP2K and Quantum ESPRESSO (hp.x) -- the oracle codes' own inputs, outside the qchem deck system.
 * **Next (when the user wants a run):** pick a deck, `rundeck <deck> --out $(scripts/rundir qchem6 <Material>)`, compare with the banked number (re-judge against an independent route if it moved; never refresh -- Pins pin 10).  The SHORT ones first
   (`mno_gamma_*`, the Γ MnO chi runs, ~minutes); the NiO k222 and spinel runs are hours.
+
+**D-ENV-RERUN stage 2a DONE 2026-10-04 -- the two EXACT MnO chi decks re-run from decks, both reproduce the banked numbers** (free AFM-II, Γ, VA spherical, complex, U_in=0 on the Mn 3d; ~8 min each at `QCHEM_OPENMP_THREADS=12`, serial runs
+because of RAM; records `~/Code/qchem6-runs/MnO/MnO_AFM2.r001.json` (radEvery) and `.r002.json` (ortho), logs `deckrun_*_20260930.log`, with `results.postSCF` in each record).
+| deck | quantity | banked (the `.cmd` header / batch note) | from the deck |
+|---|---|---|---|
+| `mno_afm2_free_U0_radEvery_chi_20260930` | chi0 (Mn1 3d, 1/eV) | -4.6021304 | **-4.6021304** (to all printed digits) |
+| | chi (LR) | -3.1905158 | **-3.1905158** (to all printed digits) |
+| | chi/chi0 | 0.693 | **0.6933** |
+| | chi_FD (alpha = 1e-3 Ha) | -3.2259878 | **-3.2259865** (4e-7 relative; inside the bounded FD floor) |
+| | U_LR (this cell) | -- | 2.61606 eV |
+| `mno_afm2_free_U0_ortho_chi_20260930` | chi/chi0 | 0.837 (the CP2K-ckalpha batch note's "ortho = 0.837") | **0.8369** (chi0 -4.3056558, chi -3.603541; chi_FD -3.6319045) |
+| | U_LR | -- | 1.23137 eV |
+Both: SCF CONVERGED 18 iterations to Etot -61.41260586 (identical for the two manifolds, as it must be at U=0), integrated Mn moments +4.4545 / -4.4464 e (net -0.0013), AFM-II SURVIVED; the FD arm's three SCFs converged and the ground state was restored.
+**This is the end-to-end proof that the deck system reproduces a banked campaign:** a translated `.cmd` -> `rundeck` -> the same numbers to the printed precision, with the revision record carrying the deck, provenance and results.  The 28 DRAFT decks remain unrun (their
+recipes need their authors' judgement first).  The two `mno_gamma_*` drafts are the next-shortest.
