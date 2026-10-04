@@ -402,3 +402,9 @@ revision becomes `provenance.parent` automatically.
 ### 10.5 Build order (each step green, ctest count up)
 6d.1 `U_eV` spelling + `basis.trim|vet` + `state` (save/restartFrom/lineage) -> 6d.2 `postSCF[]` actions (+ pre-flight validation) -> 6d.3 move each `gpwprobe` sub-command's CHECKS into ITMain tests that call `deck::Run` (FM arms built in the test), delete the sub-command and its env knobs, a deck beside each banked log -> 6d.4 harness `EnvOverrides` deleted (ITMain tests state their options in code; benchmark scripts use decks + `--set`) -> 6d.5 the remaining probes (ladder, ksweep, naf-smear,
 becke-ladder, gate1) as deck loops (`--set`) or ITMain tests -> **D-ENV-RERUN** (the `qchem6-runs` campaigns from decks) -> 6e lint.
+
+**Step 6d.1 DONE 2026-10-04** (ctest +3).  (a) **eV in the file, a.u. in RAM**: hubbard keys are `U_eV`, `Uirrep_eV`, `alpha_eV` (the old `U_Ha` is refused); the writer emits the shortest eV value that converts back to the
+SAME double, so a revision re-runs with bit-identical U (tested on 3.1, 5.27, 1e-3, ...).  (b) `basis.trim:[{Z,l,alpha}]` (stated, built once, no vet loop) and `basis.vet:true` (VetStageTrim at `solid.orthoTol`); validation
+THROWS for vet+trim together and for `spherical` + `VALENCE_LOWQ_SR` on a transition-metal cell (the probe's span rule).  (c) `state.save` (`"auto"` = `<outDir>/states/<stem>.h5`, or a path) and `state.restartFrom`
+(a revision stem or a path; runs the schedule's FINAL stage; a missing/refused state throws BEFORE a revision is claimed; `provenance.restartedFrom` names the parent revision).  Si Γ: save -> GDM restart of the final stage
+stays at the energy to 1e-8.  Ruling recorded 2026-10-04 (user): important GATES are hard-coded integration tests, never part of the `gpwprobe` command line.  NEXT: 6d.2 `postSCF[]` actions + pre-flight validation.

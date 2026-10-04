@@ -8,7 +8,7 @@
 //     Re-running that file reproduces the run; re-running it with one `--set` is the intentional change.
 //   * A reader REJECTS an unknown key (a typo in a deck must not silently run the default), and a missing key keeps
 //     the field's default (so an old deck keeps working when a field is added).  Units are the library's: atomic
-//     units, and every key that carries one says so in its name where it is not obvious (`U_Ha`).
+//     units where it matters are in the key name: energies a person quotes are eV (`U_eV`, converted at the boundary -- RAM is atomic units).
 //
 // This unit is the DATA LAYER: the typed option structs <-> JSON, the dotted-path `--set`, the revision claim.
 module;
@@ -25,6 +25,7 @@ import qchem.SCFParams;            // SCFParams
 import qchem.Mesh;                 // MeshParams
 import qchem.RunPolicy;            // RunPolicySpec
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData (the deck names the basis file)
+import qchem.BasisSet.Gaussian.Point.ShellTrim;  // ShellTrim (a stated trim)
 import qchem.Types;                // ivec3_t
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
 import qchem.Materials;            // Material (the structure section's name resolves to one)
@@ -44,7 +45,7 @@ json ToJson(const BasisSet::Gaussian::GPWTolerances&);   void FromJson(const jso
 json ToJson(const SCFParams&);                           void FromJson(const json&, SCFParams&);
 json ToJson(const qcMesh::MeshParams&);                  void FromJson(const json&, qcMesh::MeshParams&);
 //! The solid options.  NOT serialized (not choices): \c onIteration (a callback).  \c Hubbard manifold \c siteOps / \c greyOps
-//! (derived by the facade from the structure).  A manifold's U is \c U_Ha: HARTREE, the library's unit -- no hidden eV conversion.
+//! (derived by the facade from the structure).  A manifold's U is \c U_eV (and \c Uirrep_eV, \c alpha_eV): eV in the file, converted to Hartree on read; the writer picks the eV value that converts back to the SAME double.
 json ToJson(const RunPolicySpec&);                       void FromJson(const json&, RunPolicySpec&);
 json ToJson(const SolidCalcOptions&);                    void FromJson(const json&, SolidCalcOptions&);
 //!@}
@@ -59,13 +60,26 @@ struct RunSpec
 {
     //! The basis the GPW basis is built over: WHICH data file (an exact \c BasisSetData name, e.g. "VALENCE_LOWQ_VA"), and whether
     //! it is wrapped in the spherical lattice view (contaminant-free d/f).  (Shell trims are not in the deck yet.)
-    struct Basis { BasisSet::Gaussian::BasisSetData data = BasisSet::Gaussian::BasisSetData::VALENCE_LOWQ_SR; bool spherical=false; };
+    struct Basis
+    {
+        //! One shell removed from the basis (pin 22): element, the angular momentum dropped, and the shell's (single) exponent that names it.
+        struct Trim { int Z=0; int l=0; double alpha=0.0; };
+        BasisSet::Gaussian::BasisSetData data = BasisSet::Gaussian::BasisSetData::VALENCE_LOWQ_SR;
+        bool spherical=false;
+        std::vector<Trim> trim;     //!< a STATED trim (built once, no vet loop)
+        bool vet=false;             //!< the vet-stage trim at \c solid.orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)
+    };
+    //! Saved states (CK-1).  \c save: empty = never, "auto" = `<outDir>/states/<stem>.h5` after every stage, else a path.  \c restartFrom: a REVISION
+    //! STEM (`MnO_AFM2.r003` -> `<outDir>/states/MnO_AFM2.r003.h5`, and that revision becomes this run's \c parent) or a path; runs the schedule's FINAL
+    //! stage only (a restart is one stage -- the earlier stages exist to deliver the density the file already holds).
+    struct State { std::string save, restartFrom; };
     //! One stage of an annealed recipe: its SCF parameters and its accelerator (\c SCFStage, by name).
     struct Stage { SCFParams scf; SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS; };
 
     std::string      structure;       //!< REQUIRED: a name in materials.json or molecules.json
     ivec3_t          kmesh{1,1,1};    //!< Monkhorst-Pack divisions of the Brillouin zone
     Basis            basis;
+    State            state;
     SolidCalcOptions solid;           //!< the periodic-run options (used when \c structure is a cell)
     SCFParams        scf;             //!< the single-stage recipe (with \c solid.accelerator) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
@@ -98,6 +112,7 @@ struct Provenance
 {
     std::filesystem::path inputDeck;                 //!< the deck as loaded (empty = none, all defaults)
     std::string           commandLine;
+    std::string           restartedFrom;             //!< the revision whose saved state this run continues (set by Run from state.restartFrom)
     std::vector<std::string> overrides;
     std::string           policyResolved;            //!< the RESOLVED CP2K-deviation table (RunPolicy::Banner), for the record
     std::string           codeVersion;               //!< git hash (+"-dirty"), supplied by the caller

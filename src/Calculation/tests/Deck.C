@@ -217,3 +217,76 @@ TEST(Deck, PolicyRecordsOnlyWhatWasStatedSoTheUmbrellaStillMeansWhatItSays)
     SolidCalcOptions viaSet; deck::FromJson(d,viaSet);
     EXPECT_TRUE(viaSet.policy.cp2kCompat); EXPECT_TRUE(viaSet.policy.beckeXC.value_or(false)) << "--set policy.<route> states it";
 }
+
+// ---- D-ENV 6d.1: eV in the file / a.u. in RAM, basis trim+vet, saved states with lineage ----
+TEST(Deck, UIsEvInTheFileAndAtomicUnitsInRamAndTheRecordReproducesTheBits)
+{
+    SolidCalcOptions o;
+    deck::FromJson(json{{"hubbard",{{{"site",0},{"l",2},{"U_eV",4.0},{"Uirrep_eV",{3.0,4.5}},{"alpha_eV",0.1}}}}}, o);
+    ASSERT_EQ(o.hubbard.size(),1u);
+    EXPECT_DOUBLE_EQ(o.hubbard[0].U, 4.0/27.211386245988) << "RAM is atomic units";
+    EXPECT_DOUBLE_EQ(o.hubbard[0].Uirrep[1], 4.5/27.211386245988);
+    const json j=deck::ToJson(o).at("hubbard")[0];
+    EXPECT_EQ(j.at("U_eV"),4.0) << "the record writes the eV the user wrote (shortest value that converts back to the same double)";
+    EXPECT_EQ(j.at("Uirrep_eV")[1],4.5);
+    SolidCalcOptions back; deck::FromJson(deck::ToJson(o),back);
+    EXPECT_EQ(back.hubbard[0].U, o.hubbard[0].U) << "bit-for-bit: a revision file re-runs with the SAME U";
+    EXPECT_EQ(back.hubbard[0].Uirrep, o.hubbard[0].Uirrep);
+    EXPECT_EQ(back.hubbard[0].alpha, o.hubbard[0].alpha);
+    EXPECT_THROW(deck::FromJson(json{{"hubbard",{{{"site",0},{"U_Ha",0.1}}}}},o), std::runtime_error) << "the old spelling is refused, not guessed";
+    // an arbitrary value round-trips exactly too
+    for (double eV : {3.1,5.27,0.0,1e-3,7.123456789})
+    {
+        SolidCalcOptions a; deck::FromJson(json{{"hubbard",{{{"site",0},{"U_eV",eV}}}}},a);
+        SolidCalcOptions b; deck::FromJson(deck::ToJson(a),b);
+        EXPECT_EQ(a.hubbard[0].U,b.hubbard[0].U) << eV;
+    }
+}
+
+TEST(Deck, BasisTrimVetAndStateRoundTripAndAreValidated)
+{
+    deck::RunSpec r;
+    deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_VA"},{"spherical",true},{"trim",{{{"Z",25},{"l",0},{"alpha",0.06}}}}}},
+                        {"state",{{"save","auto"},{"restartFrom","MnO_AFM2.r003"}}}}, r);
+    ASSERT_EQ(r.basis.trim.size(),1u); EXPECT_EQ(r.basis.trim[0].Z,25); EXPECT_EQ(r.basis.trim[0].alpha,0.06);
+    EXPECT_EQ(r.state.save,"auto"); EXPECT_EQ(r.state.restartFrom,"MnO_AFM2.r003");
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back); EXPECT_EQ(deck::ToJson(back),j);
+    EXPECT_FALSE(deck::ToJson(deck::RunSpec{}).contains("state")) << "no state requested: no state block";
+
+    deck::RunSpec both; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"vet",true},{"trim",{{{"Z",25},{"l",0},{"alpha",0.06}}}}}}}, both);
+    EXPECT_THROW(deck::Resolve(both), std::runtime_error) << "vet and a stated trim are exclusive";
+    deck::RunSpec sph; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_SR"},{"spherical",true}}}}, sph);
+    try { deck::Resolve(sph); FAIL() << "spherical + the SR transition-metal block must be refused"; }
+    catch (const std::runtime_error& e) { EXPECT_NE(std::string(e.what()).find("VALENCE_LOWQ_VA"),std::string::npos) << e.what(); }
+    deck::RunSpec ok; deck::FromJson(json{{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"},{"spherical",true}}}}, ok);
+    EXPECT_NO_THROW(deck::Resolve(ok)) << "the refusal is specific to a transition metal on the SR block";
+    EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"state",{{"restore","x"}}}}, ok), std::runtime_error);
+}
+
+TEST(Deck, ASavedStateRestartsAndTheRevisionNamesItsParent)
+{
+    const fs::path dir=TmpDir("restart");
+    const json base={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},{"solid",{{"densityEcut",20.0},{"imposeSymmetry",true}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRho",1e-6},{"minDeltaE",1e-10},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3}}}};
+    json d1=base; d1["state"]={{"save","auto"}};
+    deck::RunSpec s1; deck::FromJson(d1,s1);
+    deck::Provenance pv; pv.codeVersion="t";
+    const auto r1=deck::Run(s1,pv,dir);
+    ASSERT_TRUE(r1.converged) << r1.summary;
+    ASSERT_TRUE(fs::exists(dir/"states"/"Si_diamond.r001.h5")) << "save:auto writes states/<stem>.h5";
+
+    json d2=base; d2["state"]={{"restartFrom","Si_diamond.r001"}}; d2.erase("scf");
+    d2["schedule"]={{{"accelerator","GDM"},{"scf",base.at("scf")}}};          // a restart runs the FINAL stage; GDM starts at the answer
+    deck::RunSpec s2; deck::FromJson(d2,s2);
+    const auto r2=deck::Run(s2,pv,dir);
+    ASSERT_TRUE(r2.converged) << r2.summary;
+    EXPECT_EQ(r2.revision.filename(),"Si_diamond.r002.json");
+    EXPECT_NEAR(*r2.energy,*r1.energy,1e-8) << "a restart from the converged state stays at the answer";
+    EXPECT_EQ(json::parse(std::ifstream(r2.revision)).at("provenance").at("restartedFrom"),"Si_diamond.r001.json");
+
+    json d3=base; d3["state"]={{"restartFrom","Si_diamond.r099"}};
+    deck::RunSpec s3; deck::FromJson(d3,s3);
+    EXPECT_THROW(deck::Run(s3,pv,dir),std::runtime_error) << "a missing state is refused before any revision is claimed";
+    EXPECT_FALSE(fs::exists(dir/"Si_diamond.r003.json"));
+    fs::remove_all(dir);
+}

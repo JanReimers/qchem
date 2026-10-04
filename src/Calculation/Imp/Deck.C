@@ -1,5 +1,6 @@
 // File: Calculation/Imp/Deck.C  See the interface.
 module;
+#include <cmath>
 #include <cstdio>
 #include <iostream>
 #include <memory>
@@ -33,6 +34,8 @@ import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;
 import qchem.Reporting;
 import qchem.Outcome;
+import qchem.BasisSet.Lattice.BasisSet;   // VetStageTrim, GPWParams
+import qchem.BasisSet.Gaussian.Point.ShellTrim;
 import qchem.RunPolicy;
 
 namespace qchem::deck
@@ -199,15 +202,33 @@ void FromJson(const json& j, RunPolicySpec& p)
 //=== SolidCalcOptions ===========================================================================
 namespace
 {
+//! The JSON speaks eV (what the literature quotes); RAM is atomic units.  Writing back must give the SAME double on reload, or a record would not
+//! reproduce bit-for-bit: pick the shortest-printing eV value whose conversion lands exactly on \a Ha.
+constexpr double kHaToEV = 27.211386245988;
+double ToEV(double Ha)
+{
+    const double x=Ha*kHaToEV;
+    double best=x; size_t bestLen=std::string::npos;
+    double cand[5]={x, std::nextafter(x,1e300), std::nextafter(x,-1e300), std::nextafter(std::nextafter(x,1e300),1e300), std::nextafter(std::nextafter(x,-1e300),-1e300)};
+    for (double c : cand)
+        if (c/kHaToEV==Ha) { const size_t len=json(c).dump().size(); if (len<bestLen) { best=c; bestLen=len; } }
+    return best;
+}
+std::vector<double> ToEV(const std::vector<double>& v) { std::vector<double> o; for (double x : v) o.push_back(ToEV(x)); return o; }
+std::vector<double> FromEV(const std::vector<double>& v) { std::vector<double> o; for (double x : v) o.push_back(x/kHaToEV); return o; }
+
 json ToJson(const Hamiltonian::HubbardManifold& h)
 {
-    return {{"site",h.site},{"l",h.l},{"U_Ha",h.U},{"UirrepHa",h.Uirrep},{"alphaHa",h.alpha},{"radial",h.radial},
+    return {{"site",h.site},{"l",h.l},{"U_eV",ToEV(h.U)},{"Uirrep_eV",ToEV(h.Uirrep)},{"alpha_eV",ToEV(h.alpha)},{"radial",h.radial},
             {"atomicRadial",h.atomicRadial},{"orthoAtomic",h.orthoAtomic}};
 }
 void FromJson(const json& j, Hamiltonian::HubbardManifold& h, const std::string& path)
 {
     Fields f(j,path);
-    f.Get("site",h.site); f.Get("l",h.l); f.Get("U_Ha",h.U); f.Get("UirrepHa",h.Uirrep); f.Get("alphaHa",h.alpha);
+    f.Get("site",h.site); f.Get("l",h.l);
+    double u=h.U*kHaToEV; f.Get("U_eV",u); h.U=u/kHaToEV;                                   // eV in the file, a.u. in RAM
+    std::vector<double> ui=ToEV(h.Uirrep); f.Get("Uirrep_eV",ui); h.Uirrep=FromEV(ui);
+    double al=h.alpha*kHaToEV; f.Get("alpha_eV",al); h.alpha=al/kHaToEV;
     f.Get("radial",h.radial); f.Get("atomicRadial",h.atomicRadial); f.Get("orthoAtomic",h.orthoAtomic);
     f.Done();
 }
@@ -270,10 +291,50 @@ void FromJson(const json& j, SolidCalcOptions& o)
 }
 
 //=== RunSpec ====================================================================================
+namespace
+{
+json BasisJson(const RunSpec::Basis& b)
+{
+    json j={{"data",NameOf(b.data,kBasisData)},{"spherical",b.spherical}};
+    if (b.vet) j["vet"]=true;
+    if (!b.trim.empty())
+    {
+        json t=json::array();
+        for (const auto& x : b.trim) t.push_back({{"Z",x.Z},{"l",x.l},{"alpha",x.alpha}});
+        j["trim"]=t;
+    }
+    return j;
+}
+void BasisFromJson(const json& j, RunSpec::Basis& b)
+{
+    Fields f(j,"basis");
+    f.GetEnum("data",b.data,kBasisData); f.Get("spherical",b.spherical); f.Get("vet",b.vet);
+    if (j.contains("trim"))
+    {
+        b.trim.clear(); size_t i=0;
+        for (const auto& t : f.At("trim"))
+        {
+            Fields tf(t,"basis.trim."+std::to_string(i++)); RunSpec::Basis::Trim x;
+            tf.Get("Z",x.Z); tf.Get("l",x.l); tf.Get("alpha",x.alpha); tf.Done();
+            b.trim.push_back(x);
+        }
+    }
+    else f.At("trim");
+    f.Done();
+}
+}
+
 json ToJson(const RunSpec& r)
 {
     json j={{"structure",r.structure},{"kmesh",{r.kmesh.x,r.kmesh.y,r.kmesh.z}},
-            {"basis",{{"data",NameOf(r.basis.data,kBasisData)},{"spherical",r.basis.spherical}}},{"solid",ToJson(r.solid)}};
+            {"basis",BasisJson(r.basis)},{"solid",ToJson(r.solid)}};
+    if (!r.state.save.empty() || !r.state.restartFrom.empty())
+    {
+        json st=json::object();
+        if (!r.state.save.empty())        st["save"]=r.state.save;
+        if (!r.state.restartFrom.empty()) st["restartFrom"]=r.state.restartFrom;
+        j["state"]=st;
+    }
     if (r.schedule.empty()) j["scf"]=ToJson(r.scf);                      // one stage: the record says it once
     else
     {
@@ -298,9 +359,14 @@ void FromJson(const json& j, RunSpec& r)
     else f.At("kmesh");
     if (j.contains("basis"))
     {
-        Fields b(f.At("basis"),"basis"); b.GetEnum("data",r.basis.data,kBasisData); b.Get("spherical",r.basis.spherical); b.Done();
+        BasisFromJson(f.At("basis"),r.basis);
     }
     else f.At("basis");
+    if (j.contains("state"))
+    {
+        Fields sf(f.At("state"),"state"); sf.Get("save",r.state.save); sf.Get("restartFrom",r.state.restartFrom); sf.Done();
+    }
+    else f.At("state");
     if (j.contains("solid")) FromJson(f.At("solid"),r.solid); else f.At("solid");
     if (j.contains("scf") && j.contains("schedule"))
         throw std::runtime_error("deck: give 'scf' (one stage) OR 'schedule' (an annealed recipe), not both -- which would run?");
@@ -328,6 +394,14 @@ Materials::Material Resolve(RunSpec& spec)
         throw std::runtime_error("deck: structure '"+spec.structure+"' is a molecule (molecules.json); the deck currently drives "
                                  "periodic runs only (a cell from materials.json)");
     Materials::Material m=Materials::Get(spec.structure);
+    if (spec.basis.vet && !spec.basis.trim.empty())
+        throw std::runtime_error("deck: basis.vet and basis.trim are exclusive (a vet computes the trim; a stated trim is the A/B for it)");
+    if (spec.basis.spherical && spec.basis.data==BasisSetData::VALENCE_LOWQ_SR)
+    {
+        bool tm=false; m.cell->ForEachSite([&](int z, const rvec3_t&, bool){ tm = tm || (z>=21 && z<=30); });
+        if (tm) throw std::runtime_error("deck: basis.spherical with VALENCE_LOWQ_SR -- the SR transition-metal block's s span lives in the Cartesian d "
+                                         "contaminants, which the spherical view removes; use VALENCE_LOWQ_VA or VALENCE_LOWQ_SPH");
+    }
     if (spec.solid.species.empty()) spec.solid.species=m.species;
     if (spec.solid.Nelec==0)        spec.solid.Nelec=m.Nelec();
     return m;
@@ -395,6 +469,7 @@ void WriteRevision(const std::filesystem::path& path, const json& resolved, cons
     json pv={{"commandLine",prov.commandLine},{"overrides",prov.overrides},{"ignoredEnvironment",prov.ignoredEnvironment},
                    {"activeEnvironment",prov.activeEnvironment}};
     if (!prov.policyResolved.empty()) pv["policyResolved"]=prov.policyResolved;
+    if (!prov.restartedFrom.empty())  pv["restartedFrom"]=prov.restartedFrom;
     if (!prov.inputDeck.empty())
     {
         pv["inputDeck"]=prov.inputDeck.string();
@@ -431,7 +506,21 @@ json LoadDeck(const std::filesystem::path& path, const std::string& currentCodeV
 
 RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir)
 {
+    namespace fs=std::filesystem;
     const Materials::Material mat=Resolve(spec);
+
+    // RESTART: resolve (and check) the saved state BEFORE claiming a revision, so a typo leaves no half-record.  A bare stem names a revision of this
+    // outDir (-> its states/<stem>.h5, and it becomes this run's lineage); anything with a '/' or an .h5 suffix is a path.
+    std::string restartPath;
+    if (!spec.state.restartFrom.empty())
+    {
+        const std::string r=spec.state.restartFrom;
+        const bool isPath = r.find('/')!=std::string::npos || (r.size()>3 && r.substr(r.size()-3)==".h5");
+        restartPath = isPath ? r : (outDir/"states"/(r+".h5")).string();
+        if (!fs::exists(restartPath)) throw std::runtime_error("deck: state.restartFrom '"+r+"': no saved state at "+restartPath);
+        if (!isPath) prov.restartedFrom=r+".json";
+    }
+
     RunOutcome out;
     out.revision=ClaimRevision(outDir, spec.structure);
     prov.policyResolved=RunPolicy(spec.solid.policy).Banner();   // the stated policy is in the deck; what it RESOLVED to is the record
@@ -439,10 +528,30 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     const std::string stem=out.revision.stem().string(); // <structure>.rNNN -- the run's name in its own output
 
     if (spec.solid.label=="gpw") spec.solid.label=stem;
+    if (!spec.state.save.empty())
+    {
+        if (spec.state.save=="auto") { fs::create_directories(outDir/"states"); spec.solid.saveStateTo=(outDir/"states"/(stem+".h5")).string(); }
+        else spec.solid.saveStateTo=spec.state.save;
+    }
     Lattice_3D lat(*mat.cell, spec.kmesh);
-    std::shared_ptr<const BasisSet::Real_BS> mol(BasisSet::Gaussian::Factory(spec.basis.data, mat.cell.get(),
-                                                 BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian));
-    if (spec.basis.spherical) mol=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(mol));
+    // THE BASIS: the data file, optionally trimmed (stated, or by the vet loop at the run's own orthoTol), optionally in the spherical lattice view.
+    auto make=[&](const BasisSet::Gaussian::ShellTrim& trim)
+    {
+        std::shared_ptr<const BasisSet::Real_BS> b(BasisSet::Gaussian::Factory(spec.basis.data, mat.cell.get(),
+                                                   BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, trim));
+        if (spec.basis.spherical) b=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(b));
+        return b;
+    };
+    std::shared_ptr<const BasisSet::Real_BS> mol;
+    if (spec.basis.vet)
+        mol=BasisSet::Lattice::VetStageTrim(lat, make, {.images=spec.solid.images, .kShift=spec.solid.kShift}, spec.solid.orthoTol).mol;
+    else
+    {
+        BasisSet::Gaussian::ShellTrim trim;
+        for (const auto& t : spec.basis.trim) trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
+        if (!trim.empty()) { std::cout<<"[basis trim] STATED (no vet loop): "; trim.Write(std::cout); std::cout<<std::endl; }
+        mol=make(trim);
+    }
 
     std::vector<SCFStage> stages;
     for (const auto& s : spec.Stages()) stages.push_back({s.scf,s.accelerator});
@@ -450,11 +559,19 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     qchem::report::Begin(stem);
     qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
     struct Close { ~Close() { qchem::report::ClearConsole(); qchem::report::End(); } } close;
-    SolidCalculation calc(lat, mol, spec.solid, stages);
-    if (auto R=calc.Result())
+    std::unique_ptr<SolidCalculation> calc;
+    if (restartPath.empty()) calc=std::make_unique<SolidCalculation>(lat, mol, spec.solid, stages);
+    else
+    {   // one stage: the schedule's FINAL one (its params and accelerator); a refusal THROWS -- a deck run never silently re-seeds
+        SolidCalcOptions ro=spec.solid; ro.accelerator=stages.back().accelerator;
+        auto R=SolidCalculation::Restart(restartPath, lat, mol, ro, stages.back().params);
+        if (!R) throw std::runtime_error("deck: state.restartFrom "+restartPath+" refused: "+R.Error().details);
+        calc=R.TakeValue();
+    }
+    if (auto R=calc->Result())
     {
-        out.converged=true; out.energy=calc.LastIterateTerms().GetTotalEnergy();
-        out.summary="CONVERGED  "+calc.Diagnostics().Summary();
+        out.converged=true; out.energy=calc->LastIterateTerms().GetTotalEnergy();
+        out.summary="CONVERGED  "+calc->Diagnostics().Summary();
     }
     else out.summary="NOT converged: "+R.Error().details;
     return out;
