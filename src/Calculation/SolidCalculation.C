@@ -535,14 +535,43 @@ public:
     //! \a params, repeat until every manifold moves less than \c tolU_eV or \c maxOuter is spent.  The result
     //! carries the whole trajectory, so a slow drift and an oscillation are visible, not hidden in a final
     //! number.  The run's +U banner value is the STARTING U; the final one is in the trajectory.
-    struct HubbardLoop  { size_t maxOuter=20; double tolU_eV=1e-4; };
+    //! ★ R4 (doc/LinearResponsePlan.md §4c, ruling D4): the SAME loop drives either estimator -- the facade picks the strategy.
+    //! \c LinearResponse: each step's U is hp.x's \f$U=(\chi_0^{-1}-\chi^{-1})_{II}\f$ over the \c nq q-mesh's supercell, with
+    //! +U FROZEN at that step's state (\c HubbardLinearResponse), written onto the PERTURBED manifolds only (the
+    //! spectators keep theirs); the fixed point \f$U_{\rm out}(U_{\rm in})=U_{\rm in}\f$ is Timrov et al. PRB 103,
+    //! 045141 (2021)'s self-consistent U.  Started at \f$U_{\rm in}=0\f$, step 1 IS \f$U_0\f$ and the last is
+    //! \f$U_{\rm SC}\f$ -- ONE run fills the \c [U table] line (user, 2026-09-27).
+    struct HubbardLoop
+    {
+        enum class Estimator {ACBN0, LinearResponse};
+        size_t    maxOuter=20;
+        double    tolU_eV=1e-4;
+        Estimator estimator=Estimator::ACBN0;
+        //! \name LinearResponse only
+        //!@{
+        ivec3_t             nq{1,1,1};             //!< the q-mesh (1 = q = 0 of this cell)
+        KrylovParams        krylov{.tol=1e-8};
+        //! The manifolds that are Hubbard SITES (perturbed, and given the estimated U); EMPTY = those carrying a U at the
+        //! start, else all.  ⚠ Starting at U_in = 0 nothing carries a U, so a deck with projector spectators (orthofull)
+        //! must LIST its sites, or every spectator is perturbed too -- a different U (§3d Q10) at 4x the cost.
+        std::vector<size_t> perturbed;
+        //!@}
+    };
     struct HubbardLoopResult
     {
-        std::vector<std::vector<double>> U_eV;     //!< per outer step, per manifold: the U_eff estimated FROM that step's SCF
-        std::vector<qchem::Hamiltonian::HubbardEstimate> last;   //!< the final step's full estimate
+        std::vector<std::vector<double>> U_eV;     //!< per outer step, per manifold: the U estimated FROM that step's SCF (manifolds the
+                                                   //!< estimator does not set keep the U they ran with)
+        std::vector<size_t> estimated;             //!< the manifolds the loop sets (ACBN0: all; LinearResponse: the perturbed set)
+        std::vector<double> Uin_eV;                //!< the U each manifold STARTED with (the U_0 end of the table runs at these)
+        //! Per outer step, the state the estimate was made FROM: its band gap (eV; NaN if the basis has no empty level) and each
+        //! manifold's integrated moment \f$n_\uparrow-n_\downarrow\f$ through the +U projectors (0 on an unpolarized run).
+        std::vector<double>              gap_eV;
+        std::vector<std::vector<double>> moment;
+        std::vector<qchem::Hamiltonian::HubbardEstimate> last;   //!< ACBN0: the final step's full estimate (empty for LinearResponse)
         size_t outer=0;                            //!< outer steps run (SCF re-convergences = outer-1)
-        bool   converged=false;                    //!< |ΔU| < tolU_eV on every manifold
+        bool   converged=false;                    //!< |ΔU| < tolU_eV on every estimated manifold
         bool   scfConverged=false;                 //!< the LAST SCF converged (an unconverged SCF poisons the estimate)
+        std::string failure;                       //!< LinearResponse: the response that FAILED and ended the loop (empty = none)
     };
     HubbardLoopResult ConvergeHubbardU(const SCFParams& params, const HubbardLoop& loop);
     HubbardLoopResult ConvergeHubbardU(const SCFParams& params) {return ConvergeHubbardU(params, HubbardLoop{});}

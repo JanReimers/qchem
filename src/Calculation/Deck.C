@@ -83,12 +83,14 @@ struct RunSpec
     {
         enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference };
         Kind                kind = Kind::EstimateHubbardU;
-        size_t              maxOuter = 20;        //!< hubbardLoop: outer ACBN0 steps allowed
+        size_t              maxOuter = 20;        //!< hubbardLoop: outer steps allowed
         double              tolU_eV  = 1e-4;      //!< hubbardLoop: |dU| convergence per manifold (eV)
+        //! hubbardLoop: the U estimator (`"ACBN0"` | `"linearResponse"`); linearResponse also reads nq / perturb / tol / maxIter / restart below
+        SolidCalculation::HubbardLoop::Estimator estimator = SolidCalculation::HubbardLoop::Estimator::ACBN0;
         ivec3_t             nq{1,1,1};            //!< independentResponse / hubbardLinearResponse: the q-mesh, `n` (cubic) or `[n1,n2,n3]` in the file (must divide the k-mesh; 1 = q = 0 of this cell)
-        std::vector<size_t> perturb;              //!< hubbardLinearResponse (empty = the manifolds carrying +U) / hubbardFiniteDifference (empty = {0}): manifold indices
-        double              tol      = 1e-8;      //!< hubbardLinearResponse: Krylov relative residual
-        size_t              maxIter  = 200, restart = 40;   //!< hubbardLinearResponse: the GMRES budget and restart length
+        std::vector<size_t> perturb;              //!< hubbardLinearResponse / an LR hubbardLoop (empty = the manifolds carrying +U, else all) / hubbardFiniteDifference (empty = {0}): manifold indices
+        double              tol      = 1e-8;      //!< hubbardLinearResponse / LR hubbardLoop: Krylov relative residual
+        size_t              maxIter  = 200, restart = 40;   //!< hubbardLinearResponse / LR hubbardLoop: the GMRES budget and restart length
         double              alpha    = 0.0;       //!< hubbardFiniteDifference: the perturbation step, HARTREE in RAM (`alpha_eV` in the file)
         bool operator==(const PostAction&) const = default;
     };

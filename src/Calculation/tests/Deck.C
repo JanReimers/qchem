@@ -316,6 +316,38 @@ TEST(Deck, PostSCFRoundTripsAndIsStrict)
     EXPECT_THROW(deck::FromJson(json{{"structure","x"},{"postSCF",{{{"hubbardLoop",json::object()},{"estimateHubbardU",json::object()}}}}},bad), std::runtime_error) << "two actions in one entry";
 }
 
+// R4: the outer loop's estimator.  linearResponse reads the response keys; under ACBN0 they are UNKNOWN keys (a recipe typo cannot be silently ignored).
+TEST(Deck, HubbardLoopEstimatorRoundTripsAndOwnsItsKeys)
+{
+    deck::RunSpec r;
+    deck::FromJson(json{{"structure","NiO_AFM2"},{"postSCF",{
+        {{"hubbardLoop",{{"estimator","linearResponse"},{"nq",2},{"perturb",{0,1}},{"tol",1e-9},{"maxOuter",6}}}},
+        {{"hubbardLoop",json::object()}}}}}, r);
+    ASSERT_EQ(r.postSCF.size(),2u);
+    using Est=SolidCalculation::HubbardLoop::Estimator;
+    EXPECT_EQ(r.postSCF[0].estimator, Est::LinearResponse);
+    EXPECT_EQ(r.postSCF[0].nq, ivec3_t(2,2,2));
+    EXPECT_EQ(r.postSCF[0].perturb, (std::vector<size_t>{0,1}));
+    EXPECT_EQ(r.postSCF[1].estimator, Est::ACBN0) << "ACBN0 stays the default: no deck moves";
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
+    EXPECT_FALSE(j["postSCF"][1]["hubbardLoop"].contains("nq")) << "an ACBN0 loop writes no response keys";
+
+    deck::RunSpec bad;
+    EXPECT_THROW(deck::FromJson(json{{"structure","x"},{"postSCF",{{{"hubbardLoop",{{"nq",2}}}}}}},bad), std::runtime_error) << "nq under ACBN0";
+    EXPECT_THROW(deck::FromJson(json{{"structure","x"},{"postSCF",{{{"hubbardLoop",{{"estimator","LR"}}}}}}},bad), std::runtime_error) << "an unknown estimator";
+
+    auto msg=[](json d){ try { deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+    const json hub={{"hubbard",{{{"site",0},{"l",2},{"U_eV",0.0}}}}};
+    json cplx=hub; cplx["forceComplex"]=true;
+    auto deckWith=[](json solid, json loop, json kmesh){ return json{{"structure","NiO_AFM2"},{"kmesh",kmesh},{"solid",solid},{"postSCF",{{{"hubbardLoop",loop}}}}}; };
+    const json lr={{"estimator","linearResponse"}};
+    EXPECT_NE(msg(deckWith(hub,lr,{1,1,1})).find("forceComplex"),std::string::npos) << "an LR loop runs the response: complex ansatz";
+    EXPECT_EQ(msg(deckWith(cplx,lr,{1,1,1})),"NO THROW");
+    EXPECT_NE(msg(deckWith(cplx,{{"estimator","linearResponse"},{"nq",2}},{3,3,3})).find("incommensurate"),std::string::npos);
+    EXPECT_EQ(msg(deckWith(hub,json::object(),{1,1,1})),"NO THROW") << "an ACBN0 loop needs no complex ansatz";
+}
+
 TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
 {
     auto resolve=[](json d){ deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); };

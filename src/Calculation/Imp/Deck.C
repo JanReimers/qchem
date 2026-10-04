@@ -101,6 +101,8 @@ const auto kSeed   = NAMES(SeedStrategy, {"Default",SeedStrategy::Default}, {"Co
                                          {"SAD",SeedStrategy::SAD}, {"IonicSAD",SeedStrategy::IonicSAD});
 const auto kOrtho  = NAMES(Ortho, {"Cholesky",Cholesky}, {"Eigen",Eigen}, {"SVD",SVD}, {"Auto",Auto}, {"CholeskyPivoted",CholeskyPivoted});
 const auto kCell   = NAMES(UnitCellKind, {"Uniform",UnitCellKind::Uniform}, {"Becke",UnitCellKind::Becke}, {"Auto",UnitCellKind::Auto});
+const auto kLoopEstimator = NAMES(SolidCalculation::HubbardLoop::Estimator, {"ACBN0",SolidCalculation::HubbardLoop::Estimator::ACBN0},
+                                  {"linearResponse",SolidCalculation::HubbardLoop::Estimator::LinearResponse});
 const auto kRadial = NAMES(RadialKind, {"MHL",RadialKind::MHL}, {"Log",RadialKind::Log}, {"Linear",RadialKind::Linear});
 const auto kAngular= NAMES(AngularKind, {"Lebedev",AngularKind::Lebedev}, {"GaussLegendre",AngularKind::GaussLegendre});
 using Measure = SCFParams::Measure;
@@ -328,7 +330,11 @@ json PostJson(const PostAction& a)
     switch (a.kind)
     {
     case PostAction::Kind::EstimateHubbardU: break;
-    case PostAction::Kind::HubbardLoop:             p={{"maxOuter",a.maxOuter},{"tolU_eV",a.tolU_eV}}; break;
+    case PostAction::Kind::HubbardLoop:
+        p={{"maxOuter",a.maxOuter},{"tolU_eV",a.tolU_eV},{"estimator",NameOf(a.estimator,kLoopEstimator)}};
+        if (a.estimator==SolidCalculation::HubbardLoop::Estimator::LinearResponse)
+        { p["nq"]=QMeshJson(a.nq); p["perturb"]=a.perturb; p["tol"]=a.tol; p["maxIter"]=a.maxIter; p["restart"]=a.restart; }
+        break;
     case PostAction::Kind::IndependentResponse:     p={{"nq",QMeshJson(a.nq)}}; break;
     case PostAction::Kind::HubbardLinearResponse:   p={{"nq",QMeshJson(a.nq)},{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart}}; break;
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
@@ -344,7 +350,13 @@ PostAction PostFromJson(const json& j, const std::string& path)
     PostAction a;
     Fields f(body,path+"."+name);
     if (name=="estimateHubbardU")        a.kind=PostAction::Kind::EstimateHubbardU;
-    else if (name=="hubbardLoop")        { a.kind=PostAction::Kind::HubbardLoop; f.Get("maxOuter",a.maxOuter); f.Get("tolU_eV",a.tolU_eV); }
+    else if (name=="hubbardLoop")
+    {
+        a.kind=PostAction::Kind::HubbardLoop; f.Get("maxOuter",a.maxOuter); f.Get("tolU_eV",a.tolU_eV); f.GetEnum("estimator",a.estimator,kLoopEstimator);
+        // The response keys only with the estimator that reads them: under ACBN0 they are unknown keys (Done() throws), never silently ignored.
+        if (a.estimator==SolidCalculation::HubbardLoop::Estimator::LinearResponse)
+        { GetQMesh(f,a.nq,path+"."+name); f.Get("perturb",a.perturb); f.Get("tol",a.tol); f.Get("maxIter",a.maxIter); f.Get("restart",a.restart); }
+    }
     else if (name=="independentResponse"){ a.kind=PostAction::Kind::IndependentResponse; GetQMesh(f,a.nq,path+"."+name); }
     else if (name=="hubbardLinearResponse")
     { a.kind=PostAction::Kind::HubbardLinearResponse; GetQMesh(f,a.nq,path+"."+name); f.Get("perturb",a.perturb); f.Get("tol",a.tol); f.Get("maxIter",a.maxIter); f.Get("restart",a.restart); }
@@ -481,11 +493,12 @@ Materials::Material Resolve(RunSpec& spec)
             const bool needsU = true;   // every action works on the Hubbard manifolds (list them at U=0 to probe a run without +U)
             if (needsU && spec.solid.hubbard.empty())
                 throw std::runtime_error(who+"the run carries no Hubbard manifold -- list the channels in solid.hubbard (at U_eV=0 to probe without +U)");
-            const bool isResponse = a.kind==PostAction::Kind::IndependentResponse || a.kind==PostAction::Kind::HubbardLinearResponse;
+            const bool lrLoop = a.kind==PostAction::Kind::HubbardLoop && a.estimator==SolidCalculation::HubbardLoop::Estimator::LinearResponse;
+            const bool isResponse = a.kind==PostAction::Kind::IndependentResponse || a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop;
             // NOT an error: whether an imposed group REDUCES the k-mesh depends on the group and the mesh (the NiO AFM-II 2x2x2 Shubnikov group maps 8 k-points onto 8
             // irreducible ones, and its chi0 ran).  A blanket refusal would reject decks the library accepts; the response itself THROWS at run time if the mesh was
             // really reduced (D5).  Vet() says so in a note.
-            if (a.kind==PostAction::Kind::HubbardLinearResponse && !spec.solid.forceComplex)
+            if ((a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop) && !spec.solid.forceComplex)
                 throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
             if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences
             {
@@ -499,7 +512,7 @@ Materials::Material Resolve(RunSpec& spec)
                 throw std::runtime_error(who+"alpha_eV must be nonzero (the +-alpha step)");
             if (a.kind==PostAction::Kind::HubbardLoop && (a.maxOuter<1 || a.tolU_eV<=0.0))
                 throw std::runtime_error(who+"needs maxOuter >= 1 and tolU_eV > 0");
-            if (a.kind==PostAction::Kind::HubbardLinearResponse && (a.maxIter<1 || a.restart<1 || a.tol<=0.0))
+            if ((a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop) && (a.maxIter<1 || a.restart<1 || a.tol<=0.0))
                 throw std::runtime_error(who+"needs maxIter >= 1, restart >= 1 and tol > 0");
             for (size_t j : a.perturb)
                 if (j>=spec.solid.hubbard.size())
@@ -737,11 +750,18 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         }
         case K::HubbardLoop:
         {
-            SolidCalculation::HubbardLoop lp; lp.maxOuter=a.maxOuter; lp.tolU_eV=a.tolU_eV;
+            SolidCalculation::HubbardLoop lp; lp.maxOuter=a.maxOuter; lp.tolU_eV=a.tolU_eV; lp.estimator=a.estimator;
+            lp.nq=a.nq; lp.krylov=KrylovParams{.tol=a.tol}; lp.krylov.maxIter=a.maxIter; lp.krylov.restart=a.restart; lp.perturbed=a.perturb;
             auto L=calc->ConvergeHubbardU(stages.back().params, lp);
+            rj["estimator"]=NameOf(a.estimator,kLoopEstimator);
             rj["outer"]=L.outer; rj["converged"]=L.converged; rj["scfConverged"]=L.scfConverged; rj["U_eV"]=L.U_eV;
-            pr.ok=L.converged && L.scfConverged;
-            std::ostringstream os; os<<L.outer<<" outer steps, U "<<(L.converged?"CONVERGED":"NOT converged")<<", last SCF "<<(L.scfConverged?"converged":"NOT converged");
+            rj["estimated"]=L.estimated; rj["Uin_eV"]=L.Uin_eV; rj["moment"]=L.moment;
+            json gap=json::array(); for (double g : L.gap_eV) gap.push_back(std::isfinite(g) ? json(g) : json(nullptr)); rj["gap_eV"]=gap;
+            if (!L.failure.empty()) rj["failure"]=L.failure;
+            pr.ok=L.converged && L.scfConverged && L.failure.empty();
+            std::ostringstream os; os<<NameOf(a.estimator,kLoopEstimator)<<": "<<L.outer<<" outer steps, U "<<(L.converged?"CONVERGED":"NOT converged")
+                                  <<", last SCF "<<(L.scfConverged?"converged":"NOT converged");
+            if (!L.failure.empty()) os<<"; FAILED: "<<L.failure;
             pr.summary=os.str();
             if (auto R=calc->Result()) { out.converged=true; out.energy=calc->LastIterateTerms().GetTotalEnergy(); }   // the final-U SCF is now the run's answer
             break;

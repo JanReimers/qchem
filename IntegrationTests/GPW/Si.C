@@ -1285,3 +1285,60 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
         EXPECT_NEAR(Uq[a%2].get<double>(), Us[a].get<double>(), 1e-3) << "U (eV) of supercell atom " << a;
     }
 }
+
+
+// ============================ R4: THE SELF-CONSISTENT LINEAR-RESPONSE U (doc/LinearResponsePlan.md §4c, §5 R4) ============================
+// The outer loop with the LINEAR-RESPONSE estimator: converge at U_in, U_out = (chi0^-1 - chi^-1) with +U frozen, set U_in = U_out on the
+// perturbed manifold, re-converge, until |U_out - U_in| < tol (Timrov et al. PRB 103, 045141 (2021)).  Si-p on site 0, started at U_in = 0.
+// Three claims, the last one INDEPENDENT of the loop's bookkeeping:
+//   (1) step 1 IS U_0: the loop's first estimate == a stand-alone hubbardLinearResponse on the same converged U = 0 state;
+//   (2) the loop MOVED U (a loop whose SetU did nothing would "converge" at step 2 with U_SC = U_0);
+//   (3) U_SC is a FIXED POINT: a second deck, started from the SEED at U_in = U_SC, answers U_out = U_SC.
+TEST(GPW_Si, Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint)
+{
+    namespace fs=std::filesystem;
+    // The SCF recipes, MEASURED 2026-10-04 on free Si Γ with U on site 0's p: the loop arm restarts from a converged state, where
+    // Kerker/Pulay converges in 2-3 iterations (linear relax 1.0 diverges on a restart, LinearResponsePlan §3e finding 5); the fixed-point
+    // arm starts from the SEED at U = U_SC, where Kerker/Pulay never converged (relax 0.1-0.3, 200 iterations) and linear+DIIS takes 164.
+    // The claim is about the converged STATE, so the two routes to it may differ.
+    const nlohmann::json kerker={{"pulayDepth",8},{"pulayStart",3},{"kerkerG0",1.0},{"startingRelaxRo",0.3}};   // free Si Γ: relax 0.45 never converges
+    auto run=[](double U_eV, nlohmann::json post, const std::string& tag, const nlohmann::json& mixing)
+    {
+        nlohmann::json scf={{"NMaxIter",300},{"minDeltaRho",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial",1e30},{"minFD",1e30}};
+        scf.update(mixing);
+        const nlohmann::json deck={
+            {"structure","Si_diamond"}, {"kmesh",{1,1,1}}, {"basis",{{"data","SIPP_SR"}}},
+            {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",{{{"site",0},{"l",1},{"U_eV",U_eV}}}}}},
+            {"scf",scf}, {"postSCF",post}};
+        qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+        const fs::path dir=fs::temp_directory_path()/("qchem_it_si_lrloop_"+tag+"_"+std::to_string(::getpid()));
+        fs::remove_all(dir);
+        qchem::deck::Provenance pv; pv.codeVersion="it";
+        const auto out=qchem::deck::Run(spec, pv, dir);
+        EXPECT_TRUE(out.converged) << tag << ": " << out.summary;
+        std::ifstream in(out.revision);
+        const nlohmann::json rec=nlohmann::json::parse(in);
+        fs::remove_all(dir);
+        return rec.at("results").at("postSCF");
+    };
+    const nlohmann::json A=run(0.0, {{{"hubbardLinearResponse",{{"perturb",{0}}}}},
+                                     {{"hubbardLoop",{{"estimator","linearResponse"},{"perturb",{0}},{"tolU_eV",1e-4},{"maxOuter",12}}}}}, "loop", kerker);
+    ASSERT_TRUE(A.at(0).at("ok").get<bool>()) << A.at(0).at("summary");
+    ASSERT_TRUE(A.at(1).at("ok").get<bool>()) << A.at(1).at("summary");
+    const double U0=A.at(0).at("U_eV").at(0).get<double>();
+    const auto& traj=A.at(1).at("U_eV");
+    const double U0loop=traj.front().at(0).get<double>(), USC=traj.back().at(0).get<double>();
+    std::cout << "[R4 gate] U_0 stand-alone " << std::setprecision(8) << U0 << "  loop step 1 " << U0loop << "  U_SC " << USC
+              << " eV after " << A.at(1).at("outer") << " outer steps" << std::endl;
+    EXPECT_NEAR(U0loop, U0, 1e-8) << "(1) the loop's first estimate is the stand-alone U of the same state";
+    EXPECT_GT(std::fabs(USC-U0), 10*1e-4) << "(2) the loop did not move U -- did SetU reach the term?";
+    EXPECT_EQ(A.at(1).at("estimated"), nlohmann::json::array({0}));
+
+    const nlohmann::json B=run(USC, {{{"hubbardLinearResponse",{{"perturb",{0}}}}}}, "fixedpoint", nlohmann::json::object());
+    ASSERT_TRUE(B.at(0).at("ok").get<bool>()) << B.at(0).at("summary");
+    const double Uout=B.at(0).at("U_eV").at(0).get<double>();
+    std::cout << "[R4 gate] fixed point: U_in " << std::setprecision(8) << USC << "  U_out " << Uout << "  diff " << Uout-USC << std::endl;
+    // MEASURED 2026-10-04: U_0 1.2335018 -> U_SC 1.2399187 eV in 3 outer steps; from the seed, U_out(U_SC) = 1.2399189 (1.7e-7 eV).
+    // Gated at the loop's own tolU_eV (the last step moved 3e-5).
+    EXPECT_NEAR(Uout, USC, 1e-4) << "(3) U_SC is not a fixed point of U_out(U_in)";
+}

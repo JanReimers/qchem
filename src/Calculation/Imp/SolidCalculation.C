@@ -1076,6 +1076,33 @@ static std::vector<double> AtomicRadial(const BasisSet::Real_BS& mol, const Stru
     return out;
 }
 
+namespace {
+//! \brief +U FROZEN for a scope (doc/LinearResponsePlan.md §3d Q6), and the previous state restored on EVERY exit
+//! path -- the response kernel is applied lazily during the solve, so freezing only while it is BUILT would not do.
+class FrozenHubbard
+{
+public:
+    explicit FrozenHubbard(qchem::Hamiltonian::HubbardUTarget* t) : itsT(t), itsWas(t && t->OccupationsFrozen())
+    {if (itsT) itsT->FreezeOccupations(true);}
+    ~FrozenHubbard() {if (itsT) itsT->FreezeOccupations(itsWas);}
+    FrozenHubbard(const FrozenHubbard&)=delete;
+    FrozenHubbard& operator=(const FrozenHubbard&)=delete;
+private:
+    qchem::Hamiltonian::HubbardUTarget* itsT;
+    bool                                itsWas;
+};
+
+//! The default perturbed set: the manifolds that CARRY a +U (hp.x's Hubbard sites), else all of them (§3d Q10).
+std::vector<size_t> DefaultPerturbed(const qchem::Hamiltonian::HubbardChannels& hub)
+{
+    const auto ch=hub.Channels();
+    std::vector<size_t> J;
+    for (size_t i=0;i<ch.size();i++) if (ch[i].carriesU) J.push_back(i);
+    if (J.empty()) for (size_t i=0;i<ch.size();i++) J.push_back(i);
+    return J;
+}
+} // namespace
+
 std::vector<qchem::Hamiltonian::HubbardEstimate> SolidCalculation::EstimateHubbardU() const
 {
     std::unique_ptr<qchem::Hamiltonian::HubbardUEstimator> est=itsImp->ham->MakeHubbardUEstimator();
@@ -1114,38 +1141,112 @@ std::vector<qchem::Hamiltonian::HubbardEstimate> SolidCalculation::EstimateHubba
 
 SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCFParams& params, const HubbardLoop& loop)
 {
+    using Est=HubbardLoop::Estimator;
     const double eV=27.211386245988;
+    const bool LR = loop.estimator==Est::LinearResponse;
+    const char* who = LR ? "LR" : "ACBN0";
     HubbardLoopResult R;
-    std::unique_ptr<qchem::Hamiltonian::HubbardUEstimator> est=itsImp->ham->MakeHubbardUEstimator();
-    if (!est) throw std::logic_error("SolidCalculation::ConvergeHubbardU: this run carries no Hubbard manifold");
+    const auto* hub=itsImp->ham->GetHubbardChannels();
+    auto* target=itsImp->ham->GetHubbardUTarget();
+    if (!hub || !target) throw std::logic_error("SolidCalculation::ConvergeHubbardU: this run carries no Hubbard manifold");
+    const size_t nM=hub->Channels().size();
+    // Which manifolds the loop SETS: ACBN0 estimates every manifold; linear response the perturbed set (hp.x's Hubbard sites),
+    // fixed ONCE here -- after step 1 the sites carry a U, and a default re-derived later would mean a different set.
+    if (LR)
+    {
+        R.estimated = loop.perturbed.empty() ? DefaultPerturbed(*hub) : loop.perturbed;
+        for (size_t J : R.estimated) if (J>=nM) throw std::out_of_range("SolidCalculation::ConvergeHubbardU: a perturbed manifold index past the manifolds");
+    }
+    else for (size_t M=0;M<nM;M++) R.estimated.push_back(M);
     std::vector<double> Ucur;                                 // the U each manifold currently runs with (eV)
-    for (const auto& M : itsImp->opts.hubbard) Ucur.push_back(M.U*eV);
+    for (size_t M=0;M<nM;M++) Ucur.push_back(M<itsImp->hubbard.size() ? itsImp->hubbard[M].U*eV : 0.0);
+    R.Uin_eV=Ucur;
     R.scfConverged=itsImp->converged;
+
+    // THE STATE an estimate is made FROM, for the [U table]: the band gap and each manifold's integrated moment.  Both read the
+    // converged orbitals (pin: integrated observables, never a point sample of m(r)); the moment goes through the +U term's OWN
+    // projectors, so it works on any XC mesh (the Becke-basin site moment needs basins).
+    auto snapshot=[&]()
+    {
+        const auto* wf=itsImp->scf->GetWaveFunction();
+        if (!wf) throw std::logic_error("SolidCalculation::ConvergeHubbardU: no wave function");
+        double homo=-std::numeric_limits<double>::infinity(), lumo=std::numeric_limits<double>::infinity();
+        std::vector<double> up(nM,0.0), dn(nM,0.0);
+        auto walk=[&]<class U>(const qchem::Orbitals::TOrbitals<U>& os, const qchem::Irrep& ir)
+        {
+            const auto* blk=dynamic_cast<const qchem::BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
+            if (!blk) throw std::logic_error("SolidCalculation::ConvergeHubbardU: an orbital block that is not an Orbital_DFT_IBS");
+            const double cap = ir.ms==qchem::Spin::None ? 2.0 : 1.0;   // a level is OCCUPIED when more than half full
+            std::vector<const qchem::Orbitals::TOrbital<U>*> occ;
+            for (const auto* o : os.template Iterate<qchem::Orbitals::TOrbital<U>>())
+            {
+                if (o->GetOccupation()>0.5*cap) homo=std::max(homo, o->GetEigenEnergy());
+                else                            lumo=std::min(lumo, o->GetEigenEnergy());
+                if (o->GetOccupation()>0.0) occ.push_back(o);
+            }
+            if (occ.empty()) return;
+            mat_t<U> C(blk->GetNumFunctions(), occ.size());
+            for (size_t i=0;i<occ.size();i++) { const vec_t<U>& c=occ[i]->GetCoeff(); for (size_t a=0;a<c.size();a++) C(a,i)=c[a]; }
+            const auto amp=hub->ProjectorAmplitudes(*blk, C);
+            const double w=ir.sym->GetWeight();
+            for (size_t M=0;M<nM;M++)
+            {
+                double n=0.0;
+                for (size_t i=0;i<occ.size();i++) for (size_t mu=0;mu<amp[M].rows();mu++) n+=occ[i]->GetOccupation()*std::norm(amp[M](mu,i));
+                n*=w;
+                if      (ir.ms==qchem::Spin::Up)   up[M]+=n;
+                else if (ir.ms==qchem::Spin::Down) dn[M]+=n;
+                else { up[M]+=0.5*n; dn[M]+=0.5*n; }        // the folded doublet: half in each channel
+            }
+        };
+        for (const qchem::Irrep& ir : wf->GetQNs())
+        {
+            const qchem::Orbitals::Orbitals* os=wf->GetOrbitals(ir);
+            if (const auto* c=dynamic_cast<const qchem::Orbitals::TOrbitals<dcmplx>*>(os)) walk(*c, ir);
+            else if (const auto* r=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(os)) walk(*r, ir);
+            else throw std::logic_error("SolidCalculation::ConvergeHubbardU: an orbital set of unknown scalar");
+        }
+        R.gap_eV.push_back(std::isfinite(lumo) && std::isfinite(homo) ? (lumo-homo)*eV : std::numeric_limits<double>::quiet_NaN());
+        std::vector<double> m(nM); for (size_t M=0;M<nM;M++) m[M]=up[M]-dn[M];
+        R.moment.push_back(m);
+    };
+
+    std::unique_ptr<qchem::Hamiltonian::HubbardUEstimator> est;
     for (size_t n=0; n<loop.maxOuter; n++)
     {
-        R.last=EstimateHubbardU();                            // feeds the estimator from the current orbitals, prints [ACBN0]
+        snapshot();
         R.outer=n+1;
-        std::vector<double> Unext; double dmax=0.0;
-        for (size_t M=0;M<R.last.size();M++) { Unext.push_back(R.last[M].Ueff()*eV); dmax=std::max(dmax, std::abs(Unext[M]-Ucur[M])); }
+        // ESTIMATE from the current (converged) state.
+        std::vector<double> Unext=Ucur;
+        if (LR)
+        {
+            auto r=HubbardLinearResponse(loop.nq, loop.krylov, R.estimated);   // freezes +U for the solve, prints its own tables
+            if (!r) { R.failure=r.Error().detail; std::cout<<"[LR loop "<<n<<"] the response FAILED -- the loop stops: "<<R.failure<<std::endl; break; }
+            const rvec_t U=r->U();
+            for (size_t c=0;c<R.estimated.size();c++) Unext[R.estimated[c]]=U[c]*eV;
+        }
+        else
+        {
+            est=itsImp->ham->MakeHubbardUEstimator();         // Apply's handle (EstimateHubbardU feeds and evaluates its own)
+            R.last=EstimateHubbardU();                        // feeds an estimator from the current orbitals, prints [ACBN0]
+            for (size_t M=0;M<R.last.size();M++) Unext[M]=R.last[M].Ueff()*eV;
+        }
+        double dmax=0.0;
+        for (size_t M : R.estimated) dmax=std::max(dmax, std::abs(Unext[M]-Ucur[M]));
         R.U_eV.push_back(Unext);
         {
             std::ostringstream os;
-            os<<"[ACBN0 loop "<<n<<"] U_eff(eV):"; for (double u : Unext) os<<" "<<std::fixed<<std::setprecision(4)<<u;
+            os<<"["<<who<<" loop "<<n<<"] U"<<(LR?"":"_eff")<<"(eV):"; for (size_t M : R.estimated) os<<" "<<std::fixed<<std::setprecision(4)<<Unext[M];
             os<<"  max|dU|="<<std::setprecision(5)<<dmax<<(itsImp->converged ? "" : "  (SCF NOT converged)");
             std::cout<<os.str()<<std::endl;
         }
         if (dmax<loop.tolU_eV) { R.converged=true; break; }
         if (n+1==loop.maxOuter) break;
-        // Apply on the same Hamiltonian and re-converge from the current density: the estimator writes the
-        // term's U; the facade re-runs the SCF with the caller's parameters.  (est was fed from these orbitals;
-        // Apply resets it, and the next EstimateHubbardU builds a fresh one.)
-        est->Apply(R.last);
-        for (size_t M=0;M<R.last.size() && M<itsImp->hubbard.size();M++)   // the record a save reads (SetU = one U)
-        {
-            itsImp->hubbard[M].U=R.last[M].Ueff();
-            itsImp->hubbard[M].Uirrep.clear();
-        }
-        est=itsImp->ham->MakeHubbardUEstimator();
+        // APPLY on the same Hamiltonian, then re-converge from the current density.
+        if (LR) for (size_t M : R.estimated) target->SetU(M, Unext[M]/eV);
+        else    est->Apply(R.last);
+        for (size_t M : R.estimated)                          // the record a save reads (SetU = one U)
+            if (M<itsImp->hubbard.size()) { itsImp->hubbard[M].U=Unext[M]/eV; itsImp->hubbard[M].Uirrep.clear(); }
         Ucur=Unext;
         // A NEW STAGE, not a continued Iterate: the converged mixer history (eight near-zero Pulay residuals)
         // would extrapolate the first post-U step straight back onto the old density and report "converged"
@@ -1155,6 +1256,21 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
         BuildStage(itsImp->stageAccel, std::move(itsImp->cd));
         auto out=Converge(params);
         R.scfConverged=bool(out);
+    }
+    // THE [U table]: one greppable line per estimated manifold (NOTES, 2026-10-04: "make plucking trivial").  U_0 is the FIRST estimate
+    // (the response of the starting state, at U_in), U_SC the last; the gap and moment are those of the states they were estimated from.
+    if (!R.U_eV.empty())
+    {
+        const auto ch=hub->Channels();
+        for (size_t M : R.estimated)
+        {
+            std::ostringstream os;
+            os<<std::fixed<<std::setprecision(4)<<"[U table] "<<who<<" "<<itsImp->opts.label<<(itsImp->opts.label.empty()?"":" ")
+              <<"site"<<ch[M].site<<" l="<<ch[M].l<<"  U_in="<<R.Uin_eV[M]<<"  U_0="<<R.U_eV.front()[M]<<"  U_SC="<<R.U_eV.back()[M]
+              <<" eV  outer="<<R.outer<<(R.converged?" CONVERGED":" NOT-converged")
+              <<"  gap "<<R.gap_eV.front()<<" -> "<<R.gap_eV.back()<<" eV  m "<<R.moment.front()[M]<<" -> "<<R.moment.back()[M];
+            std::cout<<os.str()<<std::endl;
+        }
     }
     return R;
 }
@@ -1181,32 +1297,6 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
     return r;
 }
 
-namespace {
-//! \brief +U FROZEN for a scope (doc/LinearResponsePlan.md §3d Q6), and the previous state restored on EVERY exit
-//! path -- the response kernel is applied lazily during the solve, so freezing only while it is BUILT would not do.
-class FrozenHubbard
-{
-public:
-    explicit FrozenHubbard(qchem::Hamiltonian::HubbardUTarget* t) : itsT(t), itsWas(t && t->OccupationsFrozen())
-    {if (itsT) itsT->FreezeOccupations(true);}
-    ~FrozenHubbard() {if (itsT) itsT->FreezeOccupations(itsWas);}
-    FrozenHubbard(const FrozenHubbard&)=delete;
-    FrozenHubbard& operator=(const FrozenHubbard&)=delete;
-private:
-    qchem::Hamiltonian::HubbardUTarget* itsT;
-    bool                                itsWas;
-};
-
-//! The default perturbed set: the manifolds that CARRY a +U (hp.x's Hubbard sites), else all of them (§3d Q10).
-std::vector<size_t> DefaultPerturbed(const qchem::Hamiltonian::HubbardChannels& hub)
-{
-    const auto ch=hub.Channels();
-    std::vector<size_t> J;
-    for (size_t i=0;i<ch.size();i++) if (ch[i].carriesU) J.push_back(i);
-    if (J.empty()) for (size_t i=0;i<ch.size();i++) J.push_back(i);
-    return J;
-}
-} // namespace
 
 // THE SELF-CONSISTENT RESPONSE OVER A q-MESH (R2 at q = 0, R3 at q != 0): the same Reference and probe as
 // IndependentResponse, plus the AO <-> MO frame and the Hamiltonian's analytic kernel, linearised about the converged
