@@ -20,22 +20,24 @@ Every environment variable the library reads, grouped by what it is for.  **A se
 | `OMP_NUM_THREADS`, `KMP_BLOCKTIME` | — | Standard OpenMP variables; only read to describe the run on the banner (`KMP_BLOCKTIME`/`OMP_WAIT_POLICY` are *set* to non-spinning defaults by \ref qchem::StopOmpThreadsBusyWaiting unless you set them). |
 | `GPW_COLLOC_MEMO` | 4 | Depth of the density-collocation replay cache (memory against time). |
 
-\section settings_policy Declared deviations and the CP2K umbrella — yes, each moves numbers
+\section settings_policy Declared deviations and the CP2K umbrella — NOW DECK KEYS (the environment variables are retired)
 
-Resolved once per run (\ref qchem::RunPolicy) and printed on the run banner with a `*` where the run deviates from CP2K parity.
-`CP2K_COMPAT=1` sets every one to CP2K's choice; naming a knob explicitly outranks the umbrella.
+Resolved once per run (\ref qchem::RunPolicy, from \c SolidCalcOptions::policy) and printed on the run banner with a `*` where the run deviates
+from CP2K parity.  `policy.cp2kCompat=true` sets every route to CP2K's choice; stating a route explicitly outranks the umbrella.  The environment
+variables below are **retired and ignored** (reported once, recorded in `provenance.ignoredEnvironment`); set one with
+`--set solid.policy.<key>=<value>`.
 
-| setting | default | what it does |
-|---|---|---|
-| `CP2K_COMPAT` | 0 | Umbrella: run at CP2K parity (also forces symmetry imposition off). |
-| `QCHEM_DM_LOWRANK` | on | Factored/low-rank ρ route (a singles route CP2K does not run). |
-| `GPW_STREAM_FOLD` | on | Orbit fold of the GPW collocation pair streams. |
-| `QCHEM_MIX_RHO_M` | on | Mix in (ρ, m) channels (Kerker on ρ, linear on m) instead of (↑, ↓). |
-| `QCHEM_XC_DM_SOURCE` *(alias `GPW_XC_DM_SOURCE`)* | off | Feed V_xc the wholesale ρ[D] instead of the mixed ρ. |
-| `QCHEM_IMPOSE_SYMMETRY` | on | Whether the caller may impose space-group symmetry at all. |
-| `QCHEM_BECKE_XC` | on | Atom-centred (Becke) XC quadrature rather than the uniform grid. |
-| `GPW_DAWARE_SCREEN` | on | D-aware collocation box tolerance ε/\|c_ij\| instead of a flat ε. |
-| `QCHEM_U_EIGEN` | on | DFT+U on the Löwdin block's eigenvalues (Dudarev) instead of its diagonal populations. |
+| retired variable | deck key | default | what it does |
+|---|---|---|---|
+| `CP2K_COMPAT` | `policy.cp2kCompat` | false | Umbrella: run at CP2K parity (also forces symmetry imposition off). |
+| `QCHEM_DM_LOWRANK` | `policy.dmLowRank` | on | Factored/low-rank ρ route (a singles route CP2K does not run). |
+| `GPW_STREAM_FOLD` | `policy.streamFold` | on | Orbit fold of the GPW collocation pair streams. |
+| `QCHEM_MIX_RHO_M` | `policy.mixRhoM` | on | Mix in (ρ, m) channels (Kerker on ρ, linear on m) instead of (↑, ↓). |
+| `QCHEM_XC_DM_SOURCE` (`GPW_XC_DM_SOURCE`) | `policy.xcFromDM` | off | Feed V_xc the wholesale ρ[D] instead of the mixed ρ. |
+| `QCHEM_IMPOSE_SYMMETRY` | `policy.imposeSymmetry` | on | Whether the caller may impose space-group symmetry at all. |
+| `QCHEM_BECKE_XC` | `policy.beckeXC` | on | Atom-centred (Becke) XC quadrature rather than the uniform grid. |
+| `GPW_DAWARE_SCREEN` | `policy.dAwareScreen` | on | D-aware collocation box tolerance ε/\|c_ij\| instead of a flat ε. |
+| `QCHEM_U_EIGEN` | `policy.hubbardEigen` | on | DFT+U on the Löwdin block's eigenvalues (Dudarev) instead of its diagonal populations. |
 
 \section settings_numerics Numerical-method tolerances and grids — NOW DECK KEYS (the environment variables are retired)
 

@@ -301,3 +301,16 @@ Historical records and logs (`doc/Records/*`, `doc/logs`) still quote the old va
 So the re-run needs the deck sections those use that do not exist yet: `response` (chi0/chi/perturb/FD), `hubbardLoop` (ACBN0, tolU), `restart`, `trim`, and the
 probes' structure edits (swap sublattice, shift) -- i.e. step 6d is the prerequisite; each log's `.cmd` / header is the recipe to translate.  Plan: after 6d, translate each
 campaign to a deck, re-run, and compare to the banked number (a number that moves is an anchor to re-judge against an independent route, never to refresh -- Pins pin 10).
+
+**Step 6b DONE 2026-10-04 -- the CP2K-deviation policy is a typed value, the env hooks are RETIRED** (ctest 1021/1021).  `RunPolicySpec` (`cp2kCompat` +
+eight `optional<bool>` routes: `dmLowRank streamFold mixRhoM xcFromDM imposeSymmetry beckeXC dAwareScreen hubbardEigen`) is `SolidCalcOptions::policy` = the deck's
+`solid.policy` block.  The facade INSTALLS it (`SetRunPolicy`) as the first act of `BuildBasis`, before any factory consults `theRunPolicy()`; `ReresolveRunPolicy` is
+gone (`SetRunPolicy` / `ScopedRunPolicy` replace it in A/B arms).  Unset optional = "not stated" (umbrella / default decides); stated wins over the umbrella (rule kept, tested).
+A record stores ONLY stated routes + the umbrella (so a later `--set solid.policy.cp2kCompat=true` still means what it says); the RESOLVED table is
+`provenance.policyResolved`.  The banner now prints deck keys (`policy.streamFold=on*(stated)`).  Retired + reported (ignored): `CP2K_COMPAT`, `QCHEM_DM_LOWRANK`,
+`GPW_STREAM_FOLD`, `QCHEM_MIX_RHO_M`, `QCHEM_/GPW_XC_DM_SOURCE`, `QCHEM_IMPOSE_SYMMETRY`, `QCHEM_BECKE_XC`, `GPW_DAWARE_SCREEN`, `QCHEM_U_EIGEN`.  Verified: `CP2K_COMPAT=1 rundeck`
+runs the DEFAULT policy and says so; `--set solid.policy.cp2kCompat=true --set solid.policy.streamFold=true` gives `symmetry FREE [VETOED by policy]`, uniform XC, stream fold stated.
+**The `parity-cp2k` PRESET is just `policy.cp2kCompat=true`** (a named preset file is a deck-include feature for later).  Harness / `gpwprobe` / `scripts/retake5a` use the interim
+`GPW_PARITY=1` (harness `EnvOverrides`) until 6d.  `doc/Benchmark.md` §2 carries a dated note translating the old variable names (its historical commands are left as written).
+**Known hazard (noted, not fixed):** the policy is process-global, consulted at BUILD time; two live runs with DIFFERENT policies in one process would see the last installed.
+Sequential runs (every test and rundeck) are safe.  Remaining 6c: the A/B hatches (`GPW_CONTRACT_CUBE`, `GPW_EXP_RECURRENCE`, `GPW_SPHERE_SCREEN`, `GPW_LONG_SWEEP`, `QCHEM_XC_DM_MIX/BOOST`).

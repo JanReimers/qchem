@@ -57,7 +57,7 @@ import qchem.BasisSet.Gaussian.Point.Factory;          // Gaussian::Factory, Bas
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
-import qchem.RunPolicy;                         // ReresolveRunPolicy() -- the declared-deviation A/B hatch (N5)
+import qchem.RunPolicy;                         // SetRunPolicy / SolidCalcOptions::policy -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
@@ -547,7 +547,7 @@ TEST(GPW_Si, Γ_Imp_eqUnfolded)
     struct Arm { double charge, E; };
     auto arm=[&](const char* fold) -> Arm
     {
-        setenv("GPW_STREAM_FOLD",fold,1);  qchem::ReresolveRunPolicy();
+        o.policy.streamFold=(std::string(fold)=="1");   // the A/B arm states its route (D-ENV 6b)
         GpwReport report("Si "+o.label, false);
         qchem::SolidCalculation calc(lat, MakeBasisSR(*si.cell), o, ProductionGates());
         auto R=calc.Result();
@@ -555,7 +555,6 @@ TEST(GPW_Si, Γ_Imp_eqUnfolded)
         return {calc.LastIterateCharge(), calc.LastIterateTerms().GetTotalEnergy()};
     };
     const Arm R0=arm("0"), R1=arm("1");
-    unsetenv("GPW_STREAM_FOLD");  qchem::ReresolveRunPolicy();
 
     std::cout << "[stream fold A/B] E(full)=" << R0.E << "  E(folded)=" << R1.E << "  dE=" << R1.E-R0.E << std::endl;
     EXPECT_NEAR(R1.E, R0.E, 1e-5)

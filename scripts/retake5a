@@ -10,7 +10,7 @@
 # Si after ~20 iterations (the adaptive relax raises alpha 0.30 -> 0.45 and never re-damps -- DIIS had been
 # masking it; OpenWork section 4), so the stable no-Fock-side route on our side is Kerker + Pulay(8): 13
 # iterations to 1e-7 on the same anchor.  The NaF decks mix BROYDEN NBUFFER 8, matched by Pulay 8.
-# All rows under CP2K_COMPAT=1 (no Becke mesh, no imposition, no stream fold / low-rank rho) and serial.
+# All rows under GPW_PARITY=1 (= policy.cp2kCompat; was CP2K_COMPAT=1) (no Becke mesh, no imposition, no stream fold / low-rank rho) and serial.
 # The MnO rows are NOT here: they were taken 2026-09-20 with `gpwprobe mno` (section 5 footnote 8).
 #
 #   scripts/retake5a                # from the repo root; ~15 min serial; logs in build/Release/bench5a/
@@ -25,7 +25,8 @@ BIN=build/Release/IntegrationTests/ITMain
 OUT=build/Release/bench5a; mkdir -p "$OUT"
 [ -x "$BIN" ] || { echo "build ITMain first (cd build/Release && ninja ITMain)" >&2; exit 1; }
 
-export CP2K_COMPAT=1 GPW_REPORT=1 QCHEM_OPENMP_THREADS=1 OMP_NUM_THREADS=1
+export GPW_PARITY=1 GPW_REPORT=1   # GPW_PARITY=1 = the deck's policy.cp2kCompat (CP2K_COMPAT is retired, D-ENV 6b)
+export GPW_REPORT=1 QCHEM_OPENMP_THREADS=1 OMP_NUM_THREADS=1
 export GPW_MEASURE=maxdd GPW_ACC=null GPW_MOM=0 GPW_KERKER_G0=1
 
 row() {  # row <label> <gtest filter> <EPS> <NMAX> <PULAY> [extra env...]

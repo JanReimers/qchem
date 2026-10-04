@@ -38,7 +38,7 @@ import qchem.BasisSet.Gaussian.Point.Factory;          // Gaussian::Factory, Bas
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;  // MakeSphericalLatticeView (GPW_SPHERICAL=1)
 import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
-import qchem.RunPolicy;                         // ReresolveRunPolicy() -- the declared-deviation A/B hatch (N5)
+import qchem.RunPolicy;                         // SetRunPolicy / SolidCalcOptions::policy -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
@@ -508,6 +508,7 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
         // max|dD| 6e-8 against the deck's 44 (probe, `gpwprobe mno`, MNO_ACC=Null MNO_MOM=0 MNO_PULAY=8).
         o.accelerator=qchem::SCFAccelerators::Type::Null;
         o.imposeSymmetry=true;
+        o.policy.hubbardEigen=false;   // CP2K's form, a declared deviation: stated in the options (D-ENV 6b), not in the environment
         if (U_eV>0.0) o.hubbard={HubbardU(0,2,U_eV), HubbardU(1,2,U_eV)};
         SCFParams par=Gates(200, 1e-6, 1e30);
         par.Δρmeasure=SCFParams::Measure::MaxΔD;             // CP2K's EPS_SCF measure (doc/Benchmark.md rule 3f)
@@ -523,10 +524,9 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
         return arms.back()->Result();
     };
     // THE FORM is a declared deviation, so it is set the way the N5 hatch sets one: for this test only.
-    setenv("QCHEM_U_EIGEN","0",1);  qchem::ReresolveRunPolicy();
+    // (THE FORM -- CP2K's diagonal populations -- is stated in the run's options below: o.policy.hubbardEigen=false.)
     auto r0=run(0.0, "MnO AFM-II VA sph Gamma (imposed)");
     auto rU=run(4.0, "MnO AFM-II VA sph Gamma (imposed, U=4 eV on Mn d)");
-    unsetenv("QCHEM_U_EIGEN");      qchem::ReresolveRunPolicy();
     ASSERT_TRUE(r0) << Why(r0);
     ASSERT_TRUE(rU) << Why(rU);
     EXPECT_NEAR(r0->TotalCharge(), 26.0, 1e-6);

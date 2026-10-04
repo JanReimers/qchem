@@ -17,14 +17,19 @@
 // what was BUILT" true rather than aspirational, and it is what lets a banner print the RESOLVED state
 // instead of re-deriving it and hoping the two agree.
 //
-// THE OVERRIDE RULE: an explicitly-set individual knob WINS over CP2K_COMPAT.  Saying
-// `CP2K_COMPAT=1 GPW_STREAM_FOLD=1` is a deliberate act -- "parity everywhere except this one" -- and
+// D-ENV STEP 6b (2026-10-04): THE POLICY IS A TYPED VALUE, NOT THE ENVIRONMENT.  `RunPolicySpec` (the deck's `policy` block, carried on
+// `SolidCalcOptions::policy`) states it; the facade installs it once at run start (`SetRunPolicy`) and every factory reads the resolved
+// `theRunPolicy()` as before.  The CP2K_COMPAT / QCHEM_* / GPW_* variables are retired (ignored, reported).  Names below that read as
+// env variables are historical: the knob is now the deck key `policy.<camelCase>`.
+//
+// THE OVERRIDE RULE: an explicitly-stated individual knob WINS over `cp2kCompat`.  Stating
+// `cp2kCompat:true, streamFold:true` is a deliberate act -- "parity everywhere except this one" -- and
 // silently overruling it would make the umbrella a trap.  The banner marks which is which, so a run
 // that thinks it has parity and does not says so out loud.
 //
 // STANDING RULE (doc/Benchmark.md): a new accelerator is NOT FINISHED until it is in the table below.
 module;
-#include <cstdlib>   // std::getenv/std::atoi
+#include <optional>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -33,12 +38,21 @@ export module qchem.RunPolicy;
 export namespace qchem
 {
 
+//! \brief The STATED policy (the deck's `policy` block): an unset field is "not stated", so \c cp2kCompat or the qchem default decides it;
+//! a stated one wins over the umbrella.
+struct RunPolicySpec
+{
+    bool cp2kCompat = false;                      //!< the umbrella: every unstated route takes CP2K's value
+    std::optional<bool> dmLowRank, streamFold, mixRhoM, xcFromDM, imposeSymmetry, beckeXC, dAwareScreen, hubbardEigen;
+    bool operator==(const RunPolicySpec&) const = default;
+};
+
 //! \brief ONE deviation: a named route or acceleration this tree runs and CP2K does not.
 //! Carried as data (not as prose in a comment) so the banner is generated from the SAME facts the
 //! factories consult -- there is no second list to keep in step.
 struct Deviation
 {
-    const char* knob;    //!< the env var a user would set, e.g. "QCHEM_DM_LOWRANK"
+    const char* knob;    //!< the deck key a user would set, e.g. "policy.dmLowRank"
     const char* what;    //!< one line: what it changes
     bool cp2kValue;      //!< the value CP2K parity requires
     bool value;          //!< what THIS process resolved to
@@ -53,7 +67,8 @@ struct Deviation
 class RunPolicy
 {
 public:
-    RunPolicy();
+    explicit RunPolicy(const RunPolicySpec& spec = {});
+    const RunPolicySpec& Spec() const {return itsSpec;}   //!< what was STATED (the record's `policy` block)
 
     //! \name The routes.  Each is consulted by ONE factory; see the .C file's site list.
     //!@{
@@ -129,7 +144,8 @@ public:
     std::string Banner() const;
 
 private:
-    Deviation Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const char* legacy=nullptr);
+    Deviation Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const std::optional<bool>& stated);
+    RunPolicySpec itsSpec;
     bool      itsCP2KCompat = false;
     Deviation itsDMLowRank{}, itsStreamFold{}, itsMixRhoM{}, itsXCFromDM{}, itsImpose{}, itsBeckeXC{},
               itsDAware{}, itsUEigen{};
@@ -139,13 +155,22 @@ private:
 //! main() has had its chance to set the environment.
 const RunPolicy& theRunPolicy();
 
-//! \brief RE-READ the environment into the process policy.
-//!
-//! For A/B GATES ONLY.  Two acceptance tests flip \c GPW_STREAM_FOLD with \c setenv and run both arms
-//! in ONE process, which is exactly the kind of thing a resolved-once policy forbids -- so the escape
-//! hatch is named, rather than the policy being silently re-read on every call (which would make
-//! "resolved once" a comment instead of a property).  A production run never calls this: half an SCF
-//! disagreeing with the other half about which routes it is taking is not a state worth supporting.
-void ReresolveRunPolicy();
+//! \brief INSTALL \a spec as the process policy.  The FACADE calls this once at run start (SolidCalculation's constructor, from
+//! \c SolidCalcOptions::policy); a test that A/Bs a route calls it (or uses \c ScopedRunPolicy) between arms.  The object is ASSIGNED
+//! (never replaced), so a reference handed out earlier stays valid across a flip.  Two live runs with DIFFERENT policies in one process
+//! would see the last one installed -- the factories consult it at BUILD time, so sequential runs are safe and overlapping ones are not.
+void SetRunPolicy(const RunPolicySpec& spec);
+
+//! \brief Install \a spec for a scope and restore the previous policy after (tests; an A/B arm).
+class ScopedRunPolicy
+{
+public:
+    explicit ScopedRunPolicy(const RunPolicySpec& spec) : itsPrev(theRunPolicy().Spec()) { SetRunPolicy(spec); }
+    ~ScopedRunPolicy() { SetRunPolicy(itsPrev); }
+    ScopedRunPolicy(const ScopedRunPolicy&) = delete;
+    ScopedRunPolicy& operator=(const ScopedRunPolicy&) = delete;
+private:
+    RunPolicySpec itsPrev;
+};
 
 } //export namespace qchem

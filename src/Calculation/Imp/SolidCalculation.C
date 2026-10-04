@@ -210,7 +210,7 @@ static void EmitRunBanner(const SolidCalcOptions& o, const qcMesh::MeshParams& x
              // A VETOED imposition must never be silent -- a caller who asked for one and did not get it
              // would otherwise read the row as though it had, which is the mirror of the hazard that made
              // imposeSymmetry opt-in in the first place.
-             <<(o.imposeSymmetry && !imposed ? "  [asked for, VETOED by CP2K_COMPAT]" : "")
+             <<(o.imposeSymmetry && !imposed ? "  [asked for, VETOED by policy (cp2kCompat / imposeSymmetry=false)]" : "")
              <<";  threads: OMP_NUM_THREADS="<<(omp?omp:"unset")
              <<" ["<<qchem::ThreadSummary()<<"]"
              // THE WAIT POLICY BELONGS ON THIS LINE, not in a footnote: with libomp's 200 ms default
@@ -314,6 +314,7 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
                                               const SolidCalcOptions& opts,
                                               const SCFAccelerators::SolidAcceleratorOptions& acc)
 {
+    qchem::SetRunPolicy(opts.policy);   // D-ENV 6b: the policy is part of the run's options, installed ONCE here, before any factory consults it
     itsImp->opts    = opts;
     itsImp->accOpts = acc;
     itsImp->st      = lat.GetStructure();

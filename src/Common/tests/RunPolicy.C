@@ -6,7 +6,6 @@
 // trustworthy.  A silently-overruled knob would turn CP2K_COMPAT into a trap, which is exactly the
 // failure a one-switch design invites.
 #include <gtest/gtest.h>
-#include <cstdlib>
 #include <string>
 #include <thread>
 
@@ -14,28 +13,11 @@ import qchem.RunPolicy;
 
 using namespace qchem;
 
+// D-ENV step 6b: the policy is the typed \c RunPolicySpec (the deck's `policy` block); no environment variable sets it any more.  Every
+// test installs a spec and restores the default after.
 namespace
 {
-//! Set/clear an env var for the duration of a test, restoring whatever was there.  The policy is a
-//! process-wide resolved-once object, so every test here re-resolves after arranging the environment.
-class Env
-{
-public:
-    Env(const char* n, const char* v) : itsName(n), itsHad(std::getenv(n)!=nullptr)
-    {
-        if (itsHad) itsOld=std::getenv(n);
-        if (v) setenv(n,v,1); else unsetenv(n);
-    }
-    ~Env()
-    {
-        if (itsHad) setenv(itsName.c_str(), itsOld.c_str(), 1); else unsetenv(itsName.c_str());
-    }
-private:
-    std::string itsName, itsOld;
-    bool        itsHad;
-};
-//! Every test arranges the environment and then re-resolves; this restores the process default after.
-struct Restore { ~Restore() {ReresolveRunPolicy();} };
+struct Restore { ~Restore() {SetRunPolicy({});} };
 }
 
 // The DEFAULT run is NOT at parity, and it is able to say which routes make it so.  This is the whole
@@ -44,10 +26,7 @@ struct Restore { ~Restore() {ReresolveRunPolicy();} };
 TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
 {
     Restore r;
-    Env a("CP2K_COMPAT",nullptr), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
-        d("QCHEM_MIX_RHO_M",nullptr), e("QCHEM_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
-        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr), i2("QCHEM_U_EIGEN",nullptr);
-    ReresolveRunPolicy();
+    SetRunPolicy({});
     const RunPolicy& p=theRunPolicy();
     EXPECT_FALSE(p.CP2KCompat());
     EXPECT_FALSE(p.AtParity()) << "the default build runs accelerations CP2K does not -- if this ever "
@@ -70,10 +49,8 @@ TEST(RunPolicy, DefaultRunDeviatesAndNamesTheRoutes)
 TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
 {
     Restore r;
-    Env a("CP2K_COMPAT","1"), b("QCHEM_DM_LOWRANK",nullptr), c("GPW_STREAM_FOLD",nullptr),
-        d("QCHEM_MIX_RHO_M",nullptr), e("QCHEM_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
-        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr), i2("QCHEM_U_EIGEN",nullptr);
-    ReresolveRunPolicy();
+    RunPolicySpec spec; spec.cp2kCompat=true;
+    SetRunPolicy(spec);
     const RunPolicy& p=theRunPolicy();
     EXPECT_TRUE (p.CP2KCompat());
     EXPECT_TRUE (p.AtParity());
@@ -98,10 +75,8 @@ TEST(RunPolicy, CP2KCompatTurnsEveryRouteOff)
 TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
 {
     Restore r;
-    Env a("CP2K_COMPAT","1"), b("GPW_STREAM_FOLD","1"), c("QCHEM_DM_LOWRANK",nullptr),
-        d("QCHEM_MIX_RHO_M",nullptr), e("QCHEM_XC_DM_SOURCE",nullptr), f("QCHEM_IMPOSE_SYMMETRY",nullptr),
-        g("QCHEM_BECKE_XC",nullptr), h2("GPW_DAWARE_SCREEN",nullptr), i2("QCHEM_U_EIGEN",nullptr);
-    ReresolveRunPolicy();
+    RunPolicySpec spec; spec.cp2kCompat=true; spec.streamFold=true;
+    SetRunPolicy(spec);
     const RunPolicy& p=theRunPolicy();
     EXPECT_TRUE (p.CP2KCompat());
     EXPECT_TRUE (p.StreamFold())  << "an explicitly-stated knob must not be silently overruled";
@@ -110,19 +85,28 @@ TEST(RunPolicy, AnExplicitKnobOutranksTheUmbrellaAndSaysSo)
     EXPECT_NE(p.Banner().find("(stated)"), std::string::npos);
 }
 
-// A knob set to 0 is SET.  Distinguishing "off" from "not mentioned" is what makes the override rule
-// expressible at all -- without it, CP2K_COMPAT could not tell a deliberate off from a default off.
-TEST(RunPolicy, SetToZeroCountsAsStated)
+// A route stated FALSE is stated.  Distinguishing "off" from "not mentioned" (an unset optional) is what makes the override rule
+// expressible at all -- without it, cp2kCompat could not tell a deliberate off from a default off.
+TEST(RunPolicy, StatedFalseCountsAsStated)
 {
     Restore r;
-    Env a("CP2K_COMPAT",nullptr), b("GPW_STREAM_FOLD","0"), c("QCHEM_BECKE_XC",nullptr),
-        d("GPW_DAWARE_SCREEN",nullptr);
-    ReresolveRunPolicy();
+    RunPolicySpec spec; spec.streamFold=false;
+    SetRunPolicy(spec);
     EXPECT_FALSE(theRunPolicy().StreamFold());
     bool found=false;
     for (const Deviation& d : theRunPolicy().Deviations())
-        if (std::string(d.knob)=="GPW_STREAM_FOLD") {found=true; EXPECT_TRUE(d.stated); EXPECT_FALSE(d.Deviates());}
+        if (std::string(d.knob)=="policy.streamFold") {found=true; EXPECT_TRUE(d.stated); EXPECT_FALSE(d.Deviates());}
     EXPECT_TRUE(found);
+    EXPECT_EQ(theRunPolicy().Spec(), spec) << "the policy remembers what was STATED (the record's `policy` block)";
+}
+
+// The scope guard installs and restores, so an A/B arm cannot leak its policy into the next test.
+TEST(RunPolicy, ScopedPolicyRestoresThePreviousOne)
+{
+    Restore r;
+    EXPECT_TRUE(theRunPolicy().StreamFold());
+    { RunPolicySpec off; off.streamFold=false; ScopedRunPolicy s(off); EXPECT_FALSE(theRunPolicy().StreamFold()); }
+    EXPECT_TRUE(theRunPolicy().StreamFold());
 }
 
 // ---- D-THREADS: the ONE thread-count rule (qchem.Parallel) ----

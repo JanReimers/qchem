@@ -38,7 +38,13 @@ std::vector<RetiredVariable> RetiredEnvironmentSet()
         {"QCHEM_BECKE_ALPHA","solid.xcMesh.mhlAlpha"},      {"GPW_BECKE_ALPHA","solid.xcMesh.mhlAlpha"},
         {"QCHEM_BECKE_L","solid.xcMesh.angularDegree"},     {"GPW_BECKE_L","solid.xcMesh.angularDegree"},
         {"QCHEM_BECKE_ROT","solid.xcMesh.angRot"},          {"GPW_BECKE_ROT","solid.xcMesh.angRot"},
-        {"QCHEM_BECKE_EPS","solid.xcMesh.beckeEps"},        {"GPW_BECKE_EPS","solid.xcMesh.beckeEps"}};
+        {"QCHEM_BECKE_EPS","solid.xcMesh.beckeEps"},        {"GPW_BECKE_EPS","solid.xcMesh.beckeEps"},
+        // 6b: the declared CP2K deviations (RunPolicy) are the deck's `solid.policy` block
+        {"CP2K_COMPAT","solid.policy.cp2kCompat"},          {"QCHEM_DM_LOWRANK","solid.policy.dmLowRank"},
+        {"GPW_STREAM_FOLD","solid.policy.streamFold"},      {"QCHEM_MIX_RHO_M","solid.policy.mixRhoM"},
+        {"QCHEM_XC_DM_SOURCE","solid.policy.xcFromDM"},     {"GPW_XC_DM_SOURCE","solid.policy.xcFromDM"},
+        {"QCHEM_IMPOSE_SYMMETRY","solid.policy.imposeSymmetry"}, {"QCHEM_BECKE_XC","solid.policy.beckeXC"},
+        {"GPW_DAWARE_SCREEN","solid.policy.dAwareScreen"},  {"QCHEM_U_EIGEN","solid.policy.hubbardEigen"}};
     std::vector<RetiredVariable> set;
     for (const auto& r : kRetired) if (std::getenv(r.name.c_str())) set.push_back(r);
     return set;

@@ -37,6 +37,8 @@ The live tracker for these is `doc/OpenWork.md` (accuracy/features) and §10 bel
 
 ## 2. WHAT `CP2K_COMPAT=1` ENCOMPASSES — ⚠ AN EMERGING LIST, NOT A FINISHED ONE
 
+> **2026-10-04 (D-ENV 6b): the `CP2K_COMPAT` ENVIRONMENT VARIABLE IS RETIRED.**  The umbrella is the deck key **`policy.cp2kCompat`** (in `SolidCalcOptions::policy`; `rundeck --set solid.policy.cp2kCompat=true`); the integration harness / `gpwprobe` / `scripts/retake5a` use the interim `GPW_PARITY=1` until step 6d replaces their env decks.  The eight route switches below are `policy.dmLowRank|streamFold|mixRhoM|xcFromDM|imposeSymmetry|beckeXC|dAwareScreen|hubbardEigen` (a stated route still outranks the umbrella).  The run banner now prints those keys.  Every `CP2K_COMPAT=1` / `GPW_STREAM_FOLD=…` below is a historical command: read it as the deck key.
+
 **Every deviation found so far is an ACCELERATION, not physics**: turning them all off moves the MnO total
 by **3e-8 Ha** (agreeing to 10 s.f.).  That is the property the switch most needed to demonstrate about
 itself, and it is measured rather than asserted (history §2).

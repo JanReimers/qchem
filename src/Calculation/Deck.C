@@ -23,6 +23,7 @@ export module qchem.Deck;
 import qchem.SolidCalculation;     // SolidCalcOptions
 import qchem.SCFParams;            // SCFParams
 import qchem.Mesh;                 // MeshParams
+import qchem.RunPolicy;            // RunPolicySpec
 import qchem.BasisSet.Gaussian.Point.Factory;   // BasisSetData (the deck names the basis file)
 import qchem.Types;                // ivec3_t
 import qchem.SCFAccelerator.Factory;   // SCFAccelerators::Type (a stage names its accelerator)
@@ -44,6 +45,7 @@ json ToJson(const SCFParams&);                           void FromJson(const jso
 json ToJson(const qcMesh::MeshParams&);                  void FromJson(const json&, qcMesh::MeshParams&);
 //! The solid options.  NOT serialized (not choices): \c onIteration (a callback).  \c Hubbard manifold \c siteOps / \c greyOps
 //! (derived by the facade from the structure).  A manifold's U is \c U_Ha: HARTREE, the library's unit -- no hidden eV conversion.
+json ToJson(const RunPolicySpec&);                       void FromJson(const json&, RunPolicySpec&);
 json ToJson(const SolidCalcOptions&);                    void FromJson(const json&, SolidCalcOptions&);
 //!@}
 
@@ -97,6 +99,7 @@ struct Provenance
     std::filesystem::path inputDeck;                 //!< the deck as loaded (empty = none, all defaults)
     std::string           commandLine;
     std::vector<std::string> overrides;
+    std::string           policyResolved;            //!< the RESOLVED CP2K-deviation table (RunPolicy::Banner), for the record
     std::string           codeVersion;               //!< git hash (+"-dirty"), supplied by the caller
     std::vector<std::string> ignoredEnvironment;     //!< retired env variables found set (recorded, never honoured; from step 6a on)
     std::vector<std::string> activeEnvironment;      //!< INTERIM (until 6a retires the hooks): env overrides still HONOURED by the library, so the record is honest

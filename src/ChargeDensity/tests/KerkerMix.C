@@ -15,7 +15,7 @@ import qchem.ChargeDensity.FourierMixCD;         // FourierMixCD, ΔG_Map
 import qchem.ChargeDensity.Internal.FieldMixer;  // KerkerStep (tests may import Internal)
 import qchem.ChargeDensity.Internal.PolarizedDensityMixer;   // the composed per-channel mixer (the factory's polarized product)
 import qchem.ChargeDensity.DensityMixer;         // KerkerMixerFactory, KerkerParams
-import qchem.RunPolicy;                          // ReresolveRunPolicy -- the tests pin the channel basis they contract
+import qchem.RunPolicy;                          // SetRunPolicy -- the tests pin the channel basis they contract
 import qchem.ChargeDensity.SeedCD;               // PolarizedSeedCD (the spin-SAD seed, no SCF)
 import qchem.CompositeCD;                   // tComposite_CD -- the SCF density (one composite over full Irreps, V1.37)
 import qchem.ChargeDensity.Imp.IrrepCD;     // FiniteIrrepCD -- a mixable density that is NOT a composite
@@ -191,9 +191,9 @@ struct ScopedEnv
 //! (2026-09-20) the default is (rho,m), and the per-channel-leaf contracts below are (up,dn) statements.
 struct ScopedChannelBasis
 {
-    ScopedEnv env;
-    explicit ScopedChannelBasis(bool rhoM) : env("QCHEM_MIX_RHO_M", rhoM ? "1" : "0") { qchem::ReresolveRunPolicy(); }
-    ~ScopedChannelBasis() { unsetenv("QCHEM_MIX_RHO_M"); qchem::ReresolveRunPolicy(); }
+    static qchem::RunPolicySpec Spec(bool rhoM) { qchem::RunPolicySpec s; s.mixRhoM=rhoM; return s; }   // D-ENV 6b: a typed policy, not an env var
+    qchem::ScopedRunPolicy policy;
+    explicit ScopedChannelBasis(bool rhoM) : policy(Spec(rhoM)) {}
 };
 
 const FourierDensity& FourierOf(const cChargeDensity* cd)

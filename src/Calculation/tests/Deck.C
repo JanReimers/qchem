@@ -193,3 +193,21 @@ TEST(Deck, ScfAndScheduleTogetherAreAmbiguousAndAScheduleRoundTrips)
     const json j=deck::ToJson(r); EXPECT_TRUE(j.contains("schedule")); EXPECT_FALSE(j.contains("scf"));
     deck::RunSpec back; deck::FromJson(j,back); EXPECT_EQ(deck::ToJson(back),j);
 }
+
+// ---- D-ENV 6b: the declared CP2K deviations are the deck's `policy` block; only STATED routes are recorded ----
+import qchem.RunPolicy;
+TEST(Deck, PolicyRecordsOnlyWhatWasStatedSoTheUmbrellaStillMeansWhatItSays)
+{
+    SolidCalcOptions o;
+    EXPECT_EQ(deck::ToJson(o).at("policy"), json({{"cp2kCompat",false}})) << "nothing stated: only the umbrella";
+    deck::FromJson(json{{"policy",{{"cp2kCompat",true},{"streamFold",true}}}}, o);
+    EXPECT_TRUE(o.policy.cp2kCompat); ASSERT_TRUE(o.policy.streamFold.has_value()); EXPECT_TRUE(*o.policy.streamFold);
+    EXPECT_FALSE(o.policy.dmLowRank.has_value());
+    EXPECT_EQ(deck::ToJson(o).at("policy"), json({{"cp2kCompat",true},{"streamFold",true}}));
+    qchem::RunPolicy p(o.policy);
+    EXPECT_TRUE(p.StreamFold()) << "stated beats the umbrella"; EXPECT_FALSE(p.DMLowRank()) << "unstated follows the umbrella";
+    EXPECT_THROW(deck::FromJson(json{{"policy",{{"cp2kcompat",true}}}}, o), std::runtime_error);   // a typo'd route is refused
+    json d=deck::ToJson(SolidCalcOptions{}); deck::ApplySet(d,"policy.cp2kCompat=true"); deck::ApplySet(d,"policy.beckeXC=true");
+    SolidCalcOptions viaSet; deck::FromJson(d,viaSet);
+    EXPECT_TRUE(viaSet.policy.cp2kCompat); EXPECT_TRUE(viaSet.policy.beckeXC.value_or(false)) << "--set policy.<route> states it";
+}

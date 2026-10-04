@@ -15,56 +15,49 @@
 // (xcMesh WAS a third such typed option; 2026-08-28 promoted it to the table above -- it is 43% of the
 // MnO row, which is far too large a difference to leave resting on caller discipline.)
 module;
-#include <cstdlib>
+#include <optional>
 #include <string>
 #include <sstream>
 #include <vector>
 module qchem.RunPolicy;
-import qchem.Environment;       // Env(name, legacy): a renamed knob keeps its old name as a deprecated alias
 
 namespace qchem
 {
 
-// A knob is SET when the variable exists at all; its VALUE is the usual 0/non-0.  Distinguishing
-// "set to 0" from "not set" is the whole point -- it is what lets an explicit knob outrank CP2K_COMPAT.
-static bool IsSet (const char* n, const char* legacy=nullptr) {return qchem::Env(n,legacy)!=nullptr;}
-static bool AsBool(const char* n, const char* legacy=nullptr) {const char* s=qchem::Env(n,legacy); return s && std::atoi(s)!=0;}
-
-RunPolicy::RunPolicy()
-    : itsCP2KCompat(AsBool("CP2K_COMPAT"))
+RunPolicy::RunPolicy(const RunPolicySpec& spec)
+    : itsSpec(spec), itsCP2KCompat(spec.cp2kCompat)
 {
-    itsDMLowRank  = Resolve("QCHEM_DM_LOWRANK", "factored/low-rank rho route",
-                            /*cp2k*/false, /*qchem default*/true);
-    itsStreamFold = Resolve("GPW_STREAM_FOLD",  "orbit fold on the GPW collocation pair streams",
-                            /*cp2k*/false, /*qchem default*/true);
+    itsDMLowRank  = Resolve("policy.dmLowRank", "factored/low-rank rho route",
+                            /*cp2k*/false, /*qchem default*/true, spec.dmLowRank);
+    itsStreamFold = Resolve("policy.streamFold",  "orbit fold on the GPW collocation pair streams",
+                            /*cp2k*/false, /*qchem default*/true, spec.streamFold);
     // N3 PROMOTED 2026-09-20 (OpenWork section 4): measured on MnO AFM-II with the deck's loop shape, (rho,m)
     // takes 18 / 21 iterations where (up,dn) takes 22 / 24 (U=0 / U=4 eV), energies identical to 1e-10 Ha --
     // Kerker's 4pi/G^2 has no business damping the magnetisation channel.  Still off under CP2K_COMPAT.
-    itsMixRhoM    = Resolve("QCHEM_MIX_RHO_M",  "(rho,m) mixing channels instead of (up,dn)",
-                            /*cp2k*/false, /*qchem default*/true);
-    itsXCFromDM   = Resolve("QCHEM_XC_DM_SOURCE", "Vxc fed rho[D] wholesale instead of rho_mix",   // V_xc feed: not GPW-specific
-                            /*cp2k*/false, /*qchem default*/false, /*legacy*/"GPW_XC_DM_SOURCE");
+    itsMixRhoM    = Resolve("policy.mixRhoM",  "(rho,m) mixing channels instead of (up,dn)",
+                            /*cp2k*/false, /*qchem default*/true, spec.mixRhoM);
+    itsXCFromDM   = Resolve("policy.xcFromDM", "Vxc fed rho[D] wholesale instead of rho_mix",
+                            /*cp2k*/false, /*qchem default*/false, spec.xcFromDM);
     // NB the qchem default here is TRUE meaning "obey the caller", not "impose": the option itself
     // defaults off in SolidCalcOptions.  What CP2K parity forbids is the CAPABILITY, so that is what is
     // tabled -- and the facade ANDs this with the caller's own flag.
-    itsImpose     = Resolve("QCHEM_IMPOSE_SYMMETRY", "space-group imposition available to the caller",
-                            /*cp2k*/false, /*qchem default*/true);
-    itsBeckeXC    = Resolve("QCHEM_BECKE_XC", "atom-centred (Becke) XC quadrature instead of the uniform grid",
-                            /*cp2k*/false, /*qchem default*/true);
-    // The knob NAME is unchanged from the experiment it grew out of, so every measurement banked against
-    // GPW_DAWARE_SCREEN=0 still reproduces -- but it now selects a screener OBJECT, not a branch.
-    itsDAware     = Resolve("GPW_DAWARE_SCREEN", "D-aware collocation box tolerance eps/|c_ij| instead of flat eps",
-                            /*cp2k*/false, /*qchem default*/true);
-    itsUEigen     = Resolve("QCHEM_U_EIGEN", "DFT+U on the Lowdin block's eigenvalues (Dudarev) instead of its diagonal populations",
-                            /*cp2k*/false, /*qchem default*/true);
+    itsImpose     = Resolve("policy.imposeSymmetry", "space-group imposition available to the caller",
+                            /*cp2k*/false, /*qchem default*/true, spec.imposeSymmetry);
+    itsBeckeXC    = Resolve("policy.beckeXC", "atom-centred (Becke) XC quadrature instead of the uniform grid",
+                            /*cp2k*/false, /*qchem default*/true, spec.beckeXC);
+    // (It selects a screener OBJECT, not a branch.)
+    itsDAware     = Resolve("policy.dAwareScreen", "D-aware collocation box tolerance eps/|c_ij| instead of flat eps",
+                            /*cp2k*/false, /*qchem default*/true, spec.dAwareScreen);
+    itsUEigen     = Resolve("policy.hubbardEigen", "DFT+U on the Lowdin block's eigenvalues (Dudarev) instead of its diagonal populations",
+                            /*cp2k*/false, /*qchem default*/true, spec.hubbardEigen);
 }
 
 // EXPLICIT BEATS THE UMBRELLA (see the interface): if the knob was named at all, that is the answer,
 // and `stated` records it so the banner can say the umbrella did not get its way.
-Deviation RunPolicy::Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const char* legacy)
+Deviation RunPolicy::Resolve(const char* knob, const char* what, bool cp2kValue, bool qchemDefault, const std::optional<bool>& statedValue)
 {
-    const bool stated=IsSet(knob, legacy);
-    const bool value = stated       ? AsBool(knob, legacy)
+    const bool stated=statedValue.has_value();
+    const bool value = stated       ? *statedValue
                      : itsCP2KCompat ? cp2kValue
                      :                 qchemDefault;
     return Deviation{knob, what, cp2kValue, value, stated};
@@ -79,7 +72,7 @@ bool RunPolicy::AtParity() const
 std::string RunPolicy::Banner() const
 {
     std::ostringstream os;
-    os<<"CP2K_COMPAT="<<(itsCP2KCompat?"1":"0")<<" -> "<<(AtParity()?"AT PARITY":"DEVIATING")<<";";
+    os<<"policy.cp2kCompat="<<(itsCP2KCompat?"1":"0")<<" -> "<<(AtParity()?"AT PARITY":"DEVIATING")<<";";
     for (const Deviation& d : Deviations())
         os<<"  "<<d.knob<<"="<<(d.value?"on":"off")<<(d.Deviates()?"*":"")<<(d.stated?"(stated)":"");
     os<<"   [* = differs from CP2K]";
@@ -90,10 +83,10 @@ std::string RunPolicy::Banner() const
 // reference handed out earlier stays valid across an A/B flip.
 static RunPolicy& thePolicy()
 {
-    static RunPolicy p;   // first use, after main() has had its chance to set the environment
+    static RunPolicy p;   // the DEFAULT policy until a facade installs a stated one
     return p;
 }
 const RunPolicy& theRunPolicy()  { return thePolicy(); }
-void ReresolveRunPolicy()        { thePolicy() = RunPolicy(); }
+void SetRunPolicy(const RunPolicySpec& spec) { thePolicy() = RunPolicy(spec); }
 
 } //namespace

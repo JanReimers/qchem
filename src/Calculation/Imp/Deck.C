@@ -33,6 +33,7 @@ import qchem.BasisSet.Gaussian.Point.Factory;
 import qchem.BasisSet.Gaussian.Lattice.SphericalLatticeView;
 import qchem.Reporting;
 import qchem.Outcome;
+import qchem.RunPolicy;
 
 namespace qchem::deck
 {
@@ -170,6 +171,27 @@ void FromJson(const json& j, qcMesh::MeshParams& m)
     f.Done();
 }
 
+//=== RunPolicySpec ==============================================================================
+// Only STATED routes are written (an unset optional is "not stated": the umbrella / default decides), so a record reloads to the same
+// policy and a later `--set policy.cp2kCompat=true` still means what it says.  The RESOLVED table goes in provenance.policy.
+json ToJson(const RunPolicySpec& p)
+{
+    json j={{"cp2kCompat",p.cp2kCompat}};
+    auto put=[&](const char* k, const std::optional<bool>& v){ if (v) j[k]=*v; };
+    put("dmLowRank",p.dmLowRank); put("streamFold",p.streamFold); put("mixRhoM",p.mixRhoM); put("xcFromDM",p.xcFromDM);
+    put("imposeSymmetry",p.imposeSymmetry); put("beckeXC",p.beckeXC); put("dAwareScreen",p.dAwareScreen); put("hubbardEigen",p.hubbardEigen);
+    return j;
+}
+void FromJson(const json& j, RunPolicySpec& p)
+{
+    Fields f(j,"policy");
+    f.Get("cp2kCompat",p.cp2kCompat);
+    auto get=[&](const char* k, std::optional<bool>& v){ if (j.contains(k)) { bool b=false; f.Get(k,b); v=b; } else f.At(k); };
+    get("dmLowRank",p.dmLowRank); get("streamFold",p.streamFold); get("mixRhoM",p.mixRhoM); get("xcFromDM",p.xcFromDM);
+    get("imposeSymmetry",p.imposeSymmetry); get("beckeXC",p.beckeXC); get("dAwareScreen",p.dAwareScreen); get("hubbardEigen",p.hubbardEigen);
+    f.Done();
+}
+
 //=== SolidCalcOptions ===========================================================================
 namespace
 {
@@ -196,7 +218,7 @@ json ToJson(const SolidCalcOptions& o)
     return {{"Nelec",o.Nelec},{"multiplicity",o.multiplicity},{"species",species},
             {"densityEcut",o.densityEcut},{"cutoffFactor",o.cutoffFactor},{"ladderFactor",o.ladderFactor},
             {"raster",NameOf(o.raster,kRaster)},{"images",NameOf(o.images,kImages)},{"kShift",{o.kShift.x,o.kShift.y,o.kShift.z}},
-            {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
+            {"xcMesh",ToJson(o.xcMesh)},{"tolerances",ToJson(o.tolerances)},{"policy",ToJson(o.policy)},{"vxcFit",NameOf(o.vxcFit,kVxc)},{"hubbard",hub},
             {"accelerator",NameOf(o.accelerator,kAcc)},{"globalFermi",o.globalFermi},{"imposeSymmetry",o.imposeSymmetry},
             {"seed",NameOf(o.seed,kSeed)},{"ortho",NameOf(o.ortho,kOrtho)},{"orthoTol",o.orthoTol},{"forceComplex",o.forceComplex},
             {"spinsShareFermi",o.spinsShareFermi},{"greyImposition",o.greyImposition},{"momFromSeed",o.momFromSeed},
@@ -227,6 +249,7 @@ void FromJson(const json& j, SolidCalcOptions& o)
     else f.At("kShift");
     if (j.contains("xcMesh"))     FromJson(f.At("xcMesh"),o.xcMesh);         else f.At("xcMesh");
     if (j.contains("tolerances")) FromJson(f.At("tolerances"),o.tolerances); else f.At("tolerances");
+    if (j.contains("policy"))     FromJson(f.At("policy"),o.policy);         else f.At("policy");
     f.GetEnum("vxcFit",o.vxcFit,kVxc);
     if (j.contains("hubbard"))
     {
@@ -367,6 +390,7 @@ void WriteRevision(const std::filesystem::path& path, const json& resolved, cons
     out["deck"]={{"schema",kSchemaVersion},{"codeVersion",prov.codeVersion}};
     json pv={{"commandLine",prov.commandLine},{"overrides",prov.overrides},{"ignoredEnvironment",prov.ignoredEnvironment},
                    {"activeEnvironment",prov.activeEnvironment}};
+    if (!prov.policyResolved.empty()) pv["policyResolved"]=prov.policyResolved;
     if (!prov.inputDeck.empty())
     {
         pv["inputDeck"]=prov.inputDeck.string();
@@ -406,6 +430,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     const Materials::Material mat=Resolve(spec);
     RunOutcome out;
     out.revision=ClaimRevision(outDir, spec.structure);
+    prov.policyResolved=RunPolicy(spec.solid.policy).Banner();   // the stated policy is in the deck; what it RESOLVED to is the record
     WriteRevision(out.revision, ToJson(spec), prov);     // the record exists BEFORE the SCF: a crashed run still leaves it
     const std::string stem=out.revision.stem().string(); // <structure>.rNNN -- the run's name in its own output
 

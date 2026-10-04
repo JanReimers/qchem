@@ -50,6 +50,7 @@ import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, SC
 import qchem.ChargeDensity;                   // cDM_CD
 import qchem.ChargeDensity.Seed;              // SeedStrategy
 import qchem.Mesh;                            // qcMesh::MeshParams / UnitCellKind
+import qchem.RunPolicy;                       // RunPolicySpec (SolidCalcOptions::policy)
 import qchem.LASolver;                        // qchem::Ortho
 import qchem.Outcome;                         // Outcome<T,E> -- the fallible-call vocabulary (N1/T1)
 export import qchem.SolidState;               // RestartRefusal (Restart's failure), the saved-state layer (CK-1)
@@ -114,6 +115,10 @@ struct SolidCalcOptions
     //! environment (GPW_VLOC_EPS, ...) is applied on top as an OVERRIDE LAYER when the run resolves its options -- every
     //! override is named on the run banner.
     qchem::BasisSet::Gaussian::GPWTolerances tolerances = {};
+    //! The declared CP2K deviations (routes and accelerations CP2K does not run) -- the deck's `policy` block (D-ENV step 6b).  Unstated
+    //! routes take the qchem default, or CP2K's value under \c cp2kCompat; a stated one wins over the umbrella.  The facade INSTALLS it
+    //! (\c SetRunPolicy) as the first act of construction; the resolved table is printed on the run banner.  No environment variable sets it.
+    qchem::RunPolicySpec policy = {};
     //! WHICH fit basis represents v_xc -- ORTHOGONAL to the grid above.  \c Auto picks Delta whenever the
     //! plane-wave fit cannot serve (Becke grid, or a polarized run).
     Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;

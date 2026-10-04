@@ -339,6 +339,9 @@ void EnvOverrides(SolidCalcOptions& o, SCFParams& par)
         else if (v=="null")   o.accelerator=T::Null;
         else throw std::runtime_error("GPW_ACC: expected diis|gdm|ladder|null, got '"+v+"'");
     }
+    // GPW_PARITY=1: the CP2K-parity umbrella, stated in the OPTIONS (D-ENV 6b: the library's CP2K_COMPAT variable is retired; this harness-only
+    // name is the interim until the harness env-deck itself is replaced by decks in step 6d).  A deck says  "policy":{"cp2kCompat":true}.
+    if (const char* pr=std::getenv("GPW_PARITY")) o.policy.cp2kCompat=std::atoi(pr)!=0;
     if (const char* im=std::getenv("GPW_IMPOSE")) o.imposeSymmetry=std::atoi(im)!=0;
     if (const char* kt=std::getenv("GPW_SMEAR"))  par.SmearingkT=std::atof(kt);
     if (std::getenv("GPW_VERBOSE"))               par.Verbose=true;
