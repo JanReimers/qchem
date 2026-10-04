@@ -299,10 +299,12 @@ TEST(Deck, PostSCFRoundTripsAndIsStrict)
         {{"estimateHubbardU",json::object()}},
         {{"hubbardLoop",{{"maxOuter",8},{"tolU_eV",1e-3}}}},
         {{"independentResponse",{{"nq",2}}}},
-        {{"hubbardLinearResponse",{{"perturb",{0,1}},{"maxIter",300},{"restart",30},{"tol",1e-9}}}},
+        {{"hubbardLinearResponse",{{"nq",{2,1,1}},{"perturb",{0,1}},{"maxIter",300},{"restart",30},{"tol",1e-9}}}},
         {{"hubbardFiniteDifference",{{"perturb",{0}},{"alpha_eV",0.1}}}}}}}, r);
     ASSERT_EQ(r.postSCF.size(),5u);
-    EXPECT_EQ(r.postSCF[1].maxOuter,8u); EXPECT_EQ(r.postSCF[2].nq,2); EXPECT_EQ(r.postSCF[3].perturb, (std::vector<size_t>{0,1}));
+    EXPECT_EQ(r.postSCF[1].maxOuter,8u); EXPECT_EQ(r.postSCF[2].nq,ivec3_t(2,2,2)); EXPECT_EQ(r.postSCF[3].perturb, (std::vector<size_t>{0,1}));
+    EXPECT_EQ(r.postSCF[3].nq,ivec3_t(2,1,1)) << "nq as [n1,n2,n3], like kmesh: a non-cubic q-mesh (the supercell gate's 2x1x1)";
+    EXPECT_EQ(deck::ToJson(r)["postSCF"][2]["independentResponse"]["nq"],json(2)) << "a cubic q-mesh is written back as the integer shorthand";
     EXPECT_DOUBLE_EQ(r.postSCF[4].alpha, 0.1/27.211386245988) << "alpha is eV in the file, Hartree in RAM";
     const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
     EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
@@ -333,6 +335,9 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
         << "imposition does not always reduce the mesh (NiO AFM-II 2x2x2: 8 -> 8): the response decides at run time, Vet() notes it";
     EXPECT_NE(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({3,3,3}))).find("incommensurate"),std::string::npos);
     EXPECT_EQ(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({4,4,2}))),"NO THROW");
+    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",2}}}}},cplx,json::array({2,1,1}))).find("incommensurate"),std::string::npos) << "the q loop shares the pre-flight";
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1,1}}}}}},cplx,json::array({2,1,1}))),"NO THROW");
+    EXPECT_NE(msg(base({{{"hubbardLinearResponse",{{"nq",{2,1}}}}}},cplx)).find("must be n or [n1,n2,n3]"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",{{"perturb",{5}},{"alpha_eV",0.1}}}}},hub)).find("past the 1 manifolds"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",json::object()}}},hub)).find("alpha_eV must be nonzero"),std::string::npos);
     EXPECT_NE(msg(base({{{"hubbardLoop",{{"maxOuter",0}}}}},hub)).find("maxOuter >= 1"),std::string::npos);

@@ -306,6 +306,22 @@ const char* PostName(PostAction::Kind k)
     }
     throw std::logic_error("deck: PostAction kind");
 }
+//! `nq`: an integer n (the cubic n x n x n shorthand, what most decks want) or [n1,n2,n3] like `kmesh` (a supercell gate's 2x1x1).  Written back
+//! in the same two forms, so a cubic deck round-trips unchanged.
+json QMeshJson(const ivec3_t& q)
+{
+    if (q.x==q.y && q.y==q.z) return q.x;
+    return json::array({q.x,q.y,q.z});
+}
+void GetQMesh(Fields& f, ivec3_t& nq, const std::string& path)
+{
+    const json& x=f.At("nq");
+    if (x.is_null()) return;
+    if (x.is_number_integer()) { const int n=x.get<int>(); nq=ivec3_t(n,n,n); return; }
+    if (x.is_array() && x.size()==3 && x[0].is_number_integer() && x[1].is_number_integer() && x[2].is_number_integer())
+    { nq=ivec3_t(x[0].get<int>(),x[1].get<int>(),x[2].get<int>()); return; }
+    throw std::runtime_error("deck: '"+path+".nq' must be n or [n1,n2,n3], got "+x.dump());
+}
 json PostJson(const PostAction& a)
 {
     json p=json::object();
@@ -313,8 +329,8 @@ json PostJson(const PostAction& a)
     {
     case PostAction::Kind::EstimateHubbardU: break;
     case PostAction::Kind::HubbardLoop:             p={{"maxOuter",a.maxOuter},{"tolU_eV",a.tolU_eV}}; break;
-    case PostAction::Kind::IndependentResponse:     p={{"nq",a.nq}}; break;
-    case PostAction::Kind::HubbardLinearResponse:   p={{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart}}; break;
+    case PostAction::Kind::IndependentResponse:     p={{"nq",QMeshJson(a.nq)}}; break;
+    case PostAction::Kind::HubbardLinearResponse:   p={{"nq",QMeshJson(a.nq)},{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart}}; break;
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
     }
     return json::object({{PostName(a.kind),p}});
@@ -329,9 +345,9 @@ PostAction PostFromJson(const json& j, const std::string& path)
     Fields f(body,path+"."+name);
     if (name=="estimateHubbardU")        a.kind=PostAction::Kind::EstimateHubbardU;
     else if (name=="hubbardLoop")        { a.kind=PostAction::Kind::HubbardLoop; f.Get("maxOuter",a.maxOuter); f.Get("tolU_eV",a.tolU_eV); }
-    else if (name=="independentResponse"){ a.kind=PostAction::Kind::IndependentResponse; f.Get("nq",a.nq); }
+    else if (name=="independentResponse"){ a.kind=PostAction::Kind::IndependentResponse; GetQMesh(f,a.nq,path+"."+name); }
     else if (name=="hubbardLinearResponse")
-    { a.kind=PostAction::Kind::HubbardLinearResponse; f.Get("perturb",a.perturb); f.Get("tol",a.tol); f.Get("maxIter",a.maxIter); f.Get("restart",a.restart); }
+    { a.kind=PostAction::Kind::HubbardLinearResponse; GetQMesh(f,a.nq,path+"."+name); f.Get("perturb",a.perturb); f.Get("tol",a.tol); f.Get("maxIter",a.maxIter); f.Get("restart",a.restart); }
     else if (name=="hubbardFiniteDifference")
     { a.kind=PostAction::Kind::HubbardFiniteDifference; f.Get("perturb",a.perturb); double eV=ToEV(a.alpha); f.Get("alpha_eV",eV); a.alpha=eV/kHaToEV; }
     else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference)");
@@ -469,15 +485,15 @@ Materials::Material Resolve(RunSpec& spec)
             // NOT an error: whether an imposed group REDUCES the k-mesh depends on the group and the mesh (the NiO AFM-II 2x2x2 Shubnikov group maps 8 k-points onto 8
             // irreducible ones, and its chi0 ran).  A blanket refusal would reject decks the library accepts; the response itself THROWS at run time if the mesh was
             // really reduced (D5).  Vet() says so in a note.
-            (void)isResponse;
             if (a.kind==PostAction::Kind::HubbardLinearResponse && !spec.solid.forceComplex)
                 throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
-            if (a.kind==PostAction::Kind::IndependentResponse)
+            if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences
             {
-                if (a.nq<1) throw std::runtime_error(who+"nq must be >= 1");
-                if (spec.kmesh.x%a.nq || spec.kmesh.y%a.nq || spec.kmesh.z%a.nq)
-                    throw std::runtime_error(who+"the q-mesh "+std::to_string(a.nq)+"^3 is incommensurate with kmesh ["+std::to_string(spec.kmesh.x)+","
-                                             +std::to_string(spec.kmesh.y)+","+std::to_string(spec.kmesh.z)+"] (each k division must be a multiple of nq)");
+                const ivec3_t& q=a.nq;
+                if (q.x<1 || q.y<1 || q.z<1) throw std::runtime_error(who+"every nq division must be >= 1");
+                if (spec.kmesh.x%q.x || spec.kmesh.y%q.y || spec.kmesh.z%q.z)
+                    throw std::runtime_error(who+"the q-mesh "+QMeshJson(q).dump()+" is incommensurate with kmesh ["+std::to_string(spec.kmesh.x)+","
+                                             +std::to_string(spec.kmesh.y)+","+std::to_string(spec.kmesh.z)+"] (each k division must be a multiple of nq's)");
             }
             if (a.kind==PostAction::Kind::HubbardFiniteDifference && a.alpha==0.0)
                 throw std::runtime_error(who+"alpha_eV must be nonzero (the +-alpha step)");
@@ -732,7 +748,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         }
         case K::IndependentResponse:
         {
-            auto R=calc->IndependentResponse(ivec3_t(a.nq,a.nq,a.nq));
+            auto R=calc->IndependentResponse(a.nq);
             pr.ok=bool(R);
             if (R) { rj["labels"]=R->labels; rj["gap"]=R->gap; pr.summary="chi0 over "+std::to_string(R->labels.size())+" channels, gap "+std::to_string(R->gap); }
             else   { pr.summary="FAILED: "+R.Error().detail; rj["failure"]=R.Error().detail; }
@@ -741,15 +757,33 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         case K::HubbardLinearResponse:
         {
             KrylovParams kp{.tol=a.tol}; kp.maxIter=a.maxIter; kp.restart=a.restart;
-            auto R=calc->HubbardLinearResponse(kp, a.perturb);
+            auto R=calc->HubbardLinearResponse(a.nq, kp, a.perturb);
             pr.ok=bool(R);
             if (R)
             {
-                rj["labels"]=R->labels; rj["perturbed"]=R->perturbed; rj["gap"]=R->gap; rj["residual"]=R->residual; rj["iterations"]=R->iterations;
-                json chi=json::array(), chi0=json::array();
-                for (size_t i=0;i<R->chi.rows();++i) { json rc=json::array(), r0=json::array(); for (size_t c=0;c<R->chi.columns();++c) { rc.push_back(R->chi(i,c).real()); r0.push_back(R->chi0(i,c).real()); } chi.push_back(rc); chi0.push_back(r0); }
-                rj["chi_real"]=chi; rj["chi0_real"]=chi0;
-                pr.summary="self-consistent chi over "+std::to_string(R->labels.size())+" channels (see the console table for U)";
+                // Per q: chi0 and chi (measured x perturbed; real and imaginary parts -- off-diagonal chi(q) is complex at a non-TRIM
+                // q), the Krylov residuals and costs.  Then the supercell's real-space perturbed blocks and U, hp.x's quantities.
+                const auto& s0=R->atQ[0];
+                rj["nq"]=QMeshJson(a.nq); rj["labels"]=s0.labels; rj["perturbed"]=s0.perturbed;
+                auto mat=[](const auto& M, auto part)
+                { json m=json::array(); for (size_t i=0;i<M.rows();++i) { json row=json::array(); for (size_t c=0;c<M.columns();++c) row.push_back(part(M(i,c))); m.push_back(row); } return m; };
+                auto re=[](const auto& z){ return z.real(); };
+                auto im=[](const auto& z){ return z.imag(); };
+                json perQ=json::array();
+                for (size_t iq=0;iq<R->atQ.size();++iq)
+                {
+                    const auto& s=R->atQ[iq]; const rvec3_t q=R->q[iq].q();
+                    perQ.push_back({{"q",{q.x,q.y,q.z}},{"gap",s.gap},{"residual",s.residual},{"iterations",s.iterations},
+                                    {"chi0_real",mat(s.chi0,re)},{"chi0_imag",mat(s.chi0,im)},{"chi_real",mat(s.chi,re)},{"chi_imag",mat(s.chi,im)}});
+                }
+                rj["perQ"]=perQ;
+                rj["chi0R"]=mat(R->Chi0RealSpace(),[](double x){return x;});
+                rj["chiR"] =mat(R->ChiRealSpace (),[](double x){return x;});
+                const rvec_t U=R->U(); std::vector<double> UeV; for (size_t c=0;c<U.size();++c) UeV.push_back(ToEV(U[c]));
+                rj["U_eV"]=UeV;
+                std::ostringstream os; os<<"self-consistent chi over "<<s0.labels.size()<<" channels at "<<R->atQ.size()<<" q; U(eV)";
+                for (double u : UeV) os<<" "<<u;
+                pr.summary=os.str();
             }
             else { pr.summary="FAILED: "+R.Error().detail; rj["failure"]=R.Error().detail; }
             break;

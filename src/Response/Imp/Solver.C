@@ -163,9 +163,100 @@ std::ostream& SelfConsistentResponse::Write(std::ostream& os) const
     return os;
 }
 
+template <class T> Outcome<QMeshResponse,ResponseFailure>
+LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& kernel,
+               const ChannelProbe& probe, ivec3_t Nq, const KrylovParams& kp, std::vector<size_t> perturbed)
+{
+    using O=Outcome<QMeshResponse,ResponseFailure>;
+    auto qs=ref.QMesh(Nq);
+    if (!qs) return O::Fail(qs.Error());
+    QMeshResponse r;
+    r.Nq=Nq;
+    for (const MeshShift& q : *qs)
+    {
+        std::cout << "[response] q = " << q << "  (" << r.q.size()+1 << " of " << qs->size() << ")" << std::endl;
+        auto s=LinearResponse(ref, frame, kernel, probe, std::make_shared<MeshShift>(q), kp, perturbed);
+        if (!s)
+        {
+            std::ostringstream os;
+            os << "q = " << q << ": " << s.Error().detail;
+            return O::Fail({s.Error().why, os.str()});
+        }
+        s->Write(std::cout);                     // reported at its own activity (pin 17), before the next q starts
+        r.q.push_back(q);
+        r.atQ.push_back(std::move(*s));
+    }
+    return O::Ok(std::move(r));
+}
+
+namespace {
+//! The Krylov solves' own accuracy, as the realness tolerance of a real-space transform: \f$\chi(\mathbf q)\f$ is
+//! right to ~ the residual, so its imaginary leak after the transform is too.  1e-10 is the floor (χ0 is exact).
+double RealnessTol(const QMeshResponse& r)
+{
+    double res=0.0;
+    for (const auto& s : r.atQ) for (double x : s.residual) res=std::max(res, x);
+    return std::max(1e-10, 100.0*res);
+}
+} // namespace
+
+rmat_t QMeshResponse::Chi0RealSpace() const
+{
+    std::vector<cmat_t> X;
+    for (const auto& s : atQ) X.push_back(s.Chi0JJ());
+    return ToRealSpace(Nq, q, X, RealnessTol(*this));
+}
+rmat_t QMeshResponse::ChiRealSpace() const
+{
+    std::vector<cmat_t> X;
+    for (const auto& s : atQ) X.push_back(s.ChiJJ());
+    return ToRealSpace(Nq, q, X, RealnessTol(*this));
+}
+
+rvec_t QMeshResponse::U() const
+{
+    const rmat_t X0i=blazem::inv(Chi0RealSpace()), Xi=blazem::inv(ChiRealSpace());
+    const size_t nJ=atQ.empty() ? 0 : atQ[0].perturbed.size();
+    rvec_t u(nJ);
+    for (size_t c=0;c<nJ;c++) u[c]=X0i(c,c)-Xi(c,c);      // the home cell, R = 0: indices 0 .. nJ-1
+    return u;
+}
+
+std::ostream& QMeshResponse::Write(std::ostream& os) const
+{
+    if (atQ.empty()) return os;
+    const auto& lab=atQ[0].labels;
+    const auto& J  =atQ[0].perturbed;
+    const size_t nJ=J.size();
+    const rmat_t X0=Chi0RealSpace(), X=ChiRealSpace();
+    const std::streamsize prec=os.precision(8);
+    os << "[response] real space over the " << Nq.x << "x" << Nq.y << "x" << Nq.z << " q-mesh's supercell, home cell "
+       << "(R = R' = 0), perturbed x perturbed, 1/Ha:" << std::endl;
+    for (size_t a=0;a<nJ;a++)
+    {
+        os << "[response]   " << std::setw(14) << std::left << lab[J[a]] << std::right << "  chi0";
+        for (size_t c=0;c<nJ;c++) os << " " << std::setw(14) << X0(a,c);
+        os << "   chi";
+        for (size_t c=0;c<nJ;c++) os << " " << std::setw(14) << X(a,c);
+        os << std::endl;
+    }
+    const rvec_t u=U();
+    os << "[response] U = (chi0^-1 - chi^-1) over the " << Nq.x << "x" << Nq.y << "x" << Nq.z << " q-mesh's supercell "
+       << "(+U frozen; " << nJ << " perturbed channels):";
+    for (size_t c=0;c<nJ;c++) os << "  " << lab[J[c]] << " " << std::setprecision(6) << u[c]*27.211386245988 << " eV";
+    os << std::endl;
+    os.precision(prec);
+    return os;
+}
+
 template Outcome<SelfConsistentResponse,ResponseFailure> LinearResponse<double>(const Reference&, const OrbitalFrame<double>&,
     const Hamiltonian::ResponseKernel<double>&, const ChannelProbe&, std::shared_ptr<const Symmetry::SelectionRule>, const KrylovParams&, std::vector<size_t>);
 template Outcome<SelfConsistentResponse,ResponseFailure> LinearResponse<dcmplx>(const Reference&, const OrbitalFrame<dcmplx>&,
     const Hamiltonian::ResponseKernel<dcmplx>&, const ChannelProbe&, std::shared_ptr<const Symmetry::SelectionRule>, const KrylovParams&, std::vector<size_t>);
+
+template Outcome<QMeshResponse,ResponseFailure> LinearResponse<double>(const Reference&, const OrbitalFrame<double>&,
+    const Hamiltonian::ResponseKernel<double>&, const ChannelProbe&, ivec3_t, const KrylovParams&, std::vector<size_t>);
+template Outcome<QMeshResponse,ResponseFailure> LinearResponse<dcmplx>(const Reference&, const OrbitalFrame<dcmplx>&,
+    const Hamiltonian::ResponseKernel<dcmplx>&, const ChannelProbe&, ivec3_t, const KrylovParams&, std::vector<size_t>);
 
 } // namespace

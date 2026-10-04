@@ -109,44 +109,46 @@ Outcome<ChannelResponse,ResponseFailure> IndependentResponse(const Reference& re
     return O::Ok(std::move(r));
 }
 
-rmat_t ChannelResponse::RealSpace() const
+rmat_t ToRealSpace(ivec3_t Nq, const std::vector<MeshShift>& q, const std::vector<cmat_t>& X, double relTol)
 {
-    const size_t nch=labels.size();
     const size_t NR=size_t(Nq.x)*Nq.y*Nq.z;
-    if (q.size()!=NR) throw std::logic_error("ChannelResponse::RealSpace: the q set is not the whole q-mesh");
+    if (q.size()!=NR || X.size()!=NR) throw std::logic_error("ToRealSpace: the q set is not the whole q-mesh");
+    const size_t nr=X[0].rows(), nc=X[0].columns();
     std::vector<ivec3_t> R;
     for (int x=0;x<Nq.x;x++) for (int y=0;y<Nq.y;y++) for (int z=0;z<Nq.z;z++) R.push_back(ivec3_t(x,y,z));
-    rmat_t out(nch*NR, nch*NR);
+    rmat_t out(nr*NR, nc*NR);
     double maxRe=0.0, maxIm=0.0;
     for (size_t a=0;a<NR;a++)
         for (size_t c=0;c<NR;c++)
         {
             const rvec3_t d(R[a].x-R[c].x, R[a].y-R[c].y, R[a].z-R[c].z);
-            for (size_t I=0;I<nch;I++)
-                for (size_t J=0;J<nch;J++)
+            for (size_t I=0;I<nr;I++)
+                for (size_t J=0;J<nc;J++)
                 {
                     dcmplx s=0.0;
                     for (size_t iq=0;iq<q.size();iq++)
                     {
                         const rvec3_t qq=q[iq].q();
                         const double ph=2.0*Pi*(qq.x*d.x+qq.y*d.y+qq.z*d.z);
-                        s+=dcmplx(cos(ph),sin(ph))*chi[iq](I,J);
+                        s+=dcmplx(cos(ph),sin(ph))*X[iq](I,J);
                     }
                     s/=double(NR);
-                    out(a*nch+I, c*nch+J)=s.real();
+                    out(a*nr+I, c*nc+J)=s.real();
                     maxRe=std::max(maxRe,std::abs(s.real()));
                     maxIm=std::max(maxIm,std::abs(s.imag()));
                 }
         }
-    if (maxIm>1e-10*std::max(maxRe,1e-300))
+    if (maxIm>relTol*std::max(maxRe,1e-300))
     {
         std::ostringstream os;
-        os << "ChannelResponse::RealSpace: the real-space response is not real (max |Im| " << maxIm << " vs max |Re| "
-           << maxRe << ") -- time reversal chi(-q)=conj(chi(q)) is broken";
+        os << "ToRealSpace: the real-space quantity is not real (max |Im| " << maxIm << " vs max |Re| " << maxRe
+           << ", tolerance " << relTol << " relative) -- time reversal X(-q)=conj(X(q)) is broken";
         throw std::logic_error(os.str());
     }
     return out;
 }
+
+rmat_t ChannelResponse::RealSpace() const {return ToRealSpace(Nq, q, chi, 1e-10);}
 
 std::ostream& ChannelResponse::Write(std::ostream& os, double perUnit, const std::string& unitName) const
 {

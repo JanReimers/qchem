@@ -1208,14 +1208,14 @@ std::vector<size_t> DefaultPerturbed(const qchem::Hamiltonian::HubbardChannels& 
 }
 } // namespace
 
-// THE SELF-CONSISTENT RESPONSE AT q = 0 (R2): the same Reference and probe as IndependentResponse, plus the
-// AO <-> MO frame and the Hamiltonian's analytic kernel, linearised about the converged ORBITALS' density (the
-// state the Reference describes -- not the mixed iterate, which on a Kerker/Pulay recipe has no D).  +U is FROZEN
-// for the whole solve (Timrov eq 20) and U is read from the PERTURBED set's own J x J inverse (§3d Q6, Q10).
-Outcome<qchem::Response::SelfConsistentResponse,qchem::Response::ResponseFailure>
-SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov, std::vector<size_t> perturbed) const
+// THE SELF-CONSISTENT RESPONSE OVER A q-MESH (R2 at q = 0, R3 at q != 0): the same Reference and probe as
+// IndependentResponse, plus the AO <-> MO frame and the Hamiltonian's analytic kernel, linearised about the converged
+// ORBITALS' density (the state the Reference describes -- not the mixed iterate, which on a Kerker/Pulay recipe has
+// no D).  +U is FROZEN for the whole solve (Timrov eq 20) and U is read from the PERTURBED set's own inverse (§3d Q6,
+// Q10), over the q-mesh's supercell.
+Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>
+SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, std::vector<size_t> perturbed) const
 {
-    using O=Outcome<qchem::Response::SelfConsistentResponse,qchem::Response::ResponseFailure>;
     const auto* hub=itsImp->ham->GetHubbardChannels();
     if (!hub) throw std::logic_error("SolidCalculation::HubbardLinearResponse: this run carries no Hubbard manifold -- the "
                                      "response channels ARE the +U manifolds (list them at U=0 to probe without +U)");
@@ -1235,25 +1235,21 @@ SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov, std::vector<
     const qchem::Response::AmplitudeProbe probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
     const auto D0=wf->GetChargeDensity();
     const auto kernel=itsImp->ham->MakeResponseKernel(itsImp->bs.get(), D0.get());
-    auto qs=ref.QMesh(ivec3_t(1,1,1));
-    if (!qs) return O::Fail(qs.Error());
-    auto r=qchem::Response::LinearResponse(ref, frame, *kernel, probe,
-                                           std::make_shared<qchem::Response::MeshShift>((*qs)[0]), krylov, perturbed);
-    if (!r)
-    {
-        std::cout << "[response] FAILED: " << r.Error().detail << std::endl;
-        return r;
-    }
-    r->Write(std::cout);
-    // U_J = (chi0_JJ^-1 - chi_JJ^-1)_JJ over the PERTURBED set, in eV (hp.x's unit).  Printed, never consumed
-    // here (R4 owns consumption).
-    const mat_t<dcmplx> X0i=blazem::inv(r->Chi0JJ()), Xi=blazem::inv(r->ChiJJ());
-    std::cout << "[response] U = (chi0^-1 - chi^-1)_JJ at q = 0 (this cell; +U frozen; over the " << r->perturbed.size()
-              << " perturbed channels):";
-    for (size_t c=0;c<r->perturbed.size();c++)
-        std::cout << "  " << r->labels[r->perturbed[c]] << " " << std::setprecision(6) << (X0i(c,c)-Xi(c,c)).real()*27.211386245988 << " eV";
-    std::cout << std::endl;
+    // Each q's table is printed as that q finishes; the supercell summary (real-space blocks, U) once all are in.
+    // U is printed, never consumed here (R4 owns consumption).
+    auto r=qchem::Response::LinearResponse(ref, frame, *kernel, probe, Nq, krylov, perturbed);
+    if (!r) std::cout << "[response] FAILED: " << r.Error().detail << std::endl;
+    else    r->Write(std::cout);
     return r;
+}
+
+Outcome<qchem::Response::SelfConsistentResponse,qchem::Response::ResponseFailure>
+SolidCalculation::HubbardLinearResponse(const KrylovParams& krylov, std::vector<size_t> perturbed) const
+{
+    using O=Outcome<qchem::Response::SelfConsistentResponse,qchem::Response::ResponseFailure>;
+    auto r=HubbardLinearResponse(ivec3_t(1,1,1), krylov, std::move(perturbed));
+    if (!r) return O::Fail(r.Error());
+    return O::Ok(std::move(r->atQ[0]));
 }
 
 // THE FINITE-DIFFERENCE CROSS-CHECK (LR-cDFT): +-alpha on manifold J, +U frozen, three fresh stages.

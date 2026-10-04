@@ -1215,3 +1215,73 @@ TEST(GPW_Si, Γ_Imp_eqK211)
     EXPECT_NEAR(*out.energy/2.0, -7.45294, 8e-3) << "E per primitive cell of the 2x1x1 supercell at Γ vs the 2x1x1 k-mesh anchor";
     fs::remove_all(dir);
 }
+
+
+// ============================ THE SUPERCELL-EQUIVALENCE GATE (doc/LinearResponsePlan.md §3d, R3 step 4) ============================
+// The q-mesh response is the response to an ISOLATED perturbation in the q-mesh's supercell: chi_{IR,JR'} = N_q^-1 sum_q e^{iq.(R-R')} chi_IJ(q).  So
+// primitive Si on a 2x1x1 k-mesh with a 2x1x1 q-mesh must give, element for element, the q = 0 response of the 2x1x1 SUPERCELL at Γ (the R2 route,
+// itself held to finite-difference LRT by ResponsePolarizability.GPW_Si_Chi_eqFiniteDifferenceCDFT).  This is what makes R3's q != 0 kernel (the
+// (k+q, k) pair collocation, Hartree at G+q, the TRIM HermitianPart pairing) correct INDEPENDENTLY of any oracle's ground state.
+// Channels: the Si-p manifold of every atom at U = 0, so every channel is perturbed.  Index map: supercell atom a = (primitive site I, image R)
+// with a = r*2 + I (Si_diamond_2x1x1 lists (0,R0) (1,R0) (0,R1) (1,R1)) -- exactly ToRealSpace's row layout, so the matrices compare as they stand.
+// Both arms are deck specs that differ ONLY in structure, kmesh, the manifold list and nq (InputDeck rule 6: a gate calls deck::Run).
+TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
+{
+    namespace fs=std::filesystem;
+    auto run=[](const std::string& structure, nlohmann::json kmesh, size_t nAtoms, nlohmann::json nq)
+    {
+        nlohmann::json hub=nlohmann::json::array();
+        for (size_t a=0;a<nAtoms;a++) hub.push_back({{"site",a},{"l",1},{"U_eV",0.0}});
+        const nlohmann::json deck={
+            {"structure",structure}, {"kmesh",kmesh}, {"basis",{{"data","SIPP_SR"}}},
+            // xcMesh STATED: Auto resolves to the uniform raster on the multi-k primitive arm but to BECKE on the Γ supercell arm (measured
+            // 2026-10-04), and the arms must differ only in the cell.
+            {"solid",{{"densityEcut",20.0},{"forceComplex",true},{"hubbard",hub},{"xcMesh",{{"cellKind","Uniform"}}}}},
+            // The Kerker/Pulay recipe (the TMO one), on BOTH arms: SiParams' linear relax-1.0 D-mixing ran the primitive k211 ground state into
+            // its 200-iteration cap (measured 2026-10-04: eigenvalue noise 9e-4 Ha against the supercell's 1.5e-8), and the arms must differ only in the cell.
+            {"scf",{{"NMaxIter",200},{"minDeltaRho",1e-7},{"minDeltaE",1e-10},{"minDeltaFD",1e-7},{"minVirial",1e30},{"minFD",1e30},
+                    {"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"startingRelaxRo",0.45}}},
+            {"postSCF",{{{"hubbardLinearResponse",{{"nq",nq}}}}}}};
+        qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+        const fs::path dir=fs::temp_directory_path()/("qchem_it_si_qmesh_"+structure+"_"+std::to_string(::getpid()));
+        fs::remove_all(dir);
+        qchem::deck::Provenance pv; pv.codeVersion="it";
+        const auto out=qchem::deck::Run(spec, pv, dir);
+        EXPECT_TRUE(out.converged) << structure << ": " << out.summary;
+        std::ifstream in(out.revision);
+        const nlohmann::json rec=nlohmann::json::parse(in);
+        fs::remove_all(dir);
+        return rec.at("results").at("postSCF").at(0);
+    };
+    const nlohmann::json prim=run("Si_diamond",       {2,1,1}, 2, {2,1,1});
+    const nlohmann::json sup =run("Si_diamond_2x1x1", {1,1,1}, 4, 1);
+    ASSERT_TRUE(prim.at("ok").get<bool>()) << prim.at("summary");
+    ASSERT_TRUE(sup .at("ok").get<bool>()) << sup .at("summary");
+    ASSERT_EQ(prim.at("perQ").size(), 2u) << "the 2x1x1 q-mesh is two q points";
+    for (const char* key : {"chi0R","chiR"})
+    {
+        const auto& P=prim.at(key); const auto& S=sup.at(key);
+        ASSERT_EQ(P.size(), 4u); ASSERT_EQ(S.size(), 4u);
+        double scale=0.0, worst=0.0;
+        for (size_t a=0;a<4;a++) for (size_t b=0;b<4;b++)
+        {
+            const double p=P[a][b].get<double>(), s=S[a][b].get<double>();
+            scale=std::max(scale,std::fabs(s)); worst=std::max(worst,std::fabs(p-s));
+            std::cout << "[supercell gate] " << key << "(" << a << "," << b << ")  q-mesh " << std::setprecision(10) << p << "  supercell " << s
+                      << "  diff " << std::setprecision(3) << p-s << std::endl;
+        }
+        std::cout << "[supercell gate] " << key << ": max |diff| " << worst << " of max |chi| " << scale << " (rel " << worst/scale << ")" << std::endl;
+        // TOLERANCE, MEASURED 2026-10-04 (both arms uniform XC, Kerker/Pulay): chi0R 1.6e-4, chiR 8.4e-5 relative.  The floor is the SUPERCELL arm's
+        // own translation breaking -- sites 1 and 3 are images of one another yet their chi0 differ by 1.7e-4 relative (the q-mesh arm is translation-
+        // symmetric by construction) -- and the ground states differ by 3e-5 Ha per primitive cell.  So 5e-4 is ~3x the arm's self-consistency.
+        EXPECT_LT(worst, 5e-4*scale) << key << ": the q-mesh real-space response is not the supercell's";
+    }
+    // hp.x's U over the supercell: the q-mesh's home-cell U_I against every supercell image of I (measured: 4.7e-4 eV worst, the images spread 6.6e-4).
+    const auto& Uq=prim.at("U_eV"); const auto& Us=sup.at("U_eV");
+    ASSERT_EQ(Uq.size(), 2u); ASSERT_EQ(Us.size(), 4u);
+    for (size_t a=0;a<4;a++)
+    {
+        std::cout << "[supercell gate] U site" << a << "  q-mesh " << std::setprecision(7) << Uq[a%2].get<double>() << " eV  supercell " << Us[a].get<double>() << " eV" << std::endl;
+        EXPECT_NEAR(Uq[a%2].get<double>(), Us[a].get<double>(), 1e-3) << "U (eV) of supercell atom " << a;
+    }
+}

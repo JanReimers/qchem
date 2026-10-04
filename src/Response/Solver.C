@@ -68,4 +68,32 @@ LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamilto
                const ChannelProbe& probe, std::shared_ptr<const Symmetry::SelectionRule> rule, const KrylovParams& kp,
                std::vector<size_t> perturbed = {});
 
+//! \brief The self-consistent channel response over a q-MESH (doc/LinearResponsePlan.md §3d, R3 step 4): one
+//! \c SelfConsistentResponse per q (one ground state, one kernel; the q points loop INSIDE the response), and hp.x's
+//! real-space quantities over the q-mesh's SUPERCELL -- the response to an ISOLATED perturbation, which is what a
+//! supercell of that size at Γ gives (the supercell-equivalence gate).  At \f$N_q=1\f$ it is the q = 0 response of
+//! this cell, and the supercell is the cell.
+struct QMeshResponse
+{
+    ivec3_t                             Nq;
+    std::vector<MeshShift>              q;      //!< the q-mesh, in \c Reference::QMesh order
+    std::vector<SelfConsistentResponse> atQ;    //!< per q; every entry has the same labels and perturbed set
+    //! The J x J (perturbed) blocks in real space, rows/columns \f$(J,\mathbf R)\f$ at \f$r\,n_J+c\f$ (\c ToRealSpace's layout).
+    //! THROWS if the result is not real to the Krylov solves' own accuracy (time reversal).
+    rmat_t Chi0RealSpace() const;
+    rmat_t ChiRealSpace () const;
+    //! \f$U_c=[(\chi_0)^{-1}-\chi^{-1}]_{(c,\mathbf 0),(c,\mathbf 0)}\f$ (Hartree) per perturbed channel c, the inverses taken
+    //! over the WHOLE supercell's J x J real-space matrices: Timrov et al. PRB 98, 085127 eq (2), hp.x's definition.
+    rvec_t U() const;
+    //! Per q: the q, then that q's table; then the real-space home-cell blocks and U (eV, hp.x's unit).
+    std::ostream& Write(std::ostream&) const;
+};
+
+//! \brief \c LinearResponse at every q of the \a Nq mesh (\c Reference::QMesh), each its own Krylov solve on the
+//! SAME reference, frame and kernel.  FAILS on an incommensurate q-mesh, or with the first q whose response fails
+//! (the q is named in the reason).
+template <class T> Outcome<QMeshResponse,ResponseFailure>
+LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamiltonian::ResponseKernel<T>& kernel,
+               const ChannelProbe& probe, ivec3_t Nq, const KrylovParams& kp, std::vector<size_t> perturbed = {});
+
 } // namespace

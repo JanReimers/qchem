@@ -574,6 +574,13 @@ public:
     //! \note const, although it freezes and unfreezes the +U term: the Hamiltonian comes back exactly as it was.
     Outcome<Response::SelfConsistentResponse,Response::ResponseFailure> HubbardLinearResponse(
         const KrylovParams& krylov={.tol=1e-8}, std::vector<size_t> perturbed={}) const;
+    //! \brief The same over the \a Nq q-MESH (doc/LinearResponsePlan.md §3d, R3 step 4): one ground state and one
+    //! kernel, a Krylov solve per (q, perturbed channel), each q reported as it finishes; then \f$\chi_0\f$, \f$\chi\f$
+    //! and \f$U=(\chi_0^{-1}-\chi^{-1})_{II}\f$ over the q-mesh's SUPERCELL (hp.x's definition) -- the U of an
+    //! ISOLATED perturbation in that supercell, which converges with \a Nq.  \a Nq = 1 is the call above.
+    //! FAILS as the q = 0 call does, and on a q-mesh that does not divide the k-mesh.
+    Outcome<Response::QMeshResponse,Response::ResponseFailure> HubbardLinearResponse(
+        ivec3_t Nq, const KrylovParams& krylov={.tol=1e-8}, std::vector<size_t> perturbed={}) const;
 
     //! \brief The FINITE-DIFFERENCE cross-check of \c HubbardLinearResponse -- LR-cDFT's own definition
     //! (Cococcioni & de Gironcoli 2005; Timrov §III): perturb manifold \a J with the static \f$\pm\alpha\hat P_J\f$

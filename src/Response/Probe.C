@@ -102,6 +102,13 @@ struct ChannelResponse
     std::ostream& Write(std::ostream&, double perUnit=1.0, const std::string& unitName="1/Ha") const;
 };
 
+//! \brief The lattice Fourier transform of a q-mesh quantity onto the q-mesh's SUPERCELL: row \f$(I,\mathbf R)\f$ at
+//! \f$r\,n_{\rm row}+I\f$, column \f$(J,\mathbf R')\f$ at \f$r'\,n_{\rm col}+J\f$, image \f$\mathbf R=(r_x,r_y,r_z)\in[0,N_q)\f$
+//! (r = (r_x N_y + r_y)N_z + r_z), \f$X_{I\mathbf R,J\mathbf R'}=N_q^{-1}\sum_{\mathbf q}e^{i\mathbf q\cdot(\mathbf R-\mathbf R')}X_{IJ}(\mathbf q)\f$.
+//! \a X[iq] belongs to \a q[iq], and \a q must be the WHOLE mesh.  THROWS if the result is not real to \a relTol relative
+//! (time reversal \f$X(-\mathbf q)=\overline{X(\mathbf q)}\f$ broken: a defect here, or a quantity solved too loosely).
+rmat_t ToRealSpace(ivec3_t Nq, const std::vector<MeshShift>& q, const std::vector<cmat_t>& X, double relTol);
+
 //! \brief \f$\chi_0\f$: the independent-particle channel response over the \a Nq q-mesh -- R0 alone, no
 //! kernel (stage R0).  FAILS on an incommensurate q-mesh or an inverted/unresolved coupled pair (E1).
 Outcome<ChannelResponse,ResponseFailure> IndependentResponse(const Reference&, const ChannelProbe&, ivec3_t Nq);
