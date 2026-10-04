@@ -1,0 +1,29 @@
+{
+  "_doc": [
+    "MnO AFM-II, FREE (unimposed) at Gamma, converged with Kerker + Pulay density mixing and nothing on the Fock side -- the banked recipe that",
+    "holds the AFM-II order (doc/Benchmark.md, the CP2K-LOOP rows; was `gpwprobe mno` with MNO_MOM=0 MNO_ACC=Null MNO_PULAY=8 MNO_PULAY_START=5",
+    "MNO_EPS=1e-6 MNO_SKIP_FM=1).  Run:  rundeck decks/MnO_AFM2_free.json --out $(scripts/rundir qchem6 MnO)"
+  ],
+  "structure": "MnO_AFM2",
+  "basis": { "data": "VALENCE_LOWQ_SR" },
+  "solid": {
+    "multiplicity": 1,
+    "seed": "IonicSAD",
+    "ortho": "CholeskyPivoted",
+    "orthoTol": 1e-4,
+    "accelerator": "Null",
+    "imposeSymmetry": false
+  },
+  "scf": {
+    "NMaxIter": 200,
+    "minDeltaRho": 1e-6,
+    "deltaRhoMeasure": "MaxDeltaD",
+    "minDeltaE": 1e30, "minDeltaFD": 1e30, "minVirial": 1e30, "minFD": 1e30,
+    "startingRelaxRo": 0.45,
+    "mergeTol": 1e-4,
+    "pulayDepth": 8, "pulayStart": 5,
+    "kerkerG0": 1.0,
+    "useMOM": false,
+    "smearingkT": 5e-3
+  }
+}

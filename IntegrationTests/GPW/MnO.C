@@ -24,6 +24,8 @@
 #include <functional>
 #include <string>
 #include <iomanip>      // setprecision (the order-parameter trajectory line)
+#include <filesystem>    // the deck run's scratch directory
+#include <nlohmann/json.hpp>  // the deck the AFM arm is run from
 
 import qchem.Structure;                          // Molecule, Atom
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
@@ -40,6 +42,7 @@ import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door
 import qchem.Outcome;                           // Outcome<Converged,SCFFailure> -- the facade's result
 import qchem.RunPolicy;                         // SetRunPolicy / SolidCalcOptions::policy -- the declared-deviation A/B hatch (N5)
 import qchem.SolidCalculation;                    // the NAMED periodic facade (Step 4 3/3)
+import qchem.Deck;                            // deck::Run -- the AFM arm below is run FROM A DECK (D-ENV step 6d.3)
 import qchem.Tests.GPW_Harness;                   // THE HARNESS (IntegrationTests/GPW/Harness.C): Materials cells, gates, recipes, the XC probes
 import qchem.Materials;                           // Materials::Get -- the cells come from src/Structure/Data/materials.json (row MD)
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
@@ -538,4 +541,50 @@ TEST(GPW_MnO, Γ_U_Shub_Pol_Smear_CP2K_Long)
     EXPECT_GT(E_U, 0.0);
     EXPECT_NEAR(E_U, cp2k_EU, 0.05) << "the same population functional (all 8 d shells, diagonal) of two densities that agree to 0.1 Ha";
     EXPECT_NEAR(dE,  cp2k_dE, 0.05) << "the U-induced shift; the absolute offset between the codes is U-independent";
+}
+
+
+// ============================ THE ORDERING GATE (was `gpwprobe mno`'s last check; D-ENV step 6d.3) ============================
+// "AFM-II is the LSDA ground-state ordering of MnO": E(AFM-II) < E(FM), the same cell, the same recipe.  It used to be a PASS/FAIL line in a
+// command-line probe driven by environment variables; the user ruled (2026-10-04) that an important gate is a hard-coded integration test.
+// The AFM arm is run FROM A DECK (deck::Run -- which also gates the deck system on the production recipe: the anchor above pins the SAME
+// energy built by hand, to its tolerance); the FM arm is built here, in the test, because FM-vs-AFM is a property of THIS test and not of the
+// calculation framework: the same Bravais cell with no spin flip, multiplicity 11 (two d^5 Mn).  LONG: two arms of ~7 min.
+// ⚠ DISABLED_ because the CLAIM IS CURRENTLY FALSE (CLAUDE.md: a real claim currently failing is an open tracker row, not a green test):
+// MEASURED 2026-10-04, E_AFM=-61.414547 vs E_FM=-61.452697 -- the FM arm is 38 mHa BELOW (doc/OpenWork.md §3, "MnO ordering at Γ/SR").  The
+// deck-vs-anchor assertion and the FM charge assertion below passed; only the ordering EXPECT failed.  Re-enable when the ordering is right.
+TEST(GPW_MnO, DISABLED_Γ_Shub_Pol_Smear_Ordering_Long)
+{
+    namespace fs=std::filesystem;
+    const nlohmann::json deck={
+        {"structure","MnO_AFM2"}, {"basis",{{"data","VALENCE_LOWQ_SR"}}},
+        {"solid",{{"multiplicity",1},{"seed","IonicSAD"},{"ortho","CholeskyPivoted"},{"orthoTol",1e-4},{"accelerator","Null"},{"imposeSymmetry",true}}},
+        {"scf",{{"NMaxIter",200},{"minDeltaRho",1e-6},{"deltaRhoMeasure","MaxDeltaD"},{"minDeltaE",1e30},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},
+                {"startingRelaxRo",0.45},{"mergeTol",1e-4},{"pulayDepth",8},{"pulayStart",5},{"kerkerG0",1.0},{"useMOM",false},{"smearingkT",5e-3}}}};
+    qchem::deck::RunSpec spec; qchem::deck::FromJson(deck, spec);
+    const fs::path dir=fs::temp_directory_path()/("qchem_it_mno_ordering_"+std::to_string(::getpid()));
+    fs::remove_all(dir);
+    qchem::deck::Provenance pv; pv.codeVersion="it";
+    const auto afm=qchem::deck::Run(spec, pv, dir);
+    ASSERT_TRUE(afm.converged) << afm.summary;
+    ASSERT_TRUE(afm.energy.has_value());
+    EXPECT_NEAR(*afm.energy, -61.41455, 2e-3) << "the deck run reproduces the hand-built anchor (GPW_MnO.Γ_Shub_Pol_Smear_Anchor_Long)";
+
+    // the FM arm: same cell, NO spin flip, multiplicity 11, the same recipe
+    auto cellp=std::make_shared<UnitCell>(BravaisCell(Bravais::CubicF, {.a=8.4}, Matrix3D<int>(0,1,1, 1,0,1, 1,1,0)));
+    cellp->AddAtom(25, {0.0,0.0,0.0}, false);  cellp->AddAtom(25, {0.5,0.5,0.5}, false);
+    cellp->AddAtom(8,  {0.25,0.25,0.25});     cellp->AddAtom(8,  {0.75,0.75,0.75});
+    Lattice_3D lat(*cellp, ivec3_t(1,1,1));
+    qchem::deck::RunSpec resolved=spec; qchem::deck::Resolve(resolved);     // fills Nelec / species from the material, as the AFM arm's run did
+    SolidCalcOptions o=resolved.solid; o.multiplicity=11; o.label="MnO FM Gamma (imposed)";
+    const SCFParams par=spec.scf;
+    GpwReport report("MnO FM", false);
+    qchem::SolidCalculation fm(lat, MakeBasisLowQ(*cellp, BasisSetData::VALENCE_LOWQ_SR), o, par);
+    auto R=fm.Result();
+    ASSERT_TRUE(R) << Why(R);
+    EXPECT_NEAR(R->TotalCharge(), 26.0, 1e-6);
+    std::cout << "[MnO ordering] E_AFM=" << std::setprecision(10) << *afm.energy << "  E_FM=" << R->Energy()
+              << "  dE=" << (R->Energy()-*afm.energy)*1000 << " mHa" << std::endl;
+    EXPECT_LT(*afm.energy, R->Energy()) << "AFM-II is the LSDA ground-state ordering";
+    fs::remove_all(dir);
 }

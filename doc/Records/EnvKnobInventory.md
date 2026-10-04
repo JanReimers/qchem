@@ -417,3 +417,13 @@ stays at the energy to 1e-8.  Ruling recorded 2026-10-04 (user): important GATES
 converge is announced as "a diagnostic only" (as the probes did), a failed action is a RESULT (`ok:false`) and the rest still run.  The revision gains `results{converged, energy, postSCF[]}` (estimates in eV, the loop's
 U trajectory, chi/chi0 real parts, FD chi, gaps, residuals) beside the untouched `run`.  After `hubbardLoop` the run's reported energy is the final-U SCF's.  Verified on Si (+U manifolds at U=0): estimate, chi0 and
 the self-consistent response all run from a deck.  NEXT: 6d.3 move each `gpwprobe` sub-command's CHECKS into ITMain tests that call `deck::Run` (user ruling: important gates are hard-coded integration tests).
+
+**Step 6d.3 DONE 2026-10-04 -- `gpwprobe mno` / `nio` RETIRED** (`gpwprobe.C` 740 -> 332 lines; ctest 1029/1029 before the retirement, which touches no test).
+* **Decks shipped in `decks/`** (loaded + resolved by ctest `Deck.KeysStartingWithAnUnderscoreAreCommentsAndShippedDecksLoad`; a key beginning with `_` is a comment): `MnO_AFM2_free.json` (the banked free
+  Kerker+Pulay recipe) and `NiO_AFM2_acbn0.json` (the ACBN0 outer loop; its scf block is the MnO recipe as a STARTING POINT -- match it to the banked NiO logs in the re-run).  **Smoke-verified**: the free MnO deck
+  CONVERGED in 29 iterations, held AFM-II (integrated Mn moments +4.455 / -4.446 e, net -0.001), Etot -61.41608505 Ha, via `rundeck` -- the CLAUDE.md "known-working FREE MnO recipe" survives the translation.
+* **Gates**: the probe's checks moved to ITMain.  The AFM-II anchor and the +U oracle gate already existed (`..._Anchor_Long`, `..._U_..._CP2K_Long`).  NEW `GPW_MnO.DISABLED_Γ_Shub_Pol_Smear_Ordering_Long`: the AFM arm is run FROM A
+  DECK (`deck::Run`; reproduces the hand-built anchor -61.41455 to 1e-8 -- the deck system gated on the production recipe), the FM arm is built in the test (no spin flip, multiplicity 11).  **The claim is FALSE at Γ/SR**: E_FM =
+  -61.452697 < E_AFM = -61.414547 (dE = -38.15 mHa).  USER (2026-10-04): a known problem; a denser k mesh and/or DFT+U are the expected fix.  Disabled (real claim currently failing -> an OpenWork §3 row, not a green test).
+* Dropped with the probe: the `m(r)` point sample and the |m~(q_AFM)| check (D-POINTPROBE; the integrated site moment is on every polarized result), the structure-edit discriminators (to become gtests), `_SKIP_AFM/_SKIP_FM`.
+  `CLAUDE.md` points at the deck.  NEXT: 6d.4 the harness `EnvOverrides`; 6d.5 the remaining probes (ladder, ksweep, naf-smear, becke-ladder, gate1); then D-ENV-RERUN and 6e.

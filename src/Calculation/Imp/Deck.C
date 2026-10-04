@@ -73,7 +73,7 @@ public:
     void Done()
     {
         for (auto it=itsJ.begin(); it!=itsJ.end(); ++it)
-            if (!itsKnown.count(it.key()))
+            if (!itsKnown.count(it.key()) && it.key().rfind("_",0)!=0)      // a key starting with '_' is a comment (the convention of materials.json)
             {
                 std::string legal; for (const auto& k : itsKnown) legal += std::string(legal.empty()?"":", ")+k;
                 throw std::runtime_error("deck: unknown key '"+itsPath+"."+it.key()+"' (legal: "+legal+")");

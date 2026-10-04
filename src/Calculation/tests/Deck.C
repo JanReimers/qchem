@@ -361,3 +361,21 @@ TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)
     EXPECT_TRUE(rec.contains("run")) << "the deck part of the record is intact beside the results";
     fs::remove_all(dir);
 }
+
+TEST(Deck, KeysStartingWithAnUnderscoreAreCommentsAndShippedDecksLoad)
+{
+    deck::RunSpec r;
+    deck::FromJson(json{{"_doc","a note"},{"structure","Si_diamond"},{"solid",{{"_why","x"},{"Nelec",8}}}}, r);
+    EXPECT_EQ(r.solid.Nelec,8);
+    EXPECT_FALSE(deck::ToJson(r).contains("_doc")) << "a record does not keep comments";
+    // every deck shipped in decks/ parses and resolves (so a stale key in a recipe is caught by ctest, not by the next campaign)
+    size_t n=0;
+    for (const auto& e : fs::directory_iterator(fs::path(DECKS_DIR)))
+        if (e.path().extension()==".json")
+        {
+            deck::RunSpec d; ASSERT_NO_THROW(deck::FromJson(deck::LoadDeck(e.path(),"x"),d)) << e.path();
+            ASSERT_NO_THROW(deck::Resolve(d)) << e.path();
+            ++n;
+        }
+    EXPECT_GE(n,2u);
+}

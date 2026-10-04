@@ -1,0 +1,60 @@
+{
+  "_doc": [
+    "NiO AFM-II at Gamma with the ACBN0 outer loop on the Ni 3d manifold (the ACBN0-vs-hp.x comparison; doc/HubbardUPlan.md).  Was `gpwprobe nio` with NIO_ACBN0=n",
+    "NIO_U_RADIAL=ortho GPW_SPHERICAL=1 (VA span).  U starts at 0; the loop re-converges with the final stage and reports the U_eff trajectory.",
+    "Run:  rundeck decks/NiO_AFM2_acbn0.json --out $(scripts/rundir qchem6 NiO).  NB the scf block is the MnO free recipe as a STARTING POINT; match it to the banked NiO logs in qchem6-runs (D-ENV-RERUN)."
+  ],
+  "structure": "NiO_AFM2",
+  "basis": {
+    "data": "VALENCE_LOWQ_VA",
+    "spherical": true
+  },
+  "solid": {
+    "multiplicity": 1,
+    "seed": "IonicSAD",
+    "ortho": "CholeskyPivoted",
+    "orthoTol": 0.0001,
+    "accelerator": "Null",
+    "imposeSymmetry": false,
+    "hubbard": [
+      {
+        "site": 0,
+        "l": 2,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      },
+      {
+        "site": 1,
+        "l": 2,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      }
+    ]
+  },
+  "scf": {
+    "NMaxIter": 200,
+    "minDeltaRho": 1e-06,
+    "deltaRhoMeasure": "MaxDeltaD",
+    "minDeltaE": 1e+30,
+    "minDeltaFD": 1e+30,
+    "minVirial": 1e+30,
+    "minFD": 1e+30,
+    "startingRelaxRo": 0.45,
+    "mergeTol": 0.0001,
+    "pulayDepth": 8,
+    "pulayStart": 5,
+    "kerkerG0": 1.0,
+    "useMOM": false,
+    "smearingkT": 0.005
+  },
+  "postSCF": [
+    {
+      "hubbardLoop": {
+        "maxOuter": 8,
+        "tolU_eV": 0.001
+      }
+    }
+  ]
+}

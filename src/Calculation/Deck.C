@@ -6,6 +6,7 @@
 //   * The file the user wrote is never the record of what ran.  Every run writes a numbered REVISION
 //     `<name>.r<NNN>.json`: the deck + every `--set` + every default filled in + a header + a provenance block.
 //     Re-running that file reproduces the run; re-running it with one `--set` is the intentional change.
+//   * A key beginning with `_` (`_doc`, `_comment`) is a COMMENT and is ignored -- the convention of materials.json; a record does not keep it.
 //   * A reader REJECTS an unknown key (a typo in a deck must not silently run the default), and a missing key keeps
 //     the field's default (so an old deck keeps working when a field is added).  Units are the library's: atomic
 //     units where it matters are in the key name: energies a person quotes are eV (`U_eV`, converted at the boundary -- RAM is atomic units).
