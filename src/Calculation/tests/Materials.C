@@ -6,6 +6,7 @@
 // reaches the atoms.  A lattice constant in the file that drifts moves an anchor -- these tests do not pin
 // the constants themselves (the anchored SCF tests do), only that the file says what the tests expect.
 #include "gtest/gtest.h"
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
