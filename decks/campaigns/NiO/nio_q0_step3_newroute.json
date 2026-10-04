@@ -8,7 +8,8 @@
     "  NIO_MEASURE=maxdd NIO_EPS=1e-6 -> deltaRhoMeasure MaxDeltaD, minDeltaRho 1e-6;  NIO_ANNEAL=5e-3,0 + NIO_RESTART -> ONE stage at kT 0 (a restart runs the schedule's FINAL stage only);",
     "  NIO_CHI=1 -> postSCF hubbardLinearResponse (perturbed = the manifolds carrying U);  GPW_OMP_THREADS=10 -> QCHEM_OPENMP_THREADS=10 (environment: threads cannot move a number).",
     "Banked result (~/Code/qchem6-runs/NiO/nio_q0_step3_newroute.log): restart E -106.2023644 after 9 iterations;  chi0 -4.1181036 / -4.0643931,  chi -2.070024 / -2.0516578 Ha^-1 (13 kernel applications each),",
-    "  U(q=0, 4-atom cell) 6.45021 / 6.47928 eV.  R2 route on the same state: chi -2.0700234 / -2.0516572."
+    "  U(q=0, 4-atom cell) 6.45021 / 6.47928 eV.  R2 route on the same state: chi -2.0700234 / -2.0516572.",
+    "RE-RUN FROM THIS DECK 2026-10-04 (rundeck, QCHEM_OPENMP_THREADS=10): EXACT RESUME of the FREE state, E -106.2023644 after 9 iterations, chi0/chi/U IDENTICAL to every printed digit and 13 kernel applications per channel -- record ~/Code/qchem6-runs/NiO/NiO_AFM2.r001.json, log nio_q0_step3_newroute_deckrerun.log."
   ],
   "structure": "NiO_AFM2",
   "kmesh": [
