@@ -89,6 +89,8 @@ enable_testing()
 add_test(NAME InternalReexportAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-internal-reexports ${PROJECT_SOURCE_DIR}/src)
 # Every environment variable the library reads must be on the settings reference page (src/Common/Settings.dox) -- D-ENV.
 add_test(NAME SettingsDocAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-settings-doc ${PROJECT_SOURCE_DIR}/src)
+# D-ENV 6e: no environment variable outside the resource/diagnostics allowlist may be read anywhere (the deck is the only way to set a number)
+add_test(NAME GetenvAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-getenv ${PROJECT_SOURCE_DIR})
 # The BasisSet G-tag rule as a test (doc/Records/BasisSetTaxonomyPlan.md §1.6 rule 2, step 3): no qchem.BasisSet.Gaussian.Point.*
 # module imports a lattice; no qchem.BasisSet.Radial.* module imports a lattice or the molecular point-group symmetry.
 add_test(NAME BasisSetGTagAudit COMMAND ${PROJECT_SOURCE_DIR}/scripts/audit-basisset-gtags ${PROJECT_SOURCE_DIR}/src/BasisSet)

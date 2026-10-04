@@ -1,0 +1,40 @@
+#!/bin/bash
+# audit-getenv -- D-ENV step 6e (2026-10-04): NO environment variable may set a tier-1/2 value.  The deck is the only way (doc/InputDeck.md).
+#
+# FAILS when a library, CLI or integration-test source file reads an environment variable that is not on the ALLOWLIST below, or reads one through
+# a non-literal name outside the two modules that own such reads (qchem.Diagnostics' registry, qchem.Environment's retired list).  The allowlist is
+# exactly the variables that can NEVER change a number: threads / memory / diagnostics / a converter's print switch.  Adding to it is a ruling, not a
+# convenience: a knob that moves a number goes in SolidCalcOptions / SCFParams / RunPolicySpec and so in the deck.
+#   scripts/audit-getenv [src-root]      (default: the repo's src/, CLIapps/, IntegrationTests/)
+set -eu
+ROOT="${1:-$(dirname "$0")/..}"
+python3 - "$ROOT" <<'PY'
+import re, sys, glob, os
+root = sys.argv[1]
+ALLOW = {"QCHEM_OPENMP_THREADS", "GPW_OMP_THREADS", "QCHEM_BLAS_THREADS",      # resources (D-THREADS)
+         "OMP_NUM_THREADS", "KMP_BLOCKTIME",                                   # read only to DESCRIBE the run on the banner
+         "GPW_COLLOC_MEMO",                                                    # replay-cache depth: memory against time
+         "QCHEM_DIAGNOSTICS",                                                  # output-only registry (qchem.Diagnostics)
+         "GTH2UPF_VERBOSE"}                                                    # the gth2upf converter's print switch
+NONLITERAL_OK = {"src/Common/Imp/Diagnostics.C", "src/Common/Imp/Environment.C"}
+bad = []
+files = []
+for d in ("src", "CLIapps", "IntegrationTests"):
+    files += glob.glob(os.path.join(root, d, "**", "*.C"), recursive=True)
+for f in sorted(files):
+    rel = os.path.relpath(f, root)
+    if "/tests/" in rel: continue                       # unit tests may setenv/getenv to exercise the readers themselves
+    for ln, line in enumerate(open(f, errors="replace"), 1):
+        code = line.split("//")[0]
+        for m in re.finditer(r'\bgetenv\s*\(\s*([^)]*)\)', code):
+            arg = m.group(1).strip()
+            lit = re.fullmatch(r'"([A-Za-z0-9_]+)"', arg)
+            if lit:
+                if lit.group(1) not in ALLOW: bad.append(f"{rel}:{ln}: getenv(\"{lit.group(1)}\") -- not on the allowlist (a value that moves a number belongs in the deck)")
+            elif rel not in NONLITERAL_OK:
+                bad.append(f"{rel}:{ln}: getenv({arg}) -- a non-literal name outside qchem.Diagnostics / qchem.Environment")
+        for m in re.finditer(r'\bqchem::Env\s*\(\s*"([A-Za-z0-9_]+)"', code):
+            bad.append(f"{rel}:{ln}: qchem::Env(\"{m.group(1)}\") -- the deprecated-alias reader is for retired names only")
+for b in bad: print("GETENV AUDIT:", b)
+sys.exit(1 if bad else 0)
+PY

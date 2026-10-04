@@ -8,6 +8,10 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 
 ## ▶ START HERE (next session, written 2026-09-29)
 
+> **UPDATE 2026-10-04 — HOW RUNS ARE MADE NOW: INPUT DECKS.**  Every `gpwprobe mno|nio` / `MNO_*` / `NIO_*` / `GPW_*` environment recipe in this plan's history is RETIRED (ignored, reported).  A run is one JSON deck run by `rundeck`;
+> `postSCF` carries exactly the actions this plan's R0–R2 expose (`independentResponse`, `hubbardLinearResponse`, `hubbardFiniteDifference`, `estimateHubbardU`, `hubbardLoop`), `state.save`/`restartFrom` is CK-1, `U_eV`/`Uirrep_eV` are in eV in the file.
+> **Read `doc/InputDeck.md`.**  The old NiO/MnO chi logs in `~/Code/qchem6-runs` exist as decks in `decks/campaigns/` (2 exact from saved `.cmd`, 28 DRAFTS from log banners; all vet).  Stage 3 of R3 (`kmesh`/`nq` loops) is `rundeck ... --set kmesh=[n,n,n]` in a shell loop.
+
 **Where A7 stands: R0, R1, R2 and CK-1 are DONE; R3 is NEXT.**
 - **R0** — χ₀(q) by sum over states, validated on NiO against hp.x (shape to 0.1–1 %; §5b).
 - **R1** — CPHF/CPKS H₂O through `Calculation::StaticPolarizability()`: HF α == PySCF to 1e-6; every §3c face landed
