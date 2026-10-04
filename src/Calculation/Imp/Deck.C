@@ -293,6 +293,52 @@ void FromJson(const json& j, SolidCalcOptions& o)
 //=== RunSpec ====================================================================================
 namespace
 {
+using PostAction=RunSpec::PostAction;
+const char* PostName(PostAction::Kind k)
+{
+    switch (k)
+    {
+    case PostAction::Kind::EstimateHubbardU:        return "estimateHubbardU";
+    case PostAction::Kind::HubbardLoop:             return "hubbardLoop";
+    case PostAction::Kind::IndependentResponse:     return "independentResponse";
+    case PostAction::Kind::HubbardLinearResponse:   return "hubbardLinearResponse";
+    case PostAction::Kind::HubbardFiniteDifference: return "hubbardFiniteDifference";
+    }
+    throw std::logic_error("deck: PostAction kind");
+}
+json PostJson(const PostAction& a)
+{
+    json p=json::object();
+    switch (a.kind)
+    {
+    case PostAction::Kind::EstimateHubbardU: break;
+    case PostAction::Kind::HubbardLoop:             p={{"maxOuter",a.maxOuter},{"tolU_eV",a.tolU_eV}}; break;
+    case PostAction::Kind::IndependentResponse:     p={{"nq",a.nq}}; break;
+    case PostAction::Kind::HubbardLinearResponse:   p={{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart}}; break;
+    case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
+    }
+    return json::object({{PostName(a.kind),p}});
+}
+PostAction PostFromJson(const json& j, const std::string& path)
+{
+    if (!j.is_object() || j.size()!=1)
+        throw std::runtime_error("deck: '"+path+"' must be an object with exactly ONE key naming the action, e.g. {\"hubbardLoop\":{...}}; got "+j.dump());
+    const std::string name=j.begin().key();
+    const json& body=j.begin().value();
+    PostAction a;
+    Fields f(body,path+"."+name);
+    if (name=="estimateHubbardU")        a.kind=PostAction::Kind::EstimateHubbardU;
+    else if (name=="hubbardLoop")        { a.kind=PostAction::Kind::HubbardLoop; f.Get("maxOuter",a.maxOuter); f.Get("tolU_eV",a.tolU_eV); }
+    else if (name=="independentResponse"){ a.kind=PostAction::Kind::IndependentResponse; f.Get("nq",a.nq); }
+    else if (name=="hubbardLinearResponse")
+    { a.kind=PostAction::Kind::HubbardLinearResponse; f.Get("perturb",a.perturb); f.Get("tol",a.tol); f.Get("maxIter",a.maxIter); f.Get("restart",a.restart); }
+    else if (name=="hubbardFiniteDifference")
+    { a.kind=PostAction::Kind::HubbardFiniteDifference; f.Get("perturb",a.perturb); double eV=ToEV(a.alpha); f.Get("alpha_eV",eV); a.alpha=eV/kHaToEV; }
+    else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference)");
+    f.Done();
+    return a;
+}
+
 json BasisJson(const RunSpec::Basis& b)
 {
     json j={{"data",NameOf(b.data,kBasisData)},{"spherical",b.spherical}};
@@ -335,6 +381,7 @@ json ToJson(const RunSpec& r)
         if (!r.state.restartFrom.empty()) st["restartFrom"]=r.state.restartFrom;
         j["state"]=st;
     }
+    if (!r.postSCF.empty()) { json a=json::array(); for (const auto& x : r.postSCF) a.push_back(PostJson(x)); j["postSCF"]=a; }
     if (r.schedule.empty()) j["scf"]=ToJson(r.scf);                      // one stage: the record says it once
     else
     {
@@ -368,6 +415,12 @@ void FromJson(const json& j, RunSpec& r)
     }
     else f.At("state");
     if (j.contains("solid")) FromJson(f.At("solid"),r.solid); else f.At("solid");
+    if (j.contains("postSCF"))
+    {
+        r.postSCF.clear(); size_t i=0;
+        for (const auto& a : f.At("postSCF")) r.postSCF.push_back(PostFromJson(a,"postSCF."+std::to_string(i++)));
+    }
+    else f.At("postSCF");
     if (j.contains("scf") && j.contains("schedule"))
         throw std::runtime_error("deck: give 'scf' (one stage) OR 'schedule' (an annealed recipe), not both -- which would run?");
     if (j.contains("scf")) FromJson(f.At("scf"),r.scf); else f.At("scf");
@@ -401,6 +454,39 @@ Materials::Material Resolve(RunSpec& spec)
         bool tm=false; m.cell->ForEachSite([&](int z, const rvec3_t&, bool){ tm = tm || (z>=21 && z<=30); });
         if (tm) throw std::runtime_error("deck: basis.spherical with VALENCE_LOWQ_SR -- the SR transition-metal block's s span lives in the Cartesian d "
                                          "contaminants, which the spherical view removes; use VALENCE_LOWQ_VA or VALENCE_LOWQ_SPH");
+    }
+
+    // PRE-FLIGHT of the postSCF list (each message names the action and what to change): the old probes found these out AFTER the SCF.
+    {
+        size_t i=0;
+        for (const auto& a : spec.postSCF)
+        {
+            const std::string who="deck: postSCF."+std::to_string(i++)+" ("+PostName(a.kind)+"): ";
+            const bool needsU = true;   // every action works on the Hubbard manifolds (list them at U=0 to probe a run without +U)
+            if (needsU && spec.solid.hubbard.empty())
+                throw std::runtime_error(who+"the run carries no Hubbard manifold -- list the channels in solid.hubbard (at U_eV=0 to probe without +U)");
+            const bool isResponse = a.kind==PostAction::Kind::IndependentResponse || a.kind==PostAction::Kind::HubbardLinearResponse;
+            if (isResponse && spec.solid.imposeSymmetry)
+                throw std::runtime_error(who+"a response needs the FULL k-mesh; solid.imposeSymmetry reduces it (set it false)");
+            if (a.kind==PostAction::Kind::HubbardLinearResponse && !spec.solid.forceComplex)
+                throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
+            if (a.kind==PostAction::Kind::IndependentResponse)
+            {
+                if (a.nq<1) throw std::runtime_error(who+"nq must be >= 1");
+                if (spec.kmesh.x%a.nq || spec.kmesh.y%a.nq || spec.kmesh.z%a.nq)
+                    throw std::runtime_error(who+"the q-mesh "+std::to_string(a.nq)+"^3 is incommensurate with kmesh ["+std::to_string(spec.kmesh.x)+","
+                                             +std::to_string(spec.kmesh.y)+","+std::to_string(spec.kmesh.z)+"] (each k division must be a multiple of nq)");
+            }
+            if (a.kind==PostAction::Kind::HubbardFiniteDifference && a.alpha==0.0)
+                throw std::runtime_error(who+"alpha_eV must be nonzero (the +-alpha step)");
+            if (a.kind==PostAction::Kind::HubbardLoop && (a.maxOuter<1 || a.tolU_eV<=0.0))
+                throw std::runtime_error(who+"needs maxOuter >= 1 and tolU_eV > 0");
+            if (a.kind==PostAction::Kind::HubbardLinearResponse && (a.maxIter<1 || a.restart<1 || a.tol<=0.0))
+                throw std::runtime_error(who+"needs maxIter >= 1, restart >= 1 and tol > 0");
+            for (size_t j : a.perturb)
+                if (j>=spec.solid.hubbard.size())
+                    throw std::runtime_error(who+"perturb index "+std::to_string(j)+" is past the "+std::to_string(spec.solid.hubbard.size())+" manifolds in solid.hubbard");
+        }
     }
     if (spec.solid.species.empty()) spec.solid.species=m.species;
     if (spec.solid.Nelec==0)        spec.solid.Nelec=m.Nelec();
@@ -574,6 +660,86 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         out.summary="CONVERGED  "+calc->Diagnostics().Summary();
     }
     else out.summary="NOT converged: "+R.Error().details;
+
+    // postSCF: each action on the converged calculation, in order, each reporting itself; the summaries go in the revision's `results`.  A failed
+    // action (a response gate, an unconverged FD step) is a RESULT, not an exception: the remaining actions still run.
+    json results=json::array();
+    for (const auto& a : spec.postSCF)
+    {
+        RunOutcome::PostResult pr; pr.action=PostName(a.kind);
+        json rj={{"action",pr.action}};
+        std::cout<<"["<<stem<<"] postSCF: "<<pr.action<<(out.converged ? "" : "  (the SCF did NOT converge -- a diagnostic only)")<<std::endl;
+        using K=PostAction::Kind;
+        switch (a.kind)
+        {
+        case K::EstimateHubbardU:
+        {
+            json est=json::array(); std::ostringstream os;
+            for (const auto& e : calc->EstimateHubbardU())
+            {
+                est.push_back({{"site",e.site},{"l",e.l},{"Ubar_eV",e.Ubar*kHaToEV},{"Jbar_eV",e.Jbar*kHaToEV},{"Ueff_eV",e.Ueff()*kHaToEV}});
+                os<<" site"<<e.site<<" l="<<e.l<<" Ueff="<<e.Ueff()*kHaToEV<<" eV;";
+            }
+            rj["estimates"]=est; pr.summary="ACBN0:"+os.str(); break;
+        }
+        case K::HubbardLoop:
+        {
+            SolidCalculation::HubbardLoop lp; lp.maxOuter=a.maxOuter; lp.tolU_eV=a.tolU_eV;
+            auto L=calc->ConvergeHubbardU(stages.back().params, lp);
+            rj["outer"]=L.outer; rj["converged"]=L.converged; rj["scfConverged"]=L.scfConverged; rj["U_eV"]=L.U_eV;
+            pr.ok=L.converged && L.scfConverged;
+            std::ostringstream os; os<<L.outer<<" outer steps, U "<<(L.converged?"CONVERGED":"NOT converged")<<", last SCF "<<(L.scfConverged?"converged":"NOT converged");
+            pr.summary=os.str();
+            if (auto R=calc->Result()) { out.converged=true; out.energy=calc->LastIterateTerms().GetTotalEnergy(); }   // the final-U SCF is now the run's answer
+            break;
+        }
+        case K::IndependentResponse:
+        {
+            auto R=calc->IndependentResponse(ivec3_t(a.nq,a.nq,a.nq));
+            pr.ok=bool(R);
+            if (R) { rj["labels"]=R->labels; rj["gap"]=R->gap; pr.summary="chi0 over "+std::to_string(R->labels.size())+" channels, gap "+std::to_string(R->gap); }
+            else   { pr.summary="FAILED: "+R.Error().detail; rj["failure"]=R.Error().detail; }
+            break;
+        }
+        case K::HubbardLinearResponse:
+        {
+            KrylovParams kp{.tol=a.tol}; kp.maxIter=a.maxIter; kp.restart=a.restart;
+            auto R=calc->HubbardLinearResponse(kp, a.perturb);
+            pr.ok=bool(R);
+            if (R)
+            {
+                rj["labels"]=R->labels; rj["perturbed"]=R->perturbed; rj["gap"]=R->gap; rj["residual"]=R->residual; rj["iterations"]=R->iterations;
+                json chi=json::array(), chi0=json::array();
+                for (size_t i=0;i<R->chi.rows();++i) { json rc=json::array(), r0=json::array(); for (size_t c=0;c<R->chi.columns();++c) { rc.push_back(R->chi(i,c).real()); r0.push_back(R->chi0(i,c).real()); } chi.push_back(rc); chi0.push_back(r0); }
+                rj["chi_real"]=chi; rj["chi0_real"]=chi0;
+                pr.summary="self-consistent chi over "+std::to_string(R->labels.size())+" channels (see the console table for U)";
+            }
+            else { pr.summary="FAILED: "+R.Error().detail; rj["failure"]=R.Error().detail; }
+            break;
+        }
+        case K::HubbardFiniteDifference:
+        {
+            std::vector<size_t> J=a.perturb; if (J.empty()) J.push_back(0);
+            json fds=json::array(); bool ok=true;
+            for (size_t j : J)
+            {
+                auto R=calc->HubbardFiniteDifferenceChi(j, a.alpha, stages.back().params);
+                if (R) { std::vector<double> c; for (size_t i=0;i<R->chi.size();++i) c.push_back(R->chi[i]); fds.push_back({{"perturbed",j},{"chi",c},{"restored",R->restored}}); ok = ok && R->restored; }
+                else   { fds.push_back({{"perturbed",j},{"failure",R.Error().details}}); ok=false; }
+            }
+            rj["fd"]=fds; pr.ok=ok; pr.summary=std::to_string(J.size())+" manifold(s) perturbed"; break;
+        }
+        }
+        rj["ok"]=pr.ok; rj["summary"]=pr.summary; results.push_back(rj);
+        out.postSCF.push_back(pr);
+    }
+    if (!results.empty())
+    {   // fold the results into the record (the revision written before the run keeps the deck; `results` is what the run produced)
+        std::ifstream in(out.revision); json rec=json::parse(in); in.close();
+        rec["results"]={{"converged",out.converged},{"postSCF",results}};
+        if (out.energy) rec["results"]["energy"]=*out.energy;
+        std::ofstream os(out.revision,std::ios::trunc); os<<rec.dump(2)<<"\n";
+    }
     return out;
 }
 

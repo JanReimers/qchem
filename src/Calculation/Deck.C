@@ -76,6 +76,22 @@ struct RunSpec
     //! One stage of an annealed recipe: its SCF parameters and its accelerator (\c SCFStage, by name).
     struct Stage { SCFParams scf; SCFAccelerators::Type accelerator = SCFAccelerators::Type::DIIS; };
 
+    //! One post-convergence action, run IN ORDER on the converged calculation (the deck's `postSCF` list; each is `{"name":{params}}`).  Each reports
+    //! itself to the console; its result summary goes in the revision record under `results`.  Prerequisites are checked by \c Resolve BEFORE the SCF starts.
+    struct PostAction
+    {
+        enum class Kind { EstimateHubbardU, HubbardLoop, IndependentResponse, HubbardLinearResponse, HubbardFiniteDifference };
+        Kind                kind = Kind::EstimateHubbardU;
+        size_t              maxOuter = 20;        //!< hubbardLoop: outer ACBN0 steps allowed
+        double              tolU_eV  = 1e-4;      //!< hubbardLoop: |dU| convergence per manifold (eV)
+        int                 nq       = 1;         //!< independentResponse: the q-mesh is nq x nq x nq (must divide the k-mesh)
+        std::vector<size_t> perturb;              //!< hubbardLinearResponse (empty = the manifolds carrying +U) / hubbardFiniteDifference (empty = {0}): manifold indices
+        double              tol      = 1e-8;      //!< hubbardLinearResponse: Krylov relative residual
+        size_t              maxIter  = 200, restart = 40;   //!< hubbardLinearResponse: the GMRES budget and restart length
+        double              alpha    = 0.0;       //!< hubbardFiniteDifference: the perturbation step, HARTREE in RAM (`alpha_eV` in the file)
+        bool operator==(const PostAction&) const = default;
+    };
+
     std::string      structure;       //!< REQUIRED: a name in materials.json or molecules.json
     ivec3_t          kmesh{1,1,1};    //!< Monkhorst-Pack divisions of the Brillouin zone
     Basis            basis;
@@ -83,6 +99,7 @@ struct RunSpec
     SolidCalcOptions solid;           //!< the periodic-run options (used when \c structure is a cell)
     SCFParams        scf;             //!< the single-stage recipe (with \c solid.accelerator) ...
     std::vector<Stage> schedule;      //!< ... OR an annealed one; a deck gives one or the other (never both)
+    std::vector<PostAction> postSCF;  //!< post-convergence actions, in order (empty = none)
     //! The stages the run executes: \c schedule, or the one stage (\c scf, \c solid.accelerator).
     std::vector<Stage> Stages() const
     { return schedule.empty() ? std::vector<Stage>{{scf,solid.accelerator}} : schedule; }
@@ -92,7 +109,9 @@ json ToJson(const RunSpec&);
 void FromJson(const json&, RunSpec&);
 //! \brief Resolve \a spec against the structure files: returns the Material (cell + atoms + species) and FILLS \c spec.solid.Nelec /
 //! \c species when they were left to derive, so \c ToJson(spec) afterwards is the complete record.  THROWS (listing the known names)
-//! on an unknown structure, and for a molecule name (molecular decks are the next increment).
+//! on an unknown structure, and for a molecule name (molecular decks are the next increment).  Also PRE-FLIGHT-VALIDATES the deck's `postSCF` against
+//! the run (a response needs +U manifolds, a full k-mesh, the complex ansatz, a q-mesh dividing the k-mesh ...) so a deck that cannot work fails in
+//! milliseconds, not after the SCF.
 Materials::Material Resolve(RunSpec& spec);
 
 
@@ -134,6 +153,8 @@ struct RunOutcome
     std::optional<double>  energy;                //!< total energy (Ha) of the converged state
     std::filesystem::path  revision;              //!< the resolved deck this run wrote: the record
     std::string            summary;               //!< the one-line verdict (or the failure reason)
+    struct PostResult { std::string action; bool ok=true; std::string summary; };
+    std::vector<PostResult> postSCF;              //!< one per \c RunSpec::postSCF entry, in order (also written to the revision's `results`)
 };
 //! \brief RUN a deck: resolve it, CLAIM and WRITE its revision `<outDir>/<structure>.rNNN.json` (BEFORE the SCF, so even a crashed
 //! run leaves its record), build the lattice, basis and \c SolidCalculation, converge the schedule, and report to the console.

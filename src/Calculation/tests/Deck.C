@@ -290,3 +290,74 @@ TEST(Deck, ASavedStateRestartsAndTheRevisionNamesItsParent)
     EXPECT_FALSE(fs::exists(dir/"Si_diamond.r003.json"));
     fs::remove_all(dir);
 }
+
+// ---- D-ENV 6d.2: postSCF actions: JSON, pre-flight validation, and a real run ----
+TEST(Deck, PostSCFRoundTripsAndIsStrict)
+{
+    deck::RunSpec r;
+    deck::FromJson(json{{"structure","NiO_AFM2"},{"postSCF",{
+        {{"estimateHubbardU",json::object()}},
+        {{"hubbardLoop",{{"maxOuter",8},{"tolU_eV",1e-3}}}},
+        {{"independentResponse",{{"nq",2}}}},
+        {{"hubbardLinearResponse",{{"perturb",{0,1}},{"maxIter",300},{"restart",30},{"tol",1e-9}}}},
+        {{"hubbardFiniteDifference",{{"perturb",{0}},{"alpha_eV",0.1}}}}}}}, r);
+    ASSERT_EQ(r.postSCF.size(),5u);
+    EXPECT_EQ(r.postSCF[1].maxOuter,8u); EXPECT_EQ(r.postSCF[2].nq,2); EXPECT_EQ(r.postSCF[3].perturb, (std::vector<size_t>{0,1}));
+    EXPECT_DOUBLE_EQ(r.postSCF[4].alpha, 0.1/27.211386245988) << "alpha is eV in the file, Hartree in RAM";
+    const json j=deck::ToJson(r); deck::RunSpec back; deck::FromJson(j,back);
+    EXPECT_EQ(deck::ToJson(back),j); EXPECT_TRUE(back.postSCF==r.postSCF);
+    EXPECT_FALSE(deck::ToJson(deck::RunSpec{}).contains("postSCF"));
+
+    deck::RunSpec bad;
+    EXPECT_THROW(deck::FromJson(json{{"structure","x"},{"postSCF",{{{"hubbardLop",json::object()}}}}},bad), std::runtime_error) << "an unknown action name";
+    EXPECT_THROW(deck::FromJson(json{{"structure","x"},{"postSCF",{{{"hubbardLoop",{{"maxOuters",8}}}}}}},bad), std::runtime_error) << "an unknown parameter";
+    EXPECT_THROW(deck::FromJson(json{{"structure","x"},{"postSCF",{{{"hubbardLoop",json::object()},{"estimateHubbardU",json::object()}}}}},bad), std::runtime_error) << "two actions in one entry";
+}
+
+TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
+{
+    auto resolve=[](json d){ deck::RunSpec s; deck::FromJson(d,s); deck::Resolve(s); };
+    const json H={{"site",0},{"l",2},{"U_eV",4.0}};
+    auto base=[&](json post, json solid, json kmesh=json::array({1,1,1}))
+    { return json{{"structure","NiO_AFM2"},{"kmesh",kmesh},{"solid",solid},{"postSCF",post}}; };
+    const json hub={{"hubbard",{H}}};
+    auto msg=[&](json d){ try { resolve(d); } catch (const std::runtime_error& e) { return std::string(e.what()); } return std::string("NO THROW"); };
+
+    EXPECT_NE(msg(base({{{"estimateHubbardU",json::object()}}},json::object())).find("no Hubbard manifold"),std::string::npos);
+    EXPECT_EQ(msg(base({{{"estimateHubbardU",json::object()}}},hub)),"NO THROW");
+    EXPECT_NE(msg(base({{{"hubbardLinearResponse",json::object()}}},hub)).find("forceComplex"),std::string::npos) << "the real-TRIM response face is not built";
+    json cplx=hub; cplx["forceComplex"]=true;
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},cplx)),"NO THROW");
+    json imposed=cplx; imposed["imposeSymmetry"]=true;
+    EXPECT_NE(msg(base({{{"hubbardLinearResponse",json::object()}}},imposed)).find("FULL k-mesh"),std::string::npos);
+    EXPECT_NE(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({3,3,3}))).find("incommensurate"),std::string::npos);
+    EXPECT_EQ(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({4,4,2}))),"NO THROW");
+    EXPECT_NE(msg(base({{{"hubbardFiniteDifference",{{"perturb",{5}},{"alpha_eV",0.1}}}}},hub)).find("past the 1 manifolds"),std::string::npos);
+    EXPECT_NE(msg(base({{{"hubbardFiniteDifference",json::object()}}},hub)).find("alpha_eV must be nonzero"),std::string::npos);
+    EXPECT_NE(msg(base({{{"hubbardLoop",{{"maxOuter",0}}}}},hub)).find("maxOuter >= 1"),std::string::npos);
+    EXPECT_NE(msg(base({{{"hubbardLoop",json::object()}}},json::object())).find("postSCF.0 (hubbardLoop)"),std::string::npos) << "the message names the entry and the action";
+}
+
+TEST(Deck, PostSCFRunsOnTheConvergedCalculationAndTheRecordKeepsTheResults)
+{
+    const fs::path dir=TmpDir("post");
+    json d={{"structure","Si_diamond"},{"basis",{{"data","SIPP_SR"}}},
+        {"solid",{{"densityEcut",20.0},{"hubbard",{{{"site",0},{"l",1},{"U_eV",0.0}},{{"site",1},{"l",1},{"U_eV",0.0}}}}}},
+        {"scf",{{"NMaxIter",60},{"minDeltaRho",1e-3},{"minDeltaE",1e-6},{"minDeltaFD",1e30},{"minVirial",1e30},{"minFD",1e30},{"startingRelaxRo",0.3}}},
+        {"postSCF",{{{"estimateHubbardU",json::object()}}}}};
+    deck::RunSpec spec; deck::FromJson(d,spec);
+    deck::Provenance pv; pv.codeVersion="t";
+    const auto out=deck::Run(spec,pv,dir);
+    ASSERT_TRUE(out.converged) << out.summary;
+    ASSERT_EQ(out.postSCF.size(),1u);
+    EXPECT_EQ(out.postSCF[0].action,"estimateHubbardU"); EXPECT_TRUE(out.postSCF[0].ok) << out.postSCF[0].summary;
+    const json rec=json::parse(std::ifstream(out.revision));
+    ASSERT_TRUE(rec.contains("results"));
+    EXPECT_TRUE(rec.at("results").at("converged"));
+    EXPECT_NEAR(rec.at("results").at("energy").get<double>(), *out.energy, 1e-12);
+    const json est=rec.at("results").at("postSCF")[0].at("estimates");
+    ASSERT_EQ(est.size(),2u) << "one estimate per manifold";
+    EXPECT_TRUE(est[0].contains("Ueff_eV"));
+    EXPECT_TRUE(rec.contains("run")) << "the deck part of the record is intact beside the results";
+    fs::remove_all(dir);
+}

@@ -408,3 +408,12 @@ SAME double, so a revision re-runs with bit-identical U (tested on 3.1, 5.27, 1e
 THROWS for vet+trim together and for `spherical` + `VALENCE_LOWQ_SR` on a transition-metal cell (the probe's span rule).  (c) `state.save` (`"auto"` = `<outDir>/states/<stem>.h5`, or a path) and `state.restartFrom`
 (a revision stem or a path; runs the schedule's FINAL stage; a missing/refused state throws BEFORE a revision is claimed; `provenance.restartedFrom` names the parent revision).  Si Γ: save -> GDM restart of the final stage
 stays at the energy to 1e-8.  Ruling recorded 2026-10-04 (user): important GATES are hard-coded integration tests, never part of the `gpwprobe` command line.  NEXT: 6d.2 `postSCF[]` actions + pre-flight validation.
+
+**Step 6d.2 DONE 2026-10-04 -- `postSCF[]`** (ctest +3).  Each entry is an object with ONE key naming the action: `estimateHubbardU{}`, `hubbardLoop{maxOuter,tolU_eV}`, `independentResponse{nq}`,
+`hubbardLinearResponse{perturb,tol,maxIter,restart}`, `hubbardFiniteDifference{perturb,alpha_eV}` (alpha in eV in the file, Hartree in RAM).  Strict reader (unknown action / key / two actions in one entry THROW).
+**Pre-flight in `Resolve`** (before any revision is claimed, so a bad deck fails in milliseconds): no Hubbard manifold ("list the channels at `U_eV:0`"), a response with `imposeSymmetry` ("needs the FULL k-mesh"),
+`hubbardLinearResponse` without `forceComplex`, an `nq` that does not divide every `kmesh` division, `perturb` index past the manifolds, `alpha_eV==0`, bad loop/Krylov budgets; every message names the entry
+(`postSCF.1 (hubbardLoop)`).  **Execution** (`deck::Run`): actions run IN ORDER on the converged calculation (final stage = `hubbardLoop`/FD's params), each reports itself to the console, an SCF that did not
+converge is announced as "a diagnostic only" (as the probes did), a failed action is a RESULT (`ok:false`) and the rest still run.  The revision gains `results{converged, energy, postSCF[]}` (estimates in eV, the loop's
+U trajectory, chi/chi0 real parts, FD chi, gaps, residuals) beside the untouched `run`.  After `hubbardLoop` the run's reported energy is the final-U SCF's.  Verified on Si (+U manifolds at U=0): estimate, chi0 and
+the self-consistent response all run from a deck.  NEXT: 6d.3 move each `gpwprobe` sub-command's CHECKS into ITMain tests that call `deck::Run` (user ruling: important gates are hard-coded integration tests).
