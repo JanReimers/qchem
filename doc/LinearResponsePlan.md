@@ -10,7 +10,8 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 
 > **UPDATE 2026-10-04 — HOW RUNS ARE MADE NOW: INPUT DECKS.**  Every `gpwprobe mno|nio` / `MNO_*` / `NIO_*` / `GPW_*` environment recipe in this plan's history is RETIRED (ignored, reported).  A run is one JSON deck run by `rundeck`;
 > `postSCF` carries exactly the actions this plan's R0–R2 expose (`independentResponse`, `hubbardLinearResponse`, `hubbardFiniteDifference`, `estimateHubbardU`, `hubbardLoop`), `state.save`/`restartFrom` is CK-1, `U_eV`/`Uirrep_eV` are in eV in the file.
-> **Read `doc/InputDeck.md`.**  The old NiO/MnO chi logs in `~/Code/qchem6-runs` exist as decks in `decks/campaigns/` (2 exact from saved `.cmd`, 28 DRAFTS from log banners; all vet).  Stage 3 of R3 (`kmesh`/`nq` loops) is `rundeck ... --set kmesh=[n,n,n]` in a shell loop.
+> **Read `doc/InputDeck.md`.**  The old NiO/MnO chi logs in `~/Code/qchem6-runs` exist as decks in `decks/campaigns/` (3 exact -- the two MnO `.cmd` translations and `NiO/nio_q0_step3_newroute.json`, corrected 2026-10-04 by the session that ran it -- the rest DRAFTS from log banners; all vet).
+> ⚠ A `--set kmesh=[n,n,n]` shell loop is a k-CONVERGENCE study, NOT R3's q-mesh: the q points of step 4 share ONE converged ground state, so they loop INSIDE the response (one deck, one SCF), and the q-mesh is an argument of the `hubbardLinearResponse` action (step 4 adds it).
 
 **Where A7 stands: R0, R1, R2 and CK-1 are DONE; R3 is NEXT.**
 - **R0** — χ₀(q) by sum over states, validated on NiO against hp.x (shape to 0.1–1 %; §5b).
@@ -26,15 +27,23 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 **▶ 2026-09-29 (night): R3 STEPS 1–3 ARE DONE — next is STEP 4 (the facade's q loop + the Si supercell-equivalence
 gate; §3d increment order).**  Step 3's record is at the end of §3e.  The kernel now runs at ANY q, on both XC samplers,
 and q = 0 goes through the same code (NiO χ == R2 to 3e-7, in 13 applications instead of 16).  Finding 5 is CLOSED.
-Step 4 needs:
+Step 4 needs (since 2026-10-04 a run is an INPUT DECK — `doc/InputDeck.md`; nothing below may read the environment):
 - a `HubbardLinearResponse(qmesh)` that loops `Reference::QMesh`, builds each `MeshShift` rule, and runs `LinearResponse`
   per q.  The Hubbard probe already takes a `MeshShift` (R0's `IndependentResponse` loops q).
 - χ₀(q) and χ(q) printed per q with their Krylov residuals, then χ(R) and U = (χ₀⁻¹ − χ⁻¹)_II over the q-mesh's
   supercell (hp.x's definition).
-- the gate: primitive Si with k and q 2×1×1 == the 2×1×1 supercell at Γ.  MEASURE its tolerance first (§3d gate table).
-Before step 4, read §3d's gate table and the "SUPERCELL EQUIVALENCE" row.  The NiO states are saved (`~/Code/qchem6-runs/states/nio/`, imposed and FREE; use
-the FREE one for any finite-difference cross-check); NiO free frozen χ at q = 0 is −2.0700 Ha⁻¹ (U 6.45 eV for this
-cell).
+- **the deck side** (`doc/InputDeck.md` §7): a q-mesh on the `hubbardLinearResponse` postSCF action (`"nq"`, mirroring
+  `independentResponse`), in `src/Calculation/Deck.C`'s action struct + `Imp/Deck.C` `ToJson`/`FromJson`, with the same
+  pre-flight (`nq` divides every k-mesh division; `forceComplex`), the per-q χ and U in the revision's `results`, and a
+  deck test in `src/Calculation/tests/Deck.C`.  The default (no `nq`) stays today's q = 0 run, so no deck moves.
+- the gate: primitive Si (`Si_diamond`, k and q 2×1×1) == the 2×1×1 supercell at Γ.  The supercell is already a
+  materials entry (`Si_diamond_2x1x1`), so both arms are deck specs that differ in `structure`/`kmesh` only.  A gate is a
+  hard-coded test calling `qchem::deck::Run` (InputDeck rule 6; pattern `IntegrationTests/GPW/Si.C`), named by the test
+  grammar.  MEASURE its tolerance first (§3d gate table).
+Before step 4, read §3d's gate table and the "SUPERCELL EQUIVALENCE" row.  The NiO states are saved
+(`~/Code/qchem6-runs/NiO/states/`, imposed and FREE; use the FREE one for any finite-difference cross-check).  NiO free
+frozen χ at q = 0 is −2.0700 Ha⁻¹ (U 6.45 eV for this cell); its EXACT deck is `decks/campaigns/NiO/nio_q0_step3_newroute.json`,
+the starting point for step 5's NiO q-mesh run (`--set` the new `nq`).
 
 **Superseded (kept for the record): the R3 sizing + design note, §3d.**  Items 1–3 below are answered there.
 
@@ -72,11 +81,15 @@ BEFORE COMMITTING.**  The session's order:
 4. Parallelism: q-points are process-parallel like hp.x's `start_q/last_q` (no code); the cross-k gather memo /
    KP (§5a step 4) only when the pair-shaped kernel applications become the wall.
 
-**Recipes and traps banked so far** (details §5b, §7): every multi-k run needs `QCHEM_OPENMP_THREADS` (the serial
-default idled 15 of 16 cores); `HubbardLinearResponse` needs `forceComplex` (`<P>_REAL=0`); a restart from a
-near-converged state still takes several iterations (the accelerator's tail, CK-1 residual a — not a defect); a MAGNETIC imposition keeps the full k-mesh, so `<P>_IMPOSE=1` satisfies D5; NiO
-needs the pin-22 vet trim `NIO_VET=1 NIO_ORTHO_TOL=1e-3` (raw shells Ni s 0.06 + d 0.18) — without it a KB GHOST
-state (−36.5 Ha at one k) or a gapless state appears.  The open question "why does a near-null direction host an
+**Recipes and traps banked so far** (details §5b, §7; the old env names in brackets are RETIRED, deck keys now): every
+multi-k run needs `QCHEM_OPENMP_THREADS` (still environment: threads cannot move a number; the serial default idled 15
+of 16 cores); `HubbardLinearResponse` needs `solid.forceComplex` [`<P>_REAL=0`] (the deck pre-flight refuses a response
+without it); a restart (`state.restartFrom`) from a near-converged state still takes several iterations (the
+accelerator's tail, CK-1 residual a — not a defect); a MAGNETIC imposition keeps the full k-mesh, so
+`solid.imposeSymmetry` [`<P>_IMPOSE=1`] satisfies D5 (the deck does not pre-refuse imposition + a response; the
+response throws at run time if the mesh was reduced); NiO needs the pin-22 vet trim `basis.vet` + `solid.orthoTol 1e-3`
+[`NIO_VET=1 NIO_ORTHO_TOL=1e-3`] (raw shells Ni s 0.06 + d 0.18) — without it a KB GHOST state (−36.5 Ha at one k) or a
+gapless state appears.  The open question "why does a near-null direction host an
 attractive KB ghost at all" is parked in `OpenWork.md` §4a (user, 2026-09-28: DFPT first).
 
 ★ **The constraints that set the design** (user, 2026-09-26, `doc/HubbardUPlan.md` after the A7 insights):
@@ -670,7 +683,7 @@ residuals:
 | brute-force oracle: u at scattered points from explicit Bloch sums (`GPW_Evaluator::Eval` at k+q and at k) | GPW_UT | 1e-10 |
 | the R3 kernel at q = 0 == the R2 route (free Si through the facade: χ₀ and χ) | UTResponse | 1e-10 |
 | **SUPERCELL EQUIVALENCE**: χ_IJ(R) from primitive Si with k and q 2×1×1 == χ_IJ at q = 0 in the 2×1×1 supercell at Γ (the R2 route, already validated by gate (b)); χ₀ and χ both | UTResponse | MEASURED first: the two rasters differ, and the ladder's energies agree only to ~mHa per cell |
-| NiO U vs hp.x 5.267 eV (frozen, U_in = 3 eV) | `gpwprobe` (an instrument) | a PHYSICS comparison, not a gate: χ₀'s magnitude is off 1.43× because of the ground-state gap (1.30 vs 2.86 eV, §5b), so U is not expected to agree to a few %.  The SHAPE of χ(q) is expected to agree (1–2 %, §5b) |
+| NiO U vs hp.x 5.267 eV (frozen, U_in = 3 eV) | a deck run (`rundeck decks/campaigns/NiO/nio_q0_step3_newroute.json --set` the q-mesh; an instrument, not a test) | a PHYSICS comparison, not a gate: χ₀'s magnitude is off 1.43× because of the ground-state gap (1.30 vs 2.86 eV, §5b), so U is not expected to agree to a few %.  The SHAPE of χ(q) is expected to agree (1–2 %, §5b) |
 
 The supercell gate is what makes R3's correctness independent of the ground-state disagreement with hp.x.  It
 turns D1's "both routes give the same χ(R)" into a test.
@@ -845,7 +858,7 @@ Deviations from §3d, each for a reason:
 | `HermitianPart`: TRIM pairing, idempotent; q = 0 per block; non-TRIM identity | `ResponseRing.HermitianPart…` | exact |
 | **q = 0 == the R2 route**, Si (FD gates' residual vs FD) | `ResponseKernel.GPW_Si_AnalyticEqualsFiniteDifference_*` | UnPol 7.22215e-7 (R2 7.22192e-7); Pol 4.009e-6 / 4.204e-6 (R2 4.00892e-6 / 4.20859e-6) |
 | **q = 0 == the R2 route**, through the solver | the five `ResponsePolarizability.GPW_Si_*` | χ −14.5117 == FD to 2.7e-6; frozen Γ 9.8e-7; k211 9.1e-6 (R2 9e-6) |
-| **q = 0 == the R2 route**, NiO free, Becke, k222, U_in 3 eV frozen (`gpwprobe nio` on the saved FREE state) | `~/Code/qchem6-runs/a7_r3/nio_q0_step3_newroute.log` | χ −2.070024 / −2.0516578 vs R2 −2.0700234 / −2.0516572 (3e-7); U 6.45021 / 6.47928 eV (R2 6.45021 / 6.47929); **13 kernel applications per channel (R2: 16)** |
+| **q = 0 == the R2 route**, NiO free, Becke, k222, U_in 3 eV frozen (`gpwprobe nio` on the saved FREE state; now the exact deck `decks/campaigns/NiO/nio_q0_step3_newroute.json`) | `~/Code/qchem6-runs/NiO/nio_q0_step3_newroute.log` | χ −2.070024 / −2.0516578 vs R2 −2.0700234 / −2.0516572 (3e-7); U 6.45021 / 6.47928 eV (R2 6.45021 / 6.47929); **13 kernel applications per channel (R2: 16)** |
 | finding 5 closed: imposed Γ Si on the raster (T3 fold 48 ops) == free | `ResponsePolarizability.GPW_Si_ImposedGamma_Raster_eqFreeChi` | χ₀ 5e-6, χ 9.5e-6 (the two ground states; gated 5e-5) |
 | the RAW kernel is homogeneous at every scale (was printed only: 2.6e-7 / 6.9e-5 / 3.9 % at s = 1e-2 / 1e-5 / 1e-8) | `ResponseKernel.GPW_Si_k211_KernelIsLinear_AtEveryScale` | 2.5e-15 / 2.3e-15 / 2.7e-15 -- now ASSERTED (1e-12) |
 

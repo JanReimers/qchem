@@ -1,16 +1,20 @@
 {
   "_doc": [
-    "DRAFT reconstructed from the banner of nio_q0_step3_newroute.log (scripts/log2deck.py, D-ENV-RERUN 2026-10-04): the original `gpwprobe` environment command was not saved.",
-    "NOT in the banner, ASSUMED: convergence threshold minDeltaRho=1e-6 on the default measure, mergeTol 1e-4, the minDelta{E,FD}/minVirial/minFD gates off (1e30).",
-    "Judge these against the run's author before trusting a re-run's numbers.  `rundeck --check` has vetted that it parses, resolves and builds its lattice and basis.",
-    "k-mesh not in the banner ([IBZ] line absent): Gamma assumed unless a q-mesh implies more",
-    "basis span chosen: VALENCE_LOWQ_VA spherical; function count not comparable (vet-stage trim)"
+    "EXACT translation (D-ENV-RERUN, corrected 2026-10-04 by the session that ran it): the R3 step-3 q = 0 check, LinearResponsePlan §3e step 3.  The original command was",
+    "  scripts/memsafe -H 5G env GPW_OMP_THREADS=10 GPW_SPHERICAL=1 NIO_KMESH=2 NIO_ORTHO_TOL=1e-3 NIO_VET=1 NIO_U=3 NIO_U_RADIAL=orthofull NIO_SKIP_FM=1 NIO_ANNEAL=5e-3,0 NIO_ACC=Null",
+    "  NIO_MOM=0 NIO_PULAY=8 NIO_PULAY_START=5 NIO_MEASURE=maxdd NIO_EPS=1e-6 NIO_REAL=0 NIO_RESTART=<FREE state> NIO_CHI=1 gpwprobe nio",
+    "  GPW_SPHERICAL=1 -> basis VALENCE_LOWQ_VA spherical;  NIO_KMESH=2 -> kmesh [2,2,2];  NIO_VET=1 NIO_ORTHO_TOL=1e-3 -> basis.vet + solid.orthoTol;  NIO_U=3 NIO_U_RADIAL=orthofull -> the 8 hubbard",
+    "  manifolds (Ni 3d at 3 eV; Ni 4s, O 2s, O 2p spectators at 0);  NIO_REAL=0 -> forceComplex;  NIO_ACC=Null NIO_MOM=0 NIO_PULAY=8/5 -> accelerator Null, useMOM false, pulayDepth/pulayStart;",
+    "  NIO_MEASURE=maxdd NIO_EPS=1e-6 -> deltaRhoMeasure MaxDeltaD, minDeltaRho 1e-6;  NIO_ANNEAL=5e-3,0 + NIO_RESTART -> ONE stage at kT 0 (a restart runs the schedule's FINAL stage only);",
+    "  NIO_CHI=1 -> postSCF hubbardLinearResponse (perturbed = the manifolds carrying U);  GPW_OMP_THREADS=10 -> QCHEM_OPENMP_THREADS=10 (environment: threads cannot move a number).",
+    "Banked result (~/Code/qchem6-runs/NiO/nio_q0_step3_newroute.log): restart E -106.2023644 after 9 iterations;  chi0 -4.1181036 / -4.0643931,  chi -2.070024 / -2.0516578 Ha^-1 (13 kernel applications each),",
+    "  U(q=0, 4-atom cell) 6.45021 / 6.47928 eV.  R2 route on the same state: chi -2.0700234 / -2.0516572."
   ],
   "structure": "NiO_AFM2",
   "kmesh": [
-    1,
-    1,
-    1
+    2,
+    2,
+    2
   ],
   "basis": {
     "data": "VALENCE_LOWQ_VA",
@@ -97,7 +101,8 @@
     "pulayStart": 5,
     "kerkerG0": 1.0,
     "useMOM": false,
-    "smearingkT": 0.0
+    "smearingkT": 0.0,
+    "deltaRhoMeasure": "MaxDeltaD"
   },
   "postSCF": [
     {
@@ -105,6 +110,6 @@
     }
   ],
   "state": {
-    "restartFrom": "/home/janr/Code/qchem6-runs/states/nio/nio_afm2_k222_U3_vet1e-3_complex_FREE.h5"
+    "restartFrom": "/home/janr/Code/qchem6-runs/NiO/states/nio_afm2_k222_U3_vet1e-3_complex_FREE.h5"
   }
 }
