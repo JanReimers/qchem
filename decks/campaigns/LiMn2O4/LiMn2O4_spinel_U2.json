@@ -1,0 +1,64 @@
+{
+  "_doc": [
+    "DRAFT reconstructed from the banner of LiMn2O4_spinel_U2.log (scripts/log2deck.py, D-ENV-RERUN 2026-10-04): the original `gpwprobe` environment command was not saved.",
+    "NOT in the banner, ASSUMED: convergence threshold minDeltaRho=1e-6 on the default measure, mergeTol 1e-4, the minDelta{E,FD}/minVirial/minFD gates off (1e30).",
+    "Judge these against the run's author before trusting a re-run's numbers.  `rundeck --check` has vetted that it parses, resolves and builds its lattice and basis.",
+    "k-mesh not in the banner ([IBZ] line absent): Gamma assumed unless a q-mesh implies more",
+    "basis span chosen: VALENCE_LOWQ_VA spherical; function count 314 == the log's"
+  ],
+  "structure": "LiMn2O4_spinel",
+  "kmesh": [
+    1,
+    1,
+    1
+  ],
+  "basis": {
+    "data": "VALENCE_LOWQ_VA",
+    "spherical": true
+  },
+  "solid": {
+    "multiplicity": 17,
+    "seed": "IonicSAD",
+    "imposeSymmetry": false,
+    "ortho": "CholeskyPivoted",
+    "orthoTol": 0.0001,
+    "hubbard": [
+      {
+        "site": 2,
+        "l": 2,
+        "U_eV": 2.0
+      },
+      {
+        "site": 3,
+        "l": 2,
+        "U_eV": 2.0
+      },
+      {
+        "site": 4,
+        "l": 2,
+        "U_eV": 2.0
+      },
+      {
+        "site": 5,
+        "l": 2,
+        "U_eV": 2.0
+      }
+    ],
+    "accelerator": "Null"
+  },
+  "scf": {
+    "NMaxIter": 200,
+    "minDeltaRho": 1e-06,
+    "minDeltaE": 1e+30,
+    "minDeltaFD": 1e+30,
+    "minVirial": 1e+30,
+    "minFD": 1e+30,
+    "startingRelaxRo": 0.45,
+    "mergeTol": 0.0001,
+    "pulayDepth": 8,
+    "pulayStart": 5,
+    "kerkerG0": 1.0,
+    "useMOM": false,
+    "smearingkT": 0.005
+  }
+}

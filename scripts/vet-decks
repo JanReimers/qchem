@@ -1,0 +1,15 @@
+#!/bin/bash
+# vet-decks -- `rundeck --check` every input deck under decks/ (or the given files): resolve + postSCF pre-flight + build the lattice and basis; no SCF.
+#   scripts/vet-decks [deck.json ...]        exit status = the number of decks that failed to vet
+set -u
+cd "$(dirname "$0")/.."
+RD=build/Release/CLIapps/rundeck
+[ -x "$RD" ] || { echo "build rundeck first (cd build/Release && ninja rundeck)" >&2; exit 2; }
+files=("$@"); [ ${#files[@]} -eq 0 ] && mapfile -t files < <(find decks -name '*.json' | sort)
+bad=0
+for d in "${files[@]}"; do
+    if out=$("$RD" "$d" --check 2>&1); then echo "OK    $d"; echo "$out" | grep -E "note:" | sed 's/^/        /'
+    else echo "FAIL  $d"; echo "$out" | head -2 | sed 's/^/        /'; bad=$((bad+1)); fi
+done
+echo "--- ${#files[@]} deck(s), $bad failed"
+exit $bad

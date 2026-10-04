@@ -1,6 +1,7 @@
 // rundeck -- run a periodic SCF from an INPUT DECK (D-ENV step 6; doc/Records/EnvKnobInventory.md §9).
 //
-//   rundeck <deck.json> [--set path=value]... [--out DIR] [--code-version V]
+//   rundeck <deck.json> [--set path=value]... [--out DIR] [--code-version V] [--check]
+//   --check VETS the deck (resolve + postSCF pre-flight + build the lattice and basis) and exits 0 / 2 -- no SCF, no revision.
 //
 // The deck names a structure (a key of materials.json) and states the run; `--set` is the only ad-hoc override (applied before the deck
 // is resolved, so it lands in the record).  The run writes `<DIR>/<structure>.rNNN.json` BEFORE it starts: the resolved deck + header +
@@ -43,7 +44,7 @@ int main(int argc, char** argv)
     namespace fs=std::filesystem;
     try
     {
-        std::string deckPath, out=".", version="unversioned";
+        std::string deckPath, out=".", version="unversioned"; bool check=false;
         std::vector<std::string> sets;
         for (int i=1; i<argc; ++i)
         {
@@ -52,15 +53,24 @@ int main(int argc, char** argv)
             if      (a=="--set")          sets.push_back(next());
             else if (a=="--out")          out=next();
             else if (a=="--code-version") version=next();
+            else if (a=="--check")        check=true;
             else if (deckPath.empty() && a.rfind("--",0)!=0) deckPath=a;
             else throw std::runtime_error("unexpected argument '"+a+"'");
         }
-        if (deckPath.empty()) { std::cerr<<"usage: rundeck <deck.json> [--set path=value]... [--out DIR] [--code-version V]\n"; return 2; }
+        if (deckPath.empty()) { std::cerr<<"usage: rundeck <deck.json> [--set path=value]... [--out DIR] [--code-version V] [--check]\n"; return 2; }
 
         nlohmann::json payload=qchem::deck::LoadDeck(deckPath, version);
         for (const auto& s : sets) qchem::deck::ApplySet(payload, s);
         qchem::deck::RunSpec spec;
         qchem::deck::FromJson(payload, spec);                 // strict: an unknown key (or a --set typo) throws here
+
+        if (check)
+        {
+            const auto v=qchem::deck::Vet(spec, out);
+            std::cout<<"[vet] OK  "<<v.summary<<"\n";
+            for (const auto& n : v.notes) std::cout<<"[vet] note: "<<n<<"\n";
+            return 0;
+        }
 
         qchem::deck::Provenance prov;
         prov.inputDeck=deckPath; prov.overrides=sets; prov.codeVersion=version; prov.activeEnvironment=ActiveEnvironment();

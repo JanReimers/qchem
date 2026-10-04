@@ -146,6 +146,16 @@ void WriteRevision(const std::filesystem::path& path, const json& resolved, cons
 //! from \a currentCodeVersion, and returns the option payload.  THROWS if the schema version is newer than \c kSchemaVersion.
 json LoadDeck(const std::filesystem::path& path, const std::string& currentCodeVersion);
 
+//! \brief VET a deck without running it: resolve it (the postSCF pre-flight included), build the lattice, and build the basis (a stated trim applied; the
+//! vet-stage trim loop is NOT run -- it is an SCF-adjacent cost), reporting what the run WOULD be.  THROWS on anything \c Run would refuse before its SCF (an
+//! unknown structure, a basis file with no block for an element, a bad postSCF, a spherical view the span refuses ...).  Cheap: seconds, no SCF, no revision.
+struct VetReport
+{
+    std::string              summary;   //!< one line: structure, atoms, Nelec, k-mesh, basis + functions, stages, manifolds, postSCF
+    std::vector<std::string> notes;     //!< things that are not errors but a run would hit (a restartFrom state that does not exist yet)
+};
+VetReport Vet(RunSpec spec, const std::filesystem::path& outDir);
+
 //! \brief What a deck run produced.  \c energy is present ONLY for a converged run (a failed run's last iterate is deliberately not
 //! offered as "the energy" -- see \c SCFFailure::lastEnergy).
 struct RunOutcome

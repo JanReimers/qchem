@@ -329,7 +329,8 @@ TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)
     json cplx=hub; cplx["forceComplex"]=true;
     EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},cplx)),"NO THROW");
     json imposed=cplx; imposed["imposeSymmetry"]=true;
-    EXPECT_NE(msg(base({{{"hubbardLinearResponse",json::object()}}},imposed)).find("FULL k-mesh"),std::string::npos);
+    EXPECT_EQ(msg(base({{{"hubbardLinearResponse",json::object()}}},imposed)),"NO THROW")
+        << "imposition does not always reduce the mesh (NiO AFM-II 2x2x2: 8 -> 8): the response decides at run time, Vet() notes it";
     EXPECT_NE(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({3,3,3}))).find("incommensurate"),std::string::npos);
     EXPECT_EQ(msg(base({{{"independentResponse",{{"nq",2}}}}},hub,json::array({4,4,2}))),"NO THROW");
     EXPECT_NE(msg(base({{{"hubbardFiniteDifference",{{"perturb",{5}},{"alpha_eV",0.1}}}}},hub)).find("past the 1 manifolds"),std::string::npos);
@@ -378,4 +379,22 @@ TEST(Deck, KeysStartingWithAnUnderscoreAreCommentsAndShippedDecksLoad)
             ++n;
         }
     EXPECT_GE(n,6u) << "decks/ and decks/bench/";
+}
+
+// Every shipped deck VETS: it resolves (postSCF pre-flight included) and its lattice and basis build -- no SCF.  The campaign decks
+// (decks/campaigns, reconstructed from the old logs) are the reason: a stale key, a basis file with no block for an element, or a
+// postSCF the run could not honour is caught by ctest, not by the first hour of the re-run.
+TEST(Deck, EveryShippedDeckVets)
+{
+    size_t n=0;
+    for (const auto& e : fs::recursive_directory_iterator(fs::path(DECKS_DIR)))
+        if (e.path().extension()==".json")
+        {
+            deck::RunSpec d; ASSERT_NO_THROW(deck::FromJson(deck::LoadDeck(e.path(),"x"),d)) << e.path();
+            deck::VetReport v;
+            ASSERT_NO_THROW(v=deck::Vet(d, fs::temp_directory_path())) << e.path();
+            EXPECT_FALSE(v.summary.empty()) << e.path();
+            ++n;
+        }
+    EXPECT_GE(n,1u);
 }

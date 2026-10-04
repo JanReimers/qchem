@@ -466,8 +466,10 @@ Materials::Material Resolve(RunSpec& spec)
             if (needsU && spec.solid.hubbard.empty())
                 throw std::runtime_error(who+"the run carries no Hubbard manifold -- list the channels in solid.hubbard (at U_eV=0 to probe without +U)");
             const bool isResponse = a.kind==PostAction::Kind::IndependentResponse || a.kind==PostAction::Kind::HubbardLinearResponse;
-            if (isResponse && spec.solid.imposeSymmetry)
-                throw std::runtime_error(who+"a response needs the FULL k-mesh; solid.imposeSymmetry reduces it (set it false)");
+            // NOT an error: whether an imposed group REDUCES the k-mesh depends on the group and the mesh (the NiO AFM-II 2x2x2 Shubnikov group maps 8 k-points onto 8
+            // irreducible ones, and its chi0 ran).  A blanket refusal would reject decks the library accepts; the response itself THROWS at run time if the mesh was
+            // really reduced (D5).  Vet() says so in a note.
+            (void)isResponse;
             if (a.kind==PostAction::Kind::HubbardLinearResponse && !spec.solid.forceComplex)
                 throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
             if (a.kind==PostAction::Kind::IndependentResponse)
@@ -589,6 +591,41 @@ json LoadDeck(const std::filesystem::path& path, const std::string& currentCodeV
     return j.at("run");
 }
 
+
+VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
+{
+    namespace fs=std::filesystem;
+    const Materials::Material mat=Resolve(spec);
+    VetReport v;
+    if (!spec.state.restartFrom.empty())
+    {
+        const std::string r=spec.state.restartFrom;
+        const bool isPath = r.find('/')!=std::string::npos || (r.size()>3 && r.substr(r.size()-3)==".h5");
+        const std::string path = isPath ? r : (outDir/"states"/(r+".h5")).string();
+        if (!fs::exists(path)) v.notes.push_back("state.restartFrom: no saved state at "+path+" (a run would refuse)");
+    }
+    Lattice_3D lat(*mat.cell, spec.kmesh);
+    BasisSet::Gaussian::ShellTrim trim;
+    for (const auto& t : spec.basis.trim) trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
+    std::shared_ptr<const BasisSet::Real_BS> b(BasisSet::Gaussian::Factory(spec.basis.data, mat.cell.get(),
+                                               BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, trim));
+    if (spec.basis.spherical) b=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(b));
+    size_t nf=0;
+    for (auto ibs : const_cast<BasisSet::Real_BS&>(*b).Iterate<BasisSet::Real_OIBS>()) nf+=ibs->GetNumFunctions();
+    {
+        bool resp=false; for (const auto& a : spec.postSCF) resp = resp || a.kind==RunSpec::PostAction::Kind::IndependentResponse || a.kind==RunSpec::PostAction::Kind::HubbardLinearResponse;
+        if (resp && spec.solid.imposeSymmetry && spec.kmesh.x*spec.kmesh.y*spec.kmesh.z>1)
+            v.notes.push_back("a response with solid.imposeSymmetry on a k-mesh: if the imposed group REDUCES the mesh the response throws at run time (D5); the NiO AFM-II 2x2x2 Shubnikov group does not reduce it");
+    }
+    if (spec.basis.vet) v.notes.push_back("basis.vet: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
+    std::ostringstream os;
+    os<<spec.structure<<": "<<mat.cell->GetNumAtoms()<<" atoms, Nelec "<<spec.solid.Nelec<<", multiplicity "<<spec.solid.multiplicity
+      <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<NameOf(spec.basis.data,kBasisData)<<(spec.basis.spherical?" (spherical)":"")
+      <<" "<<nf<<" functions, "<<spec.Stages().size()<<" SCF stage(s), "<<spec.solid.hubbard.size()<<" Hubbard manifold(s), "<<spec.postSCF.size()<<" postSCF action(s)"
+      <<(spec.solid.imposeSymmetry?", symmetry IMPOSED":", symmetry FREE");
+    v.summary=os.str();
+    return v;
+}
 
 RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDir)
 {

@@ -1,0 +1,80 @@
+{
+  "_doc": [
+    "EXACT translation of MnO/mno_afm2_free_U0_ortho_chi_20260930.cmd (the saved command), D-ENV-RERUN 2026-10-04:",
+    "  GPW_SPHERICAL=1 -> basis VALENCE_LOWQ_VA spherical;  MNO_SKIP_FM=1 -> (no arm concept: this deck is the AFM run);  MNO_REAL=0 -> solid.forceComplex;  MNO_MOM=0 MNO_ACC=Null -> useMOM false, accelerator Null;",
+    "  MNO_PULAY=8 MNO_PULAY_START=5 -> pulayDepth/pulayStart;  MNO_EPS=1e-6 -> minDeltaRho (default measure: MNO_MEASURE was unset);  MNO_CHI=1 -> postSCF hubbardLinearResponse;",
+    "  MNO_CHI_FD=1e-3 (Ha) -> hubbardFiniteDifference alpha_eV 0.027211386245988;  MNO_CHI_PERTURB=0 -> perturb [0];  every other knob at the probe's default (ortho CholeskyPivoted 1e-4, cutoff 2, imposition FREE, kT 5e-3, Kerker G0 1, relax 0.45, NMax 200).",
+    "MNO_U_RADIAL=ortho -> atomicRadial + orthoAtomic on both Mn d manifolds (HubbardU_OrthoAtomic);  MNO_SAVE=<path> -> state.save \"auto\" (the path is now <outDir>/states/<stem>.h5)."
+  ],
+  "structure": "MnO_AFM2",
+  "kmesh": [
+    1,
+    1,
+    1
+  ],
+  "basis": {
+    "data": "VALENCE_LOWQ_VA",
+    "spherical": true
+  },
+  "solid": {
+    "multiplicity": 1,
+    "seed": "IonicSAD",
+    "ortho": "CholeskyPivoted",
+    "orthoTol": 0.0001,
+    "cutoffFactor": 2.0,
+    "imposeSymmetry": false,
+    "forceComplex": true,
+    "accelerator": "Null",
+    "hubbard": [
+      {
+        "site": 0,
+        "l": 2,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      },
+      {
+        "site": 1,
+        "l": 2,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      }
+    ]
+  },
+  "scf": {
+    "NMaxIter": 200,
+    "minDeltaRho": 1e-06,
+    "minDeltaE": 1e+30,
+    "minDeltaFD": 1e+30,
+    "minVirial": 1e+30,
+    "minFD": 1e+30,
+    "startingRelaxRo": 0.45,
+    "mergeTol": 0.0001,
+    "pulayDepth": 8,
+    "pulayStart": 5,
+    "kerkerG0": 1.0,
+    "useMOM": false,
+    "smearingkT": 0.005
+  },
+  "postSCF": [
+    {
+      "hubbardLinearResponse": {
+        "perturb": [
+          0
+        ]
+      }
+    },
+    {
+      "hubbardFiniteDifference": {
+        "perturb": [
+          0
+        ],
+        "alpha_eV": 0.027211386245987998
+      }
+    }
+  ],
+  "state": {
+    "save": "auto"
+  }
+}

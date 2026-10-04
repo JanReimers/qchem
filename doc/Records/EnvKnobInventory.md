@@ -445,3 +445,20 @@ Etot -7.115067447 (the old script comment says 13 iterations -- NOT re-derived h
 * **Survivor**: `gpwprobe becke-ladder {si|naf|mn|al}` -- it scores quadrature rules on a FROZEN density (an instrument that reads; no knobs; nothing to reproduce from a deck).
 `gpwprobe` now prints a RETIRED pointer for the others.  Environment reads left under `IntegrationTests/` and `CLIapps/`: none (except `GTH2UPF_VERBOSE` in `gth2upf`, a print switch of an unrelated converter).
 NEXT: **D-ENV-RERUN** (re-run the `qchem6-runs` campaigns from decks; needs the response/ACBN0/restart/trim sections -- ALL now exist), then 6e (the lint).
+
+## 11. D-ENV-RERUN, stage 1: the `qchem6-runs` campaigns as decks, VETTED not run (2026-10-04)
+
+**Decision (user):** defer the very long runs; make sure every campaign deck gets past the vetting stage.
+* **`rundeck --check`** / `deck::Vet` / `scripts/vet-decks`: resolve (postSCF pre-flight included) + build the lattice + build the basis (a stated trim applied, the vet-stage trim loop NOT run) -- no SCF, no revision, ~50 ms a deck
+  (all 43 shipped decks in 2.3 s).  ctest `Deck.EveryShippedDeckVets` runs it over every deck under `decks/`.
+* **30 campaign decks in `decks/campaigns/{NiO,MnO,MnO2,LiMn2O4}/`**, one per old log.  **Two are EXACT** (`mno_afm2_free_U0_{radEvery,ortho}_chi_20260930.json`, translated from the saved `.cmd` files, knob by knob).
+  **The other 28 are DRAFTS** reconstructed by `scripts/log2deck.py` from what each log printed about itself (system line, symmetry, +U manifolds incl. radial / ortho-atomic / the U=0 spectator sets, the `[ortho]` pivot tolerance, one scf
+  mixer line per stage, the vet-stage trim and its orthoTol, restart / save paths, the chi actions, the `[IBZ]` k-point count); each deck's `_doc` lists what the banner does NOT carry and was ASSUMED (the convergence threshold 1e-6 on the default
+  measure above all).  The basis span is chosen by trying candidates through `--check` and keeping the one whose function count equals the log's own `nFunctions` -- it matched on every log that prints one (LiMn2O4 314, MnO2 304, MnO 118).
+  **A draft is not a verdict: its author must judge it before a re-run's numbers are compared with the banked ones.**
+* **What the vetting FOUND (so it earned its keep):** (1) five NiO drafts first failed pre-flight on "a response needs the full k-mesh; imposeSymmetry reduces it" -- but the logs print `[IBZ] 8 k-points -> 8 irreducible`: the NiO AFM-II 2x2x2 Shubnikov group does NOT
+  reduce that mesh and the logged chi0 ran.  **The blanket pre-flight rule was WRONG** (it would have refused decks the library accepts); whether a group reduces a mesh depends on both, so it is now a `Vet` NOTE and the response itself throws at run time (D5).
+  (2) a draft whose q-mesh did not divide its inferred k-mesh exposed that the k-mesh must come from the `[IBZ]` line, not the file name.
+* **Not decks:** `batch/queue/*.sh` (`01_mno_ckalpha`, `02_fes2_hpx`) drive CP2K and Quantum ESPRESSO (hp.x) -- the oracle codes' own inputs, outside the qchem deck system.
+* **Next (when the user wants a run):** pick a deck, `rundeck <deck> --out $(scripts/rundir qchem6 <Material>)`, compare with the banked number (re-judge against an independent route if it moved; never refresh -- Pins pin 10).  The SHORT ones first
+  (`mno_gamma_*`, the Γ MnO chi runs, ~minutes); the NiO k222 and spinel runs are hours.

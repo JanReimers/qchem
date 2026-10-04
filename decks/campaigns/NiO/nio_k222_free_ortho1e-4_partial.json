@@ -1,0 +1,122 @@
+{
+  "_doc": [
+    "DRAFT reconstructed from the banner of nio_k222_free_ortho1e-4_partial.log (scripts/log2deck.py, D-ENV-RERUN 2026-10-04): the original `gpwprobe` environment command was not saved.",
+    "NOT in the banner, ASSUMED: convergence threshold minDeltaRho=1e-6 on the default measure, mergeTol 1e-4, the minDelta{E,FD}/minVirial/minFD gates off (1e30).",
+    "Judge these against the run's author before trusting a re-run's numbers.  `rundeck --check` has vetted that it parses, resolves and builds its lattice and basis.",
+    "basis span chosen: VALENCE_LOWQ_VA spherical; function count not comparable (no nFunctions in log)"
+  ],
+  "structure": "NiO_AFM2",
+  "kmesh": [
+    2,
+    2,
+    2
+  ],
+  "basis": {
+    "data": "VALENCE_LOWQ_VA",
+    "spherical": true
+  },
+  "solid": {
+    "multiplicity": 1,
+    "seed": "IonicSAD",
+    "imposeSymmetry": false,
+    "ortho": "CholeskyPivoted",
+    "orthoTol": 0.0001,
+    "hubbard": [
+      {
+        "site": 0,
+        "l": 2,
+        "U_eV": 3.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      },
+      {
+        "site": 1,
+        "l": 2,
+        "U_eV": 3.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      },
+      {
+        "site": 0,
+        "l": 0,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      },
+      {
+        "site": 1,
+        "l": 0,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      },
+      {
+        "site": 2,
+        "l": 0,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      },
+      {
+        "site": 3,
+        "l": 0,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      },
+      {
+        "site": 2,
+        "l": 1,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      },
+      {
+        "site": 3,
+        "l": 1,
+        "U_eV": 0.0,
+        "atomicRadial": true,
+        "orthoAtomic": true
+      }
+    ]
+  },
+  "schedule": [
+    {
+      "accelerator": "Null",
+      "scf": {
+        "NMaxIter": 200,
+        "minDeltaRho": 1e-06,
+        "minDeltaE": 1e+30,
+        "minDeltaFD": 1e+30,
+        "minVirial": 1e+30,
+        "minFD": 1e+30,
+        "startingRelaxRo": 0.45,
+        "mergeTol": 0.0001,
+        "pulayDepth": 8,
+        "pulayStart": 5,
+        "kerkerG0": 1.0,
+        "useMOM": false,
+        "smearingkT": 0.005,
+        "stopOnAccelExhausted": true
+      }
+    },
+    {
+      "accelerator": "Null",
+      "scf": {
+        "NMaxIter": 200,
+        "minDeltaRho": 1e-06,
+        "minDeltaE": 1e+30,
+        "minDeltaFD": 1e+30,
+        "minVirial": 1e+30,
+        "minFD": 1e+30,
+        "startingRelaxRo": 0.45,
+        "mergeTol": 0.0001,
+        "pulayDepth": 8,
+        "pulayStart": 5,
+        "kerkerG0": 1.0,
+        "useMOM": false,
+        "smearingkT": 0.0
+      }
+    }
+  ]
+}
