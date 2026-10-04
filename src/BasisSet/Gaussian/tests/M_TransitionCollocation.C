@@ -267,14 +267,13 @@ TEST(M_TransitionCollocation, WalkAndContractionRoutesAgree)
     EXPECT_LT(dH,   1e-10*sH)  << "the two gather routes disagree on the potential matrix";
 }
 
-// ---- D-ENV step 5: the typed GPW tolerances and the environment as the OVERRIDE LAYER ----
+// ---- D-ENV step 5/6a: the typed GPW tolerances; the environment is NOT a way to set them ----
 #include <cstdlib>
 import qchem.BasisSet.Gaussian.Lattice.GPWTolerances;
-TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheEnvironmentOverridesAndSaysSo)
+import qchem.Environment;
+TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheRetiredEnvironmentIsIgnoredAndReported)
 {
     using namespace qchem::BasisSet::Gaussian;
-    for (const char* n : {"GPW_VLOC_EPS","GPW_LOCALPP_RELCUTOFF","GPW_RELFIELDSHARP","GPW_MGRID_ECUTS",
-                          "GPW_SCREEN_EPS","GPW_FIELDSHARP","GPW_RELCUTOFF","GPW_DENSITY_EPS"}) unsetenv(n);
     GPWTolerances t;
     EXPECT_EQ(t.vlocEps, 1e-5);
     EXPECT_EQ(t.localPPRelCutoff, 30.0);
@@ -283,27 +282,27 @@ TEST(GPWTolerances, DefaultsAreTodaysBehaviourAndTheEnvironmentOverridesAndSaysS
     EXPECT_EQ(t.screenEps, 1e-10);  EXPECT_EQ(t.densityEps, 1e-10);  EXPECT_EQ(t.relCutoff, 0.0);
     EXPECT_NEAR(t.fieldSharp, 2.0/3.0, 1e-15);
     EXPECT_TRUE(t.Describe().empty()) << "defaults print nothing on the banner";
-    EXPECT_TRUE(ApplyEnvOverrides(t).empty()) << "no environment, no override";
     EXPECT_TRUE(t == GPWTolerances{});
-
-    setenv("GPW_VLOC_EPS","1e-7",1); setenv("GPW_MGRID_ECUTS","53.33,17.78,5.926",1);
-    const std::string said=ApplyEnvOverrides(t);
-    EXPECT_EQ(t.vlocEps, 1e-7);
-    ASSERT_EQ(t.mgridEcuts.size(), 3u);
-    EXPECT_NEAR(t.mgridEcuts[1], 17.78, 1e-12);
-    EXPECT_NE(said.find("GPW_VLOC_EPS"), std::string::npos) << "an override is NAMED, so the banner can say it";
-    EXPECT_NE(said.find("GPW_MGRID_ECUTS"), std::string::npos);
+    t.vlocEps=1e-7; t.mgridEcuts={53.33,17.78};
     EXPECT_NE(t.Describe().find("vlocEps"), std::string::npos);
+    EXPECT_NE(t.Describe().find("mgridEcuts=53.33,17.78"), std::string::npos);
     EXPECT_FALSE(t == GPWTolerances{});
-    unsetenv("GPW_VLOC_EPS"); unsetenv("GPW_MGRID_ECUTS");
 
-    // the four pair-loop tolerances (option B) are overridden and named the same way
-    GPWTolerances u;
-    setenv("GPW_SCREEN_EPS","1e-6",1); setenv("GPW_FIELDSHARP","0.5",1); setenv("GPW_RELCUTOFF","40",1); setenv("GPW_DENSITY_EPS","1e-8",1);
-    const std::string said2=ApplyEnvOverrides(u);
-    EXPECT_EQ(u.screenEps,1e-6); EXPECT_EQ(u.fieldSharp,0.5); EXPECT_EQ(u.relCutoff,40.0); EXPECT_EQ(u.densityEps,1e-8);
-    for (const char* n : {"GPW_SCREEN_EPS","GPW_FIELDSHARP","GPW_RELCUTOFF","GPW_DENSITY_EPS"})
-    { EXPECT_NE(said2.find(n), std::string::npos) << n; unsetenv(n); }
+    // 6a: the old variables are retired -- reported with the deck key that replaces them, and they change NOTHING (no ApplyEnvOverrides exists)
+    unsetenv("GPW_SCREEN_EPS"); unsetenv("QCHEM_BECKE_NR");
+    EXPECT_TRUE(qchem::RetiredEnvironmentSet().empty());
+    setenv("GPW_SCREEN_EPS","1e-6",1); setenv("QCHEM_BECKE_NR","12",1);
+    const auto set=qchem::RetiredEnvironmentSet();
+    ASSERT_EQ(set.size(),2u);
+    bool sawScreen=false, sawNR=false;
+    for (const auto& r : set)
+    {
+        if (r.name=="GPW_SCREEN_EPS")  { sawScreen=true; EXPECT_EQ(r.deckKey,"solid.tolerances.screenEps"); }
+        if (r.name=="QCHEM_BECKE_NR")  { sawNR=true;     EXPECT_EQ(r.deckKey,"solid.xcMesh.nRadial"); }
+    }
+    EXPECT_TRUE(sawScreen && sawNR);
+    EXPECT_EQ(GPWTolerances{}.screenEps, 1e-10) << "a retired variable must not reach the typed default";
+    unsetenv("GPW_SCREEN_EPS"); unsetenv("QCHEM_BECKE_NR");
 }
 
 // Option B: a tolerance handed to the molecular evaluator through ApplyTolerances REACHES its pair loops (a looser analytic screen

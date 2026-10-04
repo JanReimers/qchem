@@ -288,3 +288,16 @@ different from the deck.  Known gaps: shell TRIM and the basis `Reader` choices 
 reads are harness-side, retire in 6d); no molecular deck; no restart (`saveStateTo` is serialized, `Restart` is not driven); `rundeck` output dir is `--out`
 (use `scripts/rundir`).  ctest 1019/1019.
 **NEXT**: 6a (retire the tolerance env hooks: `ApplyEnvOverrides`, `QCHEM_BECKE_*`), then 6b/6c, then 6d (harness/probe env decks -> decks), 6e (lint).  Earlier plan text: the loader in `gpwprobe --deck/--set` and `SolidCalculation` writing its revision, THEN the 6a-6e retirements.
+
+**Step 6a DONE 2026-10-03 -- the tolerance env hooks are RETIRED** (ctest 1019/1019).  Removed: `ApplyEnvOverrides`, the `GPW_{VLOC_EPS,LOCALPP_RELCUTOFF,
+RELFIELDSHARP,MGRID_ECUTS,SCREEN_EPS,FIELDSHARP,RELCUTOFF,DENSITY_EPS}` reads, and the `QCHEM_/GPW_BECKE_{NR,ALPHA,L,ROT,EPS}` reads in `BeckeXCParams`
+(a negative argument = the default 40 / 2.0 / 29; the typed `MeshParams` fields are the setting).  `qchem::RetiredEnvironmentSet()` /
+`WarnRetiredEnvironment()` (qchem.Environment, called from the `SolidCalculation` constructor and `rundeck`) report a still-set retired variable ONCE on stderr with the
+deck key that replaces it and IGNORE it; `rundeck` records it in `provenance.ignoredEnvironment`.  Verified: `GPW_SCREEN_EPS=1e-3` leaves Si Etot at -7.115063428;
+`--set solid.tolerances.screenEps=1e-3` moves it to -7.065399 and prints the non-default banner.  The Settings reference page lists them as retired with their deck keys.
+Historical records and logs (`doc/Records/*`, `doc/logs`) still quote the old variables as what produced those numbers; that is correct as history and is NOT edited.
+**RE-RUN OF `~/Code/qchem6-runs` (user, 2026-10-03: do it when the deck system is done):** surveyed 2026-10-03 -- LiMn2O4, MnO, MnO2, NiO, batch; the files are
+`gpwprobe` CAMPAIGN logs (frozen/free chi, ACBN0 outer loop, anneal schedule with penalty, save/restart, shell-trim vet loops, structure-edit discriminators, k222 ladders).
+So the re-run needs the deck sections those use that do not exist yet: `response` (chi0/chi/perturb/FD), `hubbardLoop` (ACBN0, tolU), `restart`, `trim`, and the
+probes' structure edits (swap sublattice, shift) -- i.e. step 6d is the prerequisite; each log's `.cmd` / header is the recipe to translate.  Plan: after 6d, translate each
+campaign to a deck, re-run, and compare to the banked number (a number that moves is an anchor to re-judge against an independent route, never to refresh -- Pins pin 10).

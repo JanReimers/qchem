@@ -50,7 +50,6 @@ module;
 #include <limits>    // infinity (RadialResolutionRatio's no-claim value off-MHL)
 #include <string>
 export module qchem.Mesh.XCPolicy;
-import qchem.Environment;   // Env(name, legacy): the renamed QCHEM_BECKE_* knobs keep their GPW_BECKE_* aliases
 export import qchem.Mesh;
 export import qchem.Mesh.Angular;   // LebedevMenu (the degree -> direction-count table)
 
@@ -253,12 +252,11 @@ namespace qchem::qcMesh
 
 MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
 {
-    // QCHEM_BECKE_*: the Becke mesh is a general XC quadrature, not GPW-specific (D-ENV step 4); GPW_BECKE_* are deprecated aliases.
-    auto envi=[](const char* n, const char* old, int    d){ const char* s=qchem::Env(n,old); return s ? std::atoi(s) : d; };
-    auto envd=[](const char* n, const char* old, double d){ const char* s=qchem::Env(n,old); return s ? std::atof(s) : d; };
-    if (nRadial      <0)   nRadial      =envi("QCHEM_BECKE_NR",    "GPW_BECKE_NR",    40);
-    if (mhlAlpha     <0.0) mhlAlpha     =envd("QCHEM_BECKE_ALPHA", "GPW_BECKE_ALPHA", 2.0);
-    if (angularDegree<0)   angularDegree=envi("QCHEM_BECKE_L",     "GPW_BECKE_L",     29);
+    // The Becke recipe is stated, never read from the environment (D-ENV step 6a): a negative argument means "the default".  The settings
+    // are the deck's `xcMesh.*`; the retired QCHEM_BECKE_* variables are ignored (and reported) by qchem::WarnRetiredEnvironment.
+    if (nRadial      <0)   nRadial      =40;
+    if (mhlAlpha     <0.0) mhlAlpha     =2.0;
+    if (angularDegree<0)   angularDegree=29;
     MeshParams mp;
     mp.cellKind=UnitCellKind::Becke;
     mp.radial =RadialKind::MHL;            mp.nRadial =nRadial; mp.mhl_m=2; mp.mhl_alpha=mhlAlpha;
@@ -272,8 +270,6 @@ MeshParams BeckeXCParams(int nRadial, double mhlAlpha, int angularDegree)
     mp.angular = (angularDegree>=29) ? AngularKind::Lebedev : AngularKind::GaussLegendre;
     mp.angularDegree=angularDegree;   // ONE meaning for both schemes: GL takes it directly, Lebedev resolves
                                       // it to the cheapest rule of at least that degree (R2.15).
-    mp.angRot=envd("QCHEM_BECKE_ROT", "GPW_BECKE_ROT", 0.0);
-    mp.beckeEps=envd("QCHEM_BECKE_EPS", "GPW_BECKE_EPS", mp.beckeEps);   // the env is the OVERRIDE layer; the typed field is the setting
     return mp;
 }
 

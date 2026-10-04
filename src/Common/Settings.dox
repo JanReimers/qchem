@@ -37,23 +37,32 @@ Resolved once per run (\ref qchem::RunPolicy) and printed on the run banner with
 | `GPW_DAWARE_SCREEN` | on | D-aware collocation box tolerance ε/\|c_ij\| instead of a flat ε. |
 | `QCHEM_U_EIGEN` | on | DFT+U on the Löwdin block's eigenvalues (Dudarev) instead of its diagonal populations. |
 
-\section settings_numerics Numerical-method tolerances and grids — yes, each moves numbers
+\section settings_numerics Numerical-method tolerances and grids — NOW DECK KEYS (the environment variables are retired)
+
+These moved numbers, so they are part of a run's input and live in the input deck (\c solid.tolerances.*, \c solid.xcMesh.*), where they are
+reproducible from the run's numbered revision file.  The environment variables below are **retired and ignored**: each is reported once on
+stderr with its replacement, and recorded in the run's \c provenance.ignoredEnvironment.  Set one with \c --set \<deck key\>=\<value\>.
+
+| retired variable | deck key | default | what it does |
+|---|---|---|---|
+| `GPW_DENSITY_EPS` | `solid.tolerances.densityEps` | 1e-10 | Screening tolerance for the collocated density (sizes the shell-pair/offset task list). |
+| `GPW_SCREEN_EPS` | `solid.tolerances.screenEps` | 1e-10 | Magnitude screen for the analytic lattice sums (CP2K `EPS_PGF_ORB` analogue). |
+| `GPW_VLOC_EPS` | `solid.tolerances.vlocEps` | 1e-5 | Tolerance of the local-pseudopotential long-range G-ball. |
+| `GPW_FIELDSHARP` | `solid.tolerances.fieldSharp` | 2/3 | κ: the KS field's core exponent as a fraction of α_max. |
+| `GPW_RELFIELDSHARP` | `solid.tolerances.relFieldSharp` | 1/3 | The HartreeOnly floor, as a fraction of α_max (β = 0 diverges). |
+| `GPW_LOCALPP_RELCUTOFF` | `solid.tolerances.localPPRelCutoff` | 30 Ha | Absolute pair→level rule κ for the local-PP sweeps. |
+| `GPW_MGRID_ECUTS` | `solid.tolerances.mgridEcuts` | — | Explicit multigrid cutoff list (Ha, descending) — for matching CP2K's `CUTOFF/3^i`. |
+| `GPW_RELCUTOFF` | `solid.tolerances.relCutoff` | 0 | Force the absolute pair→level rule at this κ (Ha) — the CP2K-matching experiment. |
+| `QCHEM_BECKE_NR` (`GPW_BECKE_NR`) | `solid.xcMesh.nRadial` | 40 | Becke XC mesh: radial points. |
+| `QCHEM_BECKE_ALPHA` (`GPW_BECKE_ALPHA`) | `solid.xcMesh.mhlAlpha` | 2.0 | Becke XC mesh: MHL radial scale. |
+| `QCHEM_BECKE_L` (`GPW_BECKE_L`) | `solid.xcMesh.angularDegree` | 29 | Becke XC mesh: angular polynomial degree. |
+| `QCHEM_BECKE_ROT` (`GPW_BECKE_ROT`) | `solid.xcMesh.angRot` | 0 | Becke XC mesh: rigid rotation of the angular grid (radians). |
+| `QCHEM_BECKE_EPS` (`GPW_BECKE_EPS`) | `solid.xcMesh.beckeEps` | 1e-6 | Becke competitor-series tolerance. |
+
+The XC-from-D mixing overrides are a CP2K-parity route switch, still environment variables until D-ENV step 6b:
 
 | setting | default | what it does |
 |---|---|---|
-| `GPW_DENSITY_EPS` | 1e-10 | Screening tolerance for the collocated density (sizes the shell-pair/offset task list). |
-| `GPW_SCREEN_EPS` | 1e-10 | Magnitude screen for the analytic lattice sums (CP2K `EPS_PGF_ORB` analogue).  Raising it shrinks the reach for diffuse bases; not for production digits. |
-| `GPW_VLOC_EPS` | 1e-5 | Tolerance of the local-pseudopotential long-range G-ball. |
-| `GPW_FIELDSHARP` | 2/3 | κ: the KS field's core exponent as a fraction of α_max (pinned by ρ_lost/N, not wall-clock). |
-| `GPW_RELFIELDSHARP` | 1/3 | The HartreeOnly floor, as a fraction of α_max (β = 0 diverges). |
-| `GPW_LOCALPP_RELCUTOFF` | 30 Ha | Absolute pair→level rule κ for the local-PP sweeps (60 for the self-convergence check). |
-| `GPW_MGRID_ECUTS` | — | Explicit multigrid cutoff list `"53.33,17.78,5.926"` (Ha, descending) replacing the factor-4 ladder — for matching CP2K's `CUTOFF/3^i`. |
-| `GPW_RELCUTOFF` | 0 | Force the absolute pair→level rule at this κ (Ha) for every assignment — the CP2K-matching experiment. |
-| `QCHEM_BECKE_NR` *(alias `GPW_BECKE_NR`)* | 40 | Becke XC mesh: radial points. |
-| `QCHEM_BECKE_ALPHA` *(alias `GPW_BECKE_ALPHA`)* | 2.0 | Becke XC mesh: MHL radial scale. |
-| `QCHEM_BECKE_L` *(alias `GPW_BECKE_L`)* | 29 | Becke XC mesh: angular polynomial degree (Lebedev at ≥ 29, Gauss–Legendre below). |
-| `QCHEM_BECKE_ROT` *(alias `GPW_BECKE_ROT`)* | 0 | Becke XC mesh: rigid rotation of the angular grid (radians; free runs, below degree ~15). |
-| `QCHEM_BECKE_EPS` *(alias `GPW_BECKE_EPS`)* | 1e-6 | Becke competitor-series tolerance (the equivalent-site-share gate holds at 1e-6 and breaks at 1e-5). |
 | `QCHEM_XC_DM_MIX`, `QCHEM_XC_DM_BOOST` *(aliases `GPW_XC_DM_MIX`, `GPW_XC_DM_BOOST`)* | — , 1 | Override / scale the XC-from-D mixing α (controls only; tied to `QCHEM_XC_DM_SOURCE`). |
 
 \section settings_hatches A/B hatches — a different route; for verification

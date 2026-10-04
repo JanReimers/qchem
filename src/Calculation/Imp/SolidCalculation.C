@@ -34,6 +34,7 @@ import qchem.AtomCalculation;                  // the pseudo-atom in the block's
 import qchem.BasisSet.AoShellSource;           // the site's shells (their exponents) for that pseudo-atom
 import qchem.Orbitals;                         // TOrbitals/TOrbital -- the ACBN0 feed (EstimateHubbardU)
 import qchem.BasisSet.Orbital_DFT_IBS;         // the block an orbital set lives on (EstimateHubbardU)
+import qchem.Environment;                   // WarnRetiredEnvironment (D-ENV step 6a)
 import qchem.RunPolicy;                        // the declared CP2K deviations (doc/OpenWork.md N5/T5)
 import qchem.Parallel;                         // WorkerThreads() -- half of the thread state a row must state
 import qchem.Reporting;                       // report::Timed -- the facade's own setup buckets (1.1, 2026-09-06)
@@ -356,13 +357,12 @@ std::vector<int> SolidCalculation::BuildBasis(const Lattice_3D& lat, std::shared
     // match the GPW_SCF harness's so the two paths' ledgers read the same.
     {
         qchem::report::Timed timed("setup: GPW basis build");
-        // THE TOLERANCES: the typed value, with the environment applied as the OVERRIDE LAYER -- once, here, and named on the
-        // banner so a run that was overridden says so (D-ENV step 5).
-        auto tol=opts.tolerances;
-        const std::string tolEnv=qchem::BasisSet::Gaussian::ApplyEnvOverrides(tol);
+        // THE TOLERANCES are the typed value and nothing else (D-ENV step 6a: the environment is no longer an override layer; the retired
+        // GPW_* variables are reported once and ignored).  A non-default value is named on the banner.
+        qchem::WarnRetiredEnvironment();
+        const auto& tol=opts.tolerances;
         if (!tol.Describe().empty())
-            std::cout<<"["<<opts.label<<" run] GPW tolerances (non-default):"<<tol.Describe()
-                     <<(tolEnv.empty() ? std::string() : "  [environment overrides:"+tolEnv+"]")<<std::endl;
+            std::cout<<"["<<opts.label<<" run] GPW tolerances (non-default):"<<tol.Describe()<<std::endl;
         itsImp->bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
             .densityEcut = opts.densityEcut, .cutoffFactor = opts.cutoffFactor, .raster = opts.raster,
             .images = opts.images, .kShift = opts.kShift, .ladderFactor = opts.ladderFactor,
