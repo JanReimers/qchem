@@ -79,13 +79,17 @@ struct QMeshResponse
     std::vector<MeshShift>              q;      //!< the q-mesh, in \c Reference::QMesh order
     std::vector<SelfConsistentResponse> atQ;    //!< per q; every entry has the same labels and perturbed set
     //! The J x J (perturbed) blocks in real space, rows/columns \f$(J,\mathbf R)\f$ at \f$r\,n_J+c\f$ (\c ToRealSpace's layout).
-    //! THROWS if the result is not real to the Krylov solves' own accuracy (time reversal).
-    rmat_t Chi0RealSpace() const;
-    rmat_t ChiRealSpace () const;
+    //! THROWS if the result is not real (time reversal): \f$\chi_0\f$ to 1e-8 relative (it is exact), \f$\chi\f$ to 1e4 x the
+    //! worst Krylov residual -- a residual r bounds the solution error only up to the conditioning of
+    //! \f$(1-\mathcal R_0\mathcal K)\f$, measured ~190 r on NiO k222 (2026-10-04: leak 1.6e-6 at r = 8.7e-9).  \a imagRatio:
+    //! the leak measured (Write prints it).
+    rmat_t Chi0RealSpace(double* imagRatio=nullptr) const;
+    rmat_t ChiRealSpace (double* imagRatio=nullptr) const;
     //! \f$U_c=[(\chi_0)^{-1}-\chi^{-1}]_{(c,\mathbf 0),(c,\mathbf 0)}\f$ (Hartree) per perturbed channel c, the inverses taken
     //! over the WHOLE supercell's J x J real-space matrices: Timrov et al. PRB 98, 085127 eq (2), hp.x's definition.
     rvec_t U() const;
-    //! Per q: the q, then that q's table; then the real-space home-cell blocks and U (eV, hp.x's unit).
+    //! The supercell's real-space home-cell blocks, the time-reversal leak and U (eV, hp.x's unit).  (Each q's own table is
+    //! printed by \c LinearResponse as that q finishes.)
     std::ostream& Write(std::ostream&) const;
 };
 

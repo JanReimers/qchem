@@ -107,7 +107,8 @@ struct ChannelResponse
 //! (r = (r_x N_y + r_y)N_z + r_z), \f$X_{I\mathbf R,J\mathbf R'}=N_q^{-1}\sum_{\mathbf q}e^{i\mathbf q\cdot(\mathbf R-\mathbf R')}X_{IJ}(\mathbf q)\f$.
 //! \a X[iq] belongs to \a q[iq], and \a q must be the WHOLE mesh.  THROWS if the result is not real to \a relTol relative
 //! (time reversal \f$X(-\mathbf q)=\overline{X(\mathbf q)}\f$ broken: a defect here, or a quantity solved too loosely).
-rmat_t ToRealSpace(ivec3_t Nq, const std::vector<MeshShift>& q, const std::vector<cmat_t>& X, double relTol);
+//! \a imagRatio (optional): the measured max|Im| / max|Re|, so a caller can REPORT the leak it tolerated.
+rmat_t ToRealSpace(ivec3_t Nq, const std::vector<MeshShift>& q, const std::vector<cmat_t>& X, double relTol, double* imagRatio=nullptr);
 
 //! \brief \f$\chi_0\f$: the independent-particle channel response over the \a Nq q-mesh -- R0 alone, no
 //! kernel (stage R0).  FAILS on an incommensurate q-mesh or an inverted/unresolved coupled pair (E1).

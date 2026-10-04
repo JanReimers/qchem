@@ -160,6 +160,21 @@ std::ostream& SelfConsistentResponse::Write(std::ostream& os) const
            << " (" << iterations[c] << " kernel applications)" << std::endl;
         os.precision(prec);
     }
+    if (perturbed.size()>1)       // the J x J block, off-diagonals included: what a supercell U inverts, so a LOG can rebuild U
+    {
+        const std::streamsize prec=os.precision(10);
+        for (const char* which : {"chi0","chi"})
+        {
+            const cmat_t M = std::string(which)=="chi0" ? Chi0JJ() : ChiJJ();
+            for (size_t a=0;a<M.rows();a++)
+            {
+                os << "[response]   " << std::setw(4) << which << " JxJ row " << std::setw(8) << labels[perturbed[a]] << ":";
+                for (size_t c=0;c<M.columns();c++) os << "  (" << M(a,c).real() << "," << M(a,c).imag() << ")";
+                os << std::endl;
+            }
+        }
+        os.precision(prec);
+    }
     return os;
 }
 
@@ -190,27 +205,27 @@ LinearResponse(const Reference& ref, const OrbitalFrame<T>& frame, const Hamilto
 }
 
 namespace {
-//! The Krylov solves' own accuracy, as the realness tolerance of a real-space transform: \f$\chi(\mathbf q)\f$ is
-//! right to ~ the residual, so its imaginary leak after the transform is too.  1e-10 is the floor (χ0 is exact).
-double RealnessTol(const QMeshResponse& r)
+//! The time-reversal tolerance of a SOLVED chi's real-space transform: the worst Krylov residual, times the conditioning
+//! headroom of (1 - R0 K) (measured ~190x on NiO k222), floored at chi0's own 1e-8.
+double ChiRealnessTol(const QMeshResponse& r)
 {
     double res=0.0;
     for (const auto& s : r.atQ) for (double x : s.residual) res=std::max(res, x);
-    return std::max(1e-10, 100.0*res);
+    return std::max(1e-8, 1e4*res);
 }
 } // namespace
 
-rmat_t QMeshResponse::Chi0RealSpace() const
+rmat_t QMeshResponse::Chi0RealSpace(double* imagRatio) const
 {
     std::vector<cmat_t> X;
     for (const auto& s : atQ) X.push_back(s.Chi0JJ());
-    return ToRealSpace(Nq, q, X, RealnessTol(*this));
+    return ToRealSpace(Nq, q, X, 1e-8, imagRatio);
 }
-rmat_t QMeshResponse::ChiRealSpace() const
+rmat_t QMeshResponse::ChiRealSpace(double* imagRatio) const
 {
     std::vector<cmat_t> X;
     for (const auto& s : atQ) X.push_back(s.ChiJJ());
-    return ToRealSpace(Nq, q, X, RealnessTol(*this));
+    return ToRealSpace(Nq, q, X, ChiRealnessTol(*this), imagRatio);
 }
 
 rvec_t QMeshResponse::U() const
@@ -228,7 +243,8 @@ std::ostream& QMeshResponse::Write(std::ostream& os) const
     const auto& lab=atQ[0].labels;
     const auto& J  =atQ[0].perturbed;
     const size_t nJ=J.size();
-    const rmat_t X0=Chi0RealSpace(), X=ChiRealSpace();
+    double leak0=0.0, leak=0.0;
+    const rmat_t X0=Chi0RealSpace(&leak0), X=ChiRealSpace(&leak);
     const std::streamsize prec=os.precision(8);
     os << "[response] real space over the " << Nq.x << "x" << Nq.y << "x" << Nq.z << " q-mesh's supercell, home cell "
        << "(R = R' = 0), perturbed x perturbed, 1/Ha:" << std::endl;
@@ -240,6 +256,8 @@ std::ostream& QMeshResponse::Write(std::ostream& os) const
         for (size_t c=0;c<nJ;c++) os << " " << std::setw(14) << X(a,c);
         os << std::endl;
     }
+    os << "[response]   time-reversal leak max|Im|/max|Re|: chi0 " << std::setprecision(2) << leak0 << ", chi " << leak
+       << std::setprecision(8) << std::endl;
     const rvec_t u=U();
     os << "[response] U = (chi0^-1 - chi^-1) over the " << Nq.x << "x" << Nq.y << "x" << Nq.z << " q-mesh's supercell "
        << "(+U frozen; " << nJ << " perturbed channels):";

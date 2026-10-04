@@ -109,7 +109,7 @@ Outcome<ChannelResponse,ResponseFailure> IndependentResponse(const Reference& re
     return O::Ok(std::move(r));
 }
 
-rmat_t ToRealSpace(ivec3_t Nq, const std::vector<MeshShift>& q, const std::vector<cmat_t>& X, double relTol)
+rmat_t ToRealSpace(ivec3_t Nq, const std::vector<MeshShift>& q, const std::vector<cmat_t>& X, double relTol, double* imagRatio)
 {
     const size_t NR=size_t(Nq.x)*Nq.y*Nq.z;
     if (q.size()!=NR || X.size()!=NR) throw std::logic_error("ToRealSpace: the q set is not the whole q-mesh");
@@ -138,6 +138,7 @@ rmat_t ToRealSpace(ivec3_t Nq, const std::vector<MeshShift>& q, const std::vecto
                     maxIm=std::max(maxIm,std::abs(s.imag()));
                 }
         }
+    if (imagRatio) *imagRatio=maxIm/std::max(maxRe,1e-300);
     if (maxIm>relTol*std::max(maxRe,1e-300))
     {
         std::ostringstream os;
