@@ -53,7 +53,7 @@ cd build/Release && ninja rundeck                                  # the one CLI
     {"estimateHubbardU": {}},                                            // ACBN0 (U,J) from the last iterate
     {"hubbardLoop": {"maxOuter":8, "tolU_eV":1e-3}},                     // ACBN0 outer loop
     {"independentResponse": {"nq":2}},                                   // chi0 on an nq^3 q-mesh (nq must divide every kmesh division)
-    {"hubbardLinearResponse": {"perturb":[0,1], "tol":1e-8, "maxIter":200, "restart":40}},   // the self-consistent q=0 chi (needs forceComplex)
+    {"hubbardLinearResponse": {"nq":2, "perturb":[0,1], "tol":1e-8, "maxIter":200, "restart":40}},   // the self-consistent chi on an nq^3 q-mesh (default 1 = q=0 of this cell; needs forceComplex); U over the q-mesh's supercell
     {"hubbardFiniteDifference": {"perturb":[0], "alpha_eV":0.027}}       // the FD cross-check of the above
   ]
 }

@@ -24,26 +24,19 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 - **CK-1** — `SolidCalculation::SaveState` / `SolidCalcOptions::saveStateTo` / `SolidCalculation::Restart`
   (`OpenWork.md` §2 row "SCF checkpoint/restart"; record `doc/Records/OpenWork_History4.md` §"CK-1").
 
-**▶ 2026-09-29 (night): R3 STEPS 1–3 ARE DONE — next is STEP 4 (the facade's q loop + the Si supercell-equivalence
-gate; §3d increment order).**  Step 3's record is at the end of §3e.  The kernel now runs at ANY q, on both XC samplers,
-and q = 0 goes through the same code (NiO χ == R2 to 3e-7, in 13 applications instead of 16).  Finding 5 is CLOSED.
-Step 4 needs (since 2026-10-04 a run is an INPUT DECK — `doc/InputDeck.md`; nothing below may read the environment):
-- a `HubbardLinearResponse(qmesh)` that loops `Reference::QMesh`, builds each `MeshShift` rule, and runs `LinearResponse`
-  per q.  The Hubbard probe already takes a `MeshShift` (R0's `IndependentResponse` loops q).
-- χ₀(q) and χ(q) printed per q with their Krylov residuals, then χ(R) and U = (χ₀⁻¹ − χ⁻¹)_II over the q-mesh's
-  supercell (hp.x's definition).
-- **the deck side** (`doc/InputDeck.md` §7): a q-mesh on the `hubbardLinearResponse` postSCF action (`"nq"`, mirroring
-  `independentResponse`), in `src/Calculation/Deck.C`'s action struct + `Imp/Deck.C` `ToJson`/`FromJson`, with the same
-  pre-flight (`nq` divides every k-mesh division; `forceComplex`), the per-q χ and U in the revision's `results`, and a
-  deck test in `src/Calculation/tests/Deck.C`.  The default (no `nq`) stays today's q = 0 run, so no deck moves.
-- the gate: primitive Si (`Si_diamond`, k and q 2×1×1) == the 2×1×1 supercell at Γ.  The supercell is already a
-  materials entry (`Si_diamond_2x1x1`), so both arms are deck specs that differ in `structure`/`kmesh` only.  A gate is a
-  hard-coded test calling `qchem::deck::Run` (InputDeck rule 6; pattern `IntegrationTests/GPW/Si.C`), named by the test
-  grammar.  MEASURE its tolerance first (§3d gate table).
-Before step 4, read §3d's gate table and the "SUPERCELL EQUIVALENCE" row.  The NiO states are saved
-(`~/Code/qchem6-runs/NiO/states/`, imposed and FREE; use the FREE one for any finite-difference cross-check).  NiO free
-frozen χ at q = 0 is −2.0700 Ha⁻¹ (U 6.45 eV for this cell); its EXACT deck is `decks/campaigns/NiO/nio_q0_step3_newroute.json`,
-the starting point for step 5's NiO q-mesh run (`--set` the new `nq`).
+**▶ 2026-10-04: R3 STEPS 1–4 ARE DONE — next is STEP 5 (NiO against hp.x; §3d increment order).**  Step 4's record is at
+the end of §3e: `SolidCalculation::HubbardLinearResponse(Nq)` loops the q-mesh on ONE ground state and kernel and prints
+χ₀(q), χ(q) with their Krylov residuals per q, then the supercell's real-space blocks and U = (χ₀⁻¹ − χ⁻¹)_II (hp.x's
+definition); the deck action takes `"nq"` (n or [n1,n2,n3]); the supercell-equivalence gate is
+`GPW_Si.k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long` (χ(R) == the 2×1×1 supercell at Γ to 8e-5, χ₀(R) 1.6e-4, U 5e-4 eV).
+Step 5:
+- `rundeck decks/campaigns/NiO/nio_q0_step3_newroute.json --set postSCF.0.hubbardLinearResponse.nq=2` (the FREE saved state, k 2×2×2 ⇒
+  8 q, 2 perturbed Ni 3d channels; sizing §3d: ~1 h serial in q at ~13 applications per (q, channel); `--set` indexes
+  arrays by number).  q = 0 must reproduce the banked
+  −2.070024 / −2.0516578 Ha⁻¹ inside the q loop.
+- Compare against hp.x NiO 5.267 eV (frozen, U_in 3 eV) as a PHYSICS comparison, not a gate (χ₀'s magnitude is off 1.43× from
+  the ground-state gap, §5b; the SHAPE of χ(q) should agree to 1–2 %).
+- Then SrVO₃ as its own setup item (no material entry, a metal: Fermi weights at q ≠ 0, δμ only at q = 0).
 
 **Superseded (kept for the record): the R3 sizing + design note, §3d.**  Items 1–3 below are answered there.
 
@@ -726,7 +719,7 @@ we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R
    factor on the box-walk bench before step 3 is committed to.
 3. ✅ (§3e) B2 + C1 + the term bodies, gated q = 0 == the R2 route.  Then retire the R2 periodic forwarding, which closes
    finding 5.
-4. The facade's q loop + the Si supercell-equivalence gate.
+4. ✅ (§3e) The facade's q loop + the Si supercell-equivalence gate.
 5. NiO against hp.x (the instrument run), then SrVO₃ as its own setup item (a metal: Fermi weights at q ≠ 0; δμ
    only at q = 0).
 - ✅ **Q9 RULED 2026-09-29: compute all 8 q first; defer the q-STAR reduction.**  Computing one q per star is valid only
@@ -872,6 +865,34 @@ Deviations from §3d, each for a reason:
    forward's own map.  The q = 0 gather gate first read 25 % until it took the forward's key set.
 3. The NiO run is not a timing measurement (it shared the CPU with a build), so it prices nothing.  The two efficiency
    items it exposes (the raster route's double collocation, the serial Becke pair GEMMs) are on the ledger.
+
+**Step 4 (the facade's q loop + the supercell-equivalence gate), 2026-10-04.**  One code commit.  What landed:
+- **qcResponse** — `QMeshResponse {Nq, q, atQ}` (one `SelfConsistentResponse` per q) with `Chi0RealSpace` / `ChiRealSpace`
+  (the perturbed J×J blocks over the q-mesh's supercell) and `U()` (the inverses over the WHOLE supercell matrix, home-cell
+  diagonal); `LinearResponse(ref, frame, kernel, probe, Nq, kp, perturbed)` loops `Reference::QMesh` and reports each q as it
+  finishes (pin 17).  The q → R transform is ONE free function, `ToRealSpace`, which `ChannelResponse::RealSpace` (R0) now
+  calls too; its realness check takes a tolerance (χ₀: 1e-10; a solved χ: 100 × the worst Krylov residual).
+- **Facade** — `SolidCalculation::HubbardLinearResponse(ivec3_t Nq, krylov, perturbed)`; the q = 0 call forwards to it
+  with Nq = 1 and returns that q's response (every existing gate unchanged: Si χ −14.511682, FD rel −2.69e-6).
+- **Deck** — `nq` on `hubbardLinearResponse` (default 1 = today's q = 0 run, so no deck moves), and on BOTH response actions
+  `nq` is now `n` (cubic shorthand, written back as an integer) or `[n1,n2,n3]` like `kmesh` — the gate needs 2×1×1.  The
+  pre-flight's commensurability check covers both actions.  The record's `results` holds, per q, χ₀/χ (real and imaginary)
+  with residuals and costs, then `chi0R`, `chiR` and `U_eV`.  Deck tests extended (`Deck.PostSCF*`).
+
+**The gate** `GPW_Si.k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long` (two `deck::Run` specs that differ only in structure,
+kmesh, the manifold list and nq; Si-p on every atom at U = 0, so all channels are perturbed; supercell atom a = (site
+a mod 2, image a div 2), which is `ToRealSpace`'s layout).  MEASURED before the tolerance was set:
+| arm setup | χ₀(R) rel | χ(R) rel | why it moved |
+|---|---|---|---|
+| SiParams (linear relax 1.0) | 3.6e-4 | 9.1e-4 | the PRIMITIVE k211 SCF hit its 200-iteration cap (eigenvalue noise 9e-4 Ha) |
+| Kerker/Pulay both arms | 2.9e-4 | 8.7e-4 | χ barely moved: not convergence.  ⚠ **`xcMesh: Auto` resolved to the UNIFORM raster on the k211 arm and to BECKE on the Γ supercell arm** — a twin gate must STATE its XC route |
+| + `xcMesh.cellKind Uniform` both arms | **1.6e-4** | **8.4e-5** | U 2.07956 (q-mesh) vs 2.07937–2.08003 eV (the four supercell images) |
+The floor is the SUPERCELL arm itself: sites 1 and 3 are translation images, yet their χ₀ differ by 1.7e-4 relative
+(U by 6.6e-4 eV) — the q-mesh arm is translation-symmetric by construction.  Ground states: 3.2e-5 Ha per primitive cell
+apart.  Gated at 5e-4 relative (χ₀, χ) and 1e-3 eV (U); ~3.5 min CPU ⇒ the `_Long` tier.  The supercell's translation
+breaking is filed (`OpenWork.md` §3 "A Γ supercell breaks its OWN translation symmetry").
+Along the way (user, 2026-10-04): *"in general Kerker/Pulay should be the default mixer"* — filed as `OpenWork.md` §3
+"Kerker/Pulay as the DEFAULT mixer" (an anchor-moving change, not made here).
 
 ---
 
