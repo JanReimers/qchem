@@ -323,3 +323,82 @@ Sequential runs (every test and rundeck) are safe.  Remaining 6c: the A/B hatche
   `static` reads before, now per-run).  Deck test covers them.
 * `GPW_COLLOC_MEMO`: stays an environment variable -- a RESOURCE (memory against time, never changes a number), documented with the thread knobs; 6e's lint must allow it.
 Remaining env reads under `src/` after 6c: resources (`QCHEM_OPENMP_THREADS`+alias, `QCHEM_BLAS_THREADS`, `OMP_NUM_THREADS`, `KMP_BLOCKTIME`, `GPW_COLLOC_MEMO`) and the diagnostics registry.  NEXT: 6d (the harness / `gpwprobe` env-decks -> decks), then 6e (lint).
+
+## 10. Step 6d DRAFT -- the deck sections the campaign runs need (drafted 2026-10-04; USER REVIEWS before any code)
+
+**The unit.**  A deck is ONE run of ONE structure.  Everything in `gpwprobe`'s `RunTMO` (and the harness `EnvOverrides`) that is a *choice about the run* has a home below;
+everything else is NOT a run input and leaves the environment by moving to where it belongs (§10.3).
+
+### 10.1 Schema (existing keys unchanged; NEW = marked)
+
+```jsonc
+{
+  "structure": "NiO_AFM2",                 // a name in materials.json / molecules.json; nothing about it is restated
+  "kmesh": [2,2,2],
+  "basis": {
+    "data": "VALENCE_LOWQ_VA", "spherical": true,
+    "trim": [ {"Z":28,"l":0,"alpha":0.06} ]            // NEW: a STATED trim (was <P>_TRIM=Z:l:alpha,...)
+    // "vet": true                                      // NEW: the pin-22 vet-stage trim at solid.orthoTol (was <P>_VET=1); exclusive with "trim"
+  },
+  "solid": {                                // SolidCalcOptions -- unchanged: Nelec/species derived, multiplicity, seed, ortho, orthoTol, cutoffFactor,
+    "multiplicity": 1,                      //   densityEcut, imposeSymmetry, greyImposition (IMPOSE=2), spinsShareFermi, momFromSeed, forceComplex, xcMesh{...},
+    "imposeSymmetry": false,                //   tolerances, policy, hubbard[...] ...
+    "hubbard": [ {"site":0,"l":2,"U_eV":4.0,"atomicRadial":true,"orthoAtomic":true, "Uirrep_eV":[3,4,5]} ]   // NEW SPELLING: U_eV, Uirrep_eV (see §10.4 Q1)
+  },
+  "schedule": [                             // the anneal: stages, each {accelerator, scf}; replaces <P>_ANNEAL / _ACC / _ANNEAL_PENALTY / the lone scf block
+    {"accelerator":"Ladder","scf":{"smearingkT":0.01,"momSmearPenalty":0.1,"stopOnAccelExhausted":true}},
+    {"accelerator":"GDM",   "scf":{"smearingkT":0.005}}
+  ],
+  "state": {                                // NEW (CK-1)
+    "save": "auto",                         // "auto" = <outDir>/states/<stem>.h5 after every stage; or a path.  (was <P>_SAVE)
+    "restartFrom": "NiO_AFM2.r003"          // a REVISION STEM (-> <outDir>/states/<stem>.h5, so lineage is by name) or a path.  Runs the schedule's FINAL stage only.  (was <P>_RESTART)
+  },
+  "then": [                                 // NEW: post-convergence actions on the converged calculation, run IN ORDER; each reports itself
+    {"estimateHubbardU": {}},                                                      // was <P>_ACBN0=1
+    {"hubbardLoop": {"maxOuter": 8, "tolU_eV": 1e-3}},                             // was <P>_ACBN0=n, _ACBN0_TOL; re-converges with the schedule's final stage
+    {"independentResponse": {"nq": 2}},                                            // was <P>_CHI0=nq
+    {"hubbardLinearResponse": {"perturb":[0,1], "maxIter":200, "restart":30, "tol":1e-8}},   // was <P>_CHI=1, _CHI_PERTURB, _CHI_MAXIT, _CHI_RESTART
+    {"hubbardFiniteDifference": {"perturb":[0], "alphaHa": 0.005}}                 // was <P>_CHI_FD
+  ]
+}
+```
+Rules: a `then` entry whose prerequisite is unmet THROWS before the SCF starts (`hubbardLinearResponse` needs `solid.forceComplex:true`, a full k-mesh and manifolds; `independentResponse`
+needs a k-mesh commensurate with `nq`) -- the old probes found out after the SCF.  Each `then` action's inputs and its result summary go in the revision record.  A run's `state.restartFrom`
+revision becomes `provenance.parent` automatically.
+
+### 10.2 Mapping: every variable `RunTMO` / the harness reads, and its deck home
+| old variable(s) | deck key | note |
+|---|---|---|
+| `<P>_KMESH` | `kmesh:[n,n,n]` | |
+| `<P>_ORTHO_TOL`, `_CUTOFF_FACTOR`, `_ECUT`, `_SHARED_MU`, `_MOM_SEED`, `_REAL`, `_IMPOSE` | `solid.orthoTol, cutoffFactor, densityEcut, spinsShareFermi, momFromSeed, forceComplex (REAL=0), imposeSymmetry+greyImposition` | `IMPOSE=0/1/2` is two booleans |
+| `<P>_XC_UNIFORM`, `_XC_ECUT`, `_NR`, `_L` | `solid.xcMesh.cellKind, eCut, nRadial, angularDegree` | the 2026-09-27 "explicit NR/L pins Becke" rule is `cellKind:"Becke"` stated |
+| `<P>_U`, `_U_RADIAL`, `_U_IRREP` | `solid.hubbard[]` entries (`U_eV`, `atomicRadial`, `orthoAtomic`, `Uirrep_eV`) | `every|atomic|ortho|orthofull` are four ways of writing the list; `orthofull` = the 8-manifold list with the U=0 spectators |
+| `<P>_ALPHA, _KERKER_G0, _XC_CUSP, _PULAY, _PULAY_START, _MOM, _MOM_START, _MOM_PENALTY, _MOM_HOLD, _KT, _EPS, _MEASURE`, `GPW_<P>_NMAX`, `GPW_<P>_VERBOSE` | `schedule[].scf.{startingRelaxRo, kerkerG0, xcCuspDeficit, pulayDepth, pulayStart, useMOM, momStartIter, momSmearPenalty, momGuard.holePersistence, smearingkT, minDeltaRho, deltaRhoMeasure, NMaxIter, verbose}` | |
+| `<P>_ANNEAL`, `_ACC`, `_ANNEAL_PENALTY` | `schedule[]` | one stage per kT; `stopOnAccelExhausted` is `scf.stopOnAccelExhausted` on the non-final stages |
+| `<P>_VET`, `_TRIM`, `GPW_SPHERICAL`, `GPW_BASIS_SPAN` | `basis.{vet, trim, spherical, data}` | the "spherical d needs VA/SPH span" default+refusal becomes a deck validation error with the same message |
+| `<P>_SAVE`, `_RESTART` | `state.{save, restartFrom}` | the FM arm's ".fm" suffix is gone: an arm is its own deck, its own stem |
+| `<P>_ACBN0`, `_ACBN0_TOL`, `_CHI0`, `_CHI`, `_CHI_PERTURB`, `_CHI_MAXIT`, `_CHI_RESTART`, `_CHI_FD` | `then[]` | §10.1 |
+| harness `GPW_MEASURE/EPS/NMAX/PULAY/PULAY_START/MOM/ACC/IMPOSE/SMEAR/VERBOSE/REAL/KERKER_G0/SEED/ORTHO` | the same `scf` / `solid` keys | `--set` replaces each |
+| harness `GPW_PARITY` | `solid.policy.cp2kCompat` | |
+
+### 10.3 What is NOT a run input, and where it goes (so the env can leave without a deck section)
+* **Structure edits** (`<P>_SWAP_SUBLATTICE`, `_SWAP_ORDER`, `_SHIFT`): these are DISCRIMINATORS -- tests that the code is equivariant under relabelling/translation.  They become gtest
+  cases (the `GPW_MnO.*` suite) calling the library, no environment.  The deck's structure stays a name.
+* **Arms**: `_SKIP_AFM` / `_SKIP_FM` and the FM arm's `afm=false` decoration: an arm is a DECK.  Add `MnO_FM2` / `NiO_FM2` to `materials.json` (same cell, both Mn `spin:+1`) so the FM arm is
+  `structure:"MnO_FM2", solid.multiplicity:11`.  The AFM-vs-FM comparison + PASS/FAIL checks (staggered moment, charge, ordering) are a GATE, not a run: they stay in `gpwprobe mno`/`nio` (which then RUN two decks
+  and judge them) or move to ITMain.
+* **Sweeps and ladders** (`SI_LADDER`, `GPW_KSHIFT`, `NAFGDM_*`, `GATE1_*`, `becke-ladder`): a sweep is a LOOP over decks, not a deck: `for n in ...; do rundeck base.json --set kmesh=[$n,$n,$n]; done`.  The probes that only
+  loop retire; ones with checks stay as thin drivers over `deck::Run`.  A supercell is a materials entry (`Si_diamond_2x1x1`) if a campaign needs it -- not a deck key.
+* **Instrumentation** (the `m(r)` point probe, `Instrumentation(arm, label)`): output only; stays in the drivers.
+
+### 10.4 Questions for the user (my defaults in bold; each is a one-line change)
+1. **Units of U in the deck**: **`U_eV`** (what the literature quotes and what `HubbardU(site,l,eV)` already takes) vs the current `U_Ha`.  Reader converts; the record writes `U_eV` back.  Changing the 6.1 key is a one-line rename + test.
+2. **Restart by revision stem** (`"restartFrom":"NiO_AFM2.r003"`) with states under `<outDir>/states/` -- **yes** -- vs bare paths only.
+3. **`then` as an ordered list of named actions** -- **yes** -- vs flags on the deck.
+4. **FM/AFM as separate materials entries** -- **yes (`MnO_FM2`, `NiO_FM2`)** -- vs a deck key flipping the decoration (which would be a structure edit, against your "just a name" ruling).
+5. **Gates stay as drivers** over `deck::Run` -- **yes**; the env-var knobs of the probes die with their sub-commands' migration, one probe at a time.
+
+### 10.5 Build order (each step green, ctest count up)
+6d.1 `U_eV` spelling + `basis.trim|vet` + `state` (save/restartFrom/lineage) -> 6d.2 `then[]` actions (+ pre-flight validation) -> 6d.3 `MnO_FM2`/`NiO_FM2` + translate `gpwprobe mno/nio` onto `deck::Run` (env knobs deleted, a
+`.cmd`-style deck beside each banked log) -> 6d.4 harness `EnvOverrides` deleted (ITMain tests state their options in code; benchmark scripts use decks + `--set`) -> 6d.5 the remaining probes (ladder, ksweep, naf-smear,
+becke-ladder, gate1) as deck loops or drivers -> **D-ENV-RERUN** (the `qchem6-runs` campaigns from decks) -> 6e lint.
