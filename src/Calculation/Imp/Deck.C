@@ -177,6 +177,8 @@ void FromJson(const json& j, qcMesh::MeshParams& m)
 json ToJson(const RunPolicySpec& p)
 {
     json j={{"cp2kCompat",p.cp2kCompat}};
+    if (p.xcDMMix) j["xcDMMix"]=*p.xcDMMix;
+    if (p.xcDMBoost!=1.0) j["xcDMBoost"]=p.xcDMBoost;
     auto put=[&](const char* k, const std::optional<bool>& v){ if (v) j[k]=*v; };
     put("dmLowRank",p.dmLowRank); put("streamFold",p.streamFold); put("mixRhoM",p.mixRhoM); put("xcFromDM",p.xcFromDM);
     put("imposeSymmetry",p.imposeSymmetry); put("beckeXC",p.beckeXC); put("dAwareScreen",p.dAwareScreen); put("hubbardEigen",p.hubbardEigen);
@@ -186,6 +188,8 @@ void FromJson(const json& j, RunPolicySpec& p)
 {
     Fields f(j,"policy");
     f.Get("cp2kCompat",p.cp2kCompat);
+    if (j.contains("xcDMMix")) { double m=0; f.Get("xcDMMix",m); p.xcDMMix=m; } else f.At("xcDMMix");
+    f.Get("xcDMBoost",p.xcDMBoost);
     auto get=[&](const char* k, std::optional<bool>& v){ if (j.contains(k)) { bool b=false; f.Get(k,b); v=b; } else f.At(k); };
     get("dmLowRank",p.dmLowRank); get("streamFold",p.streamFold); get("mixRhoM",p.mixRhoM); get("xcFromDM",p.xcFromDM);
     get("imposeSymmetry",p.imposeSymmetry); get("beckeXC",p.beckeXC); get("dAwareScreen",p.dAwareScreen); get("hubbardEigen",p.hubbardEigen);

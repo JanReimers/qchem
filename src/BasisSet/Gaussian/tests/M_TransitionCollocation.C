@@ -347,3 +347,30 @@ TEST(GPWTolerances, ApplyTolerancesThrowsIfChangedAfterCollocationWork)
     EXPECT_NO_THROW(pg->ApplyTolerances(loose));   // equal: no-op
     EXPECT_THROW(pg->ApplyTolerances(GPWTolerances{}), std::runtime_error);
 }
+
+// D-ENV 6c: the retired A/B switches survive as unit-test hooks.  The exp recurrence is ulp-level against direct evaluation, and the
+// hooks reset cleanly (a leaked override would silently change every later test).
+TEST(GPWTolerances, TheRouteHooksAreUlpLevelAndReset)
+{
+    const UnitCell cell=SiCell();
+    const Periodic p=Make(BasisSetData::SIPP_SR, cell, false);
+    const Ladder L=One();
+    chmat_t D(p.n);
+    for (size_t i=0;i<p.n;i++) for (size_t j=i;j<p.n;j++) D(i,j)=0.1*(1.0+0.01*double(i+j));
+    const GeometryOnlyScreener screen(CollocationEps());
+    auto rho=[&](bool recurrence)
+    {
+        NR_Evaluator::ExpRecurrenceOverride()=recurrence;
+        const Periodic q=Make(BasisSetData::SIPP_SR, cell, false);     // a FRESH evaluator: no cached box tasks across the two arms
+        auto r=q.lc->CollocateDensity(D, PhaseOf(rvec3_t(0,0,0)), cell, L.N, L.ecut, screen);
+        NR_Evaluator::ExpRecurrenceOverride()=std::nullopt;
+        return r;
+    };
+    const auto a=rho(true), b=rho(false);
+    double d=0, sc=0;
+    for (size_t l=0;l<a.size();l++) for (size_t g=0;g<a[l].size();g++) { d=std::max(d,std::abs(a[l][g]-b[l][g])); sc=std::max(sc,std::abs(a[l][g])); }
+    EXPECT_GT(sc,1e-6);
+    EXPECT_LT(d, 1e-12*sc) << "the exp recurrence is a ~n*eps accurate rebuild of the same tables";
+    EXPECT_FALSE(NR_Evaluator::ExpRecurrenceOverride().has_value());
+    EXPECT_FALSE(NR_Evaluator::SphereScreenOverride().has_value());
+}

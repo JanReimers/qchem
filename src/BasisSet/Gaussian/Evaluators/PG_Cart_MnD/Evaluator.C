@@ -634,7 +634,7 @@ public:
         g.hw[2]=int(std::ceil(g.reach*rbz*N.z))+1;
         g.c0[0]=std::lround(fP.x*N.x); g.c0[1]=std::lround(fP.y*N.y); g.c0[2]=std::lround(fP.z*N.z);
         g.fc[0]=fP.x*N.x;              g.fc[1]=fP.y*N.y;              g.fc[2]=fP.z*N.z;
-        static const bool kSphere=[]{const char* s=std::getenv("GPW_SPHERE_SCREEN"); return !s || std::atoi(s)!=0;}();
+        const bool kSphere=SphereScreenOverride().value_or(true);   // spherical vs rectangular-hull log-cut; the override is a unit-test A/B hook
         g.lnCut = kSphere ? std::min(lnE+12.0, g.pMin*g.reach*g.reach+g.pfExp) : lnE+12.0;
         g.sx=A.ToCartesian(rvec3_t(1.0/N.x,0,0));
         g.sy=A.ToCartesian(rvec3_t(0,1.0/N.y,0));
@@ -841,7 +841,7 @@ public:
         }
     }
     //! Build the Mathieu tables by \c ExpRow instead of \f$3n^2\f$ \c std::exp calls.  **DEFAULT ON**
-    //! (\c GPW_EXP_RECURRENCE=0 opts out); NOT a CP2K deviation — it is what CP2K does.
+    //! (\c ExpRecurrenceOverride() opts out, tests only -- the env var is retired, D-ENV 6c); NOT a CP2K deviation — it is what CP2K does.
     //!
     //! ⚠ IT IS NOT BIT-IDENTICAL — a product of \f$n\f$ rounded factors is not the rounded product — so it
     //! was built default-OFF and defaulted ON only on measurement.  What the measurement said:
@@ -851,10 +851,13 @@ public:
     //!   - `ctest -j8` is **793/793 on BOTH settings**;
     //!   - and all three benchmark anchors are unchanged **to all 10 printed s.f.** — Si Γ −7.115067844,
     //!     NaF SR2 Γ −24.4303364755, MnO AFM-II −61.40297551.
-    //! ⇒ It is anchor-moving in principle and moved nothing anybody pins.  Keep the knob: it is the A/B for
-    //! any future accuracy question, and the first thing to try if a system ever disagrees.
-    static bool UseExpRecurrence()
-    { static const bool b=[]{const char* s=std::getenv("GPW_EXP_RECURRENCE"); return !s || std::atoi(s)!=0;}(); return b; }
+    //! ⇒ It is anchor-moving in principle and moved nothing anybody pins.  Keep the A/B (a unit-test hook): it is the first
+    //! thing to try if a system ever disagrees.
+    static bool UseExpRecurrence() { return ExpRecurrenceOverride().value_or(true); }
+    //! UNIT-TEST HOOKS (D-ENV 6c; the GPW_EXP_RECURRENCE / GPW_SPHERE_SCREEN variables are retired -- an accuracy-of-route A/B is not a
+    //! run input, so it is not in the deck).  Same contract as \c ContractCubeOverride: set from one thread before the work, reset after.
+    static std::optional<bool>& ExpRecurrenceOverride() { static std::optional<bool> o; return o; }
+    static std::optional<bool>& SphereScreenOverride()  { static std::optional<bool> o; return o; }
 
     //! \brief Build the three 2-D Mathieu tables and the \f$e_1\f$ power table for one cube.
     //! ONE definition, shared by \c ContractCubeN and \c GatherCubeN — they held two verbatim copies, and a
@@ -1182,13 +1185,12 @@ public:
     //! since 2026-08-27: the separable contraction is 3.6-5.0x faster than the walk AND measurably more
     //! accurate (it carries no per-component screen -- doc/CollocationRewritePlan.md steps 5+6), and step 7
     //! deleted the value cache that used to hide the walk's cost, so the walk is no longer an affordable
-    //! default.  \c GPW_CONTRACT_CUBE=0 is the opt-OUT, back onto \c ForShellPairBox -- kept because that
+    //! default.  \c ContractCubeOverride()=false (a unit-test hook; the env var is retired, D-ENV 6c) is the opt-OUT, back onto \c ForShellPairBox -- kept because that
     //! walk is the REFERENCE implementation the unit oracle in \c M_PG_BoxWalk.C checks the kernel against.
     static bool UseContractCube()
     {
         if (const auto& o=ContractCubeOverride()) return *o;
-        static const bool b=[]{const char* s=std::getenv("GPW_CONTRACT_CUBE"); return !s || std::atoi(s)!=0;}();
-        return b;
+        return true;
     }
     //! UNIT-TEST HOOK (D-CUBE0): force the route without the environment, so one test process can run BOTH and
     //! compare the numbers (M_TransitionCollocation.WalkAndContractionRoutesAgree).  Production never sets it;
@@ -1415,7 +1417,7 @@ public:
         // than from the run banner, so there is no second copy of the default rule to drift (it is NOT a
         // CP2K deviation -- CP2K collocates exactly this way -- so it does not belong on that table).
         std::cout<<"[collocation] kernel="<<(UseContractCube() ? "separable contraction"
-                                                              : "reference box walk (GPW_CONTRACT_CUBE=0)")
+                                                              : "reference box walk (ContractCubeOverride)")
                  <<";  task list: "<<itsBoxTasks.size()<<" shell pairs, "<<nTasks<<" (pair, offset) tasks, "
                  <<(double(nTasks*sizeof(BoxTask))/1048576.0)<<" MB"<<std::endl;
         if (qchem::report::Depth() > 0)

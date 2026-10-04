@@ -44,7 +44,11 @@ std::vector<RetiredVariable> RetiredEnvironmentSet()
         {"GPW_STREAM_FOLD","solid.policy.streamFold"},      {"QCHEM_MIX_RHO_M","solid.policy.mixRhoM"},
         {"QCHEM_XC_DM_SOURCE","solid.policy.xcFromDM"},     {"GPW_XC_DM_SOURCE","solid.policy.xcFromDM"},
         {"QCHEM_IMPOSE_SYMMETRY","solid.policy.imposeSymmetry"}, {"QCHEM_BECKE_XC","solid.policy.beckeXC"},
-        {"GPW_DAWARE_SCREEN","solid.policy.dAwareScreen"},  {"QCHEM_U_EIGEN","solid.policy.hubbardEigen"}};
+        {"GPW_DAWARE_SCREEN","solid.policy.dAwareScreen"},  {"QCHEM_U_EIGEN","solid.policy.hubbardEigen"},
+        // 6c: the controls of the xcFromDM route are typed; the verification A/B hatches are REMOVED (unit-test hooks remain)
+        {"QCHEM_XC_DM_MIX","solid.policy.xcDMMix"},         {"GPW_XC_DM_MIX","solid.policy.xcDMMix"},
+        {"QCHEM_XC_DM_BOOST","solid.policy.xcDMBoost"},     {"GPW_XC_DM_BOOST","solid.policy.xcDMBoost"},
+        {"GPW_CONTRACT_CUBE",""}, {"GPW_EXP_RECURRENCE",""}, {"GPW_SPHERE_SCREEN",""}, {"GPW_LONG_SWEEP",""}};
     std::vector<RetiredVariable> set;
     for (const auto& r : kRetired) if (std::getenv(r.name.c_str())) set.push_back(r);
     return set;
@@ -56,8 +60,11 @@ void WarnRetiredEnvironment()
     std::call_once(once, []
     {
         for (const auto& r : RetiredEnvironmentSet())
-            std::cerr<<"[env] "<<r.name<<" is RETIRED and IGNORED: the input deck is the only way to set it (deck key '"<<r.deckKey
-                     <<"', or --set "<<r.deckKey<<"=<value>)"<<std::endl;
+            if (r.deckKey.empty())
+                std::cerr<<"[env] "<<r.name<<" is RETIRED and IGNORED: it was a verification A/B switch, removed (the route it selected is the default)"<<std::endl;
+            else
+                std::cerr<<"[env] "<<r.name<<" is RETIRED and IGNORED: the input deck is the only way to set it (deck key '"<<r.deckKey
+                         <<"', or --set "<<r.deckKey<<"=<value>)"<<std::endl;
     });
 }
 }

@@ -314,3 +314,12 @@ runs the DEFAULT policy and says so; `--set solid.policy.cp2kCompat=true --set s
 `GPW_PARITY=1` (harness `EnvOverrides`) until 6d.  `doc/Benchmark.md` §2 carries a dated note translating the old variable names (its historical commands are left as written).
 **Known hazard (noted, not fixed):** the policy is process-global, consulted at BUILD time; two live runs with DIFFERENT policies in one process would see the last installed.
 Sequential runs (every test and rundeck) are safe.  Remaining 6c: the A/B hatches (`GPW_CONTRACT_CUBE`, `GPW_EXP_RECURRENCE`, `GPW_SPHERE_SCREEN`, `GPW_LONG_SWEEP`, `QCHEM_XC_DM_MIX/BOOST`).
+
+**Step 6c DONE 2026-10-04 -- the A/B hatches and the XC-feed controls** (ctest 1022/1022).  DECISIONS (mine, per "you decide"; each reversible from git):
+* `GPW_CONTRACT_CUBE`, `GPW_EXP_RECURRENCE`, `GPW_SPHERE_SCREEN`, `GPW_LONG_SWEEP`: **REMOVED** (retired + reported as "removed", ignored).  Each switched between two routes that agree (~ulp / to the screen) and
+  is a VERIFICATION instrument, not a run input, so it does not belong in a deck.  The A/B survives as unit-test hooks (`NR_Evaluator::ContractCubeOverride` (existing), new
+  `ExpRecurrenceOverride`, `SphereScreenOverride`; test `GPWTolerances.TheRouteHooksAreUlpLevelAndReset`).  `GPW_LONG_SWEEP`'s kappa-sweep path stays as the non-Gaussian-PP fallback; only the env switch went.
+* `QCHEM_XC_DM_MIX`, `QCHEM_XC_DM_BOOST` (and `GPW_` aliases): **PROMOTED** to `policy.xcDMMix` / `policy.xcDMBoost` (they are controls of the `xcFromDM` route and travel with it; they were process-lifetime
+  `static` reads before, now per-run).  Deck test covers them.
+* `GPW_COLLOC_MEMO`: stays an environment variable -- a RESOURCE (memory against time, never changes a number), documented with the thread knobs; 6e's lint must allow it.
+Remaining env reads under `src/` after 6c: resources (`QCHEM_OPENMP_THREADS`+alias, `QCHEM_BLAS_THREADS`, `OMP_NUM_THREADS`, `KMP_BLOCKTIME`, `GPW_COLLOC_MEMO`) and the diagnostics registry.  NEXT: 6d (the harness / `gpwprobe` env-decks -> decks), then 6e (lint).

@@ -44,6 +44,11 @@ struct RunPolicySpec
 {
     bool cp2kCompat = false;                      //!< the umbrella: every unstated route takes CP2K's value
     std::optional<bool> dmLowRank, streamFold, mixRhoM, xcFromDM, imposeSymmetry, beckeXC, dAwareScreen, hubbardEigen;
+    //! CONTROLS of the xcFromDM route (D-ENV 6c; were QCHEM_XC_DM_MIX / _BOOST): \c xcDMMix overrides the XC-from-D mixing alpha (1 = the
+    //! undamped route; unset = the mixer's own); \c xcDMBoost scales it (measured: alpha_eff ~0.20 NaF / ~0.35 MnO, MnO 53 -> 39 iterations at 2).
+    //! Only consulted when the xcFromDM route is armed.
+    std::optional<double> xcDMMix;
+    double                xcDMBoost = 1.0;
     bool operator==(const RunPolicySpec&) const = default;
 };
 
@@ -133,6 +138,9 @@ public:
     bool HubbardEigen() const {return itsUEigen.value;}
     //!@}
 
+    //! The xcFromDM route's mixing controls (see \c RunPolicySpec): override alpha (negative = none) and boost factor.
+    double XCDMMixOverride() const {return itsSpec.xcDMMix.value_or(-1.0);}
+    double XCDMBoost()       const {return itsSpec.xcDMBoost;}
     bool CP2KCompat() const {return itsCP2KCompat;}   //!< the umbrella was asked for
     //! Every deviation, in one list, whatever its value -- the banner prints the WHOLE table, because a
     //! row that lists only what is ON cannot be read as evidence that the rest is OFF.

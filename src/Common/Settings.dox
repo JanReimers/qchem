@@ -61,20 +61,25 @@ stderr with its replacement, and recorded in the run's \c provenance.ignoredEnvi
 | `QCHEM_BECKE_ROT` (`GPW_BECKE_ROT`) | `solid.xcMesh.angRot` | 0 | Becke XC mesh: rigid rotation of the angular grid (radians). |
 | `QCHEM_BECKE_EPS` (`GPW_BECKE_EPS`) | `solid.xcMesh.beckeEps` | 1e-6 | Becke competitor-series tolerance. |
 
-The XC-from-D mixing overrides are a CP2K-parity route switch, still environment variables until D-ENV step 6b:
+The controls of the XC-from-D route moved with it, into the same `policy` block (retired variables, deck keys):
 
-| setting | default | what it does |
-|---|---|---|
-| `QCHEM_XC_DM_MIX`, `QCHEM_XC_DM_BOOST` *(aliases `GPW_XC_DM_MIX`, `GPW_XC_DM_BOOST`)* | — , 1 | Override / scale the XC-from-D mixing α (controls only; tied to `QCHEM_XC_DM_SOURCE`). |
-
-\section settings_hatches A/B hatches — a different route; for verification
-
-| setting | default | moves numbers? | what it does |
+| retired variable | deck key | default | what it does |
 |---|---|---|---|
-| `GPW_CONTRACT_CUBE` | on | ~ulp | `=0` selects the reference box walk instead of the separable contraction. |
-| `GPW_EXP_RECURRENCE` | on | ~ulp | exp recurrence vs direct evaluation. |
-| `GPW_SPHERE_SCREEN` | on | yes | spherical vs box log-cut in the collocation. |
-| `GPW_LONG_SWEEP` | off | yes (µHa) | the old long-range local-PP sweep, for A/B against the custom G-ball. |
+| `QCHEM_XC_DM_MIX` (`GPW_XC_DM_MIX`) | `policy.xcDMMix` | unset | Override the XC-from-D mixing α (1 = the undamped route; unset = the mixer's own). Only used when `policy.xcFromDM` is on. |
+| `QCHEM_XC_DM_BOOST` (`GPW_XC_DM_BOOST`) | `policy.xcDMBoost` | 1 | Scale that α. |
+
+\section settings_hatches A/B hatches — REMOVED (D-ENV 6c)
+
+These were verification switches between two routes that agree (to ~ulp, or to the screen).  They are **retired and ignored** (reported once with
+"removed"): the route they selected is the default.  The A/B survives as a unit-test hook where a test needs it
+(`NR_Evaluator::ContractCubeOverride`, `ExpRecurrenceOverride`, `SphereScreenOverride`); it is not a run input, so it is not in the deck.
+
+| retired variable | what it switched |
+|---|---|
+| `GPW_CONTRACT_CUBE` | `=0` the reference box walk instead of the separable contraction (agree to ~1e-14). |
+| `GPW_EXP_RECURRENCE` | exp recurrence vs direct evaluation (~ulp). |
+| `GPW_SPHERE_SCREEN` | spherical vs rectangular-hull log-cut in the collocation. |
+| `GPW_LONG_SWEEP` | the old long-range local-PP kappa sweep, for A/B against the custom G-ball (a non-Gaussian local model still falls back to it). |
 
 \section settings_diag Diagnostics — print or record only; never change a number
 

@@ -16,7 +16,8 @@ export namespace qchem
 const char* Env(const char* name, const char* legacy=nullptr);
 
 //! \brief A RETIRED environment variable (D-ENV step 6): it once set a tier-1/2 value and is now IGNORED -- the deck is the only way to
-//! set one.  \c deckKey is the replacement (a dotted deck path, also the \c --set path).
+//! set one.  \c deckKey is the replacement (a dotted deck path, also the \c --set path); EMPTY = removed with no replacement (an A/B switch
+//! that is not a run input).
 struct RetiredVariable { std::string name; std::string deckKey; };
 //! \brief The retired variables that are SET in this process's environment (empty when the environment is clean).  Never honoured.
 std::vector<RetiredVariable> RetiredEnvironmentSet();

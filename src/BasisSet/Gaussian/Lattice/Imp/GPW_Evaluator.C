@@ -1257,8 +1257,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const SpeciesRadialField
 // iteration's D-aware active set -- and screenD==null makes the phase-independent B_ij memo apply, so
 // multi-k pays the assembly once.  eps defaults 1e-5 (the kappa-sweep-parity class: its rung-160 tails
 // were e^{-8.5}, measured sub-mHa vs CP2K); GPWTolerances::vlocEps (env override GPW_VLOC_EPS) for the self-convergence check.
-// GPW_LONG_SWEEP=1 = the kappa-sweep path (A/B verification instrument); non-Gaussian local models (no
-// closed beta) also fall back to it.
+// Non-Gaussian local models (no closed beta) fall back to the kappa-sweep path (the old GPW_LONG_SWEEP A/B switch is retired).
 chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialField& loc) const
 {
     // beta = the long part's effective exponent = the SHARPEST species' 1/(2 rloc^2) (V_long sums over atoms)
@@ -1269,8 +1268,7 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const SpeciesRadialF
             const auto terms=gauss->AsGaussians(a->itsZ,FieldRange::Short);
             if (!terms.empty()) beta=std::max(beta, terms[0].alpha);   // alpha = 1/(2 rloc^2)
         }
-    static const bool oldSweep=(std::getenv("GPW_LONG_SWEEP")!=nullptr);
-    if (oldSweep || beta<=0.0) return MakeLocalPP(cl, loc, FieldRange::Long);
+    if (beta<=0.0) return MakeLocalPP(cl, loc, FieldRange::Long);   // no closed Gaussian beta: the kappa-sweep path (GPW_LONG_SWEEP A/B retired, D-ENV 6c)
     qchem::report::Timed timed("setup: local-PP LONG (custom G-ball)");
     assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0)");
     EnsureLevels();

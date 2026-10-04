@@ -21,7 +21,6 @@ module;
 #include <optional>    // the conditionally-charged sub-buckets of the H_xc quadrature
 #include <stdexcept>
 module qchem.ChargeDensity.Internal.DensitySampler;
-import qchem.Environment;                     // Env(name, legacy)
 import qchem.Diagnostics;                     // the ONE diagnostics registry (D-ENV)
 import qchem.RunPolicy;   // theRunPolicy().XCFromDM() -- the declared XC-feed deviation (N5)
 import qchem.ChargeDensity;
@@ -137,22 +136,14 @@ ExactSource ExactSourceOf(const qchem::ChargeDensity::tChargeDensity<dcmplx>* cd
     if (!corr && !UseDMSource()) return {};      // neither route armed
     return {src->DMSource().get(), src->EffectiveAlpha(), std::move(corr)};
 }
-// QCHEM_XC_DM_MIX overrides alpha_eff for CONTROLS only (=1 reproduces the undamped route); unset = use the
-// mix's own.  QCHEM_XC_DM_BOOST scales it: alpha_eff came out ~0.20 on NaF and ~0.35 on MnO -- measured, but
+// policy.xcDMMix overrides alpha_eff for CONTROLS only (=1 reproduces the undamped route); unset = use the
+// mix's own.  policy.xcDMBoost scales it: alpha_eff came out ~0.20 on NaF and ~0.35 on MnO -- measured, but
 // low against fractions those cells tolerate, and MnO converged 53 -> 39 iterations at boost 2.  NB f_K<=1
 // forces alpha_eff<=alpha, so a boost >1/mean(f) puts XC ABOVE the mixer's own alpha -- defensible (XC's
 // response kernel is finite at G->0, unlike Hartree's 4pi/G^2) but outside the preconditioner's bracket,
-// hence a knob and not a default.
-double DMSourceMixOverride()
-{
-    static const double a=[]{ const char* e=qchem::Env("QCHEM_XC_DM_MIX","GPW_XC_DM_MIX"); return e ? std::atof(e) : -1.0; }();
-    return a;
-}
-double DMSourceMixBoost()
-{
-    static const double b=[]{ const char* e=qchem::Env("QCHEM_XC_DM_BOOST","GPW_XC_DM_BOOST"); return e ? std::atof(e) : 1.0; }();
-    return b;
-}
+// hence a knob and not a default.  (Typed on RunPolicySpec since D-ENV 6c; the env variables are retired.)
+double DMSourceMixOverride() { return qchem::theRunPolicy().XCDMMixOverride(); }
+double DMSourceMixBoost()    { return qchem::theRunPolicy().XCDMBoost(); }
 //! Blend \a fresh into \a running at the mix's own alpha (outside (0,1) => passthrough, which is the right
 //! bootstrap AND the right answer for an unmixed or overshooting step).  Non-negativity survives: a convex
 //! combination of non-negative rasters is non-negative.
@@ -161,7 +152,7 @@ void DampXCChannel(rvec_t& running, const rvec_t& fresh, double alphaEff)
     const double ov=DMSourceMixOverride();
     const double a =(ov>=0.0) ? ov : DMSourceMixBoost()*alphaEff;
     static const bool trace=qchem::Diagnostics::Enabled("xc_alpha");
-    if (trace) std::cout<<"[XC alpha] alpha_eff="<<alphaEff<<(ov>=0.0?"  (OVERRIDDEN by QCHEM_XC_DM_MIX)":"")
+    if (trace) std::cout<<"[XC alpha] alpha_eff="<<alphaEff<<(ov>=0.0?"  (OVERRIDDEN by policy.xcDMMix)":"")
                         <<"  boost="<<DMSourceMixBoost()
                         <<"  applied="<<((a>0.0&&a<1.0)?a:1.0)<<std::endl;
     if (a<=0.0 || a>=1.0 || running.size()!=fresh.size()) { running=fresh; return; }
