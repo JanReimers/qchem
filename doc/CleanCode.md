@@ -38,7 +38,7 @@ TIME in the order below with a sweep after each (so every anchor delta has a nam
 anchors together.  `doc/Pins.md` pin 10 applies: an energy anchor that moves is RE-JUDGED against an independent
 route (CP2K/QE/ABINIT oracle, `doc/Benchmark.md`), never refreshed.  A failing charge / count / weight sum is
 physics and cannot go stale.  Also in the batch but tracked in `doc/OpenWork.md` §3: **N4** (cusp-deficit XC feed,
-pin 18).  Suggested order (cheapest to attribute first): D-MINDRHO → V1.24(iii) → D5 → V1.22 → D12 → §K.
+pin 18).  Suggested order (cheapest to attribute first): D-MINDRHO → V1.24(iii) → D5 → V1.22 → D12 → §K → D-FERMI-DEFAULT.
 
 | id | what is open | next action · record |
 |---|---|---|
@@ -48,6 +48,7 @@ pin 18).  Suggested order (cheapest to attribute first): D-MINDRHO → V1.24(iii
 | **V1.22** | Becke partition drop decisions per-point/bit-sensitive; site-adapted caller post-filters orbit-incomplete points (up to ~23× partition cost) | Per-REPRESENTATIVE drop rule (angular dir × radial shell, whole orbit); sprint row A2, anchor-moving · H2 V1.22 |
 | **D12** | `GPW_Evaluator::Eval` truncates by RADIUS (`itsMaxReach` + geometric `BuildImages`) — pin 1 violation | Screen each (function, image) on its own magnitude per pair; radius becomes a reported consequence · H2 D12 |
 | **§K** | fit-{G} densification (anchor-moving, deferred by user) | Sprint window · H2 header L60–75 |
+| **D-FERMI-DEFAULT** (user 2026-10-05) | `SolidCalcOptions::globalFermi` defaults to FALSE, so every SMEARED periodic run fills each k-block to its OWN chemical potential.  A k-point is a label, not a reservoir: per-k μ has no physical counterpart in a crystal and should never be the default (user: *"a very obscure feature for anyone to want"*).  It produced SrVO₃'s wrong-sign χ₀(q ≠ 0) and a ground state 15 mHa too high (`doc/LinearResponsePlan.md` §5f); the response now refuses it (`Reference::Gap` + deck pre-flight), but the SCF still defaults to it.  Per SPIN channel μ stays legitimate (fixed spin moment, set by the multiplicity: `spinsShareFermi`).  At kT = 0 per-block integer filling stays: user-specified per-irrep configurations already live in `src/ElectronConfigurations` (atoms with known ground-state terms -- Ce excepted), and a run that knows its configuration needs no smearing to converge (nothing hops) | default ONE μ across k for kT > 0; replace the bool with a name that says what the non-default does (e.g. `perKFermiLevels`, default false); re-bank the smeared anchors this moves (Si smear-vs-aufbau twin, the MnO smeared gates, NiO's kT 5e-3 anneal stage) against their oracles |
 
 Settled, not rows: Release `-O2` deliberate, `-march=native` default since 2026-09-04 (`QCHEM_ARCH_EXPERIMENT` = A/B); source comments citing old flat `doc/` paths are fine (resolve with `ls doc/*/File.md`).
 
