@@ -24,14 +24,17 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 - **CK-1** — `SolidCalculation::SaveState` / `SolidCalcOptions::saveStateTo` / `SolidCalculation::Restart`
   (`OpenWork.md` §2 row "SCF checkpoint/restart"; record `doc/Records/OpenWork_History4.md` §"CK-1").
 
-**▶ 2026-10-04 (evening): R3 IS DONE THROUGH STEP 5's NiO RUN — U(NiO, 2×2×2 q-mesh) = 6.09 / 6.12 eV vs hp.x 5.267 eV.**
-Records: step 4 and step 5 at the end of §3e.  The machinery is validated (supercell gate; χ₀ AND χ shape vs hp.x per
-q-star within 0.1–2 %); the remaining 16 % in U is the ground state (gap 1.30 vs 2.86 eV), not the response.  What is open:
-- **R4** (§5): LR U as a `HubbardUEstimator` strategy in the self-consistent outer loop (`hubbardLoop`), so the U table of
-  NOTES ("U_0, U_SC, outer steps, gap and moment at both ends", one greppable line per manifold) can be filled.
+**▶ 2026-10-04 (night): R4 IS BUILT AND RUN — self-consistent LR U(NiO, 4-atom cell) = 6.091 / 6.108 eV from BOTH U_in = 0 and
+U_in = 3 eV.**  Record: §5e.  `hubbardLoop` with `"estimator":"linearResponse"` (+ `nq`, `perturb` = the Hubbard sites) drives
+Timrov 2021's outer loop and prints the `[U table]` line.  R3's NiO record is the end of §3e.  What is open:
+- **The q-mesh U_SC** — the loop at `nq 2` (≈ 5 outer steps × 2.2 h: an overnight run under memsafe).  The cell U_SC (6.09) is
+  NOT hp.x's quantity; the supercell one is (at U_in = 3 the supercell U was 6.09 against the cell's 6.45, so expect U_SC ≈ 5.7).
+- **The H5 clean-up** (§3d deferred ledger): ACBN0's `Apply` onto `HubbardUTarget`, the ACBN0-only `HubbardEstimate` fields into
+  its own `Write`, the orbital feed into qcResponse (D4).  Not needed for a right number.
+- **Inter-site V_IJ and orbital-resolved channels REPORTED** (the §5 R4 row) — the real-space χ already holds V's ingredients
+  (`QMeshResponse::Chi*RealSpace` off-diagonals); nothing prints V yet.
 - **SrVO₃** as its own setup item (no material entry; a metal: Fermi weights at q ≠ 0, δμ only at q = 0).
-- The NiO ground-state gap (1.30 vs 2.86 eV) (`OpenWork.md` §3 "NiO VA" row) — what would move U toward 5.27.
-- Efficiency (§3d ledger, now MEASURED, step 5): the transition PAIR scatter/gather are the wall, not the Becke gather.
+- The NiO ground-state gap (1.30 vs 2.86 eV at U_in = 3) — what would move U toward hp.x's 5.27.
 
 **Superseded (kept for the record): the R3 sizing + design note, §3d.**  Items 1–3 below are answered there.
 
@@ -1055,7 +1058,7 @@ pair is (k, k).
 | **R1** ✅ (§5c) | CPHF/CPKS, molecular, finite field replaced by response | H1, H2 (Hartree/J, K), C1 at q=0, M1, `DipoleProbe`; **H1 first backed by a finite-difference kernel** \f$[F(D_0+h\delta D)-F(D_0-h\delta D)]/2h\f$ built from the PUBLIC `GetMatrix`, which needs no term code | PySCF (`~/Code/pyscf-env`) static polarisability of H₂O at HF and LDA, and our own finite-field SCF.  **The FD kernel then stays permanently as the unit-test oracle for every analytic `tResponse_HT`**, the same pattern as `Hamiltonian/tests/GPW_XC_FD.C`. |
 | **R2** | periodic q=0 self-consistent χ: analytic Hartree + LDA \f$f_{xc}\f$ through GPW | H2 (periodic Hartree/XC), H3, H4 | (a) FD kernel vs analytic on a solid; (b) in a **supercell**, R2 *is* LR-cDFT, checked against a finite-difference cDFT run (perturb with a static \f$\alpha\hat P_J\f$, re-converge; Timrov §III).  **C1's 32-atom MnO measurement says whether (b) is affordable.** |
 | **R3** | q ≠ 0 kernel: δρ collocated from (k+q, k) pairs, Hartree at \f$\mathbf G+\mathbf q\f$ | C1 at q≠0 (the collocation pair loop takes a per-image complex weight) | hp.x U: SrVO₃ 6.2502 eV (q 2×2×2), NiO 5.267 eV **at U_in = 3 eV** (frozen +U, H4) |
-| **R4** | `LR_HubbardU` behind the split estimator face; `ConvergeHubbardU` drives it; inter-site V_IJ and orbital-resolved channels **reported** | H5 | self-consistent U vs Timrov 2021; the ACBN0 loop still runs unchanged.  ★ **The U_0 / U_SC table (user, 2026-09-27: *"the chemist in me wants a feel for how these behave"*) comes from ONE run**: start the loop at U_in = 0 — outer step 1 IS U_0, the last is U_SC.  The loop prints one greppable `[U table]` line per manifold: U_0, U_SC, outer steps, and the GAP and SITE MOMENT at both ends — because U_0 linearises the U=0 state, and a large U_0→U_SC change usually means U changed the state's character (NiO loses AFM-II at U=0, trap 3) |
+| **R4** ✅ built 2026-10-04 (§5e; H5 split + V reporting deferred) | `LR_HubbardU` behind the split estimator face; `ConvergeHubbardU` drives it; inter-site V_IJ and orbital-resolved channels **reported** | H5 | self-consistent U vs Timrov 2021; the ACBN0 loop still runs unchanged.  ★ **The U_0 / U_SC table (user, 2026-09-27: *"the chemist in me wants a feel for how these behave"*) comes from ONE run**: start the loop at U_in = 0 — outer step 1 IS U_0, the last is U_SC.  The loop prints one greppable `[U table]` line per manifold: U_0, U_SC, outer steps, and the GAP and SITE MOMENT at both ends — because U_0 linearises the U=0 state, and a large U_0→U_SC change usually means U changed the state's character (NiO loses AFM-II at U=0, trap 3) |
 
 **R3 is the cost centre and the only stage whose size is not yet known.**  The ground-state collocation
 already applies a per-image Bloch phase.  A transition density needs \f$e^{-i(\mathbf k+\mathbf q)\cdot\mathbf R'}e^{i\mathbf k\cdot\mathbf R}\f$
@@ -1190,6 +1193,40 @@ VWN5 was read and is continuous at ζ=0; `RhoPol`'s tail is linear.  Gated at 1e
 - **(4) full sweep 2026-09-28: 956/957 pass** (962 listed, 5 DISABLED); the one failure, `M_PG_BoxWalk.WhereTheContractionSpendsItsTime`, is a TIMING-profile test untouched by R2 that passes alone (2.7 s) and failed under `-j8` load (9.8 s) — load-sensitive, not a regression.
 
 **R2 status: DONE except the named open items** — the ~4e-6 Pol-channel oracle floor (bounded, above), and real TRIM blocks (`OpenWork.md` §2 row).  CK-1 followed (✅ 2026-09-28); NEXT = R3 (q ≠ 0: the q-mesh that makes U comparable with hp.x) — see START HERE.
+
+### 5e. R4 execution record (2026-10-04) — the self-consistent LR U, one loop for both estimators
+**Code** (`002aecaf`): `SolidCalculation::HubbardLoop::Estimator {ACBN0, LinearResponse}` (ruling D4: the facade picks the
+strategy) drives the existing `ConvergeHubbardU`.  LinearResponse: U_out = `HubbardLinearResponse(nq).U()` (+U frozen for the
+solve), written onto the PERTURBED manifolds only through `HubbardUTarget::SetU` (spectators keep theirs), the SCF re-converged
+as a fresh stage (§4c), until max |U_out − U_in| < `tolU_eV`.  The site set is fixed ONCE at the start: at U_in = 0 nothing
+carries a U, so an orthofull deck must LIST its sites (`perturb`), or the spectators are perturbed too (Q10).  Per outer step the
+loop records the band gap and each manifold's integrated moment n↑ − n↓ through the +U projectors (works on any XC mesh), and ends
+with one `[U table]` line per site.  Deck: `hubbardLoop.estimator` = `"ACBN0"` (default; nothing moved) | `"linearResponse"` (+
+`nq`, `perturb`, `tol`, `maxIter`, `restart`, which are unknown keys under ACBN0).  ACBN0's path is unchanged; H5's interface
+split is NOT done (clean-up, deferred: START HERE).
+
+**Gate** `GPW_Si.Γ_U_Kerker_Pulay_Cplx_LinearResponseUIsAFixedPoint` (54 s): Si-p on site 0 from U_in = 0 — (1) loop step 1 ==
+the stand-alone U_0 of the same state (1.2335018 eV, all 8 digits); (2) the loop MOVED U (U_SC 1.2399187 in 3 steps; a SetU
+that did nothing would "converge" at step 2 with U_SC = U_0); (3) an INDEPENDENT deck from the SEED at U_in = U_SC answers
+U_out = 1.2399189 (1.7e-7 eV) — the fixed point, not the loop's bookkeeping.  SCF recipes measured on the way (free Si Γ, Kerker
+vs linear flips with k-mesh and with +U): filed on the `OpenWork.md` "Kerker/Pulay as the DEFAULT mixer" row.
+
+**NiO, 4-atom cell (nq = 1), U on Ni 3d, orthofull, FREE, warm-started from the saved U_in = 3 state** (logs
+`~/Code/qchem6-runs/NiO/nio_r4_lrloop_q0_from_U{0,3}.log`, records `NiO_AFM2.r004/.r005`):
+| start | U_0 (Ni1 / Ni2) | U_SC (Ni1 / Ni2) | outer | gap start → SC | Ni moment start → SC |
+|---|---|---|---|---|---|
+| U_in = 0 | 6.854 / 6.907 eV | **6.0911 / 6.1076** | 6 | 0.88 → 1.46 eV | 1.30 → 1.55 |
+| U_in = 3 eV | 6.450 / 6.479 eV | **6.0911 / 6.1076** | 5 | 1.31 → 1.46 eV | 1.45 → 1.55 |
+- **Both starts land on the same U_SC to 1e-4 eV**: the fixed point is a property of the functional, not of the path.  The
+  iteration converges with an alternating error (6.85 → 6.01 → 6.10 → 6.090 → 6.0912), contraction ≈ −0.11 per step: plain
+  substitution is enough here; no mixing of U is needed.
+- U FALLS as U_in rises (dU_out/dU_in ≈ −0.13): a larger U opens the gap and localises the d shell (moment 1.30 → 1.55), the bare
+  response shrinks, and the screened difference with it.  The table's "feel" (NOTES): U_0 overshoots U_SC by 0.76 eV (13 %).
+- ⚠ **Trap 3 did NOT bite here, and why that is not a contradiction**: the U = 0 state was WARM-STARTED from the AFM-II U = 3
+  state and held AFM-II (moment 1.30, a 0.88 eV gap).  Trap 3's "LDA NiO loses AFM-II at U = 0" was from fresh seeds.  So U_0 here
+  is the response of the AFM-II U = 0 LOCAL solution.  A cold-seeded U = 0 start is the other row of the table, not yet run.
+- This is the CELL's U (q = 0 of 4 atoms), not hp.x's quantity: compare the supercell U at U_in = 3 (6.09, R3 step 5) with this
+  cell's 6.45.  The q-mesh loop is START HERE's first open item.
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`QCHEM_OPENMP_THREADS` is
