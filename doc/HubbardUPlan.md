@@ -35,22 +35,22 @@ k-parallelism — NOT DONE.
 **Headline oracle numbers** (matched-PP hp.x LRT, U in eV, U_in = 0 unless noted; k 4³ / q 2³ except NiO/MnO k 2³;
 `ortho-atomic` projector unless noted; full decks/logs in `IntegrationTests/QE/README.md` §A6):
 
-| material | manifold | U | note |
-|---|---|---|---|
-| NiO | Ni 3d | **5.267** (U_in=3) / 5.434 (U_in=0) | the one SOLID gate point; different U_in ⇒ different number, never average |
-| NiO | O 2p | 8.514 | replaced an old cRPA *bound* ≳4 |
-| MnO | Mn 3d | 0.198 (atomic) / 0.986 (ortho) | NOT USABLE: χ/χ₀ = 0.98 / 0.955 (d⁵ Pauli-saturated) — proven not a projector artifact |
-| MnO | O 2p | ~~26.56~~ → 11.150 (ortho) | atomic projector was the artifact here; redone 2026-09-30 |
-| SrVO₃ / KCuF₃ / Sr₂FeO₄ | V / Cu / Fe 3d | 6.250 / 8.163 / 8.012 | KCuF₃, Sr₂FeO₄ geometry from Carta's own input files (`~/Code/reprints/materials_cloud_submission/`); their U is MLWF-based, not comparable |
-| LiMO₂ M=V,Cr,Fe,Co,Ni | M 3d | 5.953 / 5.811 / 7.592 / 7.307 / 9.173 | idealised R-3m template; LiNiO₂ U_in≈0 `.save` archived `IntegrationTests/QE/checkpoints/linio2_U0.save/` |
-| TiO₂ rutile | Ti 3d | 4.637 | d⁰ gap, no 2-step |
-| FeS₂ pyrite | Fe 3d | **7.5351** | identical to 4 s.f. on all 4 Fe sites; ~5 h run; original console log lost to a driver-bug rerun (`batch/recovered/` holds the Hubbard_parameters.dat) |
-| ZnO | Zn 3d | 35.34 | NOT AN ORACLE: closed d¹⁰ shell, χ₀≈χ≈0 |
-| Si (CP2K CK-alpha) | 3p | χ only | χ_CP2K −14.5164 vs ours −14.5117 Ha⁻¹ (0.033 %) — validates our method |
+| material | manifold | U | CP2K LRT U | note |
+| --- | --- | --- | --- | --- |
+| NiO | Ni 3d | **5.267** (U_in=3) / 5.434 (U_in=0) | not converged ⛔ (U_in=0 ⇒ nonmagnetic; U_in=3 AFM never settles, 7 recipes) | the one SOLID gate point; different U_in ⇒ different number, never average |
+| NiO | O 2p | 8.514 | — | replaced an old cRPA *bound* ≳4 |
+| MnO | Mn 3d | 0.198 (atomic) / 0.986 (ortho) | **4.94** (χ/χ₀ 0.656) | NOT USABLE: χ/χ₀ = 0.98 / 0.955 (d⁵ Pauli-saturated) — proven not a projector artifact |
+| MnO | O 2p | ~~26.56~~ → 11.150 (ortho) | **7.77** (χ/χ₀ 0.439) | atomic projector was the artifact here; redone 2026-09-30 |
+| SrVO₃ / KCuF₃ / Sr₂FeO₄ | V / Cu / Fe 3d | 6.250 / 8.163 / 8.012 | — | KCuF₃, Sr₂FeO₄ geometry from Carta's own input files (`~/Code/reprints/materials_cloud_submission/`); their U is MLWF-based, not comparable |
+| LiMO₂ M=V,Cr,Fe,Co,Ni | M 3d | 5.953 / 5.811 / 7.592 / 7.307 / 9.173 | — | idealised R-3m template; LiNiO₂ U_in≈0 `.save` archived `IntegrationTests/QE/checkpoints/linio2_U0.save/` |
+| TiO₂ rutile | Ti 3d | 4.637 | — | d⁰ gap, no 2-step |
+| FeS₂ pyrite | Fe 3d | **7.5351** | — | identical to 4 s.f. on all 4 Fe sites; ~5 h run; original console log lost to a driver-bug rerun (`batch/recovered/` holds the Hubbard_parameters.dat) |
+| ZnO | Zn 3d | 35.34 | — | NOT AN ORACLE: closed d¹⁰ shell, χ₀≈χ≈0 |
+| Si (CP2K CK-alpha) | 3p | χ only | χ only (not a U) | χ_CP2K −14.5164 vs ours −14.5117 Ha⁻¹ (0.033 %) — validates our method |
 
 **Our own LRT on MnO Mn-3d** (free AFM-II, Γ, U_in=0; logs `~/Code/qchem6-runs/MnO/`): manifold-definition
 trend is monotone — ours `every` χ/χ₀ 0.693, U 2.62 eV; ours `ortho` 0.837, 1.23 eV; hp.x ortho-atomic 0.955,
-0.99; hp.x atomic 0.981, 0.20.  CP2K CK-alpha MnO χ = −1.894 Ha⁻¹ (broad manifold, same order as ours).  The
+0.99; hp.x atomic 0.981, 0.20.  CP2K CK-alpha (LOWDIN, spans every Mn function — the broadest manifold; Γ, PADE, α on Mn1 only, `VALENCE-LOWQ-VA`): χ = −1.894, χ₀ = −2.885 Ha⁻¹ ⇒ χ/χ₀ **0.656**, U **4.94 eV** — continues the monotone trend below our `every` (0.693); compare the RATIOS, U is a small difference of two large inverses.  O 2p (α on O1, L=1): χ −1.966, χ₀ −4.477, χ/χ₀ 0.439, U **7.77 eV** (hp.x ortho 11.15).  The
 remaining 0.837 vs 0.955 gap is OPEN (basis/projector detail, not chased).  Interpretation: the closed-shell
 cancellation is REAL physics of the same-site channel (FD and DFPT compute the same dn/dα, measured 3e-4 on Si),
 not a solver artifact.
@@ -171,7 +171,8 @@ moves the voltage; the `orthofull` arm gives it free from the same SCF).  Collin
   different quantities by construction (pair-count denominator excludes self-pairs; `scripts/a1_bare_f0_check.py`
   predicts it to 0.1–0.5 %).  Our ERIs agree with PySCF.
 - **CP2K CK-alpha with `MAX_SCF 1` does NOT give χ₀** (energy block reports the INPUT occupation ⇒ α·n(α=0),
-  identical trq for ±α).  Dead end; `queue/03_mno_ckalpha_chi0.sh` kept for the record.
+  identical trq for ±α).  **FIX (2026-10-05): `MAX_SCF 2` + `DIRECT_P_MIXING ALPHA 1.0`, restart from the α=0 state — iteration 2's input density IS the single diagonalization's output; use the LAST `DFT+U energy` line** (jobs `~/Code/qchem6-runs/batch/queue/03_mno_chi0_Mn3d.sh`, `04_mno_O2p.sh`, shared `lib_mno_ckalpha.sh`).  **NiO in CP2K does NOT converge**: U_in=0 reaches a NONMAGNETIC fixed point (Pulay α 0.1, 88 steps, Ni moments 0.000 — agrees with 'LDA NiO loses AFM-II at U=0'); U_in=3 gives an AFM state (Mulliken ±0.6–1.2) but 4 recipes (Pulay 0.1/0.05, kT 0.005/0.01, Ni d 0.30/0.38) swing 0.05–0.1 Ha for 100 iterations; cause (CP2K SCF vs basis noise vs the +U state) NOT separated.  Parked; trial decks `~/Code/cp2k-runs/NiO/try_[A-G].inp`.
+- **Bases for the other oracle materials** (Ti V Cr Fe Co Cu Ni Li K Sr S): `BasisSetData/valence_lowq_tm.bsd` + CP2K `IntegrationTests/CP2K/VALENCE-LOWQ-TM-BASIS`, conditioned on λ_min(S(k)) ≥ 4e-4 in idealised host crystals (`scripts/basis_conditioning/`); NOT registered in `Factory.C`; committed Ni (s .06, d .18) is 1e-6 on NiO; method + valgen improvement = `doc/OpenWork.md` §3 row 'valgen is optimistic about diffuse functions'.
 - **An oracle number within tolerance is not a mechanism check** (the PolarizedMixCD defect passed the CP2K gate
   with n=0 on alternate refreshes; found by the `[+U]` trace).  CP2K's +U form is DIAGONAL populations, not
   Dudarev eigen-decomposition: `RunPolicy::HubbardEigen`, knob `QCHEM_U_EIGEN` (CP2K_COMPAT member).
