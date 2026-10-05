@@ -27,8 +27,9 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 **▶ 2026-10-05: R4 IS DONE — self-consistent LR U(NiO, 2×2×2 q-mesh) = 5.727 / 5.744 eV** (cell: 6.091 / 6.108).  Record: §5e.
 `hubbardLoop` with `"estimator":"linearResponse"` (+ `nq`, `perturb` = the Hubbard sites) drives Timrov 2021's outer loop and
 prints the `[U table]` line.  What is open (none of it blocks a right number):
-- **The H5 clean-up** (§3d deferred ledger): ACBN0's `Apply` onto `HubbardUTarget`, the ACBN0-only `HubbardEstimate` fields into
-  its own `Write`, the orbital feed into qcResponse (D4).
+- ✅ **H5 DONE 2026-10-05** (`ad800a2f`): one strategy face `HubbardUEstimator` {Evaluate → {manifold, site, l, U}, Write} for
+  ACBN0 and `Response::LR_HubbardU`; `Apply` gone (the loop writes through `HubbardUTarget::SetU`); ACBN0's detail is
+  `ACBN0Estimate` behind `ACBN0Estimator` (`MakeACBN0Estimator`); the orbital feed is `Response::FeedOccupiedOrbitals`.
 - **Inter-site V_IJ and orbital-resolved channels REPORTED** (the §5 R4 row): the real-space χ already holds V's ingredients
   (`QMeshResponse::Chi*RealSpace` off-diagonals); nothing prints V yet.
 - **SrVO₃** as its own setup item (no material entry; a metal: Fermi weights at q ≠ 0, δμ only at q = 0).
@@ -737,7 +738,7 @@ we get a suspicious result from DFPT, we will immediately check LRT"*).  It is R
 | ~~retire R2's periodic forwarding (`FourierDensity`/`tProjectable_CD` through `IrrepCD` leaves) once q = 0 runs through B1/B2~~ | ✅ DONE, step 3 (§3e) — it closed finding 5 | — | history: `doc/Records/OpenWork_History4.md` |
 | the raster (uniform-XC) route collocates each pair TWICE per application: the Hartree ball and the raw XC feed (the ground state's CollocMemo replays the second) | efficiency | NiO runs Becke; Si is tiny | `OpenWork.md` §2 "A7 R3 deferred" (e) |
 | the Becke transition forward/adjoint are two SERIAL, unscreened GEMMs per pair (the ground-state ones are threaded) | efficiency | measure on NiO k222 first (§3e step 3) | `OpenWork.md` §2 "A7 R3 deferred" (f) |
-| H5's full split (ACBN0's `Apply` moves onto `HubbardUTarget`) | clean-up | Q6 pulls forward only the part R3 needs | R4 (§5), `OpenWork.md` §2 "A7 R3 deferred" |
+| ~~H5's full split (ACBN0's `Apply` moves onto `HubbardUTarget`)~~ | ✅ DONE 2026-10-05 (`ad800a2f`) | — | START HERE |
 
 ---
 
@@ -1042,6 +1043,26 @@ longer the gradient of the energy unless it also carries \f$\partial E/\partial 
 A density-dependent U also puts \f$\partial U/\partial R\f$ into the forces (§4b), which is item 2 of that
 list, the Z-vector, for a quantity nobody wants to differentiate.  ⇒ **The outer loop is the design, for
 ACBN0 and LR alike.**
+
+**Geometry optimisation with a self-consistent U (user's question, 2026-10-05; no code yet).**  The relaxation goes INSIDE the U
+loop, in the slot the SCF re-converge occupies today: estimate U at the current (state, geometry) → `SetU` → RELAX at that fixed U
+(each step an SCF + first-order forces) → estimate again, until both |ΔU| and the forces are below tolerance (Timrov et al. 2021
+do exactly this).
+- **U is a constant during a relaxation**, so the forces stay first-order (§4b item 3): no ∂U/∂R, no Z-vector.  The end point is a
+  self-consistent PAIR -- forces zero at U_SC, and U_SC = U_out(that geometry) -- not the minimum of one energy functional.
+- **The cost is in the U estimates, not the relax steps**: one NiO q-mesh U is ~2.2 h, an SCF minutes.  So relax FULLY at fixed U
+  before re-estimating (the NiO U loop needed ~5 estimates at contraction ≈ −0.11; geometry should not add many), warm-start
+  everything (the U from the last cycle, the relaxed geometry, the Krylov solve from the last δD).  The NiO cell → supercell
+  shift was a near-constant −0.36 eV (§5e): if that holds on the next material, the INNER loop can run on the cheap cell U and one
+  q-mesh response corrects it at the end.
+- **The design hook**: `ConvergeHubbardU` hard-codes "BuildStage + Converge" as its re-solve.  When forces land (H6, `OpenWork.md`
+  §2 Forces row; its hard term is the ortho-atomic +U projector's gradient, Timrov et al. PRB 102, 235159 (2020)), that step becomes
+  a strategy too ("re-solve at fixed U": SCF only | relax), and the estimator face above it does not change.  Not built before
+  forces exist.
+- ⚠ **For the battery north-star, comparability beats self-consistency**: a voltage is an ENERGY DIFFERENCE between compositions,
+  and energies computed at different U are on different functionals.  A per-structure U_SC (which moves with Li content and
+  geometry) therefore cannot be differenced naively; the usual practice is ONE U per species across the series (e.g. averaged
+  U_SC), with the per-structure U_SC reported as the evidence.  That is a policy ruling for the battery plan, not a code question.
 
 ---
 
