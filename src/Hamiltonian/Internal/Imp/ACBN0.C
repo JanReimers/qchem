@@ -107,15 +107,15 @@ void ACBN0::Averages(const rmat_t& Pa, const rmat_t& Pb, const rvec_t& Nav, cons
     Jbar = denJ>1e-12 ? numJ/denJ : 0.0;
 }
 
-std::vector<HubbardEstimate> ACBN0::Evaluate() const
+std::vector<ACBN0Estimate> ACBN0::Details() const
 {
-    if (!itsFed) throw std::logic_error("ACBN0::Evaluate before any orbital block was fed");
-    std::vector<HubbardEstimate> out;
+    if (!itsFed) throw std::logic_error("ACBN0::Details before any orbital block was fed");
+    std::vector<ACBN0Estimate> out;
     const Channel& up=itsChannels.at(Spin::Up);
     const Channel& dn=itsChannels.at(Spin::Down);
     for (size_t M=0;M<itsERI.size();M++)
     {
-        HubbardEstimate e;
+        ACBN0Estimate e;
         e.site=itsTerm.Manifolds()[M].site; e.l=itsTerm.Manifolds()[M].l;
         const size_t m=itsERI[M].Size();
         rvec_t NupBare(m), NdnBare(m);
@@ -138,19 +138,18 @@ std::vector<HubbardEstimate> ACBN0::Evaluate() const
     return out;
 }
 
-void ACBN0::Apply(const std::vector<HubbardEstimate>& e)
+std::vector<HubbardEstimate> ACBN0::Evaluate() const
 {
-    if (e.size()!=itsTerm.Manifolds().size()) throw std::invalid_argument("ACBN0::Apply: one estimate per manifold");
-    for (size_t M=0;M<e.size();M++) itsTerm.SetU(M, e[M].Ueff());
-    // Start the next feed clean: the orbitals of the run just estimated belong to the previous U.
-    for (auto& [s,ch] : itsChannels) for (auto* v : {&ch.P,&ch.Pbare,&ch.L,&ch.Lbare}) for (rmat_t& m : *v) m=rmat_t(m.rows(), m.columns(), 0.0);
-    itsFed=false;
+    std::vector<HubbardEstimate> out;
+    const auto d=Details();
+    for (size_t M=0;M<d.size();M++) out.push_back({.manifold=M, .site=d[M].site, .l=d[M].l, .U=d[M].Ueff()});
+    return out;
 }
 
 std::ostream& ACBN0::Write(std::ostream& os) const
 {
     const double eV=27.211386245988;
-    for (const HubbardEstimate& e : Evaluate())
+    for (const ACBN0Estimate& e : Details())
         os<<"[ACBN0] site "<<e.site<<" l="<<e.l<<": U="<<std::fixed<<std::setprecision(4)<<e.Ubar*eV<<" J="<<e.Jbar*eV
           <<" U_eff="<<e.Ueff()*eV<<" eV  (bare, unrenormalised: U="<<e.UbarBare*eV<<" J="<<e.JbarBare*eV<<")"
           <<"  N up/dn="<<e.chargeUpBare<<"/"<<e.chargeDnBare<<" (renormalised "<<e.chargeUp<<"/"<<e.chargeDn<<")"<<std::endl;

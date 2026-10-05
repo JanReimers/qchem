@@ -1103,40 +1103,15 @@ std::vector<size_t> DefaultPerturbed(const qchem::Hamiltonian::HubbardChannels& 
 }
 } // namespace
 
-std::vector<qchem::Hamiltonian::HubbardEstimate> SolidCalculation::EstimateHubbardU() const
+std::vector<qchem::Hamiltonian::ACBN0Estimate> SolidCalculation::EstimateHubbardU() const
 {
-    std::unique_ptr<qchem::Hamiltonian::HubbardUEstimator> est=itsImp->ham->MakeHubbardUEstimator();
+    std::unique_ptr<qchem::Hamiltonian::ACBN0Estimator> est=itsImp->ham->MakeACBN0Estimator();
     if (!est) throw std::logic_error("SolidCalculation::EstimateHubbardU: this run carries no Hubbard manifold (SolidCalcOptions::hubbard)");
     const auto* wf=itsImp->scf->GetWaveFunction();
     if (!wf) throw std::logic_error("SolidCalculation::EstimateHubbardU: no wave function yet");
-    // Block by block: the occupied orbitals' AO coefficients and physical occupations, the block's BZ
-    // weight, and its spin (Spin::None = the folded doublet; the estimator halves it into both channels).
-    auto feed=[&]<class U>(const qchem::Orbitals::TOrbitals<U>& os, const qchem::Irrep& ir)
-    {
-        const auto* blk=dynamic_cast<const qchem::BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
-        if (!blk) throw std::logic_error("SolidCalculation::EstimateHubbardU: an orbital block that is not an Orbital_DFT_IBS");
-        std::vector<const qchem::Orbitals::TOrbital<U>*> occ;
-        for (const auto* o : os.template Iterate<qchem::Orbitals::TOrbital<U>>()) if (o->IsOccupied()) occ.push_back(o);
-        mat_t<U> C(blk->GetNumFunctions(), occ.size());
-        rvec_t f(occ.size());
-        for (size_t i=0;i<occ.size();i++)
-        {
-            const vec_t<U>& c=occ[i]->GetCoeff();
-            for (size_t a=0;a<c.size();a++) C(a,i)=c[a];
-            f[i]=occ[i]->GetOccupation();
-        }
-        est->Accumulate(*blk, ir.ms, ir.sym->GetWeight(), C, f);
-    };
-    for (const qchem::Irrep& ir : wf->GetQNs())
-    {
-        const qchem::Orbitals::Orbitals* os=wf->GetOrbitals(ir);
-        if (const auto* c=dynamic_cast<const qchem::Orbitals::TOrbitals<dcmplx>*>(os)) feed(*c, ir);
-        else if (const auto* r=dynamic_cast<const qchem::Orbitals::TOrbitals<double>*>(os)) feed(*r, ir);
-        else throw std::logic_error("SolidCalculation::EstimateHubbardU: an orbital set of unknown scalar");
-    }
-    std::vector<qchem::Hamiltonian::HubbardEstimate> out=est->Evaluate();
+    qchem::Response::FeedOccupiedOrbitals(*est, *wf);       // the orbital walk lives beside MakeReference (D4)
     est->Write(std::cout);                                   // the estimator reports at its own activity (pin 17)
-    return out;
+    return est->Details();
 }
 
 SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCFParams& params, const HubbardLoop& loop)
@@ -1211,26 +1186,29 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
         R.moment.push_back(m);
     };
 
-    std::unique_ptr<qchem::Hamiltonian::HubbardUEstimator> est;
     for (size_t n=0; n<loop.maxOuter; n++)
     {
         snapshot();
         R.outer=n+1;
-        // ESTIMATE from the current (converged) state.
-        std::vector<double> Unext=Ucur;
+        // ESTIMATE from the current (converged) state, through the ONE strategy face (H5): each strategy's input is its own
+        // construction business -- ACBN0 is fed the orbitals, linear response is a solved response (+U frozen for the solve).
+        std::unique_ptr<qchem::Hamiltonian::HubbardUEstimator> est;
         if (LR)
         {
-            auto r=HubbardLinearResponse(loop.nq, loop.krylov, R.estimated);   // freezes +U for the solve, prints its own tables
+            auto r=HubbardLinearResponse(loop.nq, loop.krylov, R.estimated);   // prints its own tables
             if (!r) { R.failure=r.Error().detail; std::cout<<"[LR loop "<<n<<"] the response FAILED -- the loop stops: "<<R.failure<<std::endl; break; }
-            const rvec_t U=r->U();
-            for (size_t c=0;c<R.estimated.size();c++) Unext[R.estimated[c]]=U[c]*eV;
+            est=std::make_unique<qchem::Response::LR_HubbardU>(std::move(*r), hub->Channels());
         }
         else
         {
-            est=itsImp->ham->MakeHubbardUEstimator();         // Apply's handle (EstimateHubbardU feeds and evaluates its own)
-            R.last=EstimateHubbardU();                        // feeds an estimator from the current orbitals, prints [ACBN0]
-            for (size_t M=0;M<R.last.size();M++) Unext[M]=R.last[M].Ueff()*eV;
+            auto a=itsImp->ham->MakeACBN0Estimator();
+            qchem::Response::FeedOccupiedOrbitals(*a, *itsImp->scf->GetWaveFunction());
+            est=std::move(a);
         }
+        est->Write(std::cout);
+        R.last=est->Evaluate();
+        std::vector<double> Unext=Ucur;
+        for (const auto& e : R.last) Unext[e.manifold]=e.U*eV;
         double dmax=0.0;
         for (size_t M : R.estimated) dmax=std::max(dmax, std::abs(Unext[M]-Ucur[M]));
         R.U_eV.push_back(Unext);
@@ -1242,9 +1220,8 @@ SolidCalculation::HubbardLoopResult SolidCalculation::ConvergeHubbardU(const SCF
         }
         if (dmax<loop.tolU_eV) { R.converged=true; break; }
         if (n+1==loop.maxOuter) break;
-        // APPLY on the same Hamiltonian, then re-converge from the current density.
-        if (LR) for (size_t M : R.estimated) target->SetU(M, Unext[M]/eV);
-        else    est->Apply(R.last);
+        // APPLY on the same Hamiltonian (the write is the loop's, never the estimator's: H5), then re-converge from the current density.
+        for (size_t M : R.estimated) target->SetU(M, Unext[M]/eV);
         for (size_t M : R.estimated)                          // the record a save reads (SetU = one U)
             if (M<itsImp->hubbard.size()) { itsImp->hubbard[M].U=Unext[M]/eV; itsImp->hubbard[M].Uirrep.clear(); }
         Ucur=Unext;

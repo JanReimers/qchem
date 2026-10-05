@@ -49,9 +49,9 @@ public:
             if (rvec_t m=t->SiteMoments(cd); m.size()>0) return m;
         return rvec_t();
     }
-    //! \copydoc tHamiltonian::MakeHubbardUEstimator
+    //! \copydoc tHamiltonian::MakeACBN0Estimator
     //! The FIRST dynamic term answering the \c HubbardProjection face (abstract->abstract); null when none does.
-    virtual std::unique_ptr<HubbardUEstimator> MakeHubbardUEstimator() const override;
+    virtual std::unique_ptr<ACBN0Estimator> MakeACBN0Estimator() const override;
     //! \copydoc tHamiltonian::GetHubbardChannels
     virtual const HubbardChannels* GetHubbardChannels() const override;
     //! \copydoc tHamiltonian::GetHubbardUTarget

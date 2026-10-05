@@ -184,4 +184,24 @@ AmplitudeProbe MakeHubbardProbe(const Reference& ref, const WaveFunction::cWaveF
     return AmplitudeProbe(ref, std::move(amp), std::move(labels));
 }
 
+void FeedOccupiedOrbitals(Hamiltonian::ACBN0Estimator& est, const WaveFunction::cWaveFunction& wf)
+{
+    ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
+    {
+        const auto* blk=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
+        if (!blk) throw std::logic_error("Response::FeedOccupiedOrbitals: an orbital block that is not an Orbital_DFT_IBS");
+        std::vector<const Orbitals::TOrbital<U>*> occ;
+        for (const auto* o : os.template Iterate<Orbitals::TOrbital<U>>()) if (o->IsOccupied()) occ.push_back(o);
+        mat_t<U> C(blk->GetNumFunctions(), occ.size());
+        rvec_t f(occ.size());
+        for (size_t i=0;i<occ.size();i++)
+        {
+            const vec_t<U>& c=occ[i]->GetCoeff();
+            for (size_t a=0;a<c.size();a++) C(a,i)=c[a];
+            f[i]=occ[i]->GetOccupation();
+        }
+        est.Accumulate(*blk, ir.ms, ir.sym->GetWeight(), C, f);
+    });
+}
+
 } // namespace

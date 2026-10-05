@@ -43,7 +43,7 @@ import qchem.ScalarFunction;                  // ScalarFunction<double> (the rho
 import qchem.BasisSet;                        // Real_BS (orbital source), Complex_BS (the Bloch basis)
 import qchem.BasisSet.Lattice.BasisSet;    // GPWFactory, GPWParams, RasterPolicy, CellImages
 import qchem.Hamiltonian.Factory;             // SpinGroup, VxcFit, the cHamiltonian solid door
-export import qchem.Hamiltonian.HubbardEstimator;   // HubbardEstimate (EstimateHubbardU)
+export import qchem.Hamiltonian.HubbardEstimator;   // ACBN0Estimate (EstimateHubbardU), HubbardEstimate (the loop)
 export import qchem.Response;                  // ChannelResponse / ResponseFailure (IndependentResponse, LinearResponsePlan R0)
 import qchem.SCFAccelerator.Factory;          // Type, SolidAcceleratorOptions, the typed solid door
 import qchem.SCFIterator;                     // SolidSCFIterator, SCFParams, SCFProgress, EnergyBreakdown
@@ -527,7 +527,7 @@ public:
     //! function's occupied orbitals; the mechanism (Löwdin renormalisation, bare on-site integrals) is the
     //! Hamiltonian's.  Throws when the run carries no +U manifold.  A DIAGNOSTIC of the last iterate like its
     //! neighbours above: run it on a \c Converged run, and say which iterate it came from when you quote it.
-    std::vector<qchem::Hamiltonian::HubbardEstimate> EstimateHubbardU() const;
+    std::vector<qchem::Hamiltonian::ACBN0Estimate> EstimateHubbardU() const;
 
     //! \brief THE ACBN0 OUTER LOOP (Agapito et al.'s practice; the true variational functional is their future
     //! work too): estimate \f$(\bar U,\bar J)\f$ from the current orbitals, set every manifold's \f$U\f$ to
@@ -567,7 +567,7 @@ public:
         //! manifold's integrated moment \f$n_\uparrow-n_\downarrow\f$ through the +U projectors (0 on an unpolarized run).
         std::vector<double>              gap_eV;
         std::vector<std::vector<double>> moment;
-        std::vector<qchem::Hamiltonian::HubbardEstimate> last;   //!< ACBN0: the final step's full estimate (empty for LinearResponse)
+        std::vector<qchem::Hamiltonian::HubbardEstimate> last;   //!< the final step's estimates (either strategy; ACBN0's detail is EstimateHubbardU's)
         size_t outer=0;                            //!< outer steps run (SCF re-convergences = outer-1)
         bool   converged=false;                    //!< |ΔU| < tolU_eV on every estimated manifold
         bool   scfConverged=false;                 //!< the LAST SCF converged (an unconverged SCF poisons the estimate)

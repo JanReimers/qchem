@@ -59,4 +59,9 @@ template <class T> OperatorProbe MakeDipoleProbe(const Reference& ref, const Orb
 AmplitudeProbe MakeHubbardProbe(const Reference& ref, const WaveFunction::cWaveFunction& wf,
                                 const Hamiltonian::HubbardChannels& hub);
 
+//! \brief FEED \a est the occupied orbitals of every block of \a wf (coefficients, physical occupations, BZ weight, spin) -- ACBN0's
+//! input (doc/LinearResponsePlan.md ruling D4: the orbital walk lives here, beside \c MakeReference, which walks the same blocks).
+//! Real (TRIM) and complex blocks alike.
+void FeedOccupiedOrbitals(Hamiltonian::ACBN0Estimator& est, const WaveFunction::cWaveFunction& wf);
+
 } // namespace

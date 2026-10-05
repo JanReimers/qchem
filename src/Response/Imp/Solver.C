@@ -267,6 +267,33 @@ std::ostream& QMeshResponse::Write(std::ostream& os) const
     return os;
 }
 
+LR_HubbardU::LR_HubbardU(QMeshResponse r, std::vector<Hamiltonian::HubbardChannel> channels)
+    : itsR(std::move(r)), itsChannels(std::move(channels))
+{
+    if (itsR.atQ.empty()) throw std::invalid_argument("LR_HubbardU: a response with no q point");
+    if (itsR.atQ[0].labels.size()!=itsChannels.size())
+        throw std::invalid_argument("LR_HubbardU: the response's channels are not the term's manifolds");
+}
+
+std::vector<Hamiltonian::HubbardEstimate> LR_HubbardU::Evaluate() const
+{
+    const rvec_t U=itsR.U();
+    const auto& J=itsR.atQ[0].perturbed;
+    std::vector<Hamiltonian::HubbardEstimate> out;
+    for (size_t c=0;c<J.size();c++) out.push_back({.manifold=J[c], .site=itsChannels[J[c]].site, .l=itsChannels[J[c]].l, .U=U[c]});
+    return out;
+}
+
+std::ostream& LR_HubbardU::Write(std::ostream& os) const
+{
+    const std::streamsize prec=os.precision(6);
+    for (const auto& e : Evaluate())
+        os << "[LR] site " << e.site << " l=" << e.l << ": U=" << e.U*27.211386245988 << " eV  ((chi0^-1 - chi^-1) over the "
+           << itsR.Nq.x << "x" << itsR.Nq.y << "x" << itsR.Nq.z << " q-mesh's supercell, +U frozen)" << std::endl;
+    os.precision(prec);
+    return os;
+}
+
 template Outcome<SelfConsistentResponse,ResponseFailure> LinearResponse<double>(const Reference&, const OrbitalFrame<double>&,
     const Hamiltonian::ResponseKernel<double>&, const ChannelProbe&, std::shared_ptr<const Symmetry::SelectionRule>, const KrylovParams&, std::vector<size_t>);
 template Outcome<SelfConsistentResponse,ResponseFailure> LinearResponse<dcmplx>(const Reference&, const OrbitalFrame<dcmplx>&,

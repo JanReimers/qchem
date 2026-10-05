@@ -7,7 +7,7 @@ export import qchem.ChargeDensity;
 import qchem.Streamable;
 export import qchem.Energy;
 export import qchem.Hamiltonian.Types;
-export import qchem.Hamiltonian.HubbardEstimator;   // HubbardUEstimator / HubbardEstimate (DFT+U increment 3)
+export import qchem.Hamiltonian.HubbardEstimator;   // HubbardUEstimator / HubbardEstimate / ACBN0Estimator (DFT+U increment 3, H5)
 export import qchem.Hamiltonian.HubbardUTarget;      // what a U estimator does TO the +U term (LinearResponsePlan §3d Q6)
 export import qchem.Hamiltonian.HubbardChannels;    // the +U projectors a linear response perturbs/measures (LinearResponsePlan R0)
 export import qchem.ChargeDensity.TransitionDensity; // δD: what the response kernel consumes (LinearResponsePlan C1)
@@ -392,11 +392,12 @@ public:
     //! \brief The ACBN0 estimator of this Hamiltonian's +U term (DFT+U increment 3): NULL when it carries no
     //! +U term.  Same reasoning as \c SiteMoments -- the term and the integrals live behind \c .Internal.
     //! modules, so the Hamiltonian hands out the capability rather than the term.  The estimator refers to
-    //! this Hamiltonian's term: keep the Hamiltonian alive while it is used.
-    virtual std::unique_ptr<HubbardUEstimator> MakeHubbardUEstimator() const {return nullptr;}
+    //! this Hamiltonian's term: keep the Hamiltonian alive while it is used.  It ESTIMATES only (H5): the U
+    //! is written through \c GetHubbardUTarget, whichever strategy estimated it.
+    virtual std::unique_ptr<ACBN0Estimator> MakeACBN0Estimator() const {return nullptr;}
     //! \brief The PROJECTORS of this Hamiltonian's +U term -- what a linear response perturbs and measures
     //! (doc/LinearResponsePlan.md §2, stage R0): NULL when it carries no +U term.  Same reasoning as
-    //! \c MakeHubbardUEstimator (the term lives behind \c .Internal.), but a cached accessor rather than a
+    //! \c MakeACBN0Estimator (the term lives behind \c .Internal.), but a cached accessor rather than a
     //! Make: the face is the term's own, so nothing is computed or owned.  Keep the Hamiltonian alive while
     //! the pointer is used.
     virtual const HubbardChannels* GetHubbardChannels() const {return nullptr;}
@@ -404,8 +405,8 @@ public:
     //! perturbation, freeze): NULL when it carries no +U term.  A cached accessor like \c GetHubbardChannels.
     //! ⚠ NON-const and PUBLIC, and why (CLAUDE.md: say why at the declaration): what it hands out MUTATES a
     //! term, and its client -- the facade's linear response, which must freeze +U for the whole solve (Timrov
-    //! eq 20), and the finite-difference LRT cross-check -- sits above the \c .Internal. term module.  The ACBN0
-    //! estimator keeps its internal \c HubbardProjection path.
+    //! eq 20), the finite-difference LRT cross-check, and the outer U loop's write of EITHER estimator's U (H5) --
+    //! sits above the \c .Internal. term module.
     virtual HubbardUTarget* GetHubbardUTarget() {return nullptr;}
     //! \brief The linearisation of this Hamiltonian about \a D0, over \a wholeBasis (the composite basis:
     //! the blocks δF is built on) -- doc/LinearResponsePlan.md H1.  Folded over the dynamic terms' \c tResponse_HT

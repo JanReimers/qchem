@@ -47,7 +47,7 @@ import qchem.Blaze;
 export namespace qchem::Hamiltonian
 {
 
-class ACBN0 : public virtual HubbardUEstimator
+class ACBN0 : public virtual ACBN0Estimator
 {
 public:
     //! \a term outlives the estimator (the Hamiltonian owns it; the facade owns the Hamiltonian).
@@ -56,9 +56,9 @@ public:
                             const mat_t<double>& C, const rvec_t& f) override;
     virtual void Accumulate(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>& block, const Spin& s, double w,
                             const mat_t<dcmplx>& C, const rvec_t& f) override;
-    virtual std::vector<HubbardEstimate> Evaluate() const override;
+    virtual std::vector<ACBN0Estimate>   Details () const override;
+    virtual std::vector<HubbardEstimate> Evaluate() const override;   //!< U_eff of every manifold
     virtual std::ostream& Write(std::ostream&) const override;
-    virtual void Apply(const std::vector<HubbardEstimate>& e) override;
 
 private:
     template <class U> void AccumulateT(const BasisSet::Orbital_DFT_IBS<U,dcmplx>& block, const Spin& s, double w,

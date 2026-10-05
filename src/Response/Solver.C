@@ -93,6 +93,22 @@ struct QMeshResponse
     std::ostream& Write(std::ostream&) const;
 };
 
+//! \brief THE LINEAR-RESPONSE U ESTIMATOR (doc/LinearResponsePlan.md R4, H5): hp.x's \f$U=(\chi_0^{-1}-\chi^{-1})_{II}\f$ of a solved
+//! q-mesh response, one estimate per PERTURBED channel, behind the same strategy face as ACBN0.  Its input is its own
+//! construction business (D4): the facade solves the response (+U frozen) and hands it over with the term's channels, which name
+//! the manifolds.  \a channels[J] must describe the probe's channel J (the probe is made from the same \c HubbardChannels).
+class LR_HubbardU : public virtual Hamiltonian::HubbardUEstimator
+{
+public:
+    LR_HubbardU(QMeshResponse r, std::vector<Hamiltonian::HubbardChannel> channels);
+    virtual std::vector<Hamiltonian::HubbardEstimate> Evaluate() const override;
+    virtual std::ostream& Write(std::ostream&) const override;
+    const QMeshResponse& Response() const {return itsR;}
+private:
+    QMeshResponse                           itsR;
+    std::vector<Hamiltonian::HubbardChannel> itsChannels;
+};
+
 //! \brief \c LinearResponse at every q of the \a Nq mesh (\c Reference::QMesh), each its own Krylov solve on the
 //! SAME reference, frame and kernel.  FAILS on an incommensurate q-mesh, or with the first q whose response fails
 //! (the q is named in the reason).
