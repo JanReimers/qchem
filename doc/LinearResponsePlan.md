@@ -32,7 +32,7 @@ prints the `[U table]` line.  What is open (none of it blocks a right number):
   `ACBN0Estimate` behind `ACBN0Estimator` (`MakeACBN0Estimator`); the orbital feed is `Response::FeedOccupiedOrbitals`.
 - **Inter-site V_IJ and orbital-resolved channels REPORTED** (the §5 R4 row): the real-space χ already holds V's ingredients
   (`QMeshResponse::Chi*RealSpace` off-diagonals); nothing prints V yet.
-- **SrVO₃**: set up and χ₀ measured (§5f: −1.317 vs hp.x −1.426 eV⁻¹, q ≠ 0 shape 0.4–3 %); NEXT the self-consistent response vs U 6.1772 eV (overnight-scale).
+- ✅ **SrVO₃ DONE** (§5f): U(V 3d) = 6.818 eV vs the FD-matched hp.x 6.177 (+10.4 %); the screening χ/χ₀ agrees to 1.2 %, so the excess is χ₀'s magnitude (the ground state), as on NiO.
 - The NiO ground-state gap (1.30 vs 2.86 eV at U_in = 3) — what would move U toward hp.x's 5.27; and a COLD-seeded U = 0 row.
 - Efficiency, if U_SC becomes routine: one q-mesh outer step is ~2.2 h (B1 pair kernel, q-stars, warm-started Krylov; §3d ledger).
 
@@ -1291,8 +1291,22 @@ R = 0 −1.426; Tr n(V 3d) = 3.504.
   DIFFERENCE (the intraband sum minus its charge-conserving part) and amplifies any mismatch; the first suspect if it persists.
 - The magnitude is 7.6 % low with the occupation 7.4 % high: for a metal χ₀ is set by the d weight AT the Fermi level, which the
   trimmed V d 0.10 and the basis/PW difference move; NiO (an insulator) had the opposite sign of the same kind of residual.
-- NEXT: the self-consistent response (`hubbardLinearResponse` nq 2, perturb [0]) against U 6.1772 eV -- k 4×4×4 makes it ~4× NiO's
-  per-application cost (64 block pairs), so an overnight-scale run.
+**The self-consistent response** (2026-10-05, `--set postSCF.0={"hubbardLinearResponse":{"nq":2,"perturb":[0]}}` resumed from r004;
+log `srvo3_k444_lr_q222.log`, record `SrVO3.r005`; 2.6 h on 12 threads, 88 kernel applications -- 8–11 per q, a metal is no harder for
+the Krylov solve than NiO -- peak RSS 7.06 GB; time-reversal leak 3e-13):
+| | ours | hp.x (FD) |
+|---|---|---|
+| χ(R=0) | −0.1304 eV⁻¹ | −0.1428 (ours ×0.913) |
+| **χ/χ₀ (the screening)** | **0.0990** | **0.1002** -- agrees to 1.2 % |
+| χ(q)/χ(R=0): Γ / (0,0,½) / (0,½,½) / (½,½,½) | 1.031 / 1.018 / 0.988 / 0.953 | 0.982 / 1.006 / 1.004 / 0.987 |
+| **U(V 3d)** | **6.818 eV** | **6.177** (+10.4 %) |
+- U ≈ χ⁻¹(1 − χ/χ₀): with the SCREENING RATIO matched, U scales as 1/χ₀ -- so the +10 % in U is χ₀'s −7.6 % (the ground state's d weight
+  at the Fermi level: projector + basis), not the response.  The same diagnosis as NiO (§3e step 5: χ₀ off by the gap, the shape
+  right), now on a metal: the kernel, the Fermi shift and the q ≠ 0 machinery reproduce hp.x's screening.
+- Our χ(q) disperses more than hp.x's (Γ +5 %, (½,½,½) −3.5 %); Γ again carries the Fermi shift.
+- V(V–V) at 7.26 bohr: −0.264 eV (the six cubic neighbours alias pairwise onto three ±a entries on a 2×2×2 mesh, symmetric to 5e-4 eV);
+  −0.137 at 10.27, −0.148 at 12.58 bohr.
+- Cost: pair gather 3140 s + pair scatter 2838 s of the 9386 s -- the B1 pair kernel is the wall again (§3e step 5).
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`QCHEM_OPENMP_THREADS` is
