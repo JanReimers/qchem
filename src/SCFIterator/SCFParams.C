@@ -39,7 +39,7 @@ export struct SCFParams
     double MinFD           = 1e-5;   //Minimum error from SCF accelerator.  i.e. [F,D] (orbital gradient).
     double StartingRelaxRo = 1.0;    //relaxation for mixing Ro.  Dynamically adjusted during iterations.
     double MergeTol        = 1e-4;   //Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol
-    bool   Verbose         = false;  //Display iteration details.
+    bool   Verbose         = true;   //Display iteration details.  ON by default (user, 2026-10-05): a run's console without its iteration table hides where the time goes.
     //! \brief Feed \f$V_{xc}\f$ the CUSP-DEFICIT correction \f$\rho[D]_{exact}-\rho[D]_{BL}\f$ on top of the
     //! mixed density, instead of the band-limited \f$\tilde\rho_{mix}\f$ alone (doc/OpenWork.md N4).
     //!

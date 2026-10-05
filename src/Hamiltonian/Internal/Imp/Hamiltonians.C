@@ -190,10 +190,15 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // waves on their raster -- and AddVxcTerms decides everything downstream of that: which assembly
     // strategy the basis can support, and that the exchange/correlation pair shares one.  None of that is
     // this builder's business: it states the MODEL (which functionals, polarized or not) and nothing else.
+    // TWO CONCEPTS, TWO LINES (user, 2026-10-05): the INTEGRATION GRID and the Vxc FIT BASIS are different things even where they
+    // coincide numerically (a delta fit on the quadrature's own points), so the quadrature line never says "fit".
     std::cout<<"[XC quadrature] "
-             <<(delta ? (becke ? "DELTA fit on the periodic BECKE atom-centred mesh (details on the [Becke grid] line)"
-                               : "DELTA fit on the uniform cell mesh")
-                      : "PLANE-WAVE fit on the uniform G-space raster (details on the [uniform grid] line)")
+             <<(delta ? (becke ? "periodic BECKE atom-centred mesh (details on the [Becke grid] line)" : "uniform cell mesh")
+                      : "uniform real-space raster of the density's {G} ball (details on the [uniform grid] line)")
+             <<std::endl;
+    std::cout<<"[Vxc fit] "
+             <<(delta ? "delta functions on the XC quadrature's points (the trivial fit: v_xc sampled at each point)"
+                      : "plane waves on the {G} ball")
              <<std::endl;
     // The ROUTE owns grids.xcQuadrature -- one key, one answer per run (a fit basis announces its own grid
     // separately, under grids.vxcFitGrid).
