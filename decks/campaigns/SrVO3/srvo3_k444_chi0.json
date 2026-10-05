@@ -23,7 +23,8 @@
         "atomicRadial": true,
         "orthoAtomic": true
       }
-    ]
+    ],
+    "globalFermi": true
   },
   "scf": {
     "NMaxIter": 200,
@@ -43,7 +44,9 @@
     "SrVO3 ground state + chi0 against the A6 hp.x oracle (IntegrationTests/QE/srvo3.*: U(V 3d) 6.2502 eV, chi0(V,V) -1.7822, chi -0.1436 1/eV at",
     "U_in ~ 0, q 2x2x2, k 4x4x4).  A METAL: Fermi smearing kT 0.01 Ha.  \u26a0 the oracle used GAUSSIAN smearing degauss 0.02 Ry; ours is Fermi-Dirac only, so",
     "the matched oracle is hp.x re-run with smearing='fd' (degauss 0.02 Ry = kT 0.01 Ha).  Seed = neutral SAD (IonicSAD would want a Sr2+ q2 entry",
-    "with ZERO valence electrons, which valgen cannot mint).  Recipe otherwise NiO's: VA spherical + vet 1e-3, Kerker/Pulay 8/5, MaxDeltaD 1e-6."
+    "with ZERO valence electrons, which valgen cannot mint).  Recipe otherwise NiO's: VA spherical + vet 1e-3, Kerker/Pulay 8/5, MaxDeltaD 1e-6.",
+    "2026-10-05: globalFermi TRUE -- the first run (r002, default per-k Fermi levels) gave chi0(q != 0) POSITIVE, sign-flipped against hp.x: a metal needs ONE Fermi level across the k-mesh.  The deck pre-flight and Reference::Gap now refuse that combination.",
+    "Matched oracle (hp.x re-run with smearing='fd', degauss 0.02 Ry, ~/Code/qe-runs/SrVO3/srvo3fd.*): U(V 3d) = 6.1772 eV; chi0 per q-star \u0393 -0.474, (0,0,\u00bd) -1.583, (0,\u00bd,\u00bd) -1.565, (\u00bd,\u00bd,\u00bd) -1.492 1/eV."
   ],
   "postSCF": [
     {

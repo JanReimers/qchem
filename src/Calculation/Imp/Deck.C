@@ -498,6 +498,15 @@ Materials::Material Resolve(RunSpec& spec)
             // NOT an error: whether an imposed group REDUCES the k-mesh depends on the group and the mesh (the NiO AFM-II 2x2x2 Shubnikov group maps 8 k-points onto 8
             // irreducible ones, and its chi0 ran).  A blanket refusal would reject decks the library accepts; the response itself THROWS at run time if the mesh was
             // really reduced (D5).  Vet() says so in a note.
+            // A smeared (metal) response at q != 0 needs ONE Fermi level across the k-mesh (Reference::Gap refuses it at run time --
+            // after the SCF; SrVO3 2026-10-05 ran two hours to find that out).  The FINAL stage's kT is the response's occupancy rule.
+            if (isResponse && spec.Stages().back().scf.SmearingkT>0.0 && !spec.solid.globalFermi)
+            {
+                const ivec3_t q = a.nq;
+                if (q.x*q.y*q.z>1)
+                    throw std::runtime_error(who+"a SMEARED final stage (kT "+std::to_string(spec.Stages().back().scf.SmearingkT)+" Ha) with per-k "
+                                             "Fermi levels: a metal's response at q != 0 needs ONE Fermi level -- set solid.globalFermi true");
+            }
             if ((a.kind==PostAction::Kind::HubbardLinearResponse || lrLoop) && !spec.solid.forceComplex)
                 throw std::runtime_error(who+"needs the complex ansatz (the real-TRIM response face is not built); set solid.forceComplex true");
             if (isResponse)             // the q points loop INSIDE the response, on the k-mesh's own differences

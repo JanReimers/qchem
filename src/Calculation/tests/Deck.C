@@ -346,6 +346,10 @@ TEST(Deck, HubbardLoopEstimatorRoundTripsAndOwnsItsKeys)
     EXPECT_EQ(msg(deckWith(cplx,lr,{1,1,1})),"NO THROW");
     EXPECT_NE(msg(deckWith(cplx,{{"estimator","linearResponse"},{"nq",2}},{3,3,3})).find("incommensurate"),std::string::npos);
     EXPECT_EQ(msg(deckWith(hub,json::object(),{1,1,1})),"NO THROW") << "an ACBN0 loop needs no complex ansatz";
+    json smeared={{"structure","NiO_AFM2"},{"kmesh",{2,2,2}},{"solid",cplx},{"scf",{{"smearingkT",0.01}}},{"postSCF",{{{"independentResponse",{{"nq",2}}}}}}};
+    EXPECT_NE(msg(smeared).find("globalFermi"),std::string::npos) << "a smeared q-mesh response needs one Fermi level";
+    smeared["solid"]["globalFermi"]=true;
+    EXPECT_EQ(msg(smeared),"NO THROW");
 }
 
 TEST(Deck, PostSCFPreflightRejectsADeckThatCannotWorkBeforeAnySCF)

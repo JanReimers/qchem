@@ -51,6 +51,7 @@ struct Ring
     double ea=-0.3, eb=0.4, t=0.5, tp=0.25;
     double kT=0.0;          //!< 0 = integer (insulator: one electron per cell, per-block fill)
     double nel=1.0;         //!< electrons per cell (a metal takes a fraction under Fermi smearing)
+    bool   perKReservoir=false;   //!< label each k-block its own reservoir (the occupations stay one-μ: only the LABEL differs)
 
     //! Occupations of the brute-force ring's levels (sorted ascending), total N*nel electrons.
     std::vector<double> Fill(const rvec_t& e) const
@@ -101,7 +102,7 @@ struct Ring
             blazem::eigen(H,e,C);
             ReferenceBlock b;
             b.irrep=Irrep(Spin::Up, Symmetry::BlochFactory(ivec3_t(N,1,1),ivec3_t(ik,0,0),1.0/N));
-            b.w=1.0/N; b.g=1.0; b.e=e; b.f=rvec_t(2,0.0); b.reservoir=0;
+            b.w=1.0/N; b.g=1.0; b.e=e; b.f=rvec_t(2,0.0); b.reservoir=perKReservoir ? ik : 0;
             blocks.push_back(b);
             es.push_back(e);
             for (size_t i=0;i<e.size();i++) allE.push_back(e[i]);
@@ -152,6 +153,22 @@ TEST(ResponseRing, MetalChi0WithFermiShiftMatchesBruteForceRing)
     Ring m;
     m.ea=0.0; m.eb=0.1; m.t=0.4; m.tp=0.3; m.kT=0.05; m.nel=0.7; m.N=8;
     m.CheckAgainstBruteForce(1e-7);
+}
+
+//! A smeared metal whose k-blocks were filled to DIFFERENT chemical potentials (one reservoir per k): q != 0 refuses as a
+//! Configuration failure (the weight's sign is not defined across two Fermi levels -- SrVO3, 2026-10-05); q = 0 still runs.
+TEST(ResponseRing, SmearedResponseAcrossReservoirsIsAConfigurationFailure)
+{
+    Ring m;
+    m.ea=0.0; m.eb=0.1; m.t=0.4; m.tp=0.3; m.kT=0.05; m.nel=0.7; m.N=4; m.perKReservoir=true;
+    auto B=m.Build();
+    const Reference& perK=*B.ref;
+    AmplitudeProbe probe(perK, B.amp, {"a","b"});
+    auto q2=IndependentResponse(perK, probe, ivec3_t(2,1,1));
+    ASSERT_FALSE(q2.IsOk()) << "a smeared q != 0 pair across reservoirs must refuse";
+    EXPECT_EQ(q2.Error().why, ResponseFailure::Why::Configuration);
+    EXPECT_NE(q2.Error().detail.find("globalFermi"), std::string::npos) << "the message names the fix";
+    EXPECT_TRUE(IndependentResponse(perK, probe, ivec3_t(1,1,1)).IsOk()) << "q = 0 pairs a block with itself";
 }
 
 TEST(ResponseRing, ChannelResponseIsHermitianAndRealSpaceIsSymmetric)
