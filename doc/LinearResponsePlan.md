@@ -24,19 +24,16 @@ validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top 
 - **CK-1** — `SolidCalculation::SaveState` / `SolidCalcOptions::saveStateTo` / `SolidCalculation::Restart`
   (`OpenWork.md` §2 row "SCF checkpoint/restart"; record `doc/Records/OpenWork_History4.md` §"CK-1").
 
-**▶ 2026-10-04 (night): R4 IS BUILT AND RUN — self-consistent LR U(NiO, 4-atom cell) = 6.091 / 6.108 eV from BOTH U_in = 0 and
-U_in = 3 eV.**  Record: §5e.  `hubbardLoop` with `"estimator":"linearResponse"` (+ `nq`, `perturb` = the Hubbard sites) drives
-Timrov 2021's outer loop and prints the `[U table]` line.  R3's NiO record is the end of §3e.  What is open:
-- **The q-mesh U_SC** — the loop at `nq 2` (≈ 5 outer steps × 2.2 h: an overnight run under memsafe).  The cell U_SC (6.09) is
-  NOT hp.x's quantity; the supercell one is (at U_in = 3 the supercell U was 6.09 against the cell's 6.45, so expect U_SC ≈ 5.7).
-  ▶ **LAUNCHED 2026-10-04 night** (from U_in = 3 eV, tolU 1e-3, maxOuter 10, memsafe 5G, 10 threads): log
-  `~/Code/qchem6-runs/NiO/nio_r4_lrloop_q222_from_U3.log` (ends `EXIT n`); `grep "U table\|LR loop"` it for the result.
+**▶ 2026-10-05: R4 IS DONE — self-consistent LR U(NiO, 2×2×2 q-mesh) = 5.727 / 5.744 eV** (cell: 6.091 / 6.108).  Record: §5e.
+`hubbardLoop` with `"estimator":"linearResponse"` (+ `nq`, `perturb` = the Hubbard sites) drives Timrov 2021's outer loop and
+prints the `[U table]` line.  What is open (none of it blocks a right number):
 - **The H5 clean-up** (§3d deferred ledger): ACBN0's `Apply` onto `HubbardUTarget`, the ACBN0-only `HubbardEstimate` fields into
-  its own `Write`, the orbital feed into qcResponse (D4).  Not needed for a right number.
-- **Inter-site V_IJ and orbital-resolved channels REPORTED** (the §5 R4 row) — the real-space χ already holds V's ingredients
+  its own `Write`, the orbital feed into qcResponse (D4).
+- **Inter-site V_IJ and orbital-resolved channels REPORTED** (the §5 R4 row): the real-space χ already holds V's ingredients
   (`QMeshResponse::Chi*RealSpace` off-diagonals); nothing prints V yet.
 - **SrVO₃** as its own setup item (no material entry; a metal: Fermi weights at q ≠ 0, δμ only at q = 0).
-- The NiO ground-state gap (1.30 vs 2.86 eV at U_in = 3) — what would move U toward hp.x's 5.27.
+- The NiO ground-state gap (1.30 vs 2.86 eV at U_in = 3) — what would move U toward hp.x's 5.27; and a COLD-seeded U = 0 row.
+- Efficiency, if U_SC becomes routine: one q-mesh outer step is ~2.2 h (B1 pair kernel, q-stars, warm-started Krylov; §3d ledger).
 
 **Superseded (kept for the record): the R3 sizing + design note, §3d.**  Items 1–3 below are answered there.
 
@@ -1228,7 +1225,20 @@ vs linear flips with k-mesh and with +U): filed on the `OpenWork.md` "Kerker/Pul
   state and held AFM-II (moment 1.30, a 0.88 eV gap).  Trap 3's "LDA NiO loses AFM-II at U = 0" was from fresh seeds.  So U_0 here
   is the response of the AFM-II U = 0 LOCAL solution.  A cold-seeded U = 0 start is the other row of the table, not yet run.
 - This is the CELL's U (q = 0 of 4 atoms), not hp.x's quantity: compare the supercell U at U_in = 3 (6.09, R3 step 5) with this
-  cell's 6.45.  The q-mesh loop is START HERE's first open item.
+  cell's 6.45.
+
+**NiO, 2×2×2 q-mesh (nq = 2), from U_in = 3 eV, 2026-10-04/05 overnight** (log `nio_r4_lrloop_q222_from_U3.log`, record
+`NiO_AFM2.r006`; ~2.2 h per outer step, peak RSS 1.35 GB; the χ time-reversal leak 1.1–1.6e-6 every step, inside its bound):
+| | U_0 at U_in = 3 (Ni1 / Ni2) | U_SC (Ni1 / Ni2) | outer | gap 3 eV → SC | moment 3 eV → SC |
+|---|---|---|---|---|---|
+| supercell (q 2×2×2) | 6.094 / 6.124 eV (== R3 step 5 exactly) | **5.7272 / 5.7437** | 5 | 1.31 → 1.45 eV | 1.45 → 1.54 |
+| cell (q = 0), above | 6.450 / 6.479 | 6.0911 / 6.1076 | 5 | 1.31 → 1.46 | 1.45 → 1.55 |
+- **The finite-size shift is a near-CONSTANT −0.36 eV**: supercell − cell = −0.356 at U_in = 3 and −0.364 at U_SC.  So on NiO the
+  cheap cell loop plus ONE q-mesh response at any U_in predicts the q-mesh U_SC to ~0.01 eV (5.72 predicted vs 5.727 run) --
+  a measurement on one material, not yet a rule; worth checking on the next one before anybody leans on it.
+- Against hp.x: its 5.267 eV is a single shot at U_in = 3 (our same quantity: 6.09, +16 %); hp.x has no outer loop, so there is
+  no matched-PP U_SC oracle.  Our U_SC (5.73) sits 0.37 eV below our own single shot at U_in = 3: since dU_out/dU_in < 0 here, the
+  fixed point lies between U_in and U_out(U_in).
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`QCHEM_OPENMP_THREADS` is

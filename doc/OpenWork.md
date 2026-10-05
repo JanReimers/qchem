@@ -20,7 +20,7 @@ suite as a product of axes (2026-09-15); (4) the plan polish (2026-09-16).  Reco
 **Status 2026-10-01.**  Orbital-resolved +U (pin 23) is BUILT and CP2K-gated (increments 1–3); our ACBN0
 estimator is refuted as a source of U values (pin 25).  The route is **our own linear response (A7,
 `doc/LinearResponsePlan.md`)**; the oracle table (matched-PP hp.x: NiO 5.267, FeS2 7.535, SrVO3 6.25, ...) is
-banked.  A7 R3 + R4 DONE 2026-10-04 (NiO q-mesh U 6.09 eV vs hp.x 5.267: shape to 1–2 %, magnitude = our ground-state gap; self-consistent LR U of the cell 6.09 eV from U_in 0 AND 3); open: the q-mesh U_SC (overnight), SrVO₃, C1 32-atom MnO supercell sizing, Gate 2 spinel
+banked.  A7 R3 + R4 DONE 2026-10-04 (NiO q-mesh U 6.09 eV vs hp.x 5.267: shape to 1–2 %, magnitude = our ground-state gap; self-consistent LR U: 2×2×2 q-mesh 5.73 eV, cell 6.09 eV from U_in 0 AND 3); open: H5 split + V_IJ reporting, SrVO₃, C1 32-atom MnO supercell sizing, Gate 2 spinel
 sizing, C2 shifted-MP fold defect, Li q3 + basis-vs-PP check.
 
 **Read `doc/HubbardUPlan.md` ▶ START HERE** for the exact next actions, gates and gotchas; the full history is
