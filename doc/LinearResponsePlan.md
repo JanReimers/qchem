@@ -29,6 +29,8 @@ U_in = 3 eV.**  Record: §5e.  `hubbardLoop` with `"estimator":"linearResponse"`
 Timrov 2021's outer loop and prints the `[U table]` line.  R3's NiO record is the end of §3e.  What is open:
 - **The q-mesh U_SC** — the loop at `nq 2` (≈ 5 outer steps × 2.2 h: an overnight run under memsafe).  The cell U_SC (6.09) is
   NOT hp.x's quantity; the supercell one is (at U_in = 3 the supercell U was 6.09 against the cell's 6.45, so expect U_SC ≈ 5.7).
+  ▶ **LAUNCHED 2026-10-04 night** (from U_in = 3 eV, tolU 1e-3, maxOuter 10, memsafe 5G, 10 threads): log
+  `~/Code/qchem6-runs/NiO/nio_r4_lrloop_q222_from_U3.log` (ends `EXIT n`); `grep "U table\|LR loop"` it for the result.
 - **The H5 clean-up** (§3d deferred ledger): ACBN0's `Apply` onto `HubbardUTarget`, the ACBN0-only `HubbardEstimate` fields into
   its own `Write`, the orbital feed into qcResponse (D4).  Not needed for a right number.
 - **Inter-site V_IJ and orbital-resolved channels REPORTED** (the §5 R4 row) — the real-space χ already holds V's ingredients
