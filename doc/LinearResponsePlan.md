@@ -32,7 +32,7 @@ prints the `[U table]` line.  What is open (none of it blocks a right number):
   `ACBN0Estimate` behind `ACBN0Estimator` (`MakeACBN0Estimator`); the orbital feed is `Response::FeedOccupiedOrbitals`.
 - **Inter-site V_IJ and orbital-resolved channels REPORTED** (the §5 R4 row): the real-space χ already holds V's ingredients
   (`QMeshResponse::Chi*RealSpace` off-diagonals); nothing prints V yet.
-- **SrVO₃** as its own setup item (no material entry; a metal: Fermi weights at q ≠ 0, δμ only at q = 0).
+- **SrVO₃**: set up and χ₀ measured (§5f: −1.317 vs hp.x −1.426 eV⁻¹, q ≠ 0 shape 0.4–3 %); NEXT the self-consistent response vs U 6.1772 eV (overnight-scale).
 - The NiO ground-state gap (1.30 vs 2.86 eV at U_in = 3) — what would move U toward hp.x's 5.27; and a COLD-seeded U = 0 row.
 - Efficiency, if U_SC becomes routine: one q-mesh outer step is ~2.2 h (B1 pair kernel, q-stars, warm-started Krylov; §3d ledger).
 
@@ -1265,6 +1265,34 @@ vs linear flips with k-mesh and with +U): filed on the `OpenWork.md` "Kerker/Pul
 - Against hp.x: its 5.267 eV is a single shot at U_in = 3 (our same quantity: 6.09, +16 %); hp.x has no outer loop, so there is
   no matched-PP U_SC oracle.  Our U_SC (5.73) sits 0.37 eV below our own single shot at U_in = 3: since dU_out/dU_in < 0 here, the
   fixed point lies between U_in and U_out(U_in).
+
+### 5f. SrVO₃ setup record (2026-10-05) — the metal oracle, χ₀ first
+**Assets** (`e0cc2736`): V q5 / Sr q2 valence blocks (valgen, 0.08 / 0.77 mHa above the pool floor; VA + SPH), seeds (V, V⁴⁺, Sr),
+the `SrVO3` material (ABINIT's cRPA-tutorial cubic cell, a = 7.2605 bohr), `decks/campaigns/SrVO3/srvo3_k444_chi0.json`.  The vet
+stage trims Sr s 0.03, V s 0.04, Sr p 0.05, V d 0.10 (115 → 105 functions; min eig S 9e-9 → 8e-4).  ⚠ `valgen --electrons 0` is the
+"neutral" sentinel, so no Sr²⁺ seed: the deck seeds neutral SAD (`OpenWork.md` §3 row).
+**The matched oracle**: hp.x's Gaussian smearing has no counterpart here (Fermi–Dirac only), so hp.x was RE-RUN with `smearing='fd'`,
+`degauss 0.02 Ry` = our kT 0.01 Ha (`~/Code/qe-runs/SrVO3/srvo3fd.*`, UPFs from a rebuilt gth2upf): **U(V 3d) = 6.1772 eV** (Gaussian:
+6.2502 — the smearing FUNCTION alone moves U 1.2 %); χ₀ per q-star Γ −0.474, (0,0,½) −1.583, (0,½,½) −1.565, (½,½,½) −1.492 eV⁻¹,
+R = 0 −1.426; Tr n(V 3d) = 3.504.
+**Two deck errors, each caught by a physics check:**
+1. *Per-k Fermi levels* (`globalFermi` off, the default): χ₀(q ≠ 0) came out POSITIVE, stars asymmetric by 2.5 %.  A metal needs ONE
+   μ across the k-mesh; now refused by `Reference::Gap` and the deck pre-flight (`80fb2c6b`).  With it on: 13 iterations, 15 mHa lower,
+   stars symmetric to 1e-5.
+2. *The ortho-atomic SET*: with V 3d alone, n(V 3d) = 2.53 PER SPIN (5.07 total, +45 % on QE) and χ₀(R=0) −1.188.  QE orthogonalises
+   against every atom's pseudo-atomic orbitals, so the deck lists V 4s, Sr 5s, O 2s/2p as U = 0 spectators (NiO's orthofull pattern).
+**Result** (r004, resumed from the converged r003 state; U = 0 everywhere, so the ground state is unchanged and only the projector moves):
+| | ours | hp.x (FD) |
+|---|---|---|
+| n(V 3d), total | 3.76 (1.882 per spin, λ_max 0.41) | 3.504 (1.752 per spin, λ_max 0.37) |
+| χ₀(R=0) | −1.317 eV⁻¹ | −1.426 (ours ×0.924) |
+| χ₀(q)/χ₀(R=0): Γ / (0,0,½) / (0,½,½) / (½,½,½) | 0.383 / 1.086 / 1.093 / 1.079 | 0.332 / 1.110 / 1.097 / 1.046 |
+- q ≠ 0 shape to 0.4–3 %; Γ is 15 % off -- Γ is the one point that carries the q = 0 Fermi shift δμ, so a metal's χ₀(Γ) is a
+  DIFFERENCE (the intraband sum minus its charge-conserving part) and amplifies any mismatch; the first suspect if it persists.
+- The magnitude is 7.6 % low with the occupation 7.4 % high: for a metal χ₀ is set by the d weight AT the Fermi level, which the
+  trimmed V d 0.10 and the basis/PW difference move; NiO (an insulator) had the opposite sign of the same kind of residual.
+- NEXT: the self-consistent response (`hubbardLinearResponse` nq 2, perturb [0]) against U 6.1772 eV -- k 4×4×4 makes it ~4× NiO's
+  per-application cost (64 block pairs), so an overnight-scale run.
 
 ### 5a. Timeline, with the infrastructure it leans on (2026-09-27, user: fold in KP and checkpointing)
 1. **R0** ✅ — code landed (`d7c95c92`); VALIDATED on NiO 2026-09-28 (§5b).  Lesson already banked: **`QCHEM_OPENMP_THREADS` is
