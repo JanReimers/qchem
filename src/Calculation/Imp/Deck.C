@@ -801,6 +801,10 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
                 rj["chiR"] =mat(R->ChiRealSpace (),[](double x){return x;});
                 const rvec_t U=R->U(); std::vector<double> UeV; for (size_t c=0;c<U.size();++c) UeV.push_back(ToEV(U[c]));
                 rj["U_eV"]=UeV;
+                json V=json::array();
+                for (const auto& v : calc->InterSiteHubbardV(*R))
+                    V.push_back({{"from",v.from},{"to",v.to},{"R",{v.R.x,v.R.y,v.R.z}},{"d_bohr",v.distance},{"V_eV",ToEV(v.V)}});
+                rj["V"]=V;
                 std::ostringstream os; os<<"self-consistent chi over "<<s0.labels.size()<<" channels at "<<R->atQ.size()<<" q; U(eV)";
                 for (double u : UeV) os<<" "<<u;
                 pr.summary=os.str();

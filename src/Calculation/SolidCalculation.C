@@ -610,6 +610,21 @@ public:
     //! FAILS as the q = 0 call does, and on a q-mesh that does not divide the k-mesh.
     Outcome<Response::QMeshResponse,Response::ResponseFailure> HubbardLinearResponse(
         ivec3_t Nq, const KrylovParams& krylov={.tol=1e-8}, std::vector<size_t> perturbed={}) const;
+    //! \brief The INTER-SITE \f$V_{IJ}\f$ of a q-mesh response (doc/LinearResponsePlan.md §5 R4 row): every home-cell row of
+    //! \c QMeshResponse::Interaction off its diagonal, with the PAIR's geometry -- what a reader of a V needs is "between which two
+    //! atoms, how far apart".  Sorted by distance.
+    //! ⚠ A FINITE q-MESH ALIASES V: each entry is the SUM over every image of \c to that differs by a q-mesh SUPERCELL translation;
+    //! \c R and \c distance name its NEAREST member.  So an entry is one bond only when the supercell is large enough to separate the
+    //! neighbours -- measured on Si 2x1x1 (2026-10-05): three of site 0's four equivalent nearest bonds fold onto ONE entry (1.28 eV)
+    //! and the fourth is alone (-0.016 eV), both at d = 4.44 bohr.  Read V on a mesh whose supercell separates the shell you care about.
+    struct InterSiteV
+    {
+        size_t  from=0, to=0;   //!< manifold indices (from = a home-cell site)
+        ivec3_t R;              //!< the image of \c to, in primitive lattice vectors
+        double  distance=0;     //!< bohr
+        double  V=0;            //!< Hartree
+    };
+    std::vector<InterSiteV> InterSiteHubbardV(const Response::QMeshResponse&) const;
 
     //! \brief The FINITE-DIFFERENCE cross-check of \c HubbardLinearResponse -- LR-cDFT's own definition
     //! (Cococcioni & de Gironcoli 2005; Timrov §III): perturb manifold \a J with the static \f$\pm\alpha\hat P_J\f$

@@ -1284,6 +1284,26 @@ TEST(GPW_Si, k211_Uni_Cplx_ChiRealSpaceEqSupercell_Long)   // ~3.5 min CPU
         std::cout << "[supercell gate] U site" << a << "  q-mesh " << std::setprecision(7) << Uq[a%2].get<double>() << " eV  supercell " << Us[a].get<double>() << " eV" << std::endl;
         EXPECT_NEAR(Uq[a%2].get<double>(), Us[a].get<double>(), 1e-3) << "U (eV) of supercell atom " << a;
     }
+    // The inter-site V (R4): from site 0, the q-mesh's (site, image) pairs and the supercell's own off-diagonal interactions are the SAME pairs
+    // at the same minimum-image distances (both live in the one 2x1x1 supercell), so the distance-sorted lists must agree entry by entry.
+    auto fromSite0=[](const nlohmann::json& rec)
+    {
+        std::vector<std::pair<double,double>> v;                 // (d_bohr, V_eV)
+        for (const auto& e : rec.at("V")) if (e.at("from").get<size_t>()==0) v.push_back({e.at("d_bohr").get<double>(), e.at("V_eV").get<double>()});
+        std::sort(v.begin(), v.end());
+        return v;
+    };
+    const auto Vq=fromSite0(prim), Vs=fromSite0(sup);
+    ASSERT_EQ(Vq.size(), 3u) << "site 0 sees the other 3 sites of the supercell";
+    ASSERT_EQ(Vs.size(), 3u);
+    for (size_t i=0;i<3;i++)
+    {
+        std::cout << "[supercell gate] V from site0 at d=" << std::setprecision(6) << Vq[i].first << " bohr  q-mesh " << std::setprecision(7)
+                  << Vq[i].second << " eV  supercell (d=" << Vs[i].first << ") " << Vs[i].second << " eV" << std::endl;
+        EXPECT_NEAR(Vq[i].first, Vs[i].first, 1e-6) << "the same pair geometry";
+        // MEASURED 2026-10-05: 2.3e-4 / 3.8e-5 / 6.4e-5 eV (the supercell arm's own translation spread in U is 5e-4) -- gated as U is.
+        EXPECT_NEAR(Vq[i].second, Vs[i].second, 1e-3) << "V (eV) at d=" << Vq[i].first;
+    }
 }
 
 

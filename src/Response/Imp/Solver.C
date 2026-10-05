@@ -228,12 +228,17 @@ rmat_t QMeshResponse::ChiRealSpace(double* imagRatio) const
     return ToRealSpace(Nq, q, X, ChiRealnessTol(*this), imagRatio);
 }
 
+rmat_t QMeshResponse::Interaction() const
+{
+    return rmat_t(blazem::inv(Chi0RealSpace())-blazem::inv(ChiRealSpace()));
+}
+
 rvec_t QMeshResponse::U() const
 {
-    const rmat_t X0i=blazem::inv(Chi0RealSpace()), Xi=blazem::inv(ChiRealSpace());
+    const rmat_t W=Interaction();
     const size_t nJ=atQ.empty() ? 0 : atQ[0].perturbed.size();
     rvec_t u(nJ);
-    for (size_t c=0;c<nJ;c++) u[c]=X0i(c,c)-Xi(c,c);      // the home cell, R = 0: indices 0 .. nJ-1
+    for (size_t c=0;c<nJ;c++) u[c]=W(c,c);      // the home cell, R = 0: indices 0 .. nJ-1
     return u;
 }
 

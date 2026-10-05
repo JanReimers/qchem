@@ -1306,8 +1306,52 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     // U is printed, never consumed here (R4 owns consumption).
     auto r=qchem::Response::LinearResponse(ref, frame, *kernel, probe, Nq, krylov, perturbed);
     if (!r) std::cout << "[response] FAILED: " << r.Error().detail << std::endl;
-    else    r->Write(std::cout);
+    else
+    {
+        r->Write(std::cout);
+        const auto ch=hub->Channels();
+        for (const auto& v : InterSiteHubbardV(*r))
+            std::cout << "[V] site" << ch[v.from].site << " l=" << ch[v.from].l << " -> site" << ch[v.to].site << " l=" << ch[v.to].l
+                      << " R=(" << v.R.x << "," << v.R.y << "," << v.R.z << ")  d=" << std::fixed << std::setprecision(4) << v.distance
+                      << " bohr  V=" << v.V*27.211386245988 << " eV" << std::defaultfloat << std::endl;
+    }
     return r;
+}
+
+std::vector<SolidCalculation::InterSiteV> SolidCalculation::InterSiteHubbardV(const qchem::Response::QMeshResponse& r) const
+{
+    std::vector<InterSiteV> out;
+    if (r.atQ.empty()) return out;
+    const auto& J=r.atQ[0].perturbed;
+    const size_t nJ=J.size();
+    const ivec3_t Nq=r.Nq;
+    const rmat_t W=r.Interaction();
+    const auto ch=itsImp->ham->GetHubbardChannels()->Channels();
+    std::vector<rvec3_t> tau;                                     // the cell's site positions (Cartesian, a.u.)
+    itsImp->st->ForEachSite([&](int, const rvec3_t& x, bool){ tau.push_back(x); });
+    const auto& A=itsImp->cellMatrix;                             // columns = a_1..a_3 (Matrix3D is 1-based)
+    auto cart=[&](double f1, double f2, double f3)
+    { return rvec3_t(A(1,1)*f1+A(1,2)*f2+A(1,3)*f3, A(2,1)*f1+A(2,2)*f2+A(2,3)*f3, A(3,1)*f1+A(3,2)*f2+A(3,3)*f3); };
+    std::vector<ivec3_t> Rs;                                      // ToRealSpace's image order
+    for (int x=0;x<Nq.x;x++) for (int y=0;y<Nq.y;y++) for (int z=0;z<Nq.z;z++) Rs.push_back(ivec3_t(x,y,z));
+    for (size_t a=0;a<nJ;a++)                                     // a home-cell site
+        for (size_t rr=0;rr<Rs.size();rr++)
+            for (size_t b=0;b<nJ;b++)
+            {
+                if (rr==0 && b==a) continue;                      // the diagonal is U
+                // The minimum image of (b, R) seen from (a, 0) in the supercell spanned by Nq.a_i.
+                double best=std::numeric_limits<double>::infinity(); ivec3_t bestR;
+                for (int n1=-1;n1<=1;n1++) for (int n2=-1;n2<=1;n2++) for (int n3=-1;n3<=1;n3++)
+                {
+                    const ivec3_t R(Rs[rr].x+n1*Nq.x, Rs[rr].y+n2*Nq.y, Rs[rr].z+n3*Nq.z);
+                    const rvec3_t d=tau[ch[J[b]].site]+cart(R.x,R.y,R.z)-tau[ch[J[a]].site];
+                    const double dist=std::sqrt(d.x*d.x+d.y*d.y+d.z*d.z);
+                    if (dist<best-1e-9) {best=dist; bestR=R;}
+                }
+                out.push_back({.from=J[a], .to=J[b], .R=bestR, .distance=best, .V=W(a, rr*nJ+b)});
+            }
+    std::stable_sort(out.begin(), out.end(), [](const InterSiteV& x, const InterSiteV& y){return x.distance<y.distance;});
+    return out;
 }
 
 Outcome<qchem::Response::SelfConsistentResponse,qchem::Response::ResponseFailure>

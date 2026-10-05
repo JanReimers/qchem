@@ -85,8 +85,11 @@ struct QMeshResponse
     //! the leak measured (Write prints it).
     rmat_t Chi0RealSpace(double* imagRatio=nullptr) const;
     rmat_t ChiRealSpace (double* imagRatio=nullptr) const;
-    //! \f$U_c=[(\chi_0)^{-1}-\chi^{-1}]_{(c,\mathbf 0),(c,\mathbf 0)}\f$ (Hartree) per perturbed channel c, the inverses taken
-    //! over the WHOLE supercell's J x J real-space matrices: Timrov et al. PRB 98, 085127 eq (2), hp.x's definition.
+    //! \f$W=\chi_0^{-1}-\chi^{-1}\f$ over the WHOLE supercell's J x J real-space matrices (Hartree; \c ToRealSpace's layout).  Its
+    //! home-cell diagonal is U, its home-cell off-diagonals the inter-site \f$V_{IJ}\f$ (Timrov et al. PRB 98, 085127 eq (2);
+    //! PRB 103, 045141 for V) -- over the PERTURBED set only, so a V to a site outside it is not here.
+    rmat_t Interaction() const;
+    //! \f$U_c=W_{(c,\mathbf 0),(c,\mathbf 0)}\f$ (Hartree) per perturbed channel c: hp.x's definition.
     rvec_t U() const;
     //! The supercell's real-space home-cell blocks, the time-reversal leak and U (eV, hp.x's unit).  (Each q's own table is
     //! printed by \c LinearResponse as that q finishes.)
