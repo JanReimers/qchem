@@ -34,6 +34,14 @@ spinel, so expect the pivoted-Cholesky vet stage to have an opinion; it is the d
 reports what it drops.  Li is ionised there, so the diffuse tail is the function least likely to be
 missed -- but TRIM ON THE MEASUREMENT, the way VA itself came to exist, not on this note.
 
+V AND SR ADDED 2026-10-05 (doc/LinearResponsePlan.md: SrVO3, the A6 matched-PP hp.x oracle U(V 3d) = 6.2502 eV,
+IntegrationTests/QE/srvo3.*).  The oracle's pseudopotentials: V q5 (3d3 4s2, light valence) and Sr q2 (5s2; gth2upf cannot build
+Sr q10, IntegrationTests/QE/README.md), O q6 as already here.  Minted and VALIDATED by
+  CLIapps/valgen --element V  --q 5 --shell 0:8:0.04:30 --shell 2:9:0.10:60 --floor --nmax 120   E = -5.85289 Ha, 0.08 mHa above the pool floor
+  CLIapps/valgen --element Sr --q 2 --shell 0:5:0.03:2  --shell 1:2:0.05:0.3 --floor --nmax 120  E = -0.614105 Ha, 0.77 mHa above the pool floor
+(the Ni-pattern s 7x{0.05..20} + d 8x{0.15..40} window was 5.6 mHa short for V; Sr's wider s 6x{0.02..3} reaches the floor only by
+an s at 0.02 that a perovskite cell -- V-O 3.63 bohr, Sr-O 5.13 -- would trim).  THE SAME BLOCKS IN va AND sph, as Ni.  Expect the
+vet stage to drop V s 0.04 / d 0.10 and Sr s 0.03 in the cell: read [basis trim] (CLAUDE.md) before trusting a number.
 !
 BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  F   0
@@ -189,4 +197,56 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
             3.09838668        1.00000000
  P   1  1.00
             8.00000000        1.00000000
+ ****
+ V   0
+ S   1  1.00
+            0.04000000        1.00000000
+ S   1  1.00
+            0.10298715        1.00000000
+ S   1  1.00
+            0.26515881        1.00000000
+ S   1  1.00
+            0.68269874        1.00000000
+ S   1  1.00
+            1.75772991        1.00000000
+ S   1  1.00
+            4.52558972        1.00000000
+ S   1  1.00
+           11.65193940        1.00000000
+ S   1  1.00
+           30.00000000        1.00000000
+ D   1  1.00
+            0.10000000        1.00000000
+ D   1  1.00
+            0.22246869        1.00000000
+ D   1  1.00
+            0.49492320        1.00000000
+ D   1  1.00
+            1.10104918        1.00000000
+ D   1  1.00
+            2.44948974        1.00000000
+ D   1  1.00
+            5.44934785        1.00000000
+ D   1  1.00
+           12.12309303        1.00000000
+ D   1  1.00
+           26.97008679        1.00000000
+ D   1  1.00
+           60.00000000        1.00000000
+ ****
+ SR   0
+ S   1  1.00
+            0.03000000        1.00000000
+ S   1  1.00
+            0.08572321        1.00000000
+ S   1  1.00
+            0.24494897        1.00000000
+ S   1  1.00
+            0.69992710        1.00000000
+ S   1  1.00
+            2.00000000        1.00000000
+ P   1  1.00
+            0.05000000        1.00000000
+ P   1  1.00
+            0.30000000        1.00000000
  ****

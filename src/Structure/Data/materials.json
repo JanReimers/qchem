@@ -439,5 +439,12 @@
                  { "el": "O",  "frac": [0.862000, 0.638000, 0.138000] },
                  { "el": "O",  "frac": [0.888000, 0.888000, 0.888000] } ],
     "species": { "Mn": 7, "O": 6 }
+  },
+  "SrVO3": {
+    "comment": "SrVO3 cubic perovskite (Pm-3m), a = 7.2605 bohr: ABINIT's validated cRPA-tutorial cell (tests/tutoparal/Input/tucalc_crpa_1.abi), the A6 matched-PP hp.x oracle U(V 3d) = 6.2502 eV (IntegrationTests/QE/srvo3.*).  A correlated d1 METAL, non-magnetic.  V q5 (light valence) and Sr q2: the oracle's pseudopotentials (gth2upf cannot build Sr q10)",
+    "lattice": { "type": "CubicP", "a": 7.2605 },
+    "atoms":   [ { "el": "V",  "frac": [0.0, 0.0, 0.0] }, { "el": "Sr", "frac": [0.5, 0.5, 0.5] },
+                 { "el": "O",  "frac": [0.5, 0.0, 0.0] }, { "el": "O",  "frac": [0.0, 0.5, 0.0] }, { "el": "O", "frac": [0.0, 0.0, 0.5] } ],
+    "species": { "V": 5, "Sr": 2, "O": 6 }
   }
 }
