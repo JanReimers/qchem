@@ -1244,7 +1244,12 @@ vs linear flips with k-mesh and with +U): filed on the `OpenWork.md` "Kerker/Pul
   response shrinks, and the screened difference with it.  The table's "feel" (NOTES): U_0 overshoots U_SC by 0.76 eV (13 %).
 - ⚠ **Trap 3 did NOT bite here, and why that is not a contradiction**: the U = 0 state was WARM-STARTED from the AFM-II U = 3
   state and held AFM-II (moment 1.30, a 0.88 eV gap).  Trap 3's "LDA NiO loses AFM-II at U = 0" was from fresh seeds.  So U_0 here
-  is the response of the AFM-II U = 0 LOCAL solution.  A cold-seeded U = 0 start is the other row of the table, not yet run.
+  is the response of the AFM-II U = 0 LOCAL solution.
+- **The COLD row (2026-10-05, `decks/campaigns/NiO/nio_r4_lrloop_q0_cold_U0.json`, record `NiO_AFM2.r007`): IDENTICAL to the warm
+  U_in = 0 row to every printed digit** -- from the IonicSAD seed at U = 0 (anneal kT 5e-3 → 0, 16 + 10 iterations) the SCF lands on
+  the same AFM-II state (E −106.2558806, moment 1.303, gap 0.881 eV) and the loop retraces 6.8535/6.9067 → 6.0911/6.1076 eV.  So with
+  THIS recipe (VA spherical, vet 1e-3, orthofull, Kerker/Pulay) LDA NiO keeps AFM-II at U = 0; trap 3's collapse belongs to the
+  older recipe it was found on.  The U_0 column is the response of a genuine U = 0 ground state, not of a warm start.
 - This is the CELL's U (q = 0 of 4 atoms), not hp.x's quantity: compare the supercell U at U_in = 3 (6.09, R3 step 5) with this
   cell's 6.45.
 
