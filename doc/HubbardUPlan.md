@@ -41,12 +41,19 @@ k-parallelism — NOT DONE.
 | NiO | O 2p | 8.514 | — | replaced an old cRPA *bound* ≳4 |
 | MnO | Mn 3d | 0.198 (atomic) / 0.986 (ortho) | **4.94** (χ/χ₀ 0.656) | NOT USABLE: χ/χ₀ = 0.98 / 0.955 (d⁵ Pauli-saturated) — proven not a projector artifact |
 | MnO | O 2p | ~~26.56~~ → 11.150 (ortho) | **7.77** (χ/χ₀ 0.439) | atomic projector was the artifact here; redone 2026-09-30 |
-| SrVO₃ / KCuF₃ / Sr₂FeO₄ | V / Cu / Fe 3d | 6.250 / 8.163 / 8.012 | — | KCuF₃, Sr₂FeO₄ geometry from Carta's own input files (`~/Code/reprints/materials_cloud_submission/`); their U is MLWF-based, not comparable |
+| SrVO₃ / KCuF₃ / Sr₂FeO₄ | V / Cu / Fe 3d | 6.250 / 8.163 / 8.012 | SrVO₃ **4.43** (χ/χ₀ 0.041; Γ-only metal) / — / — | KCuF₃, Sr₂FeO₄ geometry from Carta's own input files (`~/Code/reprints/materials_cloud_submission/`); their U is MLWF-based, not comparable |
 | LiMO₂ M=V,Cr,Fe,Co,Ni | M 3d | 5.953 / 5.811 / 7.592 / 7.307 / 9.173 | — | idealised R-3m template; LiNiO₂ U_in≈0 `.save` archived `IntegrationTests/QE/checkpoints/linio2_U0.save/` |
-| TiO₂ rutile | Ti 3d | 4.637 | — | d⁰ gap, no 2-step |
-| FeS₂ pyrite | Fe 3d | **7.5351** | — | identical to 4 s.f. on all 4 Fe sites; ~5 h run; original console log lost to a driver-bug rerun (`batch/recovered/` holds the Hubbard_parameters.dat) |
+| TiO₂ rutile | Ti 3d | 4.637 | **4.86** (χ/χ₀ 0.286) | d⁰ gap, no 2-step |
+| FeS₂ pyrite | Fe 3d | **7.5351** | **6.01** (χ/χ₀ 0.119) | identical to 4 s.f. on all 4 Fe sites; ~5 h run; original console log lost to a driver-bug rerun (`batch/recovered/` holds the Hubbard_parameters.dat) |
 | ZnO | Zn 3d | 35.34 | — | NOT AN ORACLE: closed d¹⁰ shell, χ₀≈χ≈0 |
 | Si (CP2K CK-alpha) | 3p | χ only | χ only (not a U) | χ_CP2K −14.5164 vs ours −14.5117 Ha⁻¹ (0.033 %) — validates our method |
+
+**CP2K CK-alpha on the other oracle materials** (2026-10-05; Γ only, PADE, `VALENCE-LOWQ-TM` basis, α on ONE site, LOWDIN, U_in=0;
+decks/jobs `~/Code/qchem6-runs/batch/queue/07–09`, shared `lib_ckalpha_generic.sh`; runs in `~/Code/cp2k-runs/<Material>/`; each whole
+pipeline takes 20–40 s): TiO₂ Ti 3d 4.86 eV vs hp.x 4.637 (+5 %); FeS₂ Fe 3d 6.01 vs 7.535 (−20 %); SrVO₃ V 3d 4.43 vs 6.250 (−29 %,
+RKS because d¹ is odd-electron, trq ×2).  χ₀ is α-linear (re-measured at α/4: −13.99 / −33.44 / −144.4 Ha⁻¹, identical).  Differences from
+hp.x that are NOT yet separated: Γ-only vs k 4³/q 2³ (SrVO₃ is a metal — its χ₀ is a few-level DOS at Γ, the least trustworthy of the
+three), LOWDIN-all-functions vs ortho-atomic manifold, unfrozen V_Hub does not apply at U_in=0.
 
 **Our own LRT on MnO Mn-3d** (free AFM-II, Γ, U_in=0; logs `~/Code/qchem6-runs/MnO/`): manifold-definition
 trend is monotone — ours `every` χ/χ₀ 0.693, U 2.62 eV; ours `ortho` 0.837, 1.23 eV; hp.x ortho-atomic 0.955,
