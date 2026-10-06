@@ -13,6 +13,9 @@ namespace qchem::BasisSet::Gaussian
 
     std::string BasisFile(const std::string& filename)
     {
+        // A bare name lives in the shipped data directory; anything with a directory part (the deck's \c basis.file
+        // override, an absolute or cwd-relative path) is used exactly as given.
+        if (filename.find('/')!=std::string::npos) return filename;
         return (theDataDir / filename).string();
     }
 }

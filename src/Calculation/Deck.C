@@ -66,6 +66,9 @@ struct RunSpec
         //! One shell removed from the basis (pin 22): element, the angular momentum dropped, and the shell's (single) exponent that names it.
         struct Trim { int Z=0; int l=0; double alpha=0.0; };
         BasisSet::Gaussian::BasisSetData data = BasisSet::Gaussian::BasisSetData::VALENCE_LOWQ_SR;
+        //! OVERRIDE: a path to a .bsd file used INSTEAD of the file \c data names (\c data is then only a label).  Empty = use \c data.
+        //! Lets a new basis be tried from the command line (`--set basis.file=/path/x.bsd`) with no registry entry or rebuild.
+        std::string file;
         bool spherical=false;
         std::vector<Trim> trim;     //!< a STATED trim (built once, no vet loop)
         bool vet=false;             //!< the vet-stage trim at \c solid.orthoTol: near-dependent diffuse shells removed ONCE on the full k-mesh (exclusive with \c trim)

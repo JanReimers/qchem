@@ -18,6 +18,7 @@
 //     "engine":  "mnd" | "libcint",       // Engine,  default "mnd"
 //     "angular": "cartesian" | "spherical" }  // Angular, default "cartesian"
 module;
+#include <string>
 #include <nlohmann/json_fwd.hpp>
 export module qchem.BasisSet.Gaussian.Point.Factory;
 export import qchem.BasisSet;
@@ -55,6 +56,13 @@ export namespace qchem::BasisSet::Gaussian
     Real_BS* Factory(BasisSetData data, const Structure* cl,
                      Engine engine = Engine::MnD, Angular angular = Angular::Cartesian,
                      const ShellTrim& trim = {});
+
+    //! The same, from a basis FILE rather than a registered \c BasisSetData: \a bsdFile is a bare name in the shipped
+    //! BasisSetData directory, or any path (contains a '/') -- the deck's \c basis.file override, so a new .bsd can be
+    //! tried without touching the registry or rebuilding.  \c Factory(BasisSetData,...) is this with the registered name.
+    Real_BS* FactoryFromFile(const std::string& bsdFile, const Structure* cl,
+                             Engine engine = Engine::MnD, Angular angular = Angular::Cartesian,
+                             const ShellTrim& trim = {});
 
     // Config-driven entry point (see the key table above).  An unknown "basis"/"engine"/"angular" value, or
     // a missing "basis", throws with the list of valid values.

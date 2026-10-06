@@ -263,6 +263,22 @@ TEST(Deck, BasisTrimVetAndStateRoundTripAndAreValidated)
     EXPECT_THROW(deck::FromJson(json{{"structure","Si_diamond"},{"state",{{"restore","x"}}}}, ok), std::runtime_error);
 }
 
+// basis.file: a path overrides the registered data file -- recorded in the resolved deck, honoured by the build, and a bad path fails loudly.
+TEST(Deck, BasisFileOverridesTheRegisteredDataFileAndABadPathFails)
+{
+    const std::string va = (std::filesystem::path(DECKS_DIR).parent_path()/"BasisSetData"/"valence_lowq_va.bsd").string();
+    deck::RunSpec reg, over;
+    deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_SR"}}}}, reg);
+    deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"data","VALENCE_LOWQ_SR"},{"file",va}}}}, over);
+    EXPECT_FALSE(deck::ToJson(reg)["basis"].contains("file")) << "no override: no key";
+    EXPECT_EQ(deck::ToJson(over)["basis"]["file"].get<std::string>(), va) << "the record carries the file actually used";
+    deck::RunSpec back; deck::FromJson(deck::ToJson(over),back); EXPECT_EQ(deck::ToJson(back),deck::ToJson(over));
+    const auto nfun=[](const deck::RunSpec& r){ return deck::Vet(r,std::filesystem::temp_directory_path()).summary; };
+    EXPECT_NE(nfun(reg), nfun(over)) << "the override built a different basis (SR vs VA files)";
+    deck::RunSpec bad; deck::FromJson(json{{"structure","MnO_AFM2"},{"basis",{{"file","/nonexistent/x.bsd"}}}}, bad);
+    EXPECT_ANY_THROW(deck::Vet(bad,std::filesystem::temp_directory_path()));
+}
+
 TEST(Deck, ASavedStateRestartsAndTheRevisionNamesItsParent)
 {
     const fs::path dir=TmpDir("restart");

@@ -113,6 +113,14 @@ const auto kBasisData = NAMES(BasisSetData, {"DZVP",BasisSetData::DZVP}, {"DZVP2
     {"VALENCE_LOWQ_VA",BasisSetData::VALENCE_LOWQ_VA}, {"VALENCE_LOWQ_VB",BasisSetData::VALENCE_LOWQ_VB});
 const auto kMeasure= NAMES(Measure, {"MixerResidual",Measure::MixerResidual}, {"MaxDeltaD",Measure::MaxΔD});
 
+//! The Gaussian basis a deck names: the registered data file, or the \c basis.file override when stated.
+BasisSet::Real_BS* MakeGaussianBasis(const RunSpec::Basis& b, const Structure* cell, const BasisSet::Gaussian::ShellTrim& trim)
+{
+    using namespace BasisSet::Gaussian;
+    return b.file.empty() ? Factory(b.data, cell, Engine::MnD, Angular::Cartesian, trim)
+                          : FactoryFromFile(b.file, cell, Engine::MnD, Angular::Cartesian, trim);
+}
+
 } // anon
 
 //=== GPWTolerances ==============================================================================
@@ -370,6 +378,7 @@ PostAction PostFromJson(const json& j, const std::string& path)
 json BasisJson(const RunSpec::Basis& b)
 {
     json j={{"data",NameOf(b.data,kBasisData)},{"spherical",b.spherical}};
+    if (!b.file.empty()) j["file"]=b.file;
     if (b.vet) j["vet"]=true;
     if (!b.trim.empty())
     {
@@ -382,7 +391,7 @@ json BasisJson(const RunSpec::Basis& b)
 void BasisFromJson(const json& j, RunSpec::Basis& b)
 {
     Fields f(j,"basis");
-    f.GetEnum("data",b.data,kBasisData); f.Get("spherical",b.spherical); f.Get("vet",b.vet);
+    f.GetEnum("data",b.data,kBasisData); f.Get("spherical",b.spherical); f.Get("file",b.file); f.Get("vet",b.vet);
     if (j.contains("trim"))
     {
         b.trim.clear(); size_t i=0;
@@ -645,8 +654,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
     Lattice_3D lat(*mat.cell, spec.kmesh);
     BasisSet::Gaussian::ShellTrim trim;
     for (const auto& t : spec.basis.trim) trim.shells.push_back({t.Z, t.l, rvec_t(1,t.alpha)});
-    std::shared_ptr<const BasisSet::Real_BS> b(BasisSet::Gaussian::Factory(spec.basis.data, mat.cell.get(),
-                                               BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, trim));
+    std::shared_ptr<const BasisSet::Real_BS> b(MakeGaussianBasis(spec.basis, mat.cell.get(), trim));
     if (spec.basis.spherical) b=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(b));
     size_t nf=0;
     for (auto ibs : const_cast<BasisSet::Real_BS&>(*b).Iterate<BasisSet::Real_OIBS>()) nf+=ibs->GetNumFunctions();
@@ -658,7 +666,7 @@ VetReport Vet(RunSpec spec, const std::filesystem::path& outDir)
     if (spec.basis.vet) v.notes.push_back("basis.vet: the vet-stage trim loop is NOT run by --check (function count is the untrimmed one)");
     std::ostringstream os;
     os<<spec.structure<<": "<<mat.cell->GetNumAtoms()<<" atoms, Nelec "<<spec.solid.Nelec<<", multiplicity "<<spec.solid.multiplicity
-      <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<NameOf(spec.basis.data,kBasisData)<<(spec.basis.spherical?" (spherical)":"")
+      <<", k-mesh "<<spec.kmesh.x<<"x"<<spec.kmesh.y<<"x"<<spec.kmesh.z<<", basis "<<(spec.basis.file.empty()?NameOf(spec.basis.data,kBasisData):spec.basis.file)<<(spec.basis.spherical?" (spherical)":"")
       <<" "<<nf<<" functions, "<<spec.Stages().size()<<" SCF stage(s), "<<spec.solid.hubbard.size()<<" Hubbard manifold(s), "<<spec.postSCF.size()<<" postSCF action(s)"
       <<(spec.solid.imposeSymmetry?", symmetry IMPOSED":", symmetry FREE");
     v.summary=os.str();
@@ -698,8 +706,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
     // THE BASIS: the data file, optionally trimmed (stated, or by the vet loop at the run's own orthoTol), optionally in the spherical lattice view.
     auto make=[&](const BasisSet::Gaussian::ShellTrim& trim)
     {
-        std::shared_ptr<const BasisSet::Real_BS> b(BasisSet::Gaussian::Factory(spec.basis.data, mat.cell.get(),
-                                                   BasisSet::Gaussian::Engine::MnD, BasisSet::Gaussian::Angular::Cartesian, trim));
+        std::shared_ptr<const BasisSet::Real_BS> b(MakeGaussianBasis(spec.basis, mat.cell.get(), trim));
         if (spec.basis.spherical) b=BasisSet::Gaussian::PG_Spherical::MakeSphericalLatticeView(std::move(b));
         return b;
     };
