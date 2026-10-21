@@ -455,3 +455,20 @@ O-2p hole/ligand character — exactly the "entangled d-p" case Carta et al.'s o
 as).  Checkpoint archived: `checkpoints/sr2feo4_U0.save/`.  Decks: `sr2feo4.scf.in`, `sr2feo4.hp.in`.
 
 **Both of Dr. Carta's materials are now done — KCuF₃/Sr₂FeO₄ queue items closed.**
+
+## S2 (`doc/HubbardUPlan.md`): β-MnO₂ (pyrolusite), matched-PP, A1-AFM — 2026-10-21 — **set up; NO gapped reference in plain LDA**
+
+The Mn⁴⁺ d³ proxy for λ-MnO₂.  Cell = Bolzan et al., Aust. J. Chem. 46, 939 (1993) neutron refinement: P4₂/mnm, a = 4.4041 Å
+(8.322543 bohr), c = 2.8765 Å (c/a 0.653141), O u = 0.3046 — `materials.json` `MnO2_beta_A1AFM`, site order as TiO₂.  Collinear AFM:
+corner Mn +m, body-centre Mn −m (our reading of Macke et al. JCTC 2024's ref-59 "A1-AFM").  UPFs = the MnO oracle's `Mn.pz-gth-q7.UPF`,
+`O.pz-gth-q6.UPF`; LDA `sla+vwn`, 300/1200 Ry (as TiO₂), 38 valence electrons.
+
+**pw.x step 1 (smeared, gaussian 0.002 Ry):**
+- Γ (`mno2b.scf.in`, 33 s, 6 ranks): E = −186.93546944 Ry, |m| 7.87 μB/cell, Mn ±3.068 μB; **HOMO/LUMO 10 meV apart, straddling E_F**
+  (occupations 0.61 / 0.39 in each spin) — a Γ two-level artifact, the parked-SrVO₃ shape.
+- k 4×4×6 (`mno2b_k446.scf.in`, Macke's mesh, 28 k, 9.7 min, 8 ranks): E = −187.32829530 Ry, |m| 7.57 μB/cell; E_F in a 64 meV window,
+  4 of 1680 band-k occupations fractional ⇒ a **semimetal** (Macke's PBEsol: gap 0.00).
+
+hp.x NOT run: its fixed-occupation 2-step needs a gap; the smeared (metal) route needs a deliberately MATCHED kT in both codes, since a
+semimetal's χ₀ is set by the few states at E_F.  A gap opens only with U on O pz (Macke 1.01 eV) — orbital-resolved.  Runs:
+`~/Code/qe-runs/MnO2/`.

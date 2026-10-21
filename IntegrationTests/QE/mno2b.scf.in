@@ -1,0 +1,38 @@
+ &control
+    calculation  = 'scf'
+    prefix       = 'mno2b'
+    pseudo_dir   = '/home/janr/Code/qchem6/IntegrationTests/QE/'
+    outdir       = './tmp/'
+    verbosity    = 'high'
+ /
+ &system
+    ibrav        = 6,
+    celldm(1)    = 8.322543,
+    celldm(3)    = 0.653141,
+    nat          = 6,
+    ntyp         = 3,
+    ecutwfc      = 300.0, ecutrho = 1200.0, input_dft='sla+vwn',
+    occupations  = 'smearing', smearing='gaussian', degauss=0.002,
+    nspin        = 2, starting_magnetization(1)=0.8, starting_magnetization(2)=-0.8,
+    nbnd         = 30,
+ /
+ &electrons
+    conv_thr    = 1.d-10
+    mixing_beta = 0.3
+ /
+ATOMIC_SPECIES
+ Mn1 54.938 Mn.pz-gth-q7.UPF
+ Mn2 54.938 Mn.pz-gth-q7.UPF
+ O   15.999 O.pz-gth-q6.UPF
+ATOMIC_POSITIONS {crystal}
+ Mn1 0.0000 0.0000 0.0000
+ Mn2 0.5000 0.5000 0.5000
+ O   0.3046 0.3046 0.0000
+ O   0.8046 0.1954 0.5000
+ O   0.1954 0.8046 0.5000
+ O   0.6954 0.6954 0.0000
+K_POINTS {automatic}
+ 1 1 1 0 0 0
+HUBBARD {ortho-atomic}
+U Mn1-3d 1.d-8
+U Mn2-3d 1.d-8
