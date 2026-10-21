@@ -208,8 +208,8 @@ spherical family, eigen/pencil/span-projector probes), `g_shell_keeps_nine_unit_
 "first check MnD vs libcint for Cartesian g": `M_LibCint.matrix_1E_matches_scalar_g` (S/T/V, LMax=4) PASSES -- the
 MnD g integrals were never the problem.  End-to-end: the CP2K/QE-gated TiO₂ Γ ortho-atomic deck on
 `valence_lowq_tm.bsd` + Ti g 1.2 (scratch) now vets clean (min eig S 8.3e-4, nothing trimmed), builds all twelve
-+U manifolds, and converges in 35 iterations to −71.135687 Ha (−0.63 mHa vs no g).  Not done: the χ₀/U effect of g
-on the b6 basis (the b-series bases were scratch; rebuild b6 + Ti g to finish the l-convergence of TiO₂'s U).
++U manifolds, and converges in 35 iterations to −71.135687 Ha (−0.63 mHa vs no g).  The χ₀/U effect of g on b6 is a
+REMAINDER, kept on the OpenWork row.
 
 ## ✅ LibXC-polarized (closed 2026-10-21)
 `Libxc_LDA` was scalar-only and `Factory(XCFunctional)` threw for Polarized + LibXC.  Now the wrapper inits each id
