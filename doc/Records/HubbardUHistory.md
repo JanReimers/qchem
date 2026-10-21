@@ -1671,3 +1671,40 @@ norm), not screening.  Only ours ÷ an INDEPENDENT oracle (matched-pseudopotenti
 ACBN0-derived target) tests the screening model; label every oracle row matched-PP or different-PP.  ACBN0's N̄²
 renormalisation vanishes as the basis completes, so it is not a screening model, and an oracle gate built on an
 ACBN0 target is circular (retracted 2026-09-23; screened-ACBN0 refuted 2026-09-25).
+
+## A7 cross-code gate vs CP2K CK-alpha (2026-10-21)
+
+**Verdict: PASSED on TiO₂ and FeS₂; SrVO₃ at Γ PARKED.**  Ours = `rundeck decks/campaigns/CrossCode/<m>.json` (`7f411887`; SrVO₃ deck
+fixed the same day, below): Γ only, the CP2K runs' cell and basis file (`BasisSetData/valence_lowq_tm.bsd` via `basis.file`), LOWDIN
+all-shells manifold on site 0 (35 functions: 7 uncontracted d primitives), U_in = 0, kT 0.005, α = 1e-3 Ha.  CP2K = the 2026-10-05
+CK-alpha pipelines (`~/Code/qchem6-runs/batch/lib_ckalpha_generic.sh`, logs `batch/logs/07–09_*.log`).  Records
+`~/Code/qchem6-runs/{TiO2/TiO2_rutile.r003, FeS2/FeS2_pyrite.r002, SrVO3/SrVO3.r007–r010}.json`.  χ in Ha⁻¹.
+
+| | d trace (α=0) | χ₀ | χ (LR) | χ (FD) | χ/χ₀ | U eV |
+|---|---|---|---|---|---|---|
+| TiO₂ ours | 2.981 | −13.917 | −3.98688 | −3.98567 | 0.2865 | **4.870** |
+| TiO₂ CP2K | 2.987 | −13.993 | — | −3.99651 | 0.2856 | **4.864** |
+| FeS₂ ours | 7.692 | −33.270 | −3.98700 | (see note) | 0.1198 | **6.007** |
+| FeS₂ CP2K | 7.692 | −33.457 | — | −3.98992 | 0.1193 | **6.007** |
+| SrVO₃ ours, unpol r009 / r010 | 4.096 / — | −143.90 / −134.82 | −5.915 / −5.603 | −5.771 / −5.671 | 0.0411 / 0.0416 | 4.412 / 4.655 |
+| SrVO₃ CP2K (RKS) | 4.098 | −144.28 | — | −5.89684 | 0.0409 | **4.426** |
+
+Agreement on the insulators: χ₀ 0.5–0.6 %, χ 0.07–0.3 %, U to 6 meV (TiO₂) and <1 meV (FeS₂); same-state checks pass (d traces,
+FeS₂ ±α SCFs ΔE = ±7.69e-3 Ha = α·n_d).  ⇒ The TiO₂ +5 % and FeS₂ −20 % gaps CP2K-vs-hp.x are SETUP (Γ vs k 4³/q 2³, LOWDIN-all vs
+ortho-atomic), not method.  Cost: TiO₂ 21.6 min wall / 715 MB (6 threads, LR + FD); FeS₂ SCF 28 iterations, LR 15 kernel applications.
+
+**SrVO₃ — why parked (user 2026-10-21: look for corner cases where U/χ disagree, do not get bogged down in convergence heuristics).**
+(1) The committed deck had `multiplicity 1`; on 25 e that is a 13↑/12↓ DOUBLET (`twoS = Nelec % 2`), which at Γ polarizes (V +2.60,
+O −0.53 each, net +1.0; 0.16 Ha BELOW the unpolarized state; U 1.68 eV, χ/χ₀ 0.93) and is multi-stable under the FD α (+α landed 0.1 Ha
+up, V moment 0.95).  `spinsShareFermi` (moment free) also polarizes (m_V 1.0–1.6, unsettled at 56 iterations).  CP2K ran RKS, so the
+deck is now `multiplicity 0` (ζ=0: one Spin::None channel, 25 e, smeared).  (2) Unpolarized, Γ SrVO₃ puts 1 e in a 6-fold
+t2g×spin level at E_F; four converged fixed points within 2e-3 Ha give χ −5.60…−5.91, U 4.41–4.65 — CP2K's 4.43 is inside the band,
+and no sharper statement is honest.  (3) A restart lands on a DIFFERENT fixed point than the one it left (r010: the "restored"
+α = 0 state is 1.8e-3 Ha below the run's own ground state), so its FD χ cannot test linearity.
+
+**Found on the way (OpenWork §3 row "A carried density is re-filled at kT = 0"):** every SCF stage built from a carried, converged
+density does an iteration-0 Fock-diagonalize-and-fill on the occupation policy's DEFAULT state (integer aufbau, kT = 0, no MOM;
+`src/SCFIterator/Imp/SCFIterator.C` `Initialize`), and iteration 1 starts from THAT, not the carried density.  First FD iterate:
+TiO₂ (gap 1.8 eV) Δρ 4e-4; FeS₂ (gap 0.73 eV, kT 0.136 eV) Δρ 3.4e-3, E 0.93 Ha off, swinging to −116 Ha before returning; SrVO₃
+(metal) Δρ 2.7e-2, E 14 Ha off.  Pulay at relax 1.0 (the deck's ground-state params, passed straight to the FD re-converge) then
+amplifies it.  The LR numbers never pass through a restart, so the gate stands on them.

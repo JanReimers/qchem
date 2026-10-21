@@ -41,10 +41,10 @@ k-parallelism — NOT DONE.
 | NiO | O 2p | 8.514 | — | replaced an old cRPA *bound* ≳4 |
 | MnO | Mn 3d | 0.198 (atomic) / 0.986 (ortho) | **4.94** (χ/χ₀ 0.656) | NOT USABLE: χ/χ₀ = 0.98 / 0.955 (d⁵ Pauli-saturated) — proven not a projector artifact |
 | MnO | O 2p | ~~26.56~~ → 11.150 (ortho) | **7.77** (χ/χ₀ 0.439) | atomic projector was the artifact here; redone 2026-09-30 |
-| SrVO₃ / KCuF₃ / Sr₂FeO₄ | V / Cu / Fe 3d | 6.250 / 8.163 / 8.012 | SrVO₃ **4.43** (χ/χ₀ 0.041; Γ-only metal) / — / — | KCuF₃, Sr₂FeO₄ geometry from Carta's own input files (`~/Code/reprints/materials_cloud_submission/`); their U is MLWF-based, not comparable |
+| SrVO₃ / KCuF₃ / Sr₂FeO₄ | V / Cu / Fe 3d | 6.250 / 8.163 / 8.012 | SrVO₃ **4.43** (χ/χ₀ 0.041; Γ-only metal) · ours 4.41–4.65 (Γ fixed points, parked) / — / — | KCuF₃, Sr₂FeO₄ geometry from Carta's own input files (`~/Code/reprints/materials_cloud_submission/`); their U is MLWF-based, not comparable |
 | LiMO₂ M=V,Cr,Fe,Co,Ni | M 3d | 5.953 / 5.811 / 7.592 / 7.307 / 9.173 | — | idealised R-3m template; LiNiO₂ U_in≈0 `.save` archived `IntegrationTests/QE/checkpoints/linio2_U0.save/` |
-| TiO₂ rutile | Ti 3d | 4.637 | **4.86** (χ/χ₀ 0.286) | d⁰ gap, no 2-step |
-| FeS₂ pyrite | Fe 3d | **7.5351** | **6.01** (χ/χ₀ 0.119) | identical to 4 s.f. on all 4 Fe sites; ~5 h run; original console log lost to a driver-bug rerun (`batch/recovered/` holds the Hubbard_parameters.dat) |
+| TiO₂ rutile | Ti 3d | 4.637 | **4.86** (χ/χ₀ 0.286) · ours **4.870** (0.286) | d⁰ gap, no 2-step |
+| FeS₂ pyrite | Fe 3d | **7.5351** | **6.01** (χ/χ₀ 0.119) · ours **6.007** (0.120) | identical to 4 s.f. on all 4 Fe sites; ~5 h run; original console log lost to a driver-bug rerun (`batch/recovered/` holds the Hubbard_parameters.dat) |
 | ZnO | Zn 3d | 35.34 | — | NOT AN ORACLE: closed d¹⁰ shell, χ₀≈χ≈0 |
 | Si (CP2K CK-alpha) | 3p | χ only | χ only (not a U) | χ_CP2K −14.5164 vs ours −14.5117 Ha⁻¹ (0.033 %) — validates our method |
 
@@ -54,6 +54,11 @@ pipeline takes 20–40 s): TiO₂ Ti 3d 4.86 eV vs hp.x 4.637 (+5 %); FeS₂ Fe 
 RKS because d¹ is odd-electron, trq ×2).  χ₀ is α-linear (re-measured at α/4: −13.99 / −33.44 / −144.4 Ha⁻¹, identical).  Differences from
 hp.x that are NOT yet separated: Γ-only vs k 4³/q 2³ (SrVO₃ is a metal — its χ₀ is a few-level DOS at Γ, the least trustworthy of the
 three), LOWDIN-all-functions vs ortho-atomic manifold, unfrozen V_Hub does not apply at U_in=0.
+**✅ CROSS-CODE GATE PASSED 2026-10-21** (ours on the SAME cell/basis file/LOWDIN manifold/α, `decks/campaigns/CrossCode/`; record
+H §"A7 cross-code gate"): TiO₂ χ₀/χ/U = −13.917/−3.987/4.870 vs CP2K −13.993/−3.997/4.864; FeS₂ −33.270/−3.987/6.007 vs
+−33.457/−3.990/6.007; d traces 2.981 vs 2.987 and 7.692 vs 7.692.  ⇒ the TiO₂ +5 % / FeS₂ −20 % gaps to hp.x are SETUP (Γ vs mesh,
+LOWDIN vs ortho-atomic), not method.  SrVO₃ at Γ is PARKED like CP2K/NiO (a degenerate t2g metal: our unpolarized run lands on
+several fixed points within 2e-3 Ha, U 4.41–4.65 eV, CP2K's 4.43 inside the band; polarized it is a different, magnetic state).
 
 **Our own LRT on MnO Mn-3d** (free AFM-II, Γ, U_in=0; logs `~/Code/qchem6-runs/MnO/`): manifold-definition
 trend is monotone — ours `every` χ/χ₀ 0.693, U 2.62 eV; ours `ortho` 0.837, 1.23 eV; hp.x ortho-atomic 0.955,
@@ -74,14 +79,11 @@ Every action appears here once; if it is not here it is a finding, not a task.
   inter-site V_IJ and orbital-resolved channels REPORTED (χ's real-space off-diagonals already hold them); the NiO
   ground-state gap (1.30 vs 2.86 eV at U_in=3) that would move U toward hp.x; one q-mesh outer step is ~2.2 h if
   U_SC becomes routine.  Design constraint unchanged: interface changes are general perturbation theory, not DFT-specific.
-- **Cross-code gate vs CP2K CK-alpha (the next run, committed 2026-10-21 `7f411887`, NOT yet run):** `rundeck
-  decks/campaigns/CrossCode/{tio2_Ti3d_G,fes2_Fe3d_G,srvo3_V3d_G}.json` — Γ-only, same cell/basis file/LOWDIN
-  manifold as the CP2K runs, post-SCF `hubbardLinearResponse` + `hubbardFiniteDifference` (α = 0.0272 eV) at site 0.  Fill
-  an "ours (Γ, LOWDIN)" figure beside the CP2K LRT column in §1 for TiO₂ (CP2K 4.86), FeS₂ (6.01), SrVO₃ (4.43);
-  compare χ/χ₀ ratios first (U is a small difference of two large inverses).  This separates the open
-  differences listed under the CP2K paragraph in §1 (Γ-only vs k/q mesh, LOWDIN-all vs ortho-atomic) from method
-  error.  FeS₂ is the big one (12 atoms, 360 functions; hp.x took ~5 h): check `free -g` and run it under
-  `scripts/memsafe`.  NiO in CP2K stays parked (§1).
+- ✅ **Cross-code gate vs CP2K CK-alpha — PASSED 2026-10-21** (§1; record H §"A7 cross-code gate"): TiO₂ and FeS₂ agree
+  to 6 meV / <1 meV; SrVO₃ at Γ parked.  The goal stays CORNER CASES where our U or χ disagrees with CP2K/QE, without
+  getting bogged down in convergence heuristics (user 2026-10-21; why NiO-CP2K and SrVO₃-Γ are parked).  Candidate next
+  corner case, NOT committed to: the remaining hp.x differences one at a time on a non-degenerate insulator (TiO₂:
+  ortho-atomic at Γ, then the k/q mesh), against hp.x 4.637.
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  Remaining nothing queued; β-MnO₂ (Macke's second material) never scoped.
 
