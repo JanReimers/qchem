@@ -94,7 +94,7 @@ Every action appears here once; if it is not here it is a finding, not a task.
   method, never the basis.  Next action: decide whether TiO₂ gets a basis converged toward the PW energy (O p/d, judged by the
   vet in rutile, not on the free atom) before the remaining +0.54 eV is chased; then the k/q mesh (hp.x 4.637).
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
-- **A6** is complete (table above).  Remaining nothing queued; β-MnO₂ (Macke's second material) never scoped.
+- **A6** is complete (table above).  β-MnO₂ (Macke's second material) is now item S2 below.
 
 **Track B — can we RUN the spinels (needs no oracle)**
 - **B3 Gate 2**: one converged SCF per composition (λ-MnO₂ 12 atoms, LiMn₂O₄ 14, Li₂Mn₂O₄ 16 — the last NOT
@@ -110,9 +110,31 @@ Every action appears here once; if it is not here it is a finding, not a task.
 **Track C — infrastructure**
 - **C1**: one 32-atom MnO 2×2×2 supercell SCF at Γ, wall + peak RSS — says whether the supercell route exists
   for us at all (14 GB; untested assumption).  Cheap.
-- **C2**: the 1.02 mHa shifted-MP fold defect (`doc/OpenWork.md` §4) — fix before KP-1; multi-k U inherits it.
+- ✅ **C2** the 1.02 mHa shifted-MP fold defect — DONE 2026-10-01 (`doc/OpenWork.md` §3 stub; `Records/OpenWork_History5.md`).
 - **C3**: k-parallelism (`doc/OpenWork.md` §2 row KP) — ACBN0/LRT need k-mesh SCFs (~10 % MnO U sensitivity Γ
   vs 2×2×2); this plan is the "suitably embarrassed" trigger.
+
+**Step-3 readiness — the ORDER before (U, J) at λ-MnO₂ / Li₂Mn₂O₄ (§3), agreed 2026-10-21.**  Not ready yet: several items below
+change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.  Items already listed elsewhere are named, not repeated.
+- **S1 — finish the QE method checks**: the TiO₂ corner case above (basis scan running 2026-10-21), then **U(O 2p) on TiO₂ at Γ vs hp.x
+  at Γ** (same deck, perturb an O 2p manifold; the only O data point today is MnO, CP2K 7.77 vs hp.x ortho 11.15, unexplained).
+- **S2 — a Mn⁴⁺ d³ proxy in a small cell: β-MnO₂** (rutile, 6 atoms; needs a `materials.json` entry, a Mn hp.x deck, collinear AFM).
+  Tests pin 24 on λ-MnO₂'s exact d count: t2g³ is a fully spin-polarised half shell, the MnO-d⁵ saturation shape.  Measure χ/χ₀ for
+  the total-d AND the resolved t2g/e_g channels before believing either.
+- **S3 — fix `doc/OpenWork.md` §3 "A carried density is re-filled at kT = 0"** before any U_SC campaign: every `hubbardLoop` outer
+  step is a `BuildStage` from the carried density, so on a smeared / near-degenerate magnetic state each step kicks the state
+  (SrVO₃ landed on different fixed points, 2026-10-21).
+- **S4 — GGA/PBE (`doc/OpenWork.md` §2 row)**, then re-validate ONE U against hp.x in PBE.  U is functional-dependent (dn/dα about an
+  LDA state is an LDA number) and the voltage literature is PBE+U, so the §3 campaign runs in PBE or is redone.
+- **S5 — B3 Gate 2 sizing** (Track B) decides whether **C3 k-parallelism** comes before §3: Γ-only is too crude (MnO U ~10 % Γ vs
+  2×2×2) and one NiO q-mesh outer step is ~2.2 h.
+- **S6 — then §3**: U per Mn SITE (pin 23) + U(O 2p) at the end members, FIXED experimental geometry (§3 risk 2), U_eff = Ū − J̄
+  only (no LR J: it needs a spin perturbation we do not have; second order for voltages).  Resolved t2g/e_g U is REPORTED, applied
+  only if S2 shows it well-posed.  **Print V_IJ** from the real-space χ off-diagonals (`doc/LinearResponsePlan.md` START HERE open
+  item); implement the +V Hamiltonian term only if U-only voltages need it (Mn–O V is what fixed voltages in the extended-Hubbard
+  literature).
+- **S7 — forces (`doc/OpenWork.md` §2 row) in parallel from S4 on**: needed by the CE/voltage stage (every Li configuration
+  relaxed), NOT by the U step.
 
 **Long unattended runs (user away Oct 6–20)**: only what B3/C1 justify — the three compositions × the outer
 loop, k-mesh arms, a calibration LR run if C1 says the supercell fits.  ⛔ `scripts/memsafe -p`, never bare.
