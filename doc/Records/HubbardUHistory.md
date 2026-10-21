@@ -1684,14 +1684,14 @@ CK-alpha pipelines (`~/Code/qchem6-runs/batch/lib_ckalpha_generic.sh`, logs `bat
 |---|---|---|---|---|---|---|
 | TiO₂ ours | 2.981 | −13.917 | −3.98688 | −3.98567 | 0.2865 | **4.870** |
 | TiO₂ CP2K | 2.987 | −13.993 | — | −3.99651 | 0.2856 | **4.864** |
-| FeS₂ ours | 7.692 | −33.270 | −3.98700 | (see note) | 0.1198 | **6.007** |
+| FeS₂ ours | 7.692 | −33.270 | −3.98700 | −3.93534 | 0.1198 | **6.007** |
 | FeS₂ CP2K | 7.692 | −33.457 | — | −3.98992 | 0.1193 | **6.007** |
 | SrVO₃ ours, unpol r009 / r010 | 4.096 / — | −143.90 / −134.82 | −5.915 / −5.603 | −5.771 / −5.671 | 0.0411 / 0.0416 | 4.412 / 4.655 |
 | SrVO₃ CP2K (RKS) | 4.098 | −144.28 | — | −5.89684 | 0.0409 | **4.426** |
 
 Agreement on the insulators: χ₀ 0.5–0.6 %, χ 0.07–0.3 %, U to 6 meV (TiO₂) and <1 meV (FeS₂); same-state checks pass (d traces,
 FeS₂ ±α SCFs ΔE = ±7.69e-3 Ha = α·n_d).  ⇒ The TiO₂ +5 % and FeS₂ −20 % gaps CP2K-vs-hp.x are SETUP (Γ vs k 4³/q 2³, LOWDIN-all vs
-ortho-atomic), not method.  Cost: TiO₂ 21.6 min wall / 715 MB (6 threads, LR + FD); FeS₂ SCF 28 iterations, LR 15 kernel applications.
+ortho-atomic), not method.  Cost: TiO₂ 21.6 min wall / 715 MB (6 threads, LR + FD); FeS₂ 38.9 min / 2.6 GB (6 threads; SCF 28 iterations, LR 15 kernel applications).  OPEN, not chased: FeS₂'s OWN FD χ is 1.3 % below its LR (TiO₂: 3e-4) although the ±α SCFs stay on the ground-state branch and the restore returns to it (ΔE 5e-8 Ha); CP2K's FD agrees with our LR to 0.07 %, so the gap is in our FD path, not the response (candidates: the iteration-0 refill below, the FD SCF tolerance at Δn = χα ≈ 4e-3).
 
 **SrVO₃ — why parked (user 2026-10-21: look for corner cases where U/χ disagree, do not get bogged down in convergence heuristics).**
 (1) The committed deck had `multiplicity 1`; on 25 e that is a 13↑/12↓ DOUBLET (`twoS = Nelec % 2`), which at Γ polarizes (V +2.60,
