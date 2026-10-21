@@ -1732,4 +1732,23 @@ truncated by `valence_lowq_tm.bsd` (captured norm Ti 4s 0.9675, O 2p 0.9762 on 4
 under-orthogonalised against O 2p — consistent with a larger occupation and a larger bare response.  The discriminator (same deck on
 `VALENCE_LOWQ_VA`) could not run: that file has no Ti.  CP2K's LOWDIN-all has no spectators, which is why the CP2K gate could not see it.
 Found on the way: `SiteEnvironmentRotations` threw on rutile's coplanar O environment (fixed `305450f4`), and `Gaussian94Reader` reports a
-missing element as a garbage-byte angular-momentum label (OpenWork §3 row).
+missing element as a garbage-byte angular-momentum label (✅ fixed the same day, `a833d5f1`: `FindAtom` throws naming element and file).
+
+**Discriminator, same day — the O 2p spectator is most of it.**  `valence_lowq_va.bsd` cannot help: its O block IS the TM O block, and a
+VA-style Ti would only make Ti s more diffuse (TM's header: in the 3d series the diffuse s hurts conditioning most).  Scratch basis =
+TM + Ti s 0.05 + O p 0.18 (`basis.file`, `vet` on; scratch, not committed).  In rutile the vet TRIMS Ti s 0.05 (min eig S 6.2e-6 → 3.3e-5
+after) — the free atom would have kept it — and KEEPS O p 0.18: O 2p captured norm 0.9762 → 0.9994 (Ti 4s stays 0.9675), min pivot
+3.4e-3 → 9.0e-4.
+
+| Ti 3d, Γ, ortho-atomic | TM | TM + O p 0.18 | QE hp.x |
+|---|---|---|---|
+| E_tot Ha | −71.1351 | −71.3499 | −71.4235 (−142.84694 Ry) |
+| d occupation | 2.405 | 2.230 (+1.0 %) | 2.208 |
+| χ₀(1,1) Ha⁻¹ | −14.404 | −11.785 (+7.4 %) | −10.969 |
+| χ(1,1) Ha⁻¹ | −3.566 | −3.458 (−4.6 %) | −3.625 |
+| U eV (scalar) | 5.742 | 5.561 (+10.6 %) | 5.026 |
+
+The occupation lands on QE and the χ₀ excess drops 31 % → 7 %: an under-orthogonalised Ti 3d (truncated O 2p spectator) was most of the
+corner case.  The larger lesson is the energy: ONE O p shell is worth 0.215 Ha, and TM sits 288 mHa above the plane-wave answer (74 mHa
+with the tail).  CP2K uses the same basis, so the CP2K gate validated the METHOD on an incomplete basis, never the basis.  The remaining
++0.54 eV is not yet split between the Ti 4s spectator (vet-limited in rutile) and general basis incompleteness.

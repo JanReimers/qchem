@@ -88,9 +88,11 @@ Every action appears here once; if it is not here it is a finding, not a task.
   occupation 2.405 vs 2.208 (+9 %), **χ₀ −14.404 vs −10.969 Ha⁻¹ (+31 %)**, χ −3.566 vs −3.625 (−1.6 %), U 5.742 vs
   5.019 eV.  Not a projector SCALE (χ/χ₀ 0.248 vs 0.330).  Lead: the ortho-atomic SPECTATORS are truncated in
   `valence_lowq_tm.bsd` (Ti 4s captures 0.9675 of its norm, O 2p 0.9762; Ti 3d 0.9952), so Ti 3d is under-orthogonalised
-  against O 2p.  Next action: the same deck on a basis that captures the spectators (`VALENCE_LOWQ_VA` has no Ti — mint
-  Ti into it or add O p / Ti s shells to the TM file with valgen); if occupation and χ₀ move to QE, it is spectator
-  truncation, otherwise the Gaussian virtual space.  Then the k/q mesh (hp.x 4.637).
+  against O 2p.  **Discriminated the same day:** + O p 0.18 (vet keeps it in rutile; Ti s 0.05 is vet-TRIMMED) takes O 2p capture to
+  0.9994, the occupation to 2.230 (+1 %), χ₀ to +7 %, U to 5.561 eV — the truncated O 2p spectator was most of it.  But one O p
+  shell is worth 0.215 Ha: `valence_lowq_tm` is 288 mHa above QE's plane-wave E on this cell, so the CP2K gate validated the
+  method, never the basis.  Next action: decide whether TiO₂ gets a basis converged toward the PW energy (O p/d, judged by the
+  vet in rutile, not on the free atom) before the remaining +0.54 eV is chased; then the k/q mesh (hp.x 4.637).
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  Remaining nothing queued; β-MnO₂ (Macke's second material) never scoped.
 
