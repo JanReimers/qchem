@@ -20,7 +20,6 @@ links INSIDE moved files (`../src/…`) are one level off.
 |---|---|
 | **`OpenWork.md`** | ★ **THE tracker (v4, ≤100 lines).  READ IT AT SESSION START.**  §1 NEXT · §2 MAJOR FEATURES · §3 ACCURACY / OPEN DEFECTS · §4 PERFORMANCE summary.  One row = next concrete action + the one record to read |
 | **`HubbardUPlan.md`** | ★ **UNDER EXECUTION** — DFT+U: status, oracle table, ▶ START HERE next actions, gotchas.  Full history: `Records/HubbardUHistory.md`.  Retires to `Records/` when the U-functional lands |
-| **`LinearResponsePlan.md`** | **UNDER EXECUTION** — HubbardUPlan's A7: one theory-neutral `ResponseKernel` (DFPT-U / CPHF / MP2 Z-vector), stages R0–R4, each with an oracle.  Retires to `Records/` when A7 lands |
 | **`OOD-SOLID-Cleanup.md`** + **`CleanCode.md`** | the cleanup worklist (split 2026-10-01): OOD/SOLID debt vs non-SOLID hygiene, open rows only, original R/V/D ids citing `Records/CleanupHistory2.md` / `CleanupHistory3.md`.  `CleanupCandidates.md` is a 6-line redirect stub |
 | **`InputDeck.md`** | ★ **HOW A RUN IS DESCRIBED, RUN, RECORDED AND REPRODUCED** — the JSON input deck + `rundeck` (D-ENV, 2026-10-04).  Rules, schema, the numbered revision record, `--set`, `--check`, the shipped decks, what the retired env knobs became.  **Read before running or varying a solid calculation** |
 | **`Pins.md`** | ★ **27 durable invariants** (pin 1: no cut in r space).  Rulings, not preferences; cite as `doc/Pins.md pin N` |
@@ -35,6 +34,7 @@ links INSIDE moved files (`../src/…`) are one level off.
 | file | why it is here |
 |---|---|
 | **`OpenWork_History1…5.md`**, **`CleanupHistory.md`/`2`/`3`**, **`BenchmarkHistory.md`** (incl. Benchmark.md verbatim as of 2026-10-01), **`GPWHistory.md`**, **`SymmetryUpgradeHistory.md`**, **`HubbardUHistory.md`** | the append-only closed record; trackers WRITE to these (History5 = the v3 tracker verbatim; CleanupHistory3 = the v2 worklist verbatim).  ★ A record of what was TRIED AND REJECTED is worth more than a record of what landed |
+| **`LinearResponsePlan.md`** | A7 (DONE 2026-10-21): the theory-neutral `ResponseKernel` design (DFPT-U / CPHF / MP2 Z-vector), stages R0–R4 with their oracles and execution records; open items → OpenWork §2/§3 |
 | **`CP2KBuild.md`** / **`CP2Kresults.md`** | how the primary oracle is built, and what it says |
 | **`SCFStrategyPlan.md`** / **`OTNotes.md`** | convergence-acceleration boundaries; the 2026-07 GDM investigation (prior for row OT) |
 | **`ParallelAndOraclePlan.md`** | the road to +U; residuals → row PAR |

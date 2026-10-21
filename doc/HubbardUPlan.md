@@ -4,7 +4,7 @@ Born 2026-09-23, **condensed 2026-10-01** to: what is left, and the lessons.  Ev
 argument, every run, every retraction) is the verbatim archive `doc/Records/HubbardUHistory.md` — cited below as
 **H §N** (= section N of the old plan, which the archive keeps) or **H·OW** (the OpenWork §1 block).  North star:
 `doc/BatteryMaterialsRoadmap.md` (Li\f$_x\f$Mn\f$_2\f$O\f$_4\f$ voltage curve).  Ruling underneath: `doc/Pins.md`
-pins 12, 23, 24, 25.  A7's own plan: `doc/LinearResponsePlan.md`.
+pins 12, 23, 24, 25.  A7's record (DONE, retired 2026-10-21): `doc/Records/LinearResponsePlan.md`.
 
 ★ **Why this exists (once).**  Orbital-resolved +U with U determined from the code's OWN on-site ERIs, Gaussian
 basis, transition-metal oxides, 14 GB desktop.  A supercell-free U is the only kind that scales to a
@@ -73,7 +73,7 @@ not a solver artifact.
 Every action appears here once; if it is not here it is a finding, not a task.
 
 **Track A — the U value (decides whether the method is real)**
-- **A7 (our own linear-response U) — `doc/LinearResponsePlan.md` ▶ START HERE.**  R0–R4, CK-1 and H5 are DONE
+- ✅ **A7 (our own linear-response U) — DONE, retired 2026-10-21 to `doc/Records/LinearResponsePlan.md`; its open items are OpenWork rows.**  R0–R4, CK-1 and H5 are DONE
   (2026-10-05): `hubbardLoop` with `"estimator":"linearResponse"` runs Timrov's outer loop over a q-mesh and prints
   `[U table]`.  NiO U_SC 5.727/5.744 eV (2×2×2 q-mesh) vs hp.x 5.267; SrVO₃ U(V 3d) 6.818 vs the FD-matched hp.x
   6.177 (+10 %) with χ/χ₀ matched to 1.2 % — the excess is χ₀'s magnitude, as on NiO.  Still open, none blocking:
@@ -143,8 +143,8 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   2×2×2) and one NiO q-mesh outer step is ~2.2 h.
 - **S6 — then §3**: U per Mn SITE (pin 23) + U(O 2p) at the end members, FIXED experimental geometry (§3 risk 2), U_eff = Ū − J̄
   only (no LR J: it needs a spin perturbation we do not have; second order for voltages).  Resolved t2g/e_g U is REPORTED, applied
-  only if S2 shows it well-posed.  **Print V_IJ** from the real-space χ off-diagonals (`doc/LinearResponsePlan.md` START HERE open
-  item); implement the +V Hamiltonian term only if U-only voltages need it (Mn–O V is what fixed voltages in the extended-Hubbard
+  only if S2 shows it well-posed.  **Print V_IJ** from the real-space χ off-diagonals (OpenWork §2 row "Response: REPORT orbital-resolved
+  channels"); implement the +V Hamiltonian term only if U-only voltages need it (Mn–O V is what fixed voltages in the extended-Hubbard
   literature).
 - **S7 — forces (`doc/OpenWork.md` §2 row) in parallel from S4 on**: needed by the CE/voltage stage (every Li configuration
   relaxed), NOT by the U step.

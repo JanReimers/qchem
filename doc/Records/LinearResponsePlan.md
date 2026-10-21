@@ -6,7 +6,13 @@ and **REVISED the same day** for the user's second round of requirements (§4b: 
 coupling, forces; §4c: self-consistent U; §6: the Li-supercell question, U/V/J).  **Stage R0 is DONE and
 validated (§5b); R1, R2 and CK-1 followed (START HERE).**  It stays at the top of `doc/` while A7 is executed, and moves to `doc/Records/` when A7 lands.
 
-## ▶ START HERE (next session, written 2026-09-29)
+> **⛔ RETIRED 2026-10-21 — A7 IS DONE (user: "Linear response is a done work item").  This file is now a RECORD and holds NO open
+> work.**  Every open item below was moved to `doc/OpenWork.md` the same day: §2 rows "Linear response (A7) + U estimators" (cRPA
+> estimator, FD χ route, the R1 molecular ends, the Pol-channel floor), "Response: REPORT orbital-resolved channels + inter-site V_IJ",
+> "LR efficiency ledger", "LR on REAL TRIM blocks", "SCF checkpoint/restart" (CK-2), "CP2K finite-α LRT" (U_in ≠ 0 freeze); §3 row
+> "NiO / SrVO₃ U vs hp.x: re-test on an l-converged basis".  The "START HERE" text below is the state as of 2026-10-05, kept verbatim.
+
+## ▶ START HERE (as it stood when A7 was retired; written 2026-09-29, last updated 2026-10-05)
 
 > **UPDATE 2026-10-04 — HOW RUNS ARE MADE NOW: INPUT DECKS.**  Every `gpwprobe mno|nio` / `MNO_*` / `NIO_*` / `GPW_*` environment recipe in this plan's history is RETIRED (ignored, reported).  A run is one JSON deck run by `rundeck`;
 > `postSCF` carries exactly the actions this plan's R0–R2 expose (`independentResponse`, `hubbardLinearResponse`, `hubbardFiniteDifference`, `estimateHubbardU`, `hubbardLoop`), `state.save`/`restartFrom` is CK-1, `U_eV`/`Uirrep_eV` are in eV in the file.
