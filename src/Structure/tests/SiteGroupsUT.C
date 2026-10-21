@@ -61,6 +61,36 @@ TEST(SiteGroups, MnOAFM2_TheCellStabiliserIsD3dEitherWayAndTheEnvironmentIsOh)
     EXPECT_EQ(lat.SiteEnvironmentRotations(2).size(), 48u);
 }
 
+//! Rutile TiO2 (the QE hp.x oracle cell, materials.json "TiO2_rutile"): every O has its three Ti and its nearest
+//! O neighbour in one (1-10) mirror plane, so its first three shells are COPLANAR.  That planar environment once
+//! threw "no finite point group" (2026-10-21, the ortho-atomic O 2p spectators); its group is C_2v (mmm's O site, m.m2).
+TEST(SiteGroups, RutileTiO2_APlanarOEnvironmentIsC2v_AndTiIsD2h)
+{
+    UnitCell cell=BravaisCell(Bravais::TetragonalP, {.a=8.681591, .c=5.591509});
+    const double u=0.3057;
+    cell.AddAtom(22, {0,0,0});
+    cell.AddAtom(22, {0.5,0.5,0.5});
+    cell.AddAtom(8,  {u,u,0});
+    cell.AddAtom(8,  {0.5+u,0.5-u,0.5});
+    cell.AddAtom(8,  {0.5-u,0.5+u,0.5});
+    cell.AddAtom(8,  {1-u,1-u,0});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    for (size_t o=2;o<6;o++)
+    {
+        const auto env=lat.SiteEnvironmentRotations(o);
+        EXPECT_EQ(env.size(), 4u) << "O site " << o << ": C_2v";
+        for (const auto& R : env) EXPECT_TRUE(IsOrthogonal(R));
+        // Every crystal symmetry fixing the site maps its environment onto itself.
+        for (const auto& R : lat.SiteRotations(o, {})) EXPECT_TRUE(Contains(env, R)) << "O site " << o;
+    }
+    for (size_t ti=0;ti<2;ti++)
+    {
+        const auto env=lat.SiteEnvironmentRotations(ti);
+        EXPECT_EQ(env.size(), 8u) << "Ti site " << ti << ": D_2h (the distorted TiO6 octahedron)";
+        for (const auto& R : lat.SiteRotations(ti, {})) EXPECT_TRUE(Contains(env, R)) << "Ti site " << ti;
+    }
+}
+
 TEST(SiteGroups, DiamondSi_TheEnvironmentIsTd_AndAgreesWithTheCellStabiliser)
 {
     FCCUnitCell cell(10.26);

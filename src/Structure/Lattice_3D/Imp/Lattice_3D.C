@@ -143,9 +143,28 @@ std::vector<rmat3d_t> Lattice_3D::SiteEnvironmentRotations(size_t atom, size_t s
         return false;
     };
     size_t ia,ib,ic;
-    const std::vector<Pt>& ref = triple(shell1, ia, ib, ic) ? shell1 : cl;
-    if (&ref==&cl && !triple(cl, ia, ib, ic))
-        throw std::runtime_error("SiteEnvironmentRotations: the site's environment is coplanar -- no finite point group from it");
+    const bool fromShell1=triple(shell1, ia, ib, ic);
+    if (!fromShell1 && !triple(cl, ia, ib, ic))
+    {
+        // A PLANAR environment still has a finite point group (rutile O: its three Ti and its nearest O all lie in
+        // one (1-10) mirror plane, so every one of the first three shells is coplanar -- found 2026-10-21 on the
+        // ortho-atomic O 2p spectators).  Every symmetry of a planar set maps the plane onto itself, hence its
+        // normal n onto +-n: two MARKER points at +-n (Z = -1, never an atom) make the cluster non-coplanar
+        // without adding or removing a symmetry.  Only a COLLINEAR environment (an infinite group) has no answer.
+        rvec3_t n(0,0,0);
+        for (size_t a=0;a<cl.size() && norm(n)==0.0;a++) for (size_t b=a+1;b<cl.size();b++)
+        {
+            const rvec3_t x=Cross(cl[a].r, cl[b].r);
+            if (norm(x)>1e-6*norm(cl[a].r)*norm(cl[b].r)) { n=x/norm(x); break; }
+        }
+        if (norm(n)==0.0)
+            throw std::runtime_error("SiteEnvironmentRotations: the site's environment is collinear -- no finite point group from it");
+        cl.push_back({-1,  distinct[0]*n});
+        cl.push_back({-1, -distinct[0]*n});
+        [[maybe_unused]] const bool found=triple(cl, ia, ib, ic);
+        assert(found && "SiteEnvironmentRotations: the plane-normal markers must lift a planar cluster out of the plane");
+    }
+    const std::vector<Pt>& ref = fromShell1 ? shell1 : cl;
     const Matrix3D<double> Am(ref[ia].r.x,ref[ib].r.x,ref[ic].r.x, ref[ia].r.y,ref[ib].r.y,ref[ic].r.y, ref[ia].r.z,ref[ib].r.z,ref[ic].r.z);
     const Matrix3D<double> Ainv=Invert(Am);
     auto isSymmetry=[&](const rmat3d_t& R)
