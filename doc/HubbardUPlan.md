@@ -44,7 +44,7 @@ solve of the same equations), **FD** = finite difference (±α SCFs; CP2K CK-alp
 | MnO | O 2p | ~~26.56~~ → 11.150 (ortho) | **7.77** (χ/χ₀ 0.439) | atomic projector was the artifact here; redone 2026-09-30 |
 | SrVO₃ / KCuF₃ / Sr₂FeO₄ | V / Cu / Fe 3d | 6.250 / 8.163 / 8.012 | SrVO₃ **4.43** (χ/χ₀ 0.041; Γ-only metal) · ours 4.41–4.65 (Γ fixed points, parked) / — / — | KCuF₃, Sr₂FeO₄ geometry from Carta's own input files (`~/Code/reprints/materials_cloud_submission/`); their U is MLWF-based, not comparable |
 | LiMO₂ M=V,Cr,Fe,Co,Ni | M 3d | 5.953 / 5.811 / 7.592 / 7.307 / 9.173 | — | idealised R-3m template; LiNiO₂ U_in≈0 `.save` archived `IntegrationTests/QE/checkpoints/linio2_U0.save/` |
-| TiO₂ rutile | Ti 3d | 4.637 | **4.86** (χ/χ₀ 0.286) · ours **4.870** (0.286) | d⁰ gap, no 2-step.  **At Γ, ortho-atomic, both DFPT: hp.x 5.019 (χ/χ₀ 0.330) vs ours 5.742 (0.248) — χ₀ +31 %, χ −1.6 %: OPEN corner case** (§2) |
+| TiO₂ rutile | Ti 3d | 4.637 | **4.86** (χ/χ₀ 0.286) · ours **4.870** (0.286) | d⁰ gap, no 2-step.  **Ours (DFPT, ortho-atomic, l-converged basis b6): Γ 5.125 vs hp.x Γ 5.019–5.026; k2/q2 4.757 vs 4.637 (hp.x k2 ≡ k4)** — closed (§2 S1) |
 | FeS₂ pyrite | Fe 3d | **7.5351** | **6.01** (χ/χ₀ 0.119) · ours **6.007** (0.120) | identical to 4 s.f. on all 4 Fe sites; ~5 h run; original console log lost to a driver-bug rerun (`batch/recovered/` holds the Hubbard_parameters.dat) |
 | ZnO | Zn 3d | 35.34 | — | NOT AN ORACLE: closed d¹⁰ shell, χ₀≈χ≈0 |
 | Si (CP2K CK-alpha) | 3p | χ only | χ only (not a U) | χ_CP2K −14.5164 vs ours −14.5117 Ha⁻¹ (0.033 %) — validates our method |
@@ -95,8 +95,9 @@ Every action appears here once; if it is not here it is a finding, not a task.
   with f on Ti and O (`b6`, 6.9 mHa above QE's E) the occupation matches to 0.1 %, χ to 0.3 %, χ₀ +3.1 %, U 5.125 vs 5.026 (+2 %),
   and U tracks the energy gap toward ≈ 5.01 eV.  The cause was the truncated O 2p spectator plus missing angular momentum (a
   PW basis has no l limit).  ✅ **O 2p at Γ PASSED** (6×6 Hubbard-site matrix, b6): U(O 2p) 6.735 vs hp.x 6.758 eV (−0.3 %), U(Ti)
-  3.051 vs 2.927 (+4 %), screened χ element by element (H, same section).  Remaining in S1: the k/q mesh (hp.x 4.637) on a basis
-  with f; per-irrep O pz needs the resolved-channel report first.
+  3.051 vs 2.927 (+4 %), screened χ element by element (H, same section).  ✅ **k/q mesh PASSED**: hp.x k2/q2 = 4.6373 ≡ its k4/q2
+  4.6368 (k converged at 2³); ours (b6, k2/q2, kT 0) **4.757 vs 4.637 (+2.6 %)**, χ₀ +0.5 %, χ −1.5 %, the Γ→q2 shift −0.368 vs −0.389 eV.
+  **TiO₂ is CLOSED as a cross-code point.**  Left in S1: per-irrep O pz (needs the OpenWork resolved-channel row first).
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  β-MnO₂ (Macke's second material) is now item S2 below.
 
