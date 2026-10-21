@@ -68,11 +68,7 @@ namespace qchem::Hamiltonian
             case XC::DiracVWN:       // parameter-free LSDA: Dirac exchange + spin-native VWN5 correlation
                 return new Ham_DFT(st, parts_t{std::make_shared<SlaterExchange>(2.0/3.0),
                                                std::make_shared<VWN_Correlation>()}, mp, bs, p);
-            case XC::LibXC:
-                if (p!=SpinGroup::UnPolarized)
-                    throw std::runtime_error("Factory(XCFunctional): LibXC is unpolarized-only -- the "
-                        "Libxc_LDA wrapper is scalar (single-density) by construction.  Use XC::DiracVWN "
-                        "for polarized (spin-native VWN5) LDA.");
+            case XC::LibXC:          // spin-native through libxc's XC_POLARIZED contract (2026-10-21)
                 // Dirac exchange (LDA_X, id 1) + the libxc correlation functional named by libxcId, summed
                 // into the one XC term (each contributes its OWN eps, so E_c is the correct integral eps_c
                 // rho, not the 3/4 exchange virial).

@@ -193,3 +193,33 @@ NONE is needed -- `SeedCD`'s species rule seeds `target<=0` as nothing (scale 0)
 `MagneticDecoration` calls it non-magnetic; there is nothing to validate a basis in either (validate on the
 neutral).  The library's Sr entry (Nelec 2, q 2) is the genuine neutral, untouched.  Gate:
 `UTCalculation ValenceBasisGen.ElectronsUnsetIsNeutralAndZeroIsRefused`.
+
+## ✅ l=4 (g) shells in a lattice basis (closed 2026-10-21)
+TiO₂ + Ti g 1.2 failed three ways (vet "drops that map to no nameable shell"; CholeskyPivoted dropping ALL 18 Ti g;
+`Hubbard_U: shells of one l with different component counts`).  ONE cause: `Math::SphericalShell(l)` tabulated
+l=0..3 and `assert`ed above -- compiled out in Release, so l=4 returned `{}`.  `BuildCartToSphere` still counted
+2l+1 = 9 columns per g shell but filled none (9 all-zero view functions per shell → the Cholesky drops), and the
+view's `GetAoShells` built a 0-component `SphericalShellRep` (shifted offsets → unnameable drops, mismatched
+counts).  Fix: `Math::GenerateSolidHarmonics(l)` (Rodrigues/Legendre expansion, any l, m=−l..l sin/cos) as the
+`default:` of `SphericalShell`; the l≤3 tables are kept byte-identical and the generator reproduces them up to a
+positive scale per m.  Gates (UTGaussian_BS): `M_Spherical.{g,h}_orthogonal`,
+`generated_harmonics_match_tables_and_are_harmonic` (l≤6), `M_SphericalView.g_matches_native_family` (view ≡ native
+spherical family, eigen/pencil/span-projector probes), `g_shell_keeps_nine_unit_components`, and the user's
+"first check MnD vs libcint for Cartesian g": `M_LibCint.matrix_1E_matches_scalar_g` (S/T/V, LMax=4) PASSES -- the
+MnD g integrals were never the problem.  End-to-end: the CP2K/QE-gated TiO₂ Γ ortho-atomic deck on
+`valence_lowq_tm.bsd` + Ti g 1.2 (scratch) now vets clean (min eig S 8.3e-4, nothing trimmed), builds all twelve
++U manifolds, and converges in 35 iterations to −71.135687 Ha (−0.63 mHa vs no g).  Not done: the χ₀/U effect of g
+on the b6 basis (the b-series bases were scratch; rebuild b6 + Ti g to finish the l-convergence of TiO₂'s U).
+
+## ✅ LibXC-polarized (closed 2026-10-21)
+`Libxc_LDA` was scalar-only and `Factory(XCFunctional)` threw for Polarized + LibXC.  Now the wrapper inits each id
+twice (XC_UNPOLARIZED for the scalar face and exact ζ=0 -- byte-identical for every unpolarized run -- and
+XC_POLARIZED for the two-channel face); a negative channel is clamped to 0 on its own (libxc's rule).  ⚠ The
+per-channel SPLIT of ε matters, not just Σρ_σε^σ: the energy is Σ_σ Tr(D_σ ε^σ_fit), so with libxc's one-ε split for
+Dirac exchange polarized N came out 0.146 mHa off the in-house DiracVWN although every pointwise value matched to
+1e-9.  An exchange id (`info->kind==XC_EXCHANGE`) therefore uses the exact spin-scaling relation (the base class's
+channel-separable face, SlaterExchange's split); correlation ids use libxc's ε for both channels (VWN5's split).
+Result: polarized N LibXC SVWN5 vs DiracVWN 4.23 µHa, smaller than the same pair UNPOLARIZED (7.47 µHa, the
+implementation floor) and unchanged under a 1000× tighter SCF gate.  Gates: `UTHamiltonian
+LDA_XC.LibxcWrapperPolarizedFace` (raw libxc, VWN5 and Slater faces incl. ρ 1e-8 and ζ→1; the only disagreement is
+v↓ at EXACTLY ζ=1, ~1e-5, zero-weight), `ITMain A_DFT_U_Consistency.PolarizedLibxcSVWN5MatchesInHouseDiracVWN`.
