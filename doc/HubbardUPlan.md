@@ -91,10 +91,10 @@ Every action appears here once; if it is not here it is a finding, not a task.
   against O 2p.  **Discriminated the same day:** + O p 0.18 (vet keeps it in rutile; Ti s 0.05 is vet-TRIMMED) takes O 2p capture to
   0.9994, the occupation to 2.230 (+1 %), χ₀ to +7 %, U to 5.561 eV — the truncated O 2p spectator was most of it.  But one O p
   shell is worth 0.215 Ha: `valence_lowq_tm` is 288 mHa above QE's plane-wave E on this cell, so the CP2K gate validated the
-  method, never the basis.  **Basis scan done the same day** (H §"TiO₂ ortho-atomic at Γ", 13 variants): U is CONVERGED w.r.t.
-  basis, grid and the Ti 4s spectator at **5.32 ± 0.03 eV vs hp.x 5.026 (+6 %)**, carried by χ₀ +7.5 % (χ −1.6 %, occupation
-  +1.2 %); the vet trims every diffuse Ti s (0.05, 0.07).  Next action, NOT committed to: compare what each code's bare Γ
-  response contains (hp.x iteration-1 Sternheimer vs our Krylov), then the ortho-atomic construction; then the k/q mesh (hp.x 4.637).
+  method, never the basis.  **RESOLVED the same day — NO method disagreement** (H §"TiO₂ ortho-atomic at Γ", CORRECTION):
+  with f on Ti and O (`b6`, 6.9 mHa above QE's E) the occupation matches to 0.1 %, χ to 0.3 %, χ₀ +3.1 %, U 5.125 vs 5.026 (+2 %),
+  and U tracks the energy gap toward ≈ 5.01 eV.  The cause was the truncated O 2p spectator plus missing angular momentum (a
+  PW basis has no l limit).  Next: the k/q mesh (hp.x 4.637) on a basis with f, and S1's O 2p (per-irrep) check on the same basis.
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  β-MnO₂ (Macke's second material) is now item S2 below.
 

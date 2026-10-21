@@ -1781,3 +1781,26 @@ once O d 1.0 joined).  The energy gap (25.6 mHa) is basis in untried directions 
 Not systematic with the other materials: SrVO₃'s χ₀ was SMALLER than hp.x's (−1.317 vs −1.426 eV⁻¹) — a "χ₀ excess" is not a
 common sign.  Next suspects (not chased): what each code's bare response at Γ contains (hp.x iteration-1 Sternheimer vs our
 Krylov over the basis' virtuals), and the ortho-atomic projector construction itself (QE's O^{-1/2} on its radial mesh vs ours).
+
+**⚠ CORRECTION, same day — the "+6 % at a converged basis" verdict above was PREMATURE: the basis was converged in s/p/d, not in
+ANGULAR MOMENTUM** (user: "PW has no l limit — do we need l=3 on Ti?").  Continuing the scan with f shells (all vet-clean):
+
+| variant (cumulative on b4) | E Ha | gap mHa | d occ | χ₀ / χ Ha⁻¹ | U eV |
+|---|---|---|---|---|---|
+| b4 | −71.39783 | 25.6 | 2.234 | −11.789 / −3.566 | 5.323 |
+| b5 = + Ti f 0.6 | −71.41028 | 13.2 | 2.220 | −11.517 / −3.586 | 5.226 |
+| b5 + Ti f 1.8 | −71.41061 | 12.9 | 2.219 | −11.512 / −3.588 | 5.221 |
+| b5 + O f 1.0 | −71.41403 | 9.4 | 2.214 | −11.357 / −3.584 | 5.196 |
+| b5 + Ti f 0.25 | −71.41371 | 9.8 | 2.215 | −11.439 / −3.616 | 5.146 |
+| **b6 = b5 + O f 1.0 + Ti f 0.25** | **−71.41653** | **6.9** | **2.211** | **−11.312 / −3.613** | **5.125** |
+| b6 + O f 2.5 | −71.41664 | 6.8 | 2.211 | −11.315 / −3.614 | 5.125 |
+| QE hp.x | −71.42347 | 0 | 2.208 | −10.969 / −3.625 | 5.026 (2×2 5.019) |
+
+**Verdict: NO method disagreement.**  At b6 the occupation matches QE to 0.1 % and χ to 0.3 %; χ₀ is +3.1 % and U +2.0 %, and U
+tracks the energy gap (~0.016 eV per mHa over the last steps) — extrapolating to zero gap gives ≈ 5.01 eV, on QE's 5.02–5.03.  The
+corner case was (1) the truncated O 2p ortho-atomic spectator (+31 % → +7.5 %) and (2) missing f on Ti AND O (+7.5 % → +3.1 %).
+My own prediction (a Hylleraas bound: a bigger virtual space can only RAISE |χ₀|) was wrong in sign — f moved |χ₀| DOWN through the
+occupied states and the projector, the escape clause of that argument.  Also measured: the XC mesh is not it (b4 on Becke nR40/L29,
+Uniform, Becke nR60/L35: χ₀ −11.789 / −11.742 / −11.743, U 5.323 / 5.326 / 5.331).  Ti g (l=4) could not be tested: three separate
+failures (OpenWork §3 row "l=4 shells in a lattice basis").  LESSON: a Gaussian-vs-PW χ₀ comparison needs the basis converged in l
+as well as in exponent range, and a CP2K match on the same basis cannot show it.  Cost: an f-bearing TiO₂ Γ run is ~10–20 min (5 threads).
