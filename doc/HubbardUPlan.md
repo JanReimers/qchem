@@ -135,6 +135,12 @@ change what a Mn U MEANS, so doing §3 first risks numbers that are thrown away.
   `305450f4` is what makes that site group computable).  NOT a matched oracle (PBEsol, different PP, relaxed geometry): build one
   as A6 did — QE 7.6 (has `orbital_resolved` + orbital-resolved U/α in the HUBBARD card) with our `gth2upf` UPFs, LDA, EXPERIMENTAL
   geometry, A1-AFM: hp.x DFPT for shell-averaged Mn 3d, pw.x ±α (FD) for Mn t2g and O pz with 1×1 inversion; then ours.
+  **Set up 2026-10-21** (`024bd682`; `IntegrationTests/QE/README.md` §S2): `materials.json` `MnO2_beta_A1AFM` (Bolzan 1993 neutron cell,
+  a 4.4041 / c 2.8765 Å, u 0.3046; corner Mn +m, body-centre −m), QE step 1 at Γ and k 4×4×6.  ⛔ **Plain LDA has NO gapped reference**:
+  Γ is a 10 meV two-level artifact at E_F (the parked-SrVO₃ shape), k446 a semimetal (Mn ±3.0 μB, 4 of 1680 occupations fractional).
+  So hp.x's fixed 2-step is out.  Options, NOT decided: (a) a matched SMEARED oracle at a chosen kT (Fermi–Dirac in both codes, the
+  SrVO₃ k4/q2 pattern) on a k-mesh; (b) wait for resolved channels and open the gap with U(O pz) at U_in, as Macke does.  Our side
+  resolves the structure (`--check`: 38 e); its Mn basis is VA's MnO-conditioned block — the TiO₂ lesson (O p tail + f) applies first.
 - **S3 — fix `doc/OpenWork.md` §3 "A carried density is re-filled at kT = 0"** before any U_SC campaign: every `hubbardLoop` outer
   step is a `BuildStage` from the carried density, so on a smeared / near-degenerate magnetic state each step kicks the state
   (SrVO₃ landed on different fixed points, 2026-10-21).
