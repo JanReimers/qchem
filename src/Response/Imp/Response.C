@@ -1,5 +1,8 @@
 // File: Response/Imp/Response.C  Walk a converged Bloch wave function into the response vocabulary.
 module;
+#include <iomanip>
+#include <cmath>
+#include <complex>
 #include <memory>
 #include <sstream>
 #include <stdexcept>
@@ -161,27 +164,132 @@ template OperatorProbe MakeDipoleProbe<dcmplx>(const Reference&, const OrbitalFr
 AmplitudeProbe MakeHubbardProbe(const Reference& ref, const WaveFunction::cWaveFunction& wf,
                                 const Hamiltonian::HubbardChannels& hub)
 {
-    std::vector<std::vector<cmat_t>> amp;
+    return std::move(MakeHubbardProbe(ref, wf, hub, HubbardResolution::Manifold).probe);
+}
+
+namespace {
+//! An orthonormal basis of the range of the orthogonal projector \a P (its eigenvectors at eigenvalue 1).
+rmat_t RangeBasis(const rmat_t& P)
+{
+    const size_t m=P.rows();
+    rsmat_t S(m);
+    for (size_t a=0;a<m;a++) for (size_t b=a;b<m;b++) S(a,b)=0.5*(P(a,b)+P(b,a));
+    rvec_t lam; rmat_t v; blazem::eigen(S, lam, v);
+    std::vector<size_t> keep;
+    for (size_t i=0;i<m;i++)
+    {
+        if (std::abs(lam[i]-1.0)<1e-6) keep.push_back(i);
+        else if (std::abs(lam[i])>1e-6) throw std::logic_error("Response::MakeHubbardProbe: a slot projector that is not a projector");
+    }
+    rmat_t Y(m, keep.size());
+    for (size_t c=0;c<keep.size();c++) for (size_t a=0;a<m;a++) Y(a,c)=v(a,keep[c]);
+    return Y;
+}
+//! "z2:1.00 x2-y2:1.00": how much of each named projector function lies in the channel spanned by \a X's columns
+//! (\f$\sum_c X_{ac}^2\f$), names repeated across a multi-shell manifold averaged; weights below 0.005 left out.
+std::string Composition(const rmat_t& X, const std::vector<std::string>& names)
+{
+    if (names.size()!=X.rows()) return "";
+    std::vector<std::string> order; std::vector<double> sum, count;
+    for (size_t a=0;a<X.rows();a++)
+    {
+        double w=0.0; for (size_t c=0;c<X.columns();c++) w+=X(a,c)*X(a,c);
+        size_t k=0; while (k<order.size() && order[k]!=names[a]) k++;
+        if (k==order.size()) { order.push_back(names[a]); sum.push_back(0.0); count.push_back(0.0); }
+        sum[k]+=w; count[k]+=1.0;
+    }
+    std::ostringstream os; os<<std::fixed<<std::setprecision(2);
+    for (size_t k=0;k<order.size();k++) if (sum[k]/count[k]>=0.005) os<<(os.tellp()>0 ? " " : "")<<order[k]<<":"<<sum[k]/count[k];
+    return os.str();
+}
+} // namespace
+
+HubbardProbe MakeHubbardProbe(const Reference& ref, const WaveFunction::cWaveFunction& wf,
+                              const Hamiltonian::HubbardChannels& hub, HubbardResolution res)
+{
+    // Per block, per MANIFOLD: the amplitudes, and (for the eigen resolution) the block's weight and occupations.
+    std::vector<std::vector<cmat_t>> ell;
+    std::vector<double> weight;
+    std::vector<rvec_t> occ;
     ForEachBlock(wf, [&]<class U>(const Irrep& ir, const Orbitals::TOrbitals<U>& os)
     {
-        const Irrep& mine=ref.BlockIrrep(amp.size());
+        const Irrep& mine=ref.BlockIrrep(ell.size());
         if (ir<mine || mine<ir)   // Irrep is ordered, not equality-comparable
             throw std::logic_error("Response::MakeHubbardProbe: the wave function's blocks are not the reference's");
         const auto* blk=dynamic_cast<const BasisSet::Orbital_DFT_IBS<U,dcmplx>*>(os.GetBasisSet());
         if (!blk) throw std::logic_error("Response::MakeHubbardProbe: an orbital block that is not an Orbital_DFT_IBS");
-        std::vector<cmat_t> perChannel;
+        std::vector<cmat_t> perManifold;
         for (const auto& l : hub.ProjectorAmplitudes(*blk, Coefficients(os, blk->GetNumFunctions())))
-            perChannel.push_back(ToComplex(l));
-        amp.push_back(std::move(perChannel));
+            perManifold.push_back(ToComplex(l));
+        ell.push_back(std::move(perManifold));
+        weight.push_back(ir.sym->GetWeight());
+        rvec_t f(os.GetNumOrbitals()); size_t i=0;
+        for (const auto* o : os.template Iterate<Orbitals::TOrbital<U>>()) f[i++]=o->GetOccupation();
+        occ.push_back(std::move(f));
     });
-    std::vector<std::string> labels;
-    for (const auto& c : hub.Channels())
+    const auto ch=hub.Channels();
+    // The channels: per manifold, the columns X (m_M x k, orthonormal) of each channel's subspace of its projector functions.
+    std::vector<rmat_t> X; std::vector<size_t> man; std::vector<std::string> labels, comp;
+    for (size_t M=0;M<ch.size();M++)
     {
-        std::ostringstream os;
-        os << "site" << c.site << " l=" << c.l;
-        labels.push_back(os.str());
+        const size_t m=ell.empty() ? 0 : ell[0][M].rows();
+        std::ostringstream base; base<<"site"<<ch[M].site<<" l="<<ch[M].l;
+        const Hamiltonian::HubbardSlots hs = res==HubbardResolution::Manifold ? Hamiltonian::HubbardSlots{} : hub.SlotProjectors(M);
+        if (hs.slots.empty())                                    // one channel: the manifold itself
+        {
+            rmat_t I(m,m,0.0); for (size_t a=0;a<m;a++) I(a,a)=1.0;
+            X.push_back(I); man.push_back(M); labels.push_back(base.str()); comp.push_back("");
+            continue;
+        }
+        rmat_t n(m,m,0.0);                                       // the spin-summed, k-summed occupation matrix (eigen only)
+        if (res==HubbardResolution::Eigen)
+        {
+            cmat_t nc(m,m,dcmplx(0.0));
+            for (size_t b=0;b<ell.size();b++)
+                for (size_t i=0;i<occ[b].size();i++)
+                {
+                    if (occ[b][i]==0.0) continue;
+                    const double f=weight[b]*occ[b][i];
+                    for (size_t a=0;a<m;a++) for (size_t c=0;c<m;c++) nc(a,c)+=dcmplx(f)*ell[b][M](a,i)*std::conj(dcmplx(ell[b][M](c,i)));
+                }
+            for (size_t a=0;a<m;a++) for (size_t c=0;c<m;c++) n(a,c)=nc(a,c).real();
+        }
+        for (const auto& slot : hs.slots)
+        {
+            const rmat_t Y=RangeBasis(slot.P);
+            if (res==HubbardResolution::Slot)
+            {
+                X.push_back(Y); man.push_back(M); labels.push_back(base.str()+" "+slot.label); comp.push_back(Composition(Y, hs.components));
+                continue;
+            }
+            // Eigen: diagonalise n inside the slot, then group the eigenvalues in runs of the irrep's dimension (the partners of
+            // one copy are degenerate by symmetry; the copies are not).  Ascending order, so a run is a degenerate set.
+            const size_t d=Y.columns(), k=slot.irrepDim;
+            if (k==0 || d%k) throw std::logic_error("Response::MakeHubbardProbe: a slot whose dimension is not a multiple of its irrep's");
+            const rmat_t ns=blazem::trans(Y)*n*Y;
+            rsmat_t S(d); for (size_t a=0;a<d;a++) for (size_t c=a;c<d;c++) S(a,c)=0.5*(ns(a,c)+ns(c,a));
+            rvec_t lam; rmat_t Z; blazem::eigen(S, lam, Z);
+            for (size_t g=0;g<d/k;g++)
+            {
+                rmat_t Zg(d,k);
+                for (size_t c=0;c<k;c++) for (size_t a=0;a<d;a++) Zg(a,c)=Z(a,g*k+c);
+                const rmat_t Xg=Y*Zg;
+                double mean=0.0; for (size_t c=0;c<k;c++) mean+=lam[g*k+c]/double(k);
+                std::ostringstream lab; lab<<base.str()<<" "<<slot.label<<"."<<g<<" n="<<std::fixed<<std::setprecision(3)<<mean;
+                X.push_back(Xg); man.push_back(M); labels.push_back(lab.str()); comp.push_back(Composition(Xg, hs.components));
+            }
+        }
     }
-    return AmplitudeProbe(ref, std::move(amp), std::move(labels));
+    // Amplitudes per block per channel: X_c^T ell_M.
+    std::vector<std::vector<cmat_t>> amp(ell.size());
+    for (size_t b=0;b<ell.size();b++)
+        for (size_t c=0;c<X.size();c++)
+        {
+            cmat_t Xc(X[c].rows(), X[c].columns());
+            for (size_t a=0;a<X[c].rows();a++) for (size_t j=0;j<X[c].columns();j++) Xc(a,j)=X[c](a,j);
+            amp[b].push_back(cmat_t(blazem::trans(Xc)*ell[b][man[c]]));
+        }
+    return HubbardProbe{AmplitudeProbe(ref, std::move(amp), labels), std::move(man), std::move(comp)};
 }
 
 void FeedOccupiedOrbitals(Hamiltonian::ACBN0Estimator& est, const WaveFunction::cWaveFunction& wf)

@@ -59,6 +59,29 @@ template <class T> OperatorProbe MakeDipoleProbe(const Reference& ref, const Orb
 AmplitudeProbe MakeHubbardProbe(const Reference& ref, const WaveFunction::cWaveFunction& wf,
                                 const Hamiltonian::HubbardChannels& hub);
 
+//! How finely a Hubbard manifold is split into response channels (OpenWork §2 "Response: REPORT orbital-resolved
+//! channels", 2026-10-21).  Every finer channel set spans the manifold exactly (\f$\sum_c\hat P_c=\hat P_M\f$), so
+//! \f$\chi_{MM}=\sum_{cc'}\chi_{cc'}\f$ over a manifold's channels.
+enum class HubbardResolution
+{
+    Manifold,   //!< one channel per manifold: hp.x's shell-averaged U
+    Slot,       //!< one per U SLOT of the +U term (site irrep x grey parent; an irrep occurring k times is ONE k x dim channel)
+    Eigen,      //!< one per occupation EIGEN-ORBITAL inside each slot (the spin-summed n; a multi-dimensional irrep's
+                //!< partners grouped) -- QE's orbital_resolved / Macke et al. JCTC 20, 4824 (2024)
+};
+//! A Hubbard probe with its channels put back on the manifolds and described.
+struct HubbardProbe
+{
+    AmplitudeProbe           probe;
+    std::vector<size_t>      manifold;     //!< per channel: its manifold
+    std::vector<std::string> composition;  //!< per channel: \f$\langle w_a|\hat P_c|w_a\rangle\f$ per named projector function ("" when one per manifold)
+};
+//! \brief The run's Hubbard manifolds as probe channels at resolution \a res (see \c HubbardResolution); the slots are the
+//! +U term's own (\c HubbardChannels::SlotProjectors), so a resolved U names a slot \c Uirrep can carry.  \a ref must be
+//! \a wf's reference.  Eigen: the occupation matrix is \f$\sum_k w_k\sum_i f_i\,\ell_i\ell_i^\dagger\f$ over both spins.
+HubbardProbe MakeHubbardProbe(const Reference& ref, const WaveFunction::cWaveFunction& wf,
+                              const Hamiltonian::HubbardChannels& hub, HubbardResolution res);
+
 //! \brief FEED \a est the occupied orbitals of every block of \a wf (coefficients, physical occupations, BZ weight, spin) -- ACBN0's
 //! input (doc/LinearResponsePlan.md ruling D4: the orbital walk lives here, beside \c MakeReference, which walks the same blocks).
 //! Real (TRIM) and complex blocks alike.

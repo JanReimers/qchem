@@ -1286,7 +1286,8 @@ SolidCalculation::IndependentResponse(ivec3_t Nq) const
 // no D).  +U is FROZEN for the whole solve (Timrov eq 20) and U is read from the PERTURBED set's own inverse (§3d Q6,
 // Q10), over the q-mesh's supercell.
 Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>
-SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, std::vector<size_t> perturbed) const
+SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, std::vector<size_t> perturbed,
+                                        qchem::Response::HubbardResolution res) const
 {
     const auto* hub=itsImp->ham->GetHubbardChannels();
     if (!hub) throw std::logic_error("SolidCalculation::HubbardLinearResponse: this run carries no Hubbard manifold -- the "
@@ -1304,23 +1305,31 @@ SolidCalculation::HubbardLinearResponse(ivec3_t Nq, const KrylovParams& krylov, 
     const qchem::Response::Reference ref=qchem::Response::MakeReference(*wf, itsImp->lastOccupation,
         {.acrossK=itsImp->opts.globalFermi, .acrossSpin=itsImp->opts.spinsShareFermi}, noise);
     const auto frame=qchem::Response::MakeOrbitalFrame(ref, *wf);
-    const qchem::Response::AmplitudeProbe probe=qchem::Response::MakeHubbardProbe(ref, *wf, *hub);
+    const auto hp=qchem::Response::MakeHubbardProbe(ref, *wf, *hub, res);
+    const bool resolved = res!=qchem::Response::HubbardResolution::Manifold;
+    std::vector<size_t> channels;                                 // every channel of a perturbed manifold
+    for (size_t c=0;c<hp.manifold.size();c++)
+        if (std::find(perturbed.begin(), perturbed.end(), hp.manifold[c])!=perturbed.end()) channels.push_back(c);
+    if (resolved)                                                 // say what each channel IS before the long solve
+        for (size_t c=0;c<hp.manifold.size();c++)
+            std::cout << "[response] channel " << c << ": " << hp.probe.Label(c) << "  [" << hp.composition[c] << "]"
+                      << (std::find(channels.begin(), channels.end(), c)!=channels.end() ? "  perturbed" : "") << std::endl;
     const auto D0=wf->GetChargeDensity();
     const auto kernel=itsImp->ham->MakeResponseKernel(itsImp->bs.get(), D0.get());
     // Each q's table is printed as that q finishes; the supercell summary (real-space blocks, U) once all are in.
     // U is printed, never consumed here (R4 owns consumption).
-    auto r=qchem::Response::LinearResponse(ref, frame, *kernel, probe, Nq, krylov, perturbed);
-    if (!r) std::cout << "[response] FAILED: " << r.Error().detail << std::endl;
-    else
-    {
-        r->Write(std::cout);
-        const auto ch=hub->Channels();
-        for (const auto& v : InterSiteHubbardV(*r))
-            std::cout << "[V] site" << ch[v.from].site << " l=" << ch[v.from].l << " -> site" << ch[v.to].site << " l=" << ch[v.to].l
-                      << " R=(" << v.R.x << "," << v.R.y << "," << v.R.z << ")  d=" << std::fixed << std::setprecision(4) << v.distance
-                      << " bohr  V=" << v.V*27.211386245988 << " eV" << std::defaultfloat << std::endl;
-    }
-    return r;
+    using O=Outcome<qchem::Response::QMeshResponse,qchem::Response::ResponseFailure>;
+    auto solved=qchem::Response::LinearResponse(ref, frame, *kernel, hp.probe, Nq, krylov, resolved ? channels : perturbed);
+    if (!solved) { std::cout << "[response] FAILED: " << solved.Error().detail << std::endl; return solved; }
+    qchem::Response::QMeshResponse r=solved.TakeValue();
+    if (resolved) r.group=hp.manifold;
+    r.Write(std::cout);
+    const auto& lab=r.atQ[0].labels;
+    for (const auto& v : InterSiteHubbardV(r))
+        std::cout << "[V] " << lab[v.from] << " -> " << lab[v.to]
+                  << " R=(" << v.R.x << "," << v.R.y << "," << v.R.z << ")  d=" << std::fixed << std::setprecision(4) << v.distance
+                  << " bohr  V=" << v.V*27.211386245988 << " eV" << std::defaultfloat << std::endl;
+    return O::Ok(std::move(r));
 }
 
 std::vector<SolidCalculation::InterSiteV> SolidCalculation::InterSiteHubbardV(const qchem::Response::QMeshResponse& r) const
@@ -1332,6 +1341,7 @@ std::vector<SolidCalculation::InterSiteV> SolidCalculation::InterSiteHubbardV(co
     const ivec3_t Nq=r.Nq;
     const rmat_t W=r.Interaction();
     const auto ch=itsImp->ham->GetHubbardChannels()->Channels();
+    auto manifold=[&](size_t c){ return r.group.empty() ? c : r.group[c]; };   // a resolved response's channel -> its manifold
     std::vector<rvec3_t> tau;                                     // the cell's site positions (Cartesian, a.u.)
     itsImp->st->ForEachSite([&](int, const rvec3_t& x, bool){ tau.push_back(x); });
     const auto& A=itsImp->cellMatrix;                             // columns = a_1..a_3 (Matrix3D is 1-based)
@@ -1349,7 +1359,7 @@ std::vector<SolidCalculation::InterSiteV> SolidCalculation::InterSiteHubbardV(co
                 for (int n1=-1;n1<=1;n1++) for (int n2=-1;n2<=1;n2++) for (int n3=-1;n3<=1;n3++)
                 {
                     const ivec3_t R(Rs[rr].x+n1*Nq.x, Rs[rr].y+n2*Nq.y, Rs[rr].z+n3*Nq.z);
-                    const rvec3_t d=tau[ch[J[b]].site]+cart(R.x,R.y,R.z)-tau[ch[J[a]].site];
+                    const rvec3_t d=tau[ch[manifold(J[b])].site]+cart(R.x,R.y,R.z)-tau[ch[manifold(J[a])].site];
                     const double dist=std::sqrt(d.x*d.x+d.y*d.y+d.z*d.z);
                     if (dist<best-1e-9) {best=dist; bestR=R;}
                 }

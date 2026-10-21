@@ -272,6 +272,7 @@ public:
     virtual std::vector<mat_t<double>> ProjectorAmplitudes(const BasisSet::Orbital_DFT_IBS<double,dcmplx>&, const mat_t<double>&) const override;
     virtual std::vector<mat_t<dcmplx>> ProjectorAmplitudes(const BasisSet::Orbital_DFT_IBS<dcmplx,dcmplx>&, const mat_t<dcmplx>&) const override;
     virtual std::vector<HubbardChannel> Channels() const override;
+    virtual HubbardSlots SlotProjectors(size_t M) const override;
     //!@}
     //! \name HubbardUTarget
     //!@{
@@ -362,6 +363,7 @@ private:
         std::vector<ManifoldSymmetry::Labelling> lab;   //!< per manifold: the last labelling's diagnostics
     };
     mutable std::vector<std::shared_ptr<const ManifoldSymmetry>> itsSym;   //!< per manifold, built in PrepareSlots (null = C_1 or the population form)
+    mutable std::vector<std::vector<std::string>> itsComponents;          //!< per manifold: its functions' names (BuildSymmetry)
     mutable std::map<Spin,Channel> itsChannels;   //!< one per spin irrep of the subgroup
     mutable size_t itsOccVersion = size_t(-1);
     mutable double itsEU = 0.0;

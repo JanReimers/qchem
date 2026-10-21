@@ -55,6 +55,10 @@ cd build/Release && ninja rundeck                                  # the one CLI
     {"hubbardLoop": {"maxOuter":8, "tolU_eV":1e-3}},                     // ACBN0 outer loop
     {"independentResponse": {"nq":2}},                                   // chi0 on an nq^3 q-mesh (nq must divide every kmesh division)
     {"hubbardLinearResponse": {"nq":2, "perturb":[0,1], "tol":1e-8, "maxIter":200, "restart":40}},   // the self-consistent chi on an nq^3 q-mesh (default 1 = q=0 of this cell; needs forceComplex); U over the q-mesh's supercell
+    {"hubbardLinearResponse": {"perturb":[0], "resolve":"eigen"}},       // ORBITAL-RESOLVED: "manifold" (default, hp.x) | "slot" (one channel per +U slot = site irrep) |
+                                                                         //   "eigen" (occupation eigen-orbitals inside each slot; QE orbital_resolved / Macke 2024).  perturb still names
+                                                                         //   MANIFOLDS (all their channels are perturbed); prints a [response] channel table with each channel's composition
+                                                                         //   on the projector functions, and the U lines full / 1x1 / orbital-diagonal
     {"hubbardFiniteDifference": {"perturb":[0], "alpha_eV":0.027}}       // the FD cross-check of the above
   ]
 }

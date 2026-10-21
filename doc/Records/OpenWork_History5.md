@@ -234,3 +234,21 @@ rule drops to DIIS at the first projection step, loudly.  Gates: `GPW_NaF.Γ_Imp
 the DIIS-first Ladder), exact resume dE −4e-10 Ha, first iterates within the 1e-7 / 1e-6 pins;
 `UTCalculation SolidState.LadderRestart_Smeared_RetreatsToDIIS` (Si k222, kT 0.02: enters GDM, retreats, lands on
 the cold smeared Ladder energy to 1e-6).  `rundeck`'s restart path goes through the same `Restart`.
+
+## ✅ Response: REPORT orbital-resolved channels + inter-site V_IJ (closed 2026-10-21)
+V_IJ had already landed (`a18ef3dd`: `QMeshResponse::Interaction`, `SolidCalculation::InterSiteHubbardV`, the `[V]` lines); the
+row was stale on that half.  The resolved channels: the response channels can now be the +U term's own U SLOTS (site irrep x
+grey parent, `HubbardChannels::SlotProjectors` -- so a resolved U names a slot `Uirrep` can carry) or the occupation
+EIGEN-ORBITALS inside each slot (spin- and k-summed n, a multi-dimensional irrep's partners grouped: QE orbital_resolved /
+Macke JCTC 20, 4824 (2024)).  A channel is amplitudes Xᵀℓ on an orthonormal basis X of its subspace, so nothing below the
+probe changed.  Deck: `hubbardLinearResponse` `"resolve": "manifold"|"slot"|"eigen"`; `perturb` still names manifolds (all
+their channels perturbed).  Printed: a `[response] channel` table (label, n, composition on the named projector functions);
+U full (hp.x) / 1×1 (1/χ₀_cc − 1/χ_cc: one orbital alone in the q-mesh supercell, what a ±α FD on one orbital measures) /
+orbital-diagonal (χ₀, χ off-diagonals between one manifold's channels zeroed, inter-site kept -- Macke's pointwise
+inversion); the record carries `U1x1_eV`, `UorbitalDiagonal_eV`, `manifold`, V with labels.  Gate (UTResponse
+`ResponsePolarizability.GPW_Si_dManifold_SlotChannelsSpanTheManifold`, Si k211 + one d shell): Td d = E {z2, x2-y2} + T2
+{xy, yz, xz}; Σ_cc' χ_cc' over the slots = the manifold's χ (χ₀ and χ); eigen = slot when each irrep occurs once; 1×1 =
+orbital-diagonal for one site.  Measured there: U(E) 61 eV at n = 0.003 vs U(T2) 7.4 and the shell-averaged 7.1 eV -- a
+near-empty channel's resolved U is not a physical number.  TiO₂ Γ ortho-atomic smoke (scratch, `resolve: eigen`, Ti0 3d):
+D₂h d = 2A_g + B1g + B2g + B3g resolves into 5 channels (the two A_g mix xy/z² on the global axes; n 0.25 / 0.63), O p into
+z vs (x,y); full U 3.0–7.0 eV, 1×1 −0.6–2.2 eV (a 6-atom Γ cell: no isolation; the oracle needs a supercell/q-mesh).

@@ -101,6 +101,8 @@ const auto kSeed   = NAMES(SeedStrategy, {"Default",SeedStrategy::Default}, {"Co
                                          {"SAD",SeedStrategy::SAD}, {"IonicSAD",SeedStrategy::IonicSAD});
 const auto kOrtho  = NAMES(Ortho, {"Cholesky",Cholesky}, {"Eigen",Eigen}, {"SVD",SVD}, {"Auto",Auto}, {"CholeskyPivoted",CholeskyPivoted});
 const auto kCell   = NAMES(UnitCellKind, {"Uniform",UnitCellKind::Uniform}, {"Becke",UnitCellKind::Becke}, {"Auto",UnitCellKind::Auto});
+const auto kResolution = NAMES(Response::HubbardResolution, {"manifold",Response::HubbardResolution::Manifold},
+                               {"slot",Response::HubbardResolution::Slot}, {"eigen",Response::HubbardResolution::Eigen});
 const auto kLoopEstimator = NAMES(SolidCalculation::HubbardLoop::Estimator, {"ACBN0",SolidCalculation::HubbardLoop::Estimator::ACBN0},
                                   {"linearResponse",SolidCalculation::HubbardLoop::Estimator::LinearResponse});
 const auto kRadial = NAMES(RadialKind, {"MHL",RadialKind::MHL}, {"Log",RadialKind::Log}, {"Linear",RadialKind::Linear});
@@ -344,7 +346,8 @@ json PostJson(const PostAction& a)
         { p["nq"]=QMeshJson(a.nq); p["perturb"]=a.perturb; p["tol"]=a.tol; p["maxIter"]=a.maxIter; p["restart"]=a.restart; }
         break;
     case PostAction::Kind::IndependentResponse:     p={{"nq",QMeshJson(a.nq)}}; break;
-    case PostAction::Kind::HubbardLinearResponse:   p={{"nq",QMeshJson(a.nq)},{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart}}; break;
+    case PostAction::Kind::HubbardLinearResponse:   p={{"nq",QMeshJson(a.nq)},{"perturb",a.perturb},{"tol",a.tol},{"maxIter",a.maxIter},{"restart",a.restart},
+                                                       {"resolve",NameOf(a.resolve,kResolution)}}; break;
     case PostAction::Kind::HubbardFiniteDifference: p={{"perturb",a.perturb},{"alpha_eV",ToEV(a.alpha)}}; break;
     }
     return json::object({{PostName(a.kind),p}});
@@ -367,7 +370,8 @@ PostAction PostFromJson(const json& j, const std::string& path)
     }
     else if (name=="independentResponse"){ a.kind=PostAction::Kind::IndependentResponse; GetQMesh(f,a.nq,path+"."+name); }
     else if (name=="hubbardLinearResponse")
-    { a.kind=PostAction::Kind::HubbardLinearResponse; GetQMesh(f,a.nq,path+"."+name); f.Get("perturb",a.perturb); f.Get("tol",a.tol); f.Get("maxIter",a.maxIter); f.Get("restart",a.restart); }
+    { a.kind=PostAction::Kind::HubbardLinearResponse; GetQMesh(f,a.nq,path+"."+name); f.Get("perturb",a.perturb); f.Get("tol",a.tol); f.Get("maxIter",a.maxIter); f.Get("restart",a.restart);
+      f.GetEnum("resolve",a.resolve,kResolution); }
     else if (name=="hubbardFiniteDifference")
     { a.kind=PostAction::Kind::HubbardFiniteDifference; f.Get("perturb",a.perturb); double eV=ToEV(a.alpha); f.Get("alpha_eV",eV); a.alpha=eV/kHaToEV; }
     else throw std::runtime_error("deck: unknown postSCF action '"+name+"' at "+path+" (legal: estimateHubbardU, hubbardLoop, independentResponse, hubbardLinearResponse, hubbardFiniteDifference)");
@@ -793,7 +797,7 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
         case K::HubbardLinearResponse:
         {
             KrylovParams kp{.tol=a.tol}; kp.maxIter=a.maxIter; kp.restart=a.restart;
-            auto R=calc->HubbardLinearResponse(a.nq, kp, a.perturb);
+            auto R=calc->HubbardLinearResponse(a.nq, kp, a.perturb, a.resolve);
             pr.ok=bool(R);
             if (R)
             {
@@ -817,9 +821,21 @@ RunOutcome Run(RunSpec spec, Provenance prov, const std::filesystem::path& outDi
                 rj["chiR"] =mat(R->ChiRealSpace (),[](double x){return x;});
                 const rvec_t U=R->U(); std::vector<double> UeV; for (size_t c=0;c<U.size();++c) UeV.push_back(ToEV(U[c]));
                 rj["U_eV"]=UeV;
+                if (U.size()>1)                                   // the orbital-resolved inversions (Macke 2024) beside hp.x's
+                {
+                    const rvec_t us=R->UScalar(); std::vector<double> u1; for (size_t c=0;c<us.size();++c) u1.push_back(ToEV(us[c]));
+                    rj["U1x1_eV"]=u1;
+                    if (!R->group.empty())
+                    {
+                        std::vector<size_t> g; for (size_t j : s0.perturbed) g.push_back(R->group[j]);
+                        const rvec_t ug=R->U(g); std::vector<double> ud; for (size_t c=0;c<ug.size();++c) ud.push_back(ToEV(ug[c]));
+                        rj["UorbitalDiagonal_eV"]=ud; rj["manifold"]=R->group;
+                    }
+                }
                 json V=json::array();
                 for (const auto& v : calc->InterSiteHubbardV(*R))
-                    V.push_back({{"from",v.from},{"to",v.to},{"R",{v.R.x,v.R.y,v.R.z}},{"d_bohr",v.distance},{"V_eV",ToEV(v.V)}});
+                    V.push_back({{"from",v.from},{"to",v.to},{"fromLabel",s0.labels[v.from]},{"toLabel",s0.labels[v.to]},
+                                 {"R",{v.R.x,v.R.y,v.R.z}},{"d_bohr",v.distance},{"V_eV",ToEV(v.V)}});
                 rj["V"]=V;
                 std::ostringstream os; os<<"self-consistent chi over "<<s0.labels.size()<<" channels at "<<R->atQ.size()<<" q; U(eV)";
                 for (double u : UeV) os<<" "<<u;

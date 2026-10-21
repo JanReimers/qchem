@@ -610,8 +610,12 @@ public:
     //! and \f$U=(\chi_0^{-1}-\chi^{-1})_{II}\f$ over the q-mesh's SUPERCELL (hp.x's definition) -- the U of an
     //! ISOLATED perturbation in that supercell, which converges with \a Nq.  \a Nq = 1 is the call above.
     //! FAILS as the q = 0 call does, and on a q-mesh that does not divide the k-mesh.
+    //! \a res: how finely each manifold is split into channels (OpenWork §2 "Response: REPORT orbital-resolved channels"):
+    //! \a perturbed still names MANIFOLDS, and every channel of a named manifold is perturbed; the result's \c group maps each
+    //! channel back to its manifold, and the U lines add the 1x1 and orbital-diagonal inversions (Macke 2024) to hp.x's full one.
     Outcome<Response::QMeshResponse,Response::ResponseFailure> HubbardLinearResponse(
-        ivec3_t Nq, const KrylovParams& krylov={.tol=1e-8}, std::vector<size_t> perturbed={}) const;
+        ivec3_t Nq, const KrylovParams& krylov={.tol=1e-8}, std::vector<size_t> perturbed={},
+        Response::HubbardResolution res=Response::HubbardResolution::Manifold) const;
     //! \brief The INTER-SITE \f$V_{IJ}\f$ of a q-mesh response (doc/LinearResponsePlan.md §5 R4 row): every home-cell row of
     //! \c QMeshResponse::Interaction off its diagonal, with the PAIR's geometry -- what a reader of a V needs is "between which two
     //! atoms, how far apart".  Sorted by distance.
@@ -621,7 +625,7 @@ public:
     //! and the fourth is alone (-0.016 eV), both at d = 4.44 bohr.  Read V on a mesh whose supercell separates the shell you care about.
     struct InterSiteV
     {
-        size_t  from=0, to=0;   //!< manifold indices (from = a home-cell site)
+        size_t  from=0, to=0;   //!< channel indices of the response's labels (= manifold indices when one channel per manifold; from = home cell)
         ivec3_t R;              //!< the image of \c to, in primitive lattice vectors
         double  distance=0;     //!< bohr
         double  V=0;            //!< Hartree
