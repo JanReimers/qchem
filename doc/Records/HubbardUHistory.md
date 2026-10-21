@@ -1752,3 +1752,32 @@ The occupation lands on QE and the χ₀ excess drops 31 % → 7 %: an under-ort
 corner case.  The larger lesson is the energy: ONE O p shell is worth 0.215 Ha, and TM sits 288 mHa above the plane-wave answer (74 mHa
 with the tail).  CP2K uses the same basis, so the CP2K gate validated the METHOD on an incomplete basis, never the basis.  The remaining
 +0.54 eV is not yet split between the Ti 4s spectator (vet-limited in rutile) and general basis incompleteness.
+
+**Basis convergence scan, same day (user: "converge a TiO₂ basis toward the PW energy before chasing the last +0.54 eV").**  Every
+variant = `valence_lowq_tm.bsd` + added uncontracted shells, `vet` on, judged in rutile (scratch decks/bases, not committed; runner
+`mkvariant.py` / `runvariant.sh` in the session scratchpad).  ⚠ the density cutoff is AUTO (2·α_max), so variants ran on 72, 90 and
+220 Ha grids; U is stable across all three.  QE: E = −71.42347 Ha (300 Ry; both codes Dirac + VWN5).
+
+| variant (cumulative) | E Ha | gap mHa | d occ | χ₀ / χ Ha⁻¹ | U eV | vet |
+|---|---|---|---|---|---|---|
+| TM | −71.13506 | 288 | 2.405 | −14.404 / −3.566 | 5.742 | — |
+| b1 = + O p 0.18 | −71.34993 | 73.5 | 2.230 | −11.785 / −3.458 | 5.561 | Ti s 0.05 TRIMMED |
+| + O d 1.0 (on b1) | −71.34845 | 75.0 | 2.230 | −11.764 / −3.529 | 5.398 | trims TM's OWN Ti s 0.10 |
+| + Ti p 0.3 (on b1) | −71.36460 | 58.9 | 2.233 | −11.829 / −3.520 | 5.431 | |
+| + O s 0.15 (on b1) | −71.36717 | 56.3 | 2.226 | −11.632 / −3.477 | 5.486 | pivot 4.3e-4 |
+| b2 = b1 + O s 0.15 + Ti p 0.3 | −71.37453 | 48.9 | 2.238 | −11.825 / −3.532 | 5.403 | |
+| b3 = b2 + Ti p 0.9 | −71.38258 | 40.9 | 2.234 | −11.739 / −3.539 | 5.371 | |
+| b3 + tight Ti (s 60, d 90) | −71.38294 | 40.5 | 2.235 | −11.766 / −3.543 | 5.368 | |
+| b3 + tight O (p 20, s 45) | −71.39622 | 27.3 | 2.234 | −11.781 / −3.546 | 5.365 | |
+| b4 = b3 + tight O + O d 2.0 | −71.39783 | 25.6 | 2.234 | −11.789 / −3.566 | 5.323 | pivot 4.1e-4 |
+| b4 + O p 50, s 110 | −71.39775 | 25.7 | 2.233 | −11.762 / −3.562 | 5.325 | (grid 220 Ha) |
+| b4 + Ti s 0.07 | = b4 | | | | 5.323 | Ti s 0.07 TRIMMED |
+| b4, Ti 4s DROPPED from the ortho-atomic set | = b4 | | 2.242 | −11.799 / −3.568 | 5.320 | |
+
+**Verdict: U is converged with respect to the basis, the grid and the Ti 4s spectator, at 5.32 ± 0.03 eV, against hp.x 5.026 (scalar;
+5.019 2×2) — +6 %, carried by χ₀ +7.5 % (χ −1.6 %, occupation +1.2 %).**  The O 2p spectator WAS the 31 % → 7 % step; nothing since
+moves χ₀ toward QE.  The vet is the right judge: it trimmed every diffuse Ti s a free atom would keep (0.05, 0.07; and TM's own 0.10
+once O d 1.0 joined).  The energy gap (25.6 mHa) is basis in untried directions (O f, more O d, intermediate Ti p/d), not grid.
+Not systematic with the other materials: SrVO₃'s χ₀ was SMALLER than hp.x's (−1.317 vs −1.426 eV⁻¹) — a "χ₀ excess" is not a
+common sign.  Next suspects (not chased): what each code's bare response at Γ contains (hp.x iteration-1 Sternheimer vs our
+Krylov over the basis' virtuals), and the ortho-atomic projector construction itself (QE's O^{-1/2} on its radial mesh vs ours).
