@@ -1804,3 +1804,22 @@ occupied states and the projector, the escape clause of that argument.  Also mea
 Uniform, Becke nR60/L35: χ₀ −11.789 / −11.742 / −11.743, U 5.323 / 5.326 / 5.331).  Ti g (l=4) could not be tested: three separate
 failures (OpenWork §3 row "l=4 shells in a lattice basis").  LESSON: a Gaussian-vs-PW χ₀ comparison needs the basis converged in l
 as well as in exponent range, and a CP2K match on the same basis cannot show it.  Cost: an f-bearing TiO₂ Γ run is ~10–20 min (5 threads).
+
+**U(O 2p) on TiO₂ at Γ vs hp.x — PASSED, same day** (S1).  QE: `~/Code/qe-runs/TiO2/tio2_GO.*` (HUBBARD ortho-atomic, U Ti-3d AND O-2p
+1e-8, k 1³, q 1³; hp.x inverts the full 6×6 Hubbard-site matrix).  Ours: the b6 basis, all six manifolds perturbed (deck indices 0, 1, 5,
+7, 9, 11), ~15 min.  χ in Ha⁻¹ (QE eV⁻¹ × 27.2114).
+
+| | ours | QE | Δ |
+|---|---|---|---|
+| occupation Ti 3d / O 2p | 2.211 / 4.937 | 2.208 / 4.931 | +0.1 % / +0.1 % |
+| χ₀ (Ti1,Ti1) / (O3,O3) | −11.313 / −7.194 | −10.969 / −7.093 | +3.1 % / +1.4 % |
+| χ₀ (Ti1,O4) / (Ti1,O3) / (Ti1,Ti2) / (O3,O6) | 4.134 / 0.975 / 0.588 / 2.250 | 4.057 / 0.837 / 0.661 / 2.215 | |
+| χ (Ti1,Ti1) / (O3,O3) | −3.6135 / −2.3762 | −3.6249 / −2.3675 | −0.3 % / +0.4 % |
+| χ (Ti1,O4) / (Ti1,O3) / (O3,O6) / (O3,O4) | 1.1075 / 0.4464 / 0.4906 / 0.1297 | 1.1068 / 0.4324 / 0.4905 / 0.1344 | |
+| **U(O 2p)** eV | **6.735** | **6.758** | **−0.3 %** |
+| **U(Ti 3d)** eV, 6×6 | **3.051** | **2.927** | +4.2 % |
+
+The screened χ matrix matches element by element; the residual is χ₀'s Ti block (+3 %, the f-basis tail above), which the 6×6
+inversion amplifies in U(Ti) (+2 % scalar → +4 %).  **And U(Ti 3d) is NOT a property of Ti alone: adding O 2p to the Hubbard set takes
+hp.x's U(Ti) 5.019 → 2.927 eV (ours 5.125 → 3.051)** — the Ti–O off-diagonals enter the inversion.  Per-irrep O pz (Macke) is not
+reported by our response yet (`doc/LinearResponsePlan.md` START HERE: orbital-resolved channels REPORTED).

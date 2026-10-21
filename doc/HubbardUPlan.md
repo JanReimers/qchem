@@ -94,7 +94,9 @@ Every action appears here once; if it is not here it is a finding, not a task.
   method, never the basis.  **RESOLVED the same day — NO method disagreement** (H §"TiO₂ ortho-atomic at Γ", CORRECTION):
   with f on Ti and O (`b6`, 6.9 mHa above QE's E) the occupation matches to 0.1 %, χ to 0.3 %, χ₀ +3.1 %, U 5.125 vs 5.026 (+2 %),
   and U tracks the energy gap toward ≈ 5.01 eV.  The cause was the truncated O 2p spectator plus missing angular momentum (a
-  PW basis has no l limit).  Next: the k/q mesh (hp.x 4.637) on a basis with f, and S1's O 2p (per-irrep) check on the same basis.
+  PW basis has no l limit).  ✅ **O 2p at Γ PASSED** (6×6 Hubbard-site matrix, b6): U(O 2p) 6.735 vs hp.x 6.758 eV (−0.3 %), U(Ti)
+  3.051 vs 2.927 (+4 %), screened χ element by element (H, same section).  Remaining in S1: the k/q mesh (hp.x 4.637) on a basis
+  with f; per-irrep O pz needs the resolved-channel report first.
 - **A5** (optional, any time): ABINIT `lruj` (`~/Code/abinit`, `mpirun --force-mpirun`) for J — hp.x gives none.
 - **A6** is complete (table above).  β-MnO₂ (Macke's second material) is now item S2 below.
 
@@ -196,6 +198,9 @@ moves the voltage; the `orthofull` arm gives it free from the same SCF).  Collin
 ## 5. Gotchas / lessons (every trap that cost a wrong conclusion; evidence in H)
 
 **Oracle discipline**
+- **A U belongs to its MANIFOLD SET, not its atom.**  hp.x TiO₂ at Γ: U(Ti 3d) 5.019 eV with Ti alone, 2.927 eV once O 2p is a
+  Hubbard manifold too (the full Hubbard-site χ inversion couples them; ours 5.125 → 3.051).  Compute U with the SAME manifold set
+  the production run applies — a Mn-only U reused in a +U(Mn)+U(O) run is wrong by that much.  (H §"TiO₂ ortho-atomic at Γ")
 - **An hp.x number is conditioned on the state it linearises about.**  NiO's 5.267 eV is U_LR(U_in=3 eV)
   (decks inherit `U Ni-3d 3.0` from QE's benchmark); MnO decks carry none.  Read the `HUBBARD` block; quote
   U_in with the value.  (pin 24; H §1 trap 2)
