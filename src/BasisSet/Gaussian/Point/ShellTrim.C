@@ -53,7 +53,7 @@ public:
     //! \a inner and \a trim must outlive this reader (it is a construction-time adaptor).
     TrimmingReader(Reader& inner, const ShellTrim& trim) : itsInner(inner), itsTrim(trim) {}
     virtual GaussianRF*      ReadNext(const Atom&) override;
-    virtual bool             FindAtom(const Atom& a) override {return itsInner.FindAtom(a);}
+    virtual void             FindAtom(const Atom& a) override {itsInner.FindAtom(a);}
     virtual std::vector<int> GetLs   () const override {return itsLs;}
 private:
     Reader&          itsInner;

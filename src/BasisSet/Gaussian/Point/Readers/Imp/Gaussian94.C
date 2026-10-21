@@ -44,7 +44,7 @@ template <class T> T Max(const std::vector<T>& v)
 }
 
 Gaussian94Reader::Gaussian94Reader(std::string filename)
-    : itsStream(filename.c_str())
+    : itsFilename(filename), itsStream(filename.c_str())
 {
     if(!itsStream)
     {
@@ -99,7 +99,7 @@ inline void trim(std::string &s) {
 //
 //  Search for an atom
 //
-bool Gaussian94Reader::FindAtom(const Atom& theAtom)
+void Gaussian94Reader::FindAtom(const Atom& theAtom)
 {
     char atom[3];
     atom[2]=0;
@@ -125,13 +125,11 @@ bool Gaussian94Reader::FindAtom(const Atom& theAtom)
         trim(s);
     }
 
-    if (!itsStream.eof())
-    {
-        int charge;
-        itsStream >> charge; //I think this is the charge?  Anyway we don't need it.
-    }
-
-    return !itsStream.eof();
+    if (itsStream.eof())
+        throw std::runtime_error("Gaussian94Reader: element "+thePeriodicTable().GetSymbol(theAtom.itsZ)+" (Z="
+            +std::to_string(theAtom.itsZ)+") has no entry in the basis-set data file '"+itsFilename+"'.");
+    int charge;
+    itsStream >> charge; //I think this is the charge?  Anyway we don't need it.
 }
 
 

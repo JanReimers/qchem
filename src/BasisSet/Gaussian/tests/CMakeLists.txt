@@ -6,6 +6,7 @@ add_executable(UTGaussian_BS ../../Radial/tests/gtestmain.C
    M_TransitionCollocation.C   # the (k+q, k) transition collocation + adjoint (LinearResponsePlan B1, R3 step 2)
    M_LatticeScreener.C
    M_PG_MeshIntegrals.C
+   M_Gaussian94Reader.C   # a missing element THROWS naming element + file (was a garbage-byte parse, 2026-10-21)
    M_PG_Oracle.C
    M_Evaluator.C
    M_MEvaluator.C
